@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_DEBUG_MONITORS_H
 #define __ASM_DEBUG_MONITORS_H
-
-#ifdef __KERNEL__
 
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -65,12 +52,10 @@
 #define CACHE_FLUSH_IS_SAFE		1
 
 /* kprobes BRK opcodes with ESR encoding  */
-#define BRK64_ESR_MASK		0xFFFF
-#define BRK64_ESR_KPROBES	0x0004
-#define BRK64_OPCODE_KPROBES	(AARCH64_BREAK_MON | (BRK64_ESR_KPROBES << 5))
+#define BRK64_OPCODE_KPROBES	(AARCH64_BREAK_MON | (KPROBES_BRK_IMM << 5))
+#define BRK64_OPCODE_KPROBES_SS	(AARCH64_BREAK_MON | (KPROBES_BRK_SS_IMM << 5))
 /* uprobes BRK opcodes with ESR encoding  */
-#define BRK64_ESR_UPROBES	0x0005
-#define BRK64_OPCODE_UPROBES	(AARCH64_BREAK_MON | (BRK64_ESR_UPROBES << 5))
+#define BRK64_OPCODE_UPROBES	(AARCH64_BREAK_MON | (UPROBES_BRK_IMM << 5))
 
 /* AArch32 */
 #define DBG_ESR_EVT_BKPT	0x4
@@ -94,18 +79,24 @@ struct step_hook {
 	int (*fn)(struct pt_regs *regs, unsigned int esr);
 };
 
-void register_step_hook(struct step_hook *hook);
-void unregister_step_hook(struct step_hook *hook);
+void register_user_step_hook(struct step_hook *hook);
+void unregister_user_step_hook(struct step_hook *hook);
+
+void register_kernel_step_hook(struct step_hook *hook);
+void unregister_kernel_step_hook(struct step_hook *hook);
 
 struct break_hook {
 	struct list_head node;
-	u32 esr_val;
-	u32 esr_mask;
 	int (*fn)(struct pt_regs *regs, unsigned int esr);
+	u16 imm;
+	u16 mask; /* These bits are ignored when comparing with imm */
 };
 
-void register_break_hook(struct break_hook *hook);
-void unregister_break_hook(struct break_hook *hook);
+void register_user_break_hook(struct break_hook *hook);
+void unregister_user_break_hook(struct break_hook *hook);
+
+void register_kernel_break_hook(struct break_hook *hook);
+void unregister_kernel_break_hook(struct break_hook *hook);
 
 u8 debug_monitors_arch(void);
 
@@ -119,6 +110,8 @@ void disable_debug_monitors(enum dbg_active_el el);
 
 void user_rewind_single_step(struct task_struct *task);
 void user_fastforward_single_step(struct task_struct *task);
+void user_regs_reset_single_step(struct user_pt_regs *regs,
+				 struct task_struct *task);
 
 void kernel_enable_single_step(struct pt_regs *regs);
 void kernel_disable_single_step(void);
@@ -135,6 +128,7 @@ static inline int reinstall_suspended_bps(struct pt_regs *regs)
 
 int aarch32_break_handler(struct pt_regs *regs);
 
+void debug_traps_init(void);
+
 #endif	/* __ASSEMBLY */
-#endif	/* __KERNEL__ */
 #endif	/* __ASM_DEBUG_MONITORS_H */

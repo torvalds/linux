@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/imx-tpm-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX TPM PWM controller
+
+maintainers:
+  - Anson Huang <anson.huang@nxp.com>
+
+description: |
+  The TPM counter and period counter are shared between multiple
+  channels, so all channels should use same period setting.
+
+properties:
+  "#pwm-cells":
+    const: 3
+
+  compatible:
+    enum:
+      - fsl,imx7ulp-pwm
+
+  reg:
+    maxItems: 1
+
+  assigned-clocks:
+    maxItems: 1
+
+  assigned-clock-parents:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - "#pwm-cells"
+  - compatible
+  - reg
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx7ulp-clock.h>
+
+    pwm@40250000 {
+        compatible = "fsl,imx7ulp-pwm";
+        reg = <0x40250000 0x1000>;
+        assigned-clocks = <&pcc2 IMX7ULP_CLK_LPTPM4>;
+        assigned-clock-parents = <&scg1 IMX7ULP_CLK_SOSC_BUS_CLK>;
+        clocks = <&pcc2 IMX7ULP_CLK_LPTPM4>;
+        #pwm-cells = <3>;
+    };

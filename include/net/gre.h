@@ -37,8 +37,17 @@ struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		     bool *csum_err, __be16 proto, int nhs);
 
-bool is_gretap_dev(const struct net_device *dev);
-bool is_ip6gretap_dev(const struct net_device *dev);
+static inline bool netif_is_gretap(const struct net_device *dev)
+{
+	return dev->rtnl_link_ops &&
+	       !strcmp(dev->rtnl_link_ops->kind, "gretap");
+}
+
+static inline bool netif_is_ip6gretap(const struct net_device *dev)
+{
+	return dev->rtnl_link_ops &&
+	       !strcmp(dev->rtnl_link_ops->kind, "ip6gretap");
+}
 
 static inline int gre_calc_hlen(__be16 o_flags)
 {

@@ -1,0 +1,6 @@
+This is a list of things that need to be done to get this driver out of the
+staging directory.
+
+  - As suggested by Felix, rate control could be improved following this idea:
+        https://lore.kernel.org/lkml/3099559.gv3Q75KnN1@pc-42/
+

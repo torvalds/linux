@@ -13,7 +13,6 @@
 #define RadioD_ArrayLength 1
 #define PHY_REGArrayLength 1
 
-
 extern u32 Rtl8192UsbPHY_REGArray[];
 extern u32 Rtl8192UsbPHY_REG_1T2RArray[];
 extern u32 Rtl8192UsbRadioA_Array[];
@@ -23,7 +22,5 @@ extern u32 Rtl8192UsbRadioD_Array[];
 extern u32 Rtl8192UsbMACPHY_Array[];
 extern u32 Rtl8192UsbMACPHY_Array_PG[];
 extern u32 Rtl8192UsbAGCTAB_Array[];
-
-
 
 #endif

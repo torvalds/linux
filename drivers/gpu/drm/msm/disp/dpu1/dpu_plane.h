@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _DPU_PLANE_H_
@@ -28,23 +17,20 @@
 /**
  * struct dpu_plane_state: Define dpu extension of drm plane state object
  * @base:	base drm plane state object
- * @property_state: Local storage for msm_prop properties
- * @property_values:	cached plane property values
  * @aspace:	pointer to address space for input/output buffers
- * @input_fence:	dereferenced input fence pointer
  * @stage:	assigned by crtc blender
  * @multirect_index: index of the rectangle of SSPP
  * @multirect_mode: parallel or time multiplex multirect mode
  * @pending:	whether the current update is still pending
  * @scaler3_cfg: configuration data for scaler3
  * @pixel_ext: configuration data for pixel extensions
- * @scaler_check_state: indicates status of user provided pixel extension data
  * @cdp_cfg:	CDP configuration
+ * @plane_fetch_bw: calculated BW per plane
+ * @plane_clk: calculated clk per plane
  */
 struct dpu_plane_state {
 	struct drm_plane_state base;
 	struct msm_gem_address_space *aspace;
-	void *input_fence;
 	enum dpu_stage stage;
 	uint32_t multirect_index;
 	uint32_t multirect_mode;
@@ -55,6 +41,8 @@ struct dpu_plane_state {
 	struct dpu_hw_pixel_ext pixel_ext;
 
 	struct dpu_hw_pipe_cdp_cfg cdp_cfg;
+	u64 plane_fetch_bw;
+	u64 plane_clk;
 };
 
 /**
@@ -107,12 +95,6 @@ void dpu_plane_restore(struct drm_plane *plane);
 void dpu_plane_flush(struct drm_plane *plane);
 
 /**
- * dpu_plane_kickoff - final plane operations before commit kickoff
- * @plane: Pointer to drm plane structure
- */
-void dpu_plane_kickoff(struct drm_plane *plane);
-
-/**
  * dpu_plane_set_error: enable/disable error condition
  * @plane: pointer to drm_plane structure
  */
@@ -122,7 +104,7 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error);
  * dpu_plane_init - create new dpu plane for the given pipe
  * @dev:   Pointer to DRM device
  * @pipe:  dpu hardware pipe identifier
- * @primary_plane: true if this pipe is primary plane for crtc
+ * @type:  Plane type - PRIMARY/OVERLAY/CURSOR
  * @possible_crtcs: bitmask of crtc that can be attached to the given pipe
  * @master_plane_id: primary plane id of a multirect pipe. 0 value passed for
  *                   a regular plane initialization. A non-zero primary plane
@@ -130,7 +112,7 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error);
  *
  */
 struct drm_plane *dpu_plane_init(struct drm_device *dev,
-		uint32_t pipe, bool primary_plane,
+		uint32_t pipe, enum drm_plane_type type,
 		unsigned long possible_crtcs, u32 master_plane_id);
 
 /**
@@ -147,14 +129,6 @@ int dpu_plane_validate_multirect_v2(struct dpu_multirect_plane_states *plane);
 void dpu_plane_clear_multirect(const struct drm_plane_state *drm_state);
 
 /**
- * dpu_plane_wait_input_fence - wait for input fence object
- * @plane:   Pointer to DRM plane object
- * @wait_ms: Wait timeout value
- * Returns: Zero on success
- */
-int dpu_plane_wait_input_fence(struct drm_plane *plane, uint32_t wait_ms);
-
-/**
  * dpu_plane_color_fill - enables color fill on plane
  * @plane:  Pointer to DRM plane object
  * @color:  RGB fill color value, [23..16] Blue, [15..8] Green, [7..0] Red
@@ -163,13 +137,5 @@ int dpu_plane_wait_input_fence(struct drm_plane *plane, uint32_t wait_ms);
  */
 int dpu_plane_color_fill(struct drm_plane *plane,
 		uint32_t color, uint32_t alpha);
-
-/**
- * dpu_plane_set_revalidate - sets revalidate flag which forces a full
- *	validation of the plane properties in the next atomic check
- * @plane: Pointer to DRM plane object
- * @enable: Boolean to set/unset the flag
- */
-void dpu_plane_set_revalidate(struct drm_plane *plane, bool enable);
 
 #endif /* _DPU_PLANE_H_ */

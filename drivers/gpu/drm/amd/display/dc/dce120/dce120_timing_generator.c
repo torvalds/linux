@@ -734,8 +734,13 @@ void dce120_tg_set_overscan_color(struct timing_generator *tg,
 		CRTC_OVERSCAN_COLOR_RED, overscan_color->color_r_cr);
 }
 
-void dce120_tg_program_timing(struct timing_generator *tg,
+static void dce120_tg_program_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios)
 {
 	if (use_vbios)
@@ -814,13 +819,18 @@ void dce120_tg_set_colors(struct timing_generator *tg,
 
 static void dce120_timing_generator_set_static_screen_control(
 	struct timing_generator *tg,
-	uint32_t value)
+	uint32_t event_triggers,
+	uint32_t num_frames)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
+	// By register spec, it only takes 8 bit value
+	if (num_frames > 0xFF)
+		num_frames = 0xFF;
+
 	CRTC_REG_UPDATE_2(CRTC0_CRTC_STATIC_SCREEN_CONTROL,
-			CRTC_STATIC_SCREEN_EVENT_MASK, value,
-			CRTC_STATIC_SCREEN_FRAME_COUNT, 2);
+			CRTC_STATIC_SCREEN_EVENT_MASK, event_triggers,
+			CRTC_STATIC_SCREEN_FRAME_COUNT, num_frames);
 }
 
 void dce120_timing_generator_set_test_pattern(
@@ -1109,6 +1119,92 @@ static bool dce120_arm_vert_intr(
 	return true;
 }
 
+
+static bool dce120_is_tg_enabled(struct timing_generator *tg)
+{
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+	uint32_t value, field;
+
+	value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CONTROL,
+				  tg110->offsets.crtc);
+	field = get_reg_field_value(value, CRTC0_CRTC_CONTROL,
+				    CRTC_CURRENT_MASTER_EN_STATE);
+
+	return field == 1;
+}
+
+static bool dce120_configure_crc(struct timing_generator *tg,
+				 const struct crc_params *params)
+{
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+
+	/* Cannot configure crc on a CRTC that is disabled */
+	if (!dce120_is_tg_enabled(tg))
+		return false;
+
+	/* First, disable CRC before we configure it. */
+	dm_write_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC_CNTL,
+			   tg110->offsets.crtc, 0);
+
+	if (!params->enable)
+		return true;
+
+	/* Program frame boundaries */
+	/* Window A x axis start and end. */
+	CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWA_X_CONTROL,
+			  CRTC_CRC0_WINDOWA_X_START, params->windowa_x_start,
+			  CRTC_CRC0_WINDOWA_X_END, params->windowa_x_end);
+
+	/* Window A y axis start and end. */
+	CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWA_Y_CONTROL,
+			  CRTC_CRC0_WINDOWA_Y_START, params->windowa_y_start,
+			  CRTC_CRC0_WINDOWA_Y_END, params->windowa_y_end);
+
+	/* Window B x axis start and end. */
+	CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWB_X_CONTROL,
+			  CRTC_CRC0_WINDOWB_X_START, params->windowb_x_start,
+			  CRTC_CRC0_WINDOWB_X_END, params->windowb_x_end);
+
+	/* Window B y axis start and end. */
+	CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWB_Y_CONTROL,
+			  CRTC_CRC0_WINDOWB_Y_START, params->windowb_y_start,
+			  CRTC_CRC0_WINDOWB_Y_END, params->windowb_y_end);
+
+	/* Set crc mode and selection, and enable. Only using CRC0*/
+	CRTC_REG_UPDATE_3(CRTC0_CRTC_CRC_CNTL,
+			  CRTC_CRC_EN, params->continuous_mode ? 1 : 0,
+			  CRTC_CRC0_SELECT, params->selection,
+			  CRTC_CRC_EN, 1);
+
+	return true;
+}
+
+static bool dce120_get_crc(struct timing_generator *tg, uint32_t *r_cr,
+			   uint32_t *g_y, uint32_t *b_cb)
+{
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+	uint32_t value, field;
+
+	value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC_CNTL,
+				  tg110->offsets.crtc);
+	field = get_reg_field_value(value, CRTC0_CRTC_CRC_CNTL, CRTC_CRC_EN);
+
+	/* Early return if CRC is not enabled for this CRTC */
+	if (!field)
+		return false;
+
+	value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_RG,
+				  tg110->offsets.crtc);
+	*r_cr = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_R_CR);
+	*g_y = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_G_Y);
+
+	value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_B,
+				  tg110->offsets.crtc);
+	*b_cb = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_B, CRC0_B_CB);
+
+	return true;
+}
+
 static const struct timing_generator_funcs dce120_tg_funcs = {
 		.validate_timing = dce120_tg_validate_timing,
 		.program_timing = dce120_tg_program_timing,
@@ -1140,6 +1236,9 @@ static const struct timing_generator_funcs dce120_tg_funcs = {
 		.set_static_screen_control = dce120_timing_generator_set_static_screen_control,
 		.set_test_pattern = dce120_timing_generator_set_test_pattern,
 		.arm_vert_intr = dce120_arm_vert_intr,
+		.is_tg_enabled = dce120_is_tg_enabled,
+		.configure_crc = dce120_configure_crc,
+		.get_crc = dce120_get_crc,
 };
 
 

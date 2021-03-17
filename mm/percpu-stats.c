@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mm/percpu-debug.c
  *
  * Copyright (C) 2017		Facebook Inc.
- * Copyright (C) 2017		Dennis Zhou <dennisz@fb.com>
- *
- * This file is released under the GPLv2.
+ * Copyright (C) 2017		Dennis Zhou <dennis@kernel.org>
  *
  * Prints statistics about the percpu allocator and backing chunks.
  */
@@ -35,11 +34,15 @@ static int find_max_nr_alloc(void)
 {
 	struct pcpu_chunk *chunk;
 	int slot, max_nr_alloc;
+	enum pcpu_chunk_type type;
 
 	max_nr_alloc = 0;
-	for (slot = 0; slot < pcpu_nr_slots; slot++)
-		list_for_each_entry(chunk, &pcpu_slot[slot], list)
-			max_nr_alloc = max(max_nr_alloc, chunk->nr_alloc);
+	for (type = 0; type < PCPU_NR_CHUNK_TYPES; type++)
+		for (slot = 0; slot < pcpu_nr_slots; slot++)
+			list_for_each_entry(chunk, &pcpu_chunk_list(type)[slot],
+					    list)
+				max_nr_alloc = max(max_nr_alloc,
+						   chunk->nr_alloc);
 
 	return max_nr_alloc;
 }
@@ -53,6 +56,7 @@ static int find_max_nr_alloc(void)
 static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 			    int *buffer)
 {
+	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
 	int i, last_alloc, as_len, start, end;
 	int *alloc_sizes, *p;
 	/* statistics */
@@ -121,14 +125,17 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 	P("nr_alloc", chunk->nr_alloc);
 	P("max_alloc_size", chunk->max_alloc_size);
 	P("empty_pop_pages", chunk->nr_empty_pop_pages);
-	P("first_bit", chunk->first_bit);
+	P("first_bit", chunk_md->first_free);
 	P("free_bytes", chunk->free_bytes);
-	P("contig_bytes", chunk->contig_bits * PCPU_MIN_ALLOC_SIZE);
+	P("contig_bytes", chunk_md->contig_hint * PCPU_MIN_ALLOC_SIZE);
 	P("sum_frag", sum_frag);
 	P("max_frag", max_frag);
 	P("cur_min_alloc", cur_min_alloc);
 	P("cur_med_alloc", cur_med_alloc);
 	P("cur_max_alloc", cur_max_alloc);
+#ifdef CONFIG_MEMCG_KMEM
+	P("memcg_aware", pcpu_is_memcg_chunk(pcpu_chunk_type(chunk)));
+#endif
 	seq_putc(m, '\n');
 }
 
@@ -137,6 +144,7 @@ static int percpu_stats_show(struct seq_file *m, void *v)
 	struct pcpu_chunk *chunk;
 	int slot, max_nr_alloc;
 	int *buffer;
+	enum pcpu_chunk_type type;
 
 alloc_buffer:
 	spin_lock_irq(&pcpu_lock);
@@ -202,18 +210,18 @@ alloc_buffer:
 		chunk_map_stats(m, pcpu_reserved_chunk, buffer);
 	}
 
-	for (slot = 0; slot < pcpu_nr_slots; slot++) {
-		list_for_each_entry(chunk, &pcpu_slot[slot], list) {
-			if (chunk == pcpu_first_chunk) {
-				seq_puts(m, "Chunk: <- First Chunk\n");
-				chunk_map_stats(m, chunk, buffer);
-
-
-			} else {
-				seq_puts(m, "Chunk:\n");
-				chunk_map_stats(m, chunk, buffer);
+	for (type = 0; type < PCPU_NR_CHUNK_TYPES; type++) {
+		for (slot = 0; slot < pcpu_nr_slots; slot++) {
+			list_for_each_entry(chunk, &pcpu_chunk_list(type)[slot],
+					    list) {
+				if (chunk == pcpu_first_chunk) {
+					seq_puts(m, "Chunk: <- First Chunk\n");
+					chunk_map_stats(m, chunk, buffer);
+				} else {
+					seq_puts(m, "Chunk:\n");
+					chunk_map_stats(m, chunk, buffer);
+				}
 			}
-
 		}
 	}
 

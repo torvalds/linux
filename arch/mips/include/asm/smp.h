@@ -91,6 +91,22 @@ static inline void __cpu_die(unsigned int cpu)
 extern void play_dead(void);
 #endif
 
+#ifdef CONFIG_KEXEC
+static inline void kexec_nonboot_cpu(void)
+{
+	extern const struct plat_smp_ops *mp_ops;	/* private */
+
+	return mp_ops->kexec_nonboot_cpu();
+}
+
+static inline void *kexec_nonboot_cpu_func(void)
+{
+	extern const struct plat_smp_ops *mp_ops;	/* private */
+
+	return mp_ops->kexec_nonboot_cpu;
+}
+#endif
+
 /*
  * This function will set up the necessary IPIs for Linux to communicate
  * with the CPUs in mask.
@@ -109,7 +125,7 @@ static inline void arch_send_call_function_single_ipi(int cpu)
 {
 	extern const struct plat_smp_ops *mp_ops;	/* private */
 
-	mp_ops->send_ipi_mask(cpumask_of(cpu), SMP_CALL_FUNCTION);
+	mp_ops->send_ipi_single(cpu, SMP_CALL_FUNCTION);
 }
 
 static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)

@@ -63,10 +63,10 @@ static inline void v4l2_rect_map_inside(struct v4l2_rect *r,
 		r->left = boundary->left;
 	if (r->top < boundary->top)
 		r->top = boundary->top;
-	if (r->left + r->width > boundary->width)
-		r->left = boundary->width - r->width;
-	if (r->top + r->height > boundary->height)
-		r->top = boundary->height - r->height;
+	if (r->left + r->width > boundary->left + boundary->width)
+		r->left = boundary->left + boundary->width - r->width;
+	if (r->top + r->height > boundary->top + boundary->height)
+		r->top = boundary->top + boundary->height - r->height;
 }
 
 /**
@@ -80,6 +80,32 @@ static inline bool v4l2_rect_same_size(const struct v4l2_rect *r1,
 				       const struct v4l2_rect *r2)
 {
 	return r1->width == r2->width && r1->height == r2->height;
+}
+
+/**
+ * v4l2_rect_same_position() - return true if r1 has the same position as r2
+ * @r1: rectangle.
+ * @r2: rectangle.
+ *
+ * Return true if both rectangles have the same position
+ */
+static inline bool v4l2_rect_same_position(const struct v4l2_rect *r1,
+					   const struct v4l2_rect *r2)
+{
+	return r1->top == r2->top && r1->left == r2->left;
+}
+
+/**
+ * v4l2_rect_equal() - return true if r1 equals r2
+ * @r1: rectangle.
+ * @r2: rectangle.
+ *
+ * Return true if both rectangles have the same size and position.
+ */
+static inline bool v4l2_rect_equal(const struct v4l2_rect *r1,
+				   const struct v4l2_rect *r2)
+{
+	return v4l2_rect_same_size(r1, r2) && v4l2_rect_same_position(r1, r2);
 }
 
 /**
@@ -155,6 +181,26 @@ static inline bool v4l2_rect_overlap(const struct v4l2_rect *r1,
 	if (r1->top >= r2->top + r2->height ||
 	    r2->top >= r1->top + r1->height)
 		return false;
+	return true;
+}
+
+/**
+ * v4l2_rect_enclosed() - is r1 enclosed in r2?
+ * @r1: rectangle.
+ * @r2: rectangle.
+ *
+ * Returns true if @r1 is enclosed in @r2.
+ */
+static inline bool v4l2_rect_enclosed(struct v4l2_rect *r1,
+				      struct v4l2_rect *r2)
+{
+	if (r1->left < r2->left || r1->top < r2->top)
+		return false;
+	if (r1->left + r1->width > r2->left + r2->width)
+		return false;
+	if (r1->top + r1->height > r2->top + r2->height)
+		return false;
+
 	return true;
 }
 

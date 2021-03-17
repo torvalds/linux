@@ -67,13 +67,13 @@ static inline void op_x86_warn_in_use(int counter)
 	 * cannot be monitored by any other counter, contact your
 	 * hardware or BIOS vendor.
 	 */
-	pr_warning("oprofile: counter #%d on cpu #%d may already be used\n",
-		   counter, smp_processor_id());
+	pr_warn("oprofile: counter #%d on cpu #%d may already be used\n",
+		counter, smp_processor_id());
 }
 
 static inline void op_x86_warn_reserved(int counter)
 {
-	pr_warning("oprofile: counter #%d is already reserved\n", counter);
+	pr_warn("oprofile: counter #%d is already reserved\n", counter);
 }
 
 extern u64 op_x86_get_ctrl(struct op_x86_model_spec const *model,

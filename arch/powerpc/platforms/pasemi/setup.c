@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2007 PA Semi, Inc
  *
@@ -7,19 +8,6 @@
  * Maintained by: Olof Johansson <olof@lixom.net>
  *
  * Based on arch/powerpc/platforms/maple/setup.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/errno.h>
@@ -34,6 +22,7 @@
 #include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
+#include <asm/i8259.h>
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
@@ -71,6 +60,40 @@ static void __noreturn pas_restart(char *cmd)
 	while (1)
 		out_le32(reset_reg, 0x6000000);
 }
+
+#ifdef CONFIG_PPC_PASEMI_NEMO
+void pas_shutdown(void)
+{
+	/* Set the PLD bit that makes the SB600 think the power button is being pressed */
+	void __iomem *pld_map = ioremap(0xf5000000,4096);
+	while (1)
+		out_8(pld_map+7,0x01);
+}
+
+/* RTC platform device structure as is not in device tree */
+static struct resource rtc_resource[] = {{
+	.name = "rtc",
+	.start = 0x70,
+	.end = 0x71,
+	.flags = IORESOURCE_IO,
+}, {
+	.name = "rtc",
+	.start = 8,
+	.end = 8,
+	.flags = IORESOURCE_IRQ,
+}};
+
+static inline void nemo_init_rtc(void)
+{
+	platform_device_register_simple("rtc_cmos", -1, rtc_resource, 2);
+}
+
+#else
+
+static inline void nemo_init_rtc(void)
+{
+}
+#endif
 
 #ifdef CONFIG_SMP
 static arch_spinlock_t timebase_lock;
@@ -123,10 +146,6 @@ static void __init pas_setup_arch(void)
 #endif
 	/* Lookup PCI hosts */
 	pas_pci_init();
-
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
 
 	/* Remap SDC register for doing reset */
 	/* XXXOJN This should maybe come out of the device tree */
@@ -182,6 +201,42 @@ static int __init pas_setup_mce_regs(void)
 	return 0;
 }
 machine_device_initcall(pasemi, pas_setup_mce_regs);
+
+#ifdef CONFIG_PPC_PASEMI_NEMO
+static void sb600_8259_cascade(struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int cascade_irq = i8259_irq();
+
+	if (cascade_irq)
+		generic_handle_irq(cascade_irq);
+
+	chip->irq_eoi(&desc->irq_data);
+}
+
+static void nemo_init_IRQ(struct mpic *mpic)
+{
+	struct device_node *np;
+	int gpio_virq;
+	/* Connect the SB600's legacy i8259 controller */
+	np = of_find_node_by_path("/pxp@0,e0000000");
+	i8259_init(np, 0);
+	of_node_put(np);
+
+	gpio_virq = irq_create_mapping(NULL, 3);
+	irq_set_irq_type(gpio_virq, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_chained_handler(gpio_virq, sb600_8259_cascade);
+	mpic_unmask_irq(irq_get_irq_data(gpio_virq));
+
+	irq_set_default_host(mpic->irqhost);
+}
+
+#else
+
+static inline void nemo_init_IRQ(struct mpic *mpic)
+{
+}
+#endif
 
 static __init void pas_init_IRQ(void)
 {
@@ -242,6 +297,8 @@ static __init void pas_init_IRQ(void)
 		irq_set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
 		mpic_unmask_irq(irq_get_irq_data(nmi_virq));
 	}
+
+	nemo_init_IRQ(mpic);
 
 	of_node_put(mpic_node);
 	of_node_put(root);
@@ -338,55 +395,6 @@ out:
 	return !!(srr1 & 0x2);
 }
 
-#ifdef CONFIG_PCMCIA
-static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
-			 void *data)
-{
-	struct device *dev = data;
-	struct device *parent;
-	struct pcmcia_device *pdev = to_pcmcia_dev(dev);
-
-	/* We are only intereted in device addition */
-	if (action != BUS_NOTIFY_ADD_DEVICE)
-		return 0;
-
-	parent = pdev->socket->dev.parent;
-
-	/* We know electra_cf devices will always have of_node set, since
-	 * electra_cf is an of_platform driver.
-	 */
-	if (!parent->of_node)
-		return 0;
-
-	if (!of_device_is_compatible(parent->of_node, "electra-cf"))
-		return 0;
-
-	/* We use the direct ops for localbus */
-	dev->dma_ops = &dma_nommu_ops;
-
-	return 0;
-}
-
-static struct notifier_block pcmcia_notifier = {
-	.notifier_call = pcmcia_notify,
-};
-
-static inline void pasemi_pcmcia_init(void)
-{
-	extern struct bus_type pcmcia_bus_type;
-
-	bus_register_notifier(&pcmcia_bus_type, &pcmcia_notifier);
-}
-
-#else
-
-static inline void pasemi_pcmcia_init(void)
-{
-}
-
-#endif
-
-
 static const struct of_device_id pasemi_bus_ids[] = {
 	/* Unfortunately needed for legacy firmwares */
 	{ .type = "localbus", },
@@ -399,10 +407,10 @@ static const struct of_device_id pasemi_bus_ids[] = {
 
 static int __init pasemi_publish_devices(void)
 {
-	pasemi_pcmcia_init();
-
 	/* Publish OF platform devices for SDC and other non-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
+
+	nemo_init_rtc();
 
 	return 0;
 }
@@ -417,6 +425,17 @@ static int __init pas_probe(void)
 	if (!of_machine_is_compatible("PA6T-1682M") &&
 	    !of_machine_is_compatible("pasemi,pwrficient"))
 		return 0;
+
+#ifdef CONFIG_PPC_PASEMI_NEMO
+	/*
+	 * Check for the Nemo motherboard here, if we are running on one
+	 * change the machine definition to fit
+	 */
+	if (of_machine_is_compatible("pasemi,nemo")) {
+		pm_power_off		= pas_shutdown;
+		ppc_md.name		= "A-EON Amigaone X1000";
+	}
+#endif
 
 	iommu_init_early_pasemi();
 

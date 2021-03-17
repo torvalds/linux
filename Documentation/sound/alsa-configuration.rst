@@ -309,7 +309,7 @@ pcifix
 This module supports all ADB PCM channels, ac97 mixer, SPDIF, hardware
 EQ, mpu401, gameport. A3D and wavetable support are still in development.
 Development and reverse engineering work is being coordinated at
-http://savannah.nongnu.org/projects/openvortex/
+https://savannah.nongnu.org/projects/openvortex/
 SPDIF output has a copy of the AC97 codec output, unless you use the
 ``spdif`` pcm device, which allows raw data passthru.
 The hardware EQ hardware and SPDIF is only present in the Vortex2 and 
@@ -495,7 +495,8 @@ Module for C-Media CMI8338/8738/8768/8770 PCI sound cards.
 mpu_port
     port address of MIDI interface (8338 only):
     0x300,0x310,0x320,0x330 = legacy port,
-    0 = disable (default)
+    1 = integrated PCI port (default on 8738),
+    0 = disable
 fm_port
     port address of OPL-3 FM synthesizer (8x38 only):
     0x388 = legacy port,
@@ -1001,6 +1002,8 @@ position_fix
     2 = POSBUF: use position buffer,
     3 = VIACOMBO: VIA-specific workaround for capture,
     4 = COMBO: use LPIB for playback, auto for capture stream
+    5 = SKL+: apply the delay calculation available on recent Intel chips
+    6 = FIFO: correct the position with the fixed FIFO size, for recent AMD chips
 probe_mask
     Bitmask to probe codecs (default = -1, meaning all slots);
     When the bit 8 (0x100) is set, the lower 8 bits are used
@@ -1498,7 +1501,7 @@ Module for Digigram miXart8 sound cards.
 
 This module supports multiple cards.
 Note: One miXart8 board will be represented as 4 alsa cards.
-See MIXART.txt for details.
+See Documentation/sound/cards/mixart.rst for details.
 
 When the driver is compiled as a module and the hotplug firmware
 is supported, the firmware data is loaded via hotplug automatically.
@@ -1572,7 +1575,7 @@ See Documentation/sound/cards/multisound.sh for important information
 about this driver.  Note that it has been discontinued, but the 
 Voyetra Turtle Beach knowledge base entry for it is still available
 at
-http://www.turtlebeach.com
+https://www.turtlebeach.com
 
 Module snd-msnd-pinnacle
 ------------------------
@@ -2231,6 +2234,19 @@ use_vmalloc
     buffers.  If mmap is used on such architectures, turn off this
     option, so that the DMA-coherent buffers are allocated and used
     instead.
+delayed_register
+    The option is needed for devices that have multiple streams
+    defined in multiple USB interfaces.  The driver may invoke
+    registrations multiple times (once per interface) and this may
+    lead to the insufficient device enumeration.
+    This option receives an array of strings, and you can pass
+    ID:INTERFACE like ``0123abcd:4`` for performing the delayed
+    registration to the given device.  In this example, when a USB
+    device 0123:abcd is probed, the driver waits the registration
+    until the USB interface 4 gets probed.
+    The driver prints a message like "Found post-registration device
+    assignment: 1234abcd:04" for such a device, so that user can
+    notice the need.
 
 This module supports multiple devices, autoprobe and hotplugging.
 
@@ -2687,4 +2703,4 @@ Kernel Bugzilla
 ALSA Developers ML
     mailto:alsa-devel@alsa-project.org
 alsa-info.sh script
-    http://www.alsa-project.org/alsa-info.sh
+    https://www.alsa-project.org/alsa-info.sh

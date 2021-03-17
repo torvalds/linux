@@ -1,13 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function glob filters
+# requires: set_ftrace_filter function:tracer
 
 # Make sure that function glob matching filter works.
-
-if ! grep -q function available_tracers; then
-    echo "no function tracer configured"
-    exit_unsupported
-fi
 
 disable_tracing
 clear_trace
@@ -30,7 +26,7 @@ ftrace_filter_check '*schedule*' '^.*schedule.*$'
 ftrace_filter_check 'schedule*' '^schedule.*$'
 
 # filter by *mid*end
-ftrace_filter_check '*aw*lock' '.*aw.*lock$'
+ftrace_filter_check '*pin*lock' '.*pin.*lock$'
 
 # filter by start*mid*
 ftrace_filter_check 'mutex*try*' '^mutex.*try.*'

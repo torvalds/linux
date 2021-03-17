@@ -27,7 +27,7 @@
 
 #include "sha.h"
 
-static int sha1_init(struct shash_desc *desc)
+static int s390_sha1_init(struct shash_desc *desc)
 {
 	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
 
@@ -42,7 +42,7 @@ static int sha1_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int sha1_export(struct shash_desc *desc, void *out)
+static int s390_sha1_export(struct shash_desc *desc, void *out)
 {
 	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
 	struct sha1_state *octx = out;
@@ -53,7 +53,7 @@ static int sha1_export(struct shash_desc *desc, void *out)
 	return 0;
 }
 
-static int sha1_import(struct shash_desc *desc, const void *in)
+static int s390_sha1_import(struct shash_desc *desc, const void *in)
 {
 	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
 	const struct sha1_state *ictx = in;
@@ -67,11 +67,11 @@ static int sha1_import(struct shash_desc *desc, const void *in)
 
 static struct shash_alg alg = {
 	.digestsize	=	SHA1_DIGEST_SIZE,
-	.init		=	sha1_init,
+	.init		=	s390_sha1_init,
 	.update		=	s390_sha_update,
 	.final		=	s390_sha_final,
-	.export		=	sha1_export,
-	.import		=	sha1_import,
+	.export		=	s390_sha1_export,
+	.import		=	s390_sha1_import,
 	.descsize	=	sizeof(struct s390_sha_ctx),
 	.statesize	=	sizeof(struct sha1_state),
 	.base		=	{
@@ -86,7 +86,7 @@ static struct shash_alg alg = {
 static int __init sha1_s390_init(void)
 {
 	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_SHA_1))
-		return -EOPNOTSUPP;
+		return -ENODEV;
 	return crypto_register_shash(&alg);
 }
 

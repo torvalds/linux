@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * omap_hwmod macros, structures
  *
@@ -8,10 +9,6 @@
  * Created in collaboration with (alphabetical order): Benoît Cousson,
  * Kevin Hilman, Tony Lindgren, Rajendra Nayak, Vikram Pandita, Sakari
  * Poussa, Anand Sawant, Santosh Shilimkar, Richard Woodruff
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * These headers and macros are used to define OMAP on-chip module
  * data and their integration with other OMAP modules and Linux.
@@ -24,7 +21,6 @@
  * - init_conn_id_bit (CONNID_BIT_VECTOR)
  * - implement default hwmod SMS/SDRC flags?
  * - move Linux-specific data ("non-ROM data") out
- *
  */
 #ifndef __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD_H
 #define __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD_H
@@ -493,14 +489,18 @@ struct omap_hwmod_omap4_prcm {
 #define _HWMOD_STATE_IDLE			5
 #define _HWMOD_STATE_DISABLED			6
 
+#ifdef CONFIG_PM
+#define _HWMOD_STATE_DEFAULT			_HWMOD_STATE_IDLE
+#else
+#define _HWMOD_STATE_DEFAULT			_HWMOD_STATE_ENABLED
+#endif
+
 /**
  * struct omap_hwmod_class - the type of an IP block
  * @name: name of the hwmod_class
  * @sysc: device SYSCONFIG/SYSSTATUS register data
- * @rev: revision of the IP class
  * @pre_shutdown: ptr to fn to be executed immediately prior to device shutdown
  * @reset: ptr to fn to be executed in place of the standard hwmod reset fn
- * @enable_preprogram:  ptr to fn to be executed during device enable
  * @lock: ptr to fn to be executed to lock IP registers
  * @unlock: ptr to fn to be executed to unlock IP registers
  *
@@ -523,10 +523,8 @@ struct omap_hwmod_omap4_prcm {
 struct omap_hwmod_class {
 	const char				*name;
 	struct omap_hwmod_class_sysconfig	*sysc;
-	u32					rev;
 	int					(*pre_shutdown)(struct omap_hwmod *oh);
 	int					(*reset)(struct omap_hwmod *oh);
-	int					(*enable_preprogram)(struct omap_hwmod *oh);
 	void					(*lock)(struct omap_hwmod *oh);
 	void					(*unlock)(struct omap_hwmod *oh);
 };
@@ -646,9 +644,6 @@ int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
 struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh);
 void __iomem *omap_hwmod_get_mpu_rt_va(struct omap_hwmod *oh);
 
-int omap_hwmod_enable_wakeup(struct omap_hwmod *oh);
-int omap_hwmod_disable_wakeup(struct omap_hwmod *oh);
-
 int omap_hwmod_for_each_by_class(const char *classname,
 				 int (*fn)(struct omap_hwmod *oh,
 					   void *user),
@@ -665,7 +660,6 @@ const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh);
  *
  */
 
-extern int omap_hwmod_aess_preprogram(struct omap_hwmod *oh);
 void omap_hwmod_rtc_unlock(struct omap_hwmod *oh);
 void omap_hwmod_rtc_lock(struct omap_hwmod *oh);
 

@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
  * Author: Liviu Dudau <Liviu.Dudau@arm.com>
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
  *
  * ARM Mali DP500/DP550/DP650 KMS/DRM driver
  */
@@ -19,17 +15,19 @@
 #include <linux/pm_runtime.h>
 #include <linux/debugfs.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "malidp_drv.h"
 #include "malidp_mw.h"
@@ -37,6 +35,8 @@
 #include "malidp_hw.h"
 
 #define MALIDP_CONF_VALID_TIMEOUT	250
+#define AFBC_HEADER_SIZE		16
+#define AFBC_SUPERBLK_ALIGNMENT		128
 
 static void malidp_write_gamma_table(struct malidp_hw_device *hwdev,
 				     u32 data[MALIDP_COEFFTAB_NUM_COEFFS])
@@ -190,6 +190,7 @@ static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 {
 	struct drm_device *drm = state->dev;
 	struct malidp_drm *malidp = drm->dev_private;
+	int loop = 5;
 
 	malidp->event = malidp->crtc.state->event;
 	malidp->crtc.state->event = NULL;
@@ -204,8 +205,18 @@ static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 			drm_crtc_vblank_get(&malidp->crtc);
 
 		/* only set config_valid if the CRTC is enabled */
-		if (malidp_set_and_wait_config_valid(drm) < 0)
+		if (malidp_set_and_wait_config_valid(drm) < 0) {
+			/*
+			 * make a loop around the second CVAL setting and
+			 * try 5 times before giving up.
+			 */
+			while (loop--) {
+				if (!malidp_set_and_wait_config_valid(drm))
+					break;
+			}
 			DRM_DEBUG_DRIVER("timed out waiting for updated configuration\n");
+		}
+
 	} else if (malidp->event) {
 		/* CRTC inactive means vblank IRQ is disabled, send event directly */
 		spin_lock_irq(&drm->event_lock);
@@ -258,9 +269,119 @@ static const struct drm_mode_config_helper_funcs malidp_mode_config_helpers = {
 	.atomic_commit_tail = malidp_atomic_commit_tail,
 };
 
+static bool
+malidp_verify_afbc_framebuffer_caps(struct drm_device *dev,
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	if (malidp_format_mod_supported(dev, mode_cmd->pixel_format,
+					mode_cmd->modifier[0]) == false)
+		return false;
+
+	if (mode_cmd->offsets[0] != 0) {
+		DRM_DEBUG_KMS("AFBC buffers' plane offset should be 0\n");
+		return false;
+	}
+
+	switch (mode_cmd->modifier[0] & AFBC_SIZE_MASK) {
+	case AFBC_SIZE_16X16:
+		if ((mode_cmd->width % 16) || (mode_cmd->height % 16)) {
+			DRM_DEBUG_KMS("AFBC buffers must be aligned to 16 pixels\n");
+			return false;
+		}
+		break;
+	default:
+		DRM_DEBUG_KMS("Unsupported AFBC block size\n");
+		return false;
+	}
+
+	return true;
+}
+
+static bool
+malidp_verify_afbc_framebuffer_size(struct drm_device *dev,
+				    struct drm_file *file,
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	int n_superblocks = 0;
+	const struct drm_format_info *info;
+	struct drm_gem_object *objs = NULL;
+	u32 afbc_superblock_size = 0, afbc_superblock_height = 0;
+	u32 afbc_superblock_width = 0, afbc_size = 0;
+	int bpp = 0;
+
+	switch (mode_cmd->modifier[0] & AFBC_SIZE_MASK) {
+	case AFBC_SIZE_16X16:
+		afbc_superblock_height = 16;
+		afbc_superblock_width = 16;
+		break;
+	default:
+		DRM_DEBUG_KMS("AFBC superblock size is not supported\n");
+		return false;
+	}
+
+	info = drm_get_format_info(dev, mode_cmd);
+
+	n_superblocks = (mode_cmd->width / afbc_superblock_width) *
+		(mode_cmd->height / afbc_superblock_height);
+
+	bpp = malidp_format_get_bpp(info->format);
+
+	afbc_superblock_size = (bpp * afbc_superblock_width * afbc_superblock_height)
+				/ BITS_PER_BYTE;
+
+	afbc_size = ALIGN(n_superblocks * AFBC_HEADER_SIZE, AFBC_SUPERBLK_ALIGNMENT);
+	afbc_size += n_superblocks * ALIGN(afbc_superblock_size, AFBC_SUPERBLK_ALIGNMENT);
+
+	if ((mode_cmd->width * bpp) != (mode_cmd->pitches[0] * BITS_PER_BYTE)) {
+		DRM_DEBUG_KMS("Invalid value of (pitch * BITS_PER_BYTE) (=%u) "
+			      "should be same as width (=%u) * bpp (=%u)\n",
+			      (mode_cmd->pitches[0] * BITS_PER_BYTE),
+			      mode_cmd->width, bpp);
+		return false;
+	}
+
+	objs = drm_gem_object_lookup(file, mode_cmd->handles[0]);
+	if (!objs) {
+		DRM_DEBUG_KMS("Failed to lookup GEM object\n");
+		return false;
+	}
+
+	if (objs->size < afbc_size) {
+		DRM_DEBUG_KMS("buffer size (%zu) too small for AFBC buffer size = %u\n",
+			      objs->size, afbc_size);
+		drm_gem_object_put(objs);
+		return false;
+	}
+
+	drm_gem_object_put(objs);
+
+	return true;
+}
+
+static bool
+malidp_verify_afbc_framebuffer(struct drm_device *dev, struct drm_file *file,
+			       const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	if (malidp_verify_afbc_framebuffer_caps(dev, mode_cmd))
+		return malidp_verify_afbc_framebuffer_size(dev, file, mode_cmd);
+
+	return false;
+}
+
+static struct drm_framebuffer *
+malidp_fb_create(struct drm_device *dev, struct drm_file *file,
+		 const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	if (mode_cmd->modifier[0]) {
+		if (!malidp_verify_afbc_framebuffer(dev, file, mode_cmd))
+			return ERR_PTR(-EINVAL);
+	}
+
+	return drm_gem_fb_create(dev, file, mode_cmd);
+}
+
 static const struct drm_mode_config_funcs malidp_mode_config_funcs = {
-	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
+	.fb_create = malidp_fb_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -279,6 +400,7 @@ static int malidp_init(struct drm_device *drm)
 	drm->mode_config.max_height = hwdev->max_line_size;
 	drm->mode_config.funcs = &malidp_mode_config_funcs;
 	drm->mode_config.helper_private = &malidp_mode_config_helpers;
+	drm->mode_config.allow_fb_modifiers = true;
 
 	ret = malidp_crtc_init(drm);
 	if (ret)
@@ -369,9 +491,9 @@ void malidp_error(struct malidp_drm *malidp,
 	spin_unlock_irqrestore(&malidp->errors_lock, irqflags);
 }
 
-void malidp_error_stats_dump(const char *prefix,
-			     struct malidp_error_stats error_stats,
-			     struct seq_file *m)
+static void malidp_error_stats_dump(const char *prefix,
+				    struct malidp_error_stats error_stats,
+				    struct seq_file *m)
 {
 	seq_printf(m, "[%s] num_errors : %d\n", prefix,
 		   error_stats.num_errors);
@@ -426,43 +548,22 @@ static const struct file_operations malidp_debugfs_fops = {
 	.release = single_release,
 };
 
-static int malidp_debugfs_init(struct drm_minor *minor)
+static void malidp_debugfs_init(struct drm_minor *minor)
 {
 	struct malidp_drm *malidp = minor->dev->dev_private;
-	struct dentry *dentry = NULL;
 
 	malidp_error_stats_init(&malidp->de_errors);
 	malidp_error_stats_init(&malidp->se_errors);
 	spin_lock_init(&malidp->errors_lock);
-	dentry = debugfs_create_file("debug",
-				     S_IRUGO | S_IWUSR,
-				     minor->debugfs_root, minor->dev,
-				     &malidp_debugfs_fops);
-	if (!dentry) {
-		DRM_ERROR("Cannot create debug file\n");
-		return -ENOMEM;
-	}
-	return 0;
+	debugfs_create_file("debug", S_IRUGO | S_IWUSR, minor->debugfs_root,
+			    minor->dev, &malidp_debugfs_fops);
 }
 
 #endif //CONFIG_DEBUG_FS
 
 static struct drm_driver malidp_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
-			   DRIVER_PRIME,
-	.lastclose = drm_fb_helper_lastclose,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.dumb_create = malidp_dumb_create,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export = drm_gem_prime_export,
-	.gem_prime_import = drm_gem_prime_import,
-	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap = drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
+	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(malidp_dumb_create),
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = malidp_debugfs_init,
 #endif
@@ -554,22 +655,13 @@ static ssize_t core_id_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%08x\n", malidp->core_id);
 }
 
-DEVICE_ATTR_RO(core_id);
+static DEVICE_ATTR_RO(core_id);
 
-static int malidp_init_sysfs(struct device *dev)
-{
-	int ret = device_create_file(dev, &dev_attr_core_id);
-
-	if (ret)
-		DRM_ERROR("failed to create device file for core_id\n");
-
-	return ret;
-}
-
-static void malidp_fini_sysfs(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_core_id);
-}
+static struct attribute *mali_dp_attrs[] = {
+	&dev_attr_core_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(mali_dp);
 
 #define MAX_OUTPUT_CHANNELS	3
 
@@ -706,6 +798,12 @@ static int malidp_bind(struct device *dev)
 
 	malidp->core_id = version;
 
+	ret = of_property_read_u32(dev->of_node,
+					"arm,malidp-arqos-value",
+					&hwdev->arqos_value);
+	if (ret)
+		hwdev->arqos_value = 0x0;
+
 	/* set the number of lines used for output of RGB data */
 	ret = of_property_read_u8_array(dev->of_node,
 					"arm,malidp-output-port-lines",
@@ -724,10 +822,6 @@ static int malidp_bind(struct device *dev)
 	ret = malidp_init(drm);
 	if (ret < 0)
 		goto query_hw_fail;
-
-	ret = malidp_init_sysfs(dev);
-	if (ret)
-		goto init_fail;
 
 	/* Set the CRTC's port so that the encoder component can find it */
 	malidp->crtc.port = of_graph_get_port_by_id(dev->of_node, 0);
@@ -754,7 +848,6 @@ static int malidp_bind(struct device *dev)
 	drm->irq_enabled = true;
 
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
-	drm_crtc_vblank_reset(&malidp->crtc);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialise vblank\n");
 		goto vblank_fail;
@@ -763,22 +856,18 @@ static int malidp_bind(struct device *dev)
 
 	drm_mode_config_reset(drm);
 
-	ret = drm_fb_cma_fbdev_init(drm, 32, 0);
-	if (ret)
-		goto fbdev_fail;
-
 	drm_kms_helper_poll_init(drm);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto register_fail;
 
+	drm_fbdev_generic_setup(drm, 32);
+
 	return 0;
 
 register_fail:
-	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
-fbdev_fail:
 	pm_runtime_get_sync(dev);
 vblank_fail:
 	malidp_se_irq_fini(hwdev);
@@ -790,8 +879,6 @@ irq_init_fail:
 bind_fail:
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-init_fail:
-	malidp_fini_sysfs(dev);
 	malidp_fini(drm);
 query_hw_fail:
 	pm_runtime_put(dev);
@@ -815,18 +902,15 @@ static void malidp_unbind(struct device *dev)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	drm_dev_unregister(drm);
-	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
-	drm_crtc_vblank_off(&malidp->crtc);
+	drm_atomic_helper_shutdown(drm);
 	malidp_se_irq_fini(hwdev);
 	malidp_de_irq_fini(hwdev);
 	drm->irq_enabled = false;
-	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-	malidp_fini_sysfs(dev);
 	malidp_fini(drm);
 	pm_runtime_put(dev);
 	if (pm_runtime_enabled(dev))
@@ -922,6 +1006,7 @@ static struct platform_driver malidp_platform_driver = {
 		.name = "mali-dp",
 		.pm = &malidp_pm_ops,
 		.of_match_table	= malidp_drm_of_match,
+		.dev_groups = mali_dp_groups,
 	},
 };
 

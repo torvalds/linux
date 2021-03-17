@@ -22,11 +22,11 @@
  * SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include "nouveau_drv.h"
 #include "hw.h"
 
 #include <subdev/bios/pll.h>
+#include <nvif/timer.h>
 
 #define CHIPSET_NFORCE 0x01a0
 #define CHIPSET_NFORCE2 0x01f0

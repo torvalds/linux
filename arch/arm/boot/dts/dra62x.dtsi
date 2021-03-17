@@ -12,12 +12,12 @@
 
 /* Compared to dm814x, dra62x has different offsets for Ethernet */
 &mac {
-	reg = <0x4a100000 0x800
-		0x4a101200 0x100>;
+	reg = <0 0x800>,
+	      <0x1200 0x100>;
 };
 
 &davinci_mdio {
-	reg = <0x4a101000 0x100>;
+	reg = <0x1000 0x100>;
 };
 
 #include "dra62x-clocks.dtsi"

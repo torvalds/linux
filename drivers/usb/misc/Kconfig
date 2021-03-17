@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # USB Miscellaneous driver configuration
 #
@@ -5,7 +6,7 @@ comment "USB Miscellaneous drivers"
 
 config USB_EMI62
 	tristate "EMI 6|2m USB Audio interface support"
-	---help---
+	help
 	  This driver loads firmware to Emagic EMI 6|2m low latency USB
 	  Audio and Midi interface.
 
@@ -15,11 +16,11 @@ config USB_EMI62
 	  This code is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called audio. If you want to compile it as a
-	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
+	  module, say M here and read <file:Documentation/kbuild/modules.rst>.
 
 config USB_EMI26
 	tristate "EMI 2|6 USB Audio interface support"
-	---help---
+	help
 	  This driver loads firmware to Emagic EMI 2|6 low latency USB
 	  Audio interface.
 
@@ -46,16 +47,6 @@ config USB_SEVSEG
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbsevseg.
 
-config USB_RIO500
-	tristate "USB Diamond Rio500 support"
-	help
-	  Say Y here if you want to connect a USB Rio500 mp3 player to your
-	  computer's USB port. Please read <file:Documentation/usb/rio.txt>
-	  for more information.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rio500.
-
 config USB_LEGOTOWER
 	tristate "USB Lego Infrared Tower support"
 	help
@@ -66,7 +57,7 @@ config USB_LEGOTOWER
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called legousbtower. If you want to compile it as
 	  a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.
+	  <file:Documentation/kbuild/modules.rst>.
 
 config USB_LCD
 	tristate "USB LCD driver support"
@@ -87,7 +78,7 @@ config USB_CYPRESS_CY7C63
 	  driver supports the pre-programmed devices (incl. firmware)
 	  by AK Modul-Bus Computer GmbH.
 
-	  Please see: http://www.ak-modul-bus.de/stat/mikrocontroller.html
+	  Please see: https://www.ak-modul-bus.de/stat/mikrocontroller.html
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cypress_cy7c63.
@@ -115,7 +106,7 @@ config USB_IDMOUSE
 	  This driver creates an entry "/dev/idmouseX" or "/dev/usb/idmouseX",
 	  which can be used by, e.g.,"cat /dev/idmouse0 > fingerprint.pnm".
 
-	  See also <http://www.fs.tum.de/~echtler/idmouse/>.
+	  See also <https://www.fs.tum.de/~echtler/idmouse/>.
 
 config USB_FTDI_ELAN
 	tristate "Elan PCMCIA CardBus Adapter USB Client"
@@ -141,11 +132,20 @@ config USB_FTDI_ELAN
 
 config USB_APPLEDISPLAY
 	tristate "Apple Cinema Display support"
-	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Say Y here if you want to control the backlight of Apple Cinema
 	  Displays over USB. This driver provides a sysfs interface.
+
+config APPLE_MFI_FASTCHARGE
+	tristate "Fast charge control for iOS devices"
+	select POWER_SUPPLY
+	help
+	  Say Y here if you want to control whether iOS devices will
+	  fast charge from the USB interface, as implemented in "MFi"
+	  chargers.
+
+	  It is safe to say M here.
 
 source "drivers/usb/misc/sisusbvga/Kconfig"
 
@@ -191,8 +191,8 @@ config USB_TEST
 	  including sample test device firmware and "how to use it".
 
 config USB_EHSET_TEST_FIXTURE
-        tristate "USB EHSET Test Fixture driver"
-        help
+	tristate "USB EHSET Test Fixture driver"
+	help
 	  Say Y here if you want to support the special test fixture device
 	  used for the USB-IF Embedded Host High-Speed Electrical Test procedure.
 
@@ -243,17 +243,17 @@ config USB_HUB_USB251XB
 	  Say Y or M here if you need to configure such a device via SMBus.
 
 config USB_HSIC_USB3503
-       tristate "USB3503 HSIC to USB20 Driver"
-       depends on I2C
-       select REGMAP_I2C
-       help
-         This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.
+	tristate "USB3503 HSIC to USB20 Driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.
 
 config USB_HSIC_USB4604
-       tristate "USB4604 HSIC to USB20 Driver"
-       depends on I2C
-       help
-         This option enables support for SMSC USB4604 HSIC to USB 2.0 Driver.
+	tristate "USB4604 HSIC to USB20 Driver"
+	depends on I2C
+	help
+	  This option enables support for SMSC USB4604 HSIC to USB 2.0 Driver.
 
 config USB_LINK_LAYER_TEST
 	tristate "USB Link Layer Test driver"

@@ -1,9 +1,4 @@
-/*
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation, version 2 of the
- *  License.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/export.h>
 #include <linux/nsproxy.h>
@@ -133,8 +128,9 @@ int create_user_ns(struct cred *new)
 	ns->flags = parent_ns->flags;
 	mutex_unlock(&userns_state_mutex);
 
-#ifdef CONFIG_PERSISTENT_KEYRINGS
-	init_rwsem(&ns->persistent_keyring_register_sem);
+#ifdef CONFIG_KEYS
+	INIT_LIST_HEAD(&ns->keyring_name_list);
+	init_rwsem(&ns->keyring_sem);
 #endif
 	ret = -ENOMEM;
 	if (!setup_userns_sysctls(ns))
@@ -196,9 +192,7 @@ static void free_user_ns(struct work_struct *work)
 			kfree(ns->projid_map.reverse);
 		}
 		retire_userns_sysctls(ns);
-#ifdef CONFIG_PERSISTENT_KEYRINGS
-		key_put(ns->persistent_keyring_register);
-#endif
+		key_free_user_ns(ns);
 		ns_free_inum(&ns->ns);
 		kmem_cache_free(user_ns_cachep, ns);
 		dec_user_namespaces(ucounts);
@@ -521,7 +515,7 @@ EXPORT_SYMBOL(from_kgid_munged);
  *
  *	When there is no mapping defined for the user-namespace projid
  *	pair INVALID_PROJID is returned.  Callers are expected to test
- *	for and handle handle INVALID_PROJID being returned.  INVALID_PROJID
+ *	for and handle INVALID_PROJID being returned.  INVALID_PROJID
  *	may be tested for using projid_valid().
  */
 kprojid_t make_kprojid(struct user_namespace *ns, projid_t projid)
@@ -974,10 +968,6 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	if (!new_idmap_permitted(file, ns, cap_setid, &new_map))
 		goto out;
 
-	ret = sort_idmaps(&new_map);
-	if (ret < 0)
-		goto out;
-
 	ret = -EPERM;
 	/* Map the lower ids from the parent user namespace to the
 	 * kernel global id space.
@@ -1003,6 +993,14 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 
 		e->lower_first = lower_first;
 	}
+
+	/*
+	 * If we want to use binary search for lookup, this clones the extent
+	 * array and sorts both copies.
+	 */
+	ret = sort_idmaps(&new_map);
+	if (ret < 0)
+		goto out;
 
 	/* Install the map */
 	if (new_map.nr_extents <= UID_GID_MAP_MAX_BASE_EXTENTS) {
@@ -1255,7 +1253,7 @@ static void userns_put(struct ns_common *ns)
 	put_user_ns(to_user_ns(ns));
 }
 
-static int userns_install(struct nsproxy *nsproxy, struct ns_common *ns)
+static int userns_install(struct nsset *nsset, struct ns_common *ns)
 {
 	struct user_namespace *user_ns = to_user_ns(ns);
 	struct cred *cred;
@@ -1276,14 +1274,14 @@ static int userns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
-	cred = prepare_creds();
+	cred = nsset_cred(nsset);
 	if (!cred)
-		return -ENOMEM;
+		return -EINVAL;
 
 	put_user_ns(cred->user_ns);
 	set_cred_user_ns(cred, get_user_ns(user_ns));
 
-	return commit_creds(cred);
+	return 0;
 }
 
 struct ns_common *ns_get_owner(struct ns_common *ns)

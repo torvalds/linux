@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Minimal BPF assembler
  *
@@ -10,13 +11,12 @@
  *
  * How to get into it:
  *
- * 1) read Documentation/networking/filter.txt
+ * 1) read Documentation/networking/filter.rst
  * 2) Run `bpf_asm [-c] <filter-prog file>` to translate into binary
  *    blob that is loadable with xt_bpf, cls_bpf et al. Note: -c will
  *    pretty print a C-like construct.
  *
  * Copyright 2013 Daniel Borkmann <borkmann@redhat.com>
- * Licensed under the GNU General Public License, version 2.0 (GPLv2)
  */
 
 #include <stdbool.h>

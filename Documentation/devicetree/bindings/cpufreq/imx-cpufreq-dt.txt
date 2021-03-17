@@ -1,0 +1,37 @@
+i.MX CPUFreq-DT OPP bindings
+================================
+
+Certain i.MX SoCs support different OPPs depending on the "market segment" and
+"speed grading" value which are written in fuses. These bits are combined with
+the opp-supported-hw values for each OPP to check if the OPP is allowed.
+
+Required properties:
+--------------------
+
+For each opp entry in 'operating-points-v2' table:
+- opp-supported-hw: Two bitmaps indicating:
+  - Supported speed grade mask
+  - Supported market segment mask
+    0: Consumer
+    1: Extended Consumer
+    2: Industrial
+    3: Automotive
+
+Example:
+--------
+
+opp_table {
+	compatible = "operating-points-v2";
+	opp-1000000000 {
+		opp-hz = /bits/ 64 <1000000000>;
+		/* grade >= 0, consumer only */
+		opp-supported-hw = <0xf>, <0x3>;
+	};
+
+	opp-1300000000 {
+		opp-hz = /bits/ 64 <1300000000>;
+		opp-microvolt = <1000000>;
+		/* grade >= 1, all segments */
+		opp-supported-hw = <0xe>, <0x7>;
+	};
+}

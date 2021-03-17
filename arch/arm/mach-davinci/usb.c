@@ -2,16 +2,16 @@
 /*
  * USB
  */
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
-
+#include <linux/platform_data/usb-davinci.h>
 #include <linux/usb/musb.h>
 
 #include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/cputype.h>
-#include <linux/platform_data/usb-davinci.h>
+
+#include "irqs.h"
 
 #define DAVINCI_USB_OTG_BASE	0x01c64000
 
@@ -38,7 +38,7 @@ static struct resource usb_resources[] = {
 		.flags          = IORESOURCE_MEM,
 	},
 	{
-		.start          = IRQ_USBINT,
+		.start          = DAVINCI_INTC_IRQ(IRQ_USBINT),
 		.flags          = IORESOURCE_IRQ,
 		.name		= "mc"
 	},
@@ -70,8 +70,9 @@ void __init davinci_setup_usb(unsigned mA, unsigned potpgt_ms)
 
 	if (cpu_is_davinci_dm646x()) {
 		/* Override the defaults as DM6467 uses different IRQs. */
-		usb_dev.resource[1].start = IRQ_DM646X_USBINT;
-		usb_dev.resource[2].start = IRQ_DM646X_USBDMAINT;
+		usb_dev.resource[1].start = DAVINCI_INTC_IRQ(IRQ_DM646X_USBINT);
+		usb_dev.resource[2].start = DAVINCI_INTC_IRQ(
+							IRQ_DM646X_USBDMAINT);
 	} else	/* other devices don't have dedicated CPPI IRQ */
 		usb_dev.num_resources = 2;
 

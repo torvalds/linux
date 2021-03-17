@@ -1,19 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_MAIN_H_
@@ -25,7 +13,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2018.3"
+#define BATADV_SOURCE_VERSION "2020.4"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -217,20 +205,20 @@ enum batadv_uev_type {
 
 /* Kernel headers */
 
+#include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
+#include <linux/netdevice.h>
 #include <linux/percpu.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
 #include <uapi/linux/batadv_packet.h>
 
 #include "types.h"
-
-struct net_device;
-struct packet_type;
-struct seq_file;
-struct sk_buff;
+#include "main.h"
 
 /**
  * batadv_print_vid() - return printable version of vid information
@@ -247,6 +235,7 @@ static inline int batadv_print_vid(unsigned short vid)
 }
 
 extern struct list_head batadv_hardif_list;
+extern unsigned int batadv_hardif_generation;
 
 extern unsigned char batadv_broadcast_addr[];
 extern struct workqueue_struct *batadv_event_workqueue;
@@ -319,7 +308,7 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  * @y: value to compare @x against
  *
  * It handles overflows/underflows and can correctly check for a predecessor
- * unless the variable sequence number has grown by more then
+ * unless the variable sequence number has grown by more than
  * 2**(bitwidth(x)-1)-1.
  *
  * This means that for a u8 with the maximum value 255, it would think:
@@ -341,11 +330,11 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
 
 /**
  * batadv_seq_after() - Checks if a sequence number x is a successor of y
- * @x: potential sucessor of @y
+ * @x: potential successor of @y
  * @y: value to compare @x against
  *
  * It handles overflows/underflows and can correctly check for a successor
- * unless the variable sequence number has grown by more then
+ * unless the variable sequence number has grown by more than
  * 2**(bitwidth(x)-1)-1.
  *
  * This means that for a u8 with the maximum value 255, it would think:
@@ -393,5 +382,7 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
 bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid);
+int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
+			enum batadv_uev_action action, const char *data);
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

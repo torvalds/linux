@@ -35,8 +35,8 @@ struct etnaviv_dump_registers {
 };
 
 #ifdef __KERNEL__
-struct etnaviv_gpu;
-void etnaviv_core_dump(struct etnaviv_gpu *gpu);
+struct etnaviv_gem_submit;
+void etnaviv_core_dump(struct etnaviv_gem_submit *submit);
 #endif
 
 #endif

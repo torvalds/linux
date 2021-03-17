@@ -1,17 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI ADC081C/ADC101C/ADC121C 8/10/12-bit ADC driver
  *
  * Copyright (C) 2012 Avionic Design GmbH
  * Copyright (C) 2016 Intel
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Datasheets:
- *	http://www.ti.com/lit/ds/symlink/adc081c021.pdf
- *	http://www.ti.com/lit/ds/symlink/adc101c021.pdf
- *	http://www.ti.com/lit/ds/symlink/adc121c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc081c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc101c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc121c021.pdf
  *
  * The devices have a very similar interface and differ mostly in the number of
  * bits handled. For the 8-bit and 10-bit models the least-significant 4 or 2
@@ -21,8 +18,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -36,6 +32,12 @@ struct adc081c {
 
 	/* 8, 10 or 12 */
 	int bits;
+
+	/* Ensure natural alignment of buffer elements */
+	struct {
+		u16 channel;
+		s64 ts __aligned(8);
+	} scan;
 };
 
 #define REG_CONV_RES 0x00
@@ -131,14 +133,13 @@ static irqreturn_t adc081c_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adc081c *data = iio_priv(indio_dev);
-	u16 buf[8]; /* 2 bytes data + 6 bytes padding + 8 bytes timestamp */
 	int ret;
 
 	ret = i2c_smbus_read_word_swapped(data->i2c, REG_CONV_RES);
 	if (ret < 0)
 		goto out;
-	buf[0] = ret;
-	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+	data->scan.channel = ret;
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   iio_get_time_ns(indio_dev));
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -156,17 +157,7 @@ static int adc081c_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EOPNOTSUPP;
 
-	if (ACPI_COMPANION(&client->dev)) {
-		const struct acpi_device_id *ad_id;
-
-		ad_id = acpi_match_device(client->dev.driver->acpi_match_table,
-					  &client->dev);
-		if (!ad_id)
-			return -ENODEV;
-		model = &adcxx1c_models[ad_id->driver_data];
-	} else {
-		model = &adcxx1c_models[id->driver_data];
-	}
+	model = &adcxx1c_models[id->driver_data];
 
 	iio = devm_iio_device_alloc(&client->dev, sizeof(*adc));
 	if (!iio)
@@ -184,8 +175,6 @@ static int adc081c_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	iio->dev.parent = &client->dev;
-	iio->dev.of_node = client->dev.of_node;
 	iio->name = dev_name(&client->dev);
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->info = &adc081c_info;
@@ -235,7 +224,6 @@ static const struct i2c_device_id adc081c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adc081c_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id adc081c_of_match[] = {
 	{ .compatible = "ti,adc081c" },
 	{ .compatible = "ti,adc101c" },
@@ -243,23 +231,11 @@ static const struct of_device_id adc081c_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adc081c_of_match);
-#endif
-
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id adc081c_acpi_match[] = {
-	{ "ADC081C", ADC081C },
-	{ "ADC101C", ADC101C },
-	{ "ADC121C", ADC121C },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, adc081c_acpi_match);
-#endif
 
 static struct i2c_driver adc081c_driver = {
 	.driver = {
 		.name = "adc081c",
-		.of_match_table = of_match_ptr(adc081c_of_match),
-		.acpi_match_table = ACPI_PTR(adc081c_acpi_match),
+		.of_match_table = adc081c_of_match,
 	},
 	.probe = adc081c_probe,
 	.remove = adc081c_remove,

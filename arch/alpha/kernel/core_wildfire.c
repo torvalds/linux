@@ -111,8 +111,10 @@ wildfire_init_hose(int qbbno, int hoseno)
          * ??? We ought to scale window 3 memory.
          *
          */
-        hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000, 0);
-        hose->sg_pci = iommu_arena_new(hose, 0xc0000000, 0x08000000, 0);
+	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000,
+				       SMP_CACHE_BYTES);
+	hose->sg_pci = iommu_arena_new(hose, 0xc0000000, 0x08000000,
+				       SMP_CACHE_BYTES);
 
 	pci = WILDFIRE_pci(qbbno, hoseno);
 
@@ -557,7 +559,7 @@ wildfire_dump_qsd_regs(int qbbno)
 	printk(KERN_ERR " QSD_REV:           0x%16lx\n", qsd->qsd_rev.csr);
 	printk(KERN_ERR " QSD_PORT_PRESENT:  0x%16lx\n",
 	       qsd->qsd_port_present.csr);
-	printk(KERN_ERR " QSD_PORT_ACTUVE:   0x%16lx\n",
+	printk(KERN_ERR " QSD_PORT_ACTIVE:   0x%16lx\n",
 	       qsd->qsd_port_active.csr);
 	printk(KERN_ERR " QSD_FAULT_ENA:     0x%16lx\n",
 	       qsd->qsd_fault_ena.csr);

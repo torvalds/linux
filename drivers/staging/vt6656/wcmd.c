@@ -99,6 +99,7 @@ void vnt_run_command(struct work_struct *work)
 		if (vnt_init(priv)) {
 			/* If fail all ends TODO retry */
 			dev_err(&priv->usb->dev, "failed to start\n");
+			usb_set_intfdata(priv->intf, NULL);
 			ieee80211_free_hw(priv->hw);
 			return;
 		}
@@ -121,8 +122,7 @@ void vnt_run_command(struct work_struct *work)
 
 	case WLAN_CMD_SETPOWER_START:
 
-		vnt_rf_setpower(priv, priv->current_rate,
-				priv->hw->conf.chandef.chan->hw_value);
+		vnt_rf_setpower(priv, priv->hw->conf.chandef.chan);
 
 		break;
 

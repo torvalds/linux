@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  acpi_utils.c - ACPI Utility Functions ($Revision: 10 $)
  *
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #include <linux/kernel.h>
@@ -117,7 +104,6 @@ acpi_extract_package(union acpi_object *package,
 					      " [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
-				break;
 			}
 			break;
 
@@ -142,7 +128,6 @@ acpi_extract_package(union acpi_object *package,
 					      " expecting [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
-				break;
 			}
 			break;
 		case ACPI_TYPE_LOCAL_REFERENCE:
@@ -157,7 +142,6 @@ acpi_extract_package(union acpi_object *package,
 					      " expecting [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
-				break;
 			}
 			break;
 
@@ -168,7 +152,6 @@ acpi_extract_package(union acpi_object *package,
 					  i));
 			/* TBD: handle nested packages... */
 			return AE_SUPPORT;
-			break;
 		}
 	}
 
@@ -468,6 +451,7 @@ EXPORT_SYMBOL(acpi_evaluate_ost);
 
 /**
  * acpi_handle_path: Return the object path of handle
+ * @handle: ACPI device handle
  *
  * Caller must free the returned buffer
  */
@@ -486,6 +470,9 @@ static char *acpi_handle_path(acpi_handle handle)
 
 /**
  * acpi_handle_printk: Print message with ACPI prefix and object path
+ * @level: log level
+ * @handle: ACPI device handle
+ * @fmt: format string
  *
  * This function is called through acpi_handle_<level> macros and prints
  * a message with ACPI prefix and object path.  This function acquires
@@ -514,6 +501,9 @@ EXPORT_SYMBOL(acpi_handle_printk);
 #if defined(CONFIG_DYNAMIC_DEBUG)
 /**
  * __acpi_handle_debug: pr_debug with ACPI prefix and object path
+ * @descriptor: Dynamic Debug descriptor
+ * @handle: ACPI device handle
+ * @fmt: format string
  *
  * This function is called through acpi_handle_debug macro and debug
  * prints a message with ACPI prefix and object path. This function
@@ -612,6 +602,31 @@ acpi_status acpi_evaluate_lck(acpi_handle handle, int lock)
 }
 
 /**
+ * acpi_evaluate_reg: Evaluate _REG method to register OpRegion presence
+ * @handle: ACPI device handle
+ * @space_id: ACPI address space id to register OpRegion presence for
+ * @function: Parameter to pass to _REG one of ACPI_REG_CONNECT or
+ *            ACPI_REG_DISCONNECT
+ *
+ * Evaluate device's _REG method to register OpRegion presence.
+ */
+acpi_status acpi_evaluate_reg(acpi_handle handle, u8 space_id, u32 function)
+{
+	struct acpi_object_list arg_list;
+	union acpi_object params[2];
+
+	params[0].type = ACPI_TYPE_INTEGER;
+	params[0].integer.value = space_id;
+	params[1].type = ACPI_TYPE_INTEGER;
+	params[1].integer.value = function;
+	arg_list.count = 2;
+	arg_list.pointer = params;
+
+	return acpi_evaluate_object(handle, "_REG", &arg_list, NULL);
+}
+EXPORT_SYMBOL(acpi_evaluate_reg);
+
+/**
  * acpi_evaluate_dsm - evaluate device's _DSM method
  * @handle: ACPI device handle
  * @guid: GUID of requested functions, should be 16 bytes
@@ -708,6 +723,31 @@ bool acpi_check_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 funcs)
 EXPORT_SYMBOL(acpi_check_dsm);
 
 /**
+ * acpi_dev_hid_uid_match - Match device by supplied HID and UID
+ * @adev: ACPI device to match.
+ * @hid2: Hardware ID of the device.
+ * @uid2: Unique ID of the device, pass NULL to not check _UID.
+ *
+ * Matches HID and UID in @adev with given @hid2 and @uid2.
+ * Returns true if matches.
+ */
+bool acpi_dev_hid_uid_match(struct acpi_device *adev,
+			    const char *hid2, const char *uid2)
+{
+	const char *hid1 = acpi_device_hid(adev);
+	const char *uid1 = acpi_device_uid(adev);
+
+	if (strcmp(hid1, hid2))
+		return false;
+
+	if (!uid2)
+		return true;
+
+	return uid1 && !strcmp(uid1, uid2);
+}
+EXPORT_SYMBOL(acpi_dev_hid_uid_match);
+
+/**
  * acpi_dev_found - Detect presence of a given ACPI device in the namespace.
  * @hid: Hardware ID of the device.
  *
@@ -738,16 +778,15 @@ bool acpi_dev_found(const char *hid)
 EXPORT_SYMBOL(acpi_dev_found);
 
 struct acpi_dev_match_info {
-	const char *dev_name;
 	struct acpi_device_id hid[2];
 	const char *uid;
 	s64 hrv;
 };
 
-static int acpi_dev_match_cb(struct device *dev, void *data)
+static int acpi_dev_match_cb(struct device *dev, const void *data)
 {
 	struct acpi_device *adev = to_acpi_device(dev);
-	struct acpi_dev_match_info *match = data;
+	const struct acpi_dev_match_info *match = data;
 	unsigned long long hrv;
 	acpi_status status;
 
@@ -757,8 +796,6 @@ static int acpi_dev_match_cb(struct device *dev, void *data)
 	if (match->uid && (!adev->pnp.unique_id ||
 	    strcmp(adev->pnp.unique_id, match->uid)))
 		return 0;
-
-	match->dev_name = acpi_dev_name(adev);
 
 	if (match->hrv == -1)
 		return 1;
@@ -800,23 +837,26 @@ bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
 	match.hrv = hrv;
 
 	dev = bus_find_device(&acpi_bus_type, NULL, &match, acpi_dev_match_cb);
+	put_device(dev);
 	return !!dev;
 }
 EXPORT_SYMBOL(acpi_dev_present);
 
 /**
- * acpi_dev_get_first_match_name - Return name of first match of ACPI device
+ * acpi_dev_get_first_match_dev - Return the first match of ACPI device
  * @hid: Hardware ID of the device.
  * @uid: Unique ID of the device, pass NULL to not check _UID
  * @hrv: Hardware Revision of the device, pass -1 to not check _HRV
  *
- * Return device name if a matching device was present
+ * Return the first match of ACPI device if a matching device was present
  * at the moment of invocation, or NULL otherwise.
+ *
+ * The caller is responsible to call put_device() on the returned device.
  *
  * See additional information in acpi_dev_present() as well.
  */
-const char *
-acpi_dev_get_first_match_name(const char *hid, const char *uid, s64 hrv)
+struct acpi_device *
+acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv)
 {
 	struct acpi_dev_match_info match = {};
 	struct device *dev;
@@ -826,9 +866,9 @@ acpi_dev_get_first_match_name(const char *hid, const char *uid, s64 hrv)
 	match.hrv = hrv;
 
 	dev = bus_find_device(&acpi_bus_type, NULL, &match, acpi_dev_match_cb);
-	return dev ? match.dev_name : NULL;
+	return dev ? to_acpi_device(dev) : NULL;
 }
-EXPORT_SYMBOL(acpi_dev_get_first_match_name);
+EXPORT_SYMBOL(acpi_dev_get_first_match_dev);
 
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c

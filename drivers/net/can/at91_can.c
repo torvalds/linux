@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91_can.c - CAN network driver for AT91 SoC CAN controller
  *
  * (C) 2007 by Hans J. Koch <hjk@hansjkoch.de>
  * (C) 2008, 2009, 2010, 2011 by Marc Kleine-Budde <kernel@pengutronix.de>
- *
- * This software may be distributed under the terms of the GNU General
- * Public License ("GPL") version 2 as distributed in the 'COPYING'
- * file from the main directory of the linux kernel source.
- *
  */
 
 #include <linux/clk.h>
@@ -647,7 +643,7 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
  *
  * The first message goes into mb nr. 1 and issues an interrupt. All
  * rx ints are disabled in the interrupt handler and a napi poll is
- * scheduled. We read the mailbox, but do _not_ reenable the mb (to
+ * scheduled. We read the mailbox, but do _not_ re-enable the mb (to
  * receive another message).
  *
  *    lower mbxs      upper
@@ -665,13 +661,13 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
  *
  * The variable priv->rx_next points to the next mailbox to read a
  * message from. As long we're in the lower mailboxes we just read the
- * mailbox but not reenable it.
+ * mailbox but not re-enable it.
  *
- * With completion of the last of the lower mailboxes, we reenable the
+ * With completion of the last of the lower mailboxes, we re-enable the
  * whole first group, but continue to look for filled mailboxes in the
  * upper mailboxes. Imagine the second group like overflow mailboxes,
  * which takes CAN messages if the lower goup is full. While in the
- * upper group we reenable the mailbox right after reading it. Giving
+ * upper group we re-enable the mailbox right after reading it. Giving
  * the chip more room to store messages.
  *
  * After finishing we look again in the lower group if we've still
@@ -902,7 +898,8 @@ static void at91_irq_err_state(struct net_device *dev,
 				CAN_ERR_CRTL_TX_WARNING :
 				CAN_ERR_CRTL_RX_WARNING;
 		}
-	case CAN_STATE_ERROR_WARNING:	/* fallthrough */
+		fallthrough;
+	case CAN_STATE_ERROR_WARNING:
 		/*
 		 * from: ERROR_ACTIVE, ERROR_WARNING
 		 * to  : ERROR_PASSIVE, BUS_OFF
@@ -951,7 +948,8 @@ static void at91_irq_err_state(struct net_device *dev,
 		netdev_dbg(dev, "Error Active\n");
 		cf->can_id |= CAN_ERR_PROT;
 		cf->data[2] = CAN_ERR_PROT_ACTIVE;
-	case CAN_STATE_ERROR_WARNING:	/* fallthrough */
+		fallthrough;
+	case CAN_STATE_ERROR_WARNING:
 		reg_idr = AT91_IRQ_ERRA | AT91_IRQ_WARN | AT91_IRQ_BOFF;
 		reg_ier = AT91_IRQ_ERRP;
 		break;
@@ -1304,7 +1302,7 @@ static int at91_can_probe(struct platform_device *pdev)
 		goto exit_put;
 	}
 
-	addr = ioremap_nocache(res->start, resource_size(res));
+	addr = ioremap(res->start, resource_size(res));
 	if (!addr) {
 		err = -ENOMEM;
 		goto exit_release;

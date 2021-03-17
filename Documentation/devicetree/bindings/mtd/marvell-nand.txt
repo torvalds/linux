@@ -36,29 +36,29 @@ Children nodes represent the available NAND chips.
 
 Required properties:
 - reg: shall contain the native Chip Select ids (0-3).
-- nand-rb: see nand.txt (0-1).
+- nand-rb: see nand-controller.yaml (0-1).
 
 Optional properties:
 - marvell,nand-keep-config: orders the driver not to take the timings
   from the core and leaving them completely untouched. Bootloader
   timings will then be used.
 - label: MTD name.
-- nand-on-flash-bbt: see nand.txt.
-- nand-ecc-mode: see nand.txt. Will use hardware ECC if not specified.
-- nand-ecc-algo: see nand.txt. This property is essentially useful when
+- nand-on-flash-bbt: see nand-controller.yaml.
+- nand-ecc-mode: see nand-controller.yaml. Will use hardware ECC if not specified.
+- nand-ecc-algo: see nand-controller.yaml. This property is essentially useful when
   not using hardware ECC. Howerver, it may be added when using hardware
   ECC for clarification but will be ignored by the driver because ECC
   mode is chosen depending on the page size and the strength required by
   the NAND chip. This value may be overwritten with nand-ecc-strength
   property.
-- nand-ecc-strength: see nand.txt.
-- nand-ecc-step-size: see nand.txt. Marvell's NAND flash controller does
+- nand-ecc-strength: see nand-controller.yaml.
+- nand-ecc-step-size: see nand-controller.yaml. Marvell's NAND flash controller does
   use fixed strength (1-bit for Hamming, 16-bit for BCH), so the actual
   step size will shrink or grow in order to fit the required strength.
   Step sizes are not completely random for all and follow certain
   patterns described in AN-379, "Marvell SoC NFC ECC".
 
-See Documentation/devicetree/bindings/mtd/nand.txt for more details on
+See Documentation/devicetree/bindings/mtd/nand-controller.yaml for more details on
 generic bindings.
 
 

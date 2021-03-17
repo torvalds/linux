@@ -77,8 +77,9 @@ void tipc_sub_report_overlap(struct tipc_subscription *sub,
 			     u32 found_lower, u32 found_upper,
 			     u32 event, u32 port, u32 node,
 			     u32 scope, int must);
-int tipc_topsrv_start(struct net *net);
-void tipc_topsrv_stop(struct net *net);
+
+int __net_init tipc_topsrv_init_net(struct net *net);
+void __net_exit tipc_topsrv_exit_net(struct net *net);
 
 void tipc_sub_put(struct tipc_subscription *subscription);
 void tipc_sub_get(struct tipc_subscription *subscription);
@@ -93,6 +94,16 @@ void tipc_sub_get(struct tipc_subscription *subscription);
 		u32 val__ = (sub__)->field_;				\
 		int swap_ = !((sub__)->filter & TIPC_FILTER_MASK);	\
 		(swap_ ? swab32(val__) : val__);			\
+	})
+
+/* tipc_sub_write - write val_ to field_ of struct sub_ in user endian format
+ */
+#define tipc_sub_write(sub_, field_, val_)				\
+	({								\
+		struct tipc_subscr *sub__ = sub_;			\
+		u32 val__ = val_;					\
+		int swap_ = !((sub__)->filter & TIPC_FILTER_MASK);	\
+		(sub__)->field_ = swap_ ? swab32(val__) : val__;	\
 	})
 
 /* tipc_evt_write - write val_ to field_ of struct evt_ in user endian format

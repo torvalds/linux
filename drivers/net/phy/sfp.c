@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -5,6 +7,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
+#include <linux/mdio/mdio-i2c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -14,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
-#include "mdio-i2c.h"
 #include "sfp.h"
 #include "swphy.h"
 
@@ -34,6 +36,8 @@ enum {
 
 	SFP_E_INSERT = 0,
 	SFP_E_REMOVE,
+	SFP_E_DEV_ATTACH,
+	SFP_E_DEV_DETACH,
 	SFP_E_DEV_DOWN,
 	SFP_E_DEV_UP,
 	SFP_E_TX_FAULT,
@@ -43,16 +47,23 @@ enum {
 	SFP_E_TIMEOUT,
 
 	SFP_MOD_EMPTY = 0,
-	SFP_MOD_PROBE,
-	SFP_MOD_HPOWER,
-	SFP_MOD_PRESENT,
 	SFP_MOD_ERROR,
+	SFP_MOD_PROBE,
+	SFP_MOD_WAITDEV,
+	SFP_MOD_HPOWER,
+	SFP_MOD_WAITPWR,
+	SFP_MOD_PRESENT,
 
-	SFP_DEV_DOWN = 0,
+	SFP_DEV_DETACHED = 0,
+	SFP_DEV_DOWN,
 	SFP_DEV_UP,
 
 	SFP_S_DOWN = 0,
+	SFP_S_FAIL,
+	SFP_S_WAIT,
 	SFP_S_INIT,
+	SFP_S_INIT_PHY,
+	SFP_S_INIT_TX_FAULT,
 	SFP_S_WAIT_LOS,
 	SFP_S_LINK_UP,
 	SFP_S_TX_FAULT,
@@ -62,10 +73,12 @@ enum {
 
 static const char  * const mod_state_strings[] = {
 	[SFP_MOD_EMPTY] = "empty",
-	[SFP_MOD_PROBE] = "probe",
-	[SFP_MOD_HPOWER] = "hpower",
-	[SFP_MOD_PRESENT] = "present",
 	[SFP_MOD_ERROR] = "error",
+	[SFP_MOD_PROBE] = "probe",
+	[SFP_MOD_WAITDEV] = "waitdev",
+	[SFP_MOD_HPOWER] = "hpower",
+	[SFP_MOD_WAITPWR] = "waitpwr",
+	[SFP_MOD_PRESENT] = "present",
 };
 
 static const char *mod_state_to_str(unsigned short mod_state)
@@ -76,6 +89,7 @@ static const char *mod_state_to_str(unsigned short mod_state)
 }
 
 static const char * const dev_state_strings[] = {
+	[SFP_DEV_DETACHED] = "detached",
 	[SFP_DEV_DOWN] = "down",
 	[SFP_DEV_UP] = "up",
 };
@@ -90,6 +104,8 @@ static const char *dev_state_to_str(unsigned short dev_state)
 static const char * const event_strings[] = {
 	[SFP_E_INSERT] = "insert",
 	[SFP_E_REMOVE] = "remove",
+	[SFP_E_DEV_ATTACH] = "dev_attach",
+	[SFP_E_DEV_DETACH] = "dev_detach",
 	[SFP_E_DEV_DOWN] = "dev_down",
 	[SFP_E_DEV_UP] = "dev_up",
 	[SFP_E_TX_FAULT] = "tx_fault",
@@ -108,7 +124,11 @@ static const char *event_to_str(unsigned short event)
 
 static const char * const sm_state_strings[] = {
 	[SFP_S_DOWN] = "down",
+	[SFP_S_FAIL] = "fail",
+	[SFP_S_WAIT] = "wait",
 	[SFP_S_INIT] = "init",
+	[SFP_S_INIT_PHY] = "init_phy",
+	[SFP_S_INIT_TX_FAULT] = "init_tx_fault",
 	[SFP_S_WAIT_LOS] = "wait_los",
 	[SFP_S_LINK_UP] = "link_up",
 	[SFP_S_TX_FAULT] = "tx_fault",
@@ -139,29 +159,53 @@ static const enum gpiod_flags gpio_flags[] = {
 	GPIOD_ASIS,
 };
 
-#define T_INIT_JIFFIES	msecs_to_jiffies(300)
-#define T_RESET_US	10
-#define T_FAULT_RECOVER	msecs_to_jiffies(1000)
+/* t_start_up (SFF-8431) or t_init (SFF-8472) is the time required for a
+ * non-cooled module to initialise its laser safety circuitry. We wait
+ * an initial T_WAIT period before we check the tx fault to give any PHY
+ * on board (for a copper SFP) time to initialise.
+ */
+#define T_WAIT			msecs_to_jiffies(50)
+#define T_START_UP		msecs_to_jiffies(300)
+#define T_START_UP_BAD_GPON	msecs_to_jiffies(60000)
+
+/* t_reset is the time required to assert the TX_DISABLE signal to reset
+ * an indicated TX_FAULT.
+ */
+#define T_RESET_US		10
+#define T_FAULT_RECOVER		msecs_to_jiffies(1000)
+
+/* N_FAULT_INIT is the number of recovery attempts at module initialisation
+ * time. If the TX_FAULT signal is not deasserted after this number of
+ * attempts at clearing it, we decide that the module is faulty.
+ * N_FAULT is the same but after the module has initialised.
+ */
+#define N_FAULT_INIT		5
+#define N_FAULT			5
+
+/* T_PHY_RETRY is the time interval between attempts to probe the PHY.
+ * R_PHY_RETRY is the number of attempts.
+ */
+#define T_PHY_RETRY		msecs_to_jiffies(50)
+#define R_PHY_RETRY		12
 
 /* SFP module presence detection is poor: the three MOD DEF signals are
  * the same length on the PCB, which means it's possible for MOD DEF 0 to
  * connect before the I2C bus on MOD DEF 1/2.
  *
- * The SFP MSA specifies 300ms as t_init (the time taken for TX_FAULT to
- * be deasserted) but makes no mention of the earliest time before we can
- * access the I2C EEPROM.  However, Avago modules require 300ms.
+ * The SFF-8472 specifies t_serial ("Time from power on until module is
+ * ready for data transmission over the two wire serial bus.") as 300ms.
  */
-#define T_PROBE_INIT	msecs_to_jiffies(300)
-#define T_HPOWER_LEVEL	msecs_to_jiffies(300)
-#define T_PROBE_RETRY	msecs_to_jiffies(100)
+#define T_SERIAL		msecs_to_jiffies(300)
+#define T_HPOWER_LEVEL		msecs_to_jiffies(300)
+#define T_PROBE_RETRY_INIT	msecs_to_jiffies(100)
+#define R_PROBE_RETRY_INIT	10
+#define T_PROBE_RETRY_SLOW	msecs_to_jiffies(5000)
+#define R_PROBE_RETRY_SLOW	12
 
 /* SFP modules appear to always have their PHY configured for bus address
  * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
  */
 #define SFP_PHY_ADDR	22
-
-/* Give this long for the PHY to reset. */
-#define T_PHY_RESET_MS	50
 
 struct sff_data {
 	unsigned int gpios;
@@ -183,19 +227,32 @@ struct sfp {
 	int (*write)(struct sfp *, bool, u8, void *, size_t);
 
 	struct gpio_desc *gpio[GPIO_MAX];
+	int gpio_irq[GPIO_MAX];
 
+	bool need_poll;
+
+	struct mutex st_mutex;			/* Protects state */
+	unsigned int state_soft_mask;
 	unsigned int state;
 	struct delayed_work poll;
 	struct delayed_work timeout;
-	struct mutex sm_mutex;
+	struct mutex sm_mutex;			/* Protects state machine */
 	unsigned char sm_mod_state;
+	unsigned char sm_mod_tries_init;
+	unsigned char sm_mod_tries;
 	unsigned char sm_dev_state;
 	unsigned short sm_state;
-	unsigned int sm_retries;
+	unsigned char sm_fault_retries;
+	unsigned char sm_phy_retries;
 
 	struct sfp_eeprom_id id;
+	unsigned int module_power_mW;
+	unsigned int module_t_start_up;
+
 #if IS_ENABLED(CONFIG_HWMON)
 	struct sfp_diag diag;
+	struct delayed_work hwmon_probe;
+	unsigned int hwmon_tries;
 	struct device *hwmon_dev;
 	char *hwmon_name;
 #endif
@@ -204,7 +261,7 @@ struct sfp {
 
 static bool sff_module_supported(const struct sfp_eeprom_id *id)
 {
-	return id->base.phys_id == SFP_PHYS_ID_SFF &&
+	return id->base.phys_id == SFF8024_ID_SFF_8472 &&
 	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
 }
 
@@ -215,7 +272,7 @@ static const struct sff_data sff_data = {
 
 static bool sfp_module_supported(const struct sfp_eeprom_id *id)
 {
-	return id->base.phys_id == SFP_PHYS_ID_SFP &&
+	return id->base.phys_id == SFF8024_ID_SFP &&
 	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
 }
 
@@ -279,6 +336,7 @@ static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 {
 	struct i2c_msg msgs[2];
 	u8 bus_addr = a2 ? 0x51 : 0x50;
+	size_t this_len;
 	int ret;
 
 	msgs[0].addr = bus_addr;
@@ -290,11 +348,26 @@ static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 	msgs[1].len = len;
 	msgs[1].buf = buf;
 
-	ret = i2c_transfer(sfp->i2c, msgs, ARRAY_SIZE(msgs));
-	if (ret < 0)
-		return ret;
+	while (len) {
+		this_len = len;
+		if (this_len > 16)
+			this_len = 16;
 
-	return ret == ARRAY_SIZE(msgs) ? len : 0;
+		msgs[1].len = this_len;
+
+		ret = i2c_transfer(sfp->i2c, msgs, ARRAY_SIZE(msgs));
+		if (ret < 0)
+			return ret;
+
+		if (ret != ARRAY_SIZE(msgs))
+			break;
+
+		msgs[1].buf += this_len;
+		dev_addr += this_len;
+		len -= this_len;
+	}
+
+	return msgs[1].buf - (u8 *)buf;
 }
 
 static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
@@ -355,16 +428,6 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 }
 
 /* Interface */
-static unsigned int sfp_get_state(struct sfp *sfp)
-{
-	return sfp->get_state(sfp);
-}
-
-static void sfp_set_state(struct sfp *sfp, unsigned int state)
-{
-	sfp->set_state(sfp, state);
-}
-
 static int sfp_read(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
 {
 	return sfp->read(sfp, a2, addr, buf, len);
@@ -373,6 +436,89 @@ static int sfp_read(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
 static int sfp_write(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
 {
 	return sfp->write(sfp, a2, addr, buf, len);
+}
+
+static unsigned int sfp_soft_get_state(struct sfp *sfp)
+{
+	unsigned int state = 0;
+	u8 status;
+	int ret;
+
+	ret = sfp_read(sfp, true, SFP_STATUS, &status, sizeof(status));
+	if (ret == sizeof(status)) {
+		if (status & SFP_STATUS_RX_LOS)
+			state |= SFP_F_LOS;
+		if (status & SFP_STATUS_TX_FAULT)
+			state |= SFP_F_TX_FAULT;
+	} else {
+		dev_err_ratelimited(sfp->dev,
+				    "failed to read SFP soft status: %d\n",
+				    ret);
+		/* Preserve the current state */
+		state = sfp->state;
+	}
+
+	return state & sfp->state_soft_mask;
+}
+
+static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
+{
+	u8 status;
+
+	if (sfp_read(sfp, true, SFP_STATUS, &status, sizeof(status)) ==
+		     sizeof(status)) {
+		if (state & SFP_F_TX_DISABLE)
+			status |= SFP_STATUS_TX_DISABLE_FORCE;
+		else
+			status &= ~SFP_STATUS_TX_DISABLE_FORCE;
+
+		sfp_write(sfp, true, SFP_STATUS, &status, sizeof(status));
+	}
+}
+
+static void sfp_soft_start_poll(struct sfp *sfp)
+{
+	const struct sfp_eeprom_id *id = &sfp->id;
+
+	sfp->state_soft_mask = 0;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_DISABLE &&
+	    !sfp->gpio[GPIO_TX_DISABLE])
+		sfp->state_soft_mask |= SFP_F_TX_DISABLE;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_FAULT &&
+	    !sfp->gpio[GPIO_TX_FAULT])
+		sfp->state_soft_mask |= SFP_F_TX_FAULT;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_RX_LOS &&
+	    !sfp->gpio[GPIO_LOS])
+		sfp->state_soft_mask |= SFP_F_LOS;
+
+	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
+	    !sfp->need_poll)
+		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+}
+
+static void sfp_soft_stop_poll(struct sfp *sfp)
+{
+	sfp->state_soft_mask = 0;
+}
+
+static unsigned int sfp_get_state(struct sfp *sfp)
+{
+	unsigned int state = sfp->get_state(sfp);
+
+	if (state & SFP_F_PRESENT &&
+	    sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT))
+		state |= sfp_soft_get_state(sfp);
+
+	return state;
+}
+
+static void sfp_set_state(struct sfp *sfp, unsigned int state)
+{
+	sfp->set_state(sfp, state);
+
+	if (state & SFP_F_PRESENT &&
+	    sfp->state_soft_mask & SFP_F_TX_DISABLE)
+		sfp_soft_set_state(sfp, state);
 }
 
 static unsigned int sfp_check(void *buf, size_t len)
@@ -406,8 +552,9 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_temp_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_temp_input:
+		case hwmon_temp_label:
 			return 0444;
 		default:
 			return 0;
@@ -424,8 +571,9 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_in_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_in_input:
+		case hwmon_in_label:
 			return 0444;
 		default:
 			return 0;
@@ -442,8 +590,9 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_curr_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_curr_input:
+		case hwmon_curr_label:
 			return 0444;
 		default:
 			return 0;
@@ -469,8 +618,9 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_power_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_power_input:
+		case hwmon_power_label:
 			return 0444;
 		default:
 			return 0;
@@ -496,7 +646,7 @@ static int sfp_hwmon_read_sensor(struct sfp *sfp, int reg, long *value)
 
 static void sfp_hwmon_to_rx_power(long *value)
 {
-	*value = DIV_ROUND_CLOSEST(*value, 100);
+	*value = DIV_ROUND_CLOSEST(*value, 10);
 }
 
 static void sfp_hwmon_calibrate(struct sfp *sfp, unsigned int slope, int offset,
@@ -966,9 +1116,63 @@ static int sfp_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
+static const char *const sfp_hwmon_power_labels[] = {
+	"TX_power",
+	"RX_power",
+};
+
+static int sfp_hwmon_read_string(struct device *dev,
+				 enum hwmon_sensor_types type,
+				 u32 attr, int channel, const char **str)
+{
+	switch (type) {
+	case hwmon_curr:
+		switch (attr) {
+		case hwmon_curr_label:
+			*str = "bias";
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_label:
+			*str = "temperature";
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	case hwmon_in:
+		switch (attr) {
+		case hwmon_in_label:
+			*str = "VCC";
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	case hwmon_power:
+		switch (attr) {
+		case hwmon_power_label:
+			*str = sfp_hwmon_power_labels[channel];
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static const struct hwmon_ops sfp_hwmon_ops = {
 	.is_visible = sfp_hwmon_is_visible,
 	.read = sfp_hwmon_read,
+	.read_string = sfp_hwmon_read_string,
 };
 
 static u32 sfp_hwmon_chip_config[] = {
@@ -986,7 +1190,8 @@ static u32 sfp_hwmon_temp_config[] = {
 	HWMON_T_MAX | HWMON_T_MIN |
 	HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
 	HWMON_T_CRIT | HWMON_T_LCRIT |
-	HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM,
+	HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM |
+	HWMON_T_LABEL,
 	0,
 };
 
@@ -1000,7 +1205,8 @@ static u32 sfp_hwmon_vcc_config[] = {
 	HWMON_I_MAX | HWMON_I_MIN |
 	HWMON_I_MAX_ALARM | HWMON_I_MIN_ALARM |
 	HWMON_I_CRIT | HWMON_I_LCRIT |
-	HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM,
+	HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM |
+	HWMON_I_LABEL,
 	0,
 };
 
@@ -1014,7 +1220,8 @@ static u32 sfp_hwmon_bias_config[] = {
 	HWMON_C_MAX | HWMON_C_MIN |
 	HWMON_C_MAX_ALARM | HWMON_C_MIN_ALARM |
 	HWMON_C_CRIT | HWMON_C_LCRIT |
-	HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM,
+	HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM |
+	HWMON_C_LABEL,
 	0,
 };
 
@@ -1029,13 +1236,15 @@ static u32 sfp_hwmon_power_config[] = {
 	HWMON_P_MAX | HWMON_P_MIN |
 	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
 	HWMON_P_CRIT | HWMON_P_LCRIT |
-	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM,
+	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
+	HWMON_P_LABEL,
 	/* Receive power */
 	HWMON_P_INPUT |
 	HWMON_P_MAX | HWMON_P_MIN |
 	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
 	HWMON_P_CRIT | HWMON_P_LCRIT |
-	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM,
+	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
+	HWMON_P_LABEL,
 	0,
 };
 
@@ -1058,10 +1267,43 @@ static const struct hwmon_chip_info sfp_hwmon_chip_info = {
 	.info = sfp_hwmon_info,
 };
 
-static int sfp_hwmon_insert(struct sfp *sfp)
+static void sfp_hwmon_probe(struct work_struct *work)
 {
+	struct sfp *sfp = container_of(work, struct sfp, hwmon_probe.work);
 	int err, i;
 
+	err = sfp_read(sfp, true, 0, &sfp->diag, sizeof(sfp->diag));
+	if (err < 0) {
+		if (sfp->hwmon_tries--) {
+			mod_delayed_work(system_wq, &sfp->hwmon_probe,
+					 T_PROBE_RETRY_SLOW);
+		} else {
+			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
+		}
+		return;
+	}
+
+	sfp->hwmon_name = kstrdup(dev_name(sfp->dev), GFP_KERNEL);
+	if (!sfp->hwmon_name) {
+		dev_err(sfp->dev, "out of memory for hwmon name\n");
+		return;
+	}
+
+	for (i = 0; sfp->hwmon_name[i]; i++)
+		if (hwmon_is_bad_char(sfp->hwmon_name[i]))
+			sfp->hwmon_name[i] = '_';
+
+	sfp->hwmon_dev = hwmon_device_register_with_info(sfp->dev,
+							 sfp->hwmon_name, sfp,
+							 &sfp_hwmon_chip_info,
+							 NULL);
+	if (IS_ERR(sfp->hwmon_dev))
+		dev_err(sfp->dev, "failed to register hwmon device: %ld\n",
+			PTR_ERR(sfp->hwmon_dev));
+}
+
+static int sfp_hwmon_insert(struct sfp *sfp)
+{
 	if (sfp->id.ext.sff8472_compliance == SFP_SFF8472_COMPLIANCE_NONE)
 		return 0;
 
@@ -1074,33 +1316,32 @@ static int sfp_hwmon_insert(struct sfp *sfp)
 		 */
 		return 0;
 
-	err = sfp_read(sfp, true, 0, &sfp->diag, sizeof(sfp->diag));
-	if (err < 0)
-		return err;
+	mod_delayed_work(system_wq, &sfp->hwmon_probe, 1);
+	sfp->hwmon_tries = R_PROBE_RETRY_SLOW;
 
-	sfp->hwmon_name = kstrdup(dev_name(sfp->dev), GFP_KERNEL);
-	if (!sfp->hwmon_name)
-		return -ENODEV;
-
-	for (i = 0; sfp->hwmon_name[i]; i++)
-		if (hwmon_is_bad_char(sfp->hwmon_name[i]))
-			sfp->hwmon_name[i] = '_';
-
-	sfp->hwmon_dev = hwmon_device_register_with_info(sfp->dev,
-							 sfp->hwmon_name, sfp,
-							 &sfp_hwmon_chip_info,
-							 NULL);
-
-	return PTR_ERR_OR_ZERO(sfp->hwmon_dev);
+	return 0;
 }
 
 static void sfp_hwmon_remove(struct sfp *sfp)
 {
+	cancel_delayed_work_sync(&sfp->hwmon_probe);
 	if (!IS_ERR_OR_NULL(sfp->hwmon_dev)) {
 		hwmon_device_unregister(sfp->hwmon_dev);
 		sfp->hwmon_dev = NULL;
 		kfree(sfp->hwmon_name);
 	}
+}
+
+static int sfp_hwmon_init(struct sfp *sfp)
+{
+	INIT_DELAYED_WORK(&sfp->hwmon_probe, sfp_hwmon_probe);
+
+	return 0;
+}
+
+static void sfp_hwmon_exit(struct sfp *sfp)
+{
+	cancel_delayed_work_sync(&sfp->hwmon_probe);
 }
 #else
 static int sfp_hwmon_insert(struct sfp *sfp)
@@ -1109,6 +1350,15 @@ static int sfp_hwmon_insert(struct sfp *sfp)
 }
 
 static void sfp_hwmon_remove(struct sfp *sfp)
+{
+}
+
+static int sfp_hwmon_init(struct sfp *sfp)
+{
+	return 0;
+}
+
+static void sfp_hwmon_exit(struct sfp *sfp)
 {
 }
 #endif
@@ -1161,7 +1411,7 @@ static void sfp_sm_next(struct sfp *sfp, unsigned int state,
 	sfp_sm_set_timer(sfp, timeout);
 }
 
-static void sfp_sm_ins_next(struct sfp *sfp, unsigned int state,
+static void sfp_sm_mod_next(struct sfp *sfp, unsigned int state,
 			    unsigned int timeout)
 {
 	sfp->sm_mod_state = state;
@@ -1170,28 +1420,30 @@ static void sfp_sm_ins_next(struct sfp *sfp, unsigned int state,
 
 static void sfp_sm_phy_detach(struct sfp *sfp)
 {
-	phy_stop(sfp->mod_phy);
 	sfp_remove_phy(sfp->sfp_bus);
 	phy_device_remove(sfp->mod_phy);
 	phy_device_free(sfp->mod_phy);
 	sfp->mod_phy = NULL;
 }
 
-static void sfp_sm_probe_phy(struct sfp *sfp)
+static int sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
 {
 	struct phy_device *phy;
 	int err;
 
-	msleep(T_PHY_RESET_MS);
-
-	phy = mdiobus_scan(sfp->i2c_mii, SFP_PHY_ADDR);
-	if (phy == ERR_PTR(-ENODEV)) {
-		dev_info(sfp->dev, "no PHY detected\n");
-		return;
-	}
+	phy = get_phy_device(sfp->i2c_mii, SFP_PHY_ADDR, is_c45);
+	if (phy == ERR_PTR(-ENODEV))
+		return PTR_ERR(phy);
 	if (IS_ERR(phy)) {
 		dev_err(sfp->dev, "mdiobus scan returned %ld\n", PTR_ERR(phy));
-		return;
+		return PTR_ERR(phy);
+	}
+
+	err = phy_device_register(phy);
+	if (err) {
+		phy_device_free(phy);
+		dev_err(sfp->dev, "phy_device_register failed: %d\n", err);
+		return err;
 	}
 
 	err = sfp_add_phy(sfp->sfp_bus, phy);
@@ -1199,11 +1451,12 @@ static void sfp_sm_probe_phy(struct sfp *sfp)
 		phy_device_remove(phy);
 		phy_device_free(phy);
 		dev_err(sfp->dev, "sfp_add_phy failed: %d\n", err);
-		return;
+		return err;
 	}
 
 	sfp->mod_phy = phy;
-	phy_start(phy);
+
+	return 0;
 }
 
 static void sfp_sm_link_up(struct sfp *sfp)
@@ -1251,9 +1504,9 @@ static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
 		event == SFP_E_LOS_LOW);
 }
 
-static void sfp_sm_fault(struct sfp *sfp, bool warn)
+static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 {
-	if (sfp->sm_retries && !--sfp->sm_retries) {
+	if (sfp->sm_fault_retries && !--sfp->sm_fault_retries) {
 		dev_err(sfp->dev,
 			"module persistently indicates fault, disabling\n");
 		sfp_sm_next(sfp, SFP_S_TX_DISABLE, 0);
@@ -1261,109 +1514,169 @@ static void sfp_sm_fault(struct sfp *sfp, bool warn)
 		if (warn)
 			dev_err(sfp->dev, "module transmit fault indicated\n");
 
-		sfp_sm_next(sfp, SFP_S_TX_FAULT, T_FAULT_RECOVER);
+		sfp_sm_next(sfp, next_state, T_FAULT_RECOVER);
 	}
 }
 
-static void sfp_sm_mod_init(struct sfp *sfp)
+/* Probe a SFP for a PHY device if the module supports copper - the PHY
+ * normally sits at I2C bus address 0x56, and may either be a clause 22
+ * or clause 45 PHY.
+ *
+ * Clause 22 copper SFP modules normally operate in Cisco SGMII mode with
+ * negotiation enabled, but some may be in 1000base-X - which is for the
+ * PHY driver to determine.
+ *
+ * Clause 45 copper SFP+ modules (10G) appear to switch their interface
+ * mode according to the negotiated line speed.
+ */
+static int sfp_sm_probe_for_phy(struct sfp *sfp)
 {
-	sfp_module_tx_enable(sfp);
+	int err = 0;
 
-	/* Wait t_init before indicating that the link is up, provided the
-	 * current state indicates no TX_FAULT.  If TX_FAULT clears before
-	 * this time, that's fine too.
-	 */
-	sfp_sm_next(sfp, SFP_S_INIT, T_INIT_JIFFIES);
-	sfp->sm_retries = 5;
+	switch (sfp->id.base.extended_cc) {
+	case SFF8024_ECC_10GBASE_T_SFI:
+	case SFF8024_ECC_10GBASE_T_SR:
+	case SFF8024_ECC_5GBASE_T:
+	case SFF8024_ECC_2_5GBASE_T:
+		err = sfp_sm_probe_phy(sfp, true);
+		break;
 
-	/* Setting the serdes link mode is guesswork: there's no
-	 * field in the EEPROM which indicates what mode should
-	 * be used.
-	 *
-	 * If it's a gigabit-only fiber module, it probably does
-	 * not have a PHY, so switch to 802.3z negotiation mode.
-	 * Otherwise, switch to SGMII mode (which is required to
-	 * support non-gigabit speeds) and probe for a PHY.
-	 */
-	if (sfp->id.base.e1000_base_t ||
-	    sfp->id.base.e100_base_lx ||
-	    sfp->id.base.e100_base_fx)
-		sfp_sm_probe_phy(sfp);
+	default:
+		if (sfp->id.base.e1000_base_t)
+			err = sfp_sm_probe_phy(sfp, false);
+		break;
+	}
+	return err;
 }
 
-static int sfp_sm_mod_hpower(struct sfp *sfp)
+static int sfp_module_parse_power(struct sfp *sfp)
 {
-	u32 power;
-	u8 val;
-	int err;
+	u32 power_mW = 1000;
 
-	power = 1000;
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_POWER_DECL))
-		power = 1500;
+		power_mW = 1500;
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_HIGH_POWER_LEVEL))
-		power = 2000;
+		power_mW = 2000;
 
-	if (sfp->id.ext.sff8472_compliance == SFP_SFF8472_COMPLIANCE_NONE &&
-	    (sfp->id.ext.diagmon & (SFP_DIAGMON_DDM | SFP_DIAGMON_ADDRMODE)) !=
-	    SFP_DIAGMON_DDM) {
-		/* The module appears not to implement bus address 0xa2,
-		 * or requires an address change sequence, so assume that
-		 * the module powers up in the indicated power mode.
-		 */
-		if (power > sfp->max_power_mW) {
+	if (power_mW > sfp->max_power_mW) {
+		/* Module power specification exceeds the allowed maximum. */
+		if (sfp->id.ext.sff8472_compliance ==
+			SFP_SFF8472_COMPLIANCE_NONE &&
+		    !(sfp->id.ext.diagmon & SFP_DIAGMON_DDM)) {
+			/* The module appears not to implement bus address
+			 * 0xa2, so assume that the module powers up in the
+			 * indicated mode.
+			 */
 			dev_err(sfp->dev,
 				"Host does not support %u.%uW modules\n",
-				power / 1000, (power / 100) % 10);
+				power_mW / 1000, (power_mW / 100) % 10);
 			return -EINVAL;
+		} else {
+			dev_warn(sfp->dev,
+				 "Host does not support %u.%uW modules, module left in power mode 1\n",
+				 power_mW / 1000, (power_mW / 100) % 10);
+			return 0;
 		}
-		return 0;
 	}
 
-	if (power > sfp->max_power_mW) {
+	/* If the module requires a higher power mode, but also requires
+	 * an address change sequence, warn the user that the module may
+	 * not be functional.
+	 */
+	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE && power_mW > 1000) {
 		dev_warn(sfp->dev,
-			 "Host does not support %u.%uW modules, module left in power mode 1\n",
-			 power / 1000, (power / 100) % 10);
+			 "Address Change Sequence not supported but module requires %u.%uW, module may not be functional\n",
+			 power_mW / 1000, (power_mW / 100) % 10);
 		return 0;
 	}
 
-	if (power <= 1000)
-		return 0;
+	sfp->module_power_mW = power_mW;
+
+	return 0;
+}
+
+static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
+{
+	u8 val;
+	int err;
 
 	err = sfp_read(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
 	if (err != sizeof(val)) {
 		dev_err(sfp->dev, "Failed to read EEPROM: %d\n", err);
-		err = -EAGAIN;
-		goto err;
+		return -EAGAIN;
 	}
 
-	val |= BIT(0);
+	/* DM7052 reports as a high power module, responds to reads (with
+	 * all bytes 0xff) at 0x51 but does not accept writes.  In any case,
+	 * if the bit is already set, we're already in high power mode.
+	 */
+	if (!!(val & BIT(0)) == enable)
+		return 0;
+
+	if (enable)
+		val |= BIT(0);
+	else
+		val &= ~BIT(0);
 
 	err = sfp_write(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
 	if (err != sizeof(val)) {
 		dev_err(sfp->dev, "Failed to write EEPROM: %d\n", err);
-		err = -EAGAIN;
-		goto err;
+		return -EAGAIN;
 	}
 
-	dev_info(sfp->dev, "Module switched to %u.%uW power level\n",
-		 power / 1000, (power / 100) % 10);
-	return T_HPOWER_LEVEL;
+	if (enable)
+		dev_info(sfp->dev, "Module switched to %u.%uW power level\n",
+			 sfp->module_power_mW / 1000,
+			 (sfp->module_power_mW / 100) % 10);
 
-err:
-	return err;
+	return 0;
 }
 
-static int sfp_sm_mod_probe(struct sfp *sfp)
+static int sfp_cotsworks_fixup_check(struct sfp *sfp, struct sfp_eeprom_id *id)
+{
+	u8 check;
+	int err;
+
+	if (id->base.phys_id != SFF8024_ID_SFF_8472 ||
+	    id->base.phys_ext_id != SFP_PHYS_EXT_ID_SFP ||
+	    id->base.connector != SFF8024_CONNECTOR_LC) {
+		dev_warn(sfp->dev, "Rewriting fiber module EEPROM with corrected values\n");
+		id->base.phys_id = SFF8024_ID_SFF_8472;
+		id->base.phys_ext_id = SFP_PHYS_EXT_ID_SFP;
+		id->base.connector = SFF8024_CONNECTOR_LC;
+		err = sfp_write(sfp, false, SFP_PHYS_ID, &id->base, 3);
+		if (err != 3) {
+			dev_err(sfp->dev, "Failed to rewrite module EEPROM: %d\n", err);
+			return err;
+		}
+
+		/* Cotsworks modules have been found to require a delay between write operations. */
+		mdelay(50);
+
+		/* Update base structure checksum */
+		check = sfp_check(&id->base, sizeof(id->base) - 1);
+		err = sfp_write(sfp, false, SFP_CC_BASE, &check, 1);
+		if (err != 1) {
+			dev_err(sfp->dev, "Failed to update base structure checksum in fiber module EEPROM: %d\n", err);
+			return err;
+		}
+	}
+	return 0;
+}
+
+static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 {
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
+	bool cotsworks_sfbg;
 	bool cotsworks;
 	u8 check;
 	int ret;
 
 	ret = sfp_read(sfp, false, 0, &id, sizeof(id));
 	if (ret < 0) {
-		dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
+		if (report)
+			dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
 		return -EAGAIN;
 	}
 
@@ -1377,6 +1690,17 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 	 * serial number and date code.
 	 */
 	cotsworks = !memcmp(id.base.vendor_name, "COTSWORKS       ", 16);
+	cotsworks_sfbg = !memcmp(id.base.vendor_pn, "SFBG", 4);
+
+	/* Cotsworks SFF module EEPROM do not always have valid phys_id,
+	 * phys_ext_id, and connector bytes.  Rewrite SFF EEPROM bytes if
+	 * Cotsworks PN matches and bytes are not correct.
+	 */
+	if (cotsworks && cotsworks_sfbg) {
+		ret = sfp_cotsworks_fixup_check(sfp, &id);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Validate the checksum over the base structure */
 	check = sfp_check(&id.base, sizeof(id.base) - 1);
@@ -1421,7 +1745,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 		 (int)sizeof(id.ext.datecode), id.ext.datecode);
 
 	/* Check whether we support this module */
-	if (!sfp->type->module_supported(&sfp->id)) {
+	if (!sfp->type->module_supported(&id)) {
 		dev_err(sfp->dev,
 			"module is not supported - phys id 0x%02x 0x%02x\n",
 			sfp->id.base.phys_id, sfp->id.base.phys_ext_id);
@@ -1433,31 +1757,326 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 		dev_warn(sfp->dev,
 			 "module address swap to access page 0xA2 is not supported.\n");
 
-	ret = sfp_hwmon_insert(sfp);
+	/* Parse the module power requirement */
+	ret = sfp_module_parse_power(sfp);
 	if (ret < 0)
 		return ret;
 
-	ret = sfp_module_insert(sfp->sfp_bus, &sfp->id);
-	if (ret < 0)
-		return ret;
+	if (!memcmp(id.base.vendor_name, "ALCATELLUCENT   ", 16) &&
+	    !memcmp(id.base.vendor_pn, "3FE46541AA      ", 16))
+		sfp->module_t_start_up = T_START_UP_BAD_GPON;
+	else
+		sfp->module_t_start_up = T_START_UP;
 
-	return sfp_sm_mod_hpower(sfp);
+	return 0;
 }
 
 static void sfp_sm_mod_remove(struct sfp *sfp)
 {
-	sfp_module_remove(sfp->sfp_bus);
+	if (sfp->sm_mod_state > SFP_MOD_WAITDEV)
+		sfp_module_remove(sfp->sfp_bus);
 
 	sfp_hwmon_remove(sfp);
 
-	if (sfp->mod_phy)
-		sfp_sm_phy_detach(sfp);
-
-	sfp_module_tx_disable(sfp);
-
 	memset(&sfp->id, 0, sizeof(sfp->id));
+	sfp->module_power_mW = 0;
 
 	dev_info(sfp->dev, "module removed\n");
+}
+
+/* This state machine tracks the upstream's state */
+static void sfp_sm_device(struct sfp *sfp, unsigned int event)
+{
+	switch (sfp->sm_dev_state) {
+	default:
+		if (event == SFP_E_DEV_ATTACH)
+			sfp->sm_dev_state = SFP_DEV_DOWN;
+		break;
+
+	case SFP_DEV_DOWN:
+		if (event == SFP_E_DEV_DETACH)
+			sfp->sm_dev_state = SFP_DEV_DETACHED;
+		else if (event == SFP_E_DEV_UP)
+			sfp->sm_dev_state = SFP_DEV_UP;
+		break;
+
+	case SFP_DEV_UP:
+		if (event == SFP_E_DEV_DETACH)
+			sfp->sm_dev_state = SFP_DEV_DETACHED;
+		else if (event == SFP_E_DEV_DOWN)
+			sfp->sm_dev_state = SFP_DEV_DOWN;
+		break;
+	}
+}
+
+/* This state machine tracks the insert/remove state of the module, probes
+ * the on-board EEPROM, and sets up the power level.
+ */
+static void sfp_sm_module(struct sfp *sfp, unsigned int event)
+{
+	int err;
+
+	/* Handle remove event globally, it resets this state machine */
+	if (event == SFP_E_REMOVE) {
+		if (sfp->sm_mod_state > SFP_MOD_PROBE)
+			sfp_sm_mod_remove(sfp);
+		sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
+		return;
+	}
+
+	/* Handle device detach globally */
+	if (sfp->sm_dev_state < SFP_DEV_DOWN &&
+	    sfp->sm_mod_state > SFP_MOD_WAITDEV) {
+		if (sfp->module_power_mW > 1000 &&
+		    sfp->sm_mod_state > SFP_MOD_HPOWER)
+			sfp_sm_mod_hpower(sfp, false);
+		sfp_sm_mod_next(sfp, SFP_MOD_WAITDEV, 0);
+		return;
+	}
+
+	switch (sfp->sm_mod_state) {
+	default:
+		if (event == SFP_E_INSERT) {
+			sfp_sm_mod_next(sfp, SFP_MOD_PROBE, T_SERIAL);
+			sfp->sm_mod_tries_init = R_PROBE_RETRY_INIT;
+			sfp->sm_mod_tries = R_PROBE_RETRY_SLOW;
+		}
+		break;
+
+	case SFP_MOD_PROBE:
+		/* Wait for T_PROBE_INIT to time out */
+		if (event != SFP_E_TIMEOUT)
+			break;
+
+		err = sfp_sm_mod_probe(sfp, sfp->sm_mod_tries == 1);
+		if (err == -EAGAIN) {
+			if (sfp->sm_mod_tries_init &&
+			   --sfp->sm_mod_tries_init) {
+				sfp_sm_set_timer(sfp, T_PROBE_RETRY_INIT);
+				break;
+			} else if (sfp->sm_mod_tries && --sfp->sm_mod_tries) {
+				if (sfp->sm_mod_tries == R_PROBE_RETRY_SLOW - 1)
+					dev_warn(sfp->dev,
+						 "please wait, module slow to respond\n");
+				sfp_sm_set_timer(sfp, T_PROBE_RETRY_SLOW);
+				break;
+			}
+		}
+		if (err < 0) {
+			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
+			break;
+		}
+
+		err = sfp_hwmon_insert(sfp);
+		if (err)
+			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
+
+		sfp_sm_mod_next(sfp, SFP_MOD_WAITDEV, 0);
+		fallthrough;
+	case SFP_MOD_WAITDEV:
+		/* Ensure that the device is attached before proceeding */
+		if (sfp->sm_dev_state < SFP_DEV_DOWN)
+			break;
+
+		/* Report the module insertion to the upstream device */
+		err = sfp_module_insert(sfp->sfp_bus, &sfp->id);
+		if (err < 0) {
+			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
+			break;
+		}
+
+		/* If this is a power level 1 module, we are done */
+		if (sfp->module_power_mW <= 1000)
+			goto insert;
+
+		sfp_sm_mod_next(sfp, SFP_MOD_HPOWER, 0);
+		fallthrough;
+	case SFP_MOD_HPOWER:
+		/* Enable high power mode */
+		err = sfp_sm_mod_hpower(sfp, true);
+		if (err < 0) {
+			if (err != -EAGAIN) {
+				sfp_module_remove(sfp->sfp_bus);
+				sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
+			} else {
+				sfp_sm_set_timer(sfp, T_PROBE_RETRY_INIT);
+			}
+			break;
+		}
+
+		sfp_sm_mod_next(sfp, SFP_MOD_WAITPWR, T_HPOWER_LEVEL);
+		break;
+
+	case SFP_MOD_WAITPWR:
+		/* Wait for T_HPOWER_LEVEL to time out */
+		if (event != SFP_E_TIMEOUT)
+			break;
+
+	insert:
+		sfp_sm_mod_next(sfp, SFP_MOD_PRESENT, 0);
+		break;
+
+	case SFP_MOD_PRESENT:
+	case SFP_MOD_ERROR:
+		break;
+	}
+}
+
+static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+{
+	unsigned long timeout;
+	int ret;
+
+	/* Some events are global */
+	if (sfp->sm_state != SFP_S_DOWN &&
+	    (sfp->sm_mod_state != SFP_MOD_PRESENT ||
+	     sfp->sm_dev_state != SFP_DEV_UP)) {
+		if (sfp->sm_state == SFP_S_LINK_UP &&
+		    sfp->sm_dev_state == SFP_DEV_UP)
+			sfp_sm_link_down(sfp);
+		if (sfp->sm_state > SFP_S_INIT)
+			sfp_module_stop(sfp->sfp_bus);
+		if (sfp->mod_phy)
+			sfp_sm_phy_detach(sfp);
+		sfp_module_tx_disable(sfp);
+		sfp_soft_stop_poll(sfp);
+		sfp_sm_next(sfp, SFP_S_DOWN, 0);
+		return;
+	}
+
+	/* The main state machine */
+	switch (sfp->sm_state) {
+	case SFP_S_DOWN:
+		if (sfp->sm_mod_state != SFP_MOD_PRESENT ||
+		    sfp->sm_dev_state != SFP_DEV_UP)
+			break;
+
+		if (!(sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE))
+			sfp_soft_start_poll(sfp);
+
+		sfp_module_tx_enable(sfp);
+
+		/* Initialise the fault clearance retries */
+		sfp->sm_fault_retries = N_FAULT_INIT;
+
+		/* We need to check the TX_FAULT state, which is not defined
+		 * while TX_DISABLE is asserted. The earliest we want to do
+		 * anything (such as probe for a PHY) is 50ms.
+		 */
+		sfp_sm_next(sfp, SFP_S_WAIT, T_WAIT);
+		break;
+
+	case SFP_S_WAIT:
+		if (event != SFP_E_TIMEOUT)
+			break;
+
+		if (sfp->state & SFP_F_TX_FAULT) {
+			/* Wait up to t_init (SFF-8472) or t_start_up (SFF-8431)
+			 * from the TX_DISABLE deassertion for the module to
+			 * initialise, which is indicated by TX_FAULT
+			 * deasserting.
+			 */
+			timeout = sfp->module_t_start_up;
+			if (timeout > T_WAIT)
+				timeout -= T_WAIT;
+			else
+				timeout = 1;
+
+			sfp_sm_next(sfp, SFP_S_INIT, timeout);
+		} else {
+			/* TX_FAULT is not asserted, assume the module has
+			 * finished initialising.
+			 */
+			goto init_done;
+		}
+		break;
+
+	case SFP_S_INIT:
+		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT) {
+			/* TX_FAULT is still asserted after t_init or
+			 * or t_start_up, so assume there is a fault.
+			 */
+			sfp_sm_fault(sfp, SFP_S_INIT_TX_FAULT,
+				     sfp->sm_fault_retries == N_FAULT_INIT);
+		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
+	init_done:
+			sfp->sm_phy_retries = R_PHY_RETRY;
+			goto phy_probe;
+		}
+		break;
+
+	case SFP_S_INIT_PHY:
+		if (event != SFP_E_TIMEOUT)
+			break;
+	phy_probe:
+		/* TX_FAULT deasserted or we timed out with TX_FAULT
+		 * clear.  Probe for the PHY and check the LOS state.
+		 */
+		ret = sfp_sm_probe_for_phy(sfp);
+		if (ret == -ENODEV) {
+			if (--sfp->sm_phy_retries) {
+				sfp_sm_next(sfp, SFP_S_INIT_PHY, T_PHY_RETRY);
+				break;
+			} else {
+				dev_info(sfp->dev, "no PHY detected\n");
+			}
+		} else if (ret) {
+			sfp_sm_next(sfp, SFP_S_FAIL, 0);
+			break;
+		}
+		if (sfp_module_start(sfp->sfp_bus)) {
+			sfp_sm_next(sfp, SFP_S_FAIL, 0);
+			break;
+		}
+		sfp_sm_link_check_los(sfp);
+
+		/* Reset the fault retry count */
+		sfp->sm_fault_retries = N_FAULT;
+		break;
+
+	case SFP_S_INIT_TX_FAULT:
+		if (event == SFP_E_TIMEOUT) {
+			sfp_module_tx_fault_reset(sfp);
+			sfp_sm_next(sfp, SFP_S_INIT, sfp->module_t_start_up);
+		}
+		break;
+
+	case SFP_S_WAIT_LOS:
+		if (event == SFP_E_TX_FAULT)
+			sfp_sm_fault(sfp, SFP_S_TX_FAULT, true);
+		else if (sfp_los_event_inactive(sfp, event))
+			sfp_sm_link_up(sfp);
+		break;
+
+	case SFP_S_LINK_UP:
+		if (event == SFP_E_TX_FAULT) {
+			sfp_sm_link_down(sfp);
+			sfp_sm_fault(sfp, SFP_S_TX_FAULT, true);
+		} else if (sfp_los_event_active(sfp, event)) {
+			sfp_sm_link_down(sfp);
+			sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
+		}
+		break;
+
+	case SFP_S_TX_FAULT:
+		if (event == SFP_E_TIMEOUT) {
+			sfp_module_tx_fault_reset(sfp);
+			sfp_sm_next(sfp, SFP_S_REINIT, sfp->module_t_start_up);
+		}
+		break;
+
+	case SFP_S_REINIT:
+		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT) {
+			sfp_sm_fault(sfp, SFP_S_TX_FAULT, false);
+		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
+			dev_info(sfp->dev, "module transmit fault recovered\n");
+			sfp_sm_link_check_los(sfp);
+		}
+		break;
+
+	case SFP_S_TX_DISABLE:
+		break;
+	}
 }
 
 static void sfp_sm_event(struct sfp *sfp, unsigned int event)
@@ -1470,134 +2089,9 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		sm_state_to_str(sfp->sm_state),
 		event_to_str(event));
 
-	/* This state machine tracks the insert/remove state of
-	 * the module, and handles probing the on-board EEPROM.
-	 */
-	switch (sfp->sm_mod_state) {
-	default:
-		if (event == SFP_E_INSERT) {
-			sfp_module_tx_disable(sfp);
-			sfp_sm_ins_next(sfp, SFP_MOD_PROBE, T_PROBE_INIT);
-		}
-		break;
-
-	case SFP_MOD_PROBE:
-		if (event == SFP_E_REMOVE) {
-			sfp_sm_ins_next(sfp, SFP_MOD_EMPTY, 0);
-		} else if (event == SFP_E_TIMEOUT) {
-			int val = sfp_sm_mod_probe(sfp);
-
-			if (val == 0)
-				sfp_sm_ins_next(sfp, SFP_MOD_PRESENT, 0);
-			else if (val > 0)
-				sfp_sm_ins_next(sfp, SFP_MOD_HPOWER, val);
-			else if (val != -EAGAIN)
-				sfp_sm_ins_next(sfp, SFP_MOD_ERROR, 0);
-			else
-				sfp_sm_set_timer(sfp, T_PROBE_RETRY);
-		}
-		break;
-
-	case SFP_MOD_HPOWER:
-		if (event == SFP_E_TIMEOUT) {
-			sfp_sm_ins_next(sfp, SFP_MOD_PRESENT, 0);
-			break;
-		}
-		/* fallthrough */
-	case SFP_MOD_PRESENT:
-	case SFP_MOD_ERROR:
-		if (event == SFP_E_REMOVE) {
-			sfp_sm_mod_remove(sfp);
-			sfp_sm_ins_next(sfp, SFP_MOD_EMPTY, 0);
-		}
-		break;
-	}
-
-	/* This state machine tracks the netdev up/down state */
-	switch (sfp->sm_dev_state) {
-	default:
-		if (event == SFP_E_DEV_UP)
-			sfp->sm_dev_state = SFP_DEV_UP;
-		break;
-
-	case SFP_DEV_UP:
-		if (event == SFP_E_DEV_DOWN) {
-			/* If the module has a PHY, avoid raising TX disable
-			 * as this resets the PHY. Otherwise, raise it to
-			 * turn the laser off.
-			 */
-			if (!sfp->mod_phy)
-				sfp_module_tx_disable(sfp);
-			sfp->sm_dev_state = SFP_DEV_DOWN;
-		}
-		break;
-	}
-
-	/* Some events are global */
-	if (sfp->sm_state != SFP_S_DOWN &&
-	    (sfp->sm_mod_state != SFP_MOD_PRESENT ||
-	     sfp->sm_dev_state != SFP_DEV_UP)) {
-		if (sfp->sm_state == SFP_S_LINK_UP &&
-		    sfp->sm_dev_state == SFP_DEV_UP)
-			sfp_sm_link_down(sfp);
-		if (sfp->mod_phy)
-			sfp_sm_phy_detach(sfp);
-		sfp_sm_next(sfp, SFP_S_DOWN, 0);
-		mutex_unlock(&sfp->sm_mutex);
-		return;
-	}
-
-	/* The main state machine */
-	switch (sfp->sm_state) {
-	case SFP_S_DOWN:
-		if (sfp->sm_mod_state == SFP_MOD_PRESENT &&
-		    sfp->sm_dev_state == SFP_DEV_UP)
-			sfp_sm_mod_init(sfp);
-		break;
-
-	case SFP_S_INIT:
-		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT)
-			sfp_sm_fault(sfp, true);
-		else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR)
-			sfp_sm_link_check_los(sfp);
-		break;
-
-	case SFP_S_WAIT_LOS:
-		if (event == SFP_E_TX_FAULT)
-			sfp_sm_fault(sfp, true);
-		else if (sfp_los_event_inactive(sfp, event))
-			sfp_sm_link_up(sfp);
-		break;
-
-	case SFP_S_LINK_UP:
-		if (event == SFP_E_TX_FAULT) {
-			sfp_sm_link_down(sfp);
-			sfp_sm_fault(sfp, true);
-		} else if (sfp_los_event_active(sfp, event)) {
-			sfp_sm_link_down(sfp);
-			sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
-		}
-		break;
-
-	case SFP_S_TX_FAULT:
-		if (event == SFP_E_TIMEOUT) {
-			sfp_module_tx_fault_reset(sfp);
-			sfp_sm_next(sfp, SFP_S_REINIT, T_INIT_JIFFIES);
-		}
-		break;
-
-	case SFP_S_REINIT:
-		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT) {
-			sfp_sm_fault(sfp, false);
-		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
-			dev_info(sfp->dev, "module transmit fault recovered\n");
-			sfp_sm_link_check_los(sfp);
-		}
-		break;
-
-	case SFP_S_TX_DISABLE:
-		break;
-	}
+	sfp_sm_device(sfp, event);
+	sfp_sm_module(sfp, event);
+	sfp_sm_main(sfp, event);
 
 	dev_dbg(sfp->dev, "SM: exit %s:%s:%s\n",
 		mod_state_to_str(sfp->sm_mod_state),
@@ -1605,6 +2099,16 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		sm_state_to_str(sfp->sm_state));
 
 	mutex_unlock(&sfp->sm_mutex);
+}
+
+static void sfp_attach(struct sfp *sfp)
+{
+	sfp_sm_event(sfp, SFP_E_DEV_ATTACH);
+}
+
+static void sfp_detach(struct sfp *sfp)
+{
+	sfp_sm_event(sfp, SFP_E_DEV_DETACH);
 }
 
 static void sfp_start(struct sfp *sfp)
@@ -1667,6 +2171,8 @@ static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
 }
 
 static const struct sfp_socket_ops sfp_module_ops = {
+	.attach = sfp_attach,
+	.detach = sfp_detach,
 	.start = sfp_start,
 	.stop = sfp_stop,
 	.module_info = sfp_module_info,
@@ -1686,6 +2192,7 @@ static void sfp_check_state(struct sfp *sfp)
 {
 	unsigned int state, i, changed;
 
+	mutex_lock(&sfp->st_mutex);
 	state = sfp_get_state(sfp);
 	changed = state ^ sfp->state;
 	changed &= SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT;
@@ -1711,6 +2218,7 @@ static void sfp_check_state(struct sfp *sfp)
 		sfp_sm_event(sfp, state & SFP_F_LOS ?
 				SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
 	rtnl_unlock();
+	mutex_unlock(&sfp->st_mutex);
 }
 
 static irqreturn_t sfp_irq(int irq, void *data)
@@ -1727,7 +2235,10 @@ static void sfp_poll(struct work_struct *work)
 	struct sfp *sfp = container_of(work, struct sfp, poll.work);
 
 	sfp_check_state(sfp);
-	mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+
+	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) ||
+	    sfp->need_poll)
+		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
 }
 
 static struct sfp *sfp_alloc(struct device *dev)
@@ -1741,8 +2252,11 @@ static struct sfp *sfp_alloc(struct device *dev)
 	sfp->dev = dev;
 
 	mutex_init(&sfp->sm_mutex);
+	mutex_init(&sfp->st_mutex);
 	INIT_DELAYED_WORK(&sfp->poll, sfp_poll);
 	INIT_DELAYED_WORK(&sfp->timeout, sfp_timeout);
+
+	sfp_hwmon_init(sfp);
 
 	return sfp;
 }
@@ -1750,6 +2264,8 @@ static struct sfp *sfp_alloc(struct device *dev)
 static void sfp_cleanup(void *data)
 {
 	struct sfp *sfp = data;
+
+	sfp_hwmon_exit(sfp);
 
 	cancel_delayed_work_sync(&sfp->poll);
 	cancel_delayed_work_sync(&sfp->timeout);
@@ -1765,9 +2281,10 @@ static void sfp_cleanup(void *data)
 static int sfp_probe(struct platform_device *pdev)
 {
 	const struct sff_data *sff;
+	struct i2c_adapter *i2c;
+	char *sfp_irq_name;
 	struct sfp *sfp;
-	bool poll = false;
-	int irq, err, i;
+	int err, i;
 
 	sfp = sfp_alloc(&pdev->dev);
 	if (IS_ERR(sfp))
@@ -1784,7 +2301,6 @@ static int sfp_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		struct device_node *node = pdev->dev.of_node;
 		const struct of_device_id *id;
-		struct i2c_adapter *i2c;
 		struct device_node *np;
 
 		id = of_match_node(sfp_of_match, node);
@@ -1801,14 +2317,32 @@ static int sfp_probe(struct platform_device *pdev)
 
 		i2c = of_find_i2c_adapter_by_node(np);
 		of_node_put(np);
-		if (!i2c)
-			return -EPROBE_DEFER;
+	} else if (has_acpi_companion(&pdev->dev)) {
+		struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
+		struct fwnode_handle *fw = acpi_fwnode_handle(adev);
+		struct fwnode_reference_args args;
+		struct acpi_handle *acpi_handle;
+		int ret;
 
-		err = sfp_i2c_configure(sfp, i2c);
-		if (err < 0) {
-			i2c_put_adapter(i2c);
-			return err;
+		ret = acpi_node_get_property_reference(fw, "i2c-bus", 0, &args);
+		if (ret || !is_acpi_device_node(args.fwnode)) {
+			dev_err(&pdev->dev, "missing 'i2c-bus' property\n");
+			return -ENODEV;
 		}
+
+		acpi_handle = ACPI_HANDLE_FWNODE(args.fwnode);
+		i2c = i2c_acpi_find_adapter_by_handle(acpi_handle);
+	} else {
+		return -EINVAL;
+	}
+
+	if (!i2c)
+		return -EPROBE_DEFER;
+
+	err = sfp_i2c_configure(sfp, i2c);
+	if (err < 0) {
+		i2c_put_adapter(i2c);
+		return err;
 	}
 
 	for (i = 0; i < GPIO_MAX; i++)
@@ -1834,10 +2368,6 @@ static int sfp_probe(struct platform_device *pdev)
 	dev_info(sfp->dev, "Host maximum power %u.%uW\n",
 		 sfp->max_power_mW / 1000, (sfp->max_power_mW / 100) % 10);
 
-	sfp->sfp_bus = sfp_register_socket(sfp->dev, sfp, &sfp_module_ops);
-	if (!sfp->sfp_bus)
-		return -ENOMEM;
-
 	/* Get the initial state, and always signal TX disable,
 	 * since the network interface will not be up.
 	 */
@@ -1848,31 +2378,43 @@ static int sfp_probe(struct platform_device *pdev)
 		sfp->state |= SFP_F_RATE_SELECT;
 	sfp_set_state(sfp, sfp->state);
 	sfp_module_tx_disable(sfp);
-	rtnl_lock();
-	if (sfp->state & SFP_F_PRESENT)
+	if (sfp->state & SFP_F_PRESENT) {
+		rtnl_lock();
 		sfp_sm_event(sfp, SFP_E_INSERT);
-	rtnl_unlock();
+		rtnl_unlock();
+	}
 
 	for (i = 0; i < GPIO_MAX; i++) {
 		if (gpio_flags[i] != GPIOD_IN || !sfp->gpio[i])
 			continue;
 
-		irq = gpiod_to_irq(sfp->gpio[i]);
-		if (!irq) {
-			poll = true;
+		sfp->gpio_irq[i] = gpiod_to_irq(sfp->gpio[i]);
+		if (sfp->gpio_irq[i] < 0) {
+			sfp->gpio_irq[i] = 0;
+			sfp->need_poll = true;
 			continue;
 		}
 
-		err = devm_request_threaded_irq(sfp->dev, irq, NULL, sfp_irq,
+		sfp_irq_name = devm_kasprintf(sfp->dev, GFP_KERNEL,
+					      "%s-%s", dev_name(sfp->dev),
+					      gpio_of_names[i]);
+
+		if (!sfp_irq_name)
+			return -ENOMEM;
+
+		err = devm_request_threaded_irq(sfp->dev, sfp->gpio_irq[i],
+						NULL, sfp_irq,
 						IRQF_ONESHOT |
 						IRQF_TRIGGER_RISING |
 						IRQF_TRIGGER_FALLING,
-						dev_name(sfp->dev), sfp);
-		if (err)
-			poll = true;
+						sfp_irq_name, sfp);
+		if (err) {
+			sfp->gpio_irq[i] = 0;
+			sfp->need_poll = true;
+		}
 	}
 
-	if (poll)
+	if (sfp->need_poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
 
 	/* We could have an issue in cases no Tx disable pin is available or
@@ -1884,6 +2426,10 @@ static int sfp_probe(struct platform_device *pdev)
 		dev_warn(sfp->dev,
 			 "No tx_disable pin: SFP modules will always be emitting.\n");
 
+	sfp->sfp_bus = sfp_register_socket(sfp->dev, sfp, &sfp_module_ops);
+	if (!sfp->sfp_bus)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -1893,12 +2439,33 @@ static int sfp_remove(struct platform_device *pdev)
 
 	sfp_unregister_socket(sfp->sfp_bus);
 
+	rtnl_lock();
+	sfp_sm_event(sfp, SFP_E_REMOVE);
+	rtnl_unlock();
+
 	return 0;
+}
+
+static void sfp_shutdown(struct platform_device *pdev)
+{
+	struct sfp *sfp = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < GPIO_MAX; i++) {
+		if (!sfp->gpio_irq[i])
+			continue;
+
+		devm_free_irq(sfp->dev, sfp->gpio_irq[i], sfp);
+	}
+
+	cancel_delayed_work_sync(&sfp->poll);
+	cancel_delayed_work_sync(&sfp->timeout);
 }
 
 static struct platform_driver sfp_driver = {
 	.probe = sfp_probe,
 	.remove = sfp_remove,
+	.shutdown = sfp_shutdown,
 	.driver = {
 		.name = "sfp",
 		.of_match_table = sfp_of_match,

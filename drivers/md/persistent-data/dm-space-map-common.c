@@ -190,6 +190,8 @@ static int sm_find_free(void *addr, unsigned begin, unsigned end,
 
 static int sm_ll_init(struct ll_disk *ll, struct dm_transaction_manager *tm)
 {
+	memset(ll, 0, sizeof(struct ll_disk));
+
 	ll->tm = tm;
 
 	ll->bitmap_info.tm = tm;
@@ -367,10 +369,6 @@ int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
 			 */
 			dm_tm_unlock(ll->tm, blk);
 			continue;
-
-		} else if (r < 0) {
-			dm_tm_unlock(ll->tm, blk);
-			return r;
 		}
 
 		dm_tm_unlock(ll->tm, blk);
@@ -380,6 +378,33 @@ int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
 	}
 
 	return -ENOSPC;
+}
+
+int sm_ll_find_common_free_block(struct ll_disk *old_ll, struct ll_disk *new_ll,
+	                         dm_block_t begin, dm_block_t end, dm_block_t *b)
+{
+	int r;
+	uint32_t count;
+
+	do {
+		r = sm_ll_find_free_block(new_ll, begin, new_ll->nr_blocks, b);
+		if (r)
+			break;
+
+		/* double check this block wasn't used in the old transaction */
+		if (*b >= old_ll->nr_blocks)
+			count = 0;
+		else {
+			r = sm_ll_lookup(old_ll, *b, &count);
+			if (r)
+				break;
+
+			if (count)
+				begin = *b + 1;
+		}
+	} while (count);
+
+	return r;
 }
 
 static int sm_ll_mutate(struct ll_disk *ll, dm_block_t b,

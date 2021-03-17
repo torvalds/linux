@@ -12,7 +12,7 @@
 #include <linux/smp.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/kexec.h>
 #include <linux/elfcore.h>
 #include <linux/sysctl.h>
@@ -163,7 +163,7 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 		case DIE_INIT_MONARCH_LEAVE:
 			if (!kdump_freeze_monarch)
 				break;
-			/* fall through */
+			fallthrough;
 		case DIE_INIT_SLAVE_LEAVE:
 		case DIE_INIT_MONARCH_ENTER:
 		case DIE_MCA_RENDZVOUS_LEAVE:

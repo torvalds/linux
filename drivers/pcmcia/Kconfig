@@ -1,10 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # PCCARD (PCMCIA/CardBus) bus subsystem configuration
 #
 
 menuconfig PCCARD
 	tristate "PCCard (PCMCIA/CardBus) support"
-	---help---
+	depends on !UML
+	help
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
 	  modems or hard drives often used with laptops computers.  There are
@@ -20,7 +22,7 @@ config PCMCIA
 	tristate "16-bit PCMCIA support"
 	select CRC32
 	default y
-	---help---
+	help
 	   This option enables support for 16-bit PCMCIA cards. Most older
 	   PC-cards are such 16-bit PCMCIA cards, so unless you know you're
 	   only using 32-bit CardBus cards, say Y or M here.
@@ -52,7 +54,7 @@ config CARDBUS
 	bool "32-bit CardBus support"
 	depends on PCI
 	default y
-	---help---
+	help
 	  CardBus is a bus mastering architecture for PC-cards, which allows
 	  for 32 bit PC-cards (the original PCMCIA standard specifies only
 	  a 16 bit wide bus). Many newer PC-cards are actually CardBus cards.
@@ -63,6 +65,9 @@ config CARDBUS
 
 	  If unsure, say Y.
 
+config PCMCIA_MAX1600
+	tristate
+
 comment "PC-card bridges"
 
 config YENTA
@@ -70,7 +75,7 @@ config YENTA
 	depends on PCI
 	select CARDBUS if !EXPERT
 	select PCCARD_NONSTATIC if PCMCIA != n
-	---help---
+	help
 	  This option enables support for CardBus host bridges.  Virtually
 	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
 	  the hardware inside your computer that PCMCIA cards are plugged
@@ -191,6 +196,8 @@ config PCMCIA_SA1111
 	select PCMCIA_SOC_COMMON
 	select PCMCIA_SA11XX_BASE if ARCH_SA1100
 	select PCMCIA_PXA2XX if ARCH_LUBBOCK && SA1111
+	select PCMCIA_MAX1600 if ASSABET_NEPONSET
+	select PCMCIA_MAX1600 if ARCH_LUBBOCK && SA1111
 	help
 	  Say Y  here to include support for SA1111-based PCMCIA or CF
 	  sockets, found on the Jornada 720, Graphicsmaster and other
@@ -207,6 +214,7 @@ config PCMCIA_PXA2XX
 		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
 		    || MACH_COLIBRI320 || MACH_H4700)
 	select PCMCIA_SOC_COMMON
+	select PCMCIA_MAX1600 if MACH_MAINSTONE
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
 

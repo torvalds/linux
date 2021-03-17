@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DTS file for CSR SiRFprimaII SoC
  *
  * Copyright (c) 2012 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
-/include/ "skeleton.dtsi"
 / {
 	compatible = "sirf,prima2";
 	#address-cells = <1>;
@@ -52,7 +50,7 @@
 		#size-cells = <1>;
 		ranges = <0x40000000 0x40000000 0x80000000>;
 
-		l2-cache-controller@80040000 {
+		cache-controller@80040000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x80040000 0x1000>;
 			interrupts = <59>;

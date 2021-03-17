@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_stat.c
  *
@@ -7,20 +8,6 @@
  * (c) Copyright 2006-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@linux-iscsi.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -246,43 +233,25 @@ static ssize_t target_stat_lu_lu_name_show(struct config_item *item, char *page)
 static ssize_t target_stat_lu_vend_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = to_stat_lu_dev(item);
-	int i;
-	char str[sizeof(dev->t10_wwn.vendor)+1];
 
-	/* scsiLuVendorId */
-	for (i = 0; i < sizeof(dev->t10_wwn.vendor); i++)
-		str[i] = ISPRINT(dev->t10_wwn.vendor[i]) ?
-			dev->t10_wwn.vendor[i] : ' ';
-	str[i] = '\0';
-	return snprintf(page, PAGE_SIZE, "%s\n", str);
+	return snprintf(page, PAGE_SIZE, "%-" __stringify(INQUIRY_VENDOR_LEN)
+			"s\n", dev->t10_wwn.vendor);
 }
 
 static ssize_t target_stat_lu_prod_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = to_stat_lu_dev(item);
-	int i;
-	char str[sizeof(dev->t10_wwn.model)+1];
 
-	/* scsiLuProductId */
-	for (i = 0; i < sizeof(dev->t10_wwn.model); i++)
-		str[i] = ISPRINT(dev->t10_wwn.model[i]) ?
-			dev->t10_wwn.model[i] : ' ';
-	str[i] = '\0';
-	return snprintf(page, PAGE_SIZE, "%s\n", str);
+	return snprintf(page, PAGE_SIZE, "%-" __stringify(INQUIRY_MODEL_LEN)
+			"s\n", dev->t10_wwn.model);
 }
 
 static ssize_t target_stat_lu_rev_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = to_stat_lu_dev(item);
-	int i;
-	char str[sizeof(dev->t10_wwn.revision)+1];
 
-	/* scsiLuRevisionId */
-	for (i = 0; i < sizeof(dev->t10_wwn.revision); i++)
-		str[i] = ISPRINT(dev->t10_wwn.revision[i]) ?
-			dev->t10_wwn.revision[i] : ' ';
-	str[i] = '\0';
-	return snprintf(page, PAGE_SIZE, "%s\n", str);
+	return snprintf(page, PAGE_SIZE, "%-" __stringify(INQUIRY_REVISION_LEN)
+			"s\n", dev->t10_wwn.revision);
 }
 
 static ssize_t target_stat_lu_dev_type_show(struct config_item *item, char *page)
@@ -612,7 +581,7 @@ static ssize_t target_stat_tgt_port_name_show(struct config_item *item,
 	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%sPort#%u\n",
-			tpg->se_tpg_tfo->get_fabric_name(),
+			tpg->se_tpg_tfo->fabric_name,
 			lun->lun_rtpi);
 	rcu_read_unlock();
 	return ret;
@@ -767,7 +736,7 @@ static ssize_t target_stat_transport_device_show(struct config_item *item,
 	if (dev) {
 		/* scsiTransportType */
 		ret = snprintf(page, PAGE_SIZE, "scsiTransport%s\n",
-			       tpg->se_tpg_tfo->get_fabric_name());
+			       tpg->se_tpg_tfo->fabric_name);
 	}
 	rcu_read_unlock();
 	return ret;

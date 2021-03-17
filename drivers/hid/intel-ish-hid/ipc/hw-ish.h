@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * H/W layer of ISHTP provider device (ISH)
  *
  * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #ifndef _ISHTP_HW_ISH_H_
@@ -31,6 +23,10 @@
 #define CNL_H_DEVICE_ID		0xA37C
 #define ICL_MOBILE_DEVICE_ID	0x34FC
 #define SPT_H_DEVICE_ID		0xA135
+#define CML_LP_DEVICE_ID	0x02FC
+#define CMP_H_DEVICE_ID		0x06FC
+#define EHL_Ax_DEVICE_ID	0x4BB3
+#define TGL_LP_DEVICE_ID	0xA0FC
 
 #define	REVISION_ID_CHT_A0	0x6
 #define	REVISION_ID_CHT_Ax_SI	0x0
@@ -84,5 +80,6 @@ irqreturn_t ish_irq_handler(int irq, void *dev_id);
 struct ishtp_device *ish_dev_init(struct pci_dev *pdev);
 int ish_hw_start(struct ishtp_device *dev);
 void ish_device_disable(struct ishtp_device *dev);
+int ish_disable_dma(struct ishtp_device *dev);
 
 #endif /* _ISHTP_HW_ISH_H_ */

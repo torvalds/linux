@@ -1,0 +1,44 @@
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_frequency
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Stores the PLL frequency in Hz for channel Y.
+		Reading returns the actual frequency in Hz.
+		The ADF4371 has an integrated VCO with fundamendal output
+		frequency ranging from 4000000000 Hz 8000000000 Hz.
+
+		out_altvoltage0_frequency:
+			A divide by 1, 2, 4, 8, 16, 32 or circuit generates
+			frequencies from 62500000 Hz to 8000000000 Hz.
+		out_altvoltage1_frequency:
+			This channel duplicates the channel 0 frequency
+		out_altvoltage2_frequency:
+			A frequency doubler generates frequencies from
+			8000000000 Hz to 16000000000 Hz.
+		out_altvoltage3_frequency:
+			A frequency quadrupler generates frequencies from
+			16000000000 Hz to 32000000000 Hz.
+
+		Note: writes to one of the channels will affect the frequency of
+		all the other channels, since it involves changing the VCO
+		fundamental output frequency.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_name
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Reading returns the datasheet name for channel Y::
+
+		  out_altvoltage0_name: RF8x
+		  out_altvoltage1_name: RFAUX8x
+		  out_altvoltage2_name: RF16x
+		  out_altvoltage3_name: RF32x
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_powerdown
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute allows the user to power down the PLL and it's
+		RFOut buffers.
+		Writing 1 causes the specified channel to power down.
+		Clearing returns to normal operation.

@@ -410,6 +410,7 @@ do {									\
 	clear_thread_flag(TIF_32BIT_FPREGS);				\
 	clear_thread_flag(TIF_HYBRID_FPREGS);				\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
+	current->personality &= ~READ_IMPLIES_EXEC;			\
 									\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)			\
 		__SET_PERSONALITY32(ex, state);				\
@@ -444,6 +445,9 @@ extern unsigned int elf_hwcap;
 
 #define ELF_PLATFORM  __elf_platform
 extern const char *__elf_platform;
+
+#define ELF_BASE_PLATFORM  __elf_base_platform
+extern const char *__elf_base_platform;
 
 /*
  * See comments in asm-alpha/elf.h, this is the same thing
@@ -481,6 +485,8 @@ struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp);
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
 struct arch_elf_state {
 	int nan_2008;
 	int fp_abi;
@@ -497,18 +503,34 @@ struct arch_elf_state {
 	.overall_fp_mode = -1,			\
 }
 
-/* Whether to accept legacy-NaN and 2008-NaN user binaries.  */
-extern bool mips_use_nan_legacy;
-extern bool mips_use_nan_2008;
-
 extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,
 			    bool is_interp, struct arch_elf_state *state);
 
 extern int arch_check_elf(void *ehdr, bool has_interpreter, void *interp_ehdr,
 			  struct arch_elf_state *state);
 
+/* Whether to accept legacy-NaN and 2008-NaN user binaries.  */
+extern bool mips_use_nan_legacy;
+extern bool mips_use_nan_2008;
+
 extern void mips_set_personality_nan(struct arch_elf_state *state);
 extern void mips_set_personality_fp(struct arch_elf_state *state);
+
+#else /* !CONFIG_MIPS_FP_SUPPORT */
+
+struct arch_elf_state;
+
+static inline void mips_set_personality_nan(struct arch_elf_state *state)
+{
+	/* no-op */
+}
+
+static inline void mips_set_personality_fp(struct arch_elf_state *state)
+{
+	/* no-op */
+}
+
+#endif /* !CONFIG_MIPS_FP_SUPPORT */
 
 #define elf_read_implies_exec(ex, stk) mips_elf_read_implies_exec(&(ex), stk)
 extern int mips_elf_read_implies_exec(void *elf_ex, int exstack);

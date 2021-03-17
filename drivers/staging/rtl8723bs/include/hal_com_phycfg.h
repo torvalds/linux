@@ -177,7 +177,7 @@ u8 		Channel,
 	bool		*bIn24G
 	);
 
-s8 phy_get_tx_pwr_lmt (struct adapter *adapter, u32 RegPwrTblSel,
+s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 RegPwrTblSel,
 			enum BAND_TYPE Band, enum CHANNEL_WIDTH Bandwidth,
 u8 		RfPath,
 u8 		DataRate,
@@ -213,53 +213,10 @@ PHY_GetTxPowerTrackingOffset(
 	u8 	RFPath
 	);
 
-u8
-PHY_GetTxPowerIndex(
-struct adapter *		padapter,
-u8 			RFPath,
-u8 			Rate,
-enum CHANNEL_WIDTH		BandWidth,
-u8 			Channel
-	);
-
-void
-PHY_SetTxPowerIndex(
-struct adapter *	padapter,
-u32 			PowerIndex,
-u8 		RFPath,
-u8 		Rate
-	);
-
 void
 Hal_ChannelPlanToRegulation(
 struct adapter *	Adapter,
 u16 			ChannelPlan
 	);
-
-#define MAX_PARA_FILE_BUF_LEN	25600
-
-#define LOAD_MAC_PARA_FILE				BIT0
-#define LOAD_BB_PARA_FILE					BIT1
-#define LOAD_BB_PG_PARA_FILE				BIT2
-#define LOAD_BB_MP_PARA_FILE				BIT3
-#define LOAD_RF_PARA_FILE					BIT4
-#define LOAD_RF_TXPWR_TRACK_PARA_FILE	BIT5
-#define LOAD_RF_TXPWR_LMT_PARA_FILE		BIT6
-
-int phy_ConfigMACWithParaFile(struct adapter *Adapter, char*pFileName);
-
-int phy_ConfigBBWithParaFile(struct adapter *Adapter, char*pFileName, u32 ConfigType);
-
-int phy_ConfigBBWithPgParaFile(struct adapter *Adapter, char*pFileName);
-
-int phy_ConfigBBWithMpParaFile(struct adapter *Adapter, char*pFileName);
-
-int PHY_ConfigRFWithParaFile(struct adapter *Adapter, char*pFileName, u8 eRFPath);
-
-int PHY_ConfigRFWithTxPwrTrackParaFile(struct adapter *Adapter, char*pFileName);
-
-int PHY_ConfigRFWithPowerLimitTableParaFile(struct adapter *Adapter, char*pFileName);
-
-void phy_free_filebuf(struct adapter *padapter);
 
 #endif /* __HAL_COMMON_H__ */

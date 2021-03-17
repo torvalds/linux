@@ -1,25 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2016, Linaro Limited
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __TEE_DRV_H
 #define __TEE_DRV_H
 
-#include <linux/types.h>
+#include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/kref.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 #include <linux/tee.h>
+#include <linux/types.h>
+#include <linux/uuid.h>
 
 /*
  * The file describes the API provided by the generic TEE driver to the
@@ -32,6 +26,7 @@
 #define TEE_SHM_REGISTER	BIT(3)  /* Memory registered in secure world */
 #define TEE_SHM_USER_MAPPED	BIT(4)  /* Memory mapped in user space */
 #define TEE_SHM_POOL		BIT(5)  /* Memory allocated from pool */
+#define TEE_SHM_KERNEL_MAPPED	BIT(6)  /* Memory mapped in kernel space */
 
 struct device;
 struct tee_device;
@@ -47,13 +42,21 @@ struct tee_shm_pool;
  * @releasing:  flag that indicates if context is being released right now.
  *		It is needed to break circular dependency on context during
  *              shared memory release.
+ * @supp_nowait: flag that indicates that requests in this context should not
+ *              wait for tee-supplicant daemon to be started if not present
+ *              and just return with an error code. It is needed for requests
+ *              that arises from TEE based kernel drivers that should be
+ *              non-blocking in nature.
+ * @cap_memref_null: flag indicating if the TEE Client support shared
+ *                   memory buffer with a NULL pointer.
  */
 struct tee_context {
 	struct tee_device *teedev;
-	struct list_head list_shm;
 	void *data;
 	struct kref refcount;
 	bool releasing;
+	bool supp_nowait;
+	bool cap_memref_null;
 };
 
 struct tee_param_memref {
@@ -167,10 +170,24 @@ int tee_device_register(struct tee_device *teedev);
 void tee_device_unregister(struct tee_device *teedev);
 
 /**
+ * tee_session_calc_client_uuid() - Calculates client UUID for session
+ * @uuid:		Resulting UUID
+ * @connection_method:	Connection method for session (TEE_IOCTL_LOGIN_*)
+ * @connectuon_data:	Connection data for opening session
+ *
+ * Based on connection method calculates UUIDv5 based client UUID.
+ *
+ * For group based logins verifies that calling process has specified
+ * credentials.
+ *
+ * @return < 0 on failure
+ */
+int tee_session_calc_client_uuid(uuid_t *uuid, u32 connection_method,
+				 const u8 connection_data[TEE_IOCTL_UUID_LEN]);
+
+/**
  * struct tee_shm - shared memory object
- * @teedev:	device used to allocate the object
- * @ctx:	context using the object, if NULL the context is gone
- * @link	link element
+ * @ctx:	context using the object
  * @paddr:	physical address of the shared memory
  * @kaddr:	virtual address of the shared memory
  * @size:	size of shared memory
@@ -185,9 +202,7 @@ void tee_device_unregister(struct tee_device *teedev);
  * subsystem and from drivers that implements their own shm pool manager.
  */
 struct tee_shm {
-	struct tee_device *teedev;
 	struct tee_context *ctx;
-	struct list_head link;
 	phys_addr_t paddr;
 	void *kaddr;
 	size_t size;
@@ -319,18 +334,6 @@ void *tee_get_drvdata(struct tee_device *teedev);
 struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags);
 
 /**
- * tee_shm_priv_alloc() - Allocate shared memory privately
- * @dev:	Device that allocates the shared memory
- * @size:	Requested size of shared memory
- *
- * Allocates shared memory buffer that is not associated with any client
- * context. Such buffers are owned by TEE driver and used for internal calls.
- *
- * @returns a pointer to 'struct tee_shm'
- */
-struct tee_shm *tee_shm_priv_alloc(struct tee_device *teedev, size_t size);
-
-/**
  * tee_shm_register() - Register shared memory buffer
  * @ctx:	Context that registers the shared memory
  * @addr:	Address is userspace of the shared buffer
@@ -453,6 +456,91 @@ static inline int tee_shm_get_id(struct tee_shm *shm)
  */
 struct tee_shm *tee_shm_get_from_id(struct tee_context *ctx, int id);
 
+/**
+ * tee_client_open_context() - Open a TEE context
+ * @start:	if not NULL, continue search after this context
+ * @match:	function to check TEE device
+ * @data:	data for match function
+ * @vers:	if not NULL, version data of TEE device of the context returned
+ *
+ * This function does an operation similar to open("/dev/teeX") in user space.
+ * A returned context must be released with tee_client_close_context().
+ *
+ * Returns a TEE context of the first TEE device matched by the match()
+ * callback or an ERR_PTR.
+ */
+struct tee_context *
+tee_client_open_context(struct tee_context *start,
+			int (*match)(struct tee_ioctl_version_data *,
+				     const void *),
+			const void *data, struct tee_ioctl_version_data *vers);
+
+/**
+ * tee_client_close_context() - Close a TEE context
+ * @ctx:	TEE context to close
+ *
+ * Note that all sessions previously opened with this context will be
+ * closed when this function is called.
+ */
+void tee_client_close_context(struct tee_context *ctx);
+
+/**
+ * tee_client_get_version() - Query version of TEE
+ * @ctx:	TEE context to TEE to query
+ * @vers:	Pointer to version data
+ */
+void tee_client_get_version(struct tee_context *ctx,
+			    struct tee_ioctl_version_data *vers);
+
+/**
+ * tee_client_open_session() - Open a session to a Trusted Application
+ * @ctx:	TEE context
+ * @arg:	Open session arguments, see description of
+ *		struct tee_ioctl_open_session_arg
+ * @param:	Parameters passed to the Trusted Application
+ *
+ * Returns < 0 on error else see @arg->ret for result. If @arg->ret
+ * is TEEC_SUCCESS the session identifier is available in @arg->session.
+ */
+int tee_client_open_session(struct tee_context *ctx,
+			    struct tee_ioctl_open_session_arg *arg,
+			    struct tee_param *param);
+
+/**
+ * tee_client_close_session() - Close a session to a Trusted Application
+ * @ctx:	TEE Context
+ * @session:	Session id
+ *
+ * Return < 0 on error else 0, regardless the session will not be
+ * valid after this function has returned.
+ */
+int tee_client_close_session(struct tee_context *ctx, u32 session);
+
+/**
+ * tee_client_invoke_func() - Invoke a function in a Trusted Application
+ * @ctx:	TEE Context
+ * @arg:	Invoke arguments, see description of
+ *		struct tee_ioctl_invoke_arg
+ * @param:	Parameters passed to the Trusted Application
+ *
+ * Returns < 0 on error else see @arg->ret for result.
+ */
+int tee_client_invoke_func(struct tee_context *ctx,
+			   struct tee_ioctl_invoke_arg *arg,
+			   struct tee_param *param);
+
+/**
+ * tee_client_cancel_req() - Request cancellation of the previous open-session
+ * or invoke-command operations in a Trusted Application
+ * @ctx:       TEE Context
+ * @arg:       Cancellation arguments, see description of
+ *             struct tee_ioctl_cancel_arg
+ *
+ * Returns < 0 on error else 0 if the cancellation was successfully requested.
+ */
+int tee_client_cancel_req(struct tee_context *ctx,
+			  struct tee_ioctl_cancel_arg *arg);
+
 static inline bool tee_param_is_memref(struct tee_param *param)
 {
 	switch (param->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
@@ -464,5 +552,32 @@ static inline bool tee_param_is_memref(struct tee_param *param)
 		return false;
 	}
 }
+
+extern struct bus_type tee_bus_type;
+
+/**
+ * struct tee_client_device - tee based device
+ * @id:			device identifier
+ * @dev:		device structure
+ */
+struct tee_client_device {
+	struct tee_client_device_id id;
+	struct device dev;
+};
+
+#define to_tee_client_device(d) container_of(d, struct tee_client_device, dev)
+
+/**
+ * struct tee_client_driver - tee client driver
+ * @id_table:		device id table supported by this driver
+ * @driver:		driver structure
+ */
+struct tee_client_driver {
+	const struct tee_client_device_id *id_table;
+	struct device_driver driver;
+};
+
+#define to_tee_client_driver(d) \
+		container_of(d, struct tee_client_driver, driver)
 
 #endif /*__TEE_DRV_H*/

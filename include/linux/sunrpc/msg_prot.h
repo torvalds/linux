@@ -8,8 +8,6 @@
 #ifndef _LINUX_SUNRPC_MSGPROT_H_
 #define _LINUX_SUNRPC_MSGPROT_H_
 
-#ifdef __KERNEL__ /* user programs should get these from the rpc header files */
-
 #define RPC_VERSION 2
 
 /* size of an XDR encoding unit in bytes, i.e. 32bit */
@@ -145,7 +143,7 @@ typedef __be32	rpc_fraghdr;
 /*
  * Well-known netids. See:
  *
- *   http://www.iana.org/assignments/rpc-netids/rpc-netids.xhtml
+ *   https://www.iana.org/assignments/rpc-netids/rpc-netids.xhtml
  */
 #define RPCBIND_NETID_UDP	"udp"
 #define RPCBIND_NETID_TCP	"tcp"
@@ -217,5 +215,4 @@ typedef __be32	rpc_fraghdr;
 /* Assume INET6_ADDRSTRLEN will always be larger than INET_ADDRSTRLEN... */
 #define RPCBIND_MAXUADDRLEN	RPCBIND_MAXUADDR6LEN
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_MSGPROT_H_ */

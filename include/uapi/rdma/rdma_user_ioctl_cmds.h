@@ -36,7 +36,7 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
-/* Documentation/ioctl/ioctl-number.txt */
+/* Documentation/userspace-api/ioctl/ioctl-number.rst */
 #define RDMA_IOCTL_MAGIC	0x1b
 #define RDMA_VERBS_IOCTL \
 	_IOWR(RDMA_IOCTL_MAGIC, 1, struct ib_uverbs_ioctl_hdr)
@@ -53,7 +53,7 @@ enum {
 
 struct ib_uverbs_attr {
 	__u16 attr_id;		/* command specific type attribute */
-	__u16 len;		/* only for pointers */
+	__u16 len;		/* only for pointers and IDRs array */
 	__u16 flags;		/* combination of UVERBS_ATTR_F_XXXX */
 	union {
 		struct {
@@ -63,7 +63,10 @@ struct ib_uverbs_attr {
 		__u16 reserved;
 	} attr_data;
 	union {
-		/* Used by PTR_IN/OUT, ENUM_IN and IDR */
+		/*
+		 * ptr to command, inline data, idr/fd or
+		 * ptr to __u32 array of IDRs
+		 */
 		__aligned_u64 data;
 		/* Used by FD_IN and FD_OUT */
 		__s64 data_s64;
@@ -79,26 +82,6 @@ struct ib_uverbs_ioctl_hdr {
 	__u32 driver_id;
 	__u32 reserved2;
 	struct ib_uverbs_attr  attrs[0];
-};
-
-enum rdma_driver_id {
-	RDMA_DRIVER_UNKNOWN,
-	RDMA_DRIVER_MLX5,
-	RDMA_DRIVER_MLX4,
-	RDMA_DRIVER_CXGB3,
-	RDMA_DRIVER_CXGB4,
-	RDMA_DRIVER_MTHCA,
-	RDMA_DRIVER_BNXT_RE,
-	RDMA_DRIVER_OCRDMA,
-	RDMA_DRIVER_NES,
-	RDMA_DRIVER_I40IW,
-	RDMA_DRIVER_VMW_PVRDMA,
-	RDMA_DRIVER_QEDR,
-	RDMA_DRIVER_HNS,
-	RDMA_DRIVER_USNIC,
-	RDMA_DRIVER_RXE,
-	RDMA_DRIVER_HFI1,
-	RDMA_DRIVER_QIB,
 };
 
 #endif

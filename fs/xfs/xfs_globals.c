@@ -4,7 +4,6 @@
  * All Rights Reserved.
  */
 #include "xfs.h"
-#include "xfs_sysctl.h"
 
 /*
  * Tunable XFS parameters.  xfs_params is required even when CONFIG_SYSCTL=n,
@@ -16,7 +15,7 @@ xfs_param_t xfs_params = {
 			  /*	MIN		DFLT		MAX	*/
 	.sgid_inherit	= {	0,		0,		1	},
 	.symlink_mode	= {	0,		0,		1	},
-	.panic_mask	= {	0,		0,		255	},
+	.panic_mask	= {	0,		0,		256	},
 	.error_level	= {	0,		3,		11	},
 	.syncd_timer	= {	1*100,		30*100,		7200*100},
 	.stats_clear	= {	0,		0,		1	},
@@ -40,5 +39,8 @@ struct xfs_globals xfs_globals = {
 	.bug_on_assert		=	true,	/* assert failures BUG() */
 #else
 	.bug_on_assert		=	false,	/* assert failures WARN() */
+#endif
+#ifdef DEBUG
+	.pwork_threads		=	-1,	/* automatic thread detection */
 #endif
 };

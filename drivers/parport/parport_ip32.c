@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Low-level parallel port routines for built-in port on SGI IP32
  *
  * Author: Arnaud Giersch <arnaud.giersch@free.fr>
@@ -9,20 +10,6 @@
  * Thanks to Ilya A. Volynets-Evenbakh for his help.
  *
  * Copyright (C) 2005, 2006 Arnaud Giersch.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 /* Current status:
@@ -341,19 +328,19 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 						     "TST", "CFG"};
 		unsigned int ecr = readb(priv->regs.ecr);
 		printk(KERN_DEBUG PPIP32 "    ecr=0x%02x", ecr);
-		printk(" %s",
-		       ecr_modes[(ecr & ECR_MODE_MASK) >> ECR_MODE_SHIFT]);
+		pr_cont(" %s",
+			ecr_modes[(ecr & ECR_MODE_MASK) >> ECR_MODE_SHIFT]);
 		if (ecr & ECR_nERRINTR)
-			printk(",nErrIntrEn");
+			pr_cont(",nErrIntrEn");
 		if (ecr & ECR_DMAEN)
-			printk(",dmaEn");
+			pr_cont(",dmaEn");
 		if (ecr & ECR_SERVINTR)
-			printk(",serviceIntr");
+			pr_cont(",serviceIntr");
 		if (ecr & ECR_F_FULL)
-			printk(",f_full");
+			pr_cont(",f_full");
 		if (ecr & ECR_F_EMPTY)
-			printk(",f_empty");
-		printk("\n");
+			pr_cont(",f_empty");
+		pr_cont("\n");
 	}
 	if (show_ecp_config) {
 		unsigned int oecr, cnfgA, cnfgB;
@@ -365,52 +352,53 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 		writeb(ECR_MODE_PS2, priv->regs.ecr);
 		writeb(oecr, priv->regs.ecr);
 		printk(KERN_DEBUG PPIP32 "    cnfgA=0x%02x", cnfgA);
-		printk(" ISA-%s", (cnfgA & CNFGA_IRQ) ? "Level" : "Pulses");
+		pr_cont(" ISA-%s", (cnfgA & CNFGA_IRQ) ? "Level" : "Pulses");
 		switch (cnfgA & CNFGA_ID_MASK) {
 		case CNFGA_ID_8:
-			printk(",8 bits");
+			pr_cont(",8 bits");
 			break;
 		case CNFGA_ID_16:
-			printk(",16 bits");
+			pr_cont(",16 bits");
 			break;
 		case CNFGA_ID_32:
-			printk(",32 bits");
+			pr_cont(",32 bits");
 			break;
 		default:
-			printk(",unknown ID");
+			pr_cont(",unknown ID");
 			break;
 		}
 		if (!(cnfgA & CNFGA_nBYTEINTRANS))
-			printk(",ByteInTrans");
+			pr_cont(",ByteInTrans");
 		if ((cnfgA & CNFGA_ID_MASK) != CNFGA_ID_8)
-			printk(",%d byte%s left", cnfgA & CNFGA_PWORDLEFT,
-			       ((cnfgA & CNFGA_PWORDLEFT) > 1) ? "s" : "");
-		printk("\n");
+			pr_cont(",%d byte%s left",
+				cnfgA & CNFGA_PWORDLEFT,
+				((cnfgA & CNFGA_PWORDLEFT) > 1) ? "s" : "");
+		pr_cont("\n");
 		printk(KERN_DEBUG PPIP32 "    cnfgB=0x%02x", cnfgB);
-		printk(" irq=%u,dma=%u",
-		       (cnfgB & CNFGB_IRQ_MASK) >> CNFGB_IRQ_SHIFT,
-		       (cnfgB & CNFGB_DMA_MASK) >> CNFGB_DMA_SHIFT);
-		printk(",intrValue=%d", !!(cnfgB & CNFGB_INTRVAL));
+		pr_cont(" irq=%u,dma=%u",
+			(cnfgB & CNFGB_IRQ_MASK) >> CNFGB_IRQ_SHIFT,
+			(cnfgB & CNFGB_DMA_MASK) >> CNFGB_DMA_SHIFT);
+		pr_cont(",intrValue=%d", !!(cnfgB & CNFGB_INTRVAL));
 		if (cnfgB & CNFGB_COMPRESS)
-			printk(",compress");
-		printk("\n");
+			pr_cont(",compress");
+		pr_cont("\n");
 	}
 	for (i = 0; i < 2; i++) {
 		unsigned int dcr = i ? priv->dcr_cache : readb(priv->regs.dcr);
 		printk(KERN_DEBUG PPIP32 "    dcr(%s)=0x%02x",
 		       i ? "soft" : "hard", dcr);
-		printk(" %s", (dcr & DCR_DIR) ? "rev" : "fwd");
+		pr_cont(" %s", (dcr & DCR_DIR) ? "rev" : "fwd");
 		if (dcr & DCR_IRQ)
-			printk(",ackIntEn");
+			pr_cont(",ackIntEn");
 		if (!(dcr & DCR_SELECT))
-			printk(",nSelectIn");
+			pr_cont(",nSelectIn");
 		if (dcr & DCR_nINIT)
-			printk(",nInit");
+			pr_cont(",nInit");
 		if (!(dcr & DCR_AUTOFD))
-			printk(",nAutoFD");
+			pr_cont(",nAutoFD");
 		if (!(dcr & DCR_STROBE))
-			printk(",nStrobe");
-		printk("\n");
+			pr_cont(",nStrobe");
+		pr_cont("\n");
 	}
 #define sep (f++ ? ',' : ' ')
 	{
@@ -418,20 +406,20 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 		unsigned int dsr = readb(priv->regs.dsr);
 		printk(KERN_DEBUG PPIP32 "    dsr=0x%02x", dsr);
 		if (!(dsr & DSR_nBUSY))
-			printk("%cBusy", sep);
+			pr_cont("%cBusy", sep);
 		if (dsr & DSR_nACK)
-			printk("%cnAck", sep);
+			pr_cont("%cnAck", sep);
 		if (dsr & DSR_PERROR)
-			printk("%cPError", sep);
+			pr_cont("%cPError", sep);
 		if (dsr & DSR_SELECT)
-			printk("%cSelect", sep);
+			pr_cont("%cSelect", sep);
 		if (dsr & DSR_nFAULT)
-			printk("%cnFault", sep);
+			pr_cont("%cnFault", sep);
 		if (!(dsr & DSR_nPRINT))
-			printk("%c(Print)", sep);
+			pr_cont("%c(Print)", sep);
 		if (dsr & DSR_TIMEOUT)
-			printk("%cTimeout", sep);
-		printk("\n");
+			pr_cont("%cTimeout", sep);
+		pr_cont("\n");
 	}
 #undef sep
 }
@@ -568,6 +556,7 @@ static irqreturn_t parport_ip32_merr_interrupt(int irq, void *dev_id)
 
 /**
  * parport_ip32_dma_start - begins a DMA transfer
+ * @p:		partport to work on
  * @dir:	DMA direction: DMA_TO_DEVICE or DMA_FROM_DEVICE
  * @addr:	pointer to data buffer
  * @count:	buffer size
@@ -575,8 +564,8 @@ static irqreturn_t parport_ip32_merr_interrupt(int irq, void *dev_id)
  * Calls to parport_ip32_dma_start() and parport_ip32_dma_stop() must be
  * correctly balanced.
  */
-static int parport_ip32_dma_start(enum dma_data_direction dir,
-				  void *addr, size_t count)
+static int parport_ip32_dma_start(struct parport *p,
+		enum dma_data_direction dir, void *addr, size_t count)
 {
 	unsigned int limit;
 	u64 ctrl;
@@ -601,7 +590,7 @@ static int parport_ip32_dma_start(enum dma_data_direction dir,
 
 	/* Prepare DMA pointers */
 	parport_ip32_dma.dir = dir;
-	parport_ip32_dma.buf = dma_map_single(NULL, addr, count, dir);
+	parport_ip32_dma.buf = dma_map_single(&p->bus_dev, addr, count, dir);
 	parport_ip32_dma.len = count;
 	parport_ip32_dma.next = parport_ip32_dma.buf;
 	parport_ip32_dma.left = parport_ip32_dma.len;
@@ -625,11 +614,12 @@ static int parport_ip32_dma_start(enum dma_data_direction dir,
 
 /**
  * parport_ip32_dma_stop - ends a running DMA transfer
+ * @p:		partport to work on
  *
  * Calls to parport_ip32_dma_start() and parport_ip32_dma_stop() must be
  * correctly balanced.
  */
-static void parport_ip32_dma_stop(void)
+static void parport_ip32_dma_stop(struct parport *p)
 {
 	u64 ctx_a;
 	u64 ctx_b;
@@ -685,8 +675,8 @@ static void parport_ip32_dma_stop(void)
 	enable_irq(MACEISA_PAR_CTXB_IRQ);
 	parport_ip32_dma.irq_on = 1;
 
-	dma_unmap_single(NULL, parport_ip32_dma.buf, parport_ip32_dma.len,
-			 parport_ip32_dma.dir);
+	dma_unmap_single(&p->bus_dev, parport_ip32_dma.buf,
+			 parport_ip32_dma.len, parport_ip32_dma.dir);
 }
 
 /**
@@ -1348,9 +1338,8 @@ static unsigned int parport_ip32_fwp_wait_interrupt(struct parport *p)
 			ecr = parport_ip32_read_econtrol(p);
 			if ((ecr & ECR_F_EMPTY) && !(ecr & ECR_SERVINTR)
 			    && !lost_interrupt) {
-				printk(KERN_WARNING PPIP32
-				       "%s: lost interrupt in %s\n",
-				       p->name, __func__);
+				pr_warn(PPIP32 "%s: lost interrupt in %s\n",
+					p->name, __func__);
 				lost_interrupt = 1;
 			}
 		}
@@ -1445,7 +1434,7 @@ static size_t parport_ip32_fifo_write_block_dma(struct parport *p,
 
 	priv->irq_mode = PARPORT_IP32_IRQ_HERE;
 
-	parport_ip32_dma_start(DMA_TO_DEVICE, (void *)buf, len);
+	parport_ip32_dma_start(p, DMA_TO_DEVICE, (void *)buf, len);
 	reinit_completion(&priv->irq_complete);
 	parport_ip32_frob_econtrol(p, ECR_DMAEN | ECR_SERVINTR, ECR_DMAEN);
 
@@ -1461,7 +1450,7 @@ static size_t parport_ip32_fifo_write_block_dma(struct parport *p,
 		if (ecr & ECR_SERVINTR)
 			break;	/* DMA transfer just finished */
 	}
-	parport_ip32_dma_stop();
+	parport_ip32_dma_stop(p);
 	written = len - parport_ip32_dma_get_residue();
 
 	priv->irq_mode = PARPORT_IP32_IRQ_FWD;
@@ -1654,8 +1643,8 @@ static size_t parport_ip32_compat_write_data(struct parport *p,
 				       DSR_nBUSY | DSR_nFAULT)) {
 		/* Avoid to flood the logs */
 		if (ready_before)
-			printk(KERN_INFO PPIP32 "%s: not ready in %s\n",
-			       p->name, __func__);
+			pr_info(PPIP32 "%s: not ready in %s\n",
+				p->name, __func__);
 		ready_before = 0;
 		goto stop;
 	}
@@ -1715,7 +1704,7 @@ static size_t parport_ip32_ecp_write_data(struct parport *p,
 
 		/* Event 49: PError goes high. */
 		if (parport_wait_peripheral(p, DSR_PERROR, DSR_PERROR)) {
-			printk(KERN_DEBUG PPIP32 "%s: PError timeout in %s",
+			printk(KERN_DEBUG PPIP32 "%s: PError timeout in %s\n",
 			       p->name, __func__);
 			physport->ieee1284.phase = IEEE1284_PH_ECP_DIR_UNKNOWN;
 			return 0;
@@ -1735,8 +1724,8 @@ static size_t parport_ip32_ecp_write_data(struct parport *p,
 				       DSR_nBUSY | DSR_nFAULT)) {
 		/* Avoid to flood the logs */
 		if (ready_before)
-			printk(KERN_INFO PPIP32 "%s: not ready in %s\n",
-			       p->name, __func__);
+			pr_info(PPIP32 "%s: not ready in %s\n",
+				p->name, __func__);
 		ready_before = 0;
 		goto stop;
 	}
@@ -2075,8 +2064,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 	p->modes |= PARPORT_MODE_TRISTATE;
 
 	if (!parport_ip32_fifo_supported(p)) {
-		printk(KERN_WARNING PPIP32
-		       "%s: error: FIFO disabled\n", p->name);
+		pr_warn(PPIP32 "%s: error: FIFO disabled\n", p->name);
 		/* Disable hardware modes depending on a working FIFO. */
 		features &= ~PARPORT_IP32_ENABLE_SPP;
 		features &= ~PARPORT_IP32_ENABLE_ECP;
@@ -2088,8 +2076,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 	if (features & PARPORT_IP32_ENABLE_IRQ) {
 		int irq = MACEISA_PARALLEL_IRQ;
 		if (request_irq(irq, parport_ip32_interrupt, 0, p->name, p)) {
-			printk(KERN_WARNING PPIP32
-			       "%s: error: IRQ disabled\n", p->name);
+			pr_warn(PPIP32 "%s: error: IRQ disabled\n", p->name);
 			/* DMA cannot work without interrupts. */
 			features &= ~PARPORT_IP32_ENABLE_DMA;
 		} else {
@@ -2102,8 +2089,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 	/* Allocate DMA resources */
 	if (features & PARPORT_IP32_ENABLE_DMA) {
 		if (parport_ip32_dma_register())
-			printk(KERN_WARNING PPIP32
-			       "%s: error: DMA disabled\n", p->name);
+			pr_warn(PPIP32 "%s: error: DMA disabled\n", p->name);
 		else {
 			pr_probe(p, "DMA support enabled\n");
 			p->dma = 0; /* arbitrary value != PARPORT_DMA_NONE */
@@ -2145,13 +2131,15 @@ static __init struct parport *parport_ip32_probe_port(void)
 	parport_ip32_dump_state(p, "end init", 0);
 
 	/* Print out what we found */
-	printk(KERN_INFO "%s: SGI IP32 at 0x%lx (0x%lx)",
-	       p->name, p->base, p->base_hi);
+	pr_info("%s: SGI IP32 at 0x%lx (0x%lx)", p->name, p->base, p->base_hi);
 	if (p->irq != PARPORT_IRQ_NONE)
-		printk(", irq %d", p->irq);
-	printk(" [");
-#define printmode(x)	if (p->modes & PARPORT_MODE_##x)		\
-				printk("%s%s", f++ ? "," : "", #x)
+		pr_cont(", irq %d", p->irq);
+	pr_cont(" [");
+#define printmode(x)							\
+do {									\
+	if (p->modes & PARPORT_MODE_##x)				\
+		pr_cont("%s%s", f++ ? "," : "", #x);			\
+} while (0)
 	{
 		unsigned int f = 0;
 		printmode(PCSPP);
@@ -2162,7 +2150,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 		printmode(DMA);
 	}
 #undef printmode
-	printk("]\n");
+	pr_cont("]\n");
 
 	parport_announce_port(p);
 	return p;

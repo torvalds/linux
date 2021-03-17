@@ -1,29 +1,10 @@
-/* This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 #include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <linux/perf_event.h>
-#include <linux/bpf.h>
-#include <errno.h>
-#include <assert.h>
-#include <sys/syscall.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <time.h>
 #include <signal.h>
-#include <libbpf.h>
-#include "bpf_load.h"
-#include "perf-sys.h"
-#include "trace_helpers.h"
-
-static int pmu_fd;
+#include <bpf/libbpf.h>
 
 static __u64 time_get_ns(void)
 {
@@ -34,12 +15,12 @@ static __u64 time_get_ns(void)
 }
 
 static __u64 start_time;
+static __u64 cnt;
 
 #define MAX_CNT 100000ll
 
-static int print_bpf_output(void *data, int size)
+static void print_bpf_output(void *ctx, int cpu, void *data, __u32 size)
 {
-	static __u64 cnt;
 	struct {
 		__u64 pid;
 		__u64 cookie;
@@ -48,7 +29,7 @@ static int print_bpf_output(void *data, int size)
 	if (e->cookie != 0x12345678) {
 		printf("BUG pid %llx cookie %llx sized %d\n",
 		       e->pid, e->cookie, size);
-		return LIBBPF_PERF_EVENT_ERROR;
+		return;
 	}
 
 	cnt++;
@@ -56,51 +37,71 @@ static int print_bpf_output(void *data, int size)
 	if (cnt == MAX_CNT) {
 		printf("recv %lld events per sec\n",
 		       MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
-		return LIBBPF_PERF_EVENT_DONE;
+		return;
 	}
-
-	return LIBBPF_PERF_EVENT_CONT;
-}
-
-static void test_bpf_perf_event(void)
-{
-	struct perf_event_attr attr = {
-		.sample_type = PERF_SAMPLE_RAW,
-		.type = PERF_TYPE_SOFTWARE,
-		.config = PERF_COUNT_SW_BPF_OUTPUT,
-	};
-	int key = 0;
-
-	pmu_fd = sys_perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
-
-	assert(pmu_fd >= 0);
-	assert(bpf_map_update_elem(map_fd[0], &key, &pmu_fd, BPF_ANY) == 0);
-	ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
 }
 
 int main(int argc, char **argv)
 {
+	struct perf_buffer_opts pb_opts = {};
+	struct bpf_link *link = NULL;
+	struct bpf_program *prog;
+	struct perf_buffer *pb;
+	struct bpf_object *obj;
+	int map_fd, ret = 0;
 	char filename[256];
 	FILE *f;
-	int ret;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
-		return 1;
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return 0;
 	}
 
-	test_bpf_perf_event();
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
+	}
 
-	if (perf_event_mmap(pmu_fd) < 0)
+	map_fd = bpf_object__find_map_fd_by_name(obj, "my_map");
+	if (map_fd < 0) {
+		fprintf(stderr, "ERROR: finding a map in obj file failed\n");
+		goto cleanup;
+	}
+
+	prog = bpf_object__find_program_by_name(obj, "bpf_prog1");
+	if (libbpf_get_error(prog)) {
+		fprintf(stderr, "ERROR: finding a prog in obj file failed\n");
+		goto cleanup;
+	}
+
+	link = bpf_program__attach(prog);
+	if (libbpf_get_error(link)) {
+		fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+		link = NULL;
+		goto cleanup;
+	}
+
+	pb_opts.sample_cb = print_bpf_output;
+	pb = perf_buffer__new(map_fd, 8, &pb_opts);
+	ret = libbpf_get_error(pb);
+	if (ret) {
+		printf("failed to setup perf_buffer: %d\n", ret);
 		return 1;
+	}
 
 	f = popen("taskset 1 dd if=/dev/zero of=/dev/null", "r");
 	(void) f;
 
 	start_time = time_get_ns();
-	ret = perf_event_poller(pmu_fd, print_bpf_output);
+	while ((ret = perf_buffer__poll(pb, 1000)) >= 0 && cnt < MAX_CNT) {
+	}
 	kill(0, SIGINT);
+
+cleanup:
+	bpf_link__destroy(link);
+	bpf_object__close(obj);
 	return ret;
 }

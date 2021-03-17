@@ -40,16 +40,9 @@
  * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#250 $
  */
 
-#ifdef __linux__
 #include "aic79xx_osm.h"
 #include "aic79xx_inline.h"
 #include "aicasm/aicasm_insformat.h"
-#else
-#include <dev/aic7xxx/aic79xx_osm.h>
-#include <dev/aic7xxx/aic79xx_inline.h>
-#include <dev/aic7xxx/aicasm/aicasm_insformat.h>
-#endif
-
 
 /***************************** Lookup Tables **********************************/
 static const char *const ahd_chip_names[] =
@@ -59,7 +52,6 @@ static const char *const ahd_chip_names[] =
 	"aic7902",
 	"aic7901A"
 };
-static const u_int num_chip_names = ARRAY_SIZE(ahd_chip_names);
 
 /*
  * Hardware error codes.
@@ -1743,10 +1735,8 @@ ahd_dump_sglist(struct scb *scb)
 			sg_list = (struct ahd_dma64_seg*)scb->sg_list;
 			for (i = 0; i < scb->sg_count; i++) {
 				uint64_t addr;
-				uint32_t len;
 
 				addr = ahd_le64toh(sg_list[i].addr);
-				len = ahd_le32toh(sg_list[i].len);
 				printk("sg[%d] - Addr 0x%x%x : Length %d%s\n",
 				       i,
 				       (uint32_t)((addr >> 32) & 0xFFFFFFFF),
@@ -1914,9 +1904,6 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		{
 			struct	ahd_devinfo devinfo;
 			struct	scb *scb;
-			struct	ahd_initiator_tinfo *targ_info;
-			struct	ahd_tmode_tstate *tstate;
-			struct	ahd_transinfo *tinfo;
 			u_int	scbid;
 
 			/*
@@ -1944,12 +1931,6 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 					    SCB_GET_LUN(scb),
 					    SCB_GET_CHANNEL(ahd, scb),
 					    ROLE_INITIATOR);
-			targ_info = ahd_fetch_transinfo(ahd,
-							devinfo.channel,
-							devinfo.our_scsiid,
-							devinfo.target,
-							&tstate);
-			tinfo = &targ_info->curr;
 			ahd_set_width(ahd, &devinfo, MSG_EXT_WDTR_BUS_8_BIT,
 				      AHD_TRANS_ACTIVE, /*paused*/TRUE);
 			ahd_set_syncrate(ahd, &devinfo, /*period*/0,
@@ -2293,6 +2274,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			switch (scb->hscb->task_management) {
 			case SIU_TASKMGMT_ABORT_TASK:
 				tag = SCB_GET_TAG(scb);
+				fallthrough;
 			case SIU_TASKMGMT_ABORT_TASK_SET:
 			case SIU_TASKMGMT_CLEAR_TASK_SET:
 				lun = scb->hscb->lun;
@@ -2303,6 +2285,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 				break;
 			case SIU_TASKMGMT_LUN_RESET:
 				lun = scb->hscb->lun;
+				fallthrough;
 			case SIU_TASKMGMT_TARGET_RESET:
 			{
 				struct ahd_devinfo devinfo;
@@ -2675,7 +2658,6 @@ ahd_handle_transmission_error(struct ahd_softc *ahd)
 	struct	scb *scb;
 	u_int	scbid;
 	u_int	lqistat1;
-	u_int	lqistat2;
 	u_int	msg_out;
 	u_int	curphase;
 	u_int	lastphase;
@@ -2686,7 +2668,7 @@ ahd_handle_transmission_error(struct ahd_softc *ahd)
 	scb = NULL;
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	lqistat1 = ahd_inb(ahd, LQISTAT1) & ~(LQIPHASE_LQ|LQIPHASE_NLQ);
-	lqistat2 = ahd_inb(ahd, LQISTAT2);
+	ahd_inb(ahd, LQISTAT2);
 	if ((lqistat1 & (LQICRCI_NLQ|LQICRCI_LQ)) == 0
 	 && (ahd->bugs & AHD_NLQICRC_DELAYED_BUG) != 0) {
 		u_int lqistate;
@@ -3113,19 +3095,6 @@ ahd_handle_nonpkt_busfree(struct ahd_softc *ahd)
 			printerror = 0;
 		} else if (ahd_sent_msg(ahd, AHDMSG_1B,
 					MSG_BUS_DEV_RESET, TRUE)) {
-#ifdef __FreeBSD__
-			/*
-			 * Don't mark the user's request for this BDR
-			 * as completing with CAM_BDR_SENT.  CAM3
-			 * specifies CAM_REQ_CMP.
-			 */
-			if (scb != NULL
-			 && scb->io_ctx->ccb_h.func_code== XPT_RESET_DEV
-			 && ahd_match_scb(ahd, scb, target, 'A',
-					  CAM_LUN_WILDCARD, SCB_LIST_NULL,
-					  ROLE_INITIATOR))
-				ahd_set_transaction_status(scb, CAM_REQ_CMP);
-#endif
 			ahd_handle_devreset(ahd, &devinfo, CAM_LUN_WILDCARD,
 					    CAM_BDR_SENT, "Bus Device Reset",
 					    /*verbose_level*/0);
@@ -3681,8 +3650,7 @@ ahd_free_tstate(struct ahd_softc *ahd, u_int scsi_id, char channel, int force)
 		return;
 
 	tstate = ahd->enabled_targets[scsi_id];
-	if (tstate != NULL)
-		kfree(tstate);
+	kfree(tstate);
 	ahd->enabled_targets[scsi_id] = NULL;
 }
 #endif
@@ -3823,7 +3791,7 @@ ahd_validate_width(struct ahd_softc *ahd, struct ahd_initiator_tinfo *tinfo,
 			*bus_width = MSG_EXT_WDTR_BUS_16_BIT;
 			break;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case MSG_EXT_WDTR_BUS_8_BIT:
 		*bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 		break;
@@ -4238,13 +4206,11 @@ ahd_update_pending_scbs(struct ahd_softc *ahd)
 	pending_scb_count = 0;
 	LIST_FOREACH(pending_scb, &ahd->pending_scbs, pending_links) {
 		struct ahd_devinfo devinfo;
-		struct ahd_initiator_tinfo *tinfo;
 		struct ahd_tmode_tstate *tstate;
 
 		ahd_scb_devinfo(ahd, &devinfo, pending_scb);
-		tinfo = ahd_fetch_transinfo(ahd, devinfo.channel,
-					    devinfo.our_scsiid,
-					    devinfo.target, &tstate);
+		ahd_fetch_transinfo(ahd, devinfo.channel, devinfo.our_scsiid,
+				    devinfo.target, &tstate);
 		if ((tstate->auto_negotiate & devinfo.target_mask) == 0
 		 && (pending_scb->flags & SCB_AUTO_NEGOTIATE) != 0) {
 			pending_scb->flags &= ~SCB_AUTO_NEGOTIATE;
@@ -5138,7 +5104,7 @@ ahd_parse_msg(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 		break;
 	case MSG_MESSAGE_REJECT:
 		response = ahd_handle_msg_reject(ahd, devinfo);
-		/* FALLTHROUGH */
+		fallthrough;
 	case MSG_NOOP:
 		done = MSGLOOP_MSGCOMPLETE;
 		break;
@@ -5488,7 +5454,7 @@ ahd_parse_msg(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 			       ahd_name(ahd), ahd_inb(ahd, SCSISIGI));
 #endif
 		ahd->msg_flags |= MSG_FLAG_EXPECT_QASREJ_BUSFREE;
-		/* FALLTHROUGH */
+		fallthrough;
 	case MSG_TERM_IO_PROC:
 	default:
 		reject = TRUE;
@@ -6073,22 +6039,16 @@ ahd_alloc(void *platform_arg, char *name)
 {
 	struct  ahd_softc *ahd;
 
-#ifndef	__FreeBSD__
-	ahd = kmalloc(sizeof(*ahd), GFP_ATOMIC);
+	ahd = kzalloc(sizeof(*ahd), GFP_ATOMIC);
 	if (!ahd) {
 		printk("aic7xxx: cannot malloc softc!\n");
 		kfree(name);
 		return NULL;
 	}
-#else
-	ahd = device_get_softc((device_t)platform_arg);
-#endif
-	memset(ahd, 0, sizeof(*ahd));
+
 	ahd->seep_config = kmalloc(sizeof(*ahd->seep_config), GFP_ATOMIC);
 	if (ahd->seep_config == NULL) {
-#ifndef	__FreeBSD__
 		kfree(ahd);
-#endif
 		kfree(name);
 		return (NULL);
 	}
@@ -6144,8 +6104,7 @@ ahd_set_unit(struct ahd_softc *ahd, int unit)
 void
 ahd_set_name(struct ahd_softc *ahd, char *name)
 {
-	if (ahd->name != NULL)
-		kfree(ahd->name);
+	kfree(ahd->name);
 	ahd->name = name;
 }
 
@@ -6158,31 +6117,25 @@ ahd_free(struct ahd_softc *ahd)
 	default:
 	case 5:
 		ahd_shutdown(ahd);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 4:
 		ahd_dmamap_unload(ahd, ahd->shared_data_dmat,
 				  ahd->shared_data_map.dmamap);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 3:
 		ahd_dmamem_free(ahd, ahd->shared_data_dmat, ahd->qoutfifo,
 				ahd->shared_data_map.dmamap);
 		ahd_dmamap_destroy(ahd, ahd->shared_data_dmat,
 				   ahd->shared_data_map.dmamap);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 2:
 		ahd_dma_tag_destroy(ahd, ahd->shared_data_dmat);
 	case 1:
-#ifndef __linux__
-		ahd_dma_tag_destroy(ahd, ahd->buffer_dmat);
-#endif
 		break;
 	case 0:
 		break;
 	}
 
-#ifndef __linux__
-	ahd_dma_tag_destroy(ahd, ahd->parent_dmat);
-#endif
 	ahd_platform_free(ahd);
 	ahd_fini_scbdata(ahd);
 	for (i = 0; i < AHD_NUM_TARGETS; i++) {
@@ -6212,15 +6165,10 @@ ahd_free(struct ahd_softc *ahd)
 		kfree(ahd->black_hole);
 	}
 #endif
-	if (ahd->name != NULL)
-		kfree(ahd->name);
-	if (ahd->seep_config != NULL)
-		kfree(ahd->seep_config);
-	if (ahd->saved_stack != NULL)
-		kfree(ahd->saved_stack);
-#ifndef __FreeBSD__
+	kfree(ahd->name);
+	kfree(ahd->seep_config);
+	kfree(ahd->saved_stack);
 	kfree(ahd);
-#endif
 	return;
 }
 
@@ -6564,8 +6512,8 @@ ahd_fini_scbdata(struct ahd_softc *ahd)
 			kfree(sns_map);
 		}
 		ahd_dma_tag_destroy(ahd, scb_data->sense_dmat);
-		/* FALLTHROUGH */
 	}
+		fallthrough;
 	case 6:
 	{
 		struct map_node *sg_map;
@@ -6579,8 +6527,8 @@ ahd_fini_scbdata(struct ahd_softc *ahd)
 			kfree(sg_map);
 		}
 		ahd_dma_tag_destroy(ahd, scb_data->sg_dmat);
-		/* FALLTHROUGH */
 	}
+		fallthrough;
 	case 5:
 	{
 		struct map_node *hscb_map;
@@ -6934,9 +6882,6 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 	for (i = 0; i < newcount; i++) {
 		struct scb_platform_data *pdata;
 		u_int col_tag;
-#ifndef __linux__
-		int error;
-#endif
 
 		next_scb = kmalloc(sizeof(*next_scb), GFP_ATOMIC);
 		if (next_scb == NULL)
@@ -6970,15 +6915,6 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 			next_scb->sg_list_busaddr += sizeof(struct ahd_dma_seg);
 		next_scb->ahd_softc = ahd;
 		next_scb->flags = SCB_FLAG_NONE;
-#ifndef __linux__
-		error = ahd_dmamap_create(ahd, ahd->buffer_dmat, /*flags*/0,
-					  &next_scb->dmamap);
-		if (error != 0) {
-			kfree(next_scb);
-			kfree(pdata);
-			break;
-		}
-#endif
 		next_scb->hscb->tag = ahd_htole16(scb_data->numscbs);
 		col_tag = scb_data->numscbs ^ 0x100;
 		next_scb->col_scb = ahd_find_scb_by_tag(ahd, col_tag);
@@ -7090,24 +7026,6 @@ ahd_init(struct ahd_softc *ahd)
 	 */
 	if ((AHD_TMODE_ENABLE & (0x1 << ahd->unit)) == 0)
 		ahd->features &= ~AHD_TARGETMODE;
-
-#ifndef __linux__
-	/* DMA tag for mapping buffers into device visible space. */
-	if (ahd_dma_tag_create(ahd, ahd->parent_dmat, /*alignment*/1,
-			       /*boundary*/BUS_SPACE_MAXADDR_32BIT + 1,
-			       /*lowaddr*/ahd->flags & AHD_39BIT_ADDRESSING
-					? (dma_addr_t)0x7FFFFFFFFFULL
-					: BUS_SPACE_MAXADDR_32BIT,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/(AHD_NSEG - 1) * PAGE_SIZE,
-			       /*nsegments*/AHD_NSEG,
-			       /*maxsegsz*/AHD_MAXTRANSFER_SIZE,
-			       /*flags*/BUS_DMA_ALLOCNOW,
-			       &ahd->buffer_dmat) != 0) {
-		return (ENOMEM);
-	}
-#endif
 
 	ahd->init_level++;
 
@@ -7253,6 +7171,7 @@ ahd_init(struct ahd_softc *ahd)
 		case FLX_CSTAT_OVER:
 		case FLX_CSTAT_UNDER:
 			warn_user++;
+			fallthrough;
 		case FLX_CSTAT_INVALID:
 		case FLX_CSTAT_OKAY:
 			if (warn_user == 0 && bootverbose == 0)
@@ -8256,12 +8175,12 @@ ahd_search_qinfifo(struct ahd_softc *ahd, int target, char channel,
 				if ((scb->flags & SCB_ACTIVE) == 0)
 					printk("Inactive SCB in qinfifo\n");
 				ahd_done_with_status(ahd, scb, status);
-				/* FALLTHROUGH */
+				fallthrough;
 			case SEARCH_REMOVE:
 				break;
 			case SEARCH_PRINT:
 				printk(" 0x%x", ahd->qinfifo[qinpos]);
-				/* FALLTHROUGH */
+				fallthrough;
 			case SEARCH_COUNT:
 				ahd_qinfifo_requeue(ahd, prev_scb, scb);
 				prev_scb = scb;
@@ -8352,7 +8271,7 @@ ahd_search_qinfifo(struct ahd_softc *ahd, int target, char channel,
 				if ((mk_msg_scb->flags & SCB_ACTIVE) == 0)
 					printk("Inactive SCB pending MK_MSG\n");
 				ahd_done_with_status(ahd, mk_msg_scb, status);
-				/* FALLTHROUGH */
+				fallthrough;
 			case SEARCH_REMOVE:
 			{
 				u_int tail_offset;
@@ -8376,7 +8295,7 @@ ahd_search_qinfifo(struct ahd_softc *ahd, int target, char channel,
 			}
 			case SEARCH_PRINT:
 				printk(" 0x%x", SCB_GET_TAG(scb));
-				/* FALLTHROUGH */
+				fallthrough;
 			case SEARCH_COUNT:
 				break;
 			}
@@ -8457,7 +8376,7 @@ ahd_search_scb_list(struct ahd_softc *ahd, int target, char channel,
 			if ((scb->flags & SCB_ACTIVE) == 0)
 				printk("Inactive SCB in Waiting List\n");
 			ahd_done_with_status(ahd, scb, status);
-			/* FALLTHROUGH */
+			fallthrough;
 		case SEARCH_REMOVE:
 			ahd_rem_wscb(ahd, scbid, prev, next, tid);
 			*list_tail = prev;
@@ -8466,6 +8385,7 @@ ahd_search_scb_list(struct ahd_softc *ahd, int target, char channel,
 			break;
 		case SEARCH_PRINT:
 			printk("0x%x ", scbid);
+			fallthrough;
 		case SEARCH_COUNT:
 			prev = scbid;
 			break;
@@ -9103,7 +9023,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 	case SCSI_STATUS_OK:
 		printk("%s: Interrupted for status of 0???\n",
 		       ahd_name(ahd));
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		ahd_done(ahd, scb);
 		break;
@@ -9482,10 +9402,9 @@ ahd_loadseq(struct ahd_softc *ahd)
 	if (cs_count != 0) {
 
 		cs_count *= sizeof(struct cs);
-		ahd->critical_sections = kmalloc(cs_count, GFP_ATOMIC);
+		ahd->critical_sections = kmemdup(cs_table, cs_count, GFP_ATOMIC);
 		if (ahd->critical_sections == NULL)
 			panic("ahd_loadseq: Could not malloc");
-		memcpy(ahd->critical_sections, cs_table, cs_count);
 	}
 	ahd_outb(ahd, SEQCTL0, PERRORDIS|FAILDIS|FASTMODE);
 
@@ -9591,8 +9510,8 @@ ahd_download_instr(struct ahd_softc *ahd, u_int instrptr, uint8_t *dconsts)
 	{
 		fmt3_ins = &instr.format3;
 		fmt3_ins->address = ahd_resolve_seqaddr(ahd, fmt3_ins->address);
-		/* FALLTHROUGH */
 	}
+		fallthrough;
 	case AIC_OP_OR:
 	case AIC_OP_AND:
 	case AIC_OP_XOR:
@@ -9603,7 +9522,7 @@ ahd_download_instr(struct ahd_softc *ahd, u_int instrptr, uint8_t *dconsts)
 			fmt1_ins->immediate = dconsts[fmt1_ins->immediate];
 		}
 		fmt1_ins->parity = 0;
-		/* FALLTHROUGH */
+		fallthrough;
 	case AIC_OP_ROL:
 	{
 		int i, count;

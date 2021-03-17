@@ -25,7 +25,7 @@
 	 * PF can also be used for the SD card so PB is preferred.
 	 */
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pf_pins>;
 	status = "okay";
 };
 
@@ -34,8 +34,6 @@
 
 	/* 2Gb Macronix MX30LF2G18AC (3V) */
 	nand@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		reg = <0>;
 		allwinner,rb = <0>;
 		nand-ecc-mode = "hw";

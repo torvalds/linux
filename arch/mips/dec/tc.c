@@ -52,7 +52,7 @@ int __init tc_bus_get_info(struct tc_bus *tbus)
 	case MACH_DS5900:
 		tbus->ext_slot_base = 0x20000000;
 		tbus->ext_slot_size = 0x20000000;
-		/* fall through */
+		fallthrough;
 	case MACH_DS5000_1XX:
 		tbus->num_tcslots = 3;
 		break;

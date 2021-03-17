@@ -9,9 +9,14 @@
 #ifndef _STI_MIXER_H_
 #define _STI_MIXER_H_
 
-#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
 
 #include "sti_plane.h"
+
+struct device;
 
 #define to_sti_mixer(x) container_of(x, struct sti_mixer, drm_crtc)
 
@@ -53,7 +58,7 @@ int sti_mixer_active_video_area(struct sti_mixer *mixer,
 
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable);
 
-int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor);
+void sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor);
 
 /* depth in Cross-bar control = z order */
 #define GAM_MIXER_NB_DEPTH_LEVEL 6

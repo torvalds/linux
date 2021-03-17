@@ -79,7 +79,7 @@ static __poll_t signalfd_poll(struct file *file, poll_table *wait)
  * Copied from copy_siginfo_to_user() in kernel/signal.c
  */
 static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
-			     siginfo_t const *kinfo)
+			     kernel_siginfo_t const *kinfo)
 {
 	struct signalfd_siginfo new;
 
@@ -163,7 +163,7 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 	return sizeof(*uinfo);
 }
 
-static ssize_t signalfd_dequeue(struct signalfd_ctx *ctx, siginfo_t *info,
+static ssize_t signalfd_dequeue(struct signalfd_ctx *ctx, kernel_siginfo_t *info,
 				int nonblock)
 {
 	ssize_t ret;
@@ -176,6 +176,7 @@ static ssize_t signalfd_dequeue(struct signalfd_ctx *ctx, siginfo_t *info,
 		if (!nonblock)
 			break;
 		ret = -EAGAIN;
+		fallthrough;
 	default:
 		spin_unlock_irq(&current->sighand->siglock);
 		return ret;
@@ -215,7 +216,7 @@ static ssize_t signalfd_read(struct file *file, char __user *buf, size_t count,
 	struct signalfd_siginfo __user *siginfo;
 	int nonblock = file->f_flags & O_NONBLOCK;
 	ssize_t ret, total = 0;
-	siginfo_t info;
+	kernel_siginfo_t info;
 
 	count /= sizeof(struct signalfd_siginfo);
 	if (!count)
@@ -313,9 +314,10 @@ SYSCALL_DEFINE4(signalfd4, int, ufd, sigset_t __user *, user_mask,
 {
 	sigset_t mask;
 
-	if (sizemask != sizeof(sigset_t) ||
-	    copy_from_user(&mask, user_mask, sizeof(mask)))
+	if (sizemask != sizeof(sigset_t))
 		return -EINVAL;
+	if (copy_from_user(&mask, user_mask, sizeof(mask)))
+		return -EFAULT;
 	return do_signalfd4(ufd, &mask, flags);
 }
 
@@ -324,9 +326,10 @@ SYSCALL_DEFINE3(signalfd, int, ufd, sigset_t __user *, user_mask,
 {
 	sigset_t mask;
 
-	if (sizemask != sizeof(sigset_t) ||
-	    copy_from_user(&mask, user_mask, sizeof(mask)))
+	if (sizemask != sizeof(sigset_t))
 		return -EINVAL;
+	if (copy_from_user(&mask, user_mask, sizeof(mask)))
+		return -EFAULT;
 	return do_signalfd4(ufd, &mask, 0);
 }
 

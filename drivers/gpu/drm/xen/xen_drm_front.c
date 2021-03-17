@@ -8,17 +8,23 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_gem.h>
-
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_gem.h>
 
 #include <xen/platform_pci.h>
 #include <xen/xen.h>
 #include <xen/xenbus.h>
 
+#include <xen/xen-front-pgdir-shbuf.h>
 #include <xen/interface/io/displif.h>
 
 #include "xen_drm_front.h"
@@ -26,28 +32,20 @@
 #include "xen_drm_front_evtchnl.h"
 #include "xen_drm_front_gem.h"
 #include "xen_drm_front_kms.h"
-#include "xen_drm_front_shbuf.h"
 
 struct xen_drm_front_dbuf {
 	struct list_head list;
 	u64 dbuf_cookie;
 	u64 fb_cookie;
-	struct xen_drm_front_shbuf *shbuf;
+
+	struct xen_front_pgdir_shbuf shbuf;
 };
 
-static int dbuf_add_to_list(struct xen_drm_front_info *front_info,
-			    struct xen_drm_front_shbuf *shbuf, u64 dbuf_cookie)
+static void dbuf_add_to_list(struct xen_drm_front_info *front_info,
+			     struct xen_drm_front_dbuf *dbuf, u64 dbuf_cookie)
 {
-	struct xen_drm_front_dbuf *dbuf;
-
-	dbuf = kzalloc(sizeof(*dbuf), GFP_KERNEL);
-	if (!dbuf)
-		return -ENOMEM;
-
 	dbuf->dbuf_cookie = dbuf_cookie;
-	dbuf->shbuf = shbuf;
 	list_add(&dbuf->list, &front_info->dbuf_list);
-	return 0;
 }
 
 static struct xen_drm_front_dbuf *dbuf_get(struct list_head *dbuf_list,
@@ -62,15 +60,6 @@ static struct xen_drm_front_dbuf *dbuf_get(struct list_head *dbuf_list,
 	return NULL;
 }
 
-static void dbuf_flush_fb(struct list_head *dbuf_list, u64 fb_cookie)
-{
-	struct xen_drm_front_dbuf *buf, *q;
-
-	list_for_each_entry_safe(buf, q, dbuf_list, list)
-		if (buf->fb_cookie == fb_cookie)
-			xen_drm_front_shbuf_flush(buf->shbuf);
-}
-
 static void dbuf_free(struct list_head *dbuf_list, u64 dbuf_cookie)
 {
 	struct xen_drm_front_dbuf *buf, *q;
@@ -78,8 +67,8 @@ static void dbuf_free(struct list_head *dbuf_list, u64 dbuf_cookie)
 	list_for_each_entry_safe(buf, q, dbuf_list, list)
 		if (buf->dbuf_cookie == dbuf_cookie) {
 			list_del(&buf->list);
-			xen_drm_front_shbuf_unmap(buf->shbuf);
-			xen_drm_front_shbuf_free(buf->shbuf);
+			xen_front_pgdir_shbuf_unmap(&buf->shbuf);
+			xen_front_pgdir_shbuf_free(&buf->shbuf);
 			kfree(buf);
 			break;
 		}
@@ -91,8 +80,8 @@ static void dbuf_free_all(struct list_head *dbuf_list)
 
 	list_for_each_entry_safe(buf, q, dbuf_list, list) {
 		list_del(&buf->list);
-		xen_drm_front_shbuf_unmap(buf->shbuf);
-		xen_drm_front_shbuf_free(buf->shbuf);
+		xen_front_pgdir_shbuf_unmap(&buf->shbuf);
+		xen_front_pgdir_shbuf_free(&buf->shbuf);
 		kfree(buf);
 	}
 }
@@ -168,12 +157,13 @@ int xen_drm_front_mode_set(struct xen_drm_front_drm_pipeline *pipeline,
 
 int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 			      u64 dbuf_cookie, u32 width, u32 height,
-			      u32 bpp, u64 size, struct page **pages)
+			      u32 bpp, u64 size, u32 offset,
+			      struct page **pages)
 {
 	struct xen_drm_front_evtchnl *evtchnl;
-	struct xen_drm_front_shbuf *shbuf;
+	struct xen_drm_front_dbuf *dbuf;
 	struct xendispl_req *req;
-	struct xen_drm_front_shbuf_cfg buf_cfg;
+	struct xen_front_pgdir_shbuf_cfg buf_cfg;
 	unsigned long flags;
 	int ret;
 
@@ -181,29 +171,31 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	if (unlikely(!evtchnl))
 		return -EIO;
 
+	dbuf = kzalloc(sizeof(*dbuf), GFP_KERNEL);
+	if (!dbuf)
+		return -ENOMEM;
+
+	dbuf_add_to_list(front_info, dbuf, dbuf_cookie);
+
 	memset(&buf_cfg, 0, sizeof(buf_cfg));
 	buf_cfg.xb_dev = front_info->xb_dev;
+	buf_cfg.num_pages = DIV_ROUND_UP(size, PAGE_SIZE);
 	buf_cfg.pages = pages;
-	buf_cfg.size = size;
+	buf_cfg.pgdir = &dbuf->shbuf;
 	buf_cfg.be_alloc = front_info->cfg.be_alloc;
 
-	shbuf = xen_drm_front_shbuf_alloc(&buf_cfg);
-	if (IS_ERR(shbuf))
-		return PTR_ERR(shbuf);
-
-	ret = dbuf_add_to_list(front_info, shbuf, dbuf_cookie);
-	if (ret < 0) {
-		xen_drm_front_shbuf_free(shbuf);
-		return ret;
-	}
+	ret = xen_front_pgdir_shbuf_alloc(&buf_cfg);
+	if (ret < 0)
+		goto fail_shbuf_alloc;
 
 	mutex_lock(&evtchnl->u.req.req_io_lock);
 
 	spin_lock_irqsave(&front_info->io_lock, flags);
 	req = be_prepare_req(evtchnl, XENDISPL_OP_DBUF_CREATE);
 	req->op.dbuf_create.gref_directory =
-			xen_drm_front_shbuf_get_dir_start(shbuf);
+			xen_front_pgdir_shbuf_get_dir_start(&dbuf->shbuf);
 	req->op.dbuf_create.buffer_sz = size;
+	req->op.dbuf_create.data_ofs = offset;
 	req->op.dbuf_create.dbuf_cookie = dbuf_cookie;
 	req->op.dbuf_create.width = width;
 	req->op.dbuf_create.height = height;
@@ -221,7 +213,7 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	if (ret < 0)
 		goto fail;
 
-	ret = xen_drm_front_shbuf_map(shbuf);
+	ret = xen_front_pgdir_shbuf_map(&dbuf->shbuf);
 	if (ret < 0)
 		goto fail;
 
@@ -230,6 +222,7 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 
 fail:
 	mutex_unlock(&evtchnl->u.req.req_io_lock);
+fail_shbuf_alloc:
 	dbuf_free(&front_info->dbuf_list, dbuf_cookie);
 	return ret;
 }
@@ -358,7 +351,6 @@ int xen_drm_front_page_flip(struct xen_drm_front_info *front_info,
 	if (unlikely(conn_idx >= front_info->num_evt_pairs))
 		return -EINVAL;
 
-	dbuf_flush_fb(&front_info->dbuf_list, fb_cookie);
 	evtchnl = &front_info->evt_pairs[conn_idx].req;
 
 	mutex_lock(&evtchnl->u.req.req_io_lock);
@@ -410,7 +402,7 @@ static int xen_drm_drv_dumb_create(struct drm_file *filp,
 	args->size = args->pitch * args->height;
 
 	obj = xen_drm_front_gem_create(dev, args->size);
-	if (IS_ERR_OR_NULL(obj)) {
+	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
 		goto fail;
 	}
@@ -418,7 +410,7 @@ static int xen_drm_drv_dumb_create(struct drm_file *filp,
 	ret = xen_drm_front_dbuf_create(drm_info->front_info,
 					xen_drm_front_dbuf_to_cookie(obj),
 					args->width, args->height, args->bpp,
-					args->size,
+					args->size, 0,
 					xen_drm_front_gem_get_pages(obj));
 	if (ret)
 		goto fail_backend;
@@ -429,7 +421,7 @@ static int xen_drm_drv_dumb_create(struct drm_file *filp,
 		goto fail_handle;
 
 	/* Drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return 0;
 
 fail_handle:
@@ -437,7 +429,7 @@ fail_handle:
 				   xen_drm_front_dbuf_to_cookie(obj));
 fail_backend:
 	/* drop reference from allocate */
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 fail:
 	DRM_ERROR("Failed to create dumb buffer: %d\n", ret);
 	return ret;
@@ -470,9 +462,6 @@ static void xen_drm_drv_release(struct drm_device *dev)
 	drm_atomic_helper_shutdown(dev);
 	drm_mode_config_cleanup(dev);
 
-	drm_dev_fini(dev);
-	kfree(dev);
-
 	if (front_info->cfg.be_alloc)
 		xenbus_switch_state(front_info->xb_dev,
 				    XenbusStateInitialising);
@@ -500,15 +489,12 @@ static const struct vm_operations_struct xen_drm_drv_vm_ops = {
 };
 
 static struct drm_driver xen_drm_driver = {
-	.driver_features           = DRIVER_GEM | DRIVER_MODESET |
-				     DRIVER_PRIME | DRIVER_ATOMIC,
+	.driver_features           = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.release                   = xen_drm_drv_release,
 	.gem_vm_ops                = &xen_drm_drv_vm_ops,
 	.gem_free_object_unlocked  = xen_drm_drv_free_object_unlocked,
 	.prime_handle_to_fd        = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle        = drm_gem_prime_fd_to_handle,
-	.gem_prime_import          = drm_gem_prime_import,
-	.gem_prime_export          = drm_gem_prime_export,
 	.gem_prime_import_sg_table = xen_drm_front_gem_import_sg_table,
 	.gem_prime_get_sg_table    = xen_drm_front_gem_get_sg_table,
 	.gem_prime_vmap            = xen_drm_front_gem_prime_vmap,
@@ -574,6 +560,7 @@ fail_register:
 fail_modeset:
 	drm_kms_helper_poll_fini(drm_dev);
 	drm_mode_config_cleanup(drm_dev);
+	drm_dev_put(drm_dev);
 fail:
 	kfree(drm_info);
 	return ret;
@@ -597,6 +584,7 @@ static void xen_drm_drv_fini(struct xen_drm_front_info *front_info)
 
 	drm_kms_helper_poll_fini(dev);
 	drm_dev_unplug(dev);
+	drm_dev_put(dev);
 
 	front_info->drm_info = NULL;
 
@@ -661,9 +649,7 @@ static void displback_changed(struct xenbus_device *xb_dev,
 
 	switch (backend_state) {
 	case XenbusStateReconfiguring:
-		/* fall through */
 	case XenbusStateReconfigured:
-		/* fall through */
 	case XenbusStateInitialised:
 		break;
 
@@ -713,7 +699,6 @@ static void displback_changed(struct xenbus_device *xb_dev,
 		break;
 
 	case XenbusStateUnknown:
-		/* fall through */
 	case XenbusStateClosed:
 		if (xb_dev->state == XenbusStateClosed)
 			break;
@@ -730,17 +715,9 @@ static int xen_drv_probe(struct xenbus_device *xb_dev,
 	struct device *dev = &xb_dev->dev;
 	int ret;
 
-	/*
-	 * The device is not spawn from a device tree, so arch_setup_dma_ops
-	 * is not called, thus leaving the device with dummy DMA ops.
-	 * This makes the device return error on PRIME buffer import, which
-	 * is not correct: to fix this call of_dma_configure() with a NULL
-	 * node to set default DMA ops.
-	 */
-	dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	ret = of_dma_configure(dev, NULL, true);
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret < 0) {
-		DRM_ERROR("Cannot setup DMA ops, ret %d", ret);
+		DRM_ERROR("Cannot setup DMA mask, ret %d", ret);
 		return ret;
 	}
 

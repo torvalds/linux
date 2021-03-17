@@ -164,7 +164,7 @@ TRACE_EVENT(bcache_write,
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.set_uuid, 16);
+		memcpy(__entry->uuid, c->set_uuid, 16);
 		__entry->inode		= inode;
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio->bi_iter.bi_size >> 9;
@@ -200,7 +200,7 @@ DECLARE_EVENT_CLASS(cache_set,
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.set_uuid, 16);
+		memcpy(__entry->uuid, c->set_uuid, 16);
 	),
 
 	TP_printk("%pU", __entry->uuid)
@@ -221,9 +221,30 @@ DEFINE_EVENT(cache_set, bcache_journal_entry_full,
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(bcache_bio, bcache_journal_write,
-	TP_PROTO(struct bio *bio),
-	TP_ARGS(bio)
+TRACE_EVENT(bcache_journal_write,
+	TP_PROTO(struct bio *bio, u32 keys),
+	TP_ARGS(bio, keys),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(sector_t,	sector			)
+		__field(unsigned int,	nr_sector		)
+		__array(char,		rwbs,	6		)
+		__field(u32,		nr_keys			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= bio_dev(bio);
+		__entry->sector		= bio->bi_iter.bi_sector;
+		__entry->nr_sector	= bio->bi_iter.bi_size >> 9;
+		__entry->nr_keys	= keys;
+		blk_fill_rwbs(__entry->rwbs, bio->bi_opf, bio->bi_iter.bi_size);
+	),
+
+	TP_printk("%d,%d  %s %llu + %u keys %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  (unsigned long long)__entry->sector, __entry->nr_sector,
+		  __entry->nr_keys)
 );
 
 /* Btree */
@@ -254,7 +275,8 @@ TRACE_EVENT(bcache_btree_write,
 		__entry->keys	= b->keys.set[b->keys.nsets].data->keys;
 	),
 
-	TP_printk("bucket %zu", __entry->bucket)
+	TP_printk("bucket %zu written block %u + %u",
+		__entry->bucket, __entry->block, __entry->keys)
 );
 
 DEFINE_EVENT(btree_node, bcache_btree_node_alloc,

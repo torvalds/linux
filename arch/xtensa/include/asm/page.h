@@ -169,7 +169,18 @@ static inline unsigned long ___pa(unsigned long va)
 	if (off >= XCHAL_KSEG_SIZE)
 		off -= XCHAL_KSEG_SIZE;
 
+#ifndef CONFIG_XIP_KERNEL
 	return off + PHYS_OFFSET;
+#else
+	if (off < XCHAL_KSEG_SIZE)
+		return off + PHYS_OFFSET;
+
+	off -= XCHAL_KSEG_SIZE;
+	if (off >= XCHAL_KIO_SIZE)
+		off -= XCHAL_KIO_SIZE;
+
+	return off + XCHAL_KIO_PADDR;
+#endif
 }
 #define __pa(x)	___pa((unsigned long)(x))
 #else
@@ -191,9 +202,6 @@ static inline unsigned long ___pa(unsigned long va)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 #endif /* __ASSEMBLY__ */
-
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
 #endif /* _XTENSA_PAGE_H */

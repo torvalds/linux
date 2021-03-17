@@ -38,8 +38,8 @@ void die(const char *str, struct pt_regs *regs, long err)
 			task_pid_nr(current), task_stack_page(current) + 1);
 
 	if (!user_mode(regs) || in_interrupt())
-		dump_mem("Stack: ", regs->regs[15], THREAD_SIZE +
-			 (unsigned long)task_stack_page(current));
+		dump_mem("Stack: ", KERN_DEFAULT, regs->regs[15],
+			THREAD_SIZE + (unsigned long)task_stack_page(current));
 
 	notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV);
 
@@ -118,7 +118,7 @@ int is_valid_bugaddr(unsigned long addr)
 
 	if (addr < PAGE_OFFSET)
 		return 0;
-	if (probe_kernel_address((insn_size_t *)addr, opcode))
+	if (get_kernel_nofault(opcode, (insn_size_t *)addr))
 		return 0;
 	if (opcode == TRAPA_BUG_OPCODE)
 		return 1;
@@ -141,7 +141,7 @@ BUILD_TRAP_HANDLER(debug)
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 }
 
 /*
@@ -167,13 +167,23 @@ BUILD_TRAP_HANDLER(bug)
 	}
 #endif
 
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void arch_ftrace_nmi_enter(void);
+extern void arch_ftrace_nmi_exit(void);
+#else
+static inline void arch_ftrace_nmi_enter(void) { }
+static inline void arch_ftrace_nmi_exit(void) { }
+#endif
 
 BUILD_TRAP_HANDLER(nmi)
 {
 	unsigned int cpu = smp_processor_id();
 	TRAP_HANDLER_DECL;
+
+	arch_ftrace_nmi_enter();
 
 	nmi_enter();
 	nmi_count(cpu)++;
@@ -190,4 +200,6 @@ BUILD_TRAP_HANDLER(nmi)
 	}
 
 	nmi_exit();
+
+	arch_ftrace_nmi_exit();
 }

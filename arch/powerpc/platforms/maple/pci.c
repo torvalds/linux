@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2004 Benjamin Herrenschmuidt (benh@kernel.crashing.org),
  *		      IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #undef DEBUG
@@ -604,10 +600,8 @@ void __init maple_pci_init(void)
 		printk(KERN_CRIT "maple_find_bridges: can't find root of device tree\n");
 		return;
 	}
-	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
-		if (!np->type)
-			continue;
-		if (strcmp(np->type, "pci") && strcmp(np->type, "ht"))
+	for_each_child_of_node(root, np) {
+		if (!of_node_is_type(np, "pci") && !of_node_is_type(np, "ht"))
 			continue;
 		if ((of_device_is_compatible(np, "u4-pcie") ||
 		     of_device_is_compatible(np, "u3-agp")) &&

@@ -12,12 +12,19 @@
 #include <linux/mfd/stm32-timers.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 
 #define CCMR_CHANNEL_SHIFT 8
 #define CCMR_CHANNEL_MASK  0xFF
 #define MAX_BREAKINPUT 2
+
+struct stm32_breakinput {
+	u32 index;
+	u32 level;
+	u32 filter;
+};
 
 struct stm32_pwm {
 	struct pwm_chip chip;
@@ -26,13 +33,9 @@ struct stm32_pwm {
 	struct regmap *regmap;
 	u32 max_arr;
 	bool have_complementary_output;
+	struct stm32_breakinput breakinputs[MAX_BREAKINPUT];
+	unsigned int num_breakinputs;
 	u32 capture[4] ____cacheline_aligned; /* DMA'able buffer */
-};
-
-struct stm32_breakinput {
-	u32 index;
-	u32 level;
-	u32 filter;
 };
 
 static inline struct stm32_pwm *to_stm32_pwm_dev(struct pwm_chip *chip)
@@ -374,9 +377,7 @@ static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
 	else
 		regmap_update_bits(priv->regmap, TIM_CCMR2, mask, ccmr);
 
-	regmap_update_bits(priv->regmap, TIM_BDTR,
-			   TIM_BDTR_MOE | TIM_BDTR_AOE,
-			   TIM_BDTR_MOE | TIM_BDTR_AOE);
+	regmap_update_bits(priv->regmap, TIM_BDTR, TIM_BDTR_MOE, TIM_BDTR_MOE);
 
 	return 0;
 }
@@ -440,7 +441,7 @@ static void stm32_pwm_disable(struct stm32_pwm *priv, int ch)
 }
 
 static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			   struct pwm_state *state)
+			   const struct pwm_state *state)
 {
 	bool enabled;
 	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
@@ -468,7 +469,7 @@ static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static int stm32_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
-				  struct pwm_state *state)
+				  const struct pwm_state *state)
 {
 	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
 	int ret;
@@ -488,22 +489,19 @@ static const struct pwm_ops stm32pwm_ops = {
 };
 
 static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
-				    int index, int level, int filter)
+				    const struct stm32_breakinput *bi)
 {
-	u32 bke = (index == 0) ? TIM_BDTR_BKE : TIM_BDTR_BK2E;
-	int shift = (index == 0) ? TIM_BDTR_BKF_SHIFT : TIM_BDTR_BK2F_SHIFT;
-	u32 mask = (index == 0) ? TIM_BDTR_BKE | TIM_BDTR_BKP | TIM_BDTR_BKF
-				: TIM_BDTR_BK2E | TIM_BDTR_BK2P | TIM_BDTR_BK2F;
-	u32 bdtr = bke;
+	u32 shift = TIM_BDTR_BKF_SHIFT(bi->index);
+	u32 bke = TIM_BDTR_BKE(bi->index);
+	u32 bkp = TIM_BDTR_BKP(bi->index);
+	u32 bkf = TIM_BDTR_BKF(bi->index);
+	u32 mask = bkf | bkp | bke;
+	u32 bdtr;
 
-	/*
-	 * The both bits could be set since only one will be wrote
-	 * due to mask value.
-	 */
-	if (level)
-		bdtr |= TIM_BDTR_BKP | TIM_BDTR_BK2P;
+	bdtr = (bi->filter & TIM_BDTR_BKF_MASK) << shift | bke;
 
-	bdtr |= (filter & TIM_BDTR_BKF_MASK) << shift;
+	if (bi->level)
+		bdtr |= bkp;
 
 	regmap_update_bits(priv->regmap, TIM_BDTR, mask, bdtr);
 
@@ -512,11 +510,25 @@ static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
 	return (bdtr & bke) ? 0 : -EINVAL;
 }
 
-static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv,
+static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < priv->num_breakinputs; i++) {
+		ret = stm32_pwm_set_breakinput(priv, &priv->breakinputs[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
 				       struct device_node *np)
 {
-	struct stm32_breakinput breakinput[MAX_BREAKINPUT];
-	int nb, ret, i, array_size;
+	int nb, ret, array_size;
+	unsigned int i;
 
 	nb = of_property_count_elems_of_size(np, "st,breakinput",
 					     sizeof(struct stm32_breakinput));
@@ -531,20 +543,21 @@ static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv,
 	if (nb > MAX_BREAKINPUT)
 		return -EINVAL;
 
+	priv->num_breakinputs = nb;
 	array_size = nb * sizeof(struct stm32_breakinput) / sizeof(u32);
 	ret = of_property_read_u32_array(np, "st,breakinput",
-					 (u32 *)breakinput, array_size);
+					 (u32 *)priv->breakinputs, array_size);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < nb && !ret; i++) {
-		ret = stm32_pwm_set_breakinput(priv,
-					       breakinput[i].index,
-					       breakinput[i].level,
-					       breakinput[i].filter);
+	for (i = 0; i < priv->num_breakinputs; i++) {
+		if (priv->breakinputs[i].index > 1 ||
+		    priv->breakinputs[i].level > 1 ||
+		    priv->breakinputs[i].filter > 15)
+			return -EINVAL;
 	}
 
-	return ret;
+	return stm32_pwm_apply_breakinputs(priv);
 }
 
 static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
@@ -608,11 +621,13 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
+	priv->chip.of_xlate = of_pwm_xlate_with_flags;
+	priv->chip.of_pwm_n_cells = 3;
 
 	if (!priv->regmap || !priv->clk)
 		return -EINVAL;
 
-	ret = stm32_pwm_apply_breakinputs(priv, np);
+	ret = stm32_pwm_probe_breakinputs(priv, np);
 	if (ret)
 		return ret;
 
@@ -645,6 +660,42 @@ static int stm32_pwm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused stm32_pwm_suspend(struct device *dev)
+{
+	struct stm32_pwm *priv = dev_get_drvdata(dev);
+	unsigned int i;
+	u32 ccer, mask;
+
+	/* Look for active channels */
+	ccer = active_channels(priv);
+
+	for (i = 0; i < priv->chip.npwm; i++) {
+		mask = TIM_CCER_CC1E << (i * 4);
+		if (ccer & mask) {
+			dev_err(dev, "PWM %u still in use by consumer %s\n",
+				i, priv->chip.pwms[i].label);
+			return -EBUSY;
+		}
+	}
+
+	return pinctrl_pm_select_sleep_state(dev);
+}
+
+static int __maybe_unused stm32_pwm_resume(struct device *dev)
+{
+	struct stm32_pwm *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret)
+		return ret;
+
+	/* restore breakinput registers that may have been lost in low power */
+	return stm32_pwm_apply_breakinputs(priv);
+}
+
+static SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
+
 static const struct of_device_id stm32_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm",	},
 	{ /* end node */ },
@@ -657,6 +708,7 @@ static struct platform_driver stm32_pwm_driver = {
 	.driver	= {
 		.name = "stm32-pwm",
 		.of_match_table = stm32_pwm_of_match,
+		.pm = &stm32_pwm_pm_ops,
 	},
 };
 module_platform_driver(stm32_pwm_driver);

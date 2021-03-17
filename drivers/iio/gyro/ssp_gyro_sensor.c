@@ -1,16 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2014, Samsung Electronics Co. Ltd. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/iio/common/ssp_sensors.h>
@@ -118,7 +108,6 @@ static int ssp_gyro_probe(struct platform_device *pdev)
 	spd->type = SSP_GYROSCOPE_SENSOR;
 
 	indio_dev->name = ssp_gyro_name;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &ssp_gyro_iio_info;
 	indio_dev->modes = INDIO_BUFFER_SOFTWARE;
 	indio_dev->channels = ssp_gyro_channels;

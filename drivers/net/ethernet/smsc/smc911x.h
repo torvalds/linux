@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*------------------------------------------------------------------------
  . smc911x.h - macros for SMSC's LAN911{5,6,7,8} single-chip Ethernet device.
  .
  . Copyright (C) 2005 Sensoria Corp.
  . Derived from the unified SMC91x driver by Nicolas Pitre
  .
- . This program is free software; you can redistribute it and/or modify
- . it under the terms of the GNU General Public License as published by
- . the Free Software Foundation; either version 2 of the License, or
- . (at your option) any later version.
- .
- . This program is distributed in the hope that it will be useful,
- . but WITHOUT ANY WARRANTY; without even the implied warranty of
- . MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- . GNU General Public License for more details.
- .
- . You should have received a copy of the GNU General Public License
- . along with this program; if not, see <http://www.gnu.org/licenses/>.
  .
  . Information contained in this file was obtained from the LAN9118
  . manual from SMC.  To get a copy, if you really want one, you can find

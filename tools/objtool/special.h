@@ -1,31 +1,23 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _SPECIAL_H
 #define _SPECIAL_H
 
 #include <stdbool.h>
+#include "check.h"
 #include "elf.h"
+
+#define C_JUMP_TABLE_SECTION ".rodata..c_jump_table"
 
 struct special_alt {
 	struct list_head list;
 
 	bool group;
 	bool skip_orig;
+	bool skip_alt;
 	bool jump_or_nop;
 
 	struct section *orig_sec;
@@ -39,4 +31,11 @@ struct special_alt {
 
 int special_get_alts(struct elf *elf, struct list_head *alts);
 
+void arch_handle_alternative(unsigned short feature, struct special_alt *alt);
+
+bool arch_support_alt_relocation(struct special_alt *special_alt,
+				 struct instruction *insn,
+				 struct reloc *reloc);
+struct reloc *arch_find_switch_table(struct objtool_file *file,
+				    struct instruction *insn);
 #endif /* _SPECIAL_H */

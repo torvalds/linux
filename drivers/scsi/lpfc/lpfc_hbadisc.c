@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -28,14 +28,13 @@
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/lockdep.h>
+#include <linux/utsname.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
-
-#include <linux/nvme-fc-driver.h>
 
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
@@ -72,6 +71,7 @@ static void lpfc_disc_timeout_handler(struct lpfc_vport *);
 static void lpfc_disc_flush_list(struct lpfc_vport *vport);
 static void lpfc_unregister_fcfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 static int lpfc_fcf_inuse(struct lpfc_hba *);
+static void lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *, LPFC_MBOXQ_t *);
 
 void
 lpfc_terminate_rport_io(struct fc_rport *rport)
@@ -118,6 +118,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	struct lpfc_work_evt *evtp;
 	int  put_node;
 	int  put_rport;
+	unsigned long iflags;
 
 	rdata = rport->dd_data;
 	ndlp = rdata->pnode;
@@ -132,7 +133,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3181 dev_loss_callbk x%06x, rport %p flg x%x\n",
+			 "3181 dev_loss_callbk x%06x, rport x%px flg x%x\n",
 			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
 
 	/* Don't defer this if we are in the process of deleting the vport
@@ -155,37 +156,37 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		return;
 
 	if (rport->port_name != wwn_to_u64(ndlp->nlp_portname.u.wwn))
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
-				"6789 rport name %llx != node port name %llx",
-				rport->port_name,
-				wwn_to_u64(ndlp->nlp_portname.u.wwn));
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "6789 rport name %llx != node port name %llx",
+				 rport->port_name,
+				 wwn_to_u64(ndlp->nlp_portname.u.wwn));
 
 	evtp = &ndlp->dev_loss_evt;
 
 	if (!list_empty(&evtp->evt_listp)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
-				"6790 rport name %llx dev_loss_evt pending",
-				rport->port_name);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "6790 rport name %llx dev_loss_evt pending",
+				 rport->port_name);
 		return;
 	}
 
 	shost = lpfc_shost_from_vport(vport);
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	ndlp->nlp_flag |= NLP_IN_DEV_LOSS;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 
 	/* We need to hold the node by incrementing the reference
 	 * count until this queued work is done
 	 */
 	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (evtp->evt_arg1) {
 		evtp->evt = LPFC_EVT_DEV_LOSS;
 		list_add_tail(&evtp->evt_listp, &phba->work_list);
 		lpfc_worker_wake_up(phba);
 	}
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
 
 	return;
 }
@@ -212,14 +213,15 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	int  put_node;
 	int warn_on = 0;
 	int fcf_inuse = 0;
+	unsigned long iflags;
 
 	rport = ndlp->rport;
 	vport = ndlp->vport;
 	shost = lpfc_shost_from_vport(vport);
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 
 	if (!rport)
 		return fcf_inuse;
@@ -235,7 +237,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		ndlp->nlp_DID, ndlp->nlp_type, rport->scsi_target_id);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3182 dev_loss_tmo_handler x%06x, rport %p flg x%x\n",
+			 "3182 dev_loss_tmo_handler x%06x, rport x%px flg x%x\n",
 			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
 
 	/*
@@ -294,7 +296,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	}
 
 	if (warn_on) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0203 Devloss timeout on "
 				 "WWPN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x "
 				 "NPort x%06x Data: x%x x%x x%x\n",
@@ -303,7 +305,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 ndlp->nlp_DID, ndlp->nlp_flag,
 				 ndlp->nlp_state, ndlp->nlp_rpi);
 	} else {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_TRACE_EVENT,
 				 "0204 Devloss timeout on "
 				 "WWPN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x "
 				 "NPort x%06x Data: x%x x%x x%x\n",
@@ -550,6 +552,15 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 								    fcf_inuse,
 								    nlp_did);
 			break;
+		case LPFC_EVT_RECOVER_PORT:
+			ndlp = (struct lpfc_nodelist *)(evtp->evt_arg1);
+			lpfc_sli_abts_recover_port(ndlp->vport, ndlp);
+			free_evt = 0;
+			/* decrement the node reference count held for
+			 * this queued work
+			 */
+			lpfc_nlp_put(ndlp);
+			break;
 		case LPFC_EVT_ONLINE:
 			if (phba->link_state < LPFC_LINK_DOWN)
 				*(int *) (evtp->evt_arg1) = lpfc_online(phba);
@@ -638,8 +649,6 @@ lpfc_work_done(struct lpfc_hba *phba)
 	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC) {
 		if (phba->hba_flag & HBA_RRQ_ACTIVE)
 			lpfc_handle_rrq_active(phba);
-		if (phba->hba_flag & FCP_XRI_ABORT_EVENT)
-			lpfc_sli4_fcp_xri_abort_event_proc(phba);
 		if (phba->hba_flag & ELS_XRI_ABORT_EVENT)
 			lpfc_sli4_els_xri_abort_event_proc(phba);
 		if (phba->hba_flag & ASYNC_EVENT)
@@ -700,7 +709,10 @@ lpfc_work_done(struct lpfc_hba *phba)
 			if (!(phba->hba_flag & HBA_SP_QUEUE_EVT))
 				set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
-			if (phba->link_state >= LPFC_LINK_UP ||
+			/* Driver could have abort request completed in queue
+			 * when link goes down.  Allow for this transition.
+			 */
+			if (phba->link_state >= LPFC_LINK_DOWN ||
 			    phba->link_flag & LS_MDS_LOOPBACK) {
 				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
 				lpfc_sli_handle_slow_ring_event(phba, pring,
@@ -753,7 +765,7 @@ lpfc_do_work(void *p)
 					 || kthread_should_stop()));
 		/* Signal wakeup shall terminate the worker thread */
 		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0433 Wakeup on signal: rc=x%x\n", rc);
 			break;
 		}
@@ -821,6 +833,12 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 		if ((phba->sli_rev < LPFC_SLI_REV4) &&
 		    (!remove && ndlp->nlp_type & NLP_FABRIC))
 			continue;
+
+		/* Notify transport of connectivity loss to trigger cleanup. */
+		if (phba->nvmet_support &&
+		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE)
+			lpfc_nvmet_invalidate_host(phba, ndlp);
+
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					remove
 					? NLP_EVT_DEVICE_RM
@@ -859,10 +877,9 @@ lpfc_port_link_failure(struct lpfc_vport *vport)
 void
 lpfc_linkdown_port(struct lpfc_vport *vport)
 {
-	struct lpfc_hba  *phba = vport->phba;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
-	if (phba->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
+	if (vport->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
 		fc_host_post_event(shost, fc_get_event_number(),
 				   FCH_EVT_LINKDOWN, 0);
 
@@ -894,11 +911,21 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	/* Block all SCSI stack I/Os */
 	lpfc_scsi_dev_block(phba);
 
+	phba->defer_flogi_acc_flag = false;
+
 	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_SCAN_DONE);
 	spin_unlock_irq(&phba->hbalock);
 	if (phba->link_state > LPFC_LINK_DOWN) {
 		phba->link_state = LPFC_LINK_DOWN;
+		if (phba->sli4_hba.conf_trunk) {
+			phba->trunk_link.link0.state = 0;
+			phba->trunk_link.link1.state = 0;
+			phba->trunk_link.link2.state = 0;
+			phba->trunk_link.link3.state = 0;
+			phba->sli4_hba.link_state.logical_speed =
+						LPFC_LINK_SPEED_UNKNOWN;
+		}
 		spin_lock_irq(shost->host_lock);
 		phba->pport->fc_flag &= ~FC_LBIT;
 		spin_unlock_irq(shost->host_lock);
@@ -911,8 +938,8 @@ lpfc_linkdown(struct lpfc_hba *phba)
 
 			vports[i]->fc_myDID = 0;
 
-			if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-			    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+			if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+			    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 				if (phba->nvmet_support)
 					lpfc_nvmet_update_targetport(phba);
 				else
@@ -921,7 +948,11 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
-	/* Clean up any firmware default rpi's */
+
+	/* Clean up any SLI3 firmware default rpi's */
+	if (phba->sli_rev > LPFC_SLI_REV3)
+		goto skip_unreg_did;
+
 	mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mb) {
 		lpfc_unreg_did(phba, 0xffff, LPFC_UNREG_ALL_DFLT_RPIS, mb);
@@ -933,6 +964,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 	}
 
+ skip_unreg_did:
 	/* Setup myDID for link up if we are in pt2pt mode */
 	if (phba->pport->fc_flag & FC_PT2PT) {
 		mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -947,6 +979,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 		spin_lock_irq(shost->host_lock);
 		phba->pport->fc_flag &= ~(FC_PT2PT | FC_PT2PT_PLOGI);
+		phba->pport->rcv_flogi_cnt = 0;
 		spin_unlock_irq(shost->host_lock);
 	}
 	return 0;
@@ -997,7 +1030,7 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 		(vport != phba->pport))
 		return;
 
-	if (phba->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
+	if (vport->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
 		fc_host_post_event(shost, fc_get_event_number(),
 				   FCH_EVT_LINKUP, 0);
 
@@ -1018,6 +1051,7 @@ lpfc_linkup(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
 	int i;
+	struct Scsi_Host  *shost = lpfc_shost_from_vport(phba->pport);
 
 	phba->link_state = LPFC_LINK_UP;
 
@@ -1030,6 +1064,18 @@ lpfc_linkup(struct lpfc_hba *phba)
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
 			lpfc_linkup_port(vports[i]);
 	lpfc_destroy_vport_work_array(phba, vports);
+
+	/* Clear the pport flogi counter in case the link down was
+	 * absorbed without an ACQE. No lock here - in worker thread
+	 * and discovery is synchronized.
+	 */
+	spin_lock_irq(shost->host_lock);
+	phba->pport->rcv_flogi_cnt = 0;
+	spin_unlock_irq(shost->host_lock);
+
+	/* reinitialize initial FLOGI flag */
+	phba->hba_flag &= ~(HBA_FLOGI_ISSUED);
+	phba->defer_flogi_acc_flag = false;
 
 	return 0;
 }
@@ -1056,7 +1102,7 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Check for error */
 	if ((mb->mbxStatus) && (mb->mbxStatus != 0x1601)) {
 		/* CLEAR_LA mbox error <mbxStatus> state <hba_state> */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0320 CLEAR_LA mbxStatus error x%x hba "
 				 "state x%x\n",
 				 mb->mbxStatus, vport->port_state);
@@ -1102,12 +1148,13 @@ out:
 	return;
 }
 
-
 void
 lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
-	uint8_t bbscn = 0;
+	LPFC_MBOXQ_t *sparam_mb;
+	struct lpfc_dmabuf *sparam_mp;
+	int rc;
 
 	if (pmb->u.mb.mbxStatus)
 		goto out;
@@ -1132,31 +1179,59 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	/* Start discovery by sending a FLOGI. port_state is identically
-	 * LPFC_FLOGI while waiting for FLOGI cmpl
+	 * LPFC_FLOGI while waiting for FLOGI cmpl.
 	 */
 	if (vport->port_state != LPFC_FLOGI) {
-		if (phba->bbcredit_support && phba->cfg_enable_bbcr) {
-			bbscn = bf_get(lpfc_bbscn_def,
-				       &phba->sli4_hba.bbscn_params);
-			vport->fc_sparam.cmn.bbRcvSizeMsb &= 0xf;
-			vport->fc_sparam.cmn.bbRcvSizeMsb |= (bbscn << 4);
+		/* Issue MBX_READ_SPARAM to update CSPs before FLOGI if
+		 * bb-credit recovery is in place.
+		 */
+		if (phba->bbcredit_support && phba->cfg_enable_bbcr &&
+		    !(phba->link_flag & LS_LOOPBACK_MODE)) {
+			sparam_mb = mempool_alloc(phba->mbox_mem_pool,
+						  GFP_KERNEL);
+			if (!sparam_mb)
+				goto sparam_out;
+
+			rc = lpfc_read_sparam(phba, sparam_mb, 0);
+			if (rc) {
+				mempool_free(sparam_mb, phba->mbox_mem_pool);
+				goto sparam_out;
+			}
+			sparam_mb->vport = vport;
+			sparam_mb->mbox_cmpl = lpfc_mbx_cmpl_read_sparam;
+			rc = lpfc_sli_issue_mbox(phba, sparam_mb, MBX_NOWAIT);
+			if (rc == MBX_NOT_FINISHED) {
+				sparam_mp = (struct lpfc_dmabuf *)
+						sparam_mb->ctx_buf;
+				lpfc_mbuf_free(phba, sparam_mp->virt,
+					       sparam_mp->phys);
+				kfree(sparam_mp);
+				sparam_mb->ctx_buf = NULL;
+				mempool_free(sparam_mb, phba->mbox_mem_pool);
+				goto sparam_out;
+			}
+
+			phba->hba_flag |= HBA_DEFER_FLOGI;
+		}  else {
+			lpfc_initial_flogi(vport);
 		}
-		lpfc_initial_flogi(vport);
-	} else if (vport->fc_flag & FC_PT2PT) {
-		lpfc_disc_start(vport);
+	} else {
+		if (vport->fc_flag & FC_PT2PT)
+			lpfc_disc_start(vport);
 	}
 	return;
 
 out:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0306 CONFIG_LINK mbxStatus error x%x "
 			 "HBA state x%x\n",
 			 pmb->u.mb.mbxStatus, vport->port_state);
+sparam_out:
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	lpfc_linkdown(phba);
 
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0200 CONFIG_LINK bad hba state x%x\n",
 			 vport->port_state);
 
@@ -1166,7 +1241,7 @@ out:
 
 /**
  * lpfc_sli4_clear_fcf_rr_bmask
- * @phba pointer to the struct lpfc_hba for this port.
+ * @phba: pointer to the struct lpfc_hba for this port.
  * This fucnction resets the round robin bit mask and clears the
  * fcf priority list. The list deletions are done while holding the
  * hbalock. The ON_LIST flag and the FLOGI_FAILED flags are cleared
@@ -1192,10 +1267,10 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_vport *vport = mboxq->vport;
 
 	if (mboxq->u.mb.mbxStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-			 "2017 REG_FCFI mbxStatus error x%x "
-			 "HBA state x%x\n",
-			 mboxq->u.mb.mbxStatus, vport->port_state);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2017 REG_FCFI mbxStatus error x%x "
+				 "HBA state x%x\n", mboxq->u.mb.mbxStatus,
+				 vport->port_state);
 		goto fail_out;
 	}
 
@@ -1265,7 +1340,7 @@ lpfc_fab_name_match(uint8_t *fab_name, struct fcf_record *new_fcf_record)
 
 /**
  * lpfc_sw_name_match - Check if the fcf switch name match.
- * @fab_name: pointer to fabric name.
+ * @sw_name: pointer to switch name.
  * @new_fcf_record: pointer to fcf record.
  *
  * This routine compare the fcf record's switch name with provided
@@ -1328,14 +1403,14 @@ lpfc_vlan_id_match(uint16_t curr_vlan_id, uint16_t new_vlan_id)
 }
 
 /**
- * lpfc_update_fcf_record - Update driver fcf record
  * __lpfc_update_fcf_record_pri - update the lpfc_fcf_pri record.
  * @phba: pointer to lpfc hba data structure.
  * @fcf_index: Index for the lpfc_fcf_record.
  * @new_fcf_record: pointer to hba fcf record.
  *
  * This routine updates the driver FCF priority record from the new HBA FCF
- * record. This routine is called with the host lock held.
+ * record. The hbalock is asserted held in the code path calling this
+ * routine.
  **/
 static void
 __lpfc_update_fcf_record_pri(struct lpfc_hba *phba, uint16_t fcf_index,
@@ -1343,8 +1418,6 @@ __lpfc_update_fcf_record_pri(struct lpfc_hba *phba, uint16_t fcf_index,
 				 )
 {
 	struct lpfc_fcf_pri *fcf_pri;
-
-	lockdep_assert_held(&phba->hbalock);
 
 	fcf_pri = &phba->fcf.fcf_pri[fcf_index];
 	fcf_pri->fcf_rec.fcf_index = fcf_index;
@@ -1355,7 +1428,7 @@ __lpfc_update_fcf_record_pri(struct lpfc_hba *phba, uint16_t fcf_index,
 
 /**
  * lpfc_copy_fcf_record - Copy fcf information to lpfc_hba.
- * @fcf: pointer to driver fcf record.
+ * @fcf_rec: pointer to driver fcf record.
  * @new_fcf_record: pointer to fcf record.
  *
  * This routine copies the FCF information from the FCF
@@ -1423,7 +1496,7 @@ lpfc_copy_fcf_record(struct lpfc_fcf_rec *fcf_rec,
  *
  * This routine updates the driver FCF record from the new HBA FCF record
  * together with the address mode, vlan_id, and other informations. This
- * routine is called with the host lock held.
+ * routine is called with the hbalock held.
  **/
 static void
 __lpfc_update_fcf_record(struct lpfc_hba *phba, struct lpfc_fcf_rec *fcf_rec,
@@ -1818,7 +1891,7 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	 */
 	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
 	if (unlikely(!mboxq->sge_array)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2524 Failed to get the non-embedded SGE "
 				"virtual address\n");
 		return NULL;
@@ -1834,11 +1907,12 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	if (shdr_status || shdr_add_status) {
 		if (shdr_status == STATUS_FCF_TABLE_EMPTY ||
 					if_type == LPFC_SLI_INTF_IF_TYPE_2)
-			lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"2726 READ_FCF_RECORD Indicates empty "
 					"FCF table.\n");
 		else
-			lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2521 READ_FCF_RECORD mailbox failed "
 					"with status x%x add_status x%x, "
 					"mbx\n", shdr_status, shdr_add_status);
@@ -1922,7 +1996,7 @@ lpfc_sli4_log_fcf_record_info(struct lpfc_hba *phba,
 }
 
 /**
- lpfc_sli4_fcf_record_match - testing new FCF record for matching existing FCF
+ * lpfc_sli4_fcf_record_match - testing new FCF record for matching existing FCF
  * @phba: pointer to lpfc hba data structure.
  * @fcf_rec: pointer to an existing FCF record.
  * @new_fcf_record: pointer to a new FCF record.
@@ -1992,6 +2066,26 @@ int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *vport, uint16_t fcf_index)
 				"failover and change port state:x%x/x%x\n",
 				phba->pport->port_state, LPFC_VPORT_UNKNOWN);
 		phba->pport->port_state = LPFC_VPORT_UNKNOWN;
+
+		if (!phba->fcf.fcf_redisc_attempted) {
+			lpfc_unregister_fcf(phba);
+
+			rc = lpfc_sli4_redisc_fcf_table(phba);
+			if (!rc) {
+				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+						"3195 Rediscover FCF table\n");
+				phba->fcf.fcf_redisc_attempted = 1;
+				lpfc_sli4_clear_fcf_rr_bmask(phba);
+			} else {
+				lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
+						"3196 Rediscover FCF table "
+						"failed. Status:x%x\n", rc);
+			}
+		} else {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
+					"3197 Already rediscover FCF table "
+					"attempted. No more retry\n");
+		}
 		goto stop_flogi_current_fcf;
 	} else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_ELS,
@@ -2016,7 +2110,7 @@ stop_flogi_current_fcf:
 /**
  * lpfc_sli4_fcf_pri_list_del
  * @phba: pointer to lpfc hba data structure.
- * @fcf_index the index of the fcf record to delete
+ * @fcf_index: the index of the fcf record to delete
  * This routine checks the on list flag of the fcf_index to be deleted.
  * If it is one the list then it is removed from the list, and the flag
  * is cleared. This routine grab the hbalock before removing the fcf
@@ -2046,7 +2140,7 @@ static void lpfc_sli4_fcf_pri_list_del(struct lpfc_hba *phba,
 /**
  * lpfc_sli4_set_fcf_flogi_fail
  * @phba: pointer to lpfc hba data structure.
- * @fcf_index the index of the fcf record to update
+ * @fcf_index: the index of the fcf record to update
  * This routine acquires the hbalock and then set the LPFC_FCF_FLOGI_FAILED
  * flag so the the round robin slection for the particular priority level
  * will try a different fcf record that does not have this bit set.
@@ -2066,7 +2160,8 @@ lpfc_sli4_set_fcf_flogi_fail(struct lpfc_hba *phba, uint16_t fcf_index)
 /**
  * lpfc_sli4_fcf_pri_list_add
  * @phba: pointer to lpfc hba data structure.
- * @fcf_index the index of the fcf record to add
+ * @fcf_index: the index of the fcf record to add
+ * @new_fcf_record: pointer to a new FCF record.
  * This routine checks the priority of the fcf_index to be added.
  * If it is a lower priority than the current head of the fcf_pri list
  * then it is added to the list in the right order.
@@ -2196,7 +2291,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	new_fcf_record = lpfc_sli4_fcf_rec_mbox_parse(phba, mboxq,
 						      &next_fcf_index);
 	if (!new_fcf_record) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2765 Mailbox command READ_FCF_RECORD "
 				"failed to retrieve a FCF record.\n");
 		/* Let next new FCF event trigger fast failover */
@@ -2240,7 +2335,8 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		    new_fcf_record, LPFC_FCOE_IGNORE_VID)) {
 			if (bf_get(lpfc_fcf_record_fcf_index, new_fcf_record) !=
 			    phba->fcf.current_rec.fcf_indx) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 					"2862 FCF (x%x) matches property "
 					"of in-use FCF (x%x)\n",
 					bf_get(lpfc_fcf_record_fcf_index,
@@ -2310,7 +2406,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 						phba->pport->fc_flag);
 				goto out;
 			} else
-				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2863 New FCF (x%x) matches "
 					"property of in-use FCF (x%x)\n",
 					bf_get(lpfc_fcf_record_fcf_index,
@@ -2724,10 +2820,9 @@ lpfc_init_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
 			LPFC_SLI_INTF_IF_TYPE_0) &&
 	    mboxq->u.mb.mbxStatus != MBX_VFI_IN_USE) {
-		lpfc_printf_vlog(vport, KERN_ERR,
-				LOG_MBOX,
-				"2891 Init VFI mailbox failed 0x%x\n",
-				mboxq->u.mb.mbxStatus);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2891 Init VFI mailbox failed 0x%x\n",
+				 mboxq->u.mb.mbxStatus);
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		return;
@@ -2755,7 +2850,7 @@ lpfc_issue_init_vfi(struct lpfc_vport *vport)
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
 		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_MBOX, "2892 Failed to allocate "
+			LOG_TRACE_EVENT, "2892 Failed to allocate "
 			"init_vfi mailbox\n");
 		return;
 	}
@@ -2763,8 +2858,8 @@ lpfc_issue_init_vfi(struct lpfc_vport *vport)
 	mboxq->mbox_cmpl = lpfc_init_vfi_cmpl;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_MBOX, "2893 Failed to issue init_vfi mailbox\n");
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2893 Failed to issue init_vfi mailbox\n");
 		mempool_free(mboxq, vport->phba->mbox_mem_pool);
 	}
 }
@@ -2784,10 +2879,9 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (mboxq->u.mb.mbxStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR,
-				LOG_MBOX,
-				"2609 Init VPI mailbox failed 0x%x\n",
-				mboxq->u.mb.mbxStatus);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2609 Init VPI mailbox failed 0x%x\n",
+				 mboxq->u.mb.mbxStatus);
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		return;
@@ -2801,7 +2895,7 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			ndlp = lpfc_findnode_did(vport, Fabric_DID);
 			if (!ndlp)
 				lpfc_printf_vlog(vport, KERN_ERR,
-					LOG_DISCOVERY,
+					LOG_TRACE_EVENT,
 					"2731 Cannot find fabric "
 					"controller node\n");
 			else
@@ -2814,7 +2908,7 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_initial_fdisc(vport);
 	else {
 		lpfc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "2606 No NPIV Fabric support\n");
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
@@ -2837,8 +2931,7 @@ lpfc_issue_init_vpi(struct lpfc_vport *vport)
 	if ((vport->port_type != LPFC_PHYSICAL_PORT) && (!vport->vpi)) {
 		vpi = lpfc_alloc_vpi(vport->phba);
 		if (!vpi) {
-			lpfc_printf_vlog(vport, KERN_ERR,
-					 LOG_MBOX,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "3303 Failed to obtain vport vpi\n");
 			lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 			return;
@@ -2849,7 +2942,7 @@ lpfc_issue_init_vpi(struct lpfc_vport *vport)
 	mboxq = mempool_alloc(vport->phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
 		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_MBOX, "2607 Failed to allocate "
+			LOG_TRACE_EVENT, "2607 Failed to allocate "
 			"init_vpi mailbox\n");
 		return;
 	}
@@ -2858,8 +2951,8 @@ lpfc_issue_init_vpi(struct lpfc_vport *vport)
 	mboxq->mbox_cmpl = lpfc_init_vpi_cmpl;
 	rc = lpfc_sli_issue_mbox(vport->phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_MBOX, "2608 Failed to issue init_vpi mailbox\n");
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2608 Failed to issue init_vpi mailbox\n");
 		mempool_free(mboxq, vport->phba->mbox_mem_pool);
 	}
 }
@@ -2903,7 +2996,7 @@ lpfc_start_fdiscs(struct lpfc_hba *phba)
 				lpfc_vport_set_state(vports[i],
 						     FC_VPORT_NO_FABRIC_SUPP);
 				lpfc_printf_vlog(vports[i], KERN_ERR,
-						 LOG_ELS,
+						 LOG_TRACE_EVENT,
 						 "0259 No NPIV "
 						 "Fabric support\n");
 			}
@@ -2915,7 +3008,7 @@ lpfc_start_fdiscs(struct lpfc_hba *phba)
 void
 lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
-	struct lpfc_dmabuf *dmabuf = mboxq->context1;
+	struct lpfc_dmabuf *dmabuf = mboxq->ctx_buf;
 	struct lpfc_vport *vport = mboxq->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
@@ -2927,10 +3020,10 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
 			LPFC_SLI_INTF_IF_TYPE_0) &&
 	    mboxq->u.mb.mbxStatus != MBX_VFI_IN_USE) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-			 "2018 REG_VFI mbxStatus error x%x "
-			 "HBA state x%x\n",
-			 mboxq->u.mb.mbxStatus, vport->port_state);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2018 REG_VFI mbxStatus error x%x "
+				 "HBA state x%x\n",
+				 mboxq->u.mb.mbxStatus, vport->port_state);
 		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			/* FLOGI failed, use loop map to make discovery list */
 			lpfc_disc_list_loopmap(vport);
@@ -3008,7 +3101,7 @@ static void
 lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) pmb->context1;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 	struct lpfc_vport  *vport = pmb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct serv_parm *sp = &vport->fc_sparam;
@@ -3017,7 +3110,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Check for error */
 	if (mb->mbxStatus) {
 		/* READ_SPARAM mbox error <mbxStatus> state <hba_state> */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0319 READ_SPARAM mbxStatus error x%x "
 				 "hba state x%x>\n",
 				 mb->mbxStatus, vport->port_state);
@@ -3049,10 +3142,18 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
+
+	/* Check if sending the FLOGI is being deferred to after we get
+	 * up to date CSPs from MBX_READ_SPARAM.
+	 */
+	if (phba->hba_flag & HBA_DEFER_FLOGI) {
+		lpfc_initial_flogi(vport);
+		phba->hba_flag &= ~HBA_DEFER_FLOGI;
+	}
 	return;
 
 out:
-	pmb->context1 = NULL;
+	pmb->ctx_buf = NULL;
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	lpfc_issue_clear_la(phba, vport);
@@ -3071,8 +3172,9 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	int rc;
 	struct fcf_record *fcf_record;
 	uint32_t fc_flags = 0;
+	unsigned long iflags;
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
 
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
@@ -3085,6 +3187,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		case LPFC_LINK_SPEED_16GHZ:
 		case LPFC_LINK_SPEED_32GHZ:
 		case LPFC_LINK_SPEED_64GHZ:
+		case LPFC_LINK_SPEED_128GHZ:
 			break;
 		default:
 			phba->fc_linkspeed = LPFC_LINK_SPEED_UNKNOWN;
@@ -3168,15 +3271,17 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		vport->fc_myDID = phba->fc_pref_DID;
 		fc_flags |= FC_LBIT;
 	}
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
 
 	if (fc_flags) {
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irqsave(shost->host_lock, iflags);
 		vport->fc_flag |= fc_flags;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irqrestore(shost->host_lock, iflags);
 	}
 
 	lpfc_linkup(phba);
+	sparam_mbox = NULL;
+
 	sparam_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!sparam_mbox)
 		goto out;
@@ -3190,7 +3295,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	sparam_mbox->mbox_cmpl = lpfc_mbx_cmpl_read_sparam;
 	rc = lpfc_sli_issue_mbox(phba, sparam_mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		mp = (struct lpfc_dmabuf *) sparam_mbox->context1;
+		mp = (struct lpfc_dmabuf *)sparam_mbox->ctx_buf;
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 		mempool_free(sparam_mbox, phba->mbox_mem_pool);
@@ -3222,7 +3327,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 					GFP_KERNEL);
 			if (unlikely(!fcf_record)) {
 				lpfc_printf_log(phba, KERN_ERR,
-					LOG_MBOX | LOG_SLI,
+					LOG_TRACE_EVENT,
 					"2554 Could not allocate memory for "
 					"fcf record\n");
 				rc = -ENODEV;
@@ -3234,7 +3339,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 			rc = lpfc_sli4_add_fcf_record(phba, fcf_record);
 			if (unlikely(rc)) {
 				lpfc_printf_log(phba, KERN_ERR,
-					LOG_MBOX | LOG_SLI,
+					LOG_TRACE_EVENT,
 					"2013 Could not manually add FCF "
 					"record 0, status %d\n", rc);
 				rc = -ENODEV;
@@ -3247,33 +3352,37 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		 * The driver is expected to do FIP/FCF. Call the port
 		 * and get the FCF Table.
 		 */
-		spin_lock_irq(&phba->hbalock);
+		spin_lock_irqsave(&phba->hbalock, iflags);
 		if (phba->hba_flag & FCF_TS_INPROG) {
-			spin_unlock_irq(&phba->hbalock);
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			return;
 		}
 		/* This is the initial FCF discovery scan */
 		phba->fcf.fcf_flag |= FCF_INIT_DISC;
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2778 Start FCF table scan at linkup\n");
 		rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba,
 						     LPFC_FCOE_FCF_GET_FIRST);
 		if (rc) {
-			spin_lock_irq(&phba->hbalock);
+			spin_lock_irqsave(&phba->hbalock, iflags);
 			phba->fcf.fcf_flag &= ~FCF_INIT_DISC;
-			spin_unlock_irq(&phba->hbalock);
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			goto out;
 		}
 		/* Reset FCF roundrobin bmask for new discovery */
 		lpfc_sli4_clear_fcf_rr_bmask(phba);
 	}
 
+	/* Prepare for LINK up registrations */
+	memset(phba->os_host_name, 0, sizeof(phba->os_host_name));
+	scnprintf(phba->os_host_name, sizeof(phba->os_host_name), "%s",
+		  init_utsname()->nodename);
 	return;
 out:
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-			 "0263 Discovery Mailbox error: state: 0x%x : %p %p\n",
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+			 "0263 Discovery Mailbox error: state: 0x%x : x%px x%px\n",
 			 vport->port_state, sparam_mbox, cfglink_mbox);
 	lpfc_issue_clear_la(phba, vport);
 	return;
@@ -3319,8 +3428,9 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_mbx_read_top *la;
 	struct lpfc_sli_ring *pring;
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
 	uint8_t attn_type;
+	unsigned long iflags;
 
 	/* Unblock ELS traffic */
 	pring = lpfc_phba_elsring(phba);
@@ -3342,12 +3452,12 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	memcpy(&phba->alpa_map[0], mp->virt, 128);
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	if (bf_get(lpfc_mbx_read_top_pb, la))
 		vport->fc_flag |= FC_BYPASSED_MODE;
 	else
 		vport->fc_flag &= ~FC_BYPASSED_MODE;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 
 	if (phba->fc_eventTag <= la->eventTag) {
 		phba->fc_stat.LinkMultiEvent++;
@@ -3358,12 +3468,12 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	phba->fc_eventTag = la->eventTag;
 	if (phba->sli_rev < LPFC_SLI_REV4) {
-		spin_lock_irq(&phba->hbalock);
+		spin_lock_irqsave(&phba->hbalock, iflags);
 		if (bf_get(lpfc_mbx_read_top_mm, la))
 			phba->sli.sli_flag |= LPFC_MENLO_MAINT;
 		else
 			phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
 	}
 
 	phba->link_events++;
@@ -3405,8 +3515,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				phba->pport->port_state, vport->fc_flag);
 		else if (attn_type == LPFC_ATT_UNEXP_WWPN)
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
-				"1313 Link Down UNEXP WWPN Event x%x received "
-				"Data: x%x x%x x%x x%x x%x\n",
+				"1313 Link Down Unexpected FA WWPN Event x%x "
+				"received Data: x%x x%x x%x x%x x%x\n",
 				la->eventTag, phba->fc_eventTag,
 				phba->pport->port_state, vport->fc_flag,
 				bf_get(lpfc_mbx_read_top_mm, la),
@@ -3476,15 +3586,15 @@ void
 lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	pmb->ctx_buf = NULL;
+	pmb->ctx_ndlp = NULL;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
-			 "0002 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+			 "0002 rpi:%x DID:%x flg:%x %d map:%x x%px\n",
 			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 			 kref_read(&ndlp->kref),
 			 ndlp->nlp_usg_map, ndlp);
@@ -3544,7 +3654,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		break;
 	/* If VPI is busy, reset the HBA */
 	case 0x9700:
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			"2798 Unreg_vpi failed vpi 0x%x, mb status = 0x%x\n",
 			vport->vpi, mb->mbxStatus);
 		if (!(phba->pport->load_flag & FC_UNLOADING))
@@ -3582,7 +3692,7 @@ lpfc_mbx_unreg_vpi(struct lpfc_vport *vport)
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_unreg_vpi;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "1800 Could not issue unreg_vpi\n");
 		mempool_free(mbox, phba->mbox_mem_pool);
 		vport->unreg_vpi_cmpl = VPORT_ERROR;
@@ -3611,8 +3721,8 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		spin_unlock_irq(shost->host_lock);
 		vport->fc_myDID = 0;
 
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 			if (phba->nvmet_support)
 				lpfc_nvmet_update_targetport(phba);
 			else
@@ -3669,7 +3779,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0542 lpfc_create_static_vport failed to"
 				" allocate mailbox memory\n");
 		return;
@@ -3679,7 +3789,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 	vport_info = kzalloc(sizeof(struct static_vport_info), GFP_KERNEL);
 	if (!vport_info) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0543 lpfc_create_static_vport failed to"
 				" allocate vport_info\n");
 		mempool_free(pmb, phba->mbox_mem_pool);
@@ -3689,8 +3799,8 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	vport_buff = (uint8_t *) vport_info;
 	do {
 		/* free dma buffer from previous round */
-		if (pmb->context1) {
-			mp = (struct lpfc_dmabuf *)pmb->context1;
+		if (pmb->ctx_buf) {
+			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 		}
@@ -3712,7 +3822,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			byte_count = pmb->u.mqe.un.mb_words[5];
-			mp = (struct lpfc_dmabuf *)pmb->context1;
+			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 			if (byte_count > sizeof(struct static_vport_info) -
 					offset)
 				byte_count = sizeof(struct static_vport_info)
@@ -3740,11 +3850,12 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	if ((le32_to_cpu(vport_info->signature) != VPORT_INFO_SIG) ||
 		((le32_to_cpu(vport_info->rev) & VPORT_INFO_REV_MASK)
 			!= VPORT_INFO_REV)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0545 lpfc_create_static_vport bad"
-			" information header 0x%x 0x%x\n",
-			le32_to_cpu(vport_info->signature),
-			le32_to_cpu(vport_info->rev) & VPORT_INFO_REV_MASK);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"0545 lpfc_create_static_vport bad"
+				" information header 0x%x 0x%x\n",
+				le32_to_cpu(vport_info->signature),
+				le32_to_cpu(vport_info->rev) &
+				VPORT_INFO_REV_MASK);
 
 		goto out;
 	}
@@ -3777,8 +3888,8 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 out:
 	kfree(vport_info);
 	if (mbx_wait_rc != MBX_TIMEOUT) {
-		if (pmb->context1) {
-			mp = (struct lpfc_dmabuf *)pmb->context1;
+		if (pmb->ctx_buf) {
+			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 		}
@@ -3799,16 +3910,16 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost;
 
-	ndlp = (struct lpfc_nodelist *) pmb->context2;
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	pmb->ctx_ndlp = NULL;
+	pmb->ctx_buf = NULL;
 
 	if (mb->mbxStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0258 Register Fabric login error: 0x%x\n",
 				 mb->mbxStatus);
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -3874,16 +3985,15 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 int
 lpfc_issue_gidft(struct lpfc_vport *vport)
 {
-	struct lpfc_hba *phba = vport->phba;
-
 	/* Good status, issue CT Request to NameServer */
-	if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-	    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) {
+	if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+	    (vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) {
 		if (lpfc_ns_cmd(vport, SLI_CTNS_GID_FT, 0, SLI_CTPT_FCP)) {
 			/* Cannot issue NameServer FCP Query, so finish up
 			 * discovery
 			 */
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 					 "0604 %s FC TYPE %x %s\n",
 					 "Failed to issue GID_FT to ",
 					 FC_TYPE_FCP,
@@ -3893,13 +4003,14 @@ lpfc_issue_gidft(struct lpfc_vport *vport)
 		vport->gidft_inp++;
 	}
 
-	if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-	    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+	if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+	    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 		if (lpfc_ns_cmd(vport, SLI_CTNS_GID_FT, 0, SLI_CTPT_NVME)) {
 			/* Cannot issue NameServer NVME Query, so finish up
 			 * discovery
 			 */
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 					 "0605 %s FC_TYPE %x %s %d\n",
 					 "Failed to issue GID_FT to ",
 					 FC_TYPE_NVME,
@@ -3913,6 +4024,35 @@ lpfc_issue_gidft(struct lpfc_vport *vport)
 	return vport->gidft_inp;
 }
 
+/**
+ * lpfc_issue_gidpt - issue a GID_PT for all N_Ports
+ * @vport: The virtual port for which this call is being executed.
+ *
+ * This routine will issue a GID_PT to get a list of all N_Ports
+ *
+ * Return value :
+ *   0 - Failure to issue a GID_PT
+ *   1 - GID_PT issued
+ **/
+int
+lpfc_issue_gidpt(struct lpfc_vport *vport)
+{
+	/* Good status, issue CT Request to NameServer */
+	if (lpfc_ns_cmd(vport, SLI_CTNS_GID_PT, 0, GID_PT_N_PORT)) {
+		/* Cannot issue NameServer FCP Query, so finish up
+		 * discovery
+		 */
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "0606 %s Port TYPE %x %s\n",
+				 "Failed to issue GID_PT to ",
+				 GID_PT_N_PORT,
+				 "Finishing discovery.");
+		return 0;
+	}
+	vport->gidft_inp++;
+	return 1;
+}
+
 /*
  * This routine handles processing a NameServer REG_LOGIN mailbox
  * command upon completion. It is setup in the LPFC_MBOXQ
@@ -3923,16 +4063,16 @@ void
 lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 	struct lpfc_vport *vport = pmb->vport;
 
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	pmb->ctx_buf = NULL;
+	pmb->ctx_ndlp = NULL;
 	vport->gidft_inp = 0;
 
 	if (mb->mbxStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0260 Register NameServer error: 0x%x\n",
 				 mb->mbxStatus);
 
@@ -3968,8 +4108,8 @@ out:
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
-			 "0003 rpi:%x DID:%x flg:%x %d map%x %p\n",
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE | LOG_DISCOVERY,
+			 "0003 rpi:%x DID:%x flg:%x %d map%x x%px\n",
 			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 			 kref_read(&ndlp->kref),
 			 ndlp->nlp_usg_map, ndlp);
@@ -3981,17 +4121,19 @@ out:
 		lpfc_ns_cmd(vport, SLI_CTNS_RSPN_ID, 0, 0);
 		lpfc_ns_cmd(vport, SLI_CTNS_RFT_ID, 0, 0);
 
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP))
+		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP))
 			lpfc_ns_cmd(vport, SLI_CTNS_RFF_ID, 0, FC_TYPE_FCP);
 
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
+		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
 			lpfc_ns_cmd(vport, SLI_CTNS_RFF_ID, 0,
 				    FC_TYPE_NVME);
 
 		/* Issue SCR just before NameServer GID_FT Query */
-		lpfc_issue_els_scr(vport, SCR_DID, 0);
+		lpfc_issue_els_scr(vport, 0);
+
+		lpfc_issue_els_rdf(vport, 0);
 	}
 
 	vport->fc_ns_retry = 0;
@@ -4022,7 +4164,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct fc_rport_identifiers rport_ids;
 	struct lpfc_hba  *phba = vport->phba;
 
-	if (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
+	if (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
 		return;
 
 	/* Remote port has reappeared. Re-register w/ FC transport */
@@ -4074,15 +4216,21 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	rdata->pnode = lpfc_nlp_get(ndlp);
 
 	if (ndlp->nlp_type & NLP_FCP_TARGET)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
+		rport_ids.roles |= FC_PORT_ROLE_FCP_TARGET;
 	if (ndlp->nlp_type & NLP_FCP_INITIATOR)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
+		rport_ids.roles |= FC_PORT_ROLE_FCP_INITIATOR;
+	if (ndlp->nlp_type & NLP_NVME_INITIATOR)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_INITIATOR;
+	if (ndlp->nlp_type & NLP_NVME_TARGET)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_TARGET;
+	if (ndlp->nlp_type & NLP_NVME_DISCOVERY)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_DISCOVERY;
 
 	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3183 rport register x%06x, rport %p role x%x\n",
+			 "3183 rport register x%06x, rport x%px role x%x\n",
 			 ndlp->nlp_DID, rport, rport_ids.roles);
 
 	if ((rport->scsi_target_id != -1) &&
@@ -4097,9 +4245,8 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 {
 	struct fc_rport *rport = ndlp->rport;
 	struct lpfc_vport *vport = ndlp->vport;
-	struct lpfc_hba  *phba = vport->phba;
 
-	if (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
+	if (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
 		return;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
@@ -4107,7 +4254,7 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "3184 rport unregister x%06x, rport %p\n",
+			 "3184 rport unregister x%06x, rport x%px\n",
 			 ndlp->nlp_DID, rport);
 
 	fc_remote_port_delete(rport);
@@ -4119,8 +4266,9 @@ static void
 lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	unsigned long iflags;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	switch (state) {
 	case NLP_STE_UNUSED_NODE:
 		vport->fc_unused_cnt += count;
@@ -4150,7 +4298,7 @@ lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 			vport->fc_npr_cnt += count;
 		break;
 	}
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 }
 
 static void
@@ -4193,7 +4341,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (new_state ==  NLP_STE_MAPPED_NODE ||
 	    new_state == NLP_STE_UNMAPPED_NODE) {
-		if (ndlp->nlp_fc4_type & NLP_FC4_FCP ||
+		if (ndlp->nlp_fc4_type ||
 		    ndlp->nlp_DID == Fabric_DID ||
 		    ndlp->nlp_DID == NameServer_DID ||
 		    ndlp->nlp_DID == FDMI_DID) {
@@ -4236,7 +4384,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 					 GFP_KERNEL);
 
 		if (!ndlp->lat_data)
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				"0286 lpfc_nlp_state_cleanup failed to "
 				"allocate statistical data buffer DID "
 				"0x%x\n", ndlp->nlp_DID);
@@ -4376,6 +4524,8 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	INIT_LIST_HEAD(&ndlp->els_retry_evt.evt_listp);
 	INIT_LIST_HEAD(&ndlp->dev_loss_evt.evt_listp);
 	timer_setup(&ndlp->nlp_delayfunc, lpfc_els_retry_delay, 0);
+	INIT_LIST_HEAD(&ndlp->recovery_evt.evt_listp);
+
 	ndlp->nlp_DID = did;
 	ndlp->vport = vport;
 	ndlp->phba = vport->phba;
@@ -4385,6 +4535,7 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	NLP_INT_NODE_ACT(ndlp);
 	atomic_set(&ndlp->cmd_pending, 0);
 	ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
+	ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 }
 
 struct lpfc_nodelist *
@@ -4392,18 +4543,31 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 int state)
 {
 	struct lpfc_hba *phba = vport->phba;
-	uint32_t did;
+	uint32_t did, flag;
 	unsigned long flags;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
 	int rpi = LPFC_RPI_ALLOC_ERROR;
+	uint32_t defer_did = 0;
 
 	if (!ndlp)
 		return NULL;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		rpi = lpfc_sli4_alloc_rpi(vport->phba);
-		if (rpi == LPFC_RPI_ALLOC_ERROR)
+		if (ndlp->nlp_rpi == LPFC_RPI_ALLOC_ERROR)
+			rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		else
+			rpi = ndlp->nlp_rpi;
+
+		if (rpi == LPFC_RPI_ALLOC_ERROR) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
+					 "0359 %s: ndlp:x%px "
+					 "usgmap:x%x refcnt:%d FAILED RPI "
+					 " ALLOC\n",
+					 __func__,
+					 (void *)ndlp, ndlp->nlp_usg_map,
+					 kref_read(&ndlp->kref));
 			return NULL;
+		}
 	}
 
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
@@ -4411,9 +4575,9 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (NLP_CHK_FREE_REQ(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0277 lpfc_enable_node: ndlp:x%p "
+				"0277 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		goto free_rpi;
 	}
@@ -4421,23 +4585,30 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (NLP_CHK_NODE_ACT(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0278 lpfc_enable_node: ndlp:x%p "
+				"0278 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		goto free_rpi;
 	}
 
-	/* Keep the original DID */
+	/* First preserve the orginal DID, xri_bitmap and some flags */
 	did = ndlp->nlp_DID;
+	flag = (ndlp->nlp_flag & NLP_UNREG_INP);
+	if (flag & NLP_UNREG_INP)
+		defer_did = ndlp->nlp_defer_did;
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		active_rrqs_xri_bitmap = ndlp->active_rrqs_xri_bitmap;
 
-	/* re-initialize ndlp except of ndlp linked list pointer */
+	/* Zero ndlp except of ndlp linked list pointer */
 	memset((((char *)ndlp) + sizeof (struct list_head)), 0,
 		sizeof (struct lpfc_nodelist) - sizeof (struct list_head));
-	lpfc_initialize_node(vport, ndlp, did);
 
+	/* Next reinitialize and restore saved objects */
+	lpfc_initialize_node(vport, ndlp, did);
+	ndlp->nlp_flag |= flag;
+	if (flag & NLP_UNREG_INP)
+		ndlp->nlp_defer_did = defer_did;
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		ndlp->active_rrqs_xri_bitmap = active_rrqs_xri_bitmap;
 
@@ -4446,7 +4617,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_rpi = rpi;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0008 rpi:%x DID:%x flg:%x refcnt:%d "
-				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
+				 "map:%x x%px\n", ndlp->nlp_rpi, ndlp->nlp_DID,
 				 ndlp->nlp_flag,
 				 kref_read(&ndlp->kref),
 				 ndlp->nlp_usg_map, ndlp);
@@ -4455,6 +4626,14 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (state != NLP_STE_UNUSED_NODE)
 		lpfc_nlp_set_state(vport, ndlp, state);
+	else
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+				 "0013 rpi:%x DID:%x flg:%x refcnt:%d "
+				 "map:%x x%px STATE=UNUSED\n",
+				 ndlp->nlp_rpi, ndlp->nlp_DID,
+				 ndlp->nlp_flag,
+				 kref_read(&ndlp->kref),
+				 ndlp->nlp_usg_map, ndlp);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node enable:       did:x%x",
@@ -4462,8 +4641,10 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	return ndlp;
 
 free_rpi:
-	if (phba->sli_rev == LPFC_SLI_REV4)
+	if (phba->sli_rev == LPFC_SLI_REV4) {
 		lpfc_sli4_free_rpi(vport->phba, rpi);
+		ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
+	}
 	return NULL;
 }
 
@@ -4586,9 +4767,11 @@ lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 		case CMD_GEN_REQUEST64_CR:
 			if (iocb->context_un.ndlp == ndlp)
 				return 1;
+			fallthrough;
 		case CMD_ELS_REQUEST64_CR:
 			if (icmd->un.elsreq64.remoteID == ndlp->nlp_DID)
 				return 1;
+			fallthrough;
 		case CMD_XMIT_ELS_RSP64_CX:
 			if (iocb->context1 == (uint8_t *) ndlp)
 				return 1;
@@ -4697,11 +4880,70 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_nodelist *ndlp;
 
-	ndlp = (struct lpfc_nodelist *)(pmb->context1);
+	ndlp = (struct lpfc_nodelist *)(pmb->ctx_ndlp);
 	if (!ndlp)
 		return;
 	lpfc_issue_els_logo(vport, ndlp, 0);
 	mempool_free(pmb, phba->mbox_mem_pool);
+
+	/* Check to see if there are any deferred events to process */
+	if ((ndlp->nlp_flag & NLP_UNREG_INP) &&
+	    (ndlp->nlp_defer_did != NLP_EVT_NOTHING_PENDING)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "1434 UNREG cmpl deferred logo x%x "
+				 "on NPort x%x Data: x%x x%px\n",
+				 ndlp->nlp_rpi, ndlp->nlp_DID,
+				 ndlp->nlp_defer_did, ndlp);
+
+		ndlp->nlp_flag &= ~NLP_UNREG_INP;
+		ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
+		lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
+	} else {
+		if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
+			lpfc_sli4_free_rpi(vport->phba, ndlp->nlp_rpi);
+			ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
+			ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
+		}
+		ndlp->nlp_flag &= ~NLP_UNREG_INP;
+	}
+}
+
+/*
+ * Sets the mailbox completion handler to be used for the
+ * unreg_rpi command. The handler varies based on the state of
+ * the port and what will be happening to the rpi next.
+ */
+static void
+lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
+	struct lpfc_nodelist *ndlp, LPFC_MBOXQ_t *mbox)
+{
+	unsigned long iflags;
+
+	if (ndlp->nlp_flag & NLP_ISSUE_LOGO) {
+		mbox->ctx_ndlp = ndlp;
+		mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
+
+	} else if (phba->sli_rev == LPFC_SLI_REV4 &&
+		   (!(vport->load_flag & FC_UNLOADING)) &&
+		    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
+				      LPFC_SLI_INTF_IF_TYPE_2) &&
+		    (kref_read(&ndlp->kref) > 0)) {
+		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
+		mbox->mbox_cmpl = lpfc_sli4_unreg_rpi_cmpl_clr;
+	} else {
+		if (vport->load_flag & FC_UNLOADING) {
+			if (phba->sli_rev == LPFC_SLI_REV4) {
+				spin_lock_irqsave(&vport->phba->ndlp_lock,
+						  iflags);
+				ndlp->nlp_flag |= NLP_RELEASE_RPI;
+				spin_unlock_irqrestore(&vport->phba->ndlp_lock,
+						       iflags);
+			}
+			lpfc_nlp_get(ndlp);
+		}
+		mbox->ctx_ndlp = ndlp;
+		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	}
 }
 
 /*
@@ -4724,12 +4966,29 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (ndlp->nlp_flag & NLP_RPI_REGISTERED ||
 	    ndlp->nlp_flag & NLP_REG_LOGIN_SEND) {
 		if (ndlp->nlp_flag & NLP_REG_LOGIN_SEND)
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_NODE | LOG_DISCOVERY,
 					 "3366 RPI x%x needs to be "
 					 "unregistered nlp_flag x%x "
 					 "did x%x\n",
 					 ndlp->nlp_rpi, ndlp->nlp_flag,
 					 ndlp->nlp_DID);
+
+		/* If there is already an UNREG in progress for this ndlp,
+		 * no need to queue up another one.
+		 */
+		if (ndlp->nlp_flag & NLP_UNREG_INP) {
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_NODE | LOG_DISCOVERY,
+					 "1436 unreg_rpi SKIP UNREG x%x on "
+					 "NPort x%x deferred x%x  flg x%x "
+					 "Data: x%px\n",
+					 ndlp->nlp_rpi, ndlp->nlp_DID,
+					 ndlp->nlp_defer_did,
+					 ndlp->nlp_flag, ndlp);
+			goto out;
+		}
+
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (mbox) {
 			/* SLI4 ports require the physical rpi value. */
@@ -4739,36 +4998,56 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 			lpfc_unreg_login(phba, vport->vpi, rpi, mbox);
 			mbox->vport = vport;
-			if (ndlp->nlp_flag & NLP_ISSUE_LOGO) {
-				mbox->context1 = ndlp;
-				mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
-			} else {
-				if (phba->sli_rev == LPFC_SLI_REV4 &&
-				    (!(vport->load_flag & FC_UNLOADING)) &&
-				    (bf_get(lpfc_sli_intf_if_type,
-				     &phba->sli4_hba.sli_intf) ==
-				      LPFC_SLI_INTF_IF_TYPE_2) &&
-				    (kref_read(&ndlp->kref) > 0)) {
-					mbox->context1 = lpfc_nlp_get(ndlp);
-					mbox->mbox_cmpl =
-						lpfc_sli4_unreg_rpi_cmpl_clr;
-					/*
-					 * accept PLOGIs after unreg_rpi_cmpl
-					 */
-					acc_plogi = 0;
-				} else
-					mbox->mbox_cmpl =
-						lpfc_sli_def_mbox_cmpl;
-			}
+			lpfc_set_unreg_login_mbx_cmpl(phba, vport, ndlp, mbox);
+			if (mbox->mbox_cmpl == lpfc_sli4_unreg_rpi_cmpl_clr)
+				/*
+				 * accept PLOGIs after unreg_rpi_cmpl
+				 */
+				acc_plogi = 0;
+			if (((ndlp->nlp_DID & Fabric_DID_MASK) !=
+			    Fabric_DID_MASK) &&
+			    (!(vport->fc_flag & FC_OFFLINE_MODE)))
+				ndlp->nlp_flag |= NLP_UNREG_INP;
+
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_NODE | LOG_DISCOVERY,
+					 "1433 unreg_rpi UNREG x%x on "
+					 "NPort x%x deferred flg x%x "
+					 "Data:x%px\n",
+					 ndlp->nlp_rpi, ndlp->nlp_DID,
+					 ndlp->nlp_flag, ndlp);
 
 			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 			if (rc == MBX_NOT_FINISHED) {
 				mempool_free(mbox, phba->mbox_mem_pool);
 				acc_plogi = 1;
 			}
+		} else {
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_NODE | LOG_DISCOVERY,
+					 "1444 Failed to allocate mempool "
+					 "unreg_rpi UNREG x%x, "
+					 "DID x%x, flag x%x, "
+					 "ndlp x%px\n",
+					 ndlp->nlp_rpi, ndlp->nlp_DID,
+					 ndlp->nlp_flag, ndlp);
+
+			/* Because mempool_alloc failed, we
+			 * will issue a LOGO here and keep the rpi alive if
+			 * not unloading.
+			 */
+			if (!(vport->load_flag & FC_UNLOADING)) {
+				ndlp->nlp_flag &= ~NLP_UNREG_INP;
+				lpfc_issue_els_logo(vport, ndlp, 0);
+				ndlp->nlp_prev_state = ndlp->nlp_state;
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_NPR_NODE);
+			}
+
+			return 1;
 		}
 		lpfc_no_rpi(phba, ndlp);
-
+out:
 		if (phba->sli_rev != LPFC_SLI_REV4)
 			ndlp->nlp_rpi = 0;
 		ndlp->nlp_flag &= ~NLP_RPI_REGISTERED;
@@ -4798,8 +5077,8 @@ lpfc_unreg_hba_rpis(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (!vports) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-			"2884 Vport array allocation failed \n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2884 Vport array allocation failed \n");
 		return;
 	}
 	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
@@ -4836,15 +5115,16 @@ lpfc_unreg_all_rpis(struct lpfc_vport *vport)
 				 mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		mbox->context1 = NULL;
+		mbox->ctx_ndlp = NULL;
 		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
 		if (rc != MBX_TIMEOUT)
 			mempool_free(mbox, phba->mbox_mem_pool);
 
 		if ((rc == MBX_TIMEOUT) || (rc == MBX_NOT_FINISHED))
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
-				"1836 Could not issue "
-				"unreg_login(all_rpis) status %d\n", rc);
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+					 "1836 Could not issue "
+					 "unreg_login(all_rpis) status %d\n",
+					 rc);
 	}
 }
 
@@ -4855,19 +5135,23 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 	LPFC_MBOXQ_t     *mbox;
 	int rc;
 
+	/* Unreg DID is an SLI3 operation. */
+	if (phba->sli_rev > LPFC_SLI_REV3)
+		return;
+
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mbox) {
 		lpfc_unreg_did(phba, vport->vpi, LPFC_UNREG_ALL_DFLT_RPIS,
 			       mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		mbox->context1 = NULL;
+		mbox->ctx_ndlp = NULL;
 		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
 		if (rc != MBX_TIMEOUT)
 			mempool_free(mbox, phba->mbox_mem_pool);
 
 		if ((rc == MBX_TIMEOUT) || (rc == MBX_NOT_FINISHED))
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "1815 Could not issue "
 					 "unreg_did (default rpis) status %d\n",
 					 rc);
@@ -4885,6 +5169,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_hba  *phba = vport->phba;
 	LPFC_MBOXQ_t *mb, *nextmb;
 	struct lpfc_dmabuf *mp;
+	unsigned long iflags;
 
 	/* Cleanup node for NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
@@ -4894,16 +5179,16 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 ndlp->nlp_state, ndlp->nlp_rpi);
 	if (NLP_CHK_FREE_REQ(ndlp)) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0280 lpfc_cleanup_node: ndlp:x%p "
+				"0280 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		lpfc_dequeue_node(vport, ndlp);
 	} else {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0281 lpfc_cleanup_node: ndlp:x%p "
+				"0281 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		lpfc_disable_node(vport, ndlp);
 	}
@@ -4915,8 +5200,8 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if ((mb = phba->sli.mbox_active)) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
-		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
-			mb->context2 = NULL;
+		   (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+			mb->ctx_ndlp = NULL;
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
 	}
@@ -4926,18 +5211,18 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
 		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) ||
 			(mb->mbox_flag & LPFC_MBX_IMED_UNREG) ||
-			(ndlp != (struct lpfc_nodelist *) mb->context2))
+			(ndlp != (struct lpfc_nodelist *)mb->ctx_ndlp))
 			continue;
 
-		mb->context2 = NULL;
+		mb->ctx_ndlp = NULL;
 		mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	}
 
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
-		    (ndlp == (struct lpfc_nodelist *) mb->context2)) {
-			mp = (struct lpfc_dmabuf *) (mb->context1);
+		    (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+			mp = (struct lpfc_dmabuf *)(mb->ctx_buf);
 			if (mp) {
 				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
 				kfree(mp);
@@ -4963,9 +5248,24 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	list_del_init(&ndlp->els_retry_evt.evt_listp);
 	list_del_init(&ndlp->dev_loss_evt.evt_listp);
+	list_del_init(&ndlp->recovery_evt.evt_listp);
 	lpfc_cleanup_vports_rrqs(vport, ndlp);
-	lpfc_unreg_rpi(vport, ndlp);
-
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		ndlp->nlp_flag |= NLP_RELEASE_RPI;
+	if (!lpfc_unreg_rpi(vport, ndlp)) {
+		/* Clean up unregistered and non freed rpis */
+		if ((ndlp->nlp_flag & NLP_RELEASE_RPI) &&
+		    !(ndlp->nlp_rpi == LPFC_RPI_ALLOC_ERROR)) {
+			lpfc_sli4_free_rpi(vport->phba,
+					   ndlp->nlp_rpi);
+			spin_lock_irqsave(&vport->phba->ndlp_lock,
+					  iflags);
+			ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
+			ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
+			spin_unlock_irqrestore(&vport->phba->ndlp_lock,
+					       iflags);
+		}
+	}
 	return 0;
 }
 
@@ -4991,8 +5291,10 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		/* For this case we need to cleanup the default rpi
 		 * allocated by the firmware.
 		 */
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-				 "0005 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+		lpfc_printf_vlog(vport, KERN_INFO,
+				 LOG_NODE | LOG_DISCOVERY,
+				 "0005 Cleanup Default rpi:x%x DID:x%x flg:x%x "
+				 "ref %d map:x%x ndlp x%px\n",
 				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 				 kref_read(&ndlp->kref),
 				 ndlp->nlp_usg_map, ndlp);
@@ -5007,7 +5309,7 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				mbox->mbox_flag |= LPFC_MBX_IMED_UNREG;
 				mbox->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
 				mbox->vport = vport;
-				mbox->context2 = ndlp;
+				mbox->ctx_ndlp = ndlp;
 				rc =lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 				if (rc == MBX_NOT_FINISHED) {
 					mempool_free(mbox, phba->mbox_mem_pool);
@@ -5028,9 +5330,10 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * for registered rport so need to cleanup rport
 		 */
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0940 removed node x%p DID x%x "
-				" rport not null %p\n",
-				ndlp, ndlp->nlp_DID, ndlp->rport);
+				"0940 removed node x%px DID x%x "
+				"rpi %d rport not null x%px\n",
+				 ndlp, ndlp->nlp_DID, ndlp->nlp_rpi,
+				 ndlp->rport);
 		rport = ndlp->rport;
 		rdata = rport->dd_data;
 		rdata->pnode = NULL;
@@ -5103,15 +5406,15 @@ __lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (lpfc_matchdid(vport, ndlp, did)) {
-			data1 = (((uint32_t) ndlp->nlp_state << 24) |
-				 ((uint32_t) ndlp->nlp_xri << 16) |
-				 ((uint32_t) ndlp->nlp_type << 8) |
-				 ((uint32_t) ndlp->nlp_rpi & 0xff));
+			data1 = (((uint32_t)ndlp->nlp_state << 24) |
+				 ((uint32_t)ndlp->nlp_xri << 16) |
+				 ((uint32_t)ndlp->nlp_type << 8) |
+				 ((uint32_t)ndlp->nlp_usg_map & 0xff));
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 					 "0929 FIND node DID "
-					 "Data: x%p x%x x%x x%x %p\n",
+					 "Data: x%px x%x x%x x%x x%x x%px\n",
 					 ndlp, ndlp->nlp_DID,
-					 ndlp->nlp_flag, data1,
+					 ndlp->nlp_flag, data1, ndlp->nlp_rpi,
 					 ndlp->active_rrqs_xri_bitmap);
 			return ndlp;
 		}
@@ -5137,6 +5440,41 @@ lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 }
 
 struct lpfc_nodelist *
+lpfc_findnode_mapped(struct lpfc_vport *vport)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_nodelist *ndlp;
+	uint32_t data1;
+	unsigned long iflags;
+
+	spin_lock_irqsave(shost->host_lock, iflags);
+
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		if (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE ||
+		    ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
+			data1 = (((uint32_t)ndlp->nlp_state << 24) |
+				 ((uint32_t)ndlp->nlp_xri << 16) |
+				 ((uint32_t)ndlp->nlp_type << 8) |
+				 ((uint32_t)ndlp->nlp_rpi & 0xff));
+			spin_unlock_irqrestore(shost->host_lock, iflags);
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+					 "2025 FIND node DID "
+					 "Data: x%px x%x x%x x%x x%px\n",
+					 ndlp, ndlp->nlp_DID,
+					 ndlp->nlp_flag, data1,
+					 ndlp->active_rrqs_xri_bitmap);
+			return ndlp;
+		}
+	}
+	spin_unlock_irqrestore(shost->host_lock, iflags);
+
+	/* FIND node did <did> NOT FOUND */
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+			 "2026 FIND mapped did NOT FOUND.\n");
+	return NULL;
+}
+
+struct lpfc_nodelist *
 lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
@@ -5153,6 +5491,13 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		if (!ndlp)
 			return NULL;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "6453 Setup New Node 2B_DISC x%x "
+				 "Data:x%x x%x x%x\n",
+				 ndlp->nlp_DID, ndlp->nlp_flag,
+				 ndlp->nlp_state, vport->fc_flag);
+
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
@@ -5161,8 +5506,17 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		if (vport->phba->nvmet_support)
 			return NULL;
 		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_NPR_NODE);
-		if (!ndlp)
+		if (!ndlp) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_SLI,
+					 "0014 Could not enable ndlp\n");
 			return NULL;
+		}
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "6454 Setup Enabled Node 2B_DISC x%x "
+				 "Data:x%x x%x x%x\n",
+				 ndlp->nlp_DID, ndlp->nlp_flag,
+				 ndlp->nlp_state, vport->fc_flag);
+
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
@@ -5182,6 +5536,12 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 			 */
 			lpfc_cancel_retry_delay_tmo(vport, ndlp);
 
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+					 "6455 Setup RSCN Node 2B_DISC x%x "
+					 "Data:x%x x%x x%x\n",
+					 ndlp->nlp_DID, ndlp->nlp_flag,
+					 ndlp->nlp_state, vport->fc_flag);
+
 			/* NVME Target mode waits until rport is known to be
 			 * impacted by the RSCN before it transitions.  No
 			 * active management - just go to NPR provided the
@@ -5193,15 +5553,32 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 			/* If we've already received a PLOGI from this NPort
 			 * we don't need to try to discover it again.
 			 */
-			if (ndlp->nlp_flag & NLP_RCV_PLOGI)
+			if (ndlp->nlp_flag & NLP_RCV_PLOGI &&
+			    !(ndlp->nlp_type &
+			     (NLP_FCP_TARGET | NLP_NVME_TARGET)))
 				return NULL;
+
+			ndlp->nlp_prev_state = ndlp->nlp_state;
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 			spin_unlock_irq(shost->host_lock);
-		} else
+		} else {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+					 "6456 Skip Setup RSCN Node x%x "
+					 "Data:x%x x%x x%x\n",
+					 ndlp->nlp_DID, ndlp->nlp_flag,
+					 ndlp->nlp_state, vport->fc_flag);
 			ndlp = NULL;
+		}
 	} else {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "6457 Setup Active Node 2B_DISC x%x "
+				 "Data:x%x x%x x%x\n",
+				 ndlp->nlp_DID, ndlp->nlp_flag,
+				 ndlp->nlp_state, vport->fc_flag);
+
 		/* If the initiator received a PLOGI from this NPort or if the
 		 * initiator is already in the process of discovery on it,
 		 * there's no need to try to discover it again.
@@ -5353,10 +5730,10 @@ lpfc_disc_start(struct lpfc_vport *vport)
 
 	/* Start Discovery state <hba_state> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-			 "0202 Start Discovery hba state x%x "
-			 "Data: x%x x%x x%x\n",
+			 "0202 Start Discovery port state x%x "
+			 "flg x%x Data: x%x x%x x%x\n",
 			 vport->port_state, vport->fc_flag, vport->fc_plogi_cnt,
-			 vport->fc_adisc_cnt);
+			 vport->fc_adisc_cnt, vport->fc_npr_cnt);
 
 	/* First do ADISCs - if any */
 	num_sent = lpfc_els_disc_adisc(vport);
@@ -5428,12 +5805,10 @@ static void
 lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
 	LIST_HEAD(completions);
-	struct lpfc_sli *psli;
 	IOCB_t     *icmd;
 	struct lpfc_iocbq    *iocb, *next_iocb;
 	struct lpfc_sli_ring *pring;
 
-	psli = &phba->sli;
 	pring = lpfc_phba_elsring(phba);
 	if (unlikely(!pring))
 		return;
@@ -5598,7 +5973,8 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	case LPFC_FLOGI:
 	/* port_state is identically LPFC_FLOGI while waiting for FLOGI cmpl */
 		/* Initial FLOGI timeout */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0222 Initial %s timeout\n",
 				 vport->vpi ? "FDISC" : "FLOGI");
 
@@ -5616,7 +5992,8 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	case LPFC_FABRIC_CFG_LINK:
 	/* hba_state is identically LPFC_FABRIC_CFG_LINK while waiting for
 	   NameServer login */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0223 Timeout while waiting for "
 				 "NameServer login\n");
 		/* Next look for NameServer ndlp */
@@ -5629,7 +6006,8 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 
 	case LPFC_NS_QRY:
 	/* Check for wait for NameServer Rsp timeout */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0224 NameServer Query timeout "
 				 "Data: x%x x%x\n",
 				 vport->fc_ns_retry, LPFC_MAX_NS_RETRY);
@@ -5662,7 +6040,8 @@ restart_disc:
 		/* Setup and issue mailbox INITIALIZE LINK command */
 		initlinkmbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (!initlinkmbox) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 					 "0206 Device Discovery "
 					 "completion error\n");
 			phba->link_state = LPFC_HBA_ERROR;
@@ -5684,7 +6063,8 @@ restart_disc:
 
 	case LPFC_DISC_AUTH:
 	/* Node Authentication timeout */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0227 Node Authentication timeout\n");
 		lpfc_disc_flush_list(vport);
 
@@ -5704,7 +6084,8 @@ restart_disc:
 
 	case LPFC_VPORT_READY:
 		if (vport->fc_flag & FC_RSCN_MODE) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 					 "0231 RSCN timeout Data: x%x "
 					 "x%x\n",
 					 vport->fc_ns_retry, LPFC_MAX_NS_RETRY);
@@ -5718,7 +6099,8 @@ restart_disc:
 		break;
 
 	default:
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0273 Unexpected discovery timeout, "
 				 "vport State x%x\n", vport->port_state);
 		break;
@@ -5727,21 +6109,23 @@ restart_disc:
 	switch (phba->link_state) {
 	case LPFC_CLEAR_LA:
 				/* CLEAR LA timeout */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0228 CLEAR LA timeout\n");
 		clrlaerr = 1;
 		break;
 
 	case LPFC_LINK_UP:
 		lpfc_issue_clear_la(phba, vport);
-		/* Drop thru */
+		fallthrough;
 	case LPFC_LINK_UNKNOWN:
 	case LPFC_WARM_START:
 	case LPFC_INIT_START:
 	case LPFC_INIT_MBX_CMDS:
 	case LPFC_LINK_DOWN:
 	case LPFC_HBA_ERROR:
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0230 Unexpected timeout, hba link "
 				 "state x%x\n", phba->link_state);
 		clrlaerr = 1;
@@ -5774,20 +6158,20 @@ void
 lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf   *mp = (struct lpfc_dmabuf *) (pmb->context1);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_dmabuf   *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 	struct lpfc_vport    *vport = pmb->vport;
 
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	pmb->ctx_buf = NULL;
+	pmb->ctx_ndlp = NULL;
 
 	if (phba->sli_rev < LPFC_SLI_REV4)
 		ndlp->nlp_rpi = mb->un.varWords[0];
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
-			 "0004 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE | LOG_DISCOVERY,
+			 "0004 rpi:%x DID:%x flg:%x %d map:%x x%px\n",
 			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 			 kref_read(&ndlp->kref),
 			 ndlp->nlp_usg_map, ndlp);
@@ -5841,8 +6225,8 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (filter(ndlp, param)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-					 "3185 FIND node filter %p DID "
-					 "ndlp %p did x%x flg x%x st x%x "
+					 "3185 FIND node filter %ps DID "
+					 "ndlp x%px did x%x flg x%x st x%x "
 					 "xri x%x type x%x rpi x%x\n",
 					 filter, ndlp, ndlp->nlp_DID,
 					 ndlp->nlp_flag, ndlp->nlp_state,
@@ -5852,7 +6236,7 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 		}
 	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "3186 FIND node filter %p NOT FOUND.\n", filter);
+			 "3186 FIND node filter %ps NOT FOUND.\n", filter);
 	return NULL;
 }
 
@@ -5892,10 +6276,11 @@ lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp;
+	unsigned long flags;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, flags);
 	ndlp = __lpfc_findnode_rpi(vport, rpi);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, flags);
 	return ndlp;
 }
 
@@ -5931,21 +6316,21 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 		}
 
 		if (i >= phba->max_vpi) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-					 "2936 Could not find Vport mapped "
-					 "to vpi %d\n", vpi);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"2936 Could not find Vport mapped "
+					"to vpi %d\n", vpi);
 			return NULL;
 		}
 	}
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irqsave(&phba->port_list_lock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
 		if (vport->vpi == i) {
-			spin_unlock_irqrestore(&phba->hbalock, flags);
+			spin_unlock_irqrestore(&phba->port_list_lock, flags);
 			return vport;
 		}
 	}
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irqrestore(&phba->port_list_lock, flags);
 	return NULL;
 }
 
@@ -5974,12 +6359,12 @@ lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
 		ndlp->nlp_rpi = rpi;
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-				 "0007 rpi:%x DID:%x flg:%x refcnt:%d "
-				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
-				 ndlp->nlp_flag,
-				 kref_read(&ndlp->kref),
-				 ndlp->nlp_usg_map, ndlp);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE | LOG_DISCOVERY,
+				 "0007 Init New ndlp x%px, rpi:x%x DID:%x "
+				 "flg:x%x refcnt:%d map:x%x\n",
+				 ndlp, ndlp->nlp_rpi, ndlp->nlp_DID,
+				 ndlp->nlp_flag, kref_read(&ndlp->kref),
+				 ndlp->nlp_usg_map);
 
 		ndlp->active_rrqs_xri_bitmap =
 				mempool_alloc(vport->phba->active_rrq_pool,
@@ -6014,8 +6399,9 @@ lpfc_nlp_release(struct kref *kref)
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			"0279 lpfc_nlp_release: ndlp:x%p did %x "
+			"0279 %s: ndlp:x%px did %x "
 			"usgmap:x%x refcnt:%d rpi:%x\n",
+			__func__,
 			(void *)ndlp, ndlp->nlp_DID, ndlp->nlp_usg_map,
 			kref_read(&ndlp->kref), ndlp->nlp_rpi);
 
@@ -6027,8 +6413,6 @@ lpfc_nlp_release(struct kref *kref)
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
 	NLP_CLR_NODE_ACT(ndlp);
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
 
 	/* free ndlp memory for final ndlp release */
 	if (NLP_CHK_FREE_REQ(ndlp)) {
@@ -6064,9 +6448,9 @@ lpfc_nlp_get(struct lpfc_nodelist *ndlp)
 		if (!NLP_CHK_NODE_ACT(ndlp) || NLP_CHK_FREE_ACK(ndlp)) {
 			spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 			lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
-				"0276 lpfc_nlp_get: ndlp:x%p "
+				"0276 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 			return NULL;
 		} else
@@ -6092,9 +6476,9 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 		return 1;
 
 	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
-	"node put:        did:x%x flg:x%x refcnt:x%x",
-		ndlp->nlp_DID, ndlp->nlp_flag,
-		kref_read(&ndlp->kref));
+			"node put:        did:x%x flg:x%x refcnt:x%x",
+			ndlp->nlp_DID, ndlp->nlp_flag,
+			kref_read(&ndlp->kref));
 	phba = ndlp->phba;
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
 	/* Check the ndlp memory free acknowledge flag to avoid the
@@ -6104,9 +6488,9 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 	if (NLP_CHK_FREE_ACK(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
-				"0274 lpfc_nlp_put: ndlp:x%p "
+				"0274 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		return 1;
 	}
@@ -6117,9 +6501,9 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 	if (NLP_CHK_IACT_REQ(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
-				"0275 lpfc_nlp_put: ndlp:x%p "
+				"0275 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		return 1;
 	}
@@ -6209,7 +6593,8 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 				goto out;
 			} else if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
 				ret = 1;
-				lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+				lpfc_printf_log(phba, KERN_INFO,
+						LOG_NODE | LOG_DISCOVERY,
 						"2624 RPI %x DID %x flag %x "
 						"still logged in\n",
 						ndlp->nlp_rpi, ndlp->nlp_DID,
@@ -6237,10 +6622,10 @@ lpfc_unregister_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (mboxq->u.mb.mbxStatus) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
-			"2555 UNREG_VFI mbxStatus error x%x "
-			"HBA state x%x\n",
-			mboxq->u.mb.mbxStatus, vport->port_state);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2555 UNREG_VFI mbxStatus error x%x "
+				"HBA state x%x\n",
+				mboxq->u.mb.mbxStatus, vport->port_state);
 	}
 	spin_lock_irq(shost->host_lock);
 	phba->pport->fc_flag &= ~FC_VFI_REGISTERED;
@@ -6262,10 +6647,10 @@ lpfc_unregister_fcfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_vport *vport = mboxq->vport;
 
 	if (mboxq->u.mb.mbxStatus) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
-			"2550 UNREG_FCFI mbxStatus error x%x "
-			"HBA state x%x\n",
-			mboxq->u.mb.mbxStatus, vport->port_state);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2550 UNREG_FCFI mbxStatus error x%x "
+				"HBA state x%x\n",
+				mboxq->u.mb.mbxStatus, vport->port_state);
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return;
@@ -6354,7 +6739,7 @@ lpfc_sli4_unregister_fcf(struct lpfc_hba *phba)
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2551 UNREG_FCFI mbox allocation failed"
 				"HBA state x%x\n", phba->pport->port_state);
 		return -ENOMEM;
@@ -6365,7 +6750,7 @@ lpfc_sli4_unregister_fcf(struct lpfc_hba *phba)
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2552 Unregister FCFI command failed rc x%x "
 				"HBA state x%x\n",
 				rc, phba->pport->port_state);
@@ -6389,7 +6774,7 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
 	/* Preparation for unregistering fcf */
 	rc = lpfc_unregister_fcf_prep(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2748 Failed to prepare for unregistering "
 				"HBA's FCF record: rc=%d\n", rc);
 		return;
@@ -6425,7 +6810,7 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
 		spin_lock_irq(&phba->hbalock);
 		phba->fcf.fcf_flag &= ~FCF_INIT_DISC;
 		spin_unlock_irq(&phba->hbalock);
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2553 lpfc_unregister_unused_fcf failed "
 				"to read FCF record HBA state x%x\n",
 				phba->pport->port_state);
@@ -6447,7 +6832,7 @@ lpfc_unregister_fcf(struct lpfc_hba *phba)
 	/* Preparation for unregistering fcf */
 	rc = lpfc_unregister_fcf_prep(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2749 Failed to prepare for unregistering "
 				"HBA's FCF record: rc=%d\n", rc);
 		return;
@@ -6534,9 +6919,9 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 		conn_entry = kzalloc(sizeof(struct lpfc_fcf_conn_entry),
 			GFP_KERNEL);
 		if (!conn_entry) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2566 Failed to allocate connection"
-				" table entry\n");
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"2566 Failed to allocate connection"
+					" table entry\n");
 			return;
 		}
 
@@ -6680,7 +7065,7 @@ lpfc_parse_fcoe_conf(struct lpfc_hba *phba,
 
 	/* Check the region signature first */
 	if (memcmp(buff, LPFC_REGION23_SIGNATURE, 4)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2567 Config region 23 has bad signature\n");
 		return;
 	}
@@ -6689,8 +7074,8 @@ lpfc_parse_fcoe_conf(struct lpfc_hba *phba,
 
 	/* Check the data structure version */
 	if (buff[offset] != LPFC_REGION23_VERSION) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2568 Config region 23 has bad version\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2568 Config region 23 has bad version\n");
 		return;
 	}
 	offset += 4;

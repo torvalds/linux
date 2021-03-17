@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  */
 /dts-v1/;
 
@@ -25,4 +22,148 @@
 	oppnitro-1000000000 {
 		opp-supported-hw = <0x06 0x0100>;
 	};
+};
+
+&gpio0 {
+	gpio-line-names =
+		"[ethernet]",
+		"[ethernet]",
+		"P9_22 [spi0_sclk]",
+		"P9_21 [spi0_d0]",
+		"P9_18 [spi0_d1]",
+		"P9_17 [spi0_cs0]",
+		"[sd card]",
+		"P9_42A [ecappwm0]",
+		"P8_35 [hdmi]",
+		"P8_33 [hdmi]",
+		"P8_31 [hdmi]",
+		"P8_32 [hdmi]",
+		"P9_20 [i2c2_sda]",
+		"P9_19 [i2c2_scl]",
+		"P9_26 [uart1_rxd]",
+		"P9_24 [uart1_txd]",
+		"[ethernet]",
+		"[ethernet]",
+		"[usb]",
+		"[hdmi]",
+		"P9_41B",
+		"[ethernet]",
+		"P8_19 [ehrpwm2a]",
+		"P8_13 [ehrpwm2b]",
+		"[NC]",
+		"[NC]",
+		"P8_14",
+		"P8_17",
+		"[ethernet]",
+		"[ethernet]",
+		"P9_11 [uart4_rxd]",
+		"P9_13 [uart4_txd]";
+};
+
+&gpio1 {
+	gpio-line-names =
+		"P8_25 [emmc]",
+		"[emmc]",
+		"P8_5 [emmc]",
+		"P8_6 [emmc]",
+		"P8_23 [emmc]",
+		"P8_22 [emmc]",
+		"P8_3 [emmc]",
+		"P8_4 [emmc]",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"P8_12",
+		"P8_11",
+		"P8_16",
+		"P8_15",
+		"P9_15A",
+		"P9_23",
+		"P9_14 [ehrpwm1a]",
+		"P9_16 [ehrpwm1b]",
+		"[emmc]",
+		"[usr0 led]",
+		"[usr1 led]",
+		"[usr2 led]",
+		"[usr3 led]",
+		"[hdmi]",
+		"[usb]",
+		"[hdmi audio]",
+		"P9_12",
+		"P8_26",
+		"P8_21 [emmc]",
+		"P8_20 [emmc]";
+};
+
+&gpio2 {
+	gpio-line-names =
+		"P9_15B",
+		"P8_18",
+		"P8_7",
+		"P8_8",
+		"P8_10",
+		"P8_9",
+		"P8_45 [hdmi]",
+		"P8_46 [hdmi]",
+		"P8_43 [hdmi]",
+		"P8_44 [hdmi]",
+		"P8_41 [hdmi]",
+		"P8_42 [hdmi]",
+		"P8_39 [hdmi]",
+		"P8_40 [hdmi]",
+		"P8_37 [hdmi]",
+		"P8_38 [hdmi]",
+		"P8_36 [hdmi]",
+		"P8_34 [hdmi]",
+		"[ethernet]",
+		"[ethernet]",
+		"[ethernet]",
+		"[ethernet]",
+		"P8_27 [hdmi]",
+		"P8_29 [hdmi]",
+		"P8_28 [hdmi]",
+		"P8_30 [hdmi]",
+		"[emmc]",
+		"[emmc]",
+		"[emmc]",
+		"[emmc]",
+		"[emmc]",
+		"[emmc]";
+};
+
+&gpio3 {
+	gpio-line-names =
+		"[ethernet]",
+		"[ethernet]",
+		"[ethernet]",
+		"[ethernet]",
+		"[ethernet]",
+		"[i2c0]",
+		"[i2c0]",
+		"[emu]",
+		"[emu]",
+		"[ethernet]",
+		"[ethernet]",
+		"[NC]",
+		"[NC]",
+		"[usb]",
+		"P9_31 [spi1_sclk]",
+		"P9_29 [spi1_d0]",
+		"P9_30 [spi1_d1]",
+		"P9_28 [spi1_cs0]",
+		"P9_42B [ecappwm0]",
+		"P9_27",
+		"P9_41A",
+		"P9_25",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"[NC]",
+		"[NC]";
 };

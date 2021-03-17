@@ -65,19 +65,27 @@ struct v4l2_subdev_crop {
 	__u32 reserved[8];
 };
 
+#define V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE	0x00000001
+#define V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC	0x00000002
+#define V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC	0x00000004
+#define V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC	V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC
+#define V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION	0x00000008
+
 /**
  * struct v4l2_subdev_mbus_code_enum - Media bus format enumeration
  * @pad: pad number, as reported by the media API
  * @index: format index during enumeration
  * @code: format code (MEDIA_BUS_FMT_ definitions)
  * @which: format type (from enum v4l2_subdev_format_whence)
+ * @flags: flags set by the driver, (V4L2_SUBDEV_MBUS_CODE_*)
  */
 struct v4l2_subdev_mbus_code_enum {
 	__u32 pad;
 	__u32 index;
 	__u32 code;
 	__u32 which;
-	__u32 reserved[8];
+	__u32 flags;
+	__u32 reserved[7];
 };
 
 /**
@@ -155,9 +163,25 @@ struct v4l2_subdev_selection {
 	__u32 reserved[8];
 };
 
+/**
+ * struct v4l2_subdev_capability - subdev capabilities
+ * @version: the driver versioning number
+ * @capabilities: the subdev capabilities, see V4L2_SUBDEV_CAP_*
+ * @reserved: for future use, set to zero for now
+ */
+struct v4l2_subdev_capability {
+	__u32 version;
+	__u32 capabilities;
+	__u32 reserved[14];
+};
+
+/* The v4l2 sub-device video device node is registered in read-only mode. */
+#define V4L2_SUBDEV_CAP_RO_SUBDEV		0x00000001
+
 /* Backwards compatibility define --- to be removed */
 #define v4l2_subdev_edid v4l2_edid
 
+#define VIDIOC_SUBDEV_QUERYCAP			_IOR('V',  0, struct v4l2_subdev_capability)
 #define VIDIOC_SUBDEV_G_FMT			_IOWR('V',  4, struct v4l2_subdev_format)
 #define VIDIOC_SUBDEV_S_FMT			_IOWR('V',  5, struct v4l2_subdev_format)
 #define VIDIOC_SUBDEV_G_FRAME_INTERVAL		_IOWR('V', 21, struct v4l2_subdev_frame_interval)

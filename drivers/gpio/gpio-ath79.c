@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Atheros AR71XX/AR724X/AR913X GPIO API support
  *
@@ -5,10 +6,6 @@
  *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
  *  Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #include <linux/gpio/driver.h>
@@ -132,7 +129,7 @@ static int ath79_gpio_irq_set_type(struct irq_data *data,
 
 	case IRQ_TYPE_LEVEL_HIGH:
 		polarity |= mask;
-		/* fall through */
+		fallthrough;
 	case IRQ_TYPE_LEVEL_LOW:
 		type |= mask;
 		break;
@@ -225,14 +222,15 @@ MODULE_DEVICE_TABLE(of, ath79_gpio_of_match);
 static int ath79_gpio_probe(struct platform_device *pdev)
 {
 	struct ath79_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct ath79_gpio_ctrl *ctrl;
-	struct resource *res;
+	struct gpio_irq_chip *girq;
 	u32 ath79_gpio_count;
 	bool oe_inverted;
 	int err;
 
-	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, ctrl);
@@ -240,7 +238,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	if (np) {
 		err = of_property_read_u32(np, "ngpios", &ath79_gpio_count);
 		if (err) {
-			dev_err(&pdev->dev, "ngpios property is not valid\n");
+			dev_err(dev, "ngpios property is not valid\n");
 			return err;
 		}
 		oe_inverted = of_device_is_compatible(np, "qca,ar9340-gpio");
@@ -248,25 +246,21 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		ath79_gpio_count = pdata->ngpios;
 		oe_inverted = pdata->oe_inverted;
 	} else {
-		dev_err(&pdev->dev, "No DT node or platform data found\n");
+		dev_err(dev, "No DT node or platform data found\n");
 		return -EINVAL;
 	}
 
 	if (ath79_gpio_count >= 32) {
-		dev_err(&pdev->dev, "ngpios must be less than 32\n");
+		dev_err(dev, "ngpios must be less than 32\n");
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-	ctrl->base = devm_ioremap_nocache(
-		&pdev->dev, res->start, resource_size(res));
-	if (!ctrl->base)
-		return -ENOMEM;
+	ctrl->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(ctrl->base))
+		return PTR_ERR(ctrl->base);
 
 	raw_spin_lock_init(&ctrl->lock);
-	err = bgpio_init(&ctrl->gc, &pdev->dev, 4,
+	err = bgpio_init(&ctrl->gc, dev, 4,
 			ctrl->base + AR71XX_GPIO_REG_IN,
 			ctrl->base + AR71XX_GPIO_REG_SET,
 			ctrl->base + AR71XX_GPIO_REG_CLEAR,
@@ -274,45 +268,33 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 			oe_inverted ? ctrl->base + AR71XX_GPIO_REG_OE : NULL,
 			0);
 	if (err) {
-		dev_err(&pdev->dev, "bgpio_init failed\n");
+		dev_err(dev, "bgpio_init failed\n");
 		return err;
 	}
 	/* Use base 0 to stay compatible with legacy platforms */
 	ctrl->gc.base = 0;
 
-	err = gpiochip_add_data(&ctrl->gc, ctrl);
+	/* Optional interrupt setup */
+	if (!np || of_property_read_bool(np, "interrupt-controller")) {
+		girq = &ctrl->gc.irq;
+		girq->chip = &ath79_gpio_irqchip;
+		girq->parent_handler = ath79_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = platform_get_irq(pdev, 0);
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
+	}
+
+	err = devm_gpiochip_add_data(dev, &ctrl->gc, ctrl);
 	if (err) {
-		dev_err(&pdev->dev,
+		dev_err(dev,
 			"cannot add AR71xx GPIO chip, error=%d", err);
 		return err;
 	}
-
-	if (np && !of_property_read_bool(np, "interrupt-controller"))
-		return 0;
-
-	err = gpiochip_irqchip_add(&ctrl->gc, &ath79_gpio_irqchip, 0,
-				handle_simple_irq, IRQ_TYPE_NONE);
-	if (err) {
-		dev_err(&pdev->dev, "failed to add gpiochip_irqchip\n");
-		goto gpiochip_remove;
-	}
-
-	gpiochip_set_chained_irqchip(&ctrl->gc, &ath79_gpio_irqchip,
-				platform_get_irq(pdev, 0),
-				ath79_gpio_irq_handler);
-
-	return 0;
-
-gpiochip_remove:
-	gpiochip_remove(&ctrl->gc);
-	return err;
-}
-
-static int ath79_gpio_remove(struct platform_device *pdev)
-{
-	struct ath79_gpio_ctrl *ctrl = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&ctrl->gc);
 	return 0;
 }
 
@@ -322,7 +304,6 @@ static struct platform_driver ath79_gpio_driver = {
 		.of_match_table	= ath79_gpio_of_match,
 	},
 	.probe = ath79_gpio_probe,
-	.remove = ath79_gpio_remove,
 };
 
 module_platform_driver(ath79_gpio_driver);

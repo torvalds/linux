@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_SOC_TEGRA
 	tristate "SoC Audio for the Tegra System-on-Chip"
 	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
@@ -60,6 +61,62 @@ config SND_SOC_TEGRA30_I2S
 	  Say Y or M if you want to add support for codecs attached to the
 	  Tegra30 I2S interface. You will also need to select the individual
 	  machine drivers to support below.
+
+config SND_SOC_TEGRA210_AHUB
+	tristate "Tegra210 AHUB module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable Audio Hub (AHUB) module, which comprises of a
+	  switch called Audio Crossbar (AXBAR) used to configure or modify
+	  the audio routing path between various HW accelerators present in
+	  AHUB.
+	  Say Y or M if you want to add support for Tegra210 AHUB module.
+
+config SND_SOC_TEGRA210_DMIC
+	tristate "Tegra210 DMIC module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable the Digital MIC (DMIC) controller which is used
+	  to interface with Pulse Density Modulation (PDM) input devices.
+	  The DMIC controller implements a converter to convert PDM signals
+	  to Pulse Code Modulation (PCM) signals. This can be viewed as a
+	  PDM receiver.
+	  Say Y or M if you want to add support for Tegra210 DMIC module.
+
+config SND_SOC_TEGRA210_I2S
+	tristate "Tegra210 I2S module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable the Inter-IC Sound (I2S) Controller which
+	  implements full-duplex and bidirectional and single direction
+	  point-to-point serial interfaces. It can interface with I2S
+	  compatible devices.
+	  Say Y or M if you want to add support for Tegra210 I2S module.
+
+config SND_SOC_TEGRA186_DSPK
+	tristate "Tegra186 DSPK module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable the Digital Speaker Controller (DSPK) which
+	  converts the multi-bit Pulse Code Modulation (PCM) audio input to
+	  oversampled 1-bit Pulse Density Modulation (PDM) output. From the
+	  signal flow perspective DSPK can be viewed as a PDM transmitter
+	  that up-samples the input to the desired sampling rate by
+	  interpolation and then converts the oversampled PCM input to
+	  the desired 1-bit output via Delta Sigma Modulation (DSM).
+	  Say Y or M if you want to add support for Tegra186 DSPK module.
+
+config SND_SOC_TEGRA210_ADMAIF
+	tristate "Tegra210 ADMAIF module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable ADMAIF which is the interface between ADMA and
+	  Audio Hub (AHUB). Each ADMA channel that sends/receives data to/
+	  from AHUB must interface through an ADMAIF channel. ADMA channel
+	  sending data to AHUB pairs with an ADMAIF Tx channel, where as
+	  ADMA channel receiving data from AHUB pairs with an ADMAIF Rx
+	  channel. Buffer size is configurable for each ADMAIIF channel.
+	  Say Y or M if you want to add support for Tegra210 ADMAIF module.
 
 config SND_SOC_TEGRA_RT5640
 	tristate "SoC Audio support for Tegra boards using an RT5640 codec"

@@ -20,9 +20,13 @@
  * OF THIS SOFTWARE.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
+#include <linux/uaccess.h>
+
 #include <drm/drm_color_mgmt.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 
@@ -105,28 +109,38 @@
  */
 
 /**
- * drm_color_lut_extract - clamp and round LUT entries
- * @user_input: input value
- * @bit_precision: number of bits the hw LUT supports
+ * drm_color_ctm_s31_32_to_qm_n
  *
- * Extract a degamma/gamma LUT value provided by user (in the form of
- * &drm_color_lut entries) and round it to the precision supported by the
- * hardware.
+ * @user_input: input value
+ * @m: number of integer bits, only support m <= 32, include the sign-bit
+ * @n: number of fractional bits, only support n <= 32
+ *
+ * Convert and clamp S31.32 sign-magnitude to Qm.n (signed 2's complement).
+ * The sign-bit BIT(m+n-1) and above are 0 for positive value and 1 for negative
+ * the range of value is [-2^(m-1), 2^(m-1) - 2^-n]
+ *
+ * For example
+ * A Q3.12 format number:
+ * - required bit: 3 + 12 = 15bits
+ * - range: [-2^2, 2^2 - 2^−15]
+ *
+ * NOTE: the m can be zero if all bit_precision are used to present fractional
+ *       bits like Q0.32
  */
-uint32_t drm_color_lut_extract(uint32_t user_input, uint32_t bit_precision)
+u64 drm_color_ctm_s31_32_to_qm_n(u64 user_input, u32 m, u32 n)
 {
-	uint32_t val = user_input;
-	uint32_t max = 0xffff >> (16 - bit_precision);
+	u64 mag = (user_input & ~BIT_ULL(63)) >> (32 - n);
+	bool negative = !!(user_input & BIT_ULL(63));
+	s64 val;
 
-	/* Round only if we're not using full precision. */
-	if (bit_precision < 16) {
-		val += 1UL << (16 - bit_precision - 1);
-		val >>= 16 - bit_precision;
-	}
+	WARN_ON(m > 32 || n > 32);
 
-	return clamp_val(val, 0, max);
+	val = clamp_val(mag, 0, negative ?
+				BIT_ULL(n + m - 1) : BIT_ULL(n + m - 1) - 1);
+
+	return negative ? -val : val;
 }
-EXPORT_SYMBOL(drm_color_lut_extract);
+EXPORT_SYMBOL(drm_color_ctm_s31_32_to_qm_n);
 
 /**
  * drm_crtc_enable_color_mgmt - enable color management properties
@@ -242,7 +256,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_lut->crtc_id);
 	if (!crtc)
@@ -255,11 +269,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	if (crtc_lut->gamma_size != crtc->gamma_size)
 		return -EINVAL;
 
-	drm_modeset_acquire_init(&ctx, 0);
-retry:
-	ret = drm_modeset_lock_all_ctx(dev, &ctx);
-	if (ret)
-		goto out;
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 
 	size = crtc_lut->gamma_size * (sizeof(uint16_t));
 	r_base = crtc->gamma_store;
@@ -284,13 +294,7 @@ retry:
 				     crtc->gamma_size, &ctx);
 
 out:
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 	return ret;
 
 }
@@ -320,7 +324,7 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_lut->crtc_id);
 	if (!crtc)
@@ -472,3 +476,46 @@ int drm_plane_create_color_properties(struct drm_plane *plane,
 	return 0;
 }
 EXPORT_SYMBOL(drm_plane_create_color_properties);
+
+/**
+ * drm_color_lut_check - check validity of lookup table
+ * @lut: property blob containing LUT to check
+ * @tests: bitmask of tests to run
+ *
+ * Helper to check whether a userspace-provided lookup table is valid and
+ * satisfies hardware requirements.  Drivers pass a bitmask indicating which of
+ * the tests in &drm_color_lut_tests should be performed.
+ *
+ * Returns 0 on success, -EINVAL on failure.
+ */
+int drm_color_lut_check(const struct drm_property_blob *lut, u32 tests)
+{
+	const struct drm_color_lut *entry;
+	int i;
+
+	if (!lut || !tests)
+		return 0;
+
+	entry = lut->data;
+	for (i = 0; i < drm_color_lut_size(lut); i++) {
+		if (tests & DRM_COLOR_LUT_EQUAL_CHANNELS) {
+			if (entry[i].red != entry[i].blue ||
+			    entry[i].red != entry[i].green) {
+				DRM_DEBUG_KMS("All LUT entries must have equal r/g/b\n");
+				return -EINVAL;
+			}
+		}
+
+		if (i > 0 && tests & DRM_COLOR_LUT_NON_DECREASING) {
+			if (entry[i].red < entry[i - 1].red ||
+			    entry[i].green < entry[i - 1].green ||
+			    entry[i].blue < entry[i - 1].blue) {
+				DRM_DEBUG_KMS("LUT entries must never decrease.\n");
+				return -EINVAL;
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_color_lut_check);

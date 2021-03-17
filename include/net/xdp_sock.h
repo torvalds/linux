@@ -15,89 +15,106 @@
 
 struct net_device;
 struct xsk_queue;
-
-struct xdp_umem_props {
-	u64 chunk_mask;
-	u64 size;
-};
-
-struct xdp_umem_page {
-	void *addr;
-	dma_addr_t dma;
-};
+struct xdp_buff;
 
 struct xdp_umem {
-	struct xsk_queue *fq;
-	struct xsk_queue *cq;
-	struct xdp_umem_page *pages;
-	struct xdp_umem_props props;
+	void *addrs;
+	u64 size;
 	u32 headroom;
-	u32 chunk_size_nohr;
-	struct user_struct *user;
-	struct pid *pid;
-	unsigned long address;
-	refcount_t users;
-	struct work_struct work;
-	struct page **pgs;
+	u32 chunk_size;
+	u32 chunks;
 	u32 npgs;
-	struct net_device *dev;
-	u16 queue_id;
+	struct user_struct *user;
+	refcount_t users;
+	u8 flags;
 	bool zc;
-	spinlock_t xsk_list_lock;
-	struct list_head xsk_list;
+	struct page **pgs;
+	int id;
+	struct list_head xsk_dma_list;
+	struct work_struct work;
+};
+
+struct xsk_map {
+	struct bpf_map map;
+	spinlock_t lock; /* Synchronize map updates */
+	struct xdp_sock *xsk_map[];
 };
 
 struct xdp_sock {
 	/* struct sock must be the first member of struct xdp_sock */
 	struct sock sk;
-	struct xsk_queue *rx;
+	struct xsk_queue *rx ____cacheline_aligned_in_smp;
 	struct net_device *dev;
 	struct xdp_umem *umem;
 	struct list_head flush_node;
+	struct xsk_buff_pool *pool;
 	u16 queue_id;
-	struct xsk_queue *tx ____cacheline_aligned_in_smp;
-	struct list_head list;
 	bool zc;
+	enum {
+		XSK_READY = 0,
+		XSK_BOUND,
+		XSK_UNBOUND,
+	} state;
+
+	struct xsk_queue *tx ____cacheline_aligned_in_smp;
+	struct list_head tx_list;
+	/* Protects generic receive. */
+	spinlock_t rx_lock;
+
+	/* Statistics */
+	u64 rx_dropped;
+	u64 rx_queue_full;
+
+	struct list_head map_list;
+	/* Protects map_list */
+	spinlock_t map_list_lock;
 	/* Protects multiple processes in the control path */
 	struct mutex mutex;
-	/* Mutual exclusion of NAPI TX thread and sendmsg error paths
-	 * in the SKB destructor callback.
-	 */
-	spinlock_t tx_completion_lock;
-	u64 rx_dropped;
+	struct xsk_queue *fq_tmp; /* Only as tmp storage before bind */
+	struct xsk_queue *cq_tmp; /* Only as tmp storage before bind */
 };
 
-struct xdp_buff;
 #ifdef CONFIG_XDP_SOCKETS
+
 int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
-int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
-void xsk_flush(struct xdp_sock *xs);
-bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs);
-/* Used from netdev driver */
-u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr);
-void xsk_umem_discard_addr(struct xdp_umem *umem);
-void xsk_umem_complete_tx(struct xdp_umem *umem, u32 nb_entries);
-bool xsk_umem_consume_tx(struct xdp_umem *umem, dma_addr_t *dma, u32 *len);
-void xsk_umem_consume_tx_done(struct xdp_umem *umem);
+int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp);
+void __xsk_map_flush(void);
+
+static inline struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map,
+						     u32 key)
+{
+	struct xsk_map *m = container_of(map, struct xsk_map, map);
+	struct xdp_sock *xs;
+
+	if (key >= map->max_entries)
+		return NULL;
+
+	xs = READ_ONCE(m->xsk_map[key]);
+	return xs;
+}
+
 #else
+
 static inline int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	return -ENOTSUPP;
 }
 
-static inline int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
+static inline int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
-static inline void xsk_flush(struct xdp_sock *xs)
+static inline void __xsk_map_flush(void)
 {
 }
 
-static inline bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
+static inline struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map,
+						     u32 key)
 {
-	return false;
+	return NULL;
 }
+
 #endif /* CONFIG_XDP_SOCKETS */
 
 #endif /* _LINUX_XDP_SOCK_H */

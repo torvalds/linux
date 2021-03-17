@@ -99,7 +99,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		} *args = data;
 		int ret = -ENOSYS;
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-			ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER);
+			ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, args->v0.hda);
 			if (ret == 0) {
 				args->v0.or = outp->ior->id;
 				args->v0.link = outp->ior->asy.link;
@@ -119,7 +119,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 			if (args->v0.data & 0xfff00000)
 				return -EINVAL;
-			ret = nvkm_outp_acquire(outp, NVKM_OUTP_PRIV);
+			ret = nvkm_outp_acquire(outp, NVKM_OUTP_PRIV, false);
 			if (ret)
 				return ret;
 			ret = outp->ior->func->sense(outp->ior, args->v0.data);
@@ -155,7 +155,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 			if (outp->info.type == DCB_OUTPUT_DP)
 				ior->func->dp.audio(ior, hidx, true);
 			ior->func->hda.hpd(ior, hidx, true);
-			ior->func->hda.eld(ior, data, size);
+			ior->func->hda.eld(ior, hidx, data, size);
 		} else {
 			if (outp->info.type == DCB_OUTPUT_DP)
 				ior->func->dp.audio(ior, hidx, false);
@@ -176,9 +176,10 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		nvif_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 			nvif_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
-					   "max_ac_packet %d rekey %d\n",
+					   "max_ac_packet %d rekey %d scdc %d\n",
 				   args->v0.version, args->v0.state,
-				   args->v0.max_ac_packet, args->v0.rekey);
+				   args->v0.max_ac_packet, args->v0.rekey,
+				   args->v0.scdc);
 			if (args->v0.max_ac_packet > 0x1f || args->v0.rekey > 0x7f)
 				return -EINVAL;
 			if ((args->v0.avi_infoframe_length
@@ -202,6 +203,10 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 					   args->v0.max_ac_packet,
 					   args->v0.rekey, avi, avi_size,
 					   vendor, vendor_size);
+
+		if (outp->ior->func->hdmi.scdc)
+			outp->ior->func->hdmi.scdc(outp->ior, args->v0.scdc);
+
 		return 0;
 	}
 		break;

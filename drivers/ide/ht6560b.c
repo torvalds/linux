@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1995-2000  Linus Torvalds & author (see below)
  */
@@ -309,7 +310,7 @@ static void __init ht6560b_init_dev(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	/* Setting default configurations for drives. */
-	int t = (HT_CONFIG_DEFAULT << 8) | HT_TIMING_DEFAULT;
+	unsigned long t = (HT_CONFIG_DEFAULT << 8) | HT_TIMING_DEFAULT;
 
 	if (hwif->channel)
 		t |= (HT_SECONDARY_IF << 8);

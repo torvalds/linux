@@ -21,18 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
+#include <nvif/push006c.h>
 
-#include <nvif/os.h>
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 #include <nvif/cl006b.h>
 #include <nvif/cl506f.h>
 #include <nvif/cl906f.h>
 #include <nvif/cla06f.h>
+#include <nvif/clc36f.h>
 #include <nvif/ioctl.h>
-
-/*XXX*/
-#include <core/client.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -41,6 +39,7 @@
 #include "nouveau_fence.h"
 #include "nouveau_abi16.h"
 #include "nouveau_vmm.h"
+#include "nouveau_svm.h"
 
 MODULE_PARM_DESC(vram_pushbuf, "Create DMA push buffers in VRAM");
 int nouveau_vram_pushbuf;
@@ -53,6 +52,8 @@ nouveau_channel_killed(struct nvif_notify *ntfy)
 	struct nouveau_cli *cli = (void *)chan->user.client;
 	NV_PRINTK(warn, cli, "channel %d killed!\n", chan->chid);
 	atomic_set(&chan->killed, 1);
+	if (chan->fence)
+		nouveau_fence_context_kill(chan->fence, -ENODEV);
 	return NVIF_NOTIFY_DROP;
 }
 
@@ -94,12 +95,16 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 
 		if (chan->fence)
 			nouveau_fence(chan->drm)->context_del(chan);
-		nvif_object_fini(&chan->nvsw);
-		nvif_object_fini(&chan->gart);
-		nvif_object_fini(&chan->vram);
-		nvif_notify_fini(&chan->kill);
-		nvif_object_fini(&chan->user);
-		nvif_object_fini(&chan->push.ctxdma);
+
+		if (cli)
+			nouveau_svmm_part(chan->vmm->svmm, chan->inst);
+
+		nvif_object_dtor(&chan->nvsw);
+		nvif_object_dtor(&chan->gart);
+		nvif_object_dtor(&chan->vram);
+		nvif_notify_dtor(&chan->kill);
+		nvif_object_dtor(&chan->user);
+		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
 		if (chan->push.buffer && chan->push.buffer->pin_refcnt)
@@ -111,6 +116,31 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 			cli->base.super = super;
 	}
 	*pchan = NULL;
+}
+
+static void
+nouveau_channel_kick(struct nvif_push *push)
+{
+	struct nouveau_channel *chan = container_of(push, typeof(*chan), chan._push);
+	chan->dma.cur = chan->dma.cur + (chan->chan._push.cur - chan->chan._push.bgn);
+	FIRE_RING(chan);
+	chan->chan._push.bgn = chan->chan._push.cur;
+}
+
+static int
+nouveau_channel_wait(struct nvif_push *push, u32 size)
+{
+	struct nouveau_channel *chan = container_of(push, typeof(*chan), chan._push);
+	int ret;
+	chan->dma.cur = chan->dma.cur + (chan->chan._push.cur - chan->chan._push.bgn);
+	ret = RING_SPACE(chan, size);
+	if (ret == 0) {
+		chan->chan._push.bgn = chan->chan._push.mem.object.map.ptr;
+		chan->chan._push.bgn = chan->chan._push.bgn + chan->dma.cur;
+		chan->chan._push.cur = chan->chan._push.bgn;
+		chan->chan._push.end = chan->chan._push.bgn + size;
+	}
+	return ret;
 }
 
 static int
@@ -129,12 +159,13 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 
 	chan->device = device;
 	chan->drm = drm;
+	chan->vmm = cli->svm.cli ? &cli->svm : &cli->vmm;
 	atomic_set(&chan->killed, 0);
 
 	/* allocate memory for dma push buffer */
-	target = TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
+	target = NOUVEAU_GEM_DOMAIN_GART | NOUVEAU_GEM_DOMAIN_COHERENT;
 	if (nouveau_vram_pushbuf)
-		target = TTM_PL_FLAG_VRAM;
+		target = NOUVEAU_GEM_DOMAIN_VRAM;
 
 	ret = nouveau_bo_new(cli, size, 0, target, 0, 0, NULL, NULL,
 			    &chan->push.buffer);
@@ -149,14 +180,22 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		return ret;
 	}
 
+	chan->chan._push.mem.object.parent = cli->base.object.parent;
+	chan->chan._push.mem.object.client = &cli->base;
+	chan->chan._push.mem.object.name = "chanPush";
+	chan->chan._push.mem.object.map.ptr = chan->push.buffer->kmap.virtual;
+	chan->chan._push.wait = nouveau_channel_wait;
+	chan->chan._push.kick = nouveau_channel_kick;
+	chan->chan.push = &chan->chan._push;
+
 	/* create dma object covering the *entire* memory space that the
 	 * pushbuf lives in, this is because the GEM code requires that
 	 * we be able to call out to other (indirect) push buffers
 	 */
-	chan->push.addr = chan->push.buffer->bo.offset;
+	chan->push.addr = chan->push.buffer->offset;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(chan->push.buffer, &cli->vmm,
+		ret = nouveau_vma_new(chan->push.buffer, chan->vmm,
 				      &chan->push.vma);
 		if (ret) {
 			nouveau_channel_del(pchan);
@@ -171,7 +210,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
 		args.start = 0;
-		args.limit = cli->vmm.vmm.limit - 1;
+		args.limit = chan->vmm->vmm.limit - 1;
 	} else
 	if (chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM) {
 		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
@@ -201,12 +240,13 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = cli->vmm.vmm.limit - 1;
+			args.limit = chan->vmm->vmm.limit - 1;
 		}
 	}
 
-	ret = nvif_object_init(&device->object, 0, NV_DMA_FROM_MEMORY,
-			       &args, sizeof(args), &chan->push.ctxdma);
+	ret = nvif_object_ctor(&device->object, "abi16PushCtxDma", 0,
+			       NV_DMA_FROM_MEMORY, &args, sizeof(args),
+			       &chan->push.ctxdma);
 	if (ret) {
 		nouveau_channel_del(pchan);
 		return ret;
@@ -217,10 +257,10 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 
 static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
-		    u64 runlist, struct nouveau_channel **pchan)
+		    u64 runlist, bool priv, struct nouveau_channel **pchan)
 {
-	struct nouveau_cli *cli = (void *)device->object.client;
-	static const u16 oclasses[] = { VOLTA_CHANNEL_GPFIFO_A,
+	static const u16 oclasses[] = { TURING_CHANNEL_GPFIFO_A,
+					VOLTA_CHANNEL_GPFIFO_A,
 					PASCAL_CHANNEL_GPFIFO_A,
 					MAXWELL_CHANNEL_GPFIFO_A,
 					KEPLER_CHANNEL_GPFIFO_B,
@@ -234,6 +274,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		struct nv50_channel_gpfifo_v0 nv50;
 		struct fermi_channel_gpfifo_v0 fermi;
 		struct kepler_channel_gpfifo_a_v0 kepler;
+		struct volta_channel_gpfifo_a_v0 volta;
 	} args;
 	struct nouveau_channel *chan;
 	u32 size;
@@ -247,39 +288,56 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 
 	/* create channel object */
 	do {
+		if (oclass[0] >= VOLTA_CHANNEL_GPFIFO_A) {
+			args.volta.version = 0;
+			args.volta.ilength = 0x02000;
+			args.volta.ioffset = 0x10000 + chan->push.addr;
+			args.volta.runlist = runlist;
+			args.volta.vmm = nvif_handle(&chan->vmm->vmm.object);
+			args.volta.priv = priv;
+			size = sizeof(args.volta);
+		} else
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.addr;
 			args.kepler.runlist = runlist;
-			args.kepler.vmm = nvif_handle(&cli->vmm.vmm.object);
+			args.kepler.vmm = nvif_handle(&chan->vmm->vmm.object);
+			args.kepler.priv = priv;
 			size = sizeof(args.kepler);
 		} else
 		if (oclass[0] >= FERMI_CHANNEL_GPFIFO) {
 			args.fermi.version = 0;
 			args.fermi.ilength = 0x02000;
 			args.fermi.ioffset = 0x10000 + chan->push.addr;
-			args.fermi.vmm = nvif_handle(&cli->vmm.vmm.object);
+			args.fermi.vmm = nvif_handle(&chan->vmm->vmm.object);
 			size = sizeof(args.fermi);
 		} else {
 			args.nv50.version = 0;
 			args.nv50.ilength = 0x02000;
 			args.nv50.ioffset = 0x10000 + chan->push.addr;
 			args.nv50.pushbuf = nvif_handle(&chan->push.ctxdma);
-			args.nv50.vmm = nvif_handle(&cli->vmm.vmm.object);
+			args.nv50.vmm = nvif_handle(&chan->vmm->vmm.object);
 			size = sizeof(args.nv50);
 		}
 
-		ret = nvif_object_init(&device->object, 0, *oclass++,
-				       &args, size, &chan->user);
+		ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0,
+				       *oclass++, &args, size, &chan->user);
 		if (ret == 0) {
-			if (chan->user.oclass >= KEPLER_CHANNEL_GPFIFO_A)
+			if (chan->user.oclass >= VOLTA_CHANNEL_GPFIFO_A) {
+				chan->chid = args.volta.chid;
+				chan->inst = args.volta.inst;
+				chan->token = args.volta.token;
+			} else
+			if (chan->user.oclass >= KEPLER_CHANNEL_GPFIFO_A) {
 				chan->chid = args.kepler.chid;
-			else
-			if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO)
+				chan->inst = args.kepler.inst;
+			} else
+			if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
 				chan->chid = args.fermi.chid;
-			else
+			} else {
 				chan->chid = args.nv50.chid;
+			}
 			return ret;
 		}
 	} while (*oclass);
@@ -314,8 +372,9 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
 	args.offset = chan->push.addr;
 
 	do {
-		ret = nvif_object_init(&device->object, 0, *oclass++,
-				       &args, sizeof(args), &chan->user);
+		ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0,
+				       *oclass++, &args, sizeof(args),
+				       &chan->user);
 		if (ret == 0) {
 			chan->chid = args.chid;
 			return ret;
@@ -330,7 +389,6 @@ static int
 nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 {
 	struct nvif_device *device = chan->device;
-	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nouveau_drm *drm = chan->drm;
 	struct nv_dma_v0 args = {};
 	int ret, i;
@@ -338,7 +396,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	nvif_object_map(&chan->user, NULL, 0);
 
 	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
-		ret = nvif_notify_init(&chan->user, nouveau_channel_killed,
+		ret = nvif_notify_ctor(&chan->user, "abi16ChanKilled",
+				       nouveau_channel_killed,
 				       true, NV906F_V0_NTFY_KILLED,
 				       NULL, 0, 0, &chan->kill);
 		if (ret == 0)
@@ -356,7 +415,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
-			args.limit = cli->vmm.vmm.limit - 1;
+			args.limit = chan->vmm->vmm.limit - 1;
 		} else {
 			args.target = NV_DMA_V0_TARGET_VRAM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
@@ -364,8 +423,9 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.limit = device->info.ram_user - 1;
 		}
 
-		ret = nvif_object_init(&chan->user, vram, NV_DMA_IN_MEMORY,
-				       &args, sizeof(args), &chan->vram);
+		ret = nvif_object_ctor(&chan->user, "abi16ChanVramCtxDma", vram,
+				       NV_DMA_IN_MEMORY, &args, sizeof(args),
+				       &chan->vram);
 		if (ret)
 			return ret;
 
@@ -373,7 +433,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
-			args.limit = cli->vmm.vmm.limit - 1;
+			args.limit = chan->vmm->vmm.limit - 1;
 		} else
 		if (chan->drm->agp.bridge) {
 			args.target = NV_DMA_V0_TARGET_AGP;
@@ -385,11 +445,12 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = cli->vmm.vmm.limit - 1;
+			args.limit = chan->vmm->vmm.limit - 1;
 		}
 
-		ret = nvif_object_init(&chan->user, gart, NV_DMA_IN_MEMORY,
-				       &args, sizeof(args), &chan->gart);
+		ret = nvif_object_ctor(&chan->user, "abi16ChanGartCtxDma", gart,
+				       NV_DMA_IN_MEMORY, &args, sizeof(args),
+				       &chan->gart);
 		if (ret)
 			return ret;
 	}
@@ -418,28 +479,27 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	chan->dma.cur = chan->dma.put;
 	chan->dma.free = chan->dma.max - chan->dma.cur;
 
-	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
+	ret = PUSH_WAIT(chan->chan.push, NOUVEAU_DMA_SKIPS);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < NOUVEAU_DMA_SKIPS; i++)
-		OUT_RING(chan, 0x00000000);
+		PUSH_DATA(chan->chan.push, 0x00000000);
 
 	/* allocate software object class (used for fences on <= nv05) */
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
-		ret = nvif_object_init(&chan->user, 0x006e,
+		ret = nvif_object_ctor(&chan->user, "abi16NvswFence", 0x006e,
 				       NVIF_CLASS_SW_NV04,
 				       NULL, 0, &chan->nvsw);
 		if (ret)
 			return ret;
 
-		ret = RING_SPACE(chan, 2);
+		ret = PUSH_WAIT(chan->chan.push, 2);
 		if (ret)
 			return ret;
 
-		BEGIN_NV04(chan, NvSubSw, 0x0000, 1);
-		OUT_RING  (chan, chan->nvsw.handle);
-		FIRE_RING (chan);
+		PUSH_NVSQ(chan->chan.push, NV_SW, 0x0000, chan->nvsw.handle);
+		PUSH_KICK(chan->chan.push);
 	}
 
 	/* initialise synchronisation */
@@ -448,7 +508,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 int
 nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
-		    u32 arg0, u32 arg1, struct nouveau_channel **pchan)
+		    u32 arg0, u32 arg1, bool priv,
+		    struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	bool super;
@@ -458,7 +519,7 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	super = cli->base.super;
 	cli->base.super = true;
 
-	ret = nouveau_channel_ind(drm, device, arg0, pchan);
+	ret = nouveau_channel_ind(drm, device, arg0, priv, pchan);
 	if (ret) {
 		NV_PRINTK(dbg, cli, "ib channel create, %d\n", ret);
 		ret = nouveau_channel_dma(drm, device, pchan);
@@ -473,6 +534,10 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 		NV_PRINTK(err, cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
 	}
+
+	ret = nouveau_svmm_join((*pchan)->vmm->svmm, (*pchan)->inst);
+	if (ret)
+		nouveau_channel_del(pchan);
 
 done:
 	cli->base.super = super;

@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
 * Copyright (c) 2016 MediaTek Inc.
 * Author: PC Chen <pc.chen@mediatek.com>
 *	Tiffany Lin <tiffany.lin@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 
 #ifndef _MTK_VCODEC_UTIL_H_
@@ -22,6 +14,11 @@
 struct mtk_vcodec_mem {
 	size_t size;
 	void *va;
+	dma_addr_t dma_addr;
+};
+
+struct mtk_vcodec_fb {
+	size_t size;
 	dma_addr_t dma_addr;
 };
 

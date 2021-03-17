@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Shared glue code for 128bit block ciphers
  *
@@ -7,28 +8,13 @@
  *   Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
  * CTR part based on code (crypto/ctr.c) by:
  *   (C) Copyright IBM Corp. 2007 - Joy Latten <latten@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
  */
 
 #include <linux/module.h>
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include <crypto/xts.h>
 #include <asm/crypto/glue_helper.h>
 
@@ -148,7 +134,8 @@ int glue_cbc_decrypt_req_128bit(const struct common_glue_ctx *gctx,
 				src -= num_blocks - 1;
 				dst -= num_blocks - 1;
 
-				gctx->funcs[i].fn_u.cbc(ctx, dst, src);
+				gctx->funcs[i].fn_u.cbc(ctx, (u8 *)dst,
+							(const u8 *)src);
 
 				nbytes -= func_bytes;
 				if (nbytes < bsize)
@@ -202,7 +189,9 @@ int glue_ctr_req_128bit(const struct common_glue_ctx *gctx,
 
 			/* Process multi-block batch */
 			do {
-				gctx->funcs[i].fn_u.ctr(ctx, dst, src, &ctrblk);
+				gctx->funcs[i].fn_u.ctr(ctx, (u8 *)dst,
+							(const u8 *)src,
+							&ctrblk);
 				src += num_blocks;
 				dst += num_blocks;
 				nbytes -= func_bytes;
@@ -224,7 +213,8 @@ int glue_ctr_req_128bit(const struct common_glue_ctx *gctx,
 
 		be128_to_le128(&ctrblk, (be128 *)walk.iv);
 		memcpy(&tmp, walk.src.virt.addr, nbytes);
-		gctx->funcs[gctx->num_funcs - 1].fn_u.ctr(ctx, &tmp, &tmp,
+		gctx->funcs[gctx->num_funcs - 1].fn_u.ctr(ctx, (u8 *)&tmp,
+							  (const u8 *)&tmp,
 							  &ctrblk);
 		memcpy(walk.dst.virt.addr, &tmp, nbytes);
 		le128_to_be128((be128 *)walk.iv, &ctrblk);
@@ -254,7 +244,8 @@ static unsigned int __glue_xts_req_128bit(const struct common_glue_ctx *gctx,
 
 		if (nbytes >= func_bytes) {
 			do {
-				gctx->funcs[i].fn_u.xts(ctx, dst, src,
+				gctx->funcs[i].fn_u.xts(ctx, (u8 *)dst,
+							(const u8 *)src,
 							walk->iv);
 
 				src += num_blocks;
@@ -274,17 +265,36 @@ done:
 int glue_xts_req_128bit(const struct common_glue_ctx *gctx,
 			struct skcipher_request *req,
 			common_glue_func_t tweak_fn, void *tweak_ctx,
-			void *crypt_ctx)
+			void *crypt_ctx, bool decrypt)
 {
+	const bool cts = (req->cryptlen % XTS_BLOCK_SIZE);
 	const unsigned int bsize = 128 / 8;
+	struct skcipher_request subreq;
 	struct skcipher_walk walk;
 	bool fpu_enabled = false;
-	unsigned int nbytes;
+	unsigned int nbytes, tail;
 	int err;
+
+	if (req->cryptlen < XTS_BLOCK_SIZE)
+		return -EINVAL;
+
+	if (unlikely(cts)) {
+		struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+
+		tail = req->cryptlen % XTS_BLOCK_SIZE + XTS_BLOCK_SIZE;
+
+		skcipher_request_set_tfm(&subreq, tfm);
+		skcipher_request_set_callback(&subreq,
+					      crypto_skcipher_get_flags(tfm),
+					      NULL, NULL);
+		skcipher_request_set_crypt(&subreq, req->src, req->dst,
+					   req->cryptlen - tail, req->iv);
+		req = &subreq;
+	}
 
 	err = skcipher_walk_virt(&walk, req, false);
 	nbytes = walk.nbytes;
-	if (!nbytes)
+	if (err)
 		return err;
 
 	/* set minimum length to bsize, for tweak_fn */
@@ -302,14 +312,55 @@ int glue_xts_req_128bit(const struct common_glue_ctx *gctx,
 		nbytes = walk.nbytes;
 	}
 
+	if (unlikely(cts)) {
+		u8 *next_tweak, *final_tweak = req->iv;
+		struct scatterlist *src, *dst;
+		struct scatterlist s[2], d[2];
+		le128 b[2];
+
+		dst = src = scatterwalk_ffwd(s, req->src, req->cryptlen);
+		if (req->dst != req->src)
+			dst = scatterwalk_ffwd(d, req->dst, req->cryptlen);
+
+		if (decrypt) {
+			next_tweak = memcpy(b, req->iv, XTS_BLOCK_SIZE);
+			gf128mul_x_ble(b, b);
+		} else {
+			next_tweak = req->iv;
+		}
+
+		skcipher_request_set_crypt(&subreq, src, dst, XTS_BLOCK_SIZE,
+					   next_tweak);
+
+		err = skcipher_walk_virt(&walk, req, false) ?:
+		      skcipher_walk_done(&walk,
+				__glue_xts_req_128bit(gctx, crypt_ctx, &walk));
+		if (err)
+			goto out;
+
+		scatterwalk_map_and_copy(b, dst, 0, XTS_BLOCK_SIZE, 0);
+		memcpy(b + 1, b, tail - XTS_BLOCK_SIZE);
+		scatterwalk_map_and_copy(b, src, XTS_BLOCK_SIZE,
+					 tail - XTS_BLOCK_SIZE, 0);
+		scatterwalk_map_and_copy(b, dst, 0, tail, 1);
+
+		skcipher_request_set_crypt(&subreq, dst, dst, XTS_BLOCK_SIZE,
+					   final_tweak);
+
+		err = skcipher_walk_virt(&walk, req, false) ?:
+		      skcipher_walk_done(&walk,
+				__glue_xts_req_128bit(gctx, crypt_ctx, &walk));
+	}
+
+out:
 	glue_fpu_end(fpu_enabled);
 
 	return err;
 }
 EXPORT_SYMBOL_GPL(glue_xts_req_128bit);
 
-void glue_xts_crypt_128bit_one(void *ctx, u128 *dst, const u128 *src, le128 *iv,
-			       common_glue_func_t fn)
+void glue_xts_crypt_128bit_one(const void *ctx, u8 *dst, const u8 *src,
+			       le128 *iv, common_glue_func_t fn)
 {
 	le128 ivblk = *iv;
 
@@ -317,13 +368,13 @@ void glue_xts_crypt_128bit_one(void *ctx, u128 *dst, const u128 *src, le128 *iv,
 	gf128mul_x_ble(iv, &ivblk);
 
 	/* CC <- T xor C */
-	u128_xor(dst, src, (u128 *)&ivblk);
+	u128_xor((u128 *)dst, (const u128 *)src, (u128 *)&ivblk);
 
 	/* PP <- D(Key2,CC) */
-	fn(ctx, (u8 *)dst, (u8 *)dst);
+	fn(ctx, dst, dst);
 
 	/* P <- T xor PP */
-	u128_xor(dst, dst, (u128 *)&ivblk);
+	u128_xor((u128 *)dst, (u128 *)dst, (u128 *)&ivblk);
 }
 EXPORT_SYMBOL_GPL(glue_xts_crypt_128bit_one);
 

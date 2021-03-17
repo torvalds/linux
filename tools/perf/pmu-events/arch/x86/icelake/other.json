@@ -1,0 +1,121 @@
+[
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method. The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core. Software can use this event as the denominator for the top-level metrics of the Top-down Microarchitecture Analysis method. This event is counted on a designated fixed counter (Fixed Counter 3) and is an architectural event.",
+        "Counter": "35",
+        "UMask": "0x4",
+        "PEBScounters": "35",
+        "EventName": "TOPDOWN.SLOTS",
+        "SampleAfterValue": "10000003",
+        "BriefDescription": "Counts the number of available slots for an unhalted logical processor."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
+        "EventCode": "0x28",
+        "Counter": "0,1,2,3",
+        "UMask": "0x7",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "CORE_POWER.LVL0_TURBO_LICENSE",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the Non-AVX turbo schedule."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts Core cycles where the core was running with power-delivery for license level 1.  This includes high current AVX 256-bit instructions as well as low current AVX 512-bit instructions.",
+        "EventCode": "0x28",
+        "Counter": "0,1,2,3",
+        "UMask": "0x18",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "CORE_POWER.LVL1_TURBO_LICENSE",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the AVX2 turbo schedule."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Core cycles where the core was running with power-delivery for license level 2 (introduced in Skylake Server microarchtecture).  This includes high current AVX 512-bit instructions.",
+        "EventCode": "0x28",
+        "Counter": "0,1,2,3",
+        "UMask": "0x20",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "CORE_POWER.LVL2_TURBO_LICENSE",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the AVX512 turbo schedule."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of PREFETCHNTA instructions executed.",
+        "EventCode": "0x32",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "SW_PREFETCH_ACCESS.NTA",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Number of PREFETCHNTA instructions executed."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of PREFETCHT0 instructions executed.",
+        "EventCode": "0x32",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "SW_PREFETCH_ACCESS.T0",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Number of PREFETCHT0 instructions executed."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of PREFETCHT1 or PREFETCHT2 instructions executed.",
+        "EventCode": "0x32",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "SW_PREFETCH_ACCESS.T1_T2",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Number of PREFETCHT1 or PREFETCHT2 instructions executed."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of PREFETCHW instructions executed.",
+        "EventCode": "0x32",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "SW_PREFETCH_ACCESS.PREFETCHW",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Number of PREFETCHW instructions executed."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method. The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core.",
+        "EventCode": "0xa4",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "UMask": "0x1",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "EventName": "TOPDOWN.SLOTS_P",
+        "SampleAfterValue": "10000003",
+        "BriefDescription": "Counts the number of available slots for an unhalted logical processor."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "EventCode": "0xA4",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "UMask": "0x2",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "EventName": "TOPDOWN.BACKEND_BOUND_SLOTS",
+        "SampleAfterValue": "10000003",
+        "BriefDescription": "Issue slots where no uops were being issued due to lack of back end resources."
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of occurrences where a microcode assist is invoked by hardware Examples include AD (page Access Dirty), FP and AVX related assists.",
+        "EventCode": "0xc1",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "UMask": "0x7",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "EventName": "ASSISTS.ANY",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Number of occurrences where a microcode assist is invoked by hardware."
+    }
+]

@@ -1,21 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * axp288_charger.c - X-power AXP288 PMIC Charger driver
  *
  * Copyright (C) 2016-2017 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2014 Intel Corporation
  * Author: Ramakrishna Pallala <ramakrishna.pallala@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/acpi.h>
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/regmap.h>
@@ -28,18 +21,19 @@
 #include <linux/property.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/extcon.h>
+#include <linux/dmi.h>
 
-#define PS_STAT_VBUS_TRIGGER		(1 << 0)
-#define PS_STAT_BAT_CHRG_DIR		(1 << 2)
-#define PS_STAT_VBAT_ABOVE_VHOLD	(1 << 3)
-#define PS_STAT_VBUS_VALID		(1 << 4)
-#define PS_STAT_VBUS_PRESENT		(1 << 5)
+#define PS_STAT_VBUS_TRIGGER		BIT(0)
+#define PS_STAT_BAT_CHRG_DIR		BIT(2)
+#define PS_STAT_VBAT_ABOVE_VHOLD	BIT(3)
+#define PS_STAT_VBUS_VALID		BIT(4)
+#define PS_STAT_VBUS_PRESENT		BIT(5)
 
-#define CHRG_STAT_BAT_SAFE_MODE		(1 << 3)
-#define CHRG_STAT_BAT_VALID		(1 << 4)
-#define CHRG_STAT_BAT_PRESENT		(1 << 5)
-#define CHRG_STAT_CHARGING		(1 << 6)
-#define CHRG_STAT_PMIC_OTP		(1 << 7)
+#define CHRG_STAT_BAT_SAFE_MODE		BIT(3)
+#define CHRG_STAT_BAT_VALID		BIT(4)
+#define CHRG_STAT_BAT_PRESENT		BIT(5)
+#define CHRG_STAT_CHARGING		BIT(6)
+#define CHRG_STAT_PMIC_OTP		BIT(7)
 
 #define VBUS_ISPOUT_CUR_LIM_MASK	0x03
 #define VBUS_ISPOUT_CUR_LIM_BIT_POS	0
@@ -52,33 +46,33 @@
 #define VBUS_ISPOUT_VHOLD_SET_OFFSET	4000	/* 4000mV */
 #define VBUS_ISPOUT_VHOLD_SET_LSB_RES	100	/* 100mV */
 #define VBUS_ISPOUT_VHOLD_SET_4300MV	0x3	/* 4300mV */
-#define VBUS_ISPOUT_VBUS_PATH_DIS	(1 << 7)
+#define VBUS_ISPOUT_VBUS_PATH_DIS	BIT(7)
 
 #define CHRG_CCCV_CC_MASK		0xf		/* 4 bits */
 #define CHRG_CCCV_CC_BIT_POS		0
 #define CHRG_CCCV_CC_OFFSET		200		/* 200mA */
 #define CHRG_CCCV_CC_LSB_RES		200		/* 200mA */
-#define CHRG_CCCV_ITERM_20P		(1 << 4)	/* 20% of CC */
+#define CHRG_CCCV_ITERM_20P		BIT(4)		/* 20% of CC */
 #define CHRG_CCCV_CV_MASK		0x60		/* 2 bits */
 #define CHRG_CCCV_CV_BIT_POS		5
 #define CHRG_CCCV_CV_4100MV		0x0		/* 4.10V */
 #define CHRG_CCCV_CV_4150MV		0x1		/* 4.15V */
 #define CHRG_CCCV_CV_4200MV		0x2		/* 4.20V */
 #define CHRG_CCCV_CV_4350MV		0x3		/* 4.35V */
-#define CHRG_CCCV_CHG_EN		(1 << 7)
+#define CHRG_CCCV_CHG_EN		BIT(7)
 
 #define CNTL2_CC_TIMEOUT_MASK		0x3	/* 2 bits */
 #define CNTL2_CC_TIMEOUT_OFFSET		6	/* 6 Hrs */
 #define CNTL2_CC_TIMEOUT_LSB_RES	2	/* 2 Hrs */
 #define CNTL2_CC_TIMEOUT_12HRS		0x3	/* 12 Hrs */
-#define CNTL2_CHGLED_TYPEB		(1 << 4)
-#define CNTL2_CHG_OUT_TURNON		(1 << 5)
+#define CNTL2_CHGLED_TYPEB		BIT(4)
+#define CNTL2_CHG_OUT_TURNON		BIT(5)
 #define CNTL2_PC_TIMEOUT_MASK		0xC0
 #define CNTL2_PC_TIMEOUT_OFFSET		40	/* 40 mins */
 #define CNTL2_PC_TIMEOUT_LSB_RES	10	/* 10 mins */
 #define CNTL2_PC_TIMEOUT_70MINS		0x3
 
-#define CHRG_ILIM_TEMP_LOOP_EN		(1 << 3)
+#define CHRG_ILIM_TEMP_LOOP_EN		BIT(3)
 #define CHRG_VBUS_ILIM_MASK		0xf0
 #define CHRG_VBUS_ILIM_BIT_POS		4
 #define CHRG_VBUS_ILIM_100MA		0x0	/* 100mA */
@@ -94,7 +88,7 @@
 #define CHRG_VLTFC_0C			0xA5	/* 0 DegC */
 #define CHRG_VHTFC_45C			0x1F	/* 45 DegC */
 
-#define FG_CNTL_OCV_ADJ_EN		(1 << 3)
+#define FG_CNTL_OCV_ADJ_EN		BIT(3)
 
 #define CV_4100MV			4100	/* 4100mV */
 #define CV_4150MV			4150	/* 4150mV */
@@ -552,6 +546,55 @@ out:
 	return IRQ_HANDLED;
 }
 
+/*
+ * The HP Pavilion x2 10 series comes in a number of variants:
+ * Bay Trail SoC    + AXP288 PMIC, Micro-USB, DMI_BOARD_NAME: "8021"
+ * Bay Trail SoC    + AXP288 PMIC, Type-C,    DMI_BOARD_NAME: "815D"
+ * Cherry Trail SoC + AXP288 PMIC, Type-C,    DMI_BOARD_NAME: "813E"
+ * Cherry Trail SoC + TI PMIC,     Type-C,    DMI_BOARD_NAME: "827C" or "82F4"
+ *
+ * The variants with the AXP288 + Type-C connector are all kinds of special:
+ *
+ * 1. They use a Type-C connector which the AXP288 does not support, so when
+ * using a Type-C charger it is not recognized. Unlike most AXP288 devices,
+ * this model actually has mostly working ACPI AC / Battery code, the ACPI code
+ * "solves" this by simply setting the input_current_limit to 3A.
+ * There are still some issues with the ACPI code, so we use this native driver,
+ * and to solve the charging not working (500mA is not enough) issue we hardcode
+ * the 3A input_current_limit like the ACPI code does.
+ *
+ * 2. If no charger is connected the machine boots with the vbus-path disabled.
+ * Normally this is done when a 5V boost converter is active to avoid the PMIC
+ * trying to charge from the 5V boost converter's output. This is done when
+ * an OTG host cable is inserted and the ID pin on the micro-B receptacle is
+ * pulled low and the ID pin has an ACPI event handler associated with it
+ * which re-enables the vbus-path when the ID pin is pulled high when the
+ * OTG host cable is removed. The Type-C connector has no ID pin, there is
+ * no ID pin handler and there appears to be no 5V boost converter, so we
+ * end up not charging because the vbus-path is disabled, until we unplug
+ * the charger which automatically clears the vbus-path disable bit and then
+ * on the second plug-in of the adapter we start charging. To solve the not
+ * charging on first charger plugin we unconditionally enable the vbus-path at
+ * probe on this model, which is safe since there is no 5V boost converter.
+ */
+static const struct dmi_system_id axp288_hp_x2_dmi_ids[] = {
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "HP Pavilion x2 Detachable"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "815D"),
+		},
+	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "HP Pavilion x2 Detachable"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "813E"),
+		},
+	},
+	{} /* Terminating entry */
+};
+
 static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 {
 	struct axp288_chrg_info *info =
@@ -575,7 +618,11 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 	}
 
 	/* Determine cable/charger type */
-	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
+	if (dmi_check_system(axp288_hp_x2_dmi_ids)) {
+		/* See comment above axp288_hp_x2_dmi_ids declaration */
+		dev_dbg(&info->pdev->dev, "HP X2 with Type-C, setting inlmt to 3A\n");
+		current_limit = 3000000;
+	} else if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
 		dev_dbg(&info->pdev->dev, "USB SDP charger is connected\n");
 		current_limit = 500000;
 	} else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
@@ -690,6 +737,13 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 		dev_err(&info->pdev->dev, "register(%x) write error(%d)\n",
 						AXP20X_CC_CTRL, ret);
 		return ret;
+	}
+
+	if (dmi_check_system(axp288_hp_x2_dmi_ids)) {
+		/* See comment above axp288_hp_x2_dmi_ids declaration */
+		ret = axp288_charger_vbus_path_select(info, true);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* Read current charge voltage and current limit */
@@ -832,6 +886,9 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	/* Register charger interrupts */
 	for (i = 0; i < CHRG_INTR_END; i++) {
 		pirq = platform_get_irq(info->pdev, i);
+		if (pirq < 0)
+			return pirq;
+
 		info->irq[i] = regmap_irq_get_virq(info->regmap_irqc, pirq);
 		if (info->irq[i] < 0) {
 			dev_warn(&info->pdev->dev,

@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Arch specific extensions to struct device
- *
- * This file is released under the GPLv2
  */
 #ifndef _ASM_POWERPC_DEVICE_H
 #define _ASM_POWERPC_DEVICE_H
@@ -30,12 +29,6 @@ struct dev_archdata {
 	struct iommu_table	*iommu_table_base;
 #endif
 
-#ifdef CONFIG_IOMMU_API
-	void			*iommu_domain;
-#endif
-#ifdef CONFIG_SWIOTLB
-	dma_addr_t		max_direct_dma_addr;
-#endif
 #ifdef CONFIG_PPC64
 	struct pci_dn		*pci_data;
 #endif
@@ -48,12 +41,13 @@ struct dev_archdata {
 #ifdef CONFIG_CXL_BASE
 	struct cxl_context	*cxl_ctx;
 #endif
+#ifdef CONFIG_PCI_IOV
+	void *iov_data;
+#endif
 };
 
 struct pdev_archdata {
 	u64 dma_mask;
 };
-
-#define ARCH_HAS_DMA_GET_REQUIRED_MASK
 
 #endif /* _ASM_POWERPC_DEVICE_H */

@@ -71,14 +71,13 @@ struct usnic_uiom_reg {
 	int				writable;
 	struct list_head		chunk_list;
 	struct work_struct		work;
-	struct mm_struct		*mm;
-	unsigned long			diff;
+	struct mm_struct		*owning_mm;
 };
 
 struct usnic_uiom_chunk {
 	struct list_head		list;
 	int				nents;
-	struct scatterlist		page_list[0];
+	struct scatterlist		page_list[];
 };
 
 struct usnic_uiom_pd *usnic_uiom_alloc_pd(void);
@@ -91,8 +90,6 @@ void usnic_uiom_free_dev_list(struct device **devs);
 struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 						unsigned long addr, size_t size,
 						int access, int dmasync);
-void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr,
-			    struct ib_ucontext *ucontext);
+void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr);
 int usnic_uiom_init(char *drv_name);
-void usnic_uiom_fini(void);
 #endif /* USNIC_UIOM_H_ */

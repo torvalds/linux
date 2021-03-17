@@ -23,15 +23,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mm.h>
-#include <drm/drm_vma_manager.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+
+#include <drm/drm_mm.h>
+#include <drm/drm_vma_manager.h>
 
 /**
  * DOC: vma offset manager
@@ -103,10 +103,7 @@ EXPORT_SYMBOL(drm_vma_offset_manager_init);
  */
 void drm_vma_offset_manager_destroy(struct drm_vma_offset_manager *mgr)
 {
-	/* take the lock to protect against buggy drivers */
-	write_lock(&mgr->vm_lock);
 	drm_mm_takedown(&mgr->vm_addr_space_mm);
-	write_unlock(&mgr->vm_lock);
 }
 EXPORT_SYMBOL(drm_vma_offset_manager_destroy);
 

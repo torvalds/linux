@@ -25,11 +25,13 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr,
 		      unsigned long sz)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
-	pud = pud_alloc(mm, pgd, addr);
+	p4d = p4d_alloc(mm, pgd, addr);
+	pud = pud_alloc(mm, p4d, addr);
 	if (pud)
 		pte = (pte_t *)pmd_alloc(mm, pud, addr);
 
@@ -40,14 +42,18 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr,
 		       unsigned long sz)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd = NULL;
 
 	pgd = pgd_offset(mm, addr);
 	if (pgd_present(*pgd)) {
-		pud = pud_offset(pgd, addr);
-		if (pud_present(*pud))
-			pmd = pmd_offset(pud, addr);
+		p4d = p4d_offset(pgd, addr);
+		if (p4d_present(*p4d)) {
+			pud = pud_offset(p4d, addr);
+			if (pud_present(*pud))
+				pmd = pmd_offset(pud, addr);
+		}
 	}
 	return (pte_t *) pmd;
 }

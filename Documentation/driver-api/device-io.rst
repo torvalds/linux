@@ -36,14 +36,14 @@ are starting with one. Physical addresses are of type unsigned long.
 
 This address should not be used directly. Instead, to get an address
 suitable for passing to the accessor functions described below, you
-should call :c:func:`ioremap()`. An address suitable for accessing
+should call ioremap(). An address suitable for accessing
 the device will be returned to you.
 
 After you've finished using the device (say, in your module's exit
-routine), call :c:func:`iounmap()` in order to return the address
+routine), call iounmap() in order to return the address
 space to the kernel. Most architectures allocate new address space each
-time you call :c:func:`ioremap()`, and they can run out unless you
-call :c:func:`iounmap()`.
+time you call ioremap(), and they can run out unless you
+call iounmap().
 
 Accessing the device
 --------------------
@@ -60,8 +60,8 @@ readb_relaxed(), readw_relaxed(), readl_relaxed(), readq_relaxed(),
 writeb(), writew(), writel() and writeq().
 
 Some devices (such as framebuffers) would like to use larger transfers than
-8 bytes at a time. For these devices, the :c:func:`memcpy_toio()`,
-:c:func:`memcpy_fromio()` and :c:func:`memset_io()` functions are
+8 bytes at a time. For these devices, the memcpy_toio(),
+memcpy_fromio() and memset_io() functions are
 provided. Do not use memset or memcpy on IO addresses; they are not
 guaranteed to copy data in order.
 
@@ -103,51 +103,6 @@ continuing execution::
         ha->flags.ints_enabled = 0;
     }
 
-In addition to write posting, on some large multiprocessing systems
-(e.g. SGI Challenge, Origin and Altix machines) posted writes won't be
-strongly ordered coming from different CPUs. Thus it's important to
-properly protect parts of your driver that do memory-mapped writes with
-locks and use the :c:func:`mmiowb()` to make sure they arrive in the
-order intended. Issuing a regular readX() will also ensure write ordering,
-but should only be used when the 
-driver has to be sure that the write has actually arrived at the device
-(not that it's simply ordered with respect to other writes), since a
-full readX() is a relatively expensive operation.
-
-Generally, one should use :c:func:`mmiowb()` prior to releasing a spinlock
-that protects regions using :c:func:`writeb()` or similar functions that
-aren't surrounded by readb() calls, which will ensure ordering
-and flushing. The following pseudocode illustrates what might occur if
-write ordering isn't guaranteed via :c:func:`mmiowb()` or one of the
-readX() functions::
-
-    CPU A:  spin_lock_irqsave(&dev_lock, flags)
-    CPU A:  ...
-    CPU A:  writel(newval, ring_ptr);
-    CPU A:  spin_unlock_irqrestore(&dev_lock, flags)
-            ...
-    CPU B:  spin_lock_irqsave(&dev_lock, flags)
-    CPU B:  writel(newval2, ring_ptr);
-    CPU B:  ...
-    CPU B:  spin_unlock_irqrestore(&dev_lock, flags)
-
-In the case above, newval2 could be written to ring_ptr before newval.
-Fixing it is easy though::
-
-    CPU A:  spin_lock_irqsave(&dev_lock, flags)
-    CPU A:  ...
-    CPU A:  writel(newval, ring_ptr);
-    CPU A:  mmiowb(); /* ensure no other writes beat us to the device */
-    CPU A:  spin_unlock_irqrestore(&dev_lock, flags)
-            ...
-    CPU B:  spin_lock_irqsave(&dev_lock, flags)
-    CPU B:  writel(newval2, ring_ptr);
-    CPU B:  ...
-    CPU B:  mmiowb();
-    CPU B:  spin_unlock_irqrestore(&dev_lock, flags)
-
-See tg3.c for a real world example of how to use :c:func:`mmiowb()`
-
 PCI ordering rules also guarantee that PIO read responses arrive after any
 outstanding DMA writes from that bus, since for some devices the result of
 a readb() call may signal to the driver that a DMA transaction is
@@ -180,15 +135,15 @@ Accessing Port Space
 
 Accesses to this space are provided through a set of functions which
 allow 8-bit, 16-bit and 32-bit accesses; also known as byte, word and
-long. These functions are :c:func:`inb()`, :c:func:`inw()`,
-:c:func:`inl()`, :c:func:`outb()`, :c:func:`outw()` and
-:c:func:`outl()`.
+long. These functions are inb(), inw(),
+inl(), outb(), outw() and
+outl().
 
 Some variants are provided for these functions. Some devices require
 that accesses to their ports are slowed down. This functionality is
 provided by appending a ``_p`` to the end of the function.
-There are also equivalents to memcpy. The :c:func:`ins()` and
-:c:func:`outs()` functions copy bytes, words or longs to the given
+There are also equivalents to memcpy. The ins() and
+outs() functions copy bytes, words or longs to the given
 port.
 
 Public Functions Provided

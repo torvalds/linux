@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/usb-hcd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic USB Host Controller Device Tree Bindings
+
+maintainers:
+  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+allOf:
+  - $ref: usb.yaml#
+
+properties:
+  companion:
+    description: Phandle of a companion device
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+additionalProperties: true
+
+examples:
+  - |
+    usb {
+        phys = <&usb2_phy1>, <&usb3_phy1>;
+        phy-names = "usb";
+    };

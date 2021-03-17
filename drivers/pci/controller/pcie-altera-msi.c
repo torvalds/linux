@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -227,8 +228,7 @@ static int altera_msi_probe(struct platform_device *pdev)
 	mutex_init(&msi->lock);
 	msi->pdev = pdev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csr");
-	msi->csr_base = devm_ioremap_resource(&pdev->dev, res);
+	msi->csr_base = devm_platform_ioremap_resource_byname(pdev, "csr");
 	if (IS_ERR(msi->csr_base)) {
 		dev_err(&pdev->dev, "failed to map csr memory\n");
 		return PTR_ERR(msi->csr_base);
@@ -255,7 +255,6 @@ static int altera_msi_probe(struct platform_device *pdev)
 
 	msi->irq = platform_get_irq(pdev, 0);
 	if (msi->irq < 0) {
-		dev_err(&pdev->dev, "failed to map IRQ: %d\n", msi->irq);
 		ret = msi->irq;
 		goto err;
 	}
@@ -288,4 +287,13 @@ static int __init altera_msi_init(void)
 {
 	return platform_driver_register(&altera_msi_driver);
 }
+
+static void __exit altera_msi_exit(void)
+{
+	platform_driver_unregister(&altera_msi_driver);
+}
+
 subsys_initcall(altera_msi_init);
+MODULE_DEVICE_TABLE(of, altera_msi_of_match);
+module_exit(altera_msi_exit);
+MODULE_LICENSE("GPL v2");

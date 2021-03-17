@@ -13,9 +13,6 @@
 
 #define VDSO_VERSION_STRING	LINUX_2.6.15
 
-/* Define if 64 bits VDSO has procedure descriptors */
-#undef VDS64_HAS_DESCRIPTORS
-
 #ifndef __ASSEMBLY__
 
 /* Offsets relative to thread->vdso_base */
@@ -28,25 +25,6 @@ int vdso_getcpu_init(void);
 #else /* __ASSEMBLY__ */
 
 #ifdef __VDSO64__
-#ifdef VDS64_HAS_DESCRIPTORS
-#define V_FUNCTION_BEGIN(name)		\
-	.globl name;			\
-        .section ".opd","a";		\
-        .align 3;			\
-	name:				\
-	.quad .name,.TOC.@tocbase,0;	\
-	.previous;			\
-	.globl .name;			\
-	.type .name,@function; 		\
-	.name:				\
-
-#define V_FUNCTION_END(name)		\
-	.size .name,.-.name;
-
-#define V_LOCAL_FUNC(name) (.name)
-
-#else /* VDS64_HAS_DESCRIPTORS */
-
 #define V_FUNCTION_BEGIN(name)		\
 	.globl name;			\
 	name:				\
@@ -55,8 +33,6 @@ int vdso_getcpu_init(void);
 	.size name,.-name;
 
 #define V_LOCAL_FUNC(name) (name)
-
-#endif /* VDS64_HAS_DESCRIPTORS */
 #endif /* __VDSO64__ */
 
 #ifdef __VDSO32__

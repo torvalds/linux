@@ -1,9 +1,11 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+lib_dir=$(dirname $0)/../../../../net/forwarding
+
 NUM_NETIFS=6
-source ../../../../net/forwarding/lib.sh
-source ../../../../net/forwarding/tc_common.sh
+source $lib_dir/lib.sh
+source $lib_dir/tc_common.sh
 source devlink_lib_spectrum.sh
 
 current_test=""
@@ -20,7 +22,7 @@ cleanup()
 devlink_sp_read_kvd_defaults
 trap cleanup EXIT
 
-ALL_TESTS="router tc_flower mirror_gre"
+ALL_TESTS="router tc_flower mirror_gre tc_police"
 for current_test in ${TESTS:-$ALL_TESTS}; do
 	source ${current_test}_scale.sh
 

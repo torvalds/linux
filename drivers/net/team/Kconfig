@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig NET_TEAM
 	tristate "Ethernet team driver support"
-	---help---
+	help
 	  This allows one to create virtual interfaces that teams together
 	  multiple ethernet devices.
 
@@ -17,7 +18,7 @@ if NET_TEAM
 config NET_TEAM_MODE_BROADCAST
 	tristate "Broadcast mode support"
 	depends on NET_TEAM
-	---help---
+	help
 	  Basic mode where packets are transmitted always by all suitable ports.
 
 	  All added ports are setup to have team's device address.
@@ -28,7 +29,7 @@ config NET_TEAM_MODE_BROADCAST
 config NET_TEAM_MODE_ROUNDROBIN
 	tristate "Round-robin mode support"
 	depends on NET_TEAM
-	---help---
+	help
 	  Basic mode where port used for transmitting packets is selected in
 	  round-robin fashion using packet counter.
 
@@ -40,7 +41,7 @@ config NET_TEAM_MODE_ROUNDROBIN
 config NET_TEAM_MODE_RANDOM
 	tristate "Random mode support"
 	depends on NET_TEAM
-	---help---
+	help
 	  Basic mode where port used for transmitting packets is selected
 	  randomly.
 
@@ -52,7 +53,7 @@ config NET_TEAM_MODE_RANDOM
 config NET_TEAM_MODE_ACTIVEBACKUP
 	tristate "Active-backup mode support"
 	depends on NET_TEAM
-	---help---
+	help
 	  Only one port is active at a time and the rest of ports are used
 	  for backup.
 
@@ -65,7 +66,7 @@ config NET_TEAM_MODE_ACTIVEBACKUP
 config NET_TEAM_MODE_LOADBALANCE
 	tristate "Load-balance mode support"
 	depends on NET_TEAM
-	---help---
+	help
 	  This mode provides load balancing functionality. Tx port selection
 	  is done using BPF function set up from userspace (bpf_hash_func
 	  option)

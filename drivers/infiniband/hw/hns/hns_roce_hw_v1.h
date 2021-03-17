@@ -68,13 +68,13 @@
 #define HNS_ROCE_V1_COMP_EQE_NUM			0x8000
 #define HNS_ROCE_V1_ASYNC_EQE_NUM			0x400
 
-#define HNS_ROCE_V1_QPC_ENTRY_SIZE			256
+#define HNS_ROCE_V1_QPC_SIZE				256
 #define HNS_ROCE_V1_IRRL_ENTRY_SIZE			8
 #define HNS_ROCE_V1_CQC_ENTRY_SIZE			64
 #define HNS_ROCE_V1_MTPT_ENTRY_SIZE			64
 #define HNS_ROCE_V1_MTT_ENTRY_SIZE			64
 
-#define HNS_ROCE_V1_CQE_ENTRY_SIZE			32
+#define HNS_ROCE_V1_CQE_SIZE				32
 #define HNS_ROCE_V1_PAGE_SIZE_SUPPORT			0xFFFFF000
 
 #define HNS_ROCE_V1_TABLE_CHUNK_SIZE			(1 << 17)
@@ -110,11 +110,6 @@
 #define HNS_ROCE_V1_EXT_ODB_ALFUL	\
 	(HNS_ROCE_V1_EXT_ODB_DEPTH - HNS_ROCE_V1_DB_RSVD)
 
-#define HNS_ROCE_V1_DB_WAIT_OK				0
-#define HNS_ROCE_V1_DB_STAGE1				1
-#define HNS_ROCE_V1_DB_STAGE2				2
-#define HNS_ROCE_V1_CHECK_DB_TIMEOUT_MSECS		10000
-#define HNS_ROCE_V1_CHECK_DB_SLEEP_MSECS		20
 #define HNS_ROCE_V1_FREE_MR_TIMEOUT_MSECS		50000
 #define HNS_ROCE_V1_RECREATE_LP_QP_TIMEOUT_MSECS	10000
 #define HNS_ROCE_V1_FREE_MR_WAIT_VALUE			5
@@ -162,7 +157,6 @@
 #define SQ_PSN_SHIFT					8
 #define QKEY_VAL					0x80010000
 #define SDB_INV_CNT_OFFSET				8
-#define SDB_ST_CMP_VAL					8
 
 #define HNS_ROCE_CEQ_DEFAULT_INTERVAL			0x10
 #define HNS_ROCE_CEQ_DEFAULT_BURST_NUM			0x10
@@ -1068,11 +1062,6 @@ struct hns_roce_qp_work {
 	u32	sche_cnt;
 };
 
-struct hns_roce_des_qp {
-	struct workqueue_struct	*qp_wq;
-	int	requeue_flag;
-};
-
 struct hns_roce_mr_free_work {
 	struct	work_struct work;
 	struct	ib_device *ib_dev;
@@ -1100,12 +1089,11 @@ struct hns_roce_v1_priv {
 	struct hns_roce_raq_table raq_table;
 	struct hns_roce_bt_table  bt_table;
 	struct hns_roce_tptr_table tptr_table;
-	struct hns_roce_des_qp des_qp;
 	struct hns_roce_free_mr free_mr;
 };
 
 int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
 int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int hns_roce_v1_destroy_qp(struct ib_qp *ibqp);
+int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
 #endif

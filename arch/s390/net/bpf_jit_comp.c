@@ -23,6 +23,8 @@
 #include <linux/filter.h>
 #include <linux/init.h>
 #include <linux/bpf.h>
+#include <linux/mm.h>
+#include <linux/kernel.h>
 #include <asm/cacheflush.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
@@ -38,25 +40,22 @@ struct bpf_jit {
 	int size;		/* Size of program and literal pool */
 	int size_prg;		/* Size of program */
 	int prg;		/* Current position in program */
-	int lit_start;		/* Start of literal pool */
-	int lit;		/* Current position in literal pool */
+	int lit32_start;	/* Start of 32-bit literal pool */
+	int lit32;		/* Current position in 32-bit literal pool */
+	int lit64_start;	/* Start of 64-bit literal pool */
+	int lit64;		/* Current position in 64-bit literal pool */
 	int base_ip;		/* Base address for literal pool */
-	int ret0_ip;		/* Address of return 0 */
 	int exit_ip;		/* Address of exit */
 	int r1_thunk_ip;	/* Address of expoline thunk for 'br %r1' */
 	int r14_thunk_ip;	/* Address of expoline thunk for 'br %r14' */
 	int tail_call_start;	/* Tail call start offset */
-	int labels[1];		/* Labels for local jumps */
+	int excnt;		/* Number of exception table entries */
 };
 
-#define BPF_SIZE_MAX	0xffff	/* Max size for program (16 bit branches) */
-
-#define SEEN_MEM	(1 << 0)	/* use mem[] for temporary storage */
-#define SEEN_RET0	(1 << 1)	/* ret0_ip points to a valid return 0 */
-#define SEEN_LITERAL	(1 << 2)	/* code uses literals */
-#define SEEN_FUNC	(1 << 3)	/* calls C functions */
-#define SEEN_TAIL_CALL	(1 << 4)	/* code uses tail calls */
-#define SEEN_REG_AX	(1 << 5)	/* code uses constant blinding */
+#define SEEN_MEM	BIT(0)		/* use mem[] for temporary storage */
+#define SEEN_LITERAL	BIT(1)		/* code uses literals */
+#define SEEN_FUNC	BIT(2)		/* calls C functions */
+#define SEEN_TAIL_CALL	BIT(3)		/* code uses tail calls */
 #define SEEN_STACK	(SEEN_FUNC | SEEN_MEM)
 
 /*
@@ -131,13 +130,13 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 #define _EMIT2(op)						\
 ({								\
 	if (jit->prg_buf)					\
-		*(u16 *) (jit->prg_buf + jit->prg) = op;	\
+		*(u16 *) (jit->prg_buf + jit->prg) = (op);	\
 	jit->prg += 2;						\
 })
 
 #define EMIT2(op, b1, b2)					\
 ({								\
-	_EMIT2(op | reg(b1, b2));				\
+	_EMIT2((op) | reg(b1, b2));				\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 })
@@ -145,20 +144,20 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 #define _EMIT4(op)						\
 ({								\
 	if (jit->prg_buf)					\
-		*(u32 *) (jit->prg_buf + jit->prg) = op;	\
+		*(u32 *) (jit->prg_buf + jit->prg) = (op);	\
 	jit->prg += 4;						\
 })
 
 #define EMIT4(op, b1, b2)					\
 ({								\
-	_EMIT4(op | reg(b1, b2));				\
+	_EMIT4((op) | reg(b1, b2));				\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 })
 
 #define EMIT4_RRF(op, b1, b2, b3)				\
 ({								\
-	_EMIT4(op | reg_high(b3) << 8 | reg(b1, b2));		\
+	_EMIT4((op) | reg_high(b3) << 8 | reg(b1, b2));		\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 	REG_SET_SEEN(b3);					\
@@ -167,13 +166,13 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 #define _EMIT4_DISP(op, disp)					\
 ({								\
 	unsigned int __disp = (disp) & 0xfff;			\
-	_EMIT4(op | __disp);					\
+	_EMIT4((op) | __disp);					\
 })
 
 #define EMIT4_DISP(op, b1, b2, disp)				\
 ({								\
-	_EMIT4_DISP(op | reg_high(b1) << 16 |			\
-		    reg_high(b2) << 8, disp);			\
+	_EMIT4_DISP((op) | reg_high(b1) << 16 |			\
+		    reg_high(b2) << 8, (disp));			\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 })
@@ -181,21 +180,27 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 #define EMIT4_IMM(op, b1, imm)					\
 ({								\
 	unsigned int __imm = (imm) & 0xffff;			\
-	_EMIT4(op | reg_high(b1) << 16 | __imm);		\
+	_EMIT4((op) | reg_high(b1) << 16 | __imm);		\
 	REG_SET_SEEN(b1);					\
 })
 
 #define EMIT4_PCREL(op, pcrel)					\
 ({								\
 	long __pcrel = ((pcrel) >> 1) & 0xffff;			\
-	_EMIT4(op | __pcrel);					\
+	_EMIT4((op) | __pcrel);					\
+})
+
+#define EMIT4_PCREL_RIC(op, mask, target)			\
+({								\
+	int __rel = ((target) - jit->prg) / 2;			\
+	_EMIT4((op) | (mask) << 20 | (__rel & 0xffff));		\
 })
 
 #define _EMIT6(op1, op2)					\
 ({								\
 	if (jit->prg_buf) {					\
-		*(u32 *) (jit->prg_buf + jit->prg) = op1;	\
-		*(u16 *) (jit->prg_buf + jit->prg + 4) = op2;	\
+		*(u32 *) (jit->prg_buf + jit->prg) = (op1);	\
+		*(u16 *) (jit->prg_buf + jit->prg + 4) = (op2);	\
 	}							\
 	jit->prg += 6;						\
 })
@@ -203,106 +208,184 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 #define _EMIT6_DISP(op1, op2, disp)				\
 ({								\
 	unsigned int __disp = (disp) & 0xfff;			\
-	_EMIT6(op1 | __disp, op2);				\
+	_EMIT6((op1) | __disp, op2);				\
 })
 
 #define _EMIT6_DISP_LH(op1, op2, disp)				\
 ({								\
-	u32 _disp = (u32) disp;					\
+	u32 _disp = (u32) (disp);				\
 	unsigned int __disp_h = _disp & 0xff000;		\
 	unsigned int __disp_l = _disp & 0x00fff;		\
-	_EMIT6(op1 | __disp_l, op2 | __disp_h >> 4);		\
+	_EMIT6((op1) | __disp_l, (op2) | __disp_h >> 4);	\
 })
 
 #define EMIT6_DISP_LH(op1, op2, b1, b2, b3, disp)		\
 ({								\
-	_EMIT6_DISP_LH(op1 | reg(b1, b2) << 16 |		\
+	_EMIT6_DISP_LH((op1) | reg(b1, b2) << 16 |		\
 		       reg_high(b3) << 8, op2, disp);		\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 	REG_SET_SEEN(b3);					\
 })
 
-#define EMIT6_PCREL_LABEL(op1, op2, b1, b2, label, mask)	\
+#define EMIT6_PCREL_RIEB(op1, op2, b1, b2, mask, target)	\
 ({								\
-	int rel = (jit->labels[label] - jit->prg) >> 1;		\
-	_EMIT6(op1 | reg(b1, b2) << 16 | (rel & 0xffff),	\
-	       op2 | mask << 12);				\
+	unsigned int rel = (int)((target) - jit->prg) / 2;	\
+	_EMIT6((op1) | reg(b1, b2) << 16 | (rel & 0xffff),	\
+	       (op2) | (mask) << 12);				\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 })
 
-#define EMIT6_PCREL_IMM_LABEL(op1, op2, b1, imm, label, mask)	\
+#define EMIT6_PCREL_RIEC(op1, op2, b1, imm, mask, target)	\
 ({								\
-	int rel = (jit->labels[label] - jit->prg) >> 1;		\
-	_EMIT6(op1 | (reg_high(b1) | mask) << 16 |		\
-		(rel & 0xffff), op2 | (imm & 0xff) << 8);	\
+	unsigned int rel = (int)((target) - jit->prg) / 2;	\
+	_EMIT6((op1) | (reg_high(b1) | (mask)) << 16 |		\
+		(rel & 0xffff), (op2) | ((imm) & 0xff) << 8);	\
 	REG_SET_SEEN(b1);					\
-	BUILD_BUG_ON(((unsigned long) imm) > 0xff);		\
+	BUILD_BUG_ON(((unsigned long) (imm)) > 0xff);		\
 })
 
 #define EMIT6_PCREL(op1, op2, b1, b2, i, off, mask)		\
 ({								\
 	/* Branch instruction needs 6 bytes */			\
-	int rel = (addrs[i + off + 1] - (addrs[i + 1] - 6)) / 2;\
-	_EMIT6(op1 | reg(b1, b2) << 16 | (rel & 0xffff), op2 | mask);	\
+	int rel = (addrs[(i) + (off) + 1] - (addrs[(i) + 1] - 6)) / 2;\
+	_EMIT6((op1) | reg(b1, b2) << 16 | (rel & 0xffff), (op2) | (mask));\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 })
 
 #define EMIT6_PCREL_RILB(op, b, target)				\
 ({								\
-	int rel = (target - jit->prg) / 2;			\
-	_EMIT6(op | reg_high(b) << 16 | rel >> 16, rel & 0xffff);	\
+	unsigned int rel = (int)((target) - jit->prg) / 2;	\
+	_EMIT6((op) | reg_high(b) << 16 | rel >> 16, rel & 0xffff);\
 	REG_SET_SEEN(b);					\
 })
 
 #define EMIT6_PCREL_RIL(op, target)				\
 ({								\
-	int rel = (target - jit->prg) / 2;			\
-	_EMIT6(op | rel >> 16, rel & 0xffff);			\
+	unsigned int rel = (int)((target) - jit->prg) / 2;	\
+	_EMIT6((op) | rel >> 16, rel & 0xffff);			\
+})
+
+#define EMIT6_PCREL_RILC(op, mask, target)			\
+({								\
+	EMIT6_PCREL_RIL((op) | (mask) << 20, (target));		\
 })
 
 #define _EMIT6_IMM(op, imm)					\
 ({								\
 	unsigned int __imm = (imm);				\
-	_EMIT6(op | (__imm >> 16), __imm & 0xffff);		\
+	_EMIT6((op) | (__imm >> 16), __imm & 0xffff);		\
 })
 
 #define EMIT6_IMM(op, b1, imm)					\
 ({								\
-	_EMIT6_IMM(op | reg_high(b1) << 16, imm);		\
+	_EMIT6_IMM((op) | reg_high(b1) << 16, imm);		\
 	REG_SET_SEEN(b1);					\
+})
+
+#define _EMIT_CONST_U32(val)					\
+({								\
+	unsigned int ret;					\
+	ret = jit->lit32;					\
+	if (jit->prg_buf)					\
+		*(u32 *)(jit->prg_buf + jit->lit32) = (u32)(val);\
+	jit->lit32 += 4;					\
+	ret;							\
 })
 
 #define EMIT_CONST_U32(val)					\
 ({								\
-	unsigned int ret;					\
-	ret = jit->lit - jit->base_ip;				\
 	jit->seen |= SEEN_LITERAL;				\
+	_EMIT_CONST_U32(val) - jit->base_ip;			\
+})
+
+#define _EMIT_CONST_U64(val)					\
+({								\
+	unsigned int ret;					\
+	ret = jit->lit64;					\
 	if (jit->prg_buf)					\
-		*(u32 *) (jit->prg_buf + jit->lit) = (u32) val;	\
-	jit->lit += 4;						\
+		*(u64 *)(jit->prg_buf + jit->lit64) = (u64)(val);\
+	jit->lit64 += 8;					\
 	ret;							\
 })
 
 #define EMIT_CONST_U64(val)					\
 ({								\
-	unsigned int ret;					\
-	ret = jit->lit - jit->base_ip;				\
 	jit->seen |= SEEN_LITERAL;				\
-	if (jit->prg_buf)					\
-		*(u64 *) (jit->prg_buf + jit->lit) = (u64) val;	\
-	jit->lit += 8;						\
-	ret;							\
+	_EMIT_CONST_U64(val) - jit->base_ip;			\
 })
 
 #define EMIT_ZERO(b1)						\
 ({								\
-	/* llgfr %dst,%dst (zero extend to 64 bit) */		\
-	EMIT4(0xb9160000, b1, b1);				\
-	REG_SET_SEEN(b1);					\
+	if (!fp->aux->verifier_zext) {				\
+		/* llgfr %dst,%dst (zero extend to 64 bit) */	\
+		EMIT4(0xb9160000, b1, b1);			\
+		REG_SET_SEEN(b1);				\
+	}							\
 })
+
+/*
+ * Return whether this is the first pass. The first pass is special, since we
+ * don't know any sizes yet, and thus must be conservative.
+ */
+static bool is_first_pass(struct bpf_jit *jit)
+{
+	return jit->size == 0;
+}
+
+/*
+ * Return whether this is the code generation pass. The code generation pass is
+ * special, since we should change as little as possible.
+ */
+static bool is_codegen_pass(struct bpf_jit *jit)
+{
+	return jit->prg_buf;
+}
+
+/*
+ * Return whether "rel" can be encoded as a short PC-relative offset
+ */
+static bool is_valid_rel(int rel)
+{
+	return rel >= -65536 && rel <= 65534;
+}
+
+/*
+ * Return whether "off" can be reached using a short PC-relative offset
+ */
+static bool can_use_rel(struct bpf_jit *jit, int off)
+{
+	return is_valid_rel(off - jit->prg);
+}
+
+/*
+ * Return whether given displacement can be encoded using
+ * Long-Displacement Facility
+ */
+static bool is_valid_ldisp(int disp)
+{
+	return disp >= -524288 && disp <= 524287;
+}
+
+/*
+ * Return whether the next 32-bit literal pool entry can be referenced using
+ * Long-Displacement Facility
+ */
+static bool can_use_ldisp_for_lit32(struct bpf_jit *jit)
+{
+	return is_valid_ldisp(jit->lit32 - jit->base_ip);
+}
+
+/*
+ * Return whether the next 64-bit literal pool entry can be referenced using
+ * Long-Displacement Facility
+ */
+static bool can_use_ldisp_for_lit64(struct bpf_jit *jit)
+{
+	return is_valid_ldisp(jit->lit64 - jit->base_ip);
+}
 
 /*
  * Fill whole space with illegal instructions
@@ -381,8 +464,17 @@ static int get_end(struct bpf_jit *jit, int start)
  */
 static void save_restore_regs(struct bpf_jit *jit, int op, u32 stack_depth)
 {
-
+	const int last = 15, save_restore_size = 6;
 	int re = 6, rs;
+
+	if (is_first_pass(jit)) {
+		/*
+		 * We don't know yet which registers are used. Reserve space
+		 * conservatively.
+		 */
+		jit->prg += (last - re + 1) * save_restore_size;
+		return;
+	}
 
 	do {
 		rs = get_start(jit, re);
@@ -394,7 +486,25 @@ static void save_restore_regs(struct bpf_jit *jit, int op, u32 stack_depth)
 		else
 			restore_regs(jit, rs, re, stack_depth);
 		re++;
-	} while (re <= 15);
+	} while (re <= last);
+}
+
+static void bpf_skip(struct bpf_jit *jit, int size)
+{
+	if (size >= 6 && !is_valid_rel(size)) {
+		/* brcl 0xf,size */
+		EMIT6_PCREL_RIL(0xc0f4000000, size);
+		size -= 6;
+	} else if (size >= 4 && is_valid_rel(size)) {
+		/* brc 0xf,size */
+		EMIT4_PCREL(0xa7f40000, size);
+		size -= 4;
+	}
+	while (size >= 2) {
+		/* bcr 0,%0 */
+		_EMIT2(0x0700);
+		size -= 2;
+	}
 }
 
 /*
@@ -409,30 +519,39 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 		/* xc STK_OFF_TCCNT(4,%r15),STK_OFF_TCCNT(%r15) */
 		_EMIT6(0xd703f000 | STK_OFF_TCCNT, 0xf000 | STK_OFF_TCCNT);
 	} else {
-		/* j tail_call_start: NOP if no tail calls are used */
-		EMIT4_PCREL(0xa7f40000, 6);
-		_EMIT2(0);
+		/*
+		 * There are no tail calls. Insert nops in order to have
+		 * tail_call_start at a predictable offset.
+		 */
+		bpf_skip(jit, 6);
 	}
 	/* Tail calls have to skip above initialization */
 	jit->tail_call_start = jit->prg;
 	/* Save registers */
 	save_restore_regs(jit, REGS_SAVE, stack_depth);
 	/* Setup literal pool */
-	if (jit->seen & SEEN_LITERAL) {
-		/* basr %r13,0 */
-		EMIT2(0x0d00, REG_L, REG_0);
-		jit->base_ip = jit->prg;
+	if (is_first_pass(jit) || (jit->seen & SEEN_LITERAL)) {
+		if (!is_first_pass(jit) &&
+		    is_valid_ldisp(jit->size - (jit->prg + 2))) {
+			/* basr %l,0 */
+			EMIT2(0x0d00, REG_L, REG_0);
+			jit->base_ip = jit->prg;
+		} else {
+			/* larl %l,lit32_start */
+			EMIT6_PCREL_RILB(0xc0000000, REG_L, jit->lit32_start);
+			jit->base_ip = jit->lit32_start;
+		}
 	}
 	/* Setup stack and backchain */
-	if (jit->seen & SEEN_STACK) {
-		if (jit->seen & SEEN_FUNC)
+	if (is_first_pass(jit) || (jit->seen & SEEN_STACK)) {
+		if (is_first_pass(jit) || (jit->seen & SEEN_FUNC))
 			/* lgr %w1,%r15 (backchain) */
 			EMIT4(0xb9040000, REG_W1, REG_15);
 		/* la %bfp,STK_160_UNUSED(%r15) (BPF frame pointer) */
 		EMIT4_DISP(0x41000000, BPF_REG_FP, REG_15, STK_160_UNUSED);
 		/* aghi %r15,-STK_OFF */
 		EMIT4_IMM(0xa70b0000, REG_15, -(STK_OFF + stack_depth));
-		if (jit->seen & SEEN_FUNC)
+		if (is_first_pass(jit) || (jit->seen & SEEN_FUNC))
 			/* stg %w1,152(%r15) (backchain) */
 			EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0,
 				      REG_15, 152);
@@ -444,18 +563,12 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
  */
 static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 {
-	/* Return 0 */
-	if (jit->seen & SEEN_RET0) {
-		jit->ret0_ip = jit->prg;
-		/* lghi %b0,0 */
-		EMIT4_IMM(0xa7090000, BPF_REG_0, 0);
-	}
 	jit->exit_ip = jit->prg;
 	/* Load exit code: lgr %r2,%b0 */
 	EMIT4(0xb9040000, REG_2, BPF_REG_0);
 	/* Restore registers */
 	save_restore_regs(jit, REGS_RESTORE, stack_depth);
-	if (IS_ENABLED(CC_USING_EXPOLINE) && !nospec_disable) {
+	if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable) {
 		jit->r14_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r14 thunk */
 		if (test_facility(35)) {
@@ -473,8 +586,8 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	/* br %r14 */
 	_EMIT2(0x07fe);
 
-	if (IS_ENABLED(CC_USING_EXPOLINE) && !nospec_disable &&
-	    (jit->seen & SEEN_FUNC)) {
+	if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable &&
+	    (is_first_pass(jit) || (jit->seen & SEEN_FUNC))) {
 		jit->r1_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r1 thunk */
 		if (test_facility(35)) {
@@ -494,25 +607,109 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	}
 }
 
+static int get_probe_mem_regno(const u8 *insn)
+{
+	/*
+	 * insn must point to llgc, llgh, llgf or lg, which have destination
+	 * register at the same position.
+	 */
+	if (insn[0] != 0xe3) /* common llgc, llgh, llgf and lg prefix */
+		return -1;
+	if (insn[5] != 0x90 && /* llgc */
+	    insn[5] != 0x91 && /* llgh */
+	    insn[5] != 0x16 && /* llgf */
+	    insn[5] != 0x04) /* lg */
+		return -1;
+	return insn[1] >> 4;
+}
+
+static bool ex_handler_bpf(const struct exception_table_entry *x,
+			   struct pt_regs *regs)
+{
+	int regno;
+	u8 *insn;
+
+	regs->psw.addr = extable_fixup(x);
+	insn = (u8 *)__rewind_psw(regs->psw, regs->int_code >> 16);
+	regno = get_probe_mem_regno(insn);
+	if (WARN_ON_ONCE(regno < 0))
+		/* JIT bug - unexpected instruction. */
+		return false;
+	regs->gprs[regno] = 0;
+	return true;
+}
+
+static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
+			     int probe_prg, int nop_prg)
+{
+	struct exception_table_entry *ex;
+	s64 delta;
+	u8 *insn;
+	int prg;
+	int i;
+
+	if (!fp->aux->extable)
+		/* Do nothing during early JIT passes. */
+		return 0;
+	insn = jit->prg_buf + probe_prg;
+	if (WARN_ON_ONCE(get_probe_mem_regno(insn) < 0))
+		/* JIT bug - unexpected probe instruction. */
+		return -1;
+	if (WARN_ON_ONCE(probe_prg + insn_length(*insn) != nop_prg))
+		/* JIT bug - gap between probe and nop instructions. */
+		return -1;
+	for (i = 0; i < 2; i++) {
+		if (WARN_ON_ONCE(jit->excnt >= fp->aux->num_exentries))
+			/* Verifier bug - not enough entries. */
+			return -1;
+		ex = &fp->aux->extable[jit->excnt];
+		/* Add extable entries for probe and nop instructions. */
+		prg = i == 0 ? probe_prg : nop_prg;
+		delta = jit->prg_buf + prg - (u8 *)&ex->insn;
+		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
+			/* JIT bug - code and extable must be close. */
+			return -1;
+		ex->insn = delta;
+		/*
+		 * Always land on the nop. Note that extable infrastructure
+		 * ignores fixup field, it is handled by ex_handler_bpf().
+		 */
+		delta = jit->prg_buf + nop_prg - (u8 *)&ex->fixup;
+		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
+			/* JIT bug - landing pad and extable must be close. */
+			return -1;
+		ex->fixup = delta;
+		ex->handler = (u8 *)ex_handler_bpf - (u8 *)&ex->handler;
+		jit->excnt++;
+	}
+	return 0;
+}
+
 /*
  * Compile one eBPF instruction into s390x code
  *
  * NOTE: Use noinline because for gcov (-fprofile-arcs) gcc allocates a lot of
  * stack space for the large switch statement.
  */
-static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
+static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
+				 int i, bool extra_pass, u32 stack_depth)
 {
 	struct bpf_insn *insn = &fp->insnsi[i];
-	int jmp_off, last, insn_count = 1;
 	u32 dst_reg = insn->dst_reg;
 	u32 src_reg = insn->src_reg;
+	int last, insn_count = 1;
 	u32 *addrs = jit->addrs;
 	s32 imm = insn->imm;
 	s16 off = insn->off;
+	int probe_prg = -1;
 	unsigned int mask;
+	int nop_prg;
+	int err;
 
-	if (dst_reg == BPF_REG_AX || src_reg == BPF_REG_AX)
-		jit->seen |= SEEN_REG_AX;
+	if (BPF_CLASS(insn->code) == BPF_LDX &&
+	    BPF_MODE(insn->code) == BPF_PROBE_MEM)
+		probe_prg = jit->prg;
+
 	switch (insn->code) {
 	/*
 	 * BPF_MOV
@@ -520,6 +717,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	case BPF_ALU | BPF_MOV | BPF_X: /* dst = (u32) src */
 		/* llgfr %dst,%src */
 		EMIT4(0xb9160000, dst_reg, src_reg);
+		if (insn_is_zext(&insn[1]))
+			insn_count = 2;
 		break;
 	case BPF_ALU64 | BPF_MOV | BPF_X: /* dst = src */
 		/* lgr %dst,%src */
@@ -528,6 +727,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	case BPF_ALU | BPF_MOV | BPF_K: /* dst = (u32) imm */
 		/* llilf %dst,imm */
 		EMIT6_IMM(0xc00f0000, dst_reg, imm);
+		if (insn_is_zext(&insn[1]))
+			insn_count = 2;
 		break;
 	case BPF_ALU64 | BPF_MOV | BPF_K: /* dst = imm */
 		/* lgfi %dst,imm */
@@ -542,9 +743,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		u64 imm64;
 
 		imm64 = (u64)(u32) insn[0].imm | ((u64)(u32) insn[1].imm) << 32;
-		/* lg %dst,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0004, dst_reg, REG_0, REG_L,
-			      EMIT_CONST_U64(imm64));
+		/* lgrl %dst,imm */
+		EMIT6_PCREL_RILB(0xc4080000, dst_reg, _EMIT_CONST_U64(imm64));
 		insn_count = 2;
 		break;
 	}
@@ -639,6 +839,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT4(0xb9970000, REG_W0, src_reg);
 		/* llgfr %dst,%rc */
 		EMIT4(0xb9160000, dst_reg, rc_reg);
+		if (insn_is_zext(&insn[1]))
+			insn_count = 2;
 		break;
 	}
 	case BPF_ALU64 | BPF_DIV | BPF_X: /* dst = dst / src */
@@ -671,11 +873,22 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT4_IMM(0xa7080000, REG_W0, 0);
 		/* lr %w1,%dst */
 		EMIT2(0x1800, REG_W1, dst_reg);
-		/* dl %w0,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0097, REG_W0, REG_0, REG_L,
-			      EMIT_CONST_U32(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit32(jit)) {
+			/* dl %w0,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0097, REG_W0, REG_0, REG_L,
+				      EMIT_CONST_U32(imm));
+		} else {
+			/* lgfrl %dst,imm */
+			EMIT6_PCREL_RILB(0xc40c0000, dst_reg,
+					 _EMIT_CONST_U32(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* dlr %w0,%dst */
+			EMIT4(0xb9970000, REG_W0, dst_reg);
+		}
 		/* llgfr %dst,%rc */
 		EMIT4(0xb9160000, dst_reg, rc_reg);
+		if (insn_is_zext(&insn[1]))
+			insn_count = 2;
 		break;
 	}
 	case BPF_ALU64 | BPF_DIV | BPF_K: /* dst = dst / imm */
@@ -693,9 +906,18 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT4_IMM(0xa7090000, REG_W0, 0);
 		/* lgr %w1,%dst */
 		EMIT4(0xb9040000, REG_W1, dst_reg);
-		/* dlg %w0,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0087, REG_W0, REG_0, REG_L,
-			      EMIT_CONST_U64(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit64(jit)) {
+			/* dlg %w0,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0087, REG_W0, REG_0, REG_L,
+				      EMIT_CONST_U64(imm));
+		} else {
+			/* lgrl %dst,imm */
+			EMIT6_PCREL_RILB(0xc4080000, dst_reg,
+					 _EMIT_CONST_U64(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* dlgr %w0,%dst */
+			EMIT4(0xb9870000, REG_W0, dst_reg);
+		}
 		/* lgr %dst,%rc */
 		EMIT4(0xb9040000, dst_reg, rc_reg);
 		break;
@@ -718,9 +940,19 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_AND | BPF_K: /* dst = dst & imm */
-		/* ng %dst,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0080, dst_reg, REG_0, REG_L,
-			      EMIT_CONST_U64(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit64(jit)) {
+			/* ng %dst,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0080,
+				      dst_reg, REG_0, REG_L,
+				      EMIT_CONST_U64(imm));
+		} else {
+			/* lgrl %w0,imm */
+			EMIT6_PCREL_RILB(0xc4080000, REG_W0,
+					 _EMIT_CONST_U64(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* ngr %dst,%w0 */
+			EMIT4(0xb9800000, dst_reg, REG_W0);
+		}
 		break;
 	/*
 	 * BPF_OR
@@ -740,9 +972,19 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_OR | BPF_K: /* dst = dst | imm */
-		/* og %dst,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0081, dst_reg, REG_0, REG_L,
-			      EMIT_CONST_U64(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit64(jit)) {
+			/* og %dst,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0081,
+				      dst_reg, REG_0, REG_L,
+				      EMIT_CONST_U64(imm));
+		} else {
+			/* lgrl %w0,imm */
+			EMIT6_PCREL_RILB(0xc4080000, REG_W0,
+					 _EMIT_CONST_U64(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* ogr %dst,%w0 */
+			EMIT4(0xb9810000, dst_reg, REG_W0);
+		}
 		break;
 	/*
 	 * BPF_XOR
@@ -764,9 +1006,19 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_XOR | BPF_K: /* dst = dst ^ imm */
-		/* xg %dst,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0082, dst_reg, REG_0, REG_L,
-			      EMIT_CONST_U64(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit64(jit)) {
+			/* xg %dst,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0082,
+				      dst_reg, REG_0, REG_L,
+				      EMIT_CONST_U64(imm));
+		} else {
+			/* lgrl %w0,imm */
+			EMIT6_PCREL_RILB(0xc4080000, REG_W0,
+					 _EMIT_CONST_U64(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* xgr %dst,%w0 */
+			EMIT4(0xb9820000, dst_reg, REG_W0);
+		}
 		break;
 	/*
 	 * BPF_LSH
@@ -821,9 +1073,21 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	/*
 	 * BPF_ARSH
 	 */
+	case BPF_ALU | BPF_ARSH | BPF_X: /* ((s32) dst) >>= src */
+		/* sra %dst,%dst,0(%src) */
+		EMIT4_DISP(0x8a000000, dst_reg, src_reg, 0);
+		EMIT_ZERO(dst_reg);
+		break;
 	case BPF_ALU64 | BPF_ARSH | BPF_X: /* ((s64) dst) >>= src */
 		/* srag %dst,%dst,0(%src) */
 		EMIT6_DISP_LH(0xeb000000, 0x000a, dst_reg, dst_reg, src_reg, 0);
+		break;
+	case BPF_ALU | BPF_ARSH | BPF_K: /* ((s32) dst >> imm */
+		if (imm == 0)
+			break;
+		/* sra %dst,imm(%r0) */
+		EMIT4_DISP(0x8a000000, dst_reg, REG_0, imm);
+		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_ARSH | BPF_K: /* ((s64) dst) >>= imm */
 		if (imm == 0)
@@ -841,7 +1105,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		break;
 	case BPF_ALU64 | BPF_NEG: /* dst = -dst */
 		/* lcgr %dst,%dst */
-		EMIT4(0xb9130000, dst_reg, dst_reg);
+		EMIT4(0xb9030000, dst_reg, dst_reg);
 		break;
 	/*
 	 * BPF_FROM_BE/LE
@@ -852,10 +1116,13 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		case 16: /* dst = (u16) cpu_to_be16(dst) */
 			/* llghr %dst,%dst */
 			EMIT4(0xb9850000, dst_reg, dst_reg);
+			if (insn_is_zext(&insn[1]))
+				insn_count = 2;
 			break;
 		case 32: /* dst = (u32) cpu_to_be32(dst) */
-			/* llgfr %dst,%dst */
-			EMIT4(0xb9160000, dst_reg, dst_reg);
+			if (!fp->aux->verifier_zext)
+				/* llgfr %dst,%dst */
+				EMIT4(0xb9160000, dst_reg, dst_reg);
 			break;
 		case 64: /* dst = (u64) cpu_to_be64(dst) */
 			break;
@@ -870,12 +1137,15 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 			EMIT4_DISP(0x88000000, dst_reg, REG_0, 16);
 			/* llghr %dst,%dst */
 			EMIT4(0xb9850000, dst_reg, dst_reg);
+			if (insn_is_zext(&insn[1]))
+				insn_count = 2;
 			break;
 		case 32: /* dst = (u32) cpu_to_le32(dst) */
 			/* lrvr %dst,%dst */
 			EMIT4(0xb91f0000, dst_reg, dst_reg);
-			/* llgfr %dst,%dst */
-			EMIT4(0xb9160000, dst_reg, dst_reg);
+			if (!fp->aux->verifier_zext)
+				/* llgfr %dst,%dst */
+				EMIT4(0xb9160000, dst_reg, dst_reg);
 			break;
 		case 64: /* dst = (u64) cpu_to_le64(dst) */
 			/* lrvgr %dst,%dst */
@@ -953,21 +1223,31 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	 * BPF_LDX
 	 */
 	case BPF_LDX | BPF_MEM | BPF_B: /* dst = *(u8 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEM | BPF_B:
 		/* llgc %dst,0(off,%src) */
 		EMIT6_DISP_LH(0xe3000000, 0x0090, dst_reg, src_reg, REG_0, off);
 		jit->seen |= SEEN_MEM;
+		if (insn_is_zext(&insn[1]))
+			insn_count = 2;
 		break;
 	case BPF_LDX | BPF_MEM | BPF_H: /* dst = *(u16 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
 		/* llgh %dst,0(off,%src) */
 		EMIT6_DISP_LH(0xe3000000, 0x0091, dst_reg, src_reg, REG_0, off);
 		jit->seen |= SEEN_MEM;
+		if (insn_is_zext(&insn[1]))
+			insn_count = 2;
 		break;
 	case BPF_LDX | BPF_MEM | BPF_W: /* dst = *(u32 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 		/* llgf %dst,off(%src) */
 		jit->seen |= SEEN_MEM;
 		EMIT6_DISP_LH(0xe3000000, 0x0016, dst_reg, src_reg, REG_0, off);
+		if (insn_is_zext(&insn[1]))
+			insn_count = 2;
 		break;
 	case BPF_LDX | BPF_MEM | BPF_DW: /* dst = *(u64 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
 		/* lg %dst,0(off,%src) */
 		jit->seen |= SEEN_MEM;
 		EMIT6_DISP_LH(0xe3000000, 0x0004, dst_reg, src_reg, REG_0, off);
@@ -977,17 +1257,20 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	 */
 	case BPF_JMP | BPF_CALL:
 	{
-		/*
-		 * b0 = (__bpf_call_base + imm)(b1, b2, b3, b4, b5)
-		 */
-		const u64 func = (u64)__bpf_call_base + imm;
+		u64 func;
+		bool func_addr_fixed;
+		int ret;
+
+		ret = bpf_jit_get_func_addr(fp, insn, extra_pass,
+					    &func, &func_addr_fixed);
+		if (ret < 0)
+			return -1;
 
 		REG_SET_SEEN(BPF_REG_5);
 		jit->seen |= SEEN_FUNC;
-		/* lg %w1,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0004, REG_W1, REG_0, REG_L,
-			      EMIT_CONST_U64(func));
-		if (IS_ENABLED(CC_USING_EXPOLINE) && !nospec_disable) {
+		/* lgrl %w1,func */
+		EMIT6_PCREL_RILB(0xc4080000, REG_W1, _EMIT_CONST_U64(func));
+		if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable) {
 			/* brasl %r14,__s390_indirect_jump_r1 */
 			EMIT6_PCREL_RILB(0xc0050000, REG_14, jit->r1_thunk_ip);
 		} else {
@@ -998,7 +1281,9 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT4(0xb9040000, BPF_REG_0, REG_2);
 		break;
 	}
-	case BPF_JMP | BPF_TAIL_CALL:
+	case BPF_JMP | BPF_TAIL_CALL: {
+		int patch_1_clrj, patch_2_clij, patch_3_brc;
+
 		/*
 		 * Implicit input:
 		 *  B1: pointer to ctx
@@ -1015,9 +1300,11 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		/* llgf %w1,map.max_entries(%b2) */
 		EMIT6_DISP_LH(0xe3000000, 0x0016, REG_W1, REG_0, BPF_REG_2,
 			      offsetof(struct bpf_array, map.max_entries));
-		/* clgrj %b3,%w1,0xa,label0: if %b3 >= %w1 goto out */
-		EMIT6_PCREL_LABEL(0xec000000, 0x0065, BPF_REG_3,
-				  REG_W1, 0, 0xa);
+		/* if ((u32)%b3 >= (u32)%w1) goto out; */
+		/* clrj %b3,%w1,0xa,out */
+		patch_1_clrj = jit->prg;
+		EMIT6_PCREL_RIEB(0xec000000, 0x0077, BPF_REG_3, REG_W1, 0xa,
+				 jit->prg);
 
 		/*
 		 * if (tail_call_cnt++ > MAX_TAIL_CALL_CNT)
@@ -1025,16 +1312,17 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		 */
 
 		if (jit->seen & SEEN_STACK)
-			off = STK_OFF_TCCNT + STK_OFF + fp->aux->stack_depth;
+			off = STK_OFF_TCCNT + STK_OFF + stack_depth;
 		else
 			off = STK_OFF_TCCNT;
 		/* lhi %w0,1 */
 		EMIT4_IMM(0xa7080000, REG_W0, 1);
 		/* laal %w1,%w0,off(%r15) */
 		EMIT6_DISP_LH(0xeb000000, 0x00fa, REG_W1, REG_W0, REG_15, off);
-		/* clij %w1,MAX_TAIL_CALL_CNT,0x2,label0 */
-		EMIT6_PCREL_IMM_LABEL(0xec000000, 0x007f, REG_W1,
-				      MAX_TAIL_CALL_CNT, 0, 0x2);
+		/* clij %w1,MAX_TAIL_CALL_CNT,0x2,out */
+		patch_2_clij = jit->prg;
+		EMIT6_PCREL_RIEC(0xec000000, 0x007f, REG_W1, MAX_TAIL_CALL_CNT,
+				 2, jit->prg);
 
 		/*
 		 * prog = array->ptrs[index];
@@ -1042,18 +1330,21 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		 *         goto out;
 		 */
 
-		/* sllg %r1,%b3,3: %r1 = index * 8 */
-		EMIT6_DISP_LH(0xeb000000, 0x000d, REG_1, BPF_REG_3, REG_0, 3);
-		/* lg %r1,prog(%b2,%r1) */
-		EMIT6_DISP_LH(0xe3000000, 0x0004, REG_1, BPF_REG_2,
+		/* llgfr %r1,%b3: %r1 = (u32) index */
+		EMIT4(0xb9160000, REG_1, BPF_REG_3);
+		/* sllg %r1,%r1,3: %r1 *= 8 */
+		EMIT6_DISP_LH(0xeb000000, 0x000d, REG_1, REG_1, REG_0, 3);
+		/* ltg %r1,prog(%b2,%r1) */
+		EMIT6_DISP_LH(0xe3000000, 0x0002, REG_1, BPF_REG_2,
 			      REG_1, offsetof(struct bpf_array, ptrs));
-		/* clgij %r1,0,0x8,label0 */
-		EMIT6_PCREL_IMM_LABEL(0xec000000, 0x007d, REG_1, 0, 0, 0x8);
+		/* brc 0x8,out */
+		patch_3_brc = jit->prg;
+		EMIT4_PCREL_RIC(0xa7040000, 8, jit->prg);
 
 		/*
 		 * Restore registers before calling function
 		 */
-		save_restore_regs(jit, REGS_RESTORE, fp->aux->stack_depth);
+		save_restore_regs(jit, REGS_RESTORE, stack_depth);
 
 		/*
 		 * goto *(prog->bpf_func + tail_call_start);
@@ -1065,14 +1356,26 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		/* bc 0xf,tail_call_start(%r1) */
 		_EMIT4(0x47f01000 + jit->tail_call_start);
 		/* out: */
-		jit->labels[0] = jit->prg;
+		if (jit->prg_buf) {
+			*(u16 *)(jit->prg_buf + patch_1_clrj + 2) =
+				(jit->prg - patch_1_clrj) >> 1;
+			*(u16 *)(jit->prg_buf + patch_2_clij + 2) =
+				(jit->prg - patch_2_clij) >> 1;
+			*(u16 *)(jit->prg_buf + patch_3_brc + 2) =
+				(jit->prg - patch_3_brc) >> 1;
+		}
 		break;
+	}
 	case BPF_JMP | BPF_EXIT: /* return b0 */
 		last = (i == fp->len - 1) ? 1 : 0;
-		if (last && !(jit->seen & SEEN_RET0))
+		if (last)
 			break;
-		/* j <exit> */
-		EMIT4_PCREL(0xa7f40000, jit->exit_ip - jit->prg);
+		if (!is_first_pass(jit) && can_use_rel(jit, jit->exit_ip))
+			/* brc 0xf, <exit> */
+			EMIT4_PCREL_RIC(0xa7040000, 0xf, jit->exit_ip);
+		else
+			/* brcl 0xf, <exit> */
+			EMIT6_PCREL_RILC(0xc0040000, 0xf, jit->exit_ip);
 		break;
 	/*
 	 * Branch relative (number of skipped instructions) to offset on
@@ -1098,134 +1401,317 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		mask = 0xf000; /* j */
 		goto branch_oc;
 	case BPF_JMP | BPF_JSGT | BPF_K: /* ((s64) dst > (s64) imm) */
+	case BPF_JMP32 | BPF_JSGT | BPF_K: /* ((s32) dst > (s32) imm) */
 		mask = 0x2000; /* jh */
 		goto branch_ks;
 	case BPF_JMP | BPF_JSLT | BPF_K: /* ((s64) dst < (s64) imm) */
+	case BPF_JMP32 | BPF_JSLT | BPF_K: /* ((s32) dst < (s32) imm) */
 		mask = 0x4000; /* jl */
 		goto branch_ks;
 	case BPF_JMP | BPF_JSGE | BPF_K: /* ((s64) dst >= (s64) imm) */
+	case BPF_JMP32 | BPF_JSGE | BPF_K: /* ((s32) dst >= (s32) imm) */
 		mask = 0xa000; /* jhe */
 		goto branch_ks;
 	case BPF_JMP | BPF_JSLE | BPF_K: /* ((s64) dst <= (s64) imm) */
+	case BPF_JMP32 | BPF_JSLE | BPF_K: /* ((s32) dst <= (s32) imm) */
 		mask = 0xc000; /* jle */
 		goto branch_ks;
 	case BPF_JMP | BPF_JGT | BPF_K: /* (dst_reg > imm) */
+	case BPF_JMP32 | BPF_JGT | BPF_K: /* ((u32) dst_reg > (u32) imm) */
 		mask = 0x2000; /* jh */
 		goto branch_ku;
 	case BPF_JMP | BPF_JLT | BPF_K: /* (dst_reg < imm) */
+	case BPF_JMP32 | BPF_JLT | BPF_K: /* ((u32) dst_reg < (u32) imm) */
 		mask = 0x4000; /* jl */
 		goto branch_ku;
 	case BPF_JMP | BPF_JGE | BPF_K: /* (dst_reg >= imm) */
+	case BPF_JMP32 | BPF_JGE | BPF_K: /* ((u32) dst_reg >= (u32) imm) */
 		mask = 0xa000; /* jhe */
 		goto branch_ku;
 	case BPF_JMP | BPF_JLE | BPF_K: /* (dst_reg <= imm) */
+	case BPF_JMP32 | BPF_JLE | BPF_K: /* ((u32) dst_reg <= (u32) imm) */
 		mask = 0xc000; /* jle */
 		goto branch_ku;
 	case BPF_JMP | BPF_JNE | BPF_K: /* (dst_reg != imm) */
+	case BPF_JMP32 | BPF_JNE | BPF_K: /* ((u32) dst_reg != (u32) imm) */
 		mask = 0x7000; /* jne */
 		goto branch_ku;
 	case BPF_JMP | BPF_JEQ | BPF_K: /* (dst_reg == imm) */
+	case BPF_JMP32 | BPF_JEQ | BPF_K: /* ((u32) dst_reg == (u32) imm) */
 		mask = 0x8000; /* je */
 		goto branch_ku;
 	case BPF_JMP | BPF_JSET | BPF_K: /* (dst_reg & imm) */
+	case BPF_JMP32 | BPF_JSET | BPF_K: /* ((u32) dst_reg & (u32) imm) */
 		mask = 0x7000; /* jnz */
-		/* lgfi %w1,imm (load sign extend imm) */
-		EMIT6_IMM(0xc0010000, REG_W1, imm);
-		/* ngr %w1,%dst */
-		EMIT4(0xb9800000, REG_W1, dst_reg);
+		if (BPF_CLASS(insn->code) == BPF_JMP32) {
+			/* llilf %w1,imm (load zero extend imm) */
+			EMIT6_IMM(0xc00f0000, REG_W1, imm);
+			/* nr %w1,%dst */
+			EMIT2(0x1400, REG_W1, dst_reg);
+		} else {
+			/* lgfi %w1,imm (load sign extend imm) */
+			EMIT6_IMM(0xc0010000, REG_W1, imm);
+			/* ngr %w1,%dst */
+			EMIT4(0xb9800000, REG_W1, dst_reg);
+		}
 		goto branch_oc;
 
 	case BPF_JMP | BPF_JSGT | BPF_X: /* ((s64) dst > (s64) src) */
+	case BPF_JMP32 | BPF_JSGT | BPF_X: /* ((s32) dst > (s32) src) */
 		mask = 0x2000; /* jh */
 		goto branch_xs;
 	case BPF_JMP | BPF_JSLT | BPF_X: /* ((s64) dst < (s64) src) */
+	case BPF_JMP32 | BPF_JSLT | BPF_X: /* ((s32) dst < (s32) src) */
 		mask = 0x4000; /* jl */
 		goto branch_xs;
 	case BPF_JMP | BPF_JSGE | BPF_X: /* ((s64) dst >= (s64) src) */
+	case BPF_JMP32 | BPF_JSGE | BPF_X: /* ((s32) dst >= (s32) src) */
 		mask = 0xa000; /* jhe */
 		goto branch_xs;
 	case BPF_JMP | BPF_JSLE | BPF_X: /* ((s64) dst <= (s64) src) */
+	case BPF_JMP32 | BPF_JSLE | BPF_X: /* ((s32) dst <= (s32) src) */
 		mask = 0xc000; /* jle */
 		goto branch_xs;
 	case BPF_JMP | BPF_JGT | BPF_X: /* (dst > src) */
+	case BPF_JMP32 | BPF_JGT | BPF_X: /* ((u32) dst > (u32) src) */
 		mask = 0x2000; /* jh */
 		goto branch_xu;
 	case BPF_JMP | BPF_JLT | BPF_X: /* (dst < src) */
+	case BPF_JMP32 | BPF_JLT | BPF_X: /* ((u32) dst < (u32) src) */
 		mask = 0x4000; /* jl */
 		goto branch_xu;
 	case BPF_JMP | BPF_JGE | BPF_X: /* (dst >= src) */
+	case BPF_JMP32 | BPF_JGE | BPF_X: /* ((u32) dst >= (u32) src) */
 		mask = 0xa000; /* jhe */
 		goto branch_xu;
 	case BPF_JMP | BPF_JLE | BPF_X: /* (dst <= src) */
+	case BPF_JMP32 | BPF_JLE | BPF_X: /* ((u32) dst <= (u32) src) */
 		mask = 0xc000; /* jle */
 		goto branch_xu;
 	case BPF_JMP | BPF_JNE | BPF_X: /* (dst != src) */
+	case BPF_JMP32 | BPF_JNE | BPF_X: /* ((u32) dst != (u32) src) */
 		mask = 0x7000; /* jne */
 		goto branch_xu;
 	case BPF_JMP | BPF_JEQ | BPF_X: /* (dst == src) */
+	case BPF_JMP32 | BPF_JEQ | BPF_X: /* ((u32) dst == (u32) src) */
 		mask = 0x8000; /* je */
 		goto branch_xu;
 	case BPF_JMP | BPF_JSET | BPF_X: /* (dst & src) */
+	case BPF_JMP32 | BPF_JSET | BPF_X: /* ((u32) dst & (u32) src) */
+	{
+		bool is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
+
 		mask = 0x7000; /* jnz */
-		/* ngrk %w1,%dst,%src */
-		EMIT4_RRF(0xb9e40000, REG_W1, dst_reg, src_reg);
+		/* nrk or ngrk %w1,%dst,%src */
+		EMIT4_RRF((is_jmp32 ? 0xb9f40000 : 0xb9e40000),
+			  REG_W1, dst_reg, src_reg);
 		goto branch_oc;
 branch_ks:
-		/* lgfi %w1,imm (load sign extend imm) */
-		EMIT6_IMM(0xc0010000, REG_W1, imm);
-		/* cgrj %dst,%w1,mask,off */
-		EMIT6_PCREL(0xec000000, 0x0064, dst_reg, REG_W1, i, off, mask);
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
+		/* cfi or cgfi %dst,imm */
+		EMIT6_IMM(is_jmp32 ? 0xc20d0000 : 0xc20c0000,
+			  dst_reg, imm);
+		if (!is_first_pass(jit) &&
+		    can_use_rel(jit, addrs[i + off + 1])) {
+			/* brc mask,off */
+			EMIT4_PCREL_RIC(0xa7040000,
+					mask >> 12, addrs[i + off + 1]);
+		} else {
+			/* brcl mask,off */
+			EMIT6_PCREL_RILC(0xc0040000,
+					 mask >> 12, addrs[i + off + 1]);
+		}
 		break;
 branch_ku:
 		/* lgfi %w1,imm (load sign extend imm) */
-		EMIT6_IMM(0xc0010000, REG_W1, imm);
-		/* clgrj %dst,%w1,mask,off */
-		EMIT6_PCREL(0xec000000, 0x0065, dst_reg, REG_W1, i, off, mask);
-		break;
+		src_reg = REG_1;
+		EMIT6_IMM(0xc0010000, src_reg, imm);
+		goto branch_xu;
 branch_xs:
-		/* cgrj %dst,%src,mask,off */
-		EMIT6_PCREL(0xec000000, 0x0064, dst_reg, src_reg, i, off, mask);
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
+		if (!is_first_pass(jit) &&
+		    can_use_rel(jit, addrs[i + off + 1])) {
+			/* crj or cgrj %dst,%src,mask,off */
+			EMIT6_PCREL(0xec000000, (is_jmp32 ? 0x0076 : 0x0064),
+				    dst_reg, src_reg, i, off, mask);
+		} else {
+			/* cr or cgr %dst,%src */
+			if (is_jmp32)
+				EMIT2(0x1900, dst_reg, src_reg);
+			else
+				EMIT4(0xb9200000, dst_reg, src_reg);
+			/* brcl mask,off */
+			EMIT6_PCREL_RILC(0xc0040000,
+					 mask >> 12, addrs[i + off + 1]);
+		}
 		break;
 branch_xu:
-		/* clgrj %dst,%src,mask,off */
-		EMIT6_PCREL(0xec000000, 0x0065, dst_reg, src_reg, i, off, mask);
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
+		if (!is_first_pass(jit) &&
+		    can_use_rel(jit, addrs[i + off + 1])) {
+			/* clrj or clgrj %dst,%src,mask,off */
+			EMIT6_PCREL(0xec000000, (is_jmp32 ? 0x0077 : 0x0065),
+				    dst_reg, src_reg, i, off, mask);
+		} else {
+			/* clr or clgr %dst,%src */
+			if (is_jmp32)
+				EMIT2(0x1500, dst_reg, src_reg);
+			else
+				EMIT4(0xb9210000, dst_reg, src_reg);
+			/* brcl mask,off */
+			EMIT6_PCREL_RILC(0xc0040000,
+					 mask >> 12, addrs[i + off + 1]);
+		}
 		break;
 branch_oc:
-		/* brc mask,jmp_off (branch instruction needs 4 bytes) */
-		jmp_off = addrs[i + off + 1] - (addrs[i + 1] - 4);
-		EMIT4_PCREL(0xa7040000 | mask << 8, jmp_off);
+		if (!is_first_pass(jit) &&
+		    can_use_rel(jit, addrs[i + off + 1])) {
+			/* brc mask,off */
+			EMIT4_PCREL_RIC(0xa7040000,
+					mask >> 12, addrs[i + off + 1]);
+		} else {
+			/* brcl mask,off */
+			EMIT6_PCREL_RILC(0xc0040000,
+					 mask >> 12, addrs[i + off + 1]);
+		}
 		break;
+	}
 	default: /* too complex, give up */
 		pr_err("Unknown opcode %02x\n", insn->code);
 		return -1;
 	}
+
+	if (probe_prg != -1) {
+		/*
+		 * Handlers of certain exceptions leave psw.addr pointing to
+		 * the instruction directly after the failing one. Therefore,
+		 * create two exception table entries and also add a nop in
+		 * case two probing instructions come directly after each
+		 * other.
+		 */
+		nop_prg = jit->prg;
+		/* bcr 0,%0 */
+		_EMIT2(0x0700);
+		err = bpf_jit_probe_mem(jit, fp, probe_prg, nop_prg);
+		if (err < 0)
+			return err;
+	}
+
 	return insn_count;
+}
+
+/*
+ * Return whether new i-th instruction address does not violate any invariant
+ */
+static bool bpf_is_new_addr_sane(struct bpf_jit *jit, int i)
+{
+	/* On the first pass anything goes */
+	if (is_first_pass(jit))
+		return true;
+
+	/* The codegen pass must not change anything */
+	if (is_codegen_pass(jit))
+		return jit->addrs[i] == jit->prg;
+
+	/* Passes in between must not increase code size */
+	return jit->addrs[i] >= jit->prg;
+}
+
+/*
+ * Update the address of i-th instruction
+ */
+static int bpf_set_addr(struct bpf_jit *jit, int i)
+{
+	int delta;
+
+	if (is_codegen_pass(jit)) {
+		delta = jit->prg - jit->addrs[i];
+		if (delta < 0)
+			bpf_skip(jit, -delta);
+	}
+	if (WARN_ON_ONCE(!bpf_is_new_addr_sane(jit, i)))
+		return -1;
+	jit->addrs[i] = jit->prg;
+	return 0;
 }
 
 /*
  * Compile eBPF program into s390x code
  */
-static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp)
+static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
+			bool extra_pass, u32 stack_depth)
 {
-	int i, insn_count;
+	int i, insn_count, lit32_size, lit64_size;
 
-	jit->lit = jit->lit_start;
+	jit->lit32 = jit->lit32_start;
+	jit->lit64 = jit->lit64_start;
 	jit->prg = 0;
+	jit->excnt = 0;
 
-	bpf_jit_prologue(jit, fp->aux->stack_depth);
+	bpf_jit_prologue(jit, stack_depth);
+	if (bpf_set_addr(jit, 0) < 0)
+		return -1;
 	for (i = 0; i < fp->len; i += insn_count) {
-		insn_count = bpf_jit_insn(jit, fp, i);
+		insn_count = bpf_jit_insn(jit, fp, i, extra_pass, stack_depth);
 		if (insn_count < 0)
 			return -1;
 		/* Next instruction address */
-		jit->addrs[i + insn_count] = jit->prg;
+		if (bpf_set_addr(jit, i + insn_count) < 0)
+			return -1;
 	}
-	bpf_jit_epilogue(jit, fp->aux->stack_depth);
+	bpf_jit_epilogue(jit, stack_depth);
 
-	jit->lit_start = jit->prg;
-	jit->size = jit->lit;
+	lit32_size = jit->lit32 - jit->lit32_start;
+	lit64_size = jit->lit64 - jit->lit64_start;
+	jit->lit32_start = jit->prg;
+	if (lit32_size)
+		jit->lit32_start = ALIGN(jit->lit32_start, 4);
+	jit->lit64_start = jit->lit32_start + lit32_size;
+	if (lit64_size)
+		jit->lit64_start = ALIGN(jit->lit64_start, 8);
+	jit->size = jit->lit64_start + lit64_size;
 	jit->size_prg = jit->prg;
+
+	if (WARN_ON_ONCE(fp->aux->extable &&
+			 jit->excnt != fp->aux->num_exentries))
+		/* Verifier bug - too many entries. */
+		return -1;
+
 	return 0;
+}
+
+bool bpf_jit_needs_zext(void)
+{
+	return true;
+}
+
+struct s390_jit_data {
+	struct bpf_binary_header *header;
+	struct bpf_jit ctx;
+	int pass;
+};
+
+static struct bpf_binary_header *bpf_jit_alloc(struct bpf_jit *jit,
+					       struct bpf_prog *fp)
+{
+	struct bpf_binary_header *header;
+	u32 extable_size;
+	u32 code_size;
+
+	/* We need two entries per insn. */
+	fp->aux->num_exentries *= 2;
+
+	code_size = roundup(jit->size,
+			    __alignof__(struct exception_table_entry));
+	extable_size = fp->aux->num_exentries *
+		sizeof(struct exception_table_entry);
+	header = bpf_jit_binary_alloc(code_size + extable_size, &jit->prg_buf,
+				      8, jit_fill_hole);
+	if (!header)
+		return NULL;
+	fp->aux->extable = (struct exception_table_entry *)
+		(jit->prg_buf + code_size);
+	return header;
 }
 
 /*
@@ -1233,9 +1719,12 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp)
  */
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 {
+	u32 stack_depth = round_up(fp->aux->stack_depth, 8);
 	struct bpf_prog *tmp, *orig_fp = fp;
 	struct bpf_binary_header *header;
+	struct s390_jit_data *jit_data;
 	bool tmp_blinded = false;
+	bool extra_pass = false;
 	struct bpf_jit jit;
 	int pass;
 
@@ -1254,8 +1743,25 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 		fp = tmp;
 	}
 
+	jit_data = fp->aux->jit_data;
+	if (!jit_data) {
+		jit_data = kzalloc(sizeof(*jit_data), GFP_KERNEL);
+		if (!jit_data) {
+			fp = orig_fp;
+			goto out;
+		}
+		fp->aux->jit_data = jit_data;
+	}
+	if (jit_data->ctx.addrs) {
+		jit = jit_data->ctx;
+		header = jit_data->header;
+		extra_pass = true;
+		pass = jit_data->pass + 1;
+		goto skip_init_ctx;
+	}
+
 	memset(&jit, 0, sizeof(jit));
-	jit.addrs = kcalloc(fp->len + 1, sizeof(*jit.addrs), GFP_KERNEL);
+	jit.addrs = kvcalloc(fp->len + 1, sizeof(*jit.addrs), GFP_KERNEL);
 	if (jit.addrs == NULL) {
 		fp = orig_fp;
 		goto out;
@@ -1266,7 +1772,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	 *   - 3:   Calculate program size and addrs arrray
 	 */
 	for (pass = 1; pass <= 3; pass++) {
-		if (bpf_jit_prog(&jit, fp)) {
+		if (bpf_jit_prog(&jit, fp, extra_pass, stack_depth)) {
 			fp = orig_fp;
 			goto free_addrs;
 		}
@@ -1274,16 +1780,13 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	/*
 	 * Final pass: Allocate and generate program
 	 */
-	if (jit.size >= BPF_SIZE_MAX) {
-		fp = orig_fp;
-		goto free_addrs;
-	}
-	header = bpf_jit_binary_alloc(jit.size, &jit.prg_buf, 2, jit_fill_hole);
+	header = bpf_jit_alloc(&jit, fp);
 	if (!header) {
 		fp = orig_fp;
 		goto free_addrs;
 	}
-	if (bpf_jit_prog(&jit, fp)) {
+skip_init_ctx:
+	if (bpf_jit_prog(&jit, fp, extra_pass, stack_depth)) {
 		bpf_jit_binary_free(header);
 		fp = orig_fp;
 		goto free_addrs;
@@ -1292,12 +1795,24 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 		bpf_jit_dump(fp->len, jit.size, pass, jit.prg_buf);
 		print_fn_code(jit.prg_buf, jit.size_prg);
 	}
-	bpf_jit_binary_lock_ro(header);
+	if (!fp->is_func || extra_pass) {
+		bpf_jit_binary_lock_ro(header);
+	} else {
+		jit_data->header = header;
+		jit_data->ctx = jit;
+		jit_data->pass = pass;
+	}
 	fp->bpf_func = (void *) jit.prg_buf;
 	fp->jited = 1;
 	fp->jited_len = jit.size;
+
+	if (!fp->is_func || extra_pass) {
+		bpf_prog_fill_jited_linfo(fp, jit.addrs + 1);
 free_addrs:
-	kfree(jit.addrs);
+		kvfree(jit.addrs);
+		kfree(jit_data);
+		fp->aux->jit_data = NULL;
+	}
 out:
 	if (tmp_blinded)
 		bpf_jit_prog_release_other(fp, fp == orig_fp ?

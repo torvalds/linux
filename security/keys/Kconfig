@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Key management configuration
 #
@@ -20,9 +21,23 @@ config KEYS
 
 	  If you are unsure as to whether this is required, answer N.
 
-config KEYS_COMPAT
-	def_bool y
-	depends on COMPAT && KEYS
+config KEYS_REQUEST_CACHE
+	bool "Enable temporary caching of the last request_key() result"
+	depends on KEYS
+	help
+	  This option causes the result of the last successful request_key()
+	  call that didn't upcall to the kernel to be cached temporarily in the
+	  task_struct.  The cache is cleared by exit and just prior to the
+	  resumption of userspace.
+
+	  This allows the key used for multiple step processes where each step
+	  wants to request a key that is likely the same as the one requested
+	  by the last step to save on the searching.
+
+	  An example of such a process is a pathwalk through a network
+	  filesystem in which each method needs to request an authentication
+	  key.  Pathwalk will call multiple methods for each dentry traversed
+	  (permission, d_revalidate, lookup, getxattr, getacl, ...).
 
 config PERSISTENT_KEYRINGS
 	bool "Enable register of persistent per-UID keyrings"
@@ -45,9 +60,7 @@ config BIG_KEYS
 	bool "Large payload keys"
 	depends on KEYS
 	depends on TMPFS
-	select CRYPTO
-	select CRYPTO_AES
-	select CRYPTO_GCM
+	depends on CRYPTO_LIB_CHACHA20POLY1305 = y
 	help
 	  This option provides support for holding large keys within the kernel
 	  (for example Kerberos ticket caches).  The data may be stored out to
@@ -101,3 +114,12 @@ config KEY_DH_OPERATIONS
 	 in the kernel.
 
 	 If you are unsure as to whether this is required, answer N.
+
+config KEY_NOTIFICATIONS
+	bool "Provide key/keyring change notifications"
+	depends on KEYS && WATCH_QUEUE
+	help
+	  This option provides support for getting change notifications on keys
+	  and keyrings on which the caller has View permission.  This makes use
+	  of the /dev/watch_queue misc device to handle the notification
+	  buffer and provides KEYCTL_WATCH_KEY to enable/disable watches.

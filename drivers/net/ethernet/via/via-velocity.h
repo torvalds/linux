@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This software may be redistributed and/or modified under
- * the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
- * for more details.
  *
  * File: via-velocity.h
  *
@@ -1295,50 +1286,6 @@ struct velocity_context {
     velocity_mii_read((p),MII_PHYSID1,((u16 *) &id)+1);\
     (id);})
 
-/*
- * Inline debug routine
- */
-
-
-enum velocity_msg_level {
-	MSG_LEVEL_ERR = 0,	//Errors that will cause abnormal operation.
-	MSG_LEVEL_NOTICE = 1,	//Some errors need users to be notified.
-	MSG_LEVEL_INFO = 2,	//Normal message.
-	MSG_LEVEL_VERBOSE = 3,	//Will report all trival errors.
-	MSG_LEVEL_DEBUG = 4	//Only for debug purpose.
-};
-
-#ifdef VELOCITY_DEBUG
-#define ASSERT(x) { \
-	if (!(x)) { \
-		printk(KERN_ERR "assertion %s failed: file %s line %d\n", #x,\
-			__func__, __LINE__);\
-		BUG(); \
-	}\
-}
-#define VELOCITY_DBG(p,args...) printk(p, ##args)
-#else
-#define ASSERT(x)
-#define VELOCITY_DBG(x)
-#endif
-
-#define VELOCITY_PRT(l, p, args...) do {if (l<=msglevel) printk( p ,##args);} while (0)
-
-#define VELOCITY_PRT_CAMMASK(p,t) {\
-	int i;\
-	if ((t)==VELOCITY_MULTICAST_CAM) {\
-        	for (i=0;i<(MCAM_SIZE/8);i++)\
-			printk("%02X",(p)->mCAMmask[i]);\
-	}\
-	else {\
-		for (i=0;i<(VCAM_SIZE/8);i++)\
-			printk("%02X",(p)->vCAMmask[i]);\
-	}\
-	printk("\n");\
-}
-
-
-
 #define     VELOCITY_WOL_MAGIC             0x00000000UL
 #define     VELOCITY_WOL_PHY               0x00000001UL
 #define     VELOCITY_WOL_ARP               0x00000002UL
@@ -1492,6 +1439,7 @@ struct velocity_info {
 	struct velocity_context context;
 
 	u32 ticks;
+	u32 ethtool_ops_nesting;
 
 	u8 rev_id;
 
@@ -1518,7 +1466,7 @@ static inline int velocity_get_ip(struct velocity_info *vptr)
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(vptr->netdev);
 	if (in_dev != NULL) {
-		ifa = (struct in_ifaddr *) in_dev->ifa_list;
+		ifa = rcu_dereference(in_dev->ifa_list);
 		if (ifa != NULL) {
 			memcpy(vptr->ip_addr, &ifa->ifa_address, 4);
 			res = 0;

@@ -1,17 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cb710/mmc.c
  *
  *  Copyright by Michał Mirosław, 2008-2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include "cb710-mmc.h"
+
+#define CB710_MMC_REQ_TIMEOUT_MS	2000
 
 static const u8 cb710_clock_divider_log2[8] = {
 /*	1, 2, 4, 8, 16, 32, 128, 512 */
@@ -566,30 +565,32 @@ static void cb710_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	cb710_mmc_select_clock_divider(mmc, ios->clock);
 
-	if (ios->power_mode != reader->last_power_mode)
-	switch (ios->power_mode) {
-	case MMC_POWER_ON:
-		err = cb710_mmc_powerup(slot);
-		if (err) {
-			dev_warn(cb710_slot_dev(slot),
-				"powerup failed (%d)- retrying\n", err);
-			cb710_mmc_powerdown(slot);
-			udelay(1);
+	if (ios->power_mode != reader->last_power_mode) {
+		switch (ios->power_mode) {
+		case MMC_POWER_ON:
 			err = cb710_mmc_powerup(slot);
-			if (err)
+			if (err) {
 				dev_warn(cb710_slot_dev(slot),
-					"powerup retry failed (%d) - expect errors\n",
+					"powerup failed (%d)- retrying\n", err);
+				cb710_mmc_powerdown(slot);
+				udelay(1);
+				err = cb710_mmc_powerup(slot);
+				if (err)
+					dev_warn(cb710_slot_dev(slot),
+						"powerup retry failed (%d) - expect errors\n",
 					err);
+			}
+			reader->last_power_mode = MMC_POWER_ON;
+			break;
+		case MMC_POWER_OFF:
+			cb710_mmc_powerdown(slot);
+			reader->last_power_mode = MMC_POWER_OFF;
+			break;
+		case MMC_POWER_UP:
+		default:
+			/* ignore */
+			break;
 		}
-		reader->last_power_mode = MMC_POWER_ON;
-		break;
-	case MMC_POWER_OFF:
-		cb710_mmc_powerdown(slot);
-		reader->last_power_mode = MMC_POWER_OFF;
-		break;
-	case MMC_POWER_UP:
-	default:
-		/* ignore */;
 	}
 
 	cb710_mmc_enable_4bit_data(slot, ios->bus_width != MMC_BUS_WIDTH_1);
@@ -708,6 +709,12 @@ static int cb710_mmc_init(struct platform_device *pdev)
 	mmc->f_min = val >> cb710_clock_divider_log2[CB710_MAX_DIVIDER_IDX];
 	mmc->ocr_avail = MMC_VDD_32_33|MMC_VDD_33_34;
 	mmc->caps = MMC_CAP_4_BIT_DATA;
+	/*
+	 * In cb710_wait_for_event() we use a fixed timeout of ~2s, hence let's
+	 * inform the core about it. A future improvement should instead make
+	 * use of the cmd->busy_timeout.
+	 */
+	mmc->max_busy_timeout = CB710_MMC_REQ_TIMEOUT_MS;
 
 	reader = mmc_priv(mmc);
 

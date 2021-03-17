@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DPU_HW_CTL_H
@@ -99,6 +91,15 @@ struct dpu_hw_ctl_ops {
 		u32 flushbits);
 
 	/**
+	 * OR in the given flushbits to the cached pending_intf_flush_mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 * @flushbits : module flushmask
+	 */
+	void (*update_pending_intf_flush)(struct dpu_hw_ctl *ctx,
+		u32 flushbits);
+
+	/**
 	 * Write the value of the pending_flush_mask to hardware
 	 * @ctx       : ctl path ctx pointer
 	 */
@@ -138,13 +139,25 @@ struct dpu_hw_ctl_ops {
 	uint32_t (*get_bitmask_mixer)(struct dpu_hw_ctl *ctx,
 		enum dpu_lm blk);
 
+	uint32_t (*get_bitmask_dspp)(struct dpu_hw_ctl *ctx,
+		enum dpu_dspp blk);
+
+	/**
+	 * Query the value of the intf flush mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 */
 	int (*get_bitmask_intf)(struct dpu_hw_ctl *ctx,
 		u32 *flushbits,
 		enum dpu_intf blk);
 
-	int (*get_bitmask_cdm)(struct dpu_hw_ctl *ctx,
-		u32 *flushbits,
-		enum dpu_cdm blk);
+	/**
+	 * Query the value of the intf active flush mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 */
+	int (*get_bitmask_active_intf)(struct dpu_hw_ctl *ctx,
+		u32 *flushbits, enum dpu_intf blk);
 
 	/**
 	 * Set all blend stages to disabled
@@ -171,6 +184,7 @@ struct dpu_hw_ctl_ops {
  * @mixer_count: number of mixers
  * @mixer_hw_caps: mixer hardware capabilities
  * @pending_flush_mask: storage for pending ctl_flush managed via ops
+ * @pending_intf_flush_mask: pending INTF flush
  * @ops: operation list
  */
 struct dpu_hw_ctl {
@@ -183,6 +197,7 @@ struct dpu_hw_ctl {
 	int mixer_count;
 	const struct dpu_lm_cfg *mixer_hw_caps;
 	u32 pending_flush_mask;
+	u32 pending_intf_flush_mask;
 
 	/* ops */
 	struct dpu_hw_ctl_ops ops;
@@ -207,7 +222,7 @@ static inline struct dpu_hw_ctl *to_dpu_hw_ctl(struct dpu_hw_blk *hw)
  */
 struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m);
+		const struct dpu_mdss_cfg *m);
 
 /**
  * dpu_hw_ctl_destroy(): Destroys ctl driver context

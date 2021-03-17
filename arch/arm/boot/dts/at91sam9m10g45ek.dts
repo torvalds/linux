@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9m10g45ek.dts - Device Tree file for AT91SAM9M10G45-EK board
  *
  *  Copyright (C) 2011 Atmel,
  *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include "at91sam9g45.dtsi"
@@ -19,7 +18,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@70000000 {
 		reg = <0x70000000 0x4000000>;
 	};
 
@@ -73,9 +72,9 @@
 					pinctrl-0 = <&pinctrl_pck1_as_isi_mck &pinctrl_sensor_power &pinctrl_sensor_reset>;
 					resetb-gpios = <&pioD 12 GPIO_ACTIVE_LOW>;
 					pwdn-gpios = <&pioD 13 GPIO_ACTIVE_HIGH>;
-					clocks = <&pck1>;
+					clocks = <&pmc PMC_TYPE_SYSTEM 9>;
 					clock-names = "xvclk";
-					assigned-clocks = <&pck1>;
+					assigned-clocks = <&pmc PMC_TYPE_SYSTEM 9>;
 					assigned-clock-rates = <25000000>;
 
 					port {
@@ -100,6 +99,7 @@
 					&pinctrl_board_mmc0
 					&pinctrl_mmc0_slot0_clk_cmd_dat0
 					&pinctrl_mmc0_slot0_dat1_3>;
+				pinctrl-names = "default";
 				status = "okay";
 				slot@0 {
 					reg = <0>;
@@ -113,6 +113,7 @@
 					&pinctrl_board_mmc1
 					&pinctrl_mmc1_slot0_clk_cmd_dat0
 					&pinctrl_mmc1_slot0_dat1_3>;
+				pinctrl-names = "default";
 				status = "okay";
 				slot@0 {
 					reg = <0>;
@@ -236,7 +237,7 @@
 			display = <&display0>;
 			status = "okay";
 
-			display0: display {
+			display0: panel {
 				bits-per-pixel = <32>;
 				atmel,lcdcon-backlight;
 				atmel,dmacon = <0x1>;

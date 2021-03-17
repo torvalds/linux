@@ -1,0 +1,14 @@
+cat <<EOF
+static __always_inline bool
+${arch}${atomic}_dec_unless_positive(${atomic}_t *v)
+{
+	${int} c = ${arch}${atomic}_read(v);
+
+	do {
+		if (unlikely(c > 0))
+			return false;
+	} while (!${arch}${atomic}_try_cmpxchg(v, &c, c - 1));
+
+	return true;
+}
+EOF

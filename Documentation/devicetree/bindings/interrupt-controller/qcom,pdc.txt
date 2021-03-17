@@ -17,13 +17,17 @@ Properties:
 - compatible:
 	Usage: required
 	Value type: <string>
-	Definition: Should contain "qcom,<soc>-pdc"
+	Definition: Should contain "qcom,<soc>-pdc" and "qcom,pdc"
+		    - "qcom,sc7180-pdc": For SC7180
 		    - "qcom,sdm845-pdc": For SDM845
 
 - reg:
 	Usage: required
 	Value type: <prop-encoded-array>
 	Definition: Specifies the base physical address for PDC hardware.
+		    Optionally, specify the PDC's GIC interface registers that
+		    need to be configured for wakeup capable GPIOs routed to
+		    the PDC.
 
 - interrupt-cells:
 	Usage: required
@@ -50,15 +54,23 @@ Properties:
 		    The second element is the GIC hwirq number for the PDC port.
 		    The third element is the number of interrupts in sequence.
 
+- qcom,scm-spi-cfg:
+	Usage: optional
+	Value type: <bool>
+	Definition: Specifies if the SPI configuration registers have to be
+		    written from the firmware. Sometimes the PDC interface
+		    register to the GIC can only be written from the firmware.
+
 Example:
 
 	pdc: interrupt-controller@b220000 {
 		compatible = "qcom,sdm845-pdc";
-		reg = <0xb220000 0x30000>;
+		reg = <0 0x0b220000 0 0x30000>, <0 0x179900f0 0 0x60>;
 		qcom,pdc-ranges = <0 512 94>, <94 641 15>, <115 662 7>;
 		#interrupt-cells = <2>;
 		interrupt-parent = <&intc>;
 		interrupt-controller;
+		qcom,scm-spi-cfg;
 	};
 
 DT binding of a device that wants to use the GIC SPI 514 as a wakeup

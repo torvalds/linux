@@ -193,7 +193,7 @@ static int sabre_device_needs_wsync(struct device_node *dp)
 	 *    the DMA synchronization handling
 	 */
 	while (parent) {
-		if (!strcmp(parent->type, "pci"))
+		if (of_node_is_type(parent, "pci"))
 			break;
 		parent = parent->parent;
 	}
@@ -725,11 +725,11 @@ static unsigned int central_build_irq(struct device_node *dp,
 	unsigned long imap, iclr;
 	u32 tmp;
 
-	if (!strcmp(dp->name, "eeprom")) {
+	if (of_node_name_eq(dp, "eeprom")) {
 		res = &central_op->resource[5];
-	} else if (!strcmp(dp->name, "zs")) {
+	} else if (of_node_name_eq(dp, "zs")) {
 		res = &central_op->resource[4];
-	} else if (!strcmp(dp->name, "clock-board")) {
+	} else if (of_node_name_eq(dp, "clock-board")) {
 		res = &central_op->resource[3];
 	} else {
 		return ino;
@@ -824,19 +824,19 @@ void __init irq_trans_init(struct device_node *dp)
 	}
 #endif
 #ifdef CONFIG_SBUS
-	if (!strcmp(dp->name, "sbus") ||
-	    !strcmp(dp->name, "sbi")) {
+	if (of_node_name_eq(dp, "sbus") ||
+	    of_node_name_eq(dp, "sbi")) {
 		sbus_irq_trans_init(dp);
 		return;
 	}
 #endif
-	if (!strcmp(dp->name, "fhc") &&
-	    !strcmp(dp->parent->name, "central")) {
+	if (of_node_name_eq(dp, "fhc") &&
+	    of_node_name_eq(dp->parent, "central")) {
 		central_irq_trans_init(dp);
 		return;
 	}
-	if (!strcmp(dp->name, "virtual-devices") ||
-	    !strcmp(dp->name, "niu")) {
+	if (of_node_name_eq(dp, "virtual-devices") ||
+	    of_node_name_eq(dp, "niu")) {
 		sun4v_vdev_irq_trans_init(dp);
 		return;
 	}

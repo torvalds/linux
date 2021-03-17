@@ -1,10 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Thunderbolt Cactus Ridge driver - NHI driver
+ * Thunderbolt driver - NHI driver
  *
  * The NHI (native host interface) is the pci device that allows us to send and
  * receive frames from the thunderbolt bus.
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/pm_runtime.h>
@@ -14,6 +16,8 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/property.h>
+#include <linux/platform_data/x86/apple.h>
 
 #include "nhi.h"
 #include "nhi_regs.h"
@@ -21,13 +25,7 @@
 
 #define RING_TYPE(ring) ((ring)->is_tx ? "TX ring" : "RX ring")
 
-/*
- * Used to enable end-to-end workaround for missing RX packets. Do not
- * use this ring for anything else.
- */
-#define RING_E2E_UNUSED_HOPID	2
-/* HopIDs 0-7 are reserved by the Thunderbolt protocol */
-#define RING_FIRST_USABLE_HOPID	8
+#define RING_FIRST_USABLE_HOPID	1
 
 /*
  * Minimal number of vectors when we use MSI-X. Two for control channel
@@ -95,9 +93,9 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 	else
 		new = old & ~mask;
 
-	dev_info(&ring->nhi->pdev->dev,
-		 "%s interrupt at register %#x bit %d (%#x -> %#x)\n",
-		 active ? "enabling" : "disabling", reg, bit, old, new);
+	dev_dbg(&ring->nhi->pdev->dev,
+		"%s interrupt at register %#x bit %d (%#x -> %#x)\n",
+		active ? "enabling" : "disabling", reg, bit, old, new);
 
 	if (new == old)
 		dev_WARN(&ring->nhi->pdev->dev,
@@ -142,9 +140,20 @@ static void __iomem *ring_options_base(struct tb_ring *ring)
 	return io;
 }
 
-static void ring_iowrite16desc(struct tb_ring *ring, u32 value, u32 offset)
+static void ring_iowrite_cons(struct tb_ring *ring, u16 cons)
 {
-	iowrite16(value, ring_desc_base(ring) + offset);
+	/*
+	 * The other 16-bits in the register is read-only and writes to it
+	 * are ignored by the hardware so we can save one ioread32() by
+	 * filling the read-only bits with zeroes.
+	 */
+	iowrite32(cons, ring_desc_base(ring) + 8);
+}
+
+static void ring_iowrite_prod(struct tb_ring *ring, u16 prod)
+{
+	/* See ring_iowrite_cons() above for explanation */
+	iowrite32(prod << 16, ring_desc_base(ring) + 8);
 }
 
 static void ring_iowrite32desc(struct tb_ring *ring, u32 value, u32 offset)
@@ -196,7 +205,10 @@ static void ring_write_descriptors(struct tb_ring *ring)
 			descriptor->sof = frame->sof;
 		}
 		ring->head = (ring->head + 1) % ring->size;
-		ring_iowrite16desc(ring, ring->head, ring->is_tx ? 10 : 8);
+		if (ring->is_tx)
+			ring_iowrite_prod(ring, ring->head);
+		else
+			ring_iowrite_cons(ring, ring->head);
 	}
 }
 
@@ -394,12 +406,23 @@ static int ring_request_msix(struct tb_ring *ring, bool no_suspend)
 
 	ring->vector = ret;
 
-	ring->irq = pci_irq_vector(ring->nhi->pdev, ring->vector);
-	if (ring->irq < 0)
-		return ring->irq;
+	ret = pci_irq_vector(ring->nhi->pdev, ring->vector);
+	if (ret < 0)
+		goto err_ida_remove;
+
+	ring->irq = ret;
 
 	irqflags = no_suspend ? IRQF_NO_SUSPEND : 0;
-	return request_irq(ring->irq, ring_msix, irqflags, "thunderbolt", ring);
+	ret = request_irq(ring->irq, ring_msix, irqflags, "thunderbolt", ring);
+	if (ret)
+		goto err_ida_remove;
+
+	return 0;
+
+err_ida_remove:
+	ida_simple_remove(&nhi->msix_ida, ring->vector);
+
+	return ret;
 }
 
 static void ring_release_msix(struct tb_ring *ring)
@@ -424,7 +447,7 @@ static int nhi_alloc_hop(struct tb_nhi *nhi, struct tb_ring *ring)
 
 		/*
 		 * Automatically allocate HopID from the non-reserved
-		 * range 8 .. hop_count - 1.
+		 * range 1 .. hop_count - 1.
 		 */
 		for (i = RING_FIRST_USABLE_HOPID; i < nhi->hop_count; i++) {
 			if (ring->is_tx) {
@@ -476,12 +499,9 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 				     void *poll_data)
 {
 	struct tb_ring *ring = NULL;
-	dev_info(&nhi->pdev->dev, "allocating %s ring %d of size %d\n",
-		 transmit ? "TX" : "RX", hop, size);
 
-	/* Tx Ring 2 is reserved for E2E workaround */
-	if (transmit && hop == RING_E2E_UNUSED_HOPID)
-		return NULL;
+	dev_dbg(&nhi->pdev->dev, "allocating %s ring %d of size %d\n",
+		transmit ? "TX" : "RX", hop, size);
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
@@ -585,8 +605,8 @@ void tb_ring_start(struct tb_ring *ring)
 		dev_WARN(&ring->nhi->pdev->dev, "ring already started\n");
 		goto err;
 	}
-	dev_info(&ring->nhi->pdev->dev, "starting %s %d\n",
-		 RING_TYPE(ring), ring->hop);
+	dev_dbg(&ring->nhi->pdev->dev, "starting %s %d\n",
+		RING_TYPE(ring), ring->hop);
 
 	if (ring->flags & RING_FLAG_FRAME) {
 		/* Means 4096 */
@@ -595,19 +615,6 @@ void tb_ring_start(struct tb_ring *ring)
 	} else {
 		frame_size = TB_FRAME_SIZE;
 		flags = RING_FLAG_ENABLE | RING_FLAG_RAW;
-	}
-
-	if (ring->flags & RING_FLAG_E2E && !ring->is_tx) {
-		u32 hop;
-
-		/*
-		 * In order not to lose Rx packets we enable end-to-end
-		 * workaround which transfers Rx credits to an unused Tx
-		 * HopID.
-		 */
-		hop = RING_E2E_UNUSED_HOPID << REG_RX_OPTIONS_E2E_HOP_SHIFT;
-		hop &= REG_RX_OPTIONS_E2E_HOP_MASK;
-		flags |= hop | RING_FLAG_E2E_FLOW_CONTROL;
 	}
 
 	ring_iowrite64desc(ring, ring->descriptors_dma, 0);
@@ -647,8 +654,8 @@ void tb_ring_stop(struct tb_ring *ring)
 {
 	spin_lock_irq(&ring->nhi->lock);
 	spin_lock(&ring->lock);
-	dev_info(&ring->nhi->pdev->dev, "stopping %s %d\n",
-		 RING_TYPE(ring), ring->hop);
+	dev_dbg(&ring->nhi->pdev->dev, "stopping %s %d\n",
+		RING_TYPE(ring), ring->hop);
 	if (ring->nhi->going_away)
 		goto err;
 	if (!ring->running) {
@@ -660,7 +667,7 @@ void tb_ring_stop(struct tb_ring *ring)
 
 	ring_iowrite32options(ring, 0, 0);
 	ring_iowrite64desc(ring, 0, 0);
-	ring_iowrite16desc(ring, 0, ring->is_tx ? 10 : 8);
+	ring_iowrite32desc(ring, 0, 8);
 	ring_iowrite32desc(ring, 0, 12);
 	ring->head = 0;
 	ring->tail = 0;
@@ -716,10 +723,8 @@ void tb_ring_free(struct tb_ring *ring)
 	ring->descriptors_dma = 0;
 
 
-	dev_info(&ring->nhi->pdev->dev,
-		 "freeing %s %d\n",
-		 RING_TYPE(ring),
-		 ring->hop);
+	dev_dbg(&ring->nhi->pdev->dev, "freeing %s %d\n", RING_TYPE(ring),
+		ring->hop);
 
 	/**
 	 * ring->work can no longer be scheduled (it is scheduled only
@@ -845,12 +850,68 @@ static irqreturn_t nhi_msi(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int __nhi_suspend_noirq(struct device *dev, bool wakeup)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+	struct tb_nhi *nhi = tb->nhi;
+	int ret;
+
+	ret = tb_domain_suspend_noirq(tb);
+	if (ret)
+		return ret;
+
+	if (nhi->ops && nhi->ops->suspend_noirq) {
+		ret = nhi->ops->suspend_noirq(tb->nhi, wakeup);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int nhi_suspend_noirq(struct device *dev)
+{
+	return __nhi_suspend_noirq(dev, device_may_wakeup(dev));
+}
+
+static int nhi_freeze_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
 
-	return tb_domain_suspend_noirq(tb);
+	return tb_domain_freeze_noirq(tb);
+}
+
+static int nhi_thaw_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	return tb_domain_thaw_noirq(tb);
+}
+
+static bool nhi_wake_supported(struct pci_dev *pdev)
+{
+	u8 val;
+
+	/*
+	 * If power rails are sustainable for wakeup from S4 this
+	 * property is set by the BIOS.
+	 */
+	if (device_property_read_u8(&pdev->dev, "WAKE_SUPPORTED", &val))
+		return !!val;
+
+	return true;
+}
+
+static int nhi_poweroff_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	bool wakeup;
+
+	wakeup = device_may_wakeup(dev) && nhi_wake_supported(pdev);
+	return __nhi_suspend_noirq(dev, wakeup);
 }
 
 static void nhi_enable_int_throttling(struct tb_nhi *nhi)
@@ -873,16 +934,24 @@ static int nhi_resume_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
+	struct tb_nhi *nhi = tb->nhi;
+	int ret;
 
 	/*
 	 * Check that the device is still there. It may be that the user
 	 * unplugged last device which causes the host controller to go
 	 * away on PCs.
 	 */
-	if (!pci_device_is_present(pdev))
-		tb->nhi->going_away = true;
-	else
+	if (!pci_device_is_present(pdev)) {
+		nhi->going_away = true;
+	} else {
+		if (nhi->ops && nhi->ops->resume_noirq) {
+			ret = nhi->ops->resume_noirq(nhi);
+			if (ret)
+				return ret;
+		}
 		nhi_enable_int_throttling(tb->nhi);
+	}
 
 	return tb_domain_resume_noirq(tb);
 }
@@ -915,23 +984,43 @@ static int nhi_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
+	struct tb_nhi *nhi = tb->nhi;
+	int ret;
 
-	return tb_domain_runtime_suspend(tb);
+	ret = tb_domain_runtime_suspend(tb);
+	if (ret)
+		return ret;
+
+	if (nhi->ops && nhi->ops->runtime_suspend) {
+		ret = nhi->ops->runtime_suspend(tb->nhi);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 static int nhi_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
+	struct tb_nhi *nhi = tb->nhi;
+	int ret;
 
-	nhi_enable_int_throttling(tb->nhi);
+	if (nhi->ops && nhi->ops->runtime_resume) {
+		ret = nhi->ops->runtime_resume(nhi);
+		if (ret)
+			return ret;
+	}
+
+	nhi_enable_int_throttling(nhi);
 	return tb_domain_runtime_resume(tb);
 }
 
 static void nhi_shutdown(struct tb_nhi *nhi)
 {
 	int i;
-	dev_info(&nhi->pdev->dev, "shutdown\n");
+
+	dev_dbg(&nhi->pdev->dev, "shutdown\n");
 
 	for (i = 0; i < nhi->hop_count; i++) {
 		if (nhi->tx_rings[i])
@@ -951,6 +1040,9 @@ static void nhi_shutdown(struct tb_nhi *nhi)
 		flush_work(&nhi->interrupt_work);
 	}
 	ida_destroy(&nhi->msix_ida);
+
+	if (nhi->ops && nhi->ops->shutdown)
+		nhi->ops->shutdown(nhi);
 }
 
 static int nhi_init_msi(struct tb_nhi *nhi)
@@ -995,11 +1087,89 @@ static int nhi_init_msi(struct tb_nhi *nhi)
 	return 0;
 }
 
+static bool nhi_imr_valid(struct pci_dev *pdev)
+{
+	u8 val;
+
+	if (!device_property_read_u8(&pdev->dev, "IMR_VALID", &val))
+		return !!val;
+
+	return true;
+}
+
+/*
+ * During suspend the Thunderbolt controller is reset and all PCIe
+ * tunnels are lost. The NHI driver will try to reestablish all tunnels
+ * during resume. This adds device links between the tunneled PCIe
+ * downstream ports and the NHI so that the device core will make sure
+ * NHI is resumed first before the rest.
+ */
+static void tb_apple_add_links(struct tb_nhi *nhi)
+{
+	struct pci_dev *upstream, *pdev;
+
+	if (!x86_apple_machine)
+		return;
+
+	switch (nhi->pdev->device) {
+	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
+	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_NHI:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI:
+		break;
+	default:
+		return;
+	}
+
+	upstream = pci_upstream_bridge(nhi->pdev);
+	while (upstream) {
+		if (!pci_is_pcie(upstream))
+			return;
+		if (pci_pcie_type(upstream) == PCI_EXP_TYPE_UPSTREAM)
+			break;
+		upstream = pci_upstream_bridge(upstream);
+	}
+
+	if (!upstream)
+		return;
+
+	/*
+	 * For each hotplug downstream port, create add device link
+	 * back to NHI so that PCIe tunnels can be re-established after
+	 * sleep.
+	 */
+	for_each_pci_bridge(pdev, upstream->subordinate) {
+		const struct device_link *link;
+
+		if (!pci_is_pcie(pdev))
+			continue;
+		if (pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM ||
+		    !pdev->is_hotplug_bridge)
+			continue;
+
+		link = device_link_add(&pdev->dev, &nhi->pdev->dev,
+				       DL_FLAG_AUTOREMOVE_SUPPLIER |
+				       DL_FLAG_PM_RUNTIME);
+		if (link) {
+			dev_dbg(&nhi->pdev->dev, "created link from %s\n",
+				dev_name(&pdev->dev));
+		} else {
+			dev_warn(&nhi->pdev->dev, "device link creation from %s failed\n",
+				 dev_name(&pdev->dev));
+		}
+	}
+}
+
 static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct tb_nhi *nhi;
 	struct tb *tb;
 	int res;
+
+	if (!nhi_imr_valid(pdev)) {
+		dev_warn(&pdev->dev, "firmware image not valid, aborting\n");
+		return -ENODEV;
+	}
 
 	res = pcim_enable_device(pdev);
 	if (res) {
@@ -1018,12 +1188,11 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	nhi->pdev = pdev;
+	nhi->ops = (const struct tb_nhi_ops *)id->driver_data;
 	/* cannot fail - table is allocated bin pcim_iomap_regions */
 	nhi->iobase = pcim_iomap_table(pdev)[0];
 	nhi->hop_count = ioread32(nhi->iobase + REG_HOP_COUNT) & 0x3ff;
-	if (nhi->hop_count != 12 && nhi->hop_count != 32)
-		dev_warn(&pdev->dev, "unexpected hop count: %d\n",
-			 nhi->hop_count);
+	dev_dbg(&pdev->dev, "total paths: %d\n", nhi->hop_count);
 
 	nhi->tx_rings = devm_kcalloc(&pdev->dev, nhi->hop_count,
 				     sizeof(*nhi->tx_rings), GFP_KERNEL);
@@ -1050,6 +1219,15 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
+	if (nhi->ops && nhi->ops->init) {
+		res = nhi->ops->init(nhi);
+		if (res)
+			return res;
+	}
+
+	tb_apple_add_links(nhi);
+	tb_acpi_add_links(nhi);
+
 	tb = icm_probe(nhi);
 	if (!tb)
 		tb = tb_probe(nhi);
@@ -1059,7 +1237,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	dev_info(&nhi->pdev->dev, "NHI initialized, starting thunderbolt\n");
+	dev_dbg(&nhi->pdev->dev, "NHI initialized, starting thunderbolt\n");
 
 	res = tb_domain_add(tb);
 	if (res) {
@@ -1072,6 +1250,8 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return res;
 	}
 	pci_set_drvdata(pdev, tb);
+
+	device_wakeup_enable(&pdev->dev);
 
 	pm_runtime_allow(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, TB_AUTOSUSPEND_DELAY);
@@ -1102,14 +1282,14 @@ static void nhi_remove(struct pci_dev *pdev)
 static const struct dev_pm_ops nhi_pm_ops = {
 	.suspend_noirq = nhi_suspend_noirq,
 	.resume_noirq = nhi_resume_noirq,
-	.freeze_noirq = nhi_suspend_noirq, /*
+	.freeze_noirq = nhi_freeze_noirq,  /*
 					    * we just disable hotplug, the
 					    * pci-tunnels stay alive.
 					    */
-	.thaw_noirq = nhi_resume_noirq,
+	.thaw_noirq = nhi_thaw_noirq,
 	.restore_noirq = nhi_resume_noirq,
 	.suspend = nhi_suspend,
-	.freeze = nhi_suspend,
+	.poweroff_noirq = nhi_poweroff_noirq,
 	.poweroff = nhi_suspend,
 	.complete = nhi_complete,
 	.runtime_suspend = nhi_runtime_suspend,
@@ -1157,6 +1337,21 @@ static struct pci_device_id nhi_ids[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_USBONLY_NHI) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_NHI) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICL_NHI0),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICL_NHI1),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TGL_NHI0),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TGL_NHI1),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TGL_H_NHI0),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TGL_H_NHI1),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+
+	/* Any USB4 compliant host */
+	{ PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_USB4, ~0) },
 
 	{ 0,}
 };
@@ -1169,6 +1364,7 @@ static struct pci_driver nhi_driver = {
 	.id_table = nhi_ids,
 	.probe = nhi_probe,
 	.remove = nhi_remove,
+	.shutdown = nhi_remove,
 	.driver.pm = &nhi_pm_ops,
 };
 

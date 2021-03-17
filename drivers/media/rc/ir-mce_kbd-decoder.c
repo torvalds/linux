@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-mce_kbd-decoder.c - A decoder for the RC6-ish keyboard/mouse IR protocol
  * used by the Microsoft Remote Keyboard for Windows Media Center Edition,
  * referred to by Microsoft's Windows Media Center remote specification docs
  * as "an internal protocol called MCIR-2".
  *
  * Copyright (C) 2011 by Jarod Wilson <jarod@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/module.h>
 
@@ -29,7 +21,7 @@
  * input device for the remote, rather than the keyboard/mouse one.
  */
 
-#define MCIR2_UNIT		333333	/* ns */
+#define MCIR2_UNIT		333	/* us */
 #define MCIR2_HEADER_NBITS	5
 #define MCIR2_MOUSE_NBITS	29
 #define MCIR2_KEYBOARD_NBITS	32
@@ -129,13 +121,14 @@ static void mce_kbd_rx_timeout(struct timer_list *t)
 	if (time_is_before_eq_jiffies(raw->mce_kbd.rx_timeout.expires)) {
 		for (i = 0; i < 7; i++) {
 			maskcode = kbd_keycodes[MCIR2_MASK_KEYS_START + i];
-			input_report_key(raw->mce_kbd.idev, maskcode, 0);
+			input_report_key(raw->dev->input_dev, maskcode, 0);
 		}
 
 		for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
-			input_report_key(raw->mce_kbd.idev, kbd_keycodes[i], 0);
+			input_report_key(raw->dev->input_dev, kbd_keycodes[i],
+					 0);
 
-		input_sync(raw->mce_kbd.idev);
+		input_sync(raw->dev->input_dev);
 	}
 	spin_unlock_irqrestore(&raw->mce_kbd.keylock, flags);
 }
@@ -154,7 +147,6 @@ static enum mce_kbd_mode mce_kbd_mode(struct mce_kbd_dec *data)
 
 static void ir_mce_kbd_process_keyboard_data(struct rc_dev *dev, u32 scancode)
 {
-	struct mce_kbd_dec *data = &dev->raw->mce_kbd;
 	u8 keydata1  = (scancode >> 8) & 0xff;
 	u8 keydata2  = (scancode >> 16) & 0xff;
 	u8 shiftmask = scancode & 0xff;
@@ -170,23 +162,22 @@ static void ir_mce_kbd_process_keyboard_data(struct rc_dev *dev, u32 scancode)
 			keystate = 1;
 		else
 			keystate = 0;
-		input_report_key(data->idev, maskcode, keystate);
+		input_report_key(dev->input_dev, maskcode, keystate);
 	}
 
 	if (keydata1)
-		input_report_key(data->idev, kbd_keycodes[keydata1], 1);
+		input_report_key(dev->input_dev, kbd_keycodes[keydata1], 1);
 	if (keydata2)
-		input_report_key(data->idev, kbd_keycodes[keydata2], 1);
+		input_report_key(dev->input_dev, kbd_keycodes[keydata2], 1);
 
 	if (!keydata1 && !keydata2) {
 		for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
-			input_report_key(data->idev, kbd_keycodes[i], 0);
+			input_report_key(dev->input_dev, kbd_keycodes[i], 0);
 	}
 }
 
 static void ir_mce_kbd_process_mouse_data(struct rc_dev *dev, u32 scancode)
 {
-	struct mce_kbd_dec *data = &dev->raw->mce_kbd;
 	/* raw mouse coordinates */
 	u8 xdata = (scancode >> 7) & 0x7f;
 	u8 ydata = (scancode >> 14) & 0x7f;
@@ -208,11 +199,11 @@ static void ir_mce_kbd_process_mouse_data(struct rc_dev *dev, u32 scancode)
 	dev_dbg(&dev->dev, "mouse: x = %d, y = %d, btns = %s%s\n",
 		x, y, left ? "L" : "", right ? "R" : "");
 
-	input_report_rel(data->idev, REL_X, x);
-	input_report_rel(data->idev, REL_Y, y);
+	input_report_rel(dev->input_dev, REL_X, x);
+	input_report_rel(dev->input_dev, REL_Y, y);
 
-	input_report_key(data->idev, BTN_LEFT, left);
-	input_report_key(data->idev, BTN_RIGHT, right);
+	input_report_key(dev->input_dev, BTN_LEFT, left);
+	input_report_key(dev->input_dev, BTN_RIGHT, right);
 }
 
 /**
@@ -240,7 +231,7 @@ static int ir_mce_kbd_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 again:
 	dev_dbg(&dev->dev, "started at state %i (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 
 	if (!geq_margin(ev.duration, MCIR2_UNIT, MCIR2_UNIT / 2))
 		return 0;
@@ -329,7 +320,7 @@ again:
 				data->body);
 			spin_lock(&data->keylock);
 			if (scancode) {
-				delay = nsecs_to_jiffies(dev->timeout) +
+				delay = usecs_to_jiffies(dev->timeout) +
 					msecs_to_jiffies(100);
 				mod_timer(&data->rx_timeout, jiffies + delay);
 			} else {
@@ -353,16 +344,16 @@ again:
 		}
 
 		lsc.scancode = scancode;
-		ir_lirc_scancode_event(dev, &lsc);
+		lirc_scancode_event(dev, &lsc);
 		data->state = STATE_INACTIVE;
-		input_event(data->idev, EV_MSC, MSC_SCAN, scancode);
-		input_sync(data->idev);
+		input_event(dev->input_dev, EV_MSC, MSC_SCAN, scancode);
+		input_sync(dev->input_dev);
 		return 0;
 	}
 
 out:
 	dev_dbg(&dev->dev, "failed at state %i (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
@@ -370,55 +361,9 @@ out:
 static int ir_mce_kbd_register(struct rc_dev *dev)
 {
 	struct mce_kbd_dec *mce_kbd = &dev->raw->mce_kbd;
-	struct input_dev *idev;
-	int i, ret;
-
-	idev = input_allocate_device();
-	if (!idev)
-		return -ENOMEM;
-
-	snprintf(mce_kbd->name, sizeof(mce_kbd->name),
-		 "MCE IR Keyboard/Mouse (%s)", dev->driver_name);
-	strlcat(mce_kbd->phys, "/input0", sizeof(mce_kbd->phys));
-
-	idev->name = mce_kbd->name;
-	idev->phys = mce_kbd->phys;
-
-	/* Keyboard bits */
-	set_bit(EV_KEY, idev->evbit);
-	set_bit(EV_REP, idev->evbit);
-	for (i = 0; i < sizeof(kbd_keycodes); i++)
-		set_bit(kbd_keycodes[i], idev->keybit);
-
-	/* Mouse bits */
-	set_bit(EV_REL, idev->evbit);
-	set_bit(REL_X, idev->relbit);
-	set_bit(REL_Y, idev->relbit);
-	set_bit(BTN_LEFT, idev->keybit);
-	set_bit(BTN_RIGHT, idev->keybit);
-
-	/* Report scancodes too */
-	set_bit(EV_MSC, idev->evbit);
-	set_bit(MSC_SCAN, idev->mscbit);
 
 	timer_setup(&mce_kbd->rx_timeout, mce_kbd_rx_timeout, 0);
 	spin_lock_init(&mce_kbd->keylock);
-
-	input_set_drvdata(idev, mce_kbd);
-
-#if 0
-	/* Adding this reference means two input devices are associated with
-	 * this rc-core device, which ir-keytable doesn't cope with yet */
-	idev->dev.parent = &dev->dev;
-#endif
-
-	ret = input_register_device(idev);
-	if (ret < 0) {
-		input_free_device(idev);
-		return -EIO;
-	}
-
-	mce_kbd->idev = idev;
 
 	return 0;
 }
@@ -426,10 +371,8 @@ static int ir_mce_kbd_register(struct rc_dev *dev)
 static int ir_mce_kbd_unregister(struct rc_dev *dev)
 {
 	struct mce_kbd_dec *mce_kbd = &dev->raw->mce_kbd;
-	struct input_dev *idev = mce_kbd->idev;
 
 	del_timer_sync(&mce_kbd->rx_timeout);
-	input_unregister_device(idev);
 
 	return 0;
 }

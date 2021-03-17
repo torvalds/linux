@@ -35,9 +35,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/dma.h>
 
 static char xtsonic_string[] = "xtsonic";
@@ -167,47 +167,11 @@ static int __init sonic_probe1(struct net_device *dev)
 		dev->dev_addr[i*2+1] = val >> 8;
 	}
 
-	/* Initialize the device structure. */
-
 	lp->dma_bitmode = SONIC_BITMODE32;
 
-	/*
-	 *  Allocate local private descriptor areas in uncached space.
-	 *  The entire structure must be located within the same 64kb segment.
-	 *  A simple way to ensure this is to allocate twice the
-	 *  size of the structure -- given that the structure is
-	 *  much less than 64 kB, at least one of the halves of
-	 *  the allocated area will be contained entirely in 64 kB.
-	 *  We also allocate extra space for a pointer to allow freeing
-	 *  this structure later on (in xtsonic_cleanup_module()).
-	 */
-	lp->descriptors = dma_alloc_coherent(lp->device,
-					     SIZEOF_SONIC_DESC *
-					     SONIC_BUS_SCALE(lp->dma_bitmode),
-					     &lp->descriptors_laddr,
-					     GFP_KERNEL);
-	if (lp->descriptors == NULL) {
-		err = -ENOMEM;
+	err = sonic_alloc_descriptors(dev);
+	if (err)
 		goto out;
-	}
-
-	lp->cda = lp->descriptors;
-	lp->tda = lp->cda + (SIZEOF_SONIC_CDA
-			     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rda = lp->tda + (SIZEOF_SONIC_TD * SONIC_NUM_TDS
-			     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rra = lp->rda + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
-			     * SONIC_BUS_SCALE(lp->dma_bitmode));
-
-	/* get the virtual dma address */
-
-	lp->cda_laddr = lp->descriptors_laddr;
-	lp->tda_laddr = lp->cda_laddr + (SIZEOF_SONIC_CDA
-				         * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rda_laddr = lp->tda_laddr + (SIZEOF_SONIC_TD * SONIC_NUM_TDS
-					 * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rra_laddr = lp->rda_laddr + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
-					 * SONIC_BUS_SCALE(lp->dma_bitmode));
 
 	dev->netdev_ops		= &xtsonic_netdev_ops;
 	dev->watchdog_timeo	= TX_TIMEOUT;
@@ -265,11 +229,14 @@ int xtsonic_probe(struct platform_device *pdev)
 	sonic_msg_init(dev);
 
 	if ((err = register_netdev(dev)))
-		goto out1;
+		goto undo_probe1;
 
 	return 0;
 
-out1:
+undo_probe1:
+	dma_free_coherent(lp->device,
+			  SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
+			  lp->descriptors, lp->descriptors_laddr);
 	release_region(dev->base_addr, SONIC_MEM_SIZE);
 out:
 	free_netdev(dev);

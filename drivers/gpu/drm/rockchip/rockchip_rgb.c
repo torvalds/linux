@@ -1,172 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author:
  *      Sandy Huang <hjc@rock-chips.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_dp_helper.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_of.h>
-
 #include <linux/component.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
-#include <linux/regmap.h>
-#include <linux/mfd/syscon.h>
-#include <linux/phy/phy.h>
-#include <linux/pinctrl/consumer.h>
-#include <uapi/linux/videodev2.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_of.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
-#define HIWORD_UPDATE(v, l, h)	(((v) << (l)) | (GENMASK(h, l) << 16))
-
-#define PX30_GRF_PD_VO_CON1		0x0438
-#define PX30_RGB_DATA_SYNC_BYPASS(v)	HIWORD_UPDATE(v, 3, 3)
-#define PX30_RGB_VOP_SEL(v)		HIWORD_UPDATE(v, 2, 2)
-
-#define RK1808_GRF_PD_VO_CON1		0x0444
-#define RK1808_RGB_DATA_SYNC_BYPASS(v)	HIWORD_UPDATE(v, 3, 3)
-
-#define RV1126_GRF_IOFUNC_CON3		0x1026c
-#define RV1126_LCDC_IO_BYPASS(v)	HIWORD_UPDATE(v, 0, 0)
-
-#define RK3288_GRF_SOC_CON6		0x025c
-#define RK3288_LVDS_LCDC_SEL(x)		HIWORD_UPDATE(x,  3,  3)
-#define RK3288_GRF_SOC_CON7		0x0260
-#define RK3288_LVDS_PWRDWN(x)		HIWORD_UPDATE(x, 15, 15)
-#define RK3288_LVDS_CON_ENABLE_2(x)	HIWORD_UPDATE(x, 12, 12)
-#define RK3288_LVDS_CON_ENABLE_1(x)	HIWORD_UPDATE(x, 11, 11)
-#define RK3288_LVDS_CON_CLKINV(x)	HIWORD_UPDATE(x,  8,  8)
-#define RK3288_LVDS_CON_TTL_EN(x)	HIWORD_UPDATE(x,  6,  6)
-
-#define RK3568_GRF_VO_CON1		0X0364
-#define RK3568_RGB_DATA_BYPASS(v)	HIWORD_UPDATE(v, 6, 6)
-
-struct rockchip_rgb;
-
-struct rockchip_rgb_funcs {
-	void (*enable)(struct rockchip_rgb *rgb);
-	void (*disable)(struct rockchip_rgb *rgb);
-};
+#define encoder_to_rgb(c) container_of(c, struct rockchip_rgb, encoder)
 
 struct rockchip_rgb {
 	struct device *dev;
-	struct drm_panel *panel;
+	struct drm_device *drm_dev;
 	struct drm_bridge *bridge;
-	struct drm_connector connector;
 	struct drm_encoder encoder;
-	struct phy *phy;
-	struct regmap *grf;
-	bool data_sync_bypass;
-	const struct rockchip_rgb_funcs *funcs;
-	struct rockchip_drm_sub_dev sub_dev;
+	int output_mode;
 };
-
-static inline struct rockchip_rgb *connector_to_rgb(struct drm_connector *c)
-{
-	return container_of(c, struct rockchip_rgb, connector);
-}
-
-static inline struct rockchip_rgb *encoder_to_rgb(struct drm_encoder *e)
-{
-	return container_of(e, struct rockchip_rgb, encoder);
-}
-
-static enum drm_connector_status
-rockchip_rgb_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
-static const struct drm_connector_funcs rockchip_rgb_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
-	.detect = rockchip_rgb_connector_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static int rockchip_rgb_connector_get_modes(struct drm_connector *connector)
-{
-	struct rockchip_rgb *rgb = connector_to_rgb(connector);
-	struct drm_panel *panel = rgb->panel;
-
-	return drm_panel_get_modes(panel);
-}
-
-static struct drm_encoder *
-rockchip_rgb_connector_best_encoder(struct drm_connector *connector)
-{
-	struct rockchip_rgb *rgb = connector_to_rgb(connector);
-
-	return &rgb->encoder;
-}
-
-static const
-struct drm_connector_helper_funcs rockchip_rgb_connector_helper_funcs = {
-	.get_modes = rockchip_rgb_connector_get_modes,
-	.best_encoder = rockchip_rgb_connector_best_encoder,
-};
-
-static void rockchip_rgb_encoder_enable(struct drm_encoder *encoder)
-{
-	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
-	int ret;
-
-	pinctrl_pm_select_default_state(rgb->dev);
-
-	if (rgb->funcs && rgb->funcs->enable)
-		rgb->funcs->enable(rgb);
-
-	if (rgb->phy) {
-		ret = phy_set_mode(rgb->phy, PHY_MODE_VIDEO_TTL);
-		if (ret) {
-			dev_err(rgb->dev, "failed to set phy mode: %d\n", ret);
-			return;
-		}
-
-		phy_power_on(rgb->phy);
-	}
-
-	if (rgb->panel) {
-		drm_panel_prepare(rgb->panel);
-		drm_panel_enable(rgb->panel);
-	}
-}
-
-static void rockchip_rgb_encoder_disable(struct drm_encoder *encoder)
-{
-	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
-
-	if (rgb->panel) {
-		drm_panel_disable(rgb->panel);
-		drm_panel_unprepare(rgb->panel);
-	}
-
-	if (rgb->phy)
-		phy_power_off(rgb->phy);
-
-	if (rgb->funcs && rgb->funcs->disable)
-		rgb->funcs->disable(rgb);
-
-	pinctrl_pm_select_sleep_state(rgb->dev);
-}
 
 static int
 rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
@@ -176,312 +37,128 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct drm_connector *connector = conn_state->connector;
 	struct drm_display_info *info = &connector->display_info;
+	u32 bus_format;
 
 	if (info->num_bus_formats)
-		s->bus_format = info->bus_formats[0];
+		bus_format = info->bus_formats[0];
 	else
-		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
-	switch (s->bus_format) {
+	switch (bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X18:
 		s->output_mode = ROCKCHIP_OUT_MODE_P666;
-		s->output_if = VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB565_1X16:
 		s->output_mode = ROCKCHIP_OUT_MODE_P565;
-		s->output_if = VOP_OUTPUT_IF_RGB;
-		break;
-	case MEDIA_BUS_FMT_SRGB888_3X8:
-		s->output_mode = ROCKCHIP_OUT_MODE_S888;
-		s->output_if = VOP_OUTPUT_IF_RGB;
-		break;
-	case MEDIA_BUS_FMT_SRGB888_DUMMY_4X8:
-		s->output_mode = ROCKCHIP_OUT_MODE_S888_DUMMY;
-		s->output_if = VOP_OUTPUT_IF_RGB;
-		break;
-	case MEDIA_BUS_FMT_YUYV8_2X8:
-	case MEDIA_BUS_FMT_YVYU8_2X8:
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-	case MEDIA_BUS_FMT_VYUY8_2X8:
-		s->output_mode = ROCKCHIP_OUT_MODE_BT656;
-		s->output_if = VOP_OUTPUT_IF_BT656;
-		break;
-	case MEDIA_BUS_FMT_YUYV8_1X16:
-	case MEDIA_BUS_FMT_YVYU8_1X16:
-	case MEDIA_BUS_FMT_UYVY8_1X16:
-	case MEDIA_BUS_FMT_VYUY8_1X16:
-		s->output_mode = ROCKCHIP_OUT_MODE_BT1120;
-		s->output_if = VOP_OUTPUT_IF_BT1120;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
 	default:
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
-		s->output_if = VOP_OUTPUT_IF_RGB;
 		break;
 	}
 
-	s->output_type = DRM_MODE_CONNECTOR_DPI;
-	s->bus_flags = info->bus_flags;
-	s->tv_state = &conn_state->tv;
-	s->eotf = TRADITIONAL_GAMMA_SDR;
-	s->color_space = V4L2_COLORSPACE_DEFAULT;
-
-	return 0;
-}
-
-static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
-					       bool on)
-{
-	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
-
-	if (rgb->panel)
-		drm_panel_loader_protect(rgb->panel, on);
+	s->output_type = DRM_MODE_CONNECTOR_LVDS;
 
 	return 0;
 }
 
 static const
 struct drm_encoder_helper_funcs rockchip_rgb_encoder_helper_funcs = {
-	.enable = rockchip_rgb_encoder_enable,
-	.disable = rockchip_rgb_encoder_disable,
 	.atomic_check = rockchip_rgb_encoder_atomic_check,
-	.loader_protect = rockchip_rgb_encoder_loader_protect,
 };
 
-static const struct drm_encoder_funcs rockchip_rgb_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
-static int rockchip_rgb_bind(struct device *dev, struct device *master,
-			     void *data)
+struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
+				       struct drm_crtc *crtc,
+				       struct drm_device *drm_dev)
 {
-	struct rockchip_rgb *rgb = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-	struct drm_encoder *encoder = &rgb->encoder;
-	struct drm_connector *connector;
-	int ret;
+	struct rockchip_rgb *rgb;
+	struct drm_encoder *encoder;
+	struct device_node *port, *endpoint;
+	u32 endpoint_id;
+	int ret = 0, child_count = 0;
+	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
-					  &rgb->panel, &rgb->bridge);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "failed to find panel or bridge: %d\n", ret);
-		return ret;
+	rgb = devm_kzalloc(dev, sizeof(*rgb), GFP_KERNEL);
+	if (!rgb)
+		return ERR_PTR(-ENOMEM);
+
+	rgb->dev = dev;
+	rgb->drm_dev = drm_dev;
+
+	port = of_graph_get_port_by_id(dev->of_node, 0);
+	if (!port)
+		return ERR_PTR(-EINVAL);
+
+	for_each_child_of_node(port, endpoint) {
+		if (of_property_read_u32(endpoint, "reg", &endpoint_id))
+			endpoint_id = 0;
+
+		/* if subdriver (> 0) or error case (< 0), ignore entry */
+		if (rockchip_drm_endpoint_is_subdriver(endpoint) != 0)
+			continue;
+
+		child_count++;
+		ret = drm_of_find_panel_or_bridge(dev->of_node, 0, endpoint_id,
+						  &panel, &bridge);
+		if (!ret) {
+			of_node_put(endpoint);
+			break;
+		}
 	}
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
-							     dev->of_node);
+	of_node_put(port);
 
-	ret = drm_encoder_init(drm_dev, encoder, &rockchip_rgb_encoder_funcs,
-			       DRM_MODE_ENCODER_DPI, NULL);
+	/* if the rgb output is not connected to anything, just return */
+	if (!child_count)
+		return NULL;
+
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "failed to initialize encoder: %d\n", ret);
-		return ret;
+		if (ret != -EPROBE_DEFER)
+			DRM_DEV_ERROR(dev, "failed to find panel or bridge %d\n", ret);
+		return ERR_PTR(ret);
+	}
+
+	encoder = &rgb->encoder;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_NONE);
+	if (ret < 0) {
+		DRM_DEV_ERROR(drm_dev->dev,
+			      "failed to initialize encoder: %d\n", ret);
+		return ERR_PTR(ret);
 	}
 
 	drm_encoder_helper_add(encoder, &rockchip_rgb_encoder_helper_funcs);
 
-	if (rgb->panel) {
-		connector = &rgb->connector;
-		connector->interlace_allowed = true;
-		ret = drm_connector_init(drm_dev, connector,
-					 &rockchip_rgb_connector_funcs,
-					 DRM_MODE_CONNECTOR_DPI);
-		if (ret < 0) {
-			DRM_DEV_ERROR(dev,
-				      "failed to initialize connector: %d\n",
-				      ret);
-			goto err_free_encoder;
-		}
-
-		drm_connector_helper_add(connector,
-					 &rockchip_rgb_connector_helper_funcs);
-
-		ret = drm_connector_attach_encoder(connector, encoder);
-		if (ret < 0) {
-			DRM_DEV_ERROR(dev,
-				      "failed to attach encoder: %d\n", ret);
-			goto err_free_connector;
-		}
-
-		ret = drm_panel_attach(rgb->panel, connector);
-		if (ret < 0) {
-			DRM_DEV_ERROR(dev, "failed to attach panel: %d\n", ret);
-			goto err_free_connector;
-		}
-		rgb->sub_dev.connector = &rgb->connector;
-		rgb->sub_dev.of_node = rgb->dev->of_node;
-		rockchip_drm_register_sub_dev(&rgb->sub_dev);
-	} else {
-		rgb->bridge->encoder = encoder;
-		ret = drm_bridge_attach(encoder, rgb->bridge, NULL);
-		if (ret) {
-			DRM_DEV_ERROR(dev,
-				      "failed to attach bridge: %d\n", ret);
-			goto err_free_encoder;
-		}
-		encoder->bridge = rgb->bridge;
+	if (panel) {
+		bridge = drm_panel_bridge_add_typed(panel,
+						    DRM_MODE_CONNECTOR_LVDS);
+		if (IS_ERR(bridge))
+			return ERR_CAST(bridge);
 	}
 
-	return 0;
+	rgb->bridge = bridge;
 
-err_free_connector:
-	drm_connector_cleanup(connector);
+	ret = drm_bridge_attach(encoder, rgb->bridge, NULL, 0);
+	if (ret) {
+		DRM_DEV_ERROR(drm_dev->dev,
+			      "failed to attach bridge: %d\n", ret);
+		goto err_free_encoder;
+	}
+
+	return rgb;
+
 err_free_encoder:
 	drm_encoder_cleanup(encoder);
-	return ret;
+	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(rockchip_rgb_init);
 
-static void rockchip_rgb_unbind(struct device *dev, struct device *master,
-				void *data)
+void rockchip_rgb_fini(struct rockchip_rgb *rgb)
 {
-	struct rockchip_rgb *rgb = dev_get_drvdata(dev);
-
-	if (rgb->sub_dev.connector)
-		rockchip_drm_register_sub_dev(&rgb->sub_dev);
-	if (rgb->panel) {
-		drm_panel_detach(rgb->panel);
-		drm_connector_cleanup(&rgb->connector);
-	}
-
+	drm_panel_bridge_remove(rgb->bridge);
 	drm_encoder_cleanup(&rgb->encoder);
 }
-
-static const struct component_ops rockchip_rgb_component_ops = {
-	.bind = rockchip_rgb_bind,
-	.unbind = rockchip_rgb_unbind,
-};
-
-static int rockchip_rgb_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct rockchip_rgb *rgb;
-	int ret;
-
-	rgb = devm_kzalloc(&pdev->dev, sizeof(*rgb), GFP_KERNEL);
-	if (!rgb)
-		return -ENOMEM;
-
-	rgb->dev = dev;
-	rgb->funcs = of_device_get_match_data(dev);
-	platform_set_drvdata(pdev, rgb);
-
-	rgb->data_sync_bypass =
-	    of_property_read_bool(dev->of_node, "rockchip,data-sync-bypass");
-
-	if (dev->parent && dev->parent->of_node) {
-		rgb->grf = syscon_node_to_regmap(dev->parent->of_node);
-		if (IS_ERR(rgb->grf)) {
-			ret = PTR_ERR(rgb->grf);
-			dev_err(dev, "Unable to get grf: %d\n", ret);
-			return ret;
-		}
-	}
-
-	rgb->phy = devm_phy_optional_get(dev, "phy");
-	if (IS_ERR(rgb->phy)) {
-		ret = PTR_ERR(rgb->phy);
-		dev_err(dev, "failed to get phy: %d\n", ret);
-		return ret;
-	}
-
-	return component_add(dev, &rockchip_rgb_component_ops);
-}
-
-static int rockchip_rgb_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &rockchip_rgb_component_ops);
-
-	return 0;
-}
-
-static void px30_rgb_enable(struct rockchip_rgb *rgb)
-{
-	int pipe = drm_of_encoder_active_endpoint_id(rgb->dev->of_node,
-						     &rgb->encoder);
-
-	regmap_write(rgb->grf, PX30_GRF_PD_VO_CON1, PX30_RGB_VOP_SEL(pipe) |
-		     PX30_RGB_DATA_SYNC_BYPASS(rgb->data_sync_bypass));
-}
-
-static const struct rockchip_rgb_funcs px30_rgb_funcs = {
-	.enable = px30_rgb_enable,
-};
-
-static void rk1808_rgb_enable(struct rockchip_rgb *rgb)
-{
-	regmap_write(rgb->grf, RK1808_GRF_PD_VO_CON1,
-		     RK1808_RGB_DATA_SYNC_BYPASS(rgb->data_sync_bypass));
-}
-
-static const struct rockchip_rgb_funcs rk1808_rgb_funcs = {
-	.enable = rk1808_rgb_enable,
-};
-
-static void rk3288_rgb_enable(struct rockchip_rgb *rgb)
-{
-	int pipe = drm_of_encoder_active_endpoint_id(rgb->dev->of_node,
-						     &rgb->encoder);
-
-	regmap_write(rgb->grf, RK3288_GRF_SOC_CON6, RK3288_LVDS_LCDC_SEL(pipe));
-	regmap_write(rgb->grf, RK3288_GRF_SOC_CON7,
-		     RK3288_LVDS_PWRDWN(0) | RK3288_LVDS_CON_ENABLE_2(1) |
-		     RK3288_LVDS_CON_ENABLE_1(1) | RK3288_LVDS_CON_CLKINV(0) |
-		     RK3288_LVDS_CON_TTL_EN(1));
-}
-
-static void rk3288_rgb_disable(struct rockchip_rgb *rgb)
-{
-	regmap_write(rgb->grf, RK3288_GRF_SOC_CON7,
-		     RK3288_LVDS_PWRDWN(1) | RK3288_LVDS_CON_ENABLE_2(0) |
-		     RK3288_LVDS_CON_ENABLE_1(0) | RK3288_LVDS_CON_TTL_EN(0));
-}
-
-static const struct rockchip_rgb_funcs rk3288_rgb_funcs = {
-	.enable = rk3288_rgb_enable,
-	.disable = rk3288_rgb_disable,
-};
-
-static void rk3568_rgb_enable(struct rockchip_rgb *rgb)
-{
-	regmap_write(rgb->grf, RK3568_GRF_VO_CON1,
-		     RK3568_RGB_DATA_BYPASS(rgb->data_sync_bypass));
-}
-
-static const struct rockchip_rgb_funcs rk3568_rgb_funcs = {
-	.enable = rk3568_rgb_enable,
-};
-
-static void rv1126_rgb_enable(struct rockchip_rgb *rgb)
-{
-	regmap_write(rgb->grf, RV1126_GRF_IOFUNC_CON3,
-		     RV1126_LCDC_IO_BYPASS(rgb->data_sync_bypass));
-}
-
-static const struct rockchip_rgb_funcs rv1126_rgb_funcs = {
-	.enable = rv1126_rgb_enable,
-};
-
-static const struct of_device_id rockchip_rgb_dt_ids[] = {
-	{ .compatible = "rockchip,px30-rgb", .data = &px30_rgb_funcs },
-	{ .compatible = "rockchip,rk1808-rgb", .data = &rk1808_rgb_funcs },
-	{ .compatible = "rockchip,rk3066-rgb", },
-	{ .compatible = "rockchip,rk3128-rgb", },
-	{ .compatible = "rockchip,rk3288-rgb", .data = &rk3288_rgb_funcs },
-	{ .compatible = "rockchip,rk3308-rgb", },
-	{ .compatible = "rockchip,rk3368-rgb", },
-	{ .compatible = "rockchip,rk3568-rgb", .data = &rk3568_rgb_funcs },
-	{ .compatible = "rockchip,rv1108-rgb", },
-	{ .compatible = "rockchip,rv1126-rgb", .data = &rv1126_rgb_funcs},
-	{}
-};
-MODULE_DEVICE_TABLE(of, rockchip_rgb_dt_ids);
-
-struct platform_driver rockchip_rgb_driver = {
-	.probe = rockchip_rgb_probe,
-	.remove = rockchip_rgb_remove,
-	.driver = {
-		.name = "rockchip-rgb",
-		.of_match_table = of_match_ptr(rockchip_rgb_dt_ids),
-	},
-};
+EXPORT_SYMBOL_GPL(rockchip_rgb_fini);

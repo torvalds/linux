@@ -54,6 +54,22 @@ DEFINE_EVENT(ppc64_interrupt_class, timer_interrupt_exit,
 	TP_ARGS(regs)
 );
 
+#ifdef CONFIG_PPC_DOORBELL
+DEFINE_EVENT(ppc64_interrupt_class, doorbell_entry,
+
+	TP_PROTO(struct pt_regs *regs),
+
+	TP_ARGS(regs)
+);
+
+DEFINE_EVENT(ppc64_interrupt_class, doorbell_exit,
+
+	TP_PROTO(struct pt_regs *regs),
+
+	TP_ARGS(regs)
+);
+#endif
+
 #ifdef CONFIG_PPC_PSERIES
 extern int hcall_tracepoint_regfunc(void);
 extern void hcall_tracepoint_unregfunc(void);
@@ -199,6 +215,21 @@ TRACE_EVENT(tlbie,
 		"prs=0x%lx, r=0x%lx", __entry->lpid, __entry->local,
 		__entry->rb, __entry->rs, __entry->ric, __entry->prs,
 		__entry->r)
+);
+
+TRACE_EVENT(tlbia,
+
+	TP_PROTO(unsigned long id),
+	TP_ARGS(id),
+	TP_STRUCT__entry(
+		__field(unsigned long, id)
+		),
+
+	TP_fast_assign(
+		__entry->id = id;
+		),
+
+	TP_printk("ctx.id=0x%lx", __entry->id)
 );
 
 #endif /* _TRACE_POWERPC_H */

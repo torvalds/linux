@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic Generic NCR5380 driver
  *
@@ -19,7 +20,7 @@
  * Added ISAPNP support for DTC436 adapters,
  * Thomas Sailer, sailer@ife.ee.ethz.ch
  *
- * See Documentation/scsi/g_NCR5380.txt for more info.
+ * See Documentation/scsi/g_NCR5380.rst for more info.
  */
 
 #include <asm/io.h>
@@ -339,7 +340,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 			break;
 		case BOARD_DTC3181E:
 			hostdata->io_width = 2;	/* 16-bit PDMA */
-			/* fall through */
+			fallthrough;
 		case BOARD_NCR53C400A:
 		case BOARD_HP_C2502:
 			hostdata->c400_ctl_status = 9;
@@ -700,7 +701,7 @@ static struct scsi_host_template driver_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 2,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.dma_boundary		= PAGE_SIZE - 1,
 	.cmd_size		= NCR5380_CMD_SIZE,
 	.max_sectors		= 128,
 };

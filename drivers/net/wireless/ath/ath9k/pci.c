@@ -825,6 +825,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 	struct pci_dev *parent;
 	u16 aspm;
+	int ret;
 
 	if (!ah->is_pciexpress)
 		return;
@@ -866,8 +867,8 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	if (AR_SREV_9462(ah))
 		pci_read_config_dword(pdev, 0x70c, &ah->config.aspm_l1_fix);
 
-	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &aspm);
-	if (aspm & (PCI_EXP_LNKCTL_ASPM_L0S | PCI_EXP_LNKCTL_ASPM_L1)) {
+	ret = pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &aspm);
+	if (!ret && (aspm & (PCI_EXP_LNKCTL_ASPM_L0S | PCI_EXP_LNKCTL_ASPM_L1))) {
 		ah->aspm_enabled = true;
 		/* Initialize PCIe PM and SERDES registers. */
 		ath9k_hw_configpcipowersave(ah, false);
@@ -1021,13 +1022,12 @@ static void ath_pci_remove(struct pci_dev *pdev)
 
 static int ath_pci_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ieee80211_hw *hw = dev_get_drvdata(device);
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	if (test_bit(ATH_OP_WOW_ENABLED, &common->op_flags)) {
-		dev_info(&pdev->dev, "WOW is enabled, bypassing PCI suspend\n");
+		dev_info(device, "WOW is enabled, bypassing PCI suspend\n");
 		return 0;
 	}
 

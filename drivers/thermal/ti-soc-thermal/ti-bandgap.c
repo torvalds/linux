@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI Bandgap temperature sensor driver
  *
@@ -6,21 +7,6 @@
  * Author: Moiz Sonasath <m-sonasath@ti.com>
  * Couple of fixes, DT and MFD adaptation:
  *   Eduardo Valentin <eduardo.valentin@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/module.h>
@@ -29,21 +15,31 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/sys_soc.h>
 #include <linux/reboot.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/io.h>
+#include <linux/cpu_pm.h>
+#include <linux/device.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include "ti-bandgap.h"
 
 static int ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id);
+#ifdef CONFIG_PM_SLEEP
+static int bandgap_omap_cpu_notifier(struct notifier_block *nb,
+				  unsigned long cmd, void *v);
+#endif
 
 /***   Helper functions to access registers and their bitfields   ***/
 
@@ -757,27 +753,13 @@ exit:
 static int ti_bandgap_tshut_init(struct ti_bandgap *bgp,
 				 struct platform_device *pdev)
 {
-	int gpio_nr = bgp->tshut_gpio;
 	int status;
 
-	/* Request for gpio_86 line */
-	status = gpio_request(gpio_nr, "tshut");
-	if (status < 0) {
-		dev_err(bgp->dev, "Could not request for TSHUT GPIO:%i\n", 86);
-		return status;
-	}
-	status = gpio_direction_input(gpio_nr);
-	if (status) {
-		dev_err(bgp->dev, "Cannot set input TSHUT GPIO %d\n", gpio_nr);
-		return status;
-	}
-
-	status = request_irq(gpio_to_irq(gpio_nr), ti_bandgap_tshut_irq_handler,
+	status = request_irq(gpiod_to_irq(bgp->tshut_gpiod),
+			     ti_bandgap_tshut_irq_handler,
 			     IRQF_TRIGGER_RISING, "tshut", NULL);
-	if (status) {
-		gpio_free(gpio_nr);
+	if (status)
 		dev_err(bgp->dev, "request irq failed for TSHUT");
-	}
 
 	return 0;
 }
@@ -801,10 +783,9 @@ static int ti_bandgap_talert_init(struct ti_bandgap *bgp,
 	int ret;
 
 	bgp->irq = platform_get_irq(pdev, 0);
-	if (bgp->irq < 0) {
-		dev_err(&pdev->dev, "get_irq failed\n");
+	if (bgp->irq < 0)
 		return bgp->irq;
-	}
+
 	ret = request_threaded_irq(bgp->irq, NULL,
 				   ti_bandgap_talert_irq_handler,
 				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
@@ -874,16 +855,26 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	} while (res);
 
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
-		bgp->tshut_gpio = of_get_gpio(node, 0);
-		if (!gpio_is_valid(bgp->tshut_gpio)) {
-			dev_err(&pdev->dev, "invalid gpio for tshut (%d)\n",
-				bgp->tshut_gpio);
-			return ERR_PTR(-EINVAL);
+		bgp->tshut_gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_IN);
+		if (IS_ERR(bgp->tshut_gpiod)) {
+			dev_err(&pdev->dev, "invalid gpio for tshut\n");
+			return ERR_CAST(bgp->tshut_gpiod);
 		}
 	}
 
 	return bgp;
 }
+
+/*
+ * List of SoCs on which the CPU PM notifier can cause erros on the DTEMP
+ * readout.
+ * Enabled notifier on these machines results in erroneous, random values which
+ * could trigger unexpected thermal shutdown.
+ */
+static const struct soc_device_attribute soc_no_cpu_notifier[] = {
+	{ .machine = "OMAP4430" },
+	{ /* sentinel */ },
+};
 
 /***   Device driver call backs   ***/
 
@@ -1039,6 +1030,12 @@ int ti_bandgap_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_PM_SLEEP
+	bgp->nb.notifier_call = bandgap_omap_cpu_notifier;
+	if (!soc_device_match(soc_no_cpu_notifier))
+		cpu_pm_register_notifier(&bgp->nb);
+#endif
+
 	return 0;
 
 remove_last_cooling:
@@ -1060,10 +1057,8 @@ put_clks:
 put_fclock:
 	clk_put(bgp->fclock);
 free_irqs:
-	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
-		free_irq(gpio_to_irq(bgp->tshut_gpio), NULL);
-		gpio_free(bgp->tshut_gpio);
-	}
+	if (TI_BANDGAP_HAS(bgp, TSHUT))
+		free_irq(gpiod_to_irq(bgp->tshut_gpiod), NULL);
 
 	return ret;
 }
@@ -1074,7 +1069,10 @@ int ti_bandgap_remove(struct platform_device *pdev)
 	struct ti_bandgap *bgp = platform_get_drvdata(pdev);
 	int i;
 
-	/* First thing is to remove sensor interfaces */
+	if (!soc_device_match(soc_no_cpu_notifier))
+		cpu_pm_unregister_notifier(&bgp->nb);
+
+	/* Remove sensor interfaces */
 	for (i = 0; i < bgp->conf->sensor_count; i++) {
 		if (bgp->conf->sensors[i].unregister_cooling)
 			bgp->conf->sensors[i].unregister_cooling(bgp, i);
@@ -1093,10 +1091,8 @@ int ti_bandgap_remove(struct platform_device *pdev)
 	if (TI_BANDGAP_HAS(bgp, TALERT))
 		free_irq(bgp->irq, bgp);
 
-	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
-		free_irq(gpio_to_irq(bgp->tshut_gpio), NULL);
-		gpio_free(bgp->tshut_gpio);
-	}
+	if (TI_BANDGAP_HAS(bgp, TSHUT))
+		free_irq(gpiod_to_irq(bgp->tshut_gpiod), NULL);
 
 	return 0;
 }
@@ -1185,7 +1181,41 @@ static int ti_bandgap_suspend(struct device *dev)
 	if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
 		clk_disable_unprepare(bgp->fclock);
 
+	bgp->is_suspended = true;
+
 	return err;
+}
+
+static int bandgap_omap_cpu_notifier(struct notifier_block *nb,
+				  unsigned long cmd, void *v)
+{
+	struct ti_bandgap *bgp;
+
+	bgp = container_of(nb, struct ti_bandgap, nb);
+
+	spin_lock(&bgp->lock);
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		if (bgp->is_suspended)
+			break;
+		ti_bandgap_save_ctxt(bgp);
+		ti_bandgap_power(bgp, false);
+		if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
+			clk_disable(bgp->fclock);
+		break;
+	case CPU_CLUSTER_PM_ENTER_FAILED:
+	case CPU_CLUSTER_PM_EXIT:
+		if (bgp->is_suspended)
+			break;
+		if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
+			clk_enable(bgp->fclock);
+		ti_bandgap_power(bgp, true);
+		ti_bandgap_restore_ctxt(bgp);
+		break;
+	}
+	spin_unlock(&bgp->lock);
+
+	return NOTIFY_OK;
 }
 
 static int ti_bandgap_resume(struct device *dev)
@@ -1196,6 +1226,7 @@ static int ti_bandgap_resume(struct device *dev)
 		clk_prepare_enable(bgp->fclock);
 
 	ti_bandgap_power(bgp, true);
+	bgp->is_suspended = false;
 
 	return ti_bandgap_restore_ctxt(bgp);
 }

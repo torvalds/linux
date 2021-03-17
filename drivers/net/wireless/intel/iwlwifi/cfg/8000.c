@@ -8,7 +8,7 @@
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016        Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -35,7 +30,7 @@
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,7 +75,6 @@
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d
-#define IWL8000_TX_POWER_VERSION	0xffff /* meaningless */
 
 /* Memory offsets and lengths */
 #define IWL8260_DCCM_OFFSET		0x800000
@@ -98,11 +92,10 @@
 #define IWL8265_MODULE_FIRMWARE(api) \
 	IWL8265_FW_PRE __stringify(api) ".ucode"
 
-#define NVM_HW_SECTION_NUM_FAMILY_8000		10
 #define DEFAULT_NVM_FILE_FAMILY_8000C		"nvmData-8000C"
 
 static const struct iwl_base_params iwl8000_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_8000,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 31,
 	.max_tfd_queue_size = 256,
 	.shadow_ram_support = true,
@@ -141,10 +134,10 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 };
 
 #define IWL_DEVICE_8000_COMMON						\
-	.device_family = IWL_DEVICE_FAMILY_8000,			\
-	.base_params = &iwl8000_base_params,				\
+	.trans.device_family = IWL_DEVICE_FAMILY_8000,			\
+	.trans.base_params = &iwl8000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,					\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,		\
+	.nvm_hw_section_num = 10,					\
 	.features = NETIF_F_RXCSUM,					\
 	.non_shared_ant = ANT_A,					\
 	.dccm_offset = IWL8260_DCCM_OFFSET,				\
@@ -158,8 +151,7 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.apmg_not_supported = true,					\
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\
-	.min_umac_error_event_table = 0x800000,				\
-	.csr = &iwl_csr_v1
+	.min_umac_error_event_table = 0x800000
 
 #define IWL_DEVICE_8000							\
 	IWL_DEVICE_8000_COMMON,						\
@@ -182,7 +174,6 @@ const struct iwl_cfg iwl8260_2n_cfg = {
 	IWL_DEVICE_8260,
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
-	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 };
 
 const struct iwl_cfg iwl8260_2ac_cfg = {
@@ -191,7 +182,6 @@ const struct iwl_cfg iwl8260_2ac_cfg = {
 	IWL_DEVICE_8260,
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
-	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 
@@ -201,7 +191,6 @@ const struct iwl_cfg iwl8265_2ac_cfg = {
 	IWL_DEVICE_8265,
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
-	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 	.vht_mu_mimo_supported = true,
 };
@@ -212,7 +201,6 @@ const struct iwl_cfg iwl8275_2ac_cfg = {
 	IWL_DEVICE_8265,
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
-	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 	.vht_mu_mimo_supported = true,
 };
@@ -223,7 +211,6 @@ const struct iwl_cfg iwl4165_2ac_cfg = {
 	IWL_DEVICE_8000,
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
-	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 

@@ -3,6 +3,7 @@
  * Copyright (C) 2017, Intel Corporation
  */
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/slab.h>
 #include "stratix10-clk.h"
 #include "clk.h"
@@ -64,55 +65,51 @@ static const struct clk_ops dbgclk_ops = {
 	.get_parent = socfpga_gate_get_parent,
 };
 
-struct clk *s10_register_gate(const char *name, const char *parent_name,
-			      const char * const *parent_names,
-			      u8 num_parents, unsigned long flags,
-			      void __iomem *regbase, unsigned long gate_reg,
-			      unsigned long gate_idx, unsigned long div_reg,
-			      unsigned long div_offset, u8 div_width,
-			      unsigned long bypass_reg, u8 bypass_shift,
-			      u8 fixed_div)
+struct clk *s10_register_gate(const struct stratix10_gate_clock *clks, void __iomem *regbase)
 {
 	struct clk *clk;
 	struct socfpga_gate_clk *socfpga_clk;
 	struct clk_init_data init;
+	const char *parent_name = clks->parent_name;
 
 	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
 	if (!socfpga_clk)
 		return NULL;
 
-	socfpga_clk->hw.reg = regbase + gate_reg;
-	socfpga_clk->hw.bit_idx = gate_idx;
+	socfpga_clk->hw.reg = regbase + clks->gate_reg;
+	socfpga_clk->hw.bit_idx = clks->gate_idx;
 
 	gateclk_ops.enable = clk_gate_ops.enable;
 	gateclk_ops.disable = clk_gate_ops.disable;
 
-	socfpga_clk->fixed_div = fixed_div;
+	socfpga_clk->fixed_div = clks->fixed_div;
 
-	if (div_reg)
-		socfpga_clk->div_reg = regbase + div_reg;
+	if (clks->div_reg)
+		socfpga_clk->div_reg = regbase + clks->div_reg;
 	else
 		socfpga_clk->div_reg = NULL;
 
-	socfpga_clk->width = div_width;
-	socfpga_clk->shift = div_offset;
+	socfpga_clk->width = clks->div_width;
+	socfpga_clk->shift = clks->div_offset;
 
-	if (bypass_reg)
-		socfpga_clk->bypass_reg = regbase + bypass_reg;
+	if (clks->bypass_reg)
+		socfpga_clk->bypass_reg = regbase + clks->bypass_reg;
 	else
 		socfpga_clk->bypass_reg = NULL;
-	socfpga_clk->bypass_shift = bypass_shift;
+	socfpga_clk->bypass_shift = clks->bypass_shift;
 
-	if (streq(name, "cs_pdbg_clk"))
+	if (streq(clks->name, "cs_pdbg_clk"))
 		init.ops = &dbgclk_ops;
 	else
 		init.ops = &gateclk_ops;
 
-	init.name = name;
-	init.flags = flags;
+	init.name = clks->name;
+	init.flags = clks->flags;
 
-	init.num_parents = num_parents;
-	init.parent_names = parent_names ? parent_names : &parent_name;
+	init.num_parents = clks->num_parents;
+	init.parent_names = parent_name ? &parent_name : NULL;
+	if (init.parent_names == NULL)
+		init.parent_data = clks->parent_data;
 	socfpga_clk->hw.hw.init = &init;
 
 	clk = clk_register(NULL, &socfpga_clk->hw.hw);
@@ -120,6 +117,5 @@ struct clk *s10_register_gate(const char *name, const char *parent_name,
 		kfree(socfpga_clk);
 		return NULL;
 	}
-
 	return clk;
 }

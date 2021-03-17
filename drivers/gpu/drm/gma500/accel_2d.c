@@ -1,43 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Intel funded Tungsten Graphics (http://www.tungstengraphics.com) to
  * develop this driver.
  *
  **************************************************************************/
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/console.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/tty.h>
 
-#include <drm/drmP.h>
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 
 #include "psb_drv.h"
 #include "psb_reg.h"
-#include "framebuffer.h"
 
 /**
  *	psb_spank		-	reset the 2D engine
@@ -238,11 +226,10 @@ static int psb_accel_2d_copy(struct drm_psb_private *dev_priv,
 static void psbfb_copyarea_accel(struct fb_info *info,
 				 const struct fb_copyarea *a)
 {
-	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = &fbdev->pfb;
-	struct drm_device *dev = psbfb->base.dev;
-	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
+	struct drm_device *dev;
+	struct drm_psb_private *dev_priv;
 	uint32_t offset;
 	uint32_t stride;
 	uint32_t src_format;
@@ -251,6 +238,8 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 	if (!fb)
 		return;
 
+	dev = fb->dev;
+	dev_priv = dev->dev_private;
 	offset = to_gtt_range(fb->obj[0])->offset;
 	stride = fb->pitches[0];
 
@@ -321,9 +310,9 @@ void psbfb_copyarea(struct fb_info *info,
  */
 int psbfb_sync(struct fb_info *info)
 {
-	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = &fbdev->pfb;
-	struct drm_device *dev = psbfb->base.dev;
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
+	struct drm_device *dev = fb->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long _end = jiffies + HZ;
 	int busy = 0;

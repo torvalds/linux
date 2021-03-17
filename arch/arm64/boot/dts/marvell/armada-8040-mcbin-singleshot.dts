@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2016 Marvell Technology Group Ltd.
+ *
+ * Device Tree file for MACCHIATOBin Armada 8040 community board platform
+ */
+
+#include "armada-8040-mcbin.dtsi"
+
+/ {
+	model = "Marvell 8040 MACCHIATOBin Single-shot";
+	compatible = "marvell,armada8040-mcbin-singleshot",
+			"marvell,armada8040-mcbin", "marvell,armada8040",
+			"marvell,armada-ap806-quad", "marvell,armada-ap806";
+};
+
+&cp0_eth0 {
+	status = "okay";
+	phy-mode = "10gbase-r";
+	managed = "in-band-status";
+	sfp = <&sfp_eth0>;
+};
+
+&cp1_eth0 {
+	status = "okay";
+	phy-mode = "10gbase-r";
+	managed = "in-band-status";
+	sfp = <&sfp_eth1>;
+};

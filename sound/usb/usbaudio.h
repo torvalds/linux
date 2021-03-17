@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __USBAUDIO_H
 #define __USBAUDIO_H
 /*
  *   (Tentative) USB Audio Driver for ALSA
  *
  *   Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 /* handling of USB vendor/product ID pairs as 32-bit numbers */
@@ -30,21 +16,27 @@
  *
  */
 
+struct media_device;
+struct media_intf_devnode;
+
+#define MAX_CARD_INTERFACES	16
+
 struct snd_usb_audio {
 	int index;
 	struct usb_device *dev;
 	struct snd_card *card;
-	struct usb_interface *pm_intf;
+	struct usb_interface *intf[MAX_CARD_INTERFACES];
 	u32 usb_id;
 	struct mutex mutex;
-	unsigned int autosuspended:1;	
+	unsigned int system_suspend;
 	atomic_t active;
 	atomic_t shutdown;
 	atomic_t usage_count;
 	wait_queue_head_t shutdown_wait;
 	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
 	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
-	
+	unsigned int setup_fmt_after_resume_quirk:1; /* setup the format to interface after resume */
+	unsigned int need_delayed_register:1; /* warn for delayed registration */
 	int num_interfaces;
 	int num_suspended_intf;
 	int sample_rate_read_error;
@@ -66,6 +58,11 @@ struct snd_usb_audio {
 					 */
 
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
+	struct media_device *media_dev;
+	struct media_intf_devnode *ctl_intf_media_devnode;
+	struct mutex dev_lock;  /* to protect any race with disconnect */
+	int card_num;	/* cache pcm card number to use upon disconnect */
+	void (*disconnect_cb)(struct snd_usb_audio *chip);
 };
 
 #define usb_audio_err(chip, fmt, args...) \
@@ -107,6 +104,8 @@ enum quirk_type {
 	QUIRK_AUDIO_EDIROL_UAXX,
 	QUIRK_AUDIO_ALIGN_TRANSFER,
 	QUIRK_AUDIO_STANDARD_MIXER,
+	QUIRK_SETUP_FMT_AFTER_RESUME,
+	QUIRK_SETUP_DISABLE_AUTOSUSPEND,
 
 	QUIRK_TYPE_COUNT
 };
@@ -114,9 +113,9 @@ enum quirk_type {
 struct snd_usb_audio_quirk {
 	const char *vendor_name;
 	const char *product_name;
-	const char *profile_name;	/* override the card->longname */
 	int16_t ifnum;
 	uint16_t type;
+	bool shares_media_device;
 	const void *data;
 };
 
@@ -128,5 +127,52 @@ int snd_usb_lock_shutdown(struct snd_usb_audio *chip);
 void snd_usb_unlock_shutdown(struct snd_usb_audio *chip);
 
 extern bool snd_usb_use_vmalloc;
+extern bool snd_usb_skip_validation;
+
+struct audioformat;
+
+enum snd_vendor_pcm_open_close {
+	SOUND_PCM_CLOSE = 0,
+	SOUND_PCM_OPEN,
+};
+
+/**
+ * struct snd_usb_audio_vendor_ops - function callbacks for USB audio accelerators
+ * @connect: called when a new interface is found
+ * @disconnect: called when an interface is removed
+ * @set_interface: called when an interface is initialized
+ * @set_rate: called when the rate is set
+ * @set_pcm_buf: called when the pcm buffer is set
+ * @set_pcm_intf: called when the pcm interface is set
+ * @set_pcm_connection: called when pcm is opened/closed
+ * @set_pcm_binterval: called when the pcm binterval is set
+ * @usb_add_ctls: called when USB controls are added
+ *
+ * Set of callbacks for some accelerated USB audio streaming hardware.
+ *
+ * TODO: make this USB host-controller specific, right now this only works for
+ * one USB controller in the system at a time, which is only realistic for
+ * self-contained systems like phones.
+ */
+struct snd_usb_audio_vendor_ops {
+	int (*connect)(struct usb_interface *intf);
+	void (*disconnect)(struct usb_interface *intf);
+
+	int (*set_interface)(struct usb_device *udev,
+			     struct usb_host_interface *alts,
+			     int iface, int alt);
+	int (*set_rate)(struct usb_interface *intf, int iface, int rate,
+			int alt);
+	int (*set_pcm_buf)(struct usb_device *udev, int iface);
+	int (*set_pcm_intf)(struct usb_interface *intf, int iface, int alt,
+			    int direction);
+	int (*set_pcm_connection)(struct usb_device *udev,
+				  enum snd_vendor_pcm_open_close onoff,
+				  int direction);
+	int (*set_pcm_binterval)(struct audioformat *fp,
+				 struct audioformat *found,
+				 int *cur_attr, int *attr);
+	int (*usb_add_ctls)(struct snd_usb_audio *chip);
+};
 
 #endif /* __USBAUDIO_H */

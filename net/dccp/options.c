@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  net/dccp/options.c
  *
@@ -5,11 +6,6 @@
  *  Copyright (c) 2005 Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
  *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
  *  Copyright (c) 2005 Ian McDonald <ian.mcdonald@jandi.co.nz>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 #include <linux/dccp.h>
 #include <linux/module.h>
@@ -47,6 +43,7 @@ u64 dccp_decode_value_var(const u8 *bf, const u8 len)
  * dccp_parse_options  -  Parse DCCP options present in @skb
  * @sk: client|server|listening dccp socket (when @dreq != NULL)
  * @dreq: request socket to use during connection setup, or NULL
+ * @skb: frame to parse
  */
 int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		       struct sk_buff *skb)
@@ -60,7 +57,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 					(dh->dccph_doff * 4);
 	struct dccp_options_received *opt_recv = &dp->dccps_options_received;
 	unsigned char opt, len;
-	unsigned char *uninitialized_var(value);
+	unsigned char *value;
 	u32 elapsed_time;
 	__be32 opt_val;
 	int rc;
@@ -228,7 +225,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			 * interested. The RX CCID need not parse Ack Vectors,
 			 * since it is only interested in clearing old state.
 			 */
-			/* fall through */
+			fallthrough;
 		case DCCPO_MIN_TX_CCID_SPECIFIC ... DCCPO_MAX_TX_CCID_SPECIFIC:
 			if (ccid_hc_tx_parse_options(dp->dccps_hc_tx_ccid, sk,
 						     pkt_type, opt, value, len))
@@ -475,6 +472,8 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 
 /**
  * dccp_insert_option_mandatory  -  Mandatory option (5.8.2)
+ * @skb: frame into which to insert option
+ *
  * Note that since we are using skb_push, this function needs to be called
  * _after_ inserting the option it is supposed to influence (stack order).
  */
@@ -490,6 +489,7 @@ int dccp_insert_option_mandatory(struct sk_buff *skb)
 
 /**
  * dccp_insert_fn_opt  -  Insert single Feature-Negotiation option into @skb
+ * @skb: frame to insert feature negotiation option into
  * @type: %DCCPO_CHANGE_L, %DCCPO_CHANGE_R, %DCCPO_CONFIRM_L, %DCCPO_CONFIRM_R
  * @feat: one out of %dccp_feature_numbers
  * @val: NN value or SP array (preferred element first) to copy

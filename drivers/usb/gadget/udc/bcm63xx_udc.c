@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
+#include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/workqueue.h>
@@ -266,8 +267,8 @@ struct bcm63xx_req {
  * @pd: Platform data (board/port info).
  * @usbd_clk: Clock descriptor for the USB device block.
  * @usbh_clk: Clock descriptor for the USB host block.
- * @gadget: USB slave device.
- * @driver: Driver for USB slave devices.
+ * @gadget: USB device.
+ * @driver: Driver for USB device.
  * @usbd_regs: Base address of the USBD/USB20D block.
  * @iudma_regs: Base address of the USBD's associated IUDMA block.
  * @bep: Array of endpoints, including ep0.
@@ -1744,7 +1745,7 @@ static void bcm63xx_ep0_process(struct work_struct *w)
 
 /**
  * bcm63xx_udc_get_frame - Read current SOF frame number from the HW.
- * @gadget: USB slave device.
+ * @gadget: USB device.
  */
 static int bcm63xx_udc_get_frame(struct usb_gadget *gadget)
 {
@@ -1756,7 +1757,7 @@ static int bcm63xx_udc_get_frame(struct usb_gadget *gadget)
 
 /**
  * bcm63xx_udc_pullup - Enable/disable pullup on D+ line.
- * @gadget: USB slave device.
+ * @gadget: USB device.
  * @is_on: 0 to disable pullup, 1 to enable.
  *
  * See notes in bcm63xx_select_pullup().
@@ -1805,8 +1806,8 @@ static int bcm63xx_udc_pullup(struct usb_gadget *gadget, int is_on)
 
 /**
  * bcm63xx_udc_start - Start the controller.
- * @gadget: USB slave device.
- * @driver: Driver for USB slave devices.
+ * @gadget: USB device.
+ * @driver: Driver for USB device.
  */
 static int bcm63xx_udc_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
@@ -1842,8 +1843,8 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
 
 /**
  * bcm63xx_udc_stop - Shut down the controller.
- * @gadget: USB slave device.
- * @driver: Driver for USB slave devices.
+ * @gadget: USB device.
+ * @driver: Driver for USB device.
  */
 static int bcm63xx_udc_stop(struct usb_gadget *gadget)
 {
@@ -2248,7 +2249,7 @@ static void bcm63xx_udc_init_debugfs(struct bcm63xx_udc *udc)
 	if (!IS_ENABLED(CONFIG_USB_GADGET_DEBUG_FS))
 		return;
 
-	root = debugfs_create_dir(udc->gadget.name, NULL);
+	root = debugfs_create_dir(udc->gadget.name, usb_debug_root);
 	udc->debugfs_root = root;
 
 	debugfs_create_file("usbd", 0400, root, udc, &bcm63xx_usbd_dbg_fops);
@@ -2282,7 +2283,6 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct bcm63xx_usbd_platform_data *pd = dev_get_platdata(dev);
 	struct bcm63xx_udc *udc;
-	struct resource *res;
 	int rc = -ENOMEM, i, irq;
 
 	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
@@ -2298,13 +2298,11 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	udc->usbd_regs = devm_ioremap_resource(dev, res);
+	udc->usbd_regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->usbd_regs))
 		return PTR_ERR(udc->usbd_regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	udc->iudma_regs = devm_ioremap_resource(dev, res);
+	udc->iudma_regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(udc->iudma_regs))
 		return PTR_ERR(udc->iudma_regs);
 
@@ -2328,10 +2326,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 
 	/* IRQ resource #0: control interrupt (VBUS, speed, etc.) */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "missing IRQ resource #0\n");
+	if (irq < 0)
 		goto out_uninit;
-	}
 	if (devm_request_irq(dev, irq, &bcm63xx_udc_ctrl_isr, 0,
 			     dev_name(dev), udc) < 0)
 		goto report_request_failure;
@@ -2339,10 +2335,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	/* IRQ resources #1-6: data interrupts for IUDMA channels 0-5 */
 	for (i = 0; i < BCM63XX_NUM_IUDMA; i++) {
 		irq = platform_get_irq(pdev, i + 1);
-		if (irq < 0) {
-			dev_err(dev, "missing IRQ resource #%d\n", i + 1);
+		if (irq < 0)
 			goto out_uninit;
-		}
 		if (devm_request_irq(dev, irq, &bcm63xx_udc_data_isr, 0,
 				     dev_name(dev), &udc->iudma[i]) < 0)
 			goto report_request_failure;

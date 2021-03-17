@@ -120,7 +120,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	switch (i->aggr) {
 	case AGGR_BUF_FIRST:
 		ctl17 |= SM(i->aggr_len, AR_AggrLen);
-		/* fall through */
+		fallthrough;
 	case AGGR_BUF_MIDDLE:
 		ctl12 |= AR_IsAggr | AR_MoreAggr;
 		ctl17 |= SM(i->ndelim, AR_PadDelim);

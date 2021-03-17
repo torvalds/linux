@@ -127,7 +127,7 @@ struct carl9170_write_reg {
 struct carl9170_write_reg_byte {
 	__le32	addr;
 	__le32  count;
-	u8	val[0];
+	u8	val[];
 } __packed;
 
 #define	CARL9170FW_PHY_HT_ENABLE		0x4

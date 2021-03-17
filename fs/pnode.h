@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/fs/pnode.h
  *
  * (C) Copyright IBM Corporation 2005.
- *	Released under GPL v2.
- *
  */
 #ifndef _LINUX_PNODE_H
 #define _LINUX_PNODE_H
@@ -27,8 +26,7 @@
 #define CL_MAKE_SHARED 		0x08
 #define CL_PRIVATE 		0x10
 #define CL_SHARED_TO_SLAVE	0x20
-#define CL_UNPRIVILEGED		0x40
-#define CL_COPY_MNT_NS_FILE	0x80
+#define CL_COPY_MNT_NS_FILE	0x40
 
 #define CL_COPY_ALL		(CL_COPY_UNBINDABLE | CL_COPY_MNT_NS_FILE)
 
@@ -46,7 +44,7 @@ int propagate_mount_busy(struct mount *, int);
 void propagate_mount_unlock(struct mount *);
 void mnt_release_group_id(struct mount *);
 int get_dominating_id(struct mount *mnt, const struct path *root);
-unsigned int mnt_get_count(struct mount *mnt);
+int mnt_get_count(struct mount *mnt);
 void mnt_set_mountpoint(struct mount *, struct mountpoint *,
 			struct mount *);
 void mnt_change_mountpoint(struct mount *parent, struct mountpoint *mp,

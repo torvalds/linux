@@ -1,21 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
  */
 
 #include <dt-bindings/clock/px30-cru.h>
-#include <dt-bindings/display/media-bus-format.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/px30-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
-#include <dt-bindings/soc/rockchip-system-status.h>
-#include <dt-bindings/suspend/rockchip-px30.h>
 #include <dt-bindings/thermal/thermal.h>
-#include "px30-dram-default-timing.dtsi"
 
 / {
 	compatible = "rockchip,px30";
@@ -46,39 +41,50 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a35", "arm,armv8";
+			compatible = "arm,cortex-a35";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 			#cooling-cells = <2>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 			dynamic-power-coefficient = <90>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 		};
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a35", "arm,armv8";
+			compatible = "arm,cortex-a35";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			operating-points-v2 = <&cpu0_opp_table>;
+			clocks = <&cru ARMCLK>;
+			#cooling-cells = <2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <90>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
+
 		cpu2: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a35", "arm,armv8";
+			compatible = "arm,cortex-a35";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			operating-points-v2 = <&cpu0_opp_table>;
+			clocks = <&cru ARMCLK>;
+			#cooling-cells = <2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <90>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
+
 		cpu3: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a35", "arm,armv8";
+			compatible = "arm,cortex-a35";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			operating-points-v2 = <&cpu0_opp_table>;
+			clocks = <&cru ARMCLK>;
+			#cooling-cells = <2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <90>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		idle-states {
@@ -108,127 +114,36 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
-		rockchip,low-temp-min-volt = <1000000>;
-		rockchip,low-temp-adjust-volt = <
-			/* MHz    MHz    uV */
-			0      1512   50000
-		>;
-
-		clocks = <&cru PLL_APLL>;
-		rockchip,avs-scale = <4>;
-		rockchip,max-volt = <1350000>;
-		rockchip,evb-irdrop = <25000>;
-		nvmem-cells = <&cpu_leakage>, <&performance>;
-		nvmem-cell-names = "cpu_leakage", "performance";
-		rockchip,bin-scaling-sel = <
-			0               13
-			1               15
-		>;
-
-		rockchip,pvtm-voltage-sel = <
-			0        50000   0
-			50001    54000   1
-			54001    60000   2
-			60001    99999   3
-		>;
-		rockchip,pvtm-freq = <408000>;
-		rockchip,pvtm-volt = <1000000>;
-		rockchip,pvtm-ch = <0 0>;
-		rockchip,pvtm-sample-time = <1000>;
-		rockchip,pvtm-number = <10>;
-		rockchip,pvtm-error = <1000>;
-		rockchip,pvtm-ref-temp = <40>;
-		rockchip,pvtm-temp-prop = <(-56) (-56)>;
-		rockchip,thermal-zone = "soc-thermal";
-
-		opp-408000000 {
-			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <950000 950000 1350000>;
-			opp-microvolt-L0 = <950000 950000 1350000>;
-			opp-microvolt-L1 = <950000 950000 1350000>;
-			opp-microvolt-L2 = <950000 950000 1350000>;
-			opp-microvolt-L3 = <950000 950000 1350000>;
-			clock-latency-ns = <40000>;
-			opp-suspend;
-		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <950000 950000 1350000>;
-			opp-microvolt-L0 = <950000 950000 1350000>;
-			opp-microvolt-L1 = <950000 950000 1350000>;
-			opp-microvolt-L2 = <950000 950000 1350000>;
-			opp-microvolt-L3 = <950000 950000 1350000>;
 			clock-latency-ns = <40000>;
+			opp-suspend;
 		};
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <1050000 1050000 1350000>;
-			opp-microvolt-L0 = <1050000 1050000 1350000>;
-			opp-microvolt-L1 = <1000000 1000000 1350000>;
-			opp-microvolt-L2 = <1000000 1000000 1350000>;
-			opp-microvolt-L3 = <950000  950000  1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <1175000 1175000 1350000>;
-			opp-microvolt-L0 = <1175000 1175000 1350000>;
-			opp-microvolt-L1 = <1125000 1125000 1350000>;
-			opp-microvolt-L2 = <1125000 1125000 1350000>;
-			opp-microvolt-L3 = <1050000 1050000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <1300000 1300000 1350000>;
-			opp-microvolt-L0 = <1300000 1300000 1350000>;
-			opp-microvolt-L1 = <1275000 1275000 1350000>;
-			opp-microvolt-L2 = <1250000 1250000 1350000>;
-			opp-microvolt-L3 = <1200000 1200000 1350000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1248000000 {
-			opp-hz = /bits/ 64 <1248000000>;
-			opp-microvolt = <1350000 1350000 1350000>;
-			opp-microvolt-L0 = <1350000 1350000 1350000>;
-			opp-microvolt-L1 = <1300000 1300000 1350000>;
-			opp-microvolt-L2 = <1275000 1275000 1350000>;
-			opp-microvolt-L3 = <1225000 1225000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1296000000 {
 			opp-hz = /bits/ 64 <1296000000>;
 			opp-microvolt = <1350000 1350000 1350000>;
-			opp-microvolt-L0 = <1350000 1350000 1350000>;
-			opp-microvolt-L1 = <1350000 1350000 1350000>;
-			opp-microvolt-L2 = <1300000 1300000 1350000>;
-			opp-microvolt-L3 = <1250000 1250000 1350000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1416000000 {
-			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <1350000 1350000 1350000>;
-			opp-microvolt-L0 = <1350000 1350000 1350000>;
-			opp-microvolt-L1 = <1350000 1350000 1350000>;
-			opp-microvolt-L2 = <1300000 1300000 1350000>;
-			opp-microvolt-L3 = <1250000 1250000 1350000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1512000000 {
-			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <1350000 1350000 1350000>;
-			opp-microvolt-L0 = <1350000 1350000 1350000>;
-			opp-microvolt-L1 = <1350000 1350000 1350000>;
-			opp-microvolt-L2 = <1300000 1300000 1350000>;
-			opp-microvolt-L3 = <1250000 1250000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 	};
 
 	arm-pmu {
-		compatible = "arm,cortex-a53-pmu";
+		compatible = "arm,cortex-a35-pmu";
 		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
@@ -236,46 +151,10 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
-	bus_apll: bus-apll {
-		compatible = "rockchip,px30-bus";
-		rockchip,busfreq-policy = "clkfreq";
-		clocks = <&cru PLL_APLL>;
-		clock-names = "bus";
-		operating-points-v2 = <&bus_apll_opp_table>;
-		status = "disabled";
-	};
-
-	bus_apll_opp_table: bus-apll-opp-table {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp-1512000000 {
-			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <1000000>;
-		};
-		opp-1008000000 {
-			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <950000>;
-		};
-	};
-
-	cpuinfo {
-		compatible = "rockchip,cpuinfo";
-		nvmem-cells = <&otp_id>;
-		nvmem-cell-names = "id";
-	};
-
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vopb_out>, <&vopl_out>;
 		status = "disabled";
-	};
-
-	firmware {
-		optee: optee {
-			compatible = "linaro,optee-tz";
-			method = "smc";
-		};
 	};
 
 	gmac_clkin: external-gmac-clock {
@@ -290,28 +169,6 @@
 		method = "smc";
 	};
 
-	rockchip_suspend: rockchip-suspend {
-		compatible = "rockchip,pm-px30";
-		status = "disabled";
-		rockchip,sleep-debug-en = <0>;
-		rockchip,sleep-mode-config = <
-			(0
-			| RKPM_SLP_ARMOFF
-			| RKPM_SLP_PMU_HW_PLLS_PD
-			| RKPM_SLP_PMU_PMUALIVE_32K
-			| RKPM_SLP_PMU_DIS_OSC
-			| RKPM_SLP_PMIC_LP
-			)
-		>;
-		rockchip,wakeup-config = <
-			(0
-			| RKPM_CLUSTER_WKUP_EN
-			| RKPM_GPIO_WKUP_EN
-			| RKPM_USB_WKUP_EN
-			)
-		>;
-	};
-
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
@@ -320,18 +177,60 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
+	thermal_zones: thermal-zones {
+		soc_thermal: soc-thermal {
+			polling-delay-passive = <20>;
+			polling-delay = <1000>;
+			sustainable-power = <750>;
+			thermal-sensors = <&tsadc 0>;
+
+			trips {
+				threshold: trip-point-0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				target: trip-point-1 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				soc_crit: soc-crit {
+					temperature = <115000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <4096>;
+				};
+
+				map1 {
+					trip = <&target>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <4096>;
+				};
+			};
+		};
+
+		gpu_thermal: gpu-thermal {
+			polling-delay-passive = <100>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			thermal-sensors = <&tsadc 1>;
+		};
+	};
+
 	xin24m: xin24m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;
 		clock-output-names = "xin24m";
-	};
-
-	xin32k: xin32k {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32768>;
-		clock-output-names = "xin32k";
 	};
 
 	pmu: power-management@ff000000 {
@@ -432,29 +331,14 @@
 			status = "disabled";
 		};
 
-		reboot_mode: reboot-mode {
+		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x200>;
 			mode-bootloader = <BOOT_BL_DOWNLOAD>;
-			mode-charge = <BOOT_CHARGING>;
 			mode-fastboot = <BOOT_FASTBOOT>;
 			mode-loader = <BOOT_BL_DOWNLOAD>;
 			mode-normal = <BOOT_NORMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
-			mode-ums = <BOOT_UMS>;
-		};
-
-		pmu_pvtm: pmu-pvtm {
-			compatible = "rockchip,px30-pmu-pvtm";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "okay";
-
-			pvtm@1 {
-				reg = <1>;
-				clocks = <&pmucru SCLK_PVTM_PMU>;
-				clock-names = "clk";
-			};
 		};
 	};
 
@@ -464,39 +348,12 @@
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&pmucru SCLK_UART0_PMU>, <&pmucru PCLK_UART0_PMU>;
 		clock-names = "baudclk", "apb_pclk";
+		dmas = <&dmac 0>, <&dmac 1>;
+		dma-names = "tx", "rx";
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac 0>, <&dmac 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
-		status = "disabled";
-	};
-
-	i2s0_8ch: i2s@ff060000 {
-		compatible = "rockchip,px30-i2s-tdm";
-		reg = <0x0 0xff060000 0x0 0x1000>;
-		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_I2S0_TX>, <&cru SCLK_I2S0_RX>, <&cru HCLK_I2S0>;
-		clock-names = "mclk_tx", "mclk_rx", "hclk";
-		dmas = <&dmac 16>, <&dmac 17>;
-		dma-names = "tx", "rx";
-		resets = <&cru SRST_I2S0_TX>, <&cru SRST_I2S0_RX>;
-		reset-names = "tx-m", "rx-m";
-		rockchip,cru = <&cru>;
-		rockchip,grf = <&grf>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s0_8ch_sclktx
-			     &i2s0_8ch_sclkrx
-			     &i2s0_8ch_lrcktx
-			     &i2s0_8ch_lrckrx
-			     &i2s0_8ch_sdi0
-			     &i2s0_8ch_sdi1
-			     &i2s0_8ch_sdi2
-			     &i2s0_8ch_sdi3
-			     &i2s0_8ch_sdo0
-			     &i2s0_8ch_sdo1
-			     &i2s0_8ch_sdo2
-			     &i2s0_8ch_sdo3>;
 		status = "disabled";
 	};
 
@@ -508,13 +365,10 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac 18>, <&dmac 19>;
 		dma-names = "tx", "rx";
-		resets = <&cru SRST_I2S1>, <&cru SRST_I2S1_H>;
-		reset-names = "reset-m", "reset-h";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s1_2ch_sclk
-			     &i2s1_2ch_lrck
-			     &i2s1_2ch_sdi
-			     &i2s1_2ch_sdo>;
+		pinctrl-0 = <&i2s1_2ch_sclk &i2s1_2ch_lrck
+			     &i2s1_2ch_sdi &i2s1_2ch_sdo>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -526,60 +380,10 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac 20>, <&dmac 21>;
 		dma-names = "tx", "rx";
-		resets = <&cru SRST_I2S2>, <&cru SRST_I2S2_H>;
-		reset-names = "reset-m", "reset-h";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s2_2ch_sclk
-			     &i2s2_2ch_lrck
-			     &i2s2_2ch_sdi
-			     &i2s2_2ch_sdo>;
-		status = "disabled";
-	};
-
-	pdm: pdm@ff0a0000 {
-		compatible = "rockchip,px30-pdm", "rockchip,pdm";
-		reg = <0x0 0xff0a0000 0x0 0x1000>;
-		clocks = <&cru SCLK_PDM>, <&cru HCLK_PDM>;
-		clock-names = "pdm_clk", "pdm_hclk";
-		dmas = <&dmac 24>;
-		dma-names = "rx";
-		resets = <&cru SRST_PDM>;
-		reset-names = "pdm-m";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pdm_clk0m0
-			     &pdm_clk1
-			     &pdm_sdi0m0
-			     &pdm_sdi1
-			     &pdm_sdi2
-			     &pdm_sdi3>;
-		status = "disabled";
-	};
-
-	crypto: crypto@ff0b0000 {
-		compatible = "rockchip,px30-crypto";
-		reg = <0x0 0xff0b0000 0x0 0x4000>;
-		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_CRYPTO >, <&cru HCLK_CRYPTO >,
-			<&cru SCLK_CRYPTO>, <&cru SCLK_CRYPTO_APK>;
-		clock-names = "aclk", "hclk", "sclk", "apb_pclk";
-		resets = <&cru SRST_CRYPTO>;
-		reset-names = "crypto-rst";
-		status = "disabled";
-	};
-
-	rng: rng@ff0b0000 {
-		compatible = "rockchip,cryptov2-rng";
-		reg = <0x0 0xff0b0000 0x0 0x4000>;
-		clocks = <&cru SCLK_CRYPTO>, <&cru SCLK_CRYPTO_APK>,
-			<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
-		clock-names = "clk_crypto", "clk_crypto_apk",
-				"aclk_crypto", "hclk_crypto";
-		assigned-clocks = <&cru SCLK_CRYPTO>, <&cru SCLK_CRYPTO_APK>,
-					<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
-		assigned-clock-rates = <150000000>, <150000000>,
-					<200000000>, <100000000>;
-		resets = <&cru SRST_CRYPTO>;
-		reset-names = "reset";
+		pinctrl-0 = <&i2s2_2ch_sclk &i2s2_2ch_lrck
+			     &i2s2_2ch_sdi &i2s2_2ch_sdo>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -609,8 +413,10 @@
 
 		lvds: lvds {
 			compatible = "rockchip,px30-lvds";
-			phys = <&video_phy>;
-			phy-names = "phy";
+			phys = <&dsi_dphy>;
+			phy-names = "dphy";
+			rockchip,grf = <&grf>;
+			rockchip,output = "lvds";
 			status = "disabled";
 
 			ports {
@@ -622,65 +428,16 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					lvds_in_vopb: endpoint@0 {
+					lvds_vopb_in: endpoint@0 {
 						reg = <0>;
 						remote-endpoint = <&vopb_out_lvds>;
 					};
 
-					lvds_in_vopl: endpoint@1 {
+					lvds_vopl_in: endpoint@1 {
 						reg = <1>;
 						remote-endpoint = <&vopl_out_lvds>;
 					};
 				};
-			};
-		};
-
-		rgb: rgb {
-			compatible = "rockchip,px30-rgb";
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&lcdc_m0_rgb_pins>;
-			pinctrl-1 = <&lcdc_m0_sleep_pins>;
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					rgb_in_vopb: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&vopb_out_rgb>;
-					};
-
-					rgb_in_vopl: endpoint@1 {
-						reg = <1>;
-						remote-endpoint = <&vopl_out_rgb>;
-					};
-				};
-			};
-		};
-	};
-
-	core_grf: syscon@ff148000 {
-		compatible = "syscon", "simple-mfd";
-		reg = <0x0 0xff148000 0x0 0x1000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		pvtm: pvtm {
-			compatible = "rockchip,px30-pvtm";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "okay";
-
-			pvtm@0 {
-				reg = <0>;
-				clocks = <&cru SCLK_PVTM>;
-				clock-names = "clk";
 			};
 		};
 	};
@@ -691,9 +448,10 @@
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
 		clock-names = "baudclk", "apb_pclk";
+		dmas = <&dmac 2>, <&dmac 3>;
+		dma-names = "tx", "rx";
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac 2>, <&dmac 3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
 		status = "disabled";
@@ -705,9 +463,10 @@
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
 		clock-names = "baudclk", "apb_pclk";
+		dmas = <&dmac 4>, <&dmac 5>;
+		dma-names = "tx", "rx";
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac 4>, <&dmac 5>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2m0_xfer>;
 		status = "disabled";
@@ -719,9 +478,10 @@
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
 		clock-names = "baudclk", "apb_pclk";
+		dmas = <&dmac 6>, <&dmac 7>;
+		dma-names = "tx", "rx";
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac 6>, <&dmac 7>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart3m1_xfer &uart3m1_cts &uart3m1_rts>;
 		status = "disabled";
@@ -733,9 +493,10 @@
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>;
 		clock-names = "baudclk", "apb_pclk";
+		dmas = <&dmac 8>, <&dmac 9>;
+		dma-names = "tx", "rx";
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac 8>, <&dmac 9>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart4_xfer &uart4_cts &uart4_rts>;
 		status = "disabled";
@@ -747,16 +508,17 @@
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_UART5>, <&cru PCLK_UART5>;
 		clock-names = "baudclk", "apb_pclk";
+		dmas = <&dmac 10>, <&dmac 11>;
+		dma-names = "tx", "rx";
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac 10>, <&dmac 11>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart5_xfer &uart5_cts &uart5_rts>;
 		status = "disabled";
 	};
 
 	i2c0: i2c@ff180000 {
-		compatible = "rockchip,rk3399-i2c";
+		compatible = "rockchip,px30-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff180000 0x0 0x1000>;
 		clocks =  <&cru SCLK_I2C0>, <&cru PCLK_I2C0>;
 		clock-names = "i2c", "pclk";
@@ -769,7 +531,7 @@
 	};
 
 	i2c1: i2c@ff190000 {
-		compatible = "rockchip,rk3399-i2c";
+		compatible = "rockchip,px30-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff190000 0x0 0x1000>;
 		clocks = <&cru SCLK_I2C1>, <&cru PCLK_I2C1>;
 		clock-names = "i2c", "pclk";
@@ -782,7 +544,7 @@
 	};
 
 	i2c2: i2c@ff1a0000 {
-		compatible = "rockchip,rk3399-i2c";
+		compatible = "rockchip,px30-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff1a0000 0x0 0x1000>;
 		clocks = <&cru SCLK_I2C2>, <&cru PCLK_I2C2>;
 		clock-names = "i2c", "pclk";
@@ -795,7 +557,7 @@
 	};
 
 	i2c3: i2c@ff1b0000 {
-		compatible = "rockchip,rk3399-i2c";
+		compatible = "rockchip,px30-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff1b0000 0x0 0x1000>;
 		clocks = <&cru SCLK_I2C3>, <&cru PCLK_I2C3>;
 		clock-names = "i2c", "pclk";
@@ -811,15 +573,14 @@
 		compatible = "rockchip,px30-spi", "rockchip,rk3066-spi";
 		reg = <0x0 0xff1d0000 0x0 0x1000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 12>, <&dmac 13>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default", "high_speed";
+		pinctrl-names = "default";
 		pinctrl-0 = <&spi0_clk &spi0_csn &spi0_miso &spi0_mosi>;
-		pinctrl-1 = <&spi0_clk_hs &spi0_csn &spi0_miso_hs &spi0_mosi_hs>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
@@ -827,15 +588,14 @@
 		compatible = "rockchip,px30-spi", "rockchip,rk3066-spi";
 		reg = <0x0 0xff1d8000 0x0 0x1000>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		clocks = <&cru SCLK_SPI1>, <&cru PCLK_SPI1>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 14>, <&dmac 15>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default", "high_speed";
+		pinctrl-names = "default";
 		pinctrl-0 = <&spi1_clk &spi1_csn0 &spi1_csn1 &spi1_miso &spi1_mosi>;
-		pinctrl-1 = <&spi1_clk_hs &spi1_csn0 &spi1_csn1 &spi1_miso_hs &spi1_mosi_hs>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
@@ -844,108 +604,106 @@
 		reg = <0x0 0xff1e0000 0x0 0x100>;
 		clocks = <&cru PCLK_WDT_NS>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-		resets = <&cru SRST_WDT_NS_P>;
-		reset-names = "reset";
 		status = "disabled";
 	};
 
 	pwm0: pwm@ff200000 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200000 0x0 0x10>;
-		#pwm-cells = <3>;
-		pinctrl-names = "active";
-		pinctrl-0 = <&pwm0_pin>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm0_pin>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 
 	pwm1: pwm@ff200010 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200010 0x0 0x10>;
-		#pwm-cells = <3>;
-		pinctrl-names = "active";
-		pinctrl-0 = <&pwm1_pin>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm1_pin>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 
 	pwm2: pwm@ff200020 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200020 0x0 0x10>;
-		#pwm-cells = <3>;
-		pinctrl-names = "active";
-		pinctrl-0 = <&pwm2_pin>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm2_pin>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 
 	pwm3: pwm@ff200030 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200030 0x0 0x10>;
-		#pwm-cells = <3>;
-		pinctrl-names = "active";
-		pinctrl-0 = <&pwm3_pin>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm3_pin>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 
 	pwm4: pwm@ff208000 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208000 0x0 0x10>;
-		#pwm-cells = <3>;
-		pinctrl-names = "active";
-		pinctrl-0 = <&pwm4_pin>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm4_pin>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 
 	pwm5: pwm@ff208010 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208010 0x0 0x10>;
-		#pwm-cells = <3>;
-		pinctrl-names = "active";
-		pinctrl-0 = <&pwm5_pin>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm5_pin>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 
 	pwm6: pwm@ff208020 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208020 0x0 0x10>;
-		#pwm-cells = <3>;
-		pinctrl-names = "active";
-		pinctrl-0 = <&pwm6_pin>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm6_pin>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 
 	pwm7: pwm@ff208030 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208030 0x0 0x10>;
-		#pwm-cells = <3>;
-		pinctrl-names = "active";
-		pinctrl-0 = <&pwm7_pin>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm7_pin>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 
-	rktimer: rktimer@ff210000 {
-		compatible = "rockchip,rk3288-timer";
+	rktimer: timer@ff210000 {
+		compatible = "rockchip,px30-timer", "rockchip,rk3288-timer";
 		reg = <0x0 0xff210000 0x0 0x1000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_TIMER>, <&cru SCLK_TIMER0>;
 		clock-names = "pclk", "timer";
 	};
 
-	amba {
+	amba: bus {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -956,59 +714,10 @@
 			reg = <0x0 0xff240000 0x0 0x4000>;
 			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			arm,pl330-periph-burst;
-		};
-	};
-
-	thermal_zones: thermal-zones {
-
-		soc_thermal: soc-thermal {
-			polling-delay-passive = <20>;
-			polling-delay = <1000>;
-			sustainable-power = <750>;
-
-			thermal-sensors = <&tsadc 0>;
-
-			trips {
-				threshold: trip-point-0 {
-					temperature = <70000>;
-					hysteresis = <2000>;
-					type = "passive";
-				};
-				target: trip-point-1 {
-					temperature = <85000>;
-					hysteresis = <2000>;
-					type = "passive";
-				};
-				soc_crit: soc-crit {
-					temperature = <115000>;
-					hysteresis = <2000>;
-					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				map0 {
-					trip = <&target>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-					contribution = <4096>;
-				};
-				map1 {
-					trip = <&target>;
-					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-					contribution = <4096>;
-				};
-			};
-		};
-
-		gpu_thermal: gpu-thermal {
-			polling-delay-passive = <100>; /* milliseconds */
-			polling-delay = <1000>; /* milliseconds */
-
-			thermal-sensors = <&tsadc 1>;
 		};
 	};
 
@@ -1016,15 +725,19 @@
 		compatible = "rockchip,px30-tsadc";
 		reg = <0x0 0xff280000 0x0 0x100>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,grf = <&grf>;
-		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
-		clock-names = "tsadc", "apb_pclk";
 		assigned-clocks = <&cru SCLK_TSADC>;
 		assigned-clock-rates = <50000>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "tsadc", "apb_pclk";
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
-		#thermal-sensor-cells = <1>;
+		rockchip,grf = <&grf>;
 		rockchip,hw-tshut-temp = <120000>;
+		pinctrl-names = "init", "default", "sleep";
+		pinctrl-0 = <&tsadc_otp_pin>;
+		pinctrl-1 = <&tsadc_otp_out>;
+		pinctrl-2 = <&tsadc_otp_pin>;
+		#thermal-sensor-cells = <1>;
 		status = "disabled";
 	};
 
@@ -1040,19 +753,19 @@
 		status = "disabled";
 	};
 
-	otp: otp@ff290000 {
+	otp: nvmem@ff290000 {
 		compatible = "rockchip,px30-otp";
 		reg = <0x0 0xff290000 0x0 0x4000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
 		clocks = <&cru SCLK_OTP_USR>, <&cru PCLK_OTP_NS>,
 			 <&cru PCLK_OTP_PHY>;
 		clock-names = "otp", "apb_pclk", "phy";
 		resets = <&cru SRST_OTP_PHY>;
-		reset-names = "otp_phy";
+		reset-names = "phy";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
 		/* Data cells */
-		otp_id: id@7 {
+		cpu_id: id@7 {
 			reg = <0x07 0x10>;
 		};
 		cpu_leakage: cpu-leakage@17 {
@@ -1067,46 +780,38 @@
 	cru: clock-controller@ff2b0000 {
 		compatible = "rockchip,px30-cru";
 		reg = <0x0 0xff2b0000 0x0 0x1000>;
+		clocks = <&xin24m>, <&pmucru PLL_GPLL>;
+		clock-names = "xin24m", "gpll";
 		rockchip,grf = <&grf>;
-		rockchip,boost = <&cpu_boost>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+
+		assigned-clocks = <&cru PLL_NPLL>,
+			<&cru ACLK_BUS_PRE>, <&cru ACLK_PERI_PRE>,
+			<&cru HCLK_BUS_PRE>, <&cru HCLK_PERI_PRE>,
+			<&cru PCLK_BUS_PRE>, <&cru SCLK_GPU>;
+
+		assigned-clock-rates = <1188000000>,
+			<200000000>, <200000000>,
+			<150000000>, <150000000>,
+			<100000000>, <200000000>;
 	};
 
-	cpu_boost: cpu-boost@ff2b8000 {
-		compatible = "syscon";
-		reg = <0x0 0xff2b8000 0x0 0x1000>;
-		rockchip,boost-low-con0 = <0x1032>;
-		rockchip,boost-low-con1 = <0x1441>;
-		rockchip,boost-high-con0 = <0x1036>;
-		rockchip,boost-high-con1 = <0x1441>;
-		rockchip,boost-backup-pll = <1>;
-		rockchip,boost-backup-pll-usage = <0>;
-		rockchip,boost-switch-threshold = <0x249f00>;
-		rockchip,boost-statis-threshold = <0x100>;
-		rockchip,boost-statis-enable = <0>;
-		rockchip,boost-enable = <0>;
-	};
-
-	pmucru: pmu-clock-controller@ff2bc000 {
+	pmucru: clock-controller@ff2bc000 {
 		compatible = "rockchip,px30-pmucru";
 		reg = <0x0 0xff2bc000 0x0 0x1000>;
+		clocks = <&xin24m>;
+		clock-names = "xin24m";
 		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 
 		assigned-clocks =
 			<&pmucru PLL_GPLL>, <&pmucru PCLK_PMU_PRE>,
-			<&pmucru SCLK_WIFI_PMU>, <&cru ARMCLK>,
-			<&cru ACLK_BUS_PRE>, <&cru ACLK_PERI_PRE>,
-			<&cru HCLK_BUS_PRE>, <&cru HCLK_PERI_PRE>,
-			<&cru PCLK_BUS_PRE>, <&cru SCLK_GPU>;
+			<&pmucru SCLK_WIFI_PMU>;
 		assigned-clock-rates =
 			<1200000000>, <100000000>,
-			<26000000>, <600000000>,
-			<200000000>, <200000000>,
-			<150000000>, <150000000>,
-			<100000000>, <200000000>;
+			<26000000>;
 	};
 
 	usb2phy_grf: syscon@ff2c0000 {
@@ -1117,14 +822,13 @@
 		#size-cells = <1>;
 
 		u2phy: usb2-phy@100 {
-			compatible = "rockchip,px30-usb2phy",
-				     "rockchip,rk3328-usb2phy";
-			reg = <0x100 0x10>;
+			compatible = "rockchip,px30-usb2phy";
+			reg = <0x100 0x20>;
 			clocks = <&pmucru SCLK_USBPHY_REF>;
 			clock-names = "phyclk";
 			#clock-cells = <0>;
-			assigned-clocks = <&cru USB480M>, <&cru SCLK_UART1_SRC>;
-			assigned-clock-parents = <&u2phy>, <&cru USB480M>;
+			assigned-clocks = <&cru USB480M>;
+			assigned-clock-parents = <&u2phy>;
 			clock-output-names = "usb480m_phy";
 			status = "disabled";
 
@@ -1147,28 +851,15 @@
 		};
 	};
 
-	video_phy: video-phy@ff2e0000 {
-		compatible = "rockchip,px30-video-phy";
-		reg = <0x0 0xff2e0000 0x0 0x10000>,
-		      <0x0 0xff450000 0x0 0x10000>;
-		clocks = <&pmucru SCLK_MIPIDSIPHY_REF>,
-			 <&cru PCLK_MIPIDSIPHY>, <&cru PCLK_MIPI_DSI>;
-		clock-names = "ref", "pclk_phy", "pclk_host";
-		#clock-cells = <0>;
+	dsi_dphy: phy@ff2e0000 {
+		compatible = "rockchip,px30-dsi-dphy";
+		reg = <0x0 0xff2e0000 0x0 0x10000>;
+		clocks = <&pmucru SCLK_MIPIDSIPHY_REF>, <&cru PCLK_MIPIDSIPHY>;
+		clock-names = "ref", "pclk";
 		resets = <&cru SRST_MIPIDSIPHY_P>;
-		reset-names = "rst";
-		power-domains = <&power PX30_PD_VO>;
+		reset-names = "apb";
 		#phy-cells = <0>;
-		status = "disabled";
-	};
-
-	mipi_dphy_rx0: mipi-dphy-rx0@ff2f0000 {
-		compatible = "rockchip,rk3326-mipi-dphy";
-		reg = <0x0 0xff2f0000 0x0 0x4000>;
-		clocks = <&cru PCLK_MIPICSIPHY>;
-		clock-names = "dphy-ref";
-		power-domains = <&power PX30_PD_VI>;
-		rockchip,grf = <&grf>;
+		power-domains = <&power PX30_PD_VO>;
 		status = "disabled";
 	};
 
@@ -1179,14 +870,13 @@
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_OTG>;
 		clock-names = "otg";
-		power-domains = <&power PX30_PD_USB>;
 		dr_mode = "otg";
 		g-np-tx-fifo-size = <16>;
 		g-rx-fifo-size = <280>;
 		g-tx-fifo-size = <256 128 128 64 32 16>;
-		g-use-dma;
 		phys = <&u2phy_otg>;
 		phy-names = "usb2-phy";
+		power-domains = <&power PX30_PD_USB>;
 		status = "disabled";
 	};
 
@@ -1194,11 +884,10 @@
 		compatible = "generic-ehci";
 		reg = <0x0 0xff340000 0x0 0x10000>;
 		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru HCLK_HOST>, <&u2phy>;
-		clock-names = "usbhost", "utmi";
-		power-domains = <&power PX30_PD_USB>;
+		clocks = <&cru HCLK_HOST>;
 		phys = <&u2phy_host>;
 		phy-names = "usb";
+		power-domains = <&power PX30_PD_USB>;
 		status = "disabled";
 	};
 
@@ -1206,18 +895,16 @@
 		compatible = "generic-ohci";
 		reg = <0x0 0xff350000 0x0 0x10000>;
 		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru HCLK_HOST>, <&u2phy>;
-		clock-names = "usbhost", "utmi";
-		power-domains = <&power PX30_PD_USB>;
+		clocks = <&cru HCLK_HOST>;
 		phys = <&u2phy_host>;
 		phy-names = "usb";
+		power-domains = <&power PX30_PD_USB>;
 		status = "disabled";
 	};
 
 	gmac: ethernet@ff360000 {
 		compatible = "rockchip,px30-gmac";
 		reg = <0x0 0xff360000 0x0 0x10000>;
-		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq";
 		clocks = <&cru SCLK_GMAC>, <&cru SCLK_GMAC_RX_TX>,
@@ -1228,249 +915,74 @@
 			      "mac_clk_tx", "clk_mac_ref",
 			      "clk_mac_refout", "aclk_mac",
 			      "pclk_mac", "clk_mac_speed";
+		rockchip,grf = <&grf>;
 		phy-mode = "rmii";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rmii_pins &mac_refclk_12ma>;
+		power-domains = <&power PX30_PD_GMAC>;
 		resets = <&cru SRST_GMAC_A>;
 		reset-names = "stmmaceth";
-		power-domains = <&power PX30_PD_GMAC>;
 		status = "disabled";
 	};
 
-	sdmmc: dwmmc@ff370000 {
+	sdmmc: mmc@ff370000 {
 		compatible = "rockchip,px30-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff370000 0x0 0x4000>;
-		max-frequency = <150000000>;
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
-		assigned-clocks = <&cru SCLK_SDMMC>;
-		assigned-clock-parents = <&cru SCLK_SDMMC_DIV50>;
-		power-domains = <&power PX30_PD_SDCARD>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+		bus-width = <4>;
 		fifo-depth = <0x100>;
-		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+		max-frequency = <150000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_det &sdmmc_bus4>;
+		power-domains = <&power PX30_PD_SDCARD>;
 		status = "disabled";
 	};
 
-	sdio: dwmmc@ff380000 {
+	sdio: mmc@ff380000 {
 		compatible = "rockchip,px30-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff380000 0x0 0x4000>;
-		max-frequency = <150000000>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
-		assigned-clocks = <&cru SCLK_SDIO>;
-		assigned-clock-parents = <&cru SCLK_SDIO_DIV50>;
-		power-domains = <&power PX30_PD_MMC_NAND>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+		bus-width = <4>;
 		fifo-depth = <0x100>;
-		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		max-frequency = <150000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdio_bus4 &sdio_cmd &sdio_clk>;
+		power-domains = <&power PX30_PD_MMC_NAND>;
 		status = "disabled";
 	};
 
-	emmc: dwmmc@ff390000 {
+	emmc: mmc@ff390000 {
 		compatible = "rockchip,px30-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff390000 0x0 0x4000>;
-		max-frequency = <150000000>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
 			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
-		assigned-clocks = <&cru SCLK_EMMC>;
-		assigned-clock-parents = <&cru SCLK_EMMC_DIV50>;
-		power-domains = <&power PX30_PD_MMC_NAND>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+		bus-width = <8>;
 		fifo-depth = <0x100>;
-		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
-	};
-
-	nandc0: nandc@ff3b0000 {
-		compatible = "rockchip,rk-nandc";
-		reg = <0x0 0xff3b0000 0x0 0x4000>;
-		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-		nandc_id = <0>;
-		clocks = <&cru SCLK_NANDC>, <&cru HCLK_NANDC>;
-		clock-names = "clk_nandc", "hclk_nandc";
-		assigned-clocks = <&cru SCLK_NANDC>;
-		assigned-clock-parents = <&cru SCLK_NANDC_DIV50>;
+		max-frequency = <150000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 		power-domains = <&power PX30_PD_MMC_NAND>;
 		status = "disabled";
 	};
 
 	gpu: gpu@ff400000 {
-		compatible = "arm,mali-bifrost";
+		compatible = "rockchip,px30-mali", "arm,mali-bifrost";
 		reg = <0x0 0xff400000 0x0 0x4000>;
-
-		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
+		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "GPU", "MMU", "JOB";
-
-		upthreshold = <40>;
-		downdifferential = <10>;
-
+			     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "job", "mmu", "gpu";
 		clocks = <&cru SCLK_GPU>;
-		clock-names = "clk_mali";
-		power-domains = <&power PX30_PD_GPU>;
 		#cooling-cells = <2>;
-		operating-points-v2 = <&gpu_opp_table>;
-
-		status = "disabled";
-		power_model {
-			compatible = "arm,mali-simple-power-model";
-			static-coefficient = <411000>;
-			dynamic-coefficient = <733>;
-			ts = <32000 4700 (-80) 2>;
-			thermal-zone = "gpu-thermal";
-		};
-
-	};
-
-	gpu_opp_table: gpu-opp-table {
-		compatible = "operating-points-v2";
-
-		rockchip,thermal-zone = "soc-thermal";
-		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
-		rockchip,low-temp-min-volt = <1000000>;
-		rockchip,low-temp-adjust-volt = <
-			/* MHz    MHz    uV */
-			0      480     50000
-		>;
-
-		rockchip,max-volt = <1175000>;
-		rockchip,evb-irdrop = <25000>;
-
-		rockchip,pvtm-voltage-sel = <
-			0        50000   0
-			50001    54000   1
-			54001    60000   2
-			60001    99999   3
-		>;
-		rockchip,pvtm-ch = <0 0>;
-
-		opp-200000000 {
-			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <950000>;
-			opp-microvolt-L0 = <950000>;
-			opp-microvolt-L1 = <950000>;
-			opp-microvolt-L2 = <950000>;
-			opp-microvolt-L3 = <950000>;
-		};
-		opp-300000000 {
-			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <975000>;
-			opp-microvolt-L0 = <975000>;
-			opp-microvolt-L1 = <950000>;
-			opp-microvolt-L2 = <950000>;
-			opp-microvolt-L3 = <950000>;
-		};
-		opp-400000000 {
-			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <1050000>;
-			opp-microvolt-L0 = <1050000>;
-			opp-microvolt-L1 = <1025000>;
-			opp-microvolt-L2 = <975000>;
-			opp-microvolt-L3 = <950000>;
-		};
-		opp-480000000 {
-			opp-hz = /bits/ 64 <480000000>;
-			opp-microvolt = <1125000>;
-			opp-microvolt-L0 = <1125000>;
-			opp-microvolt-L1 = <1100000>;
-			opp-microvolt-L2 = <1050000>;
-			opp-microvolt-L3 = <1000000>;
-		};
-	};
-
-	mpp_srv: mpp-srv {
-		compatible = "rockchip,mpp-service";
-		rockchip,taskqueue-count = <1>;
-		rockchip,resetgroup-count = <1>;
-		rockchip,grf = <&grf>;
-		rockchip,grf-offset = <0x0410>;
-		rockchip,grf-values = <0x80008000>, <0x80000000>, <0x80000000>;
-		rockchip,grf-names = "grf_rkvdec", "grf_vdpu2", "grf_vepu2";
-		status = "disabled";
-	};
-
-	vdpu: vdpu@ff442400 {
-		compatible = "rockchip,vpu-decoder-px30";
-		reg = <0x0 0xff442400 0x0 0x400>;
-		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "irq_dec";
-		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
-		clock-names = "aclk_vcodec", "hclk_vcodec";
-		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
-		reset-names = "shared_video_a", "shared_video_h";
-		iommus = <&vpu_mmu>;
-		power-domains = <&power PX30_PD_VPU>;
-		rockchip,srv = <&mpp_srv>;
-		rockchip,taskqueue-node = <0>;
-		rockchip,resetgroup-node = <0>;
-		status = "disabled";
-	};
-
-	vpu_mmu: iommu@ff442800 {
-		compatible = "rockchip,iommu";
-		reg = <0x0 0xff442800 0x0 0x100>;
-		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vpu_mmu";
-		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
-		clock-names = "aclk", "iface";
-		power-domains = <&power PX30_PD_VPU>;
-		#iommu-cells = <0>;
-		status = "disabled";
-	};
-
-	vepu: vepu@ff442000 {
-		compatible = "rockchip,vpu-encoder-px30";
-		reg = <0x0 0xff442000 0x0 0x400>;
-		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "irq_enc";
-		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
-		clock-names = "aclk_vcodec", "hclk_vcodec";
-		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
-		reset-names = "shared_video_a", "shared_video_h";
-		iommus = <&vpu_mmu>;
-		power-domains = <&power PX30_PD_VPU>;
-		rockchip,srv = <&mpp_srv>;
-		rockchip,taskqueue-node = <0>;
-		rockchip,resetgroup-node = <0>;
-		status = "disabled";
-	};
-
-	hevc: hevc@ff440000 {
-		compatible = "rockchip,hevc-decoder-px30";
-		reg = <0x0 0xff440000 0x0 0x400>;
-		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "irq_dec";
-		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>, <&cru SCLK_CORE_VPU>;
-		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>,
-			<&cru SRST_VPU_NIU_A>, <&cru SRST_VPU_NIU_H>,
-			<&cru SRST_VPU_CORE>;
-		reset-names = "shared_video_a", "shared_video_h",
-			      "niu_a", "niu_h", "video_core";
-		iommus = <&hevc_mmu>;
-		rockchip,srv = <&mpp_srv>;
-		rockchip,taskqueue-node = <0>;
-		rockchip,resetgroup-node = <0>;
-		power-domains = <&power PX30_PD_VPU>;
-		status = "disabled";
-	};
-
-	hevc_mmu: iommu@ff440440 {
-		compatible = "rockchip,iommu";
-		reg = <0x0 0xff440440 0x0 0x40>, <0x0 0xff440480 0x0 0x40>;
-		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "hevc_mmu";
-		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
-		clock-names = "aclk", "iface";
-		power-domains = <&power PX30_PD_VPU>;
-		#iommu-cells = <0>;
+		power-domains = <&power PX30_PD_GPU>;
 		status = "disabled";
 	};
 
@@ -1478,13 +990,13 @@
 		compatible = "rockchip,px30-mipi-dsi";
 		reg = <0x0 0xff450000 0x0 0x10000>;
 		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_MIPI_DSI>, <&video_phy>;
-		clock-names = "pclk", "hs_clk";
+		clocks = <&cru PCLK_MIPI_DSI>;
+		clock-names = "pclk";
+		phys = <&dsi_dphy>;
+		phy-names = "dphy";
+		power-domains = <&power PX30_PD_VO>;
 		resets = <&cru SRST_MIPIDSI_HOST_P>;
 		reset-names = "apb";
-		phys = <&video_phy>;
-		phy-names = "mipi_dphy";
-		power-domains = <&power PX30_PD_VO>;
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1514,34 +1026,29 @@
 
 	vopb: vop@ff460000 {
 		compatible = "rockchip,px30-vop-big";
-		reg = <0x0 0xff460000 0x0 0x1fc>, <0x0 0xff460a00 0x0 0x400>;
-		rockchip,grf = <&grf>;
-		reg-names = "regs", "gamma_lut";
+		reg = <0x0 0xff460000 0x0 0xefc>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOPB>, <&cru DCLK_VOPB>,
 			 <&cru HCLK_VOPB>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
-		power-domains = <&power PX30_PD_VO>;
+		resets = <&cru SRST_VOPB_A>, <&cru SRST_VOPB_H>, <&cru SRST_VOPB>;
+		reset-names = "axi", "ahb", "dclk";
 		iommus = <&vopb_mmu>;
+		power-domains = <&power PX30_PD_VO>;
 		status = "disabled";
 
 		vopb_out: port {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			vopb_out_lvds: endpoint@0 {
+			vopb_out_dsi: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&lvds_in_vopb>;
-			};
-
-			vopb_out_dsi: endpoint@1 {
-				reg = <1>;
 				remote-endpoint = <&dsi_in_vopb>;
 			};
 
-			vopb_out_rgb: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&rgb_in_vopb>;
+			vopb_out_lvds: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lvds_vopb_in>;
 			};
 		};
 	};
@@ -1560,34 +1067,29 @@
 
 	vopl: vop@ff470000 {
 		compatible = "rockchip,px30-vop-lit";
-		reg = <0x0 0xff470000 0x0 0x1fc>, <0x0 0xff470a00 0x0 0x400>;
-		rockchip,grf = <&grf>;
-		reg-names = "regs", "gamma_lut";
+		reg = <0x0 0xff470000 0x0 0xefc>;
 		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOPL>, <&cru DCLK_VOPL>,
 			 <&cru HCLK_VOPL>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
-		power-domains = <&power PX30_PD_VO>;
+		resets = <&cru SRST_VOPL_A>, <&cru SRST_VOPL_H>, <&cru SRST_VOPL>;
+		reset-names = "axi", "ahb", "dclk";
 		iommus = <&vopl_mmu>;
+		power-domains = <&power PX30_PD_VO>;
 		status = "disabled";
 
 		vopl_out: port {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			vopl_out_lvds: endpoint@0 {
+			vopl_out_dsi: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&lvds_in_vopl>;
-			};
-
-			vopl_out_dsi: endpoint@1 {
-				reg = <1>;
 				remote-endpoint = <&dsi_in_vopl>;
 			};
 
-			vopl_out_rgb: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&rgb_in_vopl>;
+			vopl_out_lvds: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lvds_vopl_in>;
 			};
 		};
 	};
@@ -1600,114 +1102,6 @@
 		clocks = <&cru ACLK_VOPL>, <&cru HCLK_VOPL>;
 		clock-names = "aclk", "iface";
 		power-domains = <&power PX30_PD_VO>;
-		#iommu-cells = <0>;
-		status = "disabled";
-	};
-
-	rk_rga: rk_rga@ff480000 {
-		compatible = "rockchip,rga2";
-		//dev_mode = <1>;
-		reg = <0x0 0xff480000 0x0 0x1000>;
-		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA_CORE>;
-		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
-		power-domains = <&power PX30_PD_VO>;
-		status = "disabled";
-	};
-
-	cif: cif@ff490000 {
-		compatible = "rockchip,cif";
-		reg = <0x0 0xff490000 0x0 0x200>;
-		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>, <&cru PCLK_CIF>, <&cru SCLK_CIF_OUT>;
-		clock-names = "aclk_cif0", "hclk_cif0", "pclk_cif", "cif0_out";
-		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>, <&cru SRST_CIF_PCLKIN>;
-		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_pclkin";
-		power-domains = <&power PX30_PD_VI>;
-		pinctrl-names = "cif_pin_all";
-		pinctrl-0 = <&dvp_d2d9_m0>;
-		iommus = <&vip_mmu>;
-		status = "disabled";
-	};
-
-	cif_new: cif-new@ff490000 {
-		compatible = "rockchip,px30-cif";
-		reg = <0x0 0xff490000 0x0 0x200>;
-		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>, <&cru PCLK_CIF>, <&cru SCLK_CIF_OUT>;
-		clock-names = "aclk_cif", "hclk_cif", "pclk_cif", "cif_out";
-		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>, <&cru SRST_CIF_PCLKIN>;
-		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_pclkin";
-		power-domains = <&power PX30_PD_VI>;
-		iommus = <&vip_mmu>;
-		status = "disabled";
-	};
-
-	vip_mmu: iommu@ff490800{
-		compatible = "rockchip,iommu";
-		reg = <0x0 0xff490800 0x0 0x100>;
-		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vip_mmu";
-		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>;
-		clock-names = "aclk", "iface";
-		power-domains = <&power PX30_PD_VI>;
-		rk_iommu,disable_reset_quirk;
-		#iommu-cells = <0>;
-		status = "disabled";
-	};
-
-	rk_isp: rk_isp@ff4a0000 {
-		compatible = "rockchip,px30-isp", "rockchip,isp";
-		reg = <0x0 0xff4a0000 0x0 0x8000>;
-		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru SCLK_ISP>, <&cru SCLK_ISP>,
-			<&cru PCLK_ISP>, <&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>, <&cru PCLK_MIPICSIPHY>;
-		clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe",
-			"pclkin_isp", "clk_cif_pll", "clk_cif_out", "pclk_dphyrx";
-		resets = <&cru SRST_ISP>, <&cru SRST_MIPICSIPHY_P>;
-		reset-names = "rst_isp", "rst_mipicsiphy";
-		power-domains = <&power PX30_PD_VI>;
-		pinctrl-names = "default", "isp_dvp8bit2", "isp_dvp10bit", "isp_dvp12bit";
-		pinctrl-0 = <&cif_clkout_m0>;
-		pinctrl-1 = <&dvp_d2d9_m0>;
-		pinctrl-2 = <&dvp_d2d9_m0 &dvp_d10d11_m0>;
-		pinctrl-3 = <&dvp_d0d1_m0 &dvp_d2d9_m0 &dvp_d10d11_m0>;
-		rockchip,isp,mipiphy = <1>;
-		rockchip,isp,csiphy,reg = <0xff2f0000 0x4000>;
-		rockchip,grf = <&grf>;
-		rockchip,cru = <&cru>;
-		rockchip,isp,iommu-enable = <1>;
-		iommus = <&isp_mmu>;
-		status = "disabled";
-	};
-
-	rkisp1: rkisp1@ff4a0000 {
-		compatible = "rockchip,rk3326-rkisp1";
-		reg = <0x0 0xff4a0000 0x0 0x8000>;
-		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "isp_irq", "mi_irq", "mipi_irq";
-		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
-			<&cru SCLK_ISP>, <&cru PCLK_ISP>;
-		clock-names = "aclk_isp", "hclk_isp",
-			"clk_isp", "pclk_isp";
-		devfreq = <&dmc>;
-		power-domains = <&power PX30_PD_VI>;
-		iommus = <&isp_mmu>;
-		rockchip,grf = <&grf>;
-		status = "disabled";
-	};
-
-	isp_mmu: iommu@ff4a8000 {
-		compatible = "rockchip,iommu";
-		reg = <0x0 0xff4a8000 0x0 0x100>;
-		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "isp_mmu";
-		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
-		clock-names = "aclk", "iface";
-		power-domains = <&power PX30_PD_VI>;
-		rk_iommu,disable_reset_quirk;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1810,120 +1204,6 @@
 	qos_vpu_r128: qos@ff558080 {
 		compatible = "syscon";
 		reg = <0x0 0xff558080 0x0 0x20>;
-	};
-
-	dfi: dfi@ff610000 {
-		reg = <0x00 0xff610000 0x00 0x400>;
-		compatible = "rockchip,px30-dfi";
-		rockchip,pmugrf = <&pmugrf>;
-		status = "disabled";
-	};
-
-	dmc: dmc {
-		compatible = "rockchip,px30-dmc";
-		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "complete_irq";
-		devfreq-events = <&dfi>;
-		clocks = <&cru SCLK_DDRCLK>;
-		clock-names = "dmc_clk";
-		operating-points-v2 = <&dmc_opp_table>;
-		ddr_timing = <&ddr_timing>;
-		upthreshold = <40>;
-		downdifferential = <20>;
-		system-status-freq = <
-			/*system status         freq(KHz)*/
-			SYS_STATUS_NORMAL       528000
-			SYS_STATUS_REBOOT       450000
-			SYS_STATUS_SUSPEND      194000
-			SYS_STATUS_VIDEO_1080P  450000
-			SYS_STATUS_BOOST        528000
-			SYS_STATUS_ISP          666000
-			SYS_STATUS_PERFORMANCE  666000
-		>;
-		auto-min-freq = <328000>;
-		auto-freq-en = <1>;
-		#cooling-cells = <2>;
-		status = "disabled";
-
-		ddr_power_model: ddr_power_model {
-			compatible = "ddr_power_model";
-			dynamic-power-coefficient = <120>;
-			static-power-coefficient = <200>;
-			ts = <32000 4700 (-80) 2>;
-			thermal-zone = "soc-thermal";
-		};
-	};
-
-	dmc_opp_table: dmc-opp-table {
-		compatible = "operating-points-v2";
-
-		rockchip,max-volt = <1150000>;
-		rockchip,evb-irdrop = <25000>;
-
-		rockchip,pvtm-voltage-sel = <
-			0        50000   0
-			50001    54000   1
-			54001    60000   2
-			60001    99999   3
-		>;
-		rockchip,pvtm-ch = <0 0>;
-
-		opp-194000000 {
-			opp-hz = /bits/ 64 <194000000>;
-			opp-microvolt = <950000>;
-			opp-microvolt-L0 = <950000>;
-			opp-microvolt-L1 = <950000>;
-			opp-microvolt-L2 = <950000>;
-			opp-microvolt-L3 = <950000>;
-		};
-		opp-328000000 {
-			opp-hz = /bits/ 64 <328000000>;
-			opp-microvolt = <950000>;
-			opp-microvolt-L0 = <950000>;
-			opp-microvolt-L1 = <950000>;
-			opp-microvolt-L2 = <950000>;
-			opp-microvolt-L3 = <950000>;
-		};
-		opp-450000000 {
-			opp-hz = /bits/ 64 <450000000>;
-			opp-microvolt = <950000>;
-			opp-microvolt-L0 = <950000>;
-			opp-microvolt-L1 = <950000>;
-			opp-microvolt-L2 = <950000>;
-			opp-microvolt-L3 = <950000>;
-		};
-		opp-528000000 {
-			opp-hz = /bits/ 64 <528000000>;
-			opp-microvolt = <975000>;
-			opp-microvolt-L0 = <975000>;
-			opp-microvolt-L1 = <975000>;
-			opp-microvolt-L2 = <950000>;
-			opp-microvolt-L3 = <950000>;
-		};
-		opp-666000000 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <1050000>;
-			opp-microvolt-L0 = <1050000>;
-			opp-microvolt-L1 = <1000000>;
-			opp-microvolt-L2 = <975000>;
-			opp-microvolt-L3 = <950000>;
-		};
-		opp-786000000 {
-			opp-hz = /bits/ 64 <786000000>;
-			opp-microvolt = <1100000>;
-			opp-microvolt-L0 = <1100000>;
-			opp-microvolt-L1 = <1050000>;
-			opp-microvolt-L2 = <1025000>;
-			opp-microvolt-L3 = <1000000>;
-			status = "disabled";
-		};
-	};
-
-	rockchip_system_monitor: rockchip-system-monitor {
-		compatible = "rockchip,system-monitor";
-
-		rockchip,thermal-zone = "soc-thermal";
-		rockchip,polling-delay = <200>; /* milliseconds */
 	};
 
 	pinctrl: pinctrl {
@@ -2064,313 +1344,289 @@
 		i2c0 {
 			i2c0_xfer: i2c0-xfer {
 				rockchip,pins =
-					<0 RK_PB0 RK_FUNC_1 &pcfg_pull_none_smt>,
-					<0 RK_PB1 RK_FUNC_1 &pcfg_pull_none_smt>;
+					<0 RK_PB0 1 &pcfg_pull_none_smt>,
+					<0 RK_PB1 1 &pcfg_pull_none_smt>;
 			};
 		};
 
 		i2c1 {
 			i2c1_xfer: i2c1-xfer {
 				rockchip,pins =
-					<0 RK_PC2 RK_FUNC_1 &pcfg_pull_none_smt>,
-					<0 RK_PC3 RK_FUNC_1 &pcfg_pull_none_smt>;
+					<0 RK_PC2 1 &pcfg_pull_none_smt>,
+					<0 RK_PC3 1 &pcfg_pull_none_smt>;
 			};
 		};
 
 		i2c2 {
 			i2c2_xfer: i2c2-xfer {
 				rockchip,pins =
-					<2 RK_PB7 RK_FUNC_2 &pcfg_pull_none_smt>,
-					<2 RK_PC0 RK_FUNC_2 &pcfg_pull_none_smt>;
+					<2 RK_PB7 2 &pcfg_pull_none_smt>,
+					<2 RK_PC0 2 &pcfg_pull_none_smt>;
 			};
 		};
 
 		i2c3 {
 			i2c3_xfer: i2c3-xfer {
 				rockchip,pins =
-					<1 RK_PB4 RK_FUNC_4 &pcfg_pull_none_smt>,
-					<1 RK_PB5 RK_FUNC_4 &pcfg_pull_none_smt>;
+					<1 RK_PB4 4 &pcfg_pull_none_smt>,
+					<1 RK_PB5 4 &pcfg_pull_none_smt>;
 			};
 		};
 
 		tsadc {
-			tsadc_otp_gpio: tsadc-otp-gpio {
+			tsadc_otp_pin: tsadc-otp-pin {
 				rockchip,pins =
 					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 
 			tsadc_otp_out: tsadc-otp-out {
 				rockchip,pins =
-					<0 RK_PA6 RK_FUNC_1 &pcfg_pull_none>;
+					<0 RK_PA6 1 &pcfg_pull_none>;
 			};
 		};
 
 		uart0 {
 			uart0_xfer: uart0-xfer {
 				rockchip,pins =
-					<0 RK_PB2 RK_FUNC_1 &pcfg_pull_up>,
-					<0 RK_PB3 RK_FUNC_1 &pcfg_pull_up>;
+					<0 RK_PB2 1 &pcfg_pull_up>,
+					<0 RK_PB3 1 &pcfg_pull_up>;
 			};
 
 			uart0_cts: uart0-cts {
 				rockchip,pins =
-					<0 RK_PB4 RK_FUNC_1 &pcfg_pull_none>;
+					<0 RK_PB4 1 &pcfg_pull_none>;
 			};
 
 			uart0_rts: uart0-rts {
 				rockchip,pins =
-					<0 RK_PB5 RK_FUNC_1 &pcfg_pull_none>;
-			};
-
-			uart0_rts_gpio: uart0-rts-gpio {
-				rockchip,pins =
-					<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+					<0 RK_PB5 1 &pcfg_pull_none>;
 			};
 		};
 
 		uart1 {
 			uart1_xfer: uart1-xfer {
 				rockchip,pins =
-					<1 RK_PC1 RK_FUNC_1 &pcfg_pull_up>,
-					<1 RK_PC0 RK_FUNC_1 &pcfg_pull_up>;
+					<1 RK_PC1 1 &pcfg_pull_up>,
+					<1 RK_PC0 1 &pcfg_pull_up>;
 			};
 
 			uart1_cts: uart1-cts {
 				rockchip,pins =
-					<1 RK_PC2 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PC2 1 &pcfg_pull_none>;
 			};
 
 			uart1_rts: uart1-rts {
 				rockchip,pins =
-					<1 RK_PC3 RK_FUNC_1 &pcfg_pull_none>;
-			};
-
-			uart1_rts_gpio: uart1-rts-gpio {
-				rockchip,pins =
-					<1 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+					<1 RK_PC3 1 &pcfg_pull_none>;
 			};
 		};
 
 		uart2-m0 {
 			uart2m0_xfer: uart2m0-xfer {
 				rockchip,pins =
-					<1 RK_PD2 RK_FUNC_2 &pcfg_pull_up>,
-					<1 RK_PD3 RK_FUNC_2 &pcfg_pull_up>;
+					<1 RK_PD2 2 &pcfg_pull_up>,
+					<1 RK_PD3 2 &pcfg_pull_up>;
 			};
 		};
 
 		uart2-m1 {
 			uart2m1_xfer: uart2m1-xfer {
 				rockchip,pins =
-					<2 RK_PB4 RK_FUNC_2 &pcfg_pull_up>,
-					<2 RK_PB6 RK_FUNC_2 &pcfg_pull_up>;
+					<2 RK_PB4 2 &pcfg_pull_up>,
+					<2 RK_PB6 2 &pcfg_pull_up>;
 			};
 		};
 
 		uart3-m0 {
 			uart3m0_xfer: uart3m0-xfer {
 				rockchip,pins =
-					<0 RK_PC0 RK_FUNC_2 &pcfg_pull_up>,
-					<0 RK_PC1 RK_FUNC_2 &pcfg_pull_up>;
+					<0 RK_PC0 2 &pcfg_pull_up>,
+					<0 RK_PC1 2 &pcfg_pull_up>;
 			};
 
 			uart3m0_cts: uart3m0-cts {
 				rockchip,pins =
-					<0 RK_PC2 RK_FUNC_2 &pcfg_pull_none>;
+					<0 RK_PC2 2 &pcfg_pull_none>;
 			};
 
 			uart3m0_rts: uart3m0-rts {
 				rockchip,pins =
-					<0 RK_PC3 RK_FUNC_2 &pcfg_pull_none>;
-			};
-
-			uart3m0_rts_gpio: uart3m0-rts-gpio {
-				rockchip,pins =
-					<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+					<0 RK_PC3 2 &pcfg_pull_none>;
 			};
 		};
 
 		uart3-m1 {
 			uart3m1_xfer: uart3m1-xfer {
 				rockchip,pins =
-					<1 RK_PB6 RK_FUNC_2 &pcfg_pull_up>,
-					<1 RK_PB7 RK_FUNC_2 &pcfg_pull_up>;
+					<1 RK_PB6 2 &pcfg_pull_up>,
+					<1 RK_PB7 2 &pcfg_pull_up>;
 			};
 
 			uart3m1_cts: uart3m1-cts {
 				rockchip,pins =
-					<1 RK_PB4 RK_FUNC_2 &pcfg_pull_none>;
+					<1 RK_PB4 2 &pcfg_pull_none>;
 			};
 
 			uart3m1_rts: uart3m1-rts {
 				rockchip,pins =
-					<1 RK_PB5 RK_FUNC_2 &pcfg_pull_none>;
-			};
-
-			uart3m1_rts_gpio: uart3m1-rts-gpio {
-				rockchip,pins =
-					<1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+					<1 RK_PB5 2 &pcfg_pull_none>;
 			};
 		};
 
 		uart4 {
-
 			uart4_xfer: uart4-xfer {
 				rockchip,pins =
-					<1 RK_PD4 RK_FUNC_2 &pcfg_pull_up>,
-					<1 RK_PD5 RK_FUNC_2 &pcfg_pull_up>;
+					<1 RK_PD4 2 &pcfg_pull_up>,
+					<1 RK_PD5 2 &pcfg_pull_up>;
 			};
 
 			uart4_cts: uart4-cts {
 				rockchip,pins =
-					<1 RK_PD6 RK_FUNC_2 &pcfg_pull_none>;
-
+					<1 RK_PD6 2 &pcfg_pull_none>;
 			};
 
 			uart4_rts: uart4-rts {
 				rockchip,pins =
-					<1 RK_PD7 RK_FUNC_2 &pcfg_pull_none>;
+					<1 RK_PD7 2 &pcfg_pull_none>;
 			};
 		};
 
 		uart5 {
-
 			uart5_xfer: uart5-xfer {
 				rockchip,pins =
-					<3 RK_PA2 RK_FUNC_4 &pcfg_pull_up>,
-					<3 RK_PA1 RK_FUNC_4 &pcfg_pull_up>;
+					<3 RK_PA2 4 &pcfg_pull_up>,
+					<3 RK_PA1 4 &pcfg_pull_up>;
 			};
 
 			uart5_cts: uart5-cts {
 				rockchip,pins =
-					<3 RK_PA3 RK_FUNC_4 &pcfg_pull_none>;
-
+					<3 RK_PA3 4 &pcfg_pull_none>;
 			};
 
 			uart5_rts: uart5-rts {
 				rockchip,pins =
-					<3 RK_PA5 RK_FUNC_4 &pcfg_pull_none>;
+					<3 RK_PA5 4 &pcfg_pull_none>;
 			};
 		};
 
 		spi0 {
 			spi0_clk: spi0-clk {
 				rockchip,pins =
-					<1 RK_PB7 RK_FUNC_3 &pcfg_pull_up_4ma>;
+					<1 RK_PB7 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_csn: spi0-csn {
 				rockchip,pins =
-					<1 RK_PB6 RK_FUNC_3 &pcfg_pull_up_4ma>;
+					<1 RK_PB6 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_miso: spi0-miso {
 				rockchip,pins =
-					<1 RK_PB5 RK_FUNC_3 &pcfg_pull_up_4ma>;
+					<1 RK_PB5 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_mosi: spi0-mosi {
 				rockchip,pins =
-					<1 RK_PB4 RK_FUNC_3 &pcfg_pull_up_4ma>;
+					<1 RK_PB4 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_clk_hs: spi0-clk-hs {
 				rockchip,pins =
-					<1 RK_PB7 RK_FUNC_3 &pcfg_pull_up_8ma>;
+					<1 RK_PB7 3 &pcfg_pull_up_8ma>;
 			};
 
 			spi0_miso_hs: spi0-miso-hs {
 				rockchip,pins =
-					<1 RK_PB5 RK_FUNC_3 &pcfg_pull_up_8ma>;
+					<1 RK_PB5 3 &pcfg_pull_up_8ma>;
 			};
 
 			spi0_mosi_hs: spi0-mosi-hs {
 				rockchip,pins =
-					<1 RK_PB4 RK_FUNC_3 &pcfg_pull_up_8ma>;
+					<1 RK_PB4 3 &pcfg_pull_up_8ma>;
 			};
 		};
 
 		spi1 {
 			spi1_clk: spi1-clk {
 				rockchip,pins =
-					<3 RK_PB7 RK_FUNC_4 &pcfg_pull_up_4ma>;
+					<3 RK_PB7 4 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_csn0: spi1-csn0 {
 				rockchip,pins =
-					<3 RK_PB1 RK_FUNC_4 &pcfg_pull_up_4ma>;
+					<3 RK_PB1 4 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_csn1: spi1-csn1 {
 				rockchip,pins =
-					<3 RK_PB2 RK_FUNC_2 &pcfg_pull_up_4ma>;
+					<3 RK_PB2 2 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_miso: spi1-miso {
 				rockchip,pins =
-					<3 RK_PB6 RK_FUNC_4 &pcfg_pull_up_4ma>;
+					<3 RK_PB6 4 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_mosi: spi1-mosi {
 				rockchip,pins =
-					<3 RK_PB4 RK_FUNC_4 &pcfg_pull_up_4ma>;
+					<3 RK_PB4 4 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_clk_hs: spi1-clk-hs {
 				rockchip,pins =
-					<3 RK_PB7 RK_FUNC_4 &pcfg_pull_up_8ma>;
+					<3 RK_PB7 4 &pcfg_pull_up_8ma>;
 			};
 
 			spi1_miso_hs: spi1-miso-hs {
 				rockchip,pins =
-					<3 RK_PB6 RK_FUNC_4 &pcfg_pull_up_8ma>;
+					<3 RK_PB6 4 &pcfg_pull_up_8ma>;
 			};
 
 			spi1_mosi_hs: spi1-mosi-hs {
 				rockchip,pins =
-					<3 RK_PB4 RK_FUNC_4 &pcfg_pull_up_8ma>;
+					<3 RK_PB4 4 &pcfg_pull_up_8ma>;
 			};
 		};
 
 		pdm {
 			pdm_clk0m0: pdm-clk0m0 {
 				rockchip,pins =
-					<3 RK_PC6 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PC6 2 &pcfg_pull_none>;
 			};
 
 			pdm_clk0m1: pdm-clk0m1 {
 				rockchip,pins =
-					<2 RK_PC6 RK_FUNC_1 &pcfg_pull_none>;
+					<2 RK_PC6 1 &pcfg_pull_none>;
 			};
 
 			pdm_clk1: pdm-clk1 {
 				rockchip,pins =
-					<3 RK_PC7 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PC7 2 &pcfg_pull_none>;
 			};
 
 			pdm_sdi0m0: pdm-sdi0m0 {
 				rockchip,pins =
-					<3 RK_PD3 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PD3 2 &pcfg_pull_none>;
 			};
 
 			pdm_sdi0m1: pdm-sdi0m1 {
 				rockchip,pins =
-					<2 RK_PC5 RK_FUNC_2 &pcfg_pull_none>;
+					<2 RK_PC5 2 &pcfg_pull_none>;
 			};
 
 			pdm_sdi1: pdm-sdi1 {
 				rockchip,pins =
-					<3 RK_PD0 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PD0 2 &pcfg_pull_none>;
 			};
 
 			pdm_sdi2: pdm-sdi2 {
 				rockchip,pins =
-					<3 RK_PD1 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PD1 2 &pcfg_pull_none>;
 			};
 
 			pdm_sdi3: pdm-sdi3 {
 				rockchip,pins =
-					<3 RK_PD2 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PD2 2 &pcfg_pull_none>;
 			};
 
 			pdm_clk0m0_sleep: pdm-clk0m0-sleep {
@@ -2417,522 +1673,566 @@
 		i2s0 {
 			i2s0_8ch_mclk: i2s0-8ch-mclk {
 				rockchip,pins =
-					<3 RK_PC1 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PC1 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sclktx: i2s0-8ch-sclktx {
 				rockchip,pins =
-					<3 RK_PC3 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PC3 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sclkrx: i2s0-8ch-sclkrx {
 				rockchip,pins =
-					<3 RK_PB4 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PB4 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_lrcktx: i2s0-8ch-lrcktx {
 				rockchip,pins =
-					<3 RK_PC2 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PC2 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_lrckrx: i2s0-8ch-lrckrx {
 				rockchip,pins =
-					<3 RK_PB5 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PB5 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdo0: i2s0-8ch-sdo0 {
 				rockchip,pins =
-					<3 RK_PC4 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PC4 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdo1: i2s0-8ch-sdo1 {
 				rockchip,pins =
-					<3 RK_PC0 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PC0 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdo2: i2s0-8ch-sdo2 {
 				rockchip,pins =
-					<3 RK_PB7 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PB7 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdo3: i2s0-8ch-sdo3 {
 				rockchip,pins =
-					<3 RK_PB6 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PB6 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdi0: i2s0-8ch-sdi0 {
 				rockchip,pins =
-					<3 RK_PC5 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PC5 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdi1: i2s0-8ch-sdi1 {
 				rockchip,pins =
-					<3 RK_PB3 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PB3 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdi2: i2s0-8ch-sdi2 {
 				rockchip,pins =
-					<3 RK_PB1 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PB1 2 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdi3: i2s0-8ch-sdi3 {
 				rockchip,pins =
-					<3 RK_PB0 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PB0 2 &pcfg_pull_none>;
 			};
 		};
 
 		i2s1 {
 			i2s1_2ch_mclk: i2s1-2ch-mclk {
 				rockchip,pins =
-					<2 RK_PC3 RK_FUNC_1 &pcfg_pull_none>;
+					<2 RK_PC3 1 &pcfg_pull_none>;
 			};
 
 			i2s1_2ch_sclk: i2s1-2ch-sclk {
 				rockchip,pins =
-					<2 RK_PC2 RK_FUNC_1 &pcfg_pull_none>;
+					<2 RK_PC2 1 &pcfg_pull_none>;
 			};
 
 			i2s1_2ch_lrck: i2s1-2ch-lrck {
 				rockchip,pins =
-					<2 RK_PC1 RK_FUNC_1 &pcfg_pull_none>;
+					<2 RK_PC1 1 &pcfg_pull_none>;
 			};
 
 			i2s1_2ch_sdi: i2s1-2ch-sdi {
 				rockchip,pins =
-					<2 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
+					<2 RK_PC5 1 &pcfg_pull_none>;
 			};
 
 			i2s1_2ch_sdo: i2s1-2ch-sdo {
 				rockchip,pins =
-					<2 RK_PC4 RK_FUNC_1 &pcfg_pull_none>;
+					<2 RK_PC4 1 &pcfg_pull_none>;
 			};
 		};
 
 		i2s2 {
 			i2s2_2ch_mclk: i2s2-2ch-mclk {
 				rockchip,pins =
-					<3 RK_PA1 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PA1 2 &pcfg_pull_none>;
 			};
 
 			i2s2_2ch_sclk: i2s2-2ch-sclk {
 				rockchip,pins =
-					<3 RK_PA2 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PA2 2 &pcfg_pull_none>;
 			};
 
 			i2s2_2ch_lrck: i2s2-2ch-lrck {
 				rockchip,pins =
-					<3 RK_PA3 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PA3 2 &pcfg_pull_none>;
 			};
 
 			i2s2_2ch_sdi: i2s2-2ch-sdi {
 				rockchip,pins =
-					<3 RK_PA5 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PA5 2 &pcfg_pull_none>;
 			};
 
 			i2s2_2ch_sdo: i2s2-2ch-sdo {
 				rockchip,pins =
-					<3 RK_PA7 RK_FUNC_2 &pcfg_pull_none>;
+					<3 RK_PA7 2 &pcfg_pull_none>;
 			};
 		};
 
 		sdmmc {
 			sdmmc_clk: sdmmc-clk {
 				rockchip,pins =
-					<1 RK_PD6 RK_FUNC_1 &pcfg_pull_none_8ma>;
+					<1 RK_PD6 1 &pcfg_pull_none_8ma>;
 			};
 
 			sdmmc_cmd: sdmmc-cmd {
 				rockchip,pins =
-					<1 RK_PD7 RK_FUNC_1 &pcfg_pull_up_8ma>;
+					<1 RK_PD7 1 &pcfg_pull_up_8ma>;
 			};
 
 			sdmmc_det: sdmmc-det {
 				rockchip,pins =
-					<0 RK_PA3 RK_FUNC_1 &pcfg_pull_up_8ma>;
+					<0 RK_PA3 1 &pcfg_pull_up_8ma>;
 			};
 
 			sdmmc_bus1: sdmmc-bus1 {
 				rockchip,pins =
-					<1 RK_PD2 RK_FUNC_1 &pcfg_pull_up_8ma>;
+					<1 RK_PD2 1 &pcfg_pull_up_8ma>;
 			};
 
 			sdmmc_bus4: sdmmc-bus4 {
 				rockchip,pins =
-					<1 RK_PD2 RK_FUNC_1 &pcfg_pull_up_8ma>,
-					<1 RK_PD3 RK_FUNC_1 &pcfg_pull_up_8ma>,
-					<1 RK_PD4 RK_FUNC_1 &pcfg_pull_up_8ma>,
-					<1 RK_PD5 RK_FUNC_1 &pcfg_pull_up_8ma>;
-			};
-
-			sdmmc_gpio: sdmmc-gpio {
-				rockchip,pins =
-					<1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD6 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD7 RK_FUNC_GPIO &pcfg_pull_up_4ma>;
+					<1 RK_PD2 1 &pcfg_pull_up_8ma>,
+					<1 RK_PD3 1 &pcfg_pull_up_8ma>,
+					<1 RK_PD4 1 &pcfg_pull_up_8ma>,
+					<1 RK_PD5 1 &pcfg_pull_up_8ma>;
 			};
 		};
 
 		sdio {
 			sdio_clk: sdio-clk {
 				rockchip,pins =
-					<1 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PC5 1 &pcfg_pull_none>;
 			};
 
 			sdio_cmd: sdio-cmd {
 				rockchip,pins =
-					<1 RK_PC4 RK_FUNC_1 &pcfg_pull_up>;
+					<1 RK_PC4 1 &pcfg_pull_up>;
 			};
 
 			sdio_bus4: sdio-bus4 {
 				rockchip,pins =
-					<1 RK_PC6 RK_FUNC_1 &pcfg_pull_up>,
-					<1 RK_PC7 RK_FUNC_1 &pcfg_pull_up>,
-					<1 RK_PD0 RK_FUNC_1 &pcfg_pull_up>,
-					<1 RK_PD1 RK_FUNC_1 &pcfg_pull_up>;
-			};
-
-			sdio_gpio: sdio-gpio {
-				rockchip,pins =
-					<1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+					<1 RK_PC6 1 &pcfg_pull_up>,
+					<1 RK_PC7 1 &pcfg_pull_up>,
+					<1 RK_PD0 1 &pcfg_pull_up>,
+					<1 RK_PD1 1 &pcfg_pull_up>;
 			};
 		};
 
 		emmc {
 			emmc_clk: emmc-clk {
 				rockchip,pins =
-					<1 RK_PB1 RK_FUNC_2 &pcfg_pull_none_8ma>;
+					<1 RK_PB1 2 &pcfg_pull_none_8ma>;
 			};
 
 			emmc_cmd: emmc-cmd {
 				rockchip,pins =
-					<1 RK_PB2 RK_FUNC_2 &pcfg_pull_up_8ma>;
-			};
-
-			emmc_pwren: emmc-pwren {
-				rockchip,pins =
-					<1 RK_PB0 RK_FUNC_2 &pcfg_pull_none>;
+					<1 RK_PB2 2 &pcfg_pull_up_8ma>;
 			};
 
 			emmc_rstnout: emmc-rstnout {
 				rockchip,pins =
-					<1 RK_PB3 RK_FUNC_2 &pcfg_pull_none>;
+					<1 RK_PB3 2 &pcfg_pull_none>;
 			};
 
 			emmc_bus1: emmc-bus1 {
 				rockchip,pins =
-					<1 RK_PA0 RK_FUNC_2 &pcfg_pull_up_8ma>;
+					<1 RK_PA0 2 &pcfg_pull_up_8ma>;
 			};
 
 			emmc_bus4: emmc-bus4 {
 				rockchip,pins =
-					<1 RK_PA0 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA1 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA2 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA3 RK_FUNC_2 &pcfg_pull_up_8ma>;
+					<1 RK_PA0 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA1 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA2 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA3 2 &pcfg_pull_up_8ma>;
 			};
 
 			emmc_bus8: emmc-bus8 {
 				rockchip,pins =
-					<1 RK_PA0 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA1 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA2 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA3 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA4 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA5 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA6 RK_FUNC_2 &pcfg_pull_up_8ma>,
-					<1 RK_PA7 RK_FUNC_2 &pcfg_pull_up_8ma>;
+					<1 RK_PA0 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA1 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA2 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA3 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA4 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA5 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA6 2 &pcfg_pull_up_8ma>,
+					<1 RK_PA7 2 &pcfg_pull_up_8ma>;
 			};
 		};
 
 		flash {
 			flash_cs0: flash-cs0 {
 				rockchip,pins =
-					<1 RK_PB0 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PB0 1 &pcfg_pull_none>;
 			};
 
 			flash_rdy: flash-rdy {
 				rockchip,pins =
-					<1 RK_PB1 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PB1 1 &pcfg_pull_none>;
 			};
 
 			flash_dqs: flash-dqs {
 				rockchip,pins =
-					<1 RK_PB2 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PB2 1 &pcfg_pull_none>;
 			};
 
 			flash_ale: flash-ale {
 				rockchip,pins =
-					<1 RK_PB3 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PB3 1 &pcfg_pull_none>;
 			};
 
 			flash_cle: flash-cle {
 				rockchip,pins =
-					<1 RK_PB4 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PB4 1 &pcfg_pull_none>;
 			};
 
 			flash_wrn: flash-wrn {
 				rockchip,pins =
-					<1 RK_PB5 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PB5 1 &pcfg_pull_none>;
 			};
 
 			flash_csl: flash-csl {
 				rockchip,pins =
-					<1 RK_PB6 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PB6 1 &pcfg_pull_none>;
 			};
 
 			flash_rdn: flash-rdn {
 				rockchip,pins =
-					<1 RK_PB7 RK_FUNC_1 &pcfg_pull_none>;
+					<1 RK_PB7 1 &pcfg_pull_none>;
 			};
 
 			flash_bus8: flash-bus8 {
 				rockchip,pins =
-					<1 RK_PA0 RK_FUNC_1 &pcfg_pull_up_12ma>,
-					<1 RK_PA1 RK_FUNC_1 &pcfg_pull_up_12ma>,
-					<1 RK_PA2 RK_FUNC_1 &pcfg_pull_up_12ma>,
-					<1 RK_PA3 RK_FUNC_1 &pcfg_pull_up_12ma>,
-					<1 RK_PA4 RK_FUNC_1 &pcfg_pull_up_12ma>,
-					<1 RK_PA5 RK_FUNC_1 &pcfg_pull_up_12ma>,
-					<1 RK_PA6 RK_FUNC_1 &pcfg_pull_up_12ma>,
-					<1 RK_PA7 RK_FUNC_1 &pcfg_pull_up_12ma>;
+					<1 RK_PA0 1 &pcfg_pull_up_12ma>,
+					<1 RK_PA1 1 &pcfg_pull_up_12ma>,
+					<1 RK_PA2 1 &pcfg_pull_up_12ma>,
+					<1 RK_PA3 1 &pcfg_pull_up_12ma>,
+					<1 RK_PA4 1 &pcfg_pull_up_12ma>,
+					<1 RK_PA5 1 &pcfg_pull_up_12ma>,
+					<1 RK_PA6 1 &pcfg_pull_up_12ma>,
+					<1 RK_PA7 1 &pcfg_pull_up_12ma>;
 			};
 		};
 
 		lcdc {
-			lcdc_m0_rgb_pins: lcdc-m0-rgb-pins {
+			lcdc_rgb_dclk_pin: lcdc-rgb-dclk-pin {
 				rockchip,pins =
-					<3 RK_PA0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_DCLK */
-					<3 RK_PA1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_HSYNC */
-					<3 RK_PA2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_VSYNC */
-					<3 RK_PA3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_DEN */
-					<3 RK_PA4 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D0 */
-					<3 RK_PA5 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D1 */
-					<3 RK_PA6 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D2 */
-					<3 RK_PA7 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D3 */
-					<3 RK_PB0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D4 */
-					<3 RK_PB1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D5 */
-					<3 RK_PB2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D6 */
-					<3 RK_PB3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D7 */
-					<3 RK_PB4 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D8 */
-					<3 RK_PB5 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D9 */
-					<3 RK_PB6 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D10 */
-					<3 RK_PB7 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D11 */
-					<3 RK_PC0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D12 */
-					<3 RK_PC1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D13 */
-					<3 RK_PC2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D14 */
-					<3 RK_PC3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D15 */
-					<3 RK_PC4 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D16 */
-					<3 RK_PC5 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D17 */
-					<3 RK_PC6 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D18 */
-					<3 RK_PC7 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D19 */
-					<3 RK_PD0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D20 */
-					<3 RK_PD1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D21 */
-					<3 RK_PD2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D22 */
-					<3 RK_PD3 RK_FUNC_1 &pcfg_pull_none_8ma>;	/* LCDC_D23 */
+					<3 RK_PA0 1 &pcfg_pull_none_12ma>;
 			};
 
-			lcdc_m0_sleep_pins: lcdc-m0-sleep-pins {
+			lcdc_rgb_m0_hsync_pin: lcdc-rgb-m0-hsync-pin {
 				rockchip,pins =
-					<3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_DCLK */
-					<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_HSYNC */
-					<3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_VSYNC */
-					<3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_DEN */
-					<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D0 */
-					<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D1 */
-					<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D2 */
-					<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D3 */
-					<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D4 */
-					<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D5 */
-					<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D6 */
-					<3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D7 */
-					<3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D8 */
-					<3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D9 */
-					<3 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D10 */
-					<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D11 */
-					<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D12 */
-					<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D13 */
-					<3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D14 */
-					<3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D15 */
-					<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D16 */
-					<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D17 */
-					<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D18 */
-					<3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D19 */
-					<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D20 */
-					<3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D21 */
-					<3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D22 */
-					<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCDC_D23 */
+					<3 RK_PA1 1 &pcfg_pull_none_12ma>;
+			};
+
+			lcdc_rgb_m0_vsync_pin: lcdc-rgb-m0-vsync-pin {
+				rockchip,pins =
+					<3 RK_PA2 1 &pcfg_pull_none_12ma>;
+			};
+
+			lcdc_rgb_m0_den_pin: lcdc-rgb-m0-den-pin {
+				rockchip,pins =
+					<3 RK_PA3 1 &pcfg_pull_none_12ma>;
+			};
+
+			lcdc_rgb888_m0_data_pins: lcdc-rgb888-m0-data-pins {
+				rockchip,pins =
+					<3 RK_PA7 1 &pcfg_pull_none_8ma>, /* lcdc_d3 */
+					<3 RK_PA6 1 &pcfg_pull_none_8ma>, /* lcdc_d2 */
+					<3 RK_PA5 1 &pcfg_pull_none_8ma>, /* lcdc_d1 */
+					<3 RK_PA4 1 &pcfg_pull_none_8ma>, /* lcdc_d0 */
+					<3 RK_PB3 1 &pcfg_pull_none_8ma>, /* lcdc_d7 */
+					<3 RK_PB2 1 &pcfg_pull_none_8ma>, /* lcdc_d6 */
+					<3 RK_PB1 1 &pcfg_pull_none_8ma>, /* lcdc_d5 */
+					<3 RK_PB0 1 &pcfg_pull_none_8ma>, /* lcdc_d4 */
+					<3 RK_PB7 1 &pcfg_pull_none_8ma>, /* lcdc_d11 */
+					<3 RK_PB6 1 &pcfg_pull_none_8ma>, /* lcdc_d10 */
+					<3 RK_PB5 1 &pcfg_pull_none_8ma>, /* lcdc_d9 */
+					<3 RK_PB4 1 &pcfg_pull_none_8ma>, /* lcdc_d8 */
+					<3 RK_PC3 1 &pcfg_pull_none_8ma>, /* lcdc_d15 */
+					<3 RK_PC2 1 &pcfg_pull_none_8ma>, /* lcdc_d14 */
+					<3 RK_PC1 1 &pcfg_pull_none_8ma>, /* lcdc_d13 */
+					<3 RK_PC0 1 &pcfg_pull_none_8ma>, /* lcdc_d12 */
+					<3 RK_PC7 1 &pcfg_pull_none_8ma>, /* lcdc_d19 */
+					<3 RK_PC6 1 &pcfg_pull_none_8ma>, /* lcdc_d18 */
+					<3 RK_PC5 1 &pcfg_pull_none_8ma>, /* lcdc_d17 */
+					<3 RK_PC4 1 &pcfg_pull_none_8ma>, /* lcdc_d16 */
+					<3 RK_PD3 1 &pcfg_pull_none_8ma>, /* lcdc_d23 */
+					<3 RK_PD2 1 &pcfg_pull_none_8ma>, /* lcdc_d22 */
+					<3 RK_PD1 1 &pcfg_pull_none_8ma>, /* lcdc_d21 */
+					<3 RK_PD0 1 &pcfg_pull_none_8ma>; /* lcdc_d20 */
+			};
+
+			lcdc_rgb666_m0_data_pins: lcdc-rgb666-m0-data-pins {
+				rockchip,pins =
+					<3 RK_PA7 1 &pcfg_pull_none_8ma>, /* lcdc_d3 */
+					<3 RK_PA6 1 &pcfg_pull_none_8ma>, /* lcdc_d2 */
+					<3 RK_PA5 1 &pcfg_pull_none_8ma>, /* lcdc_d1 */
+					<3 RK_PA4 1 &pcfg_pull_none_8ma>, /* lcdc_d0 */
+					<3 RK_PB3 1 &pcfg_pull_none_8ma>, /* lcdc_d7 */
+					<3 RK_PB2 1 &pcfg_pull_none_8ma>, /* lcdc_d6 */
+					<3 RK_PB1 1 &pcfg_pull_none_8ma>, /* lcdc_d5 */
+					<3 RK_PB0 1 &pcfg_pull_none_8ma>, /* lcdc_d4 */
+					<3 RK_PB7 1 &pcfg_pull_none_8ma>, /* lcdc_d11 */
+					<3 RK_PB6 1 &pcfg_pull_none_8ma>, /* lcdc_d10 */
+					<3 RK_PB5 1 &pcfg_pull_none_8ma>, /* lcdc_d9 */
+					<3 RK_PB4 1 &pcfg_pull_none_8ma>, /* lcdc_d8 */
+					<3 RK_PC3 1 &pcfg_pull_none_8ma>, /* lcdc_d15 */
+					<3 RK_PC2 1 &pcfg_pull_none_8ma>, /* lcdc_d14 */
+					<3 RK_PC1 1 &pcfg_pull_none_8ma>, /* lcdc_d13 */
+					<3 RK_PC0 1 &pcfg_pull_none_8ma>, /* lcdc_d12 */
+					<3 RK_PC5 1 &pcfg_pull_none_8ma>, /* lcdc_d17 */
+					<3 RK_PC4 1 &pcfg_pull_none_8ma>; /* lcdc_d16 */
+			};
+
+			lcdc_rgb565_m0_data_pins: lcdc-rgb565-m0-data-pins {
+				rockchip,pins =
+					<3 RK_PA7 1 &pcfg_pull_none_8ma>, /* lcdc_d3 */
+					<3 RK_PA6 1 &pcfg_pull_none_8ma>, /* lcdc_d2 */
+					<3 RK_PA5 1 &pcfg_pull_none_8ma>, /* lcdc_d1 */
+					<3 RK_PA4 1 &pcfg_pull_none_8ma>, /* lcdc_d0 */
+					<3 RK_PB3 1 &pcfg_pull_none_8ma>, /* lcdc_d7 */
+					<3 RK_PB2 1 &pcfg_pull_none_8ma>, /* lcdc_d6 */
+					<3 RK_PB1 1 &pcfg_pull_none_8ma>, /* lcdc_d5 */
+					<3 RK_PB0 1 &pcfg_pull_none_8ma>, /* lcdc_d4 */
+					<3 RK_PB7 1 &pcfg_pull_none_8ma>, /* lcdc_d11 */
+					<3 RK_PB6 1 &pcfg_pull_none_8ma>, /* lcdc_d10 */
+					<3 RK_PB5 1 &pcfg_pull_none_8ma>, /* lcdc_d9 */
+					<3 RK_PB4 1 &pcfg_pull_none_8ma>, /* lcdc_d8 */
+					<3 RK_PC3 1 &pcfg_pull_none_8ma>, /* lcdc_d15 */
+					<3 RK_PC2 1 &pcfg_pull_none_8ma>, /* lcdc_d14 */
+					<3 RK_PC1 1 &pcfg_pull_none_8ma>, /* lcdc_d13 */
+					<3 RK_PC0 1 &pcfg_pull_none_8ma>; /* lcdc_d12 */
+			};
+
+			lcdc_rgb888_m1_data_pins: lcdc-rgb888-m1-data-pins {
+				rockchip,pins =
+					<3 RK_PA6 1 &pcfg_pull_none_8ma>, /* lcdc_d2 */
+					<3 RK_PA4 1 &pcfg_pull_none_8ma>, /* lcdc_d0 */
+					<3 RK_PB3 1 &pcfg_pull_none_8ma>, /* lcdc_d7 */
+					<3 RK_PB2 1 &pcfg_pull_none_8ma>, /* lcdc_d6 */
+					<3 RK_PB5 1 &pcfg_pull_none_8ma>, /* lcdc_d9 */
+					<3 RK_PC3 1 &pcfg_pull_none_8ma>, /* lcdc_d15 */
+					<3 RK_PC2 1 &pcfg_pull_none_8ma>, /* lcdc_d14 */
+					<3 RK_PC1 1 &pcfg_pull_none_8ma>, /* lcdc_d13 */
+					<3 RK_PC0 1 &pcfg_pull_none_8ma>, /* lcdc_d12 */
+					<3 RK_PC7 1 &pcfg_pull_none_8ma>, /* lcdc_d19 */
+					<3 RK_PC6 1 &pcfg_pull_none_8ma>, /* lcdc_d18 */
+					<3 RK_PC5 1 &pcfg_pull_none_8ma>, /* lcdc_d17 */
+					<3 RK_PC4 1 &pcfg_pull_none_8ma>, /* lcdc_d16 */
+					<3 RK_PD3 1 &pcfg_pull_none_8ma>, /* lcdc_d23 */
+					<3 RK_PD2 1 &pcfg_pull_none_8ma>, /* lcdc_d22 */
+					<3 RK_PD1 1 &pcfg_pull_none_8ma>, /* lcdc_d21 */
+					<3 RK_PD0 1 &pcfg_pull_none_8ma>; /* lcdc_d20 */
+			};
+
+			lcdc_rgb666_m1_data_pins: lcdc-rgb666-m1-data-pins {
+				rockchip,pins =
+					<3 RK_PA6 1 &pcfg_pull_none_8ma>, /* lcdc_d2 */
+					<3 RK_PA4 1 &pcfg_pull_none_8ma>, /* lcdc_d0 */
+					<3 RK_PB3 1 &pcfg_pull_none_8ma>, /* lcdc_d7 */
+					<3 RK_PB2 1 &pcfg_pull_none_8ma>, /* lcdc_d6 */
+					<3 RK_PB5 1 &pcfg_pull_none_8ma>, /* lcdc_d9 */
+					<3 RK_PC3 1 &pcfg_pull_none_8ma>, /* lcdc_d15 */
+					<3 RK_PC2 1 &pcfg_pull_none_8ma>, /* lcdc_d14 */
+					<3 RK_PC1 1 &pcfg_pull_none_8ma>, /* lcdc_d13 */
+					<3 RK_PC0 1 &pcfg_pull_none_8ma>, /* lcdc_d12 */
+					<3 RK_PC5 1 &pcfg_pull_none_8ma>, /* lcdc_d17 */
+					<3 RK_PC4 1 &pcfg_pull_none_8ma>; /* lcdc_d16 */
+			};
+
+			lcdc_rgb565_m1_data_pins: lcdc-rgb565-m1-data-pins {
+				rockchip,pins =
+					<3 RK_PA6 1 &pcfg_pull_none_8ma>, /* lcdc_d2 */
+					<3 RK_PA4 1 &pcfg_pull_none_8ma>, /* lcdc_d0 */
+					<3 RK_PB3 1 &pcfg_pull_none_8ma>, /* lcdc_d7 */
+					<3 RK_PB2 1 &pcfg_pull_none_8ma>, /* lcdc_d6 */
+					<3 RK_PB5 1 &pcfg_pull_none_8ma>, /* lcdc_d9 */
+					<3 RK_PC3 1 &pcfg_pull_none_8ma>, /* lcdc_d15 */
+					<3 RK_PC2 1 &pcfg_pull_none_8ma>, /* lcdc_d14 */
+					<3 RK_PC1 1 &pcfg_pull_none_8ma>, /* lcdc_d13 */
+					<3 RK_PC0 1 &pcfg_pull_none_8ma>; /* lcdc_d12 */
 			};
 		};
 
 		pwm0 {
 			pwm0_pin: pwm0-pin {
 				rockchip,pins =
-					<0 RK_PB7 RK_FUNC_1 &pcfg_pull_none>;
+					<0 RK_PB7 1 &pcfg_pull_none>;
 			};
 		};
 
 		pwm1 {
 			pwm1_pin: pwm1-pin {
 				rockchip,pins =
-					<0 RK_PC0 RK_FUNC_1 &pcfg_pull_none>;
+					<0 RK_PC0 1 &pcfg_pull_none>;
 			};
 		};
 
 		pwm2 {
 			pwm2_pin: pwm2-pin {
 				rockchip,pins =
-					<2 RK_PB5 RK_FUNC_1 &pcfg_pull_none>;
+					<2 RK_PB5 1 &pcfg_pull_none>;
 			};
 		};
 
 		pwm3 {
 			pwm3_pin: pwm3-pin {
 				rockchip,pins =
-					<0 RK_PC1 RK_FUNC_1 &pcfg_pull_none>;
+					<0 RK_PC1 1 &pcfg_pull_none>;
 			};
 		};
 
 		pwm4 {
 			pwm4_pin: pwm4-pin {
 				rockchip,pins =
-					<3 RK_PC2 RK_FUNC_3 &pcfg_pull_none>;
+					<3 RK_PC2 3 &pcfg_pull_none>;
 			};
 		};
 
 		pwm5 {
 			pwm5_pin: pwm5-pin {
 				rockchip,pins =
-					<3 RK_PC3 RK_FUNC_3 &pcfg_pull_none>;
+					<3 RK_PC3 3 &pcfg_pull_none>;
 			};
 		};
 
 		pwm6 {
 			pwm6_pin: pwm6-pin {
 				rockchip,pins =
-					<3 RK_PC4 RK_FUNC_3 &pcfg_pull_none>;
+					<3 RK_PC4 3 &pcfg_pull_none>;
 			};
 		};
 
 		pwm7 {
 			pwm7_pin: pwm7-pin {
 				rockchip,pins =
-					<3 RK_PC5 RK_FUNC_3 &pcfg_pull_none>;
+					<3 RK_PC5 3 &pcfg_pull_none>;
 			};
 		};
 
 		gmac {
 			rmii_pins: rmii-pins {
 				rockchip,pins =
-					/* mac_txen */
-					<2 RK_PA0 RK_FUNC_2 &pcfg_pull_none_12ma>,
-					/* mac_txd1 */
-					<2 RK_PA1 RK_FUNC_2 &pcfg_pull_none_12ma>,
-					/* mac_txd0 */
-					<2 RK_PA2 RK_FUNC_2 &pcfg_pull_none_12ma>,
-					/* mac_rxd0 */
-					<2 RK_PA3 RK_FUNC_2 &pcfg_pull_none>,
-					/* mac_rxd1 */
-					<2 RK_PA4 RK_FUNC_2 &pcfg_pull_none>,
-					/* mac_rxer */
-					<2 RK_PA5 RK_FUNC_2 &pcfg_pull_none>,
-					/* mac_rxdv */
-					<2 RK_PA6 RK_FUNC_2 &pcfg_pull_none>,
-					/* mac_mdio */
-					<2 RK_PA7 RK_FUNC_2 &pcfg_pull_none>,
-					/* mac_mdc */
-					<2 RK_PB1 RK_FUNC_2 &pcfg_pull_none>;
+					<2 RK_PA0 2 &pcfg_pull_none_12ma>, /* mac_txen */
+					<2 RK_PA1 2 &pcfg_pull_none_12ma>, /* mac_txd1 */
+					<2 RK_PA2 2 &pcfg_pull_none_12ma>, /* mac_txd0 */
+					<2 RK_PA3 2 &pcfg_pull_none>, /* mac_rxd0 */
+					<2 RK_PA4 2 &pcfg_pull_none>, /* mac_rxd1 */
+					<2 RK_PA5 2 &pcfg_pull_none>, /* mac_rxer */
+					<2 RK_PA6 2 &pcfg_pull_none>, /* mac_rxdv */
+					<2 RK_PA7 2 &pcfg_pull_none>, /* mac_mdio */
+					<2 RK_PB1 2 &pcfg_pull_none>; /* mac_mdc */
 			};
 
 			mac_refclk_12ma: mac-refclk-12ma {
 				rockchip,pins =
-					<2 RK_PB2 RK_FUNC_2 &pcfg_pull_none_12ma>;
+					<2 RK_PB2 2 &pcfg_pull_none_12ma>;
 			};
 
 			mac_refclk: mac-refclk {
 				rockchip,pins =
-					<2 RK_PB2 RK_FUNC_2 &pcfg_pull_none>;
+					<2 RK_PB2 2 &pcfg_pull_none>;
 			};
 		};
 
 		cif-m0 {
 			cif_clkout_m0: cif-clkout-m0 {
-				rockchip,pins = <2 RK_PB3 RK_FUNC_1 &pcfg_pull_none_12ma>;/* cif_clkout */
+				rockchip,pins =
+					<2 RK_PB3 1 &pcfg_pull_none>;
 			};
 
 			dvp_d2d9_m0: dvp-d2d9-m0 {
 				rockchip,pins =
-					<2 RK_PA0 RK_FUNC_1 &pcfg_pull_none>,/* cif_data2 */
-					<2 RK_PA1 RK_FUNC_1 &pcfg_pull_none>,/* cif_data3 */
-					<2 RK_PA2 RK_FUNC_1 &pcfg_pull_none>,/* cif_data4 */
-					<2 RK_PA3 RK_FUNC_1 &pcfg_pull_none>,/* cif_data5 */
-					<2 RK_PA4 RK_FUNC_1 &pcfg_pull_none>,/* cif_data6 */
-					<2 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,/* cif_data7 */
-					<2 RK_PA6 RK_FUNC_1 &pcfg_pull_none>,/* cif_data8 */
-					<2 RK_PA7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data9 */
-					<2 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,/* cif_sync */
-					<2 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,/* cif_href */
-					<2 RK_PB2 RK_FUNC_1 &pcfg_pull_none>,/* cif_clkin */
-					<2 RK_PB3 RK_FUNC_1 &pcfg_pull_none>;/* cif_clkout */
+					<2 RK_PA0 1 &pcfg_pull_none>, /* cif_data2 */
+					<2 RK_PA1 1 &pcfg_pull_none>, /* cif_data3 */
+					<2 RK_PA2 1 &pcfg_pull_none>, /* cif_data4 */
+					<2 RK_PA3 1 &pcfg_pull_none>, /* cif_data5 */
+					<2 RK_PA4 1 &pcfg_pull_none>, /* cif_data6 */
+					<2 RK_PA5 1 &pcfg_pull_none>, /* cif_data7 */
+					<2 RK_PA6 1 &pcfg_pull_none>, /* cif_data8 */
+					<2 RK_PA7 1 &pcfg_pull_none>, /* cif_data9 */
+					<2 RK_PB0 1 &pcfg_pull_none>, /* cif_sync */
+					<2 RK_PB1 1 &pcfg_pull_none>, /* cif_href */
+					<2 RK_PB2 1 &pcfg_pull_none>, /* cif_clkin */
+					<2 RK_PB3 1 &pcfg_pull_none>; /* cif_clkout */
 			};
 
 			dvp_d0d1_m0: dvp-d0d1-m0 {
 				rockchip,pins =
-					<2 RK_PB4 RK_FUNC_1 &pcfg_pull_none>,/* cif_data0 */
-					<2 RK_PB6 RK_FUNC_1 &pcfg_pull_none>;/* cif_data1 */
+					<2 RK_PB4 1 &pcfg_pull_none>, /* cif_data0 */
+					<2 RK_PB6 1 &pcfg_pull_none>; /* cif_data1 */
 			};
 
 			dvp_d10d11_m0:d10-d11-m0 {
 				rockchip,pins =
-					<2 RK_PB7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data10 */
-					<2 RK_PC0 RK_FUNC_1 &pcfg_pull_none>;/* cif_data11 */
+					<2 RK_PB7 1 &pcfg_pull_none>, /* cif_data10 */
+					<2 RK_PC0 1 &pcfg_pull_none>; /* cif_data11 */
 			};
 		};
 
 		cif-m1 {
 			cif_clkout_m1: cif-clkout-m1 {
-				rockchip,pins = <3 RK_PD0 RK_FUNC_3 &pcfg_pull_none>;/* cif_clkout */
+				rockchip,pins =
+					<3 RK_PD0 3 &pcfg_pull_none>;
 			};
 
 			dvp_d2d9_m1: dvp-d2d9-m1 {
 				rockchip,pins =
-					<3 RK_PA3 RK_FUNC_3 &pcfg_pull_none>,/* cif_data2 */
-					<3 RK_PA5 RK_FUNC_3 &pcfg_pull_none>,/* cif_data3 */
-					<3 RK_PA7 RK_FUNC_3 &pcfg_pull_none>,/* cif_data4 */
-					<3 RK_PB0 RK_FUNC_3 &pcfg_pull_none>,/* cif_data5 */
-					<3 RK_PB1 RK_FUNC_3 &pcfg_pull_none>,/* cif_data6 */
-					<3 RK_PB4 RK_FUNC_3 &pcfg_pull_none>,/* cif_data7 */
-					<3 RK_PB6 RK_FUNC_3 &pcfg_pull_none>,/* cif_data8 */
-					<3 RK_PB7 RK_FUNC_3 &pcfg_pull_none>,/* cif_data9 */
-					<3 RK_PD1 RK_FUNC_3 &pcfg_pull_none>,/* cif_sync */
-					<3 RK_PD2 RK_FUNC_3 &pcfg_pull_none>,/* cif_href */
-					<3 RK_PD3 RK_FUNC_3 &pcfg_pull_none>,/* cif_clkin */
-					<3 RK_PD0 RK_FUNC_3 &pcfg_pull_none>;/* cif_clkout */
+					<3 RK_PA3 3 &pcfg_pull_none>, /* cif_data2 */
+					<3 RK_PA5 3 &pcfg_pull_none>, /* cif_data3 */
+					<3 RK_PA7 3 &pcfg_pull_none>, /* cif_data4 */
+					<3 RK_PB0 3 &pcfg_pull_none>, /* cif_data5 */
+					<3 RK_PB1 3 &pcfg_pull_none>, /* cif_data6 */
+					<3 RK_PB4 3 &pcfg_pull_none>, /* cif_data7 */
+					<3 RK_PB6 3 &pcfg_pull_none>, /* cif_data8 */
+					<3 RK_PB7 3 &pcfg_pull_none>, /* cif_data9 */
+					<3 RK_PD1 3 &pcfg_pull_none>, /* cif_sync */
+					<3 RK_PD2 3 &pcfg_pull_none>, /* cif_href */
+					<3 RK_PD3 3 &pcfg_pull_none>, /* cif_clkin */
+					<3 RK_PD0 3 &pcfg_pull_none>; /* cif_clkout */
 			};
 
 			dvp_d0d1_m1: dvp-d0d1-m1 {
 				rockchip,pins =
-					<3 RK_PA1 RK_FUNC_3 &pcfg_pull_none>,/* cif_data0 */
-					<3 RK_PA2 RK_FUNC_3 &pcfg_pull_none>;/* cif_data1 */
+					<3 RK_PA1 3 &pcfg_pull_none>, /* cif_data0 */
+					<3 RK_PA2 3 &pcfg_pull_none>; /* cif_data1 */
 			};
 
 			dvp_d10d11_m1:d10-d11-m1 {
 				rockchip,pins =
-					<3 RK_PC6 RK_FUNC_3 &pcfg_pull_none>,/* cif_data10 */
-					<3 RK_PC7 RK_FUNC_3 &pcfg_pull_none>;/* cif_data11 */
+					<3 RK_PC6 3 &pcfg_pull_none>, /* cif_data10 */
+					<3 RK_PC7 3 &pcfg_pull_none>; /* cif_data11 */
 			};
 		};
 
 		isp {
 			isp_prelight: isp-prelight {
-				rockchip,pins = <3 RK_PD1 RK_FUNC_4 &pcfg_pull_none>;/* ISP_PRELIGHTTRIG */
+				rockchip,pins =
+					<3 RK_PD1 4 &pcfg_pull_none>;
 			};
 		};
 	};

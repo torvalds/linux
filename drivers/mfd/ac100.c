@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MFD core driver for X-Powers' AC100 Audio Codec IC
  *
@@ -12,10 +13,6 @@
  * Copyright (2016) Chen-Yu Tsai
  *
  * Author: Chen-Yu Tsai <wens@csie.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>

@@ -125,9 +125,8 @@ static int do_setcpu(int cpu)
 	CPU_ZERO(&mask);
 	CPU_SET(cpu, &mask);
 	if (sched_setaffinity(0, sizeof(mask), &mask))
-		error(1, 0, "setaffinity %d", cpu);
-
-	if (cfg_verbose)
+		fprintf(stderr, "cpu: unable to pin, may increase variance.\n");
+	else if (cfg_verbose)
 		fprintf(stderr, "cpu: %u\n", cpu);
 
 	return 0;
@@ -651,12 +650,13 @@ static void do_flush_datagram(int fd, int type)
 
 static void do_rx(int domain, int type, int protocol)
 {
+	const int cfg_receiver_wait_ms = 400;
 	uint64_t tstop;
 	int fd;
 
 	fd = do_setup_rx(domain, type, protocol);
 
-	tstop = gettimeofday_ms() + cfg_runtime_ms;
+	tstop = gettimeofday_ms() + cfg_runtime_ms + cfg_receiver_wait_ms;
 	do {
 		if (type == SOCK_STREAM)
 			do_flush_tcp(fd);

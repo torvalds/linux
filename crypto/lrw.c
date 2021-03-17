@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* LRW: as defined by Cyril Guyot in
  *	http://grouper.ieee.org/groups/1619/email/pdf00017.pdf
  *
@@ -5,15 +6,10 @@
  *
  * Based on ecb.c
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 /* This implementation is checked against the test vectors in the above
  * document and by a test vector provided by Ken Buchanan at
- * http://www.mail-archive.com/stds-p1619@listserv.ieee.org/msg00173.html
+ * https://www.mail-archive.com/stds-p1619@listserv.ieee.org/msg00173.html
  *
  * The test vectors are included in the testing module tcrypt.[ch] */
 
@@ -29,11 +25,9 @@
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>
 
-#define LRW_BUFFER_SIZE 128u
-
 #define LRW_BLOCK_SIZE 16
 
-struct priv {
+struct lrw_tfm_ctx {
 	struct crypto_skcipher *child;
 
 	/*
@@ -55,24 +49,12 @@ struct priv {
 	be128 mulinc[128];
 };
 
-struct rctx {
-	be128 buf[LRW_BUFFER_SIZE / sizeof(be128)];
-
+struct lrw_request_ctx {
 	be128 t;
-
-	be128 *ext;
-
-	struct scatterlist srcbuf[2];
-	struct scatterlist dstbuf[2];
-	struct scatterlist *src;
-	struct scatterlist *dst;
-
-	unsigned int left;
-
 	struct skcipher_request subreq;
 };
 
-static inline void setbit128_bbe(void *b, int bit)
+static inline void lrw_setbit128_bbe(void *b, int bit)
 {
 	__set_bit(bit ^ (0x80 -
 #ifdef __BIG_ENDIAN
@@ -83,10 +65,10 @@ static inline void setbit128_bbe(void *b, int bit)
 			), b);
 }
 
-static int setkey(struct crypto_skcipher *parent, const u8 *key,
-		  unsigned int keylen)
+static int lrw_setkey(struct crypto_skcipher *parent, const u8 *key,
+		      unsigned int keylen)
 {
-	struct priv *ctx = crypto_skcipher_ctx(parent);
+	struct lrw_tfm_ctx *ctx = crypto_skcipher_ctx(parent);
 	struct crypto_skcipher *child = ctx->child;
 	int err, bsize = LRW_BLOCK_SIZE;
 	const u8 *tweak = key + keylen - bsize;
@@ -97,8 +79,6 @@ static int setkey(struct crypto_skcipher *parent, const u8 *key,
 	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
 					 CRYPTO_TFM_REQ_MASK);
 	err = crypto_skcipher_setkey(child, key, keylen - bsize);
-	crypto_skcipher_set_flags(parent, crypto_skcipher_get_flags(child) &
-					  CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -112,7 +92,7 @@ static int setkey(struct crypto_skcipher *parent, const u8 *key,
 
 	/* initialize optimization table */
 	for (i = 0; i < 128; i++) {
-		setbit128_bbe(&tmp, i);
+		lrw_setbit128_bbe(&tmp, i);
 		ctx->mulinc[i] = tmp;
 		gf128mul_64k_bbe(&ctx->mulinc[i], ctx->table);
 	}
@@ -120,112 +100,70 @@ static int setkey(struct crypto_skcipher *parent, const u8 *key,
 	return 0;
 }
 
-static inline void inc(be128 *iv)
+/*
+ * Returns the number of trailing '1' bits in the words of the counter, which is
+ * represented by 4 32-bit words, arranged from least to most significant.
+ * At the same time, increments the counter by one.
+ *
+ * For example:
+ *
+ * u32 counter[4] = { 0xFFFFFFFF, 0x1, 0x0, 0x0 };
+ * int i = lrw_next_index(&counter);
+ * // i == 33, counter == { 0x0, 0x2, 0x0, 0x0 }
+ */
+static int lrw_next_index(u32 *counter)
 {
-	be64_add_cpu(&iv->b, 1);
-	if (!iv->b)
-		be64_add_cpu(&iv->a, 1);
-}
+	int i, res = 0;
 
-/* this returns the number of consequative 1 bits starting
- * from the right, get_index128(00 00 00 00 00 00 ... 00 00 10 FB) = 2 */
-static inline int get_index128(be128 *block)
-{
-	int x;
-	__be32 *p = (__be32 *) block;
+	for (i = 0; i < 4; i++) {
+		if (counter[i] + 1 != 0)
+			return res + ffz(counter[i]++);
 
-	for (p += 3, x = 0; x < 128; p--, x += 32) {
-		u32 val = be32_to_cpup(p);
-
-		if (!~val)
-			continue;
-
-		return x + ffz(val);
+		counter[i] = 0;
+		res += 32;
 	}
 
-	return x;
+	/*
+	 * If we get here, then x == 128 and we are incrementing the counter
+	 * from all ones to all zeros. This means we must return index 127, i.e.
+	 * the one corresponding to key2*{ 1,...,1 }.
+	 */
+	return 127;
 }
 
-static int post_crypt(struct skcipher_request *req)
+/*
+ * We compute the tweak masks twice (both before and after the ECB encryption or
+ * decryption) to avoid having to allocate a temporary buffer and/or make
+ * mutliple calls to the 'ecb(..)' instance, which usually would be slower than
+ * just doing the lrw_next_index() calls again.
+ */
+static int lrw_xor_tweak(struct skcipher_request *req, bool second_pass)
 {
-	struct rctx *rctx = skcipher_request_ctx(req);
-	be128 *buf = rctx->ext ?: rctx->buf;
-	struct skcipher_request *subreq;
 	const int bs = LRW_BLOCK_SIZE;
-	struct skcipher_walk w;
-	struct scatterlist *sg;
-	unsigned offset;
-	int err;
-
-	subreq = &rctx->subreq;
-	err = skcipher_walk_virt(&w, subreq, false);
-
-	while (w.nbytes) {
-		unsigned int avail = w.nbytes;
-		be128 *wdst;
-
-		wdst = w.dst.virt.addr;
-
-		do {
-			be128_xor(wdst, buf++, wdst);
-			wdst++;
-		} while ((avail -= bs) >= bs);
-
-		err = skcipher_walk_done(&w, avail);
-	}
-
-	rctx->left -= subreq->cryptlen;
-
-	if (err || !rctx->left)
-		goto out;
-
-	rctx->dst = rctx->dstbuf;
-
-	scatterwalk_done(&w.out, 0, 1);
-	sg = w.out.sg;
-	offset = w.out.offset;
-
-	if (rctx->dst != sg) {
-		rctx->dst[0] = *sg;
-		sg_unmark_end(rctx->dst);
-		scatterwalk_crypto_chain(rctx->dst, sg_next(sg), 2);
-	}
-	rctx->dst[0].length -= offset - sg->offset;
-	rctx->dst[0].offset = offset;
-
-out:
-	return err;
-}
-
-static int pre_crypt(struct skcipher_request *req)
-{
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct rctx *rctx = skcipher_request_ctx(req);
-	struct priv *ctx = crypto_skcipher_ctx(tfm);
-	be128 *buf = rctx->ext ?: rctx->buf;
-	struct skcipher_request *subreq;
-	const int bs = LRW_BLOCK_SIZE;
+	const struct lrw_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct lrw_request_ctx *rctx = skcipher_request_ctx(req);
+	be128 t = rctx->t;
 	struct skcipher_walk w;
-	struct scatterlist *sg;
-	unsigned cryptlen;
-	unsigned offset;
-	be128 *iv;
-	bool more;
+	__be32 *iv;
+	u32 counter[4];
 	int err;
 
-	subreq = &rctx->subreq;
-	skcipher_request_set_tfm(subreq, tfm);
+	if (second_pass) {
+		req = &rctx->subreq;
+		/* set to our TFM to enforce correct alignment: */
+		skcipher_request_set_tfm(req, tfm);
+	}
 
-	cryptlen = subreq->cryptlen;
-	more = rctx->left > cryptlen;
-	if (!more)
-		cryptlen = rctx->left;
+	err = skcipher_walk_virt(&w, req, false);
+	if (err)
+		return err;
 
-	skcipher_request_set_crypt(subreq, rctx->src, rctx->dst,
-				   cryptlen, req->iv);
-
-	err = skcipher_walk_virt(&w, subreq, false);
-	iv = w.iv;
+	iv = (__be32 *)w.iv;
+	counter[0] = be32_to_cpu(iv[3]);
+	counter[1] = be32_to_cpu(iv[2]);
+	counter[2] = be32_to_cpu(iv[1]);
+	counter[3] = be32_to_cpu(iv[0]);
 
 	while (w.nbytes) {
 		unsigned int avail = w.nbytes;
@@ -236,195 +174,99 @@ static int pre_crypt(struct skcipher_request *req)
 		wdst = w.dst.virt.addr;
 
 		do {
-			*buf++ = rctx->t;
-			be128_xor(wdst++, &rctx->t, wsrc++);
+			be128_xor(wdst++, &t, wsrc++);
 
 			/* T <- I*Key2, using the optimization
 			 * discussed in the specification */
-			be128_xor(&rctx->t, &rctx->t,
-				  &ctx->mulinc[get_index128(iv)]);
-			inc(iv);
+			be128_xor(&t, &t,
+				  &ctx->mulinc[lrw_next_index(counter)]);
 		} while ((avail -= bs) >= bs);
+
+		if (second_pass && w.nbytes == w.total) {
+			iv[0] = cpu_to_be32(counter[3]);
+			iv[1] = cpu_to_be32(counter[2]);
+			iv[2] = cpu_to_be32(counter[1]);
+			iv[3] = cpu_to_be32(counter[0]);
+		}
 
 		err = skcipher_walk_done(&w, avail);
 	}
 
-	skcipher_request_set_tfm(subreq, ctx->child);
-	skcipher_request_set_crypt(subreq, rctx->dst, rctx->dst,
-				   cryptlen, NULL);
-
-	if (err || !more)
-		goto out;
-
-	rctx->src = rctx->srcbuf;
-
-	scatterwalk_done(&w.in, 0, 1);
-	sg = w.in.sg;
-	offset = w.in.offset;
-
-	if (rctx->src != sg) {
-		rctx->src[0] = *sg;
-		sg_unmark_end(rctx->src);
-		scatterwalk_crypto_chain(rctx->src, sg_next(sg), 2);
-	}
-	rctx->src[0].length -= offset - sg->offset;
-	rctx->src[0].offset = offset;
-
-out:
 	return err;
 }
 
-static int init_crypt(struct skcipher_request *req, crypto_completion_t done)
+static int lrw_xor_tweak_pre(struct skcipher_request *req)
 {
-	struct priv *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
-	struct rctx *rctx = skcipher_request_ctx(req);
-	struct skcipher_request *subreq;
-	gfp_t gfp;
+	return lrw_xor_tweak(req, false);
+}
 
-	subreq = &rctx->subreq;
-	skcipher_request_set_callback(subreq, req->base.flags, done, req);
+static int lrw_xor_tweak_post(struct skcipher_request *req)
+{
+	return lrw_xor_tweak(req, true);
+}
 
-	gfp = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL :
-							   GFP_ATOMIC;
-	rctx->ext = NULL;
+static void lrw_crypt_done(struct crypto_async_request *areq, int err)
+{
+	struct skcipher_request *req = areq->data;
 
-	subreq->cryptlen = LRW_BUFFER_SIZE;
-	if (req->cryptlen > LRW_BUFFER_SIZE) {
-		unsigned int n = min(req->cryptlen, (unsigned int)PAGE_SIZE);
+	if (!err) {
+		struct lrw_request_ctx *rctx = skcipher_request_ctx(req);
 
-		rctx->ext = kmalloc(n, gfp);
-		if (rctx->ext)
-			subreq->cryptlen = n;
+		rctx->subreq.base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
+		err = lrw_xor_tweak_post(req);
 	}
 
-	rctx->src = req->src;
-	rctx->dst = req->dst;
-	rctx->left = req->cryptlen;
+	skcipher_request_complete(req, err);
+}
+
+static void lrw_init_crypt(struct skcipher_request *req)
+{
+	const struct lrw_tfm_ctx *ctx =
+		crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+	struct lrw_request_ctx *rctx = skcipher_request_ctx(req);
+	struct skcipher_request *subreq = &rctx->subreq;
+
+	skcipher_request_set_tfm(subreq, ctx->child);
+	skcipher_request_set_callback(subreq, req->base.flags, lrw_crypt_done,
+				      req);
+	/* pass req->iv as IV (will be used by xor_tweak, ECB will ignore it) */
+	skcipher_request_set_crypt(subreq, req->dst, req->dst,
+				   req->cryptlen, req->iv);
 
 	/* calculate first value of T */
 	memcpy(&rctx->t, req->iv, sizeof(rctx->t));
 
 	/* T <- I*Key2 */
 	gf128mul_64k_bbe(&rctx->t, ctx->table);
-
-	return 0;
 }
 
-static void exit_crypt(struct skcipher_request *req)
+static int lrw_encrypt(struct skcipher_request *req)
 {
-	struct rctx *rctx = skcipher_request_ctx(req);
+	struct lrw_request_ctx *rctx = skcipher_request_ctx(req);
+	struct skcipher_request *subreq = &rctx->subreq;
 
-	rctx->left = 0;
-
-	if (rctx->ext)
-		kzfree(rctx->ext);
+	lrw_init_crypt(req);
+	return lrw_xor_tweak_pre(req) ?:
+		crypto_skcipher_encrypt(subreq) ?:
+		lrw_xor_tweak_post(req);
 }
 
-static int do_encrypt(struct skcipher_request *req, int err)
+static int lrw_decrypt(struct skcipher_request *req)
 {
-	struct rctx *rctx = skcipher_request_ctx(req);
-	struct skcipher_request *subreq;
+	struct lrw_request_ctx *rctx = skcipher_request_ctx(req);
+	struct skcipher_request *subreq = &rctx->subreq;
 
-	subreq = &rctx->subreq;
-
-	while (!err && rctx->left) {
-		err = pre_crypt(req) ?:
-		      crypto_skcipher_encrypt(subreq) ?:
-		      post_crypt(req);
-
-		if (err == -EINPROGRESS || err == -EBUSY)
-			return err;
-	}
-
-	exit_crypt(req);
-	return err;
+	lrw_init_crypt(req);
+	return lrw_xor_tweak_pre(req) ?:
+		crypto_skcipher_decrypt(subreq) ?:
+		lrw_xor_tweak_post(req);
 }
 
-static void encrypt_done(struct crypto_async_request *areq, int err)
-{
-	struct skcipher_request *req = areq->data;
-	struct skcipher_request *subreq;
-	struct rctx *rctx;
-
-	rctx = skcipher_request_ctx(req);
-
-	if (err == -EINPROGRESS) {
-		if (rctx->left != req->cryptlen)
-			return;
-		goto out;
-	}
-
-	subreq = &rctx->subreq;
-	subreq->base.flags &= CRYPTO_TFM_REQ_MAY_BACKLOG;
-
-	err = do_encrypt(req, err ?: post_crypt(req));
-	if (rctx->left)
-		return;
-
-out:
-	skcipher_request_complete(req, err);
-}
-
-static int encrypt(struct skcipher_request *req)
-{
-	return do_encrypt(req, init_crypt(req, encrypt_done));
-}
-
-static int do_decrypt(struct skcipher_request *req, int err)
-{
-	struct rctx *rctx = skcipher_request_ctx(req);
-	struct skcipher_request *subreq;
-
-	subreq = &rctx->subreq;
-
-	while (!err && rctx->left) {
-		err = pre_crypt(req) ?:
-		      crypto_skcipher_decrypt(subreq) ?:
-		      post_crypt(req);
-
-		if (err == -EINPROGRESS || err == -EBUSY)
-			return err;
-	}
-
-	exit_crypt(req);
-	return err;
-}
-
-static void decrypt_done(struct crypto_async_request *areq, int err)
-{
-	struct skcipher_request *req = areq->data;
-	struct skcipher_request *subreq;
-	struct rctx *rctx;
-
-	rctx = skcipher_request_ctx(req);
-
-	if (err == -EINPROGRESS) {
-		if (rctx->left != req->cryptlen)
-			return;
-		goto out;
-	}
-
-	subreq = &rctx->subreq;
-	subreq->base.flags &= CRYPTO_TFM_REQ_MAY_BACKLOG;
-
-	err = do_decrypt(req, err ?: post_crypt(req));
-	if (rctx->left)
-		return;
-
-out:
-	skcipher_request_complete(req, err);
-}
-
-static int decrypt(struct skcipher_request *req)
-{
-	return do_decrypt(req, init_crypt(req, decrypt_done));
-}
-
-static int init_tfm(struct crypto_skcipher *tfm)
+static int lrw_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct skcipher_instance *inst = skcipher_alg_instance(tfm);
 	struct crypto_skcipher_spawn *spawn = skcipher_instance_ctx(inst);
-	struct priv *ctx = crypto_skcipher_ctx(tfm);
+	struct lrw_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct crypto_skcipher *cipher;
 
 	cipher = crypto_spawn_skcipher(spawn);
@@ -434,42 +276,39 @@ static int init_tfm(struct crypto_skcipher *tfm)
 	ctx->child = cipher;
 
 	crypto_skcipher_set_reqsize(tfm, crypto_skcipher_reqsize(cipher) +
-					 sizeof(struct rctx));
+					 sizeof(struct lrw_request_ctx));
 
 	return 0;
 }
 
-static void exit_tfm(struct crypto_skcipher *tfm)
+static void lrw_exit_tfm(struct crypto_skcipher *tfm)
 {
-	struct priv *ctx = crypto_skcipher_ctx(tfm);
+	struct lrw_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	if (ctx->table)
 		gf128mul_free_64k(ctx->table);
 	crypto_free_skcipher(ctx->child);
 }
 
-static void free(struct skcipher_instance *inst)
+static void lrw_free_instance(struct skcipher_instance *inst)
 {
 	crypto_drop_skcipher(skcipher_instance_ctx(inst));
 	kfree(inst);
 }
 
-static int create(struct crypto_template *tmpl, struct rtattr **tb)
+static int lrw_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct crypto_skcipher_spawn *spawn;
 	struct skcipher_instance *inst;
-	struct crypto_attr_type *algt;
 	struct skcipher_alg *alg;
 	const char *cipher_name;
 	char ecb_name[CRYPTO_MAX_ALG_NAME];
+	u32 mask;
 	int err;
 
-	algt = crypto_get_attr_type(tb);
-	if (IS_ERR(algt))
-		return PTR_ERR(algt);
-
-	if ((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask)
-		return -EINVAL;
+	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SKCIPHER, &mask);
+	if (err)
+		return err;
 
 	cipher_name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(cipher_name))
@@ -481,19 +320,17 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	spawn = skcipher_instance_ctx(inst);
 
-	crypto_set_skcipher_spawn(spawn, skcipher_crypto_instance(inst));
-	err = crypto_grab_skcipher(spawn, cipher_name, 0,
-				   crypto_requires_sync(algt->type,
-							algt->mask));
+	err = crypto_grab_skcipher(spawn, skcipher_crypto_instance(inst),
+				   cipher_name, 0, mask);
 	if (err == -ENOENT) {
 		err = -ENAMETOOLONG;
 		if (snprintf(ecb_name, CRYPTO_MAX_ALG_NAME, "ecb(%s)",
 			     cipher_name) >= CRYPTO_MAX_ALG_NAME)
 			goto err_free_inst;
 
-		err = crypto_grab_skcipher(spawn, ecb_name, 0,
-					   crypto_requires_sync(algt->type,
-								algt->mask));
+		err = crypto_grab_skcipher(spawn,
+					   skcipher_crypto_instance(inst),
+					   ecb_name, 0, mask);
 	}
 
 	if (err)
@@ -503,15 +340,15 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	err = -EINVAL;
 	if (alg->base.cra_blocksize != LRW_BLOCK_SIZE)
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	if (crypto_skcipher_alg_ivsize(alg))
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	err = crypto_inst_setname(skcipher_crypto_instance(inst), "lrw",
 				  &alg->base);
 	if (err)
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	err = -EINVAL;
 	cipher_name = alg->base.cra_name;
@@ -524,26 +361,25 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 
 		len = strlcpy(ecb_name, cipher_name + 4, sizeof(ecb_name));
 		if (len < 2 || len >= sizeof(ecb_name))
-			goto err_drop_spawn;
+			goto err_free_inst;
 
 		if (ecb_name[len - 1] != ')')
-			goto err_drop_spawn;
+			goto err_free_inst;
 
 		ecb_name[len - 1] = 0;
 
 		if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
 			     "lrw(%s)", ecb_name) >= CRYPTO_MAX_ALG_NAME) {
 			err = -ENAMETOOLONG;
-			goto err_drop_spawn;
+			goto err_free_inst;
 		}
 	} else
-		goto err_drop_spawn;
+		goto err_free_inst;
 
-	inst->alg.base.cra_flags = alg->base.cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = LRW_BLOCK_SIZE;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask |
-				       (__alignof__(u64) - 1);
+				       (__alignof__(be128) - 1);
 
 	inst->alg.ivsize = LRW_BLOCK_SIZE;
 	inst->alg.min_keysize = crypto_skcipher_alg_min_keysize(alg) +
@@ -551,49 +387,43 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.max_keysize = crypto_skcipher_alg_max_keysize(alg) +
 				LRW_BLOCK_SIZE;
 
-	inst->alg.base.cra_ctxsize = sizeof(struct priv);
+	inst->alg.base.cra_ctxsize = sizeof(struct lrw_tfm_ctx);
 
-	inst->alg.init = init_tfm;
-	inst->alg.exit = exit_tfm;
+	inst->alg.init = lrw_init_tfm;
+	inst->alg.exit = lrw_exit_tfm;
 
-	inst->alg.setkey = setkey;
-	inst->alg.encrypt = encrypt;
-	inst->alg.decrypt = decrypt;
+	inst->alg.setkey = lrw_setkey;
+	inst->alg.encrypt = lrw_encrypt;
+	inst->alg.decrypt = lrw_decrypt;
 
-	inst->free = free;
+	inst->free = lrw_free_instance;
 
 	err = skcipher_register_instance(tmpl, inst);
-	if (err)
-		goto err_drop_spawn;
-
-out:
-	return err;
-
-err_drop_spawn:
-	crypto_drop_skcipher(spawn);
+	if (err) {
 err_free_inst:
-	kfree(inst);
-	goto out;
+		lrw_free_instance(inst);
+	}
+	return err;
 }
 
-static struct crypto_template crypto_tmpl = {
+static struct crypto_template lrw_tmpl = {
 	.name = "lrw",
-	.create = create,
+	.create = lrw_create,
 	.module = THIS_MODULE,
 };
 
-static int __init crypto_module_init(void)
+static int __init lrw_module_init(void)
 {
-	return crypto_register_template(&crypto_tmpl);
+	return crypto_register_template(&lrw_tmpl);
 }
 
-static void __exit crypto_module_exit(void)
+static void __exit lrw_module_exit(void)
 {
-	crypto_unregister_template(&crypto_tmpl);
+	crypto_unregister_template(&lrw_tmpl);
 }
 
-module_init(crypto_module_init);
-module_exit(crypto_module_exit);
+subsys_initcall(lrw_module_init);
+module_exit(lrw_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("LRW block cipher mode");

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1997-1998	Mark Lord
  *  Copyright (C) 2003		Red Hat
@@ -205,7 +206,7 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 ide_devset_rw(current_speed, xfer_rate);
 ide_devset_rw_field(init_speed, init_speed);
 ide_devset_rw_flag(nice1, IDE_DFLAG_NICE1);
-ide_devset_rw_field(number, dn);
+ide_devset_ro_field(number, dn);
 
 static const struct ide_proc_devset ide_generic_settings[] = {
 	IDE_PROC_DEVSET(current_speed, 0, 70),
@@ -380,13 +381,12 @@ parse_error:
 	return -EINVAL;
 }
 
-static const struct file_operations ide_settings_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ide_settings_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= ide_settings_proc_write,
+static const struct proc_ops ide_settings_proc_ops = {
+	.proc_open	= ide_settings_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= ide_settings_proc_write,
 };
 
 int ide_capacity_proc_show(struct seq_file *m, void *v)
@@ -544,8 +544,8 @@ void ide_proc_port_register_devices(ide_hwif_t *hwif)
 		drive->proc = proc_mkdir(drive->name, parent);
 		if (drive->proc) {
 			ide_add_proc_entries(drive->proc, generic_drive_entries, drive);
-			proc_create_data("setting", S_IFREG|S_IRUSR|S_IWUSR,
-					drive->proc, &ide_settings_proc_fops,
+			proc_create_data("settings", S_IFREG|S_IRUSR|S_IWUSR,
+					drive->proc, &ide_settings_proc_ops,
 					drive);
 		}
 		sprintf(name, "ide%d/%s", (drive->name[2]-'a')/2, drive->name);
@@ -614,18 +614,7 @@ static int ide_drivers_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int ide_drivers_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, &ide_drivers_show, NULL);
-}
-
-static const struct file_operations ide_drivers_operations = {
-	.owner		= THIS_MODULE,
-	.open		= ide_drivers_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_PROC_SHOW_ATTRIBUTE(ide_drivers);
 
 void proc_ide_create(void)
 {
@@ -634,7 +623,7 @@ void proc_ide_create(void)
 	if (!proc_ide_root)
 		return;
 
-	proc_create("drivers", 0, proc_ide_root, &ide_drivers_operations);
+	proc_create("drivers", 0, proc_ide_root, &ide_drivers_proc_ops);
 }
 
 void proc_ide_destroy(void)

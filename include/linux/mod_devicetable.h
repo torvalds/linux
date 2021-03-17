@@ -16,6 +16,25 @@ typedef unsigned long kernel_ulong_t;
 
 #define PCI_ANY_ID (~0)
 
+/**
+ * struct pci_device_id - PCI device ID structure
+ * @vendor:		Vendor ID to match (or PCI_ANY_ID)
+ * @device:		Device ID to match (or PCI_ANY_ID)
+ * @subvendor:		Subsystem vendor ID to match (or PCI_ANY_ID)
+ * @subdevice:		Subsystem device ID to match (or PCI_ANY_ID)
+ * @class:		Device class, subclass, and "interface" to match.
+ *			See Appendix D of the PCI Local Bus Spec or
+ *			include/linux/pci_ids.h for a full list of classes.
+ *			Most drivers do not need to specify class/class_mask
+ *			as vendor/device is normally sufficient.
+ * @class_mask:		Limit which sub-fields of the class field are compared.
+ *			See drivers/scsi/sym53c8xx_2/ for example of usage.
+ * @driver_data:	Data private to the driver.
+ *			Most drivers don't need to use driver_data field.
+ *			Best practice is to use driver_data as an index
+ *			into a static list of equivalent device types,
+ *			instead of using it as a pointer.
+ */
 struct pci_device_id {
 	__u32 vendor, device;		/* Vendor and device ID or PCI_ANY_ID*/
 	__u32 subvendor, subdevice;	/* Subsystem ID's or PCI_ANY_ID */
@@ -232,6 +251,8 @@ struct hda_device_id {
 struct sdw_device_id {
 	__u16 mfg_id;
 	__u16 part_id;
+	__u8  sdw_version;
+	__u8  class_id;
 	kernel_ulong_t driver_data;
 };
 
@@ -257,17 +278,17 @@ struct pcmcia_device_id {
 	__u16		match_flags;
 
 	__u16		manf_id;
-	__u16 		card_id;
+	__u16		card_id;
 
-	__u8  		func_id;
+	__u8		func_id;
 
 	/* for real multi-function devices */
-	__u8  		function;
+	__u8		function;
 
 	/* for pseudo multi-function devices */
-	__u8  		device_no;
+	__u8		device_no;
 
-	__u32 		prod_id_hash[4];
+	__u32		prod_id_hash[4];
 
 	/* not matched against in kernelspace */
 	const char *	prod_id[4];
@@ -299,7 +320,7 @@ struct pcmcia_device_id {
 #define INPUT_DEVICE_ID_LED_MAX		0x0f
 #define INPUT_DEVICE_ID_SND_MAX		0x07
 #define INPUT_DEVICE_ID_FF_MAX		0x7f
-#define INPUT_DEVICE_ID_SW_MAX		0x0f
+#define INPUT_DEVICE_ID_SW_MAX		0x10
 #define INPUT_DEVICE_ID_PROP_MAX	0x1f
 
 #define INPUT_DEVICE_ID_MATCH_BUS	1
@@ -415,7 +436,7 @@ struct virtio_device_id {
  * For Hyper-V devices we use the device guid as the id.
  */
 struct hv_vmbus_device_id {
-	uuid_le guid;
+	guid_t guid;
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
@@ -446,6 +467,23 @@ struct i2c_device_id {
 struct pci_epf_device_id {
 	char name[PCI_EPF_NAME_SIZE];
 	kernel_ulong_t driver_data;
+};
+
+/* i3c */
+
+#define I3C_MATCH_DCR			0x1
+#define I3C_MATCH_MANUF			0x2
+#define I3C_MATCH_PART			0x4
+#define I3C_MATCH_EXTRA_INFO		0x8
+
+struct i3c_device_id {
+	__u8 match_flags;
+	__u8 dcr;
+	__u16 manuf_id;
+	__u16 part_id;
+	__u16 extra_info;
+
+	const void *data;
 };
 
 /* spi */
@@ -496,6 +534,8 @@ enum dmi_field {
 	DMI_BIOS_VENDOR,
 	DMI_BIOS_VERSION,
 	DMI_BIOS_DATE,
+	DMI_BIOS_RELEASE,
+	DMI_EC_FIRMWARE_RELEASE,
 	DMI_SYS_VENDOR,
 	DMI_PRODUCT_NAME,
 	DMI_PRODUCT_VERSION,
@@ -551,9 +591,9 @@ struct platform_device_id {
 #define MDIO_NAME_SIZE		32
 #define MDIO_MODULE_PREFIX	"mdio:"
 
-#define MDIO_ID_FMT "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d"
+#define MDIO_ID_FMT "%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u"
 #define MDIO_ID_ARGS(_id) \
-	(_id)>>31, ((_id)>>30) & 1, ((_id)>>29) & 1, ((_id)>>28) & 1,	\
+	((_id)>>31) & 1, ((_id)>>30) & 1, ((_id)>>29) & 1, ((_id)>>28) & 1, \
 	((_id)>>27) & 1, ((_id)>>26) & 1, ((_id)>>25) & 1, ((_id)>>24) & 1, \
 	((_id)>>23) & 1, ((_id)>>22) & 1, ((_id)>>21) & 1, ((_id)>>20) & 1, \
 	((_id)>>19) & 1, ((_id)>>18) & 1, ((_id)>>17) & 1, ((_id)>>16) & 1, \
@@ -565,7 +605,7 @@ struct platform_device_id {
 /**
  * struct mdio_device_id - identifies PHY devices on an MDIO/MII bus
  * @phy_id: The result of
- *     (mdio_read(&MII_PHYSID1) << 16 | mdio_read(&PHYSID2)) & @phy_id_mask
+ *     (mdio_read(&MII_PHYSID1) << 16 | mdio_read(&MII_PHYSID2)) & @phy_id_mask
  *     for this PHY type
  * @phy_id_mask: Defines the significant bits of @phy_id.  A value of 0
  *     is used to terminate an array of struct mdio_device_id.
@@ -627,16 +667,16 @@ struct x86_cpu_id {
 	__u16 vendor;
 	__u16 family;
 	__u16 model;
+	__u16 steppings;
 	__u16 feature;	/* bit index */
 	kernel_ulong_t driver_data;
 };
 
-#define X86_FEATURE_MATCH(x) \
-	{ X86_VENDOR_ANY, X86_FAMILY_ANY, X86_MODEL_ANY, x }
-
+/* Wild cards for x86_cpu_id::vendor, family, model and feature */
 #define X86_VENDOR_ANY 0xffff
 #define X86_FAMILY_ANY 0
 #define X86_MODEL_ANY  0
+#define X86_STEPPING_ANY 0
 #define X86_FEATURE_ANY 0	/* Same as FPU, you can't test for that */
 
 /*
@@ -759,6 +799,42 @@ struct tb_service_id {
 struct typec_device_id {
 	__u16 svid;
 	__u8 mode;
+	kernel_ulong_t driver_data;
+};
+
+/**
+ * struct tee_client_device_id - tee based device identifier
+ * @uuid: For TEE based client devices we use the device uuid as
+ *        the identifier.
+ */
+struct tee_client_device_id {
+	uuid_t uuid;
+};
+
+/* WMI */
+
+#define WMI_MODULE_PREFIX	"wmi:"
+
+/**
+ * struct wmi_device_id - WMI device identifier
+ * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
+ * @context: pointer to driver specific data
+ */
+struct wmi_device_id {
+	const char guid_string[UUID_STRING_LEN+1];
+	const void *context;
+};
+
+#define MHI_DEVICE_MODALIAS_FMT "mhi:%s"
+#define MHI_NAME_SIZE 32
+
+/**
+ * struct mhi_device_id - MHI device identification
+ * @chan: MHI channel name
+ * @driver_data: driver data;
+ */
+struct mhi_device_id {
+	const char chan[MHI_NAME_SIZE];
 	kernel_ulong_t driver_data;
 };
 

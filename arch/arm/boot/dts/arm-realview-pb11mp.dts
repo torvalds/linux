@@ -23,9 +23,10 @@
 /dts-v1/;
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "ARM RealView PB11MPcore";
 	compatible = "arm,realview-pb11mp";
 
@@ -39,6 +40,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		/*
 		 * The PB11MPCore has 512 MiB memory @ 0x70000000
 		 * and the first 256 are also remapped @ 0x00000000
@@ -90,7 +92,7 @@
 		      <0x1f000100 0x100>;
 	};
 
-	L2: l2-cache {
+	L2: cache-controller {
 		compatible = "arm,l220-cache";
 		reg = <0x1f002000 0x1000>;
 		interrupt-parent = <&intc_tc11mp>;
@@ -145,7 +147,7 @@
 	};
 
 	/* The voltage to the MMC card is hardwired at 3.3V */
-	vmmc: fixedregulator@0 {
+	vmmc: regulator-vmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc";
 		regulator-min-microvolt = <3300000>;
@@ -153,7 +155,7 @@
 		regulator-boot-on;
         };
 
-	veth: fixedregulator@0 {
+	veth: regulator-veth {
 		compatible = "regulator-fixed";
 		regulator-name = "veth";
 		regulator-min-microvolt = <3300000>;
@@ -233,6 +235,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x40000000 0x04000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	flash1@44000000 {
@@ -240,6 +245,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x44000000 0x04000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	bridge {
@@ -523,7 +531,7 @@
 			clock-names = "uartclk", "apb_pclk";
 		};
 
-		ssp@1000d000 {
+		spi@1000d000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x1000d000 0x1000>;
 			interrupt-parent = <&intc_pb11mp>;
@@ -538,7 +546,7 @@
 			interrupt-parent = <&intc_pb11mp>;
 			interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -548,7 +556,7 @@
 			interrupt-parent = <&intc_pb11mp>;
 			interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		timer01: timer@10011000 {
@@ -560,8 +568,8 @@
 			clocks = <&sp810_syscon 0>,
 			         <&sp810_syscon 1>,
 				 <&pclk>;
-			clock-names = "timerclk0",
-				    "timerclk1",
+			clock-names = "timer0clk",
+				    "timer1clk",
 				    "apb_pclk";
 		};
 
@@ -574,8 +582,8 @@
 			clocks = <&sp810_syscon 2>,
 			         <&sp810_syscon 3>,
 				 <&pclk>;
-			clock-names = "timerclk2",
-				    "timerclk3",
+			clock-names = "timer0clk",
+				    "timer1clk",
 				    "apb_pclk";
 		};
 
@@ -637,16 +645,16 @@
 		timer45: timer@10018000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x10018000 0x1000>;
-			clocks = <&timclk>, <&pclk>;
-			clock-names = "timer", "apb_pclk";
+			clocks = <&timclk>, <&timclk>, <&pclk>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 
 		timer67: timer@10019000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x10019000 0x1000>;
-			clocks = <&timclk>, <&pclk>;
-			clock-names = "timer", "apb_pclk";
+			clocks = <&timclk>, <&timclk>, <&pclk>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 

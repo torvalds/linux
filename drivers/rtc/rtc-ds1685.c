@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An rtc driver for the Dallas/Maxim DS1685/DS1687 and related real-time
  * chips.
@@ -10,10 +11,6 @@
  *    DS17x85/DS17x87 3V/5V Real-Time Clocks, 19-5222, Rev 4/10.
  *    DS1689/DS1693 3V/5V Serialized Real-Time Clocks, Rev 112105.
  *    Application Note 90, Using the Multiplex Bus RTC Extended Features.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -34,7 +31,10 @@
 
 
 /* ----------------------------------------------------------------------- */
-/* Standard read/write functions if platform does not provide overrides */
+/*
+ *  Standard read/write
+ *  all registers are mapped in CPU address space
+ */
 
 /**
  * ds1685_read - read a value from an rtc register.
@@ -62,6 +62,35 @@ ds1685_write(struct ds1685_priv *rtc, int reg, u8 value)
 }
 /* ----------------------------------------------------------------------- */
 
+/*
+ * Indirect read/write functions
+ * access happens via address and data register mapped in CPU address space
+ */
+
+/**
+ * ds1685_indirect_read - read a value from an rtc register.
+ * @rtc: pointer to the ds1685 rtc structure.
+ * @reg: the register address to read.
+ */
+static u8
+ds1685_indirect_read(struct ds1685_priv *rtc, int reg)
+{
+	writeb(reg, rtc->regs);
+	return readb(rtc->data);
+}
+
+/**
+ * ds1685_indirect_write - write a value to an rtc register.
+ * @rtc: pointer to the ds1685 rtc structure.
+ * @reg: the register address to write.
+ * @value: value to write to the register.
+ */
+static void
+ds1685_indirect_write(struct ds1685_priv *rtc, int reg, u8 value)
+{
+	writeb(reg, rtc->regs);
+	writeb(value, rtc->data);
+}
 
 /* ----------------------------------------------------------------------- */
 /* Inlined functions */
@@ -164,12 +193,12 @@ ds1685_rtc_begin_data_access(struct ds1685_priv *rtc)
 	rtc->write(rtc, RTC_CTRL_B,
 		   (rtc->read(rtc, RTC_CTRL_B) | RTC_CTRL_B_SET));
 
+	/* Switch to Bank 1 */
+	ds1685_rtc_switch_to_bank1(rtc);
+
 	/* Read Ext Ctrl 4A and check the INCR bit to avoid a lockout. */
 	while (rtc->read(rtc, RTC_EXT_CTRL_4A) & RTC_CTRL_4A_INCR)
 		cpu_relax();
-
-	/* Switch to Bank 1 */
-	ds1685_rtc_switch_to_bank1(rtc);
 }
 
 /**
@@ -184,47 +213,11 @@ static inline void
 ds1685_rtc_end_data_access(struct ds1685_priv *rtc)
 {
 	/* Switch back to Bank 0 */
-	ds1685_rtc_switch_to_bank1(rtc);
+	ds1685_rtc_switch_to_bank0(rtc);
 
 	/* Clear the SET bit in Ctrl B */
 	rtc->write(rtc, RTC_CTRL_B,
 		   (rtc->read(rtc, RTC_CTRL_B) & ~(RTC_CTRL_B_SET)));
-}
-
-/**
- * ds1685_rtc_begin_ctrl_access - prepare the rtc for ctrl access.
- * @rtc: pointer to the ds1685 rtc structure.
- * @flags: irq flags variable for spin_lock_irqsave.
- *
- * This takes several steps to prepare the rtc for access to read just the
- * control registers:
- *  - Sets a spinlock on the rtc IRQ.
- *  - Switches the rtc to bank 1.  This allows access to the two extended
- *    control registers.
- *
- * Only use this where you are certain another lock will not be held.
- */
-static inline void
-ds1685_rtc_begin_ctrl_access(struct ds1685_priv *rtc, unsigned long *flags)
-{
-	spin_lock_irqsave(&rtc->lock, *flags);
-	ds1685_rtc_switch_to_bank1(rtc);
-}
-
-/**
- * ds1685_rtc_end_ctrl_access - end ctrl access on the rtc.
- * @rtc: pointer to the ds1685 rtc structure.
- * @flags: irq flags variable for spin_unlock_irqrestore.
- *
- * This ends what was started by ds1685_rtc_begin_ctrl_access:
- *  - Switches the rtc back to bank 0.
- *  - Unsets the spinlock on the rtc IRQ.
- */
-static inline void
-ds1685_rtc_end_ctrl_access(struct ds1685_priv *rtc, unsigned long flags)
-{
-	ds1685_rtc_switch_to_bank0(rtc);
-	spin_unlock_irqrestore(&rtc->lock, flags);
 }
 
 /**
@@ -268,7 +261,7 @@ static int
 ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	u8 ctrlb, century;
+	u8 century;
 	u8 seconds, minutes, hours, wday, mday, month, years;
 
 	/* Fetch the time info from the RTC registers. */
@@ -281,7 +274,6 @@ ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	month   = rtc->read(rtc, RTC_MONTH);
 	years   = rtc->read(rtc, RTC_YEAR);
 	century = rtc->read(rtc, RTC_CENTURY);
-	ctrlb   = rtc->read(rtc, RTC_CTRL_B);
 	ds1685_rtc_end_data_access(rtc);
 
 	/* bcd2bin if needed, perform fixups, and store to rtc_time. */
@@ -546,10 +538,6 @@ static int
 ds1685_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	unsigned long flags = 0;
-
-	/* Enable/disable the Alarm IRQ-Enable flag. */
-	spin_lock_irqsave(&rtc->lock, flags);
 
 	/* Flip the requisite interrupt-enable bit. */
 	if (enabled)
@@ -561,7 +549,6 @@ ds1685_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	/* Read Control C to clear all the flag bits. */
 	rtc->read(rtc, RTC_CTRL_C);
-	spin_unlock_irqrestore(&rtc->lock, flags);
 
 	return 0;
 }
@@ -569,97 +556,17 @@ ds1685_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 
 /* ----------------------------------------------------------------------- */
-/* IRQ handler & workqueue. */
+/* IRQ handler */
 
 /**
- * ds1685_rtc_irq_handler - IRQ handler.
- * @irq: IRQ number.
- * @dev_id: platform device pointer.
- */
-static irqreturn_t
-ds1685_rtc_irq_handler(int irq, void *dev_id)
-{
-	struct platform_device *pdev = dev_id;
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
-	u8 ctrlb, ctrlc;
-	unsigned long events = 0;
-	u8 num_irqs = 0;
-
-	/* Abort early if the device isn't ready yet (i.e., DEBUG_SHIRQ). */
-	if (unlikely(!rtc))
-		return IRQ_HANDLED;
-
-	/* Ctrlb holds the interrupt-enable bits and ctrlc the flag bits. */
-	spin_lock(&rtc->lock);
-	ctrlb = rtc->read(rtc, RTC_CTRL_B);
-	ctrlc = rtc->read(rtc, RTC_CTRL_C);
-
-	/* Is the IRQF bit set? */
-	if (likely(ctrlc & RTC_CTRL_C_IRQF)) {
-		/*
-		 * We need to determine if it was one of the standard
-		 * events: PF, AF, or UF.  If so, we handle them and
-		 * update the RTC core.
-		 */
-		if (likely(ctrlc & RTC_CTRL_B_PAU_MASK)) {
-			events = RTC_IRQF;
-
-			/* Check for a periodic interrupt. */
-			if ((ctrlb & RTC_CTRL_B_PIE) &&
-			    (ctrlc & RTC_CTRL_C_PF)) {
-				events |= RTC_PF;
-				num_irqs++;
-			}
-
-			/* Check for an alarm interrupt. */
-			if ((ctrlb & RTC_CTRL_B_AIE) &&
-			    (ctrlc & RTC_CTRL_C_AF)) {
-				events |= RTC_AF;
-				num_irqs++;
-			}
-
-			/* Check for an update interrupt. */
-			if ((ctrlb & RTC_CTRL_B_UIE) &&
-			    (ctrlc & RTC_CTRL_C_UF)) {
-				events |= RTC_UF;
-				num_irqs++;
-			}
-
-			rtc_update_irq(rtc->dev, num_irqs, events);
-		} else {
-			/*
-			 * One of the "extended" interrupts was received that
-			 * is not recognized by the RTC core.  These need to
-			 * be handled in task context as they can call other
-			 * functions and the time spent in irq context needs
-			 * to be minimized.  Schedule them into a workqueue
-			 * and inform the RTC core that the IRQs were handled.
-			 */
-			spin_unlock(&rtc->lock);
-			schedule_work(&rtc->work);
-			rtc_update_irq(rtc->dev, 0, 0);
-			return IRQ_HANDLED;
-		}
-	}
-	spin_unlock(&rtc->lock);
-
-	return events ? IRQ_HANDLED : IRQ_NONE;
-}
-
-/**
- * ds1685_rtc_work_queue - work queue handler.
- * @work: work_struct containing data to work on in task context.
+ * ds1685_rtc_extended_irq - take care of extended interrupts
+ * @rtc: pointer to the ds1685 rtc structure.
+ * @pdev: platform device pointer.
  */
 static void
-ds1685_rtc_work_queue(struct work_struct *work)
+ds1685_rtc_extended_irq(struct ds1685_priv *rtc, struct platform_device *pdev)
 {
-	struct ds1685_priv *rtc = container_of(work,
-					       struct ds1685_priv, work);
-	struct platform_device *pdev = to_platform_device(&rtc->dev->dev);
-	struct mutex *rtc_mutex = &rtc->dev->ops_lock;
 	u8 ctrl4a, ctrl4b;
-
-	mutex_lock(rtc_mutex);
 
 	ds1685_rtc_switch_to_bank1(rtc);
 	ctrl4a = rtc->read(rtc, RTC_EXT_CTRL_4A);
@@ -739,8 +646,76 @@ ds1685_rtc_work_queue(struct work_struct *work)
 				 "RAM-Clear IRQ just occurred!\n");
 	}
 	ds1685_rtc_switch_to_bank0(rtc);
+}
 
+/**
+ * ds1685_rtc_irq_handler - IRQ handler.
+ * @irq: IRQ number.
+ * @dev_id: platform device pointer.
+ */
+static irqreturn_t
+ds1685_rtc_irq_handler(int irq, void *dev_id)
+{
+	struct platform_device *pdev = dev_id;
+	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct mutex *rtc_mutex;
+	u8 ctrlb, ctrlc;
+	unsigned long events = 0;
+	u8 num_irqs = 0;
+
+	/* Abort early if the device isn't ready yet (i.e., DEBUG_SHIRQ). */
+	if (unlikely(!rtc))
+		return IRQ_HANDLED;
+
+	rtc_mutex = &rtc->dev->ops_lock;
+	mutex_lock(rtc_mutex);
+
+	/* Ctrlb holds the interrupt-enable bits and ctrlc the flag bits. */
+	ctrlb = rtc->read(rtc, RTC_CTRL_B);
+	ctrlc = rtc->read(rtc, RTC_CTRL_C);
+
+	/* Is the IRQF bit set? */
+	if (likely(ctrlc & RTC_CTRL_C_IRQF)) {
+		/*
+		 * We need to determine if it was one of the standard
+		 * events: PF, AF, or UF.  If so, we handle them and
+		 * update the RTC core.
+		 */
+		if (likely(ctrlc & RTC_CTRL_B_PAU_MASK)) {
+			events = RTC_IRQF;
+
+			/* Check for a periodic interrupt. */
+			if ((ctrlb & RTC_CTRL_B_PIE) &&
+			    (ctrlc & RTC_CTRL_C_PF)) {
+				events |= RTC_PF;
+				num_irqs++;
+			}
+
+			/* Check for an alarm interrupt. */
+			if ((ctrlb & RTC_CTRL_B_AIE) &&
+			    (ctrlc & RTC_CTRL_C_AF)) {
+				events |= RTC_AF;
+				num_irqs++;
+			}
+
+			/* Check for an update interrupt. */
+			if ((ctrlb & RTC_CTRL_B_UIE) &&
+			    (ctrlc & RTC_CTRL_C_UF)) {
+				events |= RTC_UF;
+				num_irqs++;
+			}
+		} else {
+			/*
+			 * One of the "extended" interrupts was received that
+			 * is not recognized by the RTC core.
+			 */
+			ds1685_rtc_extended_irq(rtc, pdev);
+		}
+	}
+	rtc_update_irq(rtc->dev, num_irqs, events);
 	mutex_unlock(rtc_mutex);
+
+	return events ? IRQ_HANDLED : IRQ_NONE;
 }
 /* ----------------------------------------------------------------------- */
 
@@ -770,33 +745,6 @@ static const char *ds1685_rtc_sqw_freq[16] = {
 	"512Hz", "256Hz", "128Hz", "64Hz", "32Hz", "16Hz", "8Hz", "4Hz", "2Hz"
 };
 
-#ifdef CONFIG_RTC_DS1685_PROC_REGS
-/**
- * ds1685_rtc_print_regs - helper function to print register values.
- * @hex: hex byte to convert into binary bits.
- * @dest: destination char array.
- *
- * This is basically a hex->binary function, just with extra spacing between
- * the digits.  It only works on 1-byte values (8 bits).
- */
-static char*
-ds1685_rtc_print_regs(u8 hex, char *dest)
-{
-	u32 i, j;
-	char *tmp = dest;
-
-	for (i = 0; i < NUM_BITS; i++) {
-		*tmp++ = ((hex & 0x80) != 0 ? '1' : '0');
-		for (j = 0; j < NUM_SPACES; j++)
-			*tmp++ = ' ';
-		hex <<= 1;
-	}
-	*tmp++ = '\0';
-
-	return dest;
-}
-#endif
-
 /**
  * ds1685_rtc_proc - procfs access function.
  * @dev: pointer to device structure.
@@ -805,20 +753,15 @@ ds1685_rtc_print_regs(u8 hex, char *dest)
 static int
 ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
-	u8 ctrla, ctrlb, ctrlc, ctrld, ctrl4a, ctrl4b, ssn[8];
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
+	u8 ctrla, ctrlb, ctrld, ctrl4a, ctrl4b, ssn[8];
 	char *model;
-#ifdef CONFIG_RTC_DS1685_PROC_REGS
-	char bits[NUM_REGS][(NUM_BITS * NUM_SPACES) + NUM_BITS + 1];
-#endif
 
 	/* Read all the relevant data from the control registers. */
 	ds1685_rtc_switch_to_bank1(rtc);
 	ds1685_rtc_get_ssn(rtc, ssn);
 	ctrla = rtc->read(rtc, RTC_CTRL_A);
 	ctrlb = rtc->read(rtc, RTC_CTRL_B);
-	ctrlc = rtc->read(rtc, RTC_CTRL_C);
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
 	ctrl4a = rtc->read(rtc, RTC_EXT_CTRL_4A);
 	ctrl4b = rtc->read(rtc, RTC_EXT_CTRL_4B);
@@ -859,28 +802,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   "Periodic IRQ\t: %s\n"
 	   "Periodic Rate\t: %s\n"
 	   "SQW Freq\t: %s\n"
-#ifdef CONFIG_RTC_DS1685_PROC_REGS
-	   "Serial #\t: %8phC\n"
-	   "Register Status\t:\n"
-	   "   Ctrl A\t: UIP  DV2  DV1  DV0  RS3  RS2  RS1  RS0\n"
-	   "\t\t:  %s\n"
-	   "   Ctrl B\t: SET  PIE  AIE  UIE  SQWE  DM  2412 DSE\n"
-	   "\t\t:  %s\n"
-	   "   Ctrl C\t: IRQF  PF   AF   UF  ---  ---  ---  ---\n"
-	   "\t\t:  %s\n"
-	   "   Ctrl D\t: VRT  ---  ---  ---  ---  ---  ---  ---\n"
-	   "\t\t:  %s\n"
-#if !defined(CONFIG_RTC_DRV_DS1685) && !defined(CONFIG_RTC_DRV_DS1689)
-	   "   Ctrl 4A\t: VRT2 INCR BME  ---  PAB   RF   WF   KF\n"
-#else
-	   "   Ctrl 4A\t: VRT2 INCR ---  ---  PAB   RF   WF   KF\n"
-#endif
-	   "\t\t:  %s\n"
-	   "   Ctrl 4B\t: ABE  E32k  CS  RCE  PRS  RIE  WIE  KSE\n"
-	   "\t\t:  %s\n",
-#else
 	   "Serial #\t: %8phC\n",
-#endif
 	   model,
 	   ((ctrla & RTC_CTRL_A_DV1) ? "enabled" : "disabled"),
 	   ((ctrlb & RTC_CTRL_B_2412) ? "24-hour" : "12-hour"),
@@ -894,17 +816,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	    ds1685_rtc_pirq_rate[(ctrla & RTC_CTRL_A_RS_MASK)] : "none"),
 	   (!((ctrl4b & RTC_CTRL_4B_E32K)) ?
 	    ds1685_rtc_sqw_freq[(ctrla & RTC_CTRL_A_RS_MASK)] : "32768Hz"),
-#ifdef CONFIG_RTC_DS1685_PROC_REGS
-	   ssn,
-	   ds1685_rtc_print_regs(ctrla, bits[0]),
-	   ds1685_rtc_print_regs(ctrlb, bits[1]),
-	   ds1685_rtc_print_regs(ctrlc, bits[2]),
-	   ds1685_rtc_print_regs(ctrld, bits[3]),
-	   ds1685_rtc_print_regs(ctrl4a, bits[4]),
-	   ds1685_rtc_print_regs(ctrl4b, bits[5]));
-#else
 	   ssn);
-#endif
 	return 0;
 }
 #else
@@ -927,32 +839,19 @@ ds1685_rtc_ops = {
 };
 /* ----------------------------------------------------------------------- */
 
-
-/* ----------------------------------------------------------------------- */
-/* SysFS interface */
-
-#ifdef CONFIG_SYSFS
-/**
- * ds1685_rtc_sysfs_nvram_read - reads rtc nvram via sysfs.
- * @file: pointer to file structure.
- * @kobj: pointer to kobject structure.
- * @bin_attr: pointer to bin_attribute structure.
- * @buf: pointer to char array to hold the output.
- * @pos: current file position pointer.
- * @size: size of the data to read.
- */
-static ssize_t
-ds1685_rtc_sysfs_nvram_read(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr, char *buf,
-			    loff_t pos, size_t size)
+static int ds1685_nvram_read(void *priv, unsigned int pos, void *val,
+			     size_t size)
 {
-	struct platform_device *pdev =
-		to_platform_device(container_of(kobj, struct device, kobj));
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = priv;
+	struct mutex *rtc_mutex = &rtc->dev->ops_lock;
 	ssize_t count;
-	unsigned long flags = 0;
+	u8 *buf = val;
+	int err;
 
-	spin_lock_irqsave(&rtc->lock, flags);
+	err = mutex_lock_interruptible(rtc_mutex);
+	if (err)
+		return err;
+
 	ds1685_rtc_switch_to_bank0(rtc);
 
 	/* Read NVRAM in time and bank0 registers. */
@@ -1002,37 +901,24 @@ ds1685_rtc_sysfs_nvram_read(struct file *filp, struct kobject *kobj,
 		ds1685_rtc_switch_to_bank0(rtc);
 	}
 #endif /* !CONFIG_RTC_DRV_DS1689 */
-	spin_unlock_irqrestore(&rtc->lock, flags);
+	mutex_unlock(rtc_mutex);
 
-	/*
-	 * XXX: Bug? this appears to cause the function to get executed
-	 * several times in succession.  But it's the only way to actually get
-	 * data written out to a file.
-	 */
-	return count;
+	return 0;
 }
 
-/**
- * ds1685_rtc_sysfs_nvram_write - writes rtc nvram via sysfs.
- * @file: pointer to file structure.
- * @kobj: pointer to kobject structure.
- * @bin_attr: pointer to bin_attribute structure.
- * @buf: pointer to char array to hold the input.
- * @pos: current file position pointer.
- * @size: size of the data to write.
- */
-static ssize_t
-ds1685_rtc_sysfs_nvram_write(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr, char *buf,
-			     loff_t pos, size_t size)
+static int ds1685_nvram_write(void *priv, unsigned int pos, void *val,
+			      size_t size)
 {
-	struct platform_device *pdev =
-		to_platform_device(container_of(kobj, struct device, kobj));
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = priv;
+	struct mutex *rtc_mutex = &rtc->dev->ops_lock;
 	ssize_t count;
-	unsigned long flags = 0;
+	u8 *buf = val;
+	int err;
 
-	spin_lock_irqsave(&rtc->lock, flags);
+	err = mutex_lock_interruptible(rtc_mutex);
+	if (err)
+		return err;
+
 	ds1685_rtc_switch_to_bank0(rtc);
 
 	/* Write NVRAM in time and bank0 registers. */
@@ -1082,28 +968,13 @@ ds1685_rtc_sysfs_nvram_write(struct file *filp, struct kobject *kobj,
 		ds1685_rtc_switch_to_bank0(rtc);
 	}
 #endif /* !CONFIG_RTC_DRV_DS1689 */
-	spin_unlock_irqrestore(&rtc->lock, flags);
+	mutex_unlock(rtc_mutex);
 
-	return count;
+	return 0;
 }
 
-/**
- * struct ds1685_rtc_sysfs_nvram_attr - sysfs attributes for rtc nvram.
- * @attr: nvram attributes.
- * @read: nvram read function.
- * @write: nvram write function.
- * @size: nvram total size (bank0 + extended).
- */
-static struct bin_attribute
-ds1685_rtc_sysfs_nvram_attr = {
-	.attr = {
-		.name = "nvram",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.read = ds1685_rtc_sysfs_nvram_read,
-	.write = ds1685_rtc_sysfs_nvram_write,
-	.size = NVRAM_TOTAL_SZ
-};
+/* ----------------------------------------------------------------------- */
+/* SysFS interface */
 
 /**
  * ds1685_rtc_sysfs_battery_show - sysfs file for main battery status.
@@ -1115,7 +986,7 @@ static ssize_t
 ds1685_rtc_sysfs_battery_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev->parent);
 	u8 ctrld;
 
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
@@ -1135,7 +1006,7 @@ static ssize_t
 ds1685_rtc_sysfs_auxbatt_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev->parent);
 	u8 ctrl4a;
 
 	ds1685_rtc_switch_to_bank1(rtc);
@@ -1157,7 +1028,7 @@ static ssize_t
 ds1685_rtc_sysfs_serial_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev->parent);
 	u8 ssn[8];
 
 	ds1685_rtc_switch_to_bank1(rtc);
@@ -1168,7 +1039,7 @@ ds1685_rtc_sysfs_serial_show(struct device *dev,
 }
 static DEVICE_ATTR(serial, S_IRUGO, ds1685_rtc_sysfs_serial_show, NULL);
 
-/**
+/*
  * struct ds1685_rtc_sysfs_misc_attrs - list for misc RTC features.
  */
 static struct attribute*
@@ -1179,7 +1050,7 @@ ds1685_rtc_sysfs_misc_attrs[] = {
 	NULL,
 };
 
-/**
+/*
  * struct ds1685_rtc_sysfs_misc_grp - attr group for misc RTC features.
  */
 static const struct attribute_group
@@ -1187,43 +1058,6 @@ ds1685_rtc_sysfs_misc_grp = {
 	.name = "misc",
 	.attrs = ds1685_rtc_sysfs_misc_attrs,
 };
-
-/**
- * ds1685_rtc_sysfs_register - register sysfs files.
- * @dev: pointer to device structure.
- */
-static int
-ds1685_rtc_sysfs_register(struct device *dev)
-{
-	int ret = 0;
-
-	sysfs_bin_attr_init(&ds1685_rtc_sysfs_nvram_attr);
-	ret = sysfs_create_bin_file(&dev->kobj, &ds1685_rtc_sysfs_nvram_attr);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_misc_grp);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-/**
- * ds1685_rtc_sysfs_unregister - unregister sysfs files.
- * @dev: pointer to device structure.
- */
-static int
-ds1685_rtc_sysfs_unregister(struct device *dev)
-{
-	sysfs_remove_bin_file(&dev->kobj, &ds1685_rtc_sysfs_nvram_attr);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_misc_grp);
-
-	return 0;
-}
-#endif /* CONFIG_SYSFS */
-
-
 
 /* ----------------------------------------------------------------------- */
 /* Driver Probe/Removal */
@@ -1236,12 +1070,17 @@ static int
 ds1685_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc_dev;
-	struct resource *res;
 	struct ds1685_priv *rtc;
 	struct ds1685_rtc_platform_data *pdata;
 	u8 ctrla, ctrlb, hours;
 	unsigned char am_pm;
 	int ret = 0;
+	struct nvmem_config nvmem_cfg = {
+		.name = "ds1685_nvram",
+		.size = NVRAM_TOTAL_SZ,
+		.reg_read = ds1685_nvram_read,
+		.reg_write = ds1685_nvram_write,
+	};
 
 	/* Get the platform data. */
 	pdata = (struct ds1685_rtc_platform_data *) pdev->dev.platform_data;
@@ -1253,59 +1092,35 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
-	/*
-	 * Allocate/setup any IORESOURCE_MEM resources, if required.  Not all
-	 * platforms put the RTC in an easy-access place.  Like the SGI Octane,
-	 * which attaches the RTC to a "ByteBus", hooked to a SuperIO chip
-	 * that sits behind the IOC3 PCI metadevice.
-	 */
-	if (pdata->alloc_io_resources) {
-		/* Get the platform resources. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -ENXIO;
-		rtc->size = resource_size(res);
-
-		/* Request a memory region. */
-		/* XXX: mmio-only for now. */
-		if (!devm_request_mem_region(&pdev->dev, res->start, rtc->size,
-					     pdev->name))
-			return -EBUSY;
-
-		/*
-		 * Set the base address for the rtc, and ioremap its
-		 * registers.
-		 */
-		rtc->baseaddr = res->start;
-		rtc->regs = devm_ioremap(&pdev->dev, res->start, rtc->size);
-		if (!rtc->regs)
-			return -ENOMEM;
+	/* Setup resources and access functions */
+	switch (pdata->access_type) {
+	case ds1685_reg_direct:
+		rtc->regs = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(rtc->regs))
+			return PTR_ERR(rtc->regs);
+		rtc->read = ds1685_read;
+		rtc->write = ds1685_write;
+		break;
+	case ds1685_reg_indirect:
+		rtc->regs = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(rtc->regs))
+			return PTR_ERR(rtc->regs);
+		rtc->data = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(rtc->data))
+			return PTR_ERR(rtc->data);
+		rtc->read = ds1685_indirect_read;
+		rtc->write = ds1685_indirect_write;
+		break;
 	}
-	rtc->alloc_io_resources = pdata->alloc_io_resources;
+
+	if (!rtc->read || !rtc->write)
+		return -ENXIO;
 
 	/* Get the register step size. */
 	if (pdata->regstep > 0)
 		rtc->regstep = pdata->regstep;
 	else
 		rtc->regstep = 1;
-
-	/* Platform read function, else default if mmio setup */
-	if (pdata->plat_read)
-		rtc->read = pdata->plat_read;
-	else
-		if (pdata->alloc_io_resources)
-			rtc->read = ds1685_read;
-		else
-			return -ENXIO;
-
-	/* Platform write function, else default if mmio setup */
-	if (pdata->plat_write)
-		rtc->write = pdata->plat_write;
-	else
-		if (pdata->alloc_io_resources)
-			rtc->write = ds1685_write;
-		else
-			return -ENXIO;
 
 	/* Platform pre-shutdown function, if defined. */
 	if (pdata->plat_prepare_poweroff)
@@ -1319,9 +1134,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	if (pdata->plat_post_ram_clear)
 		rtc->post_ram_clear = pdata->plat_post_ram_clear;
 
-	/* Init the spinlock, workqueue, & set the driver data. */
-	spin_lock_init(&rtc->lock);
-	INIT_WORK(&rtc->work, ds1685_rtc_work_queue);
+	/* set the driver data. */
 	platform_set_drvdata(pdev, rtc);
 
 	/* Turn the oscillator on if is not already on (DV1 = 1). */
@@ -1463,7 +1276,6 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/* See if the platform doesn't support UIE. */
 	if (pdata->uie_unsupported)
 		rtc_dev->uie_unsupported = 1;
-	rtc->uie_unsupported = pdata->uie_unsupported;
 
 	rtc->dev = rtc_dev;
 
@@ -1477,33 +1289,38 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	 */
 	if (!pdata->no_irq) {
 		ret = platform_get_irq(pdev, 0);
-		if (ret > 0) {
-			rtc->irq_num = ret;
-
-			/* Request an IRQ. */
-			ret = devm_request_irq(&pdev->dev, rtc->irq_num,
-					       ds1685_rtc_irq_handler,
-					       IRQF_SHARED, pdev->name, pdev);
-
-			/* Check to see if something came back. */
-			if (unlikely(ret)) {
-				dev_warn(&pdev->dev,
-					 "RTC interrupt not available\n");
-				rtc->irq_num = 0;
-			}
-		} else
+		if (ret <= 0)
 			return ret;
+
+		rtc->irq_num = ret;
+
+		/* Request an IRQ. */
+		ret = devm_request_threaded_irq(&pdev->dev, rtc->irq_num,
+				       NULL, ds1685_rtc_irq_handler,
+				       IRQF_SHARED | IRQF_ONESHOT,
+				       pdev->name, pdev);
+
+		/* Check to see if something came back. */
+		if (unlikely(ret)) {
+			dev_warn(&pdev->dev,
+				 "RTC interrupt not available\n");
+			rtc->irq_num = 0;
+		}
 	}
 	rtc->no_irq = pdata->no_irq;
 
 	/* Setup complete. */
 	ds1685_rtc_switch_to_bank0(rtc);
 
-#ifdef CONFIG_SYSFS
-	ret = ds1685_rtc_sysfs_register(&pdev->dev);
+	ret = rtc_add_group(rtc_dev, &ds1685_rtc_sysfs_misc_grp);
 	if (ret)
 		return ret;
-#endif
+
+	rtc_dev->nvram_old_abi = true;
+	nvmem_cfg.priv = rtc;
+	ret = rtc_nvmem_register(rtc_dev, &nvmem_cfg);
+	if (ret)
+		return ret;
 
 	return rtc_register_device(rtc_dev);
 }
@@ -1516,10 +1333,6 @@ static int
 ds1685_rtc_remove(struct platform_device *pdev)
 {
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
-
-#ifdef CONFIG_SYSFS
-	ds1685_rtc_sysfs_unregister(&pdev->dev);
-#endif
 
 	/* Read Ctrl B and clear PIE/AIE/UIE. */
 	rtc->write(rtc, RTC_CTRL_B,
@@ -1539,12 +1352,10 @@ ds1685_rtc_remove(struct platform_device *pdev)
 		   (rtc->read(rtc, RTC_EXT_CTRL_4A) &
 		    ~(RTC_CTRL_4A_RWK_MASK)));
 
-	cancel_work_sync(&rtc->work);
-
 	return 0;
 }
 
-/**
+/*
  * ds1685_rtc_driver - rtc driver properties.
  */
 static struct platform_driver ds1685_rtc_driver = {

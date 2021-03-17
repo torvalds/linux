@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 #include "dm_helpers.h"
 #include "core_types.h"
@@ -31,7 +33,7 @@
  * Private functions
  ******************************************************************************/
 
-static void destruct(struct dc_sink *sink)
+static void dc_sink_destruct(struct dc_sink *sink)
 {
 	if (sink->dc_container_id) {
 		kfree(sink->dc_container_id);
@@ -39,7 +41,7 @@ static void destruct(struct dc_sink *sink)
 	}
 }
 
-static bool construct(struct dc_sink *sink, const struct dc_sink_init_data *init_params)
+static bool dc_sink_construct(struct dc_sink *sink, const struct dc_sink_init_data *init_params)
 {
 
 	struct dc_link *link = init_params->link;
@@ -52,6 +54,7 @@ static bool construct(struct dc_sink *sink, const struct dc_sink_init_data *init
 	sink->ctx = link->ctx;
 	sink->dongle_max_pix_clk = init_params->dongle_max_pix_clk;
 	sink->converter_disable_audio = init_params->converter_disable_audio;
+	sink->is_mst_legacy = init_params->sink_is_legacy;
 	sink->dc_container_id = NULL;
 	sink->sink_id = init_params->link->ctx->dc_sink_id_count;
 	// increment dc_sink_id_count because we don't want two sinks with same ID
@@ -73,7 +76,7 @@ void dc_sink_retain(struct dc_sink *sink)
 static void dc_sink_free(struct kref *kref)
 {
 	struct dc_sink *sink = container_of(kref, struct dc_sink, refcount);
-	destruct(sink);
+	dc_sink_destruct(sink);
 	kfree(sink);
 }
 
@@ -89,7 +92,7 @@ struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 	if (NULL == sink)
 		goto alloc_fail;
 
-	if (false == construct(sink, init_params))
+	if (false == dc_sink_construct(sink, init_params))
 		goto construct_fail;
 
 	kref_init(&sink->refcount);

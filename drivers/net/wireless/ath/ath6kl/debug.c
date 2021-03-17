@@ -30,7 +30,7 @@ struct ath6kl_fwlog_slot {
 	__le32 length;
 
 	/* max ATH6KL_FWLOG_PAYLOAD_SIZE bytes */
-	u8 payload[0];
+	u8 payload[];
 };
 
 #define ATH6KL_FWLOG_MAX_ENTRIES 20
@@ -1132,8 +1132,7 @@ int ath6kl_debug_roam_tbl_event(struct ath6kl *ar, const void *buf,
 
 	tbl = (const struct wmi_target_roam_tbl *) buf;
 	num_entries = le16_to_cpu(tbl->num_entries);
-	if (sizeof(*tbl) + num_entries * sizeof(struct wmi_bss_roam_info) >
-	    len)
+	if (struct_size(tbl, info, num_entries) > len)
 		return -EINVAL;
 
 	if (ar->debug.roam_tbl == NULL ||

@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2003, 2004
  *
  * This file is part of the SCTP kernel implementation
  *
  * This file contains the code relating the chunk abstraction.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -86,43 +71,39 @@ void sctp_datamsg_free(struct sctp_datamsg *msg)
 /* Final destructruction of datamsg memory. */
 static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 {
+	struct sctp_association *asoc = NULL;
 	struct list_head *pos, *temp;
 	struct sctp_chunk *chunk;
-	struct sctp_sock *sp;
 	struct sctp_ulpevent *ev;
-	struct sctp_association *asoc = NULL;
-	int error = 0, notify;
-
-	/* If we failed, we may need to notify. */
-	notify = msg->send_failed ? -1 : 0;
+	int error, sent;
 
 	/* Release all references. */
 	list_for_each_safe(pos, temp, &msg->chunks) {
 		list_del_init(pos);
 		chunk = list_entry(pos, struct sctp_chunk, frag_list);
-		/* Check whether we _really_ need to notify. */
-		if (notify < 0) {
-			asoc = chunk->asoc;
-			if (msg->send_error)
-				error = msg->send_error;
-			else
-				error = asoc->outqueue.error;
 
-			sp = sctp_sk(asoc->base.sk);
-			notify = sctp_ulpevent_type_enabled(SCTP_SEND_FAILED,
-							    &sp->subscribe);
+		if (!msg->send_failed) {
+			sctp_chunk_put(chunk);
+			continue;
 		}
 
-		/* Generate a SEND FAILED event only if enabled. */
-		if (notify > 0) {
-			int sent;
-			if (chunk->has_tsn)
-				sent = SCTP_DATA_SENT;
-			else
-				sent = SCTP_DATA_UNSENT;
+		asoc = chunk->asoc;
+		error = msg->send_error ?: asoc->outqueue.error;
+		sent = chunk->has_tsn ? SCTP_DATA_SENT : SCTP_DATA_UNSENT;
 
+		if (sctp_ulpevent_type_enabled(asoc->subscribe,
+					       SCTP_SEND_FAILED)) {
 			ev = sctp_ulpevent_make_send_failed(asoc, chunk, sent,
 							    error, GFP_ATOMIC);
+			if (ev)
+				asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
+		}
+
+		if (sctp_ulpevent_type_enabled(asoc->subscribe,
+					       SCTP_SEND_FAILED_EVENT)) {
+			ev = sctp_ulpevent_make_send_failed_event(asoc, chunk,
+								  sent, error,
+								  GFP_ATOMIC);
 			if (ev)
 				asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 		}
@@ -191,8 +172,14 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	 * the packet
 	 */
 	max_data = asoc->frag_point;
+	if (unlikely(!max_data)) {
+		max_data = sctp_min_frag_point(sctp_sk(asoc->base.sk),
+					       sctp_datachk_len(&asoc->stream));
+		pr_warn_ratelimited("%s: asoc:%p frag_point is zero, forcing max_data to default minimum (%zu)",
+				    __func__, asoc, max_data);
+	}
 
-	/* If the the peer requested that we authenticate DATA chunks
+	/* If the peer requested that we authenticate DATA chunks
 	 * we need to account for bundling of the AUTH chunks along with
 	 * DATA.
 	 */
@@ -238,7 +225,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	if (msg_len >= first_len) {
 		msg->can_delay = 0;
 		if (msg_len > first_len)
-			SCTP_INC_STATS(sock_net(asoc->base.sk),
+			SCTP_INC_STATS(asoc->base.net,
 				       SCTP_MIB_FRAGUSRMSGS);
 	} else {
 		/* Which may be the only one... */

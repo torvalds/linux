@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Cryptographic Coprocessor (CCP) crypto API support
  *
  * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -44,7 +41,7 @@ MODULE_PARM_DESC(rsa_disable, "Disable use of RSA - any non-zero value");
 
 /* List heads for the supported algorithms */
 static LIST_HEAD(hash_algs);
-static LIST_HEAD(cipher_algs);
+static LIST_HEAD(skcipher_algs);
 static LIST_HEAD(aead_algs);
 static LIST_HEAD(akcipher_algs);
 
@@ -333,7 +330,7 @@ static int ccp_register_algs(void)
 	int ret;
 
 	if (!aes_disable) {
-		ret = ccp_register_aes_algs(&cipher_algs);
+		ret = ccp_register_aes_algs(&skcipher_algs);
 		if (ret)
 			return ret;
 
@@ -341,7 +338,7 @@ static int ccp_register_algs(void)
 		if (ret)
 			return ret;
 
-		ret = ccp_register_aes_xts_algs(&cipher_algs);
+		ret = ccp_register_aes_xts_algs(&skcipher_algs);
 		if (ret)
 			return ret;
 
@@ -351,7 +348,7 @@ static int ccp_register_algs(void)
 	}
 
 	if (!des3_disable) {
-		ret = ccp_register_des3_algs(&cipher_algs);
+		ret = ccp_register_des3_algs(&skcipher_algs);
 		if (ret)
 			return ret;
 	}
@@ -374,7 +371,7 @@ static int ccp_register_algs(void)
 static void ccp_unregister_algs(void)
 {
 	struct ccp_crypto_ahash_alg *ahash_alg, *ahash_tmp;
-	struct ccp_crypto_ablkcipher_alg *ablk_alg, *ablk_tmp;
+	struct ccp_crypto_skcipher_alg *ablk_alg, *ablk_tmp;
 	struct ccp_crypto_aead *aead_alg, *aead_tmp;
 	struct ccp_crypto_akcipher_alg *akc_alg, *akc_tmp;
 
@@ -384,8 +381,8 @@ static void ccp_unregister_algs(void)
 		kfree(ahash_alg);
 	}
 
-	list_for_each_entry_safe(ablk_alg, ablk_tmp, &cipher_algs, entry) {
-		crypto_unregister_alg(&ablk_alg->alg);
+	list_for_each_entry_safe(ablk_alg, ablk_tmp, &skcipher_algs, entry) {
+		crypto_unregister_skcipher(&ablk_alg->alg);
 		list_del(&ablk_alg->entry);
 		kfree(ablk_alg);
 	}
@@ -408,8 +405,10 @@ static int ccp_crypto_init(void)
 	int ret;
 
 	ret = ccp_present();
-	if (ret)
+	if (ret) {
+		pr_err("Cannot load: there are no available CCPs\n");
 		return ret;
+	}
 
 	spin_lock_init(&req_queue_lock);
 	INIT_LIST_HEAD(&req_queue.cmds);

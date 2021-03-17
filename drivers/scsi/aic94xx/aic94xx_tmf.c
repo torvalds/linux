@@ -1,27 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aic94xx Task Management Functions
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This file is part of the aic94xx driver.
- *
- * The aic94xx driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * The aic94xx driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the aic94xx driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/spinlock.h>
@@ -508,7 +490,7 @@ int asd_abort_task(struct sas_task *task)
 		switch (tcs.dl_opcode) {
 		default:
 			res = asd_clear_nexus(task);
-			/* fallthrough */
+			fallthrough;
 		case TC_NO_ERROR:
 			break;
 			/* The task hasn't been sent to the device xor
@@ -691,7 +673,7 @@ int asd_lu_reset(struct domain_device *dev, u8 *lun)
 
 /**
  * asd_query_task -- send a QUERY TASK TMF to an I_T_L_Q nexus
- * task: pointer to sas_task struct of interest
+ * @task: pointer to sas_task struct of interest
  *
  * Returns: TMF_RESP_FUNC_COMPLETE if the task is not in the task set,
  * or TMF_RESP_FUNC_SUCC if the task is in the task set.

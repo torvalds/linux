@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *	klist.h - Some generic list helpers, extending struct list_head a bit.
  *
  *	Implementations are found in lib/klist.c
  *
- *
  *	Copyright (C) 2005 Patrick Mochel
- *
- *	This file is rleased under the GPL v2.
  */
 
 #ifndef _LINUX_KLIST_H

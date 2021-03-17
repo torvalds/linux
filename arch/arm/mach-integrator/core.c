@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-integrator/core.c
  *
  *  Copyright (C) 2000-2003 Deep Blue Solutions Ltd
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
  */
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -24,10 +21,10 @@
 #include <linux/stat.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/pgtable.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>
-#include <asm/pgtable.h>
 
 #include "hardware.h"
 #include "cm.h"

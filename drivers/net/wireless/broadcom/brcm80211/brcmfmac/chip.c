@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -165,6 +154,7 @@ struct sbconfig {
 #define SRCI_LSS_MASK		0x00f00000
 #define SRCI_LSS_SHIFT		20
 #define	SRCI_SRNB_MASK		0xf0
+#define	SRCI_SRNB_MASK_EXT	0x100
 #define	SRCI_SRNB_SHIFT		4
 #define	SRCI_SRBSZ_MASK		0xf
 #define	SRCI_SRBSZ_SHIFT	0
@@ -443,11 +433,25 @@ static void brcmf_chip_ai_resetcore(struct brcmf_core_priv *core, u32 prereset,
 {
 	struct brcmf_chip_priv *ci;
 	int count;
+	struct brcmf_core *d11core2 = NULL;
+	struct brcmf_core_priv *d11priv2 = NULL;
 
 	ci = core->chip;
 
+	/* special handle two D11 cores reset */
+	if (core->pub.id == BCMA_CORE_80211) {
+		d11core2 = brcmf_chip_get_d11core(&ci->pub, 1);
+		if (d11core2) {
+			brcmf_dbg(INFO, "found two d11 cores, reset both\n");
+			d11priv2 = container_of(d11core2,
+						struct brcmf_core_priv, pub);
+		}
+	}
+
 	/* must disable first to work for arbitrary current core state */
 	brcmf_chip_ai_coredisable(core, prereset, reset);
+	if (d11priv2)
+		brcmf_chip_ai_coredisable(d11priv2, prereset, reset);
 
 	count = 0;
 	while (ci->ops->read32(ci->ctx, core->wrapbase + BCMA_RESET_CTL) &
@@ -459,9 +463,30 @@ static void brcmf_chip_ai_resetcore(struct brcmf_core_priv *core, u32 prereset,
 		usleep_range(40, 60);
 	}
 
+	if (d11priv2) {
+		count = 0;
+		while (ci->ops->read32(ci->ctx,
+				       d11priv2->wrapbase + BCMA_RESET_CTL) &
+				       BCMA_RESET_CTL_RESET) {
+			ci->ops->write32(ci->ctx,
+					 d11priv2->wrapbase + BCMA_RESET_CTL,
+					 0);
+			count++;
+			if (count > 50)
+				break;
+			usleep_range(40, 60);
+		}
+	}
+
 	ci->ops->write32(ci->ctx, core->wrapbase + BCMA_IOCTL,
 			 postreset | BCMA_IOCTL_CLK);
 	ci->ops->read32(ci->ctx, core->wrapbase + BCMA_IOCTL);
+
+	if (d11priv2) {
+		ci->ops->write32(ci->ctx, d11priv2->wrapbase + BCMA_IOCTL,
+				 postreset | BCMA_IOCTL_CLK);
+		ci->ops->read32(ci->ctx, d11priv2->wrapbase + BCMA_IOCTL);
+	}
 }
 
 char *brcmf_chip_name(u32 id, u32 rev, char *buf, uint len)
@@ -592,7 +617,13 @@ static void brcmf_chip_socram_ramsize(struct brcmf_core_priv *sr, u32 *ramsize,
 		if (lss != 0)
 			*ramsize += (1 << ((lss - 1) + SR_BSZ_BASE));
 	} else {
-		nb = (coreinfo & SRCI_SRNB_MASK) >> SRCI_SRNB_SHIFT;
+		/* length of SRAM Banks increased for corerev greater than 23 */
+		if (sr->pub.rev >= 23) {
+			nb = (coreinfo & (SRCI_SRNB_MASK | SRCI_SRNB_MASK_EXT))
+				>> SRCI_SRNB_SHIFT;
+		} else {
+			nb = (coreinfo & SRCI_SRNB_MASK) >> SRCI_SRNB_SHIFT;
+		}
 		for (i = 0; i < nb; i++) {
 			retent = brcmf_chip_socram_banksize(sr, i, &banksize);
 			*ramsize += banksize;
@@ -681,7 +712,6 @@ static u32 brcmf_chip_tcm_rambase(struct brcmf_chip_priv *ci)
 	case BRCM_CC_43569_CHIP_ID:
 	case BRCM_CC_43570_CHIP_ID:
 	case BRCM_CC_4358_CHIP_ID:
-	case BRCM_CC_4359_CHIP_ID:
 	case BRCM_CC_43602_CHIP_ID:
 	case BRCM_CC_4371_CHIP_ID:
 		return 0x180000;
@@ -691,6 +721,9 @@ static u32 brcmf_chip_tcm_rambase(struct brcmf_chip_priv *ci)
 	case BRCM_CC_4366_CHIP_ID:
 	case BRCM_CC_43664_CHIP_ID:
 		return 0x200000;
+	case BRCM_CC_4359_CHIP_ID:
+		return (ci->pub.chiprev < 9) ? 0x180000 : 0x160000;
+	case BRCM_CC_4364_CHIP_ID:
 	case CY_CC_4373_CHIP_ID:
 		return 0x160000;
 	default:
@@ -700,8 +733,10 @@ static u32 brcmf_chip_tcm_rambase(struct brcmf_chip_priv *ci)
 	return 0;
 }
 
-static int brcmf_chip_get_raminfo(struct brcmf_chip_priv *ci)
+int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 {
+	struct brcmf_chip_priv *ci = container_of(pub, struct brcmf_chip_priv,
+						  pub);
 	struct brcmf_core_priv *mem_core;
 	struct brcmf_core *mem;
 
@@ -779,8 +814,7 @@ static int brcmf_chip_dmp_get_regaddr(struct brcmf_chip_priv *ci, u32 *eromaddr,
 				      u32 *regbase, u32 *wrapbase)
 {
 	u8 desc;
-	u32 val;
-	u8 mpnum = 0;
+	u32 val, szdesc;
 	u8 stype, sztype, wraptype;
 
 	*regbase = 0;
@@ -788,7 +822,6 @@ static int brcmf_chip_dmp_get_regaddr(struct brcmf_chip_priv *ci, u32 *eromaddr,
 
 	val = brcmf_chip_dmp_get_desc(ci, eromaddr, &desc);
 	if (desc == DMP_DESC_MASTER_PORT) {
-		mpnum = (val & DMP_MASTER_PORT_NUM) >> DMP_MASTER_PORT_NUM_S;
 		wraptype = DMP_SLAVE_TYPE_MWRAP;
 	} else if (desc == DMP_DESC_ADDRESS) {
 		/* revert erom address */
@@ -825,14 +858,15 @@ static int brcmf_chip_dmp_get_regaddr(struct brcmf_chip_priv *ci, u32 *eromaddr,
 
 		/* next size descriptor can be skipped */
 		if (sztype == DMP_SLAVE_SIZE_DESC) {
-			val = brcmf_chip_dmp_get_desc(ci, eromaddr, NULL);
+			szdesc = brcmf_chip_dmp_get_desc(ci, eromaddr, NULL);
 			/* skip upper size descriptor if present */
-			if (val & DMP_DESC_ADDRSIZE_GT32)
+			if (szdesc & DMP_DESC_ADDRSIZE_GT32)
 				brcmf_chip_dmp_get_desc(ci, eromaddr, NULL);
 		}
 
-		/* only look for 4K register regions */
-		if (sztype != DMP_SLAVE_SIZE_4K)
+		/* look for 4K or 8K register regions */
+		if (sztype != DMP_SLAVE_SIZE_4K &&
+		    sztype != DMP_SLAVE_SIZE_8K)
 			continue;
 
 		stype = (val & DMP_SLAVE_TYPE) >> DMP_SLAVE_TYPE_S;
@@ -855,7 +889,7 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 	u8 desc_type = 0;
 	u32 val;
 	u16 id;
-	u8 nmp, nsp, nmw, nsw, rev;
+	u8 nmw, nsw, rev;
 	u32 base, wrap;
 	int err;
 
@@ -881,15 +915,14 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 			return -EFAULT;
 
 		/* only look at cores with master port(s) */
-		nmp = (val & DMP_COMP_NUM_MPORT) >> DMP_COMP_NUM_MPORT_S;
-		nsp = (val & DMP_COMP_NUM_SPORT) >> DMP_COMP_NUM_SPORT_S;
 		nmw = (val & DMP_COMP_NUM_MWRAP) >> DMP_COMP_NUM_MWRAP_S;
 		nsw = (val & DMP_COMP_NUM_SWRAP) >> DMP_COMP_NUM_SWRAP_S;
 		rev = (val & DMP_COMP_REVISION) >> DMP_COMP_REVISION_S;
 
 		/* need core with ports */
 		if (nmw + nsw == 0 &&
-		    id != BCMA_CORE_PMU)
+		    id != BCMA_CORE_PMU &&
+		    id != BCMA_CORE_GCI)
 			continue;
 
 		/* try to obtain register address info */
@@ -981,7 +1014,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 		brcmf_chip_set_passive(&ci->pub);
 	}
 
-	return brcmf_chip_get_raminfo(ci);
+	return brcmf_chip_get_raminfo(&ci->pub);
 }
 
 static void brcmf_chip_disable_arm(struct brcmf_chip_priv *chip, u16 id)
@@ -1111,6 +1144,21 @@ void brcmf_chip_detach(struct brcmf_chip *pub)
 		kfree(core);
 	}
 	kfree(chip);
+}
+
+struct brcmf_core *brcmf_chip_get_d11core(struct brcmf_chip *pub, u8 unit)
+{
+	struct brcmf_chip_priv *chip;
+	struct brcmf_core_priv *core;
+
+	chip = container_of(pub, struct brcmf_chip_priv, pub);
+	list_for_each_entry(core, &chip->cores, list) {
+		if (core->pub.id == BCMA_CORE_80211) {
+			if (unit-- == 0)
+				return &core->pub;
+		}
+	}
+	return NULL;
 }
 
 struct brcmf_core *brcmf_chip_get_core(struct brcmf_chip *pub, u16 coreid)
@@ -1342,7 +1390,7 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 	case BRCM_CC_4345_CHIP_ID:
 		/* explicitly check SR engine enable bit */
 		pmu_cc3_mask = BIT(2);
-		/* fall-through */
+		fallthrough;
 	case BRCM_CC_43241_CHIP_ID:
 	case BRCM_CC_4335_CHIP_ID:
 	case BRCM_CC_4339_CHIP_ID:
@@ -1356,6 +1404,17 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 		addr = CORE_CC_REG(base, sr_control1);
 		reg = chip->ops->read32(chip->ctx, addr);
 		return reg != 0;
+	case CY_CC_4373_CHIP_ID:
+		/* explicitly check SR engine enable bit */
+		addr = CORE_CC_REG(base, sr_control0);
+		reg = chip->ops->read32(chip->ctx, addr);
+		return (reg & CC_SR_CTL0_ENABLE_MASK) != 0;
+	case BRCM_CC_4359_CHIP_ID:
+	case CY_CC_43012_CHIP_ID:
+		addr = CORE_CC_REG(pmu->base, retention_ctl);
+		reg = chip->ops->read32(chip->ctx, addr);
+		return (reg & (PMU_RCTL_MACPHY_DISABLE_MASK |
+			       PMU_RCTL_LOGIC_DISABLE_MASK)) == 0;
 	default:
 		addr = CORE_CC_REG(pmu->base, pmucapabilities_ext);
 		reg = chip->ops->read32(chip->ctx, addr);

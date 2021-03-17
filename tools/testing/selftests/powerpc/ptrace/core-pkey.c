@@ -150,7 +150,7 @@ static int child(struct shared_info *info)
 	printf("%-30s AMR: %016lx pkey1: %d pkey2: %d pkey3: %d\n",
 	       user_write, info->amr, pkey1, pkey2, pkey3);
 
-	mtspr(SPRN_AMR, info->amr);
+	set_amr(info->amr);
 
 	/*
 	 * We won't use pkey3. This tests whether the kernel restores the UAMOR
@@ -352,10 +352,7 @@ static int write_core_pattern(const char *core_pattern)
 	FILE *f;
 
 	f = fopen(core_pattern_file, "w");
-	if (!f) {
-		perror("Error writing to core_pattern file");
-		return TEST_FAIL;
-	}
+	SKIP_IF_MSG(!f, "Try with root privileges");
 
 	ret = fwrite(core_pattern, 1, len, f);
 	fclose(f);

@@ -441,6 +441,9 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 #define MWL8K_CMD_UPDATE_STADB		0x1123
 #define MWL8K_CMD_BASTREAM		0x1125
 
+#define MWL8K_LEGACY_5G_RATE_OFFSET \
+	(ARRAY_SIZE(mwl8k_rates_24) - ARRAY_SIZE(mwl8k_rates_50))
+
 static const char *mwl8k_cmd_name(__le16 cmd, char *buf, int bufsize)
 {
 	u16 command = le16_to_cpu(cmd);
@@ -589,7 +592,7 @@ struct mwl8k_cmd_pkt {
 	__u8	seq_num;
 	__u8	macid;
 	__le16	result;
-	char	payload[0];
+	char	payload[];
 } __packed;
 
 /*
@@ -803,7 +806,7 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 struct mwl8k_dma_data {
 	__le16 fwlen;
 	struct ieee80211_hdr wh;
-	char data[0];
+	char data[];
 } __packed;
 
 /* Routines to add/remove DMA header from skb.  */
@@ -1016,8 +1019,9 @@ mwl8k_rxd_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 
 	if (rxd->channel > 14) {
 		status->band = NL80211_BAND_5GHZ;
-		if (!(status->encoding == RX_ENC_HT))
-			status->rate_idx -= 5;
+		if (!(status->encoding == RX_ENC_HT) &&
+		    status->rate_idx >= MWL8K_LEGACY_5G_RATE_OFFSET)
+			status->rate_idx -= MWL8K_LEGACY_5G_RATE_OFFSET;
 	} else {
 		status->band = NL80211_BAND_2GHZ;
 	}
@@ -1124,8 +1128,9 @@ mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
 
 	if (rxd->channel > 14) {
 		status->band = NL80211_BAND_5GHZ;
-		if (!(status->encoding == RX_ENC_HT))
-			status->rate_idx -= 5;
+		if (!(status->encoding == RX_ENC_HT) &&
+		    status->rate_idx >= MWL8K_LEGACY_5G_RATE_OFFSET)
+			status->rate_idx -= MWL8K_LEGACY_5G_RATE_OFFSET;
 	} else {
 		status->band = NL80211_BAND_2GHZ;
 	}
@@ -2234,8 +2239,10 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	dma_size = le16_to_cpu(cmd->length);
 	dma_addr = pci_map_single(priv->pdev, cmd, dma_size,
 				  PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(priv->pdev, dma_addr))
-		return -ENOMEM;
+	if (pci_dma_mapping_error(priv->pdev, dma_addr)) {
+		rc = -ENOMEM;
+		goto exit;
+	}
 
 	priv->hostcmd_wait = &cmd_wait;
 	iowrite32(dma_addr, regs + MWL8K_HIU_GEN_PTR);
@@ -2275,6 +2282,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 				     ms);
 	}
 
+exit:
 	if (bitmap)
 		mwl8k_enable_bsses(hw, true, bitmap);
 
@@ -2660,7 +2668,7 @@ struct mwl8k_cmd_mac_multicast_adr {
 	struct mwl8k_cmd_pkt header;
 	__le16 action;
 	__le16 numaddr;
-	__u8 addr[0][ETH_ALEN];
+	__u8 addr[][ETH_ALEN];
 };
 
 #define MWL8K_ENABLE_RX_DIRECTED	0x0001
@@ -2947,7 +2955,7 @@ mwl8k_cmd_rf_antenna(struct ieee80211_hw *hw, int antenna, int mask)
 struct mwl8k_cmd_set_beacon {
 	struct mwl8k_cmd_pkt header;
 	__le16 beacon_len;
-	__u8 beacon[0];
+	__u8 beacon[];
 };
 
 static int mwl8k_cmd_set_beacon(struct ieee80211_hw *hw,
@@ -4622,16 +4630,16 @@ static irqreturn_t mwl8k_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void mwl8k_tx_poll(unsigned long data)
+static void mwl8k_tx_poll(struct tasklet_struct *t)
 {
-	struct ieee80211_hw *hw = (struct ieee80211_hw *)data;
-	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_priv *priv = from_tasklet(priv, t, poll_tx_task);
+	struct ieee80211_hw *hw = pci_get_drvdata(priv->pdev);
 	int limit;
 	int i;
 
 	limit = 32;
 
-	spin_lock_bh(&priv->tx_lock);
+	spin_lock(&priv->tx_lock);
 
 	for (i = 0; i < mwl8k_tx_queues(priv); i++)
 		limit -= mwl8k_txq_reclaim(hw, i, limit, 0);
@@ -4641,7 +4649,7 @@ static void mwl8k_tx_poll(unsigned long data)
 		priv->tx_wait = NULL;
 	}
 
-	spin_unlock_bh(&priv->tx_lock);
+	spin_unlock(&priv->tx_lock);
 
 	if (limit) {
 		writel(~MWL8K_A2H_INT_TX_DONE,
@@ -4651,10 +4659,10 @@ static void mwl8k_tx_poll(unsigned long data)
 	}
 }
 
-static void mwl8k_rx_poll(unsigned long data)
+static void mwl8k_rx_poll(struct tasklet_struct *t)
 {
-	struct ieee80211_hw *hw = (struct ieee80211_hw *)data;
-	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_priv *priv = from_tasklet(priv, t, poll_rx_task);
+	struct ieee80211_hw *hw = pci_get_drvdata(priv->pdev);
 	int limit;
 
 	limit = 32;
@@ -5512,7 +5520,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			rc = -EBUSY;
 			break;
 		}
-		ieee80211_start_tx_ba_cb_irqsafe(vif, addr, tid);
+		rc = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
@@ -6112,9 +6120,9 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	INIT_WORK(&priv->fw_reload, mwl8k_hw_restart_work);
 
 	/* TX reclaim and RX tasklets.  */
-	tasklet_init(&priv->poll_tx_task, mwl8k_tx_poll, (unsigned long)hw);
+	tasklet_setup(&priv->poll_tx_task, mwl8k_tx_poll);
 	tasklet_disable(&priv->poll_tx_task);
-	tasklet_init(&priv->poll_rx_task, mwl8k_rx_poll, (unsigned long)hw);
+	tasklet_setup(&priv->poll_rx_task, mwl8k_rx_poll);
 	tasklet_disable(&priv->poll_rx_task);
 
 	/* Power management cookie */

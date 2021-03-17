@@ -402,7 +402,7 @@ il valore convertito. Tutte le varianti supportano anche il processo inverso:
 :c:func:`be32_to_cpu()`, eccetera.
 
 Queste funzioni hanno principalmente due varianti: la variante per
-puntatori, come :c:func:`cpu_to_be32p(), che prende un puntatore
+puntatori, come :c:func:`cpu_to_be32p()`, che prende un puntatore
 ad un tipo, e ritorna il valore convertito. L'altra variante per
 la famiglia di conversioni "in-situ", come :c:func:`cpu_to_be32s()`,
 che convertono il valore puntato da un puntatore, e ritornano void.
@@ -627,6 +627,24 @@ Alcuni manutentori e sviluppatori potrebbero comunque richiedere
 :c:func:`EXPORT_SYMBOL_GPL()` quando si aggiungono nuove funzionalità o
 interfacce.
 
+:c:func:`EXPORT_SYMBOL_NS()`
+----------------------------
+
+Definita in ``include/linux/export.h``
+
+Questa è una variate di `EXPORT_SYMBOL()` che permette di specificare uno
+spazio dei nomi. Lo spazio dei nomi è documentato in
+:doc:`../core-api/symbol-namespaces`
+
+:c:func:`EXPORT_SYMBOL_NS_GPL()`
+--------------------------------
+
+Definita in ``include/linux/export.h``
+
+Questa è una variate di `EXPORT_SYMBOL_GPL()` che permette di specificare uno
+spazio dei nomi. Lo spazio dei nomi è documentato in
+:doc:`../core-api/symbol-namespaces`
+
 Procedure e convenzioni
 =======================
 
@@ -755,7 +773,7 @@ anche per avere patch pulite, c'è del lavoro amministrativo da fare:
 -  Solitamente vorrete un'opzione di configurazione per la vostra modifica
    al kernel. Modificate ``Kconfig`` nella cartella giusta. Il linguaggio
    Config è facile con copia ed incolla, e c'è una completa documentazione
-   nel file ``Documentation/kbuild/kconfig-language.txt``.
+   nel file ``Documentation/kbuild/kconfig-language.rst``.
 
    Nella descrizione della vostra opzione, assicuratevi di parlare sia agli
    utenti esperti sia agli utente che non sanno nulla del vostro lavoro.
@@ -767,7 +785,7 @@ anche per avere patch pulite, c'è del lavoro amministrativo da fare:
 -  Modificate il file ``Makefile``: le variabili CONFIG sono esportate qui,
    quindi potete solitamente aggiungere una riga come la seguete
    "obj-$(CONFIG_xxx) += xxx.o". La sintassi è documentata nel file
-   ``Documentation/kbuild/makefiles.txt``.
+   ``Documentation/kbuild/makefiles.rst``.
 
 -  Aggiungete voi stessi in ``CREDITS`` se avete fatto qualcosa di notevole,
    solitamente qualcosa che supera il singolo file (comunque il vostro nome

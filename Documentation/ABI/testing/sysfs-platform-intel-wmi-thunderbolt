@@ -7,5 +7,6 @@ Description:
 		Thunderbolt controllers to turn on or off when no
 		devices are connected (write-only)
 		There are two available states:
+
 		    * 0 -> Force power disabled
 		    * 1 -> Force power enabled

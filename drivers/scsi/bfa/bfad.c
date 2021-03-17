@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
  * Copyright (c) 2014- QLogic Corporation.
@@ -5,15 +6,6 @@
  * www.qlogic.com
  *
  * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 /*
@@ -58,7 +50,7 @@ int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
 int		max_xfer_size = BFAD_MAX_SECTORS >> 1;
-int		max_rport_logins = BFA_FCS_MAX_RPORT_LOGINS;
+static int	max_rport_logins = BFA_FCS_MAX_RPORT_LOGINS;
 
 /* Firmware releated */
 u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
@@ -727,7 +719,7 @@ bfad_init_timer(struct bfad_s *bfad)
 int
 bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 {
-	int		rc = -ENODEV;
+	int rc = -ENODEV;
 
 	if (pci_enable_device(pdev)) {
 		printk(KERN_ERR "pci_enable_device fail %p\n", pdev);
@@ -739,14 +731,14 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 
 	pci_set_master(pdev);
 
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc)
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
-	if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) ||
-	    (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0)) {
-		if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) ||
-		   (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)) {
-			printk(KERN_ERR "pci_set_dma_mask fail %p\n", pdev);
-			goto out_release_region;
-		}
+	if (rc) {
+		rc = -ENODEV;
+		printk(KERN_ERR "dma_set_mask_and_coherent fail %p\n", pdev);
+		goto out_release_region;
 	}
 
 	/* Enable PCIE Advanced Error Recovery (AER) if kernel supports */
@@ -757,6 +749,7 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 
 	if (bfad->pci_bar0_kva == NULL) {
 		printk(KERN_ERR "Fail to map bar0\n");
+		rc = -ENODEV;
 		goto out_release_region;
 	}
 
@@ -1495,8 +1488,7 @@ bfad_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	return ret;
 }
 
-int
-restart_bfa(struct bfad_s *bfad)
+static int restart_bfa(struct bfad_s *bfad)
 {
 	unsigned long flags;
 	struct pci_dev *pdev = bfad->pcidev;
@@ -1538,6 +1530,7 @@ bfad_pci_slot_reset(struct pci_dev *pdev)
 {
 	struct bfad_s *bfad = pci_get_drvdata(pdev);
 	u8 byte;
+	int rc;
 
 	dev_printk(KERN_ERR, &pdev->dev,
 		   "bfad_pci_slot_reset flags: 0x%x\n", bfad->bfad_flags);
@@ -1565,11 +1558,12 @@ bfad_pci_slot_reset(struct pci_dev *pdev)
 	pci_save_state(pdev);
 	pci_set_master(pdev);
 
-	if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(64)) != 0)
-		if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(32)) != 0)
-			goto out_disable_device;
-
-	pci_cleanup_aer_uncorrect_error_status(pdev);
+	rc = dma_set_mask_and_coherent(&bfad->pcidev->dev, DMA_BIT_MASK(64));
+	if (rc)
+		rc = dma_set_mask_and_coherent(&bfad->pcidev->dev,
+					       DMA_BIT_MASK(32));
+	if (rc)
+		goto out_disable_device;
 
 	if (restart_bfa(bfad) == -1)
 		goto out_disable_device;

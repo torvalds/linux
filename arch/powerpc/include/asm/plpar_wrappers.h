@@ -312,7 +312,12 @@ static inline long plpar_set_ciabr(unsigned long ciabr)
 
 static inline long plpar_set_watchpoint0(unsigned long dawr0, unsigned long dawrx0)
 {
-	return plpar_set_mode(0, H_SET_MODE_RESOURCE_SET_DAWR, dawr0, dawrx0);
+	return plpar_set_mode(0, H_SET_MODE_RESOURCE_SET_DAWR0, dawr0, dawrx0);
+}
+
+static inline long plpar_set_watchpoint1(unsigned long dawr1, unsigned long dawrx1)
+{
+	return plpar_set_mode(0, H_SET_MODE_RESOURCE_SET_DAWR1, dawr1, dawrx1);
 }
 
 static inline long plpar_signal_sys_reset(long cpu)
@@ -334,12 +339,70 @@ static inline long plpar_get_cpu_characteristics(struct h_cpu_char_result *p)
 	return rc;
 }
 
+/*
+ * Wrapper to H_RPT_INVALIDATE hcall that handles return values appropriately
+ *
+ * - Returns H_SUCCESS on success
+ * - For H_BUSY return value, we retry the hcall.
+ * - For any other hcall failures, attempt a full flush once before
+ *   resorting to BUG().
+ *
+ * Note: This hcall is expected to fail only very rarely. The correct
+ * error recovery of killing the process/guest will be eventually
+ * needed.
+ */
+static inline long pseries_rpt_invalidate(u32 pid, u64 target, u64 type,
+					  u64 page_sizes, u64 start, u64 end)
+{
+	long rc;
+	unsigned long all;
+
+	while (true) {
+		rc = plpar_hcall_norets(H_RPT_INVALIDATE, pid, target, type,
+					page_sizes, start, end);
+		if (rc == H_BUSY) {
+			cpu_relax();
+			continue;
+		} else if (rc == H_SUCCESS)
+			return rc;
+
+		/* Flush request failed, try with a full flush once */
+		if (type & H_RPTI_TYPE_NESTED)
+			all = H_RPTI_TYPE_NESTED | H_RPTI_TYPE_NESTED_ALL;
+		else
+			all = H_RPTI_TYPE_ALL;
+retry:
+		rc = plpar_hcall_norets(H_RPT_INVALIDATE, pid, target,
+					all, page_sizes, 0, -1UL);
+		if (rc == H_BUSY) {
+			cpu_relax();
+			goto retry;
+		} else if (rc == H_SUCCESS)
+			return rc;
+
+		BUG();
+	}
+}
+
 #else /* !CONFIG_PPC_PSERIES */
 
 static inline long plpar_set_ciabr(unsigned long ciabr)
 {
 	return 0;
 }
+
+static inline long plpar_pte_read_4(unsigned long flags, unsigned long ptex,
+				    unsigned long *ptes)
+{
+	return 0;
+}
+
+static inline long pseries_rpt_invalidate(u32 pid, u64 target, u64 type,
+					  u64 page_sizes, u64 start, u64 end)
+{
+	return 0;
+}
+
 #endif /* CONFIG_PPC_PSERIES */
 
 #endif /* _ASM_POWERPC_PLPAR_WRAPPERS_H */

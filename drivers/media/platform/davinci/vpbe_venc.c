@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -21,11 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
 #include <linux/slab.h>
-
-#ifdef CONFIG_ARCH_DAVINCI
-#include <mach/hardware.h>
-#include <mach/mux.h>
-#endif
 
 #include <linux/platform_data/i2c-davinci.h>
 
@@ -616,7 +603,7 @@ struct v4l2_subdev *venc_sub_dev_init(struct v4l2_device *v4l2_dev,
 
 	v4l2_subdev_init(&venc->sd, &venc_ops);
 
-	strcpy(venc->sd.name, venc_name);
+	strscpy(venc->sd.name, venc_name, sizeof(venc->sd.name));
 	if (v4l2_device_register_subdev(v4l2_dev, &venc->sd) < 0) {
 		v4l2_err(v4l2_dev,
 			"vpbe unable to register venc sub device\n");

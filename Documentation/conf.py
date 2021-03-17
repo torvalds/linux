@@ -16,6 +16,8 @@ import sys
 import os
 import sphinx
 
+from subprocess import check_output
+
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
 
@@ -34,10 +36,89 @@ needs_sphinx = '1.3'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include', 'cdomain', 'kfigure', 'sphinx.ext.ifconfig']
+extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include',
+              'kfigure', 'sphinx.ext.ifconfig', 'automarkup',
+              'maintainers_include', 'sphinx.ext.autosectionlabel',
+              'kernel_abi']
+
+#
+# cdomain is badly broken in Sphinx 3+.  Leaving it out generates *most*
+# of the docs correctly, but not all.  Scream bloody murder but allow
+# the process to proceed; hopefully somebody will fix this properly soon.
+#
+if major >= 3:
+    sys.stderr.write('''WARNING: The kernel documentation build process
+        support for Sphinx v3.0 and above is brand new. Be prepared for
+        possible issues in the generated output.
+        ''')
+    if (major > 3) or (minor > 0 or patch >= 2):
+        # Sphinx c function parser is more pedantic with regards to type
+        # checking. Due to that, having macros at c:function cause problems.
+        # Those needed to be scaped by using c_id_attributes[] array
+        c_id_attributes = [
+            # GCC Compiler types not parsed by Sphinx:
+            "__restrict__",
+
+            # include/linux/compiler_types.h:
+            "__iomem",
+            "__kernel",
+            "noinstr",
+            "notrace",
+            "__percpu",
+            "__rcu",
+            "__user",
+
+            # include/linux/compiler_attributes.h:
+            "__alias",
+            "__aligned",
+            "__aligned_largest",
+            "__always_inline",
+            "__assume_aligned",
+            "__cold",
+            "__attribute_const__",
+            "__copy",
+            "__pure",
+            "__designated_init",
+            "__visible",
+            "__printf",
+            "__scanf",
+            "__gnu_inline",
+            "__malloc",
+            "__mode",
+            "__no_caller_saved_registers",
+            "__noclone",
+            "__nonstring",
+            "__noreturn",
+            "__packed",
+            "__pure",
+            "__section",
+            "__always_unused",
+            "__maybe_unused",
+            "__used",
+            "__weak",
+            "noinline",
+
+            # include/linux/memblock.h:
+            "__init_memblock",
+            "__meminit",
+
+            # include/linux/init.h:
+            "__init",
+            "__ref",
+
+            # include/linux/linkage.h:
+            "asmlinkage",
+        ]
+
+else:
+    extensions.append('cdomain')
+
+# Ensure that autosectionlabel will produce unique names
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 2
 
 # The name of the math extension changed on Sphinx 1.4
-if major == 1 and minor > 3:
+if (major == 1 and minor > 3) or (major > 1):
     extensions.append("sphinx.ext.imgmath")
 else:
     extensions.append("sphinx.ext.pngmath")
@@ -200,7 +281,7 @@ html_context = {
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
-#html_use_smartypants = True
+html_use_smartypants = False
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
@@ -259,7 +340,7 @@ latex_elements = {
 'papersize': 'a4paper',
 
 # The font size ('10pt', '11pt' or '12pt').
-'pointsize': '8pt',
+'pointsize': '11pt',
 
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
@@ -272,12 +353,23 @@ latex_elements = {
     'preamble': '''
 	% Use some font with UTF-8 support with XeLaTeX
         \\usepackage{fontspec}
-        \\setsansfont{DejaVu Serif}
-        \\setromanfont{DejaVu Sans}
+        \\setsansfont{DejaVu Sans}
+        \\setromanfont{DejaVu Serif}
         \\setmonofont{DejaVu Sans Mono}
-
      '''
 }
+
+# At least one book (translations) may have Asian characters
+# with are only displayed if xeCJK is used
+
+cjk_cmd = check_output(['fc-list', '--format="%{family[0]}\n"']).decode('utf-8', 'ignore')
+if cjk_cmd.find("Noto Sans CJK SC") >= 0:
+    print ("enabling CJK for LaTeX builder")
+    latex_elements['preamble']  += '''
+	% This is needed for translations
+        \\usepackage{xeCJK}
+        \\setCJKmainfont{Noto Sans CJK SC}
+     '''
 
 # Fix reference escape troubles with Sphinx 1.4.x
 if major == 1 and minor > 3:
@@ -369,41 +461,22 @@ if major == 1 and minor < 6:
 #  author, documentclass [howto, manual, or own class]).
 # Sorted in alphabetical order
 latex_documents = [
-    ('admin-guide/index', 'linux-user.tex', 'Linux Kernel User Documentation',
-     'The kernel development community', 'manual'),
-    ('core-api/index', 'core-api.tex', 'The kernel core API manual',
-     'The kernel development community', 'manual'),
-    ('crypto/index', 'crypto-api.tex', 'Linux Kernel Crypto API manual',
-     'The kernel development community', 'manual'),
-    ('dev-tools/index', 'dev-tools.tex', 'Development tools for the Kernel',
-     'The kernel development community', 'manual'),
-    ('doc-guide/index', 'kernel-doc-guide.tex', 'Linux Kernel Documentation Guide',
-     'The kernel development community', 'manual'),
-    ('driver-api/index', 'driver-api.tex', 'The kernel driver API manual',
-     'The kernel development community', 'manual'),
-    ('filesystems/index', 'filesystems.tex', 'Linux Filesystems API',
-     'The kernel development community', 'manual'),
-    ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
-     'The kernel development community', 'manual'),
-    ('input/index', 'linux-input.tex', 'The Linux input driver subsystem',
-     'The kernel development community', 'manual'),
-    ('kernel-hacking/index', 'kernel-hacking.tex', 'Unreliable Guide To Hacking The Linux Kernel',
-     'The kernel development community', 'manual'),
-    ('media/index', 'media.tex', 'Linux Media Subsystem Documentation',
-     'The kernel development community', 'manual'),
-    ('networking/index', 'networking.tex', 'Linux Networking Documentation',
-     'The kernel development community', 'manual'),
-    ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
-     'The kernel development community', 'manual'),
-    ('security/index', 'security.tex', 'The kernel security subsystem manual',
-     'The kernel development community', 'manual'),
-    ('sh/index', 'sh.tex', 'SuperH architecture implementation manual',
-     'The kernel development community', 'manual'),
-    ('sound/index', 'sound.tex', 'Linux Sound Subsystem Documentation',
-     'The kernel development community', 'manual'),
-    ('userspace-api/index', 'userspace-api.tex', 'The Linux kernel user-space API guide',
-     'The kernel development community', 'manual'),
 ]
+
+# Add all other index files from Documentation/ subdirectories
+for fn in os.listdir('.'):
+    doc = os.path.join(fn, "index")
+    if os.path.exists(doc + ".rst"):
+        has = False
+        for l in latex_documents:
+            if l[0] == doc:
+                has = True
+                break
+        if not has:
+            latex_documents.append((doc, fn + '.tex',
+                                    'Linux %s Documentation' % fn.capitalize(),
+                                    'The kernel development community',
+                                    'manual'))
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
@@ -538,7 +611,7 @@ epub_exclude_files = ['search.html']
 # Grouping the document tree into PDF files. List of tuples
 # (source start file, target name, title, author, options).
 #
-# See the Sphinx chapter of http://ralsina.me/static/manual.pdf
+# See the Sphinx chapter of https://ralsina.me/static/manual.pdf
 #
 # FIXME: Do not add the index file here; the result will be too big. Adding
 # multiple PDF files here actually tries to get the cross-referencing right

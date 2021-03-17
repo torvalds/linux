@@ -2,7 +2,7 @@
  * vpif-display - VPIF display driver
  * Display driver for TI DaVinci VPIF
  *
- * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments Incorporated - https://www.ti.com/
  * Copyright (C) 2014 Lad, Prabhakar <prabhakar.csengg@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -138,7 +138,7 @@ static int vpif_buffer_queue_setup(struct vb2_queue *vq,
  * vpif_buffer_queue : Callback function to add buffer to DMA queue
  * @vb: ptr to vb2_buffer
  *
- * This callback fucntion queues the buffer to DMA engine
+ * This callback function queues the buffer to DMA engine
  */
 static void vpif_buffer_queue(struct vb2_buffer *vb)
 {
@@ -584,12 +584,10 @@ static int vpif_querycap(struct file *file, void  *priv,
 {
 	struct vpif_display_config *config = vpif_dev->platform_data;
 
-	cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	strlcpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
+	strscpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(vpif_dev));
-	strlcpy(cap->card, config->card_name, sizeof(cap->card));
+	strscpy(cap->card, config->card_name, sizeof(cap->card));
 
 	return 0;
 }
@@ -601,10 +599,7 @@ static int vpif_enum_fmt_vid_out(struct file *file, void  *priv,
 		return -EINVAL;
 
 	/* Fill in the information about format */
-	fmt->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	strcpy(fmt->description, "YCbCr4:2:2 YC Planar");
 	fmt->pixelformat = V4L2_PIX_FMT_YUV422P;
-	fmt->flags = 0;
 	return 0;
 }
 
@@ -634,7 +629,7 @@ static int vpif_try_fmt_vid_out(struct file *file, void *priv,
 	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 
 	/*
-	 * to supress v4l-compliance warnings silently correct
+	 * to suppress v4l-compliance warnings silently correct
 	 * the pixelformat
 	 */
 	if (pixfmt->pixelformat != V4L2_PIX_FMT_YUV422P)
@@ -986,8 +981,8 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	} else {
 		std_info->l5 = std_info->vsize - (bt->vfrontporch - 1);
 	}
-	strncpy(std_info->name, "Custom timings BT656/1120",
-			VPIF_MAX_NAME);
+	strscpy(std_info->name, "Custom timings BT656/1120",
+		sizeof(std_info->name));
 	std_info->width = bt->width;
 	std_info->height = bt->height;
 	std_info->frm_fmt = bt->interlaced ? 0 : 1;
@@ -1209,7 +1204,7 @@ static int vpif_probe_complete(void)
 
 		/* Initialize the video_device structure */
 		vdev = &ch->video_dev;
-		strlcpy(vdev->name, VPIF_DRIVER_NAME, sizeof(vdev->name));
+		strscpy(vdev->name, VPIF_DRIVER_NAME, sizeof(vdev->name));
 		vdev->release = video_device_release_empty;
 		vdev->fops = &vpif_fops;
 		vdev->ioctl_ops = &vpif_ioctl_ops;
@@ -1217,8 +1212,9 @@ static int vpif_probe_complete(void)
 		vdev->vfl_dir = VFL_DIR_TX;
 		vdev->queue = q;
 		vdev->lock = &common->lock;
+		vdev->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
 		video_set_drvdata(&ch->video_dev, ch);
-		err = video_register_device(vdev, VFL_TYPE_GRABBER,
+		err = video_register_device(vdev, VFL_TYPE_VIDEO,
 					    (j ? 3 : 2));
 		if (err < 0)
 			goto probe_out;
@@ -1229,7 +1225,6 @@ static int vpif_probe_complete(void)
 probe_out:
 	for (k = 0; k < j; k++) {
 		ch = vpif_obj.dev[k];
-		common = &ch->common[k];
 		video_unregister_device(&ch->video_dev);
 	}
 	return err;
@@ -1299,6 +1294,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 		goto vpif_unregister;
 	}
 
+	v4l2_async_notifier_init(&vpif_obj.notifier);
+
 	if (!vpif_obj.config->asd_sizes) {
 		i2c_adap = i2c_get_adapter(vpif_obj.config->i2c_adapter_id);
 		for (i = 0; i < subdev_count; i++) {
@@ -1322,20 +1319,27 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto probe_subdev_out;
 		}
 	} else {
-		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
-		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
+		for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
+			err = v4l2_async_notifier_add_subdev(
+				&vpif_obj.notifier, vpif_obj.config->asd[i]);
+			if (err)
+				goto probe_cleanup;
+		}
+
 		vpif_obj.notifier.ops = &vpif_async_ops;
 		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
 						   &vpif_obj.notifier);
 		if (err) {
 			vpif_err("Error registering async notifier\n");
 			err = -EINVAL;
-			goto probe_subdev_out;
+			goto probe_cleanup;
 		}
 	}
 
 	return 0;
 
+probe_cleanup:
+	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
 probe_subdev_out:
 	kfree(vpif_obj.sd);
 vpif_unregister:
@@ -1353,6 +1357,11 @@ static int vpif_remove(struct platform_device *device)
 {
 	struct channel_obj *ch;
 	int i;
+
+	if (vpif_obj.config->asd_sizes) {
+		v4l2_async_notifier_unregister(&vpif_obj.notifier);
+		v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	}
 
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 

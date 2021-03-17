@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm8990.c  --  WM8990 ALSA Soc Audio driver
  *
  * Copyright 2008 Wolfson Microelectronics PLC.
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/module.h>
@@ -36,92 +32,13 @@ struct wm8990_priv {
 	unsigned int pcmclk;
 };
 
-static bool wm8990_volatile_register(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case WM8990_RESET:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static const struct reg_default wm8990_reg_defaults[] = {
-	{  1, 0x0000 },     /* R1  - Power Management (1) */
-	{  2, 0x6000 },     /* R2  - Power Management (2) */
-	{  3, 0x0000 },     /* R3  - Power Management (3) */
-	{  4, 0x4050 },     /* R4  - Audio Interface (1) */
-	{  5, 0x4000 },     /* R5  - Audio Interface (2) */
-	{  6, 0x01C8 },     /* R6  - Clocking (1) */
-	{  7, 0x0000 },     /* R7  - Clocking (2) */
-	{  8, 0x0040 },     /* R8  - Audio Interface (3) */
-	{  9, 0x0040 },     /* R9  - Audio Interface (4) */
-	{ 10, 0x0004 },     /* R10 - DAC CTRL */
-	{ 11, 0x00C0 },     /* R11 - Left DAC Digital Volume */
-	{ 12, 0x00C0 },     /* R12 - Right DAC Digital Volume */
-	{ 13, 0x0000 },     /* R13 - Digital Side Tone */
-	{ 14, 0x0100 },     /* R14 - ADC CTRL */
-	{ 15, 0x00C0 },     /* R15 - Left ADC Digital Volume */
-	{ 16, 0x00C0 },     /* R16 - Right ADC Digital Volume */
-
-	{ 18, 0x0000 },     /* R18 - GPIO CTRL 1 */
-	{ 19, 0x1000 },     /* R19 - GPIO1 & GPIO2 */
-	{ 20, 0x1010 },     /* R20 - GPIO3 & GPIO4 */
-	{ 21, 0x1010 },     /* R21 - GPIO5 & GPIO6 */
-	{ 22, 0x8000 },     /* R22 - GPIOCTRL 2 */
-	{ 23, 0x0800 },     /* R23 - GPIO_POL */
-	{ 24, 0x008B },     /* R24 - Left Line Input 1&2 Volume */
-	{ 25, 0x008B },     /* R25 - Left Line Input 3&4 Volume */
-	{ 26, 0x008B },     /* R26 - Right Line Input 1&2 Volume */
-	{ 27, 0x008B },     /* R27 - Right Line Input 3&4 Volume */
-	{ 28, 0x0000 },     /* R28 - Left Output Volume */
-	{ 29, 0x0000 },     /* R29 - Right Output Volume */
-	{ 30, 0x0066 },     /* R30 - Line Outputs Volume */
-	{ 31, 0x0022 },     /* R31 - Out3/4 Volume */
-	{ 32, 0x0079 },     /* R32 - Left OPGA Volume */
-	{ 33, 0x0079 },     /* R33 - Right OPGA Volume */
-	{ 34, 0x0003 },     /* R34 - Speaker Volume */
-	{ 35, 0x0003 },     /* R35 - ClassD1 */
-
-	{ 37, 0x0100 },     /* R37 - ClassD3 */
-	{ 38, 0x0079 },     /* R38 - ClassD4 */
-	{ 39, 0x0000 },     /* R39 - Input Mixer1 */
-	{ 40, 0x0000 },     /* R40 - Input Mixer2 */
-	{ 41, 0x0000 },     /* R41 - Input Mixer3 */
-	{ 42, 0x0000 },     /* R42 - Input Mixer4 */
-	{ 43, 0x0000 },     /* R43 - Input Mixer5 */
-	{ 44, 0x0000 },     /* R44 - Input Mixer6 */
-	{ 45, 0x0000 },     /* R45 - Output Mixer1 */
-	{ 46, 0x0000 },     /* R46 - Output Mixer2 */
-	{ 47, 0x0000 },     /* R47 - Output Mixer3 */
-	{ 48, 0x0000 },     /* R48 - Output Mixer4 */
-	{ 49, 0x0000 },     /* R49 - Output Mixer5 */
-	{ 50, 0x0000 },     /* R50 - Output Mixer6 */
-	{ 51, 0x0180 },     /* R51 - Out3/4 Mixer */
-	{ 52, 0x0000 },     /* R52 - Line Mixer1 */
-	{ 53, 0x0000 },     /* R53 - Line Mixer2 */
-	{ 54, 0x0000 },     /* R54 - Speaker Mixer */
-	{ 55, 0x0000 },     /* R55 - Additional Control */
-	{ 56, 0x0000 },     /* R56 - AntiPOP1 */
-	{ 57, 0x0000 },     /* R57 - AntiPOP2 */
-	{ 58, 0x0000 },     /* R58 - MICBIAS */
-
-	{ 60, 0x0008 },     /* R60 - PLL1 */
-	{ 61, 0x0031 },     /* R61 - PLL2 */
-	{ 62, 0x0026 },     /* R62 - PLL3 */
-};
-
 #define wm8990_reset(c) snd_soc_component_write(c, WM8990_RESET, 0)
-
-static const DECLARE_TLV_DB_SCALE(rec_mix_tlv, -1500, 600, 0);
 
 static const DECLARE_TLV_DB_SCALE(in_pga_tlv, -1650, 3000, 0);
 
 static const DECLARE_TLV_DB_SCALE(out_mix_tlv, 0, -2100, 0);
 
 static const DECLARE_TLV_DB_SCALE(out_pga_tlv, -7300, 600, 0);
-
-static const DECLARE_TLV_DB_SCALE(out_omix_tlv, -600, 0, 0);
 
 static const DECLARE_TLV_DB_SCALE(out_dac_tlv, -7163, 0, 0);
 
@@ -144,7 +61,7 @@ static int wm899x_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 		return ret;
 
 	/* now hit the volume update bits (always bit 8) */
-	val = snd_soc_component_read32(component, reg);
+	val = snd_soc_component_read(component, reg);
 	return snd_soc_component_write(component, reg, val | 0x0100);
 }
 
@@ -381,7 +298,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 
 	switch (reg_shift) {
 	case WM8990_SPEAKER_MIXER | (WM8990_LDSPK_BIT << 8) :
-		reg = snd_soc_component_read32(component, WM8990_OUTPUT_MIXER1);
+		reg = snd_soc_component_read(component, WM8990_OUTPUT_MIXER1);
 		if (reg & WM8990_LDLO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 1 LDLO Set\n");
@@ -389,7 +306,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_SPEAKER_MIXER | (WM8990_RDSPK_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8990_OUTPUT_MIXER2);
+		reg = snd_soc_component_read(component, WM8990_OUTPUT_MIXER2);
 		if (reg & WM8990_RDRO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 2 RDRO Set\n");
@@ -397,7 +314,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_OUTPUT_MIXER1 | (WM8990_LDLO_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8990_SPEAKER_MIXER);
+		reg = snd_soc_component_read(component, WM8990_SPEAKER_MIXER);
 		if (reg & WM8990_LDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer LDSPK Set\n");
@@ -405,7 +322,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_OUTPUT_MIXER2 | (WM8990_RDRO_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8990_SPEAKER_MIXER);
+		reg = snd_soc_component_read(component, WM8990_SPEAKER_MIXER);
 		if (reg & WM8990_RDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer RDSPK Set\n");
@@ -489,14 +406,6 @@ static SOC_ENUM_SINGLE_DECL(wm8990_ainrmux_enum,
 
 static const struct snd_kcontrol_new wm8990_dapm_ainrmux_controls =
 SOC_DAPM_ENUM("Route", wm8990_ainrmux_enum);
-
-/* RXVOICE */
-static const struct snd_kcontrol_new wm8990_dapm_rxvoice_controls[] = {
-SOC_DAPM_SINGLE_TLV("LIN4/RXN", WM8990_INPUT_MIXER5, WM8990_LR4BVOL_SHIFT,
-			WM8990_LR4BVOL_MASK, 0, in_mix_tlv),
-SOC_DAPM_SINGLE_TLV("RIN4/RXP", WM8990_INPUT_MIXER6, WM8990_RL4BVOL_SHIFT,
-			WM8990_RL4BVOL_MASK, 0, in_mix_tlv),
-};
 
 /* LOMIX */
 static const struct snd_kcontrol_new wm8990_dapm_lomix_controls[] = {
@@ -983,8 +892,8 @@ static int wm8990_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	u16 audio1, audio3;
 
-	audio1 = snd_soc_component_read32(component, WM8990_AUDIO_INTERFACE_1);
-	audio3 = snd_soc_component_read32(component, WM8990_AUDIO_INTERFACE_3);
+	audio1 = snd_soc_component_read(component, WM8990_AUDIO_INTERFACE_1);
+	audio3 = snd_soc_component_read(component, WM8990_AUDIO_INTERFACE_3);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1067,7 +976,7 @@ static int wm8990_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 audio1 = snd_soc_component_read32(component, WM8990_AUDIO_INTERFACE_1);
+	u16 audio1 = snd_soc_component_read(component, WM8990_AUDIO_INTERFACE_1);
 
 	audio1 &= ~WM8990_AIF_WL_MASK;
 	/* bit size */
@@ -1089,12 +998,12 @@ static int wm8990_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8990_mute(struct snd_soc_dai *dai, int mute)
+static int wm8990_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 val;
 
-	val  = snd_soc_component_read32(component, WM8990_DAC_CTRL) & ~WM8990_DAC_MUTE;
+	val  = snd_soc_component_read(component, WM8990_DAC_CTRL) & ~WM8990_DAC_MUTE;
 
 	if (mute)
 		snd_soc_component_write(component, WM8990_DAC_CTRL, val | WM8990_DAC_MUTE);
@@ -1243,11 +1152,12 @@ static int wm8990_set_bias_level(struct snd_soc_component *component,
  */
 static const struct snd_soc_dai_ops wm8990_dai_ops = {
 	.hw_params	= wm8990_hw_params,
-	.digital_mute	= wm8990_mute,
+	.mute_stream	= wm8990_mute,
 	.set_fmt	= wm8990_set_dai_fmt,
 	.set_clkdiv	= wm8990_set_dai_clkdiv,
 	.set_pll	= wm8990_set_dai_pll,
 	.set_sysclk	= wm8990_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8990_dai = {
@@ -1308,17 +1218,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8990 = {
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.non_legacy_dai_naming	= 1,
-};
-
-static const struct regmap_config wm8990_regmap = {
-	.reg_bits = 8,
-	.val_bits = 16,
-
-	.max_register = WM8990_PLL3,
-	.volatile_reg = wm8990_volatile_register,
-	.reg_defaults = wm8990_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(wm8990_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
 };
 
 static int wm8990_i2c_probe(struct i2c_client *i2c,

@@ -77,9 +77,9 @@ static void c8sectpfe_timer_interrupt(struct timer_list *t)
 	add_timer(&fei->timer);
 }
 
-static void channel_swdemux_tsklet(unsigned long data)
+static void channel_swdemux_tsklet(struct tasklet_struct *t)
 {
-	struct channel_info *channel = (struct channel_info *)data;
+	struct channel_info *channel = from_tasklet(channel, t, tsklet);
 	struct c8sectpfei *fei;
 	unsigned long wp, rp;
 	int pos, num_packets, n, size;
@@ -208,8 +208,7 @@ static int c8sectpfe_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 		dev_dbg(fei->dev, "Starting channel=%p\n", channel);
 
-		tasklet_init(&channel->tsklet, channel_swdemux_tsklet,
-			     (unsigned long) channel);
+		tasklet_setup(&channel->tsklet, channel_swdemux_tsklet);
 
 		/* Reset the internal inputblock sram pointers */
 		writel(channel->fifo,
@@ -638,8 +637,7 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	writel(tsin->back_buffer_busaddr, tsin->irec + DMA_PRDS_BUSRP_TP(0));
 
 	/* initialize tasklet */
-	tasklet_init(&tsin->tsklet, channel_swdemux_tsklet,
-		(unsigned long) tsin);
+	tasklet_setup(&tsin->tsklet, channel_swdemux_tsklet);
 
 	return 0;
 
@@ -693,16 +691,12 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 	fei->sram_size = resource_size(res);
 
 	fei->idle_irq = platform_get_irq_byname(pdev, "c8sectpfe-idle-irq");
-	if (fei->idle_irq < 0) {
-		dev_err(dev, "Can't get c8sectpfe-idle-irq\n");
+	if (fei->idle_irq < 0)
 		return fei->idle_irq;
-	}
 
 	fei->error_irq = platform_get_irq_byname(pdev, "c8sectpfe-error-irq");
-	if (fei->error_irq < 0) {
-		dev_err(dev, "Can't get c8sectpfe-error-irq\n");
+	if (fei->error_irq < 0)
 		return fei->error_irq;
-	}
 
 	platform_set_drvdata(pdev, fei);
 

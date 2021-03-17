@@ -54,7 +54,7 @@ hypervisor {
 };
 
 The format and meaning of the "xen,uefi-*" parameters are similar to those in
-Documentation/arm/uefi.txt, which are provided by the regular UEFI stub. However
+Documentation/arm/uefi.rst, which are provided by the regular UEFI stub. However
 they differ because they are provided by the Xen hypervisor, together with a set
 of UEFI runtime services implemented via hypercalls, see
 http://xenbits.xen.org/docs/unstable/hypercall/x86_64/include,public,platform.h.html.

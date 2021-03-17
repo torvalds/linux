@@ -52,8 +52,8 @@ struct ext2_block_alloc_info {
 	/*
 	 * Was i_next_alloc_goal in ext2_inode_info
 	 * is the *physical* companion to i_next_alloc_block.
-	 * it the the physical block number of the block which was most-recentl
-	 * allocated to this file.  This give us the goal (target) for the next
+	 * it is the physical block number of the block which was most-recently
+	 * allocated to this file.  This gives us the goal (target) for the next
 	 * allocation when we detect linearly ascending requests.
 	 */
 	ext2_fsblk_t		last_alloc_physical_block;
@@ -374,7 +374,6 @@ struct ext2_inode {
 /*
  * Mount flags
  */
-#define EXT2_MOUNT_CHECK		0x000001  /* Do mount-time checks */
 #define EXT2_MOUNT_OLDALLOC		0x000002  /* Don't use the new Orlov allocator */
 #define EXT2_MOUNT_GRPID		0x000004  /* Create files with directory's group */
 #define EXT2_MOUNT_DEBUG		0x000008  /* Some debugging messages */
@@ -390,11 +389,7 @@ struct ext2_inode {
 #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
 #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
 #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
-#ifdef CONFIG_FS_DAX
 #define EXT2_MOUNT_DAX			0x100000  /* Direct Access */
-#else
-#define EXT2_MOUNT_DAX			0
-#endif
 
 
 #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
@@ -608,22 +603,6 @@ struct ext2_dir_entry_2 {
 };
 
 /*
- * Ext2 directory file types.  Only the low 3 bits are used.  The
- * other bits are reserved for now.
- */
-enum {
-	EXT2_FT_UNKNOWN		= 0,
-	EXT2_FT_REG_FILE	= 1,
-	EXT2_FT_DIR		= 2,
-	EXT2_FT_CHRDEV		= 3,
-	EXT2_FT_BLKDEV		= 4,
-	EXT2_FT_FIFO		= 5,
-	EXT2_FT_SOCK		= 6,
-	EXT2_FT_SYMLINK		= 7,
-	EXT2_FT_MAX
-};
-
-/*
  * EXT2_DIR_PAD defines the directory entries boundaries
  *
  * NOTE: It must be a multiple of 4
@@ -758,7 +737,8 @@ extern void ext2_rsv_window_add(struct super_block *sb, struct ext2_reserve_wind
 
 /* dir.c */
 extern int ext2_add_link (struct dentry *, struct inode *);
-extern ino_t ext2_inode_by_name(struct inode *, const struct qstr *);
+extern int ext2_inode_by_name(struct inode *dir,
+			      const struct qstr *child, ino_t *ino);
 extern int ext2_make_empty(struct inode *, struct inode *);
 extern struct ext2_dir_entry_2 * ext2_find_entry (struct inode *,const struct qstr *, struct page **);
 extern int ext2_delete_entry (struct ext2_dir_entry_2 *, struct page *);
@@ -778,6 +758,7 @@ extern int ext2_write_inode (struct inode *, struct writeback_control *);
 extern void ext2_evict_inode(struct inode *);
 extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern int ext2_setattr (struct dentry *, struct iattr *);
+extern int ext2_getattr (const struct path *, struct kstat *, u32, unsigned int);
 extern void ext2_set_inode_flags(struct inode *inode);
 extern int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		       u64 start, u64 len);
@@ -830,6 +811,18 @@ ext2_group_first_block_no(struct super_block *sb, unsigned long group_no)
 {
 	return group_no * (ext2_fsblk_t)EXT2_BLOCKS_PER_GROUP(sb) +
 		le32_to_cpu(EXT2_SB(sb)->s_es->s_first_data_block);
+}
+
+static inline ext2_fsblk_t
+ext2_group_last_block_no(struct super_block *sb, unsigned long group_no)
+{
+	struct ext2_sb_info *sbi = EXT2_SB(sb);
+
+	if (group_no == sbi->s_groups_count - 1)
+		return le32_to_cpu(sbi->s_es->s_blocks_count) - 1;
+	else
+		return ext2_group_first_block_no(sb, group_no) +
+			EXT2_BLOCKS_PER_GROUP(sb) - 1;
 }
 
 #define ext2_set_bit	__test_and_set_bit_le

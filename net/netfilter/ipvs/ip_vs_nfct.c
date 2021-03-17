@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ip_vs_nfct.c:	Netfilter connection tracking support for IPVS
  *
@@ -7,26 +8,10 @@
  * Portions Copyright (C) 2003-2010
  * Julian Anastasov
  *
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- *
  * Authors:
  * Ben North <ben@redfrontdoor.org>
  * Julian Anastasov <ja@ssi.bg>		Reorganize and sync with latest kernels
  * Hannes Eder <heder@google.com>	Extend NFCT support for FTP, ipvs match
- *
  *
  * Current status:
  *
@@ -43,7 +28,6 @@
  * when RELATED conntrack is created from real server (Active FTP DATA)
  * - if iptables_nat is not loaded the Passive FTP will not work (the
  * PASV response can not be NAT-ed) but Active FTP should work
- *
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -247,7 +231,7 @@ void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
 
 	IP_VS_DBG_BUF(7, "%s: ct=%p, expect tuple=" FMT_TUPLE "\n",
 		      __func__, ct, ARG_TUPLE(&exp->tuple));
-	nf_ct_expect_related(exp);
+	nf_ct_expect_related(exp, 0);
 	nf_ct_expect_put(exp);
 }
 EXPORT_SYMBOL(ip_vs_nfct_expect_related);

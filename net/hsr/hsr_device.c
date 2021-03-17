@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright 2011-2014 Autronica Fire and Security AS
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
- *
  * This file contains device methods for creating, using and destroying
- * virtual HSR devices.
+ * virtual HSR or PRP devices.
  */
 
 #include <linux/netdevice.h>
@@ -22,7 +17,6 @@
 #include "hsr_framereg.h"
 #include "hsr_main.h"
 #include "hsr_forward.h"
-
 
 static bool is_admin_up(struct net_device *dev)
 {
@@ -62,26 +56,20 @@ static void hsr_set_operstate(struct hsr_port *master, bool has_carrier)
 static bool hsr_check_carrier(struct hsr_port *master)
 {
 	struct hsr_port *port;
-	bool has_carrier;
 
-	has_carrier = false;
+	ASSERT_RTNL();
 
-	rcu_read_lock();
-	hsr_for_each_port(master->hsr, port)
-		if ((port->type != HSR_PT_MASTER) && is_slave_up(port->dev)) {
-			has_carrier = true;
-			break;
+	hsr_for_each_port(master->hsr, port) {
+		if (port->type != HSR_PT_MASTER && is_slave_up(port->dev)) {
+			netif_carrier_on(master->dev);
+			return true;
 		}
-	rcu_read_unlock();
+	}
 
-	if (has_carrier)
-		netif_carrier_on(master->dev);
-	else
-		netif_carrier_off(master->dev);
+	netif_carrier_off(master->dev);
 
-	return has_carrier;
+	return false;
 }
-
 
 static void hsr_check_announce(struct net_device *hsr_dev,
 			       unsigned char old_operstate)
@@ -90,16 +78,14 @@ static void hsr_check_announce(struct net_device *hsr_dev,
 
 	hsr = netdev_priv(hsr_dev);
 
-	if ((hsr_dev->operstate == IF_OPER_UP)
-			&& (old_operstate != IF_OPER_UP)) {
+	if (hsr_dev->operstate == IF_OPER_UP && old_operstate != IF_OPER_UP) {
 		/* Went up */
 		hsr->announce_count = 0;
-		hsr->announce_timer.expires = jiffies +
-				msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
-		add_timer(&hsr->announce_timer);
+		mod_timer(&hsr->announce_timer,
+			  jiffies + msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL));
 	}
 
-	if ((hsr_dev->operstate != IF_OPER_UP) && (old_operstate == IF_OPER_UP))
+	if (hsr_dev->operstate != IF_OPER_UP && old_operstate == IF_OPER_UP)
 		/* Went down */
 		del_timer(&hsr->announce_timer);
 }
@@ -126,28 +112,23 @@ int hsr_get_max_mtu(struct hsr_priv *hsr)
 	struct hsr_port *port;
 
 	mtu_max = ETH_DATA_LEN;
-	rcu_read_lock();
 	hsr_for_each_port(hsr, port)
 		if (port->type != HSR_PT_MASTER)
 			mtu_max = min(port->dev->mtu, mtu_max);
-	rcu_read_unlock();
 
 	if (mtu_max < HSR_HLEN)
 		return 0;
 	return mtu_max - HSR_HLEN;
 }
 
-
 static int hsr_dev_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct hsr_priv *hsr;
-	struct hsr_port *master;
 
 	hsr = netdev_priv(dev);
-	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
 	if (new_mtu > hsr_get_max_mtu(hsr)) {
-		netdev_info(master->dev, "A HSR master's MTU cannot be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
+		netdev_info(dev, "A HSR master's MTU cannot be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
 			    HSR_HLEN);
 		return -EINVAL;
 	}
@@ -166,7 +147,6 @@ static int hsr_dev_open(struct net_device *dev)
 	hsr = netdev_priv(dev);
 	designation = '\0';
 
-	rcu_read_lock();
 	hsr_for_each_port(hsr, port) {
 		if (port->type == HSR_PT_MASTER)
 			continue;
@@ -184,7 +164,6 @@ static int hsr_dev_open(struct net_device *dev)
 			netdev_warn(dev, "Slave %c (%s) is not up; please bring it up to get a fully working HSR network\n",
 				    designation, port->dev->name);
 	}
-	rcu_read_unlock();
 
 	if (designation == '\0')
 		netdev_warn(dev, "No slave devices configured\n");
@@ -192,13 +171,11 @@ static int hsr_dev_open(struct net_device *dev)
 	return 0;
 }
 
-
 static int hsr_dev_close(struct net_device *dev)
 {
 	/* Nothing to do here. */
 	return 0;
 }
-
 
 static netdev_features_t hsr_features_recompute(struct hsr_priv *hsr,
 						netdev_features_t features)
@@ -232,99 +209,185 @@ static netdev_features_t hsr_fix_features(struct net_device *dev,
 	return hsr_features_recompute(hsr, features);
 }
 
-
-static int hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hsr_priv *hsr = netdev_priv(dev);
 	struct hsr_port *master;
 
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	skb->dev = master->dev;
-	hsr_forward_skb(skb, master);
-
+	if (master) {
+		skb->dev = master->dev;
+		hsr_forward_skb(skb, master);
+	} else {
+		atomic_long_inc(&dev->tx_dropped);
+		dev_kfree_skb_any(skb);
+	}
 	return NETDEV_TX_OK;
 }
-
 
 static const struct header_ops hsr_header_ops = {
 	.create	 = eth_header,
 	.parse	 = eth_header_parse,
 };
 
-static void send_hsr_supervision_frame(struct hsr_port *master,
-		u8 type, u8 hsrVer)
+static struct sk_buff *hsr_init_skb(struct hsr_port *master, u16 proto)
 {
+	struct hsr_priv *hsr = master->hsr;
 	struct sk_buff *skb;
 	int hlen, tlen;
-	struct hsr_tag *hsr_tag;
-	struct hsr_sup_tag *hsr_stag;
-	struct hsr_sup_payload *hsr_sp;
-	unsigned long irqflags;
 
 	hlen = LL_RESERVED_SPACE(master->dev);
 	tlen = master->dev->needed_tailroom;
-	skb = dev_alloc_skb(
-			sizeof(struct hsr_tag) +
-			sizeof(struct hsr_sup_tag) +
-			sizeof(struct hsr_sup_payload) + hlen + tlen);
+	/* skb size is same for PRP/HSR frames, only difference
+	 * being, for PRP it is a trailer and for HSR it is a
+	 * header
+	 */
+	skb = dev_alloc_skb(sizeof(struct hsr_tag) +
+			    sizeof(struct hsr_sup_tag) +
+			    sizeof(struct hsr_sup_payload) + hlen + tlen);
 
-	if (skb == NULL)
-		return;
+	if (!skb)
+		return skb;
 
 	skb_reserve(skb, hlen);
-
 	skb->dev = master->dev;
-	skb->protocol = htons(hsrVer ? ETH_P_HSR : ETH_P_PRP);
+	skb->protocol = htons(proto);
 	skb->priority = TC_PRIO_CONTROL;
 
-	if (dev_hard_header(skb, skb->dev, (hsrVer ? ETH_P_HSR : ETH_P_PRP),
-			    master->hsr->sup_multicast_addr,
+	if (dev_hard_header(skb, skb->dev, proto,
+			    hsr->sup_multicast_addr,
 			    skb->dev->dev_addr, skb->len) <= 0)
 		goto out;
-	skb_reset_mac_header(skb);
 
-	if (hsrVer > 0) {
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+
+	return skb;
+out:
+	kfree_skb(skb);
+
+	return NULL;
+}
+
+static void send_hsr_supervision_frame(struct hsr_port *master,
+				       unsigned long *interval)
+{
+	struct hsr_priv *hsr = master->hsr;
+	__u8 type = HSR_TLV_LIFE_CHECK;
+	struct hsr_tag *hsr_tag = NULL;
+	struct hsr_sup_payload *hsr_sp;
+	struct hsr_sup_tag *hsr_stag;
+	unsigned long irqflags;
+	struct sk_buff *skb;
+	u16 proto;
+
+	*interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
+	if (hsr->announce_count < 3 && hsr->prot_version == 0) {
+		type = HSR_TLV_ANNOUNCE;
+		*interval = msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
+		hsr->announce_count++;
+	}
+
+	if (!hsr->prot_version)
+		proto = ETH_P_PRP;
+	else
+		proto = ETH_P_HSR;
+
+	skb = hsr_init_skb(master, proto);
+	if (!skb) {
+		WARN_ONCE(1, "HSR: Could not send supervision frame\n");
+		return;
+	}
+
+	if (hsr->prot_version > 0) {
 		hsr_tag = skb_put(skb, sizeof(struct hsr_tag));
 		hsr_tag->encap_proto = htons(ETH_P_PRP);
 		set_hsr_tag_LSDU_size(hsr_tag, HSR_V1_SUP_LSDUSIZE);
 	}
 
 	hsr_stag = skb_put(skb, sizeof(struct hsr_sup_tag));
-	set_hsr_stag_path(hsr_stag, (hsrVer ? 0x0 : 0xf));
-	set_hsr_stag_HSR_Ver(hsr_stag, hsrVer);
+	set_hsr_stag_path(hsr_stag, (hsr->prot_version ? 0x0 : 0xf));
+	set_hsr_stag_HSR_ver(hsr_stag, hsr->prot_version);
 
 	/* From HSRv1 on we have separate supervision sequence numbers. */
 	spin_lock_irqsave(&master->hsr->seqnr_lock, irqflags);
-	if (hsrVer > 0) {
-		hsr_stag->sequence_nr = htons(master->hsr->sup_sequence_nr);
-		hsr_tag->sequence_nr = htons(master->hsr->sequence_nr);
-		master->hsr->sup_sequence_nr++;
-		master->hsr->sequence_nr++;
+	if (hsr->prot_version > 0) {
+		hsr_stag->sequence_nr = htons(hsr->sup_sequence_nr);
+		hsr->sup_sequence_nr++;
+		hsr_tag->sequence_nr = htons(hsr->sequence_nr);
+		hsr->sequence_nr++;
 	} else {
-		hsr_stag->sequence_nr = htons(master->hsr->sequence_nr);
-		master->hsr->sequence_nr++;
+		hsr_stag->sequence_nr = htons(hsr->sequence_nr);
+		hsr->sequence_nr++;
 	}
 	spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
 
-	hsr_stag->HSR_TLV_Type = type;
+	hsr_stag->HSR_TLV_type = type;
 	/* TODO: Why 12 in HSRv0? */
-	hsr_stag->HSR_TLV_Length = hsrVer ? sizeof(struct hsr_sup_payload) : 12;
+	hsr_stag->HSR_TLV_length = hsr->prot_version ?
+				sizeof(struct hsr_sup_payload) : 12;
 
 	/* Payload: MacAddressA */
 	hsr_sp = skb_put(skb, sizeof(struct hsr_sup_payload));
-	ether_addr_copy(hsr_sp->MacAddressA, master->dev->dev_addr);
+	ether_addr_copy(hsr_sp->macaddress_A, master->dev->dev_addr);
 
 	if (skb_put_padto(skb, ETH_ZLEN + HSR_HLEN))
 		return;
 
 	hsr_forward_skb(skb, master);
-	return;
 
-out:
-	WARN_ONCE(1, "HSR: Could not send supervision frame\n");
-	kfree_skb(skb);
+	return;
 }
 
+static void send_prp_supervision_frame(struct hsr_port *master,
+				       unsigned long *interval)
+{
+	struct hsr_priv *hsr = master->hsr;
+	struct hsr_sup_payload *hsr_sp;
+	struct hsr_sup_tag *hsr_stag;
+	unsigned long irqflags;
+	struct sk_buff *skb;
+	struct prp_rct *rct;
+	u8 *tail;
+
+	skb = hsr_init_skb(master, ETH_P_PRP);
+	if (!skb) {
+		WARN_ONCE(1, "PRP: Could not send supervision frame\n");
+		return;
+	}
+
+	*interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
+	hsr_stag = skb_put(skb, sizeof(struct hsr_sup_tag));
+	set_hsr_stag_path(hsr_stag, (hsr->prot_version ? 0x0 : 0xf));
+	set_hsr_stag_HSR_ver(hsr_stag, (hsr->prot_version ? 1 : 0));
+
+	/* From HSRv1 on we have separate supervision sequence numbers. */
+	spin_lock_irqsave(&master->hsr->seqnr_lock, irqflags);
+	hsr_stag->sequence_nr = htons(hsr->sup_sequence_nr);
+	hsr->sup_sequence_nr++;
+	hsr_stag->HSR_TLV_type = PRP_TLV_LIFE_CHECK_DD;
+	hsr_stag->HSR_TLV_length = sizeof(struct hsr_sup_payload);
+
+	/* Payload: MacAddressA */
+	hsr_sp = skb_put(skb, sizeof(struct hsr_sup_payload));
+	ether_addr_copy(hsr_sp->macaddress_A, master->dev->dev_addr);
+
+	if (skb_put_padto(skb, ETH_ZLEN + HSR_HLEN)) {
+		spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
+		return;
+	}
+
+	tail = skb_tail_pointer(skb) - HSR_HLEN;
+	rct = (struct prp_rct *)tail;
+	rct->PRP_suffix = htons(ETH_P_PRP);
+	set_prp_LSDU_size(rct, HSR_V1_SUP_LSDUSIZE);
+	rct->sequence_nr = htons(hsr->sequence_nr);
+	hsr->sequence_nr++;
+	spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
+
+	hsr_forward_skb(skb, master);
+}
 
 /* Announce (supervision frame) timer function
  */
@@ -332,53 +395,35 @@ static void hsr_announce(struct timer_list *t)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *master;
+	unsigned long interval;
 
 	hsr = from_timer(hsr, t, announce_timer);
 
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-
-	if (hsr->announce_count < 3 && hsr->protVersion == 0) {
-		send_hsr_supervision_frame(master, HSR_TLV_ANNOUNCE,
-				hsr->protVersion);
-		hsr->announce_count++;
-
-		hsr->announce_timer.expires = jiffies +
-				msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
-	} else {
-		send_hsr_supervision_frame(master, HSR_TLV_LIFE_CHECK,
-				hsr->protVersion);
-
-		hsr->announce_timer.expires = jiffies +
-				msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
-	}
+	hsr->proto_ops->send_sv_frame(master, &interval);
 
 	if (is_admin_up(master->dev))
-		add_timer(&hsr->announce_timer);
+		mod_timer(&hsr->announce_timer, jiffies + interval);
 
 	rcu_read_unlock();
 }
 
-
-/* According to comments in the declaration of struct net_device, this function
- * is "Called from unregister, can be used to call free_netdev". Ok then...
- */
-static void hsr_dev_destroy(struct net_device *hsr_dev)
+void hsr_del_ports(struct hsr_priv *hsr)
 {
-	struct hsr_priv *hsr;
 	struct hsr_port *port;
 
-	hsr = netdev_priv(hsr_dev);
-
-	rtnl_lock();
-	hsr_for_each_port(hsr, port)
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
+	if (port)
 		hsr_del_port(port);
-	rtnl_unlock();
 
-	del_timer_sync(&hsr->prune_timer);
-	del_timer_sync(&hsr->announce_timer);
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
+	if (port)
+		hsr_del_port(port);
 
-	synchronize_rcu();
+	port = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+	if (port)
+		hsr_del_port(port);
 }
 
 static const struct net_device_ops hsr_device_ops = {
@@ -393,6 +438,24 @@ static struct device_type hsr_type = {
 	.name = "hsr",
 };
 
+static struct hsr_proto_ops hsr_ops = {
+	.send_sv_frame = send_hsr_supervision_frame,
+	.create_tagged_frame = hsr_create_tagged_frame,
+	.get_untagged_frame = hsr_get_untagged_frame,
+	.fill_frame_info = hsr_fill_frame_info,
+	.invalid_dan_ingress_frame = hsr_invalid_dan_ingress_frame,
+};
+
+static struct hsr_proto_ops prp_ops = {
+	.send_sv_frame = send_prp_supervision_frame,
+	.create_tagged_frame = prp_create_tagged_frame,
+	.get_untagged_frame = prp_get_untagged_frame,
+	.drop_frame = prp_drop_frame,
+	.fill_frame_info = prp_fill_frame_info,
+	.handle_san_frame = prp_handle_san_frame,
+	.update_san_info = prp_update_san_info,
+};
+
 void hsr_dev_setup(struct net_device *dev)
 {
 	eth_hw_addr_random(dev);
@@ -405,7 +468,6 @@ void hsr_dev_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_NO_QUEUE;
 
 	dev->needs_free_netdev = true;
-	dev->priv_destructor = hsr_dev_destroy;
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
 			   NETIF_F_GSO_MASK | NETIF_F_HW_CSUM |
@@ -425,7 +487,6 @@ void hsr_dev_setup(struct net_device *dev)
 	dev->features |= NETIF_F_NETNS_LOCAL;
 }
 
-
 /* Return true if dev is a HSR master; return false otherwise.
  */
 inline bool is_hsr_master(struct net_device *dev)
@@ -439,21 +500,34 @@ static const unsigned char def_multicast_addr[ETH_ALEN] __aligned(2) = {
 };
 
 int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
-		     unsigned char multicast_spec, u8 protocol_version)
+		     unsigned char multicast_spec, u8 protocol_version,
+		     struct netlink_ext_ack *extack)
 {
+	bool unregister = false;
 	struct hsr_priv *hsr;
-	struct hsr_port *port;
 	int res;
 
 	hsr = netdev_priv(hsr_dev);
 	INIT_LIST_HEAD(&hsr->ports);
 	INIT_LIST_HEAD(&hsr->node_db);
 	INIT_LIST_HEAD(&hsr->self_node_db);
+	spin_lock_init(&hsr->list_lock);
 
 	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
 
+	/* initialize protocol specific functions */
+	if (protocol_version == PRP_V1) {
+		/* For PRP, lan_id has most significant 3 bits holding
+		 * the net_id of PRP_LAN_ID
+		 */
+		hsr->net_id = PRP_LAN_ID << 1;
+		hsr->proto_ops = &prp_ops;
+	} else {
+		hsr->proto_ops = &hsr_ops;
+	}
+
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
-	res = hsr_create_self_node(&hsr->self_node_db, hsr_dev->dev_addr,
+	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,
 				   slave[1]->dev_addr);
 	if (res < 0)
 		return res;
@@ -469,7 +543,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
 
-	hsr->protVersion = protocol_version;
+	hsr->prot_version = protocol_version;
 
 	/* FIXME: should I modify the value of these?
 	 *
@@ -484,28 +558,35 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	/* Make sure the 1st call to netif_carrier_on() gets through */
 	netif_carrier_off(hsr_dev);
 
-	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER);
+	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER, extack);
 	if (res)
-		return res;
+		goto err_add_master;
 
 	res = register_netdevice(hsr_dev);
 	if (res)
-		goto fail;
+		goto err_unregister;
 
-	res = hsr_add_port(hsr, slave[0], HSR_PT_SLAVE_A);
-	if (res)
-		goto fail;
-	res = hsr_add_port(hsr, slave[1], HSR_PT_SLAVE_B);
-	if (res)
-		goto fail;
+	unregister = true;
 
+	res = hsr_add_port(hsr, slave[0], HSR_PT_SLAVE_A, extack);
+	if (res)
+		goto err_unregister;
+
+	res = hsr_add_port(hsr, slave[1], HSR_PT_SLAVE_B, extack);
+	if (res)
+		goto err_unregister;
+
+	hsr_debugfs_init(hsr, hsr_dev);
 	mod_timer(&hsr->prune_timer, jiffies + msecs_to_jiffies(PRUNE_PERIOD));
 
 	return 0;
 
-fail:
-	hsr_for_each_port(hsr, port)
-		hsr_del_port(port);
+err_unregister:
+	hsr_del_ports(hsr);
+err_add_master:
+	hsr_del_self_node(hsr);
 
+	if (unregister)
+		unregister_netdevice(hsr_dev);
 	return res;
 }

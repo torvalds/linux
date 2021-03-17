@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * alc5623.c  --  alc562[123] ALSA Soc Audio driver
  *
@@ -6,13 +7,7 @@
  *
  * Copyright 2010 Arnaud Patard <arnaud.patard@rtp-net.org>
  *
- *
  * Based on WM8753.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -539,7 +534,7 @@ static int alc5623_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 				0);
 
 	/* pll is not used in slave mode */
-	reg = snd_soc_component_read32(component, ALC5623_DAI_CONTROL);
+	reg = snd_soc_component_read(component, ALC5623_DAI_CONTROL);
 	if (reg & ALC5623_DAI_SDP_SLAVE_MODE)
 		return 0;
 
@@ -706,7 +701,7 @@ static int alc5623_pcm_hw_params(struct snd_pcm_substream *substream,
 	int coeff, rate;
 	u16 iface;
 
-	iface = snd_soc_component_read32(component, ALC5623_DAI_CONTROL);
+	iface = snd_soc_component_read(component, ALC5623_DAI_CONTROL);
 	iface &= ~ALC5623_DAI_I2S_DL_MASK;
 
 	/* bit size */
@@ -742,11 +737,11 @@ static int alc5623_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int alc5623_mute(struct snd_soc_dai *dai, int mute)
+static int alc5623_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 hp_mute = ALC5623_MISC_M_DAC_L_INPUT | ALC5623_MISC_M_DAC_R_INPUT;
-	u16 mute_reg = snd_soc_component_read32(component, ALC5623_MISC_CTRL) & ~hp_mute;
+	u16 mute_reg = snd_soc_component_read(component, ALC5623_MISC_CTRL) & ~hp_mute;
 
 	if (mute)
 		mute_reg |= hp_mute;
@@ -834,10 +829,11 @@ static int alc5623_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops alc5623_dai_ops = {
 		.hw_params = alc5623_pcm_hw_params,
-		.digital_mute = alc5623_mute,
+		.mute_stream = alc5623_mute,
 		.set_fmt = alc5623_set_dai_fmt,
 		.set_sysclk = alc5623_set_dai_sysclk,
 		.set_pll = alc5623_set_dai_pll,
+		.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver alc5623_dai = {

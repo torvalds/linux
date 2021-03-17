@@ -112,8 +112,8 @@ typedef struct uart_reg {
 #define FCR_RFRES	0x0200	/* Receiver FIFO reset */
 #define FCR_TFRES	0x0400	/* Transmitter FIFO reset */
 #define FCR_DMA		0x0800	/* DMA mode select */
-#define FCR_RTL		0x4000	/* Receiver triger (LSB) */
-#define FCR_RTM		0x8000	/* Receiver triger (MSB) */
+#define FCR_RTL		0x4000	/* Receiver trigger (LSB) */
+#define FCR_RTM		0x8000	/* Receiver trigger (MSB) */
 
 /* Line Control Register */
 

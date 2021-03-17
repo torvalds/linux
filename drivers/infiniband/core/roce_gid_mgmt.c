@@ -267,6 +267,9 @@ is_upper_ndev_bond_master_filter(struct ib_device *ib_dev, u8 port,
 	struct net_device *cookie_ndev = cookie;
 	bool match = false;
 
+	if (!rdma_ndev)
+		return false;
+
 	rcu_read_lock();
 	if (netif_is_bond_master(cookie_ndev) &&
 	    rdma_is_upper_dev_rcu(rdma_ndev, cookie_ndev))
@@ -327,6 +330,7 @@ static void bond_delete_netdev_default_gids(struct ib_device *ib_dev,
 static void enum_netdev_ipv4_ips(struct ib_device *ib_dev,
 				 u8 port, struct net_device *ndev)
 {
+	const struct in_ifaddr *ifa;
 	struct in_device *in_dev;
 	struct sin_list {
 		struct list_head	list;
@@ -346,7 +350,7 @@ static void enum_netdev_ipv4_ips(struct ib_device *ib_dev,
 		return;
 	}
 
-	for_ifa(in_dev) {
+	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		struct sin_list *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 
 		if (!entry)
@@ -356,7 +360,7 @@ static void enum_netdev_ipv4_ips(struct ib_device *ib_dev,
 		entry->ip.sin_addr.s_addr = ifa->ifa_address;
 		list_add_tail(&entry->list, &sin_list);
 	}
-	endfor_ifa(in_dev);
+
 	rcu_read_unlock();
 
 	list_for_each_entry_safe(sin_iter, sin_temp, &sin_list, list) {
@@ -527,10 +531,11 @@ struct upper_list {
 	struct net_device *upper;
 };
 
-static int netdev_upper_walk(struct net_device *upper, void *data)
+static int netdev_upper_walk(struct net_device *upper,
+			     struct netdev_nested_priv *priv)
 {
 	struct upper_list *entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
-	struct list_head *upper_list = data;
+	struct list_head *upper_list = (struct list_head *)priv->data;
 
 	if (!entry)
 		return 0;
@@ -549,12 +554,14 @@ static void handle_netdev_upper(struct ib_device *ib_dev, u8 port,
 						      struct net_device *ndev))
 {
 	struct net_device *ndev = cookie;
+	struct netdev_nested_priv priv;
 	struct upper_list *upper_iter;
 	struct upper_list *upper_temp;
 	LIST_HEAD(upper_list);
 
+	priv.data = &upper_list;
 	rcu_read_lock();
-	netdev_walk_all_upper_dev_rcu(ndev, netdev_upper_walk, &upper_list);
+	netdev_walk_all_upper_dev_rcu(ndev, netdev_upper_walk, &priv);
 	rcu_read_unlock();
 
 	handle_netdev(ib_dev, port, ndev);
@@ -767,8 +774,10 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_CHANGEADDR:
 		cmds[0] = netdev_del_cmd;
-		cmds[1] = add_default_gid_cmd;
-		cmds[2] = add_cmd;
+		if (ndev->reg_state == NETREG_REGISTERED) {
+			cmds[1] = add_default_gid_cmd;
+			cmds[2] = add_cmd;
+		}
 		break;
 
 	case NETDEV_CHANGEUPPER:

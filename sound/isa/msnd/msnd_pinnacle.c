@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*********************************************************************
  *
  * Linux multisound pinnacle/fiji driver for ALSA.
@@ -9,7 +10,6 @@
  *	to make it easier for some brave heart to implemt classic
  *	support in alsa, i left all the MSND_CLASSIC tokens in this file.
  *	but for now this untested & undone.
- *
  *
  * ripped from linux kernel 2.4.18 by Karsten Wiese.
  *
@@ -29,20 +29,6 @@
  * 12-3-2000  Modified IO port validation  Steve Sycamore
  *
  * Copyright (C) 1998 Andrew Veliath
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  ********************************************************************/
 
@@ -542,7 +528,7 @@ static int snd_msnd_attach(struct snd_card *card)
 {
 	struct snd_msnd *chip = card->private_data;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =      snd_msnd_dev_free,
 		};
 
@@ -552,6 +538,7 @@ static int snd_msnd_attach(struct snd_card *card)
 		printk(KERN_ERR LOGNAME ": Couldn't grab IRQ %d\n", chip->irq);
 		return err;
 	}
+	card->sync_irq = chip->irq;
 	if (request_region(chip->io, DSP_NUMIO, card->shortname) == NULL) {
 		free_irq(chip->irq, chip);
 		return -EBUSY;
@@ -565,7 +552,7 @@ static int snd_msnd_attach(struct snd_card *card)
 		free_irq(chip->irq, chip);
 		return -EBUSY;
 	}
-	chip->mappedbase = ioremap_nocache(chip->base, 0x8000);
+	chip->mappedbase = ioremap(chip->base, 0x8000);
 	if (!chip->mappedbase) {
 		printk(KERN_ERR LOGNAME
 			": unable to map memory region 0x%lx-0x%lx\n",

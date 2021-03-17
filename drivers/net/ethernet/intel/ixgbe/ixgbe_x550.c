@@ -306,7 +306,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 		hw->phy.phy_semaphore_mask = IXGBE_GSSR_SHARED_I2C_SM;
 		ixgbe_setup_mux_ctl(hw);
 		ixgbe_check_cs4227(hw);
-		/* Fallthrough */
+		fallthrough;
 	case IXGBE_DEV_ID_X550EM_A_SFP_N:
 		return ixgbe_identify_module_generic(hw);
 	case IXGBE_DEV_ID_X550EM_X_KX4:
@@ -325,7 +325,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY1_SM;
 		else
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY0_SM;
-		/* Fallthrough */
+		fallthrough;
 	case IXGBE_DEV_ID_X550EM_X_10G_T:
 		return ixgbe_identify_phy_generic(hw);
 	case IXGBE_DEV_ID_X550EM_X_1G_T:
@@ -1245,6 +1245,20 @@ static s32 ixgbe_get_bus_info_X550em(struct ixgbe_hw *hw)
 	hw->mac.ops.set_lan_id(hw);
 
 	return 0;
+}
+
+/**
+ * ixgbe_fw_recovery_mode - Check FW NVM recovery mode
+ * @hw: pointer t hardware structure
+ *
+ * Returns true if in FW NVM recovery mode.
+ */
+static bool ixgbe_fw_recovery_mode_X550(struct ixgbe_hw *hw)
+{
+	u32 fwsm;
+
+	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM(hw));
+	return !!(fwsm & IXGBE_FWSM_FW_NVM_RECOVERY_MODE);
 }
 
 /** ixgbe_disable_rx_x550 - Disable RX unit
@@ -2248,7 +2262,9 @@ static s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 		*autoneg = false;
 
 		if (hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
-		    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1) {
+		    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1 ||
+		    hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core0 ||
+		    hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core1) {
 			*speed = IXGBE_LINK_SPEED_1GB_FULL;
 			return 0;
 		}
@@ -2287,7 +2303,7 @@ static s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 					break;
 				}
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			*speed = IXGBE_LINK_SPEED_10GB_FULL |
 				 IXGBE_LINK_SPEED_1GB_FULL;
@@ -2869,7 +2885,7 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 		 * through to the fc_full statement.  Later, we will
 		 * disable the adapter's ability to send PAUSE frames.
 		 */
-		/* Fallthrough */
+		fallthrough;
 	case ixgbe_fc_full:
 		pause = true;
 		asm_dir = true;
@@ -3268,7 +3284,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_A_SGMII:
 	case IXGBE_DEV_ID_X550EM_A_SGMII_L:
 		hw->phy.type = ixgbe_phy_sgmii;
-		/* Fallthrough */
+		fallthrough;
 	case IXGBE_DEV_ID_X550EM_X_KR:
 	case IXGBE_DEV_ID_X550EM_X_KX4:
 	case IXGBE_DEV_ID_X550EM_X_XFI:
@@ -3816,6 +3832,7 @@ static s32 ixgbe_write_phy_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
 	.enable_rx_buff			= &ixgbe_enable_rx_buff_generic, \
 	.get_thermal_sensor_data	= NULL, \
 	.init_thermal_sensor_thresh	= NULL, \
+	.fw_recovery_mode		= &ixgbe_fw_recovery_mode_X550, \
 	.enable_rx			= &ixgbe_enable_rx_generic, \
 	.disable_rx			= &ixgbe_disable_rx_x550, \
 

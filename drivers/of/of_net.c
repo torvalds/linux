@@ -1,29 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OF helpers for network devices.
- *
- * This file is released under the GPLv2
  *
  * Initially copied out of arch/powerpc/kernel/prom_parse.c
  */
 #include <linux/etherdevice.h>
 #include <linux/kernel.h>
-#include <linux/nvmem-consumer.h>
 #include <linux/of_net.h>
+#include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/export.h>
+#include <linux/device.h>
 
 /**
  * of_get_phy_mode - Get phy mode for given device_node
  * @np:	Pointer to the given device_node
+ * @interface: Pointer to the result
  *
  * The function gets phy interface string from property 'phy-mode' or
- * 'phy-connection-type', and return its index in phy_modes table, or errno in
- * error case.
+ * 'phy-connection-type'. The index in phy_modes table is set in
+ * interface and 0 returned. In case of error interface is set to
+ * PHY_INTERFACE_MODE_NA and an errno is returned, e.g. -ENODEV.
  */
-int of_get_phy_mode(struct device_node *np)
+int of_get_phy_mode(struct device_node *np, phy_interface_t *interface)
 {
 	const char *pm;
 	int err, i;
+
+	*interface = PHY_INTERFACE_MODE_NA;
 
 	err = of_property_read_string(np, "phy-mode", &pm);
 	if (err < 0)
@@ -32,8 +36,10 @@ int of_get_phy_mode(struct device_node *np)
 		return err;
 
 	for (i = 0; i < PHY_INTERFACE_MODE_MAX; i++)
-		if (!strcasecmp(pm, phy_modes(i)))
-			return i;
+		if (!strcasecmp(pm, phy_modes(i))) {
+			*interface = i;
+			return 0;
+		}
 
 	return -ENODEV;
 }
@@ -48,12 +54,38 @@ static const void *of_get_mac_addr(struct device_node *np, const char *name)
 	return NULL;
 }
 
+static const void *of_get_mac_addr_nvmem(struct device_node *np)
+{
+	int ret;
+	const void *mac;
+	u8 nvmem_mac[ETH_ALEN];
+	struct platform_device *pdev = of_find_device_by_node(np);
+
+	if (!pdev)
+		return ERR_PTR(-ENODEV);
+
+	ret = nvmem_get_mac_address(&pdev->dev, &nvmem_mac);
+	if (ret) {
+		put_device(&pdev->dev);
+		return ERR_PTR(ret);
+	}
+
+	mac = devm_kmemdup(&pdev->dev, nvmem_mac, ETH_ALEN, GFP_KERNEL);
+	put_device(&pdev->dev);
+	if (!mac)
+		return ERR_PTR(-ENOMEM);
+
+	return mac;
+}
+
 /**
  * Search the device tree for the best MAC address to use.  'mac-address' is
  * checked first, because that is supposed to contain to "most recent" MAC
  * address. If that isn't set, then 'local-mac-address' is checked next,
- * because that is the default address.  If that isn't set, then the obsolete
- * 'address' is checked, just in case we're using an old device tree.
+ * because that is the default address. If that isn't set, then the obsolete
+ * 'address' is checked, just in case we're using an old device tree. If any
+ * of the above isn't set, then try to get MAC address from nvmem cell named
+ * 'mac-address'.
  *
  * Note that the 'address' property is supposed to contain a virtual address of
  * the register set, but some DTS files have redefined that property to be the
@@ -65,6 +97,8 @@ static const void *of_get_mac_addr(struct device_node *np, const char *name)
  * addresses.  Some older U-Boots only initialized 'local-mac-address'.  In
  * this case, the real MAC is in 'local-mac-address', and 'mac-address' exists
  * but is all zeros.
+ *
+ * Return: Will be a valid pointer on success and ERR_PTR in case of error.
 */
 const void *of_get_mac_address(struct device_node *np)
 {
@@ -78,45 +112,10 @@ const void *of_get_mac_address(struct device_node *np)
 	if (addr)
 		return addr;
 
-	return of_get_mac_addr(np, "address");
+	addr = of_get_mac_addr(np, "address");
+	if (addr)
+		return addr;
+
+	return of_get_mac_addr_nvmem(np);
 }
 EXPORT_SYMBOL(of_get_mac_address);
-
-/**
- * Obtain the MAC address from an nvmem provider named 'mac-address' through
- * device tree.
- * On success, copies the new address into memory pointed to by addr and
- * returns 0. Returns a negative error code otherwise.
- * @np:		Device tree node containing the nvmem-cells phandle
- * @addr:	Pointer to receive the MAC address using ether_addr_copy()
- */
-int of_get_nvmem_mac_address(struct device_node *np, void *addr)
-{
-	struct nvmem_cell *cell;
-	const void *mac;
-	size_t len;
-	int ret;
-
-	cell = of_nvmem_cell_get(np, "mac-address");
-	if (IS_ERR(cell))
-		return PTR_ERR(cell);
-
-	mac = nvmem_cell_read(cell, &len);
-
-	nvmem_cell_put(cell);
-
-	if (IS_ERR(mac))
-		return PTR_ERR(mac);
-
-	if (len < ETH_ALEN || !is_valid_ether_addr(mac)) {
-		ret = -EINVAL;
-	} else {
-		ether_addr_copy(addr, mac);
-		ret = 0;
-	}
-
-	kfree(mac);
-
-	return ret;
-}
-EXPORT_SYMBOL(of_get_nvmem_mac_address);

@@ -813,18 +813,6 @@ enum color_fmts {
 #define COLOR_FMT_P010_UBWC		COLOR_FMT_P010_UBWC
 #define COLOR_FMT_P010		COLOR_FMT_P010
 
-static inline unsigned int VENUS_EXTRADATA_SIZE(int width, int height)
-{
-	(void)height;
-	(void)width;
-
-	/*
-	 * In the future, calculate the size based on the w/h but just
-	 * hardcode it for now since 16K satisfies all current usecases.
-	 */
-	return 16 * 1024;
-}
-
 /*
  * Function arguments:
  * @color_fmt
@@ -832,114 +820,99 @@ static inline unsigned int VENUS_EXTRADATA_SIZE(int width, int height)
  * Progressive: width
  * Interlaced: width
  */
-static inline unsigned int VENUS_Y_STRIDE(int color_fmt, int width)
+static unsigned int VENUS_Y_STRIDE(int color_fmt, int width)
 {
-	unsigned int alignment, stride = 0;
+	unsigned int stride = 0;
 
 	if (!width)
-		goto invalid_input;
-
-	switch (color_fmt) {
-	case COLOR_FMT_NV21:
-	case COLOR_FMT_NV12:
-	case COLOR_FMT_NV12_MVTB:
-	case COLOR_FMT_NV12_UBWC:
-		alignment = 128;
-		stride = MSM_MEDIA_ALIGN(width, alignment);
-		break;
-	case COLOR_FMT_NV12_BPP10_UBWC:
-		alignment = 256;
-		stride = MSM_MEDIA_ALIGN(width, 192);
-		stride = MSM_MEDIA_ALIGN(stride * 4/3, alignment);
-		break;
-	case COLOR_FMT_P010_UBWC:
-		alignment = 256;
-		stride = MSM_MEDIA_ALIGN(width * 2, alignment);
-		break;
-	case COLOR_FMT_P010:
-		alignment = 128;
-		stride = MSM_MEDIA_ALIGN(width*2, alignment);
-		break;
-	default:
-		break;
-	}
-invalid_input:
-	return stride;
-}
-
-/*
- * Function arguments:
- * @color_fmt
- * @width
- * Progressive: width
- * Interlaced: width
- */
-static inline unsigned int VENUS_UV_STRIDE(int color_fmt, int width)
-{
-	unsigned int alignment, stride = 0;
-
-	if (!width)
-		goto invalid_input;
-
-	switch (color_fmt) {
-	case COLOR_FMT_NV21:
-	case COLOR_FMT_NV12:
-	case COLOR_FMT_NV12_MVTB:
-	case COLOR_FMT_NV12_UBWC:
-		alignment = 128;
-		stride = MSM_MEDIA_ALIGN(width, alignment);
-		break;
-	case COLOR_FMT_NV12_BPP10_UBWC:
-		alignment = 256;
-		stride = MSM_MEDIA_ALIGN(width, 192);
-		stride = MSM_MEDIA_ALIGN(stride * 4/3, alignment);
-		break;
-	case COLOR_FMT_P010_UBWC:
-		alignment = 256;
-		stride = MSM_MEDIA_ALIGN(width * 2, alignment);
-		break;
-	case COLOR_FMT_P010:
-		alignment = 128;
-		stride = MSM_MEDIA_ALIGN(width*2, alignment);
-		break;
-	default:
-		break;
-	}
-invalid_input:
-	return stride;
-}
-
-/*
- * Function arguments:
- * @color_fmt
- * @height
- * Progressive: height
- * Interlaced: (height+1)>>1
- */
-static inline unsigned int VENUS_Y_SCANLINES(int color_fmt, int height)
-{
-	unsigned int alignment, sclines = 0;
-
-	if (!height)
-		goto invalid_input;
-
-	switch (color_fmt) {
-	case COLOR_FMT_NV21:
-	case COLOR_FMT_NV12:
-	case COLOR_FMT_NV12_MVTB:
-	case COLOR_FMT_NV12_UBWC:
-	case COLOR_FMT_P010:
-		alignment = 32;
-		break;
-	case COLOR_FMT_NV12_BPP10_UBWC:
-	case COLOR_FMT_P010_UBWC:
-		alignment = 16;
-		break;
-	default:
 		return 0;
+
+	switch (color_fmt) {
+	case COLOR_FMT_NV21:
+	case COLOR_FMT_NV12:
+	case COLOR_FMT_NV12_MVTB:
+	case COLOR_FMT_NV12_UBWC:
+		stride = MSM_MEDIA_ALIGN(width, 128);
+		break;
+	case COLOR_FMT_NV12_BPP10_UBWC:
+		stride = MSM_MEDIA_ALIGN(width, 192);
+		stride = MSM_MEDIA_ALIGN(stride * 4 / 3, 256);
+		break;
+	case COLOR_FMT_P010_UBWC:
+		stride = MSM_MEDIA_ALIGN(width * 2, 256);
+		break;
+	case COLOR_FMT_P010:
+		stride = MSM_MEDIA_ALIGN(width * 2, 128);
+		break;
 	}
-	sclines = MSM_MEDIA_ALIGN(height, alignment);
-invalid_input:
+
+	return stride;
+}
+
+/*
+ * Function arguments:
+ * @color_fmt
+ * @width
+ * Progressive: width
+ * Interlaced: width
+ */
+static unsigned int VENUS_UV_STRIDE(int color_fmt, int width)
+{
+	unsigned int stride = 0;
+
+	if (!width)
+		return 0;
+
+	switch (color_fmt) {
+	case COLOR_FMT_NV21:
+	case COLOR_FMT_NV12:
+	case COLOR_FMT_NV12_MVTB:
+	case COLOR_FMT_NV12_UBWC:
+		stride = MSM_MEDIA_ALIGN(width, 128);
+		break;
+	case COLOR_FMT_NV12_BPP10_UBWC:
+		stride = MSM_MEDIA_ALIGN(width, 192);
+		stride = MSM_MEDIA_ALIGN(stride * 4 / 3, 256);
+		break;
+	case COLOR_FMT_P010_UBWC:
+		stride = MSM_MEDIA_ALIGN(width * 2, 256);
+		break;
+	case COLOR_FMT_P010:
+		stride = MSM_MEDIA_ALIGN(width * 2, 128);
+		break;
+	}
+
+	return stride;
+}
+
+/*
+ * Function arguments:
+ * @color_fmt
+ * @height
+ * Progressive: height
+ * Interlaced: (height+1)>>1
+ */
+static unsigned int VENUS_Y_SCANLINES(int color_fmt, int height)
+{
+	unsigned int sclines = 0;
+
+	if (!height)
+		return 0;
+
+	switch (color_fmt) {
+	case COLOR_FMT_NV21:
+	case COLOR_FMT_NV12:
+	case COLOR_FMT_NV12_MVTB:
+	case COLOR_FMT_NV12_UBWC:
+	case COLOR_FMT_P010:
+		sclines = MSM_MEDIA_ALIGN(height, 32);
+		break;
+	case COLOR_FMT_NV12_BPP10_UBWC:
+	case COLOR_FMT_P010_UBWC:
+		sclines = MSM_MEDIA_ALIGN(height, 16);
+		break;
+	}
+
 	return sclines;
 }
 
@@ -950,12 +923,12 @@ invalid_input:
  * Progressive: height
  * Interlaced: (height+1)>>1
  */
-static inline unsigned int VENUS_UV_SCANLINES(int color_fmt, int height)
+static unsigned int VENUS_UV_SCANLINES(int color_fmt, int height)
 {
-	unsigned int alignment, sclines = 0;
+	unsigned int sclines = 0;
 
 	if (!height)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_NV21:
@@ -964,18 +937,13 @@ static inline unsigned int VENUS_UV_SCANLINES(int color_fmt, int height)
 	case COLOR_FMT_NV12_BPP10_UBWC:
 	case COLOR_FMT_P010_UBWC:
 	case COLOR_FMT_P010:
-		alignment = 16;
+		sclines = MSM_MEDIA_ALIGN((height + 1) >> 1, 16);
 		break;
 	case COLOR_FMT_NV12_UBWC:
-		alignment = 32;
+		sclines = MSM_MEDIA_ALIGN((height + 1) >> 1, 32);
 		break;
-	default:
-		goto invalid_input;
 	}
 
-	sclines = MSM_MEDIA_ALIGN((height+1)>>1, alignment);
-
-invalid_input:
 	return sclines;
 }
 
@@ -986,12 +954,12 @@ invalid_input:
  * Progressive: width
  * Interlaced: width
  */
-static inline unsigned int VENUS_Y_META_STRIDE(int color_fmt, int width)
+static unsigned int VENUS_Y_META_STRIDE(int color_fmt, int width)
 {
-	int y_tile_width = 0, y_meta_stride = 0;
+	int y_tile_width = 0, y_meta_stride;
 
 	if (!width)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_NV12_UBWC:
@@ -1002,14 +970,11 @@ static inline unsigned int VENUS_Y_META_STRIDE(int color_fmt, int width)
 		y_tile_width = 48;
 		break;
 	default:
-		goto invalid_input;
+		return 0;
 	}
 
 	y_meta_stride = MSM_MEDIA_ROUNDUP(width, y_tile_width);
-	y_meta_stride = MSM_MEDIA_ALIGN(y_meta_stride, 64);
-
-invalid_input:
-	return y_meta_stride;
+	return MSM_MEDIA_ALIGN(y_meta_stride, 64);
 }
 
 /*
@@ -1019,12 +984,12 @@ invalid_input:
  * Progressive: height
  * Interlaced: (height+1)>>1
  */
-static inline unsigned int VENUS_Y_META_SCANLINES(int color_fmt, int height)
+static unsigned int VENUS_Y_META_SCANLINES(int color_fmt, int height)
 {
-	int y_tile_height = 0, y_meta_scanlines = 0;
+	int y_tile_height = 0, y_meta_scanlines;
 
 	if (!height)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_NV12_UBWC:
@@ -1035,14 +1000,11 @@ static inline unsigned int VENUS_Y_META_SCANLINES(int color_fmt, int height)
 		y_tile_height = 4;
 		break;
 	default:
-		goto invalid_input;
+		return 0;
 	}
 
 	y_meta_scanlines = MSM_MEDIA_ROUNDUP(height, y_tile_height);
-	y_meta_scanlines = MSM_MEDIA_ALIGN(y_meta_scanlines, 16);
-
-invalid_input:
-	return y_meta_scanlines;
+	return MSM_MEDIA_ALIGN(y_meta_scanlines, 16);
 }
 
 /*
@@ -1052,12 +1014,12 @@ invalid_input:
  * Progressive: width
  * Interlaced: width
  */
-static inline unsigned int VENUS_UV_META_STRIDE(int color_fmt, int width)
+static unsigned int VENUS_UV_META_STRIDE(int color_fmt, int width)
 {
-	int uv_tile_width = 0, uv_meta_stride = 0;
+	int uv_tile_width = 0, uv_meta_stride;
 
 	if (!width)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_NV12_UBWC:
@@ -1068,14 +1030,11 @@ static inline unsigned int VENUS_UV_META_STRIDE(int color_fmt, int width)
 		uv_tile_width = 24;
 		break;
 	default:
-		goto invalid_input;
+		return 0;
 	}
 
 	uv_meta_stride = MSM_MEDIA_ROUNDUP((width+1)>>1, uv_tile_width);
-	uv_meta_stride = MSM_MEDIA_ALIGN(uv_meta_stride, 64);
-
-invalid_input:
-	return uv_meta_stride;
+	return MSM_MEDIA_ALIGN(uv_meta_stride, 64);
 }
 
 /*
@@ -1085,12 +1044,12 @@ invalid_input:
  * Progressive: height
  * Interlaced: (height+1)>>1
  */
-static inline unsigned int VENUS_UV_META_SCANLINES(int color_fmt, int height)
+static unsigned int VENUS_UV_META_SCANLINES(int color_fmt, int height)
 {
-	int uv_tile_height = 0, uv_meta_scanlines = 0;
+	int uv_tile_height = 0, uv_meta_scanlines;
 
 	if (!height)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_NV12_UBWC:
@@ -1101,22 +1060,19 @@ static inline unsigned int VENUS_UV_META_SCANLINES(int color_fmt, int height)
 		uv_tile_height = 4;
 		break;
 	default:
-		goto invalid_input;
+		return 0;
 	}
 
 	uv_meta_scanlines = MSM_MEDIA_ROUNDUP((height+1)>>1, uv_tile_height);
-	uv_meta_scanlines = MSM_MEDIA_ALIGN(uv_meta_scanlines, 16);
-
-invalid_input:
-	return uv_meta_scanlines;
+	return MSM_MEDIA_ALIGN(uv_meta_scanlines, 16);
 }
 
-static inline unsigned int VENUS_RGB_STRIDE(int color_fmt, int width)
+static unsigned int VENUS_RGB_STRIDE(int color_fmt, int width)
 {
-	unsigned int alignment = 0, stride = 0, bpp = 4;
+	unsigned int alignment = 0, bpp = 4;
 
 	if (!width)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_RGBA8888:
@@ -1131,21 +1087,18 @@ static inline unsigned int VENUS_RGB_STRIDE(int color_fmt, int width)
 		alignment = 256;
 		break;
 	default:
-		goto invalid_input;
+		return 0;
 	}
 
-	stride = MSM_MEDIA_ALIGN(width * bpp, alignment);
-
-invalid_input:
-	return stride;
+	return MSM_MEDIA_ALIGN(width * bpp, alignment);
 }
 
-static inline unsigned int VENUS_RGB_SCANLINES(int color_fmt, int height)
+static unsigned int VENUS_RGB_SCANLINES(int color_fmt, int height)
 {
-	unsigned int alignment = 0, scanlines = 0;
+	unsigned int alignment = 0;
 
 	if (!height)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_RGBA8888:
@@ -1157,220 +1110,46 @@ static inline unsigned int VENUS_RGB_SCANLINES(int color_fmt, int height)
 		alignment = 16;
 		break;
 	default:
-		goto invalid_input;
+		return 0;
 	}
 
-	scanlines = MSM_MEDIA_ALIGN(height, alignment);
-
-invalid_input:
-	return scanlines;
+	return MSM_MEDIA_ALIGN(height, alignment);
 }
 
-static inline unsigned int VENUS_RGB_META_STRIDE(int color_fmt, int width)
+static unsigned int VENUS_RGB_META_STRIDE(int color_fmt, int width)
 {
-	int rgb_tile_width = 0, rgb_meta_stride = 0;
+	int rgb_meta_stride;
 
 	if (!width)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_RGBA8888_UBWC:
 	case COLOR_FMT_RGBA1010102_UBWC:
 	case COLOR_FMT_RGB565_UBWC:
-		rgb_tile_width = 16;
-		break;
-	default:
-		goto invalid_input;
+		rgb_meta_stride = MSM_MEDIA_ROUNDUP(width, 16);
+		return MSM_MEDIA_ALIGN(rgb_meta_stride, 64);
 	}
 
-	rgb_meta_stride = MSM_MEDIA_ROUNDUP(width, rgb_tile_width);
-	rgb_meta_stride = MSM_MEDIA_ALIGN(rgb_meta_stride, 64);
-
-invalid_input:
-	return rgb_meta_stride;
+	return 0;
 }
 
-static inline unsigned int VENUS_RGB_META_SCANLINES(int color_fmt, int height)
+static unsigned int VENUS_RGB_META_SCANLINES(int color_fmt, int height)
 {
-	int rgb_tile_height = 0, rgb_meta_scanlines = 0;
+	int rgb_meta_scanlines;
 
 	if (!height)
-		goto invalid_input;
+		return 0;
 
 	switch (color_fmt) {
 	case COLOR_FMT_RGBA8888_UBWC:
 	case COLOR_FMT_RGBA1010102_UBWC:
 	case COLOR_FMT_RGB565_UBWC:
-		rgb_tile_height = 4;
-		break;
-	default:
-		goto invalid_input;
+		rgb_meta_scanlines = MSM_MEDIA_ROUNDUP(height, 4);
+		return MSM_MEDIA_ALIGN(rgb_meta_scanlines, 16);
 	}
 
-	rgb_meta_scanlines = MSM_MEDIA_ROUNDUP(height, rgb_tile_height);
-	rgb_meta_scanlines = MSM_MEDIA_ALIGN(rgb_meta_scanlines, 16);
-
-invalid_input:
-	return rgb_meta_scanlines;
-}
-
-/*
- * Function arguments:
- * @color_fmt
- * @width
- * Progressive: width
- * Interlaced: width
- * @height
- * Progressive: height
- * Interlaced: height
- */
-static inline unsigned int VENUS_BUFFER_SIZE(
-	int color_fmt, int width, int height)
-{
-	const unsigned int extra_size = VENUS_EXTRADATA_SIZE(width, height);
-	unsigned int uv_alignment = 0, size = 0;
-	unsigned int y_plane, uv_plane, y_stride,
-		uv_stride, y_sclines, uv_sclines;
-	unsigned int y_ubwc_plane = 0, uv_ubwc_plane = 0;
-	unsigned int y_meta_stride = 0, y_meta_scanlines = 0;
-	unsigned int uv_meta_stride = 0, uv_meta_scanlines = 0;
-	unsigned int y_meta_plane = 0, uv_meta_plane = 0;
-	unsigned int rgb_stride = 0, rgb_scanlines = 0;
-	unsigned int rgb_plane = 0, rgb_ubwc_plane = 0, rgb_meta_plane = 0;
-	unsigned int rgb_meta_stride = 0, rgb_meta_scanlines = 0;
-
-	if (!width || !height)
-		goto invalid_input;
-
-	y_stride = VENUS_Y_STRIDE(color_fmt, width);
-	uv_stride = VENUS_UV_STRIDE(color_fmt, width);
-	y_sclines = VENUS_Y_SCANLINES(color_fmt, height);
-	uv_sclines = VENUS_UV_SCANLINES(color_fmt, height);
-	rgb_stride = VENUS_RGB_STRIDE(color_fmt, width);
-	rgb_scanlines = VENUS_RGB_SCANLINES(color_fmt, height);
-
-	switch (color_fmt) {
-	case COLOR_FMT_NV21:
-	case COLOR_FMT_NV12:
-	case COLOR_FMT_P010:
-		uv_alignment = 4096;
-		y_plane = y_stride * y_sclines;
-		uv_plane = uv_stride * uv_sclines + uv_alignment;
-		size = y_plane + uv_plane +
-				MSM_MEDIA_MAX(extra_size, 8 * y_stride);
-		size = MSM_MEDIA_ALIGN(size, 4096);
-		break;
-	case COLOR_FMT_NV12_MVTB:
-		uv_alignment = 4096;
-		y_plane = y_stride * y_sclines;
-		uv_plane = uv_stride * uv_sclines + uv_alignment;
-		size = y_plane + uv_plane;
-		size = 2 * size + extra_size;
-		size = MSM_MEDIA_ALIGN(size, 4096);
-		break;
-	case COLOR_FMT_NV12_UBWC:
-		y_sclines = VENUS_Y_SCANLINES(color_fmt, (height+1)>>1);
-		y_ubwc_plane = MSM_MEDIA_ALIGN(y_stride * y_sclines, 4096);
-		uv_sclines = VENUS_UV_SCANLINES(color_fmt, (height+1)>>1);
-		uv_ubwc_plane = MSM_MEDIA_ALIGN(uv_stride * uv_sclines, 4096);
-		y_meta_stride = VENUS_Y_META_STRIDE(color_fmt, width);
-		y_meta_scanlines =
-			VENUS_Y_META_SCANLINES(color_fmt, (height+1)>>1);
-		y_meta_plane = MSM_MEDIA_ALIGN(
-			y_meta_stride * y_meta_scanlines, 4096);
-		uv_meta_stride = VENUS_UV_META_STRIDE(color_fmt, width);
-		uv_meta_scanlines =
-			VENUS_UV_META_SCANLINES(color_fmt, (height+1)>>1);
-		uv_meta_plane = MSM_MEDIA_ALIGN(uv_meta_stride *
-			uv_meta_scanlines, 4096);
-
-		size = (y_ubwc_plane + uv_ubwc_plane + y_meta_plane +
-			uv_meta_plane)*2 +
-			MSM_MEDIA_MAX(extra_size + 8192, 48 * y_stride);
-		size = MSM_MEDIA_ALIGN(size, 4096);
-		break;
-	case COLOR_FMT_NV12_BPP10_UBWC:
-		y_ubwc_plane = MSM_MEDIA_ALIGN(y_stride * y_sclines, 4096);
-		uv_ubwc_plane = MSM_MEDIA_ALIGN(uv_stride * uv_sclines, 4096);
-		y_meta_stride = VENUS_Y_META_STRIDE(color_fmt, width);
-		y_meta_scanlines = VENUS_Y_META_SCANLINES(color_fmt, height);
-		y_meta_plane = MSM_MEDIA_ALIGN(
-				y_meta_stride * y_meta_scanlines, 4096);
-		uv_meta_stride = VENUS_UV_META_STRIDE(color_fmt, width);
-		uv_meta_scanlines = VENUS_UV_META_SCANLINES(color_fmt, height);
-		uv_meta_plane = MSM_MEDIA_ALIGN(uv_meta_stride *
-					uv_meta_scanlines, 4096);
-
-		size = y_ubwc_plane + uv_ubwc_plane + y_meta_plane +
-			uv_meta_plane +
-			MSM_MEDIA_MAX(extra_size + 8192, 48 * y_stride);
-		size = MSM_MEDIA_ALIGN(size, 4096);
-		break;
-	case COLOR_FMT_P010_UBWC:
-		y_ubwc_plane = MSM_MEDIA_ALIGN(y_stride * y_sclines, 4096);
-		uv_ubwc_plane = MSM_MEDIA_ALIGN(uv_stride * uv_sclines, 4096);
-		y_meta_stride = VENUS_Y_META_STRIDE(color_fmt, width);
-		y_meta_scanlines = VENUS_Y_META_SCANLINES(color_fmt, height);
-		y_meta_plane = MSM_MEDIA_ALIGN(
-				y_meta_stride * y_meta_scanlines, 4096);
-		uv_meta_stride = VENUS_UV_META_STRIDE(color_fmt, width);
-		uv_meta_scanlines = VENUS_UV_META_SCANLINES(color_fmt, height);
-		uv_meta_plane = MSM_MEDIA_ALIGN(uv_meta_stride *
-					uv_meta_scanlines, 4096);
-
-		size = y_ubwc_plane + uv_ubwc_plane + y_meta_plane +
-			uv_meta_plane;
-		size = MSM_MEDIA_ALIGN(size, 4096);
-		break;
-	case COLOR_FMT_RGBA8888:
-		rgb_plane = MSM_MEDIA_ALIGN(rgb_stride  * rgb_scanlines, 4096);
-		size = rgb_plane;
-		size =  MSM_MEDIA_ALIGN(size, 4096);
-		break;
-	case COLOR_FMT_RGBA8888_UBWC:
-	case COLOR_FMT_RGBA1010102_UBWC:
-	case COLOR_FMT_RGB565_UBWC:
-		rgb_ubwc_plane = MSM_MEDIA_ALIGN(rgb_stride * rgb_scanlines,
-							4096);
-		rgb_meta_stride = VENUS_RGB_META_STRIDE(color_fmt, width);
-		rgb_meta_scanlines = VENUS_RGB_META_SCANLINES(color_fmt,
-					height);
-		rgb_meta_plane = MSM_MEDIA_ALIGN(rgb_meta_stride *
-					rgb_meta_scanlines, 4096);
-		size = rgb_ubwc_plane + rgb_meta_plane;
-		size = MSM_MEDIA_ALIGN(size, 4096);
-		break;
-	default:
-		break;
-	}
-invalid_input:
-	return size;
-}
-
-static inline unsigned int VENUS_VIEW2_OFFSET(
-	int color_fmt, int width, int height)
-{
-	unsigned int offset = 0;
-	unsigned int y_plane, uv_plane, y_stride,
-		uv_stride, y_sclines, uv_sclines;
-	if (!width || !height)
-		goto invalid_input;
-
-	y_stride = VENUS_Y_STRIDE(color_fmt, width);
-	uv_stride = VENUS_UV_STRIDE(color_fmt, width);
-	y_sclines = VENUS_Y_SCANLINES(color_fmt, height);
-	uv_sclines = VENUS_UV_SCANLINES(color_fmt, height);
-	switch (color_fmt) {
-	case COLOR_FMT_NV12_MVTB:
-		y_plane = y_stride * y_sclines;
-		uv_plane = uv_stride * uv_sclines;
-		offset = y_plane + uv_plane;
-		break;
-	default:
-		break;
-	}
-invalid_input:
-	return offset;
+	return 0;
 }
 
 #endif

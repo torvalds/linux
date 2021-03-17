@@ -1,16 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* General filesystem caching backing cache interface
  *
  * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  * NOTE!!! See:
  *
- *	Documentation/filesystems/caching/backend-api.txt
+ *	Documentation/filesystems/caching/backend-api.rst
  *
  * for a description of the cache backend interface declared here.
  */
@@ -50,7 +46,7 @@ struct fscache_cache_tag {
 	unsigned long		flags;
 #define FSCACHE_TAG_RESERVED	0		/* T if tag is reserved for a cache */
 	atomic_t		usage;
-	char			name[0];	/* tag name */
+	char			name[];	/* tag name */
 };
 
 /*
@@ -196,8 +192,7 @@ static inline void fscache_enqueue_retrieval(struct fscache_retrieval *op)
 static inline void fscache_retrieval_complete(struct fscache_retrieval *op,
 					      int n_pages)
 {
-	atomic_sub(n_pages, &op->n_pages);
-	if (atomic_read(&op->n_pages) <= 0)
+	if (atomic_sub_return_relaxed(n_pages, &op->n_pages) <= 0)
 		fscache_op_complete(&op->op, false);
 }
 
@@ -459,7 +454,7 @@ static inline void fscache_object_lookup_error(struct fscache_object *object)
  * Set the maximum size an object is permitted to reach, implying the highest
  * byte that may be written.  Intended to be called by the attr_changed() op.
  *
- * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * See Documentation/filesystems/caching/backend-api.rst for a complete
  * description.
  */
 static inline

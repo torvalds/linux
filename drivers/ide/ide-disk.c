@@ -427,16 +427,15 @@ static void ide_disk_unlock_native_capacity(ide_drive_t *drive)
 		drive->dev_flags |= IDE_DFLAG_NOHPA; /* disable HPA on resume */
 }
 
-static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
+static bool idedisk_prep_rq(ide_drive_t *drive, struct request *rq)
 {
-	ide_drive_t *drive = q->queuedata;
 	struct ide_cmd *cmd;
 
 	if (req_op(rq) != REQ_OP_FLUSH)
-		return BLKPREP_OK;
+		return true;
 
-	if (rq->special) {
-		cmd = rq->special;
+	if (ide_req(rq)->special) {
+		cmd = ide_req(rq)->special;
 		memset(cmd, 0, sizeof(*cmd));
 	} else {
 		cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
@@ -456,10 +455,10 @@ static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 	rq->cmd_flags &= ~REQ_OP_MASK;
 	rq->cmd_flags |= REQ_OP_DRV_OUT;
 	ide_req(rq)->type = ATA_PRIV_TASKFILE;
-	rq->special = cmd;
+	ide_req(rq)->special = cmd;
 	cmd->rq = rq;
 
-	return BLKPREP_OK;
+	return true;
 }
 
 ide_devset_get(multcount, mult_count);
@@ -548,7 +547,7 @@ static void update_flush(ide_drive_t *drive)
 
 		if (barrier) {
 			wc = true;
-			blk_queue_prep_rq(drive->queue, idedisk_prep_fn);
+			drive->prep_rq = idedisk_prep_rq;
 		}
 	}
 
@@ -740,12 +739,9 @@ static void ide_disk_setup(ide_drive_t *drive)
 	set_wcache(drive, 1);
 
 	if ((drive->dev_flags & IDE_DFLAG_LBA) == 0 &&
-	    (drive->head == 0 || drive->head > 16)) {
+	    (drive->head == 0 || drive->head > 16))
 		printk(KERN_ERR "%s: invalid geometry: %d physical heads?\n",
 			drive->name, drive->head);
-		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
-	} else
-		drive->dev_flags |= IDE_DFLAG_ATTACH;
 }
 
 static void ide_disk_flush(ide_drive_t *drive)
@@ -795,4 +791,5 @@ const struct ide_disk_ops ide_ata_disk_ops = {
 	.set_doorlock		= ide_disk_set_doorlock,
 	.do_request		= ide_do_rw_disk,
 	.ioctl			= ide_disk_ioctl,
+	.compat_ioctl		= ide_disk_ioctl,
 };

@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,25 +120,47 @@ enum iwl_calib_cfg {
 };
 
 /**
+ * struct iwl_phy_specific_cfg - specific PHY filter configuration
+ *
+ * Sent as part of the phy configuration command (v3) to configure specific FW
+ * defined PHY filters that can be applied to each antenna.
+ *
+ * @filter_cfg_chain_a: filter config id for LMAC1 chain A
+ * @filter_cfg_chain_b: filter config id for LMAC1 chain B
+ * @filter_cfg_chain_c: filter config id for LMAC2 chain A
+ * @filter_cfg_chain_d: filter config id for LMAC2 chain B
+ * values: 0 - no filter; 0xffffffff - reserved; otherwise - filter id
+ */
+struct iwl_phy_specific_cfg {
+	__le32 filter_cfg_chain_a;
+	__le32 filter_cfg_chain_b;
+	__le32 filter_cfg_chain_c;
+	__le32 filter_cfg_chain_d;
+} __packed; /* PHY_SPECIFIC_CONFIGURATION_API_VER_1*/
+
+/**
  * struct iwl_phy_cfg_cmd - Phy configuration command
+ *
  * @phy_cfg: PHY configuration value, uses &enum iwl_fw_phy_cfg
  * @calib_control: calibration control data
  */
-struct iwl_phy_cfg_cmd {
+struct iwl_phy_cfg_cmd_v1 {
 	__le32	phy_cfg;
 	struct iwl_calib_ctrl calib_control;
 } __packed;
 
-#define PHY_CFG_RADIO_TYPE	(BIT(0) | BIT(1))
-#define PHY_CFG_RADIO_STEP	(BIT(2) | BIT(3))
-#define PHY_CFG_RADIO_DASH	(BIT(4) | BIT(5))
-#define PHY_CFG_PRODUCT_NUMBER	(BIT(6) | BIT(7))
-#define PHY_CFG_TX_CHAIN_A	BIT(8)
-#define PHY_CFG_TX_CHAIN_B	BIT(9)
-#define PHY_CFG_TX_CHAIN_C	BIT(10)
-#define PHY_CFG_RX_CHAIN_A	BIT(12)
-#define PHY_CFG_RX_CHAIN_B	BIT(13)
-#define PHY_CFG_RX_CHAIN_C	BIT(14)
+/**
+ * struct iwl_phy_cfg_cmd_v3 - Phy configuration command (v3)
+ *
+ * @phy_cfg: PHY configuration value, uses &enum iwl_fw_phy_cfg
+ * @calib_control: calibration control data
+ * @phy_specific_cfg: configure predefined PHY filters
+ */
+struct iwl_phy_cfg_cmd_v3 {
+	__le32	phy_cfg;
+	struct iwl_calib_ctrl calib_control;
+	struct iwl_phy_specific_cfg phy_specific_cfg;
+} __packed; /* PHY_CONFIGURATION_CMD_API_S_VER_3 */
 
 /*
  * enum iwl_dc2dc_config_id - flag ids

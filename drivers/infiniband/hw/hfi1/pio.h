@@ -127,6 +127,8 @@ struct send_context {
 	volatile __le64 *hw_free;	/* HW free counter */
 	/* list for PIO waiters */
 	struct list_head piowait  ____cacheline_aligned_in_smp;
+	seqlock_t waitlock;
+
 	spinlock_t credit_ctrl_lock ____cacheline_aligned_in_smp;
 	u32 credit_intr_count;		/* count of credit intr users */
 	u64 credit_ctrl;		/* cache for credit control */
@@ -241,7 +243,7 @@ struct sc_config_sizes {
  */
 struct pio_map_elem {
 	u32 mask;
-	struct send_context *ksc[0];
+	struct send_context *ksc[];
 };
 
 /*
@@ -261,7 +263,7 @@ struct pio_vl_map {
 	u32 mask;
 	u8 actual_vls;
 	u8 vls;
-	struct pio_map_elem *map[0];
+	struct pio_map_elem *map[];
 };
 
 int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls,
@@ -328,5 +330,8 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 			const void *from, size_t nbytes);
 void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes);
 void seg_pio_copy_end(struct pio_buf *pbuf);
+
+void seqfile_dump_sci(struct seq_file *s, u32 i,
+		      struct send_context_info *sci);
 
 #endif /* _PIO_H */

@@ -74,7 +74,7 @@ struct tipc_discoverer {
 /**
  * tipc_disc_init_msg - initialize a link setup message
  * @net: the applicable net namespace
- * @type: message type (request or response)
+ * @mtyp: message type (request or response)
  * @b: ptr to bearer issuing message
  */
 static void tipc_disc_init_msg(struct net *net, struct sk_buff *skb,
@@ -94,6 +94,7 @@ static void tipc_disc_init_msg(struct net *net, struct sk_buff *skb,
 	msg_set_dest_domain(hdr, dest_domain);
 	msg_set_bc_netid(hdr, tn->net_id);
 	b->media->addr2msg(msg_media_addr(hdr), &b->addr);
+	msg_set_peer_net_hash(hdr, tipc_net_hash_mixes(net, tn->random));
 	msg_set_node_id(hdr, tipc_own_id(net));
 }
 
@@ -166,7 +167,8 @@ static bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
 
 	/* Apply trial address if we just left trial period */
 	if (!trial && !self) {
-		tipc_net_finalize(net, tn->trial_addr);
+		tipc_sched_net_finalize(net, tn->trial_addr);
+		msg_set_prevnode(buf_msg(d->skb), tn->trial_addr);
 		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
 	}
 
@@ -192,6 +194,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 {
 	struct tipc_net *tn = tipc_net(net);
 	struct tipc_msg *hdr = buf_msg(skb);
+	u32 pnet_hash = msg_peer_net_hash(hdr);
 	u16 caps = msg_node_capabilities(hdr);
 	bool legacy = tn->legacy_addr_format;
 	u32 sugg = msg_sugg_node_addr(hdr);
@@ -240,7 +243,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 		return;
 	if (!tipc_in_scope(legacy, b->domain, src))
 		return;
-	tipc_node_check_dest(net, src, peer_id, b, caps, signature,
+	tipc_node_check_dest(net, src, peer_id, b, caps, signature, pnet_hash,
 			     &maddr, &respond, &dupl_addr);
 	if (dupl_addr)
 		disc_dupl_alert(b, src, &maddr);
@@ -300,14 +303,12 @@ static void tipc_disc_timeout(struct timer_list *t)
 		goto exit;
 	}
 
-	/* Trial period over ? */
-	if (!time_before(jiffies, tn->addr_trial_end)) {
-		/* Did we just leave it ? */
-		if (!tipc_own_addr(net))
-			tipc_net_finalize(net, tn->trial_addr);
-
-		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
-		msg_set_prevnode(buf_msg(d->skb), tipc_own_addr(net));
+	/* Did we just leave trial period ? */
+	if (!time_before(jiffies, tn->addr_trial_end) && !tipc_own_addr(net)) {
+		mod_timer(&d->timer, jiffies + TIPC_DISC_INIT);
+		spin_unlock_bh(&d->lock);
+		tipc_sched_net_finalize(net, tn->trial_addr);
+		return;
 	}
 
 	/* Adjust timeout interval according to discovery phase */
@@ -319,6 +320,8 @@ static void tipc_disc_timeout(struct timer_list *t)
 			d->timer_intv = TIPC_DISC_SLOW;
 		else if (!d->num_nodes && d->timer_intv > TIPC_DISC_FAST)
 			d->timer_intv = TIPC_DISC_FAST;
+		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
+		msg_set_prevnode(buf_msg(d->skb), tn->trial_addr);
 	}
 
 	mod_timer(&d->timer, jiffies + d->timer_intv);
@@ -336,7 +339,7 @@ exit:
  * @net: the applicable net namespace
  * @b: ptr to bearer issuing requests
  * @dest: destination address for request messages
- * @dest_domain: network domain to which links can be established
+ * @skb: pointer to created frame
  *
  * Returns 0 if successful, otherwise -errno.
  */
@@ -390,7 +393,6 @@ void tipc_disc_delete(struct tipc_discoverer *d)
  * tipc_disc_reset - reset object to send periodic link setup requests
  * @net: the applicable net namespace
  * @b: ptr to bearer issuing requests
- * @dest_domain: network domain to which links can be established
  */
 void tipc_disc_reset(struct net *net, struct tipc_bearer *b)
 {

@@ -9,13 +9,22 @@ Required properties:
 - #size-cells: must be 0
 - #address-cells: must be 1
 
+Optional properties:
+
+- reset-gpios: GPIO to be used to reset the whole device
+
 Subnodes:
 
 The integrated switch subnode should be specified according to the binding
-described in dsa/dsa.txt. As the QCA8K switches do not have a N:N mapping of
-port and PHY id, each subnode describing a port needs to have a valid phandle
-referencing the internal PHY connected to it. The CPU port of this switch is
-always port 0.
+described in dsa/dsa.txt. If the QCA8K switch is connect to a SoC's external
+mdio-bus each subnode describing a port needs to have a valid phandle
+referencing the internal PHY it is connected to. This is because there's no
+N:N mapping of port and PHY id.
+
+Don't use mixed external and internal mdio-bus configurations, as this is
+not supported by the hardware.
+
+The CPU port of this switch is always port 0.
 
 A CPU port node has the following optional node:
 
@@ -31,8 +40,9 @@ For QCA8K the 'fixed-link' sub-node supports only the following properties:
 - 'full-duplex' (boolean, optional), to indicate that full duplex is
   used. When absent, half duplex is assumed.
 
-Example:
+Examples:
 
+for the external mdio-bus configuration:
 
 	&mdio0 {
 		phy_port1: phy@0 {
@@ -55,12 +65,13 @@ Example:
 			reg = <4>;
 		};
 
-		switch0@0 {
+		switch@10 {
 			compatible = "qca,qca8337";
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			reg = <0>;
+			reset-gpios = <&gpio 42 GPIO_ACTIVE_LOW>;
+			reg = <0x10>;
 
 			ports {
 				#address-cells = <1>;
@@ -104,6 +115,60 @@ Example:
 					reg = <5>;
 					label = "wan";
 					phy-handle = <&phy_port5>;
+				};
+			};
+		};
+	};
+
+for the internal master mdio-bus configuration:
+
+	&mdio0 {
+		switch@10 {
+			compatible = "qca,qca8337";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			reset-gpios = <&gpio 42 GPIO_ACTIVE_LOW>;
+			reg = <0x10>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					label = "cpu";
+					ethernet = <&gmac1>;
+					phy-mode = "rgmii";
+					fixed-link {
+						speed = 1000;
+						full-duplex;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					label = "lan1";
+				};
+
+				port@2 {
+					reg = <2>;
+					label = "lan2";
+				};
+
+				port@3 {
+					reg = <3>;
+					label = "lan3";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "lan4";
+				};
+
+				port@5 {
+					reg = <5>;
+					label = "wan";
 				};
 			};
 		};

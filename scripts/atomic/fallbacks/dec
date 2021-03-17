@@ -1,0 +1,7 @@
+cat <<EOF
+static __always_inline ${ret}
+${arch}${atomic}_${pfx}dec${sfx}${order}(${atomic}_t *v)
+{
+	${retstmt}${arch}${atomic}_${pfx}sub${sfx}${order}(1, v);
+}
+EOF

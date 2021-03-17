@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015, Michael Neuling, IBM Corp.
- * Licensed under GPLv2.
  *
  * Original: Michael Neuling 3/4/2014
  * Modified: Rashmica Gupta 8/12/2015
@@ -21,7 +21,6 @@
  * 	(a) begin transaction
  *    	(b) abort transaction
  *	(c) check TEXASR to see if FS has been corrupted
- *
  */
 
 #define _GNU_SOURCE
@@ -34,19 +33,13 @@
 #include "utils.h"
 #include "tm.h"
 
-int	num_loops	= 10000;
+int	num_loops	= 1000000;
 int	passed = 1;
 
 void tfiar_tfhar(void *in)
 {
-	int i, cpu;
 	unsigned long tfhar, tfhar_rd, tfiar, tfiar_rd;
-	cpu_set_t cpuset;
-
-	CPU_ZERO(&cpuset);
-	cpu = (unsigned long)in >> 1;
-	CPU_SET(cpu, &cpuset);
-	sched_setaffinity(0, sizeof(cpuset), &cpuset);
+	int i;
 
 	/* TFIAR: Last bit has to be high so userspace can read register */
 	tfiar = ((unsigned long)in) + 1;
@@ -98,7 +91,7 @@ void texasr(void *in)
 
 int test_tmspr()
 {
-	pthread_t 	thread;
+	pthread_t	*thread;
 	int	   	thread_num;
 	unsigned long	i;
 
@@ -107,21 +100,28 @@ int test_tmspr()
 	/* To cause some context switching */
 	thread_num = 10 * sysconf(_SC_NPROCESSORS_ONLN);
 
-	/* Test TFIAR and TFHAR */
-	for (i = 0 ; i < thread_num ; i += 2){
-		if (pthread_create(&thread, NULL, (void*)tfiar_tfhar, (void *)i))
-			return EXIT_FAILURE;
-	}
-	if (pthread_join(thread, NULL) != 0)
+	thread = malloc(thread_num * sizeof(pthread_t));
+	if (thread == NULL)
 		return EXIT_FAILURE;
 
-	/* Test TEXASR */
-	for (i = 0 ; i < thread_num ; i++){
-		if (pthread_create(&thread, NULL, (void*)texasr, (void *)i))
+	/* Test TFIAR and TFHAR */
+	for (i = 0; i < thread_num; i += 2) {
+		if (pthread_create(&thread[i], NULL, (void *)tfiar_tfhar,
+				   (void *)i))
 			return EXIT_FAILURE;
 	}
-	if (pthread_join(thread, NULL) != 0)
-		return EXIT_FAILURE;
+	/* Test TEXASR */
+	for (i = 1; i < thread_num; i += 2) {
+		if (pthread_create(&thread[i], NULL, (void *)texasr, (void *)i))
+			return EXIT_FAILURE;
+	}
+
+	for (i = 0; i < thread_num; i++) {
+		if (pthread_join(thread[i], NULL) != 0)
+			return EXIT_FAILURE;
+	}
+
+	free(thread);
 
 	if (passed)
 		return 0;

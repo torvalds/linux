@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,7 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,7 +98,11 @@ static u8 rs_fw_sgi_cw_support(struct ieee80211_sta *sta)
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
 	u8 supp = 0;
+
+	if (he_cap->has_he)
+		return 0;
 
 	if (ht_cap->cap & IEEE80211_HT_CAP_SGI_20)
 		supp |= BIT(IWL_TLC_MNG_CH_WIDTH_20MHZ);
@@ -112,24 +116,51 @@ static u8 rs_fw_sgi_cw_support(struct ieee80211_sta *sta)
 	return supp;
 }
 
-static u16 rs_fw_set_config_flags(struct iwl_mvm *mvm,
-				  struct ieee80211_sta *sta)
+static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
+				  struct ieee80211_sta *sta,
+				  struct ieee80211_supported_band *sband)
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
-	bool vht_ena = vht_cap && vht_cap->vht_supported;
+	struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
+	bool vht_ena = vht_cap->vht_supported;
 	u16 flags = 0;
 
 	if (mvm->cfg->ht_params->stbc &&
-	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
-	    ((ht_cap && (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC)) ||
-	     (vht_ena && (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK))))
-		flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1)) {
+		if (he_cap->has_he) {
+			if (he_cap->he_cap_elem.phy_cap_info[2] &
+			    IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
+				flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+
+			if (he_cap->he_cap_elem.phy_cap_info[7] &
+			    IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ)
+				flags |= IWL_TLC_MNG_CFG_FLAGS_HE_STBC_160MHZ_MSK;
+		} else if ((ht_cap->cap & IEEE80211_HT_CAP_RX_STBC) ||
+			   (vht_ena &&
+			    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK)))
+			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+	}
 
 	if (mvm->cfg->ht_params->ldpc &&
-	    ((ht_cap && (ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING)) ||
+	    ((ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING) ||
 	     (vht_ena && (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+
+	/* consider LDPC support in case of HE */
+	if (he_cap->has_he && (he_cap->he_cap_elem.phy_cap_info[1] &
+	    IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
+		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+
+	if (sband->iftype_data && sband->iftype_data->he_cap.has_he &&
+	    !(sband->iftype_data->he_cap.he_cap_elem.phy_cap_info[1] &
+	     IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
+		flags &= ~IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+
+	if (he_cap->has_he &&
+	    (he_cap->he_cap_elem.phy_cap_info[3] &
+	     IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK))
+		flags |= IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_1_MSK;
 
 	return flags;
 }
@@ -164,12 +195,20 @@ rs_fw_vht_set_enabled_rates(const struct ieee80211_sta *sta,
 {
 	u16 supp;
 	int i, highest_mcs;
+	u8 max_nss = sta->rx_nss;
+	struct ieee80211_vht_cap ieee_vht_cap = {
+		.vht_cap_info = cpu_to_le32(vht_cap->cap),
+		.supp_mcs = vht_cap->vht_mcs,
+	};
 
-	for (i = 0; i < sta->rx_nss; i++) {
-		if (i == MAX_NSS)
-			break;
+	/* the station support only a single receive chain */
+	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+		max_nss = 1;
 
-		highest_mcs = rs_fw_vht_highest_rx_mcs_index(vht_cap, i + 1);
+	for (i = 0; i < max_nss && i < IWL_TLC_NSS_MAX; i++) {
+		int nss = i + 1;
+
+		highest_mcs = rs_fw_vht_highest_rx_mcs_index(vht_cap, nss);
 		if (!highest_mcs)
 			continue;
 
@@ -177,9 +216,18 @@ rs_fw_vht_set_enabled_rates(const struct ieee80211_sta *sta,
 		if (sta->bandwidth == IEEE80211_STA_RX_BW_20)
 			supp &= ~BIT(IWL_TLC_MNG_HT_RATE_MCS9);
 
-		cmd->ht_rates[i][0] = cpu_to_le16(supp);
-		if (sta->bandwidth == IEEE80211_STA_RX_BW_160)
-			cmd->ht_rates[i][1] = cmd->ht_rates[i][0];
+		cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160] = cpu_to_le16(supp);
+		/*
+		 * Check if VHT extended NSS indicates that the bandwidth/NSS
+		 * configuration is supported - only for MCS 0 since we already
+		 * decoded the MCS bits anyway ourselves.
+		 */
+		if (sta->bandwidth == IEEE80211_STA_RX_BW_160 &&
+		    ieee80211_get_vht_max_nss(&ieee_vht_cap,
+					      IEEE80211_VHT_CHANWIDTH_160MHZ,
+					      0, true, nss) >= nss)
+			cmd->ht_rates[i][IWL_TLC_HT_BW_160] =
+				cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160];
 	}
 }
 
@@ -202,20 +250,49 @@ static u16 rs_fw_he_ieee80211_mcs_to_rs_mcs(u16 mcs)
 
 static void
 rs_fw_he_set_enabled_rates(const struct ieee80211_sta *sta,
-			   const struct ieee80211_sta_he_cap *he_cap,
+			   struct ieee80211_supported_band *sband,
 			   struct iwl_tlc_config_cmd *cmd)
 {
-	u16 mcs_160 = le16_to_cpu(sta->he_cap.he_mcs_nss_supp.rx_mcs_160);
-	u16 mcs_80 = le16_to_cpu(sta->he_cap.he_mcs_nss_supp.rx_mcs_80);
+	const struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
+	u16 mcs_160 = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_160);
+	u16 mcs_80 = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_80);
+	u16 tx_mcs_80 =
+		le16_to_cpu(sband->iftype_data->he_cap.he_mcs_nss_supp.tx_mcs_80);
+	u16 tx_mcs_160 =
+		le16_to_cpu(sband->iftype_data->he_cap.he_mcs_nss_supp.tx_mcs_160);
 	int i;
+	u8 nss = sta->rx_nss;
 
-	for (i = 0; i < sta->rx_nss && i < MAX_NSS; i++) {
+	/* the station support only a single receive chain */
+	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+		nss = 1;
+
+	for (i = 0; i < nss && i < IWL_TLC_NSS_MAX; i++) {
 		u16 _mcs_160 = (mcs_160 >> (2 * i)) & 0x3;
 		u16 _mcs_80 = (mcs_80 >> (2 * i)) & 0x3;
+		u16 _tx_mcs_160 = (tx_mcs_160 >> (2 * i)) & 0x3;
+		u16 _tx_mcs_80 = (tx_mcs_80 >> (2 * i)) & 0x3;
 
-		cmd->ht_rates[i][0] =
+		/* If one side doesn't support - mark both as not supporting */
+		if (_mcs_80 == IEEE80211_HE_MCS_NOT_SUPPORTED ||
+		    _tx_mcs_80 == IEEE80211_HE_MCS_NOT_SUPPORTED) {
+			_mcs_80 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+			_tx_mcs_80 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+		}
+		if (_mcs_80 > _tx_mcs_80)
+			_mcs_80 = _tx_mcs_80;
+		cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160] =
 			cpu_to_le16(rs_fw_he_ieee80211_mcs_to_rs_mcs(_mcs_80));
-		cmd->ht_rates[i][1] =
+
+		/* If one side doesn't support - mark both as not supporting */
+		if (_mcs_160 == IEEE80211_HE_MCS_NOT_SUPPORTED ||
+		    _tx_mcs_160 == IEEE80211_HE_MCS_NOT_SUPPORTED) {
+			_mcs_160 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+			_tx_mcs_160 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+		}
+		if (_mcs_160 > _tx_mcs_160)
+			_mcs_160 = _tx_mcs_160;
+		cmd->ht_rates[i][IWL_TLC_HT_BW_160] =
 			cpu_to_le16(rs_fw_he_ieee80211_mcs_to_rs_mcs(_mcs_160));
 	}
 }
@@ -241,16 +318,24 @@ static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 	cmd->mode = IWL_TLC_MNG_MODE_NON_HT;
 
 	/* HT/VHT rates */
-	if (he_cap && he_cap->has_he) {
+	if (he_cap->has_he) {
 		cmd->mode = IWL_TLC_MNG_MODE_HE;
-		rs_fw_he_set_enabled_rates(sta, he_cap, cmd);
-	} else if (vht_cap && vht_cap->vht_supported) {
+		rs_fw_he_set_enabled_rates(sta, sband, cmd);
+	} else if (vht_cap->vht_supported) {
 		cmd->mode = IWL_TLC_MNG_MODE_VHT;
 		rs_fw_vht_set_enabled_rates(sta, vht_cap, cmd);
-	} else if (ht_cap && ht_cap->ht_supported) {
+	} else if (ht_cap->ht_supported) {
 		cmd->mode = IWL_TLC_MNG_MODE_HT;
-		cmd->ht_rates[0][0] = cpu_to_le16(ht_cap->mcs.rx_mask[0]);
-		cmd->ht_rates[1][0] = cpu_to_le16(ht_cap->mcs.rx_mask[1]);
+		cmd->ht_rates[IWL_TLC_NSS_1][IWL_TLC_HT_BW_NONE_160] =
+			cpu_to_le16(ht_cap->mcs.rx_mask[0]);
+
+		/* the station support only a single receive chain */
+		if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+			cmd->ht_rates[IWL_TLC_NSS_2][IWL_TLC_HT_BW_NONE_160] =
+				0;
+		else
+			cmd->ht_rates[IWL_TLC_NSS_2][IWL_TLC_HT_BW_NONE_160] =
+				cpu_to_le16(ht_cap->mcs.rx_mask[1]);
 	}
 }
 
@@ -287,19 +372,42 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 	lq_sta = &mvmsta->lq_sta.rs_fw;
 
 	if (flags & IWL_TLC_NOTIF_FLAG_RATE) {
+		char pretty_rate[100];
 		lq_sta->last_rate_n_flags = le32_to_cpu(notif->rate);
-		IWL_DEBUG_RATE(mvm, "new rate_n_flags: 0x%X\n",
-			       lq_sta->last_rate_n_flags);
+		rs_pretty_print_rate(pretty_rate, sizeof(pretty_rate),
+				     lq_sta->last_rate_n_flags);
+		IWL_DEBUG_RATE(mvm, "new rate: %s\n", pretty_rate);
 	}
 
-	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU) {
+	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU && !mvmsta->orig_amsdu_len) {
 		u16 size = le32_to_cpu(notif->amsdu_size);
+		int i;
 
-		if (WARN_ON(sta->max_amsdu_len < size))
+		if (sta->max_amsdu_len < size) {
+			/*
+			 * In debug sta->max_amsdu_len < size
+			 * so also check with orig_amsdu_len which holds the
+			 * original data before debugfs changed the value
+			 */
+			WARN_ON(mvmsta->orig_amsdu_len < size);
 			goto out;
+		}
 
 		mvmsta->amsdu_enabled = le32_to_cpu(notif->amsdu_enabled);
 		mvmsta->max_amsdu_len = size;
+		sta->max_rc_amsdu_len = mvmsta->max_amsdu_len;
+
+		for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+			if (mvmsta->amsdu_enabled & BIT(i))
+				sta->max_tid_amsdu_len[i] =
+					iwl_mvm_max_amsdu_size(mvm, sta, i);
+			else
+				/*
+				 * Not so elegant, but this will effectively
+				 * prevent AMSDU on this TID
+				 */
+				sta->max_tid_amsdu_len[i] = 1;
+		}
 
 		IWL_DEBUG_RATE(mvm,
 			       "AMSDU update. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",
@@ -310,34 +418,78 @@ out:
 	rcu_read_unlock();
 }
 
+u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta)
+{
+	const struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	const struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+
+	if (vht_cap->vht_supported) {
+		switch (vht_cap->cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
+		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
+			return IEEE80211_MAX_MPDU_LEN_VHT_11454;
+		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
+			return IEEE80211_MAX_MPDU_LEN_VHT_7991;
+		default:
+			return IEEE80211_MAX_MPDU_LEN_VHT_3895;
+		}
+	} else if (ht_cap->ht_supported) {
+		if (ht_cap->cap & IEEE80211_HT_CAP_MAX_AMSDU)
+			/*
+			 * agg is offloaded so we need to assume that agg
+			 * are enabled and max mpdu in ampdu is 4095
+			 * (spec 802.11-2016 9.3.2.1)
+			 */
+			return IEEE80211_MAX_MPDU_LEN_HT_BA;
+		else
+			return IEEE80211_MAX_MPDU_LEN_HT_3839;
+	}
+
+	/* in legacy mode no amsdu is enabled so return zero */
+	return 0;
+}
+
 void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		     enum nl80211_band band)
+		     enum nl80211_band band, bool update)
 {
 	struct ieee80211_hw *hw = mvm->hw;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->lq_sta.rs_fw;
 	u32 cmd_id = iwl_cmd_id(TLC_MNG_CONFIG_CMD, DATA_PATH_GROUP, 0);
-	struct ieee80211_supported_band *sband;
+	struct ieee80211_supported_band *sband = hw->wiphy->bands[band];
+	u16 max_amsdu_len = rs_fw_get_max_amsdu_len(sta);
 	struct iwl_tlc_config_cmd cfg_cmd = {
 		.sta_id = mvmsta->sta_id,
-		.max_ch_width = rs_fw_bw_from_sta_bw(sta),
-		.flags = cpu_to_le16(rs_fw_set_config_flags(mvm, sta)),
+		.max_ch_width = update ?
+			rs_fw_bw_from_sta_bw(sta) : RATE_MCS_CHAN_WIDTH_20,
+		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, sta, sband)),
 		.chains = rs_fw_set_active_chains(iwl_mvm_get_valid_tx_ant(mvm)),
-		.max_mpdu_len = cpu_to_le16(sta->max_amsdu_len),
 		.sgi_ch_width_supp = rs_fw_sgi_cw_support(sta),
+		.max_mpdu_len = cpu_to_le16(max_amsdu_len),
 		.amsdu = iwl_mvm_is_csum_supported(mvm),
 	};
 	int ret;
+	u16 cmd_size = sizeof(cfg_cmd);
+
+	/* In old versions of the API the struct is 4 bytes smaller */
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
+				  TLC_MNG_CONFIG_CMD, 0) < 3)
+		cmd_size -= 4;
 
 	memset(lq_sta, 0, offsetof(typeof(*lq_sta), pers));
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
-	sband = hw->wiphy->bands[band];
 	rs_fw_set_supp_rates(sta, sband, &cfg_cmd);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, sizeof(cfg_cmd), &cfg_cmd);
+	/*
+	 * since TLC offload works with one mode we can assume
+	 * that only vht/ht is used and also set it as station max amsdu
+	 */
+	sta->max_amsdu_len = max_amsdu_len;
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC, cmd_size,
+				   &cfg_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send rate scale config (%d)\n", ret);
 }

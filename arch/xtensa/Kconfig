@@ -1,26 +1,31 @@
 # SPDX-License-Identifier: GPL-2.0
-config ZONE_DMA
-	def_bool y
-
 config XTENSA
 	def_bool y
-	select ARCH_HAS_SG_CHAIN
-	select ARCH_HAS_SYNC_DMA_FOR_CPU
-	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
+	select ARCH_32BIT_OFF_T
+	select ARCH_HAS_BINFMT_FLAT if !MMU
+	select ARCH_HAS_DMA_PREP_COHERENT if MMU
+	select ARCH_HAS_SYNC_DMA_FOR_CPU if MMU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if MMU
+	select ARCH_HAS_DMA_SET_UNCACHED if MMU
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select BUILDTIME_EXTABLE_SORT
+	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select DMA_NONCOHERENT_OPS
+	select DMA_REMAP if MMU
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_STRNCPY_FROM_USER if KASAN
-	select HAVE_ARCH_KASAN if MMU
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
+	select HAVE_ARCH_KASAN if MMU && !XIP_KERNEL
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_EXIT_THREAD
@@ -28,14 +33,15 @@ config XTENSA
 	select HAVE_FUTEX_CMPXCHG if !MMU
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IRQ_TIME_ACCOUNTING
-	select HAVE_MEMBLOCK
 	select HAVE_OPROFILE
+	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_STACKPROTECTOR
+	select HAVE_SYSCALL_TRACEPOINTS
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
-	select NO_BOOTMEM
 	select PERF_USE_VMALLOC
+	select SET_FS
 	select VIRT_TO_BUS
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
@@ -44,9 +50,6 @@ config XTENSA
 	  architecture supports all processor configurations and extensions,
 	  with reasonable minimum requirements.  The Xtensa Linux project has
 	  a home page at <http://www.linux-xtensa.org/>.
-
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool y
 
 config GENERIC_HWEIGHT
 	def_bool y
@@ -121,7 +124,7 @@ config XTENSA_VARIANT_CUSTOM_NAME
 	help
 	  Provide the name of a custom Xtensa processor variant.
 	  This CORENAME selects arch/xtensa/variant/CORENAME.
-	  Dont forget you have to select MMU if you have one.
+	  Don't forget you have to select MMU if you have one.
 
 config XTENSA_VARIANT_NAME
 	string
@@ -166,7 +169,7 @@ config XTENSA_FAKE_NMI
 	  If unsure, say N.
 
 config XTENSA_UNALIGNED_USER
-	bool "Unaligned memory access in use space"
+	bool "Unaligned memory access in user space"
 	help
 	  The Xtensa architecture currently does not handle unaligned
 	  memory accesses in hardware but through an exception handler.
@@ -179,11 +182,11 @@ config HAVE_SMP
 	depends on XTENSA_VARIANT_CUSTOM
 	select XTENSA_MX
 	help
-	  This option is use to indicate that the system-on-a-chip (SOC)
+	  This option is used to indicate that the system-on-a-chip (SOC)
 	  supports Multiprocessing. Multiprocessor support implemented above
 	  the CPU core definition and currently needs to be selected manually.
 
-	  Multiprocessor support in implemented with external cache and
+	  Multiprocessor support is implemented with external cache and
 	  interrupt controllers.
 
 	  The MX interrupt distributer adds Interprocessor Interrupts
@@ -215,6 +218,245 @@ config HOTPLUG_CPU
 
 	  Say N if you want to disable CPU hotplug.
 
+config FAST_SYSCALL_XTENSA
+	bool "Enable fast atomic syscalls"
+	default n
+	help
+	  fast_syscall_xtensa is a syscall that can make atomic operations
+	  on UP kernel when processor has no s32c1i support.
+
+	  This syscall is deprecated. It may have issues when called with
+	  invalid arguments. It is provided only for backwards compatibility.
+	  Only enable it if your userspace software requires it.
+
+	  If unsure, say N.
+
+config FAST_SYSCALL_SPILL_REGISTERS
+	bool "Enable spill registers syscall"
+	default n
+	help
+	  fast_syscall_spill_registers is a syscall that spills all active
+	  register windows of a calling userspace task onto its stack.
+
+	  This syscall is deprecated. It may have issues when called with
+	  invalid arguments. It is provided only for backwards compatibility.
+	  Only enable it if your userspace software requires it.
+
+	  If unsure, say N.
+
+config USER_ABI_CALL0
+	bool
+
+choice
+	prompt "Userspace ABI"
+	default USER_ABI_DEFAULT
+	help
+	  Select supported userspace ABI.
+
+	  If unsure, choose the default ABI.
+
+config USER_ABI_DEFAULT
+	bool "Default ABI only"
+	help
+	  Assume default userspace ABI. For XEA2 cores it is windowed ABI.
+	  call0 ABI binaries may be run on such kernel, but signal delivery
+	  will not work correctly for them.
+
+config USER_ABI_CALL0_ONLY
+	bool "Call0 ABI only"
+	select USER_ABI_CALL0
+	help
+	  Select this option to support only call0 ABI in userspace.
+	  Windowed ABI binaries will crash with a segfault caused by
+	  an illegal instruction exception on the first 'entry' opcode.
+
+	  Choose this option if you're planning to run only user code
+	  built with call0 ABI.
+
+config USER_ABI_CALL0_PROBE
+	bool "Support both windowed and call0 ABI by probing"
+	select USER_ABI_CALL0
+	help
+	  Select this option to support both windowed and call0 userspace
+	  ABIs. When enabled all processes are started with PS.WOE disabled
+	  and a fast user exception handler for an illegal instruction is
+	  used to turn on PS.WOE bit on the first 'entry' opcode executed by
+	  the userspace.
+
+	  This option should be enabled for the kernel that must support
+	  both call0 and windowed ABIs in userspace at the same time.
+
+	  Note that Xtensa ISA does not guarantee that entry opcode will
+	  raise an illegal instruction exception on cores with XEA2 when
+	  PS.WOE is disabled, check whether the target core supports it.
+
+endchoice
+
+endmenu
+
+config XTENSA_CALIBRATE_CCOUNT
+	def_bool n
+	help
+	  On some platforms (XT2000, for example), the CPU clock rate can
+	  vary.  The frequency can be determined, however, by measuring
+	  against a well known, fixed frequency, such as an UART oscillator.
+
+config SERIAL_CONSOLE
+	def_bool n
+
+config PLATFORM_HAVE_XIP
+	def_bool n
+
+menu "Platform options"
+
+choice
+	prompt "Xtensa System Type"
+	default XTENSA_PLATFORM_ISS
+
+config XTENSA_PLATFORM_ISS
+	bool "ISS"
+	select XTENSA_CALIBRATE_CCOUNT
+	select SERIAL_CONSOLE
+	help
+	  ISS is an acronym for Tensilica's Instruction Set Simulator.
+
+config XTENSA_PLATFORM_XT2000
+	bool "XT2000"
+	select HAVE_IDE
+	help
+	  XT2000 is the name of Tensilica's feature-rich emulation platform.
+	  This hardware is capable of running a full Linux distribution.
+
+config XTENSA_PLATFORM_XTFPGA
+	bool "XTFPGA"
+	select ETHOC if ETHERNET
+	select PLATFORM_WANT_DEFAULT_MEM if !MMU
+	select SERIAL_CONSOLE
+	select XTENSA_CALIBRATE_CCOUNT
+	select PLATFORM_HAVE_XIP
+	help
+	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
+	  This hardware is capable of running a full Linux distribution.
+
+endchoice
+
+config PLATFORM_NR_IRQS
+	int
+	default 3 if XTENSA_PLATFORM_XT2000
+	default 0
+
+config XTENSA_CPU_CLOCK
+	int "CPU clock rate [MHz]"
+	depends on !XTENSA_CALIBRATE_CCOUNT
+	default 16
+
+config GENERIC_CALIBRATE_DELAY
+	bool "Auto calibration of the BogoMIPS value"
+	help
+	  The BogoMIPS value can easily be derived from the CPU frequency.
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+
+config CMDLINE
+	string "Initial kernel command string"
+	depends on CMDLINE_BOOL
+	default "console=ttyS0,38400 root=/dev/ram"
+	help
+	  On some architectures (EBSA110 and CATS), there is currently no way
+	  for the boot loader to pass arguments to the kernel. For these
+	  architectures, you should supply some command-line options at build
+	  time by entering them here. As a minimum, you should specify the
+	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
+
+config USE_OF
+	bool "Flattened Device Tree support"
+	select OF
+	select OF_EARLY_FLATTREE
+	help
+	  Include support for flattened device tree machine descriptions.
+
+config BUILTIN_DTB_SOURCE
+	string "DTB to build into the kernel image"
+	depends on OF
+
+config PARSE_BOOTPARAM
+	bool "Parse bootparam block"
+	default y
+	help
+	  Parse parameters passed to the kernel from the bootloader. It may
+	  be disabled if the kernel is known to run without the bootloader.
+
+	  If unsure, say Y.
+
+config BLK_DEV_SIMDISK
+	tristate "Host file-based simulated block device support"
+	default n
+	depends on XTENSA_PLATFORM_ISS && BLOCK
+	help
+	  Create block devices that map to files in the host file system.
+	  Device binding to host file may be changed at runtime via proc
+	  interface provided the device is not in use.
+
+config BLK_DEV_SIMDISK_COUNT
+	int "Number of host file-based simulated block devices"
+	range 1 10
+	depends on BLK_DEV_SIMDISK
+	default 2
+	help
+	  This is the default minimal number of created block devices.
+	  Kernel/module parameter 'simdisk_count' may be used to change this
+	  value at runtime. More file names (but no more than 10) may be
+	  specified as parameters, simdisk_count grows accordingly.
+
+config SIMDISK0_FILENAME
+	string "Host filename for the first simulated device"
+	depends on BLK_DEV_SIMDISK = y
+	default ""
+	help
+	  Attach a first simdisk to a host file. Conventionally, this file
+	  contains a root file system.
+
+config SIMDISK1_FILENAME
+	string "Host filename for the second simulated device"
+	depends on BLK_DEV_SIMDISK = y && BLK_DEV_SIMDISK_COUNT != 1
+	default ""
+	help
+	  Another simulated disk in a host file for a buildroot-independent
+	  storage.
+
+config XTFPGA_LCD
+	bool "Enable XTFPGA LCD driver"
+	depends on XTENSA_PLATFORM_XTFPGA
+	default n
+	help
+	  There's a 2x16 LCD on most of XTFPGA boards, kernel may output
+	  progress messages there during bootup/shutdown. It may be useful
+	  during board bringup.
+
+	  If unsure, say N.
+
+config XTFPGA_LCD_BASE_ADDR
+	hex "XTFPGA LCD base address"
+	depends on XTFPGA_LCD
+	default "0x0d0c0000"
+	help
+	  Base address of the LCD controller inside KIO region.
+	  Different boards from XTFPGA family have LCD controller at different
+	  addresses. Please consult prototyping user guide for your board for
+	  the correct address. Wrong address here may lead to hardware lockup.
+
+config XTFPGA_LCD_8BIT_ACCESS
+	bool "Use 8-bit access to XTFPGA LCD"
+	depends on XTFPGA_LCD
+	default n
+	help
+	  LCD may be connected with 4- or 8-bit interface, 8-bit access may
+	  only be used with 8-bit interface. Please consult prototyping user
+	  guide for your board for the correct interface width.
+
+comment "Kernel memory layout"
+
 config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	bool "Initialize Xtensa MMU inside the Linux kernel code"
 	depends on !XTENSA_VARIANT_FSF && !XTENSA_VARIANT_DC232B
@@ -245,6 +487,27 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 
 	  If in doubt, say Y.
 
+config XIP_KERNEL
+	bool "Kernel Execute-In-Place from ROM"
+	depends on PLATFORM_HAVE_XIP
+	help
+	  Execute-In-Place allows the kernel to run from non-volatile storage
+	  directly addressable by the CPU, such as NOR flash. This saves RAM
+	  space since the text section of the kernel is not loaded from flash
+	  to RAM. Read-write sections, such as the data section and stack,
+	  are still copied to RAM. The XIP kernel is not compressed since
+	  it has to run directly from flash, so it will take more space to
+	  store it. The flash address used to link the kernel object files,
+	  and for storing it, is configuration dependent. Therefore, if you
+	  say Y here, you must know the proper physical address where to
+	  store the kernel image depending on your own flash memory usage.
+
+	  Also note that the make target becomes "make xipImage" rather than
+	  "make Image" or "make uImage". The final kernel binary to put in
+	  ROM memory will be arch/xtensa/boot/xipImage.
+
+	  If unsure, say N.
+
 config MEMMAP_CACHEATTR
 	hex "Cache attributes for the memory address space"
 	depends on !MMU
@@ -255,12 +518,26 @@ config MEMMAP_CACHEATTR
 	  region: bits 0..3 -- for addresses 0x00000000..0x1fffffff,
 	  bits 4..7 -- for addresses 0x20000000..0x3fffffff, and so on.
 
-	  Cache attribute values are specific for the MMU type, so e.g.
-	  for region protection MMUs: 2 is cache bypass, 4 is WB cached,
-	  1 is WT cached, f is illegal. For ful MMU: bit 0 makes it executable,
-	  bit 1 makes it writable, bits 2..3 meaning is 0: cache bypass,
-	  1: WB cache, 2: WT cache, 3: special (c and e are illegal, f is
-	  reserved).
+	  Cache attribute values are specific for the MMU type.
+	  For region protection MMUs:
+	    1: WT cached,
+	    2: cache bypass,
+	    4: WB cached,
+	    f: illegal.
+	  For full MMU:
+	    bit 0: executable,
+	    bit 1: writable,
+	    bits 2..3:
+	      0: cache bypass,
+	      1: WB cache,
+	      2: WT cache,
+	      3: special (c and e are illegal, f is reserved).
+	  For MPU:
+	    0: illegal,
+	    1: WB cache,
+	    2: WB, no-write-allocate cache,
+	    3: WT cache,
+	    4: cache bypass.
 
 config KSEG_PADDR
 	hex "Physical address of the KSEG mapping"
@@ -275,6 +552,16 @@ config KSEG_PADDR
 
 	  If unsure, leave the default value here.
 
+config KERNEL_VIRTUAL_ADDRESS
+	hex "Kernel virtual address"
+	depends on MMU && XIP_KERNEL
+	default 0xd0003000
+	help
+	  This is the virtual address where the XIP kernel is mapped.
+	  XIP kernel may be mapped into KSEG or KIO region, virtual address
+	  provided here must match kernel load address provided in
+	  KERNEL_LOAD_ADDRESS.
+
 config KERNEL_LOAD_ADDRESS
 	hex "Kernel load address"
 	default 0x60003000 if !MMU
@@ -287,12 +574,61 @@ config KERNEL_LOAD_ADDRESS
 
 	  If unsure, leave the default value here.
 
-config VECTORS_OFFSET
-	hex "Kernel vectors offset"
-	default 0x00003000
+choice
+	prompt "Relocatable vectors location"
+	default XTENSA_VECTORS_IN_TEXT
 	help
-	  This is the offset of the kernel image from the relocatable vectors
-	  base.
+	  Choose whether relocatable vectors are merged into the kernel .text
+	  or placed separately at runtime. This option does not affect
+	  configurations without VECBASE register where vectors are always
+	  placed at their hardware-defined locations.
+
+config XTENSA_VECTORS_IN_TEXT
+	bool "Merge relocatable vectors into kernel text"
+	depends on !MTD_XIP
+	help
+	  This option puts relocatable vectors into the kernel .text section
+	  with proper alignment.
+	  This is a safe choice for most configurations.
+
+config XTENSA_VECTORS_SEPARATE
+	bool "Put relocatable vectors at fixed address"
+	help
+	  This option puts relocatable vectors at specific virtual address.
+	  Vectors are merged with the .init data in the kernel image and
+	  are copied into their designated location during kernel startup.
+	  Use it to put vectors into IRAM or out of FLASH on kernels with
+	  XIP-aware MTD support.
+
+endchoice
+
+config VECTORS_ADDR
+	hex "Kernel vectors virtual address"
+	default 0x00000000
+	depends on XTENSA_VECTORS_SEPARATE
+	help
+	  This is the virtual address of the (relocatable) vectors base.
+	  It must be within KSEG if MMU is used.
+
+config XIP_DATA_ADDR
+	hex "XIP kernel data virtual address"
+	depends on XIP_KERNEL
+	default 0x00000000
+	help
+	  This is the virtual address where XIP kernel data is copied.
+	  It must be within KSEG if MMU is used.
+
+config PLATFORM_WANT_DEFAULT_MEM
+	def_bool n
+
+config DEFAULT_MEM_START
+	hex
+	prompt "PAGE_OFFSET/PHYS_OFFSET" if !MMU && PLATFORM_WANT_DEFAULT_MEM
+	default 0x60000000 if PLATFORM_WANT_DEFAULT_MEM
+	default 0x00000000
+	help
+	  This is the base address used for both PAGE_OFFSET and PHYS_OFFSET
+	  in noMMU configurations.
 
 	  If unsure, leave the default value here.
 
@@ -346,177 +682,6 @@ config HIGHMEM
 
 	  If unsure, say Y.
 
-config FAST_SYSCALL_XTENSA
-	bool "Enable fast atomic syscalls"
-	default n
-	help
-	  fast_syscall_xtensa is a syscall that can make atomic operations
-	  on UP kernel when processor has no s32c1i support.
-
-	  This syscall is deprecated. It may have issues when called with
-	  invalid arguments. It is provided only for backwards compatibility.
-	  Only enable it if your userspace software requires it.
-
-	  If unsure, say N.
-
-config FAST_SYSCALL_SPILL_REGISTERS
-	bool "Enable spill registers syscall"
-	default n
-	help
-	  fast_syscall_spill_registers is a syscall that spills all active
-	  register windows of a calling userspace task onto its stack.
-
-	  This syscall is deprecated. It may have issues when called with
-	  invalid arguments. It is provided only for backwards compatibility.
-	  Only enable it if your userspace software requires it.
-
-	  If unsure, say N.
-
-endmenu
-
-config XTENSA_CALIBRATE_CCOUNT
-	def_bool n
-	help
-	  On some platforms (XT2000, for example), the CPU clock rate can
-	  vary.  The frequency can be determined, however, by measuring
-	  against a well known, fixed frequency, such as an UART oscillator.
-
-config SERIAL_CONSOLE
-	def_bool n
-
-menu "Bus options"
-
-config PCI
-	bool "PCI support"
-	default y
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
-source "drivers/pci/Kconfig"
-
-endmenu
-
-menu "Platform options"
-
-choice
-	prompt "Xtensa System Type"
-	default XTENSA_PLATFORM_ISS
-
-config XTENSA_PLATFORM_ISS
-	bool "ISS"
-	select XTENSA_CALIBRATE_CCOUNT
-	select SERIAL_CONSOLE
-	help
-	  ISS is an acronym for Tensilica's Instruction Set Simulator.
-
-config XTENSA_PLATFORM_XT2000
-	bool "XT2000"
-	select HAVE_IDE
-	help
-	  XT2000 is the name of Tensilica's feature-rich emulation platform.
-	  This hardware is capable of running a full Linux distribution.
-
-config XTENSA_PLATFORM_XTFPGA
-	bool "XTFPGA"
-	select ETHOC if ETHERNET
-	select PLATFORM_WANT_DEFAULT_MEM if !MMU
-	select SERIAL_CONSOLE
-	select XTENSA_CALIBRATE_CCOUNT
-	help
-	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
-	  This hardware is capable of running a full Linux distribution.
-
-endchoice
-
-config PLATFORM_NR_IRQS
-	int
-	default 3 if XTENSA_PLATFORM_XT2000
-	default 0
-
-config XTENSA_CPU_CLOCK
-	int "CPU clock rate [MHz]"
-	depends on !XTENSA_CALIBRATE_CCOUNT
-	default 16
-
-config GENERIC_CALIBRATE_DELAY
-	bool "Auto calibration of the BogoMIPS value"
-	help
-	  The BogoMIPS value can easily be derived from the CPU frequency.
-
-config CMDLINE_BOOL
-	bool "Default bootloader kernel arguments"
-
-config CMDLINE
-	string "Initial kernel command string"
-	depends on CMDLINE_BOOL
-	default "console=ttyS0,38400 root=/dev/ram"
-	help
-	  On some architectures (EBSA110 and CATS), there is currently no way
-	  for the boot loader to pass arguments to the kernel. For these
-	  architectures, you should supply some command-line options at build
-	  time by entering them here. As a minimum, you should specify the
-	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
-
-config USE_OF
-	bool "Flattened Device Tree support"
-	select OF
-	select OF_EARLY_FLATTREE
-	select OF_RESERVED_MEM
-	help
-	  Include support for flattened device tree machine descriptions.
-
-config BUILTIN_DTB
-	string "DTB to build into the kernel image"
-	depends on OF
-
-config PARSE_BOOTPARAM
-	bool "Parse bootparam block"
-	default y
-	help
-	  Parse parameters passed to the kernel from the bootloader. It may
-	  be disabled if the kernel is known to run without the bootloader.
-
-	  If unsure, say Y.
-
-config BLK_DEV_SIMDISK
-	tristate "Host file-based simulated block device support"
-	default n
-	depends on XTENSA_PLATFORM_ISS && BLOCK
-	help
-	  Create block devices that map to files in the host file system.
-	  Device binding to host file may be changed at runtime via proc
-	  interface provided the device is not in use.
-
-config BLK_DEV_SIMDISK_COUNT
-	int "Number of host file-based simulated block devices"
-	range 1 10
-	depends on BLK_DEV_SIMDISK
-	default 2
-	help
-	  This is the default minimal number of created block devices.
-	  Kernel/module parameter 'simdisk_count' may be used to change this
-	  value at runtime. More file names (but no more than 10) may be
-	  specified as parameters, simdisk_count grows accordingly.
-
-config SIMDISK0_FILENAME
-	string "Host filename for the first simulated device"
-	depends on BLK_DEV_SIMDISK = y
-	default ""
-	help
-	  Attach a first simdisk to a host file. Conventionally, this file
-	  contains a root file system.
-
-config SIMDISK1_FILENAME
-	string "Host filename for the second simulated device"
-	depends on BLK_DEV_SIMDISK = y && BLK_DEV_SIMDISK_COUNT != 1
-	default ""
-	help
-	  Another simulated disk in a host file for a buildroot-independent
-	  storage.
-
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	default "11"
@@ -530,52 +695,6 @@ config FORCE_MAX_ZONEORDER
 
 	  This config option is actually maximum order plus one. For example,
 	  a value of 11 means that the largest free memory block is 2^10 pages.
-
-source "drivers/pcmcia/Kconfig"
-
-config PLATFORM_WANT_DEFAULT_MEM
-	def_bool n
-
-config DEFAULT_MEM_START
-	hex
-	prompt "PAGE_OFFSET/PHYS_OFFSET" if !MMU && PLATFORM_WANT_DEFAULT_MEM
-	default 0x60000000 if PLATFORM_WANT_DEFAULT_MEM
-	default 0x00000000
-	help
-	  This is the base address used for both PAGE_OFFSET and PHYS_OFFSET
-	  in noMMU configurations.
-
-	  If unsure, leave the default value here.
-
-config XTFPGA_LCD
-	bool "Enable XTFPGA LCD driver"
-	depends on XTENSA_PLATFORM_XTFPGA
-	default n
-	help
-	  There's a 2x16 LCD on most of XTFPGA boards, kernel may output
-	  progress messages there during bootup/shutdown. It may be useful
-	  during board bringup.
-
-	  If unsure, say N.
-
-config XTFPGA_LCD_BASE_ADDR
-	hex "XTFPGA LCD base address"
-	depends on XTFPGA_LCD
-	default "0x0d0c0000"
-	help
-	  Base address of the LCD controller inside KIO region.
-	  Different boards from XTFPGA family have LCD controller at different
-	  addresses. Please consult prototyping user guide for your board for
-	  the correct address. Wrong address here may lead to hardware lockup.
-
-config XTFPGA_LCD_8BIT_ACCESS
-	bool "Use 8-bit access to XTFPGA LCD"
-	depends on XTFPGA_LCD
-	default n
-	help
-	  LCD may be connected with 4- or 8-bit interface, 8-bit access may
-	  only be used with 8-bit interface. Please consult prototyping user
-	  guide for your board for the correct interface width.
 
 endmenu
 

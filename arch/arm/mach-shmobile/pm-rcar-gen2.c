@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * R-Car Generation 2 Power management support
  *
  * Copyright (C) 2013 - 2015  Renesas Electronics Corporation
  * Copyright (C) 2011  Renesas Solutions Corp.
  * Copyright (C) 2011  Magnus Damm
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/kernel.h>
@@ -50,7 +47,7 @@ void __init rcar_gen2_pm_init(void)
 	void __iomem *p;
 	u32 bar;
 	static int once;
-	struct device_node *np, *cpus;
+	struct device_node *np;
 	bool has_a7 = false;
 	bool has_a15 = false;
 	struct resource res;
@@ -59,11 +56,7 @@ void __init rcar_gen2_pm_init(void)
 	if (once++)
 		return;
 
-	cpus = of_find_node_by_path("/cpus");
-	if (!cpus)
-		return;
-
-	for_each_child_of_node(cpus, np) {
+	for_each_of_cpu_node(np) {
 		if (of_device_is_compatible(np, "arm,cortex-a15"))
 			has_a15 = true;
 		else if (of_device_is_compatible(np, "arm,cortex-a7"))
@@ -79,6 +72,7 @@ void __init rcar_gen2_pm_init(void)
 	}
 
 	error = of_address_to_resource(np, 0, &res);
+	of_node_put(np);
 	if (error) {
 		pr_err("Failed to get smp-sram address: %d\n", error);
 		return;
@@ -109,7 +103,7 @@ map:
 	iounmap(p);
 
 	/* setup reset vectors */
-	p = ioremap_nocache(RST, 0x63);
+	p = ioremap(RST, 0x63);
 	bar = phys_to_sbar(res.start);
 	if (has_a15) {
 		writel_relaxed(bar, p + CA15BAR);

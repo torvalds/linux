@@ -1,17 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- *
+ * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #ifndef _MEI_CLIENT_H_
@@ -79,6 +69,54 @@ static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
 	return me_cl->props.protocol_version;
 }
 
+/**
+ * mei_me_cl_max_conn - return me client max number of connections
+ *
+ * @me_cl: me client
+ *
+ * Return: me client max number of connections
+ */
+static inline u8 mei_me_cl_max_conn(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.max_number_of_connections;
+}
+
+/**
+ * mei_me_cl_fixed - return me client fixed address, if any
+ *
+ * @me_cl: me client
+ *
+ * Return: me client fixed address
+ */
+static inline u8 mei_me_cl_fixed(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.fixed_address;
+}
+
+/**
+ * mei_me_cl_vt - return me client vtag supported status
+ *
+ * @me_cl: me client
+ *
+ * Return: true if me client supports vt tagging
+ */
+static inline bool mei_me_cl_vt(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.vt_supported == 1;
+}
+
+/**
+ * mei_me_cl_max_len - return me client max msg length
+ *
+ * @me_cl: me client
+ *
+ * Return: me client max msg length
+ */
+static inline u32 mei_me_cl_max_len(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.max_msg_length;
+}
+
 /*
  * MEI IO Functions
  */
@@ -95,8 +133,11 @@ int mei_cl_unlink(struct mei_cl *cl);
 
 struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev);
 
-struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl,
-				 const struct file *fp);
+struct mei_cl_cb *mei_cl_read_cb(struct mei_cl *cl, const struct file *fp);
+
+void mei_cl_add_rd_completed(struct mei_cl *cl, struct mei_cl_cb *cb);
+void mei_cl_del_rd_completed(struct mei_cl *cl, struct mei_cl_cb *cb);
+
 struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 				  enum mei_cb_file_ops type,
 				  const struct file *fp);
@@ -105,6 +146,9 @@ struct mei_cl_cb *mei_cl_enqueue_ctrl_wr_cb(struct mei_cl *cl, size_t length,
 					    const struct file *fp);
 int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp);
 
+struct mei_cl_vtag *mei_cl_vtag_alloc(struct file *fp, u8 vtag);
+const struct file *mei_cl_fp_by_vtag(const struct mei_cl *cl, u8 vtag);
+int mei_cl_vt_support_check(const struct mei_cl *cl);
 /*
  *  MEI input output function prototype
  */
@@ -138,11 +182,11 @@ static inline u8 mei_cl_me_id(const struct mei_cl *cl)
  *
  * @cl: host client
  *
- * Return: mtu
+ * Return: mtu or 0 if client is not connected
  */
 static inline size_t mei_cl_mtu(const struct mei_cl *cl)
 {
-	return cl->me_cl->props.max_msg_length;
+	return cl->me_cl ? cl->me_cl->props.max_msg_length : 0;
 }
 
 /**

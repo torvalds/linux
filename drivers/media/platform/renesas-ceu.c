@@ -189,8 +189,6 @@ struct ceu_device {
 
 	/* async subdev notification helpers */
 	struct v4l2_async_notifier notifier;
-	/* pointers to "struct ceu_subdevice -> asd" */
-	struct v4l2_async_subdev **asds;
 
 	/* vb2 queue, capture buffer list and active buffer pointer */
 	struct vb2_queue	vb2_vq;
@@ -407,7 +405,7 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 	/* Non-swapped planar image capture mode. */
 	case V4L2_PIX_FMT_NV16:
 		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
-		/* fall-through */
+		fallthrough;
 	case V4L2_PIX_FMT_NV12:
 		if (mbus_fmt->swapped)
 			camcr = mbus_fmt->fmt_order_swap;
@@ -421,7 +419,7 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 	/* Swapped planar image capture mode. */
 	case V4L2_PIX_FMT_NV61:
 		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
-		/* fall-through */
+		fallthrough;
 	case V4L2_PIX_FMT_NV21:
 		if (mbus_fmt->swapped)
 			camcr = mbus_fmt->fmt_order;
@@ -1137,8 +1135,8 @@ static int ceu_querycap(struct file *file, void *priv,
 {
 	struct ceu_device *ceudev = video_drvdata(file);
 
-	strlcpy(cap->card, "Renesas CEU", sizeof(cap->card));
-	strlcpy(cap->driver, DRIVER_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "Renesas CEU", sizeof(cap->card));
+	strscpy(cap->driver, DRIVER_NAME, sizeof(cap->driver));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:renesas-ceu-%s", dev_name(ceudev->dev));
 
@@ -1341,7 +1339,7 @@ static int ceu_enum_frameintervals(struct file *file, void *fh,
 static const struct v4l2_ioctl_ops ceu_ioctl_ops = {
 	.vidioc_querycap		= ceu_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane	= ceu_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_cap	= ceu_enum_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap_mplane	= ceu_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap_mplane	= ceu_s_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap_mplane	= ceu_g_fmt_vid_cap,
@@ -1440,7 +1438,7 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 
 	/* Register the video device. */
-	strlcpy(vdev->name, DRIVER_NAME, sizeof(vdev->name));
+	strscpy(vdev->name, DRIVER_NAME, sizeof(vdev->name));
 	vdev->v4l2_dev		= v4l2_dev;
 	vdev->lock		= &ceudev->mlock;
 	vdev->queue		= &ceudev->vb2_vq;
@@ -1452,7 +1450,7 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 				  V4L2_CAP_STREAMING;
 	video_set_drvdata(vdev, ceudev);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		v4l2_err(vdev->v4l2_dev,
 			 "video_register_device failed: %d\n", ret);
@@ -1482,15 +1480,6 @@ static int ceu_init_async_subdevs(struct ceu_device *ceudev, unsigned int n_sd)
 	if (!ceudev->subdevs)
 		return -ENOMEM;
 
-	/*
-	 * Reserve memory for 'n_sd' pointers to async_subdevices.
-	 * ceudev->asds members will point to &ceu_subdev.asd
-	 */
-	ceudev->asds = devm_kcalloc(ceudev->dev, n_sd,
-				    sizeof(*ceudev->asds), GFP_KERNEL);
-	if (!ceudev->asds)
-		return -ENOMEM;
-
 	ceudev->sd = NULL;
 	ceudev->sd_index = 0;
 	ceudev->num_sd = 0;
@@ -1518,6 +1507,7 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 		return ret;
 
 	for (i = 0; i < pdata->num_subdevs; i++) {
+
 		/* Setup the ceu subdevice and the async subdevice. */
 		async_sd = &pdata->subdevs[i];
 		ceu_sd = &ceudev->subdevs[i];
@@ -1529,7 +1519,12 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 		ceu_sd->asd.match.i2c.adapter_id = async_sd->i2c_adapter_id;
 		ceu_sd->asd.match.i2c.address = async_sd->i2c_address;
 
-		ceudev->asds[i] = &ceu_sd->asd;
+		ret = v4l2_async_notifier_add_subdev(&ceudev->notifier,
+						     &ceu_sd->asd);
+		if (ret) {
+			v4l2_async_notifier_cleanup(&ceudev->notifier);
+			return ret;
+		}
 	}
 
 	return pdata->num_subdevs;
@@ -1541,9 +1536,8 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 static int ceu_parse_dt(struct ceu_device *ceudev)
 {
 	struct device_node *of = ceudev->dev->of_node;
-	struct v4l2_fwnode_endpoint fw_ep;
+	struct device_node *ep, *remote;
 	struct ceu_subdev *ceu_sd;
-	struct device_node *ep;
 	unsigned int i;
 	int num_ep;
 	int ret;
@@ -1557,45 +1551,55 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 		return ret;
 
 	for (i = 0; i < num_ep; i++) {
+		struct v4l2_fwnode_endpoint fw_ep = {
+			.bus_type = V4L2_MBUS_PARALLEL,
+			.bus = {
+				.parallel = {
+					.flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+						 V4L2_MBUS_VSYNC_ACTIVE_HIGH,
+					.bus_width = 8,
+				},
+			},
+		};
+
 		ep = of_graph_get_endpoint_by_regs(of, 0, i);
 		if (!ep) {
 			dev_err(ceudev->dev,
 				"No subdevice connected on endpoint %u.\n", i);
 			ret = -ENODEV;
-			goto error_put_node;
+			goto error_cleanup;
 		}
 
 		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &fw_ep);
 		if (ret) {
 			dev_err(ceudev->dev,
-				"Unable to parse endpoint #%u.\n", i);
-			goto error_put_node;
-		}
-
-		if (fw_ep.bus_type != V4L2_MBUS_PARALLEL) {
-			dev_err(ceudev->dev,
-				"Only parallel input supported.\n");
-			ret = -EINVAL;
-			goto error_put_node;
+				"Unable to parse endpoint #%u: %d.\n", i, ret);
+			goto error_cleanup;
 		}
 
 		/* Setup the ceu subdevice and the async subdevice. */
 		ceu_sd = &ceudev->subdevs[i];
 		INIT_LIST_HEAD(&ceu_sd->asd.list);
 
+		remote = of_graph_get_remote_port_parent(ep);
 		ceu_sd->mbus_flags = fw_ep.bus.parallel.flags;
 		ceu_sd->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		ceu_sd->asd.match.fwnode =
-			fwnode_graph_get_remote_port_parent(
-					of_fwnode_handle(ep));
+		ceu_sd->asd.match.fwnode = of_fwnode_handle(remote);
 
-		ceudev->asds[i] = &ceu_sd->asd;
+		ret = v4l2_async_notifier_add_subdev(&ceudev->notifier,
+						     &ceu_sd->asd);
+		if (ret) {
+			of_node_put(remote);
+			goto error_cleanup;
+		}
+
 		of_node_put(ep);
 	}
 
 	return num_ep;
 
-error_put_node:
+error_cleanup:
+	v4l2_async_notifier_cleanup(&ceudev->notifier);
 	of_node_put(ep);
 	return ret;
 }
@@ -1655,10 +1659,8 @@ static int ceu_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "Failed to get irq: %d\n", ret);
+	if (ret < 0)
 		goto error_free_ceudev;
-	}
 	irq = ret;
 
 	ret = devm_request_irq(dev, irq, ceu_irq,
@@ -1673,6 +1675,8 @@ static int ceu_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(dev, &ceudev->v4l2_dev);
 	if (ret)
 		goto error_pm_disable;
+
+	v4l2_async_notifier_init(&ceudev->notifier);
 
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
 		ceu_data = of_match_device(ceu_of_match, dev)->data;
@@ -1693,18 +1697,18 @@ static int ceu_probe(struct platform_device *pdev)
 	ceudev->irq_mask = ceu_data->irq_mask;
 
 	ceudev->notifier.v4l2_dev	= &ceudev->v4l2_dev;
-	ceudev->notifier.subdevs	= ceudev->asds;
-	ceudev->notifier.num_subdevs	= num_subdevs;
 	ceudev->notifier.ops		= &ceu_notify_ops;
 	ret = v4l2_async_notifier_register(&ceudev->v4l2_dev,
 					   &ceudev->notifier);
 	if (ret)
-		goto error_v4l2_unregister;
+		goto error_cleanup;
 
 	dev_info(dev, "Renesas Capture Engine Unit %s\n", dev_name(dev));
 
 	return 0;
 
+error_cleanup:
+	v4l2_async_notifier_cleanup(&ceudev->notifier);
 error_v4l2_unregister:
 	v4l2_device_unregister(&ceudev->v4l2_dev);
 error_pm_disable:
@@ -1722,6 +1726,8 @@ static int ceu_remove(struct platform_device *pdev)
 	pm_runtime_disable(ceudev->dev);
 
 	v4l2_async_notifier_unregister(&ceudev->notifier);
+
+	v4l2_async_notifier_cleanup(&ceudev->notifier);
 
 	v4l2_device_unregister(&ceudev->v4l2_dev);
 

@@ -11,9 +11,6 @@
 #include "hclgevf_main.h"
 #include "hnae3.h"
 
-#define hclgevf_is_csq(ring) ((ring)->flag & HCLGEVF_TYPE_CSQ)
-#define hclgevf_ring_to_dma_dir(ring) (hclgevf_is_csq(ring) ? \
-					DMA_TO_DEVICE : DMA_FROM_DEVICE)
 #define cmq_ring_to_dev(ring)   (&(ring)->dev->pdev->dev)
 
 static int hclgevf_ring_space(struct hclgevf_cmq_ring *ring)
@@ -27,26 +24,39 @@ static int hclgevf_ring_space(struct hclgevf_cmq_ring *ring)
 	return ring->desc_num - used - 1;
 }
 
+static int hclgevf_is_valid_csq_clean_head(struct hclgevf_cmq_ring *ring,
+					   int head)
+{
+	int ntu = ring->next_to_use;
+	int ntc = ring->next_to_clean;
+
+	if (ntu > ntc)
+		return head >= ntc && head <= ntu;
+
+	return head >= ntc || head <= ntu;
+}
+
 static int hclgevf_cmd_csq_clean(struct hclgevf_hw *hw)
 {
+	struct hclgevf_dev *hdev = container_of(hw, struct hclgevf_dev, hw);
 	struct hclgevf_cmq_ring *csq = &hw->cmq.csq;
-	u16 ntc = csq->next_to_clean;
-	struct hclgevf_desc *desc;
-	int clean = 0;
+	int clean;
 	u32 head;
 
-	desc = &csq->desc[ntc];
 	head = hclgevf_read_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG);
-	while (head != ntc) {
-		memset(desc, 0, sizeof(*desc));
-		ntc++;
-		if (ntc == csq->desc_num)
-			ntc = 0;
-		desc = &csq->desc[ntc];
-		clean++;
-	}
-	csq->next_to_clean = ntc;
+	rmb(); /* Make sure head is ready before touch any data */
 
+	if (!hclgevf_is_valid_csq_clean_head(csq, head)) {
+		dev_warn(&hdev->pdev->dev, "wrong cmd head (%u, %d-%d)\n", head,
+			 csq->next_to_use, csq->next_to_clean);
+		dev_warn(&hdev->pdev->dev,
+			 "Disabling any further commands to IMP firmware\n");
+		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+		return -EIO;
+	}
+
+	clean = (head - csq->next_to_clean + csq->desc_num) % csq->desc_num;
+	csq->next_to_clean = head;
 	return clean;
 }
 
@@ -61,7 +71,7 @@ static bool hclgevf_cmd_csq_done(struct hclgevf_hw *hw)
 
 static bool hclgevf_is_special_opcode(u16 opcode)
 {
-	u16 spec_opcode[] = {0x30, 0x31, 0x32};
+	static const u16 spec_opcode[] = {0x30, 0x31, 0x32};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
@@ -72,13 +82,51 @@ static bool hclgevf_is_special_opcode(u16 opcode)
 	return false;
 }
 
+static void hclgevf_cmd_config_regs(struct hclgevf_cmq_ring *ring)
+{
+	struct hclgevf_dev *hdev = ring->dev;
+	struct hclgevf_hw *hw = &hdev->hw;
+	u32 reg_val;
+
+	if (ring->flag == HCLGEVF_TYPE_CSQ) {
+		reg_val = lower_32_bits(ring->desc_dma_addr);
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_L_REG, reg_val);
+		reg_val = upper_32_bits(ring->desc_dma_addr);
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_H_REG, reg_val);
+
+		reg_val = hclgevf_read_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG);
+		reg_val &= HCLGEVF_NIC_SW_RST_RDY;
+		reg_val |= (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG, reg_val);
+
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG, 0);
+	} else {
+		reg_val = lower_32_bits(ring->desc_dma_addr);
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_L_REG, reg_val);
+		reg_val = upper_32_bits(ring->desc_dma_addr);
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_H_REG, reg_val);
+
+		reg_val = (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_DEPTH_REG, reg_val);
+
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_HEAD_REG, 0);
+		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG, 0);
+	}
+}
+
+static void hclgevf_cmd_init_regs(struct hclgevf_hw *hw)
+{
+	hclgevf_cmd_config_regs(&hw->cmq.csq);
+	hclgevf_cmd_config_regs(&hw->cmq.crq);
+}
+
 static int hclgevf_alloc_cmd_desc(struct hclgevf_cmq_ring *ring)
 {
 	int size = ring->desc_num * sizeof(struct hclgevf_desc);
 
-	ring->desc = dma_zalloc_coherent(cmq_ring_to_dev(ring),
-					 size, &ring->desc_dma_addr,
-					 GFP_KERNEL);
+	ring->desc = dma_alloc_coherent(cmq_ring_to_dev(ring), size,
+					&ring->desc_dma_addr, GFP_KERNEL);
 	if (!ring->desc)
 		return -ENOMEM;
 
@@ -96,61 +144,23 @@ static void hclgevf_free_cmd_desc(struct hclgevf_cmq_ring *ring)
 	}
 }
 
-static int hclgevf_init_cmd_queue(struct hclgevf_dev *hdev,
-				  struct hclgevf_cmq_ring *ring)
+static int hclgevf_alloc_cmd_queue(struct hclgevf_dev *hdev, int ring_type)
 {
 	struct hclgevf_hw *hw = &hdev->hw;
-	int ring_type = ring->flag;
-	u32 reg_val;
+	struct hclgevf_cmq_ring *ring =
+		(ring_type == HCLGEVF_TYPE_CSQ) ? &hw->cmq.csq : &hw->cmq.crq;
 	int ret;
 
-	ring->desc_num = HCLGEVF_NIC_CMQ_DESC_NUM;
-	spin_lock_init(&ring->lock);
-	ring->next_to_clean = 0;
-	ring->next_to_use = 0;
 	ring->dev = hdev;
+	ring->flag = ring_type;
 
 	/* allocate CSQ/CRQ descriptor */
 	ret = hclgevf_alloc_cmd_desc(ring);
-	if (ret) {
+	if (ret)
 		dev_err(&hdev->pdev->dev, "failed(%d) to alloc %s desc\n", ret,
 			(ring_type == HCLGEVF_TYPE_CSQ) ? "CSQ" : "CRQ");
-		return ret;
-	}
 
-	/* initialize the hardware registers with csq/crq dma-address,
-	 * descriptor number, head & tail pointers
-	 */
-	switch (ring_type) {
-	case HCLGEVF_TYPE_CSQ:
-		reg_val = (u32)ring->desc_dma_addr;
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_L_REG, reg_val);
-		reg_val = (u32)((ring->desc_dma_addr >> 31) >> 1);
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_H_REG, reg_val);
-
-		reg_val = (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);
-		reg_val |= HCLGEVF_NIC_CMQ_ENABLE;
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG, reg_val);
-
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG, 0);
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
-		break;
-	case HCLGEVF_TYPE_CRQ:
-		reg_val = (u32)ring->desc_dma_addr;
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_L_REG, reg_val);
-		reg_val = (u32)((ring->desc_dma_addr >> 31) >> 1);
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_H_REG, reg_val);
-
-		reg_val = (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);
-		reg_val |= HCLGEVF_NIC_CMQ_ENABLE;
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_DEPTH_REG, reg_val);
-
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG, 0);
-		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_HEAD_REG, 0);
-		break;
-	}
-
-	return 0;
+	return ret;
 }
 
 void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
@@ -166,6 +176,38 @@ void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
 		desc->flag &= cpu_to_le16(~HCLGEVF_CMD_FLAG_WR);
 }
 
+static int hclgevf_cmd_convert_err_code(u16 desc_ret)
+{
+	switch (desc_ret) {
+	case HCLGEVF_CMD_EXEC_SUCCESS:
+		return 0;
+	case HCLGEVF_CMD_NO_AUTH:
+		return -EPERM;
+	case HCLGEVF_CMD_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	case HCLGEVF_CMD_QUEUE_FULL:
+		return -EXFULL;
+	case HCLGEVF_CMD_NEXT_ERR:
+		return -ENOSR;
+	case HCLGEVF_CMD_UNEXE_ERR:
+		return -ENOTBLK;
+	case HCLGEVF_CMD_PARA_ERR:
+		return -EINVAL;
+	case HCLGEVF_CMD_RESULT_ERR:
+		return -ERANGE;
+	case HCLGEVF_CMD_TIMEOUT:
+		return -ETIME;
+	case HCLGEVF_CMD_HILINK_ERR:
+		return -ENOLINK;
+	case HCLGEVF_CMD_QUEUE_ILLEGAL:
+		return -ENXIO;
+	case HCLGEVF_CMD_INVALID:
+		return -EBADR;
+	default:
+		return -EIO;
+	}
+}
+
 /* hclgevf_cmd_send - send command to command queue
  * @hw: pointer to the hw struct
  * @desc: prefilled descriptor for describing the command
@@ -177,6 +219,7 @@ void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
 int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 {
 	struct hclgevf_dev *hdev = (struct hclgevf_dev *)hw->hdev;
+	struct hclgevf_cmq_ring *csq = &hw->cmq.csq;
 	struct hclgevf_desc *desc_to_use;
 	bool complete = false;
 	u32 timeout = 0;
@@ -188,7 +231,17 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 
 	spin_lock_bh(&hw->cmq.csq.lock);
 
+	if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+		spin_unlock_bh(&hw->cmq.csq.lock);
+		return -EBUSY;
+	}
+
 	if (num > hclgevf_ring_space(&hw->cmq.csq)) {
+		/* If CMDQ ring is full, SW HEAD and HW HEAD may be different,
+		 * need update the SW HEAD pointer csq->next_to_clean
+		 */
+		csq->next_to_clean = hclgevf_read_dev(hw,
+						      HCLGEVF_NIC_CSQ_HEAD_REG);
 		spin_unlock_bh(&hw->cmq.csq.lock);
 		return -EBUSY;
 	}
@@ -237,11 +290,7 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 			else
 				retval = le16_to_cpu(desc[0].retval);
 
-			if ((enum hclgevf_cmd_return_status)retval ==
-			    HCLGEVF_CMD_EXEC_SUCCESS)
-				status = 0;
-			else
-				status = -EIO;
+			status = hclgevf_cmd_convert_err_code(retval);
 			hw->cmq.last_status = (enum hclgevf_cmd_status)retval;
 			ntc++;
 			handle++;
@@ -251,23 +300,47 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 	}
 
 	if (!complete)
-		status = -EAGAIN;
+		status = -EBADE;
 
 	/* Clean the command send queue */
 	handle = hclgevf_cmd_csq_clean(hw);
-	if (handle != num) {
+	if (handle != num)
 		dev_warn(&hdev->pdev->dev,
 			 "cleaned %d, need to clean %d\n", handle, num);
-	}
 
 	spin_unlock_bh(&hw->cmq.csq.lock);
 
 	return status;
 }
 
-static int  hclgevf_cmd_query_firmware_version(struct hclgevf_hw *hw,
-					       u32 *version)
+static void hclgevf_set_default_capability(struct hclgevf_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+
+	set_bit(HNAE3_DEV_SUPPORT_FD_B, ae_dev->caps);
+	set_bit(HNAE3_DEV_SUPPORT_GRO_B, ae_dev->caps);
+	set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
+}
+
+static void hclgevf_parse_capability(struct hclgevf_dev *hdev,
+				     struct hclgevf_query_version_cmd *cmd)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	u32 caps;
+
+	caps = __le32_to_cpu(cmd->caps[0]);
+
+	if (hnae3_get_bit(caps, HCLGEVF_CAP_UDP_GSO_B))
+		set_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGEVF_CAP_INT_QL_B))
+		set_bit(HNAE3_DEV_SUPPORT_INT_QL_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGEVF_CAP_TQP_TXRX_INDEP_B))
+		set_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, ae_dev->caps);
+}
+
+static int hclgevf_cmd_query_version_and_capability(struct hclgevf_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hclgevf_query_version_cmd *resp;
 	struct hclgevf_desc desc;
 	int status;
@@ -275,66 +348,136 @@ static int  hclgevf_cmd_query_firmware_version(struct hclgevf_hw *hw,
 	resp = (struct hclgevf_query_version_cmd *)desc.data;
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_QUERY_FW_VER, 1);
-	status = hclgevf_cmd_send(hw, &desc, 1);
-	if (!status)
-		*version = le32_to_cpu(resp->firmware);
+	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
+	if (status)
+		return status;
+
+	hdev->fw_version = le32_to_cpu(resp->firmware);
+
+	ae_dev->dev_version = le32_to_cpu(resp->hardware) <<
+				 HNAE3_PCI_REVISION_BIT_SIZE;
+	ae_dev->dev_version |= hdev->pdev->revision;
+
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2)
+		hclgevf_set_default_capability(hdev);
+
+	hclgevf_parse_capability(hdev, resp);
 
 	return status;
 }
 
-int hclgevf_cmd_init(struct hclgevf_dev *hdev)
+int hclgevf_cmd_queue_init(struct hclgevf_dev *hdev)
 {
-	u32 version;
 	int ret;
 
-	/* setup Tx write back timeout */
-	hdev->hw.cmq.tx_timeout = HCLGEVF_CMDQ_TX_TIMEOUT;
+	/* Setup the lock for command queue */
+	spin_lock_init(&hdev->hw.cmq.csq.lock);
+	spin_lock_init(&hdev->hw.cmq.crq.lock);
 
-	/* setup queue CSQ/CRQ rings */
-	hdev->hw.cmq.csq.flag = HCLGEVF_TYPE_CSQ;
-	ret = hclgevf_init_cmd_queue(hdev, &hdev->hw.cmq.csq);
+	hdev->hw.cmq.tx_timeout = HCLGEVF_CMDQ_TX_TIMEOUT;
+	hdev->hw.cmq.csq.desc_num = HCLGEVF_NIC_CMQ_DESC_NUM;
+	hdev->hw.cmq.crq.desc_num = HCLGEVF_NIC_CMQ_DESC_NUM;
+
+	ret = hclgevf_alloc_cmd_queue(hdev, HCLGEVF_TYPE_CSQ);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"failed(%d) to initialize CSQ ring\n", ret);
+			"CSQ ring setup error %d\n", ret);
 		return ret;
 	}
 
-	hdev->hw.cmq.crq.flag = HCLGEVF_TYPE_CRQ;
-	ret = hclgevf_init_cmd_queue(hdev, &hdev->hw.cmq.crq);
+	ret = hclgevf_alloc_cmd_queue(hdev, HCLGEVF_TYPE_CRQ);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"failed(%d) to initialize CRQ ring\n", ret);
+			"CRQ ring setup error %d\n", ret);
 		goto err_csq;
 	}
+
+	return 0;
+err_csq:
+	hclgevf_free_cmd_desc(&hdev->hw.cmq.csq);
+	return ret;
+}
+
+int hclgevf_cmd_init(struct hclgevf_dev *hdev)
+{
+	int ret;
+
+	spin_lock_bh(&hdev->hw.cmq.csq.lock);
+	spin_lock(&hdev->hw.cmq.crq.lock);
 
 	/* initialize the pointers of async rx queue of mailbox */
 	hdev->arq.hdev = hdev;
 	hdev->arq.head = 0;
 	hdev->arq.tail = 0;
-	hdev->arq.count = 0;
+	atomic_set(&hdev->arq.count, 0);
+	hdev->hw.cmq.csq.next_to_clean = 0;
+	hdev->hw.cmq.csq.next_to_use = 0;
+	hdev->hw.cmq.crq.next_to_clean = 0;
+	hdev->hw.cmq.crq.next_to_use = 0;
 
-	/* get firmware version */
-	ret = hclgevf_cmd_query_firmware_version(&hdev->hw, &version);
+	hclgevf_cmd_init_regs(&hdev->hw);
+
+	spin_unlock(&hdev->hw.cmq.crq.lock);
+	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
+
+	clear_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+
+	/* Check if there is new reset pending, because the higher level
+	 * reset may happen when lower level reset is being processed.
+	 */
+	if (hclgevf_is_reset_pending(hdev)) {
+		ret = -EBUSY;
+		goto err_cmd_init;
+	}
+
+	/* get version and device capabilities */
+	ret = hclgevf_cmd_query_version_and_capability(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"failed(%d) to query firmware version\n", ret);
-		goto err_crq;
+			"failed to query version and capabilities, ret = %d\n", ret);
+		goto err_cmd_init;
 	}
-	hdev->fw_version = version;
 
-	dev_info(&hdev->pdev->dev, "The firmware version is %08x\n", version);
+	dev_info(&hdev->pdev->dev, "The firmware version is %lu.%lu.%lu.%lu\n",
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE3_MASK,
+				 HNAE3_FW_VERSION_BYTE3_SHIFT),
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE2_MASK,
+				 HNAE3_FW_VERSION_BYTE2_SHIFT),
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE1_MASK,
+				 HNAE3_FW_VERSION_BYTE1_SHIFT),
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE0_MASK,
+				 HNAE3_FW_VERSION_BYTE0_SHIFT));
 
 	return 0;
-err_crq:
-	hclgevf_free_cmd_desc(&hdev->hw.cmq.crq);
-err_csq:
-	hclgevf_free_cmd_desc(&hdev->hw.cmq.csq);
+
+err_cmd_init:
+	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
 
 	return ret;
 }
 
+static void hclgevf_cmd_uninit_regs(struct hclgevf_hw *hw)
+{
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_L_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_H_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_L_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_H_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_DEPTH_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_HEAD_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG, 0);
+}
+
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev)
 {
+	spin_lock_bh(&hdev->hw.cmq.csq.lock);
+	spin_lock(&hdev->hw.cmq.crq.lock);
+	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+	hclgevf_cmd_uninit_regs(&hdev->hw);
+	spin_unlock(&hdev->hw.cmq.crq.lock);
+	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
 	hclgevf_free_cmd_desc(&hdev->hw.cmq.csq);
 	hclgevf_free_cmd_desc(&hdev->hw.cmq.crq);
 }

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /*
  * This file contains definitions from Hyper-V Hypervisor Top-Level Functional
@@ -10,7 +10,7 @@
 #define _ASM_X86_HYPERV_TLFS_H
 
 #include <linux/types.h>
-
+#include <asm/page.h>
 /*
  * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
  * is set by CPUID(HvCpuIdFunctionVersionAndFeatures).
@@ -28,158 +28,94 @@
 #define HYPERV_CPUID_MAX			0x4000ffff
 
 /*
- * Feature identification. EAX indicates which features are available
- * to the partition based upon the current partition privileges.
- */
-
-/* VP Runtime (HV_X64_MSR_VP_RUNTIME) available */
-#define HV_X64_MSR_VP_RUNTIME_AVAILABLE		(1 << 0)
-/* Partition Reference Counter (HV_X64_MSR_TIME_REF_COUNT) available*/
-#define HV_MSR_TIME_REF_COUNT_AVAILABLE		(1 << 1)
-/* Partition reference TSC MSR is available */
-#define HV_MSR_REFERENCE_TSC_AVAILABLE		(1 << 9)
-
-/* A partition's reference time stamp counter (TSC) page */
-#define HV_X64_MSR_REFERENCE_TSC		0x40000021
-
-/*
- * There is a single feature flag that signifies if the partition has access
- * to MSRs with local APIC and TSC frequencies.
- */
-#define HV_X64_ACCESS_FREQUENCY_MSRS		(1 << 11)
-
-/* AccessReenlightenmentControls privilege */
-#define HV_X64_ACCESS_REENLIGHTENMENT		BIT(13)
-
-/*
- * Basic SynIC MSRs (HV_X64_MSR_SCONTROL through HV_X64_MSR_EOM
- * and HV_X64_MSR_SINT0 through HV_X64_MSR_SINT15) available
- */
-#define HV_X64_MSR_SYNIC_AVAILABLE		(1 << 2)
-/*
- * Synthetic Timer MSRs (HV_X64_MSR_STIMER0_CONFIG through
- * HV_X64_MSR_STIMER3_COUNT) available
- */
-#define HV_MSR_SYNTIMER_AVAILABLE		(1 << 3)
-/*
- * APIC access MSRs (HV_X64_MSR_EOI, HV_X64_MSR_ICR and HV_X64_MSR_TPR)
- * are available
- */
-#define HV_X64_MSR_APIC_ACCESS_AVAILABLE	(1 << 4)
-/* Hypercall MSRs (HV_X64_MSR_GUEST_OS_ID and HV_X64_MSR_HYPERCALL) available*/
-#define HV_X64_MSR_HYPERCALL_AVAILABLE		(1 << 5)
-/* Access virtual processor index MSR (HV_X64_MSR_VP_INDEX) available*/
-#define HV_X64_MSR_VP_INDEX_AVAILABLE		(1 << 6)
-/* Virtual system reset MSR (HV_X64_MSR_RESET) is available*/
-#define HV_X64_MSR_RESET_AVAILABLE		(1 << 7)
- /*
-  * Access statistics pages MSRs (HV_X64_MSR_STATS_PARTITION_RETAIL_PAGE,
-  * HV_X64_MSR_STATS_PARTITION_INTERNAL_PAGE, HV_X64_MSR_STATS_VP_RETAIL_PAGE,
-  * HV_X64_MSR_STATS_VP_INTERNAL_PAGE) available
-  */
-#define HV_X64_MSR_STAT_PAGES_AVAILABLE		(1 << 8)
-
-/* Frequency MSRs available */
-#define HV_FEATURE_FREQUENCY_MSRS_AVAILABLE	(1 << 8)
-
-/* Crash MSR available */
-#define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE (1 << 10)
-
-/* stimer Direct Mode is available */
-#define HV_STIMER_DIRECT_MODE_AVAILABLE		(1 << 19)
-
-/*
- * Feature identification: EBX indicates which flags were specified at
- * partition creation. The format is the same as the partition creation
- * flag structure defined in section Partition Creation Flags.
- */
-#define HV_X64_CREATE_PARTITIONS		(1 << 0)
-#define HV_X64_ACCESS_PARTITION_ID		(1 << 1)
-#define HV_X64_ACCESS_MEMORY_POOL		(1 << 2)
-#define HV_X64_ADJUST_MESSAGE_BUFFERS		(1 << 3)
-#define HV_X64_POST_MESSAGES			(1 << 4)
-#define HV_X64_SIGNAL_EVENTS			(1 << 5)
-#define HV_X64_CREATE_PORT			(1 << 6)
-#define HV_X64_CONNECT_PORT			(1 << 7)
-#define HV_X64_ACCESS_STATS			(1 << 8)
-#define HV_X64_DEBUGGING			(1 << 11)
-#define HV_X64_CPU_POWER_MANAGEMENT		(1 << 12)
-#define HV_X64_CONFIGURE_PROFILER		(1 << 13)
-
-/*
- * Feature identification. EDX indicates which miscellaneous features
- * are available to the partition.
+ * Group D Features.  The bit assignments are custom to each architecture.
+ * On x86/x64 these are HYPERV_CPUID_FEATURES.EDX bits.
  */
 /* The MWAIT instruction is available (per section MONITOR / MWAIT) */
-#define HV_X64_MWAIT_AVAILABLE				(1 << 0)
+#define HV_X64_MWAIT_AVAILABLE				BIT(0)
 /* Guest debugging support is available */
-#define HV_X64_GUEST_DEBUGGING_AVAILABLE		(1 << 1)
+#define HV_X64_GUEST_DEBUGGING_AVAILABLE		BIT(1)
 /* Performance Monitor support is available*/
-#define HV_X64_PERF_MONITOR_AVAILABLE			(1 << 2)
+#define HV_X64_PERF_MONITOR_AVAILABLE			BIT(2)
 /* Support for physical CPU dynamic partitioning events is available*/
-#define HV_X64_CPU_DYNAMIC_PARTITIONING_AVAILABLE	(1 << 3)
+#define HV_X64_CPU_DYNAMIC_PARTITIONING_AVAILABLE	BIT(3)
 /*
  * Support for passing hypercall input parameter block via XMM
  * registers is available
  */
-#define HV_X64_HYPERCALL_PARAMS_XMM_AVAILABLE		(1 << 4)
+#define HV_X64_HYPERCALL_PARAMS_XMM_AVAILABLE		BIT(4)
 /* Support for a virtual guest idle state is available */
-#define HV_X64_GUEST_IDLE_STATE_AVAILABLE		(1 << 5)
-/* Guest crash data handler available */
-#define HV_X64_GUEST_CRASH_MSR_AVAILABLE		(1 << 10)
+#define HV_X64_GUEST_IDLE_STATE_AVAILABLE		BIT(5)
+/* Frequency MSRs available */
+#define HV_FEATURE_FREQUENCY_MSRS_AVAILABLE		BIT(8)
+/* Crash MSR available */
+#define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE		BIT(10)
+/* Support for debug MSRs available */
+#define HV_FEATURE_DEBUG_MSRS_AVAILABLE			BIT(11)
+/* stimer Direct Mode is available */
+#define HV_STIMER_DIRECT_MODE_AVAILABLE			BIT(19)
 
 /*
  * Implementation recommendations. Indicates which behaviors the hypervisor
  * recommends the OS implement for optimal performance.
+ * These are HYPERV_CPUID_ENLIGHTMENT_INFO.EAX bits.
  */
- /*
-  * Recommend using hypercall for address space switches rather
-  * than MOV to CR3 instruction
-  */
-#define HV_X64_AS_SWITCH_RECOMMENDED		(1 << 0)
+/*
+ * Recommend using hypercall for address space switches rather
+ * than MOV to CR3 instruction
+ */
+#define HV_X64_AS_SWITCH_RECOMMENDED			BIT(0)
 /* Recommend using hypercall for local TLB flushes rather
  * than INVLPG or MOV to CR3 instructions */
-#define HV_X64_LOCAL_TLB_FLUSH_RECOMMENDED	(1 << 1)
+#define HV_X64_LOCAL_TLB_FLUSH_RECOMMENDED		BIT(1)
 /*
  * Recommend using hypercall for remote TLB flushes rather
  * than inter-processor interrupts
  */
-#define HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED	(1 << 2)
+#define HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED		BIT(2)
 /*
  * Recommend using MSRs for accessing APIC registers
  * EOI, ICR and TPR rather than their memory-mapped counterparts
  */
-#define HV_X64_APIC_ACCESS_RECOMMENDED		(1 << 3)
+#define HV_X64_APIC_ACCESS_RECOMMENDED			BIT(3)
 /* Recommend using the hypervisor-provided MSR to initiate a system RESET */
-#define HV_X64_SYSTEM_RESET_RECOMMENDED		(1 << 4)
+#define HV_X64_SYSTEM_RESET_RECOMMENDED			BIT(4)
 /*
  * Recommend using relaxed timing for this partition. If used,
  * the VM should disable any watchdog timeouts that rely on the
  * timely delivery of external interrupts
  */
-#define HV_X64_RELAXED_TIMING_RECOMMENDED	(1 << 5)
+#define HV_X64_RELAXED_TIMING_RECOMMENDED		BIT(5)
 
 /*
  * Recommend not using Auto End-Of-Interrupt feature
  */
-#define HV_DEPRECATING_AEOI_RECOMMENDED		(1 << 9)
+#define HV_DEPRECATING_AEOI_RECOMMENDED			BIT(9)
 
 /*
  * Recommend using cluster IPI hypercalls.
  */
-#define HV_X64_CLUSTER_IPI_RECOMMENDED         (1 << 10)
+#define HV_X64_CLUSTER_IPI_RECOMMENDED			BIT(10)
 
 /* Recommend using the newer ExProcessorMasks interface */
-#define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
+#define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED		BIT(11)
 
 /* Recommend using enlightened VMCS */
-#define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED    (1 << 14)
+#define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED		BIT(14)
 
 /*
- * Crash notification flags.
+ * Virtual processor will never share a physical core with another virtual
+ * processor, except for virtual processors that are reported as sibling SMT
+ * threads.
  */
-#define HV_CRASH_CTL_CRASH_NOTIFY_MSG	BIT_ULL(62)
-#define HV_CRASH_CTL_CRASH_NOTIFY	BIT_ULL(63)
+#define HV_X64_NO_NONARCH_CORESHARING			BIT(18)
+
+/* Nested features. These are HYPERV_CPUID_NESTED_FEATURES.EAX bits. */
+#define HV_X64_NESTED_DIRECT_FLUSH			BIT(17)
+#define HV_X64_NESTED_GUEST_MAPPING_FLUSH		BIT(18)
+#define HV_X64_NESTED_MSR_BITMAP			BIT(19)
+
+/* Hyper-V specific model specific registers (MSRs) */
 
 /* MSR used to identify the guest OS. */
 #define HV_X64_MSR_GUEST_OS_ID			0x40000000
@@ -198,6 +134,9 @@
 
 /* MSR used to read the per-partition time reference counter */
 #define HV_X64_MSR_TIME_REF_COUNT		0x40000020
+
+/* A partition's reference time stamp counter (TSC) page */
+#define HV_X64_MSR_REFERENCE_TSC		0x40000021
 
 /* MSR used to retrieve the TSC frequency */
 #define HV_X64_MSR_TSC_FREQUENCY		0x40000022
@@ -246,6 +185,9 @@
 #define HV_X64_MSR_STIMER3_CONFIG		0x400000B6
 #define HV_X64_MSR_STIMER3_COUNT		0x400000B7
 
+/* Hyper-V guest idle MSR */
+#define HV_X64_MSR_GUEST_IDLE			0x400000F0
+
 /* Hyper-V guest crash notification MSR's */
 #define HV_X64_MSR_CRASH_P0			0x40000100
 #define HV_X64_MSR_CRASH_P1			0x40000101
@@ -253,9 +195,14 @@
 #define HV_X64_MSR_CRASH_P3			0x40000103
 #define HV_X64_MSR_CRASH_P4			0x40000104
 #define HV_X64_MSR_CRASH_CTL			0x40000105
-#define HV_X64_MSR_CRASH_CTL_NOTIFY		(1ULL << 63)
-#define HV_X64_MSR_CRASH_PARAMS		\
-		(1 + (HV_X64_MSR_CRASH_P4 - HV_X64_MSR_CRASH_P0))
+
+/* TSC emulation after migration */
+#define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
+#define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
+#define HV_X64_MSR_TSC_EMULATION_STATUS		0x40000108
+
+/* TSC invariant control */
+#define HV_X64_MSR_TSC_INVARIANT_CONTROL	0x40000118
 
 /*
  * Declare the MSR used to setup pages used to communicate with the hypervisor.
@@ -266,52 +213,8 @@ union hv_x64_msr_hypercall_contents {
 		u64 enable:1;
 		u64 reserved:11;
 		u64 guest_physical_address:52;
-	};
+	} __packed;
 };
-
-/*
- * TSC page layout.
- */
-struct ms_hyperv_tsc_page {
-	volatile u32 tsc_sequence;
-	u32 reserved1;
-	volatile u64 tsc_scale;
-	volatile s64 tsc_offset;
-	u64 reserved2[509];
-};
-
-/*
- * The guest OS needs to register the guest ID with the hypervisor.
- * The guest ID is a 64 bit entity and the structure of this ID is
- * specified in the Hyper-V specification:
- *
- * msdn.microsoft.com/en-us/library/windows/hardware/ff542653%28v=vs.85%29.aspx
- *
- * While the current guideline does not specify how Linux guest ID(s)
- * need to be generated, our plan is to publish the guidelines for
- * Linux and other guest operating systems that currently are hosted
- * on Hyper-V. The implementation here conforms to this yet
- * unpublished guidelines.
- *
- *
- * Bit(s)
- * 63 - Indicates if the OS is Open Source or not; 1 is Open Source
- * 62:56 - Os Type; Linux is 0x100
- * 55:48 - Distro specific identification
- * 47:16 - Linux kernel version number
- * 15:0  - Distro specific identification
- *
- *
- */
-
-#define HV_LINUX_VENDOR_ID              0x8100
-
-/* TSC emulation after migration */
-#define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
-
-/* Nested features (CPUID 0x4000000A) EAX */
-#define HV_X64_NESTED_GUEST_MAPPING_FLUSH	BIT(18)
-#define HV_X64_NESTED_MSR_BITMAP		BIT(19)
 
 struct hv_reenlightenment_control {
 	__u64 vector:8;
@@ -319,40 +222,28 @@ struct hv_reenlightenment_control {
 	__u64 enabled:1;
 	__u64 reserved2:15;
 	__u64 target_vp:32;
-};
-
-#define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
-#define HV_X64_MSR_TSC_EMULATION_STATUS		0x40000108
+}  __packed;
 
 struct hv_tsc_emulation_control {
 	__u64 enabled:1;
 	__u64 reserved:63;
-};
+} __packed;
 
 struct hv_tsc_emulation_status {
 	__u64 inprogress:1;
 	__u64 reserved:63;
-};
+} __packed;
 
 #define HV_X64_MSR_HYPERCALL_ENABLE		0x00000001
 #define HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT	12
 #define HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_MASK	\
 		(~((1ull << HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT) - 1))
 
+#define HV_X64_MSR_CRASH_PARAMS		\
+		(1 + (HV_X64_MSR_CRASH_P4 - HV_X64_MSR_CRASH_P0))
+
 #define HV_IPI_LOW_VECTOR	0x10
 #define HV_IPI_HIGH_VECTOR	0xff
-
-/* Declare the various hypercall operations. */
-#define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE	0x0002
-#define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST	0x0003
-#define HVCALL_NOTIFY_LONG_SPIN_WAIT		0x0008
-#define HVCALL_SEND_IPI				0x000b
-#define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX  0x0013
-#define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX   0x0014
-#define HVCALL_SEND_IPI_EX			0x0015
-#define HVCALL_POST_MESSAGE			0x005c
-#define HVCALL_SIGNAL_EVENT			0x005d
-#define HVCALL_FLUSH_GUEST_PHYSICAL_ADDRESS_SPACE 0x00af
 
 #define HV_X64_MSR_VP_ASSIST_PAGE_ENABLE	0x00000001
 #define HV_X64_MSR_VP_ASSIST_PAGE_ADDRESS_SHIFT	12
@@ -365,67 +256,6 @@ struct hv_tsc_emulation_status {
 #define HV_X64_MSR_TSC_REFERENCE_ENABLE		0x00000001
 #define HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT	12
 
-#define HV_PROCESSOR_POWER_STATE_C0		0
-#define HV_PROCESSOR_POWER_STATE_C1		1
-#define HV_PROCESSOR_POWER_STATE_C2		2
-#define HV_PROCESSOR_POWER_STATE_C3		3
-
-#define HV_FLUSH_ALL_PROCESSORS			BIT(0)
-#define HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES	BIT(1)
-#define HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY	BIT(2)
-#define HV_FLUSH_USE_EXTENDED_RANGE_FORMAT	BIT(3)
-
-enum HV_GENERIC_SET_FORMAT {
-	HV_GENERIC_SET_SPARSE_4K,
-	HV_GENERIC_SET_ALL,
-};
-
-#define HV_HYPERCALL_RESULT_MASK	GENMASK_ULL(15, 0)
-#define HV_HYPERCALL_FAST_BIT		BIT(16)
-#define HV_HYPERCALL_VARHEAD_OFFSET	17
-#define HV_HYPERCALL_REP_COMP_OFFSET	32
-#define HV_HYPERCALL_REP_COMP_MASK	GENMASK_ULL(43, 32)
-#define HV_HYPERCALL_REP_START_OFFSET	48
-#define HV_HYPERCALL_REP_START_MASK	GENMASK_ULL(59, 48)
-
-/* hypercall status code */
-#define HV_STATUS_SUCCESS			0
-#define HV_STATUS_INVALID_HYPERCALL_CODE	2
-#define HV_STATUS_INVALID_HYPERCALL_INPUT	3
-#define HV_STATUS_INVALID_ALIGNMENT		4
-#define HV_STATUS_INVALID_PARAMETER		5
-#define HV_STATUS_INSUFFICIENT_MEMORY		11
-#define HV_STATUS_INVALID_PORT_ID		17
-#define HV_STATUS_INVALID_CONNECTION_ID		18
-#define HV_STATUS_INSUFFICIENT_BUFFERS		19
-
-typedef struct _HV_REFERENCE_TSC_PAGE {
-	__u32 tsc_sequence;
-	__u32 res1;
-	__u64 tsc_scale;
-	__s64 tsc_offset;
-} HV_REFERENCE_TSC_PAGE, *PHV_REFERENCE_TSC_PAGE;
-
-/* Define the number of synthetic interrupt sources. */
-#define HV_SYNIC_SINT_COUNT		(16)
-/* Define the expected SynIC version. */
-#define HV_SYNIC_VERSION_1		(0x1)
-/* Valid SynIC vectors are 16-255. */
-#define HV_SYNIC_FIRST_VALID_VECTOR	(16)
-
-#define HV_SYNIC_CONTROL_ENABLE		(1ULL << 0)
-#define HV_SYNIC_SIMP_ENABLE		(1ULL << 0)
-#define HV_SYNIC_SIEFP_ENABLE		(1ULL << 0)
-#define HV_SYNIC_SINT_MASKED		(1ULL << 16)
-#define HV_SYNIC_SINT_AUTO_EOI		(1ULL << 17)
-#define HV_SYNIC_SINT_VECTOR_MASK	(0xFF)
-
-#define HV_SYNIC_STIMER_COUNT		(4)
-
-/* Define synthetic interrupt controller message constants. */
-#define HV_MESSAGE_SIZE			(256)
-#define HV_MESSAGE_PAYLOAD_BYTE_COUNT	(240)
-#define HV_MESSAGE_PAYLOAD_QWORD_COUNT	(30)
 
 /* Define hypervisor message types. */
 enum hv_message_type {
@@ -436,85 +266,45 @@ enum hv_message_type {
 	HVMSG_GPA_INTERCEPT		= 0x80000001,
 
 	/* Timer notification messages. */
-	HVMSG_TIMER_EXPIRED			= 0x80000010,
+	HVMSG_TIMER_EXPIRED		= 0x80000010,
 
 	/* Error messages. */
 	HVMSG_INVALID_VP_REGISTER_VALUE	= 0x80000020,
 	HVMSG_UNRECOVERABLE_EXCEPTION	= 0x80000021,
-	HVMSG_UNSUPPORTED_FEATURE		= 0x80000022,
+	HVMSG_UNSUPPORTED_FEATURE	= 0x80000022,
 
 	/* Trace buffer complete messages. */
 	HVMSG_EVENTLOG_BUFFERCOMPLETE	= 0x80000040,
 
 	/* Platform-specific processor intercept messages. */
-	HVMSG_X64_IOPORT_INTERCEPT		= 0x80010000,
+	HVMSG_X64_IOPORT_INTERCEPT	= 0x80010000,
 	HVMSG_X64_MSR_INTERCEPT		= 0x80010001,
-	HVMSG_X64_CPUID_INTERCEPT		= 0x80010002,
+	HVMSG_X64_CPUID_INTERCEPT	= 0x80010002,
 	HVMSG_X64_EXCEPTION_INTERCEPT	= 0x80010003,
-	HVMSG_X64_APIC_EOI			= 0x80010004,
-	HVMSG_X64_LEGACY_FP_ERROR		= 0x80010005
+	HVMSG_X64_APIC_EOI		= 0x80010004,
+	HVMSG_X64_LEGACY_FP_ERROR	= 0x80010005
 };
 
-/* Define synthetic interrupt controller message flags. */
-union hv_message_flags {
-	__u8 asu8;
+struct hv_nested_enlightenments_control {
 	struct {
-		__u8 msg_pending:1;
-		__u8 reserved:7;
-	};
-};
-
-/* Define port identifier type. */
-union hv_port_id {
-	__u32 asu32;
+		__u32 directhypercall:1;
+		__u32 reserved:31;
+	} features;
 	struct {
-		__u32 id:24;
-		__u32 reserved:8;
-	} u;
-};
-
-/* Define synthetic interrupt controller message header. */
-struct hv_message_header {
-	__u32 message_type;
-	__u8 payload_size;
-	union hv_message_flags message_flags;
-	__u8 reserved[2];
-	union {
-		__u64 sender;
-		union hv_port_id port;
-	};
-};
-
-/* Define synthetic interrupt controller message format. */
-struct hv_message {
-	struct hv_message_header header;
-	union {
-		__u64 payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
-	} u;
-};
-
-/* Define the synthetic interrupt message page layout. */
-struct hv_message_page {
-	struct hv_message sint_message[HV_SYNIC_SINT_COUNT];
-};
-
-/* Define timer message payload structure. */
-struct hv_timer_message_payload {
-	__u32 timer_index;
-	__u32 reserved;
-	__u64 expiration_time;	/* When the timer expired */
-	__u64 delivery_time;	/* When the message was delivered */
-};
+		__u32 reserved;
+	} hypercallControls;
+} __packed;
 
 /* Define virtual processor assist page structure. */
 struct hv_vp_assist_page {
 	__u32 apic_assist;
-	__u32 reserved;
-	__u64 vtl_control[2];
-	__u64 nested_enlightenments_control[2];
-	__u32 enlighten_vmentry;
+	__u32 reserved1;
+	__u64 vtl_control[3];
+	struct hv_nested_enlightenments_control nested_control;
+	__u8 enlighten_vmentry;
+	__u8 reserved2[7];
 	__u64 current_nested_vmcs;
-};
+} __packed;
 
 struct hv_enlightened_vmcs {
 	u32 revision_id;
@@ -527,6 +317,8 @@ struct hv_enlightened_vmcs {
 	u16 host_fs_selector;
 	u16 host_gs_selector;
 	u16 host_tr_selector;
+
+	u16 padding16_1;
 
 	u64 host_ia32_pat;
 	u64 host_ia32_efer;
@@ -646,7 +438,7 @@ struct hv_enlightened_vmcs {
 	u64 ept_pointer;
 
 	u16 virtual_processor_id;
-	u16 padding16[3];
+	u16 padding16_2[3];
 
 	u64 padding64_2[5];
 	u64 guest_physical_address;
@@ -688,7 +480,7 @@ struct hv_enlightened_vmcs {
 		u32 nested_flush_hypercall:1;
 		u32 msr_bitmap:1;
 		u32 reserved:30;
-	} hv_enlightenments_control;
+	}  __packed hv_enlightenments_control;
 	u32 hv_vp_id;
 
 	u64 hv_vm_id;
@@ -698,7 +490,7 @@ struct hv_enlightened_vmcs {
 	u64 padding64_5[7];
 	u64 xss_exit_bitmap;
 	u64 padding64_6[7];
-};
+} __packed;
 
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE			0
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_IO_BITMAP		BIT(0)
@@ -720,52 +512,11 @@ struct hv_enlightened_vmcs {
 
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL			0xFFFF
 
-#define HV_STIMER_ENABLE		(1ULL << 0)
-#define HV_STIMER_PERIODIC		(1ULL << 1)
-#define HV_STIMER_LAZY			(1ULL << 2)
-#define HV_STIMER_AUTOENABLE		(1ULL << 3)
-#define HV_STIMER_SINT(config)		(__u8)(((config) >> 16) & 0x0F)
-
-struct hv_vpset {
-	u64 format;
-	u64 valid_bank_mask;
-	u64 bank_contents[];
+struct hv_partition_assist_pg {
+	u32 tlb_lock_count;
 };
 
-/* HvCallSendSyntheticClusterIpi hypercall */
-struct hv_send_ipi {
-	u32 vector;
-	u32 reserved;
-	u64 cpu_mask;
-};
 
-/* HvCallSendSyntheticClusterIpiEx hypercall */
-struct hv_send_ipi_ex {
-	u32 vector;
-	u32 reserved;
-	struct hv_vpset vp_set;
-};
-
-/* HvFlushGuestPhysicalAddressSpace hypercalls */
-struct hv_guest_mapping_flush {
-	u64 address_space;
-	u64 flags;
-};
-
-/* HvFlushVirtualAddressSpace, HvFlushVirtualAddressList hypercalls */
-struct hv_tlb_flush {
-	u64 address_space;
-	u64 flags;
-	u64 processor_mask;
-	u64 gva_list[];
-};
-
-/* HvFlushVirtualAddressSpaceEx, HvFlushVirtualAddressListEx hypercalls */
-struct hv_tlb_flush_ex {
-	u64 address_space;
-	u64 flags;
-	struct hv_vpset hv_vp_set;
-	u64 gva_list[];
-};
+#include <asm-generic/hyperv-tlfs.h>
 
 #endif

@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 #include "hns_roce_device.h"
+#include <rdma/ib_umem.h>
 
 int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj)
 {
@@ -54,7 +55,7 @@ int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj)
 			bitmap->last = 0;
 		*obj |= bitmap->top;
 	} else {
-		ret = -1;
+		ret = -EINVAL;
 	}
 
 	spin_unlock(&bitmap->lock);
@@ -67,7 +68,6 @@ void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
 {
 	hns_roce_bitmap_free_range(bitmap, obj, 1, rr);
 }
-EXPORT_SYMBOL_GPL(hns_roce_bitmap_free);
 
 int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
 				int align, unsigned long *obj)
@@ -100,7 +100,7 @@ int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
 		}
 		*obj |= bitmap->top;
 	} else {
-		ret = -1;
+		ret = -EINVAL;
 	}
 
 	spin_unlock(&bitmap->lock);
@@ -157,88 +157,135 @@ void hns_roce_bitmap_cleanup(struct hns_roce_bitmap *bitmap)
 	kfree(bitmap->table);
 }
 
-void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
-		       struct hns_roce_buf *buf)
+void hns_roce_buf_free(struct hns_roce_dev *hr_dev, struct hns_roce_buf *buf)
 {
-	int i;
 	struct device *dev = hr_dev->dev;
+	u32 size = buf->size;
+	int i;
 
-	if (buf->nbufs == 1) {
+	if (size == 0)
+		return;
+
+	buf->size = 0;
+
+	if (hns_roce_buf_is_direct(buf)) {
 		dma_free_coherent(dev, size, buf->direct.buf, buf->direct.map);
 	} else {
-		for (i = 0; i < buf->nbufs; ++i)
+		for (i = 0; i < buf->npages; ++i)
 			if (buf->page_list[i].buf)
 				dma_free_coherent(dev, 1 << buf->page_shift,
 						  buf->page_list[i].buf,
 						  buf->page_list[i].map);
 		kfree(buf->page_list);
+		buf->page_list = NULL;
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_buf_free);
 
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 		       struct hns_roce_buf *buf, u32 page_shift)
 {
-	int i = 0;
-	dma_addr_t t;
+	struct hns_roce_buf_list *buf_list;
 	struct device *dev = hr_dev->dev;
-	u32 page_size = 1 << page_shift;
-	u32 order;
+	u32 page_size;
+	int i;
 
-	/* SQ/RQ buf lease than one page, SQ + RQ = 8K */
+	/* The minimum shift of the page accessed by hw is HNS_HW_PAGE_SHIFT */
+	buf->page_shift = max_t(int, HNS_HW_PAGE_SHIFT, page_shift);
+
+	page_size = 1 << buf->page_shift;
+	buf->npages = DIV_ROUND_UP(size, page_size);
+
+	/* required size is not bigger than one trunk size */
 	if (size <= max_direct) {
-		buf->nbufs = 1;
-		/* Npages calculated by page_size */
-		order = get_order(size);
-		if (order <= page_shift - PAGE_SHIFT)
-			order = 0;
-		else
-			order -= page_shift - PAGE_SHIFT;
-		buf->npages = 1 << order;
-		buf->page_shift = page_shift;
-		/* MTT PA must be recorded in 4k alignment, t is 4k aligned */
-		buf->direct.buf = dma_zalloc_coherent(dev,
-						      size, &t, GFP_KERNEL);
+		buf->page_list = NULL;
+		buf->direct.buf = dma_alloc_coherent(dev, size,
+						     &buf->direct.map,
+						     GFP_KERNEL);
 		if (!buf->direct.buf)
 			return -ENOMEM;
-
-		buf->direct.map = t;
-
-		while (t & ((1 << buf->page_shift) - 1)) {
-			--buf->page_shift;
-			buf->npages *= 2;
-		}
 	} else {
-		buf->nbufs = (size + page_size - 1) / page_size;
-		buf->npages = buf->nbufs;
-		buf->page_shift = page_shift;
-		buf->page_list = kcalloc(buf->nbufs, sizeof(*buf->page_list),
-					 GFP_KERNEL);
-
-		if (!buf->page_list)
+		buf_list = kcalloc(buf->npages, sizeof(*buf_list), GFP_KERNEL);
+		if (!buf_list)
 			return -ENOMEM;
 
-		for (i = 0; i < buf->nbufs; ++i) {
-			buf->page_list[i].buf = dma_zalloc_coherent(dev,
-								  page_size, &t,
-								  GFP_KERNEL);
-
-			if (!buf->page_list[i].buf)
-				goto err_free;
-
-			buf->page_list[i].map = t;
+		for (i = 0; i < buf->npages; i++) {
+			buf_list[i].buf = dma_alloc_coherent(dev, page_size,
+							     &buf_list[i].map,
+							     GFP_KERNEL);
+			if (!buf_list[i].buf)
+				break;
 		}
+
+		if (i != buf->npages && i > 0) {
+			while (i-- > 0)
+				dma_free_coherent(dev, page_size,
+						  buf_list[i].buf,
+						  buf_list[i].map);
+			kfree(buf_list);
+			return -ENOMEM;
+		}
+		buf->page_list = buf_list;
 	}
+	buf->size = size;
 
 	return 0;
+}
 
-err_free:
-	hns_roce_buf_free(hr_dev, size, buf);
-	return -ENOMEM;
+int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
+			   int buf_cnt, int start, struct hns_roce_buf *buf)
+{
+	int i, end;
+	int total;
+
+	end = start + buf_cnt;
+	if (end > buf->npages) {
+		dev_err(hr_dev->dev,
+			"Failed to check kmem bufs, end %d + %d total %d!\n",
+			start, buf_cnt, buf->npages);
+		return -EINVAL;
+	}
+
+	total = 0;
+	for (i = start; i < end; i++)
+		bufs[total++] = hns_roce_buf_page(buf, i);
+
+	return total;
+}
+
+int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
+			   int buf_cnt, int start, struct ib_umem *umem,
+			   unsigned int page_shift)
+{
+	struct ib_block_iter biter;
+	int total = 0;
+	int idx = 0;
+	u64 addr;
+
+	if (page_shift < HNS_HW_PAGE_SHIFT) {
+		dev_err(hr_dev->dev, "Failed to check umem page shift %d!\n",
+			page_shift);
+		return -EINVAL;
+	}
+
+	/* convert system page cnt to hw page cnt */
+	rdma_umem_for_each_dma_block(umem, &biter, 1 << page_shift) {
+		addr = rdma_block_iter_dma_address(&biter);
+		if (idx >= start) {
+			bufs[total++] = addr;
+			if (total >= buf_cnt)
+				goto done;
+		}
+		idx++;
+	}
+
+done:
+	return total;
 }
 
 void hns_roce_cleanup_bitmap(struct hns_roce_dev *hr_dev)
 {
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)
+		hns_roce_cleanup_srq_table(hr_dev);
 	hns_roce_cleanup_qp_table(hr_dev);
 	hns_roce_cleanup_cq_table(hr_dev);
 	hns_roce_cleanup_mr_table(hr_dev);

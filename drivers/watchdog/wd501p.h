@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ */
 /*
  *	Industrial Computer Source WDT500/501 driver
  *
@@ -11,12 +12,7 @@
  *
  *	http://www.cymru.net
  *
- *	This driver is provided under the GNU General Public License,
- *	incorporated herein by reference. The driver is provided without
- *	warranty or support.
- *
  *	Release 0.04.
- *
  */
 
 

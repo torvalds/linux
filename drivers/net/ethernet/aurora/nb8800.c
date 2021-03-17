@@ -1,23 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Mans Rullgard <mans@mansr.com>
  *
  * Mostly rewritten, based on driver from Sigma Designs.  Original
  * copyright notice below.
  *
- *
  * Driver for tangox SMP864x/SMP865x/SMP867x/SMP868x builtin Ethernet Mac.
  *
  * Copyright (C) 2005 Maxime Bizon <mbizon@freebox.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -394,7 +384,7 @@ static void nb8800_tx_dma_start_irq(struct net_device *dev)
 	spin_unlock(&priv->tx_lock);
 }
 
-static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct nb8800_priv *priv = netdev_priv(dev);
 	struct nb8800_tx_desc *txd;
@@ -404,6 +394,7 @@ static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int dma_len;
 	unsigned int align;
 	unsigned int next;
+	bool xmit_more;
 
 	if (atomic_read(&priv->tx_free) <= NB8800_DESC_LOW) {
 		netif_stop_queue(dev);
@@ -423,9 +414,10 @@ static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
+	xmit_more = netdev_xmit_more();
 	if (atomic_dec_return(&priv->tx_free) <= NB8800_DESC_LOW) {
 		netif_stop_queue(dev);
-		skb->xmit_more = 0;
+		xmit_more = false;
 	}
 
 	next = priv->tx_next;
@@ -450,7 +442,7 @@ static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 	desc->n_addr = priv->tx_bufs[next].dma_desc;
 	desc->config = DESC_BTS(2) | DESC_DS | DESC_EOF | dma_len;
 
-	if (!skb->xmit_more)
+	if (!xmit_more)
 		desc->config |= DESC_EOC;
 
 	txb->skb = skb;
@@ -468,7 +460,7 @@ static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	priv->tx_next = next;
 
-	if (!skb->xmit_more) {
+	if (!xmit_more) {
 		smp_wmb();
 		priv->tx_chain->ready = true;
 		priv->tx_chain = NULL;
@@ -935,18 +927,11 @@ static void nb8800_pause_adv(struct net_device *dev)
 {
 	struct nb8800_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
-	u32 adv = 0;
 
 	if (!phydev)
 		return;
 
-	if (priv->pause_rx)
-		adv |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-	if (priv->pause_tx)
-		adv ^= ADVERTISED_Asym_Pause;
-
-	phydev->supported |= adv;
-	phydev->advertising |= adv;
+	phy_set_asym_pause(phydev, priv->pause_rx, priv->pause_tx);
 }
 
 static int nb8800_open(struct net_device *dev)
@@ -1020,18 +1005,13 @@ static int nb8800_stop(struct net_device *dev)
 	return 0;
 }
 
-static int nb8800_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	return phy_mii_ioctl(dev->phydev, rq, cmd);
-}
-
 static const struct net_device_ops nb8800_netdev_ops = {
 	.ndo_open		= nb8800_open,
 	.ndo_stop		= nb8800_stop,
 	.ndo_start_xmit		= nb8800_xmit,
 	.ndo_set_mac_address	= nb8800_set_mac_address,
 	.ndo_set_rx_mode	= nb8800_set_rx_mode,
-	.ndo_do_ioctl		= nb8800_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -1366,10 +1346,8 @@ static int nb8800_probe(struct platform_device *pdev)
 		ops = match->data;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "No IRQ\n");
+	if (irq <= 0)
 		return -EINVAL;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -1388,8 +1366,8 @@ static int nb8800_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->base = base;
 
-	priv->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-	if (priv->phy_mode < 0)
+	ret = of_get_phy_mode(pdev->dev.of_node, &priv->phy_mode);
+	if (ret)
 		priv->phy_mode = PHY_INTERFACE_MODE_RGMII;
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
@@ -1468,7 +1446,7 @@ static int nb8800_probe(struct platform_device *pdev)
 	dev->irq = irq;
 
 	mac = of_get_mac_address(pdev->dev.of_node);
-	if (mac)
+	if (!IS_ERR(mac))
 		ether_addr_copy(dev->dev_addr, mac);
 
 	if (!is_valid_ether_addr(dev->dev_addr))

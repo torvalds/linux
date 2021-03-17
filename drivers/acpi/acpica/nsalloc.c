@@ -74,6 +74,10 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 
 	ACPI_FUNCTION_NAME(ns_delete_node);
 
+	if (!node) {
+		return_VOID;
+	}
+
 	/* Detach an object if there is one */
 
 	acpi_ns_detach_object(node);
@@ -237,7 +241,7 @@ void acpi_ns_install_node(struct acpi_walk_state *walk_state, struct acpi_namesp
 	node->type = (u8) type;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-			  "%4.4s (%s) [Node %p Owner %X] added to %4.4s (%s) [Node %p]\n",
+			  "%4.4s (%s) [Node %p Owner %3.3X] added to %4.4s (%s) [Node %p]\n",
 			  acpi_ut_get_node_name(node),
 			  acpi_ut_get_type_name(node->type), node, owner_id,
 			  acpi_ut_get_node_name(parent_node),
@@ -290,7 +294,7 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent_node)
 		node_to_delete = next_node;
 		next_node = next_node->peer;
 		acpi_ns_delete_node(node_to_delete);
-	};
+	}
 
 	/* Clear the parent's child pointer */
 

@@ -1,7 +1,7 @@
 /*
  * Regulator driver for TI TPS65912x PMICs
  *
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015 Texas Instruments Incorporated - https://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -46,18 +46,18 @@ enum tps65912_regulators { DCDC1, DCDC2, DCDC3, DCDC4, LDO1, LDO2, LDO3,
 		.n_linear_ranges	= ARRAY_SIZE(_lr),		\
 	}
 
-static const struct regulator_linear_range tps65912_dcdc_ranges[] = {
+static const struct linear_range tps65912_dcdc_ranges[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0x0, 0x3f, 50000),
 };
 
-static const struct regulator_linear_range tps65912_ldo_ranges[] = {
+static const struct linear_range tps65912_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x0, 0x20, 25000),
 	REGULATOR_LINEAR_RANGE(1650000, 0x21, 0x3c, 50000),
 	REGULATOR_LINEAR_RANGE(3100000, 0x3d, 0x3f, 100000),
 };
 
 /* Operations permitted on DCDCx */
-static struct regulator_ops tps65912_ops_dcdc = {
+static const struct regulator_ops tps65912_ops_dcdc = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -67,7 +67,7 @@ static struct regulator_ops tps65912_ops_dcdc = {
 };
 
 /* Operations permitted on LDOx */
-static struct regulator_ops tps65912_ops_ldo = {
+static const struct regulator_ops tps65912_ops_ldo = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,

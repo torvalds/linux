@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
 
   Copyright(c) 2004-2005 Intel Corporation. All rights reserved.
@@ -8,21 +9,6 @@
   <j@w1.fi>
   Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
 
   Contact Information:
   Intel Linux Wireless <ilw@linux.intel.com>
@@ -254,13 +240,12 @@ static ssize_t debug_level_proc_write(struct file *file,
 	return strnlen(buf, len);
 }
 
-static const struct file_operations debug_level_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= debug_level_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= debug_level_proc_write,
+static const struct proc_ops debug_level_proc_ops = {
+	.proc_open	= debug_level_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= debug_level_proc_write,
 };
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
@@ -277,7 +262,7 @@ static int __init libipw_init(void)
 		return -EIO;
 	}
 	e = proc_create("debug_level", 0644, libipw_proc,
-			&debug_level_proc_fops);
+			&debug_level_proc_ops);
 	if (!e) {
 		remove_proc_entry(DRV_PROCNAME, init_net.proc_net);
 		libipw_proc = NULL;

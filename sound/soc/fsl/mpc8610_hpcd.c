@@ -1,14 +1,10 @@
-/**
- * Freescale MPC8610HPCD ALSA SoC Machine driver
- *
- * Author: Timur Tabi <timur@freescale.com>
- *
- * Copyright 2007-2010 Freescale Semiconductor, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Freescale MPC8610HPCD ALSA SoC Machine driver
+//
+// Author: Timur Tabi <timur@freescale.com>
+//
+// Copyright 2007-2010 Freescale Semiconductor, Inc.
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -102,14 +98,14 @@ static int mpc8610_hpcd_machine_probe(struct snd_soc_card *card)
  */
 static int mpc8610_hpcd_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(rtd->card, struct mpc8610_hpcd_data, card);
 	struct device *dev = rtd->card->dev;
 	int ret = 0;
 
 	/* Tell the codec driver what the serial protocol is. */
-	ret = snd_soc_dai_set_fmt(rtd->codec_dai, machine_data->dai_format);
+	ret = snd_soc_dai_set_fmt(asoc_rtd_to_codec(rtd, 0), machine_data->dai_format);
 	if (ret < 0) {
 		dev_err(dev, "could not set codec driver audio format\n");
 		return ret;
@@ -119,7 +115,7 @@ static int mpc8610_hpcd_startup(struct snd_pcm_substream *substream)
 	 * Tell the codec driver what the MCLK frequency is, and whether it's
 	 * a slave or master.
 	 */
-	ret = snd_soc_dai_set_sysclk(rtd->codec_dai, 0,
+	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_codec(rtd, 0), 0,
 				     machine_data->clk_frequency,
 				     machine_data->codec_clk_direction);
 	if (ret < 0) {
@@ -193,6 +189,7 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	struct device_node *np = ssi_pdev->dev.of_node;
 	struct device_node *codec_np = NULL;
 	struct mpc8610_hpcd_data *machine_data;
+	struct snd_soc_dai_link_component *comp;
 	int ret = -ENODEV;
 	const char *sprop;
 	const u32 *iprop;
@@ -210,14 +207,36 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 		goto error_alloc;
 	}
 
-	machine_data->dai[0].cpu_dai_name = dev_name(&ssi_pdev->dev);
+	comp = devm_kzalloc(&pdev->dev, 6 * sizeof(*comp), GFP_KERNEL);
+	if (!comp) {
+		ret = -ENOMEM;
+		goto error_alloc;
+	}
+
+	machine_data->dai[0].cpus	= &comp[0];
+	machine_data->dai[0].codecs	= &comp[1];
+	machine_data->dai[0].platforms	= &comp[2];
+
+	machine_data->dai[0].num_cpus		= 1;
+	machine_data->dai[0].num_codecs		= 1;
+	machine_data->dai[0].num_platforms	= 1;
+
+	machine_data->dai[1].cpus	= &comp[3];
+	machine_data->dai[1].codecs	= &comp[4];
+	machine_data->dai[1].platforms	= &comp[5];
+
+	machine_data->dai[1].num_cpus		= 1;
+	machine_data->dai[1].num_codecs		= 1;
+	machine_data->dai[1].num_platforms	= 1;
+
+	machine_data->dai[0].cpus->dai_name = dev_name(&ssi_pdev->dev);
 	machine_data->dai[0].ops = &mpc8610_hpcd_ops;
 
 	/* ASoC core can match codec with device node */
-	machine_data->dai[0].codec_of_node = codec_np;
+	machine_data->dai[0].codecs->of_node = codec_np;
 
 	/* The DAI name from the codec (snd_soc_dai_driver.name) */
-	machine_data->dai[0].codec_dai_name = "cs4270-hifi";
+	machine_data->dai[0].codecs->dai_name = "cs4270-hifi";
 
 	/* We register two DAIs per SSI, one for playback and the other for
 	 * capture.  Currently, we only support codecs that have one DAI for
@@ -310,7 +329,7 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	}
 
 	/* Find the playback DMA channel to use. */
-	machine_data->dai[0].platform_name = machine_data->platform_name[0];
+	machine_data->dai[0].platforms->name = machine_data->platform_name[0];
 	ret = fsl_asoc_get_dma_channel(np, "fsl,playback-dma",
 				       &machine_data->dai[0],
 				       &machine_data->dma_channel_id[0],
@@ -321,7 +340,7 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	}
 
 	/* Find the capture DMA channel to use. */
-	machine_data->dai[1].platform_name = machine_data->platform_name[1];
+	machine_data->dai[1].platforms->name = machine_data->platform_name[1];
 	ret = fsl_asoc_get_dma_channel(np, "fsl,capture-dma",
 				       &machine_data->dai[1],
 				       &machine_data->dma_channel_id[1],
@@ -407,9 +426,11 @@ static int __init mpc8610_hpcd_init(void)
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,mpc8610-guts");
 	if (of_address_to_resource(guts_np, 0, &res)) {
 		pr_err("mpc8610-hpcd: missing/invalid global utilities node\n");
+		of_node_put(guts_np);
 		return -EINVAL;
 	}
 	guts_phys = res.start;
+	of_node_put(guts_np);
 
 	return platform_driver_register(&mpc8610_hpcd_driver);
 }

@@ -31,11 +31,13 @@
  * SOFTWARE.
  */
 
+#include "rdma_core.h"
 #include "uverbs.h"
 #include <rdma/uverbs_std_types.h>
 
 static int uverbs_free_counters(struct ib_uobject *uobject,
-				enum rdma_remove_reason why)
+				enum rdma_remove_reason why,
+				struct uverbs_attr_bundle *attrs)
 {
 	struct ib_counters *counters = uobject->object;
 	int ret;
@@ -44,15 +46,19 @@ static int uverbs_free_counters(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	return counters->device->destroy_counters(counters);
+	ret = counters->device->ops.destroy_counters(counters);
+	if (ret)
+		return ret;
+	kfree(counters);
+	return 0;
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_CREATE_COUNTERS_HANDLE);
-	struct ib_device *ib_dev = uobj->context->device;
+	struct ib_device *ib_dev = attrs->context->device;
 	struct ib_counters *counters;
 	int ret;
 
@@ -61,28 +67,27 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(
 	 * have the ability to remove methods from parse tree once
 	 * such condition is met.
 	 */
-	if (!ib_dev->create_counters)
+	if (!ib_dev->ops.create_counters)
 		return -EOPNOTSUPP;
 
-	counters = ib_dev->create_counters(ib_dev, attrs);
-	if (IS_ERR(counters)) {
-		ret = PTR_ERR(counters);
-		goto err_create_counters;
-	}
+	counters = rdma_zalloc_drv_obj(ib_dev, ib_counters);
+	if (!counters)
+		return -ENOMEM;
 
 	counters->device = ib_dev;
 	counters->uobject = uobj;
 	uobj->object = counters;
 	atomic_set(&counters->usecnt, 0);
 
-	return 0;
+	ret = ib_dev->ops.create_counters(counters, attrs);
+	if (ret)
+		kfree(counters);
 
-err_create_counters:
 	return ret;
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_counters_read_attr read_attr = {};
 	const struct uverbs_attr *uattr;
@@ -90,7 +95,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(
 		uverbs_attr_get_obj(attrs, UVERBS_ATTR_READ_COUNTERS_HANDLE);
 	int ret;
 
-	if (!counters->device->read_counters)
+	if (!counters->device->ops.read_counters)
 		return -EOPNOTSUPP;
 
 	if (!atomic_read(&counters->usecnt))
@@ -109,7 +114,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(
 	if (IS_ERR(read_attr.counters_buff))
 		return PTR_ERR(read_attr.counters_buff);
 
-	ret = counters->device->read_counters(counters, &read_attr, attrs);
+	ret = counters->device->ops.read_counters(counters, &read_attr, attrs);
 	if (ret)
 		return ret;
 
@@ -149,3 +154,9 @@ DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_COUNTERS,
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_CREATE),
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_DESTROY),
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_READ));
+
+const struct uapi_definition uverbs_def_obj_counters[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_COUNTERS,
+				      UAPI_DEF_OBJ_NEEDS_FN(destroy_counters)),
+	{}
+};

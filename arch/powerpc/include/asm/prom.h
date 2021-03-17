@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _POWERPC_PROM_H
 #define _POWERPC_PROM_H
 #ifdef __KERNEL__
@@ -9,11 +10,6 @@
  * Copyright (C) 1996-2005 Paul Mackerras.
  *
  * Updates for PPC64 by Peter Bergner & David Engebretsen, IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/types.h>
 #include <asm/irq.h>
@@ -121,6 +117,7 @@ extern int of_read_drc_info_cell(struct property **prop,
 #define OV1_PPC_2_07		0x01	/* set if we support PowerPC 2.07 */
 
 #define OV1_PPC_3_00		0x80	/* set if we support PowerPC 3.00 */
+#define OV1_PPC_3_1			0x40	/* set if we support PowerPC 3.1 */
 
 /* Option vector 2: Open Firmware options supported */
 #define OV2_REAL_MODE		0x20	/* set if we want OF in real mode */

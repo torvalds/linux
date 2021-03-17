@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * s3c24xx/s3c64xx SoC series Camera Interface (CAMIF) driver
  *
  * Copyright (C) 2012 Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
  * Copyright (C) 2012 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #ifndef CAMIF_CORE_H_
@@ -92,7 +89,6 @@ enum img_fmt {
  * @ybpp:      number of luminance bytes per pixel
  */
 struct camif_fmt {
-	char *name;
 	u32 fourcc;
 	u32 color;
 	u16 colplanes;
@@ -260,7 +256,7 @@ struct camif_vp {
  * @clock:	  clocks required for the CAMIF operation
  * @lock:	  mutex protecting this data structure
  * @slock:	  spinlock protecting CAMIF registers
- * @io_base:	  start address of the mmaped CAMIF registers
+ * @io_base:	  start address of the mmapped CAMIF registers
  */
 struct camif_dev {
 	struct media_device		media_dev;

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ethernet interface part of the LG VL600 LTE modem (4G dongle)
  *
  * Copyright (C) 2011 Intel Corporation
  * Author: Andrzej Zaborowski <balrogg@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -99,9 +87,7 @@ static void vl600_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct vl600_state *s = dev->driver_priv;
 
-	if (s->current_rx_buf)
-		dev_kfree_skb(s->current_rx_buf);
-
+	dev_kfree_skb(s->current_rx_buf);
 	kfree(s);
 
 	return usbnet_cdc_unbind(dev, intf);

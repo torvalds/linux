@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright (C) 2003 Herbert Valerio Riedel <hvr@gnu.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/interrupt.h>
@@ -38,7 +26,8 @@ module_param(init_pcitm, int, 0);
 /* In this order: vendor, device, subvendor, subdevice, class, class_mask,
  * driver_data
  * If you have an update for this please contact prism54-devel@prism54.org
- * The latest list can be found at http://wireless.kernel.org/en/users/Drivers/p54 */
+ * The latest list can be found at http://wireless.wiki.kernel.org/en/users/Drivers/p54
+ */
 static const struct pci_device_id prism54_id_tbl[] = {
 	/* Intersil PRISM Duette/Prism GT Wireless LAN adapter */
 	{
@@ -75,16 +64,17 @@ MODULE_DEVICE_TABLE(pci, prism54_id_tbl);
 
 static int prism54_probe(struct pci_dev *, const struct pci_device_id *);
 static void prism54_remove(struct pci_dev *);
-static int prism54_suspend(struct pci_dev *, pm_message_t state);
-static int prism54_resume(struct pci_dev *);
+static int __maybe_unused prism54_suspend(struct device *);
+static int __maybe_unused prism54_resume(struct device *);
+
+static SIMPLE_DEV_PM_OPS(prism54_pm_ops, prism54_suspend, prism54_resume);
 
 static struct pci_driver prism54_driver = {
 	.name = DRV_NAME,
 	.id_table = prism54_id_tbl,
 	.probe = prism54_probe,
 	.remove = prism54_remove,
-	.suspend = prism54_suspend,
-	.resume = prism54_resume,
+	.driver.pm = &prism54_pm_ops,
 };
 
 /******************************************************************************
@@ -118,7 +108,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* enable PCI DMA */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "%s: 32-bit PCI DMA not supported", DRV_NAME);
 		goto do_pci_disable_device;
         }
@@ -255,15 +245,12 @@ prism54_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int
-prism54_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused
+prism54_suspend(struct device *dev)
 {
-	struct net_device *ndev = pci_get_drvdata(pdev);
+	struct net_device *ndev = dev_get_drvdata(dev);
 	islpci_private *priv = ndev ? netdev_priv(ndev) : NULL;
 	BUG_ON(!priv);
-
-
-	pci_save_state(pdev);
 
 	/* tell the device not to trigger interrupts for now... */
 	isl38xx_disable_interrupts(priv->device_base);
@@ -278,25 +265,15 @@ prism54_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int
-prism54_resume(struct pci_dev *pdev)
+static int __maybe_unused
+prism54_resume(struct device *dev)
 {
-	struct net_device *ndev = pci_get_drvdata(pdev);
+	struct net_device *ndev = dev_get_drvdata(dev);
 	islpci_private *priv = ndev ? netdev_priv(ndev) : NULL;
-	int err;
 
 	BUG_ON(!priv);
 
 	printk(KERN_NOTICE "%s: got resume request\n", ndev->name);
-
-	err = pci_enable_device(pdev);
-	if (err) {
-		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
-		       ndev->name);
-		return err;
-	}
-
-	pci_restore_state(pdev);
 
 	/* alright let's go into the PREBOOT state */
 	islpci_reset(priv, 1);

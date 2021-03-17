@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Pengutronix, Juergen Borleis <jbe@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/dsa/lan9303.h>
 #include <linux/etherdevice.h>
@@ -64,7 +55,8 @@ static int lan9303_xmit_use_arl(struct dsa_port *dp, u8 *dest_addr)
 static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
-	u16 *lan9303_tag;
+	__be16 *lan9303_tag;
+	u16 tag;
 
 	/* insert a special VLAN tag between the MAC addresses
 	 * and the current ethertype field.
@@ -81,12 +73,12 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* make room between MACs and Ether-Type */
 	memmove(skb->data, skb->data + LAN9303_TAG_LEN, 2 * ETH_ALEN);
 
-	lan9303_tag = (u16 *)(skb->data + 2 * ETH_ALEN);
+	lan9303_tag = (__be16 *)(skb->data + 2 * ETH_ALEN);
+	tag = lan9303_xmit_use_arl(dp, skb->data) ?
+		LAN9303_TAG_TX_USE_ALR :
+		dp->index | LAN9303_TAG_TX_STP_OVERRIDE;
 	lan9303_tag[0] = htons(ETH_P_8021Q);
-	lan9303_tag[1] = lan9303_xmit_use_arl(dp, skb->data) ?
-				LAN9303_TAG_TX_USE_ALR :
-				dp->index | LAN9303_TAG_TX_STP_OVERRIDE;
-	lan9303_tag[1] = htons(lan9303_tag[1]);
+	lan9303_tag[1] = htons(tag);
 
 	return skb;
 }
@@ -94,7 +86,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 				   struct packet_type *pt)
 {
-	u16 *lan9303_tag;
+	__be16 *lan9303_tag;
 	u16 lan9303_tag1;
 	unsigned int source_port;
 
@@ -110,7 +102,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 	 *                           ^
 	 *                        ->data
 	 */
-	lan9303_tag = (u16 *)(skb->data - 2);
+	lan9303_tag = (__be16 *)(skb->data - 2);
 
 	if (lan9303_tag[0] != htons(ETH_P_8021Q)) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid VLAN marker\n");
@@ -137,7 +129,15 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 	return skb;
 }
 
-const struct dsa_device_ops lan9303_netdev_ops = {
+static const struct dsa_device_ops lan9303_netdev_ops = {
+	.name = "lan9303",
+	.proto	= DSA_TAG_PROTO_LAN9303,
 	.xmit = lan9303_xmit,
 	.rcv = lan9303_rcv,
+	.overhead = LAN9303_TAG_LEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_LAN9303);
+
+module_dsa_tag_driver(lan9303_netdev_ops);

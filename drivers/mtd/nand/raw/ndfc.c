@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Overview:
  *   Platform independent driver for NDFC (NanD Flash Controller)
@@ -14,12 +15,6 @@
  *  Copyright 2006 IBM
  *  Copyright 2008 PIKA Technologies
  *    Sean MacLennan <smaclennan@pikatech.com>
- *
- *  This program is free software; you can redistribute	 it and/or modify it
- *  under  the terms of	 the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the	License, or (at your
- *  option) any later version.
- *
  */
 #include <linux/module.h>
 #include <linux/mtd/rawnand.h>
@@ -44,10 +39,9 @@ struct ndfc_controller {
 
 static struct ndfc_controller ndfc_ctrl[NDFC_MAX_CS];
 
-static void ndfc_select_chip(struct mtd_info *mtd, int chip)
+static void ndfc_select_chip(struct nand_chip *nchip, int chip)
 {
 	uint32_t ccr;
-	struct nand_chip *nchip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(nchip);
 
 	ccr = in_be32(ndfc->ndfcbase + NDFC_CCR);
@@ -59,9 +53,8 @@ static void ndfc_select_chip(struct mtd_info *mtd, int chip)
 	out_be32(ndfc->ndfcbase + NDFC_CCR, ccr);
 }
 
-static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void ndfc_hwcontrol(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 
 	if (cmd == NAND_CMD_NONE)
@@ -73,18 +66,16 @@ static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 		writel(cmd & 0xFF, ndfc->ndfcbase + NDFC_ALE);
 }
 
-static int ndfc_ready(struct mtd_info *mtd)
+static int ndfc_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 
 	return in_be32(ndfc->ndfcbase + NDFC_STAT) & NDFC_STAT_IS_READY;
 }
 
-static void ndfc_enable_hwecc(struct mtd_info *mtd, int mode)
+static void ndfc_enable_hwecc(struct nand_chip *chip, int mode)
 {
 	uint32_t ccr;
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 
 	ccr = in_be32(ndfc->ndfcbase + NDFC_CCR);
@@ -93,10 +84,9 @@ static void ndfc_enable_hwecc(struct mtd_info *mtd, int mode)
 	wmb();
 }
 
-static int ndfc_calculate_ecc(struct mtd_info *mtd,
+static int ndfc_calculate_ecc(struct nand_chip *chip,
 			      const u_char *dat, u_char *ecc_code)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 	uint32_t ecc;
 	uint8_t *p = (uint8_t *)&ecc;
@@ -118,9 +108,8 @@ static int ndfc_calculate_ecc(struct mtd_info *mtd,
  * functions. No further checking, as nand_base will always read/write
  * page aligned.
  */
-static void ndfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void ndfc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 	uint32_t *p = (uint32_t *) buf;
 
@@ -128,9 +117,8 @@ static void ndfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 		*p++ = in_be32(ndfc->ndfcbase + NDFC_DATA);
 }
 
-static void ndfc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void ndfc_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 	uint32_t *p = (uint32_t *) buf;
 
@@ -149,19 +137,19 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
-	chip->IO_ADDR_R = ndfc->ndfcbase + NDFC_DATA;
-	chip->IO_ADDR_W = ndfc->ndfcbase + NDFC_DATA;
-	chip->cmd_ctrl = ndfc_hwcontrol;
-	chip->dev_ready = ndfc_ready;
-	chip->select_chip = ndfc_select_chip;
-	chip->chip_delay = 50;
+	chip->legacy.IO_ADDR_R = ndfc->ndfcbase + NDFC_DATA;
+	chip->legacy.IO_ADDR_W = ndfc->ndfcbase + NDFC_DATA;
+	chip->legacy.cmd_ctrl = ndfc_hwcontrol;
+	chip->legacy.dev_ready = ndfc_ready;
+	chip->legacy.select_chip = ndfc_select_chip;
+	chip->legacy.chip_delay = 50;
 	chip->controller = &ndfc->ndfc_control;
-	chip->read_buf = ndfc_read_buf;
-	chip->write_buf = ndfc_write_buf;
+	chip->legacy.read_buf = ndfc_read_buf;
+	chip->legacy.write_buf = ndfc_write_buf;
 	chip->ecc.correct = nand_correct_data;
 	chip->ecc.hwctl = ndfc_enable_hwecc;
 	chip->ecc.calculate = ndfc_calculate_ecc;
-	chip->ecc.mode = NAND_ECC_HW;
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	chip->ecc.size = 256;
 	chip->ecc.bytes = 3;
 	chip->ecc.strength = 1;
@@ -174,14 +162,14 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 		return -ENODEV;
 	nand_set_flash_node(chip, flash_np);
 
-	mtd->name = kasprintf(GFP_KERNEL, "%s.%s", dev_name(&ndfc->ofdev->dev),
-			      flash_np->name);
+	mtd->name = kasprintf(GFP_KERNEL, "%s.%pOFn", dev_name(&ndfc->ofdev->dev),
+			      flash_np);
 	if (!mtd->name) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(chip, 1);
 	if (ret)
 		goto err;
 
@@ -256,9 +244,13 @@ static int ndfc_probe(struct platform_device *ofdev)
 static int ndfc_remove(struct platform_device *ofdev)
 {
 	struct ndfc_controller *ndfc = dev_get_drvdata(&ofdev->dev);
-	struct mtd_info *mtd = nand_to_mtd(&ndfc->chip);
+	struct nand_chip *chip = &ndfc->chip;
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int ret;
 
-	nand_release(mtd);
+	ret = mtd_device_unregister(mtd);
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	kfree(mtd->name);
 
 	return 0;

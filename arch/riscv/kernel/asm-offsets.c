@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Regents of the University of California
  * Copyright (C) 2017 SiFive
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation, version 2.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
  */
 
 #define GENERATING_ASM_OFFSETS
@@ -35,10 +27,8 @@ void asm_offsets(void)
 	OFFSET(TASK_THREAD_S9, task_struct, thread.s[9]);
 	OFFSET(TASK_THREAD_S10, task_struct, thread.s[10]);
 	OFFSET(TASK_THREAD_S11, task_struct, thread.s[11]);
-	OFFSET(TASK_THREAD_SP, task_struct, thread.sp);
-	OFFSET(TASK_STACK, task_struct, stack);
-	OFFSET(TASK_TI, task_struct, thread_info);
 	OFFSET(TASK_TI_FLAGS, task_struct, thread_info.flags);
+	OFFSET(TASK_TI_PREEMPT_COUNT, task_struct, thread_info.preempt_count);
 	OFFSET(TASK_TI_KERNEL_SP, task_struct, thread_info.kernel_sp);
 	OFFSET(TASK_TI_USER_SP, task_struct, thread_info.user_sp);
 	OFFSET(TASK_TI_CPU, task_struct, thread_info.cpu);
@@ -78,7 +68,7 @@ void asm_offsets(void)
 	OFFSET(TASK_THREAD_FCSR, task_struct, thread.fstate.fcsr);
 
 	DEFINE(PT_SIZE, sizeof(struct pt_regs));
-	OFFSET(PT_SEPC, pt_regs, sepc);
+	OFFSET(PT_EPC, pt_regs, epc);
 	OFFSET(PT_RA, pt_regs, ra);
 	OFFSET(PT_FP, pt_regs, s0);
 	OFFSET(PT_S0, pt_regs, s0);
@@ -112,9 +102,9 @@ void asm_offsets(void)
 	OFFSET(PT_T6, pt_regs, t6);
 	OFFSET(PT_GP, pt_regs, gp);
 	OFFSET(PT_ORIG_A0, pt_regs, orig_a0);
-	OFFSET(PT_SSTATUS, pt_regs, sstatus);
-	OFFSET(PT_SBADADDR, pt_regs, sbadaddr);
-	OFFSET(PT_SCAUSE, pt_regs, scause);
+	OFFSET(PT_STATUS, pt_regs, status);
+	OFFSET(PT_BADADDR, pt_regs, badaddr);
+	OFFSET(PT_CAUSE, pt_regs, cause);
 
 	/*
 	 * THREAD_{F,X}* might be larger than a S-type offset can handle, but
@@ -310,9 +300,6 @@ void asm_offsets(void)
 		  offsetof(struct task_struct, thread.fstate.fcsr)
 		- offsetof(struct task_struct, thread.fstate.f[0])
 	);
-
-	/* The assembler needs access to THREAD_SIZE as well. */
-	DEFINE(ASM_THREAD_SIZE, THREAD_SIZE);
 
 	/*
 	 * We allocate a pt_regs on the stack when entering the kernel.  This

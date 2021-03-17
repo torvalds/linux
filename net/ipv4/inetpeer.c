@@ -160,7 +160,12 @@ static void inet_peer_gc(struct inet_peer_base *base,
 					base->total / inet_peer_threshold * HZ;
 	for (i = 0; i < gc_cnt; i++) {
 		p = gc_stack[i];
-		delta = (__u32)jiffies - p->dtime;
+
+		/* The READ_ONCE() pairs with the WRITE_ONCE()
+		 * in inet_putpeer()
+		 */
+		delta = (__u32)jiffies - READ_ONCE(p->dtime);
+
 		if (delta < ttl || !refcount_dec_if_one(&p->refcnt))
 			gc_stack[i] = NULL;
 	}
@@ -216,6 +221,7 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 			atomic_set(&p->rid, 0);
 			p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 			p->rate_tokens = 0;
+			p->n_redirects = 0;
 			/* 60*HZ is arbitrary, but chosen enough high so that the first
 			 * calculation of tokens is at its maximum.
 			 */
@@ -236,7 +242,10 @@ EXPORT_SYMBOL_GPL(inet_getpeer);
 
 void inet_putpeer(struct inet_peer *p)
 {
-	p->dtime = (__u32)jiffies;
+	/* The WRITE_ONCE() pairs with itself (we run lockless)
+	 * and the READ_ONCE() in inet_peer_gc()
+	 */
+	WRITE_ONCE(p->dtime, (__u32)jiffies);
 
 	if (refcount_dec_and_test(&p->refcnt))
 		call_rcu(&p->rcu, inetpeer_free_rcu);

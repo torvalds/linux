@@ -1,25 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: PC Chen <pc.chen@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _VDEC_VPU_IF_H_
 #define _VDEC_VPU_IF_H_
 
-#include "mtk_vpu.h"
+#include "mtk_vcodec_fw.h"
+
+struct mtk_vcodec_ctx;
 
 /**
  * struct vdec_vpu_inst - VPU instance for video codec
- * @ipi_id      : ipi id for each decoder
+ * @id          : ipi msg id for each decoder
  * @vsi         : driver structure allocated by VPU side and shared to AP side
  *                for control and info share
  * @failure     : VPU execution result status, 0: success, others: fail
@@ -31,15 +25,14 @@
  * @handler     : ipi handler for each decoder
  */
 struct vdec_vpu_inst {
-	enum ipi_id id;
+	int id;
 	void *vsi;
 	int32_t failure;
 	uint32_t inst_addr;
 	unsigned int signaled;
 	struct mtk_vcodec_ctx *ctx;
-	struct platform_device *dev;
 	wait_queue_head_t wq;
-	ipi_handler_t handler;
+	mtk_vcodec_ipi_handler handler;
 };
 
 /**
@@ -62,7 +55,7 @@ int vpu_dec_start(struct vdec_vpu_inst *vpu, uint32_t *data, unsigned int len);
 /**
  * vpu_dec_end - end decoding, basically the function will be invoked once
  *               when HW decoding done interrupt received successfully. The
- *               decoder in VPU will continute to do referene frame management
+ *               decoder in VPU will continue to do reference frame management
  *               and check if there is a new decoded frame available to display.
  *
  * @vpu : instance for vdec_vpu_inst
@@ -83,14 +76,5 @@ int vpu_dec_deinit(struct vdec_vpu_inst *vpu);
  * @vpu: instance for vdec_vpu_inst
  */
 int vpu_dec_reset(struct vdec_vpu_inst *vpu);
-
-/**
- * vpu_dec_ipi_handler - Handler for VPU ipi message.
- *
- * @data: ipi message
- * @len : length of ipi message
- * @priv: callback private data which is passed by decoder when register.
- */
-void vpu_dec_ipi_handler(void *data, unsigned int len, void *priv);
 
 #endif

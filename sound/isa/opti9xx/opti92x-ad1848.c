@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     card-opti92x-ad1848.c - driver for OPTi 82c92x based soundcards.
     Copyright (C) 1998-2000 by Massimo Piccioni <dafastidio@libero.it>
@@ -7,19 +8,6 @@
 
     Thanks to Maria Grazia Pollarini, Salvatore Vassallo.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 
@@ -175,7 +163,7 @@ MODULE_DEVICE_TABLE(pnp_card, snd_opti9xx_pnpids);
 
 #define DEV_NAME KBUILD_MODNAME
 
-static char * snd_opti9xx_names[] = {
+static const char * const snd_opti9xx_names[] = {
 	"unknown",
 	"82C928",	"82C929",
 	"82C924",	"82C925",
@@ -185,7 +173,7 @@ static char * snd_opti9xx_names[] = {
 static int snd_opti9xx_init(struct snd_opti9xx *chip,
 			    unsigned short hardware)
 {
-	static int opti9xx_mc_size[] = {7, 7, 10, 10, 2, 2, 2};
+	static const int opti9xx_mc_size[] = {7, 7, 10, 10, 2, 2, 2};
 
 	chip->hardware = hardware;
 	strcpy(chip->name, snd_opti9xx_names[hardware]);
@@ -261,7 +249,7 @@ static unsigned char snd_opti9xx_read(struct snd_opti9xx *chip,
 			retval = inb(chip->mc_base + 9);
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 
 	case OPTi9XX_HW_82C928:
 	case OPTi9XX_HW_82C929:
@@ -304,7 +292,7 @@ static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 			outb(value, chip->mc_base + 9);
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 
 	case OPTi9XX_HW_82C928:
 	case OPTi9XX_HW_82C929:
@@ -329,10 +317,13 @@ static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 }
 
 
-#define snd_opti9xx_write_mask(chip, reg, value, mask)	\
-	snd_opti9xx_write(chip, reg,			\
-		(snd_opti9xx_read(chip, reg) & ~(mask)) | ((value) & (mask)))
+static inline void snd_opti9xx_write_mask(struct snd_opti9xx *chip,
+		unsigned char reg, unsigned char value, unsigned char mask)
+{
+	unsigned char oldval = snd_opti9xx_read(chip, reg);
 
+	snd_opti9xx_write(chip, reg, (oldval & ~mask) | (value & mask));
+}
 
 static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 					   long port,
@@ -352,7 +343,7 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(4), 0xf0, 0xfc);
 		/* enable wave audio */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(6), 0x02, 0x02);
-		/* Fall through */
+		fallthrough;
 
 	case OPTi9XX_HW_82C925:
 		/* enable WSS mode */
@@ -389,7 +380,9 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 	case OPTi9XX_HW_82C931:
 		/* disable 3D sound (set GPIO1 as output, low) */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(20), 0x04, 0x0c);
-	case OPTi9XX_HW_82C933: /* FALL THROUGH */
+		fallthrough;
+
+	case OPTi9XX_HW_82C933:
 		/*
 		 * The BTC 1817DW has QS1000 wavetable which is connected
 		 * to the serial digital input of the OPTI931.
@@ -400,7 +393,9 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 		 * or digital input signal.
 		 */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(26), 0x01, 0x01);
-	case OPTi9XX_HW_82C930: /* FALL THROUGH */
+		fallthrough;
+
+	case OPTi9XX_HW_82C930:
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(6), 0x02, 0x03);
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(3), 0x00, 0xff);
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(4), 0x10 |
@@ -560,7 +555,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_5bit_3db_step, -9300, 300, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_4bit_12db_max, -3300, 300, 0);
 
-static struct snd_kcontrol_new snd_opti93x_controls[] = {
+static const struct snd_kcontrol_new snd_opti93x_controls[] = {
 WSS_DOUBLE("Master Playback Switch", 0,
 		OPTi93X_OUT_LEFT, OPTi93X_OUT_RIGHT, 7, 7, 1, 1),
 WSS_DOUBLE_TLV("Master Playback Volume", 0,
@@ -818,7 +813,7 @@ static void snd_card_opti9xx_free(struct snd_card *card)
 
 static int snd_opti9xx_probe(struct snd_card *card)
 {
-	static long possible_ports[] = {0x530, 0xe80, 0xf40, 0x604, -1};
+	static const long possible_ports[] = {0x530, 0xe80, 0xf40, 0x604, -1};
 	int error;
 	int xdma2;
 	struct snd_opti9xx *chip = card->private_data;
@@ -879,6 +874,7 @@ static int snd_opti9xx_probe(struct snd_card *card)
 	}
 #endif
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 	strcpy(card->driver, chip->name);
 	sprintf(card->shortname, "OPTi %s", card->driver);
 #if defined(CS4231) || defined(OPTi93X)
@@ -967,16 +963,16 @@ static int snd_opti9xx_isa_probe(struct device *devptr,
 {
 	struct snd_card *card;
 	int error;
-	static long possible_mpu_ports[] = {0x300, 0x310, 0x320, 0x330, -1};
+	static const long possible_mpu_ports[] = {0x300, 0x310, 0x320, 0x330, -1};
 #ifdef OPTi93X
-	static int possible_irqs[] = {5, 9, 10, 11, 7, -1};
+	static const int possible_irqs[] = {5, 9, 10, 11, 7, -1};
 #else
-	static int possible_irqs[] = {9, 10, 11, 7, -1};
+	static const int possible_irqs[] = {9, 10, 11, 7, -1};
 #endif	/* OPTi93X */
-	static int possible_mpu_irqs[] = {5, 9, 10, 7, -1};
-	static int possible_dma1s[] = {3, 1, 0, -1};
+	static const int possible_mpu_irqs[] = {5, 9, 10, 7, -1};
+	static const int possible_dma1s[] = {3, 1, 0, -1};
 #if defined(CS4231) || defined(OPTi93X)
-	static int possible_dma2s[][2] = {{1,-1}, {0,-1}, {-1,-1}, {0,-1}};
+	static const int possible_dma2s[][2] = {{1,-1}, {0,-1}, {-1,-1}, {0,-1}};
 #endif	/* CS4231 || OPTi93X */
 
 	if (mpu_port == SNDRV_AUTO_PORT) {

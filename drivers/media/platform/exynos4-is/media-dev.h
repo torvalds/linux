@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2011 - 2012 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef FIMC_MDEVICE_H_
@@ -29,8 +26,6 @@
 #define FIMC_LITE_OF_NODE_NAME	"fimc-lite"
 #define FIMC_IS_OF_NODE_NAME	"fimc-is"
 #define CSIS_OF_NODE_NAME	"csis"
-
-#define PINCTRL_STATE_IDLE	"idle"
 
 #define FIMC_MAX_SENSORS	4
 #define FIMC_MAX_CAMCLKS	2
@@ -79,7 +74,7 @@ struct fimc_camclk_info {
 
 /**
  * struct fimc_sensor_info - image data source subdev information
- * @pdata: sensor's atrributes passed as media device's platform data
+ * @pdata: sensor's attributes passed as media device's platform data
  * @asd: asynchronous subdev registration data structure
  * @subdev: image sensor v4l2 subdev
  * @host: fimc device the sensor is currently linked to
@@ -112,9 +107,6 @@ struct cam_clk {
  * @media_dev: top level media device
  * @v4l2_dev: top level v4l2_device holding up the subdevs
  * @pdev: platform device this media device is hooked up into
- * @pinctrl: camera port pinctrl handle
- * @state_default: pinctrl default state handle
- * @state_idle: pinctrl idle state handle
  * @cam_clk_provider: CAMCLK clock provider structure
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @slock: spinlock protecting @sensor array
@@ -134,12 +126,6 @@ struct fimc_md {
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
 
-	struct fimc_pinctrl {
-		struct pinctrl *pinctrl;
-		struct pinctrl_state *state_default;
-		struct pinctrl_state *state_idle;
-	} pinctl;
-
 	struct cam_clk_provider {
 		struct clk *clks[FIMC_MAX_CAMCLKS];
 		struct clk_onecell_data clk_data;
@@ -149,7 +135,6 @@ struct fimc_md {
 	} clk_provider;
 
 	struct v4l2_async_notifier subdev_notifier;
-	struct v4l2_async_subdev *async_subdevs[FIMC_MAX_SENSORS];
 
 	bool user_subdev_api;
 	spinlock_t slock;

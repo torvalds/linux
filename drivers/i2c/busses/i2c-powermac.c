@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     i2c Support for Apple SMU Controller
 
     Copyright (c) 2005 Benjamin Herrenschmidt, IBM Corp.
                        <benh@kernel.crashing.org>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 
 */
 
@@ -215,23 +207,23 @@ static u32 i2c_powermac_get_addr(struct i2c_adapter *adap,
 					   struct pmac_i2c_bus *bus,
 					   struct device_node *node)
 {
-	const __be32 *prop;
-	int len;
+	u32 prop;
+	int ret;
 
 	/* First check for valid "reg" */
-	prop = of_get_property(node, "reg", &len);
-	if (prop && (len >= sizeof(int)))
-		return (be32_to_cpup(prop) & 0xff) >> 1;
+	ret = of_property_read_u32(node, "reg", &prop);
+	if (ret == 0)
+		return (prop & 0xff) >> 1;
 
 	/* Then check old-style "i2c-address" */
-	prop = of_get_property(node, "i2c-address", &len);
-	if (prop && (len >= sizeof(int)))
-		return (be32_to_cpup(prop) & 0xff) >> 1;
+	ret = of_property_read_u32(node, "i2c-address", &prop);
+	if (ret == 0)
+		return (prop & 0xff) >> 1;
 
 	/* Now handle some devices with missing "reg" properties */
-	if (!strcmp(node->name, "cereal"))
+	if (of_node_name_eq(node, "cereal"))
 		return 0x60;
-	else if (!strcmp(node->name, "deq"))
+	else if (of_node_name_eq(node, "deq"))
 		return 0x34;
 
 	dev_warn(&adap->dev, "No i2c address for %pOF\n", node);
@@ -248,8 +240,8 @@ static void i2c_powermac_create_one(struct i2c_adapter *adap,
 
 	strncpy(info.type, type, sizeof(info.type));
 	info.addr = addr;
-	newdev = i2c_new_device(adap, &info);
-	if (!newdev)
+	newdev = i2c_new_client_device(adap, &info);
+	if (IS_ERR(newdev))
 		dev_err(&adap->dev,
 			"i2c-powermac: Failure to register missing %s\n",
 			type);
@@ -287,14 +279,13 @@ static bool i2c_powermac_get_type(struct i2c_adapter *adap,
 {
 	char tmp[16];
 
-	/* Note: we to _NOT_ want the standard
-	 * i2c drivers to match with any of our powermac stuff
-	 * unless they have been specifically modified to handle
-	 * it on a case by case basis. For example, for thermal
-	 * control, things like lm75 etc... shall match with their
-	 * corresponding windfarm drivers, _NOT_ the generic ones,
-	 * so we force a prefix of AAPL, onto the modalias to
-	 * make that happen
+	/*
+	 * Note: we do _NOT_ want the standard i2c drivers to match with any of
+	 * our powermac stuff unless they have been specifically modified to
+	 * handle it on a case by case basis. For example, for thermal control,
+	 * things like lm75 etc... shall match with their corresponding
+	 * windfarm drivers, _NOT_ the generic ones, so we force a prefix of
+	 * 'MAC', onto the modalias to make that happen
 	 */
 
 	/* First try proper modalias */
@@ -304,7 +295,7 @@ static bool i2c_powermac_get_type(struct i2c_adapter *adap,
 	}
 
 	/* Now look for known workarounds */
-	if (!strcmp(node->name, "deq")) {
+	if (of_node_name_eq(node, "deq")) {
 		/* Apple uses address 0x34 for TAS3001 and 0x35 for TAS3004 */
 		if (addr == 0x34) {
 			snprintf(type, type_size, "MAC,tas3001");
@@ -324,14 +315,14 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 {
 	struct i2c_client *newdev;
 	struct device_node *node;
-	bool found_onyx = 0;
+	bool found_onyx = false;
 
 	/*
 	 * In some cases we end up with the via-pmu node itself, in this
 	 * case we skip this function completely as the device-tree will
 	 * not contain anything useful.
 	 */
-	if (!strcmp(adap->dev.of_node->name, "via-pmu"))
+	if (of_node_name_eq(adap->dev.of_node, "via-pmu"))
 		return;
 
 	for_each_child_of_node(adap->dev.of_node, node) {
@@ -367,8 +358,8 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 		info.irq = irq_of_parse_and_map(node, 0);
 		info.of_node = of_node_get(node);
 
-		newdev = i2c_new_device(adap, &info);
-		if (!newdev) {
+		newdev = i2c_new_client_device(adap, &info);
+		if (IS_ERR(newdev)) {
 			dev_err(&adap->dev, "i2c-powermac: Failure to register"
 				" %pOF\n", node);
 			of_node_put(node);
@@ -388,9 +379,8 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 static int i2c_powermac_probe(struct platform_device *dev)
 {
 	struct pmac_i2c_bus *bus = dev_get_platdata(&dev->dev);
-	struct device_node *parent = NULL;
+	struct device_node *parent;
 	struct i2c_adapter *adapter;
-	const char *basename;
 	int rc;
 
 	if (bus == NULL)
@@ -407,23 +397,25 @@ static int i2c_powermac_probe(struct platform_device *dev)
 		parent = of_get_parent(pmac_i2c_get_controller(bus));
 		if (parent == NULL)
 			return -EINVAL;
-		basename = parent->name;
+		snprintf(adapter->name, sizeof(adapter->name), "%pOFn %d",
+			 parent,
+			 pmac_i2c_get_channel(bus));
+		of_node_put(parent);
 		break;
 	case pmac_i2c_bus_pmu:
-		basename = "pmu";
+		snprintf(adapter->name, sizeof(adapter->name), "pmu %d",
+			 pmac_i2c_get_channel(bus));
 		break;
 	case pmac_i2c_bus_smu:
 		/* This is not what we used to do but I'm fixing drivers at
 		 * the same time as this change
 		 */
-		basename = "smu";
+		snprintf(adapter->name, sizeof(adapter->name), "smu %d",
+			 pmac_i2c_get_channel(bus));
 		break;
 	default:
 		return -EINVAL;
 	}
-	snprintf(adapter->name, sizeof(adapter->name), "%s %d", basename,
-		 pmac_i2c_get_channel(bus));
-	of_node_put(parent);
 
 	platform_set_drvdata(dev, adapter);
 	adapter->algo = &i2c_powermac_algorithm;

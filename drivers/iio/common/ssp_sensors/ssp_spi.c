@@ -1,16 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2014, Samsung Electronics Co. Ltd. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include "ssp.h"
@@ -165,9 +155,9 @@ static int ssp_check_lines(struct ssp_data *data, bool state)
 {
 	int delay_cnt = 0;
 
-	gpio_set_value_cansleep(data->ap_mcu_gpio, state);
+	gpiod_set_value_cansleep(data->ap_mcu_gpiod, state);
 
-	while (gpio_get_value_cansleep(data->mcu_ap_gpio) != state) {
+	while (gpiod_get_value_cansleep(data->mcu_ap_gpiod) != state) {
 		usleep_range(3000, 3500);
 
 		if (data->shut_down || delay_cnt++ > 500) {
@@ -175,7 +165,7 @@ static int ssp_check_lines(struct ssp_data *data, bool state)
 				__func__, state);
 
 			if (!state)
-				gpio_set_value_cansleep(data->ap_mcu_gpio, 1);
+				gpiod_set_value_cansleep(data->ap_mcu_gpiod, 1);
 
 			return -ETIMEDOUT;
 		}
@@ -207,7 +197,7 @@ static int ssp_do_transfer(struct ssp_data *data, struct ssp_msg *msg,
 
 	status = spi_write(data->spi, msg->buffer, SSP_HEADER_SIZE);
 	if (status < 0) {
-		gpio_set_value_cansleep(data->ap_mcu_gpio, 1);
+		gpiod_set_value_cansleep(data->ap_mcu_gpiod, 1);
 		dev_err(SSP_DEV, "%s spi_write fail\n", __func__);
 		goto _error_locked;
 	}

@@ -3,8 +3,9 @@ Date:		April 2010
 Contact:	Fabien Chouteau <fabien.chouteau@barco.com>
 Description:
 		Show the suspend state of an USB composite gadget.
-		1 -> suspended
-		0 -> resumed
+
+		- 1 -> suspended
+		- 0 -> resumed
 
 		(_UDC_ is the name of the USB Device Controller driver)
 
@@ -17,5 +18,6 @@ Description:
 		Storage mode.
 
 		Possible values are:
-			1 -> ignore the FUA flag
-			0 -> obey the FUA flag
+
+			- 1 -> ignore the FUA flag
+			- 0 -> obey the FUA flag

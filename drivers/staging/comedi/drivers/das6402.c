@@ -279,7 +279,7 @@ static int das6402_ai_check_chanlist(struct comedi_device *dev,
 
 		if (aref0 == AREF_DIFF && chan > (s->n_chan / 2)) {
 			dev_dbg(dev->class_dev,
-				"chanlist differential channel to large\n");
+				"chanlist differential channel too large\n");
 			return -EINVAL;
 		}
 	}

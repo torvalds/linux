@@ -397,7 +397,8 @@ void bch_btree_keys_stats(struct btree_keys *b, struct bset_stats *state);
 
 /* Bkey utility code */
 
-#define bset_bkey_last(i)	bkey_idx((struct bkey *) (i)->d, (i)->keys)
+#define bset_bkey_last(i)	bkey_idx((struct bkey *) (i)->d, \
+					 (unsigned int)(i)->keys)
 
 static inline struct bkey *bset_bkey_idx(struct bset *i, unsigned int idx)
 {
@@ -434,20 +435,26 @@ static inline bool bch_cut_back(const struct bkey *where, struct bkey *k)
 	return __bch_cut_back(where, k);
 }
 
-#define PRECEDING_KEY(_k)					\
-({								\
-	struct bkey *_ret = NULL;				\
-								\
-	if (KEY_INODE(_k) || KEY_OFFSET(_k)) {			\
-		_ret = &KEY(KEY_INODE(_k), KEY_OFFSET(_k), 0);	\
-								\
-		if (!_ret->low)					\
-			_ret->high--;				\
-		_ret->low--;					\
-	}							\
-								\
-	_ret;							\
-})
+/*
+ * Pointer '*preceding_key_p' points to a memory object to store preceding
+ * key of k. If the preceding key does not exist, set '*preceding_key_p' to
+ * NULL. So the caller of preceding_key() needs to take care of memory
+ * which '*preceding_key_p' pointed to before calling preceding_key().
+ * Currently the only caller of preceding_key() is bch_btree_insert_key(),
+ * and it points to an on-stack variable, so the memory release is handled
+ * by stackframe itself.
+ */
+static inline void preceding_key(struct bkey *k, struct bkey **preceding_key_p)
+{
+	if (KEY_INODE(k) || KEY_OFFSET(k)) {
+		(**preceding_key_p) = KEY(KEY_INODE(k), KEY_OFFSET(k), 0);
+		if (!(*preceding_key_p)->low)
+			(*preceding_key_p)->high--;
+		(*preceding_key_p)->low--;
+	} else {
+		(*preceding_key_p) = NULL;
+	}
+}
 
 static inline bool bch_ptr_invalid(struct btree_keys *b, const struct bkey *k)
 {

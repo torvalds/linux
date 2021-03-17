@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 NXP Semiconductors
  *
@@ -9,12 +10,6 @@
  * Anton Protopopov, Emcraft Systems, antonp@emcraft.com
  *
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/clk.h>
@@ -351,7 +346,6 @@ static const struct i2c_algorithm i2c_lpc2k_algorithm = {
 static int i2c_lpc2k_probe(struct platform_device *pdev)
 {
 	struct lpc2k_i2c *i2c;
-	struct resource *res;
 	u32 bus_clk_rate;
 	u32 scl_high;
 	u32 clkrate;
@@ -361,16 +355,13 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
 
 	i2c->irq = platform_get_irq(pdev, 0);
-	if (i2c->irq < 0) {
-		dev_err(&pdev->dev, "can't get interrupt resource\n");
+	if (i2c->irq < 0)
 		return i2c->irq;
-	}
 
 	init_waitqueue_head(&i2c->wait);
 
@@ -401,7 +392,7 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				   &bus_clk_rate);
 	if (ret)
-		bus_clk_rate = 100000; /* 100 kHz default clock rate */
+		bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;
 
 	clkrate = clk_get_rate(i2c->clk);
 	if (clkrate == 0) {
@@ -412,9 +403,9 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 
 	/* Setup I2C dividers to generate clock with proper duty cycle */
 	clkrate = clkrate / bus_clk_rate;
-	if (bus_clk_rate <= 100000)
+	if (bus_clk_rate <= I2C_MAX_STANDARD_MODE_FREQ)
 		scl_high = (clkrate * I2C_STD_MODE_DUTY) / 100;
-	else if (bus_clk_rate <= 400000)
+	else if (bus_clk_rate <= I2C_MAX_FAST_MODE_FREQ)
 		scl_high = (clkrate * I2C_FAST_MODE_DUTY) / 100;
 	else
 		scl_high = (clkrate * I2C_FAST_MODE_PLUS_DUTY) / 100;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  PNX833x Hardware Watchdog Driver
  *  Copyright 2008 NXP Semiconductors
@@ -8,11 +9,6 @@
  *  A Hardware Watchdog Device for SGI IP22
  *
  * (c) Copyright 2002 Guido Guenther <agx@sigxcpu.org>, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * based on softdog.c by Alan Cox <alan@redhat.com>
  */
@@ -116,7 +112,7 @@ static int pnx833x_wdt_open(struct inode *inode, struct file *file)
 
 	pr_info("Started watchdog timer\n");
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int pnx833x_wdt_release(struct inode *inode, struct file *file)
@@ -219,6 +215,7 @@ static const struct file_operations pnx833x_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= pnx833x_wdt_write,
 	.unlocked_ioctl	= pnx833x_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= pnx833x_wdt_open,
 	.release	= pnx833x_wdt_release,
 };

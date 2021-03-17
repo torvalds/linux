@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * at91-sama5d27_som1_ek.dts - Device Tree file for SAMA5D27-SOM1-EK board
  *
@@ -5,44 +6,6 @@
  *                2016 Nicolas Ferre <nicolas.ferre@atmel.com>
  *                2017 Cristian Birsan <cristian.birsan@microchip.com>
  *                2017 Claudiu Beznea <claudiu.beznea@microchip.com>
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This file is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 /dts-v1/;
 #include "at91-sama5d27_som1.dtsi"
@@ -58,7 +21,7 @@
 		serial1 = &uart4;	/* mikro BUS 1 */
 		serial2 = &uart2;	/* mikro BUS 2 */
 		i2c1	= &i2c1;
-		i2c2	= &i2c2;
+		i2c2	= &i2c3;
 	};
 
 	chosen {
@@ -90,6 +53,7 @@
 
 		sdmmc0: sdio-host@a0000000 {
 			bus-width = <8>;
+			mmc-ddr-3_3v;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sdmmc0_default>;
 			status = "okay";
@@ -106,6 +70,10 @@
 			isc: isc@f0008000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_isc_base &pinctrl_isc_data_8bit &pinctrl_isc_data_9_10 &pinctrl_isc_data_11_12>;
+				status = "okay";
+			};
+
+			qspi1: spi@f0024000 {
 				status = "okay";
 			};
 
@@ -157,18 +125,13 @@
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_TWI>;
 				status = "okay";
 
-				i2c2: i2c@600 {
-					compatible = "atmel,sama5d2-i2c";
-					reg = <0x600 0x200>;
-					interrupts = <20 IRQ_TYPE_LEVEL_HIGH 7>;
+				i2c3: i2c@600 {
 					dmas = <0>, <0>;
-					dma-names = "tx", "rx";
-					#address-cells = <1>;
-					#size-cells = <0>;
-					clocks = <&flx1_clk>;
+					i2c-analog-filter;
+					i2c-digital-filter;
+					i2c-digital-filter-width-ns = <35>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_i2c>;
-					atmel,fifo-size = <16>;
 					status = "okay";
 				};
 			};
@@ -207,27 +170,17 @@
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
 				status = "disabled";
 
-				uart7: serial@200 {
-					compatible = "atmel,at91sam9260-usart";
-					reg = <0x200 0x200>;
-					interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx3_clk>;
-					clock-names = "usart";
+				uart8: serial@200 {
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
-					atmel,fifo-size = <32>;
 					status = "disabled"; /* Conflict with isc. */
 				};
 
-				spi2: spi@400 {
-					compatible = "atmel,at91rm9200-spi";
-					reg = <0x400 0x200>;
-					interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx3_clk>;
-					clock-names = "spi_clk";
+				spi5: spi@400 {
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
-					atmel,fifo-size = <16>;
 					status = "disabled"; /* Conflict with isc. */
 				};
 			};
@@ -236,51 +189,43 @@
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
 				status = "okay";
 
-				uart6: serial@200 {
-					compatible = "atmel,at91sam9260-usart";
-					reg = <0x200 0x200>;
-					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx4_clk>;
-					clock-names = "usart";
+				uart9: serial@200 {
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
-					atmel,fifo-size = <32>;
-					status = "disabled"; /* Conflict with spi3 and i2c3. */
+					status = "disabled"; /* Conflict with spi6 and i2c6. */
 				};
 
-				spi3: spi@400 {
-					compatible = "atmel,at91rm9200-spi";
-					reg = <0x400 0x200>;
-					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx4_clk>;
-					clock-names = "spi_clk";
+				spi6: spi@400 {
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_spi &pinctrl_mikrobus1_spi_cs &pinctrl_mikrobus2_spi_cs>;
-					atmel,fifo-size = <16>;
-					status = "okay"; /* Conflict with uart6 and i2c3. */
+					status = "okay"; /* Conflict with uart5 and i2c6. */
 				};
 
-				i2c3: i2c@600 {
-					compatible = "atmel,sama5d2-i2c";
-					reg = <0x600 0x200>;
-					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
+				i2c6: i2c@600 {
 					dmas = <0>, <0>;
-					dma-names = "tx", "rx";
-					#address-cells = <1>;
-					#size-cells = <0>;
-					clocks = <&flx4_clk>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
-					atmel,fifo-size = <16>;
-					status = "disabled"; /* Conflict with uart6 and spi3. */
+					status = "disabled"; /* Conflict with uart5 and spi6. */
 				};
 			};
 
 			i2c1: i2c@fc028000 {
 				dmas = <0>, <0>;
+				i2c-analog-filter;
+				i2c-digital-filter;
+				i2c-digital-filter-width-ns = <35>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c1_default>;
 				status = "okay";
+			};
+
+			adc: adc@fc030000 {
+				vddana-supply = <&vddana>;
+				vref-supply = <&advref>;
+
+				status = "disabled";
 			};
 
 			pinctrl@fc038000 {
@@ -548,5 +493,40 @@
 			gpios = <&pioA PIN_PA31 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	vddin_3v3: fixed-regulator-vddin_3v3 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDDIN_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		status = "okay";
+	};
+
+	vddana: fixed-regulator-vddana {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDDANA";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vddin_3v3>;
+		status = "okay";
+	};
+
+	advref: fixed-regulator-advref {
+		compatible = "regulator-fixed";
+
+		regulator-name = "advref";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vddana>;
+		status = "okay";
 	};
 };

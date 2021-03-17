@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * An RTC test device/driver
  * Copyright (C) 2005 Tower Technologies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -73,11 +70,11 @@ static int test_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int test_rtc_set_mmss64(struct device *dev, time64_t secs)
+static int test_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct rtc_test_data *rtd = dev_get_drvdata(dev);
 
-	rtd->offset = secs - ktime_get_real_seconds();
+	rtd->offset = rtc_tm_to_time64(tm) - ktime_get_real_seconds();
 
 	return 0;
 }
@@ -97,15 +94,15 @@ static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 
 static const struct rtc_class_ops test_rtc_ops_noalm = {
 	.read_time = test_rtc_read_time,
-	.set_mmss64 = test_rtc_set_mmss64,
+	.set_time = test_rtc_set_time,
 	.alarm_irq_enable = test_rtc_alarm_irq_enable,
 };
 
 static const struct rtc_class_ops test_rtc_ops = {
 	.read_time = test_rtc_read_time,
+	.set_time = test_rtc_set_time,
 	.read_alarm = test_rtc_read_alarm,
 	.set_alarm = test_rtc_set_alarm,
-	.set_mmss64 = test_rtc_set_mmss64,
 	.alarm_irq_enable = test_rtc_alarm_irq_enable,
 };
 
@@ -136,6 +133,7 @@ static int test_probe(struct platform_device *plat_dev)
 		break;
 	default:
 		rtd->rtc->ops = &test_rtc_ops;
+		device_init_wakeup(&plat_dev->dev, 1);
 	}
 
 	timer_setup(&rtd->alarm, test_rtc_alarm_handler, 0);
@@ -155,7 +153,8 @@ static int __init test_init(void)
 {
 	int i, err;
 
-	if ((err = platform_driver_register(&test_driver)))
+	err = platform_driver_register(&test_driver);
+	if (err)
 		return err;
 
 	err = -ENOMEM;
@@ -197,7 +196,7 @@ static void __exit test_exit(void)
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("RTC test driver/device");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 module_init(test_init);
 module_exit(test_exit);

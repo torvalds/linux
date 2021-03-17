@@ -22,14 +22,15 @@
  * Authors: Alex Deucher
  */
 
-#include <drm/drmP.h>
+#include <linux/pci.h>
+#include <linux/seq_file.h>
+
+#include "atom.h"
+#include "r600_dpm.h"
 #include "radeon.h"
 #include "radeon_asic.h"
-#include "rs780d.h"
-#include "r600_dpm.h"
 #include "rs780_dpm.h"
-#include "atom.h"
-#include <linux/seq_file.h>
+#include "rs780d.h"
 
 static struct igp_ps *rs780_get_ps(struct radeon_ps *rps)
 {

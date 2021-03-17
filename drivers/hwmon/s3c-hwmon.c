@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/hwmon/s3c-hwmon.c
  *
  * Copyright (C) 2005, 2008, 2009 Simtec Electronics
@@ -5,19 +6,6 @@
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C24XX/S3C64XX ADC hwmon support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <linux/module.h>
@@ -32,7 +20,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
-#include <plat/adc.h>
+#include <linux/soc/samsung/s3c-adc.h>
 #include <linux/platform_data/hwmon-s3c.h>
 
 struct s3c_hwmon_attr {
@@ -98,7 +86,7 @@ static int s3c_hwmon_read_ch(struct device *dev,
 static ssize_t s3c_hwmon_show_raw(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct s3c_hwmon *adc = platform_get_drvdata(to_platform_device(dev));
+	struct s3c_hwmon *adc = dev_get_drvdata(dev);
 	struct sensor_device_attribute *sa = to_sensor_dev_attr(attr);
 	int ret;
 
@@ -164,7 +152,7 @@ static ssize_t s3c_hwmon_ch_show(struct device *dev,
 				 char *buf)
 {
 	struct sensor_device_attribute *sen_attr = to_sensor_dev_attr(attr);
-	struct s3c_hwmon *hwmon = platform_get_drvdata(to_platform_device(dev));
+	struct s3c_hwmon *hwmon = dev_get_drvdata(dev);
 	struct s3c_hwmon_pdata *pdata = dev_get_platdata(dev);
 	struct s3c_hwmon_chcfg *cfg;
 	int ret;

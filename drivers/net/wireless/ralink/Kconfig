@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WLAN_VENDOR_RALINK
 	bool "Ralink devices"
 	default y
-	---help---
+	help
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the

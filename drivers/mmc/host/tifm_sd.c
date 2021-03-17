@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  tifm_sd.c - TI FlashMedia driver
  *
  *  Copyright (C) 2006 Alex Dubov <oakad@yahoo.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Special thanks to Brad Campbell for extensive testing of this driver.
- *
  */
 
 
@@ -76,6 +72,8 @@ module_param(fixed_timeout, bool, 0644);
 #define TIFM_MMCSD_CMD_ADTC   0x3000
 
 #define TIFM_MMCSD_MAX_BLOCK_SIZE  0x0800UL
+
+#define TIFM_MMCSD_REQ_TIMEOUT_MS  1000
 
 enum {
 	CMD_READY    = 0x0001,
@@ -336,7 +334,8 @@ static unsigned int tifm_sd_op_flags(struct mmc_command *cmd)
 		rc |= TIFM_MMCSD_RSP_R0;
 		break;
 	case MMC_RSP_R1B:
-		rc |= TIFM_MMCSD_RSP_BUSY; // deliberate fall-through
+		rc |= TIFM_MMCSD_RSP_BUSY;
+		fallthrough;
 	case MMC_RSP_R1:
 		rc |= TIFM_MMCSD_RSP_R1;
 		break;
@@ -888,7 +887,6 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	struct tifm_dev *sock = host->dev;
 
 	writel(0, sock->addr + SOCK_MMCSD_INT_ENABLE);
-	mmiowb();
 	host->clk_div = 61;
 	host->clk_freq = 20000000;
 	writel(TIFM_MMCSD_RESET, sock->addr + SOCK_MMCSD_SYSTEM_CONTROL);
@@ -939,7 +937,6 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	writel(TIFM_MMCSD_CERR | TIFM_MMCSD_BRS | TIFM_MMCSD_EOC
 	       | TIFM_MMCSD_ERRMASK,
 	       sock->addr + SOCK_MMCSD_INT_ENABLE);
-	mmiowb();
 
 	return 0;
 }
@@ -964,7 +961,12 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	host = mmc_priv(mmc);
 	tifm_set_drvdata(sock, mmc);
 	host->dev = sock;
-	host->timeout_jiffies = msecs_to_jiffies(1000);
+	host->timeout_jiffies = msecs_to_jiffies(TIFM_MMCSD_REQ_TIMEOUT_MS);
+	/*
+	 * We use a fixed request timeout of 1s, hence inform the core about it.
+	 * A future improvement should instead respect the cmd->busy_timeout.
+	 */
+	mmc->max_busy_timeout = TIFM_MMCSD_REQ_TIMEOUT_MS;
 
 	tasklet_init(&host->finish_tasklet, tifm_sd_end_cmd,
 		     (unsigned long)host);
@@ -1004,7 +1006,6 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 	spin_lock_irqsave(&sock->lock, flags);
 	host->eject = 1;
 	writel(0, sock->addr + SOCK_MMCSD_INT_ENABLE);
-	mmiowb();
 	spin_unlock_irqrestore(&sock->lock, flags);
 
 	tasklet_kill(&host->finish_tasklet);

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * emac-rockchip.c - Rockchip EMAC specific glue layer
  *
  * Copyright (C) 2014 Romain Perier <romain.perier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/etherdevice.h>
@@ -25,7 +16,6 @@
 #include "emac.h"
 
 #define DRV_NAME        "rockchip_emac"
-#define DRV_VERSION     "1.1"
 
 struct emac_rockchip_soc_data {
 	unsigned int grf_offset;
@@ -106,8 +96,9 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct rockchip_priv_data *priv;
 	const struct of_device_id *match;
+	phy_interface_t interface;
 	u32 data;
-	int err, interface;
+	int err;
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
@@ -120,10 +111,11 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 	priv->emac.drv_name = DRV_NAME;
-	priv->emac.drv_version = DRV_VERSION;
 	priv->emac.set_mac_speed = emac_rockchip_set_mac_speed;
 
-	interface = of_get_phy_mode(dev->of_node);
+	err = of_get_phy_mode(dev->of_node, &interface);
+	if (err)
+		goto out_netdev;
 
 	/* RK3036/RK3066/RK3188 SoCs only support RMII */
 	if (interface != PHY_INTERFACE_MODE_RMII) {
@@ -264,6 +256,9 @@ static int emac_rockchip_remove(struct platform_device *pdev)
 
 	if (priv->regulator)
 		regulator_disable(priv->regulator);
+
+	if (priv->soc_data->need_div_macclk)
+		clk_disable_unprepare(priv->macclk);
 
 	free_netdev(ndev);
 	return err;

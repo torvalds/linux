@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -6,21 +7,6 @@
  * Defines journalling api and structures.
  *
  * Copyright (C) 2003, 2005 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #ifndef OCFS2_JOURNAL_H
@@ -158,7 +144,6 @@ static inline void ocfs2_ci_set_new(struct ocfs2_super *osb,
 void ocfs2_orphan_scan_init(struct ocfs2_super *osb);
 void ocfs2_orphan_scan_start(struct ocfs2_super *osb);
 void ocfs2_orphan_scan_stop(struct ocfs2_super *osb);
-void ocfs2_orphan_scan_exit(struct ocfs2_super *osb);
 
 void ocfs2_complete_recovery(struct work_struct *work);
 void ocfs2_wait_for_recovery(struct ocfs2_super *osb);
@@ -246,8 +231,8 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *                          ocfs2_journal_access_*() unless you intend to
  *                          manage the checksum by hand.
  *  ocfs2_journal_dirty    - Mark a journalled buffer as having dirty data.
- *  ocfs2_jbd2_file_inode  - Mark an inode so that its data goes out before
- *                           the current handle commits.
+ *  ocfs2_jbd2_inode_add_write  - Mark an inode with range so that its data goes
+ *                                out before the current handle commits.
  */
 
 /* You must always start_trans with a number of buffs > 0, but it's
@@ -455,7 +440,7 @@ static inline int ocfs2_mknod_credits(struct super_block *sb, int is_dir,
  * previous dirblock update in the free list */
 static inline int ocfs2_link_credits(struct super_block *sb)
 {
-	return 2*OCFS2_INODE_UPDATE_CREDITS + 4 +
+	return 2 * OCFS2_INODE_UPDATE_CREDITS + 4 +
 	       ocfs2_quota_trans_credits(sb);
 }
 
@@ -589,37 +574,12 @@ static inline int ocfs2_calc_bg_discontig_credits(struct super_block *sb)
 	return ocfs2_extent_recs_per_gd(sb);
 }
 
-static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,
-						unsigned int clusters_to_del,
-						struct ocfs2_dinode *fe,
-						struct ocfs2_extent_list *last_el)
+static inline int ocfs2_jbd2_inode_add_write(handle_t *handle, struct inode *inode,
+					     loff_t start_byte, loff_t length)
 {
- 	/* for dinode + all headers in this pass + update to next leaf */
-	u16 next_free = le16_to_cpu(last_el->l_next_free_rec);
-	u16 tree_depth = le16_to_cpu(fe->id2.i_list.l_tree_depth);
-	int credits = 1 + tree_depth + 1;
-	int i;
-
-	i = next_free - 1;
-	BUG_ON(i < 0);
-
-	/* We may be deleting metadata blocks, so metadata alloc dinode +
-	   one desc. block for each possible delete. */
-	if (tree_depth && next_free == 1 &&
-	    ocfs2_rec_clusters(last_el, &last_el->l_recs[i]) == clusters_to_del)
-		credits += 1 + tree_depth;
-
-	/* update to the truncate log. */
-	credits += OCFS2_TRUNCATE_LOG_UPDATE;
-
-	credits += ocfs2_quota_trans_credits(sb);
-
-	return credits;
-}
-
-static inline int ocfs2_jbd2_file_inode(handle_t *handle, struct inode *inode)
-{
-	return jbd2_journal_inode_add_write(handle, &OCFS2_I(inode)->ip_jinode);
+	return jbd2_journal_inode_ranged_write(handle,
+					       &OCFS2_I(inode)->ip_jinode,
+					       start_byte, length);
 }
 
 static inline int ocfs2_begin_ordered_truncate(struct inode *inode,
@@ -637,9 +597,11 @@ static inline void ocfs2_update_inode_fsync_trans(handle_t *handle,
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
-	oi->i_sync_tid = handle->h_transaction->t_tid;
-	if (datasync)
-		oi->i_datasync_tid = handle->h_transaction->t_tid;
+	if (!is_handle_aborted(handle)) {
+		oi->i_sync_tid = handle->h_transaction->t_tid;
+		if (datasync)
+			oi->i_datasync_tid = handle->h_transaction->t_tid;
+	}
 }
 
 #endif /* OCFS2_JOURNAL_H */

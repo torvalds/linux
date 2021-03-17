@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/qcom,smd-rpm-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: QCOM SMD RPM REGULATOR
+
+description:
+  The Qualcomm RPM over SMD regulator is modelled as a subdevice of the RPM.
+  Because SMD is used as the communication transport mechanism, the RPM
+  resides as a subnode of the SMD.  As such, the SMD-RPM regulator requires
+  that the SMD and RPM nodes be present.
+
+  Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.txt for
+  information pertaining to the SMD node.
+
+  Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
+  for information regarding the RPM node.
+
+  The regulator node houses sub-nodes for each regulator within the device.
+  Each sub-node is identified using the node's name, with valid values listed
+  for each of the pmics below.
+
+  For mp5496, s2
+
+  For pm8841, s1, s2, s3, s4, s5, s6, s7, s8
+
+  For pm8916, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
+  l12, l13, l14, l15, l16, l17, l18
+
+  For pm8941, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
+  l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22, l23, l24, lvs1, lvs2,
+  lvs3, 5vs1, 5vs2
+
+  For pm8950 and pm8953, s1, s2, s3, s4, s5, s6, s7, l1, l2, l3, l4, l5, l6,
+  l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22,
+  l23
+
+  For pm8994, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, l1, l2, l3,
+  l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19,
+  l20, l21, l22, l23, l24, l25, l26, l27, l28, l29, l30, l31, l32, lvs1, lvs2
+
+  For pm8998, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, l1, l2,
+  l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19,
+  l20, l21, l22, l23, l24, l25, l26, l27, l28, lvs1, lvs2
+
+  For pm660, s1, s2, s3, s4, s5, s6, l1, l2, l3, l5, l6, l7, l8, l9, l10, l22,
+  l12, l13, l14, l15, l16, l17, l18, l19
+
+  For pm660l s1, s2, s3, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, bob
+
+  For pma8084, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, l1, l2, l3,
+  l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19,
+  l20, l21, l22, l23, l24, l25, l26, l27, lvs1, lvs2, lvs3, lvs4, 5vs1
+
+  For pmi8994, s1, s2, s3, boost-bypass
+
+  For pmi8998, bob
+
+  For pms405, s1, s2, s3, s4, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
+  l12, l13
+
+maintainers:
+  - Kathiravan T <kathirav@codeaurora.org>
+
+properties:
+  compatible:
+    enum:
+      - qcom,rpm-mp5496-regulators
+      - qcom,rpm-pm8841-regulators
+      - qcom,rpm-pm8916-regulators
+      - qcom,rpm-pm8941-regulators
+      - qcom,rpm-pm8950-regulators
+      - qcom,rpm-pm8953-regulators
+      - qcom,rpm-pm8994-regulators
+      - qcom,rpm-pm8998-regulators
+      - qcom,rpm-pm660-regulators
+      - qcom,rpm-pm660l-regulators
+      - qcom,rpm-pma8084-regulators
+      - qcom,rpm-pmi8994-regulators
+      - qcom,rpm-pmi8998-regulators
+      - qcom,rpm-pms405-regulators
+
+patternProperties:
+  ".*-supply$":
+    description: Input supply phandle(s) for this node
+
+  "^((s|l|lvs|5vs)[0-9]*)|(boost-bypass)|(bob)$":
+    description: List of regulators and its properties
+    $ref: regulator.yaml#
+
+additionalProperties: false
+
+required:
+  - compatible
+
+examples:
+  - |
+    pm8941-regulators {
+        compatible = "qcom,rpm-pm8941-regulators";
+        vdd_l13_l20_l23_l24-supply = <&pm8941_boost>;
+
+        pm8941_s3: s3 {
+            regulator-min-microvolt = <1800000>;
+            regulator-max-microvolt = <1800000>;
+        };
+
+        pm8941_boost: s4 {
+            regulator-min-microvolt = <5000000>;
+            regulator-max-microvolt = <5000000>;
+        };
+
+        pm8941_l20: l20 {
+            regulator-min-microvolt = <2950000>;
+            regulator-max-microvolt = <2950000>;
+        };
+    };
+...

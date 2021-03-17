@@ -1,7 +1,4 @@
-/*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
+/* SPDX-License-Identifier: GPL-2.0
  *
  * Copyright (C) 1999 by Kaz Kojima
  *
@@ -9,8 +6,6 @@
  */
 #ifndef __ASM_SH_ADDRSPACE_H
 #define __ASM_SH_ADDRSPACE_H
-
-#ifdef __KERNEL__
 
 #include <cpu/addrspace.h>
 
@@ -65,5 +60,4 @@
 #define P3_ADDR_MAX		P4SEG
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_SH_ADDRSPACE_H */

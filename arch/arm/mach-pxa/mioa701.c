@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Handles the Mitac Mio A701 Board
  *
  * Copyright (C) 2008 Robert Jarzmik
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/kernel.h>
@@ -31,13 +17,13 @@
 #include <linux/rtc.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pda_power.h>
 #include <linux/power_supply.h>
 #include <linux/wm97xx.h>
 #include <linux/mtd/physmap.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/reboot.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/max1586.h>
@@ -190,7 +176,6 @@ static struct pwm_lookup mioa701_pwm_lookup[] = {
 static struct platform_pwm_backlight_data mioa701_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 50,
-	.enable_gpio	= -1,
 };
 
 /*
@@ -381,10 +366,13 @@ static struct pxa2xx_udc_mach_info mioa701_udc_info = {
 	.gpio_pullup	  = GPIO22_USB_ENABLE,
 };
 
-struct gpio_vbus_mach_info gpio_vbus_data = {
-	.gpio_vbus = GPIO13_nUSB_DETECT,
-	.gpio_vbus_inverted = 1,
-	.gpio_pullup = -1,
+static struct gpiod_lookup_table gpio_vbus_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO13_nUSB_DETECT,
+			    "vbus", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 /*
@@ -397,9 +385,22 @@ struct gpio_vbus_mach_info gpio_vbus_data = {
 static struct pxamci_platform_data mioa701_mci_info = {
 	.detect_delay_ms	= 250,
 	.ocr_mask 		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO15_SDIO_INSERT,
-	.gpio_card_ro		= GPIO78_SDIO_RO,
-	.gpio_power		= GPIO91_SDIO_EN,
+};
+
+static struct gpiod_lookup_table mioa701_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 15 */
+		GPIO_LOOKUP("gpio-pxa", GPIO15_SDIO_INSERT,
+			    "cd", GPIO_ACTIVE_LOW),
+		/* Write protect on GPIO 78 */
+		GPIO_LOOKUP("gpio-pxa", GPIO78_SDIO_RO,
+			    "wp", GPIO_ACTIVE_LOW),
+		/* Power on GPIO 91 */
+		GPIO_LOOKUP("gpio-pxa", GPIO91_SDIO_EN,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /* FlashRAM */
@@ -677,7 +678,7 @@ MIO_SIMPLE_DEV(mioa701_led,	  "leds-gpio",	    &gpio_led_info)
 MIO_SIMPLE_DEV(pxa2xx_pcm,	  "pxa2xx-pcm",	    NULL)
 MIO_SIMPLE_DEV(mioa701_sound,	  "mioa701-wm9713", NULL)
 MIO_SIMPLE_DEV(mioa701_board,	  "mioa701-board",  NULL)
-MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      &gpio_vbus_data);
+MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      NULL);
 
 static struct platform_device *devices[] __initdata = {
 	&mioa701_gpio_keys,
@@ -743,12 +744,14 @@ static void __init mioa701_machine_init(void)
 		pr_err("MioA701: Failed to request GPIOs: %d", rc);
 	bootstrap_init();
 	pxa_set_fb_info(NULL, &mioa701_pxafb_info);
+	gpiod_add_lookup_table(&mioa701_mci_gpio_table);
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	pxa_set_udc_info(&mioa701_udc_info);
 	pxa_set_ac97_info(&mioa701_ac97_info);
 	pm_power_off = mioa701_poweroff;
 	pwm_add_table(mioa701_pwm_lookup, ARRAY_SIZE(mioa701_pwm_lookup));
+	gpiod_add_lookup_table(&gpio_vbus_gpiod_table);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gsm_init();
 

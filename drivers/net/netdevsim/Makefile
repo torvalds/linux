@@ -3,15 +3,11 @@
 obj-$(CONFIG_NETDEVSIM) += netdevsim.o
 
 netdevsim-objs := \
-	netdev.o \
+	netdev.o dev.o ethtool.o fib.o bus.o health.o udp_tunnels.o
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)
 netdevsim-objs += \
 	bpf.o
-endif
-
-ifneq ($(CONFIG_NET_DEVLINK),)
-netdevsim-objs += devlink.o fib.o
 endif
 
 ifneq ($(CONFIG_XFRM_OFFLOAD),)

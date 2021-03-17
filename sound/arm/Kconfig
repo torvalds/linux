@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # ALSA ARM drivers
 
 menuconfig SND_ARM
@@ -31,7 +32,6 @@ endif	# SND_ARM
 
 config SND_PXA2XX_LIB
 	tristate
-	select SND_AC97_CODEC if SND_PXA2XX_LIB_AC97
 	select SND_DMAENGINE_PCM
 
 config SND_PXA2XX_LIB_AC97

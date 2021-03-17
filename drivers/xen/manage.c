@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Handle extern requests for shutdown, reboot and sysrq
  */

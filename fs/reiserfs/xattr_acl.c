@@ -320,10 +320,8 @@ reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
 	 * would be useless since permissions are ignored, and a pain because
 	 * it introduces locking cycles
 	 */
-	if (IS_PRIVATE(dir)) {
-		inode->i_flags |= S_PRIVATE;
+	if (IS_PRIVATE(inode))
 		goto apply_umask;
-	}
 
 	err = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
 	if (err)
@@ -375,7 +373,7 @@ int reiserfs_cache_default_acl(struct inode *inode)
 
 		/* Other xattrs can be created during inode creation. We don't
 		 * want to claim too many blocks, so we check to see if we
-		 * we need to create the tree to the xattrs, and then we
+		 * need to create the tree to the xattrs, and then we
 		 * just want two files. */
 		nblocks = reiserfs_xattr_jcreate_nblocks(inode);
 		nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);

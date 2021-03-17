@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ------------------------------------------------------------------------- */
 /* i2c-iop3xx.c i2c driver algorithms for Intel XScale IOP3xx & IXP46x       */
 /* ------------------------------------------------------------------------- */
@@ -23,10 +24,6 @@
  *
  * - writing to slave address causes latchup on iop331.
  *	fix: driver refuses to address self.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2.
  */
 
 #include <linux/interrupt.h>
@@ -38,7 +35,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include "i2c-iop3xx.h"
 
@@ -71,17 +68,16 @@ iop3xx_i2c_enable(struct i2c_algo_iop3xx_data *iop3xx_adap)
 
 	/*
 	 * Every time unit enable is asserted, GPOD needs to be cleared
-	 * on IOP3XX to avoid data corruption on the bus.
+	 * on IOP3XX to avoid data corruption on the bus. We use the
+	 * gpiod_set_raw_value() to make sure the 0 hits the hardware
+	 * GPOD register. These descriptors are only passed along to
+	 * the device if this is necessary.
 	 */
-#if defined(CONFIG_ARCH_IOP32X) || defined(CONFIG_ARCH_IOP33X)
-	if (iop3xx_adap->id == 0) {
-		gpio_set_value(7, 0);
-		gpio_set_value(6, 0);
-	} else {
-		gpio_set_value(5, 0);
-		gpio_set_value(4, 0);
-	}
-#endif
+	if (iop3xx_adap->gpio_scl)
+		gpiod_set_raw_value(iop3xx_adap->gpio_scl, 0);
+	if (iop3xx_adap->gpio_sda)
+		gpiod_set_raw_value(iop3xx_adap->gpio_sda, 0);
+
 	/* NB SR bits not same position as CR IE bits :-( */
 	iop3xx_adap->SR_enabled =
 		IOP3XX_ISR_ALD | IOP3XX_ISR_BERRD |
@@ -434,6 +430,21 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 		goto free_adapter;
 	}
 
+	adapter_data->gpio_scl = devm_gpiod_get_optional(&pdev->dev,
+							 "scl",
+							 GPIOD_ASIS);
+	if (IS_ERR(adapter_data->gpio_scl)) {
+		ret = PTR_ERR(adapter_data->gpio_scl);
+		goto free_both;
+	}
+	adapter_data->gpio_sda = devm_gpiod_get_optional(&pdev->dev,
+							 "sda",
+							 GPIOD_ASIS);
+	if (IS_ERR(adapter_data->gpio_sda)) {
+		ret = PTR_ERR(adapter_data->gpio_sda);
+		goto free_both;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENODEV;
@@ -471,6 +482,7 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 	new_adapter->owner = THIS_MODULE;
 	new_adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	new_adapter->dev.parent = &pdev->dev;
+	new_adapter->dev.of_node = pdev->dev.of_node;
 	new_adapter->nr = pdev->id;
 
 	/*
@@ -508,12 +520,19 @@ out:
 	return ret;
 }
 
+static const struct of_device_id i2c_iop3xx_match[] = {
+	{ .compatible = "intel,iop3xx-i2c", },
+	{ .compatible = "intel,ixp4xx-i2c", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, i2c_iop3xx_match);
 
 static struct platform_driver iop3xx_i2c_driver = {
 	.probe		= iop3xx_i2c_probe,
 	.remove		= iop3xx_i2c_remove,
 	.driver		= {
 		.name	= "IOP3xx-I2C",
+		.of_match_table = i2c_iop3xx_match,
 	},
 };
 

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 Intel Corporation
  *
  * Driver for UPISEMI us5182d Proximity and Ambient Light Sensor.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * To do: Interrupt support.
  */
@@ -454,8 +446,8 @@ static int us5182d_read_raw(struct iio_dev *indio_dev,
 
 /**
  * us5182d_update_dark_th - update Darh_Th registers
- * @data	us5182d_data structure
- * @index	index in us5182d_dark_ths array to use for the updated value
+ * @data:	us5182d_data structure
+ * @index:	index in us5182d_dark_ths array to use for the updated value
  *
  * Function needs to be called with a lock held because it needs two i2c write
  * byte operations as these registers (0x27 0x28) don't work in word mode
@@ -477,8 +469,8 @@ static int us5182d_update_dark_th(struct us5182d_data *data, int index)
 
 /**
  * us5182d_apply_scale - update the ALS scale
- * @data	us5182d_data structure
- * @index	index in us5182d_scales array to use for the updated value
+ * @data:	us5182d_data structure
+ * @index:	index in us5182d_scales array to use for the updated value
  *
  * Function needs to be called with a lock held as we're having more than one
  * i2c operation.
@@ -859,7 +851,6 @@ static int us5182d_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &us5182d_info;
 	indio_dev->name = US5182D_DRV_NAME;
 	indio_dev->channels = us5182d_channels;

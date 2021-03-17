@@ -257,6 +257,7 @@ static const struct v4l2_subdev_ops uds_ops = {
 
 static void uds_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_uds *uds = to_uds(&entity->subdev);
@@ -314,13 +315,13 @@ static void uds_configure_partition(struct vsp1_entity *entity,
 	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
 					    UDS_PAD_SOURCE);
 
-	/* Input size clipping */
+	/* Input size clipping. */
 	vsp1_uds_write(uds, dlb, VI6_UDS_HSZCLIP, VI6_UDS_HSZCLIP_HCEN |
 		       (0 << VI6_UDS_HSZCLIP_HCL_OFST_SHIFT) |
 		       (partition->uds_sink.width
 				<< VI6_UDS_HSZCLIP_HCL_SIZE_SHIFT));
 
-	/* Output size clipping */
+	/* Output size clipping. */
 	vsp1_uds_write(uds, dlb, VI6_UDS_CLIP_SIZE,
 		       (partition->uds_source.width
 				<< VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
@@ -342,6 +343,14 @@ static unsigned int uds_max_width(struct vsp1_entity *entity,
 					    UDS_PAD_SOURCE);
 	hscale = output->width / input->width;
 
+	/*
+	 * The maximum width of the UDS is 304 pixels. These are input pixels
+	 * in the event of up-scaling, and output pixels in the event of
+	 * downscaling.
+	 *
+	 * To support overlapping partition windows we clamp at units of 256 and
+	 * the remaining pixels are reserved.
+	 */
 	if (hscale <= 2)
 		return 256;
 	else if (hscale <= 4)
@@ -366,7 +375,7 @@ static void uds_partition(struct vsp1_entity *entity,
 	const struct v4l2_mbus_framefmt *output;
 	const struct v4l2_mbus_framefmt *input;
 
-	/* Initialise the partition state */
+	/* Initialise the partition state. */
 	partition->uds_sink = *window;
 	partition->uds_source = *window;
 

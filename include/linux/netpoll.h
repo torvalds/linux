@@ -31,8 +31,6 @@ struct netpoll {
 	bool ipv6;
 	u16 local_port, remote_port;
 	u8 remote_mac[ETH_ALEN];
-
-	struct work_struct cleanup_work;
 };
 
 struct netpoll_info {
@@ -63,17 +61,9 @@ int netpoll_parse_options(struct netpoll *np, char *opt);
 int __netpoll_setup(struct netpoll *np, struct net_device *ndev);
 int netpoll_setup(struct netpoll *np);
 void __netpoll_cleanup(struct netpoll *np);
-void __netpoll_free_async(struct netpoll *np);
+void __netpoll_free(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
-void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
-			     struct net_device *dev);
-static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
-{
-	unsigned long flags;
-	local_irq_save(flags);
-	netpoll_send_skb_on_dev(np, skb, np->dev);
-	local_irq_restore(flags);
-}
+netdev_tx_t netpoll_send_skb(struct netpoll *np, struct sk_buff *skb);
 
 #ifdef CONFIG_NETPOLL
 static inline void *netpoll_poll_lock(struct napi_struct *napi)
@@ -110,9 +100,6 @@ static inline void *netpoll_poll_lock(struct napi_struct *napi)
 	return NULL;
 }
 static inline void netpoll_poll_unlock(void *have)
-{
-}
-static inline void netpoll_netdev_init(struct net_device *dev)
 {
 }
 static inline bool netpoll_tx_running(struct net_device *dev)

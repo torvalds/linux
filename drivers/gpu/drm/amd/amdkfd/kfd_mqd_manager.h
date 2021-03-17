@@ -26,6 +26,8 @@
 
 #include "kfd_priv.h"
 
+#define KFD_MAX_NUM_SE 8
+
 /**
  * struct mqd_manager
  *
@@ -39,9 +41,12 @@
  * @destroy_mqd: Destroys the HQD slot and by that preempt the relevant queue.
  * Used only for no cp scheduling.
  *
- * @uninit_mqd: Releases the mqd buffer from local gpu memory.
+ * @free_mqd: Releases the mqd buffer from local gpu memory.
  *
  * @is_occupied: Checks if the relevant HQD slot is occupied.
+ *
+ * @get_wave_state: Retrieves context save state and optionally copies the
+ * control stack, if kept in the MQD, to the given userspace address.
  *
  * @mqd_mutex: Mqd manager mutex.
  *
@@ -59,10 +64,13 @@
  * per KFD_MQD_TYPE for each device.
  *
  */
-
+extern int pipe_priority_map[];
 struct mqd_manager {
-	int	(*init_mqd)(struct mqd_manager *mm, void **mqd,
-			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
+	struct kfd_mem_obj*	(*allocate_mqd)(struct kfd_dev *kfd,
+		struct queue_properties *q);
+
+	void	(*init_mqd)(struct mqd_manager *mm, void **mqd,
+			struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q);
 
 	int	(*load_mqd)(struct mqd_manager *mm, void *mqd,
@@ -70,7 +78,7 @@ struct mqd_manager {
 				struct queue_properties *p,
 				struct mm_struct *mms);
 
-	int	(*update_mqd)(struct mqd_manager *mm, void *mqd,
+	void	(*update_mqd)(struct mqd_manager *mm, void *mqd,
 				struct queue_properties *q);
 
 	int	(*destroy_mqd)(struct mqd_manager *mm, void *mqd,
@@ -78,12 +86,17 @@ struct mqd_manager {
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id);
 
-	void	(*uninit_mqd)(struct mqd_manager *mm, void *mqd,
+	void	(*free_mqd)(struct mqd_manager *mm, void *mqd,
 				struct kfd_mem_obj *mqd_mem_obj);
 
 	bool	(*is_occupied)(struct mqd_manager *mm, void *mqd,
 				uint64_t queue_address,	uint32_t pipe_id,
 				uint32_t queue_id);
+
+	int	(*get_wave_state)(struct mqd_manager *mm, void *mqd,
+				  void __user *ctl_stack,
+				  u32 *ctl_stack_used_size,
+				  u32 *save_area_used_size);
 
 #if defined(CONFIG_DEBUG_FS)
 	int	(*debugfs_show_mqd)(struct seq_file *m, void *data);
@@ -91,7 +104,16 @@ struct mqd_manager {
 
 	struct mutex	mqd_mutex;
 	struct kfd_dev	*dev;
+	uint32_t mqd_size;
 };
+
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev,
+				struct queue_properties *q);
+
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+					struct queue_properties *q);
+void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
+				struct kfd_mem_obj *mqd_mem_obj);
 
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		const uint32_t *cu_mask, uint32_t cu_mask_count,

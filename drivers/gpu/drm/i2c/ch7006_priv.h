@@ -27,9 +27,9 @@
 #ifndef __DRM_I2C_CH7006_PRIV_H__
 #define __DRM_I2C_CH7006_PRIV_H__
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder_slave.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/i2c/ch7006.h>
 
 typedef int64_t fixed;

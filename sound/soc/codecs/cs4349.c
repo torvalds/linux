@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cs4349.c  --  CS4349 ALSA Soc Audio driver
  *
  * Copyright 2015 Cirrus Logic, Inc.
  *
  * Authors: Tim Howe <Tim.Howe@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -134,7 +131,7 @@ static int cs4349_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs4349_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs4349_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int reg;
@@ -239,7 +236,8 @@ static const struct snd_soc_dapm_route cs4349_routes[] = {
 static const struct snd_soc_dai_ops cs4349_dai_ops = {
 	.hw_params	= cs4349_pcm_hw_params,
 	.set_fmt	= cs4349_set_dai_fmt,
-	.digital_mute	= cs4349_digital_mute,
+	.mute_stream	= cs4349_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4349_dai = {
@@ -381,6 +379,7 @@ static struct i2c_driver cs4349_i2c_driver = {
 	.driver = {
 		.name		= "cs4349",
 		.of_match_table	= cs4349_of_match,
+		.pm = &cs4349_runtime_pm,
 	},
 	.id_table	= cs4349_i2c_id,
 	.probe		= cs4349_i2c_probe,

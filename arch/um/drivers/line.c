@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <linux/irqreturn.h>
@@ -184,11 +184,6 @@ void line_flush_chars(struct tty_struct *tty)
 	line_flush_buffer(tty);
 }
 
-int line_put_char(struct tty_struct *tty, unsigned char ch)
-{
-	return line_write(tty, &ch, sizeof(ch));
-}
-
 int line_write(struct tty_struct *tty, const unsigned char *buf, int len)
 {
 	struct line *line = tty->driver_data;
@@ -235,14 +230,6 @@ void line_unthrottle(struct tty_struct *tty)
 
 	line->throttled = 0;
 	chan_interrupt(line, line->driver->read_irq);
-
-	/*
-	 * Maybe there is enough stuff pending that calling the interrupt
-	 * throttles us again.  In this case, line->throttled will be 1
-	 * again and we shouldn't turn the interrupt back on.
-	 */
-	if (!line->throttled)
-		reactivate_chan(line->chan_in, line->driver->read_irq);
 }
 
 static irqreturn_t line_write_interrupt(int irq, void *data)
@@ -261,7 +248,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 	if (err == 0) {
 		spin_unlock(&line->lock);
 		return IRQ_NONE;
-	} else if (err < 0) {
+	} else if ((err < 0) && (err != -EAGAIN)) {
 		line->head = line->buffer;
 		line->tail = line->buffer;
 	}
@@ -284,7 +271,7 @@ int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 	if (err)
 		return err;
 	if (output)
-		err = um_request_irq(driver->write_irq, fd, IRQ_NONE,
+		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
 				     line_write_interrupt, IRQF_SHARED,
 				     driver->write_irq_name, data);
 	return err;
@@ -667,8 +654,6 @@ static irqreturn_t winch_interrupt(int irq, void *data)
 		tty_kref_put(tty);
 	}
  out:
-	if (winch->fd != -1)
-		reactivate_fd(winch->fd, WINCH_IRQ);
 	return IRQ_HANDLED;
 }
 

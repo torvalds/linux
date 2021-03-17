@@ -23,7 +23,7 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_i2c.h"
@@ -32,11 +32,13 @@
 #include "amdgpu_display.h"
 #include <asm/div64.h>
 
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_vblank.h>
 
 static void amdgpu_display_flip_callback(struct dma_fence *f,
 					 struct dma_fence_cb *cb)
@@ -91,13 +93,13 @@ static void amdgpu_display_flip_work_func(struct work_struct *__work)
 	 * targeted by the flip
 	 */
 	if (amdgpu_crtc->enabled &&
-	    (amdgpu_display_get_crtc_scanoutpos(adev->ddev, work->crtc_id, 0,
+	    (amdgpu_display_get_crtc_scanoutpos(adev_to_drm(adev), work->crtc_id, 0,
 						&vpos, &hpos, NULL, NULL,
 						&crtc->hwmode)
 	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
 	    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
 	    (int)(work->target_vblank -
-		  amdgpu_get_vblank_counter_kms(adev->ddev, amdgpu_crtc->crtc_id)) > 0) {
+		  amdgpu_get_vblank_counter_kms(crtc)) > 0) {
 		schedule_delayed_work(&work->flip_work, usecs_to_jiffies(1000));
 		return;
 	}
@@ -150,7 +152,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 				struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_gem_object *obj;
 	struct amdgpu_flip_work *work;
@@ -188,10 +190,13 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin(new_abo, amdgpu_display_supported_domains(adev));
-	if (unlikely(r != 0)) {
-		DRM_ERROR("failed to pin new abo buffer before flip\n");
-		goto unreserve;
+	if (!adev->enable_virtual_display) {
+		r = amdgpu_bo_pin(new_abo,
+				  amdgpu_display_supported_domains(adev, new_abo->flags));
+		if (unlikely(r != 0)) {
+			DRM_ERROR("failed to pin new abo buffer before flip\n");
+			goto unreserve;
+		}
 	}
 
 	r = amdgpu_ttm_alloc_gart(&new_abo->tbo);
@@ -200,7 +205,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto unpin;
 	}
 
-	r = reservation_object_get_fences_rcu(new_abo->tbo.resv, &work->excl,
+	r = dma_resv_get_fences_rcu(new_abo->tbo.base.resv, &work->excl,
 					      &work->shared_count,
 					      &work->shared);
 	if (unlikely(r != 0)) {
@@ -211,9 +216,10 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	amdgpu_bo_get_tiling_flags(new_abo, &tiling_flags);
 	amdgpu_bo_unreserve(new_abo);
 
-	work->base = amdgpu_bo_gpu_offset(new_abo);
+	if (!adev->enable_virtual_display)
+		work->base = amdgpu_bo_gpu_offset(new_abo);
 	work->target_vblank = target - (uint32_t)drm_crtc_vblank_count(crtc) +
-		amdgpu_get_vblank_counter_kms(dev, work->crtc_id);
+		amdgpu_get_vblank_counter_kms(crtc);
 
 	/* we borrow the event spin lock for protecting flip_wrok */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
@@ -242,9 +248,10 @@ pflip_cleanup:
 		goto cleanup;
 	}
 unpin:
-	if (unlikely(amdgpu_bo_unpin(new_abo) != 0)) {
-		DRM_ERROR("failed to unpin new abo in error path\n");
-	}
+	if (!adev->enable_virtual_display)
+		if (unlikely(amdgpu_bo_unpin(new_abo) != 0))
+			DRM_ERROR("failed to unpin new abo in error path\n");
+
 unreserve:
 	amdgpu_bo_unreserve(new_abo);
 
@@ -275,7 +282,7 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = drm_crtc_helper_set_config(set, ctx);
 
@@ -285,7 +292,7 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 
 	pm_runtime_mark_last_busy(dev->dev);
 
-	adev = dev->dev_private;
+	adev = drm_to_adev(dev);
 	/* if we have active crtcs and we don't have a power ref,
 	   take the current one */
 	if (active && !adev->have_disp_power_ref) {
@@ -299,6 +306,7 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 		adev->have_disp_power_ref = false;
 	}
 
+out:
 	/* drop the power reference we got coming in here */
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
@@ -363,11 +371,13 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 	struct amdgpu_connector *amdgpu_connector;
 	struct drm_encoder *encoder;
 	struct amdgpu_encoder *amdgpu_encoder;
+	struct drm_connector_list_iter iter;
 	uint32_t devices;
 	int i = 0;
 
+	drm_connector_list_iter_begin(dev, &iter);
 	DRM_INFO("AMDGPU Display Connectors\n");
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_for_each_connector_iter(connector, &iter) {
 		amdgpu_connector = to_amdgpu_connector(connector);
 		DRM_INFO("Connector %d:\n", i);
 		DRM_INFO("  %s\n", connector->name);
@@ -431,6 +441,7 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 		}
 		i++;
 	}
+	drm_connector_list_iter_end(&iter);
 }
 
 /**
@@ -489,15 +500,38 @@ static const struct drm_framebuffer_funcs amdgpu_fb_funcs = {
 	.create_handle = drm_gem_fb_create_handle,
 };
 
-uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev)
+uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
+					  uint64_t bo_flags)
 {
 	uint32_t domain = AMDGPU_GEM_DOMAIN_VRAM;
 
 #if defined(CONFIG_DRM_AMD_DC)
-	if (adev->asic_type >= CHIP_CARRIZO && adev->asic_type < CHIP_RAVEN &&
-	    adev->flags & AMD_IS_APU &&
-	    amdgpu_device_asic_has_dc_support(adev->asic_type))
-		domain |= AMDGPU_GEM_DOMAIN_GTT;
+	/*
+	 * if amdgpu_bo_support_uswc returns false it means that USWC mappings
+	 * is not supported for this board. But this mapping is required
+	 * to avoid hang caused by placement of scanout BO in GTT on certain
+	 * APUs. So force the BO placement to VRAM in case this architecture
+	 * will not allow USWC mappings.
+	 * Also, don't allow GTT domain if the BO doens't have USWC falg set.
+	 */
+	if ((bo_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) &&
+	    amdgpu_bo_support_uswc(bo_flags) &&
+	    amdgpu_device_asic_has_dc_support(adev->asic_type)) {
+		switch (adev->asic_type) {
+		case CHIP_CARRIZO:
+		case CHIP_STONEY:
+			domain |= AMDGPU_GEM_DOMAIN_GTT;
+			break;
+		case CHIP_RAVEN:
+			/* enable S/G on PCO and RV2 */
+			if ((adev->apu_flags & AMD_APU_IS_RAVEN2) ||
+			    (adev->apu_flags & AMD_APU_IS_PICASSO))
+				domain |= AMDGPU_GEM_DOMAIN_GTT;
+			break;
+		default:
+			break;
+		}
+	}
 #endif
 
 	return domain;
@@ -543,14 +577,14 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 
 	amdgpu_fb = kzalloc(sizeof(*amdgpu_fb), GFP_KERNEL);
 	if (amdgpu_fb == NULL) {
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	ret = amdgpu_display_framebuffer_init(dev, amdgpu_fb, mode_cmd, obj);
 	if (ret) {
 		kfree(amdgpu_fb);
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 		return ERR_PTR(ret);
 	}
 
@@ -585,46 +619,54 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 	int sz;
 
 	adev->mode_info.coherent_mode_property =
-		drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
+		drm_property_create_range(adev_to_drm(adev), 0, "coherent", 0, 1);
 	if (!adev->mode_info.coherent_mode_property)
 		return -ENOMEM;
 
 	adev->mode_info.load_detect_property =
-		drm_property_create_range(adev->ddev, 0, "load detection", 0, 1);
+		drm_property_create_range(adev_to_drm(adev), 0, "load detection", 0, 1);
 	if (!adev->mode_info.load_detect_property)
 		return -ENOMEM;
 
-	drm_mode_create_scaling_mode_property(adev->ddev);
+	drm_mode_create_scaling_mode_property(adev_to_drm(adev));
 
 	sz = ARRAY_SIZE(amdgpu_underscan_enum_list);
 	adev->mode_info.underscan_property =
-		drm_property_create_enum(adev->ddev, 0,
-				    "underscan",
-				    amdgpu_underscan_enum_list, sz);
+		drm_property_create_enum(adev_to_drm(adev), 0,
+					 "underscan",
+					 amdgpu_underscan_enum_list, sz);
 
 	adev->mode_info.underscan_hborder_property =
-		drm_property_create_range(adev->ddev, 0,
-					"underscan hborder", 0, 128);
+		drm_property_create_range(adev_to_drm(adev), 0,
+					  "underscan hborder", 0, 128);
 	if (!adev->mode_info.underscan_hborder_property)
 		return -ENOMEM;
 
 	adev->mode_info.underscan_vborder_property =
-		drm_property_create_range(adev->ddev, 0,
-					"underscan vborder", 0, 128);
+		drm_property_create_range(adev_to_drm(adev), 0,
+					  "underscan vborder", 0, 128);
 	if (!adev->mode_info.underscan_vborder_property)
 		return -ENOMEM;
 
 	sz = ARRAY_SIZE(amdgpu_audio_enum_list);
 	adev->mode_info.audio_property =
-		drm_property_create_enum(adev->ddev, 0,
+		drm_property_create_enum(adev_to_drm(adev), 0,
 					 "audio",
 					 amdgpu_audio_enum_list, sz);
 
 	sz = ARRAY_SIZE(amdgpu_dither_enum_list);
 	adev->mode_info.dither_property =
-		drm_property_create_enum(adev->ddev, 0,
+		drm_property_create_enum(adev_to_drm(adev), 0,
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
+
+	if (amdgpu_device_has_dc_support(adev)) {
+		adev->mode_info.abm_level_property =
+			drm_property_create_range(adev_to_drm(adev), 0,
+						  "abm level", 0, 4);
+		if (!adev->mode_info.abm_level_property)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -660,7 +702,6 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_encoder *amdgpu_encoder;
 	struct drm_connector *connector;
-	struct amdgpu_connector *amdgpu_connector;
 	u32 src_v = 1, dst_v = 1;
 	u32 src_h = 1, dst_h = 1;
 
@@ -672,7 +713,6 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			continue;
 		amdgpu_encoder = to_amdgpu_encoder(encoder);
 		connector = amdgpu_get_connector_for_encoder(encoder);
-		amdgpu_connector = to_amdgpu_connector(connector);
 
 		/* set scaling */
 		if (amdgpu_encoder->rmx_type == RMX_OFF)
@@ -773,7 +813,7 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	int vbl_start, vbl_end, vtotal, ret = 0;
 	bool in_vbl = true;
 
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
@@ -850,7 +890,12 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	/* Inside "upper part" of vblank area? Apply corrective offset if so: */
 	if (in_vbl && (*vpos >= vbl_start)) {
 		vtotal = mode->crtc_vtotal;
-		*vpos = *vpos - vtotal;
+
+		/* With variable refresh rate displays the vpos can exceed
+		 * the vtotal value. Clamp to 0 to return -vbl_end instead
+		 * of guessing the remaining number of lines until scanout.
+		 */
+		*vpos = (*vpos < vtotal) ? (*vpos - vtotal) : 0;
 	}
 
 	/* Correct for shifted end of vbl at vbl_end. */
@@ -880,4 +925,16 @@ int amdgpu_display_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc)
 	default:
 		return AMDGPU_CRTC_IRQ_NONE;
 	}
+}
+
+bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
+			bool in_vblank_irq, int *vpos,
+			int *hpos, ktime_t *stime, ktime_t *etime,
+			const struct drm_display_mode *mode)
+{
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = crtc->index;
+
+	return amdgpu_display_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
+						  stime, etime, mode);
 }

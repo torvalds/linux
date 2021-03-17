@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/video/acornfb.c
  *
  *  Copyright (C) 1998-2001 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Frame buffer code for Acorn platforms
  *
@@ -33,7 +30,6 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/pgtable.h>
 
 #include "acornfb.h"
 
@@ -607,7 +603,7 @@ acornfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops acornfb_ops = {
+static const struct fb_ops acornfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= acornfb_check_var,
 	.fb_set_par	= acornfb_set_par,
@@ -861,6 +857,7 @@ static void acornfb_parse_dram(char *opt)
 		case 'M':
 		case 'm':
 			size *= 1024;
+			fallthrough;
 		case 'K':
 		case 'k':
 			size *= 1024;

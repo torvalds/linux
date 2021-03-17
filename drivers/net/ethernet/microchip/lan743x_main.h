@@ -4,6 +4,7 @@
 #ifndef _LAN743X_H
 #define _LAN743X_H
 
+#include <linux/phy.h>
 #include "lan743x_ptp.h"
 
 #define DRIVER_AUTHOR   "Bryan Whitehead <Bryan.Whitehead@microchip.com>"
@@ -26,6 +27,8 @@
 #define FPGA_REV_GET_MAJOR_(fpga_rev)	((fpga_rev) & 0x000000FF)
 
 #define HW_CFG					(0x010)
+#define HW_CFG_RELOAD_TYPE_ALL_			(0x00000FC0)
+#define HW_CFG_EE_OTP_RELOAD_			BIT(4)
 #define HW_CFG_LRST_				BIT(1)
 
 #define PMT_CTL					(0x014)
@@ -102,10 +105,14 @@
 	((value << 0) & FCT_FLOW_CTL_ON_THRESHOLD_)
 
 #define MAC_CR				(0x100)
+#define MAC_CR_MII_EN_			BIT(19)
 #define MAC_CR_EEE_EN_			BIT(17)
 #define MAC_CR_ADD_			BIT(12)
 #define MAC_CR_ASD_			BIT(11)
 #define MAC_CR_CNTR_RST_		BIT(5)
+#define MAC_CR_DPX_			BIT(3)
+#define MAC_CR_CFG_H_			BIT(2)
+#define MAC_CR_CFG_L_			BIT(1)
 #define MAC_CR_RST_			BIT(0)
 
 #define MAC_RX				(0x104)
@@ -453,16 +460,18 @@
 #define OTP_PWR_DN				(0x1000)
 #define OTP_PWR_DN_PWRDN_N_			BIT(0)
 
-#define OTP_ADDR1				(0x1004)
-#define OTP_ADDR1_15_11_MASK_			(0x1F)
-
-#define OTP_ADDR2				(0x1008)
-#define OTP_ADDR2_10_3_MASK_			(0xFF)
+#define OTP_ADDR_HIGH				(0x1004)
+#define OTP_ADDR_LOW				(0x1008)
 
 #define OTP_PRGM_DATA				(0x1010)
 
 #define OTP_PRGM_MODE				(0x1014)
 #define OTP_PRGM_MODE_BYTE_			BIT(0)
+
+#define OTP_READ_DATA				(0x1018)
+
+#define OTP_FUNC_CMD				(0x1020)
+#define OTP_FUNC_CMD_READ_			BIT(0)
 
 #define OTP_TST_CMD				(0x1024)
 #define OTP_TST_CMD_PRGVRFY_			BIT(3)
@@ -548,6 +557,7 @@ struct lan743x_adapter;
 /* SMSC acquired EFAR late 1990's, MCHP acquired SMSC 2012 */
 #define PCI_VENDOR_ID_SMSC		PCI_VENDOR_ID_EFAR
 #define PCI_DEVICE_ID_SMSC_LAN7430	(0x7430)
+#define PCI_DEVICE_ID_SMSC_LAN7431	(0x7431)
 
 #define PCI_CONFIG_LENGTH		(0x1000)
 
@@ -693,6 +703,7 @@ struct lan743x_rx {
 struct lan743x_adapter {
 	struct net_device       *netdev;
 	struct mii_bus		*mdiobus;
+	phy_interface_t		phy_mode;
 	int                     msg_enable;
 #ifdef CONFIG_PM
 	u32			wolopts;
@@ -700,9 +711,6 @@ struct lan743x_adapter {
 	struct pci_dev		*pdev;
 	struct lan743x_csr      csr;
 	struct lan743x_intr     intr;
-
-	/* lock, used to prevent concurrent access to data port */
-	struct mutex		dp_lock;
 
 	struct lan743x_gpio	gpio;
 	struct lan743x_ptp	ptp;
@@ -712,6 +720,9 @@ struct lan743x_adapter {
 	struct lan743x_phy      phy;
 	struct lan743x_tx       tx[LAN743X_MAX_TX_CHANNELS];
 	struct lan743x_rx       rx[LAN743X_MAX_RX_CHANNELS];
+
+#define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
+	u32			flags;
 };
 
 #define LAN743X_COMPONENT_FLAG_RX(channel)  BIT(20 + (channel))

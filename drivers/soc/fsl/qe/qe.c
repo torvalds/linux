@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006-2010 Freescale Semiconductor, Inc. All rights reserved.
  *
@@ -8,12 +9,8 @@
  * Description:
  * General Purpose functions for the global management of the
  * QUICC Engine (QE).
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
+#include <linux/bitmap.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -25,16 +22,12 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
+#include <linux/iopoll.h>
 #include <linux/crc32.h>
 #include <linux/mod_devicetable.h>
 #include <linux/of_platform.h>
-#include <asm/irq.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
 #include <soc/fsl/qe/immap_qe.h>
 #include <soc/fsl/qe/qe.h>
-#include <asm/prom.h>
-#include <asm/rheap.h>
 
 static void qe_snums_init(void);
 static int qe_sdma_init(void);
@@ -43,28 +36,31 @@ static DEFINE_SPINLOCK(qe_lock);
 DEFINE_SPINLOCK(cmxgcr_lock);
 EXPORT_SYMBOL(cmxgcr_lock);
 
-/* QE snum state */
-enum qe_snum_state {
-	QE_SNUM_STATE_USED,
-	QE_SNUM_STATE_FREE
-};
-
-/* QE snum */
-struct qe_snum {
-	u8 num;
-	enum qe_snum_state state;
-};
-
 /* We allocate this here because it is used almost exclusively for
  * the communication processor devices.
  */
 struct qe_immap __iomem *qe_immr;
 EXPORT_SYMBOL(qe_immr);
 
-static struct qe_snum snums[QE_NUM_OF_SNUM];	/* Dynamically allocated SNUMs */
+static u8 snums[QE_NUM_OF_SNUM];	/* Dynamically allocated SNUMs */
+static DECLARE_BITMAP(snum_state, QE_NUM_OF_SNUM);
 static unsigned int qe_num_of_snum;
 
 static phys_addr_t qebase = -1;
+
+static struct device_node *qe_get_device_node(void)
+{
+	struct device_node *qe;
+
+	/*
+	 * Newer device trees have an "fsl,qe" compatible property for the QE
+	 * node, but we still need to support older device trees.
+	 */
+	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (qe)
+		return qe;
+	return of_find_node_by_type(NULL, "qe");
+}
 
 static phys_addr_t get_qe_base(void)
 {
@@ -75,12 +71,9 @@ static phys_addr_t get_qe_base(void)
 	if (qebase != -1)
 		return qebase;
 
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return qebase;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return qebase;
 
 	ret = of_address_to_resource(qe, 0, &res);
 	if (!ret)
@@ -111,11 +104,12 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 {
 	unsigned long flags;
 	u8 mcn_shift = 0, dev_shift = 0;
-	u32 ret;
+	u32 val;
+	int ret;
 
 	spin_lock_irqsave(&qe_lock, flags);
 	if (cmd == QE_RESET) {
-		out_be32(&qe_immr->cp.cecr, (u32) (cmd | QE_CR_FLG));
+		qe_iowrite32be((u32)(cmd | QE_CR_FLG), &qe_immr->cp.cecr);
 	} else {
 		if (cmd == QE_ASSIGN_PAGE) {
 			/* Here device is the SNUM, not sub-block */
@@ -132,20 +126,18 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 				mcn_shift = QE_CR_MCN_NORMAL_SHIFT;
 		}
 
-		out_be32(&qe_immr->cp.cecdr, cmd_input);
-		out_be32(&qe_immr->cp.cecr,
-			 (cmd | QE_CR_FLG | ((u32) device << dev_shift) | (u32)
-			  mcn_protocol << mcn_shift));
+		qe_iowrite32be(cmd_input, &qe_immr->cp.cecdr);
+		qe_iowrite32be((cmd | QE_CR_FLG | ((u32)device << dev_shift) | (u32)mcn_protocol << mcn_shift),
+			       &qe_immr->cp.cecr);
 	}
 
 	/* wait for the QE_CR_FLG to clear */
-	ret = spin_event_timeout((in_be32(&qe_immr->cp.cecr) & QE_CR_FLG) == 0,
-			   100, 0);
-	/* On timeout (e.g. failure), the expression will be false (ret == 0),
-	   otherwise it will be true (ret == 1). */
+	ret = readx_poll_timeout_atomic(qe_ioread32be, &qe_immr->cp.cecr, val,
+					(val & QE_CR_FLG) == 0, 0, 100);
+	/* On timeout, ret is -ETIMEDOUT, otherwise it will be 0. */
 	spin_unlock_irqrestore(&qe_lock, flags);
 
-	return ret == 1;
+	return ret == 0;
 }
 EXPORT_SYMBOL(qe_issue_cmd);
 
@@ -167,23 +159,18 @@ static unsigned int brg_clk = 0;
 unsigned int qe_get_brg_clk(void)
 {
 	struct device_node *qe;
-	int size;
-	const u32 *prop;
+	u32 brg;
 	unsigned int mod;
 
 	if (brg_clk)
 		return brg_clk;
 
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return brg_clk;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return brg_clk;
 
-	prop = of_get_property(qe, "brg-frequency", &size);
-	if (prop && size == sizeof(*prop))
-		brg_clk = *prop;
+	if (!of_property_read_u32(qe, "brg-frequency", &brg))
+		brg_clk = brg;
 
 	of_node_put(qe);
 
@@ -202,6 +189,14 @@ EXPORT_SYMBOL(qe_get_brg_clk);
 
 #define PVR_VER_836x	0x8083
 #define PVR_VER_832x	0x8084
+
+static bool qe_general4_errata(void)
+{
+#ifdef CONFIG_PPC32
+	return pvr_version_is(PVR_VER_836x) || pvr_version_is(PVR_VER_832x);
+#endif
+	return false;
+}
 
 /* Program the BRG to the given sampling rate and multiplier
  *
@@ -229,14 +224,14 @@ int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier)
 	/* Errata QE_General4, which affects some MPC832x and MPC836x SOCs, says
 	   that the BRG divisor must be even if you're not using divide-by-16
 	   mode. */
-	if (pvr_version_is(PVR_VER_836x) || pvr_version_is(PVR_VER_832x))
+	if (qe_general4_errata())
 		if (!div16 && (divisor & 1) && (divisor > 3))
 			divisor++;
 
 	tempval = ((divisor - 1) << QE_BRGC_DIVISOR_SHIFT) |
 		QE_BRGC_ENABLE | div16;
 
-	out_be32(&qe_immr->brg.brgc[brg - QE_BRG1], tempval);
+	qe_iowrite32be(tempval, &qe_immr->brg.brgc[brg - QE_BRG1]);
 
 	return 0;
 }
@@ -285,7 +280,6 @@ EXPORT_SYMBOL(qe_clock_source);
  */
 static void qe_snums_init(void)
 {
-	int i;
 	static const u8 snum_init_76[] = {
 		0x04, 0x05, 0x0C, 0x0D, 0x14, 0x15, 0x1C, 0x1D,
 		0x24, 0x25, 0x2C, 0x2D, 0x34, 0x35, 0x88, 0x89,
@@ -306,19 +300,39 @@ static void qe_snums_init(void)
 		0x28, 0x29, 0x38, 0x39, 0x48, 0x49, 0x58, 0x59,
 		0x68, 0x69, 0x78, 0x79, 0x80, 0x81,
 	};
-	static const u8 *snum_init;
+	struct device_node *qe;
+	const u8 *snum_init;
+	int i;
 
-	qe_num_of_snum = qe_get_num_of_snums();
-
-	if (qe_num_of_snum == 76)
-		snum_init = snum_init_76;
-	else
-		snum_init = snum_init_46;
-
-	for (i = 0; i < qe_num_of_snum; i++) {
-		snums[i].num = snum_init[i];
-		snums[i].state = QE_SNUM_STATE_FREE;
+	bitmap_zero(snum_state, QE_NUM_OF_SNUM);
+	qe_num_of_snum = 28; /* The default number of snum for threads is 28 */
+	qe = qe_get_device_node();
+	if (qe) {
+		i = of_property_read_variable_u8_array(qe, "fsl,qe-snums",
+						       snums, 1, QE_NUM_OF_SNUM);
+		if (i > 0) {
+			of_node_put(qe);
+			qe_num_of_snum = i;
+			return;
+		}
+		/*
+		 * Fall back to legacy binding of using the value of
+		 * fsl,qe-num-snums to choose one of the static arrays
+		 * above.
+		 */
+		of_property_read_u32(qe, "fsl,qe-num-snums", &qe_num_of_snum);
+		of_node_put(qe);
 	}
+
+	if (qe_num_of_snum == 76) {
+		snum_init = snum_init_76;
+	} else if (qe_num_of_snum == 28 || qe_num_of_snum == 46) {
+		snum_init = snum_init_46;
+	} else {
+		pr_err("QE: unsupported value of fsl,qe-num-snums: %u\n", qe_num_of_snum);
+		return;
+	}
+	memcpy(snums, snum_init, qe_num_of_snum);
 }
 
 int qe_get_snum(void)
@@ -328,12 +342,10 @@ int qe_get_snum(void)
 	int i;
 
 	spin_lock_irqsave(&qe_lock, flags);
-	for (i = 0; i < qe_num_of_snum; i++) {
-		if (snums[i].state == QE_SNUM_STATE_FREE) {
-			snums[i].state = QE_SNUM_STATE_USED;
-			snum = snums[i].num;
-			break;
-		}
+	i = find_first_zero_bit(snum_state, qe_num_of_snum);
+	if (i < qe_num_of_snum) {
+		set_bit(i, snum_state);
+		snum = snums[i];
 	}
 	spin_unlock_irqrestore(&qe_lock, flags);
 
@@ -343,36 +355,30 @@ EXPORT_SYMBOL(qe_get_snum);
 
 void qe_put_snum(u8 snum)
 {
-	int i;
+	const u8 *p = memchr(snums, snum, qe_num_of_snum);
 
-	for (i = 0; i < qe_num_of_snum; i++) {
-		if (snums[i].num == snum) {
-			snums[i].state = QE_SNUM_STATE_FREE;
-			break;
-		}
-	}
+	if (p)
+		clear_bit(p - snums, snum_state);
 }
 EXPORT_SYMBOL(qe_put_snum);
 
 static int qe_sdma_init(void)
 {
 	struct sdma __iomem *sdma = &qe_immr->sdma;
-	static unsigned long sdma_buf_offset = (unsigned long)-ENOMEM;
-
-	if (!sdma)
-		return -ENODEV;
+	static s32 sdma_buf_offset = -ENOMEM;
 
 	/* allocate 2 internal temporary buffers (512 bytes size each) for
 	 * the SDMA */
-	if (IS_ERR_VALUE(sdma_buf_offset)) {
+	if (sdma_buf_offset < 0) {
 		sdma_buf_offset = qe_muram_alloc(512 * 2, 4096);
-		if (IS_ERR_VALUE(sdma_buf_offset))
+		if (sdma_buf_offset < 0)
 			return -ENOMEM;
 	}
 
-	out_be32(&sdma->sdebcr, (u32) sdma_buf_offset & QE_SDEBCR_BA_MASK);
- 	out_be32(&sdma->sdmr, (QE_SDMR_GLB_1_MSK |
- 					(0x1 << QE_SDMR_CEN_SHIFT)));
+	qe_iowrite32be((u32)sdma_buf_offset & QE_SDEBCR_BA_MASK,
+		       &sdma->sdebcr);
+	qe_iowrite32be((QE_SDMR_GLB_1_MSK | (0x1 << QE_SDMR_CEN_SHIFT)),
+		       &sdma->sdmr);
 
 	return 0;
 }
@@ -410,20 +416,20 @@ static void qe_upload_microcode(const void *base,
 			"uploading microcode '%s'\n", ucode->id);
 
 	/* Use auto-increment */
-	out_be32(&qe_immr->iram.iadd, be32_to_cpu(ucode->iram_offset) |
-		QE_IRAM_IADD_AIE | QE_IRAM_IADD_BADDR);
+	qe_iowrite32be(be32_to_cpu(ucode->iram_offset) | QE_IRAM_IADD_AIE | QE_IRAM_IADD_BADDR,
+		       &qe_immr->iram.iadd);
 
 	for (i = 0; i < be32_to_cpu(ucode->count); i++)
-		out_be32(&qe_immr->iram.idata, be32_to_cpu(code[i]));
+		qe_iowrite32be(be32_to_cpu(code[i]), &qe_immr->iram.idata);
 	
 	/* Set I-RAM Ready Register */
-	out_be32(&qe_immr->iram.iready, be32_to_cpu(QE_IRAM_READY));
+	qe_iowrite32be(QE_IRAM_READY, &qe_immr->iram.iready);
 }
 
 /*
  * Upload a microcode to the I-RAM at a specific address.
  *
- * See Documentation/powerpc/qe_firmware.txt for information on QE microcode
+ * See Documentation/powerpc/qe_firmware.rst for information on QE microcode
  * uploading.
  *
  * Currently, only version 1 is supported, so the 'version' field must be
@@ -442,7 +448,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	unsigned int i;
 	unsigned int j;
 	u32 crc;
-	size_t calc_size = sizeof(struct qe_firmware);
+	size_t calc_size;
 	size_t length;
 	const struct qe_header *hdr;
 
@@ -474,7 +480,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	}
 
 	/* Validate the length and check if there's a CRC */
-	calc_size += (firmware->count - 1) * sizeof(struct qe_microcode);
+	calc_size = struct_size(firmware, microcode, firmware->count);
 
 	for (i = 0; i < firmware->count; i++)
 		/*
@@ -502,7 +508,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	 * If the microcode calls for it, split the I-RAM.
 	 */
 	if (!firmware->split)
-		setbits16(&qe_immr->cp.cercr, QE_CP_CERCR_CIR);
+		qe_setbits_be16(&qe_immr->cp.cercr, QE_CP_CERCR_CIR);
 
 	if (firmware->soc.model)
 		printk(KERN_INFO
@@ -519,7 +525,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	 */
 	memset(&qe_firmware_info, 0, sizeof(qe_firmware_info));
 	strlcpy(qe_firmware_info.id, firmware->id, sizeof(qe_firmware_info.id));
-	qe_firmware_info.extended_modes = firmware->extended_modes;
+	qe_firmware_info.extended_modes = be64_to_cpu(firmware->extended_modes);
 	memcpy(qe_firmware_info.vtraps, firmware->vtraps,
 		sizeof(firmware->vtraps));
 
@@ -536,11 +542,13 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 			u32 trap = be32_to_cpu(ucode->traps[j]);
 
 			if (trap)
-				out_be32(&qe_immr->rsp[i].tibcr[j], trap);
+				qe_iowrite32be(trap,
+					       &qe_immr->rsp[i].tibcr[j]);
 		}
 
 		/* Enable traps */
-		out_be32(&qe_immr->rsp[i].eccr, be32_to_cpu(ucode->eccr));
+		qe_iowrite32be(be32_to_cpu(ucode->eccr),
+			       &qe_immr->rsp[i].eccr);
 	}
 
 	qe_firmware_uploaded = 1;
@@ -558,11 +566,9 @@ EXPORT_SYMBOL(qe_upload_firmware);
 struct qe_firmware_info *qe_get_firmware_info(void)
 {
 	static int initialized;
-	struct property *prop;
 	struct device_node *qe;
 	struct device_node *fw = NULL;
 	const char *sprop;
-	unsigned int i;
 
 	/*
 	 * If we haven't checked yet, and a driver hasn't uploaded a firmware
@@ -576,23 +582,12 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 
 	initialized = 1;
 
-	/*
-	 * Newer device trees have an "fsl,qe" compatible property for the QE
-	 * node, but we still need to support older device trees.
-	*/
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return NULL;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return NULL;
 
 	/* Find the 'firmware' child node */
-	for_each_child_of_node(qe, fw) {
-		if (strcmp(fw->name, "firmware") == 0)
-			break;
-	}
-
+	fw = of_get_child_by_name(qe, "firmware");
 	of_node_put(qe);
 
 	/* Did we find the 'firmware' node? */
@@ -607,20 +602,11 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 		strlcpy(qe_firmware_info.id, sprop,
 			sizeof(qe_firmware_info.id));
 
-	prop = of_find_property(fw, "extended-modes", NULL);
-	if (prop && (prop->length == sizeof(u64))) {
-		const u64 *iprop = prop->value;
+	of_property_read_u64(fw, "extended-modes",
+			     &qe_firmware_info.extended_modes);
 
-		qe_firmware_info.extended_modes = *iprop;
-	}
-
-	prop = of_find_property(fw, "virtual-traps", NULL);
-	if (prop && (prop->length == 32)) {
-		const u32 *iprop = prop->value;
-
-		for (i = 0; i < ARRAY_SIZE(qe_firmware_info.vtraps); i++)
-			qe_firmware_info.vtraps[i] = iprop[i];
-	}
+	of_property_read_u32_array(fw, "virtual-traps", qe_firmware_info.vtraps,
+				   ARRAY_SIZE(qe_firmware_info.vtraps));
 
 	of_node_put(fw);
 
@@ -631,24 +617,13 @@ EXPORT_SYMBOL(qe_get_firmware_info);
 unsigned int qe_get_num_of_risc(void)
 {
 	struct device_node *qe;
-	int size;
 	unsigned int num_of_risc = 0;
-	const u32 *prop;
 
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		/* Older devices trees did not have an "fsl,qe"
-		 * compatible property, so we need to look for
-		 * the QE node by name.
-		 */
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return num_of_risc;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return num_of_risc;
 
-	prop = of_get_property(qe, "fsl,qe-num-riscs", &size);
-	if (prop && size == sizeof(*prop))
-		num_of_risc = *prop;
+	of_property_read_u32(qe, "fsl,qe-num-riscs", &num_of_risc);
 
 	of_node_put(qe);
 
@@ -658,37 +633,7 @@ EXPORT_SYMBOL(qe_get_num_of_risc);
 
 unsigned int qe_get_num_of_snums(void)
 {
-	struct device_node *qe;
-	int size;
-	unsigned int num_of_snums;
-	const u32 *prop;
-
-	num_of_snums = 28; /* The default number of snum for threads is 28 */
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		/* Older devices trees did not have an "fsl,qe"
-		 * compatible property, so we need to look for
-		 * the QE node by name.
-		 */
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return num_of_snums;
-	}
-
-	prop = of_get_property(qe, "fsl,qe-num-snums", &size);
-	if (prop && size == sizeof(*prop)) {
-		num_of_snums = *prop;
-		if ((num_of_snums < 28) || (num_of_snums > QE_NUM_OF_SNUM)) {
-			/* No QE ever has fewer than 28 SNUMs */
-			pr_err("QE: number of snum is invalid\n");
-			of_node_put(qe);
-			return -EINVAL;
-		}
-	}
-
-	of_node_put(qe);
-
-	return num_of_snums;
+	return qe_num_of_snum;
 }
 EXPORT_SYMBOL(qe_get_num_of_snums);
 

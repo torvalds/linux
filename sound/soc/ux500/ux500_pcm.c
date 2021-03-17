@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2012
  *
@@ -6,10 +7,6 @@
  *         for ST-Ericsson.
  *
  * License terms:
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <asm/page.h>
@@ -49,7 +46,7 @@ static const struct snd_pcm_hardware ux500_pcm_hw = {
 static struct dma_chan *ux500_pcm_request_chan(struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_substream *substream)
 {
-	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
 	u16 per_data_width, mem_data_width;
 	struct stedma40_chan_cfg *dma_cfg;
 	struct ux500_msp_dma_params *dma_params;
@@ -88,8 +85,8 @@ static int ux500_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params,
 		struct dma_slave_config *slave_config)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct msp_i2s_platform_data *pdata = rtd->cpu_dai->dev->platform_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct msp_i2s_platform_data *pdata = asoc_rtd_to_cpu(rtd, 0)->dev->platform_data;
 	struct snd_dmaengine_dai_dma_data *snd_dma_params;
 	struct ux500_msp_dma_params *ste_dma_params;
 	dma_addr_t dma_addr;
@@ -97,11 +94,11 @@ static int ux500_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 
 	if (pdata) {
 		ste_dma_params =
-			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+			snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
 		dma_addr = ste_dma_params->tx_rx_addr;
 	} else {
 		snd_dma_params =
-			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+			snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
 		dma_addr = snd_dma_params->addr;
 	}
 

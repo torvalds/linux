@@ -1,15 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/kernel/head-nommu.S
  *
  *  Copyright (C) 1994-2002 Russell King
  *  Copyright (C) 2003-2006 Hyok S. Choi
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  *  Common kernel startup code (non-paged MM)
- *
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
@@ -133,9 +129,9 @@ __secondary_data:
  */
 	.text
 __after_proc_init:
-#ifdef CONFIG_ARM_MPU
 M_CLASS(movw	r12, #:lower16:BASEADDR_V7M_SCB)
 M_CLASS(movt	r12, #:upper16:BASEADDR_V7M_SCB)
+#ifdef CONFIG_ARM_MPU
 M_CLASS(ldr	r3, [r12, 0x50])
 AR_CLASS(mrc	p15, 0, r3, c0, c1, 4)          @ Read ID_MMFR0
 	and	r3, r3, #(MMFR0_PMSA)           @ PMSA field
@@ -205,6 +201,8 @@ M_CLASS(streq	r3, [r12, #PMSAv8_MAIR1])
 	bic	r0, r0, #V7M_SCB_CCR_IC
 #endif
 	str	r0, [r12, V7M_SCB_CCR]
+	/* Pass exc_ret to __mmap_switched */
+	mov	r0, r10
 #endif /* CONFIG_CPU_CP15 elif CONFIG_CPU_V7M */
 	ret	lr
 ENDPROC(__after_proc_init)
@@ -439,8 +437,8 @@ M_CLASS(str	r6, [r12, #PMSAv8_RLAR_A(3)])
 	str	r5, [r12, #PMSAv8_RBAR_A(0)]
 	str	r6, [r12, #PMSAv8_RLAR_A(0)]
 #else
-	mcr	p15, 0, r5, c6, c10, 1			@ PRBAR4
-	mcr	p15, 0, r6, c6, c10, 2			@ PRLAR4
+	mcr	p15, 0, r5, c6, c10, 0			@ PRBAR4
+	mcr	p15, 0, r6, c6, c10, 1			@ PRLAR4
 #endif
 #endif
 	ret	lr

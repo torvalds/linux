@@ -58,7 +58,7 @@ __acquires(ohci->lock)
 		ohci->hc_control |= OHCI_USB_RESET;
 		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
 		(void) ohci_readl (ohci, &ohci->regs->control);
-		/* FALL THROUGH */
+		fallthrough;
 	case OHCI_USB_RESET:
 		status = -EBUSY;
 		ohci_dbg (ohci, "needs reinit!\n");

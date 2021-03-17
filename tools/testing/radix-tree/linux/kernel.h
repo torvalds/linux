@@ -14,7 +14,13 @@
 #include "../../../include/linux/kconfig.h"
 
 #define printk printf
+#define pr_info printk
 #define pr_debug printk
 #define pr_cont printk
 
+#define __acquires(x)
+#define __releases(x)
+#define __must_hold(x)
+
+#define EXPORT_PER_CPU_SYMBOL_GPL(x)
 #endif /* _KERNEL_H */

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -99,9 +96,25 @@ void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
 }
 EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_put);
 
+static int nf_reject_fill_skb_dst(struct sk_buff *skb_in)
+{
+	struct dst_entry *dst = NULL;
+	struct flowi fl;
+
+	memset(&fl, 0, sizeof(struct flowi));
+	fl.u.ip4.daddr = ip_hdr(skb_in)->saddr;
+	nf_ip_route(dev_net(skb_in->dev), &dst, &fl, false);
+	if (!dst)
+		return -1;
+
+	skb_dst_set(skb_in, dst);
+	return 0;
+}
+
 /* Send RST reply */
 void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 {
+	struct net_device *br_indev __maybe_unused;
 	struct sk_buff *nskb;
 	struct iphdr *niph;
 	const struct tcphdr *oth;
@@ -109,6 +122,9 @@ void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 
 	oth = nf_reject_ip_tcphdr_get(oldskb, &_oth, hook);
 	if (!oth)
+		return;
+
+	if (hook == NF_INET_PRE_ROUTING && nf_reject_fill_skb_dst(oldskb))
 		return;
 
 	if (skb_rtable(oldskb)->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
@@ -129,7 +145,7 @@ void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 				   ip4_dst_hoplimit(skb_dst(nskb)));
 	nf_reject_ip_tcphdr_put(nskb, oldskb, oth);
 
-	if (ip_route_me_harder(net, nskb, RTN_UNSPEC))
+	if (ip_route_me_harder(net, nskb->sk, nskb, RTN_UNSPEC))
 		goto free_nskb;
 
 	niph = ip_hdr(nskb);
@@ -147,10 +163,11 @@ void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 	 * build the eth header using the original destination's MAC as the
 	 * source, and send the RST packet directly.
 	 */
-	if (oldskb->nf_bridge) {
+	br_indev = nf_bridge_get_physindev(oldskb);
+	if (br_indev) {
 		struct ethhdr *oeth = eth_hdr(oldskb);
 
-		nskb->dev = nf_bridge_get_physindev(oldskb);
+		nskb->dev = br_indev;
 		niph->tot_len = htons(nskb->len);
 		ip_send_check(niph);
 		if (dev_hard_header(nskb, nskb->dev, ntohs(nskb->protocol),
@@ -171,20 +188,18 @@ EXPORT_SYMBOL_GPL(nf_send_reset);
 void nf_send_unreach(struct sk_buff *skb_in, int code, int hook)
 {
 	struct iphdr *iph = ip_hdr(skb_in);
-	u8 proto;
+	u8 proto = iph->protocol;
 
 	if (iph->frag_off & htons(IP_OFFSET))
 		return;
 
-	if (skb_csum_unnecessary(skb_in)) {
+	if (hook == NF_INET_PRE_ROUTING && nf_reject_fill_skb_dst(skb_in))
+		return;
+
+	if (skb_csum_unnecessary(skb_in) || !nf_reject_verify_csum(proto)) {
 		icmp_send(skb_in, ICMP_DEST_UNREACH, code, 0);
 		return;
 	}
-
-	if (iph->protocol == IPPROTO_TCP || iph->protocol == IPPROTO_UDP)
-		proto = iph->protocol;
-	else
-		proto = 0;
 
 	if (nf_ip_checksum(skb_in, hook, ip_hdrlen(skb_in), proto) == 0)
 		icmp_send(skb_in, ICMP_DEST_UNREACH, code, 0);

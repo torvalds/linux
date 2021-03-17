@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Technologic Systems TS-73xx SBC FPGA loader
  *
@@ -5,15 +6,6 @@
  *
  * FPGA Manager Driver for the on-board Altera Cyclone II FPGA found on
  * TS-7300, heavily based on load_fpga.c in their vendor tree.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -118,7 +110,6 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 	struct ts73xx_fpga_priv *priv;
 	struct fpga_manager *mgr;
 	struct resource *res;
-	int ret;
 
 	priv = devm_kzalloc(kdev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -128,23 +119,17 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->io_base = devm_ioremap_resource(kdev, res);
-	if (IS_ERR(priv->io_base)) {
-		dev_err(kdev, "unable to remap registers\n");
+	if (IS_ERR(priv->io_base))
 		return PTR_ERR(priv->io_base);
-	}
 
-	mgr = fpga_mgr_create(kdev, "TS-73xx FPGA Manager",
-			      &ts73xx_fpga_ops, priv);
+	mgr = devm_fpga_mgr_create(kdev, "TS-73xx FPGA Manager",
+				   &ts73xx_fpga_ops, priv);
 	if (!mgr)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, mgr);
 
-	ret = fpga_mgr_register(mgr);
-	if (ret)
-		fpga_mgr_free(mgr);
-
-	return ret;
+	return fpga_mgr_register(mgr);
 }
 
 static int ts73xx_fpga_remove(struct platform_device *pdev)

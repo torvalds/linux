@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cxd2841er.c
  *
@@ -9,16 +10,6 @@
  * Copyright (C) 2014 NetUP Inc.
  * Copyright (C) 2014 Sergey Kozlov <serjk@netup.ru>
  * Copyright (C) 2014 Abylay Ospan <aospan@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
   */
 
 #include <linux/module.h>
@@ -69,6 +60,7 @@ struct cxd2841er_priv {
 	enum cxd2841er_xtal		xtal;
 	enum fe_caps caps;
 	u32				flags;
+	unsigned long			stats_time;
 };
 
 static const struct cxd2841er_cnr_data s_cn_data[] = {
@@ -2947,7 +2939,7 @@ static int cxd2841er_sleep_tc_to_active_t(struct cxd2841er_priv *priv,
 		((priv->flags & CXD2841ER_ASCOT) ? 0x01 : 0x00), 0x01);
 	/* Set SLV-T Bank : 0x18 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x18);
-	/* Pre-RS BER moniter setting */
+	/* Pre-RS BER monitor setting */
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x36, 0x40, 0x07);
 	/* FEC Auto Recovery setting */
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x30, 0x01, 0x01);
@@ -3288,9 +3280,15 @@ static int cxd2841er_get_frontend(struct dvb_frontend *fe,
 		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	if (status & FE_HAS_LOCK) {
+		if (priv->stats_time &&
+		    (!time_after(jiffies, priv->stats_time)))
+			return 0;
+
+		/* Prevent retrieving stats faster than once per second */
+		priv->stats_time = jiffies + msecs_to_jiffies(1000);
+
 		cxd2841er_read_snr(fe);
 		cxd2841er_read_ucblocks(fe);
-
 		cxd2841er_read_ber(fe);
 	} else {
 		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
@@ -3368,6 +3366,9 @@ done:
 	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	/* Reset the wait for jiffies logic */
+	priv->stats_time = 0;
 
 	return ret;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Architecture specific sysfs attributes in /sys/kernel
  *
@@ -5,8 +6,6 @@
  *      Huang Ying <ying.huang@intel.com>
  * Copyright (C) 2013, 2013 Red Hat, Inc.
  *      Dave Young <dyoung@redhat.com>
- *
- * This file is released under the GPLv2
  */
 
 #include <linux/kobject.h>
@@ -101,7 +100,12 @@ static int __init get_setup_data_size(int nr, size_t *size)
 		if (!data)
 			return -ENOMEM;
 		if (nr == i) {
-			*size = data->len;
+			if (data->type == SETUP_INDIRECT &&
+			    ((struct setup_indirect *)data->data)->type != SETUP_INDIRECT)
+				*size = ((struct setup_indirect *)data->data)->len;
+			else
+				*size = data->len;
+
 			memunmap(data);
 			return 0;
 		}
@@ -131,7 +135,10 @@ static ssize_t type_show(struct kobject *kobj,
 	if (!data)
 		return -ENOMEM;
 
-	ret = sprintf(buf, "0x%x\n", data->type);
+	if (data->type == SETUP_INDIRECT)
+		ret = sprintf(buf, "0x%x\n", ((struct setup_indirect *)data->data)->type);
+	else
+		ret = sprintf(buf, "0x%x\n", data->type);
 	memunmap(data);
 	return ret;
 }
@@ -143,7 +150,7 @@ static ssize_t setup_data_data_read(struct file *fp,
 				    loff_t off, size_t count)
 {
 	int nr, ret = 0;
-	u64 paddr;
+	u64 paddr, len;
 	struct setup_data *data;
 	void *p;
 
@@ -158,19 +165,28 @@ static ssize_t setup_data_data_read(struct file *fp,
 	if (!data)
 		return -ENOMEM;
 
-	if (off > data->len) {
+	if (data->type == SETUP_INDIRECT &&
+	    ((struct setup_indirect *)data->data)->type != SETUP_INDIRECT) {
+		paddr = ((struct setup_indirect *)data->data)->addr;
+		len = ((struct setup_indirect *)data->data)->len;
+	} else {
+		paddr += sizeof(*data);
+		len = data->len;
+	}
+
+	if (off > len) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (count > data->len - off)
-		count = data->len - off;
+	if (count > len - off)
+		count = len - off;
 
 	if (!count)
 		goto out;
 
 	ret = count;
-	p = memremap(paddr + sizeof(*data), data->len, MEMREMAP_WB);
+	p = memremap(paddr, len, MEMREMAP_WB);
 	if (!p) {
 		ret = -ENOMEM;
 		goto out;

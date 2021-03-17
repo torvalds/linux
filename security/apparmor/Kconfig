@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_APPARMOR
 	bool "AppArmor support"
 	depends on SECURITY && NET
@@ -5,6 +6,8 @@ config SECURITY_APPARMOR
 	select SECURITY_PATH
 	select SECURITYFS
 	select SECURITY_NETWORK
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
 	default n
 	help
 	  This enables the AppArmor security module.
@@ -13,22 +16,6 @@ config SECURITY_APPARMOR
 	  http://apparmor.wiki.kernel.org
 
 	  If you are unsure how to answer this question, answer N.
-
-config SECURITY_APPARMOR_BOOTPARAM_VALUE
-	int "AppArmor boot parameter default value"
-	depends on SECURITY_APPARMOR
-	range 0 1
-	default 1
-	help
-	  This option sets the default value for the kernel parameter
-	  'apparmor', which allows AppArmor to be enabled or disabled
-          at boot.  If this option is set to 0 (zero), the AppArmor
-	  kernel parameter will default to 0, disabling AppArmor at
-	  boot.  If this option is set to 1 (one), the AppArmor
-	  kernel parameter will default to 1, enabling AppArmor at
-	  boot.
-
-	  If you are unsure how to answer this question, answer 1.
 
 config SECURITY_APPARMOR_HASH
 	bool "Enable introspection of sha1 hashes for loaded profiles"
@@ -81,3 +68,20 @@ config SECURITY_APPARMOR_DEBUG_MESSAGES
 	  Set the default value of the apparmor.debug kernel parameter.
 	  When enabled, various debug messages will be logged to
 	  the kernel message buffer.
+
+config SECURITY_APPARMOR_KUNIT_TEST
+	bool "Build KUnit tests for policy_unpack.c" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y && SECURITY_APPARMOR
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the AppArmor KUnit tests.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
+	  running KUnit test harness and are not for inclusion into a
+	  production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.

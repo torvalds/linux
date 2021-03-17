@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Routines for doing kexec-based kdump.
  *
  * Copyright (C) 2005, IBM Corp.
  *
  * Created by: Michael Ellerman
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #undef DEBUG
@@ -20,6 +18,7 @@
 #include <asm/firmware.h>
 #include <linux/uaccess.h>
 #include <asm/rtas.h>
+#include <asm/inst.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -36,7 +35,7 @@ void __init reserve_kdump_trampoline(void)
 
 static void __init create_trampoline(unsigned long addr)
 {
-	unsigned int *p = (unsigned int *)addr;
+	struct ppc_inst *p = (struct ppc_inst *)addr;
 
 	/* The maximum range of a single instruction branch, is the current
 	 * instruction's address + (32 MB - 4) bytes. For the trampoline we
@@ -46,8 +45,8 @@ static void __init create_trampoline(unsigned long addr)
 	 * branch to "addr" we jump to ("addr" + 32 MB). Although it requires
 	 * two instructions it doesn't require any registers.
 	 */
-	patch_instruction(p, PPC_INST_NOP);
-	patch_branch(++p, addr + PHYSICAL_START, 0);
+	patch_instruction(p, ppc_inst(PPC_INST_NOP));
+	patch_branch((void *)p + 4, addr + PHYSICAL_START, 0);
 }
 
 void __init setup_kdump_trampoline(void)
@@ -110,7 +109,7 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 		vaddr = __va(paddr);
 		csize = copy_oldmem_vaddr(vaddr, buf, csize, offset, userbuf);
 	} else {
-		vaddr = __ioremap(paddr, PAGE_SIZE, 0);
+		vaddr = ioremap_cache(paddr, PAGE_SIZE);
 		csize = copy_oldmem_vaddr(vaddr, buf, csize, offset, userbuf);
 		iounmap(vaddr);
 	}

@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TTUSB DEC Driver
  *
  * Copyright (C) 2003-2004 Alex Woods <linux-dvb@giblets.org>
  * IR support by Peter Beutner <p.beutner@gmx.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/list.h>
@@ -260,6 +250,7 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 	struct ttusb_dec *dec = urb->context;
 	char *buffer = dec->irq_buffer;
 	int retval;
+	int index = buffer[4];
 
 	switch(urb->status) {
 		case 0: /*success*/
@@ -284,18 +275,18 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 		 *
 		 * this is an fact a bit too simple implementation;
 		 * the box also reports a keyrepeat signal
-		 * (with buffer[3] == 0x40) in an intervall of ~100ms.
+		 * (with buffer[3] == 0x40) in an interval of ~100ms.
 		 * But to handle this correctly we had to imlemenent some
 		 * kind of timer which signals a 'key up' event if no
 		 * keyrepeat signal is received for lets say 200ms.
 		 * this should/could be added later ...
 		 * for now lets report each signal as a key down and up
 		 */
-		if (buffer[4] - 1 < ARRAY_SIZE(rc_keys)) {
-			dprintk("%s:rc signal:%d\n", __func__, buffer[4]);
-			input_report_key(dec->rc_input_dev, rc_keys[buffer[4] - 1], 1);
+		if (index - 1 < ARRAY_SIZE(rc_keys)) {
+			dprintk("%s:rc signal:%d\n", __func__, index);
+			input_report_key(dec->rc_input_dev, rc_keys[index - 1], 1);
 			input_sync(dec->rc_input_dev);
-			input_report_key(dec->rc_input_dev, rc_keys[buffer[4] - 1], 0);
+			input_report_key(dec->rc_input_dev, rc_keys[index - 1], 0);
 			input_sync(dec->rc_input_dev);
 		}
 	}
@@ -329,7 +320,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 
 	dprintk("%s\n", __func__);
 
-	b = kmalloc(COMMAND_PACKET_SIZE + 4, GFP_KERNEL);
+	b = kzalloc(COMMAND_PACKET_SIZE + 4, GFP_KERNEL);
 	if (!b)
 		return -ENOMEM;
 
@@ -778,9 +769,9 @@ static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,
 	}
 }
 
-static void ttusb_dec_process_urb_frame_list(unsigned long data)
+static void ttusb_dec_process_urb_frame_list(struct tasklet_struct *t)
 {
-	struct ttusb_dec *dec = (struct ttusb_dec *)data;
+	struct ttusb_dec *dec = from_tasklet(dec, t, urb_tasklet);
 	struct list_head *item;
 	struct urb_frame *frame;
 	unsigned long flags;
@@ -1218,8 +1209,7 @@ static void ttusb_dec_init_tasklet(struct ttusb_dec *dec)
 {
 	spin_lock_init(&dec->urb_frame_list_lock);
 	INIT_LIST_HEAD(&dec->urb_frame_list);
-	tasklet_init(&dec->urb_tasklet, ttusb_dec_process_urb_frame_list,
-		     (unsigned long)dec);
+	tasklet_setup(&dec->urb_tasklet, ttusb_dec_process_urb_frame_list);
 }
 
 static int ttusb_init_rc( struct ttusb_dec *dec)

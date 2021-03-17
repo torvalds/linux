@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/pcmcia/pxa2xx_balloon3.c
  *
@@ -9,10 +10,6 @@
  *  Derived from pxa2xx_mainstone.c, by Nico Pitre
  *
  * Various modification by Marek Vasut <marek.vasut@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

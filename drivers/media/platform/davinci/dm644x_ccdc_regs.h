@@ -1,15 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2006-2009 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef _DM644X_CCDC_REGS_H
 #define _DM644X_CCDC_REGS_H
@@ -75,13 +66,13 @@
 #define CCDC_PIX_FMT_MASK			3
 #define CCDC_PIX_FMT_SHIFT			12
 #define CCDC_VP2SDR_DISABLE			0xFFFBFFFF
-#define CCDC_WEN_ENABLE				(1 << 17)
+#define CCDC_WEN_ENABLE				BIT(17)
 #define CCDC_SDR2RSZ_DISABLE			0xFFF7FFFF
-#define CCDC_VDHDEN_ENABLE			(1 << 16)
-#define CCDC_LPF_ENABLE				(1 << 14)
-#define CCDC_ALAW_ENABLE			(1 << 3)
+#define CCDC_VDHDEN_ENABLE			BIT(16)
+#define CCDC_LPF_ENABLE				BIT(14)
+#define CCDC_ALAW_ENABLE			BIT(3)
 #define CCDC_ALAW_GAMMA_WD_MASK			7
-#define CCDC_BLK_CLAMP_ENABLE			(1 << 31)
+#define CCDC_BLK_CLAMP_ENABLE			BIT(31)
 #define CCDC_BLK_SGAIN_MASK			0x1F
 #define CCDC_BLK_ST_PXL_MASK			0x7FFF
 #define CCDC_BLK_ST_PXL_SHIFT			10
@@ -94,11 +85,11 @@
 #define CCDC_BLK_COMP_GB_COMP_SHIFT		8
 #define CCDC_BLK_COMP_GR_COMP_SHIFT		16
 #define CCDC_BLK_COMP_R_COMP_SHIFT		24
-#define CCDC_LATCH_ON_VSYNC_DISABLE		(1 << 15)
-#define CCDC_FPC_ENABLE				(1 << 15)
+#define CCDC_LATCH_ON_VSYNC_DISABLE		BIT(15)
+#define CCDC_FPC_ENABLE				BIT(15)
 #define CCDC_FPC_DISABLE			0
 #define CCDC_FPC_FPC_NUM_MASK			0x7FFF
-#define CCDC_DATA_PACK_ENABLE			(1 << 11)
+#define CCDC_DATA_PACK_ENABLE			BIT(11)
 #define CCDC_FMTCFG_VPIN_MASK			7
 #define CCDC_FMTCFG_VPIN_SHIFT			12
 #define CCDC_FMT_HORZ_FMTLNH_MASK		0x1FFF
@@ -141,9 +132,9 @@
 #define CCDC_SYN_FLDMODE_MASK			1
 #define CCDC_SYN_FLDMODE_SHIFT			7
 #define CCDC_REC656IF_BT656_EN			3
-#define CCDC_SYN_MODE_VD_POL_NEGATIVE		(1 << 2)
+#define CCDC_SYN_MODE_VD_POL_NEGATIVE		BIT(2)
 #define CCDC_CCDCFG_Y8POS_SHIFT			11
-#define CCDC_CCDCFG_BW656_10BIT			(1 << 5)
+#define CCDC_CCDCFG_BW656_10BIT			BIT(5)
 #define CCDC_SDOFST_FIELD_INTERLEAVED		0x249
 #define CCDC_NO_CULLING				0xffff00ff
 #endif

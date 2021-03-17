@@ -10,8 +10,6 @@
 #ifndef LINUX_LOCKD_LOCKD_H
 #define LINUX_LOCKD_LOCKD_H
 
-#ifdef __KERNEL__
-
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <net/ipv6.h>
@@ -70,6 +68,7 @@ struct nlm_host {
 	struct nsm_handle	*h_nsmhandle;	/* NSM status handle */
 	char			*h_addrbuf;	/* address eyecatcher */
 	struct net		*net;		/* host net */
+	const struct cred	*h_cred;
 	char			nodename[UNX_MAXNODENAME + 1];
 	const struct nlmclnt_operations	*h_nlmclnt_ops;	/* Callback ops for NLM users */
 };
@@ -229,7 +228,8 @@ struct nlm_host  *nlmclnt_lookup_host(const struct sockaddr *sap,
 					const u32 version,
 					const char *hostname,
 					int noresvport,
-					struct net *net);
+					struct net *net,
+					const struct cred *cred);
 void		  nlmclnt_release_host(struct nlm_host *);
 struct nlm_host  *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 					const char *hostname,
@@ -280,6 +280,7 @@ void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					nlm_host_match_fn_t match);
 void		  nlmsvc_grant_reply(struct nlm_cookie *, __be32);
 void		  nlmsvc_release_call(struct nlm_rqst *);
+void		  nlmsvc_locks_init_private(struct file_lock *, struct nlm_host *, pid_t);
 
 /*
  * File handling for the server personality
@@ -287,6 +288,7 @@ void		  nlmsvc_release_call(struct nlm_rqst *);
 __be32		  nlm_lookup_file(struct svc_rqst *, struct nlm_file **,
 					struct nfs_fh *);
 void		  nlm_release_file(struct nlm_file *);
+void		  nlmsvc_release_lockowner(struct nlm_lock *);
 void		  nlmsvc_mark_resources(struct net *);
 void		  nlmsvc_free_host_resources(struct nlm_host *);
 void		  nlmsvc_invalidate_all(void);
@@ -368,7 +370,5 @@ static inline int nlm_compare_locks(const struct file_lock *fl1,
 }
 
 extern const struct lock_manager_operations nlmsvc_lock_operations;
-
-#endif /* __KERNEL__ */
 
 #endif /* LINUX_LOCKD_LOCKD_H */

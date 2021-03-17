@@ -35,6 +35,33 @@
  * below). Additional detail on less common ones can be found in MS-FSCC
  * section 2.3.
  */
+
+/*
+ * FSCTL values are 32 bits and are constructed as
+ * <device 16bits> <access 2bits> <function 12bits> <method 2bits>
+ */
+/* Device */
+#define FSCTL_DEVICE_DFS                 (0x0006 << 16)
+#define FSCTL_DEVICE_FILE_SYSTEM         (0x0009 << 16)
+#define FSCTL_DEVICE_NAMED_PIPE          (0x0011 << 16)
+#define FSCTL_DEVICE_NETWORK_FILE_SYSTEM (0x0014 << 16)
+#define FSCTL_DEVICE_MASK                0xffff0000
+/* Access */
+#define FSCTL_DEVICE_ACCESS_FILE_ANY_ACCESS        (0x00 << 14)
+#define FSCTL_DEVICE_ACCESS_FILE_READ_ACCESS       (0x01 << 14)
+#define FSCTL_DEVICE_ACCESS_FILE_WRITE_ACCESS      (0x02 << 14)
+#define FSCTL_DEVICE_ACCESS_FILE_READ_WRITE_ACCESS (0x03 << 14)
+#define FSCTL_DEVICE_ACCESS_MASK                   0x0000c000
+/* Function */
+#define FSCTL_DEVICE_FUNCTION_MASK       0x00003ffc
+/* Method */
+#define FSCTL_DEVICE_METHOD_BUFFERED   0x00
+#define FSCTL_DEVICE_METHOD_IN_DIRECT  0x01
+#define FSCTL_DEVICE_METHOD_OUT_DIRECT 0x02
+#define FSCTL_DEVICE_METHOD_NEITHER    0x03
+#define FSCTL_DEVICE_METHOD_MASK       0x00000003
+
+
 #define FSCTL_DFS_GET_REFERRALS      0x00060194
 #define FSCTL_DFS_GET_REFERRALS_EX   0x000601B0
 #define FSCTL_REQUEST_OPLOCK_LEVEL_1 0x00090000
@@ -76,7 +103,9 @@
 #define FSCTL_SET_ZERO_ON_DEALLOC    0x00090194 /* BB add struct */
 #define FSCTL_SET_SHORT_NAME_BEHAVIOR 0x000901B4 /* BB add struct */
 #define FSCTL_GET_INTEGRITY_INFORMATION 0x0009027C
-#define FSCTL_QUERY_ALLOCATED_RANGES 0x000940CF /* BB add struct */
+#define FSCTL_GET_RETRIEVAL_POINTERS_AND_REFCOUNT 0x000903d3
+#define FSCTL_GET_RETRIEVAL_POINTER_COUNT 0x0009042b
+#define FSCTL_QUERY_ALLOCATED_RANGES 0x000940CF
 #define FSCTL_SET_DEFECT_MANAGEMENT  0x00098134 /* BB add struct */
 #define FSCTL_FILE_LEVEL_TRIM        0x00098208 /* BB add struct */
 #define FSCTL_DUPLICATE_EXTENTS_TO_FILE 0x00098344
@@ -117,6 +146,17 @@
 #define IO_REPARSE_APPXSTREAM	     0xC0000014
 /* NFS symlinks, Win 8/SMB3 and later */
 #define IO_REPARSE_TAG_NFS           0x80000014
+/*
+ * AzureFileSync - see
+ * https://docs.microsoft.com/en-us/azure/storage/files/storage-sync-cloud-tiering
+ */
+#define IO_REPARSE_TAG_AZ_FILE_SYNC  0x8000001e
+/* WSL reparse tags */
+#define IO_REPARSE_TAG_LX_SYMLINK    0xA000001D
+#define IO_REPARSE_TAG_AF_UNIX	     0x80000023
+#define IO_REPARSE_TAG_LX_FIFO	     0x80000024
+#define IO_REPARSE_TAG_LX_CHR	     0x80000025
+#define IO_REPARSE_TAG_LX_BLK	     0x80000026
 
 /* fsctl flags */
 /* If Flags is set to this value, the request is an FSCTL not ioctl request */

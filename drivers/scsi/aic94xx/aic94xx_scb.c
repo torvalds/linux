@@ -1,27 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aic94xx SAS/SATA driver SCB management.
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This file is part of the aic94xx driver.
- *
- * The aic94xx driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * The aic94xx driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the aic94xx driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/gfp.h>
@@ -141,8 +123,8 @@ static unsigned ord_phy(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
 
 /**
  * asd_get_attached_sas_addr -- extract/generate attached SAS address
- * phy: pointer to asd_phy
- * sas_addr: pointer to buffer where the SAS address is to be written
+ * @phy: pointer to asd_phy
+ * @sas_addr: pointer to buffer where the SAS address is to be written
  *
  * This function extracts the SAS address from an IDENTIFY frame
  * received.  If OOB is SATA, then a SAS address is generated from the
@@ -724,9 +706,11 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 	switch (pd->max_sas_lrate) {
 	case SAS_LINK_RATE_6_0_GBPS:
 		*speed_mask &= ~SAS_SPEED_60_DIS;
+		fallthrough;
 	default:
 	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask &= ~SAS_SPEED_30_DIS;
+		fallthrough;
 	case SAS_LINK_RATE_1_5_GBPS:
 		*speed_mask &= ~SAS_SPEED_15_DIS;
 	}
@@ -734,6 +718,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 	switch (pd->min_sas_lrate) {
 	case SAS_LINK_RATE_6_0_GBPS:
 		*speed_mask |= SAS_SPEED_30_DIS;
+		fallthrough;
 	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask |= SAS_SPEED_15_DIS;
 	default:
@@ -745,6 +730,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 	switch (pd->max_sata_lrate) {
 	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask &= ~SATA_SPEED_30_DIS;
+		fallthrough;
 	default:
 	case SAS_LINK_RATE_1_5_GBPS:
 		*speed_mask &= ~SATA_SPEED_15_DIS;
@@ -803,6 +789,7 @@ void asd_build_control_phy(struct asd_ascb *ascb, int phy_id, u8 subfunc)
 
 		/* link reset retries, this should be nominal */
 		control_phy->link_reset_retries = 10;
+		fallthrough;
 
 	case RELEASE_SPINUP_HOLD: /* 0x02 */
 		/* decide the func_mask */
@@ -860,7 +847,7 @@ void asd_build_initiate_link_adm_task(struct asd_ascb *ascb, int phy_id,
 
 /**
  * asd_ascb_timedout -- called when a pending SCB's timer has expired
- * @data: unsigned long, a pointer to the ascb in question
+ * @t: Timer context used to fetch the SCB
  *
  * This is the default timeout function which does the most necessary.
  * Upper layers can implement their own timeout function, say to free

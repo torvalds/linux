@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_SUBDEV_H__
 #define __NVKM_SUBDEV_H__
 #include <core/device.h>
@@ -24,6 +24,8 @@ struct nvkm_subdev_func {
 };
 
 extern const char *nvkm_subdev_name[NVKM_SUBDEV_NR];
+int nvkm_subdev_new_(const struct nvkm_subdev_func *, struct nvkm_device *,
+		     int index, struct nvkm_subdev **);
 void nvkm_subdev_ctor(const struct nvkm_subdev_func *, struct nvkm_device *,
 		      int index, struct nvkm_subdev *);
 void nvkm_subdev_del(struct nvkm_subdev **);

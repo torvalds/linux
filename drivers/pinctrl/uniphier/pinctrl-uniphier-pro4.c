@@ -1,17 +1,7 @@
-/*
- * Copyright (C) 2015-2017 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program5 is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (C) 2015-2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -1048,9 +1038,8 @@ static const unsigned nand_cs1_pins[] = {131, 132};
 static const int nand_cs1_muxvals[] = {1, 1};
 static const unsigned sd_pins[] = {150, 151, 152, 153, 154, 155, 156, 157, 158};
 static const int sd_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-static const unsigned sd1_pins[] = {319, 320, 321, 322, 323, 324, 325, 326,
-				    327};
-static const int sd1_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned int sd1_pins[] = {319, 320, 321, 322, 323, 324, 325, 326};
+static const int sd1_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0};
 static const unsigned spi0_pins[] = {199, 200, 201, 202};
 static const int spi0_muxvals[] = {11, 11, 11, 11};
 static const unsigned spi1_pins[] = {195, 196, 197, 198, 235, 238, 239};
@@ -1083,8 +1072,10 @@ static const unsigned uart2_pins[] = {131, 132};
 static const int uart2_muxvals[] = {0, 0};
 static const unsigned uart3_pins[] = {88, 89};
 static const int uart3_muxvals[] = {2, 2};
-static const unsigned uart3_ctsrts_pins[] = {80, 81, 82, 83, 90, 91};
-static const int uart3_ctsrts_muxvals[] = {2, 2, 2, 2, 2, 2};
+static const unsigned uart3_ctsrts_pins[] = {90, 91};
+static const int uart3_ctsrts_muxvals[] = {2, 2};
+static const unsigned uart3_modem_pins[] = {80, 81, 82, 83};
+static const int uart3_modem_muxvals[] = {2, 2, 2, 2};
 static const unsigned usb0_pins[] = {180, 181};
 static const int usb0_muxvals[] = {0, 0};
 static const unsigned usb1_pins[] = {182, 183};
@@ -1159,6 +1150,7 @@ static const struct uniphier_pinctrl_group uniphier_pro4_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(uart2),
 	UNIPHIER_PINCTRL_GROUP(uart3),
 	UNIPHIER_PINCTRL_GROUP(uart3_ctsrts),
+	UNIPHIER_PINCTRL_GROUP(uart3_modem),
 	UNIPHIER_PINCTRL_GROUP(usb0),
 	UNIPHIER_PINCTRL_GROUP(usb1),
 	UNIPHIER_PINCTRL_GROUP(usb2),
@@ -1192,7 +1184,8 @@ static const char * const system_bus_groups[] = {"system_bus",
 static const char * const uart0_groups[] = {"uart0"};
 static const char * const uart1_groups[] = {"uart1"};
 static const char * const uart2_groups[] = {"uart2"};
-static const char * const uart3_groups[] = {"uart3", "uart3_ctsrts"};
+static const char * const uart3_groups[] = {"uart3", "uart3_ctsrts",
+					    "uart3_modem"};
 static const char * const usb0_groups[] = {"usb0"};
 static const char * const usb1_groups[] = {"usb1"};
 static const char * const usb2_groups[] = {"usb2"};
@@ -1233,7 +1226,7 @@ static int uniphier_pro4_get_gpio_muxval(unsigned int pin,
 	return 7;
 }
 
-static struct uniphier_pinctrl_socdata uniphier_pro4_pindata = {
+static const struct uniphier_pinctrl_socdata uniphier_pro4_pindata = {
 	.pins = uniphier_pro4_pins,
 	.npins = ARRAY_SIZE(uniphier_pro4_pins),
 	.groups = uniphier_pro4_groups,

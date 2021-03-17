@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8731.c  --  WM8731 ALSA SoC Audio driver
  *
@@ -7,10 +8,6 @@
  * Author: Richard Purdie <richard@openedhand.com>
  *
  * Based on wm8753.c by Liam Girdwood
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -339,7 +336,7 @@ static int wm8731_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8731_priv *wm8731 = snd_soc_component_get_drvdata(component);
-	u16 iface = snd_soc_component_read32(component, WM8731_IFACE) & 0xfff3;
+	u16 iface = snd_soc_component_read(component, WM8731_IFACE) & 0xfff3;
 	int i = get_coeff(wm8731->sysclk, params_rate(params));
 	u16 srate = (coeff_div[i].sr << 2) |
 		(coeff_div[i].bosr << 1) | coeff_div[i].usb;
@@ -369,10 +366,10 @@ static int wm8731_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8731_mute(struct snd_soc_dai *dai, int mute)
+static int wm8731_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, WM8731_APDIGI) & 0xfff7;
+	u16 mute_reg = snd_soc_component_read(component, WM8731_APDIGI) & 0xfff7;
 
 	if (mute)
 		snd_soc_component_write(component, WM8731_APDIGI, mute_reg | 0x8);
@@ -513,7 +510,7 @@ static int wm8731_set_bias_level(struct snd_soc_component *component,
 		}
 
 		/* Clear PWROFF, gate CLKOUT, everything else as-is */
-		reg = snd_soc_component_read32(component, WM8731_PWR) & 0xff7f;
+		reg = snd_soc_component_read(component, WM8731_PWR) & 0xff7f;
 		snd_soc_component_write(component, WM8731_PWR, reg | 0x0040);
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -549,9 +546,10 @@ static int wm8731_startup(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops wm8731_dai_ops = {
 	.startup	= wm8731_startup,
 	.hw_params	= wm8731_hw_params,
-	.digital_mute	= wm8731_mute,
+	.mute_stream	= wm8731_mute,
 	.set_sysclk	= wm8731_set_dai_sysclk,
 	.set_fmt	= wm8731_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8731_dai = {

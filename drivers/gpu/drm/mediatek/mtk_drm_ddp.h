@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef MTK_DRM_DDP_H
@@ -19,13 +11,6 @@
 struct regmap;
 struct device;
 struct mtk_disp_mutex;
-
-void mtk_ddp_add_comp_to_path(void __iomem *config_regs,
-			      enum mtk_ddp_comp_id cur,
-			      enum mtk_ddp_comp_id next);
-void mtk_ddp_remove_comp_from_path(void __iomem *config_regs,
-				   enum mtk_ddp_comp_id cur,
-				   enum mtk_ddp_comp_id next);
 
 struct mtk_disp_mutex *mtk_disp_mutex_get(struct device *dev, unsigned int id);
 int mtk_disp_mutex_prepare(struct mtk_disp_mutex *mutex);

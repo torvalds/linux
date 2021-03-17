@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /**
@@ -22,58 +19,58 @@
  * each CRTC.
  */
 
+#include <linux/bitfield.h>
+#include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/platform_device.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_vblank.h>
+
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
-#define HVS_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} hvs_regs[] = {
-	HVS_REG(SCALER_DISPCTRL),
-	HVS_REG(SCALER_DISPSTAT),
-	HVS_REG(SCALER_DISPID),
-	HVS_REG(SCALER_DISPECTRL),
-	HVS_REG(SCALER_DISPPROF),
-	HVS_REG(SCALER_DISPDITHER),
-	HVS_REG(SCALER_DISPEOLN),
-	HVS_REG(SCALER_DISPLIST0),
-	HVS_REG(SCALER_DISPLIST1),
-	HVS_REG(SCALER_DISPLIST2),
-	HVS_REG(SCALER_DISPLSTAT),
-	HVS_REG(SCALER_DISPLACT0),
-	HVS_REG(SCALER_DISPLACT1),
-	HVS_REG(SCALER_DISPLACT2),
-	HVS_REG(SCALER_DISPCTRL0),
-	HVS_REG(SCALER_DISPBKGND0),
-	HVS_REG(SCALER_DISPSTAT0),
-	HVS_REG(SCALER_DISPBASE0),
-	HVS_REG(SCALER_DISPCTRL1),
-	HVS_REG(SCALER_DISPBKGND1),
-	HVS_REG(SCALER_DISPSTAT1),
-	HVS_REG(SCALER_DISPBASE1),
-	HVS_REG(SCALER_DISPCTRL2),
-	HVS_REG(SCALER_DISPBKGND2),
-	HVS_REG(SCALER_DISPSTAT2),
-	HVS_REG(SCALER_DISPBASE2),
-	HVS_REG(SCALER_DISPALPHA2),
-	HVS_REG(SCALER_OLEDOFFS),
-	HVS_REG(SCALER_OLEDCOEF0),
-	HVS_REG(SCALER_OLEDCOEF1),
-	HVS_REG(SCALER_OLEDCOEF2),
+static const struct debugfs_reg32 hvs_regs[] = {
+	VC4_REG32(SCALER_DISPCTRL),
+	VC4_REG32(SCALER_DISPSTAT),
+	VC4_REG32(SCALER_DISPID),
+	VC4_REG32(SCALER_DISPECTRL),
+	VC4_REG32(SCALER_DISPPROF),
+	VC4_REG32(SCALER_DISPDITHER),
+	VC4_REG32(SCALER_DISPEOLN),
+	VC4_REG32(SCALER_DISPLIST0),
+	VC4_REG32(SCALER_DISPLIST1),
+	VC4_REG32(SCALER_DISPLIST2),
+	VC4_REG32(SCALER_DISPLSTAT),
+	VC4_REG32(SCALER_DISPLACT0),
+	VC4_REG32(SCALER_DISPLACT1),
+	VC4_REG32(SCALER_DISPLACT2),
+	VC4_REG32(SCALER_DISPCTRL0),
+	VC4_REG32(SCALER_DISPBKGND0),
+	VC4_REG32(SCALER_DISPSTAT0),
+	VC4_REG32(SCALER_DISPBASE0),
+	VC4_REG32(SCALER_DISPCTRL1),
+	VC4_REG32(SCALER_DISPBKGND1),
+	VC4_REG32(SCALER_DISPSTAT1),
+	VC4_REG32(SCALER_DISPBASE1),
+	VC4_REG32(SCALER_DISPCTRL2),
+	VC4_REG32(SCALER_DISPBKGND2),
+	VC4_REG32(SCALER_DISPSTAT2),
+	VC4_REG32(SCALER_DISPBASE2),
+	VC4_REG32(SCALER_DISPALPHA2),
+	VC4_REG32(SCALER_OLEDOFFS),
+	VC4_REG32(SCALER_OLEDCOEF0),
+	VC4_REG32(SCALER_OLEDCOEF1),
+	VC4_REG32(SCALER_OLEDCOEF2),
 };
 
 void vc4_hvs_dump_state(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_printer p = drm_info_printer(&vc4->hvs->pdev->dev);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(hvs_regs); i++) {
-		DRM_INFO("0x%04x (%s): 0x%08x\n",
-			 hvs_regs[i].reg, hvs_regs[i].name,
-			 HVS_READ(hvs_regs[i].reg));
-	}
+	drm_print_regset32(&p, &vc4->hvs->regset);
 
 	DRM_INFO("HVS ctx:\n");
 	for (i = 0; i < 64; i += 4) {
@@ -86,23 +83,17 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_hvs_debugfs_regs(struct seq_file *m, void *unused)
+static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	int i;
+	struct drm_printer p = drm_seq_file_printer(m);
 
-	for (i = 0; i < ARRAY_SIZE(hvs_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   hvs_regs[i].name, hvs_regs[i].reg,
-			   HVS_READ(hvs_regs[i].reg));
-	}
+	drm_printf(&p, "%d\n", atomic_read(&vc4->underrun));
 
 	return 0;
 }
-#endif
 
 /* The filter kernel is composed of dwords each containing 3 9-bit
  * signed integers packed next to each other.
@@ -166,11 +157,410 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 	return 0;
 }
 
+static void vc4_hvs_lut_load(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	u32 i;
+
+	/* The LUT memory is laid out with each HVS channel in order,
+	 * each of which takes 256 writes for R, 256 for G, then 256
+	 * for B.
+	 */
+	HVS_WRITE(SCALER_GAMADDR,
+		  SCALER_GAMADDR_AUTOINC |
+		  (vc4_state->assigned_channel * 3 * crtc->gamma_size));
+
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_r[i]);
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_g[i]);
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_b[i]);
+}
+
+static void vc4_hvs_update_gamma_lut(struct drm_crtc *crtc)
+{
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct drm_color_lut *lut = crtc->state->gamma_lut->data;
+	u32 length = drm_color_lut_size(crtc->state->gamma_lut);
+	u32 i;
+
+	for (i = 0; i < length; i++) {
+		vc4_crtc->lut_r[i] = drm_color_lut_extract(lut[i].red, 8);
+		vc4_crtc->lut_g[i] = drm_color_lut_extract(lut[i].green, 8);
+		vc4_crtc->lut_b[i] = drm_color_lut_extract(lut[i].blue, 8);
+	}
+
+	vc4_hvs_lut_load(crtc);
+}
+
+int vc4_hvs_get_fifo_from_output(struct drm_device *dev, unsigned int output)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	u32 reg;
+	int ret;
+
+	if (!vc4->hvs->hvs5)
+		return output;
+
+	switch (output) {
+	case 0:
+		return 0;
+
+	case 1:
+		return 1;
+
+	case 2:
+		reg = HVS_READ(SCALER_DISPECTRL);
+		ret = FIELD_GET(SCALER_DISPECTRL_DSP2_MUX_MASK, reg);
+		if (ret == 0)
+			return 2;
+
+		return 0;
+
+	case 3:
+		reg = HVS_READ(SCALER_DISPCTRL);
+		ret = FIELD_GET(SCALER_DISPCTRL_DSP3_MUX_MASK, reg);
+		if (ret == 3)
+			return -EPIPE;
+
+		return ret;
+
+	case 4:
+		reg = HVS_READ(SCALER_DISPEOLN);
+		ret = FIELD_GET(SCALER_DISPEOLN_DSP4_MUX_MASK, reg);
+		if (ret == 3)
+			return -EPIPE;
+
+		return ret;
+
+	case 5:
+		reg = HVS_READ(SCALER_DISPDITHER);
+		ret = FIELD_GET(SCALER_DISPDITHER_DSP5_MUX_MASK, reg);
+		if (ret == 3)
+			return -EPIPE;
+
+		return ret;
+
+	default:
+		return -EPIPE;
+	}
+}
+
+static int vc4_hvs_init_channel(struct vc4_dev *vc4, struct drm_crtc *crtc,
+				struct drm_display_mode *mode, bool oneshot)
+{
+	struct vc4_crtc_state *vc4_crtc_state = to_vc4_crtc_state(crtc->state);
+	unsigned int chan = vc4_crtc_state->assigned_channel;
+	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
+	u32 dispbkgndx;
+	u32 dispctrl;
+
+	HVS_WRITE(SCALER_DISPCTRLX(chan), 0);
+	HVS_WRITE(SCALER_DISPCTRLX(chan), SCALER_DISPCTRLX_RESET);
+	HVS_WRITE(SCALER_DISPCTRLX(chan), 0);
+
+	/* Turn on the scaler, which will wait for vstart to start
+	 * compositing.
+	 * When feeding the transposer, we should operate in oneshot
+	 * mode.
+	 */
+	dispctrl = SCALER_DISPCTRLX_ENABLE;
+
+	if (!vc4->hvs->hvs5)
+		dispctrl |= VC4_SET_FIELD(mode->hdisplay,
+					  SCALER_DISPCTRLX_WIDTH) |
+			    VC4_SET_FIELD(mode->vdisplay,
+					  SCALER_DISPCTRLX_HEIGHT) |
+			    (oneshot ? SCALER_DISPCTRLX_ONESHOT : 0);
+	else
+		dispctrl |= VC4_SET_FIELD(mode->hdisplay,
+					  SCALER5_DISPCTRLX_WIDTH) |
+			    VC4_SET_FIELD(mode->vdisplay,
+					  SCALER5_DISPCTRLX_HEIGHT) |
+			    (oneshot ? SCALER5_DISPCTRLX_ONESHOT : 0);
+
+	HVS_WRITE(SCALER_DISPCTRLX(chan), dispctrl);
+
+	dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(chan));
+	dispbkgndx &= ~SCALER_DISPBKGND_GAMMA;
+	dispbkgndx &= ~SCALER_DISPBKGND_INTERLACE;
+
+	HVS_WRITE(SCALER_DISPBKGNDX(chan), dispbkgndx |
+		  SCALER_DISPBKGND_AUTOHS |
+		  ((!vc4->hvs->hvs5) ? SCALER_DISPBKGND_GAMMA : 0) |
+		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
+
+	/* Reload the LUT, since the SRAMs would have been disabled if
+	 * all CRTCs had SCALER_DISPBKGND_GAMMA unset at once.
+	 */
+	vc4_hvs_lut_load(crtc);
+
+	return 0;
+}
+
+void vc4_hvs_stop_channel(struct drm_device *dev, unsigned int chan)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	if (HVS_READ(SCALER_DISPCTRLX(chan)) & SCALER_DISPCTRLX_ENABLE)
+		return;
+
+	HVS_WRITE(SCALER_DISPCTRLX(chan),
+		  HVS_READ(SCALER_DISPCTRLX(chan)) | SCALER_DISPCTRLX_RESET);
+	HVS_WRITE(SCALER_DISPCTRLX(chan),
+		  HVS_READ(SCALER_DISPCTRLX(chan)) & ~SCALER_DISPCTRLX_ENABLE);
+
+	/* Once we leave, the scaler should be disabled and its fifo empty. */
+	WARN_ON_ONCE(HVS_READ(SCALER_DISPCTRLX(chan)) & SCALER_DISPCTRLX_RESET);
+
+	WARN_ON_ONCE(VC4_GET_FIELD(HVS_READ(SCALER_DISPSTATX(chan)),
+				   SCALER_DISPSTATX_MODE) !=
+		     SCALER_DISPSTATX_MODE_DISABLED);
+
+	WARN_ON_ONCE((HVS_READ(SCALER_DISPSTATX(chan)) &
+		      (SCALER_DISPSTATX_FULL | SCALER_DISPSTATX_EMPTY)) !=
+		     SCALER_DISPSTATX_EMPTY);
+}
+
+int vc4_hvs_atomic_check(struct drm_crtc *crtc,
+			 struct drm_crtc_state *state)
+{
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_plane *plane;
+	unsigned long flags;
+	const struct drm_plane_state *plane_state;
+	u32 dlist_count = 0;
+	int ret;
+
+	/* The pixelvalve can only feed one encoder (and encoders are
+	 * 1:1 with connectors.)
+	 */
+	if (hweight32(state->connector_mask) > 1)
+		return -EINVAL;
+
+	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, state)
+		dlist_count += vc4_plane_dlist_size(plane_state);
+
+	dlist_count++; /* Account for SCALER_CTL0_END. */
+
+	spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
+	ret = drm_mm_insert_node(&vc4->hvs->dlist_mm, &vc4_state->mm,
+				 dlist_count);
+	spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+
+	if (crtc->state->event) {
+		unsigned long flags;
+
+		crtc->state->event->pipe = drm_crtc_index(crtc);
+
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+
+		if (!vc4_state->feed_txp || vc4_state->txp_armed) {
+			vc4_crtc->event = crtc->state->event;
+			crtc->state->event = NULL;
+		}
+
+		HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
+			  vc4_state->mm.start);
+
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	} else {
+		HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
+			  vc4_state->mm.start);
+	}
+}
+
+void vc4_hvs_atomic_enable(struct drm_crtc *crtc,
+			   struct drm_crtc_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	bool oneshot = vc4_state->feed_txp;
+
+	vc4_hvs_update_dlist(crtc);
+	vc4_hvs_init_channel(vc4, crtc, mode, oneshot);
+}
+
+void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
+			    struct drm_crtc_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(old_state);
+	unsigned int chan = vc4_state->assigned_channel;
+
+	vc4_hvs_stop_channel(dev, chan);
+}
+
+void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
+			  struct drm_crtc_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	struct drm_plane *plane;
+	struct vc4_plane_state *vc4_plane_state;
+	bool debug_dump_regs = false;
+	bool enable_bg_fill = false;
+	u32 __iomem *dlist_start = vc4->hvs->dlist + vc4_state->mm.start;
+	u32 __iomem *dlist_next = dlist_start;
+
+	if (debug_dump_regs) {
+		DRM_INFO("CRTC %d HVS before:\n", drm_crtc_index(crtc));
+		vc4_hvs_dump_state(dev);
+	}
+
+	/* Copy all the active planes' dlist contents to the hardware dlist. */
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		/* Is this the first active plane? */
+		if (dlist_next == dlist_start) {
+			/* We need to enable background fill when a plane
+			 * could be alpha blending from the background, i.e.
+			 * where no other plane is underneath. It suffices to
+			 * consider the first active plane here since we set
+			 * needs_bg_fill such that either the first plane
+			 * already needs it or all planes on top blend from
+			 * the first or a lower plane.
+			 */
+			vc4_plane_state = to_vc4_plane_state(plane->state);
+			enable_bg_fill = vc4_plane_state->needs_bg_fill;
+		}
+
+		dlist_next += vc4_plane_write_dlist(plane, dlist_next);
+	}
+
+	writel(SCALER_CTL0_END, dlist_next);
+	dlist_next++;
+
+	WARN_ON_ONCE(dlist_next - dlist_start != vc4_state->mm.size);
+
+	if (enable_bg_fill)
+		/* This sets a black background color fill, as is the case
+		 * with other DRM drivers.
+		 */
+		HVS_WRITE(SCALER_DISPBKGNDX(vc4_state->assigned_channel),
+			  HVS_READ(SCALER_DISPBKGNDX(vc4_state->assigned_channel)) |
+			  SCALER_DISPBKGND_FILL);
+
+	/* Only update DISPLIST if the CRTC was already running and is not
+	 * being disabled.
+	 * vc4_crtc_enable() takes care of updating the dlist just after
+	 * re-enabling VBLANK interrupts and before enabling the engine.
+	 * If the CRTC is being disabled, there's no point in updating this
+	 * information.
+	 */
+	if (crtc->state->active && old_state->active)
+		vc4_hvs_update_dlist(crtc);
+
+	if (crtc->state->color_mgmt_changed) {
+		u32 dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(vc4_state->assigned_channel));
+
+		if (crtc->state->gamma_lut) {
+			vc4_hvs_update_gamma_lut(crtc);
+			dispbkgndx |= SCALER_DISPBKGND_GAMMA;
+		} else {
+			/* Unsetting DISPBKGND_GAMMA skips the gamma lut step
+			 * in hardware, which is the same as a linear lut that
+			 * DRM expects us to use in absence of a user lut.
+			 */
+			dispbkgndx &= ~SCALER_DISPBKGND_GAMMA;
+		}
+		HVS_WRITE(SCALER_DISPBKGNDX(vc4_state->assigned_channel), dispbkgndx);
+	}
+
+	if (debug_dump_regs) {
+		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
+		vc4_hvs_dump_state(dev);
+	}
+}
+
+void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	u32 dispctrl = HVS_READ(SCALER_DISPCTRL);
+
+	dispctrl &= ~SCALER_DISPCTRL_DSPEISLUR(channel);
+
+	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
+}
+
+void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	u32 dispctrl = HVS_READ(SCALER_DISPCTRL);
+
+	dispctrl |= SCALER_DISPCTRL_DSPEISLUR(channel);
+
+	HVS_WRITE(SCALER_DISPSTAT,
+		  SCALER_DISPSTAT_EUFLOW(channel));
+	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
+}
+
+static void vc4_hvs_report_underrun(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	atomic_inc(&vc4->underrun);
+	DRM_DEV_ERROR(dev->dev, "HVS underrun\n");
+}
+
+static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
+{
+	struct drm_device *dev = data;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	irqreturn_t irqret = IRQ_NONE;
+	int channel;
+	u32 control;
+	u32 status;
+
+	status = HVS_READ(SCALER_DISPSTAT);
+	control = HVS_READ(SCALER_DISPCTRL);
+
+	for (channel = 0; channel < SCALER_CHANNELS_COUNT; channel++) {
+		/* Interrupt masking is not always honored, so check it here. */
+		if (status & SCALER_DISPSTAT_EUFLOW(channel) &&
+		    control & SCALER_DISPCTRL_DSPEISLUR(channel)) {
+			vc4_hvs_mask_underrun(dev, channel);
+			vc4_hvs_report_underrun(dev);
+
+			irqret = IRQ_HANDLED;
+		}
+	}
+
+	/* Clear every per-channel interrupt flag. */
+	HVS_WRITE(SCALER_DISPSTAT, SCALER_DISPSTAT_IRQMASK(0) |
+				   SCALER_DISPSTAT_IRQMASK(1) |
+				   SCALER_DISPSTAT_IRQMASK(2));
+
+	return irqret;
+}
+
 static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
-	struct vc4_dev *vc4 = drm->dev_private;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_hvs *hvs = NULL;
 	int ret;
 	u32 dispctrl;
@@ -181,11 +571,35 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	hvs->pdev = pdev;
 
+	if (of_device_is_compatible(pdev->dev.of_node, "brcm,bcm2711-hvs"))
+		hvs->hvs5 = true;
+
 	hvs->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(hvs->regs))
 		return PTR_ERR(hvs->regs);
 
-	hvs->dlist = hvs->regs + SCALER_DLIST_START;
+	hvs->regset.base = hvs->regs;
+	hvs->regset.regs = hvs_regs;
+	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
+
+	if (hvs->hvs5) {
+		hvs->core_clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(hvs->core_clk)) {
+			dev_err(&pdev->dev, "Couldn't get core clock\n");
+			return PTR_ERR(hvs->core_clk);
+		}
+
+		ret = clk_prepare_enable(hvs->core_clk);
+		if (ret) {
+			dev_err(&pdev->dev, "Couldn't enable the core clock\n");
+			return ret;
+		}
+	}
+
+	if (!hvs->hvs5)
+		hvs->dlist = hvs->regs + SCALER_DLIST_START;
+	else
+		hvs->dlist = hvs->regs + SCALER5_DLIST_START;
 
 	spin_lock_init(&hvs->mm_lock);
 
@@ -203,7 +617,12 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	 * between planes when they don't overlap on the screen, but
 	 * for now we just allocate globally.
 	 */
-	drm_mm_init(&hvs->lbm_mm, 0, 96 * 1024);
+	if (!hvs->hvs5)
+		/* 48k words of 2x12-bit pixels */
+		drm_mm_init(&hvs->lbm_mm, 0, 48 * 1024);
+	else
+		/* 60k words of 4x12-bit pixels */
+		drm_mm_init(&hvs->lbm_mm, 0, 60 * 1024);
 
 	/* Upload filter kernels.  We only have the one for now, so we
 	 * keep it around for the lifetime of the driver.
@@ -219,14 +638,39 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl |= SCALER_DISPCTRL_ENABLE;
+	dispctrl |= SCALER_DISPCTRL_DISPEIRQ(0) |
+		    SCALER_DISPCTRL_DISPEIRQ(1) |
+		    SCALER_DISPCTRL_DISPEIRQ(2);
 
 	/* Set DSP3 (PV1) to use HVS channel 2, which would otherwise
 	 * be unused.
 	 */
 	dispctrl &= ~SCALER_DISPCTRL_DSP3_MUX_MASK;
+	dispctrl &= ~(SCALER_DISPCTRL_DMAEIRQ |
+		      SCALER_DISPCTRL_SLVWREIRQ |
+		      SCALER_DISPCTRL_SLVRDEIRQ |
+		      SCALER_DISPCTRL_DSPEIEOF(0) |
+		      SCALER_DISPCTRL_DSPEIEOF(1) |
+		      SCALER_DISPCTRL_DSPEIEOF(2) |
+		      SCALER_DISPCTRL_DSPEIEOLN(0) |
+		      SCALER_DISPCTRL_DSPEIEOLN(1) |
+		      SCALER_DISPCTRL_DSPEIEOLN(2) |
+		      SCALER_DISPCTRL_DSPEISLUR(0) |
+		      SCALER_DISPCTRL_DSPEISLUR(1) |
+		      SCALER_DISPCTRL_DSPEISLUR(2) |
+		      SCALER_DISPCTRL_SCLEIRQ);
 	dispctrl |= VC4_SET_FIELD(2, SCALER_DISPCTRL_DSP3_MUX);
 
 	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
+
+	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
+			       vc4_hvs_irq_handler, 0, "vc4 hvs", drm);
+	if (ret)
+		return ret;
+
+	vc4_debugfs_add_regset32(drm, "hvs_regs", &hvs->regset);
+	vc4_debugfs_add_file(drm, "hvs_underrun", vc4_hvs_debugfs_underrun,
+			     NULL);
 
 	return 0;
 }
@@ -235,13 +679,16 @@ static void vc4_hvs_unbind(struct device *dev, struct device *master,
 			   void *data)
 {
 	struct drm_device *drm = dev_get_drvdata(master);
-	struct vc4_dev *vc4 = drm->dev_private;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	struct vc4_hvs *hvs = vc4->hvs;
 
-	if (vc4->hvs->mitchell_netravali_filter.allocated)
+	if (drm_mm_node_allocated(&vc4->hvs->mitchell_netravali_filter))
 		drm_mm_remove_node(&vc4->hvs->mitchell_netravali_filter);
 
 	drm_mm_takedown(&vc4->hvs->dlist_mm);
 	drm_mm_takedown(&vc4->hvs->lbm_mm);
+
+	clk_disable_unprepare(hvs->core_clk);
 
 	vc4->hvs = NULL;
 }
@@ -263,6 +710,7 @@ static int vc4_hvs_dev_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id vc4_hvs_dt_match[] = {
+	{ .compatible = "brcm,bcm2711-hvs" },
 	{ .compatible = "brcm,bcm2835-hvs" },
 	{}
 };

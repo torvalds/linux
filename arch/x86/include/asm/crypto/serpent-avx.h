@@ -15,26 +15,26 @@ struct serpent_xts_ctx {
 	struct serpent_ctx crypt_ctx;
 };
 
-asmlinkage void serpent_ecb_enc_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+asmlinkage void serpent_ecb_enc_8way_avx(const void *ctx, u8 *dst,
 					 const u8 *src);
-asmlinkage void serpent_ecb_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+asmlinkage void serpent_ecb_dec_8way_avx(const void *ctx, u8 *dst,
 					 const u8 *src);
 
-asmlinkage void serpent_cbc_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+asmlinkage void serpent_cbc_dec_8way_avx(const void *ctx, u8 *dst,
 					 const u8 *src);
-asmlinkage void serpent_ctr_8way_avx(struct serpent_ctx *ctx, u8 *dst,
-				     const u8 *src, le128 *iv);
+asmlinkage void serpent_ctr_8way_avx(const void *ctx, u8 *dst, const u8 *src,
+				     le128 *iv);
 
-asmlinkage void serpent_xts_enc_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+asmlinkage void serpent_xts_enc_8way_avx(const void *ctx, u8 *dst,
 					 const u8 *src, le128 *iv);
-asmlinkage void serpent_xts_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+asmlinkage void serpent_xts_dec_8way_avx(const void *ctx, u8 *dst,
 					 const u8 *src, le128 *iv);
 
-extern void __serpent_crypt_ctr(void *ctx, u128 *dst, const u128 *src,
+extern void __serpent_crypt_ctr(const void *ctx, u8 *dst, const u8 *src,
 				le128 *iv);
 
-extern void serpent_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv);
-extern void serpent_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv);
+extern void serpent_xts_enc(const void *ctx, u8 *dst, const u8 *src, le128 *iv);
+extern void serpent_xts_dec(const void *ctx, u8 *dst, const u8 *src, le128 *iv);
 
 extern int xts_serpent_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			      unsigned int keylen);

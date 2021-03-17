@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD5760, AD5780, AD5781, AD5790, AD5791 Voltage Output Digital to Analog
  * Converter
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/interrupt.h>
@@ -77,9 +76,11 @@ struct ad5791_chip_info {
  * @chip_info:		chip model specific constants
  * @vref_mv:		actual reference voltage used
  * @vref_neg_mv:	voltage of the negative supply
- * @pwr_down_mode	current power down mode
+ * @ctrl:		control regster cache
+ * @pwr_down_mode:	current power down mode
+ * @pwr_down:		true if device is powered down
+ * @data:		spi transfer buffers
  */
-
 struct ad5791_state {
 	struct spi_device		*spi;
 	struct regulator		*reg_vdd;
@@ -96,10 +97,6 @@ struct ad5791_state {
 		u8 d8[4];
 	} data[3] ____cacheline_aligned;
 };
-
-/**
- * ad5791_supported_device_ids:
- */
 
 enum ad5791_supported_device_ids {
 	ID_AD5760,
@@ -410,7 +407,6 @@ static int ad5791_probe(struct spi_device *spi)
 		goto error_disable_reg_neg;
 
 	spi_set_drvdata(spi, indio_dev);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad5791_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels
@@ -467,6 +463,6 @@ static struct spi_driver ad5791_driver = {
 };
 module_spi_driver(ad5791_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD5760/AD5780/AD5781/AD5790/AD5791 DAC");
 MODULE_LICENSE("GPL v2");

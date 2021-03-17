@@ -258,8 +258,15 @@ static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 {
 	struct apci3501_private *devpriv = dev->private;
 	unsigned short addr = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	unsigned int i;
 
-	data[0] = apci3501_eeprom_readw(devpriv->amcc, 2 * addr);
+	if (insn->n) {
+		/* No point reading the same EEPROM location more than once. */
+		val = apci3501_eeprom_readw(devpriv->amcc, 2 * addr);
+		for (i = 0; i < insn->n; i++)
+			data[i] = val;
+	}
 
 	return insn->n;
 }
@@ -406,5 +413,5 @@ static struct pci_driver apci3501_pci_driver = {
 module_comedi_pci_driver(apci3501_driver, apci3501_pci_driver);
 
 MODULE_DESCRIPTION("ADDI-DATA APCI-3501 Analog output board");
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_LICENSE("GPL");

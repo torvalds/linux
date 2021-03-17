@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pegasus Mobile Notetaker Pen input tablet driver
  *
@@ -145,7 +146,7 @@ static void pegasus_parse_packet(struct pegasus *pegasus)
 	/* xy data */
 	case BATTERY_LOW:
 		dev_warn_once(&dev->dev, "Pen battery low\n");
-		/* fall through */
+		fallthrough;
 
 	case BATTERY_NO_REPORT:
 	case BATTERY_GOOD:
@@ -274,7 +275,7 @@ static int pegasus_probe(struct usb_interface *intf,
 		return -ENODEV;
 
 	/* Sanity check that the device has an endpoint */
-	if (intf->altsetting[0].desc.bNumEndpoints < 1) {
+	if (intf->cur_altsetting->desc.bNumEndpoints < 1) {
 		dev_err(&intf->dev, "Invalid number of endpoints\n");
 		return -EINVAL;
 	}

@@ -14,13 +14,13 @@
 	model = "WeTek Play 2";
 
 	leds {
-		wifi {
+		led-wifi {
 			label = "wetek-play:wifi-status";
 			gpios = <&gpio GPIODV_26 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		ethernet {
+		led-ethernet {
 			label = "wetek-play:ethernet-status";
 			gpios = <&gpio GPIODV_27 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
@@ -53,4 +53,8 @@
 
 &usb1 {
 	status = "okay";
+};
+
+&ir {
+	linux,rc-map-name = "rc-wetek-play2";
 };

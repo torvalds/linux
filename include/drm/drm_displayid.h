@@ -40,6 +40,7 @@
 #define DATA_BLOCK_DISPLAY_INTERFACE 0x0f
 #define DATA_BLOCK_STEREO_DISPLAY_INTERFACE 0x10
 #define DATA_BLOCK_TILED_DISPLAY 0x12
+#define DATA_BLOCK_CTA 0x81
 
 #define DATA_BLOCK_VENDOR_SPECIFIC 0x7f
 
@@ -88,6 +89,15 @@ struct displayid_detailed_timings_1 {
 
 struct displayid_detailed_timing_block {
 	struct displayid_block base;
-	struct displayid_detailed_timings_1 timings[0];
+	struct displayid_detailed_timings_1 timings[];
 };
+
+#define for_each_displayid_db(displayid, block, idx, length) \
+	for ((block) = (struct displayid_block *)&(displayid)[idx]; \
+	     (idx) + sizeof(struct displayid_block) <= (length) && \
+	     (idx) + sizeof(struct displayid_block) + (block)->num_bytes <= (length) && \
+	     (block)->num_bytes > 0; \
+	     (idx) += sizeof(struct displayid_block) + (block)->num_bytes, \
+	     (block) = (struct displayid_block *)&(displayid)[idx])
+
 #endif

@@ -363,6 +363,7 @@ mcp77_clk_prog(struct nvkm_clk *base)
 	switch (clk->vsrc) {
 	case nv_clk_src_cclk:
 		mast |= 0x00400000;
+		fallthrough;
 	default:
 		nvkm_wr32(device, 0x4600, clk->vdiv);
 	}

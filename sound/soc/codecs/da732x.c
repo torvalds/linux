@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * da732x.c --- Dialog DA732X ALSA SoC Audio Driver
  *
  * Copyright (C) 2012 Dialog Semiconductor GmbH
  *
  * Author: Michal Hajduk <Michal.Hajduk@diasemi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -364,7 +361,7 @@ static int da732x_hpf_get(struct snd_kcontrol *kcontrol,
 	unsigned int reg = enum_ctrl->reg;
 	int val;
 
-	val = snd_soc_component_read32(component, reg) & DA732X_HPF_MASK;
+	val = snd_soc_component_read(component, reg) & DA732X_HPF_MASK;
 
 	switch (val) {
 	case DA732X_HPF_VOICE_EN:
@@ -1290,9 +1287,9 @@ static void da732x_dac_offset_adjust(struct snd_soc_component *component)
 	msleep(DA732X_WAIT_FOR_STABILIZATION);
 
 	/* Check DAC offset sign */
-	sign[DA732X_HPL_DAC] = (snd_soc_component_read32(component, DA732X_REG_HPL_DAC_OFF_CNTL) &
+	sign[DA732X_HPL_DAC] = (snd_soc_component_read(component, DA732X_REG_HPL_DAC_OFF_CNTL) &
 				DA732X_HP_DAC_OFF_CNTL_COMPO);
-	sign[DA732X_HPR_DAC] = (snd_soc_component_read32(component, DA732X_REG_HPR_DAC_OFF_CNTL) &
+	sign[DA732X_HPR_DAC] = (snd_soc_component_read(component, DA732X_REG_HPR_DAC_OFF_CNTL) &
 				DA732X_HP_DAC_OFF_CNTL_COMPO);
 
 	/* Binary search DAC offset values (both channels at once) */
@@ -1309,10 +1306,10 @@ static void da732x_dac_offset_adjust(struct snd_soc_component *component)
 
 		msleep(DA732X_WAIT_FOR_STABILIZATION);
 
-		if ((snd_soc_component_read32(component, DA732X_REG_HPL_DAC_OFF_CNTL) &
+		if ((snd_soc_component_read(component, DA732X_REG_HPL_DAC_OFF_CNTL) &
 		     DA732X_HP_DAC_OFF_CNTL_COMPO) ^ sign[DA732X_HPL_DAC])
 			offset[DA732X_HPL_DAC] &= ~step;
-		if ((snd_soc_component_read32(component, DA732X_REG_HPR_DAC_OFF_CNTL) &
+		if ((snd_soc_component_read(component, DA732X_REG_HPR_DAC_OFF_CNTL) &
 		     DA732X_HP_DAC_OFF_CNTL_COMPO) ^ sign[DA732X_HPR_DAC])
 			offset[DA732X_HPR_DAC] &= ~step;
 
@@ -1353,9 +1350,9 @@ static void da732x_output_offset_adjust(struct snd_soc_component *component)
 	msleep(DA732X_WAIT_FOR_STABILIZATION);
 
 	/* Check output offset sign */
-	sign[DA732X_HPL_AMP] = snd_soc_component_read32(component, DA732X_REG_HPL) &
+	sign[DA732X_HPL_AMP] = snd_soc_component_read(component, DA732X_REG_HPL) &
 			       DA732X_HP_OUT_COMPO;
-	sign[DA732X_HPR_AMP] = snd_soc_component_read32(component, DA732X_REG_HPR) &
+	sign[DA732X_HPR_AMP] = snd_soc_component_read(component, DA732X_REG_HPR) &
 			       DA732X_HP_OUT_COMPO;
 
 	snd_soc_component_write(component, DA732X_REG_HPL, DA732X_HP_OUT_COMP |
@@ -1376,10 +1373,10 @@ static void da732x_output_offset_adjust(struct snd_soc_component *component)
 
 		msleep(DA732X_WAIT_FOR_STABILIZATION);
 
-		if ((snd_soc_component_read32(component, DA732X_REG_HPL) &
+		if ((snd_soc_component_read(component, DA732X_REG_HPL) &
 		     DA732X_HP_OUT_COMPO) ^ sign[DA732X_HPL_AMP])
 			offset[DA732X_HPL_AMP] &= ~step;
-		if ((snd_soc_component_read32(component, DA732X_REG_HPR) &
+		if ((snd_soc_component_read(component, DA732X_REG_HPR) &
 		     DA732X_HP_OUT_COMPO) ^ sign[DA732X_HPR_AMP])
 			offset[DA732X_HPR_AMP] &= ~step;
 

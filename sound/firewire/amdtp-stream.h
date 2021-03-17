@@ -33,6 +33,8 @@
  * @CIP_HEADER_WITHOUT_EOH: Only for in-stream. CIP Header doesn't include
  *	valid EOH.
  * @CIP_NO_HEADERS: a lack of headers in packets
+ * @CIP_UNALIGHED_DBC: Only for in-stream. The value of dbc is not alighed to
+ *	the value of current SYT_INTERVAL; e.g. initial value is not zero.
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -45,6 +47,7 @@ enum cip_flags {
 	CIP_JUMBO_PAYLOAD	= 0x40,
 	CIP_HEADER_WITHOUT_EOH	= 0x80,
 	CIP_NO_HEADER		= 0x100,
+	CIP_UNALIGHED_DBC	= 0x200,
 };
 
 /**
@@ -91,12 +94,22 @@ enum amdtp_stream_direction {
 	AMDTP_IN_STREAM
 };
 
+struct pkt_desc {
+	u32 cycle;
+	u32 syt;
+	unsigned int data_blocks;
+	unsigned int data_block_counter;
+	__be32 *ctx_payload;
+};
+
 struct amdtp_stream;
-typedef unsigned int (*amdtp_stream_process_data_blocks_t)(
+typedef unsigned int (*amdtp_stream_process_ctx_payloads_t)(
 						struct amdtp_stream *s,
-						__be32 *buffer,
-						unsigned int data_blocks,
-						unsigned int *syt);
+						const struct pkt_desc *desc,
+						unsigned int packets,
+						struct snd_pcm_substream *pcm);
+
+struct amdtp_domain;
 struct amdtp_stream {
 	struct fw_unit *unit;
 	enum cip_flags flags;
@@ -106,12 +119,36 @@ struct amdtp_stream {
 	/* For packet processing. */
 	struct fw_iso_context *context;
 	struct iso_packets_buffer buffer;
+	unsigned int queue_size;
 	int packet_index;
+	struct pkt_desc *pkt_descs;
 	int tag;
-	int (*handle_packet)(struct amdtp_stream *s,
-			unsigned int payload_quadlets, unsigned int cycle,
-			unsigned int index);
-	unsigned int max_payload_length;
+	union {
+		struct {
+			unsigned int ctx_header_size;
+
+			// limit for payload of iso packet.
+			unsigned int max_ctx_payload_length;
+
+			// For quirks of CIP headers.
+			// Fixed interval of dbc between previos/current
+			// packets.
+			unsigned int dbc_interval;
+		} tx;
+		struct {
+			// To calculate CIP data blocks and tstamp.
+			unsigned int transfer_delay;
+			unsigned int seq_index;
+
+			// To generate CIP header.
+			unsigned int fdf;
+			int syt_override;
+
+			// To generate constant hardware IRQ.
+			unsigned int event_count;
+			unsigned int events_per_period;
+		} rx;
+	} ctx_data;
 
 	/* For CIP headers. */
 	unsigned int source_node_id_field;
@@ -119,23 +156,14 @@ struct amdtp_stream {
 	unsigned int data_block_counter;
 	unsigned int sph;
 	unsigned int fmt;
-	unsigned int fdf;
-	/* quirk: fixed interval of dbc between previos/current packets. */
-	unsigned int tx_dbc_interval;
-	/* quirk: indicate the value of dbc field in a first packet. */
-	unsigned int tx_first_dbc;
 
 	/* Internal flags. */
 	enum cip_sfc sfc;
 	unsigned int syt_interval;
-	unsigned int transfer_delay;
-	unsigned int data_block_state;
-	unsigned int last_syt_offset;
-	unsigned int syt_offset_state;
 
 	/* For a PCM substream processing. */
 	struct snd_pcm_substream *pcm;
-	struct tasklet_struct period_tasklet;
+	struct work_struct period_work;
 	snd_pcm_uframes_t pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
 
@@ -146,13 +174,19 @@ struct amdtp_stream {
 
 	/* For backends to process data blocks. */
 	void *protocol;
-	amdtp_stream_process_data_blocks_t process_data_blocks;
+	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
+
+	// For domain.
+	int channel;
+	int speed;
+	struct list_head list;
+	struct amdtp_domain *domain;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 		      enum amdtp_stream_direction dir, enum cip_flags flags,
 		      unsigned int fmt,
-		      amdtp_stream_process_data_blocks_t process_data_blocks,
+		      amdtp_stream_process_ctx_payloads_t process_ctx_payloads,
 		      unsigned int protocol_size);
 void amdtp_stream_destroy(struct amdtp_stream *s);
 
@@ -160,16 +194,12 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 				unsigned int data_block_quadlets);
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s);
 
-int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed);
 void amdtp_stream_update(struct amdtp_stream *s);
-void amdtp_stream_stop(struct amdtp_stream *s);
 
 int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime);
 
 void amdtp_stream_pcm_prepare(struct amdtp_stream *s);
-unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s);
-int amdtp_stream_pcm_ack(struct amdtp_stream *s);
 void amdtp_stream_pcm_abort(struct amdtp_stream *s);
 
 extern const unsigned int amdtp_syt_intervals[CIP_SFC_COUNT];
@@ -243,5 +273,50 @@ static inline bool amdtp_stream_wait_callback(struct amdtp_stream *s,
 				  s->callbacked == true,
 				  msecs_to_jiffies(timeout)) > 0;
 }
+
+struct seq_desc {
+	unsigned int syt_offset;
+	unsigned int data_blocks;
+};
+
+struct amdtp_domain {
+	struct list_head streams;
+
+	unsigned int events_per_period;
+	unsigned int events_per_buffer;
+
+	struct amdtp_stream *irq_target;
+
+	struct seq_desc *seq_descs;
+	unsigned int seq_size;
+	unsigned int seq_tail;
+
+	unsigned int data_block_state;
+	unsigned int syt_offset_state;
+	unsigned int last_syt_offset;
+};
+
+int amdtp_domain_init(struct amdtp_domain *d);
+void amdtp_domain_destroy(struct amdtp_domain *d);
+
+int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
+			    int channel, int speed);
+
+int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle);
+void amdtp_domain_stop(struct amdtp_domain *d);
+
+static inline int amdtp_domain_set_events_per_period(struct amdtp_domain *d,
+						unsigned int events_per_period,
+						unsigned int events_per_buffer)
+{
+	d->events_per_period = events_per_period;
+	d->events_per_buffer = events_per_buffer;
+
+	return 0;
+}
+
+unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
+					      struct amdtp_stream *s);
+int amdtp_domain_stream_pcm_ack(struct amdtp_domain *d, struct amdtp_stream *s);
 
 #endif

@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/ioctl.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -28,6 +27,7 @@
 #include <linux/sock_diag.h>
 #include <linux/bpf.h>
 #include <linux/if_link.h>
+#include <linux/tls.h>
 #include <assert.h>
 #include <libgen.h>
 
@@ -43,11 +43,18 @@
 int running;
 static void running_handler(int a);
 
+#ifndef TCP_ULP
+# define TCP_ULP 31
+#endif
+#ifndef SOL_TLS
+# define SOL_TLS 282
+#endif
+
 /* randomly selected ports for testing on lo */
 #define S1_PORT 10000
 #define S2_PORT 10001
 
-#define BPF_SOCKMAP_FILENAME "test_sockmap_kern.o"
+#define BPF_SOCKMAP_FILENAME  "test_sockmap_kern.o"
 #define BPF_SOCKHASH_FILENAME "test_sockhash_kern.o"
 #define CG_PATH "/sockmap"
 
@@ -56,44 +63,156 @@ int s1, s2, c1, c2, p1, p2;
 int test_cnt;
 int passed;
 int failed;
-int map_fd[8];
-struct bpf_map *maps[8];
+int map_fd[9];
+struct bpf_map *maps[9];
 int prog_fd[11];
 
 int txmsg_pass;
-int txmsg_noisy;
 int txmsg_redir;
-int txmsg_redir_noisy;
 int txmsg_drop;
 int txmsg_apply;
 int txmsg_cork;
 int txmsg_start;
 int txmsg_end;
+int txmsg_start_push;
+int txmsg_end_push;
+int txmsg_start_pop;
+int txmsg_pop;
 int txmsg_ingress;
-int txmsg_skb;
+int txmsg_redir_skb;
+int txmsg_ktls_skb;
+int txmsg_ktls_skb_drop;
+int txmsg_ktls_skb_redir;
+int ktls;
+int peek_flag;
+int skb_use_parser;
+int txmsg_omit_skb_parser;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
 	{"cgroup",	required_argument,	NULL, 'c' },
 	{"rate",	required_argument,	NULL, 'r' },
-	{"verbose",	no_argument,		NULL, 'v' },
+	{"verbose",	optional_argument,	NULL, 'v' },
 	{"iov_count",	required_argument,	NULL, 'i' },
 	{"length",	required_argument,	NULL, 'l' },
 	{"test",	required_argument,	NULL, 't' },
 	{"data_test",   no_argument,		NULL, 'd' },
 	{"txmsg",		no_argument,	&txmsg_pass,  1  },
-	{"txmsg_noisy",		no_argument,	&txmsg_noisy, 1  },
 	{"txmsg_redir",		no_argument,	&txmsg_redir, 1  },
-	{"txmsg_redir_noisy",	no_argument,	&txmsg_redir_noisy, 1},
 	{"txmsg_drop",		no_argument,	&txmsg_drop, 1 },
 	{"txmsg_apply",	required_argument,	NULL, 'a'},
 	{"txmsg_cork",	required_argument,	NULL, 'k'},
 	{"txmsg_start", required_argument,	NULL, 's'},
 	{"txmsg_end",	required_argument,	NULL, 'e'},
+	{"txmsg_start_push", required_argument,	NULL, 'p'},
+	{"txmsg_end_push",   required_argument,	NULL, 'q'},
+	{"txmsg_start_pop",  required_argument,	NULL, 'w'},
+	{"txmsg_pop",	     required_argument,	NULL, 'x'},
 	{"txmsg_ingress", no_argument,		&txmsg_ingress, 1 },
-	{"txmsg_skb", no_argument,		&txmsg_skb, 1 },
+	{"txmsg_redir_skb", no_argument,	&txmsg_redir_skb, 1 },
+	{"ktls", no_argument,			&ktls, 1 },
+	{"peek", no_argument,			&peek_flag, 1 },
+	{"txmsg_omit_skb_parser", no_argument,      &txmsg_omit_skb_parser, 1},
+	{"whitelist", required_argument,	NULL, 'n' },
+	{"blacklist", required_argument,	NULL, 'b' },
 	{0, 0, NULL, 0 }
 };
+
+struct test_env {
+	const char *type;
+	const char *subtest;
+	const char *prepend;
+
+	int test_num;
+	int subtest_num;
+
+	int succ_cnt;
+	int fail_cnt;
+	int fail_last;
+};
+
+struct test_env env;
+
+struct sockmap_options {
+	int verbose;
+	bool base;
+	bool sendpage;
+	bool data_test;
+	bool drop_expected;
+	int iov_count;
+	int iov_length;
+	int rate;
+	char *map;
+	char *whitelist;
+	char *blacklist;
+	char *prepend;
+};
+
+struct _test {
+	char *title;
+	void (*tester)(int cg_fd, struct sockmap_options *opt);
+};
+
+static void test_start(void)
+{
+	env.subtest_num++;
+}
+
+static void test_fail(void)
+{
+	env.fail_cnt++;
+}
+
+static void test_pass(void)
+{
+	env.succ_cnt++;
+}
+
+static void test_reset(void)
+{
+	txmsg_start = txmsg_end = 0;
+	txmsg_start_pop = txmsg_pop = 0;
+	txmsg_start_push = txmsg_end_push = 0;
+	txmsg_pass = txmsg_drop = txmsg_redir = 0;
+	txmsg_apply = txmsg_cork = 0;
+	txmsg_ingress = txmsg_redir_skb = 0;
+	txmsg_ktls_skb = txmsg_ktls_skb_drop = txmsg_ktls_skb_redir = 0;
+	txmsg_omit_skb_parser = 0;
+	skb_use_parser = 0;
+}
+
+static int test_start_subtest(const struct _test *t, struct sockmap_options *o)
+{
+	env.type = o->map;
+	env.subtest = t->title;
+	env.prepend = o->prepend;
+	env.test_num++;
+	env.subtest_num = 0;
+	env.fail_last = env.fail_cnt;
+	test_reset();
+	return 0;
+}
+
+static void test_end_subtest(void)
+{
+	int error = env.fail_cnt - env.fail_last;
+	int type = strcmp(env.type, BPF_SOCKMAP_FILENAME);
+
+	if (!error)
+		test_pass();
+
+	fprintf(stdout, "#%2d/%2d %8s:%s:%s:%s\n",
+		env.test_num, env.subtest_num,
+		!type ? "sockmap" : "sockhash",
+		env.prepend ? : "",
+		env.subtest, error ? "FAIL" : "OK");
+}
+
+static void test_print_results(void)
+{
+	fprintf(stdout, "Pass: %d Fail: %d\n",
+		env.succ_cnt, env.fail_cnt);
+}
 
 static void usage(char *argv[])
 {
@@ -112,6 +231,71 @@ static void usage(char *argv[])
 	printf("\n");
 }
 
+char *sock_to_string(int s)
+{
+	if (s == c1)
+		return "client1";
+	else if (s == c2)
+		return "client2";
+	else if (s == s1)
+		return "server1";
+	else if (s == s2)
+		return "server2";
+	else if (s == p1)
+		return "peer1";
+	else if (s == p2)
+		return "peer2";
+	else
+		return "unknown";
+}
+
+static int sockmap_init_ktls(int verbose, int s)
+{
+	struct tls12_crypto_info_aes_gcm_128 tls_tx = {
+		.info = {
+			.version     = TLS_1_2_VERSION,
+			.cipher_type = TLS_CIPHER_AES_GCM_128,
+		},
+	};
+	struct tls12_crypto_info_aes_gcm_128 tls_rx = {
+		.info = {
+			.version     = TLS_1_2_VERSION,
+			.cipher_type = TLS_CIPHER_AES_GCM_128,
+		},
+	};
+	int so_buf = 6553500;
+	int err;
+
+	err = setsockopt(s, 6, TCP_ULP, "tls", sizeof("tls"));
+	if (err) {
+		fprintf(stderr, "setsockopt: TCP_ULP(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_TLS, TLS_TX, (void *)&tls_tx, sizeof(tls_tx));
+	if (err) {
+		fprintf(stderr, "setsockopt: TLS_TX(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_TLS, TLS_RX, (void *)&tls_rx, sizeof(tls_rx));
+	if (err) {
+		fprintf(stderr, "setsockopt: TLS_RX(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_SOCKET, SO_SNDBUF, &so_buf, sizeof(so_buf));
+	if (err) {
+		fprintf(stderr, "setsockopt: (%s) failed sndbuf with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_SOCKET, SO_RCVBUF, &so_buf, sizeof(so_buf));
+	if (err) {
+		fprintf(stderr, "setsockopt: (%s) failed rcvbuf with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+
+	if (verbose)
+		fprintf(stdout, "socket(%s) kTLS enabled\n", sock_to_string(s));
+	return 0;
+}
 static int sockmap_init_sockets(int verbose)
 {
 	int i, err, one = 1;
@@ -156,14 +340,14 @@ static int sockmap_init_sockets(int verbose)
 	addr.sin_port = htons(S1_PORT);
 	err = bind(s1, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
-		perror("bind s1 failed()\n");
+		perror("bind s1 failed()");
 		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = bind(s2, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
-		perror("bind s2 failed()\n");
+		perror("bind s2 failed()");
 		return errno;
 	}
 
@@ -171,14 +355,14 @@ static int sockmap_init_sockets(int verbose)
 	addr.sin_port = htons(S1_PORT);
 	err = listen(s1, 32);
 	if (err < 0) {
-		perror("listen s1 failed()\n");
+		perror("listen s1 failed()");
 		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = listen(s2, 32);
 	if (err < 0) {
-		perror("listen s1 failed()\n");
+		perror("listen s1 failed()");
 		return errno;
 	}
 
@@ -186,14 +370,14 @@ static int sockmap_init_sockets(int verbose)
 	addr.sin_port = htons(S1_PORT);
 	err = connect(c1, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0 && errno != EINPROGRESS) {
-		perror("connect c1 failed()\n");
+		perror("connect c1 failed()");
 		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = connect(c2, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0 && errno != EINPROGRESS) {
-		perror("connect c2 failed()\n");
+		perror("connect c2 failed()");
 		return errno;
 	} else if (err < 0) {
 		err = 0;
@@ -202,17 +386,17 @@ static int sockmap_init_sockets(int verbose)
 	/* Accept Connecrtions */
 	p1 = accept(s1, NULL, NULL);
 	if (p1 < 0) {
-		perror("accept s1 failed()\n");
+		perror("accept s1 failed()");
 		return errno;
 	}
 
 	p2 = accept(s2, NULL, NULL);
 	if (p2 < 0) {
-		perror("accept s1 failed()\n");
+		perror("accept s1 failed()");
 		return errno;
 	}
 
-	if (verbose) {
+	if (verbose > 1) {
 		printf("connected sockets: c1 <-> p1, c2 <-> p2\n");
 		printf("cgroups binding: c1(%i) <-> s1(%i) - - - c2(%i) <-> s2(%i)\n",
 			c1, s1, c2, s2);
@@ -227,17 +411,6 @@ struct msg_stats {
 	struct timespec end;
 };
 
-struct sockmap_options {
-	int verbose;
-	bool base;
-	bool sendpage;
-	bool data_test;
-	bool drop_expected;
-	int iov_count;
-	int iov_length;
-	int rate;
-};
-
 static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 			     struct msg_stats *s,
 			     struct sockmap_options *opt)
@@ -247,25 +420,33 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 	FILE *file;
 	int i, fp;
 
-	file = fopen(".sendpage_tst.tmp", "w+");
+	file = tmpfile();
+	if (!file) {
+		perror("create file for sendpage");
+		return 1;
+	}
 	for (i = 0; i < iov_length * cnt; i++, k++)
 		fwrite(&k, sizeof(char), 1, file);
 	fflush(file);
 	fseek(file, 0, SEEK_SET);
-	fclose(file);
 
-	fp = open(".sendpage_tst.tmp", O_RDONLY);
+	fp = fileno(file);
+
 	clock_gettime(CLOCK_MONOTONIC, &s->start);
 	for (i = 0; i < cnt; i++) {
-		int sent = sendfile(fd, fp, NULL, iov_length);
+		int sent;
+
+		errno = 0;
+		sent = sendfile(fd, fp, NULL, iov_length);
 
 		if (!drop && sent < 0) {
-			perror("send loop error:");
-			close(fp);
+			perror("sendpage loop error");
+			fclose(file);
 			return sent;
 		} else if (drop && sent >= 0) {
-			printf("sendpage loop error expected: %i\n", sent);
-			close(fp);
+			printf("sendpage loop error expected: %i errno %i\n",
+			       sent, errno);
+			fclose(file);
 			return -EIO;
 		}
 
@@ -273,37 +454,44 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 			s->bytes_sent += sent;
 	}
 	clock_gettime(CLOCK_MONOTONIC, &s->end);
-	close(fp);
+	fclose(file);
 	return 0;
 }
 
-static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
-		    struct msg_stats *s, bool tx,
-		    struct sockmap_options *opt)
+static void msg_free_iov(struct msghdr *msg)
 {
-	struct msghdr msg = {0};
-	int err, i, flags = MSG_NOSIGNAL;
+	int i;
+
+	for (i = 0; i < msg->msg_iovlen; i++)
+		free(msg->msg_iov[i].iov_base);
+	free(msg->msg_iov);
+	msg->msg_iov = NULL;
+	msg->msg_iovlen = 0;
+}
+
+static int msg_alloc_iov(struct msghdr *msg,
+			 int iov_count, int iov_length,
+			 bool data, bool xmit)
+{
+	unsigned char k = 0;
 	struct iovec *iov;
-	unsigned char k;
-	bool data_test = opt->data_test;
-	bool drop = opt->drop_expected;
+	int i;
 
 	iov = calloc(iov_count, sizeof(struct iovec));
 	if (!iov)
 		return errno;
 
-	k = 0;
 	for (i = 0; i < iov_count; i++) {
 		unsigned char *d = calloc(iov_length, sizeof(char));
 
 		if (!d) {
 			fprintf(stderr, "iov_count %i/%i OOM\n", i, iov_count);
-			goto out_errno;
+			goto unwind_iov;
 		}
 		iov[i].iov_base = d;
 		iov[i].iov_len = iov_length;
 
-		if (data_test && tx) {
+		if (data && xmit) {
 			int j;
 
 			for (j = 0; j < iov_length; j++)
@@ -311,20 +499,88 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		}
 	}
 
-	msg.msg_iov = iov;
-	msg.msg_iovlen = iov_count;
-	k = 0;
+	msg->msg_iov = iov;
+	msg->msg_iovlen = iov_count;
+
+	return 0;
+unwind_iov:
+	for (i--; i >= 0 ; i--)
+		free(msg->msg_iov[i].iov_base);
+	return -ENOMEM;
+}
+
+static int msg_verify_data(struct msghdr *msg, int size, int chunk_sz)
+{
+	int i, j = 0, bytes_cnt = 0;
+	unsigned char k = 0;
+
+	for (i = 0; i < msg->msg_iovlen; i++) {
+		unsigned char *d = msg->msg_iov[i].iov_base;
+
+		/* Special case test for skb ingress + ktls */
+		if (i == 0 && txmsg_ktls_skb) {
+			if (msg->msg_iov[i].iov_len < 4)
+				return -EIO;
+			if (memcmp(d, "PASS", 4) != 0) {
+				fprintf(stderr,
+					"detected skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n",
+					i, 0, d[0], d[1], d[2], d[3]);
+				return -EIO;
+			}
+			j = 4; /* advance index past PASS header */
+		}
+
+		for (; j < msg->msg_iov[i].iov_len && size; j++) {
+			if (d[j] != k++) {
+				fprintf(stderr,
+					"detected data corruption @iov[%i]:%i %02x != %02x, %02x ?= %02x\n",
+					i, j, d[j], k - 1, d[j+1], k);
+				return -EIO;
+			}
+			bytes_cnt++;
+			if (bytes_cnt == chunk_sz) {
+				k = 0;
+				bytes_cnt = 0;
+			}
+			size--;
+		}
+	}
+	return 0;
+}
+
+static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
+		    struct msg_stats *s, bool tx,
+		    struct sockmap_options *opt)
+{
+	struct msghdr msg = {0}, msg_peek = {0};
+	int err, i, flags = MSG_NOSIGNAL;
+	bool drop = opt->drop_expected;
+	bool data = opt->data_test;
+
+	err = msg_alloc_iov(&msg, iov_count, iov_length, data, tx);
+	if (err)
+		goto out_errno;
+	if (peek_flag) {
+		err = msg_alloc_iov(&msg_peek, iov_count, iov_length, data, tx);
+		if (err)
+			goto out_errno;
+	}
 
 	if (tx) {
 		clock_gettime(CLOCK_MONOTONIC, &s->start);
 		for (i = 0; i < cnt; i++) {
-			int sent = sendmsg(fd, &msg, flags);
+			int sent;
+
+			errno = 0;
+			sent = sendmsg(fd, &msg, flags);
 
 			if (!drop && sent < 0) {
-				perror("send loop error:");
+				perror("sendmsg loop error");
 				goto out_errno;
 			} else if (drop && sent >= 0) {
-				printf("send loop error expected: %i\n", sent);
+				fprintf(stderr,
+					"sendmsg loop error expected: %i errno %i\n",
+					sent, errno);
 				errno = -EIO;
 				goto out_errno;
 			}
@@ -333,30 +589,38 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		}
 		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	} else {
-		int slct, recv, max_fd = fd;
+		int slct, recvp = 0, recv, max_fd = fd;
+		float total_bytes, txmsg_pop_total;
 		int fd_flags = O_NONBLOCK;
 		struct timeval timeout;
-		float total_bytes;
-		int bytes_cnt = 0;
-		int chunk_sz;
 		fd_set w;
 
-		if (opt->sendpage)
-			chunk_sz = iov_length * cnt;
-		else
-			chunk_sz = iov_length * iov_count;
-
 		fcntl(fd, fd_flags);
+		/* Account for pop bytes noting each iteration of apply will
+		 * call msg_pop_data helper so we need to account for this
+		 * by calculating the number of apply iterations. Note user
+		 * of the tool can create cases where no data is sent by
+		 * manipulating pop/push/pull/etc. For example txmsg_apply 1
+		 * with txmsg_pop 1 will try to apply 1B at a time but each
+		 * iteration will then pop 1B so no data will ever be sent.
+		 * This is really only useful for testing edge cases in code
+		 * paths.
+		 */
 		total_bytes = (float)iov_count * (float)iov_length * (float)cnt;
+		if (txmsg_apply)
+			txmsg_pop_total = txmsg_pop * (total_bytes / txmsg_apply);
+		else
+			txmsg_pop_total = txmsg_pop * cnt;
+		total_bytes -= txmsg_pop_total;
 		err = clock_gettime(CLOCK_MONOTONIC, &s->start);
 		if (err < 0)
-			perror("recv start time: ");
+			perror("recv start time");
 		while (s->bytes_recvd < total_bytes) {
 			if (txmsg_cork) {
 				timeout.tv_sec = 0;
 				timeout.tv_usec = 300000;
 			} else {
-				timeout.tv_sec = 1;
+				timeout.tv_sec = 3;
 				timeout.tv_usec = 0;
 			}
 
@@ -371,44 +635,53 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 				goto out_errno;
 			} else if (!slct) {
 				if (opt->verbose)
-					fprintf(stderr, "unexpected timeout\n");
+					fprintf(stderr, "unexpected timeout: recved %zu/%f pop_total %f\n", s->bytes_recvd, total_bytes, txmsg_pop_total);
 				errno = -EIO;
 				clock_gettime(CLOCK_MONOTONIC, &s->end);
 				goto out_errno;
+			}
+
+			errno = 0;
+			if (peek_flag) {
+				flags |= MSG_PEEK;
+				recvp = recvmsg(fd, &msg_peek, flags);
+				if (recvp < 0) {
+					if (errno != EWOULDBLOCK) {
+						clock_gettime(CLOCK_MONOTONIC, &s->end);
+						goto out_errno;
+					}
+				}
+				flags = 0;
 			}
 
 			recv = recvmsg(fd, &msg, flags);
 			if (recv < 0) {
 				if (errno != EWOULDBLOCK) {
 					clock_gettime(CLOCK_MONOTONIC, &s->end);
-					perror("recv failed()\n");
+					perror("recv failed()");
 					goto out_errno;
 				}
 			}
 
 			s->bytes_recvd += recv;
 
-			if (data_test) {
-				int j;
+			if (data) {
+				int chunk_sz = opt->sendpage ?
+						iov_length * cnt :
+						iov_length * iov_count;
 
-				for (i = 0; i < msg.msg_iovlen; i++) {
-					unsigned char *d = iov[i].iov_base;
-
-					for (j = 0;
-					     j < iov[i].iov_len && recv; j++) {
-						if (d[j] != k++) {
-							errno = -EIO;
-							fprintf(stderr,
-								"detected data corruption @iov[%i]:%i %02x != %02x, %02x ?= %02x\n",
-								i, j, d[j], k - 1, d[j+1], k);
-							goto out_errno;
-						}
-						bytes_cnt++;
-						if (bytes_cnt == chunk_sz) {
-							k = 0;
-							bytes_cnt = 0;
-						}
-						recv--;
+				errno = msg_verify_data(&msg, recv, chunk_sz);
+				if (errno) {
+					perror("data verify msg failed");
+					goto out_errno;
+				}
+				if (recvp) {
+					errno = msg_verify_data(&msg_peek,
+								recvp,
+								chunk_sz);
+					if (errno) {
+						perror("data verify msg_peek failed");
+						goto out_errno;
 					}
 				}
 			}
@@ -416,14 +689,12 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	}
 
-	for (i = 0; i < iov_count; i++)
-		free(iov[i].iov_base);
-	free(iov);
-	return 0;
+	msg_free_iov(&msg);
+	msg_free_iov(&msg_peek);
+	return err;
 out_errno:
-	for (i = 0; i < iov_count; i++)
-		free(iov[i].iov_base);
-	free(iov);
+	msg_free_iov(&msg);
+	msg_free_iov(&msg_peek);
 	return errno;
 }
 
@@ -456,35 +727,53 @@ static int sendmsg_test(struct sockmap_options *opt)
 	else
 		rx_fd = p2;
 
+	if (ktls) {
+		/* Redirecting into non-TLS socket which sends into a TLS
+		 * socket is not a valid test. So in this case lets not
+		 * enable kTLS but still run the test.
+		 */
+		if (!txmsg_redir || (txmsg_redir && txmsg_ingress)) {
+			err = sockmap_init_ktls(opt->verbose, rx_fd);
+			if (err)
+				return err;
+		}
+		err = sockmap_init_ktls(opt->verbose, c1);
+		if (err)
+			return err;
+	}
+
 	rxpid = fork();
 	if (rxpid == 0) {
-		if (opt->drop_expected)
-			exit(0);
+		iov_buf -= (txmsg_pop - txmsg_start_pop + 1);
+		if (opt->drop_expected || txmsg_ktls_skb_drop)
+			_exit(0);
+
+		if (!iov_buf) /* zero bytes sent case */
+			_exit(0);
 
 		if (opt->sendpage)
 			iov_count = 1;
 		err = msg_loop(rx_fd, iov_count, iov_buf,
 			       cnt, &s, false, opt);
-		if (err && opt->verbose)
+		if (opt->verbose > 1)
 			fprintf(stderr,
 				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
-		shutdown(p2, SHUT_RDWR);
-		shutdown(p1, SHUT_RDWR);
 		if (s.end.tv_sec - s.start.tv_sec) {
 			sent_Bps = sentBps(s);
 			recvd_Bps = recvdBps(s);
 		}
-		if (opt->verbose)
+		if (opt->verbose > 1)
 			fprintf(stdout,
-				"rx_sendmsg: TX: %zuB %fB/s %fGB/s RX: %zuB %fB/s %fGB/s\n",
+				"rx_sendmsg: TX: %zuB %fB/s %fGB/s RX: %zuB %fB/s %fGB/s %s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
-				s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
+				s.bytes_recvd, recvd_Bps, recvd_Bps/giga,
+				peek_flag ? "(peek_msg)" : "");
 		if (err && txmsg_cork)
 			err = 0;
 		exit(err ? 1 : 0);
 	} else if (rxpid == -1) {
-		perror("msg_loop_rx: ");
+		perror("msg_loop_rx");
 		return errno;
 	}
 
@@ -500,19 +789,18 @@ static int sendmsg_test(struct sockmap_options *opt)
 			fprintf(stderr,
 				"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
-		shutdown(c1, SHUT_RDWR);
 		if (s.end.tv_sec - s.start.tv_sec) {
 			sent_Bps = sentBps(s);
 			recvd_Bps = recvdBps(s);
 		}
-		if (opt->verbose)
+		if (opt->verbose > 1)
 			fprintf(stdout,
 				"tx_sendmsg: TX: %zuB %fB/s %f GB/s RX: %zuB %fB/s %fGB/s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
 				s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
 		exit(err ? 1 : 0);
 	} else if (txpid == -1) {
-		perror("msg_loop_tx: ");
+		perror("msg_loop_tx");
 		return errno;
 	}
 
@@ -521,14 +809,14 @@ static int sendmsg_test(struct sockmap_options *opt)
 	if (WIFEXITED(rx_status)) {
 		err = WEXITSTATUS(rx_status);
 		if (err) {
-			fprintf(stderr, "rx thread exited with err %d. ", err);
+			fprintf(stderr, "rx thread exited with err %d.\n", err);
 			goto out;
 		}
 	}
 	if (WIFEXITED(tx_status)) {
 		err = WEXITSTATUS(tx_status);
 		if (err)
-			fprintf(stderr, "tx thread exited with err %d. ", err);
+			fprintf(stderr, "tx thread exited with err %d.\n", err);
 	}
 out:
 	return err;
@@ -546,7 +834,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 	/* Ping/Pong data from client to server */
 	sc = send(c1, buf, sizeof(buf), 0);
 	if (sc < 0) {
-		perror("send failed()\n");
+		perror("send failed()");
 		return sc;
 	}
 
@@ -579,7 +867,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 			rc = recv(i, buf, sizeof(buf), 0);
 			if (rc < 0) {
 				if (errno != EWOULDBLOCK) {
-					perror("recv failed()\n");
+					perror("recv failed()");
 					return rc;
 				}
 			}
@@ -591,7 +879,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 
 			sc = send(i, buf, rc, 0);
 			if (sc < 0) {
-				perror("send failed()\n");
+				perror("send failed()");
 				return sc;
 			}
 		}
@@ -610,6 +898,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 }
 
 enum {
+	SELFTESTS,
 	PING_PONG,
 	SENDMSG,
 	BASE,
@@ -626,13 +915,15 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 		goto run;
 
 	/* Attach programs to sockmap */
-	err = bpf_prog_attach(prog_fd[0], map_fd[0],
-				BPF_SK_SKB_STREAM_PARSER, 0);
-	if (err) {
-		fprintf(stderr,
-			"ERROR: bpf_prog_attach (sockmap %i->%i): %d (%s)\n",
-			prog_fd[0], map_fd[0], err, strerror(errno));
-		return err;
+	if (!txmsg_omit_skb_parser) {
+		err = bpf_prog_attach(prog_fd[0], map_fd[0],
+				      BPF_SK_SKB_STREAM_PARSER, 0);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_prog_attach (sockmap %i->%i): %d (%s)\n",
+				prog_fd[0], map_fd[0], err, strerror(errno));
+			return err;
+		}
 	}
 
 	err = bpf_prog_attach(prog_fd[1], map_fd[0],
@@ -643,8 +934,30 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 		return err;
 	}
 
+	/* Attach programs to TLS sockmap */
+	if (txmsg_ktls_skb) {
+		if (!txmsg_omit_skb_parser) {
+			err = bpf_prog_attach(prog_fd[0], map_fd[8],
+					      BPF_SK_SKB_STREAM_PARSER, 0);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_prog_attach (TLS sockmap %i->%i): %d (%s)\n",
+					prog_fd[0], map_fd[8], err, strerror(errno));
+				return err;
+			}
+		}
+
+		err = bpf_prog_attach(prog_fd[2], map_fd[8],
+				      BPF_SK_SKB_STREAM_VERDICT, 0);
+		if (err) {
+			fprintf(stderr, "ERROR: bpf_prog_attach (TLS sockmap): %d (%s)\n",
+				err, strerror(errno));
+			return err;
+		}
+	}
+
 	/* Attach to cgroups */
-	err = bpf_prog_attach(prog_fd[2], cg_fd, BPF_CGROUP_SOCK_OPS, 0);
+	err = bpf_prog_attach(prog_fd[3], cg_fd, BPF_CGROUP_SOCK_OPS, 0);
 	if (err) {
 		fprintf(stderr, "ERROR: bpf_prog_attach (groups): %d (%s)\n",
 			err, strerror(errno));
@@ -660,19 +973,14 @@ run:
 
 	/* Attach txmsg program to sockmap */
 	if (txmsg_pass)
-		tx_prog_fd = prog_fd[3];
-	else if (txmsg_noisy)
 		tx_prog_fd = prog_fd[4];
 	else if (txmsg_redir)
 		tx_prog_fd = prog_fd[5];
-	else if (txmsg_redir_noisy)
-		tx_prog_fd = prog_fd[6];
-	else if (txmsg_drop)
-		tx_prog_fd = prog_fd[9];
-	/* apply and cork must be last */
 	else if (txmsg_apply)
-		tx_prog_fd = prog_fd[7];
+		tx_prog_fd = prog_fd[6];
 	else if (txmsg_cork)
+		tx_prog_fd = prog_fd[7];
+	else if (txmsg_drop)
 		tx_prog_fd = prog_fd[8];
 	else
 		tx_prog_fd = 0;
@@ -697,7 +1005,7 @@ run:
 			goto out;
 		}
 
-		if (txmsg_redir || txmsg_redir_noisy)
+		if (txmsg_redir)
 			redir_fd = c2;
 		else
 			redir_fd = c1;
@@ -755,6 +1063,63 @@ run:
 			}
 		}
 
+		if (txmsg_start_push) {
+			i = 2;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start_push, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (txmsg_start_push):  %d (%s)\n",
+					err, strerror(errno));
+				goto out;
+			}
+		}
+
+		if (txmsg_end_push) {
+			i = 3;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_end_push, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem %i@%i (txmsg_end_push):  %d (%s)\n",
+					txmsg_end_push, i, err, strerror(errno));
+				goto out;
+			}
+		}
+
+		if (txmsg_start_pop) {
+			i = 4;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start_pop, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem %i@%i (txmsg_start_pop):  %d (%s)\n",
+					txmsg_start_pop, i, err, strerror(errno));
+				goto out;
+			}
+		} else {
+			i = 4;
+			bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start_pop, BPF_ANY);
+		}
+
+		if (txmsg_pop) {
+			i = 5;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_pop, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem %i@%i (txmsg_pop):  %d (%s)\n",
+					txmsg_pop, i, err, strerror(errno));
+				goto out;
+			}
+		} else {
+			i = 5;
+			bpf_map_update_elem(map_fd[5],
+					    &i, &txmsg_pop, BPF_ANY);
+
+		}
+
 		if (txmsg_ingress) {
 			int in = BPF_F_INGRESS;
 
@@ -788,7 +1153,35 @@ run:
 			}
 		}
 
-		if (txmsg_skb) {
+		if (txmsg_ktls_skb) {
+			int ingress = BPF_F_INGRESS;
+
+			i = 0;
+			err = bpf_map_update_elem(map_fd[8], &i, &p2, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (c1 sockmap): %d (%s)\n",
+					err, strerror(errno));
+			}
+
+			if (txmsg_ktls_skb_redir) {
+				i = 1;
+				err = bpf_map_update_elem(map_fd[7],
+							  &i, &ingress, BPF_ANY);
+				if (err) {
+					fprintf(stderr,
+						"ERROR: bpf_map_update_elem (txmsg_ingress): %d (%s)\n",
+						err, strerror(errno));
+				}
+			}
+
+			if (txmsg_ktls_skb_drop) {
+				i = 1;
+				err = bpf_map_update_elem(map_fd[7], &i, &i, BPF_ANY);
+			}
+		}
+
+		if (txmsg_redir_skb) {
 			int skb_fd = (test == SENDMSG || test == SENDPAGE) ?
 					p2 : p1;
 			int ingress = BPF_F_INGRESS;
@@ -803,14 +1196,18 @@ run:
 			}
 
 			i = 3;
-			err = bpf_map_update_elem(map_fd[0],
-						  &i, &skb_fd, BPF_ANY);
+			err = bpf_map_update_elem(map_fd[0], &i, &skb_fd, BPF_ANY);
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (c1 sockmap): %d (%s)\n",
 					err, strerror(errno));
 			}
 		}
+	}
+
+	if (skb_use_parser) {
+		i = 2;
+		err = bpf_map_update_elem(map_fd[7], &i, &skb_use_parser, BPF_ANY);
 	}
 
 	if (txmsg_drop)
@@ -838,9 +1235,12 @@ run:
 		fprintf(stderr, "unknown test\n");
 out:
 	/* Detatch and zero all the maps */
-	bpf_prog_detach2(prog_fd[2], cg_fd, BPF_CGROUP_SOCK_OPS);
+	bpf_prog_detach2(prog_fd[3], cg_fd, BPF_CGROUP_SOCK_OPS);
 	bpf_prog_detach2(prog_fd[0], map_fd[0], BPF_SK_SKB_STREAM_PARSER);
 	bpf_prog_detach2(prog_fd[1], map_fd[0], BPF_SK_SKB_STREAM_VERDICT);
+	bpf_prog_detach2(prog_fd[0], map_fd[8], BPF_SK_SKB_STREAM_PARSER);
+	bpf_prog_detach2(prog_fd[2], map_fd[8], BPF_SK_SKB_STREAM_VERDICT);
+
 	if (tx_prog_fd >= 0)
 		bpf_prog_detach2(tx_prog_fd, map_fd[1], BPF_SK_MSG_VERDICT);
 
@@ -873,6 +1273,16 @@ static char *test_to_str(int test)
 	return "unknown";
 }
 
+static void append_str(char *dst, const char *src, size_t dst_cap)
+{
+	size_t avail = dst_cap - strlen(dst);
+
+	if (avail <= 1) /* just zero byte could be written */
+		return;
+
+	strncat(dst, src, avail - 1); /* strncat() adds + 1 for zero byte */
+}
+
 #define OPTSTRING 60
 static void test_options(char *options)
 {
@@ -881,35 +1291,42 @@ static void test_options(char *options)
 	memset(options, 0, OPTSTRING);
 
 	if (txmsg_pass)
-		strncat(options, "pass,", OPTSTRING);
-	if (txmsg_noisy)
-		strncat(options, "pass_noisy,", OPTSTRING);
+		append_str(options, "pass,", OPTSTRING);
 	if (txmsg_redir)
-		strncat(options, "redir,", OPTSTRING);
-	if (txmsg_redir_noisy)
-		strncat(options, "redir_noisy,", OPTSTRING);
+		append_str(options, "redir,", OPTSTRING);
 	if (txmsg_drop)
-		strncat(options, "drop,", OPTSTRING);
+		append_str(options, "drop,", OPTSTRING);
 	if (txmsg_apply) {
 		snprintf(tstr, OPTSTRING, "apply %d,", txmsg_apply);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_cork) {
 		snprintf(tstr, OPTSTRING, "cork %d,", txmsg_cork);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_start) {
 		snprintf(tstr, OPTSTRING, "start %d,", txmsg_start);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_end) {
 		snprintf(tstr, OPTSTRING, "end %d,", txmsg_end);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
+	}
+	if (txmsg_start_pop) {
+		snprintf(tstr, OPTSTRING, "pop (%d,%d),",
+			 txmsg_start_pop, txmsg_start_pop + txmsg_pop);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_ingress)
-		strncat(options, "ingress,", OPTSTRING);
-	if (txmsg_skb)
-		strncat(options, "skb,", OPTSTRING);
+		append_str(options, "ingress,", OPTSTRING);
+	if (txmsg_redir_skb)
+		append_str(options, "redir_skb,", OPTSTRING);
+	if (txmsg_ktls_skb)
+		append_str(options, "ktls_skb,", OPTSTRING);
+	if (ktls)
+		append_str(options, "ktls,", OPTSTRING);
+	if (peek_flag)
+		append_str(options, "peek,", OPTSTRING);
 }
 
 static int __test_exec(int cgrp, int test, struct sockmap_options *opt)
@@ -929,341 +1346,344 @@ static int __test_exec(int cgrp, int test, struct sockmap_options *opt)
 
 	test_options(options);
 
-	fprintf(stdout,
-		"[TEST %i]: (%i, %i, %i, %s, %s): ",
-		test_cnt, opt->rate, opt->iov_count, opt->iov_length,
-		test_to_str(test), options);
-	fflush(stdout);
+	if (opt->verbose) {
+		fprintf(stdout,
+			" [TEST %i]: (%i, %i, %i, %s, %s): ",
+			test_cnt, opt->rate, opt->iov_count, opt->iov_length,
+			test_to_str(test), options);
+		fflush(stdout);
+	}
 	err = run_options(opt, cgrp, test);
-	fprintf(stdout, "%s\n", !err ? "PASS" : "FAILED");
+	if (opt->verbose)
+		fprintf(stdout, " %s\n", !err ? "PASS" : "FAILED");
 	test_cnt++;
 	!err ? passed++ : failed++;
 	free(options);
 	return err;
 }
 
-static int test_exec(int cgrp, struct sockmap_options *opt)
+static void test_exec(int cgrp, struct sockmap_options *opt)
 {
-	int err = __test_exec(cgrp, SENDMSG, opt);
+	int type = strcmp(opt->map, BPF_SOCKMAP_FILENAME);
+	int err;
 
-	if (err)
-		goto out;
-
-	err = __test_exec(cgrp, SENDPAGE, opt);
-out:
-	return err;
-}
-
-static int test_loop(int cgrp)
-{
-	struct sockmap_options opt;
-
-	int err, i, l, r;
-
-	opt.verbose = 0;
-	opt.base = false;
-	opt.sendpage = false;
-	opt.data_test = false;
-	opt.drop_expected = false;
-	opt.iov_count = 0;
-	opt.iov_length = 0;
-	opt.rate = 0;
-
-	r = 1;
-	for (i = 1; i < 100; i += 33) {
-		for (l = 1; l < 100; l += 33) {
-			opt.rate = r;
-			opt.iov_count = i;
-			opt.iov_length = l;
-			err = test_exec(cgrp, &opt);
-			if (err)
-				goto out;
-		}
+	if (type == 0) {
+		test_start();
+		err = __test_exec(cgrp, SENDMSG, opt);
+		if (err)
+			test_fail();
+	} else {
+		test_start();
+		err = __test_exec(cgrp, SENDPAGE, opt);
+		if (err)
+			test_fail();
 	}
-	sched_yield();
-out:
-	return err;
 }
 
-static int test_txmsg(int cgrp)
+static void test_send_one(struct sockmap_options *opt, int cgrp)
 {
-	int err;
-
-	txmsg_pass = txmsg_noisy = txmsg_redir_noisy = txmsg_drop = 0;
-	txmsg_apply = txmsg_cork = 0;
-	txmsg_ingress = txmsg_skb = 0;
-
-	txmsg_pass = 1;
-	err = test_loop(cgrp);
-	txmsg_pass = 0;
-	if (err)
-		goto out;
-
-	txmsg_redir = 1;
-	err = test_loop(cgrp);
-	txmsg_redir = 0;
-	if (err)
-		goto out;
-
-	txmsg_drop = 1;
-	err = test_loop(cgrp);
-	txmsg_drop = 0;
-	if (err)
-		goto out;
-
-	txmsg_redir = 1;
-	txmsg_ingress = 1;
-	err = test_loop(cgrp);
-	txmsg_redir = 0;
-	txmsg_ingress = 0;
-	if (err)
-		goto out;
-out:
-	txmsg_pass = 0;
-	txmsg_redir = 0;
-	txmsg_drop = 0;
-	return err;
-}
-
-static int test_send(struct sockmap_options *opt, int cgrp)
-{
-	int err;
-
 	opt->iov_length = 1;
 	opt->iov_count = 1;
 	opt->rate = 1;
-	err = test_exec(cgrp, opt);
-	if (err)
-		goto out;
+	test_exec(cgrp, opt);
 
 	opt->iov_length = 1;
 	opt->iov_count = 1024;
 	opt->rate = 1;
-	err = test_exec(cgrp, opt);
-	if (err)
-		goto out;
+	test_exec(cgrp, opt);
 
 	opt->iov_length = 1024;
 	opt->iov_count = 1;
 	opt->rate = 1;
-	err = test_exec(cgrp, opt);
-	if (err)
-		goto out;
+	test_exec(cgrp, opt);
 
-	opt->iov_length = 1;
+}
+
+static void test_send_many(struct sockmap_options *opt, int cgrp)
+{
+	opt->iov_length = 3;
 	opt->iov_count = 1;
 	opt->rate = 512;
-	err = test_exec(cgrp, opt);
-	if (err)
-		goto out;
-
-	opt->iov_length = 256;
-	opt->iov_count = 1024;
-	opt->rate = 2;
-	err = test_exec(cgrp, opt);
-	if (err)
-		goto out;
+	test_exec(cgrp, opt);
 
 	opt->rate = 100;
 	opt->iov_count = 1;
 	opt->iov_length = 5;
-	err = test_exec(cgrp, opt);
-	if (err)
-		goto out;
-out:
-	sched_yield();
-	return err;
+	test_exec(cgrp, opt);
 }
 
-static int test_mixed(int cgrp)
+static void test_send_large(struct sockmap_options *opt, int cgrp)
 {
-	struct sockmap_options opt = {0};
-	int err;
+	opt->iov_length = 256;
+	opt->iov_count = 1024;
+	opt->rate = 2;
+	test_exec(cgrp, opt);
+}
 
-	txmsg_pass = txmsg_noisy = txmsg_redir_noisy = txmsg_drop = 0;
-	txmsg_apply = txmsg_cork = 0;
-	txmsg_start = txmsg_end = 0;
+static void test_send(struct sockmap_options *opt, int cgrp)
+{
+	test_send_one(opt, cgrp);
+	test_send_many(opt, cgrp);
+	test_send_large(opt, cgrp);
+	sched_yield();
+}
+
+static void test_txmsg_pass(int cgrp, struct sockmap_options *opt)
+{
 	/* Test small and large iov_count values with pass/redir/apply/cork */
 	txmsg_pass = 1;
-	txmsg_redir = 0;
-	txmsg_apply = 1;
-	txmsg_cork = 0;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 1;
-	txmsg_redir = 0;
-	txmsg_apply = 0;
-	txmsg_cork = 1;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 1;
-	txmsg_redir = 0;
-	txmsg_apply = 1;
-	txmsg_cork = 1;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 1;
-	txmsg_redir = 0;
-	txmsg_apply = 1024;
-	txmsg_cork = 0;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 1;
-	txmsg_redir = 0;
-	txmsg_apply = 0;
-	txmsg_cork = 1024;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 1;
-	txmsg_redir = 0;
-	txmsg_apply = 1024;
-	txmsg_cork = 1024;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 1;
-	txmsg_redir = 0;
-	txmsg_cork = 4096;
-	txmsg_apply = 4096;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 0;
-	txmsg_redir = 1;
-	txmsg_apply = 1;
-	txmsg_cork = 0;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 0;
-	txmsg_redir = 1;
-	txmsg_apply = 0;
-	txmsg_cork = 1;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 0;
-	txmsg_redir = 1;
-	txmsg_apply = 1024;
-	txmsg_cork = 0;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 0;
-	txmsg_redir = 1;
-	txmsg_apply = 0;
-	txmsg_cork = 1024;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 0;
-	txmsg_redir = 1;
-	txmsg_apply = 1024;
-	txmsg_cork = 1024;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-
-	txmsg_pass = 0;
-	txmsg_redir = 1;
-	txmsg_cork = 4096;
-	txmsg_apply = 4096;
-	err = test_send(&opt, cgrp);
-	if (err)
-		goto out;
-out:
-	return err;
+	test_send(opt, cgrp);
 }
 
-static int test_start_end(int cgrp)
+static void test_txmsg_redir(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {0};
-	int err, i;
+	txmsg_redir = 1;
+	test_send(opt, cgrp);
+}
 
-	/* Test basic start/end with lots of iov_count and iov_lengths */
+static void test_txmsg_drop(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_drop = 1;
+	test_send(opt, cgrp);
+}
+
+static void test_txmsg_ingress_redir(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_pass = txmsg_drop = 0;
+	txmsg_ingress = txmsg_redir = 1;
+	test_send(opt, cgrp);
+}
+
+static void test_txmsg_skb(int cgrp, struct sockmap_options *opt)
+{
+	bool data = opt->data_test;
+	int k = ktls;
+
+	opt->data_test = true;
+	ktls = 1;
+
+	txmsg_pass = txmsg_drop = 0;
+	txmsg_ingress = txmsg_redir = 0;
+	txmsg_ktls_skb = 1;
+	txmsg_pass = 1;
+
+	/* Using data verification so ensure iov layout is
+	 * expected from test receiver side. e.g. has enough
+	 * bytes to write test code.
+	 */
+	opt->iov_length = 100;
+	opt->iov_count = 1;
+	opt->rate = 1;
+	test_exec(cgrp, opt);
+
+	txmsg_ktls_skb_drop = 1;
+	test_exec(cgrp, opt);
+
+	txmsg_ktls_skb_drop = 0;
+	txmsg_ktls_skb_redir = 1;
+	test_exec(cgrp, opt);
+	txmsg_ktls_skb_redir = 0;
+
+	/* Tests that omit skb_parser */
+	txmsg_omit_skb_parser = 1;
+	ktls = 0;
+	txmsg_ktls_skb = 0;
+	test_exec(cgrp, opt);
+
+	txmsg_ktls_skb_drop = 1;
+	test_exec(cgrp, opt);
+	txmsg_ktls_skb_drop = 0;
+
+	txmsg_ktls_skb_redir = 1;
+	test_exec(cgrp, opt);
+
+	ktls = 1;
+	test_exec(cgrp, opt);
+	txmsg_omit_skb_parser = 0;
+
+	opt->data_test = data;
+	ktls = k;
+}
+
+/* Test cork with hung data. This tests poor usage patterns where
+ * cork can leave data on the ring if user program is buggy and
+ * doesn't flush them somehow. They do take some time however
+ * because they wait for a timeout. Test pass, redir and cork with
+ * apply logic. Use cork size of 4097 with send_large to avoid
+ * aligning cork size with send size.
+ */
+static void test_txmsg_cork_hangs(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_pass = 1;
+	txmsg_redir = 0;
+	txmsg_cork = 4097;
+	txmsg_apply = 4097;
+	test_send_large(opt, cgrp);
+
+	txmsg_pass = 0;
+	txmsg_redir = 1;
+	txmsg_apply = 0;
+	txmsg_cork = 4097;
+	test_send_large(opt, cgrp);
+
+	txmsg_pass = 0;
+	txmsg_redir = 1;
+	txmsg_apply = 4097;
+	txmsg_cork = 4097;
+	test_send_large(opt, cgrp);
+}
+
+static void test_txmsg_pull(int cgrp, struct sockmap_options *opt)
+{
+	/* Test basic start/end */
 	txmsg_start = 1;
 	txmsg_end = 2;
-	err = test_txmsg(cgrp);
-	if (err)
-		goto out;
+	test_send(opt, cgrp);
 
-	/* Test start/end with cork */
-	opt.rate = 16;
-	opt.iov_count = 1;
-	opt.iov_length = 100;
-	txmsg_cork = 1600;
+	/* Test >4k pull */
+	txmsg_start = 4096;
+	txmsg_end = 9182;
+	test_send_large(opt, cgrp);
 
-	for (i = 99; i <= 1600; i += 500) {
-		txmsg_start = 0;
-		txmsg_end = i;
-		err = test_exec(cgrp, &opt);
-		if (err)
-			goto out;
-	}
+	/* Test pull + redirect */
+	txmsg_redir = 0;
+	txmsg_start = 1;
+	txmsg_end = 2;
+	test_send(opt, cgrp);
 
-	/* Test start/end with cork but pull data in middle */
-	for (i = 199; i <= 1600; i += 500) {
-		txmsg_start = 100;
-		txmsg_end = i;
-		err = test_exec(cgrp, &opt);
-		if (err)
-			goto out;
-	}
+	/* Test pull + cork */
+	txmsg_redir = 0;
+	txmsg_cork = 512;
+	txmsg_start = 1;
+	txmsg_end = 2;
+	test_send_many(opt, cgrp);
 
-	/* Test start/end with cork pulling last sg entry */
-	txmsg_start = 1500;
-	txmsg_end = 1600;
-	err = test_exec(cgrp, &opt);
-	if (err)
-		goto out;
+	/* Test pull + cork + redirect */
+	txmsg_redir = 1;
+	txmsg_cork = 512;
+	txmsg_start = 1;
+	txmsg_end = 2;
+	test_send_many(opt, cgrp);
+}
 
-	/* Test start/end pull of single byte in last page */
-	txmsg_start = 1111;
-	txmsg_end = 1112;
-	err = test_exec(cgrp, &opt);
-	if (err)
-		goto out;
+static void test_txmsg_pop(int cgrp, struct sockmap_options *opt)
+{
+	/* Test basic pop */
+	txmsg_start_pop = 1;
+	txmsg_pop = 2;
+	test_send_many(opt, cgrp);
 
-	/* Test start/end with end < start */
-	txmsg_start = 1111;
-	txmsg_end = 0;
-	err = test_exec(cgrp, &opt);
-	if (err)
-		goto out;
+	/* Test pop with >4k */
+	txmsg_start_pop = 4096;
+	txmsg_pop = 4096;
+	test_send_large(opt, cgrp);
 
-	/* Test start/end with end > data */
-	txmsg_start = 0;
-	txmsg_end = 1601;
-	err = test_exec(cgrp, &opt);
-	if (err)
-		goto out;
+	/* Test pop + redirect */
+	txmsg_redir = 1;
+	txmsg_start_pop = 1;
+	txmsg_pop = 2;
+	test_send_many(opt, cgrp);
 
-	/* Test start/end with start > data */
-	txmsg_start = 1601;
-	txmsg_end = 1600;
-	err = test_exec(cgrp, &opt);
+	/* Test pop + cork */
+	txmsg_redir = 0;
+	txmsg_cork = 512;
+	txmsg_start_pop = 1;
+	txmsg_pop = 2;
+	test_send_many(opt, cgrp);
 
-out:
-	txmsg_start = 0;
-	txmsg_end = 0;
-	sched_yield();
-	return err;
+	/* Test pop + redirect + cork */
+	txmsg_redir = 1;
+	txmsg_cork = 4;
+	txmsg_start_pop = 1;
+	txmsg_pop = 2;
+	test_send_many(opt, cgrp);
+}
+
+static void test_txmsg_push(int cgrp, struct sockmap_options *opt)
+{
+	/* Test basic push */
+	txmsg_start_push = 1;
+	txmsg_end_push = 1;
+	test_send(opt, cgrp);
+
+	/* Test push 4kB >4k */
+	txmsg_start_push = 4096;
+	txmsg_end_push = 4096;
+	test_send_large(opt, cgrp);
+
+	/* Test push + redirect */
+	txmsg_redir = 1;
+	txmsg_start_push = 1;
+	txmsg_end_push = 2;
+	test_send_many(opt, cgrp);
+
+	/* Test push + cork */
+	txmsg_redir = 0;
+	txmsg_cork = 512;
+	txmsg_start_push = 1;
+	txmsg_end_push = 2;
+	test_send_many(opt, cgrp);
+}
+
+static void test_txmsg_push_pop(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_start_push = 1;
+	txmsg_end_push = 10;
+	txmsg_start_pop = 5;
+	txmsg_pop = 4;
+	test_send_large(opt, cgrp);
+}
+
+static void test_txmsg_apply(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_pass = 1;
+	txmsg_redir = 0;
+	txmsg_apply = 1;
+	txmsg_cork = 0;
+	test_send_one(opt, cgrp);
+
+	txmsg_pass = 0;
+	txmsg_redir = 1;
+	txmsg_apply = 1;
+	txmsg_cork = 0;
+	test_send_one(opt, cgrp);
+
+	txmsg_pass = 1;
+	txmsg_redir = 0;
+	txmsg_apply = 1024;
+	txmsg_cork = 0;
+	test_send_large(opt, cgrp);
+
+	txmsg_pass = 0;
+	txmsg_redir = 1;
+	txmsg_apply = 1024;
+	txmsg_cork = 0;
+	test_send_large(opt, cgrp);
+}
+
+static void test_txmsg_cork(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_pass = 1;
+	txmsg_redir = 0;
+	txmsg_apply = 0;
+	txmsg_cork = 1;
+	test_send(opt, cgrp);
+
+	txmsg_pass = 1;
+	txmsg_redir = 0;
+	txmsg_apply = 1;
+	txmsg_cork = 1;
+	test_send(opt, cgrp);
+}
+
+static void test_txmsg_ingress_parser(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_pass = 1;
+	skb_use_parser = 512;
+	opt->iov_length = 256;
+	opt->iov_count = 1;
+	opt->rate = 2;
+	test_exec(cgrp, opt);
 }
 
 char *map_names[] = {
@@ -1272,13 +1692,15 @@ char *map_names[] = {
 	"sock_map_redir",
 	"sock_apply_bytes",
 	"sock_cork_bytes",
-	"sock_pull_bytes",
+	"sock_bytes",
 	"sock_redir_flags",
 	"sock_skb_opts",
+	"tls_sock_map",
 };
 
 int prog_attach_type[] = {
 	BPF_SK_SKB_STREAM_PARSER,
+	BPF_SK_SKB_STREAM_VERDICT,
 	BPF_SK_SKB_STREAM_VERDICT,
 	BPF_CGROUP_SOCK_OPS,
 	BPF_SK_MSG_VERDICT,
@@ -1291,6 +1713,7 @@ int prog_attach_type[] = {
 };
 
 int prog_type[] = {
+	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_SOCK_OPS,
@@ -1348,67 +1771,118 @@ static int populate_progs(char *bpf_file)
 	return 0;
 }
 
-static int __test_suite(char *bpf_file)
-{
-	int cg_fd, err;
+struct _test test[] = {
+	{"txmsg test passthrough", test_txmsg_pass},
+	{"txmsg test redirect", test_txmsg_redir},
+	{"txmsg test drop", test_txmsg_drop},
+	{"txmsg test ingress redirect", test_txmsg_ingress_redir},
+	{"txmsg test skb", test_txmsg_skb},
+	{"txmsg test apply", test_txmsg_apply},
+	{"txmsg test cork", test_txmsg_cork},
+	{"txmsg test hanging corks", test_txmsg_cork_hangs},
+	{"txmsg test push_data", test_txmsg_push},
+	{"txmsg test pull-data", test_txmsg_pull},
+	{"txmsg test pop-data", test_txmsg_pop},
+	{"txmsg test push/pop data", test_txmsg_push_pop},
+	{"txmsg text ingress parser", test_txmsg_ingress_parser},
+};
 
-	err = populate_progs(bpf_file);
+static int check_whitelist(struct _test *t, struct sockmap_options *opt)
+{
+	char *entry, *ptr;
+
+	if (!opt->whitelist)
+		return 0;
+	ptr = strdup(opt->whitelist);
+	if (!ptr)
+		return -ENOMEM;
+	entry = strtok(ptr, ",");
+	while (entry) {
+		if ((opt->prepend && strstr(opt->prepend, entry) != 0) ||
+		    strstr(opt->map, entry) != 0 ||
+		    strstr(t->title, entry) != 0)
+			return 0;
+		entry = strtok(NULL, ",");
+	}
+	return -EINVAL;
+}
+
+static int check_blacklist(struct _test *t, struct sockmap_options *opt)
+{
+	char *entry, *ptr;
+
+	if (!opt->blacklist)
+		return -EINVAL;
+	ptr = strdup(opt->blacklist);
+	if (!ptr)
+		return -ENOMEM;
+	entry = strtok(ptr, ",");
+	while (entry) {
+		if ((opt->prepend && strstr(opt->prepend, entry) != 0) ||
+		    strstr(opt->map, entry) != 0 ||
+		    strstr(t->title, entry) != 0)
+			return 0;
+		entry = strtok(NULL, ",");
+	}
+	return -EINVAL;
+}
+
+static int __test_selftests(int cg_fd, struct sockmap_options *opt)
+{
+	int i, err;
+
+	err = populate_progs(opt->map);
 	if (err < 0) {
 		fprintf(stderr, "ERROR: (%i) load bpf failed\n", err);
 		return err;
 	}
 
-	if (setup_cgroup_environment()) {
-		fprintf(stderr, "ERROR: cgroup env failed\n");
-		return -EINVAL;
+	/* Tests basic commands and APIs */
+	for (i = 0; i < sizeof(test)/sizeof(struct _test); i++) {
+		struct _test t = test[i];
+
+		if (check_whitelist(&t, opt) != 0)
+			continue;
+		if (check_blacklist(&t, opt) == 0)
+			continue;
+
+		test_start_subtest(&t, opt);
+		t.tester(cg_fd, opt);
+		test_end_subtest();
 	}
 
-	cg_fd = create_and_get_cgroup(CG_PATH);
-	if (cg_fd < 0) {
-		fprintf(stderr,
-			"ERROR: (%i) open cg path failed: %s\n",
-			cg_fd, optarg);
-		return cg_fd;
-	}
-
-	if (join_cgroup(CG_PATH)) {
-		fprintf(stderr, "ERROR: failed to join cgroup\n");
-		return -EINVAL;
-	}
-
-	/* Tests basic commands and APIs with range of iov values */
-	txmsg_start = txmsg_end = 0;
-	err = test_txmsg(cg_fd);
-	if (err)
-		goto out;
-
-	/* Tests interesting combinations of APIs used together */
-	err = test_mixed(cg_fd);
-	if (err)
-		goto out;
-
-	/* Tests pull_data API using start/end API */
-	err = test_start_end(cg_fd);
-	if (err)
-		goto out;
-
-out:
-	printf("Summary: %i PASSED %i FAILED\n", passed, failed);
-	cleanup_cgroup_environment();
-	close(cg_fd);
 	return err;
 }
 
-static int test_suite(void)
+static void test_selftests_sockmap(int cg_fd, struct sockmap_options *opt)
 {
-	int err;
+	opt->map = BPF_SOCKMAP_FILENAME;
+	__test_selftests(cg_fd, opt);
+}
 
-	err = __test_suite(BPF_SOCKMAP_FILENAME);
-	if (err)
-		goto out;
-	err = __test_suite(BPF_SOCKHASH_FILENAME);
-out:
-	return err;
+static void test_selftests_sockhash(int cg_fd, struct sockmap_options *opt)
+{
+	opt->map = BPF_SOCKHASH_FILENAME;
+	__test_selftests(cg_fd, opt);
+}
+
+static void test_selftests_ktls(int cg_fd, struct sockmap_options *opt)
+{
+	opt->map = BPF_SOCKHASH_FILENAME;
+	opt->prepend = "ktls";
+	ktls = 1;
+	__test_selftests(cg_fd, opt);
+	ktls = 0;
+}
+
+static int test_selftest(int cg_fd, struct sockmap_options *opt)
+{
+
+	test_selftests_sockmap(cg_fd, opt);
+	test_selftests_sockhash(cg_fd, opt);
+	test_selftests_ktls(cg_fd, opt);
+	test_print_results();
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -1417,12 +1891,10 @@ int main(int argc, char **argv)
 	struct sockmap_options options = {0};
 	int opt, longindex, err, cg_fd = 0;
 	char *bpf_file = BPF_SOCKMAP_FILENAME;
-	int test = PING_PONG;
+	int test = SELFTESTS;
+	bool cg_created = 0;
 
-	if (argc < 2)
-		return test_suite();
-
-	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
+	while ((opt = getopt_long(argc, argv, ":dhv:c:r:i:l:t:p:q:n:b:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 's':
@@ -1430,6 +1902,18 @@ int main(int argc, char **argv)
 			break;
 		case 'e':
 			txmsg_end = atoi(optarg);
+			break;
+		case 'p':
+			txmsg_start_push = atoi(optarg);
+			break;
+		case 'q':
+			txmsg_end_push = atoi(optarg);
+			break;
+		case 'w':
+			txmsg_start_pop = atoi(optarg);
+			break;
+		case 'x':
+			txmsg_pop = atoi(optarg);
 			break;
 		case 'a':
 			txmsg_apply = atoi(optarg);
@@ -1451,6 +1935,8 @@ int main(int argc, char **argv)
 			break;
 		case 'v':
 			options.verbose = 1;
+			if (optarg)
+				options.verbose = atoi(optarg);
 			break;
 		case 'i':
 			iov_count = atoi(optarg);
@@ -1477,6 +1963,15 @@ int main(int argc, char **argv)
 				return -1;
 			}
 			break;
+		case 'n':
+			options.whitelist = strdup(optarg);
+			if (!options.whitelist)
+				return -ENOMEM;
+			break;
+		case 'b':
+			options.blacklist = strdup(optarg);
+			if (!options.blacklist)
+				return -ENOMEM;
 		case 0:
 			break;
 		case 'h':
@@ -1487,9 +1982,15 @@ int main(int argc, char **argv)
 	}
 
 	if (!cg_fd) {
-		fprintf(stderr, "%s requires cgroup option: --cgroup <path>\n",
-			argv[0]);
-		return -1;
+		cg_fd = cgroup_setup_and_join(CG_PATH);
+		if (cg_fd < 0)
+			return cg_fd;
+		cg_created = 1;
+	}
+
+	if (test == SELFTESTS) {
+		err = test_selftest(cg_fd, &options);
+		goto out;
 	}
 
 	err = populate_progs(bpf_file);
@@ -1508,6 +2009,13 @@ int main(int argc, char **argv)
 	options.rate = rate;
 
 	err = run_options(&options, cg_fd, test);
+out:
+	if (options.whitelist)
+		free(options.whitelist);
+	if (options.blacklist)
+		free(options.blacklist);
+	if (cg_created)
+		cleanup_cgroup_environment();
 	close(cg_fd);
 	return err;
 }

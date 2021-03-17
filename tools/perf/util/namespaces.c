@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  *
  * Copyright (C) 2017 Hari Bathini, IBM Corporation
  */
 
 #include "namespaces.h"
-#include "util.h"
 #include "event.h"
+#include "get_current_dir_name.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -18,8 +16,28 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <asm/bug.h>
+#include <linux/kernel.h>
+#include <linux/zalloc.h>
 
-struct namespaces *namespaces__new(struct namespaces_event *event)
+static const char *perf_ns__names[] = {
+	[NET_NS_INDEX]		= "net",
+	[UTS_NS_INDEX]		= "uts",
+	[IPC_NS_INDEX]		= "ipc",
+	[PID_NS_INDEX]		= "pid",
+	[USER_NS_INDEX]		= "user",
+	[MNT_NS_INDEX]		= "mnt",
+	[CGROUP_NS_INDEX]	= "cgroup",
+};
+
+const char *perf_ns__name(unsigned int id)
+{
+	if (id >= ARRAY_SIZE(perf_ns__names))
+		return "UNKNOWN";
+	return perf_ns__names[id];
+}
+
+struct namespaces *namespaces__new(struct perf_record_namespaces *event)
 {
 	struct namespaces *namespaces;
 	u64 link_info_size = ((event ? event->nr_namespaces : NR_NAMESPACES) *
@@ -186,6 +204,7 @@ void nsinfo__mountns_enter(struct nsinfo *nsi,
 	char curpath[PATH_MAX];
 	int oldns = -1;
 	int newns = -1;
+	char *oldcwd = NULL;
 
 	if (nc == NULL)
 		return;
@@ -199,9 +218,13 @@ void nsinfo__mountns_enter(struct nsinfo *nsi,
 	if (snprintf(curpath, PATH_MAX, "/proc/self/ns/mnt") >= PATH_MAX)
 		return;
 
+	oldcwd = get_current_dir_name();
+	if (!oldcwd)
+		return;
+
 	oldns = open(curpath, O_RDONLY);
 	if (oldns < 0)
-		return;
+		goto errout;
 
 	newns = open(nsi->mntns_path, O_RDONLY);
 	if (newns < 0)
@@ -210,11 +233,13 @@ void nsinfo__mountns_enter(struct nsinfo *nsi,
 	if (setns(newns, CLONE_NEWNS) < 0)
 		goto errout;
 
+	nc->oldcwd = oldcwd;
 	nc->oldns = oldns;
 	nc->newns = newns;
 	return;
 
 errout:
+	free(oldcwd);
 	if (oldns > -1)
 		close(oldns);
 	if (newns > -1)
@@ -223,10 +248,15 @@ errout:
 
 void nsinfo__mountns_exit(struct nscookie *nc)
 {
-	if (nc == NULL || nc->oldns == -1 || nc->newns == -1)
+	if (nc == NULL || nc->oldns == -1 || nc->newns == -1 || !nc->oldcwd)
 		return;
 
 	setns(nc->oldns, CLONE_NEWNS);
+
+	if (nc->oldcwd) {
+		WARN_ON_ONCE(chdir(nc->oldcwd));
+		zfree(&nc->oldcwd);
+	}
 
 	if (nc->oldns > -1) {
 		close(nc->oldns);

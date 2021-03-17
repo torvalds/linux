@@ -266,19 +266,9 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		/* internal trigger */
 		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	} else {
-#if 0
-		/* external trigger */
-		/* should be level/edge, hi/lo specification here */
-		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-#endif
 	}
 
 	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 10000);
-#if 0
-	err |= comedi_check_trigger_arg_max(&cmd->convert_arg, SLOWEST_TIMER);
-#endif
-
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
 
@@ -734,6 +724,6 @@ static struct comedi_driver atmio16d_driver = {
 };
 module_comedi_driver(atmio16d_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");

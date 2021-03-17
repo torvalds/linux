@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * drivers/media/i2c/smiapp/smiapp.h
  *
@@ -5,15 +6,6 @@
  *
  * Copyright (C) 2010--2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __SMIAPP_PRIV_H_
@@ -22,7 +14,6 @@
 #include <linux/mutex.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/i2c/smiapp.h>
 
 #include "smiapp-pll.h"
 #include "smiapp-reg.h"
@@ -49,6 +40,49 @@
 		 + (clk) / 1000 - 1) / ((clk) / 1000))
 
 #define SMIAPP_COLOUR_COMPONENTS	4
+
+#define SMIAPP_NAME		"smiapp"
+
+#define SMIAPP_DFL_I2C_ADDR	(0x20 >> 1) /* Default I2C Address */
+#define SMIAPP_ALT_I2C_ADDR	(0x6e >> 1) /* Alternate I2C Address */
+
+/*
+ * Sometimes due to board layout considerations the camera module can be
+ * mounted rotated. The typical rotation used is 180 degrees which can be
+ * corrected by giving a default H-FLIP and V-FLIP in the sensor readout.
+ * FIXME: rotation also changes the bayer pattern.
+ */
+enum smiapp_module_board_orient {
+	SMIAPP_MODULE_BOARD_ORIENT_0 = 0,
+	SMIAPP_MODULE_BOARD_ORIENT_180,
+};
+
+struct smiapp_flash_strobe_parms {
+	u8 mode;
+	u32 strobe_width_high_us;
+	u16 strobe_delay;
+	u16 stobe_start_point;
+	u8 trigger;
+};
+
+struct smiapp_hwconfig {
+	/*
+	 * Change the cci address if i2c_addr_alt is set.
+	 * Both default and alternate cci addr need to be present
+	 */
+	unsigned short i2c_addr_dfl;	/* Default i2c addr */
+	unsigned short i2c_addr_alt;	/* Alternate i2c addr */
+
+	uint32_t ext_clk;		/* sensor external clk */
+
+	unsigned int lanes;		/* Number of CSI-2 lanes */
+	uint32_t csi_signalling_mode;	/* SMIAPP_CSI_SIGNALLING_MODE_* */
+	uint64_t *op_sys_clock;
+
+	enum smiapp_module_board_orient module_board_orient;
+
+	struct smiapp_flash_strobe_parms *strobe_setup;
+};
 
 #include "smiapp-limits.h"
 
@@ -206,7 +240,6 @@ struct smiapp_sensor {
 
 	u8 hvflip_inv_mask; /* H/VFLIP inversion due to sensor orientation */
 	u8 frame_skip;
-	bool active; /* is the sensor powered on? */
 	u16 embedded_start; /* embedded data start line */
 	u16 embedded_end;
 	u16 image_start; /* image data start line */
@@ -215,9 +248,6 @@ struct smiapp_sensor {
 	bool streaming;
 	bool dev_init_done;
 	u8 compressed_min_bpp;
-
-	u8 *nvm;		/* nvm memory buffer */
-	unsigned int nvm_size;	/* bytes */
 
 	struct smiapp_module_info minfo;
 

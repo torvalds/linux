@@ -10,8 +10,6 @@
 #ifndef _LINUX_SUNRPC_SVCAUTH_H_
 #define _LINUX_SUNRPC_SVCAUTH_H_
 
-#ifdef __KERNEL__
-
 #include <linux/string.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/cache.h>
@@ -82,6 +80,7 @@ struct auth_domain {
 	struct hlist_node	hash;
 	char			*name;
 	struct auth_ops		*flavour;
+	struct rcu_head		rcu_head;
 };
 
 /*
@@ -183,7 +182,5 @@ static inline unsigned long hash_mem(char const *buf, int length, int bits)
 {
 	return full_name_hash(NULL, buf, length) >> (32 - bits);
 }
-
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_SUNRPC_SVCAUTH_H_ */

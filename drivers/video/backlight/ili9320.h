@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* drivers/video/backlight/ili9320.h
  *
  * ILI9320 LCD controller driver core.
@@ -6,10 +7,6 @@
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * http://armlinux.simtec.co.uk/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 /* Holder for register and value pairs. */

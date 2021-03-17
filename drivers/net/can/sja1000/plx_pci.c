@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008-2010 Pavel Cheblakov <P.B.Cheblakov@inp.nsk.su>
  *
@@ -5,18 +6,6 @@
  *	Copyright (C) 2007 Wolfgang Grandegger <wg@grandegger.com>
  *	Copyright (C) 2008 Markus Plessing <plessing@ems-wuensche.com>
  *	Copyright (C) 2008 Sebastian Haas <haas@ems-wuensche.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -46,7 +35,8 @@ MODULE_SUPPORTED_DEVICE("Adlink PCI-7841/cPCI-7841, "
 			"esd CAN-PCIe/2000, "
 			"Connect Tech Inc. CANpro/104-Plus Opto (CRG001), "
 			"IXXAT PC-I 04/PCI, "
-			"ELCUS CAN-200-PCI")
+			"ELCUS CAN-200-PCI, "
+			"ASEM DUAL CAN-RAW")
 MODULE_LICENSE("GPL v2");
 
 #define PLX_PCI_MAX_CHAN 2
@@ -70,7 +60,9 @@ struct plx_pci_card {
 					 */
 
 #define PLX_LINT1_EN	0x1		/* Local interrupt 1 enable */
+#define PLX_LINT1_POL	(1 << 1)	/* Local interrupt 1 polarity */
 #define PLX_LINT2_EN	(1 << 3)	/* Local interrupt 2 enable */
+#define PLX_LINT2_POL	(1 << 4)	/* Local interrupt 2 polarity */
 #define PLX_PCI_INT_EN	(1 << 6)	/* PCI Interrupt Enable */
 #define PLX_PCI_RESET	(1 << 30)	/* PCI Adapter Software Reset */
 
@@ -91,6 +83,9 @@ struct plx_pci_card {
  * This means normal output mode, push-pull and the correct polarity.
  */
 #define PLX_PCI_OCR	(OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
+
+/* OCR setting for ASEM Dual CAN raw */
+#define ASEM_PCI_OCR	0xfe
 
 /*
  * In the CDR register, you should set CBP to 1.
@@ -145,10 +140,20 @@ struct plx_pci_card {
 #define MOXA_PCI_VENDOR_ID		0x1393
 #define MOXA_PCI_DEVICE_ID		0x0100
 
+#define ASEM_RAW_CAN_VENDOR_ID		0x10b5
+#define ASEM_RAW_CAN_DEVICE_ID		0x9030
+#define ASEM_RAW_CAN_SUB_VENDOR_ID	0x3000
+#define ASEM_RAW_CAN_SUB_DEVICE_ID	0x1001
+#define ASEM_RAW_CAN_SUB_DEVICE_ID_BIS	0x1002
+#define ASEM_RAW_CAN_RST_REGISTER	0x54
+#define ASEM_RAW_CAN_RST_MASK_CAN1	0x20
+#define ASEM_RAW_CAN_RST_MASK_CAN2	0x04
+
 static void plx_pci_reset_common(struct pci_dev *pdev);
 static void plx9056_pci_reset_common(struct pci_dev *pdev);
 static void plx_pci_reset_marathon_pci(struct pci_dev *pdev);
 static void plx_pci_reset_marathon_pcie(struct pci_dev *pdev);
+static void plx_pci_reset_asem_dual_can_raw(struct pci_dev *pdev);
 
 struct plx_pci_channel_map {
 	u32 bar;
@@ -269,6 +274,14 @@ static struct plx_pci_card_info plx_pci_card_info_moxa = {
 	 /* based on PLX9052 */
 };
 
+static struct plx_pci_card_info plx_pci_card_info_asem_dual_can = {
+	"ASEM Dual CAN raw PCI", 2,
+	PLX_PCI_CAN_CLOCK, ASEM_PCI_OCR, PLX_PCI_CDR,
+	{0, 0x00, 0x00}, { {2, 0x00, 0x00}, {4, 0x00, 0x00} },
+	&plx_pci_reset_asem_dual_can_raw
+	/* based on PLX9030 */
+};
+
 static const struct pci_device_id plx_pci_tbl[] = {
 	{
 		/* Adlink PCI-7841/cPCI-7841 */
@@ -374,6 +387,20 @@ static const struct pci_device_id plx_pci_tbl[] = {
 		PCI_ANY_ID, PCI_ANY_ID,
 		0, 0,
 		(kernel_ulong_t)&plx_pci_card_info_moxa
+	},
+	{
+		/* ASEM Dual CAN raw */
+		ASEM_RAW_CAN_VENDOR_ID, ASEM_RAW_CAN_DEVICE_ID,
+		ASEM_RAW_CAN_SUB_VENDOR_ID, ASEM_RAW_CAN_SUB_DEVICE_ID,
+		0, 0,
+		(kernel_ulong_t)&plx_pci_card_info_asem_dual_can
+	},
+	{
+		/* ASEM Dual CAN raw -new model */
+		ASEM_RAW_CAN_VENDOR_ID, ASEM_RAW_CAN_DEVICE_ID,
+		ASEM_RAW_CAN_SUB_VENDOR_ID, ASEM_RAW_CAN_SUB_DEVICE_ID_BIS,
+		0, 0,
+		(kernel_ulong_t)&plx_pci_card_info_asem_dual_can
 	},
 	{ 0,}
 };
@@ -522,6 +549,31 @@ static void plx_pci_reset_marathon_pcie(struct pci_dev *pdev)
 			pci_iounmap(pdev, addr);
 		}
 	}
+}
+
+/* Special reset function for ASEM Dual CAN raw card */
+static void plx_pci_reset_asem_dual_can_raw(struct pci_dev *pdev)
+{
+	void __iomem *bar0_addr;
+	u8 tmpval;
+
+	plx_pci_reset_common(pdev);
+
+	bar0_addr = pci_iomap(pdev, 0, 0);
+	if (!bar0_addr) {
+		dev_err(&pdev->dev, "Failed to remap reset space 0 (BAR0)\n");
+		return;
+	}
+
+	/* reset the two SJA1000 chips */
+	tmpval = ioread8(bar0_addr + ASEM_RAW_CAN_RST_REGISTER);
+	tmpval &= ~(ASEM_RAW_CAN_RST_MASK_CAN1 | ASEM_RAW_CAN_RST_MASK_CAN2);
+	iowrite8(tmpval, bar0_addr + ASEM_RAW_CAN_RST_REGISTER);
+	usleep_range(300, 400);
+	tmpval |= ASEM_RAW_CAN_RST_MASK_CAN1 | ASEM_RAW_CAN_RST_MASK_CAN2;
+	iowrite8(tmpval, bar0_addr + ASEM_RAW_CAN_RST_REGISTER);
+	usleep_range(300, 400);
+	pci_iounmap(pdev, bar0_addr);
 }
 
 static void plx_pci_del_card(struct pci_dev *pdev)

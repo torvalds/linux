@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * apb_timer.c: Driver for Langwell APB timers
  *
  * (C) Copyright 2009 Intel Corporation
  * Author: Jacob Pan (jacob.jun.pan@intel.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Note:
  * Langwell is the south complex of Intel Moorestown MID platform. There are
@@ -99,7 +95,7 @@ static inline void apbt_set_mapping(void)
 		printk(KERN_WARNING "No timer base from SFI, use default\n");
 		apbt_address = APBT_DEFAULT_BASE;
 	}
-	apbt_virt_address = ioremap_nocache(apbt_address, APBT_MMAP_SIZE);
+	apbt_virt_address = ioremap(apbt_address, APBT_MMAP_SIZE);
 	if (!apbt_virt_address) {
 		pr_debug("Failed mapping APBT phy address at %lu\n",\
 			 (unsigned long)apbt_address);
@@ -348,57 +344,4 @@ out_noapbt:
 	apbt_clear_mapping();
 	apb_timer_block_enabled = 0;
 	panic("failed to enable APB timer\n");
-}
-
-/* called before apb_timer_enable, use early map */
-unsigned long apbt_quick_calibrate(void)
-{
-	int i, scale;
-	u64 old, new;
-	u64 t1, t2;
-	unsigned long khz = 0;
-	u32 loop, shift;
-
-	apbt_set_mapping();
-	dw_apb_clocksource_start(clocksource_apbt);
-
-	/* check if the timer can count down, otherwise return */
-	old = dw_apb_clocksource_read(clocksource_apbt);
-	i = 10000;
-	while (--i) {
-		if (old != dw_apb_clocksource_read(clocksource_apbt))
-			break;
-	}
-	if (!i)
-		goto failed;
-
-	/* count 16 ms */
-	loop = (apbt_freq / 1000) << 4;
-
-	/* restart the timer to ensure it won't get to 0 in the calibration */
-	dw_apb_clocksource_start(clocksource_apbt);
-
-	old = dw_apb_clocksource_read(clocksource_apbt);
-	old += loop;
-
-	t1 = rdtsc();
-
-	do {
-		new = dw_apb_clocksource_read(clocksource_apbt);
-	} while (new < old);
-
-	t2 = rdtsc();
-
-	shift = 5;
-	if (unlikely(loop >> shift == 0)) {
-		printk(KERN_INFO
-		       "APBT TSC calibration failed, not enough resolution\n");
-		return 0;
-	}
-	scale = (int)div_u64((t2 - t1), loop >> shift);
-	khz = (scale * (apbt_freq / 1000)) >> shift;
-	printk(KERN_INFO "TSC freq calculated by APB timer is %lu khz\n", khz);
-	return khz;
-failed:
-	return 0;
 }

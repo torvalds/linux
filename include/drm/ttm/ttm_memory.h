@@ -63,9 +63,8 @@
 
 #define TTM_MEM_MAX_ZONES 2
 struct ttm_mem_zone;
-struct ttm_mem_global {
+extern struct ttm_mem_global {
 	struct kobject kobj;
-	struct ttm_bo_global *bo_glob;
 	struct workqueue_struct *swap_queue;
 	struct work_struct work;
 	spinlock_t lock;
@@ -78,21 +77,19 @@ struct ttm_mem_global {
 #else
 	struct ttm_mem_zone *zone_dma32;
 #endif
-};
+} ttm_mem_glob;
 
-extern int ttm_mem_global_init(struct ttm_mem_global *glob);
-extern void ttm_mem_global_release(struct ttm_mem_global *glob);
-extern int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
+int ttm_mem_global_init(struct ttm_mem_global *glob);
+void ttm_mem_global_release(struct ttm_mem_global *glob);
+int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
+			 struct ttm_operation_ctx *ctx);
+void ttm_mem_global_free(struct ttm_mem_global *glob, uint64_t amount);
+int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
+			      struct page *page, uint64_t size,
+			      struct ttm_operation_ctx *ctx);
+void ttm_mem_global_free_page(struct ttm_mem_global *glob,
+			      struct page *page, uint64_t size);
+size_t ttm_round_pot(size_t size);
+bool ttm_check_under_lowerlimit(struct ttm_mem_global *glob, uint64_t num_pages,
 				struct ttm_operation_ctx *ctx);
-extern void ttm_mem_global_free(struct ttm_mem_global *glob,
-				uint64_t amount);
-extern int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
-				     struct page *page, uint64_t size,
-				     struct ttm_operation_ctx *ctx);
-extern void ttm_mem_global_free_page(struct ttm_mem_global *glob,
-				     struct page *page, uint64_t size);
-extern size_t ttm_round_pot(size_t size);
-extern uint64_t ttm_get_kernel_zone_memory_size(struct ttm_mem_global *glob);
-extern bool ttm_check_under_lowerlimit(struct ttm_mem_global *glob,
-			uint64_t num_pages, struct ttm_operation_ctx *ctx);
 #endif

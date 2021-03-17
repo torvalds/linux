@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * net/dsa/tag_edsa.c - Ethertype DSA tagging
  * Copyright (c) 2008-2009 Marvell Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/etherdevice.h>
@@ -16,6 +12,16 @@
 
 #define DSA_HLEN	4
 #define EDSA_HLEN	8
+
+#define FRAME_TYPE_TO_CPU	0x00
+#define FRAME_TYPE_FORWARD	0x03
+
+#define TO_CPU_CODE_MGMT_TRAP		0x00
+#define TO_CPU_CODE_FRAME2REG		0x01
+#define TO_CPU_CODE_IGMP_MLD_TRAP	0x02
+#define TO_CPU_CODE_POLICY_TRAP		0x03
+#define TO_CPU_CODE_ARP_MIRROR		0x04
+#define TO_CPU_CODE_POLICY_MIRROR	0x05
 
 static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -81,6 +87,8 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 				struct packet_type *pt)
 {
 	u8 *edsa_header;
+	int frame_type;
+	int code;
 	int source_device;
 	int source_port;
 
@@ -95,8 +103,29 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	/*
 	 * Check that frame type is either TO_CPU or FORWARD.
 	 */
-	if ((edsa_header[0] & 0xc0) != 0x00 && (edsa_header[0] & 0xc0) != 0xc0)
+	frame_type = edsa_header[0] >> 6;
+
+	switch (frame_type) {
+	case FRAME_TYPE_TO_CPU:
+		code = (edsa_header[1] & 0x6) | ((edsa_header[2] >> 4) & 1);
+
+		/*
+		 * Mark the frame to never egress on any port of the same switch
+		 * unless it's a trapped IGMP/MLD packet, in which case the
+		 * bridge might want to forward it.
+		 */
+		if (code != TO_CPU_CODE_IGMP_MLD_TRAP)
+			skb->offload_fwd_mark = 1;
+
+		break;
+
+	case FRAME_TYPE_FORWARD:
+		skb->offload_fwd_mark = 1;
+		break;
+
+	default:
 		return NULL;
+	}
 
 	/*
 	 * Determine source device and port.
@@ -160,12 +189,18 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 			2 * ETH_ALEN);
 	}
 
-	skb->offload_fwd_mark = 1;
-
 	return skb;
 }
 
-const struct dsa_device_ops edsa_netdev_ops = {
+static const struct dsa_device_ops edsa_netdev_ops = {
+	.name	= "edsa",
+	.proto	= DSA_TAG_PROTO_EDSA,
 	.xmit	= edsa_xmit,
 	.rcv	= edsa_rcv,
+	.overhead = EDSA_HLEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_EDSA);
+
+module_dsa_tag_driver(edsa_netdev_ops);

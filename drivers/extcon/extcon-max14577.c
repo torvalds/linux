@@ -1,20 +1,10 @@
-/*
- * extcon-max14577.c - MAX14577/77836 extcon driver to support MUIC
- *
- * Copyright (C) 2013,2014 Samsung Electronics
- * Chanwoo Choi <cw00.choi@samsung.com>
- * Krzysztof Kozlowski <krzk@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// extcon-max14577.c - MAX14577/77836 extcon driver to support MUIC
+//
+// Copyright (C) 2013,2014 Samsung Electronics
+// Chanwoo Choi <cw00.choi@samsung.com>
+// Krzysztof Kozlowski <krzk@kernel.org>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -667,6 +657,8 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	struct max14577 *max14577 = dev_get_drvdata(pdev->dev.parent);
 	struct max14577_muic_info *info;
 	int delay_jiffies;
+	int cable_type;
+	bool attached;
 	int ret;
 	int i;
 	u8 id;
@@ -721,7 +713,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 					      max14577_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
-		return -ENOMEM;
+		return PTR_ERR(info->edev);
 	}
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
@@ -735,8 +727,17 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	info->path_uart = CTRL1_SW_UART;
 	delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
 
-	/* Set initial path for UART */
-	max14577_muic_set_path(info, info->path_uart, true);
+	/* Set initial path for UART when JIG is connected to get serial logs */
+	ret = max14577_bulk_read(info->max14577->regmap,
+			MAX14577_MUIC_REG_STATUS1, info->status, 2);
+	if (ret) {
+		dev_err(info->dev, "Cannot read STATUS registers\n");
+		return ret;
+	}
+	cable_type = max14577_muic_get_cable_type(info, MAX14577_CABLE_GROUP_ADC,
+					 &attached);
+	if (attached && cable_type == MAX14577_MUIC_ADC_FACTORY_MODE_UART_OFF)
+		max14577_muic_set_path(info, info->path_uart, true);
 
 	/* Check revision number of MUIC device*/
 	ret = max14577_read_reg(info->max14577->regmap,
@@ -781,9 +782,19 @@ static const struct platform_device_id max14577_muic_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, max14577_muic_id);
 
+static const struct of_device_id of_max14577_muic_dt_match[] = {
+	{ .compatible = "maxim,max14577-muic",
+	  .data = (void *)MAXIM_DEVICE_TYPE_MAX14577, },
+	{ .compatible = "maxim,max77836-muic",
+	  .data = (void *)MAXIM_DEVICE_TYPE_MAX77836, },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_max14577_muic_dt_match);
+
 static struct platform_driver max14577_muic_driver = {
 	.driver		= {
 		.name	= "max14577-muic",
+		.of_match_table = of_max14577_muic_dt_match,
 	},
 	.probe		= max14577_muic_probe,
 	.remove		= max14577_muic_remove,

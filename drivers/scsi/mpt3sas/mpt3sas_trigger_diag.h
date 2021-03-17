@@ -69,7 +69,7 @@
 #define MASTER_TRIGGER_TASK_MANAGMENT   (0x00000004)
 #define MASTER_TRIGGER_DEVICE_REMOVAL   (0x00000008)
 
-/* fake firmware event for tigger */
+/* fake firmware event for trigger */
 #define MPI3_EVENT_DIAGNOSTIC_TRIGGER_FIRED	(0x6E)
 
 /**

@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright Novell Inc 2010
  *
@@ -180,7 +169,7 @@ static void kvmppc_inject_pf(struct kvm_vcpu *vcpu, ulong eaddr, bool is_store)
 	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE);
 }
 
-static int kvmppc_emulate_fpr_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
+static int kvmppc_emulate_fpr_load(struct kvm_vcpu *vcpu,
 				   int rs, ulong addr, int ls_type)
 {
 	int emulated = EMULATE_FAIL;
@@ -199,7 +188,7 @@ static int kvmppc_emulate_fpr_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_inject_pf(vcpu, addr, false);
 		goto done_load;
 	} else if (r == EMULATE_DO_MMIO) {
-		emulated = kvmppc_handle_load(run, vcpu, KVM_MMIO_REG_FPR | rs,
+		emulated = kvmppc_handle_load(vcpu, KVM_MMIO_REG_FPR | rs,
 					      len, 1);
 		goto done_load;
 	}
@@ -224,7 +213,7 @@ done_load:
 	return emulated;
 }
 
-static int kvmppc_emulate_fpr_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
+static int kvmppc_emulate_fpr_store(struct kvm_vcpu *vcpu,
 				    int rs, ulong addr, int ls_type)
 {
 	int emulated = EMULATE_FAIL;
@@ -259,7 +248,7 @@ static int kvmppc_emulate_fpr_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	if (r < 0) {
 		kvmppc_inject_pf(vcpu, addr, true);
 	} else if (r == EMULATE_DO_MMIO) {
-		emulated = kvmppc_handle_store(run, vcpu, val, len, 1);
+		emulated = kvmppc_handle_store(vcpu, val, len, 1);
 	} else {
 		emulated = EMULATE_DONE;
 	}
@@ -270,7 +259,7 @@ static int kvmppc_emulate_fpr_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return emulated;
 }
 
-static int kvmppc_emulate_psq_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
+static int kvmppc_emulate_psq_load(struct kvm_vcpu *vcpu,
 				   int rs, ulong addr, bool w, int i)
 {
 	int emulated = EMULATE_FAIL;
@@ -290,12 +279,12 @@ static int kvmppc_emulate_psq_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_inject_pf(vcpu, addr, false);
 		goto done_load;
 	} else if ((r == EMULATE_DO_MMIO) && w) {
-		emulated = kvmppc_handle_load(run, vcpu, KVM_MMIO_REG_FPR | rs,
+		emulated = kvmppc_handle_load(vcpu, KVM_MMIO_REG_FPR | rs,
 					      4, 1);
 		vcpu->arch.qpr[rs] = tmp[1];
 		goto done_load;
 	} else if (r == EMULATE_DO_MMIO) {
-		emulated = kvmppc_handle_load(run, vcpu, KVM_MMIO_REG_FQPR | rs,
+		emulated = kvmppc_handle_load(vcpu, KVM_MMIO_REG_FQPR | rs,
 					      8, 1);
 		goto done_load;
 	}
@@ -313,7 +302,7 @@ done_load:
 	return emulated;
 }
 
-static int kvmppc_emulate_psq_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
+static int kvmppc_emulate_psq_store(struct kvm_vcpu *vcpu,
 				    int rs, ulong addr, bool w, int i)
 {
 	int emulated = EMULATE_FAIL;
@@ -329,10 +318,10 @@ static int kvmppc_emulate_psq_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	if (r < 0) {
 		kvmppc_inject_pf(vcpu, addr, true);
 	} else if ((r == EMULATE_DO_MMIO) && w) {
-		emulated = kvmppc_handle_store(run, vcpu, tmp[0], 4, 1);
+		emulated = kvmppc_handle_store(vcpu, tmp[0], 4, 1);
 	} else if (r == EMULATE_DO_MMIO) {
 		u64 val = ((u64)tmp[0] << 32) | tmp[1];
-		emulated = kvmppc_handle_store(run, vcpu, val, 8, 1);
+		emulated = kvmppc_handle_store(vcpu, val, 8, 1);
 	} else {
 		emulated = EMULATE_DONE;
 	}
@@ -629,7 +618,7 @@ static int kvmppc_ps_one_in(struct kvm_vcpu *vcpu, bool rc,
 	return EMULATE_DONE;
 }
 
-int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
+int kvmppc_emulate_paired_single(struct kvm_vcpu *vcpu)
 {
 	u32 inst;
 	enum emulation_result emulated = EMULATE_DONE;
@@ -691,7 +680,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		int i = inst_get_field(inst, 17, 19);
 
 		addr += get_d_signext(inst);
-		emulated = kvmppc_emulate_psq_load(run, vcpu, ax_rd, addr, w, i);
+		emulated = kvmppc_emulate_psq_load(vcpu, ax_rd, addr, w, i);
 		break;
 	}
 	case OP_PSQ_LU:
@@ -701,7 +690,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		int i = inst_get_field(inst, 17, 19);
 
 		addr += get_d_signext(inst);
-		emulated = kvmppc_emulate_psq_load(run, vcpu, ax_rd, addr, w, i);
+		emulated = kvmppc_emulate_psq_load(vcpu, ax_rd, addr, w, i);
 
 		if (emulated == EMULATE_DONE)
 			kvmppc_set_gpr(vcpu, ax_ra, addr);
@@ -714,7 +703,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		int i = inst_get_field(inst, 17, 19);
 
 		addr += get_d_signext(inst);
-		emulated = kvmppc_emulate_psq_store(run, vcpu, ax_rd, addr, w, i);
+		emulated = kvmppc_emulate_psq_store(vcpu, ax_rd, addr, w, i);
 		break;
 	}
 	case OP_PSQ_STU:
@@ -724,7 +713,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		int i = inst_get_field(inst, 17, 19);
 
 		addr += get_d_signext(inst);
-		emulated = kvmppc_emulate_psq_store(run, vcpu, ax_rd, addr, w, i);
+		emulated = kvmppc_emulate_psq_store(vcpu, ax_rd, addr, w, i);
 
 		if (emulated == EMULATE_DONE)
 			kvmppc_set_gpr(vcpu, ax_ra, addr);
@@ -744,7 +733,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			int i = inst_get_field(inst, 22, 24);
 
 			addr += kvmppc_get_gpr(vcpu, ax_rb);
-			emulated = kvmppc_emulate_psq_load(run, vcpu, ax_rd, addr, w, i);
+			emulated = kvmppc_emulate_psq_load(vcpu, ax_rd, addr, w, i);
 			break;
 		}
 		case OP_4X_PS_CMPO0:
@@ -758,7 +747,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			int i = inst_get_field(inst, 22, 24);
 
 			addr += kvmppc_get_gpr(vcpu, ax_rb);
-			emulated = kvmppc_emulate_psq_load(run, vcpu, ax_rd, addr, w, i);
+			emulated = kvmppc_emulate_psq_load(vcpu, ax_rd, addr, w, i);
 
 			if (emulated == EMULATE_DONE)
 				kvmppc_set_gpr(vcpu, ax_ra, addr);
@@ -835,7 +824,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			int i = inst_get_field(inst, 22, 24);
 
 			addr += kvmppc_get_gpr(vcpu, ax_rb);
-			emulated = kvmppc_emulate_psq_store(run, vcpu, ax_rd, addr, w, i);
+			emulated = kvmppc_emulate_psq_store(vcpu, ax_rd, addr, w, i);
 			break;
 		}
 		case OP_4XW_PSQ_STUX:
@@ -845,7 +834,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			int i = inst_get_field(inst, 22, 24);
 
 			addr += kvmppc_get_gpr(vcpu, ax_rb);
-			emulated = kvmppc_emulate_psq_store(run, vcpu, ax_rd, addr, w, i);
+			emulated = kvmppc_emulate_psq_store(vcpu, ax_rd, addr, w, i);
 
 			if (emulated == EMULATE_DONE)
 				kvmppc_set_gpr(vcpu, ax_ra, addr);
@@ -933,7 +922,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		ulong addr = (ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0) + full_d;
 
-		emulated = kvmppc_emulate_fpr_load(run, vcpu, ax_rd, addr,
+		emulated = kvmppc_emulate_fpr_load(vcpu, ax_rd, addr,
 						   FPU_LS_SINGLE);
 		break;
 	}
@@ -941,7 +930,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		ulong addr = kvmppc_get_gpr(vcpu, ax_ra) + full_d;
 
-		emulated = kvmppc_emulate_fpr_load(run, vcpu, ax_rd, addr,
+		emulated = kvmppc_emulate_fpr_load(vcpu, ax_rd, addr,
 						   FPU_LS_SINGLE);
 
 		if (emulated == EMULATE_DONE)
@@ -952,7 +941,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		ulong addr = (ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0) + full_d;
 
-		emulated = kvmppc_emulate_fpr_load(run, vcpu, ax_rd, addr,
+		emulated = kvmppc_emulate_fpr_load(vcpu, ax_rd, addr,
 						   FPU_LS_DOUBLE);
 		break;
 	}
@@ -960,7 +949,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		ulong addr = kvmppc_get_gpr(vcpu, ax_ra) + full_d;
 
-		emulated = kvmppc_emulate_fpr_load(run, vcpu, ax_rd, addr,
+		emulated = kvmppc_emulate_fpr_load(vcpu, ax_rd, addr,
 						   FPU_LS_DOUBLE);
 
 		if (emulated == EMULATE_DONE)
@@ -971,7 +960,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		ulong addr = (ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0) + full_d;
 
-		emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd, addr,
+		emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd, addr,
 						    FPU_LS_SINGLE);
 		break;
 	}
@@ -979,7 +968,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		ulong addr = kvmppc_get_gpr(vcpu, ax_ra) + full_d;
 
-		emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd, addr,
+		emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd, addr,
 						    FPU_LS_SINGLE);
 
 		if (emulated == EMULATE_DONE)
@@ -990,7 +979,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		ulong addr = (ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0) + full_d;
 
-		emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd, addr,
+		emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd, addr,
 						    FPU_LS_DOUBLE);
 		break;
 	}
@@ -998,7 +987,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		ulong addr = kvmppc_get_gpr(vcpu, ax_ra) + full_d;
 
-		emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd, addr,
+		emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd, addr,
 						    FPU_LS_DOUBLE);
 
 		if (emulated == EMULATE_DONE)
@@ -1012,7 +1001,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0;
 
 			addr += kvmppc_get_gpr(vcpu, ax_rb);
-			emulated = kvmppc_emulate_fpr_load(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_load(vcpu, ax_rd,
 							   addr, FPU_LS_SINGLE);
 			break;
 		}
@@ -1021,7 +1010,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = kvmppc_get_gpr(vcpu, ax_ra) +
 				     kvmppc_get_gpr(vcpu, ax_rb);
 
-			emulated = kvmppc_emulate_fpr_load(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_load(vcpu, ax_rd,
 							   addr, FPU_LS_SINGLE);
 
 			if (emulated == EMULATE_DONE)
@@ -1033,7 +1022,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = (ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0) +
 				     kvmppc_get_gpr(vcpu, ax_rb);
 
-			emulated = kvmppc_emulate_fpr_load(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_load(vcpu, ax_rd,
 							   addr, FPU_LS_DOUBLE);
 			break;
 		}
@@ -1042,7 +1031,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = kvmppc_get_gpr(vcpu, ax_ra) +
 				     kvmppc_get_gpr(vcpu, ax_rb);
 
-			emulated = kvmppc_emulate_fpr_load(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_load(vcpu, ax_rd,
 							   addr, FPU_LS_DOUBLE);
 
 			if (emulated == EMULATE_DONE)
@@ -1054,7 +1043,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = (ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0) +
 				     kvmppc_get_gpr(vcpu, ax_rb);
 
-			emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd,
 							    addr, FPU_LS_SINGLE);
 			break;
 		}
@@ -1063,7 +1052,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = kvmppc_get_gpr(vcpu, ax_ra) +
 				     kvmppc_get_gpr(vcpu, ax_rb);
 
-			emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd,
 							    addr, FPU_LS_SINGLE);
 
 			if (emulated == EMULATE_DONE)
@@ -1075,7 +1064,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = (ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0) +
 				     kvmppc_get_gpr(vcpu, ax_rb);
 
-			emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd,
 							    addr, FPU_LS_DOUBLE);
 			break;
 		}
@@ -1084,7 +1073,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = kvmppc_get_gpr(vcpu, ax_ra) +
 				     kvmppc_get_gpr(vcpu, ax_rb);
 
-			emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd,
 							    addr, FPU_LS_DOUBLE);
 
 			if (emulated == EMULATE_DONE)
@@ -1096,7 +1085,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ulong addr = (ax_ra ? kvmppc_get_gpr(vcpu, ax_ra) : 0) +
 				     kvmppc_get_gpr(vcpu, ax_rb);
 
-			emulated = kvmppc_emulate_fpr_store(run, vcpu, ax_rd,
+			emulated = kvmppc_emulate_fpr_store(vcpu, ax_rd,
 							    addr,
 							    FPU_LS_SINGLE_LOW);
 			break;

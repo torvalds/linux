@@ -5,20 +5,16 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
-#include "xfs_ialloc.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
@@ -56,7 +52,7 @@ xfs_mode_to_ftype(
  * ASCII case-insensitive (ie. A-Z) support for directories that was
  * used in IRIX.
  */
-STATIC xfs_dahash_t
+xfs_dahash_t
 xfs_ascii_ci_hashname(
 	struct xfs_name	*name)
 {
@@ -69,14 +65,14 @@ xfs_ascii_ci_hashname(
 	return hash;
 }
 
-STATIC enum xfs_dacmp
+enum xfs_dacmp
 xfs_ascii_ci_compname(
-	struct xfs_da_args *args,
-	const unsigned char *name,
-	int		len)
+	struct xfs_da_args	*args,
+	const unsigned char	*name,
+	int			len)
 {
-	enum xfs_dacmp	result;
-	int		i;
+	enum xfs_dacmp		result;
+	int			i;
 
 	if (args->namelen != len)
 		return XFS_CMP_DIFFERENT;
@@ -93,30 +89,20 @@ xfs_ascii_ci_compname(
 	return result;
 }
 
-static const struct xfs_nameops xfs_ascii_ci_nameops = {
-	.hashname	= xfs_ascii_ci_hashname,
-	.compname	= xfs_ascii_ci_compname,
-};
-
 int
 xfs_da_mount(
 	struct xfs_mount	*mp)
 {
 	struct xfs_da_geometry	*dageo;
-	int			nodehdr_size;
 
 
 	ASSERT(mp->m_sb.sb_versionnum & XFS_SB_VERSION_DIRV2BIT);
 	ASSERT(xfs_dir2_dirblock_bytes(&mp->m_sb) <= XFS_MAX_BLOCKSIZE);
 
-	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
-	mp->m_nondir_inode_ops = xfs_nondir_get_ops(mp, NULL);
-
-	nodehdr_size = mp->m_dir_inode_ops->node_hdr_size;
 	mp->m_dir_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
-				    KM_SLEEP | KM_MAYFAIL);
+				    KM_MAYFAIL);
 	mp->m_attr_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
-				     KM_SLEEP | KM_MAYFAIL);
+				     KM_MAYFAIL);
 	if (!mp->m_dir_geo || !mp->m_attr_geo) {
 		kmem_free(mp->m_dir_geo);
 		kmem_free(mp->m_attr_geo);
@@ -129,6 +115,27 @@ xfs_da_mount(
 	dageo->fsblog = mp->m_sb.sb_blocklog;
 	dageo->blksize = xfs_dir2_dirblock_bytes(&mp->m_sb);
 	dageo->fsbcount = 1 << mp->m_sb.sb_dirblklog;
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		dageo->node_hdr_size = sizeof(struct xfs_da3_node_hdr);
+		dageo->leaf_hdr_size = sizeof(struct xfs_dir3_leaf_hdr);
+		dageo->free_hdr_size = sizeof(struct xfs_dir3_free_hdr);
+		dageo->data_entry_offset =
+				sizeof(struct xfs_dir3_data_hdr);
+	} else {
+		dageo->node_hdr_size = sizeof(struct xfs_da_node_hdr);
+		dageo->leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr);
+		dageo->free_hdr_size = sizeof(struct xfs_dir2_free_hdr);
+		dageo->data_entry_offset =
+				sizeof(struct xfs_dir2_data_hdr);
+	}
+	dageo->leaf_max_ents = (dageo->blksize - dageo->leaf_hdr_size) /
+			sizeof(struct xfs_dir2_leaf_entry);
+	dageo->free_max_bests = (dageo->blksize - dageo->free_hdr_size) /
+			sizeof(xfs_dir2_data_off_t);
+
+	dageo->data_first_offset = dageo->data_entry_offset +
+			xfs_dir2_data_entsize(mp, 1) +
+			xfs_dir2_data_entsize(mp, 2);
 
 	/*
 	 * Now we've set up the block conversion variables, we can calculate the
@@ -137,7 +144,7 @@ xfs_da_mount(
 	dageo->datablk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_DATA_OFFSET);
 	dageo->leafblk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_LEAF_OFFSET);
 	dageo->freeblk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_FREE_OFFSET);
-	dageo->node_ents = (dageo->blksize - nodehdr_size) /
+	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 
@@ -147,15 +154,10 @@ xfs_da_mount(
 	dageo->fsblog = mp->m_sb.sb_blocklog;
 	dageo->blksize = 1 << dageo->blklog;
 	dageo->fsbcount = 1;
-	dageo->node_ents = (dageo->blksize - nodehdr_size) /
+	dageo->node_hdr_size = mp->m_dir_geo->node_hdr_size;
+	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
 	dageo->magicpct = (dageo->blksize * 37) / 100;
-
-	if (xfs_sb_version_hasasciici(&mp->m_sb))
-		mp->m_dirnameops = &xfs_ascii_ci_nameops;
-	else
-		mp->m_dirnameops = &xfs_default_nameops;
-
 	return 0;
 }
 
@@ -195,10 +197,10 @@ xfs_dir_ino_validate(
 {
 	bool		ino_ok = xfs_verify_dir_ino(mp, ino);
 
-	if (unlikely(XFS_TEST_ERROR(!ino_ok, mp, XFS_ERRTAG_DIR_INO_VALIDATE))) {
+	if (XFS_IS_CORRUPT(mp, !ino_ok) ||
+	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_DIR_INO_VALIDATE)) {
 		xfs_warn(mp, "Invalid inode number 0x%Lx",
 				(unsigned long long) ino);
-		XFS_ERROR_REPORT("xfs_dir_ino_validate", XFS_ERRLEVEL_LOW, mp);
 		return -EFSCORRUPTED;
 	}
 	return 0;
@@ -221,7 +223,7 @@ xfs_dir_init(
 	if (error)
 		return error;
 
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	if (!args)
 		return -ENOMEM;
 
@@ -258,7 +260,7 @@ xfs_dir_createname(
 		XFS_STATS_INC(dp->i_mount, xs_dir_create);
 	}
 
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	if (!args)
 		return -ENOMEM;
 
@@ -266,7 +268,7 @@ xfs_dir_createname(
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;
-	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
+	args->hashval = xfs_dir2_hashname(dp->i_mount, name);
 	args->inumber = inum;
 	args->dp = dp;
 	args->total = total;
@@ -276,7 +278,7 @@ xfs_dir_createname(
 	if (!inum)
 		args->op_flags |= XFS_DA_OP_JUSTCHECK;
 
-	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
+	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_addname(args);
 		goto out_free;
 	}
@@ -357,12 +359,12 @@ xfs_dir_lookup(
 	 * lockdep Doing this avoids having to add a bunch of lockdep class
 	 * annotations into the reclaim path for the ilock.
 	 */
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;
-	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
+	args->hashval = xfs_dir2_hashname(dp->i_mount, name);
 	args->dp = dp;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
@@ -371,7 +373,7 @@ xfs_dir_lookup(
 		args->op_flags |= XFS_DA_OP_CILOOKUP;
 
 	lock_mode = xfs_ilock_data_map_shared(dp);
-	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
+	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_lookup(args);
 		goto out_check_rval;
 	}
@@ -426,7 +428,7 @@ xfs_dir_removename(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	XFS_STATS_INC(dp->i_mount, xs_dir_remove);
 
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	if (!args)
 		return -ENOMEM;
 
@@ -434,14 +436,14 @@ xfs_dir_removename(
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;
-	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
+	args->hashval = xfs_dir2_hashname(dp->i_mount, name);
 	args->inumber = ino;
 	args->dp = dp;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
 
-	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
+	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_removename(args);
 		goto out_free;
 	}
@@ -487,7 +489,7 @@ xfs_dir_replace(
 	if (rval)
 		return rval;
 
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	if (!args)
 		return -ENOMEM;
 
@@ -495,14 +497,14 @@ xfs_dir_replace(
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;
-	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
+	args->hashval = xfs_dir2_hashname(dp->i_mount, name);
 	args->inumber = inum;
 	args->dp = dp;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
 
-	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
+	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_replace(args);
 		goto out_free;
 	}
@@ -604,7 +606,9 @@ xfs_dir2_isblock(
 	if ((rval = xfs_bmap_last_offset(args->dp, &last, XFS_DATA_FORK)))
 		return rval;
 	rval = XFS_FSB_TO_B(args->dp->i_mount, last) == args->geo->blksize;
-	if (rval != 0 && args->dp->i_d.di_size != args->geo->blksize)
+	if (XFS_IS_CORRUPT(args->dp->i_mount,
+			   rval != 0 &&
+			   args->dp->i_d.di_size != args->geo->blksize))
 		return -EFSCORRUPTED;
 	*vp = rval;
 	return 0;
@@ -702,4 +706,42 @@ xfs_dir2_shrink_inode(
 	dp->i_d.di_size = XFS_FSB_TO_B(mp, bno);
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 	return 0;
+}
+
+/* Returns true if the directory entry name is valid. */
+bool
+xfs_dir2_namecheck(
+	const void	*name,
+	size_t		length)
+{
+	/*
+	 * MAXNAMELEN includes the trailing null, but (name/length) leave it
+	 * out, so use >= for the length check.
+	 */
+	if (length >= MAXNAMELEN)
+		return false;
+
+	/* There shouldn't be any slashes or nulls here */
+	return !memchr(name, '/', length) && !memchr(name, 0, length);
+}
+
+xfs_dahash_t
+xfs_dir2_hashname(
+	struct xfs_mount	*mp,
+	struct xfs_name		*name)
+{
+	if (unlikely(xfs_sb_version_hasasciici(&mp->m_sb)))
+		return xfs_ascii_ci_hashname(name);
+	return xfs_da_hashname(name->name, name->len);
+}
+
+enum xfs_dacmp
+xfs_dir2_compname(
+	struct xfs_da_args	*args,
+	const unsigned char	*name,
+	int			len)
+{
+	if (unlikely(xfs_sb_version_hasasciici(&args->dp->i_mount->m_sb)))
+		return xfs_ascii_ci_compname(args, name, len);
+	return xfs_da_compname(args, name, len);
 }

@@ -14,33 +14,47 @@ available subsections can be seen below.
 .. toctree::
    :maxdepth: 2
 
+   driver-model/index
    basics
    infrastructure
+   ioctl
+   early-userspace/index
    pm/index
    clk
    device-io
-   device_connection
    dma-buf
    device_link
+   component
    message-based
-   sound
+   infiniband
    frame-buffer
    regulator
    iio/index
    input
    usb/index
-   pci
+   firewire
+   pci/index
    spi
    i2c
+   ipmb
+   ipmi
+   i3c/index
+   interconnect
+   devfreq
    hsi
    edac
    scsi
    libata
    target
+   mailbox
    mtdnand
    miscellaneous
+   mei/index
+   mtd/index
+   mmc/index
+   nvdimm/index
    w1
-   rapidio
+   rapidio/index
    s390-drivers
    vme
    80211/index
@@ -48,11 +62,48 @@ available subsections can be seen below.
    firmware/index
    pinctl
    gpio/index
+   md/index
+   media/index
    misc_devices
+   nfc/index
    dmaengine/index
    slimbus
    soundwire/index
+   thermal/index
    fpga/index
+   acpi/index
+   backlight/lp855x-driver.rst
+   connector
+   console
+   dcdbas
+   eisa
+   isa
+   isapnp
+   io-mapping
+   io_ordering
+   generic-counter
+   lightnvm-pblk
+   memory-devices/index
+   men-chameleon-bus
+   ntb
+   nvmem
+   parport-lowlevel
+   pps
+   ptp
+   phy/index
+   pti_intel_mid
+   pwm
+   pldmfw/index
+   rfkill
+   serial/index
+   sm501
+   switchtec
+   sync_file
+   vfio-mediated-device
+   vfio
+   xilinx/index
+   xillybus
+   zorro
 
 .. only::  subproject and html
 

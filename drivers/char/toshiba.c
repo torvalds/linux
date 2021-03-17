@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* toshiba.c -- Linux driver for accessing the SMM on Toshiba laptops
  *
  * Copyright (c) 1996-2001  Jonathan A. Buzzard (jonathan@buzzard.org.uk)
@@ -35,22 +36,11 @@
  *       *any* time. It is up to any program to be aware of this eventuality
  *       and take appropriate steps.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  * The information used to write this driver has been obtained by reverse
  * engineering the software supplied by Toshiba for their portable computers in
  * strict accordance with the European Council Directive 92/250/EEC on the legal
  * protection of computer programs, and it's implementation into English Law by
  * the Copyright (Computer Programs) Regulations 1992 (S.I. 1992 No.3233).
- *
  */
 
 #define TOSH_VERSION "1.11 26/9/2001"
@@ -70,8 +60,6 @@
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
 #include <linux/toshiba.h>
-
-#define TOSH_MINOR_DEV 181
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jonathan Buzzard <jonathan@buzzard.org.uk>");
@@ -383,7 +371,7 @@ static int tosh_get_machine_id(void __iomem *bios)
 		   value. This has been verified on a Satellite Pro 430CDT,
 		   Tecra 750CDT, Tecra 780DVD and Satellite 310CDT. */
 #if TOSH_DEBUG
-		printk("toshiba: debugging ID ebx=0x%04x\n", regs.ebx);
+		pr_debug("toshiba: debugging ID ebx=0x%04x\n", regs.ebx);
 #endif
 		bx = 0xe6f5;
 
@@ -427,7 +415,7 @@ static int tosh_probe(void)
 
 	for (i=0;i<7;i++) {
 		if (readb(bios+0xe010+i)!=signature[i]) {
-			printk("toshiba: not a supported Toshiba laptop\n");
+			pr_err("toshiba: not a supported Toshiba laptop\n");
 			iounmap(bios);
 			return -ENODEV;
 		}
@@ -443,7 +431,7 @@ static int tosh_probe(void)
 	/* if this is not a Toshiba laptop carry flag is set and ah=0x86 */
 
 	if ((flag==1) || ((regs.eax & 0xff00)==0x8600)) {
-		printk("toshiba: not a supported Toshiba laptop\n");
+		pr_err("toshiba: not a supported Toshiba laptop\n");
 		iounmap(bios);
 		return -ENODEV;
 	}
@@ -496,7 +484,7 @@ static int __init toshiba_init(void)
 	if (tosh_probe())
 		return -ENODEV;
 
-	printk(KERN_INFO "Toshiba System Management Mode driver v" TOSH_VERSION "\n");
+	pr_info("Toshiba System Management Mode driver v" TOSH_VERSION "\n");
 
 	/* set the port to use for Fn status if not specified as a parameter */
 	if (tosh_fn==0x00)

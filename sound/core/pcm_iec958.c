@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PCM DRM helpers
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License version 2 as
- *   published by the Free Software Foundation.
  */
 #include <linux/export.h>
 #include <linux/types.h>
@@ -106,7 +103,7 @@ EXPORT_SYMBOL(snd_pcm_create_iec958_consumer);
 
 /**
  * snd_pcm_create_iec958_consumer_hw_params - create IEC958 channel status
- * @hw_params: the hw_params instance for extracting rate and sample format
+ * @params: the hw_params instance for extracting rate and sample format
  * @cs: channel status buffer, at least four bytes
  * @len: length of channel status buffer
  *

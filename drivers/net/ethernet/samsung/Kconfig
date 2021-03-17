@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Samsung Ethernet device configuration
 #
@@ -5,12 +6,12 @@
 config NET_VENDOR_SAMSUNG
 	bool "Samsung Ethernet devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
 
 	  Note that the answer to this question does not directly affect
-	  the kernel: saying N will just case the configurator to skip all
+	  the kernel: saying N will just cause the configurator to skip all
 	  the questions about Samsung chipsets. If you say Y, you will be asked
 	  for your specific chipset/driver in the following questions.
 
@@ -22,7 +23,7 @@ config SXGBE_ETH
 	select PHYLIB
 	select CRC32
 	imply PTP_1588_CLOCK
-	---help---
+	help
 	  This is the driver for the SXGBE 10G Ethernet IP block found on
 	  Samsung platforms.
 

@@ -35,10 +35,9 @@
 
 #include <linux/compiler.h>
 #include <linux/page-flags.h>
-#include <linux/mm.h>
 
 #include <asm/intrinsics.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/io.h>
 #include <asm/extable.h>
 
@@ -48,11 +47,10 @@
 #define KERNEL_DS	((mm_segment_t) { ~0UL })		/* cf. access_ok() */
 #define USER_DS		((mm_segment_t) { TASK_SIZE-1 })	/* cf. access_ok() */
 
-#define get_ds()  (KERNEL_DS)
 #define get_fs()  (current_thread_info()->addr_limit)
 #define set_fs(x) (current_thread_info()->addr_limit = (x))
 
-#define segment_eq(a, b)	((a).seg == (b).seg)
+#define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
 
 /*
  * When accessing user memory, we need to make sure the entire area really is in
@@ -67,7 +65,7 @@ static inline int __access_ok(const void __user *p, unsigned long size)
 	return likely(addr <= seg) &&
 	 (seg == KERNEL_DS.seg || likely(REGION_OFFSET(addr) < RGN_MAP_LIMIT));
 }
-#define access_ok(type, addr, size)	__access_ok((addr), (size))
+#define access_ok(addr, size)	__access_ok((addr), (size))
 
 /*
  * These are the main single-value transfer routines.  They automatically

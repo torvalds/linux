@@ -51,12 +51,17 @@
 					      */
 #define CIFS_MOUNT_UID_FROM_ACL 0x2000000 /* try to get UID via special SID */
 #define CIFS_MOUNT_NO_HANDLE_CACHE 0x4000000 /* disable caching dir handles */
+#define CIFS_MOUNT_NO_DFS 0x8000000 /* disable DFS resolving */
+#define CIFS_MOUNT_MODE_FROM_SID 0x10000000 /* retrieve mode from special ACE */
+#define CIFS_MOUNT_RO_CACHE	0x20000000  /* assumes share will not change */
+#define CIFS_MOUNT_RW_CACHE	0x40000000  /* assumes only client accessing */
 
 struct cifs_sb_info {
 	struct rb_root tlink_tree;
 	spinlock_t tlink_tree_lock;
 	struct tcon_link *master_tlink;
 	struct nls_table *local_nls;
+	unsigned int bsize;
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned long actimeo; /* attribute cache timeout (jiffies) */
@@ -71,6 +76,20 @@ struct cifs_sb_info {
 	char   *mountdata; /* options received at mount time or via DFS refs */
 	struct delayed_work prune_tlinks;
 	struct rcu_head rcu;
+
+	/* only used when CIFS_MOUNT_USE_PREFIX_PATH is set */
 	char *prepath;
+
+	/*
+	 * Path initially provided by the mount call. We might connect
+	 * to something different via DFS but we want to keep it to do
+	 * failover properly.
+	 */
+	char *origin_fullpath; /* \\HOST\SHARE\[OPTIONAL PATH] */
+	/*
+	 * Indicate whether serverino option was turned off later
+	 * (cifs_autodisable_serverino) in order to match new mounts.
+	 */
+	bool mnt_cifs_serverino_autodisabled;
 };
 #endif				/* _CIFS_FS_SB_H */

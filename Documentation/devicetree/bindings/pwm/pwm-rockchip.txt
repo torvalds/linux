@@ -14,7 +14,7 @@ Required properties:
    - For newer hardware (rk3328 and future socs): specified by name
      - "pwm": This is used to derive the functional clock.
      - "pclk": This is the APB bus clock.
- - #pwm-cells: must be 2 (rk2928) or 3 (rk3288). See pwm.txt in this directory
+ - #pwm-cells: must be 2 (rk2928) or 3 (rk3288). See pwm.yaml in this directory
    for a description of the cell format.
 
 Example:

@@ -26,8 +26,12 @@
 #include <drm/drm.h>
 #include <linux/ioctl.h>
 
+/*
+ * - 1.1 - initial version
+ * - 1.3 - Add SMI events support
+ */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 1
+#define KFD_IOCTL_MINOR_VERSION 3
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -35,9 +39,10 @@ struct kfd_ioctl_get_version_args {
 };
 
 /* For kfd_ioctl_create_queue_args.queue_type. */
-#define KFD_IOC_QUEUE_TYPE_COMPUTE	0
-#define KFD_IOC_QUEUE_TYPE_SDMA		1
-#define KFD_IOC_QUEUE_TYPE_COMPUTE_AQL	2
+#define KFD_IOC_QUEUE_TYPE_COMPUTE		0x0
+#define KFD_IOC_QUEUE_TYPE_SDMA			0x1
+#define KFD_IOC_QUEUE_TYPE_COMPUTE_AQL		0x2
+#define KFD_IOC_QUEUE_TYPE_SDMA_XGMI		0x3
 
 #define KFD_MAX_QUEUE_PERCENTAGE	100
 #define KFD_MAX_QUEUE_PRIORITY		15
@@ -80,6 +85,14 @@ struct kfd_ioctl_set_cu_mask_args {
 	__u32 queue_id;		/* to KFD */
 	__u32 num_cu_mask;		/* to KFD */
 	__u64 cu_mask_ptr;		/* to KFD */
+};
+
+struct kfd_ioctl_get_queue_wave_state_args {
+	__u64 ctl_stack_address;	/* to KFD */
+	__u32 ctl_stack_used_size;	/* from KFD */
+	__u32 save_area_used_size;	/* from KFD */
+	__u32 queue_id;			/* to KFD */
+	__u32 pad;
 };
 
 /* For kfd_ioctl_set_memory_policy_args.default_policy and alternate_policy */
@@ -203,6 +216,11 @@ struct kfd_ioctl_dbg_wave_control_args {
 #define KFD_HW_EXCEPTION_GPU_HANG	0
 #define KFD_HW_EXCEPTION_ECC		1
 
+/* For kfd_hsa_memory_exception_data.ErrorType */
+#define KFD_MEM_ERR_NO_RAS		0
+#define KFD_MEM_ERR_SRAM_ECC		1
+#define KFD_MEM_ERR_POISON_CONSUMED	2
+#define KFD_MEM_ERR_GPU_HANG		3
 
 struct kfd_ioctl_create_event_args {
 	__u64 event_page_offset;	/* from KFD */
@@ -237,20 +255,25 @@ struct kfd_memory_exception_failure {
 	__u32 imprecise;	/* Can't determine the	exact fault address */
 };
 
-/* memory exception data*/
+/* memory exception data */
 struct kfd_hsa_memory_exception_data {
 	struct kfd_memory_exception_failure failure;
 	__u64 va;
 	__u32 gpu_id;
-	__u32 pad;
+	__u32 ErrorType; /* 0 = no RAS error,
+			  * 1 = ECC_SRAM,
+			  * 2 = Link_SYNFLOOD (poison),
+			  * 3 = GPU hang (not attributable to a specific cause),
+			  * other values reserved
+			  */
 };
 
 /* hw exception data */
 struct kfd_hsa_hw_exception_data {
-	uint32_t reset_type;
-	uint32_t reset_cause;
-	uint32_t memory_lost;
-	uint32_t gpu_id;
+	__u32 reset_type;
+	__u32 reset_cause;
+	__u32 memory_lost;
+	__u32 gpu_id;
 };
 
 /* Event data */
@@ -320,6 +343,7 @@ struct kfd_ioctl_acquire_vm_args {
 #define KFD_IOC_ALLOC_MEM_FLAGS_GTT		(1 << 1)
 #define KFD_IOC_ALLOC_MEM_FLAGS_USERPTR		(1 << 2)
 #define KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL	(1 << 3)
+#define KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP	(1 << 4)
 /* Allocation flags: attributes/access options */
 #define KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE	(1 << 31)
 #define KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE	(1 << 30)
@@ -388,6 +412,63 @@ struct kfd_ioctl_unmap_memory_from_gpu_args {
 	__u64 device_ids_array_ptr;	/* to KFD */
 	__u32 n_devices;		/* to KFD */
 	__u32 n_success;		/* to/from KFD */
+};
+
+/* Allocate GWS for specific queue
+ *
+ * @queue_id:    queue's id that GWS is allocated for
+ * @num_gws:     how many GWS to allocate
+ * @first_gws:   index of the first GWS allocated.
+ *               only support contiguous GWS allocation
+ */
+struct kfd_ioctl_alloc_queue_gws_args {
+	__u32 queue_id;		/* to KFD */
+	__u32 num_gws;		/* to KFD */
+	__u32 first_gws;	/* from KFD */
+	__u32 pad;
+};
+
+struct kfd_ioctl_get_dmabuf_info_args {
+	__u64 size;		/* from KFD */
+	__u64 metadata_ptr;	/* to KFD */
+	__u32 metadata_size;	/* to KFD (space allocated by user)
+				 * from KFD (actual metadata size)
+				 */
+	__u32 gpu_id;	/* from KFD */
+	__u32 flags;		/* from KFD (KFD_IOC_ALLOC_MEM_FLAGS) */
+	__u32 dmabuf_fd;	/* to KFD */
+};
+
+struct kfd_ioctl_import_dmabuf_args {
+	__u64 va_addr;	/* to KFD */
+	__u64 handle;	/* from KFD */
+	__u32 gpu_id;	/* to KFD */
+	__u32 dmabuf_fd;	/* to KFD */
+};
+
+/*
+ * KFD SMI(System Management Interface) events
+ */
+enum kfd_smi_event {
+	KFD_SMI_EVENT_NONE = 0, /* not used */
+	KFD_SMI_EVENT_VMFAULT = 1, /* event start counting at 1 */
+	KFD_SMI_EVENT_THERMAL_THROTTLE = 2,
+	KFD_SMI_EVENT_GPU_PRE_RESET = 3,
+	KFD_SMI_EVENT_GPU_POST_RESET = 4,
+};
+
+#define KFD_SMI_EVENT_MASK_FROM_INDEX(i) (1ULL << ((i) - 1))
+
+struct kfd_ioctl_smi_events_args {
+	__u32 gpuid;	/* to KFD */
+	__u32 anon_fd;	/* from KFD */
+};
+
+/* Register offset inside the remapped mmio page
+ */
+enum kfd_mmio_remap {
+	KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL = 0,
+	KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL = 4,
 };
 
 #define AMDKFD_IOCTL_BASE 'K'
@@ -475,7 +556,22 @@ struct kfd_ioctl_unmap_memory_from_gpu_args {
 #define AMDKFD_IOC_SET_CU_MASK		\
 		AMDKFD_IOW(0x1A, struct kfd_ioctl_set_cu_mask_args)
 
+#define AMDKFD_IOC_GET_QUEUE_WAVE_STATE		\
+		AMDKFD_IOWR(0x1B, struct kfd_ioctl_get_queue_wave_state_args)
+
+#define AMDKFD_IOC_GET_DMABUF_INFO		\
+		AMDKFD_IOWR(0x1C, struct kfd_ioctl_get_dmabuf_info_args)
+
+#define AMDKFD_IOC_IMPORT_DMABUF		\
+		AMDKFD_IOWR(0x1D, struct kfd_ioctl_import_dmabuf_args)
+
+#define AMDKFD_IOC_ALLOC_QUEUE_GWS		\
+		AMDKFD_IOWR(0x1E, struct kfd_ioctl_alloc_queue_gws_args)
+
+#define AMDKFD_IOC_SMI_EVENTS			\
+		AMDKFD_IOWR(0x1F, struct kfd_ioctl_smi_events_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x1B
+#define AMDKFD_COMMAND_END		0x20
 
 #endif

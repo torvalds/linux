@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config FSCACHE
 	tristate "General filesystem local caching manager"
@@ -7,7 +8,7 @@ config FSCACHE
 	  Different sorts of caches can be plugged in, depending on the
 	  resources available.
 
-	  See Documentation/filesystems/caching/fscache.txt for more information.
+	  See Documentation/filesystems/caching/fscache.rst for more information.
 
 config FSCACHE_STATS
 	bool "Gather statistical information on local caching"
@@ -24,7 +25,7 @@ config FSCACHE_STATS
 	  between CPUs.  On the other hand, the stats are very useful for
 	  debugging purposes.  Saying 'Y' here is recommended.
 
-	  See Documentation/filesystems/caching/fscache.txt for more information.
+	  See Documentation/filesystems/caching/fscache.rst for more information.
 
 config FSCACHE_HISTOGRAM
 	bool "Gather latency information on local caching"
@@ -41,7 +42,7 @@ config FSCACHE_HISTOGRAM
 	  bouncing between CPUs.  On the other hand, the histogram may be
 	  useful for debugging purposes.  Saying 'N' here is recommended.
 
-	  See Documentation/filesystems/caching/fscache.txt for more information.
+	  See Documentation/filesystems/caching/fscache.rst for more information.
 
 config FSCACHE_DEBUG
 	bool "Debug FS-Cache"
@@ -51,7 +52,7 @@ config FSCACHE_DEBUG
 	  management module.  If this is set, the debugging output may be
 	  enabled by setting bits in /sys/modules/fscache/parameter/debug.
 
-	  See Documentation/filesystems/caching/fscache.txt for more information.
+	  See Documentation/filesystems/caching/fscache.rst for more information.
 
 config FSCACHE_OBJECT_LIST
 	bool "Maintain global object list for debugging purposes"

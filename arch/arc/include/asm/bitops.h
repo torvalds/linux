@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _ASM_BITOPS_H
@@ -88,7 +85,7 @@ static inline int test_and_##op##_bit(unsigned long nr, volatile unsigned long *
 	return (old & (1 << nr)) != 0;					\
 }
 
-#elif !defined(CONFIG_ARC_PLAT_EZNPS)
+#else /* !CONFIG_ARC_HAS_LLSC */
 
 /*
  * Non hardware assisted Atomic-R-M-W
@@ -139,55 +136,7 @@ static inline int test_and_##op##_bit(unsigned long nr, volatile unsigned long *
 	return (old & (1UL << (nr & 0x1f))) != 0;			\
 }
 
-#else /* CONFIG_ARC_PLAT_EZNPS */
-
-#define BIT_OP(op, c_op, asm_op)					\
-static inline void op##_bit(unsigned long nr, volatile unsigned long *m)\
-{									\
-	m += nr >> 5;							\
-									\
-	nr = (1UL << (nr & 0x1f));					\
-	if (asm_op == CTOP_INST_AAND_DI_R2_R2_R3)			\
-		nr = ~nr;						\
-									\
-	__asm__ __volatile__(						\
-	"	mov r2, %0\n"						\
-	"	mov r3, %1\n"						\
-	"	.word %2\n"						\
-	:								\
-	: "r"(nr), "r"(m), "i"(asm_op)					\
-	: "r2", "r3", "memory");					\
-}
-
-#define TEST_N_BIT_OP(op, c_op, asm_op)					\
-static inline int test_and_##op##_bit(unsigned long nr, volatile unsigned long *m)\
-{									\
-	unsigned long old;						\
-									\
-	m += nr >> 5;							\
-									\
-	nr = old = (1UL << (nr & 0x1f));				\
-	if (asm_op == CTOP_INST_AAND_DI_R2_R2_R3)			\
-		old = ~old;						\
-									\
-	/* Explicit full memory barrier needed before/after */		\
-	smp_mb();							\
-									\
-	__asm__ __volatile__(						\
-	"	mov r2, %0\n"						\
-	"	mov r3, %1\n"						\
-	"       .word %2\n"						\
-	"	mov %0, r2"						\
-	: "+r"(old)							\
-	: "r"(m), "i"(asm_op)						\
-	: "r2", "r3", "memory");					\
-									\
-	smp_mb();							\
-									\
-	return (old & nr) != 0;					\
-}
-
-#endif /* CONFIG_ARC_PLAT_EZNPS */
+#endif
 
 /***************************************
  * Non atomic variants
@@ -229,15 +178,9 @@ static inline int __test_and_##op##_bit(unsigned long nr, volatile unsigned long
 	/* __test_and_set_bit(), __test_and_clear_bit(), __test_and_change_bit() */\
 	__TEST_N_BIT_OP(op, c_op, asm_op)
 
-#ifndef CONFIG_ARC_PLAT_EZNPS
 BIT_OPS(set, |, bset)
 BIT_OPS(clear, & ~, bclr)
 BIT_OPS(change, ^, bxor)
-#else
-BIT_OPS(set, |, CTOP_INST_AOR_DI_R2_R2_R3)
-BIT_OPS(clear, & ~, CTOP_INST_AAND_DI_R2_R2_R3)
-BIT_OPS(change, ^, CTOP_INST_AXOR_DI_R2_R2_R3)
-#endif
 
 /*
  * This routine doesn't need to be atomic.
@@ -278,7 +221,7 @@ static inline __attribute__ ((const)) int clz(unsigned int x)
 	return res;
 }
 
-static inline int constant_fls(int x)
+static inline int constant_fls(unsigned int x)
 {
 	int r = 32;
 
@@ -300,10 +243,8 @@ static inline int constant_fls(int x)
 		x <<= 2;
 		r -= 2;
 	}
-	if (!(x & 0x80000000u)) {
-		x <<= 1;
+	if (!(x & 0x80000000u))
 		r -= 1;
-	}
 	return r;
 }
 
@@ -312,7 +253,7 @@ static inline int constant_fls(int x)
  * @result: [1-32]
  * fls(1) = 1, fls(0x80000000) = 32, fls(0) = 0
  */
-static inline __attribute__ ((const)) int fls(unsigned long x)
+static inline __attribute__ ((const)) int fls(unsigned int x)
 {
 	if (__builtin_constant_p(x))
 	       return constant_fls(x);
@@ -340,7 +281,7 @@ static inline __attribute__ ((const)) int __fls(unsigned long x)
 /*
  * __ffs: Similar to ffs, but zero based (0-31)
  */
-static inline __attribute__ ((const)) int __ffs(unsigned long word)
+static inline __attribute__ ((const)) unsigned long __ffs(unsigned long word)
 {
 	if (!word)
 		return word;
@@ -400,9 +341,9 @@ static inline __attribute__ ((const)) int ffs(unsigned long x)
 /*
  * __ffs: Similar to ffs, but zero based (0-31)
  */
-static inline __attribute__ ((const)) int __ffs(unsigned long x)
+static inline __attribute__ ((const)) unsigned long __ffs(unsigned long x)
 {
-	int n;
+	unsigned long n;
 
 	asm volatile(
 	"	ffs.f	%0, %1		\n"  /* 0:31; 31(Z) if src 0 */

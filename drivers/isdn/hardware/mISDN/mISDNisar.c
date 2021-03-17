@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mISDNisar.c   ISAR (Siemens PSB 7110) specific functions
  *
  * Author Karsten Keil (keil@isdn4linux.de)
  *
  * Copyright 2009  by Karsten Keil <keil@isdn4linux.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 /* define this to enable static debug messages, if you kernel supports
@@ -40,7 +27,6 @@ MODULE_VERSION(ISAR_REV);
 
 #define DEBUG_HW_FIRMWARE_FIFO	0x10000
 
-static const u8 faxmodulation_s[] = "3,24,48,72,73,74,96,97,98,121,122,145,146";
 static const u8 faxmodulation[] = {3, 24, 48, 72, 73, 74, 96, 97, 98, 121,
 				   122, 145, 146};
 #define FAXMODCNT 13
@@ -235,7 +221,7 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 			goto reterror;
 		}
 		if (!poll_mbox(isar, 1000)) {
-			pr_warning("ISAR poll_mbox dkey failed\n");
+			pr_warn("ISAR poll_mbox dkey failed\n");
 			ret = -ETIME;
 			goto reterror;
 		}
@@ -445,8 +431,8 @@ isar_rcv_frame(struct isar_ch *ch)
 	case ISDN_P_B_MODEM_ASYNC:
 		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
 		if (maxlen < 0) {
-			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-				   ch->is->name, ch->bch.nr, ch->is->clsb);
+			pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+				ch->is->name, ch->bch.nr, ch->is->clsb);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			break;
 		}
@@ -456,8 +442,8 @@ isar_rcv_frame(struct isar_ch *ch)
 	case ISDN_P_B_HDLC:
 		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
 		if (maxlen < 0) {
-			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-				   ch->is->name, ch->bch.nr, ch->is->clsb);
+			pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+				ch->is->name, ch->bch.nr, ch->is->clsb);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			break;
 		}
@@ -703,8 +689,7 @@ send_next(struct isar_ch *ch)
 			}
 		}
 	}
-	if (ch->bch.tx_skb)
-		dev_kfree_skb(ch->bch.tx_skb);
+	dev_kfree_skb(ch->bch.tx_skb);
 	if (get_next_bframe(&ch->bch)) {
 		isar_fill_fifo(ch);
 		test_and_clear_bit(FLG_TX_EMPTY, &ch->bch.Flags);
@@ -758,10 +743,10 @@ check_send(struct isar_hw *isar, u8 rdm)
 	}
 }
 
-const char *dmril[] = {"NO SPEED", "1200/75", "NODEF2", "75/1200", "NODEF4",
+static const char *dmril[] = {"NO SPEED", "1200/75", "NODEF2", "75/1200", "NODEF4",
 		       "300", "600", "1200", "2400", "4800", "7200",
 		       "9600nt", "9600t", "12000", "14400", "WRONG"};
-const char *dmrim[] = {"NO MOD", "NO DEF", "V32/V32b", "V22", "V21",
+static const char *dmrim[] = {"NO MOD", "NO DEF", "V32/V32b", "V22", "V21",
 		       "Bell103", "V23", "Bell202", "V17", "V29", "V27ter"};
 
 static void
@@ -972,7 +957,7 @@ isar_pump_statev_fax(struct isar_ch *ch, u8 devt) {
 				break;
 			case PCTRL_CMD_FTM:
 				p1 = 2;
-				/* fall through */
+				fallthrough;
 			case PCTRL_CMD_FTH:
 				send_mbox(ch->is, dps | ISAR_HIS_PUMPCTRL,
 					  PCTRL_CMD_SILON, 1, &p1);
@@ -1178,7 +1163,7 @@ setup_pump(struct isar_ch *ch) {
 			send_mbox(ch->is, dps | ISAR_HIS_PUMPCFG,
 				  PMOD_DTMF, 1, param);
 		}
-		/* fall through */
+		fallthrough;
 	case ISDN_P_B_MODEM_ASYNC:
 		ctrl = PMOD_DATAMODEM;
 		if (test_bit(FLG_ORIGIN, &ch->bch.Flags)) {
@@ -1270,7 +1255,7 @@ setup_iom2(struct isar_ch *ch) {
 	case ISDN_P_B_MODEM_ASYNC:
 	case ISDN_P_B_T30_FAX:
 		cmsb |= IOM_CTRL_RCV;
-		/* fall through */
+		fallthrough;
 	case ISDN_P_B_L2DTMF:
 		if (test_bit(FLG_DTMFSEND, &ch->bch.Flags))
 			cmsb |= IOM_CTRL_RCV;
@@ -1563,7 +1548,7 @@ isar_l2l1(struct mISDNchannel *ch, struct sk_buff *skb)
 				ich->is->name, hh->id);
 			ret = -EINVAL;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		pr_info("%s: %s unknown prim(%x,%x)\n",
 			ich->is->name, __func__, hh->prim, hh->id);

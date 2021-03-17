@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008-2011, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Description: Data Center Bridging netlink interface
  * Author: Lucy Liu <lucy.liu@intel.com>
@@ -241,12 +230,13 @@ static int dcbnl_getpfccfg(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!netdev->dcbnl_ops->getpfccfg)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(data, DCB_PFC_UP_ATTR_MAX,
-			       tb[DCB_ATTR_PFC_CFG], dcbnl_pfc_up_nest, NULL);
+	ret = nla_parse_nested_deprecated(data, DCB_PFC_UP_ATTR_MAX,
+					  tb[DCB_ATTR_PFC_CFG],
+					  dcbnl_pfc_up_nest, NULL);
 	if (ret)
 		return ret;
 
-	nest = nla_nest_start(skb, DCB_ATTR_PFC_CFG);
+	nest = nla_nest_start_noflag(skb, DCB_ATTR_PFC_CFG);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -299,12 +289,13 @@ static int dcbnl_getcap(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!netdev->dcbnl_ops->getcap)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(data, DCB_CAP_ATTR_MAX, tb[DCB_ATTR_CAP],
-			       dcbnl_cap_nest, NULL);
+	ret = nla_parse_nested_deprecated(data, DCB_CAP_ATTR_MAX,
+					  tb[DCB_ATTR_CAP], dcbnl_cap_nest,
+					  NULL);
 	if (ret)
 		return ret;
 
-	nest = nla_nest_start(skb, DCB_ATTR_CAP);
+	nest = nla_nest_start_noflag(skb, DCB_ATTR_CAP);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -343,12 +334,13 @@ static int dcbnl_getnumtcs(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!netdev->dcbnl_ops->getnumtcs)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(data, DCB_NUMTCS_ATTR_MAX, tb[DCB_ATTR_NUMTCS],
-			       dcbnl_numtcs_nest, NULL);
+	ret = nla_parse_nested_deprecated(data, DCB_NUMTCS_ATTR_MAX,
+					  tb[DCB_ATTR_NUMTCS],
+					  dcbnl_numtcs_nest, NULL);
 	if (ret)
 		return ret;
 
-	nest = nla_nest_start(skb, DCB_ATTR_NUMTCS);
+	nest = nla_nest_start_noflag(skb, DCB_ATTR_NUMTCS);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -388,8 +380,9 @@ static int dcbnl_setnumtcs(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!netdev->dcbnl_ops->setnumtcs)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(data, DCB_NUMTCS_ATTR_MAX, tb[DCB_ATTR_NUMTCS],
-			       dcbnl_numtcs_nest, NULL);
+	ret = nla_parse_nested_deprecated(data, DCB_NUMTCS_ATTR_MAX,
+					  tb[DCB_ATTR_NUMTCS],
+					  dcbnl_numtcs_nest, NULL);
 	if (ret)
 		return ret;
 
@@ -447,8 +440,9 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!tb[DCB_ATTR_APP])
 		return -EINVAL;
 
-	ret = nla_parse_nested(app_tb, DCB_APP_ATTR_MAX, tb[DCB_ATTR_APP],
-			       dcbnl_app_nest, NULL);
+	ret = nla_parse_nested_deprecated(app_tb, DCB_APP_ATTR_MAX,
+					  tb[DCB_ATTR_APP], dcbnl_app_nest,
+					  NULL);
 	if (ret)
 		return ret;
 
@@ -479,7 +473,7 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlmsghdr *nlh,
 		up = dcb_getapp(netdev, &app);
 	}
 
-	app_nest = nla_nest_start(skb, DCB_ATTR_APP);
+	app_nest = nla_nest_start_noflag(skb, DCB_ATTR_APP);
 	if (!app_nest)
 		return -EMSGSIZE;
 
@@ -515,8 +509,9 @@ static int dcbnl_setapp(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!tb[DCB_ATTR_APP])
 		return -EINVAL;
 
-	ret = nla_parse_nested(app_tb, DCB_APP_ATTR_MAX, tb[DCB_ATTR_APP],
-			       dcbnl_app_nest, NULL);
+	ret = nla_parse_nested_deprecated(app_tb, DCB_APP_ATTR_MAX,
+					  tb[DCB_ATTR_APP], dcbnl_app_nest,
+					  NULL);
 	if (ret)
 		return ret;
 
@@ -573,12 +568,13 @@ static int __dcbnl_pg_getcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 	    !netdev->dcbnl_ops->getpgbwgcfgrx)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(pg_tb, DCB_PG_ATTR_MAX, tb[DCB_ATTR_PG_CFG],
-			       dcbnl_pg_nest, NULL);
+	ret = nla_parse_nested_deprecated(pg_tb, DCB_PG_ATTR_MAX,
+					  tb[DCB_ATTR_PG_CFG], dcbnl_pg_nest,
+					  NULL);
 	if (ret)
 		return ret;
 
-	pg_nest = nla_nest_start(skb, DCB_ATTR_PG_CFG);
+	pg_nest = nla_nest_start_noflag(skb, DCB_ATTR_PG_CFG);
 	if (!pg_nest)
 		return -EMSGSIZE;
 
@@ -593,12 +589,13 @@ static int __dcbnl_pg_getcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 			data = pg_tb[DCB_PG_ATTR_TC_ALL];
 		else
 			data = pg_tb[i];
-		ret = nla_parse_nested(param_tb, DCB_TC_ATTR_PARAM_MAX, data,
-				       dcbnl_tc_param_nest, NULL);
+		ret = nla_parse_nested_deprecated(param_tb,
+						  DCB_TC_ATTR_PARAM_MAX, data,
+						  dcbnl_tc_param_nest, NULL);
 		if (ret)
 			goto err_pg;
 
-		param_nest = nla_nest_start(skb, i);
+		param_nest = nla_nest_start_noflag(skb, i);
 		if (!param_nest)
 			goto err_pg;
 
@@ -730,8 +727,9 @@ static int dcbnl_setpfccfg(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!netdev->dcbnl_ops->setpfccfg)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(data, DCB_PFC_UP_ATTR_MAX,
-			       tb[DCB_ATTR_PFC_CFG], dcbnl_pfc_up_nest, NULL);
+	ret = nla_parse_nested_deprecated(data, DCB_PFC_UP_ATTR_MAX,
+					  tb[DCB_ATTR_PFC_CFG],
+					  dcbnl_pfc_up_nest, NULL);
 	if (ret)
 		return ret;
 
@@ -786,8 +784,9 @@ static int __dcbnl_pg_setcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 	    !netdev->dcbnl_ops->setpgbwgcfgrx)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(pg_tb, DCB_PG_ATTR_MAX, tb[DCB_ATTR_PG_CFG],
-			       dcbnl_pg_nest, NULL);
+	ret = nla_parse_nested_deprecated(pg_tb, DCB_PG_ATTR_MAX,
+					  tb[DCB_ATTR_PG_CFG], dcbnl_pg_nest,
+					  NULL);
 	if (ret)
 		return ret;
 
@@ -795,8 +794,10 @@ static int __dcbnl_pg_setcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 		if (!pg_tb[i])
 			continue;
 
-		ret = nla_parse_nested(param_tb, DCB_TC_ATTR_PARAM_MAX,
-				       pg_tb[i], dcbnl_tc_param_nest, NULL);
+		ret = nla_parse_nested_deprecated(param_tb,
+						  DCB_TC_ATTR_PARAM_MAX,
+						  pg_tb[i],
+						  dcbnl_tc_param_nest, NULL);
 		if (ret)
 			return ret;
 
@@ -884,12 +885,13 @@ static int dcbnl_bcn_getcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 	    !netdev->dcbnl_ops->getbcncfg)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(bcn_tb, DCB_BCN_ATTR_MAX, tb[DCB_ATTR_BCN],
-			       dcbnl_bcn_nest, NULL);
+	ret = nla_parse_nested_deprecated(bcn_tb, DCB_BCN_ATTR_MAX,
+					  tb[DCB_ATTR_BCN], dcbnl_bcn_nest,
+					  NULL);
 	if (ret)
 		return ret;
 
-	bcn_nest = nla_nest_start(skb, DCB_ATTR_BCN);
+	bcn_nest = nla_nest_start_noflag(skb, DCB_ATTR_BCN);
 	if (!bcn_nest)
 		return -EMSGSIZE;
 
@@ -943,8 +945,9 @@ static int dcbnl_bcn_setcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 	    !netdev->dcbnl_ops->setbcnrp)
 		return -EOPNOTSUPP;
 
-	ret = nla_parse_nested(data, DCB_BCN_ATTR_MAX, tb[DCB_ATTR_BCN],
-			       dcbnl_pfc_up_nest, NULL);
+	ret = nla_parse_nested_deprecated(data, DCB_BCN_ATTR_MAX,
+					  tb[DCB_ATTR_BCN], dcbnl_pfc_up_nest,
+					  NULL);
 	if (ret)
 		return ret;
 
@@ -1002,7 +1005,7 @@ static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb,
 		 */
 		err = -EMSGSIZE;
 
-		app = nla_nest_start(skb, app_nested_type);
+		app = nla_nest_start_noflag(skb, app_nested_type);
 		if (!app)
 			goto nla_put_failure;
 
@@ -1036,7 +1039,7 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 	if (nla_put_string(skb, DCB_ATTR_IFNAME, netdev->name))
 		return -EMSGSIZE;
 
-	ieee = nla_nest_start(skb, DCB_ATTR_IEEE);
+	ieee = nla_nest_start_noflag(skb, DCB_ATTR_IEEE);
 	if (!ieee)
 		return -EMSGSIZE;
 
@@ -1106,7 +1109,7 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 			return -EMSGSIZE;
 	}
 
-	app = nla_nest_start(skb, DCB_ATTR_IEEE_APP_TABLE);
+	app = nla_nest_start_noflag(skb, DCB_ATTR_IEEE_APP_TABLE);
 	if (!app)
 		return -EMSGSIZE;
 
@@ -1174,13 +1177,13 @@ static int dcbnl_cee_pg_fill(struct sk_buff *skb, struct net_device *dev,
 	u8 pgid, up_map, prio, tc_pct;
 	const struct dcbnl_rtnl_ops *ops = dev->dcbnl_ops;
 	int i = dir ? DCB_ATTR_CEE_TX_PG : DCB_ATTR_CEE_RX_PG;
-	struct nlattr *pg = nla_nest_start(skb, i);
+	struct nlattr *pg = nla_nest_start_noflag(skb, i);
 
 	if (!pg)
 		return -EMSGSIZE;
 
 	for (i = DCB_PG_ATTR_TC_0; i <= DCB_PG_ATTR_TC_7; i++) {
-		struct nlattr *tc_nest = nla_nest_start(skb, i);
+		struct nlattr *tc_nest = nla_nest_start_noflag(skb, i);
 
 		if (!tc_nest)
 			return -EMSGSIZE;
@@ -1231,7 +1234,7 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 
 	if (nla_put_string(skb, DCB_ATTR_IFNAME, netdev->name))
 		goto nla_put_failure;
-	cee = nla_nest_start(skb, DCB_ATTR_CEE);
+	cee = nla_nest_start_noflag(skb, DCB_ATTR_CEE);
 	if (!cee)
 		goto nla_put_failure;
 
@@ -1250,7 +1253,8 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 
 	/* local pfc */
 	if (ops->getpfccfg) {
-		struct nlattr *pfc_nest = nla_nest_start(skb, DCB_ATTR_CEE_PFC);
+		struct nlattr *pfc_nest = nla_nest_start_noflag(skb,
+								DCB_ATTR_CEE_PFC);
 
 		if (!pfc_nest)
 			goto nla_put_failure;
@@ -1265,14 +1269,14 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 
 	/* local app */
 	spin_lock_bh(&dcb_lock);
-	app = nla_nest_start(skb, DCB_ATTR_CEE_APP_TABLE);
+	app = nla_nest_start_noflag(skb, DCB_ATTR_CEE_APP_TABLE);
 	if (!app)
 		goto dcb_unlock;
 
 	list_for_each_entry(itr, &dcb_app_list, list) {
 		if (itr->ifindex == netdev->ifindex) {
-			struct nlattr *app_nest = nla_nest_start(skb,
-								 DCB_ATTR_APP);
+			struct nlattr *app_nest = nla_nest_start_noflag(skb,
+									DCB_ATTR_APP);
 			if (!app_nest)
 				goto dcb_unlock;
 
@@ -1305,7 +1309,8 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 
 	/* features flags */
 	if (ops->getfeatcfg) {
-		struct nlattr *feat = nla_nest_start(skb, DCB_ATTR_CEE_FEAT);
+		struct nlattr *feat = nla_nest_start_noflag(skb,
+							    DCB_ATTR_CEE_FEAT);
 		if (!feat)
 			goto nla_put_failure;
 
@@ -1421,6 +1426,7 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 {
 	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
 	struct nlattr *ieee[DCB_ATTR_IEEE_MAX + 1];
+	int prio;
 	int err;
 
 	if (!ops)
@@ -1429,8 +1435,9 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!tb[DCB_ATTR_IEEE])
 		return -EINVAL;
 
-	err = nla_parse_nested(ieee, DCB_ATTR_IEEE_MAX, tb[DCB_ATTR_IEEE],
-			       dcbnl_ieee_policy, NULL);
+	err = nla_parse_nested_deprecated(ieee, DCB_ATTR_IEEE_MAX,
+					  tb[DCB_ATTR_IEEE],
+					  dcbnl_ieee_policy, NULL);
 	if (err)
 		return err;
 
@@ -1468,6 +1475,13 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (ieee[DCB_ATTR_DCB_BUFFER] && ops->dcbnl_setbuffer) {
 		struct dcbnl_buffer *buffer =
 			nla_data(ieee[DCB_ATTR_DCB_BUFFER]);
+
+		for (prio = 0; prio < ARRAY_SIZE(buffer->prio2buffer); prio++) {
+			if (buffer->prio2buffer[prio] >= DCBX_MAX_BUFFERS) {
+				err = -EINVAL;
+				goto err;
+			}
+		}
 
 		err = ops->dcbnl_setbuffer(netdev, buffer);
 		if (err)
@@ -1529,8 +1543,9 @@ static int dcbnl_ieee_del(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!tb[DCB_ATTR_IEEE])
 		return -EINVAL;
 
-	err = nla_parse_nested(ieee, DCB_ATTR_IEEE_MAX, tb[DCB_ATTR_IEEE],
-			       dcbnl_ieee_policy, NULL);
+	err = nla_parse_nested_deprecated(ieee, DCB_ATTR_IEEE_MAX,
+					  tb[DCB_ATTR_IEEE],
+					  dcbnl_ieee_policy, NULL);
 	if (err)
 		return err;
 
@@ -1602,12 +1617,13 @@ static int dcbnl_getfeatcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!tb[DCB_ATTR_FEATCFG])
 		return -EINVAL;
 
-	ret = nla_parse_nested(data, DCB_FEATCFG_ATTR_MAX,
-			       tb[DCB_ATTR_FEATCFG], dcbnl_featcfg_nest, NULL);
+	ret = nla_parse_nested_deprecated(data, DCB_FEATCFG_ATTR_MAX,
+					  tb[DCB_ATTR_FEATCFG],
+					  dcbnl_featcfg_nest, NULL);
 	if (ret)
 		return ret;
 
-	nest = nla_nest_start(skb, DCB_ATTR_FEATCFG);
+	nest = nla_nest_start_noflag(skb, DCB_ATTR_FEATCFG);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -1646,8 +1662,9 @@ static int dcbnl_setfeatcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (!tb[DCB_ATTR_FEATCFG])
 		return -EINVAL;
 
-	ret = nla_parse_nested(data, DCB_FEATCFG_ATTR_MAX,
-			       tb[DCB_ATTR_FEATCFG], dcbnl_featcfg_nest, NULL);
+	ret = nla_parse_nested_deprecated(data, DCB_FEATCFG_ATTR_MAX,
+					  tb[DCB_ATTR_FEATCFG],
+					  dcbnl_featcfg_nest, NULL);
 
 	if (ret)
 		goto err;
@@ -1727,7 +1744,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *netdev;
 	struct dcbmsg *dcb = nlmsg_data(nlh);
 	struct nlattr *tb[DCB_ATTR_MAX + 1];
-	u32 portid = skb ? NETLINK_CB(skb).portid : 0;
+	u32 portid = NETLINK_CB(skb).portid;
 	int ret = -EINVAL;
 	struct sk_buff *reply_skb;
 	struct nlmsghdr *reply_nlh = NULL;
@@ -1736,8 +1753,8 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if ((nlh->nlmsg_type == RTM_SETDCB) && !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	ret = nlmsg_parse(nlh, sizeof(*dcb), tb, DCB_ATTR_MAX,
-			  dcbnl_rtnl_policy, extack);
+	ret = nlmsg_parse_deprecated(nlh, sizeof(*dcb), tb, DCB_ATTR_MAX,
+				     dcbnl_rtnl_policy, extack);
 	if (ret < 0)
 		return ret;
 
@@ -1748,6 +1765,8 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	fn = &reply_funcs[dcb->cmd];
 	if (!fn->cb)
 		return -EOPNOTSUPP;
+	if (fn->type == RTM_SETDCB && !netlink_capable(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (!tb[DCB_ATTR_IFNAME])
 		return -EINVAL;

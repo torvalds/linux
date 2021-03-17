@@ -1,29 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2011, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
-#include "psb_drv.h"
-#include "mid_bios.h"
-#include "mdfld_output.h"
-#include "mdfld_dsi_output.h"
-#include "tc35876x-dsi-lvds.h"
+#include <linux/delay.h>
+#include <linux/gpio/machine.h>
 
 #include <asm/intel_scu_ipc.h>
+
+#include "mdfld_dsi_output.h"
+#include "mdfld_output.h"
+#include "mid_bios.h"
+#include "psb_drv.h"
+#include "tc35876x-dsi-lvds.h"
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 
@@ -342,7 +333,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 
 	if (pipenum == 1) {
 		/* restore palette (gamma) */
-		/*DRM_UDELAY(50000); */
+		/* udelay(50000); */
 		for (i = 0; i < 256; i++)
 			PSB_WVDC32(pipe->palette[i], map->palette + (i << 2));
 
@@ -404,7 +395,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 	PSB_WVDC32(pipe->conf, map->conf);
 
 	/* restore palette (gamma) */
-	/*DRM_UDELAY(50000); */
+	/* udelay(50000); */
 	for (i = 0; i < 256; i++)
 		PSB_WVDC32(pipe->palette[i], map->palette + (i << 2));
 
@@ -515,12 +506,31 @@ static const struct psb_offset mdfld_regmap[3] = {
 	},
 };
 
+/*
+ * The GPIO lines for resetting DSI pipe 0 and 2 are available in the
+ * PCI device 0000:00:0c.0 on the Medfield.
+ */
+static struct gpiod_lookup_table mdfld_dsi_pipe_gpio_table = {
+	.table  = {
+		GPIO_LOOKUP("0000:00:0c.0", 128, "dsi-pipe0-reset",
+			    GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("0000:00:0c.0", 34, "dsi-pipe2-reset",
+			    GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static int mdfld_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	if (pci_enable_msi(dev->pdev))
 		dev_warn(dev->dev, "Enabling MSI failed!\n");
 	dev_priv->regmap = mdfld_regmap;
+
+	/* Associate the GPIO lines with the DRM device */
+	mdfld_dsi_pipe_gpio_table.dev_id = dev_name(dev->dev);
+	gpiod_add_lookup_table(&mdfld_dsi_pipe_gpio_table);
+
 	return mid_chip_setup(dev);
 }
 

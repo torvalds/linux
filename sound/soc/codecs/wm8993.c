@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8993.c -- WM8993 ALSA SoC audio driver
  *
  * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -486,7 +483,7 @@ static int _wm8993_set_fll(struct snd_soc_component *component, int fll_id, int 
 		wm8993->fll_fref = 0;
 		wm8993->fll_fout = 0;
 
-		reg1 = snd_soc_component_read32(component, WM8993_FLL_CONTROL_1);
+		reg1 = snd_soc_component_read(component, WM8993_FLL_CONTROL_1);
 		reg1 &= ~WM8993_FLL_ENA;
 		snd_soc_component_write(component, WM8993_FLL_CONTROL_1, reg1);
 
@@ -497,7 +494,7 @@ static int _wm8993_set_fll(struct snd_soc_component *component, int fll_id, int 
 	if (ret != 0)
 		return ret;
 
-	reg5 = snd_soc_component_read32(component, WM8993_FLL_CONTROL_5);
+	reg5 = snd_soc_component_read(component, WM8993_FLL_CONTROL_5);
 	reg5 &= ~WM8993_FLL_CLK_SRC_MASK;
 
 	switch (fll_id) {
@@ -519,7 +516,7 @@ static int _wm8993_set_fll(struct snd_soc_component *component, int fll_id, int 
 
 	/* Any FLL configuration change requires that the FLL be
 	 * disabled first. */
-	reg1 = snd_soc_component_read32(component, WM8993_FLL_CONTROL_1);
+	reg1 = snd_soc_component_read(component, WM8993_FLL_CONTROL_1);
 	reg1 &= ~WM8993_FLL_ENA;
 	snd_soc_component_write(component, WM8993_FLL_CONTROL_1, reg1);
 
@@ -535,7 +532,7 @@ static int _wm8993_set_fll(struct snd_soc_component *component, int fll_id, int 
 		      (fll_div.fll_fratio << WM8993_FLL_FRATIO_SHIFT));
 	snd_soc_component_write(component, WM8993_FLL_CONTROL_3, fll_div.k);
 
-	reg4 = snd_soc_component_read32(component, WM8993_FLL_CONTROL_4);
+	reg4 = snd_soc_component_read(component, WM8993_FLL_CONTROL_4);
 	reg4 &= ~WM8993_FLL_N_MASK;
 	reg4 |= fll_div.n << WM8993_FLL_N_SHIFT;
 	snd_soc_component_write(component, WM8993_FLL_CONTROL_4, reg4);
@@ -586,7 +583,7 @@ static int configure_clock(struct snd_soc_component *component)
 	case WM8993_SYSCLK_MCLK:
 		dev_dbg(component->dev, "Using %dHz MCLK\n", wm8993->mclk_rate);
 
-		reg = snd_soc_component_read32(component, WM8993_CLOCKING_2);
+		reg = snd_soc_component_read(component, WM8993_CLOCKING_2);
 		reg &= ~(WM8993_MCLK_DIV | WM8993_SYSCLK_SRC);
 		if (wm8993->mclk_rate > 13500000) {
 			reg |= WM8993_MCLK_DIV;
@@ -602,7 +599,7 @@ static int configure_clock(struct snd_soc_component *component)
 		dev_dbg(component->dev, "Using %dHz FLL clock\n",
 			wm8993->fll_fout);
 
-		reg = snd_soc_component_read32(component, WM8993_CLOCKING_2);
+		reg = snd_soc_component_read(component, WM8993_CLOCKING_2);
 		reg |= WM8993_SYSCLK_SRC;
 		if (wm8993->fll_fout > 13500000) {
 			reg |= WM8993_MCLK_DIV;
@@ -1076,7 +1073,7 @@ static int wm8993_set_sysclk(struct snd_soc_dai *codec_dai,
 	switch (clk_id) {
 	case WM8993_SYSCLK_MCLK:
 		wm8993->mclk_rate = freq;
-		/* fall through */
+		fallthrough;
 	case WM8993_SYSCLK_FLL:
 		wm8993->sysclk_source = clk_id;
 		break;
@@ -1093,8 +1090,8 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8993_priv *wm8993 = snd_soc_component_get_drvdata(component);
-	unsigned int aif1 = snd_soc_component_read32(component, WM8993_AUDIO_INTERFACE_1);
-	unsigned int aif4 = snd_soc_component_read32(component, WM8993_AUDIO_INTERFACE_4);
+	unsigned int aif1 = snd_soc_component_read(component, WM8993_AUDIO_INTERFACE_1);
+	unsigned int aif4 = snd_soc_component_read(component, WM8993_AUDIO_INTERFACE_4);
 
 	aif1 &= ~(WM8993_BCLK_DIR | WM8993_AIF_BCLK_INV |
 		  WM8993_AIF_LRCLK_INV | WM8993_AIF_FMT_MASK);
@@ -1124,7 +1121,7 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif1 |= WM8993_AIF_LRCLK_INV;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif1 |= 0x18;
 		break;
@@ -1193,16 +1190,16 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 	int ret, i, best, best_val, cur_val;
 	unsigned int clocking1, clocking3, aif1, aif4;
 
-	clocking1 = snd_soc_component_read32(component, WM8993_CLOCKING_1);
+	clocking1 = snd_soc_component_read(component, WM8993_CLOCKING_1);
 	clocking1 &= ~WM8993_BCLK_DIV_MASK;
 
-	clocking3 = snd_soc_component_read32(component, WM8993_CLOCKING_3);
+	clocking3 = snd_soc_component_read(component, WM8993_CLOCKING_3);
 	clocking3 &= ~(WM8993_CLK_SYS_RATE_MASK | WM8993_SAMPLE_RATE_MASK);
 
-	aif1 = snd_soc_component_read32(component, WM8993_AUDIO_INTERFACE_1);
+	aif1 = snd_soc_component_read(component, WM8993_AUDIO_INTERFACE_1);
 	aif1 &= ~WM8993_AIF_WL_MASK;
 
-	aif4 = snd_soc_component_read32(component, WM8993_AUDIO_INTERFACE_4);
+	aif4 = snd_soc_component_read(component, WM8993_AUDIO_INTERFACE_4);
 	aif4 &= ~WM8993_LRCLK_RATE_MASK;
 
 	/* What BCLK do we need? */
@@ -1302,7 +1299,7 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 
 	/* ReTune Mobile? */
 	if (wm8993->pdata.num_retune_configs) {
-		u16 eq1 = snd_soc_component_read32(component, WM8993_EQ1);
+		u16 eq1 = snd_soc_component_read(component, WM8993_EQ1);
 		struct wm8993_retune_mobile_setting *s;
 
 		best = 0;
@@ -1333,12 +1330,12 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8993_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8993_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, WM8993_DAC_CTRL);
+	reg = snd_soc_component_read(component, WM8993_DAC_CTRL);
 
 	if (mute)
 		reg |= WM8993_DAC_MUTE;
@@ -1447,9 +1444,10 @@ static const struct snd_soc_dai_ops wm8993_ops = {
 	.set_sysclk = wm8993_set_sysclk,
 	.set_fmt = wm8993_set_dai_fmt,
 	.hw_params = wm8993_hw_params,
-	.digital_mute = wm8993_digital_mute,
+	.mute_stream = wm8993_mute,
 	.set_pll = wm8993_set_fll,
 	.set_tdm_slot = wm8993_set_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 #define WM8993_RATES SNDRV_PCM_RATE_8000_48000

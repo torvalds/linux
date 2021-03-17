@@ -211,10 +211,10 @@ int hostapd_mode_init(struct adapter *padapter);
 void hostapd_mode_unload(struct adapter *padapter);
 #endif
 
-extern unsigned char WPA_TKIP_CIPHER[4];
-extern unsigned char RSN_TKIP_CIPHER[4];
-extern unsigned char REALTEK_96B_IE[];
-extern unsigned char	MCS_rate_1R[16];
+extern const u8 WPA_TKIP_CIPHER[4];
+extern const u8 RSN_TKIP_CIPHER[4];
+extern u8 REALTEK_96B_IE[];
+extern const u8 MCS_rate_1R[16];
 
 void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf);
 void rtw_survey_event_callback(struct adapter *adapter, u8 *pbuf);
@@ -266,7 +266,7 @@ static inline void set_fwstate(struct mlme_priv *pmlmepriv, int state)
 {
 	pmlmepriv->fw_state |= state;
 	/* FOR HW integration */
-	if (_FW_UNDER_SURVEY == state)
+	if (state == _FW_UNDER_SURVEY)
 		pmlmepriv->bScanInProcess = true;
 }
 
@@ -274,7 +274,7 @@ static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, int state)
 {
 	pmlmepriv->fw_state &= ~state;
 	/* FOR HW integration */
-	if (_FW_UNDER_SURVEY == state)
+	if (state == _FW_UNDER_SURVEY)
 		pmlmepriv->bScanInProcess = false;
 }
 
@@ -285,7 +285,7 @@ static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, int state)
 static inline void clr_fwstate(struct mlme_priv *pmlmepriv, int state)
 {
 	spin_lock_bh(&pmlmepriv->lock);
-	if (check_fwstate(pmlmepriv, state) == true)
+	if (check_fwstate(pmlmepriv, state))
 		pmlmepriv->fw_state ^= state;
 	spin_unlock_bh(&pmlmepriv->lock);
 }
@@ -311,7 +311,6 @@ void rtw_free_assoc_resources_locked(struct adapter *adapter);
 void rtw_indicate_disconnect(struct adapter *adapter);
 void rtw_indicate_connect(struct adapter *adapter);
 void rtw_indicate_scan_done(struct adapter *padapter, bool aborted);
-void rtw_scan_abort(struct adapter *adapter);
 
 int rtw_restruct_sec_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie,
 			uint in_len);
@@ -334,10 +333,7 @@ void rtw_dynamic_check_timer_handlder(struct timer_list *t);
 
 void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv);
 
-struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv);
-
-void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
-			      struct wlan_network *pnetwork);
+struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv);
 
 int rtw_if_up(struct adapter *padapter);
 

@@ -71,7 +71,7 @@ void my_usr1(int sig, siginfo_t *si, void *u)
 	swapcontext(&sc, &uc);
 	ksft_print_msg("%s\n", p->msg);
 	if (!p->flag) {
-		ksft_exit_skip("[RUN]\tAborting\n");
+		ksft_exit_fail_msg("[RUN]\tAborting\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -109,6 +109,7 @@ int main(void)
 	int err;
 
 	ksft_print_header();
+	ksft_set_plan(3);
 
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = SA_ONSTACK | SA_SIGINFO;
@@ -143,7 +144,7 @@ int main(void)
 	err = sigaltstack(&stk, NULL);
 	if (err) {
 		if (errno == EINVAL) {
-			ksft_exit_skip(
+			ksft_test_result_skip(
 				"[NOTE]\tThe running kernel doesn't support SS_AUTODISARM\n");
 			/*
 			 * If test cases for the !SS_AUTODISARM variant were

@@ -98,19 +98,19 @@ ib_uverbs_init_udata_buf_or_null(struct ib_udata *udata,
 
 struct ib_uverbs_device {
 	atomic_t				refcount;
-	int					num_comp_vectors;
+	u32					num_comp_vectors;
 	struct completion			comp;
-	struct device			       *dev;
+	struct device				dev;
+	/* First group for device attributes, NULL terminated array */
+	const struct attribute_group		*groups[2];
 	struct ib_device	__rcu	       *ib_dev;
 	int					devnum;
 	struct cdev			        cdev;
 	struct rb_root				xrcd_tree;
 	struct mutex				xrcd_tree_mutex;
-	struct kobject				kobj;
 	struct srcu_struct			disassociate_srcu;
 	struct mutex				lists_mutex; /* protect lists */
 	struct list_head			uverbs_file_list;
-	struct list_head			uverbs_events_file_list;
 	struct uverbs_api			*uapi;
 };
 
@@ -123,10 +123,9 @@ struct ib_uverbs_event_queue {
 };
 
 struct ib_uverbs_async_event_file {
+	struct ib_uobject			uobj;
 	struct ib_uverbs_event_queue		ev_queue;
-	struct ib_uverbs_file		       *uverbs_file;
-	struct kref				ref;
-	struct list_head			list;
+	struct ib_event_handler			event_handler;
 };
 
 struct ib_uverbs_completion_event_file {
@@ -143,10 +142,8 @@ struct ib_uverbs_file {
 	 * ucontext_lock held
 	 */
 	struct ib_ucontext		       *ucontext;
-	struct ib_event_handler			event_handler;
-	struct ib_uverbs_async_event_file       *async_file;
+	struct ib_uverbs_async_event_file      *default_async_file;
 	struct list_head			list;
-	int					is_closed;
 
 	/*
 	 * To access the uobjects list hw_destroy_rwsem must be held for write
@@ -158,12 +155,11 @@ struct ib_uverbs_file {
 	spinlock_t		uobjects_lock;
 	struct list_head	uobjects;
 
-	u64 uverbs_cmd_mask;
-	u64 uverbs_ex_cmd_mask;
+	struct mutex umap_lock;
+	struct list_head umaps;
+	struct page *disassociate_page;
 
-	struct idr		idr;
-	/* spinlock protects write access to idr */
-	spinlock_t		idr_lock;
+	struct xarray		idr;
 };
 
 struct ib_uverbs_event {
@@ -184,6 +180,8 @@ struct ib_uverbs_mcast_entry {
 
 struct ib_uevent_object {
 	struct ib_uobject	uobject;
+	struct ib_uverbs_async_event_file *event_file;
+	/* List member for ib_uverbs_async_event_file list */
 	struct list_head	event_list;
 	u32			events_reported;
 };
@@ -211,48 +209,43 @@ struct ib_uwq_object {
 };
 
 struct ib_ucq_object {
-	struct ib_uobject	uobject;
+	struct ib_uevent_object uevent;
 	struct list_head	comp_list;
-	struct list_head	async_list;
 	u32			comp_events_reported;
-	u32			async_events_reported;
-};
-
-struct ib_uflow_resources;
-struct ib_uflow_object {
-	struct ib_uobject		uobject;
-	struct ib_uflow_resources	*resources;
 };
 
 extern const struct file_operations uverbs_event_fops;
+extern const struct file_operations uverbs_async_event_fops;
 void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
-struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,
-					      struct ib_device *ib_dev);
-void ib_uverbs_free_async_event_file(struct ib_uverbs_file *uverbs_file);
+void ib_uverbs_init_async_event_file(struct ib_uverbs_async_event_file *ev_file);
+void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue);
 void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res);
+int uverbs_async_event_release(struct inode *inode, struct file *filp);
 
-void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
-			   struct ib_uverbs_completion_event_file *ev_file,
+int ib_alloc_ucontext(struct uverbs_attr_bundle *attrs);
+int ib_init_ucontext(struct uverbs_attr_bundle *attrs);
+
+void ib_uverbs_release_ucq(struct ib_uverbs_completion_event_file *ev_file,
 			   struct ib_ucq_object *uobj);
-void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
-			      struct ib_uevent_object *uobj);
+void ib_uverbs_release_uevent(struct ib_uevent_object *uobj);
 void ib_uverbs_release_file(struct kref *ref);
+void ib_uverbs_async_handler(struct ib_uverbs_async_event_file *async_file,
+			     __u64 element, __u64 event,
+			     struct list_head *obj_list, u32 *counter);
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_wq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr);
-void ib_uverbs_event_handler(struct ib_event_handler *handler,
-			     struct ib_event *event);
 int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
-			   enum rdma_remove_reason why);
+			   enum rdma_remove_reason why,
+			   struct uverbs_attr_bundle *attrs);
 
 int uverbs_dealloc_mw(struct ib_mw *mw);
 void ib_uverbs_detach_umcast(struct ib_qp *qp,
 			     struct ib_uqp_object *uobj);
 
-void create_udata(struct uverbs_attr_bundle *ctx, struct ib_udata *udata);
 long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 struct ib_uverbs_flow_spec {
@@ -283,80 +276,47 @@ int ib_uverbs_kern_spec_to_ib_spec_filter(enum ib_flow_spec_type type,
 					  size_t kern_filter_sz,
 					  union ib_flow_spec *ib_spec);
 
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_DEVICE);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_PD);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_MR);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COMP_CHANNEL);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_CQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_QP);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_AH);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_MW);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_SRQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_WQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_XRCD);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW_ACTION);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_DM);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COUNTERS);
+/*
+ * ib_uverbs_query_port_resp.port_cap_flags started out as just a copy of the
+ * PortInfo CapabilityMask, but was extended with unique bits.
+ */
+static inline u32 make_port_cap_flags(const struct ib_port_attr *attr)
+{
+	u32 res;
 
-#define IB_UVERBS_DECLARE_CMD(name)					\
-	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\
-				 const char __user *buf, int in_len,	\
-				 int out_len)
+	/* All IBA CapabilityMask bits are passed through here, except bit 26,
+	 * which is overridden with IP_BASED_GIDS. This is due to a historical
+	 * mistake in the implementation of IP_BASED_GIDS. Otherwise all other
+	 * bits match the IBA definition across all kernel versions.
+	 */
+	res = attr->port_cap_flags & ~(u32)IB_UVERBS_PCF_IP_BASED_GIDS;
 
-IB_UVERBS_DECLARE_CMD(get_context);
-IB_UVERBS_DECLARE_CMD(query_device);
-IB_UVERBS_DECLARE_CMD(query_port);
-IB_UVERBS_DECLARE_CMD(alloc_pd);
-IB_UVERBS_DECLARE_CMD(dealloc_pd);
-IB_UVERBS_DECLARE_CMD(reg_mr);
-IB_UVERBS_DECLARE_CMD(rereg_mr);
-IB_UVERBS_DECLARE_CMD(dereg_mr);
-IB_UVERBS_DECLARE_CMD(alloc_mw);
-IB_UVERBS_DECLARE_CMD(dealloc_mw);
-IB_UVERBS_DECLARE_CMD(create_comp_channel);
-IB_UVERBS_DECLARE_CMD(create_cq);
-IB_UVERBS_DECLARE_CMD(resize_cq);
-IB_UVERBS_DECLARE_CMD(poll_cq);
-IB_UVERBS_DECLARE_CMD(req_notify_cq);
-IB_UVERBS_DECLARE_CMD(destroy_cq);
-IB_UVERBS_DECLARE_CMD(create_qp);
-IB_UVERBS_DECLARE_CMD(open_qp);
-IB_UVERBS_DECLARE_CMD(query_qp);
-IB_UVERBS_DECLARE_CMD(modify_qp);
-IB_UVERBS_DECLARE_CMD(destroy_qp);
-IB_UVERBS_DECLARE_CMD(post_send);
-IB_UVERBS_DECLARE_CMD(post_recv);
-IB_UVERBS_DECLARE_CMD(post_srq_recv);
-IB_UVERBS_DECLARE_CMD(create_ah);
-IB_UVERBS_DECLARE_CMD(destroy_ah);
-IB_UVERBS_DECLARE_CMD(attach_mcast);
-IB_UVERBS_DECLARE_CMD(detach_mcast);
-IB_UVERBS_DECLARE_CMD(create_srq);
-IB_UVERBS_DECLARE_CMD(modify_srq);
-IB_UVERBS_DECLARE_CMD(query_srq);
-IB_UVERBS_DECLARE_CMD(destroy_srq);
-IB_UVERBS_DECLARE_CMD(create_xsrq);
-IB_UVERBS_DECLARE_CMD(open_xrcd);
-IB_UVERBS_DECLARE_CMD(close_xrcd);
+	if (attr->ip_gids)
+		res |= IB_UVERBS_PCF_IP_BASED_GIDS;
 
-#define IB_UVERBS_DECLARE_EX_CMD(name)				\
-	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,	\
-				struct ib_udata *ucore,		\
-				struct ib_udata *uhw)
+	return res;
+}
 
-IB_UVERBS_DECLARE_EX_CMD(create_flow);
-IB_UVERBS_DECLARE_EX_CMD(destroy_flow);
-IB_UVERBS_DECLARE_EX_CMD(query_device);
-IB_UVERBS_DECLARE_EX_CMD(create_cq);
-IB_UVERBS_DECLARE_EX_CMD(create_qp);
-IB_UVERBS_DECLARE_EX_CMD(create_wq);
-IB_UVERBS_DECLARE_EX_CMD(modify_wq);
-IB_UVERBS_DECLARE_EX_CMD(destroy_wq);
-IB_UVERBS_DECLARE_EX_CMD(create_rwq_ind_table);
-IB_UVERBS_DECLARE_EX_CMD(destroy_rwq_ind_table);
-IB_UVERBS_DECLARE_EX_CMD(modify_qp);
-IB_UVERBS_DECLARE_EX_CMD(modify_cq);
+static inline struct ib_uverbs_async_event_file *
+ib_uverbs_get_async_event(struct uverbs_attr_bundle *attrs,
+			  u16 id)
+{
+	struct ib_uobject *async_ev_file_uobj;
+	struct ib_uverbs_async_event_file *async_ev_file;
 
+	async_ev_file_uobj = uverbs_attr_get_uobject(attrs, id);
+	if (IS_ERR(async_ev_file_uobj))
+		async_ev_file = READ_ONCE(attrs->ufile->default_async_file);
+	else
+		async_ev_file = container_of(async_ev_file_uobj,
+				       struct ib_uverbs_async_event_file,
+				       uobj);
+	if (async_ev_file)
+		uverbs_uobject_get(&async_ev_file->uobj);
+	return async_ev_file;
+}
+
+void copy_port_attr_to_resp(struct ib_port_attr *attr,
+			    struct ib_uverbs_query_port_resp *resp,
+			    struct ib_device *ib_dev, u8 port_num);
 #endif /* UVERBS_H */

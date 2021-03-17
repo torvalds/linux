@@ -862,7 +862,7 @@ csio_rnode_devloss_handler(struct csio_rnode *rn)
 /**
  * csio_rnode_fwevt_handler - Event handler for firmware rnode events.
  * @rn:		rnode
- *
+ * @fwevt:	firmware event to handle
  */
 void
 csio_rnode_fwevt_handler(struct csio_rnode *rn, uint8_t fwevt)

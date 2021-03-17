@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config RTS5208
 	tristate "Realtek PCI-E Card Reader RTS5208/5288 support"
 	depends on PCI && SCSI

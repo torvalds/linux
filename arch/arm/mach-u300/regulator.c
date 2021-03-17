@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-u300/regulator.c
  *
  * Copyright (C) 2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Handle board-bound regulators and board power not related
  * to any devices.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
@@ -130,3 +130,5 @@ static int __init u300_init_boardpower(void)
 }
 
 device_initcall(u300_init_boardpower);
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Linus Walleij");

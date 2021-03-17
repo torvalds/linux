@@ -1,15 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Synchronous Compression operations
  *
  * Copyright 2015 LG Electronics Inc.
  * Copyright (c) 2016, Intel Corporation
  * Author: Giovanni Cabiddu <giovanni.cabiddu@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_SCOMP_INT_H
 #define _CRYPTO_SCOMP_INT_H
@@ -117,10 +112,8 @@ int crypto_register_scomp(struct scomp_alg *alg);
  * compression algorithm
  *
  * @alg:	algorithm definition
- *
- * Return: zero on success; error code in case of error
  */
-int crypto_unregister_scomp(struct scomp_alg *alg);
+void crypto_unregister_scomp(struct scomp_alg *alg);
 
 int crypto_register_scomps(struct scomp_alg *algs, int count);
 void crypto_unregister_scomps(struct scomp_alg *algs, int count);

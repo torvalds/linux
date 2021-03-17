@@ -2,7 +2,7 @@
 /*
 	Written 1998-2001 by Donald Becker.
 
-	Current Maintainer: Roger Luethi <rl@hellgate.ch>
+	Current Maintainer: Kevin Brace <kevinbrace@bracecomputerlab.com>
 
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
@@ -32,8 +32,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"via-rhine"
-#define DRV_VERSION	"1.5.1"
-#define DRV_RELDATE	"2010-10-09"
 
 #include <linux/types.h>
 
@@ -116,10 +114,6 @@ static const int multicast_filter_limit = 32;
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 #include <linux/dmi.h>
-
-/* These identify the driver base version and may not be removed. */
-static const char version[] =
-	"v1.10-LK" DRV_VERSION " " DRV_RELDATE " Written by Donald Becker";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("VIA Rhine PCI Fast Ethernet driver");
@@ -243,7 +237,7 @@ enum rhine_revs {
 	VT8233		= 0x60,	/* Integrated MAC */
 	VT8235		= 0x74,	/* Integrated MAC */
 	VT8237		= 0x78,	/* Integrated MAC */
-	VTunknown1	= 0x7C,
+	VT8251		= 0x7C,	/* Integrated MAC */
 	VT6105		= 0x80,
 	VT6105_B0	= 0x83,
 	VT6105L		= 0x8A,
@@ -506,7 +500,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 static int  rhine_open(struct net_device *dev);
 static void rhine_reset_task(struct work_struct *work);
 static void rhine_slow_event_task(struct work_struct *work);
-static void rhine_tx_timeout(struct net_device *dev);
+static void rhine_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 				  struct net_device *dev);
 static irqreturn_t rhine_interrupt(int irq, void *dev_instance);
@@ -571,7 +565,6 @@ static void rhine_ack_events(struct rhine_private *rp, u32 mask)
 	if (rp->quirks & rqStatusWBRace)
 		iowrite8(mask >> 16, ioaddr + IntrStatus2);
 	iowrite16(mask, ioaddr + IntrStatus);
-	mmiowb();
 }
 
 /*
@@ -863,7 +856,6 @@ static int rhine_napipoll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		iowrite16(enable_mask, ioaddr + IntrEnable);
-		mmiowb();
 	}
 	return work_done;
 }
@@ -1053,11 +1045,6 @@ static int rhine_init_one_pci(struct pci_dev *pdev,
 	u32 quirks = 0;
 #endif
 
-/* when built into the kernel, we only print version if device is found */
-#ifndef MODULE
-	pr_info_once("%s\n", version);
-#endif
-
 	rc = pci_enable_device(pdev);
 	if (rc)
 		goto err_out;
@@ -1129,15 +1116,13 @@ static int rhine_init_one_platform(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const u32 *quirks;
 	int irq;
-	struct resource *res;
 	void __iomem *ioaddr;
 
 	match = of_match_device(rhine_of_tbl, &pdev->dev);
 	if (!match)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ioaddr))
 		return PTR_ERR(ioaddr);
 
@@ -1519,7 +1504,7 @@ static void rhine_init_cam_filter(struct net_device *dev)
 
 /**
  * rhine_update_vcam - update VLAN CAM filters
- * @rp: rhine_private data of this Rhine
+ * @dev: rhine_private data of this Rhine
  *
  * Update VLAN CAM filters to match configuration change.
  */
@@ -1710,6 +1695,8 @@ static int rhine_open(struct net_device *dev)
 		goto out_free_ring;
 
 	alloc_tbufs(dev);
+	enable_mmio(rp->pioaddr, rp->quirks);
+	rhine_power_init(dev);
 	rhine_chip_reset(dev);
 	rhine_task_enable(rp);
 	init_registers(dev);
@@ -1765,7 +1752,7 @@ out_unlock:
 	mutex_unlock(&rp->task_lock);
 }
 
-static void rhine_tx_timeout(struct net_device *dev)
+static void rhine_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
@@ -1893,7 +1880,6 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 static void rhine_irq_disable(struct rhine_private *rp)
 {
 	iowrite16(0x0000, rp->base + IntrEnable);
-	mmiowb();
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up
@@ -2299,7 +2285,6 @@ static void netdev_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 	struct device *hwdev = dev->dev.parent;
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, dev_name(hwdev), sizeof(info->bus_info));
 }
 
@@ -2621,9 +2606,6 @@ static int __init rhine_init(void)
 	int ret_pci, ret_platform;
 
 /* when a module, this is printed whether or not devices are found in probe */
-#ifdef MODULE
-	pr_info("%s\n", version);
-#endif
 	if (dmi_check_system(rhine_dmi_table)) {
 		/* these BIOSes fail at PXE boot if chip is in D3 */
 		avoid_D3 = true;

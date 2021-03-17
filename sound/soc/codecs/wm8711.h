@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * wm8711.h  --  WM8711 Soc Audio driver
  *
@@ -6,10 +7,6 @@
  * Author: Mike Arthur <linux@wolfsonmicro.com>
  *
  * Based on wm8731.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _WM8711_H

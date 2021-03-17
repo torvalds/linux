@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP4 PRM module functions
  *
@@ -6,10 +7,6 @@
  * Benoît Cousson
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/cpu_pm.h>
@@ -351,7 +348,7 @@ static void omap44xx_prm_reconfigure_io_chain(void)
  * to occur, WAKEUPENABLE bits must be set in the pad mux registers, and
  * omap44xx_prm_reconfigure_io_chain() must be called.  No return value.
  */
-static void __init omap44xx_prm_enable_io_wakeup(void)
+static void omap44xx_prm_enable_io_wakeup(void)
 {
 	s32 inst = omap4_prmst_get_prm_dev_inst();
 
@@ -748,7 +745,7 @@ struct pwrdm_ops omap4_pwrdm_operations = {
 
 static int omap44xx_prm_late_init(void);
 
-void prm_save_context(void)
+static void prm_save_context(void)
 {
 	omap_prm_context.irq_enable =
 			omap4_prm_read_inst_reg(AM43XX_PRM_OCP_SOCKET_INST,
@@ -759,7 +756,7 @@ void prm_save_context(void)
 						omap4_prcm_irq_setup.pm_ctrl);
 }
 
-void prm_restore_context(void)
+static void prm_restore_context(void)
 {
 	omap4_prm_write_inst_reg(omap_prm_context.irq_enable,
 				 OMAP4430_PRM_OCP_SOCKET_INST,

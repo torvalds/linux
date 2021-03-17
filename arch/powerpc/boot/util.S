@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copied from <file:arch/powerpc/kernel/misc_32.S>
  *
@@ -10,12 +11,6 @@
  * kexec bits:
  * Copyright (C) 2002-2003 Eric Biederman  <ebiederm@xmission.com>
  * GameCube/ppc32 port Copyright (C) 2004 Albert Herranz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  */
 #include "ppc_asm.h"
 
@@ -23,7 +18,7 @@
 
 	.text
 
-/* udelay (on non-601 processors) needs to know the period of the
+/* udelay needs to know the period of the
  * timebase in nanoseconds.  This used to be hardcoded to be 60ns
  * (period of 66MHz/4).  Now a variable is used that is initialized to
  * 60 for backward compatibility, but it can be overridden as necessary
@@ -42,19 +37,6 @@ timebase_period_ns:
  */
 	.globl	udelay
 udelay:
-	mfspr	r4,SPRN_PVR
-	srwi	r4,r4,16
-	cmpwi	0,r4,1		/* 601 ? */
-	bne	.Ludelay_not_601
-00:	li	r0,86	/* Instructions / microsecond? */
-	mtctr	r0
-10:	addi	r0,r0,0 /* NOP */
-	bdnz	10b
-	subic.	r3,r3,1
-	bne	00b
-	blr
-
-.Ludelay_not_601:
 	mulli	r4,r3,1000	/* nanoseconds */
 	/*  Change r4 to be the number of ticks using:
 	 *	(nanoseconds + (timebase_period_ns - 1 )) / timebase_period_ns

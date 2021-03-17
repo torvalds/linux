@@ -8,6 +8,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/current.h>
+#include <asm/fpu.h>
 
 
 
@@ -22,10 +23,18 @@
 	.macro	restore_user_regs_first
 	setgie.d
 	isb
-
+#if defined(CONFIG_FPU)
+	addi    $sp, $sp, OSP_OFFSET
+	lmw.adm $r12, [$sp], $r25, #0x0
+	sethi   $p0, hi20(has_fpu)
+	lbsi 	$p0, [$p0+lo12(has_fpu)]
+	beqz	$p0, 2f
+	mtsr    $r25, $FUCOP_CTL
+2:
+#else
 	addi	$sp, $sp, FUCOP_CTL_OFFSET
-
 	lmw.adm $r12, [$sp], $r24, #0x0
+#endif
 	mtsr	$r12, $SP_USR
 	mtsr	$r13, $IPC
 #ifdef CONFIG_HWZOL
@@ -63,7 +72,7 @@
 	restore_user_regs_last
 	.endm
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	.macro	preempt_stop
 	.endm
 #else
@@ -149,12 +158,12 @@ no_work_pending:
 /*
  * preemptive kernel
  */
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 resume_kernel:
 	gie_disable
 	lwi	$t0, [tsk+#TSK_TI_PREEMPT]
 	bnez	$t0, no_work_pending
-need_resched:
+
 	lwi	$t0, [tsk+#TSK_TI_FLAGS]
 	andi	$p1, $t0, #_TIF_NEED_RESCHED
 	beqz	$p1, no_work_pending
@@ -164,7 +173,7 @@ need_resched:
 	beqz	$t0, no_work_pending
 
 	jal	preempt_schedule_irq
-	b	need_resched
+	b	no_work_pending
 #endif
 
 /*

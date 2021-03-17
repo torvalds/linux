@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-h3.c
  *
@@ -8,10 +9,6 @@
  * Copyright (C) 2001 RidgeRun, Inc.
  * Author: RidgeRun, Inc.
  *         Greg Lonnon (glonnon@ridgerun.com) or info@ridgerun.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/types.h>
@@ -23,7 +20,7 @@
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
@@ -185,7 +182,7 @@ static struct mtd_partition nand_partitions[] = {
 
 #define H3_NAND_RB_GPIO_PIN	10
 
-static int nand_dev_ready(struct mtd_info *mtd)
+static int nand_dev_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(H3_NAND_RB_GPIO_PIN);
 }

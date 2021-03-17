@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017, Michael Neuling, IBM Corp.
- * Licensed under GPLv2.
  * Original: Breno Leitao <brenohl@br.ibm.com> &
  *           Gustavo Bueno Romero <gromero@br.ibm.com>
  * Edited: Michael Neuling

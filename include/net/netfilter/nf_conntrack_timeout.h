@@ -14,7 +14,7 @@
 struct nf_ct_timeout {
 	__u16			l3num;
 	const struct nf_conntrack_l4proto *l4proto;
-	char			data[0];
+	char			data[];
 };
 
 struct ctnl_timeout {
@@ -32,6 +32,7 @@ struct nf_conn_timeout {
 static inline unsigned int *
 nf_ct_timeout_data(const struct nf_conn_timeout *t)
 {
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	struct nf_ct_timeout *timeout;
 
 	timeout = rcu_dereference(t->timeout);
@@ -39,6 +40,9 @@ nf_ct_timeout_data(const struct nf_conn_timeout *t)
 		return NULL;
 
 	return (unsigned int *)timeout->data;
+#else
+	return NULL;
+#endif
 }
 
 static inline
@@ -88,6 +92,9 @@ static inline unsigned int *nf_ct_timeout_lookup(const struct nf_conn *ct)
 int nf_conntrack_timeout_init(void);
 void nf_conntrack_timeout_fini(void);
 void nf_ct_untimeout(struct net *net, struct nf_ct_timeout *timeout);
+int nf_ct_set_timeout(struct net *net, struct nf_conn *ct, u8 l3num, u8 l4num,
+		      const char *timeout_name);
+void nf_ct_destroy_timeout(struct nf_conn *ct);
 #else
 static inline int nf_conntrack_timeout_init(void)
 {
@@ -97,6 +104,18 @@ static inline int nf_conntrack_timeout_init(void)
 static inline void nf_conntrack_timeout_fini(void)
 {
         return;
+}
+
+static inline int nf_ct_set_timeout(struct net *net, struct nf_conn *ct,
+				    u8 l3num, u8 l4num,
+				    const char *timeout_name)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void nf_ct_destroy_timeout(struct nf_conn *ct)
+{
+	return;
 }
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 

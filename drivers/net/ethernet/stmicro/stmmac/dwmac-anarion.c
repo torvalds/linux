@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Adaptrum Anarion DWMAC glue layer
  *
  * Copyright (C) 2017, Adaptrum, Inc.
  * (Written by Alexandru Gagniuc <alex.g at adaptrum.com> for Adaptrum, Inc.)
- * Licensed under the GPLv2 or (at your option) any later version.
  */
 
 #include <linux/io.h>
@@ -61,13 +61,12 @@ static void anarion_gmac_exit(struct platform_device *pdev, void *priv)
 
 static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 {
-	int phy_mode;
-	struct resource *res;
-	void __iomem *ctl_block;
 	struct anarion_gmac *gmac;
+	phy_interface_t phy_mode;
+	void __iomem *ctl_block;
+	int err;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	ctl_block = devm_ioremap_resource(&pdev->dev, res);
+	ctl_block = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(ctl_block)) {
 		dev_err(&pdev->dev, "Cannot get reset region (%ld)!\n",
 			PTR_ERR(ctl_block));
@@ -80,11 +79,15 @@ static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 
 	gmac->ctl_block = (uintptr_t)ctl_block;
 
-	phy_mode = of_get_phy_mode(pdev->dev.of_node);
+	err = of_get_phy_mode(pdev->dev.of_node, &phy_mode);
+	if (err)
+		return ERR_PTR(err);
+
 	switch (phy_mode) {
-	case PHY_INTERFACE_MODE_RGMII:		/* Fall through */
-	case PHY_INTERFACE_MODE_RGMII_ID	/* Fall through */:
-	case PHY_INTERFACE_MODE_RGMII_RXID:	/* Fall through */
+	case PHY_INTERFACE_MODE_RGMII:
+		fallthrough;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		gmac->phy_intf_sel = GMAC_CONFIG_INTF_RGMII;
 		break;

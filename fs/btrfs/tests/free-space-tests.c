@@ -8,6 +8,7 @@
 #include "../ctree.h"
 #include "../disk-io.h"
 #include "../free-space-cache.h"
+#include "../block-group.h"
 
 #define BITS_PER_BITMAP		(PAGE_SIZE * 8UL)
 
@@ -16,7 +17,7 @@
  * entry and remove space from either end and the middle, and make sure we can
  * remove space that covers adjacent extent entries.
  */
-static int test_extents(struct btrfs_block_group_cache *cache)
+static int test_extents(struct btrfs_block_group *cache)
 {
 	int ret = 0;
 
@@ -86,8 +87,7 @@ static int test_extents(struct btrfs_block_group_cache *cache)
 	return 0;
 }
 
-static int test_bitmaps(struct btrfs_block_group_cache *cache,
-			u32 sectorsize)
+static int test_bitmaps(struct btrfs_block_group *cache, u32 sectorsize)
 {
 	u64 next_bitmap_offset;
 	int ret;
@@ -155,7 +155,7 @@ static int test_bitmaps(struct btrfs_block_group_cache *cache,
 }
 
 /* This is the high grade jackassery */
-static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
+static int test_bitmaps_and_extents(struct btrfs_block_group *cache,
 				    u32 sectorsize)
 {
 	u64 bitmap_offset = (u64)(BITS_PER_BITMAP * sectorsize);
@@ -330,7 +330,7 @@ static bool test_use_bitmap(struct btrfs_free_space_ctl *ctl,
 
 /* Used by test_steal_space_from_bitmap_to_extent(). */
 static int
-check_num_extents_and_bitmaps(const struct btrfs_block_group_cache *cache,
+check_num_extents_and_bitmaps(const struct btrfs_block_group *cache,
 			      const int num_extents,
 			      const int num_bitmaps)
 {
@@ -350,7 +350,7 @@ check_num_extents_and_bitmaps(const struct btrfs_block_group_cache *cache,
 }
 
 /* Used by test_steal_space_from_bitmap_to_extent(). */
-static int check_cache_empty(struct btrfs_block_group_cache *cache)
+static int check_cache_empty(struct btrfs_block_group *cache)
 {
 	u64 offset;
 	u64 max_extent_size;
@@ -392,7 +392,7 @@ static int check_cache_empty(struct btrfs_block_group_cache *cache)
  * requests.
  */
 static int
-test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
+test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 				       u32 sectorsize)
 {
 	int ret;
@@ -404,7 +404,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	};
 	const struct btrfs_free_space_op *orig_free_space_ops;
 
-	test_msg("running space stealing from bitmap to extent");
+	test_msg("running space stealing from bitmap to extent tests");
 
 	/*
 	 * For this test, we want to ensure we end up with an extent entry
@@ -828,15 +828,16 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_fs_info *fs_info;
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 	struct btrfs_root *root = NULL;
 	int ret = -ENOMEM;
 
 	test_msg("running btrfs free space cache tests");
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
-	if (!fs_info)
+	if (!fs_info) {
+		test_std_err(TEST_ALLOC_FS_INFO);
 		return -ENOMEM;
-
+	}
 
 	/*
 	 * For ppc64 (with 64k page size), bytes per bitmap might be
@@ -846,13 +847,14 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 	cache = btrfs_alloc_dummy_block_group(fs_info,
 				      BITS_PER_BITMAP * sectorsize + PAGE_SIZE);
 	if (!cache) {
-		test_err("couldn't run the tests");
+		test_std_err(TEST_ALLOC_BLOCK_GROUP);
 		btrfs_free_dummy_fs_info(fs_info);
 		return 0;
 	}
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(root);
 		goto out;
 	}
@@ -874,6 +876,5 @@ out:
 	btrfs_free_dummy_block_group(cache);
 	btrfs_free_dummy_root(root);
 	btrfs_free_dummy_fs_info(fs_info);
-	test_msg("free space cache tests finished");
 	return ret;
 }

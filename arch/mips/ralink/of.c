@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  * Copyright (C) 2008-2009 Gabor Juhos <juhosg@openwrt.org>
@@ -14,7 +12,7 @@
 #include <linux/sizes.h>
 #include <linux/of_fdt.h>
 #include <linux/kernel.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 
@@ -45,7 +43,7 @@ __iomem void *plat_of_remap_node(const char *node)
 				res.name))
 		panic("Failed to request resources for %s", node);
 
-	return ioremap_nocache(res.start, resource_size(&res));
+	return ioremap(res.start, resource_size(&res));
 }
 
 void __init device_tree_init(void)
@@ -86,8 +84,7 @@ void __init plat_mem_setup(void)
 	if (memory_dtb)
 		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	else if (soc_info.mem_size)
-		add_memory_region(soc_info.mem_base, soc_info.mem_size * SZ_1M,
-				  BOOT_MEM_RAM);
+		memblock_add(soc_info.mem_base, soc_info.mem_size * SZ_1M);
 	else
 		detect_memory_region(soc_info.mem_base,
 				     soc_info.mem_size_min * SZ_1M,

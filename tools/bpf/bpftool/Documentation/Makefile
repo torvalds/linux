@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 include ../../../scripts/Makefile.include
 include ../../../scripts/utilities.mak
 
@@ -18,7 +19,7 @@ man8dir = $(mandir)/man8
 # Load targets for building eBPF helpers man page.
 include ../../Makefile.helpers
 
-MAN8_RST = $(filter-out $(HELPERS_RST),$(wildcard *.rst))
+MAN8_RST = $(wildcard bpftool*.rst)
 
 _DOC_MAN8 = $(patsubst %.rst,%.8,$(MAN8_RST))
 DOC_MAN8 = $(addprefix $(OUTPUT),$(_DOC_MAN8))
@@ -27,12 +28,23 @@ man: man8 helpers
 man8: $(DOC_MAN8)
 
 RST2MAN_DEP := $(shell command -v rst2man 2>/dev/null)
+RST2MAN_OPTS += --verbose
+
+list_pages = $(sort $(basename $(filter-out $(1),$(MAN8_RST))))
+see_also = $(subst " ",, \
+	"\n" \
+	"SEE ALSO\n" \
+	"========\n" \
+	"\t**bpf**\ (2),\n" \
+	"\t**bpf-helpers**\\ (7)" \
+	$(foreach page,$(call list_pages,$(1)),",\n\t**$(page)**\\ (8)") \
+	"\n")
 
 $(OUTPUT)%.8: %.rst
 ifndef RST2MAN_DEP
 	$(error "rst2man not found, but required to generate man pages")
 endif
-	$(QUIET_GEN)rst2man $< > $@
+	$(QUIET_GEN)( cat $< ; printf "%b" $(call see_also,$<) ) | rst2man $(RST2MAN_OPTS) > $@
 
 clean: helpers-clean
 	$(call QUIET_CLEAN, Documentation)

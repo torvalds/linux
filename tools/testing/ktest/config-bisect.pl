@@ -1,9 +1,8 @@
 #!/usr/bin/perl -w
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright 2015 - Steven Rostedt, Red Hat Inc.
 # Copyright 2017 - Steven Rostedt, VMware, Inc.
-#
-# Licensed under the terms of the GNU GPL License version 2
 #
 
 # usage:
@@ -664,7 +663,7 @@ while ($#ARGV >= 0) {
     }
 
     else {
-	die "Unknow option $opt\n";
+	die "Unknown option $opt\n";
     }
 }
 
@@ -733,7 +732,7 @@ if ($start) {
 	}
     }
     run_command "cp $good_start $good" or die "failed to copy to $good\n";
-    run_command "cp $bad_start $bad" or die "faield to copy to $bad\n";
+    run_command "cp $bad_start $bad" or die "failed to copy to $bad\n";
 } else {
     if ( ! -f $good ) {
 	die "Can not find file $good\n";

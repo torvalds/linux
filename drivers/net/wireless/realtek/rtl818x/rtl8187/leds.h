@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Definitions for RTL8187 leds
  *
@@ -5,10 +6,6 @@
  *
  * Based on the LED handling in the r8187 driver, which is:
  * Copyright (c) Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef RTL8187_LED_H

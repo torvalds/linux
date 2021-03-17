@@ -2,6 +2,8 @@
 #ifndef _INET_COMMON_H
 #define _INET_COMMON_H
 
+#include <linux/indirect_call_wrapper.h>
+
 extern const struct proto_ops inet_stream_ops;
 extern const struct proto_ops inet_dgram_ops;
 
@@ -23,6 +25,7 @@ int inet_dgram_connect(struct socket *sock, struct sockaddr *uaddr,
 		       int addr_len, int flags);
 int inet_accept(struct socket *sock, struct socket *newsock, int flags,
 		bool kern);
+int inet_send_prepare(struct sock *sk);
 int inet_sendmsg(struct socket *sock, struct msghdr *msg, size_t size);
 ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
 		      size_t size, int flags);
@@ -32,8 +35,14 @@ int inet_shutdown(struct socket *sock, int how);
 int inet_listen(struct socket *sock, int backlog);
 void inet_sock_destruct(struct sock *sk);
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
+/* Don't allocate port at this moment, defer to connect. */
+#define BIND_FORCE_ADDRESS_NO_PORT	(1 << 0)
+/* Grab and release socket lock. */
+#define BIND_WITH_LOCK			(1 << 1)
+/* Called from BPF program. */
+#define BIND_FROM_BPF			(1 << 2)
 int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
-		bool force_bind_address_no_port, bool with_lock);
+		u32 flags);
 int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 		 int peer);
 int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
@@ -53,5 +62,12 @@ static inline void inet_ctl_sock_destroy(struct sock *sk)
 	if (sk)
 		sock_release(sk->sk_socket);
 }
+
+#define indirect_call_gro_receive(f2, f1, cb, head, skb)	\
+({								\
+	unlikely(gro_recursion_inc_test(skb)) ?			\
+		NAPI_GRO_CB(skb)->flush |= 1, NULL :		\
+		INDIRECT_CALL_2(cb, f2, f1, head, skb);		\
+})
 
 #endif

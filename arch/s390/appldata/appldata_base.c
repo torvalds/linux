@@ -51,10 +51,9 @@ static struct platform_device *appldata_pdev;
  */
 static const char appldata_proc_name[APPLDATA_PROC_NAME_LENGTH] = "appldata";
 static int appldata_timer_handler(struct ctl_table *ctl, int write,
-				  void __user *buffer, size_t *lenp, loff_t *ppos);
+				  void *buffer, size_t *lenp, loff_t *ppos);
 static int appldata_interval_handler(struct ctl_table *ctl, int write,
-					 void __user *buffer,
-					 size_t *lenp, loff_t *ppos);
+				     void *buffer, size_t *lenp, loff_t *ppos);
 
 static struct ctl_table_header *appldata_sysctl_header;
 static struct ctl_table appldata_table[] = {
@@ -137,6 +136,14 @@ static void appldata_work_fn(struct work_struct *work)
 	mutex_unlock(&appldata_ops_mutex);
 }
 
+static struct appldata_product_id appldata_id = {
+	.prod_nr    = {0xD3, 0xC9, 0xD5, 0xE4,
+		       0xE7, 0xD2, 0xD9},	/* "LINUXKR" */
+	.prod_fn    = 0xD5D3,			/* "NL" */
+	.version_nr = 0xF2F6,			/* "26" */
+	.release_nr = 0xF0F1,			/* "01" */
+};
+
 /*
  * appldata_diag()
  *
@@ -145,17 +152,22 @@ static void appldata_work_fn(struct work_struct *work)
 int appldata_diag(char record_nr, u16 function, unsigned long buffer,
 			u16 length, char *mod_lvl)
 {
-	struct appldata_product_id id = {
-		.prod_nr    = {0xD3, 0xC9, 0xD5, 0xE4,
-			       0xE7, 0xD2, 0xD9},	/* "LINUXKR" */
-		.prod_fn    = 0xD5D3,			/* "NL" */
-		.version_nr = 0xF2F6,			/* "26" */
-		.release_nr = 0xF0F1,			/* "01" */
-	};
+	struct appldata_parameter_list *parm_list;
+	struct appldata_product_id *id;
+	int rc;
 
-	id.record_nr = record_nr;
-	id.mod_lvl = (mod_lvl[0]) << 8 | mod_lvl[1];
-	return appldata_asm(&id, function, (void *) buffer, length);
+	parm_list = kmalloc(sizeof(*parm_list), GFP_KERNEL);
+	id = kmemdup(&appldata_id, sizeof(appldata_id), GFP_KERNEL);
+	rc = -ENOMEM;
+	if (parm_list && id) {
+		id->record_nr = record_nr;
+		id->mod_lvl = (mod_lvl[0]) << 8 | mod_lvl[1];
+		rc = appldata_asm(parm_list, id, function,
+				  (void *) buffer, length);
+	}
+	kfree(id);
+	kfree(parm_list);
+	return rc;
 }
 /************************ timer, work, DIAG <END> ****************************/
 
@@ -204,18 +216,16 @@ static void __appldata_vtimer_setup(int cmd)
  */
 static int
 appldata_timer_handler(struct ctl_table *ctl, int write,
-			   void __user *buffer, size_t *lenp, loff_t *ppos)
+			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int timer_active = appldata_timer_active;
-	int zero = 0;
-	int one = 1;
 	int rc;
 	struct ctl_table ctl_entry = {
 		.procname	= ctl->procname,
 		.data		= &timer_active,
 		.maxlen		= sizeof(int),
-		.extra1		= &zero,
-		.extra2		= &one,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	};
 
 	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
@@ -239,16 +249,15 @@ appldata_timer_handler(struct ctl_table *ctl, int write,
  */
 static int
 appldata_interval_handler(struct ctl_table *ctl, int write,
-			   void __user *buffer, size_t *lenp, loff_t *ppos)
+			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int interval = appldata_interval;
-	int one = 1;
 	int rc;
 	struct ctl_table ctl_entry = {
 		.procname	= ctl->procname,
 		.data		= &interval,
 		.maxlen		= sizeof(int),
-		.extra1		= &one,
+		.extra1		= SYSCTL_ONE,
 	};
 
 	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
@@ -270,19 +279,17 @@ appldata_interval_handler(struct ctl_table *ctl, int write,
  */
 static int
 appldata_generic_handler(struct ctl_table *ctl, int write,
-			   void __user *buffer, size_t *lenp, loff_t *ppos)
+			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct appldata_ops *ops = NULL, *tmp_ops;
 	struct list_head *lh;
 	int rc, found;
 	int active;
-	int zero = 0;
-	int one = 1;
 	struct ctl_table ctl_entry = {
 		.data		= &active,
 		.maxlen		= sizeof(int),
-		.extra1		= &zero,
-		.extra2		= &one,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	};
 
 	found = 0;

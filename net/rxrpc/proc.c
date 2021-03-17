@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* /proc/net/ support for AF_RXRPC
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -72,7 +68,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 			 "Proto Local                                          "
 			 " Remote                                         "
 			 " SvID ConnID   CallID   End Use State    Abort   "
-			 " UserID           TxSeq    TW RxSeq    RW RxSerial RxTimo\n");
+			 " DebugId  TxSeq    TW RxSeq    RW RxSerial RxTimo\n");
 		return 0;
 	}
 
@@ -104,7 +100,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	rx_hard_ack = READ_ONCE(call->rx_hard_ack);
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %4x %08x %08x %s %3u"
-		   " %-8.8s %08x %lx %08x %02x %08x %02x %08x %06lx\n",
+		   " %-8.8s %08x %08x %08x %02x %08x %02x %08x %06lx\n",
 		   lbuff,
 		   rbuff,
 		   call->service_id,
@@ -114,7 +110,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   atomic_read(&call->usage),
 		   rxrpc_call_states[call->state],
 		   call->abort_code,
-		   call->user_call_ID,
+		   call->debug_id,
 		   tx_hard_ack, READ_ONCE(call->tx_top) - tx_hard_ack,
 		   rx_hard_ack, READ_ONCE(call->rx_top) - rx_hard_ack,
 		   call->rx_serial,
@@ -169,7 +165,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 			 "Proto Local                                          "
 			 " Remote                                         "
 			 " SvID ConnID   End Use State    Key     "
-			 " Serial   ISerial\n"
+			 " Serial   ISerial  CallId0  CallId1  CallId2  CallId3\n"
 			 );
 		return 0;
 	}
@@ -211,4 +207,130 @@ const struct seq_operations rxrpc_connection_seq_ops = {
 	.next   = rxrpc_connection_seq_next,
 	.stop   = rxrpc_connection_seq_stop,
 	.show   = rxrpc_connection_seq_show,
+};
+
+/*
+ * generate a list of extant virtual peers in /proc/net/rxrpc/peers
+ */
+static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
+{
+	struct rxrpc_peer *peer;
+	time64_t now;
+	char lbuff[50], rbuff[50];
+
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq,
+			 "Proto Local                                          "
+			 " Remote                                         "
+			 " Use  CW   MTU LastUse      RTT      RTO\n"
+			 );
+		return 0;
+	}
+
+	peer = list_entry(v, struct rxrpc_peer, hash_link);
+
+	sprintf(lbuff, "%pISpc", &peer->local->srx.transport);
+
+	sprintf(rbuff, "%pISpc", &peer->srx.transport);
+
+	now = ktime_get_seconds();
+	seq_printf(seq,
+		   "UDP   %-47.47s %-47.47s %3u"
+		   " %3u %5u %6llus %8u %8u\n",
+		   lbuff,
+		   rbuff,
+		   atomic_read(&peer->usage),
+		   peer->cong_cwnd,
+		   peer->mtu,
+		   now - peer->last_tx_at,
+		   peer->srtt_us >> 3,
+		   jiffies_to_usecs(peer->rto_j));
+
+	return 0;
+}
+
+static void *rxrpc_peer_seq_start(struct seq_file *seq, loff_t *_pos)
+	__acquires(rcu)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+	unsigned int bucket, n;
+	unsigned int shift = 32 - HASH_BITS(rxnet->peer_hash);
+	void *p;
+
+	rcu_read_lock();
+
+	if (*_pos >= UINT_MAX)
+		return NULL;
+
+	n = *_pos & ((1U << shift) - 1);
+	bucket = *_pos >> shift;
+	for (;;) {
+		if (bucket >= HASH_SIZE(rxnet->peer_hash)) {
+			*_pos = UINT_MAX;
+			return NULL;
+		}
+		if (n == 0) {
+			if (bucket == 0)
+				return SEQ_START_TOKEN;
+			*_pos += 1;
+			n++;
+		}
+
+		p = seq_hlist_start_rcu(&rxnet->peer_hash[bucket], n - 1);
+		if (p)
+			return p;
+		bucket++;
+		n = 1;
+		*_pos = (bucket << shift) | n;
+	}
+}
+
+static void *rxrpc_peer_seq_next(struct seq_file *seq, void *v, loff_t *_pos)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+	unsigned int bucket, n;
+	unsigned int shift = 32 - HASH_BITS(rxnet->peer_hash);
+	void *p;
+
+	if (*_pos >= UINT_MAX)
+		return NULL;
+
+	bucket = *_pos >> shift;
+
+	p = seq_hlist_next_rcu(v, &rxnet->peer_hash[bucket], _pos);
+	if (p)
+		return p;
+
+	for (;;) {
+		bucket++;
+		n = 1;
+		*_pos = (bucket << shift) | n;
+
+		if (bucket >= HASH_SIZE(rxnet->peer_hash)) {
+			*_pos = UINT_MAX;
+			return NULL;
+		}
+		if (n == 0) {
+			*_pos += 1;
+			n++;
+		}
+
+		p = seq_hlist_start_rcu(&rxnet->peer_hash[bucket], n - 1);
+		if (p)
+			return p;
+	}
+}
+
+static void rxrpc_peer_seq_stop(struct seq_file *seq, void *v)
+	__releases(rcu)
+{
+	rcu_read_unlock();
+}
+
+
+const struct seq_operations rxrpc_peer_seq_ops = {
+	.start  = rxrpc_peer_seq_start,
+	.next   = rxrpc_peer_seq_next,
+	.stop   = rxrpc_peer_seq_stop,
+	.show   = rxrpc_peer_seq_show,
 };

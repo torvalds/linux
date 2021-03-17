@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
+ * Copyright 2018 Omnibond Systems, L.L.C.
  *
  * See COPYING in top-level directory.
  */
@@ -14,7 +15,7 @@
 #include "orangefs-bufmap.h"
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
-
+#include <linux/hashtable.h>
 
 #define SYSTEM_ORANGEFS_KEY "system.pvfs2."
 #define SYSTEM_ORANGEFS_KEY_LEN 13
@@ -50,6 +51,35 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
 	return internal_flag;
 }
 
+static unsigned int xattr_key(const char *key)
+{
+	unsigned int i = 0;
+	while (key)
+		i += *key++;
+	return i % 16;
+}
+
+static struct orangefs_cached_xattr *find_cached_xattr(struct inode *inode,
+    const char *key)
+{
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_cached_xattr *cx;
+	struct hlist_head *h;
+	struct hlist_node *tmp;
+	h = &orangefs_inode->xattr_cache[xattr_key(key)];
+	if (hlist_empty(h))
+		return NULL;
+	hlist_for_each_entry_safe(cx, tmp, h, node) {
+/*		if (!time_before(jiffies, cx->timeout)) {
+			hlist_del(&cx->node);
+			kfree(cx);
+			continue;
+		}*/
+		if (!strcmp(cx->key, key))
+			return cx;
+	}
+	return NULL;
+}
 
 /*
  * Tries to get a specified key's attributes of a given
@@ -65,6 +95,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op = NULL;
+	struct orangefs_cached_xattr *cx;
 	ssize_t ret = -ENOMEM;
 	ssize_t length = 0;
 	int fsuid;
@@ -93,6 +124,27 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 
 	down_read(&orangefs_inode->xattr_sem);
 
+	cx = find_cached_xattr(inode, name);
+	if (cx && time_before(jiffies, cx->timeout)) {
+		if (cx->length == -1) {
+			ret = -ENODATA;
+			goto out_unlock;
+		} else {
+			if (size == 0) {
+				ret = cx->length;
+				goto out_unlock;
+			}
+			if (cx->length > size) {
+				ret = -ERANGE;
+				goto out_unlock;
+			}
+			memcpy(buffer, cx->val, cx->length);
+			memset(buffer + cx->length, 0, size - cx->length);
+			ret = cx->length;
+			goto out_unlock;
+		}
+	}
+
 	new_op = op_alloc(ORANGEFS_VFS_OP_GETXATTR);
 	if (!new_op)
 		goto out_unlock;
@@ -117,6 +169,15 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 				     " does not exist!\n",
 				     get_khandle_from_ino(inode),
 				     (char *)new_op->upcall.req.getxattr.key);
+			cx = kmalloc(sizeof *cx, GFP_KERNEL);
+			if (cx) {
+				strcpy(cx->key, name);
+				cx->length = -1;
+				cx->timeout = jiffies +
+				    orangefs_getattr_timeout_msecs*HZ/1000;
+				hash_add(orangefs_inode->xattr_cache, &cx->node,
+				    xattr_key(cx->key));
+			}
 		}
 		goto out_release_op;
 	}
@@ -156,6 +217,23 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 
 	ret = length;
 
+	if (cx) {
+		strcpy(cx->key, name);
+		memcpy(cx->val, buffer, length);
+		cx->length = length;
+		cx->timeout = jiffies + HZ;
+	} else {
+		cx = kmalloc(sizeof *cx, GFP_KERNEL);
+		if (cx) {
+			strcpy(cx->key, name);
+			memcpy(cx->val, buffer, length);
+			cx->length = length;
+			cx->timeout = jiffies + HZ;
+			hash_add(orangefs_inode->xattr_cache, &cx->node,
+			    xattr_key(cx->key));
+		}
+	}
+
 out_release_op:
 	op_release(new_op);
 out_unlock:
@@ -168,6 +246,9 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op = NULL;
+	struct orangefs_cached_xattr *cx;
+	struct hlist_head *h;
+	struct hlist_node *tmp;
 	int ret = -ENOMEM;
 
 	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
@@ -209,6 +290,16 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 		     "orangefs_inode_removexattr: returning %d\n", ret);
 
 	op_release(new_op);
+
+	h = &orangefs_inode->xattr_cache[xattr_key(name)];
+	hlist_for_each_entry_safe(cx, tmp, h, node) {
+		if (!strcmp(cx->key, name)) {
+			hlist_del(&cx->node);
+			kfree(cx);
+			break;
+		}
+	}
+
 out_unlock:
 	up_write(&orangefs_inode->xattr_sem);
 	return ret;
@@ -226,6 +317,9 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
 	int internal_flag = 0;
+	struct orangefs_cached_xattr *cx;
+	struct hlist_head *h;
+	struct hlist_node *tmp;
 	int ret = -ENOMEM;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
@@ -287,6 +381,16 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 
 	/* when request is serviced properly, free req op struct */
 	op_release(new_op);
+
+	h = &orangefs_inode->xattr_cache[xattr_key(name)];
+	hlist_for_each_entry_safe(cx, tmp, h, node) {
+		if (!strcmp(cx->key, name)) {
+			hlist_del(&cx->node);
+			kfree(cx);
+			break;
+		}
+	}
+
 out_unlock:
 	up_write(&orangefs_inode->xattr_sem);
 	return ret;
@@ -437,7 +541,8 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 				      struct inode *inode,
 				      const char *name,
 				      void *buffer,
-				      size_t size)
+				      size_t size,
+				      int flags)
 {
 	return orangefs_inode_getxattr(inode, name, buffer, size);
 

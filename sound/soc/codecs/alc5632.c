@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * alc5632.c  --  ALC5632 ALSA SoC Audio Codec
 *
@@ -9,10 +10,6 @@
 *           Marc Dietrich <marvin24@gmx.de>
 *
 * Based on alc5623.c by Arnaud Patard
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
 */
 
 #include <linux/module.h>
@@ -697,7 +694,7 @@ static int alc5632_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 				0);
 
 	/* pll is not used in slave mode */
-	reg = snd_soc_component_read32(component, ALC5632_DAI_CONTROL);
+	reg = snd_soc_component_read(component, ALC5632_DAI_CONTROL);
 	if (reg & ALC5632_DAI_SDP_SLAVE_MODE)
 		return 0;
 
@@ -874,7 +871,7 @@ static int alc5632_pcm_hw_params(struct snd_pcm_substream *substream,
 	int coeff, rate;
 	u16 iface;
 
-	iface = snd_soc_component_read32(component, ALC5632_DAI_CONTROL);
+	iface = snd_soc_component_read(component, ALC5632_DAI_CONTROL);
 	iface &= ~ALC5632_DAI_I2S_DL_MASK;
 
 	/* bit size */
@@ -905,12 +902,12 @@ static int alc5632_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int alc5632_mute(struct snd_soc_dai *dai, int mute)
+static int alc5632_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 hp_mute = ALC5632_MISC_HP_DEPOP_MUTE_L
 						|ALC5632_MISC_HP_DEPOP_MUTE_R;
-	u16 mute_reg = snd_soc_component_read32(component, ALC5632_MISC_CTRL) & ~hp_mute;
+	u16 mute_reg = snd_soc_component_read(component, ALC5632_MISC_CTRL) & ~hp_mute;
 
 	if (mute)
 		mute_reg |= hp_mute;
@@ -1008,10 +1005,11 @@ static int alc5632_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops alc5632_dai_ops = {
 		.hw_params = alc5632_pcm_hw_params,
-		.digital_mute = alc5632_mute,
+		.mute_stream = alc5632_mute,
 		.set_fmt = alc5632_set_dai_fmt,
 		.set_sysclk = alc5632_set_dai_sysclk,
 		.set_pll = alc5632_set_dai_pll,
+		.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver alc5632_dai = {

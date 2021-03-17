@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008-2010
  *
  * - Kurt Van Dijck, EIA Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/firmware.h>
@@ -284,7 +273,7 @@ int softing_load_app_fw(const char *file, struct softing *card)
 			goto failed;
 		}
 
-		/* regualar data */
+		/* regular data */
 		for (sum = 0, j = 0; j < len; ++j)
 			sum += dat[j];
 		/* work in 16bit (target) */
@@ -485,14 +474,14 @@ int softing_startstop(struct net_device *dev, int up)
 	if (ret)
 		goto failed;
 	if (!bus_bitmask_start)
-		/* no busses to be brought up */
+		/* no buses to be brought up */
 		goto card_done;
 
 	if ((bus_bitmask_start & 1) && (bus_bitmask_start & 2)
 			&& (softing_error_reporting(card->net[0])
 				!= softing_error_reporting(card->net[1]))) {
 		dev_alert(&card->pdev->dev,
-				"err_reporting flag differs for busses\n");
+				"err_reporting flag differs for buses\n");
 		goto invalid;
 	}
 	error_reporting = 0;
@@ -646,7 +635,7 @@ int softing_startstop(struct net_device *dev, int up)
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;
 		open_candev(netdev);
 		if (dev != netdev) {
-			/* notify other busses on the restart */
+			/* notify other buses on the restart */
 			softing_netdev_rx(netdev, &msg, 0);
 			++priv->can.can_stats.restarts;
 		}

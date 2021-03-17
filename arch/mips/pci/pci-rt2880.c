@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Ralink RT288x SoC PCI register definitions
  *
@@ -5,10 +6,6 @@
  *  Copyright (C) 2009 Gabor Juhos <juhosg@openwrt.org>
  *
  *  Parts of this file are based on Ralink's 2.6.21 BSP
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -221,7 +218,7 @@ static int rt288x_pci_probe(struct platform_device *pdev)
 {
 	void __iomem *io_map_base;
 
-	rt2880_pci_base = ioremap_nocache(RT2880_PCI_BASE, PAGE_SIZE);
+	rt2880_pci_base = ioremap(RT2880_PCI_BASE, PAGE_SIZE);
 
 	io_map_base = ioremap(RT2880_PCI_IO_BASE, RT2880_PCI_IO_SIZE);
 	rt2880_pci_controller.io_map_base = (unsigned long) io_map_base;
@@ -245,6 +242,8 @@ static int rt288x_pci_probe(struct platform_device *pdev)
 
 	rt2880_pci_write_u32(PCI_BASE_ADDRESS_0, 0x08000000);
 	(void) rt2880_pci_read_u32(PCI_BASE_ADDRESS_0);
+
+	rt2880_pci_controller.of_node = pdev->dev.of_node;
 
 	register_pci_controller(&rt2880_pci_controller);
 	return 0;

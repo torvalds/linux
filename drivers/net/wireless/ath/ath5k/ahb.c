@@ -106,7 +106,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	mem = ioremap_nocache(res->start, resource_size(res));
+	mem = ioremap(res->start, resource_size(res));
 	if (mem == NULL) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;

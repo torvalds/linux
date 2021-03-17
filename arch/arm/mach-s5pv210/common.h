@@ -10,7 +10,6 @@
 #define __ARCH_ARM_MACH_S5PV210_COMMON_H
 
 #ifdef CONFIG_PM_SLEEP
-u32 exynos_get_eint_wake_mask(void);
 void s5pv210_cpu_resume(void);
 void s5pv210_pm_init(void);
 #else

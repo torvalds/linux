@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include <linux/wait.h>
@@ -749,7 +739,7 @@ int saa7164_api_initialize_dif(struct saa7164_port *port)
 	if (port->type == SAA7164_MPEG_ENCODER) {
 		/* Pick any analog standard to init the diff.
 		 * we'll come back during encoder_init'
-		 * and set the correct standard if requried.
+		 * and set the correct standard if required.
 		 */
 		std = V4L2_STD_NTSC;
 	} else

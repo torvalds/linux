@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network interface table.
  *
@@ -9,10 +10,6 @@
  * Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
  * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
  *		      Paul Moore <paul@paul-moore.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2,
- * as published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/types.h>
@@ -127,7 +124,7 @@ static void sel_netif_destroy(struct sel_netif *netif)
  * @sid: interface SID
  *
  * Description:
- * This function determines the SID of a network interface by quering the
+ * This function determines the SID of a network interface by querying the
  * security policy.  The result is added to the network interface table to
  * speedup future queries.  Returns zero on success, negative values on
  * failure.
@@ -135,9 +132,9 @@ static void sel_netif_destroy(struct sel_netif *netif)
  */
 static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 {
-	int ret;
+	int ret = 0;
 	struct sel_netif *netif;
-	struct sel_netif *new = NULL;
+	struct sel_netif *new;
 	struct net_device *dev;
 
 	/* NOTE: we always use init's network namespace since we don't
@@ -154,32 +151,27 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 	netif = sel_netif_find(ns, ifindex);
 	if (netif != NULL) {
 		*sid = netif->nsec.sid;
-		ret = 0;
 		goto out;
 	}
+
+	ret = security_netif_sid(&selinux_state, dev->name, sid);
+	if (ret != 0)
+		goto out;
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (new == NULL) {
-		ret = -ENOMEM;
-		goto out;
+	if (new) {
+		new->nsec.ns = ns;
+		new->nsec.ifindex = ifindex;
+		new->nsec.sid = *sid;
+		if (sel_netif_insert(new))
+			kfree(new);
 	}
-	ret = security_netif_sid(&selinux_state, dev->name, &new->nsec.sid);
-	if (ret != 0)
-		goto out;
-	new->nsec.ns = ns;
-	new->nsec.ifindex = ifindex;
-	ret = sel_netif_insert(new);
-	if (ret != 0)
-		goto out;
-	*sid = new->nsec.sid;
 
 out:
 	spin_unlock_bh(&sel_netif_lock);
 	dev_put(dev);
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		pr_warn("SELinux: failure in %s(), unable to determine network interface label (%d)\n",
 			__func__, ifindex);
-		kfree(new);
-	}
 	return ret;
 }
 
@@ -274,7 +266,7 @@ static __init int sel_netif_init(void)
 {
 	int i;
 
-	if (!selinux_enabled)
+	if (!selinux_enabled_boot)
 		return 0;
 
 	for (i = 0; i < SEL_NETIF_HASH_SIZE; i++)

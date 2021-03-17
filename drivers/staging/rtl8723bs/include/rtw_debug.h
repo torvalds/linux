@@ -131,13 +131,13 @@
 	#define	_MODULE_DEFINE_	_module_efuse_
 #endif
 
-#define RT_TRACE(_Comp, _Level, Fmt) do{}while (0)
-#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen) do{}while (0)
+#define RT_TRACE(_Comp, _Level, Fmt) do {} while (0)
+#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen) do {} while (0)
 
 #define DBG_871X(x, ...) do {} while (0)
 #define MSG_8192C(x, ...) do {} while (0)
-#define DBG_8192C(x,...) do {} while (0)
-#define DBG_871X_LEVEL(x,...) do {} while (0)
+#define DBG_8192C(x, ...) do {} while (0)
+#define DBG_871X_LEVEL(x, ...) do {} while (0)
 
 #undef _dbgdump
 
@@ -161,8 +161,8 @@
 				_dbgdump(DRIVER_PREFIX"ERROR " fmt, ##arg);\
 			else \
 				_dbgdump(DRIVER_PREFIX fmt, ##arg);\
-		}\
-	}while (0)
+		} \
+	} while (0)
 
 /* without driver-defined prefix */
 #undef _DBG_871X_LEVEL
@@ -173,8 +173,8 @@
 				_dbgdump("ERROR " fmt, ##arg);\
 			else \
 				_dbgdump(fmt, ##arg);\
-		}\
-	}while (0)
+		} \
+	} while (0)
 
 #define RTW_DBGDUMP NULL /* 'stream' for _dbgdump */
 
@@ -203,17 +203,17 @@
 	#undef DBG_871X
 	#define DBG_871X(...)     do {\
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	}while (0)
+	} while (0)
 
 	#undef MSG_8192C
 	#define MSG_8192C(...)     do {\
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	}while (0)
+	} while (0)
 
 	#undef DBG_8192C
 	#define DBG_8192C(...)     do {\
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	}while (0)
+	} while (0)
 #endif /* defined(_dbgdump) */
 #endif /* DEBUG */
 
@@ -227,8 +227,8 @@
 		if ((_Comp & GlobalDebugComponents) && (_Level <= GlobalDebugLevel)) {\
 			_dbgdump("%s [0x%08x,%d]", DRIVER_PREFIX, (unsigned int)_Comp, _Level);\
 			_dbgdump Fmt;\
-		}\
-	}while (0)
+		} \
+	} while (0)
 
 #endif /* defined(_dbgdump) && defined(_MODULE_DEFINE_) */
 
@@ -242,7 +242,7 @@
 			u8 *ptr = (u8 *)_HexData;				\
 			_dbgdump("%s", DRIVER_PREFIX);						\
 			_dbgdump(_TitleString);						\
-			for (__i = 0; __i<(int)_HexDataLen; __i++)				\
+			for (__i = 0; __i < (int)_HexDataLen; __i++)				\
 			{								\
 				_dbgdump("%02X%s", ptr[__i], (((__i + 1) % 4) == 0)?"  ":" ");	\
 				if (((__i + 1) % 16) == 0)	_dbgdump("\n");			\
@@ -266,82 +266,5 @@ void sd_f0_reg_dump(void *sel, struct adapter *adapter);
 void mac_reg_dump(void *sel, struct adapter *adapter);
 void bb_reg_dump(void *sel, struct adapter *adapter);
 void rf_reg_dump(void *sel, struct adapter *adapter);
-
-#ifdef PROC_DEBUG
-ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_read_reg(struct seq_file *m, void *v);
-ssize_t proc_set_read_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_fwstate(struct seq_file *m, void *v);
-int proc_get_sec_info(struct seq_file *m, void *v);
-int proc_get_mlmext_state(struct seq_file *m, void *v);
-
-int proc_get_roam_flags(struct seq_file *m, void *v);
-ssize_t proc_set_roam_flags(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_roam_param(struct seq_file *m, void *v);
-ssize_t proc_set_roam_param(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-ssize_t proc_set_roam_tgt_addr(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_qos_option(struct seq_file *m, void *v);
-int proc_get_ht_option(struct seq_file *m, void *v);
-int proc_get_rf_info(struct seq_file *m, void *v);
-int proc_get_survey_info(struct seq_file *m, void *v);
-int proc_get_ap_info(struct seq_file *m, void *v);
-int proc_get_adapter_state(struct seq_file *m, void *v);
-int proc_get_trx_info(struct seq_file *m, void *v);
-int proc_get_rate_ctl(struct seq_file *m, void *v);
-ssize_t proc_set_rate_ctl(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_suspend_resume_info(struct seq_file *m, void *v);
-
-ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-ssize_t proc_set_wait_hiq_empty(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_all_sta_info(struct seq_file *m, void *v);
-
-int proc_get_rx_signal(struct seq_file *m, void *v);
-ssize_t proc_set_rx_signal(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_hw_status(struct seq_file *m, void *v);
-
-int proc_get_ht_enable(struct seq_file *m, void *v);
-ssize_t proc_set_ht_enable(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_bw_mode(struct seq_file *m, void *v);
-ssize_t proc_set_bw_mode(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_ampdu_enable(struct seq_file *m, void *v);
-ssize_t proc_set_ampdu_enable(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_rx_ampdu(struct seq_file *m, void *v);
-ssize_t proc_set_rx_ampdu(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_rx_stbc(struct seq_file *m, void *v);
-ssize_t proc_set_rx_stbc(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_en_fwps(struct seq_file *m, void *v);
-ssize_t proc_set_en_fwps(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-/* int proc_get_two_path_rssi(struct seq_file *m, void *v); */
-int proc_get_rssi_disp(struct seq_file *m, void *v);
-ssize_t proc_set_rssi_disp(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_btcoex_dbg(struct seq_file *m, void *v);
-ssize_t proc_set_btcoex_dbg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_btcoex_info(struct seq_file *m, void *v);
-
-int proc_get_odm_dbg_comp(struct seq_file *m, void *v);
-ssize_t proc_set_odm_dbg_comp(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_odm_dbg_level(struct seq_file *m, void *v);
-ssize_t proc_set_odm_dbg_level(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_odm_adaptivity(struct seq_file *m, void *v);
-ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-#ifdef CONFIG_DBG_COUNTER
-int proc_get_rx_logs(struct seq_file *m, void *v);
-int proc_get_tx_logs(struct seq_file *m, void *v);
-int proc_get_int_logs(struct seq_file *m, void *v);
-#endif
-
-#endif /* PROC_DEBUG */
 
 #endif	/* __RTW_DEBUG_H__ */

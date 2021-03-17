@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * arch/arm/plat-omap/include/mach/mux.h
  *
@@ -8,20 +9,6 @@
  * Copyright (C) 2003 - 2008 Nokia Corporation
  *
  * Written by Tony Lindgren
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * NOTE: Please use the following naming style for new pin entries.
  *	 For example, W8_1610_MMC2_DAT0, where:
@@ -101,7 +88,7 @@
  * OMAP730/850 has a slightly different config for the pin mux.
  * - config regs are the OMAP7XX_IO_CONF_x regs (see omap7xx.h) regs and
  *   not the FUNC_MUX_CTRL_x regs from hardware.h
- * - for pull-up/down, only has one enable bit which is is in the same register
+ * - for pull-up/down, only has one enable bit which is in the same register
  *   as mux config
  */
 #define MUX_CFG_7XX(desc, mux_reg, mode_offset, mode,	\

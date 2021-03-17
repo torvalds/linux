@@ -301,7 +301,6 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	struct xgbe_prv_data *pdata;
 	struct device *dev = &pdev->dev;
 	struct platform_device *phy_pdev;
-	struct resource *res;
 	const char *phy_mode;
 	unsigned int phy_memnum, phy_irqnum;
 	unsigned int dma_irqnum, dma_irqend;
@@ -353,8 +352,7 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	}
 
 	/* Obtain the mmio areas for the device */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->xgmac_regs = devm_ioremap_resource(dev, res);
+	pdata->xgmac_regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->xgmac_regs)) {
 		dev_err(dev, "xgmac ioremap failed\n");
 		ret = PTR_ERR(pdata->xgmac_regs);
@@ -363,8 +361,7 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	if (netif_msg_probe(pdata))
 		dev_dbg(dev, "xgmac_regs = %p\n", pdata->xgmac_regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	pdata->xpcs_regs = devm_ioremap_resource(dev, res);
+	pdata->xpcs_regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(pdata->xpcs_regs)) {
 		dev_err(dev, "xpcs ioremap failed\n");
 		ret = PTR_ERR(pdata->xpcs_regs);
@@ -373,8 +370,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	if (netif_msg_probe(pdata))
 		dev_dbg(dev, "xpcs_regs  = %p\n", pdata->xpcs_regs);
 
-	res = platform_get_resource(phy_pdev, IORESOURCE_MEM, phy_memnum++);
-	pdata->rxtx_regs = devm_ioremap_resource(dev, res);
+	pdata->rxtx_regs = devm_platform_ioremap_resource(phy_pdev,
+							  phy_memnum++);
 	if (IS_ERR(pdata->rxtx_regs)) {
 		dev_err(dev, "rxtx ioremap failed\n");
 		ret = PTR_ERR(pdata->rxtx_regs);
@@ -383,8 +380,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	if (netif_msg_probe(pdata))
 		dev_dbg(dev, "rxtx_regs  = %p\n", pdata->rxtx_regs);
 
-	res = platform_get_resource(phy_pdev, IORESOURCE_MEM, phy_memnum++);
-	pdata->sir0_regs = devm_ioremap_resource(dev, res);
+	pdata->sir0_regs = devm_platform_ioremap_resource(phy_pdev,
+							  phy_memnum++);
 	if (IS_ERR(pdata->sir0_regs)) {
 		dev_err(dev, "sir0 ioremap failed\n");
 		ret = PTR_ERR(pdata->sir0_regs);
@@ -393,8 +390,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	if (netif_msg_probe(pdata))
 		dev_dbg(dev, "sir0_regs  = %p\n", pdata->sir0_regs);
 
-	res = platform_get_resource(phy_pdev, IORESOURCE_MEM, phy_memnum++);
-	pdata->sir1_regs = devm_ioremap_resource(dev, res);
+	pdata->sir1_regs = devm_platform_ioremap_resource(phy_pdev,
+							  phy_memnum++);
 	if (IS_ERR(pdata->sir1_regs)) {
 		dev_err(dev, "sir1 ioremap failed\n");
 		ret = PTR_ERR(pdata->sir1_regs);
@@ -467,10 +464,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 
 	/* Get the device interrupt */
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "platform_get_irq 0 failed\n");
+	if (ret < 0)
 		goto err_io;
-	}
 	pdata->dev_irq = ret;
 
 	/* Get the per channel DMA interrupts */
@@ -479,12 +474,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 
 		for (i = 0; (i < max) && (dma_irqnum < dma_irqend); i++) {
 			ret = platform_get_irq(pdata->platdev, dma_irqnum++);
-			if (ret < 0) {
-				netdev_err(pdata->netdev,
-					   "platform_get_irq %u failed\n",
-					   dma_irqnum - 1);
+			if (ret < 0)
 				goto err_io;
-			}
 
 			pdata->channel_irq[i] = ret;
 		}
@@ -496,10 +487,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 
 	/* Get the auto-negotiation interrupt */
 	ret = platform_get_irq(phy_pdev, phy_irqnum++);
-	if (ret < 0) {
-		dev_err(dev, "platform_get_irq phy 0 failed\n");
+	if (ret < 0)
 		goto err_io;
-	}
 	pdata->an_irq = ret;
 
 	/* Configure the netdev resource */

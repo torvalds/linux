@@ -34,6 +34,60 @@
 		 CGROUP_WORK_DIR, path)
 
 /**
+ * enable_all_controllers() - Enable all available cgroup v2 controllers
+ *
+ * Enable all available cgroup v2 controllers in order to increase
+ * the code coverage.
+ *
+ * If successful, 0 is returned.
+ */
+static int enable_all_controllers(char *cgroup_path)
+{
+	char path[PATH_MAX + 1];
+	char buf[PATH_MAX];
+	char *c, *c2;
+	int fd, cfd;
+	ssize_t len;
+
+	snprintf(path, sizeof(path), "%s/cgroup.controllers", cgroup_path);
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		log_err("Opening cgroup.controllers: %s", path);
+		return 1;
+	}
+
+	len = read(fd, buf, sizeof(buf) - 1);
+	if (len < 0) {
+		close(fd);
+		log_err("Reading cgroup.controllers: %s", path);
+		return 1;
+	}
+	buf[len] = 0;
+	close(fd);
+
+	/* No controllers available? We're probably on cgroup v1. */
+	if (len == 0)
+		return 0;
+
+	snprintf(path, sizeof(path), "%s/cgroup.subtree_control", cgroup_path);
+	cfd = open(path, O_RDWR);
+	if (cfd < 0) {
+		log_err("Opening cgroup.subtree_control: %s", path);
+		return 1;
+	}
+
+	for (c = strtok_r(buf, " ", &c2); c; c = strtok_r(NULL, " ", &c2)) {
+		if (dprintf(cfd, "+%s\n", c) <= 0) {
+			log_err("Enabling controller %s: %s", c, path);
+			close(cfd);
+			return 1;
+		}
+	}
+	close(cfd);
+	return 0;
+}
+
+/**
  * setup_cgroup_environment() - Setup the cgroup environment
  *
  * After calling this function, cleanup_cgroup_environment should be called
@@ -44,7 +98,7 @@
  */
 int setup_cgroup_environment(void)
 {
-	char cgroup_workdir[PATH_MAX + 1];
+	char cgroup_workdir[PATH_MAX - 24];
 
 	format_cgroup_path(cgroup_workdir, "");
 
@@ -70,6 +124,9 @@ int setup_cgroup_environment(void)
 		log_err("mkdir cgroup work dir");
 		return 1;
 	}
+
+	if (enable_all_controllers(cgroup_workdir))
+		return 1;
 
 	return 0;
 }
@@ -155,7 +212,7 @@ void cleanup_cgroup_environment(void)
  * This function creates a cgroup under the top level workdir and returns the
  * file descriptor. It is idempotent.
  *
- * On success, it returns the file descriptor. On failure it returns 0.
+ * On success, it returns the file descriptor. On failure it returns -1.
  * If there is a failure, it prints the error to stderr.
  */
 int create_and_get_cgroup(const char *path)
@@ -166,13 +223,13 @@ int create_and_get_cgroup(const char *path)
 	format_cgroup_path(cgroup_path, path);
 	if (mkdir(cgroup_path, 0777) && errno != EEXIST) {
 		log_err("mkdiring cgroup %s .. %s", path, cgroup_path);
-		return 0;
+		return -1;
 	}
 
 	fd = open(cgroup_path, O_RDONLY);
 	if (fd < 0) {
 		log_err("Opening Cgroup");
-		return 0;
+		return -1;
 	}
 
 	return fd;
@@ -232,4 +289,27 @@ unsigned long long get_cgroup_id(const char *path)
 free_mem:
 	free(fhp);
 	return ret;
+}
+
+int cgroup_setup_and_join(const char *path) {
+	int cg_fd;
+
+	if (setup_cgroup_environment()) {
+		fprintf(stderr, "Failed to setup cgroup environment\n");
+		return -EINVAL;
+	}
+
+	cg_fd = create_and_get_cgroup(path);
+	if (cg_fd < 0) {
+		fprintf(stderr, "Failed to create test cgroup\n");
+		cleanup_cgroup_environment();
+		return cg_fd;
+	}
+
+	if (join_cgroup(path)) {
+		fprintf(stderr, "Failed to join cgroup\n");
+		cleanup_cgroup_environment();
+		return -EINVAL;
+	}
+	return cg_fd;
 }

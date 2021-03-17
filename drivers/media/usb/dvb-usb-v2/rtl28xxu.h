@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Realtek RTL28xxU DVB USB driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
  * Copyright (C) 2011 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef RTL28XXU_H
@@ -31,6 +18,7 @@
 #include "rtl2832_sdr.h"
 #include "mn88472.h"
 #include "mn88473.h"
+#include "cxd2841er.h"
 
 #include "qt1010.h"
 #include "mt2060.h"
@@ -87,7 +75,8 @@ struct rtl28xxu_dev {
 	#define SLAVE_DEMOD_MN88472        1
 	#define SLAVE_DEMOD_MN88473        2
 	#define SLAVE_DEMOD_SI2168         3
-	unsigned int slave_demod:2;
+	#define SLAVE_DEMOD_CXD2837ER      4
+	unsigned int slave_demod:3;
 	union {
 		struct rtl2830_platform_data rtl2830_platform_data;
 		struct rtl2832_platform_data rtl2832_platform_data;

@@ -8,17 +8,17 @@ http://0x04.net/cgit/index.cgi/rules-ng-ng
 git clone git://0x04.net/rules-ng-ng
 
 The rules-ng-ng source files this header was generated from are:
-- state.xml     (  26087 bytes, from 2017-12-18 16:51:59)
-- common.xml    (  35468 bytes, from 2018-01-22 13:48:54)
-- common_3d.xml (  14615 bytes, from 2017-12-18 16:51:59)
-- state_hi.xml  (  30232 bytes, from 2018-02-15 15:48:01)
-- copyright.xml (   1597 bytes, from 2016-12-08 16:37:56)
-- state_2d.xml  (  51552 bytes, from 2016-12-08 16:37:56)
-- state_3d.xml  (  79992 bytes, from 2017-12-18 16:51:59)
-- state_blt.xml (  13405 bytes, from 2017-12-18 16:51:59)
-- state_vg.xml  (   5975 bytes, from 2016-12-08 16:37:56)
+- state.xml     (  26666 bytes, from 2019-12-20 21:20:35)
+- common.xml    (  35468 bytes, from 2018-02-10 13:09:26)
+- common_3d.xml (  15058 bytes, from 2019-12-28 20:02:03)
+- state_hi.xml  (  30552 bytes, from 2019-12-28 20:02:48)
+- copyright.xml (   1597 bytes, from 2018-02-10 13:09:26)
+- state_2d.xml  (  51552 bytes, from 2018-02-10 13:09:26)
+- state_3d.xml  (  83098 bytes, from 2019-12-28 20:02:03)
+- state_blt.xml (  14252 bytes, from 2019-10-20 19:59:15)
+- state_vg.xml  (   5975 bytes, from 2018-02-10 13:09:26)
 
-Copyright (C) 2012-2018 by the following authors:
+Copyright (C) 2012-2019 by the following authors:
 - Wladimir J. van der Laan <laanwj@gmail.com>
 - Christian Gmeiner <christian.gmeiner@gmail.com>
 - Lucas Stach <l.stach@pengutronix.de>
@@ -48,6 +48,9 @@ DEALINGS IN THE SOFTWARE.
 #define MMU_EXCEPTION_SLAVE_NOT_PRESENT				0x00000001
 #define MMU_EXCEPTION_PAGE_NOT_PRESENT				0x00000002
 #define MMU_EXCEPTION_WRITE_VIOLATION				0x00000003
+#define MMU_EXCEPTION_OUT_OF_BOUND				0x00000004
+#define MMU_EXCEPTION_READ_SECURITY_VIOLATION			0x00000005
+#define MMU_EXCEPTION_WRITE_SECURITY_VIOLATION			0x00000006
 #define VIVS_HI							0x00000000
 
 #define VIVS_HI_CLOCK_CONTROL					0x00000000
@@ -81,6 +84,13 @@ DEALINGS IN THE SOFTWARE.
 #define VIVS_HI_IDLE_STATE_IM					0x00000200
 #define VIVS_HI_IDLE_STATE_FP					0x00000400
 #define VIVS_HI_IDLE_STATE_TS					0x00000800
+#define VIVS_HI_IDLE_STATE_BL					0x00001000
+#define VIVS_HI_IDLE_STATE_ASYNCFE				0x00002000
+#define VIVS_HI_IDLE_STATE_MC					0x00004000
+#define VIVS_HI_IDLE_STATE_PPA					0x00008000
+#define VIVS_HI_IDLE_STATE_WD					0x00010000
+#define VIVS_HI_IDLE_STATE_NN					0x00020000
+#define VIVS_HI_IDLE_STATE_TP					0x00040000
 #define VIVS_HI_IDLE_STATE_AXI_LP				0x80000000
 
 #define VIVS_HI_AXI_CONFIG					0x00000008
@@ -139,6 +149,8 @@ DEALINGS IN THE SOFTWARE.
 #define VIVS_HI_CHIP_DATE					0x00000028
 
 #define VIVS_HI_CHIP_TIME					0x0000002c
+
+#define VIVS_HI_CHIP_CUSTOMER_ID				0x00000030
 
 #define VIVS_HI_CHIP_MINOR_FEATURE_0				0x00000034
 
@@ -236,6 +248,8 @@ DEALINGS IN THE SOFTWARE.
 #define VIVS_HI_CHIP_PRODUCT_ID					0x000000a8
 
 #define VIVS_HI_BLT_INTR					0x000000d4
+
+#define VIVS_HI_CHIP_ECO_ID					0x000000e8
 
 #define VIVS_HI_AUXBIT						0x000000ec
 

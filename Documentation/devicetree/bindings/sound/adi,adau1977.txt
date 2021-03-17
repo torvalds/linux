@@ -1,0 +1,61 @@
+Analog Devices ADAU1977/ADAU1978/ADAU1979
+
+Datasheets:
+https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1977.pdf
+https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1978.pdf
+https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1979.pdf
+
+This driver supports both the I2C and SPI bus.
+
+Required properties:
+ - compatible: Should contain one of the following:
+               "adi,adau1977"
+               "adi,adau1978"
+               "adi,adau1979"
+
+ - AVDD-supply: analog power supply for the device, please consult
+                Documentation/devicetree/bindings/regulator/regulator.txt
+
+Optional properties:
+ - reset-gpios: the reset pin for the chip, for more details consult
+                Documentation/devicetree/bindings/gpio/gpio.txt
+
+ - DVDD-supply: supply voltage for the digital core, please consult
+                Documentation/devicetree/bindings/regulator/regulator.txt
+
+- adi,micbias: configures the voltage setting for the MICBIAS pin.
+		Select 0/1/2/3/4/5/6/7/8 to specify MICBIAS voltage
+		5V/5.5V/6V/6.5V/7V/7.5V/8V/8.5V/9V
+		If not specified the default value will be "7" meaning 8.5 Volts.
+		This property is only valid for the ADAU1977
+
+For required properties on SPI, please consult
+Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Required properties on I2C:
+
+ - reg:         The i2c address. Value depends on the state of ADDR0
+                and ADDR1, as wired in hardware.
+
+Examples:
+
+	adau1977_spi: adau1977@0 {
+		compatible = "adi,adau1977";
+		spi-max-frequency = <600000>;
+
+		AVDD-supply = <&regulator>;
+		DVDD-supply = <&regulator_digital>;
+
+		adi,micbias = <3>;
+		reset-gpios = <&gpio 10 GPIO_ACTIVE_LOW>;
+	};
+
+	adau1977_i2c: adau1977@11 {
+		compatible = "adi,adau1977";
+		reg = <0x11>;
+
+		AVDD-supply = <&regulator>;
+		DVDD-supply = <&regulator_digital>;
+
+		reset-gpios = <&gpio 10 GPIO_ACTIVE_LOW>;
+	};

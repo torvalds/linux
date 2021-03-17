@@ -93,7 +93,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	case CPU_P5600:
 	case CPU_I6400:
 	case CPU_M5150:
-	case CPU_LOONGSON1:
+	case CPU_LOONGSON32:
 	case CPU_SB1:
 	case CPU_SB1A:
 	case CPU_R10000:
@@ -104,13 +104,13 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		lmodel = &op_model_mipsxx_ops;
 		break;
 
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 		lmodel = &op_model_loongson2_ops;
 		break;
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		lmodel = &op_model_loongson3_ops;
 		break;
-	};
+	}
 
 	/*
 	 * Always set the backtrace. This allows unsupported CPU types to still

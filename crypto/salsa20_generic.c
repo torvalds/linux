@@ -9,8 +9,8 @@
  * Salsa20 is a stream cipher candidate in eSTREAM, the ECRYPT Stream
  * Cipher Project. It is designed by Daniel J. Bernstein <djb@cr.yp.to>.
  * More information about eSTREAM and Salsa20 can be found here:
- *   http://www.ecrypt.eu.org/stream/
- *   http://cr.yp.to/snuffle.html
+ *   https://www.ecrypt.eu.org/stream/
+ *   https://cr.yp.to/snuffle.html
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -86,18 +86,17 @@ static void salsa20_docrypt(u32 *state, u8 *dst, const u8 *src,
 {
 	__le32 stream[SALSA20_BLOCK_SIZE / sizeof(__le32)];
 
-	if (dst != src)
-		memcpy(dst, src, bytes);
-
 	while (bytes >= SALSA20_BLOCK_SIZE) {
 		salsa20_block(state, stream);
-		crypto_xor(dst, (const u8 *)stream, SALSA20_BLOCK_SIZE);
+		crypto_xor_cpy(dst, src, (const u8 *)stream,
+			       SALSA20_BLOCK_SIZE);
 		bytes -= SALSA20_BLOCK_SIZE;
 		dst += SALSA20_BLOCK_SIZE;
+		src += SALSA20_BLOCK_SIZE;
 	}
 	if (bytes) {
 		salsa20_block(state, stream);
-		crypto_xor(dst, (const u8 *)stream, bytes);
+		crypto_xor_cpy(dst, src, (const u8 *)stream, bytes);
 	}
 }
 
@@ -159,9 +158,9 @@ static int salsa20_crypt(struct skcipher_request *req)
 	u32 state[16];
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	salsa20_init(state, ctx, walk.iv);
+	salsa20_init(state, ctx, req->iv);
 
 	while (walk.nbytes > 0) {
 		unsigned int nbytes = walk.nbytes;
@@ -204,7 +203,7 @@ static void __exit salsa20_generic_mod_fini(void)
 	crypto_unregister_skcipher(&alg);
 }
 
-module_init(salsa20_generic_mod_init);
+subsys_initcall(salsa20_generic_mod_init);
 module_exit(salsa20_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

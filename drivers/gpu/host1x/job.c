@@ -1,24 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra host1x Job
  *
  * Copyright (c) 2010-2015, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/host1x.h>
+#include <linux/iommu.h>
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
@@ -37,9 +27,12 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 				    u32 num_cmdbufs, u32 num_relocs)
 {
 	struct host1x_job *job = NULL;
-	unsigned int num_unpins = num_cmdbufs + num_relocs;
+	unsigned int num_unpins = num_relocs;
 	u64 total;
 	void *mem;
+
+	if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+		num_unpins += num_cmdbufs;
 
 	/* Check that we're not going to overflow */
 	total = sizeof(struct host1x_job) +
@@ -110,15 +103,20 @@ EXPORT_SYMBOL(host1x_job_add_gather);
 
 static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
+	struct host1x_client *client = job->client;
+	struct device *dev = client->dev;
+	struct host1x_job_gather *g;
+	struct iommu_domain *domain;
 	unsigned int i;
 	int err;
 
+	domain = iommu_get_domain_for_dev(dev);
 	job->num_unpins = 0;
 
 	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocs[i];
+		dma_addr_t phys_addr, *phys;
 		struct sg_table *sgt;
-		dma_addr_t phys_addr;
 
 		reloc->target.bo = host1x_bo_get(reloc->target.bo);
 		if (!reloc->target.bo) {
@@ -126,7 +124,60 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		phys_addr = host1x_bo_pin(reloc->target.bo, &sgt);
+		/*
+		 * If the client device is not attached to an IOMMU, the
+		 * physical address of the buffer object can be used.
+		 *
+		 * Similarly, when an IOMMU domain is shared between all
+		 * host1x clients, the IOVA is already available, so no
+		 * need to map the buffer object again.
+		 *
+		 * XXX Note that this isn't always safe to do because it
+		 * relies on an assumption that no cache maintenance is
+		 * needed on the buffer objects.
+		 */
+		if (!domain || client->group)
+			phys = &phys_addr;
+		else
+			phys = NULL;
+
+		sgt = host1x_bo_pin(dev, reloc->target.bo, phys);
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto unpin;
+		}
+
+		if (sgt) {
+			unsigned long mask = HOST1X_RELOC_READ |
+					     HOST1X_RELOC_WRITE;
+			enum dma_data_direction dir;
+
+			switch (reloc->flags & mask) {
+			case HOST1X_RELOC_READ:
+				dir = DMA_TO_DEVICE;
+				break;
+
+			case HOST1X_RELOC_WRITE:
+				dir = DMA_FROM_DEVICE;
+				break;
+
+			case HOST1X_RELOC_READ | HOST1X_RELOC_WRITE:
+				dir = DMA_BIDIRECTIONAL;
+				break;
+
+			default:
+				err = -EINVAL;
+				goto unpin;
+			}
+
+			err = dma_map_sgtable(dev, sgt, dir, 0);
+			if (err)
+				goto unpin;
+
+			job->unpins[job->num_unpins].dev = dev;
+			job->unpins[job->num_unpins].dir = dir;
+			phys_addr = sg_dma_address(sgt->sgl);
+		}
 
 		job->addr_phys[job->num_unpins] = phys_addr;
 		job->unpins[job->num_unpins].bo = reloc->target.bo;
@@ -134,26 +185,48 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		job->num_unpins++;
 	}
 
+	/*
+	 * We will copy gathers BO content later, so there is no need to
+	 * hold and pin them.
+	 */
+	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+		return 0;
+
 	for (i = 0; i < job->num_gathers; i++) {
-		struct host1x_job_gather *g = &job->gathers[i];
 		size_t gather_size = 0;
 		struct scatterlist *sg;
 		struct sg_table *sgt;
 		dma_addr_t phys_addr;
 		unsigned long shift;
 		struct iova *alloc;
+		dma_addr_t *phys;
 		unsigned int j;
 
+		g = &job->gathers[i];
 		g->bo = host1x_bo_get(g->bo);
 		if (!g->bo) {
 			err = -EINVAL;
 			goto unpin;
 		}
 
-		phys_addr = host1x_bo_pin(g->bo, &sgt);
+		/**
+		 * If the host1x is not attached to an IOMMU, there is no need
+		 * to map the buffer object for the host1x, since the physical
+		 * address can simply be used.
+		 */
+		if (!iommu_get_domain_for_dev(host->dev))
+			phys = &phys_addr;
+		else
+			phys = NULL;
 
-		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
-			for_each_sg(sgt->sgl, sg, sgt->nents, j)
+		sgt = host1x_bo_pin(host->dev, g->bo, phys);
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto put;
+		}
+
+		if (host->domain) {
+			for_each_sgtable_sg(sgt, sg, j)
 				gather_size += sg->length;
 			gather_size = iova_align(&host->iova, gather_size);
 
@@ -162,26 +235,32 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 					   host->iova_end >> shift, true);
 			if (!alloc) {
 				err = -ENOMEM;
-				goto unpin;
+				goto put;
 			}
 
-			err = iommu_map_sg(host->domain,
+			err = iommu_map_sgtable(host->domain,
 					iova_dma_addr(&host->iova, alloc),
-					sgt->sgl, sgt->nents, IOMMU_READ);
+					sgt, IOMMU_READ);
 			if (err == 0) {
 				__free_iova(&host->iova, alloc);
 				err = -EINVAL;
-				goto unpin;
+				goto put;
 			}
 
-			job->addr_phys[job->num_unpins] =
-				iova_dma_addr(&host->iova, alloc);
 			job->unpins[job->num_unpins].size = gather_size;
-		} else {
-			job->addr_phys[job->num_unpins] = phys_addr;
+			phys_addr = iova_dma_addr(&host->iova, alloc);
+		} else if (sgt) {
+			err = dma_map_sgtable(host->dev, sgt, DMA_TO_DEVICE, 0);
+			if (err)
+				goto put;
+
+			job->unpins[job->num_unpins].dir = DMA_TO_DEVICE;
+			job->unpins[job->num_unpins].dev = host->dev;
+			phys_addr = sg_dma_address(sgt->sgl);
 		}
 
-		job->gather_addr_phys[i] = job->addr_phys[job->num_unpins];
+		job->addr_phys[job->num_unpins] = phys_addr;
+		job->gather_addr_phys[i] = phys_addr;
 
 		job->unpins[job->num_unpins].bo = g->bo;
 		job->unpins[job->num_unpins].sgt = sgt;
@@ -190,6 +269,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 	return 0;
 
+put:
+	host1x_bo_put(g->bo);
 unpin:
 	host1x_job_unpin(job);
 	return err;
@@ -197,8 +278,7 @@ unpin:
 
 static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 {
-	u32 last_page = ~0;
-	void *cmdbuf_page_addr = NULL;
+	void *cmdbuf_addr = NULL;
 	struct host1x_bo *cmdbuf = g->bo;
 	unsigned int i;
 
@@ -220,28 +300,22 @@ static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 			goto patch_reloc;
 		}
 
-		if (last_page != reloc->cmdbuf.offset >> PAGE_SHIFT) {
-			if (cmdbuf_page_addr)
-				host1x_bo_kunmap(cmdbuf, last_page,
-						 cmdbuf_page_addr);
+		if (!cmdbuf_addr) {
+			cmdbuf_addr = host1x_bo_mmap(cmdbuf);
 
-			cmdbuf_page_addr = host1x_bo_kmap(cmdbuf,
-					reloc->cmdbuf.offset >> PAGE_SHIFT);
-			last_page = reloc->cmdbuf.offset >> PAGE_SHIFT;
-
-			if (unlikely(!cmdbuf_page_addr)) {
+			if (unlikely(!cmdbuf_addr)) {
 				pr_err("Could not map cmdbuf for relocation\n");
 				return -ENOMEM;
 			}
 		}
 
-		target = cmdbuf_page_addr + (reloc->cmdbuf.offset & ~PAGE_MASK);
+		target = cmdbuf_addr + reloc->cmdbuf.offset;
 patch_reloc:
 		*target = reloc_addr;
 	}
 
-	if (cmdbuf_page_addr)
-		host1x_bo_kunmap(cmdbuf, last_page, cmdbuf_page_addr);
+	if (cmdbuf_addr)
+		host1x_bo_munmap(cmdbuf, cmdbuf_addr);
 
 	return 0;
 }
@@ -447,7 +521,8 @@ out:
 	return err;
 }
 
-static inline int copy_gathers(struct host1x_job *job, struct device *dev)
+static inline int copy_gathers(struct device *host, struct host1x_job *job,
+			       struct device *dev)
 {
 	struct host1x_firewall fw;
 	size_t size = 0;
@@ -470,12 +545,12 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 	 * Try a non-blocking allocation from a higher priority pools first,
 	 * as awaiting for the allocation here is a major performance hit.
 	 */
-	job->gather_copy_mapped = dma_alloc_wc(dev, size, &job->gather_copy,
+	job->gather_copy_mapped = dma_alloc_wc(host, size, &job->gather_copy,
 					       GFP_NOWAIT);
 
 	/* the higher priority allocation failed, try the generic-blocking */
 	if (!job->gather_copy_mapped)
-		job->gather_copy_mapped = dma_alloc_wc(dev, size,
+		job->gather_copy_mapped = dma_alloc_wc(host, size,
 						       &job->gather_copy,
 						       GFP_KERNEL);
 	if (!job->gather_copy_mapped)
@@ -523,7 +598,7 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 		goto out;
 
 	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
-		err = copy_gathers(job, dev);
+		err = copy_gathers(host->dev, job, dev);
 		if (err)
 			goto out;
 	}
@@ -568,6 +643,8 @@ void host1x_job_unpin(struct host1x_job *job)
 
 	for (i = 0; i < job->num_unpins; i++) {
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
+		struct device *dev = unpin->dev ?: host->dev;
+		struct sg_table *sgt = unpin->sgt;
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) &&
 		    unpin->size && host->domain) {
@@ -577,14 +654,17 @@ void host1x_job_unpin(struct host1x_job *job)
 				iova_pfn(&host->iova, job->addr_phys[i]));
 		}
 
-		host1x_bo_unpin(unpin->bo, unpin->sgt);
+		if (unpin->dev && sgt)
+			dma_unmap_sgtable(unpin->dev, sgt, unpin->dir, 0);
+
+		host1x_bo_unpin(dev, unpin->bo, sgt);
 		host1x_bo_put(unpin->bo);
 	}
 
 	job->num_unpins = 0;
 
 	if (job->gather_copy_size)
-		dma_free_wc(job->channel->dev, job->gather_copy_size,
+		dma_free_wc(host->dev, job->gather_copy_size,
 			    job->gather_copy_mapped, job->gather_copy);
 }
 EXPORT_SYMBOL(host1x_job_unpin);

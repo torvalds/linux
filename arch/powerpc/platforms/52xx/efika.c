@@ -82,11 +82,9 @@ static void __init efika_pcisetup(void)
 		return;
 	}
 
-	for (pcictrl = NULL;;) {
-		pcictrl = of_get_next_child(root, pcictrl);
-		if ((pcictrl == NULL) || (strcmp(pcictrl->name, "pci") == 0))
+	for_each_child_of_node(root, pcictrl)
+		if (of_node_name_eq(pcictrl, "pci"))
 			break;
-	}
 
 	of_node_put(root);
 
@@ -207,7 +205,6 @@ static int __init efika_probe(void)
 	if (strcmp(model, "EFIKA5K2"))
 		return 0;
 
-	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
 

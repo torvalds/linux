@@ -1,21 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A driver for the CMOS camera controller in the Marvell 88ALP01 "cafe"
  * multifunction chip.  Currently works with the Omnivision OV7670
  * sensor.
  *
  * The data sheet for this device can be found at:
- *    http://www.marvell.com/products/pc_connectivity/88alp01/
+ *    http://wiki.laptop.org/images/5/5c/88ALP01_Datasheet_July_2007.pdf
  *
  * Copyright 2006-11 One Laptop Per Child Association, Inc.
  * Copyright 2006-11 Jonathan Corbet <corbet@lwn.net>
+ * Copyright 2018 Lubomir Rintel <lkundrak@v3.sk>
  *
  * Written by Jonathan Corbet, corbet@lwn.net.
  *
  * v4l2_device/v4l2_subdev conversion by:
  * Copyright (C) 2009 Hans Verkuil <hverkuil@xs4all.nl>
- *
- * This file may be distributed under the terms of the GNU General
- * Public License, version 2.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -27,10 +26,12 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
+#include <media/i2c/ov7670.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/clkdev.h>
 
 #include "mcam-core.h"
 
@@ -52,6 +53,7 @@ struct cafe_camera {
 	int registered;			/* Fully initialized? */
 	struct mcam_camera mcam;
 	struct pci_dev *pdev;
+	struct i2c_adapter *i2c_adapter;
 	wait_queue_head_t smbus_wait;	/* Waiting on i2c events */
 };
 
@@ -341,7 +343,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 		return -ENOMEM;
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
-	strcpy(adap->name, "cafe_ccic");
+	strscpy(adap->name, "cafe_ccic", sizeof(adap->name));
 	adap->dev.parent = &cam->pdev->dev;
 	i2c_set_adapdata(adap, cam);
 	ret = i2c_add_adapter(adap);
@@ -351,15 +353,15 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 		return ret;
 	}
 
-	cam->mcam.i2c_adapter = adap;
+	cam->i2c_adapter = adap;
 	cafe_smbus_enable_irq(cam);
 	return 0;
 }
 
 static void cafe_smbus_shutdown(struct cafe_camera *cam)
 {
-	i2c_del_adapter(cam->mcam.i2c_adapter);
-	kfree(cam->mcam.i2c_adapter);
+	i2c_del_adapter(cam->i2c_adapter);
+	kfree(cam->i2c_adapter);
 }
 
 
@@ -452,6 +454,29 @@ static irqreturn_t cafe_irq(int irq, void *data)
 	return IRQ_RETVAL(handled);
 }
 
+/* -------------------------------------------------------------------------- */
+
+static struct ov7670_config sensor_cfg = {
+	/*
+	 * Exclude QCIF mode, because it only captures a tiny portion
+	 * of the sensor FOV
+	 */
+	.min_width = 320,
+	.min_height = 240,
+
+	/*
+	 * Set the clock speed for the XO 1; I don't believe this
+	 * driver has ever run anywhere else.
+	 */
+	.clock_speed = 45,
+	.use_smbus = 1,
+};
+
+static struct i2c_board_info ov7670_info = {
+	.type = "ov7670",
+	.addr = 0x42 >> 1,
+	.platform_data = &sensor_cfg,
+};
 
 /* -------------------------------------------------------------------------- */
 /*
@@ -472,6 +497,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	cam = kzalloc(sizeof(struct cafe_camera), GFP_KERNEL);
 	if (cam == NULL)
 		goto out;
+	pci_set_drvdata(pdev, cam);
 	cam->pdev = pdev;
 	mcam = &cam->mcam;
 	mcam->chip_id = MCAM_CAFE;
@@ -481,12 +507,6 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	mcam->plat_power_down = cafe_ctlr_power_down;
 	mcam->dev = &pdev->dev;
 	snprintf(mcam->bus_info, sizeof(mcam->bus_info), "PCI:%s", pci_name(pdev));
-	/*
-	 * Set the clock speed for the XO 1; I don't believe this
-	 * driver has ever run anywhere else.
-	 */
-	mcam->clock_speed = 45;
-	mcam->use_smbus = 1;
 	/*
 	 * Vmalloc mode for buffers is traditional with this driver.
 	 * We *might* be able to run DMA_contig, especially on a system
@@ -513,11 +533,10 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		goto out_iounmap;
 
 	/*
-	 * Initialize the controller and leave it powered up.  It will
-	 * stay that way until the sensor driver shows up.
+	 * Initialize the controller.
 	 */
 	cafe_ctlr_init(mcam);
-	cafe_ctlr_power_up(mcam);
+
 	/*
 	 * Set up I2C/SMBUS communications.  We have to drop the mutex here
 	 * because the sensor could attach in this call chain, leading to
@@ -527,12 +546,24 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_pdown;
 
+	mcam->asd.match_type = V4L2_ASYNC_MATCH_I2C;
+	mcam->asd.match.i2c.adapter_id = i2c_adapter_id(cam->i2c_adapter);
+	mcam->asd.match.i2c.address = ov7670_info.addr;
+
 	ret = mccic_register(mcam);
-	if (ret == 0) {
+	if (ret)
+		goto out_smbus_shutdown;
+
+	clkdev_create(mcam->mclk, "xclk", "%d-%04x",
+		i2c_adapter_id(cam->i2c_adapter), ov7670_info.addr);
+
+	if (!IS_ERR(i2c_new_client_device(cam->i2c_adapter, &ov7670_info))) {
 		cam->registered = 1;
 		return 0;
 	}
 
+	mccic_shutdown(mcam);
+out_smbus_shutdown:
 	cafe_smbus_shutdown(cam);
 out_pdown:
 	cafe_ctlr_power_down(mcam);
@@ -562,8 +593,7 @@ static void cafe_shutdown(struct cafe_camera *cam)
 
 static void cafe_pci_remove(struct pci_dev *pdev)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
+	struct cafe_camera *cam = pci_get_drvdata(pdev);
 
 	if (cam == NULL) {
 		printk(KERN_WARNING "pci_remove on unknown pdev %p\n", pdev);
@@ -574,43 +604,25 @@ static void cafe_pci_remove(struct pci_dev *pdev)
 }
 
 
-#ifdef CONFIG_PM
 /*
  * Basic power management.
  */
-static int cafe_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused cafe_pci_suspend(struct device *dev)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
-	int ret;
+	struct cafe_camera *cam = dev_get_drvdata(dev);
 
-	ret = pci_save_state(pdev);
-	if (ret)
-		return ret;
 	mccic_suspend(&cam->mcam);
-	pci_disable_device(pdev);
 	return 0;
 }
 
 
-static int cafe_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused cafe_pci_resume(struct device *dev)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
-	int ret = 0;
+	struct cafe_camera *cam = dev_get_drvdata(dev);
 
-	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
-
-	if (ret) {
-		cam_warn(cam, "Unable to re-enable device on resume!\n");
-		return ret;
-	}
 	cafe_ctlr_init(&cam->mcam);
 	return mccic_resume(&cam->mcam);
 }
-
-#endif  /* CONFIG_PM */
 
 static const struct pci_device_id cafe_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL,
@@ -620,15 +632,14 @@ static const struct pci_device_id cafe_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, cafe_ids);
 
+static SIMPLE_DEV_PM_OPS(cafe_pci_pm_ops, cafe_pci_suspend, cafe_pci_resume);
+
 static struct pci_driver cafe_pci_driver = {
 	.name = "cafe1000-ccic",
 	.id_table = cafe_ids,
 	.probe = cafe_pci_probe,
 	.remove = cafe_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = cafe_pci_suspend,
-	.resume = cafe_pci_resume,
-#endif
+	.driver.pm = &cafe_pci_pm_ops,
 };
 
 

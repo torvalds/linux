@@ -129,14 +129,6 @@ static inline unsigned long __cmpxchg(volatile void *p, unsigned long old,
 
 #else
 
-/*
- * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
- * them available.
- */
-#define cmpxchg_local(ptr, o, n)				  	       \
-	((__typeof__(*(ptr)))__cmpxchg_local_generic((ptr), (unsigned long)(o),\
-			(unsigned long)(n), sizeof(*(ptr))))
-
 #include <asm-generic/cmpxchg.h>
 
 #endif

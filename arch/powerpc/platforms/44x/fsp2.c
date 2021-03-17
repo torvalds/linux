@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FSP-2 board specific routines
  *
@@ -10,11 +11,6 @@
  *
  *    Rewritten and ported to the merged powerpc tree:
  *    Copyright 2007 David Gibson <dwg@au1.ibm.com>, IBM Corporation.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/init.h>
@@ -210,15 +206,15 @@ static void node_irq_request(const char *compat, irq_handler_t errirq_handler)
 	for_each_compatible_node(np, NULL, compat) {
 		irq = irq_of_parse_and_map(np, 0);
 		if (irq == NO_IRQ) {
-			pr_err("device tree node %s is missing a interrupt",
-			      np->name);
+			pr_err("device tree node %pOFn is missing a interrupt",
+			      np);
 			return;
 		}
 
 		rc = request_irq(irq, errirq_handler, 0, np->name, np);
 		if (rc) {
-			pr_err("fsp_of_probe: request_irq failed: np=%s rc=%d",
-			      np->full_name, rc);
+			pr_err("fsp_of_probe: request_irq failed: np=%pOF rc=%d",
+			      np, rc);
 			return;
 		}
 	}

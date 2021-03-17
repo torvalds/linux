@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2010 Sascha Hauer <s.hauer@pengutronix.de>
  * Copyright (C) 2005-2009 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #include <linux/export.h>
@@ -150,7 +141,7 @@ static int ipu_bus_format_to_map(u32 fmt)
 	switch (fmt) {
 	default:
 		WARN_ON(1);
-		/* fall-through */
+		fallthrough;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		return IPU_DC_MAP_RGB24;
 	case MEDIA_BUS_FMT_RGB565_1X16:

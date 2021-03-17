@@ -1,26 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # IEC 62439-3 High-availability Seamless Redundancy
 #
 
 config HSR
-	tristate "High-availability Seamless Redundancy (HSR)"
-	---help---
-	  If you say Y here, then your Linux box will be able to act as a
-	  DANH ("Doubly attached node implementing HSR"). For this to work,
-	  your Linux box needs (at least) two physical Ethernet interfaces,
-	  and it must be connected as a node in a ring network together with
-	  other HSR capable nodes.
+	tristate "High-availability Seamless Redundancy (HSR & PRP)"
+	help
+	  This enables IEC 62439 defined High-availability Seamless
+	  Redundancy (HSR) and Parallel Redundancy Protocol (PRP).
 
-	  All Ethernet frames sent over the hsr device will be sent in both
-	  directions on the ring (over both slave ports), giving a redundant,
-	  instant fail-over network. Each HSR node in the ring acts like a
-	  bridge for HSR frames, but filters frames that have been forwarded
-	  earlier.
+	  If you say Y here, then your Linux box will be able to act as a
+	  DANH ("Doubly attached node implementing HSR") or DANP ("Doubly
+	  attached node implementing PRP"). For this to work, your Linux box
+	  needs (at least) two physical Ethernet interfaces.
+
+	  For DANH, it must be connected as a node in a ring network together
+	  with other HSR capable nodes. All Ethernet frames sent over the HSR
+	  device will be sent in both directions on the ring (over both slave
+	  ports), giving a redundant, instant fail-over network. Each HSR node
+	  in the ring acts like a bridge for HSR frames, but filters frames
+	  that have been forwarded earlier.
+
+	  For DANP, it must be connected as a node connecting to two
+	  separate networks over the two slave interfaces. Like HSR, Ethernet
+	  frames sent over the PRP device will be sent to both networks giving
+	  a redundant, instant fail-over network. Unlike HSR, PRP networks
+	  can have Singly Attached Nodes (SAN) such as PC, printer, bridges
+	  etc and will be able to communicate with DANP nodes.
 
 	  This code is a "best effort" to comply with the HSR standard as
 	  described in IEC 62439-3:2010 (HSRv0) and IEC 62439-3:2012 (HSRv1),
-	  but no compliancy tests have been made. Use iproute2 to select
-	  the version you desire.
+	  and PRP standard described in IEC 62439-4:2012 (PRP), but no
+	  compliancy tests have been made. Use iproute2 to select the protocol
+	  you would like to use.
 
 	  You need to perform any and all necessary tests yourself before
 	  relying on this code in a safety critical system!

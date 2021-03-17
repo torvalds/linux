@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2019 Google LLC
+ *
+ * Device-tree for Krane sku176.
+ *
+ * SKU is a 8-bit value (0xb0 == 176):
+ *  - Bits 7..4: Panel ID: 0xb (BOE)
+ *  - Bits 3..0: SKU ID:   0x0 (default)
+ */
+
+/dts-v1/;
+#include "mt8183-kukui-krane.dtsi"
+
+/ {
+	model = "MediaTek krane sku176 board";
+	compatible = "google,krane-sku176", "google,krane", "mediatek,mt8183";
+};

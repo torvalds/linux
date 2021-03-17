@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/ia64/kernel/time.c
  *
@@ -24,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched/cputime.h>
 
-#include <asm/machvec.h>
 #include <asm/delay.h>
 #include <asm/hw_irq.h>
 #include <asm/ptrace.h>
@@ -32,6 +32,7 @@
 #include <asm/sections.h>
 
 #include "fsyscall_gtod_data.h"
+#include "irq.h"
 
 static u64 itc_get_cycles(struct clocksource *cs);
 
@@ -132,7 +133,7 @@ static __u64 vtime_delta(struct task_struct *tsk)
 	return delta_stime;
 }
 
-void vtime_account_system(struct task_struct *tsk)
+void vtime_account_kernel(struct task_struct *tsk)
 {
 	struct thread_info *ti = task_thread_info(tsk);
 	__u64 stime = vtime_delta(tsk);
@@ -146,7 +147,7 @@ void vtime_account_system(struct task_struct *tsk)
 	else
 		ti->stime += stime;
 }
-EXPORT_SYMBOL_GPL(vtime_account_system);
+EXPORT_SYMBOL_GPL(vtime_account_kernel);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
@@ -165,8 +166,6 @@ timer_interrupt (int irq, void *dev_id)
 	if (cpu_is_offline(smp_processor_id())) {
 		return IRQ_HANDLED;
 	}
-
-	platform_timer_interrupt(irq, dev_id);
 
 	new_itm = local_cpu_data->itm_next;
 
@@ -382,13 +381,6 @@ static u64 itc_get_cycles(struct clocksource *cs)
 	return now;
 }
 
-
-static struct irqaction timer_irqaction = {
-	.handler =	timer_interrupt,
-	.flags =	IRQF_IRQPOLL,
-	.name =		"timer"
-};
-
 void read_persistent_clock64(struct timespec64 *ts)
 {
 	efi_gettimeofday(ts);
@@ -397,7 +389,8 @@ void read_persistent_clock64(struct timespec64 *ts)
 void __init
 time_init (void)
 {
-	register_percpu_irq(IA64_TIMER_VECTOR, &timer_irqaction);
+	register_percpu_irq(IA64_TIMER_VECTOR, timer_interrupt, IRQF_IRQPOLL,
+			    "timer");
 	ia64_init_itm();
 }
 

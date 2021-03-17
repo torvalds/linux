@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Cirrus Logic EP93xx SPI controller.
  *
@@ -9,11 +10,7 @@
  *
  * For more information about the SPI controller see documentation on Cirrus
  * Logic web site:
- *     http://www.cirrus.com/en/pubs/manual/EP93xx_Users_Guide_UM1.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ *     https://www.cirrus.com/en/pubs/manual/EP93xx_Users_Guide_UM1.pdf
  */
 
 #include <linux/io.h>
@@ -28,14 +25,14 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/scatterlist.h>
-#include <linux/gpio.h>
 #include <linux/spi/spi.h>
 
 #include <linux/platform_data/dma-ep93xx.h>
 #include <linux/platform_data/spi-ep93xx.h>
 
 #define SSPCR0			0x0000
-#define SSPCR0_MODE_SHIFT	6
+#define SSPCR0_SPO		BIT(6)
+#define SSPCR0_SPH		BIT(7)
 #define SSPCR0_SCR_SHIFT	8
 
 #define SSPCR1			0x0004
@@ -163,7 +160,10 @@ static int ep93xx_spi_chip_setup(struct spi_master *master,
 		return err;
 
 	cr0 = div_scr << SSPCR0_SCR_SHIFT;
-	cr0 |= (spi->mode & (SPI_CPHA | SPI_CPOL)) << SSPCR0_MODE_SHIFT;
+	if (spi->mode & SPI_CPOL)
+		cr0 |= SSPCR0_SPO;
+	if (spi->mode & SPI_CPHA)
+		cr0 |= SSPCR0_SPH;
 	cr0 |= dss;
 
 	dev_dbg(&master->dev, "setup: mode %d, cpsr %d, scr %d, dss %d\n",
@@ -214,7 +214,7 @@ static void ep93xx_do_read(struct spi_master *master)
 
 /**
  * ep93xx_spi_read_write() - perform next RX/TX transfer
- * @espi: ep93xx SPI controller struct
+ * @master: SPI master
  *
  * This function transfers next bytes (or half-words) to/from RX/TX FIFOs. If
  * called several times, the whole transfer will be completed. Returns
@@ -246,6 +246,19 @@ static int ep93xx_spi_read_write(struct spi_master *master)
 	return -EINPROGRESS;
 }
 
+static enum dma_transfer_direction
+ep93xx_dma_data_to_trans_dir(enum dma_data_direction dir)
+{
+	switch (dir) {
+	case DMA_TO_DEVICE:
+		return DMA_MEM_TO_DEV;
+	case DMA_FROM_DEVICE:
+		return DMA_DEV_TO_MEM;
+	default:
+		return DMA_TRANS_NONE;
+	}
+}
+
 /**
  * ep93xx_spi_dma_prepare() - prepares a DMA transfer
  * @master: SPI master
@@ -257,7 +270,7 @@ static int ep93xx_spi_read_write(struct spi_master *master)
  */
 static struct dma_async_tx_descriptor *
 ep93xx_spi_dma_prepare(struct spi_master *master,
-		       enum dma_transfer_direction dir)
+		       enum dma_data_direction dir)
 {
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
 	struct spi_transfer *xfer = master->cur_msg->state;
@@ -277,9 +290,9 @@ ep93xx_spi_dma_prepare(struct spi_master *master,
 		buswidth = DMA_SLAVE_BUSWIDTH_1_BYTE;
 
 	memset(&conf, 0, sizeof(conf));
-	conf.direction = dir;
+	conf.direction = ep93xx_dma_data_to_trans_dir(dir);
 
-	if (dir == DMA_DEV_TO_MEM) {
+	if (dir == DMA_FROM_DEVICE) {
 		chan = espi->dma_rx;
 		buf = xfer->rx_buf;
 		sgt = &espi->rx_sgt;
@@ -343,7 +356,8 @@ ep93xx_spi_dma_prepare(struct spi_master *master,
 	if (!nents)
 		return ERR_PTR(-ENOMEM);
 
-	txd = dmaengine_prep_slave_sg(chan, sgt->sgl, nents, dir, DMA_CTRL_ACK);
+	txd = dmaengine_prep_slave_sg(chan, sgt->sgl, nents, conf.direction,
+				      DMA_CTRL_ACK);
 	if (!txd) {
 		dma_unmap_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
 		return ERR_PTR(-ENOMEM);
@@ -360,13 +374,13 @@ ep93xx_spi_dma_prepare(struct spi_master *master,
  * unmapped.
  */
 static void ep93xx_spi_dma_finish(struct spi_master *master,
-				  enum dma_transfer_direction dir)
+				  enum dma_data_direction dir)
 {
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
 	struct dma_chan *chan;
 	struct sg_table *sgt;
 
-	if (dir == DMA_DEV_TO_MEM) {
+	if (dir == DMA_FROM_DEVICE) {
 		chan = espi->dma_rx;
 		sgt = &espi->rx_sgt;
 	} else {
@@ -381,8 +395,8 @@ static void ep93xx_spi_dma_callback(void *callback_param)
 {
 	struct spi_master *master = callback_param;
 
-	ep93xx_spi_dma_finish(master, DMA_MEM_TO_DEV);
-	ep93xx_spi_dma_finish(master, DMA_DEV_TO_MEM);
+	ep93xx_spi_dma_finish(master, DMA_TO_DEVICE);
+	ep93xx_spi_dma_finish(master, DMA_FROM_DEVICE);
 
 	spi_finalize_current_transfer(master);
 }
@@ -392,15 +406,15 @@ static int ep93xx_spi_dma_transfer(struct spi_master *master)
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
 	struct dma_async_tx_descriptor *rxd, *txd;
 
-	rxd = ep93xx_spi_dma_prepare(master, DMA_DEV_TO_MEM);
+	rxd = ep93xx_spi_dma_prepare(master, DMA_FROM_DEVICE);
 	if (IS_ERR(rxd)) {
 		dev_err(&master->dev, "DMA RX failed: %ld\n", PTR_ERR(rxd));
 		return PTR_ERR(rxd);
 	}
 
-	txd = ep93xx_spi_dma_prepare(master, DMA_MEM_TO_DEV);
+	txd = ep93xx_spi_dma_prepare(master, DMA_TO_DEVICE);
 	if (IS_ERR(txd)) {
-		ep93xx_spi_dma_finish(master, DMA_DEV_TO_MEM);
+		ep93xx_spi_dma_finish(master, DMA_FROM_DEVICE);
 		dev_err(&master->dev, "DMA TX failed: %ld\n", PTR_ERR(txd));
 		return PTR_ERR(txd);
 	}
@@ -638,7 +652,6 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	int error;
-	int i;
 
 	info = dev_get_platdata(&pdev->dev);
 	if (!info) {
@@ -647,10 +660,8 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq resources\n");
+	if (irq < 0)
 		return -EBUSY;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -662,6 +673,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
+	master->use_gpio_descriptors = true;
 	master->prepare_transfer_hardware = ep93xx_spi_prepare_hardware;
 	master->unprepare_transfer_hardware = ep93xx_spi_unprepare_hardware;
 	master->prepare_message = ep93xx_spi_prepare_message;
@@ -669,31 +681,11 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
-
-	master->num_chipselect = info->num_chipselect;
-	master->cs_gpios = devm_kcalloc(&master->dev,
-					master->num_chipselect, sizeof(int),
-					GFP_KERNEL);
-	if (!master->cs_gpios) {
-		error = -ENOMEM;
-		goto fail_release_master;
-	}
-
-	for (i = 0; i < master->num_chipselect; i++) {
-		master->cs_gpios[i] = info->chipselect[i];
-
-		if (!gpio_is_valid(master->cs_gpios[i]))
-			continue;
-
-		error = devm_gpio_request_one(&pdev->dev, master->cs_gpios[i],
-					      GPIOF_OUT_INIT_HIGH,
-					      "ep93xx-spi");
-		if (error) {
-			dev_err(&pdev->dev, "could not request cs gpio %d\n",
-				master->cs_gpios[i]);
-			goto fail_release_master;
-		}
-	}
+	/*
+	 * The SPI core will count the number of GPIO descriptors to figure
+	 * out the number of chip selects available on the platform.
+	 */
+	master->num_chipselect = 0;
 
 	platform_set_drvdata(pdev, master);
 

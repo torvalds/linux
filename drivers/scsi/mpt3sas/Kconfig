@@ -45,7 +45,8 @@ config SCSI_MPT3SAS
 	depends on PCI && SCSI
 	select SCSI_SAS_ATTRS
 	select RAID_ATTRS
-	---help---
+	select IRQ_POLL
+	help
 	This driver supports PCI-Express SAS 12Gb/s Host Adapters.
 
 config SCSI_MPT2SAS_MAX_SGE
@@ -53,7 +54,7 @@ config SCSI_MPT2SAS_MAX_SGE
 	depends on PCI && SCSI && SCSI_MPT3SAS
 	default "128"
 	range 16 256
-	---help---
+	help
 	This option allows you to specify the maximum number of scatter-
 	gather entries per I/O. The driver default is 128, which matches
 	MAX_PHYS_SEGMENTS in most kernels.  However in SuSE kernels this
@@ -65,7 +66,7 @@ config SCSI_MPT3SAS_MAX_SGE
 	depends on PCI && SCSI && SCSI_MPT3SAS
 	default "128"
 	range 16 256
-	---help---
+	help
 	This option allows you to specify the maximum number of scatter-
 	gather entries per I/O. The driver default is 128, which matches
 	MAX_PHYS_SEGMENTS in most kernels.  However in SuSE kernels this
@@ -77,6 +78,6 @@ config SCSI_MPT2SAS
 	default n
 	select SCSI_MPT3SAS
 	depends on PCI && SCSI
-	---help---
+	help
 	Dummy config option for backwards compatiblity: configure the MPT3SAS
 	driver instead.

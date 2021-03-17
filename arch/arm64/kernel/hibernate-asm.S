@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Hibernate low-level support
  *
  * Copyright (C) 2016 ARM Ltd.
  * Author:	James Morse <james.morse@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/linkage.h>
 #include <linux/errno.h>
@@ -33,13 +22,14 @@
  * Even switching to our copied tables will cause a changed output address at
  * each stage of the walk.
  */
-.macro break_before_make_ttbr_switch zero_page, page_table, tmp
+.macro break_before_make_ttbr_switch zero_page, page_table, tmp, tmp2
 	phys_to_ttbr \tmp, \zero_page
 	msr	ttbr1_el1, \tmp
 	isb
 	tlbi	vmalle1
 	dsb	nsh
 	phys_to_ttbr \tmp, \page_table
+	offset_ttbr1 \tmp, \tmp2
 	msr	ttbr1_el1, \tmp
 	isb
 .endm
@@ -75,12 +65,12 @@
  * x5: physical address of a  zero page that remains zero after resume
  */
 .pushsection    ".hibernate_exit.text", "ax"
-ENTRY(swsusp_arch_suspend_exit)
+SYM_CODE_START(swsusp_arch_suspend_exit)
 	/*
 	 * We execute from ttbr0, change ttbr1 to our copied linear map tables
 	 * with a break-before-make via the zero page
 	 */
-	break_before_make_ttbr_switch	x5, x0, x6
+	break_before_make_ttbr_switch	x5, x0, x6, x8
 
 	mov	x21, x1
 	mov	x30, x2
@@ -111,7 +101,7 @@ ENTRY(swsusp_arch_suspend_exit)
 	dsb	ish		/* wait for PoU cleaning to finish */
 
 	/* switch to the restored kernels page tables */
-	break_before_make_ttbr_switch	x25, x21, x6
+	break_before_make_ttbr_switch	x25, x21, x6, x8
 
 	ic	ialluis
 	dsb	ish
@@ -120,9 +110,7 @@ ENTRY(swsusp_arch_suspend_exit)
 	cbz	x24, 3f		/* Do we need to re-initialise EL2? */
 	hvc	#0
 3:	ret
-
-	.ltorg
-ENDPROC(swsusp_arch_suspend_exit)
+SYM_CODE_END(swsusp_arch_suspend_exit)
 
 /*
  * Restore the hyp stub.
@@ -131,15 +119,15 @@ ENDPROC(swsusp_arch_suspend_exit)
  *
  * x24: The physical address of __hyp_stub_vectors
  */
-el1_sync:
+SYM_CODE_START_LOCAL(el1_sync)
 	msr	vbar_el2, x24
 	eret
-ENDPROC(el1_sync)
+SYM_CODE_END(el1_sync)
 
 .macro invalid_vector	label
-\label:
+SYM_CODE_START_LOCAL(\label)
 	b \label
-ENDPROC(\label)
+SYM_CODE_END(\label)
 .endm
 
 	invalid_vector	el2_sync_invalid
@@ -153,7 +141,7 @@ ENDPROC(\label)
 
 /* el2 vectors - switch el2 here while we restore the memory image. */
 	.align 11
-ENTRY(hibernate_el2_vectors)
+SYM_CODE_START(hibernate_el2_vectors)
 	ventry	el2_sync_invalid		// Synchronous EL2t
 	ventry	el2_irq_invalid			// IRQ EL2t
 	ventry	el2_fiq_invalid			// FIQ EL2t
@@ -173,6 +161,6 @@ ENTRY(hibernate_el2_vectors)
 	ventry	el1_irq_invalid			// IRQ 32-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
-END(hibernate_el2_vectors)
+SYM_CODE_END(hibernate_el2_vectors)
 
 .popsection

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <types.h>
@@ -92,105 +81,6 @@ static const u32 dot11lcn_gain_tbl_rev0[] = {
 	0x00015153,
 	0x00019153,
 	0x0001d153,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-};
-
-static const u32 dot11lcn_gain_tbl_rev1[] = {
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000008,
-	0x00000004,
-	0x00000008,
-	0x00000001,
-	0x00000005,
-	0x00000009,
-	0x0000000D,
-	0x00000011,
-	0x00000051,
-	0x00000091,
-	0x00000011,
-	0x00000051,
-	0x00000091,
-	0x000000d1,
-	0x00000053,
-	0x00000093,
-	0x000000d3,
-	0x000000d7,
-	0x00000117,
-	0x00000517,
-	0x00000917,
-	0x00000957,
-	0x00000d57,
-	0x00001157,
-	0x00001197,
-	0x00005197,
-	0x00009197,
-	0x0000d197,
-	0x00011197,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000008,
-	0x00000004,
-	0x00000008,
-	0x00000001,
-	0x00000005,
-	0x00000009,
-	0x0000000D,
-	0x00000011,
-	0x00000051,
-	0x00000091,
-	0x00000011,
-	0x00000051,
-	0x00000091,
-	0x000000d1,
-	0x00000053,
-	0x00000093,
-	0x000000d3,
-	0x000000d7,
-	0x00000117,
-	0x00000517,
-	0x00000917,
-	0x00000957,
-	0x00000d57,
-	0x00001157,
-	0x00005157,
-	0x00009157,
-	0x0000d157,
-	0x00011157,
-	0x00015157,
-	0x00019157,
-	0x0001d157,
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -1508,19 +1398,6 @@ static const u32 dot11lcn_gain_tbl_5G[] = {
 const struct phytbl_info dot11lcnphytbl_rx_gain_info_rev0[] = {
 	{&dot11lcn_gain_tbl_rev0,
 	 ARRAY_SIZE(dot11lcn_gain_tbl_rev0), 18,
-	 0, 32}
-	,
-	{&dot11lcn_aux_gain_idx_tbl_rev0,
-	 ARRAY_SIZE(dot11lcn_aux_gain_idx_tbl_rev0), 14, 0, 16}
-	,
-	{&dot11lcn_gain_idx_tbl_rev0,
-	 ARRAY_SIZE(dot11lcn_gain_idx_tbl_rev0), 13, 0, 32}
-	,
-};
-
-static const struct phytbl_info dot11lcnphytbl_rx_gain_info_rev1[] = {
-	{&dot11lcn_gain_tbl_rev1,
-	 ARRAY_SIZE(dot11lcn_gain_tbl_rev1), 18,
 	 0, 32}
 	,
 	{&dot11lcn_aux_gain_idx_tbl_rev0,

@@ -8,7 +8,7 @@
 
 / {
 	model = "CompuLab SBC-T3730 with CM-T3730";
-	compatible = "compulab,omap3-sbc-t3730", "compulab,omap3-cm-t3730", "ti,omap36xx", "ti,omap3";
+	compatible = "compulab,omap3-sbc-t3730", "compulab,omap3-cm-t3730", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 
 	aliases {
 		display0 = &dvi0;

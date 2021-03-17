@@ -1,22 +1,30 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* drivers/net/ethernet/micrel/ks8851.h
  *
  * Copyright 2009 Simtec Electronics
  *      Ben Dooks <ben@simtec.co.uk>
  *
  * KS8851 register definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
+#ifndef __KS8851_H__
+#define __KS8851_H__
+
+#include <linux/eeprom_93cx6.h>
+
 #define KS_CCR					0x08
+#define CCR_LE					(1 << 10)   /* KSZ8851-16MLL */
 #define CCR_EEPROM				(1 << 9)
-#define CCR_SPI					(1 << 8)
-#define CCR_32PIN				(1 << 0)
+#define CCR_SPI					(1 << 8)    /* KSZ8851SNL    */
+#define CCR_8BIT				(1 << 7)    /* KSZ8851-16MLL */
+#define CCR_16BIT				(1 << 6)    /* KSZ8851-16MLL */
+#define CCR_32BIT				(1 << 5)    /* KSZ8851-16MLL */
+#define CCR_SHARED				(1 << 4)    /* KSZ8851-16MLL */
+#define CCR_48PIN				(1 << 1)    /* KSZ8851-16MLL */
+#define CCR_32PIN				(1 << 0)    /* KSZ8851SNL    */
 
 /* MAC address registers */
-#define KS_MAR(_m)				(0x15 - (_m))
+#define KS_MAR(_m)				(0x14 - (_m))
 #define KS_MARL					0x10
 #define KS_MARM					0x12
 #define KS_MARH					0x14
@@ -112,13 +120,13 @@
 #define RXCR1_RXE				(1 << 0)
 
 #define KS_RXCR2				0x76
-#define RXCR2_SRDBL_MASK			(0x7 << 5)
-#define RXCR2_SRDBL_SHIFT			(5)
-#define RXCR2_SRDBL_4B				(0x0 << 5)
-#define RXCR2_SRDBL_8B				(0x1 << 5)
-#define RXCR2_SRDBL_16B				(0x2 << 5)
-#define RXCR2_SRDBL_32B				(0x3 << 5)
-#define RXCR2_SRDBL_FRAME			(0x4 << 5)
+#define RXCR2_SRDBL_MASK			(0x7 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_SHIFT			(5)	    /* KSZ8851SNL    */
+#define RXCR2_SRDBL_4B				(0x0 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_8B				(0x1 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_16B				(0x2 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_32B				(0x3 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_FRAME			(0x4 << 5)  /* KSZ8851SNL    */
 #define RXCR2_IUFFP				(1 << 4)
 #define RXCR2_RXIUFCEZ				(1 << 3)
 #define RXCR2_UDPLFE				(1 << 2)
@@ -143,8 +151,10 @@
 #define RXFSHR_RXCE				(1 << 0)
 
 #define KS_RXFHBCR				0x7E
+#define RXFHBCR_CNT_MASK			(0xfff << 0)
+
 #define KS_TXQCR				0x80
-#define TXQCR_AETFE				(1 << 2)
+#define TXQCR_AETFE				(1 << 2)    /* KSZ8851SNL    */
 #define TXQCR_TXQMAM				(1 << 1)
 #define TXQCR_METFE				(1 << 0)
 
@@ -167,6 +177,10 @@
 
 #define KS_RXFDPR				0x86
 #define RXFDPR_RXFPAI				(1 << 14)
+#define RXFDPR_WST				(1 << 12)   /* KSZ8851-16MLL */
+#define RXFDPR_EMS				(1 << 11)   /* KSZ8851-16MLL */
+#define RXFDPR_RXFP_MASK			(0x7ff << 0)
+#define RXFDPR_RXFP_SHIFT			(0)
 
 #define KS_RXDTTR				0x8C
 #define KS_RXDBCTR				0x8E
@@ -184,7 +198,7 @@
 #define IRQ_RXMPDI				(1 << 4)
 #define IRQ_LDI					(1 << 3)
 #define IRQ_EDI					(1 << 2)
-#define IRQ_SPIBEI				(1 << 1)
+#define IRQ_SPIBEI				(1 << 1)    /* KSZ8851SNL    */
 #define IRQ_DEDI				(1 << 0)
 
 #define KS_RXFCTR				0x9C
@@ -257,42 +271,181 @@
 #define KS_P1ANLPR				0xEE
 
 #define KS_P1SCLMD				0xF4
-#define P1SCLMD_LEDOFF				(1 << 15)
-#define P1SCLMD_TXIDS				(1 << 14)
-#define P1SCLMD_RESTARTAN			(1 << 13)
-#define P1SCLMD_DISAUTOMDIX			(1 << 10)
-#define P1SCLMD_FORCEMDIX			(1 << 9)
-#define P1SCLMD_AUTONEGEN			(1 << 7)
-#define P1SCLMD_FORCE100			(1 << 6)
-#define P1SCLMD_FORCEFDX			(1 << 5)
-#define P1SCLMD_ADV_FLOW			(1 << 4)
-#define P1SCLMD_ADV_100BT_FDX			(1 << 3)
-#define P1SCLMD_ADV_100BT_HDX			(1 << 2)
-#define P1SCLMD_ADV_10BT_FDX			(1 << 1)
-#define P1SCLMD_ADV_10BT_HDX			(1 << 0)
 
 #define KS_P1CR					0xF6
-#define P1CR_HP_MDIX				(1 << 15)
-#define P1CR_REV_POL				(1 << 13)
-#define P1CR_OP_100M				(1 << 10)
-#define P1CR_OP_FDX				(1 << 9)
-#define P1CR_OP_MDI				(1 << 7)
-#define P1CR_AN_DONE				(1 << 6)
-#define P1CR_LINK_GOOD				(1 << 5)
-#define P1CR_PNTR_FLOW				(1 << 4)
-#define P1CR_PNTR_100BT_FDX			(1 << 3)
-#define P1CR_PNTR_100BT_HDX			(1 << 2)
-#define P1CR_PNTR_10BT_FDX			(1 << 1)
-#define P1CR_PNTR_10BT_HDX			(1 << 0)
+#define P1CR_LEDOFF				(1 << 15)
+#define P1CR_TXIDS				(1 << 14)
+#define P1CR_RESTARTAN				(1 << 13)
+#define P1CR_DISAUTOMDIX			(1 << 10)
+#define P1CR_FORCEMDIX				(1 << 9)
+#define P1CR_AUTONEGEN				(1 << 7)
+#define P1CR_FORCE100				(1 << 6)
+#define P1CR_FORCEFDX				(1 << 5)
+#define P1CR_ADV_FLOW				(1 << 4)
+#define P1CR_ADV_100BT_FDX			(1 << 3)
+#define P1CR_ADV_100BT_HDX			(1 << 2)
+#define P1CR_ADV_10BT_FDX			(1 << 1)
+#define P1CR_ADV_10BT_HDX			(1 << 0)
+
+#define KS_P1SR					0xF8
+#define P1SR_HP_MDIX				(1 << 15)
+#define P1SR_REV_POL				(1 << 13)
+#define P1SR_OP_100M				(1 << 10)
+#define P1SR_OP_FDX				(1 << 9)
+#define P1SR_OP_MDI				(1 << 7)
+#define P1SR_AN_DONE				(1 << 6)
+#define P1SR_LINK_GOOD				(1 << 5)
+#define P1SR_PNTR_FLOW				(1 << 4)
+#define P1SR_PNTR_100BT_FDX			(1 << 3)
+#define P1SR_PNTR_100BT_HDX			(1 << 2)
+#define P1SR_PNTR_10BT_FDX			(1 << 1)
+#define P1SR_PNTR_10BT_HDX			(1 << 0)
 
 /* TX Frame control */
-
 #define TXFR_TXIC				(1 << 15)
 #define TXFR_TXFID_MASK				(0x3f << 0)
 #define TXFR_TXFID_SHIFT			(0)
 
-/* SPI frame opcodes */
-#define KS_SPIOP_RD				(0x00)
-#define KS_SPIOP_WR				(0x40)
-#define KS_SPIOP_RXFIFO				(0x80)
-#define KS_SPIOP_TXFIFO				(0xC0)
+/**
+ * struct ks8851_rxctrl - KS8851 driver rx control
+ * @mchash: Multicast hash-table data.
+ * @rxcr1: KS_RXCR1 register setting
+ * @rxcr2: KS_RXCR2 register setting
+ *
+ * Representation of the settings needs to control the receive filtering
+ * such as the multicast hash-filter and the receive register settings. This
+ * is used to make the job of working out if the receive settings change and
+ * then issuing the new settings to the worker that will send the necessary
+ * commands.
+ */
+struct ks8851_rxctrl {
+	u16	mchash[4];
+	u16	rxcr1;
+	u16	rxcr2;
+};
+
+/**
+ * union ks8851_tx_hdr - tx header data
+ * @txb: The header as bytes
+ * @txw: The header as 16bit, little-endian words
+ *
+ * A dual representation of the tx header data to allow
+ * access to individual bytes, and to allow 16bit accesses
+ * with 16bit alignment.
+ */
+union ks8851_tx_hdr {
+	u8	txb[6];
+	__le16	txw[3];
+};
+
+/**
+ * struct ks8851_net - KS8851 driver private data
+ * @netdev: The network device we're bound to
+ * @statelock: Lock on this structure for tx list.
+ * @mii: The MII state information for the mii calls.
+ * @rxctrl: RX settings for @rxctrl_work.
+ * @rxctrl_work: Work queue for updating RX mode and multicast lists
+ * @txq: Queue of packets for transmission.
+ * @txh: Space for generating packet TX header in DMA-able data
+ * @rxd: Space for receiving SPI data, in DMA-able space.
+ * @txd: Space for transmitting SPI data, in DMA-able space.
+ * @msg_enable: The message flags controlling driver output (see ethtool).
+ * @fid: Incrementing frame id tag.
+ * @rc_ier: Cached copy of KS_IER.
+ * @rc_ccr: Cached copy of KS_CCR.
+ * @rc_rxqcr: Cached copy of KS_RXQCR.
+ * @eeprom: 93CX6 EEPROM state for accessing on-board EEPROM.
+ * @vdd_reg:	Optional regulator supplying the chip
+ * @vdd_io: Optional digital power supply for IO
+ * @gpio: Optional reset_n gpio
+ * @lock: Bus access lock callback
+ * @unlock: Bus access unlock callback
+ * @rdreg16: 16bit register read callback
+ * @wrreg16: 16bit register write callback
+ * @rdfifo: FIFO read callback
+ * @wrfifo: FIFO write callback
+ * @start_xmit: start_xmit() implementation callback
+ * @rx_skb: rx_skb() implementation callback
+ * @flush_tx_work: flush_tx_work() implementation callback
+ *
+ * The @statelock is used to protect information in the structure which may
+ * need to be accessed via several sources, such as the network driver layer
+ * or one of the work queues.
+ *
+ * We align the buffers we may use for rx/tx to ensure that if the SPI driver
+ * wants to DMA map them, it will not have any problems with data the driver
+ * modifies.
+ */
+struct ks8851_net {
+	struct net_device	*netdev;
+	spinlock_t		statelock;
+
+	union ks8851_tx_hdr	txh ____cacheline_aligned;
+	u8			rxd[8];
+	u8			txd[8];
+
+	u32			msg_enable ____cacheline_aligned;
+	u16			tx_space;
+	u8			fid;
+
+	u16			rc_ier;
+	u16			rc_rxqcr;
+	u16			rc_ccr;
+
+	struct mii_if_info	mii;
+	struct ks8851_rxctrl	rxctrl;
+
+	struct work_struct	rxctrl_work;
+
+	struct sk_buff_head	txq;
+
+	struct eeprom_93cx6	eeprom;
+	struct regulator	*vdd_reg;
+	struct regulator	*vdd_io;
+	int			gpio;
+
+	void			(*lock)(struct ks8851_net *ks,
+					unsigned long *flags);
+	void			(*unlock)(struct ks8851_net *ks,
+					  unsigned long *flags);
+	unsigned int		(*rdreg16)(struct ks8851_net *ks,
+					   unsigned int reg);
+	void			(*wrreg16)(struct ks8851_net *ks,
+					   unsigned int reg, unsigned int val);
+	void			(*rdfifo)(struct ks8851_net *ks, u8 *buff,
+					  unsigned int len);
+	void			(*wrfifo)(struct ks8851_net *ks,
+					  struct sk_buff *txp, bool irq);
+	netdev_tx_t		(*start_xmit)(struct sk_buff *skb,
+					      struct net_device *dev);
+	void			(*rx_skb)(struct ks8851_net *ks,
+					  struct sk_buff *skb);
+	void			(*flush_tx_work)(struct ks8851_net *ks);
+};
+
+int ks8851_probe_common(struct net_device *netdev, struct device *dev,
+			int msg_en);
+int ks8851_remove_common(struct device *dev);
+int ks8851_suspend(struct device *dev);
+int ks8851_resume(struct device *dev);
+
+static __maybe_unused SIMPLE_DEV_PM_OPS(ks8851_pm_ops,
+					ks8851_suspend, ks8851_resume);
+
+/**
+ * ks8851_done_tx - update and then free skbuff after transmitting
+ * @ks: The device state
+ * @txb: The buffer transmitted
+ */
+static void __maybe_unused ks8851_done_tx(struct ks8851_net *ks,
+					  struct sk_buff *txb)
+{
+	struct net_device *dev = ks->netdev;
+
+	dev->stats.tx_bytes += txb->len;
+	dev->stats.tx_packets++;
+
+	dev_kfree_skb(txb);
+}
+
+#endif /* __KS8851_H__ */

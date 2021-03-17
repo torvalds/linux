@@ -10,7 +10,7 @@
  * This driver was originally based on the ACM driver by Armin Fuerst (which was
  * based on a driver by Brad Keryan)
  *
- * See Documentation/usb/usb-serial.txt for more information on using this
+ * See Documentation/usb/usb-serial.rst for more information on using this
  * driver
  */
 
@@ -164,9 +164,9 @@ void usb_serial_put(struct usb_serial *serial)
  * @driver: the driver (USB in our case)
  * @tty: the tty being created
  *
- * Create the termios objects for this tty.  We use the default
+ * Initialise the termios structure for this tty.  We use the default
  * USB serial settings but permit them to be overridden by
- * serial->type->init_termios.
+ * serial->type->init_termios on first open.
  *
  * This is the first place a new tty gets used.  Hence this is where we
  * acquire references to the usb_serial structure and the driver module,
@@ -178,6 +178,7 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	int idx = tty->index;
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
+	bool init_termios;
 	int retval = -ENODEV;
 
 	port = usb_serial_port_get_by_minor(idx);
@@ -192,14 +193,16 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (retval)
 		goto error_get_interface;
 
+	init_termios = (driver->termios[idx] == NULL);
+
 	retval = tty_standard_install(driver, tty);
 	if (retval)
 		goto error_init_termios;
 
 	mutex_unlock(&serial->disc_mutex);
 
-	/* allow the driver to update the settings */
-	if (serial->type->init_termios)
+	/* allow the driver to update the initial settings */
+	if (init_termios && serial->type->init_termios)
 		serial->type->init_termios(tty);
 
 	tty->driver_data = port;
@@ -285,7 +288,7 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 
 /**
  * serial_cleanup - free resources post close/hangup
- * @port: port to free up
+ * @tty: tty to clean up
  *
  * Do the resource freeing and refcount dropping for the port.
  * Avoid freeing the console.
@@ -311,10 +314,7 @@ static void serial_cleanup(struct tty_struct *tty)
 	serial = port->serial;
 	owner = serial->type->driver.owner;
 
-	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected)
-		usb_autopm_put_interface(serial->interface);
-	mutex_unlock(&serial->disc_mutex);
+	usb_autopm_put_interface(serial->interface);
 
 	usb_serial_put(serial);
 	module_put(owner);
@@ -394,6 +394,24 @@ static void serial_unthrottle(struct tty_struct *tty)
 
 	if (port->serial->type->unthrottle)
 		port->serial->type->unthrottle(tty);
+}
+
+static int serial_get_serial(struct tty_struct *tty, struct serial_struct *ss)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	if (port->serial->type->get_serial)
+		return port->serial->type->get_serial(tty, ss);
+	return -ENOTTY;
+}
+
+static int serial_set_serial(struct tty_struct *tty, struct serial_struct *ss)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	if (port->serial->type->set_serial)
+		return port->serial->type->set_serial(tty, ss);
+	return -ENOTTY;
 }
 
 static int serial_ioctl(struct tty_struct *tty,
@@ -1177,6 +1195,8 @@ static const struct tty_operations serial_ops = {
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
 	.get_icount =		serial_get_icount,
+	.set_serial =		serial_set_serial,
+	.get_serial =		serial_get_serial,
 	.cleanup =		serial_cleanup,
 	.install =		serial_install,
 	.proc_show =		serial_proc_show,
@@ -1296,6 +1316,9 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 				driver->description);
 		return -EINVAL;
 	}
+
+	/* Prevent individual ports from being unbound. */
+	driver->driver.suppress_bind_attrs = true;
 
 	usb_serial_operations_init(driver);
 

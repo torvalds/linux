@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
+
 #include "hdmi.h"
 
 struct hdmi_pll_8960 {
@@ -445,7 +436,7 @@ int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 
 	pll->mmio = msm_ioremap(pdev, "hdmi_pll", "HDMI_PLL");
 	if (IS_ERR(pll->mmio)) {
-		dev_err(dev, "failed to map pll base\n");
+		DRM_DEV_ERROR(dev, "failed to map pll base\n");
 		return -ENOMEM;
 	}
 
@@ -454,7 +445,7 @@ int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 
 	clk = devm_clk_register(dev, &pll->clk_hw);
 	if (IS_ERR(clk)) {
-		dev_err(dev, "failed to register pll clock\n");
+		DRM_DEV_ERROR(dev, "failed to register pll clock\n");
 		return -EINVAL;
 	}
 

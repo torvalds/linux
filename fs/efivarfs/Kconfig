@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config EFIVAR_FS
 	tristate "EFI Variable filesystem"
 	depends on EFI

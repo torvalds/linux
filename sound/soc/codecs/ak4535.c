@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ak4535.c  --  AK4535 ALSA Soc Audio driver
  *
@@ -6,10 +7,6 @@
  * Author: Richard Purdie <richard@openedhand.com>
  *
  * Based on wm8753.c by Liam Girdwood
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -264,7 +261,7 @@ static int ak4535_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct ak4535_priv *ak4535 = snd_soc_component_get_drvdata(component);
-	u8 mode2 = snd_soc_component_read32(component, AK4535_MODE2) & ~(0x3 << 5);
+	u8 mode2 = snd_soc_component_read(component, AK4535_MODE2) & ~(0x3 << 5);
 	int rate = params_rate(params), fs = 256;
 
 	if (rate)
@@ -312,10 +309,11 @@ static int ak4535_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int ak4535_mute(struct snd_soc_dai *dai, int mute)
+static int ak4535_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, AK4535_DAC);
+	u16 mute_reg = snd_soc_component_read(component, AK4535_DAC);
+
 	if (!mute)
 		snd_soc_component_write(component, AK4535_DAC, mute_reg & ~0x20);
 	else
@@ -351,8 +349,9 @@ static int ak4535_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops ak4535_dai_ops = {
 	.hw_params	= ak4535_hw_params,
 	.set_fmt	= ak4535_set_dai_fmt,
-	.digital_mute	= ak4535_mute,
+	.mute_stream	= ak4535_mute,
 	.set_sysclk	= ak4535_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ak4535_dai = {

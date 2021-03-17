@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
  *  Copyright IBM Corp. 2001, 2012
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
@@ -24,7 +22,7 @@
 #define MSGTYPE06_MAX_MSG_SIZE		(12*1024)
 
 /**
- * The type 6 message family is associated with PCICC or PCIXCC cards.
+ * The type 6 message family is associated with CEXxC/CEXxP cards.
  *
  * It contains a message header followed by a CPRB, both of which
  * are described below.
@@ -43,13 +41,8 @@ struct type6_hdr {
 	unsigned int  offset2;		/* 0x00000000			*/
 	unsigned int  offset3;		/* 0x00000000			*/
 	unsigned int  offset4;		/* 0x00000000			*/
-	unsigned char agent_id[16];	/* PCICC:			*/
-					/*    0x0100			*/
-					/*    0x4343412d4150504c202020	*/
-					/*    0x010101			*/
-					/* PCIXCC:			*/
-					/*    0x4341000000000000	*/
-					/*    0x0000000000000000	*/
+	unsigned char agent_id[16];	/* 0x4341000000000000		*/
+					/* 0x0000000000000000		*/
 	unsigned char rqid[2];		/* rqid.  internal to 603	*/
 	unsigned char reserved5[2];	/* 0x0000			*/
 	unsigned char function_code[2];	/* for PKD, 0x5044 (ascii 'PD')	*/
@@ -65,7 +58,7 @@ struct type6_hdr {
 } __packed;
 
 /**
- * The type 86 message family is associated with PCICC and PCIXCC cards.
+ * The type 86 message family is associated with CEXxC/CEXxP cards.
  *
  * It contains a message header followed by a CPRB.  The CPRB is
  * the same as the request CPRB, which is described above.
@@ -103,9 +96,9 @@ struct type86_fmt2_ext {
 	unsigned int	  offset4;	/* 0x00000000			*/
 } __packed;
 
-unsigned int get_cprb_fc(struct ica_xcRB *, struct ap_message *,
+unsigned int get_cprb_fc(bool userspace, struct ica_xcRB *, struct ap_message *,
 			 unsigned int *, unsigned short **);
-unsigned int get_ep11cprb_fc(struct ep11_urb *, struct ap_message *,
+unsigned int get_ep11cprb_fc(bool userspace, struct ep11_urb *, struct ap_message *,
 			     unsigned int *);
 unsigned int get_rng_fc(struct ap_message *, int *, unsigned int *);
 
@@ -134,7 +127,7 @@ static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
 		char rule[8];
 		short int verb_length;
 		short int key_length;
-	} __packed * msg = ap_msg->message;
+	} __packed * msg = ap_msg->msg;
 	static struct type6_hdr static_type6_hdrX = {
 		.type		= 0x06,
 		.offset1	= 0x00000058,
@@ -161,7 +154,7 @@ static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
 	memcpy(msg->rule, "RANDOM  ", 8);
 	msg->verb_length = 0x02;
 	msg->key_length = 0x02;
-	ap_msg->length = sizeof(*msg);
+	ap_msg->len = sizeof(*msg);
 	*domain = (unsigned short)msg->cprbx.domain;
 }
 

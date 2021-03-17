@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_MMU_H_
 #define _ASM_POWERPC_BOOK3S_64_MMU_H_
 
+#include <asm/page.h>
+
 #ifndef __ASSEMBLY__
 /*
  * Page size definition
@@ -23,7 +25,6 @@ struct mmu_psize_def {
 	};
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
-
 #endif /* __ASSEMBLY__ */
 
 /* 64-bit classic hash table MMU */
@@ -66,6 +67,11 @@ extern unsigned int mmu_pid_bits;
 /* Base PID to allocate from */
 extern unsigned int mmu_base_pid;
 
+/*
+ * memory block size used with radix translation.
+ */
+extern unsigned long __ro_after_init radix_mem_block_size;
+
 #define PRTB_SIZE_SHIFT	(mmu_pid_bits + 4)
 #define PRTB_ENTRIES	(1ul << mmu_pid_bits)
 
@@ -80,16 +86,6 @@ struct spinlock;
 /* Maximum possible number of NPUs in a system. */
 #define NV_MAX_NPUS 8
 
-/*
- * One bit per slice. We have lower slices which cover 256MB segments
- * upto 4G range. That gets us 16 low slices. For the rest we track slices
- * in 1TB size.
- */
-struct slice_mask {
-	u64 low_slices;
-	DECLARE_BITMAP(high_slices, SLICE_NUM_HIGH);
-};
-
 typedef struct {
 	union {
 		/*
@@ -103,7 +99,6 @@ typedef struct {
 		mm_context_id_t id;
 		mm_context_id_t extended_id[TASK_SIZE_USER64/TASK_CONTEXT_SIZE];
 	};
-	u16 user_psize;		/* page size index */
 
 	/* Number of bits in the mm_cpumask */
 	atomic_t active_cpus;
@@ -111,29 +106,12 @@ typedef struct {
 	/* Number of users of the external (Nest) MMU */
 	atomic_t copros;
 
-	/* NPU NMMU context */
-	struct npu_context *npu_context;
+	/* Number of user space windows opened in process mm_context */
+	atomic_t vas_windows;
 
-#ifdef CONFIG_PPC_MM_SLICES
-	 /* SLB page size encodings*/
-	unsigned char low_slices_psize[BITS_PER_LONG / BITS_PER_BYTE];
-	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned long slb_addr_limit;
-# ifdef CONFIG_PPC_64K_PAGES
-	struct slice_mask mask_64k;
-# endif
-	struct slice_mask mask_4k;
-# ifdef CONFIG_HUGETLB_PAGE
-	struct slice_mask mask_16m;
-	struct slice_mask mask_16g;
-# endif
-#else
-	u16 sllp;		/* SLB page size encoding */
-#endif
+	struct hash_mm_context *hash_context;
+
 	unsigned long vdso_base;
-#ifdef CONFIG_PPC_SUBPAGE_PROT
-	struct subpage_prot_table spt;
-#endif /* CONFIG_PPC_SUBPAGE_PROT */
 	/*
 	 * pagetable fragment support
 	 */
@@ -154,6 +132,60 @@ typedef struct {
 #endif
 } mm_context_t;
 
+static inline u16 mm_ctx_user_psize(mm_context_t *ctx)
+{
+	return ctx->hash_context->user_psize;
+}
+
+static inline void mm_ctx_set_user_psize(mm_context_t *ctx, u16 user_psize)
+{
+	ctx->hash_context->user_psize = user_psize;
+}
+
+static inline unsigned char *mm_ctx_low_slices(mm_context_t *ctx)
+{
+	return ctx->hash_context->low_slices_psize;
+}
+
+static inline unsigned char *mm_ctx_high_slices(mm_context_t *ctx)
+{
+	return ctx->hash_context->high_slices_psize;
+}
+
+static inline unsigned long mm_ctx_slb_addr_limit(mm_context_t *ctx)
+{
+	return ctx->hash_context->slb_addr_limit;
+}
+
+static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long limit)
+{
+	ctx->hash_context->slb_addr_limit = limit;
+}
+
+static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
+{
+#ifdef CONFIG_PPC_64K_PAGES
+	if (psize == MMU_PAGE_64K)
+		return &ctx->hash_context->mask_64k;
+#endif
+#ifdef CONFIG_HUGETLB_PAGE
+	if (psize == MMU_PAGE_16M)
+		return &ctx->hash_context->mask_16m;
+	if (psize == MMU_PAGE_16G)
+		return &ctx->hash_context->mask_16g;
+#endif
+	BUG_ON(psize != MMU_PAGE_4K);
+
+	return &ctx->hash_context->mask_4k;
+}
+
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+static inline struct subpage_prot_table *mm_ctx_subpage_prot(mm_context_t *ctx)
+{
+	return ctx->hash_context->spt;
+}
+#endif
+
 /*
  * The current system page and segment sizes
  */
@@ -167,10 +199,15 @@ extern int mmu_io_psize;
 void mmu_early_init_devtree(void);
 void hash__early_init_devtree(void);
 void radix__early_init_devtree(void);
-extern void radix_init_native(void);
+#ifdef CONFIG_PPC_MEM_KEYS
+void pkey_early_init_devtree(void);
+#else
+static inline void pkey_early_init_devtree(void) {}
+#endif
+
 extern void hash__early_init_mmu(void);
 extern void radix__early_init_mmu(void);
-static inline void early_init_mmu(void)
+static inline void __init early_init_mmu(void)
 {
 	if (radix_enabled())
 		return radix__early_init_mmu();
@@ -187,20 +224,17 @@ static inline void early_init_mmu_secondary(void)
 
 extern void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 					 phys_addr_t first_memblock_size);
-extern void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
-					 phys_addr_t first_memblock_size);
 static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 					      phys_addr_t first_memblock_size)
 {
-	if (early_radix_enabled())
-		return radix__setup_initial_memory_limit(first_memblock_base,
-						   first_memblock_size);
+	/*
+	 * Hash has more strict restrictions. At this point we don't
+	 * know which translations we will pick. Hence go with hash
+	 * restrictions.
+	 */
 	return hash__setup_initial_memory_limit(first_memblock_base,
 					   first_memblock_size);
 }
-
-extern int (*register_process_table)(unsigned long base, unsigned long page_size,
-				     unsigned long tbl_size);
 
 #ifdef CONFIG_PPC_PSERIES
 extern void radix_init_pseries(void);
@@ -208,7 +242,19 @@ extern void radix_init_pseries(void);
 static inline void radix_init_pseries(void) { };
 #endif
 
-static inline int get_ea_context(mm_context_t *ctx, unsigned long ea)
+#ifdef CONFIG_HOTPLUG_CPU
+#define arch_clear_mm_cpumask_cpu(cpu, mm)				\
+	do {								\
+		if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {		\
+			atomic_dec(&(mm)->context.active_cpus);		\
+			cpumask_clear_cpu(cpu, mm_cpumask(mm));		\
+		}							\
+	} while (0)
+
+void cleanup_cpu_mmu_context(void);
+#endif
+
+static inline int get_user_context(mm_context_t *ctx, unsigned long ea)
 {
 	int index = ea >> MAX_EA_BITS_PER_CONTEXT;
 
@@ -223,7 +269,7 @@ static inline int get_ea_context(mm_context_t *ctx, unsigned long ea)
 static inline unsigned long get_user_vsid(mm_context_t *ctx,
 					  unsigned long ea, int ssize)
 {
-	unsigned long context = get_ea_context(ctx, ea);
+	unsigned long context = get_user_context(ctx, ea);
 
 	return get_vsid(context, ea, ssize);
 }

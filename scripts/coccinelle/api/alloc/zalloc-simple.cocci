@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 ///
 /// Use zeroing allocator rather than allocator followed by memset with 0
 ///
@@ -6,9 +7,9 @@
 /// matched code has to be contiguous
 ///
 // Confidence: High
-// Copyright: (C) 2009-2010 Julia Lawall, Nicolas Palix, DIKU.  GPLv2.
-// Copyright: (C) 2009-2010 Gilles Muller, INRIA/LiP6.  GPLv2.
-// Copyright: (C) 2017 Himanshu Jha GPLv2.
+// Copyright: (C) 2009-2010 Julia Lawall, Nicolas Palix, DIKU.
+// Copyright: (C) 2009-2010 Gilles Muller, INRIA/LiP6.
+// Copyright: (C) 2017 Himanshu Jha
 // URL: http://coccinelle.lip6.fr/rules/kzalloc.html
 // Options: --no-includes --include-headers
 //
@@ -69,15 +70,6 @@ statement S;
 - x = (T)vmalloc(E1);
 + x = (T)vzalloc(E1);
 |
-- x = dma_alloc_coherent(E2,E1,E3,E4);
-+ x = dma_zalloc_coherent(E2,E1,E3,E4);
-|
-- x = (T *)dma_alloc_coherent(E2,E1,E3,E4);
-+ x = dma_zalloc_coherent(E2,E1,E3,E4);
-|
-- x = (T)dma_alloc_coherent(E2,E1,E3,E4);
-+ x = (T)dma_zalloc_coherent(E2,E1,E3,E4);
-|
 - x = kmalloc_node(E1,E2,E3);
 + x = kzalloc_node(E1,E2,E3);
 |
@@ -134,6 +126,16 @@ statement S;
 )
   if ((x==NULL) || ...) S
 - memset((T2)x,0,E1);
+
+@depends on patch@
+type T, T2;
+expression x;
+expression E1,E2,E3,E4;
+statement S;
+@@
+  x = (T)dma_alloc_coherent(E1, E2, E3, E4);
+  if ((x==NULL) || ...) S
+- memset((T2)x, 0, E2);
 
 //----------------------------------------------------------
 //  For org mode
@@ -207,9 +209,9 @@ statement S;
 position p;
 @@
 
- x = (T)dma_alloc_coherent@p(E2,E1,E3,E4);
+ x = (T)dma_alloc_coherent@p(E1,E2,E3,E4);
  if ((x==NULL) || ...) S
- memset((T2)x,0,E1);
+ memset((T2)x,0,E2);
 
 @script:python depends on org@
 p << r2.p;
@@ -225,7 +227,7 @@ p << r2.p;
 x << r2.x;
 @@
 
-msg="WARNING: dma_zalloc_coherent should be used for %s, instead of dma_alloc_coherent/memset" % (x)
+msg="WARNING: dma_alloc_coherent used in %s already zeroes out memory, so memset is not needed" % (x)
 coccilib.report.print_report(p[0], msg)
 
 //-----------------------------------------------------------------

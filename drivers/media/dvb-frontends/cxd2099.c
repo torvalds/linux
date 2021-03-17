@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cxd2099.c: Driver for the Sony CXD2099AR Common Interface Controller
  *
@@ -593,7 +594,7 @@ static int write_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 	return ecount;
 }
 
-static struct dvb_ca_en50221 en_templ = {
+static const struct dvb_ca_en50221 en_templ = {
 	.read_attribute_mem  = read_attribute_mem,
 	.write_attribute_mem = write_attribute_mem,
 	.read_cam_control    = read_cam_control,
@@ -701,4 +702,4 @@ module_i2c_driver(cxd2099_driver);
 
 MODULE_DESCRIPTION("Sony CXD2099AR Common Interface controller driver");
 MODULE_AUTHOR("Ralph Metzler");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

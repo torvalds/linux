@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Afatech AF9033 demodulator driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
  * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include "af9033_priv.h"
@@ -1137,16 +1128,8 @@ static int af9033_probe(struct i2c_client *client,
 		 buf[4], buf[5], buf[6], buf[7]);
 
 	/* Sleep as chip seems to be partly active by default */
-	switch (dev->cfg.tuner) {
-	case AF9033_TUNER_IT9135_38:
-	case AF9033_TUNER_IT9135_51:
-	case AF9033_TUNER_IT9135_52:
-	case AF9033_TUNER_IT9135_60:
-	case AF9033_TUNER_IT9135_61:
-	case AF9033_TUNER_IT9135_62:
-		/* IT9135 did not like to sleep at that early */
-		break;
-	default:
+	/* IT9135 did not like to sleep at that early */
+	if (dev->is_af9035) {
 		ret = regmap_write(dev->regmap, 0x80004c, 0x01);
 		if (ret)
 			goto err_regmap_exit;

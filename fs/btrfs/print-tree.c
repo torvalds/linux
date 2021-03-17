@@ -7,6 +7,44 @@
 #include "disk-io.h"
 #include "print-tree.h"
 
+struct root_name_map {
+	u64 id;
+	char name[16];
+};
+
+static const struct root_name_map root_map[] = {
+	{ BTRFS_ROOT_TREE_OBJECTID,		"ROOT_TREE"		},
+	{ BTRFS_EXTENT_TREE_OBJECTID,		"EXTENT_TREE"		},
+	{ BTRFS_CHUNK_TREE_OBJECTID,		"CHUNK_TREE"		},
+	{ BTRFS_DEV_TREE_OBJECTID,		"DEV_TREE"		},
+	{ BTRFS_FS_TREE_OBJECTID,		"FS_TREE"		},
+	{ BTRFS_CSUM_TREE_OBJECTID,		"CSUM_TREE"		},
+	{ BTRFS_TREE_LOG_OBJECTID,		"TREE_LOG"		},
+	{ BTRFS_QUOTA_TREE_OBJECTID,		"QUOTA_TREE"		},
+	{ BTRFS_UUID_TREE_OBJECTID,		"UUID_TREE"		},
+	{ BTRFS_FREE_SPACE_TREE_OBJECTID,	"FREE_SPACE_TREE"	},
+	{ BTRFS_DATA_RELOC_TREE_OBJECTID,	"DATA_RELOC_TREE"	},
+};
+
+const char *btrfs_root_name(const struct btrfs_key *key, char *buf)
+{
+	int i;
+
+	if (key->objectid == BTRFS_TREE_RELOC_OBJECTID) {
+		snprintf(buf, BTRFS_ROOT_NAME_BUF_LEN,
+			 "TREE_RELOC offset=%llu", key->offset);
+		return buf;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(root_map); i++) {
+		if (root_map[i].id == key->objectid)
+			return root_map[i].name;
+	}
+
+	snprintf(buf, BTRFS_ROOT_NAME_BUF_LEN, "%llu", key->objectid);
+	return buf;
+}
+
 static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
 {
 	int num_stripes = btrfs_chunk_num_stripes(eb, chunk);
@@ -95,9 +133,10 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 			 * offset is supposed to be a tree block which
 			 * must be aligned to nodesize.
 			 */
-			if (!IS_ALIGNED(offset, eb->fs_info->nodesize))
-				pr_info("\t\t\t(parent %llu is NOT ALIGNED to nodesize %llu)\n",
-					offset, (unsigned long long)eb->fs_info->nodesize);
+			if (!IS_ALIGNED(offset, eb->fs_info->sectorsize))
+				pr_info(
+			"\t\t\t(parent %llu not aligned to sectorsize %u)\n",
+					offset, eb->fs_info->sectorsize);
 			break;
 		case BTRFS_EXTENT_DATA_REF_KEY:
 			dref = (struct btrfs_extent_data_ref *)(&iref->offset);
@@ -112,8 +151,9 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 			 * must be aligned to nodesize.
 			 */
 			if (!IS_ALIGNED(offset, eb->fs_info->nodesize))
-				pr_info("\t\t\t(parent %llu is NOT ALIGNED to nodesize %llu)\n",
-				     offset, (unsigned long long)eb->fs_info->nodesize);
+				pr_info(
+			"\t\t\t(parent %llu not aligned to sectorsize %u)\n",
+				     offset, eb->fs_info->sectorsize);
 			break;
 		default:
 			pr_cont("(extent %llu has INVALID ref type %d)\n",
@@ -153,11 +193,11 @@ static void print_eb_refs_lock(struct extent_buffer *eb)
 #ifdef CONFIG_BTRFS_DEBUG
 	btrfs_info(eb->fs_info,
 "refs %u lock (w:%d r:%d bw:%d br:%d sw:%d sr:%d) lock_owner %u current %u",
-		   atomic_read(&eb->refs), atomic_read(&eb->write_locks),
+		   atomic_read(&eb->refs), eb->write_locks,
 		   atomic_read(&eb->read_locks),
-		   atomic_read(&eb->blocking_writers),
+		   eb->blocking_writers,
 		   atomic_read(&eb->blocking_readers),
-		   atomic_read(&eb->spinning_writers),
+		   eb->spinning_writers,
 		   atomic_read(&eb->spinning_readers),
 		   eb->lock_owner, current->pid);
 #endif
@@ -189,7 +229,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 	btrfs_info(fs_info,
 		   "leaf %llu gen %llu total ptrs %d free space %d owner %llu",
 		   btrfs_header_bytenr(l), btrfs_header_generation(l), nr,
-		   btrfs_leaf_free_space(fs_info, l), btrfs_header_owner(l));
+		   btrfs_leaf_free_space(l), btrfs_header_owner(l));
 	print_eb_refs_lock(l);
 	for (i = 0 ; i < nr ; i++) {
 		item = btrfs_item_nr(i);
@@ -266,9 +306,9 @@ void btrfs_print_leaf(struct extent_buffer *l)
 					    struct btrfs_block_group_item);
 			pr_info(
 		   "\t\tblock group used %llu chunk_objectid %llu flags %llu\n",
-				btrfs_disk_block_group_used(l, bi),
-				btrfs_disk_block_group_chunk_objectid(l, bi),
-				btrfs_disk_block_group_flags(l, bi));
+				btrfs_block_group_used(l, bi),
+				btrfs_block_group_chunk_objectid(l, bi),
+				btrfs_block_group_flags(l, bi));
 			break;
 		case BTRFS_CHUNK_ITEM_KEY:
 			print_chunk(l, btrfs_item_ptr(l, i,
@@ -317,7 +357,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 			print_uuid_item(l, btrfs_item_ptr_offset(l, i),
 					btrfs_item_size_nr(l, i));
 			break;
-		};
+		}
 	}
 }
 

@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 - Cambridge Greys Ltd
  * Copyright (C) 2011 - 2014 Cisco Systems Inc
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  * Derived (i.e. mostly copied) from arch/i386/kernel/irq.c:
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  */
@@ -20,6 +20,8 @@
 #include <os.h>
 #include <irq_user.h>
 
+
+extern void free_irqs(void);
 
 /* When epoll triggers we do not know why it did so
  * we can also have different IRQs for read and write.
@@ -100,6 +102,8 @@ void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 			}
 		}
 	}
+
+	free_irqs();
 }
 
 static int assign_epoll_events_to_irq(struct irq_entry *irq_entry)
@@ -244,8 +248,7 @@ static void garbage_collect_irq_entries(void)
 			to_free = NULL;
 		}
 		walk = walk->next;
-		if (to_free != NULL)
-			kfree(to_free);
+		kfree(to_free);
 	}
 }
 
@@ -351,11 +354,6 @@ static void free_irq_by_irq_and_dev(unsigned int irq, void *dev)
 }
 
 
-void reactivate_fd(int fd, int irqnum)
-{
-	/** NOP - we do auto-EOI now **/
-}
-
 void deactivate_fd(int fd, int irqnum)
 {
 	struct irq_entry *to_free;
@@ -386,10 +384,8 @@ EXPORT_SYMBOL(deactivate_fd);
  */
 int deactivate_all_fds(void)
 {
-	unsigned long flags;
 	struct irq_entry *to_free;
 
-	spin_lock_irqsave(&irq_lock, flags);
 	/* Stop IO. The IRQ loop has no lock so this is our
 	 * only way of making sure we are safe to dispose
 	 * of all IRQ handlers
@@ -405,8 +401,7 @@ int deactivate_all_fds(void)
 		);
 		to_free = to_free->next;
 	}
-	garbage_collect_irq_entries();
-	spin_unlock_irqrestore(&irq_lock, flags);
+	/* don't garbage collect - we can no longer call kfree() here */
 	os_close_epoll_fd();
 	return 0;
 }
@@ -450,7 +445,6 @@ int um_request_irq(unsigned int irq, int fd, int type,
 }
 
 EXPORT_SYMBOL(um_request_irq);
-EXPORT_SYMBOL(reactivate_fd);
 
 /*
  * irq_chip must define at least enable/disable and ack when

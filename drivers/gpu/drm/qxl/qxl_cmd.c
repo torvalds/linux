@@ -25,6 +25,10 @@
 
 /* QXL cmd/ring handling */
 
+#include <linux/delay.h>
+
+#include <drm/drm_util.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
@@ -32,7 +36,7 @@ static int qxl_reap_surface_id(struct qxl_device *qdev, int max_to_reap);
 
 struct ring {
 	struct qxl_ring_header      header;
-	uint8_t                     elements[0];
+	uint8_t                     elements[];
 };
 
 struct qxl_ring {
@@ -84,6 +88,7 @@ static int qxl_check_header(struct qxl_ring *ring)
 	int ret;
 	struct qxl_ring_header *header = &(ring->ring->header);
 	unsigned long flags;
+
 	spin_lock_irqsave(&ring->lock, flags);
 	ret = header->prod - header->cons < header->num_items;
 	if (ret == 0)
@@ -97,6 +102,7 @@ int qxl_check_idle(struct qxl_ring *ring)
 	int ret;
 	struct qxl_ring_header *header = &(ring->ring->header);
 	unsigned long flags;
+
 	spin_lock_irqsave(&ring->lock, flags);
 	ret = header->prod == header->cons;
 	spin_unlock_irqrestore(&ring->lock, flags);
@@ -110,6 +116,7 @@ int qxl_ring_push(struct qxl_ring *ring,
 	uint8_t *elt;
 	int idx, ret;
 	unsigned long flags;
+
 	spin_lock_irqsave(&ring->lock, flags);
 	if (header->prod - header->cons == header->num_items) {
 		header->notify_on_cons = header->cons + 1;
@@ -156,6 +163,7 @@ static bool qxl_ring_pop(struct qxl_ring *ring,
 	volatile uint8_t *ring_elt;
 	int idx;
 	unsigned long flags;
+
 	spin_lock_irqsave(&ring->lock, flags);
 	if (header->cons == header->prod) {
 		header->notify_on_prod = header->cons + 1;
@@ -365,17 +373,20 @@ void qxl_io_flush_surfaces(struct qxl_device *qdev)
 	wait_for_io_cmd(qdev, 0, QXL_IO_FLUSH_SURFACES_ASYNC);
 }
 
-
 void qxl_io_destroy_primary(struct qxl_device *qdev)
 {
 	wait_for_io_cmd(qdev, 0, QXL_IO_DESTROY_PRIMARY_ASYNC);
-	qdev->primary_created = false;
+	qdev->primary_bo->is_primary = false;
+	drm_gem_object_put(&qdev->primary_bo->tbo.base);
+	qdev->primary_bo = NULL;
 }
 
-void qxl_io_create_primary(struct qxl_device *qdev,
-			   unsigned offset, struct qxl_bo *bo)
+void qxl_io_create_primary(struct qxl_device *qdev, struct qxl_bo *bo)
 {
 	struct qxl_surface_create *create;
+
+	if (WARN_ON(qdev->primary_bo))
+		return;
 
 	DRM_DEBUG_DRIVER("qdev %p, ram_header %p\n", qdev, qdev->ram_header);
 	create = &qdev->ram_header->create_surface;
@@ -383,11 +394,7 @@ void qxl_io_create_primary(struct qxl_device *qdev,
 	create->width = bo->surf.width;
 	create->height = bo->surf.height;
 	create->stride = bo->surf.stride;
-	if (bo->shadow) {
-		create->mem = qxl_bo_physical_address(qdev, bo->shadow, offset);
-	} else {
-		create->mem = qxl_bo_physical_address(qdev, bo, offset);
-	}
+	create->mem = qxl_bo_physical_address(qdev, bo, 0);
 
 	DRM_DEBUG_DRIVER("mem = %llx, from %p\n", create->mem, bo->kptr);
 
@@ -395,7 +402,9 @@ void qxl_io_create_primary(struct qxl_device *qdev,
 	create->type = QXL_SURF_TYPE_PRIMARY;
 
 	wait_for_io_cmd(qdev, 0, QXL_IO_CREATE_PRIMARY_ASYNC);
-	qdev->primary_created = true;
+	qdev->primary_bo = bo;
+	qdev->primary_bo->is_primary = true;
+	drm_gem_object_get(&qdev->primary_bo->tbo.base);
 }
 
 void qxl_io_memslot_add(struct qxl_device *qdev, uint8_t id)
@@ -455,8 +464,7 @@ void qxl_surface_id_dealloc(struct qxl_device *qdev,
 }
 
 int qxl_hw_surface_alloc(struct qxl_device *qdev,
-			 struct qxl_bo *surf,
-			 struct ttm_mem_reg *new_mem)
+			 struct qxl_bo *surf)
 {
 	struct qxl_surface_cmd *cmd;
 	struct qxl_release *release;
@@ -472,9 +480,10 @@ int qxl_hw_surface_alloc(struct qxl_device *qdev,
 		return ret;
 
 	ret = qxl_release_reserve_list(release, true);
-	if (ret)
+	if (ret) {
+		qxl_release_free(qdev, release);
 		return ret;
-
+	}
 	cmd = (struct qxl_surface_cmd *)qxl_release_map(qdev, release);
 	cmd->type = QXL_SURFACE_CMD_CREATE;
 	cmd->flags = QXL_SURF_FLAG_KEEP_DATA;
@@ -482,16 +491,7 @@ int qxl_hw_surface_alloc(struct qxl_device *qdev,
 	cmd->u.surface_create.width = surf->surf.width;
 	cmd->u.surface_create.height = surf->surf.height;
 	cmd->u.surface_create.stride = surf->surf.stride;
-	if (new_mem) {
-		int slot_id = surf->type == QXL_GEM_DOMAIN_VRAM ? qdev->main_mem_slot : qdev->surfaces_mem_slot;
-		struct qxl_memslot *slot = &(qdev->mem_slots[slot_id]);
-
-		/* TODO - need to hold one of the locks to read tbo.offset */
-		cmd->u.surface_create.data = slot->high_bits;
-
-		cmd->u.surface_create.data |= (new_mem->start << PAGE_SHIFT) + surf->tbo.bdev->man[new_mem->mem_type].gpu_offset;
-	} else
-		cmd->u.surface_create.data = qxl_bo_physical_address(qdev, surf, 0);
+	cmd->u.surface_create.data = qxl_bo_physical_address(qdev, surf, 0);
 	cmd->surface_id = surf->surface_id;
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 
@@ -500,8 +500,8 @@ int qxl_hw_surface_alloc(struct qxl_device *qdev,
 	/* no need to add a release to the fence for this surface bo,
 	   since it is only released when we ask to destroy the surface
 	   and it would never signal otherwise */
-	qxl_push_command_ring_release(qdev, release, QXL_CMD_SURFACE, false);
 	qxl_release_fence_buffer_objects(release);
+	qxl_push_command_ring_release(qdev, release, QXL_CMD_SURFACE, false);
 
 	surf->hw_surf_alloc = true;
 	spin_lock(&qdev->surf_id_idr_lock);
@@ -543,9 +543,8 @@ int qxl_hw_surface_dealloc(struct qxl_device *qdev,
 	cmd->surface_id = id;
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 
-	qxl_push_command_ring_release(qdev, release, QXL_CMD_SURFACE, false);
-
 	qxl_release_fence_buffer_objects(release);
+	qxl_push_command_ring_release(qdev, release, QXL_CMD_SURFACE, false);
 
 	return 0;
 }
@@ -589,7 +588,7 @@ static int qxl_reap_surf(struct qxl_device *qdev, struct qxl_bo *surf, bool stal
 {
 	int ret;
 
-	ret = qxl_bo_reserve(surf, false);
+	ret = qxl_bo_reserve(surf);
 	if (ret)
 		return ret;
 

@@ -1,0 +1,45 @@
+What:		/sys/kernel/debug/wilco_ec/h1_gpio
+Date:		April 2019
+KernelVersion:	5.2
+Description:
+		As part of Chrome OS's FAFT (Fully Automated Firmware Testing)
+		tests, we need to ensure that the H1 chip is properly setting
+		some GPIO lines. The h1_gpio attribute exposes the state
+		of the lines:
+		- ENTRY_TO_FACT_MODE in BIT(0)
+		- SPI_CHROME_SEL in BIT(1)
+
+		Output will formatted with "0x%02x\n".
+
+What:		/sys/kernel/debug/wilco_ec/raw
+Date:		January 2019
+KernelVersion:	5.1
+Description:
+		Write and read raw mailbox commands to the EC.
+
+		You can write a hexadecimal sentence to raw, and that series of
+		bytes will be sent to the EC. Then, you can read the bytes of
+		response by reading from raw.
+
+		For writing, bytes 0-1 indicate the message type, one of enum
+		wilco_ec_msg_type. Byte 2+ consist of the data passed in the
+		request, starting at MBOX[0]. At least three bytes are required
+		for writing, two for the type and at least a single byte of
+		data.
+
+		Example::
+
+		    // Request EC info type 3 (EC firmware build date)
+		    // Corresponds with sending type 0x00f0 with
+		    // MBOX = [38, 00, 03, 00]
+		    $ echo 00 f0 38 00 03 00 > /sys/kernel/debug/wilco_ec/raw
+		    // View the result. The decoded ASCII result "12/21/18" is
+		    // included after the raw hex.
+		    // Corresponds with MBOX = [00, 00, 31, 32, 2f, 32, 31, 38, ...]
+		    $ cat /sys/kernel/debug/wilco_ec/raw
+		    00 00 31 32 2f 32 31 2f 31 38 00 38 00 01 00 2f 00  ..12/21/18.8...
+
+		Note that the first 16 bytes of the received MBOX[] will be
+		printed, even if some of the data is junk, and skipping bytes
+		17 to 32. It is up to you to know how many of the first bytes of
+		data are the actual response.

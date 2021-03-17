@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PMac DBDMA lowlevel functions
  *
  * Copyright (c) by Takashi Iwai <tiwai@suse.de>
  * code based on dmasound.c.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 
@@ -37,11 +24,11 @@
 
 
 /* fixed frequency table for awacs, screamer, burgundy, DACA (44100 max) */
-static int awacs_freqs[8] = {
+static const int awacs_freqs[8] = {
 	44100, 29400, 22050, 17640, 14700, 11025, 8820, 7350
 };
 /* fixed frequency table for tumbler */
-static int tumbler_freqs[1] = {
+static const int tumbler_freqs[1] = {
 	44100
 };
 
@@ -118,24 +105,6 @@ static inline int another_stream(int stream)
 {
 	return (stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 		SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
-}
-
-/*
- * allocate buffers
- */
-static int snd_pmac_pcm_hw_params(struct snd_pcm_substream *subs,
-				  struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(subs, params_buffer_bytes(hw_params));
-}
-
-/*
- * release buffers
- */
-static int snd_pmac_pcm_hw_free(struct snd_pcm_substream *subs)
-{
-	snd_pcm_lib_free_pages(subs);
-	return 0;
 }
 
 /*
@@ -257,7 +226,7 @@ static int snd_pmac_pcm_prepare(struct snd_pmac *chip, struct pmac_stream *rec, 
 		offset += rec->period_size;
 	}
 	/* make loop */
-	cp->command = cpu_to_le16(DBDMA_NOP + BR_ALWAYS);
+	cp->command = cpu_to_le16(DBDMA_NOP | BR_ALWAYS);
 	cp->cmd_dep = cpu_to_le32(rec->cmd.addr);
 
 	snd_pmac_dma_stop(rec);
@@ -684,9 +653,6 @@ static int snd_pmac_capture_close(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops snd_pmac_playback_ops = {
 	.open =		snd_pmac_playback_open,
 	.close =	snd_pmac_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_pmac_pcm_hw_params,
-	.hw_free =	snd_pmac_pcm_hw_free,
 	.prepare =	snd_pmac_playback_prepare,
 	.trigger =	snd_pmac_playback_trigger,
 	.pointer =	snd_pmac_playback_pointer,
@@ -695,9 +661,6 @@ static const struct snd_pcm_ops snd_pmac_playback_ops = {
 static const struct snd_pcm_ops snd_pmac_capture_ops = {
 	.open =		snd_pmac_capture_open,
 	.close =	snd_pmac_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_pmac_pcm_hw_params,
-	.hw_free =	snd_pmac_pcm_hw_free,
 	.prepare =	snd_pmac_capture_prepare,
 	.trigger =	snd_pmac_capture_trigger,
 	.pointer =	snd_pmac_capture_pointer,
@@ -734,9 +697,9 @@ int snd_pmac_pcm_new(struct snd_pmac *chip)
 	chip->capture.cur_freqs = chip->freqs_ok;
 
 	/* preallocate 64k buffer */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->pdev->dev,
-					      64 * 1024, 64 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pdev->dev,
+				       64 * 1024, 64 * 1024);
 
 	return 0;
 }
@@ -763,7 +726,7 @@ void snd_pmac_beep_dma_start(struct snd_pmac *chip, int bytes, unsigned long add
 	chip->extra_dma.cmds->xfer_status = cpu_to_le16(0);
 	chip->extra_dma.cmds->cmd_dep = cpu_to_le32(chip->extra_dma.addr);
 	chip->extra_dma.cmds->phy_addr = cpu_to_le32(addr);
-	chip->extra_dma.cmds->command = cpu_to_le16(OUTPUT_MORE + BR_ALWAYS);
+	chip->extra_dma.cmds->command = cpu_to_le16(OUTPUT_MORE | BR_ALWAYS);
 	out_le32(&chip->awacs->control,
 		 (in_le32(&chip->awacs->control) & ~0x1f00)
 		 | (speed << 8));
@@ -908,7 +871,7 @@ static void detect_byte_swap(struct snd_pmac *chip)
 
 	/* if seems that Keylargo can't byte-swap  */
 	for (mio = chip->node->parent; mio; mio = mio->parent) {
-		if (strcmp(mio->name, "mac-io") == 0) {
+		if (of_node_name_eq(mio, "mac-io")) {
 			if (of_device_is_compatible(mio, "Keylargo"))
 				chip->can_byte_swap = 0;
 			break;
@@ -1141,7 +1104,7 @@ static int pmac_hp_detect_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new auto_mute_controls[] = {
+static const struct snd_kcontrol_new auto_mute_controls[] = {
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	  .name = "Auto Mute Switch",
 	  .info = snd_pmac_boolean_mono_info,
@@ -1180,7 +1143,7 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	int i, err;
 	unsigned int irq;
 	unsigned long ctrl_addr, txdma_addr, rxdma_addr;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_pmac_dev_free,
 	};
 
@@ -1211,7 +1174,7 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	np = chip->node;
 	chip->requested = 0;
 	if (chip->is_k2) {
-		static char *rnames[] = {
+		static const char * const rnames[] = {
 			"Sound Control", "Sound DMA" };
 		for (i = 0; i < 2; i ++) {
 			if (of_address_to_resource(np->parent, i,
@@ -1236,7 +1199,7 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 		txdma_addr = chip->rsrc[1].start;
 		rxdma_addr = txdma_addr + 0x100;
 	} else {
-		static char *rnames[] = {
+		static const char * const rnames[] = {
 			"Sound Control", "Sound Tx DMA", "Sound Rx DMA" };
 		for (i = 0; i < 3; i ++) {
 			if (of_address_to_resource(np, i,
@@ -1313,7 +1276,7 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	} else if (chip->is_pbook_G3) {
 		struct device_node* mio;
 		for (mio = chip->node->parent; mio; mio = mio->parent) {
-			if (strcmp(mio->name, "mac-io") == 0) {
+			if (of_node_name_eq(mio, "mac-io")) {
 				struct resource r;
 				if (of_address_to_resource(mio, 0, &r) == 0)
 					chip->macio_base =
@@ -1365,7 +1328,6 @@ void snd_pmac_suspend(struct snd_pmac *chip)
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	if (chip->suspend)
 		chip->suspend(chip);
-	snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	snd_pmac_beep_stop(chip);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);

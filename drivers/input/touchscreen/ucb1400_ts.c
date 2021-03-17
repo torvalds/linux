@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Philips UCB1400 touchscreen driver
  *
@@ -8,10 +9,6 @@
  * Spliting done by: Marek Vasut <marek.vasut@gmail.com>
  * If something doesn't work and it worked before spliting, e-mail me,
  * dont bother Nicolas please ;-)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This code is heavily based on ucb1x00-*.c copyrighted by Russell King
  * covering the UCB1100, UCB1200 and UCB1300..  Support for the UCB1400 has

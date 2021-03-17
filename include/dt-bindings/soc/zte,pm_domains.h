@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2017 Linaro Ltd.
  *
  * Author: Baoyou Xie <baoyou.xie@linaro.org>
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #ifndef _DT_BINDINGS_SOC_ZTE_PM_DOMAINS_H

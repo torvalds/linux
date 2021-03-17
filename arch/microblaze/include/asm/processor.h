@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
  * Copyright (C) 2006 Atmark Techno, Inc.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #ifndef _ASM_MICROBLAZE_PROCESSOR_H
@@ -44,12 +41,6 @@ extern void ret_from_kernel_thread(void);
  * physical memory. thus, we set TASK_SIZE == amount of total memory.
  */
 # define TASK_SIZE	(0x81000000 - 0x80000000)
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-# define current_text_addr() ({ __label__ _l; _l: &&_l; })
 
 /*
  * This decides where the kernel will search for a free chunk of vm
@@ -91,12 +82,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 # define THREAD_KSP	0
 
 #  ifndef __ASSEMBLY__
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#  define current_text_addr()	({ __label__ _l; _l: &&_l; })
 
 /* If you change this, you must change the associated assembly-languages
  * constants defined below, THREAD_*.

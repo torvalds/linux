@@ -15,8 +15,10 @@ extern int usb_wwan_write_room(struct tty_struct *tty);
 extern int usb_wwan_tiocmget(struct tty_struct *tty);
 extern int usb_wwan_tiocmset(struct tty_struct *tty,
 			     unsigned int set, unsigned int clear);
-extern int usb_wwan_ioctl(struct tty_struct *tty,
-			  unsigned int cmd, unsigned long arg);
+extern int usb_wwan_get_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss);
+extern int usb_wwan_set_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss);
 extern int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,
 			  const unsigned char *buf, int count);
 extern int usb_wwan_chars_in_buffer(struct tty_struct *tty);
@@ -36,6 +38,7 @@ struct usb_wwan_intf_private {
 	spinlock_t susp_lock;
 	unsigned int suspended:1;
 	unsigned int use_send_setup:1;
+	unsigned int use_zlp:1;
 	int in_flight;
 	unsigned int open_ports;
 	void *private;

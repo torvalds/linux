@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __DIO_DOT_H__
@@ -63,7 +60,7 @@ enum {
 };
 
 extern void gfs2_remove_from_journal(struct buffer_head *bh, int meta);
-extern void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
+extern void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
 extern int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 				     struct buffer_head **bhp);
 

@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/generic-ehci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: USB EHCI Controller Device Tree Bindings
+
+maintainers:
+  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+allOf:
+  - $ref: "usb-hcd.yaml"
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: ibm,usb-ehci-440epx
+    then:
+      properties:
+        reg:
+          maxItems: 1
+
+properties:
+  compatible:
+    contains:
+      const: generic-ehci
+
+  reg:
+    minItems: 1
+    maxItems: 2
+
+  interrupts:
+    maxItems: 1
+
+  resets:
+    minItems: 1
+    maxItems: 4
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+    description: |
+      In case the Renesas R-Car Gen3 SoCs:
+        - if a host only channel: first clock should be host.
+        - if a USB DRD channel: first clock should be host and second
+          one should be peripheral
+
+  power-domains:
+    maxItems: 1
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag for HCDs with big endian descriptors and big
+      endian registers.
+
+  big-endian-desc:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag for HCDs with big endian descriptors.
+
+  big-endian-regs:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag for HCDs with big endian registers.
+
+  has-transaction-translator:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag if EHCI has a Transaction Translator built into
+      the root hub.
+
+  needs-reset-on-resume:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag to force EHCI reset after resume.
+
+  companion:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle of a companion.
+
+  phys:
+    description: PHY specifier for the USB PHY
+
+  phy-names:
+    const: usb
+
+  iommus:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    usb@e0000300 {
+        compatible = "ibm,usb-ehci-440epx", "generic-ehci";
+        interrupt-parent = <&UIC0>;
+        interrupts = <0x1a 4>;
+        reg = <0xe0000300 90>, <0xe0000390 70>;
+        big-endian;
+    };
+
+  - |
+    ehci0: usb@1c14000 {
+        compatible = "allwinner,sun4i-a10-ehci", "generic-ehci";
+        reg = <0x01c14000 0x100>;
+        interrupts = <39>;
+        clocks = <&ahb_gates 1>;
+        phys = <&usbphy 1>;
+        phy-names = "usb";
+    };
+
+...

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -27,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/prefetch.h>
 #include <linux/cpumask.h>
+#include <linux/if_vlan.h>
 #include <asm/barrier.h>
 
 #include "hinic_common.h"
@@ -43,6 +35,16 @@
 #define RX_IRQ_NO_LLI_TIMER             0
 #define RX_IRQ_NO_CREDIT                0
 #define RX_IRQ_NO_RESEND_TIMER          0
+#define HINIC_RX_BUFFER_WRITE           16
+
+#define HINIC_RX_IPV6_PKT		7
+#define LRO_PKT_HDR_LEN_IPV4		66
+#define LRO_PKT_HDR_LEN_IPV6		86
+#define LRO_REPLENISH_THLD		256
+
+#define LRO_PKT_HDR_LEN(cqe)		\
+	(HINIC_GET_RX_PKT_TYPE(be32_to_cpu((cqe)->offload_type)) == \
+	 HINIC_RX_IPV6_PKT ? LRO_PKT_HDR_LEN_IPV6 : LRO_PKT_HDR_LEN_IPV4)
 
 /**
  * hinic_rxq_clean_stats - Clean the statistics of specific queue
@@ -55,6 +57,9 @@ void hinic_rxq_clean_stats(struct hinic_rxq *rxq)
 	u64_stats_update_begin(&rxq_stats->syncp);
 	rxq_stats->pkts  = 0;
 	rxq_stats->bytes = 0;
+	rxq_stats->errors = 0;
+	rxq_stats->csum_errors = 0;
+	rxq_stats->other_errors = 0;
 	u64_stats_update_end(&rxq_stats->syncp);
 }
 
@@ -73,6 +78,10 @@ void hinic_rxq_get_stats(struct hinic_rxq *rxq, struct hinic_rxq_stats *stats)
 		start = u64_stats_fetch_begin(&rxq_stats->syncp);
 		stats->pkts = rxq_stats->pkts;
 		stats->bytes = rxq_stats->bytes;
+		stats->errors = rxq_stats->csum_errors +
+				rxq_stats->other_errors;
+		stats->csum_errors = rxq_stats->csum_errors;
+		stats->other_errors = rxq_stats->other_errors;
 	} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
 	u64_stats_update_end(&stats->syncp);
 }
@@ -89,6 +98,26 @@ static void rxq_stats_init(struct hinic_rxq *rxq)
 	hinic_rxq_clean_stats(rxq);
 }
 
+static void rx_csum(struct hinic_rxq *rxq, u32 status,
+		    struct sk_buff *skb)
+{
+	struct net_device *netdev = rxq->netdev;
+	u32 csum_err;
+
+	csum_err = HINIC_RQ_CQE_STATUS_GET(status, CSUM_ERR);
+
+	if (!(netdev->features & NETIF_F_RXCSUM))
+		return;
+
+	if (!csum_err) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	} else {
+		if (!(csum_err & (HINIC_RX_CSUM_HW_CHECK_NONE |
+			HINIC_RX_CSUM_IPSU_OTHER_ERR)))
+			rxq->rxq_stats.csum_errors++;
+		skb->ip_summed = CHECKSUM_NONE;
+	}
+}
 /**
  * rx_alloc_skb - allocate skb and map it to dma address
  * @rxq: rx queue
@@ -209,7 +238,6 @@ skb_out:
 		hinic_rq_update(rxq->rq, prod_idx);
 	}
 
-	tasklet_schedule(&rxq->rx_task);
 	return i;
 }
 
@@ -234,17 +262,6 @@ static void free_all_rx_skbs(struct hinic_rxq *rxq)
 
 		rx_free_skb(rxq, rq->saved_skb[ci], hinic_sge_to_dma(&sge));
 	}
-}
-
-/**
- * rx_alloc_task - tasklet for queue allocation
- * @data: rx queue
- **/
-static void rx_alloc_task(unsigned long data)
-{
-	struct hinic_rxq *rxq = (struct hinic_rxq *)data;
-
-	(void)rx_alloc_pkts(rxq);
 }
 
 /**
@@ -299,6 +316,39 @@ static int rx_recv_jumbo_pkt(struct hinic_rxq *rxq, struct sk_buff *head_skb,
 	return num_wqes;
 }
 
+static void hinic_copy_lp_data(struct hinic_dev *nic_dev,
+			       struct sk_buff *skb)
+{
+	struct net_device *netdev = nic_dev->netdev;
+	u8 *lb_buf = nic_dev->lb_test_rx_buf;
+	int lb_len = nic_dev->lb_pkt_len;
+	int pkt_offset, frag_len, i;
+	void *frag_data = NULL;
+
+	if (nic_dev->lb_test_rx_idx == LP_PKT_CNT) {
+		nic_dev->lb_test_rx_idx = 0;
+		netif_warn(nic_dev, drv, netdev, "Loopback test warning, receive too more test pkts\n");
+	}
+
+	if (skb->len != nic_dev->lb_pkt_len) {
+		netif_warn(nic_dev, drv, netdev, "Wrong packet length\n");
+		nic_dev->lb_test_rx_idx++;
+		return;
+	}
+
+	pkt_offset = nic_dev->lb_test_rx_idx * lb_len;
+	frag_len = (int)skb_headlen(skb);
+	memcpy(lb_buf + pkt_offset, skb->data, frag_len);
+	pkt_offset += frag_len;
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		frag_data = skb_frag_address(&skb_shinfo(skb)->frags[i]);
+		frag_len = (int)skb_frag_size(&skb_shinfo(skb)->frags[i]);
+		memcpy((lb_buf + pkt_offset), frag_data, frag_len);
+		pkt_offset += frag_len;
+	}
+	nic_dev->lb_test_rx_idx++;
+}
+
 /**
  * rxq_recv - Rx handler
  * @rxq: rx queue
@@ -309,12 +359,24 @@ static int rx_recv_jumbo_pkt(struct hinic_rxq *rxq, struct sk_buff *head_skb,
 static int rxq_recv(struct hinic_rxq *rxq, int budget)
 {
 	struct hinic_qp *qp = container_of(rxq->rq, struct hinic_qp, rq);
+	struct net_device *netdev = rxq->netdev;
 	u64 pkt_len = 0, rx_bytes = 0;
+	struct hinic_rq *rq = rxq->rq;
 	struct hinic_rq_wqe *rq_wqe;
+	struct hinic_dev *nic_dev;
+	unsigned int free_wqebbs;
+	struct hinic_rq_cqe *cqe;
 	int num_wqes, pkts = 0;
 	struct hinic_sge sge;
+	unsigned int status;
 	struct sk_buff *skb;
-	u16 ci;
+	u32 offload_type;
+	u16 ci, num_lro;
+	u16 num_wqe = 0;
+	u32 vlan_len;
+	u16 vid;
+
+	nic_dev = netdev_priv(netdev);
 
 	while (pkts < budget) {
 		num_wqes = 0;
@@ -324,9 +386,16 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 		if (!rq_wqe)
 			break;
 
+		/* make sure we read rx_done before packet length */
+		dma_rmb();
+
+		cqe = rq->cqe[ci];
+		status =  be32_to_cpu(cqe->status);
 		hinic_rq_get_sge(rxq->rq, rq_wqe, ci, &sge);
 
 		rx_unmap_skb(rxq, hinic_sge_to_dma(&sge));
+
+		rx_csum(rxq, status, skb);
 
 		prefetch(skb->data);
 
@@ -340,8 +409,19 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 						     HINIC_RX_BUF_SZ, ci);
 		}
 
-		hinic_rq_put_wqe(rxq->rq, ci,
+		hinic_rq_put_wqe(rq, ci,
 				 (num_wqes + 1) * HINIC_RQ_WQE_SIZE);
+
+		offload_type = be32_to_cpu(cqe->offload_type);
+		vlan_len = be32_to_cpu(cqe->len);
+		if ((netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
+		    HINIC_GET_RX_VLAN_OFFLOAD_EN(offload_type)) {
+			vid = HINIC_GET_RX_VLAN_TAG(vlan_len);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
+		}
+
+		if (unlikely(nic_dev->flags & HINIC_LP_TEST))
+			hinic_copy_lp_data(nic_dev, skb);
 
 		skb_record_rx_queue(skb, qp->q_id);
 		skb->protocol = eth_type_trans(skb, rxq->netdev);
@@ -350,10 +430,26 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 
 		pkts++;
 		rx_bytes += pkt_len;
+
+		num_lro = HINIC_GET_RX_NUM_LRO(status);
+		if (num_lro) {
+			rx_bytes += ((num_lro - 1) *
+				     LRO_PKT_HDR_LEN(cqe));
+
+			num_wqe +=
+			(u16)(pkt_len >> rxq->rx_buff_shift) +
+			((pkt_len & (rxq->buf_len - 1)) ? 1 : 0);
+		}
+
+		cqe->status = 0;
+
+		if (num_wqe >= LRO_REPLENISH_THLD)
+			break;
 	}
 
-	if (pkts)
-		tasklet_schedule(&rxq->rx_task); /* rx_alloc_pkts */
+	free_wqebbs = hinic_get_rq_free_wqebbs(rxq->rq);
+	if (free_wqebbs > HINIC_RX_BUFFER_WRITE)
+		rx_alloc_pkts(rxq);
 
 	u64_stats_update_begin(&rxq->rxq_stats.syncp);
 	rxq->rxq_stats.pkts += pkts;
@@ -366,6 +462,7 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 static int rx_poll(struct napi_struct *napi, int budget)
 {
 	struct hinic_rxq *rxq = container_of(napi, struct hinic_rxq, napi);
+	struct hinic_dev *nic_dev = netdev_priv(rxq->netdev);
 	struct hinic_rq *rq = rxq->rq;
 	int pkts;
 
@@ -374,7 +471,12 @@ static int rx_poll(struct napi_struct *napi, int budget)
 		return budget;
 
 	napi_complete(napi);
-	enable_irq(rq->irq);
+
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_hwdev_set_msix_state(nic_dev->hwdev,
+					   rq->msix_entry,
+					   HINIC_MSIX_ENABLE);
+
 	return pkts;
 }
 
@@ -399,7 +501,11 @@ static irqreturn_t rx_irq(int irq, void *data)
 	struct hinic_dev *nic_dev;
 
 	/* Disable the interrupt until napi will be completed */
-	disable_irq_nosync(rq->irq);
+	nic_dev = netdev_priv(rxq->netdev);
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_hwdev_set_msix_state(nic_dev->hwdev,
+					   rq->msix_entry,
+					   HINIC_MSIX_DISABLE);
 
 	nic_dev = netdev_priv(rxq->netdev);
 	hinic_hwdev_msix_cnt_set(nic_dev->hwdev, rq->msix_entry);
@@ -411,11 +517,14 @@ static irqreturn_t rx_irq(int irq, void *data)
 static int rx_request_irq(struct hinic_rxq *rxq)
 {
 	struct hinic_dev *nic_dev = netdev_priv(rxq->netdev);
+	struct hinic_msix_config interrupt_info = {0};
+	struct hinic_intr_coal_info *intr_coal = NULL;
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_rq *rq = rxq->rq;
 	struct hinic_qp *qp;
-	struct cpumask mask;
 	int err;
+
+	qp = container_of(rq, struct hinic_qp, rq);
 
 	rx_add_napi(rxq);
 
@@ -424,15 +533,35 @@ static int rx_request_irq(struct hinic_rxq *rxq)
 			     RX_IRQ_NO_LLI_TIMER, RX_IRQ_NO_CREDIT,
 			     RX_IRQ_NO_RESEND_TIMER);
 
-	err = request_irq(rq->irq, rx_irq, 0, rxq->irq_name, rxq);
+	intr_coal = &nic_dev->rx_intr_coalesce[qp->q_id];
+	interrupt_info.msix_index = rq->msix_entry;
+	interrupt_info.coalesce_timer_cnt = intr_coal->coalesce_timer_cfg;
+	interrupt_info.pending_cnt = intr_coal->pending_limt;
+	interrupt_info.resend_timer_cnt = intr_coal->resend_timer_cfg;
+
+	err = hinic_set_interrupt_cfg(hwdev, &interrupt_info);
 	if (err) {
-		rx_del_napi(rxq);
-		return err;
+		netif_err(nic_dev, drv, rxq->netdev,
+			  "Failed to set RX interrupt coalescing attribute\n");
+		goto err_req_irq;
 	}
 
-	qp = container_of(rq, struct hinic_qp, rq);
-	cpumask_set_cpu(qp->q_id % num_online_cpus(), &mask);
-	return irq_set_affinity_hint(rq->irq, &mask);
+	err = request_irq(rq->irq, rx_irq, 0, rxq->irq_name, rxq);
+	if (err)
+		goto err_req_irq;
+
+	cpumask_set_cpu(qp->q_id % num_online_cpus(), &rq->affinity_mask);
+	err = irq_set_affinity_hint(rq->irq, &rq->affinity_mask);
+	if (err)
+		goto err_irq_affinity;
+
+	return 0;
+
+err_irq_affinity:
+	free_irq(rq->irq, rxq);
+err_req_irq:
+	rx_del_napi(rxq);
+	return err;
 }
 
 static void rx_free_irq(struct hinic_rxq *rxq)
@@ -456,21 +585,19 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 		   struct net_device *netdev)
 {
 	struct hinic_qp *qp = container_of(rq, struct hinic_qp, rq);
-	int err, pkts, irqname_len;
+	int err, pkts;
 
 	rxq->netdev = netdev;
 	rxq->rq = rq;
+	rxq->buf_len = HINIC_RX_BUF_SZ;
+	rxq->rx_buff_shift = ilog2(HINIC_RX_BUF_SZ);
 
 	rxq_stats_init(rxq);
 
-	irqname_len = snprintf(NULL, 0, "hinic_rxq%d", qp->q_id) + 1;
-	rxq->irq_name = devm_kzalloc(&netdev->dev, irqname_len, GFP_KERNEL);
+	rxq->irq_name = devm_kasprintf(&netdev->dev, GFP_KERNEL,
+				       "%s_rxq%d", netdev->name, qp->q_id);
 	if (!rxq->irq_name)
 		return -ENOMEM;
-
-	sprintf(rxq->irq_name, "hinic_rxq%d", qp->q_id);
-
-	tasklet_init(&rxq->rx_task, rx_alloc_task, (unsigned long)rxq);
 
 	pkts = rx_alloc_pkts(rxq);
 	if (!pkts) {
@@ -488,7 +615,6 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 
 err_req_rx_irq:
 err_rx_pkts:
-	tasklet_kill(&rxq->rx_task);
 	free_all_rx_skbs(rxq);
 	devm_kfree(&netdev->dev, rxq->irq_name);
 	return err;
@@ -504,7 +630,6 @@ void hinic_clean_rxq(struct hinic_rxq *rxq)
 
 	rx_free_irq(rxq);
 
-	tasklet_kill(&rxq->rx_task);
 	free_all_rx_skbs(rxq);
 	devm_kfree(&netdev->dev, rxq->irq_name);
 }

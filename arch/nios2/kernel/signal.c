@@ -106,7 +106,7 @@ asmlinkage int do_rt_sigreturn(struct switch_stack *sw)
 	sigset_t set;
 	int rval;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
@@ -120,7 +120,7 @@ asmlinkage int do_rt_sigreturn(struct switch_stack *sw)
 	return rval;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -211,7 +211,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	return 0;
 
 give_sigsegv:
-	force_sigsegv(ksig->sig, current);
+	force_sigsegv(ksig->sig);
 	return -EFAULT;
 }
 
@@ -252,6 +252,7 @@ static int do_signal(struct pt_regs *regs)
 		switch (retval) {
 		case ERESTART_RESTARTBLOCK:
 			restart = -2;
+			fallthrough;
 		case ERESTARTNOHAND:
 		case ERESTARTSYS:
 		case ERESTARTNOINTR:
@@ -316,7 +317,7 @@ asmlinkage int do_notify_resume(struct pt_regs *regs)
 			 */
 			return restart;
 		}
-	} else if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
+	} else if (test_thread_flag(TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(regs);
 
 	return 0;

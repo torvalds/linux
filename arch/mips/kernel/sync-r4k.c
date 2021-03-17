@@ -90,6 +90,9 @@ void synchronise_count_master(int cpu)
 void synchronise_count_slave(int cpu)
 {
 	int i;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	/*
 	 * Not every cpu is online at the time this gets called,
@@ -113,5 +116,7 @@ void synchronise_count_slave(int cpu)
 	}
 	/* Arrange for an interrupt in a short while */
 	write_c0_compare(read_c0_count() + COUNTON);
+
+	local_irq_restore(flags);
 }
 #undef NR_LOOPS

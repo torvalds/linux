@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /**
  * Freecale 85xx and 86xx Global Utilties register set
  *
@@ -5,11 +6,6 @@
  *          Timur Tabi <timur@freescale.com>
  *
  * Copyright 2004,2007,2012 Freescale Semiconductor, Inc
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __FSL_GUTS_H__
@@ -134,8 +130,6 @@ struct ccsr_guts {
 	u32	srds2cr0;	/* 0x.0f40 - SerDes2 Control Register 0 */
 	u32	srds2cr1;	/* 0x.0f44 - SerDes2 Control Register 0 */
 } __attribute__ ((packed));
-
-u32 fsl_guts_get_svr(void);
 
 /* Alternate function signal multiplex control */
 #define MPC85xx_PMUXCR_QE(x) (0x8000 >> (x))

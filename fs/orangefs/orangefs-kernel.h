@@ -51,6 +51,7 @@
 #include <linux/rwsem.h>
 #include <linux/xattr.h>
 #include <linux/exportfs.h>
+#include <linux/hashtable.h>
 
 #include <asm/unaligned.h>
 
@@ -192,7 +193,13 @@ struct orangefs_inode_s {
 	sector_t last_failed_block_index_read;
 
 	unsigned long getattr_time;
-	u32 getattr_mask;
+	unsigned long mapping_time;
+	int attr_valid;
+	kuid_t attr_uid;
+	kgid_t attr_gid;
+	unsigned long bitlock;
+
+	DECLARE_HASHTABLE(xattr_cache, 4);
 };
 
 /* per superblock private orangefs info */
@@ -217,10 +224,25 @@ struct orangefs_stats {
 	unsigned long writes;
 };
 
+struct orangefs_cached_xattr {
+	struct hlist_node node;
+	char key[ORANGEFS_MAX_XATTR_NAMELEN];
+	char val[ORANGEFS_MAX_XATTR_VALUELEN];
+	ssize_t length;
+	unsigned long timeout;
+};
+
+struct orangefs_write_range {
+	loff_t pos;
+	size_t len;
+	kuid_t uid;
+	kgid_t gid;
+};
+
 extern struct orangefs_stats orangefs_stats;
 
 /*
- * NOTE: See Documentation/filesystems/porting for information
+ * NOTE: See Documentation/filesystems/porting.rst for information
  * on implementing FOO_I and properly accessing fs private data
  */
 static inline struct orangefs_inode_s *ORANGEFS_I(struct inode *inode)
@@ -329,13 +351,15 @@ void fsid_key_table_finalize(void);
 /*
  * defined in inode.c
  */
+vm_fault_t orangefs_page_mkwrite(struct vm_fault *);
 struct inode *orangefs_new_inode(struct super_block *sb,
 			      struct inode *dir,
 			      int mode,
 			      dev_t dev,
 			      struct orangefs_object_kref *ref);
 
-int orangefs_setattr(struct dentry *dentry, struct iattr *iattr);
+int __orangefs_setattr(struct inode *, struct iattr *);
+int orangefs_setattr(struct dentry *, struct iattr *);
 
 int orangefs_getattr(const struct path *path, struct kstat *stat,
 		     u32 request_mask, unsigned int flags);
@@ -355,11 +379,6 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 struct inode *orangefs_iget(struct super_block *sb,
 			 struct orangefs_object_kref *ref);
 
-ssize_t orangefs_inode_read(struct inode *inode,
-			    struct iov_iter *iter,
-			    loff_t *offset,
-			    loff_t readahead_size);
-
 /*
  * defined in devorangefs-req.c
  */
@@ -369,6 +388,16 @@ int orangefs_dev_init(void);
 void orangefs_dev_cleanup(void);
 int is_daemon_in_service(void);
 bool __is_daemon_in_service(void);
+
+/*
+ * defined in file.c
+ */
+int orangefs_revalidate_mapping(struct inode *);
+ssize_t wait_for_direct_io(enum ORANGEFS_io_type, struct inode *, loff_t *,
+    struct iov_iter *, size_t, loff_t, struct orangefs_write_range *, int *,
+    struct file *);
+ssize_t do_readv_writev(enum ORANGEFS_io_type, struct file *, loff_t *,
+    struct iov_iter *);
 
 /*
  * defined in orangefs-utils.c
@@ -386,12 +415,14 @@ int orangefs_inode_setxattr(struct inode *inode,
 			 size_t size,
 			 int flags);
 
-int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
-    u32 request_mask);
+#define ORANGEFS_GETATTR_NEW 1
+#define ORANGEFS_GETATTR_SIZE 2
+
+int orangefs_inode_getattr(struct inode *, int);
 
 int orangefs_inode_check_changed(struct inode *inode);
 
-int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr);
+int orangefs_inode_setattr(struct inode *inode);
 
 bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 
@@ -400,6 +431,7 @@ int orangefs_normalize_to_errno(__s32 error_code);
 extern struct mutex orangefs_request_mutex;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
+extern int orangefs_cache_timeout_msecs;
 extern int orangefs_dcache_timeout_msecs;
 extern int orangefs_getattr_timeout_msecs;
 extern struct list_head orangefs_superblocks;
@@ -426,6 +458,7 @@ extern const struct dentry_operations orangefs_dentry_operations;
 #define ORANGEFS_OP_CANCELLATION  4   /* this is a cancellation */
 #define ORANGEFS_OP_NO_MUTEX      8   /* don't acquire request_mutex */
 #define ORANGEFS_OP_ASYNC         16  /* Queue it, but don't wait */
+#define ORANGEFS_OP_WRITEBACK     32
 
 int service_operation(struct orangefs_kernel_op_s *op,
 		      const char *op_name,

@@ -37,7 +37,7 @@
 		dsi@54300000 {
 			status = "okay";
 
-			vdd-supply = <&vdd_1v2_ap>;
+			avdd-dsi-csi-supply = <&vdd_1v2_ap>;
 
 			panel@0 {
 				compatible = "lg,lh500wx1-sd03";
@@ -962,7 +962,7 @@
 	};
 
 	/* SD card */
-	sdhci@78000400 {
+	mmc@78000400 {
 		status = "okay";
 		bus-width = <4>;
 		vqmmc-supply = <&vddio_sdmmc3>;
@@ -971,7 +971,7 @@
 	};
 
 	/* eMMC */
-	sdhci@78000600 {
+	mmc@78000600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
@@ -1016,17 +1016,10 @@
 		enable-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
+	clk32k_in: clock@0 {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
 	};
 
 	gpio-keys {
@@ -1052,76 +1045,64 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	lcd_bl_en: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd_bl_en";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
 
-		lcd_bl_en: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "lcd_bl_en";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-boot-on;
-		};
+	vdd_lcd: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_lcd_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vdd_1v8>;
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(U, 4) GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+	};
 
-		vdd_lcd: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "vdd_lcd_1v8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			vin-supply = <&vdd_1v8>;
-			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(U, 4) GPIO_ACTIVE_HIGH>;
-			regulator-boot-on;
-		};
+	regulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_1v8_ts";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio TEGRA_GPIO(K, 3) GPIO_ACTIVE_LOW>;
+		regulator-boot-on;
+	};
 
-		regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "vdd_1v8_ts";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio TEGRA_GPIO(K, 3) GPIO_ACTIVE_LOW>;
-			regulator-boot-on;
-		};
+	regulator@3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_3v3_ts";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(H, 5) GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+	};
 
-		regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "vdd_3v3_ts";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(H, 5) GPIO_ACTIVE_HIGH>;
-			regulator-boot-on;
-		};
+	regulator@4 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_1v8_com";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vdd_1v8>;
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(X, 1) GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+	};
 
-		regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "vdd_1v8_com";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			vin-supply = <&vdd_1v8>;
-			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(X, 1) GPIO_ACTIVE_HIGH>;
-			regulator-boot-on;
-		};
-
-		regulator@5 {
-			compatible = "regulator-fixed";
-			reg = <5>;
-			regulator-name = "vdd_3v3_com";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			vin-supply = <&vdd_3v3_sys>;
-			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_HIGH>;
-			regulator-always-on;
-			regulator-boot-on;
-		};
+	regulator@5 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_3v3_com";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vdd_3v3_sys>;
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 };

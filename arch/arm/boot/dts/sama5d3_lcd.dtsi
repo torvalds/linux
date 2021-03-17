@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sama5d3_lcd.dtsi - Device Tree Include file for SAMA5D3 SoC with
  * LCD support
  *
  * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
- *
- * Licensed under GPLv2.
  */
 
 #include <dt-bindings/pinctrl/at91.h>
@@ -17,7 +16,7 @@
 				compatible = "atmel,sama5d3-hlcdc";
 				reg = <0xf0030000 0x2000>;
 				interrupts = <36 IRQ_TYPE_LEVEL_HIGH 0>;
-				clocks = <&lcdc_clk>, <&lcdck>, <&clk32k>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 36>, <&pmc PMC_TYPE_SYSTEM 3>, <&clk32k>;
 				clock-names = "periph_clk","sys_clk", "slow_clk";
 				status = "disabled";
 
@@ -190,23 +189,6 @@
 							 AT91_PIOC 15 AT91_PERIPH_C AT91_PINCTRL_NONE	/* LCDD21 pin */
 							 AT91_PIOE 27 AT91_PERIPH_C AT91_PINCTRL_NONE	/* LCDD22 pin */
 							 AT91_PIOE 28 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* LCDD23 pin */
-					};
-				};
-			};
-
-			pmc: pmc@fffffc00 {
-				periphck {
-					lcdc_clk: lcdc_clk {
-						#clock-cells = <0>;
-						reg = <36>;
-					};
-				};
-
-				systemck {
-					lcdck: lcdck {
-						#clock-cells = <0>;
-						reg = <3>;
-						clocks = <&mck>;
 					};
 				};
 			};

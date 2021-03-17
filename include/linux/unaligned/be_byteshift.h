@@ -40,17 +40,17 @@ static inline void __put_unaligned_be64(u64 val, u8 *p)
 
 static inline u16 get_unaligned_be16(const void *p)
 {
-	return __get_unaligned_be16((const u8 *)p);
+	return __get_unaligned_be16(p);
 }
 
 static inline u32 get_unaligned_be32(const void *p)
 {
-	return __get_unaligned_be32((const u8 *)p);
+	return __get_unaligned_be32(p);
 }
 
 static inline u64 get_unaligned_be64(const void *p)
 {
-	return __get_unaligned_be64((const u8 *)p);
+	return __get_unaligned_be64(p);
 }
 
 static inline void put_unaligned_be16(u16 val, void *p)

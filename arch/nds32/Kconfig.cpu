@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 comment "Processor Features"
 
 config CPU_BIG_ENDIAN
@@ -6,6 +7,40 @@ config CPU_BIG_ENDIAN
 config CPU_LITTLE_ENDIAN
 	bool "Little endian"
 	default y
+
+config FPU
+	bool "FPU support"
+	default n
+	help
+	  If FPU ISA is used in user space, this configuration shall be Y to
+          enable required support in kernel such as fpu context switch and
+          fpu exception handler.
+
+	  If no FPU ISA is used in user space, say N.
+
+config LAZY_FPU
+	bool "lazy FPU support"
+	depends on FPU
+	default y
+	help
+	  Say Y here to enable the lazy FPU scheme. The lazy FPU scheme can
+          enhance system performance by reducing the context switch
+	  frequency of the FPU register.
+
+	  For normal case, say Y.
+
+config SUPPORT_DENORMAL_ARITHMETIC
+	bool "Denormal arithmetic support"
+	depends on FPU
+	default n
+	help
+	  Say Y here to enable arithmetic of denormalized number. Enabling
+	  this feature can enhance the precision for tininess number.
+	  However, performance loss in float point calculations is
+	  possibly significant due to additional FPU exception.
+
+	  If the calculated tolerance for tininess number is not critical,
+	  say N to prevent performance loss.
 
 config HWZOL
 	bool "hardware zero overhead loop support"
@@ -38,7 +73,7 @@ choice
 	  the cache aliasing issue. The rest cpus(N13, N10 and D10) are
 	  implemented as VIPT data cache. It may cause the cache aliasing issue
 	  if its cache way size is larger than page size. You can specify the
-	  CPU type direcly or choose CPU_V3 if unsure.
+	  CPU type directly or choose CPU_V3 if unsure.
 
           A kernel built for N10 is able to run on N15, D15, N13, N10 or D10.
           A kernel built for N15 is able to run on N15 or D15.
@@ -142,6 +177,13 @@ config CACHE_L2
 	help
 	  Say Y here to enable L2 cache if your SoC are integrated with L2CC.
 	  If unsure, say N.
+
+config HW_PRE
+	bool "Enable hardware prefetcher"
+	default y
+	help
+	  Say Y here to enable hardware prefetcher feature.
+	  Only when CPU_VER.REV >= 0x09 can support.
 
 menu "Memory configuration"
 

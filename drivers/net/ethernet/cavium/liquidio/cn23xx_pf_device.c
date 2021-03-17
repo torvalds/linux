@@ -1167,7 +1167,7 @@ static int cn23xx_get_pf_num(struct octeon_device *oct)
 		oct->pf_num = ((fdl_bit >> CN23XX_PCIE_SRIOV_FDL_BIT_POS) &
 			       CN23XX_PCIE_SRIOV_FDL_MASK);
 	} else {
-		ret = EINVAL;
+		ret = -EINVAL;
 
 		/* Under some virtual environments, extended PCI regs are
 		 * inaccessible, in which case the above read will have failed.
@@ -1450,7 +1450,7 @@ void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,
 		mbox_cmd.recv_len = 0;
 		mbox_cmd.recv_status = 0;
 		mbox_cmd.fn = NULL;
-		mbox_cmd.fn_arg = 0;
+		mbox_cmd.fn_arg = NULL;
 		ether_addr_copy(mbox_cmd.msg.s.params, mac);
 		mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
 		octeon_mbox_write(oct, &mbox_cmd);

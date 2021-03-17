@@ -65,11 +65,6 @@ typedef __kernel_ssize_t	ssize_t;
 typedef __kernel_ptrdiff_t	ptrdiff_t;
 #endif
 
-#ifndef _TIME_T
-#define _TIME_T
-typedef __kernel_time_t		time_t;
-#endif
-
 #ifndef _CLOCK_T
 #define _CLOCK_T
 typedef __kernel_clock_t	clock_t;
@@ -127,13 +122,8 @@ typedef s64			int64_t;
  *
  * blkcnt_t is the type of the inode's block count.
  */
-#ifdef CONFIG_LBDAF
 typedef u64 sector_t;
 typedef u64 blkcnt_t;
-#else
-typedef unsigned long sector_t;
-typedef unsigned long blkcnt_t;
-#endif
 
 /*
  * The type of an index into the pagecache.
@@ -155,9 +145,9 @@ typedef u64 dma_addr_t;
 typedef u32 dma_addr_t;
 #endif
 
-typedef unsigned __bitwise gfp_t;
-typedef unsigned __bitwise slab_flags_t;
-typedef unsigned __bitwise fmode_t;
+typedef unsigned int __bitwise gfp_t;
+typedef unsigned int __bitwise slab_flags_t;
+typedef unsigned int __bitwise fmode_t;
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 typedef u64 phys_addr_t;
@@ -177,9 +167,11 @@ typedef struct {
 	int counter;
 } atomic_t;
 
+#define ATOMIC_INIT(i) { (i) }
+
 #ifdef CONFIG_64BIT
 typedef struct {
-	long counter;
+	s64 counter;
 } atomic64_t;
 #endif
 
@@ -212,8 +204,8 @@ struct ustat {
  * weird ABI and we need to ask it explicitly.
  *
  * The alignment is required to guarantee that bit 0 of @next will be
- * clear under normal conditions -- as long as we use call_rcu(),
- * call_rcu_bh(), call_rcu_sched(), or call_srcu() to queue callback.
+ * clear under normal conditions -- as long as we use call_rcu() or
+ * call_srcu() to queue the callback.
  *
  * This guarantee is important for few reasons:
  *  - future call_rcu_lazy() will make use of lower bits in the pointer;
@@ -229,6 +221,11 @@ struct callback_head {
 
 typedef void (*rcu_callback_t)(struct rcu_head *head);
 typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);
+
+typedef void (*swap_func_t)(void *a, void *b, int size);
+
+typedef int (*cmp_r_func_t)(const void *a, const void *b, const void *priv);
+typedef int (*cmp_func_t)(const void *a, const void *b);
 
 #endif /*  __ASSEMBLY__ */
 #endif /* _LINUX_TYPES_H */

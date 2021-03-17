@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8994.c  --  WM8994 ALSA SoC Audio driver
  *
  * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -47,10 +43,12 @@
 #define WM8994_NUM_DRC 3
 #define WM8994_NUM_EQ  3
 
-static struct {
+struct wm8994_reg_mask {
 	unsigned int reg;
 	unsigned int mask;
-} wm8994_vu_bits[] = {
+};
+
+static struct wm8994_reg_mask wm8994_vu_bits[] = {
 	{ WM8994_LEFT_LINE_INPUT_1_2_VOLUME, WM8994_IN1_VU },
 	{ WM8994_RIGHT_LINE_INPUT_1_2_VOLUME, WM8994_IN1_VU },
 	{ WM8994_LEFT_LINE_INPUT_3_4_VOLUME, WM8994_IN2_VU },
@@ -64,20 +62,24 @@ static struct {
 
 	{ WM8994_AIF1_DAC1_LEFT_VOLUME, WM8994_AIF1DAC1_VU },
 	{ WM8994_AIF1_DAC1_RIGHT_VOLUME, WM8994_AIF1DAC1_VU },
-	{ WM8994_AIF1_DAC2_LEFT_VOLUME, WM8994_AIF1DAC2_VU },
-	{ WM8994_AIF1_DAC2_RIGHT_VOLUME, WM8994_AIF1DAC2_VU },
 	{ WM8994_AIF2_DAC_LEFT_VOLUME, WM8994_AIF2DAC_VU },
 	{ WM8994_AIF2_DAC_RIGHT_VOLUME, WM8994_AIF2DAC_VU },
 	{ WM8994_AIF1_ADC1_LEFT_VOLUME, WM8994_AIF1ADC1_VU },
 	{ WM8994_AIF1_ADC1_RIGHT_VOLUME, WM8994_AIF1ADC1_VU },
-	{ WM8994_AIF1_ADC2_LEFT_VOLUME, WM8994_AIF1ADC2_VU },
-	{ WM8994_AIF1_ADC2_RIGHT_VOLUME, WM8994_AIF1ADC2_VU },
 	{ WM8994_AIF2_ADC_LEFT_VOLUME, WM8994_AIF2ADC_VU },
 	{ WM8994_AIF2_ADC_RIGHT_VOLUME, WM8994_AIF1ADC2_VU },
 	{ WM8994_DAC1_LEFT_VOLUME, WM8994_DAC1_VU },
 	{ WM8994_DAC1_RIGHT_VOLUME, WM8994_DAC1_VU },
 	{ WM8994_DAC2_LEFT_VOLUME, WM8994_DAC2_VU },
 	{ WM8994_DAC2_RIGHT_VOLUME, WM8994_DAC2_VU },
+};
+
+/* VU bitfields for ADC2, DAC2 not available on WM1811 */
+static struct wm8994_reg_mask wm8994_adc2_dac2_vu_bits[] = {
+	{ WM8994_AIF1_DAC2_LEFT_VOLUME, WM8994_AIF1DAC2_VU },
+	{ WM8994_AIF1_DAC2_RIGHT_VOLUME, WM8994_AIF1DAC2_VU },
+	{ WM8994_AIF1_ADC2_LEFT_VOLUME, WM8994_AIF1ADC2_VU },
+	{ WM8994_AIF1_ADC2_RIGHT_VOLUME, WM8994_AIF1ADC2_VU },
 };
 
 static int wm8994_drc_base[] = {
@@ -117,7 +119,7 @@ static void wm8958_micd_set_rate(struct snd_soc_component *component)
 
 	idle = !wm8994->jack_mic;
 
-	sysclk = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+	sysclk = snd_soc_component_read(component, WM8994_CLOCKING_1);
 	if (sysclk & WM8994_SYSCLK_SRC)
 		sysclk = wm8994->aifclk[1];
 	else
@@ -171,12 +173,12 @@ static int configure_aif_clock(struct snd_soc_component *component, int aif)
 
 	switch (wm8994->sysclk[aif]) {
 	case WM8994_SYSCLK_MCLK1:
-		rate = wm8994->mclk[0];
+		rate = wm8994->mclk_rate[0];
 		break;
 
 	case WM8994_SYSCLK_MCLK2:
 		reg1 |= 0x8;
-		rate = wm8994->mclk[1];
+		rate = wm8994->mclk_rate[1];
 		break;
 
 	case WM8994_SYSCLK_FLL1:
@@ -251,7 +253,7 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
-	int reg = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+	int reg = snd_soc_component_read(component, WM8994_CLOCKING_1);
 	const char *clk;
 
 	/* Check what we're currently using for CLK_SYS */
@@ -289,7 +291,6 @@ static const DECLARE_TLV_DB_SCALE(st_tlv, -3600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(wm8994_3d_tlv, -1600, 183, 0);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static const DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
-static const DECLARE_TLV_DB_SCALE(mixin_boost_tlv, 0, 900, 0);
 
 #define WM8994_DRC_SWITCH(xname, reg, shift) \
 	SOC_SINGLE_EXT(xname, reg, shift, 1, 0, \
@@ -310,7 +311,7 @@ static int wm8994_put_drc_sw(struct snd_kcontrol *kcontrol,
 	else
 		mask = WM8994_AIF1DAC1_DRC_ENA_MASK;
 
-	ret = snd_soc_component_read32(component, mc->reg);
+	ret = snd_soc_component_read(component, mc->reg);
 	if (ret < 0)
 		return ret;
 	if (ret & mask)
@@ -329,7 +330,7 @@ static void wm8994_set_drc(struct snd_soc_component *component, int drc)
 	int save, i;
 
 	/* Save any enables; the configuration should clear them. */
-	save = snd_soc_component_read32(component, base);
+	save = snd_soc_component_read(component, base);
 	save &= WM8994_AIF1DAC1_DRC_ENA | WM8994_AIF1ADC1L_DRC_ENA |
 		WM8994_AIF1ADC1R_DRC_ENA;
 
@@ -439,7 +440,7 @@ static void wm8994_set_retune_mobile(struct snd_soc_component *component, int bl
 	/* The EQ will be disabled while reconfiguring it, remember the
 	 * current configuration.
 	 */
-	save = snd_soc_component_read32(component, base);
+	save = snd_soc_component_read(component, base);
 	save &= WM8994_AIF1DAC1_EQ_ENA;
 
 	for (i = 0; i < WM8994_EQ_REGS; i++)
@@ -537,12 +538,9 @@ static SOC_ENUM_SINGLE_DECL(dac_osr,
 static SOC_ENUM_SINGLE_DECL(adc_osr,
 			    WM8994_OVERSAMPLING, 1, osr_text);
 
-static const struct snd_kcontrol_new wm8994_snd_controls[] = {
+static const struct snd_kcontrol_new wm8994_common_snd_controls[] = {
 SOC_DOUBLE_R_TLV("AIF1ADC1 Volume", WM8994_AIF1_ADC1_LEFT_VOLUME,
 		 WM8994_AIF1_ADC1_RIGHT_VOLUME,
-		 1, 119, 0, digital_tlv),
-SOC_DOUBLE_R_TLV("AIF1ADC2 Volume", WM8994_AIF1_ADC2_LEFT_VOLUME,
-		 WM8994_AIF1_ADC2_RIGHT_VOLUME,
 		 1, 119, 0, digital_tlv),
 SOC_DOUBLE_R_TLV("AIF2ADC Volume", WM8994_AIF2_ADC_LEFT_VOLUME,
 		 WM8994_AIF2_ADC_RIGHT_VOLUME,
@@ -560,8 +558,6 @@ SOC_ENUM("AIF2DACR Source", aif2dacr_src),
 
 SOC_DOUBLE_R_TLV("AIF1DAC1 Volume", WM8994_AIF1_DAC1_LEFT_VOLUME,
 		 WM8994_AIF1_DAC1_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
-SOC_DOUBLE_R_TLV("AIF1DAC2 Volume", WM8994_AIF1_DAC2_LEFT_VOLUME,
-		 WM8994_AIF1_DAC2_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
 SOC_DOUBLE_R_TLV("AIF2DAC Volume", WM8994_AIF2_DAC_LEFT_VOLUME,
 		 WM8994_AIF2_DAC_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
 
@@ -569,16 +565,11 @@ SOC_SINGLE_TLV("AIF1 Boost Volume", WM8994_AIF1_CONTROL_2, 10, 3, 0, aif_tlv),
 SOC_SINGLE_TLV("AIF2 Boost Volume", WM8994_AIF2_CONTROL_2, 10, 3, 0, aif_tlv),
 
 SOC_SINGLE("AIF1DAC1 EQ Switch", WM8994_AIF1_DAC1_EQ_GAINS_1, 0, 1, 0),
-SOC_SINGLE("AIF1DAC2 EQ Switch", WM8994_AIF1_DAC2_EQ_GAINS_1, 0, 1, 0),
 SOC_SINGLE("AIF2 EQ Switch", WM8994_AIF2_EQ_GAINS_1, 0, 1, 0),
 
 WM8994_DRC_SWITCH("AIF1DAC1 DRC Switch", WM8994_AIF1_DRC1_1, 2),
 WM8994_DRC_SWITCH("AIF1ADC1L DRC Switch", WM8994_AIF1_DRC1_1, 1),
 WM8994_DRC_SWITCH("AIF1ADC1R DRC Switch", WM8994_AIF1_DRC1_1, 0),
-
-WM8994_DRC_SWITCH("AIF1DAC2 DRC Switch", WM8994_AIF1_DRC2_1, 2),
-WM8994_DRC_SWITCH("AIF1ADC2L DRC Switch", WM8994_AIF1_DRC2_1, 1),
-WM8994_DRC_SWITCH("AIF1ADC2R DRC Switch", WM8994_AIF1_DRC2_1, 0),
 
 WM8994_DRC_SWITCH("AIF2DAC DRC Switch", WM8994_AIF2_DRC_1, 2),
 WM8994_DRC_SWITCH("AIF2ADCL DRC Switch", WM8994_AIF2_DRC_1, 1),
@@ -597,9 +588,6 @@ SOC_SINGLE("Sidetone HPF Switch", WM8994_SIDETONE, 6, 1, 0),
 
 SOC_ENUM("AIF1ADC1 HPF Mode", aif1adc1_hpf),
 SOC_DOUBLE("AIF1ADC1 HPF Switch", WM8994_AIF1_ADC1_FILTERS, 12, 11, 1, 0),
-
-SOC_ENUM("AIF1ADC2 HPF Mode", aif1adc2_hpf),
-SOC_DOUBLE("AIF1ADC2 HPF Switch", WM8994_AIF1_ADC2_FILTERS, 12, 11, 1, 0),
 
 SOC_ENUM("AIF2ADC HPF Mode", aif2adc_hpf),
 SOC_DOUBLE("AIF2ADC HPF Switch", WM8994_AIF2_ADC_FILTERS, 12, 11, 1, 0),
@@ -639,6 +627,24 @@ SOC_SINGLE_TLV("AIF2DAC 3D Stereo Volume", WM8994_AIF2_DAC_FILTERS_2,
 	       10, 15, 0, wm8994_3d_tlv),
 SOC_SINGLE("AIF2DAC 3D Stereo Switch", WM8994_AIF2_DAC_FILTERS_2,
 	   8, 1, 0),
+};
+
+/* Controls not available on WM1811 */
+static const struct snd_kcontrol_new wm8994_snd_controls[] = {
+SOC_DOUBLE_R_TLV("AIF1ADC2 Volume", WM8994_AIF1_ADC2_LEFT_VOLUME,
+		 WM8994_AIF1_ADC2_RIGHT_VOLUME,
+		 1, 119, 0, digital_tlv),
+SOC_DOUBLE_R_TLV("AIF1DAC2 Volume", WM8994_AIF1_DAC2_LEFT_VOLUME,
+		 WM8994_AIF1_DAC2_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
+
+SOC_SINGLE("AIF1DAC2 EQ Switch", WM8994_AIF1_DAC2_EQ_GAINS_1, 0, 1, 0),
+
+WM8994_DRC_SWITCH("AIF1DAC2 DRC Switch", WM8994_AIF1_DRC2_1, 2),
+WM8994_DRC_SWITCH("AIF1ADC2L DRC Switch", WM8994_AIF1_DRC2_1, 1),
+WM8994_DRC_SWITCH("AIF1ADC2R DRC Switch", WM8994_AIF1_DRC2_1, 0),
+
+SOC_ENUM("AIF1ADC2 HPF Mode", aif1adc2_hpf),
+SOC_DOUBLE("AIF1ADC2 HPF Switch", WM8994_AIF1_ADC2_FILTERS, 12, 11, 1, 0),
 };
 
 static const struct snd_kcontrol_new wm8994_eq_controls[] = {
@@ -730,13 +736,6 @@ SOC_ENUM("AIF2DAC Noise Gate Hold Time", wm8958_aif2dac_ng_hold),
 SOC_SINGLE_TLV("AIF2DAC Noise Gate Threshold Volume",
 	       WM8958_AIF2_DAC_NOISE_GATE, WM8958_AIF2DAC_NG_THR_SHIFT,
 	       7, 1, ng_tlv),
-};
-
-static const struct snd_kcontrol_new wm1811_snd_controls[] = {
-SOC_SINGLE_TLV("MIXINL IN1LP Boost Volume", WM8994_INPUT_MIXER_1, 7, 1, 0,
-	       mixin_boost_tlv),
-SOC_SINGLE_TLV("MIXINL IN1RP Boost Volume", WM8994_INPUT_MIXER_1, 8, 1, 0,
-	       mixin_boost_tlv),
 };
 
 /* We run all mode setting through a function to enforce audio mode */
@@ -860,7 +859,7 @@ static void vmid_reference(struct snd_soc_component *component)
 		switch (wm8994->vmid_mode) {
 		default:
 			WARN_ON(NULL == "Invalid VMID mode");
-			/* fall through */
+			fallthrough;
 		case WM8994_VMID_NORMAL:
 			/* Startup bias, VMID ramp & buffer */
 			snd_soc_component_update_bits(component, WM8994_ANTIPOP_2,
@@ -1005,7 +1004,7 @@ static bool wm8994_check_class_w_digital(struct snd_soc_component *component)
 	int reg, reg_r;
 
 	/* We also need the same AIF source for L/R and only one path */
-	reg = snd_soc_component_read32(component, WM8994_DAC1_LEFT_MIXER_ROUTING);
+	reg = snd_soc_component_read(component, WM8994_DAC1_LEFT_MIXER_ROUTING);
 	switch (reg) {
 	case WM8994_AIF2DACL_TO_DAC1L:
 		dev_vdbg(component->dev, "Class W source AIF2DAC\n");
@@ -1024,7 +1023,7 @@ static bool wm8994_check_class_w_digital(struct snd_soc_component *component)
 		return false;
 	}
 
-	reg_r = snd_soc_component_read32(component, WM8994_DAC1_RIGHT_MIXER_ROUTING);
+	reg_r = snd_soc_component_read(component, WM8994_DAC1_RIGHT_MIXER_ROUTING);
 	if (reg_r != reg) {
 		dev_vdbg(component->dev, "Left and right DAC mixers different\n");
 		return false;
@@ -1037,6 +1036,65 @@ static bool wm8994_check_class_w_digital(struct snd_soc_component *component)
 	return true;
 }
 
+static void wm8994_update_vu_bits(struct snd_soc_component *component)
+{
+	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
+	struct wm8994 *control = wm8994->wm8994;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wm8994_vu_bits); i++)
+		snd_soc_component_write(component, wm8994_vu_bits[i].reg,
+					snd_soc_component_read(component,
+						       wm8994_vu_bits[i].reg));
+	if (control->type == WM1811)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(wm8994_adc2_dac2_vu_bits); i++)
+		snd_soc_component_write(component,
+				wm8994_adc2_dac2_vu_bits[i].reg,
+				snd_soc_component_read(component,
+					wm8994_adc2_dac2_vu_bits[i].reg));
+}
+
+static int aif_mclk_set(struct snd_soc_component *component, int aif, bool enable)
+{
+	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
+	unsigned int offset, val, clk_idx;
+	int ret;
+
+	if (aif)
+		offset = 4;
+	else
+		offset = 0;
+
+	val = snd_soc_component_read(component, WM8994_AIF1_CLOCKING_1 + offset);
+	val &= WM8994_AIF1CLK_SRC_MASK;
+
+	switch (val) {
+	case 0:
+		clk_idx = WM8994_MCLK1;
+		break;
+	case 1:
+		clk_idx = WM8994_MCLK2;
+		break;
+	default:
+		return 0;
+	}
+
+	if (enable) {
+		ret = clk_prepare_enable(wm8994->mclk[clk_idx].clk);
+		if (ret < 0) {
+			dev_err(component->dev,	"Failed to enable MCLK%d\n",
+				clk_idx);
+			return ret;
+		}
+	} else {
+		clk_disable_unprepare(wm8994->mclk[clk_idx].clk);
+	}
+
+	return 0;
+}
+
 static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
@@ -1044,7 +1102,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	int mask = WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA;
-	int i;
+	int ret;
 	int dac;
 	int adc;
 	int val;
@@ -1060,11 +1118,15 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		ret = aif_mclk_set(component, 0, true);
+		if (ret < 0)
+			return ret;
+
 		/* Don't enable timeslot 2 if not in use */
 		if (wm8994->channels[0] <= 2)
 			mask &= ~(WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA);
 
-		val = snd_soc_component_read32(component, WM8994_AIF1_CONTROL_1);
+		val = snd_soc_component_read(component, WM8994_AIF1_CONTROL_1);
 		if ((val & WM8994_AIF1ADCL_SRC) &&
 		    (val & WM8994_AIF1ADCR_SRC))
 			adc = WM8994_AIF1ADC1R_ENA | WM8994_AIF1ADC2R_ENA;
@@ -1075,7 +1137,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 			adc = WM8994_AIF1ADC1R_ENA | WM8994_AIF1ADC2R_ENA |
 				WM8994_AIF1ADC1L_ENA | WM8994_AIF1ADC2L_ENA;
 
-		val = snd_soc_component_read32(component, WM8994_AIF1_CONTROL_2);
+		val = snd_soc_component_read(component, WM8994_AIF1_CONTROL_2);
 		if ((val & WM8994_AIF1DACL_SRC) &&
 		    (val & WM8994_AIF1DACR_SRC))
 			dac = WM8994_AIF1DAC1R_ENA | WM8994_AIF1DAC2R_ENA;
@@ -1108,10 +1170,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
-		for (i = 0; i < ARRAY_SIZE(wm8994_vu_bits); i++)
-			snd_soc_component_write(component, wm8994_vu_bits[i].reg,
-				      snd_soc_component_read32(component,
-						   wm8994_vu_bits[i].reg));
+		wm8994_update_vu_bits(component);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
@@ -1121,7 +1180,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, WM8994_POWER_MANAGEMENT_4,
 				    mask, 0);
 
-		val = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+		val = snd_soc_component_read(component, WM8994_CLOCKING_1);
 		if (val & WM8994_AIF2DSPCLK_ENA)
 			val = WM8994_SYSDSPCLK_ENA;
 		else
@@ -1132,6 +1191,12 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMD:
+		aif_mclk_set(component, 0, false);
+		break;
+	}
+
 	return 0;
 }
 
@@ -1139,14 +1204,18 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	int i;
+	int ret;
 	int dac;
 	int adc;
 	int val;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		val = snd_soc_component_read32(component, WM8994_AIF2_CONTROL_1);
+		ret = aif_mclk_set(component, 1, true);
+		if (ret < 0)
+			return ret;
+
+		val = snd_soc_component_read(component, WM8994_AIF2_CONTROL_1);
 		if ((val & WM8994_AIF2ADCL_SRC) &&
 		    (val & WM8994_AIF2ADCR_SRC))
 			adc = WM8994_AIF2ADCR_ENA;
@@ -1157,7 +1226,7 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 			adc = WM8994_AIF2ADCL_ENA | WM8994_AIF2ADCR_ENA;
 
 
-		val = snd_soc_component_read32(component, WM8994_AIF2_CONTROL_2);
+		val = snd_soc_component_read(component, WM8994_AIF2_CONTROL_2);
 		if ((val & WM8994_AIF2DACL_SRC) &&
 		    (val & WM8994_AIF2DACR_SRC))
 			dac = WM8994_AIF2DACR_ENA;
@@ -1191,10 +1260,7 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
-		for (i = 0; i < ARRAY_SIZE(wm8994_vu_bits); i++)
-			snd_soc_component_write(component, wm8994_vu_bits[i].reg,
-				      snd_soc_component_read32(component,
-						   wm8994_vu_bits[i].reg));
+		wm8994_update_vu_bits(component);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
@@ -1206,7 +1272,7 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 				    WM8994_AIF2ADCL_ENA |
 				    WM8994_AIF2ADCR_ENA, 0);
 
-		val = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+		val = snd_soc_component_read(component, WM8994_CLOCKING_1);
 		if (val & WM8994_AIF1DSPCLK_ENA)
 			val = WM8994_SYSDSPCLK_ENA;
 		else
@@ -1214,6 +1280,12 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, WM8994_CLOCKING_1,
 				    WM8994_SYSDSPCLK_ENA |
 				    WM8994_AIF2DSPCLK_ENA, val);
+		break;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMD:
+		aif_mclk_set(component, 1, false);
 		break;
 	}
 
@@ -1377,7 +1449,7 @@ static int post_ev(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	dev_dbg(component->dev, "SRC status: %x\n",
-		snd_soc_component_read32(component,
+		snd_soc_component_read(component,
 			     WM8994_RATE_STATUS));
 	return 0;
 }
@@ -1622,10 +1694,10 @@ SND_SOC_DAPM_POST("Late Disable PGA", late_disable_ev)
 static const struct snd_soc_dapm_widget wm8994_lateclk_widgets[] = {
 SND_SOC_DAPM_SUPPLY("AIF1CLK", WM8994_AIF1_CLOCKING_1, 0, 0, aif1clk_ev,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-		    SND_SOC_DAPM_PRE_PMD),
+		    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("AIF2CLK", WM8994_AIF2_CLOCKING_1, 0, 0, aif2clk_ev,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-		    SND_SOC_DAPM_PRE_PMD),
+		    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_PGA("Direct Voice", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_MIXER("SPKL", WM8994_POWER_MANAGEMENT_3, 8, 0,
 		   left_speaker_mixer, ARRAY_SIZE(left_speaker_mixer)),
@@ -2140,6 +2212,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 	u16 reg, clk1, aif_reg, aif_src;
 	unsigned long timeout;
 	bool was_enabled;
+	struct clk *mclk;
 
 	switch (id) {
 	case WM8994_FLL1:
@@ -2156,7 +2229,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 		return -EINVAL;
 	}
 
-	reg = snd_soc_component_read32(component, WM8994_FLL1_CONTROL_1 + reg_offset);
+	reg = snd_soc_component_read(component, WM8994_FLL1_CONTROL_1 + reg_offset);
 	was_enabled = reg & WM8994_FLL1_ENA;
 
 	switch (src) {
@@ -2197,12 +2270,12 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 		return ret;
 
 	/* Make sure that we're not providing SYSCLK right now */
-	clk1 = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+	clk1 = snd_soc_component_read(component, WM8994_CLOCKING_1);
 	if (clk1 & WM8994_SYSCLK_SRC)
 		aif_reg = WM8994_AIF2_CLOCKING_1;
 	else
 		aif_reg = WM8994_AIF1_CLOCKING_1;
-	reg = snd_soc_component_read32(component, aif_reg);
+	reg = snd_soc_component_read(component, aif_reg);
 
 	if ((reg & WM8994_AIF1CLK_ENA) &&
 	    (reg & WM8994_AIF1CLK_SRC_MASK) == aif_src) {
@@ -2214,6 +2287,27 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 	/* We always need to disable the FLL while reconfiguring */
 	snd_soc_component_update_bits(component, WM8994_FLL1_CONTROL_1 + reg_offset,
 			    WM8994_FLL1_ENA, 0);
+
+	/* Disable MCLK if needed before we possibly change to new clock parent */
+	if (was_enabled) {
+		reg = snd_soc_component_read(component, WM8994_FLL1_CONTROL_5
+							+ reg_offset);
+		reg = ((reg & WM8994_FLL1_REFCLK_SRC_MASK)
+			>> WM8994_FLL1_REFCLK_SRC_SHIFT) + 1;
+
+		switch (reg) {
+		case WM8994_FLL_SRC_MCLK1:
+			mclk = wm8994->mclk[WM8994_MCLK1].clk;
+			break;
+		case WM8994_FLL_SRC_MCLK2:
+			mclk = wm8994->mclk[WM8994_MCLK2].clk;
+			break;
+		default:
+			mclk = NULL;
+		}
+
+		clk_disable_unprepare(mclk);
+	}
 
 	if (wm8994->fll_byp && src == WM8994_FLL_SRC_BCLK &&
 	    freq_in == freq_out && freq_out) {
@@ -2259,10 +2353,29 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 	/* Clear any pending completion from a previous failure */
 	try_wait_for_completion(&wm8994->fll_locked[id]);
 
+	switch (src) {
+	case WM8994_FLL_SRC_MCLK1:
+		mclk = wm8994->mclk[WM8994_MCLK1].clk;
+		break;
+	case WM8994_FLL_SRC_MCLK2:
+		mclk = wm8994->mclk[WM8994_MCLK2].clk;
+		break;
+	default:
+		mclk = NULL;
+	}
+
 	/* Enable (with fractional mode if required) */
 	if (freq_out) {
+		ret = clk_prepare_enable(mclk);
+		if (ret < 0) {
+			dev_err(component->dev, "Failed to enable MCLK for FLL%d\n",
+				id + 1);
+			return ret;
+		}
+
 		/* Enable VMID if we need it */
 		if (!was_enabled) {
+
 			active_reference(component);
 
 			switch (control->type) {
@@ -2330,9 +2443,9 @@ out:
 	if (max(wm8994->aifclk[0], wm8994->aifclk[1]) < 50000) {
 		dev_dbg(component->dev, "Configuring AIFs for 128fs\n");
 
-		wm8994->aifdiv[0] = snd_soc_component_read32(component, WM8994_AIF1_RATE)
+		wm8994->aifdiv[0] = snd_soc_component_read(component, WM8994_AIF1_RATE)
 			& WM8994_AIF1CLK_RATE_MASK;
-		wm8994->aifdiv[1] = snd_soc_component_read32(component, WM8994_AIF2_RATE)
+		wm8994->aifdiv[1] = snd_soc_component_read(component, WM8994_AIF2_RATE)
 			& WM8994_AIF1CLK_RATE_MASK;
 
 		snd_soc_component_update_bits(component, WM8994_AIF1_RATE,
@@ -2371,12 +2484,29 @@ static int wm8994_set_fll(struct snd_soc_dai *dai, int id, int src,
 	return _wm8994_set_fll(dai->component, id, src, freq_in, freq_out);
 }
 
+static int wm8994_set_mclk_rate(struct wm8994_priv *wm8994, unsigned int id,
+				unsigned int *freq)
+{
+	int ret;
+
+	if (!wm8994->mclk[id].clk || *freq == wm8994->mclk_rate[id])
+		return 0;
+
+	ret = clk_set_rate(wm8994->mclk[id].clk, *freq);
+	if (ret < 0)
+		return ret;
+
+	*freq = clk_get_rate(wm8994->mclk[id].clk);
+
+	return 0;
+}
+
 static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
-	int i;
+	int ret, i;
 
 	switch (dai->id) {
 	case 1:
@@ -2391,7 +2521,12 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 	switch (clk_id) {
 	case WM8994_SYSCLK_MCLK1:
 		wm8994->sysclk[dai->id - 1] = WM8994_SYSCLK_MCLK1;
-		wm8994->mclk[0] = freq;
+
+		ret = wm8994_set_mclk_rate(wm8994, dai->id - 1, &freq);
+		if (ret < 0)
+			return ret;
+
+		wm8994->mclk_rate[0] = freq;
 		dev_dbg(dai->dev, "AIF%d using MCLK1 at %uHz\n",
 			dai->id, freq);
 		break;
@@ -2399,7 +2534,12 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 	case WM8994_SYSCLK_MCLK2:
 		/* TODO: Set GPIO AF */
 		wm8994->sysclk[dai->id - 1] = WM8994_SYSCLK_MCLK2;
-		wm8994->mclk[1] = freq;
+
+		ret = wm8994_set_mclk_rate(wm8994, dai->id - 1, &freq);
+		if (ret < 0)
+			return ret;
+
+		wm8994->mclk_rate[1] = freq;
 		dev_dbg(dai->dev, "AIF%d using MCLK2 at %uHz\n",
 			dai->id, freq);
 		break;
@@ -2447,9 +2587,9 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 	if (max(wm8994->aifclk[0], wm8994->aifclk[1]) < 50000) {
 		dev_dbg(component->dev, "Configuring AIFs for 128fs\n");
 
-		wm8994->aifdiv[0] = snd_soc_component_read32(component, WM8994_AIF1_RATE)
+		wm8994->aifdiv[0] = snd_soc_component_read(component, WM8994_AIF1_RATE)
 			& WM8994_AIF1CLK_RATE_MASK;
-		wm8994->aifdiv[1] = snd_soc_component_read32(component, WM8994_AIF2_RATE)
+		wm8994->aifdiv[1] = snd_soc_component_read(component, WM8994_AIF2_RATE)
 			& WM8994_AIF1CLK_RATE_MASK;
 
 		snd_soc_component_update_bits(component, WM8994_AIF1_RATE,
@@ -2656,7 +2796,7 @@ static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_B:
 		aif1 |= WM8994_AIF1_LRCLK_INV;
 		lrclk |= WM8958_AIF1_LRCLK_INV;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif1 |= 0x18;
 		break;
@@ -2871,7 +3011,7 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		dai->id, wm8994->aifclk[id], bclk_rate);
 
 	if (wm8994->channels[id] == 1 &&
-	    (snd_soc_component_read32(component, aif1_reg) & 0x18) == 0x18)
+	    (snd_soc_component_read(component, aif1_reg) & 0x18) == 0x18)
 		aif2 |= WM8994_AIF1_MONO;
 
 	if (wm8994->aifclk[id] == 0) {
@@ -2990,7 +3130,8 @@ static int wm8994_aif3_hw_params(struct snd_pcm_substream *substream,
 	return snd_soc_component_update_bits(component, aif1_reg, WM8994_AIF1_WL_MASK, aif1);
 }
 
-static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute,
+			   int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	int mute_reg;
@@ -3067,18 +3208,20 @@ static const struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
-	.digital_mute	= wm8994_aif_mute,
+	.mute_stream	= wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
 	.set_tristate	= wm8994_set_tristate,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
-	.digital_mute   = wm8994_aif_mute,
+	.mute_stream	= wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
 	.set_tristate	= wm8994_set_tristate,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8994_aif3_dai_ops = {
@@ -3371,6 +3514,8 @@ int wm8994_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 		return -EINVAL;
 	}
 
+	pm_runtime_get_sync(component->dev);
+
 	switch (micbias) {
 	case 1:
 		micdet = &wm8994->micdet[0];
@@ -3417,6 +3562,8 @@ int wm8994_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 			    WM8994_MIC1_DET_DB | WM8994_MIC1_SHRT_DB);
 
 	snd_soc_dapm_sync(dapm);
+
+	pm_runtime_put(component->dev);
 
 	return 0;
 }
@@ -3675,7 +3822,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 
 	mutex_lock(&wm8994->accdet_lock);
 
-	reg = snd_soc_component_read32(component, WM1811_JACKDET_CTRL);
+	reg = snd_soc_component_read(component, WM1811_JACKDET_CTRL);
 	if (reg < 0) {
 		dev_err(component->dev, "Failed to read jack status: %d\n", reg);
 		mutex_unlock(&wm8994->accdet_lock);
@@ -3757,6 +3904,10 @@ static void wm1811_jackdet_bootstrap(struct work_struct *work)
  *
  * @component:   WM8958 component
  * @jack:    jack to report detection events on
+ * @det_cb: detection callback
+ * @det_cb_data: data for detection callback
+ * @id_cb: mic id callback
+ * @id_cb_data: data for mic id callback
  *
  * Enable microphone detection functionality for the WM8958.  By
  * default simple detection which supports the detection of up to 6
@@ -3784,6 +3935,8 @@ int wm8958_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 	default:
 		return -EINVAL;
 	}
+
+	pm_runtime_get_sync(component->dev);
 
 	if (jack) {
 		snd_soc_dapm_force_enable_pin(dapm, "CLK_SYS");
@@ -3853,6 +4006,8 @@ int wm8958_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 		snd_soc_dapm_sync(dapm);
 	}
 
+	pm_runtime_put(component->dev);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm8958_mic_detect);
@@ -3886,7 +4041,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	 * with an update of the MICDET status; if so it will have
 	 * stopped detection and we can ignore this interrupt.
 	 */
-	if (!(snd_soc_component_read32(component, WM8958_MIC_DETECT_1) & WM8958_MICD_ENA))
+	if (!(snd_soc_component_read(component, WM8958_MIC_DETECT_1) & WM8958_MICD_ENA))
 		return IRQ_HANDLED;
 
 	cancel_delayed_work_sync(&wm8994->mic_complete_work);
@@ -3899,7 +4054,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	 */
 	count = 10;
 	do {
-		reg = snd_soc_component_read32(component, WM8958_MIC_DETECT_3);
+		reg = snd_soc_component_read(component, WM8958_MIC_DETECT_3);
 		if (reg < 0) {
 			dev_err(component->dev,
 				"Failed to read mic detect status: %d\n",
@@ -3928,7 +4083,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 
 	/* Avoid a transient report when the accessory is being removed */
 	if (wm8994->jackdet) {
-		ret = snd_soc_component_read32(component, WM1811_JACKDET_CTRL);
+		ret = snd_soc_component_read(component, WM1811_JACKDET_CTRL);
 		if (ret < 0) {
 			dev_err(component->dev, "Failed to read jack status: %d\n",
 				ret);
@@ -4046,11 +4201,13 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 			wm8994->hubs.dcs_readback_mode = 2;
 			break;
 		}
+		wm8994->hubs.micd_scthr = true;
 		break;
 
 	case WM8958:
 		wm8994->hubs.dcs_readback_mode = 1;
 		wm8994->hubs.hp_startup_mode = 1;
+		wm8994->hubs.micd_scthr = true;
 
 		switch (control->revision) {
 		case 0:
@@ -4219,6 +4376,14 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 				    wm8994_vu_bits[i].mask,
 				    wm8994_vu_bits[i].mask);
 
+	if (control->type != WM1811) {
+		for (i = 0; i < ARRAY_SIZE(wm8994_adc2_dac2_vu_bits); i++)
+			snd_soc_component_update_bits(component,
+					wm8994_adc2_dac2_vu_bits[i].reg,
+					wm8994_adc2_dac2_vu_bits[i].mask,
+					wm8994_adc2_dac2_vu_bits[i].mask);
+	}
+
 	/* Set the low bit of the 3D stereo depth so TLV matches */
 	snd_soc_component_update_bits(component, WM8994_AIF1_DAC1_FILTERS_2,
 			    1 << WM8994_AIF1DAC1_3D_GAIN_SHIFT,
@@ -4262,13 +4427,15 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 	wm8994_handle_pdata(wm8994);
 
 	wm_hubs_add_analogue_controls(component);
-	snd_soc_add_component_controls(component, wm8994_snd_controls,
-			     ARRAY_SIZE(wm8994_snd_controls));
+	snd_soc_add_component_controls(component, wm8994_common_snd_controls,
+				       ARRAY_SIZE(wm8994_common_snd_controls));
 	snd_soc_dapm_new_controls(dapm, wm8994_dapm_widgets,
 				  ARRAY_SIZE(wm8994_dapm_widgets));
 
 	switch (control->type) {
 	case WM8994:
+		snd_soc_add_component_controls(component, wm8994_snd_controls,
+					       ARRAY_SIZE(wm8994_snd_controls));
 		snd_soc_dapm_new_controls(dapm, wm8994_specific_dapm_widgets,
 					  ARRAY_SIZE(wm8994_specific_dapm_widgets));
 		if (control->revision < 4) {
@@ -4288,8 +4455,10 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 		}
 		break;
 	case WM8958:
+		snd_soc_add_component_controls(component, wm8994_snd_controls,
+					       ARRAY_SIZE(wm8994_snd_controls));
 		snd_soc_add_component_controls(component, wm8958_snd_controls,
-				     ARRAY_SIZE(wm8958_snd_controls));
+					       ARRAY_SIZE(wm8958_snd_controls));
 		snd_soc_dapm_new_controls(dapm, wm8958_dapm_widgets,
 					  ARRAY_SIZE(wm8958_dapm_widgets));
 		if (control->revision < 1) {
@@ -4451,6 +4620,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8994 = {
 static int wm8994_probe(struct platform_device *pdev)
 {
 	struct wm8994_priv *wm8994;
+	int ret;
 
 	wm8994 = devm_kzalloc(&pdev->dev, sizeof(struct wm8994_priv),
 			      GFP_KERNEL);
@@ -4462,11 +4632,25 @@ static int wm8994_probe(struct platform_device *pdev)
 
 	wm8994->wm8994 = dev_get_drvdata(pdev->dev.parent);
 
+	wm8994->mclk[WM8994_MCLK1].id = "MCLK1";
+	wm8994->mclk[WM8994_MCLK2].id = "MCLK2";
+
+	ret = devm_clk_bulk_get_optional(pdev->dev.parent, ARRAY_SIZE(wm8994->mclk),
+					 wm8994->mclk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to get clocks: %d\n", ret);
+		return ret;
+	}
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	return devm_snd_soc_register_component(&pdev->dev, &soc_component_dev_wm8994,
+	ret = devm_snd_soc_register_component(&pdev->dev, &soc_component_dev_wm8994,
 			wm8994_dai, ARRAY_SIZE(wm8994_dai));
+	if (ret < 0)
+		pm_runtime_disable(&pdev->dev);
+
+	return ret;
 }
 
 static int wm8994_remove(struct platform_device *pdev)

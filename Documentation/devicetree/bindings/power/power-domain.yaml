@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/power-domain.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic PM domains
+
+maintainers:
+  - Rafael J. Wysocki <rjw@rjwysocki.net>
+  - Kevin Hilman <khilman@kernel.org>
+  - Ulf Hansson <ulf.hansson@linaro.org>
+
+description: |+
+  System on chip designs are often divided into multiple PM domains that can be
+  used for power gating of selected IP blocks for power saving by reduced leakage
+  current.
+
+  This device tree binding can be used to bind PM domain consumer devices with
+  their PM domains provided by PM domain providers. A PM domain provider can be
+  represented by any node in the device tree and can provide one or more PM
+  domains. A consumer node can refer to the provider by a phandle and a set of
+  phandle arguments (so called PM domain specifiers) of length specified by the
+  \#power-domain-cells property in the PM domain provider node.
+
+properties:
+  $nodename:
+    pattern: "^(power-controller|power-domain)([@-].*)?$"
+
+  domain-idle-states:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      Phandles of idle states that defines the available states for the
+      power-domain provider. The idle state definitions are compatible with the
+      domain-idle-state bindings, specified in ./domain-idle-state.yaml.
+
+      Note that, the domain-idle-state property reflects the idle states of this
+      PM domain and not the idle states of the devices or sub-domains in the PM
+      domain. Devices and sub-domains have their own idle states independent of
+      the parent domain's idle states. In the absence of this property, the
+      domain would be considered as capable of being powered-on or powered-off.
+
+  operating-points-v2:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      Phandles to the OPP tables of power domains provided by a power domain
+      provider. If the provider provides a single power domain only or all
+      the power domains provided by the provider have identical OPP tables,
+      then this shall contain a single phandle. Refer to ../opp/opp.txt
+      for more information.
+
+  "#power-domain-cells":
+    description:
+      Number of cells in a PM domain specifier. Typically 0 for nodes
+      representing a single PM domain and 1 for nodes providing multiple PM
+      domains (e.g. power controllers), but can be any value as specified
+      by device tree binding documentation of particular provider.
+
+  power-domains:
+    description:
+      A phandle and PM domain specifier as defined by bindings of the power
+      controller specified by phandle. Some power domains might be powered
+      from another power domain (or have other hardware specific
+      dependencies). For representing such dependency a standard PM domain
+      consumer binding is used. When provided, all domains created
+      by the given provider should be subdomains of the domain specified
+      by this binding.
+
+required:
+  - "#power-domain-cells"
+
+additionalProperties: true
+
+examples:
+  - |
+    power: power-controller@12340000 {
+        compatible = "foo,power-controller";
+        reg = <0x12340000 0x1000>;
+        #power-domain-cells = <1>;
+    };
+
+    // The node above defines a power controller that is a PM domain provider and
+    // expects one cell as its phandle argument.
+
+  - |
+    parent2: power-controller@12340000 {
+        compatible = "foo,power-controller";
+        reg = <0x12340000 0x1000>;
+        #power-domain-cells = <1>;
+    };
+
+    child2: power-controller@12341000 {
+        compatible = "foo,power-controller";
+        reg = <0x12341000 0x1000>;
+        power-domains = <&parent2 0>;
+        #power-domain-cells = <1>;
+    };
+
+    // The nodes above define two power controllers: 'parent' and 'child'.
+    // Domains created by the 'child' power controller are subdomains of '0' power
+    // domain provided by the 'parent' power controller.
+
+  - |
+    parent3: power-controller@12340000 {
+        compatible = "foo,power-controller";
+        reg = <0x12340000 0x1000>;
+        #power-domain-cells = <0>;
+        domain-idle-states = <&DOMAIN_RET>, <&DOMAIN_PWR_DN>;
+    };
+
+    child3: power-controller@12341000 {
+        compatible = "foo,power-controller";
+        reg = <0x12341000 0x1000>;
+        power-domains = <&parent3>;
+        #power-domain-cells = <0>;
+        domain-idle-states = <&DOMAIN_PWR_DN>;
+    };
+
+    domain-idle-states {
+        DOMAIN_RET: domain-retention {
+            compatible = "domain-idle-state";
+            entry-latency-us = <1000>;
+            exit-latency-us = <2000>;
+            min-residency-us = <10000>;
+        };
+
+        DOMAIN_PWR_DN: domain-pwr-dn {
+            compatible = "domain-idle-state";
+            entry-latency-us = <5000>;
+            exit-latency-us = <8000>;
+            min-residency-us = <7000>;
+        };
+    };

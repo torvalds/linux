@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale SPI controller driver cpm functions.
  *
@@ -9,11 +10,6 @@
  * CPM SPI and QE buffer descriptors mode support:
  * Copyright (c) 2009  MontaVista Software, Inc.
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <asm/cpm.h>
 #include <soc/fsl/qe/qe.h>
@@ -230,7 +226,7 @@ static void fsl_spi_free_dummy_rx(void)
 	case 1:
 		kfree(fsl_dummy_rx);
 		fsl_dummy_rx = NULL;
-		/* fall through */
+		fallthrough;
 	default:
 		fsl_dummy_rx_refcnt--;
 		break;
@@ -298,7 +294,7 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 		switch (mspi->subblock) {
 		default:
 			dev_warn(dev, "cell-index unspecified, assuming SPI1\n");
-			/* fall through */
+			fallthrough;
 		case 0:
 			mspi->subblock = QE_CR_SUBBLOCK_SPI1;
 			break;
@@ -309,12 +305,10 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 	}
 
 	if (mspi->flags & SPI_CPM1) {
-		struct resource *res;
 		void *pram;
 
-		res = platform_get_resource(to_platform_device(dev),
-					    IORESOURCE_MEM, 1);
-		pram = devm_ioremap_resource(dev, res);
+		pram = devm_platform_ioremap_resource(to_platform_device(dev),
+						      1);
 		if (IS_ERR(pram))
 			mspi->pram = NULL;
 		else
@@ -398,7 +392,8 @@ void fsl_spi_cpm_free(struct mpc8xxx_spi *mspi)
 	dma_unmap_single(dev, mspi->dma_dummy_rx, SPI_MRBLR, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, mspi->dma_dummy_tx, PAGE_SIZE, DMA_TO_DEVICE);
 	cpm_muram_free(cpm_muram_offset(mspi->tx_bd));
-	cpm_muram_free(cpm_muram_offset(mspi->pram));
+	if (!(mspi->flags & SPI_CPM1))
+		cpm_muram_free(cpm_muram_offset(mspi->pram));
 	fsl_spi_free_dummy_rx();
 }
 EXPORT_SYMBOL_GPL(fsl_spi_cpm_free);

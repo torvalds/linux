@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aesce-ccm-core.S - AES-CCM transform for ARMv8 with Crypto Extensions
  *
  * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -18,7 +15,7 @@
 	 * void ce_aes_ccm_auth_data(u8 mac[], u8 const in[], u32 abytes,
 	 *			     u32 *macp, u8 const rk[], u32 rounds);
 	 */
-ENTRY(ce_aes_ccm_auth_data)
+SYM_FUNC_START(ce_aes_ccm_auth_data)
 	ldr	w8, [x3]			/* leftover from prev round? */
 	ld1	{v0.16b}, [x0]			/* load mac */
 	cbz	w8, 1f
@@ -74,22 +71,23 @@ ENTRY(ce_aes_ccm_auth_data)
 	beq	10f
 	ext	v0.16b, v0.16b, v0.16b, #1	/* rotate out the mac bytes */
 	b	7b
-8:	mov	w7, w8
+8:	cbz	w8, 91f
+	mov	w7, w8
 	add	w8, w8, #16
 9:	ext	v1.16b, v1.16b, v1.16b, #1
 	adds	w7, w7, #1
 	bne	9b
-	eor	v0.16b, v0.16b, v1.16b
+91:	eor	v0.16b, v0.16b, v1.16b
 	st1	{v0.16b}, [x0]
 10:	str	w8, [x3]
 	ret
-ENDPROC(ce_aes_ccm_auth_data)
+SYM_FUNC_END(ce_aes_ccm_auth_data)
 
 	/*
 	 * void ce_aes_ccm_final(u8 mac[], u8 const ctr[], u8 const rk[],
 	 * 			 u32 rounds);
 	 */
-ENTRY(ce_aes_ccm_final)
+SYM_FUNC_START(ce_aes_ccm_final)
 	ld1	{v3.4s}, [x2], #16		/* load first round key */
 	ld1	{v0.16b}, [x0]			/* load mac */
 	cmp	w3, #12				/* which key size? */
@@ -123,7 +121,7 @@ ENTRY(ce_aes_ccm_final)
 	eor	v0.16b, v0.16b, v1.16b		/* en-/decrypt the mac */
 	st1	{v0.16b}, [x0]			/* store result */
 	ret
-ENDPROC(ce_aes_ccm_final)
+SYM_FUNC_END(ce_aes_ccm_final)
 
 	.macro	aes_ccm_do_crypt,enc
 	ldr	x8, [x6, #8]			/* load lower ctr */
@@ -214,10 +212,10 @@ CPU_LE(	rev	x8, x8			)
 	 * 			   u8 const rk[], u32 rounds, u8 mac[],
 	 * 			   u8 ctr[]);
 	 */
-ENTRY(ce_aes_ccm_encrypt)
+SYM_FUNC_START(ce_aes_ccm_encrypt)
 	aes_ccm_do_crypt	1
-ENDPROC(ce_aes_ccm_encrypt)
+SYM_FUNC_END(ce_aes_ccm_encrypt)
 
-ENTRY(ce_aes_ccm_decrypt)
+SYM_FUNC_START(ce_aes_ccm_decrypt)
 	aes_ccm_do_crypt	0
-ENDPROC(ce_aes_ccm_decrypt)
+SYM_FUNC_END(ce_aes_ccm_decrypt)

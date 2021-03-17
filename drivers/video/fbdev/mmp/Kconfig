@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig MMP_DISP
-        tristate "Marvell MMP Display Subsystem support"
-        depends on CPU_PXA910 || CPU_MMP2
-        help
+	tristate "Marvell MMP Display Subsystem support"
+	depends on CPU_PXA910 || CPU_MMP2 || COMPILE_TEST
+	help
 	  Marvell Display Subsystem support.
 
 if MMP_DISP

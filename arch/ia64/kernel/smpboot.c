@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SMP boot-related support
  *
@@ -24,7 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/acpi.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -46,17 +47,13 @@
 #include <asm/delay.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/machvec.h>
 #include <asm/mca.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/sal.h>
 #include <asm/tlbflush.h>
 #include <asm/unistd.h>
-#include <asm/sn/arch.h>
 
 #define SMP_DEBUG 0
 
@@ -358,10 +355,6 @@ smp_callin (void)
 	extern void ia64_init_itm(void);
 	extern volatile int time_keeper_id;
 
-#ifdef CONFIG_PERFMON
-	extern void pfm_init_percpu(void);
-#endif
-
 	cpuid = smp_processor_id();
 	phys_id = hard_smp_processor_id();
 	itc_master = time_keeper_id;
@@ -391,10 +384,6 @@ smp_callin (void)
 	smp_setup_percpu_timer();
 
 	ia64_mca_cmc_vector_setup();	/* Setup vector on AP */
-
-#ifdef CONFIG_PERFMON
-	pfm_init_percpu();
-#endif
 
 	local_irq_enable();
 
@@ -467,7 +456,7 @@ do_boot_cpu (int sapicid, int cpu, struct task_struct *idle)
 	Dprintk("Sending wakeup vector %lu to AP 0x%x/0x%x.\n", ap_wakeup_vector, cpu, sapicid);
 
 	set_brendez_area(cpu);
-	platform_send_ipi(cpu, ap_wakeup_vector, IA64_IPI_DM_INT, 0);
+	ia64_send_ipi(cpu, ap_wakeup_vector, IA64_IPI_DM_INT, 0);
 
 	/*
 	 * Wait 10s total for the AP to start
@@ -655,11 +644,6 @@ int __cpu_disable(void)
 	if (cpu == 0 && !bsp_remove_ok) {
 		printk ("Your platform does not support removal of BSP\n");
 		return (-EBUSY);
-	}
-
-	if (ia64_platform_is("sn2")) {
-		if (!sn_cpu_disable_allowed(cpu))
-			return -EBUSY;
 	}
 
 	set_cpu_online(cpu, false);

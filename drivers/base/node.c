@@ -17,6 +17,7 @@
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/device.h>
+#include <linux/pm_runtime.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
 
@@ -45,138 +46,458 @@ static ssize_t node_read_cpumap(struct device *dev, bool list, char *buf)
 	return n;
 }
 
-static inline ssize_t node_read_cpumask(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static inline ssize_t cpumap_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	return node_read_cpumap(dev, false, buf);
 }
-static inline ssize_t node_read_cpulist(struct device *dev,
-				struct device_attribute *attr, char *buf)
+
+static DEVICE_ATTR_RO(cpumap);
+
+static inline ssize_t cpulist_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
 {
 	return node_read_cpumap(dev, true, buf);
 }
 
-static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
-static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
+static DEVICE_ATTR_RO(cpulist);
+
+/**
+ * struct node_access_nodes - Access class device to hold user visible
+ * 			      relationships to other nodes.
+ * @dev:	Device for this memory access class
+ * @list_node:	List element in the node's access list
+ * @access:	The access class rank
+ * @hmem_attrs: Heterogeneous memory performance attributes
+ */
+struct node_access_nodes {
+	struct device		dev;
+	struct list_head	list_node;
+	unsigned		access;
+#ifdef CONFIG_HMEM_REPORTING
+	struct node_hmem_attrs	hmem_attrs;
+#endif
+};
+#define to_access_nodes(dev) container_of(dev, struct node_access_nodes, dev)
+
+static struct attribute *node_init_access_node_attrs[] = {
+	NULL,
+};
+
+static struct attribute *node_targ_access_node_attrs[] = {
+	NULL,
+};
+
+static const struct attribute_group initiators = {
+	.name	= "initiators",
+	.attrs	= node_init_access_node_attrs,
+};
+
+static const struct attribute_group targets = {
+	.name	= "targets",
+	.attrs	= node_targ_access_node_attrs,
+};
+
+static const struct attribute_group *node_access_node_groups[] = {
+	&initiators,
+	&targets,
+	NULL,
+};
+
+static void node_remove_accesses(struct node *node)
+{
+	struct node_access_nodes *c, *cnext;
+
+	list_for_each_entry_safe(c, cnext, &node->access_list, list_node) {
+		list_del(&c->list_node);
+		device_unregister(&c->dev);
+	}
+}
+
+static void node_access_release(struct device *dev)
+{
+	kfree(to_access_nodes(dev));
+}
+
+static struct node_access_nodes *node_init_node_access(struct node *node,
+						       unsigned access)
+{
+	struct node_access_nodes *access_node;
+	struct device *dev;
+
+	list_for_each_entry(access_node, &node->access_list, list_node)
+		if (access_node->access == access)
+			return access_node;
+
+	access_node = kzalloc(sizeof(*access_node), GFP_KERNEL);
+	if (!access_node)
+		return NULL;
+
+	access_node->access = access;
+	dev = &access_node->dev;
+	dev->parent = &node->dev;
+	dev->release = node_access_release;
+	dev->groups = node_access_node_groups;
+	if (dev_set_name(dev, "access%u", access))
+		goto free;
+
+	if (device_register(dev))
+		goto free_name;
+
+	pm_runtime_no_callbacks(dev);
+	list_add_tail(&access_node->list_node, &node->access_list);
+	return access_node;
+free_name:
+	kfree_const(dev->kobj.name);
+free:
+	kfree(access_node);
+	return NULL;
+}
+
+#ifdef CONFIG_HMEM_REPORTING
+#define ACCESS_ATTR(name)						\
+static ssize_t name##_show(struct device *dev,				\
+			   struct device_attribute *attr,		\
+			   char *buf)					\
+{									\
+	return sysfs_emit(buf, "%u\n",					\
+			  to_access_nodes(dev)->hmem_attrs.name);	\
+}									\
+static DEVICE_ATTR_RO(name)
+
+ACCESS_ATTR(read_bandwidth);
+ACCESS_ATTR(read_latency);
+ACCESS_ATTR(write_bandwidth);
+ACCESS_ATTR(write_latency);
+
+static struct attribute *access_attrs[] = {
+	&dev_attr_read_bandwidth.attr,
+	&dev_attr_read_latency.attr,
+	&dev_attr_write_bandwidth.attr,
+	&dev_attr_write_latency.attr,
+	NULL,
+};
+
+/**
+ * node_set_perf_attrs - Set the performance values for given access class
+ * @nid: Node identifier to be set
+ * @hmem_attrs: Heterogeneous memory performance attributes
+ * @access: The access class the for the given attributes
+ */
+void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+			 unsigned access)
+{
+	struct node_access_nodes *c;
+	struct node *node;
+	int i;
+
+	if (WARN_ON_ONCE(!node_online(nid)))
+		return;
+
+	node = node_devices[nid];
+	c = node_init_node_access(node, access);
+	if (!c)
+		return;
+
+	c->hmem_attrs = *hmem_attrs;
+	for (i = 0; access_attrs[i] != NULL; i++) {
+		if (sysfs_add_file_to_group(&c->dev.kobj, access_attrs[i],
+					    "initiators")) {
+			pr_info("failed to add performance attribute to node %d\n",
+				nid);
+			break;
+		}
+	}
+}
+
+/**
+ * struct node_cache_info - Internal tracking for memory node caches
+ * @dev:	Device represeting the cache level
+ * @node:	List element for tracking in the node
+ * @cache_attrs:Attributes for this cache level
+ */
+struct node_cache_info {
+	struct device dev;
+	struct list_head node;
+	struct node_cache_attrs cache_attrs;
+};
+#define to_cache_info(device) container_of(device, struct node_cache_info, dev)
+
+#define CACHE_ATTR(name, fmt) 						\
+static ssize_t name##_show(struct device *dev,				\
+			   struct device_attribute *attr,		\
+			   char *buf)					\
+{									\
+	return sysfs_emit(buf, fmt "\n",				\
+			  to_cache_info(dev)->cache_attrs.name);	\
+}									\
+DEVICE_ATTR_RO(name);
+
+CACHE_ATTR(size, "%llu")
+CACHE_ATTR(line_size, "%u")
+CACHE_ATTR(indexing, "%u")
+CACHE_ATTR(write_policy, "%u")
+
+static struct attribute *cache_attrs[] = {
+	&dev_attr_indexing.attr,
+	&dev_attr_size.attr,
+	&dev_attr_line_size.attr,
+	&dev_attr_write_policy.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(cache);
+
+static void node_cache_release(struct device *dev)
+{
+	kfree(dev);
+}
+
+static void node_cacheinfo_release(struct device *dev)
+{
+	struct node_cache_info *info = to_cache_info(dev);
+	kfree(info);
+}
+
+static void node_init_cache_dev(struct node *node)
+{
+	struct device *dev;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return;
+
+	dev->parent = &node->dev;
+	dev->release = node_cache_release;
+	if (dev_set_name(dev, "memory_side_cache"))
+		goto free_dev;
+
+	if (device_register(dev))
+		goto free_name;
+
+	pm_runtime_no_callbacks(dev);
+	node->cache_dev = dev;
+	return;
+free_name:
+	kfree_const(dev->kobj.name);
+free_dev:
+	kfree(dev);
+}
+
+/**
+ * node_add_cache() - add cache attribute to a memory node
+ * @nid: Node identifier that has new cache attributes
+ * @cache_attrs: Attributes for the cache being added
+ */
+void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs)
+{
+	struct node_cache_info *info;
+	struct device *dev;
+	struct node *node;
+
+	if (!node_online(nid) || !node_devices[nid])
+		return;
+
+	node = node_devices[nid];
+	list_for_each_entry(info, &node->cache_attrs, node) {
+		if (info->cache_attrs.level == cache_attrs->level) {
+			dev_warn(&node->dev,
+				"attempt to add duplicate cache level:%d\n",
+				cache_attrs->level);
+			return;
+		}
+	}
+
+	if (!node->cache_dev)
+		node_init_cache_dev(node);
+	if (!node->cache_dev)
+		return;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return;
+
+	dev = &info->dev;
+	dev->parent = node->cache_dev;
+	dev->release = node_cacheinfo_release;
+	dev->groups = cache_groups;
+	if (dev_set_name(dev, "index%d", cache_attrs->level))
+		goto free_cache;
+
+	info->cache_attrs = *cache_attrs;
+	if (device_register(dev)) {
+		dev_warn(&node->dev, "failed to add cache level:%d\n",
+			 cache_attrs->level);
+		goto free_name;
+	}
+	pm_runtime_no_callbacks(dev);
+	list_add_tail(&info->node, &node->cache_attrs);
+	return;
+free_name:
+	kfree_const(dev->kobj.name);
+free_cache:
+	kfree(info);
+}
+
+static void node_remove_caches(struct node *node)
+{
+	struct node_cache_info *info, *next;
+
+	if (!node->cache_dev)
+		return;
+
+	list_for_each_entry_safe(info, next, &node->cache_attrs, node) {
+		list_del(&info->node);
+		device_unregister(&info->dev);
+	}
+	device_unregister(node->cache_dev);
+}
+
+static void node_init_caches(unsigned int nid)
+{
+	INIT_LIST_HEAD(&node_devices[nid]->cache_attrs);
+}
+#else
+static void node_init_caches(unsigned int nid) { }
+static void node_remove_caches(struct node *node) { }
+#endif
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 static ssize_t node_read_meminfo(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	int n;
+	int len = 0;
 	int nid = dev->id;
 	struct pglist_data *pgdat = NODE_DATA(nid);
 	struct sysinfo i;
+	unsigned long sreclaimable, sunreclaimable;
 
 	si_meminfo_node(&i, nid);
-	n = sprintf(buf,
-		       "Node %d MemTotal:       %8lu kB\n"
-		       "Node %d MemFree:        %8lu kB\n"
-		       "Node %d MemUsed:        %8lu kB\n"
-		       "Node %d Active:         %8lu kB\n"
-		       "Node %d Inactive:       %8lu kB\n"
-		       "Node %d Active(anon):   %8lu kB\n"
-		       "Node %d Inactive(anon): %8lu kB\n"
-		       "Node %d Active(file):   %8lu kB\n"
-		       "Node %d Inactive(file): %8lu kB\n"
-		       "Node %d Unevictable:    %8lu kB\n"
-		       "Node %d Mlocked:        %8lu kB\n",
-		       nid, K(i.totalram),
-		       nid, K(i.freeram),
-		       nid, K(i.totalram - i.freeram),
-		       nid, K(node_page_state(pgdat, NR_ACTIVE_ANON) +
-				node_page_state(pgdat, NR_ACTIVE_FILE)),
-		       nid, K(node_page_state(pgdat, NR_INACTIVE_ANON) +
-				node_page_state(pgdat, NR_INACTIVE_FILE)),
-		       nid, K(node_page_state(pgdat, NR_ACTIVE_ANON)),
-		       nid, K(node_page_state(pgdat, NR_INACTIVE_ANON)),
-		       nid, K(node_page_state(pgdat, NR_ACTIVE_FILE)),
-		       nid, K(node_page_state(pgdat, NR_INACTIVE_FILE)),
-		       nid, K(node_page_state(pgdat, NR_UNEVICTABLE)),
-		       nid, K(sum_zone_node_page_state(nid, NR_MLOCK)));
+	sreclaimable = node_page_state_pages(pgdat, NR_SLAB_RECLAIMABLE_B);
+	sunreclaimable = node_page_state_pages(pgdat, NR_SLAB_UNRECLAIMABLE_B);
+	len = sysfs_emit_at(buf, len,
+			    "Node %d MemTotal:       %8lu kB\n"
+			    "Node %d MemFree:        %8lu kB\n"
+			    "Node %d MemUsed:        %8lu kB\n"
+			    "Node %d Active:         %8lu kB\n"
+			    "Node %d Inactive:       %8lu kB\n"
+			    "Node %d Active(anon):   %8lu kB\n"
+			    "Node %d Inactive(anon): %8lu kB\n"
+			    "Node %d Active(file):   %8lu kB\n"
+			    "Node %d Inactive(file): %8lu kB\n"
+			    "Node %d Unevictable:    %8lu kB\n"
+			    "Node %d Mlocked:        %8lu kB\n",
+			    nid, K(i.totalram),
+			    nid, K(i.freeram),
+			    nid, K(i.totalram - i.freeram),
+			    nid, K(node_page_state(pgdat, NR_ACTIVE_ANON) +
+				   node_page_state(pgdat, NR_ACTIVE_FILE)),
+			    nid, K(node_page_state(pgdat, NR_INACTIVE_ANON) +
+				   node_page_state(pgdat, NR_INACTIVE_FILE)),
+			    nid, K(node_page_state(pgdat, NR_ACTIVE_ANON)),
+			    nid, K(node_page_state(pgdat, NR_INACTIVE_ANON)),
+			    nid, K(node_page_state(pgdat, NR_ACTIVE_FILE)),
+			    nid, K(node_page_state(pgdat, NR_INACTIVE_FILE)),
+			    nid, K(node_page_state(pgdat, NR_UNEVICTABLE)),
+			    nid, K(sum_zone_node_page_state(nid, NR_MLOCK)));
 
 #ifdef CONFIG_HIGHMEM
-	n += sprintf(buf + n,
-		       "Node %d HighTotal:      %8lu kB\n"
-		       "Node %d HighFree:       %8lu kB\n"
-		       "Node %d LowTotal:       %8lu kB\n"
-		       "Node %d LowFree:        %8lu kB\n",
-		       nid, K(i.totalhigh),
-		       nid, K(i.freehigh),
-		       nid, K(i.totalram - i.totalhigh),
-		       nid, K(i.freeram - i.freehigh));
+	len += sysfs_emit_at(buf, len,
+			     "Node %d HighTotal:      %8lu kB\n"
+			     "Node %d HighFree:       %8lu kB\n"
+			     "Node %d LowTotal:       %8lu kB\n"
+			     "Node %d LowFree:        %8lu kB\n",
+			     nid, K(i.totalhigh),
+			     nid, K(i.freehigh),
+			     nid, K(i.totalram - i.totalhigh),
+			     nid, K(i.freeram - i.freehigh));
 #endif
-	n += sprintf(buf + n,
-		       "Node %d Dirty:          %8lu kB\n"
-		       "Node %d Writeback:      %8lu kB\n"
-		       "Node %d FilePages:      %8lu kB\n"
-		       "Node %d Mapped:         %8lu kB\n"
-		       "Node %d AnonPages:      %8lu kB\n"
-		       "Node %d Shmem:          %8lu kB\n"
-		       "Node %d KernelStack:    %8lu kB\n"
-		       "Node %d PageTables:     %8lu kB\n"
-		       "Node %d NFS_Unstable:   %8lu kB\n"
-		       "Node %d Bounce:         %8lu kB\n"
-		       "Node %d WritebackTmp:   %8lu kB\n"
-		       "Node %d Slab:           %8lu kB\n"
-		       "Node %d SReclaimable:   %8lu kB\n"
-		       "Node %d SUnreclaim:     %8lu kB\n"
+	len += sysfs_emit_at(buf, len,
+			     "Node %d Dirty:          %8lu kB\n"
+			     "Node %d Writeback:      %8lu kB\n"
+			     "Node %d FilePages:      %8lu kB\n"
+			     "Node %d Mapped:         %8lu kB\n"
+			     "Node %d AnonPages:      %8lu kB\n"
+			     "Node %d Shmem:          %8lu kB\n"
+			     "Node %d KernelStack:    %8lu kB\n"
+#ifdef CONFIG_SHADOW_CALL_STACK
+			     "Node %d ShadowCallStack:%8lu kB\n"
+#endif
+			     "Node %d PageTables:     %8lu kB\n"
+			     "Node %d NFS_Unstable:   %8lu kB\n"
+			     "Node %d Bounce:         %8lu kB\n"
+			     "Node %d WritebackTmp:   %8lu kB\n"
+			     "Node %d KReclaimable:   %8lu kB\n"
+			     "Node %d Slab:           %8lu kB\n"
+			     "Node %d SReclaimable:   %8lu kB\n"
+			     "Node %d SUnreclaim:     %8lu kB\n"
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		       "Node %d AnonHugePages:  %8lu kB\n"
-		       "Node %d ShmemHugePages: %8lu kB\n"
-		       "Node %d ShmemPmdMapped: %8lu kB\n"
+			     "Node %d AnonHugePages:  %8lu kB\n"
+			     "Node %d ShmemHugePages: %8lu kB\n"
+			     "Node %d ShmemPmdMapped: %8lu kB\n"
+			     "Node %d FileHugePages: %8lu kB\n"
+			     "Node %d FilePmdMapped: %8lu kB\n"
 #endif
-			,
-		       nid, K(node_page_state(pgdat, NR_FILE_DIRTY)),
-		       nid, K(node_page_state(pgdat, NR_WRITEBACK)),
-		       nid, K(node_page_state(pgdat, NR_FILE_PAGES)),
-		       nid, K(node_page_state(pgdat, NR_FILE_MAPPED)),
-		       nid, K(node_page_state(pgdat, NR_ANON_MAPPED)),
-		       nid, K(i.sharedram),
-		       nid, sum_zone_node_page_state(nid, NR_KERNEL_STACK_KB),
-		       nid, K(sum_zone_node_page_state(nid, NR_PAGETABLE)),
-		       nid, K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
-		       nid, K(sum_zone_node_page_state(nid, NR_BOUNCE)),
-		       nid, K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
-		       nid, K(node_page_state(pgdat, NR_SLAB_RECLAIMABLE) +
-			      node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)),
-		       nid, K(node_page_state(pgdat, NR_SLAB_RECLAIMABLE)),
+			     ,
+			     nid, K(node_page_state(pgdat, NR_FILE_DIRTY)),
+			     nid, K(node_page_state(pgdat, NR_WRITEBACK)),
+			     nid, K(node_page_state(pgdat, NR_FILE_PAGES)),
+			     nid, K(node_page_state(pgdat, NR_FILE_MAPPED)),
+			     nid, K(node_page_state(pgdat, NR_ANON_MAPPED)),
+			     nid, K(i.sharedram),
+			     nid, node_page_state(pgdat, NR_KERNEL_STACK_KB),
+#ifdef CONFIG_SHADOW_CALL_STACK
+			     nid, node_page_state(pgdat, NR_KERNEL_SCS_KB),
+#endif
+			     nid, K(sum_zone_node_page_state(nid, NR_PAGETABLE)),
+			     nid, 0UL,
+			     nid, K(sum_zone_node_page_state(nid, NR_BOUNCE)),
+			     nid, K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+			     nid, K(sreclaimable +
+				    node_page_state(pgdat, NR_KERNEL_MISC_RECLAIMABLE)),
+			     nid, K(sreclaimable + sunreclaimable),
+			     nid, K(sreclaimable),
+			     nid, K(sunreclaimable)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		       nid, K(node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)),
-		       nid, K(node_page_state(pgdat, NR_ANON_THPS) *
-				       HPAGE_PMD_NR),
-		       nid, K(node_page_state(pgdat, NR_SHMEM_THPS) *
-				       HPAGE_PMD_NR),
-		       nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
-				       HPAGE_PMD_NR));
-#else
-		       nid, K(node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)));
+			     ,
+			     nid, K(node_page_state(pgdat, NR_ANON_THPS) *
+				    HPAGE_PMD_NR),
+			     nid, K(node_page_state(pgdat, NR_SHMEM_THPS) *
+				    HPAGE_PMD_NR),
+			     nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
+				    HPAGE_PMD_NR),
+			     nid, K(node_page_state(pgdat, NR_FILE_THPS) *
+				    HPAGE_PMD_NR),
+			     nid, K(node_page_state(pgdat, NR_FILE_PMDMAPPED) *
+				    HPAGE_PMD_NR)
 #endif
-	n += hugetlb_report_node_meminfo(nid, buf + n);
-	return n;
+			    );
+	len += hugetlb_report_node_meminfo(buf, len, nid);
+	return len;
 }
 
 #undef K
-static DEVICE_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
+static DEVICE_ATTR(meminfo, 0444, node_read_meminfo, NULL);
 
 static ssize_t node_read_numastat(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				  struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf,
-		       "numa_hit %lu\n"
-		       "numa_miss %lu\n"
-		       "numa_foreign %lu\n"
-		       "interleave_hit %lu\n"
-		       "local_node %lu\n"
-		       "other_node %lu\n",
-		       sum_zone_numa_state(dev->id, NUMA_HIT),
-		       sum_zone_numa_state(dev->id, NUMA_MISS),
-		       sum_zone_numa_state(dev->id, NUMA_FOREIGN),
-		       sum_zone_numa_state(dev->id, NUMA_INTERLEAVE_HIT),
-		       sum_zone_numa_state(dev->id, NUMA_LOCAL),
-		       sum_zone_numa_state(dev->id, NUMA_OTHER));
+	return sysfs_emit(buf,
+			  "numa_hit %lu\n"
+			  "numa_miss %lu\n"
+			  "numa_foreign %lu\n"
+			  "interleave_hit %lu\n"
+			  "local_node %lu\n"
+			  "other_node %lu\n",
+			  sum_zone_numa_state(dev->id, NUMA_HIT),
+			  sum_zone_numa_state(dev->id, NUMA_MISS),
+			  sum_zone_numa_state(dev->id, NUMA_FOREIGN),
+			  sum_zone_numa_state(dev->id, NUMA_INTERLEAVE_HIT),
+			  sum_zone_numa_state(dev->id, NUMA_LOCAL),
+			  sum_zone_numa_state(dev->id, NUMA_OTHER));
 }
-static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+static DEVICE_ATTR(numastat, 0444, node_read_numastat, NULL);
 
 static ssize_t node_read_vmstat(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -184,31 +505,31 @@ static ssize_t node_read_vmstat(struct device *dev,
 	int nid = dev->id;
 	struct pglist_data *pgdat = NODE_DATA(nid);
 	int i;
-	int n = 0;
+	int len = 0;
 
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-		n += sprintf(buf+n, "%s %lu\n", vmstat_text[i],
-			     sum_zone_node_page_state(nid, i));
+		len += sysfs_emit_at(buf, len, "%s %lu\n",
+				     zone_stat_name(i),
+				     sum_zone_node_page_state(nid, i));
 
 #ifdef CONFIG_NUMA
 	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-		n += sprintf(buf+n, "%s %lu\n",
-			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-			     sum_zone_numa_state(nid, i));
+		len += sysfs_emit_at(buf, len, "%s %lu\n",
+				     numa_stat_name(i),
+				     sum_zone_numa_state(nid, i));
+
 #endif
-
 	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-		n += sprintf(buf+n, "%s %lu\n",
-			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
-			     NR_VM_NUMA_STAT_ITEMS],
-			     node_page_state(pgdat, i));
+		len += sysfs_emit_at(buf, len, "%s %lu\n",
+				     node_stat_name(i),
+				     node_page_state_pages(pgdat, i));
 
-	return n;
+	return len;
 }
-static DEVICE_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
+static DEVICE_ATTR(vmstat, 0444, node_read_vmstat, NULL);
 
 static ssize_t node_read_distance(struct device *dev,
-			struct device_attribute *attr, char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	int nid = dev->id;
 	int len = 0;
@@ -220,13 +541,15 @@ static ssize_t node_read_distance(struct device *dev,
 	 */
 	BUILD_BUG_ON(MAX_NUMNODES * 4 > PAGE_SIZE);
 
-	for_each_online_node(i)
-		len += sprintf(buf + len, "%s%d", i ? " " : "", node_distance(nid, i));
+	for_each_online_node(i) {
+		len += sysfs_emit_at(buf, len, "%s%d",
+				     i ? " " : "", node_distance(nid, i));
+	}
 
-	len += sprintf(buf + len, "\n");
+	len += sysfs_emit_at(buf, len, "\n");
 	return len;
 }
-static DEVICE_ATTR(distance, S_IRUGO, node_read_distance, NULL);
+static DEVICE_ATTR(distance, 0444, node_read_distance, NULL);
 
 static struct attribute *node_dev_attrs[] = {
 	&dev_attr_cpumap.attr,
@@ -335,7 +658,8 @@ static int register_node(struct node *node, int num)
 void unregister_node(struct node *node)
 {
 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
-
+	node_remove_accesses(node);
+	node_remove_caches(node);
 	device_unregister(&node->dev);
 }
 
@@ -365,6 +689,56 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
 	return sysfs_create_link(&obj->kobj,
 				 &node_devices[nid]->dev.kobj,
 				 kobject_name(&node_devices[nid]->dev.kobj));
+}
+
+/**
+ * register_memory_node_under_compute_node - link memory node to its compute
+ *					     node for a given access class.
+ * @mem_nid:	Memory node number
+ * @cpu_nid:	Cpu  node number
+ * @access:	Access class to register
+ *
+ * Description:
+ * 	For use with platforms that may have separate memory and compute nodes.
+ * 	This function will export node relationships linking which memory
+ * 	initiator nodes can access memory targets at a given ranked access
+ * 	class.
+ */
+int register_memory_node_under_compute_node(unsigned int mem_nid,
+					    unsigned int cpu_nid,
+					    unsigned access)
+{
+	struct node *init_node, *targ_node;
+	struct node_access_nodes *initiator, *target;
+	int ret;
+
+	if (!node_online(cpu_nid) || !node_online(mem_nid))
+		return -ENODEV;
+
+	init_node = node_devices[cpu_nid];
+	targ_node = node_devices[mem_nid];
+	initiator = node_init_node_access(init_node, access);
+	target = node_init_node_access(targ_node, access);
+	if (!initiator || !target)
+		return -ENOMEM;
+
+	ret = sysfs_add_link_to_group(&initiator->dev.kobj, "targets",
+				      &targ_node->dev.kobj,
+				      dev_name(&targ_node->dev));
+	if (ret)
+		return ret;
+
+	ret = sysfs_add_link_to_group(&target->dev.kobj, "initiators",
+				      &init_node->dev.kobj,
+				      dev_name(&init_node->dev));
+	if (ret)
+		goto err;
+
+	return 0;
+ err:
+	sysfs_remove_link_from_group(&initiator->dev.kobj, "targets",
+				     dev_name(&targ_node->dev));
+	return ret;
 }
 
 int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
@@ -398,96 +772,116 @@ static int __ref get_nid_for_pfn(unsigned long pfn)
 	return pfn_to_nid(pfn);
 }
 
-/* register memory section under specified node if it spans that node */
-int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
+static void do_register_memory_block_under_node(int nid,
+						struct memory_block *mem_blk)
 {
-	int ret, nid = *(int *)arg;
-	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+	int ret;
 
+	/*
+	 * If this memory block spans multiple nodes, we only indicate
+	 * the last processed node.
+	 */
 	mem_blk->nid = nid;
 
-	sect_start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
-	sect_end_pfn = section_nr_to_pfn(mem_blk->end_section_nr);
-	sect_end_pfn += PAGES_PER_SECTION - 1;
-	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+	ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
+				       &mem_blk->dev.kobj,
+				       kobject_name(&mem_blk->dev.kobj));
+	if (ret && ret != -EEXIST)
+		dev_err_ratelimited(&node_devices[nid]->dev,
+				    "can't create link to %s in sysfs (%d)\n",
+				    kobject_name(&mem_blk->dev.kobj), ret);
+
+	ret = sysfs_create_link_nowarn(&mem_blk->dev.kobj,
+				&node_devices[nid]->dev.kobj,
+				kobject_name(&node_devices[nid]->dev.kobj));
+	if (ret && ret != -EEXIST)
+		dev_err_ratelimited(&mem_blk->dev,
+				    "can't create link to %s in sysfs (%d)\n",
+				    kobject_name(&node_devices[nid]->dev.kobj),
+				    ret);
+}
+
+/* register memory section under specified node if it spans that node */
+static int register_mem_block_under_node_early(struct memory_block *mem_blk,
+					       void *arg)
+{
+	unsigned long memory_block_pfns = memory_block_size_bytes() / PAGE_SIZE;
+	unsigned long start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
+	unsigned long end_pfn = start_pfn + memory_block_pfns - 1;
+	int nid = *(int *)arg;
+	unsigned long pfn;
+
+	for (pfn = start_pfn; pfn <= end_pfn; pfn++) {
 		int page_nid;
 
 		/*
 		 * memory block could have several absent sections from start.
 		 * skip pfn range from absent section
 		 */
-		if (!pfn_present(pfn)) {
+		if (!pfn_in_present_section(pfn)) {
 			pfn = round_down(pfn + PAGES_PER_SECTION,
 					 PAGES_PER_SECTION) - 1;
 			continue;
 		}
 
 		/*
-		 * We need to check if page belongs to nid only for the boot
-		 * case, during hotplug we know that all pages in the memory
-		 * block belong to the same node.
+		 * We need to check if page belongs to nid only at the boot
+		 * case because node's ranges can be interleaved.
 		 */
-		if (system_state == SYSTEM_BOOTING) {
-			page_nid = get_nid_for_pfn(pfn);
-			if (page_nid < 0)
-				continue;
-			if (page_nid != nid)
-				continue;
-		}
-		ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
-					&mem_blk->dev.kobj,
-					kobject_name(&mem_blk->dev.kobj));
-		if (ret)
-			return ret;
+		page_nid = get_nid_for_pfn(pfn);
+		if (page_nid < 0)
+			continue;
+		if (page_nid != nid)
+			continue;
 
-		return sysfs_create_link_nowarn(&mem_blk->dev.kobj,
-				&node_devices[nid]->dev.kobj,
-				kobject_name(&node_devices[nid]->dev.kobj));
+		do_register_memory_block_under_node(nid, mem_blk);
+		return 0;
 	}
 	/* mem section does not span the specified node */
 	return 0;
 }
 
-/* unregister memory section under all nodes that it spans */
-int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
-				    unsigned long phys_index)
+/*
+ * During hotplug we know that all pages in the memory block belong to the same
+ * node.
+ */
+static int register_mem_block_under_node_hotplug(struct memory_block *mem_blk,
+						 void *arg)
 {
-	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
-	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+	int nid = *(int *)arg;
 
-	if (!mem_blk) {
-		NODEMASK_FREE(unlinked_nodes);
-		return -EFAULT;
-	}
-	if (!unlinked_nodes)
-		return -ENOMEM;
-	nodes_clear(*unlinked_nodes);
-
-	sect_start_pfn = section_nr_to_pfn(phys_index);
-	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
-	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
-		int nid;
-
-		nid = get_nid_for_pfn(pfn);
-		if (nid < 0)
-			continue;
-		if (!node_online(nid))
-			continue;
-		if (node_test_and_set(nid, *unlinked_nodes))
-			continue;
-		sysfs_remove_link(&node_devices[nid]->dev.kobj,
-			 kobject_name(&mem_blk->dev.kobj));
-		sysfs_remove_link(&mem_blk->dev.kobj,
-			 kobject_name(&node_devices[nid]->dev.kobj));
-	}
-	NODEMASK_FREE(unlinked_nodes);
+	do_register_memory_block_under_node(nid, mem_blk);
 	return 0;
 }
 
-int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
+/*
+ * Unregister a memory block device under the node it spans. Memory blocks
+ * with multiple nodes cannot be offlined and therefore also never be removed.
+ */
+void unregister_memory_block_under_nodes(struct memory_block *mem_blk)
 {
-	return walk_memory_range(start_pfn, end_pfn, (void *)&nid,
-					register_mem_sect_under_node);
+	if (mem_blk->nid == NUMA_NO_NODE)
+		return;
+
+	sysfs_remove_link(&node_devices[mem_blk->nid]->dev.kobj,
+			  kobject_name(&mem_blk->dev.kobj));
+	sysfs_remove_link(&mem_blk->dev.kobj,
+			  kobject_name(&node_devices[mem_blk->nid]->dev.kobj));
+}
+
+void link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn,
+		       enum meminit_context context)
+{
+	walk_memory_blocks_func_t func;
+
+	if (context == MEMINIT_HOTPLUG)
+		func = register_mem_block_under_node_hotplug;
+	else
+		func = register_mem_block_under_node_early;
+
+	walk_memory_blocks(PFN_PHYS(start_pfn), PFN_PHYS(end_pfn - start_pfn),
+			   (void *)&nid, func);
+	return;
 }
 
 #ifdef CONFIG_HUGETLBFS
@@ -575,8 +969,10 @@ int __register_one_node(int nid)
 			register_cpu_under_node(cpu, nid);
 	}
 
+	INIT_LIST_HEAD(&node_devices[nid]->access_list);
 	/* initialize work queue for memory hot plug */
 	init_node_hugetlb_work(nid);
+	node_init_caches(nid);
 
 	return error;
 }
@@ -594,17 +990,6 @@ void unregister_one_node(int nid)
  * node states attributes
  */
 
-static ssize_t print_nodes_state(enum node_states state, char *buf)
-{
-	int n;
-
-	n = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
-		      nodemask_pr_args(&node_states[state]));
-	buf[n++] = '\n';
-	buf[n] = '\0';
-	return n;
-}
-
 struct node_attr {
 	struct device_attribute attr;
 	enum node_states state;
@@ -614,7 +999,9 @@ static ssize_t show_node_state(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct node_attr *na = container_of(attr, struct node_attr, attr);
-	return print_nodes_state(na->state, buf);
+
+	return sysfs_emit(buf, "%*pbl\n",
+			  nodemask_pr_args(&node_states[na->state]));
 }
 
 #define _NODE_ATTR(name, state) \
@@ -629,6 +1016,8 @@ static struct node_attr node_state_attr[] = {
 #endif
 	[N_MEMORY] = _NODE_ATTR(has_memory, N_MEMORY),
 	[N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
+	[N_GENERIC_INITIATOR] = _NODE_ATTR(has_generic_initiator,
+					   N_GENERIC_INITIATOR),
 };
 
 static struct attribute *node_state_attrs[] = {
@@ -640,6 +1029,7 @@ static struct attribute *node_state_attrs[] = {
 #endif
 	&node_state_attr[N_MEMORY].attr.attr,
 	&node_state_attr[N_CPU].attr.attr,
+	&node_state_attr[N_GENERIC_INITIATOR].attr.attr,
 	NULL
 };
 

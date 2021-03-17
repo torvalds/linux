@@ -1,30 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2006-2011 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  *	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/delay.h>
+#include <linux/highmem.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+
+#include "framebuffer.h"
 #include "gma_display.h"
+#include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_drv.h"
-#include "framebuffer.h"
 
 /**
  * Returns whether any output on the specified pipe is of the specified type
@@ -261,6 +255,8 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Give the overlay scaler a chance to enable
 		 * if it's on this pipe */
 		/* psb_intel_crtc_dpms_video(crtc, true); TODO */
+
+		drm_crtc_vblank_on(crtc);
 		break;
 	case DRM_MODE_DPMS_OFF:
 		if (!gma_crtc->active)
@@ -355,7 +351,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			gt = container_of(gma_crtc->cursor_obj,
 					  struct gtt_range, gem);
 			psb_gtt_unpin(gt);
-			drm_gem_object_put_unlocked(gma_crtc->cursor_obj);
+			drm_gem_object_put(gma_crtc->cursor_obj);
 			gma_crtc->cursor_obj = NULL;
 		}
 		return 0;
@@ -431,7 +427,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	if (gma_crtc->cursor_obj) {
 		gt = container_of(gma_crtc->cursor_obj, struct gtt_range, gem);
 		psb_gtt_unpin(gt);
-		drm_gem_object_put_unlocked(gma_crtc->cursor_obj);
+		drm_gem_object_put(gma_crtc->cursor_obj);
 	}
 
 	gma_crtc->cursor_obj = obj;
@@ -439,7 +435,7 @@ unlock:
 	return ret;
 
 unref_cursor:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return ret;
 }
 
@@ -505,6 +501,52 @@ void gma_crtc_destroy(struct drm_crtc *crtc)
 	kfree(gma_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);
 	kfree(gma_crtc);
+}
+
+int gma_crtc_page_flip(struct drm_crtc *crtc,
+		       struct drm_framebuffer *fb,
+		       struct drm_pending_vblank_event *event,
+		       uint32_t page_flip_flags,
+		       struct drm_modeset_acquire_ctx *ctx)
+{
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	struct drm_framebuffer *current_fb = crtc->primary->fb;
+	struct drm_framebuffer *old_fb = crtc->primary->old_fb;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+	int ret;
+
+	if (!crtc_funcs->mode_set_base)
+		return -EINVAL;
+
+	/* Using mode_set_base requires the new fb to be set already. */
+	crtc->primary->fb = fb;
+
+	if (event) {
+		spin_lock_irqsave(&dev->event_lock, flags);
+
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+
+		gma_crtc->page_flip_event = event;
+
+		/* Call this locked if we want an event at vblank interrupt. */
+		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
+		if (ret) {
+			gma_crtc->page_flip_event = NULL;
+			drm_crtc_vblank_put(crtc);
+		}
+
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	} else {
+		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
+	}
+
+	/* Restore previous fb in case of failure. */
+	if (ret)
+		crtc->primary->fb = current_fb;
+
+	return ret;
 }
 
 int gma_crtc_set_config(struct drm_mode_set *set,

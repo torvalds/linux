@@ -8,6 +8,7 @@
 #define _MCAM_CORE_H
 
 #include <linux/list.h>
+#include <linux/clk-provider.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
@@ -102,21 +103,16 @@ struct mcam_camera {
 	 * These fields should be set by the platform code prior to
 	 * calling mcam_register().
 	 */
-	struct i2c_adapter *i2c_adapter;
 	unsigned char __iomem *regs;
 	unsigned regs_size; /* size in bytes of the register space */
 	spinlock_t dev_lock;
 	struct device *dev; /* For messages, dma alloc */
 	enum mcam_chip_id chip_id;
-	short int clock_speed;	/* Sensor clock speed, default 30 */
-	short int use_smbus;	/* SMBUS or straight I2c? */
 	enum mcam_buffer_mode buffer_mode;
 
-	int mclk_min;	/* The minimal value of mclk */
 	int mclk_src;	/* which clock source the mclk derives from */
 	int mclk_div;	/* Clock Divider Value for MCLK */
 
-	int ccic_id;
 	enum v4l2_mbus_type bus_type;
 	/* MIPI support */
 	/* The dphy config value, allocated in board file
@@ -130,6 +126,8 @@ struct mcam_camera {
 
 	/* clock tree support */
 	struct clk *clk[NR_MCAM_CLK];
+	struct clk_hw mclk_hw;
+	struct clk *mclk;
 
 	/*
 	 * Callbacks from the core to the platform code.
@@ -137,7 +135,6 @@ struct mcam_camera {
 	int (*plat_power_up) (struct mcam_camera *cam);
 	void (*plat_power_down) (struct mcam_camera *cam);
 	void (*calc_dphy) (struct mcam_camera *cam);
-	void (*ctlr_reset) (struct mcam_camera *cam);
 
 	/*
 	 * Everything below here is private to the mcam core and
@@ -153,8 +150,9 @@ struct mcam_camera {
 	 * Subsystem structures.
 	 */
 	struct video_device vdev;
+	struct v4l2_async_notifier notifier;
+	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *sensor;
-	unsigned short sensor_addr;
 
 	/* Videobuf2 stuff */
 	struct vb2_queue vb_queue;
@@ -238,10 +236,8 @@ static inline void mcam_reg_set_bit(struct mcam_camera *cam,
 int mccic_register(struct mcam_camera *cam);
 int mccic_irq(struct mcam_camera *cam, unsigned int irqs);
 void mccic_shutdown(struct mcam_camera *cam);
-#ifdef CONFIG_PM
 void mccic_suspend(struct mcam_camera *cam);
 int mccic_resume(struct mcam_camera *cam);
-#endif
 
 /*
  * Register definitions for the m88alp01 camera interface.  Offsets in bytes

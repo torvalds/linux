@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
  * Copyright (C) 2008 Dmitri Vorobiev
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  */
 #include <linux/cpu.h>
 #include <linux/init.h>
@@ -28,7 +16,6 @@
 
 #include <asm/dma-coherence.h>
 #include <asm/fw/fw.h>
-#include <asm/mach-malta/malta-dtshim.h>
 #include <asm/mips-cps.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/malta.h>
@@ -80,8 +67,6 @@ const char *get_system_type(void)
 {
 	return "MIPS Malta";
 }
-
-const char display_string[] = "	       LINUX ON MALTA	    ";
 
 #ifdef CONFIG_BLK_DEV_FD
 static void __init fd_activate(void)

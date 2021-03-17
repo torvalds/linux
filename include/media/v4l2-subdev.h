@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  V4L2 sub-device support header.
  *
  *  Copyright (C) 2008  Hans Verkuil <hverkuil@xs4all.nl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #ifndef _V4L2_SUBDEV_H
@@ -70,7 +61,7 @@ struct v4l2_decode_vbi_line {
  * device. These devices are usually audio/video muxers/encoders/decoders or
  * sensors and webcam controllers.
  *
- * Usually these devices are controlled through an i2c bus, but other busses
+ * Usually these devices are controlled through an i2c bus, but other buses
  * may also be used.
  *
  * The v4l2_subdev struct provides a way of accessing these devices in a
@@ -390,7 +381,7 @@ struct v4l2_mbus_frame_desc {
  *	OUTPUT device. This is ignored by video capture devices.
  *
  * @g_input_status: get input status. Same as the status field in the
- *	&struct &v4l2_input
+ *	&struct v4l2_input
  *
  * @s_stream: used to notify the driver that a video stream will start or has
  *	stopped.
@@ -410,12 +401,6 @@ struct v4l2_mbus_frame_desc {
  * @g_dv_timings: Get custom dv timings in the sub device.
  *
  * @query_dv_timings: callback for VIDIOC_QUERY_DV_TIMINGS() ioctl handler code.
- *
- * @g_mbus_config: get supported mediabus configurations
- *
- * @s_mbus_config: set a certain mediabus configuration. This operation is added
- *	for compatibility with soc-camera drivers and should not be used by new
- *	software.
  *
  * @s_rx_buffer: set a host allocated memory buffer for the subdev. The subdev
  *	can adjust @size to a lower value and must not write more data to the
@@ -444,10 +429,6 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_timings *timings);
 	int (*query_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
-	int (*g_mbus_config)(struct v4l2_subdev *sd,
-			     struct v4l2_mbus_config *cfg);
-	int (*s_mbus_config)(struct v4l2_subdev *sd,
-			     const struct v4l2_mbus_config *cfg);
 	int (*s_rx_buffer)(struct v4l2_subdev *sd, void *buf,
 			   unsigned int *size);
 };
@@ -575,9 +556,9 @@ struct v4l2_subdev_ir_parameters {
  *
  * @rx_read: Reads received codes or pulse width data.
  *	The semantics are similar to a non-blocking read() call.
- * @rx_g_parameters: Get the current operating parameters and state of the
+ * @rx_g_parameters: Get the current operating parameters and state of
  *	the IR receiver.
- * @rx_s_parameters: Set the current operating parameters and state of the
+ * @rx_s_parameters: Set the current operating parameters and state of
  *	the IR receiver.  It is recommended to call
  *	[rt]x_g_parameters first to fill out the current state, and only change
  *	the fields that need to be changed.  Upon return, the actual device
@@ -591,9 +572,9 @@ struct v4l2_subdev_ir_parameters {
  *
  * @tx_write: Writes codes or pulse width data for transmission.
  *	The semantics are similar to a non-blocking write() call.
- * @tx_g_parameters: Get the current operating parameters and state of the
+ * @tx_g_parameters: Get the current operating parameters and state of
  *	the IR transmitter.
- * @tx_s_parameters: Set the current operating parameters and state of the
+ * @tx_s_parameters: Set the current operating parameters and state of
  *	the IR transmitter.  It is recommended to call
  *	[rt]x_g_parameters first to fill out the current state, and only change
  *	the fields that need to be changed.  Upon return, the actual device
@@ -679,6 +660,30 @@ struct v4l2_subdev_pad_config {
  *
  * @set_frame_desc: set the low level media bus frame parameters, @fd array
  *                  may be adjusted by the subdev driver to device capabilities.
+ *
+ * @get_mbus_config: get the media bus configuration of a remote sub-device.
+ *		     The media bus configuration is usually retrieved from the
+ *		     firmware interface at sub-device probe time, immediately
+ *		     applied to the hardware and eventually adjusted by the
+ *		     driver. Remote sub-devices (usually video receivers) shall
+ *		     use this operation to query the transmitting end bus
+ *		     configuration in order to adjust their own one accordingly.
+ *		     Callers should make sure they get the most up-to-date as
+ *		     possible configuration from the remote end, likely calling
+ *		     this operation as close as possible to stream on time. The
+ *		     operation shall fail if the pad index it has been called on
+ *		     is not valid or in case of unrecoverable failures.
+ *
+ * @set_mbus_config: set the media bus configuration of a remote sub-device.
+ *		     This operations is intended to allow, in combination with
+ *		     the get_mbus_config operation, the negotiation of media bus
+ *		     configuration parameters between media sub-devices. The
+ *		     operation shall not fail if the requested configuration is
+ *		     not supported, but the driver shall update the content of
+ *		     the %config argument to reflect what has been actually
+ *		     applied to the hardware. The operation shall fail if the
+ *		     pad index it has been called on is not valid or in case of
+ *		     unrecoverable failures.
  */
 struct v4l2_subdev_pad_ops {
 	int (*init_cfg)(struct v4l2_subdev *sd,
@@ -719,6 +724,10 @@ struct v4l2_subdev_pad_ops {
 			      struct v4l2_mbus_frame_desc *fd);
 	int (*set_frame_desc)(struct v4l2_subdev *sd, unsigned int pad,
 			      struct v4l2_mbus_frame_desc *fd);
+	int (*get_mbus_config)(struct v4l2_subdev *sd, unsigned int pad,
+			       struct v4l2_mbus_config *config);
+	int (*set_mbus_config)(struct v4l2_subdev *sd, unsigned int pad,
+			       struct v4l2_mbus_config *config);
 };
 
 /**
@@ -755,7 +764,17 @@ struct v4l2_subdev_ops {
  *
  * @open: called when the subdev device node is opened by an application.
  *
- * @close: called when the subdev device node is closed.
+ * @close: called when the subdev device node is closed. Please note that
+ *	it is possible for @close to be called after @unregistered!
+ *
+ * @release: called when the last user of the subdev device is gone. This
+ *	happens after the @unregistered callback and when the last open
+ *	filehandle to the v4l-subdevX device node was closed. If no device
+ *	node was created for this sub-device, then the @release callback
+ *	is called right after the @unregistered callback.
+ *	The @release callback is typically used to free the memory containing
+ *	the v4l2_subdev structure. It is almost certainly required for any
+ *	sub-device that sets the V4L2_SUBDEV_FL_HAS_DEVNODE flag.
  *
  * .. note::
  *	Never call this from drivers, only the v4l2 framework can call
@@ -766,6 +785,7 @@ struct v4l2_subdev_internal_ops {
 	void (*unregistered)(struct v4l2_subdev *sd);
 	int (*open)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
 	int (*close)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
+	void (*release)(struct v4l2_subdev *sd);
 };
 
 #define V4L2_SUBDEV_NAME_SIZE 32
@@ -776,7 +796,11 @@ struct v4l2_subdev_internal_ops {
 #define V4L2_SUBDEV_FL_IS_SPI			(1U << 1)
 /* Set this flag if this subdev needs a device node. */
 #define V4L2_SUBDEV_FL_HAS_DEVNODE		(1U << 2)
-/* Set this flag if this subdev generates events. */
+/*
+ * Set this flag if this subdev generates events.
+ * Note controls can send events, thus drivers exposing controls
+ * should set this flag.
+ */
 #define V4L2_SUBDEV_FL_HAS_EVENTS		(1U << 3)
 
 struct regulator_bulk_data;
@@ -895,9 +919,11 @@ struct v4l2_subdev {
  *
  * @vfh: pointer to &struct v4l2_fh
  * @pad: pointer to &struct v4l2_subdev_pad_config
+ * @owner: module pointer to the owner of this file handle
  */
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
+	struct module *owner;
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_pad_config *pad;
 #endif
@@ -922,10 +948,10 @@ struct v4l2_subdev_fh {
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_mbus_framefmt
-*v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
-			    unsigned int pad)
+static inline struct v4l2_mbus_framefmt *
+v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_pad_config *cfg,
+			   unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
@@ -940,10 +966,10 @@ static inline struct v4l2_mbus_framefmt
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_rect
-*v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-			  unsigned int pad)
+static inline struct v4l2_rect *
+v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_pad_config *cfg,
+			 unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
@@ -951,22 +977,23 @@ static inline struct v4l2_rect
 }
 
 /**
- * v4l2_subdev_get_try_crop - ancillary routine to call
+ * v4l2_subdev_get_try_compose - ancillary routine to call
  *	&struct v4l2_subdev_pad_config->try_compose
  *
  * @sd: pointer to &struct v4l2_subdev
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_rect
-*v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
-			     unsigned int pad)
+static inline struct v4l2_rect *
+v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
 	return &cfg[pad].try_compose;
 }
+
 #endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
@@ -1018,6 +1045,23 @@ static inline void *v4l2_get_subdev_hostdata(const struct v4l2_subdev *sd)
 }
 
 #ifdef CONFIG_MEDIA_CONTROLLER
+
+/**
+ * v4l2_subdev_get_fwnode_pad_1_to_1 - Get pad number from a subdev fwnode
+ *                                     endpoint, assuming 1:1 port:pad
+ *
+ * @entity: Pointer to the subdev entity
+ * @endpoint: Pointer to a parsed fwnode endpoint
+ *
+ * This function can be used as the .get_fwnode_pad operation for
+ * subdevices that map port numbers and pad indexes 1:1. If the endpoint
+ * is owned by the subdevice, the function returns the endpoint port
+ * number.
+ *
+ * Returns the endpoint port number on success or a negative error code.
+ */
+int v4l2_subdev_get_fwnode_pad_1_to_1(struct media_entity *entity,
+				      struct fwnode_endpoint *endpoint);
 
 /**
  * v4l2_subdev_link_validate_default - validates a media link
@@ -1074,28 +1118,35 @@ void v4l2_subdev_free_pad_config(struct v4l2_subdev_pad_config *cfg);
 void v4l2_subdev_init(struct v4l2_subdev *sd,
 		      const struct v4l2_subdev_ops *ops);
 
+extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
+
 /**
  * v4l2_subdev_call - call an operation of a v4l2_subdev.
  *
  * @sd: pointer to the &struct v4l2_subdev
  * @o: name of the element at &struct v4l2_subdev_ops that contains @f.
  *     Each element there groups a set of callbacks functions.
- * @f: callback function that will be called if @cond matches.
+ * @f: callback function to be called.
  *     The callback functions are defined in groups, according to
  *     each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Example: err = v4l2_subdev_call(sd, video, s_std, norm);
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
 	({								\
+		struct v4l2_subdev *__sd = (sd);			\
 		int __result;						\
-		if (!(sd))						\
+		if (!__sd)						\
 			__result = -ENODEV;				\
-		else if (!((sd)->ops->o && (sd)->ops->o->f))		\
+		else if (!(__sd->ops->o && __sd->ops->o->f))		\
 			__result = -ENOIOCTLCMD;			\
+		else if (v4l2_subdev_call_wrappers.o &&			\
+			 v4l2_subdev_call_wrappers.o->f)		\
+			__result = v4l2_subdev_call_wrappers.o->f(	\
+							__sd, ##args);	\
 		else							\
-			__result = (sd)->ops->o->f((sd), ##args);	\
+			__result = __sd->ops->o->f(__sd, ##args);	\
 		__result;						\
 	})
 

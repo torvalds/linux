@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -121,11 +121,8 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 				       u32 pkt_len,
 				       u8 extended_desc)
 {
-	struct ieee80211_tx_info *info;
 	struct sk_buff *skb = NULL;
 	u8 payload_offset;
-	struct ieee80211_vif *vif;
-	struct ieee80211_hdr *wh;
 
 	if (WARN(!pkt_len, "%s: Dummy pkt received", __func__))
 		return NULL;
@@ -144,16 +141,14 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 	payload_offset = (extended_desc + FRAME_DESC_SZ);
 	skb_put(skb, pkt_len);
 	memcpy((skb->data), (buffer + payload_offset), skb->len);
-	wh = (struct ieee80211_hdr *)skb->data;
-	vif = rsi_get_vif(common->priv, wh->addr1);
 
-	info = IEEE80211_SKB_CB(skb);
 	return skb;
 }
 
 /**
  * rsi_read_pkt() - This function reads frames from the card.
  * @common: Pointer to the driver private structure.
+ * @rx_pkt: Received pkt.
  * @rcv_pkt_len: Received pkt length. In case of USB it is 0.
  *
  * Return: 0 on success, -1 on failure.
@@ -285,7 +280,7 @@ void rsi_set_bt_context(void *priv, void *bt_context)
 
 /**
  * rsi_91x_init() - This function initializes os interface operations.
- * @void: Void.
+ * @oper_mode: One of DEV_OPMODE_*.
  *
  * Return: Pointer to the adapter structure on success, NULL on failure .
  */
@@ -328,6 +323,7 @@ struct rsi_hw *rsi_91x_init(u16 oper_mode)
 	}
 
 	rsi_default_ps_params(adapter);
+	init_bgscan_params(common);
 	spin_lock_init(&adapter->ps_lock);
 	timer_setup(&common->roc_timer, rsi_roc_timeout, 0);
 	init_completion(&common->wlan_init_completion);

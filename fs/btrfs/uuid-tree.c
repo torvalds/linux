@@ -121,12 +121,12 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 		 * An item with that type already exists.
 		 * Extend the item and store the new subid at the end.
 		 */
-		btrfs_extend_item(fs_info, path, sizeof(subid_le));
+		btrfs_extend_item(path, sizeof(subid_le));
 		eb = path->nodes[0];
 		slot = path->slots[0];
 		offset = btrfs_item_ptr_offset(eb, slot);
 		offset += btrfs_item_size_nr(eb, slot) - sizeof(subid_le);
-	} else if (ret < 0) {
+	} else {
 		btrfs_warn(fs_info,
 			   "insert uuid item failed %d (0x%016llx, 0x%016llx) type %u!",
 			   ret, (unsigned long long)key.objectid,
@@ -219,7 +219,7 @@ int btrfs_uuid_tree_remove(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 	move_src = offset + sizeof(subid);
 	move_len = item_size - (move_src - btrfs_item_ptr_offset(eb, slot));
 	memmove_extent_buffer(eb, move_dst, move_src, move_len);
-	btrfs_truncate_item(fs_info, path, item_size - sizeof(subid), 1);
+	btrfs_truncate_item(path, item_size - sizeof(subid), 1);
 
 out:
 	btrfs_free_path(path);
@@ -246,9 +246,49 @@ out:
 	return ret;
 }
 
-int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info,
-			    int (*check_func)(struct btrfs_fs_info *, u8 *, u8,
-					      u64))
+/*
+ * Check if there's an matching subvolume for given UUID
+ *
+ * Return:
+ * 0	check succeeded, the entry is not outdated
+ * > 0	if the check failed, the caller should remove the entry
+ * < 0	if an error occurred
+ */
+static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
+				       u8 *uuid, u8 type, u64 subvolid)
+{
+	int ret = 0;
+	struct btrfs_root *subvol_root;
+
+	if (type != BTRFS_UUID_KEY_SUBVOL &&
+	    type != BTRFS_UUID_KEY_RECEIVED_SUBVOL)
+		goto out;
+
+	subvol_root = btrfs_get_fs_root(fs_info, subvolid, true);
+	if (IS_ERR(subvol_root)) {
+		ret = PTR_ERR(subvol_root);
+		if (ret == -ENOENT)
+			ret = 1;
+		goto out;
+	}
+
+	switch (type) {
+	case BTRFS_UUID_KEY_SUBVOL:
+		if (memcmp(uuid, subvol_root->root_item.uuid, BTRFS_UUID_SIZE))
+			ret = 1;
+		break;
+	case BTRFS_UUID_KEY_RECEIVED_SUBVOL:
+		if (memcmp(uuid, subvol_root->root_item.received_uuid,
+			   BTRFS_UUID_SIZE))
+			ret = 1;
+		break;
+	}
+	btrfs_put_root(subvol_root);
+out:
+	return ret;
+}
+
+int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root = fs_info->uuid_root;
 	struct btrfs_key key;
@@ -278,6 +318,10 @@ again_search_slot:
 	}
 
 	while (1) {
+		if (btrfs_fs_closing(fs_info)) {
+			ret = -EINTR;
+			goto out;
+		}
 		cond_resched();
 		leaf = path->nodes[0];
 		slot = path->slots[0];
@@ -305,7 +349,8 @@ again_search_slot:
 			read_extent_buffer(leaf, &subid_le, offset,
 					   sizeof(subid_le));
 			subid_cpu = le64_to_cpu(subid_le);
-			ret = check_func(fs_info, uuid, key.type, subid_cpu);
+			ret = btrfs_check_uuid_tree_entry(fs_info, uuid,
+							  key.type, subid_cpu);
 			if (ret < 0)
 				goto out;
 			if (ret > 0) {
@@ -324,6 +369,8 @@ again_search_slot:
 				}
 				if (ret < 0 && ret != -ENOENT)
 					goto out;
+				key.offset++;
+				goto again_search_slot;
 			}
 			item_size -= sizeof(subid_le);
 			offset += sizeof(subid_le);

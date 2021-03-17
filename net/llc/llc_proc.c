@@ -56,7 +56,7 @@ found:
 	return sk;
 }
 
-static void *llc_seq_start(struct seq_file *seq, loff_t *pos)
+static void *llc_seq_start(struct seq_file *seq, loff_t *pos) __acquires(RCU)
 {
 	loff_t l = *pos;
 

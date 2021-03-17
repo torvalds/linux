@@ -33,13 +33,7 @@ static inline mm_segment_t get_fs(void)
 	return USER_DS;
 }
 
-static inline mm_segment_t get_ds(void)
-{
-	/* return the supervisor data space code */
-	return KERNEL_DS;
-}
-
-#define segment_eq(a, b)	((a).seg == (b).seg)
+#define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
 
 #endif /* __ASSEMBLY__ */
 

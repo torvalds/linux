@@ -34,19 +34,19 @@
 #include <linux/module.h>
 #include <linux/hardirq.h>
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include <rdma/ib_verbs.h>
 #include <linux/mlx5/cq.h>
 #include "mlx5_core.h"
+#include "lib/eq.h"
 
 #define TASKLET_MAX_TIME 2
 #define TASKLET_MAX_TIME_JIFFIES msecs_to_jiffies(TASKLET_MAX_TIME)
 
-void mlx5_cq_tasklet_cb(unsigned long data)
+void mlx5_cq_tasklet_cb(struct tasklet_struct *t)
 {
 	unsigned long flags;
 	unsigned long end = jiffies + TASKLET_MAX_TIME_JIFFIES;
-	struct mlx5_eq_tasklet *ctx = (struct mlx5_eq_tasklet *)data;
+	struct mlx5_eq_tasklet *ctx = from_tasklet(ctx, t, task);
 	struct mlx5_core_cq *mcq;
 	struct mlx5_core_cq *temp;
 
@@ -57,7 +57,7 @@ void mlx5_cq_tasklet_cb(unsigned long data)
 	list_for_each_entry_safe(mcq, temp, &ctx->process_list,
 				 tasklet_ctx.list) {
 		list_del_init(&mcq->tasklet_ctx.list);
-		mcq->tasklet_ctx.comp(mcq);
+		mcq->tasklet_ctx.comp(mcq, NULL);
 		mlx5_cq_put(mcq);
 		if (time_after(jiffies, end))
 			break;
@@ -67,7 +67,8 @@ void mlx5_cq_tasklet_cb(unsigned long data)
 		tasklet_schedule(&ctx->task);
 }
 
-static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq)
+static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
+				   struct mlx5_eqe *eqe)
 {
 	unsigned long flags;
 	struct mlx5_eq_tasklet *tasklet_ctx = cq->tasklet_ctx.priv;
@@ -86,22 +87,20 @@ static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq)
 }
 
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			u32 *in, int inlen)
+			u32 *in, int inlen, u32 *out, int outlen)
 {
 	int eqn = MLX5_GET(cqc, MLX5_ADDR_OF(create_cq_in, in, cq_context), c_eqn);
-	u32 dout[MLX5_ST_SZ_DW(destroy_cq_out)];
-	u32 out[MLX5_ST_SZ_DW(create_cq_out)];
-	u32 din[MLX5_ST_SZ_DW(destroy_cq_in)];
-	struct mlx5_eq *eq;
+	u32 din[MLX5_ST_SZ_DW(destroy_cq_in)] = {};
+	struct mlx5_eq_comp *eq;
 	int err;
 
-	eq = mlx5_eqn2eq(dev, eqn);
+	eq = mlx5_eqn2comp_eq(dev, eqn);
 	if (IS_ERR(eq))
 		return PTR_ERR(eq);
 
-	memset(out, 0, sizeof(out));
+	memset(out, 0, outlen);
 	MLX5_SET(create_cq_in, in, opcode, MLX5_CMD_OP_CREATE_CQ);
-	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
 	if (err)
 		return err;
 
@@ -109,6 +108,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	cq->cons_index = 0;
 	cq->arm_sn     = 0;
 	cq->eq         = eq;
+	cq->uid = MLX5_GET(create_cq_in, in, uid);
 	refcount_set(&cq->refcount, 1);
 	init_completion(&cq->free);
 	if (!cq->comp)
@@ -118,12 +118,12 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	INIT_LIST_HEAD(&cq->tasklet_ctx.list);
 
 	/* Add to comp EQ CQ tree to recv comp events */
-	err = mlx5_eq_add_cq(eq, cq);
+	err = mlx5_eq_add_cq(&eq->core, cq);
 	if (err)
 		goto err_cmd;
 
 	/* Add to async EQ CQ tree to recv async events */
-	err = mlx5_eq_add_cq(&dev->priv.eq_table.async_eq, cq);
+	err = mlx5_eq_add_cq(mlx5_get_async_eq(dev), cq);
 	if (err)
 		goto err_cq_add;
 
@@ -138,34 +138,28 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	return 0;
 
 err_cq_add:
-	mlx5_eq_del_cq(eq, cq);
+	mlx5_eq_del_cq(&eq->core, cq);
 err_cmd:
-	memset(din, 0, sizeof(din));
-	memset(dout, 0, sizeof(dout));
 	MLX5_SET(destroy_cq_in, din, opcode, MLX5_CMD_OP_DESTROY_CQ);
 	MLX5_SET(destroy_cq_in, din, cqn, cq->cqn);
-	mlx5_cmd_exec(dev, din, sizeof(din), dout, sizeof(dout));
+	MLX5_SET(destroy_cq_in, din, uid, cq->uid);
+	mlx5_cmd_exec_in(dev, destroy_cq, din);
 	return err;
 }
 EXPORT_SYMBOL(mlx5_core_create_cq);
 
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 {
-	u32 out[MLX5_ST_SZ_DW(destroy_cq_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(destroy_cq_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(destroy_cq_in)] = {};
 	int err;
 
-	err = mlx5_eq_del_cq(&dev->priv.eq_table.async_eq, cq);
-	if (err)
-		return err;
-
-	err = mlx5_eq_del_cq(cq->eq, cq);
-	if (err)
-		return err;
+	mlx5_eq_del_cq(mlx5_get_async_eq(dev), cq);
+	mlx5_eq_del_cq(&cq->eq->core, cq);
 
 	MLX5_SET(destroy_cq_in, in, opcode, MLX5_CMD_OP_DESTROY_CQ);
 	MLX5_SET(destroy_cq_in, in, cqn, cq->cqn);
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	MLX5_SET(destroy_cq_in, in, uid, cq->uid);
+	err = mlx5_cmd_exec_in(dev, destroy_cq, in);
 	if (err)
 		return err;
 
@@ -180,22 +174,23 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 EXPORT_SYMBOL(mlx5_core_destroy_cq);
 
 int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-		       u32 *out, int outlen)
+		       u32 *out)
 {
-	u32 in[MLX5_ST_SZ_DW(query_cq_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_cq_in)] = {};
 
 	MLX5_SET(query_cq_in, in, opcode, MLX5_CMD_OP_QUERY_CQ);
 	MLX5_SET(query_cq_in, in, cqn, cq->cqn);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
+	return mlx5_cmd_exec_inout(dev, query_cq, in, out);
 }
 EXPORT_SYMBOL(mlx5_core_query_cq);
 
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			u32 *in, int inlen)
 {
-	u32 out[MLX5_ST_SZ_DW(modify_cq_out)] = {0};
+	u32 out[MLX5_ST_SZ_DW(modify_cq_out)] = {};
 
 	MLX5_SET(modify_cq_in, in, opcode, MLX5_CMD_OP_MODIFY_CQ);
+	MLX5_SET(modify_cq_in, in, uid, cq->uid);
 	return mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_modify_cq);
@@ -205,7 +200,7 @@ int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
 				   u16 cq_period,
 				   u16 cq_max_count)
 {
-	u32 in[MLX5_ST_SZ_DW(modify_cq_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(modify_cq_in)] = {};
 	void *cqc;
 
 	MLX5_SET(modify_cq_in, in, cqn, cq->cqn);

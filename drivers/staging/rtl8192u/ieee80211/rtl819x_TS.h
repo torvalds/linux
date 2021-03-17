@@ -78,8 +78,8 @@ struct ts_common_info {
 struct tx_ts_record {
 	struct ts_common_info		ts_common_info;
 	u16				tx_cur_seq;
-	BA_RECORD			tx_pending_ba_record;
-	BA_RECORD			tx_admitted_ba_record;
+	struct ba_record		tx_pending_ba_record;
+	struct ba_record		tx_admitted_ba_record;
 	u8				add_ba_req_in_progress;
 	u8				add_ba_req_delayed;
 	u8				using_ba;
@@ -93,7 +93,7 @@ struct rx_ts_record {
 	u16				rx_timeout_indicate_seq;
 	struct list_head		rx_pending_pkt_list;
 	struct timer_list		rx_pkt_pending_timer;
-	BA_RECORD			rx_admitted_ba_record;
+	struct ba_record		rx_admitted_ba_record;
 	u16				rx_last_seq_num;
 	u8				rx_last_frag_num;
 	u8				num;

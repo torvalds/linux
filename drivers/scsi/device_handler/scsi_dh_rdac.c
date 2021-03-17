@@ -546,6 +546,8 @@ static void send_mode_select(struct work_struct *work)
 	spin_unlock(&ctlr->ms_lock);
 
  retry:
+	memset(cdb, 0, sizeof(cdb));
+
 	data_size = rdac_failover_get(ctlr, &list, cdb);
 
 	RDAC_LOG(RDAC_LOG_FAILOVER, sdev, "array %s, ctlr %d, "
@@ -642,17 +644,16 @@ done:
 	return 0;
 }
 
-static int rdac_prep_fn(struct scsi_device *sdev, struct request *req)
+static blk_status_t rdac_prep_fn(struct scsi_device *sdev, struct request *req)
 {
 	struct rdac_dh_data *h = sdev->handler_data;
-	int ret = BLKPREP_OK;
 
 	if (h->state != RDAC_STATE_ACTIVE) {
-		ret = BLKPREP_KILL;
 		req->rq_flags |= RQF_QUIET;
+		return BLK_STS_IOERR;
 	}
-	return ret;
 
+	return BLK_STS_OK;
 }
 
 static int rdac_check_sense(struct scsi_device *sdev,

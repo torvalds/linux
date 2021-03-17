@@ -1,14 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Processor cache information made available to userspace via sysfs;
  * intended to be compatible with x86 intel_cacheinfo implementation.
  *
  * Copyright 2008 IBM Corporation
  * Author: Nathan Lynch
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
  */
+
+#define pr_fmt(fmt) "cacheinfo: " fmt
 
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
@@ -20,6 +19,8 @@
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <asm/prom.h>
+#include <asm/cputhreads.h>
+#include <asm/smp.h>
 
 #include "cacheinfo.h"
 
@@ -167,7 +168,7 @@ static void release_cache_debugcheck(struct cache *cache)
 
 	list_for_each_entry(iter, &cache_list, list)
 		WARN_ONCE(iter->next_local == cache,
-			  "cache for %pOF(%s) refers to cache for %pOF(%s)\n",
+			  "cache for %pOFP(%s) refers to cache for %pOFP(%s)\n",
 			  iter->ofnode,
 			  cache_type_string(iter),
 			  cache->ofnode,
@@ -179,7 +180,7 @@ static void release_cache(struct cache *cache)
 	if (!cache)
 		return;
 
-	pr_debug("freeing L%d %s cache for %pOF\n", cache->level,
+	pr_debug("freeing L%d %s cache for %pOFP\n", cache->level,
 		 cache_type_string(cache), cache->ofnode);
 
 	release_cache_debugcheck(cache);
@@ -194,7 +195,7 @@ static void cache_cpu_set(struct cache *cache, int cpu)
 
 	while (next) {
 		WARN_ONCE(cpumask_test_cpu(cpu, &next->shared_cpu_map),
-			  "CPU %i already accounted in %pOF(%s)\n",
+			  "CPU %i already accounted in %pOFP(%s)\n",
 			  cpu, next->ofnode,
 			  cache_type_string(next));
 		cpumask_set_cpu(cpu, &next->shared_cpu_map);
@@ -351,11 +352,9 @@ static int cache_is_unified_d(const struct device_node *np)
 		CACHE_TYPE_UNIFIED_D : CACHE_TYPE_UNIFIED;
 }
 
-/*
- */
 static struct cache *cache_do_one_devnode_unified(struct device_node *node, int level)
 {
-	pr_debug("creating L%d ucache for %pOF\n", level, node);
+	pr_debug("creating L%d ucache for %pOFP\n", level, node);
 
 	return new_cache(cache_is_unified_d(node), level, node);
 }
@@ -365,7 +364,7 @@ static struct cache *cache_do_one_devnode_split(struct device_node *node,
 {
 	struct cache *dcache, *icache;
 
-	pr_debug("creating L%d dcache and icache for %pOF\n", level,
+	pr_debug("creating L%d dcache and icache for %pOFP\n", level,
 		 node);
 
 	dcache = new_cache(CACHE_TYPE_DATA, level, node);
@@ -421,12 +420,27 @@ static void link_cache_lists(struct cache *smaller, struct cache *bigger)
 	}
 
 	smaller->next_local = bigger;
+
+	/*
+	 * The cache->next_local list sorts by level ascending:
+	 * L1d -> L1i -> L2 -> L3 ...
+	 */
+	WARN_ONCE((smaller->level == 1 && bigger->level > 2) ||
+		  (smaller->level > 1 && bigger->level != smaller->level + 1),
+		  "linking L%i cache %pOFP to L%i cache %pOFP; skipped a level?\n",
+		  smaller->level, smaller->ofnode, bigger->level, bigger->ofnode);
 }
 
 static void do_subsidiary_caches_debugcheck(struct cache *cache)
 {
-	WARN_ON_ONCE(cache->level != 1);
-	WARN_ON_ONCE(strcmp(cache->ofnode->type, "cpu"));
+	WARN_ONCE(cache->level != 1,
+		  "instantiating cache chain from L%d %s cache for "
+		  "%pOFP instead of an L1\n", cache->level,
+		  cache_type_string(cache), cache->ofnode);
+	WARN_ONCE(!of_node_is_type(cache->ofnode, "cpu"),
+		  "instantiating cache chain from node %pOFP of type '%s' "
+		  "instead of a cpu node\n", cache->ofnode,
+		  of_node_get_device_type(cache->ofnode));
 }
 
 static void do_subsidiary_caches(struct cache *cache)
@@ -627,24 +641,65 @@ static ssize_t level_show(struct kobject *k, struct kobj_attribute *attr, char *
 static struct kobj_attribute cache_level_attr =
 	__ATTR(level, 0444, level_show, NULL);
 
-static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
+static unsigned int index_dir_to_cpu(struct cache_index_dir *index)
+{
+	struct kobject *index_dir_kobj = &index->kobj;
+	struct kobject *cache_dir_kobj = index_dir_kobj->parent;
+	struct kobject *cpu_dev_kobj = cache_dir_kobj->parent;
+	struct device *dev = kobj_to_dev(cpu_dev_kobj);
+
+	return dev->id;
+}
+
+/*
+ * On big-core systems, each core has two groups of CPUs each of which
+ * has its own L1-cache. The thread-siblings which share l1-cache with
+ * @cpu can be obtained via cpu_smallcore_mask().
+ */
+static const struct cpumask *get_big_core_shared_cpu_map(int cpu, struct cache *cache)
+{
+	if (cache->level == 1)
+		return cpu_smallcore_mask(cpu);
+
+	return &cache->shared_cpu_map;
+}
+
+static ssize_t
+show_shared_cpumap(struct kobject *k, struct kobj_attribute *attr, char *buf, bool list)
 {
 	struct cache_index_dir *index;
 	struct cache *cache;
-	int ret;
+	const struct cpumask *mask;
+	int cpu;
 
 	index = kobj_to_cache_index_dir(k);
 	cache = index->cache;
 
-	ret = scnprintf(buf, PAGE_SIZE - 1, "%*pb\n",
-			cpumask_pr_args(&cache->shared_cpu_map));
-	buf[ret++] = '\n';
-	buf[ret] = '\0';
-	return ret;
+	if (has_big_cores) {
+		cpu = index_dir_to_cpu(index);
+		mask = get_big_core_shared_cpu_map(cpu, cache);
+	} else {
+		mask  = &cache->shared_cpu_map;
+	}
+
+	return cpumap_print_to_pagebuf(list, buf, mask);
+}
+
+static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
+{
+	return show_shared_cpumap(k, attr, buf, false);
+}
+
+static ssize_t shared_cpu_list_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
+{
+	return show_shared_cpumap(k, attr, buf, true);
 }
 
 static struct kobj_attribute cache_shared_cpu_map_attr =
 	__ATTR(shared_cpu_map, 0444, shared_cpu_map_show, NULL);
+
+static struct kobj_attribute cache_shared_cpu_list_attr =
+	__ATTR(shared_cpu_list, 0444, shared_cpu_list_show, NULL);
 
 /* Attributes which should always be created -- the kobject/sysfs core
  * does this automatically via kobj_type->default_attrs.  This is the
@@ -654,6 +709,7 @@ static struct attribute *cache_index_default_attrs[] = {
 	&cache_type_attr.attr,
 	&cache_level_attr.attr,
 	&cache_shared_cpu_map_attr.attr,
+	&cache_shared_cpu_list_attr.attr,
 	NULL,
 };
 
@@ -705,13 +761,13 @@ static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)
 		rc = attr->show(&dir->kobj, attr, buf);
 		if (rc <= 0) {
 			pr_debug("not creating %s attribute for "
-				 "%pOF(%s) (rc = %zd)\n",
+				 "%pOFP(%s) (rc = %zd)\n",
 				 attr->attr.name, cache->ofnode,
 				 cache_type, rc);
 			continue;
 		}
 		if (sysfs_create_file(&dir->kobj, &attr->attr))
-			pr_debug("could not create %s attribute for %pOF(%s)\n",
+			pr_debug("could not create %s attribute for %pOFP(%s)\n",
 				 attr->attr.name, cache->ofnode, cache_type);
 	}
 
@@ -726,23 +782,21 @@ static void cacheinfo_create_index_dir(struct cache *cache, int index,
 
 	index_dir = kzalloc(sizeof(*index_dir), GFP_KERNEL);
 	if (!index_dir)
-		goto err;
+		return;
 
 	index_dir->cache = cache;
 
 	rc = kobject_init_and_add(&index_dir->kobj, &cache_index_type,
 				  cache_dir->kobj, "index%d", index);
-	if (rc)
-		goto err;
+	if (rc) {
+		kobject_put(&index_dir->kobj);
+		return;
+	}
 
 	index_dir->next = cache_dir->index;
 	cache_dir->index = index_dir;
 
 	cacheinfo_create_index_opt_attrs(index_dir);
-
-	return;
-err:
-	kfree(index_dir);
 }
 
 static void cacheinfo_sysfs_populate(unsigned int cpu_id,
@@ -829,7 +883,7 @@ static void cache_cpu_clear(struct cache *cache, int cpu)
 		struct cache *next = cache->next_local;
 
 		WARN_ONCE(!cpumask_test_cpu(cpu, &cache->shared_cpu_map),
-			  "CPU %i not accounted in %pOF(%s)\n",
+			  "CPU %i not accounted in %pOFP(%s)\n",
 			  cpu, cache->ofnode,
 			  cache_type_string(cache));
 
@@ -865,4 +919,25 @@ void cacheinfo_cpu_offline(unsigned int cpu_id)
 	if (cache)
 		cache_cpu_clear(cache, cpu_id);
 }
+
+void cacheinfo_teardown(void)
+{
+	unsigned int cpu;
+
+	lockdep_assert_cpus_held();
+
+	for_each_online_cpu(cpu)
+		cacheinfo_cpu_offline(cpu);
+}
+
+void cacheinfo_rebuild(void)
+{
+	unsigned int cpu;
+
+	lockdep_assert_cpus_held();
+
+	for_each_online_cpu(cpu)
+		cacheinfo_cpu_online(cpu);
+}
+
 #endif /* (CONFIG_PPC_PSERIES && CONFIG_SUSPEND) || CONFIG_HOTPLUG_CPU */

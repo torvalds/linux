@@ -56,7 +56,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -150,8 +150,7 @@
 
 		gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -174,8 +173,7 @@
 
 		gpios = <&gpio5 30 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	audio_clock: audio_clock {
@@ -325,10 +323,10 @@
 		#size-cells = <0>;
 	};
 
-        /*
-         * IIC2 and I2C2 may be switched using pinmux.
-         * A fallback to GPIO is also provided.
-         */
+	/*
+	 * IIC2 and I2C2 may be switched using pinmux.
+	 * A fallback to GPIO is also provided.
+	 */
 	i2chdmi: i2c-12 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&iic2>, <&i2c2>, <&gpioi2c2>;
@@ -345,7 +343,6 @@
 		composite-in@20 {
 			compatible = "adi,adv7180";
 			reg = <0x20>;
-			remote = <&vin1>;
 
 			port {
 				adv7180: endpoint {
@@ -366,8 +363,6 @@
 			adi,input-depth = <8>;
 			adi,input-colorspace = "rgb";
 			adi,input-clock = "1x";
-			adi,input-style = <1>;
-			adi,input-justification = "evenly";
 
 			ports {
 				#address-cells = <1>;
@@ -423,6 +418,8 @@
 	 */
 	i2cpwr: i2c-13 {
 		compatible = "i2c-demux-pinctrl";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_irq_pins>;
 		i2c-parent = <&iic3>, <&i2c3>;
 		i2c-bus-name = "i2c-pwr";
 		#address-cells = <1>;
@@ -489,8 +486,6 @@
 };
 
 &lvds1 {
-	status = "okay";
-
 	ports {
 		port@1 {
 			lvds_connector: endpoint {
@@ -617,6 +612,11 @@
 		function = "iic3";
 	};
 
+	pmic_irq_pins: pmicirq {
+		groups = "intc_irq2";
+		function = "intc";
+	};
+
 	hsusb_pins: hsusb {
 		groups = "usb0_ovc_vbus";
 		function = "usb0";
@@ -671,6 +671,7 @@
 		interrupt-parent = <&irqc0>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
+		reset-gpios = <&gpio5 31 GPIO_ACTIVE_LOW>;
 	};
 };
 

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2010 Sascha Hauer <s.hauer@pengutronix.de>
  * Copyright (C) 2005-2009 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 #include <linux/module.h>
 #include <linux/export.h>
@@ -122,86 +113,25 @@ enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat)
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
 		return IPUV3_COLORSPACE_YUV;
-	case V4L2_PIX_FMT_XRGB32:
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_BGR24:
+	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_ABGR32:
 	case V4L2_PIX_FMT_XBGR32:
+	case V4L2_PIX_FMT_BGRA32:
+	case V4L2_PIX_FMT_BGRX32:
+	case V4L2_PIX_FMT_RGBA32:
+	case V4L2_PIX_FMT_RGBX32:
+	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_XRGB32:
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_BGR32:
-	case V4L2_PIX_FMT_RGB24:
-	case V4L2_PIX_FMT_BGR24:
-	case V4L2_PIX_FMT_RGB565:
 		return IPUV3_COLORSPACE_RGB;
 	default:
 		return IPUV3_COLORSPACE_UNKNOWN;
 	}
 }
 EXPORT_SYMBOL_GPL(ipu_pixelformat_to_colorspace);
-
-bool ipu_pixelformat_is_planar(u32 pixelformat)
-{
-	switch (pixelformat) {
-	case V4L2_PIX_FMT_YUV420:
-	case V4L2_PIX_FMT_YVU420:
-	case V4L2_PIX_FMT_YUV422P:
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV21:
-	case V4L2_PIX_FMT_NV16:
-	case V4L2_PIX_FMT_NV61:
-		return true;
-	}
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(ipu_pixelformat_is_planar);
-
-enum ipu_color_space ipu_mbus_code_to_colorspace(u32 mbus_code)
-{
-	switch (mbus_code & 0xf000) {
-	case 0x1000:
-		return IPUV3_COLORSPACE_RGB;
-	case 0x2000:
-		return IPUV3_COLORSPACE_YUV;
-	default:
-		return IPUV3_COLORSPACE_UNKNOWN;
-	}
-}
-EXPORT_SYMBOL_GPL(ipu_mbus_code_to_colorspace);
-
-int ipu_stride_to_bytes(u32 pixel_stride, u32 pixelformat)
-{
-	switch (pixelformat) {
-	case V4L2_PIX_FMT_YUV420:
-	case V4L2_PIX_FMT_YVU420:
-	case V4L2_PIX_FMT_YUV422P:
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV21:
-	case V4L2_PIX_FMT_NV16:
-	case V4L2_PIX_FMT_NV61:
-		/*
-		 * for the planar YUV formats, the stride passed to
-		 * cpmem must be the stride in bytes of the Y plane.
-		 * And all the planar YUV formats have an 8-bit
-		 * Y component.
-		 */
-		return (8 * pixel_stride) >> 3;
-	case V4L2_PIX_FMT_RGB565:
-	case V4L2_PIX_FMT_YUYV:
-	case V4L2_PIX_FMT_UYVY:
-		return (16 * pixel_stride) >> 3;
-	case V4L2_PIX_FMT_BGR24:
-	case V4L2_PIX_FMT_RGB24:
-		return (24 * pixel_stride) >> 3;
-	case V4L2_PIX_FMT_BGR32:
-	case V4L2_PIX_FMT_RGB32:
-	case V4L2_PIX_FMT_XBGR32:
-	case V4L2_PIX_FMT_XRGB32:
-		return (32 * pixel_stride) >> 3;
-	default:
-		break;
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(ipu_stride_to_bytes);
 
 int ipu_degrees_to_rot_mode(enum ipu_rotate_mode *mode, int degrees,
 			    bool hflip, bool vflip)
@@ -898,8 +828,8 @@ static struct ipu_devtype ipu_type_imx51 = {
 	.cpmem_ofs = 0x1f000000,
 	.srm_ofs = 0x1f040000,
 	.tpm_ofs = 0x1f060000,
-	.csi0_ofs = 0x1f030000,
-	.csi1_ofs = 0x1f038000,
+	.csi0_ofs = 0x1e030000,
+	.csi1_ofs = 0x1e038000,
 	.ic_ofs = 0x1e020000,
 	.disp0_ofs = 0x1e040000,
 	.disp1_ofs = 0x1e048000,
@@ -914,8 +844,8 @@ static struct ipu_devtype ipu_type_imx53 = {
 	.cpmem_ofs = 0x07000000,
 	.srm_ofs = 0x07040000,
 	.tpm_ofs = 0x07060000,
-	.csi0_ofs = 0x07030000,
-	.csi1_ofs = 0x07038000,
+	.csi0_ofs = 0x06030000,
+	.csi1_ofs = 0x06038000,
 	.ic_ofs = 0x06020000,
 	.disp0_ofs = 0x06040000,
 	.disp1_ofs = 0x06048000,

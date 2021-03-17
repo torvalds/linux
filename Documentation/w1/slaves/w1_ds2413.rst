@@ -1,0 +1,59 @@
+=======================
+Kernel driver w1_ds2413
+=======================
+
+Supported chips:
+
+  * Maxim DS2413 1-Wire Dual Channel Addressable Switch
+
+supported family codes:
+
+        ================        ====
+        W1_FAMILY_DS2413        0x3A
+        ================        ====
+
+Author: Mariusz Bialonczyk <manio@skyboo.net>
+
+Description
+-----------
+
+The DS2413 chip has two open-drain outputs (PIO A and PIO B).
+Support is provided through the sysfs files "output" and "state".
+
+Reading state
+-------------
+The "state" file provides one-byte value which is in the same format as for
+the chip PIO_ACCESS_READ command (refer the datasheet for details):
+
+======== =============================================================
+Bit 0:   PIOA Pin State
+Bit 1:   PIOA Output Latch State
+Bit 2:   PIOB Pin State
+Bit 3:   PIOB Output Latch State
+Bit 4-7: Complement of Bit 3 to Bit 0 (verified by the kernel module)
+======== =============================================================
+
+This file is readonly.
+
+Writing output
+--------------
+You can set the PIO pins using the "output" file.
+It is writable, you can write one-byte value to this sysfs file.
+Similarly the byte format is the same as for the PIO_ACCESS_WRITE command:
+
+======== ======================================
+Bit 0:   PIOA
+Bit 1:   PIOB
+Bit 2-7: No matter (driver will set it to "1"s)
+======== ======================================
+
+
+The chip has some kind of basic protection against transmission errors.
+When reading the state, there is a four complement bits.
+The driver is checking this complement, and when it is wrong then it is
+returning I/O error.
+
+When writing output, the master must repeat the PIO Output Data byte in
+its inverted form and it is waiting for a confirmation.
+If the write is unsuccessful for three times, the write also returns
+I/O error.

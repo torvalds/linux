@@ -23,8 +23,8 @@ install : uninstall
 	install -m 644 config/suspend-x2-proc.cfg $(DESTDIR)$(PREFIX)/lib/pm-graph/config
 
 	install -d  $(DESTDIR)$(PREFIX)/bin
-	ln -s $(DESTDIR)$(PREFIX)/lib/pm-graph/bootgraph.py $(DESTDIR)$(PREFIX)/bin/bootgraph
-	ln -s $(DESTDIR)$(PREFIX)/lib/pm-graph/sleepgraph.py $(DESTDIR)$(PREFIX)/bin/sleepgraph
+	ln -s ../lib/pm-graph/bootgraph.py $(DESTDIR)$(PREFIX)/bin/bootgraph
+	ln -s ../lib/pm-graph/sleepgraph.py $(DESTDIR)$(PREFIX)/bin/sleepgraph
 
 	install -d  $(DESTDIR)$(PREFIX)/share/man/man8
 	install bootgraph.8 $(DESTDIR)$(PREFIX)/share/man/man8
@@ -40,6 +40,10 @@ uninstall :
 	rm -f $(DESTDIR)$(PREFIX)/lib/pm-graph/config/*
 	if [ -d $(DESTDIR)$(PREFIX)/lib/pm-graph/config ] ; then \
 		rmdir $(DESTDIR)$(PREFIX)/lib/pm-graph/config; \
+	fi;
+	rm -f $(DESTDIR)$(PREFIX)/lib/pm-graph/__pycache__/*
+	if [ -d $(DESTDIR)$(PREFIX)/lib/pm-graph/__pycache__ ] ; then \
+		rmdir $(DESTDIR)$(PREFIX)/lib/pm-graph/__pycache__; \
 	fi;
 	rm -f $(DESTDIR)$(PREFIX)/lib/pm-graph/*
 	if [ -d $(DESTDIR)$(PREFIX)/lib/pm-graph ] ; then \

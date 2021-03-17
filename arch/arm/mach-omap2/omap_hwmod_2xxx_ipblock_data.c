@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod_2xxx_ipblock_data.c - common IP block data for OMAP2xxx
  *
  * Copyright (C) 2011 Nokia Corporation
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
-#include <linux/omap-dma.h>
 
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
@@ -96,24 +92,6 @@ static struct omap_hwmod_class_sysconfig omap2xxx_gpio_sysc = {
 struct omap_hwmod_class omap2xxx_gpio_hwmod_class = {
 	.name = "gpio",
 	.sysc = &omap2xxx_gpio_sysc,
-	.rev = 0,
-};
-
-/* system dma */
-static struct omap_hwmod_class_sysconfig omap2xxx_dma_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x002c,
-	.syss_offs	= 0x0028,
-	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_MIDLEMODE |
-			   SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_EMUFREE |
-			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-struct omap_hwmod_class omap2xxx_dma_hwmod_class = {
-	.name	= "dma",
-	.sysc	= &omap2xxx_dma_sysc,
 };
 
 /*
@@ -215,36 +193,6 @@ struct omap_hwmod omap2xxx_mpu_hwmod = {
 struct omap_hwmod omap2xxx_iva_hwmod = {
 	.name		= "iva",
 	.class		= &iva_hwmod_class,
-};
-
-/* timer1 */
-struct omap_hwmod omap2xxx_timer1_hwmod = {
-	.name		= "timer1",
-	.main_clk	= "gpt1_fck",
-	.prcm		= {
-		.omap2 = {
-			.module_offs = WKUP_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP24XX_ST_GPT1_SHIFT,
-		},
-	},
-	.class		= &omap2xxx_timer_hwmod_class,
-	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
-};
-
-/* timer2 */
-struct omap_hwmod omap2xxx_timer2_hwmod = {
-	.name		= "timer2",
-	.main_clk	= "gpt2_fck",
-	.prcm		= {
-		.omap2 = {
-			.module_offs = CORE_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP24XX_ST_GPT2_SHIFT,
-		},
-	},
-	.class		= &omap2xxx_timer_hwmod_class,
-	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer3 */
@@ -615,23 +563,6 @@ struct omap_hwmod omap2xxx_mcspi2_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_mcspi_class,
-};
-
-static struct omap_hwmod_class omap2xxx_counter_hwmod_class = {
-	.name	= "counter",
-};
-
-struct omap_hwmod omap2xxx_counter_32k_hwmod = {
-	.name		= "counter_32k",
-	.main_clk	= "func_32k_ck",
-	.prcm		= {
-		.omap2	= {
-			.module_offs = WKUP_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP24XX_ST_32KSYNC_SHIFT,
-		},
-	},
-	.class		= &omap2xxx_counter_hwmod_class,
 };
 
 /* gpmc */

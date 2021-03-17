@@ -1,30 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* exynos_drm_vidi.c
  *
  * Copyright (C) 2012 Samsung Electronics Co.Ltd
  * Authors:
  *	Inki Dae <inki.dae@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
-#include <drm/drmP.h>
 
+#include <linux/component.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/component.h>
 #include <linux/timer.h>
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
-#include <drm/drm_edid.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_atomic_helper.h>
-
-#include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
@@ -40,8 +35,8 @@
 
 struct vidi_context {
 	struct drm_encoder		encoder;
-	struct platform_device		*pdev;
 	struct drm_device		*drm_dev;
+	struct device			*dev;
 	struct exynos_drm_crtc		*crtc;
 	struct drm_connector		connector;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
@@ -123,10 +118,10 @@ static void vidi_update_plane(struct exynos_drm_crtc *crtc,
 		return;
 
 	addr = exynos_drm_fb_dma_addr(state->fb, 0);
-	DRM_DEBUG_KMS("dma_addr = %pad\n", &addr);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "dma_addr = %pad\n", &addr);
 }
 
-static void vidi_enable(struct exynos_drm_crtc *crtc)
+static void vidi_atomic_enable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
@@ -139,7 +134,7 @@ static void vidi_enable(struct exynos_drm_crtc *crtc)
 	drm_crtc_vblank_on(&crtc->base);
 }
 
-static void vidi_disable(struct exynos_drm_crtc *crtc)
+static void vidi_atomic_disable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
@@ -153,8 +148,8 @@ static void vidi_disable(struct exynos_drm_crtc *crtc)
 }
 
 static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
-	.enable = vidi_enable,
-	.disable = vidi_disable,
+	.atomic_enable = vidi_atomic_enable,
+	.atomic_disable = vidi_atomic_disable,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.update_plane = vidi_update_plane,
@@ -205,11 +200,11 @@ static ssize_t vidi_store_connection(struct device *dev,
 
 	/* if raw_edid isn't same as fake data then it can't be tested. */
 	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
-		DRM_DEBUG_KMS("edid data is not fake data.\n");
+		DRM_DEV_DEBUG_KMS(dev, "edid data is not fake data.\n");
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("requested connection.\n");
+	DRM_DEV_DEBUG_KMS(dev, "requested connection.\n");
 
 	drm_helper_hpd_irq_event(ctx->drm_dev);
 
@@ -219,6 +214,12 @@ static ssize_t vidi_store_connection(struct device *dev,
 static DEVICE_ATTR(connection, 0644, vidi_show_connection,
 			vidi_store_connection);
 
+static struct attribute *vidi_attrs[] = {
+	&dev_attr_connection.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(vidi);
+
 int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 				struct drm_file *file_priv)
 {
@@ -226,17 +227,20 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	struct drm_exynos_vidi_connection *vidi = data;
 
 	if (!vidi) {
-		DRM_DEBUG_KMS("user data for vidi is null.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev,
+				  "user data for vidi is null.\n");
 		return -EINVAL;
 	}
 
 	if (vidi->connection > 1) {
-		DRM_DEBUG_KMS("connection should be 0 or 1.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev,
+				  "connection should be 0 or 1.\n");
 		return -EINVAL;
 	}
 
 	if (ctx->connected == vidi->connection) {
-		DRM_DEBUG_KMS("same connection request.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev,
+				  "same connection request.\n");
 		return -EINVAL;
 	}
 
@@ -245,12 +249,14 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 
 		raw_edid = (struct edid *)(unsigned long)vidi->edid;
 		if (!drm_edid_is_valid(raw_edid)) {
-			DRM_DEBUG_KMS("edid data is invalid.\n");
+			DRM_DEV_DEBUG_KMS(ctx->dev,
+					  "edid data is invalid.\n");
 			return -EINVAL;
 		}
 		ctx->raw_edid = drm_edid_duplicate(raw_edid);
 		if (!ctx->raw_edid) {
-			DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
+			DRM_DEV_DEBUG_KMS(ctx->dev,
+					  "failed to allocate raw_edid.\n");
 			return -ENOMEM;
 		}
 	} else {
@@ -308,14 +314,14 @@ static int vidi_get_modes(struct drm_connector *connector)
 	 * to ctx->raw_edid through specific ioctl.
 	 */
 	if (!ctx->raw_edid) {
-		DRM_DEBUG_KMS("raw_edid is null.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev, "raw_edid is null.\n");
 		return -EFAULT;
 	}
 
 	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
 	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
 	if (!edid) {
-		DRM_DEBUG_KMS("failed to allocate edid\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev, "failed to allocate edid\n");
 		return -ENOMEM;
 	}
 
@@ -339,7 +345,8 @@ static int vidi_create_connector(struct drm_encoder *encoder)
 	ret = drm_connector_init(ctx->drm_dev, connector,
 			&vidi_connector_funcs, DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) {
-		DRM_ERROR("Failed to initialize connector with drm\n");
+		DRM_DEV_ERROR(ctx->dev,
+			      "Failed to initialize connector with drm\n");
 		return ret;
 	}
 
@@ -367,10 +374,6 @@ static const struct drm_encoder_helper_funcs exynos_vidi_encoder_helper_funcs = 
 	.mode_set = exynos_vidi_mode_set,
 	.enable = exynos_vidi_enable,
 	.disable = exynos_vidi_disable,
-};
-
-static const struct drm_encoder_funcs exynos_vidi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
 };
 
 static int vidi_bind(struct device *dev, struct device *master, void *data)
@@ -402,12 +405,11 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 			EXYNOS_DISPLAY_TYPE_VIDI, &vidi_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
-		DRM_ERROR("failed to create crtc.\n");
+		DRM_DEV_ERROR(dev, "failed to create crtc.\n");
 		return PTR_ERR(ctx->crtc);
 	}
 
-	drm_encoder_init(drm_dev, encoder, &exynos_vidi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	drm_encoder_helper_add(encoder, &exynos_vidi_encoder_helper_funcs);
 
@@ -417,7 +419,8 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = vidi_create_connector(encoder);
 	if (ret) {
-		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		DRM_DEV_ERROR(dev, "failed to create connector ret = %d\n",
+			      ret);
 		drm_encoder_cleanup(encoder);
 		return ret;
 	}
@@ -441,13 +444,13 @@ static const struct component_ops vidi_component_ops = {
 static int vidi_probe(struct platform_device *pdev)
 {
 	struct vidi_context *ctx;
-	int ret;
+	struct device *dev = &pdev->dev;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->pdev = pdev;
+	ctx->dev = dev;
 
 	timer_setup(&ctx->timer, vidi_fake_vblank_timer, 0);
 
@@ -455,22 +458,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = device_create_file(&pdev->dev, &dev_attr_connection);
-	if (ret < 0) {
-		DRM_ERROR("failed to create connection sysfs.\n");
-		return ret;
-	}
-
-	ret = component_add(&pdev->dev, &vidi_component_ops);
-	if (ret)
-		goto err_remove_file;
-
-	return ret;
-
-err_remove_file:
-	device_remove_file(&pdev->dev, &dev_attr_connection);
-
-	return ret;
+	return component_add(dev, &vidi_component_ops);
 }
 
 static int vidi_remove(struct platform_device *pdev)
@@ -495,5 +483,6 @@ struct platform_driver vidi_driver = {
 	.driver		= {
 		.name	= "exynos-drm-vidi",
 		.owner	= THIS_MODULE,
+		.dev_groups = vidi_groups,
 	},
 };

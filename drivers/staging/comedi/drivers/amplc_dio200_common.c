@@ -4,7 +4,7 @@
  *
  * Common support code for "amplc_dio200" and "amplc_dio200_pci".
  *
- * Copyright (C) 2005-2013 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2005-2013 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>
@@ -44,18 +44,6 @@ static unsigned char clk_gat_sce(unsigned int which, unsigned int chan,
 {
 	return (which << 5) | (chan << 3) |
 	       ((source & 030) << 3) | (source & 007);
-}
-
-static unsigned char clk_sce(unsigned int which, unsigned int chan,
-			     unsigned int source)
-{
-	return clk_gat_sce(which, chan, source);
-}
-
-static unsigned char gat_sce(unsigned int which, unsigned int chan,
-			     unsigned int source)
-{
-	return clk_gat_sce(which, chan, source);
 }
 
 /*
@@ -489,7 +477,7 @@ static void dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 	unsigned int offset = dio200_subdev_8254_offset(dev, s);
 
 	dio200_write8(dev, DIO200_GAT_SCE(offset >> 3),
-		      gat_sce((offset >> 2) & 1, chan, src));
+		      clk_gat_sce((offset >> 2) & 1, chan, src));
 }
 
 static void dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
@@ -500,7 +488,7 @@ static void dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 	unsigned int offset = dio200_subdev_8254_offset(dev, s);
 
 	dio200_write8(dev, DIO200_CLK_SCE(offset >> 3),
-		      clk_sce((offset >> 2) & 1, chan, src));
+		      clk_gat_sce((offset >> 2) & 1, chan, src));
 }
 
 static int dio200_subdev_8254_config(struct comedi_device *dev,
@@ -865,6 +853,6 @@ static void __exit amplc_dio200_common_exit(void)
 }
 module_exit(amplc_dio200_common_exit);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi helper for amplc_dio200 and amplc_dio200_pci");
 MODULE_LICENSE("GPL");

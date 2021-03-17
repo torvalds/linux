@@ -14,7 +14,6 @@
 #include <api/fs/fs.h>
 #include "trace-event.h"
 #include "machine.h"
-#include "util.h"
 
 /*
  * global trace_event object used by trace_event__tp_format
@@ -40,7 +39,7 @@ int trace_event__init(struct trace_event *t)
 
 static int trace_event__init2(void)
 {
-	int be = tep_host_bigendian();
+	int be = tep_is_bigendian();
 	struct tep_handle *pevent;
 
 	if (trace_event__init(&tevent))
@@ -49,7 +48,7 @@ static int trace_event__init2(void)
 	pevent = tevent.pevent;
 	tep_set_flag(pevent, TEP_NSEC_OUTPUT);
 	tep_set_file_bigendian(pevent, be);
-	tep_set_host_bigendian(pevent, be);
+	tep_set_local_bigendian(pevent, be);
 	tevent_initialized = true;
 	return 0;
 }
@@ -72,12 +71,12 @@ void trace_event__cleanup(struct trace_event *t)
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
  */
-static struct event_format*
+static struct tep_event*
 tp_format(const char *sys, const char *name)
 {
 	char *tp_dir = get_events_file(sys);
 	struct tep_handle *pevent = tevent.pevent;
-	struct event_format *event = NULL;
+	struct tep_event *event = NULL;
 	char path[PATH_MAX];
 	size_t size;
 	char *data;
@@ -102,7 +101,7 @@ tp_format(const char *sys, const char *name)
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
  */
-struct event_format*
+struct tep_event*
 trace_event__tp_format(const char *sys, const char *name)
 {
 	if (!tevent_initialized && trace_event__init2())
@@ -111,7 +110,7 @@ trace_event__tp_format(const char *sys, const char *name)
 	return tp_format(sys, name);
 }
 
-struct event_format *trace_event__tp_format_id(int id)
+struct tep_event *trace_event__tp_format_id(int id)
 {
 	if (!tevent_initialized && trace_event__init2())
 		return ERR_PTR(-ENOMEM);

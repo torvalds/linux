@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Verify the signature on a PKCS#7 message.
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "PKCS7: "fmt
@@ -16,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/asn1.h>
 #include <crypto/hash.h>
+#include <crypto/hash_info.h>
 #include <crypto/public_key.h>
 #include "pkcs7_parser.h"
 
@@ -32,6 +29,10 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 	int ret;
 
 	kenter(",%u,%s", sinfo->index, sinfo->sig->hash_algo);
+
+	/* The digest was calculated already. */
+	if (sig->digest)
+		return 0;
 
 	if (!sinfo->sig->hash_algo)
 		return -ENOPKG;
@@ -56,7 +57,6 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 		goto error_no_desc;
 
 	desc->tfm   = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	/* Digest the message [RFC2315 9.3] */
 	ret = crypto_shash_digest(desc, pkcs7->data, pkcs7->data_len,
@@ -120,6 +120,34 @@ error_no_desc:
 	crypto_free_shash(tfm);
 	kleave(" = %d", ret);
 	return ret;
+}
+
+int pkcs7_get_digest(struct pkcs7_message *pkcs7, const u8 **buf, u32 *len,
+		     enum hash_algo *hash_algo)
+{
+	struct pkcs7_signed_info *sinfo = pkcs7->signed_infos;
+	int i, ret;
+
+	/*
+	 * This function doesn't support messages with more than one signature.
+	 */
+	if (sinfo == NULL || sinfo->next != NULL)
+		return -EBADMSG;
+
+	ret = pkcs7_digest(pkcs7, sinfo);
+	if (ret)
+		return ret;
+
+	*buf = sinfo->sig->digest;
+	*len = sinfo->sig->digest_size;
+
+	for (i = 0; i < HASH_ALGO__LAST; i++)
+		if (!strcmp(hash_algo_name[i], sinfo->sig->hash_algo)) {
+			*hash_algo = i;
+			break;
+		}
+
+	return 0;
 }
 
 /*

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
  *
  *	See the file "skfddi.c" for further information.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -23,10 +19,6 @@
 
 #define KERNEL
 #include "h/smtstate.h"
-
-#ifndef	lint
-static const char ID_sccs[] = "@(#)smt.c	2.43 98/11/23 (C) SK " ;
-#endif
 
 /*
  * FC in SMbuf
@@ -524,8 +516,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	 * ignore any packet with NSA and A-indicator set
 	 */
 	if ( (fs & A_INDICATOR) && m_fc(mb) == FC_SMT_NSA) {
-		DB_SMT("SMT : ignoring NSA with A-indicator set from %s",
-		       addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : ignoring NSA with A-indicator set from %pM",
+		       &sm->smt_source);
 		smt_free_mbuf(smc,mb) ;
 		return ;
 	}
@@ -556,8 +548,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		break ;
 	}
 	if (illegal) {
-		DB_SMT("SMT : version = %d, dest = %s",
-		       sm->smt_version, addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : version = %d, dest = %pM",
+		       sm->smt_version, &sm->smt_source);
 		smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_VERSION,local) ;
 		smt_free_mbuf(smc,mb) ;
 		return ;
@@ -586,8 +578,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 				if (!is_equal(
 					&smc->mib.m[MAC0].fddiMACUpstreamNbr,
 					&sm->smt_source)) {
-					DB_SMT("SMT : updated my UNA = %s",
-					       addr_to_string(&sm->smt_source));
+					DB_SMT("SMT : updated my UNA = %pM",
+					       &sm->smt_source);
 					if (!is_equal(&smc->mib.m[MAC0].
 					    fddiMACUpstreamNbr,&SMT_Unknown)){
 					 /* Do not update unknown address */
@@ -616,8 +608,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 			    is_individual(&sm->smt_source) &&
 			    ((!(fs & A_INDICATOR) && m_fc(mb) == FC_SMT_NSA) ||
 			     (m_fc(mb) != FC_SMT_NSA))) {
-				DB_SMT("SMT : replying to NIF request %s",
-				       addr_to_string(&sm->smt_source));
+				DB_SMT("SMT : replying to NIF request %pM",
+				       &sm->smt_source);
 				smt_send_nif(smc,&sm->smt_source,
 					FC_SMT_INFO,
 					sm->smt_tid,
@@ -625,8 +617,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 			}
 			break ;
 		case SMT_REPLY :
-			DB_SMT("SMT : received NIF response from %s",
-			       addr_to_string(&sm->smt_source));
+			DB_SMT("SMT : received NIF response from %pM",
+			       &sm->smt_source);
 			if (fs & A_INDICATOR) {
 				smc->sm.pend[SMT_TID_NIF] = 0 ;
 				DB_SMT("SMT : duplicate address");
@@ -686,23 +678,23 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	case SMT_SIF_CONFIG :	/* station information */
 		if (sm->smt_type != SMT_REQUEST)
 			break ;
-		DB_SMT("SMT : replying to SIF Config request from %s",
-		       addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : replying to SIF Config request from %pM",
+		       &sm->smt_source);
 		smt_send_sif_config(smc,&sm->smt_source,sm->smt_tid,local) ;
 		break ;
 	case SMT_SIF_OPER :	/* station information */
 		if (sm->smt_type != SMT_REQUEST)
 			break ;
-		DB_SMT("SMT : replying to SIF Operation request from %s",
-		       addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : replying to SIF Operation request from %pM",
+		       &sm->smt_source);
 		smt_send_sif_operation(smc,&sm->smt_source,sm->smt_tid,local) ;
 		break ;
 	case SMT_ECF :		/* echo frame */
 		switch (sm->smt_type) {
 		case SMT_REPLY :
 			smc->mib.priv.fddiPRIVECF_Reply_Rx++ ;
-			DB_SMT("SMT: received ECF reply from %s",
-			       addr_to_string(&sm->smt_source));
+			DB_SMT("SMT: received ECF reply from %pM",
+			       &sm->smt_source);
 			if (sm_to_para(smc,sm,SMT_P_ECHODATA) == NULL) {
 				DB_SMT("SMT: ECHODATA missing");
 				break ;
@@ -731,8 +723,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 					local) ;
 				break ;
 			}
-			DB_SMT("SMT - sending ECF reply to %s",
-			       addr_to_string(&sm->smt_source));
+			DB_SMT("SMT - sending ECF reply to %pM",
+			       &sm->smt_source);
 
 			/* set destination addr.  & reply */
 			sm->smt_dest = sm->smt_source ;
@@ -798,8 +790,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		 * we need to send a RDF frame according to 8.1.3.1.1,
 		 * only if it is a REQUEST.
 		 */
-		DB_SMT("SMT : class = %d, send RDF to %s",
-		       sm->smt_class, addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : class = %d, send RDF to %pM",
+		       sm->smt_class, &sm->smt_source);
 
 		smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_CLASS,local) ;
 		break ;
@@ -868,8 +860,8 @@ static void smt_send_rdf(struct s_smc *smc, SMbuf *rej, int fc, int reason,
 	if (sm->smt_type != SMT_REQUEST)
 		return ;
 
-	DB_SMT("SMT: sending RDF to %s,reason = 0x%x",
-	       addr_to_string(&sm->smt_source), reason);
+	DB_SMT("SMT: sending RDF to %pM,reason = 0x%x",
+	       &sm->smt_source, reason);
 
 
 	/*
@@ -1565,7 +1557,7 @@ u_long smt_get_tid(struct s_smc *smc)
 	return tid & 0x3fffffffL;
 }
 
-
+#ifdef	LITTLE_ENDIAN
 /*
  * table of parameter lengths
  */
@@ -1645,6 +1637,7 @@ static const struct smt_pdef {
 } ;
 
 #define N_SMT_PLEN	ARRAY_SIZE(smt_pdef)
+#endif
 
 int smt_check_para(struct s_smc *smc, struct smt_header	*sm,
 		   const u_short list[])
@@ -1716,22 +1709,6 @@ void fddi_send_antc(struct s_smc *smc, struct fddi_addr *dest)
 	smt->smt_source = smc->mib.m[MAC0].fddiMACSMTAddress ;
 	smt_send_mbuf(smc,mb,FC_ASYNC_LLC) ;
 #endif
-}
-#endif
-
-#ifdef	DEBUG
-char *addr_to_string(struct fddi_addr *addr)
-{
-	int	i ;
-	static char	string[6*3] = "****" ;
-
-	for (i = 0 ; i < 6 ; i++) {
-		string[i * 3] = hex_asc_hi(addr->a[i]);
-		string[i * 3 + 1] = hex_asc_lo(addr->a[i]);
-		string[i * 3 + 2] = ':';
-	}
-	string[5 * 3 + 2] = 0;
-	return string;
 }
 #endif
 

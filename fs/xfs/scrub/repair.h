@@ -6,6 +6,8 @@
 #ifndef __XFS_SCRUB_REPAIR_H__
 #define __XFS_SCRUB_REPAIR_H__
 
+#include "xfs_quota_defs.h"
+
 static inline int xrep_notsupported(struct xfs_scrub *sc)
 {
 	return -EOPNOTSUPP;
@@ -15,24 +17,25 @@ static inline int xrep_notsupported(struct xfs_scrub *sc)
 
 /* Repair helpers */
 
-int xrep_attempt(struct xfs_inode *ip, struct xfs_scrub *sc, bool *fixed);
+int xrep_attempt(struct xfs_inode *ip, struct xfs_scrub *sc);
 void xrep_failure(struct xfs_mount *mp);
 int xrep_roll_ag_trans(struct xfs_scrub *sc);
 bool xrep_ag_has_space(struct xfs_perag *pag, xfs_extlen_t nr_blocks,
 		enum xfs_ag_resv_type type);
 xfs_extlen_t xrep_calc_ag_resblks(struct xfs_scrub *sc);
-int xrep_alloc_ag_block(struct xfs_scrub *sc, struct xfs_owner_info *oinfo,
-		xfs_fsblock_t *fsbno, enum xfs_ag_resv_type resv);
+int xrep_alloc_ag_block(struct xfs_scrub *sc,
+		const struct xfs_owner_info *oinfo, xfs_fsblock_t *fsbno,
+		enum xfs_ag_resv_type resv);
 int xrep_init_btblock(struct xfs_scrub *sc, xfs_fsblock_t fsb,
 		struct xfs_buf **bpp, xfs_btnum_t btnum,
 		const struct xfs_buf_ops *ops);
 
-struct xfs_bitmap;
+struct xbitmap;
 
 int xrep_fix_freelist(struct xfs_scrub *sc, bool can_shrink);
-int xrep_invalidate_blocks(struct xfs_scrub *sc, struct xfs_bitmap *btlist);
-int xrep_reap_extents(struct xfs_scrub *sc, struct xfs_bitmap *exlist,
-		struct xfs_owner_info *oinfo, enum xfs_ag_resv_type type);
+int xrep_invalidate_blocks(struct xfs_scrub *sc, struct xbitmap *btlist);
+int xrep_reap_extents(struct xfs_scrub *sc, struct xbitmap *exlist,
+		const struct xfs_owner_info *oinfo, enum xfs_ag_resv_type type);
 
 struct xrep_find_ag_btree {
 	/* in: rmap owner of the btree we're looking for */
@@ -41,9 +44,6 @@ struct xrep_find_ag_btree {
 	/* in: buffer ops */
 	const struct xfs_buf_ops	*buf_ops;
 
-	/* in: magic number of the btree */
-	uint32_t			magic;
-
 	/* out: the highest btree block found and the tree height */
 	xfs_agblock_t			root;
 	unsigned int			height;
@@ -51,7 +51,7 @@ struct xrep_find_ag_btree {
 
 int xrep_find_ag_btree_roots(struct xfs_scrub *sc, struct xfs_buf *agf_bp,
 		struct xrep_find_ag_btree *btree_info, struct xfs_buf *agfl_bp);
-void xrep_force_quotacheck(struct xfs_scrub *sc, uint dqtype);
+void xrep_force_quotacheck(struct xfs_scrub *sc, xfs_dqtype_t type);
 int xrep_ino_dqattach(struct xfs_scrub *sc);
 
 /* Metadata repairers */
@@ -66,8 +66,7 @@ int xrep_agi(struct xfs_scrub *sc);
 
 static inline int xrep_attempt(
 	struct xfs_inode	*ip,
-	struct xfs_scrub	*sc,
-	bool			*fixed)
+	struct xfs_scrub	*sc)
 {
 	return -EOPNOTSUPP;
 }
@@ -78,7 +77,6 @@ static inline xfs_extlen_t
 xrep_calc_ag_resblks(
 	struct xfs_scrub	*sc)
 {
-	ASSERT(!(sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR));
 	return 0;
 }
 

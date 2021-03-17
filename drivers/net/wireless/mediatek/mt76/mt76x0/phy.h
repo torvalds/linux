@@ -1,21 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * (c) Copyright 2002-2010, Ralink Technology, Inc.
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef _MT76X0_PHY_H_
 #define _MT76X0_PHY_H_
 
-#define RF_G_BAND 	0x0100
-#define RF_A_BAND 	0x0200
+#define RF_G_BAND	0x0100
+#define RF_A_BAND	0x0200
 #define RF_A_BAND_LB	0x0400
 #define RF_A_BAND_MB	0x0800
 #define RF_A_BAND_HB	0x1000
@@ -26,9 +18,26 @@
 #define RF_BW_10        4
 #define RF_BW_80        8
 
-#define MT_RF(bank, reg) ((bank) << 16 | (reg))
-#define MT_RF_BANK(offset) (offset >> 16)
-#define MT_RF_REG(offset) (offset & 0xff)
+#define MT_RF(bank, reg)		((bank) << 16 | (reg))
+#define MT_RF_BANK(offset)		((offset) >> 16)
+#define MT_RF_REG(offset)		((offset) & 0xff)
+
+#define MT_RF_VCO_BP_CLOSE_LOOP		BIT(3)
+#define MT_RF_VCO_BP_CLOSE_LOOP_MASK	GENMASK(3, 0)
+#define MT_RF_VCO_CAL_MASK		GENMASK(2, 0)
+#define MT_RF_START_TIME		0x3
+#define MT_RF_START_TIME_MASK		GENMASK(2, 0)
+#define MT_RF_SETTLE_TIME_MASK		GENMASK(6, 4)
+
+#define MT_RF_PLL_DEN_MASK		GENMASK(4, 0)
+#define MT_RF_PLL_K_MASK		GENMASK(4, 0)
+#define MT_RF_SDM_RESET_MASK		BIT(7)
+#define MT_RF_SDM_MASH_PRBS_MASK	GENMASK(6, 2)
+#define MT_RF_SDM_BP_MASK		BIT(1)
+#define MT_RF_ISI_ISO_MASK		GENMASK(7, 6)
+#define MT_RF_PFD_DLY_MASK		GENMASK(5, 4)
+#define MT_RF_CLK_SEL_MASK		GENMASK(3, 2)
+#define MT_RF_XO_DIV_MASK		GENMASK(1, 0)
 
 struct mt76x0_bbp_switch_item {
 	u16 bw_band;

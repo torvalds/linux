@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * keymap imported from cxusb.c
  *
  * Copyright (C) 2016 Sean Young
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2.
  */
 
 #include <media/rc-map.h>
@@ -27,17 +24,17 @@ static struct rc_map_table rc_map_dvico_portable_table[] = {
 	{ 0x0316, KEY_CAMERA },
 	{ 0x0340, KEY_TUNER },	/* ATV/DTV */
 	{ 0x0345, KEY_OPEN },
-	{ 0x0319, KEY_1 },
-	{ 0x0318, KEY_2 },
-	{ 0x031b, KEY_3 },
-	{ 0x031a, KEY_4 },
-	{ 0x0358, KEY_5 },
-	{ 0x0359, KEY_6 },
-	{ 0x0315, KEY_7 },
-	{ 0x0314, KEY_8 },
-	{ 0x0317, KEY_9 },
+	{ 0x0319, KEY_NUMERIC_1 },
+	{ 0x0318, KEY_NUMERIC_2 },
+	{ 0x031b, KEY_NUMERIC_3 },
+	{ 0x031a, KEY_NUMERIC_4 },
+	{ 0x0358, KEY_NUMERIC_5 },
+	{ 0x0359, KEY_NUMERIC_6 },
+	{ 0x0315, KEY_NUMERIC_7 },
+	{ 0x0314, KEY_NUMERIC_8 },
+	{ 0x0317, KEY_NUMERIC_9 },
 	{ 0x0344, KEY_ANGLE },	/* Aspect */
-	{ 0x0355, KEY_0 },
+	{ 0x0355, KEY_NUMERIC_0 },
 	{ 0x0307, KEY_ZOOM },
 	{ 0x030a, KEY_REWIND },
 	{ 0x0308, KEY_PLAYPAUSE },

@@ -236,7 +236,7 @@ void rds_cong_queue_updates(struct rds_cong_map *map)
 			 *    tcp_setsockopt and/or tcp_sendmsg will deadlock
 			 *    when it tries to get the sock_lock())
 			 * 2. Interrupts are masked so that we can mark the
-			 *    the port congested from both send and recv paths.
+			 *    port congested from both send and recv paths.
 			 *    (See comment around declaration of rdc_cong_lock).
 			 *    An attempt to get the sock_lock() here will
 			 *    therefore trigger warnings.

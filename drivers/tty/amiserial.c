@@ -22,17 +22,7 @@
  *
  */
 
-/*
- * Serial driver configuration section.  Here are the various options:
- *
- * SERIAL_PARANOIA_CHECK
- * 		Check the magic number for the async_structure where
- * 		ever possible.
- */
-
 #include <linux/delay.h>
-
-#undef SERIAL_PARANOIA_CHECK
 
 /* Set of debugging defines */
 
@@ -132,28 +122,6 @@ static struct serial_state rs_table[1];
 
 #define serial_isroot()	(capable(CAP_SYS_ADMIN))
 
-
-static inline int serial_paranoia_check(struct serial_state *info,
-					char *name, const char *routine)
-{
-#ifdef SERIAL_PARANOIA_CHECK
-	static const char *badmagic =
-		"Warning: bad magic number for serial struct (%s) in %s\n";
-	static const char *badinfo =
-		"Warning: null async_struct for (%s) in %s\n";
-
-	if (!info) {
-		printk(badinfo, name, routine);
-		return 1;
-	}
-	if (info->magic != SERIAL_MAGIC) {
-		printk(badmagic, name, routine);
-		return 1;
-	}
-#endif
-	return 0;
-}
-
 /* some serial hardware definitions */
 #define SDR_OVRUN   (1<<15)
 #define SDR_RBF     (1<<14)
@@ -189,9 +157,6 @@ static void rs_stop(struct tty_struct *tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 
-	if (serial_paranoia_check(info, tty->name, "rs_stop"))
-		return;
-
 	local_irq_save(flags);
 	if (info->IER & UART_IER_THRI) {
 		info->IER &= ~UART_IER_THRI;
@@ -208,9 +173,6 @@ static void rs_start(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
-
-	if (serial_paranoia_check(info, tty->name, "rs_start"))
-		return;
 
 	local_irq_save(flags);
 	if (info->xmit.head != info->xmit.tail
@@ -783,9 +745,6 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 
 	info = tty->driver_data;
 
-	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
-		return 0;
-
 	if (!info->xmit.buf)
 		return 0;
 
@@ -808,9 +767,6 @@ static void rs_flush_chars(struct tty_struct *tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 
-	if (serial_paranoia_check(info, tty->name, "rs_flush_chars"))
-		return;
-
 	if (info->xmit.head == info->xmit.tail
 	    || tty->stopped
 	    || tty->hw_stopped
@@ -832,9 +788,6 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	int	c, ret = 0;
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
-
-	if (serial_paranoia_check(info, tty->name, "rs_write"))
-		return 0;
 
 	if (!info->xmit.buf)
 		return 0;
@@ -878,8 +831,6 @@ static int rs_write_room(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 
-	if (serial_paranoia_check(info, tty->name, "rs_write_room"))
-		return 0;
 	return CIRC_SPACE(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
 }
 
@@ -887,8 +838,6 @@ static int rs_chars_in_buffer(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 
-	if (serial_paranoia_check(info, tty->name, "rs_chars_in_buffer"))
-		return 0;
 	return CIRC_CNT(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
 }
 
@@ -897,8 +846,6 @@ static void rs_flush_buffer(struct tty_struct *tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 
-	if (serial_paranoia_check(info, tty->name, "rs_flush_buffer"))
-		return;
 	local_irq_save(flags);
 	info->xmit.head = info->xmit.tail = 0;
 	local_irq_restore(flags);
@@ -913,9 +860,6 @@ static void rs_send_xchar(struct tty_struct *tty, char ch)
 {
 	struct serial_state *info = tty->driver_data;
         unsigned long flags;
-
-	if (serial_paranoia_check(info, tty->name, "rs_send_xchar"))
-		return;
 
 	info->x_char = ch;
 	if (ch) {
@@ -952,9 +896,6 @@ static void rs_throttle(struct tty_struct * tty)
 	printk("throttle %s ....\n", tty_name(tty));
 #endif
 
-	if (serial_paranoia_check(info, tty->name, "rs_throttle"))
-		return;
-
 	if (I_IXOFF(tty))
 		rs_send_xchar(tty, STOP_CHAR(tty));
 
@@ -973,9 +914,6 @@ static void rs_unthrottle(struct tty_struct * tty)
 #ifdef SERIAL_DEBUG_THROTTLE
 	printk("unthrottle %s ....\n", tty_name(tty));
 #endif
-
-	if (serial_paranoia_check(info, tty->name, "rs_unthrottle"))
-		return;
 
 	if (I_IXOFF(tty)) {
 		if (info->x_char)
@@ -996,63 +934,55 @@ static void rs_unthrottle(struct tty_struct * tty)
  * ------------------------------------------------------------
  */
 
-static int get_serial_info(struct tty_struct *tty, struct serial_state *state,
-			   struct serial_struct __user * retinfo)
+static int get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
-	struct serial_struct tmp;
-   
-	memset(&tmp, 0, sizeof(tmp));
+	struct serial_state *state = tty->driver_data;
+
 	tty_lock(tty);
-	tmp.line = tty->index;
-	tmp.port = state->port;
-	tmp.flags = state->tport.flags;
-	tmp.xmit_fifo_size = state->xmit_fifo_size;
-	tmp.baud_base = state->baud_base;
-	tmp.close_delay = state->tport.close_delay;
-	tmp.closing_wait = state->tport.closing_wait;
-	tmp.custom_divisor = state->custom_divisor;
+	ss->line = tty->index;
+	ss->port = state->port;
+	ss->flags = state->tport.flags;
+	ss->xmit_fifo_size = state->xmit_fifo_size;
+	ss->baud_base = state->baud_base;
+	ss->close_delay = state->tport.close_delay;
+	ss->closing_wait = state->tport.closing_wait;
+	ss->custom_divisor = state->custom_divisor;
 	tty_unlock(tty);
-	if (copy_to_user(retinfo,&tmp,sizeof(*retinfo)))
-		return -EFAULT;
 	return 0;
 }
 
-static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
-			   struct serial_struct __user * new_info)
+static int set_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
+	struct serial_state *state = tty->driver_data;
 	struct tty_port *port = &state->tport;
-	struct serial_struct new_serial;
 	bool change_spd;
 	int 			retval = 0;
 
-	if (copy_from_user(&new_serial,new_info,sizeof(new_serial)))
-		return -EFAULT;
-
 	tty_lock(tty);
-	change_spd = ((new_serial.flags ^ port->flags) & ASYNC_SPD_MASK) ||
-		new_serial.custom_divisor != state->custom_divisor;
-	if (new_serial.irq || new_serial.port != state->port ||
-			new_serial.xmit_fifo_size != state->xmit_fifo_size) {
+	change_spd = ((ss->flags ^ port->flags) & ASYNC_SPD_MASK) ||
+		ss->custom_divisor != state->custom_divisor;
+	if (ss->irq || ss->port != state->port ||
+			ss->xmit_fifo_size != state->xmit_fifo_size) {
 		tty_unlock(tty);
 		return -EINVAL;
 	}
   
 	if (!serial_isroot()) {
-		if ((new_serial.baud_base != state->baud_base) ||
-		    (new_serial.close_delay != port->close_delay) ||
-		    (new_serial.xmit_fifo_size != state->xmit_fifo_size) ||
-		    ((new_serial.flags & ~ASYNC_USR_MASK) !=
+		if ((ss->baud_base != state->baud_base) ||
+		    (ss->close_delay != port->close_delay) ||
+		    (ss->xmit_fifo_size != state->xmit_fifo_size) ||
+		    ((ss->flags & ~ASYNC_USR_MASK) !=
 		     (port->flags & ~ASYNC_USR_MASK))) {
 			tty_unlock(tty);
 			return -EPERM;
 		}
 		port->flags = ((port->flags & ~ASYNC_USR_MASK) |
-			       (new_serial.flags & ASYNC_USR_MASK));
-		state->custom_divisor = new_serial.custom_divisor;
+			       (ss->flags & ASYNC_USR_MASK));
+		state->custom_divisor = ss->custom_divisor;
 		goto check_and_exit;
 	}
 
-	if (new_serial.baud_base < 9600) {
+	if (ss->baud_base < 9600) {
 		tty_unlock(tty);
 		return -EINVAL;
 	}
@@ -1062,19 +992,19 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 	 * At this point, we start making changes.....
 	 */
 
-	state->baud_base = new_serial.baud_base;
+	state->baud_base = ss->baud_base;
 	port->flags = ((port->flags & ~ASYNC_FLAGS) |
-			(new_serial.flags & ASYNC_FLAGS));
-	state->custom_divisor = new_serial.custom_divisor;
-	port->close_delay = new_serial.close_delay * HZ/100;
-	port->closing_wait = new_serial.closing_wait * HZ/100;
+			(ss->flags & ASYNC_FLAGS));
+	state->custom_divisor = ss->custom_divisor;
+	port->close_delay = ss->close_delay * HZ/100;
+	port->closing_wait = ss->closing_wait * HZ/100;
 	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 check_and_exit:
 	if (tty_port_initialized(port)) {
 		if (change_spd) {
 			/* warn about deprecation unless clearing */
-			if (new_serial.flags & ASYNC_SPD_MASK)
+			if (ss->flags & ASYNC_SPD_MASK)
 				dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
 			change_speed(tty, state, NULL);
 		}
@@ -1083,7 +1013,6 @@ check_and_exit:
 	tty_unlock(tty);
 	return retval;
 }
-
 
 /*
  * get_lsr_info - get line status register info
@@ -1118,8 +1047,6 @@ static int rs_tiocmget(struct tty_struct *tty)
 	unsigned char control, status;
 	unsigned long flags;
 
-	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
-		return -ENODEV;
 	if (tty_io_error(tty))
 		return -EIO;
 
@@ -1140,8 +1067,6 @@ static int rs_tiocmset(struct tty_struct *tty, unsigned int set,
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 
-	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
-		return -ENODEV;
 	if (tty_io_error(tty))
 		return -EIO;
 
@@ -1164,11 +1089,7 @@ static int rs_tiocmset(struct tty_struct *tty, unsigned int set,
  */
 static int rs_break(struct tty_struct *tty, int break_state)
 {
-	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
-
-	if (serial_paranoia_check(info, tty->name, "rs_break"))
-		return -EINVAL;
 
 	local_irq_save(flags);
 	if (break_state == -1)
@@ -1221,32 +1142,18 @@ static int rs_ioctl(struct tty_struct *tty,
 	DEFINE_WAIT(wait);
 	int ret;
 
-	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
-		return -ENODEV;
-
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
+	if ((cmd != TIOCSERCONFIG) &&
 	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}
 
 	switch (cmd) {
-		case TIOCGSERIAL:
-			return get_serial_info(tty, info, argp);
-		case TIOCSSERIAL:
-			return set_serial_info(tty, info, argp);
 		case TIOCSERCONFIG:
 			return 0;
 
 		case TIOCSERGETLSR: /* Get line status register */
 			return get_lsr_info(info, argp);
-
-		case TIOCSERGSTRUCT:
-			if (copy_to_user(argp,
-					 info, sizeof(struct serial_state)))
-				return -EFAULT;
-			return 0;
 
 		/*
 		 * Wait for any of the 4 modem inputs (DCD,RI,DSR,CTS) to change
@@ -1287,12 +1194,6 @@ static int rs_ioctl(struct tty_struct *tty,
 			}
 			finish_wait(&info->tport.delta_msr_wait, &wait);
 			return ret;
-
-		case TIOCSERGWILD:
-		case TIOCSERSWILD:
-			/* "setserial -W" is called in Debian boot */
-			printk ("TIOCSER?WILD ioctl obsolete, ignored.\n");
-			return 0;
 
 		default:
 			return -ENOIOCTLCMD;
@@ -1359,9 +1260,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	struct serial_state *state = tty->driver_data;
 	struct tty_port *port = &state->tport;
 
-	if (serial_paranoia_check(state, tty->name, "rs_close"))
-		return;
-
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
 
@@ -1404,9 +1302,6 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	struct serial_state *info = tty->driver_data;
 	unsigned long orig_jiffies, char_time;
 	int lsr;
-
-	if (serial_paranoia_check(info, tty->name, "rs_wait_until_sent"))
-		return;
 
 	if (info->xmit_fifo_size == 0)
 		return; /* Just in case.... */
@@ -1466,9 +1361,6 @@ static void rs_hangup(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 
-	if (serial_paranoia_check(info, tty->name, "rs_hangup"))
-		return;
-
 	rs_flush_buffer(tty);
 	shutdown(tty, info);
 	info->tport.count = 0;
@@ -1493,8 +1385,6 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	port->tty = tty;
 	tty->driver_data = info;
 	tty->port = port;
-	if (serial_paranoia_check(info, tty->name, "rs_open"))
-		return -ENODEV;
 
 	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
@@ -1607,6 +1497,8 @@ static const struct tty_operations serial_ops = {
 	.tiocmget = rs_tiocmget,
 	.tiocmset = rs_tiocmset,
 	.get_icount = rs_get_icount,
+	.set_serial = set_serial_info,
+	.get_serial = get_serial_info,
 	.proc_show = rs_proc_show,
 };
 

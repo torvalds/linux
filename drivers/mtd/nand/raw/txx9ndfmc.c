@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TXx9 NAND flash memory controller driver
  * Based on RBTX49xx patch from CELF patch archive.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * (C) Copyright TOSHIBA CORPORATION 2004-2007
  * All Rights Reserved.
@@ -102,17 +99,17 @@ static void txx9ndfmc_write(struct platform_device *dev,
 	__raw_writel(val, ndregaddr(dev, reg));
 }
 
-static uint8_t txx9ndfmc_read_byte(struct mtd_info *mtd)
+static uint8_t txx9ndfmc_read_byte(struct nand_chip *chip)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 
 	return txx9ndfmc_read(dev, TXX9_NDFDTR);
 }
 
-static void txx9ndfmc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
+static void txx9ndfmc_write_buf(struct nand_chip *chip, const uint8_t *buf,
 				int len)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 	void __iomem *ndfdtr = ndregaddr(dev, TXX9_NDFDTR);
 	u32 mcr = txx9ndfmc_read(dev, TXX9_NDFMCR);
 
@@ -122,19 +119,18 @@ static void txx9ndfmc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
 	txx9ndfmc_write(dev, mcr, TXX9_NDFMCR);
 }
 
-static void txx9ndfmc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void txx9ndfmc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 	void __iomem *ndfdtr = ndregaddr(dev, TXX9_NDFDTR);
 
 	while (len--)
 		*buf++ = __raw_readl(ndfdtr);
 }
 
-static void txx9ndfmc_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void txx9ndfmc_cmd_ctrl(struct nand_chip *chip, int cmd,
 			       unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct txx9ndfmc_priv *txx9_priv = nand_get_controller_data(chip);
 	struct platform_device *dev = txx9_priv->dev;
 	struct txx9ndfmc_platform_data *plat = dev_get_platdata(&dev->dev);
@@ -160,21 +156,19 @@ static void txx9ndfmc_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		if ((ctrl & NAND_CTRL_CHANGE) && cmd == NAND_CMD_NONE)
 			txx9ndfmc_write(dev, 0, TXX9_NDFDTR);
 	}
-	mmiowb();
 }
 
-static int txx9ndfmc_dev_ready(struct mtd_info *mtd)
+static int txx9ndfmc_dev_ready(struct nand_chip *chip)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 
 	return !(txx9ndfmc_read(dev, TXX9_NDFSR) & TXX9_NDFSR_BUSY);
 }
 
-static int txx9ndfmc_calculate_ecc(struct mtd_info *mtd, const uint8_t *dat,
+static int txx9ndfmc_calculate_ecc(struct nand_chip *chip, const uint8_t *dat,
 				   uint8_t *ecc_code)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 	int eccbytes;
 	u32 mcr = txx9ndfmc_read(dev, TXX9_NDFMCR);
 
@@ -191,16 +185,17 @@ static int txx9ndfmc_calculate_ecc(struct mtd_info *mtd, const uint8_t *dat,
 	return 0;
 }
 
-static int txx9ndfmc_correct_data(struct mtd_info *mtd, unsigned char *buf,
-		unsigned char *read_ecc, unsigned char *calc_ecc)
+static int txx9ndfmc_correct_data(struct nand_chip *chip, unsigned char *buf,
+				  unsigned char *read_ecc,
+				  unsigned char *calc_ecc)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	int eccsize;
 	int corrected = 0;
 	int stat;
 
 	for (eccsize = chip->ecc.size; eccsize > 0; eccsize -= 256) {
-		stat = __nand_correct_data(buf, read_ecc, calc_ecc, 256);
+		stat = __nand_correct_data(buf, read_ecc, calc_ecc, 256,
+					   false);
 		if (stat < 0)
 			return stat;
 		corrected += stat;
@@ -211,9 +206,9 @@ static int txx9ndfmc_correct_data(struct mtd_info *mtd, unsigned char *buf,
 	return corrected;
 }
 
-static void txx9ndfmc_enable_hwecc(struct mtd_info *mtd, int mode)
+static void txx9ndfmc_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 	u32 mcr = txx9ndfmc_read(dev, TXX9_NDFMCR);
 
 	mcr &= ~TXX9_NDFMCR_ECC_ALL;
@@ -258,6 +253,11 @@ static int txx9ndfmc_attach_chip(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.strength = 1;
+
 	if (mtd->writesize >= 512) {
 		chip->ecc.size = 512;
 		chip->ecc.bytes = 6;
@@ -265,6 +265,10 @@ static int txx9ndfmc_attach_chip(struct nand_chip *chip)
 		chip->ecc.size = 256;
 		chip->ecc.bytes = 3;
 	}
+
+	chip->ecc.calculate = txx9ndfmc_calculate_ecc;
+	chip->ecc.correct = txx9ndfmc_correct_data;
+	chip->ecc.hwctl = txx9ndfmc_enable_hwecc;
 
 	return 0;
 }
@@ -326,17 +330,12 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		mtd = nand_to_mtd(chip);
 		mtd->dev.parent = &dev->dev;
 
-		chip->read_byte = txx9ndfmc_read_byte;
-		chip->read_buf = txx9ndfmc_read_buf;
-		chip->write_buf = txx9ndfmc_write_buf;
-		chip->cmd_ctrl = txx9ndfmc_cmd_ctrl;
-		chip->dev_ready = txx9ndfmc_dev_ready;
-		chip->ecc.calculate = txx9ndfmc_calculate_ecc;
-		chip->ecc.correct = txx9ndfmc_correct_data;
-		chip->ecc.hwctl = txx9ndfmc_enable_hwecc;
-		chip->ecc.mode = NAND_ECC_HW;
-		chip->ecc.strength = 1;
-		chip->chip_delay = 100;
+		chip->legacy.read_byte = txx9ndfmc_read_byte;
+		chip->legacy.read_buf = txx9ndfmc_read_buf;
+		chip->legacy.write_buf = txx9ndfmc_write_buf;
+		chip->legacy.cmd_ctrl = txx9ndfmc_cmd_ctrl;
+		chip->legacy.dev_ready = txx9ndfmc_dev_ready;
+		chip->legacy.chip_delay = 100;
 		chip->controller = &drvdata->controller;
 
 		nand_set_controller_data(chip, txx9_priv);
@@ -359,7 +358,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		if (plat->wide_mask & (1 << i))
 			chip->options |= NAND_BUSWIDTH_16;
 
-		if (nand_scan(mtd, 1)) {
+		if (nand_scan(chip, 1)) {
 			kfree(txx9_priv->mtdname);
 			kfree(txx9_priv);
 			continue;
@@ -376,7 +375,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 static int __exit txx9ndfmc_remove(struct platform_device *dev)
 {
 	struct txx9ndfmc_drvdata *drvdata = platform_get_drvdata(dev);
-	int i;
+	int ret, i;
 
 	if (!drvdata)
 		return 0;
@@ -390,7 +389,9 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 		chip = mtd_to_nand(mtd);
 		txx9_priv = nand_get_controller_data(chip);
 
-		nand_release(mtd);
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
 		kfree(txx9_priv->mtdname);
 		kfree(txx9_priv);
 	}

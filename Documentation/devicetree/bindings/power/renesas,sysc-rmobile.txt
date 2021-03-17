@@ -29,7 +29,7 @@ Optional nodes:
 
 Each of the PM domain nodes represents a PM domain, as documented by the
 generic PM domain bindings in
-Documentation/devicetree/bindings/power/power_domain.txt.
+Documentation/devicetree/bindings/power/power-domain.yaml.
 
 The nodes should be named by the real power area names, and thus their names
 should be unique.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ak4641.c  --  AK4641 ALSA Soc Audio driver
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2011 Dmitry Artamonow <mad_soft@inbox.ru>
  *
  * Based on ak4535.c by Richard Purdie
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -408,7 +405,7 @@ static int ak4641_i2s_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return snd_soc_component_write(component, AK4641_MODE1, mode1);
 }
 
-static int ak4641_mute(struct snd_soc_dai *dai, int mute)
+static int ak4641_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -470,15 +467,17 @@ static int ak4641_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops ak4641_i2s_dai_ops = {
 	.hw_params    = ak4641_i2s_hw_params,
 	.set_fmt      = ak4641_i2s_set_dai_fmt,
-	.digital_mute = ak4641_mute,
+	.mute_stream  = ak4641_mute,
 	.set_sysclk   = ak4641_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops ak4641_pcm_dai_ops = {
 	.hw_params    = NULL, /* rates are controlled by BT chip */
 	.set_fmt      = ak4641_pcm_set_dai_fmt,
-	.digital_mute = ak4641_mute,
+	.mute_stream  = ak4641_mute,
 	.set_sysclk   = ak4641_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ak4641_dai[] = {

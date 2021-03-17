@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DA9055 ALSA Soc codec driver
  *
@@ -6,11 +7,6 @@
  * Tested on (Samsung SMDK6410 board + DA9055 EVB) using I2S and I2C
  * Written by David Chen <david.chen@diasemi.com> and
  * Ashish Chavan <ashish.chavan@kpitcummins.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/delay.h>
@@ -465,12 +461,12 @@ static int da9055_get_alc_data(struct snd_soc_component *component, u8 reg_val)
 		/* Select middle 8 bits for read back from data register */
 		snd_soc_component_write(component, DA9055_ALC_CIC_OP_LVL_CTRL,
 			      reg_val | DA9055_ALC_DATA_MIDDLE);
-		mid_data = snd_soc_component_read32(component, DA9055_ALC_CIC_OP_LVL_DATA);
+		mid_data = snd_soc_component_read(component, DA9055_ALC_CIC_OP_LVL_DATA);
 
 		/* Select top 8 bits for read back from data register */
 		snd_soc_component_write(component, DA9055_ALC_CIC_OP_LVL_CTRL,
 			      reg_val | DA9055_ALC_DATA_TOP);
-		top_data = snd_soc_component_read32(component, DA9055_ALC_CIC_OP_LVL_DATA);
+		top_data = snd_soc_component_read(component, DA9055_ALC_CIC_OP_LVL_DATA);
 
 		sum += ((mid_data << 8) | (top_data << 16));
 	}
@@ -492,8 +488,8 @@ static int da9055_put_alc_sw(struct snd_kcontrol *kcontrol,
 		 */
 
 		/* Save current values from Mic control registers */
-		mic_left = snd_soc_component_read32(component, DA9055_MIC_L_CTRL);
-		mic_right = snd_soc_component_read32(component, DA9055_MIC_R_CTRL);
+		mic_left = snd_soc_component_read(component, DA9055_MIC_L_CTRL);
+		mic_right = snd_soc_component_read(component, DA9055_MIC_R_CTRL);
 
 		/* Mute Mic PGA Left and Right */
 		snd_soc_component_update_bits(component, DA9055_MIC_L_CTRL,
@@ -502,8 +498,8 @@ static int da9055_put_alc_sw(struct snd_kcontrol *kcontrol,
 				    DA9055_MIC_R_MUTE_EN, DA9055_MIC_R_MUTE_EN);
 
 		/* Save current values from ADC control registers */
-		adc_left = snd_soc_component_read32(component, DA9055_ADC_L_CTRL);
-		adc_right = snd_soc_component_read32(component, DA9055_ADC_R_CTRL);
+		adc_left = snd_soc_component_read(component, DA9055_ADC_L_CTRL);
+		adc_right = snd_soc_component_read(component, DA9055_ADC_R_CTRL);
 
 		/* Enable ADC Left and Right */
 		snd_soc_component_update_bits(component, DA9055_ADC_L_CTRL,
@@ -1180,7 +1176,7 @@ static int da9055_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	}
 
 	/* Don't allow change of mode if PLL is enabled */
-	if ((snd_soc_component_read32(component, DA9055_PLL_CTRL) & DA9055_PLL_EN) &&
+	if ((snd_soc_component_read(component, DA9055_PLL_CTRL) & DA9055_PLL_EN) &&
 	    (da9055->master != mode))
 		return -EINVAL;
 
@@ -1215,7 +1211,7 @@ static int da9055_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static int da9055_mute(struct snd_soc_dai *dai, int mute)
+static int da9055_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -1328,7 +1324,8 @@ static const struct snd_soc_dai_ops da9055_dai_ops = {
 	.set_fmt	= da9055_set_dai_fmt,
 	.set_sysclk	= da9055_set_dai_sysclk,
 	.set_pll	= da9055_set_dai_pll,
-	.digital_mute	= da9055_mute,
+	.mute_stream	= da9055_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver da9055_dai = {

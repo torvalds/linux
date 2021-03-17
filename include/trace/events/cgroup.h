@@ -66,7 +66,7 @@ DECLARE_EVENT_CLASS(cgroup,
 
 	TP_fast_assign(
 		__entry->root = cgrp->root->hierarchy_id;
-		__entry->id = cgrp->id;
+		__entry->id = cgroup_id(cgrp);
 		__entry->level = cgrp->level;
 		__assign_str(path, path);
 	),
@@ -103,6 +103,20 @@ DEFINE_EVENT(cgroup, cgroup_rename,
 	TP_ARGS(cgrp, path)
 );
 
+DEFINE_EVENT(cgroup, cgroup_freeze,
+
+	TP_PROTO(struct cgroup *cgrp, const char *path),
+
+	TP_ARGS(cgrp, path)
+);
+
+DEFINE_EVENT(cgroup, cgroup_unfreeze,
+
+	TP_PROTO(struct cgroup *cgrp, const char *path),
+
+	TP_ARGS(cgrp, path)
+);
+
 DECLARE_EVENT_CLASS(cgroup_migrate,
 
 	TP_PROTO(struct cgroup *dst_cgrp, const char *path,
@@ -121,7 +135,7 @@ DECLARE_EVENT_CLASS(cgroup_migrate,
 
 	TP_fast_assign(
 		__entry->dst_root = dst_cgrp->root->hierarchy_id;
-		__entry->dst_id = dst_cgrp->id;
+		__entry->dst_id = cgroup_id(dst_cgrp);
 		__entry->dst_level = dst_cgrp->level;
 		__assign_str(dst_path, path);
 		__entry->pid = task->pid;
@@ -147,6 +161,47 @@ DEFINE_EVENT(cgroup_migrate, cgroup_transfer_tasks,
 		 struct task_struct *task, bool threadgroup),
 
 	TP_ARGS(dst_cgrp, path, task, threadgroup)
+);
+
+DECLARE_EVENT_CLASS(cgroup_event,
+
+	TP_PROTO(struct cgroup *cgrp, const char *path, int val),
+
+	TP_ARGS(cgrp, path, val),
+
+	TP_STRUCT__entry(
+		__field(	int,		root			)
+		__field(	int,		id			)
+		__field(	int,		level			)
+		__string(	path,		path			)
+		__field(	int,		val			)
+	),
+
+	TP_fast_assign(
+		__entry->root = cgrp->root->hierarchy_id;
+		__entry->id = cgroup_id(cgrp);
+		__entry->level = cgrp->level;
+		__assign_str(path, path);
+		__entry->val = val;
+	),
+
+	TP_printk("root=%d id=%d level=%d path=%s val=%d",
+		  __entry->root, __entry->id, __entry->level, __get_str(path),
+		  __entry->val)
+);
+
+DEFINE_EVENT(cgroup_event, cgroup_notify_populated,
+
+	TP_PROTO(struct cgroup *cgrp, const char *path, int val),
+
+	TP_ARGS(cgrp, path, val)
+);
+
+DEFINE_EVENT(cgroup_event, cgroup_notify_frozen,
+
+	TP_PROTO(struct cgroup *cgrp, const char *path, int val),
+
+	TP_ARGS(cgrp, path, val)
 );
 
 #endif /* _TRACE_CGROUP_H */

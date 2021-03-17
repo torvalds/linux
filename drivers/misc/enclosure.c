@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Enclosure Services
  *
@@ -5,18 +6,6 @@
  *
 **-----------------------------------------------------------------------------
 **
-**  This program is free software; you can redistribute it and/or
-**  modify it under the terms of the GNU General Public License
-**  version 2 as published by the Free Software Foundation.
-**
-**  This program is distributed in the hope that it will be useful,
-**  but WITHOUT ANY WARRANTY; without even the implied warranty of
-**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-**  GNU General Public License for more details.
-**
-**  You should have received a copy of the GNU General Public License
-**  along with this program; if not, write to the Free Software
-**  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 **
 **-----------------------------------------------------------------------------
 */
@@ -114,7 +103,9 @@ EXPORT_SYMBOL_GPL(enclosure_for_each_device);
  * enclosure_register - register device as an enclosure
  *
  * @dev:	device containing the enclosure
+ * @name:	chosen device name
  * @components:	number of components in the enclosure
+ * @cb:         platform call-backs
  *
  * This sets up the device for being an enclosure.  Note that @dev does
  * not have to be a dedicated enclosure device.  It may be some other type
@@ -125,9 +116,7 @@ enclosure_register(struct device *dev, const char *name, int components,
 		   struct enclosure_component_callbacks *cb)
 {
 	struct enclosure_device *edev =
-		kzalloc(sizeof(struct enclosure_device) +
-			sizeof(struct enclosure_component)*components,
-			GFP_KERNEL);
+		kzalloc(struct_size(edev, component, components), GFP_KERNEL);
 	int err, i;
 
 	BUG_ON(!cb);
@@ -279,7 +268,7 @@ static const struct attribute_group *enclosure_component_groups[];
 /**
  * enclosure_component_alloc - prepare a new enclosure component
  * @edev:	the enclosure to add the component
- * @num:	the device number
+ * @number:	the device number
  * @type:	the type of component being added
  * @name:	an optional name to appear in sysfs (leave NULL if none)
  *
@@ -360,7 +349,7 @@ EXPORT_SYMBOL_GPL(enclosure_component_register);
 /**
  * enclosure_add_device - add a device as being part of an enclosure
  * @edev:	the enclosure device being added to.
- * @num:	the number of the component
+ * @component:	the number of the component
  * @dev:	the device being added
  *
  * Declares a real device to reside in slot (or identifier) @num of an
@@ -402,7 +391,7 @@ EXPORT_SYMBOL_GPL(enclosure_add_device);
 /**
  * enclosure_remove_device - remove a device from an enclosure
  * @edev:	the enclosure device
- * @num:	the number of the component to remove
+ * @dev:	device to remove/put
  *
  * Returns zero on success or an error.
  *
@@ -419,10 +408,9 @@ int enclosure_remove_device(struct enclosure_device *edev, struct device *dev)
 		cdev = &edev->component[i];
 		if (cdev->dev == dev) {
 			enclosure_remove_links(cdev);
-			device_del(&cdev->cdev);
 			put_device(dev);
 			cdev->dev = NULL;
-			return device_add(&cdev->cdev);
+			return 0;
 		}
 	}
 	return -ENODEV;

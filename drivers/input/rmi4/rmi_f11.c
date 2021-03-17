@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2015 Synaptics Incorporated
  * Copyright (c) 2011 Unixphere
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -415,6 +412,10 @@ struct f11_2d_sensor_queries {
 
 /* Defs for Ctrl0. */
 #define RMI_F11_REPORT_MODE_MASK        0x07
+#define RMI_F11_REPORT_MODE_CONTINUOUS  (0 << 0)
+#define RMI_F11_REPORT_MODE_REDUCED     (1 << 0)
+#define RMI_F11_REPORT_MODE_FS_CHANGE   (2 << 0)
+#define RMI_F11_REPORT_MODE_FP_CHANGE   (3 << 0)
 #define RMI_F11_ABS_POS_FILT            (1 << 3)
 #define RMI_F11_REL_POS_FILT            (1 << 4)
 #define RMI_F11_REL_BALLISTICS          (1 << 5)
@@ -513,7 +514,6 @@ struct f11_data {
 	struct rmi_2d_sensor_platform_data sensor_pdata;
 	unsigned long *abs_mask;
 	unsigned long *rel_mask;
-	unsigned long *result_bits;
 };
 
 enum f11_finger_state {
@@ -1060,7 +1060,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	/*
 	** init instance data, fill in values and create any sysfs files
 	*/
-	f11 = devm_kzalloc(&fn->dev, sizeof(struct f11_data) + mask_size * 3,
+	f11 = devm_kzalloc(&fn->dev, sizeof(struct f11_data) + mask_size * 2,
 			GFP_KERNEL);
 	if (!f11)
 		return -ENOMEM;
@@ -1079,8 +1079,6 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 			+ sizeof(struct f11_data));
 	f11->rel_mask = (unsigned long *)((char *)f11
 			+ sizeof(struct f11_data) + mask_size);
-	f11->result_bits = (unsigned long *)((char *)f11
-			+ sizeof(struct f11_data) + mask_size * 2);
 
 	set_bit(fn->irq_pos, f11->abs_mask);
 	set_bit(fn->irq_pos + 1, f11->rel_mask);
@@ -1201,6 +1199,16 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 		ctrl->ctrl0_11[RMI_F11_DELTA_Y_THRESHOLD] =
 			sensor->axis_align.delta_y_threshold;
 
+	/*
+	 * If distance threshold values are set, switch to reduced reporting
+	 * mode so they actually get used by the controller.
+	 */
+	if (sensor->axis_align.delta_x_threshold ||
+	    sensor->axis_align.delta_y_threshold) {
+		ctrl->ctrl0_11[0] &= ~RMI_F11_REPORT_MODE_MASK;
+		ctrl->ctrl0_11[0] |= RMI_F11_REPORT_MODE_REDUCED;
+	}
+
 	if (f11->sens_query.has_dribble) {
 		switch (sensor->dribble) {
 		case RMI_REG_STATE_OFF:
@@ -1230,7 +1238,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	}
 
 	rc = f11_write_control_regs(fn, &f11->sens_query,
-			   &f11->dev_controls, fn->fd.query_base_addr);
+			   &f11->dev_controls, fn->fd.control_base_addr);
 	if (rc)
 		dev_warn(&fn->dev, "Failed to write control registers\n");
 
@@ -1287,8 +1295,8 @@ static irqreturn_t rmi_f11_attention(int irq, void *ctx)
 			valid_bytes = f11->sensor.attn_size;
 		memcpy(f11->sensor.data_pkt, drvdata->attn_data.data,
 			valid_bytes);
-		drvdata->attn_data.data += f11->sensor.attn_size;
-		drvdata->attn_data.size -= f11->sensor.attn_size;
+		drvdata->attn_data.data += valid_bytes;
+		drvdata->attn_data.size -= valid_bytes;
 	} else {
 		error = rmi_read_block(rmi_dev,
 				data_base_addr, f11->sensor.data_pkt,

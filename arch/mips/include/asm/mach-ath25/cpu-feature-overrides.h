@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Atheros AR231x/AR531x SoC specific CPU feature overrides
  *
@@ -6,11 +7,6 @@
  *  This file was derived from: include/asm-mips/cpu-features.h
  *	Copyright (C) 2003, 2004 Ralf Baechle
  *	Copyright (C) 2004 Maciej W. Rozycki
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
- *
  */
 #ifndef __ASM_MACH_ATH25_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_ATH25_CPU_FEATURE_OVERRIDES_H
@@ -60,6 +56,5 @@
 #define cpu_has_64bits			0
 #define cpu_has_64bit_zero_reg		0
 #define cpu_has_64bit_gp_regs		0
-#define cpu_has_64bit_addresses		0
 
 #endif /* __ASM_MACH_ATH25_CPU_FEATURE_OVERRIDES_H */

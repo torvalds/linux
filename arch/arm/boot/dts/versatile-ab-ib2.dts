@@ -10,7 +10,7 @@
 	model = "ARM Versatile AB + IB2 board";
 
 	/* Special IB2 control register */
-	ib2_syscon@27000000 {
+	syscon@27000000 {
 		compatible = "arm,versatile-ib2-syscon", "syscon", "simple-mfd";
 		reg = <0x27000000 0x4>;
 

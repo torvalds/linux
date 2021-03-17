@@ -108,12 +108,40 @@ struct ch_tc_pedit_fields {
 #define PEDIT_TCP_SPORT_DPORT		0x0
 #define PEDIT_UDP_SPORT_DPORT		0x0
 
+enum cxgb4_action_natmode_flags {
+	CXGB4_ACTION_NATMODE_NONE = 0,
+	CXGB4_ACTION_NATMODE_DIP = (1 << 0),
+	CXGB4_ACTION_NATMODE_SIP = (1 << 1),
+	CXGB4_ACTION_NATMODE_DPORT = (1 << 2),
+	CXGB4_ACTION_NATMODE_SPORT = (1 << 3),
+};
+
+/* TC PEDIT action to NATMODE translation entry */
+struct cxgb4_natmode_config {
+	enum chip_type chip;
+	u8 flags;
+	u8 natmode;
+};
+
+void cxgb4_process_flow_actions(struct net_device *in,
+				struct flow_action *actions,
+				struct ch_filter_specification *fs);
+int cxgb4_validate_flow_actions(struct net_device *dev,
+				struct flow_action *actions,
+				struct netlink_ext_ack *extack,
+				u8 matchall_filter);
+
 int cxgb4_tc_flower_replace(struct net_device *dev,
-			    struct tc_cls_flower_offload *cls);
+			    struct flow_cls_offload *cls);
 int cxgb4_tc_flower_destroy(struct net_device *dev,
-			    struct tc_cls_flower_offload *cls);
+			    struct flow_cls_offload *cls);
 int cxgb4_tc_flower_stats(struct net_device *dev,
-			  struct tc_cls_flower_offload *cls);
+			  struct flow_cls_offload *cls);
+int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
+			    u32 tc_prio, struct netlink_ext_ack *extack,
+			    struct ch_filter_specification *fs, u32 *tid);
+int cxgb4_flow_rule_destroy(struct net_device *dev, u32 tc_prio,
+			    struct ch_filter_specification *fs, int tid);
 
 int cxgb4_init_tc_flower(struct adapter *adap);
 void cxgb4_cleanup_tc_flower(struct adapter *adap);

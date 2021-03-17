@@ -58,16 +58,15 @@ static int mmio_offset_compare(void *priv,
 static inline int mmio_diff_handler(struct intel_gvt *gvt,
 				    u32 offset, void *data)
 {
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	struct mmio_diff_param *param = data;
 	struct diff_mmio *node;
 	u32 preg, vreg;
 
-	preg = I915_READ_NOTRACE(_MMIO(offset));
+	preg = intel_uncore_read_notrace(gvt->gt->uncore, _MMIO(offset));
 	vreg = vgpu_vreg(param->vgpu, offset);
 
 	if (preg != vreg) {
-		node = kmalloc(sizeof(*node), GFP_KERNEL);
+		node = kmalloc(sizeof(*node), GFP_ATOMIC);
 		if (!node)
 			return -ENOMEM;
 
@@ -98,10 +97,10 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 	mutex_lock(&gvt->lock);
 	spin_lock_bh(&gvt->scheduler.mmio_context_lock);
 
-	mmio_hw_access_pre(gvt->dev_priv);
+	mmio_hw_access_pre(gvt->gt);
 	/* Recognize all the diff mmios to list. */
 	intel_gvt_for_each_tracked_mmio(gvt, mmio_diff_handler, &param);
-	mmio_hw_access_post(gvt->dev_priv);
+	mmio_hw_access_post(gvt->gt);
 
 	spin_unlock_bh(&gvt->scheduler.mmio_context_lock);
 	mutex_unlock(&gvt->lock);
@@ -128,6 +127,7 @@ static int
 vgpu_scan_nonprivbb_get(void *data, u64 *val)
 {
 	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
+
 	*val = vgpu->scan_nonprivbb;
 	return 0;
 }
@@ -142,42 +142,7 @@ static int
 vgpu_scan_nonprivbb_set(void *data, u64 val)
 {
 	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	enum intel_engine_id id;
-	char buf[128], *s;
-	int len;
 
-	val &= (1 << I915_NUM_ENGINES) - 1;
-
-	if (vgpu->scan_nonprivbb == val)
-		return 0;
-
-	if (!val)
-		goto done;
-
-	len = sprintf(buf,
-		"gvt: vgpu %d turns on non-privileged batch buffers scanning on Engines:",
-		vgpu->id);
-
-	s = buf + len;
-
-	for (id = 0; id < I915_NUM_ENGINES; id++) {
-		struct intel_engine_cs *engine;
-
-		engine = dev_priv->engine[id];
-		if (engine && (val & (1 << id))) {
-			len = snprintf(s, 4, "%d, ", engine->id);
-			s += len;
-		} else
-			val &=  ~(1 << id);
-	}
-
-	if (val)
-		sprintf(s, "low performance expected.");
-
-	pr_warn("%s\n", buf);
-
-done:
 	vgpu->scan_nonprivbb = val;
 	return 0;
 }
@@ -189,36 +154,19 @@ DEFINE_SIMPLE_ATTRIBUTE(vgpu_scan_nonprivbb_fops,
 /**
  * intel_gvt_debugfs_add_vgpu - register debugfs entries for a vGPU
  * @vgpu: a vGPU
- *
- * Returns:
- * Zero on success, negative error code if failed.
  */
-int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
+void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 {
-	struct dentry *ent;
-	char name[10] = "";
+	char name[16] = "";
 
-	sprintf(name, "vgpu%d", vgpu->id);
+	snprintf(name, 16, "vgpu%d", vgpu->id);
 	vgpu->debugfs = debugfs_create_dir(name, vgpu->gvt->debugfs_root);
-	if (!vgpu->debugfs)
-		return -ENOMEM;
 
-	ent = debugfs_create_bool("active", 0444, vgpu->debugfs,
-				  &vgpu->active);
-	if (!ent)
-		return -ENOMEM;
-
-	ent = debugfs_create_file("mmio_diff", 0444, vgpu->debugfs,
-				  vgpu, &vgpu_mmio_diff_fops);
-	if (!ent)
-		return -ENOMEM;
-
-	ent = debugfs_create_file("scan_nonprivbb", 0644, vgpu->debugfs,
-				 vgpu, &vgpu_scan_nonprivbb_fops);
-	if (!ent)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_bool("active", 0444, vgpu->debugfs, &vgpu->active);
+	debugfs_create_file("mmio_diff", 0444, vgpu->debugfs, vgpu,
+			    &vgpu_mmio_diff_fops);
+	debugfs_create_file("scan_nonprivbb", 0644, vgpu->debugfs, vgpu,
+			    &vgpu_scan_nonprivbb_fops);
 }
 
 /**
@@ -234,27 +182,15 @@ void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
 /**
  * intel_gvt_debugfs_init - register gvt debugfs root entry
  * @gvt: GVT device
- *
- * Returns:
- * zero on success, negative if failed.
  */
-int intel_gvt_debugfs_init(struct intel_gvt *gvt)
+void intel_gvt_debugfs_init(struct intel_gvt *gvt)
 {
-	struct drm_minor *minor = gvt->dev_priv->drm.primary;
-	struct dentry *ent;
+	struct drm_minor *minor = gvt->gt->i915->drm.primary;
 
 	gvt->debugfs_root = debugfs_create_dir("gvt", minor->debugfs_root);
-	if (!gvt->debugfs_root) {
-		gvt_err("Cannot create debugfs dir\n");
-		return -ENOMEM;
-	}
 
-	ent = debugfs_create_ulong("num_tracked_mmio", 0444, gvt->debugfs_root,
-				   &gvt->mmio.num_tracked_mmio);
-	if (!ent)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_ulong("num_tracked_mmio", 0444, gvt->debugfs_root,
+			     &gvt->mmio.num_tracked_mmio);
 }
 
 /**

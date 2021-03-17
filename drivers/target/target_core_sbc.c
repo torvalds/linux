@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SCSI Block Commands (SBC) parsing and emulation.
  *
  * (c) Copyright 2002-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -360,6 +347,10 @@ static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd, bool success,
 	unsigned int offset;
 	sense_reason_t ret = TCM_NO_SENSE;
 	int i, count;
+
+	if (!success)
+		return 0;
+
 	/*
 	 * From sbc3r22.pdf section 5.48 XDWRITEREAD (10) command
 	 *
@@ -425,14 +416,8 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 	struct se_device *dev = cmd->se_dev;
 	sense_reason_t ret = TCM_NO_SENSE;
 
-	/*
-	 * Only set SCF_COMPARE_AND_WRITE_POST to force a response fall-through
-	 * within target_complete_ok_work() if the command was successfully
-	 * sent to the backend driver.
-	 */
 	spin_lock_irq(&cmd->t_state_lock);
-	if (cmd->transport_state & CMD_T_SENT) {
-		cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
+	if (success) {
 		*post_ret = 1;
 
 		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
@@ -453,7 +438,8 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 						 int *post_ret)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct scatterlist *write_sg = NULL, *sg;
+	struct sg_table write_tbl = { };
+	struct scatterlist *write_sg, *sg;
 	unsigned char *buf = NULL, *addr;
 	struct sg_mapping_iter m;
 	unsigned int offset = 0, len;
@@ -494,14 +480,12 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 		goto out;
 	}
 
-	write_sg = kmalloc_array(cmd->t_data_nents, sizeof(*write_sg),
-				 GFP_KERNEL);
-	if (!write_sg) {
+	if (sg_alloc_table(&write_tbl, cmd->t_data_nents, GFP_KERNEL) < 0) {
 		pr_err("Unable to allocate compare_and_write sg\n");
 		ret = TCM_OUT_OF_RESOURCES;
 		goto out;
 	}
-	sg_init_table(write_sg, cmd->t_data_nents);
+	write_sg = write_tbl.sgl;
 	/*
 	 * Setup verify and write data payloads from total NumberLBAs.
 	 */
@@ -597,7 +581,7 @@ out:
 	 * sbc_compare_and_write() before the original READ I/O submission.
 	 */
 	up(&dev->caw_sem);
-	kfree(write_sg);
+	sg_free_table(&write_tbl);
 	kfree(buf);
 	return ret;
 }
@@ -750,7 +734,7 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 		}
 		if (!protect)
 			return TCM_NO_SENSE;
-		/* Fallthrough */
+		fallthrough;
 	default:
 		pr_err("Unable to determine pi_prot_type for CDB: 0x%02x "
 		       "PROTECT: 0x%02x\n", cdb[0], protect);

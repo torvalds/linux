@@ -21,6 +21,12 @@ static inline struct mount *fsnotify_conn_mount(
 	return container_of(conn->obj, struct mount, mnt_fsnotify_marks);
 }
 
+static inline struct super_block *fsnotify_conn_sb(
+				struct fsnotify_mark_connector *conn)
+{
+	return container_of(conn->obj, struct super_block, s_fsnotify_marks);
+}
+
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
 
@@ -43,8 +49,11 @@ static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 {
 	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks);
 }
-/* Wait until all marks queued for destruction are destroyed */
-extern void fsnotify_wait_marks_destroyed(void);
+/* run the list of all marks associated with sb and destroy them */
+static inline void fsnotify_clear_marks_by_sb(struct super_block *sb)
+{
+	fsnotify_destroy_marks(&sb->s_fsnotify_marks);
+}
 
 /*
  * update the dentry->d_flags of all of inode's children to indicate if inode cares
@@ -55,5 +64,7 @@ extern void __fsnotify_update_child_dentry_flags(struct inode *inode);
 /* allocate and destroy and event holder to attach events to notification/access queues */
 extern struct fsnotify_event_holder *fsnotify_alloc_event_holder(void);
 extern void fsnotify_destroy_event_holder(struct fsnotify_event_holder *holder);
+
+extern struct kmem_cache *fsnotify_mark_connector_cachep;
 
 #endif	/* __FS_NOTIFY_FSNOTIFY_H_ */

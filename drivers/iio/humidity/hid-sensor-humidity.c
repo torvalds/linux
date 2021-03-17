@@ -1,25 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID Sensors Driver
  * Copyright (c) 2017, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.
  */
 #include <linux/device.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/triggered_buffer.h>
-#include <linux/iio/trigger_consumer.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -75,7 +62,8 @@ static int humidity_read_raw(struct iio_dev *indio_dev,
 				HID_USAGE_SENSOR_HUMIDITY,
 				HID_USAGE_SENSOR_ATMOSPHERIC_HUMIDITY,
 				humid_st->humidity_attr.report_id,
-				SENSOR_HUB_SYNC);
+				SENSOR_HUB_SYNC,
+				humid_st->humidity_attr.logical_minimum < 0);
 		hid_sensor_power_state(&humid_st->common_attributes, false);
 
 		return IIO_VAL_INT;
@@ -238,17 +226,12 @@ static int hid_humidity_probe(struct platform_device *pdev)
 
 	indio_dev->channels = humid_chans;
 	indio_dev->num_channels = ARRAY_SIZE(humidity_channels);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &humidity_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = devm_iio_triggered_buffer_setup(&pdev->dev, indio_dev,
-					&iio_pollfunc_store_time, NULL, NULL);
-	if (ret)
-		return ret;
-
 	atomic_set(&humid_st->common_attributes.data_ready, 0);
+
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 				&humid_st->common_attributes);
 	if (ret)
@@ -271,7 +254,7 @@ static int hid_humidity_probe(struct platform_device *pdev)
 error_remove_callback:
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_HUMIDITY);
 error_remove_trigger:
-	hid_sensor_remove_trigger(&humid_st->common_attributes);
+	hid_sensor_remove_trigger(indio_dev, &humid_st->common_attributes);
 	return ret;
 }
 
@@ -284,7 +267,7 @@ static int hid_humidity_remove(struct platform_device *pdev)
 
 	iio_device_unregister(indio_dev);
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_HUMIDITY);
-	hid_sensor_remove_trigger(&humid_st->common_attributes);
+	hid_sensor_remove_trigger(indio_dev, &humid_st->common_attributes);
 
 	return 0;
 }

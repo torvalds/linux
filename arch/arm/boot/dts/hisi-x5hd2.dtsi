@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2014 Linaro Ltd.
  * Copyright (c) 2013-2014 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * publishhed by the Free Software Foundation.
  */
 
 #include <dt-bindings/clock/hix5hd2-clock.h>
@@ -373,8 +370,9 @@
 				arm,primecell-periphid = <0x00141805>;
 				reg = <0xa2c000 0x1000>;
 				interrupts = <0 29 4>;
-				clocks = <&clock HIX5HD2_WDG0_RST>;
-				clock-names = "apb_pclk";
+				clocks = <&clock HIX5HD2_WDG0_RST>,
+					 <&clock HIX5HD2_WDG0_RST>;
+				clock-names = "wdog_clk", "apb_pclk";
 			};
 		};
 
@@ -384,7 +382,7 @@
 			interrupts = <1 13 0xf01>;
 		};
 
-		l2: l2-cache {
+		l2: cache-controller {
 			compatible = "arm,pl310-cache";
 			reg = <0x00a10000 0x100000>;
 			interrupts = <0 15 4>;

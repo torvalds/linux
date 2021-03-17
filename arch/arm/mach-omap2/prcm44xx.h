@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP4 PRCM definitions
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2010 Nokia Corporation
  *
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This file contains macros and functions that are common to all of
  * the PRM/CM/PRCM blocks on the OMAP4 devices: PRM, CM1, CM2,

@@ -14,7 +14,7 @@
 #define _LINUX_CAPABILITY_H
 
 #include <uapi/linux/capability.h>
-
+#include <linux/uidgid.h>
 
 #define _KERNEL_CAPABILITY_VERSION _LINUX_CAPABILITY_VERSION_3
 #define _KERNEL_CAPABILITY_U32S    _LINUX_CAPABILITY_U32S_3
@@ -25,11 +25,12 @@ typedef struct kernel_cap_struct {
 	__u32 cap[_KERNEL_CAPABILITY_U32S];
 } kernel_cap_t;
 
-/* exact same as vfs_cap_data but in cpu endian and always filled completely */
+/* same as vfs_ns_cap_data but in cpu endian and always filled completely */
 struct cpu_vfs_cap_data {
 	__u32 magic_etc;
 	kernel_cap_t permitted;
 	kernel_cap_t inheritable;
+	kuid_t rootid;
 };
 
 #define _USER_CAP_HEADER_SIZE  (sizeof(struct __user_cap_header_struct))
@@ -209,6 +210,7 @@ extern bool has_ns_capability_noaudit(struct task_struct *t,
 extern bool capable(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
 extern bool ns_capable_noaudit(struct user_namespace *ns, int cap);
+extern bool ns_capable_setid(struct user_namespace *ns, int cap);
 #else
 static inline bool has_capability(struct task_struct *t, int cap)
 {
@@ -240,11 +242,30 @@ static inline bool ns_capable_noaudit(struct user_namespace *ns, int cap)
 {
 	return true;
 }
+static inline bool ns_capable_setid(struct user_namespace *ns, int cap)
+{
+	return true;
+}
 #endif /* CONFIG_MULTIUSER */
 extern bool privileged_wrt_inode_uidgid(struct user_namespace *ns, const struct inode *inode);
 extern bool capable_wrt_inode_uidgid(const struct inode *inode, int cap);
 extern bool file_ns_capable(const struct file *file, struct user_namespace *ns, int cap);
 extern bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns);
+static inline bool perfmon_capable(void)
+{
+	return capable(CAP_PERFMON) || capable(CAP_SYS_ADMIN);
+}
+
+static inline bool bpf_capable(void)
+{
+	return capable(CAP_BPF) || capable(CAP_SYS_ADMIN);
+}
+
+static inline bool checkpoint_restore_ns_capable(struct user_namespace *ns)
+{
+	return ns_capable(ns, CAP_CHECKPOINT_RESTORE) ||
+		ns_capable(ns, CAP_SYS_ADMIN);
+}
 
 /* audit system wants to get cap info from files as well */
 extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);

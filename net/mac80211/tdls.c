@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 TDLS handling code
  *
@@ -5,8 +6,7 @@
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
  * Copyright 2015 - 2016 Intel Deutschland GmbH
- *
- * This file is GPLv2 as found in COPYING.
+ * Copyright (C) 2019 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -226,12 +226,11 @@ static void ieee80211_tdls_add_link_ie(struct ieee80211_sub_if_data *sdata,
 static void
 ieee80211_tdls_add_aid(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 {
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 *pos = skb_put(skb, 4);
 
 	*pos++ = WLAN_EID_AID;
 	*pos++ = 2; /* len */
-	put_unaligned_le16(ifmgd->aid, pos);
+	put_unaligned_le16(sdata->vif.bss_conf.aid, pos);
 }
 
 /* translate numbering in the WMM parameter IE to the mac80211 notation */
@@ -240,7 +239,7 @@ static enum ieee80211_ac_numbers ieee80211_ac_from_wmm(int ac)
 	switch (ac) {
 	default:
 		WARN_ON_ONCE(1);
-		/* fall through */
+		fallthrough;
 	case 0:
 		return IEEE80211_AC_BE;
 	case 1:
@@ -953,7 +952,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 			set_sta_flag(sta, WLAN_STA_TDLS_INITIATOR);
 			sta->sta.tdls_initiator = false;
 		}
-		/* fall-through */
+		fallthrough;
 	case WLAN_TDLS_SETUP_CONFIRM:
 	case WLAN_TDLS_DISCOVERY_REQUEST:
 		initiator = true;
@@ -968,7 +967,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 			clear_sta_flag(sta, WLAN_STA_TDLS_INITIATOR);
 			sta->sta.tdls_initiator = true;
 		}
-		/* fall-through */
+		fallthrough;
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
 		initiator = false;
 		break;
@@ -1055,7 +1054,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 
 	/* disable bottom halves when entering the Tx path */
 	local_bh_disable();
-	__ieee80211_subif_start_xmit(skb, dev, flags);
+	__ieee80211_subif_start_xmit(skb, dev, flags, 0, NULL);
 	local_bh_enable();
 
 	return ret;
@@ -1223,7 +1222,7 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		 * by the AP.
 		 */
 		drv_mgd_protect_tdls_discover(sdata->local, sdata);
-		/* fall-through */
+		fallthrough;
 	case WLAN_TDLS_SETUP_CONFIRM:
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
 		/* no special handling */
@@ -1567,6 +1566,10 @@ ieee80211_tdls_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	u32 ch_sw_tm_ie;
 	int ret;
 
+	if (chandef->chan->freq_offset)
+		/* this may work, but is untested */
+		return -EOPNOTSUPP;
+
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, addr);
 	if (!sta) {
@@ -1716,7 +1719,8 @@ ieee80211_process_tdls_channel_switch_resp(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee802_11_parse_elems(tf->u.chan_switch_resp.variable,
-			       skb->len - baselen, false, &elems);
+			       skb->len - baselen, false, &elems,
+			       NULL, NULL);
 	if (elems.parse_error) {
 		tdls_dbg(sdata, "Invalid IEs in TDLS channel switch resp\n");
 		ret = -EINVAL;
@@ -1828,7 +1832,7 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee802_11_parse_elems(tf->u.chan_switch_req.variable,
-			       skb->len - baselen, false, &elems);
+			       skb->len - baselen, false, &elems, NULL, NULL);
 	if (elems.parse_error) {
 		tdls_dbg(sdata, "Invalid IEs in TDLS channel switch req\n");
 		return -EINVAL;
@@ -1991,4 +1995,27 @@ void ieee80211_tdls_chsw_work(struct work_struct *wk)
 		kfree_skb(skb);
 	}
 	rtnl_unlock();
+}
+
+void ieee80211_tdls_handle_disconnect(struct ieee80211_sub_if_data *sdata,
+				      const u8 *peer, u16 reason)
+{
+	struct ieee80211_sta *sta;
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(&sdata->vif, peer);
+	if (!sta || !sta->tdls) {
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
+
+	tdls_dbg(sdata, "disconnected from TDLS peer %pM (Reason: %u=%s)\n",
+		 peer, reason,
+		 ieee80211_get_reason_code_string(reason));
+
+	ieee80211_tdls_oper_request(&sdata->vif, peer,
+				    NL80211_TDLS_TEARDOWN,
+				    WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE,
+				    GFP_ATOMIC);
 }

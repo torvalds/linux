@@ -1,21 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Backlight & LCD drivers configuration
 #
 
-menuconfig BACKLIGHT_LCD_SUPPORT
-	bool "Backlight & LCD device support"
-	help
-	  Enable this to be able to choose the drivers for controlling the
-	  backlight and the LCD panel on some platforms, for example on PDAs.
-
-if BACKLIGHT_LCD_SUPPORT
+menu "Backlight & LCD device support"
 
 #
 # LCD
 #
 config LCD_CLASS_DEVICE
-        tristate "Lowlevel LCD controls"
-	default m
+	tristate "Lowlevel LCD controls"
 	help
 	  This framework adds support for low-level control of LCD.
 	  Some framebuffer devices connect to platform-specific LCD modules
@@ -105,27 +99,11 @@ config LCD_TOSA
 
 config LCD_HP700
 	tristate "HP Jornada 700 series LCD Driver"
-	depends on SA1100_JORNADA720_SSP && !PREEMPT
+	depends on SA1100_JORNADA720_SSP && !PREEMPTION
 	default y
 	help
 	  If you have an HP Jornada 700 series handheld (710/720/728)
 	  say Y to enable LCD control driver.
-
-config LCD_S6E63M0
-	tristate "S6E63M0 AMOLED LCD Driver"
-	depends on SPI && BACKLIGHT_CLASS_DEVICE
-	default n
-	help
-	  If you have an S6E63M0 LCD Panel, say Y to enable its
-	  LCD control driver.
-
-config LCD_LD9040
-	tristate "LD9040 AMOLED LCD Driver"
-	depends on SPI && BACKLIGHT_CLASS_DEVICE
-	default n
-	help
-	  If you have an LD9040 Panel, say Y to enable its
-	  control driver.
 
 config LCD_AMS369FG06
 	tristate "AMS369FG06 AMOLED LCD Driver"
@@ -163,11 +141,10 @@ endif # LCD_CLASS_DEVICE
 # Backlight
 #
 config BACKLIGHT_CLASS_DEVICE
-        tristate "Lowlevel Backlight controls"
-	default m
+	tristate "Lowlevel Backlight controls"
 	help
 	  This framework adds support for low-level control of the LCD
-          backlight. This includes support for brightness and power.
+	  backlight. This includes support for brightness and power.
 
 	  To have support for your specific LCD panel you will have to
 	  select the proper drivers which depend on this option.
@@ -196,14 +173,6 @@ config BACKLIGHT_EP93XX
 	  To compile this driver as a module, choose M here: the module will
 	  be called ep93xx_bl.
 
-config BACKLIGHT_GENERIC
-	tristate "Generic (aka Sharp Corgi) Backlight Driver"
-	default y
-	help
-	  Say y to enable the generic platform backlight driver previously
-	  known as the Corgi backlight driver. If you have a Sharp Zaurus
-	  SL-C7xx, SL-Cxx00 or SL-6000x say y.
-
 config BACKLIGHT_IPAQ_MICRO
 	tristate "iPAQ microcontroller backlight driver"
 	depends on MFD_IPAQ_MICRO
@@ -213,9 +182,16 @@ config BACKLIGHT_IPAQ_MICRO
 	  computers. Say yes if you have one of the h3100/h3600/h3700
 	  machines.
 
+config BACKLIGHT_KTD253
+	tristate "Backlight Driver for Kinetic KTD253"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say y to enabled the backlight driver for the Kinetic KTD253
+	  which is a 1-wire GPIO-controlled backlight found in some mobile
+	  phones.
+
 config BACKLIGHT_LM3533
 	tristate "Backlight Driver for LM3533"
-	depends on BACKLIGHT_CLASS_DEVICE
 	depends on MFD_LM3533
 	help
 	  Say Y to enable the backlight driver for National Semiconductor / TI
@@ -252,7 +228,7 @@ config BACKLIGHT_HP680
 
 config BACKLIGHT_HP700
 	tristate "HP Jornada 700 series Backlight Driver"
-	depends on SA1100_JORNADA720_SSP && !PREEMPT
+	depends on SA1100_JORNADA720_SSP && !PREEMPTION
 	default y
 	help
 	  If you have an HP Jornada 700 series,
@@ -296,7 +272,7 @@ config BACKLIGHT_APPLE
        tristate "Apple Backlight Driver"
        depends on X86 && ACPI
        help
-         If you have an Intel-based Apple say Y to enable a driver for its
+	 If you have an Intel-based Apple say Y to enable a driver for its
 	 backlight.
 
 config BACKLIGHT_TOSA
@@ -306,12 +282,12 @@ config BACKLIGHT_TOSA
 	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
 	  for its backlight
 
-config BACKLIGHT_PM8941_WLED
-	tristate "Qualcomm PM8941 WLED Driver"
+config BACKLIGHT_QCOM_WLED
+	tristate "Qualcomm PMIC WLED Driver"
 	select REGMAP
 	help
-	  If you have the Qualcomm PM8941, say Y to enable a driver for the
-	  WLED block.
+	  If you have the Qualcomm PMIC, say Y to enable a driver for the
+	  WLED block. Currently it supports PM8941 and PMI8998.
 
 config BACKLIGHT_SAHARA
 	tristate "Tabletkiosk Sahara Touch-iT Backlight Driver"
@@ -339,7 +315,7 @@ config BACKLIGHT_ADP5520
 
 config BACKLIGHT_ADP8860
 	tristate "Backlight Driver for ADP8860/ADP8861/ADP8863 using WLED"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on I2C
 	select NEW_LEDS
 	select LEDS_CLASS
 	help
@@ -351,7 +327,7 @@ config BACKLIGHT_ADP8860
 
 config BACKLIGHT_ADP8870
 	tristate "Backlight Driver for ADP8870 using WLED"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on I2C
 	select NEW_LEDS
 	select LEDS_CLASS
 	help
@@ -369,28 +345,28 @@ config BACKLIGHT_88PM860X
 
 config BACKLIGHT_PCF50633
 	tristate "Backlight driver for NXP PCF50633 MFD"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_PCF50633
+	depends on MFD_PCF50633
 	help
 	  If you have a backlight driven by a NXP PCF50633 MFD, say Y here to
 	  enable its driver.
 
 config BACKLIGHT_AAT2870
 	tristate "AnalogicTech AAT2870 Backlight"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_AAT2870_CORE
+	depends on MFD_AAT2870_CORE
 	help
 	  If you have a AnalogicTech AAT2870 say Y to enable the
 	  backlight driver.
 
 config BACKLIGHT_LM3630A
 	tristate "Backlight Driver for LM3630A"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
+	depends on I2C && PWM
 	select REGMAP_I2C
 	help
 	  This supports TI LM3630A Backlight Driver
 
 config BACKLIGHT_LM3639
 	tristate "Backlight Driver for LM3639"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on I2C
 	select REGMAP_I2C
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -399,23 +375,16 @@ config BACKLIGHT_LM3639
 
 config BACKLIGHT_LP855X
 	tristate "Backlight driver for TI LP855X"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
+	depends on I2C && PWM
 	help
 	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8555, LP8556 and
 	  LP8557 backlight driver.
 
 config BACKLIGHT_LP8788
 	tristate "Backlight driver for TI LP8788 MFD"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788 && PWM
+	depends on MFD_LP8788 && PWM
 	help
 	  This supports TI LP8788 backlight driver.
-
-config BACKLIGHT_OT200
-	tristate "Backlight driver for ot200 visualisation device"
-	depends on BACKLIGHT_CLASS_DEVICE && CS5535_MFGPT && GPIO_CS5535
-	help
-	  To compile this driver as a module, choose M here: the module will be
-	  called ot200_bl.
 
 config BACKLIGHT_PANDORA
 	tristate "Backlight driver for Pandora console"
@@ -426,7 +395,7 @@ config BACKLIGHT_PANDORA
 
 config BACKLIGHT_SKY81452
 	tristate "Backlight driver for SKY81452"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_SKY81452
+	depends on MFD_SKY81452
 	help
 	  If you have a Skyworks SKY81452, say Y to enable the
 	  backlight driver.
@@ -436,14 +405,14 @@ config BACKLIGHT_SKY81452
 
 config BACKLIGHT_TPS65217
 	tristate "TPS65217 Backlight"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_TPS65217
+	depends on MFD_TPS65217
 	help
 	  If you have a Texas Instruments TPS65217 say Y to enable the
 	  backlight driver.
 
 config BACKLIGHT_AS3711
 	tristate "AS3711 Backlight"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_AS3711
+	depends on MFD_AS3711
 	help
 	  If you have an Austrian Microsystems AS3711 say Y to enable the
 	  backlight driver.
@@ -480,6 +449,13 @@ config BACKLIGHT_RAVE_SP
 	help
 	  Support for backlight control on RAVE SP device.
 
+config BACKLIGHT_LED
+	tristate "Generic LED based Backlight Driver"
+	depends on LEDS_CLASS && OF
+	help
+	  If you have a LCD backlight adjustable by LED class driver, say Y
+	  to enable this driver.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
-endif # BACKLIGHT_LCD_SUPPORT
+endmenu

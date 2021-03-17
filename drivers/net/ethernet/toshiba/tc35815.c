@@ -367,7 +367,7 @@ struct TxFD {
 
 struct RxFD {
 	struct FDesc fd;
-	struct BDesc bd[0];	/* variable length */
+	struct BDesc bd[];	/* variable length */
 };
 
 struct FrFD {
@@ -454,9 +454,9 @@ static struct sk_buff *alloc_rxbuf_skb(struct net_device *dev,
 	skb = netdev_alloc_skb(dev, RX_BUF_SIZE);
 	if (!skb)
 		return NULL;
-	*dma_handle = pci_map_single(hwdev, skb->data, RX_BUF_SIZE,
-				     PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(hwdev, *dma_handle)) {
+	*dma_handle = dma_map_single(&hwdev->dev, skb->data, RX_BUF_SIZE,
+				     DMA_FROM_DEVICE);
+	if (dma_mapping_error(&hwdev->dev, *dma_handle)) {
 		dev_kfree_skb_any(skb);
 		return NULL;
 	}
@@ -466,15 +466,16 @@ static struct sk_buff *alloc_rxbuf_skb(struct net_device *dev,
 
 static void free_rxbuf_skb(struct pci_dev *hwdev, struct sk_buff *skb, dma_addr_t dma_handle)
 {
-	pci_unmap_single(hwdev, dma_handle, RX_BUF_SIZE,
-			 PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&hwdev->dev, dma_handle, RX_BUF_SIZE,
+			 DMA_FROM_DEVICE);
 	dev_kfree_skb_any(skb);
 }
 
 /* Index to functions, as function prototypes. */
 
 static int	tc35815_open(struct net_device *dev);
-static int	tc35815_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t	tc35815_send_packet(struct sk_buff *skb,
+					    struct net_device *dev);
 static irqreturn_t	tc35815_interrupt(int irq, void *dev_id);
 static int	tc35815_rx(struct net_device *dev, int limit);
 static int	tc35815_poll(struct napi_struct *napi, int budget);
@@ -482,8 +483,7 @@ static void	tc35815_txdone(struct net_device *dev);
 static int	tc35815_close(struct net_device *dev);
 static struct	net_device_stats *tc35815_get_stats(struct net_device *dev);
 static void	tc35815_set_multicast_list(struct net_device *dev);
-static void	tc35815_tx_timeout(struct net_device *dev);
-static int	tc35815_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+static void	tc35815_tx_timeout(struct net_device *dev, unsigned int txqueue);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void	tc35815_poll_controller(struct net_device *dev);
 #endif
@@ -606,9 +606,9 @@ static void tc_handle_link_change(struct net_device *dev)
 
 static int tc_mii_probe(struct net_device *dev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct phy_device *phydev;
-	u32 dropmask;
 
 	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
@@ -628,18 +628,23 @@ static int tc_mii_probe(struct net_device *dev)
 	phy_attached_info(phydev);
 
 	/* mask with MAC supported features */
-	phydev->supported &= PHY_BASIC_FEATURES;
-	dropmask = 0;
-	if (options.speed == 10)
-		dropmask |= SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full;
-	else if (options.speed == 100)
-		dropmask |= SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full;
-	if (options.duplex == 1)
-		dropmask |= SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full;
-	else if (options.duplex == 2)
-		dropmask |= SUPPORTED_10baseT_Half | SUPPORTED_100baseT_Half;
-	phydev->supported &= ~dropmask;
-	phydev->advertising = phydev->supported;
+	phy_set_max_speed(phydev, SPEED_100);
+	if (options.speed == 10) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+	} else if (options.speed == 100) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, mask);
+	}
+	if (options.duplex == 1) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+	} else if (options.duplex == 2) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+	}
+	linkmode_andnot(phydev->supported, phydev->supported, mask);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	lp->link = 0;
 	lp->speed = 0;
@@ -688,10 +693,10 @@ err_out:
  * should provide a "tc35815-mac" device with a MAC address in its
  * platform_data.
  */
-static int tc35815_mac_match(struct device *dev, void *data)
+static int tc35815_mac_match(struct device *dev, const void *data)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
-	struct pci_dev *pci_dev = data;
+	const struct pci_dev *pci_dev = data;
 	unsigned int id = pci_dev->irq;
 	return !strcmp(plat_dev->name, "tc35815-mac") && plat_dev->id == id;
 }
@@ -745,7 +750,7 @@ static const struct net_device_ops tc35815_netdev_ops = {
 	.ndo_get_stats		= tc35815_get_stats,
 	.ndo_set_rx_mode	= tc35815_set_multicast_list,
 	.ndo_tx_timeout		= tc35815_tx_timeout,
-	.ndo_do_ioctl		= tc35815_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -871,9 +876,9 @@ tc35815_init_queues(struct net_device *dev)
 		       sizeof(struct TxFD) * TX_FD_NUM >
 		       PAGE_SIZE * FD_PAGE_NUM);
 
-		lp->fd_buf = pci_alloc_consistent(lp->pci_dev,
-						  PAGE_SIZE * FD_PAGE_NUM,
-						  &lp->fd_buf_dma);
+		lp->fd_buf = dma_alloc_coherent(&lp->pci_dev->dev,
+						PAGE_SIZE * FD_PAGE_NUM,
+						&lp->fd_buf_dma, GFP_ATOMIC);
 		if (!lp->fd_buf)
 			return -ENOMEM;
 		for (i = 0; i < RX_BUF_NUM; i++) {
@@ -887,10 +892,9 @@ tc35815_init_queues(struct net_device *dev)
 						       lp->rx_skbs[i].skb_dma);
 					lp->rx_skbs[i].skb = NULL;
 				}
-				pci_free_consistent(lp->pci_dev,
-						    PAGE_SIZE * FD_PAGE_NUM,
-						    lp->fd_buf,
-						    lp->fd_buf_dma);
+				dma_free_coherent(&lp->pci_dev->dev,
+						  PAGE_SIZE * FD_PAGE_NUM,
+						  lp->fd_buf, lp->fd_buf_dma);
 				lp->fd_buf = NULL;
 				return -ENOMEM;
 			}
@@ -985,7 +989,9 @@ tc35815_clear_queues(struct net_device *dev)
 		BUG_ON(lp->tx_skbs[i].skb != skb);
 #endif
 		if (skb) {
-			pci_unmap_single(lp->pci_dev, lp->tx_skbs[i].skb_dma, skb->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(&lp->pci_dev->dev,
+					 lp->tx_skbs[i].skb_dma, skb->len,
+					 DMA_TO_DEVICE);
 			lp->tx_skbs[i].skb = NULL;
 			lp->tx_skbs[i].skb_dma = 0;
 			dev_kfree_skb_any(skb);
@@ -1017,7 +1023,9 @@ tc35815_free_queues(struct net_device *dev)
 			BUG_ON(lp->tx_skbs[i].skb != skb);
 #endif
 			if (skb) {
-				pci_unmap_single(lp->pci_dev, lp->tx_skbs[i].skb_dma, skb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(&lp->pci_dev->dev,
+						 lp->tx_skbs[i].skb_dma,
+						 skb->len, DMA_TO_DEVICE);
 				dev_kfree_skb(skb);
 				lp->tx_skbs[i].skb = NULL;
 				lp->tx_skbs[i].skb_dma = 0;
@@ -1039,8 +1047,8 @@ tc35815_free_queues(struct net_device *dev)
 		}
 	}
 	if (lp->fd_buf) {
-		pci_free_consistent(lp->pci_dev, PAGE_SIZE * FD_PAGE_NUM,
-				    lp->fd_buf, lp->fd_buf_dma);
+		dma_free_coherent(&lp->pci_dev->dev, PAGE_SIZE * FD_PAGE_NUM,
+				  lp->fd_buf, lp->fd_buf_dma);
 		lp->fd_buf = NULL;
 	}
 }
@@ -1183,7 +1191,7 @@ static void tc35815_schedule_restart(struct net_device *dev)
 	spin_unlock_irqrestore(&lp->lock, flags);
 }
 
-static void tc35815_tx_timeout(struct net_device *dev)
+static void tc35815_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
@@ -1248,7 +1256,8 @@ tc35815_open(struct net_device *dev)
  * invariant will hold if you make sure that the netif_*_queue()
  * calls are done at the proper times.
  */
-static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t
+tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct TxFD *txfd;
@@ -1286,7 +1295,10 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 	BUG_ON(lp->tx_skbs[lp->tfd_start].skb);
 #endif
 	lp->tx_skbs[lp->tfd_start].skb = skb;
-	lp->tx_skbs[lp->tfd_start].skb_dma = pci_map_single(lp->pci_dev, skb->data, skb->len, PCI_DMA_TODEVICE);
+	lp->tx_skbs[lp->tfd_start].skb_dma = dma_map_single(&lp->pci_dev->dev,
+							    skb->data,
+							    skb->len,
+							    DMA_TO_DEVICE);
 
 	/*add to ring */
 	txfd = &lp->tfd_base[lp->tfd_start];
@@ -1494,10 +1506,10 @@ tc35815_rx(struct net_device *dev, int limit)
 			skb = lp->rx_skbs[cur_bd].skb;
 			prefetch(skb->data);
 			lp->rx_skbs[cur_bd].skb = NULL;
-			pci_unmap_single(lp->pci_dev,
+			dma_unmap_single(&lp->pci_dev->dev,
 					 lp->rx_skbs[cur_bd].skb_dma,
-					 RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
-			if (!HAVE_DMA_RXALIGN(lp) && NET_IP_ALIGN)
+					 RX_BUF_SIZE, DMA_FROM_DEVICE);
+			if (!HAVE_DMA_RXALIGN(lp) && NET_IP_ALIGN != 0)
 				memmove(skb->data, skb->data - NET_IP_ALIGN,
 					pkt_len);
 			data = skb_put(skb, pkt_len);
@@ -1750,7 +1762,9 @@ tc35815_txdone(struct net_device *dev)
 #endif
 		if (skb) {
 			dev->stats.tx_bytes += skb->len;
-			pci_unmap_single(lp->pci_dev, lp->tx_skbs[lp->tfd_end].skb_dma, skb->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(&lp->pci_dev->dev,
+					 lp->tx_skbs[lp->tfd_end].skb_dma,
+					 skb->len, DMA_TO_DEVICE);
 			lp->tx_skbs[lp->tfd_end].skb = NULL;
 			lp->tx_skbs[lp->tfd_end].skb_dma = 0;
 			dev_kfree_skb_any(skb);
@@ -2001,15 +2015,6 @@ static const struct ethtool_ops tc35815_ethtool_ops = {
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
-
-static int tc35815_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	if (!netif_running(dev))
-		return -EINVAL;
-	if (!dev->phydev)
-		return -ENODEV;
-	return phy_mii_ioctl(dev->phydev, rq, cmd);
-}
 
 static void tc35815_chip_reset(struct net_device *dev)
 {

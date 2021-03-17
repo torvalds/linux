@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2000, 2001 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
  */
 
 #ifndef __CHAN_USER_H__
@@ -11,7 +11,7 @@
 struct chan_opts {
 	void (*const announce)(char *dev_name, int dev);
 	char *xterm_title;
-	const int raw;
+	int raw;
 };
 
 struct chan_ops {

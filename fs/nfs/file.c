@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/nfs/file.c
  *
@@ -89,8 +90,8 @@ EXPORT_SYMBOL_GPL(nfs_file_release);
 
 /**
  * nfs_revalidate_size - Revalidate the file size
- * @inode - pointer to inode struct
- * @file - pointer to struct file
+ * @inode: pointer to inode struct
+ * @filp: pointer to struct file
  *
  * Revalidates the file length. This is basically a wrapper around
  * nfs_revalidate_inode() that takes into account the fact that we may
@@ -139,6 +140,7 @@ static int
 nfs_file_flush(struct file *file, fl_owner_t id)
 {
 	struct inode	*inode = file_inode(file);
+	errseq_t since;
 
 	dprintk("NFS: flush(%pD2)\n", file);
 
@@ -147,7 +149,9 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 		return 0;
 
 	/* Flush writes to the server and return any errors */
-	return vfs_fsync(file, 0);
+	since = filemap_sample_wb_err(file->f_mapping);
+	nfs_wb_all(inode);
+	return filemap_check_wb_err(file->f_mapping, since);
 }
 
 ssize_t
@@ -199,64 +203,43 @@ EXPORT_SYMBOL_GPL(nfs_file_mmap);
  * Flush any dirty pages for this process, and check for write errors.
  * The return status from this call provides a reliable indication of
  * whether any write errors occurred for this process.
- *
- * Notice that it clears the NFS_CONTEXT_ERROR_WRITE before synching to
- * disk, but it retrieves and clears ctx->error after synching, despite
- * the two being set at the same time in nfs_context_set_write_error().
- * This is because the former is used to notify the _next_ call to
- * nfs_file_write() that a write error occurred, and hence cause it to
- * fall back to doing a synchronous write.
  */
 static int
 nfs_file_fsync_commit(struct file *file, int datasync)
 {
-	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode *inode = file_inode(file);
-	int do_resend, status;
-	int ret = 0;
+	int ret;
 
 	dprintk("NFS: fsync file(%pD2) datasync %d\n", file, datasync);
 
 	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
-	do_resend = test_and_clear_bit(NFS_CONTEXT_RESEND_WRITES, &ctx->flags);
-	status = nfs_commit_inode(inode, FLUSH_SYNC);
-	if (test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags)) {
-		ret = xchg(&ctx->error, 0);
-		if (ret)
-			goto out;
-	}
-	if (status < 0) {
-		ret = status;
-		goto out;
-	}
-	do_resend |= test_bit(NFS_CONTEXT_RESEND_WRITES, &ctx->flags);
-	if (do_resend)
-		ret = -EAGAIN;
-out:
-	return ret;
+	ret = nfs_commit_inode(inode, FLUSH_SYNC);
+	if (ret < 0)
+		return ret;
+	return file_check_and_advance_wb_err(file);
 }
 
 int
 nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	int ret;
+	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode *inode = file_inode(file);
+	int ret;
 
 	trace_nfs_fsync_enter(inode);
 
-	do {
-		struct nfs_open_context *ctx = nfs_file_open_context(file);
-		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-		if (test_and_clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags)) {
-			int ret2 = xchg(&ctx->error, 0);
-			if (ret2)
-				ret = ret2;
-		}
+	for (;;) {
+		ret = file_write_and_wait_range(file, start, end);
 		if (ret != 0)
 			break;
 		ret = nfs_file_fsync_commit(file, datasync);
-		if (!ret)
-			ret = pnfs_sync_inode(inode, !!datasync);
+		if (ret != 0)
+			break;
+		ret = pnfs_sync_inode(inode, !!datasync);
+		if (ret != 0)
+			break;
+		if (!test_and_clear_bit(NFS_CONTEXT_RESEND_WRITES, &ctx->flags))
+			break;
 		/*
 		 * If nfs_file_fsync_commit detected a server reboot, then
 		 * resend all dirty pages that might have been covered by
@@ -264,7 +247,7 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		 */
 		start = 0;
 		end = LLONG_MAX;
-	} while (ret == -EAGAIN);
+	}
 
 	trace_nfs_fsync_exit(inode, ret);
 	return ret;
@@ -275,6 +258,12 @@ EXPORT_SYMBOL_GPL(nfs_file_fsync);
  * Decide whether a read/modify/write cycle may be more efficient
  * then a modify/write/read cycle when writing to a page in the
  * page cache.
+ *
+ * Some pNFS layout drivers can only read/write at a certain block
+ * granularity like all block devices and therefore we must perform
+ * read/modify/write whenever a page hasn't read yet and the data
+ * to be written there is not aligned to a block boundary and/or
+ * smaller than the block size.
  *
  * The modify/write/read cycle may occur if a page is read before
  * being completely filled by the writer.  In this situation, the
@@ -291,26 +280,32 @@ EXPORT_SYMBOL_GPL(nfs_file_fsync);
  * and that the new data won't completely replace the old data in
  * that range of the file.
  */
-static int nfs_want_read_modify_write(struct file *file, struct page *page,
-			loff_t pos, unsigned len)
+static bool nfs_full_page_write(struct page *page, loff_t pos, unsigned int len)
 {
 	unsigned int pglen = nfs_page_length(page);
 	unsigned int offset = pos & (PAGE_SIZE - 1);
 	unsigned int end = offset + len;
 
-	if (pnfs_ld_read_whole_page(file->f_mapping->host)) {
-		if (!PageUptodate(page))
-			return 1;
-		return 0;
-	}
+	return !pglen || (end >= pglen && !offset);
+}
 
-	if ((file->f_mode & FMODE_READ) &&	/* open for read? */
-	    !PageUptodate(page) &&		/* Uptodate? */
-	    !PagePrivate(page) &&		/* i/o request already? */
-	    pglen &&				/* valid bytes of file? */
-	    (end < pglen || offset))		/* replace all valid bytes? */
-		return 1;
-	return 0;
+static bool nfs_want_read_modify_write(struct file *file, struct page *page,
+			loff_t pos, unsigned int len)
+{
+	/*
+	 * Up-to-date pages, those with ongoing or full-page write
+	 * don't need read/modify/write
+	 */
+	if (PageUptodate(page) || PagePrivate(page) ||
+	    nfs_full_page_write(page, pos, len))
+		return false;
+
+	if (pnfs_ld_read_whole_page(file->f_mapping->host))
+		return true;
+	/* Open for reading too? */
+	if (file->f_mode & FMODE_READ)
+		return true;
+	return false;
 }
 
 /*
@@ -492,7 +487,19 @@ static int nfs_launder_page(struct page *page)
 static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 						sector_t *span)
 {
+	unsigned long blocks;
+	long long isize;
 	struct rpc_clnt *clnt = NFS_CLIENT(file->f_mapping->host);
+	struct inode *inode = file->f_mapping->host;
+
+	spin_lock(&inode->i_lock);
+	blocks = inode->i_blocks;
+	isize = inode->i_size;
+	spin_unlock(&inode->i_lock);
+	if (blocks*512 < isize) {
+		pr_warn("swap activate: swapfile has holes\n");
+		return -EINVAL;
+	}
 
 	*span = sis->pages;
 
@@ -583,12 +590,13 @@ static const struct vm_operations_struct nfs_file_vm_ops = {
 	.page_mkwrite = nfs_vm_page_mkwrite,
 };
 
-static int nfs_need_check_write(struct file *filp, struct inode *inode)
+static int nfs_need_check_write(struct file *filp, struct inode *inode,
+				int error)
 {
 	struct nfs_open_context *ctx;
 
 	ctx = nfs_file_open_context(filp);
-	if (test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags) ||
+	if (nfs_error_is_fatal_on_server(error) ||
 	    nfs_ctx_key_to_expire(ctx, inode))
 		return 1;
 	return 0;
@@ -600,6 +608,8 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file_inode(file);
 	unsigned long written = 0;
 	ssize_t result;
+	errseq_t since;
+	int error;
 
 	result = nfs_key_timeout_notify(file, inode);
 	if (result)
@@ -624,6 +634,7 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_pos > i_size_read(inode))
 		nfs_revalidate_mapping(inode, file->f_mapping);
 
+	since = filemap_sample_wb_err(file->f_mapping);
 	nfs_start_io_write(inode);
 	result = generic_write_checks(iocb, from);
 	if (result > 0) {
@@ -642,8 +653,9 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 
 	/* Return error values */
-	if (nfs_need_check_write(file, inode)) {
-		int err = vfs_fsync(file, 0);
+	error = filemap_check_wb_err(file->f_mapping, since);
+	if (nfs_need_check_write(file, inode, error)) {
+		int err = nfs_wb_all(inode);
 		if (err < 0)
 			result = err;
 	}
@@ -653,7 +665,7 @@ out:
 
 out_swapfile:
 	printk(KERN_INFO "NFS: attempt to write to active swap file!\n");
-	return -EBUSY;
+	return -ETXTBSY;
 }
 EXPORT_SYMBOL_GPL(nfs_file_write);
 
@@ -697,7 +709,7 @@ do_unlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	 * Flush all pending writes before doing anything
 	 * with locks..
 	 */
-	vfs_fsync(filp, 0);
+	nfs_wb_all(inode);
 
 	l_ctx = nfs_get_lock_context(nfs_file_open_context(filp));
 	if (!IS_ERR(l_ctx)) {

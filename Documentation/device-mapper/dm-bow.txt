@@ -1,0 +1,99 @@
+dm_bow (backup on write)
+========================
+
+dm_bow is a device mapper driver that uses the free space on a device to back up
+data that is overwritten. The changes can then be committed by a simple state
+change, or rolled back by removing the dm_bow device and running a command line
+utility over the underlying device.
+
+dm_bow has three states, set by writing ‘1’ or ‘2’ to /sys/block/dm-?/bow/state.
+It is only possible to go from state 0 (initial state) to state 1, and then from
+state 1 to state 2.
+
+State 0: dm_bow collects all trims to the device and assumes that these mark
+free space on the overlying file system that can be safely used. Typically the
+mount code would create the dm_bow device, mount the file system, call the
+FITRIM ioctl on the file system then switch to state 1. These trims are not
+propagated to the underlying device.
+
+State 1: All writes to the device cause the underlying data to be backed up to
+the free (trimmed) area as needed in such a way as they can be restored.
+However, the writes, with one exception, then happen exactly as they would
+without dm_bow, so the device is always in a good final state. The exception is
+that sector 0 is used to keep a log of the latest changes, both to indicate that
+we are in this state and to allow rollback. See below for all details. If there
+isn't enough free space, writes are failed with -ENOSPC.
+
+State 2: The transition to state 2 triggers replacing the special sector 0 with
+the normal sector 0, and the freeing of all state information. dm_bow then
+becomes a pass-through driver, allowing the device to continue to be used with
+minimal performance impact.
+
+Usage
+=====
+dm-bow takes one command line parameter, the name of the underlying device.
+
+dm-bow will typically be used in the following way. dm-bow will be loaded with a
+suitable underlying device and the resultant device will be mounted. A file
+system trim will be issued via the FITRIM ioctl, then the device will be
+switched to state 1. The file system will now be used as normal. At some point,
+the changes can either be committed by switching to state 2, or rolled back by
+unmounting the file system, removing the dm-bow device and running the command
+line utility. Note that rebooting the device will be equivalent to unmounting
+and removing, but the command line utility must still be run
+
+Details of operation in state 1
+===============================
+
+dm_bow maintains a type for all sectors. A sector can be any of:
+
+SECTOR0
+SECTOR0_CURRENT
+UNCHANGED
+FREE
+CHANGED
+BACKUP
+
+SECTOR0 is the first sector on the device, and is used to hold the log of
+changes. This is the one exception.
+
+SECTOR0_CURRENT is a sector picked from the FREE sectors, and is where reads and
+writes from the true sector zero are redirected to. Note that like any backup
+sector, if the sector is written to directly, it must be moved again.
+
+UNCHANGED means that the sector has not been changed since we entered state 1.
+Thus if it is written to or trimmed, the contents must first be backed up.
+
+FREE means that the sector was trimmed in state 0 and has not yet been written
+to or used for backup. On being written to, a FREE sector is changed to CHANGED.
+
+CHANGED means that the sector has been modified, and can be further modified
+without further backup.
+
+BACKUP means that this is a free sector being used as a backup. On being written
+to, the contents must first be backed up again.
+
+All backup operations are logged to the first sector. The log sector has the
+format:
+--------------------------------------------------------
+| Magic | Count | Sequence | Log entry | Log entry | …
+--------------------------------------------------------
+
+Magic is a magic number. Count is the number of log entries. Sequence is 0
+initially. A log entry is
+
+-----------------------------------
+| Source | Dest | Size | Checksum |
+-----------------------------------
+
+When SECTOR0 is full, the log sector is backed up and another empty log sector
+created with sequence number one higher. The first entry in any log entry with
+sequence > 0 therefore must be the log of the backing up of the previous log
+sector. Note that sequence is not strictly needed, but is a useful sanity check
+and potentially limits the time spent trying to restore a corrupted snapshot.
+
+On entering state 1, dm_bow has a list of free sectors. All other sectors are
+unchanged. Sector0_current is selected from the free sectors and the contents of
+sector 0 are copied there. The sector 0 is backed up, which triggers the first
+log entry to be written.
+

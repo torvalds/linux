@@ -406,7 +406,7 @@ static void __init add_memory_merged(u16 rn)
 	if (!size)
 		goto skip_add;
 	for (addr = start; addr < start + size; addr += block_size)
-		add_memory(numa_pfn_to_nid(PFN_DOWN(addr)), addr, block_size);
+		add_memory(0, addr, block_size, MHP_NONE);
 skip_add:
 	first_rn = rn;
 	num = 1;
@@ -460,15 +460,6 @@ static int sclp_mem_freeze(struct device *dev)
 	return -EPERM;
 }
 
-struct read_storage_sccb {
-	struct sccb_header header;
-	u16 max_id;
-	u16 assigned;
-	u16 standby;
-	u16 :16;
-	u32 entries[0];
-} __packed;
-
 static const struct dev_pm_ops sclp_mem_pm_ops = {
 	.freeze		= sclp_mem_freeze,
 };
@@ -498,7 +489,7 @@ static int __init sclp_detect_standby_memory(void)
 	for (id = 0; id <= sclp_max_storage_id; id++) {
 		memset(sccb, 0, PAGE_SIZE);
 		sccb->header.length = PAGE_SIZE;
-		rc = sclp_sync_request(0x00040001 | id << 8, sccb);
+		rc = sclp_sync_request(SCLP_CMDW_READ_STORAGE_INFO | id << 8, sccb);
 		if (rc)
 			goto out;
 		switch (sccb->header.response_code) {

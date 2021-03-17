@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright 2007-2010 Red Hat, Inc.
  *  by Peter Jones <pjones@redhat.com>
@@ -7,15 +8,6 @@
  *  by Konrad Rzeszutek <ketuzsezr@darnok.org>
  *
  * This code exposes the iSCSI Boot Format Table to userland via sysfs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Changelog:
  *
@@ -63,7 +55,6 @@
  *
  *  27 Aug 2007 - Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
  *   First version exposing iBFT data via a binary /sysfs. (v0.1)
- *
  */
 
 
@@ -93,6 +84,10 @@ MODULE_DESCRIPTION("sysfs interface to BIOS iBFT information");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(IBFT_ISCSI_VERSION);
 
+#ifndef CONFIG_ISCSI_IBFT_FIND
+struct acpi_table_ibft *ibft_addr;
+#endif
+
 struct ibft_hdr {
 	u8 id;
 	u8 version;
@@ -109,6 +104,7 @@ struct ibft_control {
 	u16 tgt0_off;
 	u16 nic1_off;
 	u16 tgt1_off;
+	u16 expansion[];
 } __attribute__((__packed__));
 
 struct ibft_initiator {
@@ -240,7 +236,7 @@ static int ibft_verify_hdr(char *t, struct ibft_hdr *hdr, int id, int length)
 				"found %d instead!\n", t, id, hdr->id);
 		return -ENODEV;
 	}
-	if (hdr->length != length) {
+	if (length && hdr->length != length) {
 		printk(KERN_ERR "iBFT error: We expected the %s " \
 				"field header.length to have %d but " \
 				"found %d instead!\n", t, length, hdr->length);
@@ -425,7 +421,7 @@ static ssize_t ibft_attr_show_acpitbl(void *data, int type, char *buf)
 
 	switch (type) {
 	case ISCSI_BOOT_ACPITBL_SIGNATURE:
-		str += sprintf_string(str, ACPI_NAME_SIZE,
+		str += sprintf_string(str, ACPI_NAMESEG_SIZE,
 				      entry->header->header.signature);
 		break;
 	case ISCSI_BOOT_ACPITBL_OEM_ID:
@@ -542,6 +538,7 @@ static umode_t __init ibft_check_tgt_for(void *data, int type)
 	case ISCSI_BOOT_TGT_NIC_ASSOC:
 	case ISCSI_BOOT_TGT_CHAP_TYPE:
 		rc = S_IRUGO;
+		break;
 	case ISCSI_BOOT_TGT_NAME:
 		if (tgt->tgt_name_len)
 			rc = S_IRUGO;
@@ -753,16 +750,16 @@ static int __init ibft_register_kobjects(struct acpi_table_ibft *header)
 	control = (void *)header + sizeof(*header);
 	end = (void *)control + control->hdr.length;
 	eot_offset = (void *)header + header->header.length - (void *)control;
-	rc = ibft_verify_hdr("control", (struct ibft_hdr *)control, id_control,
-			     sizeof(*control));
+	rc = ibft_verify_hdr("control", (struct ibft_hdr *)control, id_control, 0);
 
 	/* iBFT table safety checking */
 	rc |= ((control->hdr.index) ? -ENODEV : 0);
+	rc |= ((control->hdr.length < sizeof(*control)) ? -ENODEV : 0);
 	if (rc) {
 		printk(KERN_ERR "iBFT error: Control header is invalid!\n");
 		return rc;
 	}
-	for (ptr = &control->initiator_off; ptr < end; ptr += sizeof(u16)) {
+	for (ptr = &control->initiator_off; ptr + sizeof(u16) <= end; ptr += sizeof(u16)) {
 		offset = *(u16 *)ptr;
 		if (offset && offset < header->header.length &&
 						offset < eot_offset) {

@@ -1,23 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Camellia Cipher Algorithm (x86_64)
  *
  * Copyright (C) 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
  */
 
 #include <linux/linkage.h>
@@ -190,7 +175,7 @@
 	bswapq				RAB0; \
 	movq RAB0,			4*2(RIO);
 
-ENTRY(__camellia_enc_blk)
+SYM_FUNC_START(__camellia_enc_blk)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -235,9 +220,9 @@ ENTRY(__camellia_enc_blk)
 
 	movq RR12, %r12;
 	ret;
-ENDPROC(__camellia_enc_blk)
+SYM_FUNC_END(__camellia_enc_blk)
 
-ENTRY(camellia_dec_blk)
+SYM_FUNC_START(camellia_dec_blk)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -273,7 +258,7 @@ ENTRY(camellia_dec_blk)
 
 	movq RR12, %r12;
 	ret;
-ENDPROC(camellia_dec_blk)
+SYM_FUNC_END(camellia_dec_blk)
 
 /**********************************************************************
   2-way camellia
@@ -424,7 +409,7 @@ ENDPROC(camellia_dec_blk)
 		bswapq				RAB1; \
 		movq RAB1,			12*2(RIO);
 
-ENTRY(__camellia_enc_blk_2way)
+SYM_FUNC_START(__camellia_enc_blk_2way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -471,9 +456,9 @@ ENTRY(__camellia_enc_blk_2way)
 	movq RR12, %r12;
 	popq %rbx;
 	ret;
-ENDPROC(__camellia_enc_blk_2way)
+SYM_FUNC_END(__camellia_enc_blk_2way)
 
-ENTRY(camellia_dec_blk_2way)
+SYM_FUNC_START(camellia_dec_blk_2way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -511,4 +496,4 @@ ENTRY(camellia_dec_blk_2way)
 	movq RR12, %r12;
 	movq RXOR, %rbx;
 	ret;
-ENDPROC(camellia_dec_blk_2way)
+SYM_FUNC_END(camellia_dec_blk_2way)

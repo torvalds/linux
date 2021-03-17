@@ -1,20 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org> et al.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #ifndef __MTD_MTD_H__
@@ -22,9 +8,11 @@
 
 #include <linux/types.h>
 #include <linux/uio.h>
+#include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
 #include <linux/of.h>
+#include <linux/nvmem-provider.h>
 
 #include <mtd/mtd-abi.h>
 
@@ -202,6 +190,46 @@ struct module;	/* only needed for owner field in mtd_info */
  */
 struct mtd_debug_info {
 	struct dentry *dfs_dir;
+
+	const char *partname;
+	const char *partid;
+};
+
+/**
+ * struct mtd_part - MTD partition specific fields
+ *
+ * @node: list node used to add an MTD partition to the parent partition list
+ * @offset: offset of the partition relatively to the parent offset
+ * @size: partition size. Should be equal to mtd->size unless
+ *	  MTD_SLC_ON_MLC_EMULATION is set
+ * @flags: original flags (before the mtdpart logic decided to tweak them based
+ *	   on flash constraints, like eraseblock/pagesize alignment)
+ *
+ * This struct is embedded in mtd_info and contains partition-specific
+ * properties/fields.
+ */
+struct mtd_part {
+	struct list_head node;
+	u64 offset;
+	u64 size;
+	u32 flags;
+};
+
+/**
+ * struct mtd_master - MTD master specific fields
+ *
+ * @partitions_lock: lock protecting accesses to the partition list. Protects
+ *		     not only the master partition list, but also all
+ *		     sub-partitions.
+ * @suspended: et to 1 when the device is suspended, 0 otherwise
+ *
+ * This struct is embedded in mtd_info and contains master-specific
+ * properties/fields. The master is the root MTD device from the MTD partition
+ * point of view.
+ */
+struct mtd_master {
+	struct mutex partitions_lock;
+	unsigned int suspended : 1;
 };
 
 struct mtd_info {
@@ -328,6 +356,12 @@ struct mtd_info {
 	int (*_get_device) (struct mtd_info *mtd);
 	void (*_put_device) (struct mtd_info *mtd);
 
+	/*
+	 * flag indicates a panic write, low level drivers can take appropriate
+	 * action if required to ensure writes go through
+	 */
+	bool oops_panic_write;
+
 	struct notifier_block reboot_notifier;  /* default mode before reboot */
 
 	/* ECC status information */
@@ -341,7 +375,52 @@ struct mtd_info {
 	struct device dev;
 	int usecount;
 	struct mtd_debug_info dbg;
+	struct nvmem_device *nvmem;
+
+	/*
+	 * Parent device from the MTD partition point of view.
+	 *
+	 * MTD masters do not have any parent, MTD partitions do. The parent
+	 * MTD device can itself be a partition.
+	 */
+	struct mtd_info *parent;
+
+	/* List of partitions attached to this MTD device */
+	struct list_head partitions;
+
+	union {
+		struct mtd_part part;
+		struct mtd_master master;
+	};
 };
+
+static inline struct mtd_info *mtd_get_master(struct mtd_info *mtd)
+{
+	while (mtd->parent)
+		mtd = mtd->parent;
+
+	return mtd;
+}
+
+static inline u64 mtd_get_master_ofs(struct mtd_info *mtd, u64 ofs)
+{
+	while (mtd->parent) {
+		ofs += mtd->part.offset;
+		mtd = mtd->parent;
+	}
+
+	return ofs;
+}
+
+static inline bool mtd_is_partition(const struct mtd_info *mtd)
+{
+	return mtd->parent;
+}
+
+static inline bool mtd_has_partitions(const struct mtd_info *mtd)
+{
+	return !list_empty(&mtd->partitions);
+}
 
 int mtd_ooblayout_ecc(struct mtd_info *mtd, int section,
 		      struct mtd_oob_region *oobecc);
@@ -386,7 +465,7 @@ static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
 	return dev_of_node(&mtd->dev);
 }
 
-static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
+static inline u32 mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
 {
 	return ops->mode == MTD_OPS_AUTO_OOB ? mtd->oobavail : mtd->oobsize;
 }
@@ -394,13 +473,16 @@ static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
 static inline int mtd_max_bad_blocks(struct mtd_info *mtd,
 				     loff_t ofs, size_t len)
 {
-	if (!mtd->_max_bad_blocks)
+	struct mtd_info *master = mtd_get_master(mtd);
+
+	if (!master->_max_bad_blocks)
 		return -ENOTSUPP;
 
 	if (mtd->size < (len + ofs) || ofs < 0)
 		return -EINVAL;
 
-	return mtd->_max_bad_blocks(mtd, ofs, len);
+	return master->_max_bad_blocks(master, mtd_get_master_ofs(mtd, ofs),
+				       len);
 }
 
 int mtd_wunit_to_pairing_info(struct mtd_info *mtd, int wunit,
@@ -441,8 +523,10 @@ int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 
 static inline void mtd_sync(struct mtd_info *mtd)
 {
-	if (mtd->_sync)
-		mtd->_sync(mtd);
+	struct mtd_info *master = mtd_get_master(mtd);
+
+	if (master->_sync)
+		master->_sync(master);
 }
 
 int mtd_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
@@ -454,13 +538,31 @@ int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs);
 
 static inline int mtd_suspend(struct mtd_info *mtd)
 {
-	return mtd->_suspend ? mtd->_suspend(mtd) : 0;
+	struct mtd_info *master = mtd_get_master(mtd);
+	int ret;
+
+	if (master->master.suspended)
+		return 0;
+
+	ret = master->_suspend ? master->_suspend(master) : 0;
+	if (ret)
+		return ret;
+
+	master->master.suspended = 1;
+	return 0;
 }
 
 static inline void mtd_resume(struct mtd_info *mtd)
 {
-	if (mtd->_resume)
-		mtd->_resume(mtd);
+	struct mtd_info *master = mtd_get_master(mtd);
+
+	if (!master->master.suspended)
+		return;
+
+	if (master->_resume)
+		master->_resume(master);
+
+	master->master.suspended = 0;
 }
 
 static inline uint32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
@@ -523,7 +625,9 @@ static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 
 static inline int mtd_wunit_per_eb(struct mtd_info *mtd)
 {
-	return mtd->erasesize / mtd->writesize;
+	struct mtd_info *master = mtd_get_master(mtd);
+
+	return master->erasesize / mtd->writesize;
 }
 
 static inline int mtd_offset_to_wunit(struct mtd_info *mtd, loff_t offs)
@@ -540,7 +644,9 @@ static inline loff_t mtd_wunit_to_offset(struct mtd_info *mtd, loff_t base,
 
 static inline int mtd_has_oob(const struct mtd_info *mtd)
 {
-	return mtd->_read_oob && mtd->_write_oob;
+	struct mtd_info *master = mtd_get_master((struct mtd_info *)mtd);
+
+	return master->_read_oob && master->_write_oob;
 }
 
 static inline int mtd_type_is_nand(const struct mtd_info *mtd)
@@ -550,7 +656,9 @@ static inline int mtd_type_is_nand(const struct mtd_info *mtd)
 
 static inline int mtd_can_have_bb(const struct mtd_info *mtd)
 {
-	return !!mtd->_block_isbad;
+	struct mtd_info *master = mtd_get_master((struct mtd_info *)mtd);
+
+	return !!master->_block_isbad;
 }
 
 	/* Kernel-side ioctl definitions */

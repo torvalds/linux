@@ -2257,44 +2257,45 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 	}
 }				/* set_line_char */
 
-static int cy_get_serial_info(struct cyclades_port *info,
-		struct serial_struct __user *retinfo)
+static int cy_get_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss)
 {
+	struct cyclades_port *info = tty->driver_data;
 	struct cyclades_card *cinfo = info->card;
-	struct serial_struct tmp = {
-		.type = info->type,
-		.line = info->line,
-		.port = (info->card - cy_card) * 0x100 + info->line -
-			cinfo->first_line,
-		.irq = cinfo->irq,
-		.flags = info->port.flags,
-		.close_delay = info->port.close_delay,
-		.closing_wait = info->port.closing_wait,
-		.baud_base = info->baud,
-		.custom_divisor = info->custom_divisor,
-	};
-	return copy_to_user(retinfo, &tmp, sizeof(*retinfo)) ? -EFAULT : 0;
+
+	if (serial_paranoia_check(info, tty->name, "cy_ioctl"))
+		return -ENODEV;
+	ss->type = info->type;
+	ss->line = info->line;
+	ss->port = (info->card - cy_card) * 0x100 + info->line -
+			cinfo->first_line;
+	ss->irq = cinfo->irq;
+	ss->flags = info->port.flags;
+	ss->close_delay = info->port.close_delay;
+	ss->closing_wait = info->port.closing_wait;
+	ss->baud_base = info->baud;
+	ss->custom_divisor = info->custom_divisor;
+	return 0;
 }
 
-static int
-cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
-		struct serial_struct __user *new_info)
+static int cy_set_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss)
 {
-	struct serial_struct new_serial;
+	struct cyclades_port *info = tty->driver_data;
 	int old_flags;
 	int ret;
 
-	if (copy_from_user(&new_serial, new_info, sizeof(new_serial)))
-		return -EFAULT;
+	if (serial_paranoia_check(info, tty->name, "cy_ioctl"))
+		return -ENODEV;
 
 	mutex_lock(&info->port.mutex);
 
 	old_flags = info->port.flags;
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if (new_serial.close_delay != info->port.close_delay ||
-				new_serial.baud_base != info->baud ||
-				(new_serial.flags & ASYNC_FLAGS &
+		if (ss->close_delay != info->port.close_delay ||
+				ss->baud_base != info->baud ||
+				(ss->flags & ASYNC_FLAGS &
 					~ASYNC_USR_MASK) !=
 				(info->port.flags & ASYNC_FLAGS & ~ASYNC_USR_MASK))
 		{
@@ -2302,9 +2303,9 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 			return -EPERM;
 		}
 		info->port.flags = (info->port.flags & ~ASYNC_USR_MASK) |
-				(new_serial.flags & ASYNC_USR_MASK);
-		info->baud = new_serial.baud_base;
-		info->custom_divisor = new_serial.custom_divisor;
+				(ss->flags & ASYNC_USR_MASK);
+		info->baud = ss->baud_base;
+		info->custom_divisor = ss->custom_divisor;
 		goto check_and_exit;
 	}
 
@@ -2313,18 +2314,18 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 	 * At this point, we start making changes.....
 	 */
 
-	info->baud = new_serial.baud_base;
-	info->custom_divisor = new_serial.custom_divisor;
+	info->baud = ss->baud_base;
+	info->custom_divisor = ss->custom_divisor;
 	info->port.flags = (info->port.flags & ~ASYNC_FLAGS) |
-			(new_serial.flags & ASYNC_FLAGS);
-	info->port.close_delay = new_serial.close_delay * HZ / 100;
-	info->port.closing_wait = new_serial.closing_wait * HZ / 100;
+			(ss->flags & ASYNC_FLAGS);
+	info->port.close_delay = ss->close_delay * HZ / 100;
+	info->port.closing_wait = ss->closing_wait * HZ / 100;
 
 check_and_exit:
 	if (tty_port_initialized(&info->port)) {
-		if ((new_serial.flags ^ old_flags) & ASYNC_SPD_MASK) {
+		if ((ss->flags ^ old_flags) & ASYNC_SPD_MASK) {
 			/* warn about deprecation unless clearing */
-			if (new_serial.flags & ASYNC_SPD_MASK)
+			if (ss->flags & ASYNC_SPD_MASK)
 				dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
 		}
 		cy_set_line_char(info, tty);
@@ -2697,12 +2698,6 @@ cy_ioctl(struct tty_struct *tty,
 		break;
 	case CYGETWAIT:
 		ret_val = info->port.closing_wait / (HZ / 100);
-		break;
-	case TIOCGSERIAL:
-		ret_val = cy_get_serial_info(info, argp);
-		break;
-	case TIOCSSERIAL:
-		ret_val = cy_set_serial_info(info, tty, argp);
 		break;
 	case TIOCSERGETLSR:	/* Get line status register */
 		ret_val = get_lsr_info(info, argp);
@@ -3261,7 +3256,7 @@ static int __init cy_detect_isa(void)
 			return nboard;
 
 		/* probe for CD1400... */
-		cy_isa_address = ioremap_nocache(isa_address, CyISA_Ywin);
+		cy_isa_address = ioremap(isa_address, CyISA_Ywin);
 		if (cy_isa_address == NULL) {
 			printk(KERN_ERR "Cyclom-Y/ISA: can't remap base "
 					"address\n");
@@ -3648,7 +3643,7 @@ static int cy_pci_probe(struct pci_dev *pdev,
 	struct cyclades_card *card;
 	void __iomem *addr0 = NULL, *addr2 = NULL;
 	char *card_name = NULL;
-	u32 uninitialized_var(mailbox);
+	u32 mailbox;
 	unsigned int device_id, nchan = 0, card_no, i, j;
 	unsigned char plx_ver;
 	int retval, irq;
@@ -3695,13 +3690,13 @@ static int cy_pci_probe(struct pci_dev *pdev,
 			device_id == PCI_DEVICE_ID_CYCLOM_Y_Hi) {
 		card_name = "Cyclom-Y";
 
-		addr0 = ioremap_nocache(pci_resource_start(pdev, 0),
+		addr0 = ioremap(pci_resource_start(pdev, 0),
 				CyPCI_Yctl);
 		if (addr0 == NULL) {
 			dev_err(&pdev->dev, "can't remap ctl region\n");
 			goto err_reg;
 		}
-		addr2 = ioremap_nocache(pci_resource_start(pdev, 2),
+		addr2 = ioremap(pci_resource_start(pdev, 2),
 				CyPCI_Ywin);
 		if (addr2 == NULL) {
 			dev_err(&pdev->dev, "can't remap base region\n");
@@ -3717,7 +3712,7 @@ static int cy_pci_probe(struct pci_dev *pdev,
 	} else if (device_id == PCI_DEVICE_ID_CYCLOM_Z_Hi) {
 		struct RUNTIME_9060 __iomem *ctl_addr;
 
-		ctl_addr = addr0 = ioremap_nocache(pci_resource_start(pdev, 0),
+		ctl_addr = addr0 = ioremap(pci_resource_start(pdev, 0),
 				CyPCI_Zctl);
 		if (addr0 == NULL) {
 			dev_err(&pdev->dev, "can't remap ctl region\n");
@@ -3732,7 +3727,7 @@ static int cy_pci_probe(struct pci_dev *pdev,
 
 		mailbox = readl(&ctl_addr->mail_box_0);
 
-		addr2 = ioremap_nocache(pci_resource_start(pdev, 2),
+		addr2 = ioremap(pci_resource_start(pdev, 2),
 				mailbox == ZE_V1 ? CyPCI_Ze_win : CyPCI_Zwin);
 		if (addr2 == NULL) {
 			dev_err(&pdev->dev, "can't remap base region\n");
@@ -4011,6 +4006,8 @@ static const struct tty_operations cy_ops = {
 	.tiocmget = cy_tiocmget,
 	.tiocmset = cy_tiocmset,
 	.get_icount = cy_get_icount,
+	.set_serial = cy_set_serial_info,
+	.get_serial = cy_get_serial_info,
 	.proc_show = cyclades_proc_show,
 };
 

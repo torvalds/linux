@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Performance counter support for MPC7450-family processors.
  *
  * Copyright 2008-2009 Paul Mackerras, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/string.h>
 #include <linux/perf_event.h>
@@ -261,7 +257,7 @@ static const u32 pmcsel_mask[N_COUNTER] = {
  * Compute MMCR0/1/2 values for a set of events.
  */
 static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
-				unsigned long mmcr[],
+				struct mmcr_regs *mmcr,
 				struct perf_event *pevents[])
 {
 	u8 event_index[N_CLASSES][N_COUNTER];
@@ -325,9 +321,16 @@ static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
 		mmcr0 |= MMCR0_PMCnCE;
 
 	/* Return MMCRx values */
-	mmcr[0] = mmcr0;
-	mmcr[1] = mmcr1;
-	mmcr[2] = mmcr2;
+	mmcr->mmcr0 = mmcr0;
+	mmcr->mmcr1 = mmcr1;
+	mmcr->mmcr2 = mmcr2;
+	/*
+	 * 32-bit doesn't have an MMCRA and uses SPRN_MMCR2 to define
+	 * SPRN_MMCRA. So assign mmcra of cpu_hw_events with `mmcr2`
+	 * value to ensure that any write to this SPRN_MMCRA will
+	 * use mmcr2 value.
+	 */
+	mmcr->mmcra = mmcr2;
 	return 0;
 }
 
@@ -335,12 +338,12 @@ static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
  * Disable counting by a PMC.
  * Note that the pmc argument is 0-based here, not 1-based.
  */
-static void mpc7450_disable_pmc(unsigned int pmc, unsigned long mmcr[])
+static void mpc7450_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 {
 	if (pmc <= 1)
-		mmcr[0] &= ~(pmcsel_mask[pmc] << pmcsel_shift[pmc]);
+		mmcr->mmcr0 &= ~(pmcsel_mask[pmc] << pmcsel_shift[pmc]);
 	else
-		mmcr[1] &= ~(pmcsel_mask[pmc] << pmcsel_shift[pmc]);
+		mmcr->mmcr1 &= ~(pmcsel_mask[pmc] << pmcsel_shift[pmc]);
 }
 
 static int mpc7450_generic_events[] = {
@@ -358,7 +361,7 @@ static int mpc7450_generic_events[] = {
  * 0 means not supported, -1 means nonsensical, other values
  * are event codes.
  */
-static int mpc7450_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 mpc7450_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0,		0x225	},
 		[C(OP_WRITE)] = {	0,		0x227	},

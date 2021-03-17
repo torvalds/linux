@@ -1,58 +1,17 @@
+/* SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause) */
 #ifndef LIBFDT_H
 #define LIBFDT_H
 /*
  * libfdt - Flat Device Tree manipulation
  * Copyright (C) 2006 David Gibson, IBM Corporation.
- *
- * libfdt is dual licensed: you can use it either under the terms of
- * the GPL, or the BSD license, at your option.
- *
- *  a) This library is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This library is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public
- *     License along with this library; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
- * Alternatively,
- *
- *  b) Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *     1. Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *     2. Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- *     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
- *     CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- *     INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *     MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *     DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- *     CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *     SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *     NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- *     HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- *     OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "libfdt_env.h"
 #include "fdt.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define FDT_FIRST_SUPPORTED_VERSION	0x02
 #define FDT_LAST_SUPPORTED_VERSION	0x11
@@ -90,8 +49,9 @@
 
 /* Error codes: codes for bad device tree blobs */
 #define FDT_ERR_TRUNCATED	8
-	/* FDT_ERR_TRUNCATED: Structure block of the given device tree
-	 * ends without an FDT_END tag. */
+	/* FDT_ERR_TRUNCATED: FDT or a sub-block is improperly
+	 * terminated (overflows, goes outside allowed bounds, or
+	 * isn't properly terminated).  */
 #define FDT_ERR_BADMAGIC	9
 	/* FDT_ERR_BADMAGIC: Given "device tree" appears not to be a
 	 * device tree at all - it is missing the flattened device
@@ -137,7 +97,15 @@
 	/* FDT_ERR_NOPHANDLES: The device tree doesn't have any
 	 * phandle available anymore without causing an overflow */
 
-#define FDT_ERR_MAX		17
+#define FDT_ERR_BADFLAGS	18
+	/* FDT_ERR_BADFLAGS: The function was passed a flags field that
+	 * contains invalid flags or an invalid combination of flags. */
+
+#define FDT_ERR_MAX		18
+
+/* constants */
+#define FDT_MAX_PHANDLE 0xfffffffe
+	/* Valid values for phandles range from 1 to 2^32-2. */
 
 /**********************************************************************/
 /* Low-level functions (you probably don't need these)                */
@@ -152,6 +120,61 @@ static inline void *fdt_offset_ptr_w(void *fdt, int offset, int checklen)
 }
 
 uint32_t fdt_next_tag(const void *fdt, int offset, int *nextoffset);
+
+/*
+ * Alignment helpers:
+ *     These helpers access words from a device tree blob.  They're
+ *     built to work even with unaligned pointers on platforms (ike
+ *     ARM) that don't like unaligned loads and stores
+ */
+
+static inline uint32_t fdt32_ld(const fdt32_t *p)
+{
+	const uint8_t *bp = (const uint8_t *)p;
+
+	return ((uint32_t)bp[0] << 24)
+		| ((uint32_t)bp[1] << 16)
+		| ((uint32_t)bp[2] << 8)
+		| bp[3];
+}
+
+static inline void fdt32_st(void *property, uint32_t value)
+{
+	uint8_t *bp = (uint8_t *)property;
+
+	bp[0] = value >> 24;
+	bp[1] = (value >> 16) & 0xff;
+	bp[2] = (value >> 8) & 0xff;
+	bp[3] = value & 0xff;
+}
+
+static inline uint64_t fdt64_ld(const fdt64_t *p)
+{
+	const uint8_t *bp = (const uint8_t *)p;
+
+	return ((uint64_t)bp[0] << 56)
+		| ((uint64_t)bp[1] << 48)
+		| ((uint64_t)bp[2] << 40)
+		| ((uint64_t)bp[3] << 32)
+		| ((uint64_t)bp[4] << 24)
+		| ((uint64_t)bp[5] << 16)
+		| ((uint64_t)bp[6] << 8)
+		| bp[7];
+}
+
+static inline void fdt64_st(void *property, uint64_t value)
+{
+	uint8_t *bp = (uint8_t *)property;
+
+	bp[0] = value >> 56;
+	bp[1] = (value >> 48) & 0xff;
+	bp[2] = (value >> 40) & 0xff;
+	bp[3] = (value >> 32) & 0xff;
+	bp[4] = (value >> 24) & 0xff;
+	bp[5] = (value >> 16) & 0xff;
+	bp[6] = (value >> 8) & 0xff;
+	bp[7] = value & 0xff;
+}
 
 /**********************************************************************/
 /* Traversal functions                                                */
@@ -195,7 +218,7 @@ int fdt_next_subnode(const void *fdt, int offset);
  *		...
  *	}
  *
- *	if ((node < 0) && (node != -FDT_ERR_NOT_FOUND)) {
+ *	if ((node < 0) && (node != -FDT_ERR_NOTFOUND)) {
  *		Error handling
  *	}
  *
@@ -213,7 +236,7 @@ int fdt_next_subnode(const void *fdt, int offset);
 /* General functions                                                  */
 /**********************************************************************/
 #define fdt_get_header(fdt, field) \
-	(fdt32_to_cpu(((const struct fdt_header *)(fdt))->field))
+	(fdt32_ld(&((const struct fdt_header *)(fdt))->field))
 #define fdt_magic(fdt)			(fdt_get_header(fdt, magic))
 #define fdt_totalsize(fdt)		(fdt_get_header(fdt, totalsize))
 #define fdt_off_dt_struct(fdt)		(fdt_get_header(fdt, off_dt_struct))
@@ -244,18 +267,32 @@ fdt_set_hdr_(size_dt_struct);
 #undef fdt_set_hdr_
 
 /**
- * fdt_check_header - sanity check a device tree or possible device tree
+ * fdt_header_size - return the size of the tree's header
+ * @fdt: pointer to a flattened device tree
+ */
+size_t fdt_header_size(const void *fdt);
+
+/**
+ * fdt_header_size_ - internal function which takes a version number
+ */
+size_t fdt_header_size_(uint32_t version);
+
+/**
+ * fdt_check_header - sanity check a device tree header
+
  * @fdt: pointer to data which might be a flattened device tree
  *
  * fdt_check_header() checks that the given buffer contains what
- * appears to be a flattened device tree with sane information in its
- * header.
+ * appears to be a flattened device tree, and that the header contains
+ * valid information (to the extent that can be determined from the
+ * header alone).
  *
  * returns:
  *     0, if the buffer appears to contain a valid device tree
  *     -FDT_ERR_BADMAGIC,
  *     -FDT_ERR_BADVERSION,
- *     -FDT_ERR_BADSTATE, standard meanings, as above
+ *     -FDT_ERR_BADSTATE,
+ *     -FDT_ERR_TRUNCATED, standard meanings, as above
  */
 int fdt_check_header(const void *fdt);
 
@@ -284,6 +321,24 @@ int fdt_move(const void *fdt, void *buf, int bufsize);
 /* Read-only functions                                                */
 /**********************************************************************/
 
+int fdt_check_full(const void *fdt, size_t bufsize);
+
+/**
+ * fdt_get_string - retrieve a string from the strings block of a device tree
+ * @fdt: pointer to the device tree blob
+ * @stroffset: offset of the string within the strings block (native endian)
+ * @lenp: optional pointer to return the string's length
+ *
+ * fdt_get_string() retrieves a pointer to a single string from the
+ * strings block of the device tree blob at fdt, and optionally also
+ * returns the string's length in *lenp.
+ *
+ * returns:
+ *     a pointer to the string, on success
+ *     NULL, if stroffset is out of bounds, or doesn't point to a valid string
+ */
+const char *fdt_get_string(const void *fdt, int stroffset, int *lenp);
+
 /**
  * fdt_string - retrieve a string from the strings block of a device tree
  * @fdt: pointer to the device tree blob
@@ -294,9 +349,23 @@ int fdt_move(const void *fdt, void *buf, int bufsize);
  *
  * returns:
  *     a pointer to the string, on success
- *     NULL, if stroffset is out of bounds
+ *     NULL, if stroffset is out of bounds, or doesn't point to a valid string
  */
 const char *fdt_string(const void *fdt, int stroffset);
+
+/**
+ * fdt_find_max_phandle - find and return the highest phandle in a tree
+ * @fdt: pointer to the device tree blob
+ * @phandle: return location for the highest phandle value found in the tree
+ *
+ * fdt_find_max_phandle() finds the highest phandle value in the given device
+ * tree. The value returned in @phandle is only valid if the function returns
+ * success.
+ *
+ * returns:
+ *     0 on success or a negative error code on failure
+ */
+int fdt_find_max_phandle(const void *fdt, uint32_t *phandle);
 
 /**
  * fdt_get_max_phandle - retrieves the highest phandle in a tree
@@ -306,12 +375,39 @@ const char *fdt_string(const void *fdt, int stroffset);
  * device tree. This will ignore badly formatted phandles, or phandles
  * with a value of 0 or -1.
  *
+ * This function is deprecated in favour of fdt_find_max_phandle().
+ *
  * returns:
  *      the highest phandle on success
  *      0, if no phandle was found in the device tree
  *      -1, if an error occurred
  */
-uint32_t fdt_get_max_phandle(const void *fdt);
+static inline uint32_t fdt_get_max_phandle(const void *fdt)
+{
+	uint32_t phandle;
+	int err;
+
+	err = fdt_find_max_phandle(fdt, &phandle);
+	if (err < 0)
+		return (uint32_t)-1;
+
+	return phandle;
+}
+
+/**
+ * fdt_generate_phandle - return a new, unused phandle for a device tree blob
+ * @fdt: pointer to the device tree blob
+ * @phandle: return location for the new phandle
+ *
+ * Walks the device tree blob and looks for the highest phandle value. On
+ * success, the new, unused phandle value (one higher than the previously
+ * highest phandle value in the device tree blob) will be returned in the
+ * @phandle parameter.
+ *
+ * Returns:
+ *   0 on success or a negative error-code on failure
+ */
+int fdt_generate_phandle(const void *fdt, uint32_t *phandle);
 
 /**
  * fdt_num_mem_rsv - retrieve the number of memory reserve map entries
@@ -503,7 +599,7 @@ int fdt_next_property_offset(const void *fdt, int offset);
  *		...
  *	}
  *
- *	if ((property < 0) && (property != -FDT_ERR_NOT_FOUND)) {
+ *	if ((property < 0) && (property != -FDT_ERR_NOTFOUND)) {
  *		Error handling
  *	}
  *
@@ -606,7 +702,7 @@ static inline struct fdt_property *fdt_get_property_w(void *fdt, int nodeoffset,
 /**
  * fdt_getprop_by_offset - retrieve the value of a property at a given offset
  * @fdt: pointer to the device tree blob
- * @ffset: offset of the property to read
+ * @offset: offset of the property to read
  * @namep: pointer to a string variable (will be overwritten) or NULL
  * @lenp: pointer to an integer variable (will be overwritten) or NULL
  *
@@ -1090,7 +1186,7 @@ int fdt_address_cells(const void *fdt, int nodeoffset);
  *
  * returns:
  *	0 <= n < FDT_MAX_NCELLS, on success
- *      2, if the node has no #address-cells property
+ *      1, if the node has no #size-cells property
  *      -FDT_ERR_BADNCELLS, if the node has a badly formatted or invalid
  *		#size-cells property
  *	-FDT_ERR_BADMAGIC,
@@ -1297,7 +1393,45 @@ int fdt_nop_node(void *fdt, int nodeoffset);
 /* Sequential write functions                                         */
 /**********************************************************************/
 
+/* fdt_create_with_flags flags */
+#define FDT_CREATE_FLAG_NO_NAME_DEDUP 0x1
+	/* FDT_CREATE_FLAG_NO_NAME_DEDUP: Do not try to de-duplicate property
+	 * names in the fdt. This can result in faster creation times, but
+	 * a larger fdt. */
+
+#define FDT_CREATE_FLAGS_ALL	(FDT_CREATE_FLAG_NO_NAME_DEDUP)
+
+/**
+ * fdt_create_with_flags - begin creation of a new fdt
+ * @fdt: pointer to memory allocated where fdt will be created
+ * @bufsize: size of the memory space at fdt
+ * @flags: a valid combination of FDT_CREATE_FLAG_ flags, or 0.
+ *
+ * fdt_create_with_flags() begins the process of creating a new fdt with
+ * the sequential write interface.
+ *
+ * fdt creation process must end with fdt_finished() to produce a valid fdt.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, bufsize is insufficient for a minimal fdt
+ *	-FDT_ERR_BADFLAGS, flags is not valid
+ */
+int fdt_create_with_flags(void *buf, int bufsize, uint32_t flags);
+
+/**
+ * fdt_create - begin creation of a new fdt
+ * @fdt: pointer to memory allocated where fdt will be created
+ * @bufsize: size of the memory space at fdt
+ *
+ * fdt_create() is equivalent to fdt_create_with_flags() with flags=0.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, bufsize is insufficient for a minimal fdt
+ */
 int fdt_create(void *buf, int bufsize);
+
 int fdt_resize(void *fdt, void *buf, int bufsize);
 int fdt_add_reservemap_entry(void *fdt, uint64_t addr, uint64_t size);
 int fdt_finish_reservemap(void *fdt);
@@ -1313,10 +1447,13 @@ static inline int fdt_property_u64(void *fdt, const char *name, uint64_t val)
 	fdt64_t tmp = cpu_to_fdt64(val);
 	return fdt_property(fdt, name, &tmp, sizeof(tmp));
 }
+
+#ifndef SWIG /* Not available in Python */
 static inline int fdt_property_cell(void *fdt, const char *name, uint32_t val)
 {
 	return fdt_property_u32(fdt, name, val);
 }
+#endif
 
 /**
  * fdt_property_placeholder - add a new property and return a ptr to its value
@@ -1766,6 +1903,43 @@ static inline int fdt_appendprop_cell(void *fdt, int nodeoffset,
 	fdt_appendprop((fdt), (nodeoffset), (name), (str), strlen(str)+1)
 
 /**
+ * fdt_appendprop_addrrange - append a address range property
+ * @fdt: pointer to the device tree blob
+ * @parent: offset of the parent node
+ * @nodeoffset: offset of the node to add a property at
+ * @name: name of property
+ * @addr: start address of a given range
+ * @size: size of a given range
+ *
+ * fdt_appendprop_addrrange() appends an address range value (start
+ * address and size) to the value of the named property in the given
+ * node, or creates a new property with that value if it does not
+ * already exist.
+ * If "name" is not specified, a default "reg" is used.
+ * Cell sizes are determined by parent's #address-cells and #size-cells.
+ *
+ * This function may insert data into the blob, and will therefore
+ * change the offsets of some existing nodes.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_BADLAYOUT,
+ *	-FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADNCELLS, if the node has a badly formatted or invalid
+ *		#address-cells property
+ *	-FDT_ERR_BADOFFSET, nodeoffset did not point to FDT_BEGIN_NODE tag
+ *	-FDT_ERR_BADSTATE,
+ *	-FDT_ERR_BADSTRUCTURE,
+ *	-FDT_ERR_BADVERSION,
+ *	-FDT_ERR_BADVALUE, addr or size doesn't fit to respective cells size
+ *	-FDT_ERR_NOSPACE, there is insufficient free space in the blob to
+ *		contain a new property
+ *	-FDT_ERR_TRUNCATED, standard meanings
+ */
+int fdt_appendprop_addrrange(void *fdt, int parent, int nodeoffset,
+			     const char *name, uint64_t addr, uint64_t size);
+
+/**
  * fdt_delprop - delete a property
  * @fdt: pointer to the device tree blob
  * @nodeoffset: offset of the node whose property to nop
@@ -1898,5 +2072,9 @@ int fdt_overlay_apply(void *fdt, void *fdto);
 /**********************************************************************/
 
 const char *fdt_strerror(int errval);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LIBFDT_H */

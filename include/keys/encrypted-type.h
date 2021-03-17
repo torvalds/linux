@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2010 IBM Corporation
  * Copyright (C) 2010 Politecnico di Torino, Italy
@@ -6,10 +7,6 @@
  * Authors:
  * Mimi Zohar <zohar@us.ibm.com>
  * Roberto Sassu <roberto.sassu@polito.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
  */
 
 #ifndef _KEYS_ENCRYPTED_TYPE_H
@@ -30,7 +27,7 @@ struct encrypted_key_payload {
 	unsigned short payload_datalen;		/* payload data length */
 	unsigned short encrypted_key_format;	/* encrypted key format */
 	u8 *decrypted_data;	/* decrypted data */
-	u8 payload_data[0];	/* payload data + datablob + hmac */
+	u8 payload_data[];	/* payload data + datablob + hmac */
 };
 
 extern struct key_type key_type_encrypted;

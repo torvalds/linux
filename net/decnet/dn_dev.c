@@ -56,7 +56,7 @@
 #include <net/dn_neigh.h>
 #include <net/dn_fib.h>
 
-#define DN_IFREQ_SIZE (sizeof(struct ifreq) - sizeof(struct sockaddr) + sizeof(struct sockaddr_dn))
+#define DN_IFREQ_SIZE (offsetof(struct ifreq, ifr_ifru) + sizeof(struct sockaddr_dn))
 
 static char dn_rt_all_end_mcast[ETH_ALEN] = {0xAB,0x00,0x00,0x04,0x00,0x00};
 static char dn_rt_all_rt_mcast[ETH_ALEN]  = {0xAB,0x00,0x00,0x03,0x00,0x00};
@@ -160,8 +160,8 @@ static int max_t3[] = { 8191 }; /* Must fit in 16 bits when multiplied by BCT3MU
 static int min_priority[1];
 static int max_priority[] = { 127 }; /* From DECnet spec */
 
-static int dn_forwarding_proc(struct ctl_table *, int,
-			void __user *, size_t *, loff_t *);
+static int dn_forwarding_proc(struct ctl_table *, int, void *, size_t *,
+		loff_t *);
 static struct dn_dev_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	struct ctl_table dn_dev_vars[5];
@@ -245,8 +245,7 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 }
 
 static int dn_forwarding_proc(struct ctl_table *table, int write,
-				void __user *buffer,
-				size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 #ifdef CONFIG_DECNET_ROUTER
 	struct net_device *dev = table->extra1;
@@ -463,7 +462,9 @@ int dn_dev_ioctl(unsigned int cmd, void __user *arg)
 	switch (cmd) {
 	case SIOCGIFADDR:
 		*((__le16 *)sdn->sdn_nodeaddr) = ifa->ifa_local;
-		goto rarok;
+		if (copy_to_user(arg, ifr, DN_IFREQ_SIZE))
+			ret = -EFAULT;
+		break;
 
 	case SIOCSIFADDR:
 		if (!ifa) {
@@ -486,10 +487,6 @@ done:
 	rtnl_unlock();
 
 	return ret;
-rarok:
-	if (copy_to_user(arg, ifr, DN_IFREQ_SIZE))
-		ret = -EFAULT;
-	goto done;
 }
 
 struct net_device *dn_dev_get_default(void)
@@ -583,8 +580,8 @@ static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!net_eq(net, &init_net))
 		goto errout;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+				     dn_ifa_policy, extack);
 	if (err < 0)
 		goto errout;
 
@@ -629,8 +626,8 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+				     dn_ifa_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -1363,7 +1360,7 @@ static int dn_dev_seq_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "%-8s %1s     %04u %04u   %04lu %04lu"
 				"   %04hu    %03d %02x    %-10s %-7s %-7s\n",
-				dev->name ? dev->name : "???",
+				dev->name,
 				dn_type2asc(dn_db->parms.mode),
 				0, 0,
 				dn_db->t3, dn_db->parms.t3,

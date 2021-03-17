@@ -110,7 +110,6 @@ struct raw3270_request {
 };
 
 struct raw3270_request *raw3270_request_alloc(size_t size);
-struct raw3270_request *raw3270_request_alloc_bootmem(size_t size);
 void raw3270_request_free(struct raw3270_request *);
 void raw3270_request_reset(struct raw3270_request *);
 void raw3270_request_set_cmd(struct raw3270_request *, u8 cmd);
@@ -150,6 +149,8 @@ struct raw3270_fn {
 struct raw3270_view {
 	struct list_head list;
 	spinlock_t lock;
+#define RAW3270_VIEW_LOCK_IRQ	0
+#define RAW3270_VIEW_LOCK_BH	1
 	atomic_t ref_count;
 	struct raw3270 *dev;
 	struct raw3270_fn *fn;
@@ -158,7 +159,7 @@ struct raw3270_view {
 	unsigned char *ascebc;		/* ascii -> ebcdic table */
 };
 
-int raw3270_add_view(struct raw3270_view *, struct raw3270_fn *, int);
+int raw3270_add_view(struct raw3270_view *, struct raw3270_fn *, int, int);
 int raw3270_activate_view(struct raw3270_view *);
 void raw3270_del_view(struct raw3270_view *);
 void raw3270_deactivate_view(struct raw3270_view *);
@@ -209,7 +210,7 @@ struct string
 	struct list_head update;
 	unsigned long size;
 	unsigned long len;
-	char string[0];
+	char string[];
 } __attribute__ ((aligned(8)));
 
 static inline struct string *

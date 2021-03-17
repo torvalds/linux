@@ -23,6 +23,8 @@
 #error VB2_MAX_PLANES != VIDEO_MAX_PLANES
 #endif
 
+struct video_device;
+
 /**
  * struct vb2_v4l2_buffer - video buffer information for v4l2.
  *
@@ -32,6 +34,9 @@
  *		&enum v4l2_field.
  * @timecode:	frame timecode.
  * @sequence:	sequence count of this frame.
+ * @request_fd:	the request_fd associated with this buffer
+ * @is_held:	if true, then this capture buffer was held
+ * @planes:	plane information (userptr/fd, length, bytesused, data_offset).
  *
  * Should contain enough information to be able to cover all the fields
  * of &struct v4l2_buffer at ``videodev2.h``.
@@ -43,13 +48,35 @@ struct vb2_v4l2_buffer {
 	__u32			field;
 	struct v4l2_timecode	timecode;
 	__u32			sequence;
+	__s32			request_fd;
+	bool			is_held;
+	struct vb2_plane	planes[VB2_MAX_PLANES];
 };
+
+/* VB2 V4L2 flags as set in vb2_queue.subsystem_flags */
+#define VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF (1 << 0)
 
 /*
  * to_vb2_v4l2_buffer() - cast struct vb2_buffer * to struct vb2_v4l2_buffer *
  */
 #define to_vb2_v4l2_buffer(vb) \
 	container_of(vb, struct vb2_v4l2_buffer, vb2_buf)
+
+/**
+ * vb2_find_timestamp() - Find buffer with given timestamp in the queue
+ *
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @timestamp:	the timestamp to find.
+ * @start_idx:	the start index (usually 0) in the buffer array to start
+ *		searching from. Note that there may be multiple buffers
+ *		with the same timestamp value, so you can restart the search
+ *		by setting @start_idx to the previously found index + 1.
+ *
+ * Returns the buffer index of the buffer with the given @timestamp, or
+ * -1 if no buffer with @timestamp was found.
+ */
+int vb2_find_timestamp(const struct vb2_queue *q, u64 timestamp,
+		       unsigned int start_idx);
 
 int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b);
 
@@ -77,6 +104,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create);
  * vb2_prepare_buf() - Pass ownership of a buffer from userspace to the kernel
  *
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @mdev:	pointer to &struct media_device, may be NULL.
  * @b:		buffer structure passed from userspace to
  *		&v4l2_ioctl_ops->vidioc_prepare_buf handler in driver
  *
@@ -88,15 +116,19 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create);
  * #) verifies the passed buffer,
  * #) calls &vb2_ops->buf_prepare callback in the driver (if provided),
  *    in which driver-specific buffer initialization can be performed.
+ * #) if @b->request_fd is non-zero and @mdev->ops->req_queue is set,
+ *    then bind the prepared buffer to the request.
  *
  * The return values from this function are intended to be directly returned
  * from &v4l2_ioctl_ops->vidioc_prepare_buf handler in driver.
  */
-int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b);
+int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
+		    struct v4l2_buffer *b);
 
 /**
  * vb2_qbuf() - Queue a buffer from userspace
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @mdev:	pointer to &struct media_device, may be NULL.
  * @b:		buffer structure passed from userspace to
  *		&v4l2_ioctl_ops->vidioc_qbuf handler in driver
  *
@@ -105,6 +137,8 @@ int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b);
  * This function:
  *
  * #) verifies the passed buffer;
+ * #) if @b->request_fd is non-zero and @mdev->ops->req_queue is set,
+ *    then bind the buffer to the request.
  * #) if necessary, calls &vb2_ops->buf_prepare callback in the driver
  *    (if provided), in which driver-specific buffer initialization can
  *    be performed;
@@ -114,7 +148,8 @@ int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b);
  * The return values from this function are intended to be directly returned
  * from &v4l2_ioctl_ops->vidioc_qbuf handler in driver.
  */
-int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b);
+int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
+	     struct v4l2_buffer *b);
 
 /**
  * vb2_expbuf() - Export a buffer as a file descriptor
@@ -204,6 +239,19 @@ int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type);
 int __must_check vb2_queue_init(struct vb2_queue *q);
 
 /**
+ * vb2_queue_init_name() - initialize a videobuf2 queue with a name
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @name:	the queue name
+ *
+ * This function initializes the vb2_queue exactly like vb2_queue_init(),
+ * and additionally sets the queue name. The queue name is used for logging
+ * purpose, and should uniquely identify the queue within the context of the
+ * device it belongs to. This is useful to attribute kernel log messages to the
+ * right queue for m2m devices or other devices that handle multiple queues.
+ */
+int __must_check vb2_queue_init_name(struct vb2_queue *q, const char *name);
+
+/**
  * vb2_queue_release() - stop streaming, release the queue and free memory
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  *
@@ -274,6 +322,21 @@ unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 #endif
 
 /**
+ * vb2_video_unregister_device - unregister the video device and release queue
+ *
+ * @vdev: pointer to &struct video_device
+ *
+ * If the driver uses vb2_fop_release()/_vb2_fop_release(), then it should use
+ * vb2_video_unregister_device() instead of video_unregister_device().
+ *
+ * This function will call video_unregister_device() and then release the
+ * vb2_queue if streaming is in progress. This will stop streaming and
+ * this will simplify the unbind sequence since after this call all subdevs
+ * will have stopped streaming as well.
+ */
+void vb2_video_unregister_device(struct video_device *vdev);
+
+/**
  * vb2_ops_wait_prepare - helper function to lock a struct &vb2_queue
  *
  * @vq: pointer to &struct vb2_queue
@@ -290,5 +353,9 @@ void vb2_ops_wait_prepare(struct vb2_queue *vq);
  * ..note:: only use if vq->lock is non-NULL.
  */
 void vb2_ops_wait_finish(struct vb2_queue *vq);
+
+struct media_request;
+int vb2_request_validate(struct media_request *req);
+void vb2_request_queue(struct media_request *req);
 
 #endif /* _MEDIA_VIDEOBUF2_V4L2_H */

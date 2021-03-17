@@ -28,19 +28,12 @@
  *	to write an integer number of pages.
  */
 
-#if defined(__SH5__) || defined(CONFIG_CPU_SH5)
-struct user_fpu_struct {
-	unsigned long fp_regs[32];
-	unsigned int fpscr;
-};
-#else
 struct user_fpu_struct {
 	unsigned long fp_regs[16];
 	unsigned long xfp_regs[16];
 	unsigned long fpscr;
 	unsigned long fpul;
 };
-#endif
 
 struct user {
 	struct pt_regs	regs;			/* entire machine state */

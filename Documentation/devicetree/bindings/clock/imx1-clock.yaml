@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/imx1-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Clock bindings for Freescale i.MX1 CPUs
+
+maintainers:
+  - Alexander Shiyan <shc_work@mail.ru>
+
+description: |
+  The clock consumer should specify the desired clock by having the clock
+  ID in its "clocks" phandle cell. See include/dt-bindings/clock/imx1-clock.h
+  for the full list of i.MX1 clock IDs.
+
+properties:
+  compatible:
+    const: fsl,imx1-ccm
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx1-clock.h>
+
+    clock-controller@21b000 {
+        #clock-cells = <1>;
+        compatible = "fsl,imx1-ccm";
+        reg = <0x0021b000 0x1000>;
+    };
+
+    pwm@208000 {
+        #pwm-cells = <2>;
+        compatible = "fsl,imx1-pwm";
+        reg = <0x00208000 0x1000>;
+        interrupts = <34>;
+        clocks = <&clks IMX1_CLK_DUMMY>, <&clks IMX1_CLK_PER1>;
+        clock-names = "ipg", "per";
+    };

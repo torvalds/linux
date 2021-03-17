@@ -3,7 +3,7 @@
  *
  * Module Name: evrgnini- ACPI address_space (op_region) init
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -15,9 +15,6 @@
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evrgnini")
-
-/* Local prototypes */
-static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
 
 /*******************************************************************************
  *
@@ -33,7 +30,6 @@ static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
  * DESCRIPTION: Setup a system_memory operation region
  *
  ******************************************************************************/
-
 acpi_status
 acpi_ev_system_memory_region_setup(acpi_handle handle,
 				   u32 function,
@@ -42,6 +38,7 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
 	union acpi_operand_object *region_desc =
 	    (union acpi_operand_object *)handle;
 	struct acpi_mem_space_context *local_region_context;
+	struct acpi_mem_mapping *mm;
 
 	ACPI_FUNCTION_TRACE(ev_system_memory_region_setup);
 
@@ -50,13 +47,14 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
 			local_region_context =
 			    (struct acpi_mem_space_context *)*region_context;
 
-			/* Delete a cached mapping if present */
+			/* Delete memory mappings if present */
 
-			if (local_region_context->mapped_length) {
-				acpi_os_unmap_memory(local_region_context->
-						     mapped_logical_address,
-						     local_region_context->
-						     mapped_length);
+			while (local_region_context->first_mm) {
+				mm = local_region_context->first_mm;
+				local_region_context->first_mm = mm->next_mm;
+				acpi_os_unmap_memory(mm->logical_address,
+						     mm->length);
+				ACPI_FREE(mm);
 			}
 			ACPI_FREE(local_region_context);
 			*region_context = NULL;
@@ -202,7 +200,6 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 						 * root bridge. Still need to return a context object
 						 * for the new PCI_Config operation region, however.
 						 */
-						status = AE_OK;
 					} else {
 						ACPI_EXCEPTION((AE_INFO, status,
 								"Could not install PciConfig handler "
@@ -313,7 +310,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
  *
  ******************************************************************************/
 
-static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
+u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 {
 	acpi_status status;
 	struct acpi_pnp_device_id *hid;
@@ -518,25 +515,6 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 			case ACPI_TYPE_THERMAL:
 
 				handler_obj = obj_desc->common_notify.handler;
-				break;
-
-			case ACPI_TYPE_METHOD:
-				/*
-				 * If we are executing module level code, the original
-				 * Node's object was replaced by this Method object and we
-				 * saved the handler in the method object.
-				 *
-				 * Note: Only used for the legacy MLC support. Will
-				 * be removed in the future.
-				 *
-				 * See acpi_ns_exec_module_code
-				 */
-				if (!acpi_gbl_execute_tables_as_methods &&
-				    obj_desc->method.
-				    info_flags & ACPI_METHOD_MODULE_LEVEL) {
-					handler_obj =
-					    obj_desc->method.dispatch.handler;
-				}
 				break;
 
 			default:

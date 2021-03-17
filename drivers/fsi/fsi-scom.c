@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SCOM FSI Client device driver
  *
  * Copyright (C) IBM Corporation 2016
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERGCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/fsi.h>
@@ -20,7 +12,6 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/cdev.h>
 #include <linux/list.h>
 
 #include <uapi/linux/fsi.h>
@@ -47,8 +38,7 @@
 #define SCOM_STATUS_PIB_RESP_MASK	0x00007000
 #define SCOM_STATUS_PIB_RESP_SHIFT	12
 
-#define SCOM_STATUS_ANY_ERR		(SCOM_STATUS_ERR_SUMMARY | \
-					 SCOM_STATUS_PROTECTION | \
+#define SCOM_STATUS_ANY_ERR		(SCOM_STATUS_PROTECTION | \
 					 SCOM_STATUS_PARITY |	  \
 					 SCOM_STATUS_PIB_ABORT | \
 					 SCOM_STATUS_PIB_RESP_MASK)
@@ -260,11 +250,6 @@ static int handle_fsi2pib_status(struct scom_device *scom, uint32_t status)
 	/* Return -EBUSY on PIB abort to force a retry */
 	if (status & SCOM_STATUS_PIB_ABORT)
 		return -EBUSY;
-	if (status & SCOM_STATUS_ERR_SUMMARY) {
-		fsi_device_write(scom->fsi_dev, SCOM_FSI2PIB_RESET_REG, &dummy,
-				 sizeof(uint32_t));
-		return -EIO;
-	}
 	return 0;
 }
 
@@ -642,7 +627,7 @@ static int scom_remove(struct device *dev)
 	return 0;
 }
 
-static struct fsi_device_id scom_ids[] = {
+static const struct fsi_device_id scom_ids[] = {
 	{
 		.engine_type = FSI_ENGID_SCOM,
 		.version = FSI_VERSION_ANY,

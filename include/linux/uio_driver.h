@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/linux/uio_driver.h
  *
@@ -7,8 +8,6 @@
  * Copyright(C) 2006, Greg Kroah-Hartman <greg@kroah.com>
  *
  * Userspace IO driver.
- *
- * Licensed under the GPLv2 only.
  */
 
 #ifndef _UIO_DRIVER_H_
@@ -25,10 +24,10 @@ struct uio_map;
  * struct uio_mem - description of a UIO memory region
  * @name:		name of the memory region for identification
  * @addr:               address of the device's memory rounded to page
- * 			size (phys_addr is used since addr can be
- * 			logical, virtual, or physical & phys_addr_t
- * 			should always be large enough to handle any of
- * 			the address types)
+ *			size (phys_addr is used since addr can be
+ *			logical, virtual, or physical & phys_addr_t
+ *			should always be large enough to handle any of
+ *			the address types)
  * @offs:               offset of device memory within the page
  * @size:		size of IO (multiple of page size)
  * @memtype:		type of memory addr points to
@@ -68,16 +67,16 @@ struct uio_port {
 #define MAX_UIO_PORT_REGIONS	5
 
 struct uio_device {
-        struct module           *owner;
+	struct module           *owner;
 	struct device		dev;
-        int                     minor;
-        atomic_t                event;
-        struct fasync_struct    *async_queue;
-        wait_queue_head_t       wait;
-        struct uio_info         *info;
+	int                     minor;
+	atomic_t                event;
+	struct fasync_struct    *async_queue;
+	wait_queue_head_t       wait;
+	struct uio_info         *info;
 	struct mutex		info_lock;
-        struct kobject          *map_dir;
-        struct kobject          *portio_dir;
+	struct kobject          *map_dir;
+	struct kobject          *portio_dir;
 };
 
 /**
@@ -124,6 +123,15 @@ extern int __must_check
 extern void uio_unregister_device(struct uio_info *info);
 extern void uio_event_notify(struct uio_info *info);
 
+extern int __must_check
+	__devm_uio_register_device(struct module *owner,
+				   struct device *parent,
+				   struct uio_info *info);
+
+/* use a define to avoid include chaining to get THIS_MODULE */
+#define devm_uio_register_device(parent, info) \
+	__devm_uio_register_device(THIS_MODULE, parent, info)
+
 /* defines for uio_info->irq */
 #define UIO_IRQ_CUSTOM	-1
 #define UIO_IRQ_NONE	0
@@ -133,6 +141,7 @@ extern void uio_event_notify(struct uio_info *info);
 #define UIO_MEM_PHYS	1
 #define UIO_MEM_LOGICAL	2
 #define UIO_MEM_VIRTUAL 3
+#define UIO_MEM_IOVA	4
 
 /* defines for uio_port->porttype */
 #define UIO_PORT_NONE	0

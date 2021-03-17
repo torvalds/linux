@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017, National Instruments Corp.
  * Copyright (c) 2017, Xilix Inc
  *
  * FPGA Bridge Driver for the Xilinx LogiCORE Partial Reconfiguration
  * Decoupler IP Core.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -109,7 +101,8 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(&pdev->dev, "aclk");
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "input clock not found\n");
+		if (PTR_ERR(priv->clk) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "input clock not found\n");
 		return PTR_ERR(priv->clk);
 	}
 
@@ -121,8 +114,8 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 
 	clk_disable(priv->clk);
 
-	br = fpga_bridge_create(&pdev->dev, "Xilinx PR Decoupler",
-				&xlnx_pr_decoupler_br_ops, priv);
+	br = devm_fpga_bridge_create(&pdev->dev, "Xilinx PR Decoupler",
+				     &xlnx_pr_decoupler_br_ops, priv);
 	if (!br) {
 		err = -ENOMEM;
 		goto err_clk;

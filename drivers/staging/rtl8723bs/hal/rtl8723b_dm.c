@@ -173,7 +173,7 @@ void rtl8723b_HalDmWatchDog(struct adapter *Adapter)
 	if (hw_init_completed == true) {
 		u8 bLinked = false;
 		u8 bsta_state = false;
-		u8 bBtDisabled = true;
+		bool bBtDisabled = true;
 
 		if (rtw_linked_check(Adapter)) {
 			bLinked = true;
@@ -186,9 +186,10 @@ void rtl8723b_HalDmWatchDog(struct adapter *Adapter)
 
 		/* ODM_CmnInfoUpdate(&pHalData->odmpriv , ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM); */
 
-		bBtDisabled = rtw_btcoex_IsBtDisabled(Adapter);
+		bBtDisabled = hal_btcoex_IsBtDisabled(Adapter);
 
-		ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_BT_ENABLED, ((bBtDisabled == true)?false:true));
+		ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_BT_ENABLED,
+				  !bBtDisabled);
 
 		ODM_DMWatchdog(&pHalData->odmpriv);
 	}
@@ -254,7 +255,7 @@ void rtl8723b_HalDmWatchDog_in_LPS(struct adapter *Adapter)
 
       /* 1 Find MIN-RSSI */
 	psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
-	if (psta == NULL)
+	if (!psta)
 		goto skip_lps_dm;
 
 	pdmpriv->EntryMinUndecoratedSmoothedPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;

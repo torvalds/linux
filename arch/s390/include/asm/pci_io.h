@@ -8,6 +8,10 @@
 #include <linux/slab.h>
 #include <asm/pci_insn.h>
 
+/* I/O size constraints */
+#define ZPCI_MAX_READ_SIZE	8
+#define ZPCI_MAX_WRITE_SIZE	128
+
 /* I/O Map */
 #define ZPCI_IOMAP_SHIFT		48
 #define ZPCI_IOMAP_ADDR_BASE		0x8000000000000000UL
@@ -37,12 +41,10 @@ extern struct zpci_iomap_entry *zpci_iomap_start;
 #define zpci_read(LENGTH, RETTYPE)						\
 static inline RETTYPE zpci_read_##RETTYPE(const volatile void __iomem *addr)	\
 {										\
-	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(addr)];	\
-	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, LENGTH);		\
 	u64 data;								\
 	int rc;									\
 										\
-	rc = zpci_load(&data, req, ZPCI_OFFSET(addr));				\
+	rc = zpci_load(&data, addr, LENGTH);					\
 	if (rc)									\
 		data = -1ULL;							\
 	return (RETTYPE) data;							\
@@ -52,11 +54,9 @@ static inline RETTYPE zpci_read_##RETTYPE(const volatile void __iomem *addr)	\
 static inline void zpci_write_##VALTYPE(VALTYPE val,				\
 					const volatile void __iomem *addr)	\
 {										\
-	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(addr)];	\
-	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, LENGTH);		\
 	u64 data = (VALTYPE) val;						\
 										\
-	zpci_store(data, req, ZPCI_OFFSET(addr));				\
+	zpci_store(addr, data, LENGTH);						\
 }
 
 zpci_read(8, u64)
@@ -68,36 +68,38 @@ zpci_write(4, u32)
 zpci_write(2, u16)
 zpci_write(1, u8)
 
-static inline int zpci_write_single(u64 req, const u64 *data, u64 offset, u8 len)
+static inline int zpci_write_single(volatile void __iomem *dst, const void *src,
+				    unsigned long len)
 {
 	u64 val;
 
 	switch (len) {
 	case 1:
-		val = (u64) *((u8 *) data);
+		val = (u64) *((u8 *) src);
 		break;
 	case 2:
-		val = (u64) *((u16 *) data);
+		val = (u64) *((u16 *) src);
 		break;
 	case 4:
-		val = (u64) *((u32 *) data);
+		val = (u64) *((u32 *) src);
 		break;
 	case 8:
-		val = (u64) *((u64 *) data);
+		val = (u64) *((u64 *) src);
 		break;
 	default:
 		val = 0;		/* let FW report error */
 		break;
 	}
-	return zpci_store(val, req, offset);
+	return zpci_store(dst, val, len);
 }
 
-static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
+static inline int zpci_read_single(void *dst, const volatile void __iomem *src,
+				   unsigned long len)
 {
 	u64 data;
 	int cc;
 
-	cc = zpci_load(&data, req, offset);
+	cc = zpci_load(&data, src, len);
 	if (cc)
 		goto out;
 
@@ -119,10 +121,8 @@ out:
 	return cc;
 }
 
-static inline int zpci_write_block(u64 req, const u64 *data, u64 offset)
-{
-	return zpci_store_block(data, req, offset);
-}
+int zpci_write_block(volatile void __iomem *dst, const void *src,
+		     unsigned long len);
 
 static inline u8 zpci_get_max_write_size(u64 src, u64 dst, int len, int max)
 {
@@ -140,18 +140,16 @@ static inline int zpci_memcpy_fromio(void *dst,
 				     const volatile void __iomem *src,
 				     unsigned long n)
 {
-	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(src)];
-	u64 req, offset = ZPCI_OFFSET(src);
 	int size, rc = 0;
 
 	while (n > 0) {
 		size = zpci_get_max_write_size((u64 __force) src,
-					       (u64) dst, n, 8);
-		req = ZPCI_CREATE_REQ(entry->fh, entry->bar, size);
-		rc = zpci_read_single(req, dst, offset, size);
+					       (u64) dst, n,
+					       ZPCI_MAX_READ_SIZE);
+		rc = zpci_read_single(dst, src, size);
 		if (rc)
 			break;
-		offset += size;
+		src += size;
 		dst += size;
 		n -= size;
 	}
@@ -161,8 +159,6 @@ static inline int zpci_memcpy_fromio(void *dst,
 static inline int zpci_memcpy_toio(volatile void __iomem *dst,
 				   const void *src, unsigned long n)
 {
-	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(dst)];
-	u64 req, offset = ZPCI_OFFSET(dst);
 	int size, rc = 0;
 
 	if (!src)
@@ -170,17 +166,16 @@ static inline int zpci_memcpy_toio(volatile void __iomem *dst,
 
 	while (n > 0) {
 		size = zpci_get_max_write_size((u64 __force) dst,
-					       (u64) src, n, 128);
-		req = ZPCI_CREATE_REQ(entry->fh, entry->bar, size);
-
+					       (u64) src, n,
+					       ZPCI_MAX_WRITE_SIZE);
 		if (size > 8) /* main path */
-			rc = zpci_write_block(req, src, offset);
+			rc = zpci_write_block(dst, src, size);
 		else
-			rc = zpci_write_single(req, src, offset, size);
+			rc = zpci_write_single(dst, src, size);
 		if (rc)
 			break;
-		offset += size;
 		src += size;
+		dst += size;
 		n -= size;
 	}
 	return rc;

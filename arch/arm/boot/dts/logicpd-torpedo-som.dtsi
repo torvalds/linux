@@ -1,8 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 #include <dt-bindings/input/input.h>
 
@@ -37,6 +33,11 @@
 		compatible = "fixed-clock";
 		clock-frequency = <26000000>;
 	};
+};
+
+/* The Torpedo doesn't route the USB host pins */
+&usbhshost {
+	status = "disabled";
 };
 
 &gpmc {
@@ -195,4 +196,8 @@
 
 &twl_gpio {
 	ti,use-leds;
+};
+
+&twl_keypad {
+	status = "disabled";
 };

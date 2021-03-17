@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mm/percpu-km.c - kernel memory based chunk allocation
  *
  * Copyright (C) 2010		SUSE Linux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
- *
- * This file is released under the GPLv2.
  *
  * Chunks are allocated as a contiguous kernel memory using gfp
  * allocation.  This is to be used on nommu architectures.
@@ -45,14 +44,16 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	/* nada */
 }
 
-static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
+static struct pcpu_chunk *pcpu_create_chunk(enum pcpu_chunk_type type,
+					    gfp_t gfp)
 {
 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
 	struct pcpu_chunk *chunk;
 	struct page *pages;
+	unsigned long flags;
 	int i;
 
-	chunk = pcpu_alloc_chunk(gfp);
+	chunk = pcpu_alloc_chunk(type, gfp);
 	if (!chunk)
 		return NULL;
 
@@ -66,11 +67,11 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
 		pcpu_set_page_chunk(nth_page(pages, i), chunk);
 
 	chunk->data = pages;
-	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
+	chunk->base_addr = page_address(pages);
 
-	spin_lock_irq(&pcpu_lock);
-	pcpu_chunk_populated(chunk, 0, nr_pages, false);
-	spin_unlock_irq(&pcpu_lock);
+	spin_lock_irqsave(&pcpu_lock, flags);
+	pcpu_chunk_populated(chunk, 0, nr_pages);
+	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	pcpu_stats_chunk_alloc();
 	trace_percpu_create_chunk(chunk->base_addr);

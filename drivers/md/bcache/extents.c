@@ -54,7 +54,7 @@ static bool __ptr_invalid(struct cache_set *c, const struct bkey *k)
 			size_t bucket = PTR_BUCKET_NR(c, k, i);
 			size_t r = bucket_remainder(c, PTR_OFFSET(k, i));
 
-			if (KEY_SIZE(k) + r > c->sb.bucket_size ||
+			if (KEY_SIZE(k) + r > c->cache->sb.bucket_size ||
 			    bucket <  ca->sb.first_bucket ||
 			    bucket >= ca->sb.nbuckets)
 				return true;
@@ -75,7 +75,7 @@ static const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
 			size_t bucket = PTR_BUCKET_NR(c, k, i);
 			size_t r = bucket_remainder(c, PTR_OFFSET(k, i));
 
-			if (KEY_SIZE(k) + r > c->sb.bucket_size)
+			if (KEY_SIZE(k) + r > c->cache->sb.bucket_size)
 				return "bad, length too big";
 			if (bucket <  ca->sb.first_bucket)
 				return "bad, short offset";
@@ -130,18 +130,18 @@ static void bch_bkey_dump(struct btree_keys *keys, const struct bkey *k)
 	char buf[80];
 
 	bch_extent_to_text(buf, sizeof(buf), k);
-	pr_err(" %s", buf);
+	pr_cont(" %s", buf);
 
 	for (j = 0; j < KEY_PTRS(k); j++) {
 		size_t n = PTR_BUCKET_NR(b->c, k, j);
 
-		pr_err(" bucket %zu", n);
-		if (n >= b->c->sb.first_bucket && n < b->c->sb.nbuckets)
-			pr_err(" prio %i",
-			       PTR_BUCKET(b->c, k, j)->prio);
+		pr_cont(" bucket %zu", n);
+		if (n >= b->c->cache->sb.first_bucket && n < b->c->cache->sb.nbuckets)
+			pr_cont(" prio %i",
+				PTR_BUCKET(b->c, k, j)->prio);
 	}
 
-	pr_err(" %s\n", bch_ptr_status(b->c, k));
+	pr_cont(" %s\n", bch_ptr_status(b->c, k));
 }
 
 /* Btree ptrs */
@@ -538,6 +538,7 @@ static bool bch_extent_bad(struct btree_keys *bk, const struct bkey *k)
 {
 	struct btree *b = container_of(bk, struct btree, keys);
 	unsigned int i, stale;
+	char buf[80];
 
 	if (!KEY_PTRS(k) ||
 	    bch_extent_invalid(bk, k))
@@ -547,18 +548,18 @@ static bool bch_extent_bad(struct btree_keys *bk, const struct bkey *k)
 		if (!ptr_available(b->c, k, i))
 			return true;
 
-	if (!expensive_debug_checks(b->c) && KEY_DIRTY(k))
-		return false;
-
 	for (i = 0; i < KEY_PTRS(k); i++) {
 		stale = ptr_stale(b->c, k, i);
 
-		btree_bug_on(stale > 96, b,
+		if (stale && KEY_DIRTY(k)) {
+			bch_extent_to_text(buf, sizeof(buf), k);
+			pr_info("stale dirty pointer, stale %u, key: %s\n",
+				stale, buf);
+		}
+
+		btree_bug_on(stale > BUCKET_GC_GEN_MAX, b,
 			     "key too stale: %i, need_gc %u",
 			     stale, b->c->need_gc);
-
-		btree_bug_on(stale && KEY_DIRTY(k) && KEY_SIZE(k),
-			     b, "stale dirty pointer");
 
 		if (stale)
 			return true;

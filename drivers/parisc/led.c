@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Chassis LCD/LED driver for HP-PARISC workstations
  *
@@ -5,11 +6,6 @@
  *      (c) Copyright 2000 Helge Deller <hdeller@redhat.com>
  *      (c) Copyright 2001-2009 Helge Deller <deller@gmx.de>
  *      (c) Copyright 2001 Randolph Chung <tausq@debian.org>
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  *
  * TODO:
  *	- speed-up calculations with inlined assembler
@@ -234,13 +230,12 @@ parse_error:
 	return -EINVAL;
 }
 
-static const struct file_operations led_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= led_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= led_proc_write,
+static const struct proc_ops led_proc_ops = {
+	.proc_open	= led_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= led_proc_write,
 };
 
 static int __init led_create_procfs(void)
@@ -256,14 +251,14 @@ static int __init led_create_procfs(void)
 	if (!lcd_no_led_support)
 	{
 		ent = proc_create_data("led", S_IRUGO|S_IWUSR, proc_pdc_root,
-					&led_proc_fops, (void *)LED_NOLCD); /* LED */
+					&led_proc_ops, (void *)LED_NOLCD); /* LED */
 		if (!ent) return -1;
 	}
 
 	if (led_type == LED_HASLCD)
 	{
 		ent = proc_create_data("lcd", S_IRUGO|S_IWUSR, proc_pdc_root,
-					&led_proc_fops, (void *)LED_HASLCD); /* LCD */
+					&led_proc_ops, (void *)LED_HASLCD); /* LCD */
 		if (!ent) return -1;
 	}
 
@@ -568,6 +563,9 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
 		break;
 
 	case DISPLAY_MODEL_LASI:
+		/* Skip to register LED in QEMU */
+		if (running_on_qemu)
+			return 1;
 		LED_DATA_REG = data_reg;
 		led_func_ptr = led_LASI_driver;
 		printk(KERN_INFO "LED display at %lx registered\n", LED_DATA_REG);

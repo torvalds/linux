@@ -137,9 +137,13 @@ wdt_restart(struct watchdog_device *wdd, unsigned long mode, void *cmd)
 {
 	struct sp805_wdt *wdt = watchdog_get_drvdata(wdd);
 
+	writel_relaxed(UNLOCK, wdt->base + WDTLOCK);
 	writel_relaxed(0, wdt->base + WDTCONTROL);
 	writel_relaxed(0, wdt->base + WDTLOAD);
 	writel_relaxed(INT_ENABLE | RESET_ENABLE, wdt->base + WDTCONTROL);
+
+	/* Flush posted writes. */
+	readl_relaxed(wdt->base + WDTLOCK);
 
 	return 0;
 }
@@ -288,11 +292,8 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	ret = watchdog_register_device(&wdt->wdd);
-	if (ret) {
-		dev_err(&adev->dev, "watchdog_register_device() failed: %d\n",
-				ret);
+	if (ret)
 		goto err;
-	}
 	amba_set_drvdata(adev, wdt);
 
 	dev_info(&adev->dev, "registration successful\n");
@@ -303,14 +304,12 @@ err:
 	return ret;
 }
 
-static int sp805_wdt_remove(struct amba_device *adev)
+static void sp805_wdt_remove(struct amba_device *adev)
 {
 	struct sp805_wdt *wdt = amba_get_drvdata(adev);
 
 	watchdog_unregister_device(&wdt->wdd);
 	watchdog_set_drvdata(&wdt->wdd, NULL);
-
-	return 0;
 }
 
 static int __maybe_unused sp805_wdt_suspend(struct device *dev)

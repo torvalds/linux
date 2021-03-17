@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Derald D. Woods <woods.technical@gmail.com>
  *
  * Based on am3517-evm.dts
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 / {
@@ -163,7 +160,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <10 IRQ_TYPE_LEVEL_HIGH>; /* gpio_170 */
+		interrupts = <10 IRQ_TYPE_EDGE_RISING>; /* gpio_170 */
 		ref-clock-frequency = <26000000>;
 		tcxo-clock-frequency = <26000000>;
 	};

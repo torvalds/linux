@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * IIO driver for the MiraMEMS DA280 3-axis accelerometer and
  * IIO driver for the MiraMEMS DA226 2-axis accelerometer
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -123,7 +120,6 @@ static int da280_probe(struct i2c_client *client,
 	data->client = client;
 	i2c_set_clientdata(client, indio_dev);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &da280_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = da280_channels;

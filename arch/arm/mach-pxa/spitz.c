@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for Sharp SL-Cxx00 Series of PDAs
  * Models: SL-C3000 (Spitz), SL-C1000 (Akita) and SL-C3100 (Borzoi)
@@ -5,11 +6,6 @@
  * Copyright (c) 2005 Richard Purdie
  *
  * Based on Sharp's 2.4 kernel patches/lubbock.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -18,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/leds.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
@@ -528,13 +525,33 @@ static void spitz_bl_kick_battery(void)
 	}
 }
 
+static struct gpiod_lookup_table spitz_lcdcon_gpio_table = {
+	.dev_id = "spi2.1",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_BACKLIGHT_CONT,
+			    "BL_CONT", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_BACKLIGHT_ON,
+			    "BL_ON", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table akita_lcdcon_gpio_table = {
+	.dev_id = "spi2.1",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", AKITA_GPIO_BACKLIGHT_CONT,
+			    "BL_CONT", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", AKITA_GPIO_BACKLIGHT_ON,
+			    "BL_ON", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct corgi_lcd_platform_data spitz_lcdcon_info = {
 	.init_mode		= CORGI_LCD_MODE_VGA,
 	.max_intensity		= 0x2f,
 	.default_intensity	= 0x1f,
 	.limit_mask		= 0x0b,
-	.gpio_backlight_cont	= SPITZ_GPIO_BACKLIGHT_CONT,
-	.gpio_backlight_on	= SPITZ_GPIO_BACKLIGHT_ON,
 	.kick_battery		= spitz_bl_kick_battery,
 };
 
@@ -571,18 +588,16 @@ static struct spi_board_info spitz_spi_devices[] = {
 	},
 };
 
-static struct pxa2xx_spi_master spitz_spi_info = {
+static struct pxa2xx_spi_controller spitz_spi_info = {
 	.num_chipselect	= 3,
 };
 
 static void __init spitz_spi_init(void)
 {
-	struct corgi_lcd_platform_data *lcd_data = &spitz_lcdcon_info;
-
-	if (machine_is_akita()) {
-		lcd_data->gpio_backlight_cont = AKITA_GPIO_BACKLIGHT_CONT;
-		lcd_data->gpio_backlight_on = AKITA_GPIO_BACKLIGHT_ON;
-	}
+	if (machine_is_akita())
+		gpiod_add_lookup_table(&akita_lcdcon_gpio_table);
+	else
+		gpiod_add_lookup_table(&spitz_lcdcon_gpio_table);
 
 	pxa2xx_set_spi_info(2, &spitz_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
@@ -615,13 +630,22 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.setpower		= spitz_mci_setpower,
-	.gpio_card_detect	= SPITZ_GPIO_nSD_DETECT,
-	.gpio_card_ro		= SPITZ_GPIO_nSD_WP,
-	.gpio_power		= -1,
+};
+
+static struct gpiod_lookup_table spitz_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init spitz_mmc_init(void)
 {
+	gpiod_add_lookup_table(&spitz_mci_gpio_table);
 	pxa_set_mci_info(&spitz_mci_platform_data);
 }
 #else

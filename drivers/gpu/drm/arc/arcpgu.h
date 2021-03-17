@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ARC PGU DRM driver.
  *
  * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef _ARCPGU_H_
@@ -20,7 +11,6 @@
 struct arcpgu_drm_private {
 	void __iomem		*regs;
 	struct clk		*clk;
-	struct drm_fbdev_cma	*fbdev;
 	struct drm_framebuffer	*fb;
 	struct drm_crtc		crtc;
 	struct drm_plane	*plane;
@@ -43,8 +33,5 @@ static inline u32 arc_pgu_read(struct arcpgu_drm_private *arcpgu,
 int arc_pgu_setup_crtc(struct drm_device *dev);
 int arcpgu_drm_hdmi_init(struct drm_device *drm, struct device_node *np);
 int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np);
-struct drm_fbdev_cma *arcpgu_fbdev_cma_init(struct drm_device *dev,
-	unsigned int preferred_bpp, unsigned int num_crtc,
-	unsigned int max_conn_count);
 
 #endif

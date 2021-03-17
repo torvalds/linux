@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * asc7621.c - Part of lm_sensors, Linux kernel modules for hardware monitoring
  * Copyright (c) 2007, 2010 George Joseph  <george.joseph@fairview5.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -1100,7 +1087,7 @@ static void asc7621_init_client(struct i2c_client *client)
 }
 
 static int
-asc7621_probe(struct i2c_client *client, const struct i2c_device_id *id)
+asc7621_probe(struct i2c_client *client)
 {
 	struct asc7621_data *data;
 	int i, err;
@@ -1206,7 +1193,7 @@ static struct i2c_driver asc7621_driver = {
 	.driver = {
 		.name = "asc7621",
 	},
-	.probe = asc7621_probe,
+	.probe_new = asc7621_probe,
 	.remove = asc7621_remove,
 	.id_table = asc7621_id,
 	.detect = asc7621_detect,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * fs/inotify_user.c - inotify support for userspace
  *
@@ -10,16 +11,6 @@
  *
  * Copyright (C) 2009 Eric Paris <Red Hat Inc>
  * inotify was largely rewriten to make use of the fsnotify infrastructure
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/dcache.h> /* d_unlinked */
@@ -43,12 +34,12 @@ static bool event_compare(struct fsnotify_event *old_fsn,
 {
 	struct inotify_event_info *old, *new;
 
-	if (old_fsn->mask & FS_IN_IGNORED)
-		return false;
 	old = INOTIFY_E(old_fsn);
 	new = INOTIFY_E(new_fsn);
-	if ((old_fsn->mask == new_fsn->mask) &&
-	    (old_fsn->inode == new_fsn->inode) &&
+	if (old->mask & FS_IN_IGNORED)
+		return false;
+	if ((old->mask == new->mask) &&
+	    (old->wd == new->wd) &&
 	    (old->name_len == new->name_len) &&
 	    (!old->name_len || !strcmp(old->name, new->name)))
 		return true;
@@ -64,45 +55,38 @@ static int inotify_merge(struct list_head *list,
 	return event_compare(last_event, event);
 }
 
-int inotify_handle_event(struct fsnotify_group *group,
-			 struct inode *inode,
-			 u32 mask, const void *data, int data_type,
-			 const unsigned char *file_name, u32 cookie,
-			 struct fsnotify_iter_info *iter_info)
+int inotify_handle_inode_event(struct fsnotify_mark *inode_mark, u32 mask,
+			       struct inode *inode, struct inode *dir,
+			       const struct qstr *name, u32 cookie)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct inotify_inode_mark *i_mark;
 	struct inotify_event_info *event;
 	struct fsnotify_event *fsn_event;
+	struct fsnotify_group *group = inode_mark->group;
 	int ret;
 	int len = 0;
 	int alloc_len = sizeof(struct inotify_event_info);
+	struct mem_cgroup *old_memcg;
 
-	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
-		return 0;
-
-	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
-	    (data_type == FSNOTIFY_EVENT_PATH)) {
-		const struct path *path = data;
-
-		if (d_unlinked(path->dentry))
-			return 0;
-	}
-	if (file_name) {
-		len = strlen(file_name);
+	if (name) {
+		len = name->len;
 		alloc_len += len + 1;
 	}
 
-	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
+	pr_debug("%s: group=%p mark=%p mask=%x\n", __func__, group, inode_mark,
 		 mask);
 
 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
 			      fsn_mark);
 
-	/* Whoever is interested in the event, pays for the allocation. */
-	memalloc_use_memcg(group->memcg);
-	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT);
-	memalloc_unuse_memcg();
+	/*
+	 * Whoever is interested in the event, pays for the allocation. Do not
+	 * trigger OOM killer in the target monitoring memcg as it may have
+	 * security repercussion.
+	 */
+	old_memcg = set_active_memcg(group->memcg);
+	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
+	set_active_memcg(old_memcg);
 
 	if (unlikely(!event)) {
 		/*
@@ -113,13 +97,23 @@ int inotify_handle_event(struct fsnotify_group *group,
 		return -ENOMEM;
 	}
 
+	/*
+	 * We now report FS_ISDIR flag with MOVE_SELF and DELETE_SELF events
+	 * for fanotify. inotify never reported IN_ISDIR with those events.
+	 * It looks like an oversight, but to avoid the risk of breaking
+	 * existing inotify programs, mask the flag out from those events.
+	 */
+	if (mask & (IN_MOVE_SELF | IN_DELETE_SELF))
+		mask &= ~IN_ISDIR;
+
 	fsn_event = &event->fse;
-	fsnotify_init_event(fsn_event, inode, mask);
+	fsnotify_init_event(fsn_event, 0);
+	event->mask = mask;
 	event->wd = i_mark->wd;
 	event->sync_cookie = cookie;
 	event->name_len = len;
 	if (len)
-		strcpy(event->name, file_name);
+		strcpy(event->name, name->name);
 
 	ret = fsnotify_add_event(group, fsn_event, inotify_merge);
 	if (ret) {
@@ -198,7 +192,7 @@ static void inotify_free_mark(struct fsnotify_mark *fsn_mark)
 }
 
 const struct fsnotify_ops inotify_fsnotify_ops = {
-	.handle_event = inotify_handle_event,
+	.handle_inode_event = inotify_handle_inode_event,
 	.free_group_priv = inotify_free_group_priv,
 	.free_event = inotify_free_event,
 	.freeing_mark = inotify_freeing_mark,

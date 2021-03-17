@@ -23,7 +23,7 @@
  */
 
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "r600d.h"
@@ -117,7 +117,7 @@ int uvd_v1_0_resume(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	/* programm the VCPU memory controller bits 0-27 */
+	/* program the VCPU memory controller bits 0-27 */
 	addr = (rdev->uvd.gpu_addr >> 3) + 16;
 	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size) >> 3;
 	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
@@ -219,7 +219,7 @@ done:
 			WREG32(RS_DQ_RD_RET_CONF, 0x3f);
 			WREG32(MC_CONFIG, 0x1f);
 
-			/* fall through */
+			fallthrough;
 		case CHIP_RV670:
 		case CHIP_RV635:
 
@@ -360,7 +360,7 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	/* Set the write pointer delay */
 	WREG32(UVD_RBC_RB_WPTR_CNTL, 0);
 
-	/* programm the 4GB memory segment for rptr and ring buffer */
+	/* program the 4GB memory segment for rptr and ring buffer */
 	WREG32(UVD_LMI_EXT40_ADDR, upper_32_bits(ring->gpu_addr) |
 				   (0x7 << 16) | (0x1 << 31));
 
@@ -438,7 +438,7 @@ int uvd_v1_0_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		tmp = RREG32(UVD_CONTEXT_ID);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i < rdev->usec_timeout) {

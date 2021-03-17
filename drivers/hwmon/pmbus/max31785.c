@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -76,7 +72,7 @@ static int max31785_read_long_data(struct i2c_client *client, int page,
 
 	cmdbuf[0] = reg;
 
-	rc = pmbus_set_page(client, page);
+	rc = pmbus_set_page(client, page, 0xff);
 	if (rc < 0)
 		return rc;
 
@@ -114,7 +110,7 @@ static int max31785_get_pwm_mode(struct i2c_client *client, int page)
 	if (config < 0)
 		return config;
 
-	command = pmbus_read_word_data(client, page, PMBUS_FAN_COMMAND_1);
+	command = pmbus_read_word_data(client, page, 0xff, PMBUS_FAN_COMMAND_1);
 	if (command < 0)
 		return command;
 
@@ -130,7 +126,7 @@ static int max31785_get_pwm_mode(struct i2c_client *client, int page)
 }
 
 static int max31785_read_word_data(struct i2c_client *client, int page,
-				   int reg)
+				   int phase, int reg)
 {
 	u32 val;
 	int rv;
@@ -248,8 +244,6 @@ static int max31785_write_word_data(struct i2c_client *client, int page,
 #define MAX31785_VOUT_FUNCS \
 	(PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT)
 
-#define MAX37185_NUM_FAN_PAGES 6
-
 static const struct pmbus_driver_info max31785_info = {
 	.pages = MAX31785_NR_PAGES,
 
@@ -330,8 +324,7 @@ static int max31785_configure_dual_tach(struct i2c_client *client,
 	return 0;
 }
 
-static int max31785_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max31785_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct pmbus_driver_info *info;
@@ -360,7 +353,7 @@ static int max31785_probe(struct i2c_client *client,
 	if (ret == MAX31785A) {
 		dual_tach = true;
 	} else if (ret == MAX31785) {
-		if (!strcmp("max31785a", id->name))
+		if (!strcmp("max31785a", client->name))
 			dev_warn(dev, "Expected max3175a, found max31785: cannot provide secondary tachometer readings\n");
 	} else {
 		return -ENODEV;
@@ -372,7 +365,7 @@ static int max31785_probe(struct i2c_client *client,
 			return ret;
 	}
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct i2c_device_id max31785_id[] = {
@@ -396,7 +389,7 @@ static struct i2c_driver max31785_driver = {
 		.name = "max31785",
 		.of_match_table = max31785_of_match,
 	},
-	.probe = max31785_probe,
+	.probe_new = max31785_probe,
 	.remove = pmbus_do_remove,
 	.id_table = max31785_id,
 };

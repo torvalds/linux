@@ -24,8 +24,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200N8 root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
-		stdout-path = &serial_2;
+		bootargs = "root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
+		stdout-path = "serial2:115200n8";
 	};
 
 
@@ -39,15 +39,27 @@
 			compatible = "samsung,clock-xusbxti";
 			clock-frequency = <24000000>;
 		};
+
+		pmic_ap_clk: pmic-ap-clk {
+			/* Workaround for missing clock on PMIC */
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};
 
 	vemmc_reg: voltage-regulator {
-	        compatible = "regulator-fixed";
+		compatible = "regulator-fixed";
 		regulator-name = "VMEM_VDD_2_8V";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		gpio = <&gpe1 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	wlan_pwrseq: sdhci3-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpe3 1 GPIO_ACTIVE_LOW>;
 	};
 
 	gpio-keys {
@@ -99,7 +111,7 @@
 	};
 
 	tsp_reg: voltage-regulator {
-	        compatible = "regulator-fixed";
+		compatible = "regulator-fixed";
 		regulator-name = "TSP_2_8V";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
@@ -107,15 +119,15 @@
 		enable-active-high;
 	};
 
-	spi-lcd {
+	spi-3 {
 		compatible = "spi-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		gpio-sck = <&gpy3 1 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpy3 3 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpy3 1 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpy3 3 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
-		cs-gpios = <&gpy4 3 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpy4 3 GPIO_ACTIVE_LOW>;
 
 		lcd@0 {
 			compatible = "samsung,ld9040";
@@ -124,8 +136,6 @@
 			vci-supply = <&ldo17_reg>;
 			reset-gpios = <&gpy4 5 GPIO_ACTIVE_HIGH>;
 			spi-max-frequency = <1200000>;
-			spi-cpol;
-			spi-cpha;
 			power-on-delay = <10>;
 			reset-delay = <10>;
 			panel-width-mm = <90>;
@@ -166,7 +176,8 @@
 
 	hdmi_ddc: i2c-ddc {
 		compatible = "i2c-gpio";
-		gpios = <&gpe4 2 GPIO_ACTIVE_HIGH &gpe4 3 GPIO_ACTIVE_HIGH>;
+		sda-gpios = <&gpe4 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpe4 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <100>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -188,11 +199,23 @@
 	cpu0-supply = <&vdd_arm_reg>;
 };
 
+&cpu_thermal {
+	cooling-maps {
+		map0 {
+			/* Corresponds to 800MHz */
+			cooling-device = <&cpu0 2 2>;
+		};
+		map1 {
+			/* Corresponds to 200MHz */
+			cooling-device = <&cpu0 4 4>;
+		};
+	};
+};
+
 &ehci {
 	status = "okay";
-	port@0 {
-		status = "okay";
-	};
+	phys = <&exynos_usbphy 1>;
+	phy-names = "host";
 };
 
 &exynos_usbphy {
@@ -248,6 +271,11 @@
 	};
 };
 
+&gpu {
+	mali-supply = <&buck2_reg>;
+	status = "okay";
+};
+
 &hdmi {
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
@@ -301,7 +329,7 @@
 		max8952,sync-freq = <0>;
 		max8952,ramp-speed = <0>;
 
-		regulator-name = "vdd_arm";
+		regulator-name = "VARM_1.2V_C210";
 		regulator-min-microvolt = <770000>;
 		regulator-max-microvolt = <1400000>;
 		regulator-always-on;
@@ -310,6 +338,9 @@
 
 	pmic@66 {
 		compatible = "national,lp3974";
+		interrupts-extended = <&gpx0 7 0>, <&gpx2 7 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lp3974_irq>;
 		reg = <0x66>;
 
 		max8998,pmic-buck1-default-dvs-idx = <0>;
@@ -488,7 +519,8 @@
 };
 
 &mdma1 {
-	reg = <0x12840000 0x1000>;
+	/* Use the secure mdma0 */
+	status = "disabled";
 };
 
 &mixer {
@@ -497,12 +529,14 @@
 
 &ohci {
 	status = "okay";
-	port@0 {
-		status = "okay";
-	};
 };
 
 &pinctrl_1 {
+	lp3974_irq: lp3974-irq {
+		samsung,pins = "gpx0-7", "gpx2-7";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
 	hdmi_hpd: hdmi-hpd {
 		samsung,pins = "gpx3-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -523,6 +557,12 @@
 	status = "okay";
 };
 
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
+};
+
 &sdhci_0 {
 	bus-width = <8>;
 	non-removable;
@@ -537,9 +577,31 @@
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
 	pinctrl-names = "default";
 	vmmc-supply = <&ldo5_reg>;
-	cd-gpios = <&gpx3 4 GPIO_ACTIVE_HIGH>;
-	cd-inverted;
+	cd-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
+};
+
+&sdhci_3 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	non-removable;
+	bus-width = <4>;
+	mmc-pwrseq = <&wlan_pwrseq>;
+	vmmc-supply = <&ldo5_reg>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd3_clk>, <&sd3_cmd>, <&sd3_bus4>;
+
+	brcmf: wifi@1 {
+		compatible = "brcm,bcm4330-fmac";
+		reg = <1>;
+		interrupt-parent = <&gpx2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "host-wake";
+	};
 };
 
 &serial_0 {
@@ -566,17 +628,31 @@
 	/delete-property/dma-names;
 };
 
+&soc {
+	mdma0: mdma@12840000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x12840000 0x1000>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock CLK_MDMA>;
+		clock-names = "apb_pclk";
+		#dma-cells = <1>;
+		#dma-channels = <8>;
+		#dma-requests = <1>;
+		power-domains = <&pd_lcd0>;
+	};
+};
+
 &sysram {
-	smp-sysram@0 {
+	smp-sram@0 {
 		status = "disabled";
 	};
 
-	smp-sysram@5000 {
+	smp-sram@5000 {
 		compatible = "samsung,exynos4210-sysram";
 		reg = <0x5000 0x1000>;
 	};
 
-	smp-sysram@1f000 {
+	smp-sram@1f000 {
 		status = "disabled";
 	};
 };

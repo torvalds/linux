@@ -8,7 +8,7 @@
 # Doing this inside the Makefile will break the $(filter-out) function,
 # causing Kbuild to rebuild the vdso-offsets header file every time.
 #
-# Author: Will Deacon <will.deacon@arm.com
+# Author: Will Deacon <will.deacon@arm.com>
 #
 
 LC_ALL=C

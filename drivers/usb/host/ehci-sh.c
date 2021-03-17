@@ -8,7 +8,6 @@
  */
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/platform_data/ehci-sh.h>
 
 struct ehci_sh_priv {
 	struct clk *iclk, *fclk;
@@ -33,7 +32,7 @@ static const struct hc_driver ehci_sh_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq				= ehci_irq,
-	.flags				= HCD_USB2 | HCD_MEMORY | HCD_BH,
+	.flags				= HCD_USB2 | HCD_DMA | HCD_MEMORY | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -76,7 +75,6 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct ehci_sh_priv *priv;
-	struct ehci_sh_platdata *pdata;
 	struct usb_hcd *hcd;
 	int irq, ret;
 
@@ -85,14 +83,9 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(&pdev->dev,
-			"Found HC with no IRQ. Check %s setup!\n",
-			dev_name(&pdev->dev));
 		ret = -ENODEV;
 		goto fail_create_hcd;
 	}
-
-	pdata = dev_get_platdata(&pdev->dev);
 
 	/* initialize hcd */
 	hcd = usb_create_hcd(&ehci_sh_hc_driver, &pdev->dev,
@@ -129,9 +122,6 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 
 	clk_enable(priv->fclk);
 	clk_enable(priv->iclk);
-
-	if (pdata && pdata->phy_init)
-		pdata->phy_init();
 
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret != 0) {

@@ -5,9 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014, 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,9 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014, 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,8 @@
  * @DATA_PATH_GROUP: data path group, uses command IDs from
  *	&enum iwl_data_path_subcmd_ids
  * @NAN_GROUP: NAN group, uses command IDs from &enum iwl_nan_subcmd_ids
- * @TOF_GROUP: TOF group, uses command IDs from &enum iwl_tof_subcmd_ids
+ * @LOCATION_GROUP: location group, uses command IDs from
+ *	&enum iwl_location_subcmd_ids
  * @PROT_OFFLOAD_GROUP: protocol offload group, uses command IDs from
  *	&enum iwl_prot_offload_subcmd_ids
  * @REGULATORY_AND_NVM_GROUP: regulatory/NVM group, uses command IDs from
@@ -92,7 +93,7 @@ enum iwl_mvm_command_groups {
 	PHY_OPS_GROUP = 0x4,
 	DATA_PATH_GROUP = 0x5,
 	NAN_GROUP = 0x7,
-	TOF_GROUP = 0x8,
+	LOCATION_GROUP = 0x8,
 	PROT_OFFLOAD_GROUP = 0xb,
 	REGULATORY_AND_NVM_GROUP = 0xc,
 	DEBUG_GROUP = 0xf,
@@ -103,11 +104,12 @@ enum iwl_mvm_command_groups {
  */
 enum iwl_legacy_cmds {
 	/**
-	 * @MVM_ALIVE:
+	 * @UCODE_ALIVE_NTFY:
 	 * Alive data from the firmware, as described in
-	 * &struct mvm_alive_resp_v3 or &struct mvm_alive_resp.
+	 * &struct iwl_alive_ntf_v3 or &struct iwl_alive_ntf_v4 or
+	 * &struct iwl_alive_ntf_v5.
 	 */
-	MVM_ALIVE = 0x1,
+	UCODE_ALIVE_NTFY = 0x1,
 
 	/**
 	 * @REPLY_ERROR: Cause an error in the firmware, for testing purposes.
@@ -353,16 +355,6 @@ enum iwl_legacy_cmds {
 	PHY_DB_CMD = 0x6c,
 
 	/**
-	 * @TOF_CMD: &struct iwl_tof_config_cmd
-	 */
-	TOF_CMD = 0x10,
-
-	/**
-	 * @TOF_NOTIFICATION: &struct iwl_tof_gen_resp_cmd
-	 */
-	TOF_NOTIFICATION = 0x11,
-
-	/**
 	 * @POWER_TABLE_CMD: &struct iwl_device_power_cmd
 	 */
 	POWER_TABLE_CMD = 0x77,
@@ -415,7 +407,12 @@ enum iwl_legacy_cmds {
 	TX_ANT_CONFIGURATION_CMD = 0x98,
 
 	/**
-	 * @STATISTICS_CMD: &struct iwl_statistics_cmd
+	 * @STATISTICS_CMD:
+	 * one of &struct iwl_statistics_cmd,
+	 * &struct iwl_notif_statistics_v11,
+	 * &struct iwl_notif_statistics_v10,
+	 * &struct iwl_notif_statistics,
+	 * &struct iwl_statistics_operational_ntfy
 	 */
 	STATISTICS_CMD = 0x9c,
 
@@ -423,7 +420,8 @@ enum iwl_legacy_cmds {
 	 * @STATISTICS_NOTIFICATION:
 	 * one of &struct iwl_notif_statistics_v10,
 	 * &struct iwl_notif_statistics_v11,
-	 * &struct iwl_notif_statistics_cdb
+	 * &struct iwl_notif_statistic,
+	 * &struct iwl_statistics_operational_ntfy
 	 */
 	STATISTICS_NOTIFICATION = 0x9d,
 
@@ -436,7 +434,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @REDUCE_TX_POWER_CMD:
-	 * &struct iwl_dev_tx_power_cmd_v3 or &struct iwl_dev_tx_power_cmd
+	 * &struct iwl_dev_tx_power_cmd
 	 */
 	REDUCE_TX_POWER_CMD = 0x9f,
 
@@ -477,6 +475,13 @@ enum iwl_legacy_cmds {
 	 * &struct iwl_rx_mpdu_res_start or &struct iwl_rx_mpdu_desc
 	 */
 	REPLY_RX_MPDU_CMD = 0xc1,
+
+	/**
+	 * @BAR_FRAME_RELEASE: Frame release from BAR notification, used for
+	 *	multi-TID BAR (previously, the BAR frame itself was reported
+	 *	instead). Uses &struct iwl_bar_frame_release.
+	 */
+	BAR_FRAME_RELEASE = 0xc2,
 
 	/**
 	 * @FRAME_RELEASE:
@@ -644,9 +649,19 @@ enum iwl_system_subcmd_ids {
 	SHARED_MEM_CFG_CMD = 0x0,
 
 	/**
+	 * @SOC_CONFIGURATION_CMD: &struct iwl_soc_configuration_cmd
+	 */
+	SOC_CONFIGURATION_CMD = 0x01,
+
+	/**
 	 * @INIT_EXTENDED_CFG_CMD: &struct iwl_init_extended_cfg_cmd
 	 */
 	INIT_EXTENDED_CFG_CMD = 0x03,
+
+	/**
+	 * @FW_ERROR_RECOVERY_CMD: &struct iwl_fw_error_recovery_cmd
+	 */
+	FW_ERROR_RECOVERY_CMD = 0x7,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */

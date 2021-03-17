@@ -96,6 +96,7 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 	for (i = 0; i < rdi->lkey_table.max; i++)
 		RCU_INIT_POINTER(rdi->lkey_table.table[i], NULL);
 
+	rdi->dparms.props.max_mr = rdi->lkey_table.max;
 	return 0;
 }
 
@@ -323,8 +324,6 @@ static void __rvt_free_mr(struct rvt_mr *mr)
  * @acc: access flags
  *
  * Return: the memory region on success, otherwise returns an errno.
- * Note that all DMA addresses should be created via the functions in
- * struct dma_virt_ops.
  */
 struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc)
 {
@@ -381,19 +380,18 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 {
 	struct rvt_mr *mr;
 	struct ib_umem *umem;
-	struct scatterlist *sg;
-	int n, m, entry;
+	struct sg_page_iter sg_iter;
+	int n, m;
 	struct ib_mr *ret;
 
 	if (length == 0)
 		return ERR_PTR(-EINVAL);
 
-	umem = ib_umem_get(pd->uobject->context, start, length,
-			   mr_access_flags, 0);
+	umem = ib_umem_get(pd->device, start, length, mr_access_flags);
 	if (IS_ERR(umem))
 		return (void *)umem;
 
-	n = umem->nmap;
+	n = ib_umem_num_pages(umem);
 
 	mr = __rvt_alloc_mr(n, pd);
 	if (IS_ERR(mr)) {
@@ -408,23 +406,21 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->mr.access_flags = mr_access_flags;
 	mr->umem = umem;
 
-	mr->mr.page_shift = umem->page_shift;
+	mr->mr.page_shift = PAGE_SHIFT;
 	m = 0;
 	n = 0;
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
+	for_each_sg_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
 		void *vaddr;
 
-		vaddr = page_address(sg_page(sg));
+		vaddr = page_address(sg_page_iter_page(&sg_iter));
 		if (!vaddr) {
 			ret = ERR_PTR(-EINVAL);
 			goto bail_inval;
 		}
 		mr->mr.map[m]->segs[n].vaddr = vaddr;
-		mr->mr.map[m]->segs[n].length = BIT(umem->page_shift);
-		trace_rvt_mr_user_seg(&mr->mr, m, n, vaddr,
-				      BIT(umem->page_shift));
-		n++;
-		if (n == RVT_SEGSZ) {
+		mr->mr.map[m]->segs[n].length = PAGE_SIZE;
+		trace_rvt_mr_user_seg(&mr->mr, m, n, vaddr, PAGE_SIZE);
+		if (++n == RVT_SEGSZ) {
 			m++;
 			n = 0;
 		}
@@ -501,7 +497,7 @@ static int rvt_check_refs(struct rvt_mregion *mr, const char *t)
 		rvt_pr_err(rdi,
 			   "%s timeout mr %p pd %p lkey %x refcount %ld\n",
 			   t, mr, mr->pd, mr->lkey,
-			   atomic_long_read(&mr->refcount.count));
+			   atomic_long_read(&mr->refcount.data->count));
 		rvt_get_mr(mr);
 		return -EBUSY;
 	}
@@ -551,7 +547,7 @@ bool rvt_ss_has_lkey(struct rvt_sge_state *ss, u32 lkey)
  *
  * Returns 0 on success.
  */
-int rvt_dereg_mr(struct ib_mr *ibmr)
+int rvt_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct rvt_mr *mr = to_imr(ibmr);
 	int ret;
@@ -563,8 +559,7 @@ int rvt_dereg_mr(struct ib_mr *ibmr)
 	if (ret)
 		goto out;
 	rvt_deinit_mregion(&mr->mr);
-	if (mr->umem)
-		ib_umem_release(mr->umem);
+	ib_umem_release(mr->umem);
 	kfree(mr);
 out:
 	return ret;
@@ -578,8 +573,7 @@ out:
  *
  * Return: the memory region on success, otherwise return an errno.
  */
-struct ib_mr *rvt_alloc_mr(struct ib_pd *pd,
-			   enum ib_mr_type mr_type,
+struct ib_mr *rvt_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			   u32 max_num_sg)
 {
 	struct rvt_mr *mr;
@@ -611,17 +605,12 @@ static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
 	if (unlikely(mapped_segs == mr->mr.max_segs))
 		return -ENOMEM;
 
-	if (mr->mr.length == 0) {
-		mr->mr.user_base = addr;
-		mr->mr.iova = addr;
-	}
-
 	m = mapped_segs / RVT_SEGSZ;
 	n = mapped_segs % RVT_SEGSZ;
 	mr->mr.map[m]->segs[n].vaddr = (void *)addr;
 	mr->mr.map[m]->segs[n].length = ps;
-	trace_rvt_mr_page_seg(&mr->mr, m, n, (void *)addr, ps);
 	mr->mr.length += ps;
+	trace_rvt_mr_page_seg(&mr->mr, m, n, (void *)addr, ps);
 
 	return 0;
 }
@@ -633,17 +622,25 @@ static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
  * @sg_nents: number of entries in sg
  * @sg_offset: offset in bytes into sg
  *
+ * Overwrite rvt_mr length with mr length calculated by ib_sg_to_pages.
+ *
  * Return: number of sg elements mapped to the memory region
  */
 int rvt_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 		  int sg_nents, unsigned int *sg_offset)
 {
 	struct rvt_mr *mr = to_imr(ibmr);
+	int ret;
 
 	mr->mr.length = 0;
 	mr->mr.page_shift = PAGE_SHIFT;
-	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset,
-			      rvt_set_page);
+	ret = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, rvt_set_page);
+	mr->mr.user_base = ibmr->iova;
+	mr->mr.iova = ibmr->iova;
+	mr->mr.offset = ibmr->iova - (u64)mr->mr.map[0]->segs[0].vaddr;
+	mr->mr.length = (size_t)ibmr->length;
+	trace_rvt_map_mr_sg(ibmr, sg_nents, sg_offset);
+	return ret;
 }
 
 /**
@@ -674,6 +671,7 @@ int rvt_fast_reg_mr(struct rvt_qp *qp, struct ib_mr *ibmr, u32 key,
 	ibmr->rkey = key;
 	mr->mr.lkey = key;
 	mr->mr.access_flags = access;
+	mr->mr.iova = ibmr->iova;
 	atomic_set(&mr->mr.lkey_invalid, 0);
 
 	return 0;
@@ -711,160 +709,6 @@ bail:
 	return -EINVAL;
 }
 EXPORT_SYMBOL(rvt_invalidate_rkey);
-
-/**
- * rvt_alloc_fmr - allocate a fast memory region
- * @pd: the protection domain for this memory region
- * @mr_access_flags: access flags for this memory region
- * @fmr_attr: fast memory region attributes
- *
- * Return: the memory region on success, otherwise returns an errno.
- */
-struct ib_fmr *rvt_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
-			     struct ib_fmr_attr *fmr_attr)
-{
-	struct rvt_fmr *fmr;
-	int m;
-	struct ib_fmr *ret;
-	int rval = -ENOMEM;
-
-	/* Allocate struct plus pointers to first level page tables. */
-	m = (fmr_attr->max_pages + RVT_SEGSZ - 1) / RVT_SEGSZ;
-	fmr = kzalloc(struct_size(fmr, mr.map, m), GFP_KERNEL);
-	if (!fmr)
-		goto bail;
-
-	rval = rvt_init_mregion(&fmr->mr, pd, fmr_attr->max_pages,
-				PERCPU_REF_INIT_ATOMIC);
-	if (rval)
-		goto bail;
-
-	/*
-	 * ib_alloc_fmr() will initialize fmr->ibfmr except for lkey &
-	 * rkey.
-	 */
-	rval = rvt_alloc_lkey(&fmr->mr, 0);
-	if (rval)
-		goto bail_mregion;
-	fmr->ibfmr.rkey = fmr->mr.lkey;
-	fmr->ibfmr.lkey = fmr->mr.lkey;
-	/*
-	 * Resources are allocated but no valid mapping (RKEY can't be
-	 * used).
-	 */
-	fmr->mr.access_flags = mr_access_flags;
-	fmr->mr.max_segs = fmr_attr->max_pages;
-	fmr->mr.page_shift = fmr_attr->page_shift;
-
-	ret = &fmr->ibfmr;
-done:
-	return ret;
-
-bail_mregion:
-	rvt_deinit_mregion(&fmr->mr);
-bail:
-	kfree(fmr);
-	ret = ERR_PTR(rval);
-	goto done;
-}
-
-/**
- * rvt_map_phys_fmr - set up a fast memory region
- * @ibfmr: the fast memory region to set up
- * @page_list: the list of pages to associate with the fast memory region
- * @list_len: the number of pages to associate with the fast memory region
- * @iova: the virtual address of the start of the fast memory region
- *
- * This may be called from interrupt context.
- *
- * Return: 0 on success
- */
-
-int rvt_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
-		     int list_len, u64 iova)
-{
-	struct rvt_fmr *fmr = to_ifmr(ibfmr);
-	struct rvt_lkey_table *rkt;
-	unsigned long flags;
-	int m, n;
-	unsigned long i;
-	u32 ps;
-	struct rvt_dev_info *rdi = ib_to_rvt(ibfmr->device);
-
-	i = atomic_long_read(&fmr->mr.refcount.count);
-	if (i > 2)
-		return -EBUSY;
-
-	if (list_len > fmr->mr.max_segs)
-		return -EINVAL;
-
-	rkt = &rdi->lkey_table;
-	spin_lock_irqsave(&rkt->lock, flags);
-	fmr->mr.user_base = iova;
-	fmr->mr.iova = iova;
-	ps = 1 << fmr->mr.page_shift;
-	fmr->mr.length = list_len * ps;
-	m = 0;
-	n = 0;
-	for (i = 0; i < list_len; i++) {
-		fmr->mr.map[m]->segs[n].vaddr = (void *)page_list[i];
-		fmr->mr.map[m]->segs[n].length = ps;
-		trace_rvt_mr_fmr_seg(&fmr->mr, m, n, (void *)page_list[i], ps);
-		if (++n == RVT_SEGSZ) {
-			m++;
-			n = 0;
-		}
-	}
-	spin_unlock_irqrestore(&rkt->lock, flags);
-	return 0;
-}
-
-/**
- * rvt_unmap_fmr - unmap fast memory regions
- * @fmr_list: the list of fast memory regions to unmap
- *
- * Return: 0 on success.
- */
-int rvt_unmap_fmr(struct list_head *fmr_list)
-{
-	struct rvt_fmr *fmr;
-	struct rvt_lkey_table *rkt;
-	unsigned long flags;
-	struct rvt_dev_info *rdi;
-
-	list_for_each_entry(fmr, fmr_list, ibfmr.list) {
-		rdi = ib_to_rvt(fmr->ibfmr.device);
-		rkt = &rdi->lkey_table;
-		spin_lock_irqsave(&rkt->lock, flags);
-		fmr->mr.user_base = 0;
-		fmr->mr.iova = 0;
-		fmr->mr.length = 0;
-		spin_unlock_irqrestore(&rkt->lock, flags);
-	}
-	return 0;
-}
-
-/**
- * rvt_dealloc_fmr - deallocate a fast memory region
- * @ibfmr: the fast memory region to deallocate
- *
- * Return: 0 on success.
- */
-int rvt_dealloc_fmr(struct ib_fmr *ibfmr)
-{
-	struct rvt_fmr *fmr = to_ifmr(ibfmr);
-	int ret = 0;
-
-	rvt_free_lkey(&fmr->mr);
-	rvt_put_mr(&fmr->mr); /* will set completion if last */
-	ret = rvt_check_refs(&fmr->mr, __func__);
-	if (ret)
-		goto out;
-	rvt_deinit_mregion(&fmr->mr);
-	kfree(fmr);
-out:
-	return ret;
-}
 
 /**
  * rvt_sge_adjacent - is isge compressible
@@ -920,7 +764,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 
 	/*
 	 * We use LKEY == zero for kernel virtual addresses
-	 * (see rvt_get_dma_mr() and dma_virt_ops).
+	 * (see rvt_get_dma_mr()).
 	 */
 	if (sge->lkey == 0) {
 		struct rvt_dev_info *dev = ib_to_rvt(pd->ibpd.device);
@@ -1031,7 +875,7 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 
 	/*
 	 * We use RKEY == zero for kernel virtual addresses
-	 * (see rvt_get_dma_mr() and dma_virt_ops).
+	 * (see rvt_get_dma_mr()).
 	 */
 	rcu_read_lock();
 	if (rkey == 0) {

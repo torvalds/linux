@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-ams-delta.c
  *
@@ -6,19 +7,18 @@
  * Board specific inits for the Amstrad E3 (codename Delta) videophone
  *
  * Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/leds.h>
+#include <linux/mtd/nand-gpio.h>
+#include <linux/mtd/partitions.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/fixed.h>
@@ -29,22 +29,19 @@
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <media/soc_camera.h>
-
 #include <asm/serial.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board-ams-delta.h>
 #include <linux/platform_data/keypad-omap.h>
 #include <mach/mux.h>
 
 #include <mach/hardware.h>
-#include "camera.h"
 #include <mach/usb.h>
 
 #include "ams-delta-fiq.h"
+#include "board-ams-delta.h"
 #include "iomap.h"
 #include "common.h"
 
@@ -167,7 +164,6 @@ static struct omap_usb_config ams_delta_usb_config __initdata = {
 	.pins[0]	= 2,
 };
 
-#define LATCH1_GPIO_BASE	232
 #define LATCH1_NGPIO		8
 
 static struct resource latch1_resources[] = {
@@ -183,7 +179,7 @@ static struct resource latch1_resources[] = {
 
 static struct bgpio_pdata latch1_pdata = {
 	.label	= LATCH1_LABEL,
-	.base	= LATCH1_GPIO_BASE,
+	.base	= -1,
 	.ngpio	= LATCH1_NGPIO,
 };
 
@@ -206,11 +202,13 @@ static struct platform_device latch1_gpio_device = {
 #define LATCH1_PIN_DOCKIT1		6
 #define LATCH1_PIN_DOCKIT2		7
 
+#define LATCH2_NGPIO			16
+
 static struct resource latch2_resources[] = {
 	[0] = {
 		.name	= "dat",
 		.start	= LATCH2_PHYS,
-		.end	= LATCH2_PHYS + (AMS_DELTA_LATCH2_NGPIO - 1) / 8,
+		.end	= LATCH2_PHYS + (LATCH2_NGPIO - 1) / 8,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -219,8 +217,8 @@ static struct resource latch2_resources[] = {
 
 static struct bgpio_pdata latch2_pdata = {
 	.label	= LATCH2_LABEL,
-	.base	= AMS_DELTA_LATCH2_GPIO_BASE,
-	.ngpio	= AMS_DELTA_LATCH2_NGPIO,
+	.base	= -1,
+	.ngpio	= LATCH2_NGPIO,
 };
 
 static struct platform_device latch2_gpio_device = {
@@ -247,41 +245,8 @@ static struct platform_device latch2_gpio_device = {
 #define LATCH2_PIN_SCARD_CMDVCC		11
 #define LATCH2_PIN_MODEM_NRESET		12
 #define LATCH2_PIN_MODEM_CODEC		13
-#define LATCH2_PIN_HOOKFLASH1		14
-#define LATCH2_PIN_HOOKFLASH2		15
-
-static const struct gpio latch_gpios[] __initconst = {
-	{
-		.gpio	= LATCH1_GPIO_BASE + 6,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "dockit1",
-	},
-	{
-		.gpio	= LATCH1_GPIO_BASE + 7,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "dockit2",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_SCARD_RSTIN,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "scard_rstin",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_SCARD_CMDVCC,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "scard_cmdvcc",
-	},
-	{
-		.gpio	= AMS_DELTA_LATCH2_GPIO_BASE + 14,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "hookflash1",
-	},
-	{
-		.gpio	= AMS_DELTA_LATCH2_GPIO_BASE + 15,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "hookflash2",
-	},
-};
+#define LATCH2_PIN_HANDSFREE_MUTE	14
+#define LATCH2_PIN_HANDSET_MUTE		15
 
 static struct regulator_consumer_supply modem_nreset_consumers[] = {
 	REGULATOR_SUPPLY("RESET#", "serial8250.1"),
@@ -300,9 +265,7 @@ static struct regulator_init_data modem_nreset_data = {
 static struct fixed_voltage_config modem_nreset_config = {
 	.supply_name		= "modem_nreset",
 	.microvolts		= 3300000,
-	.gpio			= AMS_DELTA_GPIO_PIN_MODEM_NRESET,
 	.startup_delay		= 25000,
-	.enable_high		= 1,
 	.enabled_at_boot	= 1,
 	.init_data		= &modem_nreset_data,
 };
@@ -315,54 +278,84 @@ static struct platform_device modem_nreset_device = {
 	},
 };
 
+static struct gpiod_lookup_table ams_delta_nreset_gpiod_table = {
+	.dev_id = "reg-fixed-voltage",
+	.table = {
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_MODEM_NRESET,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 struct modem_private_data {
 	struct regulator *regulator;
 };
 
 static struct modem_private_data modem_priv;
 
-void ams_delta_latch_write(int base, int ngpio, u16 mask, u16 value)
-{
-	int bit = 0;
-	u16 bitpos = 1 << bit;
+/*
+ * Define partitions for flash device
+ */
 
-	for (; bit < ngpio; bit++, bitpos = bitpos << 1) {
-		if (!(mask & bitpos))
-			continue;
-		else
-			gpio_set_value(base + bit, (value & bitpos) != 0);
-	}
-}
-EXPORT_SYMBOL(ams_delta_latch_write);
+static struct mtd_partition partition_info[] = {
+	{ .name		= "Kernel",
+	  .offset	= 0,
+	  .size		= 3 * SZ_1M + SZ_512K },
+	{ .name		= "u-boot",
+	  .offset	= 3 * SZ_1M + SZ_512K,
+	  .size		= SZ_256K },
+	{ .name		= "u-boot params",
+	  .offset	= 3 * SZ_1M + SZ_512K + SZ_256K,
+	  .size		= SZ_256K },
+	{ .name		= "Amstrad LDR",
+	  .offset	= 4 * SZ_1M,
+	  .size		= SZ_256K },
+	{ .name		= "File system",
+	  .offset	= 4 * SZ_1M + 1 * SZ_256K,
+	  .size		= 27 * SZ_1M },
+	{ .name		= "PBL reserved",
+	  .offset	= 32 * SZ_1M - 3 * SZ_256K,
+	  .size		=  3 * SZ_256K },
+};
 
-static struct resource ams_delta_nand_resources[] = {
-	[0] = {
-		.start	= OMAP1_MPUIO_BASE,
-		.end	= OMAP1_MPUIO_BASE +
-				OMAP_MPUIO_IO_CNTL + sizeof(u32) - 1,
-		.flags	= IORESOURCE_MEM,
-	},
+static struct gpio_nand_platdata nand_platdata = {
+	.parts		= partition_info,
+	.num_parts	= ARRAY_SIZE(partition_info),
 };
 
 static struct platform_device ams_delta_nand_device = {
 	.name	= "ams-delta-nand",
 	.id	= -1,
-	.num_resources	= ARRAY_SIZE(ams_delta_nand_resources),
-	.resource	= ams_delta_nand_resources,
+	.dev	= {
+		.platform_data = &nand_platdata,
+	},
 };
 
-#define OMAP_GPIO_LABEL	"gpio-0-15"
+#define OMAP_GPIO_LABEL		"gpio-0-15"
+#define OMAP_MPUIO_LABEL	"mpuio"
 
 static struct gpiod_lookup_table ams_delta_nand_gpio_table = {
 	.table = {
 		GPIO_LOOKUP(OMAP_GPIO_LABEL, AMS_DELTA_GPIO_PIN_NAND_RB, "rdy",
 			    0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NCE, "nce", 0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NRE, "nre", 0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWP, "nwp", 0),
-		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWE, "nwe", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NCE, "nce",
+			    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NRE, "nre",
+			    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWP, "nwp",
+			    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWE, "nwe",
+			    GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_ALE, "ale", 0),
 		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_CLE, "cle", 0),
+		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 0, "data", 0, 0),
+		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 1, "data", 1, 0),
+		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 2, "data", 2, 0),
+		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 3, "data", 3, 0),
+		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 4, "data", 4, 0),
+		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 5, "data", 5, 0),
+		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 6, "data", 6, 0),
+		GPIO_LOOKUP_IDX(OMAP_MPUIO_LABEL, 7, "data", 7, 0),
 		{ },
 	},
 };
@@ -410,15 +403,9 @@ static struct gpiod_lookup_table ams_delta_lcd_gpio_table = {
 	},
 };
 
-/*
- * Dynamically allocated GPIO numbers must be obtained fromm GPIO device
- * before they can be put in the gpio_led table.  Before that happens,
- * initialize the table with invalid GPIO numbers, not 0.
- */
 static struct gpio_led gpio_leds[] __initdata = {
 	[LATCH1_PIN_LED_CAMERA] = {
 		.name		 = "camera",
-		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 #ifdef CONFIG_LEDS_TRIGGERS
 		.default_trigger = "ams_delta_camera",
@@ -426,27 +413,22 @@ static struct gpio_led gpio_leds[] __initdata = {
 	},
 	[LATCH1_PIN_LED_ADVERT] = {
 		.name		 = "advert",
-		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
 	[LATCH1_PIN_LED_MAIL] = {
 		.name		 = "email",
-		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
 	[LATCH1_PIN_LED_HANDSFREE] = {
 		.name		 = "handsfree",
-		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
 	[LATCH1_PIN_LED_VOICEMAIL] = {
 		.name		 = "voicemail",
-		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
 	[LATCH1_PIN_LED_VOICE] = {
 		.name		 = "voice",
-		.gpio		 = -EINVAL,
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
 	},
 };
@@ -456,9 +438,21 @@ static const struct gpio_led_platform_data leds_pdata __initconst = {
 	.num_leds	= ARRAY_SIZE(gpio_leds),
 };
 
-static struct i2c_board_info ams_delta_camera_board_info[] = {
-	{
-		I2C_BOARD_INFO("ov6650", 0x60),
+static struct gpiod_lookup_table leds_gpio_table = {
+	.table = {
+		GPIO_LOOKUP_IDX(LATCH1_LABEL, LATCH1_PIN_LED_CAMERA, NULL,
+				LATCH1_PIN_LED_CAMERA, 0),
+		GPIO_LOOKUP_IDX(LATCH1_LABEL, LATCH1_PIN_LED_ADVERT, NULL,
+				LATCH1_PIN_LED_ADVERT, 0),
+		GPIO_LOOKUP_IDX(LATCH1_LABEL, LATCH1_PIN_LED_MAIL, NULL,
+				LATCH1_PIN_LED_MAIL, 0),
+		GPIO_LOOKUP_IDX(LATCH1_LABEL, LATCH1_PIN_LED_HANDSFREE, NULL,
+				LATCH1_PIN_LED_HANDSFREE, 0),
+		GPIO_LOOKUP_IDX(LATCH1_LABEL, LATCH1_PIN_LED_VOICEMAIL, NULL,
+				LATCH1_PIN_LED_VOICEMAIL, 0),
+		GPIO_LOOKUP_IDX(LATCH1_LABEL, LATCH1_PIN_LED_VOICE, NULL,
+				LATCH1_PIN_LED_VOICE, 0),
+		{ },
 	},
 };
 
@@ -480,27 +474,6 @@ static int ams_delta_camera_power(struct device *dev, int power)
 #define ams_delta_camera_power	NULL
 #endif
 
-static struct soc_camera_link ams_delta_iclink = {
-	.bus_id         = 0,	/* OMAP1 SoC camera bus */
-	.i2c_adapter_id = 1,
-	.board_info     = &ams_delta_camera_board_info[0],
-	.module_name    = "ov6650",
-	.power		= ams_delta_camera_power,
-};
-
-static struct platform_device ams_delta_camera_device = {
-	.name   = "soc-camera-pdrv",
-	.id     = 0,
-	.dev    = {
-		.platform_data = &ams_delta_iclink,
-	},
-};
-
-static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
-	.camexclk_khz	= 12000,	/* default 12MHz clock, no extra DPLL */
-	.lclk_khz_max	= 1334,		/* results in 5fps CIF, 10fps QCIF */
-};
-
 static struct platform_device ams_delta_audio_device = {
 	.name   = "ams-delta-audio",
 	.id     = -1,
@@ -512,6 +485,10 @@ static struct gpiod_lookup_table ams_delta_audio_gpio_table = {
 			    "hook_switch", 0),
 		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_MODEM_CODEC,
 			    "modem_codec", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_HANDSFREE_MUTE,
+			    "handsfree_mute", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_HANDSET_MUTE,
+			    "handset_mute", 0),
 		{ },
 	},
 };
@@ -568,8 +545,6 @@ static struct regulator_init_data keybrd_pwr_initdata = {
 static struct fixed_voltage_config keybrd_pwr_config = {
 	.supply_name		= "keybrd_pwr",
 	.microvolts		= 5000000,
-	.gpio			= AMS_DELTA_GPIO_PIN_KEYBRD_PWR,
-	.enable_high		= 1,
 	.init_data		= &keybrd_pwr_initdata,
 };
 
@@ -593,7 +568,6 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 	&latch1_gpio_device,
 	&latch2_gpio_device,
 	&ams_delta_kp_device,
-	&ams_delta_camera_device,
 	&ams_delta_audio_device,
 	&ams_delta_serio_device,
 	&ams_delta_nand_device,
@@ -602,6 +576,7 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 };
 
 static struct gpiod_lookup_table *ams_delta_gpio_tables[] __initdata = {
+	&ams_delta_nreset_gpiod_table,
 	&ams_delta_audio_gpio_table,
 	&keybrd_pwr_gpio_table,
 	&ams_delta_lcd_gpio_table,
@@ -630,6 +605,28 @@ static struct gpiod_hog ams_delta_gpio_hogs[] = {
 	{},
 };
 
+static struct plat_serial8250_port ams_delta_modem_ports[];
+
+/*
+ * Obtain MODEM IRQ GPIO descriptor using its hardware pin
+ * number and assign related IRQ number to the MODEM port.
+ * Keep the GPIO descriptor open so nobody steps in.
+ */
+static void __init modem_assign_irq(struct gpio_chip *chip)
+{
+	struct gpio_desc *gpiod;
+
+	gpiod = gpiochip_request_own_desc(chip, AMS_DELTA_GPIO_PIN_MODEM_IRQ,
+					  "modem_irq", GPIO_ACTIVE_HIGH,
+					  GPIOD_IN);
+	if (IS_ERR(gpiod)) {
+		pr_err("%s: modem IRQ GPIO request failed (%ld)\n", __func__,
+		       PTR_ERR(gpiod));
+	} else {
+		ams_delta_modem_ports[0].irq = gpiod_to_irq(gpiod);
+	}
+}
+
 /*
  * The purpose of this function is to take care of proper initialization of
  * devices and data structures which depend on GPIO lines provided by OMAP GPIO
@@ -649,11 +646,53 @@ static void __init omap_gpio_deps_init(void)
 		return;
 	}
 
+	/*
+	 * Start with FIQ initialization as it may have to request
+	 * and release successfully each OMAP GPIO pin in turn.
+	 */
 	ams_delta_init_fiq(chip, &ams_delta_serio_device);
+
+	modem_assign_irq(chip);
+}
+
+/*
+ * Initialize latch2 pins with values which are safe for dependent on-board
+ * devices or useful for their successull initialization even before GPIO
+ * driver takes control over the latch pins:
+ * - LATCH2_PIN_LCD_VBLEN	= 0
+ * - LATCH2_PIN_LCD_NDISP	= 0	Keep LCD device powered off before its
+ *					driver takes control over it.
+ * - LATCH2_PIN_NAND_NCE	= 0
+ * - LATCH2_PIN_NAND_NWP	= 0	Keep NAND device down and write-
+ *					protected before its driver takes
+ *					control over it.
+ * - LATCH2_PIN_KEYBRD_PWR	= 0	Keep keyboard powered off before serio
+ *					driver takes control over it.
+ * - LATCH2_PIN_KEYBRD_DATAOUT	= 0	Keep low to avoid corruption of first
+ *					byte of data received from attached
+ *					keyboard when serio device is probed;
+ *					the pin is also hogged low by the latch2
+ *					GPIO driver as soon as it is ready.
+ * - LATCH2_PIN_MODEM_NRESET	= 1	Enable voice MODEM device, allowing for
+ *					its successful probe even before a
+ *					regulator it depends on, which in turn
+ *					takes control over the pin, is set up.
+ * - LATCH2_PIN_MODEM_CODEC	= 1	Attach voice MODEM CODEC data port
+ *					to the MODEM so the CODEC is under
+ *					control even if audio driver doesn't
+ *					take it over.
+ */
+static void __init ams_delta_latch2_init(void)
+{
+	u16 latch2 = 1 << LATCH2_PIN_MODEM_NRESET | 1 << LATCH2_PIN_MODEM_CODEC;
+
+	__raw_writew(latch2, LATCH2_VIRT);
 }
 
 static void __init ams_delta_init(void)
 {
+	struct platform_device *leds_pdev;
+
 	/* mux pins for uarts */
 	omap_cfg_reg(UART1_TX);
 	omap_cfg_reg(UART1_RTS);
@@ -673,13 +712,13 @@ static void __init ams_delta_init(void)
 	omap_cfg_reg(J18_1610_CAM_D7);
 
 	omap_gpio_deps_init();
+	ams_delta_latch2_init();
 	gpiod_add_hogs(ams_delta_gpio_hogs);
 
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 
 	omap1_usb_init(&ams_delta_usb_config);
-	omap1_set_camera_info(&ams_delta_camera_platform_data);
 #ifdef CONFIG_LEDS_TRIGGERS
 	led_trigger_register_simple("ams_delta_camera",
 			&ams_delta_camera_led_trigger);
@@ -716,6 +755,12 @@ static void __init ams_delta_init(void)
 	gpiod_add_lookup_tables(ams_delta_gpio_tables,
 				ARRAY_SIZE(ams_delta_gpio_tables));
 
+	leds_pdev = gpio_led_register_device(PLATFORM_DEVID_NONE, &leds_pdata);
+	if (!IS_ERR_OR_NULL(leds_pdev)) {
+		leds_gpio_table.dev_id = dev_name(&leds_pdev->dev);
+		gpiod_add_lookup_table(&leds_gpio_table);
+	}
+
 	omap_writew(omap_readw(ARM_RSTCT1) | 0x0004, ARM_RSTCT1);
 
 	omapfb_set_lcd_config(&ams_delta_lcd_config);
@@ -725,6 +770,9 @@ static void modem_pm(struct uart_port *port, unsigned int state, unsigned old)
 {
 	struct modem_private_data *priv = port->private_data;
 	int ret;
+
+	if (!priv)
+		return;
 
 	if (IS_ERR(priv->regulator))
 		return;
@@ -749,7 +797,7 @@ static struct plat_serial8250_port ams_delta_modem_ports[] = {
 	{
 		.membase	= IOMEM(MODEM_VIRT),
 		.mapbase	= MODEM_PHYS,
-		.irq		= -EINVAL, /* changed later */
+		.irq		= IRQ_NOTCONNECTED, /* changed later */
 		.flags		= UPF_BOOT_AUTOCONF,
 		.irqflags	= IRQF_TRIGGER_RISING,
 		.iotype		= UPIO_MEM,
@@ -769,69 +817,6 @@ static struct platform_device ams_delta_modem_device = {
 	},
 };
 
-/*
- * leds-gpio driver doesn't make use of GPIO lookup tables,
- * it has to be provided with GPIO numbers over platform data
- * if GPIO descriptor info can't be obtained from device tree.
- * We could either define GPIO lookup tables and use them on behalf
- * of the leds-gpio device, or we can use GPIO driver level methods
- * for identification of GPIO numbers as long as we don't support
- * device tree.  Let's do the latter.
- */
-static void __init ams_delta_led_init(struct gpio_chip *chip)
-{
-	struct gpio_desc *gpiod;
-	int i;
-
-	for (i = LATCH1_PIN_LED_CAMERA; i < LATCH1_PIN_DOCKIT1; i++) {
-		gpiod = gpiochip_request_own_desc(chip, i, NULL);
-		if (IS_ERR(gpiod)) {
-			pr_warn("%s: %s GPIO %d request failed (%ld)\n",
-				__func__, LATCH1_LABEL, i, PTR_ERR(gpiod));
-			continue;
-		}
-
-		/* Assign GPIO numbers to LED device. */
-		gpio_leds[i].gpio = desc_to_gpio(gpiod);
-
-		gpiochip_free_own_desc(gpiod);
-	}
-
-	gpio_led_register_device(PLATFORM_DEVID_NONE, &leds_pdata);
-}
-
-/*
- * The purpose of this function is to take care of assignment of GPIO numbers
- * to platform devices which depend on GPIO lines provided by Amstrad Delta
- * latch1 and/or latch2 GPIO devices but don't use GPIO lookup tables.
- * The function may be called as soon as latch1/latch2 GPIO devices are
- * initilized.  Since basic-mmio-gpio driver is not registered before
- * device_initcall, this may happen at erliest during device_initcall_sync.
- * Dependent devices shouldn't be registered before that, their
- * registration may be performed from within this function or later.
- */
-static int __init ams_delta_gpio_init(void)
-{
-	struct gpio_chip *chip;
-	int err;
-
-	if (!machine_is_ams_delta())
-		return -ENODEV;
-
-	chip = gpiochip_find(LATCH1_LABEL, gpiochip_match_by_label);
-	if (!chip)
-		pr_err("%s: latch1 GPIO chip not found\n", __func__);
-	else
-		ams_delta_led_init(chip);
-
-	err = gpio_request_array(latch_gpios, ARRAY_SIZE(latch_gpios));
-	if (err)
-		pr_err("Couldn't take over latch1/latch2 GPIO pins\n");
-
-	return err;
-}
-device_initcall_sync(ams_delta_gpio_init);
-
 static int __init modem_nreset_init(void)
 {
 	int err;
@@ -844,43 +829,46 @@ static int __init modem_nreset_init(void)
 }
 
 
+/*
+ * This function expects MODEM IRQ number already assigned to the port.
+ * The MODEM device requires its RESET# pin kept high during probe.
+ * That requirement can be fulfilled in several ways:
+ * - with a descriptor of already functional modem_nreset regulator
+ *   assigned to the MODEM private data,
+ * - with the regulator not yet controlled by modem_pm function but
+ *   already enabled by default on probe,
+ * - before the modem_nreset regulator is probed, with the pin already
+ *   set high explicitly.
+ * The last one is already guaranteed by ams_delta_latch2_init() called
+ * from machine_init.
+ * In order to avoid taking over ttyS0 device slot, the MODEM device
+ * should be registered after OMAP serial ports.  Since those ports
+ * are registered at arch_initcall, this function can be called safely
+ * at arch_initcall_sync earliest.
+ */
 static int __init ams_delta_modem_init(void)
 {
 	int err;
 
-	omap_cfg_reg(M14_1510_GPIO2);
-	ams_delta_modem_ports[0].irq =
-			gpio_to_irq(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+	if (!machine_is_ams_delta())
+		return -ENODEV;
 
-	err = gpio_request(AMS_DELTA_GPIO_PIN_MODEM_IRQ, "modem");
-	if (err) {
-		pr_err("Couldn't request gpio pin for modem\n");
-		return err;
-	}
-	gpio_direction_input(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+	omap_cfg_reg(M14_1510_GPIO2);
 
 	/* Initialize the modem_nreset regulator consumer before use */
 	modem_priv.regulator = ERR_PTR(-ENODEV);
 
-	ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_CODEC,
-			AMS_DELTA_LATCH2_MODEM_CODEC);
-
 	err = platform_device_register(&ams_delta_modem_device);
-	if (err)
-		gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 
 	return err;
 }
+arch_initcall_sync(ams_delta_modem_init);
 
 static int __init late_init(void)
 {
 	int err;
 
 	err = modem_nreset_init();
-	if (err)
-		return err;
-
-	err = ams_delta_modem_init();
 	if (err)
 		return err;
 
@@ -898,7 +886,6 @@ static int __init late_init(void)
 
 unregister:
 	platform_device_unregister(&ams_delta_modem_device);
-	gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 	return err;
 }
 

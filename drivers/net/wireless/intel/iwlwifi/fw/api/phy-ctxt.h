@@ -5,9 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014, 2018, 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,9 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014, 2018, 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,17 +95,36 @@
 #define PHY_VHT_CTRL_POS_4_ABOVE  (0x7)
 
 /*
+ * struct iwl_fw_channel_info_v1 - channel information
+ *
  * @band: PHY_BAND_*
  * @channel: channel number
  * @width: PHY_[VHT|LEGACY]_CHANNEL_*
  * @ctrl channel: PHY_[VHT|LEGACY]_CTRL_*
  */
-struct iwl_fw_channel_info {
+struct iwl_fw_channel_info_v1 {
 	u8 band;
 	u8 channel;
 	u8 width;
 	u8 ctrl_pos;
-} __packed;
+} __packed; /* CHANNEL_CONFIG_API_S_VER_1 */
+
+/*
+ * struct iwl_fw_channel_info - channel information
+ *
+ * @channel: channel number
+ * @band: PHY_BAND_*
+ * @width: PHY_[VHT|LEGACY]_CHANNEL_*
+ * @ctrl channel: PHY_[VHT|LEGACY]_CTRL_*
+ * @reserved: for future use and alignment
+ */
+struct iwl_fw_channel_info {
+	__le32 channel;
+	u8 band;
+	u8 width;
+	u8 ctrl_pos;
+	u8 reserved;
+} __packed; /*CHANNEL_CONFIG_API_S_VER_2 */
 
 #define PHY_RX_CHAIN_DRIVER_FORCE_POS	(0)
 #define PHY_RX_CHAIN_DRIVER_FORCE_MSK \
@@ -134,6 +153,22 @@ struct iwl_fw_channel_info {
 
 /* TODO: complete missing documentation */
 /**
+ * struct iwl_phy_context_cmd_tail - tail of iwl_phy_ctx_cmd for alignment with
+ *	various channel structures.
+ *
+ * @txchain_info: ???
+ * @rxchain_info: ???
+ * @acquisition_data: ???
+ * @dsp_cfg_flags: set to 0
+ */
+struct iwl_phy_context_cmd_tail {
+	__le32 txchain_info;
+	__le32 rxchain_info;
+	__le32 acquisition_data;
+	__le32 dsp_cfg_flags;
+} __packed;
+
+/**
  * struct iwl_phy_context_cmd - config of the PHY context
  * ( PHY_CONTEXT_CMD = 0x8 )
  * @id_and_color: ID and color of the relevant Binding
@@ -142,23 +177,39 @@ struct iwl_fw_channel_info {
  *	other value means apply new params after X usecs
  * @tx_param_color: ???
  * @ci: channel info
- * @txchain_info: ???
+ * @tail: command tail
+ */
+struct iwl_phy_context_cmd_v1 {
+	/* COMMON_INDEX_HDR_API_S_VER_1 */
+	__le32 id_and_color;
+	__le32 action;
+	/* PHY_CONTEXT_DATA_API_S_VER_3 */
+	__le32 apply_time;
+	__le32 tx_param_color;
+	struct iwl_fw_channel_info ci;
+	struct iwl_phy_context_cmd_tail tail;
+} __packed; /* PHY_CONTEXT_CMD_API_VER_1 */
+
+/**
+ * struct iwl_phy_context_cmd - config of the PHY context
+ * ( PHY_CONTEXT_CMD = 0x8 )
+ * @id_and_color: ID and color of the relevant Binding
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @lmac_id: the lmac id the phy context belongs to
+ * @ci: channel info
  * @rxchain_info: ???
- * @acquisition_data: ???
  * @dsp_cfg_flags: set to 0
+ * @reserved: reserved to align to 64 bit
  */
 struct iwl_phy_context_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */
 	__le32 id_and_color;
 	__le32 action;
-	/* PHY_CONTEXT_DATA_API_S_VER_1 */
-	__le32 apply_time;
-	__le32 tx_param_color;
+	/* PHY_CONTEXT_DATA_API_S_VER_3 */
 	struct iwl_fw_channel_info ci;
-	__le32 txchain_info;
+	__le32 lmac_id;
 	__le32 rxchain_info;
-	__le32 acquisition_data;
 	__le32 dsp_cfg_flags;
-} __packed; /* PHY_CONTEXT_CMD_API_VER_1 */
-
+	__le32 reserved;
+} __packed; /* PHY_CONTEXT_CMD_API_VER_3 */
 #endif /* __iwl_fw_api_phy_ctxt_h__ */

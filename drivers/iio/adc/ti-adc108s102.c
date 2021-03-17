@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI ADC108S102 SPI ADC driver
  *
  * Copyright (c) 2013-2015 Intel Corporation.
  * Copyright (c) 2017 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * This IIO device driver is designed to work with the following
  * analog to digital converters from Texas Instruments:
@@ -28,6 +20,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -260,7 +253,6 @@ static int adc108s102_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	indio_dev->name = spi->modalias;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = adc108s102_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adc108s102_channels);
@@ -308,13 +300,11 @@ static int adc108s102_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id adc108s102_of_match[] = {
 	{ .compatible = "ti,adc108s102" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adc108s102_of_match);
-#endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id adc108s102_acpi_ids[] = {
@@ -333,7 +323,7 @@ MODULE_DEVICE_TABLE(spi, adc108s102_id);
 static struct spi_driver adc108s102_driver = {
 	.driver = {
 		.name   = "adc108s102",
-		.of_match_table = of_match_ptr(adc108s102_of_match),
+		.of_match_table = adc108s102_of_match,
 		.acpi_match_table = ACPI_PTR(adc108s102_acpi_ids),
 	},
 	.probe		= adc108s102_probe,

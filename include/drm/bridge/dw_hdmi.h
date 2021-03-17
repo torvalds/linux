@@ -1,18 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2011 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __DW_HDMI__
 #define __DW_HDMI__
 
-#include <drm/drmP.h>
+#include <sound/hdmi-codec.h>
 
+struct drm_display_info;
+struct drm_display_mode;
+struct drm_encoder;
 struct dw_hdmi;
+struct platform_device;
 
 /**
  * DOC: Supported input formats and encodings
@@ -114,7 +114,8 @@ struct dw_hdmi_phy_config {
 
 struct dw_hdmi_phy_ops {
 	int (*init)(struct dw_hdmi *hdmi, void *data,
-		    struct drm_display_mode *mode);
+		    const struct drm_display_info *display,
+		    const struct drm_display_mode *mode);
 	void (*disable)(struct dw_hdmi *hdmi, void *data);
 	enum drm_connector_status (*read_hpd)(struct dw_hdmi *hdmi, void *data);
 	void (*update_hpd)(struct dw_hdmi *hdmi, void *data,
@@ -124,22 +125,33 @@ struct dw_hdmi_phy_ops {
 
 struct dw_hdmi_plat_data {
 	struct regmap *regm;
-	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
-					   const struct drm_display_mode *mode);
-	unsigned long input_bus_format;
+
 	unsigned long input_bus_encoding;
+	bool use_drm_infoframe;
+	bool ycbcr_420_allowed;
+
+	/*
+	 * Private data passed to all the .mode_valid() and .configure_phy()
+	 * callback functions.
+	 */
+	void *priv_data;
+
+	/* Platform-specific mode validation (optional). */
+	enum drm_mode_status (*mode_valid)(struct dw_hdmi *hdmi, void *data,
+					   const struct drm_display_info *info,
+					   const struct drm_display_mode *mode);
 
 	/* Vendor PHY support */
 	const struct dw_hdmi_phy_ops *phy_ops;
 	const char *phy_name;
 	void *phy_data;
+	unsigned int phy_force_vendor;
 
 	/* Synopsys PHY support */
 	const struct dw_hdmi_mpll_config *mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *cur_ctr;
 	const struct dw_hdmi_phy_config *phy_config;
-	int (*configure_phy)(struct dw_hdmi *hdmi,
-			     const struct dw_hdmi_plat_data *pdata,
+	int (*configure_phy)(struct dw_hdmi *hdmi, void *data,
 			     unsigned long mpixelclock);
 };
 
@@ -151,11 +163,20 @@ struct dw_hdmi *dw_hdmi_bind(struct platform_device *pdev,
 			     struct drm_encoder *encoder,
 			     const struct dw_hdmi_plat_data *plat_data);
 
+void dw_hdmi_resume(struct dw_hdmi *hdmi);
+
 void dw_hdmi_setup_rx_sense(struct dw_hdmi *hdmi, bool hpd, bool rx_sense);
 
+int dw_hdmi_set_plugged_cb(struct dw_hdmi *hdmi, hdmi_codec_plugged_cb fn,
+			   struct device *codec_dev);
 void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate);
+void dw_hdmi_set_channel_count(struct dw_hdmi *hdmi, unsigned int cnt);
+void dw_hdmi_set_channel_status(struct dw_hdmi *hdmi, u8 *channel_status);
+void dw_hdmi_set_channel_allocation(struct dw_hdmi *hdmi, unsigned int ca);
 void dw_hdmi_audio_enable(struct dw_hdmi *hdmi);
 void dw_hdmi_audio_disable(struct dw_hdmi *hdmi);
+void dw_hdmi_set_high_tmds_clock_ratio(struct dw_hdmi *hdmi,
+				       const struct drm_display_info *display);
 
 /* PHY configuration */
 void dw_hdmi_phy_i2c_set_addr(struct dw_hdmi *hdmi, u8 address);

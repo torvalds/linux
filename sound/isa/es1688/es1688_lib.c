@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of ESS ES1688/688/488 chip
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -121,7 +106,7 @@ EXPORT_SYMBOL(snd_es1688_reset);
 static int snd_es1688_probe(struct snd_es1688 *chip)
 {
 	unsigned long flags;
-	unsigned short major, minor, hw;
+	unsigned short major, minor;
 	int i;
 
 	/*
@@ -166,14 +151,12 @@ static int snd_es1688_probe(struct snd_es1688 *chip)
 	if (!chip->version)
 		return -ENODEV;	/* probably SB */
 
-	hw = ES1688_HW_AUTO;
 	switch (chip->version & 0xfff0) {
 	case 0x4880:
 		snd_printk(KERN_ERR "[0x%lx] ESS: AudioDrive ES488 detected, "
 			   "but driver is in another place\n", chip->port);
 		return -ENODEV;
 	case 0x6880:
-		hw = (chip->version & 0x0f) >= 8 ? ES1688_HW_1688 : ES1688_HW_688;
 		break;
 	default:
 		snd_printk(KERN_ERR "[0x%lx] ESS: unknown AudioDrive chip "
@@ -197,7 +180,7 @@ static int snd_es1688_probe(struct snd_es1688 *chip)
 
 static int snd_es1688_init(struct snd_es1688 * chip, int enable)
 {
-	static int irqs[16] = {-1, -1, 0, -1, -1, 1, -1, 2, -1, 0, 3, -1, -1, -1, -1, -1};
+	static const int irqs[16] = {-1, -1, 0, -1, -1, 1, -1, 2, -1, 0, 3, -1, -1, -1, -1, -1};
 	unsigned long flags;
 	int cfg, irq_bits, dma, dma_bits, tmp, tmp1;
 
@@ -326,12 +309,6 @@ static void snd_es1688_set_rate(struct snd_es1688 *chip, struct snd_pcm_substrea
 	snd_es1688_write(chip, 0xa2, divider);
 }
 
-static int snd_es1688_ioctl(struct snd_pcm_substream *substream,
-			    unsigned int cmd, void *arg)
-{
-	return snd_pcm_lib_ioctl(substream, cmd, arg);
-}
-
 static int snd_es1688_trigger(struct snd_es1688 *chip, int cmd, unsigned char value)
 {
 	int val;
@@ -356,17 +333,6 @@ static int snd_es1688_trigger(struct snd_es1688 *chip, int cmd, unsigned char va
 	snd_es1688_write(chip, 0xb8, (val & 0xf0) | value);
 	spin_unlock(&chip->reg_lock);
 	return 0;
-}
-
-static int snd_es1688_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_es1688_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int snd_es1688_playback_prepare(struct snd_pcm_substream *substream)
@@ -646,7 +612,7 @@ int snd_es1688_create(struct snd_card *card,
 		      int dma8,
 		      unsigned short hardware)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_es1688_dev_free,
 	};
                                 
@@ -672,6 +638,7 @@ int snd_es1688_create(struct snd_card *card,
 	}
 
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 	err = request_dma(dma8, "ES1688");
 
 	if (err < 0) {
@@ -709,9 +676,6 @@ exit:
 static const struct snd_pcm_ops snd_es1688_playback_ops = {
 	.open =			snd_es1688_playback_open,
 	.close =		snd_es1688_playback_close,
-	.ioctl =		snd_es1688_ioctl,
-	.hw_params =		snd_es1688_hw_params,
-	.hw_free =		snd_es1688_hw_free,
 	.prepare =		snd_es1688_playback_prepare,
 	.trigger =		snd_es1688_playback_trigger,
 	.pointer =		snd_es1688_playback_pointer,
@@ -720,9 +684,6 @@ static const struct snd_pcm_ops snd_es1688_playback_ops = {
 static const struct snd_pcm_ops snd_es1688_capture_ops = {
 	.open =			snd_es1688_capture_open,
 	.close =		snd_es1688_capture_close,
-	.ioctl =		snd_es1688_ioctl,
-	.hw_params =		snd_es1688_hw_params,
-	.hw_free =		snd_es1688_hw_free,
 	.prepare =		snd_es1688_capture_prepare,
 	.trigger =		snd_es1688_capture_trigger,
 	.pointer =		snd_es1688_capture_pointer,
@@ -745,9 +706,8 @@ int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device)
 	strcpy(pcm->name, snd_es1688_chip_id(chip));
 	chip->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
-					      64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, card->dev,
+				       64*1024, 64*1024);
 	return 0;
 }
 
@@ -964,7 +924,7 @@ static int snd_es1688_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-static struct snd_kcontrol_new snd_es1688_controls[] = {
+static const struct snd_kcontrol_new snd_es1688_controls[] = {
 ES1688_DOUBLE("Master Playback Volume", 0, ES1688_MASTER_DEV, ES1688_MASTER_DEV, 4, 0, 15, 0),
 ES1688_DOUBLE("PCM Playback Volume", 0, ES1688_PCM_DEV, ES1688_PCM_DEV, 4, 0, 15, 0),
 ES1688_DOUBLE("Line Playback Volume", 0, ES1688_LINE_DEV, ES1688_LINE_DEV, 4, 0, 15, 0),
@@ -986,7 +946,7 @@ ES1688_SINGLE("Capture Switch", 0, ES1688_REC_DEV, 4, 1, 1),
 
 #define ES1688_INIT_TABLE_SIZE (sizeof(snd_es1688_init_table)/2)
 
-static unsigned char snd_es1688_init_table[][2] = {
+static const unsigned char snd_es1688_init_table[][2] = {
 	{ ES1688_MASTER_DEV, 0 },
 	{ ES1688_PCM_DEV, 0 },
 	{ ES1688_LINE_DEV, 0 },

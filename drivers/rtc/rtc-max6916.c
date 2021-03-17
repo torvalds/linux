@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* rtc-max6916.c
  *
  * Driver for MAXIM  max6916 Low Current, SPI Compatible
  * Real Time Clock
  *
  * Author : Venkat Prashanth B U <venkat.prashanth2498@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/init.h>
@@ -86,7 +82,7 @@ static int max6916_set_time(struct device *dev, struct rtc_time *dt)
 	if (dt->tm_year < 100 || dt->tm_year > 199) {
 		dev_err(&spi->dev, "Year must be between 2000 and 2099. It's %d.\n",
 			dt->tm_year + 1900);
-	return -EINVAL;
+		return -EINVAL;
 	}
 
 	buf[0] = MAX6916_CLOCK_BURST & 0x7F;

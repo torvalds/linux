@@ -10,23 +10,21 @@
    module name. */
 #ifdef MODULE
 #define MODULE_PARAM_PREFIX /* empty */
+#define __MODULE_INFO_PREFIX /* empty */
 #else
 #define MODULE_PARAM_PREFIX KBUILD_MODNAME "."
+/* We cannot use MODULE_PARAM_PREFIX because some modules override it. */
+#define __MODULE_INFO_PREFIX KBUILD_MODNAME "."
 #endif
 
 /* Chosen so that structs with an unsigned long line up. */
 #define MAX_PARAM_PREFIX_LEN (64 - sizeof(unsigned long))
 
-#ifdef MODULE
 #define __MODULE_INFO(tag, name, info)					  \
 static const char __UNIQUE_ID(name)[]					  \
-  __used __attribute__((section(".modinfo"), unused, aligned(1)))	  \
-  = __stringify(tag) "=" info
-#else  /* !MODULE */
-/* This struct is here for syntactic coherency, it is not used */
-#define __MODULE_INFO(tag, name, info)					  \
-  struct __UNIQUE_ID(name) {}
-#endif
+  __used __section(".modinfo") __attribute__((unused, aligned(1)))	  \
+  = __MODULE_INFO_PREFIX __stringify(tag) "=" info
+
 #define __MODULE_PARM_TYPE(name, _type)					  \
   __MODULE_INFO(parmtype, name##type, #name ":" _type)
 
@@ -102,15 +100,15 @@ struct kparam_array
 
 /**
  * module_param - typesafe helper for a module/cmdline parameter
- * @value: the variable to alter, and exposed parameter name.
+ * @name: the variable to alter, and exposed parameter name.
  * @type: the type of the parameter
  * @perm: visibility in sysfs.
  *
- * @value becomes the module parameter, or (prefixed by KBUILD_MODNAME and a
+ * @name becomes the module parameter, or (prefixed by KBUILD_MODNAME and a
  * ".") the kernel commandline parameter.  Note that - is changed to _, so
  * the user can use "foo-bar=1" even for variable "foo_bar".
  *
- * @perm is 0 if the the variable is not to appear in sysfs, or 0444
+ * @perm is 0 if the variable is not to appear in sysfs, or 0444
  * for world-readable, 0644 for root-writable, etc.  Note that if it
  * is writable, you may need to use kernel_param_lock() around
  * accesses (esp. charp, which can be kfreed when it changes).
@@ -120,7 +118,7 @@ struct kparam_array
  * you can create your own by defining those variables.
  *
  * Standard types are:
- *	byte, short, ushort, int, uint, long, ulong
+ *	byte, hexint, short, ushort, int, uint, long, ulong
  *	charp: a character pointer
  *	bool: a bool, values 0/1, y/n, Y/N.
  *	invbool: the above, only sense-reversed (N = true).
@@ -130,6 +128,9 @@ struct kparam_array
 
 /**
  * module_param_unsafe - same as module_param but taints kernel
+ * @name: the variable to alter, and exposed parameter name.
+ * @type: the type of the parameter
+ * @perm: visibility in sysfs.
  */
 #define module_param_unsafe(name, type, perm)			\
 	module_param_named_unsafe(name, name, type, perm)
@@ -152,6 +153,10 @@ struct kparam_array
 
 /**
  * module_param_named_unsafe - same as module_param_named but taints kernel
+ * @name: a valid C identifier which is the parameter name.
+ * @value: the actual lvalue to alter.
+ * @type: the type of the parameter
+ * @perm: visibility in sysfs.
  */
 #define module_param_named_unsafe(name, value, type, perm)		\
 	param_check_##type(name, &(value));				\
@@ -162,6 +167,7 @@ struct kparam_array
  * module_param_cb - general callback for a module/cmdline parameter
  * @name: a valid C identifier which is the parameter name.
  * @ops: the set & get operations for this parameter.
+ * @arg: args for @ops
  * @perm: visibility in sysfs.
  *
  * The ops can have NULL set or get functions.
@@ -173,36 +179,96 @@ struct kparam_array
 	__module_param_call(MODULE_PARAM_PREFIX, name, ops, arg, perm, -1,    \
 			    KERNEL_PARAM_FL_UNSAFE)
 
+#define __level_param_cb(name, ops, arg, perm, level)			\
+	__module_param_call(MODULE_PARAM_PREFIX, name, ops, arg, perm, level, 0)
 /**
- * <level>_param_cb - general callback for a module/cmdline parameter
- *                    to be evaluated before certain initcall level
+ * core_param_cb - general callback for a module/cmdline parameter
+ *                 to be evaluated before core initcall level
  * @name: a valid C identifier which is the parameter name.
  * @ops: the set & get operations for this parameter.
+ * @arg: args for @ops
  * @perm: visibility in sysfs.
  *
  * The ops can have NULL set or get functions.
  */
-#define __level_param_cb(name, ops, arg, perm, level)			\
-	__module_param_call(MODULE_PARAM_PREFIX, name, ops, arg, perm, level, 0)
-
 #define core_param_cb(name, ops, arg, perm)		\
 	__level_param_cb(name, ops, arg, perm, 1)
 
+/**
+ * postcore_param_cb - general callback for a module/cmdline parameter
+ *                     to be evaluated before postcore initcall level
+ * @name: a valid C identifier which is the parameter name.
+ * @ops: the set & get operations for this parameter.
+ * @arg: args for @ops
+ * @perm: visibility in sysfs.
+ *
+ * The ops can have NULL set or get functions.
+ */
 #define postcore_param_cb(name, ops, arg, perm)		\
 	__level_param_cb(name, ops, arg, perm, 2)
 
+/**
+ * arch_param_cb - general callback for a module/cmdline parameter
+ *                 to be evaluated before arch initcall level
+ * @name: a valid C identifier which is the parameter name.
+ * @ops: the set & get operations for this parameter.
+ * @arg: args for @ops
+ * @perm: visibility in sysfs.
+ *
+ * The ops can have NULL set or get functions.
+ */
 #define arch_param_cb(name, ops, arg, perm)		\
 	__level_param_cb(name, ops, arg, perm, 3)
 
+/**
+ * subsys_param_cb - general callback for a module/cmdline parameter
+ *                   to be evaluated before subsys initcall level
+ * @name: a valid C identifier which is the parameter name.
+ * @ops: the set & get operations for this parameter.
+ * @arg: args for @ops
+ * @perm: visibility in sysfs.
+ *
+ * The ops can have NULL set or get functions.
+ */
 #define subsys_param_cb(name, ops, arg, perm)		\
 	__level_param_cb(name, ops, arg, perm, 4)
 
+/**
+ * fs_param_cb - general callback for a module/cmdline parameter
+ *               to be evaluated before fs initcall level
+ * @name: a valid C identifier which is the parameter name.
+ * @ops: the set & get operations for this parameter.
+ * @arg: args for @ops
+ * @perm: visibility in sysfs.
+ *
+ * The ops can have NULL set or get functions.
+ */
 #define fs_param_cb(name, ops, arg, perm)		\
 	__level_param_cb(name, ops, arg, perm, 5)
 
+/**
+ * device_param_cb - general callback for a module/cmdline parameter
+ *                   to be evaluated before device initcall level
+ * @name: a valid C identifier which is the parameter name.
+ * @ops: the set & get operations for this parameter.
+ * @arg: args for @ops
+ * @perm: visibility in sysfs.
+ *
+ * The ops can have NULL set or get functions.
+ */
 #define device_param_cb(name, ops, arg, perm)		\
 	__level_param_cb(name, ops, arg, perm, 6)
 
+/**
+ * late_param_cb - general callback for a module/cmdline parameter
+ *                 to be evaluated before late initcall level
+ * @name: a valid C identifier which is the parameter name.
+ * @ops: the set & get operations for this parameter.
+ * @arg: args for @ops
+ * @perm: visibility in sysfs.
+ *
+ * The ops can have NULL set or get functions.
+ */
 #define late_param_cb(name, ops, arg, perm)		\
 	__level_param_cb(name, ops, arg, perm, 7)
 
@@ -223,7 +289,7 @@ struct kparam_array
 	static const char __param_str_##name[] = prefix #name;		\
 	static struct kernel_param __moduleparam_const __param_##name	\
 	__used								\
-    __attribute__ ((unused,__section__ ("__param"),aligned(sizeof(void *)))) \
+    __section("__param") __attribute__ ((unused, aligned(sizeof(void *)))) \
 	= { __param_str_##name, THIS_MODULE, ops,			\
 	    VERIFY_OCTAL_PERMISSIONS(perm), level, flags, { arg } }
 
@@ -265,6 +331,10 @@ static inline void kernel_param_unlock(struct module *mod)
 
 /**
  * core_param_unsafe - same as core_param but taints kernel
+ * @name: the name of the cmdline and sysfs parameter (often the same as var)
+ * @var: the variable
+ * @type: the type of the parameter
+ * @perm: visibility in sysfs
  */
 #define core_param_unsafe(name, var, type, perm)		\
 	param_check_##type(name, &(var));				\
@@ -377,6 +447,11 @@ extern const struct kernel_param_ops param_ops_ullong;
 extern int param_set_ullong(const char *val, const struct kernel_param *kp);
 extern int param_get_ullong(char *buffer, const struct kernel_param *kp);
 #define param_check_ullong(name, p) __param_check(name, p, unsigned long long)
+
+extern const struct kernel_param_ops param_ops_hexint;
+extern int param_set_hexint(const char *val, const struct kernel_param *kp);
+extern int param_get_hexint(char *buffer, const struct kernel_param *kp);
+#define param_check_hexint(name, p) param_check_uint(name, p)
 
 extern const struct kernel_param_ops param_ops_charp;
 extern int param_set_charp(const char *val, const struct kernel_param *kp);

@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (C) 2001 Ben. Herrenschmidt (benh@kernel.crashing.org)
  *
  *  Modifications for ppc64:
  *      Copyright (C) 2003 Dave Engebretsen <engebret@us.ibm.com>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 #ifndef __ASM_POWERPC_FIRMWARE_H
 #define __ASM_POWERPC_FIRMWARE_H
@@ -37,7 +33,7 @@
 #define FW_FEATURE_LLAN		ASM_CONST(0x0000000000010000)
 #define FW_FEATURE_BULK_REMOVE	ASM_CONST(0x0000000000020000)
 #define FW_FEATURE_XDABR	ASM_CONST(0x0000000000040000)
-#define FW_FEATURE_MULTITCE	ASM_CONST(0x0000000000080000)
+#define FW_FEATURE_PUT_TCE_IND	ASM_CONST(0x0000000000080000)
 #define FW_FEATURE_SPLPAR	ASM_CONST(0x0000000000100000)
 #define FW_FEATURE_LPAR		ASM_CONST(0x0000000000400000)
 #define FW_FEATURE_PS3_LV1	ASM_CONST(0x0000000000800000)
@@ -52,6 +48,11 @@
 #define FW_FEATURE_PRRN		ASM_CONST(0x0000000200000000)
 #define FW_FEATURE_DRMEM_V2	ASM_CONST(0x0000000400000000)
 #define FW_FEATURE_DRC_INFO	ASM_CONST(0x0000000800000000)
+#define FW_FEATURE_BLOCK_REMOVE ASM_CONST(0x0000001000000000)
+#define FW_FEATURE_PAPR_SCM 	ASM_CONST(0x0000002000000000)
+#define FW_FEATURE_ULTRAVISOR	ASM_CONST(0x0000004000000000)
+#define FW_FEATURE_STUFF_TCE	ASM_CONST(0x0000008000000000)
+#define FW_FEATURE_RPT_INVALIDATE ASM_CONST(0x0000010000000000)
 
 #ifndef __ASSEMBLY__
 
@@ -64,14 +65,17 @@ enum {
 		FW_FEATURE_MIGRATE | FW_FEATURE_PERFMON | FW_FEATURE_CRQ |
 		FW_FEATURE_VIO | FW_FEATURE_RDMA | FW_FEATURE_LLAN |
 		FW_FEATURE_BULK_REMOVE | FW_FEATURE_XDABR |
-		FW_FEATURE_MULTITCE | FW_FEATURE_SPLPAR | FW_FEATURE_LPAR |
+		FW_FEATURE_PUT_TCE_IND | FW_FEATURE_STUFF_TCE |
+		FW_FEATURE_SPLPAR | FW_FEATURE_LPAR |
 		FW_FEATURE_CMO | FW_FEATURE_VPHN | FW_FEATURE_XCMO |
 		FW_FEATURE_SET_MODE | FW_FEATURE_BEST_ENERGY |
 		FW_FEATURE_TYPE1_AFFINITY | FW_FEATURE_PRRN |
 		FW_FEATURE_HPT_RESIZE | FW_FEATURE_DRMEM_V2 |
-		FW_FEATURE_DRC_INFO,
+		FW_FEATURE_DRC_INFO | FW_FEATURE_BLOCK_REMOVE |
+		FW_FEATURE_PAPR_SCM | FW_FEATURE_ULTRAVISOR |
+		FW_FEATURE_RPT_INVALIDATE,
 	FW_FEATURE_PSERIES_ALWAYS = 0,
-	FW_FEATURE_POWERNV_POSSIBLE = FW_FEATURE_OPAL,
+	FW_FEATURE_POWERNV_POSSIBLE = FW_FEATURE_OPAL | FW_FEATURE_ULTRAVISOR,
 	FW_FEATURE_POWERNV_ALWAYS = 0,
 	FW_FEATURE_PS3_POSSIBLE = FW_FEATURE_LPAR | FW_FEATURE_PS3_LV1,
 	FW_FEATURE_PS3_ALWAYS = FW_FEATURE_LPAR | FW_FEATURE_PS3_LV1,
@@ -126,8 +130,15 @@ extern void machine_check_fwnmi(void);
 
 /* This is true if we are using the firmware NMI handler (typically LPAR) */
 extern int fwnmi_active;
+extern int ibm_nmi_interlock_token;
 
 extern unsigned int __start___fw_ftr_fixup, __stop___fw_ftr_fixup;
+
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_KVM_GUEST)
+bool is_kvm_guest(void);
+#else
+static inline bool is_kvm_guest(void) { return false; }
+#endif
 
 #ifdef CONFIG_PPC_PSERIES
 void pseries_probe_fw_features(void);

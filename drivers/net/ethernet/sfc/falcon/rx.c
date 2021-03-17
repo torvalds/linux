@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2005-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/socket.h>
@@ -143,6 +140,7 @@ static struct page *ef4_reuse_page(struct ef4_rx_queue *rx_queue)
  * ef4_init_rx_buffers - create EF4_RX_BATCH page-based RX buffers
  *
  * @rx_queue:		Efx RX queue
+ * @atomic:		control memory allocation flags
  *
  * This allocates a batch of pages, maps them for DMA, and populates
  * struct ef4_rx_buffers for each one. Return a negative error code or
@@ -319,6 +317,7 @@ static void ef4_discard_rx_packet(struct ef4_channel *channel,
  * This will aim to fill the RX descriptor queue up to
  * @rx_queue->@max_fill. If there is insufficient atomic
  * memory to do so, a slow fill will be scheduled.
+ * @atomic: control memory allocation flags
  *
  * The caller must provide serialisation (none is used here). In practise,
  * this means this function must run from the NAPI handler, or be called
@@ -427,7 +426,6 @@ ef4_rx_packet_gro(struct ef4_channel *channel, struct ef4_rx_buffer *rx_buf,
 		  unsigned int n_frags, u8 *eh)
 {
 	struct napi_struct *napi = &channel->napi_str;
-	gro_result_t gro_result;
 	struct ef4_nic *efx = channel->efx;
 	struct sk_buff *skb;
 
@@ -463,9 +461,7 @@ ef4_rx_packet_gro(struct ef4_channel *channel, struct ef4_rx_buffer *rx_buf,
 
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
-	gro_result = napi_gro_frags(napi);
-	if (gro_result != GRO_DROP)
-		channel->irq_mod_score += 2;
+	napi_gro_frags(napi);
 }
 
 /* Allocate and construct an SKB around page fragments */

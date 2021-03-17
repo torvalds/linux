@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  linux/drivers/input/serio/ambakmi.c
  *
  *  Copyright (C) 2000-2003 Deep Blue Solutions Ltd.
  *  Copyright (C) 2002 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/module.h>
 #include <linux/serio.h>
@@ -163,7 +159,7 @@ static int amba_kmi_probe(struct amba_device *dev,
 	return ret;
 }
 
-static int amba_kmi_remove(struct amba_device *dev)
+static void amba_kmi_remove(struct amba_device *dev)
 {
 	struct amba_kmi_port *kmi = amba_get_drvdata(dev);
 
@@ -172,7 +168,6 @@ static int amba_kmi_remove(struct amba_device *dev)
 	iounmap(kmi->base);
 	kfree(kmi);
 	amba_release_regions(dev);
-	return 0;
 }
 
 static int __maybe_unused amba_kmi_resume(struct device *dev)

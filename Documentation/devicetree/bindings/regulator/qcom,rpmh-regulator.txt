@@ -22,9 +22,14 @@ RPMh resource.
 
 The names used for regulator nodes must match those supported by a given PMIC.
 Supported regulator node names:
+	PM8005:		smps1 - smps4
+	PM8009:		smps1 - smps2, ldo1 - ldo7
+	PM8150:		smps1 - smps10, ldo1 - ldo18
+	PM8150L:	smps1 - smps8, ldo1 - ldo11, bob, flash, rgb
 	PM8998:		smps1 - smps13, ldo1 - ldo28, lvs1 - lvs2
 	PMI8998:	bob
-	PM8005:		smps1 - smps4
+	PM6150:         smps1 - smps5, ldo1 - ldo19
+	PM6150L:        smps1 - smps8, ldo1 - ldo11, bob
 
 ========================
 First Level Nodes - PMIC
@@ -33,9 +38,15 @@ First Level Nodes - PMIC
 - compatible
 	Usage:      required
 	Value type: <string>
-	Definition: Must be one of: "qcom,pm8998-rpmh-regulators",
-		    "qcom,pmi8998-rpmh-regulators" or
-		    "qcom,pm8005-rpmh-regulators".
+	Definition: Must be one of below:
+		    "qcom,pm8005-rpmh-regulators"
+		    "qcom,pm8009-rpmh-regulators"
+		    "qcom,pm8150-rpmh-regulators"
+		    "qcom,pm8150l-rpmh-regulators"
+		    "qcom,pm8998-rpmh-regulators"
+		    "qcom,pmi8998-rpmh-regulators"
+		    "qcom,pm6150-rpmh-regulators"
+		    "qcom,pm6150l-rpmh-regulators"
 
 - qcom,pmic-id
 	Usage:      required
@@ -97,7 +108,7 @@ Second Level Nodes - Regulators
 		    sent for this regulator including those which are for a
 		    strictly lower power state.
 
-Other properties defined in Documentation/devicetree/bindings/regulator.txt
+Other properties defined in Documentation/devicetree/bindings/regulator/regulator.txt
 may also be used.  regulator-initial-mode and regulator-allowed-modes may be
 specified for VRM regulators using mode values from
 include/dt-bindings/regulator/qcom,rpmh-regulator.h.  regulator-allow-bypass

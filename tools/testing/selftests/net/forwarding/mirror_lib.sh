@@ -30,8 +30,9 @@ mirror_test()
 	local expect=$1; shift
 
 	local t0=$(tc_rule_stats_get $dev $pref)
-	ip vrf exec $vrf_name \
-	   ${PING} ${sip:+-I $sip} $dip -c 10 -i 0.1 -w 2 &> /dev/null
+	$MZ $vrf_name ${sip:+-A $sip} -B $dip -a own -b bc -q \
+	    -c 10 -d 100msec -t icmp type=8
+	sleep 0.5
 	local t1=$(tc_rule_stats_get $dev $pref)
 	local delta=$((t1 - t0))
 	# Tolerate a couple stray extra packets.

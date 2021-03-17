@@ -3,7 +3,7 @@
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -134,12 +134,12 @@ struct acpi_namespace_node {
 	union acpi_operand_object *object;	/* Interpreter object */
 	u8 descriptor_type;	/* Differentiate object descriptor types */
 	u8 type;		/* ACPI Type associated with this name */
-	u8 flags;		/* Miscellaneous flags */
-	acpi_owner_id owner_id;	/* Node creator */
+	u16 flags;		/* Miscellaneous flags */
 	union acpi_name_union name;	/* ACPI Name, always 4 chars per ACPI spec */
 	struct acpi_namespace_node *parent;	/* Parent node */
 	struct acpi_namespace_node *child;	/* First child */
 	struct acpi_namespace_node *peer;	/* First peer */
+	acpi_owner_id owner_id;	/* Node creator */
 
 	/*
 	 * The following fields are used by the ASL compiler and disassembler only
@@ -293,7 +293,7 @@ acpi_status (*acpi_internal_method) (struct acpi_walk_state * walk_state);
  * expected_return_btypes - Allowed type(s) for the return value
  */
 struct acpi_name_info {
-	char name[ACPI_NAME_SIZE];
+	char name[ACPI_NAMESEG_SIZE];
 	u16 argument_list;
 	u8 expected_btypes;
 };
@@ -370,7 +370,7 @@ typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_node *
 					      converted_object);
 
 struct acpi_simple_repair_info {
-	char name[ACPI_NAME_SIZE];
+	char name[ACPI_NAMESEG_SIZE];
 	u32 unexpected_btypes;
 	u32 package_index;
 	acpi_object_converter object_converter;
@@ -395,9 +395,9 @@ struct acpi_simple_repair_info {
 /* Info for running the _REG methods */
 
 struct acpi_reg_walk_info {
-	acpi_adr_space_type space_id;
 	u32 function;
 	u32 reg_run_count;
+	acpi_adr_space_type space_id;
 };
 
 /*****************************************************************************
@@ -454,11 +454,18 @@ struct acpi_gpe_event_info {
 	u8 disable_for_dispatch;	/* Masked during dispatching */
 };
 
+/* GPE register address */
+
+struct acpi_gpe_address {
+	u8 space_id;	/* Address space where the register exists */
+	u64 address;	/* 64-bit address of the register */
+};
+
 /* Information about a GPE register pair, one per each status/enable pair in an array */
 
 struct acpi_gpe_register_info {
-	struct acpi_generic_address status_address;	/* Address of status reg */
-	struct acpi_generic_address enable_address;	/* Address of enable reg */
+	struct acpi_gpe_address status_address;	/* Address of status reg */
+	struct acpi_gpe_address enable_address;	/* Address of enable reg */
 	u16 base_gpe_number;	/* Base GPE number for this register */
 	u8 enable_for_wake;	/* GPEs to keep enabled when sleeping */
 	u8 enable_for_run;	/* GPEs to keep enabled when running */
@@ -802,7 +809,7 @@ struct acpi_comment_addr_node {
 
 /*
  * File node - used for "Include" operator file stack and
- * depdendency tree for the -ca option
+ * dependency tree for the -ca option
  */
 struct acpi_file_node {
 	void *file;

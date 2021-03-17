@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Directory notifications for Linux.
  *
@@ -5,16 +6,6 @@
  *
  * Copyright (C) 2009 Eric Paris <Red Hat Inc>
  * dnotify was largly rewritten to use the new fsnotify infrastructure
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/fs.h>
 #include <linux/module.h>
@@ -22,6 +13,7 @@
 #include <linux/sched/signal.h>
 #include <linux/dnotify.h>
 #include <linux/init.h>
+#include <linux/security.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/fdtable.h>
@@ -78,13 +70,10 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  * destroy the dnotify struct if it was not registered to receive multiple
  * events.
  */
-static int dnotify_handle_event(struct fsnotify_group *group,
-				struct inode *inode,
-				u32 mask, const void *data, int data_type,
-				const unsigned char *file_name, u32 cookie,
-				struct fsnotify_iter_info *iter_info)
+static int dnotify_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
+				struct inode *inode, struct inode *dir,
+				const struct qstr *name, u32 cookie)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct dnotify_mark *dn_mark;
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
@@ -92,10 +81,7 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	__u32 test_mask = mask & ~FS_EVENT_ON_CHILD;
 
 	/* not a dir, dnotify doesn't care */
-	if (!S_ISDIR(inode->i_mode))
-		return 0;
-
-	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
+	if (!dir && !(mask & FS_ISDIR))
 		return 0;
 
 	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
@@ -135,7 +121,7 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 }
 
 static const struct fsnotify_ops dnotify_fsnotify_ops = {
-	.handle_event = dnotify_handle_event,
+	.handle_inode_event = dnotify_handle_event,
 	.free_mark = dnotify_free_mark,
 };
 
@@ -288,6 +274,17 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		goto out_err;
 	}
 
+	/*
+	 * convert the userspace DN_* "arg" to the internal FS_*
+	 * defined in fsnotify
+	 */
+	mask = convert_arg(arg);
+
+	error = security_path_notify(&filp->f_path, mask,
+			FSNOTIFY_OBJ_TYPE_INODE);
+	if (error)
+		goto out_err;
+
 	/* expect most fcntl to add new rather than augment old */
 	dn = kmem_cache_alloc(dnotify_struct_cache, GFP_KERNEL);
 	if (!dn) {
@@ -301,9 +298,6 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		error = -ENOMEM;
 		goto out_err;
 	}
-
-	/* convert the userspace DN_* "arg" to the internal FS_* defines in fsnotify */
-	mask = convert_arg(arg);
 
 	/* set up the new_fsn_mark and new_dn_mark */
 	new_fsn_mark = &new_dn_mark->fsn_mark;

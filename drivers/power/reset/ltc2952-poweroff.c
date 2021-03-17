@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LTC2952 (PowerPath) driver
  *
  * Copyright (C) 2014, Xsens Technologies BV <info@xsens.com>
  * Maintainer: René Moll <linux@r-moll.nl>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * ----------------------------------------
  * - Description
@@ -50,7 +41,6 @@
  *
  * The driver requires a non-shared, edge-triggered interrupt on the trigger
  * GPIO.
- *
  */
 
 #include <linux/kernel.h>
@@ -104,7 +94,6 @@ static enum hrtimer_restart ltc2952_poweroff_timer_wde(struct hrtimer *timer)
 {
 	ktime_t now;
 	int state;
-	unsigned long overruns;
 	struct ltc2952_poweroff *data = to_ltc2952(timer, timer_wde);
 
 	if (data->kernel_panic)
@@ -114,7 +103,7 @@ static enum hrtimer_restart ltc2952_poweroff_timer_wde(struct hrtimer *timer)
 	gpiod_set_value(data->gpio_watchdog, !state);
 
 	now = hrtimer_cb_get_time(timer);
-	overruns = hrtimer_forward(timer, now, data->wde_interval);
+	hrtimer_forward(timer, now, data->wde_interval);
 
 	return HRTIMER_RESTART;
 }

@@ -145,6 +145,13 @@ int main(void)
 	DEVID(i2c_device_id);
 	DEVID_FIELD(i2c_device_id, name);
 
+	DEVID(i3c_device_id);
+	DEVID_FIELD(i3c_device_id, match_flags);
+	DEVID_FIELD(i3c_device_id, dcr);
+	DEVID_FIELD(i3c_device_id, manuf_id);
+	DEVID_FIELD(i3c_device_id, part_id);
+	DEVID_FIELD(i3c_device_id, extra_info);
+
 	DEVID(spi_device_id);
 	DEVID_FIELD(spi_device_id, name);
 
@@ -209,6 +216,8 @@ int main(void)
 	DEVID(sdw_device_id);
 	DEVID_FIELD(sdw_device_id, mfg_id);
 	DEVID_FIELD(sdw_device_id, part_id);
+	DEVID_FIELD(sdw_device_id, sdw_version);
+	DEVID_FIELD(sdw_device_id, class_id);
 
 	DEVID(fsl_mc_device_id);
 	DEVID_FIELD(fsl_mc_device_id, vendor);
@@ -224,6 +233,15 @@ int main(void)
 	DEVID(typec_device_id);
 	DEVID_FIELD(typec_device_id, svid);
 	DEVID_FIELD(typec_device_id, mode);
+
+	DEVID(tee_client_device_id);
+	DEVID_FIELD(tee_client_device_id, uuid);
+
+	DEVID(wmi_device_id);
+	DEVID_FIELD(wmi_device_id, guid_string);
+
+	DEVID(mhi_device_id);
+	DEVID_FIELD(mhi_device_id, chan);
 
 	return 0;
 }

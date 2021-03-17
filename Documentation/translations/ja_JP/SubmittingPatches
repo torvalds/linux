@@ -58,8 +58,8 @@ Linux カーネルに対する全ての変更は diff(1) コマンドによる�
 1個のファイルについてのパッチを作成するためには、ほとんどの場合、
 以下の作業を行えば十分です。
 
-	SRCTREE= linux-2.6
-	MYFILE=  drivers/net/mydriver.c
+	SRCTREE=linux-2.6
+	MYFILE=drivers/net/mydriver.c
 
 	cd $SRCTREE
 	cp $MYFILE $MYFILE.orig
@@ -71,7 +71,7 @@ Linux カーネルに対する全ての変更は diff(1) コマンドによる�
 なわち変更を加えてない Linux カーネルを展開し、自分の Linux カーネル
 ソースとの差分を生成しないといけません。例えば、
 
-	MYSRC= /devel/linux-2.6
+	MYSRC=/devel/linux-2.6
 
 	tar xvfz linux-2.6.12.tar.gz
 	mv linux-2.6.12 linux-2.6.12-vanilla
@@ -693,7 +693,7 @@ Andrew Morton, "The perfect patch" (tpp).
   <http://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
-  <http://linux.yyz.us/patch-format.html>
+  <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
 
 Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
   <http://www.kroah.com/log/2005/03/31/>

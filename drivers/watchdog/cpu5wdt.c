@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sma cpu5 watchdog driver
  *
  * Copyright (C) 2003 Heiko Ronsdorf <hero@ihg.uni-duisburg.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -140,7 +126,7 @@ static int cpu5wdt_open(struct inode *inode, struct file *file)
 {
 	if (test_and_set_bit(0, &cpu5wdt_device.inuse))
 		return -EBUSY;
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int cpu5wdt_release(struct inode *inode, struct file *file)
@@ -201,6 +187,7 @@ static const struct file_operations cpu5wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.unlocked_ioctl	= cpu5wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= cpu5wdt_open,
 	.write		= cpu5wdt_write,
 	.release	= cpu5wdt_release,

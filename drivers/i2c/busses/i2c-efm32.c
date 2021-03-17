@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Uwe Kleine-Koenig for Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -315,9 +312,6 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 	int ret;
 	u32 clkdiv;
 
-	if (!np)
-		return -EINVAL;
-
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
@@ -338,24 +332,17 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to determine base address\n");
-		return -ENODEV;
-	}
+	ddata->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(ddata->base))
+		return PTR_ERR(ddata->base);
 
 	if (resource_size(res) < 0x42) {
 		dev_err(&pdev->dev, "memory resource too small\n");
 		return -EINVAL;
 	}
 
-	ddata->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ddata->base))
-		return PTR_ERR(ddata->base);
-
 	ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
-		dev_err(&pdev->dev, "failed to get irq (%d)\n", ret);
 		if (!ret)
 			ret = -EINVAL;
 		return ret;
@@ -391,7 +378,7 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 	if (!ret) {
 		dev_dbg(&pdev->dev, "using frequency %u\n", frequency);
 	} else {
-		frequency = 100000;
+		frequency = I2C_MAX_STANDARD_MODE_FREQ;
 		dev_info(&pdev->dev, "defaulting to 100 kHz\n");
 	}
 	ddata->frequency = frequency;

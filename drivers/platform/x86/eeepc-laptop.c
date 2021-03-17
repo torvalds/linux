@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  eeepc-laptop.c - Asus Eee PC extras
  *
  *  Based on asus_acpi.c as patched for the Eee PC by Asus:
  *  ftp://ftp.asus.com/pub/ASUS/EeePC/701/ASUS_ACPI_071126.rar
  *  Based on eee.c from eeepc-linux
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -177,7 +168,7 @@ struct eeepc_laptop {
 	struct rfkill *wwan3g_rfkill;
 	struct rfkill *wimax_rfkill;
 
-	struct hotplug_slot *hotplug_slot;
+	struct hotplug_slot hotplug_slot;
 	struct mutex hotplug_lock;
 
 	struct led_classdev tpd_led;
@@ -550,12 +541,10 @@ static int eeepc_led_init(struct eeepc_laptop *eeepc)
 
 static void eeepc_led_exit(struct eeepc_laptop *eeepc)
 {
-	if (!IS_ERR_OR_NULL(eeepc->tpd_led.dev))
-		led_classdev_unregister(&eeepc->tpd_led);
+	led_classdev_unregister(&eeepc->tpd_led);
 	if (eeepc->led_workqueue)
 		destroy_workqueue(eeepc->led_workqueue);
 }
-
 
 /*
  * PCI hotplug (for wlan rfkill)
@@ -582,12 +571,12 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc, acpi_handle handle)
 	mutex_lock(&eeepc->hotplug_lock);
 	pci_lock_rescan_remove();
 
-	if (!eeepc->hotplug_slot)
+	if (!eeepc->hotplug_slot.ops)
 		goto out_unlock;
 
 	port = acpi_get_pci_dev(handle);
 	if (!port) {
-		pr_warning("Unable to find port\n");
+		pr_warn("Unable to find port\n");
 		goto out_unlock;
 	}
 
@@ -715,8 +704,11 @@ static void eeepc_unregister_rfkill_notifier(struct eeepc_laptop *eeepc,
 static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
 				    u8 *value)
 {
-	struct eeepc_laptop *eeepc = hotplug_slot->private;
-	int val = get_acpi(eeepc, CM_ASL_WLAN);
+	struct eeepc_laptop *eeepc;
+	int val;
+
+	eeepc = container_of(hotplug_slot, struct eeepc_laptop, hotplug_slot);
+	val = get_acpi(eeepc, CM_ASL_WLAN);
 
 	if (val == 1 || val == 0)
 		*value = val;
@@ -726,8 +718,7 @@ static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-static struct hotplug_slot_ops eeepc_hotplug_slot_ops = {
-	.owner = THIS_MODULE,
+static const struct hotplug_slot_ops eeepc_hotplug_slot_ops = {
 	.get_adapter_status = eeepc_get_adapter_status,
 	.get_power_status = eeepc_get_adapter_status,
 };
@@ -742,21 +733,9 @@ static int eeepc_setup_pci_hotplug(struct eeepc_laptop *eeepc)
 		return -ENODEV;
 	}
 
-	eeepc->hotplug_slot = kzalloc(sizeof(struct hotplug_slot), GFP_KERNEL);
-	if (!eeepc->hotplug_slot)
-		goto error_slot;
+	eeepc->hotplug_slot.ops = &eeepc_hotplug_slot_ops;
 
-	eeepc->hotplug_slot->info = kzalloc(sizeof(struct hotplug_slot_info),
-					    GFP_KERNEL);
-	if (!eeepc->hotplug_slot->info)
-		goto error_info;
-
-	eeepc->hotplug_slot->private = eeepc;
-	eeepc->hotplug_slot->ops = &eeepc_hotplug_slot_ops;
-	eeepc_get_adapter_status(eeepc->hotplug_slot,
-				 &eeepc->hotplug_slot->info->adapter_status);
-
-	ret = pci_hp_register(eeepc->hotplug_slot, bus, 0, "eeepc-wifi");
+	ret = pci_hp_register(&eeepc->hotplug_slot, bus, 0, "eeepc-wifi");
 	if (ret) {
 		pr_err("Unable to register hotplug slot - %d\n", ret);
 		goto error_register;
@@ -765,11 +744,7 @@ static int eeepc_setup_pci_hotplug(struct eeepc_laptop *eeepc)
 	return 0;
 
 error_register:
-	kfree(eeepc->hotplug_slot->info);
-error_info:
-	kfree(eeepc->hotplug_slot);
-	eeepc->hotplug_slot = NULL;
-error_slot:
+	eeepc->hotplug_slot.ops = NULL;
 	return ret;
 }
 
@@ -830,11 +805,8 @@ static void eeepc_rfkill_exit(struct eeepc_laptop *eeepc)
 		eeepc->wlan_rfkill = NULL;
 	}
 
-	if (eeepc->hotplug_slot) {
-		pci_hp_deregister(eeepc->hotplug_slot);
-		kfree(eeepc->hotplug_slot->info);
-		kfree(eeepc->hotplug_slot);
-	}
+	if (eeepc->hotplug_slot.ops)
+		pci_hp_deregister(&eeepc->hotplug_slot);
 
 	if (eeepc->bluetooth_rfkill) {
 		rfkill_unregister(eeepc->bluetooth_rfkill);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Hisilicon Hibmc SoC drm driver
  *
  * Based on the bochs drm driver.
@@ -8,12 +9,6 @@
  *	Rongrong Zou <zourongrong@huawei.com>
  *	Rongrong Zou <zourongrong@gmail.com>
  *	Jianhua Li <lijianhua@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #ifndef HIBMC_DRM_HW_H
@@ -73,6 +68,12 @@
 
 #define HIBMC_CRT_DISP_CTL			0x80200
 
+#define HIBMC_CRT_DISP_CTL_DPMS(x)		((x) << 30)
+#define HIBMC_CRT_DISP_CTL_DPMS_MASK		0xc0000000
+
+#define HIBMC_CRT_DPMS_ON			0
+#define HIBMC_CRT_DPMS_OFF			3
+
 #define HIBMC_CRT_DISP_CTL_CRTSELECT(x)		((x) << 25)
 #define HIBMC_CRT_DISP_CTL_CRTSELECT_MASK	0x2000000
 
@@ -89,6 +90,9 @@
 
 #define HIBMC_CRT_DISP_CTL_TIMING(x)		((x) << 8)
 #define HIBMC_CRT_DISP_CTL_TIMING_MASK		0x100
+
+#define HIBMC_CTL_DISP_CTL_GAMMA(x)		((x) << 3)
+#define HIBMC_CTL_DISP_CTL_GAMMA_MASK		0x08
 
 #define HIBMC_CRT_DISP_CTL_PLANE(x)		((x) << 2)
 #define HIBMC_CRT_DISP_CTL_PLANE_MASK		4
@@ -175,6 +179,7 @@
 #define CRT_PLL1_HS_74MHZ			0x23941dc2
 #define CRT_PLL1_HS_80MHZ			0x23941001
 #define CRT_PLL1_HS_80MHZ_1152			0x23540fc2
+#define CRT_PLL1_HS_106MHZ			0x237C1641
 #define CRT_PLL1_HS_108MHZ			0x23b41b01
 #define CRT_PLL1_HS_162MHZ			0x23480681
 #define CRT_PLL1_HS_148MHZ			0x23541dc2
@@ -187,10 +192,13 @@
 #define CRT_PLL2_HS_78MHZ			0x50E147AE
 #define CRT_PLL2_HS_74MHZ			0x602B6AE7
 #define CRT_PLL2_HS_80MHZ			0x70000000
+#define CRT_PLL2_HS_106MHZ			0x0075c28f
 #define CRT_PLL2_HS_108MHZ			0x80000000
 #define CRT_PLL2_HS_162MHZ			0xA0000000
 #define CRT_PLL2_HS_148MHZ			0xB0CCCCCD
 #define CRT_PLL2_HS_193MHZ			0xC0872B02
+
+#define HIBMC_CRT_PALETTE                       0x80C00
 
 #define HIBMC_FIELD(field, value) (field(value) & field##_MASK)
 #endif

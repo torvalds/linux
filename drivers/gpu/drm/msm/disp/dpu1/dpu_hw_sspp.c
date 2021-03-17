@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_sspp.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 
 #define DPU_FETCH_CONFIG_RESET_VALUE   0x00000087
@@ -141,7 +132,8 @@
 /* traffic shaper clock in Hz */
 #define TS_CLK			19200000
 
-static inline int _sspp_subblk_offset(struct dpu_hw_pipe *ctx,
+
+static int _sspp_subblk_offset(struct dpu_hw_pipe *ctx,
 		int s_id,
 		u32 *idx)
 {
@@ -311,11 +303,25 @@ static void dpu_hw_sspp_setup_format(struct dpu_hw_pipe *ctx,
 		DPU_REG_WRITE(c, SSPP_FETCH_CONFIG,
 			DPU_FETCH_CONFIG_RESET_VALUE |
 			ctx->mdp->highest_bank_bit << 18);
-		if (IS_UBWC_20_SUPPORTED(ctx->catalog->caps->ubwc_version)) {
+		switch (ctx->catalog->caps->ubwc_version) {
+		case DPU_HW_UBWC_VER_10:
+			/* TODO: UBWC v1 case */
+			break;
+		case DPU_HW_UBWC_VER_20:
 			fast_clear = fmt->alpha_enable ? BIT(31) : 0;
 			DPU_REG_WRITE(c, SSPP_UBWC_STATIC_CTRL,
 					fast_clear | (ctx->mdp->ubwc_swizzle) |
 					(ctx->mdp->highest_bank_bit << 4));
+			break;
+		case DPU_HW_UBWC_VER_30:
+			DPU_REG_WRITE(c, SSPP_UBWC_STATIC_CTRL,
+					BIT(30) | (ctx->mdp->ubwc_swizzle) |
+					(ctx->mdp->highest_bank_bit << 4));
+			break;
+		case DPU_HW_UBWC_VER_40:
+			DPU_REG_WRITE(c, SSPP_UBWC_STATIC_CTRL,
+					DPU_FORMAT_IS_YUV(fmt) ? 0 : BIT(30));
+			break;
 		}
 	}
 
@@ -662,10 +668,12 @@ static void _setup_layer_ops(struct dpu_hw_pipe *c,
 		test_bit(DPU_SSPP_CSC_10BIT, &features))
 		c->ops.setup_csc = dpu_hw_sspp_setup_csc;
 
-	if (dpu_hw_sspp_multirect_enabled(c->cap))
+	if (test_bit(DPU_SSPP_SMART_DMA_V1, &c->cap->features) ||
+		test_bit(DPU_SSPP_SMART_DMA_V2, &c->cap->features))
 		c->ops.setup_multirect = dpu_hw_sspp_setup_multirect;
 
-	if (test_bit(DPU_SSPP_SCALER_QSEED3, &features)) {
+	if (test_bit(DPU_SSPP_SCALER_QSEED3, &features) ||
+			test_bit(DPU_SSPP_SCALER_QSEED4, &features)) {
 		c->ops.setup_scaler = _dpu_hw_sspp_setup_scaler3;
 		c->ops.get_scaler_ver = _dpu_hw_sspp_get_scaler3_ver;
 	}
@@ -674,7 +682,7 @@ static void _setup_layer_ops(struct dpu_hw_pipe *c,
 		c->ops.setup_cdp = dpu_hw_sspp_setup_cdp;
 }
 
-static struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
+static const struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
 		void __iomem *addr,
 		struct dpu_mdss_cfg *catalog,
 		struct dpu_hw_blk_reg_map *b)
@@ -697,18 +705,14 @@ static struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
 	return ERR_PTR(-ENOMEM);
 }
 
-static struct dpu_hw_blk_ops dpu_hw_ops = {
-	.start = NULL,
-	.stop = NULL,
-};
+static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_pipe *dpu_hw_sspp_init(enum dpu_sspp idx,
 		void __iomem *addr, struct dpu_mdss_cfg *catalog,
 		bool is_virtual_pipe)
 {
 	struct dpu_hw_pipe *hw_pipe;
-	struct dpu_sspp_cfg *cfg;
-	int rc;
+	const struct dpu_sspp_cfg *cfg;
 
 	if (!addr || !catalog)
 		return ERR_PTR(-EINVAL);
@@ -730,18 +734,9 @@ struct dpu_hw_pipe *dpu_hw_sspp_init(enum dpu_sspp idx,
 	hw_pipe->cap = cfg;
 	_setup_layer_ops(hw_pipe, hw_pipe->cap->features);
 
-	rc = dpu_hw_blk_init(&hw_pipe->base, DPU_HW_BLK_SSPP, idx, &dpu_hw_ops);
-	if (rc) {
-		DPU_ERROR("failed to init hw blk %d\n", rc);
-		goto blk_init_error;
-	}
+	dpu_hw_blk_init(&hw_pipe->base, DPU_HW_BLK_SSPP, idx, &dpu_hw_ops);
 
 	return hw_pipe;
-
-blk_init_error:
-	kzfree(hw_pipe);
-
-	return ERR_PTR(rc);
 }
 
 void dpu_hw_sspp_destroy(struct dpu_hw_pipe *ctx)

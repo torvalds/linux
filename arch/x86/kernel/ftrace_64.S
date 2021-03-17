@@ -9,33 +9,21 @@
 #include <asm/export.h>
 #include <asm/nospec-branch.h>
 #include <asm/unwind_hints.h>
+#include <asm/frame.h>
 
 	.code64
-	.section .entry.text, "ax"
-
-#ifdef CC_USING_FENTRY
-# define function_hook	__fentry__
-EXPORT_SYMBOL(__fentry__)
-#else
-# define function_hook	mcount
-EXPORT_SYMBOL(mcount)
-#endif
+	.section .text, "ax"
 
 #ifdef CONFIG_FRAME_POINTER
-# ifdef CC_USING_FENTRY
 /* Save parent and function stack frames (rip and rbp) */
 #  define MCOUNT_FRAME_SIZE	(8+16*2)
-# else
-/* Save just function stack frame (rip and rbp) */
-#  define MCOUNT_FRAME_SIZE	(8+16)
-# endif
 #else
 /* No need to save a stack frame */
 # define MCOUNT_FRAME_SIZE	0
 #endif /* CONFIG_FRAME_POINTER */
 
 /* Size of stack used to save mcount regs in save_mcount_regs */
-#define MCOUNT_REG_SIZE		(SS+8 + MCOUNT_FRAME_SIZE)
+#define MCOUNT_REG_SIZE		(FRAME_SIZE + MCOUNT_FRAME_SIZE)
 
 /*
  * gcc -pg option adds a call to 'mcount' in most functions.
@@ -75,17 +63,13 @@ EXPORT_SYMBOL(mcount)
 	 * fentry is called before the stack frame is set up, where as mcount
 	 * is called afterward.
 	 */
-#ifdef CC_USING_FENTRY
+
 	/* Save the parent pointer (skip orig rbp and our return address) */
 	pushq \added+8*2(%rsp)
 	pushq %rbp
 	movq %rsp, %rbp
 	/* Save the return address (now skip orig rbp, rbp and parent) */
 	pushq \added+8*3(%rsp)
-#else
-	/* Can't assume that rip is before this (unless added was zero) */
-	pushq \added+8(%rsp)
-#endif
 	pushq %rbp
 	movq %rsp, %rbp
 #endif /* CONFIG_FRAME_POINTER */
@@ -93,7 +77,7 @@ EXPORT_SYMBOL(mcount)
 	/*
 	 * We add enough stack to save all regs.
 	 */
-	subq $(MCOUNT_REG_SIZE - MCOUNT_FRAME_SIZE), %rsp
+	subq $(FRAME_SIZE), %rsp
 	movq %rax, RAX(%rsp)
 	movq %rcx, RCX(%rsp)
 	movq %rdx, RDX(%rsp)
@@ -101,6 +85,7 @@ EXPORT_SYMBOL(mcount)
 	movq %rdi, RDI(%rsp)
 	movq %r8, R8(%rsp)
 	movq %r9, R9(%rsp)
+	movq $0, ORIG_RAX(%rsp)
 	/*
 	 * Save the original RBP. Even though the mcount ABI does not
 	 * require this, it helps out callers.
@@ -113,12 +98,7 @@ EXPORT_SYMBOL(mcount)
 	movq %rdx, RBP(%rsp)
 
 	/* Copy the parent address into %rsi (second parameter) */
-#ifdef CC_USING_FENTRY
 	movq MCOUNT_REG_SIZE+8+\added(%rsp), %rsi
-#else
-	/* %rdx contains original %rbp */
-	movq 8(%rdx), %rsi
-#endif
 
 	 /* Move RIP to its proper location */
 	movq MCOUNT_REG_SIZE+\added(%rsp), %rdi
@@ -132,7 +112,11 @@ EXPORT_SYMBOL(mcount)
 	subq $MCOUNT_INSN_SIZE, %rdi
 	.endm
 
-.macro restore_mcount_regs
+.macro restore_mcount_regs save=0
+
+	/* ftrace_regs_caller or frame pointers require this */
+	movq RBP(%rsp), %rbp
+
 	movq R9(%rsp), %r9
 	movq R8(%rsp), %r8
 	movq RDI(%rsp), %rdi
@@ -141,56 +125,58 @@ EXPORT_SYMBOL(mcount)
 	movq RCX(%rsp), %rcx
 	movq RAX(%rsp), %rax
 
-	/* ftrace_regs_caller can modify %rbp */
-	movq RBP(%rsp), %rbp
-
-	addq $MCOUNT_REG_SIZE, %rsp
+	addq $MCOUNT_REG_SIZE-\save, %rsp
 
 	.endm
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-ENTRY(function_hook)
+SYM_FUNC_START(__fentry__)
 	retq
-ENDPROC(function_hook)
+SYM_FUNC_END(__fentry__)
+EXPORT_SYMBOL(__fentry__)
 
-ENTRY(ftrace_caller)
+SYM_FUNC_START(ftrace_caller)
 	/* save_mcount_regs fills in first two parameters */
 	save_mcount_regs
 
-GLOBAL(ftrace_caller_op_ptr)
+SYM_INNER_LABEL(ftrace_caller_op_ptr, SYM_L_GLOBAL)
 	/* Load the ftrace_ops into the 3rd parameter */
 	movq function_trace_op(%rip), %rdx
 
 	/* regs go into 4th parameter (but make it NULL) */
 	movq $0, %rcx
 
-GLOBAL(ftrace_call)
+SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 	call ftrace_stub
 
 	restore_mcount_regs
 
 	/*
-	 * The copied trampoline must call ftrace_epilogue as it
-	 * still may need to call the function graph tracer.
-	 *
 	 * The code up to this label is copied into trampolines so
 	 * think twice before adding any new code or changing the
 	 * layout here.
 	 */
-GLOBAL(ftrace_epilogue)
+SYM_INNER_LABEL(ftrace_caller_end, SYM_L_GLOBAL)
 
+	jmp ftrace_epilogue
+SYM_FUNC_END(ftrace_caller);
+
+SYM_FUNC_START(ftrace_epilogue)
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-GLOBAL(ftrace_graph_call)
+SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL)
 	jmp ftrace_stub
 #endif
 
-/* This is weak to keep gas from relaxing the jumps */
-WEAK(ftrace_stub)
+/*
+ * This is weak to keep gas from relaxing the jumps.
+ * It is also used to copy the retq for trampolines.
+ */
+SYM_INNER_LABEL_ALIGN(ftrace_stub, SYM_L_WEAK)
 	retq
-ENDPROC(ftrace_caller)
+SYM_FUNC_END(ftrace_epilogue)
 
-ENTRY(ftrace_regs_caller)
+SYM_FUNC_START(ftrace_regs_caller)
 	/* Save the current flags before any operations that can change them */
 	pushfq
 
@@ -198,7 +184,7 @@ ENTRY(ftrace_regs_caller)
 	save_mcount_regs 8
 	/* save_mcount_regs fills in first two parameters */
 
-GLOBAL(ftrace_regs_caller_op_ptr)
+SYM_INNER_LABEL(ftrace_regs_caller_op_ptr, SYM_L_GLOBAL)
 	/* Load the ftrace_ops into the 3rd parameter */
 	movq function_trace_op(%rip), %rdx
 
@@ -222,10 +208,12 @@ GLOBAL(ftrace_regs_caller_op_ptr)
 	leaq MCOUNT_REG_SIZE+8*2(%rsp), %rcx
 	movq %rcx, RSP(%rsp)
 
+	ENCODE_FRAME_POINTER
+
 	/* regs go into 4th parameter */
 	leaq (%rsp), %rcx
 
-GLOBAL(ftrace_regs_call)
+SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 	call ftrace_stub
 
 	/* Copy flags back to SS, to restore them */
@@ -244,8 +232,19 @@ GLOBAL(ftrace_regs_call)
 	movq R10(%rsp), %r10
 	movq RBX(%rsp), %rbx
 
-	restore_mcount_regs
+	movq ORIG_RAX(%rsp), %rax
+	movq %rax, MCOUNT_REG_SIZE-8(%rsp)
 
+	/*
+	 * If ORIG_RAX is anything but zero, make this a call to that.
+	 * See arch_ftrace_set_direct_caller().
+	 */
+	movq ORIG_RAX(%rsp), %rax
+	testq	%rax, %rax
+SYM_INNER_LABEL(ftrace_regs_caller_jmp, SYM_L_GLOBAL)
+	jnz	1f
+
+	restore_mcount_regs
 	/* Restore flags */
 	popfq
 
@@ -255,16 +254,26 @@ GLOBAL(ftrace_regs_call)
 	 * The trampoline will add the code to jump
 	 * to the return.
 	 */
-GLOBAL(ftrace_regs_caller_end)
-
+SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
 	jmp ftrace_epilogue
 
-ENDPROC(ftrace_regs_caller)
+	/* Swap the flags with orig_rax */
+1:	movq MCOUNT_REG_SIZE(%rsp), %rdi
+	movq %rdi, MCOUNT_REG_SIZE-8(%rsp)
+	movq %rax, MCOUNT_REG_SIZE(%rsp)
+
+	restore_mcount_regs 8
+	/* Restore flags */
+	popfq
+	UNWIND_HINT_RET_OFFSET
+	jmp	ftrace_epilogue
+
+SYM_FUNC_END(ftrace_regs_caller)
 
 
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
-ENTRY(function_hook)
+SYM_FUNC_START(__fentry__)
 	cmpq $ftrace_stub, ftrace_trace_function
 	jnz trace
 
@@ -277,7 +286,7 @@ fgraph_trace:
 	jnz ftrace_graph_caller
 #endif
 
-GLOBAL(ftrace_stub)
+SYM_INNER_LABEL(ftrace_stub, SYM_L_GLOBAL)
 	retq
 
 trace:
@@ -291,35 +300,29 @@ trace:
 	 * function tracing is enabled.
 	 */
 	movq ftrace_trace_function, %r8
-	CALL_NOSPEC %r8
+	CALL_NOSPEC r8
 	restore_mcount_regs
 
 	jmp fgraph_trace
-ENDPROC(function_hook)
+SYM_FUNC_END(__fentry__)
+EXPORT_SYMBOL(__fentry__)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-ENTRY(ftrace_graph_caller)
+SYM_FUNC_START(ftrace_graph_caller)
 	/* Saves rbp into %rdx and fills first parameter  */
 	save_mcount_regs
 
-#ifdef CC_USING_FENTRY
 	leaq MCOUNT_REG_SIZE+8(%rsp), %rsi
 	movq $0, %rdx	/* No framepointers needed */
-#else
-	/* Save address of the return address of traced function */
-	leaq 8(%rdx), %rsi
-	/* ftrace does sanity checks against frame pointers */
-	movq (%rdx), %rdx
-#endif
 	call	prepare_ftrace_return
 
 	restore_mcount_regs
 
 	retq
-ENDPROC(ftrace_graph_caller)
+SYM_FUNC_END(ftrace_graph_caller)
 
-ENTRY(return_to_handler)
+SYM_CODE_START(return_to_handler)
 	UNWIND_HINT_EMPTY
 	subq  $24, %rsp
 
@@ -334,6 +337,6 @@ ENTRY(return_to_handler)
 	movq 8(%rsp), %rdx
 	movq (%rsp), %rax
 	addq $24, %rsp
-	JMP_NOSPEC %rdi
-END(return_to_handler)
+	JMP_NOSPEC rdi
+SYM_CODE_END(return_to_handler)
 #endif

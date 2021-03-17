@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -19,21 +20,6 @@
  *   linux/fs/minix/dir.c
  *
  *   Copyright (C) 1991, 1992 Linux Torvalds
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/fs.h>
@@ -420,7 +406,7 @@ static int ocfs2_mknod(struct inode *dir,
 
 	if (status < 0) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	if (si.enable) {
@@ -428,7 +414,7 @@ static int ocfs2_mknod(struct inode *dir,
 						 meta_ac, data_ac);
 		if (status < 0) {
 			mlog_errno(status);
-			goto leave;
+			goto roll_back;
 		}
 	}
 
@@ -441,7 +427,7 @@ static int ocfs2_mknod(struct inode *dir,
 					  OCFS2_I(dir)->ip_blkno);
 	if (status) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	dl = dentry->d_fsdata;
@@ -451,12 +437,19 @@ static int ocfs2_mknod(struct inode *dir,
 				 &lookup);
 	if (status < 0) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	insert_inode_hash(inode);
 	d_instantiate(dentry, inode);
 	status = 0;
+
+roll_back:
+	if (status < 0 && S_ISDIR(mode)) {
+		ocfs2_add_links_count(dirfe, -1);
+		drop_nlink(dir);
+	}
+
 leave:
 	if (status < 0 && did_quota_inode)
 		dquot_free_inode(inode);
@@ -600,8 +593,7 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 			mlog_errno(status);
 	}
 
-	oi->i_sync_tid = handle->h_transaction->t_tid;
-	oi->i_datasync_tid = handle->h_transaction->t_tid;
+	ocfs2_update_inode_fsync_trans(handle, inode, 1);
 
 leave:
 	if (status < 0) {
@@ -2500,14 +2492,13 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 	struct inode *inode = NULL;
 	struct inode *orphan_dir = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
-	struct ocfs2_dinode *di = NULL;
 	handle_t *handle = NULL;
 	char orphan_name[OCFS2_ORPHAN_NAMELEN + 1];
 	struct buffer_head *parent_di_bh = NULL;
 	struct buffer_head *new_di_bh = NULL;
 	struct ocfs2_alloc_context *inode_ac = NULL;
 	struct ocfs2_dir_lookup_result orphan_insert = { NULL, };
-	u64 uninitialized_var(di_blkno), suballoc_loc;
+	u64 di_blkno, suballoc_loc;
 	u16 suballoc_bit;
 
 	status = ocfs2_inode_lock(dir, &parent_di_bh, 1);
@@ -2566,7 +2557,6 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 		goto leave;
 	}
 
-	di = (struct ocfs2_dinode *)new_di_bh->b_data;
 	status = ocfs2_orphan_add(osb, handle, inode, new_di_bh, orphan_name,
 				  &orphan_insert, orphan_dir, false);
 	if (status < 0) {

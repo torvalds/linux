@@ -1,29 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Samsung Electronics Co.Ltd
  * Authors:
  *	Hyungwon Hwang <human.hwang@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundationr
  */
 
-#include <linux/platform_device.h>
-#include <video/of_videomode.h>
-#include <linux/of_address.h>
-#include <video/videomode.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_graph.h>
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/pm_runtime.h>
-#include <drm/drmP.h>
-#include <drm/drm_encoder.h>
+#include <linux/delay.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_graph.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+
+#include <video/of_videomode.h>
+#include <video/videomode.h>
+
+#include <drm/drm_bridge.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_print.h>
 
 #include "exynos_drm_drv.h"
 
@@ -88,7 +88,7 @@
 
 #define MIC_BS_SIZE_2D(x)	((x) & 0x3fff)
 
-static char *clk_names[] = { "pclk_mic0", "sclk_rgb_vclk_to_mic0" };
+static const char *const clk_names[] = { "pclk_mic0", "sclk_rgb_vclk_to_mic0" };
 #define NUM_CLKS		ARRAY_SIZE(clk_names)
 static DEFINE_MUTEX(mic_mutex);
 
@@ -113,7 +113,8 @@ static void mic_set_path(struct exynos_mic *mic, bool enable)
 
 	ret = regmap_read(mic->sysreg, DSD_CFG_MUX, &val);
 	if (ret) {
-		DRM_ERROR("mic: Failed to read system register\n");
+		DRM_DEV_ERROR(mic->dev,
+			      "mic: Failed to read system register\n");
 		return;
 	}
 
@@ -129,7 +130,8 @@ static void mic_set_path(struct exynos_mic *mic, bool enable)
 
 	ret = regmap_write(mic->sysreg, DSD_CFG_MUX, val);
 	if (ret)
-		DRM_ERROR("mic: Failed to read system register\n");
+		DRM_DEV_ERROR(mic->dev,
+			      "mic: Failed to read system register\n");
 }
 
 static int mic_sw_reset(struct exynos_mic *mic)
@@ -190,7 +192,7 @@ static void mic_set_output_timing(struct exynos_mic *mic)
 	struct videomode vm = mic->vm;
 	u32 reg, bs_size_2d;
 
-	DRM_DEBUG("w: %u, h: %u\n", vm.hactive, vm.vactive);
+	DRM_DEV_DEBUG(mic->dev, "w: %u, h: %u\n", vm.hactive, vm.vactive);
 	bs_size_2d = ((vm.hactive >> 2) << 1) + (vm.vactive % 4);
 	reg = MIC_BS_SIZE_2D(bs_size_2d);
 	writel(reg, mic->reg + MIC_2D_OUTPUT_TIMING_2);
@@ -246,8 +248,8 @@ already_disabled:
 }
 
 static void mic_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode)
 {
 	struct exynos_mic *mic = bridge->driver_private;
 
@@ -267,14 +269,16 @@ static void mic_pre_enable(struct drm_bridge *bridge)
 		goto unlock;
 
 	ret = pm_runtime_get_sync(mic->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(mic->dev);
 		goto unlock;
+	}
 
 	mic_set_path(mic, 1);
 
 	ret = mic_sw_reset(mic);
 	if (ret) {
-		DRM_ERROR("Failed to reset\n");
+		DRM_DEV_ERROR(mic->dev, "Failed to reset\n");
 		goto turn_off;
 	}
 
@@ -354,8 +358,8 @@ static int exynos_mic_resume(struct device *dev)
 	for (i = 0; i < NUM_CLKS; i++) {
 		ret = clk_prepare_enable(mic->clks[i]);
 		if (ret < 0) {
-			DRM_ERROR("Failed to enable clock (%s)\n",
-							clk_names[i]);
+			DRM_DEV_ERROR(dev, "Failed to enable clock (%s)\n",
+				      clk_names[i]);
 			while (--i > -1)
 				clk_disable_unprepare(mic->clks[i]);
 			return ret;
@@ -380,7 +384,8 @@ static int exynos_mic_probe(struct platform_device *pdev)
 
 	mic = devm_kzalloc(dev, sizeof(*mic), GFP_KERNEL);
 	if (!mic) {
-		DRM_ERROR("mic: Failed to allocate memory for MIC object\n");
+		DRM_DEV_ERROR(dev,
+			      "mic: Failed to allocate memory for MIC object\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -389,12 +394,12 @@ static int exynos_mic_probe(struct platform_device *pdev)
 
 	ret = of_address_to_resource(dev->of_node, 0, &res);
 	if (ret) {
-		DRM_ERROR("mic: Failed to get mem region for MIC\n");
+		DRM_DEV_ERROR(dev, "mic: Failed to get mem region for MIC\n");
 		goto err;
 	}
 	mic->reg = devm_ioremap(dev, res.start, resource_size(&res));
 	if (!mic->reg) {
-		DRM_ERROR("mic: Failed to remap for MIC\n");
+		DRM_DEV_ERROR(dev, "mic: Failed to remap for MIC\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -402,7 +407,7 @@ static int exynos_mic_probe(struct platform_device *pdev)
 	mic->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
 							"samsung,disp-syscon");
 	if (IS_ERR(mic->sysreg)) {
-		DRM_ERROR("mic: Failed to get system register.\n");
+		DRM_DEV_ERROR(dev, "mic: Failed to get system register.\n");
 		ret = PTR_ERR(mic->sysreg);
 		goto err;
 	}
@@ -410,8 +415,8 @@ static int exynos_mic_probe(struct platform_device *pdev)
 	for (i = 0; i < NUM_CLKS; i++) {
 		mic->clks[i] = devm_clk_get(dev, clk_names[i]);
 		if (IS_ERR(mic->clks[i])) {
-			DRM_ERROR("mic: Failed to get clock (%s)\n",
-								clk_names[i]);
+			DRM_DEV_ERROR(dev, "mic: Failed to get clock (%s)\n",
+				      clk_names[i]);
 			ret = PTR_ERR(mic->clks[i]);
 			goto err;
 		}
@@ -430,7 +435,7 @@ static int exynos_mic_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_pm;
 
-	DRM_DEBUG_KMS("MIC has been probed\n");
+	DRM_DEV_DEBUG_KMS(dev, "MIC has been probed\n");
 
 	return 0;
 

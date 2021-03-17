@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config CACHEFILES
 	tristate "Filesystem caching on files"
@@ -7,7 +8,7 @@ config CACHEFILES
 	  filesystems - primarily networking filesystems - thus allowing fast
 	  local disk to enhance the speed of slower devices.
 
-	  See Documentation/filesystems/caching/cachefiles.txt for more
+	  See Documentation/filesystems/caching/cachefiles.rst for more
 	  information.
 
 config CACHEFILES_DEBUG
@@ -35,5 +36,5 @@ config CACHEFILES_HISTOGRAM
 	  bouncing between CPUs.  On the other hand, the histogram may be
 	  useful for debugging purposes.  Saying 'N' here is recommended.
 
-	  See Documentation/filesystems/caching/cachefiles.txt for more
+	  See Documentation/filesystems/caching/cachefiles.rst for more
 	  information.

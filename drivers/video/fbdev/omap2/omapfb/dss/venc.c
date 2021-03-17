@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/video/omap2/dss/venc.c
  *
@@ -5,18 +6,6 @@
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
  * VENC settings from TI's DSS driver
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "VENC"
@@ -220,49 +209,6 @@ static const struct venc_config venc_config_ntsc_trm = {
 	.gen_ctrl				= 0x00F90000,
 };
 
-static const struct venc_config venc_config_pal_bdghi = {
-	.f_control				= 0,
-	.vidout_ctrl				= 0,
-	.sync_ctrl				= 0,
-	.hfltr_ctrl				= 0,
-	.x_color				= 0,
-	.line21					= 0,
-	.ln_sel					= 21,
-	.htrigger_vtrigger			= 0,
-	.tvdetgp_int_start_stop_x		= 0x00140001,
-	.tvdetgp_int_start_stop_y		= 0x00010001,
-	.gen_ctrl				= 0x00FB0000,
-
-	.llen					= 864-1,
-	.flens					= 625-1,
-	.cc_carr_wss_carr			= 0x2F7625ED,
-	.c_phase				= 0xDF,
-	.gain_u					= 0x111,
-	.gain_v					= 0x181,
-	.gain_y					= 0x140,
-	.black_level				= 0x3e,
-	.blank_level				= 0x3e,
-	.m_control				= 0<<2 | 1<<1,
-	.bstamp_wss_data			= 0x42,
-	.s_carr					= 0x2a098acb,
-	.l21__wc_ctl				= 0<<13 | 0x16<<8 | 0<<0,
-	.savid__eavid				= 0x06A70108,
-	.flen__fal				= 23<<16 | 624<<0,
-	.lal__phase_reset			= 2<<17 | 310<<0,
-	.hs_int_start_stop_x			= 0x00920358,
-	.hs_ext_start_stop_x			= 0x000F035F,
-	.vs_int_start_x				= 0x1a7<<16,
-	.vs_int_stop_x__vs_int_start_y		= 0x000601A7,
-	.vs_int_stop_y__vs_ext_start_x		= 0x01AF0036,
-	.vs_ext_stop_x__vs_ext_start_y		= 0x27101af,
-	.vs_ext_stop_y				= 0x05,
-	.avid_start_stop_x			= 0x03530082,
-	.avid_start_stop_y			= 0x0270002E,
-	.fid_int_start_x__fid_int_start_y	= 0x0005008A,
-	.fid_int_offset_y__fid_ext_start_x	= 0x002E0138,
-	.fid_ext_start_y__fid_ext_offset_y	= 0x01380005,
-};
-
 const struct omap_video_timings omap_dss_pal_timings = {
 	.x_res		= 720,
 	.y_res		= 574,
@@ -402,8 +348,11 @@ static int venc_runtime_get(void)
 	DSSDBG("venc_runtime_get\n");
 
 	r = pm_runtime_get_sync(&venc.pdev->dev);
-	WARN_ON(r < 0);
-	return r < 0 ? r : 0;
+	if (WARN_ON(r < 0)) {
+		pm_runtime_put_sync(&venc.pdev->dev);
+		return r;
+	}
+	return 0;
 }
 
 static void venc_runtime_put(void)
@@ -838,7 +787,7 @@ static int venc_probe_of(struct platform_device *pdev)
 		venc.type = OMAP_DSS_VENC_TYPE_SVIDEO;
 		break;
 	default:
-		dev_err(&pdev->dev, "bad channel propert '%d'\n", channels);
+		dev_err(&pdev->dev, "bad channel property '%d'\n", channels);
 		r = -EINVAL;
 		goto err;
 	}

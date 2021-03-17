@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  w83795.c - Linux kernel driver for hardware monitoring
  *  Copyright (C) 2008 Nuvoton Technology Corp.
  *                Wei Song
  *  Copyright (C) 2010 Jean Delvare <jdelvare@suse.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation - version 2.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301 USA.
  *
  *  Supports following chips:
  *
@@ -1691,7 +1678,7 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
  * somewhere else in the code
  */
 #define SENSOR_ATTR_TEMP(index) {					\
-	SENSOR_ATTR_2(temp##index##_type, S_IRUGO | (index < 4 ? S_IWUSR : 0), \
+	SENSOR_ATTR_2(temp##index##_type, S_IRUGO | (index < 5 ? S_IWUSR : 0), \
 		show_temp_mode, store_temp_mode, NOT_USED, index - 1),	\
 	SENSOR_ATTR_2(temp##index##_input, S_IRUGO, show_temp,		\
 		NULL, TEMP_READ, index - 1),				\
@@ -2140,15 +2127,16 @@ static void w83795_apply_temp_config(struct w83795_data *data, u8 config,
 		if (temp_chan >= 4)
 			break;
 		data->temp_mode |= 1 << temp_chan;
-		/* fall through */
+		fallthrough;
 	case 0x3: /* Thermistor */
 		data->has_temp |= 1 << temp_chan;
 		break;
 	}
 }
 
-static int w83795_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static const struct i2c_device_id w83795_id[];
+
+static int w83795_probe(struct i2c_client *client)
 {
 	int i;
 	u8 tmp;
@@ -2161,7 +2149,7 @@ static int w83795_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->chip_type = id->driver_data;
+	data->chip_type = i2c_match_id(w83795_id, client)->driver_data;
 	data->bank = i2c_smbus_read_byte_data(client, W83795_REG_BANKSEL);
 	mutex_init(&data->update_lock);
 
@@ -2269,7 +2257,7 @@ static struct i2c_driver w83795_driver = {
 	.driver = {
 		   .name = "w83795",
 	},
-	.probe		= w83795_probe,
+	.probe_new	= w83795_probe,
 	.remove		= w83795_remove,
 	.id_table	= w83795_id,
 

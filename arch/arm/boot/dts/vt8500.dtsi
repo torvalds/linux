@@ -1,14 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vt8500.dtsi - Device tree file for VIA VT8500 SoC
  *
  * Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
- *
- * Licensed under GPLv2 or later
  */
 
-/include/ "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "via,vt8500";
 
 	cpus {
@@ -19,6 +18,11 @@
 			device_type = "cpu";
 			compatible = "arm,arm926ej-s";
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
 	};
 
 	aliases {

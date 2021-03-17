@@ -31,9 +31,8 @@
 #define USER_DS     ((mm_segment_t) { ASI_AIUS })	/* har har har */
 
 #define get_fs() ((mm_segment_t){(current_thread_info()->current_ds)})
-#define get_ds() (KERNEL_DS)
 
-#define segment_eq(a, b)  ((a).seg == (b).seg)
+#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
 
 #define set_fs(val)								\
 do {										\
@@ -68,7 +67,7 @@ static inline int __access_ok(const void __user * addr, unsigned long size)
 	return 1;
 }
 
-static inline int access_ok(int type, const void __user * addr, unsigned long size)
+static inline int access_ok(const void __user * addr, unsigned long size)
 {
 	return 1;
 }

@@ -228,7 +228,7 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	if (c->mfc_flags & MFC_OFFLOAD)
 		rtm->rtm_flags |= RTNH_F_OFFLOAD;
 
-	mp_attr = nla_nest_start(skb, RTA_MULTIPATH);
+	mp_attr = nla_nest_start_noflag(skb, RTA_MULTIPATH);
 	if (!mp_attr)
 		return -EMSGSIZE;
 
@@ -268,6 +268,79 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(mr_fill_mroute);
 
+static bool mr_mfc_uses_dev(const struct mr_table *mrt,
+			    const struct mr_mfc *c,
+			    const struct net_device *dev)
+{
+	int ct;
+
+	for (ct = c->mfc_un.res.minvif; ct < c->mfc_un.res.maxvif; ct++) {
+		if (VIF_EXISTS(mrt, ct) && c->mfc_un.res.ttls[ct] < 255) {
+			const struct vif_device *vif;
+
+			vif = &mrt->vif_table[ct];
+			if (vif->dev == dev)
+				return true;
+		}
+	}
+	return false;
+}
+
+int mr_table_dump(struct mr_table *mrt, struct sk_buff *skb,
+		  struct netlink_callback *cb,
+		  int (*fill)(struct mr_table *mrt, struct sk_buff *skb,
+			      u32 portid, u32 seq, struct mr_mfc *c,
+			      int cmd, int flags),
+		  spinlock_t *lock, struct fib_dump_filter *filter)
+{
+	unsigned int e = 0, s_e = cb->args[1];
+	unsigned int flags = NLM_F_MULTI;
+	struct mr_mfc *mfc;
+	int err;
+
+	if (filter->filter_set)
+		flags |= NLM_F_DUMP_FILTERED;
+
+	list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
+		if (e < s_e)
+			goto next_entry;
+		if (filter->dev &&
+		    !mr_mfc_uses_dev(mrt, mfc, filter->dev))
+			goto next_entry;
+
+		err = fill(mrt, skb, NETLINK_CB(cb->skb).portid,
+			   cb->nlh->nlmsg_seq, mfc, RTM_NEWROUTE, flags);
+		if (err < 0)
+			goto out;
+next_entry:
+		e++;
+	}
+
+	spin_lock_bh(lock);
+	list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
+		if (e < s_e)
+			goto next_entry2;
+		if (filter->dev &&
+		    !mr_mfc_uses_dev(mrt, mfc, filter->dev))
+			goto next_entry2;
+
+		err = fill(mrt, skb, NETLINK_CB(cb->skb).portid,
+			   cb->nlh->nlmsg_seq, mfc, RTM_NEWROUTE, flags);
+		if (err < 0) {
+			spin_unlock_bh(lock);
+			goto out;
+		}
+next_entry2:
+		e++;
+	}
+	spin_unlock_bh(lock);
+	err = 0;
+out:
+	cb->args[1] = e;
+	return err;
+}
+EXPORT_SYMBOL(mr_table_dump);
+
 int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 		     struct mr_table *(*iter)(struct net *net,
 					      struct mr_table *mrt),
@@ -275,51 +348,36 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 				 struct sk_buff *skb,
 				 u32 portid, u32 seq, struct mr_mfc *c,
 				 int cmd, int flags),
-		     spinlock_t *lock)
+		     spinlock_t *lock, struct fib_dump_filter *filter)
 {
-	unsigned int t = 0, e = 0, s_t = cb->args[0], s_e = cb->args[1];
+	unsigned int t = 0, s_t = cb->args[0];
 	struct net *net = sock_net(skb->sk);
 	struct mr_table *mrt;
-	struct mr_mfc *mfc;
+	int err;
+
+	/* multicast does not track protocol or have route type other
+	 * than RTN_MULTICAST
+	 */
+	if (filter->filter_set) {
+		if (filter->protocol || filter->flags ||
+		    (filter->rt_type && filter->rt_type != RTN_MULTICAST))
+			return skb->len;
+	}
 
 	rcu_read_lock();
 	for (mrt = iter(net, NULL); mrt; mrt = iter(net, mrt)) {
 		if (t < s_t)
 			goto next_table;
-		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
-			if (e < s_e)
-				goto next_entry;
-			if (fill(mrt, skb, NETLINK_CB(cb->skb).portid,
-				 cb->nlh->nlmsg_seq, mfc,
-				 RTM_NEWROUTE, NLM_F_MULTI) < 0)
-				goto done;
-next_entry:
-			e++;
-		}
 
-		spin_lock_bh(lock);
-		list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
-			if (e < s_e)
-				goto next_entry2;
-			if (fill(mrt, skb, NETLINK_CB(cb->skb).portid,
-				 cb->nlh->nlmsg_seq, mfc,
-				 RTM_NEWROUTE, NLM_F_MULTI) < 0) {
-				spin_unlock_bh(lock);
-				goto done;
-			}
-next_entry2:
-			e++;
-		}
-		spin_unlock_bh(lock);
-		e = 0;
-		s_e = 0;
+		err = mr_table_dump(mrt, skb, cb, fill, lock, filter);
+		if (err < 0)
+			break;
+		cb->args[1] = 0;
 next_table:
 		t++;
 	}
-done:
 	rcu_read_unlock();
 
-	cb->args[1] = e;
 	cb->args[0] = t;
 
 	return skb->len;
@@ -328,15 +386,17 @@ EXPORT_SYMBOL(mr_rtm_dumproute);
 
 int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 	    int (*rules_dump)(struct net *net,
-			      struct notifier_block *nb),
+			      struct notifier_block *nb,
+			      struct netlink_ext_ack *extack),
 	    struct mr_table *(*mr_iter)(struct net *net,
 					struct mr_table *mrt),
-	    rwlock_t *mrt_lock)
+	    rwlock_t *mrt_lock,
+	    struct netlink_ext_ack *extack)
 {
 	struct mr_table *mrt;
 	int err;
 
-	err = rules_dump(net, nb);
+	err = rules_dump(net, nb, extack);
 	if (err)
 		return err;
 
@@ -351,17 +411,25 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 			if (!v->dev)
 				continue;
 
-			mr_call_vif_notifier(nb, net, family,
-					     FIB_EVENT_VIF_ADD,
-					     v, vifi, mrt->id);
+			err = mr_call_vif_notifier(nb, family,
+						   FIB_EVENT_VIF_ADD,
+						   v, vifi, mrt->id, extack);
+			if (err)
+				break;
 		}
 		read_unlock(mrt_lock);
 
+		if (err)
+			return err;
+
 		/* Notify on table MFC entries */
-		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list)
-			mr_call_mfc_notifier(nb, net, family,
-					     FIB_EVENT_ENTRY_ADD,
-					     mfc, mrt->id);
+		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
+			err = mr_call_mfc_notifier(nb, family,
+						   FIB_EVENT_ENTRY_ADD,
+						   mfc, mrt->id, extack);
+			if (err)
+				return err;
+		}
 	}
 
 	return 0;

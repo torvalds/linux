@@ -2,8 +2,8 @@
  * Freescale Memory Controller kernel module
  *
  * Support  Power-based SoCs including MPC85xx, MPC86xx, MPC83xx and
- * ARM-based Layerscape SoCs including LS2xxx. Originally split
- * out from mpc85xx_edac EDAC driver.
+ * ARM-based Layerscape SoCs including LS2xxx and LS1021A. Originally
+ * split out from mpc85xx_edac EDAC driver.
  *
  * Author: Dave Jiang <djiang@mvista.com>
  *

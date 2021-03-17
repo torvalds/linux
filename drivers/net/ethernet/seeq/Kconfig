@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # SEEQ device configuration
 #
@@ -6,7 +7,7 @@ config NET_VENDOR_SEEQ
 	bool "SEEQ devices"
 	default y
 	depends on HAS_IOMEM
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -19,14 +20,14 @@ if NET_VENDOR_SEEQ
 config ARM_ETHER3
 	tristate "Acorn/ANT Ether3 support"
 	depends on ARM && ARCH_ACORN
-	---help---
+	help
 	  If you have an Acorn system with one of these network cards, you
 	  should say Y to this option if you wish to use it with Linux.
 
 config SGISEEQ
 	tristate "SGI Seeq ethernet controller support"
 	depends on SGI_HAS_SEEQ
-	---help---
+	help
 	  Say Y here if you have an Seeq based Ethernet network card. This is
 	  used in many Silicon Graphics machines.
 

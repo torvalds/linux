@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <linux/list.h>
+#include <linux/zalloc.h>
 #ifndef REMOTE_UNWIND_LIBUNWIND
 #include <libunwind.h>
 #include <libunwind-ptrace.h>
@@ -34,8 +35,8 @@
 #include "session.h"
 #include "perf_regs.h"
 #include "unwind.h"
+#include "map.h"
 #include "symbol.h"
-#include "util.h"
 #include "debug.h"
 #include "asm/bug.h"
 #include "dso.h"
@@ -242,7 +243,7 @@ struct eh_frame_hdr {
 	 *    encoded_t fde_addr;
 	 * } binary_search_table[fde_count];
 	 */
-	char data[0];
+	char data[];
 } __packed;
 
 static int unwind_spec_ehframe(struct dso *dso, struct machine *machine,
@@ -344,7 +345,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 							__func__,
 							dso->symsrc_filename,
 							debuglink);
-					free(dso->symsrc_filename);
+					zfree(&dso->symsrc_filename);
 				}
 				dso->symsrc_filename = debuglink;
 			} else {
@@ -574,9 +575,10 @@ static int entry(u64 ip, struct thread *thread,
 	struct unwind_entry e;
 	struct addr_location al;
 
-	e.sym = thread__find_symbol(thread, PERF_RECORD_MISC_USER, ip, &al);
-	e.ip  = ip;
-	e.map = al.map;
+	e.ms.sym = thread__find_symbol(thread, PERF_RECORD_MISC_USER, ip, &al);
+	e.ip     = ip;
+	e.ms.map = al.map;
+	e.ms.maps = al.maps;
 
 	pr_debug("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
 		 al.sym ? al.sym->name : "''",
@@ -614,32 +616,26 @@ static unw_accessors_t accessors = {
 	.get_proc_name		= get_proc_name,
 };
 
-static int _unwind__prepare_access(struct thread *thread)
+static int _unwind__prepare_access(struct maps *maps)
 {
-	if (!dwarf_callchain_users)
-		return 0;
-	thread->addr_space = unw_create_addr_space(&accessors, 0);
-	if (!thread->addr_space) {
+	maps->addr_space = unw_create_addr_space(&accessors, 0);
+	if (!maps->addr_space) {
 		pr_err("unwind: Can't create unwind address space.\n");
 		return -ENOMEM;
 	}
 
-	unw_set_caching_policy(thread->addr_space, UNW_CACHE_GLOBAL);
+	unw_set_caching_policy(maps->addr_space, UNW_CACHE_GLOBAL);
 	return 0;
 }
 
-static void _unwind__flush_access(struct thread *thread)
+static void _unwind__flush_access(struct maps *maps)
 {
-	if (!dwarf_callchain_users)
-		return;
-	unw_flush_cache(thread->addr_space, 0, 0);
+	unw_flush_cache(maps->addr_space, 0, 0);
 }
 
-static void _unwind__finish_access(struct thread *thread)
+static void _unwind__finish_access(struct maps *maps)
 {
-	if (!dwarf_callchain_users)
-		return;
-	unw_destroy_addr_space(thread->addr_space);
+	unw_destroy_addr_space(maps->addr_space);
 }
 
 static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
@@ -664,7 +660,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	 */
 	if (max_stack - 1 > 0) {
 		WARN_ONCE(!ui->thread, "WARNING: ui->thread is NULL");
-		addr_space = ui->thread->addr_space;
+		addr_space = ui->thread->maps->addr_space;
 
 		if (addr_space == NULL)
 			return -1;
@@ -713,7 +709,7 @@ static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
-		.machine      = thread->mg->machine,
+		.machine      = thread->maps->machine,
 	};
 
 	if (!data->user_regs.regs)

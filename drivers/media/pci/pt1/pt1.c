@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * driver for Earthsoft PT1/PT2
  *
@@ -5,16 +6,6 @@
  *
  * based on pt1dvr - http://pt1dvr.sourceforge.jp/
  *	by Tomoaki Ishikawa <tomy@users.sourceforge.jp>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -200,15 +191,9 @@ static const u8 va1j5jf8007t_25mhz_configs[][2] = {
 static int config_demod(struct i2c_client *cl, enum pt1_fe_clk clk)
 {
 	int ret;
-	u8 buf[2] = {0x01, 0x80};
 	bool is_sat;
 	const u8 (*cfg_data)[2];
 	int i, len;
-
-	ret = i2c_master_send(cl, buf, 2);
-	if (ret < 0)
-		return ret;
-	usleep_range(30000, 50000);
 
 	is_sat = !strncmp(cl->name, TC90522_I2C_DEV_SAT,
 			  strlen(TC90522_I2C_DEV_SAT));
@@ -256,6 +241,46 @@ static int config_demod(struct i2c_client *cl, enum pt1_fe_clk clk)
 		ret = i2c_master_send(cl, cfg_data[i], 2);
 		if (ret < 0)
 			return ret;
+	}
+	return 0;
+}
+
+/*
+ * Init registers for (each pair of) terrestrial/satellite block in demod.
+ * Note that resetting terr. block also resets its peer sat. block as well.
+ * This function must be called before configuring any demod block
+ * (before pt1_wakeup(), fe->ops.init()).
+ */
+static int pt1_demod_block_init(struct pt1 *pt1)
+{
+	struct i2c_client *cl;
+	u8 buf[2] = {0x01, 0x80};
+	int ret;
+	int i;
+
+	/* reset all terr. & sat. pairs first */
+	for (i = 0; i < PT1_NR_ADAPS; i++) {
+		cl = pt1->adaps[i]->demod_i2c_client;
+		if (strncmp(cl->name, TC90522_I2C_DEV_TER,
+			    strlen(TC90522_I2C_DEV_TER)))
+			continue;
+
+		ret = i2c_master_send(cl, buf, 2);
+		if (ret < 0)
+			return ret;
+		usleep_range(30000, 50000);
+	}
+
+	for (i = 0; i < PT1_NR_ADAPS; i++) {
+		cl = pt1->adaps[i]->demod_i2c_client;
+		if (strncmp(cl->name, TC90522_I2C_DEV_SAT,
+			    strlen(TC90522_I2C_DEV_SAT)))
+			continue;
+
+		ret = i2c_master_send(cl, buf, 2);
+		if (ret < 0)
+			return ret;
+		usleep_range(30000, 50000);
 	}
 	return 0;
 }
@@ -987,6 +1012,10 @@ static int pt1_init_frontends(struct pt1 *pt1)
 			goto tuner_release;
 	}
 
+	ret = pt1_demod_block_init(pt1);
+	if (ret < 0)
+		goto fe_unregister;
+
 	return 0;
 
 tuner_release:
@@ -1188,8 +1217,7 @@ static void pt1_i2c_init(struct pt1 *pt1)
 
 static int pt1_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pt1 *pt1 = pci_get_drvdata(pdev);
+	struct pt1 *pt1 = dev_get_drvdata(dev);
 
 	pt1_init_streams(pt1);
 	pt1_disable_ram(pt1);
@@ -1201,8 +1229,7 @@ static int pt1_suspend(struct device *dev)
 
 static int pt1_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pt1 *pt1 = pci_get_drvdata(pdev);
+	struct pt1 *pt1 = dev_get_drvdata(dev);
 	int ret;
 	int i;
 
@@ -1244,6 +1271,10 @@ static int pt1_resume(struct device *dev)
 	pt1->reset = 0;
 	pt1_update_power(pt1);
 	usleep_range(1000, 2000);
+
+	ret = pt1_demod_block_init(pt1);
+	if (ret < 0)
+		goto resume_err;
 
 	for (i = 0; i < PT1_NR_ADAPS; i++)
 		dvb_frontend_reinitialise(pt1->adaps[i]->fe);
@@ -1354,7 +1385,7 @@ static int pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i2c_adap->algo = &pt1_i2c_algo;
 	i2c_adap->algo_data = NULL;
 	i2c_adap->dev.parent = &pdev->dev;
-	strcpy(i2c_adap->name, DRIVER_NAME);
+	strscpy(i2c_adap->name, DRIVER_NAME, sizeof(i2c_adap->name));
 	i2c_set_adapdata(i2c_adap, pt1);
 	ret = i2c_add_adapter(i2c_adap);
 	if (ret < 0)

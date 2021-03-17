@@ -250,7 +250,7 @@ asmlinkage void trace_trap(unsigned long bp)
 {
 	if ((unsigned long)current->thread.breakinfo.addr == bp) {
 		user_disable_single_step(current);
-		force_sig(SIGTRAP, current);
+		force_sig(SIGTRAP);
 	} else
-		force_sig(SIGILL, current);
+		force_sig(SIGILL);
 }

@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- *   This file is part of the Linux kernel, and is made available under
- *   the terms of the GNU General Public License version 2.
  *
  * ----------------------------------------------------------------------- */
 
@@ -27,7 +25,7 @@ int early_serial_base;
  * error during initialization.
  */
 
-static void __attribute__((section(".inittext"))) serial_putchar(int ch)
+static void __section(".inittext") serial_putchar(int ch)
 {
 	unsigned timeout = 0xffff;
 
@@ -37,7 +35,7 @@ static void __attribute__((section(".inittext"))) serial_putchar(int ch)
 	outb(ch, early_serial_base + TXR);
 }
 
-static void __attribute__((section(".inittext"))) bios_putchar(int ch)
+static void __section(".inittext") bios_putchar(int ch)
 {
 	struct biosregs ireg;
 
@@ -49,7 +47,7 @@ static void __attribute__((section(".inittext"))) bios_putchar(int ch)
 	intcall(0x10, &ireg, NULL);
 }
 
-void __attribute__((section(".inittext"))) putchar(int ch)
+void __section(".inittext") putchar(int ch)
 {
 	if (ch == '\n')
 		putchar('\r');	/* \n -> \r\n */
@@ -60,7 +58,7 @@ void __attribute__((section(".inittext"))) putchar(int ch)
 		serial_putchar(ch);
 }
 
-void __attribute__((section(".inittext"))) puts(const char *str)
+void __section(".inittext") puts(const char *str)
 {
 	while (*str)
 		putchar(*str++);

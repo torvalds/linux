@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC_CELL
 	bool
-	default n
 
 config PPC_CELL_COMMON
 	bool
@@ -22,14 +21,13 @@ config PPC_CELL_NATIVE
 	select IBM_EMAC_RGMII if IBM_EMAC
 	select IBM_EMAC_ZMII if IBM_EMAC #test only
 	select IBM_EMAC_TAH if IBM_EMAC  #test only
-	default n
 
 config PPC_IBM_CELL_BLADE
 	bool "IBM Cell Blade"
 	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
 	select PPC_CELL_NATIVE
 	select PPC_OF_PLATFORM_PCI
-	select PCI
+	select FORCE_PCI
 	select MMIO_NVRAM
 	select PPC_UDBG_16550
 	select UDBG_RTAS_CONSOLE
@@ -46,6 +44,7 @@ config SPU_FS
 	tristate "SPU file system"
 	default m
 	depends on PPC_CELL
+	depends on COREDUMP
 	select SPU_BASE
 	help
 	  The SPU file system is used to access Synergistic Processing
@@ -54,7 +53,6 @@ config SPU_FS
 
 config SPU_BASE
 	bool
-	default n
 	select PPC_COPRO_BASE
 
 config CBE_RAS

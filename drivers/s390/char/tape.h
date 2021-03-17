@@ -238,7 +238,6 @@ extern int tape_do_io(struct tape_device *, struct tape_request *);
 extern int tape_do_io_async(struct tape_device *, struct tape_request *);
 extern int tape_do_io_interruptible(struct tape_device *, struct tape_request *);
 extern int tape_cancel_io(struct tape_device *, struct tape_request *);
-void tape_hotplug_event(struct tape_device *, int major, int action);
 
 static inline int
 tape_do_io_free(struct tape_device *device, struct tape_request *request)
@@ -258,8 +257,6 @@ tape_do_io_async_free(struct tape_device *device, struct tape_request *request)
 	tape_do_io_async(device, request);
 }
 
-extern int tape_oper_handler(int irq, int status);
-extern void tape_noper_handler(int irq, int status);
 extern int tape_open(struct tape_device *);
 extern int tape_release(struct tape_device *);
 extern int tape_mtop(struct tape_device *, int, int);

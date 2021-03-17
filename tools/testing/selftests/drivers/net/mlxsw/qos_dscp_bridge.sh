@@ -36,8 +36,6 @@ source $lib_dir/lib.sh
 
 h1_create()
 {
-	local dscp;
-
 	simple_if_init $h1 192.0.2.1/28
 	tc qdisc add dev $h1 clsact
 	dscp_capture_install $h1 10
@@ -67,6 +65,7 @@ h2_destroy()
 dscp_map()
 {
 	local base=$1; shift
+	local prio
 
 	for prio in {0..7}; do
 		echo app=$prio,5,$((base + prio))
@@ -138,6 +137,7 @@ dscp_ping_test()
 	local prio=$1; shift
 	local dev_10=$1; shift
 	local dev_20=$1; shift
+	local key
 
 	local dscp_10=$(((prio + 10) << 2))
 	local dscp_20=$(((prio + 20) << 2))
@@ -148,9 +148,10 @@ dscp_ping_test()
 	eval "t0s=($(dscp_fetch_stats $dev_10 10)
 		   $(dscp_fetch_stats $dev_20 20))"
 
+	local ping_timeout=$((PING_TIMEOUT * 5))
 	ip vrf exec $vrf_name \
 	   ${PING} -Q $dscp_10 ${sip:+-I $sip} $dip \
-		   -c 10 -i 0.1 -w 2 &> /dev/null
+		   -c 10 -i 0.5 -w $ping_timeout &> /dev/null
 
 	local -A t1s
 	eval "t1s=($(dscp_fetch_stats $dev_10 10)
@@ -174,6 +175,8 @@ dscp_ping_test()
 
 test_dscp()
 {
+	local prio
+
 	for prio in {0..7}; do
 		dscp_ping_test v$h1 192.0.2.1 192.0.2.2 $prio $h1 $h2
 	done

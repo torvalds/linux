@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * si1145.c - Support for Silabs SI1132 and SI1141/2/3/5/6/7 combined ambient
  * light, UV index and proximity sensors
  *
  * Copyright 2014-16 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
  * Copyright 2016 Crestez Dan Leonard <leonard.crestez@intel.com>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * SI1132 (7-bit I2C slave address 0x60)
  * SI1141/2/3 (7-bit I2C slave address 0x5a)
@@ -20,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -172,6 +168,7 @@ struct si1145_part_info {
  * @part_info:	Part information
  * @trig:	Pointer to iio trigger
  * @meas_rate:	Value of MEAS_RATE register. Only set in HW in auto mode
+ * @buffer:	Used to pack data read from sensor.
  */
 struct si1145_data {
 	struct i2c_client *client;
@@ -183,9 +180,17 @@ struct si1145_data {
 	bool autonomous;
 	struct iio_trigger *trig;
 	int meas_rate;
+	/*
+	 * Ensure timestamp will be naturally aligned if present.
+	 * Maximum buffer size (may be only partly used if not all
+	 * channels are enabled):
+	 *   6*2 bytes channels data + 4 bytes alignment +
+	 *   8 bytes timestamp
+	 */
+	u8 buffer[24] __aligned(8);
 };
 
-/**
+/*
  * __si1145_command_reset() - Send CMD_NOP and wait for response 0
  *
  * Does not modify data->rsp_seq
@@ -219,7 +224,7 @@ static int __si1145_command_reset(struct si1145_data *data)
 	}
 }
 
-/**
+/*
  * si1145_command() - Execute a command and poll the response register
  *
  * All conversion overflows are reported as -EOVERFLOW
@@ -444,12 +449,6 @@ static irqreturn_t si1145_trigger_handler(int irq, void *private)
 	struct iio_poll_func *pf = private;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct si1145_data *data = iio_priv(indio_dev);
-	/*
-	 * Maximum buffer size:
-	 *   6*2 bytes channels data + 4 bytes alignment +
-	 *   8 bytes timestamp
-	 */
-	u8 buffer[24];
 	int i, j = 0;
 	int ret;
 	u8 irq_status = 0;
@@ -482,7 +481,7 @@ static irqreturn_t si1145_trigger_handler(int irq, void *private)
 
 		ret = i2c_smbus_read_i2c_block_data_or_emulated(
 				data->client, indio_dev->channels[i].address,
-				sizeof(u16) * run, &buffer[j]);
+				sizeof(u16) * run, &data->buffer[j]);
 		if (ret < 0)
 			goto done;
 		j += run * sizeof(u16);
@@ -497,7 +496,7 @@ static irqreturn_t si1145_trigger_handler(int irq, void *private)
 			goto done;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 		iio_get_time_ns(indio_dev));
 
 done:
@@ -1046,7 +1045,7 @@ static int si1145_initialize(struct si1145_data *data)
 						SI1145_LED_CURRENT_45mA);
 		if (ret < 0)
 			return ret;
-		/* fallthrough */
+		fallthrough;
 	case 2:
 		ret = i2c_smbus_write_byte_data(client,
 						SI1145_REG_PS_LED21,
@@ -1175,12 +1174,10 @@ static bool si1145_validate_scan_mask(struct iio_dev *indio_dev,
 
 static const struct iio_buffer_setup_ops si1145_buffer_setup_ops = {
 	.preenable = si1145_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.validate_scan_mask = si1145_validate_scan_mask,
 };
 
-/**
+/*
  * si1145_trigger_set_state() - Set trigger state
  *
  * When not using triggers interrupts are disabled and measurement rate is
@@ -1264,7 +1261,7 @@ static int si1145_probe_trigger(struct iio_dev *indio_dev)
 		return ret;
 	}
 
-	ret = iio_trigger_register(trig);
+	ret = devm_iio_trigger_register(&client->dev, trig);
 	if (ret)
 		return ret;
 
@@ -1272,16 +1269,6 @@ static int si1145_probe_trigger(struct iio_dev *indio_dev)
 	indio_dev->trig = iio_trigger_get(data->trig);
 
 	return 0;
-}
-
-static void si1145_remove_trigger(struct iio_dev *indio_dev)
-{
-	struct si1145_data *data = iio_priv(indio_dev);
-
-	if (data->trig) {
-		iio_trigger_unregister(data->trig);
-		data->trig = NULL;
-	}
 }
 
 static int si1145_probe(struct i2c_client *client,
@@ -1321,7 +1308,6 @@ static int si1145_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->channels = data->part_info->channels;
 	indio_dev->num_channels = data->part_info->num_channels;
@@ -1335,7 +1321,8 @@ static int si1145_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+	ret = devm_iio_triggered_buffer_setup(&client->dev,
+		indio_dev, NULL,
 		si1145_trigger_handler, &si1145_buffer_setup_ops);
 	if (ret < 0)
 		return ret;
@@ -1343,23 +1330,12 @@ static int si1145_probe(struct i2c_client *client,
 	if (client->irq) {
 		ret = si1145_probe_trigger(indio_dev);
 		if (ret < 0)
-			goto error_free_buffer;
+			return ret;
 	} else {
 		dev_info(&client->dev, "no irq, using polling\n");
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto error_free_trigger;
-
-	return 0;
-
-error_free_trigger:
-	si1145_remove_trigger(indio_dev);
-error_free_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return ret;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id si1145_ids[] = {
@@ -1374,23 +1350,11 @@ static const struct i2c_device_id si1145_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, si1145_ids);
 
-static int si1145_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	si1145_remove_trigger(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
-}
-
 static struct i2c_driver si1145_driver = {
 	.driver = {
 		.name   = "si1145",
 	},
 	.probe  = si1145_probe,
-	.remove = si1145_remove,
 	.id_table = si1145_ids,
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at76c503/at76c505 USB driver
  *
@@ -9,11 +10,6 @@
  * Copyright (c) 2007 Kalle Valo <kalle.valo@iki.fi>
  * Copyright (c) 2010 Sebastian Smolorz <sesmo@gmx.net>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
  * This file is part of the Berlios driver for WLAN USB devices based on the
  * Atmel AT76C503A/505/505A.
  *
@@ -21,8 +17,7 @@
  *
  * TODO list is at the wiki:
  *
- * http://wireless.kernel.org/en/users/Drivers/at76c50x-usb#TODO
- *
+ * https://wireless.wiki.kernel.org/en/users/Drivers/at76c50x-usb#TODO
  */
 
 #include <linux/init.h>
@@ -437,7 +432,7 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 
 		case STATE_DFU_DOWNLOAD_IDLE:
 			at76_dbg(DBG_DFU, "DOWNLOAD...");
-			/* fall through */
+			fallthrough;
 		case STATE_DFU_IDLE:
 			at76_dbg(DBG_DFU, "DFU IDLE");
 
@@ -1204,7 +1199,6 @@ static void at76_rx_callback(struct urb *urb)
 {
 	struct at76_priv *priv = urb->context;
 
-	priv->rx_tasklet.data = (unsigned long)urb;
 	tasklet_schedule(&priv->rx_tasklet);
 }
 
@@ -1550,10 +1544,10 @@ exit:
 	return ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
 }
 
-static void at76_rx_tasklet(unsigned long param)
+static void at76_rx_tasklet(struct tasklet_struct *t)
 {
-	struct urb *urb = (struct urb *)param;
-	struct at76_priv *priv = urb->context;
+	struct at76_priv *priv = from_tasklet(priv, t, rx_tasklet);
+	struct urb *urb = priv->rx_urb;
 	struct at76_rx_buffer *buf;
 	struct ieee80211_rx_status rx_status = { 0 };
 
@@ -2220,7 +2214,7 @@ static struct at76_priv *at76_alloc_new_device(struct usb_device *udev)
 	INIT_WORK(&priv->work_join_bssid, at76_work_join_bssid);
 	INIT_DELAYED_WORK(&priv->dwork_hw_scan, at76_dwork_hw_scan);
 
-	tasklet_init(&priv->rx_tasklet, at76_rx_tasklet, 0);
+	tasklet_setup(&priv->rx_tasklet, at76_rx_tasklet);
 
 	priv->pm_mode = AT76_PM_OFF;
 	priv->pm_period = 0;
@@ -2241,7 +2235,7 @@ static int at76_alloc_urbs(struct at76_priv *priv,
 	at76_dbg(DBG_PROC_ENTRY, "%s: ENTER", __func__);
 
 	at76_dbg(DBG_URB, "%s: NumEndpoints %d ", __func__,
-		 interface->altsetting[0].desc.bNumEndpoints);
+		 interface->cur_altsetting->desc.bNumEndpoints);
 
 	ep_in = NULL;
 	ep_out = NULL;
@@ -2585,8 +2579,8 @@ static int __init at76_mod_init(void)
 	if (result < 0)
 		printk(KERN_ERR DRIVER_NAME
 		       ": usb_register failed (status %d)\n", result);
-
-	led_trigger_register_simple("at76_usb-tx", &ledtrig_tx);
+	else
+		led_trigger_register_simple("at76_usb-tx", &ledtrig_tx);
 	return result;
 }
 

@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
   Interval Trees
   (C) 2012  Michel Lespinasse <walken@google.com>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
   include/linux/interval_tree_generic.h
 */
@@ -42,26 +30,8 @@
 									      \
 /* Callbacks for augmented rbtree insert and remove */			      \
 									      \
-static inline ITTYPE ITPREFIX ## _compute_subtree_last(ITSTRUCT *node)	      \
-{									      \
-	ITTYPE max = ITLAST(node), subtree_last;			      \
-	if (node->ITRB.rb_left) {					      \
-		subtree_last = rb_entry(node->ITRB.rb_left,		      \
-					ITSTRUCT, ITRB)->ITSUBTREE;	      \
-		if (max < subtree_last)					      \
-			max = subtree_last;				      \
-	}								      \
-	if (node->ITRB.rb_right) {					      \
-		subtree_last = rb_entry(node->ITRB.rb_right,		      \
-					ITSTRUCT, ITRB)->ITSUBTREE;	      \
-		if (max < subtree_last)					      \
-			max = subtree_last;				      \
-	}								      \
-	return max;							      \
-}									      \
-									      \
-RB_DECLARE_CALLBACKS(static, ITPREFIX ## _augment, ITSTRUCT, ITRB,	      \
-		     ITTYPE, ITSUBTREE, ITPREFIX ## _compute_subtree_last)    \
+RB_DECLARE_CALLBACKS_MAX(static, ITPREFIX ## _augment,			      \
+			 ITSTRUCT, ITRB, ITTYPE, ITSUBTREE, ITLAST)	      \
 									      \
 /* Insert / remove interval nodes from the tree */			      \
 									      \

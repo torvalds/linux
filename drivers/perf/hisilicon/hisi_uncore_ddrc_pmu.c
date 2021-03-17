@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HiSilicon SoC DDRC uncore Hardware event counters support
  *
@@ -6,10 +7,6 @@
  *         Anurup M <anurup.m@huawei.com>
  *
  * This code is based on the uncore PMUs like arm-cci and arm-ccn.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/acpi.h>
 #include <linux/bug.h>
@@ -30,8 +27,8 @@
 #define DDRC_FLUX_RCMD          0x38c
 #define DDRC_PRE_CMD            0x3c0
 #define DDRC_ACT_CMD            0x3c4
-#define DDRC_BNK_CHG            0x3c8
 #define DDRC_RNK_CHG            0x3cc
+#define DDRC_RW_CHG             0x3d0
 #define DDRC_EVENT_CTRL         0x6C0
 #define DDRC_INT_MASK		0x6c8
 #define DDRC_INT_STATUS		0x6cc
@@ -51,7 +48,7 @@
 
 static const u32 ddrc_reg_off[] = {
 	DDRC_FLUX_WR, DDRC_FLUX_RD, DDRC_FLUX_WCMD, DDRC_FLUX_RCMD,
-	DDRC_PRE_CMD, DDRC_ACT_CMD, DDRC_BNK_CHG, DDRC_RNK_CHG
+	DDRC_PRE_CMD, DDRC_ACT_CMD, DDRC_RNK_CHG, DDRC_RW_CHG
 };
 
 /*
@@ -220,10 +217,8 @@ static int hisi_ddrc_pmu_init_irq(struct hisi_pmu *ddrc_pmu,
 
 	/* Read and init IRQ */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "DDRC PMU get irq fail; irq:%d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, hisi_ddrc_pmu_isr,
 			       IRQF_NOBALANCING | IRQF_NO_THREAD,
@@ -248,8 +243,6 @@ MODULE_DEVICE_TABLE(acpi, hisi_ddrc_pmu_acpi_match);
 static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *ddrc_pmu)
 {
-	struct resource *res;
-
 	/*
 	 * Use the SCCL_ID and DDRC channel ID to identify the
 	 * DDRC PMU, while SCCL_ID is in MPIDR[aff2].
@@ -268,8 +261,7 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 	/* DDRC PMUs only share the same SCCL */
 	ddrc_pmu->ccl_id = -1;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ddrc_pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	ddrc_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ddrc_pmu->base)) {
 		dev_err(&pdev->dev, "ioremap failed for ddrc_pmu resource\n");
 		return PTR_ERR(ddrc_pmu->base);
@@ -386,6 +378,7 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 			      ddrc_pmu->sccl_id, ddrc_pmu->index_id);
 	ddrc_pmu->pmu = (struct pmu) {
 		.name		= name,
+		.module		= THIS_MODULE,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= hisi_uncore_pmu_event_init,
 		.pmu_enable	= hisi_uncore_pmu_enable,
@@ -396,13 +389,15 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 		.stop		= hisi_uncore_pmu_stop,
 		.read		= hisi_uncore_pmu_read,
 		.attr_groups	= hisi_ddrc_pmu_attr_groups,
+		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
 	ret = perf_pmu_register(&ddrc_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(ddrc_pmu->dev, "DDRC PMU register failed!\n");
-		cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-					    &ddrc_pmu->node);
+		cpuhp_state_remove_instance_nocalls(
+			CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE, &ddrc_pmu->node);
+		irq_set_affinity_hint(ddrc_pmu->irq, NULL);
 	}
 
 	return ret;
@@ -413,8 +408,9 @@ static int hisi_ddrc_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *ddrc_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&ddrc_pmu->pmu);
-	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-				    &ddrc_pmu->node);
+	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
+					    &ddrc_pmu->node);
+	irq_set_affinity_hint(ddrc_pmu->irq, NULL);
 
 	return 0;
 }
@@ -423,6 +419,7 @@ static struct platform_driver hisi_ddrc_pmu_driver = {
 	.driver = {
 		.name = "hisi_ddrc_pmu",
 		.acpi_match_table = ACPI_PTR(hisi_ddrc_pmu_acpi_match),
+		.suppress_bind_attrs = true,
 	},
 	.probe = hisi_ddrc_pmu_probe,
 	.remove = hisi_ddrc_pmu_remove,

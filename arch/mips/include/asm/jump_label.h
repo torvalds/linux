@@ -11,6 +11,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
+#include <asm/isa-rev.h>
 
 #define JUMP_LABEL_NOP_SIZE 4
 
@@ -21,15 +22,20 @@
 #endif
 
 #ifdef CONFIG_CPU_MICROMIPS
-#define NOP_INSN "nop32"
+# define B_INSN "b32"
+# define J_INSN "j32"
+#elif MIPS_ISA_REV >= 6
+# define B_INSN "bc"
+# define J_INSN "bc"
 #else
-#define NOP_INSN "nop"
+# define B_INSN "b"
+# define J_INSN "j"
 #endif
 
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
-	asm_volatile_goto("1:\t" NOP_INSN "\n\t"
-		"nop\n\t"
+	asm_volatile_goto("1:\t" B_INSN " 2f\n\t"
+		"2:\t.insn\n\t"
 		".pushsection __jump_table,  \"aw\"\n\t"
 		WORD_INSN " 1b, %l[l_yes], %0\n\t"
 		".popsection\n\t"
@@ -42,8 +48,7 @@ l_yes:
 
 static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
 {
-	asm_volatile_goto("1:\tj %l[l_yes]\n\t"
-		"nop\n\t"
+	asm_volatile_goto("1:\t" J_INSN " %l[l_yes]\n\t"
 		".pushsection __jump_table,  \"aw\"\n\t"
 		WORD_INSN " 1b, %l[l_yes], %0\n\t"
 		".popsection\n\t"

@@ -1,11 +1,11 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # ftracetest - Ftrace test shell scripts
 #
 # Copyright (C) Hitachi Ltd., 2014
 #  Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 #
-# Released under the terms of the GPL v2.
 
 usage() { # errno [message]
 [ ! -z "$2" ] && echo $2
@@ -17,21 +17,47 @@ echo "		-v|--verbose Increase verbosity of test messages"
 echo "		-vv        Alias of -v -v (Show all results in stdout)"
 echo "		-vvv       Alias of -v -v -v (Show all commands immediately)"
 echo "		--fail-unsupported Treat UNSUPPORTED as a failure"
+echo "		--fail-unresolved Treat UNRESOLVED as a failure"
 echo "		-d|--debug Debug mode (trace all shell commands)"
 echo "		-l|--logdir <dir> Save logs on the <dir>"
 echo "		            If <dir> is -, all logs output in console only"
 exit $1
 }
 
+# default error
+err_ret=1
+
+# kselftest skip code is 4
+err_skip=4
+
+# cgroup RT scheduling prevents chrt commands from succeeding, which
+# induces failures in test wakeup tests.  Disable for the duration of
+# the tests.
+
+readonly sched_rt_runtime=/proc/sys/kernel/sched_rt_runtime_us
+
+sched_rt_runtime_orig=$(cat $sched_rt_runtime)
+
+setup() {
+  echo -1 > $sched_rt_runtime
+}
+
+cleanup() {
+  echo $sched_rt_runtime_orig > $sched_rt_runtime
+}
+
 errexit() { # message
   echo "Error: $1" 1>&2
-  exit 1
+  cleanup
+  exit $err_ret
 }
 
 # Ensuring user privilege
 if [ `id -u` -ne 0 ]; then
   errexit "this must be run by root user"
 fi
+
+setup
 
 # Utilities
 absdir() { # file_path
@@ -60,17 +86,35 @@ parse_opts() { # opts
       shift 1
     ;;
     --verbose|-v|-vv|-vvv)
+      if [ $VERBOSE -eq -1 ]; then
+	usage "--console can not use with --verbose"
+      fi
       VERBOSE=$((VERBOSE + 1))
       [ $1 = '-vv' ] && VERBOSE=$((VERBOSE + 1))
       [ $1 = '-vvv' ] && VERBOSE=$((VERBOSE + 2))
+      shift 1
+    ;;
+    --console)
+      if [ $VERBOSE -ne 0 ]; then
+	usage "--console can not use with --verbose"
+      fi
+      VERBOSE=-1
       shift 1
     ;;
     --debug|-d)
       DEBUG=1
       shift 1
     ;;
+    --stop-fail)
+      STOP_FAILURE=1
+      shift 1
+    ;;
     --fail-unsupported)
       UNSUPPORTED_RESULT=1
+      shift 1
+    ;;
+    --fail-unresolved)
+      UNRESOLVED_RESULT=1
       shift 1
     ;;
     --logdir|-l)
@@ -102,11 +146,31 @@ parse_opts() { # opts
 }
 
 # Parameters
-DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' ' | head -1`
-if [ -z "$DEBUGFS_DIR" ]; then
-    TRACING_DIR=`grep tracefs /proc/mounts | cut -f2 -d' ' | head -1`
-else
-    TRACING_DIR=$DEBUGFS_DIR/tracing
+TRACING_DIR=`grep tracefs /proc/mounts | cut -f2 -d' ' | head -1`
+if [ -z "$TRACING_DIR" ]; then
+    DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' ' | head -1`
+    if [ -z "$DEBUGFS_DIR" ]; then
+	# If tracefs exists, then so does /sys/kernel/tracing
+	if [ -d "/sys/kernel/tracing" ]; then
+	    mount -t tracefs nodev /sys/kernel/tracing ||
+	      errexit "Failed to mount /sys/kernel/tracing"
+	    TRACING_DIR="/sys/kernel/tracing"
+	# If debugfs exists, then so does /sys/kernel/debug
+	elif [ -d "/sys/kernel/debug" ]; then
+	    mount -t debugfs nodev /sys/kernel/debug ||
+	      errexit "Failed to mount /sys/kernel/debug"
+	    TRACING_DIR="/sys/kernel/debug/tracing"
+	else
+	    err_ret=$err_skip
+	    errexit "debugfs and tracefs are not configured in this kernel"
+	fi
+    else
+	TRACING_DIR="$DEBUGFS_DIR/tracing"
+    fi
+fi
+if [ ! -d "$TRACING_DIR" ]; then
+    err_ret=$err_skip
+    errexit "ftrace is not configured in this kernel"
 fi
 
 TOP_DIR=`absdir $0`
@@ -117,6 +181,8 @@ KEEP_LOG=0
 DEBUG=0
 VERBOSE=0
 UNSUPPORTED_RESULT=0
+UNRESOLVED_RESULT=0
+STOP_FAILURE=0
 # Parse command-line options
 parse_opts $*
 
@@ -137,11 +203,38 @@ else
   date > $LOG_FILE
 fi
 
+# Define text colors
+# Check available colors on the terminal, if any
+ncolors=`tput colors 2>/dev/null || echo 0`
+color_reset=
+color_red=
+color_green=
+color_blue=
+# If stdout exists and number of colors is eight or more, use them
+if [ -t 1 -a "$ncolors" -ge 8 ]; then
+  color_reset="\033[0m"
+  color_red="\033[31m"
+  color_green="\033[32m"
+  color_blue="\033[34m"
+fi
+
+strip_esc() {
+  # busybox sed implementation doesn't accept "\x1B", so use [:cntrl:] instead.
+  sed -E "s/[[:cntrl:]]\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"
+}
+
 prlog() { # messages
-  [ -z "$LOG_FILE" ] && echo "$@" || echo "$@" | tee -a $LOG_FILE
+  newline="\n"
+  if [ "$1" = "-n" ] ; then
+    newline=
+    shift
+  fi
+  printf "$*$newline"
+  [ "$LOG_FILE" ] && printf "$*$newline" | strip_esc >> $LOG_FILE
 }
 catlog() { #file
-  [ -z "$LOG_FILE" ] && cat $1 || cat $1 | tee -a $LOG_FILE
+  cat $1
+  [ "$LOG_FILE" ] && cat $1 | strip_esc >> $LOG_FILE
 }
 prlog "=== Ftrace unit tests ==="
 
@@ -167,10 +260,17 @@ TOTAL_RESULT=0
 
 INSTANCE=
 CASENO=0
+
 testcase() { # testfile
   CASENO=$((CASENO+1))
-  desc=`grep "^#[ \t]*description:" $1 | cut -f2 -d:`
+  desc=`grep "^#[ \t]*description:" $1 | cut -f2- -d:`
   prlog -n "[$CASENO]$INSTANCE$desc"
+}
+
+checkreq() { # testfile
+  requires=`grep "^#[ \t]*requires:" $1 | cut -f2- -d:`
+  # Use eval to pass quoted-patterns correctly.
+  eval check_requires "$requires"
 }
 
 test_on_instance() { # testfile
@@ -180,37 +280,37 @@ test_on_instance() { # testfile
 eval_result() { # sigval
   case $1 in
     $PASS)
-      prlog "	[PASS]"
+      prlog "	[${color_green}PASS${color_reset}]"
       PASSED_CASES="$PASSED_CASES $CASENO"
       return 0
     ;;
     $FAIL)
-      prlog "	[FAIL]"
+      prlog "	[${color_red}FAIL${color_reset}]"
       FAILED_CASES="$FAILED_CASES $CASENO"
       return 1 # this is a bug.
     ;;
     $UNRESOLVED)
-      prlog "	[UNRESOLVED]"
+      prlog "	[${color_blue}UNRESOLVED${color_reset}]"
       UNRESOLVED_CASES="$UNRESOLVED_CASES $CASENO"
-      return 1 # this is a kind of bug.. something happened.
+      return $UNRESOLVED_RESULT # depends on use case
     ;;
     $UNTESTED)
-      prlog "	[UNTESTED]"
+      prlog "	[${color_blue}UNTESTED${color_reset}]"
       UNTESTED_CASES="$UNTESTED_CASES $CASENO"
       return 0
     ;;
     $UNSUPPORTED)
-      prlog "	[UNSUPPORTED]"
+      prlog "	[${color_blue}UNSUPPORTED${color_reset}]"
       UNSUPPORTED_CASES="$UNSUPPORTED_CASES $CASENO"
       return $UNSUPPORTED_RESULT # depends on use case
     ;;
     $XFAIL)
-      prlog "	[XFAIL]"
+      prlog "	[${color_green}XFAIL${color_reset}]"
       XFAILED_CASES="$XFAILED_CASES $CASENO"
       return 0
     ;;
     *)
-      prlog "	[UNDEFINED]"
+      prlog "	[${color_blue}UNDEFINED${color_reset}]"
       UNDEFINED_CASES="$UNDEFINED_CASES $CASENO"
       return 1 # this must be a test bug
     ;;
@@ -262,23 +362,27 @@ trap 'SIG_RESULT=$XFAIL' $SIG_XFAIL
 
 __run_test() { # testfile
   # setup PID and PPID, $$ is not updated.
-  (cd $TRACING_DIR; read PID _ < /proc/self/stat; set -e; set -x; initialize_ftrace; . $1)
+  (cd $TRACING_DIR; read PID _ < /proc/self/stat; set -e; set -x;
+   checkreq $1; initialize_ftrace; . $1)
   [ $? -ne 0 ] && kill -s $SIG_FAIL $SIG_PID
 }
 
 # Run one test case
 run_test() { # testfile
   local testname=`basename $1`
+  testcase $1
   if [ ! -z "$LOG_FILE" ] ; then
-    local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
+    local testlog=`mktemp $LOG_DIR/${CASENO}-${testname}-log.XXXXXX`
   else
     local testlog=/proc/self/fd/1
   fi
   export TMPDIR=`mktemp -d /tmp/ftracetest-dir.XXXXXX`
-  testcase $1
+  export FTRACETEST_ROOT=$TOP_DIR
   echo "execute$INSTANCE: "$1 > $testlog
   SIG_RESULT=0
-  if [ -z "$LOG_FILE" ]; then
+  if [ $VERBOSE -eq -1 ]; then
+    __run_test $1
+  elif [ -z "$LOG_FILE" ]; then
     __run_test $1 2>&1
   elif [ $VERBOSE -ge 3 ]; then
     __run_test $1 | tee -a $testlog 2>&1
@@ -304,6 +408,10 @@ run_test() { # testfile
 # Main loop
 for t in $TEST_CASES; do
   run_test $t
+  if [ $STOP_FAILURE -ne 0 -a $TOTAL_RESULT -ne 0 ]; then
+    echo "A failure detected. Stop test."
+    exit 1
+  fi
 done
 
 # Test on instance loop
@@ -315,7 +423,12 @@ for t in $TEST_CASES; do
   run_test $t
   rmdir $TRACING_DIR
   TRACING_DIR=$SAVED_TRACING_DIR
+  if [ $STOP_FAILURE -ne 0 -a $TOTAL_RESULT -ne 0 ]; then
+    echo "A failure detected. Stop test."
+    exit 1
+  fi
 done
+(cd $TRACING_DIR; initialize_ftrace) # for cleanup
 
 prlog ""
 prlog "# of passed: " `echo $PASSED_CASES | wc -w`
@@ -325,6 +438,8 @@ prlog "# of untested: " `echo $UNTESTED_CASES | wc -w`
 prlog "# of unsupported: " `echo $UNSUPPORTED_CASES | wc -w`
 prlog "# of xfailed: " `echo $XFAILED_CASES | wc -w`
 prlog "# of undefined(test bug): " `echo $UNDEFINED_CASES | wc -w`
+
+cleanup
 
 # if no error, return 0
 exit $TOTAL_RESULT

@@ -1,4 +1,5 @@
-#include <linux/bootmem.h>
+// SPDX-License-Identifier: GPL-2.0-only
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
@@ -70,8 +71,9 @@ unsigned long __pfn_to_mfn(unsigned long pfn)
 		entry = rb_entry(n, struct xen_p2m_entry, rbnode_phys);
 		if (entry->pfn <= pfn &&
 				entry->pfn + entry->nr_pages > pfn) {
+			unsigned long mfn = entry->mfn + (pfn - entry->pfn);
 			read_unlock_irqrestore(&p2m_lock, irqflags);
-			return entry->mfn + (pfn - entry->pfn);
+			return mfn;
 		}
 		if (pfn < entry->pfn)
 			n = n->rb_left;
@@ -93,8 +95,10 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 	for (i = 0; i < count; i++) {
 		if (map_ops[i].status)
 			continue;
-		set_phys_to_machine(map_ops[i].host_addr >> XEN_PAGE_SHIFT,
-				    map_ops[i].dev_bus_addr >> XEN_PAGE_SHIFT);
+		if (unlikely(!set_phys_to_machine(map_ops[i].host_addr >> XEN_PAGE_SHIFT,
+				    map_ops[i].dev_bus_addr >> XEN_PAGE_SHIFT))) {
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -156,6 +160,7 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 	rc = xen_add_phys_to_mach_entry(p2m_entry);
 	if (rc < 0) {
 		write_unlock_irqrestore(&p2m_lock, irqflags);
+		kfree(p2m_entry);
 		return false;
 	}
 	write_unlock_irqrestore(&p2m_lock, irqflags);

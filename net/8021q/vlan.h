@@ -36,7 +36,7 @@ struct vlan_info {
 	struct rcu_head		rcu;
 };
 
-static inline unsigned int vlan_proto_idx(__be16 proto)
+static inline int vlan_proto_idx(__be16 proto)
 {
 	switch (proto) {
 	case htons(ETH_P_8021Q):
@@ -44,8 +44,8 @@ static inline unsigned int vlan_proto_idx(__be16 proto)
 	case htons(ETH_P_8021AD):
 		return VLAN_PROTO_8021AD;
 	default:
-		BUG();
-		return 0;
+		WARN(1, "invalid VLAN protocol: 0x%04x\n", ntohs(proto));
+		return -EINVAL;
 	}
 }
 
@@ -64,17 +64,24 @@ static inline struct net_device *vlan_group_get_device(struct vlan_group *vg,
 						       __be16 vlan_proto,
 						       u16 vlan_id)
 {
-	return __vlan_group_get_device(vg, vlan_proto_idx(vlan_proto), vlan_id);
+	int pidx = vlan_proto_idx(vlan_proto);
+
+	if (pidx < 0)
+		return NULL;
+
+	return __vlan_group_get_device(vg, pidx, vlan_id);
 }
 
 static inline void vlan_group_set_device(struct vlan_group *vg,
 					 __be16 vlan_proto, u16 vlan_id,
 					 struct net_device *dev)
 {
+	int pidx = vlan_proto_idx(vlan_proto);
 	struct net_device **array;
-	if (!vg)
+
+	if (!vg || pidx < 0)
 		return;
-	array = vg->vlan_devices_arrays[vlan_proto_idx(vlan_proto)]
+	array = vg->vlan_devices_arrays[pidx]
 				       [vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
 	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
 }
@@ -90,6 +97,18 @@ static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
 					     vlan_proto, vlan_id);
 
 	return NULL;
+}
+
+static inline netdev_features_t vlan_tnl_features(struct net_device *real_dev)
+{
+	netdev_features_t ret;
+
+	ret = real_dev->hw_enc_features &
+	      (NETIF_F_CSUM_MASK | NETIF_F_ALL_TSO | NETIF_F_GSO_ENCAP_ALL);
+
+	if ((ret & NETIF_F_GSO_ENCAP_ALL) && (ret & NETIF_F_CSUM_MASK))
+		return (ret & ~NETIF_F_CSUM_MASK) | NETIF_F_HW_CSUM;
+	return 0;
 }
 
 #define vlan_group_for_each_dev(grp, i, dev) \
@@ -114,6 +133,7 @@ int vlan_check_real_dev(struct net_device *real_dev,
 void vlan_setup(struct net_device *dev);
 int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack);
 void unregister_vlan_dev(struct net_device *dev, struct list_head *head);
+void vlan_dev_uninit(struct net_device *dev);
 bool vlan_dev_inherit_address(struct net_device *dev,
 			      struct net_device *real_dev);
 

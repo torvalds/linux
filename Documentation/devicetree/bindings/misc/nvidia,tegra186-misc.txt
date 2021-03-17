@@ -1,11 +1,13 @@
-NVIDIA Tegra186 MISC register block
+NVIDIA Tegra186 (and later) MISC register block
 
-The MISC register block found on Tegra186 SoCs contains registers that can be
-used to identify a given chip and various strapping options.
+The MISC register block found on Tegra186 and later SoCs contains registers
+that can be used to identify a given chip and various strapping options.
 
 Required properties:
 - compatible: Must be:
   - Tegra186: "nvidia,tegra186-misc"
+  - Tegra194: "nvidia,tegra194-misc"
+  - Tegra234: "nvidia,tegra234-misc"
 - reg: Should contain 2 entries: The first entry gives the physical address
        and length of the register region which contains revision and debug
        features. The second entry specifies the physical address and length

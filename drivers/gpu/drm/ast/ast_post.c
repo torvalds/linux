@@ -26,17 +26,20 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 
-#include <drm/drmP.h>
-#include "ast_drv.h"
+#include <linux/delay.h>
+#include <linux/pci.h>
+
+#include <drm/drm_print.h>
 
 #include "ast_dram_tables.h"
+#include "ast_drv.h"
 
 static void ast_post_chip_2300(struct drm_device *dev);
 static void ast_post_chip_2500(struct drm_device *dev);
 
 void ast_enable_vga(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 
 	ast_io_write8(ast, AST_IO_VGA_ENABLE_PORT, 0x01);
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x01);
@@ -44,24 +47,20 @@ void ast_enable_vga(struct drm_device *dev)
 
 void ast_enable_mmio(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa1, 0xff, 0x04);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
 }
 
 
 bool ast_is_vga_enabled(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	u8 ch;
 
-	if (ast->chip == AST1180) {
-		/* TODO 1180 */
-	} else {
-		ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
-		return !!(ch & 0x01);
-	}
-	return false;
+	ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
+
+	return !!(ch & 0x01);
 }
 
 static const u8 extreginfo[] = { 0x0f, 0x04, 0x1c, 0xff };
@@ -71,7 +70,7 @@ static const u8 extreginfo_ast2300[] = { 0x0f, 0x04, 0x1f, 0xff };
 static void
 ast_set_def_ext_reg(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	u8 i, index, reg;
 	const u8 *ext_reg_info;
 
@@ -273,7 +272,7 @@ cbr_start:
 
 static void ast_init_dram_reg(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	u8 j;
 	u32 data, temp, i;
 	const struct ast_dramstruct *dram_reg_info;
@@ -366,12 +365,12 @@ static void ast_init_dram_reg(struct drm_device *dev)
 
 void ast_post_gpu(struct drm_device *dev)
 {
+	struct ast_private *ast = to_ast_private(dev);
 	u32 reg;
-	struct ast_private *ast = dev->dev_private;
 
-	pci_read_config_dword(ast->dev->pdev, 0x04, &reg);
+	pci_read_config_dword(dev->pdev, 0x04, &reg);
 	reg |= 0x3;
-	pci_write_config_dword(ast->dev->pdev, 0x04, reg);
+	pci_write_config_dword(dev->pdev, 0x04, reg);
 
 	ast_enable_vga(dev);
 	ast_open_key(ast);
@@ -1597,7 +1596,7 @@ ddr2_init_start:
 
 static void ast_post_chip_2300(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	struct ast2300_dram_param param;
 	u32 temp;
 	u8 reg;
@@ -2029,7 +2028,7 @@ static bool ast_dram_init_2500(struct ast_private *ast)
 
 void ast_post_chip_2500(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	u32 temp;
 	u8 reg;
 
@@ -2068,7 +2067,7 @@ void ast_post_chip_2500(struct drm_device *dev)
 		}
 
 		if (!ast_dram_init_2500(ast))
-			DRM_ERROR("DRAM init failed !\n");
+			drm_err(dev, "DRAM init failed !\n");
 
 		temp = ast_mindwm(ast, 0x1e6e2040);
 		ast_moutdwm(ast, 0x1e6e2040, temp | 0x40);

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Xilinx XPS PS/2 device driver
  *
  * (c) 2005 MontaVista Software, Inc.
  * (c) 2008 Xilinx, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -245,7 +237,7 @@ static int xps2_of_probe(struct platform_device *ofdev)
 	unsigned int irq;
 	int error;
 
-	dev_info(dev, "Device Tree Probing \'%s\'\n", dev->of_node->name);
+	dev_info(dev, "Device Tree Probing \'%pOFn\'\n", dev->of_node);
 
 	/* Get iospace for the device */
 	error = of_address_to_resource(dev->of_node, 0, &r_mem);

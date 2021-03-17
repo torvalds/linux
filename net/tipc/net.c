@@ -42,6 +42,7 @@
 #include "node.h"
 #include "bcast.h"
 #include "netlink.h"
+#include "monitor.h"
 
 /*
  * The TIPC locking policy is designed to ensure a very fine locking
@@ -104,6 +105,8 @@
  *     - A local spin_lock protecting the queue of subscriber events.
 */
 
+static void tipc_net_finalize(struct net *net, u32 addr);
+
 int tipc_net_init(struct net *net, u8 *node_id, u32 addr)
 {
 	if (tipc_own_id(net)) {
@@ -119,27 +122,42 @@ int tipc_net_init(struct net *net, u8 *node_id, u32 addr)
 	return 0;
 }
 
-void tipc_net_finalize(struct net *net, u32 addr)
+static void tipc_net_finalize(struct net *net, u32 addr)
 {
 	struct tipc_net *tn = tipc_net(net);
 
-	if (!cmpxchg(&tn->node_addr, 0, addr)) {
-		tipc_set_node_addr(net, addr);
-		tipc_named_reinit(net);
-		tipc_sk_reinit(net);
-		tipc_nametbl_publish(net, TIPC_CFG_SRV, addr, addr,
-				     TIPC_CLUSTER_SCOPE, 0, addr);
-	}
+	if (cmpxchg(&tn->node_addr, 0, addr))
+		return;
+	tipc_set_node_addr(net, addr);
+	tipc_named_reinit(net);
+	tipc_sk_reinit(net);
+	tipc_mon_reinit_self(net);
+	tipc_nametbl_publish(net, TIPC_CFG_SRV, addr, addr,
+			     TIPC_CLUSTER_SCOPE, 0, addr);
+}
+
+void tipc_net_finalize_work(struct work_struct *work)
+{
+	struct tipc_net_work *fwork;
+
+	fwork = container_of(work, struct tipc_net_work, work);
+	tipc_net_finalize(fwork->net, fwork->addr);
+}
+
+void tipc_sched_net_finalize(struct net *net, u32 addr)
+{
+	struct tipc_net *tn = tipc_net(net);
+
+	tn->final_work.net = net;
+	tn->final_work.addr = addr;
+	schedule_work(&tn->final_work.work);
 }
 
 void tipc_net_stop(struct net *net)
 {
-	u32 self = tipc_own_addr(net);
-
-	if (!self)
+	if (!tipc_own_id(net))
 		return;
 
-	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, self, self, self);
 	rtnl_lock();
 	tipc_bearer_stop(net);
 	tipc_node_stop(net);
@@ -161,7 +179,7 @@ static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_NET);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_NET);
 	if (!attrs)
 		goto msg_full;
 
@@ -219,9 +237,9 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_NET])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_NET_MAX,
-			       info->attrs[TIPC_NLA_NET], tipc_nl_net_policy,
-			       info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_NET_MAX,
+					  info->attrs[TIPC_NLA_NET],
+					  tipc_nl_net_policy, info->extack);
 
 	if (err)
 		return err;
@@ -273,4 +291,60 @@ int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 	rtnl_unlock();
 
 	return err;
+}
+
+static int __tipc_nl_addr_legacy_get(struct net *net, struct tipc_nl_msg *msg)
+{
+	struct tipc_net *tn = tipc_net(net);
+	struct nlattr *attrs;
+	void *hdr;
+
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
+			  0, TIPC_NL_ADDR_LEGACY_GET);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	attrs = nla_nest_start(msg->skb, TIPC_NLA_NET);
+	if (!attrs)
+		goto msg_full;
+
+	if (tn->legacy_addr_format)
+		if (nla_put_flag(msg->skb, TIPC_NLA_NET_ADDR_LEGACY))
+			goto attr_msg_full;
+
+	nla_nest_end(msg->skb, attrs);
+	genlmsg_end(msg->skb, hdr);
+
+	return 0;
+
+attr_msg_full:
+	nla_nest_cancel(msg->skb, attrs);
+msg_full:
+	genlmsg_cancel(msg->skb, hdr);
+
+	return -EMSGSIZE;
+}
+
+int tipc_nl_net_addr_legacy_get(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = sock_net(skb->sk);
+	struct tipc_nl_msg msg;
+	struct sk_buff *rep;
+	int err;
+
+	rep = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!rep)
+		return -ENOMEM;
+
+	msg.skb = rep;
+	msg.portid = info->snd_portid;
+	msg.seq = info->snd_seq;
+
+	err = __tipc_nl_addr_legacy_get(net, &msg);
+	if (err) {
+		nlmsg_free(msg.skb);
+		return err;
+	}
+
+	return genlmsg_reply(msg.skb, info);
 }

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AD7291 8-Channel, I2C, 12-Bit SAR ADC with Temperature Sensor
  *
  * Copyright 2010-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -20,8 +19,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-
-#include <linux/platform_data/ad7291.h>
 
 /*
  * Simplified handling
@@ -466,7 +463,6 @@ static const struct iio_info ad7291_info = {
 static int ad7291_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct ad7291_platform_data *pdata = client->dev.platform_data;
 	struct ad7291_chip_info *chip;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -475,16 +471,6 @@ static int ad7291_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 	chip = iio_priv(indio_dev);
-
-	if (pdata && pdata->use_external_ref) {
-		chip->reg = devm_regulator_get(&client->dev, "vref");
-		if (IS_ERR(chip->reg))
-			return PTR_ERR(chip->reg);
-
-		ret = regulator_enable(chip->reg);
-		if (ret)
-			return ret;
-	}
 
 	mutex_init(&chip->state_lock);
 	/* this is only used for device removal purposes */
@@ -496,15 +482,26 @@ static int ad7291_probe(struct i2c_client *client,
 			AD7291_T_SENSE_MASK | /* Tsense always enabled */
 			AD7291_ALERT_POLARITY; /* set irq polarity low level */
 
-	if (pdata && pdata->use_external_ref)
+	chip->reg = devm_regulator_get_optional(&client->dev, "vref");
+	if (IS_ERR(chip->reg)) {
+		if (PTR_ERR(chip->reg) != -ENODEV)
+			return PTR_ERR(chip->reg);
+
+		chip->reg = NULL;
+	}
+
+	if (chip->reg) {
+		ret = regulator_enable(chip->reg);
+		if (ret)
+			return ret;
+
 		chip->command |= AD7291_EXT_REF;
+	}
 
 	indio_dev->name = id->name;
 	indio_dev->channels = ad7291_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7291_channels);
 
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->info = &ad7291_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -570,9 +567,16 @@ static const struct i2c_device_id ad7291_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ad7291_id);
 
+static const struct of_device_id ad7291_of_match[] = {
+	{ .compatible = "adi,ad7291" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ad7291_of_match);
+
 static struct i2c_driver ad7291_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
+		.of_match_table = ad7291_of_match,
 	},
 	.probe = ad7291_probe,
 	.remove = ad7291_remove,

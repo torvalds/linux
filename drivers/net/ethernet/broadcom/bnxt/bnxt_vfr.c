@@ -43,7 +43,7 @@ static int hwrm_cfa_vfr_alloc(struct bnxt *bp, u16 vf_idx,
 		netdev_dbg(bp->dev, "tx_cfa_action=0x%x, rx_cfa_code=0x%x",
 			   *tx_cfa_action, *rx_cfa_code);
 	} else {
-		netdev_info(bp->dev, "%s error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s error rc=%d\n", __func__, rc);
 	}
 
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -60,7 +60,7 @@ static int hwrm_cfa_vfr_free(struct bnxt *bp, u16 vf_idx)
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
-		netdev_info(bp->dev, "%s error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s error rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -161,34 +161,19 @@ static int bnxt_vf_rep_setup_tc_block_cb(enum tc_setup_type type,
 	}
 }
 
-static int bnxt_vf_rep_setup_tc_block(struct net_device *dev,
-				      struct tc_block_offload *f)
-{
-	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
-
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block,
-					     bnxt_vf_rep_setup_tc_block_cb,
-					     vf_rep, vf_rep, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block,
-					bnxt_vf_rep_setup_tc_block_cb, vf_rep);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
+static LIST_HEAD(bnxt_vf_block_cb_list);
 
 static int bnxt_vf_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 				void *type_data)
 {
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return bnxt_vf_rep_setup_tc_block(dev, type_data);
+		return flow_block_cb_setup_simple(type_data,
+						  &bnxt_vf_block_cb_list,
+						  bnxt_vf_rep_setup_tc_block_cb,
+						  vf_rep, vf_rep, true);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -209,9 +194,7 @@ struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code)
 void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(skb->dev);
-	struct bnxt_vf_rep_stats *rx_stats;
 
-	rx_stats = &vf_rep->rx_stats;
 	vf_rep->rx_stats.bytes += skb->len;
 	vf_rep->rx_stats.packets++;
 
@@ -236,23 +219,18 @@ static void bnxt_vf_rep_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
-static int bnxt_vf_rep_port_attr_get(struct net_device *dev,
-				     struct switchdev_attr *attr)
+static int bnxt_vf_rep_get_port_parent_id(struct net_device *dev,
+					  struct netdev_phys_item_id *ppid)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
 
 	/* as only PORT_PARENT_ID is supported currently use common code
 	 * between PF and VF-rep for now.
 	 */
-	return bnxt_port_attr_get(vf_rep->bp, attr);
+	return bnxt_get_port_parent_id(vf_rep->bp->dev, ppid);
 }
-
-static const struct switchdev_ops bnxt_vf_rep_switchdev_ops = {
-	.switchdev_port_attr_get	= bnxt_vf_rep_port_attr_get
-};
 
 static const struct ethtool_ops bnxt_vf_rep_ethtool_ops = {
 	.get_drvinfo		= bnxt_vf_rep_get_drvinfo
@@ -264,6 +242,7 @@ static const struct net_device_ops bnxt_vf_rep_netdev_ops = {
 	.ndo_start_xmit		= bnxt_vf_rep_xmit,
 	.ndo_get_stats64	= bnxt_vf_rep_get_stats64,
 	.ndo_setup_tc		= bnxt_vf_rep_setup_tc,
+	.ndo_get_port_parent_id	= bnxt_vf_rep_get_port_parent_id,
 	.ndo_get_phys_port_name = bnxt_vf_rep_get_phys_port_name
 };
 
@@ -394,7 +373,6 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 
 	dev->netdev_ops = &bnxt_vf_rep_netdev_ops;
 	dev->ethtool_ops = &bnxt_vf_rep_ethtool_ops;
-	SWITCHDEV_SET_OPS(dev, &bnxt_vf_rep_switchdev_ops);
 	/* Just inherit all the featues of the parent PF as the VF-R
 	 * uses the RX/TX rings of the parent PF
 	 */
@@ -412,32 +390,15 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 	dev->min_mtu = ETH_ZLEN;
 }
 
-static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
-{
-	struct pci_dev *pdev = bp->pdev;
-	int pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_DSN);
-	u32 dw;
-
-	if (!pos) {
-		netdev_info(bp->dev, "Unable do read adapter's DSN");
-		return -EOPNOTSUPP;
-	}
-
-	/* DSN (two dw) is at an offset of 4 from the cap pos */
-	pos += 4;
-	pci_read_config_dword(pdev, pos, &dw);
-	put_unaligned_le32(dw, &dsn[0]);
-	pci_read_config_dword(pdev, pos + 4, &dw);
-	put_unaligned_le32(dw, &dsn[4]);
-	return 0;
-}
-
 static int bnxt_vf_reps_create(struct bnxt *bp)
 {
 	u16 *cfa_code_map = NULL, num_vfs = pci_num_vf(bp->pdev);
 	struct bnxt_vf_rep *vf_rep;
 	struct net_device *dev;
 	int rc, i;
+
+	if (!(bp->flags & BNXT_FLAG_DSN_VALID))
+		return -ENODEV;
 
 	bp->vf_reps = kcalloc(num_vfs, sizeof(vf_rep), GFP_KERNEL);
 	if (!bp->vf_reps)
@@ -496,11 +457,6 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		}
 	}
 
-	/* Read the adapter's DSN to use as the eswitch switch_id */
-	rc = bnxt_pcie_dsn_get(bp, bp->switch_id);
-	if (rc)
-		goto err;
-
 	/* publish cfa_code_map only after all VF-reps have been initialized */
 	bp->cfa_code_map = cfa_code_map;
 	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
@@ -508,7 +464,7 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 	return 0;
 
 err:
-	netdev_info(bp->dev, "%s error=%d", __func__, rc);
+	netdev_info(bp->dev, "%s error=%d\n", __func__, rc);
 	kfree(cfa_code_map);
 	__bnxt_vf_reps_destroy(bp);
 	return rc;
@@ -523,14 +479,15 @@ int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	return 0;
 }
 
-int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
+int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
+			     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
 	int rc = 0;
 
 	mutex_lock(&bp->sriov_lock);
 	if (bp->eswitch_mode == mode) {
-		netdev_info(bp->dev, "already in %s eswitch mode",
+		netdev_info(bp->dev, "already in %s eswitch mode\n",
 			    mode == DEVLINK_ESWITCH_MODE_LEGACY ?
 			    "legacy" : "switchdev");
 		rc = -EINVAL;
@@ -550,7 +507,7 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
 		}
 
 		if (pci_num_vf(bp->pdev) == 0) {
-			netdev_info(bp->dev, "Enable VFs before setting switchdev mode");
+			netdev_info(bp->dev, "Enable VFs before setting switchdev mode\n");
 			rc = -EPERM;
 			goto done;
 		}

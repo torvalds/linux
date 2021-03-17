@@ -15,6 +15,7 @@
 #include <cpu-feature-overrides.h>
 
 #define __ase(ase)			(cpu_data[0].ases & (ase))
+#define __isa(isa)			(cpu_data[0].isa_level & (isa))
 #define __opt(opt)			(cpu_data[0].options & (opt))
 
 /*
@@ -51,6 +52,18 @@
  */
 #define __isa_lt_and_ase(isa, ase)	((MIPS_ISA_REV < (isa)) && __ase(ase))
 #define __isa_lt_and_opt(isa, opt)	((MIPS_ISA_REV < (isa)) && __opt(opt))
+
+/*
+ * Similarly allow for ISA level checks that take into account knowledge of the
+ * ISA targeted by the kernel build, provided by MIPS_ISA_REV.
+ */
+#define __isa_ge_and_flag(isa, flag)	((MIPS_ISA_REV >= (isa)) && __isa(flag))
+#define __isa_ge_or_flag(isa, flag)	((MIPS_ISA_REV >= (isa)) || __isa(flag))
+#define __isa_lt_and_flag(isa, flag)	((MIPS_ISA_REV < (isa)) && __isa(flag))
+#define __isa_range(ge, lt) \
+	((MIPS_ISA_REV >= (ge)) && (MIPS_ISA_REV < (lt)))
+#define __isa_range_or_flag(ge, lt, flag) \
+	(__isa_range(ge, lt) || ((MIPS_ISA_REV < (lt)) && __isa(flag)))
 
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
@@ -115,10 +128,15 @@
 #endif
 /* Don't override `cpu_has_fpu' to 1 or the "nofpu" option won't work.  */
 #ifndef cpu_has_fpu
-#define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
-#define raw_cpu_has_fpu		(raw_current_cpu_data.options & MIPS_CPU_FPU)
+# ifdef CONFIG_MIPS_FP_SUPPORT
+#  define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
+#  define raw_cpu_has_fpu	(raw_current_cpu_data.options & MIPS_CPU_FPU)
+# else
+#  define cpu_has_fpu		0
+#  define raw_cpu_has_fpu	0
+# endif
 #else
-#define raw_cpu_has_fpu		cpu_has_fpu
+# define raw_cpu_has_fpu	cpu_has_fpu
 #endif
 #ifndef cpu_has_32fpr
 #define cpu_has_32fpr		__isa_ge_or_opt(1, MIPS_CPU_32FPR)
@@ -152,9 +170,6 @@
 #endif
 #ifndef cpu_has_llsc
 #define cpu_has_llsc		__isa_ge_or_opt(1, MIPS_CPU_LLSC)
-#endif
-#ifndef cpu_has_bp_ghist
-#define cpu_has_bp_ghist	__opt(MIPS_CPU_BP_GHIST)
 #endif
 #ifndef kernel_uses_llsc
 #define kernel_uses_llsc	cpu_has_llsc
@@ -195,7 +210,9 @@
 #endif
 
 #ifndef cpu_has_mmips
-# ifdef CONFIG_SYS_SUPPORTS_MICROMIPS
+# if defined(__mips_micromips)
+#  define cpu_has_mmips		1
+# elif defined(CONFIG_SYS_SUPPORTS_MICROMIPS)
 #  define cpu_has_mmips		__opt(MIPS_CPU_MICROMIPS)
 # else
 #  define cpu_has_mmips		0
@@ -223,9 +240,6 @@
 #ifndef cpu_has_pindexed_dcache
 #define cpu_has_pindexed_dcache	(cpu_data[0].dcache.flags & MIPS_CACHE_PINDEX)
 #endif
-#ifndef cpu_has_local_ebase
-#define cpu_has_local_ebase	1
-#endif
 
 /*
  * I-Cache snoops remote store.	 This only matters on SMP.  Some multiprocessors
@@ -246,48 +260,47 @@
 #endif
 #endif
 
-/* __builtin_constant_p(cpu_has_mips_r) && cpu_has_mips_r */
-#if !((defined(cpu_has_mips32r1) && cpu_has_mips32r1) || \
-	  (defined(cpu_has_mips32r2) && cpu_has_mips32r2) || \
-	  (defined(cpu_has_mips32r6) && cpu_has_mips32r6) || \
-	  (defined(cpu_has_mips64r1) && cpu_has_mips64r1) || \
-	  (defined(cpu_has_mips64r2) && cpu_has_mips64r2) || \
-	  (defined(cpu_has_mips64r6) && cpu_has_mips64r6))
-#define CPU_NO_EFFICIENT_FFS 1
-#endif
-
 #ifndef cpu_has_mips_1
-# define cpu_has_mips_1		(!cpu_has_mips_r6)
+# define cpu_has_mips_1		(MIPS_ISA_REV < 6)
 #endif
 #ifndef cpu_has_mips_2
-# define cpu_has_mips_2		(cpu_data[0].isa_level & MIPS_CPU_ISA_II)
+# define cpu_has_mips_2		__isa_lt_and_flag(6, MIPS_CPU_ISA_II)
 #endif
 #ifndef cpu_has_mips_3
-# define cpu_has_mips_3		(cpu_data[0].isa_level & MIPS_CPU_ISA_III)
+# define cpu_has_mips_3		__isa_lt_and_flag(6, MIPS_CPU_ISA_III)
 #endif
 #ifndef cpu_has_mips_4
-# define cpu_has_mips_4		(cpu_data[0].isa_level & MIPS_CPU_ISA_IV)
+# define cpu_has_mips_4		__isa_lt_and_flag(6, MIPS_CPU_ISA_IV)
 #endif
 #ifndef cpu_has_mips_5
-# define cpu_has_mips_5		(cpu_data[0].isa_level & MIPS_CPU_ISA_V)
+# define cpu_has_mips_5		__isa_lt_and_flag(6, MIPS_CPU_ISA_V)
 #endif
 #ifndef cpu_has_mips32r1
-# define cpu_has_mips32r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R1)
+# define cpu_has_mips32r1	__isa_range_or_flag(1, 6, MIPS_CPU_ISA_M32R1)
 #endif
 #ifndef cpu_has_mips32r2
-# define cpu_has_mips32r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R2)
+# define cpu_has_mips32r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M32R2)
+#endif
+#ifndef cpu_has_mips32r5
+# define cpu_has_mips32r5	__isa_range_or_flag(5, 6, MIPS_CPU_ISA_M32R5)
 #endif
 #ifndef cpu_has_mips32r6
-# define cpu_has_mips32r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R6)
+# define cpu_has_mips32r6	__isa_ge_or_flag(6, MIPS_CPU_ISA_M32R6)
 #endif
 #ifndef cpu_has_mips64r1
-# define cpu_has_mips64r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R1)
+# define cpu_has_mips64r1	(cpu_has_64bits && \
+				 __isa_range_or_flag(1, 6, MIPS_CPU_ISA_M64R1))
 #endif
 #ifndef cpu_has_mips64r2
-# define cpu_has_mips64r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R2)
+# define cpu_has_mips64r2	(cpu_has_64bits && \
+				 __isa_range_or_flag(2, 6, MIPS_CPU_ISA_M64R2))
+#endif
+#ifndef cpu_has_mips64r5
+# define cpu_has_mips64r5	(cpu_has_64bits && \
+				 __isa_range_or_flag(5, 6, MIPS_CPU_ISA_M64R5))
 #endif
 #ifndef cpu_has_mips64r6
-# define cpu_has_mips64r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R6)
+# define cpu_has_mips64r6	__isa_ge_and_flag(6, MIPS_CPU_ISA_M64R6)
 #endif
 
 /*
@@ -306,19 +319,25 @@
 				(cpu_has_mips_3 | cpu_has_mips_4_5_64_r2_r6)
 #define cpu_has_mips_4_5_64_r2_r6					\
 				(cpu_has_mips_4_5 | cpu_has_mips64r1 |	\
-				 cpu_has_mips_r2 | cpu_has_mips_r6)
+				 cpu_has_mips_r2 | cpu_has_mips_r5 | \
+				 cpu_has_mips_r6)
 
-#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | cpu_has_mips32r6)
-#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | cpu_has_mips64r6)
+#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
+			 cpu_has_mips32r5 | cpu_has_mips32r6)
+#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | \
+			 cpu_has_mips64r5 | cpu_has_mips64r6)
 #define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)
 #define cpu_has_mips_r2 (cpu_has_mips32r2 | cpu_has_mips64r2)
+#define cpu_has_mips_r5	(cpu_has_mips32r5 | cpu_has_mips64r5)
 #define cpu_has_mips_r6	(cpu_has_mips32r6 | cpu_has_mips64r6)
 #define cpu_has_mips_r	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
-			 cpu_has_mips32r6 | cpu_has_mips64r1 | \
-			 cpu_has_mips64r2 | cpu_has_mips64r6)
+			 cpu_has_mips32r5 | cpu_has_mips32r6 | \
+			 cpu_has_mips64r1 | cpu_has_mips64r2 | \
+			 cpu_has_mips64r5 | cpu_has_mips64r6)
 
-/* MIPSR2 and MIPSR6 have a lot of similarities */
-#define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r6)
+/* MIPSR2 - MIPSR6 have a lot of similarities */
+#define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r5 | \
+				 cpu_has_mips_r6)
 
 /*
  * cpu_has_mips_r2_exec_hazard - return if IHB is required on current processor
@@ -387,6 +406,22 @@
 #define cpu_has_dsp3		__ase(MIPS_ASE_DSP3)
 #endif
 
+#ifndef cpu_has_loongson_mmi
+#define cpu_has_loongson_mmi		__ase(MIPS_ASE_LOONGSON_MMI)
+#endif
+
+#ifndef cpu_has_loongson_cam
+#define cpu_has_loongson_cam		__ase(MIPS_ASE_LOONGSON_CAM)
+#endif
+
+#ifndef cpu_has_loongson_ext
+#define cpu_has_loongson_ext		__ase(MIPS_ASE_LOONGSON_EXT)
+#endif
+
+#ifndef cpu_has_loongson_ext2
+#define cpu_has_loongson_ext2		__ase(MIPS_ASE_LOONGSON_EXT2)
+#endif
+
 #ifndef cpu_has_mipsmt
 #define cpu_has_mipsmt		__isa_lt_and_ase(6, MIPS_ASE_MIPSMT)
 #endif
@@ -412,9 +447,6 @@
 # ifndef cpu_has_64bit_gp_regs
 # define cpu_has_64bit_gp_regs		0
 # endif
-# ifndef cpu_has_64bit_addresses
-# define cpu_has_64bit_addresses	0
-# endif
 # ifndef cpu_vmbits
 # define cpu_vmbits 31
 # endif
@@ -432,9 +464,6 @@
 # endif
 # ifndef cpu_has_64bit_gp_regs
 # define cpu_has_64bit_gp_regs		1
-# endif
-# ifndef cpu_has_64bit_addresses
-# define cpu_has_64bit_addresses	1
 # endif
 # ifndef cpu_vmbits
 # define cpu_vmbits cpu_data[0].vmbits
@@ -532,6 +561,18 @@
 # define cpu_has_perf		__opt(MIPS_CPU_PERF)
 #endif
 
+#ifndef cpu_has_mac2008_only
+# define cpu_has_mac2008_only	__opt(MIPS_CPU_MAC_2008_ONLY)
+#endif
+
+#ifndef cpu_has_ftlbparex
+# define cpu_has_ftlbparex	__opt(MIPS_CPU_FTLBPAREX)
+#endif
+
+#ifndef cpu_has_gsexcex
+# define cpu_has_gsexcex	__opt(MIPS_CPU_GSEXCEX)
+#endif
+
 #ifdef CONFIG_SMP
 /*
  * Some systems share FTLB RAMs between threads within a core (siblings in
@@ -581,6 +622,27 @@
 #endif /* CONFIG_MIPS_MT_SMP */
 
 /*
+ * We only enable MMID support for configurations which natively support 64 bit
+ * atomics because getting good performance from the allocator relies upon
+ * efficient atomic64_*() functions.
+ */
+#ifndef cpu_has_mmid
+# ifdef CONFIG_GENERIC_ATOMIC64
+#  define cpu_has_mmid		0
+# else
+#  define cpu_has_mmid		__isa_ge_and_opt(6, MIPS_CPU_MMID)
+# endif
+#endif
+
+#ifndef cpu_has_mm_sysad
+# define cpu_has_mm_sysad	__opt(MIPS_CPU_MM_SYSAD)
+#endif
+
+#ifndef cpu_has_mm_full
+# define cpu_has_mm_full	__opt(MIPS_CPU_MM_FULL)
+#endif
+
+/*
  * Guest capabilities
  */
 #ifndef cpu_guest_has_conf1
@@ -624,6 +686,9 @@
 #endif
 #ifndef cpu_guest_has_htw
 #define cpu_guest_has_htw	(cpu_data[0].guest.options & MIPS_CPU_HTW)
+#endif
+#ifndef cpu_guest_has_ldpte
+#define cpu_guest_has_ldpte	(cpu_data[0].guest.options & MIPS_CPU_LDPTE)
 #endif
 #ifndef cpu_guest_has_mvh
 #define cpu_guest_has_mvh	(cpu_data[0].guest.options & MIPS_CPU_MVH)

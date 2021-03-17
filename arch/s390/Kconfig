@@ -14,12 +14,6 @@ config LOCKDEP_SUPPORT
 config STACKTRACE_SUPPORT
 	def_bool y
 
-config RWSEM_GENERIC_SPINLOCK
-	bool
-
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool y
-
 config ARCH_HAS_ILOG2_U32
 	def_bool n
 
@@ -36,7 +30,7 @@ config GENERIC_BUG_RELATIVE_POINTERS
 	def_bool y
 
 config GENERIC_LOCKBREAK
-	def_bool y if SMP && PREEMPT
+	def_bool y if PREEMPTION
 
 config PGSTE
 	def_bool y if KVM
@@ -56,21 +50,31 @@ config PCI_QUIRKS
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
+config KASAN_SHADOW_OFFSET
+	hex
+	depends on KASAN
+	default 0x18000000000000 if KASAN_S390_4_LEVEL_PAGING
+	default 0x30000000000
+
 config S390
 	def_bool y
 	select ARCH_BINFMT_ELF_STATE
+	select ARCH_HAS_DEBUG_VM_PGTABLE
+	select ARCH_HAS_DEBUG_WX
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
-	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
+	select ARCH_HAS_GIGANTIC_PAGE
 	select ARCH_HAS_KCOV
+	select ARCH_HAS_MEM_ENCRYPT
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SET_MEMORY
-	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
+	select ARCH_HAS_SYSCALL_WRAPPER
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_VDSO_DATA
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_INLINE_READ_LOCK
 	select ARCH_INLINE_READ_LOCK_BH
@@ -100,47 +104,56 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_BH
 	select ARCH_INLINE_WRITE_UNLOCK_IRQ
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
-	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
+	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
+	select ARCH_WANT_DEFAULT_BPF_JIT
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select BUILDTIME_EXTABLE_SORT
+	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS2
+	select DMA_OPS if PCI
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_AUTOPROBE
-	select GENERIC_CPU_DEVICES if !SMP
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_GETTIMEOFDAY
+	select GENERIC_PTDUMP
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_JUMP_LABEL_RELATIVE
+	select HAVE_ARCH_KASAN
+	select HAVE_ARCH_KASAN_VMALLOC
 	select CPU_NO_EFFICIENT_FFS if !HAVE_MARCH_Z9_109_FEATURES
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_SOFT_DIRTY
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_VMAP_STACK
+	select HAVE_ASM_MODVERSIONS
 	select HAVE_EBPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
-	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
-	select DMA_DIRECT_OPS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_FAST_GUP
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_FENTRY
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_GCC_PLUGINS
+	select HAVE_GENERIC_VDSO
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -149,34 +162,47 @@ config S390
 	select HAVE_KERNEL_UNCOMPRESSED
 	select HAVE_KERNEL_XZ
 	select HAVE_KPROBES
+	select HAVE_KPROBES_ON_FTRACE
 	select HAVE_KRETPROBES
 	select HAVE_KVM
 	select HAVE_LIVEPATCH
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select HAVE_MEMBLOCK
-	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
+	select MMU_GATHER_NO_GATHER
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NOP_MCOUNT
 	select HAVE_OPROFILE
+	select HAVE_PCI
 	select HAVE_PERF_EVENTS
+	select MMU_GATHER_RCU_TABLE_FREE
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RELIABLE_STACKTRACE
 	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
+	select IOMMU_HELPER		if PCI
+	select IOMMU_SUPPORT		if PCI
 	select MODULES_USE_ELF_RELA
-	select NO_BOOTMEM
+	select NEED_DMA_MAP_STATE	if PCI
+	select NEED_SG_DMA_LENGTH	if PCI
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select PCI_DOMAINS		if PCI
+	select PCI_MSI			if PCI
+	select PCI_MSI_ARCH_FALLBACKS	if PCI_MSI
+	select SET_FS
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TTY
 	select VIRT_CPU_ACCOUNTING
 	select ARCH_HAS_SCALED_CPUTIME
-	select VIRT_TO_BUS
 	select HAVE_NMI
+	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
+	select SWIOTLB
+	select GENERIC_ALLOCATOR
+	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
 
 
 config SCHED_OMIT_FRAME_POINTER
@@ -221,6 +247,10 @@ config HAVE_MARCH_Z14_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z13_FEATURES
 
+config HAVE_MARCH_Z15_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z14_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_Z196
@@ -228,6 +258,7 @@ choice
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"
 	select HAVE_MARCH_Z900_FEATURES
+	depends on $(cc-option,-march=z900)
 	help
 	  Select this to enable optimizations for model z800/z900 (2064 and
 	  2066 series). This will enable some optimizations that are not
@@ -236,6 +267,7 @@ config MARCH_Z900
 config MARCH_Z990
 	bool "IBM zSeries model z890 and z990"
 	select HAVE_MARCH_Z990_FEATURES
+	depends on $(cc-option,-march=z990)
 	help
 	  Select this to enable optimizations for model z890/z990 (2084 and
 	  2086 series). The kernel will be slightly faster but will not work
@@ -244,6 +276,7 @@ config MARCH_Z990
 config MARCH_Z9_109
 	bool "IBM System z9"
 	select HAVE_MARCH_Z9_109_FEATURES
+	depends on $(cc-option,-march=z9-109)
 	help
 	  Select this to enable optimizations for IBM System z9 (2094 and
 	  2096 series). The kernel will be slightly faster but will not work
@@ -252,6 +285,7 @@ config MARCH_Z9_109
 config MARCH_Z10
 	bool "IBM System z10"
 	select HAVE_MARCH_Z10_FEATURES
+	depends on $(cc-option,-march=z10)
 	help
 	  Select this to enable optimizations for IBM System z10 (2097 and
 	  2098 series). The kernel will be slightly faster but will not work
@@ -260,6 +294,7 @@ config MARCH_Z10
 config MARCH_Z196
 	bool "IBM zEnterprise 114 and 196"
 	select HAVE_MARCH_Z196_FEATURES
+	depends on $(cc-option,-march=z196)
 	help
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
@@ -268,6 +303,7 @@ config MARCH_Z196
 config MARCH_ZEC12
 	bool "IBM zBC12 and zEC12"
 	select HAVE_MARCH_ZEC12_FEATURES
+	depends on $(cc-option,-march=zEC12)
 	help
 	  Select this to enable optimizations for IBM zBC12 and zEC12 (2828 and
 	  2827 series). The kernel will be slightly faster but will not work on
@@ -276,6 +312,7 @@ config MARCH_ZEC12
 config MARCH_Z13
 	bool "IBM z13s and z13"
 	select HAVE_MARCH_Z13_FEATURES
+	depends on $(cc-option,-march=z13)
 	help
 	  Select this to enable optimizations for IBM z13s and z13 (2965 and
 	  2964 series). The kernel will be slightly faster but will not work on
@@ -284,9 +321,19 @@ config MARCH_Z13
 config MARCH_Z14
 	bool "IBM z14 ZR1 and z14"
 	select HAVE_MARCH_Z14_FEATURES
+	depends on $(cc-option,-march=z14)
 	help
 	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
 	  and 3906 series). The kernel will be slightly faster but will not
+	  work on older machines.
+
+config MARCH_Z15
+	bool "IBM z15"
+	select HAVE_MARCH_Z15_FEATURES
+	depends on $(cc-option,-march=z15)
+	help
+	  Select this to enable optimizations for IBM z15 (8562
+	  and 8561 series). The kernel will be slightly faster but will not
 	  work on older machines.
 
 endchoice
@@ -315,6 +362,9 @@ config MARCH_Z13_TUNE
 config MARCH_Z14_TUNE
 	def_bool TUNE_Z14 || MARCH_Z14 && TUNE_DEFAULT
 
+config MARCH_Z15_TUNE
+	def_bool TUNE_Z15 || MARCH_Z15 && TUNE_DEFAULT
+
 choice
 	prompt "Tune code generation"
 	default TUNE_DEFAULT
@@ -334,27 +384,39 @@ config TUNE_DEFAULT
 
 config TUNE_Z900
 	bool "IBM zSeries model z800 and z900"
+	depends on $(cc-option,-mtune=z900)
 
 config TUNE_Z990
 	bool "IBM zSeries model z890 and z990"
+	depends on $(cc-option,-mtune=z990)
 
 config TUNE_Z9_109
 	bool "IBM System z9"
+	depends on $(cc-option,-mtune=z9-109)
 
 config TUNE_Z10
 	bool "IBM System z10"
+	depends on $(cc-option,-mtune=z10)
 
 config TUNE_Z196
 	bool "IBM zEnterprise 114 and 196"
+	depends on $(cc-option,-mtune=z196)
 
 config TUNE_ZEC12
 	bool "IBM zBC12 and zEC12"
+	depends on $(cc-option,-mtune=zEC12)
 
 config TUNE_Z13
-	bool "IBM z13"
+	bool "IBM z13s and z13"
+	depends on $(cc-option,-mtune=z13)
 
 config TUNE_Z14
-	bool "IBM z14"
+	bool "IBM z14 ZR1 and z14"
+	depends on $(cc-option,-mtune=z14)
+
+config TUNE_Z15
+	bool "IBM z15"
+	depends on $(cc-option,-mtune=z15)
 
 endchoice
 
@@ -367,6 +429,7 @@ config COMPAT
 	select COMPAT_BINFMT_ELF if BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select COMPAT_OLD_SIGACTION
+	select HAVE_UID16
 	depends on MULTIUSER
 	help
 	  Select this option if you want to enable your system kernel to
@@ -379,27 +442,10 @@ config SYSVIPC_COMPAT
 
 config SMP
 	def_bool y
-	prompt "Symmetric multi-processing support"
-	---help---
-	  This enables support for systems with more than one CPU. If you have
-	  a system with only one CPU, like most personal computers, say N. If
-	  you have a system with more than one CPU, say Y.
-
-	  If you say N here, the kernel will run on uni- and multiprocessor
-	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
-	  uniprocessor machines. On a uniprocessor machine, the kernel
-	  will run faster if you say N here.
-
-	  See also the SMP-HOWTO available at
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Even if you don't know what to do here, say Y.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-512)"
 	range 2 512
-	depends on SMP
 	default "64"
 	help
 	  This allows you to specify the maximum number of CPUs which this
@@ -411,82 +457,20 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	def_bool y
-	prompt "Support for hot-pluggable CPUs"
-	depends on SMP
-	help
-	  Say Y here to be able to turn CPUs off and on. CPUs
-	  can be controlled through /sys/devices/system/cpu/cpu#.
-	  Say N if you want to disable CPU hotplug.
-
-# Some NUMA nodes have memory ranges that span
-# other nodes.	Even though a pfn is valid and
-# between a node's start and end pfns, it may not
-# reside on that node.	See memmap_init_zone()
-# for details. <- They meant memory holes!
-config NODES_SPAN_OTHER_NODES
-	def_bool NUMA
 
 config NUMA
 	bool "NUMA support"
-	depends on SMP && SCHED_TOPOLOGY
+	depends on SCHED_TOPOLOGY
 	default n
 	help
 	  Enable NUMA support
 
 	  This option adds NUMA support to the kernel.
 
-	  An operation mode can be selected by appending
-	  numa=<method> to the kernel command line.
-
-	  The default behaviour is identical to appending numa=plain to
-	  the command line. This will create just one node with all
-	  available memory and all CPUs in it.
-
 config NODES_SHIFT
-	int "Maximum NUMA nodes (as a power of 2)"
-	range 1 10
-	depends on NUMA
-	default "4"
-	help
-	  Specify the maximum number of NUMA nodes available on the target
-	  system. Increases memory reserved to accommodate various tables.
-
-menu "Select NUMA modes"
-	depends on NUMA
-
-config NUMA_EMU
-	bool "NUMA emulation"
-	default y
-	help
-	  Numa emulation mode will split the available system memory into
-	  equal chunks which then are distributed over the configured number
-	  of nodes in a round-robin manner.
-
-	  The number of fake nodes is limited by the number of available memory
-	  chunks (i.e. memory size / fake size) and the number of supported
-	  nodes in the kernel.
-
-	  The CPUs are assigned to the nodes in a way that partially respects
-	  the original machine topology (if supported by the machine).
-	  Fair distribution of the CPUs is not guaranteed.
-
-config EMU_SIZE
-	hex "NUMA emulation memory chunk size"
-	default 0x10000000
-	range 0x400000 0x100000000
-	depends on NUMA_EMU
-	help
-	  Select the default size by which the memory is chopped and then
-	  assigned to emulated NUMA nodes.
-
-	  This can be overridden by specifying
-
-	  emu_size=<n>
-
-	  on the kernel command line where also suffixes K, M, G, and T are
-	  supported.
-
-endmenu
+	int
+	depends on NEED_MULTIPLE_NODES
+	default "1"
 
 config SCHED_SMT
 	def_bool n
@@ -503,7 +487,6 @@ config SCHED_DRAWER
 config SCHED_TOPOLOGY
 	def_bool y
 	prompt "Topology scheduler support"
-	depends on SMP
 	select SCHED_SMT
 	select SCHED_MC
 	select SCHED_BOOK
@@ -513,7 +496,7 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config KEXEC
 	def_bool y
@@ -534,6 +517,17 @@ config KEXEC_FILE
 config ARCH_HAS_KEXEC_PURGATORY
 	def_bool y
 	depends on KEXEC_FILE
+
+config KEXEC_SIG
+	bool "Verify kernel signature during kexec_file_load() syscall"
+	depends on KEXEC_FILE && MODULE_SIG_FORMAT
+	help
+	  This option makes kernel signature verification mandatory for
+	  the kexec_file_load() syscall.
+
+	  In addition to that option, you need to enable signature
+	  verification for the corresponding kernel image type being
+	  loaded in order for this to work.
 
 config ARCH_RANDOM
 	def_bool y
@@ -595,6 +589,29 @@ config EXPOLINE_FULL
 
 endchoice
 
+config RELOCATABLE
+	bool "Build a relocatable kernel"
+	select MODULE_REL_CRCS if MODVERSIONS
+	default y
+	help
+	  This builds a kernel image that retains relocation information
+	  so it can be loaded at an arbitrary address.
+	  The kernel is linked as a position-independent executable (PIE)
+	  and contains dynamic relocations which are processed early in the
+	  bootup process.
+	  The relocations make the kernel image about 15% larger (compressed
+	  10%), but are discarded at runtime.
+
+config RANDOMIZE_BASE
+	bool "Randomize the address of the kernel image (KASLR)"
+	depends on RELOCATABLE
+	default y
+	help
+	  In support of Kernel Address Space Layout Randomization (KASLR),
+	  this randomizes the address at which the kernel image is loaded,
+	  as a security feature that deters exploit attempts relying on
+	  knowledge of the location of kernel internals.
+
 endmenu
 
 menu "Memory setup"
@@ -607,9 +624,6 @@ config ARCH_SPARSEMEM_ENABLE
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 
-config ARCH_SELECT_MEMORY_MODEL
-	def_bool y
-
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y if SPARSEMEM
 
@@ -618,10 +632,6 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 
 config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 	def_bool y
-
-config FORCE_MAX_ZONEORDER
-	int
-	default "9"
 
 config MAX_PHYSMEM_BITS
 	int "Maximum size of supported physical memory in bits (42-53)"
@@ -649,6 +659,7 @@ config PACK_STACK
 
 config CHECK_STACK
 	def_bool y
+	depends on !VMAP_STACK
 	prompt "Detect kernel stack overflow"
 	help
 	  This option enables the compiler option -mstack-guard and
@@ -689,7 +700,7 @@ menu "I/O subsystem"
 config QDIO
 	def_tristate y
 	prompt "QDIO support"
-	---help---
+	help
 	  This driver provides the Queued Direct I/O base support for
 	  IBM System z.
 
@@ -697,17 +708,6 @@ config QDIO
 	  module will be called qdio.
 
 	  If unsure, say Y.
-
-menuconfig PCI
-	bool "PCI support"
-	select PCI_MSI
-	select IOMMU_HELPER
-	select IOMMU_SUPPORT
-	select NEED_DMA_MAP_STATE
-	select NEED_SG_DMA_LENGTH
-
-	help
-	  Enable PCI support.
 
 if PCI
 
@@ -719,12 +719,7 @@ config PCI_NR_FUNCTIONS
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
 
-source "drivers/pci/Kconfig"
-
-endif	# PCI
-
-config PCI_DOMAINS
-	def_bool PCI
+endif # PCI
 
 config HAS_IOMEM
 	def_bool PCI
@@ -773,53 +768,35 @@ config VFIO_CCW
 	  To compile this driver as a module, choose M here: the
 	  module will be called vfio_ccw.
 
+config VFIO_AP
+	def_tristate n
+	prompt "VFIO support for AP devices"
+	depends on S390_AP_IOMMU && VFIO_MDEV_DEVICE && KVM
+	depends on ZCRYPT
+	help
+		This driver grants access to Adjunct Processor (AP) devices
+		via the VFIO mediated device interface.
+
+		To compile this driver as a module, choose M here: the module
+		will be called vfio_ap.
+
 endmenu
 
 menu "Dump support"
 
 config CRASH_DUMP
 	bool "kernel crash dumps"
-	depends on SMP
 	select KEXEC
 	help
 	  Generate crash dump after being started by kexec.
 	  Crash dump kernels are loaded in the main kernel with kexec-tools
 	  into a specially reserved region and then later executed after
 	  a crash by kdump/kexec.
-	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
+	  Refer to <file:Documentation/s390/zfcpdump.rst> for more details on this.
 	  This option also enables s390 zfcpdump.
-	  See also <file:Documentation/s390/zfcpdump.txt>
+	  See also <file:Documentation/s390/zfcpdump.rst>
 
 endmenu
-
-config SECCOMP
-	def_bool y
-	prompt "Enable seccomp to safely compute untrusted bytecode"
-	depends on PROC_FS
-	help
-	  This kernel feature is useful for number crunching applications
-	  that may need to compute untrusted bytecode during their
-	  execution. By using pipes or other transports made available to
-	  the process as file descriptors supporting the read/write
-	  syscalls, it's possible to isolate those applications in
-	  their own address space using seccomp. Once seccomp is
-	  enabled via /proc/<pid>/seccomp, it cannot be disabled
-	  and the task is only allowed to execute a few safe syscalls
-	  defined by each seccomp mode.
-
-	  If unsure, say Y.
-
-menu "Power Management"
-
-config ARCH_HIBERNATION_POSSIBLE
-	def_bool y
-
-source "kernel/power/Kconfig"
-
-endmenu
-
-config PCMCIA
-	def_bool n
 
 config CCW
 	def_bool y
@@ -829,6 +806,18 @@ config HAVE_PNETID
 	default (SMC || CCWGROUP)
 
 menu "Virtualization"
+
+config PROTECTED_VIRTUALIZATION_GUEST
+	def_bool n
+	prompt "Protected virtualization guest support"
+	select ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
+	help
+	  Select this option, if you want to be able to run this
+	  kernel as a protected virtualization KVM guest.
+	  Protected virtualization capable machines have a mini hypervisor
+	  located at machine level (an ultravisor). With help of the
+	  Ultravisor, KVM will be able to run "protected" VMs, special
+	  VMs whose memory and management data are unavailable to KVM.
 
 config PFAULT
 	def_bool y
@@ -944,12 +933,25 @@ config S390_GUEST
 	select TTY
 	select VIRTUALIZATION
 	select VIRTIO
-	select VIRTIO_CONSOLE
 	help
 	  Enabling this option adds support for virtio based paravirtual device
 	  drivers on s390.
 
 	  Select this option if you want to run the kernel as a guest under
 	  the KVM hypervisor.
+
+endmenu
+
+menu "Selftests"
+
+config S390_UNWIND_SELFTEST
+	def_tristate n
+	prompt "Test unwind functions"
+	help
+	  This option enables s390 specific stack unwinder testing kernel
+	  module. This option is not useful for distributions or general
+	  kernels, but only for kernel developers working on architecture code.
+
+	  Say N if you are unsure.
 
 endmenu

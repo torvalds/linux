@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  The NFC Controller Interface is the communication protocol between an
  *  NFC Controller (NFCC) and a Device Host (DH).
@@ -10,19 +11,6 @@
  *  Acknowledgements:
  *  This file is based on hci_core.c, which was written
  *  by Maxim Krasnyansky.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
@@ -1194,7 +1182,7 @@ EXPORT_SYMBOL(nci_free_device);
 /**
  * nci_register_device - register a nci device in the nfc subsystem
  *
- * @dev: The nci device to register
+ * @ndev: The nci device to register
  */
 int nci_register_device(struct nci_dev *ndev)
 {
@@ -1240,9 +1228,12 @@ int nci_register_device(struct nci_dev *ndev)
 
 	rc = nfc_register_device(ndev->nfc_dev);
 	if (rc)
-		goto destroy_rx_wq_exit;
+		goto destroy_tx_wq_exit;
 
 	goto exit;
+
+destroy_tx_wq_exit:
+	destroy_workqueue(ndev->tx_wq);
 
 destroy_rx_wq_exit:
 	destroy_workqueue(ndev->rx_wq);
@@ -1258,7 +1249,7 @@ EXPORT_SYMBOL(nci_register_device);
 /**
  * nci_unregister_device - unregister a nci device in the nfc subsystem
  *
- * @dev: The nci device to unregister
+ * @ndev: The nci device to unregister
  */
 void nci_unregister_device(struct nci_dev *ndev)
 {

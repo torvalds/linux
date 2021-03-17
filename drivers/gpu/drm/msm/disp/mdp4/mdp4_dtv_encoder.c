@@ -1,22 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "mdp4_kms.h"
 
@@ -36,54 +25,9 @@ static struct mdp4_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-#include <mach/board.h>
-/* not ironically named at all.. no, really.. */
-static void bs_init(struct mdp4_dtv_encoder *mdp4_dtv_encoder)
-{
-	struct drm_device *dev = mdp4_dtv_encoder->base.dev;
-	struct lcdc_platform_data *dtv_pdata = mdp4_find_pdata("dtv.0");
-
-	if (!dtv_pdata) {
-		dev_err(dev->dev, "could not find dtv pdata\n");
-		return;
-	}
-
-	if (dtv_pdata->bus_scale_table) {
-		mdp4_dtv_encoder->bsc = msm_bus_scale_register_client(
-				dtv_pdata->bus_scale_table);
-		DBG("bus scale client: %08x", mdp4_dtv_encoder->bsc);
-		DBG("lcdc_power_save: %p", dtv_pdata->lcdc_power_save);
-		if (dtv_pdata->lcdc_power_save)
-			dtv_pdata->lcdc_power_save(1);
-	}
-}
-
-static void bs_fini(struct mdp4_dtv_encoder *mdp4_dtv_encoder)
-{
-	if (mdp4_dtv_encoder->bsc) {
-		msm_bus_scale_unregister_client(mdp4_dtv_encoder->bsc);
-		mdp4_dtv_encoder->bsc = 0;
-	}
-}
-
-static void bs_set(struct mdp4_dtv_encoder *mdp4_dtv_encoder, int idx)
-{
-	if (mdp4_dtv_encoder->bsc) {
-		DBG("set bus scaling: %d", idx);
-		msm_bus_scale_client_update_request(mdp4_dtv_encoder->bsc, idx);
-	}
-}
-#else
-static void bs_init(struct mdp4_dtv_encoder *mdp4_dtv_encoder) {}
-static void bs_fini(struct mdp4_dtv_encoder *mdp4_dtv_encoder) {}
-static void bs_set(struct mdp4_dtv_encoder *mdp4_dtv_encoder, int idx) {}
-#endif
-
 static void mdp4_dtv_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct mdp4_dtv_encoder *mdp4_dtv_encoder = to_mdp4_dtv_encoder(encoder);
-	bs_fini(mdp4_dtv_encoder);
 	drm_encoder_cleanup(encoder);
 	kfree(mdp4_dtv_encoder);
 }
@@ -104,14 +48,7 @@ static void mdp4_dtv_encoder_mode_set(struct drm_encoder *encoder,
 
 	mode = adjusted_mode;
 
-	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 
 	mdp4_dtv_encoder->pixclock = mode->clock * 1000;
 
@@ -180,8 +117,6 @@ static void mdp4_dtv_encoder_disable(struct drm_encoder *encoder)
 	clk_disable_unprepare(mdp4_dtv_encoder->hdmi_clk);
 	clk_disable_unprepare(mdp4_dtv_encoder->mdp_clk);
 
-	bs_set(mdp4_dtv_encoder, 0);
-
 	mdp4_dtv_encoder->enabled = false;
 }
 
@@ -203,22 +138,20 @@ static void mdp4_dtv_encoder_enable(struct drm_encoder *encoder)
 			MDP4_DMA_CONFIG_PACK(0x21));
 	mdp4_crtc_set_intf(encoder->crtc, INTF_LCDC_DTV, 1);
 
-	bs_set(mdp4_dtv_encoder, 1);
-
 	DBG("setting mdp_clk=%lu", pc);
 
 	ret = clk_set_rate(mdp4_dtv_encoder->mdp_clk, pc);
 	if (ret)
-		dev_err(dev->dev, "failed to set mdp_clk to %lu: %d\n",
+		DRM_DEV_ERROR(dev->dev, "failed to set mdp_clk to %lu: %d\n",
 			pc, ret);
 
 	ret = clk_prepare_enable(mdp4_dtv_encoder->mdp_clk);
 	if (ret)
-		dev_err(dev->dev, "failed to enabled mdp_clk: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to enabled mdp_clk: %d\n", ret);
 
 	ret = clk_prepare_enable(mdp4_dtv_encoder->hdmi_clk);
 	if (ret)
-		dev_err(dev->dev, "failed to enable hdmi_clk: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to enable hdmi_clk: %d\n", ret);
 
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 1);
 
@@ -258,19 +191,17 @@ struct drm_encoder *mdp4_dtv_encoder_init(struct drm_device *dev)
 
 	mdp4_dtv_encoder->hdmi_clk = devm_clk_get(dev->dev, "hdmi_clk");
 	if (IS_ERR(mdp4_dtv_encoder->hdmi_clk)) {
-		dev_err(dev->dev, "failed to get hdmi_clk\n");
+		DRM_DEV_ERROR(dev->dev, "failed to get hdmi_clk\n");
 		ret = PTR_ERR(mdp4_dtv_encoder->hdmi_clk);
 		goto fail;
 	}
 
 	mdp4_dtv_encoder->mdp_clk = devm_clk_get(dev->dev, "tv_clk");
 	if (IS_ERR(mdp4_dtv_encoder->mdp_clk)) {
-		dev_err(dev->dev, "failed to get tv_clk\n");
+		DRM_DEV_ERROR(dev->dev, "failed to get tv_clk\n");
 		ret = PTR_ERR(mdp4_dtv_encoder->mdp_clk);
 		goto fail;
 	}
-
-	bs_init(mdp4_dtv_encoder);
 
 	return encoder;
 

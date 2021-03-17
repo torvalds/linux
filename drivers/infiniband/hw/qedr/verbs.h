@@ -35,28 +35,25 @@
 int qedr_query_device(struct ib_device *ibdev,
 		      struct ib_device_attr *attr, struct ib_udata *udata);
 int qedr_query_port(struct ib_device *, u8 port, struct ib_port_attr *props);
-int qedr_modify_port(struct ib_device *, u8 port, int mask,
-		     struct ib_port_modify *props);
 
 int qedr_iw_query_gid(struct ib_device *ibdev, u8 port,
 		      int index, union ib_gid *gid);
 
 int qedr_query_pkey(struct ib_device *, u8 port, u16 index, u16 *pkey);
 
-struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *, struct ib_udata *);
-int qedr_dealloc_ucontext(struct ib_ucontext *);
+int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
+void qedr_dealloc_ucontext(struct ib_ucontext *uctx);
 
-int qedr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
-struct ib_pd *qedr_alloc_pd(struct ib_device *,
-			    struct ib_ucontext *, struct ib_udata *);
-int qedr_dealloc_pd(struct ib_pd *pd);
-
-struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
-			     const struct ib_cq_init_attr *attr,
-			     struct ib_ucontext *ib_ctx,
-			     struct ib_udata *udata);
+int qedr_mmap(struct ib_ucontext *ucontext, struct vm_area_struct *vma);
+void qedr_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
+int qedr_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
+int qedr_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
+int qedr_alloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata);
+int qedr_dealloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata);
+int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		   struct ib_udata *udata);
 int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
-int qedr_destroy_cq(struct ib_cq *);
+int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 struct ib_qp *qedr_create_qp(struct ib_pd *, struct ib_qp_init_attr *attrs,
 			     struct ib_udata *);
@@ -64,22 +61,21 @@ int qedr_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,
 		   int attr_mask, struct ib_udata *udata);
 int qedr_query_qp(struct ib_qp *, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_qp_init_attr *);
-int qedr_destroy_qp(struct ib_qp *ibqp);
+int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
-struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
-			       struct ib_srq_init_attr *attr,
-			       struct ib_udata *udata);
+int qedr_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *attr,
+		    struct ib_udata *udata);
 int qedr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int qedr_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
-int qedr_destroy_srq(struct ib_srq *ibsrq);
+int qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_recv_wr);
-struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     struct ib_udata *udata);
-int qedr_destroy_ah(struct ib_ah *ibah);
+int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		   struct ib_udata *udata);
+int qedr_destroy_ah(struct ib_ah *ibah, u32 flags);
 
-int qedr_dereg_mr(struct ib_mr *);
+int qedr_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);
 
 struct ib_mr *qedr_reg_user_mr(struct ib_pd *, u64 start, u64 length,
@@ -97,10 +93,9 @@ int qedr_post_recv(struct ib_qp *, const struct ib_recv_wr *,
 		   const struct ib_recv_wr **bad_wr);
 int qedr_process_mad(struct ib_device *ibdev, int process_mad_flags,
 		     u8 port_num, const struct ib_wc *in_wc,
-		     const struct ib_grh *in_grh,
-		     const struct ib_mad_hdr *in_mad,
-		     size_t in_mad_size, struct ib_mad_hdr *out_mad,
-		     size_t *out_mad_size, u16 *out_mad_pkey_index);
+		     const struct ib_grh *in_grh, const struct ib_mad *in_mad,
+		     struct ib_mad *out_mad, size_t *out_mad_size,
+		     u16 *out_mad_pkey_index);
 
 int qedr_port_immutable(struct ib_device *ibdev, u8 port_num,
 			struct ib_port_immutable *immutable);

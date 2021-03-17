@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2007 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2007 Eugene Konev <ejka@openwrt.org>
  * Copyright (C) 2009 Florian Fainelli <florian@openwrt.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/kernel.h>
@@ -249,9 +236,9 @@ static void tnetd7300_set_clock(u32 shift, struct tnetd7300_clock *clock,
 
 static void __init tnetd7300_init_clocks(void)
 {
-	u32 *bootcr = (u32 *)ioremap_nocache(AR7_REGS_DCL, 4);
+	u32 *bootcr = (u32 *)ioremap(AR7_REGS_DCL, 4);
 	struct tnetd7300_clocks *clocks =
-					ioremap_nocache(UR8_REGS_CLOCKS,
+					ioremap(UR8_REGS_CLOCKS,
 					sizeof(struct tnetd7300_clocks));
 
 	bus_clk.rate = tnetd7300_get_clock(BUS_PLL_SOURCE_SHIFT,
@@ -333,9 +320,9 @@ static int tnetd7200_get_clock_base(int clock_id, u32 *bootcr)
 
 static void __init tnetd7200_init_clocks(void)
 {
-	u32 *bootcr = (u32 *)ioremap_nocache(AR7_REGS_DCL, 4);
+	u32 *bootcr = (u32 *)ioremap(AR7_REGS_DCL, 4);
 	struct tnetd7200_clocks *clocks =
-					ioremap_nocache(AR7_REGS_CLOCKS,
+					ioremap(AR7_REGS_CLOCKS,
 					sizeof(struct tnetd7200_clocks));
 	int cpu_base, cpu_mul, cpu_prediv, cpu_postdiv;
 	int dsp_base, dsp_mul, dsp_prediv, dsp_postdiv;

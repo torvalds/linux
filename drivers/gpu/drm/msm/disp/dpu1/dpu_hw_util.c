@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
@@ -50,9 +42,6 @@ static u32 dpu_hw_util_log_mask = DPU_DBG_MASK_NONE;
 #define QSEED3_CLK_CTRL0                   0x54
 #define QSEED3_CLK_CTRL1                   0x58
 #define QSEED3_CLK_STATUS                  0x5C
-#define QSEED3_MISR_CTRL                   0x70
-#define QSEED3_MISR_SIGNATURE_0            0x74
-#define QSEED3_MISR_SIGNATURE_1            0x78
 #define QSEED3_PHASE_INIT_Y_H              0x90
 #define QSEED3_PHASE_INIT_Y_V              0x94
 #define QSEED3_PHASE_INIT_UV_H             0x98

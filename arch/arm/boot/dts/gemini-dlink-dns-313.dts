@@ -11,7 +11,7 @@
 
 / {
 	model = "D-Link DNS-313 1-Bay Network Storage Enclosure";
-	compatible = "dlink,dir-313", "cortina,gemini";
+	compatible = "dlink,dns-313", "cortina,gemini";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -34,7 +34,7 @@
 		compatible = "gpio-keys";
 
 		button-esc {
-			debounce-interval = <50>;
+			debounce-interval = <100>;
 			wakeup-source;
 			linux,code = <KEY_ESC>;
 			label = "reset";
@@ -297,7 +297,7 @@
 			};
 		};
 
-		ata@63000000 {
+		ide@63000000 {
 			status = "okay";
 		};
 	};

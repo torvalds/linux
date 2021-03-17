@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CXL Flash Device Driver
  *
@@ -5,20 +6,17 @@
  *             Uma Krishnan <ukrishn@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2018 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/file.h>
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/poll.h>
 #include <linux/sched/signal.h>
-
+#include <linux/interrupt.h>
+#include <asm/xive.h>
 #include <misc/ocxl.h>
 
 #include <uapi/misc/cxl.h>
@@ -35,31 +33,15 @@
 static int ocxlflash_fs_cnt;
 static struct vfsmount *ocxlflash_vfs_mount;
 
-static const struct dentry_operations ocxlflash_fs_dops = {
-	.d_dname	= simple_dname,
-};
-
-/*
- * ocxlflash_fs_mount() - mount the pseudo-filesystem
- * @fs_type:	File system type.
- * @flags:	Flags for the filesystem.
- * @dev_name:	Device name associated with the filesystem.
- * @data:	Data pointer.
- *
- * Return: pointer to the directory entry structure
- */
-static struct dentry *ocxlflash_fs_mount(struct file_system_type *fs_type,
-					 int flags, const char *dev_name,
-					 void *data)
+static int ocxlflash_fs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type, "ocxlflash:", NULL, &ocxlflash_fs_dops,
-			    OCXLFLASH_FS_MAGIC);
+	return init_pseudo(fc, OCXLFLASH_FS_MAGIC) ? 0 : -ENOMEM;
 }
 
 static struct file_system_type ocxlflash_fs_type = {
 	.name		= "ocxlflash",
 	.owner		= THIS_MODULE,
-	.mount		= ocxlflash_fs_mount,
+	.init_fs_context = ocxlflash_fs_init_fs_context,
 	.kill_sb	= kill_anon_super,
 };
 
@@ -199,7 +181,7 @@ static int afu_map_irq(u64 flags, struct ocxlflash_context *ctx, int num,
 	struct ocxl_hw_afu *afu = ctx->hw_afu;
 	struct device *dev = afu->dev;
 	struct ocxlflash_irqs *irq;
-	void __iomem *vtrig;
+	struct xive_irq_data *xd;
 	u32 virq;
 	int rc = 0;
 
@@ -223,15 +205,15 @@ static int afu_map_irq(u64 flags, struct ocxlflash_context *ctx, int num,
 		goto err1;
 	}
 
-	vtrig = ioremap(irq->ptrig, PAGE_SIZE);
-	if (unlikely(!vtrig)) {
-		dev_err(dev, "%s: Trigger page mapping failed\n", __func__);
-		rc = -ENOMEM;
+	xd = irq_get_handler_data(virq);
+	if (unlikely(!xd)) {
+		dev_err(dev, "%s: Can't get interrupt data\n", __func__);
+		rc = -ENXIO;
 		goto err2;
 	}
 
 	irq->virq = virq;
-	irq->vtrig = vtrig;
+	irq->vtrig = xd->trig_mmio;
 out:
 	return rc;
 err2:
@@ -278,8 +260,6 @@ static void afu_unmap_irq(u64 flags, struct ocxlflash_context *ctx, int num,
 	}
 
 	irq = &ctx->irqs[num];
-	if (irq->vtrig)
-		iounmap(irq->vtrig);
 
 	if (irq_find_mapping(NULL, irq->hwirq)) {
 		free_irq(irq->virq, cookie);
@@ -634,7 +614,6 @@ static int alloc_afu_irqs(struct ocxlflash_context *ctx, int num)
 	struct ocxl_hw_afu *afu = ctx->hw_afu;
 	struct device *dev = afu->dev;
 	struct ocxlflash_irqs *irqs;
-	u64 addr;
 	int rc = 0;
 	int hwirq;
 	int i;
@@ -659,7 +638,7 @@ static int alloc_afu_irqs(struct ocxlflash_context *ctx, int num)
 	}
 
 	for (i = 0; i < num; i++) {
-		rc = ocxl_link_irq_alloc(afu->link_token, &hwirq, &addr);
+		rc = ocxl_link_irq_alloc(afu->link_token, &hwirq);
 		if (unlikely(rc)) {
 			dev_err(dev, "%s: ocxl_link_irq_alloc failed rc=%d\n",
 				__func__, rc);
@@ -667,7 +646,6 @@ static int alloc_afu_irqs(struct ocxlflash_context *ctx, int num)
 		}
 
 		irqs[i].hwirq = hwirq;
-		irqs[i].ptrig = addr;
 	}
 
 	ctx->irqs = irqs;

@@ -40,7 +40,7 @@
 	 * sha3_ce_transform(u64 *st, const u8 *data, int blocks, int dg_size)
 	 */
 	.text
-ENTRY(sha3_ce_transform)
+SYM_FUNC_START(sha3_ce_transform)
 	frame_push	4
 
 	mov	x19, x0
@@ -218,7 +218,7 @@ ENTRY(sha3_ce_transform)
 	st1	{v24.1d}, [x19]
 	frame_pop
 	ret
-ENDPROC(sha3_ce_transform)
+SYM_FUNC_END(sha3_ce_transform)
 
 	.section	".rodata", "a"
 	.align		8

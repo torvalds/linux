@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram VX soundcards
  *
  * Hardware core part
  *
  * Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/delay.h>
@@ -52,7 +39,7 @@ MODULE_LICENSE("GPL");
 int snd_vx_check_reg_bit(struct vx_core *chip, int reg, int mask, int bit, int time)
 {
 	unsigned long end_time = jiffies + (time * HZ + 999) / 1000;
-	static char *reg_names[VX_REG_MAX] = {
+	static const char * const reg_names[VX_REG_MAX] = {
 		"ICR", "CVR", "ISR", "IVR", "RXH", "RXM", "RXL",
 		"DMA", "CDSP", "RFREQ", "RUER/V2", "DATA", "MEMIRQ",
 		"ACQ", "BIT0", "BIT1", "MIC0", "MIC1", "MIC2",
@@ -524,8 +511,9 @@ irqreturn_t snd_vx_threaded_irq_handler(int irq, void *dev)
 	/* The start on time code conditions are filled (ie the time code
 	 * received by the board is equal to one of those given to it).
 	 */
-	if (events & TIME_CODE_EVENT_PENDING)
+	if (events & TIME_CODE_EVENT_PENDING) {
 		; /* so far, nothing to do yet */
+	}
 
 	/* The frequency has changed on the board (UER mode). */
 	if (events & FREQUENCY_CHANGE_EVENT_PENDING)
@@ -601,17 +589,17 @@ static void vx_reset_board(struct vx_core *chip, int cold_reset)
 static void vx_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	struct vx_core *chip = entry->private_data;
-	static char *audio_src_vxp[] = { "Line", "Mic", "Digital" };
-	static char *audio_src_vx2[] = { "Analog", "Analog", "Digital" };
-	static char *clock_mode[] = { "Auto", "Internal", "External" };
-	static char *clock_src[] = { "Internal", "External" };
-	static char *uer_type[] = { "Consumer", "Professional", "Not Present" };
+	static const char * const audio_src_vxp[] = { "Line", "Mic", "Digital" };
+	static const char * const audio_src_vx2[] = { "Analog", "Analog", "Digital" };
+	static const char * const clock_mode[] = { "Auto", "Internal", "External" };
+	static const char * const clock_src[] = { "Internal", "External" };
+	static const char * const uer_type[] = { "Consumer", "Professional", "Not Present" };
 	
 	snd_iprintf(buffer, "%s\n", chip->card->longname);
 	snd_iprintf(buffer, "Xilinx Firmware: %s\n",
-		    chip->chip_status & VX_STAT_XILINX_LOADED ? "Loaded" : "No");
+		    (chip->chip_status & VX_STAT_XILINX_LOADED) ? "Loaded" : "No");
 	snd_iprintf(buffer, "Device Initialized: %s\n",
-		    chip->chip_status & VX_STAT_DEVICE_INIT ? "Yes" : "No");
+		    (chip->chip_status & VX_STAT_DEVICE_INIT) ? "Yes" : "No");
 	snd_iprintf(buffer, "DSP audio info:");
 	if (chip->audio_info & VX_AUDIO_INFO_REAL_TIME)
 		snd_iprintf(buffer, " realtime");
@@ -643,10 +631,7 @@ static void vx_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *b
 
 static void vx_proc_init(struct vx_core *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(chip->card, "vx-status", &entry))
-		snd_info_set_text_ops(entry, chip, vx_proc_read);
+	snd_card_ro_proc_new(chip->card, "vx-status", chip, vx_proc_read);
 }
 
 
@@ -732,12 +717,8 @@ EXPORT_SYMBOL(snd_vx_dsp_load);
  */
 int snd_vx_suspend(struct vx_core *chip)
 {
-	unsigned int i;
-
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	chip->chip_status |= VX_STAT_IN_SUSPEND;
-	for (i = 0; i < chip->hw->num_codecs; i++)
-		snd_pcm_suspend_all(chip->pcm[i]);
 
 	return 0;
 }
@@ -785,8 +766,9 @@ EXPORT_SYMBOL(snd_vx_resume);
  *
  * return the instance pointer if successful, NULL in error.
  */
-struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
-			      struct snd_vx_ops *ops,
+struct vx_core *snd_vx_create(struct snd_card *card,
+			      const struct snd_vx_hardware *hw,
+			      const struct snd_vx_ops *ops,
 			      int extra_size)
 {
 	struct vx_core *chip;

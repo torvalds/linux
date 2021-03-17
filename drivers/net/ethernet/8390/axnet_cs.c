@@ -83,7 +83,7 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 					  struct net_device *dev);
 static struct net_device_stats *get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static void axnet_tx_timeout(struct net_device *dev);
+static void axnet_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
 static void ei_watchdog(struct timer_list *t);
 static void axnet_reset_8390(struct net_device *dev);
@@ -610,7 +610,7 @@ static int axnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     switch (cmd) {
     case SIOCGMIIPHY:
 	data->phy_id = info->phy_id;
-	/* Fall through */
+	fallthrough;
     case SIOCGMIIREG:		/* Read MII PHY register. */
 	data->val_out = mdio_read(mii_addr, data->phy_id, data->reg_num & 0x1f);
 	return 0;
@@ -657,8 +657,10 @@ static void block_input(struct net_device *dev, int count,
     outb_p(E8390_RREAD+E8390_START, nic_base + AXNET_CMD);
 
     insw(nic_base + AXNET_DATAPORT,buf,count>>1);
-    if (count & 0x01)
-	buf[count-1] = inb(nic_base + AXNET_DATAPORT), xfer_count++;
+    if (count & 0x01) {
+	buf[count-1] = inb(nic_base + AXNET_DATAPORT);
+	xfer_count++;
+    }
 
 }
 
@@ -898,12 +900,13 @@ static int ax_close(struct net_device *dev)
 /**
  * axnet_tx_timeout - handle transmit time out condition
  * @dev: network device which has apparently fallen asleep
+ * @txqueue: unused
  *
  * Called by kernel when device never acknowledges a transmit has
  * completed (or failed) - i.e. never posted a Tx related interrupt.
  */
 
-static void axnet_tx_timeout(struct net_device *dev)
+static void axnet_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = netdev_priv(dev);
@@ -1269,10 +1272,12 @@ static void ei_tx_intr(struct net_device *dev)
 			ei_local->txing = 1;
 			NS8390_trigger_send(dev, ei_local->tx2, ei_local->tx_start_page + 6);
 			netif_trans_update(dev);
-			ei_local->tx2 = -1,
+			ei_local->tx2 = -1;
 			ei_local->lasttx = 2;
+		} else {
+			ei_local->lasttx = 20;
+			ei_local->txing = 0;
 		}
-		else ei_local->lasttx = 20, ei_local->txing = 0;	
 	}
 	else if (ei_local->tx2 < 0) 
 	{
@@ -1288,9 +1293,10 @@ static void ei_tx_intr(struct net_device *dev)
 			netif_trans_update(dev);
 			ei_local->tx1 = -1;
 			ei_local->lasttx = 1;
+		} else {
+			ei_local->lasttx = 10;
+			ei_local->txing = 0;
 		}
-		else
-			ei_local->lasttx = 10, ei_local->txing = 0;
 	}
 //	else
 //		netdev_warn(dev, "unexpected TX-done interrupt, lasttx=%d\n",

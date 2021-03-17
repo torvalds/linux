@@ -1,20 +1,18 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * MFD internals for Cirrus Logic Madera codecs
  *
  * Copyright (C) 2015-2018 Cirrus Logic
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2.
  */
 
 #ifndef MADERA_CORE_H
 #define MADERA_CORE_H
 
+#include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/madera/pdata.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -25,17 +23,32 @@ enum madera_type {
 	CS47L85 = 2,
 	CS47L90 = 3,
 	CS47L91 = 4,
+	CS47L92 = 5,
+	CS47L93 = 6,
 	WM1840 = 7,
+	CS47L15 = 8,
+	CS42L92 = 9,
+};
+
+enum {
+	MADERA_MCLK1,
+	MADERA_MCLK2,
+	MADERA_MCLK3,
+	MADERA_NUM_MCLK
 };
 
 #define MADERA_MAX_CORE_SUPPLIES	2
 #define MADERA_MAX_GPIOS		40
 
+#define CS47L15_NUM_GPIOS		15
 #define CS47L35_NUM_GPIOS		16
 #define CS47L85_NUM_GPIOS		40
 #define CS47L90_NUM_GPIOS		38
+#define CS47L92_NUM_GPIOS		16
 
 #define MADERA_MAX_MICBIAS		4
+
+#define MADERA_MAX_HP_OUTPUT		3
 
 /* Notifier events */
 #define MADERA_NOTIFY_VOICE_TRIGGER	0x1
@@ -148,7 +161,9 @@ struct snd_soc_dapm_context;
  * @internal_dcvdd:	true if DCVDD is supplied from the internal LDO1
  * @pdata:		our pdata
  * @irq_dev:		the irqchip child driver device
+ * @irq_data:		pointer to irqchip data for the child irqchip driver
  * @irq:		host irq number from SPI or I2C configuration
+ * @mclk:		Structure holding clock supplies
  * @out_clamp:		indicates output clamp state for each analogue output
  * @out_shorted:	indicates short circuit state for each analogue output
  * @hp_ena:		bitflags of enable state for the headphone outputs
@@ -175,12 +190,19 @@ struct madera {
 	struct madera_pdata pdata;
 
 	struct device *irq_dev;
+	struct regmap_irq_chip_data *irq_data;
 	int irq;
+
+	struct clk_bulk_data mclk[MADERA_NUM_MCLK];
 
 	unsigned int num_micbias;
 	unsigned int num_childbias[MADERA_MAX_MICBIAS];
 
 	struct snd_soc_dapm_context *dapm;
+	struct mutex dapm_ptr_lock;
+	unsigned int hp_ena;
+	bool out_clamp[MADERA_MAX_HP_OUTPUT];
+	bool out_shorted[MADERA_MAX_HP_OUTPUT];
 
 	struct blocking_notifier_head notifier;
 };

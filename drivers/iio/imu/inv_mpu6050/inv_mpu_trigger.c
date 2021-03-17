@@ -1,21 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * Copyright (C) 2012 Invensense, Inc.
-*
-* This software is licensed under the terms of the GNU General Public
-* License version 2, as published by the Free Software Foundation, and
-* may be copied, distributed, and modified under those terms.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 
+#include <linux/pm_runtime.h>
 #include "inv_mpu_iio.h"
 
-static void inv_scan_query(struct iio_dev *indio_dev)
+static unsigned int inv_scan_query_mpu6050(struct iio_dev *indio_dev)
 {
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
+	unsigned int mask;
 
 	st->chip_config.gyro_fifo_enable =
 		test_bit(INV_MPU6050_SCAN_GYRO_X,
@@ -32,6 +26,127 @@ static void inv_scan_query(struct iio_dev *indio_dev)
 			 indio_dev->active_scan_mask) ||
 		test_bit(INV_MPU6050_SCAN_ACCL_Z,
 			 indio_dev->active_scan_mask);
+
+	st->chip_config.temp_fifo_enable =
+		test_bit(INV_MPU6050_SCAN_TEMP, indio_dev->active_scan_mask);
+
+	mask = 0;
+	if (st->chip_config.gyro_fifo_enable)
+		mask |= INV_MPU6050_SENSOR_GYRO;
+	if (st->chip_config.accl_fifo_enable)
+		mask |= INV_MPU6050_SENSOR_ACCL;
+	if (st->chip_config.temp_fifo_enable)
+		mask |= INV_MPU6050_SENSOR_TEMP;
+
+	return mask;
+}
+
+static unsigned int inv_scan_query_mpu9x50(struct iio_dev *indio_dev)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	unsigned int mask;
+
+	mask = inv_scan_query_mpu6050(indio_dev);
+
+	/* no magnetometer if i2c auxiliary bus is used */
+	if (st->magn_disabled)
+		return mask;
+
+	st->chip_config.magn_fifo_enable =
+		test_bit(INV_MPU9X50_SCAN_MAGN_X,
+			 indio_dev->active_scan_mask) ||
+		test_bit(INV_MPU9X50_SCAN_MAGN_Y,
+			 indio_dev->active_scan_mask) ||
+		test_bit(INV_MPU9X50_SCAN_MAGN_Z,
+			 indio_dev->active_scan_mask);
+	if (st->chip_config.magn_fifo_enable)
+		mask |= INV_MPU6050_SENSOR_MAGN;
+
+	return mask;
+}
+
+static unsigned int inv_scan_query(struct iio_dev *indio_dev)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+
+	switch (st->chip_type) {
+	case INV_MPU9150:
+	case INV_MPU9250:
+	case INV_MPU9255:
+		return inv_scan_query_mpu9x50(indio_dev);
+	default:
+		return inv_scan_query_mpu6050(indio_dev);
+	}
+}
+
+static unsigned int inv_compute_skip_samples(const struct inv_mpu6050_state *st)
+{
+	unsigned int gyro_skip = 0;
+	unsigned int magn_skip = 0;
+	unsigned int skip_samples;
+
+	/* gyro first sample is out of specs, skip it */
+	if (st->chip_config.gyro_fifo_enable)
+		gyro_skip = 1;
+
+	/* mag first sample is always not ready, skip it */
+	if (st->chip_config.magn_fifo_enable)
+		magn_skip = 1;
+
+	/* compute first samples to skip */
+	skip_samples = gyro_skip;
+	if (magn_skip > skip_samples)
+		skip_samples = magn_skip;
+
+	return skip_samples;
+}
+
+int inv_mpu6050_prepare_fifo(struct inv_mpu6050_state *st, bool enable)
+{
+	uint8_t d;
+	int ret;
+
+	if (enable) {
+		st->it_timestamp = 0;
+		/* reset FIFO */
+		d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_RST;
+		ret = regmap_write(st->map, st->reg->user_ctrl, d);
+		if (ret)
+			return ret;
+		/* enable sensor output to FIFO */
+		d = 0;
+		if (st->chip_config.gyro_fifo_enable)
+			d |= INV_MPU6050_BITS_GYRO_OUT;
+		if (st->chip_config.accl_fifo_enable)
+			d |= INV_MPU6050_BIT_ACCEL_OUT;
+		if (st->chip_config.temp_fifo_enable)
+			d |= INV_MPU6050_BIT_TEMP_OUT;
+		if (st->chip_config.magn_fifo_enable)
+			d |= INV_MPU6050_BIT_SLAVE_0;
+		ret = regmap_write(st->map, st->reg->fifo_en, d);
+		if (ret)
+			return ret;
+		/* enable FIFO reading */
+		d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_EN;
+		ret = regmap_write(st->map, st->reg->user_ctrl, d);
+		if (ret)
+			return ret;
+		/* enable interrupt */
+		ret = regmap_write(st->map, st->reg->int_enable,
+				   INV_MPU6050_BIT_DATA_RDY_EN);
+	} else {
+		ret = regmap_write(st->map, st->reg->int_enable, 0);
+		if (ret)
+			return ret;
+		ret = regmap_write(st->map, st->reg->fifo_en, 0);
+		if (ret)
+			return ret;
+		/* restore user_ctrl for disabling FIFO reading */
+		ret = regmap_write(st->map, st->reg->user_ctrl,
+				   st->chip_config.user_ctrl);
+	}
+
+	return ret;
 }
 
 /**
@@ -42,72 +157,43 @@ static void inv_scan_query(struct iio_dev *indio_dev)
 static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	struct device *pdev = regmap_get_device(st->map);
+	unsigned int scan;
 	int result;
 
 	if (enable) {
-		result = inv_mpu6050_set_power_itg(st, true);
-		if (result)
+		scan = inv_scan_query(indio_dev);
+		result = pm_runtime_get_sync(pdev);
+		if (result < 0) {
+			pm_runtime_put_noidle(pdev);
 			return result;
-		inv_scan_query(indio_dev);
-		st->skip_samples = 0;
-		if (st->chip_config.gyro_fifo_enable) {
-			result = inv_mpu6050_switch_engine(st, true,
-					INV_MPU6050_BIT_PWR_GYRO_STBY);
-			if (result)
-				goto error_power_off;
-			/* gyro first sample is out of specs, skip it */
-			st->skip_samples = 1;
 		}
-		if (st->chip_config.accl_fifo_enable) {
-			result = inv_mpu6050_switch_engine(st, true,
-					INV_MPU6050_BIT_PWR_ACCL_STBY);
-			if (result)
-				goto error_gyro_off;
-		}
-		result = inv_reset_fifo(indio_dev);
-		if (result)
-			goto error_accl_off;
-	} else {
-		result = regmap_write(st->map, st->reg->fifo_en, 0);
-		if (result)
-			goto error_accl_off;
-
-		result = regmap_write(st->map, st->reg->int_enable, 0);
-		if (result)
-			goto error_accl_off;
-
-		result = regmap_write(st->map, st->reg->user_ctrl,
-				      st->chip_config.user_ctrl);
-		if (result)
-			goto error_accl_off;
-
-		result = inv_mpu6050_switch_engine(st, false,
-					INV_MPU6050_BIT_PWR_ACCL_STBY);
-		if (result)
-			goto error_accl_off;
-
-		result = inv_mpu6050_switch_engine(st, false,
-					INV_MPU6050_BIT_PWR_GYRO_STBY);
-		if (result)
-			goto error_gyro_off;
-
-		result = inv_mpu6050_set_power_itg(st, false);
+		/*
+		 * In case autosuspend didn't trigger, turn off first not
+		 * required sensors.
+		 */
+		result = inv_mpu6050_switch_engine(st, false, ~scan);
 		if (result)
 			goto error_power_off;
+		result = inv_mpu6050_switch_engine(st, true, scan);
+		if (result)
+			goto error_power_off;
+		st->skip_samples = inv_compute_skip_samples(st);
+		result = inv_mpu6050_prepare_fifo(st, true);
+		if (result)
+			goto error_power_off;
+	} else {
+		result = inv_mpu6050_prepare_fifo(st, false);
+		if (result)
+			goto error_power_off;
+		pm_runtime_mark_last_busy(pdev);
+		pm_runtime_put_autosuspend(pdev);
 	}
 
 	return 0;
 
-error_accl_off:
-	if (st->chip_config.accl_fifo_enable)
-		inv_mpu6050_switch_engine(st, false,
-					  INV_MPU6050_BIT_PWR_ACCL_STBY);
-error_gyro_off:
-	if (st->chip_config.gyro_fifo_enable)
-		inv_mpu6050_switch_engine(st, false,
-					  INV_MPU6050_BIT_PWR_GYRO_STBY);
 error_power_off:
-	inv_mpu6050_set_power_itg(st, false);
+	pm_runtime_put_autosuspend(pdev);
 	return result;
 }
 

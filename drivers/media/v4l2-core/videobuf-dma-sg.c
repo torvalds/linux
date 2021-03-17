@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * helper functions for SG DMA video4linux capture buffers
  *
@@ -12,10 +13,6 @@
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2
  */
 
 #include <linux/init.h>
@@ -24,13 +21,13 @@
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/pgtable.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 #include <media/videobuf-dma-sg.h>
 
@@ -183,15 +180,15 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 	if (rw == READ)
 		flags |= FOLL_WRITE;
 
-	dprintk(1, "init user [0x%lx+0x%lx => %d pages]\n",
+	dprintk(1, "init user [0x%lx+0x%lx => %lu pages]\n",
 		data, size, dma->nr_pages);
 
-	err = get_user_pages_longterm(data & PAGE_MASK, dma->nr_pages,
-			     flags, dma->pages, NULL);
+	err = pin_user_pages(data & PAGE_MASK, dma->nr_pages,
+			     flags | FOLL_LONGTERM, dma->pages, NULL);
 
 	if (err != dma->nr_pages) {
 		dma->nr_pages = (err >= 0) ? err : 0;
-		dprintk(1, "get_user_pages_longterm: err=%d [%d]\n", err,
+		dprintk(1, "pin_user_pages: err=%d [%lu]\n", err,
 			dma->nr_pages);
 		return err < 0 ? err : -EINVAL;
 	}
@@ -203,19 +200,19 @@ static int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
 {
 	int ret;
 
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 	ret = videobuf_dma_init_user_locked(dma, direction, data, size);
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 	return ret;
 }
 
 static int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
-			     int nr_pages)
+				    unsigned long nr_pages)
 {
 	int i;
 
-	dprintk(1, "init kernel [%d pages]\n", nr_pages);
+	dprintk(1, "init kernel [%lu pages]\n", nr_pages);
 
 	dma->direction = direction;
 	dma->vaddr_pages = kcalloc(nr_pages, sizeof(*dma->vaddr_pages),
@@ -241,11 +238,11 @@ static int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
 	dma->vaddr = vmap(dma->vaddr_pages, nr_pages, VM_MAP | VM_IOREMAP,
 			  PAGE_KERNEL);
 	if (NULL == dma->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		goto out_free_pages;
 	}
 
-	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+	dprintk(1, "vmalloc is at addr %p, size=%lu\n",
 		dma->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
@@ -270,9 +267,9 @@ out_free_pages:
 }
 
 static int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
-			      dma_addr_t addr, int nr_pages)
+			      dma_addr_t addr, unsigned long nr_pages)
 {
-	dprintk(1, "init overlay [%d pages @ bus 0x%lx]\n",
+	dprintk(1, "init overlay [%lu pages @ bus 0x%lx]\n",
 		nr_pages, (unsigned long)addr);
 	dma->direction = direction;
 
@@ -352,8 +349,8 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 	BUG_ON(dma->sglen);
 
 	if (dma->pages) {
-		for (i = 0; i < dma->nr_pages; i++)
-			put_page(dma->pages[i]);
+		unpin_user_pages_dirty_lock(dma->pages, dma->nr_pages,
+					    dma->direction == DMA_FROM_DEVICE);
 		kfree(dma->pages);
 		dma->pages = NULL;
 	}
@@ -503,9 +500,11 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 			     struct videobuf_buffer *vb,
 			     struct v4l2_framebuffer *fbuf)
 {
-	int err, pages;
-	dma_addr_t bus;
 	struct videobuf_dma_sg_memory *mem = vb->priv;
+	unsigned long pages;
+	dma_addr_t bus;
+	int err;
+
 	BUG_ON(!mem);
 
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
@@ -536,7 +535,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 		} else {
 			/* NOTE: HACK: videobuf_iolock on V4L2_MEMORY_MMAP
 			buffers can only be called from videobuf_qbuf
-			we take current->mm->mmap_sem there, to prevent
+			we take current->mm->mmap_lock there, to prevent
 			locking inversion, so don't take it here */
 
 			err = videobuf_dma_init_user_locked(&mem->dma,

@@ -32,198 +32,193 @@
 #include "inc/hw/link_encoder.h"
 #include "core_status.h"
 
-#define EDP_BACKLIGHT_RAMP_DISABLE_LEVEL 0xFFFFFFFF
-
-enum pipe_gating_control {
-	PIPE_GATING_CONTROL_DISABLE = 0,
-	PIPE_GATING_CONTROL_ENABLE,
-	PIPE_GATING_CONTROL_INIT
-};
-
-struct dce_hwseq_wa {
-	bool blnd_crtc_trigger;
-	bool DEGVIDCN10_253;
-	bool false_optc_underflow;
-	bool DEGVIDCN10_254;
-};
-
-struct hwseq_wa_state {
-	bool DEGVIDCN10_253_applied;
-};
-
-struct dce_hwseq {
-	struct dc_context *ctx;
-	const struct dce_hwseq_registers *regs;
-	const struct dce_hwseq_shift *shifts;
-	const struct dce_hwseq_mask *masks;
-	struct dce_hwseq_wa wa;
-	struct hwseq_wa_state wa_state;
+enum vline_select {
+	VLINE0,
+	VLINE1
 };
 
 struct pipe_ctx;
 struct dc_state;
+struct dc_stream_status;
+struct dc_writeback_info;
 struct dchub_init_data;
-struct dc_static_screen_events;
+struct dc_static_screen_params;
 struct resource_pool;
-struct resource_context;
-struct stream_resource;
+struct dc_phy_addr_space_config;
+struct dc_virtual_addr_space_config;
+struct dpp;
+struct dce_hwseq;
 
 struct hw_sequencer_funcs {
+	/* Embedded Display Related */
+	void (*edp_power_control)(struct dc_link *link, bool enable);
+	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
 
+	/* Pipe Programming Related */
 	void (*init_hw)(struct dc *dc);
-
-	enum dc_status (*apply_ctx_to_hw)(
-			struct dc *dc, struct dc_state *context);
-
-	void (*reset_hw_ctx_wrap)(
-			struct dc *dc, struct dc_state *context);
-
-	void (*apply_ctx_for_surface)(
-			struct dc *dc,
-			const struct dc_stream_state *stream,
-			int num_planes,
+	void (*power_down_on_boot)(struct dc *dc);
+	void (*enable_accelerated_mode)(struct dc *dc,
 			struct dc_state *context);
-
-	void (*program_gamut_remap)(
-			struct pipe_ctx *pipe_ctx);
-
-	void (*program_csc_matrix)(
-			struct pipe_ctx *pipe_ctx,
-			enum dc_color_space colorspace,
-			uint16_t *matrix);
-
-	void (*program_output_csc)(struct dc *dc,
-			struct pipe_ctx *pipe_ctx,
-			enum dc_color_space colorspace,
-			uint16_t *matrix,
-			int opp_id);
-
-	void (*update_plane_addr)(
-		const struct dc *dc,
-		struct pipe_ctx *pipe_ctx);
-
-	void (*plane_atomic_disconnect)(
-		struct dc *dc,
-		struct pipe_ctx *pipe_ctx);
-
-	void (*update_dchub)(
-		struct dce_hwseq *hws,
-		struct dchub_init_data *dh_data);
-
-	void (*update_mpcc)(
-		struct dc *dc,
-		struct pipe_ctx *pipe_ctx);
-
-	void (*update_pending_status)(
-			struct pipe_ctx *pipe_ctx);
-
-	bool (*set_input_transfer_func)(
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_plane_state *plane_state);
-
-	bool (*set_output_transfer_func)(
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream);
-
-	void (*power_down)(struct dc *dc);
-
-	void (*enable_accelerated_mode)(struct dc *dc, struct dc_state *context);
-
-	void (*enable_timing_synchronization)(
-			struct dc *dc,
-			int group_index,
-			int group_size,
-			struct pipe_ctx *grouped_pipes[]);
-
-	void (*enable_per_frame_crtc_position_reset)(
-			struct dc *dc,
-			int group_size,
-			struct pipe_ctx *grouped_pipes[]);
-
-	void (*enable_display_pipe_clock_gating)(
-					struct dc_context *ctx,
-					bool clock_gating);
-
-	bool (*enable_display_power_gating)(
-					struct dc *dc,
-					uint8_t controller_id,
-					struct dc_bios *dcb,
-					enum pipe_gating_control power_gating);
-
+	enum dc_status (*apply_ctx_to_hw)(struct dc *dc,
+			struct dc_state *context);
 	void (*disable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx);
-
-	void (*update_info_frame)(struct pipe_ctx *pipe_ctx);
-
-	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
-
-	void (*disable_stream)(struct pipe_ctx *pipe_ctx,
-			int option);
-
-	void (*unblank_stream)(struct pipe_ctx *pipe_ctx,
-			struct dc_link_settings *link_settings);
-
-	void (*blank_stream)(struct pipe_ctx *pipe_ctx);
-
-	void (*enable_audio_stream)(struct pipe_ctx *pipe_ctx);
-
-	void (*disable_audio_stream)(struct pipe_ctx *pipe_ctx, int option);
-
-	void (*pipe_control_lock)(
-				struct dc *dc,
-				struct pipe_ctx *pipe,
-				bool lock);
-	void (*blank_pixel_data)(
-			struct dc *dc,
-			struct pipe_ctx *pipe_ctx,
-			bool blank);
-
-	void (*set_bandwidth)(
-			struct dc *dc,
-			struct dc_state *context,
-			bool safe_to_lower);
-
-	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
-			int vmin, int vmax);
-
-	void (*get_position)(struct pipe_ctx **pipe_ctx, int num_pipes,
-			struct crtc_position *position);
-
-	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
-			int num_pipes, const struct dc_static_screen_events *events);
-
-	enum dc_status (*enable_stream_timing)(
-			struct pipe_ctx *pipe_ctx,
-			struct dc_state *context,
-			struct dc *dc);
-
-	void (*setup_stereo)(
-			struct pipe_ctx *pipe_ctx,
-			struct dc *dc);
-
-	void (*set_avmute)(struct pipe_ctx *pipe_ctx, bool enable);
-
-	void (*log_hw_state)(struct dc *dc);
-
+	void (*apply_ctx_for_surface)(struct dc *dc,
+			const struct dc_stream_state *stream,
+			int num_planes, struct dc_state *context);
+	void (*program_front_end_for_ctx)(struct dc *dc,
+			struct dc_state *context);
+	bool (*disconnect_pipes)(struct dc *dc,
+			struct dc_state *context);
+	void (*wait_for_pending_cleared)(struct dc *dc,
+			struct dc_state *context);
+	void (*post_unlock_program_front_end)(struct dc *dc,
+			struct dc_state *context);
+	void (*update_plane_addr)(const struct dc *dc,
+			struct pipe_ctx *pipe_ctx);
+	void (*update_dchub)(struct dce_hwseq *hws,
+			struct dchub_init_data *dh_data);
 	void (*wait_for_mpcc_disconnect)(struct dc *dc,
 			struct resource_pool *res_pool,
 			struct pipe_ctx *pipe_ctx);
-
-	void (*ready_shared_resources)(struct dc *dc, struct dc_state *context);
-	void (*optimize_shared_resources)(struct dc *dc);
-	void (*pplib_apply_display_requirements)(
-			struct dc *dc,
-			struct dc_state *context);
-	void (*edp_power_control)(
-			struct dc_link *link,
-			bool enable);
 	void (*edp_backlight_control)(
 			struct dc_link *link,
 			bool enable);
-	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
+	void (*program_triplebuffer)(const struct dc *dc,
+		struct pipe_ctx *pipe_ctx, bool enableTripleBuffer);
+	void (*update_pending_status)(struct pipe_ctx *pipe_ctx);
+	void (*power_down)(struct dc *dc);
 
+	/* Pipe Lock Related */
+	void (*pipe_control_lock)(struct dc *dc,
+			struct pipe_ctx *pipe, bool lock);
+	void (*interdependent_update_lock)(struct dc *dc,
+			struct dc_state *context, bool lock);
+	void (*set_flip_control_gsl)(struct pipe_ctx *pipe_ctx,
+			bool flip_immediate);
+	void (*cursor_lock)(struct dc *dc, struct pipe_ctx *pipe, bool lock);
+
+	/* Timing Related */
+	void (*get_position)(struct pipe_ctx **pipe_ctx, int num_pipes,
+			struct crtc_position *position);
+	int (*get_vupdate_offset_from_vsync)(struct pipe_ctx *pipe_ctx);
+	void (*calc_vupdate_position)(
+			struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			uint32_t *start_line,
+			uint32_t *end_line);
+	void (*enable_per_frame_crtc_position_reset)(struct dc *dc,
+			int group_size, struct pipe_ctx *grouped_pipes[]);
+	void (*enable_timing_synchronization)(struct dc *dc,
+			int group_index, int group_size,
+			struct pipe_ctx *grouped_pipes[]);
+	void (*setup_periodic_interrupt)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			enum vline_select vline);
+	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
+			unsigned int vmin, unsigned int vmax,
+			unsigned int vmid, unsigned int vmid_frame_number);
+	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
+			int num_pipes,
+			const struct dc_static_screen_params *events);
+#ifndef TRIM_FSFT
+	bool (*optimize_timing_for_fsft)(struct dc *dc,
+			struct dc_crtc_timing *timing,
+			unsigned int max_input_rate_in_khz);
+#endif
+
+	/* Stream Related */
+	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
+	void (*disable_stream)(struct pipe_ctx *pipe_ctx);
+	void (*blank_stream)(struct pipe_ctx *pipe_ctx);
+	void (*unblank_stream)(struct pipe_ctx *pipe_ctx,
+			struct dc_link_settings *link_settings);
+
+	/* Bandwidth Related */
+	void (*prepare_bandwidth)(struct dc *dc, struct dc_state *context);
+	bool (*update_bandwidth)(struct dc *dc, struct dc_state *context);
+	void (*optimize_bandwidth)(struct dc *dc, struct dc_state *context);
+
+	/* Infopacket Related */
+	void (*set_avmute)(struct pipe_ctx *pipe_ctx, bool enable);
+	void (*send_immediate_sdp_message)(
+			struct pipe_ctx *pipe_ctx,
+			const uint8_t *custom_sdp_message,
+			unsigned int sdp_message_size);
+	void (*update_info_frame)(struct pipe_ctx *pipe_ctx);
+	void (*set_dmdata_attributes)(struct pipe_ctx *pipe);
+	void (*program_dmdata_engine)(struct pipe_ctx *pipe_ctx);
+	bool (*dmdata_status_done)(struct pipe_ctx *pipe_ctx);
+
+	/* Cursor Related */
 	void (*set_cursor_position)(struct pipe_ctx *pipe);
 	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
 	void (*set_cursor_sdr_white_level)(struct pipe_ctx *pipe);
+
+	/* Colour Related */
+	void (*program_gamut_remap)(struct pipe_ctx *pipe_ctx);
+	void (*program_output_csc)(struct dc *dc, struct pipe_ctx *pipe_ctx,
+			enum dc_color_space colorspace,
+			uint16_t *matrix, int opp_id);
+
+	/* VM Related */
+	int (*init_sys_ctx)(struct dce_hwseq *hws,
+			struct dc *dc,
+			struct dc_phy_addr_space_config *pa_config);
+	void (*init_vm_ctx)(struct dce_hwseq *hws,
+			struct dc *dc,
+			struct dc_virtual_addr_space_config *va_config,
+			int vmid);
+
+	/* Writeback Related */
+	void (*update_writeback)(struct dc *dc,
+			struct dc_writeback_info *wb_info,
+			struct dc_state *context);
+	void (*enable_writeback)(struct dc *dc,
+			struct dc_writeback_info *wb_info,
+			struct dc_state *context);
+	void (*disable_writeback)(struct dc *dc,
+			unsigned int dwb_pipe_inst);
+
+	bool (*mmhubbub_warmup)(struct dc *dc,
+			unsigned int num_dwb,
+			struct dc_writeback_info *wb_info);
+
+	/* Clock Related */
+	enum dc_status (*set_clock)(struct dc *dc,
+			enum dc_clock_type clock_type,
+			uint32_t clk_khz, uint32_t stepping);
+	void (*get_clock)(struct dc *dc, enum dc_clock_type clock_type,
+			struct dc_clock_config *clock_cfg);
+	void (*optimize_pwr_state)(const struct dc *dc,
+			struct dc_state *context);
+	void (*exit_optimized_pwr_state)(const struct dc *dc,
+			struct dc_state *context);
+
+	/* Audio Related */
+	void (*enable_audio_stream)(struct pipe_ctx *pipe_ctx);
+	void (*disable_audio_stream)(struct pipe_ctx *pipe_ctx);
+
+	/* Stereo 3D Related */
+	void (*setup_stereo)(struct pipe_ctx *pipe_ctx, struct dc *dc);
+
+	/* HW State Logging Related */
+	void (*log_hw_state)(struct dc *dc, struct dc_log_buffer_ctx *log_ctx);
+	void (*get_hw_state)(struct dc *dc, char *pBuf,
+			unsigned int bufSize, unsigned int mask);
+	void (*clear_status_bits)(struct dc *dc, unsigned int mask);
+
+	bool (*set_backlight_level)(struct pipe_ctx *pipe_ctx,
+			uint32_t backlight_pwm_u16_16,
+			uint32_t frame_ramp);
+
+	void (*set_abm_immediate_disable)(struct pipe_ctx *pipe_ctx);
+
+	void (*set_pipe)(struct pipe_ctx *pipe_ctx);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	/* Idle Optimization Related */
+	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
+#endif
 
 };
 

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Copyright (c) 2014 Linaro Ltd.
  * Copyright (c) 2014 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -723,7 +719,7 @@ static int hix5hd2_fill_sg_desc(struct hix5hd2_priv *priv,
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		int len = frag->size;
+		int len = skb_frag_size(frag);
 
 		addr = skb_frag_dma_map(priv->dev, frag, 0, len, DMA_TO_DEVICE);
 		ret = dma_mapping_error(priv->dev, addr);
@@ -736,7 +732,7 @@ static int hix5hd2_fill_sg_desc(struct hix5hd2_priv *priv,
 	return 0;
 }
 
-static int hix5hd2_net_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hix5hd2_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hix5hd2_priv *priv = netdev_priv(dev);
 	struct hix5hd2_desc *desc;
@@ -897,7 +893,7 @@ static void hix5hd2_tx_timeout_task(struct work_struct *work)
 	hix5hd2_net_open(priv->netdev);
 }
 
-static void hix5hd2_net_timeout(struct net_device *dev)
+static void hix5hd2_net_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct hix5hd2_priv *priv = netdev_priv(dev);
 
@@ -1006,8 +1002,8 @@ static int hix5hd2_init_hw_desc_queue(struct hix5hd2_priv *priv)
 
 	for (i = 0; i < QUEUE_NUMS; i++) {
 		size = priv->pool[i].count * sizeof(struct hix5hd2_desc);
-		virt_addr = dma_zalloc_coherent(dev, size, &phys_addr,
-						GFP_KERNEL);
+		virt_addr = dma_alloc_coherent(dev, size, &phys_addr,
+					       GFP_KERNEL);
 		if (virt_addr == NULL)
 			goto error_free_pool;
 
@@ -1028,9 +1024,9 @@ static int hix5hd2_init_sg_desc_queue(struct hix5hd2_priv *priv)
 	struct sg_desc *desc;
 	dma_addr_t phys_addr;
 
-	desc = (struct sg_desc *)dma_alloc_coherent(priv->dev,
-				TX_DESC_NUM * sizeof(struct sg_desc),
-				&phys_addr, GFP_KERNEL);
+	desc = dma_alloc_coherent(priv->dev,
+				  TX_DESC_NUM * sizeof(struct sg_desc),
+				  &phys_addr, GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 
@@ -1101,7 +1097,6 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id = NULL;
 	struct net_device *ndev;
 	struct hix5hd2_priv *priv;
-	struct resource *res;
 	struct mii_bus *bus;
 	const char *mac_addr;
 	int ret;
@@ -1123,15 +1118,13 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	}
 	priv->hw_cap = (unsigned long)of_id->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
 		ret = PTR_ERR(priv->base);
 		goto out_free_netdev;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->ctrl_base = devm_ioremap_resource(dev, res);
+	priv->ctrl_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(priv->ctrl_base)) {
 		ret = PTR_ERR(priv->ctrl_base);
 		goto out_free_netdev;
@@ -1200,10 +1193,9 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_mdio;
 
-	priv->phy_mode = of_get_phy_mode(node);
-	if (priv->phy_mode < 0) {
+	ret = of_get_phy_mode(node, &priv->phy_mode);
+	if (ret) {
 		netdev_err(ndev, "not find phy-mode\n");
-		ret = -EINVAL;
 		goto err_mdiobus;
 	}
 
@@ -1229,7 +1221,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	}
 
 	mac_addr = of_get_mac_address(node);
-	if (mac_addr)
+	if (!IS_ERR(mac_addr))
 		ether_addr_copy(ndev->dev_addr, mac_addr);
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		eth_hw_addr_random(ndev);

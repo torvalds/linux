@@ -3,7 +3,7 @@
  *
  * Module Name: utpredef - support functions for predefined names
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -84,7 +84,7 @@ const union acpi_predefined_info *acpi_ut_match_predefined_method(char *name)
 
 	this_name = acpi_gbl_predefined_methods;
 	while (this_name->info.name[0]) {
-		if (ACPI_COMPARE_NAME(name, this_name->info.name)) {
+		if (ACPI_COMPARE_NAMESEG(name, this_name->info.name)) {
 			return (this_name);
 		}
 
@@ -151,7 +151,7 @@ static u32 acpi_ut_get_argument_types(char *buffer, u16 argument_types);
 
 static const char *ut_external_type_names[] =	/* Indexed by ACPI_TYPE_* */
 {
-	", UNSUPPORTED-TYPE",
+	", Type_ANY",
 	", Integer",
 	", String",
 	", Buffer",
@@ -201,7 +201,7 @@ const union acpi_predefined_info *acpi_ut_match_resource_name(char *name)
 
 	this_name = acpi_gbl_resource_names;
 	while (this_name->info.name[0]) {
-		if (ACPI_COMPARE_NAME(name, this_name->info.name)) {
+		if (ACPI_COMPARE_NAMESEG(name, this_name->info.name)) {
 			return (this_name);
 		}
 
@@ -311,8 +311,7 @@ static u32 acpi_ut_get_argument_types(char *buffer, u16 argument_types)
 	for (i = 0; i < arg_count; i++) {
 		this_argument_type = METHOD_GET_NEXT_TYPE(argument_types);
 
-		if (!this_argument_type
-		    || (this_argument_type > METHOD_MAX_ARG_TYPE)) {
+		if (this_argument_type > METHOD_MAX_ARG_TYPE) {
 			printf("**** Invalid argument type (%u) "
 			       "in predefined info structure\n",
 			       this_argument_type);

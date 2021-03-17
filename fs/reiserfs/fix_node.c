@@ -376,7 +376,6 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 		       int to, int to_bytes, short *snum012, int flow)
 {
 	int i;
-	int cur_free;
 	int units;
 	struct virtual_node *vn = tb->tb_vn;
 	int total_node_size, max_node_size, current_item_size;
@@ -438,7 +437,6 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 	/* leaf level */
 	needed_nodes = 1;
 	total_node_size = 0;
-	cur_free = max_node_size;
 
 	/* start from 'from'-th item */
 	start_item = from;
@@ -613,9 +611,9 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
  *	blk_num	number of blocks that S[h] will be splitted into;
  *	s012	number of items that fall into splitted nodes.
  *	lbytes	number of bytes which flow to the left neighbor from the
- *              item that is not not shifted entirely
+ *              item that is not shifted entirely
  *	rbytes	number of bytes which flow to the right neighbor from the
- *              item that is not not shifted entirely
+ *              item that is not shifted entirely
  *	s1bytes	number of bytes which flow to the first  new node when
  *              S[0] splits (this number is contained in s012 array)
  */
@@ -1734,13 +1732,11 @@ static int dc_check_balance_internal(struct tree_balance *tb, int h)
 	 * and Fh is its father.
 	 */
 	struct buffer_head *Sh, *Fh;
-	int maxsize, ret;
+	int ret;
 	int lfree, rfree /* free space in L and R */ ;
 
 	Sh = PATH_H_PBUFFER(tb->tb_path, h);
 	Fh = PATH_H_PPARENT(tb->tb_path, h);
-
-	maxsize = MAX_CHILD_SIZE(Sh);
 
 	/*
 	 * using tb->insert_size[h], which is negative in this case,

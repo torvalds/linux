@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RDMA resource limiting controller for cgroups.
  *
@@ -5,10 +6,6 @@
  * additional RDMA resources after a certain limit is reached.
  *
  * Copyright (C) 2016 Parav Pandit <pandit.parav@gmail.com>
- *
- * This file is subject to the terms and conditions of version 2 of the GNU
- * General Public License. See the file COPYING in the main directory of the
- * Linux distribution for more details.
  */
 
 #include <linux/bitops.h>
@@ -313,10 +310,8 @@ EXPORT_SYMBOL(rdmacg_try_charge);
  * If IB stack wish a device to participate in rdma cgroup resource
  * tracking, it must invoke this API to register with rdma cgroup before
  * any user space application can start using the RDMA resources.
- * Returns 0 on success or EINVAL when table length given is beyond
- * supported size.
  */
-int rdmacg_register_device(struct rdmacg_device *device)
+void rdmacg_register_device(struct rdmacg_device *device)
 {
 	INIT_LIST_HEAD(&device->dev_node);
 	INIT_LIST_HEAD(&device->rpools);
@@ -324,7 +319,6 @@ int rdmacg_register_device(struct rdmacg_device *device)
 	mutex_lock(&rdmacg_mutex);
 	list_add_tail(&device->dev_node, &rdmacg_devices);
 	mutex_unlock(&rdmacg_mutex);
-	return 0;
 }
 EXPORT_SYMBOL(rdmacg_register_device);
 

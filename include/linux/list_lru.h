@@ -34,7 +34,7 @@ struct list_lru_one {
 struct list_lru_memcg {
 	struct rcu_head		rcu;
 	/* array of per cgroup lists, indexed by memcg_cache_id */
-	struct list_lru_one	*lru[0];
+	struct list_lru_one	*lru[];
 };
 
 struct list_lru_node {
@@ -54,6 +54,7 @@ struct list_lru {
 #ifdef CONFIG_MEMCG_KMEM
 	struct list_head	list;
 	int			shrinker_id;
+	bool			memcg_aware;
 #endif
 };
 

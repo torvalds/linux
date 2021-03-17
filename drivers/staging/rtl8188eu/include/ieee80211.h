@@ -12,12 +12,6 @@
 #include "wifi.h"
 #include <linux/wireless.h>
 
-#define MGMT_QUEUE_NUM 5
-
-#define ETH_ALEN	6
-#define ETH_TYPE_LEN		2
-#define PAYLOAD_TYPE_LEN	1
-
 #ifdef CONFIG_88EU_AP_MODE
 
 #define RTL_IOCTL_HOSTAPD (SIOCIWFIRSTPRIV + 28)
@@ -96,7 +90,6 @@ enum {
 #define IEEE_CRYPT_ERR_TX_KEY_SET_FAILED		6
 #define IEEE_CRYPT_ERR_CARD_CONF_FAILED		7
 
-
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
 #define WPA_CIPHER_NONE		BIT(0)
@@ -104,8 +97,6 @@ enum {
 #define WPA_CIPHER_WEP104 BIT(2)
 #define WPA_CIPHER_TKIP		BIT(3)
 #define WPA_CIPHER_CCMP		BIT(4)
-
-
 
 #define WPA_SELECTOR_LEN 4
 extern u8 RTW_WPA_OUI_TYPE[];
@@ -118,7 +109,6 @@ extern u8 WPA_CIPHER_SUITE_TKIP[];
 extern u8 WPA_CIPHER_SUITE_WRAP[];
 extern u8 WPA_CIPHER_SUITE_CCMP[];
 extern u8 WPA_CIPHER_SUITE_WEP104[];
-
 
 #define RSN_HEADER_LEN 4
 #define RSN_SELECTOR_LEN 4
@@ -198,7 +188,6 @@ enum NETWORK_TYPE {
 #define IsSupportedTxMCS(NetType)				\
 	((NetType) & (WIRELESS_11_24N | WIRELESS_11_5N) ? true : false)
 
-
 struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
@@ -276,10 +265,8 @@ struct sta_data {
  * WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro)
  */
 
-
 #define IEEE80211_HLEN			30
 #define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
-
 
 /* this is stolen from ipw2200 driver */
 #define IEEE_IBSS_MAC_HASH_SIZE 31
@@ -302,7 +289,6 @@ enum eap_type {
 /* sequence control field */
 #define RTW_IEEE80211_SCTL_FRAG	0x000F
 #define RTW_IEEE80211_SCTL_SEQ	0xFFF0
-
 
 #define RTW_ERP_INFO_NON_ERP_PRESENT BIT(0)
 #define RTW_ERP_INFO_USE_PROTECTION BIT(1)
@@ -359,7 +345,6 @@ struct ieee80211_snap_hdr {
 
 #define IEEE80211_CCK_RATE_LEN			4
 #define IEEE80211_NUM_OFDM_RATESLEN	8
-
 
 #define IEEE80211_CCK_RATE_1MB			0x02
 #define IEEE80211_CCK_RATE_2MB			0x04
@@ -541,16 +526,6 @@ enum rtw_ieee80211_category {
 	RTW_WLAN_CATEGORY_P2P = 0x7f,/* P2P action frames */
 };
 
-/* SPECTRUM_MGMT action code */
-enum rtw_ieee80211_spectrum_mgmt_actioncode {
-	RTW_WLAN_ACTION_SPCT_MSR_REQ = 0,
-	RTW_WLAN_ACTION_SPCT_MSR_RPRT = 1,
-	RTW_WLAN_ACTION_SPCT_TPC_REQ = 2,
-	RTW_WLAN_ACTION_SPCT_TPC_RPRT = 3,
-	RTW_WLAN_ACTION_SPCT_CHL_SWITCH = 4,
-	RTW_WLAN_ACTION_SPCT_EXT_CHL_SWITCH = 5,
-};
-
 enum _PUBLIC_ACTION {
 	ACT_PUBLIC_BSSCOEXIST = 0, /*  20/40 BSS Coexistence */
 	ACT_PUBLIC_DSE_ENABLE = 1,
@@ -618,7 +593,6 @@ enum rtw_ieee80211_back_parties {
 #define WME_TSPEC_DIRECTION_UPLINK 0
 #define WME_TSPEC_DIRECTION_DOWNLINK 1
 #define WME_TSPEC_DIRECTION_BI_DIRECTIONAL 3
-
 
 #define OUI_BROADCOM 0x00904c /* Broadcom (Epigram) */
 
@@ -749,8 +723,8 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 int rtw_parse_wpa2_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 		      int *pairwise_cipher, int *is_8021x);
 
-int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
-		   u8 *wpa_ie, u16 *wpa_len);
+void rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
+		    u8 *wpa_ie, u16 *wpa_len);
 
 u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen);
 u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen);
@@ -764,14 +738,13 @@ uint	rtw_get_rateset_len(u8	*rateset);
 struct registry_priv;
 int rtw_generate_ie(struct registry_priv *pregistrypriv);
 
-
 int rtw_get_bit_value_from_ieee_value(u8 val);
 
 bool rtw_is_cckrates_included(u8 *rate);
 
 bool rtw_is_cckratesonly_included(u8 *rate);
 
-int rtw_check_network_type(unsigned char *rate, int ratelen, int channel);
+int rtw_check_network_type(unsigned char *rate);
 
 void rtw_get_bcn_info(struct wlan_network *pnetwork);
 

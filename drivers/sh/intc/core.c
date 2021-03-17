@@ -100,8 +100,8 @@ static void __init intc_register_irq(struct intc_desc *desc,
 		primary = 1;
 
 	if (!data[0] && !data[1])
-		pr_warning("missing unique irq mask for irq %d (vect 0x%04x)\n",
-			   irq, irq2evt(irq));
+		pr_warn("missing unique irq mask for irq %d (vect 0x%04x)\n",
+			irq, irq2evt(irq));
 
 	data[0] = data[0] ? data[0] : intc_get_mask_handle(desc, d, enum_id, 1);
 	data[1] = data[1] ? data[1] : intc_get_prio_handle(desc, d, enum_id, 1);
@@ -213,7 +213,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 			WARN_ON(resource_type(res) != IORESOURCE_MEM);
 			d->window[k].phys = res->start;
 			d->window[k].size = resource_size(res);
-			d->window[k].virt = ioremap_nocache(res->start,
+			d->window[k].virt = ioremap(res->start,
 							 resource_size(res));
 			if (!d->window[k].virt)
 				goto err2;

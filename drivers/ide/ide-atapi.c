@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ATAPI support.
  */
@@ -94,7 +95,7 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 
 	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, 0);
 	ide_req(rq)->type = ATA_PRIV_MISC;
-	rq->special = (char *)pc;
+	ide_req(rq)->special = pc;
 
 	if (buf && bufflen) {
 		error = blk_rq_map_kern(drive->queue, rq, buf, bufflen,
@@ -172,8 +173,8 @@ EXPORT_SYMBOL_GPL(ide_create_request_sense_cmd);
 void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 {
 	struct request_sense *sense = &drive->sense_data;
-	struct request *sense_rq = drive->sense_rq;
-	struct scsi_request *req = scsi_req(sense_rq);
+	struct request *sense_rq;
+	struct scsi_request *req;
 	unsigned int cmd_len, sense_len;
 	int err;
 
@@ -196,9 +197,16 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	if (ata_sense_request(rq) || drive->sense_rq_armed)
 		return;
 
+	sense_rq = drive->sense_rq;
+	if (!sense_rq) {
+		sense_rq = blk_mq_alloc_request(drive->queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
+		drive->sense_rq = sense_rq;
+	}
+	req = scsi_req(sense_rq);
+
 	memset(sense, 0, sizeof(*sense));
 
-	blk_rq_init(rq->q, sense_rq);
 	scsi_req_init(req);
 
 	err = blk_rq_map_kern(drive->queue, sense_rq, sense, sense_len,
@@ -207,13 +215,14 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 		if (printk_ratelimit())
 			printk(KERN_WARNING PFX "%s: failed to map sense "
 					    "buffer\n", drive->name);
+		blk_mq_free_request(sense_rq);
+		drive->sense_rq = NULL;
 		return;
 	}
 
 	sense_rq->rq_disk = rq->rq_disk;
 	sense_rq->cmd_flags = REQ_OP_DRV_IN;
 	ide_req(sense_rq)->type = ATA_PRIV_SENSE;
-	sense_rq->rq_flags |= RQF_PREEMPT;
 
 	req->cmd[0] = GPCMD_REQUEST_SENSE;
 	req->cmd[4] = cmd_len;
@@ -226,19 +235,28 @@ EXPORT_SYMBOL_GPL(ide_prep_sense);
 
 int ide_queue_sense_rq(ide_drive_t *drive, void *special)
 {
+	ide_hwif_t *hwif = drive->hwif;
+	struct request *sense_rq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&hwif->lock, flags);
+
 	/* deferred failure from ide_prep_sense() */
 	if (!drive->sense_rq_armed) {
 		printk(KERN_WARNING PFX "%s: error queuing a sense request\n",
 		       drive->name);
+		spin_unlock_irqrestore(&hwif->lock, flags);
 		return -ENOMEM;
 	}
 
-	drive->sense_rq->special = special;
+	sense_rq = drive->sense_rq;
+	ide_req(sense_rq)->special = special;
 	drive->sense_rq_armed = false;
 
 	drive->hwif->rq = NULL;
 
-	elv_add_request(drive->queue, drive->sense_rq, ELEVATOR_INSERT_FRONT);
+	ide_insert_request_head(drive, sense_rq);
+	spin_unlock_irqrestore(&hwif->lock, flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_queue_sense_rq);
@@ -270,10 +288,8 @@ void ide_retry_pc(ide_drive_t *drive)
 	 */
 	drive->hwif->rq = NULL;
 	ide_requeue_and_plug(drive, failed_rq);
-	if (ide_queue_sense_rq(drive, pc)) {
-		blk_start_request(failed_rq);
+	if (ide_queue_sense_rq(drive, pc))
 		ide_complete_rq(drive, BLK_STS_IOERR, blk_rq_bytes(failed_rq));
-	}
 }
 EXPORT_SYMBOL_GPL(ide_retry_pc);
 
@@ -592,7 +608,7 @@ static int ide_delayed_transfer_pc(ide_drive_t *drive)
 
 static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 {
-	struct ide_atapi_pc *uninitialized_var(pc);
+	struct ide_atapi_pc *pc;
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->rq;
 	ide_expiry_t *expiry;

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * da7219.c - DA7219 ALSA SoC Codec Driver
  *
  * Copyright (c) 2015 Dialog Semiconductor
  *
  * Author: Adam Thomson <Adam.Thomson.Opensource@diasemi.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/acpi.h>
@@ -317,13 +313,13 @@ static void da7219_alc_calib(struct snd_soc_component *component)
 	u8 mic_ctrl, mixin_ctrl, adc_ctrl, calib_ctrl;
 
 	/* Save current state of mic control register */
-	mic_ctrl = snd_soc_component_read32(component, DA7219_MIC_1_CTRL);
+	mic_ctrl = snd_soc_component_read(component, DA7219_MIC_1_CTRL);
 
 	/* Save current state of input mixer control register */
-	mixin_ctrl = snd_soc_component_read32(component, DA7219_MIXIN_L_CTRL);
+	mixin_ctrl = snd_soc_component_read(component, DA7219_MIXIN_L_CTRL);
 
 	/* Save current state of input ADC control register */
-	adc_ctrl = snd_soc_component_read32(component, DA7219_ADC_L_CTRL);
+	adc_ctrl = snd_soc_component_read(component, DA7219_ADC_L_CTRL);
 
 	/* Enable then Mute MIC PGAs */
 	snd_soc_component_update_bits(component, DA7219_MIC_1_CTRL, DA7219_MIC_1_AMP_EN_MASK,
@@ -348,7 +344,7 @@ static void da7219_alc_calib(struct snd_soc_component *component)
 			    DA7219_ALC_AUTO_CALIB_EN_MASK,
 			    DA7219_ALC_AUTO_CALIB_EN_MASK);
 	do {
-		calib_ctrl = snd_soc_component_read32(component, DA7219_ALC_CTRL1);
+		calib_ctrl = snd_soc_component_read(component, DA7219_ALC_CTRL1);
 	} while (calib_ctrl & DA7219_ALC_AUTO_CALIB_EN_MASK);
 
 	/* If auto calibration fails, disable DC offset, hybrid ALC */
@@ -423,7 +419,7 @@ static int da7219_tonegen_freq_get(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mixer_ctrl =
 		(struct soc_mixer_control *) kcontrol->private_value;
 	unsigned int reg = mixer_ctrl->reg;
-	u16 val;
+	__le16 val;
 	int ret;
 
 	mutex_lock(&da7219->ctrl_lock);
@@ -450,7 +446,7 @@ static int da7219_tonegen_freq_put(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mixer_ctrl =
 		(struct soc_mixer_control *) kcontrol->private_value;
 	unsigned int reg = mixer_ctrl->reg;
-	u16 val;
+	__le16 val;
 	int ret;
 
 	/*
@@ -797,6 +793,7 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct clk *bclk = da7219->dai_clks[DA7219_DAI_BCLK_IDX];
 	u8 pll_ctrl, pll_status;
 	int i = 0, ret;
 	bool srm_lock = false;
@@ -805,11 +802,11 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		if (da7219->master) {
 			/* Enable DAI clks for master mode */
-			if (da7219->dai_clks) {
-				ret = clk_prepare_enable(da7219->dai_clks);
+			if (bclk) {
+				ret = clk_prepare_enable(bclk);
 				if (ret) {
 					dev_err(component->dev,
-						"Failed to enable dai_clks\n");
+						"Failed to enable DAI clks\n");
 					return ret;
 				}
 			} else {
@@ -825,20 +822,20 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 				    DA7219_PC_FREERUN_MASK, 0);
 
 		/* Slave mode, if SRM not enabled no need for status checks */
-		pll_ctrl = snd_soc_component_read32(component, DA7219_PLL_CTRL);
+		pll_ctrl = snd_soc_component_read(component, DA7219_PLL_CTRL);
 		if ((pll_ctrl & DA7219_PLL_MODE_MASK) != DA7219_PLL_MODE_SRM)
 			return 0;
 
 		/* Check SRM has locked */
 		do {
-			pll_status = snd_soc_component_read32(component, DA7219_PLL_SRM_STS);
+			pll_status = snd_soc_component_read(component, DA7219_PLL_SRM_STS);
 			if (pll_status & DA7219_PLL_SRM_STS_SRM_LOCK) {
 				srm_lock = true;
 			} else {
 				++i;
 				msleep(50);
 			}
-		} while ((i < DA7219_SRM_CHECK_RETRIES) & (!srm_lock));
+		} while ((i < DA7219_SRM_CHECK_RETRIES) && (!srm_lock));
 
 		if (!srm_lock)
 			dev_warn(component->dev, "SRM failed to lock\n");
@@ -852,8 +849,8 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 
 		/* Disable DAI clks if in master mode */
 		if (da7219->master) {
-			if (da7219->dai_clks)
-				clk_disable_unprepare(da7219->dai_clks);
+			if (bclk)
+				clk_disable_unprepare(bclk);
 			else
 				snd_soc_component_update_bits(component,
 							      DA7219_DAI_CLK_MODE,
@@ -931,7 +928,7 @@ static int da7219_gain_ramp_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		/* Ensure nominal gain ramping for DAPM sequence */
 		da7219->gain_ramp_ctrl =
-			snd_soc_component_read32(component, DA7219_GAIN_RAMP_CTRL);
+			snd_soc_component_read(component, DA7219_GAIN_RAMP_CTRL);
 		snd_soc_component_write(component, DA7219_GAIN_RAMP_CTRL,
 			      DA7219_GAIN_RAMP_RATE_NOMINAL);
 		break;
@@ -1376,15 +1373,40 @@ static int da7219_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	/* By default 64 BCLKs per WCLK is supported */
-	dai_clk_mode |= DA7219_DAI_BCLKS_PER_WCLK_64;
-
 	snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
-			    DA7219_DAI_BCLKS_PER_WCLK_MASK |
 			    DA7219_DAI_CLK_POL_MASK | DA7219_DAI_WCLK_POL_MASK,
 			    dai_clk_mode);
 	snd_soc_component_update_bits(component, DA7219_DAI_CTRL, DA7219_DAI_FORMAT_MASK,
 			    dai_ctrl);
+
+	return 0;
+}
+
+static int da7219_set_bclks_per_wclk(struct snd_soc_component *component,
+				     unsigned long factor)
+{
+	u8 bclks_per_wclk;
+
+	switch (factor) {
+	case 32:
+		bclks_per_wclk = DA7219_DAI_BCLKS_PER_WCLK_32;
+		break;
+	case 64:
+		bclks_per_wclk = DA7219_DAI_BCLKS_PER_WCLK_64;
+		break;
+	case 128:
+		bclks_per_wclk = DA7219_DAI_BCLKS_PER_WCLK_128;
+		break;
+	case 256:
+		bclks_per_wclk = DA7219_DAI_BCLKS_PER_WCLK_256;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
+				      DA7219_DAI_BCLKS_PER_WCLK_MASK,
+				      bclks_per_wclk);
 
 	return 0;
 }
@@ -1395,107 +1417,94 @@ static int da7219_set_dai_tdm_slot(struct snd_soc_dai *dai,
 {
 	struct snd_soc_component *component = dai->component;
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-	u8 dai_bclks_per_wclk;
+	struct clk *wclk = da7219->dai_clks[DA7219_DAI_WCLK_IDX];
+	struct clk *bclk = da7219->dai_clks[DA7219_DAI_BCLK_IDX];
+	unsigned int ch_mask;
+	unsigned long sr, bclk_rate;
+	u8 slot_offset;
 	u16 offset;
+	__le16 dai_offset;
 	u32 frame_size;
+	int ret;
 
-	/* No channels enabled so disable TDM, revert to 64-bit frames */
+	/* No channels enabled so disable TDM */
 	if (!tx_mask) {
 		snd_soc_component_update_bits(component, DA7219_DAI_TDM_CTRL,
 				    DA7219_DAI_TDM_CH_EN_MASK |
 				    DA7219_DAI_TDM_MODE_EN_MASK, 0);
-		snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
-				    DA7219_DAI_BCLKS_PER_WCLK_MASK,
-				    DA7219_DAI_BCLKS_PER_WCLK_64);
+		da7219->tdm_en = false;
 		return 0;
 	}
 
 	/* Check we have valid slots */
-	if (fls(tx_mask) > DA7219_DAI_TDM_MAX_SLOTS) {
-		dev_err(component->dev, "Invalid number of slots, max = %d\n",
+	slot_offset = ffs(tx_mask) - 1;
+	ch_mask = (tx_mask >> slot_offset);
+	if (fls(ch_mask) > DA7219_DAI_TDM_MAX_SLOTS) {
+		dev_err(component->dev,
+			"Invalid number of slots, max = %d\n",
 			DA7219_DAI_TDM_MAX_SLOTS);
 		return -EINVAL;
 	}
 
-	/* Check we have a valid offset given */
-	if (rx_mask > DA7219_DAI_OFFSET_MAX) {
-		dev_err(component->dev, "Invalid slot offset, max = %d\n",
-			DA7219_DAI_OFFSET_MAX);
+	/*
+	 * Ensure we have a valid offset into the frame, based on slot width
+	 * and slot offset of first slot we're interested in.
+	 */
+	offset = slot_offset * slot_width;
+	if (offset > DA7219_DAI_OFFSET_MAX) {
+		dev_err(component->dev, "Invalid frame offset %d\n", offset);
 		return -EINVAL;
 	}
 
-	/* Calculate & validate frame size based on slot info provided. */
-	frame_size = slots * slot_width;
-	switch (frame_size) {
-	case 32:
-		dai_bclks_per_wclk = DA7219_DAI_BCLKS_PER_WCLK_32;
-		break;
-	case 64:
-		dai_bclks_per_wclk = DA7219_DAI_BCLKS_PER_WCLK_64;
-		break;
-	case 128:
-		dai_bclks_per_wclk = DA7219_DAI_BCLKS_PER_WCLK_128;
-		break;
-	case 256:
-		dai_bclks_per_wclk = DA7219_DAI_BCLKS_PER_WCLK_256;
-		break;
-	default:
-		dev_err(component->dev, "Invalid frame size %d\n", frame_size);
-		return -EINVAL;
+	/*
+	 * If we're master, calculate & validate frame size based on slot info
+	 * provided as we have a limited set of rates available.
+	 */
+	if (da7219->master) {
+		frame_size = slots * slot_width;
+
+		if (bclk) {
+			sr = clk_get_rate(wclk);
+			bclk_rate = sr * frame_size;
+			ret = clk_set_rate(bclk, bclk_rate);
+			if (ret) {
+				dev_err(component->dev,
+					"Failed to set TDM BCLK rate %lu: %d\n",
+					bclk_rate, ret);
+				return ret;
+			}
+		} else {
+			ret = da7219_set_bclks_per_wclk(component, frame_size);
+			if (ret) {
+				dev_err(component->dev,
+					"Failed to set TDM BCLKs per WCLK %d: %d\n",
+					frame_size, ret);
+				return ret;
+			}
+		}
 	}
 
-	snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
-			    DA7219_DAI_BCLKS_PER_WCLK_MASK,
-			    dai_bclks_per_wclk);
-
-	offset = cpu_to_le16(rx_mask);
+	dai_offset = cpu_to_le16(offset);
 	regmap_bulk_write(da7219->regmap, DA7219_DAI_OFFSET_LOWER,
-			  &offset, sizeof(offset));
+			  &dai_offset, sizeof(dai_offset));
 
 	snd_soc_component_update_bits(component, DA7219_DAI_TDM_CTRL,
 			    DA7219_DAI_TDM_CH_EN_MASK |
 			    DA7219_DAI_TDM_MODE_EN_MASK,
-			    (tx_mask << DA7219_DAI_TDM_CH_EN_SHIFT) |
+			    (ch_mask << DA7219_DAI_TDM_CH_EN_SHIFT) |
 			    DA7219_DAI_TDM_MODE_EN_MASK);
+
+	da7219->tdm_en = true;
 
 	return 0;
 }
 
-static int da7219_hw_params(struct snd_pcm_substream *substream,
-			    struct snd_pcm_hw_params *params,
-			    struct snd_soc_dai *dai)
+static int da7219_set_sr(struct snd_soc_component *component,
+			 unsigned long rate)
 {
-	struct snd_soc_component *component = dai->component;
-	u8 dai_ctrl = 0, fs;
-	unsigned int channels;
+	u8 fs;
 
-	switch (params_width(params)) {
-	case 16:
-		dai_ctrl |= DA7219_DAI_WORD_LENGTH_S16_LE;
-		break;
-	case 20:
-		dai_ctrl |= DA7219_DAI_WORD_LENGTH_S20_LE;
-		break;
-	case 24:
-		dai_ctrl |= DA7219_DAI_WORD_LENGTH_S24_LE;
-		break;
-	case 32:
-		dai_ctrl |= DA7219_DAI_WORD_LENGTH_S32_LE;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	channels = params_channels(params);
-	if ((channels < 1) || (channels > DA7219_DAI_CH_NUM_MAX)) {
-		dev_err(component->dev,
-			"Invalid number of channels, only 1 to %d supported\n",
-			DA7219_DAI_CH_NUM_MAX);
-		return -EINVAL;
-	}
-	dai_ctrl |= channels << DA7219_DAI_CH_NUM_SHIFT;
-
-	switch (params_rate(params)) {
+	switch (rate) {
 	case 8000:
 		fs = DA7219_SR_8000;
 		break;
@@ -1533,11 +1542,118 @@ static int da7219_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	snd_soc_component_write(component, DA7219_SR, fs);
+
+	return 0;
+}
+
+static int da7219_hw_params(struct snd_pcm_substream *substream,
+			    struct snd_pcm_hw_params *params,
+			    struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct clk *wclk = da7219->dai_clks[DA7219_DAI_WCLK_IDX];
+	struct clk *bclk = da7219->dai_clks[DA7219_DAI_BCLK_IDX];
+	u8 dai_ctrl = 0;
+	unsigned int channels;
+	unsigned long sr, bclk_rate;
+	int word_len = params_width(params);
+	int frame_size, ret;
+
+	switch (word_len) {
+	case 16:
+		dai_ctrl |= DA7219_DAI_WORD_LENGTH_S16_LE;
+		break;
+	case 20:
+		dai_ctrl |= DA7219_DAI_WORD_LENGTH_S20_LE;
+		break;
+	case 24:
+		dai_ctrl |= DA7219_DAI_WORD_LENGTH_S24_LE;
+		break;
+	case 32:
+		dai_ctrl |= DA7219_DAI_WORD_LENGTH_S32_LE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	channels = params_channels(params);
+	if ((channels < 1) || (channels > DA7219_DAI_CH_NUM_MAX)) {
+		dev_err(component->dev,
+			"Invalid number of channels, only 1 to %d supported\n",
+			DA7219_DAI_CH_NUM_MAX);
+		return -EINVAL;
+	}
+	dai_ctrl |= channels << DA7219_DAI_CH_NUM_SHIFT;
+
+	sr = params_rate(params);
+	if (da7219->master && wclk) {
+		ret = clk_set_rate(wclk, sr);
+		if (ret) {
+			dev_err(component->dev,
+				"Failed to set WCLK SR %lu: %d\n", sr, ret);
+			return ret;
+		}
+	} else {
+		ret = da7219_set_sr(component, sr);
+		if (ret) {
+			dev_err(component->dev,
+				"Failed to set SR %lu: %d\n", sr, ret);
+			return ret;
+		}
+	}
+
+	/*
+	 * If we're master, then we have a limited set of BCLK rates we
+	 * support. For slave mode this isn't the case and the codec can detect
+	 * the BCLK rate automatically.
+	 */
+	if (da7219->master && !da7219->tdm_en) {
+		if ((word_len * DA7219_DAI_CH_NUM_MAX) <= 32)
+			frame_size = 32;
+		else
+			frame_size = 64;
+
+		if (bclk) {
+			bclk_rate = frame_size * sr;
+			/*
+			 * Rounding the rate here avoids failure trying to set a
+			 * new rate on an already enabled bclk. In that
+			 * instance this will just set the same rate as is
+			 * currently in use, and so should continue without
+			 * problem, as long as the BCLK rate is suitable for the
+			 * desired frame size.
+			 */
+			bclk_rate = clk_round_rate(bclk, bclk_rate);
+			if ((bclk_rate / sr) < frame_size) {
+				dev_err(component->dev,
+					"BCLK rate mismatch against frame size");
+				return -EINVAL;
+			}
+
+			ret = clk_set_rate(bclk, bclk_rate);
+			if (ret) {
+				dev_err(component->dev,
+					"Failed to set BCLK rate %lu: %d\n",
+					bclk_rate, ret);
+				return ret;
+			}
+		} else {
+			ret = da7219_set_bclks_per_wclk(component, frame_size);
+			if (ret) {
+				dev_err(component->dev,
+					"Failed to set BCLKs per WCLK %d: %d\n",
+					frame_size, ret);
+				return ret;
+			}
+		}
+	}
+
 	snd_soc_component_update_bits(component, DA7219_DAI_CTRL,
 			    DA7219_DAI_WORD_LENGTH_MASK |
 			    DA7219_DAI_CH_NUM_MASK,
 			    dai_ctrl);
-	snd_soc_component_write(component, DA7219_SR, fs);
 
 	return 0;
 }
@@ -1553,20 +1669,26 @@ static const struct snd_soc_dai_ops da7219_dai_ops = {
 #define DA7219_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+#define DA7219_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		      SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
+		      SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
+		      SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
+		      SNDRV_PCM_RATE_96000)
+
 static struct snd_soc_dai_driver da7219_dai = {
 	.name = "da7219-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
 		.channels_max = DA7219_DAI_CH_NUM_MAX,
-		.rates = SNDRV_PCM_RATE_8000_96000,
+		.rates = DA7219_RATES,
 		.formats = DA7219_FORMATS,
 	},
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 1,
 		.channels_max = DA7219_DAI_CH_NUM_MAX,
-		.rates = SNDRV_PCM_RATE_8000_96000,
+		.rates = DA7219_RATES,
 		.formats = DA7219_FORMATS,
 	},
 	.ops = &da7219_dai_ops,
@@ -1586,11 +1708,13 @@ static const struct of_device_id da7219_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, da7219_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id da7219_acpi_match[] = {
 	{ .id = "DLGS7219", },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, da7219_acpi_match);
+#endif
 
 static enum da7219_micbias_voltage
 	da7219_fw_micbias_lvl(struct device *dev, u32 val)
@@ -1629,9 +1753,8 @@ static enum da7219_mic_amp_in_sel
 	}
 }
 
-static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_component *component)
+static struct da7219_pdata *da7219_fw_to_pdata(struct device *dev)
 {
-	struct device *dev = component->dev;
 	struct da7219_pdata *pdata;
 	const char *of_str;
 	u32 of_val32;
@@ -1642,11 +1765,14 @@ static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_component *compone
 
 	pdata->wakeup_source = device_property_read_bool(dev, "wakeup-source");
 
-	pdata->dai_clks_name = "da7219-dai-clks";
-	if (device_property_read_string(dev, "clock-output-names",
-					&pdata->dai_clks_name))
-		dev_warn(dev, "Using default clk name: %s\n",
-			 pdata->dai_clks_name);
+	pdata->dai_clk_names[DA7219_DAI_WCLK_IDX] = "da7219-dai-wclk";
+	pdata->dai_clk_names[DA7219_DAI_BCLK_IDX] = "da7219-dai-bclk";
+	if (device_property_read_string_array(dev, "clock-output-names",
+					      pdata->dai_clk_names,
+					      DA7219_DAI_NUM_CLKS) < 0)
+		dev_warn(dev, "Using default DAI clk names: %s, %s\n",
+			 pdata->dai_clk_names[DA7219_DAI_WCLK_IDX],
+			 pdata->dai_clk_names[DA7219_DAI_BCLK_IDX]);
 
 	if (device_property_read_u32(dev, "dlg,micbias-lvl", &of_val32) >= 0)
 		pdata->micbias_lvl = da7219_fw_micbias_lvl(dev, of_val32);
@@ -1720,23 +1846,26 @@ static const char *da7219_supply_names[DA7219_NUM_SUPPLIES] = {
 	[DA7219_SUPPLY_VDDIO] = "VDDIO",
 };
 
-static int da7219_handle_supplies(struct snd_soc_component *component)
+static int da7219_handle_supplies(struct snd_soc_component *component,
+				  u8 *io_voltage_lvl)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 	struct regulator *vddio;
-	u8 io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_2_5V_3_6V;
 	int i, ret;
 
 	/* Get required supplies */
 	for (i = 0; i < DA7219_NUM_SUPPLIES; ++i)
 		da7219->supplies[i].supply = da7219_supply_names[i];
 
-	ret = devm_regulator_bulk_get(component->dev, DA7219_NUM_SUPPLIES,
-				      da7219->supplies);
+	ret = regulator_bulk_get(component->dev, DA7219_NUM_SUPPLIES,
+				 da7219->supplies);
 	if (ret) {
 		dev_err(component->dev, "Failed to get supplies");
 		return ret;
 	}
+
+	/* Default to upper range */
+	*io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_2_5V_3_6V;
 
 	/* Determine VDDIO voltage provided */
 	vddio = da7219->supplies[DA7219_SUPPLY_VDDIO].consumer;
@@ -1744,30 +1873,29 @@ static int da7219_handle_supplies(struct snd_soc_component *component)
 	if (ret < 1200000)
 		dev_warn(component->dev, "Invalid VDDIO voltage\n");
 	else if (ret < 2800000)
-		io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_1_2V_2_8V;
+		*io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_1_2V_2_8V;
 
 	/* Enable main supplies */
 	ret = regulator_bulk_enable(DA7219_NUM_SUPPLIES, da7219->supplies);
 	if (ret) {
 		dev_err(component->dev, "Failed to enable supplies");
+		regulator_bulk_free(DA7219_NUM_SUPPLIES, da7219->supplies);
 		return ret;
 	}
-
-	/* Ensure device in active mode */
-	snd_soc_component_write(component, DA7219_SYSTEM_ACTIVE, DA7219_SYSTEM_ACTIVE_MASK);
-
-	/* Update IO voltage level range */
-	snd_soc_component_write(component, DA7219_IO_CTRL, io_voltage_lvl);
 
 	return 0;
 }
 
 #ifdef CONFIG_COMMON_CLK
-static int da7219_dai_clks_prepare(struct clk_hw *hw)
+static int da7219_wclk_prepare(struct clk_hw *hw)
 {
 	struct da7219_priv *da7219 =
-		container_of(hw, struct da7219_priv, dai_clks_hw);
-	struct snd_soc_component *component = da7219->aad->component;
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_WCLK_IDX]);
+	struct snd_soc_component *component = da7219->component;
+
+	if (!da7219->master)
+		return -EINVAL;
 
 	snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
 				      DA7219_DAI_CLK_EN_MASK,
@@ -1776,72 +1904,350 @@ static int da7219_dai_clks_prepare(struct clk_hw *hw)
 	return 0;
 }
 
-static void da7219_dai_clks_unprepare(struct clk_hw *hw)
+static void da7219_wclk_unprepare(struct clk_hw *hw)
 {
 	struct da7219_priv *da7219 =
-		container_of(hw, struct da7219_priv, dai_clks_hw);
-	struct snd_soc_component *component = da7219->aad->component;
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_WCLK_IDX]);
+	struct snd_soc_component *component = da7219->component;
+
+	if (!da7219->master)
+		return;
 
 	snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
 				      DA7219_DAI_CLK_EN_MASK, 0);
 }
 
-static int da7219_dai_clks_is_prepared(struct clk_hw *hw)
+static int da7219_wclk_is_prepared(struct clk_hw *hw)
 {
 	struct da7219_priv *da7219 =
-		container_of(hw, struct da7219_priv, dai_clks_hw);
-	struct snd_soc_component *component = da7219->aad->component;
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_WCLK_IDX]);
+	struct snd_soc_component *component = da7219->component;
 	u8 clk_reg;
 
-	clk_reg = snd_soc_component_read32(component, DA7219_DAI_CLK_MODE);
+	if (!da7219->master)
+		return -EINVAL;
+
+	clk_reg = snd_soc_component_read(component, DA7219_DAI_CLK_MODE);
 
 	return !!(clk_reg & DA7219_DAI_CLK_EN_MASK);
 }
 
-static const struct clk_ops da7219_dai_clks_ops = {
-	.prepare = da7219_dai_clks_prepare,
-	.unprepare = da7219_dai_clks_unprepare,
-	.is_prepared = da7219_dai_clks_is_prepared,
-};
-
-static void da7219_register_dai_clks(struct snd_soc_component *component)
+static unsigned long da7219_wclk_recalc_rate(struct clk_hw *hw,
+					     unsigned long parent_rate)
 {
-	struct device *dev = component->dev;
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-	struct da7219_pdata *pdata = da7219->pdata;
-	struct clk_init_data init = {};
-	struct clk *dai_clks;
-	struct clk_lookup *dai_clks_lookup;
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_WCLK_IDX]);
+	struct snd_soc_component *component = da7219->component;
+	u8 fs = snd_soc_component_read(component, DA7219_SR);
 
-	init.parent_names = NULL;
-	init.num_parents = 0;
-	init.name = pdata->dai_clks_name;
-	init.ops = &da7219_dai_clks_ops;
-	da7219->dai_clks_hw.init = &init;
-
-	dai_clks = devm_clk_register(dev, &da7219->dai_clks_hw);
-	if (IS_ERR(dai_clks)) {
-		dev_warn(dev, "Failed to register DAI clocks: %ld\n",
-			 PTR_ERR(dai_clks));
-		return;
-	}
-	da7219->dai_clks = dai_clks;
-
-	/* If we're using DT, then register as provider accordingly */
-	if (dev->of_node) {
-		devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
-					    &da7219->dai_clks_hw);
-	} else {
-		dai_clks_lookup = clkdev_create(dai_clks, pdata->dai_clks_name,
-						"%s", dev_name(dev));
-		if (!dai_clks_lookup)
-			dev_warn(dev, "Failed to create DAI clkdev");
-		else
-			da7219->dai_clks_lookup = dai_clks_lookup;
+	switch (fs & DA7219_SR_MASK) {
+	case DA7219_SR_8000:
+		return 8000;
+	case DA7219_SR_11025:
+		return 11025;
+	case DA7219_SR_12000:
+		return 12000;
+	case DA7219_SR_16000:
+		return 16000;
+	case DA7219_SR_22050:
+		return 22050;
+	case DA7219_SR_24000:
+		return 24000;
+	case DA7219_SR_32000:
+		return 32000;
+	case DA7219_SR_44100:
+		return 44100;
+	case DA7219_SR_48000:
+		return 48000;
+	case DA7219_SR_88200:
+		return 88200;
+	case DA7219_SR_96000:
+		return 96000;
+	default:
+		return 0;
 	}
 }
+
+static long da7219_wclk_round_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long *parent_rate)
+{
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_WCLK_IDX]);
+
+	if (!da7219->master)
+		return -EINVAL;
+
+	if (rate < 11025)
+		return 8000;
+	else if (rate < 12000)
+		return 11025;
+	else if (rate < 16000)
+		return 12000;
+	else if (rate < 22050)
+		return 16000;
+	else if (rate < 24000)
+		return 22050;
+	else if (rate < 32000)
+		return 24000;
+	else if (rate < 44100)
+		return 32000;
+	else if (rate < 48000)
+		return 44100;
+	else if (rate < 88200)
+		return 48000;
+	else if (rate < 96000)
+		return 88200;
+	else
+		return 96000;
+}
+
+static int da7219_wclk_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
+{
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_WCLK_IDX]);
+	struct snd_soc_component *component = da7219->component;
+
+	if (!da7219->master)
+		return -EINVAL;
+
+	return da7219_set_sr(component, rate);
+}
+
+static unsigned long da7219_bclk_recalc_rate(struct clk_hw *hw,
+					     unsigned long parent_rate)
+{
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_BCLK_IDX]);
+	struct snd_soc_component *component = da7219->component;
+	u8 bclks_per_wclk = snd_soc_component_read(component,
+						     DA7219_DAI_CLK_MODE);
+
+	switch (bclks_per_wclk & DA7219_DAI_BCLKS_PER_WCLK_MASK) {
+	case DA7219_DAI_BCLKS_PER_WCLK_32:
+		return parent_rate * 32;
+	case DA7219_DAI_BCLKS_PER_WCLK_64:
+		return parent_rate * 64;
+	case DA7219_DAI_BCLKS_PER_WCLK_128:
+		return parent_rate * 128;
+	case DA7219_DAI_BCLKS_PER_WCLK_256:
+		return parent_rate * 256;
+	default:
+		return 0;
+	}
+}
+
+static unsigned long da7219_bclk_get_factor(unsigned long rate,
+					    unsigned long parent_rate)
+{
+	unsigned long factor;
+
+	factor = rate / parent_rate;
+	if (factor < 64)
+		return 32;
+	else if (factor < 128)
+		return 64;
+	else if (factor < 256)
+		return 128;
+	else
+		return 256;
+}
+
+static long da7219_bclk_round_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long *parent_rate)
+{
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_BCLK_IDX]);
+	unsigned long factor;
+
+	if (!*parent_rate || !da7219->master)
+		return -EINVAL;
+
+	/*
+	 * We don't allow changing the parent rate as some BCLK rates can be
+	 * derived from multiple parent WCLK rates (BCLK rates are set as a
+	 * multiplier of WCLK in HW). We just do some rounding down based on the
+	 * parent WCLK rate set and find the appropriate multiplier of BCLK to
+	 * get the rounded down BCLK value.
+	 */
+	factor = da7219_bclk_get_factor(rate, *parent_rate);
+
+	return *parent_rate * factor;
+}
+
+static int da7219_bclk_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
+{
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv,
+			     dai_clks_hw[DA7219_DAI_BCLK_IDX]);
+	struct snd_soc_component *component = da7219->component;
+	unsigned long factor;
+
+	if (!da7219->master)
+		return -EINVAL;
+
+	factor = da7219_bclk_get_factor(rate, parent_rate);
+
+	return da7219_set_bclks_per_wclk(component, factor);
+}
+
+static const struct clk_ops da7219_dai_clk_ops[DA7219_DAI_NUM_CLKS] = {
+	[DA7219_DAI_WCLK_IDX] = {
+		.prepare = da7219_wclk_prepare,
+		.unprepare = da7219_wclk_unprepare,
+		.is_prepared = da7219_wclk_is_prepared,
+		.recalc_rate = da7219_wclk_recalc_rate,
+		.round_rate = da7219_wclk_round_rate,
+		.set_rate = da7219_wclk_set_rate,
+	},
+	[DA7219_DAI_BCLK_IDX] = {
+		.recalc_rate = da7219_bclk_recalc_rate,
+		.round_rate = da7219_bclk_round_rate,
+		.set_rate = da7219_bclk_set_rate,
+	},
+};
+
+static int da7219_register_dai_clks(struct snd_soc_component *component)
+{
+	struct device *dev = component->dev;
+	struct device_node *np = dev->of_node;
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct da7219_pdata *pdata = da7219->pdata;
+	const char *parent_name;
+	struct clk_hw_onecell_data *clk_data;
+	int i, ret;
+
+	/* For DT platforms allocate onecell data for clock registration */
+	if (np) {
+		clk_data = kzalloc(struct_size(clk_data, hws, DA7219_DAI_NUM_CLKS),
+				   GFP_KERNEL);
+		if (!clk_data)
+			return -ENOMEM;
+
+		clk_data->num = DA7219_DAI_NUM_CLKS;
+		da7219->clk_hw_data = clk_data;
+	}
+
+	for (i = 0; i < DA7219_DAI_NUM_CLKS; ++i) {
+		struct clk_init_data init = {};
+		struct clk_lookup *dai_clk_lookup;
+		struct clk_hw *dai_clk_hw = &da7219->dai_clks_hw[i];
+
+		switch (i) {
+		case DA7219_DAI_WCLK_IDX:
+			/*
+			 * If we can, make MCLK the parent of WCLK to ensure
+			 * it's enabled as required.
+			 */
+			if (da7219->mclk) {
+				parent_name = __clk_get_name(da7219->mclk);
+				init.parent_names = &parent_name;
+				init.num_parents = 1;
+			} else {
+				init.parent_names = NULL;
+				init.num_parents = 0;
+			}
+			break;
+		case DA7219_DAI_BCLK_IDX:
+			/* Make WCLK the parent of BCLK */
+			parent_name = __clk_get_name(da7219->dai_clks[DA7219_DAI_WCLK_IDX]);
+			init.parent_names = &parent_name;
+			init.num_parents = 1;
+			break;
+		default:
+			dev_err(dev, "Invalid clock index\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		init.name = pdata->dai_clk_names[i];
+		init.ops = &da7219_dai_clk_ops[i];
+		init.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_GATE;
+		dai_clk_hw->init = &init;
+
+		ret = clk_hw_register(dev, dai_clk_hw);
+		if (ret) {
+			dev_warn(dev, "Failed to register %s: %d\n", init.name,
+				 ret);
+			goto err;
+		}
+		da7219->dai_clks[i] = dai_clk_hw->clk;
+
+		/* For DT setup onecell data, otherwise create lookup */
+		if (np) {
+			da7219->clk_hw_data->hws[i] = dai_clk_hw;
+		} else {
+			dai_clk_lookup = clkdev_hw_create(dai_clk_hw, init.name,
+							  "%s", dev_name(dev));
+			if (!dai_clk_lookup) {
+				ret = -ENOMEM;
+				goto err;
+			} else {
+				da7219->dai_clks_lookup[i] = dai_clk_lookup;
+			}
+		}
+	}
+
+	/* If we're using DT, then register as provider accordingly */
+	if (np) {
+		ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+					     da7219->clk_hw_data);
+		if (ret) {
+			dev_err(dev, "Failed to register clock provider\n");
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	do {
+		if (da7219->dai_clks_lookup[i])
+			clkdev_drop(da7219->dai_clks_lookup[i]);
+
+		clk_hw_unregister(&da7219->dai_clks_hw[i]);
+	} while (i-- > 0);
+
+	if (np)
+		kfree(da7219->clk_hw_data);
+
+	return ret;
+}
+
+static void da7219_free_dai_clks(struct snd_soc_component *component)
+{
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct device_node *np = component->dev->of_node;
+	int i;
+
+	if (np)
+		of_clk_del_provider(np);
+
+	for (i = DA7219_DAI_NUM_CLKS - 1; i >= 0; --i) {
+		if (da7219->dai_clks_lookup[i])
+			clkdev_drop(da7219->dai_clks_lookup[i]);
+
+		clk_hw_unregister(&da7219->dai_clks_hw[i]);
+	}
+
+	if (np)
+		kfree(da7219->clk_hw_data);
+}
 #else
-static inline void da7219_register_dai_clks(struct snd_soc_component *component) {}
+static inline int da7219_register_dai_clks(struct snd_soc_component *component)
+{
+	return 0;
+}
+
+static void da7219_free_dai_clks(struct snd_soc_component *component) {}
 #endif /* CONFIG_COMMON_CLK */
 
 static void da7219_handle_pdata(struct snd_soc_component *component)
@@ -1853,8 +2259,6 @@ static void da7219_handle_pdata(struct snd_soc_component *component)
 		u8 micbias_lvl = 0;
 
 		da7219->wakeup_source = pdata->wakeup_source;
-
-		da7219_register_dai_clks(component);
 
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
@@ -1890,171 +2294,6 @@ static void da7219_handle_pdata(struct snd_soc_component *component)
 		}
 	}
 }
-
-static struct reg_sequence da7219_rev_aa_patch[] = {
-	{ DA7219_REFERENCES, 0x08 },
-};
-
-static int da7219_probe(struct snd_soc_component *component)
-{
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-	unsigned int rev;
-	int ret;
-
-	mutex_init(&da7219->ctrl_lock);
-	mutex_init(&da7219->pll_lock);
-
-	/* Regulator configuration */
-	ret = da7219_handle_supplies(component);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(da7219->regmap, DA7219_CHIP_REVISION, &rev);
-	if (ret) {
-		dev_err(component->dev, "Failed to read chip revision: %d\n", ret);
-		goto err_disable_reg;
-	}
-
-	switch (rev & DA7219_CHIP_MINOR_MASK) {
-	case 0:
-		ret = regmap_register_patch(da7219->regmap, da7219_rev_aa_patch,
-					    ARRAY_SIZE(da7219_rev_aa_patch));
-		if (ret) {
-			dev_err(component->dev, "Failed to register AA patch: %d\n",
-				ret);
-			goto err_disable_reg;
-		}
-		break;
-	default:
-		break;
-	}
-
-	/* Handle DT/ACPI/Platform data */
-	da7219->pdata = dev_get_platdata(component->dev);
-	if (!da7219->pdata)
-		da7219->pdata = da7219_fw_to_pdata(component);
-
-	da7219_handle_pdata(component);
-
-	/* Check if MCLK provided */
-	da7219->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(da7219->mclk)) {
-		if (PTR_ERR(da7219->mclk) != -ENOENT) {
-			ret = PTR_ERR(da7219->mclk);
-			goto err_disable_reg;
-		} else {
-			da7219->mclk = NULL;
-		}
-	}
-
-	/* Default PC counter to free-running */
-	snd_soc_component_update_bits(component, DA7219_PC_COUNT, DA7219_PC_FREERUN_MASK,
-			    DA7219_PC_FREERUN_MASK);
-
-	/* Default gain ramping */
-	snd_soc_component_update_bits(component, DA7219_MIXIN_L_CTRL,
-			    DA7219_MIXIN_L_AMP_RAMP_EN_MASK,
-			    DA7219_MIXIN_L_AMP_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_ADC_L_CTRL, DA7219_ADC_L_RAMP_EN_MASK,
-			    DA7219_ADC_L_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_DAC_L_CTRL, DA7219_DAC_L_RAMP_EN_MASK,
-			    DA7219_DAC_L_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_DAC_R_CTRL, DA7219_DAC_R_RAMP_EN_MASK,
-			    DA7219_DAC_R_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
-			    DA7219_HP_L_AMP_RAMP_EN_MASK,
-			    DA7219_HP_L_AMP_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
-			    DA7219_HP_R_AMP_RAMP_EN_MASK,
-			    DA7219_HP_R_AMP_RAMP_EN_MASK);
-
-	/* Default minimum gain on HP to avoid pops during DAPM sequencing */
-	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
-			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK,
-			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
-			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK,
-			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK);
-
-	/* Default infinite tone gen, start/stop by Kcontrol */
-	snd_soc_component_write(component, DA7219_TONE_GEN_CYCLES, DA7219_BEEP_CYCLES_MASK);
-
-	/* Initialise AAD block */
-	ret = da7219_aad_init(component);
-	if (ret)
-		goto err_disable_reg;
-
-	return 0;
-
-err_disable_reg:
-	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
-
-	return ret;
-}
-
-static void da7219_remove(struct snd_soc_component *component)
-{
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-
-	da7219_aad_exit(component);
-
-#ifdef CONFIG_COMMON_CLK
-	if (da7219->dai_clks_lookup)
-		clkdev_drop(da7219->dai_clks_lookup);
-#endif
-
-	/* Supplies */
-	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
-}
-
-#ifdef CONFIG_PM
-static int da7219_suspend(struct snd_soc_component *component)
-{
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-
-	/* Suspend AAD if we're not a wake-up source */
-	if (!da7219->wakeup_source)
-		da7219_aad_suspend(component);
-
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int da7219_resume(struct snd_soc_component *component)
-{
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
-
-	/* Resume AAD if previously suspended */
-	if (!da7219->wakeup_source)
-		da7219_aad_resume(component);
-
-	return 0;
-}
-#else
-#define da7219_suspend NULL
-#define da7219_resume NULL
-#endif
-
-static const struct snd_soc_component_driver soc_component_dev_da7219 = {
-	.probe			= da7219_probe,
-	.remove			= da7219_remove,
-	.suspend		= da7219_suspend,
-	.resume			= da7219_resume,
-	.set_bias_level		= da7219_set_bias_level,
-	.controls		= da7219_snd_controls,
-	.num_controls		= ARRAY_SIZE(da7219_snd_controls),
-	.dapm_widgets		= da7219_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
-	.dapm_routes		= da7219_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
-	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
-	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
-};
 
 
 /*
@@ -2192,31 +2431,25 @@ static const struct regmap_config da7219_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static struct reg_sequence da7219_rev_aa_patch[] = {
+	{ DA7219_REFERENCES, 0x08 },
+};
 
-/*
- * I2C layer
- */
-
-static int da7219_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da7219_probe(struct snd_soc_component *component)
 {
-	struct da7219_priv *da7219;
-	unsigned int system_active, system_status;
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	unsigned int system_active, system_status, rev;
+	u8 io_voltage_lvl;
 	int i, ret;
 
-	da7219 = devm_kzalloc(&i2c->dev, sizeof(struct da7219_priv),
-			      GFP_KERNEL);
-	if (!da7219)
-		return -ENOMEM;
+	da7219->component = component;
+	mutex_init(&da7219->ctrl_lock);
+	mutex_init(&da7219->pll_lock);
 
-	i2c_set_clientdata(i2c, da7219);
-
-	da7219->regmap = devm_regmap_init_i2c(i2c, &da7219_regmap_config);
-	if (IS_ERR(da7219->regmap)) {
-		ret = PTR_ERR(da7219->regmap);
-		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
+	/* Regulator configuration */
+	ret = da7219_handle_supplies(component, &io_voltage_lvl);
+	if (ret)
 		return ret;
-	}
 
 	regcache_cache_bypass(da7219->regmap, true);
 
@@ -2246,15 +2479,209 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 			  DA7219_CIF_REG_SOFT_RESET_MASK);
 	regmap_write_bits(da7219->regmap, DA7219_SYSTEM_ACTIVE,
 			  DA7219_SYSTEM_ACTIVE_MASK, 0);
+	regmap_write_bits(da7219->regmap, DA7219_SYSTEM_ACTIVE,
+			  DA7219_SYSTEM_ACTIVE_MASK, 1);
 
 	regcache_cache_bypass(da7219->regmap, false);
+	regmap_reinit_cache(da7219->regmap, &da7219_regmap_config);
 
-	ret = devm_snd_soc_register_component(&i2c->dev,
-				     &soc_component_dev_da7219,
-				     &da7219_dai, 1);
+	/* Update IO voltage level range based on supply level */
+	snd_soc_component_write(component, DA7219_IO_CTRL, io_voltage_lvl);
+
+	ret = regmap_read(da7219->regmap, DA7219_CHIP_REVISION, &rev);
+	if (ret) {
+		dev_err(component->dev, "Failed to read chip revision: %d\n", ret);
+		goto err_disable_reg;
+	}
+
+	switch (rev & DA7219_CHIP_MINOR_MASK) {
+	case 0:
+		ret = regmap_register_patch(da7219->regmap, da7219_rev_aa_patch,
+					    ARRAY_SIZE(da7219_rev_aa_patch));
+		if (ret) {
+			dev_err(component->dev, "Failed to register AA patch: %d\n",
+				ret);
+			goto err_disable_reg;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* Handle DT/ACPI/Platform data */
+	da7219_handle_pdata(component);
+
+	/* Check if MCLK provided */
+	da7219->mclk = clk_get(component->dev, "mclk");
+	if (IS_ERR(da7219->mclk)) {
+		if (PTR_ERR(da7219->mclk) != -ENOENT) {
+			ret = PTR_ERR(da7219->mclk);
+			goto err_disable_reg;
+		} else {
+			da7219->mclk = NULL;
+		}
+	}
+
+	/* Register CCF DAI clock control */
+	ret = da7219_register_dai_clks(component);
+	if (ret)
+		goto err_put_clk;
+
+	/* Default PC counter to free-running */
+	snd_soc_component_update_bits(component, DA7219_PC_COUNT, DA7219_PC_FREERUN_MASK,
+			    DA7219_PC_FREERUN_MASK);
+
+	/* Default gain ramping */
+	snd_soc_component_update_bits(component, DA7219_MIXIN_L_CTRL,
+			    DA7219_MIXIN_L_AMP_RAMP_EN_MASK,
+			    DA7219_MIXIN_L_AMP_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_ADC_L_CTRL, DA7219_ADC_L_RAMP_EN_MASK,
+			    DA7219_ADC_L_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_DAC_L_CTRL, DA7219_DAC_L_RAMP_EN_MASK,
+			    DA7219_DAC_L_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_DAC_R_CTRL, DA7219_DAC_R_RAMP_EN_MASK,
+			    DA7219_DAC_R_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
+			    DA7219_HP_L_AMP_RAMP_EN_MASK,
+			    DA7219_HP_L_AMP_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
+			    DA7219_HP_R_AMP_RAMP_EN_MASK,
+			    DA7219_HP_R_AMP_RAMP_EN_MASK);
+
+	/* Default minimum gain on HP to avoid pops during DAPM sequencing */
+	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK,
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK,
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK);
+
+	/* Default infinite tone gen, start/stop by Kcontrol */
+	snd_soc_component_write(component, DA7219_TONE_GEN_CYCLES, DA7219_BEEP_CYCLES_MASK);
+
+	/* Initialise AAD block */
+	ret = da7219_aad_init(component);
+	if (ret)
+		goto err_free_dai_clks;
+
+	return 0;
+
+err_free_dai_clks:
+	da7219_free_dai_clks(component);
+
+err_put_clk:
+	clk_put(da7219->mclk);
+
+err_disable_reg:
+	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
+	regulator_bulk_free(DA7219_NUM_SUPPLIES, da7219->supplies);
+
+	return ret;
+}
+
+static void da7219_remove(struct snd_soc_component *component)
+{
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+
+	da7219_aad_exit(component);
+
+	da7219_free_dai_clks(component);
+	clk_put(da7219->mclk);
+
+	/* Supplies */
+	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
+	regulator_bulk_free(DA7219_NUM_SUPPLIES, da7219->supplies);
+}
+
+#ifdef CONFIG_PM
+static int da7219_suspend(struct snd_soc_component *component)
+{
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+
+	/* Suspend AAD if we're not a wake-up source */
+	if (!da7219->wakeup_source)
+		da7219_aad_suspend(component);
+
+	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+
+	return 0;
+}
+
+static int da7219_resume(struct snd_soc_component *component)
+{
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+
+	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+
+	/* Resume AAD if previously suspended */
+	if (!da7219->wakeup_source)
+		da7219_aad_resume(component);
+
+	return 0;
+}
+#else
+#define da7219_suspend NULL
+#define da7219_resume NULL
+#endif
+
+static const struct snd_soc_component_driver soc_component_dev_da7219 = {
+	.probe			= da7219_probe,
+	.remove			= da7219_remove,
+	.suspend		= da7219_suspend,
+	.resume			= da7219_resume,
+	.set_bias_level		= da7219_set_bias_level,
+	.controls		= da7219_snd_controls,
+	.num_controls		= ARRAY_SIZE(da7219_snd_controls),
+	.dapm_widgets		= da7219_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
+	.dapm_routes		= da7219_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
+
+
+/*
+ * I2C layer
+ */
+
+static int da7219_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
+{
+	struct device *dev = &i2c->dev;
+	struct da7219_priv *da7219;
+	int ret;
+
+	da7219 = devm_kzalloc(dev, sizeof(struct da7219_priv),
+			      GFP_KERNEL);
+	if (!da7219)
+		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, da7219);
+
+	da7219->regmap = devm_regmap_init_i2c(i2c, &da7219_regmap_config);
+	if (IS_ERR(da7219->regmap)) {
+		ret = PTR_ERR(da7219->regmap);
+		dev_err(dev, "regmap_init() failed: %d\n", ret);
+		return ret;
+	}
+
+	/* Retrieve DT/ACPI/Platform data */
+	da7219->pdata = dev_get_platdata(dev);
+	if (!da7219->pdata)
+		da7219->pdata = da7219_fw_to_pdata(dev);
+
+	/* AAD */
+	ret = da7219_aad_probe(i2c);
+	if (ret)
+		return ret;
+
+	ret = devm_snd_soc_register_component(dev, &soc_component_dev_da7219,
+					      &da7219_dai, 1);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "Failed to register da7219 component: %d\n",
-			ret);
+		dev_err(dev, "Failed to register da7219 component: %d\n", ret);
 	}
 	return ret;
 }

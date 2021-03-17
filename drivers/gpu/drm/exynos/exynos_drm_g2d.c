@@ -1,31 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Samsung Electronics Co.Ltd
  * Authors: Joonyoung Shim <jy0922.shim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundationr
  */
 
-#include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <linux/workqueue.h>
-#include <linux/dma-mapping.h>
-#include <linux/of.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
 #include <drm/exynos_drm.h>
+
 #include "exynos_drm_drv.h"
 #include "exynos_drm_g2d.h"
 #include "exynos_drm_gem.h"
-#include "exynos_drm_iommu.h"
 
 #define G2D_HW_MAJOR_VER		4
 #define G2D_HW_MINOR_VER		1
@@ -233,6 +232,7 @@ struct g2d_runqueue_node {
 
 struct g2d_data {
 	struct device			*dev;
+	void				*dma_priv;
 	struct clk			*gate_clk;
 	void __iomem			*regs;
 	int				irq;
@@ -268,7 +268,7 @@ static inline void g2d_hw_reset(struct g2d_data *g2d)
 static int g2d_init_cmdlist(struct g2d_data *g2d)
 {
 	struct device *dev = g2d->dev;
-	struct g2d_cmdlist_node *node = g2d->cmdlist_node;
+	struct g2d_cmdlist_node *node;
 	int nr;
 	int ret;
 	struct g2d_buf_info *buf_info;
@@ -395,8 +395,8 @@ static void g2d_userptr_put_dma_addr(struct g2d_data *g2d,
 		return;
 
 out:
-	dma_unmap_sg(to_dma_dev(g2d->drm_dev), g2d_userptr->sgt->sgl,
-			g2d_userptr->sgt->nents, DMA_BIDIRECTIONAL);
+	dma_unmap_sgtable(to_dma_dev(g2d->drm_dev), g2d_userptr->sgt,
+			  DMA_BIDIRECTIONAL, 0);
 
 	pages = frame_vector_pages(g2d_userptr->vec);
 	if (!IS_ERR(pages)) {
@@ -430,7 +430,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 	int ret;
 
 	if (!size) {
-		DRM_ERROR("invalid userptr size.\n");
+		DRM_DEV_ERROR(g2d->dev, "invalid userptr size.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -483,7 +483,8 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 	ret = get_vaddr_frames(start, npages, FOLL_FORCE | FOLL_WRITE,
 		g2d_userptr->vec);
 	if (ret != npages) {
-		DRM_ERROR("failed to get user pages from userptr.\n");
+		DRM_DEV_ERROR(g2d->dev,
+			      "failed to get user pages from userptr.\n");
 		if (ret < 0)
 			goto err_destroy_framevec;
 		ret = -EFAULT;
@@ -504,16 +505,16 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 					frame_vector_pages(g2d_userptr->vec),
 					npages, offset, size, GFP_KERNEL);
 	if (ret < 0) {
-		DRM_ERROR("failed to get sgt from pages.\n");
+		DRM_DEV_ERROR(g2d->dev, "failed to get sgt from pages.\n");
 		goto err_free_sgt;
 	}
 
 	g2d_userptr->sgt = sgt;
 
-	if (!dma_map_sg(to_dma_dev(g2d->drm_dev), sgt->sgl, sgt->nents,
-				DMA_BIDIRECTIONAL)) {
-		DRM_ERROR("failed to map sgt with dma region.\n");
-		ret = -ENOMEM;
+	ret = dma_map_sgtable(to_dma_dev(g2d->drm_dev), sgt,
+			      DMA_BIDIRECTIONAL, 0);
+	if (ret) {
+		DRM_DEV_ERROR(g2d->dev, "failed to map sgt with dma region.\n");
 		goto err_sg_free_table;
 	}
 
@@ -561,7 +562,7 @@ static void g2d_userptr_free_all(struct g2d_data *g2d, struct drm_file *filp)
 	g2d->current_pool = 0;
 }
 
-static enum g2d_reg_type g2d_get_reg_type(int reg_offset)
+static enum g2d_reg_type g2d_get_reg_type(struct g2d_data *g2d, int reg_offset)
 {
 	enum g2d_reg_type reg_type;
 
@@ -594,7 +595,8 @@ static enum g2d_reg_type g2d_get_reg_type(int reg_offset)
 		break;
 	default:
 		reg_type = REG_TYPE_NONE;
-		DRM_ERROR("Unknown register offset![%d]\n", reg_offset);
+		DRM_DEV_ERROR(g2d->dev, "Unknown register offset![%d]\n",
+			      reg_offset);
 		break;
 	}
 
@@ -628,9 +630,10 @@ static unsigned long g2d_get_buf_bpp(unsigned int format)
 	return bpp;
 }
 
-static bool g2d_check_buf_desc_is_valid(struct g2d_buf_desc *buf_desc,
-						enum g2d_reg_type reg_type,
-						unsigned long size)
+static bool g2d_check_buf_desc_is_valid(struct g2d_data *g2d,
+					struct g2d_buf_desc *buf_desc,
+					enum g2d_reg_type reg_type,
+					unsigned long size)
 {
 	int width, height;
 	unsigned long bpp, last_pos;
@@ -645,14 +648,15 @@ static bool g2d_check_buf_desc_is_valid(struct g2d_buf_desc *buf_desc,
 	/* This check also makes sure that right_x > left_x. */
 	width = (int)buf_desc->right_x - (int)buf_desc->left_x;
 	if (width < G2D_LEN_MIN || width > G2D_LEN_MAX) {
-		DRM_ERROR("width[%d] is out of range!\n", width);
+		DRM_DEV_ERROR(g2d->dev, "width[%d] is out of range!\n", width);
 		return false;
 	}
 
 	/* This check also makes sure that bottom_y > top_y. */
 	height = (int)buf_desc->bottom_y - (int)buf_desc->top_y;
 	if (height < G2D_LEN_MIN || height > G2D_LEN_MAX) {
-		DRM_ERROR("height[%d] is out of range!\n", height);
+		DRM_DEV_ERROR(g2d->dev,
+			      "height[%d] is out of range!\n", height);
 		return false;
 	}
 
@@ -671,8 +675,8 @@ static bool g2d_check_buf_desc_is_valid(struct g2d_buf_desc *buf_desc,
 	 */
 
 	if (last_pos >= size) {
-		DRM_ERROR("last engine access position [%lu] "
-			"is out of range [%lu]!\n", last_pos, size);
+		DRM_DEV_ERROR(g2d->dev, "last engine access position [%lu] "
+			      "is out of range [%lu]!\n", last_pos, size);
 		return false;
 	}
 
@@ -702,7 +706,7 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 		offset = cmdlist->data[reg_pos];
 		handle = cmdlist->data[reg_pos + 1];
 
-		reg_type = g2d_get_reg_type(offset);
+		reg_type = g2d_get_reg_type(g2d, offset);
 		if (reg_type == REG_TYPE_NONE) {
 			ret = -EFAULT;
 			goto err;
@@ -719,7 +723,7 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 				goto err;
 			}
 
-			if (!g2d_check_buf_desc_is_valid(buf_desc,
+			if (!g2d_check_buf_desc_is_valid(g2d, buf_desc,
 							 reg_type, exynos_gem->size)) {
 				exynos_drm_gem_put(exynos_gem);
 				ret = -EFAULT;
@@ -737,8 +741,9 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 				goto err;
 			}
 
-			if (!g2d_check_buf_desc_is_valid(buf_desc, reg_type,
-							g2d_userptr.size)) {
+			if (!g2d_check_buf_desc_is_valid(g2d, buf_desc,
+							 reg_type,
+							 g2d_userptr.size)) {
 				ret = -EFAULT;
 				goto err;
 			}
@@ -846,7 +851,7 @@ static void g2d_free_runqueue_node(struct g2d_data *g2d,
  *
  * Has to be called under runqueue lock.
  */
-static void g2d_remove_runqueue_nodes(struct g2d_data *g2d, struct drm_file* file)
+static void g2d_remove_runqueue_nodes(struct g2d_data *g2d, struct drm_file *file)
 {
 	struct g2d_runqueue_node *node, *n;
 
@@ -1045,7 +1050,7 @@ static int g2d_check_reg_offset(struct g2d_data *g2d,
 			if (!for_addr)
 				goto err;
 
-			reg_type = g2d_get_reg_type(reg_offset);
+			reg_type = g2d_get_reg_type(g2d, reg_offset);
 
 			/* check userptr buffer type. */
 			if ((cmdlist->data[index] & ~0x7fffffff) >> 31) {
@@ -1059,7 +1064,7 @@ static int g2d_check_reg_offset(struct g2d_data *g2d,
 			if (for_addr)
 				goto err;
 
-			reg_type = g2d_get_reg_type(reg_offset);
+			reg_type = g2d_get_reg_type(g2d, reg_offset);
 
 			buf_desc = &buf_info->descs[reg_type];
 			buf_desc->stride = cmdlist->data[index + 1];
@@ -1069,7 +1074,7 @@ static int g2d_check_reg_offset(struct g2d_data *g2d,
 			if (for_addr)
 				goto err;
 
-			reg_type = g2d_get_reg_type(reg_offset);
+			reg_type = g2d_get_reg_type(g2d, reg_offset);
 
 			buf_desc = &buf_info->descs[reg_type];
 			value = cmdlist->data[index + 1];
@@ -1081,7 +1086,7 @@ static int g2d_check_reg_offset(struct g2d_data *g2d,
 			if (for_addr)
 				goto err;
 
-			reg_type = g2d_get_reg_type(reg_offset);
+			reg_type = g2d_get_reg_type(g2d, reg_offset);
 
 			buf_desc = &buf_info->descs[reg_type];
 			value = cmdlist->data[index + 1];
@@ -1094,7 +1099,7 @@ static int g2d_check_reg_offset(struct g2d_data *g2d,
 			if (for_addr)
 				goto err;
 
-			reg_type = g2d_get_reg_type(reg_offset);
+			reg_type = g2d_get_reg_type(g2d, reg_offset);
 
 			buf_desc = &buf_info->descs[reg_type];
 			value = cmdlist->data[index + 1];
@@ -1405,7 +1410,7 @@ static int g2d_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ret = drm_iommu_attach_device(drm_dev, dev);
+	ret = exynos_drm_register_dma(drm_dev, dev, &g2d->dma_priv);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable iommu.\n");
 		g2d_fini_cmdlist(g2d);
@@ -1430,7 +1435,7 @@ static void g2d_unbind(struct device *dev, struct device *master, void *data)
 	priv->g2d_dev = NULL;
 
 	cancel_work_sync(&g2d->runqueue_work);
-	drm_iommu_detach_device(g2d->drm_dev, dev);
+	exynos_drm_unregister_dma(g2d->drm_dev, dev, &g2d->dma_priv);
 }
 
 static const struct component_ops g2d_component_ops = {
@@ -1493,7 +1498,6 @@ static int g2d_probe(struct platform_device *pdev)
 
 	g2d->irq = platform_get_irq(pdev, 0);
 	if (g2d->irq < 0) {
-		dev_err(dev, "failed to get irq\n");
 		ret = g2d->irq;
 		goto err_put_clk;
 	}

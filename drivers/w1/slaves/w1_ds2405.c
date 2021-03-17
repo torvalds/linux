@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	w1_ds2405.c
  *
  * Copyright (c) 2017 Maciej S. Szmigiero <mail@maciej.szmigiero.name>
  * Based on w1_therm.c copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the therms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -216,7 +206,7 @@ static struct attribute *w1_ds2405_attrs[] = {
 
 ATTRIBUTE_GROUPS(w1_ds2405);
 
-static struct w1_family_ops w1_ds2405_fops = {
+static const struct w1_family_ops w1_ds2405_fops = {
 	.groups = w1_ds2405_groups
 };
 

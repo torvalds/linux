@@ -1,25 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * IBM ASM Service Processor Device Driver
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
  * Copyright (C) IBM Corporation, 2004
  *
  * Author: Max Asböck <amax@us.ibm.com>
- *
  */
 
 #include <linux/sched.h>
@@ -108,7 +94,7 @@ static inline void do_exec_command(struct service_processor *sp)
 	}
 }
 
-/**
+/*
  * exec_command
  * send a command to a service processor
  * Commands are executed sequentially. One command (sp->current_command)
@@ -154,7 +140,7 @@ static void exec_next_command(struct service_processor *sp)
 	}
 }
 
-/**
+/*
  * Sleep until a command has failed or a response has been received
  * and the command status been updated by the interrupt handler.
  * (see receive_response).
@@ -167,7 +153,7 @@ void ibmasm_wait_for_response(struct command *cmd, int timeout)
 				timeout * HZ);
 }
 
-/**
+/*
  * receive_command_response
  * called by the interrupt handler when a dot command of type command_response
  * was received.

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -236,6 +224,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	bud->lnum = lnum;
 	bud->start = offs;
 	bud->jhead = jhead;
+	bud->log_hash = NULL;
 
 	ref->ch.node_type = UBIFS_REF_NODE;
 	ref->lnum = cpu_to_le32(bud->lnum);
@@ -272,6 +261,14 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 		c->lhead_lnum, c->lhead_offs);
 	err = ubifs_write_node(c, ref, UBIFS_REF_NODE_SZ, c->lhead_lnum,
 			       c->lhead_offs);
+	if (err)
+		goto out_unlock;
+
+	err = ubifs_shash_update(c, c->log_hash, ref, UBIFS_REF_NODE_SZ);
+	if (err)
+		goto out_unlock;
+
+	err = ubifs_shash_copy_state(c, c->log_hash, c->jheads[jhead].log_hash);
 	if (err)
 		goto out_unlock;
 
@@ -377,6 +374,14 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 	cs->cmt_no = cpu_to_le64(c->cmt_no);
 	ubifs_prepare_node(c, cs, UBIFS_CS_NODE_SZ, 0);
 
+	err = ubifs_shash_init(c, c->log_hash);
+	if (err)
+		goto out;
+
+	err = ubifs_shash_update(c, c->log_hash, cs, UBIFS_CS_NODE_SZ);
+	if (err < 0)
+		goto out;
+
 	/*
 	 * Note, we do not lock 'c->log_mutex' because this is the commit start
 	 * phase and we are exclusively using the log. And we do not lock
@@ -402,6 +407,12 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 
 		ubifs_prepare_node(c, ref, UBIFS_REF_NODE_SZ, 0);
 		len += UBIFS_REF_NODE_SZ;
+
+		err = ubifs_shash_update(c, c->log_hash, ref,
+					 UBIFS_REF_NODE_SZ);
+		if (err)
+			goto out;
+		ubifs_shash_copy_state(c, c->log_hash, c->jheads[i].log_hash);
 	}
 
 	ubifs_pad(c, buf + len, ALIGN(len, c->min_io_size) - len);
@@ -427,10 +438,7 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 	*ltail_lnum = c->lhead_lnum;
 
 	c->lhead_offs += len;
-	if (c->lhead_offs == c->leb_size) {
-		c->lhead_lnum = ubifs_next_log_lnum(c, c->lhead_lnum);
-		c->lhead_offs = 0;
-	}
+	ubifs_assert(c, c->lhead_offs < c->leb_size);
 
 	remove_buds(c);
 
@@ -516,6 +524,7 @@ int ubifs_log_post_commit(struct ubifs_info *c, int old_ltail_lnum)
 		if (err)
 			return err;
 		list_del(&bud->list);
+		kfree(bud->log_hash);
 		kfree(bud);
 	}
 	mutex_lock(&c->log_mutex);

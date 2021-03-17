@@ -50,6 +50,7 @@
 	compatible = "swir,wp8548", "qcom,mdm9615";
 
 	memory {
+		device_type = "memory";
 		reg = <0x48000000 0x7F00000>;
 	};
 };

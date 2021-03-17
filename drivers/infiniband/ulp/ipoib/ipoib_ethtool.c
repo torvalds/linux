@@ -68,9 +68,6 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->bus_info, dev_name(priv->ca->dev.parent),
 		sizeof(drvinfo->bus_info));
 
-	strlcpy(drvinfo->version, ipoib_driver_version,
-		sizeof(drvinfo->version));
-
 	strlcpy(drvinfo->driver, "ib_ipoib", sizeof(drvinfo->driver));
 }
 
@@ -138,7 +135,6 @@ static void ipoib_get_strings(struct net_device __always_unused *dev,
 			p += ETH_GSTRING_LEN;
 		}
 		break;
-	case ETH_SS_TEST:
 	default:
 		break;
 	}
@@ -149,7 +145,6 @@ static int ipoib_get_sset_count(struct net_device __always_unused *dev,
 	switch (sset) {
 	case ETH_SS_STATS:
 		return IPOIB_GLOBAL_STATS_LEN;
-	case ETH_SS_TEST:
 	default:
 		break;
 	}
@@ -215,6 +210,8 @@ static int ipoib_get_link_ksettings(struct net_device *netdev,
 }
 
 static const struct ethtool_ops ipoib_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES,
 	.get_link_ksettings	= ipoib_get_link_ksettings,
 	.get_drvinfo		= ipoib_get_drvinfo,
 	.get_coalesce		= ipoib_get_coalesce,
@@ -222,6 +219,7 @@ static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_strings		= ipoib_get_strings,
 	.get_ethtool_stats	= ipoib_get_ethtool_stats,
 	.get_sset_count		= ipoib_get_sset_count,
+	.get_link		= ethtool_op_get_link,
 };
 
 void ipoib_set_ethtool_ops(struct net_device *dev)

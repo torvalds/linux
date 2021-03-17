@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm8991.c  --  WM8991 ALSA Soc Audio driver
  *
  * Copyright 2007-2010 Wolfson Microelectronics PLC.
  * Author: Graeme Gregory
  *         Graeme.Gregory@wolfsonmicro.com
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/module.h>
@@ -143,7 +139,7 @@ static int wm899x_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 		return ret;
 
 	/* now hit the volume update bits (always bit 8) */
-	val = snd_soc_component_read32(component, reg);
+	val = snd_soc_component_read(component, reg);
 	return snd_soc_component_write(component, reg, val | 0x0100);
 }
 
@@ -368,7 +364,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 
 	switch (reg_shift) {
 	case WM8991_SPEAKER_MIXER | (WM8991_LDSPK_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8991_OUTPUT_MIXER1);
+		reg = snd_soc_component_read(component, WM8991_OUTPUT_MIXER1);
 		if (reg & WM8991_LDLO) {
 			printk(KERN_WARNING
 			       "Cannot set as Output Mixer 1 LDLO Set\n");
@@ -377,7 +373,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case WM8991_SPEAKER_MIXER | (WM8991_RDSPK_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8991_OUTPUT_MIXER2);
+		reg = snd_soc_component_read(component, WM8991_OUTPUT_MIXER2);
 		if (reg & WM8991_RDRO) {
 			printk(KERN_WARNING
 			       "Cannot set as Output Mixer 2 RDRO Set\n");
@@ -386,7 +382,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case WM8991_OUTPUT_MIXER1 | (WM8991_LDLO_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8991_SPEAKER_MIXER);
+		reg = snd_soc_component_read(component, WM8991_SPEAKER_MIXER);
 		if (reg & WM8991_LDSPK) {
 			printk(KERN_WARNING
 			       "Cannot set as Speaker Mixer LDSPK Set\n");
@@ -395,7 +391,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case WM8991_OUTPUT_MIXER2 | (WM8991_RDRO_BIT << 8):
-		reg = snd_soc_component_read32(component, WM8991_SPEAKER_MIXER);
+		reg = snd_soc_component_read(component, WM8991_SPEAKER_MIXER);
 		if (reg & WM8991_RDSPK) {
 			printk(KERN_WARNING
 			       "Cannot set as Speaker Mixer RDSPK Set\n");
@@ -479,14 +475,6 @@ static SOC_ENUM_SINGLE_DECL(wm8991_ainrmux_enum,
 
 static const struct snd_kcontrol_new wm8991_dapm_ainrmux_controls =
 	SOC_DAPM_ENUM("Route", wm8991_ainrmux_enum);
-
-/* RXVOICE */
-static const struct snd_kcontrol_new wm8991_dapm_rxvoice_controls[] = {
-	SOC_DAPM_SINGLE_TLV("LIN4RXN", WM8991_INPUT_MIXER5, WM8991_LR4BVOL_SHIFT,
-		WM8991_LR4BVOL_MASK, 0, in_mix_tlv),
-	SOC_DAPM_SINGLE_TLV("RIN4RXP", WM8991_INPUT_MIXER6, WM8991_RL4BVOL_SHIFT,
-		WM8991_RL4BVOL_MASK, 0, in_mix_tlv),
-};
 
 /* LOMIX */
 static const struct snd_kcontrol_new wm8991_dapm_lomix_controls[] = {
@@ -934,12 +922,12 @@ static int wm8991_set_dai_pll(struct snd_soc_dai *codec_dai,
 		pll_factors(&pll_div, freq_out * 4, freq_in);
 
 		/* Turn on PLL */
-		reg = snd_soc_component_read32(component, WM8991_POWER_MANAGEMENT_2);
+		reg = snd_soc_component_read(component, WM8991_POWER_MANAGEMENT_2);
 		reg |= WM8991_PLL_ENA;
 		snd_soc_component_write(component, WM8991_POWER_MANAGEMENT_2, reg);
 
 		/* sysclk comes from PLL */
-		reg = snd_soc_component_read32(component, WM8991_CLOCKING_2);
+		reg = snd_soc_component_read(component, WM8991_CLOCKING_2);
 		snd_soc_component_write(component, WM8991_CLOCKING_2, reg | WM8991_SYSCLK_SRC);
 
 		/* set up N , fractional mode and pre-divisor if necessary */
@@ -949,7 +937,7 @@ static int wm8991_set_dai_pll(struct snd_soc_dai *codec_dai,
 		snd_soc_component_write(component, WM8991_PLL3, (u8)(pll_div.k & 0xFF));
 	} else {
 		/* Turn on PLL */
-		reg = snd_soc_component_read32(component, WM8991_POWER_MANAGEMENT_2);
+		reg = snd_soc_component_read(component, WM8991_POWER_MANAGEMENT_2);
 		reg &= ~WM8991_PLL_ENA;
 		snd_soc_component_write(component, WM8991_POWER_MANAGEMENT_2, reg);
 	}
@@ -965,8 +953,8 @@ static int wm8991_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	u16 audio1, audio3;
 
-	audio1 = snd_soc_component_read32(component, WM8991_AUDIO_INTERFACE_1);
-	audio3 = snd_soc_component_read32(component, WM8991_AUDIO_INTERFACE_3);
+	audio1 = snd_soc_component_read(component, WM8991_AUDIO_INTERFACE_1);
+	audio3 = snd_soc_component_read(component, WM8991_AUDIO_INTERFACE_3);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1020,22 +1008,22 @@ static int wm8991_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 	switch (div_id) {
 	case WM8991_MCLK_DIV:
-		reg = snd_soc_component_read32(component, WM8991_CLOCKING_2) &
+		reg = snd_soc_component_read(component, WM8991_CLOCKING_2) &
 		      ~WM8991_MCLK_DIV_MASK;
 		snd_soc_component_write(component, WM8991_CLOCKING_2, reg | div);
 		break;
 	case WM8991_DACCLK_DIV:
-		reg = snd_soc_component_read32(component, WM8991_CLOCKING_2) &
+		reg = snd_soc_component_read(component, WM8991_CLOCKING_2) &
 		      ~WM8991_DAC_CLKDIV_MASK;
 		snd_soc_component_write(component, WM8991_CLOCKING_2, reg | div);
 		break;
 	case WM8991_ADCCLK_DIV:
-		reg = snd_soc_component_read32(component, WM8991_CLOCKING_2) &
+		reg = snd_soc_component_read(component, WM8991_CLOCKING_2) &
 		      ~WM8991_ADC_CLKDIV_MASK;
 		snd_soc_component_write(component, WM8991_CLOCKING_2, reg | div);
 		break;
 	case WM8991_BCLK_DIV:
-		reg = snd_soc_component_read32(component, WM8991_CLOCKING_1) &
+		reg = snd_soc_component_read(component, WM8991_CLOCKING_1) &
 		      ~WM8991_BCLK_DIV_MASK;
 		snd_soc_component_write(component, WM8991_CLOCKING_1, reg | div);
 		break;
@@ -1054,7 +1042,7 @@ static int wm8991_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 audio1 = snd_soc_component_read32(component, WM8991_AUDIO_INTERFACE_1);
+	u16 audio1 = snd_soc_component_read(component, WM8991_AUDIO_INTERFACE_1);
 
 	audio1 &= ~WM8991_AIF_WL_MASK;
 	/* bit size */
@@ -1076,12 +1064,12 @@ static int wm8991_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8991_mute(struct snd_soc_dai *dai, int mute)
+static int wm8991_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 val;
 
-	val  = snd_soc_component_read32(component, WM8991_DAC_CTRL) & ~WM8991_DAC_MUTE;
+	val  = snd_soc_component_read(component, WM8991_DAC_CTRL) & ~WM8991_DAC_MUTE;
 	if (mute)
 		snd_soc_component_write(component, WM8991_DAC_CTRL, val | WM8991_DAC_MUTE);
 	else
@@ -1101,7 +1089,7 @@ static int wm8991_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_PREPARE:
 		/* VMID=2*50k */
-		val = snd_soc_component_read32(component, WM8991_POWER_MANAGEMENT_1) &
+		val = snd_soc_component_read(component, WM8991_POWER_MANAGEMENT_1) &
 		      ~WM8991_VMID_MODE_MASK;
 		snd_soc_component_write(component, WM8991_POWER_MANAGEMENT_1, val | 0x2);
 		break;
@@ -1158,7 +1146,7 @@ static int wm8991_set_bias_level(struct snd_soc_component *component,
 		}
 
 		/* VMID=2*250k */
-		val = snd_soc_component_read32(component, WM8991_POWER_MANAGEMENT_1) &
+		val = snd_soc_component_read(component, WM8991_POWER_MANAGEMENT_1) &
 		      ~WM8991_VMID_MODE_MASK;
 		snd_soc_component_write(component, WM8991_POWER_MANAGEMENT_1, val | 0x4);
 		break;
@@ -1174,7 +1162,7 @@ static int wm8991_set_bias_level(struct snd_soc_component *component,
 			      WM8991_BUFIOEN);
 
 		/* mute DAC */
-		val = snd_soc_component_read32(component, WM8991_DAC_CTRL);
+		val = snd_soc_component_read(component, WM8991_DAC_CTRL);
 		snd_soc_component_write(component, WM8991_DAC_CTRL, val | WM8991_DAC_MUTE);
 
 		/* Enable any disabled outputs */
@@ -1208,10 +1196,11 @@ static int wm8991_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops wm8991_ops = {
 	.hw_params = wm8991_hw_params,
-	.digital_mute = wm8991_mute,
+	.mute_stream = wm8991_mute,
 	.set_fmt = wm8991_set_dai_fmt,
 	.set_clkdiv = wm8991_set_dai_clkdiv,
-	.set_pll = wm8991_set_dai_pll
+	.set_pll = wm8991_set_dai_pll,
+	.no_capture_mute = 1,
 };
 
 /*

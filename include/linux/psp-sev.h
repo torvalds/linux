@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AMD Secure Encrypted Virtualization (SEV) driver interface
  *
@@ -5,12 +6,7 @@
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  *
- * SEV spec 0.14 is available at:
- * http://support.amd.com/TechDocs/55766_SEV-KM API_Specification.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * SEV API spec is available at https://developer.amd.com/sev
  */
 
 #ifndef __PSP_SEV_H__
@@ -103,6 +99,8 @@ struct sev_data_init {
 	u64 tmr_address;		/* In */
 	u32 tmr_len;			/* In */
 } __packed;
+
+#define SEV_INIT_FLAGS_SEV_ES	0x01
 
 /**
  * struct sev_data_pek_csr - PEK_CSR command parameters
@@ -599,7 +597,7 @@ int sev_guest_df_flush(int *error);
  */
 int sev_guest_decommission(struct sev_data_decommission *data, int *error);
 
-void *psp_copy_user_blob(u64 __user uaddr, u32 len);
+void *psp_copy_user_blob(u64 uaddr, u32 len);
 
 #else	/* !CONFIG_CRYPTO_DEV_SP_PSP */
 

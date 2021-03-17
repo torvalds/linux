@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* The industrial I/O core in kernel channel mapping
  *
  * Copyright (c) 2011 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #include <linux/err.h>
 #include <linux/export.h>
@@ -93,7 +90,7 @@ static const struct iio_chan_spec
 
 #ifdef CONFIG_OF
 
-static int iio_dev_node_match(struct device *dev, void *data)
+static int iio_dev_node_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data && dev->type == &iio_device_type;
 }
@@ -363,18 +360,6 @@ static void devm_iio_channel_free(struct device *dev, void *res)
 	iio_channel_release(channel);
 }
 
-static int devm_iio_channel_match(struct device *dev, void *res, void *data)
-{
-	struct iio_channel **r = res;
-
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-
-	return *r == data;
-}
-
 struct iio_channel *devm_iio_channel_get(struct device *dev,
 					 const char *channel_name)
 {
@@ -396,13 +381,6 @@ struct iio_channel *devm_iio_channel_get(struct device *dev,
 	return channel;
 }
 EXPORT_SYMBOL_GPL(devm_iio_channel_get);
-
-void devm_iio_channel_release(struct device *dev, struct iio_channel *channel)
-{
-	WARN_ON(devres_release(dev, devm_iio_channel_free,
-			       devm_iio_channel_match, channel));
-}
-EXPORT_SYMBOL_GPL(devm_iio_channel_release);
 
 struct iio_channel *iio_channel_get_all(struct device *dev)
 {
@@ -516,14 +494,6 @@ struct iio_channel *devm_iio_channel_get_all(struct device *dev)
 	return channels;
 }
 EXPORT_SYMBOL_GPL(devm_iio_channel_get_all);
-
-void devm_iio_channel_release_all(struct device *dev,
-				  struct iio_channel *channels)
-{
-	WARN_ON(devres_release(dev, devm_iio_channel_free_all,
-			       devm_iio_channel_match, channels));
-}
-EXPORT_SYMBOL_GPL(devm_iio_channel_release_all);
 
 static int iio_channel_read(struct iio_channel *chan, int *val, int *val2,
 	enum iio_chan_info_enum info)
@@ -733,11 +703,11 @@ static int iio_channel_read_avail(struct iio_channel *chan,
 						 vals, type, length, info);
 }
 
-int iio_read_avail_channel_raw(struct iio_channel *chan,
-			       const int **vals, int *length)
+int iio_read_avail_channel_attribute(struct iio_channel *chan,
+				     const int **vals, int *type, int *length,
+				     enum iio_chan_info_enum attribute)
 {
 	int ret;
-	int type;
 
 	mutex_lock(&chan->indio_dev->info_exist_lock);
 	if (!chan->indio_dev->info) {
@@ -745,10 +715,22 @@ int iio_read_avail_channel_raw(struct iio_channel *chan,
 		goto err_unlock;
 	}
 
-	ret = iio_channel_read_avail(chan,
-				     vals, &type, length, IIO_CHAN_INFO_RAW);
+	ret = iio_channel_read_avail(chan, vals, type, length, attribute);
 err_unlock:
 	mutex_unlock(&chan->indio_dev->info_exist_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iio_read_avail_channel_attribute);
+
+int iio_read_avail_channel_raw(struct iio_channel *chan,
+			       const int **vals, int *length)
+{
+	int ret;
+	int type;
+
+	ret = iio_read_avail_channel_attribute(chan, vals, &type, length,
+					 IIO_CHAN_INFO_RAW);
 
 	if (ret >= 0 && type != IIO_VAL_INT)
 		/* raw values are assumed to be IIO_VAL_INT */

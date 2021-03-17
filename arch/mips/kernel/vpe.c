@@ -26,7 +26,7 @@
 #include <linux/moduleloader.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/cacheflush.h>
@@ -134,7 +134,7 @@ void release_vpe(struct vpe *v)
 {
 	list_del(&v->list);
 	if (v->load_addr)
-		release_progmem(v);
+		release_progmem(v->load_addr);
 	kfree(v);
 }
 

@@ -161,6 +161,16 @@ static inline bool mmc_op_multi(u32 opcode)
 #define R1_STATE_PRG	7
 #define R1_STATE_DIS	8
 
+static inline bool mmc_ready_for_data(u32 status)
+{
+	/*
+	 * Some cards mishandle the status bits, so make sure to check both the
+	 * busy indication and the card state.
+	 */
+	return status & R1_READY_FOR_DATA &&
+	       R1_CURRENT_STATE(status) == R1_STATE_TRAN;
+}
+
 /*
  * MMC/SD in SPI mode reports R1 status always, and R2 for SEND_STATUS
  * R1 is the low order byte; R2 is the next highest byte, when present.
@@ -315,6 +325,7 @@ static inline bool mmc_op_multi(u32 opcode)
  */
 
 #define EXT_CSD_WR_REL_PARAM_EN		(1<<2)
+#define EXT_CSD_WR_REL_PARAM_EN_RPMB_REL_WR	(1<<4)
 
 #define EXT_CSD_BOOT_WP_B_PWR_WP_DIS	(0x40)
 #define EXT_CSD_BOOT_WP_B_PERM_WP_DIS	(0x10)

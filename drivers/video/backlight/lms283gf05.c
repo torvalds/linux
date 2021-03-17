@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lms283gf05.c -- support for Samsung LMS283GF05 LCD
  *
  * Copyright (c) 2009 Marek Vasut <marek.vasut@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/device.h>
@@ -161,7 +158,7 @@ static int lms283gf05_probe(struct spi_device *spi)
 		ret = devm_gpio_request_one(&spi->dev, pdata->reset_gpio,
 				GPIOF_DIR_OUT | (!pdata->reset_inverted ?
 				GPIOF_INIT_HIGH : GPIOF_INIT_LOW),
-				"LMS285GF05 RESET");
+				"LMS283GF05 RESET");
 		if (ret)
 			return ret;
 	}

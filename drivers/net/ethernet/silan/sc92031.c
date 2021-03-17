@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*  Silan SC92031 PCI Fast Ethernet Adapter driver
  *
  *  Based on vendor drivers:
@@ -251,7 +252,6 @@ enum PMConfigBits {
  * use of mdelay() at _sc92031_reset.
  * Functions prefixed with _sc92031_ must be called with the lock held;
  * functions prefixed with sc92031_ must be called without the lock held.
- * Use mmiowb() before unlocking if the hardware was written to.
  */
 
 /* Locking rules for the interrupt:
@@ -301,6 +301,7 @@ struct sc92031_priv {
 
 	/* for dev->get_stats */
 	long			rx_value;
+	struct net_device	*ndev;
 };
 
 /* I don't know which registers can be safely read; however, I can guess
@@ -361,7 +362,6 @@ static void sc92031_disable_interrupts(struct net_device *dev)
 	/* stop interrupts */
 	iowrite32(0, port_base + IntrMask);
 	_sc92031_dummy_read(port_base);
-	mmiowb();
 
 	/* wait for any concurrent interrupt/tasklet to finish */
 	synchronize_irq(priv->pdev->irq);
@@ -379,7 +379,6 @@ static void sc92031_enable_interrupts(struct net_device *dev)
 	wmb();
 
 	iowrite32(IntrBits, port_base + IntrMask);
-	mmiowb();
 }
 
 static void _sc92031_disable_tx_rx(struct net_device *dev)
@@ -831,10 +830,10 @@ static void _sc92031_link_tasklet(struct net_device *dev)
 	}
 }
 
-static void sc92031_tasklet(unsigned long data)
+static void sc92031_tasklet(struct tasklet_struct *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct sc92031_priv *priv = netdev_priv(dev);
+	struct  sc92031_priv *priv = from_tasklet(priv, t, tasklet);
+	struct net_device *dev = priv->ndev;
 	void __iomem *port_base = priv->port_base;
 	u32 intr_status, intr_mask;
 
@@ -867,7 +866,6 @@ out:
 	rmb();
 
 	iowrite32(intr_mask, port_base + IntrMask);
-	mmiowb();
 
 	spin_unlock(&priv->lock);
 }
@@ -901,7 +899,6 @@ out_none:
 	rmb();
 
 	iowrite32(intr_mask, port_base + IntrMask);
-	mmiowb();
 
 	return IRQ_NONE;
 }
@@ -978,7 +975,6 @@ static netdev_tx_t sc92031_start_xmit(struct sk_buff *skb,
 	iowrite32(priv->tx_bufs_dma_addr + entry * TX_BUF_SIZE,
 			port_base + TxAddr0 + entry * 4);
 	iowrite32(tx_status, port_base + TxStatus0 + entry * 4);
-	mmiowb();
 
 	if (priv->tx_head - priv->tx_tail >= NUM_TX_DESC)
 		netif_stop_queue(dev);
@@ -998,15 +994,15 @@ static int sc92031_open(struct net_device *dev)
 	struct sc92031_priv *priv = netdev_priv(dev);
 	struct pci_dev *pdev = priv->pdev;
 
-	priv->rx_ring = pci_alloc_consistent(pdev, RX_BUF_LEN,
-			&priv->rx_ring_dma_addr);
+	priv->rx_ring = dma_alloc_coherent(&pdev->dev, RX_BUF_LEN,
+					   &priv->rx_ring_dma_addr, GFP_KERNEL);
 	if (unlikely(!priv->rx_ring)) {
 		err = -ENOMEM;
 		goto out_alloc_rx_ring;
 	}
 
-	priv->tx_bufs = pci_alloc_consistent(pdev, TX_BUF_TOT_LEN,
-			&priv->tx_bufs_dma_addr);
+	priv->tx_bufs = dma_alloc_coherent(&pdev->dev, TX_BUF_TOT_LEN,
+					   &priv->tx_bufs_dma_addr, GFP_KERNEL);
 	if (unlikely(!priv->tx_bufs)) {
 		err = -ENOMEM;
 		goto out_alloc_tx_bufs;
@@ -1024,7 +1020,6 @@ static int sc92031_open(struct net_device *dev)
 	spin_lock_bh(&priv->lock);
 
 	_sc92031_reset(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 	sc92031_enable_interrupts(dev);
@@ -1037,11 +1032,11 @@ static int sc92031_open(struct net_device *dev)
 	return 0;
 
 out_request_irq:
-	pci_free_consistent(pdev, TX_BUF_TOT_LEN, priv->tx_bufs,
-			priv->tx_bufs_dma_addr);
+	dma_free_coherent(&pdev->dev, TX_BUF_TOT_LEN, priv->tx_bufs,
+			  priv->tx_bufs_dma_addr);
 out_alloc_tx_bufs:
-	pci_free_consistent(pdev, RX_BUF_LEN, priv->rx_ring,
-			priv->rx_ring_dma_addr);
+	dma_free_coherent(&pdev->dev, RX_BUF_LEN, priv->rx_ring,
+			  priv->rx_ring_dma_addr);
 out_alloc_rx_ring:
 	return err;
 }
@@ -1060,15 +1055,14 @@ static int sc92031_stop(struct net_device *dev)
 
 	_sc92031_disable_tx_rx(dev);
 	_sc92031_tx_clear(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
 	free_irq(pdev->irq, dev);
-	pci_free_consistent(pdev, TX_BUF_TOT_LEN, priv->tx_bufs,
-			priv->tx_bufs_dma_addr);
-	pci_free_consistent(pdev, RX_BUF_LEN, priv->rx_ring,
-			priv->rx_ring_dma_addr);
+	dma_free_coherent(&pdev->dev, TX_BUF_TOT_LEN, priv->tx_bufs,
+			  priv->tx_bufs_dma_addr);
+	dma_free_coherent(&pdev->dev, RX_BUF_LEN, priv->rx_ring,
+			  priv->rx_ring_dma_addr);
 
 	return 0;
 }
@@ -1081,12 +1075,11 @@ static void sc92031_set_multicast_list(struct net_device *dev)
 
 	_sc92031_set_mar(dev);
 	_sc92031_set_rx_config(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 }
 
-static void sc92031_tx_timeout(struct net_device *dev)
+static void sc92031_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sc92031_priv *priv = netdev_priv(dev);
 
@@ -1098,7 +1091,6 @@ static void sc92031_tx_timeout(struct net_device *dev)
 	priv->tx_timeouts++;
 
 	_sc92031_reset(dev);
-	mmiowb();
 
 	spin_unlock(&priv->lock);
 
@@ -1117,7 +1109,7 @@ static void sc92031_poll_controller(struct net_device *dev)
 
 	disable_irq(irq);
 	if (sc92031_interrupt(irq, dev) != IRQ_NONE)
-		sc92031_tasklet((unsigned long)dev);
+		sc92031_tasklet(&priv->tasklet);
 	enable_irq(irq);
 }
 #endif
@@ -1140,7 +1132,6 @@ sc92031_ethtool_get_link_ksettings(struct net_device *dev,
 
 	output_status = _sc92031_mii_read(port_base, MII_OutputStatus);
 	_sc92031_mii_scan(port_base);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
@@ -1311,7 +1302,6 @@ static int sc92031_ethtool_set_wol(struct net_device *dev,
 
 	priv->pm_config = pm_config;
 	iowrite32(pm_config, port_base + PMConfig);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
@@ -1337,7 +1327,6 @@ static int sc92031_ethtool_nway_reset(struct net_device *dev)
 
 out:
 	_sc92031_mii_scan(port_base);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
@@ -1419,11 +1408,11 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (unlikely(err < 0))
 		goto out_set_dma_mask;
 
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (unlikely(err < 0))
 		goto out_set_dma_mask;
 
@@ -1455,10 +1444,11 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->ethtool_ops	= &sc92031_ethtool_ops;
 
 	priv = netdev_priv(dev);
+	priv->ndev = dev;
 	spin_lock_init(&priv->lock);
 	priv->port_base = port_base;
 	priv->pdev = pdev;
-	tasklet_init(&priv->tasklet, sc92031_tasklet, (unsigned long)dev);
+	tasklet_setup(&priv->tasklet, sc92031_tasklet);
 	/* Fudge tasklet count so the call to sc92031_enable_interrupts at
 	 * sc92031_open will work correctly */
 	tasklet_disable_nosync(&priv->tasklet);
@@ -1511,15 +1501,13 @@ static void sc92031_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int sc92031_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused sc92031_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct sc92031_priv *priv = netdev_priv(dev);
 
-	pci_save_state(pdev);
-
 	if (!netif_running(dev))
-		goto out;
+		return 0;
 
 	netif_device_detach(dev);
 
@@ -1530,32 +1518,24 @@ static int sc92031_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	_sc92031_disable_tx_rx(dev);
 	_sc92031_tx_clear(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
-
-out:
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
 	return 0;
 }
 
-static int sc92031_resume(struct pci_dev *pdev)
+static int __maybe_unused sc92031_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct sc92031_priv *priv = netdev_priv(dev);
 
-	pci_restore_state(pdev);
-	pci_set_power_state(pdev, PCI_D0);
-
 	if (!netif_running(dev))
-		goto out;
+		return 0;
 
 	/* Interrupts already disabled by sc92031_suspend */
 	spin_lock_bh(&priv->lock);
 
 	_sc92031_reset(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 	sc92031_enable_interrupts(dev);
@@ -1567,7 +1547,6 @@ static int sc92031_resume(struct pci_dev *pdev)
 	else
 		netif_tx_disable(dev);
 
-out:
 	return 0;
 }
 
@@ -1579,13 +1558,14 @@ static const struct pci_device_id sc92031_pci_device_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, sc92031_pci_device_id_table);
 
+static SIMPLE_DEV_PM_OPS(sc92031_pm_ops, sc92031_suspend, sc92031_resume);
+
 static struct pci_driver sc92031_pci_driver = {
 	.name		= SC92031_NAME,
 	.id_table	= sc92031_pci_device_id_table,
 	.probe		= sc92031_probe,
 	.remove		= sc92031_remove,
-	.suspend	= sc92031_suspend,
-	.resume		= sc92031_resume,
+	.driver.pm	= &sc92031_pm_ops,
 };
 
 module_pci_driver(sc92031_pci_driver);

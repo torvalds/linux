@@ -37,7 +37,7 @@
  * fee50000	f0d00000	64K	PCIe #5 I/O space
  * fee60000	f0e00000	64K	PCIe #6 I/O space
  * fee70000	f0f00000	64K	PCIe #7 I/O space
- * fd000000	f1000000	1M	on-chip peripheral registers
+ * fec00000	f1000000	1M	on-chip peripheral registers
  */
 #define MV78XX0_CORE0_REGS_PHYS_BASE	0xf1020000
 #define MV78XX0_CORE1_REGS_PHYS_BASE	0xf1024000
@@ -49,7 +49,7 @@
 #define MV78XX0_PCIE_IO_SIZE		SZ_1M
 
 #define MV78XX0_REGS_PHYS_BASE		0xf1000000
-#define MV78XX0_REGS_VIRT_BASE		IOMEM(0xfd000000)
+#define MV78XX0_REGS_VIRT_BASE		IOMEM(0xfec00000)
 #define MV78XX0_REGS_SIZE		SZ_1M
 
 #define MV78XX0_PCIE_MEM_PHYS_BASE	0xc0000000

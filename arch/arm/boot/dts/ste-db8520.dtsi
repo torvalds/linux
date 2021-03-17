@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#include "ste-dbx5x0.dtsi"
+
+/ {
+	cpus {
+		cpu@300 {
+			/* cpufreq controls */
+			operating-points = <1152000 0
+					    800000 0
+					    400000 0
+					    200000 0>;
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* Modem trace memory */
+		ram@06000000 {
+			reg = <0x06000000 0x00f00000>;
+			no-map;
+		};
+
+		/* Modem shared memory */
+		ram@06f00000 {
+			reg = <0x06f00000 0x00100000>;
+			no-map;
+		};
+
+		/* Modem private memory */
+		ram@07000000 {
+			reg = <0x07000000 0x01000000>;
+			no-map;
+		};
+
+		/*
+		 * Initial Secure Software ISSW memory
+		 *
+		 * This is probably only used if the kernel tries
+		 * to actually call into trustzone to run secure
+		 * applications, which the mainline kernel probably
+		 * will not do on this old chipset. But you can never
+		 * be too careful, so reserve this memory anyway.
+		 */
+		ram@17f00000 {
+			reg = <0x17f00000 0x00100000>;
+			no-map;
+		};
+	};
+};

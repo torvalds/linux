@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "I2C HID support"
 	depends on I2C
 
@@ -6,7 +7,7 @@ config I2C_HID
 	default n
 	depends on I2C && INPUT
 	select HID
-	---help---
+	help
 	  Say Y here if you use a keyboard, a touchpad, a touchscreen, or any
 	  other HID based devices which is connected to your computer via I2C.
 

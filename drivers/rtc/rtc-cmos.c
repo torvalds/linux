@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RTC class driver for "CMOS RTC":  PCs, ACPI, etc
  *
  * Copyright (C) 1996 Paul Gortmaker (drivers/char/rtc.c)
  * Copyright (C) 2006 David Brownell (convert to new framework)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -50,6 +46,7 @@
 /* this is for "generic access to PC-style RTC" using CMOS_READ/CMOS_WRITE */
 #include <linux/mc146818rtc.h>
 
+#ifdef CONFIG_ACPI
 /*
  * Use ACPI SCI to replace HPET interrupt for RTC Alarm event
  *
@@ -60,6 +57,18 @@
 
 static bool use_acpi_alarm;
 module_param(use_acpi_alarm, bool, 0444);
+
+static inline int cmos_use_acpi_alarm(void)
+{
+	return use_acpi_alarm;
+}
+#else /* !CONFIG_ACPI */
+
+static inline int cmos_use_acpi_alarm(void)
+{
+	return 0;
+}
+#endif
 
 struct cmos_rtc {
 	struct rtc_device	*rtc;
@@ -167,9 +176,9 @@ static inline int hpet_unregister_irq_handler(irq_handler_t handler)
 #endif
 
 /* Don't use HPET for RTC Alarm event if ACPI Fixed event is used */
-static int use_hpet_alarm(void)
+static inline int use_hpet_alarm(void)
 {
-	return is_hpet_enabled() && !use_acpi_alarm;
+	return is_hpet_enabled() && !cmos_use_acpi_alarm();
 }
 
 /*----------------------------------------------------------------*/
@@ -244,6 +253,7 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned char	rtc_control;
 
+	/* This not only a rtc_op, but also called directly */
 	if (!is_valid_irq(cmos->irq))
 		return -EIO;
 
@@ -340,7 +350,7 @@ static void cmos_irq_enable(struct cmos_rtc *cmos, unsigned char mask)
 	if (use_hpet_alarm())
 		hpet_set_rtc_irq_bit(mask);
 
-	if ((mask & RTC_AIE) && use_acpi_alarm) {
+	if ((mask & RTC_AIE) && cmos_use_acpi_alarm()) {
 		if (cmos->wake_on)
 			cmos->wake_on(cmos->dev);
 	}
@@ -358,7 +368,7 @@ static void cmos_irq_disable(struct cmos_rtc *cmos, unsigned char mask)
 	if (use_hpet_alarm())
 		hpet_mask_rtc_irq_bit(mask);
 
-	if ((mask & RTC_AIE) && use_acpi_alarm) {
+	if ((mask & RTC_AIE) && cmos_use_acpi_alarm()) {
 		if (cmos->wake_off)
 			cmos->wake_off(cmos->dev);
 	}
@@ -439,6 +449,7 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	unsigned char mon, mday, hrs, min, sec, rtc_control;
 	int ret;
 
+	/* This not only a rtc_op, but also called directly */
 	if (!is_valid_irq(cmos->irq))
 		return -EIO;
 
@@ -503,9 +514,6 @@ static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned long	flags;
 
-	if (!is_valid_irq(cmos->irq))
-		return -EINVAL;
-
 	spin_lock_irqsave(&rtc_lock, flags);
 
 	if (enabled)
@@ -564,6 +572,12 @@ static const struct rtc_class_ops cmos_rtc_ops = {
 	.set_alarm		= cmos_set_alarm,
 	.proc			= cmos_procfs,
 	.alarm_irq_enable	= cmos_alarm_irq_enable,
+};
+
+static const struct rtc_class_ops cmos_rtc_ops_no_alarm = {
+	.read_time		= cmos_read_time,
+	.set_time		= cmos_set_time,
+	.proc			= cmos_procfs,
 };
 
 /*----------------------------------------------------------------*/
@@ -635,10 +649,11 @@ static struct cmos_rtc	cmos_rtc;
 
 static irqreturn_t cmos_interrupt(int irq, void *p)
 {
+	unsigned long	flags;
 	u8		irqstat;
 	u8		rtc_control;
 
-	spin_lock(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 
 	/* When the HPET interrupt handler calls us, the interrupt
 	 * status is passed as arg1 instead of the irq number.  But
@@ -672,7 +687,7 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 			hpet_mask_rtc_irq_bit(RTC_AIE);
 		CMOS_READ(RTC_INTR_FLAGS);
 	}
-	spin_unlock(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	if (is_intr(irqstat)) {
 		rtc_update_irq(p, 1, irqstat);
@@ -836,15 +851,18 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 			rtc_cmos_int_handler = cmos_interrupt;
 
 		retval = request_irq(rtc_irq, rtc_cmos_int_handler,
-				IRQF_SHARED, dev_name(&cmos_rtc.rtc->dev),
+				0, dev_name(&cmos_rtc.rtc->dev),
 				cmos_rtc.rtc);
 		if (retval < 0) {
 			dev_dbg(dev, "IRQ %d is already in use\n", rtc_irq);
 			goto cleanup1;
 		}
+
+		cmos_rtc.rtc->ops = &cmos_rtc_ops;
+	} else {
+		cmos_rtc.rtc->ops = &cmos_rtc_ops_no_alarm;
 	}
 
-	cmos_rtc.rtc->ops = &cmos_rtc_ops;
 	cmos_rtc.rtc->nvram_old_abi = true;
 	retval = rtc_register_device(cmos_rtc.rtc);
 	if (retval)
@@ -980,7 +998,7 @@ static int cmos_suspend(struct device *dev)
 	}
 	spin_unlock_irq(&rtc_lock);
 
-	if ((tmp & RTC_AIE) && !use_acpi_alarm) {
+	if ((tmp & RTC_AIE) && !cmos_use_acpi_alarm()) {
 		cmos->enabled_wake = 1;
 		if (cmos->wake_on)
 			cmos->wake_on(dev);
@@ -988,6 +1006,7 @@ static int cmos_suspend(struct device *dev)
 			enable_irq_wake(cmos->irq);
 	}
 
+	memset(&cmos->saved_wkalrm, 0, sizeof(struct rtc_wkalrm));
 	cmos_read_alarm(dev, &cmos->saved_wkalrm);
 
 	dev_dbg(dev, "suspend%s, ctrl %02x\n",
@@ -1031,11 +1050,12 @@ static void cmos_check_wkalrm(struct device *dev)
 	 * ACPI RTC wake event is cleared after resume from STR,
 	 * ACK the rtc irq here
 	 */
-	if (t_now >= cmos->alarm_expires && use_acpi_alarm) {
+	if (t_now >= cmos->alarm_expires && cmos_use_acpi_alarm()) {
 		cmos_interrupt(0, (void *)cmos->rtc);
 		return;
 	}
 
+	memset(&current_alarm, 0, sizeof(struct rtc_wkalrm));
 	cmos_read_alarm(dev, &current_alarm);
 	t_current_expires = rtc_tm_to_time64(&current_alarm.time);
 	t_saved_expires = rtc_tm_to_time64(&cmos->saved_wkalrm.time);
@@ -1053,7 +1073,7 @@ static int __maybe_unused cmos_resume(struct device *dev)
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned char tmp;
 
-	if (cmos->enabled_wake && !use_acpi_alarm) {
+	if (cmos->enabled_wake && !cmos_use_acpi_alarm()) {
 		if (cmos->wake_off)
 			cmos->wake_off(dev);
 		else
@@ -1132,7 +1152,7 @@ static u32 rtc_handler(void *context)
 	 * Or else, ACPI SCI is enabled during suspend/resume only,
 	 * update rtc irq in that case.
 	 */
-	if (use_acpi_alarm)
+	if (cmos_use_acpi_alarm())
 		cmos_interrupt(0, (void *)cmos->rtc);
 	else {
 		/* Fix me: can we use cmos_interrupt() here as well? */
@@ -1180,8 +1200,6 @@ static void rtc_wake_off(struct device *dev)
 /* Enable use_acpi_alarm mode for Intel platforms no earlier than 2015 */
 static void use_acpi_alarm_quirks(void)
 {
-	int year;
-
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return;
 
@@ -1191,8 +1209,10 @@ static void use_acpi_alarm_quirks(void)
 	if (!is_hpet_enabled())
 		return;
 
-	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year >= 2015)
-		use_acpi_alarm = true;
+	if (dmi_get_bios_year() < 2015)
+		return;
+
+	use_acpi_alarm = true;
 }
 #else
 static inline void use_acpi_alarm_quirks(void) { }
@@ -1288,7 +1308,7 @@ static int cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		 * hardcode it on systems with a legacy PIC.
 		 */
 		if (nr_legacy_irqs())
-			irq = 8;
+			irq = RTC_IRQ;
 #endif
 		return cmos_do_probe(&pnp->dev,
 				pnp_get_resource(pnp, IORESOURCE_IO, 0), irq);
@@ -1328,7 +1348,7 @@ static const struct pnp_device_id rtc_ids[] = {
 MODULE_DEVICE_TABLE(pnp, rtc_ids);
 
 static struct pnp_driver cmos_pnp_driver = {
-	.name		= (char *) driver_name,
+	.name		= driver_name,
 	.id_table	= rtc_ids,
 	.probe		= cmos_pnp_probe,
 	.remove		= cmos_pnp_remove,

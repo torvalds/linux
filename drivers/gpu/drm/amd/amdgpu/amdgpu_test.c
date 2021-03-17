@@ -22,7 +22,7 @@
  *
  * Authors: Michel Dänzer
  */
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_uvd.h"
@@ -44,7 +44,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 	/* Number of tests =
 	 * (Total GTT - IB pool - writeback page - ring buffers) / test size
 	 */
-	n = adev->gmc.gart_size - AMDGPU_IB_POOL_SIZE*64*1024;
+	n = adev->gmc.gart_size - AMDGPU_IB_POOL_SIZE;
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		if (adev->rings[i])
 			n -= adev->rings[i]->ring_size;
@@ -124,7 +124,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		amdgpu_bo_kunmap(gtt_obj[i]);
 
 		r = amdgpu_copy_buffer(ring, gart_addr, vram_addr,
-				       size, NULL, &fence, false, false);
+				       size, NULL, &fence, false, false, false);
 
 		if (r) {
 			DRM_ERROR("Failed GTT->VRAM copy %d\n", i);
@@ -138,6 +138,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		}
 
 		dma_fence_put(fence);
+		fence = NULL;
 
 		r = amdgpu_bo_kmap(vram_obj, &vram_map);
 		if (r) {
@@ -169,7 +170,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		amdgpu_bo_kunmap(vram_obj);
 
 		r = amdgpu_copy_buffer(ring, vram_addr, gart_addr,
-				       size, NULL, &fence, false, false);
+				       size, NULL, &fence, false, false, false);
 
 		if (r) {
 			DRM_ERROR("Failed VRAM->GTT copy %d\n", i);
@@ -183,6 +184,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		}
 
 		dma_fence_put(fence);
+		fence = NULL;
 
 		r = amdgpu_bo_kmap(gtt_obj[i], &gtt_map);
 		if (r) {

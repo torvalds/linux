@@ -9,14 +9,7 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_btree.h"
-#include "xfs_bit.h"
-#include "xfs_log_format.h"
-#include "xfs_trans.h"
-#include "xfs_sb.h"
-#include "xfs_inode.h"
-#include "xfs_alloc.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
@@ -415,8 +408,17 @@ xchk_btree_check_owner(
 	struct xfs_btree_cur	*cur = bs->cur;
 	struct check_owner	*co;
 
-	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) && bp == NULL)
+	/*
+	 * In theory, xfs_btree_get_block should only give us a null buffer
+	 * pointer for the root of a root-in-inode btree type, but we need
+	 * to check defensively here in case the cursor state is also screwed
+	 * up.
+	 */
+	if (bp == NULL) {
+		if (!(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE))
+			xchk_btree_set_corrupt(bs->sc, bs->cur, level);
 		return 0;
+	}
 
 	/*
 	 * We want to cross-reference each btree block with the bnobt
@@ -450,32 +452,41 @@ xchk_btree_check_minrecs(
 	int			level,
 	struct xfs_btree_block	*block)
 {
-	unsigned int		numrecs;
-	int			ok_level;
-
-	numrecs = be16_to_cpu(block->bb_numrecs);
+	struct xfs_btree_cur	*cur = bs->cur;
+	unsigned int		root_level = cur->bc_nlevels - 1;
+	unsigned int		numrecs = be16_to_cpu(block->bb_numrecs);
 
 	/* More records than minrecs means the block is ok. */
-	if (numrecs >= bs->cur->bc_ops->get_minrecs(bs->cur, level))
+	if (numrecs >= cur->bc_ops->get_minrecs(cur, level))
 		return;
 
 	/*
-	 * Certain btree blocks /can/ have fewer than minrecs records.  Any
-	 * level greater than or equal to the level of the highest dedicated
-	 * btree block are allowed to violate this constraint.
-	 *
-	 * For a btree rooted in a block, the btree root can have fewer than
-	 * minrecs records.  If the btree is rooted in an inode and does not
-	 * store records in the root, the direct children of the root and the
-	 * root itself can have fewer than minrecs records.
+	 * For btrees rooted in the inode, it's possible that the root block
+	 * contents spilled into a regular ondisk block because there wasn't
+	 * enough space in the inode root.  The number of records in that
+	 * child block might be less than the standard minrecs, but that's ok
+	 * provided that there's only one direct child of the root.
 	 */
-	ok_level = bs->cur->bc_nlevels - 1;
-	if (bs->cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
-		ok_level--;
-	if (level >= ok_level)
-		return;
+	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	    level == cur->bc_nlevels - 2) {
+		struct xfs_btree_block	*root_block;
+		struct xfs_buf		*root_bp;
+		int			root_maxrecs;
 
-	xchk_btree_set_corrupt(bs->sc, bs->cur, level);
+		root_block = xfs_btree_get_block(cur, root_level, &root_bp);
+		root_maxrecs = cur->bc_ops->get_dmaxrecs(cur, root_level);
+		if (be16_to_cpu(root_block->bb_numrecs) != 1 ||
+		    numrecs <= root_maxrecs)
+			xchk_btree_set_corrupt(bs->sc, cur, level);
+		return;
+	}
+
+	/*
+	 * Otherwise, only the root level is allowed to have fewer than minrecs
+	 * records or keyptrs.
+	 */
+	if (level < root_level)
+		xchk_btree_set_corrupt(bs->sc, cur, level);
 }
 
 /*
@@ -583,31 +594,32 @@ xchk_btree_block_keys(
  */
 int
 xchk_btree(
-	struct xfs_scrub	*sc,
-	struct xfs_btree_cur	*cur,
-	xchk_btree_rec_fn	scrub_fn,
-	struct xfs_owner_info	*oinfo,
-	void			*private)
+	struct xfs_scrub		*sc,
+	struct xfs_btree_cur		*cur,
+	xchk_btree_rec_fn		scrub_fn,
+	const struct xfs_owner_info	*oinfo,
+	void				*private)
 {
-	struct xchk_btree	bs = { NULL };
-	union xfs_btree_ptr	ptr;
-	union xfs_btree_ptr	*pp;
-	union xfs_btree_rec	*recp;
-	struct xfs_btree_block	*block;
-	int			level;
-	struct xfs_buf		*bp;
-	struct check_owner	*co;
-	struct check_owner	*n;
-	int			i;
-	int			error = 0;
+	struct xchk_btree		bs = {
+		.cur			= cur,
+		.scrub_rec		= scrub_fn,
+		.oinfo			= oinfo,
+		.firstrec		= true,
+		.private		= private,
+		.sc			= sc,
+	};
+	union xfs_btree_ptr		ptr;
+	union xfs_btree_ptr		*pp;
+	union xfs_btree_rec		*recp;
+	struct xfs_btree_block		*block;
+	int				level;
+	struct xfs_buf			*bp;
+	struct check_owner		*co;
+	struct check_owner		*n;
+	int				i;
+	int				error = 0;
 
 	/* Initialize scrub state */
-	bs.cur = cur;
-	bs.scrub_rec = scrub_fn;
-	bs.oinfo = oinfo;
-	bs.firstrec = true;
-	bs.private = private;
-	bs.sc = sc;
 	for (i = 0; i < XFS_BTREE_MAXLEVELS; i++)
 		bs.firstkey[i] = true;
 	INIT_LIST_HEAD(&bs.to_check);

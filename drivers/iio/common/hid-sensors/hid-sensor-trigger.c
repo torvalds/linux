@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID Sensors Driver
  * Copyright (c) 2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -26,6 +13,8 @@
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/sysfs.h>
 #include "hid-sensor-trigger.h"
@@ -235,7 +224,8 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	return hid_sensor_power_state(iio_trigger_get_drvdata(trig), state);
 }
 
-void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
+void hid_sensor_remove_trigger(struct iio_dev *indio_dev,
+			       struct hid_sensor_common *attrb)
 {
 	if (atomic_read(&attrb->runtime_pm_enable))
 		pm_runtime_disable(&attrb->pdev->dev);
@@ -246,6 +236,7 @@ void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 	cancel_work_sync(&attrb->work);
 	iio_trigger_unregister(attrb->trigger);
 	iio_trigger_free(attrb->trigger);
+	iio_triggered_buffer_cleanup(indio_dev);
 }
 EXPORT_SYMBOL(hid_sensor_remove_trigger);
 
@@ -259,11 +250,18 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 	int ret;
 	struct iio_trigger *trig;
 
+	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+					 NULL, NULL);
+	if (ret) {
+		dev_err(&indio_dev->dev, "Triggered Buffer Setup Failed\n");
+		return ret;
+	}
+
 	trig = iio_trigger_alloc("%s-dev%d", name, indio_dev->id);
 	if (trig == NULL) {
 		dev_err(&indio_dev->dev, "Trigger Allocate Failed\n");
 		ret = -ENOMEM;
-		goto error_ret;
+		goto error_triggered_buffer_cleanup;
 	}
 
 	trig->dev.parent = indio_dev->dev.parent;
@@ -297,7 +295,8 @@ error_unreg_trigger:
 	iio_trigger_unregister(trig);
 error_free_trig:
 	iio_trigger_free(trig);
-error_ret:
+error_triggered_buffer_cleanup:
+	iio_triggered_buffer_cleanup(indio_dev);
 	return ret;
 }
 EXPORT_SYMBOL(hid_sensor_setup_trigger);

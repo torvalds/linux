@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* RxRPC key type
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _KEYS_RXRPC_TYPE_H
@@ -32,7 +28,7 @@ struct rxkad_key {
 	u8	primary_flag;		/* T if key for primary cell for this user */
 	u16	ticket_len;		/* length of ticket[] */
 	u8	session_key[8];		/* DES session key */
-	u8	ticket[0];		/* the encrypted ticket */
+	u8	ticket[];		/* the encrypted ticket */
 };
 
 /*
@@ -104,7 +100,7 @@ struct rxrpc_key_data_v1 {
 	u32		expiry;			/* time_t */
 	u32		kvno;
 	u8		session_key[8];
-	u8		ticket[0];
+	u8		ticket[];
 };
 
 /*

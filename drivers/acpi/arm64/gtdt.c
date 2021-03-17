@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARM Specific GTDT table Support
  *
@@ -5,10 +6,6 @@
  * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
  *         Fu Wei <fu.wei@linaro.org>
  *         Hanjun Guo <hanjun.guo@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -397,7 +394,7 @@ static int __init gtdt_sbsa_gwdt_init(void)
 	 */
 	ret = acpi_gtdt_init(table, &timer_count);
 	if (ret || !timer_count)
-		return ret;
+		goto out_put_gtdt;
 
 	for_each_platform_timer(platform_timer) {
 		if (is_non_secure_watchdog(platform_timer)) {
@@ -411,6 +408,8 @@ static int __init gtdt_sbsa_gwdt_init(void)
 	if (gwdt_count)
 		pr_info("found %d SBSA generic Watchdog(s).\n", gwdt_count);
 
+out_put_gtdt:
+	acpi_put_table(table);
 	return ret;
 }
 

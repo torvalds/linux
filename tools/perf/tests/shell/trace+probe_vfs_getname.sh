@@ -1,3 +1,4 @@
+#!/bin/sh
 # Check open filename arg using perf trace + vfs_getname
 
 # Uses the 'perf test shell' library to add probe:vfs_getname to the system
@@ -6,11 +7,13 @@
 # that already handles "probe:vfs_getname" if present, and used in the
 # "open" syscall "filename" argument beautifier.
 
+# SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
 . $(dirname $0)/lib/probe.sh
 
 skip_if_no_perf_probe || exit 2
+skip_if_no_perf_trace || exit 2
 
 . $(dirname $0)/lib/probe_vfs_getname.sh
 
@@ -28,6 +31,10 @@ err=$?
 if [ $err -ne 0 ] ; then
 	exit $err
 fi
+
+# Do not use whatever ~/.perfconfig file, it may change the output
+# via trace.{show_timestamp,show_prefix,etc}
+export PERF_CONFIG=/dev/null
 
 trace_open_vfs_getname
 err=$?

@@ -44,14 +44,18 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
-/* arch specific definitions used by the stub code */
-
 /*
- * AArch64 requires the DTB to be 8-byte aligned in the first 512MiB from
- * start of kernel and may not cross a 2MiB boundary. We set alignment to
- * 2MiB so we know it won't cross a 2MiB boundary.
+ * Even when Linux uses IRQ priorities for IRQ disabling, EFI does not.
+ * And EFI shouldn't really play around with priority masking as it is not aware
+ * which priorities the OS has assigned to its interrupts.
  */
-#define EFI_FDT_ALIGN	SZ_2M   /* used by allocate_new_fdt_and_exit_boot() */
+#define arch_efi_save_flags(state_flags)		\
+	((void)((state_flags) = read_sysreg(daif)))
+
+#define arch_efi_restore_flags(state_flags)	write_sysreg(state_flags, daif)
+
+
+/* arch specific definitions used by the stub code */
 
 /*
  * In some configurations (e.g. VMAP_STACK && 64K pages), stacks built into the
@@ -61,43 +65,31 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 	(SEGMENT_ALIGN > THREAD_ALIGN ? SEGMENT_ALIGN : THREAD_ALIGN)
 
 /* on arm64, the FDT may be located anywhere in system RAM */
-static inline unsigned long efi_get_max_fdt_addr(unsigned long dram_base)
+static inline unsigned long efi_get_max_fdt_addr(unsigned long image_addr)
 {
 	return ULONG_MAX;
 }
 
 /*
  * On arm64, we have to ensure that the initrd ends up in the linear region,
- * which is a 1 GB aligned region of size '1UL << (VA_BITS - 1)' that is
+ * which is a 1 GB aligned region of size '1UL << (VA_BITS_MIN - 1)' that is
  * guaranteed to cover the kernel Image.
  *
  * Since the EFI stub is part of the kernel Image, we can relax the
- * usual requirements in Documentation/arm64/booting.txt, which still
+ * usual requirements in Documentation/arm64/booting.rst, which still
  * apply to other bootloaders, and are required for some kernel
  * configurations.
  */
-static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
-						    unsigned long image_addr)
+static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 {
-	return (image_addr & ~(SZ_1G - 1UL)) + (1UL << (VA_BITS - 1));
+	return (image_addr & ~(SZ_1G - 1UL)) + (1UL << (VA_BITS_MIN - 1));
 }
 
-#define efi_call_early(f, ...)		sys_table_arg->boottime->f(__VA_ARGS__)
-#define __efi_call_early(f, ...)	f(__VA_ARGS__)
-#define efi_call_runtime(f, ...)	sys_table_arg->runtime->f(__VA_ARGS__)
-#define efi_is_64bit()			(true)
-
-#define efi_table_attr(table, attr, instance)				\
-	((table##_t *)instance)->attr
-
-#define efi_call_proto(protocol, f, instance, ...)			\
-	((protocol##_t *)instance)->f(instance, ##__VA_ARGS__)
-
 #define alloc_screen_info(x...)		&screen_info
-#define free_screen_info(x...)
 
-/* redeclare as 'hidden' so the compiler will generate relative references */
-extern struct screen_info screen_info __attribute__((__visibility__("hidden")));
+static inline void free_screen_info(struct screen_info *si)
+{
+}
 
 static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 {

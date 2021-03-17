@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Cirrus EP93xx matrix keypad controller.
  *
  * Copyright (c) 2008 H Hartley Sweeten <hsweeten@visionengravers.com>
  *
  * Based on the pxa27x matrix keypad controller by Rodolfo Giometti.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * NOTE:
  *
@@ -27,8 +24,7 @@
 #include <linux/io.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/slab.h>
-
-#include <mach/hardware.h>
+#include <linux/soc/cirrus/ep93xx.h>
 #include <linux/platform_data/keypad-ep93xx.h>
 
 /*
@@ -137,10 +133,7 @@ static void ep93xx_keypad_config(struct ep93xx_keypad *keypad)
 	struct ep93xx_keypad_platform_data *pdata = keypad->pdata;
 	unsigned int val = 0;
 
-	if (pdata->flags & EP93XX_KEYPAD_KDIV)
-		clk_set_rate(keypad->clk, EP93XX_KEYTCHCLK_DIV4);
-	else
-		clk_set_rate(keypad->clk, EP93XX_KEYTCHCLK_DIV16);
+	clk_set_rate(keypad->clk, pdata->clk_rate);
 
 	if (pdata->flags & EP93XX_KEYPAD_DISABLE_3_KEY)
 		val |= KEY_INIT_DIS3KY;
@@ -257,8 +250,8 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	}
 
 	keypad->irq = platform_get_irq(pdev, 0);
-	if (!keypad->irq) {
-		err = -ENXIO;
+	if (keypad->irq < 0) {
+		err = keypad->irq;
 		goto failed_free;
 	}
 

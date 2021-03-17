@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Thomas Abraham <thomas.ab@samsung.com>
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd.
  * Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This file contains the utility function to register CPU clock for Samsung
  * Exynos platforms. A CPU clock is defined as a clock supplied to a CPU or a
@@ -33,6 +30,7 @@
 */
 
 #include <linux/errno.h>
+#include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -152,7 +150,7 @@ static int exynos_cpuclk_pre_rate_change(struct clk_notifier_data *ndata,
 			struct exynos_cpuclk *cpuclk, void __iomem *base)
 {
 	const struct exynos_cpuclk_cfg_data *cfg_data = cpuclk->cfg;
-	unsigned long alt_prate = clk_get_rate(cpuclk->alt_parent);
+	unsigned long alt_prate = clk_hw_get_rate(cpuclk->alt_parent);
 	unsigned long alt_div = 0, alt_div_mask = DIV_MASK;
 	unsigned long div0, div1 = 0, mux_reg;
 	unsigned long flags;
@@ -280,7 +278,7 @@ static int exynos5433_cpuclk_pre_rate_change(struct clk_notifier_data *ndata,
 			struct exynos_cpuclk *cpuclk, void __iomem *base)
 {
 	const struct exynos_cpuclk_cfg_data *cfg_data = cpuclk->cfg;
-	unsigned long alt_prate = clk_get_rate(cpuclk->alt_parent);
+	unsigned long alt_prate = clk_hw_get_rate(cpuclk->alt_parent);
 	unsigned long alt_div = 0, alt_div_mask = DIV_MASK;
 	unsigned long div0, div1 = 0, mux_reg;
 	unsigned long flags;
@@ -403,26 +401,34 @@ static int exynos5433_cpuclk_notifier_cb(struct notifier_block *nb,
 
 /* helper function to register a CPU clock */
 int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
-		unsigned int lookup_id, const char *name, const char *parent,
-		const char *alt_parent, unsigned long offset,
-		const struct exynos_cpuclk_cfg_data *cfg,
+		unsigned int lookup_id, const char *name,
+		const struct clk_hw *parent, const struct clk_hw *alt_parent,
+		unsigned long offset, const struct exynos_cpuclk_cfg_data *cfg,
 		unsigned long num_cfgs, unsigned long flags)
 {
 	struct exynos_cpuclk *cpuclk;
 	struct clk_init_data init;
-	struct clk *parent_clk;
+	const char *parent_name;
 	int ret = 0;
+
+	if (IS_ERR(parent) || IS_ERR(alt_parent)) {
+		pr_err("%s: invalid parent clock(s)\n", __func__);
+		return -EINVAL;
+	}
 
 	cpuclk = kzalloc(sizeof(*cpuclk), GFP_KERNEL);
 	if (!cpuclk)
 		return -ENOMEM;
 
+	parent_name = clk_hw_get_name(parent);
+
 	init.name = name;
 	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = &parent;
+	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	init.ops = &exynos_cpuclk_clk_ops;
 
+	cpuclk->alt_parent = alt_parent;
 	cpuclk->hw.init = &init;
 	cpuclk->ctrl_base = ctx->reg_base + offset;
 	cpuclk->lock = &ctx->lock;
@@ -432,23 +438,8 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 	else
 		cpuclk->clk_nb.notifier_call = exynos_cpuclk_notifier_cb;
 
-	cpuclk->alt_parent = __clk_lookup(alt_parent);
-	if (!cpuclk->alt_parent) {
-		pr_err("%s: could not lookup alternate parent %s\n",
-				__func__, alt_parent);
-		ret = -EINVAL;
-		goto free_cpuclk;
-	}
 
-	parent_clk = __clk_lookup(parent);
-	if (!parent_clk) {
-		pr_err("%s: could not lookup parent clock %s\n",
-				__func__, parent);
-		ret = -EINVAL;
-		goto free_cpuclk;
-	}
-
-	ret = clk_notifier_register(parent_clk, &cpuclk->clk_nb);
+	ret = clk_notifier_register(parent->clk, &cpuclk->clk_nb);
 	if (ret) {
 		pr_err("%s: failed to register clock notifier for %s\n",
 				__func__, name);
@@ -473,7 +464,7 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 free_cpuclk_data:
 	kfree(cpuclk->cfg);
 unregister_clk_nb:
-	clk_notifier_unregister(parent_clk, &cpuclk->clk_nb);
+	clk_notifier_unregister(parent->clk, &cpuclk->clk_nb);
 free_cpuclk:
 	kfree(cpuclk);
 	return ret;

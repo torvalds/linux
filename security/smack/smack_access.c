@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007 Casey Schaufler <casey@schaufler-ca.com>
  *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation, version 2.
- *
  * Author:
  *      Casey Schaufler <casey@schaufler-ca.com>
- *
  */
 
 #include <linux/types.h>
@@ -275,7 +271,7 @@ out_audit:
 int smk_curacc(struct smack_known *obj_known,
 	       u32 mode, struct smk_audit_info *a)
 {
-	struct task_smack *tsp = current_security();
+	struct task_smack *tsp = smack_cred(current_cred());
 
 	return smk_tskacc(tsp, obj_known, mode, a);
 }
@@ -469,7 +465,7 @@ char *smk_parse_smack(const char *string, int len)
 	if (i == 0 || i >= SMK_LONGLABEL)
 		return ERR_PTR(-EINVAL);
 
-	smack = kzalloc(i + 1, GFP_KERNEL);
+	smack = kzalloc(i + 1, GFP_NOFS);
 	if (smack == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -504,7 +500,7 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
 			if ((m & *cp) == 0)
 				continue;
 			rc = netlbl_catmap_setbit(&sap->attr.mls.cat,
-						  cat, GFP_KERNEL);
+						  cat, GFP_NOFS);
 			if (rc < 0) {
 				netlbl_catmap_free(sap->attr.mls.cat);
 				return rc;
@@ -512,6 +508,42 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
 		}
 
 	return 0;
+}
+
+/**
+ * smack_populate_secattr - fill in the smack_known netlabel information
+ * @skp: pointer to the structure to fill
+ *
+ * Populate the netlabel secattr structure for a Smack label.
+ *
+ * Returns 0 unless creating the category mapping fails
+ */
+int smack_populate_secattr(struct smack_known *skp)
+{
+	int slen;
+
+	skp->smk_netlabel.attr.secid = skp->smk_secid;
+	skp->smk_netlabel.domain = skp->smk_known;
+	skp->smk_netlabel.cache = netlbl_secattr_cache_alloc(GFP_ATOMIC);
+	if (skp->smk_netlabel.cache != NULL) {
+		skp->smk_netlabel.flags |= NETLBL_SECATTR_CACHE;
+		skp->smk_netlabel.cache->free = NULL;
+		skp->smk_netlabel.cache->data = skp;
+	}
+	skp->smk_netlabel.flags |= NETLBL_SECATTR_SECID |
+				   NETLBL_SECATTR_MLS_LVL |
+				   NETLBL_SECATTR_DOMAIN;
+	/*
+	 * If direct labeling works use it.
+	 * Otherwise use mapped labeling.
+	 */
+	slen = strlen(skp->smk_known);
+	if (slen < SMK_CIPSOLEN)
+		return smk_netlbl_mls(smack_cipso_direct, skp->smk_known,
+				      &skp->smk_netlabel, slen);
+
+	return smk_netlbl_mls(smack_cipso_mapped, (char *)&skp->smk_secid,
+			      &skp->smk_netlabel, sizeof(skp->smk_secid));
 }
 
 /**
@@ -527,7 +559,6 @@ struct smack_known *smk_import_entry(const char *string, int len)
 {
 	struct smack_known *skp;
 	char *smack;
-	int slen;
 	int rc;
 
 	smack = smk_parse_smack(string, len);
@@ -540,7 +571,7 @@ struct smack_known *smk_import_entry(const char *string, int len)
 	if (skp != NULL)
 		goto freeout;
 
-	skp = kzalloc(sizeof(*skp), GFP_KERNEL);
+	skp = kzalloc(sizeof(*skp), GFP_NOFS);
 	if (skp == NULL) {
 		skp = ERR_PTR(-ENOMEM);
 		goto freeout;
@@ -548,21 +579,8 @@ struct smack_known *smk_import_entry(const char *string, int len)
 
 	skp->smk_known = smack;
 	skp->smk_secid = smack_next_secid++;
-	skp->smk_netlabel.domain = skp->smk_known;
-	skp->smk_netlabel.flags =
-		NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
-	/*
-	 * If direct labeling works use it.
-	 * Otherwise use mapped labeling.
-	 */
-	slen = strlen(smack);
-	if (slen < SMK_CIPSOLEN)
-		rc = smk_netlbl_mls(smack_cipso_direct, skp->smk_known,
-			       &skp->smk_netlabel, slen);
-	else
-		rc = smk_netlbl_mls(smack_cipso_mapped, (char *)&skp->smk_secid,
-			       &skp->smk_netlabel, sizeof(skp->smk_secid));
 
+	rc = smack_populate_secattr(skp);
 	if (rc >= 0) {
 		INIT_LIST_HEAD(&skp->smk_rules);
 		mutex_init(&skp->smk_rules_lock);
@@ -573,9 +591,6 @@ struct smack_known *smk_import_entry(const char *string, int len)
 		smk_insert_entry(skp);
 		goto unlockout;
 	}
-	/*
-	 * smk_netlbl_mls failed.
-	 */
 	kfree(skp);
 	skp = ERR_PTR(rc);
 freeout:
@@ -635,12 +650,12 @@ DEFINE_MUTEX(smack_onlycap_lock);
  */
 bool smack_privileged_cred(int cap, const struct cred *cred)
 {
-	struct task_smack *tsp = cred->security;
+	struct task_smack *tsp = smack_cred(cred);
 	struct smack_known *skp = tsp->smk_task;
 	struct smack_known_list_elem *sklep;
 	int rc;
 
-	rc = cap_capable(cred, &init_user_ns, cap, SECURITY_CAP_AUDIT);
+	rc = cap_capable(cred, &init_user_ns, cap, CAP_OPT_NONE);
 	if (rc)
 		return false;
 
@@ -673,9 +688,10 @@ bool smack_privileged_cred(int cap, const struct cred *cred)
 bool smack_privileged(int cap)
 {
 	/*
-	 * All kernel tasks are privileged
+	 * Kernel threads may not have credentials we can use.
+	 * The io_uring kernel threads do have reliable credentials.
 	 */
-	if (unlikely(current->flags & PF_KTHREAD))
+	if ((current->flags & (PF_KTHREAD | PF_IO_WORKER)) == PF_KTHREAD)
 		return true;
 
 	return smack_privileged_cred(cap, current_cred());

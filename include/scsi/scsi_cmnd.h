@@ -35,7 +35,6 @@ struct scsi_driver;
 struct scsi_data_buffer {
 	struct sg_table table;
 	unsigned length;
-	int resid;
 };
 
 /* embedded in scsi_cmnd */
@@ -58,29 +57,23 @@ struct scsi_pointer {
 #define SCMD_TAGGED		(1 << 0)
 #define SCMD_UNCHECKED_ISA_DMA	(1 << 1)
 #define SCMD_INITIALIZED	(1 << 2)
+#define SCMD_LAST		(1 << 3)
 /* flags preserved across unprep / reprep */
 #define SCMD_PRESERVED_FLAGS	(SCMD_UNCHECKED_ISA_DMA | SCMD_INITIALIZED)
+
+/* for scmd->state */
+#define SCMD_STATE_COMPLETE	0
+#define SCMD_STATE_INFLIGHT	1
 
 struct scsi_cmnd {
 	struct scsi_request req;
 	struct scsi_device *device;
-	struct list_head list;  /* scsi_cmnd participates in queue lists */
 	struct list_head eh_entry; /* entry for the host eh_cmd_q */
 	struct delayed_work abort_work;
 
 	struct rcu_head rcu;
 
 	int eh_eflags;		/* Used by error handlr */
-
-	/*
-	 * A SCSI Command is assigned a nonzero serial_number before passed
-	 * to the driver's queue command function.  The serial_number is
-	 * cleared when scsi_done is entered indicating that the command
-	 * has been completed.  It is a bug for LLDDs to use this number
-	 * for purposes other than printk (and even that is only useful
-	 * for debugging).
-	 */
-	unsigned long serial_number;
 
 	/*
 	 * This is set to jiffies as it was when the command was first
@@ -145,8 +138,10 @@ struct scsi_cmnd {
 
 	int result;		/* Status code from lower level driver */
 	int flags;		/* Command flags */
+	unsigned long state;	/* Command completion state */
 
 	unsigned char tag;	/* SCSI-II queued command tag */
+	unsigned int extra_len;	/* length of alignment and padding */
 };
 
 /*
@@ -164,14 +159,14 @@ static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
 }
 
-extern void scsi_put_command(struct scsi_cmnd *);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
 
 extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 				 size_t *offset, size_t *len);
 extern void scsi_kunmap_atomic_sg(void *virt);
 
-extern int scsi_init_io(struct scsi_cmnd *cmd);
+blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd);
+void scsi_free_sgtables(struct scsi_cmnd *cmd);
 
 #ifdef CONFIG_SCSI_DMA
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
@@ -196,35 +191,18 @@ static inline unsigned scsi_bufflen(struct scsi_cmnd *cmd)
 	return cmd->sdb.length;
 }
 
-static inline void scsi_set_resid(struct scsi_cmnd *cmd, int resid)
+static inline void scsi_set_resid(struct scsi_cmnd *cmd, unsigned int resid)
 {
-	cmd->sdb.resid = resid;
+	cmd->req.resid_len = resid;
 }
 
-static inline int scsi_get_resid(struct scsi_cmnd *cmd)
+static inline unsigned int scsi_get_resid(struct scsi_cmnd *cmd)
 {
-	return cmd->sdb.resid;
+	return cmd->req.resid_len;
 }
 
 #define scsi_for_each_sg(cmd, sg, nseg, __i)			\
 	for_each_sg(scsi_sglist(cmd), sg, nseg, __i)
-
-static inline int scsi_bidi_cmnd(struct scsi_cmnd *cmd)
-{
-	return blk_bidi_rq(cmd->request) &&
-		(cmd->request->next_rq->special != NULL);
-}
-
-static inline struct scsi_data_buffer *scsi_in(struct scsi_cmnd *cmd)
-{
-	return scsi_bidi_cmnd(cmd) ?
-		cmd->request->next_rq->special : &cmd->sdb;
-}
-
-static inline struct scsi_data_buffer *scsi_out(struct scsi_cmnd *cmd)
-{
-	return &cmd->sdb;
-}
 
 static inline int scsi_sg_copy_from_buffer(struct scsi_cmnd *cmd,
 					   void *buf, int buflen)
@@ -347,7 +325,7 @@ static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
 
 static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
 {
-	unsigned int xfer_len = scsi_out(scmd)->length;
+	unsigned int xfer_len = scmd->sdb.length;
 	unsigned int prot_interval = scsi_prot_interval(scmd);
 
 	if (scmd->prot_flags & SCSI_PROT_TRANSFER_PI)

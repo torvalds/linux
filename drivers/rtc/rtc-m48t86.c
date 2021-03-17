@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST M48T86 / Dallas DS12887 RTC driver
  * Copyright (c) 2006 Tower Technologies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This drivers only supports the clock running in BCD and 24H mode.
  * If it will be ever adapted to binary and 12H mode, care must be taken
@@ -221,7 +218,6 @@ static bool m48t86_verify_chip(struct platform_device *pdev)
 static int m48t86_rtc_probe(struct platform_device *pdev)
 {
 	struct m48t86_rtc_info *info;
-	struct resource *res;
 	unsigned char reg;
 	int err;
 	struct nvmem_config m48t86_nvmem_cfg = {
@@ -238,17 +234,11 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-	info->index_reg = devm_ioremap_resource(&pdev->dev, res);
+	info->index_reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->index_reg))
 		return PTR_ERR(info->index_reg);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res)
-		return -ENODEV;
-	info->data_reg = devm_ioremap_resource(&pdev->dev, res);
+	info->data_reg = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(info->data_reg))
 		return PTR_ERR(info->data_reg);
 

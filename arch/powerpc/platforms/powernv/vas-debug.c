@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2016-17 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "vas: " fmt
@@ -30,7 +26,7 @@ static char *cop_to_str(int cop)
 	}
 }
 
-static int info_dbg_show(struct seq_file *s, void *private)
+static int info_show(struct seq_file *s, void *private)
 {
 	struct vas_window *window = s->private;
 
@@ -42,24 +38,14 @@ static int info_dbg_show(struct seq_file *s, void *private)
 
 	seq_printf(s, "Type: %s, %s\n", cop_to_str(window->cop),
 					window->tx_win ? "Send" : "Receive");
-	seq_printf(s, "Pid : %d\n", window->pid);
+	seq_printf(s, "Pid : %d\n", vas_window_pid(window));
 
 unlock:
 	mutex_unlock(&vas_mutex);
 	return 0;
 }
 
-static int info_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, info_dbg_show, inode->i_private);
-}
-
-static const struct file_operations info_fops = {
-	.open		= info_dbg_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(info);
 
 static inline void print_reg(struct seq_file *s, struct vas_window *win,
 			char *name, u32 reg)
@@ -67,7 +53,7 @@ static inline void print_reg(struct seq_file *s, struct vas_window *win,
 	seq_printf(s, "0x%016llx %s\n", read_hvwc_reg(win, name, reg), name);
 }
 
-static int hvwc_dbg_show(struct seq_file *s, void *private)
+static int hvwc_show(struct seq_file *s, void *private)
 {
 	struct vas_window *window = s->private;
 
@@ -115,17 +101,7 @@ unlock:
 	return 0;
 }
 
-static int hvwc_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hvwc_dbg_show, inode->i_private);
-}
-
-static const struct file_operations hvwc_fops = {
-	.open		= hvwc_dbg_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(hvwc);
 
 void vas_window_free_dbgdir(struct vas_window *window)
 {
@@ -139,7 +115,7 @@ void vas_window_free_dbgdir(struct vas_window *window)
 
 void vas_window_init_dbgdir(struct vas_window *window)
 {
-	struct dentry *f, *d;
+	struct dentry *d;
 
 	if (!window->vinst->dbgdir)
 		return;
@@ -151,28 +127,10 @@ void vas_window_init_dbgdir(struct vas_window *window)
 	snprintf(window->dbgname, 16, "w%d", window->winid);
 
 	d = debugfs_create_dir(window->dbgname, window->vinst->dbgdir);
-	if (IS_ERR(d))
-		goto free_name;
-
 	window->dbgdir = d;
 
-	f = debugfs_create_file("info", 0444, d, window, &info_fops);
-	if (IS_ERR(f))
-		goto remove_dir;
-
-	f = debugfs_create_file("hvwc", 0444, d, window, &hvwc_fops);
-	if (IS_ERR(f))
-		goto remove_dir;
-
-	return;
-
-remove_dir:
-	debugfs_remove_recursive(window->dbgdir);
-	window->dbgdir = NULL;
-
-free_name:
-	kfree(window->dbgname);
-	window->dbgname = NULL;
+	debugfs_create_file("info", 0444, d, window, &info_fops);
+	debugfs_create_file("hvwc", 0444, d, window, &hvwc_fops);
 }
 
 void vas_instance_init_dbgdir(struct vas_instance *vinst)
@@ -180,8 +138,6 @@ void vas_instance_init_dbgdir(struct vas_instance *vinst)
 	struct dentry *d;
 
 	vas_init_dbgdir();
-	if (!vas_debugfs)
-		return;
 
 	vinst->dbgname = kzalloc(16, GFP_KERNEL);
 	if (!vinst->dbgname)
@@ -190,16 +146,7 @@ void vas_instance_init_dbgdir(struct vas_instance *vinst)
 	snprintf(vinst->dbgname, 16, "v%d", vinst->vas_id);
 
 	d = debugfs_create_dir(vinst->dbgname, vas_debugfs);
-	if (IS_ERR(d))
-		goto free_name;
-
 	vinst->dbgdir = d;
-	return;
-
-free_name:
-	kfree(vinst->dbgname);
-	vinst->dbgname = NULL;
-	vinst->dbgdir = NULL;
 }
 
 /*
@@ -215,6 +162,4 @@ void vas_init_dbgdir(void)
 
 	first_time = false;
 	vas_debugfs = debugfs_create_dir("vas", NULL);
-	if (IS_ERR(vas_debugfs))
-		vas_debugfs = NULL;
 }

@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 
 #include "wil6210.h"
@@ -260,7 +249,6 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 	r->reorder_buf =
 		kcalloc(size, sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!r->reorder_buf) {
-		kfree(r->reorder_buf);
 		kfree(r);
 		return NULL;
 	}
@@ -307,8 +295,8 @@ static u16 wil_agg_size(struct wil6210_priv *wil, u16 req_agg_wsize)
 }
 
 /* Block Ack - Rx side (recipient) */
-int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid,
-			 u8 cidxtid, u8 dialog_token, __le16 ba_param_set,
+int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid, u8 cid, u8 tid,
+			 u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl)
 __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
@@ -316,8 +304,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	u16 agg_timeout = le16_to_cpu(ba_timeout);
 	u16 seq_ctrl = le16_to_cpu(ba_seq_ctrl);
 	struct wil_sta_info *sta;
-	u8 cid, tid;
-	u16 agg_wsize = 0;
+	u16 agg_wsize;
 	/* bit 0: A-MSDU supported
 	 * bit 1: policy (should be 0 for us)
 	 * bits 2..5: TID
@@ -329,16 +316,14 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		test_bit(WMI_FW_CAPABILITY_AMSDU, wil->fw_capabilities) &&
 		wil->amsdu_en && (param_set & BIT(0));
 	int ba_policy = param_set & BIT(1);
-	u16 status = WLAN_STATUS_SUCCESS;
 	u16 ssn = seq_ctrl >> 4;
 	struct wil_tid_ampdu_rx *r;
 	int rc = 0;
 
 	might_sleep();
-	parse_cidxtid(cidxtid, &cid, &tid);
 
 	/* sanity checks */
-	if (cid >= WIL6210_MAX_CID) {
+	if (cid >= wil->max_assoc_sta) {
 		wil_err(wil, "BACK: invalid CID %d\n", cid);
 		rc = -EINVAL;
 		goto out;
@@ -357,36 +342,30 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		    agg_amsdu ? "+" : "-", !!ba_policy, dialog_token, ssn);
 
 	/* apply policies */
-	if (ba_policy) {
-		wil_err(wil, "BACK requested unsupported ba_policy == 1\n");
-		status = WLAN_STATUS_INVALID_QOS_PARAM;
-	}
-	if (status == WLAN_STATUS_SUCCESS) {
-		if (req_agg_wsize == 0) {
-			wil_dbg_misc(wil, "Suggest BACK wsize %d\n",
-				     wil->max_agg_wsize);
-			agg_wsize = wil->max_agg_wsize;
-		} else {
-			agg_wsize = min_t(u16,
-					  wil->max_agg_wsize, req_agg_wsize);
-		}
+	if (req_agg_wsize == 0) {
+		wil_dbg_misc(wil, "Suggest BACK wsize %d\n",
+			     wil->max_agg_wsize);
+		agg_wsize = wil->max_agg_wsize;
+	} else {
+		agg_wsize = min_t(u16, wil->max_agg_wsize, req_agg_wsize);
 	}
 
 	rc = wil->txrx_ops.wmi_addba_rx_resp(wil, mid, cid, tid, dialog_token,
-					     status, agg_amsdu, agg_wsize,
-					     agg_timeout);
-	if (rc || (status != WLAN_STATUS_SUCCESS)) {
-		wil_err(wil, "do not apply ba, rc(%d), status(%d)\n", rc,
-			status);
+					     WLAN_STATUS_SUCCESS, agg_amsdu,
+					     agg_wsize, agg_timeout);
+	if (rc) {
+		wil_err(wil, "do not apply ba, rc(%d)\n", rc);
 		goto out;
 	}
 
 	/* apply */
-	r = wil_tid_ampdu_rx_alloc(wil, agg_wsize, ssn);
-	spin_lock_bh(&sta->tid_rx_lock);
-	wil_tid_ampdu_rx_free(wil, sta->tid_rx[tid]);
-	sta->tid_rx[tid] = r;
-	spin_unlock_bh(&sta->tid_rx_lock);
+	if (!wil->use_rx_hw_reordering) {
+		r = wil_tid_ampdu_rx_alloc(wil, agg_wsize, ssn);
+		spin_lock_bh(&sta->tid_rx_lock);
+		wil_tid_ampdu_rx_free(wil, sta->tid_rx[tid]);
+		sta->tid_rx[tid] = r;
+		spin_unlock_bh(&sta->tid_rx_lock);
+	}
 
 out:
 	return rc;

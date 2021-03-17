@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung SoC USB 1.1/2.0 PHY driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Kamil Debski <k.debski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -159,9 +156,8 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	if (!cfg)
 		return -EINVAL;
 
-	drv = devm_kzalloc(dev, sizeof(struct samsung_usb2_phy_driver) +
-		cfg->num_phys * sizeof(struct samsung_usb2_phy_instance),
-								GFP_KERNEL);
+	drv = devm_kzalloc(dev, struct_size(drv, instances, cfg->num_phys),
+			   GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
 
@@ -254,11 +250,12 @@ static struct platform_driver samsung_usb2_phy_driver = {
 	.driver = {
 		.of_match_table	= samsung_usb2_phy_of_match,
 		.name		= "samsung-usb2-phy",
+		.suppress_bind_attrs = true,
 	}
 };
 
 module_platform_driver(samsung_usb2_phy_driver);
-MODULE_DESCRIPTION("Samsung S5P/EXYNOS SoC USB PHY driver");
+MODULE_DESCRIPTION("Samsung S5P/Exynos SoC USB PHY driver");
 MODULE_AUTHOR("Kamil Debski <k.debski@samsung.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:samsung-usb2-phy");

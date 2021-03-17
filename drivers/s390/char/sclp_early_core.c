@@ -9,16 +9,20 @@
 #include <asm/lowcore.h>
 #include <asm/ebcdic.h>
 #include <asm/irq.h>
+#include <asm/sections.h>
+#include <asm/mem_detect.h>
 #include "sclp.h"
 #include "sclp_rw.h"
 
-char sclp_early_sccb[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
-int sclp_init_state __section(.data) = sclp_init_state_uninitialized;
+static struct read_info_sccb __bootdata(sclp_info_sccb);
+static int __bootdata(sclp_info_sccb_valid);
+char *sclp_early_sccb = (char *) EARLY_SCCB_OFFSET;
+int sclp_init_state = sclp_init_state_uninitialized;
 /*
  * Used to keep track of the size of the event masks. Qemu until version 2.11
  * only supports 4 and needs a workaround.
  */
-bool sclp_mask_compat_mode __section(.data);
+bool sclp_mask_compat_mode;
 
 void sclp_early_wait_irq(void)
 {
@@ -87,8 +91,8 @@ static void sclp_early_print_lm(const char *str, unsigned int len)
 	struct mto *mto;
 	struct go *go;
 
-	sccb = (struct write_sccb *) &sclp_early_sccb;
-	end = (unsigned char *) sccb + sizeof(sclp_early_sccb) - 1;
+	sccb = (struct write_sccb *) sclp_early_sccb;
+	end = (unsigned char *) sccb + EARLY_SCCB_SIZE - 1;
 	memset(sccb, 0, sizeof(*sccb));
 	ptr = (unsigned char *) &sccb->msg.mdb.mto;
 	offset = 0;
@@ -135,9 +139,9 @@ static void sclp_early_print_vt220(const char *str, unsigned int len)
 {
 	struct vt220_sccb *sccb;
 
-	sccb = (struct vt220_sccb *) &sclp_early_sccb;
-	if (sizeof(*sccb) + len >= sizeof(sclp_early_sccb))
-		len = sizeof(sclp_early_sccb) - sizeof(*sccb);
+	sccb = (struct vt220_sccb *) sclp_early_sccb;
+	if (sizeof(*sccb) + len >= EARLY_SCCB_SIZE)
+		len = EARLY_SCCB_SIZE - sizeof(*sccb);
 	memset(sccb, 0, sizeof(*sccb));
 	memcpy(&sccb->msg.data, str, len);
 	sccb->header.length = sizeof(*sccb) + len;
@@ -195,7 +199,7 @@ static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
 	BUILD_BUG_ON(sizeof(struct init_sccb) > PAGE_SIZE);
 
 	*have_linemode = *have_vt220 = 0;
-	sccb = (struct init_sccb *) &sclp_early_sccb;
+	sccb = (struct init_sccb *) sclp_early_sccb;
 	receive_mask = disable ? 0 : EVTYP_OPCMD_MASK;
 	send_mask = disable ? 0 : EVTYP_VT220MSG_MASK | EVTYP_MSG_MASK;
 	rc = sclp_early_set_event_mask(sccb, receive_mask, send_mask);
@@ -210,11 +214,11 @@ static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
  * Output one or more lines of text on the SCLP console (VT220 and /
  * or line-mode).
  */
-void __sclp_early_printk(const char *str, unsigned int len, unsigned int force)
+void __sclp_early_printk(const char *str, unsigned int len)
 {
 	int have_linemode, have_vt220;
 
-	if (!force && sclp_init_state != sclp_init_state_uninitialized)
+	if (sclp_init_state != sclp_init_state_uninitialized)
 		return;
 	if (sclp_early_setup(0, &have_linemode, &have_vt220) != 0)
 		return;
@@ -227,10 +231,117 @@ void __sclp_early_printk(const char *str, unsigned int len, unsigned int force)
 
 void sclp_early_printk(const char *str)
 {
-	__sclp_early_printk(str, strlen(str), 0);
+	__sclp_early_printk(str, strlen(str));
 }
 
-void sclp_early_printk_force(const char *str)
+int __init sclp_early_read_info(void)
 {
-	__sclp_early_printk(str, strlen(str), 1);
+	int i;
+	struct read_info_sccb *sccb = &sclp_info_sccb;
+	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
+				  SCLP_CMDW_READ_SCP_INFO};
+
+	for (i = 0; i < ARRAY_SIZE(commands); i++) {
+		memset(sccb, 0, sizeof(*sccb));
+		sccb->header.length = sizeof(*sccb);
+		sccb->header.function_code = 0x80;
+		sccb->header.control_mask[2] = 0x80;
+		if (sclp_early_cmd(commands[i], sccb))
+			break;
+		if (sccb->header.response_code == 0x10) {
+			sclp_info_sccb_valid = 1;
+			return 0;
+		}
+		if (sccb->header.response_code != 0x1f0)
+			break;
+	}
+	return -EIO;
+}
+
+int __init sclp_early_get_info(struct read_info_sccb *info)
+{
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	*info = sclp_info_sccb;
+	return 0;
+}
+
+int __init sclp_early_get_memsize(unsigned long *mem)
+{
+	unsigned long rnmax;
+	unsigned long rnsize;
+	struct read_info_sccb *sccb = &sclp_info_sccb;
+
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
+	rnsize = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
+	rnsize <<= 20;
+	*mem = rnsize * rnmax;
+	return 0;
+}
+
+int __init sclp_early_get_hsa_size(unsigned long *hsa_size)
+{
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	*hsa_size = 0;
+	if (sclp_info_sccb.hsa_size)
+		*hsa_size = (sclp_info_sccb.hsa_size - 1) * PAGE_SIZE;
+	return 0;
+}
+
+#define SCLP_STORAGE_INFO_FACILITY     0x0000400000000000UL
+
+void __weak __init add_mem_detect_block(u64 start, u64 end) {}
+int __init sclp_early_read_storage_info(void)
+{
+	struct read_storage_sccb *sccb = (struct read_storage_sccb *)sclp_early_sccb;
+	int rc, id, max_id = 0;
+	unsigned long rn, rzm;
+	sclp_cmdw_t command;
+	u16 sn;
+
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	if (!(sclp_info_sccb.facilities & SCLP_STORAGE_INFO_FACILITY))
+		return -EOPNOTSUPP;
+
+	rzm = sclp_info_sccb.rnsize ?: sclp_info_sccb.rnsize2;
+	rzm <<= 20;
+
+	for (id = 0; id <= max_id; id++) {
+		memset(sclp_early_sccb, 0, EARLY_SCCB_SIZE);
+		sccb->header.length = EARLY_SCCB_SIZE;
+		command = SCLP_CMDW_READ_STORAGE_INFO | (id << 8);
+		rc = sclp_early_cmd(command, sccb);
+		if (rc)
+			goto fail;
+
+		max_id = sccb->max_id;
+		switch (sccb->header.response_code) {
+		case 0x0010:
+			for (sn = 0; sn < sccb->assigned; sn++) {
+				if (!sccb->entries[sn])
+					continue;
+				rn = sccb->entries[sn] >> 16;
+				add_mem_detect_block((rn - 1) * rzm, rn * rzm);
+			}
+			break;
+		case 0x0310:
+		case 0x0410:
+			break;
+		default:
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	mem_detect.count = 0;
+	return -EIO;
 }

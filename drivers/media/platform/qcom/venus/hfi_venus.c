@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/delay.h>
@@ -19,7 +10,6 @@
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
-#include <linux/qcom_scm.h>
 #include <linux/slab.h>
 
 #include "core.h"
@@ -27,6 +17,7 @@
 #include "hfi_msgs.h"
 #include "hfi_venus.h"
 #include "hfi_venus_io.h"
+#include "firmware.h"
 
 #define HFI_MASK_QHDR_TX_TYPE		0xff000000
 #define HFI_MASK_QHDR_RX_TYPE		0x00ff0000
@@ -54,11 +45,6 @@
 #define IFACEQ_VAR_SMALL_PKT_SIZE	100
 #define IFACEQ_VAR_LARGE_PKT_SIZE	512
 #define IFACEQ_VAR_HUGE_PKT_SIZE	(1024 * 12)
-
-enum tzbsp_video_state {
-	TZBSP_VIDEO_STATE_SUSPEND = 0,
-	TZBSP_VIDEO_STATE_RESUME
-};
 
 struct hfi_queue_table_header {
 	u32 version;
@@ -144,7 +130,7 @@ struct venus_hfi_device {
 };
 
 static bool venus_pkt_debug;
-static int venus_fw_debug = HFI_DEBUG_MSG_ERROR | HFI_DEBUG_MSG_FATAL;
+int venus_fw_debug = HFI_DEBUG_MSG_ERROR | HFI_DEBUG_MSG_FATAL;
 static bool venus_sys_idle_indicator;
 static bool venus_fw_low_power_mode = true;
 static int venus_hw_rsp_timeout = 1000;
@@ -491,7 +477,7 @@ static u32 venus_hwversion(struct venus_hfi_device *hdev)
 	minor = minor >> WRAPPER_HW_VERSION_MINOR_VERSION_SHIFT;
 	step = ver & WRAPPER_HW_VERSION_STEP_VERSION_MASK;
 
-	dev_dbg(dev, "venus hw version %x.%x.%x\n", major, minor, step);
+	dev_dbg(dev, VDBGL "venus hw version %x.%x.%x\n", major, minor, step);
 
 	return major;
 }
@@ -575,7 +561,7 @@ static int venus_power_off(struct venus_hfi_device *hdev)
 	if (!hdev->power_enabled)
 		return 0;
 
-	ret = qcom_scm_set_remote_state(TZBSP_VIDEO_STATE_SUSPEND, 0);
+	ret = venus_set_hw_state_suspend(hdev->core);
 	if (ret)
 		return ret;
 
@@ -595,7 +581,7 @@ static int venus_power_on(struct venus_hfi_device *hdev)
 	if (hdev->power_enabled)
 		return 0;
 
-	ret = qcom_scm_set_remote_state(TZBSP_VIDEO_STATE_RESUME, 0);
+	ret = venus_set_hw_state_resume(hdev->core);
 	if (ret)
 		goto err;
 
@@ -608,7 +594,7 @@ static int venus_power_on(struct venus_hfi_device *hdev)
 	return 0;
 
 err_suspend:
-	qcom_scm_set_remote_state(TZBSP_VIDEO_STATE_SUSPEND, 0);
+	venus_set_hw_state_suspend(hdev->core);
 err:
 	hdev->power_enabled = false;
 	return ret;
@@ -920,7 +906,7 @@ static void venus_flush_debug_queue(struct venus_hfi_device *hdev)
 		if (pkt->hdr.pkt_type != HFI_MSG_SYS_COV) {
 			struct hfi_msg_sys_debug_pkt *pkt = packet;
 
-			dev_dbg(dev, "%s", pkt->msg_data);
+			dev_dbg(dev, VDBGFW "%s", pkt->msg_data);
 		}
 	}
 }
@@ -1000,13 +986,6 @@ static void venus_process_msg_sys_error(struct venus_hfi_device *hdev,
 
 	venus_set_state(hdev, VENUS_STATE_DEINIT);
 
-	/*
-	 * Once SYS_ERROR received from HW, it is safe to halt the AXI.
-	 * With SYS_ERROR, Venus FW may have crashed and HW might be
-	 * active and causing unnecessary transactions. Hence it is
-	 * safe to stop all AXI transactions from venus subsystem.
-	 */
-	venus_halt_axi(hdev);
 	venus_sfr_print(hdev);
 }
 
@@ -1023,10 +1002,6 @@ static irqreturn_t venus_isr_thread(struct venus_core *core)
 	res = hdev->core->res;
 	pkt = hdev->pkt_buf;
 
-	if (hdev->irq_status & WRAPPER_INTR_STATUS_A2HWD_MASK) {
-		venus_sfr_print(hdev);
-		hfi_process_watchdog_timeout(core);
-	}
 
 	while (!venus_iface_msgq_read(hdev, pkt)) {
 		msg_ret = hfi_process_msg_packet(core, pkt);
@@ -1146,6 +1121,10 @@ static int venus_session_init(struct venus_inst *inst, u32 session_type,
 	struct venus_hfi_device *hdev = to_hfi_priv(inst->core);
 	struct hfi_session_init_pkt pkt;
 	int ret;
+
+	ret = venus_sys_set_debug(hdev, venus_fw_debug);
+	if (ret)
+		goto err;
 
 	ret = pkt_session_init(&pkt, inst, session_type, codec);
 	if (ret)
@@ -1355,6 +1334,8 @@ static int venus_session_set_property(struct venus_inst *inst, u32 ptype,
 	pkt = (struct hfi_session_set_property_pkt *)packet;
 
 	ret = pkt_session_set_property(pkt, inst, ptype, pdata);
+	if (ret == -ENOTSUPP)
+		return 0;
 	if (ret)
 		return ret;
 
@@ -1484,6 +1465,7 @@ static int venus_suspend_3xx(struct venus_core *core)
 {
 	struct venus_hfi_device *hdev = to_hfi_priv(core);
 	struct device *dev = core->dev;
+	u32 ctrl_status;
 	bool val;
 	int ret;
 
@@ -1498,6 +1480,10 @@ static int venus_suspend_3xx(struct venus_core *core)
 		dev_err(dev, "bad state, cannot suspend\n");
 		return -EINVAL;
 	}
+
+	ctrl_status = venus_readl(hdev, CPU_CS_SCIACMDARG0);
+	if (ctrl_status & CPU_CS_SCIACMDARG0_PC_READY)
+		goto power_off;
 
 	/*
 	 * Power collapse sequence for Venus 3xx and 4xx versions:
@@ -1523,6 +1509,7 @@ static int venus_suspend_3xx(struct venus_core *core)
 	if (ret)
 		return ret;
 
+power_off:
 	mutex_lock(&hdev->lock);
 
 	ret = venus_power_off(hdev);
@@ -1619,4 +1606,55 @@ err_kfree:
 	core->priv = NULL;
 	core->ops = NULL;
 	return ret;
+}
+
+void venus_hfi_queues_reinit(struct venus_core *core)
+{
+	struct venus_hfi_device *hdev = to_hfi_priv(core);
+	struct hfi_queue_table_header *tbl_hdr;
+	struct iface_queue *queue;
+	struct hfi_sfr *sfr;
+	unsigned int i;
+
+	mutex_lock(&hdev->lock);
+
+	for (i = 0; i < IFACEQ_NUM; i++) {
+		queue = &hdev->queues[i];
+		queue->qhdr =
+			IFACEQ_GET_QHDR_START_ADDR(hdev->ifaceq_table.kva, i);
+
+		venus_set_qhdr_defaults(queue->qhdr);
+
+		queue->qhdr->start_addr = queue->qmem.da;
+
+		if (i == IFACEQ_CMD_IDX)
+			queue->qhdr->type |= HFI_HOST_TO_CTRL_CMD_Q;
+		else if (i == IFACEQ_MSG_IDX)
+			queue->qhdr->type |= HFI_CTRL_TO_HOST_MSG_Q;
+		else if (i == IFACEQ_DBG_IDX)
+			queue->qhdr->type |= HFI_CTRL_TO_HOST_DBG_Q;
+	}
+
+	tbl_hdr = hdev->ifaceq_table.kva;
+	tbl_hdr->version = 0;
+	tbl_hdr->size = IFACEQ_TABLE_SIZE;
+	tbl_hdr->qhdr0_offset = sizeof(struct hfi_queue_table_header);
+	tbl_hdr->qhdr_size = sizeof(struct hfi_queue_header);
+	tbl_hdr->num_q = IFACEQ_NUM;
+	tbl_hdr->num_active_q = IFACEQ_NUM;
+
+	/*
+	 * Set receive request to zero on debug queue as there is no
+	 * need of interrupt from video hardware for debug messages
+	 */
+	queue = &hdev->queues[IFACEQ_DBG_IDX];
+	queue->qhdr->rx_req = 0;
+
+	sfr = hdev->sfr.kva;
+	sfr->buf_size = ALIGNED_SFR_SIZE;
+
+	/* ensure table and queue header structs are settled in memory */
+	wmb();
+
+	mutex_unlock(&hdev->lock);
 }

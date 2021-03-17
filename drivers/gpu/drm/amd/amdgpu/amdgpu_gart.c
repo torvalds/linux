@@ -25,7 +25,10 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <drm/drmP.h>
+
+#include <linux/pci.h>
+#include <linux/vmalloc.h>
+
 #include <drm/amdgpu_drm.h>
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
@@ -68,7 +71,7 @@
  */
 static int amdgpu_gart_dummy_page_init(struct amdgpu_device *adev)
 {
-	struct page *dummy_page = adev->mman.bdev.glob->dummy_read_page;
+	struct page *dummy_page = ttm_bo_glob.dummy_read_page;
 
 	if (adev->dummy_page_addr)
 		return 0;
@@ -112,7 +115,7 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		struct amdgpu_bo_param bp;
 
 		memset(&bp, 0, sizeof(bp));
@@ -123,7 +126,7 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		bp.type = ttm_bo_type_kernel;
 		bp.resv = NULL;
-		r = amdgpu_bo_create(adev, &bp, &adev->gart.robj);
+		r = amdgpu_bo_create(adev, &bp, &adev->gart.bo);
 		if (r) {
 			return r;
 		}
@@ -145,19 +148,18 @@ int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev)
 {
 	int r;
 
-	r = amdgpu_bo_reserve(adev->gart.robj, false);
+	r = amdgpu_bo_reserve(adev->gart.bo, false);
 	if (unlikely(r != 0))
 		return r;
-	r = amdgpu_bo_pin(adev->gart.robj, AMDGPU_GEM_DOMAIN_VRAM);
+	r = amdgpu_bo_pin(adev->gart.bo, AMDGPU_GEM_DOMAIN_VRAM);
 	if (r) {
-		amdgpu_bo_unreserve(adev->gart.robj);
+		amdgpu_bo_unreserve(adev->gart.bo);
 		return r;
 	}
-	r = amdgpu_bo_kmap(adev->gart.robj, &adev->gart.ptr);
+	r = amdgpu_bo_kmap(adev->gart.bo, &adev->gart.ptr);
 	if (r)
-		amdgpu_bo_unpin(adev->gart.robj);
-	amdgpu_bo_unreserve(adev->gart.robj);
-	adev->gart.table_addr = amdgpu_bo_gpu_offset(adev->gart.robj);
+		amdgpu_bo_unpin(adev->gart.bo);
+	amdgpu_bo_unreserve(adev->gart.bo);
 	return r;
 }
 
@@ -173,14 +175,14 @@ void amdgpu_gart_table_vram_unpin(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		return;
 	}
-	r = amdgpu_bo_reserve(adev->gart.robj, true);
+	r = amdgpu_bo_reserve(adev->gart.bo, true);
 	if (likely(r == 0)) {
-		amdgpu_bo_kunmap(adev->gart.robj);
-		amdgpu_bo_unpin(adev->gart.robj);
-		amdgpu_bo_unreserve(adev->gart.robj);
+		amdgpu_bo_kunmap(adev->gart.bo);
+		amdgpu_bo_unpin(adev->gart.bo);
+		amdgpu_bo_unreserve(adev->gart.bo);
 		adev->gart.ptr = NULL;
 	}
 }
@@ -196,10 +198,10 @@ void amdgpu_gart_table_vram_unpin(struct amdgpu_device *adev)
  */
 void amdgpu_gart_table_vram_free(struct amdgpu_device *adev)
 {
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		return;
 	}
-	amdgpu_bo_unref(&adev->gart.robj);
+	amdgpu_bo_unref(&adev->gart.bo);
 }
 
 /*
@@ -249,7 +251,9 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	}
 	mb();
 	amdgpu_asic_flush_hdp(adev, NULL);
-	amdgpu_gmc_flush_gpu_tlb(adev, 0);
+	for (i = 0; i < adev->num_vmhubs; i++)
+		amdgpu_gmc_flush_gpu_tlb(adev, 0, i, 0);
+
 	return 0;
 }
 
@@ -260,6 +264,8 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
  * @offset: offset into the GPU's gart aperture
  * @pages: number of pages to bind
  * @dma_addr: DMA addresses of pages
+ * @flags: page table entry flags
+ * @dst: CPU address of the gart table
  *
  * Map the dma_addresses into GART entries (all asics).
  * Returns 0 for success, -EINVAL for failure.
@@ -296,6 +302,7 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
  * @pages: number of pages to bind
  * @pagelist: pages to bind
  * @dma_addr: DMA addresses of pages
+ * @flags: page table entry flags
  *
  * Binds the requested pages to the gart page table
  * (all asics).
@@ -306,9 +313,9 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     uint64_t flags)
 {
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
-	unsigned i,t,p;
+	unsigned t,p;
 #endif
-	int r;
+	int r, i;
 
 	if (!adev->gart.ready) {
 		WARN(1, "trying to bind memory to uninitialized GART !\n");
@@ -332,7 +339,8 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 
 	mb();
 	amdgpu_asic_flush_hdp(adev, NULL);
-	amdgpu_gmc_flush_gpu_tlb(adev, 0);
+	for (i = 0; i < adev->num_vmhubs; i++)
+		amdgpu_gmc_flush_gpu_tlb(adev, 0, i, 0);
 	return 0;
 }
 

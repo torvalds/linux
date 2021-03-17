@@ -4,6 +4,7 @@
 # IPv4 and IPv6 onlink tests
 
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+VERBOSE=0
 
 # Network interfaces
 # - odd in current namespace; even in peer ns
@@ -91,10 +92,10 @@ log_test()
 
 	if [ ${rc} -eq ${expected} ]; then
 		nsuccess=$((nsuccess+1))
-		printf "\n    TEST: %-50s  [ OK ]\n" "${msg}"
+		printf "    TEST: %-50s  [ OK ]\n" "${msg}"
 	else
 		nfail=$((nfail+1))
-		printf "\n    TEST: %-50s  [FAIL]\n" "${msg}"
+		printf "    TEST: %-50s  [FAIL]\n" "${msg}"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
@@ -121,9 +122,23 @@ log_subsection()
 
 run_cmd()
 {
-	echo
-	echo "COMMAND: $*"
-	eval $*
+	local cmd="$*"
+	local out
+	local rc
+
+	if [ "$VERBOSE" = "1" ]; then
+		printf "    COMMAND: $cmd\n"
+	fi
+
+	out=$(eval $cmd 2>&1)
+	rc=$?
+	if [ "$VERBOSE" = "1" -a -n "$out" ]; then
+		echo "    $out"
+	fi
+
+	[ "$VERBOSE" = "1" ] && echo
+
+	return $rc
 }
 
 get_linklocal()
@@ -167,8 +182,8 @@ setup()
 	# add vrf table
 	ip li add ${VRF} type vrf table ${VRF_TABLE}
 	ip li set ${VRF} up
-	ip ro add table ${VRF_TABLE} unreachable default
-	ip -6 ro add table ${VRF_TABLE} unreachable default
+	ip ro add table ${VRF_TABLE} unreachable default metric 8192
+	ip -6 ro add table ${VRF_TABLE} unreachable default metric 8192
 
 	# create test interfaces
 	ip li add ${NETIFS[p1]} type veth peer name ${NETIFS[p2]}
@@ -185,20 +200,20 @@ setup()
 	for n in 1 3 5 7; do
 		ip li set ${NETIFS[p${n}]} up
 		ip addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]}
+		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
 	done
 
 	# move peer interfaces to namespace and add addresses
 	for n in 2 4 6 8; do
 		ip li set ${NETIFS[p${n}]} netns ${PEER_NS} up
 		ip -netns ${PEER_NS} addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]}
+		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
 	done
 
-	set +e
+	ip -6 ro add default via ${V6ADDRS[p3]/::[0-9]/::64}
+	ip -6 ro add table ${VRF_TABLE} default via ${V6ADDRS[p7]/::[0-9]/::64}
 
-	# let DAD complete - assume default of 1 probe
-	sleep 1
+	set +e
 }
 
 cleanup()
@@ -451,10 +466,33 @@ run_onlink_tests()
 }
 
 ################################################################################
+# usage
+
+usage()
+{
+	cat <<EOF
+usage: ${0##*/} OPTS
+
+        -p          Pause on fail
+        -v          verbose mode (show commands and output)
+EOF
+}
+
+################################################################################
 # main
 
 nsuccess=0
 nfail=0
+
+while getopts :t:pPhv o
+do
+	case $o in
+		p) PAUSE_ON_FAIL=yes;;
+		v) VERBOSE=$(($VERBOSE + 1));;
+		h) usage; exit 0;;
+		*) usage; exit 1;;
+	esac
+done
 
 cleanup
 setup

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * The implementation of the wait_bit*() and related waiting APIs:
  */
@@ -178,6 +179,7 @@ void init_wait_var_entry(struct wait_bit_queue_entry *wbq_entry, void *var, int 
 			.bit_nr = -1,
 		},
 		.wq_entry = {
+			.flags	 = flags,
 			.private = current,
 			.func	 = var_wake_function,
 			.entry	 = LIST_HEAD_INIT(wbq_entry->wq_entry.entry),

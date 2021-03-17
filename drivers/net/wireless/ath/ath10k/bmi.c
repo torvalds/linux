@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2014,2016-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "bmi.h"
@@ -23,18 +12,11 @@
 
 void ath10k_bmi_start(struct ath10k *ar)
 {
-	int ret;
-
 	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi start\n");
 
 	ar->bmi.done_sent = false;
-
-	/* Enable hardware clock to speed up firmware download */
-	if (ar->hw_params.hw_ops->enable_pll_clk) {
-		ret = ar->hw_params.hw_ops->enable_pll_clk(ar);
-		ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi enable pll ret %d\n", ret);
-	}
 }
+EXPORT_SYMBOL(ath10k_bmi_start);
 
 int ath10k_bmi_done(struct ath10k *ar)
 {
@@ -208,6 +190,7 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_bmi_read_memory);
 
 int ath10k_bmi_write_soc_reg(struct ath10k *ar, u32 address, u32 reg_val)
 {
@@ -357,6 +340,53 @@ int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 param, u32 *result)
 	return 0;
 }
 
+static int ath10k_bmi_lz_data_large(struct ath10k *ar, const void *buffer, u32 length)
+{
+	struct bmi_cmd *cmd;
+	u32 hdrlen = sizeof(cmd->id) + sizeof(cmd->lz_data);
+	u32 txlen;
+	int ret;
+	size_t buf_len;
+
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "large bmi lz data buffer 0x%pK length %d\n",
+		   buffer, length);
+
+	if (ar->bmi.done_sent) {
+		ath10k_warn(ar, "command disallowed\n");
+		return -EBUSY;
+	}
+
+	buf_len = sizeof(*cmd) + BMI_MAX_LARGE_DATA_SIZE - BMI_MAX_DATA_SIZE;
+	cmd = kzalloc(buf_len, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	while (length) {
+		txlen = min(length, BMI_MAX_LARGE_DATA_SIZE - hdrlen);
+
+		WARN_ON_ONCE(txlen & 3);
+
+		cmd->id          = __cpu_to_le32(BMI_LZ_DATA);
+		cmd->lz_data.len = __cpu_to_le32(txlen);
+		memcpy(cmd->lz_data.payload, buffer, txlen);
+
+		ret = ath10k_hif_exchange_bmi_msg(ar, cmd, hdrlen + txlen,
+						  NULL, NULL);
+		if (ret) {
+			ath10k_warn(ar, "unable to write to the device\n");
+			kfree(cmd);
+			return ret;
+		}
+
+		buffer += txlen;
+		length -= txlen;
+	}
+
+	kfree(cmd);
+
+	return 0;
+}
+
 int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length)
 {
 	struct bmi_cmd cmd;
@@ -441,7 +471,11 @@ int ath10k_bmi_fast_download(struct ath10k *ar,
 	if (trailer_len > 0)
 		memcpy(trailer, buffer + head_len, trailer_len);
 
-	ret = ath10k_bmi_lz_data(ar, buffer, head_len);
+	if (ar->hw_params.bmi_large_size_download)
+		ret = ath10k_bmi_lz_data_large(ar, buffer, head_len);
+	else
+		ret = ath10k_bmi_lz_data(ar, buffer, head_len);
+
 	if (ret)
 		return ret;
 
@@ -458,4 +492,27 @@ int ath10k_bmi_fast_download(struct ath10k *ar,
 	ret = ath10k_bmi_lz_stream_start(ar, 0x00);
 
 	return ret;
+}
+
+int ath10k_bmi_set_start(struct ath10k *ar, u32 address)
+{
+	struct bmi_cmd cmd;
+	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.set_app_start);
+	int ret;
+
+	if (ar->bmi.done_sent) {
+		ath10k_warn(ar, "bmi set start command disallowed\n");
+		return -EBUSY;
+	}
+
+	cmd.id = __cpu_to_le32(BMI_SET_APP_START);
+	cmd.set_app_start.addr = __cpu_to_le32(address);
+
+	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, NULL, NULL);
+	if (ret) {
+		ath10k_warn(ar, "unable to set start to the device:%d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }

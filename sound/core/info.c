@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Information interface for ALSA driver
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -35,7 +20,7 @@
 
 int snd_info_check_reserved_words(const char *str)
 {
-	static char *reserved[] =
+	static const char * const reserved[] =
 	{
 		"version",
 		"meminfo",
@@ -50,7 +35,7 @@ int snd_info_check_reserved_words(const char *str)
 		"seq",
 		NULL
 	};
-	char **xstr = reserved;
+	const char * const *xstr = reserved;
 
 	while (*xstr) {
 		if (!strcmp(*xstr, str))
@@ -297,17 +282,16 @@ static int snd_info_entry_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations snd_info_entry_operations =
+static const struct proc_ops snd_info_entry_operations =
 {
-	.owner =		THIS_MODULE,
-	.llseek =		snd_info_entry_llseek,
-	.read =			snd_info_entry_read,
-	.write =		snd_info_entry_write,
-	.poll =			snd_info_entry_poll,
-	.unlocked_ioctl =	snd_info_entry_ioctl,
-	.mmap =			snd_info_entry_mmap,
-	.open =			snd_info_entry_open,
-	.release =		snd_info_entry_release,
+	.proc_lseek	= snd_info_entry_llseek,
+	.proc_read	= snd_info_entry_read,
+	.proc_write	= snd_info_entry_write,
+	.proc_poll	= snd_info_entry_poll,
+	.proc_ioctl	= snd_info_entry_ioctl,
+	.proc_mmap	= snd_info_entry_mmap,
+	.proc_open	= snd_info_entry_open,
+	.proc_release	= snd_info_entry_release,
 };
 
 /*
@@ -436,14 +420,13 @@ static int snd_info_text_entry_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations snd_info_text_entry_ops =
+static const struct proc_ops snd_info_text_entry_ops =
 {
-	.owner =		THIS_MODULE,
-	.open =			snd_info_text_entry_open,
-	.release =		snd_info_text_entry_release,
-	.write =		snd_info_text_entry_write,
-	.llseek =		seq_lseek,
-	.read =			seq_read,
+	.proc_open	= snd_info_text_entry_open,
+	.proc_release	= snd_info_text_entry_release,
+	.proc_write	= snd_info_text_entry_write,
+	.proc_lseek	= seq_lseek,
+	.proc_read	= seq_read,
 };
 
 static struct snd_info_entry *create_subdir(struct module *mod,
@@ -463,11 +446,12 @@ static struct snd_info_entry *create_subdir(struct module *mod,
 }
 
 static struct snd_info_entry *
-snd_info_create_entry(const char *name, struct snd_info_entry *parent);
+snd_info_create_entry(const char *name, struct snd_info_entry *parent,
+		      struct module *module);
 
 int __init snd_info_init(void)
 {
-	snd_proc_root = snd_info_create_entry("asound", NULL);
+	snd_proc_root = snd_info_create_entry("asound", NULL, THIS_MODULE);
 	if (!snd_proc_root)
 		return -ENOMEM;
 	snd_proc_root->mode = S_IFDIR | 0555;
@@ -503,6 +487,14 @@ int __exit snd_info_done(void)
 	return 0;
 }
 
+static void snd_card_id_read(struct snd_info_entry *entry,
+			     struct snd_info_buffer *buffer)
+{
+	struct snd_card *card = entry->private_data;
+
+	snd_iprintf(buffer, "%s\n", card->id);
+}
+
 /*
  * create a card proc file
  * called from init.c
@@ -520,28 +512,8 @@ int snd_info_card_create(struct snd_card *card)
 	if (!entry)
 		return -ENOMEM;
 	card->proc_root = entry;
-	return 0;
-}
 
-/* register all pending info entries */
-static int snd_info_register_recursive(struct snd_info_entry *entry)
-{
-	struct snd_info_entry *p;
-	int err;
-
-	if (!entry->p) {
-		err = snd_info_register(entry);
-		if (err < 0)
-			return err;
-	}
-
-	list_for_each_entry(p, &entry->children, list) {
-		err = snd_info_register_recursive(p);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
+	return snd_card_ro_proc_new(card, "id", card, snd_card_id_read);
 }
 
 /*
@@ -557,7 +529,7 @@ int snd_info_card_register(struct snd_card *card)
 	if (snd_BUG_ON(!card))
 		return -ENXIO;
 
-	err = snd_info_register_recursive(card->proc_root);
+	err = snd_info_register(card->proc_root);
 	if (err < 0)
 		return err;
 
@@ -632,9 +604,11 @@ int snd_info_card_free(struct snd_card *card)
  */
 int snd_info_get_line(struct snd_info_buffer *buffer, char *line, int len)
 {
-	int c = -1;
+	int c;
 
-	if (snd_BUG_ON(!buffer || !buffer->buffer))
+	if (snd_BUG_ON(!buffer))
+		return 1;
+	if (!buffer->buffer)
 		return 1;
 	if (len <= 0 || buffer->stop || buffer->error)
 		return 1;
@@ -705,7 +679,8 @@ EXPORT_SYMBOL(snd_info_get_str);
  * Return: The pointer of the new instance, or %NULL on failure.
  */
 static struct snd_info_entry *
-snd_info_create_entry(const char *name, struct snd_info_entry *parent)
+snd_info_create_entry(const char *name, struct snd_info_entry *parent,
+		      struct module *module)
 {
 	struct snd_info_entry *entry;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -722,8 +697,12 @@ snd_info_create_entry(const char *name, struct snd_info_entry *parent)
 	INIT_LIST_HEAD(&entry->children);
 	INIT_LIST_HEAD(&entry->list);
 	entry->parent = parent;
-	if (parent)
+	entry->module = module;
+	if (parent) {
+		mutex_lock(&parent->access);
 		list_add_tail(&entry->list, &parent->children);
+		mutex_unlock(&parent->access);
+	}
 	return entry;
 }
 
@@ -741,10 +720,9 @@ struct snd_info_entry *snd_info_create_module_entry(struct module * module,
 					       const char *name,
 					       struct snd_info_entry *parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
-	if (entry)
-		entry->module = module;
-	return entry;
+	if (!parent)
+		parent = snd_proc_root;
+	return snd_info_create_entry(name, parent, module);
 }
 EXPORT_SYMBOL(snd_info_create_module_entry);
 
@@ -762,12 +740,9 @@ struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
 					     struct snd_info_entry * parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
-	if (entry) {
-		entry->module = card->module;
-		entry->card = card;
-	}
-	return entry;
+	if (!parent)
+		parent = card->proc_root;
+	return snd_info_create_entry(name, parent, card->module);
 }
 EXPORT_SYMBOL(snd_info_create_card_entry);
 
@@ -805,7 +780,12 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 	list_for_each_entry_safe(p, n, &entry->children, list)
 		snd_info_free_entry(p);
 
-	list_del(&entry->list);
+	p = entry->parent;
+	if (p) {
+		mutex_lock(&p->access);
+		list_del(&entry->list);
+		mutex_unlock(&p->access);
+	}
 	kfree(entry->name);
 	if (entry->private_free)
 		entry->private_free(entry);
@@ -813,15 +793,7 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 }
 EXPORT_SYMBOL(snd_info_free_entry);
 
-/**
- * snd_info_register - register the info entry
- * @entry: the info entry
- *
- * Registers the proc info entry.
- *
- * Return: Zero if successful, or a negative error code on failure.
- */
-int snd_info_register(struct snd_info_entry * entry)
+static int __snd_info_register(struct snd_info_entry *entry)
 {
 	struct proc_dir_entry *root, *p = NULL;
 
@@ -829,6 +801,8 @@ int snd_info_register(struct snd_info_entry * entry)
 		return -ENXIO;
 	root = entry->parent == NULL ? snd_proc_root->p : entry->parent->p;
 	mutex_lock(&info_mutex);
+	if (entry->p || !root)
+		goto unlock;
 	if (S_ISDIR(entry->mode)) {
 		p = proc_mkdir_mode(entry->name, entry->mode, root);
 		if (!p) {
@@ -836,7 +810,7 @@ int snd_info_register(struct snd_info_entry * entry)
 			return -ENOMEM;
 		}
 	} else {
-		const struct file_operations *ops;
+		const struct proc_ops *ops;
 		if (entry->content == SNDRV_INFO_CONTENT_DATA)
 			ops = &snd_info_entry_operations;
 		else
@@ -850,10 +824,72 @@ int snd_info_register(struct snd_info_entry * entry)
 		proc_set_size(p, entry->size);
 	}
 	entry->p = p;
+ unlock:
 	mutex_unlock(&info_mutex);
 	return 0;
 }
+
+/**
+ * snd_info_register - register the info entry
+ * @entry: the info entry
+ *
+ * Registers the proc info entry.
+ * The all children entries are registered recursively.
+ *
+ * Return: Zero if successful, or a negative error code on failure.
+ */
+int snd_info_register(struct snd_info_entry *entry)
+{
+	struct snd_info_entry *p;
+	int err;
+
+	if (!entry->p) {
+		err = __snd_info_register(entry);
+		if (err < 0)
+			return err;
+	}
+
+	list_for_each_entry(p, &entry->children, list) {
+		err = snd_info_register(p);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
 EXPORT_SYMBOL(snd_info_register);
+
+/**
+ * snd_card_rw_proc_new - Create a read/write text proc file entry for the card
+ * @card: the card instance
+ * @name: the file name
+ * @private_data: the arbitrary private data
+ * @read: the read callback
+ * @write: the write callback, NULL for read-only
+ *
+ * This proc file entry will be registered via snd_card_register() call, and
+ * it will be removed automatically at the card removal, too.
+ */
+int snd_card_rw_proc_new(struct snd_card *card, const char *name,
+			 void *private_data,
+			 void (*read)(struct snd_info_entry *,
+				      struct snd_info_buffer *),
+			 void (*write)(struct snd_info_entry *entry,
+				       struct snd_info_buffer *buffer))
+{
+	struct snd_info_entry *entry;
+
+	entry = snd_info_create_card_entry(card, name, card->proc_root);
+	if (!entry)
+		return -ENOMEM;
+	snd_info_set_text_ops(entry, private_data, read);
+	if (write) {
+		entry->mode |= 0200;
+		entry->c.text.write = write;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_card_rw_proc_new);
 
 /*
 

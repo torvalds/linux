@@ -14,11 +14,8 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
-#include <linux/suspend.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
-#include <asm/pgtable.h>
-#include <asm/pgalloc.h>
 #include <asm/smp.h>
 #include <asm/ipl.h>
 #include <asm/diag.h>
@@ -27,6 +24,7 @@
 #include <asm/cacheflush.h>
 #include <asm/os_info.h>
 #include <asm/set_memory.h>
+#include <asm/stacktrace.h>
 #include <asm/switch_to.h>
 #include <asm/nmi.h>
 
@@ -36,36 +34,6 @@ extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
 
 #ifdef CONFIG_CRASH_DUMP
-
-/*
- * PM notifier callback for kdump
- */
-static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
-			       void *ptr)
-{
-	switch (action) {
-	case PM_SUSPEND_PREPARE:
-	case PM_HIBERNATION_PREPARE:
-		if (kexec_crash_image)
-			arch_kexec_unprotect_crashkres();
-		break;
-	case PM_POST_SUSPEND:
-	case PM_POST_HIBERNATION:
-		if (kexec_crash_image)
-			arch_kexec_protect_crashkres();
-		break;
-	default:
-		return NOTIFY_DONE;
-	}
-	return NOTIFY_OK;
-}
-
-static int __init machine_kdump_pm_init(void)
-{
-	pm_notifier(machine_kdump_pm_cb, 0);
-	return 0;
-}
-arch_initcall(machine_kdump_pm_init);
 
 /*
  * Reset the system, copy boot CPU registers to absolute zero,
@@ -95,7 +63,7 @@ static void __do_machine_kdump(void *image)
 	start_kdump(1);
 
 	/* Die if start_kdump returns */
-	disabled_wait((unsigned long) __builtin_return_address(0));
+	disabled_wait();
 }
 
 /*
@@ -140,7 +108,20 @@ static noinline void __machine_kdump(void *image)
 	 */
 	store_status(__do_machine_kdump, image);
 }
-#endif
+
+static unsigned long do_start_kdump(unsigned long addr)
+{
+	struct kimage *image = (struct kimage *) addr;
+	int (*start_kdump)(int) = (void *)image->start;
+	int rc;
+
+	__arch_local_irq_stnsm(0xfb); /* disable DAT */
+	rc = start_kdump(0);
+	__arch_local_irq_stosm(0x04); /* enable DAT */
+	return rc;
+}
+
+#endif /* CONFIG_CRASH_DUMP */
 
 /*
  * Check if kdump checksums are valid: We call purgatory with parameter "0"
@@ -148,12 +129,11 @@ static noinline void __machine_kdump(void *image)
 static bool kdump_csum_valid(struct kimage *image)
 {
 #ifdef CONFIG_CRASH_DUMP
-	int (*start_kdump)(int) = (void *)image->start;
 	int rc;
 
-	__arch_local_irq_stnsm(0xfb); /* disable DAT */
-	rc = start_kdump(0);
-	__arch_local_irq_stosm(0x04); /* enable DAT */
+	preempt_disable();
+	rc = CALL_ON_STACK(do_start_kdump, S390_lowcore.nodat_stack, 1, image);
+	preempt_enable();
 	return rc == 0;
 #else
 	return false;
@@ -243,6 +223,9 @@ void arch_crash_save_vmcoreinfo(void)
 	VMCOREINFO_SYMBOL(lowcore_ptr);
 	VMCOREINFO_SYMBOL(high_memory);
 	VMCOREINFO_LENGTH(lowcore_ptr, NR_CPUS);
+	vmcoreinfo_append_str("SDMA=%lx\n", __sdma);
+	vmcoreinfo_append_str("EDMA=%lx\n", __edma);
+	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
 	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
 }
 
@@ -271,7 +254,7 @@ static void __do_machine_kexec(void *data)
 	(*data_mover)(&image->head, image->start);
 
 	/* Die if kexec returns */
-	disabled_wait((unsigned long) __builtin_return_address(0));
+	disabled_wait();
 }
 
 /*

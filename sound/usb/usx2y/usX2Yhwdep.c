@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Tascam US-X2Y USB soundcards
  *
  * FPGA Loader + ALSA Startup
  *
  * Copyright (c) 2003 by Karsten Wiese <annabellesgarden@yahoo.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/interrupt.h>
@@ -75,7 +62,8 @@ static int snd_us428ctls_mmap(struct snd_hwdep * hw, struct file *filp, struct v
 
 	if (!us428->us428ctls_sharedmem) {
 		init_waitqueue_head(&us428->us428ctls_wait_queue_head);
-		if(!(us428->us428ctls_sharedmem = snd_malloc_pages(sizeof(struct us428ctls_sharedmem), GFP_KERNEL)))
+		us428->us428ctls_sharedmem = alloc_pages_exact(sizeof(struct us428ctls_sharedmem), GFP_KERNEL);
+		if (!us428->us428ctls_sharedmem)
 			return -ENOMEM;
 		memset(us428->us428ctls_sharedmem, -1, sizeof(struct us428ctls_sharedmem));
 		us428->us428ctls_sharedmem->CtlSnapShotLast = -2;
@@ -106,7 +94,7 @@ static __poll_t snd_us428ctls_poll(struct snd_hwdep *hw, struct file *file, poll
 static int snd_usX2Y_hwdep_dsp_status(struct snd_hwdep *hw,
 				      struct snd_hwdep_dsp_status *info)
 {
-	static char *type_ids[USX2Y_TYPE_NUMS] = {
+	static const char * const type_ids[USX2Y_TYPE_NUMS] = {
 		[USX2Y_TYPE_122] = "us122",
 		[USX2Y_TYPE_224] = "us224",
 		[USX2Y_TYPE_428] = "us428",
@@ -131,33 +119,33 @@ static int snd_usX2Y_hwdep_dsp_status(struct snd_hwdep *hw,
 	info->num_dsps = 2;		// 0: Prepad Data, 1: FPGA Code
 	if (us428->chip_status & USX2Y_STAT_CHIP_INIT)
 		info->chip_ready = 1;
- 	info->version = USX2Y_DRIVER_VERSION; 
+	info->version = USX2Y_DRIVER_VERSION;
 	return 0;
 }
 
 
 static int usX2Y_create_usbmidi(struct snd_card *card)
 {
-	static struct snd_usb_midi_endpoint_info quirk_data_1 = {
+	static const struct snd_usb_midi_endpoint_info quirk_data_1 = {
 		.out_ep = 0x06,
 		.in_ep = 0x06,
 		.out_cables =	0x001,
 		.in_cables =	0x001
 	};
-	static struct snd_usb_audio_quirk quirk_1 = {
+	static const struct snd_usb_audio_quirk quirk_1 = {
 		.vendor_name =	"TASCAM",
 		.product_name =	NAME_ALLCAPS,
 		.ifnum = 	0,
        		.type = QUIRK_MIDI_FIXED_ENDPOINT,
 		.data = &quirk_data_1
 	};
-	static struct snd_usb_midi_endpoint_info quirk_data_2 = {
+	static const struct snd_usb_midi_endpoint_info quirk_data_2 = {
 		.out_ep = 0x06,
 		.in_ep = 0x06,
 		.out_cables =	0x003,
 		.in_cables =	0x003
 	};
-	static struct snd_usb_audio_quirk quirk_2 = {
+	static const struct snd_usb_audio_quirk quirk_2 = {
 		.vendor_name =	"TASCAM",
 		.product_name =	"US428",
 		.ifnum = 	0,
@@ -166,7 +154,7 @@ static int usX2Y_create_usbmidi(struct snd_card *card)
 	};
 	struct usb_device *dev = usX2Y(card)->dev;
 	struct usb_interface *iface = usb_ifnum_to_if(dev, 0);
-	struct snd_usb_audio_quirk *quirk =
+	const struct snd_usb_audio_quirk *quirk =
 		le16_to_cpu(dev->descriptor.idProduct) == USB_ID_US428 ?
 		&quirk_2 : &quirk_1;
 

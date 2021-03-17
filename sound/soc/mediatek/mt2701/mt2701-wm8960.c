@@ -24,9 +24,9 @@ static const struct snd_kcontrol_new mt2701_wm8960_controls[] = {
 static int mt2701_wm8960_be_ops_hw_params(struct snd_pcm_substream *substream,
 					  struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	unsigned int mclk_rate;
 	unsigned int rate = params_rate(params);
 	unsigned int div_mclk_over_bck = rate > 192000 ? 2 : 4;
@@ -44,41 +44,51 @@ static struct snd_soc_ops mt2701_wm8960_be_ops = {
 	.hw_params = mt2701_wm8960_be_ops_hw_params
 };
 
+SND_SOC_DAILINK_DEFS(playback,
+	DAILINK_COMP_ARRAY(COMP_CPU("PCMO0")),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(capture,
+	DAILINK_COMP_ARRAY(COMP_CPU("PCM0")),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(codec,
+	DAILINK_COMP_ARRAY(COMP_CPU("I2S0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "wm8960-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link mt2701_wm8960_dai_links[] = {
 	/* FE */
 	{
 		.name = "wm8960-playback",
 		.stream_name = "wm8960-playback",
-		.cpu_dai_name = "PCMO0",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.dynamic = 1,
 		.dpcm_playback = 1,
+		SND_SOC_DAILINK_REG(playback),
 	},
 	{
 		.name = "wm8960-capture",
 		.stream_name = "wm8960-capture",
-		.cpu_dai_name = "PCM0",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.dynamic = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(capture),
 	},
 	/* BE */
 	{
 		.name = "wm8960-codec",
-		.cpu_dai_name = "I2S0",
 		.no_pcm = 1,
-		.codec_dai_name = "wm8960-hifi",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			| SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_wm8960_be_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(codec),
 	},
 };
 
@@ -97,6 +107,7 @@ static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt2701_wm8960_card;
 	struct device_node *platform_node, *codec_node;
+	struct snd_soc_dai_link *dai_link;
 	int ret, i;
 
 	platform_node = of_parse_phandle(pdev->dev.of_node,
@@ -105,10 +116,10 @@ static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_wm8960_dai_links[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->platforms->name)
 			continue;
-		mt2701_wm8960_dai_links[i].platform_of_node = platform_node;
+		dai_link->platforms->of_node = platform_node;
 	}
 
 	card->dev = &pdev->dev;
@@ -120,10 +131,10 @@ static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_wm8960_dai_links[i].codec_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->codecs->name)
 			continue;
-		mt2701_wm8960_dai_links[i].codec_of_node = codec_node;
+		dai_link->codecs->of_node = codec_node;
 	}
 
 	ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
@@ -150,7 +161,6 @@ static const struct of_device_id mt2701_wm8960_machine_dt_match[] = {
 static struct platform_driver mt2701_wm8960_machine = {
 	.driver = {
 		.name = "mt2701-wm8960",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_OF
 		.of_match_table = mt2701_wm8960_machine_dt_match,
 #endif

@@ -19,6 +19,7 @@ Optional properties:
   - vbat-supply: The supply for VBAT
   - solomon,segment-no-remap: Display needs normal (non-inverted) data column
                               to segment mapping
+  - solomon,col-offset: Offset of columns (COL/SEG) that the screen is mapped to.
   - solomon,com-seq: Display uses sequential COM pin configuration
   - solomon,com-lrremap: Display uses left-right COM pin remap
   - solomon,com-invdir: Display uses inverted COM pin scan direction
@@ -27,6 +28,15 @@ Optional properties:
   - solomon,prechargep2: Length of precharge period (phase 2) in clock cycles.
                          This needs to be the higher, the higher the capacitance
                          of the OLED's pixels is
+  - solomon,dclk-div: Clock divisor 1 to 16
+  - solomon,dclk-frq: Clock frequency 0 to 15, higher value means higher
+                      frequency
+  - solomon,lookup-table: 8 bit value array of current drive pulse widths for
+                          BANK0, and colors A, B, and C. Each value in range
+                          of 31 to 63 for pulse widths of 32 to 64. Color D
+                          is always width 64.
+  - solomon,area-color-enable: Display uses color mode
+  - solomon,low-power. Display runs in low power mode
 
 [0]: Documentation/devicetree/bindings/pwm/pwm.txt
 
@@ -36,7 +46,6 @@ ssd1307: oled@3c {
         reg = <0x3c>;
         pwms = <&pwm 4 3000>;
         reset-gpios = <&gpio2 7>;
-        reset-active-low;
 };
 
 ssd1306: oled@3c {
@@ -44,8 +53,8 @@ ssd1306: oled@3c {
         reg = <0x3c>;
         pwms = <&pwm 4 3000>;
         reset-gpios = <&gpio2 7>;
-        reset-active-low;
         solomon,com-lrremap;
         solomon,com-invdir;
         solomon,com-offset = <32>;
+        solomon,lookup-table = /bits/ 8 <0x3f 0x3f 0x3f 0x3f>;
 };

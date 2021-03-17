@@ -791,7 +791,7 @@ static int emit_compare_and_branch(const u8 code, const u8 dst, u8 src,
 }
 
 /* Just skip the save instruction and the ctx register move.  */
-#define BPF_TAILCALL_PROLOGUE_SKIP	16
+#define BPF_TAILCALL_PROLOGUE_SKIP	32
 #define BPF_TAILCALL_CNT_SP_OFF		(STACK_BIAS + 128)
 
 static void build_prologue(struct jit_ctx *ctx)
@@ -824,9 +824,15 @@ static void build_prologue(struct jit_ctx *ctx)
 		const u8 vfp = bpf2sparc[BPF_REG_FP];
 
 		emit(ADD | IMMED | RS1(FP) | S13(STACK_BIAS) | RD(vfp), ctx);
+	} else {
+		emit_nop(ctx);
 	}
 
 	emit_reg_move(I0, O0, ctx);
+	emit_reg_move(I1, O1, ctx);
+	emit_reg_move(I2, O2, ctx);
+	emit_reg_move(I3, O3, ctx);
+	emit_reg_move(I4, O4, ctx);
 	/* If you add anything here, adjust BPF_TAILCALL_PROLOGUE_SKIP above. */
 }
 
@@ -902,6 +908,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	/* dst = src */
 	case BPF_ALU | BPF_MOV | BPF_X:
 		emit_alu3_K(SRL, src, 0, dst, ctx);
+		if (insn_is_zext(&insn[1]))
+			return 1;
 		break;
 	case BPF_ALU64 | BPF_MOV | BPF_X:
 		emit_reg_move(src, dst, ctx);
@@ -936,6 +944,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	case BPF_ALU | BPF_DIV | BPF_X:
 		emit_write_y(G0, ctx);
 		emit_alu(DIV, src, dst, ctx);
+		if (insn_is_zext(&insn[1]))
+			return 1;
 		break;
 	case BPF_ALU64 | BPF_DIV | BPF_X:
 		emit_alu(UDIVX, src, dst, ctx);
@@ -969,6 +979,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		break;
 	case BPF_ALU | BPF_RSH | BPF_X:
 		emit_alu(SRL, src, dst, ctx);
+		if (insn_is_zext(&insn[1]))
+			return 1;
 		break;
 	case BPF_ALU64 | BPF_RSH | BPF_X:
 		emit_alu(SRLX, src, dst, ctx);
@@ -991,9 +1003,12 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		case 16:
 			emit_alu_K(SLL, dst, 16, ctx);
 			emit_alu_K(SRL, dst, 16, ctx);
+			if (insn_is_zext(&insn[1]))
+				return 1;
 			break;
 		case 32:
-			emit_alu_K(SRL, dst, 0, ctx);
+			if (!ctx->prog->aux->verifier_zext)
+				emit_alu_K(SRL, dst, 0, ctx);
 			break;
 		case 64:
 			/* nop */
@@ -1015,6 +1030,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			emit_alu3_K(AND, dst, 0xff, dst, ctx);
 			emit_alu3_K(SLL, tmp, 8, tmp, ctx);
 			emit_alu(OR, tmp, dst, ctx);
+			if (insn_is_zext(&insn[1]))
+				return 1;
 			break;
 
 		case 32:
@@ -1031,6 +1048,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			emit_alu3_K(AND, dst, 0xff, dst, ctx);	/* dst	= dst & 0xff */
 			emit_alu3_K(SLL, dst, 24, dst, ctx);	/* dst  = dst << 24 */
 			emit_alu(OR, tmp, dst, ctx);		/* dst  = dst | tmp */
+			if (insn_is_zext(&insn[1]))
+				return 1;
 			break;
 
 		case 64:
@@ -1044,6 +1063,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	/* dst = imm */
 	case BPF_ALU | BPF_MOV | BPF_K:
 		emit_loadimm32(imm, dst, ctx);
+		if (insn_is_zext(&insn[1]))
+			return 1;
 		break;
 	case BPF_ALU64 | BPF_MOV | BPF_K:
 		emit_loadimm_sext(imm, dst, ctx);
@@ -1126,6 +1147,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		break;
 	case BPF_ALU | BPF_RSH | BPF_K:
 		emit_alu_K(SRL, dst, imm, ctx);
+		if (insn_is_zext(&insn[1]))
+			return 1;
 		break;
 	case BPF_ALU64 | BPF_RSH | BPF_K:
 		emit_alu_K(SRLX, dst, imm, ctx);
@@ -1138,7 +1161,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		break;
 
 	do_alu32_trunc:
-		if (BPF_CLASS(code) == BPF_ALU)
+		if (BPF_CLASS(code) == BPF_ALU &&
+		    !ctx->prog->aux->verifier_zext)
 			emit_alu_K(SRL, dst, 0, ctx);
 		break;
 
@@ -1259,6 +1283,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			rs2 = RS2(tmp);
 		}
 		emit(opcode | RS1(src) | rs2 | RD(dst), ctx);
+		if (opcode != LD64 && insn_is_zext(&insn[1]))
+			return 1;
 		break;
 	}
 	/* ST: *(size *)(dst + off) = imm */
@@ -1269,6 +1295,9 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp = bpf2sparc[TMP_REG_1];
 		const u8 tmp2 = bpf2sparc[TMP_REG_2];
 		u32 opcode = 0, rs2;
+
+		if (insn->dst_reg == BPF_REG_FP)
+			ctx->saw_frame_pointer = true;
 
 		ctx->tmp_2_used = true;
 		emit_loadimm(imm, tmp2, ctx);
@@ -1308,6 +1337,9 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp = bpf2sparc[TMP_REG_1];
 		u32 opcode = 0, rs2;
 
+		if (insn->dst_reg == BPF_REG_FP)
+			ctx->saw_frame_pointer = true;
+
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
 			opcode = ST32;
@@ -1340,6 +1372,9 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp2 = bpf2sparc[TMP_REG_2];
 		const u8 tmp3 = bpf2sparc[TMP_REG_3];
 
+		if (insn->dst_reg == BPF_REG_FP)
+			ctx->saw_frame_pointer = true;
+
 		ctx->tmp_1_used = true;
 		ctx->tmp_2_used = true;
 		ctx->tmp_3_used = true;
@@ -1359,6 +1394,9 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp = bpf2sparc[TMP_REG_1];
 		const u8 tmp2 = bpf2sparc[TMP_REG_2];
 		const u8 tmp3 = bpf2sparc[TMP_REG_3];
+
+		if (insn->dst_reg == BPF_REG_FP)
+			ctx->saw_frame_pointer = true;
 
 		ctx->tmp_1_used = true;
 		ctx->tmp_2_used = true;
@@ -1414,6 +1452,11 @@ static void jit_fill_hole(void *area, unsigned int size)
 		*ptr++ = 0x91d02005; /* ta 5 */
 }
 
+bool bpf_jit_needs_zext(void)
+{
+	return true;
+}
+
 struct sparc64_jit_data {
 	struct bpf_binary_header *header;
 	u8 *image;
@@ -1425,12 +1468,12 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	struct bpf_prog *tmp, *orig_prog = prog;
 	struct sparc64_jit_data *jit_data;
 	struct bpf_binary_header *header;
+	u32 prev_image_size, image_size;
 	bool tmp_blinded = false;
 	bool extra_pass = false;
 	struct jit_ctx ctx;
-	u32 image_size;
 	u8 *image_ptr;
-	int pass;
+	int pass, i;
 
 	if (!prog->jit_requested)
 		return orig_prog;
@@ -1461,27 +1504,52 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		header = jit_data->header;
 		extra_pass = true;
 		image_size = sizeof(u32) * ctx.idx;
+		prev_image_size = image_size;
+		pass = 1;
 		goto skip_init_ctx;
 	}
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.prog = prog;
 
-	ctx.offset = kcalloc(prog->len, sizeof(unsigned int), GFP_KERNEL);
+	ctx.offset = kmalloc_array(prog->len, sizeof(unsigned int), GFP_KERNEL);
 	if (ctx.offset == NULL) {
 		prog = orig_prog;
 		goto out_off;
 	}
 
-	/* Fake pass to detect features used, and get an accurate assessment
-	 * of what the final image size will be.
+	/* Longest sequence emitted is for bswap32, 12 instructions.  Pre-cook
+	 * the offset array so that we converge faster.
 	 */
-	if (build_body(&ctx)) {
-		prog = orig_prog;
-		goto out_off;
+	for (i = 0; i < prog->len; i++)
+		ctx.offset[i] = i * (12 * 4);
+
+	prev_image_size = ~0U;
+	for (pass = 1; pass < 40; pass++) {
+		ctx.idx = 0;
+
+		build_prologue(&ctx);
+		if (build_body(&ctx)) {
+			prog = orig_prog;
+			goto out_off;
+		}
+		build_epilogue(&ctx);
+
+		if (bpf_jit_enable > 1)
+			pr_info("Pass %d: size = %u, seen = [%c%c%c%c%c%c]\n", pass,
+				ctx.idx * 4,
+				ctx.tmp_1_used ? '1' : ' ',
+				ctx.tmp_2_used ? '2' : ' ',
+				ctx.tmp_3_used ? '3' : ' ',
+				ctx.saw_frame_pointer ? 'F' : ' ',
+				ctx.saw_call ? 'C' : ' ',
+				ctx.saw_tail_call ? 'T' : ' ');
+
+		if (ctx.idx * 4 == prev_image_size)
+			break;
+		prev_image_size = ctx.idx * 4;
+		cond_resched();
 	}
-	build_prologue(&ctx);
-	build_epilogue(&ctx);
 
 	/* Now we know the actual image size. */
 	image_size = sizeof(u32) * ctx.idx;
@@ -1494,28 +1562,24 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	ctx.image = (u32 *)image_ptr;
 skip_init_ctx:
-	for (pass = 1; pass < 3; pass++) {
-		ctx.idx = 0;
+	ctx.idx = 0;
 
-		build_prologue(&ctx);
+	build_prologue(&ctx);
 
-		if (build_body(&ctx)) {
-			bpf_jit_binary_free(header);
-			prog = orig_prog;
-			goto out_off;
-		}
+	if (build_body(&ctx)) {
+		bpf_jit_binary_free(header);
+		prog = orig_prog;
+		goto out_off;
+	}
 
-		build_epilogue(&ctx);
+	build_epilogue(&ctx);
 
-		if (bpf_jit_enable > 1)
-			pr_info("Pass %d: shrink = %d, seen = [%c%c%c%c%c%c]\n", pass,
-				image_size - (ctx.idx * 4),
-				ctx.tmp_1_used ? '1' : ' ',
-				ctx.tmp_2_used ? '2' : ' ',
-				ctx.tmp_3_used ? '3' : ' ',
-				ctx.saw_frame_pointer ? 'F' : ' ',
-				ctx.saw_call ? 'C' : ' ',
-				ctx.saw_tail_call ? 'T' : ' ');
+	if (ctx.idx * 4 != prev_image_size) {
+		pr_err("bpf_jit: Failed to converge, prev_size=%u size=%d\n",
+		       prev_image_size, ctx.idx * 4);
+		bpf_jit_binary_free(header);
+		prog = orig_prog;
+		goto out_off;
 	}
 
 	if (bpf_jit_enable > 1)
@@ -1536,6 +1600,7 @@ skip_init_ctx:
 	prog->jited_len = image_size;
 
 	if (!prog->is_func || extra_pass) {
+		bpf_prog_fill_jited_linfo(prog, ctx.offset);
 out_off:
 		kfree(ctx.offset);
 		kfree(jit_data);

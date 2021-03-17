@@ -37,10 +37,10 @@
 
 #define MAPPED_KERN_RO_TO_PHYS(x) \
 				((unsigned long)MAPPED_ADDR_RO_TO_PHYS(x) | \
-				MAPPED_KERN_RO_PHYSBASE(get_compact_nodeid()))
+				MAPPED_KERN_RO_PHYSBASE(get_nasid()))
 #define MAPPED_KERN_RW_TO_PHYS(x) \
 				((unsigned long)MAPPED_ADDR_RW_TO_PHYS(x) | \
-				MAPPED_KERN_RW_PHYSBASE(get_compact_nodeid()))
+				MAPPED_KERN_RW_PHYSBASE(get_nasid()))
 
 #else /* CONFIG_MAPPED_KERNEL */
 

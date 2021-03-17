@@ -1,25 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Serial Attached SCSI (SAS) Discover process
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/scatterlist.h>
@@ -97,12 +81,21 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		else
 			dev->dev_type = SAS_SATA_DEV;
 		dev->tproto = SAS_PROTOCOL_SATA;
-	} else {
+	} else if (port->oob_mode == SAS_OOB_MODE) {
 		struct sas_identify_frame *id =
 			(struct sas_identify_frame *) dev->frame_rcvd;
 		dev->dev_type = id->dev_type;
 		dev->iproto = id->initiator_bits;
 		dev->tproto = id->target_bits;
+	} else {
+		/* If the oob mode is OOB_NOT_CONNECTED, the port is
+		 * disconnected due to race with PHY down. We cannot
+		 * continue to discover this port
+		 */
+		sas_put_device(dev);
+		pr_warn("Port %016llx is disconnected when discovering\n",
+			SAS_ADDR(port->attached_sas_addr));
+		return -ENODEV;
 	}
 
 	sas_init_dev(dev);
@@ -115,7 +108,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 			rphy = NULL;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case SAS_END_DEVICE:
 		rphy = sas_end_device_alloc(port->port);
 		break;
@@ -128,7 +121,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 					  SAS_FANOUT_EXPANDER_DEVICE);
 		break;
 	default:
-		printk("ERROR: Unidentified device type %d\n", dev->dev_type);
+		pr_warn("ERROR: Unidentified device type %d\n", dev->dev_type);
 		rphy = NULL;
 		break;
 	}
@@ -186,14 +179,14 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 
 	res = i->dft->lldd_dev_found(dev);
 	if (res) {
-		printk("sas: driver on pcidev %s cannot handle "
-		       "device %llx, error:%d\n",
-		       dev_name(sas_ha->dev),
-		       SAS_ADDR(dev->sas_addr), res);
+		pr_warn("driver on host %s cannot handle device %016llx, error:%d\n",
+			dev_name(sas_ha->dev),
+			SAS_ADDR(dev->sas_addr), res);
+		return res;
 	}
 	set_bit(SAS_DEV_FOUND, &dev->state);
 	kref_get(&dev->kref);
-	return res;
+	return 0;
 }
 
 
@@ -260,7 +253,7 @@ static void sas_suspend_devices(struct work_struct *work)
 	 * phy_list is not being mutated
 	 */
 	list_for_each_entry(phy, &port->phy_list, port_phy_el) {
-		if (si->dft->lldd_port_formed)
+		if (si->dft->lldd_port_deformed)
 			si->dft->lldd_port_deformed(phy);
 		phy->suspended = 1;
 		port->suspended = 1;
@@ -285,13 +278,7 @@ static void sas_resume_devices(struct work_struct *work)
  */
 int sas_discover_end_dev(struct domain_device *dev)
 {
-	int res;
-
-	res = sas_notify_lldd_dev_found(dev);
-	if (res)
-		return res;
-
-	return 0;
+	return sas_notify_lldd_dev_found(dev);
 }
 
 /* ---------- Device registration and unregistration ---------- */
@@ -310,7 +297,7 @@ void sas_free_device(struct kref *kref)
 	dev->phy = NULL;
 
 	/* remove the phys and ports, everything else should be gone */
-	if (dev->dev_type == SAS_EDGE_EXPANDER_DEVICE || dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE)
+	if (dev_is_expander(dev->dev_type))
 		kfree(dev->ex_dev.ex_phy);
 
 	if (dev_is_sata(dev) && dev->sata_dev.ap) {
@@ -456,8 +443,8 @@ static void sas_discover_domain(struct work_struct *work)
 		return;
 	dev = port->port_dev;
 
-	SAS_DPRINTK("DOING DISCOVERY on port %d, pid:%d\n", port->id,
-		    task_pid_nr(current));
+	pr_debug("DOING DISCOVERY on port %d, pid:%d\n", port->id,
+		 task_pid_nr(current));
 
 	switch (dev->dev_type) {
 	case SAS_END_DEVICE:
@@ -473,12 +460,13 @@ static void sas_discover_domain(struct work_struct *work)
 		error = sas_discover_sata(dev);
 		break;
 #else
-		SAS_DPRINTK("ATA device seen but CONFIG_SCSI_SAS_ATA=N so cannot attach\n");
+		pr_notice("ATA device seen but CONFIG_SCSI_SAS_ATA=N so cannot attach\n");
 		/* Fall through */
 #endif
+		/* Fall through - only for the #else condition above. */
 	default:
 		error = -ENXIO;
-		SAS_DPRINTK("unhandled device %d\n", dev->dev_type);
+		pr_err("unhandled device %d\n", dev->dev_type);
 		break;
 	}
 
@@ -495,8 +483,8 @@ static void sas_discover_domain(struct work_struct *work)
 
 	sas_probe_devices(port);
 
-	SAS_DPRINTK("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
-		    task_pid_nr(current), error);
+	pr_debug("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
+		 task_pid_nr(current), error);
 }
 
 static void sas_revalidate_domain(struct work_struct *work)
@@ -510,22 +498,21 @@ static void sas_revalidate_domain(struct work_struct *work)
 	/* prevent revalidation from finding sata links in recovery */
 	mutex_lock(&ha->disco_mutex);
 	if (test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state)) {
-		SAS_DPRINTK("REVALIDATION DEFERRED on port %d, pid:%d\n",
-			    port->id, task_pid_nr(current));
+		pr_debug("REVALIDATION DEFERRED on port %d, pid:%d\n",
+			 port->id, task_pid_nr(current));
 		goto out;
 	}
 
 	clear_bit(DISCE_REVALIDATE_DOMAIN, &port->disc.pending);
 
-	SAS_DPRINTK("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
-		    task_pid_nr(current));
+	pr_debug("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
+		 task_pid_nr(current));
 
-	if (ddev && (ddev->dev_type == SAS_FANOUT_EXPANDER_DEVICE ||
-		     ddev->dev_type == SAS_EDGE_EXPANDER_DEVICE))
+	if (ddev && dev_is_expander(ddev->dev_type))
 		res = sas_ex_revalidate_domain(ddev);
 
-	SAS_DPRINTK("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
-		    port->id, task_pid_nr(current), res);
+	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
+		 port->id, task_pid_nr(current), res);
  out:
 	mutex_unlock(&ha->disco_mutex);
 

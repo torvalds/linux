@@ -49,8 +49,7 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 #define array_index_mask_nospec array_index_mask_nospec
 
 /* Prevent speculative execution past this barrier. */
-#define barrier_nospec() alternative_2("", "mfence", X86_FEATURE_MFENCE_RDTSC, \
-					   "lfence", X86_FEATURE_LFENCE_RDTSC)
+#define barrier_nospec() alternative("", "lfence", X86_FEATURE_LFENCE_RDTSC)
 
 #define dma_rmb()	barrier()
 #define dma_wmb()	barrier()
@@ -80,9 +79,27 @@ do {									\
 })
 
 /* Atomic operations are already serializing on x86 */
-#define __smp_mb__before_atomic()	barrier()
-#define __smp_mb__after_atomic()	barrier()
+#define __smp_mb__before_atomic()	do { } while (0)
+#define __smp_mb__after_atomic()	do { } while (0)
 
 #include <asm-generic/barrier.h>
+
+/*
+ * Make previous memory operations globally visible before
+ * a WRMSR.
+ *
+ * MFENCE makes writes visible, but only affects load/store
+ * instructions.  WRMSR is unfortunately not a load/store
+ * instruction and is unaffected by MFENCE.  The LFENCE ensures
+ * that the WRMSR is not reordered.
+ *
+ * Most WRMSRs are full serializing instructions themselves and
+ * do not require this barrier.  This is only required for the
+ * IA32_TSC_DEADLINE and X2APIC MSRs.
+ */
+static inline void weak_wrmsr_fence(void)
+{
+	asm volatile("mfence; lfence" : : : "memory");
+}
 
 #endif /* _ASM_X86_BARRIER_H */

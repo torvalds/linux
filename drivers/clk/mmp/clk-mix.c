@@ -419,12 +419,14 @@ static int mmp_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	}
 }
 
-static void mmp_clk_mix_init(struct clk_hw *hw)
+static int mmp_clk_mix_init(struct clk_hw *hw)
 {
 	struct mmp_clk_mix *mix = to_clk_mix(hw);
 
 	if (mix->table)
 		_filter_clk_table(mix, mix->table, mix->table_size);
+
+	return 0;
 }
 
 const struct clk_ops mmp_clk_mix_ops = {
@@ -439,7 +441,7 @@ const struct clk_ops mmp_clk_mix_ops = {
 
 struct clk *mmp_clk_register_mix(struct device *dev,
 					const char *name,
-					const char **parent_names,
+					const char * const *parent_names,
 					u8 num_parents,
 					unsigned long flags,
 					struct mmp_clk_mix_config *config,

@@ -66,19 +66,25 @@ enum link_training_result {
 	/* other failure during EQ step */
 	LINK_TRAINING_EQ_FAIL_EQ,
 	LINK_TRAINING_LQA_FAIL,
+	/* one of the CR,EQ or symbol lock is dropped */
+	LINK_TRAINING_LINK_LOSS,
 };
 
 struct link_training_settings {
 	struct dc_link_settings link_settings;
 	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
-	bool allow_invalid_msa_timing_param;
-};
 
-enum hw_dp_training_pattern {
-	HW_DP_TRAINING_PATTERN_1 = 0,
-	HW_DP_TRAINING_PATTERN_2,
-	HW_DP_TRAINING_PATTERN_3,
-	HW_DP_TRAINING_PATTERN_4
+	enum dc_voltage_swing *voltage_swing;
+	enum dc_pre_emphasis *pre_emphasis;
+	enum dc_post_cursor2 *post_cursor2;
+
+	uint16_t cr_pattern_time;
+	uint16_t eq_pattern_time;
+	enum dc_dp_training_pattern pattern_for_cr;
+	enum dc_dp_training_pattern pattern_for_eq;
+
+	bool enhanced_framing;
+	bool allow_invalid_msa_timing_param;
 };
 
 /*TODO: Move this enum test harness*/
@@ -118,6 +124,13 @@ enum dp_test_pattern {
 	DP_TEST_PATTERN_AUDIO_SAWTOOTH,
 
 	DP_TEST_PATTERN_UNSUPPORTED
+};
+
+enum dp_test_pattern_color_space {
+	DP_TEST_PATTERN_COLOR_SPACE_RGB,
+	DP_TEST_PATTERN_COLOR_SPACE_YCBCR601,
+	DP_TEST_PATTERN_COLOR_SPACE_YCBCR709,
+	DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED
 };
 
 enum dp_panel_mode {

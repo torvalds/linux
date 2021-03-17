@@ -1,15 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HD-audio core bus driver
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/export.h>
 #include <sound/hdaudio.h>
+#include "local.h"
 #include "trace.h"
 
-static void process_unsol_events(struct work_struct *work);
+static void snd_hdac_bus_process_unsol_events(struct work_struct *work);
 
 static const struct hdac_bus_ops default_ops = {
 	.command = snd_hdac_bus_send_cmd,
@@ -19,14 +22,13 @@ static const struct hdac_bus_ops default_ops = {
 /**
  * snd_hdac_bus_init - initialize a HD-audio bas bus
  * @bus: the pointer to bus object
+ * @dev: device pointer
  * @ops: bus verb operators
- * @io_ops: lowlevel I/O operators
  *
  * Returns 0 if successful, or a negative error code.
  */
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
-		      const struct hdac_bus_ops *ops,
-		      const struct hdac_io_ops *io_ops)
+		      const struct hdac_bus_ops *ops)
 {
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
@@ -34,13 +36,28 @@ int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
 		bus->ops = ops;
 	else
 		bus->ops = &default_ops;
-	bus->io_ops = io_ops;
+	bus->dma_type = SNDRV_DMA_TYPE_DEV;
 	INIT_LIST_HEAD(&bus->stream_list);
 	INIT_LIST_HEAD(&bus->codec_list);
-	INIT_WORK(&bus->unsol_work, process_unsol_events);
+	INIT_WORK(&bus->unsol_work, snd_hdac_bus_process_unsol_events);
 	spin_lock_init(&bus->reg_lock);
 	mutex_init(&bus->cmd_mutex);
+	mutex_init(&bus->lock);
+	INIT_LIST_HEAD(&bus->hlink_list);
+	init_waitqueue_head(&bus->rirb_wq);
 	bus->irq = -1;
+
+	/*
+	 * Default value of '8' is as per the HD audio specification (Rev 1.0a).
+	 * Following relation is used to derive STRIPE control value.
+	 *  For sample rate <= 48K:
+	 *   { ((num_channels * bits_per_sample) / number of SDOs) >= 8 }
+	 *  For sample rate > 48K:
+	 *   { ((num_channels * bits_per_sample * rate/48000) /
+	 *	number of SDOs) >= 8 }
+	 */
+	bus->sdo_limit = 8;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_init);
@@ -60,6 +77,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_exit);
 /**
  * snd_hdac_bus_exec_verb - execute a HD-audio verb on the given bus
  * @bus: bus object
+ * @addr: the HDAC device address
  * @cmd: HD-audio encoded verb
  * @res: pointer to store the response, NULL if performing asynchronously
  *
@@ -75,11 +93,11 @@ int snd_hdac_bus_exec_verb(struct hdac_bus *bus, unsigned int addr,
 	mutex_unlock(&bus->cmd_mutex);
 	return err;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_exec_verb);
 
 /**
  * snd_hdac_bus_exec_verb_unlocked - unlocked version
  * @bus: bus object
+ * @addr: the HDAC device address
  * @cmd: HD-audio encoded verb
  * @res: pointer to store the response, NULL if performing asynchronously
  *
@@ -143,18 +161,18 @@ void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex)
 
 	schedule_work(&bus->unsol_work);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_queue_event);
 
 /*
  * process queued unsolicited events
  */
-static void process_unsol_events(struct work_struct *work)
+static void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 {
 	struct hdac_bus *bus = container_of(work, struct hdac_bus, unsol_work);
 	struct hdac_device *codec;
 	struct hdac_driver *drv;
 	unsigned int rp, caddr, res;
 
+	spin_lock_irq(&bus->reg_lock);
 	while (bus->unsol_rp != bus->unsol_wp) {
 		rp = (bus->unsol_rp + 1) % HDA_UNSOL_QUEUE_SIZE;
 		bus->unsol_rp = rp;
@@ -166,10 +184,13 @@ static void process_unsol_events(struct work_struct *work)
 		codec = bus->caddr_tbl[caddr & 0x0f];
 		if (!codec || !codec->dev.driver)
 			continue;
+		spin_unlock_irq(&bus->reg_lock);
 		drv = drv_to_hdac_driver(codec->dev.driver);
 		if (drv->unsol_event)
 			drv->unsol_event(codec, res);
+		spin_lock_irq(&bus->reg_lock);
 	}
+	spin_unlock_irq(&bus->reg_lock);
 }
 
 /**
@@ -195,7 +216,6 @@ int snd_hdac_bus_add_device(struct hdac_bus *bus, struct hdac_device *codec)
 	bus->num_codecs++;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_add_device);
 
 /**
  * snd_hdac_bus_remove_device - Remove a codec from bus
@@ -214,4 +234,33 @@ void snd_hdac_bus_remove_device(struct hdac_bus *bus,
 	bus->num_codecs--;
 	flush_work(&bus->unsol_work);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_remove_device);
+
+#ifdef CONFIG_SND_HDA_ALIGNED_MMIO
+/* Helpers for aligned read/write of mmio space, for Tegra */
+unsigned int snd_hdac_aligned_read(void __iomem *addr, unsigned int mask)
+{
+	void __iomem *aligned_addr =
+		(void __iomem *)((unsigned long)(addr) & ~0x3);
+	unsigned int shift = ((unsigned long)(addr) & 0x3) << 3;
+	unsigned int v;
+
+	v = readl(aligned_addr);
+	return (v >> shift) & mask;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_aligned_read);
+
+void snd_hdac_aligned_write(unsigned int val, void __iomem *addr,
+			    unsigned int mask)
+{
+	void __iomem *aligned_addr =
+		(void __iomem *)((unsigned long)(addr) & ~0x3);
+	unsigned int shift = ((unsigned long)(addr) & 0x3) << 3;
+	unsigned int v;
+
+	v = readl(aligned_addr);
+	v &= ~(mask << shift);
+	v |= val << shift;
+	writel(v, aligned_addr);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_aligned_write);
+#endif /* CONFIG_SND_HDA_ALIGNED_MMIO */

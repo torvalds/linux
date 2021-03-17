@@ -90,7 +90,7 @@
 		};
 
 		internal-regs {
-			sdramc@1400 {
+			sdramc: sdramc@1400 {
 				compatible = "marvell,armada-xp-sdram-controller";
 				reg = <0x1400 0x500>;
 			};
@@ -189,7 +189,7 @@
 				};
 			};
 
-			nand: nand@d0000 {
+			nand_controller: nand-controller@d0000 {
 				clocks = <&dfx_coredivclk 0>;
 			};
 
@@ -243,7 +243,7 @@
 			ranges = <0 MBUS_ID(0x03, 0x00) 0 0x100000>;
 
 			pp0: packet-processor@0 {
-				compatible = "marvell,prestera-98dx3236";
+				compatible = "marvell,prestera-98dx3236", "marvell,prestera";
 				reg = <0 0x4000000>;
 				interrupts = <33>, <34>, <35>;
 				dfx = <&dfx>;
@@ -264,11 +264,6 @@
 &i2c0 {
 	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
 	reg = <0x11000 0x100>;
-};
-
-&i2c1 {
-	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-	reg = <0x11100 0x100>;
 };
 
 &mpic {
@@ -334,5 +329,13 @@
 
 &sdio {
 	status = "disabled";
+};
+
+&uart0 {
+	compatible = "marvell,armada-38x-uart";
+};
+
+&uart1 {
+	compatible = "marvell,armada-38x-uart";
 };
 

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID Sensors Driver
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.
- *
  */
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -26,8 +14,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/trigger_consumer.h>
-#include <linux/iio/triggered_buffer.h>
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
 #define CHANNEL_SCAN_INDEX_PRESSURE 0
@@ -77,6 +63,7 @@ static int press_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
+	s32 min;
 
 	*val = 0;
 	*val2 = 0;
@@ -85,8 +72,8 @@ static int press_read_raw(struct iio_dev *indio_dev,
 		switch (chan->scan_index) {
 		case  CHANNEL_SCAN_INDEX_PRESSURE:
 			report_id = press_state->press_attr.report_id;
-			address =
-			HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE;
+			min = press_state->press_attr.logical_minimum;
+			address = HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE;
 			break;
 		default:
 			report_id = -1;
@@ -99,7 +86,8 @@ static int press_read_raw(struct iio_dev *indio_dev,
 				press_state->common_attributes.hsdev,
 				HID_USAGE_SENSOR_PRESSURE, address,
 				report_id,
-				SENSOR_HUB_SYNC);
+				SENSOR_HUB_SYNC,
+				min < 0);
 			hid_sensor_power_state(&press_state->common_attributes,
 						false);
 		} else {
@@ -295,23 +283,17 @@ static int hid_press_probe(struct platform_device *pdev)
 
 	indio_dev->num_channels =
 				ARRAY_SIZE(press_channels);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &press_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-		NULL, NULL);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
-		goto error_free_dev_mem;
-	}
 	atomic_set(&press_state->common_attributes.data_ready, 0);
+
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 				&press_state->common_attributes);
 	if (ret) {
 		dev_err(&pdev->dev, "trigger setup failed\n");
-		goto error_unreg_buffer_funcs;
+		goto error_free_dev_mem;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -335,9 +317,7 @@ static int hid_press_probe(struct platform_device *pdev)
 error_iio_unreg:
 	iio_device_unregister(indio_dev);
 error_remove_trigger:
-	hid_sensor_remove_trigger(&press_state->common_attributes);
-error_unreg_buffer_funcs:
-	iio_triggered_buffer_cleanup(indio_dev);
+	hid_sensor_remove_trigger(indio_dev, &press_state->common_attributes);
 error_free_dev_mem:
 	kfree(indio_dev->channels);
 	return ret;
@@ -352,8 +332,7 @@ static int hid_press_remove(struct platform_device *pdev)
 
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_PRESSURE);
 	iio_device_unregister(indio_dev);
-	hid_sensor_remove_trigger(&press_state->common_attributes);
-	iio_triggered_buffer_cleanup(indio_dev);
+	hid_sensor_remove_trigger(indio_dev, &press_state->common_attributes);
 	kfree(indio_dev->channels);
 
 	return 0;

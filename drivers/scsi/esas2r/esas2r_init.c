@@ -266,6 +266,7 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 	int i;
 	void *next_uncached;
 	struct esas2r_request *first_request, *last_request;
+	bool dma64 = false;
 
 	if (index >= MAX_ADAPTERS) {
 		esas2r_log(ESAS2R_LOG_CRIT,
@@ -286,42 +287,20 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 	a->pcid = pcid;
 	a->host = host;
 
-	if (sizeof(dma_addr_t) > 4) {
-		const uint64_t required_mask = dma_get_required_mask
-						       (&pcid->dev);
-		if (required_mask > DMA_BIT_MASK(32)
-		    && !pci_set_dma_mask(pcid, DMA_BIT_MASK(64))
-		    && !pci_set_consistent_dma_mask(pcid,
-						    DMA_BIT_MASK(64))) {
-			esas2r_log_dev(ESAS2R_LOG_INFO,
-				       &(a->pcid->dev),
-				       "64-bit PCI addressing enabled\n");
-		} else if (!pci_set_dma_mask(pcid, DMA_BIT_MASK(32))
-			   && !pci_set_consistent_dma_mask(pcid,
-							   DMA_BIT_MASK(32))) {
-			esas2r_log_dev(ESAS2R_LOG_INFO,
-				       &(a->pcid->dev),
-				       "32-bit PCI addressing enabled\n");
-		} else {
-			esas2r_log(ESAS2R_LOG_CRIT,
-				   "failed to set DMA mask");
-			esas2r_kill_adapter(index);
-			return 0;
-		}
-	} else {
-		if (!pci_set_dma_mask(pcid, DMA_BIT_MASK(32))
-		    && !pci_set_consistent_dma_mask(pcid,
-						    DMA_BIT_MASK(32))) {
-			esas2r_log_dev(ESAS2R_LOG_INFO,
-				       &(a->pcid->dev),
-				       "32-bit PCI addressing enabled\n");
-		} else {
-			esas2r_log(ESAS2R_LOG_CRIT,
-				   "failed to set DMA mask");
-			esas2r_kill_adapter(index);
-			return 0;
-		}
+	if (sizeof(dma_addr_t) > 4 &&
+	    dma_get_required_mask(&pcid->dev) > DMA_BIT_MASK(32) &&
+	    !dma_set_mask_and_coherent(&pcid->dev, DMA_BIT_MASK(64)))
+		dma64 = true;
+
+	if (!dma64 && dma_set_mask_and_coherent(&pcid->dev, DMA_BIT_MASK(32))) {
+		esas2r_log(ESAS2R_LOG_CRIT, "failed to set DMA mask");
+		esas2r_kill_adapter(index);
+		return 0;
 	}
+
+	esas2r_log_dev(ESAS2R_LOG_INFO, &pcid->dev,
+		       "%s-bit PCI addressing enabled\n", dma64 ? "64" : "32");
+
 	esas2r_adapters[index] = a;
 	sprintf(a->name, ESAS2R_DRVR_NAME "_%02d", index);
 	esas2r_debug("new adapter %p, name %s", a, a->name);
@@ -783,14 +762,10 @@ u32 esas2r_get_uncached_size(struct esas2r_adapter *a)
 
 static void esas2r_init_pci_cfg_space(struct esas2r_adapter *a)
 {
-	int pcie_cap_reg;
-
-	pcie_cap_reg = pci_find_capability(a->pcid, PCI_CAP_ID_EXP);
-	if (pcie_cap_reg) {
+	if (pci_is_pcie(a->pcid)) {
 		u16 devcontrol;
 
-		pci_read_config_word(a->pcid, pcie_cap_reg + PCI_EXP_DEVCTL,
-				     &devcontrol);
+		pcie_capability_read_word(a->pcid, PCI_EXP_DEVCTL, &devcontrol);
 
 		if ((devcontrol & PCI_EXP_DEVCTL_READRQ) >
 		     PCI_EXP_DEVCTL_READRQ_512B) {
@@ -799,9 +774,8 @@ static void esas2r_init_pci_cfg_space(struct esas2r_adapter *a)
 
 			devcontrol &= ~PCI_EXP_DEVCTL_READRQ;
 			devcontrol |= PCI_EXP_DEVCTL_READRQ_512B;
-			pci_write_config_word(a->pcid,
-					      pcie_cap_reg + PCI_EXP_DEVCTL,
-					      devcontrol);
+			pcie_capability_write_word(a->pcid, PCI_EXP_DEVCTL,
+						   devcontrol);
 		}
 	}
 }
@@ -1262,6 +1236,7 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 			a->init_msg = ESAS2R_INIT_MSG_GET_INIT;
 			break;
 		}
+		fallthrough;
 
 	case ESAS2R_INIT_MSG_GET_INIT:
 		if (msg == ESAS2R_INIT_MSG_GET_INIT) {
@@ -1275,7 +1250,7 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 				esas2r_hdebug("FAILED");
 			}
 		}
-	/* fall through */
+		fallthrough;
 
 	default:
 		rq->req_stat = RS_SUCCESS;

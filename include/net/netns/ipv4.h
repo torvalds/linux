@@ -9,6 +9,7 @@
 #include <linux/uidgid.h>
 #include <net/inet_frag.h>
 #include <linux/rcupdate.h>
+#include <linux/siphash.h>
 
 struct tcpm_hash_bucket;
 struct ctl_table_header;
@@ -71,7 +72,7 @@ struct netns_ipv4 {
 
 	struct inet_peer_base	*peers;
 	struct sock  * __percpu	*tcp_sk;
-	struct netns_frags	frags;
+	struct fqdir		*fqdir;
 #ifdef CONFIG_NETFILTER
 	struct xt_table		*iptable_filter;
 	struct xt_table		*iptable_mangle;
@@ -100,11 +101,17 @@ struct netns_ipv4 {
 	int sysctl_ip_fwd_use_pmtu;
 	int sysctl_ip_fwd_update_priority;
 	int sysctl_ip_nonlocal_bind;
+	int sysctl_ip_autobind_reuse;
 	/* Shall we try to damage output packets if routing dev changes? */
 	int sysctl_ip_dynaddr;
 	int sysctl_ip_early_demux;
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	int sysctl_raw_l3mdev_accept;
+#endif
 	int sysctl_tcp_early_demux;
 	int sysctl_udp_early_demux;
+
+	int sysctl_nexthop_compat_mode;
 
 	int sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
@@ -112,7 +119,9 @@ struct netns_ipv4 {
 	int sysctl_tcp_l3mdev_accept;
 #endif
 	int sysctl_tcp_mtu_probing;
+	int sysctl_tcp_mtu_probe_floor;
 	int sysctl_tcp_base_mss;
+	int sysctl_tcp_min_snd_mss;
 	int sysctl_tcp_probe_threshold;
 	u32 sysctl_tcp_probe_interval;
 
@@ -148,6 +157,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_adv_win_scale;
 	int sysctl_tcp_frto;
 	int sysctl_tcp_nometrics_save;
+	int sysctl_tcp_no_ssthresh_metrics_save;
 	int sysctl_tcp_moderate_rcvbuf;
 	int sysctl_tcp_tso_win_divisor;
 	int sysctl_tcp_workaround_signed_windows;
@@ -163,6 +173,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_rmem[3];
 	int sysctl_tcp_comp_sack_nr;
 	unsigned long sysctl_tcp_comp_sack_delay_ns;
+	unsigned long sysctl_tcp_comp_sack_slack_ns;
 	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;
@@ -172,6 +183,7 @@ struct netns_ipv4 {
 	unsigned int sysctl_tcp_fastopen_blackhole_timeout;
 	atomic_t tfo_active_disable_times;
 	unsigned long tfo_active_disable_stamp;
+	int sysctl_tcp_reflect_tos;
 
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;
@@ -191,6 +203,7 @@ struct netns_ipv4 {
 
 #ifdef CONFIG_SYSCTL
 	unsigned long *sysctl_local_reserved_ports;
+	unsigned long *sysctl_local_unbindable_ports;
 	int sysctl_ip_prot_sock;
 #endif
 
@@ -214,5 +227,6 @@ struct netns_ipv4 {
 	unsigned int	ipmr_seq;	/* protected by rtnl_mutex */
 
 	atomic_t	rt_genid;
+	siphash_key_t	ip_id_key;
 };
 #endif

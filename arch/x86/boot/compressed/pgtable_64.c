@@ -1,19 +1,19 @@
+#include <linux/efi.h>
 #include <asm/e820/types.h>
 #include <asm/processor.h>
+#include <asm/efi.h>
 #include "pgtable.h"
 #include "../string.h"
 
-/*
- * __force_order is used by special_insns.h asm code to force instruction
- * serialization.
- *
- * It is not referenced from the code, but GCC < 5 with -fPIE would fail
- * due to an undefined symbol. Define it to make these ancient GCCs work.
- */
-unsigned long __force_order;
-
 #define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
 #define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */
+
+#ifdef CONFIG_X86_5LEVEL
+/* __pgtable_l5_enabled needs to be in .data to avoid being cleared along with .bss */
+unsigned int __section(".data") __pgtable_l5_enabled;
+unsigned int __section(".data") pgdir_shift = 39;
+unsigned int __section(".data") ptrs_per_p4d = 1;
+#endif
 
 struct paging_config {
 	unsigned long trampoline_start;
@@ -30,16 +30,16 @@ static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
  * Avoid putting the pointer into .bss as it will be cleared between
  * paging_prepare() and extract_kernel().
  */
-unsigned long *trampoline_32bit __section(.data);
+unsigned long *trampoline_32bit __section(".data");
 
 extern struct boot_params *boot_params;
 int cmdline_find_option_bool(const char *option);
 
 static unsigned long find_trampoline_placement(void)
 {
-	unsigned long bios_start, ebda_start;
-	unsigned long trampoline_start;
+	unsigned long bios_start = 0, ebda_start = 0;
 	struct boot_e820_entry *entry;
+	char *signature;
 	int i;
 
 	/*
@@ -47,8 +47,18 @@ static unsigned long find_trampoline_placement(void)
 	 * This code is based on reserve_bios_regions().
 	 */
 
-	ebda_start = *(unsigned short *)0x40e << 4;
-	bios_start = *(unsigned short *)0x413 << 10;
+	/*
+	 * EFI systems may not provide legacy ROM. The memory may not be mapped
+	 * at all.
+	 *
+	 * Only look for values in the legacy ROM for non-EFI system.
+	 */
+	signature = (char *)&boot_params->efi_info.efi_loader_signature;
+	if (strncmp(signature, EFI32_LOADER_SIGNATURE, 4) &&
+	    strncmp(signature, EFI64_LOADER_SIGNATURE, 4)) {
+		ebda_start = *(unsigned short *)0x40e << 4;
+		bios_start = *(unsigned short *)0x413 << 10;
+	}
 
 	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
 		bios_start = BIOS_START_MAX;
@@ -60,6 +70,8 @@ static unsigned long find_trampoline_placement(void)
 
 	/* Find the first usable memory region under bios_start. */
 	for (i = boot_params->e820_entries - 1; i >= 0; i--) {
+		unsigned long new = bios_start;
+
 		entry = &boot_params->e820_table[i];
 
 		/* Skip all entries above bios_start. */
@@ -72,15 +84,20 @@ static unsigned long find_trampoline_placement(void)
 
 		/* Adjust bios_start to the end of the entry if needed. */
 		if (bios_start > entry->addr + entry->size)
-			bios_start = entry->addr + entry->size;
+			new = entry->addr + entry->size;
 
 		/* Keep bios_start page-aligned. */
-		bios_start = round_down(bios_start, PAGE_SIZE);
+		new = round_down(new, PAGE_SIZE);
 
 		/* Skip the entry if it's too small. */
-		if (bios_start - TRAMPOLINE_32BIT_SIZE < entry->addr)
+		if (new - TRAMPOLINE_32BIT_SIZE < entry->addr)
 			continue;
 
+		/* Protect against underflow. */
+		if (new - TRAMPOLINE_32BIT_SIZE > bios_start)
+			break;
+
+		bios_start = new;
 		break;
 	}
 
@@ -188,4 +205,13 @@ void cleanup_trampoline(void *pgtable)
 
 	/* Restore trampoline memory */
 	memcpy(trampoline_32bit, trampoline_save, TRAMPOLINE_32BIT_SIZE);
+
+	/* Initialize variables for 5-level paging */
+#ifdef CONFIG_X86_5LEVEL
+	if (__read_cr4() & X86_CR4_LA57) {
+		__pgtable_l5_enabled = 1;
+		pgdir_shift = 48;
+		ptrs_per_p4d = 512;
+	}
+#endif
 }

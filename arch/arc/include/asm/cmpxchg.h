@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_ARC_CMPXCHG_H
@@ -23,7 +20,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 
 	/*
 	 * Explicit full memory barrier needed before/after as
-	 * LLOCK/SCOND thmeselves don't provide any such semantics
+	 * LLOCK/SCOND themselves don't provide any such semantics
 	 */
 	smp_mb();
 
@@ -44,7 +41,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	return prev;
 }
 
-#elif !defined(CONFIG_ARC_PLAT_EZNPS)
+#else /* !CONFIG_ARC_HAS_LLSC */
 
 static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
@@ -64,36 +61,13 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	return prev;
 }
 
-#else /* CONFIG_ARC_PLAT_EZNPS */
+#endif
 
-static inline unsigned long
-__cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
-{
-	/*
-	 * Explicit full memory barrier needed before/after
-	 */
-	smp_mb();
-
-	write_aux_reg(CTOP_AUX_GPA1, expected);
-
-	__asm__ __volatile__(
-	"	mov r2, %0\n"
-	"	mov r3, %1\n"
-	"	.word %2\n"
-	"	mov %0, r2"
-	: "+r"(new)
-	: "r"(ptr), "i"(CTOP_INST_EXC_DI_R2_R2_R3)
-	: "r2", "r3", "memory");
-
-	smp_mb();
-
-	return new;
-}
-
-#endif /* CONFIG_ARC_HAS_LLSC */
-
-#define cmpxchg(ptr, o, n) ((typeof(*(ptr)))__cmpxchg((ptr), \
-				(unsigned long)(o), (unsigned long)(n)))
+#define cmpxchg(ptr, o, n) ({				\
+	(typeof(*(ptr)))__cmpxchg((ptr),		\
+				  (unsigned long)(o),	\
+				  (unsigned long)(n));	\
+})
 
 /*
  * atomic_cmpxchg is same as cmpxchg
@@ -103,8 +77,6 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
  */
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
 
-
-#ifndef CONFIG_ARC_PLAT_EZNPS
 
 /*
  * xchg (reg with memory) based on "Native atomic" EX insn
@@ -167,41 +139,6 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 #define xchg(ptr, with)  _xchg(ptr, with)
 
 #endif
-
-#else /* CONFIG_ARC_PLAT_EZNPS */
-
-static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
-				   int size)
-{
-	extern unsigned long __xchg_bad_pointer(void);
-
-	switch (size) {
-	case 4:
-		/*
-		 * Explicit full memory barrier needed before/after
-		 */
-		smp_mb();
-
-		__asm__ __volatile__(
-		"	mov r2, %0\n"
-		"	mov r3, %1\n"
-		"	.word %2\n"
-		"	mov %0, r2\n"
-		: "+r"(val)
-		: "r"(ptr), "i"(CTOP_INST_XEX_DI_R2_R2_R3)
-		: "r2", "r3", "memory");
-
-		smp_mb();
-
-		return val;
-	}
-	return __xchg_bad_pointer();
-}
-
-#define xchg(ptr, with) ((typeof(*(ptr)))__xchg((unsigned long)(with), (ptr), \
-						 sizeof(*(ptr))))
-
-#endif /* CONFIG_ARC_PLAT_EZNPS */
 
 /*
  * "atomic" variant of xchg()

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 menu "Executable file formats"
 
@@ -6,7 +7,7 @@ config BINFMT_ELF
 	depends on MMU
 	select ELFCORE
 	default y
-	---help---
+	help
 	  ELF (Executable and Linkable Format) is a format for libraries and
 	  executables used across different architectures and operating
 	  systems. Saying Y here will enable your kernel to run ELF binaries
@@ -35,10 +36,16 @@ config COMPAT_BINFMT_ELF
 config ARCH_BINFMT_ELF_STATE
 	bool
 
+config ARCH_HAVE_ELF_PROT
+	bool
+
+config ARCH_USE_GNU_PROPERTY
+	bool
+
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y if !BINFMT_ELF
-	depends on (ARM || (SUPERH32 && !MMU) || C6X)
+	depends on (ARM || (SUPERH && !MMU) || C6X)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -71,7 +78,7 @@ config CORE_DUMP_DEFAULT_ELF_HEADERS
 
 	  The core dump behavior can be controlled per process using
 	  the /proc/PID/coredump_filter pseudo-file; this setting is
-	  inherited.  See Documentation/filesystems/proc.txt for details.
+	  inherited.  See Documentation/filesystems/proc.rst for details.
 
 	  This config option changes the default setting of coredump_filter
 	  seen at boot time.  If unsure, say Y.
@@ -90,11 +97,27 @@ config BINFMT_SCRIPT
 
 	  Most systems will not boot if you say M or N here.  If unsure, say Y.
 
+config ARCH_HAS_BINFMT_FLAT
+	bool
+
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
-	depends on !MMU || ARM || M68K
+	depends on ARCH_HAS_BINFMT_FLAT
 	help
 	  Support uClinux FLAT format binaries.
+
+config BINFMT_FLAT_ARGVP_ENVP_ON_STACK
+	bool
+
+config BINFMT_FLAT_OLD_ALWAYS_RAM
+	bool
+
+config BINFMT_FLAT_OLD
+	bool "Enable support for very old legacy flat binaries"
+	depends on BINFMT_FLAT
+	help
+	  Support decade old uClinux FLAT format binaries.  Unless you know
+	  you have some of those say N here.
 
 config BINFMT_ZFLAT
 	bool "Enable ZFLAT support"
@@ -115,7 +138,7 @@ config HAVE_AOUT
 config BINFMT_AOUT
 	tristate "Kernel support for a.out and ECOFF binaries"
 	depends on HAVE_AOUT
-	---help---
+	help
 	  A.out (Assembler.OUTput) is a set of formats for libraries and
 	  executables used in the earliest versions of UNIX.  Linux used
 	  the a.out formats QMAGIC and ZMAGIC until they were replaced
@@ -145,7 +168,7 @@ config OSF4_COMPAT
 config BINFMT_EM86
 	tristate "Kernel support for Linux/Intel ELF binaries"
 	depends on ALPHA
-	---help---
+	help
 	  Say Y here if you want to be able to execute Linux/Intel ELF
 	  binaries just like native Alpha binaries on your Alpha machine. For
 	  this to work, you need to have the emulator /usr/bin/em86 in place.
@@ -159,7 +182,7 @@ config BINFMT_EM86
 
 config BINFMT_MISC
 	tristate "Kernel support for MISC binaries"
-	---help---
+	help
 	  If you say Y here, it will be possible to plug wrapper-driven binary
 	  formats into the kernel. You will like this especially when you use
 	  programs that need an interpreter to run like Java, Python, .NET or

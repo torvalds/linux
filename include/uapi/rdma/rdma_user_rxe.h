@@ -39,6 +39,11 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 
+enum {
+	RXE_NETWORK_TYPE_IPV4 = 1,
+	RXE_NETWORK_TYPE_IPV6 = 2,
+};
+
 union rxe_gid {
 	__u8	raw[16];
 	struct {
@@ -57,9 +62,9 @@ struct rxe_global_route {
 
 struct rxe_av {
 	__u8			port_num;
+	/* From RXE_NETWORK_TYPE_* */
 	__u8			network_type;
-	__u16			reserved1;
-	__u32			reserved2;
+	__u8			dmac[6];
 	struct rxe_global_route	grh;
 	union {
 		struct sockaddr_in	_sockaddr_in;
@@ -100,8 +105,8 @@ struct rxe_send_wr {
 				struct ib_mr *mr;
 				__aligned_u64 reserved;
 			};
-			__u32        key;
-			__u32        access;
+			__u32	     key;
+			__u32	     access;
 		} reg;
 	} wr;
 };
@@ -113,7 +118,7 @@ struct rxe_sge {
 };
 
 struct mminfo {
-	__aligned_u64  		offset;
+	__aligned_u64		offset;
 	__u32			size;
 	__u32			pad;
 };

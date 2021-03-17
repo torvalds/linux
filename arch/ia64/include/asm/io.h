@@ -71,7 +71,6 @@ extern unsigned int num_io_spaces;
 #define HAVE_ARCH_PIO_SIZE
 
 #include <asm/intrinsics.h>
-#include <asm/machvec.h>
 #include <asm/page.h>
 #include <asm-generic/iomap.h>
 
@@ -113,20 +112,6 @@ extern int valid_mmap_phys_addr_range (unsigned long pfn, size_t count);
  */
 #define __ia64_mf_a()	ia64_mfa()
 
-/**
- * ___ia64_mmiowb - I/O write barrier
- *
- * Ensure ordering of I/O space writes.  This will make sure that writes
- * following the barrier will arrive after all previous writes.  For most
- * ia64 platforms, this is a simple 'mf.a' instruction.
- *
- * See Documentation/driver-api/device-io.rst for more information.
- */
-static inline void ___ia64_mmiowb(void)
-{
-	ia64_mfa();
-}
-
 static inline void*
 __ia64_mk_io_addr (unsigned long port)
 {
@@ -143,26 +128,6 @@ __ia64_mk_io_addr (unsigned long port)
 	return (void *) (space->mmio_base | offset);
 }
 
-#define __ia64_inb	___ia64_inb
-#define __ia64_inw	___ia64_inw
-#define __ia64_inl	___ia64_inl
-#define __ia64_outb	___ia64_outb
-#define __ia64_outw	___ia64_outw
-#define __ia64_outl	___ia64_outl
-#define __ia64_readb	___ia64_readb
-#define __ia64_readw	___ia64_readw
-#define __ia64_readl	___ia64_readl
-#define __ia64_readq	___ia64_readq
-#define __ia64_readb_relaxed	___ia64_readb
-#define __ia64_readw_relaxed	___ia64_readw
-#define __ia64_readl_relaxed	___ia64_readl
-#define __ia64_readq_relaxed	___ia64_readq
-#define __ia64_writeb	___ia64_writeb
-#define __ia64_writew	___ia64_writew
-#define __ia64_writel	___ia64_writel
-#define __ia64_writeq	___ia64_writeq
-#define __ia64_mmiowb	___ia64_mmiowb
-
 /*
  * For the in/out routines, we need to do "mf.a" _after_ doing the I/O access to ensure
  * that the access has completed before executing other I/O accesses.  Since we're doing
@@ -171,8 +136,8 @@ __ia64_mk_io_addr (unsigned long port)
  * during optimization, which is why we use "volatile" pointers.
  */
 
-static inline unsigned int
-___ia64_inb (unsigned long port)
+#define inb inb
+static inline unsigned int inb(unsigned long port)
 {
 	volatile unsigned char *addr = __ia64_mk_io_addr(port);
 	unsigned char ret;
@@ -182,8 +147,8 @@ ___ia64_inb (unsigned long port)
 	return ret;
 }
 
-static inline unsigned int
-___ia64_inw (unsigned long port)
+#define inw inw
+static inline unsigned int inw(unsigned long port)
 {
 	volatile unsigned short *addr = __ia64_mk_io_addr(port);
 	unsigned short ret;
@@ -193,8 +158,8 @@ ___ia64_inw (unsigned long port)
 	return ret;
 }
 
-static inline unsigned int
-___ia64_inl (unsigned long port)
+#define inl inl
+static inline unsigned int inl(unsigned long port)
 {
 	volatile unsigned int *addr = __ia64_mk_io_addr(port);
 	unsigned int ret;
@@ -204,8 +169,8 @@ ___ia64_inl (unsigned long port)
 	return ret;
 }
 
-static inline void
-___ia64_outb (unsigned char val, unsigned long port)
+#define outb outb
+static inline void outb(unsigned char val, unsigned long port)
 {
 	volatile unsigned char *addr = __ia64_mk_io_addr(port);
 
@@ -213,8 +178,8 @@ ___ia64_outb (unsigned char val, unsigned long port)
 	__ia64_mf_a();
 }
 
-static inline void
-___ia64_outw (unsigned short val, unsigned long port)
+#define outw outw
+static inline void outw(unsigned short val, unsigned long port)
 {
 	volatile unsigned short *addr = __ia64_mk_io_addr(port);
 
@@ -222,8 +187,8 @@ ___ia64_outw (unsigned short val, unsigned long port)
 	__ia64_mf_a();
 }
 
-static inline void
-___ia64_outl (unsigned int val, unsigned long port)
+#define outl outl
+static inline void outl(unsigned int val, unsigned long port)
 {
 	volatile unsigned int *addr = __ia64_mk_io_addr(port);
 
@@ -231,214 +196,75 @@ ___ia64_outl (unsigned int val, unsigned long port)
 	__ia64_mf_a();
 }
 
-static inline void
-__insb (unsigned long port, void *dst, unsigned long count)
+#define insb insb
+static inline void insb(unsigned long port, void *dst, unsigned long count)
 {
 	unsigned char *dp = dst;
 
 	while (count--)
-		*dp++ = platform_inb(port);
+		*dp++ = inb(port);
 }
 
-static inline void
-__insw (unsigned long port, void *dst, unsigned long count)
+#define insw insw
+static inline void insw(unsigned long port, void *dst, unsigned long count)
 {
 	unsigned short *dp = dst;
 
 	while (count--)
-		put_unaligned(platform_inw(port), dp++);
+		put_unaligned(inw(port), dp++);
 }
 
-static inline void
-__insl (unsigned long port, void *dst, unsigned long count)
+#define insl insl
+static inline void insl(unsigned long port, void *dst, unsigned long count)
 {
 	unsigned int *dp = dst;
 
 	while (count--)
-		put_unaligned(platform_inl(port), dp++);
+		put_unaligned(inl(port), dp++);
 }
 
-static inline void
-__outsb (unsigned long port, const void *src, unsigned long count)
+#define outsb outsb
+static inline void outsb(unsigned long port, const void *src,
+		unsigned long count)
 {
 	const unsigned char *sp = src;
 
 	while (count--)
-		platform_outb(*sp++, port);
+		outb(*sp++, port);
 }
 
-static inline void
-__outsw (unsigned long port, const void *src, unsigned long count)
+#define outsw outsw
+static inline void outsw(unsigned long port, const void *src,
+		unsigned long count)
 {
 	const unsigned short *sp = src;
 
 	while (count--)
-		platform_outw(get_unaligned(sp++), port);
+		outw(get_unaligned(sp++), port);
 }
 
-static inline void
-__outsl (unsigned long port, const void *src, unsigned long count)
+#define outsl outsl
+static inline void outsl(unsigned long port, const void *src,
+		unsigned long count)
 {
 	const unsigned int *sp = src;
 
 	while (count--)
-		platform_outl(get_unaligned(sp++), port);
+		outl(get_unaligned(sp++), port);
 }
-
-/*
- * Unfortunately, some platforms are broken and do not follow the IA-64 architecture
- * specification regarding legacy I/O support.  Thus, we have to make these operations
- * platform dependent...
- */
-#define __inb		platform_inb
-#define __inw		platform_inw
-#define __inl		platform_inl
-#define __outb		platform_outb
-#define __outw		platform_outw
-#define __outl		platform_outl
-#define __mmiowb	platform_mmiowb
-
-#define inb(p)		__inb(p)
-#define inw(p)		__inw(p)
-#define inl(p)		__inl(p)
-#define insb(p,d,c)	__insb(p,d,c)
-#define insw(p,d,c)	__insw(p,d,c)
-#define insl(p,d,c)	__insl(p,d,c)
-#define outb(v,p)	__outb(v,p)
-#define outw(v,p)	__outw(v,p)
-#define outl(v,p)	__outl(v,p)
-#define outsb(p,s,c)	__outsb(p,s,c)
-#define outsw(p,s,c)	__outsw(p,s,c)
-#define outsl(p,s,c)	__outsl(p,s,c)
-#define mmiowb()	__mmiowb()
-
-/*
- * The address passed to these functions are ioremap()ped already.
- *
- * We need these to be machine vectors since some platforms don't provide
- * DMA coherence via PIO reads (PCI drivers and the spec imply that this is
- * a good idea).  Writes are ok though for all existing ia64 platforms (and
- * hopefully it'll stay that way).
- */
-static inline unsigned char
-___ia64_readb (const volatile void __iomem *addr)
-{
-	return *(volatile unsigned char __force *)addr;
-}
-
-static inline unsigned short
-___ia64_readw (const volatile void __iomem *addr)
-{
-	return *(volatile unsigned short __force *)addr;
-}
-
-static inline unsigned int
-___ia64_readl (const volatile void __iomem *addr)
-{
-	return *(volatile unsigned int __force *) addr;
-}
-
-static inline unsigned long
-___ia64_readq (const volatile void __iomem *addr)
-{
-	return *(volatile unsigned long __force *) addr;
-}
-
-static inline void
-__writeb (unsigned char val, volatile void __iomem *addr)
-{
-	*(volatile unsigned char __force *) addr = val;
-}
-
-static inline void
-__writew (unsigned short val, volatile void __iomem *addr)
-{
-	*(volatile unsigned short __force *) addr = val;
-}
-
-static inline void
-__writel (unsigned int val, volatile void __iomem *addr)
-{
-	*(volatile unsigned int __force *) addr = val;
-}
-
-static inline void
-__writeq (unsigned long val, volatile void __iomem *addr)
-{
-	*(volatile unsigned long __force *) addr = val;
-}
-
-#define __readb		platform_readb
-#define __readw		platform_readw
-#define __readl		platform_readl
-#define __readq		platform_readq
-#define __readb_relaxed	platform_readb_relaxed
-#define __readw_relaxed	platform_readw_relaxed
-#define __readl_relaxed	platform_readl_relaxed
-#define __readq_relaxed	platform_readq_relaxed
-
-#define readb(a)	__readb((a))
-#define readw(a)	__readw((a))
-#define readl(a)	__readl((a))
-#define readq(a)	__readq((a))
-#define readb_relaxed(a)	__readb_relaxed((a))
-#define readw_relaxed(a)	__readw_relaxed((a))
-#define readl_relaxed(a)	__readl_relaxed((a))
-#define readq_relaxed(a)	__readq_relaxed((a))
-#define __raw_readb	readb
-#define __raw_readw	readw
-#define __raw_readl	readl
-#define __raw_readq	readq
-#define __raw_readb_relaxed	readb_relaxed
-#define __raw_readw_relaxed	readw_relaxed
-#define __raw_readl_relaxed	readl_relaxed
-#define __raw_readq_relaxed	readq_relaxed
-#define writeb(v,a)	__writeb((v), (a))
-#define writew(v,a)	__writew((v), (a))
-#define writel(v,a)	__writel((v), (a))
-#define writeq(v,a)	__writeq((v), (a))
-#define writeb_relaxed(v,a)	__writeb((v), (a))
-#define writew_relaxed(v,a)	__writew((v), (a))
-#define writel_relaxed(v,a)	__writel((v), (a))
-#define writeq_relaxed(v,a)	__writeq((v), (a))
-#define __raw_writeb	writeb
-#define __raw_writew	writew
-#define __raw_writel	writel
-#define __raw_writeq	writeq
-
-#ifndef inb_p
-# define inb_p		inb
-#endif
-#ifndef inw_p
-# define inw_p		inw
-#endif
-#ifndef inl_p
-# define inl_p		inl
-#endif
-
-#ifndef outb_p
-# define outb_p		outb
-#endif
-#ifndef outw_p
-# define outw_p		outw
-#endif
-#ifndef outl_p
-# define outl_p		outl
-#endif
 
 # ifdef __KERNEL__
 
 extern void __iomem * ioremap(unsigned long offset, unsigned long size);
-extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
+extern void __iomem * ioremap_uc(unsigned long offset, unsigned long size);
 extern void iounmap (volatile void __iomem *addr);
 static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned long size)
 {
 	return ioremap(phys_addr, size);
 }
 #define ioremap ioremap
-#define ioremap_nocache ioremap_nocache
 #define ioremap_cache ioremap_cache
-#define ioremap_uc ioremap_nocache
+#define ioremap_uc ioremap_uc
 #define iounmap iounmap
 
 /*

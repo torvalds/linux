@@ -29,7 +29,7 @@
 	.code16
 
 	.balign	PAGE_SIZE
-ENTRY(trampoline_start)
+SYM_CODE_START(trampoline_start)
 	wbinvd			# Needed for NUMA-Q should be harmless for others
 
 	LJMPW_RM(1f)
@@ -40,9 +40,6 @@ ENTRY(trampoline_start)
 	cli			# We should be safe anyway
 
 	movl	tr_start, %eax	# where we need to go
-
-	movl	$0xA5A5A5A5, trampoline_status
-				# write marker for master knows we're running
 
 	/*
 	 * GDT tables in non default location kernel can be beyond 16MB and
@@ -57,18 +54,20 @@ ENTRY(trampoline_start)
 	lmsw	%dx			# into protected mode
 
 	ljmpl	$__BOOT_CS, $pa_startup_32
+SYM_CODE_END(trampoline_start)
 
 	.section ".text32","ax"
 	.code32
-ENTRY(startup_32)			# note: also used from wakeup_asm.S
+SYM_CODE_START(startup_32)			# note: also used from wakeup_asm.S
 	jmp	*%eax
+SYM_CODE_END(startup_32)
 
 	.bss
 	.balign 8
-GLOBAL(trampoline_header)
-	tr_start:		.space	4
-	tr_gdt_pad:		.space	2
-	tr_gdt:			.space	6
-END(trampoline_header)
+SYM_DATA_START(trampoline_header)
+	SYM_DATA_LOCAL(tr_start,	.space 4)
+	SYM_DATA_LOCAL(tr_gdt_pad,	.space 2)
+	SYM_DATA_LOCAL(tr_gdt,		.space 6)
+SYM_DATA_END(trampoline_header)
 	
 #include "trampoline_common.S"

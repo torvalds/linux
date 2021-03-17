@@ -3,7 +3,7 @@
 #define _ASM_X86_CMPXCHG_32_H
 
 /*
- * Note: if you use set64_bit(), __cmpxchg64(), or their variants, you
+ * Note: if you use set64_bit(), __cmpxchg64(), or their variants,
  *       you need to test for the feature in boot_cpu_data.
  */
 

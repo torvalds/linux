@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* IEEE 802.11 SoftMAC layer
  * Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
  *
@@ -9,8 +10,6 @@
  *
  * WPA code stolen from the ipw2200 driver.
  * Copyright who own it's copyright.
- *
- * released under the GPL
  */
 #include "ieee80211.h"
 
@@ -132,7 +131,7 @@ static void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p)
 	*tag++ = 0x00;
 
 	*tag_p = tag;
-	printk(KERN_ALERT "This is enable turbo mode IE process\n");
+	netdev_alert(ieee->dev, "This is enable turbo mode IE process\n");
 }
 #endif
 
@@ -464,7 +463,7 @@ out:
 	} else {
 		ieee->sync_scan_hurryup = 0;
 		if (IS_DOT11D_ENABLE(ieee))
-			DOT11D_ScanComplete(ieee);
+			dot11d_scan_complete(ieee);
 		mutex_unlock(&ieee->scan_mutex);
 	}
 }
@@ -504,7 +503,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 	return;
 out:
 	if (IS_DOT11D_ENABLE(ieee))
-		DOT11D_ScanComplete(ieee);
+		dot11d_scan_complete(ieee);
 	ieee->actscanning = false;
 	watchdog = 0;
 	ieee->scanning = 0;
@@ -744,7 +743,6 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	if (ieee->short_slot && (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_SLOT))
 		beacon_buf->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT);
 
-	crypt = ieee->crypt[ieee->tx_keyidx];
 	if (encrypt)
 		beacon_buf->capability |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
 
@@ -1272,14 +1270,15 @@ static void ieee80211_associate_step2(struct ieee80211_device *ieee)
 static void ieee80211_associate_complete_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, associate_complete_wq);
-	printk(KERN_INFO "Associated successfully\n");
+
+	netdev_info(ieee->dev, "Associated successfully\n");
 	if (ieee80211_is_54g(&ieee->current_network) &&
 	    (ieee->modulation & IEEE80211_OFDM_MODULATION)) {
 		ieee->rate = 108;
-		printk(KERN_INFO"Using G rates:%d\n", ieee->rate);
+		netdev_info(ieee->dev, "Using G rates:%d\n", ieee->rate);
 	} else {
 		ieee->rate = 22;
-		printk(KERN_INFO"Using B rates:%d\n", ieee->rate);
+		netdev_info(ieee->dev, "Using B rates:%d\n", ieee->rate);
 	}
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT) {
 		printk("Successfully associated, ht enabled\n");
@@ -1393,12 +1392,13 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 
 			strncpy(ieee->current_network.ssid, tmp_ssid, IW_ESSID_MAX_SIZE);
 			ieee->current_network.ssid_len = tmp_ssid_len;
-			printk(KERN_INFO"Linking with %s,channel:%d, qos:%d, myHT:%d, networkHT:%d\n",
-			       ieee->current_network.ssid,
-			       ieee->current_network.channel,
-			       ieee->current_network.qos_data.supported,
-			       ieee->pHTInfo->bEnableHT,
-			       ieee->current_network.bssht.bdSupportHT);
+			netdev_info(ieee->dev,
+				    "Linking with %s,channel:%d, qos:%d, myHT:%d, networkHT:%d\n",
+				    ieee->current_network.ssid,
+				    ieee->current_network.channel,
+				    ieee->current_network.qos_data.supported,
+				    ieee->pHTInfo->bEnableHT,
+				    ieee->current_network.bssht.bdSupportHT);
 
 			//ieee->pHTInfo->IOTAction = 0;
 			HTResetIOTSetting(ieee->pHTInfo);
@@ -1423,11 +1423,13 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 				    (ieee->modulation & IEEE80211_OFDM_MODULATION)) {
 					ieee->rate = 108;
 					ieee->SetWirelessMode(ieee->dev, IEEE_G);
-					printk(KERN_INFO"Using G rates\n");
+					netdev_info(ieee->dev,
+						    "Using G rates\n");
 				} else {
 					ieee->rate = 22;
 					ieee->SetWirelessMode(ieee->dev, IEEE_B);
-					printk(KERN_INFO"Using B rates\n");
+					netdev_info(ieee->dev,
+						    "Using B rates\n");
 				}
 				memset(ieee->dot11HTOperationalRateSet, 0, 16);
 				//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
@@ -1624,7 +1626,7 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	if (assoc_rq_parse(skb, dest) != -1)
 		ieee80211_resp_to_assoc_rq(ieee, dest);
 
-	printk(KERN_INFO"New client associated: %pM\n", dest);
+	netdev_info(ieee->dev, "New client associated: %pM\n", dest);
 	//FIXME
 }
 
@@ -1685,8 +1687,9 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 	return 1;
 }
 
-static inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
+static inline void ieee80211_sta_ps(struct tasklet_struct *t)
 {
+	struct ieee80211_device *ieee = from_tasklet(ieee, t, ps_task);
 	u32 th, tl;
 	short sleep;
 
@@ -1797,7 +1800,7 @@ static void ieee80211_process_action(struct ieee80211_device *ieee,
 	u8 *act = ieee80211_get_payload(header);
 	u8 tmp = 0;
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
-	if (act == NULL) {
+	if (!act) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "error to get payload of action frame\n");
 		return;
 	}
@@ -1930,7 +1933,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 						memcpy(ieee->pHTInfo->PeerHTCapBuf, network->bssht.bdHTCapBuf, network->bssht.bdHTCapLen);
 						memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
 					}
-					if (ieee->handle_assoc_response != NULL)
+					if (ieee->handle_assoc_response)
 						ieee->handle_assoc_response(ieee->dev, (struct ieee80211_assoc_response_frame *)header, network);
 				}
 				ieee80211_associate_complete(ieee);
@@ -2333,7 +2336,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 
 	/* ensure no-one start an associating process (thus setting
 	 * the ieee->state to ieee80211_ASSOCIATING) while we
-	 * have just cheked it and we are going to enable scan.
+	 * have just checked it and we are going to enable scan.
 	 * The ieee80211_new_net function is always called with
 	 * lock held (from both ieee80211_softmac_check_all_nets and
 	 * the rx path), so we cannot be in the middle of such function
@@ -2357,7 +2360,7 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
 	if (IS_DOT11D_ENABLE(ieee))
-		Dot11d_Reset(ieee);
+		dot11d_reset(ieee);
 	ieee->state = IEEE80211_NOLINK;
 	ieee->is_set_key = false;
 	ieee->link_change(ieee->dev);
@@ -2542,8 +2545,8 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	for (i = 0; i < 5; i++)
 		ieee->seq_ctrl[i] = 0;
 
-	ieee->pDot11dInfo = kzalloc(sizeof(struct rt_dot11d_info), GFP_KERNEL);
-	if (!ieee->pDot11dInfo)
+	ieee->dot11d_info = kzalloc(sizeof(struct rt_dot11d_info), GFP_KERNEL);
+	if (!ieee->dot11d_info)
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for DOT11D\n");
 	//added for  AP roaming
 	ieee->LinkDetectInfo.SlotNum = 2;
@@ -2595,16 +2598,14 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);
 
-	tasklet_init(&ieee->ps_task,
-		     (void(*)(unsigned long)) ieee80211_sta_ps,
-		     (unsigned long)ieee);
+	tasklet_setup(&ieee->ps_task, ieee80211_sta_ps);
 }
 
 void ieee80211_softmac_free(struct ieee80211_device *ieee)
 {
 	mutex_lock(&ieee->wx_mutex);
-	kfree(ieee->pDot11dInfo);
-	ieee->pDot11dInfo = NULL;
+	kfree(ieee->dot11d_info);
+	ieee->dot11d_info = NULL;
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work(&ieee->associate_retry_wq);
@@ -2660,14 +2661,13 @@ static int ieee80211_wpa_set_wpa_ie(struct ieee80211_device *ieee,
 {
 	u8 *buf;
 
-	if (param->u.wpa_ie.len > MAX_WPA_IE_LEN ||
-	    (param->u.wpa_ie.len && param->u.wpa_ie.data == NULL))
+	if (param->u.wpa_ie.len > MAX_WPA_IE_LEN)
 		return -EINVAL;
 
 	if (param->u.wpa_ie.len) {
 		buf = kmemdup(param->u.wpa_ie.data, param->u.wpa_ie.len,
 			      GFP_KERNEL);
-		if (buf == NULL)
+		if (!buf)
 			return -ENOMEM;
 
 		kfree(ieee->wpa_ie);
@@ -2857,7 +2857,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		goto done;
 	}
 
-	if (*crypt == NULL || (*crypt)->ops != ops) {
+	if (!*crypt || (*crypt)->ops != ops) {
 		struct ieee80211_crypt_data *new_crypt;
 
 		ieee80211_crypt_delayed_deinit(ieee, crypt);
@@ -2872,7 +2872,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 			new_crypt->priv =
 				new_crypt->ops->init(param->u.crypt.idx);
 
-		if (new_crypt->priv == NULL) {
+		if (!new_crypt->priv) {
 			kfree(new_crypt);
 			param->u.crypt.err = IEEE_CRYPT_ERR_CRYPT_INIT_FAILED;
 			ret = -EINVAL;

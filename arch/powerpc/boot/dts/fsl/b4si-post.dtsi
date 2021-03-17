@@ -398,21 +398,6 @@
 	};
 
 /include/ "qoriq-clockgen2.dtsi"
-	clockgen: global-utilities@e1000 {
-		compatible = "fsl,b4-clockgen", "fsl,qoriq-clockgen-2.0";
-		reg = <0xe1000 0x1000>;
-
-		mux0: mux0@0 {
-			#clock-cells = <0>;
-			reg = <0x0 0x4>;
-			compatible = "fsl,qoriq-core-mux-2.0";
-			clocks = <&pll0 0>, <&pll0 1>, <&pll0 2>,
-				<&pll1 0>, <&pll1 1>, <&pll1 2>;
-			clock-names = "pll0", "pll0-div2", "pll0-div4",
-				"pll1", "pll1-div2", "pll1-div4";
-			clock-output-names = "cmux0";
-		};
-	};
 
 	rcpm: global-utilities@e2000 {
 		compatible = "fsl,b4-rcpm", "fsl,qoriq-rcpm-2.0";

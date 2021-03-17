@@ -1,24 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Copyright (C) STMicroelectronics SA 2017
  * Author(s): M'boumba Cedric Madianga <cedric.madianga@gmail.com>
  *            Pierre-Yves Mordret <pierre-yves.mordret@st.com>
  *
- * License terms: GPL V2.0.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
- * details.
- *
  * DMA Router driver for STM32 DMA MUX
  *
  * Based on TI DMA Crossbar driver
- *
  */
 
 #include <linux/clk.h>
@@ -28,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -45,12 +35,14 @@ struct stm32_dmamux {
 struct stm32_dmamux_data {
 	struct dma_router dmarouter;
 	struct clk *clk;
-	struct reset_control *rst;
 	void __iomem *iomem;
 	u32 dma_requests; /* Number of DMA requests connected to DMAMUX */
 	u32 dmamux_requests; /* Number of DMA requests routed toward DMAs */
 	spinlock_t lock; /* Protects register access */
 	unsigned long *dma_inuse; /* Used DMA channel */
+	u32 ccr[STM32_DMAMUX_MAX_DMA_REQUESTS]; /* Used to backup CCR register
+						 * in suspend
+						 */
 	u32 dma_reqs[]; /* Number of DMA Request per DMA masters.
 			 *  [0] holds number of DMA Masters.
 			 *  To be kept at very end end of this structure
@@ -79,8 +71,7 @@ static void stm32_dmamux_free(struct device *dev, void *route_data)
 	stm32_dmamux_write(dmamux->iomem, STM32_DMAMUX_CCR(mux->chan_id), 0);
 	clear_bit(mux->chan_id, dmamux->dma_inuse);
 
-	if (!IS_ERR(dmamux->clk))
-		clk_disable(dmamux->clk);
+	pm_runtime_put_sync(dev);
 
 	spin_unlock_irqrestore(&dmamux->lock, flags);
 
@@ -146,13 +137,10 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 
 	/* Set dma request */
 	spin_lock_irqsave(&dmamux->lock, flags);
-	if (!IS_ERR(dmamux->clk)) {
-		ret = clk_enable(dmamux->clk);
-		if (ret < 0) {
-			spin_unlock_irqrestore(&dmamux->lock, flags);
-			dev_err(&pdev->dev, "clk_prep_enable issue: %d\n", ret);
-			goto error;
-		}
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		spin_unlock_irqrestore(&dmamux->lock, flags);
+		goto error;
 	}
 	spin_unlock_irqrestore(&dmamux->lock, flags);
 
@@ -193,14 +181,14 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	struct stm32_dmamux_data *stm32_dmamux;
 	struct resource *res;
 	void __iomem *iomem;
+	struct reset_control *rst;
 	int i, count, ret;
 	u32 dma_req;
 
 	if (!node)
 		return -ENODEV;
 
-	count = device_property_read_u32_array(&pdev->dev, "dma-masters",
-					       NULL, 0);
+	count = device_property_count_u32(&pdev->dev, "dma-masters");
 	if (count < 0) {
 		dev_err(&pdev->dev, "Can't get DMA master(s) node\n");
 		return -ENODEV;
@@ -254,6 +242,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "DMAMUX defaulting on %u requests\n",
 			 stm32_dmamux->dmamux_requests);
 	}
+	pm_runtime_get_noresume(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iomem = devm_ioremap_resource(&pdev->dev, res);
@@ -263,18 +252,25 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	spin_lock_init(&stm32_dmamux->lock);
 
 	stm32_dmamux->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(stm32_dmamux->clk)) {
-		ret = PTR_ERR(stm32_dmamux->clk);
-		if (ret == -EPROBE_DEFER)
-			dev_info(&pdev->dev, "Missing controller clock\n");
+	if (IS_ERR(stm32_dmamux->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(stm32_dmamux->clk),
+				     "Missing clock controller\n");
+
+	ret = clk_prepare_enable(stm32_dmamux->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "clk_prep_enable error: %d\n", ret);
 		return ret;
 	}
 
-	stm32_dmamux->rst = devm_reset_control_get(&pdev->dev, NULL);
-	if (!IS_ERR(stm32_dmamux->rst)) {
-		reset_control_assert(stm32_dmamux->rst);
+	rst = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(rst)) {
+		ret = PTR_ERR(rst);
+		if (ret == -EPROBE_DEFER)
+			goto err_clk;
+	} else {
+		reset_control_assert(rst);
 		udelay(2);
-		reset_control_deassert(stm32_dmamux->rst);
+		reset_control_deassert(rst);
 	}
 
 	stm32_dmamux->iomem = iomem;
@@ -282,25 +278,108 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	stm32_dmamux->dmarouter.route_free = stm32_dmamux_free;
 
 	platform_set_drvdata(pdev, stm32_dmamux);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 
-	if (!IS_ERR(stm32_dmamux->clk)) {
-		ret = clk_prepare_enable(stm32_dmamux->clk);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "clk_prep_enable error: %d\n", ret);
-			return ret;
-		}
-	}
+	pm_runtime_get_noresume(&pdev->dev);
 
 	/* Reset the dmamux */
 	for (i = 0; i < stm32_dmamux->dma_requests; i++)
 		stm32_dmamux_write(stm32_dmamux->iomem, STM32_DMAMUX_CCR(i), 0);
 
-	if (!IS_ERR(stm32_dmamux->clk))
-		clk_disable(stm32_dmamux->clk);
+	pm_runtime_put(&pdev->dev);
 
-	return of_dma_router_register(node, stm32_dmamux_route_allocate,
+	ret = of_dma_router_register(node, stm32_dmamux_route_allocate,
 				     &stm32_dmamux->dmarouter);
+	if (ret)
+		goto err_clk;
+
+	return 0;
+
+err_clk:
+	clk_disable_unprepare(stm32_dmamux->clk);
+
+	return ret;
 }
+
+#ifdef CONFIG_PM
+static int stm32_dmamux_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct stm32_dmamux_data *stm32_dmamux = platform_get_drvdata(pdev);
+
+	clk_disable_unprepare(stm32_dmamux->clk);
+
+	return 0;
+}
+
+static int stm32_dmamux_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct stm32_dmamux_data *stm32_dmamux = platform_get_drvdata(pdev);
+	int ret;
+
+	ret = clk_prepare_enable(stm32_dmamux->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare_enable clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+static int stm32_dmamux_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct stm32_dmamux_data *stm32_dmamux = platform_get_drvdata(pdev);
+	int i, ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < stm32_dmamux->dma_requests; i++)
+		stm32_dmamux->ccr[i] = stm32_dmamux_read(stm32_dmamux->iomem,
+							 STM32_DMAMUX_CCR(i));
+
+	pm_runtime_put_sync(dev);
+
+	pm_runtime_force_suspend(dev);
+
+	return 0;
+}
+
+static int stm32_dmamux_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct stm32_dmamux_data *stm32_dmamux = platform_get_drvdata(pdev);
+	int i, ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret < 0)
+		return ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < stm32_dmamux->dma_requests; i++)
+		stm32_dmamux_write(stm32_dmamux->iomem, STM32_DMAMUX_CCR(i),
+				   stm32_dmamux->ccr[i]);
+
+	pm_runtime_put_sync(dev);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops stm32_dmamux_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(stm32_dmamux_suspend, stm32_dmamux_resume)
+	SET_RUNTIME_PM_OPS(stm32_dmamux_runtime_suspend,
+			   stm32_dmamux_runtime_resume, NULL)
+};
 
 static const struct of_device_id stm32_dmamux_match[] = {
 	{ .compatible = "st,stm32h7-dmamux" },
@@ -312,6 +391,7 @@ static struct platform_driver stm32_dmamux_driver = {
 	.driver = {
 		.name = "stm32-dmamux",
 		.of_match_table = stm32_dmamux_match,
+		.pm = &stm32_dmamux_pm_ops,
 	},
 };
 

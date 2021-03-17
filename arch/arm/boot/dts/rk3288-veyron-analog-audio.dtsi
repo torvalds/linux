@@ -17,6 +17,7 @@
 		rockchip,hp-det-gpios = <&gpio6 RK_PA5 GPIO_ACTIVE_HIGH>;
 		rockchip,mic-det-gpios = <&gpio6 RK_PB3 GPIO_ACTIVE_LOW>;
 		rockchip,headset-codec = <&headsetcodec>;
+		rockchip,hdmi-codec = <&hdmi>;
 	};
 };
 
@@ -73,7 +74,7 @@
 &pinctrl {
 	codec {
 		hp_det: hp-det {
-			rockchip,pins = <6 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <6 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		/*
@@ -82,17 +83,17 @@
 		 * we've got a ts3a227e chip but the driver requires it.
 		 */
 		int_codec: int-codec {
-			rockchip,pins = <6 7 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <6 RK_PA7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
 		mic_det: mic-det {
-			rockchip,pins = <6 11 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <6 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	headset {
 		ts3a227e_int_l: ts3a227e-int-l {
-			rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

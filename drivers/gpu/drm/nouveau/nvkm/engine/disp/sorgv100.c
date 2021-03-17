@@ -23,7 +23,7 @@
 
 #include <subdev/timer.h>
 
-static void
+void
 gv100_sor_dp_watermark(struct nvkm_ior *sor, int head, u8 watermark)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -31,7 +31,7 @@ gv100_sor_dp_watermark(struct nvkm_ior *sor, int head, u8 watermark)
 	nvkm_mask(device, 0x616550 + hoff, 0x0c00003f, 0x08000000 | watermark);
 }
 
-static void
+void
 gv100_sor_dp_audio_sym(struct nvkm_ior *sor, int head, u16 h, u32 v)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -40,7 +40,7 @@ gv100_sor_dp_audio_sym(struct nvkm_ior *sor, int head, u16 h, u32 v)
 	nvkm_mask(device, 0x61656c + hoff, 0x00ffffff, v);
 }
 
-static void
+void
 gv100_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -54,7 +54,7 @@ gv100_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
 	);
 }
 
-static void
+void
 gv100_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -78,7 +78,7 @@ gv100_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 }
 
 static const struct nvkm_ior_func
-gv100_sor = {
+gv100_sor_hda = {
 	.route = {
 		.get = gm200_sor_route_get,
 		.set = gm200_sor_route_set,
@@ -88,6 +88,7 @@ gv100_sor = {
 	.clock = gf119_sor_clock,
 	.hdmi = {
 		.ctrl = gv100_hdmi_ctrl,
+		.scdc = gm200_hdmi_scdc,
 	},
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },
@@ -102,12 +103,46 @@ gv100_sor = {
 	.hda = {
 		.hpd = gf119_hda_hpd,
 		.eld = gf119_hda_eld,
+		.device_entry = gv100_hda_device_entry,
+	},
+};
+
+static const struct nvkm_ior_func
+gv100_sor = {
+	.route = {
+		.get = gm200_sor_route_get,
+		.set = gm200_sor_route_set,
+	},
+	.state = gv100_sor_state,
+	.power = nv50_sor_power,
+	.clock = gf119_sor_clock,
+	.hdmi = {
+		.ctrl = gv100_hdmi_ctrl,
+		.scdc = gm200_hdmi_scdc,
+	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
+		.links = gf119_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
+		.drive = gm200_sor_dp_drive,
+		.audio = gv100_sor_dp_audio,
+		.audio_sym = gv100_sor_dp_audio_sym,
+		.watermark = gv100_sor_dp_watermark,
 	},
 };
 
 int
 gv100_sor_new(struct nvkm_disp *disp, int id)
 {
+	struct nvkm_device *device = disp->engine.subdev.device;
+	u32 hda;
+
+	if (!((hda = nvkm_rd32(device, 0x08a15c)) & 0x40000000))
+		hda = nvkm_rd32(device, 0x118fb0) >> 8;
+
+	if (hda & BIT(id))
+		return nvkm_ior_new_(&gv100_sor_hda, disp, SOR, id);
 	return nvkm_ior_new_(&gv100_sor, disp, SOR, id);
 }
 

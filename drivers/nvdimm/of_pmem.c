@@ -9,17 +9,6 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 
-static const struct attribute_group *region_attr_groups[] = {
-	&nd_region_attribute_group,
-	&nd_device_attribute_group,
-	NULL,
-};
-
-static const struct attribute_group *bus_attr_groups[] = {
-	&nvdimm_bus_attribute_group,
-	NULL,
-};
-
 struct of_pmem_private {
 	struct nvdimm_bus_descriptor bus_desc;
 	struct nvdimm_bus *bus;
@@ -41,8 +30,7 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->bus_desc.attr_groups = bus_attr_groups;
-	priv->bus_desc.provider_name = "of_pmem";
+	priv->bus_desc.provider_name = kstrdup(pdev->name, GFP_KERNEL);
 	priv->bus_desc.module = THIS_MODULE;
 	priv->bus_desc.of_node = np;
 
@@ -66,16 +54,18 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 		 * structures so passing a stack pointer is fine.
 		 */
 		memset(&ndr_desc, 0, sizeof(ndr_desc));
-		ndr_desc.attr_groups = region_attr_groups;
 		ndr_desc.numa_node = dev_to_node(&pdev->dev);
+		ndr_desc.target_node = ndr_desc.numa_node;
 		ndr_desc.res = &pdev->resource[i];
 		ndr_desc.of_node = np;
 		set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
 
 		if (is_volatile)
 			region = nvdimm_volatile_region_create(bus, &ndr_desc);
-		else
+		else {
+			set_bit(ND_REGION_PERSIST_MEMCTRL, &ndr_desc.flags);
 			region = nvdimm_pmem_region_create(bus, &ndr_desc);
+		}
 
 		if (!region)
 			dev_warn(&pdev->dev, "Unable to register region %pR from %pOF\n",
@@ -100,6 +90,7 @@ static int of_pmem_region_remove(struct platform_device *pdev)
 
 static const struct of_device_id of_pmem_region_match[] = {
 	{ .compatible = "pmem-region" },
+	{ .compatible = "pmem-region-v2" },
 	{ },
 };
 
@@ -108,7 +99,6 @@ static struct platform_driver of_pmem_region_driver = {
 	.remove = of_pmem_region_remove,
 	.driver = {
 		.name = "of_pmem",
-		.owner = THIS_MODULE,
 		.of_match_table = of_pmem_region_match,
 	},
 };

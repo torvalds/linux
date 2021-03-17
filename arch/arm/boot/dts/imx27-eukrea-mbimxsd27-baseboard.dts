@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include "imx27-eukrea-cpuimx27.dtsi"
@@ -17,11 +11,11 @@
 
 	display0: CMO-QVGA {
 		model = "CMO-QVGA";
-		native-mode = <&timing0>;
 		bits-per-pixel = <16>;
 		fsl,pcr = <0xfad08b80>;
 
 		display-timings {
+			native-mode = <&timing0>;
 			timing0: 320x240 {
 				clock-frequency = <6500000>;
 				hactive = <320>;

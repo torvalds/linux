@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * mdio-boardinfo - Collect pre-declarations for MDIO devices
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -21,7 +17,8 @@ static DEFINE_MUTEX(mdio_board_lock);
 /**
  * mdiobus_setup_mdiodev_from_board_info - create and setup MDIO devices
  * from pre-collected board specific MDIO information
- * @mdiodev: MDIO device pointer
+ * @bus: Bus the board_info belongs to
+ * @cb: Callback to create device on bus
  * Context: can sleep
  */
 void mdiobus_setup_mdiodev_from_board_info(struct mii_bus *bus,

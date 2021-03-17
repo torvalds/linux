@@ -7,6 +7,9 @@ of that. These definitions are valid for both types of sensors.
 More detailed documentation can be found in
 Documentation/devicetree/bindings/media/video-interfaces.txt .
 
+The device node should contain a "port" node which may contain one or more
+endpoint nodes, in accordance with video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt .
 
 Mandatory properties
 --------------------
@@ -24,8 +27,6 @@ Mandatory properties
 Optional properties
 -------------------
 
-- nokia,nvm-size: The size of the NVM, in bytes. If the size is not given,
-  the NVM contents will not be read.
 - reset-gpios: XSHUTDOWN GPIO
 - flash-leds: See ../video-interfaces.txt
 - lens-focus: See ../video-interfaces.txt
@@ -37,9 +38,7 @@ Optional properties
 Endpoint node mandatory properties
 ----------------------------------
 
-- clock-lanes: <0>
 - data-lanes: <1..n>
-- remote-endpoint: A phandle to the bus receiver's endpoint node.
 
 
 Example
@@ -48,7 +47,7 @@ Example
 &i2c2 {
 	clock-frequency = <400000>;
 
-	smiapp_1: camera@10 {
+	camera-sensor@10 {
 		compatible = "nokia,smia";
 		reg = <0x10>;
 		reset-gpios = <&gpio3 20 0>;
@@ -58,8 +57,7 @@ Example
 		nokia,nvm-size = <512>; /* 8 * 64 */
 		link-frequencies = /bits/ 64 <199200000 210000000 499200000>;
 		port {
-			smiapp_1_1: endpoint {
-				clock-lanes = <0>;
+			smiapp_ep: endpoint {
 				data-lanes = <1 2>;
 				remote-endpoint = <&csi2a_ep>;
 			};

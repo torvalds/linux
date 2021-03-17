@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common CPCAP configuration used on Motorola phones
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 &mcspi1 {
@@ -16,8 +13,10 @@
 		#interrupt-cells = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		spi-max-frequency = <3000000>;
+		spi-max-frequency = <9600000>;
 		spi-cs-high;
+		spi-cpol;
+		spi-cpha;
 
 		cpcap_adc: adc {
 			compatible = "motorola,mapphone-cpcap-adc";
@@ -30,11 +29,12 @@
 			compatible = "motorola,cpcap-battery";
 			interrupts-extended = <
 				&cpcap 6 0 &cpcap 5 0 &cpcap 3 0
-				&cpcap 20 0 &cpcap 54 0
+				&cpcap 20 0 &cpcap 54 0 &cpcap 57 0
 			>;
 			interrupt-names =
 				"eol", "lowbph", "lowbpl",
-				"chrgcurr1", "battdetb";
+				"chrgcurr1", "battdetb",
+				"cccal";
 			io-channels = <&cpcap_adc 0 &cpcap_adc 1
 				       &cpcap_adc 5 &cpcap_adc 6>;
 			io-channel-names = "battdetb", "battp",
@@ -46,11 +46,13 @@
 			compatible = "motorola,mapphone-cpcap-charger";
 			interrupts-extended = <
 				&cpcap 13 0 &cpcap 12 0 &cpcap 29 0 &cpcap 28 0
-				&cpcap 22 0 &cpcap 20 0 &cpcap 19 0 &cpcap 54 0
+				&cpcap 22 0 &cpcap 21 0 &cpcap 20 0 &cpcap 19 0
+				&cpcap 54 0
 			>;
 			interrupt-names =
 				"chrg_det", "rvrs_chrg", "chrg_se1b", "se0conn",
-				"rvrs_mode", "chrgcurr1", "vbusvld", "battdetb";
+				"rvrs_mode", "chrgcurr2", "chrgcurr1", "vbusvld",
+				"battdetb";
 			mode-gpios = <&gpio3 29 GPIO_ACTIVE_LOW
 				      &gpio3 23 GPIO_ACTIVE_LOW>;
 			io-channels = <&cpcap_adc 0 &cpcap_adc 1
@@ -105,7 +107,7 @@
 			interrupts-extended = <
 				&cpcap 15 0 &cpcap 14 0 &cpcap 28 0 &cpcap 19 0
 				&cpcap 18 0 &cpcap 17 0 &cpcap 16 0 &cpcap 49 0
-				&cpcap 48 1
+				&cpcap 48 0
 			>;
 			interrupt-names =
 				"id_ground", "id_float", "se0conn", "vbusvld",
@@ -163,12 +165,12 @@
 		regulator-enable-ramp-delay = <1000>;
 	};
 
-	/* Used by DSS */
+	/* Used by DSS and is the "zerov_regulator" trigger for SoC off mode */
 	vcsi: VCSI {
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-enable-ramp-delay = <1000>;
-		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	vdac: VDAC {

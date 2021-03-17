@@ -7,8 +7,12 @@
 #define OMAP4_MMC_REG_OFFSET	0x100
 
 struct omap_hwmod;
-int omap_msdi_reset(struct omap_hwmod *oh);
 
-/* called from board-specific card detection service routine */
-extern void omap_mmc_notify_cover_event(struct device *dev, int slot,
-					int is_closed);
+#ifdef CONFIG_SOC_OMAP2420
+int omap_msdi_reset(struct omap_hwmod *oh);
+#else
+static inline int omap_msdi_reset(struct omap_hwmod *oh)
+{
+	return 0;
+}
+#endif

@@ -150,38 +150,10 @@ static uint8_t hpd_sel_to_atom(enum hpd_source_id id)
 
 static uint8_t dig_encoder_sel_to_atom(enum engine_id id)
 {
-	uint8_t atom_dig_encoder_sel = 0;
-
-	switch (id) {
-	case ENGINE_ID_DIGA:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V6__DIGA_SEL;
-		break;
-	case ENGINE_ID_DIGB:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V6__DIGB_SEL;
-		break;
-	case ENGINE_ID_DIGC:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V6__DIGC_SEL;
-		break;
-	case ENGINE_ID_DIGD:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V6__DIGD_SEL;
-		break;
-	case ENGINE_ID_DIGE:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V6__DIGE_SEL;
-		break;
-	case ENGINE_ID_DIGF:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V6__DIGF_SEL;
-		break;
-	case ENGINE_ID_DIGG:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V6__DIGG_SEL;
-		break;
-	case ENGINE_ID_UNKNOWN:
-		/* No DIG_FRONT is associated to DIG_BACKEND */
-		atom_dig_encoder_sel = 0;
-		break;
-	default:
-		atom_dig_encoder_sel = ATOM_TRANMSITTER_V6__DIGA_SEL;
-		break;
-	}
+	/* On any ASIC after DCE80, we manually program the DIG_FE
+	 * selection (see connect_dig_be_to_fe function of the link
+	 * encoder), so translation should always return 0 (no FE).
+	 */
 
 	return 0;
 }
@@ -416,3 +388,43 @@ const struct command_table_helper *dal_cmd_tbl_helper_dce112_get_table2(void)
 {
 	return &command_table_helper_funcs;
 }
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+/* function table */
+static const struct command_table_helper command_table_helper_funcs_dcn2x = {
+	.controller_id_to_atom = dal_cmd_table_helper_controller_id_to_atom2,
+	.encoder_action_to_atom = encoder_action_to_atom,
+	.engine_bp_to_atom = engine_bp_to_atom,
+	.clock_source_id_to_atom = clock_source_id_to_atom,
+	.clock_source_id_to_atom_phy_clk_src_id =
+			clock_source_id_to_atom_phy_clk_src_id,
+	.signal_type_to_atom_dig_mode = signal_type_to_atom_dig_mode,
+	.hpd_sel_to_atom = hpd_sel_to_atom,
+	.dig_encoder_sel_to_atom = dig_encoder_sel_to_atom,
+	.phy_id_to_atom = phy_id_to_atom,
+	.disp_power_gating_action_to_atom = disp_power_gating_action_to_atom,
+	.clock_source_id_to_ref_clk_src = NULL,
+	.transmitter_bp_to_atom = NULL,
+	.encoder_id_to_atom = dal_cmd_table_helper_encoder_id_to_atom2,
+	.encoder_mode_bp_to_atom =
+			dal_cmd_table_helper_encoder_mode_bp_to_atom2,
+	.dc_clock_type_to_atom = dc_clock_type_to_atom,
+	.transmitter_color_depth_to_atom = transmitter_color_depth_to_atom,
+
+};
+
+/*
+ * dal_cmd_tbl_helper_dce110_get_table
+ *
+ * @brief
+ * Initialize command table helper functions
+ *
+ * @param
+ * const struct command_table_helper **h - [out] struct of functions
+ *
+ */
+const struct command_table_helper *dal_cmd_tbl_helper_dcn2_get_table2(void)
+{
+	return &command_table_helper_funcs_dcn2x;
+}
+#endif

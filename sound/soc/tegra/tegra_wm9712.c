@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tegra20_wm9712.c - Tegra machine ASoC driver for boards using WM9712 codec.
  *
@@ -5,16 +6,6 @@
  *
  * Partly based on code copyright/by:
  * Copyright 2011,2012 Toradex Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -49,12 +40,16 @@ static int tegra_wm9712_init(struct snd_soc_pcm_runtime *rtd)
 	return snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "Mic Bias");
 }
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link tegra_wm9712_dai = {
 	.name = "AC97 HiFi",
 	.stream_name = "AC97 HiFi",
-	.codec_dai_name = "wm9712-hifi",
-	.codec_name = "wm9712-codec",
 	.init = tegra_wm9712_init,
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card snd_soc_tegra_wm9712 = {
@@ -101,16 +96,16 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto codec_unregister;
 
-	tegra_wm9712_dai.cpu_of_node = of_parse_phandle(np,
+	tegra_wm9712_dai.cpus->of_node = of_parse_phandle(np,
 				       "nvidia,ac97-controller", 0);
-	if (!tegra_wm9712_dai.cpu_of_node) {
+	if (!tegra_wm9712_dai.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,ac97-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto codec_unregister;
 	}
 
-	tegra_wm9712_dai.platform_of_node = tegra_wm9712_dai.cpu_of_node;
+	tegra_wm9712_dai.platforms->of_node = tegra_wm9712_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)
@@ -118,19 +113,17 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 
 	ret = tegra_asoc_utils_set_ac97_rate(&machine->util_data);
 	if (ret)
-		goto asoc_utils_fini;
+		goto codec_unregister;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
-		goto asoc_utils_fini;
+		goto codec_unregister;
 	}
 
 	return 0;
 
-asoc_utils_fini:
-	tegra_asoc_utils_fini(&machine->util_data);
 codec_unregister:
 	platform_device_del(machine->codec);
 codec_put:
@@ -144,8 +137,6 @@ static int tegra_wm9712_driver_remove(struct platform_device *pdev)
 	struct tegra_wm9712 *machine = snd_soc_card_get_drvdata(card);
 
 	snd_soc_unregister_card(card);
-
-	tegra_asoc_utils_fini(&machine->util_data);
 
 	platform_device_unregister(machine->codec);
 

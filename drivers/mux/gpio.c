@@ -17,20 +17,18 @@
 
 struct mux_gpio {
 	struct gpio_descs *gpios;
-	int *val;
 };
 
 static int mux_gpio_set(struct mux_control *mux, int state)
 {
 	struct mux_gpio *mux_gpio = mux_chip_priv(mux->chip);
-	int i;
+	DECLARE_BITMAP(values, BITS_PER_TYPE(state));
 
-	for (i = 0; i < mux_gpio->gpios->ndescs; i++)
-		mux_gpio->val[i] = (state >> i) & 1;
+	values[0] = state;
 
 	gpiod_set_array_value_cansleep(mux_gpio->gpios->ndescs,
 				       mux_gpio->gpios->desc,
-				       mux_gpio->val);
+				       mux_gpio->gpios->info, values);
 
 	return 0;
 }
@@ -58,13 +56,11 @@ static int mux_gpio_probe(struct platform_device *pdev)
 	if (pins < 0)
 		return pins;
 
-	mux_chip = devm_mux_chip_alloc(dev, 1, sizeof(*mux_gpio) +
-				       pins * sizeof(*mux_gpio->val));
+	mux_chip = devm_mux_chip_alloc(dev, 1, sizeof(*mux_gpio));
 	if (IS_ERR(mux_chip))
 		return PTR_ERR(mux_chip);
 
 	mux_gpio = mux_chip_priv(mux_chip);
-	mux_gpio->val = (int *)(mux_gpio + 1);
 	mux_chip->ops = &mux_gpio_ops;
 
 	mux_gpio->gpios = devm_gpiod_get_array(dev, "mux", GPIOD_OUT_LOW);

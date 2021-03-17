@@ -53,6 +53,11 @@ Default is to monitor all CPUS.
 --group::
         Put the counters into a counter group.
 
+--group-sort-idx::
+	Sort the output by the event at the index n in group. If n is invalid,
+	sort by the first event. It can support multiple groups with different
+	amount of events. WARNING: This should be used on grouped events.
+
 -F <freq>::
 --freq=<freq>::
 	Profile at this frequency. Use 'max' to use the currently maximum
@@ -69,6 +74,9 @@ Default is to monitor all CPUS.
 
 --ignore-vmlinux::
 	Ignore vmlinux files.
+
+--kallsyms=<file>::
+	kallsyms pathname
 
 -m <pages>::
 --mmap-pages=<pages>::
@@ -154,6 +162,12 @@ Default is to monitor all CPUS.
 
 -M::
 --disassembler-style=:: Set disassembler style for objdump.
+
+--prefix=PREFIX::
+--prefix-strip=N::
+        Remove first N entries from source file path names in executables
+        and add PREFIX. This allows to display source code compiled on systems
+        with different file system layout.
 
 --source::
 	Interleave source code with assembly code. Enabled by default,
@@ -242,12 +256,89 @@ Default is to monitor all CPUS.
 --hierarchy::
 	Enable hierarchy output.
 
+--overwrite::
+	Enable this to use just the most recent records, which helps in high core count
+	machines such as Knights Landing/Mill, but right now is disabled by default as
+	the pausing used in this technique is leading to loss of metadata events such
+	as PERF_RECORD_MMAP which makes 'perf top' unable to resolve samples, leading
+	to lots of unknown samples appearing on the UI. Enable this if you are in such
+	machines and profiling a workload that doesn't creates short lived threads and/or
+	doesn't uses many executable mmap operations. Work is being planed to solve
+	this situation, till then, this will remain disabled by default.
+
 --force::
 	Don't do ownership validation.
 
 --num-thread-synthesize::
 	The number of threads to run when synthesizing events for existing processes.
 	By default, the number of threads equals to the number of online CPUs.
+
+--namespaces::
+	Record events of type PERF_RECORD_NAMESPACES and display it with the
+	'cgroup_id' sort key.
+
+--all-cgroups::
+	Record events of type PERF_RECORD_CGROUP and display it with the
+	'cgroup' sort key.
+
+--switch-on EVENT_NAME::
+	Only consider events after this event is found.
+
+	E.g.:
+
+           Find out where broadcast packets are handled
+
+		perf probe -L icmp_rcv
+
+	   Insert a probe there:
+
+		perf probe icmp_rcv:59
+
+	   Start perf top and ask it to only consider the cycles events when a
+           broadcast packet arrives This will show a menu with two entries and
+           will start counting when a broadcast packet arrives:
+
+		perf top -e cycles,probe:icmp_rcv --switch-on=probe:icmp_rcv
+
+	   Alternatively one can ask for --group and then two overhead columns
+           will appear, the first for cycles and the second for the switch-on event.
+
+		perf top --group -e cycles,probe:icmp_rcv --switch-on=probe:icmp_rcv
+
+	This may be interesting to measure a workload only after some initialization
+	phase is over, i.e. insert a perf probe at that point and use the above
+	examples replacing probe:icmp_rcv with the just-after-init probe.
+
+--switch-off EVENT_NAME::
+	Stop considering events after this event is found.
+
+--show-on-off-events::
+	Show the --switch-on/off events too. This has no effect in 'perf top' now
+	but probably we'll make the default not to show the switch-on/off events
+        on the --group mode and if there is only one event besides the off/on ones,
+	go straight to the histogram browser, just like 'perf top' with no events
+	explicitely specified does.
+
+--stitch-lbr::
+	Show callgraph with stitched LBRs, which may have more complete
+	callgraph. The option must be used with --call-graph lbr recording.
+	Disabled by default. In common cases with call stack overflows,
+	it can recreate better call stacks than the default lbr call stack
+	output. But this approach is not full proof. There can be cases
+	where it creates incorrect call stacks from incorrect matches.
+	The known limitations include exception handing such as
+	setjmp/longjmp will have calls/returns not match.
+
+ifdef::HAVE_LIBPFM[]
+--pfm-events events::
+Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)
+including support for event filters. For example '--pfm-events
+inst_retired:any_p:u:c=1:i'. More than one event can be passed to the
+option using the comma separator. Hardware events and generic hardware
+events cannot be mixed together. The latter must be used with the -e
+option. The -e option and this one can be mixed and matched.  Events
+can be grouped using the {} notation.
+endif::HAVE_LIBPFM[]
 
 INTERACTIVE PROMPTING KEYS
 --------------------------

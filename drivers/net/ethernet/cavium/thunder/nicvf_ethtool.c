@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 /* ETHTOOL Support for VNIC_VF Device*/
@@ -19,7 +16,6 @@
 #include "../common/cavium_ptp.h"
 
 #define DRV_NAME	"nicvf"
-#define DRV_VERSION     "1.0"
 
 struct nicvf_stat {
 	char name[ETH_GSTRING_LEN];
@@ -195,7 +191,6 @@ static void nicvf_get_drvinfo(struct net_device *netdev,
 	struct nicvf *nic = netdev_priv(netdev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(nic->pdev), sizeof(info->bus_info));
 }
 
@@ -527,7 +522,7 @@ static int nicvf_get_rss_hash_opts(struct nicvf *nic,
 	case SCTP_V4_FLOW:
 	case SCTP_V6_FLOW:
 		info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case IPV4_FLOW:
 	case IPV6_FLOW:
 		info->data |= RXH_IP_SRC | RXH_IP_DST;

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config USB_ISP1760
 	tristate "NXP ISP 1760/1761 support"
 	depends on USB || USB_GADGET

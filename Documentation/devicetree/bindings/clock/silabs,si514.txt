@@ -6,7 +6,7 @@ found in the datasheet[2].
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Si514 datasheet
-    http://www.silabs.com/Support%20Documents/TechnicalDocs/si514.pdf
+    https://www.silabs.com/Support%20Documents/TechnicalDocs/si514.pdf
 
 Required properties:
  - compatible: Shall be "silabs,si514"

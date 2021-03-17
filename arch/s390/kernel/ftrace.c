@@ -72,31 +72,6 @@ static inline void ftrace_generate_orig_insn(struct ftrace_insn *insn)
 #endif
 }
 
-static inline int is_kprobe_on_ftrace(struct ftrace_insn *insn)
-{
-#ifdef CONFIG_KPROBES
-	if (insn->opc == BREAKPOINT_INSTRUCTION)
-		return 1;
-#endif
-	return 0;
-}
-
-static inline void ftrace_generate_kprobe_nop_insn(struct ftrace_insn *insn)
-{
-#ifdef CONFIG_KPROBES
-	insn->opc = BREAKPOINT_INSTRUCTION;
-	insn->disp = KPROBE_ON_FTRACE_NOP;
-#endif
-}
-
-static inline void ftrace_generate_kprobe_call_insn(struct ftrace_insn *insn)
-{
-#ifdef CONFIG_KPROBES
-	insn->opc = BREAKPOINT_INSTRUCTION;
-	insn->disp = KPROBE_ON_FTRACE_CALL;
-#endif
-}
-
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
@@ -108,22 +83,12 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 {
 	struct ftrace_insn orig, new, old;
 
-	if (probe_kernel_read(&old, (void *) rec->ip, sizeof(old)))
+	if (copy_from_kernel_nofault(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
 	if (addr == MCOUNT_ADDR) {
 		/* Initial code replacement */
 		ftrace_generate_orig_insn(&orig);
 		ftrace_generate_nop_insn(&new);
-	} else if (is_kprobe_on_ftrace(&old)) {
-		/*
-		 * If we find a breakpoint instruction, a kprobe has been
-		 * placed at the beginning of the function. We write the
-		 * constant KPROBE_ON_FTRACE_NOP into the remaining four
-		 * bytes of the original instruction so that the kprobes
-		 * handler can execute a nop, if it reaches this breakpoint.
-		 */
-		ftrace_generate_kprobe_call_insn(&orig);
-		ftrace_generate_kprobe_nop_insn(&new);
 	} else {
 		/* Replace ftrace call with a nop. */
 		ftrace_generate_call_insn(&orig, rec->ip);
@@ -140,23 +105,12 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	struct ftrace_insn orig, new, old;
 
-	if (probe_kernel_read(&old, (void *) rec->ip, sizeof(old)))
+	if (copy_from_kernel_nofault(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
-	if (is_kprobe_on_ftrace(&old)) {
-		/*
-		 * If we find a breakpoint instruction, a kprobe has been
-		 * placed at the beginning of the function. We write the
-		 * constant KPROBE_ON_FTRACE_CALL into the remaining four
-		 * bytes of the original instruction so that the kprobes
-		 * handler can execute a brasl if it reaches this breakpoint.
-		 */
-		ftrace_generate_kprobe_nop_insn(&orig);
-		ftrace_generate_kprobe_call_insn(&new);
-	} else {
-		/* Replace nop with an ftrace call. */
-		ftrace_generate_nop_insn(&orig);
-		ftrace_generate_call_insn(&new, rec->ip);
-	}
+	/* Replace nop with an ftrace call. */
+	ftrace_generate_nop_insn(&orig);
+	ftrace_generate_call_insn(&new, rec->ip);
+
 	/* Verify that the to be replaced code matches what we expect. */
 	if (memcmp(&orig, &old, sizeof(old)))
 		return -EINVAL;
@@ -201,26 +155,18 @@ device_initcall(ftrace_plt_init);
  * Hook the return address and push it in the stack of return addresses
  * in current thread info.
  */
-unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip)
+unsigned long prepare_ftrace_return(unsigned long ra, unsigned long sp,
+				    unsigned long ip)
 {
-	struct ftrace_graph_ent trace;
-
 	if (unlikely(ftrace_graph_is_dead()))
 		goto out;
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
 	ip -= MCOUNT_INSN_SIZE;
-	trace.func = ip;
-	trace.depth = current->curr_ret_stack + 1;
-	/* Only trace if the calling function expects to. */
-	if (!ftrace_graph_entry(&trace))
-		goto out;
-	if (ftrace_push_return_trace(parent, ip, &trace.depth, 0,
-				     NULL) == -EBUSY)
-		goto out;
-	parent = (unsigned long) return_to_handler;
+	if (!function_graph_enter(ra, ip, 0, (void *) sp))
+		ra = (unsigned long) return_to_handler;
 out:
-	return parent;
+	return ra;
 }
 NOKPROBE_SYMBOL(prepare_ftrace_return);
 
@@ -249,3 +195,45 @@ int ftrace_disable_ftrace_graph_caller(void)
 }
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_KPROBES_ON_FTRACE
+void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
+		struct ftrace_ops *ops, struct pt_regs *regs)
+{
+	struct kprobe_ctlblk *kcb;
+	struct kprobe *p = get_kprobe((kprobe_opcode_t *)ip);
+
+	if (unlikely(!p) || kprobe_disabled(p))
+		return;
+
+	if (kprobe_running()) {
+		kprobes_inc_nmissed_count(p);
+		return;
+	}
+
+	__this_cpu_write(current_kprobe, p);
+
+	kcb = get_kprobe_ctlblk();
+	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+
+	instruction_pointer_set(regs, ip);
+
+	if (!p->pre_handler || !p->pre_handler(p, regs)) {
+
+		instruction_pointer_set(regs, ip + MCOUNT_INSN_SIZE);
+
+		if (unlikely(p->post_handler)) {
+			kcb->kprobe_status = KPROBE_HIT_SSDONE;
+			p->post_handler(p, regs, 0);
+		}
+	}
+	__this_cpu_write(current_kprobe, NULL);
+}
+NOKPROBE_SYMBOL(kprobe_ftrace_handler);
+
+int arch_prepare_kprobe_ftrace(struct kprobe *p)
+{
+	p->ainsn.insn = NULL;
+	return 0;
+}
+#endif

@@ -228,6 +228,9 @@
 #define RSI_MAX_TX_AGGR_FRMS		8
 #define RSI_MAX_RX_AGGR_FRMS		8
 
+#define RSI_MAX_SCAN_SSIDS		16
+#define RSI_MAX_SCAN_IE_LEN		256
+
 enum opmode {
 	RSI_OPMODE_UNSUPPORTED = -1,
 	RSI_OPMODE_AP = 0,
@@ -291,6 +294,7 @@ enum cmd_frame_type {
 	COMMON_DEV_CONFIG = 0x28,
 	RADIO_PARAMS_UPDATE = 0x29,
 	WOWLAN_CONFIG_PARAMS = 0x2B,
+	FEATURES_ENABLE = 0x33,
 	WOWLAN_WAKEUP_REASON = 0xc5
 };
 
@@ -346,6 +350,15 @@ struct rsi_cmd_desc {
 struct rsi_boot_params {
 	__le16 desc_word[8];
 	struct bootup_params bootup_params;
+} __packed;
+
+struct rsi_boot_params_9116 {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	struct rsi_cmd_desc_dword2 desc_dword2;
+	__le16 reserved;
+	__le16 umac_clk;
+	struct bootup_params_9116 bootup_params;
 } __packed;
 
 struct rsi_peer_notify {
@@ -623,6 +636,50 @@ struct rsi_wowlan_req {
 	u16 host_sleep_status;
 } __packed;
 
+#define RSI_START_BGSCAN		1
+#define RSI_STOP_BGSCAN			0
+#define HOST_BG_SCAN_TRIG		BIT(4)
+struct rsi_bgscan_config {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	__le64 reserved;
+	__le32 reserved1;
+	__le16 bgscan_threshold;
+	__le16 roam_threshold;
+	__le16 bgscan_periodicity;
+	u8 num_bgscan_channels;
+	u8 two_probe;
+	__le16 active_scan_duration;
+	__le16 passive_scan_duration;
+	__le16 channels2scan[MAX_BGSCAN_CHANNELS_DUAL_BAND];
+} __packed;
+
+struct rsi_bgscan_probe {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	__le64 reserved;
+	__le32 reserved1;
+	__le16 mgmt_rate;
+	__le16 flags;
+	__le16 def_chan;
+	__le16 channel_scan_time;
+	__le16 probe_req_length;
+} __packed;
+
+#define RSI_DUTY_CYCLING	BIT(0)
+#define RSI_END_OF_FRAME	BIT(1)
+#define RSI_SIFS_TX_ENABLE	BIT(2)
+#define RSI_DPD			BIT(3)
+struct rsi_wlan_9116_features {
+	struct rsi_cmd_desc desc;
+	u8 pll_mode;
+	u8 rf_type;
+	u8 wireless_mode;
+	u8 enable_ppe;
+	u8 afe_type;
+	u8 reserved1;
+	__le16 reserved2;
+	__le32 feature_enable;
+};
+
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
 {
 	return (le16_to_cpu(*(__le16 *)&addr[offset]) & 0x7000) >> 12;
@@ -694,4 +751,8 @@ int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 #endif
 int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 			struct ieee80211_vif *vif);
+void init_bgscan_params(struct rsi_common *common);
+int rsi_send_bgscan_params(struct rsi_common *common, int enable);
+int rsi_send_bgscan_probe_req(struct rsi_common *common,
+			      struct ieee80211_vif *vif);
 #endif

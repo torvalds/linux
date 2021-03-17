@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright (C) 2013 Freescale Semiconductor, Inc.
  * Author: Varun Sethi <varun.sethi@freescale.com>
- *
  */
 
 #define pr_fmt(fmt)    "fsl-pamu-domain: %s: " fmt, __func__
@@ -335,7 +323,7 @@ static void remove_device_ref(struct device_domain_info *info, u32 win_cnt)
 	pamu_disable_liodn(info->liodn);
 	spin_unlock_irqrestore(&iommu_lock, flags);
 	spin_lock_irqsave(&device_domain_lock, flags);
-	info->dev->archdata.iommu_domain = NULL;
+	dev_iommu_priv_set(info->dev, NULL);
 	kmem_cache_free(iommu_devinfo_cache, info);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 }
@@ -364,7 +352,7 @@ static void attach_device(struct fsl_dma_domain *dma_domain, int liodn, struct d
 	 * Check here if the device is already attached to domain or not.
 	 * If the device is already attached to a domain detach it.
 	 */
-	old_domain_info = dev->archdata.iommu_domain;
+	old_domain_info = dev_iommu_priv_get(dev);
 	if (old_domain_info && old_domain_info->domain != dma_domain) {
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 		detach_device(dev, old_domain_info->domain);
@@ -383,8 +371,8 @@ static void attach_device(struct fsl_dma_domain *dma_domain, int liodn, struct d
 	 * the info for the first LIODN as all
 	 * LIODNs share the same domain
 	 */
-	if (!dev->archdata.iommu_domain)
-		dev->archdata.iommu_domain = info;
+	if (!dev_iommu_priv_get(dev))
+		dev_iommu_priv_set(dev, info);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 }
 
@@ -814,6 +802,55 @@ static int configure_domain_dma_state(struct fsl_dma_domain *dma_domain, bool en
 	return 0;
 }
 
+static int fsl_pamu_set_windows(struct iommu_domain *domain, u32 w_count)
+{
+	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&dma_domain->domain_lock, flags);
+	/* Ensure domain is inactive i.e. DMA should be disabled for the domain */
+	if (dma_domain->enabled) {
+		pr_debug("Can't set geometry attributes as domain is active\n");
+		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+		return  -EBUSY;
+	}
+
+	/* Ensure that the geometry has been set for the domain */
+	if (!dma_domain->geom_size) {
+		pr_debug("Please configure geometry before setting the number of windows\n");
+		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+		return -EINVAL;
+	}
+
+	/*
+	 * Ensure we have valid window count i.e. it should be less than
+	 * maximum permissible limit and should be a power of two.
+	 */
+	if (w_count > pamu_get_max_subwin_cnt() || !is_power_of_2(w_count)) {
+		pr_debug("Invalid window count\n");
+		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+		return -EINVAL;
+	}
+
+	ret = pamu_set_domain_geometry(dma_domain, &domain->geometry,
+				       w_count > 1 ? w_count : 0);
+	if (!ret) {
+		kfree(dma_domain->win_arr);
+		dma_domain->win_arr = kcalloc(w_count,
+					      sizeof(*dma_domain->win_arr),
+					      GFP_ATOMIC);
+		if (!dma_domain->win_arr) {
+			spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+			return -ENOMEM;
+		}
+		dma_domain->win_cnt = w_count;
+	}
+	spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+
+	return ret;
+}
+
 static int fsl_pamu_set_domain_attr(struct iommu_domain *domain,
 				    enum iommu_attr attr_type, void *data)
 {
@@ -829,6 +866,9 @@ static int fsl_pamu_set_domain_attr(struct iommu_domain *domain,
 		break;
 	case DOMAIN_ATTR_FSL_PAMU_ENABLE:
 		ret = configure_domain_dma_state(dma_domain, *(int *)data);
+		break;
+	case DOMAIN_ATTR_WINDOWS:
+		ret = fsl_pamu_set_windows(domain, *(u32 *)data);
 		break;
 	default:
 		pr_debug("Unsupported attribute type\n");
@@ -855,6 +895,9 @@ static int fsl_pamu_get_domain_attr(struct iommu_domain *domain,
 		break;
 	case DOMAIN_ATTR_FSL_PAMUV1:
 		*(int *)data = DOMAIN_ATTR_FSL_PAMUV1;
+		break;
+	case DOMAIN_ATTR_WINDOWS:
+		*(u32 *)data = dma_domain->win_cnt;
 		break;
 	default:
 		pr_debug("Unsupported attribute type\n");
@@ -916,13 +959,13 @@ static struct iommu_group *get_shared_pci_device_group(struct pci_dev *pdev)
 static struct iommu_group *get_pci_device_group(struct pci_dev *pdev)
 {
 	struct pci_controller *pci_ctl;
-	bool pci_endpt_partioning;
+	bool pci_endpt_partitioning;
 	struct iommu_group *group = NULL;
 
 	pci_ctl = pci_bus_to_host(pdev->bus);
-	pci_endpt_partioning = check_pci_ctl_endpt_part(pci_ctl);
+	pci_endpt_partitioning = check_pci_ctl_endpt_part(pci_ctl);
 	/* We can partition PCIe devices so assign device group to the device */
-	if (pci_endpt_partioning) {
+	if (pci_endpt_partitioning) {
 		group = pci_device_group(&pdev->dev);
 
 		/*
@@ -973,81 +1016,13 @@ static struct iommu_group *fsl_pamu_device_group(struct device *dev)
 	return group;
 }
 
-static int fsl_pamu_add_device(struct device *dev)
+static struct iommu_device *fsl_pamu_probe_device(struct device *dev)
 {
-	struct iommu_group *group;
-
-	group = iommu_group_get_for_dev(dev);
-	if (IS_ERR(group))
-		return PTR_ERR(group);
-
-	iommu_group_put(group);
-
-	iommu_device_link(&pamu_iommu, dev);
-
-	return 0;
+	return &pamu_iommu;
 }
 
-static void fsl_pamu_remove_device(struct device *dev)
+static void fsl_pamu_release_device(struct device *dev)
 {
-	iommu_device_unlink(&pamu_iommu, dev);
-	iommu_group_remove_device(dev);
-}
-
-static int fsl_pamu_set_windows(struct iommu_domain *domain, u32 w_count)
-{
-	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&dma_domain->domain_lock, flags);
-	/* Ensure domain is inactive i.e. DMA should be disabled for the domain */
-	if (dma_domain->enabled) {
-		pr_debug("Can't set geometry attributes as domain is active\n");
-		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-		return  -EBUSY;
-	}
-
-	/* Ensure that the geometry has been set for the domain */
-	if (!dma_domain->geom_size) {
-		pr_debug("Please configure geometry before setting the number of windows\n");
-		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-		return -EINVAL;
-	}
-
-	/*
-	 * Ensure we have valid window count i.e. it should be less than
-	 * maximum permissible limit and should be a power of two.
-	 */
-	if (w_count > pamu_get_max_subwin_cnt() || !is_power_of_2(w_count)) {
-		pr_debug("Invalid window count\n");
-		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-		return -EINVAL;
-	}
-
-	ret = pamu_set_domain_geometry(dma_domain, &domain->geometry,
-				       w_count > 1 ? w_count : 0);
-	if (!ret) {
-		kfree(dma_domain->win_arr);
-		dma_domain->win_arr = kcalloc(w_count,
-					      sizeof(*dma_domain->win_arr),
-					      GFP_ATOMIC);
-		if (!dma_domain->win_arr) {
-			spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-			return -ENOMEM;
-		}
-		dma_domain->win_cnt = w_count;
-	}
-	spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-
-	return ret;
-}
-
-static u32 fsl_pamu_get_windows(struct iommu_domain *domain)
-{
-	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
-
-	return dma_domain->win_cnt;
 }
 
 static const struct iommu_ops fsl_pamu_ops = {
@@ -1058,13 +1033,11 @@ static const struct iommu_ops fsl_pamu_ops = {
 	.detach_dev	= fsl_pamu_detach_device,
 	.domain_window_enable = fsl_pamu_window_enable,
 	.domain_window_disable = fsl_pamu_window_disable,
-	.domain_get_windows = fsl_pamu_get_windows,
-	.domain_set_windows = fsl_pamu_set_windows,
 	.iova_to_phys	= fsl_pamu_iova_to_phys,
 	.domain_set_attr = fsl_pamu_set_domain_attr,
 	.domain_get_attr = fsl_pamu_get_domain_attr,
-	.add_device	= fsl_pamu_add_device,
-	.remove_device	= fsl_pamu_remove_device,
+	.probe_device	= fsl_pamu_probe_device,
+	.release_device	= fsl_pamu_release_device,
 	.device_group   = fsl_pamu_device_group,
 };
 

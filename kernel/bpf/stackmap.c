@@ -1,17 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include <linux/bpf.h>
 #include <linux/jhash.h>
 #include <linux/filter.h>
+#include <linux/kernel.h>
 #include <linux/stacktrace.h>
 #include <linux/perf_event.h>
 #include <linux/elf.h>
 #include <linux/pagemap.h>
 #include <linux/irq_work.h>
+#include <linux/btf_ids.h>
 #include "percpu_freelist.h"
 
 #define STACK_CREATE_FLAG_MASK					\
@@ -36,16 +35,18 @@ struct bpf_stack_map {
 /* irq_work to run up_read() for build_id lookup in nmi context */
 struct stack_map_irq_work {
 	struct irq_work irq_work;
-	struct rw_semaphore *sem;
+	struct mm_struct *mm;
 };
 
 static void do_up_read(struct irq_work *entry)
 {
 	struct stack_map_irq_work *work;
 
+	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_PREEMPT_RT)))
+		return;
+
 	work = container_of(entry, struct stack_map_irq_work, irq_work);
-	up_read(work->sem);
-	work->sem = NULL;
+	mmap_read_unlock_non_owner(work->mm);
 }
 
 static DEFINE_PER_CPU(struct stack_map_irq_work, up_read_work);
@@ -89,10 +90,11 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 {
 	u32 value_size = attr->value_size;
 	struct bpf_stack_map *smap;
+	struct bpf_map_memory mem;
 	u64 cost, n_buckets;
 	int err;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
 
 	if (attr->map_flags & ~STACK_CREATE_FLAG_MASK)
@@ -114,42 +116,41 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 
 	/* hash table size must be power of 2 */
 	n_buckets = roundup_pow_of_two(attr->max_entries);
-
-	cost = n_buckets * sizeof(struct stack_map_bucket *) + sizeof(*smap);
-	if (cost >= U32_MAX - PAGE_SIZE)
+	if (!n_buckets)
 		return ERR_PTR(-E2BIG);
 
-	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_node(attr));
-	if (!smap)
-		return ERR_PTR(-ENOMEM);
-
-	err = -E2BIG;
+	cost = n_buckets * sizeof(struct stack_map_bucket *) + sizeof(*smap);
 	cost += n_buckets * (value_size + sizeof(struct stack_map_bucket));
-	if (cost >= U32_MAX - PAGE_SIZE)
-		goto free_smap;
+	err = bpf_map_charge_init(&mem, cost);
+	if (err)
+		return ERR_PTR(err);
+
+	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_node(attr));
+	if (!smap) {
+		bpf_map_charge_finish(&mem);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	bpf_map_init_from_attr(&smap->map, attr);
 	smap->map.value_size = value_size;
 	smap->n_buckets = n_buckets;
-	smap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
-
-	err = bpf_map_precharge_memlock(smap->map.pages);
-	if (err)
-		goto free_smap;
 
 	err = get_callchain_buffers(sysctl_perf_event_max_stack);
 	if (err)
-		goto free_smap;
+		goto free_charge;
 
 	err = prealloc_elems_and_freelist(smap);
 	if (err)
 		goto put_buffers;
 
+	bpf_map_charge_move(&smap->map.memory, &mem);
+
 	return &smap->map;
 
 put_buffers:
 	put_callchain_buffers();
-free_smap:
+free_charge:
+	bpf_map_charge_finish(&mem);
 	bpf_map_area_free(smap);
 	return ERR_PTR(err);
 }
@@ -180,11 +181,14 @@ static inline int stack_map_parse_build_id(void *page_addr,
 
 		if (nhdr->n_type == BPF_BUILD_ID &&
 		    nhdr->n_namesz == sizeof("GNU") &&
-		    nhdr->n_descsz == BPF_BUILD_ID_SIZE) {
+		    nhdr->n_descsz > 0 &&
+		    nhdr->n_descsz <= BPF_BUILD_ID_SIZE) {
 			memcpy(build_id,
 			       note_start + note_offs +
 			       ALIGN(sizeof("GNU"), 4) + sizeof(Elf32_Nhdr),
-			       BPF_BUILD_ID_SIZE);
+			       nhdr->n_descsz);
+			memset(build_id + nhdr->n_descsz, 0,
+			       BPF_BUILD_ID_SIZE - nhdr->n_descsz);
 			return 0;
 		}
 		new_offs = note_offs + sizeof(Elf32_Nhdr) +
@@ -211,11 +215,13 @@ static int stack_map_get_build_id_32(void *page_addr,
 
 	phdr = (Elf32_Phdr *)(page_addr + sizeof(Elf32_Ehdr));
 
-	for (i = 0; i < ehdr->e_phnum; ++i)
-		if (phdr[i].p_type == PT_NOTE)
-			return stack_map_parse_build_id(page_addr, build_id,
-					page_addr + phdr[i].p_offset,
-					phdr[i].p_filesz);
+	for (i = 0; i < ehdr->e_phnum; ++i) {
+		if (phdr[i].p_type == PT_NOTE &&
+		    !stack_map_parse_build_id(page_addr, build_id,
+					      page_addr + phdr[i].p_offset,
+					      phdr[i].p_filesz))
+			return 0;
+	}
 	return -EINVAL;
 }
 
@@ -234,11 +240,13 @@ static int stack_map_get_build_id_64(void *page_addr,
 
 	phdr = (Elf64_Phdr *)(page_addr + sizeof(Elf64_Ehdr));
 
-	for (i = 0; i < ehdr->e_phnum; ++i)
-		if (phdr[i].p_type == PT_NOTE)
-			return stack_map_parse_build_id(page_addr, build_id,
-					page_addr + phdr[i].p_offset,
-					phdr[i].p_filesz);
+	for (i = 0; i < ehdr->e_phnum; ++i) {
+		if (phdr[i].p_type == PT_NOTE &&
+		    !stack_map_parse_build_id(page_addr, build_id,
+					      page_addr + phdr[i].p_offset,
+					      phdr[i].p_filesz))
+			return 0;
+	}
 	return -EINVAL;
 }
 
@@ -260,7 +268,7 @@ static int stack_map_get_build_id(struct vm_area_struct *vma,
 		return -EFAULT;	/* page not mapped */
 
 	ret = -EINVAL;
-	page_addr = page_address(page);
+	page_addr = kmap_atomic(page);
 	ehdr = (Elf32_Ehdr *)page_addr;
 
 	/* compare magic x7f "ELF" */
@@ -276,6 +284,7 @@ static int stack_map_get_build_id(struct vm_area_struct *vma,
 	else if (ehdr->e_ident[EI_CLASS] == ELFCLASS64)
 		ret = stack_map_get_build_id_64(page_addr, build_id);
 out:
+	kunmap_atomic(page_addr);
 	put_page(page);
 	return ret;
 }
@@ -288,16 +297,26 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 	bool irq_work_busy = false;
 	struct stack_map_irq_work *work = NULL;
 
-	if (in_nmi()) {
-		work = this_cpu_ptr(&up_read_work);
-		if (work->irq_work.flags & IRQ_WORK_BUSY)
-			/* cannot queue more up_read, fallback */
+	if (irqs_disabled()) {
+		if (!IS_ENABLED(CONFIG_PREEMPT_RT)) {
+			work = this_cpu_ptr(&up_read_work);
+			if (atomic_read(&work->irq_work.flags) & IRQ_WORK_BUSY) {
+				/* cannot queue more up_read, fallback */
+				irq_work_busy = true;
+			}
+		} else {
+			/*
+			 * PREEMPT_RT does not allow to trylock mmap sem in
+			 * interrupt disabled context. Force the fallback code.
+			 */
 			irq_work_busy = true;
+		}
 	}
 
 	/*
-	 * We cannot do up_read() in nmi context. To do build_id lookup
-	 * in nmi context, we need to run up_read() in irq_work. We use
+	 * We cannot do up_read() when the irq is disabled, because of
+	 * risk to deadlock with rq_lock. To do build_id lookup when the
+	 * irqs are disabled, we need to run up_read() in irq_work. We use
 	 * a percpu variable to do the irq_work. If the irq_work is
 	 * already used by another lookup, we fall back to report ips.
 	 *
@@ -305,11 +324,12 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 	 * with build_id.
 	 */
 	if (!user || !current || !current->mm || irq_work_busy ||
-	    down_read_trylock(&current->mm->mmap_sem) == 0) {
+	    !mmap_read_trylock_non_owner(current->mm)) {
 		/* cannot access current->mm, fall back to ips */
 		for (i = 0; i < trace_nr; i++) {
 			id_offs[i].status = BPF_STACK_BUILD_ID_IP;
 			id_offs[i].ip = ips[i];
+			memset(id_offs[i].build_id, 0, BPF_BUILD_ID_SIZE);
 		}
 		return;
 	}
@@ -320,6 +340,7 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 			/* per entry fall back to ips */
 			id_offs[i].status = BPF_STACK_BUILD_ID_IP;
 			id_offs[i].ip = ips[i];
+			memset(id_offs[i].build_id, 0, BPF_BUILD_ID_SIZE);
 			continue;
 		}
 		id_offs[i].offset = (vma->vm_pgoff << PAGE_SHIFT) + ips[i]
@@ -328,18 +349,55 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 	}
 
 	if (!work) {
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock_non_owner(current->mm);
 	} else {
-		work->sem = &current->mm->mmap_sem;
+		work->mm = current->mm;
 		irq_work_queue(&work->irq_work);
 	}
 }
 
-BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
-	   u64, flags)
+static struct perf_callchain_entry *
+get_callchain_entry_for_task(struct task_struct *task, u32 init_nr)
+{
+#ifdef CONFIG_STACKTRACE
+	struct perf_callchain_entry *entry;
+	int rctx;
+
+	entry = get_callchain_entry(&rctx);
+
+	if (!entry)
+		return NULL;
+
+	entry->nr = init_nr +
+		stack_trace_save_tsk(task, (unsigned long *)(entry->ip + init_nr),
+				     sysctl_perf_event_max_stack - init_nr, 0);
+
+	/* stack_trace_save_tsk() works on unsigned long array, while
+	 * perf_callchain_entry uses u64 array. For 32-bit systems, it is
+	 * necessary to fix this mismatch.
+	 */
+	if (__BITS_PER_LONG != 64) {
+		unsigned long *from = (unsigned long *) entry->ip;
+		u64 *to = entry->ip;
+		int i;
+
+		/* copy data from the end to avoid using extra buffer */
+		for (i = entry->nr - 1; i >= (int)init_nr; i--)
+			to[i] = (u64)(from[i]);
+	}
+
+	put_callchain_entry(rctx);
+
+	return entry;
+#else /* CONFIG_STACKTRACE */
+	return NULL;
+#endif
+}
+
+static long __bpf_get_stackid(struct bpf_map *map,
+			      struct perf_callchain_entry *trace, u64 flags)
 {
 	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);
-	struct perf_callchain_entry *trace;
 	struct stack_map_bucket *bucket, *new_bucket, *old_bucket;
 	u32 max_depth = map->value_size / stack_map_data_size(map);
 	/* stack_map_alloc() checks that max_depth <= sysctl_perf_event_max_stack */
@@ -347,20 +405,8 @@ BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
 	u32 skip = flags & BPF_F_SKIP_FIELD_MASK;
 	u32 hash, id, trace_nr, trace_len;
 	bool user = flags & BPF_F_USER_STACK;
-	bool kernel = !user;
 	u64 *ips;
 	bool hash_matches;
-
-	if (unlikely(flags & ~(BPF_F_SKIP_FIELD_MASK | BPF_F_USER_STACK |
-			       BPF_F_FAST_STACK_CMP | BPF_F_REUSE_STACKID)))
-		return -EINVAL;
-
-	trace = get_perf_callchain(regs, init_nr, kernel, user,
-				   sysctl_perf_event_max_stack, false, false);
-
-	if (unlikely(!trace))
-		/* couldn't fetch the stack trace */
-		return -EFAULT;
 
 	/* get_perf_callchain() guarantees that trace->nr >= init_nr
 	 * and trace-nr <= sysctl_perf_event_max_stack, so trace_nr <= max_depth
@@ -426,6 +472,30 @@ BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
 	return id;
 }
 
+BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
+	   u64, flags)
+{
+	u32 max_depth = map->value_size / stack_map_data_size(map);
+	/* stack_map_alloc() checks that max_depth <= sysctl_perf_event_max_stack */
+	u32 init_nr = sysctl_perf_event_max_stack - max_depth;
+	bool user = flags & BPF_F_USER_STACK;
+	struct perf_callchain_entry *trace;
+	bool kernel = !user;
+
+	if (unlikely(flags & ~(BPF_F_SKIP_FIELD_MASK | BPF_F_USER_STACK |
+			       BPF_F_FAST_STACK_CMP | BPF_F_REUSE_STACKID)))
+		return -EINVAL;
+
+	trace = get_perf_callchain(regs, init_nr, kernel, user,
+				   sysctl_perf_event_max_stack, false, false);
+
+	if (unlikely(!trace))
+		/* couldn't fetch the stack trace */
+		return -EFAULT;
+
+	return __bpf_get_stackid(map, trace, flags);
+}
+
 const struct bpf_func_proto bpf_get_stackid_proto = {
 	.func		= bpf_get_stackid,
 	.gpl_only	= true,
@@ -435,8 +505,78 @@ const struct bpf_func_proto bpf_get_stackid_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_4(bpf_get_stack, struct pt_regs *, regs, void *, buf, u32, size,
-	   u64, flags)
+static __u64 count_kernel_ip(struct perf_callchain_entry *trace)
+{
+	__u64 nr_kernel = 0;
+
+	while (nr_kernel < trace->nr) {
+		if (trace->ip[nr_kernel] == PERF_CONTEXT_USER)
+			break;
+		nr_kernel++;
+	}
+	return nr_kernel;
+}
+
+BPF_CALL_3(bpf_get_stackid_pe, struct bpf_perf_event_data_kern *, ctx,
+	   struct bpf_map *, map, u64, flags)
+{
+	struct perf_event *event = ctx->event;
+	struct perf_callchain_entry *trace;
+	bool kernel, user;
+	__u64 nr_kernel;
+	int ret;
+
+	/* perf_sample_data doesn't have callchain, use bpf_get_stackid */
+	if (!(event->attr.sample_type & __PERF_SAMPLE_CALLCHAIN_EARLY))
+		return bpf_get_stackid((unsigned long)(ctx->regs),
+				       (unsigned long) map, flags, 0, 0);
+
+	if (unlikely(flags & ~(BPF_F_SKIP_FIELD_MASK | BPF_F_USER_STACK |
+			       BPF_F_FAST_STACK_CMP | BPF_F_REUSE_STACKID)))
+		return -EINVAL;
+
+	user = flags & BPF_F_USER_STACK;
+	kernel = !user;
+
+	trace = ctx->data->callchain;
+	if (unlikely(!trace))
+		return -EFAULT;
+
+	nr_kernel = count_kernel_ip(trace);
+
+	if (kernel) {
+		__u64 nr = trace->nr;
+
+		trace->nr = nr_kernel;
+		ret = __bpf_get_stackid(map, trace, flags);
+
+		/* restore nr */
+		trace->nr = nr;
+	} else { /* user */
+		u64 skip = flags & BPF_F_SKIP_FIELD_MASK;
+
+		skip += nr_kernel;
+		if (skip > BPF_F_SKIP_FIELD_MASK)
+			return -EFAULT;
+
+		flags = (flags & ~BPF_F_SKIP_FIELD_MASK) | skip;
+		ret = __bpf_get_stackid(map, trace, flags);
+	}
+	return ret;
+}
+
+const struct bpf_func_proto bpf_get_stackid_proto_pe = {
+	.func		= bpf_get_stackid_pe,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
+			    struct perf_callchain_entry *trace_in,
+			    void *buf, u32 size, u64 flags)
 {
 	u32 init_nr, trace_nr, copy_len, elem_size, num_elem;
 	bool user_build_id = flags & BPF_F_USER_BUILD_ID;
@@ -458,13 +598,24 @@ BPF_CALL_4(bpf_get_stack, struct pt_regs *, regs, void *, buf, u32, size,
 	if (unlikely(size % elem_size))
 		goto clear;
 
+	/* cannot get valid user stack for task without user_mode regs */
+	if (task && user && !user_mode(regs))
+		goto err_fault;
+
 	num_elem = size / elem_size;
 	if (sysctl_perf_event_max_stack < num_elem)
 		init_nr = 0;
 	else
 		init_nr = sysctl_perf_event_max_stack - num_elem;
-	trace = get_perf_callchain(regs, init_nr, kernel, user,
-				   sysctl_perf_event_max_stack, false, false);
+
+	if (trace_in)
+		trace = trace_in;
+	else if (kernel && task)
+		trace = get_callchain_entry_for_task(task, init_nr);
+	else
+		trace = get_perf_callchain(regs, init_nr, kernel, user,
+					   sysctl_perf_event_max_stack,
+					   false, false);
 	if (unlikely(!trace))
 		goto err_fault;
 
@@ -492,8 +643,98 @@ clear:
 	return err;
 }
 
+BPF_CALL_4(bpf_get_stack, struct pt_regs *, regs, void *, buf, u32, size,
+	   u64, flags)
+{
+	return __bpf_get_stack(regs, NULL, NULL, buf, size, flags);
+}
+
 const struct bpf_func_proto bpf_get_stack_proto = {
 	.func		= bpf_get_stack,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_get_task_stack, struct task_struct *, task, void *, buf,
+	   u32, size, u64, flags)
+{
+	struct pt_regs *regs = task_pt_regs(task);
+
+	return __bpf_get_stack(regs, task, NULL, buf, size, flags);
+}
+
+BTF_ID_LIST_SINGLE(bpf_get_task_stack_btf_ids, struct, task_struct)
+
+const struct bpf_func_proto bpf_get_task_stack_proto = {
+	.func		= bpf_get_task_stack,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_BTF_ID,
+	.arg1_btf_id	= &bpf_get_task_stack_btf_ids[0],
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_get_stack_pe, struct bpf_perf_event_data_kern *, ctx,
+	   void *, buf, u32, size, u64, flags)
+{
+	struct pt_regs *regs = (struct pt_regs *)(ctx->regs);
+	struct perf_event *event = ctx->event;
+	struct perf_callchain_entry *trace;
+	bool kernel, user;
+	int err = -EINVAL;
+	__u64 nr_kernel;
+
+	if (!(event->attr.sample_type & __PERF_SAMPLE_CALLCHAIN_EARLY))
+		return __bpf_get_stack(regs, NULL, NULL, buf, size, flags);
+
+	if (unlikely(flags & ~(BPF_F_SKIP_FIELD_MASK | BPF_F_USER_STACK |
+			       BPF_F_USER_BUILD_ID)))
+		goto clear;
+
+	user = flags & BPF_F_USER_STACK;
+	kernel = !user;
+
+	err = -EFAULT;
+	trace = ctx->data->callchain;
+	if (unlikely(!trace))
+		goto clear;
+
+	nr_kernel = count_kernel_ip(trace);
+
+	if (kernel) {
+		__u64 nr = trace->nr;
+
+		trace->nr = nr_kernel;
+		err = __bpf_get_stack(regs, NULL, trace, buf, size, flags);
+
+		/* restore nr */
+		trace->nr = nr;
+	} else { /* user */
+		u64 skip = flags & BPF_F_SKIP_FIELD_MASK;
+
+		skip += nr_kernel;
+		if (skip > BPF_F_SKIP_FIELD_MASK)
+			goto clear;
+
+		flags = (flags & ~BPF_F_SKIP_FIELD_MASK) | skip;
+		err = __bpf_get_stack(regs, NULL, trace, buf, size, flags);
+	}
+	return err;
+
+clear:
+	memset(buf, 0, size);
+	return err;
+
+}
+
+const struct bpf_func_proto bpf_get_stack_proto_pe = {
+	.func		= bpf_get_stack_pe,
 	.gpl_only	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
@@ -505,7 +746,7 @@ const struct bpf_func_proto bpf_get_stack_proto = {
 /* Called from eBPF program */
 static void *stack_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	return NULL;
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 /* Called from syscall */
@@ -591,16 +832,15 @@ static void stack_map_free(struct bpf_map *map)
 {
 	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);
 
-	/* wait for bpf programs to complete before freeing stack map */
-	synchronize_rcu();
-
 	bpf_map_area_free(smap->elems);
 	pcpu_freelist_destroy(&smap->freelist);
 	bpf_map_area_free(smap);
 	put_callchain_buffers();
 }
 
-const struct bpf_map_ops stack_map_ops = {
+static int stack_trace_map_btf_id;
+const struct bpf_map_ops stack_trace_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = stack_map_alloc,
 	.map_free = stack_map_free,
 	.map_get_next_key = stack_map_get_next_key,
@@ -608,6 +848,8 @@ const struct bpf_map_ops stack_map_ops = {
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "bpf_stack_map",
+	.map_btf_id = &stack_trace_map_btf_id,
 };
 
 static int __init stack_map_init(void)

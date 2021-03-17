@@ -17,9 +17,9 @@ extern void pxa168_clear_keypad_wakeup(void);
 #include <linux/platform_data/keypad-pxa27x.h>
 #include <linux/pxa168_eth.h>
 #include <linux/platform_data/mv_usb.h>
+#include <linux/soc/mmp/cputype.h>
 
 #include "devices.h"
-#include "cputype.h"
 
 extern struct pxa_device_desc pxa168_device_uart1;
 extern struct pxa_device_desc pxa168_device_uart2;

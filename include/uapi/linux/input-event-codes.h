@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Input event codes
  *
@@ -439,10 +439,12 @@
 #define KEY_TITLE		0x171
 #define KEY_SUBTITLE		0x172
 #define KEY_ANGLE		0x173
-#define KEY_ZOOM		0x174
+#define KEY_FULL_SCREEN		0x174	/* AC View Toggle */
+#define KEY_ZOOM		KEY_FULL_SCREEN
 #define KEY_MODE		0x175
 #define KEY_KEYBOARD		0x176
-#define KEY_SCREEN		0x177
+#define KEY_ASPECT_RATIO	0x177	/* HUTRR37: Aspect */
+#define KEY_SCREEN		KEY_ASPECT_RATIO
 #define KEY_PC			0x178	/* Media Select Computer */
 #define KEY_TV			0x179	/* Media Select TV */
 #define KEY_TV2			0x17a	/* Media Select Cable */
@@ -513,6 +515,9 @@
 #define KEY_10CHANNELSUP	0x1b8	/* 10 channels up (10+) */
 #define KEY_10CHANNELSDOWN	0x1b9	/* 10 channels down (10-) */
 #define KEY_IMAGES		0x1ba	/* AL Image Browser */
+#define KEY_NOTIFICATION_CENTER	0x1bc	/* Show/hide the notification center */
+#define KEY_PICKUP_PHONE	0x1bd	/* Answer incoming call */
+#define KEY_HANGUP_PHONE	0x1be	/* Decline incoming call */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
@@ -540,6 +545,7 @@
 #define KEY_FN_F		0x1e2
 #define KEY_FN_S		0x1e3
 #define KEY_FN_B		0x1e4
+#define KEY_FN_RIGHT_SHIFT	0x1e5
 
 #define KEY_BRL_DOT1		0x1f1
 #define KEY_BRL_DOT2		0x1f2
@@ -604,6 +610,7 @@
 #define KEY_SCREENSAVER		0x245	/* AL Screen Saver */
 #define KEY_VOICECOMMAND		0x246	/* Listening Voice Command */
 #define KEY_ASSISTANT		0x247	/* AL Context-aware desktop assistant */
+#define KEY_KBD_LAYOUT_NEXT	0x248	/* AC Next Keyboard Layout Select */
 
 #define KEY_BRIGHTNESS_MIN		0x250	/* Set Brightness to Minimum */
 #define KEY_BRIGHTNESS_MAX		0x251	/* Set Brightness to Maximum */
@@ -646,6 +653,86 @@
  */
 #define KEY_DATA			0x277
 #define KEY_ONSCREEN_KEYBOARD		0x278
+/* Electronic privacy screen control */
+#define KEY_PRIVACY_SCREEN_TOGGLE	0x279
+
+/* Select an area of screen to be copied */
+#define KEY_SELECTIVE_SCREENSHOT	0x27a
+
+/*
+ * Some keyboards have keys which do not have a defined meaning, these keys
+ * are intended to be programmed / bound to macros by the user. For most
+ * keyboards with these macro-keys the key-sequence to inject, or action to
+ * take, is all handled by software on the host side. So from the kernel's
+ * point of view these are just normal keys.
+ *
+ * The KEY_MACRO# codes below are intended for such keys, which may be labeled
+ * e.g. G1-G18, or S1 - S30. The KEY_MACRO# codes MUST NOT be used for keys
+ * where the marking on the key does indicate a defined meaning / purpose.
+ *
+ * The KEY_MACRO# codes MUST also NOT be used as fallback for when no existing
+ * KEY_FOO define matches the marking / purpose. In this case a new KEY_FOO
+ * define MUST be added.
+ */
+#define KEY_MACRO1			0x290
+#define KEY_MACRO2			0x291
+#define KEY_MACRO3			0x292
+#define KEY_MACRO4			0x293
+#define KEY_MACRO5			0x294
+#define KEY_MACRO6			0x295
+#define KEY_MACRO7			0x296
+#define KEY_MACRO8			0x297
+#define KEY_MACRO9			0x298
+#define KEY_MACRO10			0x299
+#define KEY_MACRO11			0x29a
+#define KEY_MACRO12			0x29b
+#define KEY_MACRO13			0x29c
+#define KEY_MACRO14			0x29d
+#define KEY_MACRO15			0x29e
+#define KEY_MACRO16			0x29f
+#define KEY_MACRO17			0x2a0
+#define KEY_MACRO18			0x2a1
+#define KEY_MACRO19			0x2a2
+#define KEY_MACRO20			0x2a3
+#define KEY_MACRO21			0x2a4
+#define KEY_MACRO22			0x2a5
+#define KEY_MACRO23			0x2a6
+#define KEY_MACRO24			0x2a7
+#define KEY_MACRO25			0x2a8
+#define KEY_MACRO26			0x2a9
+#define KEY_MACRO27			0x2aa
+#define KEY_MACRO28			0x2ab
+#define KEY_MACRO29			0x2ac
+#define KEY_MACRO30			0x2ad
+
+/*
+ * Some keyboards with the macro-keys described above have some extra keys
+ * for controlling the host-side software responsible for the macro handling:
+ * -A macro recording start/stop key. Note that not all keyboards which emit
+ *  KEY_MACRO_RECORD_START will also emit KEY_MACRO_RECORD_STOP if
+ *  KEY_MACRO_RECORD_STOP is not advertised, then KEY_MACRO_RECORD_START
+ *  should be interpreted as a recording start/stop toggle;
+ * -Keys for switching between different macro (pre)sets, either a key for
+ *  cycling through the configured presets or keys to directly select a preset.
+ */
+#define KEY_MACRO_RECORD_START		0x2b0
+#define KEY_MACRO_RECORD_STOP		0x2b1
+#define KEY_MACRO_PRESET_CYCLE		0x2b2
+#define KEY_MACRO_PRESET1		0x2b3
+#define KEY_MACRO_PRESET2		0x2b4
+#define KEY_MACRO_PRESET3		0x2b5
+
+/*
+ * Some keyboards have a buildin LCD panel where the contents are controlled
+ * by the host. Often these have a number of keys directly below the LCD
+ * intended for controlling a menu shown on the LCD. These keys often don't
+ * have any labeling so we just name them KEY_KBD_LCD_MENU#
+ */
+#define KEY_KBD_LCD_MENU1		0x2b8
+#define KEY_KBD_LCD_MENU2		0x2b9
+#define KEY_KBD_LCD_MENU3		0x2ba
+#define KEY_KBD_LCD_MENU4		0x2bb
+#define KEY_KBD_LCD_MENU5		0x2bc
 
 #define BTN_TRIGGER_HAPPY		0x2c0
 #define BTN_TRIGGER_HAPPY1		0x2c0
@@ -708,6 +795,16 @@
 #define REL_DIAL		0x07
 #define REL_WHEEL		0x08
 #define REL_MISC		0x09
+/*
+ * 0x0a is reserved and should not be used in input drivers.
+ * It was used by HID as REL_MISC+1 and userspace needs to detect if
+ * the next REL_* event is correct or is just REL_MISC + n.
+ * We define here REL_RESERVED so userspace can rely on it and detect
+ * the situation described above.
+ */
+#define REL_RESERVED		0x0a
+#define REL_WHEEL_HI_RES	0x0b
+#define REL_HWHEEL_HI_RES	0x0c
 #define REL_MAX			0x0f
 #define REL_CNT			(REL_MAX+1)
 
@@ -743,6 +840,15 @@
 #define ABS_VOLUME		0x20
 
 #define ABS_MISC		0x28
+
+/*
+ * 0x2e is reserved and should not be used in input drivers.
+ * It was used by HID as ABS_MISC+6 and userspace needs to detect if
+ * the next ABS_* event is correct or is just ABS_MISC + n.
+ * We define here ABS_RESERVED so userspace can rely on it and detect
+ * the situation described above.
+ */
+#define ABS_RESERVED		0x2e
 
 #define ABS_MT_SLOT		0x2f	/* MT slot being modified */
 #define ABS_MT_TOUCH_MAJOR	0x30	/* Major axis of touching ellipse */
@@ -786,7 +892,8 @@
 #define SW_LINEIN_INSERT	0x0d  /* set = inserted */
 #define SW_MUTE_DEVICE		0x0e  /* set = device disabled */
 #define SW_PEN_INSERTED		0x0f  /* set = pen inserted */
-#define SW_MAX			0x0f
+#define SW_MACHINE_COVER	0x10  /* set = cover closed */
+#define SW_MAX			0x10
 #define SW_CNT			(SW_MAX+1)
 
 /*

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 Linaro Ltd. <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	"efi: memattr: " fmt
@@ -16,6 +13,7 @@
 #include <asm/early_ioremap.h>
 
 static int __initdata tbl_size;
+unsigned long __ro_after_init efi_mem_attr_table = EFI_INVALID_TABLE_ADDR;
 
 /*
  * Reserve the memory associated with the Memory Attributes configuration
@@ -25,13 +23,13 @@ int __init efi_memattr_init(void)
 {
 	efi_memory_attributes_table_t *tbl;
 
-	if (efi.mem_attr_table == EFI_INVALID_TABLE_ADDR)
+	if (efi_mem_attr_table == EFI_INVALID_TABLE_ADDR)
 		return 0;
 
-	tbl = early_memremap(efi.mem_attr_table, sizeof(*tbl));
+	tbl = early_memremap(efi_mem_attr_table, sizeof(*tbl));
 	if (!tbl) {
 		pr_err("Failed to map EFI Memory Attributes table @ 0x%lx\n",
-		       efi.mem_attr_table);
+		       efi_mem_attr_table);
 		return -ENOMEM;
 	}
 
@@ -42,7 +40,7 @@ int __init efi_memattr_init(void)
 	}
 
 	tbl_size = sizeof(*tbl) + tbl->num_entries * tbl->desc_size;
-	memblock_reserve(efi.mem_attr_table, tbl_size);
+	memblock_reserve(efi_mem_attr_table, tbl_size);
 	set_bit(EFI_MEM_ATTR, &efi.flags);
 
 unmap:
@@ -94,7 +92,7 @@ static bool entry_is_valid(const efi_memory_desc_t *in, efi_memory_desc_t *out)
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
-		if (md->virt_addr == 0) {
+		if (md->virt_addr == 0 && md->phys_addr != 0) {
 			/* no virtual mapping has been installed by the stub */
 			break;
 		}
@@ -150,10 +148,10 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 	if (WARN_ON(!efi_enabled(EFI_MEMMAP)))
 		return 0;
 
-	tbl = memremap(efi.mem_attr_table, tbl_size, MEMREMAP_WB);
+	tbl = memremap(efi_mem_attr_table, tbl_size, MEMREMAP_WB);
 	if (!tbl) {
 		pr_err("Failed to map EFI Memory Attributes table @ 0x%lx\n",
-		       efi.mem_attr_table);
+		       efi_mem_attr_table);
 		return -ENOMEM;
 	}
 

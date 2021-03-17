@@ -1,18 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -61,12 +48,43 @@ static void proc_audio_usbid_read(struct snd_info_entry *entry, struct snd_info_
 
 void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(chip->card, "usbbus", &entry))
-		snd_info_set_text_ops(entry, chip, proc_audio_usbbus_read);
-	if (!snd_card_proc_new(chip->card, "usbid", &entry))
-		snd_info_set_text_ops(entry, chip, proc_audio_usbid_read);
+	snd_card_ro_proc_new(chip->card, "usbbus", chip,
+			     proc_audio_usbbus_read);
+	snd_card_ro_proc_new(chip->card, "usbid", chip,
+			     proc_audio_usbid_read);
 }
+
+static const char * const channel_labels[] = {
+	[SNDRV_CHMAP_NA]	= "N/A",
+	[SNDRV_CHMAP_MONO]	= "MONO",
+	[SNDRV_CHMAP_FL]	= "FL",
+	[SNDRV_CHMAP_FR]	= "FR",
+	[SNDRV_CHMAP_FC]	= "FC",
+	[SNDRV_CHMAP_LFE]	= "LFE",
+	[SNDRV_CHMAP_RL]	= "RL",
+	[SNDRV_CHMAP_RR]	= "RR",
+	[SNDRV_CHMAP_FLC]	= "FLC",
+	[SNDRV_CHMAP_FRC]	= "FRC",
+	[SNDRV_CHMAP_RC]	= "RC",
+	[SNDRV_CHMAP_SL]	= "SL",
+	[SNDRV_CHMAP_SR]	= "SR",
+	[SNDRV_CHMAP_TC]	= "TC",
+	[SNDRV_CHMAP_TFL]	= "TFL",
+	[SNDRV_CHMAP_TFC]	= "TFC",
+	[SNDRV_CHMAP_TFR]	= "TFR",
+	[SNDRV_CHMAP_TRL]	= "TRL",
+	[SNDRV_CHMAP_TRC]	= "TRC",
+	[SNDRV_CHMAP_TRR]	= "TRR",
+	[SNDRV_CHMAP_TFLC]	= "TFLC",
+	[SNDRV_CHMAP_TFRC]	= "TFRC",
+	[SNDRV_CHMAP_LLFE]	= "LLFE",
+	[SNDRV_CHMAP_RLFE]	= "RLFE",
+	[SNDRV_CHMAP_TSL]	= "TSL",
+	[SNDRV_CHMAP_TSR]	= "TSR",
+	[SNDRV_CHMAP_BC]	= "BC",
+	[SNDRV_CHMAP_RLC]	= "RLC",
+	[SNDRV_CHMAP_RRC]	= "RRC",
+};
 
 /*
  * proc interface for list the supported pcm formats
@@ -74,7 +92,7 @@ void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct snd_info_buffer *buffer)
 {
 	struct audioformat *fp;
-	static char *sync_types[4] = {
+	static const char * const sync_types[4] = {
 		"NONE", "ASYNC", "ADAPTIVE", "SYNC"
 	};
 
@@ -84,7 +102,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 		snd_iprintf(buffer, "  Interface %d\n", fp->iface);
 		snd_iprintf(buffer, "    Altset %d\n", fp->altsetting);
 		snd_iprintf(buffer, "    Format:");
-		for (fmt = 0; fmt <= SNDRV_PCM_FORMAT_LAST; ++fmt)
+		pcm_for_each_format(fmt)
 			if (fp->formats & pcm_format_to_bits(fmt))
 				snd_iprintf(buffer, " %s",
 					    snd_pcm_format_name(fmt));
@@ -110,6 +128,28 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 		if (subs->speed != USB_SPEED_FULL)
 			snd_iprintf(buffer, "    Data packet interval: %d us\n",
 				    125 * (1 << fp->datainterval));
+		snd_iprintf(buffer, "    Bits: %d\n", fp->fmt_bits);
+
+		if (fp->dsd_raw)
+			snd_iprintf(buffer, "    DSD raw: DOP=%d, bitrev=%d\n",
+				    fp->dsd_dop, fp->dsd_bitrev);
+
+		if (fp->chmap) {
+			const struct snd_pcm_chmap_elem *map = fp->chmap;
+			int c;
+
+			snd_iprintf(buffer, "    Channel map:");
+			for (c = 0; c < map->channels; c++) {
+				if (map->map[c] >= ARRAY_SIZE(channel_labels) ||
+				    !channel_labels[map->map[c]])
+					snd_iprintf(buffer, " --");
+				else
+					snd_iprintf(buffer, " %s",
+						    channel_labels[map->map[c]]);
+			}
+			snd_iprintf(buffer, "\n");
+		}
+
 		// snd_iprintf(buffer, "    Max Packet Size = %d\n", fp->maxpacksize);
 		// snd_iprintf(buffer, "    EP Attribute = %#x\n", fp->attributes);
 	}
@@ -167,12 +207,10 @@ static void proc_pcm_format_read(struct snd_info_entry *entry, struct snd_info_b
 
 void snd_usb_proc_pcm_format_add(struct snd_usb_stream *stream)
 {
-	struct snd_info_entry *entry;
 	char name[32];
 	struct snd_card *card = stream->chip->card;
 
 	sprintf(name, "stream%d", stream->pcm_index);
-	if (!snd_card_proc_new(card, name, &entry))
-		snd_info_set_text_ops(entry, stream, proc_pcm_format_read);
+	snd_card_ro_proc_new(card, name, stream, proc_pcm_format_read);
 }
 

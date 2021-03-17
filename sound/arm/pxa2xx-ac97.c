@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/sound/pxa2xx-ac97.c -- AC97 support for the Intel PXA2xx chip.
  *
  * Author:	Nicolas Pitre
  * Created:	Dec 02, 2004
  * Copyright:	MontaVista Software Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -55,7 +52,7 @@ static void pxa2xx_ac97_legacy_write(struct snd_ac97 *ac97,
 	ret = pxa2xx_ac97_write(ac97->num, reg, val);
 }
 
-static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
+static const struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.read	= pxa2xx_ac97_legacy_read,
 	.write	= pxa2xx_ac97_legacy_write,
 	.reset	= pxa2xx_ac97_legacy_reset,
@@ -124,7 +121,6 @@ static int pxa2xx_ac97_do_suspend(struct snd_card *card)
 	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
-	snd_pcm_suspend_all(pxa2xx_ac97_pcm);
 	snd_ac97_suspend(pxa2xx_ac97_ac97);
 	if (platform_ops && platform_ops->suspend)
 		platform_ops->suspend(platform_ops->priv);
@@ -177,7 +173,6 @@ static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops, pxa2xx_ac97_suspend, pxa2xx_ac97_re
 static const struct snd_pcm_ops pxa2xx_ac97_pcm_ops = {
 	.open		= pxa2xx_ac97_pcm_open,
 	.close		= pxa2xx_ac97_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= pxa2xx_pcm_hw_params,
 	.hw_free	= pxa2xx_pcm_hw_free,
 	.prepare	= pxa2xx_ac97_pcm_prepare,

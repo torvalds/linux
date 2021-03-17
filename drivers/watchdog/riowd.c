@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* riowd.c - driver for hw watchdog inside Super I/O of RIO
  *
  * Copyright (C) 2001, 2008 David S. Miller (davem@davemloft.net)
@@ -76,7 +77,7 @@ static void riowd_writereg(struct riowd *p, u8 val, int index)
 
 static int riowd_open(struct inode *inode, struct file *filp)
 {
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 	return 0;
 }
 
@@ -133,14 +134,14 @@ static long riowd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 		riowd_timeout = (new_margin + 59) / 60;
 		riowd_writereg(p, riowd_timeout, WDTO_INDEX);
-		/* Fall */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(riowd_timeout * 60, (int __user *)argp);
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -162,6 +163,7 @@ static const struct file_operations riowd_fops = {
 	.owner =		THIS_MODULE,
 	.llseek =		no_llseek,
 	.unlocked_ioctl =	riowd_ioctl,
+	.compat_ioctl	=	compat_ptr_ioctl,
 	.open =			riowd_open,
 	.write =		riowd_write,
 	.release =		riowd_release,

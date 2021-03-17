@@ -2,24 +2,12 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <signal.h>
-#include <sys/poll.h>
+#include <poll.h>
 #include <sys/mman.h>
 #include <sys/user.h>
 #define __FRAME_OFFSETS
 #include <linux/ptrace.h>
 #include <asm/types.h>
-
-#ifdef __i386__
-#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
-static char syscalls[] = {
-#include <asm/syscalls_32.h>
-};
-#else
-#define __SYSCALL_64(nr, sym, qual) [nr] = 1,
-static char syscalls[] = {
-#include <asm/syscalls_64.h>
-};
-#endif
 
 #define DEFINE(sym, val) \
 	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -94,7 +82,4 @@ void foo(void)
 	DEFINE(UM_PROT_READ, PROT_READ);
 	DEFINE(UM_PROT_WRITE, PROT_WRITE);
 	DEFINE(UM_PROT_EXEC, PROT_EXEC);
-
-	DEFINE(__NR_syscall_max, sizeof(syscalls) - 1);
-	DEFINE(NR_syscalls, sizeof(syscalls));
 }

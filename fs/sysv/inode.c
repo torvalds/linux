@@ -98,8 +98,7 @@ static int sysv_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = sbi->s_ninodes;
 	buf->f_ffree = sysv_count_free_inodes(sb);
 	buf->f_namelen = SYSV_NAMELEN;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	return 0;
 }
 
@@ -275,7 +274,7 @@ static int __sysv_write_inode(struct inode *inode, int wait)
                 }
         }
 	brelse(bh);
-	return 0;
+	return err;
 }
 
 int sysv_write_inode(struct inode *inode, struct writeback_control *wbc)
@@ -313,15 +312,9 @@ static struct inode *sysv_alloc_inode(struct super_block *sb)
 	return &si->vfs_inode;
 }
 
-static void sysv_i_callback(struct rcu_head *head)
+static void sysv_free_in_core_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(sysv_inode_cachep, SYSV_I(inode));
-}
-
-static void sysv_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, sysv_i_callback);
 }
 
 static void init_once(void *p)
@@ -333,7 +326,7 @@ static void init_once(void *p)
 
 const struct super_operations sysv_sops = {
 	.alloc_inode	= sysv_alloc_inode,
-	.destroy_inode	= sysv_destroy_inode,
+	.free_inode	= sysv_free_in_core_inode,
 	.write_inode	= sysv_write_inode,
 	.evict_inode	= sysv_evict_inode,
 	.put_super	= sysv_put_super,

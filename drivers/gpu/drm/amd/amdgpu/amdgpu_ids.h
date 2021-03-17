@@ -71,9 +71,9 @@ struct amdgpu_vmid_mgr {
 };
 
 int amdgpu_pasid_alloc(unsigned int bits);
-void amdgpu_pasid_free(unsigned int pasid);
-void amdgpu_pasid_free_delayed(struct reservation_object *resv,
-			       unsigned int pasid);
+void amdgpu_pasid_free(u32 pasid);
+void amdgpu_pasid_free_delayed(struct dma_resv *resv,
+			       u32 pasid);
 
 bool amdgpu_vmid_had_gpu_reset(struct amdgpu_device *adev,
 			       struct amdgpu_vmid *id);

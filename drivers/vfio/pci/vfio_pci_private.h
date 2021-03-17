@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Red Hat, Inc.  All rights reserved.
  *     Author: Alex Williamson <alex.williamson@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Derived from original vfio:
  * Copyright 2010 Cisco Systems, Inc.  All rights reserved.
@@ -15,6 +12,8 @@
 #include <linux/pci.h>
 #include <linux/irqbypass.h>
 #include <linux/types.h>
+#include <linux/uuid.h>
+#include <linux/notifier.h>
 
 #ifndef VFIO_PCI_PRIVATE_H
 #define VFIO_PCI_PRIVATE_H
@@ -34,12 +33,14 @@
 
 struct vfio_pci_ioeventfd {
 	struct list_head	next;
+	struct vfio_pci_device	*vdev;
 	struct virqfd		*virqfd;
 	void __iomem		*addr;
 	uint64_t		data;
 	loff_t			pos;
 	int			bar;
 	int			count;
+	bool			test_mem;
 };
 
 struct vfio_pci_irq_ctx {
@@ -59,6 +60,12 @@ struct vfio_pci_regops {
 		      size_t count, loff_t *ppos, bool iswrite);
 	void	(*release)(struct vfio_pci_device *vdev,
 			   struct vfio_pci_region *region);
+	int	(*mmap)(struct vfio_pci_device *vdev,
+			struct vfio_pci_region *region,
+			struct vm_area_struct *vma);
+	int	(*add_capability)(struct vfio_pci_device *vdev,
+				  struct vfio_pci_region *region,
+				  struct vfio_info_cap *caps);
 };
 
 struct vfio_pci_region {
@@ -76,10 +83,26 @@ struct vfio_pci_dummy_resource {
 	struct list_head	res_next;
 };
 
+struct vfio_pci_reflck {
+	struct kref		kref;
+	struct mutex		lock;
+};
+
+struct vfio_pci_vf_token {
+	struct mutex		lock;
+	uuid_t			uuid;
+	int			users;
+};
+
+struct vfio_pci_mmap_vma {
+	struct vm_area_struct	*vma;
+	struct list_head	vma_next;
+};
+
 struct vfio_pci_device {
 	struct pci_dev		*pdev;
-	void __iomem		*barmap[PCI_STD_RESOURCE_END + 1];
-	bool			bar_mmap_supported[PCI_STD_RESOURCE_END + 1];
+	void __iomem		*barmap[PCI_STD_NUM_BARS];
+	bool			bar_mmap_supported[PCI_STD_NUM_BARS];
 	u8			*pci_config_map;
 	u8			*vconfig;
 	struct perm_bits	*msi_perm;
@@ -103,7 +126,10 @@ struct vfio_pci_device {
 	bool			has_vga;
 	bool			needs_reset;
 	bool			nointx;
+	bool			needs_pm_restore;
 	struct pci_saved_state	*pci_saved_state;
+	struct pci_saved_state	*pm_save;
+	struct vfio_pci_reflck	*reflck;
 	int			refcnt;
 	int			ioeventfds_nr;
 	struct eventfd_ctx	*err_trigger;
@@ -111,6 +137,11 @@ struct vfio_pci_device {
 	struct list_head	dummy_resources_list;
 	struct mutex		ioeventfds_lock;
 	struct list_head	ioeventfds_list;
+	struct vfio_pci_vf_token	*vf_token;
+	struct notifier_block	nb;
+	struct mutex		vma_lock;
+	struct list_head	vma_list;
+	struct rw_semaphore	memory_lock;
 };
 
 #define is_intx(vdev) (vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX)
@@ -149,6 +180,17 @@ extern int vfio_pci_register_dev_region(struct vfio_pci_device *vdev,
 					unsigned int type, unsigned int subtype,
 					const struct vfio_pci_regops *ops,
 					size_t size, u32 flags, void *data);
+
+extern int vfio_pci_set_power_state(struct vfio_pci_device *vdev,
+				    pci_power_t state);
+
+extern bool __vfio_pci_memory_enabled(struct vfio_pci_device *vdev);
+extern void vfio_pci_zap_and_down_write_memory_lock(struct vfio_pci_device
+						    *vdev);
+extern u16 vfio_pci_memory_lock_and_enable(struct vfio_pci_device *vdev);
+extern void vfio_pci_memory_unlock_and_restore(struct vfio_pci_device *vdev,
+					       u16 cmd);
+
 #ifdef CONFIG_VFIO_PCI_IGD
 extern int vfio_pci_igd_init(struct vfio_pci_device *vdev);
 #else
@@ -157,4 +199,30 @@ static inline int vfio_pci_igd_init(struct vfio_pci_device *vdev)
 	return -ENODEV;
 }
 #endif
+#ifdef CONFIG_VFIO_PCI_NVLINK2
+extern int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_device *vdev);
+extern int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev);
+#else
+static inline int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_device *vdev)
+{
+	return -ENODEV;
+}
+
+static inline int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
+{
+	return -ENODEV;
+}
+#endif
+
+#ifdef CONFIG_VFIO_PCI_ZDEV
+extern int vfio_pci_info_zdev_add_caps(struct vfio_pci_device *vdev,
+				       struct vfio_info_cap *caps);
+#else
+static inline int vfio_pci_info_zdev_add_caps(struct vfio_pci_device *vdev,
+					      struct vfio_info_cap *caps)
+{
+	return -ENODEV;
+}
+#endif
+
 #endif /* VFIO_PCI_PRIVATE_H */

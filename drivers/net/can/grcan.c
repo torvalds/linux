@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Socket CAN driver for Aeroflex Gaisler GRCAN and GRHCAN.
  *
@@ -17,11 +18,6 @@
  *
  * See "Documentation/admin-guide/kernel-parameters.rst" for information on the module
  * parameters.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * Contributors: Andreas Larsson <andreas@gaisler.com>
  */
@@ -730,7 +726,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 			txrx = "on rx ";
 			stats->rx_errors++;
 		}
-		netdev_err(dev, "Fatal AHB buss error %s- halting device\n",
+		netdev_err(dev, "Fatal AHB bus error %s- halting device\n",
 			   txrx);
 
 		spin_lock_irqsave(&priv->lock, flags);
@@ -1247,7 +1243,7 @@ static int grcan_poll(struct napi_struct *napi, int budget)
 	int rx_budget = budget / 2;
 	int tx_budget = budget - rx_budget;
 
-	/* Half of the budget for receiveing messages */
+	/* Half of the budget for receiving messages */
 	rx_work_done = grcan_receive(dev, rx_budget);
 
 	/* Half of the budget for transmitting messages as that can trigger echo
@@ -1656,7 +1652,6 @@ exit_free_candev:
 static int grcan_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
-	struct resource *res;
 	u32 sysid, ambafreq;
 	int irq, err;
 	void __iomem *base;
@@ -1676,8 +1671,7 @@ static int grcan_probe(struct platform_device *ofdev)
 		goto exit_error;
 	}
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&ofdev->dev, res);
+	base = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(base)) {
 		err = PTR_ERR(base);
 		goto exit_error;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * "security" table for IPv6
  *
@@ -10,10 +11,6 @@
  * Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
  * Copyright (C) 2000-2004 Netfilter Core Team <coreteam <at> netfilter.org>
  * Copyright (C) 2008 Red Hat, Inc., James Morris <jmorris <at> redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
@@ -64,15 +61,23 @@ static int __net_init ip6table_security_table_init(struct net *net)
 	return ret;
 }
 
+static void __net_exit ip6table_security_net_pre_exit(struct net *net)
+{
+	if (net->ipv6.ip6table_security)
+		ip6t_unregister_table_pre_exit(net, net->ipv6.ip6table_security,
+					       sectbl_ops);
+}
+
 static void __net_exit ip6table_security_net_exit(struct net *net)
 {
 	if (!net->ipv6.ip6table_security)
 		return;
-	ip6t_unregister_table(net, net->ipv6.ip6table_security, sectbl_ops);
+	ip6t_unregister_table_exit(net, net->ipv6.ip6table_security);
 	net->ipv6.ip6table_security = NULL;
 }
 
 static struct pernet_operations ip6table_security_net_ops = {
+	.pre_exit = ip6table_security_net_pre_exit,
 	.exit = ip6table_security_net_exit,
 };
 

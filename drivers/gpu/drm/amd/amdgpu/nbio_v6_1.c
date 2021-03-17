@@ -27,11 +27,8 @@
 #include "nbio/nbio_6_1_default.h"
 #include "nbio/nbio_6_1_offset.h"
 #include "nbio/nbio_6_1_sh_mask.h"
+#include "nbio/nbio_6_1_smn.h"
 #include "vega10_enum.h"
-
-#define smnCPM_CONTROL                                                                                  0x11180460
-#define smnPCIE_CNTL2                                                                                   0x11180070
-#define smnPCIE_CONFIG_CNTL                                                                             0x11180044
 
 static u32 nbio_v6_1_get_rev_id(struct amdgpu_device *adev)
 {
@@ -71,7 +68,7 @@ static u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev)
 }
 
 static void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
-				  bool use_doorbell, int doorbell_index)
+			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
 	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
@@ -80,7 +77,7 @@ static void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
-		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 2);
+		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, doorbell_size);
 	} else
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 0);
 
@@ -121,7 +118,8 @@ static void nbio_v6_1_ih_doorbell_range(struct amdgpu_device *adev,
 
 	if (use_doorbell) {
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, OFFSET, doorbell_index);
-		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 2);
+		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range,
+						  BIF_IH_DOORBELL_RANGE, SIZE, 6);
 	} else
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 0);
 
@@ -228,7 +226,7 @@ static u32 nbio_v6_1_get_pcie_data_offset(struct amdgpu_device *adev)
 	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2);
 }
 
-static const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
+const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
 	.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK,
 	.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK,
 	.ref_and_mask_cp2 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP2_MASK,
@@ -243,23 +241,6 @@ static const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
 	.ref_and_mask_sdma1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA1_MASK
 };
 
-static void nbio_v6_1_detect_hw_virt(struct amdgpu_device *adev)
-{
-	uint32_t reg;
-
-	reg = RREG32_SOC15(NBIO, 0, mmRCC_PF_0_0_RCC_IOV_FUNC_IDENTIFIER);
-	if (reg & 1)
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
-
-	if (reg & 0x80000000)
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
-
-	if (!reg) {
-		if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
-			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
-	}
-}
-
 static void nbio_v6_1_init_registers(struct amdgpu_device *adev)
 {
 	uint32_t def, data;
@@ -270,10 +251,15 @@ static void nbio_v6_1_init_registers(struct amdgpu_device *adev)
 
 	if (def != data)
 		WREG32_PCIE(smnPCIE_CONFIG_CNTL, data);
+
+	def = data = RREG32_PCIE(smnPCIE_CI_CNTL);
+	data = REG_SET_FIELD(data, PCIE_CI_CNTL, CI_SLV_ORDERING_DIS, 1);
+
+	if (def != data)
+		WREG32_PCIE(smnPCIE_CI_CNTL, data);
 }
 
 const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {
-	.hdp_flush_reg = &nbio_v6_1_hdp_flush_reg,
 	.get_hdp_flush_req_offset = nbio_v6_1_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v6_1_get_hdp_flush_done_offset,
 	.get_pcie_index_offset = nbio_v6_1_get_pcie_index_offset,
@@ -291,5 +277,4 @@ const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {
 	.get_clockgating_state = nbio_v6_1_get_clockgating_state,
 	.ih_control = nbio_v6_1_ih_control,
 	.init_registers = nbio_v6_1_init_registers,
-	.detect_hw_virt = nbio_v6_1_detect_hw_virt,
 };

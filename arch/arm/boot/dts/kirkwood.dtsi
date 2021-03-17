@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-/include/ "skeleton.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 
 #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "marvell,kirkwood";
 	interrupt-parent = <&intc>;
 
@@ -227,7 +228,7 @@
 			reg = <0x20128 0x4>;
 		};
 
-		intc: main-interrupt-ctrl@20200 {
+		intc: interrupt-controller@20200 {
 			compatible = "marvell,orion-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;

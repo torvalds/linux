@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
 config INTEL_MEI
 	tristate "Intel Management Engine Interface"
 	depends on X86 && PCI
@@ -7,7 +9,7 @@ config INTEL_MEI
 	  if selected /dev/mei misc device will be created.
 
 	  For more information see
-	  <http://software.intel.com/en-us/manageability/>
+	  <https://software.intel.com/en-us/manageability/>
 
 config INTEL_MEI_ME
 	tristate "ME Enabled Intel Chipsets"
@@ -43,3 +45,5 @@ config INTEL_MEI_TXE
 
 	  Supported SoCs:
 	  Intel Bay Trail
+
+source "drivers/misc/mei/hdcp/Kconfig"

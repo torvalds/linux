@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Real Time Clock driver for Freescale MC13XXX PMIC
  *
  * (C) 2009 Sascha Hauer, Pengutronix
  * (C) 2009 Uwe Kleine-Koenig, Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/mfd/mc13xxx.h>
@@ -89,14 +86,14 @@ static int mc13xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int mc13xxx_rtc_set_mmss(struct device *dev, time64_t secs)
+static int mc13xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct mc13xxx_rtc *priv = dev_get_drvdata(dev);
 	unsigned int seconds, days;
 	unsigned int alarmseconds;
 	int ret;
 
-	days = div_s64_rem(secs, SEC_PER_DAY, &seconds);
+	days = div_s64_rem(rtc_tm_to_time64(tm), SEC_PER_DAY, &seconds);
 
 	mc13xxx_lock(priv->mc13xxx);
 
@@ -158,7 +155,7 @@ out:
 static int mc13xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct mc13xxx_rtc *priv = dev_get_drvdata(dev);
-	unsigned seconds, days;
+	unsigned int seconds, days;
 	time64_t s1970;
 	int enabled, pending;
 	int ret;
@@ -253,7 +250,7 @@ static irqreturn_t mc13xxx_rtc_alarm_handler(int irq, void *dev)
 
 static const struct rtc_class_ops mc13xxx_rtc_ops = {
 	.read_time = mc13xxx_rtc_read_time,
-	.set_mmss64 = mc13xxx_rtc_set_mmss,
+	.set_time = mc13xxx_rtc_set_time,
 	.read_alarm = mc13xxx_rtc_read_alarm,
 	.set_alarm = mc13xxx_rtc_set_alarm,
 	.alarm_irq_enable = mc13xxx_rtc_alarm_irq_enable,
@@ -285,7 +282,14 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 	priv->mc13xxx = mc13xxx;
 	priv->valid = 1;
 
+	priv->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(priv->rtc))
+		return PTR_ERR(priv->rtc);
 	platform_set_drvdata(pdev, priv);
+
+	priv->rtc->ops = &mc13xxx_rtc_ops;
+	/* 15bit days + hours, minutes, seconds */
+	priv->rtc->range_max = (timeu64_t)(1 << 15) * SEC_PER_DAY - 1;
 
 	mc13xxx_lock(mc13xxx);
 
@@ -303,8 +307,11 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	mc13xxx_unlock(mc13xxx);
 
-	priv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					     &mc13xxx_rtc_ops, THIS_MODULE);
+	ret = rtc_register_device(priv->rtc);
+	if (ret) {
+		mc13xxx_lock(mc13xxx);
+		goto err_irq_request;
+	}
 
 	return 0;
 

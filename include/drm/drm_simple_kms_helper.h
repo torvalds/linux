@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2016 Noralf Trønnes
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __LINUX_DRM_SIMPLE_KMS_HELPER_H
@@ -53,7 +49,7 @@ struct drm_simple_display_pipe_funcs {
 	 *
 	 * drm_mode_status Enum
 	 */
-	enum drm_mode_status (*mode_valid)(struct drm_crtc *crtc,
+	enum drm_mode_status (*mode_valid)(struct drm_simple_display_pipe *pipe,
 					   const struct drm_display_mode *mode);
 
 	/**
@@ -104,8 +100,11 @@ struct drm_simple_display_pipe_funcs {
 	 * This is the function drivers should submit the
 	 * &drm_pending_vblank_event from. Using either
 	 * drm_crtc_arm_vblank_event(), when the driver supports vblank
-	 * interrupt handling, or drm_crtc_send_vblank_event() directly in case
-	 * the hardware lacks vblank support entirely.
+	 * interrupt handling, or drm_crtc_send_vblank_event() for more
+	 * complex case. In case the hardware lacks vblank support entirely,
+	 * drivers can set &struct drm_crtc_state.no_vblank in
+	 * &struct drm_simple_display_pipe_funcs.check and let DRM's
+	 * atomic helper fake a vblank event.
 	 */
 	void (*update)(struct drm_simple_display_pipe *pipe,
 		       struct drm_plane_state *old_plane_state);
@@ -181,5 +180,9 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 			const uint32_t *formats, unsigned int format_count,
 			const uint64_t *format_modifiers,
 			struct drm_connector *connector);
+
+int drm_simple_encoder_init(struct drm_device *dev,
+			    struct drm_encoder *encoder,
+			    int encoder_type);
 
 #endif /* __LINUX_DRM_SIMPLE_KMS_HELPER_H */

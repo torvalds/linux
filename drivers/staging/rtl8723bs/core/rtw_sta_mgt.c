@@ -75,7 +75,6 @@ u32 _rtw_init_sta_priv(struct	sta_priv *pstapriv)
 
 	psta = (struct sta_info *)(pstapriv->pstainfo_buf);
 
-
 	for (i = 0; i < NUM_STA; i++) {
 		_rtw_init_stainfo(psta);
 
@@ -188,7 +187,6 @@ u32 _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 /* struct	sta_info *rtw_alloc_stainfo(_queue *pfree_sta_queue, unsigned char *hwaddr) */
 struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 {
-	uint tmp_aid;
 	s32	index;
 	struct list_head	*phash_list;
 	struct sta_info *psta;
@@ -204,16 +202,13 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 	if (list_empty(&pfree_sta_queue->queue)) {
 		/* spin_unlock_bh(&(pfree_sta_queue->lock)); */
 		spin_unlock_bh(&(pstapriv->sta_hash_lock));
-		psta = NULL;
-		return psta;
-	} else{
+		return NULL;
+	} else {
 		psta = LIST_CONTAINOR(get_next(&pfree_sta_queue->queue), struct sta_info, list);
 
 		list_del_init(&(psta->list));
 
 		/* spin_unlock_bh(&(pfree_sta_queue->lock)); */
-
-		tmp_aid = psta->aid;
 
 		_rtw_init_stainfo(psta);
 
@@ -318,7 +313,7 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 	struct hw_xmit *phwxmit;
 
-	if (psta == NULL)
+	if (!psta)
 		goto exit;
 
 
@@ -394,7 +389,6 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	);
 	pstapriv->asoc_sta_count--;
 
-
 	/*  re-init sta_info; 20061114 will be init in alloc_stainfo */
 	/* _rtw_init_sta_xmit_priv(&psta->sta_xmitpriv); */
 	/* _rtw_init_sta_recv_priv(&psta->sta_recvpriv); */
@@ -436,7 +430,6 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 
 	if (!(psta->state & WIFI_AP_STATE))
 		rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, false);
-
 
 	/* release mac id for non-bc/mc station, */
 	rtw_release_macid(pstapriv->padapter, psta);
@@ -524,7 +517,7 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	u8 *addr;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	if (hwaddr == NULL)
+	if (!hwaddr)
 		return NULL;
 
 	if (IS_MCAST(hwaddr))
@@ -560,7 +553,6 @@ u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 {
 
 	struct sta_info *psta;
-	struct tx_servq	*ptxservq;
 	u32 res = _SUCCESS;
 	NDIS_802_11_MAC_ADDRESS	bcast_addr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -569,7 +561,7 @@ u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 
 	psta = rtw_alloc_stainfo(pstapriv, bcast_addr);
 
-	if (psta == NULL) {
+	if (!psta) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("rtw_alloc_stainfo fail"));
 		goto exit;
@@ -578,20 +570,16 @@ u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 	/*  default broadcast & multicast use macid 1 */
 	psta->mac_id = 1;
 
-	ptxservq = &(psta->sta_xmitpriv.be_q);
 exit:
 	return _SUCCESS;
 }
 
-
 struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter)
 {
-	struct sta_info *psta;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	psta = rtw_get_stainfo(pstapriv, bc_addr);
-	return psta;
+	return rtw_get_stainfo(pstapriv, bc_addr);
 }
 
 u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
@@ -619,7 +607,6 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 
 	}
 	spin_unlock_bh(&(pacl_node_q->lock));
-
 
 	if (pacl_list->mode == 1) /* accept unless in deny list */
 		res = !match;

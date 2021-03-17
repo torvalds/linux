@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #ifndef EFX_BITFIELD_H
@@ -285,7 +282,10 @@ typedef union efx_oword {
 				 field7, value7,			\
 				 field8, value8,			\
 				 field9, value9,			\
-				 field10, value10)			\
+				 field10, value10,			\
+				 field11, value11,			\
+				 field12, value12,			\
+				 field13, value13)			\
 	(EFX_INSERT_FIELD_NATIVE((min), (max), field1, (value1)) |	\
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field2, (value2)) |	\
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field3, (value3)) |	\
@@ -295,7 +295,10 @@ typedef union efx_oword {
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field7, (value7)) |	\
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field8, (value8)) |	\
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field9, (value9)) |	\
-	 EFX_INSERT_FIELD_NATIVE((min), (max), field10, (value10)))
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field10, (value10)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field11, (value11)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field12, (value12)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field13, (value13)))
 
 #define EFX_INSERT_FIELDS64(...)				\
 	cpu_to_le64(EFX_INSERT_FIELDS_NATIVE(__VA_ARGS__))
@@ -337,7 +340,13 @@ typedef union efx_oword {
 #endif
 
 /* Populate an octword field with various numbers of arguments */
-#define EFX_POPULATE_OWORD_10 EFX_POPULATE_OWORD
+#define EFX_POPULATE_OWORD_13 EFX_POPULATE_OWORD
+#define EFX_POPULATE_OWORD_12(oword, ...) \
+	EFX_POPULATE_OWORD_13(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_OWORD_11(oword, ...) \
+	EFX_POPULATE_OWORD_12(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_OWORD_10(oword, ...) \
+	EFX_POPULATE_OWORD_11(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_OWORD_9(oword, ...) \
 	EFX_POPULATE_OWORD_10(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_OWORD_8(oword, ...) \
@@ -366,7 +375,13 @@ typedef union efx_oword {
 			     EFX_DWORD_3, 0xffffffff)
 
 /* Populate a quadword field with various numbers of arguments */
-#define EFX_POPULATE_QWORD_10 EFX_POPULATE_QWORD
+#define EFX_POPULATE_QWORD_13 EFX_POPULATE_QWORD
+#define EFX_POPULATE_QWORD_12(qword, ...) \
+	EFX_POPULATE_QWORD_13(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_QWORD_11(qword, ...) \
+	EFX_POPULATE_QWORD_12(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_QWORD_10(qword, ...) \
+	EFX_POPULATE_QWORD_11(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_QWORD_9(qword, ...) \
 	EFX_POPULATE_QWORD_10(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_QWORD_8(qword, ...) \
@@ -393,7 +408,13 @@ typedef union efx_oword {
 			     EFX_DWORD_1, 0xffffffff)
 
 /* Populate a dword field with various numbers of arguments */
-#define EFX_POPULATE_DWORD_10 EFX_POPULATE_DWORD
+#define EFX_POPULATE_DWORD_13 EFX_POPULATE_DWORD
+#define EFX_POPULATE_DWORD_12(dword, ...) \
+	EFX_POPULATE_DWORD_13(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_DWORD_11(dword, ...) \
+	EFX_POPULATE_DWORD_12(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_DWORD_10(dword, ...) \
+	EFX_POPULATE_DWORD_11(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_DWORD_9(dword, ...) \
 	EFX_POPULATE_DWORD_10(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_DWORD_8(dword, ...) \

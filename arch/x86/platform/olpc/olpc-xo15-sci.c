@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for OLPC XO-1.5 System Control Interrupts (SCI)
  *
  * Copyright (C) 2009-2010 One Laptop per Child
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -43,7 +39,7 @@ static int set_lid_wake_behavior(bool wake_on_close)
 
 	status = acpi_execute_simple_method(NULL, "\\_SB.PCI0.LID.LIDW", wake_on_close);
 	if (ACPI_FAILURE(status)) {
-		pr_warning(PFX "failed to set lid behavior\n");
+		pr_warn(PFX "failed to set lid behavior\n");
 		return 1;
 	}
 
@@ -79,7 +75,7 @@ static struct kobj_attribute lid_wake_on_close_attr =
 
 static void battery_status_changed(void)
 {
-	struct power_supply *psy = power_supply_get_by_name("olpc-battery");
+	struct power_supply *psy = power_supply_get_by_name("olpc_battery");
 
 	if (psy) {
 		power_supply_changed(psy);
@@ -89,7 +85,7 @@ static void battery_status_changed(void)
 
 static void ac_status_changed(void)
 {
-	struct power_supply *psy = power_supply_get_by_name("olpc-ac");
+	struct power_supply *psy = power_supply_get_by_name("olpc_ac");
 
 	if (psy) {
 		power_supply_changed(psy);

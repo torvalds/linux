@@ -1,0 +1,17 @@
+ARCH=x86_64
+
+LLVM_IAS=1
+CROSS_COMPILE=x86_64-linux-gnu-
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
+
+MAKE_GOALS="
+bzImage
+modules
+prepare-objtool
+"
+
+FILES="
+arch/x86/boot/bzImage
+vmlinux
+System.map
+"

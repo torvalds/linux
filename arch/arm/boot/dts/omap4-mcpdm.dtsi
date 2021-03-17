@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Common omap4 mcpdm configuration
+ *
+ * Only include this file if your board has pdmclk wired from the
+ * pmic to ABE as mcpdm uses an external clock for the module.
+ */
+
+&omap4_pmx_core {
+	mcpdm_pins: pinmux_mcpdm_pins {
+		pinctrl-single,pins = <
+		/* 0x4a100106 abe_pdm_ul_data.abe_pdm_ul_data ag25 */
+		OMAP4_IOPAD(0x106, PIN_INPUT_PULLDOWN | MUX_MODE0)
+
+		/* 0x4a100108 abe_pdm_dl_data.abe_pdm_dl_data af25 */
+		OMAP4_IOPAD(0x108, PIN_INPUT_PULLDOWN | MUX_MODE0)
+
+		/* 0x4a10010a abe_pdm_frame.abe_pdm_frame ae25 */
+		OMAP4_IOPAD(0x10a, PIN_INPUT_PULLUP   | MUX_MODE0)
+
+		/* 0x4a10010c abe_pdm_lb_clk.abe_pdm_lb_clk af26 */
+		OMAP4_IOPAD(0x10c, PIN_INPUT_PULLDOWN | MUX_MODE0)
+
+		/* 0x4a10010e abe_clks.abe_clks ah26 */
+		OMAP4_IOPAD(0x10e, PIN_INPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+};
+
+&mcpdm_module {
+	/*
+	 * McPDM pads must be muxed at the interconnect target module
+	 * level as the module on the SoC needs external clock from
+	 * the PMIC
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
+};
+
+&mcpdm {
+	clocks = <&twl6040>;
+	clock-names = "pdmclk";
+};

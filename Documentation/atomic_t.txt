@@ -56,6 +56,23 @@ Barriers:
   smp_mb__{before,after}_atomic()
 
 
+TYPES (signed vs unsigned)
+-----
+
+While atomic_t, atomic_long_t and atomic64_t use int, long and s64
+respectively (for hysterical raisins), the kernel uses -fno-strict-overflow
+(which implies -fwrapv) and defines signed overflow to behave like
+2s-complement.
+
+Therefore, an explicitly unsigned variant of the atomic ops is strictly
+unnecessary and we can simply cast, there is no UB.
+
+There was a bug in UBSAN prior to GCC-8 that would generate UB warnings for
+signed types.
+
+With this we also conform to the C/C++ _Atomic behaviour and things like
+P1236R1.
+
 
 SEMANTICS
 ---------
@@ -64,23 +81,25 @@ Non-RMW ops:
 
 The non-RMW ops are (typically) regular LOADs and STOREs and are canonically
 implemented using READ_ONCE(), WRITE_ONCE(), smp_load_acquire() and
-smp_store_release() respectively.
+smp_store_release() respectively. Therefore, if you find yourself only using
+the Non-RMW operations of atomic_t, you do not in fact need atomic_t at all
+and are doing it wrong.
 
-The one detail to this is that atomic_set{}() should be observable to the RMW
-ops. That is:
+A note for the implementation of atomic_set{}() is that it must not break the
+atomicity of the RMW ops. That is:
 
-  C atomic-set
+  C Atomic-RMW-ops-are-atomic-WRT-atomic_set
 
   {
-    atomic_set(v, 1);
+    atomic_t v = ATOMIC_INIT(1);
+  }
+
+  P0(atomic_t *v)
+  {
+    (void)atomic_add_unless(v, 1, 0);
   }
 
   P1(atomic_t *v)
-  {
-    atomic_add_unless(v, 1, 0);
-  }
-
-  P2(atomic_t *v)
   {
     atomic_set(v, 0);
   }
@@ -170,12 +189,21 @@ The barriers:
 
   smp_mb__{before,after}_atomic()
 
-only apply to the RMW ops and can be used to augment/upgrade the ordering
-inherent to the used atomic op. These barriers provide a full smp_mb().
+only apply to the RMW atomic ops and can be used to augment/upgrade the
+ordering inherent to the op. These barriers act almost like a full smp_mb():
+smp_mb__before_atomic() orders all earlier accesses against the RMW op
+itself and all accesses following it, and smp_mb__after_atomic() orders all
+later accesses against the RMW op and all accesses preceding it. However,
+accesses between the smp_mb__{before,after}_atomic() and the RMW op are not
+ordered, so it is advisable to place the barrier right next to the RMW atomic
+op whenever possible.
 
 These helper barriers exist because architectures have varying implicit
 ordering on their SMP atomic primitives. For example our TSO architectures
 provide full ordered atomics and these barriers are no-ops.
+
+NOTE: when the atomic RmW ops are fully ordered, they should also imply a
+compiler barrier.
 
 Thus:
 
@@ -195,7 +223,9 @@ Further, while something like:
   atomic_dec(&X);
 
 is a 'typical' RELEASE pattern, the barrier is strictly stronger than
-a RELEASE. Similarly for something like:
+a RELEASE because it orders preceding instructions against both the read
+and write parts of the atomic_dec(), and against all following instructions
+as well. Similarly, something like:
 
   atomic_inc(&X);
   smp_mb__after_atomic();
@@ -203,19 +233,19 @@ a RELEASE. Similarly for something like:
 is an ACQUIRE pattern (though very much not typical), but again the barrier is
 strictly stronger than ACQUIRE. As illustrated:
 
-  C strong-acquire
+  C Atomic-RMW+mb__after_atomic-is-stronger-than-acquire
 
   {
   }
 
-  P1(int *x, atomic_t *y)
+  P0(int *x, atomic_t *y)
   {
     r0 = READ_ONCE(*x);
     smp_rmb();
     r1 = atomic_read(y);
   }
 
-  P2(int *x, atomic_t *y)
+  P1(int *x, atomic_t *y)
   {
     atomic_inc(y);
     smp_mb__after_atomic();
@@ -223,13 +253,14 @@ strictly stronger than ACQUIRE. As illustrated:
   }
 
   exists
-  (r0=1 /\ r1=0)
+  (0:r0=1 /\ 0:r1=0)
 
 This should not happen; but a hypothetical atomic_inc_acquire() --
 (void)atomic_fetch_inc_acquire() for instance -- would allow the outcome,
-since then:
+because it would not order the W part of the RMW against the following
+WRITE_ONCE.  Thus:
 
-  P1			P2
+  P0			P1
 
 			t = LL.acq *y (0)
 			t++;

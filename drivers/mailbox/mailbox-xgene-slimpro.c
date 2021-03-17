@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * APM X-Gene SLIMpro MailBox Driver
  *
  * Copyright (c) 2015, Applied Micro Circuits Corporation
  * Author: Feng Kan fkan@apm.com
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 #include <linux/acpi.h>
 #include <linux/delay.h>
@@ -224,7 +211,7 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 	ctx->mb_ctrl.ops = &slimpro_mbox_ops;
 	ctx->mb_ctrl.num_chans = i;
 
-	rc = mbox_controller_register(&ctx->mb_ctrl);
+	rc = devm_mbox_controller_register(&pdev->dev, &ctx->mb_ctrl);
 	if (rc) {
 		dev_err(&pdev->dev,
 			"APM X-Gene SLIMpro MailBox register failed:%d\n", rc);
@@ -232,14 +219,6 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "APM X-Gene SLIMpro MailBox registered\n");
-	return 0;
-}
-
-static int slimpro_mbox_remove(struct platform_device *pdev)
-{
-	struct slimpro_mbox *smb = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&smb->mb_ctrl);
 	return 0;
 }
 
@@ -259,7 +238,6 @@ MODULE_DEVICE_TABLE(acpi, slimpro_acpi_ids);
 
 static struct platform_driver slimpro_mbox_driver = {
 	.probe	= slimpro_mbox_probe,
-	.remove = slimpro_mbox_remove,
 	.driver	= {
 		.name = "xgene-slimpro-mbox",
 		.of_match_table = of_match_ptr(slimpro_of_match),

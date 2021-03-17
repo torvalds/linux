@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005-2006 Micronas USA Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -208,7 +200,7 @@ static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *con
 	struct i2c_board_info info;
 
 	memset(&info, 0, sizeof(info));
-	strlcpy(info.type, i2c->type, sizeof(info.type));
+	strscpy(info.type, i2c->type, sizeof(info.type));
 	info.addr = i2c->addr;
 	info.flags = i2c->flags;
 
@@ -651,7 +643,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 			case 0xD8:
 				if (go->format == V4L2_PIX_FMT_MJPEG)
 					vb = frame_boundary(go, vb);
-				/* fall through */
+				fallthrough;
 			default:
 				store_byte(vb, 0xFF);
 				store_byte(vb, buf[i]);

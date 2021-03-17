@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Pengutronix, Juergen Borleis <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -892,7 +883,8 @@ static int lan9303_check_device(struct lan9303 *chip)
 /* ---------------------------- DSA -----------------------------------*/
 
 static enum dsa_tag_protocol lan9303_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_LAN9303;
 }
@@ -1050,7 +1042,7 @@ static void lan9303_adjust_link(struct dsa_switch *ds, int port,
 				struct phy_device *phydev)
 {
 	struct lan9303 *chip = ds->priv;
-	int ctl, res;
+	int ctl;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
 		return;
@@ -1071,15 +1063,14 @@ static void lan9303_adjust_link(struct dsa_switch *ds, int port,
 	else
 		ctl &= ~BMCR_FULLDPLX;
 
-	res =  lan9303_phy_write(ds, port, MII_BMCR, ctl);
+	lan9303_phy_write(ds, port, MII_BMCR, ctl);
 
 	if (port == chip->phy_addr_base) {
 		/* Virtual Phy: Remove Turbo 200Mbit mode */
 		lan9303_read(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, &ctl);
 
 		ctl &= ~LAN9303_VIRT_SPECIAL_TURBO;
-		res =  regmap_write(chip->regmap,
-				    LAN9303_VIRT_SPECIAL_CTRL, ctl);
+		regmap_write(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, ctl);
 	}
 }
 
@@ -1088,13 +1079,18 @@ static int lan9303_port_enable(struct dsa_switch *ds, int port,
 {
 	struct lan9303 *chip = ds->priv;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	return lan9303_enable_processing_port(chip, port);
 }
 
-static void lan9303_port_disable(struct dsa_switch *ds, int port,
-				 struct phy_device *phy)
+static void lan9303_port_disable(struct dsa_switch *ds, int port)
 {
 	struct lan9303 *chip = ds->priv;
+
+	if (!dsa_is_user_port(ds, port))
+		return;
 
 	lan9303_disable_processing_port(chip, port);
 	lan9303_phy_write(ds, chip->phy_addr_base + port, MII_BMCR, BMCR_PDOWN);
@@ -1287,10 +1283,12 @@ static int lan9303_register_switch(struct lan9303 *chip)
 {
 	int base;
 
-	chip->ds = dsa_switch_alloc(chip->dev, LAN9303_NUM_PORTS);
+	chip->ds = devm_kzalloc(chip->dev, sizeof(*chip->ds), GFP_KERNEL);
 	if (!chip->ds)
 		return -ENOMEM;
 
+	chip->ds->dev = chip->dev;
+	chip->ds->num_ports = LAN9303_NUM_PORTS;
 	chip->ds->priv = chip;
 	chip->ds->ops = &lan9303_switch_ops;
 	base = chip->phy_addr_base;

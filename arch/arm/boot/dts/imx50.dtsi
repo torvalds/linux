@@ -1,15 +1,8 @@
-/*
- * Copyright 2013 Greg Ungerer <gerg@uclinux.org>
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2013 Greg Ungerer <gerg@uclinux.org>
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
 
 #include "imx50-pinfunc.h"
 #include <dt-bindings/gpio/gpio.h>
@@ -22,10 +15,8 @@
 	 * The decompressor and also some bootloaders rely on a
 	 * pre-existing /chosen node to be available to insert the
 	 * command line and merge other ATAGS info.
-	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; };
 
 	aliases {
 		ethernet0 = &fec;
@@ -35,11 +26,21 @@
 		gpio3 = &gpio4;
 		gpio4 = &gpio5;
 		gpio5 = &gpio6;
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc2;
+		mmc2 = &esdhc3;
+		mmc3 = &esdhc4;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
+		spi0 = &ecspi1;
+		spi1 = &ecspi2;
+		spi2 = &cspi;
 	};
 
 	cpus {
@@ -85,6 +86,14 @@
 		};
 	};
 
+	usbphy0: usbphy-0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -92,7 +101,7 @@
 		interrupt-parent = <&tzic>;
 		ranges;
 
-		aips@50000000 { /* AIPS1 */
+		bus@50000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -106,7 +115,7 @@
 				reg = <0x50000000 0x40000>;
 				ranges;
 
-				esdhc1: esdhc@50004000 {
+				esdhc1: mmc@50004000 {
 					compatible = "fsl,imx50-esdhc", "fsl,imx53-esdhc";
 					reg = <0x50004000 0x4000>;
 					interrupts = <1>;
@@ -118,7 +127,7 @@
 					status = "disabled";
 				};
 
-				esdhc2: esdhc@50008000 {
+				esdhc2: mmc@50008000 {
 					compatible = "fsl,imx50-esdhc", "fsl,imx53-esdhc";
 					reg = <0x50008000 0x4000>;
 					interrupts = <2>;
@@ -140,7 +149,7 @@
 					status = "disabled";
 				};
 
-				ecspi1: ecspi@50010000 {
+				ecspi1: spi@50010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx50-ecspi", "fsl,imx51-ecspi";
@@ -167,7 +176,7 @@
 					status = "disabled";
 				};
 
-				esdhc3: esdhc@50020000 {
+				esdhc3: mmc@50020000 {
 					compatible = "fsl,imx50-esdhc", "fsl,imx53-esdhc";
 					reg = <0x50020000 0x4000>;
 					interrupts = <3>;
@@ -179,7 +188,7 @@
 					status = "disabled";
 				};
 
-				esdhc4: esdhc@50024000 {
+				esdhc4: mmc@50024000 {
 					compatible = "fsl,imx50-esdhc", "fsl,imx53-esdhc";
 					reg = <0x50024000 0x4000>;
 					interrupts = <4>;
@@ -196,7 +205,8 @@
 				compatible = "fsl,imx50-usb", "fsl,imx27-usb";
 				reg = <0x53f80000 0x0200>;
 				interrupts = <18>;
-				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
@@ -278,13 +288,8 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			gpr: iomuxc-gpr@53fa8000 {
-				compatible = "fsl,imx50-iomuxc-gpr", "syscon";
-				reg = <0x53fa8000 0xc>;
-			};
-
 			pwm1: pwm@53fb4000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx50-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb4000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM1_IPG_GATE>,
@@ -294,7 +299,7 @@
 			};
 
 			pwm2: pwm@53fb8000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx50-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb8000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM2_IPG_GATE>,
@@ -323,9 +328,10 @@
 				status = "disabled";
 			};
 
-			src: src@53fd0000 {
+			src: reset-controller@53fd0000 {
 				compatible = "fsl,imx50-src", "fsl,imx51-src";
 				reg = <0x53fd0000 0x4000>;
+				interrupts = <75>;
 				#reset-cells = <1>;
 			};
 
@@ -379,7 +385,7 @@
 			};
 		};
 
-		aips@60000000 {	/* AIPS2 */
+		bus@60000000 {	/* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -403,7 +409,7 @@
 				status = "disabled";
 			};
 
-			ecspi2: ecspi@63fac000 {
+			ecspi2: spi@63fac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx50-ecspi", "fsl,imx51-ecspi";
@@ -420,13 +426,13 @@
 				reg = <0x63fb0000 0x4000>;
 				interrupts = <6>;
 				clocks = <&clks IMX5_CLK_SDMA_GATE>,
-					 <&clks IMX5_CLK_SDMA_GATE>;
+					 <&clks IMX5_CLK_AHB>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx50.bin";
 			};
 
-			cspi: cspi@63fc0000 {
+			cspi: spi@63fc0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx50-cspi", "fsl,imx35-cspi";

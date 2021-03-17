@@ -18,7 +18,6 @@
 
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
-#include <linux/bootmem.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
@@ -46,7 +45,7 @@ static inline int get_cpu_for_acpi_id(u32 uid)
 	return -EINVAL;
 }
 
-static int __init acpi_parse_gicc_pxm(struct acpi_subtable_header *header,
+static int __init acpi_parse_gicc_pxm(union acpi_subtable_headers *header,
 				      const unsigned long end)
 {
 	struct acpi_srat_gicc_affinity *pa;

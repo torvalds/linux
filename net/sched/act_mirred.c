@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/act_mirred.c	packet mirroring and redirect actions
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Jamal Hadi Salim (2002-4)
  *
  * TODO: Add ingress support (and socket redirect support)
- *
  */
 
 #include <linux/types.h>
@@ -31,6 +26,9 @@
 
 static LIST_HEAD(mirred_list);
 static DEFINE_SPINLOCK(mirred_list_lock);
+
+#define MIRRED_RECURSION_LIMIT    4
+static DEFINE_PER_CPU(unsigned int, mirred_rec_level);
 
 static bool tcf_mirred_is_act_redirect(int action)
 {
@@ -94,22 +92,26 @@ static struct tc_action_ops act_mirred_ops;
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
-			   struct netlink_ext_ack *extack)
+			   struct tcf_proto *tp,
+			   u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	bool mac_header_xmit = false;
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
 	struct net_device *dev;
 	bool exists = false;
 	int ret, err;
+	u32 index;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Mirred requires attributes to be passed");
 		return -EINVAL;
 	}
-	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy, extack);
+	ret = nla_parse_nested_deprecated(tb, TCA_MIRRED_MAX, nla,
+					  mirred_policy, extack);
 	if (ret < 0)
 		return ret;
 	if (!tb[TCA_MIRRED_PARMS]) {
@@ -117,8 +119,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	}
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
-
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -135,21 +137,21 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		if (exists)
 			tcf_idr_release(*a, bind);
 		else
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 		NL_SET_ERR_MSG_MOD(extack, "Unknown mirred option");
 		return -EINVAL;
 	}
 
 	if (!exists) {
 		if (!parm->ifindex) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			NL_SET_ERR_MSG_MOD(extack, "Specified device does not exist");
 			return -EINVAL;
 		}
-		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_mirred_ops, bind, true);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_mirred_ops, bind, flags);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
@@ -157,37 +159,50 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+
 	m = to_mirred(*a);
+	if (ret == ACT_P_CREATED)
+		INIT_LIST_HEAD(&m->tcfm_list);
+
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 
 	spin_lock_bh(&m->tcf_lock);
-	m->tcf_action = parm->action;
-	m->tcfm_eaction = parm->eaction;
 
 	if (parm->ifindex) {
 		dev = dev_get_by_index(net, parm->ifindex);
 		if (!dev) {
 			spin_unlock_bh(&m->tcf_lock);
-			tcf_idr_release(*a, bind);
-			return -ENODEV;
+			err = -ENODEV;
+			goto put_chain;
 		}
 		mac_header_xmit = dev_is_mac_header_xmit(dev);
-		rcu_swap_protected(m->tcfm_dev, dev,
-				   lockdep_is_held(&m->tcf_lock));
+		dev = rcu_replace_pointer(m->tcfm_dev, dev,
+					  lockdep_is_held(&m->tcf_lock));
 		if (dev)
 			dev_put(dev);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
+	m->tcfm_eaction = parm->eaction;
 	spin_unlock_bh(&m->tcf_lock);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 	if (ret == ACT_P_CREATED) {
 		spin_lock(&mirred_list_lock);
 		list_add(&m->tcfm_list, &mirred_list);
 		spin_unlock(&mirred_list_lock);
-
-		tcf_idr_insert(tn, *a);
 	}
 
 	return ret;
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
@@ -197,15 +212,26 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 	struct sk_buff *skb2 = skb;
 	bool m_mac_header_xmit;
 	struct net_device *dev;
+	unsigned int rec_level;
 	int retval, err = 0;
 	bool use_reinsert;
 	bool want_ingress;
 	bool is_redirect;
+	bool expects_nh;
 	int m_eaction;
 	int mac_len;
+	bool at_nh;
+
+	rec_level = __this_cpu_inc_return(mirred_rec_level);
+	if (unlikely(rec_level > MIRRED_RECURSION_LIMIT)) {
+		net_warn_ratelimited("Packet exceeded mirred recursion limit on dev %s\n",
+				     netdev_name(skb->dev));
+		__this_cpu_dec(mirred_rec_level);
+		return TC_ACT_SHOT;
+	}
 
 	tcf_lastuse_update(&m->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
+	tcf_action_update_bstats(&m->common, skb);
 
 	m_mac_header_xmit = READ_ONCE(m->tcfm_mac_header_xmit);
 	m_eaction = READ_ONCE(m->tcfm_eaction);
@@ -235,19 +261,19 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 			goto out;
 	}
 
-	/* If action's target direction differs than filter's direction,
-	 * and devices expect a mac header on xmit, then mac push/pull is
-	 * needed.
-	 */
 	want_ingress = tcf_mirred_act_wants_ingress(m_eaction);
-	if (skb_at_tc_ingress(skb) != want_ingress && m_mac_header_xmit) {
-		if (!skb_at_tc_ingress(skb)) {
-			/* caught at egress, act ingress: pull mac */
-			mac_len = skb_network_header(skb) - skb_mac_header(skb);
+
+	expects_nh = want_ingress || !m_mac_header_xmit;
+	at_nh = skb->data == skb_network_header(skb);
+	if (at_nh != expects_nh) {
+		mac_len = skb_at_tc_ingress(skb) ? skb->mac_len :
+			  skb_network_header(skb) - skb_mac_header(skb);
+		if (expects_nh) {
+			/* target device/action expect data at nh */
 			skb_pull_rcsum(skb2, mac_len);
 		} else {
-			/* caught at ingress, act egress: push mac */
-			skb_push_rcsum(skb2, skb->mac_len);
+			/* target device/action expect data at mac */
+			skb_push_rcsum(skb2, mac_len);
 		}
 	}
 
@@ -256,14 +282,15 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 
 	/* mirror is always swallowed */
 	if (is_redirect) {
-		skb2->tc_redirected = 1;
-		skb2->tc_from_ingress = skb2->tc_at_ingress;
+		skb_set_redirected(skb2, skb2->tc_at_ingress);
 
 		/* let's the caller reinsert the packet, if possible */
 		if (use_reinsert) {
 			res->ingress = want_ingress;
-			res->qstats = this_cpu_ptr(m->common.cpu_qstats);
-			return TC_ACT_REINSERT;
+			if (skb_tc_reinsert(skb, res))
+				tcf_action_inc_overlimit_qstats(&m->common);
+			__this_cpu_dec(mirred_rec_level);
+			return TC_ACT_CONSUMED;
 		}
 	}
 
@@ -274,21 +301,22 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 
 	if (err) {
 out:
-		qstats_overlimit_inc(this_cpu_ptr(m->common.cpu_qstats));
+		tcf_action_inc_overlimit_qstats(&m->common);
 		if (tcf_mirred_is_act_redirect(m_eaction))
 			retval = TC_ACT_SHOT;
 	}
+	__this_cpu_dec(mirred_rec_level);
 
 	return retval;
 }
 
-static void tcf_stats_update(struct tc_action *a, u64 bytes, u32 packets,
-			     u64 lastuse)
+static void tcf_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+			     u64 drops, u64 lastuse, bool hw)
 {
 	struct tcf_mirred *m = to_mirred(a);
 	struct tcf_t *tm = &m->tcf_tm;
 
-	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
@@ -338,8 +366,7 @@ static int tcf_mirred_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index,
-			     struct netlink_ext_ack *extack)
+static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
@@ -376,28 +403,39 @@ static struct notifier_block mirred_device_notifier = {
 	.notifier_call = mirred_device_event,
 };
 
-static struct net_device *tcf_mirred_get_dev(const struct tc_action *a)
+static void tcf_mirred_dev_put(void *priv)
+{
+	struct net_device *dev = priv;
+
+	dev_put(dev);
+}
+
+static struct net_device *
+tcf_mirred_get_dev(const struct tc_action *a,
+		   tc_action_priv_destructor *destructor)
 {
 	struct tcf_mirred *m = to_mirred(a);
 	struct net_device *dev;
 
 	rcu_read_lock();
 	dev = rcu_dereference(m->tcfm_dev);
-	if (dev)
+	if (dev) {
 		dev_hold(dev);
+		*destructor = tcf_mirred_dev_put;
+	}
 	rcu_read_unlock();
 
 	return dev;
 }
 
-static void tcf_mirred_put_dev(struct net_device *dev)
+static size_t tcf_mirred_get_fill_size(const struct tc_action *act)
 {
-	dev_put(dev);
+	return nla_total_size(sizeof(struct tc_mirred));
 }
 
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
-	.type		=	TCA_ACT_MIRRED,
+	.id		=	TCA_ID_MIRRED,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mirred_act,
 	.stats_update	=	tcf_stats_update,
@@ -406,16 +444,16 @@ static struct tc_action_ops act_mirred_ops = {
 	.init		=	tcf_mirred_init,
 	.walk		=	tcf_mirred_walker,
 	.lookup		=	tcf_mirred_search,
+	.get_fill_size	=	tcf_mirred_get_fill_size,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
-	.put_dev	=	tcf_mirred_put_dev,
 };
 
 static __net_init int mirred_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
-	return tc_action_net_init(tn, &act_mirred_ops);
+	return tc_action_net_init(net, tn, &act_mirred_ops);
 }
 
 static void __net_exit mirred_exit_net(struct list_head *net_list)
@@ -441,7 +479,11 @@ static int __init mirred_init_module(void)
 		return err;
 
 	pr_info("Mirror/redirect action on\n");
-	return tcf_register_action(&act_mirred_ops, &mirred_net_ops);
+	err = tcf_register_action(&act_mirred_ops, &mirred_net_ops);
+	if (err)
+		unregister_netdevice_notifier(&mirred_device_notifier);
+
+	return err;
 }
 
 static void __exit mirred_cleanup_module(void)

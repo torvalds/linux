@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     ad1816a.c - lowlevel code for Analog Devices AD1816A chip.
     Copyright (C) 1999-2000 by Massimo Piccioni <dafastidio@libero.it>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 #include <linux/delay.h>
@@ -216,17 +204,6 @@ static int snd_ad1816a_capture_trigger(struct snd_pcm_substream *substream, int 
 	struct snd_ad1816a *chip = snd_pcm_substream_chip(substream);
 	return snd_ad1816a_trigger(chip, AD1816A_CAPTURE_ENABLE,
 				   SNDRV_PCM_STREAM_CAPTURE, cmd, 1);
-}
-
-static int snd_ad1816a_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_ad1816a_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int snd_ad1816a_playback_prepare(struct snd_pcm_substream *substream)
@@ -432,7 +409,7 @@ static int snd_ad1816a_timer_stop(struct snd_timer *timer)
 	return 0;
 }
 
-static struct snd_timer_hardware snd_ad1816a_timer_table = {
+static const struct snd_timer_hardware snd_ad1816a_timer_table = {
 	.flags =	SNDRV_TIMER_HW_AUTO,
 	.resolution =	10000,
 	.ticks =	65535,
@@ -518,7 +495,6 @@ void snd_ad1816a_suspend(struct snd_ad1816a *chip)
 	int reg;
 	unsigned long flags;
 
-	snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->lock, flags);
 	for (reg = 0; reg < 48; reg++)
 		chip->image[reg] = snd_ad1816a_read(chip, reg);
@@ -601,7 +577,7 @@ int snd_ad1816a_create(struct snd_card *card,
 		       unsigned long port, int irq, int dma1, int dma2,
 		       struct snd_ad1816a *chip)
 {
-        static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_ad1816a_dev_free,
 	};
 	int error;
@@ -621,6 +597,7 @@ int snd_ad1816a_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 	if (request_dma(dma1, "AD1816A - 1")) {
 		snd_printk(KERN_ERR "ad1816a: can't grab DMA1 %d\n", dma1);
 		snd_ad1816a_free(chip);
@@ -657,9 +634,6 @@ int snd_ad1816a_create(struct snd_card *card,
 static const struct snd_pcm_ops snd_ad1816a_playback_ops = {
 	.open =		snd_ad1816a_playback_open,
 	.close =	snd_ad1816a_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_ad1816a_hw_params,
-	.hw_free =	snd_ad1816a_hw_free,
 	.prepare =	snd_ad1816a_playback_prepare,
 	.trigger =	snd_ad1816a_playback_trigger,
 	.pointer =	snd_ad1816a_playback_pointer,
@@ -668,9 +642,6 @@ static const struct snd_pcm_ops snd_ad1816a_playback_ops = {
 static const struct snd_pcm_ops snd_ad1816a_capture_ops = {
 	.open =		snd_ad1816a_capture_open,
 	.close =	snd_ad1816a_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_ad1816a_hw_params,
-	.hw_free =	snd_ad1816a_hw_free,
 	.prepare =	snd_ad1816a_capture_prepare,
 	.trigger =	snd_ad1816a_capture_trigger,
 	.pointer =	snd_ad1816a_capture_pointer,
@@ -693,9 +664,8 @@ int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device)
 	strcpy(pcm->name, snd_ad1816a_chip_id(chip));
 	snd_ad1816a_init(chip);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
-					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, chip->card->dev,
+				       64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;
 	return 0;
@@ -914,7 +884,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
-static struct snd_kcontrol_new snd_ad1816a_controls[] = {
+static const struct snd_kcontrol_new snd_ad1816a_controls[] = {
 AD1816A_DOUBLE("Master Playback Switch", AD1816A_MASTER_ATT, 15, 7, 1, 1),
 AD1816A_DOUBLE_TLV("Master Playback Volume", AD1816A_MASTER_ATT, 8, 0, 31, 1,
 		   db_scale_5bit),

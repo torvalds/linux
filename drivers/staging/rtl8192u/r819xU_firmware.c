@@ -24,7 +24,7 @@ static void firmware_init_param(struct net_device *dev)
 	struct r8192_priv	*priv = ieee80211_priv(dev);
 	rt_firmware		*pfirmware = priv->pFirmware;
 
-	pfirmware->cmdpacket_frag_thresold = GET_COMMAND_PACKET_FRAG_THRESHOLD(MAX_TRANSMIT_BUFFER_SIZE);
+	pfirmware->cmdpacket_frag_threshold = GET_COMMAND_PACKET_FRAG_THRESHOLD(MAX_TRANSMIT_BUFFER_SIZE);
 }
 
 /*
@@ -49,16 +49,14 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 	firmware_init_param(dev);
 	/* Fragmentation might be required */
-	frag_threshold = pfirmware->cmdpacket_frag_thresold;
+	frag_threshold = pfirmware->cmdpacket_frag_threshold;
 	do {
 		if ((buffer_len - frag_offset) > frag_threshold) {
 			frag_length = frag_threshold;
 			bLastIniPkt = 0;
-
 		} else {
 			frag_length = buffer_len - frag_offset;
 			bLastIniPkt = 1;
-
 		}
 
 		/* Allocate skb buffer to contain firmware info and tx descriptor info
@@ -104,7 +102,6 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	} while (frag_offset < buffer_len);
 
 	return rt_status;
-
 }
 
 /*
@@ -172,7 +169,6 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 
 static bool CPUcheck_firmware_ready(struct net_device *dev)
 {
-
 	bool		rt_status = true;
 	int		check_time = 200000;
 	u32		CPU_status = 0;
@@ -197,7 +193,6 @@ CPUCheckFirmwareReady_Fail:
 	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = false;
 	return rt_status;
-
 }
 
 bool init_firmware(struct net_device *dev)
@@ -208,8 +203,8 @@ bool init_firmware(struct net_device *dev)
 	u32			file_length = 0;
 	u8			*mapped_file = NULL;
 	u32			init_step = 0;
-	opt_rst_type_e	rst_opt = OPT_SYSTEM_RESET;
-	firmware_init_step_e	starting_state = FW_INIT_STEP0_BOOT;
+	enum opt_rst_type_e	   rst_opt = OPT_SYSTEM_RESET;
+	enum firmware_init_step_e  starting_state = FW_INIT_STEP0_BOOT;
 
 	rt_firmware		*pfirmware = priv->pFirmware;
 	const struct firmware	*fw_entry;
@@ -231,7 +226,7 @@ bool init_firmware(struct net_device *dev)
 		rst_opt = OPT_FIRMWARE_RESET;
 		starting_state = FW_INIT_STEP2_DATA;
 	} else {
-		 RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined firmware state\n");
+		RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined firmware state\n");
 	}
 
 	/*
@@ -338,7 +333,6 @@ download_firmware_fail:
 	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = false;
 	return rt_status;
-
 }
 
 MODULE_FIRMWARE("RTL8192U/boot.img");

@@ -1,15 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) Hans Alblas PE1AYX <hans@esrac.ele.tue.nl>
  * Copyright (C) 2004, 05 Ralf Baechle DL5RB <ralf@linux-mips.org>
@@ -35,7 +25,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/jiffies.h>
-#include <linux/compat.h>
+#include <linux/refcount.h>
 
 #include <net/ax25.h>
 
@@ -81,8 +71,8 @@ struct mkiss {
 #define CRC_MODE_FLEX_TEST	3
 #define CRC_MODE_SMACK_TEST	4
 
-	atomic_t		refcnt;
-	struct semaphore	dead_sem;
+	refcount_t		refcnt;
+	struct completion	dead;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -492,7 +482,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		case CRC_MODE_SMACK_TEST:
 			ax->crcmode  = CRC_MODE_FLEX_TEST;
 			printk(KERN_INFO "mkiss: %s: Trying crc-smack\n", ax->dev->name);
-			// fall through
+			fallthrough;
 		case CRC_MODE_SMACK:
 			*p |= 0x80;
 			crc = swab16(crc16(0, p, len));
@@ -501,7 +491,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		case CRC_MODE_FLEX_TEST:
 			ax->crcmode = CRC_MODE_NONE;
 			printk(KERN_INFO "mkiss: %s: Trying crc-flexnet\n", ax->dev->name);
-			// fall through
+			fallthrough;
 		case CRC_MODE_FLEX:
 			*p |= 0x20;
 			crc = calc_crc_flex(p, len);
@@ -679,7 +669,7 @@ static struct mkiss *mkiss_get(struct tty_struct *tty)
 	read_lock(&disc_data_lock);
 	ax = tty->disc_data;
 	if (ax)
-		atomic_inc(&ax->refcnt);
+		refcount_inc(&ax->refcnt);
 	read_unlock(&disc_data_lock);
 
 	return ax;
@@ -687,8 +677,8 @@ static struct mkiss *mkiss_get(struct tty_struct *tty)
 
 static void mkiss_put(struct mkiss *ax)
 {
-	if (atomic_dec_and_test(&ax->refcnt))
-		up(&ax->dead_sem);
+	if (refcount_dec_and_test(&ax->refcnt))
+		complete(&ax->dead);
 }
 
 static int crc_force = 0;	/* Can be overridden with insmod */
@@ -715,8 +705,8 @@ static int mkiss_open(struct tty_struct *tty)
 	ax->dev = dev;
 
 	spin_lock_init(&ax->buflock);
-	atomic_set(&ax->refcnt, 1);
-	sema_init(&ax->dead_sem, 0);
+	refcount_set(&ax->refcnt, 1);
+	init_completion(&ax->dead);
 
 	ax->tty = tty;
 	tty->disc_data = ax;
@@ -754,7 +744,6 @@ static int mkiss_open(struct tty_struct *tty)
 		       ax->dev->name);
 		break;
 	case 0:
-		/* fall through */
 	default:
 		crc_force = 0;
 		printk(KERN_INFO "mkiss: %s: crc mode is auto.\n",
@@ -783,10 +772,10 @@ static void mkiss_close(struct tty_struct *tty)
 {
 	struct mkiss *ax;
 
-	write_lock_bh(&disc_data_lock);
+	write_lock_irq(&disc_data_lock);
 	ax = tty->disc_data;
 	tty->disc_data = NULL;
-	write_unlock_bh(&disc_data_lock);
+	write_unlock_irq(&disc_data_lock);
 
 	if (!ax)
 		return;
@@ -795,8 +784,8 @@ static void mkiss_close(struct tty_struct *tty)
 	 * We have now ensured that nobody can start using ap from now on, but
 	 * we have to wait for all existing users to finish.
 	 */
-	if (!atomic_dec_and_test(&ax->refcnt))
-		down(&ax->dead_sem);
+	if (!refcount_dec_and_test(&ax->refcnt))
+		wait_for_completion(&ax->dead);
 	/*
 	 * Halt the transmit queue so that a new transmit cannot scribble
 	 * on our buffers
@@ -875,23 +864,6 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 	return err;
 }
 
-#ifdef CONFIG_COMPAT
-static long mkiss_compat_ioctl(struct tty_struct *tty, struct file *file,
-	unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	case SIOCGIFNAME:
-	case SIOCGIFENCAP:
-	case SIOCSIFENCAP:
-	case SIOCSIFHWADDR:
-		return mkiss_ioctl(tty, file, cmd,
-				   (unsigned long)compat_ptr(arg));
-	}
-
-	return -ENOIOCTLCMD;
-}
-#endif
-
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
@@ -966,9 +938,6 @@ static struct tty_ldisc_ops ax_ldisc = {
 	.open		= mkiss_open,
 	.close		= mkiss_close,
 	.ioctl		= mkiss_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= mkiss_compat_ioctl,
-#endif
 	.receive_buf	= mkiss_receive_buf,
 	.write_wakeup	= mkiss_write_wakeup
 };

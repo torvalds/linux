@@ -39,7 +39,7 @@ _tlbia_1:
 	rsubi	r11, r12, MICROBLAZE_TLB_SIZE - 1
 	bneid	r11, _tlbia_1 /* loop for all entries */
 	addik	r12, r12, 1
-	/* sync */
+	mbar	1 /* sync */
 	rtsd	r15, 8
 	nop
 	.size  _tlbia, . - _tlbia
@@ -58,6 +58,7 @@ _tlbie:
 	blti	r12, _tlbie_1 /* Check if found */
 	mts	rtlbhi, r0 /* flush: ensure V is clear */
 	nop
+	mbar	1 /* sync */
 _tlbie_1:
 	rtsd	r15, 8
 	nop

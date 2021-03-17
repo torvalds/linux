@@ -24,6 +24,7 @@
 	};
 
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x20000000>;
 	};
 
@@ -36,7 +37,6 @@
 			label = "zii:green:debug1";
 			gpios = <&gpio2 18 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
-			max-brightness = <1>;
 		};
 	};
 
@@ -45,6 +45,14 @@
 		regulator-name = "vcc_3v3_mcu";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	supply-voltage-monitor {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 8>, /* 12V_MAIN */
+			      <&adc0 9>, /* +3.3V    */
+			      <&adc1 8>, /* VCC_1V5  */
+			      <&adc1 9>; /* VCC_1V2  */
 	};
 };
 
@@ -69,7 +77,7 @@
 	 */
 	status = "disabled";
 
-	m25p128@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "m25p128", "jedec,spi-nor";
@@ -98,6 +106,8 @@
 	non-removable;
 	no-1-8-v;
 	keep-power-in-suspend;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
@@ -105,6 +115,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
+	no-sdio;
 	status = "okay";
 };
 
@@ -122,6 +133,8 @@
 	mdio1: mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clock-frequency = <12500000>;
+		suppress-preamble;
 		status = "okay";
 
 		switch0: switch0@0 {
@@ -130,7 +143,6 @@
 			pinctrl-names = "default";
 			reg = <0>;
 			eeprom-length = <65536>;
-			reset-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio3>;
 			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-controller;
@@ -191,7 +203,7 @@
 	pinctrl-0 = <&pinctrl_i2c0>;
 	status = "okay";
 
-	gpio6: pca9505@22 {
+	gpio6: io-expander@22 {
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
@@ -203,16 +215,32 @@
 		reg = <0x48>;
 	};
 
-	at24c04@50 {
+	eeprom@50 {
 		compatible = "atmel,24c04";
 		reg = <0x50>;
 		label = "nameplate";
 	};
 
-	at24c04@52 {
+	eeprom@52 {
 		compatible = "atmel,24c04";
 		reg = <0x52>;
 	};
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	watchdog@38 {
+		compatible = "zii,rave-wdt";
+		reg = <0x38>;
+	};
+};
+
+&snvsrtc {
+	status = "disabled";
 };
 
 &uart0 {
@@ -244,6 +272,10 @@
 			zii,eeprom-name = "main-eeprom";
 		};
 	};
+};
+
+&wdoga5 {
+	status = "disabled";
 };
 
 &iomuxc {
@@ -300,7 +332,6 @@
 
 	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
 		fsl,pins = <
-			VF610_PAD_PTE2__GPIO_107		0x31c2
 			VF610_PAD_PTB28__GPIO_98		0x219d
 		>;
 	};

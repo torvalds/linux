@@ -9,8 +9,94 @@
  */
 #include <linux/string.h>
 
-#include <asm/segment.h>
+#ifdef CONFIG_UACCESS_MEMCPY
+#include <asm/unaligned.h>
 
+static __always_inline int
+__get_user_fn(size_t size, const void __user *from, void *to)
+{
+	BUILD_BUG_ON(!__builtin_constant_p(size));
+
+	switch (size) {
+	case 1:
+		*(u8 *)to = get_unaligned((u8 __force *)from);
+		return 0;
+	case 2:
+		*(u16 *)to = get_unaligned((u16 __force *)from);
+		return 0;
+	case 4:
+		*(u32 *)to = get_unaligned((u32 __force *)from);
+		return 0;
+	case 8:
+		*(u64 *)to = get_unaligned((u64 __force *)from);
+		return 0;
+	default:
+		BUILD_BUG();
+		return 0;
+	}
+
+}
+#define __get_user_fn(sz, u, k)	__get_user_fn(sz, u, k)
+
+static __always_inline int
+__put_user_fn(size_t size, void __user *to, void *from)
+{
+	BUILD_BUG_ON(!__builtin_constant_p(size));
+
+	switch (size) {
+	case 1:
+		put_unaligned(*(u8 *)from, (u8 __force *)to);
+		return 0;
+	case 2:
+		put_unaligned(*(u16 *)from, (u16 __force *)to);
+		return 0;
+	case 4:
+		put_unaligned(*(u32 *)from, (u32 __force *)to);
+		return 0;
+	case 8:
+		put_unaligned(*(u64 *)from, (u64 __force *)to);
+		return 0;
+	default:
+		BUILD_BUG();
+		return 0;
+	}
+}
+#define __put_user_fn(sz, u, k)	__put_user_fn(sz, u, k)
+
+#define __get_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	*((type *)dst) = get_unaligned((type *)(src));			\
+	if (0) /* make sure the label looks used to the compiler */	\
+		goto err_label;						\
+} while (0)
+
+#define __put_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	put_unaligned(*((type *)src), (type *)(dst));			\
+	if (0) /* make sure the label looks used to the compiler */	\
+		goto err_label;						\
+} while (0)
+
+#define HAVE_GET_KERNEL_NOFAULT 1
+
+static inline __must_check unsigned long
+raw_copy_from_user(void *to, const void __user * from, unsigned long n)
+{
+	memcpy(to, (const void __force *)from, n);
+	return 0;
+}
+
+static inline __must_check unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	memcpy((void __force *)to, from, n);
+	return 0;
+}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
+#endif /* CONFIG_UACCESS_MEMCPY */
+
+#ifdef CONFIG_SET_FS
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
 
 #ifndef KERNEL_DS
@@ -22,7 +108,6 @@
 #endif
 
 #ifndef get_fs
-#define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 
 static inline void set_fs(mm_segment_t fs)
@@ -31,11 +116,12 @@ static inline void set_fs(mm_segment_t fs)
 }
 #endif
 
-#ifndef segment_eq
-#define segment_eq(a, b) ((a).seg == (b).seg)
+#ifndef uaccess_kernel
+#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
 #endif
+#endif /* CONFIG_SET_FS */
 
-#define access_ok(type, addr, size) __access_ok((unsigned long)(addr),(size))
+#define access_ok(addr, size) __access_ok((unsigned long)(addr),(size))
 
 /*
  * The architecture should really override this if possible, at least
@@ -78,7 +164,7 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 ({								\
 	void __user *__p = (ptr);				\
 	might_fault();						\
-	access_ok(VERIFY_WRITE, __p, sizeof(*ptr)) ?		\
+	access_ok(__p, sizeof(*ptr)) ?		\
 		__put_user((x), ((__typeof__(*(ptr)) __user *)__p)) :	\
 		-EFAULT;					\
 })
@@ -140,7 +226,7 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 ({								\
 	const void __user *__p = (ptr);				\
 	might_fault();						\
-	access_ok(VERIFY_READ, __p, sizeof(*ptr)) ?		\
+	access_ok(__p, sizeof(*ptr)) ?		\
 		__get_user((x), (__typeof__(*(ptr)) __user *)__p) :\
 		((x) = (__typeof__(*(ptr)))0,-EFAULT);		\
 })
@@ -175,7 +261,7 @@ __strncpy_from_user(char *dst, const char __user *src, long count)
 static inline long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
 	return __strncpy_from_user(dst, src, count);
 }
@@ -196,7 +282,7 @@ strncpy_from_user(char *dst, const char __user *src, long count)
  */
 static inline long strnlen_user(const char __user *src, long n)
 {
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return 0;
 	return __strnlen_user(src, n);
 }
@@ -217,7 +303,7 @@ static inline __must_check unsigned long
 clear_user(void __user *to, unsigned long n)
 {
 	might_fault();
-	if (!access_ok(VERIFY_WRITE, to, n))
+	if (!access_ok(to, n))
 		return n;
 
 	return __clear_user(to, n);

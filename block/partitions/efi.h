@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /************************************************************
  * EFI GUID Partition Table
  * Per Intel EFI Specification v1.02
@@ -5,21 +6,6 @@
  *
  * By Matt Domsch <Matt_Domsch@dell.com>  Fri Sep 22 22:15:56 CDT 2000  
  *   Copyright 2000,2001 Dell Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- * 
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- * 
  ************************************************************/
 
 #ifndef FS_PART_EFI_H_INCLUDED
@@ -102,7 +88,7 @@ typedef struct _gpt_entry {
 	__le64 starting_lba;
 	__le64 ending_lba;
 	gpt_entry_attributes attributes;
-	efi_char16_t partition_name[72 / sizeof (efi_char16_t)];
+	__le16 partition_name[72/sizeof(__le16)];
 } __packed gpt_entry;
 
 typedef struct _gpt_mbr_record {
@@ -126,8 +112,5 @@ typedef struct _legacy_mbr {
 	gpt_mbr_record partition_record[4];
 	__le16 signature;
 } __packed legacy_mbr;
-
-/* Functions */
-extern int efi_partition(struct parsed_partitions *state);
 
 #endif

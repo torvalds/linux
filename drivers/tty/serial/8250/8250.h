@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  Driver for 8250/16550-type serial ports
  *
@@ -10,6 +10,8 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 #include <linux/dmaengine.h>
+
+#include "../serial_mctrl_gpio.h"
 
 struct uart_8250_dma {
 	int (*tx_dma)(struct uart_8250_port *p);
@@ -128,6 +130,24 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 	up->dl_write(up, value);
 }
 
+static inline bool serial8250_set_THRI(struct uart_8250_port *up)
+{
+	if (up->ier & UART_IER_THRI)
+		return false;
+	up->ier |= UART_IER_THRI;
+	serial_out(up, UART_IER, up->ier);
+	return true;
+}
+
+static inline bool serial8250_clear_THRI(struct uart_8250_port *up)
+{
+	if (!(up->ier & UART_IER_THRI))
+		return false;
+	up->ier &= ~UART_IER_THRI;
+	serial_out(up, UART_IER, up->ier);
+	return true;
+}
+
 struct uart_8250_port *serial8250_get_port(int line);
 
 void serial8250_rpm_get(struct uart_8250_port *p);
@@ -136,17 +156,87 @@ void serial8250_rpm_put(struct uart_8250_port *p);
 void serial8250_rpm_get_tx(struct uart_8250_port *p);
 void serial8250_rpm_put_tx(struct uart_8250_port *p);
 
-int serial8250_em485_init(struct uart_8250_port *p);
+int serial8250_em485_config(struct uart_port *port, struct serial_rs485 *rs485);
+void serial8250_em485_start_tx(struct uart_8250_port *p);
+void serial8250_em485_stop_tx(struct uart_8250_port *p);
 void serial8250_em485_destroy(struct uart_8250_port *p);
+
+/* MCR <-> TIOCM conversion */
+static inline int serial8250_TIOCM_to_MCR(int tiocm)
+{
+	int mcr = 0;
+
+	if (tiocm & TIOCM_RTS)
+		mcr |= UART_MCR_RTS;
+	if (tiocm & TIOCM_DTR)
+		mcr |= UART_MCR_DTR;
+	if (tiocm & TIOCM_OUT1)
+		mcr |= UART_MCR_OUT1;
+	if (tiocm & TIOCM_OUT2)
+		mcr |= UART_MCR_OUT2;
+	if (tiocm & TIOCM_LOOP)
+		mcr |= UART_MCR_LOOP;
+
+	return mcr;
+}
+
+static inline int serial8250_MCR_to_TIOCM(int mcr)
+{
+	int tiocm = 0;
+
+	if (mcr & UART_MCR_RTS)
+		tiocm |= TIOCM_RTS;
+	if (mcr & UART_MCR_DTR)
+		tiocm |= TIOCM_DTR;
+	if (mcr & UART_MCR_OUT1)
+		tiocm |= TIOCM_OUT1;
+	if (mcr & UART_MCR_OUT2)
+		tiocm |= TIOCM_OUT2;
+	if (mcr & UART_MCR_LOOP)
+		tiocm |= TIOCM_LOOP;
+
+	return tiocm;
+}
+
+/* MSR <-> TIOCM conversion */
+static inline int serial8250_MSR_to_TIOCM(int msr)
+{
+	int tiocm = 0;
+
+	if (msr & UART_MSR_DCD)
+		tiocm |= TIOCM_CAR;
+	if (msr & UART_MSR_RI)
+		tiocm |= TIOCM_RNG;
+	if (msr & UART_MSR_DSR)
+		tiocm |= TIOCM_DSR;
+	if (msr & UART_MSR_CTS)
+		tiocm |= TIOCM_CTS;
+
+	return tiocm;
+}
 
 static inline void serial8250_out_MCR(struct uart_8250_port *up, int value)
 {
 	serial_out(up, UART_MCR, value);
+
+	if (up->gpios)
+		mctrl_gpio_set(up->gpios, serial8250_MCR_to_TIOCM(value));
 }
 
 static inline int serial8250_in_MCR(struct uart_8250_port *up)
 {
-	return serial_in(up, UART_MCR);
+	int mctrl;
+
+	mctrl = serial_in(up, UART_MCR);
+
+	if (up->gpios) {
+		unsigned int mctrl_gpio = 0;
+
+		mctrl_gpio = mctrl_gpio_get_outputs(up->gpios, &mctrl_gpio);
+		mctrl |= serial8250_TIOCM_to_MCR(mctrl_gpio);
+	}
+
+	return mctrl;
 }
 
 #if defined(__alpha__) && !defined(CONFIG_PCI)

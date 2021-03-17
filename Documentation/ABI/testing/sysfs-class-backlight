@@ -1,0 +1,86 @@
+What:		/sys/class/backlight/<backlight>/scale
+Date:		July 2019
+KernelVersion:	5.4
+Contact:	Daniel Thompson <daniel.thompson@linaro.org>
+Description:
+		Description of the scale of the brightness curve.
+
+		The human eye senses brightness approximately logarithmically,
+		hence linear changes in brightness are perceived as being
+		non-linear. To achieve a linear perception of brightness changes
+		controls like sliders need to apply a logarithmic mapping for
+		backlights with a linear brightness curve.
+
+		Possible values of the attribute are:
+
+		unknown
+		  The scale of the brightness curve is unknown.
+
+		linear
+		  The brightness changes linearly with each step. Brightness
+		  controls should apply a logarithmic mapping for a linear
+		  perception.
+
+		non-linear
+		  The brightness changes non-linearly with each step. Brightness
+		  controls should use a linear mapping for a linear perception.
+
+What:		/sys/class/backlight/<backlight>/ambient_light_level
+Date:		Apr, 2010
+KernelVersion:	v2.6.35
+Contact:	Michael Hennerich <michael.hennerich@analog.com>
+Description:
+		(RO) Get conversion value of the light sensor.
+
+		The value is automatically updated every 80 ms when the
+		light sensor is enabled.
+
+		The value range is device-driver specific:
+
+		For ADP8870:
+
+		  It returns integer between 0 (dark) and 8000 (max ambient
+		  brightness).
+
+		For ADP8860:
+
+		  It returns a 13-bits integer.
+
+What:		/sys/class/backlight/<backlight>/ambient_light_zone
+Date:		Apr, 2010
+KernelVersion:	v2.6.35
+Contact:	Michael Hennerich <michael.hennerich@analog.com>,
+		device-drivers-devel@blackfin.uclinux.org
+
+Description:
+		(RW) Read or write the specific brightness level at which the
+		backlight operates.
+
+		The value meaning is device-driver specific:
+
+		For ADP8860:
+
+		  ==	==========================
+		   0	Off: Backlight set to 0 mA
+		   1	Level 1: daylight
+		   2	Level 2: bright
+		   3	Level 3: dark
+		  ==	==========================
+
+		For ADP8870:
+
+		  ==	==========================
+		   0	Off: Backlight set to 0 mA
+		   1	Level 1: daylight
+		   2	Level 2: bright
+		   3	Level 3: office
+		   4	Level 4: indoor
+		   5	Level 5: dark
+		  ==	==========================
+
+		Writing 0 returns to normal/automatic ambient light level
+		operation.
+
+		It can be enabled by writing the value stored in
+		/sys/class/backlight/<backlight>/max_brightness to
+		/sys/class/backlight/<backlight>/brightness.

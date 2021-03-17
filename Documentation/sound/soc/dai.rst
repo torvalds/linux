@@ -17,14 +17,14 @@ frame (FRAME) (usually 48kHz) is always driven by the controller. Each AC97
 frame is 21uS long and is divided into 13 time slots.
 
 The AC97 specification can be found at :
-http://www.intel.com/p/en_US/business/design
+https://www.intel.com/p/en_US/business/design
 
 
 I2S
 ===
 
 I2S is a common 4 wire DAI used in HiFi, STB and portable devices. The Tx and
-Rx lines are used for audio transmission, whilst the bit clock (BCLK) and
+Rx lines are used for audio transmission, while the bit clock (BCLK) and
 left/right clock (LRC) synchronise the link. I2S is flexible in that either the
 controller or CODEC can drive (master) the BCLK and LRC clock lines. Bit clock
 usually varies depending on the sample rate and the master system clock
@@ -49,9 +49,9 @@ PCM
 
 PCM is another 4 wire interface, very similar to I2S, which can support a more
 flexible protocol. It has bit clock (BCLK) and sync (SYNC) lines that are used
-to synchronise the link whilst the Tx and Rx lines are used to transmit and
+to synchronise the link while the Tx and Rx lines are used to transmit and
 receive the audio data. Bit clock usually varies depending on sample rate
-whilst sync runs at the sample rate. PCM also supports Time Division
+while sync runs at the sample rate. PCM also supports Time Division
 Multiplexing (TDM) in that several devices can use the bus simultaneously (this
 is sometimes referred to as network mode).
 

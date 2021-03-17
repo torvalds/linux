@@ -1074,7 +1074,7 @@ static int usbduxsigma_pwm_period(struct comedi_device *dev,
 				  unsigned int period)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
-	int fx2delay = 255;
+	int fx2delay;
 
 	if (period < MIN_PWM_PERIOD)
 		return -EAGAIN;
@@ -1577,6 +1577,8 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 	usbduxsigma_free_usb_buffers(dev);
 
 	mutex_unlock(&devpriv->mut);
+
+	mutex_destroy(&devpriv->mut);
 }
 
 static struct comedi_driver usbduxsigma_driver = {

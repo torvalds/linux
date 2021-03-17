@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/simone.c
  * Simplemachines Sim.One support.
@@ -7,12 +8,6 @@
  * Based on the 2.6.24.7 support:
  *   Copyright (C) 2009 Simplemachines
  *   MMC support by Peter Ivanov <ivanovp@gmail.com>, 2007
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -25,9 +20,10 @@
 #include <linux/platform_data/video-ep93xx.h>
 #include <linux/platform_data/spi-ep93xx.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 
-#include <mach/hardware.h>
-#include <mach/gpio-ep93xx.h>
+#include "hardware.h"
+#include "gpio-ep93xx.h"
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -45,9 +41,15 @@ static struct ep93xxfb_mach_info __initdata simone_fb_info = {
 static struct mmc_spi_platform_data simone_mmc_spi_data = {
 	.detect_delay	= 500,
 	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.flags		= MMC_SPI_USE_CD_GPIO,
-	.cd_gpio	= EP93XX_GPIO_LINE_EGPIO0,
-	.cd_debounce	= 1,
+};
+
+static struct gpiod_lookup_table simone_mmc_spi_gpio_table = {
+	.dev_id = "mmc_spi.0", /* "mmc_spi" @ CS0 */
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP_IDX("A", 0, NULL, 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct spi_board_info simone_spi_devices[] __initdata = {
@@ -70,13 +72,15 @@ static struct spi_board_info simone_spi_devices[] __initdata = {
  * low between multi-message command blocks. From v1.4, it uses a GPIO instead.
  * v1.3 parts will still work, since the signal on SFRMOUT is automatic.
  */
-static int simone_spi_chipselects[] __initdata = {
-	EP93XX_GPIO_LINE_EGPIO1,
+static struct gpiod_lookup_table simone_spi_cs_gpio_table = {
+	.dev_id = "spi0",
+	.table = {
+		GPIO_LOOKUP("A", 1, "cs", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct ep93xx_spi_info simone_spi_info __initdata = {
-	.chipselect	= simone_spi_chipselects,
-	.num_chipselect	= ARRAY_SIZE(simone_spi_chipselects),
 	.use_dma = 1,
 };
 
@@ -105,6 +109,8 @@ static void __init simone_init_machine(void)
 	ep93xx_register_fb(&simone_fb_info);
 	ep93xx_register_i2c(simone_i2c_board_info,
 			    ARRAY_SIZE(simone_i2c_board_info));
+	gpiod_add_lookup_table(&simone_mmc_spi_gpio_table);
+	gpiod_add_lookup_table(&simone_spi_cs_gpio_table);
 	ep93xx_register_spi(&simone_spi_info, simone_spi_devices,
 			    ARRAY_SIZE(simone_spi_devices));
 	simone_register_audio();

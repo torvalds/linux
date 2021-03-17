@@ -49,7 +49,7 @@ static inline unsigned int page_size_ftlb(unsigned int mmuextdef)
 			return 6;
 		if (PAGE_SIZE > (256 << 10))
 			return 7; /* reserved */
-			/* fall through */
+		fallthrough;
 	case MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT:
 		return (PAGE_SHIFT - 10) / 2;
 	default:
@@ -154,6 +154,7 @@ typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 #define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
+#define pte_pgprot(x)	__pgprot(pte_val(x) & ~_PFN_MASK)
 
 /*
  * On R4000-style MMUs where a TLB entry is mapping a adjacent even / odd
@@ -248,17 +249,11 @@ static inline int pfn_valid(unsigned long pfn)
 #define virt_to_pfn(kaddr)   	PFN_DOWN(virt_to_phys((void *)(kaddr)))
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 
-extern int __virt_addr_valid(const volatile void *kaddr);
+extern bool __virt_addr_valid(const volatile void *kaddr);
 #define virt_addr_valid(kaddr)						\
 	__virt_addr_valid((const volatile void *) (kaddr))
 
-#define VM_DATA_DEFAULT_FLAGS \
-	(VM_READ | VM_WRITE | \
-	 ((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
-	 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-
-#define UNCAC_ADDR(addr)	(UNCAC_BASE + __pa(addr))
-#define CAC_ADDR(addr)		((unsigned long)__va((addr) - UNCAC_BASE))
+#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

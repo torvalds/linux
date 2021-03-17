@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt1305.c  --  RT1305 ALSA SoC amplifier component driver
  *
  * Copyright 2018 Realtek Semiconductor Corp.
  * Author: Shuming Fan <shumingf@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -414,7 +411,7 @@ static int rt1305_is_rc_clk_from_pll(struct snd_soc_dapm_widget *source,
 	struct rt1305_priv *rt1305 = snd_soc_component_get_drvdata(component);
 	unsigned int val;
 
-	snd_soc_component_read(component, RT1305_CLK_1, &val);
+	val = snd_soc_component_read(component, RT1305_CLK_1);
 
 	if (rt1305->sysclk_src == RT1305_FS_SYS_PRE_S_PLL1 &&
 		(val & RT1305_SEL_PLL_SRC_2_RCCLK))
@@ -611,7 +608,8 @@ static const struct snd_soc_dapm_route rt1305_dapm_routes[] = {
 
 static int rt1305_get_clk_info(int sclk, int rate)
 {
-	int i, pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
+	int i;
+	static const int pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
 
 	if (sclk <= 0 || rate <= 0)
 		return -EINVAL;
@@ -963,7 +961,8 @@ static const struct regmap_config rt1305_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(rt1305_reg),
 	.ranges = rt1305_ranges,
 	.num_ranges = ARRAY_SIZE(rt1305_ranges),
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 #if defined(CONFIG_OF)

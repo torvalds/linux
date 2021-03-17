@@ -258,8 +258,6 @@ mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
 	IOCPage4_t		*IOCPage4Ptr;
 	MPT_FRAME_HDR		*mf;
 	dma_addr_t		 dataDma;
-	u16			 req_idx;
-	u32			 frameOffset;
 	u32			 flagsLength;
 	int			 ii;
 
@@ -275,9 +273,6 @@ mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
 	 * Place data at end of MF.
 	 */
 	pReq = (Config_t *)mf;
-
-	req_idx = le16_to_cpu(mf->u.frame.hwhdr.msgctxu.fld.req_idx);
-	frameOffset = ioc->req_sz - sizeof(IOCPage4_t);
 
 	/* Complete the request frame (same for all requests).
 	 */
@@ -848,7 +843,6 @@ static struct scsi_host_template mptspi_driver_template = {
 	.sg_tablesize			= MPT_SCSI_SG_DEPTH,
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
-	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= mptscsih_host_attrs,
 };
 

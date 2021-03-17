@@ -4,6 +4,7 @@
  * All Rights Reserved.
  */
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
@@ -11,10 +12,8 @@
 #include "xfs_inode.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
-#include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_qm.h"
-#include <linux/quota.h>
 
 
 static void
@@ -22,10 +21,10 @@ xfs_qm_fill_state(
 	struct qc_type_state	*tstate,
 	struct xfs_mount	*mp,
 	struct xfs_inode	*ip,
-	xfs_ino_t		ino)
+	xfs_ino_t		ino,
+	struct xfs_def_quota	*defq)
 {
-	struct xfs_quotainfo *q = mp->m_quotainfo;
-	bool tempqip = false;
+	bool			tempqip = false;
 
 	tstate->ino = ino;
 	if (!ip && ino == NULLFSINO)
@@ -37,13 +36,13 @@ xfs_qm_fill_state(
 	}
 	tstate->flags |= QCI_SYSFILE;
 	tstate->blocks = ip->i_d.di_nblocks;
-	tstate->nextents = ip->i_d.di_nextents;
-	tstate->spc_timelimit = q->qi_btimelimit;
-	tstate->ino_timelimit = q->qi_itimelimit;
-	tstate->rt_spc_timelimit = q->qi_rtbtimelimit;
-	tstate->spc_warnlimit = q->qi_bwarnlimit;
-	tstate->ino_warnlimit = q->qi_iwarnlimit;
-	tstate->rt_spc_warnlimit = q->qi_rtbwarnlimit;
+	tstate->nextents = ip->i_df.if_nextents;
+	tstate->spc_timelimit = (u32)defq->blk.time;
+	tstate->ino_timelimit = (u32)defq->ino.time;
+	tstate->rt_spc_timelimit = (u32)defq->rtb.time;
+	tstate->spc_warnlimit = defq->blk.warn;
+	tstate->ino_warnlimit = defq->ino.warn;
+	tstate->rt_spc_warnlimit = defq->rtb.warn;
 	if (tempqip)
 		xfs_irele(ip);
 }
@@ -78,24 +77,24 @@ xfs_fs_get_quota_state(
 		state->s_state[PRJQUOTA].flags |= QCI_LIMITS_ENFORCED;
 
 	xfs_qm_fill_state(&state->s_state[USRQUOTA], mp, q->qi_uquotaip,
-			  mp->m_sb.sb_uquotino);
+			  mp->m_sb.sb_uquotino, &q->qi_usr_default);
 	xfs_qm_fill_state(&state->s_state[GRPQUOTA], mp, q->qi_gquotaip,
-			  mp->m_sb.sb_gquotino);
+			  mp->m_sb.sb_gquotino, &q->qi_grp_default);
 	xfs_qm_fill_state(&state->s_state[PRJQUOTA], mp, q->qi_pquotaip,
-			  mp->m_sb.sb_pquotino);
+			  mp->m_sb.sb_pquotino, &q->qi_prj_default);
 	return 0;
 }
 
-STATIC int
+STATIC xfs_dqtype_t
 xfs_quota_type(int type)
 {
 	switch (type) {
 	case USRQUOTA:
-		return XFS_DQ_USER;
+		return XFS_DQTYPE_USER;
 	case GRPQUOTA:
-		return XFS_DQ_GROUP;
+		return XFS_DQTYPE_GROUP;
 	default:
-		return XFS_DQ_PROJ;
+		return XFS_DQTYPE_PROJ;
 	}
 }
 
@@ -110,8 +109,8 @@ xfs_fs_set_info(
 	int			type,
 	struct qc_info		*info)
 {
-	struct xfs_mount *mp = XFS_M(sb);
-	struct qc_dqblk newlim;
+	struct xfs_mount	*mp = XFS_M(sb);
+	struct qc_dqblk		newlim;
 
 	if (sb_rdonly(sb))
 		return -EROFS;
@@ -202,12 +201,15 @@ xfs_fs_rm_xquota(
 	if (XFS_IS_QUOTA_ON(mp))
 		return -EINVAL;
 
+	if (uflags & ~(FS_USER_QUOTA | FS_GROUP_QUOTA | FS_PROJ_QUOTA))
+		return -EINVAL;
+
 	if (uflags & FS_USER_QUOTA)
-		flags |= XFS_DQ_USER;
+		flags |= XFS_QMOPT_UQUOTA;
 	if (uflags & FS_GROUP_QUOTA)
-		flags |= XFS_DQ_GROUP;
+		flags |= XFS_QMOPT_GQUOTA;
 	if (uflags & FS_PROJ_QUOTA)
-		flags |= XFS_DQ_PROJ;
+		flags |= XFS_QMOPT_PQUOTA;
 
 	return xfs_qm_scall_trunc_qfiles(mp, flags);
 }

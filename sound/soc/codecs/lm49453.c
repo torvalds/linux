@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lm49453.c  -  LM49453 ALSA Soc Audio driver
  *
  * Copyright (c) 2012 Texas Instruments, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  *
  * Initially based on sound/soc/codecs/wm8350.c
  */
@@ -1221,35 +1218,35 @@ static int lm49453_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	return 0;
 }
 
-static int lm49453_hp_mute(struct snd_soc_dai *dai, int mute)
+static int lm49453_hp_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, LM49453_P0_DAC_DSP_REG, BIT(1)|BIT(0),
 			    (mute ? (BIT(1)|BIT(0)) : 0));
 	return 0;
 }
 
-static int lm49453_lo_mute(struct snd_soc_dai *dai, int mute)
+static int lm49453_lo_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, LM49453_P0_DAC_DSP_REG, BIT(3)|BIT(2),
 			    (mute ? (BIT(3)|BIT(2)) : 0));
 	return 0;
 }
 
-static int lm49453_ls_mute(struct snd_soc_dai *dai, int mute)
+static int lm49453_ls_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, LM49453_P0_DAC_DSP_REG, BIT(5)|BIT(4),
 			    (mute ? (BIT(5)|BIT(4)) : 0));
 	return 0;
 }
 
-static int lm49453_ep_mute(struct snd_soc_dai *dai, int mute)
+static int lm49453_ep_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, LM49453_P0_DAC_DSP_REG, BIT(4),
 			    (mute ? BIT(4) : 0));
 	return 0;
 }
 
-static int lm49453_ha_mute(struct snd_soc_dai *dai, int mute)
+static int lm49453_ha_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, LM49453_P0_DAC_DSP_REG, BIT(7)|BIT(6),
 			    (mute ? (BIT(7)|BIT(6)) : 0));
@@ -1291,35 +1288,40 @@ static const struct snd_soc_dai_ops lm49453_headset_dai_ops = {
 	.hw_params	= lm49453_hw_params,
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
-	.digital_mute	= lm49453_hp_mute,
+	.mute_stream	= lm49453_hp_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops lm49453_speaker_dai_ops = {
 	.hw_params	= lm49453_hw_params,
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
-	.digital_mute	= lm49453_ls_mute,
+	.mute_stream	= lm49453_ls_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops lm49453_haptic_dai_ops = {
 	.hw_params	= lm49453_hw_params,
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
-	.digital_mute	= lm49453_ha_mute,
+	.mute_stream	= lm49453_ha_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops lm49453_ep_dai_ops = {
 	.hw_params	= lm49453_hw_params,
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
-	.digital_mute	= lm49453_ep_mute,
+	.mute_stream	= lm49453_ep_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops lm49453_lineout_dai_ops = {
 	.hw_params	= lm49453_hw_params,
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
-	.digital_mute	= lm49453_lo_mute,
+	.mute_stream	= lm49453_lo_mute,
+	.no_capture_mute = 1,
 };
 
 /* LM49453 dai structure. */

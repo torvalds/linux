@@ -1,10 +1,13 @@
 Microsemi Ocelot reset controller
 
 The DEVCPU_GCB:CHIP_REGS have a SOFT_RST register that can be used to reset the
-SoC MIPS core.
+SoC core.
+
+The reset registers are both present in the MSCC vcoreiii MIPS and
+microchip Sparx5 armv8 SoC's.
 
 Required Properties:
- - compatible: "mscc,ocelot-chip-reset"
+ - compatible: "mscc,ocelot-chip-reset" or "microchip,sparx5-chip-reset"
 
 Example:
 	reset@1070008 {

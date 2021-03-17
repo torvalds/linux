@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * Copyright 2013-2016 Freescale Semiconductor Inc.
+ * Copyright 2020 NXP
  *
  */
 #include <linux/kernel.h>
 #include <linux/fsl/mc.h>
 
 #include "fsl-mc-private.h"
+
+/*
+ * cache the DPRC version to reduce the number of commands
+ * towards the mc firmware
+ */
+static u16 dprc_major_ver;
+static u16 dprc_minor_ver;
 
 /**
  * dprc_open() - Open DPRC object for use
@@ -71,6 +79,77 @@ int dprc_close(struct fsl_mc_io *mc_io,
 	return mc_send_command(mc_io, &cmd);
 }
 EXPORT_SYMBOL_GPL(dprc_close);
+
+/**
+ * dprc_reset_container - Reset child container.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPRC object
+ * @child_container_id:	ID of the container to reset
+ * @options: 32 bit options:
+ *   - 0 (no bits set) - all the objects inside the container are
+ *     reset. The child containers are entered recursively and the
+ *     objects reset. All the objects (including the child containers)
+ *     are closed.
+ *   - bit 0 set - all the objects inside the container are reset.
+ *     However the child containers are not entered recursively.
+ *     This option is supported for API versions >= 6.5
+ * In case a software context crashes or becomes non-responsive, the parent
+ * may wish to reset its resources container before the software context is
+ * restarted.
+ *
+ * This routine informs all objects assigned to the child container that the
+ * container is being reset, so they may perform any cleanup operations that are
+ * needed. All objects handles that were owned by the child container shall be
+ * closed.
+ *
+ * Note that such request may be submitted even if the child software context
+ * has not crashed, but the resulting object cleanup operations will not be
+ * aware of that.
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dprc_reset_container(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 int child_container_id,
+			 u32 options)
+{
+	struct fsl_mc_command cmd = { 0 };
+	struct dprc_cmd_reset_container *cmd_params;
+	u32 cmdid = DPRC_CMDID_RESET_CONT;
+	int err;
+
+	/*
+	 * If the DPRC object version was not yet cached, cache it now.
+	 * Otherwise use the already cached value.
+	 */
+	if (!dprc_major_ver && !dprc_minor_ver) {
+		err = dprc_get_api_version(mc_io, 0,
+				&dprc_major_ver,
+				&dprc_minor_ver);
+		if (err)
+			return err;
+	}
+
+	/*
+	 * MC API 6.5 introduced a new field in the command used to pass
+	 * some flags.
+	 * Bit 0 indicates that the child containers are not recursively reset.
+	 */
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 5))
+		cmdid = DPRC_CMDID_RESET_CONT_V2;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(cmdid, cmd_flags, token);
+	cmd_params = (struct dprc_cmd_reset_container *)cmd.params;
+	cmd_params->child_container_id = cpu_to_le32(child_container_id);
+	cmd_params->options = cpu_to_le32(options);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+EXPORT_SYMBOL_GPL(dprc_reset_container);
 
 /**
  * dprc_set_irq() - Set IRQ information for the DPRC to trigger an interrupt.
@@ -281,7 +360,7 @@ int dprc_get_attributes(struct fsl_mc_io *mc_io,
 	/* retrieve response parameters */
 	rsp_params = (struct dprc_rsp_get_attributes *)cmd.params;
 	attr->container_id = le32_to_cpu(rsp_params->container_id);
-	attr->icid = le16_to_cpu(rsp_params->icid);
+	attr->icid = le32_to_cpu(rsp_params->icid);
 	attr->options = le32_to_cpu(rsp_params->options);
 	attr->portal_id = le32_to_cpu(rsp_params->portal_id);
 
@@ -445,9 +524,43 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	struct dprc_rsp_get_obj_region *rsp_params;
 	int err;
 
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG,
-					  cmd_flags, token);
+    /*
+     * If the DPRC object version was not yet cached, cache it now.
+     * Otherwise use the already cached value.
+     */
+	if (!dprc_major_ver && !dprc_minor_ver) {
+		err = dprc_get_api_version(mc_io, 0,
+				      &dprc_major_ver,
+				      &dprc_minor_ver);
+		if (err)
+			return err;
+	}
+
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 6)) {
+		/*
+		 * MC API version 6.6 changed the size of the MC portals and software
+		 * portals to 64K (as implemented by hardware). If older API is in use the
+		 * size reported is less (64 bytes for mc portals and 4K for software
+		 * portals).
+		 */
+
+		cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V3,
+						  cmd_flags, token);
+
+	} else if (dprc_major_ver == 6 && dprc_minor_ver >= 3) {
+		/*
+		 * MC API version 6.3 introduced a new field to the region
+		 * descriptor: base_address. If the older API is in use then the base
+		 * address is set to zero to indicate it needs to be obtained elsewhere
+		 * (typically the device tree).
+		 */
+		cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V2,
+						  cmd_flags, token);
+	} else {
+		cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG,
+						  cmd_flags, token);
+	}
+
 	cmd_params = (struct dprc_cmd_get_obj_region *)cmd.params;
 	cmd_params->obj_id = cpu_to_le32(obj_id);
 	cmd_params->region_index = region_index;
@@ -461,8 +574,12 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 
 	/* retrieve response parameters */
 	rsp_params = (struct dprc_rsp_get_obj_region *)cmd.params;
-	region_desc->base_offset = le64_to_cpu(rsp_params->base_addr);
+	region_desc->base_offset = le64_to_cpu(rsp_params->base_offset);
 	region_desc->size = le32_to_cpu(rsp_params->size);
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 3))
+		region_desc->base_address = le64_to_cpu(rsp_params->base_addr);
+	else
+		region_desc->base_address = 0;
 
 	return 0;
 }
@@ -527,6 +644,59 @@ int dprc_get_container_id(struct fsl_mc_io *mc_io,
 
 	/* retrieve response parameters */
 	*container_id = (int)mc_cmd_read_object_id(&cmd);
+
+	return 0;
+}
+
+/**
+ * dprc_get_connection() - Get connected endpoint and link status if connection
+ *			exists.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPRC object
+ * @endpoint1:	Endpoint 1 configuration parameters
+ * @endpoint2:	Returned endpoint 2 configuration parameters
+ * @state:	Returned link state:
+ *		1 - link is up;
+ *		0 - link is down;
+ *		-1 - no connection (endpoint2 information is irrelevant)
+ *
+ * Return:     '0' on Success; -ENOTCONN if connection does not exist.
+ */
+int dprc_get_connection(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			const struct dprc_endpoint *endpoint1,
+			struct dprc_endpoint *endpoint2,
+			int *state)
+{
+	struct dprc_cmd_get_connection *cmd_params;
+	struct dprc_rsp_get_connection *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	int err, i;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_CONNECTION,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dprc_cmd_get_connection *)cmd.params;
+	cmd_params->ep1_id = cpu_to_le32(endpoint1->id);
+	cmd_params->ep1_interface_id = cpu_to_le16(endpoint1->if_id);
+	for (i = 0; i < 16; i++)
+		cmd_params->ep1_type[i] = endpoint1->type[i];
+
+	/* send command to mc */
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return -ENOTCONN;
+
+	/* retrieve response parameters */
+	rsp_params = (struct dprc_rsp_get_connection *)cmd.params;
+	endpoint2->id = le32_to_cpu(rsp_params->ep2_id);
+	endpoint2->if_id = le16_to_cpu(rsp_params->ep2_interface_id);
+	*state = le32_to_cpu(rsp_params->state);
+	for (i = 0; i < 16; i++)
+		endpoint2->type[i] = rsp_params->ep2_type[i];
 
 	return 0;
 }

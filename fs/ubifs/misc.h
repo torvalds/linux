@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -133,7 +121,7 @@ static inline const char *ubifs_compr_name(struct ubifs_info *c, int compr_type)
  * ubifs_wbuf_sync - synchronize write-buffer.
  * @wbuf: write-buffer to synchronize
  *
- * This is the same as as 'ubifs_wbuf_sync_nolock()' but it does not assume
+ * This is the same as 'ubifs_wbuf_sync_nolock()' but it does not assume
  * that the write-buffer is already locked.
  */
 static inline int ubifs_wbuf_sync(struct ubifs_wbuf *wbuf)
@@ -197,7 +185,8 @@ static inline int ubifs_return_leb(struct ubifs_info *c, int lnum)
  */
 static inline int ubifs_idx_node_sz(const struct ubifs_info *c, int child_cnt)
 {
-	return UBIFS_IDX_NODE_SZ + (UBIFS_BRANCH_SZ + c->key_len) * child_cnt;
+	return UBIFS_IDX_NODE_SZ + (UBIFS_BRANCH_SZ + c->key_len + c->hash_len)
+				   * child_cnt;
 }
 
 /**
@@ -212,7 +201,7 @@ struct ubifs_branch *ubifs_idx_branch(const struct ubifs_info *c,
 				      int bnum)
 {
 	return (struct ubifs_branch *)((void *)idx->branches +
-				       (UBIFS_BRANCH_SZ + c->key_len) * bnum);
+			(UBIFS_BRANCH_SZ + c->key_len + c->hash_len) * bnum);
 }
 
 /**
@@ -285,6 +274,14 @@ static inline int ubifs_next_log_lnum(const struct ubifs_info *c, int lnum)
 		lnum = UBIFS_LOG_LNUM;
 
 	return lnum;
+}
+
+static inline int ubifs_xattr_max_cnt(struct ubifs_info *c)
+{
+	int max_xattrs = (c->leb_size / 2) / UBIFS_INO_NODE_SZ;
+
+	ubifs_assert(c, max_xattrs < c->max_orphans);
+	return max_xattrs;
 }
 
 const char *ubifs_assert_action_name(struct ubifs_info *c);

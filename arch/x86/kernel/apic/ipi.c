@@ -1,24 +1,114 @@
 // SPDX-License-Identifier: GPL-2.0
+
 #include <linux/cpumask.h>
-#include <linux/interrupt.h>
+#include <linux/smp.h>
+#include <asm/io_apic.h>
 
-#include <linux/mm.h>
-#include <linux/delay.h>
-#include <linux/spinlock.h>
-#include <linux/kernel_stat.h>
-#include <linux/mc146818rtc.h>
-#include <linux/cache.h>
-#include <linux/cpu.h>
+#include "local.h"
 
-#include <asm/smp.h>
-#include <asm/mtrr.h>
-#include <asm/tlbflush.h>
-#include <asm/mmu_context.h>
-#include <asm/apic.h>
-#include <asm/proto.h>
-#include <asm/ipi.h>
+DEFINE_STATIC_KEY_FALSE(apic_use_ipi_shorthand);
 
-void __default_send_IPI_shortcut(unsigned int shortcut, int vector, unsigned int dest)
+#ifdef CONFIG_SMP
+static int apic_ipi_shorthand_off __ro_after_init;
+
+static __init int apic_ipi_shorthand(char *str)
+{
+	get_option(&str, &apic_ipi_shorthand_off);
+	return 1;
+}
+__setup("no_ipi_broadcast=", apic_ipi_shorthand);
+
+static int __init print_ipi_mode(void)
+{
+	pr_info("IPI shorthand broadcast: %s\n",
+		apic_ipi_shorthand_off ? "disabled" : "enabled");
+	return 0;
+}
+late_initcall(print_ipi_mode);
+
+void apic_smt_update(void)
+{
+	/*
+	 * Do not switch to broadcast mode if:
+	 * - Disabled on the command line
+	 * - Only a single CPU is online
+	 * - Not all present CPUs have been at least booted once
+	 *
+	 * The latter is important as the local APIC might be in some
+	 * random state and a broadcast might cause havoc. That's
+	 * especially true for NMI broadcasting.
+	 */
+	if (apic_ipi_shorthand_off || num_online_cpus() == 1 ||
+	    !cpumask_equal(cpu_present_mask, &cpus_booted_once_mask)) {
+		static_branch_disable(&apic_use_ipi_shorthand);
+	} else {
+		static_branch_enable(&apic_use_ipi_shorthand);
+	}
+}
+
+void apic_send_IPI_allbutself(unsigned int vector)
+{
+	if (num_online_cpus() < 2)
+		return;
+
+	if (static_branch_likely(&apic_use_ipi_shorthand))
+		apic->send_IPI_allbutself(vector);
+	else
+		apic->send_IPI_mask_allbutself(cpu_online_mask, vector);
+}
+
+/*
+ * Send a 'reschedule' IPI to another CPU. It goes straight through and
+ * wastes no time serializing anything. Worst case is that we lose a
+ * reschedule ...
+ */
+void native_smp_send_reschedule(int cpu)
+{
+	if (unlikely(cpu_is_offline(cpu))) {
+		WARN(1, "sched: Unexpected reschedule of offline CPU#%d!\n", cpu);
+		return;
+	}
+	apic->send_IPI(cpu, RESCHEDULE_VECTOR);
+}
+
+void native_send_call_func_single_ipi(int cpu)
+{
+	apic->send_IPI(cpu, CALL_FUNCTION_SINGLE_VECTOR);
+}
+
+void native_send_call_func_ipi(const struct cpumask *mask)
+{
+	if (static_branch_likely(&apic_use_ipi_shorthand)) {
+		unsigned int cpu = smp_processor_id();
+
+		if (!cpumask_or_equal(mask, cpumask_of(cpu), cpu_online_mask))
+			goto sendmask;
+
+		if (cpumask_test_cpu(cpu, mask))
+			apic->send_IPI_all(CALL_FUNCTION_VECTOR);
+		else if (num_online_cpus() > 1)
+			apic->send_IPI_allbutself(CALL_FUNCTION_VECTOR);
+		return;
+	}
+
+sendmask:
+	apic->send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
+}
+
+#endif /* CONFIG_SMP */
+
+static inline int __prepare_ICR2(unsigned int mask)
+{
+	return SET_APIC_DEST_FIELD(mask);
+}
+
+static inline void __xapic_wait_icr_idle(void)
+{
+	while (native_apic_mem_read(APIC_ICR) & APIC_ICR_BUSY)
+		cpu_relax();
+}
+
+void __default_send_IPI_shortcut(unsigned int shortcut, int vector)
 {
 	/*
 	 * Subtle. In the case of the 'never do double writes' workaround
@@ -32,12 +122,16 @@ void __default_send_IPI_shortcut(unsigned int shortcut, int vector, unsigned int
 	/*
 	 * Wait for idle.
 	 */
-	__xapic_wait_icr_idle();
+	if (unlikely(vector == NMI_VECTOR))
+		safe_apic_wait_icr_idle();
+	else
+		__xapic_wait_icr_idle();
 
 	/*
-	 * No need to touch the target chip field
+	 * No need to touch the target chip field. Also the destination
+	 * mode is ignored when a shorthand is used.
 	 */
-	cfg = __prepare_ICR(shortcut, vector, dest);
+	cfg = __prepare_ICR(shortcut, vector, 0);
 
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
@@ -133,6 +227,21 @@ void default_send_IPI_single(int cpu, int vector)
 	apic->send_IPI_mask(cpumask_of(cpu), vector);
 }
 
+void default_send_IPI_allbutself(int vector)
+{
+	__default_send_IPI_shortcut(APIC_DEST_ALLBUT, vector);
+}
+
+void default_send_IPI_all(int vector)
+{
+	__default_send_IPI_shortcut(APIC_DEST_ALLINC, vector);
+}
+
+void default_send_IPI_self(int vector)
+{
+	__default_send_IPI_shortcut(APIC_DEST_SELF, vector);
+}
+
 #ifdef CONFIG_X86_32
 
 void default_send_IPI_mask_sequence_logical(const struct cpumask *mask,
@@ -190,28 +299,6 @@ void default_send_IPI_mask_logical(const struct cpumask *cpumask, int vector)
 	WARN_ON(mask & ~cpumask_bits(cpu_online_mask)[0]);
 	__default_send_IPI_dest_field(mask, vector, apic->dest_logical);
 	local_irq_restore(flags);
-}
-
-void default_send_IPI_allbutself(int vector)
-{
-	/*
-	 * if there are no other CPUs in the system then we get an APIC send
-	 * error if we try to broadcast, thus avoid sending IPIs in this case.
-	 */
-	if (!(num_online_cpus() > 1))
-		return;
-
-	__default_local_send_IPI_allbutself(vector);
-}
-
-void default_send_IPI_all(int vector)
-{
-	__default_local_send_IPI_all(vector);
-}
-
-void default_send_IPI_self(int vector)
-{
-	__default_send_IPI_shortcut(APIC_DEST_SELF, vector, apic->dest_logical);
 }
 
 /* must come after the send_IPI functions above for inlining */

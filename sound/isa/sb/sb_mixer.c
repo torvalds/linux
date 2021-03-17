@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for Sound Blaster mixer control
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -453,7 +438,7 @@ static int snd_sb16mixer_put_input_sw(struct snd_kcontrol *kcontrol, struct snd_
  */
 int snd_sbmixer_add_ctl(struct snd_sb *chip, const char *name, int index, int type, unsigned long value)
 {
-	static struct snd_kcontrol_new newctls[] = {
+	static const struct snd_kcontrol_new newctls[] = {
 		[SB_MIX_SINGLE] = {
 			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 			.info = snd_sbmixer_info_single,
@@ -509,14 +494,14 @@ int snd_sbmixer_add_ctl(struct snd_sb *chip, const char *name, int index, int ty
  * SB 2.0 specific mixer elements
  */
 
-static struct sbmix_elem snd_sb20_controls[] = {
+static const struct sbmix_elem snd_sb20_controls[] = {
 	SB_SINGLE("Master Playback Volume", SB_DSP20_MASTER_DEV, 1, 7),
 	SB_SINGLE("PCM Playback Volume", SB_DSP20_PCM_DEV, 1, 3),
 	SB_SINGLE("Synth Playback Volume", SB_DSP20_FM_DEV, 1, 7),
 	SB_SINGLE("CD Playback Volume", SB_DSP20_CD_DEV, 1, 7)
 };
 
-static unsigned char snd_sb20_init_values[][2] = {
+static const unsigned char snd_sb20_init_values[][2] = {
 	{ SB_DSP20_MASTER_DEV, 0 },
 	{ SB_DSP20_FM_DEV, 0 },
 };
@@ -524,7 +509,7 @@ static unsigned char snd_sb20_init_values[][2] = {
 /*
  * SB Pro specific mixer elements
  */
-static struct sbmix_elem snd_sbpro_controls[] = {
+static const struct sbmix_elem snd_sbpro_controls[] = {
 	SB_DOUBLE("Master Playback Volume",
 		  SB_DSP_MASTER_DEV, SB_DSP_MASTER_DEV, 5, 1, 7),
 	SB_DOUBLE("PCM Playback Volume",
@@ -544,7 +529,7 @@ static struct sbmix_elem snd_sbpro_controls[] = {
 	SB_SINGLE("Capture Low-Pass Filter", SB_DSP_CAPTURE_FILT, 3, 1)
 };
 
-static unsigned char snd_sbpro_init_values[][2] = {
+static const unsigned char snd_sbpro_init_values[][2] = {
 	{ SB_DSP_MASTER_DEV, 0 },
 	{ SB_DSP_PCM_DEV, 0 },
 	{ SB_DSP_FM_DEV, 0 },
@@ -553,7 +538,7 @@ static unsigned char snd_sbpro_init_values[][2] = {
 /*
  * SB16 specific mixer elements
  */
-static struct sbmix_elem snd_sb16_controls[] = {
+static const struct sbmix_elem snd_sb16_controls[] = {
 	SB_DOUBLE("Master Playback Volume",
 		  SB_DSP4_MASTER_DEV, (SB_DSP4_MASTER_DEV + 1), 3, 3, 31),
 	SB_DOUBLE("PCM Playback Volume",
@@ -591,7 +576,7 @@ static struct sbmix_elem snd_sb16_controls[] = {
 		  SB_DSP4_TREBLE_DEV, (SB_DSP4_TREBLE_DEV + 1), 4, 4, 15)
 };
 
-static unsigned char snd_sb16_init_values[][2] = {
+static const unsigned char snd_sb16_init_values[][2] = {
 	{ SB_DSP4_MASTER_DEV + 0, 0 },
 	{ SB_DSP4_MASTER_DEV + 1, 0 },
 	{ SB_DSP4_PCM_DEV + 0, 0 },
@@ -607,7 +592,7 @@ static unsigned char snd_sb16_init_values[][2] = {
 /*
  * DT019x specific mixer elements
  */
-static struct sbmix_elem snd_dt019x_controls[] = {
+static const struct sbmix_elem snd_dt019x_controls[] = {
 	/* ALS4000 below has some parts which we might be lacking,
 	 * e.g. snd_als4000_ctl_mono_playback_switch - check it! */
 	SB_DOUBLE("Master Playback Volume",
@@ -637,7 +622,7 @@ static struct sbmix_elem snd_dt019x_controls[] = {
 	}
 };
 
-static unsigned char snd_dt019x_init_values[][2] = {
+static const unsigned char snd_dt019x_init_values[][2] = {
         { SB_DT019X_MASTER_DEV, 0 },
         { SB_DT019X_PCM_DEV, 0 },
         { SB_DT019X_SYNTH_DEV, 0 },
@@ -652,7 +637,7 @@ static unsigned char snd_dt019x_init_values[][2] = {
 /*
  * ALS4000 specific mixer elements
  */
-static struct sbmix_elem snd_als4000_controls[] = {
+static const struct sbmix_elem snd_als4000_controls[] = {
 	SB_DOUBLE("PCM Playback Switch",
 		  SB_DT019X_OUTPUT_SW2, SB_DT019X_OUTPUT_SW2, 2, 1, 1),
 	SB_DOUBLE("Synth Playback Switch",
@@ -686,7 +671,7 @@ static struct sbmix_elem snd_als4000_controls[] = {
 #endif
 };
 
-static unsigned char snd_als4000_init_values[][2] = {
+static const unsigned char snd_als4000_init_values[][2] = {
 	{ SB_DSP4_MASTER_DEV + 0, 0 },
 	{ SB_DSP4_MASTER_DEV + 1, 0 },
 	{ SB_DSP4_PCM_DEV + 0, 0 },
@@ -704,9 +689,9 @@ static unsigned char snd_als4000_init_values[][2] = {
 /*
  */
 static int snd_sbmixer_init(struct snd_sb *chip,
-			    struct sbmix_elem *controls,
+			    const struct sbmix_elem *controls,
 			    int controls_count,
-			    unsigned char map[][2],
+			    const unsigned char map[][2],
 			    int map_count,
 			    char *name)
 {
@@ -815,14 +800,14 @@ int snd_sbmixer_new(struct snd_sb *chip)
 }
 
 #ifdef CONFIG_PM
-static unsigned char sb20_saved_regs[] = {
+static const unsigned char sb20_saved_regs[] = {
 	SB_DSP20_MASTER_DEV,
 	SB_DSP20_PCM_DEV,
 	SB_DSP20_FM_DEV,
 	SB_DSP20_CD_DEV,
 };
 
-static unsigned char sbpro_saved_regs[] = {
+static const unsigned char sbpro_saved_regs[] = {
 	SB_DSP_MASTER_DEV,
 	SB_DSP_PCM_DEV,
 	SB_DSP_PLAYBACK_FILT,
@@ -834,7 +819,7 @@ static unsigned char sbpro_saved_regs[] = {
 	SB_DSP_CAPTURE_FILT,
 };
 
-static unsigned char sb16_saved_regs[] = {
+static const unsigned char sb16_saved_regs[] = {
 	SB_DSP4_MASTER_DEV, SB_DSP4_MASTER_DEV + 1,
 	SB_DSP4_3DSE,
 	SB_DSP4_BASS_DEV, SB_DSP4_BASS_DEV + 1,
@@ -852,7 +837,7 @@ static unsigned char sb16_saved_regs[] = {
 	SB_DSP4_MIC_AGC
 };
 
-static unsigned char dt019x_saved_regs[] = {
+static const unsigned char dt019x_saved_regs[] = {
 	SB_DT019X_MASTER_DEV,
 	SB_DT019X_PCM_DEV,
 	SB_DT019X_SYNTH_DEV,
@@ -865,7 +850,7 @@ static unsigned char dt019x_saved_regs[] = {
 	SB_DT019X_CAPTURE_SW,
 };
 
-static unsigned char als4000_saved_regs[] = {
+static const unsigned char als4000_saved_regs[] = {
 	/* please verify in dsheet whether regs to be added
 	   are actually real H/W or just dummy */
 	SB_DSP4_MASTER_DEV, SB_DSP4_MASTER_DEV + 1,
@@ -887,7 +872,7 @@ static unsigned char als4000_saved_regs[] = {
 	SB_ALS4000_CR3_CONFIGURATION,
 };
 
-static void save_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)
+static void save_mixer(struct snd_sb *chip, const unsigned char *regs, int num_regs)
 {
 	unsigned char *val = chip->saved_regs;
 	if (snd_BUG_ON(num_regs > ARRAY_SIZE(chip->saved_regs)))
@@ -896,7 +881,7 @@ static void save_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)
 		*val++ = snd_sbmixer_read(chip, *regs++);
 }
 
-static void restore_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)
+static void restore_mixer(struct snd_sb *chip, const unsigned char *regs, int num_regs)
 {
 	unsigned char *val = chip->saved_regs;
 	if (snd_BUG_ON(num_regs > ARRAY_SIZE(chip->saved_regs)))

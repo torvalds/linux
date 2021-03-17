@@ -1,18 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016 SiFive
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation, version 2.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
  */
 
-#ifndef __ASM_RISCV_PCI_H
-#define __ASM_RISCV_PCI_H
+#ifndef _ASM_RISCV_PCI_H
+#define _ASM_RISCV_PCI_H
 
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -42,4 +34,4 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 #endif  /* CONFIG_PCI */
 
-#endif  /* __ASM_PCI_H */
+#endif  /* _ASM_RISCV_PCI_H */

@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016-2017 Linaro Ltd., Rob Herring <robh@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef _LINUX_SERDEV_H
 #define _LINUX_SERDEV_H
@@ -173,8 +165,20 @@ int serdev_device_add(struct serdev_device *);
 void serdev_device_remove(struct serdev_device *);
 
 struct serdev_controller *serdev_controller_alloc(struct device *, size_t);
-int serdev_controller_add(struct serdev_controller *);
+int serdev_controller_add_platform(struct serdev_controller *, bool);
 void serdev_controller_remove(struct serdev_controller *);
+
+/**
+ * serdev_controller_add() - Add an serdev controller
+ * @ctrl:	controller to be registered.
+ *
+ * Register a controller previously allocated via serdev_controller_alloc() with
+ * the serdev core.
+ */
+static inline int serdev_controller_add(struct serdev_controller *ctrl)
+{
+	return serdev_controller_add_platform(ctrl, false);
+}
 
 static inline void serdev_controller_write_wakeup(struct serdev_controller *ctrl)
 {
@@ -210,7 +214,7 @@ void serdev_device_wait_until_sent(struct serdev_device *, long);
 int serdev_device_get_tiocm(struct serdev_device *);
 int serdev_device_set_tiocm(struct serdev_device *, int, int);
 void serdev_device_write_wakeup(struct serdev_device *);
-int serdev_device_write(struct serdev_device *, const unsigned char *, size_t, unsigned long);
+int serdev_device_write(struct serdev_device *, const unsigned char *, size_t, long);
 void serdev_device_write_flush(struct serdev_device *);
 int serdev_device_write_room(struct serdev_device *);
 

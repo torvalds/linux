@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2012 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * ST DDC I2C master mode driver, used in e.g. U300 series platforms.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  * Author: Jonas Aaberg <jonas.aberg@stericsson.com>
@@ -132,7 +132,7 @@ enum stu300_error {
 #define NUM_ADDR_RESEND_ATTEMPTS 12
 
 /* I2C clock speed, in Hz 0-400kHz*/
-static unsigned int scl_frequency = 100000;
+static unsigned int scl_frequency = I2C_MAX_STANDARD_MODE_FREQ;
 module_param(scl_frequency, uint,  0644);
 
 /**
@@ -328,12 +328,6 @@ static int stu300_start_and_await_event(struct stu300_dev *dev,
 {
 	int ret;
 
-	if (unlikely(irqs_disabled())) {
-		/* TODO: implement polling for this case if need be. */
-		WARN(1, "irqs are disabled, cannot poll for event\n");
-		return -EIO;
-	}
-
 	/* Lock command issue, fill in an event we wait for */
 	spin_lock_irq(&dev->cmd_issue_lock);
 	init_completion(&dev->cmd_complete);
@@ -379,13 +373,6 @@ static int stu300_await_event(struct stu300_dev *dev,
 				enum stu300_event mr_event)
 {
 	int ret;
-
-	if (unlikely(irqs_disabled())) {
-		/* TODO: implement polling for this case if need be. */
-		dev_err(&dev->pdev->dev, "irqs are disabled on this "
-			"system!\n");
-		return -EIO;
-	}
 
 	/* Is it already here? */
 	spin_lock_irq(&dev->cmd_issue_lock);
@@ -457,7 +444,7 @@ static int stu300_wait_while_busy(struct stu300_dev *dev)
 		       "Attempt: %d\n", i+1);
 
 		dev_err(&dev->pdev->dev, "base address = "
-			"0x%08x, reinit hardware\n", (u32) dev->virtbase);
+			"0x%p, reinit hardware\n", dev->virtbase);
 
 		(void) stu300_init_hw(dev);
 	}
@@ -510,7 +497,7 @@ static int stu300_set_clk(struct stu300_dev *dev, unsigned long clkrate)
 	dev_dbg(&dev->pdev->dev, "Clock rate %lu Hz, I2C bus speed %d Hz "
 		"virtbase %p\n", clkrate, dev->speed, dev->virtbase);
 
-	if (dev->speed > 100000)
+	if (dev->speed > I2C_MAX_STANDARD_MODE_FREQ)
 		/* Fast Mode I2C */
 		val = ((clkrate/dev->speed) - 9)/3 + 1;
 	else
@@ -531,7 +518,7 @@ static int stu300_set_clk(struct stu300_dev *dev, unsigned long clkrate)
 		return -EINVAL;
 	}
 
-	if (dev->speed > 100000) {
+	if (dev->speed > I2C_MAX_STANDARD_MODE_FREQ) {
 		/* CC6..CC0 */
 		stu300_wr8((val & I2C_CCR_CC_MASK) | I2C_CCR_FMSM,
 			   dev->virtbase + I2C_CCR);
@@ -846,6 +833,13 @@ static int stu300_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	return num;
 }
 
+static int stu300_xfer_todo(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+{
+	/* TODO: implement polling for this case if need be. */
+	WARN(1, "%s: atomic transfers not implemented\n", dev_name(&adap->dev));
+	return -EOPNOTSUPP;
+}
+
 static u32 stu300_func(struct i2c_adapter *adap)
 {
 	/* This is the simplest thing you can think of... */
@@ -853,8 +847,9 @@ static u32 stu300_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm stu300_algo = {
-	.master_xfer	= stu300_xfer,
-	.functionality	= stu300_func,
+	.master_xfer = stu300_xfer,
+	.master_xfer_atomic = stu300_xfer_todo,
+	.functionality = stu300_func,
 };
 
 static const struct i2c_adapter_quirks stu300_quirks = {
@@ -865,7 +860,6 @@ static int stu300_probe(struct platform_device *pdev)
 {
 	struct stu300_dev *dev;
 	struct i2c_adapter *adap;
-	struct resource *res;
 	int bus_nr;
 	int ret = 0;
 
@@ -881,8 +875,7 @@ static int stu300_probe(struct platform_device *pdev)
 	}
 
 	dev->pdev = pdev;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->virtbase = devm_ioremap_resource(&pdev->dev, res);
+	dev->virtbase = devm_platform_ioremap_resource(pdev, 0);
 	dev_dbg(&pdev->dev, "initialize bus device I2C%d on virtual "
 		"base %p\n", bus_nr, dev->virtbase);
 	if (IS_ERR(dev->virtbase))

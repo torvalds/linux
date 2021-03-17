@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree for the ST-Ericsson Nomadik S8815 board
- * Produced by Calao Systems
+ * Device Tree for the ST Microelectronics Nomadik NHK8815 board
  */
 
 /dts-v1/;
@@ -182,43 +181,12 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&clcd_24bit_mux>;
 			port {
-				nomadik_clcd_pads: endpoint {
+				nomadik_clcd: endpoint {
 					remote-endpoint = <&nomadik_clcd_panel>;
 					arm,pl11x,tft-r0g0b0-pads = <16 8 0>;
 				};
 			};
 
-			/*
-			 * WVGA connector 21
-			 * WVGA (800x480): 4.3" TPG110 TDO43MTEA2 24-bit RGB
-			 * with TPO touch screen.
-			 */
-			panel {
-				compatible = "tpo,tpg110", "panel-dpi";
-				grestb-gpios = <&stmpe_gpio44 5 GPIO_ACTIVE_LOW>;
-				scen-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
-				scl-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-				sda-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
-				backlight = <&bl>;
-
-				port {
-					nomadik_clcd_panel: endpoint {
-						remote-endpoint = <&nomadik_clcd_pads>;
-					};
-				};
-
-				panel-timing {
-					clock-frequency = <33200000>;
-					hactive = <800>;
-					hback-porch = <216>;
-					hfront-porch = <40>;
-					hsync-len = <1>;
-					vactive = <480>;
-					vback-porch = <35>;
-					vfront-porch = <10>;
-					vsync-len = <1>;
-				};
-			};
 		};
 
 		/* Activate RX/TX and CTS/RTS on UART 0 */
@@ -230,6 +198,49 @@
 		mmcsd: sdi@101f6000 {
 			cd-gpios = <&stmpe_gpio44 7 GPIO_ACTIVE_LOW>;
 			wp-gpios = <&stmpe_gpio44 18 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/*
+		 * As we're dealing with 3wire SPI, we only define SCK
+		 * and MOSI (in the spec MOSI is called "SDA").
+		 */
+		gpio-sck = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+		gpio-mosi = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+		num-chipselects = <1>;
+
+		/*
+		 * WVGA connector 21
+		 * WVGA (800x480): 4.3" TPG110 TDO43MTEA2 24-bit RGB
+		 * with TPO touch screen.
+		  */
+		panel: display@0 {
+			/*
+			 * The TPO display driver is connected to a
+			 * 5.7" OSD OSD057VA01CT TFT display.
+			 */
+			compatible = "tpo,tpg110";
+			reg = <0>;
+			spi-3wire;
+			/* 320 ns min period ~= 3 MHz */
+			spi-max-frequency = <3000000>;
+			/* Width and height from the OSD data sheet */
+			width-mm = <116>;
+			height-mm = <87>;
+			grestb-gpios = <&stmpe_gpio44 5 GPIO_ACTIVE_LOW>;
+			backlight = <&bl>;
+
+			port {
+				nomadik_clcd_panel: endpoint {
+					remote-endpoint = <&nomadik_clcd>;
+				};
+			};
 		};
 	};
 

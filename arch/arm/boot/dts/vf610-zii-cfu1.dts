@@ -16,6 +16,7 @@
 	};
 
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x20000000>;
 	};
 
@@ -28,35 +29,30 @@
 			label = "zii:green:debug1";
 			gpios = <&gpio2 18 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
-			max-brightness = <1>;
 		};
 
 		led-fail {
 			label = "zii:red:fail";
 			gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
 			default-state = "off";
-			max-brightness = <1>;
 		};
 
 		led-status {
 			label = "zii:green:status";
 			gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-			max-brightness = <1>;
 		};
 
 		led-debug-a {
 			label = "zii:green:debug_a";
 			gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-			max-brightness = <1>;
 		};
 
 		led-debug-b {
 			label = "zii:green:debug_b";
 			gpios = <&gpio3 15 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-			max-brightness = <1>;
 		};
 	};
 
@@ -65,6 +61,23 @@
 		 regulator-name = "vcc_3v3_mcu";
 		 regulator-min-microvolt = <3300000>;
 		 regulator-max-microvolt = <3300000>;
+	};
+
+	sff: sfp {
+		compatible = "sff,sff";
+		pinctrl-0 = <&pinctrl_optical>;
+		pinctrl-names = "default";
+		i2c-bus = <&i2c0>;
+		los-gpio = <&gpio4 4 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+	};
+
+	supply-voltage-monitor {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 8>, /* 28VDC_IN */
+			      <&adc0 9>, /* +3.3V    */
+			      <&adc1 8>, /* VCC_1V5  */
+			      <&adc1 9>; /* VCC_1V2  */
 	};
 };
 
@@ -82,9 +95,14 @@
 	bus-num = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_dspi1>;
-	status = "okay";
+	/*
+	 * Some CFU1s come with SPI-NOR chip DNPed, so we leave this
+	 * node disabled by default and rely on bootloader to enable
+	 * it when appropriate.
+	 */
+	status = "disabled";
 
-	m25p128@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "m25p128", "jedec,spi-nor";
@@ -113,6 +131,8 @@
 	non-removable;
 	no-1-8-v;
 	keep-power-in-suspend;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
@@ -120,6 +140,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
+	no-sdio;
 	status = "okay";
 };
 
@@ -137,6 +158,8 @@
 	mdio1: mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clock-frequency = <12500000>;
+		suppress-preamble;
 		status = "okay";
 
 		switch0: switch0@0 {
@@ -149,7 +172,6 @@
 			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			reset-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
 
 			ports {
 				#address-cells = <1>;
@@ -168,6 +190,14 @@
 				port@2 {
 					reg = <2>;
 					label = "eth_cu_1000_3";
+				};
+
+				port@5 {
+					reg = <5>;
+					label = "eth_fc_1000_1";
+					phy-mode = "1000base-x";
+					managed = "in-band-status";
+					sfp = <&sff>;
 				};
 
 				port@6 {
@@ -191,10 +221,11 @@
 	pinctrl-0 = <&pinctrl_i2c0>;
 	status = "okay";
 
-	pca9554@22 {
+	io-expander@22 {
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 	lm75@48 {
@@ -202,17 +233,33 @@
 		reg = <0x48>;
 	};
 
-	at24c04@52 {
+	eeprom@52 {
 		compatible = "atmel,24c04";
 		reg = <0x52>;
 		label = "nvm";
 	};
 
-	at24c04@54 {
+	eeprom@54 {
 		compatible = "atmel,24c04";
 		reg = <0x54>;
 		label = "nameplate";
 	};
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	watchdog@38 {
+		compatible = "zii,rave-wdt";
+		reg = <0x38>;
+	};
+};
+
+&snvsrtc {
+	status = "disabled";
 };
 
 &uart0 {
@@ -279,6 +326,13 @@
 		>;
 	};
 
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			VF610_PAD_PTB16__I2C1_SCL		0x37ff
+			VF610_PAD_PTB17__I2C1_SDA		0x37ff
+		>;
+	};
+
 	pinctrl_leds_debug: pinctrl-leds-debug {
 		fsl,pins = <
 			VF610_PAD_PTD3__GPIO_82			0x31c2
@@ -289,10 +343,19 @@
 		>;
 	};
 
+	pinctrl_optical: optical-grp {
+		fsl,pins = <
+		/* SFF SD input */
+		VF610_PAD_PTE27__GPIO_132	0x3061
+
+		/* SFF Transmit disable output */
+		VF610_PAD_PTE13__GPIO_118	0x3043
+		>;
+	};
+
 	pinctrl_switch: switch-grp {
 		fsl,pins = <
 			VF610_PAD_PTB28__GPIO_98		0x3061
-			VF610_PAD_PTE2__GPIO_107		0x1042
 		>;
 	};
 

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mpl115.c - Support for Freescale MPL115A pressure/temperature sensor
  *
  * Copyright (c) 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
- *
  * TODO: shutdown pin
- *
  */
 
 #include <linux/module.h>
@@ -164,7 +160,6 @@ int mpl115_probe(struct device *dev, const char *name,
 
 	indio_dev->info = &mpl115_info;
 	indio_dev->name = name;
-	indio_dev->dev.parent = dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mpl115_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mpl115_channels);

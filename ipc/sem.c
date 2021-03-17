@@ -205,15 +205,38 @@ static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
  *
  * Memory ordering:
  * Most ordering is enforced by using spin_lock() and spin_unlock().
- * The special case is use_global_lock:
+ *
+ * Exceptions:
+ * 1) use_global_lock: (SEM_BARRIER_1)
  * Setting it from non-zero to 0 is a RELEASE, this is ensured by
- * using smp_store_release().
+ * using smp_store_release(): Immediately after setting it to 0,
+ * a simple op can start.
  * Testing if it is non-zero is an ACQUIRE, this is ensured by using
  * smp_load_acquire().
  * Setting it from 0 to non-zero must be ordered with regards to
  * this smp_load_acquire(), this is guaranteed because the smp_load_acquire()
  * is inside a spin_lock() and after a write from 0 to non-zero a
  * spin_lock()+spin_unlock() is done.
+ *
+ * 2) queue.status: (SEM_BARRIER_2)
+ * Initialization is done while holding sem_lock(), so no further barrier is
+ * required.
+ * Setting it to a result code is a RELEASE, this is ensured by both a
+ * smp_store_release() (for case a) and while holding sem_lock()
+ * (for case b).
+ * The AQUIRE when reading the result code without holding sem_lock() is
+ * achieved by using READ_ONCE() + smp_acquire__after_ctrl_dep().
+ * (case a above).
+ * Reading the result code while holding sem_lock() needs no further barriers,
+ * the locks inside sem_lock() enforce ordering (case b above)
+ *
+ * 3) current->state:
+ * current->state is set to TASK_INTERRUPTIBLE while holding sem_lock().
+ * The wakeup is handled using the wake_q infrastructure. wake_q wakeups may
+ * happen immediately after calling wake_q_add. As wake_q_add_safe() is called
+ * when holding sem_lock(), no further barriers are required.
+ *
+ * See also ipc/mqueue.c for more details on the covered races.
  */
 
 #define sc_semmsl	sem_ctls[0]
@@ -344,12 +367,8 @@ static void complexmode_tryleave(struct sem_array *sma)
 		return;
 	}
 	if (sma->use_global_lock == 1) {
-		/*
-		 * Immediately after setting use_global_lock to 0,
-		 * a simple op can start. Thus: all memory writes
-		 * performed by the current operation must be visible
-		 * before we set use_global_lock to 0.
-		 */
+
+		/* See SEM_BARRIER_1 for purpose/pairing */
 		smp_store_release(&sma->use_global_lock, 0);
 	} else {
 		sma->use_global_lock--;
@@ -400,7 +419,7 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 		 */
 		spin_lock(&sem->lock);
 
-		/* pairs with smp_store_release() */
+		/* see SEM_BARRIER_1 for purpose/pairing */
 		if (!smp_load_acquire(&sma->use_global_lock)) {
 			/* fast path successful! */
 			return sops->sem_num;
@@ -488,17 +507,13 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
 static struct sem_array *sem_alloc(size_t nsems)
 {
 	struct sem_array *sma;
-	size_t size;
 
 	if (nsems > (INT_MAX - sizeof(*sma)) / sizeof(sma->sems[0]))
 		return NULL;
 
-	size = sizeof(*sma) + nsems * sizeof(sma->sems[0]);
-	sma = kvmalloc(size, GFP_KERNEL);
+	sma = kvzalloc(struct_size(sma, sems, nsems), GFP_KERNEL);
 	if (unlikely(!sma))
 		return NULL;
-
-	memset(sma, 0, size);
 
 	return sma;
 }
@@ -570,8 +585,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 /*
  * Called with sem_ids.rwsem and ipcp locked.
  */
-static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
-				struct ipc_params *params)
+static int sem_more_checks(struct kern_ipc_perm *ipcp, struct ipc_params *params)
 {
 	struct sem_array *sma;
 
@@ -770,15 +784,12 @@ would_block:
 static inline void wake_up_sem_queue_prepare(struct sem_queue *q, int error,
 					     struct wake_q_head *wake_q)
 {
-	wake_q_add(wake_q, q->sleeper);
-	/*
-	 * Rely on the above implicit barrier, such that we can
-	 * ensure that we hold reference to the task before setting
-	 * q->status. Otherwise we could race with do_exit if the
-	 * task is awoken by an external event before calling
-	 * wake_up_process().
-	 */
-	WRITE_ONCE(q->status, error);
+	get_task_struct(q->sleeper);
+
+	/* see SEM_BARRIER_2 for purpuse/pairing */
+	smp_store_release(&q->status, error);
+
+	wake_q_add_safe(wake_q, q->sleeper);
 }
 
 static void unlink_queue(struct sem_array *sma, struct sem_queue *q)
@@ -1634,9 +1645,8 @@ out_up:
 	return err;
 }
 
-long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg)
+static long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg, int version)
 {
-	int version;
 	struct ipc_namespace *ns;
 	void __user *p = (void __user *)arg;
 	struct semid64_ds semid64;
@@ -1645,7 +1655,6 @@ long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg)
 	if (semid < 0)
 		return -EINVAL;
 
-	version = ipc_parse_version(&cmd);
 	ns = current->nsproxy->ipc_ns;
 
 	switch (cmd) {
@@ -1682,6 +1691,7 @@ long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg)
 	case IPC_SET:
 		if (copy_semid_from_user(&semid64, p, version))
 			return -EFAULT;
+		fallthrough;
 	case IPC_RMID:
 		return semctl_down(ns, semid, cmd, &semid64);
 	default:
@@ -1691,15 +1701,29 @@ long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg)
 
 SYSCALL_DEFINE4(semctl, int, semid, int, semnum, int, cmd, unsigned long, arg)
 {
-	return ksys_semctl(semid, semnum, cmd, arg);
+	return ksys_semctl(semid, semnum, cmd, arg, IPC_64);
 }
+
+#ifdef CONFIG_ARCH_WANT_IPC_PARSE_VERSION
+long ksys_old_semctl(int semid, int semnum, int cmd, unsigned long arg)
+{
+	int version = ipc_parse_version(&cmd);
+
+	return ksys_semctl(semid, semnum, cmd, arg, version);
+}
+
+SYSCALL_DEFINE4(old_semctl, int, semid, int, semnum, int, cmd, unsigned long, arg)
+{
+	return ksys_old_semctl(semid, semnum, cmd, arg);
+}
+#endif
 
 #ifdef CONFIG_COMPAT
 
 struct compat_semid_ds {
 	struct compat_ipc_perm sem_perm;
-	compat_time_t sem_otime;
-	compat_time_t sem_ctime;
+	old_time32_t sem_otime;
+	old_time32_t sem_ctime;
 	compat_uptr_t sem_base;
 	compat_uptr_t sem_pending;
 	compat_uptr_t sem_pending_last;
@@ -1744,12 +1768,11 @@ static int copy_compat_semid_to_user(void __user *buf, struct semid64_ds *in,
 	}
 }
 
-long compat_ksys_semctl(int semid, int semnum, int cmd, int arg)
+static long compat_ksys_semctl(int semid, int semnum, int cmd, int arg, int version)
 {
 	void __user *p = compat_ptr(arg);
 	struct ipc_namespace *ns;
 	struct semid64_ds semid64;
-	int version = compat_ipc_parse_version(&cmd);
 	int err;
 
 	ns = current->nsproxy->ipc_ns;
@@ -1782,7 +1805,7 @@ long compat_ksys_semctl(int semid, int semnum, int cmd, int arg)
 	case IPC_SET:
 		if (copy_compat_semid_from_user(&semid64, p, version))
 			return -EFAULT;
-		/* fallthru */
+		fallthrough;
 	case IPC_RMID:
 		return semctl_down(ns, semid, cmd, &semid64);
 	default:
@@ -1792,8 +1815,22 @@ long compat_ksys_semctl(int semid, int semnum, int cmd, int arg)
 
 COMPAT_SYSCALL_DEFINE4(semctl, int, semid, int, semnum, int, cmd, int, arg)
 {
-	return compat_ksys_semctl(semid, semnum, cmd, arg);
+	return compat_ksys_semctl(semid, semnum, cmd, arg, IPC_64);
 }
+
+#ifdef CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+long compat_ksys_old_semctl(int semid, int semnum, int cmd, int arg)
+{
+	int version = compat_ipc_parse_version(&cmd);
+
+	return compat_ksys_semctl(semid, semnum, cmd, arg, version);
+}
+
+COMPAT_SYSCALL_DEFINE4(old_semctl, int, semid, int, semnum, int, cmd, int, arg)
+{
+	return compat_ksys_old_semctl(semid, semnum, cmd, arg);
+}
+#endif
 #endif
 
 /* If the task doesn't already have a undo_list, then allocate one
@@ -1830,7 +1867,8 @@ static struct sem_undo *__lookup_undo(struct sem_undo_list *ulp, int semid)
 {
 	struct sem_undo *un;
 
-	list_for_each_entry_rcu(un, &ulp->list_proc, list_proc) {
+	list_for_each_entry_rcu(un, &ulp->list_proc, list_proc,
+				spin_is_locked(&ulp->lock)) {
 		if (un->semid == semid)
 			return un;
 	}
@@ -2125,9 +2163,11 @@ static long do_semtimedop(int semid, struct sembuf __user *tsops,
 	}
 
 	do {
+		/* memory ordering ensured by the lock in sem_lock() */
 		WRITE_ONCE(queue.status, -EINTR);
 		queue.sleeper = current;
 
+		/* memory ordering is ensured by the lock in sem_lock() */
 		__set_current_state(TASK_INTERRUPTIBLE);
 		sem_unlock(sma, locknum);
 		rcu_read_unlock();
@@ -2150,13 +2190,8 @@ static long do_semtimedop(int semid, struct sembuf __user *tsops,
 		 */
 		error = READ_ONCE(queue.status);
 		if (error != -EINTR) {
-			/*
-			 * User space could assume that semop() is a memory
-			 * barrier: Without the mb(), the cpu could
-			 * speculatively read in userspace stale data that was
-			 * overwritten by the previous owner of the semaphore.
-			 */
-			smp_mb();
+			/* see SEM_BARRIER_2 for purpose/pairing */
+			smp_acquire__after_ctrl_dep();
 			goto out_free;
 		}
 
@@ -2166,6 +2201,9 @@ static long do_semtimedop(int semid, struct sembuf __user *tsops,
 		if (!ipc_valid_object(&sma->sem_perm))
 			goto out_unlock_free;
 
+		/*
+		 * No necessity for any barrier: We are protect by sem_lock()
+		 */
 		error = READ_ONCE(queue.status);
 
 		/*
@@ -2214,20 +2252,20 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 #ifdef CONFIG_COMPAT_32BIT_TIME
 long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
 			    unsigned int nsops,
-			    const struct compat_timespec __user *timeout)
+			    const struct old_timespec32 __user *timeout)
 {
 	if (timeout) {
 		struct timespec64 ts;
-		if (compat_get_timespec64(&ts, timeout))
+		if (get_old_timespec32(&ts, timeout))
 			return -EFAULT;
 		return do_semtimedop(semid, tsems, nsops, &ts);
 	}
 	return do_semtimedop(semid, tsems, nsops, NULL);
 }
 
-COMPAT_SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsems,
+SYSCALL_DEFINE4(semtimedop_time32, int, semid, struct sembuf __user *, tsems,
 		       unsigned int, nsops,
-		       const struct compat_timespec __user *, timeout)
+		       const struct old_timespec32 __user *, timeout)
 {
 	return compat_ksys_semtimedop(semid, tsems, nsops, timeout);
 }
@@ -2345,11 +2383,9 @@ void exit_sem(struct task_struct *tsk)
 		ipc_assert_locked_object(&sma->sem_perm);
 		list_del(&un->list_id);
 
-		/* we are the last process using this ulp, acquiring ulp->lock
-		 * isn't required. Besides that, we are also protected against
-		 * IPC_RMID as we hold sma->sem_perm lock now
-		 */
+		spin_lock(&ulp->lock);
 		list_del_rcu(&un->list_proc);
+		spin_unlock(&ulp->lock);
 
 		/* perform adjustments registered in un */
 		for (i = 0; i < sma->sem_nsems; i++) {

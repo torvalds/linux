@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef IEEE80211_RATE_H
@@ -63,12 +60,26 @@ static inline void rate_control_add_sta_debugfs(struct sta_info *sta)
 #endif
 }
 
-static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
+extern const struct file_operations rcname_ops;
+
+static inline void rate_control_add_debugfs(struct ieee80211_local *local)
 {
 #ifdef CONFIG_MAC80211_DEBUGFS
-	struct rate_control_ref *ref = sta->rate_ctrl;
-	if (ref && ref->ops->remove_sta_debugfs)
-		ref->ops->remove_sta_debugfs(ref->priv, sta->rate_ctrl_priv);
+	struct dentry *debugfsdir;
+
+	if (!local->rate_ctrl)
+		return;
+
+	if (!local->rate_ctrl->ops->add_debugfs)
+		return;
+
+	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
+	local->debugfs.rcdir = debugfsdir;
+	debugfs_create_file("name", 0400, debugfsdir,
+			    local->rate_ctrl, &rcname_ops);
+
+	local->rate_ctrl->ops->add_debugfs(&local->hw, local->rate_ctrl->priv,
+					   debugfsdir);
 #endif
 }
 
@@ -91,19 +102,6 @@ static inline int rc80211_minstrel_init(void)
 	return 0;
 }
 static inline void rc80211_minstrel_exit(void)
-{
-}
-#endif
-
-#ifdef CONFIG_MAC80211_RC_MINSTREL_HT
-int rc80211_minstrel_ht_init(void);
-void rc80211_minstrel_ht_exit(void);
-#else
-static inline int rc80211_minstrel_ht_init(void)
-{
-	return 0;
-}
-static inline void rc80211_minstrel_ht_exit(void)
 {
 }
 #endif

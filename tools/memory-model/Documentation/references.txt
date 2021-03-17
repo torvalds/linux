@@ -73,6 +73,18 @@ o	Christopher Pulte, Shaked Flur, Will Deacon, Jon French,
 Linux-kernel memory model
 =========================
 
+o	Jade Alglave, Will Deacon, Boqun Feng, David Howells, Daniel
+	Lustig, Luc Maranget, Paul E. McKenney, Andrea Parri, Nicholas
+	Piggin, Alan Stern, Akira Yokosawa, and Peter Zijlstra.
+	2019. "Calibrating your fear of big bad optimizing compilers"
+	Linux Weekly News.  https://lwn.net/Articles/799218/
+
+o	Jade Alglave, Will Deacon, Boqun Feng, David Howells, Daniel
+	Lustig, Luc Maranget, Paul E. McKenney, Andrea Parri, Nicholas
+	Piggin, Alan Stern, Akira Yokosawa, and Peter Zijlstra.
+	2019. "Who's afraid of a big bad optimizing compiler?"
+	Linux Weekly News.  https://lwn.net/Articles/793253/
+
 o	Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and
 	Alan Stern.  2018. "Frightening small children and disconcerting
 	grown-ups: Concurrency in the Linux kernel". In Proceedings of
@@ -87,6 +99,11 @@ o	Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and
 o	Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and
 	Alan Stern.  2017.  "A formal kernel memory-ordering model (part 2)"
 	Linux Weekly News.  https://lwn.net/Articles/720550/
+
+o	Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and
+	Alan Stern.  2017-2019.  "A Formal Model of Linux-Kernel Memory
+	Ordering" (backup material for the LWN articles)
+	https://mirrors.edge.kernel.org/pub/linux/kernel/people/paulmck/LWNLinuxMM/
 
 
 Memory-model tooling
@@ -103,12 +120,12 @@ o	Jade Alglave, Luc Maranget, and Michael Tautschnig. 2014. "Herding
 
 o	Jade Alglave, Patrick Cousot, and Luc Maranget. 2016. "Syntax and
 	semantics of the weak consistency model specification language
-	cat". CoRR abs/1608.07531 (2016). http://arxiv.org/abs/1608.07531
+	cat". CoRR abs/1608.07531 (2016). https://arxiv.org/abs/1608.07531
 
 
 Memory-model comparisons
 ========================
 
 o	Paul E. McKenney, Ulrich Weigand, Andrea Parri, and Boqun
-	Feng. 2016. "Linux-Kernel Memory Model". (6 June 2016).
-	http://open-std.org/JTC1/SC22/WG21/docs/papers/2016/p0124r2.html.
+	Feng. 2018. "Linux-Kernel Memory Model". (27 September 2018).
+	http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0124r6.html.

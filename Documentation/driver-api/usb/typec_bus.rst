@@ -13,10 +13,10 @@ every alternate mode, so every alternate mode will need a custom driver.
 USB Type-C bus allows binding a driver to the discovered partner alternate
 modes by using the SVID and the mode number.
 
-USB Type-C Connector Class provides a device for every alternate mode a port
-supports, and separate device for every alternate mode the partner supports.
-The drivers for the alternate modes are bound to the partner alternate mode
-devices, and the port alternate mode devices must be handled by the port
+:ref:`USB Type-C Connector Class <typec>` provides a device for every alternate
+mode a port supports, and separate device for every alternate mode the partner
+supports. The drivers for the alternate modes are bound to the partner alternate
+mode devices, and the port alternate mode devices must be handled by the port
 drivers.
 
 When a new partner alternate mode device is registered, it is linked to the
@@ -46,16 +46,14 @@ enter any modes on their own.
 ``->vdm`` is the most important callback in the operation callbacks vector. It
 will be used to deliver all the SVID specific commands from the partner to the
 alternate mode driver, and vice versa in case of port drivers. The drivers send
-the SVID specific commands to each other using :c:func:`typec_altmode_vmd()`.
+the SVID specific commands to each other using :c:func:`typec_altmode_vdm()`.
 
 If the communication with the partner using the SVID specific commands results
 in need to reconfigure the pins on the connector, the alternate mode driver
 needs to notify the bus using :c:func:`typec_altmode_notify()`. The driver
 passes the negotiated SVID specific pin configuration value to the function as
 parameter. The bus driver will then configure the mux behind the connector using
-that value as the state value for the mux, and also call blocking notification
-chain to notify the external drivers about the state of the connector that need
-to know it.
+that value as the state value for the mux.
 
 NOTE: The SVID specific pin configuration values must always start from
 ``TYPEC_STATE_MODAL``. USB Type-C specification defines two default states for
@@ -67,31 +65,18 @@ Type-C Specification, and also put the connector back to ``TYPEC_STATE_USB``
 after the mode has been exited.
 
 An example of working definitions for SVID specific pin configurations would
-look like this:
+look like this::
 
-enum {
-	ALTMODEX_CONF_A = TYPEC_STATE_MODAL,
-	ALTMODEX_CONF_B,
-	...
-};
+    enum {
+        ALTMODEX_CONF_A = TYPEC_STATE_MODAL,
+        ALTMODEX_CONF_B,
+        ...
+    };
 
-Helper macro ``TYPEC_MODAL_STATE()`` can also be used:
+Helper macro ``TYPEC_MODAL_STATE()`` can also be used::
 
 #define ALTMODEX_CONF_A = TYPEC_MODAL_STATE(0);
 #define ALTMODEX_CONF_B = TYPEC_MODAL_STATE(1);
-
-Notification chain
-~~~~~~~~~~~~~~~~~~
-
-The drivers for the components that the alternate modes are designed for need to
-get details regarding the results of the negotiation with the partner, and the
-pin configuration of the connector. In case of DisplayPort alternate mode for
-example, the GPU drivers will need to know those details. In case of
-Thunderbolt alternate mode, the thunderbolt drivers will need to know them, and
-so on.
-
-The notification chain is designed for this purpose. The drivers can register
-notifiers with :c:func:`typec_altmode_register_notifier()`.
 
 Cable plug alternate modes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -106,10 +91,16 @@ their control.
 Driver API
 ----------
 
+Alternate mode structs
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: include/linux/usb/typec_altmode.h
+   :functions: typec_altmode_driver typec_altmode_ops
+
 Alternate mode driver registering/unregistering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/usb/typec/bus.c
+.. kernel-doc:: include/linux/usb/typec_altmode.h
    :functions: typec_altmode_register_driver typec_altmode_unregister_driver
 
 Alternate mode driver operations
@@ -129,8 +120,3 @@ Cable Plug operations
 
 .. kernel-doc:: drivers/usb/typec/bus.c
    :functions: typec_altmode_get_plug typec_altmode_put_plug
-
-Notifications
-~~~~~~~~~~~~~
-.. kernel-doc:: drivers/usb/typec/class.c
-   :functions: typec_altmode_register_notifier typec_altmode_unregister_notifier

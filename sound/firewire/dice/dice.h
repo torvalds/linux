@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * dice.h - a part of driver for Dice based devices
  *
  * Copyright (c) Clemens Ladisch
  * Copyright (c) 2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef SOUND_DICE_H_INCLUDED
@@ -113,6 +112,8 @@ struct snd_dice {
 	bool global_enabled;
 	struct completion clock_accepted;
 	unsigned int substreams_counter;
+
+	struct amdtp_domain domain;
 };
 
 enum snd_dice_addr_type {
@@ -205,10 +206,13 @@ extern const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT];
 
 int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
 				  enum snd_dice_rate_mode *mode);
-int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate);
+int snd_dice_stream_start_duplex(struct snd_dice *dice);
 void snd_dice_stream_stop_duplex(struct snd_dice *dice);
 int snd_dice_stream_init_duplex(struct snd_dice *dice);
 void snd_dice_stream_destroy_duplex(struct snd_dice *dice);
+int snd_dice_stream_reserve_duplex(struct snd_dice *dice, unsigned int rate,
+				   unsigned int events_per_period,
+				   unsigned int events_per_buffer);
 void snd_dice_stream_update_duplex(struct snd_dice *dice);
 int snd_dice_stream_detect_current_formats(struct snd_dice *dice);
 
@@ -225,7 +229,9 @@ int snd_dice_create_midi(struct snd_dice *dice);
 
 int snd_dice_detect_tcelectronic_formats(struct snd_dice *dice);
 int snd_dice_detect_alesis_formats(struct snd_dice *dice);
+int snd_dice_detect_alesis_mastercontrol_formats(struct snd_dice *dice);
 int snd_dice_detect_extension_formats(struct snd_dice *dice);
 int snd_dice_detect_mytek_formats(struct snd_dice *dice);
+int snd_dice_detect_presonus_formats(struct snd_dice *dice);
 
 #endif

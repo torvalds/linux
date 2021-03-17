@@ -21,17 +21,11 @@ static int cmma_flag = 1;
 
 static int __init cmma(char *str)
 {
-	char *parm;
+	bool enabled;
 
-	parm = strstrip(str);
-	if (strcmp(parm, "yes") == 0 || strcmp(parm, "on") == 0) {
-		cmma_flag = 1;
-		return 1;
-	}
-	cmma_flag = 0;
-	if (strcmp(parm, "no") == 0 || strcmp(parm, "off") == 0)
-		return 1;
-	return 0;
+	if (!kstrtobool(str, &enabled))
+		cmma_flag = enabled;
+	return 1;
 }
 __setup("cmma=", cmma);
 
@@ -189,9 +183,9 @@ static void mark_kernel_pgd(void)
 
 void __init cmma_init_nodat(void)
 {
-	struct memblock_region *reg;
 	struct page *page;
 	unsigned long start, end, ix;
+	int i;
 
 	if (cmma_flag < 2)
 		return;
@@ -199,9 +193,7 @@ void __init cmma_init_nodat(void)
 	mark_kernel_pgd();
 
 	/* Set all kernel pages not used for page tables to stable/no-dat */
-	for_each_memblock(memory, reg) {
-		start = memblock_region_memory_base_pfn(reg);
-		end = memblock_region_memory_end_pfn(reg);
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, NULL) {
 		page = pfn_to_page(start);
 		for (ix = start; ix < end; ix++, page++) {
 			if (__test_and_clear_bit(PG_arch_1, &page->flags))

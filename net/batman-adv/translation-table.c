@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich, Antonio Quartulli
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "translation-table.h"
@@ -205,7 +193,7 @@ batadv_tt_local_hash_find(struct batadv_priv *bat_priv, const u8 *addr,
  * Return: a pointer to the corresponding tt_global_entry struct if the client
  * is found, NULL otherwise.
  */
-static struct batadv_tt_global_entry *
+struct batadv_tt_global_entry *
 batadv_tt_global_hash_find(struct batadv_priv *bat_priv, const u8 *addr,
 			   unsigned short vid)
 {
@@ -300,8 +288,7 @@ static void batadv_tt_global_entry_release(struct kref *ref)
  *  possibly release it
  * @tt_global_entry: tt_global_entry to be free'd
  */
-static void
-batadv_tt_global_entry_put(struct batadv_tt_global_entry *tt_global_entry)
+void batadv_tt_global_entry_put(struct batadv_tt_global_entry *tt_global_entry)
 {
 	kref_put(&tt_global_entry->common.refcount,
 		 batadv_tt_global_entry_release);
@@ -314,7 +301,7 @@ batadv_tt_global_entry_put(struct batadv_tt_global_entry *tt_global_entry)
  * @vid: VLAN identifier
  *
  * Return: the number of originators advertising the given address/data
- * (excluding ourself).
+ * (excluding our self).
  */
 int batadv_tt_global_hash_count(struct batadv_priv *bat_priv,
 				const u8 *addr, unsigned short vid)
@@ -616,14 +603,26 @@ static void batadv_tt_global_free(struct batadv_priv *bat_priv,
 				  struct batadv_tt_global_entry *tt_global,
 				  const char *message)
 {
+	struct batadv_tt_global_entry *tt_removed_entry;
+	struct hlist_node *tt_removed_node;
+
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Deleting global tt entry %pM (vid: %d): %s\n",
 		   tt_global->common.addr,
 		   batadv_print_vid(tt_global->common.vid), message);
 
-	batadv_hash_remove(bat_priv->tt.global_hash, batadv_compare_tt,
-			   batadv_choose_tt, &tt_global->common);
-	batadv_tt_global_entry_put(tt_global);
+	tt_removed_node = batadv_hash_remove(bat_priv->tt.global_hash,
+					     batadv_compare_tt,
+					     batadv_choose_tt,
+					     &tt_global->common);
+	if (!tt_removed_node)
+		return;
+
+	/* drop reference of remove hash entry */
+	tt_removed_entry = hlist_entry(tt_removed_node,
+				       struct batadv_tt_global_entry,
+				       common.hash_entry);
+	batadv_tt_global_entry_put(tt_removed_entry);
 }
 
 /**
@@ -843,7 +842,7 @@ out:
  *  table. In case of success the value is updated with the real amount of
  *  reserved bytes
  * Allocate the needed amount of memory for the entire TT TVLV and write its
- * header made up by one tvlv_tt_data object and a series of tvlv_tt_vlan_data
+ * header made up of one tvlv_tt_data object and a series of tvlv_tt_vlan_data
  * objects, one per active VLAN served by the originator node.
  *
  * Return: the size of the allocated buffer or 0 in case of failure.
@@ -863,7 +862,7 @@ batadv_tt_prepare_tvlv_global_data(struct batadv_orig_node *orig_node,
 	u8 *tt_change_ptr;
 
 	spin_lock_bh(&orig_node->vlan_list_lock);
-	hlist_for_each_entry_rcu(vlan, &orig_node->vlan_list, list) {
+	hlist_for_each_entry(vlan, &orig_node->vlan_list, list) {
 		num_vlan++;
 		num_entries += atomic_read(&vlan->tt.num_entries);
 	}
@@ -889,7 +888,7 @@ batadv_tt_prepare_tvlv_global_data(struct batadv_orig_node *orig_node,
 	(*tt_data)->num_vlan = htons(num_vlan);
 
 	tt_vlan = (struct batadv_tvlv_tt_vlan_data *)(*tt_data + 1);
-	hlist_for_each_entry_rcu(vlan, &orig_node->vlan_list, list) {
+	hlist_for_each_entry(vlan, &orig_node->vlan_list, list) {
 		tt_vlan->vid = htons(vlan->vid);
 		tt_vlan->crc = htonl(vlan->tt.crc);
 
@@ -938,7 +937,7 @@ batadv_tt_prepare_tvlv_local_data(struct batadv_priv *bat_priv,
 	int change_offset;
 
 	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
-	hlist_for_each_entry_rcu(vlan, &bat_priv->softif_vlan_list, list) {
+	hlist_for_each_entry(vlan, &bat_priv->softif_vlan_list, list) {
 		vlan_entries = atomic_read(&vlan->tt.num_entries);
 		if (vlan_entries < 1)
 			continue;
@@ -968,7 +967,7 @@ batadv_tt_prepare_tvlv_local_data(struct batadv_priv *bat_priv,
 	(*tt_data)->num_vlan = htons(num_vlan);
 
 	tt_vlan = (struct batadv_tvlv_tt_vlan_data *)(*tt_data + 1);
-	hlist_for_each_entry_rcu(vlan, &bat_priv->softif_vlan_list, list) {
+	hlist_for_each_entry(vlan, &bat_priv->softif_vlan_list, list) {
 		vlan_entries = atomic_read(&vlan->tt.num_entries);
 		if (vlan_entries < 1)
 			continue;
@@ -1145,14 +1144,15 @@ out:
  * batadv_tt_local_dump_entry() - Dump one TT local entry into a message
  * @msg :Netlink message to dump into
  * @portid: Port making netlink request
- * @seq: Sequence number of netlink message
+ * @cb: Control block containing additional options
  * @bat_priv: The bat priv with all the soft interface information
  * @common: tt local & tt global common data
  *
  * Return: Error code, or 0 on success
  */
 static int
-batadv_tt_local_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
+batadv_tt_local_dump_entry(struct sk_buff *msg, u32 portid,
+			   struct netlink_callback *cb,
 			   struct batadv_priv *bat_priv,
 			   struct batadv_tt_common_entry *common)
 {
@@ -1173,11 +1173,13 @@ batadv_tt_local_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
 
 	batadv_softif_vlan_put(vlan);
 
-	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family,
-			  NLM_F_MULTI,
+	hdr = genlmsg_put(msg, portid, cb->nlh->nlmsg_seq,
+			  &batadv_netlink_family,  NLM_F_MULTI,
 			  BATADV_CMD_GET_TRANSTABLE_LOCAL);
 	if (!hdr)
 		return -ENOBUFS;
+
+	genl_dump_check_consistent(cb, hdr);
 
 	if (nla_put(msg, BATADV_ATTR_TT_ADDRESS, ETH_ALEN, common->addr) ||
 	    nla_put_u32(msg, BATADV_ATTR_TT_CRC32, crc) ||
@@ -1201,34 +1203,39 @@ batadv_tt_local_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
  * batadv_tt_local_dump_bucket() - Dump one TT local bucket into a message
  * @msg: Netlink message to dump into
  * @portid: Port making netlink request
- * @seq: Sequence number of netlink message
+ * @cb: Control block containing additional options
  * @bat_priv: The bat priv with all the soft interface information
- * @head: Pointer to the list containing the local tt entries
+ * @hash: hash to dump
+ * @bucket: bucket index to dump
  * @idx_s: Number of entries to skip
  *
  * Return: Error code, or 0 on success
  */
 static int
-batadv_tt_local_dump_bucket(struct sk_buff *msg, u32 portid, u32 seq,
+batadv_tt_local_dump_bucket(struct sk_buff *msg, u32 portid,
+			    struct netlink_callback *cb,
 			    struct batadv_priv *bat_priv,
-			    struct hlist_head *head, int *idx_s)
+			    struct batadv_hashtable *hash, unsigned int bucket,
+			    int *idx_s)
 {
 	struct batadv_tt_common_entry *common;
 	int idx = 0;
 
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(common, head, hash_entry) {
+	spin_lock_bh(&hash->list_locks[bucket]);
+	cb->seq = atomic_read(&hash->generation) << 1 | 1;
+
+	hlist_for_each_entry(common, &hash->table[bucket], hash_entry) {
 		if (idx++ < *idx_s)
 			continue;
 
-		if (batadv_tt_local_dump_entry(msg, portid, seq, bat_priv,
+		if (batadv_tt_local_dump_entry(msg, portid, cb, bat_priv,
 					       common)) {
-			rcu_read_unlock();
+			spin_unlock_bh(&hash->list_locks[bucket]);
 			*idx_s = idx - 1;
 			return -EMSGSIZE;
 		}
 	}
-	rcu_read_unlock();
+	spin_unlock_bh(&hash->list_locks[bucket]);
 
 	*idx_s = 0;
 	return 0;
@@ -1248,7 +1255,6 @@ int batadv_tt_local_dump(struct sk_buff *msg, struct netlink_callback *cb)
 	struct batadv_priv *bat_priv;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_hashtable *hash;
-	struct hlist_head *head;
 	int ret;
 	int ifindex;
 	int bucket = cb->args[0];
@@ -1276,10 +1282,8 @@ int batadv_tt_local_dump(struct sk_buff *msg, struct netlink_callback *cb)
 	hash = bat_priv->tt.local_hash;
 
 	while (bucket < hash->size) {
-		head = &hash->table[bucket];
-
-		if (batadv_tt_local_dump_bucket(msg, portid, cb->nlh->nlmsg_seq,
-						bat_priv, head, &idx))
+		if (batadv_tt_local_dump_bucket(msg, portid, cb, bat_priv,
+						hash, bucket, &idx))
 			break;
 
 		bucket++;
@@ -1332,9 +1336,10 @@ u16 batadv_tt_local_remove(struct batadv_priv *bat_priv, const u8 *addr,
 			   unsigned short vid, const char *message,
 			   bool roaming)
 {
+	struct batadv_tt_local_entry *tt_removed_entry;
 	struct batadv_tt_local_entry *tt_local_entry;
 	u16 flags, curr_flags = BATADV_NO_FLAGS;
-	void *tt_entry_exists;
+	struct hlist_node *tt_removed_node;
 
 	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr, vid);
 	if (!tt_local_entry)
@@ -1363,15 +1368,18 @@ u16 batadv_tt_local_remove(struct batadv_priv *bat_priv, const u8 *addr,
 	 */
 	batadv_tt_local_event(bat_priv, tt_local_entry, BATADV_TT_CLIENT_DEL);
 
-	tt_entry_exists = batadv_hash_remove(bat_priv->tt.local_hash,
+	tt_removed_node = batadv_hash_remove(bat_priv->tt.local_hash,
 					     batadv_compare_tt,
 					     batadv_choose_tt,
 					     &tt_local_entry->common);
-	if (!tt_entry_exists)
+	if (!tt_removed_node)
 		goto out;
 
-	/* extra call to free the local tt entry */
-	batadv_tt_local_entry_put(tt_local_entry);
+	/* drop reference of remove hash entry */
+	tt_removed_entry = hlist_entry(tt_removed_node,
+				       struct batadv_tt_local_entry,
+				       common.hash_entry);
+	batadv_tt_local_entry_put(tt_removed_entry);
 
 out:
 	if (tt_local_entry)
@@ -1666,7 +1674,7 @@ out:
  * the function argument.
  * If a TT local entry exists for this non-mesh client remove it.
  *
- * The caller must hold orig_node refcount.
+ * The caller must hold the orig_node refcount.
  *
  * Return: true if the new entry has been added, false otherwise
  */
@@ -1831,7 +1839,7 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @tt_global_entry: global translation table entry to be analyzed
  *
- * This functon assumes the caller holds rcu_read_lock().
+ * This function assumes the caller holds rcu_read_lock().
  * Return: best originator list entry or NULL on errors.
  */
 static struct batadv_tt_orig_list_entry *
@@ -1879,7 +1887,7 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
  * @tt_global_entry: global translation table entry to be printed
  * @seq: debugfs table seq_file struct
  *
- * This functon assumes the caller holds rcu_read_lock().
+ * This function assumes the caller holds rcu_read_lock().
  */
 static void
 batadv_tt_global_print_entry(struct batadv_priv *bat_priv,
@@ -3805,6 +3813,8 @@ static void batadv_tt_purge(struct work_struct *work)
  */
 void batadv_tt_free(struct batadv_priv *bat_priv)
 {
+	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_ROAM, 1);
+
 	batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_TT, 1);
 	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_TT, 1);
 

@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * FP/SIMD state saving and restoring macros
  *
  * Copyright (C) 2012 ARM Ltd.
  * Author: Catalin Marinas <catalin.marinas@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 .macro fpsimd_save state, tmpnr
@@ -175,23 +164,57 @@
 		| ((\np) << 5)
 .endm
 
+/* PFALSE P\np.B */
+.macro _sve_pfalse np
+	_sve_check_preg \np
+	.inst	0x2518e400			\
+		| (\np)
+.endm
+
 .macro __for from:req, to:req
 	.if (\from) == (\to)
-		_for__body \from
+		_for__body %\from
 	.else
-		__for \from, (\from) + ((\to) - (\from)) / 2
-		__for (\from) + ((\to) - (\from)) / 2 + 1, \to
+		__for %\from, %((\from) + ((\to) - (\from)) / 2)
+		__for %((\from) + ((\to) - (\from)) / 2 + 1), %\to
 	.endif
 .endm
 
 .macro _for var:req, from:req, to:req, insn:vararg
 	.macro _for__body \var:req
+		.noaltmacro
 		\insn
+		.altmacro
 	.endm
 
+	.altmacro
 	__for \from, \to
+	.noaltmacro
 
 	.purgem _for__body
+.endm
+
+/* Update ZCR_EL1.LEN with the new VQ */
+.macro sve_load_vq xvqminus1, xtmp, xtmp2
+		mrs_s		\xtmp, SYS_ZCR_EL1
+		bic		\xtmp2, \xtmp, ZCR_ELx_LEN_MASK
+		orr		\xtmp2, \xtmp2, \xvqminus1
+		cmp		\xtmp2, \xtmp
+		b.eq		921f
+		msr_s		SYS_ZCR_EL1, \xtmp2	//self-synchronising
+921:
+.endm
+
+/* Preserve the first 128-bits of Znz and zero the rest. */
+.macro _sve_flush_z nz
+	_sve_check_zreg \nz
+	mov	v\nz\().16b, v\nz\().16b
+.endm
+
+.macro sve_flush
+ _for n, 0, 31, _sve_flush_z	\n
+ _for n, 0, 15, _sve_pfalse	\n
+		_sve_wrffr	0
 .endm
 
 .macro sve_save nxbase, xpfpsr, nxtmp
@@ -208,13 +231,7 @@
 .endm
 
 .macro sve_load nxbase, xpfpsr, xvqminus1, nxtmp, xtmp2
-		mrs_s		x\nxtmp, SYS_ZCR_EL1
-		bic		\xtmp2, x\nxtmp, ZCR_ELx_LEN_MASK
-		orr		\xtmp2, \xtmp2, \xvqminus1
-		cmp		\xtmp2, x\nxtmp
-		b.eq		921f
-		msr_s		SYS_ZCR_EL1, \xtmp2	// self-synchronising
-921:
+		sve_load_vq	\xvqminus1, x\nxtmp, \xtmp2
  _for n, 0, 31,	_sve_ldr_v	\n, \nxbase, \n - 34
 		_sve_ldr_p	0, \nxbase
 		_sve_wrffr	0

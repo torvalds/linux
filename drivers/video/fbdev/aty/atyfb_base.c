@@ -48,7 +48,7 @@
 
 ******************************************************************************/
 
-
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -126,14 +126,14 @@
 #ifdef DEBUG
 #define DPRINTK(fmt, args...)	printk(KERN_DEBUG "atyfb: " fmt, ## args)
 #else
-#define DPRINTK(fmt, args...)
+#define DPRINTK(fmt, args...)	no_printk(fmt, ##args)
 #endif
 
 #define PRINTKI(fmt, args...)	printk(KERN_INFO "atyfb: " fmt, ## args)
 #define PRINTKE(fmt, args...)	printk(KERN_ERR "atyfb: " fmt, ## args)
 
-#if defined(CONFIG_PM) || defined(CONFIG_PMAC_BACKLIGHT) || \
-defined (CONFIG_FB_ATY_GENERIC_LCD) || defined(CONFIG_FB_ATY_BACKLIGHT)
+#if defined(CONFIG_PMAC_BACKLIGHT) || defined(CONFIG_FB_ATY_GENERIC_LCD) || \
+defined(CONFIG_FB_ATY_BACKLIGHT)
 static const u32 lt_lcd_regs[] = {
 	CNFG_PANEL_LG,
 	LCD_GEN_CNTL_LG,
@@ -175,7 +175,7 @@ u32 aty_ld_lcd(int index, const struct atyfb_par *par)
 		return aty_ld_le32(LCD_DATA, par);
 	}
 }
-#endif /* defined(CONFIG_PM) || defined(CONFIG_PMAC_BACKLIGHT) || defined (CONFIG_FB_ATY_GENERIC_LCD) */
+#endif /* defined(CONFIG_PMAC_BACKLIGHT) || defined (CONFIG_FB_ATY_GENERIC_LCD) */
 
 #ifdef CONFIG_FB_ATY_GENERIC_LCD
 /*
@@ -235,6 +235,13 @@ static int atyfb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info);
 static int atyfb_blank(int blank, struct fb_info *info);
 static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg);
+#ifdef CONFIG_COMPAT
+static int atyfb_compat_ioctl(struct fb_info *info, u_int cmd, u_long arg)
+{
+	return atyfb_ioctl(info, cmd, (u_long)compat_ptr(arg));
+}
+#endif
+
 #ifdef __sparc__
 static int atyfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 #endif
@@ -290,6 +297,9 @@ static struct fb_ops atyfb_ops = {
 	.fb_pan_display	= atyfb_pan_display,
 	.fb_blank	= atyfb_blank,
 	.fb_ioctl	= atyfb_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl = atyfb_compat_ioctl,
+#endif
 	.fb_fillrect	= atyfb_fillrect,
 	.fb_copyarea	= atyfb_copyarea,
 	.fb_imageblit	= atyfb_imageblit,
@@ -307,12 +317,7 @@ static int mclk;
 static int xclk;
 static int comp_sync = -1;
 static char *mode;
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-static int backlight = 1;
-#else
-static int backlight = 0;
-#endif
+static int backlight = IS_BUILTIN(CONFIG_PMAC_BACKLIGHT);
 
 #ifdef CONFIG_PPC
 static int default_vmode = VMODE_CHOOSE;
@@ -1188,19 +1193,6 @@ static int aty_crtc_to_var(const struct crtc *crtc,
 		(c_sync ? FB_SYNC_COMP_HIGH_ACT : 0);
 
 	switch (pix_width) {
-#if 0
-	case CRTC_PIX_WIDTH_4BPP:
-		bpp = 4;
-		var->red.offset = 0;
-		var->red.length = 8;
-		var->green.offset = 0;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		var->transp.offset = 0;
-		var->transp.length = 0;
-		break;
-#endif
 	case CRTC_PIX_WIDTH_8BPP:
 		bpp = 8;
 		var->red.offset = 0;
@@ -1329,10 +1321,10 @@ static int atyfb_set_par(struct fb_info *info)
 	par->accel_flags = var->accel_flags; /* hack */
 
 	if (var->accel_flags) {
-		info->fbops->fb_sync = atyfb_sync;
+		atyfb_ops.fb_sync = atyfb_sync;
 		info->flags &= ~FBINFO_HWACCEL_DISABLED;
 	} else {
-		info->fbops->fb_sync = NULL;
+		atyfb_ops.fb_sync = NULL;
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 	}
 
@@ -1466,11 +1458,6 @@ static int atyfb_set_par(struct fb_info *info)
 		var->bits_per_pixel,
 		par->crtc.vxres * var->bits_per_pixel / 8);
 #endif /* CONFIG_BOOTX_TEXT */
-#if 0
-	/* switch to accelerator mode */
-	if (!(par->crtc.gen_cntl & CRTC_EXT_DISP_EN))
-		aty_st_le32(CRTC_GEN_CNTL, par->crtc.gen_cntl | CRTC_EXT_DISP_EN, par);
-#endif
 #ifdef DEBUG
 {
 	/* dump non shadow CRTC, pll, LCD registers */
@@ -1480,24 +1467,28 @@ static int atyfb_set_par(struct fb_info *info)
 	base = 0x2000;
 	printk("debug atyfb: Mach64 non-shadow register values:");
 	for (i = 0; i < 256; i = i+4) {
-		if (i % 16 == 0)
-			printk("\ndebug atyfb: 0x%04X: ", base + i);
-		printk(" %08X", aty_ld_le32(i, par));
+		if (i % 16 == 0) {
+			pr_cont("\n");
+			printk("debug atyfb: 0x%04X: ", base + i);
+		}
+		pr_cont(" %08X", aty_ld_le32(i, par));
 	}
-	printk("\n\n");
+	pr_cont("\n\n");
 
 #ifdef CONFIG_FB_ATY_CT
 	/* PLL registers */
 	base = 0x00;
 	printk("debug atyfb: Mach64 PLL register values:");
 	for (i = 0; i < 64; i++) {
-		if (i % 16 == 0)
-			printk("\ndebug atyfb: 0x%02X: ", base + i);
+		if (i % 16 == 0) {
+			pr_cont("\n");
+			printk("debug atyfb: 0x%02X: ", base + i);
+		}
 		if (i % 4 == 0)
-			printk(" ");
-		printk("%02X", aty_ld_pll_ct(i, par));
+			pr_cont(" ");
+		pr_cont("%02X", aty_ld_pll_ct(i, par));
 	}
-	printk("\n\n");
+	pr_cont("\n\n");
 #endif	/* CONFIG_FB_ATY_CT */
 
 #ifdef CONFIG_FB_ATY_GENERIC_LCD
@@ -1509,19 +1500,19 @@ static int atyfb_set_par(struct fb_info *info)
 			for (i = 0; i <= POWER_MANAGEMENT; i++) {
 				if (i == EXT_VERT_STRETCH)
 					continue;
-				printk("\ndebug atyfb: 0x%04X: ",
+				pr_cont("\ndebug atyfb: 0x%04X: ",
 				       lt_lcd_regs[i]);
-				printk(" %08X", aty_ld_lcd(i, par));
+				pr_cont(" %08X", aty_ld_lcd(i, par));
 			}
 		} else {
 			for (i = 0; i < 64; i++) {
 				if (i % 4 == 0)
-					printk("\ndebug atyfb: 0x%02X: ",
+					pr_cont("\ndebug atyfb: 0x%02X: ",
 					       base + i);
-				printk(" %08X", aty_ld_lcd(i, par));
+				pr_cont(" %08X", aty_ld_lcd(i, par));
 			}
 		}
-		printk("\n\n");
+		pr_cont("\n\n");
 	}
 #endif /* CONFIG_FB_ATY_GENERIC_LCD */
 }
@@ -1998,7 +1989,7 @@ static int atyfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 
 
-#if defined(CONFIG_PM) && defined(CONFIG_PCI)
+#if defined(CONFIG_PCI)
 
 #ifdef CONFIG_PPC_PMAC
 /* Power management routines. Those are used for PowerBook sleep.
@@ -2059,8 +2050,9 @@ static int aty_power_mgmt(int sleep, struct atyfb_par *par)
 }
 #endif /* CONFIG_PPC_PMAC */
 
-static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int atyfb_pci_suspend_late(struct device *dev, pm_message_t state)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 
@@ -2086,7 +2078,6 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	 * first save the config space content so the core can
 	 * restore it properly on resume.
 	 */
-	pci_save_state(pdev);
 
 #ifdef CONFIG_PPC_PMAC
 	/* Set chip to "suspend" mode */
@@ -2098,8 +2089,6 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		console_unlock();
 		return -EIO;
 	}
-#else
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 #endif
 
 	console_unlock();
@@ -2107,6 +2096,21 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	pdev->dev.power.power_state = state;
 
 	return 0;
+}
+
+static int __maybe_unused atyfb_pci_suspend(struct device *dev)
+{
+	return atyfb_pci_suspend_late(dev, PMSG_SUSPEND);
+}
+
+static int __maybe_unused atyfb_pci_hibernate(struct device *dev)
+{
+	return atyfb_pci_suspend_late(dev, PMSG_HIBERNATE);
+}
+
+static int __maybe_unused atyfb_pci_freeze(struct device *dev)
+{
+	return atyfb_pci_suspend_late(dev, PMSG_FREEZE);
 }
 
 static void aty_resume_chip(struct fb_info *info)
@@ -2123,8 +2127,9 @@ static void aty_resume_chip(struct fb_info *info)
 			aty_ld_le32(BUS_CNTL, par) | BUS_APER_REG_DIS, par);
 }
 
-static int atyfb_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused atyfb_pci_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 
@@ -2166,7 +2171,18 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-#endif /*  defined(CONFIG_PM) && defined(CONFIG_PCI) */
+static const struct dev_pm_ops atyfb_pci_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend	= atyfb_pci_suspend,
+	.resume		= atyfb_pci_resume,
+	.freeze		= atyfb_pci_freeze,
+	.thaw		= atyfb_pci_resume,
+	.poweroff	= atyfb_pci_hibernate,
+	.restore	= atyfb_pci_resume,
+#endif /* CONFIG_PM_SLEEP */
+};
+
+#endif /*  defined(CONFIG_PCI) */
 
 /* Backlight */
 #ifdef CONFIG_FB_ATY_BACKLIGHT
@@ -2392,17 +2408,6 @@ static int aty_init(struct fb_info *info)
 			par->pll_ops = &aty_pll_ibm514;
 			break;
 #endif
-#if 0 /* dead code */
-		case CLK_STG1703:
-			par->pll_ops = &aty_pll_stg1703;
-			break;
-		case CLK_CH8398:
-			par->pll_ops = &aty_pll_ch8398;
-			break;
-		case CLK_ATT20C408:
-			par->pll_ops = &aty_pll_att20c408;
-			break;
-#endif
 		default:
 			PRINTKI("aty_init: CLK type not implemented yet!");
 			par->pll_ops = &aty_pll_unsupported;
@@ -2597,8 +2602,8 @@ static int aty_init(struct fb_info *info)
 		       aty_ld_le32(DSP_ON_OFF, par),
 		       aty_ld_le32(CLOCK_CNTL, par));
 		for (i = 0; i < 40; i++)
-			printk(" %02x", aty_ld_pll_ct(i, par));
-		printk("\n");
+			pr_cont(" %02x", aty_ld_pll_ct(i, par));
+		pr_cont("\n");
 	}
 #endif
 	if (par->pll_ops->init_pll)
@@ -2727,7 +2732,7 @@ static int aty_init(struct fb_info *info)
 
 #ifdef CONFIG_FB_ATY_CT
 	if (!noaccel && M64_HAS(INTEGRATED))
-		aty_init_cursor(info);
+		aty_init_cursor(info, &atyfb_ops);
 #endif /* CONFIG_FB_ATY_CT */
 	info->var = var;
 
@@ -3546,10 +3551,9 @@ static int atyfb_pci_probe(struct pci_dev *pdev,
 
 	/* Allocate framebuffer */
 	info = framebuffer_alloc(sizeof(struct atyfb_par), &pdev->dev);
-	if (!info) {
-		PRINTKE("atyfb_pci_probe() can't alloc fb_info\n");
+	if (!info)
 		return -ENOMEM;
-	}
+
 	par = info->par;
 	par->bus_type = PCI;
 	info->fix = atyfb_fix;
@@ -3639,10 +3643,9 @@ static int __init atyfb_atari_probe(void)
 		}
 
 		info = framebuffer_alloc(sizeof(struct atyfb_par), NULL);
-		if (!info) {
-			PRINTKE("atyfb_atari_probe() can't alloc fb_info\n");
+		if (!info)
 			return -ENOMEM;
-		}
+
 		par = info->par;
 
 		info->fix = atyfb_fix;
@@ -3818,10 +3821,7 @@ static struct pci_driver atyfb_driver = {
 	.id_table	= atyfb_pci_tbl,
 	.probe		= atyfb_pci_probe,
 	.remove		= atyfb_pci_remove,
-#ifdef CONFIG_PM
-	.suspend	= atyfb_pci_suspend,
-	.resume		= atyfb_pci_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &atyfb_pci_pm_ops,
 };
 
 #endif /* CONFIG_PCI */
@@ -3836,9 +3836,9 @@ static int __init atyfb_setup(char *options)
 
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 		if (!strncmp(this_opt, "noaccel", 7)) {
-			noaccel = 1;
+			noaccel = true;
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
-			nomtrr = 1;
+			nomtrr = true;
 		} else if (!strncmp(this_opt, "vram:", 5))
 			vram = simple_strtoul(this_opt + 5, NULL, 0);
 		else if (!strncmp(this_opt, "pll:", 4))
@@ -3912,8 +3912,7 @@ static int atyfb_reboot_notify(struct notifier_block *nb,
 	if (!reboot_info)
 		goto out;
 
-	if (!lock_fb_info(reboot_info))
-		goto out;
+	lock_fb_info(reboot_info);
 
 	par = reboot_info->par;
 

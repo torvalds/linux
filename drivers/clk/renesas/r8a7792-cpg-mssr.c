@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7792 Clock Pulse Generator / Module Standby and Software Reset
  *
@@ -6,10 +7,6 @@
  * Based on clk-rcar-gen2.c
  *
  * Copyright (C) 2013 Ideas On Board SPRL
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/device.h>
@@ -91,7 +88,7 @@ static const struct mssr_mod_clk r8a7792_mod_clks[] __initconst = {
 	DEF_MOD("tmu0",			 125,	R8A7792_CLK_CP),
 	DEF_MOD("vsp1du1",		 127,	R8A7792_CLK_ZS),
 	DEF_MOD("vsp1du0",		 128,	R8A7792_CLK_ZS),
-	DEF_MOD("vsp1-sy",		 131,	R8A7792_CLK_ZS),
+	DEF_MOD("vsps",			 131,	R8A7792_CLK_ZS),
 	DEF_MOD("msiof1",		 208,	R8A7792_CLK_MP),
 	DEF_MOD("sys-dmac1",		 218,	R8A7792_CLK_ZS),
 	DEF_MOD("sys-dmac0",		 219,	R8A7792_CLK_ZS),

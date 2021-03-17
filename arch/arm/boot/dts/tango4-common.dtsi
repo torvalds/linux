@@ -51,7 +51,7 @@
 		};
 	};
 
-	l2cc: l2-cache-controller@20100000 {
+	l2cc: cache-controller@20100000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x20100000 0x1000>;
 		cache-level = <2>;
@@ -85,7 +85,7 @@
 		};
 
 		uart: serial@10700 {
-			compatible = "ralink,rt2880-uart";
+			compatible = "ralink,rt2880-uart", "ns16550a";
 			reg = <0x10700 0x30>;
 			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <7372800>;

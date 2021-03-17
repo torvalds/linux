@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AD7746 capacitive sensor driver supporting AD7745, AD7746 and AD7747
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/delay.h>
@@ -694,9 +693,7 @@ static int ad7746_probe(struct i2c_client *client,
 	chip->client = client;
 	chip->capdac_set = -1;
 
-	/* Establish that the iio_dev is a child of the i2c device */
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &ad7746_info;
 	indio_dev->channels = ad7746_channels;
 	if (id->driver_data == 7746)
@@ -749,15 +746,25 @@ static const struct i2c_device_id ad7746_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ad7746_id);
 
+static const struct of_device_id ad7746_of_match[] = {
+	{ .compatible = "adi,ad7745" },
+	{ .compatible = "adi,ad7746" },
+	{ .compatible = "adi,ad7747" },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, ad7746_of_match);
+
 static struct i2c_driver ad7746_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
+		.of_match_table = ad7746_of_match,
 	},
 	.probe = ad7746_probe,
 	.id_table = ad7746_id,
 };
 module_i2c_driver(ad7746_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7746/5/7 capacitive sensor driver");
 MODULE_LICENSE("GPL v2");

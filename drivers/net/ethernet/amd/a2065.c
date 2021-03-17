@@ -118,10 +118,6 @@ struct lance_private {
 	int auto_select;	      /* cable-selection by carrier */
 	unsigned short busmaster_regval;
 
-#ifdef CONFIG_SUNLANCE
-	struct Linux_SBus_DMA *ledma; /* if set this points to ledma and arch=4m */
-	int burst_sizes;	      /* ledma SBus burst sizes */
-#endif
 	struct timer_list         multicast_timer;
 	struct net_device	  *dev;
 };
@@ -522,7 +518,7 @@ static inline int lance_reset(struct net_device *dev)
 	return status;
 }
 
-static void lance_tx_timeout(struct net_device *dev)
+static void lance_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
@@ -551,11 +547,10 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 	if (!lance_tx_buffs_avail(lp))
 		goto out_free;
 
-#ifdef DEBUG
 	/* dump the packet */
-	print_hex_dump(KERN_DEBUG, "skb->data: ", DUMP_PREFIX_NONE,
-		       16, 1, skb->data, 64, true);
-#endif
+	print_hex_dump_debug("skb->data: ", DUMP_PREFIX_NONE, 16, 1, skb->data,
+			     64, true);
+
 	entry = lp->tx_new & lp->tx_ring_mod_mask;
 	ib->btx_ring[entry].length = (-skblen) | 0xf000;
 	ib->btx_ring[entry].misc = 0;

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2015-2018 Overkiz SAS
+ *   Author: Mickael Gardet <m.gardet@overkiz.com>
+ *           Kévin Raymond <k.raymond@overkiz.com>
+ */
+/dts-v1/;
+#include "at91-kizboxmini-common.dtsi"
+
+/ {
+	model = "Overkiz Kizbox Mini Mother Board";
+	compatible = "overkiz,kizboxmini-mb", "atmel,at91sam9g25",
+		     "atmel,at91sam9x5", "atmel,at91sam9";
+};
+
+&usb0 {
+	num-ports = <2>;
+};
+
+&rtc {
+	status = "okay";
+};
+
+&led_blue {
+	status = "okay";
+};

@@ -3,7 +3,7 @@ NXP PCA9685 16-channel 12-bit PWM LED controller
 
 Required properties:
   - compatible: "nxp,pca9685-pwm"
-  - #pwm-cells: Should be 2. See pwm.txt in this directory for a description of
+  - #pwm-cells: Should be 2. See pwm.yaml in this directory for a description of
     the cells format.
     The index 16 is the ALLCALL channel, that sets all PWM channels at the same
     time.

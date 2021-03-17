@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) Maxime Coquelin 2015
  * Copyright (C) STMicroelectronics 2017
@@ -18,6 +18,12 @@
 #define STM32_PIN_AF(x)		((x) + 1)
 #define STM32_PIN_ANALOG	(STM32_PIN_AF(15) + 1)
 
+/*  package information */
+#define STM32MP_PKG_AA		BIT(0)
+#define STM32MP_PKG_AB		BIT(1)
+#define STM32MP_PKG_AC		BIT(2)
+#define STM32MP_PKG_AD		BIT(3)
+
 struct stm32_desc_function {
 	const char *name;
 	const unsigned char num;
@@ -26,6 +32,7 @@ struct stm32_desc_function {
 struct stm32_desc_pin {
 	struct pinctrl_pin_desc pin;
 	const struct stm32_desc_function *functions;
+	const unsigned int pkg;
 };
 
 #define STM32_PIN(_pin, ...)					\
@@ -35,6 +42,13 @@ struct stm32_desc_pin {
 			__VA_ARGS__, { } },			\
 	}
 
+#define STM32_PIN_PKG(_pin, _pkg, ...)					\
+	{							\
+		.pin = _pin,					\
+		.pkg  = _pkg,				\
+		.functions = (struct stm32_desc_function[]){	\
+			__VA_ARGS__, { } },			\
+	}
 #define STM32_FUNCTION(_num, _name)		\
 	{							\
 		.num = _num,					\
@@ -51,5 +65,7 @@ struct stm32_gpio_bank;
 int stm32_pctl_probe(struct platform_device *pdev);
 void stm32_pmx_get_mode(struct stm32_gpio_bank *bank,
 			int pin, u32 *mode, u32 *alt);
+int stm32_pinctrl_resume(struct device *dev);
+
 #endif /* __PINCTRL_STM32_H */
 

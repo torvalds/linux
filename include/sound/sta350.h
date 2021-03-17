@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Platform data for ST STA350 ASoC codec driver.
  *
  * Copyright: 2014 Raumfeld GmbH
  * Author: Sven Brandau <info@brandau.biz>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #ifndef __LINUX_SND__STA350_H
 #define __LINUX_SND__STA350_H

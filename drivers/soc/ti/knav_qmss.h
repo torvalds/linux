@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Keystone Navigator QMSS driver internal header
  *
@@ -5,15 +6,6 @@
  * Author:	Sandeep Nair <sandeep_n@ti.com>
  *		Cyril Chemparathy <cyril@ti.com>
  *		Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __KNAV_QMSS_H__
@@ -75,7 +67,7 @@ struct knav_reg_config {
 	u32		link_ram_size0;
 	u32		link_ram_base1;
 	u32		__pad2[2];
-	u32		starvation[0];
+	u32		starvation[];
 };
 
 struct knav_reg_region {
@@ -240,14 +232,14 @@ struct knav_pool {
 };
 
 /**
- * struct knav_queue_inst:		qmss queue instace properties
+ * struct knav_queue_inst:		qmss queue instance properties
  * @descs:				descriptor pointer
  * @desc_head, desc_tail, desc_count:	descriptor counters
  * @acc:				accumulator channel pointer
  * @kdev:				qmss device pointer
  * @range:				range info
  * @qmgr:				queue manager info
- * @id:					queue instace id
+ * @id:					queue instance id
  * @irq_num:				irq line number
  * @notify_needed:			notifier needed based on queue type
  * @num_notifiers:			total notifiers
@@ -274,7 +266,7 @@ struct knav_queue_inst {
 /**
  * struct knav_queue:			qmss queue properties
  * @reg_push, reg_pop, reg_peek:	push, pop queue registers
- * @inst:				qmss queue instace properties
+ * @inst:				qmss queue instance properties
  * @notifier_fn:			notifier function
  * @notifier_fn_arg:			notifier function argument
  * @notifier_enabled:			notier enabled for a give queue
@@ -329,8 +321,8 @@ struct knav_range_ops {
 };
 
 struct knav_irq_info {
-	int	irq;
-	u32	cpu_map;
+	int		irq;
+	struct cpumask	*cpu_mask;
 };
 
 struct knav_range_info {

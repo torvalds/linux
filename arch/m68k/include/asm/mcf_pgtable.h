@@ -170,7 +170,7 @@ static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
 }
 
 #define __pte_page(pte)	((unsigned long) (pte_val(pte) & PAGE_MASK))
-#define __pmd_page(pmd)	((unsigned long) (pmd_val(pmd)))
+#define pmd_page_vaddr(pmd)	((unsigned long) (pmd_val(pmd)))
 
 static inline int pte_none(pte_t pte)
 {
@@ -198,17 +198,9 @@ static inline int pmd_bad2(pmd_t *pmd) { return 0; }
 #define pmd_present(pmd) (!pmd_none2(&(pmd)))
 static inline void pmd_clear(pmd_t *pmdp) { pmd_val(*pmdp) = 0; }
 
-static inline int pgd_none(pgd_t pgd) { return 0; }
-static inline int pgd_bad(pgd_t pgd) { return 0; }
-static inline int pgd_present(pgd_t pgd) { return 1; }
-static inline void pgd_clear(pgd_t *pgdp) {}
-
 #define pte_ERROR(e) \
 	printk(KERN_ERR "%s:%d: bad pte %08lx.\n",	\
 	__FILE__, __LINE__, pte_val(e))
-#define pmd_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pmd %08lx.\n",	\
-	__FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
 	printk(KERN_ERR "%s:%d: bad pgd %08lx.\n",	\
 	__FILE__, __LINE__, pgd_val(e))
@@ -241,11 +233,6 @@ static inline int pte_dirty(pte_t pte)
 static inline int pte_young(pte_t pte)
 {
 	return pte_val(pte) & CF_PAGE_ACCESSED;
-}
-
-static inline int pte_special(pte_t pte)
-{
-	return 0;
 }
 
 static inline pte_t pte_wrprotect(pte_t pte)
@@ -320,71 +307,8 @@ static inline pte_t pte_mkcache(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkspecial(pte_t pte)
-{
-	return pte;
-}
-
 #define swapper_pg_dir kernel_pg_dir
 extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
-
-/*
- * Find an entry in a pagetable directory.
- */
-#define pgd_index(address)	((address) >> PGDIR_SHIFT)
-#define pgd_offset(mm, address)	((mm)->pgd + pgd_index(address))
-
-/*
- * Find an entry in a kernel pagetable directory.
- */
-#define pgd_offset_k(address)	pgd_offset(&init_mm, address)
-
-/*
- * Find an entry in the second-level pagetable.
- */
-static inline pmd_t *pmd_offset(pgd_t *pgd, unsigned long address)
-{
-	return (pmd_t *) pgd;
-}
-
-/*
- * Find an entry in the third-level pagetable.
- */
-#define __pte_offset(address)	((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset_kernel(dir, address) \
-	((pte_t *) __pmd_page(*(dir)) + __pte_offset(address))
-
-/*
- * Disable caching for page at given kernel virtual address.
- */
-static inline void nocache_page(void *vaddr)
-{
-	pgd_t *dir;
-	pmd_t *pmdp;
-	pte_t *ptep;
-	unsigned long addr = (unsigned long) vaddr;
-
-	dir = pgd_offset_k(addr);
-	pmdp = pmd_offset(dir, addr);
-	ptep = pte_offset_kernel(pmdp, addr);
-	*ptep = pte_mknocache(*ptep);
-}
-
-/*
- * Enable caching for page at given kernel virtual address.
- */
-static inline void cache_page(void *vaddr)
-{
-	pgd_t *dir;
-	pmd_t *pmdp;
-	pte_t *ptep;
-	unsigned long addr = (unsigned long) vaddr;
-
-	dir = pgd_offset_k(addr);
-	pmdp = pmd_offset(dir, addr);
-	ptep = pte_offset_kernel(pmdp, addr);
-	*ptep = pte_mkcache(*ptep);
-}
 
 /*
  * Encode and de-code a swap entry (must be !pte_none(e) && !pte_present(e))
@@ -398,9 +322,6 @@ static inline void cache_page(void *vaddr)
 
 #define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
 
-#define pte_offset_map(pmdp, addr) ((pte_t *)__pmd_page(*pmdp) + \
-				       __pte_offset(addr))
-#define pte_unmap(pte)		((void) 0)
 #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
 

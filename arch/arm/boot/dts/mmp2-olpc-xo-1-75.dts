@@ -1,0 +1,277 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * OLPC XO 1.75 Laptop.
+ *
+ * Copyright (C) 2018,2019 Lubomir Rintel <lkundrak@v3.sk>
+ */
+
+/dts-v1/;
+#include "mmp2.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	model = "OLPC XO-1.75";
+	compatible = "olpc,xo-1.75", "mrvl,mmp2";
+
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer@1fc00000 {
+			compatible = "simple-framebuffer";
+			reg = <0x1fc00000 (1200 * 900 * 2)>;
+			width = <1200>;
+			height = <900>;
+			stride = <(1200 * 2)>;
+			format = "r5g6b5";
+			clocks = <&soc_clocks MMP2_CLK_DISP0_LCDC>,
+				 <&soc_clocks MMP2_CLK_DISP0>;
+		};
+	};
+
+	memory {
+		linux,usable-memory = <0x0 0x1f800000>;
+		available = <0xcf000 0x1ef31000 0x1000 0xbf000>;
+		reg = <0x0 0x20000000>;
+		device_type = "memory";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		lid {
+			label = "Lid";
+			gpios = <&gpio 129 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			wakeup-source;
+		};
+
+		tablet_mode {
+			label = "E-Book Mode";
+			gpios = <&gpio 128 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_TABLET_MODE>;
+			wakeup-source;
+		};
+	};
+
+	i2c {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio 109 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio 108 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-gpio,timeout-ms = <1000>;
+		status = "okay";
+
+		camera@21 {
+			compatible = "ovti,ov7670";
+			reg = <0x21>;
+			reset-gpios = <&gpio 102 GPIO_ACTIVE_LOW>;
+			powerdown-gpios = <&gpio 150 GPIO_ACTIVE_LOW>;
+			clocks = <&camera0>;
+			clock-names = "xclk";
+
+			port {
+				ov7670_0: endpoint {
+					hsync-active = <1>;
+					vsync-active = <1>;
+					remote-endpoint = <&camera0_0>;
+				};
+			};
+		};
+	};
+
+	battery {
+		compatible = "olpc,xo1.5-battery", "olpc,xo1-battery";
+	};
+
+	wlan_reg: fixedregulator0 {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio 34 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	wlan_pwrseq: pwrseq0 {
+		compatible = "mmc-pwrseq-sd8787";
+		powerdown-gpios = <&gpio 57 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio 58 GPIO_ACTIVE_HIGH>;
+	};
+
+	sound-card {
+		compatible = "audio-graph-card";
+		label = "OLPC XO";
+		dais = <&sspa0_dai>;
+		routing = "Headphones", "HPOL",
+			  "Headphones", "HPOR",
+			  "MIC2", "Mic Jack";
+		widgets = "Headphone", "Headphones", "Microphone", "Mic Jack";
+		hp-det-gpio = <&gpio 97 GPIO_ACTIVE_HIGH>;
+		mic-det-gpio = <&gpio 96 GPIO_ACTIVE_HIGH>;
+	};
+
+	soc {
+		axi@d4200000 {
+			ap-sp@d4290000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "olpc,ap-sp";
+				interrupts = <40>;
+				reg = <0xd4290000 0x1000>;
+				data-gpios = <&gpio 72 GPIO_ACTIVE_HIGH>;
+				clk-gpios = <&gpio 71 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+		};
+	};
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&usb_phy0 {
+	status = "okay";
+};
+
+&usb_otg0 {
+	status = "okay";
+};
+
+&mmc1 {
+	clock-frequency = <50000000>;
+	no-1-8-v;
+	mrvl,clk-delay-cycles = <31>;
+	broken-cd;
+	status = "okay";
+};
+
+&mmc2 {
+	clock-frequency = <50000000>;
+	no-1-8-v;
+	bus-width = <4>;
+	non-removable;
+	broken-cd;
+	wakeup-source;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&wlan_pwrseq>;
+	vmmc-supply = <&wlan_reg>;
+	status = "okay";
+};
+
+&mmc3 {
+	clock-frequency = <50000000>;
+	no-1-8-v;
+	bus-width = <8>;
+	non-removable;
+	broken-cd;
+	mrvl,clk-delay-cycles = <31>;
+	status = "okay";
+};
+
+&twsi1 {
+	status = "okay";
+
+	audio-codec@1a {
+		compatible = "realtek,alc5631";
+		reg = <0x1a>;
+		status = "okay";
+
+		port {
+			rt5631_0: endpoint {
+				mclk-fs = <256>;
+				clocks = <&audio_clk 0>;
+				remote-endpoint = <&sspa0_0>;
+			};
+		};
+	};
+};
+
+&twsi2 {
+	status = "okay";
+
+	rtc@68 {
+		compatible = "dallas,ds1338";
+		reg = <0x68>;
+		status = "okay";
+	};
+};
+
+&twsi6 {
+	status = "okay";
+
+	accelerometer@1d {
+		compatible = "st,lis331dlh", "st,lis3lv02d";
+		reg = <0x1d>;
+		status = "okay";
+	};
+};
+
+&ssp3 {
+	#address-cells = <0>;
+	spi-slave;
+	status = "okay";
+	ready-gpios = <&gpio 125 GPIO_ACTIVE_HIGH>;
+
+	slave {
+		compatible = "olpc,xo1.75-ec";
+		spi-cpha;
+		cmd-gpios = <&gpio 155 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&camera0 {
+	status = "okay";
+
+	port {
+		camera0_0: endpoint {
+			remote-endpoint = <&ov7670_0>;
+		};
+	};
+};
+
+&asram {
+	status = "okay";
+};
+
+&adma0 {
+	status = "okay";
+};
+
+&audio_clk {
+	status = "okay";
+};
+
+&sspa0 {
+	status = "okay";
+	dmas = <&adma0 0>, <&adma0 1>;
+	dma-names = "tx", "rx";
+
+	sspa0_dai: port {
+		sspa0_0: endpoint {
+			remote-endpoint = <&rt5631_0>;
+			frame-master;
+			bitclock-master;
+			dai-format = "i2s";
+		};
+	};
+};
+
+&gpu {
+	status = "okay";
+};

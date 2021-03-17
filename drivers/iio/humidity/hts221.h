@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics hts221 sensor driver
  *
  * Copyright 2016 STMicroelectronics Inc.
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef HTS221_H
@@ -14,8 +13,6 @@
 #define HTS221_DEV_NAME		"hts221"
 
 #include <linux/iio/iio.h>
-
-#define HTS221_DATA_SIZE	2
 
 enum hts221_sensor_type {
 	HTS221_SENSOR_H,
@@ -40,6 +37,11 @@ struct hts221_hw {
 
 	bool enabled;
 	u8 odr;
+	/* Ensure natural alignment of timestamp */
+	struct {
+		__le16 channels[2];
+		s64 ts __aligned(8);
+	} scan;
 };
 
 extern const struct dev_pm_ops hts221_pm_ops;
@@ -47,7 +49,7 @@ extern const struct dev_pm_ops hts221_pm_ops;
 int hts221_probe(struct device *dev, int irq, const char *name,
 		 struct regmap *regmap);
 int hts221_set_enable(struct hts221_hw *hw, bool enable);
-int hts221_allocate_buffers(struct hts221_hw *hw);
-int hts221_allocate_trigger(struct hts221_hw *hw);
+int hts221_allocate_buffers(struct iio_dev *iio_dev);
+int hts221_allocate_trigger(struct iio_dev *iio_dev);
 
 #endif /* HTS221_H */

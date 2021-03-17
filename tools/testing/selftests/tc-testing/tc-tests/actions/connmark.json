@@ -287,5 +287,30 @@
         "teardown": [
             "$TC actions flush action connmark"
         ]
+    },
+    {
+        "id": "c506",
+        "name": "Replace connmark with invalid goto chain control",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action connmark pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action connmark goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action connmark index 90",
+        "matchPattern": "action order [0-9]+: connmark zone 0 pass.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
     }
 ]

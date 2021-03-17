@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2012 Intel Corporation; author H. Peter Anvin
- *
- *   This file is part of the Linux kernel, and is made available
- *   under the terms of the GNU General Public License version 2, as
- *   published by the Free Software Foundation.
- *
- *   This program is distributed in the hope it will be useful, but
- *   WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *   General Public License for more details.
  *
  * ----------------------------------------------------------------------- */
 
@@ -50,7 +42,7 @@ enum cpio_fields {
 /**
  * cpio_data find_cpio_data - Search for files in an uncompressed cpio
  * @path:       The directory to search for, including a slash at the end
- * @data:       Pointer to the the cpio archive or a header inside
+ * @data:       Pointer to the cpio archive or a header inside
  * @len:        Remaining length of the cpio based on data pointer
  * @nextoff:    When a matching file is found, this is the offset from the
  *              beginning of the cpio to the beginning of the next file, not the

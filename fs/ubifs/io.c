@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
  * Copyright (C) 2006, 2007 University of Szeged, Hungary
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -237,7 +225,7 @@ int ubifs_is_mapped(const struct ubifs_info *c, int lnum)
 int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 		     int offs, int quiet, int must_chk_crc)
 {
-	int err = -EINVAL, type, node_len;
+	int err = -EINVAL, type, node_len, dump_node = 1;
 	uint32_t crc, node_crc, magic;
 	const struct ubifs_ch *ch = buf;
 
@@ -290,10 +278,22 @@ int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 out_len:
 	if (!quiet)
 		ubifs_err(c, "bad node length %d", node_len);
+	if (type == UBIFS_DATA_NODE && node_len > UBIFS_DATA_NODE_SZ)
+		dump_node = 0;
 out:
 	if (!quiet) {
 		ubifs_err(c, "bad node at LEB %d:%d", lnum, offs);
-		ubifs_dump_node(c, buf);
+		if (dump_node) {
+			ubifs_dump_node(c, buf);
+		} else {
+			int safe_len = min3(node_len, c->leb_size - offs,
+				(int)UBIFS_MAX_DATA_NODE_SZ);
+			pr_err("\tprevent out-of-bounds memory access\n");
+			pr_err("\ttruncated data node length      %d\n", safe_len);
+			pr_err("\tcorrupted data node:\n");
+			print_hex_dump(KERN_ERR, "\t", DUMP_PREFIX_OFFSET, 32, 1,
+					buf, safe_len, 0);
+		}
 		dump_stack();
 	}
 	return err;
@@ -319,7 +319,7 @@ void ubifs_pad(const struct ubifs_info *c, void *buf, int pad)
 {
 	uint32_t crc;
 
-	ubifs_assert(c, pad >= 0 && !(pad & 7));
+	ubifs_assert(c, pad >= 0);
 
 	if (pad >= UBIFS_PAD_NODE_SZ) {
 		struct ubifs_ch *ch = buf;
@@ -365,6 +365,68 @@ static unsigned long long next_sqnum(struct ubifs_info *c)
 	return sqnum;
 }
 
+void ubifs_init_node(struct ubifs_info *c, void *node, int len, int pad)
+{
+	struct ubifs_ch *ch = node;
+	unsigned long long sqnum = next_sqnum(c);
+
+	ubifs_assert(c, len >= UBIFS_CH_SZ);
+
+	ch->magic = cpu_to_le32(UBIFS_NODE_MAGIC);
+	ch->len = cpu_to_le32(len);
+	ch->group_type = UBIFS_NO_NODE_GROUP;
+	ch->sqnum = cpu_to_le64(sqnum);
+	ch->padding[0] = ch->padding[1] = 0;
+
+	if (pad) {
+		len = ALIGN(len, 8);
+		pad = ALIGN(len, c->min_io_size) - len;
+		ubifs_pad(c, node + len, pad);
+	}
+}
+
+void ubifs_crc_node(struct ubifs_info *c, void *node, int len)
+{
+	struct ubifs_ch *ch = node;
+	uint32_t crc;
+
+	crc = crc32(UBIFS_CRC32_INIT, node + 8, len - 8);
+	ch->crc = cpu_to_le32(crc);
+}
+
+/**
+ * ubifs_prepare_node_hmac - prepare node to be written to flash.
+ * @c: UBIFS file-system description object
+ * @node: the node to pad
+ * @len: node length
+ * @hmac_offs: offset of the HMAC in the node
+ * @pad: if the buffer has to be padded
+ *
+ * This function prepares node at @node to be written to the media - it
+ * calculates node CRC, fills the common header, and adds proper padding up to
+ * the next minimum I/O unit if @pad is not zero. if @hmac_offs is positive then
+ * a HMAC is inserted into the node at the given offset.
+ *
+ * This function returns 0 for success or a negative error code otherwise.
+ */
+int ubifs_prepare_node_hmac(struct ubifs_info *c, void *node, int len,
+			    int hmac_offs, int pad)
+{
+	int err;
+
+	ubifs_init_node(c, node, len, pad);
+
+	if (hmac_offs > 0) {
+		err = ubifs_node_insert_hmac(c, node, len, hmac_offs);
+		if (err)
+			return err;
+	}
+
+	ubifs_crc_node(c, node, len);
+
+	return 0;
+}
+
 /**
  * ubifs_prepare_node - prepare node to be written to flash.
  * @c: UBIFS file-system description object
@@ -378,25 +440,11 @@ static unsigned long long next_sqnum(struct ubifs_info *c)
  */
 void ubifs_prepare_node(struct ubifs_info *c, void *node, int len, int pad)
 {
-	uint32_t crc;
-	struct ubifs_ch *ch = node;
-	unsigned long long sqnum = next_sqnum(c);
-
-	ubifs_assert(c, len >= UBIFS_CH_SZ);
-
-	ch->magic = cpu_to_le32(UBIFS_NODE_MAGIC);
-	ch->len = cpu_to_le32(len);
-	ch->group_type = UBIFS_NO_NODE_GROUP;
-	ch->sqnum = cpu_to_le64(sqnum);
-	ch->padding[0] = ch->padding[1] = 0;
-	crc = crc32(UBIFS_CRC32_INIT, node + 8, len - 8);
-	ch->crc = cpu_to_le32(crc);
-
-	if (pad) {
-		len = ALIGN(len, 8);
-		pad = ALIGN(len, c->min_io_size) - len;
-		ubifs_pad(c, node + len, pad);
-	}
+	/*
+	 * Deliberately ignore return value since this function can only fail
+	 * when a hmac offset is given.
+	 */
+	ubifs_prepare_node_hmac(c, node, len, 0, pad);
 }
 
 /**
@@ -716,6 +764,10 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		 * write-buffer.
 		 */
 		memcpy(wbuf->buf + wbuf->used, buf, len);
+		if (aligned_len > len) {
+			ubifs_assert(c, aligned_len - len < 8);
+			ubifs_pad(c, wbuf->buf + wbuf->used + len, aligned_len - len);
+		}
 
 		if (aligned_len == wbuf->avail) {
 			dbg_io("flush jhead %s wbuf to LEB %d:%d",
@@ -808,13 +860,18 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	}
 
 	spin_lock(&wbuf->lock);
-	if (aligned_len)
+	if (aligned_len) {
 		/*
 		 * And now we have what's left and what does not take whole
 		 * max. write unit, so write it to the write-buffer and we are
 		 * done.
 		 */
 		memcpy(wbuf->buf, buf + written, len);
+		if (aligned_len > len) {
+			ubifs_assert(c, aligned_len - len < 8);
+			ubifs_pad(c, wbuf->buf + len, aligned_len - len);
+		}
+	}
 
 	if (c->leb_size - wbuf->offs >= c->max_write_size)
 		wbuf->size = c->max_write_size;
@@ -849,6 +906,48 @@ out:
 }
 
 /**
+ * ubifs_write_node_hmac - write node to the media.
+ * @c: UBIFS file-system description object
+ * @buf: the node to write
+ * @len: node length
+ * @lnum: logical eraseblock number
+ * @offs: offset within the logical eraseblock
+ * @hmac_offs: offset of the HMAC within the node
+ *
+ * This function automatically fills node magic number, assigns sequence
+ * number, and calculates node CRC checksum. The length of the @buf buffer has
+ * to be aligned to the minimal I/O unit size. This function automatically
+ * appends padding node and padding bytes if needed. Returns zero in case of
+ * success and a negative error code in case of failure.
+ */
+int ubifs_write_node_hmac(struct ubifs_info *c, void *buf, int len, int lnum,
+			  int offs, int hmac_offs)
+{
+	int err, buf_len = ALIGN(len, c->min_io_size);
+
+	dbg_io("LEB %d:%d, %s, length %d (aligned %d)",
+	       lnum, offs, dbg_ntype(((struct ubifs_ch *)buf)->node_type), len,
+	       buf_len);
+	ubifs_assert(c, lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
+	ubifs_assert(c, offs % c->min_io_size == 0 && offs < c->leb_size);
+	ubifs_assert(c, !c->ro_media && !c->ro_mount);
+	ubifs_assert(c, !c->space_fixup);
+
+	if (c->ro_error)
+		return -EROFS;
+
+	err = ubifs_prepare_node_hmac(c, buf, len, hmac_offs, 1);
+	if (err)
+		return err;
+
+	err = ubifs_leb_write(c, lnum, buf, offs, buf_len);
+	if (err)
+		ubifs_dump_node(c, buf);
+
+	return err;
+}
+
+/**
  * ubifs_write_node - write node to the media.
  * @c: UBIFS file-system description object
  * @buf: the node to write
@@ -865,25 +964,7 @@ out:
 int ubifs_write_node(struct ubifs_info *c, void *buf, int len, int lnum,
 		     int offs)
 {
-	int err, buf_len = ALIGN(len, c->min_io_size);
-
-	dbg_io("LEB %d:%d, %s, length %d (aligned %d)",
-	       lnum, offs, dbg_ntype(((struct ubifs_ch *)buf)->node_type), len,
-	       buf_len);
-	ubifs_assert(c, lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
-	ubifs_assert(c, offs % c->min_io_size == 0 && offs < c->leb_size);
-	ubifs_assert(c, !c->ro_media && !c->ro_mount);
-	ubifs_assert(c, !c->space_fixup);
-
-	if (c->ro_error)
-		return -EROFS;
-
-	ubifs_prepare_node(c, buf, len, 1);
-	err = ubifs_leb_write(c, lnum, buf, offs, buf_len);
-	if (err)
-		ubifs_dump_node(c, buf);
-
-	return err;
+	return ubifs_write_node_hmac(c, buf, len, lnum, offs, -1);
 }
 
 /**

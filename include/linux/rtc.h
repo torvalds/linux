@@ -34,18 +34,6 @@ static inline time64_t rtc_tm_sub(struct rtc_time *lhs, struct rtc_time *rhs)
 	return rtc_tm_to_time64(lhs) - rtc_tm_to_time64(rhs);
 }
 
-static inline void rtc_time_to_tm(unsigned long time, struct rtc_time *tm)
-{
-	rtc_time64_to_tm(time, tm);
-}
-
-static inline int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time)
-{
-	*time = rtc_tm_to_time64(tm);
-
-	return 0;
-}
-
 #include <linux/device.h>
 #include <linux/seq_file.h>
 #include <linux/cdev.h>
@@ -67,10 +55,6 @@ extern struct class *rtc_class;
  *
  * The (current) exceptions are mostly filesystem hooks:
  *   - the proc() hook for procfs
- *   - non-ioctl() chardev hooks:  open(), release(), read_callback()
- *
- * REVISIT those periodic irq calls *do* have ops_lock when they're
- * issued through ioctl() ...
  */
 struct rtc_class_ops {
 	int (*ioctl)(struct device *, unsigned int, unsigned long);
@@ -79,22 +63,20 @@ struct rtc_class_ops {
 	int (*read_alarm)(struct device *, struct rtc_wkalrm *);
 	int (*set_alarm)(struct device *, struct rtc_wkalrm *);
 	int (*proc)(struct device *, struct seq_file *);
-	int (*set_mmss64)(struct device *, time64_t secs);
-	int (*set_mmss)(struct device *, unsigned long secs);
-	int (*read_callback)(struct device *, int data);
 	int (*alarm_irq_enable)(struct device *, unsigned int enabled);
 	int (*read_offset)(struct device *, long *offset);
 	int (*set_offset)(struct device *, long offset);
 };
 
+struct rtc_device;
+
 struct rtc_timer {
 	struct timerqueue_node node;
 	ktime_t period;
-	void (*func)(void *private_data);
-	void *private_data;
+	void (*func)(struct rtc_device *rtc);
+	struct rtc_device *rtc;
 	int enabled;
 };
-
 
 /* flags */
 #define RTC_DEV_BUSY 0
@@ -138,7 +120,6 @@ struct rtc_device {
 
 	bool registered;
 
-	struct nvmem_device *nvmem;
 	/* Old ABI support */
 	bool nvram_old_abi;
 	struct bin_attribute *nvram;
@@ -162,24 +143,25 @@ struct rtc_device {
 };
 #define to_rtc_device(d) container_of(d, struct rtc_device, dev)
 
-/* useful timestamps */
-#define RTC_TIMESTAMP_BEGIN_1900	-2208989361LL /* 1900-01-01 00:00:00 */
-#define RTC_TIMESTAMP_BEGIN_2000	946684800LL /* 2000-01-01 00:00:00 */
-#define RTC_TIMESTAMP_END_2099		4102444799LL /* 2099-12-31 23:59:59 */
+#define rtc_lock(d) mutex_lock(&d->ops_lock)
+#define rtc_unlock(d) mutex_unlock(&d->ops_lock)
 
-extern struct rtc_device *rtc_device_register(const char *name,
-					struct device *dev,
-					const struct rtc_class_ops *ops,
-					struct module *owner);
+/* useful timestamps */
+#define RTC_TIMESTAMP_BEGIN_0000	-62167219200ULL /* 0000-01-01 00:00:00 */
+#define RTC_TIMESTAMP_BEGIN_1900	-2208988800LL /* 1900-01-01 00:00:00 */
+#define RTC_TIMESTAMP_BEGIN_2000	946684800LL /* 2000-01-01 00:00:00 */
+#define RTC_TIMESTAMP_END_2063		2966371199LL /* 2063-12-31 23:59:59 */
+#define RTC_TIMESTAMP_END_2079		3471292799LL /* 2079-12-31 23:59:59 */
+#define RTC_TIMESTAMP_END_2099		4102444799LL /* 2099-12-31 23:59:59 */
+#define RTC_TIMESTAMP_END_2199		7258118399LL /* 2199-12-31 23:59:59 */
+#define RTC_TIMESTAMP_END_9999		253402300799LL /* 9999-12-31 23:59:59 */
+
 extern struct rtc_device *devm_rtc_device_register(struct device *dev,
 					const char *name,
 					const struct rtc_class_ops *ops,
 					struct module *owner);
 struct rtc_device *devm_rtc_allocate_device(struct device *dev);
 int __rtc_register_device(struct module *owner, struct rtc_device *rtc);
-extern void rtc_device_unregister(struct rtc_device *rtc);
-extern void devm_rtc_device_unregister(struct device *dev,
-					struct rtc_device *rtc);
 
 extern int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm);
 extern int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm);
@@ -205,11 +187,12 @@ extern int rtc_dev_update_irq_enable_emul(struct rtc_device *rtc,
 						unsigned int enabled);
 
 void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode);
-void rtc_aie_update_irq(void *private);
-void rtc_uie_update_irq(void *private);
+void rtc_aie_update_irq(struct rtc_device *rtc);
+void rtc_uie_update_irq(struct rtc_device *rtc);
 enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer);
 
-void rtc_timer_init(struct rtc_timer *timer, void (*f)(void *p), void *data);
+void rtc_timer_init(struct rtc_timer *timer, void (*f)(struct rtc_device *r),
+		    struct rtc_device *rtc);
 int rtc_timer_start(struct rtc_device *rtc, struct rtc_timer *timer,
 		    ktime_t expires, ktime_t period);
 void rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer);
@@ -277,4 +260,20 @@ static inline int rtc_nvmem_register(struct rtc_device *rtc,
 static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif
 
+#ifdef CONFIG_RTC_INTF_SYSFS
+int rtc_add_group(struct rtc_device *rtc, const struct attribute_group *grp);
+int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps);
+#else
+static inline
+int rtc_add_group(struct rtc_device *rtc, const struct attribute_group *grp)
+{
+	return 0;
+}
+
+static inline
+int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
+{
+	return 0;
+}
+#endif
 #endif /* _LINUX_RTC_H_ */

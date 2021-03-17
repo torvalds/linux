@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdio.h>
@@ -20,12 +8,14 @@
 
 #define unlikely(cond) (cond)
 #include <asm/insn.h>
-#include "lib/inat.c"
-#include "lib/insn.c"
+#include "../../../arch/x86/lib/inat.c"
+#include "../../../arch/x86/lib/insn.c"
 
+#include "../../check.h"
 #include "../../elf.h"
 #include "../../arch.h"
 #include "../../warn.h"
+#include <asm/orc_types.h>
 
 static unsigned char op_to_cfi_reg[][2] = {
 	{CFI_AX, CFI_R8},
@@ -38,7 +28,7 @@ static unsigned char op_to_cfi_reg[][2] = {
 	{CFI_DI, CFI_R15},
 };
 
-static int is_x86_64(struct elf *elf)
+static int is_x86_64(const struct elf *elf)
 {
 	switch (elf->ehdr.e_machine) {
 	case EM_X86_64:
@@ -78,16 +68,34 @@ bool arch_callee_saved_reg(unsigned char reg)
 	}
 }
 
-int arch_decode_instruction(struct elf *elf, struct section *sec,
+unsigned long arch_dest_reloc_offset(int addend)
+{
+	return addend + 4;
+}
+
+unsigned long arch_jump_destination(struct instruction *insn)
+{
+	return insn->offset + insn->len + insn->immediate;
+}
+
+#define ADD_OP(op) \
+	if (!(op = calloc(1, sizeof(*op)))) \
+		return -1; \
+	else for (list_add_tail(&op->list, ops_list); op; op = NULL)
+
+int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
-			    unsigned int *len, unsigned char *type,
-			    unsigned long *immediate, struct stack_op *op)
+			    unsigned int *len, enum insn_type *type,
+			    unsigned long *immediate,
+			    struct list_head *ops_list)
 {
 	struct insn insn;
 	int x86_64, sign;
 	unsigned char op1, op2, rex = 0, rex_b = 0, rex_r = 0, rex_w = 0,
 		      rex_x = 0, modrm = 0, modrm_mod = 0, modrm_rm = 0,
 		      modrm_reg = 0, sib = 0;
+	struct stack_op *op = NULL;
+	struct symbol *sym;
 
 	x86_64 = is_x86_64(elf);
 	if (x86_64 == -1)
@@ -97,7 +105,7 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 	insn_get_length(&insn);
 
 	if (!insn_complete(&insn)) {
-		WARN_FUNC("can't decode instruction", sec, offset);
+		WARN("can't decode instruction at %s:0x%lx", sec->name, offset);
 		return -1;
 	}
 
@@ -135,40 +143,44 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		if (rex_w && !rex_b && modrm_mod == 3 && modrm_rm == 4) {
 
 			/* add/sub reg, %rsp */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_ADD;
+				op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
 		}
 		break;
 
 	case 0x50 ... 0x57:
 
 		/* push reg */
-		*type = INSN_STACK;
-		op->src.type = OP_SRC_REG;
-		op->src.reg = op_to_cfi_reg[op1 & 0x7][rex_b];
-		op->dest.type = OP_DEST_PUSH;
+		ADD_OP(op) {
+			op->src.type = OP_SRC_REG;
+			op->src.reg = op_to_cfi_reg[op1 & 0x7][rex_b];
+			op->dest.type = OP_DEST_PUSH;
+		}
 
 		break;
 
 	case 0x58 ... 0x5f:
 
 		/* pop reg */
-		*type = INSN_STACK;
-		op->src.type = OP_SRC_POP;
-		op->dest.type = OP_DEST_REG;
-		op->dest.reg = op_to_cfi_reg[op1 & 0x7][rex_b];
+		ADD_OP(op) {
+			op->src.type = OP_SRC_POP;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = op_to_cfi_reg[op1 & 0x7][rex_b];
+		}
 
 		break;
 
 	case 0x68:
 	case 0x6a:
 		/* push immediate */
-		*type = INSN_STACK;
-		op->src.type = OP_SRC_CONST;
-		op->dest.type = OP_DEST_PUSH;
+		ADD_OP(op) {
+			op->src.type = OP_SRC_CONST;
+			op->dest.type = OP_DEST_PUSH;
+		}
 		break;
 
 	case 0x70 ... 0x7f:
@@ -182,12 +194,13 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 
 		if (modrm == 0xe4) {
 			/* and imm, %rsp */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_AND;
-			op->src.reg = CFI_SP;
-			op->src.offset = insn.immediate.value;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_AND;
+				op->src.reg = CFI_SP;
+				op->src.offset = insn.immediate.value;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
 			break;
 		}
 
@@ -199,34 +212,37 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			break;
 
 		/* add/sub imm, %rsp */
-		*type = INSN_STACK;
-		op->src.type = OP_SRC_ADD;
-		op->src.reg = CFI_SP;
-		op->src.offset = insn.immediate.value * sign;
-		op->dest.type = OP_DEST_REG;
-		op->dest.reg = CFI_SP;
+		ADD_OP(op) {
+			op->src.type = OP_SRC_ADD;
+			op->src.reg = CFI_SP;
+			op->src.offset = insn.immediate.value * sign;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = CFI_SP;
+		}
 		break;
 
 	case 0x89:
 		if (rex_w && !rex_r && modrm_mod == 3 && modrm_reg == 4) {
 
 			/* mov %rsp, reg */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_REG;
-			op->src.reg = CFI_SP;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
+			ADD_OP(op) {
+				op->src.type = OP_SRC_REG;
+				op->src.reg = CFI_SP;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
+			}
 			break;
 		}
 
 		if (rex_w && !rex_b && modrm_mod == 3 && modrm_rm == 4) {
 
 			/* mov reg, %rsp */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_REG;
-			op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_REG;
+				op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
 			break;
 		}
 
@@ -236,22 +252,24 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		    (modrm_mod == 1 || modrm_mod == 2) && modrm_rm == 5) {
 
 			/* mov reg, disp(%rbp) */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_REG;
-			op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
-			op->dest.type = OP_DEST_REG_INDIRECT;
-			op->dest.reg = CFI_BP;
-			op->dest.offset = insn.displacement.value;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_REG;
+				op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->dest.type = OP_DEST_REG_INDIRECT;
+				op->dest.reg = CFI_BP;
+				op->dest.offset = insn.displacement.value;
+			}
 
 		} else if (rex_w && !rex_b && modrm_rm == 4 && sib == 0x24) {
 
 			/* mov reg, disp(%rsp) */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_REG;
-			op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
-			op->dest.type = OP_DEST_REG_INDIRECT;
-			op->dest.reg = CFI_SP;
-			op->dest.offset = insn.displacement.value;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_REG;
+				op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+				op->dest.type = OP_DEST_REG_INDIRECT;
+				op->dest.reg = CFI_SP;
+				op->dest.offset = insn.displacement.value;
+			}
 		}
 
 		break;
@@ -260,23 +278,25 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		if (rex_w && !rex_b && modrm_mod == 1 && modrm_rm == 5) {
 
 			/* mov disp(%rbp), reg */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_REG_INDIRECT;
-			op->src.reg = CFI_BP;
-			op->src.offset = insn.displacement.value;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
+			ADD_OP(op) {
+				op->src.type = OP_SRC_REG_INDIRECT;
+				op->src.reg = CFI_BP;
+				op->src.offset = insn.displacement.value;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
+			}
 
 		} else if (rex_w && !rex_b && sib == 0x24 &&
 			   modrm_mod != 3 && modrm_rm == 4) {
 
 			/* mov disp(%rsp), reg */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_REG_INDIRECT;
-			op->src.reg = CFI_SP;
-			op->src.offset = insn.displacement.value;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
+			ADD_OP(op) {
+				op->src.type = OP_SRC_REG_INDIRECT;
+				op->src.reg = CFI_SP;
+				op->src.offset = insn.displacement.value;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
+			}
 		}
 
 		break;
@@ -284,28 +304,30 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 	case 0x8d:
 		if (sib == 0x24 && rex_w && !rex_b && !rex_x) {
 
-			*type = INSN_STACK;
-			if (!insn.displacement.value) {
-				/* lea (%rsp), reg */
-				op->src.type = OP_SRC_REG;
-			} else {
-				/* lea disp(%rsp), reg */
-				op->src.type = OP_SRC_ADD;
-				op->src.offset = insn.displacement.value;
+			ADD_OP(op) {
+				if (!insn.displacement.value) {
+					/* lea (%rsp), reg */
+					op->src.type = OP_SRC_REG;
+				} else {
+					/* lea disp(%rsp), reg */
+					op->src.type = OP_SRC_ADD;
+					op->src.offset = insn.displacement.value;
+				}
+				op->src.reg = CFI_SP;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
 			}
-			op->src.reg = CFI_SP;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
 
 		} else if (rex == 0x48 && modrm == 0x65) {
 
 			/* lea disp(%rbp), %rsp */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_BP;
-			op->src.offset = insn.displacement.value;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_ADD;
+				op->src.reg = CFI_BP;
+				op->src.offset = insn.displacement.value;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
 
 		} else if (rex == 0x49 && modrm == 0x62 &&
 			   insn.displacement.value == -8) {
@@ -316,12 +338,13 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			 * Restoring rsp back to its original value after a
 			 * stack realignment.
 			 */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_R10;
-			op->src.offset = -8;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_ADD;
+				op->src.reg = CFI_R10;
+				op->src.offset = -8;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
 
 		} else if (rex == 0x49 && modrm == 0x65 &&
 			   insn.displacement.value == -16) {
@@ -332,21 +355,23 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			 * Restoring rsp back to its original value after a
 			 * stack realignment.
 			 */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_R13;
-			op->src.offset = -16;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_ADD;
+				op->src.reg = CFI_R13;
+				op->src.offset = -16;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
 		}
 
 		break;
 
 	case 0x8f:
 		/* pop to mem */
-		*type = INSN_STACK;
-		op->src.type = OP_SRC_POP;
-		op->dest.type = OP_DEST_MEM;
+		ADD_OP(op) {
+			op->src.type = OP_SRC_POP;
+			op->dest.type = OP_DEST_MEM;
+		}
 		break;
 
 	case 0x90:
@@ -355,21 +380,30 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 
 	case 0x9c:
 		/* pushf */
-		*type = INSN_STACK;
-		op->src.type = OP_SRC_CONST;
-		op->dest.type = OP_DEST_PUSH;
+		ADD_OP(op) {
+			op->src.type = OP_SRC_CONST;
+			op->dest.type = OP_DEST_PUSHF;
+		}
 		break;
 
 	case 0x9d:
 		/* popf */
-		*type = INSN_STACK;
-		op->src.type = OP_SRC_POP;
-		op->dest.type = OP_DEST_MEM;
+		ADD_OP(op) {
+			op->src.type = OP_SRC_POPF;
+			op->dest.type = OP_DEST_MEM;
+		}
 		break;
 
 	case 0x0f:
 
-		if (op2 >= 0x80 && op2 <= 0x8f) {
+		if (op2 == 0x01) {
+
+			if (modrm == 0xca)
+				*type = INSN_CLAC;
+			else if (modrm == 0xcb)
+				*type = INSN_STAC;
+
+		} else if (op2 >= 0x80 && op2 <= 0x8f) {
 
 			*type = INSN_JUMP_CONDITIONAL;
 
@@ -392,16 +426,18 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		} else if (op2 == 0xa0 || op2 == 0xa8) {
 
 			/* push fs/gs */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_CONST;
-			op->dest.type = OP_DEST_PUSH;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_CONST;
+				op->dest.type = OP_DEST_PUSH;
+			}
 
 		} else if (op2 == 0xa1 || op2 == 0xa9) {
 
 			/* pop fs/gs */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_POP;
-			op->dest.type = OP_DEST_MEM;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_POP;
+				op->dest.type = OP_DEST_MEM;
+			}
 		}
 
 		break;
@@ -414,8 +450,8 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		 * mov bp, sp
 		 * pop bp
 		 */
-		*type = INSN_STACK;
-		op->dest.type = OP_DEST_LEAVE;
+		ADD_OP(op)
+			op->dest.type = OP_DEST_LEAVE;
 
 		break;
 
@@ -434,14 +470,49 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		*type = INSN_RETURN;
 		break;
 
+	case 0xcf: /* iret */
+		/*
+		 * Handle sync_core(), which has an IRET to self.
+		 * All other IRET are in STT_NONE entry code.
+		 */
+		sym = find_symbol_containing(sec, offset);
+		if (sym && sym->type == STT_FUNC) {
+			ADD_OP(op) {
+				/* add $40, %rsp */
+				op->src.type = OP_SRC_ADD;
+				op->src.reg = CFI_SP;
+				op->src.offset = 5*8;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
+			break;
+		}
+
+		/* fallthrough */
+
 	case 0xca: /* retf */
 	case 0xcb: /* retf */
-	case 0xcf: /* iret */
 		*type = INSN_CONTEXT_SWITCH;
 		break;
 
 	case 0xe8:
 		*type = INSN_CALL;
+		/*
+		 * For the impact on the stack, a CALL behaves like
+		 * a PUSH of an immediate value (the return address).
+		 */
+		ADD_OP(op) {
+			op->src.type = OP_SRC_CONST;
+			op->dest.type = OP_DEST_PUSH;
+		}
+		break;
+
+	case 0xfc:
+		*type = INSN_CLD;
+		break;
+
+	case 0xfd:
+		*type = INSN_STD;
 		break;
 
 	case 0xff:
@@ -461,9 +532,10 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		else if (modrm_reg == 6) {
 
 			/* push from mem */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_CONST;
-			op->dest.type = OP_DEST_PUSH;
+			ADD_OP(op) {
+				op->src.type = OP_SRC_CONST;
+				op->dest.type = OP_DEST_PUSH;
+			}
 		}
 
 		break;
@@ -477,7 +549,7 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 	return 0;
 }
 
-void arch_initial_func_cfi_state(struct cfi_state *state)
+void arch_initial_func_cfi_state(struct cfi_init_state *state)
 {
 	int i;
 
@@ -493,4 +565,58 @@ void arch_initial_func_cfi_state(struct cfi_state *state)
 	/* initial RA (return address) */
 	state->regs[16].base = CFI_CFA;
 	state->regs[16].offset = -8;
+}
+
+const char *arch_nop_insn(int len)
+{
+	static const char nops[5][5] = {
+		/* 1 */ { 0x90 },
+		/* 2 */ { 0x66, 0x90 },
+		/* 3 */ { 0x0f, 0x1f, 0x00 },
+		/* 4 */ { 0x0f, 0x1f, 0x40, 0x00 },
+		/* 5 */ { 0x0f, 0x1f, 0x44, 0x00, 0x00 },
+	};
+
+	if (len < 1 || len > 5) {
+		WARN("invalid NOP size: %d\n", len);
+		return NULL;
+	}
+
+	return nops[len-1];
+}
+
+int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg)
+{
+	struct cfi_reg *cfa = &insn->cfi.cfa;
+
+	switch (sp_reg) {
+	case ORC_REG_UNDEFINED:
+		cfa->base = CFI_UNDEFINED;
+		break;
+	case ORC_REG_SP:
+		cfa->base = CFI_SP;
+		break;
+	case ORC_REG_BP:
+		cfa->base = CFI_BP;
+		break;
+	case ORC_REG_SP_INDIRECT:
+		cfa->base = CFI_SP_INDIRECT;
+		break;
+	case ORC_REG_R10:
+		cfa->base = CFI_R10;
+		break;
+	case ORC_REG_R13:
+		cfa->base = CFI_R13;
+		break;
+	case ORC_REG_DI:
+		cfa->base = CFI_DI;
+		break;
+	case ORC_REG_DX:
+		cfa->base = CFI_DX;
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
 }

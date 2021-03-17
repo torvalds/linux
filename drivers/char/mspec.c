@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2001-2006 Silicon Graphics, Inc.  All rights
  * reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 /*
@@ -12,11 +9,8 @@
  *
  * This driver exports the SN special memory (mspec) facility to user
  * processes.
- * There are three types of memory made available thru this driver:
- * fetchops, uncached and cached.
- *
- * Fetchops are atomic memory operations that are implemented in the
- * memory controller on SGI SN hardware.
+ * There are two types of memory made available thru this driver:
+ * uncached and cached.
  *
  * Uncached are used for memory write combining feature of the ia64
  * cpu.
@@ -45,20 +39,11 @@
 #include <linux/numa.h>
 #include <linux/refcount.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <linux/atomic.h>
 #include <asm/tlbflush.h>
 #include <asm/uncached.h>
-#include <asm/sn/addrs.h>
-#include <asm/sn/arch.h>
-#include <asm/sn/mspec.h>
-#include <asm/sn/sn_cpuid.h>
-#include <asm/sn/io.h>
-#include <asm/sn/bte.h>
-#include <asm/sn/shubio.h>
 
 
-#define FETCHOP_ID	"SGI Fetchop,"
 #define CACHED_ID	"Cached,"
 #define UNCACHED_ID	"Uncached"
 #define REVISION	"4.0"
@@ -68,16 +53,9 @@
  * Page types allocated by the device.
  */
 enum mspec_page_type {
-	MSPEC_FETCHOP = 1,
-	MSPEC_CACHED,
+	MSPEC_CACHED = 2,
 	MSPEC_UNCACHED
 };
-
-#ifdef CONFIG_SGI_SN
-static int is_sn2;
-#else
-#define is_sn2		0
-#endif
 
 /*
  * One of these structures is allocated when an mspec region is mmaped. The
@@ -86,7 +64,7 @@ static int is_sn2;
  * This structure is shared by all vma's that are split off from the
  * original vma when split_vma()'s are done.
  *
- * The refcnt is incremented atomically because mm->mmap_sem does not
+ * The refcnt is incremented atomically because mm->mmap_lock does not
  * protect in fork case where multiple tasks share the vma_data.
  */
 struct vma_data {
@@ -96,41 +74,8 @@ struct vma_data {
 	enum mspec_page_type type; /* Type of pages allocated. */
 	unsigned long vm_start;	/* Original (unsplit) base. */
 	unsigned long vm_end;	/* Original (unsplit) end. */
-	unsigned long maddr[0];	/* Array of MSPEC addresses. */
+	unsigned long maddr[];	/* Array of MSPEC addresses. */
 };
-
-/* used on shub2 to clear FOP cache in the HUB */
-static unsigned long scratch_page[MAX_NUMNODES];
-#define SH2_AMO_CACHE_ENTRIES	4
-
-static inline int
-mspec_zero_block(unsigned long addr, int len)
-{
-	int status;
-
-	if (is_sn2) {
-		if (is_shub2()) {
-			int nid;
-			void *p;
-			int i;
-
-			nid = nasid_to_cnodeid(get_node_number(__pa(addr)));
-			p = (void *)TO_AMO(scratch_page[nid]);
-
-			for (i=0; i < SH2_AMO_CACHE_ENTRIES; i++) {
-				FETCHOP_LOAD_OP(p, FETCHOP_LOAD);
-				p += FETCHOP_VAR_SIZE;
-			}
-		}
-
-		status = bte_copy(0, addr & ~__IA64_UNCACHED_OFFSET, len,
-				  BTE_WACQUIRE | BTE_ZERO_FILL, NULL);
-	} else {
-		memset((char *) addr, 0, len);
-		status = 0;
-	}
-	return status;
-}
 
 /*
  * mspec_open
@@ -176,11 +121,8 @@ mspec_close(struct vm_area_struct *vma)
 		 */
 		my_page = vdata->maddr[index];
 		vdata->maddr[index] = 0;
-		if (!mspec_zero_block(my_page, PAGE_SIZE))
-			uncached_free_page(my_page, 1);
-		else
-			printk(KERN_WARNING "mspec_close(): "
-			       "failed to zero page %ld\n", my_page);
+		memset((char *)my_page, 0, PAGE_SIZE);
+		uncached_free_page(my_page, 1);
 	}
 
 	kvfree(vdata);
@@ -216,11 +158,7 @@ mspec_fault(struct vm_fault *vmf)
 		spin_unlock(&vdata->lock);
 	}
 
-	if (vdata->type == MSPEC_FETCHOP)
-		paddr = TO_AMO(maddr);
-	else
-		paddr = maddr & ~__IA64_UNCACHED_OFFSET;
-
+	paddr = maddr & ~__IA64_UNCACHED_OFFSET;
 	pfn = paddr >> PAGE_SHIFT;
 
 	return vmf_insert_pfn(vmf->vma, vmf->address, pfn);
@@ -257,10 +195,7 @@ mspec_mmap(struct file *file, struct vm_area_struct *vma,
 
 	pages = vma_pages(vma);
 	vdata_size = sizeof(struct vma_data) + pages * sizeof(long);
-	if (vdata_size <= PAGE_SIZE)
-		vdata = kzalloc(vdata_size, GFP_KERNEL);
-	else
-		vdata = vzalloc(vdata_size);
+	vdata = kvzalloc(vdata_size, GFP_KERNEL);
 	if (!vdata)
 		return -ENOMEM;
 
@@ -272,17 +207,11 @@ mspec_mmap(struct file *file, struct vm_area_struct *vma,
 	vma->vm_private_data = vdata;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
-	if (vdata->type == MSPEC_FETCHOP || vdata->type == MSPEC_UNCACHED)
+	if (vdata->type == MSPEC_UNCACHED)
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	vma->vm_ops = &mspec_vm_ops;
 
 	return 0;
-}
-
-static int
-fetchop_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	return mspec_mmap(file, vma, MSPEC_FETCHOP);
 }
 
 static int
@@ -296,18 +225,6 @@ uncached_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	return mspec_mmap(file, vma, MSPEC_UNCACHED);
 }
-
-static const struct file_operations fetchop_fops = {
-	.owner = THIS_MODULE,
-	.mmap = fetchop_mmap,
-	.llseek = noop_llseek,
-};
-
-static struct miscdevice fetchop_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "sgi_fetchop",
-	.fops = &fetchop_fops
-};
 
 static const struct file_operations cached_fops = {
 	.owner = THIS_MODULE,
@@ -342,89 +259,32 @@ static int __init
 mspec_init(void)
 {
 	int ret;
-	int nid;
 
-	/*
-	 * The fetchop device only works on SN2 hardware, uncached and cached
-	 * memory drivers should both be valid on all ia64 hardware
-	 */
-#ifdef CONFIG_SGI_SN
-	if (ia64_platform_is("sn2")) {
-		is_sn2 = 1;
-		if (is_shub2()) {
-			ret = -ENOMEM;
-			for_each_node_state(nid, N_ONLINE) {
-				int actual_nid;
-				int nasid;
-				unsigned long phys;
-
-				scratch_page[nid] = uncached_alloc_page(nid, 1);
-				if (scratch_page[nid] == 0)
-					goto free_scratch_pages;
-				phys = __pa(scratch_page[nid]);
-				nasid = get_node_number(phys);
-				actual_nid = nasid_to_cnodeid(nasid);
-				if (actual_nid != nid)
-					goto free_scratch_pages;
-			}
-		}
-
-		ret = misc_register(&fetchop_miscdev);
-		if (ret) {
-			printk(KERN_ERR
-			       "%s: failed to register device %i\n",
-			       FETCHOP_ID, ret);
-			goto free_scratch_pages;
-		}
-	}
-#endif
 	ret = misc_register(&cached_miscdev);
 	if (ret) {
 		printk(KERN_ERR "%s: failed to register device %i\n",
 		       CACHED_ID, ret);
-		if (is_sn2)
-			misc_deregister(&fetchop_miscdev);
-		goto free_scratch_pages;
+		return ret;
 	}
 	ret = misc_register(&uncached_miscdev);
 	if (ret) {
 		printk(KERN_ERR "%s: failed to register device %i\n",
 		       UNCACHED_ID, ret);
 		misc_deregister(&cached_miscdev);
-		if (is_sn2)
-			misc_deregister(&fetchop_miscdev);
-		goto free_scratch_pages;
+		return ret;
 	}
 
-	printk(KERN_INFO "%s %s initialized devices: %s %s %s\n",
-	       MSPEC_BASENAME, REVISION, is_sn2 ? FETCHOP_ID : "",
-	       CACHED_ID, UNCACHED_ID);
+	printk(KERN_INFO "%s %s initialized devices: %s %s\n",
+	       MSPEC_BASENAME, REVISION, CACHED_ID, UNCACHED_ID);
 
 	return 0;
-
- free_scratch_pages:
-	for_each_node(nid) {
-		if (scratch_page[nid] != 0)
-			uncached_free_page(scratch_page[nid], 1);
-	}
-	return ret;
 }
 
 static void __exit
 mspec_exit(void)
 {
-	int nid;
-
 	misc_deregister(&uncached_miscdev);
 	misc_deregister(&cached_miscdev);
-	if (is_sn2) {
-		misc_deregister(&fetchop_miscdev);
-
-		for_each_node(nid) {
-			if (scratch_page[nid] != 0)
-				uncached_free_page(scratch_page[nid], 1);
-		}
-	}
 }
 
 module_init(mspec_init);

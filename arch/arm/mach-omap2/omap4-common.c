@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP4 specific common source file.
  *
  * Copyright (C) 2010 Texas Instruments, Inc.
  * Author:
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- *
- * This program is free software,you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -130,6 +126,9 @@ static int __init omap4_sram_init(void)
 {
 	struct device_node *np;
 	struct gen_pool *sram_pool;
+
+	if (!soc_is_omap44xx() && !soc_is_omap54xx())
+		return 0;
 
 	np = of_find_compatible_node(NULL, NULL, "ti,omap4-mpu");
 	if (!np)

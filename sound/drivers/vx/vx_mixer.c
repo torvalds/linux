@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram VX soundcards
  *
  * Common mixer part
  *
  * Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <sound/core.h>
@@ -974,7 +961,7 @@ int snd_vx_mixer_new(struct vx_core *chip)
 		return err;
 	/* VU, peak, saturation meters */
 	for (c = 0; c < 2; c++) {
-		static char *dir[2] = { "Output", "Input" };
+		static const char * const dir[2] = { "Output", "Input" };
 		for (i = 0; i < chip->hw->num_ins; i++) {
 			int val = (i * 2) | (c << 8);
 			if (c == 1) {

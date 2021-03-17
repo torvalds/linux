@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ADIS16240 Programmable Impact Sensor and Recorder driver
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -176,7 +174,7 @@
 /* Power supply above 3.625 V */
 #define ADIS16240_DIAG_STAT_POWER_HIGH_BIT	1
 
- /* Power supply below 3.15 V */
+ /* Power supply below 2.225 V */
 #define ADIS16240_DIAG_STAT_POWER_LOW_BIT	0
 
 /* GLOB_CMD */
@@ -310,15 +308,12 @@ static int adis16240_write_raw(struct iio_dev *indio_dev,
 			       long mask)
 {
 	struct adis *st = iio_priv(indio_dev);
-	int bits = 10;
-	s16 val16;
 	u8 addr;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
-		val16 = val & ((1 << bits) - 1);
 		addr = adis16240_addresses[chan->scan_index][0];
-		return adis_write_reg_16(st, addr, val16);
+		return adis_write_reg_16(st, addr, val & GENMASK(9, 0));
 	}
 	return -EINVAL;
 }
@@ -364,6 +359,12 @@ static const char * const adis16240_status_error_msgs[] = {
 	[ADIS16240_DIAG_STAT_POWER_LOW_BIT] = "Power supply below 2.225V",
 };
 
+static const struct adis_timeout adis16240_timeouts = {
+	.reset_ms = ADIS16240_STARTUP_DELAY,
+	.sw_reset_ms = ADIS16240_STARTUP_DELAY,
+	.self_test_ms = ADIS16240_STARTUP_DELAY,
+};
+
 static const struct adis_data adis16240_data = {
 	.write_delay = 35,
 	.read_delay = 35,
@@ -372,8 +373,9 @@ static const struct adis_data adis16240_data = {
 	.diag_stat_reg = ADIS16240_DIAG_STAT,
 
 	.self_test_mask = ADIS16240_MSC_CTRL_SELF_TEST_EN,
+	.self_test_reg = ADIS16240_MSC_CTRL,
 	.self_test_no_autoclear = true,
-	.startup_delay = ADIS16240_STARTUP_DELAY,
+	.timeouts = &adis16240_timeouts,
 
 	.status_error_msgs = adis16240_status_error_msgs,
 	.status_error_mask = BIT(ADIS16240_DIAG_STAT_PWRON_FAIL_BIT) |
@@ -398,50 +400,44 @@ static int adis16240_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->name = spi->dev.driver->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16240_info;
 	indio_dev->channels = adis16240_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16240_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
+	spi->mode = SPI_MODE_3;
+	ret = spi_setup(spi);
+	if (ret) {
+		dev_err(&spi->dev, "spi_setup failed!\n");
+		return ret;
+	}
+
 	ret = adis_init(st, indio_dev, spi, &adis16240_data);
 	if (ret)
 		return ret;
-	ret = adis_setup_buffer_and_trigger(st, indio_dev, NULL);
+	ret = devm_adis_setup_buffer_and_trigger(st, indio_dev, NULL);
 	if (ret)
 		return ret;
 
 	/* Get the device into a sane initial state */
 	ret = adis_initial_startup(st);
 	if (ret)
-		goto error_cleanup_buffer_trigger;
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_cleanup_buffer_trigger;
-	return 0;
+		return ret;
 
-error_cleanup_buffer_trigger:
-	adis_cleanup_buffer_and_trigger(st, indio_dev);
-	return ret;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
-
-static int adis16240_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct adis *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	adis_cleanup_buffer_and_trigger(st, indio_dev);
-
-	return 0;
-}
+static const struct of_device_id adis16240_of_match[] = {
+	{ .compatible = "adi,adis16240" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, adis16240_of_match);
 
 static struct spi_driver adis16240_driver = {
 	.driver = {
 		.name = "adis16240",
+		.of_match_table = adis16240_of_match,
 	},
 	.probe = adis16240_probe,
-	.remove = adis16240_remove,
 };
 module_spi_driver(adis16240_driver);
 

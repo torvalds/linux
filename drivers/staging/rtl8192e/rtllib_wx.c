@@ -1,5 +1,5 @@
-/******************************************************************************
- *
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Copyright(c) 2004 Intel Corporation. All rights reserved.
  *
  * Portions of this file are based on the WEP enablement code provided by the
@@ -8,23 +8,10 @@
  * <jkmaline@cc.hut.fi>
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
  * Contact Information:
  * James P. Ketrenos <ipw2100-admin@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- *****************************************************************************/
+ */
 #include <linux/wireless.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
@@ -127,7 +114,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	/* Add basic and extended rates */
 	max_rate = 0;
 	p = custom;
-	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), " Rates (Mb/s): ");
+	p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom), " Rates (Mb/s): ");
 	for (i = 0, j = 0; i < network->rates_len;) {
 		if (j < network->rates_ex_len &&
 		    ((network->rates_ex[j] & 0x7F) <
@@ -137,12 +124,12 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 			rate = network->rates[i++] & 0x7F;
 		if (rate > max_rate)
 			max_rate = rate;
-		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
+		p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom),
 			      "%d%s ", rate >> 1, (rate & 1) ? ".5" : "");
 	}
 	for (; j < network->rates_ex_len; j++) {
 		rate = network->rates_ex[j] & 0x7F;
-		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
+		p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom),
 			      "%d%s ", rate >> 1, (rate & 1) ? ".5" : "");
 		if (rate > max_rate)
 			max_rate = rate;
@@ -239,7 +226,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	 */
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
-	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
+	p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom),
 		      " Last beacon: %lums ago",
 		      (jiffies - network->last_scanned) / (HZ / 100));
 	iwe.u.data.length = p - custom;
@@ -541,8 +528,8 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		if (idx < 1 || idx > NUM_WEP_KEYS)
 			return -EINVAL;
 		idx--;
-	} else{
-			idx = ieee->crypt_info.tx_keyidx;
+	} else {
+		idx = ieee->crypt_info.tx_keyidx;
 	}
 	if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
 		crypt = &ieee->crypt_info.crypt[idx];
@@ -693,7 +680,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 		deauth = true;
-		/* fall through */
+		fallthrough;
 	case IW_MLME_DISASSOC:
 		if (deauth)
 			netdev_info(ieee->dev, "disauth packet !\n");

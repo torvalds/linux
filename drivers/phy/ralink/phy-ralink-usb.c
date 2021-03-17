@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 John Crispin <john@phrozen.org>
  *
  * Based on code from
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -151,7 +142,7 @@ static int ralink_usb_phy_power_off(struct phy *_phy)
 	return 0;
 }
 
-static struct phy_ops ralink_usb_phy_ops = {
+static const struct phy_ops ralink_usb_phy_ops = {
 	.power_on	= ralink_usb_phy_power_on,
 	.power_off	= ralink_usb_phy_power_off,
 	.owner		= THIS_MODULE,

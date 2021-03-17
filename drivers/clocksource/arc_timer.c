@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016-17 Synopsys, Inc. (www.synopsys.com)
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /* ARC700 has two 32bit independent prog Timers: TIMER0 and TIMER1, Each can be
@@ -16,6 +13,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
@@ -23,6 +21,7 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/sched_clock.h>
 
 #include <soc/arc/timers.h>
 #include <soc/arc/mcip.h>
@@ -88,6 +87,11 @@ static u64 arc_read_gfrc(struct clocksource *cs)
 	return (((u64)h) << 32) | l;
 }
 
+static notrace u64 arc_gfrc_clock_read(void)
+{
+	return arc_read_gfrc(NULL);
+}
+
 static struct clocksource arc_counter_gfrc = {
 	.name   = "ARConnect GFRC",
 	.rating = 400,
@@ -110,6 +114,8 @@ static int __init arc_cs_setup_gfrc(struct device_node *node)
 	ret = arc_get_timer_clk(node);
 	if (ret)
 		return ret;
+
+	sched_clock_register(arc_gfrc_clock_read, 64, arc_timer_freq);
 
 	return clocksource_register_hz(&arc_counter_gfrc, arc_timer_freq);
 }
@@ -134,9 +140,14 @@ static u64 arc_read_rtc(struct clocksource *cs)
 		l = read_aux_reg(AUX_RTC_LOW);
 		h = read_aux_reg(AUX_RTC_HIGH);
 		status = read_aux_reg(AUX_RTC_CTRL);
-	} while (!(status & _BITUL(31)));
+	} while (!(status & BIT(31)));
 
 	return (((u64)h) << 32) | l;
+}
+
+static notrace u64 arc_rtc_clock_read(void)
+{
+	return arc_read_rtc(NULL);
 }
 
 static struct clocksource arc_counter_rtc = {
@@ -170,6 +181,8 @@ static int __init arc_cs_setup_rtc(struct device_node *node)
 
 	write_aux_reg(AUX_RTC_CTRL, 1);
 
+	sched_clock_register(arc_rtc_clock_read, 64, arc_timer_freq);
+
 	return clocksource_register_hz(&arc_counter_rtc, arc_timer_freq);
 }
 TIMER_OF_DECLARE(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
@@ -183,6 +196,11 @@ TIMER_OF_DECLARE(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
 static u64 arc_read_timer1(struct clocksource *cs)
 {
 	return (u64) read_aux_reg(ARC_REG_TIMER1_CNT);
+}
+
+static notrace u64 arc_timer1_clock_read(void)
+{
+	return arc_read_timer1(NULL);
 }
 
 static struct clocksource arc_counter_timer1 = {
@@ -208,6 +226,8 @@ static int __init arc_cs_setup_timer1(struct device_node *node)
 	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMERN_MAX);
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
 	write_aux_reg(ARC_REG_TIMER1_CTRL, TIMER_CTRL_NH);
+
+	sched_clock_register(arc_timer1_clock_read, 32, arc_timer_freq);
 
 	return clocksource_register_hz(&arc_counter_timer1, arc_timer_freq);
 }
@@ -314,10 +334,8 @@ static int __init arc_clockevent_setup(struct device_node *node)
 	}
 
 	ret = arc_get_timer_clk(node);
-	if (ret) {
-		pr_err("clockevent: missing clk\n");
+	if (ret)
 		return ret;
-	}
 
 	/* Needs apriori irq_set_percpu_devid() done in intc map function */
 	ret = request_percpu_irq(arc_timer_irq, timer_irq_handler,

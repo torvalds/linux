@@ -14,8 +14,8 @@
 #include <sound/jack.h>
 #include <sound/simple_card_utils.h>
 
-void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
-				    struct snd_pcm_hw_params *params)
+void asoc_simple_convert_fixup(struct asoc_simple_data *data,
+			       struct snd_pcm_hw_params *params)
 {
 	struct snd_interval *rate = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_RATE);
@@ -30,12 +30,13 @@ void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
 		channels->min =
 		channels->max = data->convert_channels;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_convert_fixup);
+EXPORT_SYMBOL_GPL(asoc_simple_convert_fixup);
 
-void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
-				    struct asoc_simple_card_data *data)
+void asoc_simple_parse_convert(struct device *dev,
+			       struct device_node *np,
+			       char *prefix,
+			       struct asoc_simple_data *data)
 {
-	struct device_node *np = dev->of_node;
 	char prop[128];
 
 	if (!prefix)
@@ -48,17 +49,14 @@ void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
 	/* channels transfer */
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-channels");
 	of_property_read_u32(np, prop, &data->convert_channels);
-
-	dev_dbg(dev, "convert_rate     %d\n", data->convert_rate);
-	dev_dbg(dev, "convert_channels %d\n", data->convert_channels);
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_parse_convert);
+EXPORT_SYMBOL_GPL(asoc_simple_parse_convert);
 
-int asoc_simple_card_parse_daifmt(struct device *dev,
-				  struct device_node *node,
-				  struct device_node *codec,
-				  char *prefix,
-				  unsigned int *retfmt)
+int asoc_simple_parse_daifmt(struct device *dev,
+			     struct device_node *node,
+			     struct device_node *codec,
+			     char *prefix,
+			     unsigned int *retfmt)
 {
 	struct device_node *bitclkmaster = NULL;
 	struct device_node *framemaster = NULL;
@@ -92,15 +90,13 @@ int asoc_simple_card_parse_daifmt(struct device *dev,
 
 	*retfmt = daifmt;
 
-	dev_dbg(dev, "format : %04x\n", daifmt);
-
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_parse_daifmt);
+EXPORT_SYMBOL_GPL(asoc_simple_parse_daifmt);
 
-int asoc_simple_card_set_dailink_name(struct device *dev,
-				      struct snd_soc_dai_link *dai_link,
-				      const char *fmt, ...)
+int asoc_simple_set_dailink_name(struct device *dev,
+				 struct snd_soc_dai_link *dai_link,
+				 const char *fmt, ...)
 {
 	va_list ap;
 	char *name = NULL;
@@ -115,16 +111,14 @@ int asoc_simple_card_set_dailink_name(struct device *dev,
 
 		dai_link->name		= name;
 		dai_link->stream_name	= name;
-
-		dev_dbg(dev, "name : %s\n", name);
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_set_dailink_name);
+EXPORT_SYMBOL_GPL(asoc_simple_set_dailink_name);
 
-int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
-				     char *prefix)
+int asoc_simple_parse_card_name(struct snd_soc_card *card,
+				char *prefix)
 {
 	int ret;
 
@@ -145,35 +139,28 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 	if (!card->name && card->dai_link)
 		card->name = card->dai_link->name;
 
-	dev_dbg(card->dev, "Card Name: %s\n", card->name ? card->name : "");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_parse_card_name);
+
+static int asoc_simple_clk_enable(struct asoc_simple_dai *dai)
+{
+	if (dai)
+		return clk_prepare_enable(dai->clk);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
 
-static void asoc_simple_card_clk_register(struct asoc_simple_dai *dai,
-					  struct clk *clk)
+static void asoc_simple_clk_disable(struct asoc_simple_dai *dai)
 {
-	dai->clk = clk;
+	if (dai)
+		clk_disable_unprepare(dai->clk);
 }
 
-int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai)
-{
-	return clk_prepare_enable(dai->clk);
-}
-EXPORT_SYMBOL_GPL(asoc_simple_card_clk_enable);
-
-void asoc_simple_card_clk_disable(struct asoc_simple_dai *dai)
-{
-	clk_disable_unprepare(dai->clk);
-}
-EXPORT_SYMBOL_GPL(asoc_simple_card_clk_disable);
-
-int asoc_simple_card_parse_clk(struct device *dev,
-			       struct device_node *node,
-			       struct device_node *dai_of_node,
-			       struct asoc_simple_dai *simple_dai,
-			       const char *name)
+int asoc_simple_parse_clk(struct device *dev,
+			  struct device_node *node,
+			  struct asoc_simple_dai *simple_dai,
+			  struct snd_soc_dai_link_component *dlc)
 {
 	struct clk *clk;
 	u32 val;
@@ -188,11 +175,11 @@ int asoc_simple_card_parse_clk(struct device *dev,
 	if (!IS_ERR(clk)) {
 		simple_dai->sysclk = clk_get_rate(clk);
 
-		asoc_simple_card_clk_register(simple_dai, clk);
+		simple_dai->clk = clk;
 	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
 	} else {
-		clk = devm_get_clk_from_child(dev, dai_of_node, NULL);
+		clk = devm_get_clk_from_child(dev, dlc->of_node, NULL);
 		if (!IS_ERR(clk))
 			simple_dai->sysclk = clk_get_rate(clk);
 	}
@@ -200,117 +187,125 @@ int asoc_simple_card_parse_clk(struct device *dev,
 	if (of_property_read_bool(node, "system-clock-direction-out"))
 		simple_dai->clk_direction = SND_SOC_CLOCK_OUT;
 
-	dev_dbg(dev, "%s : sysclk = %d, direction %d\n", name,
-		simple_dai->sysclk, simple_dai->clk_direction);
-
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_parse_clk);
+EXPORT_SYMBOL_GPL(asoc_simple_parse_clk);
 
-int asoc_simple_card_parse_dai(struct device_node *node,
-				    struct device_node **dai_of_node,
-				    const char **dai_name,
-				    const char *list_name,
-				    const char *cells_name,
-				    int *is_single_link)
+int asoc_simple_startup(struct snd_pcm_substream *substream)
 {
-	struct of_phandle_args args;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
 	int ret;
 
-	if (!node)
-		return 0;
-
-	/*
-	 * Get node via "sound-dai = <&phandle port>"
-	 * it will be used as xxx_of_node on soc_bind_dai_link()
-	 */
-	ret = of_parse_phandle_with_args(node, list_name, cells_name, 0, &args);
+	ret = asoc_simple_clk_enable(dai_props->cpu_dai);
 	if (ret)
 		return ret;
 
-	/* Get dai->name */
-	if (dai_name) {
-		ret = snd_soc_of_get_dai_name(node, dai_name);
+	ret = asoc_simple_clk_enable(dai_props->codec_dai);
+	if (ret)
+		asoc_simple_clk_disable(dai_props->cpu_dai);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_startup);
+
+void asoc_simple_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props =
+		simple_priv_to_props(priv, rtd->num);
+
+	if (dai_props->mclk_fs) {
+		snd_soc_dai_set_sysclk(codec_dai, 0, 0, SND_SOC_CLOCK_IN);
+		snd_soc_dai_set_sysclk(cpu_dai, 0, 0, SND_SOC_CLOCK_OUT);
+	}
+
+	asoc_simple_clk_disable(dai_props->cpu_dai);
+
+	asoc_simple_clk_disable(dai_props->codec_dai);
+}
+EXPORT_SYMBOL_GPL(asoc_simple_shutdown);
+
+static int asoc_simple_set_clk_rate(struct asoc_simple_dai *simple_dai,
+				    unsigned long rate)
+{
+	if (!simple_dai)
+		return 0;
+
+	if (!simple_dai->clk)
+		return 0;
+
+	if (clk_get_rate(simple_dai->clk) == rate)
+		return 0;
+
+	return clk_set_rate(simple_dai->clk, rate);
+}
+
+int asoc_simple_hw_params(struct snd_pcm_substream *substream,
+			  struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props =
+		simple_priv_to_props(priv, rtd->num);
+	unsigned int mclk, mclk_fs = 0;
+	int ret = 0;
+
+	if (dai_props->mclk_fs)
+		mclk_fs = dai_props->mclk_fs;
+
+	if (mclk_fs) {
+		mclk = params_rate(params) * mclk_fs;
+
+		ret = asoc_simple_set_clk_rate(dai_props->codec_dai, mclk);
 		if (ret < 0)
 			return ret;
+
+		ret = asoc_simple_set_clk_rate(dai_props->cpu_dai, mclk);
+		if (ret < 0)
+			return ret;
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
+					     SND_SOC_CLOCK_IN);
+		if (ret && ret != -ENOTSUPP)
+			goto err;
+
+		ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk,
+					     SND_SOC_CLOCK_OUT);
+		if (ret && ret != -ENOTSUPP)
+			goto err;
 	}
+	return 0;
+err:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_hw_params);
 
-	*dai_of_node = args.np;
+int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+				   struct snd_pcm_hw_params *params)
+{
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
 
-	if (is_single_link)
-		*is_single_link = !args.args_count;
+	asoc_simple_convert_fixup(&dai_props->adata, params);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_parse_dai);
+EXPORT_SYMBOL_GPL(asoc_simple_be_hw_params_fixup);
 
-static int asoc_simple_card_get_dai_id(struct device_node *ep)
+static int asoc_simple_init_dai(struct snd_soc_dai *dai,
+				     struct asoc_simple_dai *simple_dai)
 {
-	struct device_node *node;
-	struct device_node *endpoint;
-	int i, id;
 	int ret;
 
-	ret = snd_soc_get_dai_id(ep);
-	if (ret != -ENOTSUPP)
-		return ret;
-
-	node = of_graph_get_port_parent(ep);
-
-	/*
-	 * Non HDMI sound case, counting port/endpoint on its DT
-	 * is enough. Let's count it.
-	 */
-	i = 0;
-	id = -1;
-	for_each_endpoint_of_node(node, endpoint) {
-		if (endpoint == ep)
-			id = i;
-		i++;
-	}
-
-	of_node_put(node);
-
-	if (id < 0)
-		return -ENODEV;
-
-	return id;
-}
-
-int asoc_simple_card_parse_graph_dai(struct device_node *ep,
-				     struct device_node **dai_of_node,
-				     const char **dai_name)
-{
-	struct device_node *node;
-	struct of_phandle_args args;
-	int ret;
-
-	if (!ep)
+	if (!simple_dai)
 		return 0;
-	if (!dai_name)
-		return 0;
-
-	node = of_graph_get_port_parent(ep);
-
-	/* Get dai->name */
-	args.np		= node;
-	args.args[0]	= asoc_simple_card_get_dai_id(ep);
-	args.args_count	= (of_graph_get_endpoint_count(node) > 1);
-
-	ret = snd_soc_get_dai_name(&args, dai_name);
-	if (ret < 0)
-		return ret;
-
-	*dai_of_node = node;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(asoc_simple_card_parse_graph_dai);
-
-int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
-			      struct asoc_simple_dai *simple_dai)
-{
-	int ret;
 
 	if (simple_dai->sysclk) {
 		ret = snd_soc_dai_set_sysclk(dai, 0, simple_dai->sysclk,
@@ -335,20 +330,92 @@ int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 
-int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
+static int asoc_simple_init_dai_link_params(struct snd_soc_pcm_runtime *rtd,
+					    struct simple_dai_props *dai_props)
 {
-	/* Assumes platform == cpu */
-	if (!dai_link->platform_of_node)
-		dai_link->platform_of_node = dai_link->cpu_of_node;
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
+	struct snd_soc_component *component;
+	struct snd_soc_pcm_stream *params;
+	struct snd_pcm_hardware hw;
+	int i, ret, stream;
+
+	/* Only codecs should have non_legacy_dai_naming set. */
+	for_each_rtd_components(rtd, i, component) {
+		if (!component->driver->non_legacy_dai_naming)
+			return 0;
+	}
+
+	/* Assumes the capabilities are the same for all supported streams */
+	for_each_pcm_streams(stream) {
+		ret = snd_soc_runtime_calc_hw(rtd, &hw, stream);
+		if (ret == 0)
+			break;
+	}
+
+	if (ret < 0) {
+		dev_err(rtd->dev, "simple-card: no valid dai_link params\n");
+		return ret;
+	}
+
+	params = devm_kzalloc(rtd->dev, sizeof(*params), GFP_KERNEL);
+	if (!params)
+		return -ENOMEM;
+
+	params->formats = hw.formats;
+	params->rates = hw.rates;
+	params->rate_min = hw.rate_min;
+	params->rate_max = hw.rate_max;
+	params->channels_min = hw.channels_min;
+	params->channels_max = hw.channels_max;
+
+	dai_link->params = params;
+	dai_link->num_params = 1;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_dailink);
 
-void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
-				       int is_single_links)
+int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
+	int ret;
+
+	ret = asoc_simple_init_dai(asoc_rtd_to_codec(rtd, 0),
+				   dai_props->codec_dai);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_init_dai(asoc_rtd_to_cpu(rtd, 0),
+				   dai_props->cpu_dai);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_init_dai_link_params(rtd, dai_props);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_dai_init);
+
+void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link)
+{
+	/* Assumes platform == cpu */
+	if (!dai_link->platforms->of_node)
+		dai_link->platforms->of_node = dai_link->cpus->of_node;
+
+	/*
+	 * DPCM BE can be no platform.
+	 * Alloced memory will be waste, but not leak.
+	 */
+	if (!dai_link->platforms->of_node)
+		dai_link->num_platforms = 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
+
+void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
+				  int is_single_links)
 {
 	/*
 	 * In soc_bind_dai_link() will check cpu name after
@@ -360,28 +427,25 @@ void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 	 *	fmt_multiple_name()
 	 */
 	if (is_single_links)
-		dai_link->cpu_dai_name = NULL;
+		dai_link->cpus->dai_name = NULL;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_cpu);
+EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
 
-int asoc_simple_card_clean_reference(struct snd_soc_card *card)
+int asoc_simple_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
-	int num_links;
+	int i;
 
-	for (num_links = 0, dai_link = card->dai_link;
-	     num_links < card->num_links;
-	     num_links++, dai_link++) {
-		of_node_put(dai_link->cpu_of_node);
-		of_node_put(dai_link->codec_of_node);
+	for_each_card_prelinks(card, i, dai_link) {
+		of_node_put(dai_link->cpus->of_node);
+		of_node_put(dai_link->codecs->of_node);
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_clean_reference);
+EXPORT_SYMBOL_GPL(asoc_simple_clean_reference);
 
-int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
-				      char *prefix,
-				      int optional)
+int asoc_simple_parse_routing(struct snd_soc_card *card,
+			      char *prefix)
 {
 	struct device_node *node = card->dev->of_node;
 	char prop[128];
@@ -391,18 +455,15 @@ int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "routing");
 
-	if (!of_property_read_bool(node, prop)) {
-		if (optional)
-			return 0;
-		return -EINVAL;
-	}
+	if (!of_property_read_bool(node, prop))
+		return 0;
 
 	return snd_soc_of_parse_audio_routing(card, prop);
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_of_parse_routing);
+EXPORT_SYMBOL_GPL(asoc_simple_parse_routing);
 
-int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
-				      char *prefix)
+int asoc_simple_parse_widgets(struct snd_soc_card *card,
+			      char *prefix)
 {
 	struct device_node *node = card->dev->of_node;
 	char prop[128];
@@ -418,11 +479,69 @@ int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
 	/* no widgets is not error */
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_of_parse_widgets);
+EXPORT_SYMBOL_GPL(asoc_simple_parse_widgets);
 
-int asoc_simple_card_init_jack(struct snd_soc_card *card,
-			       struct asoc_simple_jack *sjack,
-			       int is_hp, char *prefix)
+int asoc_simple_parse_pin_switches(struct snd_soc_card *card,
+				   char *prefix)
+{
+	const unsigned int nb_controls_max = 16;
+	const char **strings, *control_name;
+	struct snd_kcontrol_new *controls;
+	struct device *dev = card->dev;
+	unsigned int i, nb_controls;
+	char prop[128];
+	int ret;
+
+	if (!prefix)
+		prefix = "";
+
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "pin-switches");
+
+	if (!of_property_read_bool(dev->of_node, prop))
+		return 0;
+
+	strings = devm_kcalloc(dev, nb_controls_max,
+			       sizeof(*strings), GFP_KERNEL);
+	if (!strings)
+		return -ENOMEM;
+
+	ret = of_property_read_string_array(dev->of_node, prop,
+					    strings, nb_controls_max);
+	if (ret < 0)
+		return ret;
+
+	nb_controls = (unsigned int)ret;
+
+	controls = devm_kcalloc(dev, nb_controls,
+				sizeof(*controls), GFP_KERNEL);
+	if (!controls)
+		return -ENOMEM;
+
+	for (i = 0; i < nb_controls; i++) {
+		control_name = devm_kasprintf(dev, GFP_KERNEL,
+					      "%s Switch", strings[i]);
+		if (!control_name)
+			return -ENOMEM;
+
+		controls[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		controls[i].name = control_name;
+		controls[i].info = snd_soc_dapm_info_pin_switch;
+		controls[i].get = snd_soc_dapm_get_pin_switch;
+		controls[i].put = snd_soc_dapm_put_pin_switch;
+		controls[i].private_value = (unsigned long)strings[i];
+	}
+
+	card->controls = controls;
+	card->num_controls = nb_controls;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_parse_pin_switches);
+
+int asoc_simple_init_jack(struct snd_soc_card *card,
+			  struct asoc_simple_jack *sjack,
+			  int is_hp, char *prefix,
+			  char *pin)
 {
 	struct device *dev = card->dev;
 	enum of_gpio_flags flags;
@@ -439,12 +558,12 @@ int asoc_simple_card_init_jack(struct snd_soc_card *card,
 
 	if (is_hp) {
 		snprintf(prop, sizeof(prop), "%shp-det-gpio", prefix);
-		pin_name	= "Headphones";
+		pin_name	= pin ? pin : "Headphones";
 		gpio_name	= "Headphone detection";
 		mask		= SND_JACK_HEADPHONE;
 	} else {
 		snprintf(prop, sizeof(prop), "%smic-det-gpio", prefix);
-		pin_name	= "Mic Jack";
+		pin_name	= pin ? pin : "Mic Jack";
 		gpio_name	= "Mic detection";
 		mask		= SND_JACK_MICROPHONE;
 	}
@@ -473,7 +592,63 @@ int asoc_simple_card_init_jack(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_init_jack);
+EXPORT_SYMBOL_GPL(asoc_simple_init_jack);
+
+int asoc_simple_init_priv(struct asoc_simple_priv *priv,
+			  struct link_info *li)
+{
+	struct snd_soc_card *card = simple_priv_to_card(priv);
+	struct device *dev = simple_priv_to_dev(priv);
+	struct snd_soc_dai_link *dai_link;
+	struct simple_dai_props *dai_props;
+	struct asoc_simple_dai *dais;
+	struct snd_soc_codec_conf *cconf = NULL;
+	int i;
+
+	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
+	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
+	dais      = devm_kcalloc(dev, li->dais, sizeof(*dais),      GFP_KERNEL);
+	if (!dai_props || !dai_link || !dais)
+		return -ENOMEM;
+
+	if (li->conf) {
+		cconf = devm_kcalloc(dev, li->conf, sizeof(*cconf), GFP_KERNEL);
+		if (!cconf)
+			return -ENOMEM;
+	}
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style
+	 * It is codec only. but cpu/platform will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 *
+	 * "platform" might be removed
+	 * see
+	 *	simple-card-utils.c :: asoc_simple_canonicalize_platform()
+	 */
+	for (i = 0; i < li->link; i++) {
+		dai_link[i].cpus		= &dai_props[i].cpus;
+		dai_link[i].num_cpus		= 1;
+		dai_link[i].codecs		= &dai_props[i].codecs;
+		dai_link[i].num_codecs		= 1;
+		dai_link[i].platforms		= &dai_props[i].platforms;
+		dai_link[i].num_platforms	= 1;
+	}
+
+	priv->dai_props		= dai_props;
+	priv->dai_link		= dai_link;
+	priv->dais		= dais;
+	priv->codec_conf	= cconf;
+
+	card->dai_link		= priv->dai_link;
+	card->num_links		= li->link;
+	card->codec_conf	= cconf;
+	card->num_configs	= li->conf;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_init_priv);
 
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

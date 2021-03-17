@@ -1,19 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
   PTP Header file
 
   Copyright (C) 2013  Vayavya Labs Pvt Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Rayagond Kokatanur <rayagond@vayavyalabs.com>
 ******************************************************************************/
@@ -59,9 +49,14 @@
 #define	PTP_TCR_TSEVNTENA	BIT(14)
 /* Enable Snapshot for Messages Relevant to Master */
 #define	PTP_TCR_TSMSTRENA	BIT(15)
-/* Select PTP packets for Taking Snapshots */
+/* Select PTP packets for Taking Snapshots
+ * On gmac4 specifically:
+ * Enable SYNC, Pdelay_Req, Pdelay_Resp when TSEVNTENA is enabled.
+ * or
+ * Enable  SYNC, Follow_Up, Delay_Req, Delay_Resp, Pdelay_Req, Pdelay_Resp,
+ * Pdelay_Resp_Follow_Up if TSEVNTENA is disabled
+ */
 #define	PTP_TCR_SNAPTYPSEL_1	BIT(16)
-#define	PTP_GMAC4_TCR_SNAPTYPSEL_1	GENMASK(17, 16)
 /* Enable MAC address for PTP Frame Filtering */
 #define	PTP_TCR_TSENMACADDR	BIT(18)
 

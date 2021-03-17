@@ -38,19 +38,18 @@
 	model = "NorthStar Plus SVK (BCM958625K)";
 	compatible = "brcm,bcm58625", "brcm,nsp";
 
-	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x80000000>;
 	};
+};
+
+&dma {
+	status = "okay";
 };
 
 &amac0 {
@@ -209,7 +208,7 @@
 &sdio {
 	bus-width = <4>;
 	no-1-8-v;
-	status = "ok";
+	status = "okay";
 };
 
 &srab {

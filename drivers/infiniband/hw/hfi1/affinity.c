@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -48,6 +48,7 @@
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/numa.h>
 
 #include "hfi.h"
 #include "affinity.h"
@@ -63,6 +64,7 @@ struct hfi1_affinity_node_list node_affinity = {
 static const char * const irq_type_names[] = {
 	"SDMA",
 	"RCVCTXT",
+	"NETDEVCTXT",
 	"GENERAL",
 	"OTHER",
 };
@@ -478,6 +480,8 @@ static int _dev_comp_vect_mappings_create(struct hfi1_devdata *dd,
 			  rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), i, cpu);
 	}
 
+	free_cpumask_var(available_cpus);
+	free_cpumask_var(non_intr_cpus);
 	return 0;
 
 fail:
@@ -777,7 +781,7 @@ void hfi1_dev_affinity_clean_up(struct hfi1_devdata *dd)
 	_dev_comp_vect_cpu_mask_clean_up(dd, entry);
 unlock:
 	mutex_unlock(&node_affinity.lock);
-	dd->node = -1;
+	dd->node = NUMA_NO_NODE;
 }
 
 /*
@@ -817,10 +821,10 @@ static void hfi1_update_sdma_affinity(struct hfi1_msix_entry *msix, int cpu)
 	set = &entry->def_intr;
 	cpumask_set_cpu(cpu, &set->mask);
 	cpumask_set_cpu(cpu, &set->used);
-	for (i = 0; i < dd->num_msix_entries; i++) {
+	for (i = 0; i < dd->msix_info.max_requested; i++) {
 		struct hfi1_msix_entry *other_msix;
 
-		other_msix = &dd->msix_entries[i];
+		other_msix = &dd->msix_info.msix_entries[i];
 		if (other_msix->type != IRQ_SDMA || other_msix == msix)
 			continue;
 
@@ -912,6 +916,11 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 			set = &entry->rcv_intr;
 		scnprintf(extra, 64, "ctxt %u", rcd->ctxt);
 		break;
+	case IRQ_NETDEVCTXT:
+		rcd = (struct hfi1_ctxtdata *)msix->arg;
+		set = &entry->def_intr;
+		scnprintf(extra, 64, "ctxt %u", rcd->ctxt);
+		break;
 	default:
 		dd_dev_err(dd, "Invalid IRQ type %d\n", msix->type);
 		return -EINVAL;
@@ -984,6 +993,10 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 		if (rcd->ctxt != HFI1_CTRL_CTXT)
 			set = &entry->rcv_intr;
 		break;
+	case IRQ_NETDEVCTXT:
+		rcd = (struct hfi1_ctxtdata *)msix->arg;
+		set = &entry->def_intr;
+		break;
 	default:
 		mutex_unlock(&node_affinity.lock);
 		return;
@@ -1037,7 +1050,7 @@ int hfi1_get_proc_affinity(int node)
 	struct hfi1_affinity_node *entry;
 	cpumask_var_t diff, hw_thread_mask, available_mask, intrs_mask;
 	const struct cpumask *node_mask,
-		*proc_mask = &current->cpus_allowed;
+		*proc_mask = current->cpus_ptr;
 	struct hfi1_affinity_node_list *affinity = &node_affinity;
 	struct cpu_mask_set *set = &affinity->proc;
 
@@ -1045,7 +1058,7 @@ int hfi1_get_proc_affinity(int node)
 	 * check whether process/context affinity has already
 	 * been set
 	 */
-	if (cpumask_weight(proc_mask) == 1) {
+	if (current->nr_cpus_allowed == 1) {
 		hfi1_cdbg(PROC, "PID %u %s affinity set to CPU %*pbl",
 			  current->pid, current->comm,
 			  cpumask_pr_args(proc_mask));
@@ -1056,7 +1069,7 @@ int hfi1_get_proc_affinity(int node)
 		cpu = cpumask_first(proc_mask);
 		cpumask_set_cpu(cpu, &set->used);
 		goto done;
-	} else if (cpumask_weight(proc_mask) < cpumask_weight(&set->mask)) {
+	} else if (current->nr_cpus_allowed < cpumask_weight(&set->mask)) {
 		hfi1_cdbg(PROC, "PID %u %s affinity set to CPU set(s) %*pbl",
 			  current->pid, current->comm,
 			  cpumask_pr_args(proc_mask));

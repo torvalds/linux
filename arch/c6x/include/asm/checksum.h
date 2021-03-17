@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (C) 2011 Texas Instruments Incorporated
  *  Author: Mark Salter <msalter@redhat.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #ifndef _ASM_C6X_CHECKSUM_H
 #define _ASM_C6X_CHECKSUM_H
@@ -28,6 +25,9 @@ csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 	return sum;
 }
 #define csum_tcpudp_nofold csum_tcpudp_nofold
+
+#define _HAVE_ARCH_CSUM_AND_COPY
+extern __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
 
 #include <asm-generic/checksum.h>
 

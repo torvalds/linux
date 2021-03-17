@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _CCID_H
 #define _CCID_H
 /*
@@ -7,10 +8,6 @@
  *  Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  *  CCID infrastructure
- *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License version 2 as
- *	published by the Free Software Foundation.
  */
 
 #include <net/sock.h>
@@ -98,7 +95,7 @@ void ccid_cleanup_builtins(void);
 
 struct ccid {
 	struct ccid_operations *ccid_ops;
-	char		       ccid_priv[0];
+	char		       ccid_priv[];
 };
 
 static inline void *ccid_priv(const struct ccid *ccid)
@@ -202,7 +199,7 @@ static inline void ccid_hc_tx_packet_recv(struct ccid *ccid, struct sock *sk,
 static inline int ccid_hc_tx_parse_options(struct ccid *ccid, struct sock *sk,
 					   u8 pkt, u8 opt, u8 *val, u8 len)
 {
-	if (ccid->ccid_ops->ccid_hc_tx_parse_options == NULL)
+	if (!ccid || !ccid->ccid_ops->ccid_hc_tx_parse_options)
 		return 0;
 	return ccid->ccid_ops->ccid_hc_tx_parse_options(sk, pkt, opt, val, len);
 }
@@ -214,7 +211,7 @@ static inline int ccid_hc_tx_parse_options(struct ccid *ccid, struct sock *sk,
 static inline int ccid_hc_rx_parse_options(struct ccid *ccid, struct sock *sk,
 					   u8 pkt, u8 opt, u8 *val, u8 len)
 {
-	if (ccid->ccid_ops->ccid_hc_rx_parse_options == NULL)
+	if (!ccid || !ccid->ccid_ops->ccid_hc_rx_parse_options)
 		return 0;
 	return ccid->ccid_ops->ccid_hc_rx_parse_options(sk, pkt, opt, val, len);
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/subdev/timer/base.o
 nvkm-y += nvkm/subdev/timer/nv04.o
 nvkm-y += nvkm/subdev/timer/nv40.o

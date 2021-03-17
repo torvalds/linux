@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -109,22 +110,31 @@ buf_printf(struct buffer *buf, const char *fmt, ...);
 void
 buf_write(struct buffer *buf, const char *s, int len);
 
+struct namespace_list {
+	struct namespace_list *next;
+	char namespace[];
+};
+
 struct module {
 	struct module *next;
-	const char *name;
 	int gpl_compatible;
 	struct symbol *unres;
+	int from_dump;  /* 1 if module was loaded from *.symvers */
+	int is_vmlinux;
 	int seen;
-	int skip;
 	int has_init;
 	int has_cleanup;
 	struct buffer dev_table_buf;
 	char	     srcversion[25];
-	int is_dot_o;
+	// Missing namespace dependencies
+	struct namespace_list *missing_namespaces;
+	// Actual imported namespaces
+	struct namespace_list *imported_namespaces;
+	char name[];
 };
 
 struct elf_info {
-	unsigned long size;
+	size_t size;
 	Elf_Ehdr     *hdr;
 	Elf_Shdr     *sechdrs;
 	Elf_Sym      *symtab_start;
@@ -171,6 +181,14 @@ static inline unsigned int get_secindex(const struct elf_info *info,
 	return info->symtab_shndx_start[sym - info->symtab_start];
 }
 
+static inline bool strends(const char *str, const char *postfix)
+{
+	if (strlen(str) < strlen(postfix))
+		return false;
+
+	return strcmp(str + strlen(str) - strlen(postfix), postfix) == 0;
+}
+
 /* file2alias.c */
 extern unsigned int cross_build;
 void handle_moddevtable(struct module *mod, struct elf_info *info,
@@ -178,17 +196,33 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 void add_moddevtable(struct buffer *buf, struct module *mod);
 
 /* sumversion.c */
-void maybe_frob_rcs_version(const char *modfilename,
-			    char *version,
-			    void *modinfo,
-			    unsigned long modinfo_offset);
 void get_src_version(const char *modname, char sum[], unsigned sumlen);
 
 /* from modpost.c */
-void *grab_file(const char *filename, unsigned long *size);
-char* get_next_line(unsigned long *pos, void *file, unsigned long size);
-void release_file(void *file, unsigned long size);
+char *read_text_file(const char *filename);
+char *get_line(char **stringp);
 
-void fatal(const char *fmt, ...);
-void warn(const char *fmt, ...);
-void merror(const char *fmt, ...);
+enum loglevel {
+	LOG_WARN,
+	LOG_ERROR,
+	LOG_FATAL
+};
+
+void modpost_log(enum loglevel loglevel, const char *fmt, ...);
+
+/*
+ * warn - show the given message, then let modpost continue running, still
+ *        allowing modpost to exit successfully. This should be used when
+ *        we still allow to generate vmlinux and modules.
+ *
+ * error - show the given message, then let modpost continue running, but fail
+ *         in the end. This should be used when we should stop building vmlinux
+ *         or modules, but we can continue running modpost to catch as many
+ *         issues as possible.
+ *
+ * fatal - show the given message, and bail out immediately. This should be
+ *         used when there is no point to continue running modpost.
+ */
+#define warn(fmt, args...)	modpost_log(LOG_WARN, fmt, ##args)
+#define error(fmt, args...)	modpost_log(LOG_ERROR, fmt, ##args)
+#define fatal(fmt, args...)	modpost_log(LOG_FATAL, fmt, ##args)

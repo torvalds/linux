@@ -1,0 +1,164 @@
+Kernel driver lm75
+==================
+
+Supported chips:
+
+  * National Semiconductor LM75
+
+    Prefix: 'lm75'
+
+    Addresses scanned: I2C 0x48 - 0x4f
+
+    Datasheet: Publicly available at the National Semiconductor website
+
+	       http://www.national.com/
+
+  * National Semiconductor LM75A
+
+    Prefix: 'lm75a'
+
+    Addresses scanned: I2C 0x48 - 0x4f
+
+    Datasheet: Publicly available at the National Semiconductor website
+
+	       http://www.national.com/
+
+  * Dallas Semiconductor (now Maxim) DS75, DS1775, DS7505
+
+    Prefixes: 'ds75', 'ds1775', 'ds7505'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the Maxim website
+
+	       https://www.maximintegrated.com/
+
+  * Maxim MAX6625, MAX6626, MAX31725, MAX31726
+
+    Prefixes: 'max6625', 'max6626', 'max31725', 'max31726'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/
+
+  * Microchip (TelCom) TCN75
+
+    Prefix: 'tcn75'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the Microchip website
+
+	       http://www.microchip.com/
+
+  * Microchip MCP9800, MCP9801, MCP9802, MCP9803
+
+    Prefix: 'mcp980x'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the Microchip website
+
+	       http://www.microchip.com/
+
+  * Analog Devices ADT75
+
+    Prefix: 'adt75'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the Analog Devices website
+
+	       https://www.analog.com/adt75
+
+  * ST Microelectronics STDS75
+
+    Prefix: 'stds75'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the ST website
+
+	       http://www.st.com/internet/analog/product/121769.jsp
+
+  * ST Microelectronics STLM75
+
+    Prefix: 'stlm75'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the ST website
+
+	       https://www.st.com/resource/en/datasheet/stlm75.pdf
+
+  * Texas Instruments TMP100, TMP101, TMP105, TMP112, TMP75, TMP75B, TMP75C, TMP175, TMP275
+
+    Prefixes: 'tmp100', 'tmp101', 'tmp105', 'tmp112', 'tmp175', 'tmp75', 'tmp75b', 'tmp75c', 'tmp275'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the Texas Instruments website
+
+	       https://www.ti.com/product/tmp100
+
+	       https://www.ti.com/product/tmp101
+
+	       https://www.ti.com/product/tmp105
+
+	       https://www.ti.com/product/tmp112
+
+	       https://www.ti.com/product/tmp75
+
+	       https://www.ti.com/product/tmp75b
+
+	       https://www.ti.com/product/tmp75c
+
+	       https://www.ti.com/product/tmp175
+
+	       https://www.ti.com/product/tmp275
+
+  * NXP LM75B, PCT2075
+
+    Prefix: 'lm75b', 'pct2075'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the NXP website
+
+	       https://www.nxp.com/documents/data_sheet/LM75B.pdf
+
+               https://www.nxp.com/docs/en/data-sheet/PCT2075.pdf
+
+Author: Frodo Looijaard <frodol@dds.nl>
+
+Description
+-----------
+
+The LM75 implements one temperature sensor. Limits can be set through the
+Overtemperature Shutdown register and Hysteresis register. Each value can be
+set and read to half-degree accuracy.
+An alarm is issued (usually to a connected LM78) when the temperature
+gets higher then the Overtemperature Shutdown value; it stays on until
+the temperature falls below the Hysteresis value.
+All temperatures are in degrees Celsius, and are guaranteed within a
+range of -55 to +125 degrees.
+
+The driver caches the values for a period varying between 1 second for the
+slowest chips and 125 ms for the fastest chips; reading it more often
+will do no harm, but will return 'old' values.
+
+The original LM75 was typically used in combination with LM78-like chips
+on PC motherboards, to measure the temperature of the processor(s). Clones
+are now used in various embedded designs.
+
+The LM75 is essentially an industry standard; there may be other
+LM75 clones not listed here, with or without various enhancements,
+that are supported. The clones are not detected by the driver, unless
+they reproduce the exact register tricks of the original LM75, and must
+therefore be instantiated explicitly. Higher resolution up to 16-bit
+is supported by this driver, other specific enhancements are not.
+
+The LM77 is not supported, contrary to what we pretended for a long time.
+Both chips are simply not compatible, value encoding differs.

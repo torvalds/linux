@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SN Platform GRU Driver
  *
@@ -8,20 +9,6 @@
  * the user CB.
  *
  *  Copyright (c) 2008 Silicon Graphics, Inc.  All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/kernel.h>
@@ -33,8 +20,8 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/security.h>
+#include <linux/sync_core.h>
 #include <linux/prefetch.h>
-#include <asm/pgtable.h>
 #include "gru.h"
 #include "grutables.h"
 #include "grulib.h"
@@ -56,7 +43,7 @@ static inline int is_gru_paddr(unsigned long paddr)
 }
 
 /*
- * Find the vma of a GRU segment. Caller must hold mmap_sem.
+ * Find the vma of a GRU segment. Caller must hold mmap_lock.
  */
 struct vm_area_struct *gru_find_vma(unsigned long vaddr)
 {
@@ -72,7 +59,7 @@ struct vm_area_struct *gru_find_vma(unsigned long vaddr)
  * Find and lock the gts that contains the specified user vaddr.
  *
  * Returns:
- * 	- *gts with the mmap_sem locked for read and the GTS locked.
+ * 	- *gts with the mmap_lock locked for read and the GTS locked.
  *	- NULL if vaddr invalid OR is not a valid GSEG vaddr.
  */
 
@@ -82,14 +69,14 @@ static struct gru_thread_state *gru_find_lock_gts(unsigned long vaddr)
 	struct vm_area_struct *vma;
 	struct gru_thread_state *gts = NULL;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = gru_find_vma(vaddr);
 	if (vma)
 		gts = gru_find_thread_state(vma, TSID(vaddr, vma));
 	if (gts)
 		mutex_lock(&gts->ts_ctxlock);
 	else
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 	return gts;
 }
 
@@ -99,7 +86,7 @@ static struct gru_thread_state *gru_alloc_locked_gts(unsigned long vaddr)
 	struct vm_area_struct *vma;
 	struct gru_thread_state *gts = ERR_PTR(-EINVAL);
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 	vma = gru_find_vma(vaddr);
 	if (!vma)
 		goto err;
@@ -108,11 +95,11 @@ static struct gru_thread_state *gru_alloc_locked_gts(unsigned long vaddr)
 	if (IS_ERR(gts))
 		goto err;
 	mutex_lock(&gts->ts_ctxlock);
-	downgrade_write(&mm->mmap_sem);
+	mmap_write_downgrade(mm);
 	return gts;
 
 err:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return gts;
 }
 
@@ -122,7 +109,7 @@ err:
 static void gru_unlock_gts(struct gru_thread_state *gts)
 {
 	mutex_unlock(&gts->ts_ctxlock);
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 }
 
 /*
@@ -212,7 +199,7 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
  * Only supports Intel large pages (2MB only) on x86_64.
  *	ZZZ - hugepage support is incomplete
  *
- * NOTE: mmap_sem is already held on entry to this function. This
+ * NOTE: mmap_lock is already held on entry to this function. This
  * guarantees existence of the page tables.
  */
 static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
@@ -583,14 +570,14 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 		}
 
 		/*
-		 * This is running in interrupt context. Trylock the mmap_sem.
+		 * This is running in interrupt context. Trylock the mmap_lock.
 		 * If it fails, retry the fault in user context.
 		 */
 		gts->ustats.fmm_tlbmiss++;
 		if (!gts->ts_force_cch_reload &&
-					down_read_trylock(&gts->ts_mm->mmap_sem)) {
+					mmap_read_trylock(gts->ts_mm)) {
 			gru_try_dropin(gru, gts, tfh, NULL);
-			up_read(&gts->ts_mm->mmap_sem);
+			mmap_read_unlock(gts->ts_mm);
 		} else {
 			tfh_user_polling_mode(tfh);
 			STAT(intr_mm_lock_failed);
@@ -616,8 +603,8 @@ irqreturn_t gru_intr_mblade(int irq, void *dev_id)
 	for_each_possible_blade(blade) {
 		if (uv_blade_nr_possible_cpus(blade))
 			continue;
-		 gru_intr(0, blade);
-		 gru_intr(1, blade);
+		gru_intr(0, blade);
+		gru_intr(1, blade);
 	}
 	return IRQ_HANDLED;
 }

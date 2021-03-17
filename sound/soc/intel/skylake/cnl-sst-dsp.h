@@ -1,23 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Cannonlake SST DSP Support
  *
  * Copyright (C) 2016-17, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __CNL_SST_DSP_H__
 #define __CNL_SST_DSP_H__
 
 struct sst_dsp;
-struct skl_sst;
 struct sst_dsp_device;
 struct sst_generic_ipc;
 
@@ -91,8 +82,8 @@ struct sst_generic_ipc;
 #define CNL_ADSPCS_CPA_SHIFT	24
 #define CNL_ADSPCS_CPA(x)	(x << CNL_ADSPCS_CPA_SHIFT)
 
-int cnl_dsp_enable_core(struct sst_dsp *ctx, unsigned int core);
-int cnl_dsp_disable_core(struct sst_dsp *ctx, unsigned int core);
+int cnl_dsp_enable_core(struct sst_dsp *ctx, unsigned int core_mask);
+int cnl_dsp_disable_core(struct sst_dsp *ctx, unsigned int core_mask);
 irqreturn_t cnl_dsp_sst_interrupt(int irq, void *dev_id);
 void cnl_dsp_free(struct sst_dsp *dsp);
 
@@ -105,8 +96,8 @@ void cnl_ipc_free(struct sst_generic_ipc *ipc);
 
 int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		     const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
-		     struct skl_sst **dsp);
-int cnl_sst_init_fw(struct device *dev, struct skl_sst *ctx);
-void cnl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
+		     struct skl_dev **dsp);
+int cnl_sst_init_fw(struct device *dev, struct skl_dev *skl);
+void cnl_sst_dsp_cleanup(struct device *dev, struct skl_dev *skl);
 
 #endif /*__CNL_SST_DSP_H__*/

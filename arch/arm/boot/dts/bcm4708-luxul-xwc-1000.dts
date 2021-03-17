@@ -19,7 +19,8 @@
 		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
-	memory {
+	memory@0 {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};
 
@@ -50,8 +51,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		restart {
 			label = "Reset";
@@ -67,4 +66,24 @@
 
 &usb3_phy {
 	status = "okay";
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@4 {
+			reg = <4>;
+			label = "lan";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac0>;
+		};
+	};
 };

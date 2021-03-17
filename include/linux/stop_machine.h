@@ -28,14 +28,27 @@ struct cpu_stop_work {
 	struct cpu_stop_done	*done;
 };
 
+/*
+ * Structure to determine completion condition and record errors.  May
+ * be shared by works on different cpus.
+ */
+struct cpu_stop_done {
+	atomic_t		nr_todo;	/* nr left to execute */
+	int			ret;		/* collected return value */
+	struct completion	completion;	/* fired if nr_todo reaches 0 */
+};
+
 int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg);
 int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *arg);
 bool stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 			 struct cpu_stop_work *work_buf);
-int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
-int try_stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
 void stop_machine_park(int cpu);
 void stop_machine_unpark(int cpu);
+void stop_machine_yield(const struct cpumask *cpumask);
+int stop_one_cpu_async(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
+		       struct cpu_stop_work *work_buf,
+		       struct cpu_stop_done *done);
+void cpu_stop_work_wait(struct cpu_stop_work *work_buf);
 
 #else	/* CONFIG_SMP */
 
@@ -79,20 +92,6 @@ static inline bool stop_one_cpu_nowait(unsigned int cpu,
 	}
 
 	return false;
-}
-
-static inline int stop_cpus(const struct cpumask *cpumask,
-			    cpu_stop_fn_t fn, void *arg)
-{
-	if (cpumask_test_cpu(raw_smp_processor_id(), cpumask))
-		return stop_one_cpu(raw_smp_processor_id(), fn, arg);
-	return -ENOENT;
-}
-
-static inline int try_stop_cpus(const struct cpumask *cpumask,
-				cpu_stop_fn_t fn, void *arg)
-{
-	return stop_cpus(cpumask, fn, arg);
 }
 
 #endif	/* CONFIG_SMP */

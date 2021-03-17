@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Frame Buffer Device for Toshiba Mobile IO(TMIO) controller
  *
@@ -8,15 +9,6 @@
  * Based on:
  *	drivers/video/w100fb.c
  *	code written by Sharp/Lineo for 2.4 kernels
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -654,7 +646,7 @@ static int tmiofb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops tmiofb_ops = {
+static const struct fb_ops tmiofb_ops = {
 	.owner		= THIS_MODULE,
 
 	.fb_ioctl	= tmiofb_ioctl,

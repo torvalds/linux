@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* The industrial I/O core, trigger handling functions
  *
  * Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -143,9 +140,6 @@ int __devm_iio_trigger_register(struct device *dev,
  * @trig_info:	trigger to be unregistered
  **/
 void iio_trigger_unregister(struct iio_trigger *trig_info);
-
-void devm_iio_trigger_unregister(struct device *dev,
-				 struct iio_trigger *trig_info);
 
 /**
  * iio_trigger_set_immutable() - set an immutable trigger on destination

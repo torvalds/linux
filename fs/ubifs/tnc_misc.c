@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -138,8 +126,8 @@ int ubifs_search_zbranch(const struct ubifs_info *c,
 			 const struct ubifs_znode *znode,
 			 const union ubifs_key *key, int *n)
 {
-	int beg = 0, end = znode->child_cnt, uninitialized_var(mid);
-	int uninitialized_var(cmp);
+	int beg = 0, end = znode->child_cnt, mid;
+	int cmp;
 	const struct ubifs_zbranch *zbr = &znode->zbranch[0];
 
 	ubifs_assert(c, end > beg);
@@ -265,9 +253,7 @@ long ubifs_destroy_tnc_subtree(const struct ubifs_info *c,
 /**
  * read_znode - read an indexing node from flash and fill znode.
  * @c: UBIFS file-system description object
- * @lnum: LEB of the indexing node to read
- * @offs: node offset
- * @len: node length
+ * @zzbr: the zbranch describing the node to read
  * @znode: znode to read to
  *
  * This function reads an indexing node from the flash media and fills znode
@@ -276,9 +262,12 @@ long ubifs_destroy_tnc_subtree(const struct ubifs_info *c,
  * is wrong with it, this function prints complaint messages and returns
  * %-EINVAL.
  */
-static int read_znode(struct ubifs_info *c, int lnum, int offs, int len,
+static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 		      struct ubifs_znode *znode)
 {
+	int lnum = zzbr->lnum;
+	int offs = zzbr->offs;
+	int len = zzbr->len;
 	int i, err, type, cmp;
 	struct ubifs_idx_node *idx;
 
@@ -288,6 +277,13 @@ static int read_znode(struct ubifs_info *c, int lnum, int offs, int len,
 
 	err = ubifs_read_node(c, idx, UBIFS_IDX_NODE, len, lnum, offs);
 	if (err < 0) {
+		kfree(idx);
+		return err;
+	}
+
+	err = ubifs_node_check_hash(c, idx, zzbr->hash);
+	if (err) {
+		ubifs_bad_hash(c, idx, zzbr->hash, lnum, offs);
 		kfree(idx);
 		return err;
 	}
@@ -308,13 +304,14 @@ static int read_znode(struct ubifs_info *c, int lnum, int offs, int len,
 	}
 
 	for (i = 0; i < znode->child_cnt; i++) {
-		const struct ubifs_branch *br = ubifs_idx_branch(c, idx, i);
+		struct ubifs_branch *br = ubifs_idx_branch(c, idx, i);
 		struct ubifs_zbranch *zbr = &znode->zbranch[i];
 
 		key_read(c, &br->key, &zbr->key);
 		zbr->lnum = le32_to_cpu(br->lnum);
 		zbr->offs = le32_to_cpu(br->offs);
 		zbr->len  = le32_to_cpu(br->len);
+		ubifs_copy_hash(c, ubifs_branch_hash(c, br), zbr->hash);
 		zbr->znode = NULL;
 
 		/* Validate branch */
@@ -425,7 +422,7 @@ struct ubifs_znode *ubifs_load_znode(struct ubifs_info *c,
 	if (!znode)
 		return ERR_PTR(-ENOMEM);
 
-	err = read_znode(c, zbr->lnum, zbr->offs, zbr->len, znode);
+	err = read_znode(c, zbr, znode);
 	if (err)
 		goto out;
 
@@ -494,6 +491,12 @@ int ubifs_tnc_read_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		dbg_tnck(&key1, "but found node's key ");
 		ubifs_dump_node(c, node);
 		return -EINVAL;
+	}
+
+	err = ubifs_node_check_hash(c, node, zbr->hash);
+	if (err) {
+		ubifs_bad_hash(c, node, zbr->hash, zbr->lnum, zbr->offs);
+		return err;
 	}
 
 	return 0;

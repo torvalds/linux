@@ -1,0 +1,59 @@
+KSelfTest arm64/signal/
+=======================
+
+Signals Tests
++++++++++++++
+
+- Tests are built around a common main compilation unit: such shared main
+  enforces a standard sequence of operations needed to perform a single
+  signal-test (setup/trigger/run/result/cleanup)
+
+- The above mentioned ops are configurable on a test-by-test basis: each test
+  is described (and configured) using the descriptor signals.h::struct tdescr
+
+- Each signal testcase is compiled into its own executable: a separate
+  executable is used for each test since many tests complete successfully
+  by receiving some kind of fatal signal from the Kernel, so it's safer
+  to run each test unit in its own standalone process, so as to start each
+  test from a clean slate.
+
+- New tests can be simply defined in testcases/ dir providing a proper struct
+  tdescr overriding all the defaults we wish to change (as of now providing a
+  custom run method is mandatory though)
+
+- Signals' test-cases hereafter defined belong currently to two
+  principal families:
+
+  - 'mangle_' tests: a real signal (SIGUSR1) is raised and used as a trigger
+    and then the test case code modifies the signal frame from inside the
+    signal handler itself.
+
+  - 'fake_sigreturn_' tests: a brand new custom artificial sigframe structure
+    is placed on the stack and a sigreturn syscall is called to simulate a
+    real signal return. This kind of tests does not use a trigger usually and
+    they are just fired using some simple included assembly trampoline code.
+
+ - Most of these tests are successfully passing if the process gets killed by
+   some fatal signal: usually SIGSEGV or SIGBUS. Since while writing this
+   kind of tests it is extremely easy in fact to end-up injecting other
+   unrelated SEGV bugs in the testcases, it becomes extremely tricky to
+   be really sure that the tests are really addressing what they are meant
+   to address and they are not instead falling apart due to unplanned bugs
+   in the test code.
+   In order to alleviate the misery of the life of such test-developer, a few
+   helpers are provided:
+
+   - a couple of ASSERT_BAD/GOOD_CONTEXT() macros to easily parse a ucontext_t
+     and verify if it is indeed GOOD or BAD (depending on what we were
+     expecting), using the same logic/perspective as in the arm64 Kernel signals
+     routines.
+
+   - a sanity mechanism to be used in 'fake_sigreturn_'-alike tests: enabled by
+     default it takes care to verify that the test-execution had at least
+     successfully progressed up to the stage of triggering the fake sigreturn
+     call.
+
+  In both cases test results are expected in terms of:
+   - some fatal signal sent by the Kernel to the test process
+  or
+  - analyzing some final regs state

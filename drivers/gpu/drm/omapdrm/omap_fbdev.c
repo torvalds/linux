@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_util.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
 
 #include "omap_drv.h"
 
@@ -78,7 +70,7 @@ fallback:
 	return drm_fb_helper_pan_display(var, fbi);
 }
 
-static struct fb_ops omap_fb_ops = {
+static const struct fb_ops omap_fb_ops = {
 	.owner = THIS_MODULE,
 
 	.fb_check_var	= drm_fb_helper_check_var,
@@ -86,8 +78,6 @@ static struct fb_ops omap_fb_ops = {
 	.fb_setcmap	= drm_fb_helper_setcmap,
 	.fb_blank	= drm_fb_helper_blank,
 	.fb_pan_display = omap_fbdev_pan_display,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
 	.fb_ioctl	= drm_fb_helper_ioctl,
 
 	.fb_read = drm_fb_helper_sys_read,
@@ -150,7 +140,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		/* note: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
-		drm_gem_object_unreference_unlocked(fbdev->bo);
+		drm_gem_object_put(fbdev->bo);
 		ret = PTR_ERR(fb);
 		goto fail;
 	}
@@ -182,13 +172,9 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	fbdev->fb = fb;
 	helper->fb = fb;
 
-	fbi->par = helper;
 	fbi->fbops = &omap_fb_ops;
 
-	strcpy(fbi->fix.id, MODULE_NAME);
-
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(fbi, helper, sizes);
 
 	dev->mode_config.fb_base = dma_addr;
 
@@ -243,7 +229,7 @@ void omap_fbdev_init(struct drm_device *dev)
 	struct drm_fb_helper *helper;
 	int ret = 0;
 
-	if (!priv->num_crtcs || !priv->num_connectors)
+	if (!priv->num_pipes)
 		return;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
@@ -256,13 +242,9 @@ void omap_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &omap_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper, priv->num_connectors);
+	ret = drm_fb_helper_init(dev, helper);
 	if (ret)
 		goto fail;
-
-	ret = drm_fb_helper_single_add_all_connectors(helper);
-	if (ret)
-		goto fini;
 
 	ret = drm_fb_helper_initial_config(helper, 32);
 	if (ret)

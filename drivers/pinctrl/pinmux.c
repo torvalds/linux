@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for the pin muxing portions of the pin control subsystem
  *
@@ -8,8 +9,6 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  *
  * Copyright (C) 2012 NVIDIA CORPORATION. All rights reserved.
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #define pr_fmt(fmt) "pinmux core: " fmt
 
@@ -72,7 +71,33 @@ int pinmux_validate_map(const struct pinctrl_map *map, int i)
 }
 
 /**
+ * pinmux_can_be_used_for_gpio() - check if a specific pin
+ *	is either muxed to a different function or used as gpio.
+ *
+ * @pctldev: the associated pin controller device
+ * @pin: the pin number in the global pin space
+ *
+ * Controllers not defined as strict will always return true,
+ * menaning that the gpio can be used.
+ */
+bool pinmux_can_be_used_for_gpio(struct pinctrl_dev *pctldev, unsigned pin)
+{
+	struct pin_desc *desc = pin_desc_get(pctldev, pin);
+	const struct pinmux_ops *ops = pctldev->desc->pmxops;
+
+	/* Can't inspect pin, assume it can be used */
+	if (!desc || !ops)
+		return true;
+
+	if (ops->strict && desc->mux_usecount)
+		return false;
+
+	return !(ops->strict && !!desc->gpio_owner);
+}
+
+/**
  * pin_request() - request a single pin to be muxed in, typically for GPIO
+ * @pctldev: the associated pin controller device
  * @pin: the pin number in the global pin space
  * @owner: a representation of the owner of this pin; typically the device
  *	name that controls its mux function, or the requested GPIO name
@@ -231,6 +256,7 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
  * @pctldev: pin controller device affected
  * @pin: the pin to mux in for GPIO
  * @range: the applicable GPIO range
+ * @gpio: number of requested GPIO
  */
 int pinmux_request_gpio(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range,
@@ -644,37 +670,16 @@ void pinmux_show_setting(struct seq_file *s,
 		   setting->data.mux.func);
 }
 
-static int pinmux_functions_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinmux_functions_show, inode->i_private);
-}
-
-static int pinmux_pins_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinmux_pins_show, inode->i_private);
-}
-
-static const struct file_operations pinmux_functions_ops = {
-	.open		= pinmux_functions_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations pinmux_pins_ops = {
-	.open		= pinmux_pins_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pinmux_functions);
+DEFINE_SHOW_ATTRIBUTE(pinmux_pins);
 
 void pinmux_init_device_debugfs(struct dentry *devroot,
 			 struct pinctrl_dev *pctldev)
 {
 	debugfs_create_file("pinmux-functions", S_IFREG | S_IRUGO,
-			    devroot, pctldev, &pinmux_functions_ops);
+			    devroot, pctldev, &pinmux_functions_fops);
 	debugfs_create_file("pinmux-pins", S_IFREG | S_IRUGO,
-			    devroot, pctldev, &pinmux_pins_ops);
+			    devroot, pctldev, &pinmux_pins_fops);
 }
 
 #endif /* CONFIG_DEBUG_FS */
@@ -742,7 +747,7 @@ EXPORT_SYMBOL_GPL(pinmux_generic_get_function_groups);
 /**
  * pinmux_generic_get_function() - returns a function based on the number
  * @pctldev: pin controller device
- * @group_selector: function number
+ * @selector: function number
  */
 struct function_desc *pinmux_generic_get_function(struct pinctrl_dev *pctldev,
 						  unsigned int selector)

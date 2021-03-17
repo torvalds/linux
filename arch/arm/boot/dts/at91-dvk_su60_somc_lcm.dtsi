@@ -17,7 +17,7 @@
 	};
 
 	panel: panel {
-		compatible = "winstar,wf70gtiagdng0", "innolux,at070tn92", "simple-panel";
+		compatible = "winstar,wf70gtiagdng0", "innolux,at070tn92";
 		backlight = <&backlight>;
 		power-supply = <&vcc_lcd_reg>;
 		#address-cells = <1>;
@@ -59,9 +59,9 @@
 &i2c1 {
 	status = "okay";
 
-	ft5426@56 {
+	ft5426@38 {
 		compatible = "focaltech,ft5426", "edt,edt-ft5406";
-		reg = <56>;
+		reg = <0x38>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_lcd_ctp_int>;
 

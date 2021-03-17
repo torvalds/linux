@@ -30,6 +30,11 @@
 
 #include "vmwgfx_drv.h"
 
+/*
+ * Extra memory required by the resource id's ida storage, which is allocated
+ * separately from the base object itself. We estimate an on-average 128 bytes
+ * per ida.
+ */
 #define VMW_IDA_ACC_SIZE 128
 
 enum vmw_cmdbuf_res_state {
@@ -66,6 +71,13 @@ struct vmw_user_resource_conv {
  * @commit_notify:     If the resource is a command buffer managed resource,
  *                     callback to notify that a define or remove command
  *                     has been committed to the device.
+ * @dirty_alloc:       Allocate a dirty tracker. NULL if dirty-tracking is not
+ *                     supported.
+ * @dirty_free:        Free the dirty tracker.
+ * @dirty_sync:        Upload the dirty mob contents to the resource.
+ * @dirty_add_range:   Add a sequential dirty range to the resource
+ *                     dirty tracker.
+ * @clean:             Clean the resource.
  */
 struct vmw_res_func {
 	enum vmw_res_type res_type;
@@ -73,6 +85,8 @@ struct vmw_res_func {
 	const char *type_name;
 	struct ttm_placement *backup_placement;
 	bool may_evict;
+	u32 prio;
+	u32 dirty_prio;
 
 	int (*create) (struct vmw_resource *res);
 	int (*destroy) (struct vmw_resource *res);
@@ -83,6 +97,12 @@ struct vmw_res_func {
 		       struct ttm_validate_buffer *val_buf);
 	void (*commit_notify)(struct vmw_resource *res,
 			      enum vmw_cmdbuf_res_state state);
+	int (*dirty_alloc)(struct vmw_resource *res);
+	void (*dirty_free)(struct vmw_resource *res);
+	int (*dirty_sync)(struct vmw_resource *res);
+	void (*dirty_range_add)(struct vmw_resource *res, size_t start,
+				 size_t end);
+	int (*clean)(struct vmw_resource *res);
 };
 
 /**
@@ -120,8 +140,6 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 		      bool delay_id,
 		      void (*res_free) (struct vmw_resource *res),
 		      const struct vmw_res_func *func);
-void vmw_resource_activate(struct vmw_resource *res,
-			   void (*hw_destroy) (struct vmw_resource *));
 int
 vmw_simple_resource_create_ioctl(struct drm_device *dev,
 				 void *data,

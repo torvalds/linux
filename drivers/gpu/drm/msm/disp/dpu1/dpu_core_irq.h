@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __DPU_CORE_IRQ_H__
@@ -22,13 +14,6 @@
  * @return:		none
  */
 void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms);
-
-/**
- * dpu_core_irq_postinstall - perform post-installation of core IRQ handler
- * @dpu_kms:		DPU handle
- * @return:		0 if success; error code otherwise
- */
-int dpu_core_irq_postinstall(struct dpu_kms *dpu_kms);
 
 /**
  * dpu_core_irq_uninstall - uninstall core IRQ handler
@@ -139,15 +124,8 @@ int dpu_core_irq_unregister_callback(
  * dpu_debugfs_core_irq_init - register core irq debugfs
  * @dpu_kms: pointer to kms
  * @parent: debugfs directory root
- * @Return: 0 on success
  */
-int dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
+void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent);
-
-/**
- * dpu_debugfs_core_irq_destroy - deregister core irq debugfs
- * @dpu_kms: pointer to kms
- */
-void dpu_debugfs_core_irq_destroy(struct dpu_kms *dpu_kms);
 
 #endif /* __DPU_CORE_IRQ_H__ */

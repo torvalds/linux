@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * POWER Data Stream Control Register (DSCR) sysfs interface test
  *
@@ -6,10 +7,6 @@
  * well verified from their sysfs interfaces.
  *
  * Copyright 2015, Anshuman Khandual, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 #include "dscr.h"
 
@@ -79,6 +76,8 @@ int dscr_sysfs(void)
 {
 	unsigned long orig_dscr_default;
 	int i, j;
+
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
 
 	orig_dscr_default = get_default_dscr();
 	for (i = 0; i < COUNT; i++) {

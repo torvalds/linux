@@ -8,36 +8,91 @@
  */
 
 / {
-	smb@8000000 {
-		mb_clk24mhz: clk24mhz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <24000000>;
-			clock-output-names = "juno_mb:clk24mhz";
-		};
+	mb_clk24mhz: clk24mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "juno_mb:clk24mhz";
+	};
 
-		mb_clk25mhz: clk25mhz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <25000000>;
-			clock-output-names = "juno_mb:clk25mhz";
-		};
+	mb_clk25mhz: clk25mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+		clock-output-names = "juno_mb:clk25mhz";
+	};
 
-		v2m_refclk1mhz: refclk1mhz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <1000000>;
-			clock-output-names = "juno_mb:refclk1mhz";
-		};
+	v2m_refclk1mhz: refclk1mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <1000000>;
+		clock-output-names = "juno_mb:refclk1mhz";
+	};
 
-		v2m_refclk32khz: refclk32khz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-			clock-output-names = "juno_mb:refclk32khz";
-		};
+	v2m_refclk32khz: refclk32khz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "juno_mb:refclk32khz";
+	};
 
-		motherboard {
+	mb_fixed_3v3: mcc-sb-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "MCC_SB_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <116>;
+			label = "POWER";
+			gpios = <&iofpga_gpio0 0 0x4>;
+		};
+		home-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <102>;
+			label = "HOME";
+			gpios = <&iofpga_gpio0 1 0x4>;
+		};
+		rlock-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <152>;
+			label = "RLOCK";
+			gpios = <&iofpga_gpio0 2 0x4>;
+		};
+		vol-up-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <115>;
+			label = "VOL+";
+			gpios = <&iofpga_gpio0 3 0x4>;
+		};
+		vol-down-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <114>;
+			label = "VOL-";
+			gpios = <&iofpga_gpio0 4 0x4>;
+		};
+		nmi-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <99>;
+			label = "NMI";
+			gpios = <&iofpga_gpio0 5 0x4>;
+		};
+	};
+
+	bus@8000000 {
+		motherboard-bus {
 			compatible = "arm,vexpress,v2p-p1", "simple-bus";
 			#address-cells = <2>;  /* SMB chipselect number and offset */
 			#size-cells = <1>;
@@ -48,65 +103,9 @@
 			arm,vexpress,site = <0>;
 			arm,v2m-memory-map = "rs1";
 
-			mb_fixed_3v3: mcc-sb-3v3 {
-				compatible = "regulator-fixed";
-				regulator-name = "MCC_SB_3V3";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			gpio-keys {
-				compatible = "gpio-keys";
-
-				power-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <116>;
-					label = "POWER";
-					gpios = <&iofpga_gpio0 0 0x4>;
-				};
-				home-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <102>;
-					label = "HOME";
-					gpios = <&iofpga_gpio0 1 0x4>;
-				};
-				rlock-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <152>;
-					label = "RLOCK";
-					gpios = <&iofpga_gpio0 2 0x4>;
-				};
-				vol-up-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <115>;
-					label = "VOL+";
-					gpios = <&iofpga_gpio0 3 0x4>;
-				};
-				vol-down-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <114>;
-					label = "VOL-";
-					gpios = <&iofpga_gpio0 4 0x4>;
-				};
-				nmi-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <99>;
-					label = "NMI";
-					gpios = <&iofpga_gpio0 5 0x4>;
-				};
-			};
-
-			flash@0,00000000 {
+			flash@0 {
 				/* 2 * 32MiB NOR Flash memory mounted on CS0 */
 				compatible = "arm,vexpress-flash", "cfi-flash";
-				linux,part-probe = "afs";
 				reg = <0 0x00000000 0x04000000>;
 				bank-width = <4>;
 				/*
@@ -116,9 +115,12 @@
 				 * flash hardware access is disabled by default.
 				 */
 				status = "disabled";
+				partitions {
+					compatible = "arm,arm-firmware-suite";
+				};
 			};
 
-			ethernet@2,00000000 {
+			ethernet@200000000 {
 				compatible = "smsc,lan9118", "smsc,lan9115";
 				reg = <2 0x00000000 0x10000>;
 				interrupts = <3>;
@@ -131,7 +133,7 @@
 				vddvario-supply = <&mb_fixed_3v3>;
 			};
 
-			iofpga@3,00000000 {
+			iofpga-bus@300000000 {
 				compatible = "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -249,7 +251,7 @@
 					reg = <0x0f0000 0x10000>;
 					interrupts = <7>;
 					clocks = <&mb_clk24mhz>, <&soc_smc50mhz>;
-					clock-names = "wdogclk", "apb_pclk";
+					clock-names = "wdog_clk", "apb_pclk";
 				};
 
 				v2m_timer01: timer@110000 {

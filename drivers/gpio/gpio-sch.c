@@ -1,32 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPIO interface for Intel Poulsbo SCH
  *
  *  Copyright (c) 2010 CompuLab Ltd
  *  Author: Denis Turischev <denis@compulab.co.il>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License 2 as published
- *  by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/init.h>
+#include <linux/acpi.h>
+#include <linux/errno.h>
+#include <linux/gpio/driver.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/io.h>
-#include <linux/errno.h>
-#include <linux/acpi.h>
-#include <linux/platform_device.h>
 #include <linux/pci_ids.h>
-#include <linux/gpio/driver.h>
+#include <linux/platform_device.h>
 
 #define GEN	0x00
 #define GIO	0x04
@@ -36,14 +23,13 @@ struct sch_gpio {
 	struct gpio_chip chip;
 	spinlock_t lock;
 	unsigned short iobase;
-	unsigned short core_base;
 	unsigned short resume_base;
 };
 
-static unsigned sch_gpio_offset(struct sch_gpio *sch, unsigned gpio,
-				unsigned reg)
+static unsigned int sch_gpio_offset(struct sch_gpio *sch, unsigned int gpio,
+				unsigned int reg)
 {
-	unsigned base = 0;
+	unsigned int base = 0;
 
 	if (gpio >= sch->resume_base) {
 		gpio -= sch->resume_base;
@@ -53,14 +39,14 @@ static unsigned sch_gpio_offset(struct sch_gpio *sch, unsigned gpio,
 	return base + reg + gpio / 8;
 }
 
-static unsigned sch_gpio_bit(struct sch_gpio *sch, unsigned gpio)
+static unsigned int sch_gpio_bit(struct sch_gpio *sch, unsigned int gpio)
 {
 	if (gpio >= sch->resume_base)
 		gpio -= sch->resume_base;
 	return gpio % 8;
 }
 
-static int sch_gpio_reg_get(struct sch_gpio *sch, unsigned gpio, unsigned reg)
+static int sch_gpio_reg_get(struct sch_gpio *sch, unsigned int gpio, unsigned int reg)
 {
 	unsigned short offset, bit;
 	u8 reg_val;
@@ -73,7 +59,7 @@ static int sch_gpio_reg_get(struct sch_gpio *sch, unsigned gpio, unsigned reg)
 	return reg_val;
 }
 
-static void sch_gpio_reg_set(struct sch_gpio *sch, unsigned gpio, unsigned reg,
+static void sch_gpio_reg_set(struct sch_gpio *sch, unsigned int gpio, unsigned int reg,
 			     int val)
 {
 	unsigned short offset, bit;
@@ -90,7 +76,7 @@ static void sch_gpio_reg_set(struct sch_gpio *sch, unsigned gpio, unsigned reg,
 		outb((reg_val & ~BIT(bit)), sch->iobase + offset);
 }
 
-static int sch_gpio_direction_in(struct gpio_chip *gc, unsigned gpio_num)
+static int sch_gpio_direction_in(struct gpio_chip *gc, unsigned int gpio_num)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
 
@@ -100,13 +86,14 @@ static int sch_gpio_direction_in(struct gpio_chip *gc, unsigned gpio_num)
 	return 0;
 }
 
-static int sch_gpio_get(struct gpio_chip *gc, unsigned gpio_num)
+static int sch_gpio_get(struct gpio_chip *gc, unsigned int gpio_num)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
+
 	return sch_gpio_reg_get(sch, gpio_num, GLV);
 }
 
-static void sch_gpio_set(struct gpio_chip *gc, unsigned gpio_num, int val)
+static void sch_gpio_set(struct gpio_chip *gc, unsigned int gpio_num, int val)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
 
@@ -115,7 +102,7 @@ static void sch_gpio_set(struct gpio_chip *gc, unsigned gpio_num, int val)
 	spin_unlock(&sch->lock);
 }
 
-static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned gpio_num,
+static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned int gpio_num,
 				  int val)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
@@ -137,11 +124,14 @@ static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned gpio_num,
 	return 0;
 }
 
-static int sch_gpio_get_direction(struct gpio_chip *gc, unsigned gpio_num)
+static int sch_gpio_get_direction(struct gpio_chip *gc, unsigned int gpio_num)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
 
-	return sch_gpio_reg_get(sch, gpio_num, GIO);
+	if (sch_gpio_reg_get(sch, gpio_num, GIO))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static const struct gpio_chip sch_gpio_chip = {
@@ -179,7 +169,6 @@ static int sch_gpio_probe(struct platform_device *pdev)
 
 	switch (pdev->id) {
 	case PCI_DEVICE_ID_INTEL_SCH_LPC:
-		sch->core_base = 0;
 		sch->resume_base = 10;
 		sch->chip.ngpio = 14;
 
@@ -198,19 +187,16 @@ static int sch_gpio_probe(struct platform_device *pdev)
 		break;
 
 	case PCI_DEVICE_ID_INTEL_ITC_LPC:
-		sch->core_base = 0;
 		sch->resume_base = 5;
 		sch->chip.ngpio = 14;
 		break;
 
 	case PCI_DEVICE_ID_INTEL_CENTERTON_ILB:
-		sch->core_base = 0;
 		sch->resume_base = 21;
 		sch->chip.ngpio = 30;
 		break;
 
 	case PCI_DEVICE_ID_INTEL_QUARK_X1000_ILB:
-		sch->core_base = 0;
 		sch->resume_base = 2;
 		sch->chip.ngpio = 8;
 		break;
@@ -235,5 +221,5 @@ module_platform_driver(sch_gpio_driver);
 
 MODULE_AUTHOR("Denis Turischev <denis@compulab.co.il>");
 MODULE_DESCRIPTION("GPIO interface for Intel Poulsbo SCH");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:sch_gpio");

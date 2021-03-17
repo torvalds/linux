@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 reg_access_test
 event_attributes_test
 cycles_test

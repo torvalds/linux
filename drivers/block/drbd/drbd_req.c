@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
    drbd_req.c
 
@@ -7,19 +8,6 @@
    Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
    Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
-   drbd is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
-   drbd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with drbd; see the file COPYING.  If not, write to
-   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
 
@@ -33,24 +21,6 @@
 
 static bool drbd_may_do_local_read(struct drbd_device *device, sector_t sector, int size);
 
-/* Update disk stats at start of I/O request */
-static void _drbd_start_io_acct(struct drbd_device *device, struct drbd_request *req)
-{
-	struct request_queue *q = device->rq_queue;
-
-	generic_start_io_acct(q, bio_op(req->master_bio),
-				req->i.size >> 9, &device->vdisk->part0);
-}
-
-/* Update disk stats when completing request upwards */
-static void _drbd_end_io_acct(struct drbd_device *device, struct drbd_request *req)
-{
-	struct request_queue *q = device->rq_queue;
-
-	generic_end_io_acct(q, bio_op(req->master_bio),
-			    &device->vdisk->part0, req->start_jif);
-}
-
 static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio *bio_src)
 {
 	struct drbd_request *req;
@@ -63,7 +33,7 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio 
 	drbd_req_make_private_bio(req, bio_src);
 	req->rq_state = (bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0)
 		      | (bio_op(bio_src) == REQ_OP_WRITE_SAME ? RQ_WSAME : 0)
-		      | (bio_op(bio_src) == REQ_OP_WRITE_ZEROES ? RQ_UNMAP : 0)
+		      | (bio_op(bio_src) == REQ_OP_WRITE_ZEROES ? RQ_ZEROES : 0)
 		      | (bio_op(bio_src) == REQ_OP_DISCARD ? RQ_UNMAP : 0);
 	req->device = device;
 	req->master_bio = bio_src;
@@ -275,7 +245,7 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 		start_new_tl_epoch(first_peer_device(device)->connection);
 
 	/* Update disk stats */
-	_drbd_end_io_acct(device, req);
+	bio_end_io_acct(req->master_bio, req->start_jif);
 
 	/* If READ failed,
 	 * have it be pushed back to the retry work queue,
@@ -641,7 +611,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_set_out_of_sync(device, req->i.sector, req->i.size);
 		drbd_report_io_error(device, req);
 		__drbd_chk_io_error(device, DRBD_READ_ERROR);
-		/* fall through. */
+		fallthrough;
 	case READ_AHEAD_COMPLETED_WITH_ERROR:
 		/* it is legal to fail read-ahead, no __drbd_chk_io_error in that case. */
 		mod_rq_state(req, m, RQ_LOCAL_PENDING, RQ_LOCAL_COMPLETED);
@@ -650,7 +620,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 	case DISCARD_COMPLETED_NOTSUPP:
 	case DISCARD_COMPLETED_WITH_ERROR:
 		/* I'd rather not detach from local disk just because it
-		 * failed a REQ_DISCARD. */
+		 * failed a REQ_OP_DISCARD. */
 		mod_rq_state(req, m, RQ_LOCAL_PENDING, RQ_LOCAL_COMPLETED);
 		break;
 
@@ -866,7 +836,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			} /* else: FIXME can this happen? */
 			break;
 		}
-		/* else, fall through to BARRIER_ACKED */
+		fallthrough;	/* to BARRIER_ACKED */
 
 	case BARRIER_ACKED:
 		/* barrier ack for READ requests does not make sense */
@@ -896,7 +866,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		start_new_tl_epoch(connection);
 		mod_rq_state(req, m, 0, RQ_NET_OK|RQ_NET_DONE);
 		break;
-	};
+	}
 
 	return rv;
 }
@@ -918,7 +888,7 @@ static bool drbd_may_do_local_read(struct drbd_device *device, sector_t sector, 
 	if (device->state.disk != D_INCONSISTENT)
 		return false;
 	esector = sector + (size >> 9) - 1;
-	nr_sectors = drbd_get_capacity(device->this_bdev);
+	nr_sectors = get_capacity(device->vdisk);
 	D_ASSERT(device, sector  < nr_sectors);
 	D_ASSERT(device, esector < nr_sectors);
 
@@ -1155,12 +1125,11 @@ static int drbd_process_write_request(struct drbd_request *req)
 	return remote;
 }
 
-static void drbd_process_discard_req(struct drbd_request *req)
+static void drbd_process_discard_or_zeroes_req(struct drbd_request *req, int flags)
 {
-	struct block_device *bdev = req->device->ldev->backing_bdev;
-
-	if (blkdev_issue_zeroout(bdev, req->i.sector, req->i.size >> 9,
-			GFP_NOIO, 0))
+	int err = drbd_issue_discard_or_zero_out(req->device,
+				req->i.sector, req->i.size >> 9, flags);
+	if (err)
 		req->private_bio->bi_status = BLK_STS_IOERR;
 	bio_endio(req->private_bio);
 }
@@ -1189,11 +1158,13 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 	if (get_ldev(device)) {
 		if (drbd_insert_fault(device, type))
 			bio_io_error(bio);
-		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES ||
-			 bio_op(bio) == REQ_OP_DISCARD)
-			drbd_process_discard_req(req);
+		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES)
+			drbd_process_discard_or_zeroes_req(req, EE_ZEROOUT |
+			    ((bio->bi_opf & REQ_NOUNMAP) ? 0 : EE_TRIM));
+		else if (bio_op(bio) == REQ_OP_DISCARD)
+			drbd_process_discard_or_zeroes_req(req, EE_TRIM);
 		else
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		put_ldev(device);
 	} else
 		bio_io_error(bio);
@@ -1233,15 +1204,14 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 		bio_endio(bio);
 		return ERR_PTR(-ENOMEM);
 	}
-	req->start_jif = start_jif;
+
+	/* Update disk stats */
+	req->start_jif = bio_start_io_acct(req->master_bio);
 
 	if (!get_ldev(device)) {
 		bio_put(req->private_bio);
 		req->private_bio = NULL;
 	}
-
-	/* Update disk stats */
-	_drbd_start_io_acct(device, req);
 
 	/* process discards always from our submitter thread */
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES ||
@@ -1623,12 +1593,12 @@ void do_submit(struct work_struct *ws)
 	}
 }
 
-blk_qc_t drbd_make_request(struct request_queue *q, struct bio *bio)
+blk_qc_t drbd_submit_bio(struct bio *bio)
 {
-	struct drbd_device *device = (struct drbd_device *) q->queuedata;
+	struct drbd_device *device = bio->bi_disk->private_data;
 	unsigned long start_jif;
 
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
 	start_jif = jiffies;
 

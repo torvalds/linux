@@ -23,7 +23,19 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <subdev/acr.h>
+
 #include <nvif/class.h>
+
+#include <nvfw/flcn.h>
+
+static const struct nvkm_acr_lsf_func
+gp10b_gr_gpccs_acr = {
+	.flags = NVKM_ACR_LSF_FORCE_PRIV_LOAD,
+	.bld_size = sizeof(struct flcn_bl_dmem_desc),
+	.bld_write = gm20b_gr_acr_bld_write,
+	.bld_patch = gm20b_gr_acr_bld_patch,
+};
 
 static const struct gf100_gr_func
 gp10b_gr = {
@@ -48,8 +60,8 @@ gp10b_gr = {
 	.gpc_nr = 1,
 	.tpc_nr = 2,
 	.ppc_nr = 1,
-	.grctx = &gp102_grctx,
-	.zbc = &gp102_gr_zbc,
+	.grctx = &gp100_grctx,
+	.zbc = &gp100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
@@ -59,8 +71,30 @@ gp10b_gr = {
 	}
 };
 
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
+MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/gpccs_bl.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/gpccs_sig.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/gp10b/gr/sw_method_init.bin");
+#endif
+
+static const struct gf100_gr_fwif
+gp10b_gr_fwif[] = {
+	{  0, gm200_gr_load, &gp10b_gr, &gm20b_gr_fecs_acr, &gp10b_gr_gpccs_acr },
+	{ -1, gm200_gr_nofw },
+	{}
+};
+
 int
 gp10b_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gp10b_gr, device, index, pgr);
+	return gf100_gr_new_(gp10b_gr_fwif, device, index, pgr);
 }

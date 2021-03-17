@@ -11,7 +11,7 @@
 
 /*
  * For explanation of the elements of this struct, see
- * Documentation/fault-injection/fault-injection.txt
+ * Documentation/fault-injection/fault-injection.rst
  */
 struct fault_attr {
 	unsigned long probability;

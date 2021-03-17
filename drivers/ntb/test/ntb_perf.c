@@ -100,9 +100,9 @@ MODULE_DESCRIPTION("PCIe NTB Performance Measurement Tool");
 #define DMA_TRIES		100
 #define DMA_MDELAY		10
 
-#define MSG_TRIES		500
-#define MSG_UDELAY_LOW		1000
-#define MSG_UDELAY_HIGH		2000
+#define MSG_TRIES		1000
+#define MSG_UDELAY_LOW		1000000
+#define MSG_UDELAY_HIGH		2000000
 
 #define PERF_BUF_LEN 1024
 
@@ -149,7 +149,8 @@ struct perf_peer {
 	u64 outbuf_xlat;
 	resource_size_t outbuf_size;
 	void __iomem *outbuf;
-
+	phys_addr_t out_phys_addr;
+	dma_addr_t dma_dst_addr;
 	/* Inbound MW params */
 	dma_addr_t inbuf_xlat;
 	resource_size_t inbuf_size;
@@ -158,6 +159,8 @@ struct perf_peer {
 	/* NTB connection setup service */
 	struct work_struct	service;
 	unsigned long		sts;
+
+	struct completion init_comp;
 };
 #define to_peer_service(__work) \
 	container_of(__work, struct perf_peer, service)
@@ -284,11 +287,9 @@ static int perf_spad_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_HDATA(perf->gidx),
 				    upper_32_bits(data));
-		mmiowb();
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_CMD(perf->gidx),
 				    cmd);
-		mmiowb();
 		ntb_peer_db_set(perf->ntb, PERF_SPAD_NOTIFY(peer->gidx));
 
 		dev_dbg(&perf->ntb->dev, "DB ring peer %#llx\n",
@@ -379,7 +380,6 @@ static int perf_msg_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 
 		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_HDATA,
 				   upper_32_bits(data));
-		mmiowb();
 
 		/* This call shall trigger peer message event */
 		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_CMD, cmd);
@@ -549,6 +549,7 @@ static int perf_setup_outbuf(struct perf_peer *peer)
 
 	/* Initialization is finally done */
 	set_bit(PERF_STS_DONE, &peer->sts);
+	complete_all(&peer->init_comp);
 
 	return 0;
 }
@@ -559,7 +560,7 @@ static void perf_free_inbuf(struct perf_peer *peer)
 		return;
 
 	(void)ntb_mw_clear_trans(peer->perf->ntb, peer->pidx, peer->gidx);
-	dma_free_coherent(&peer->perf->ntb->dev, peer->inbuf_size,
+	dma_free_coherent(&peer->perf->ntb->pdev->dev, peer->inbuf_size,
 			  peer->inbuf, peer->inbuf_xlat);
 	peer->inbuf = NULL;
 }
@@ -588,8 +589,9 @@ static int perf_setup_inbuf(struct perf_peer *peer)
 
 	perf_free_inbuf(peer);
 
-	peer->inbuf = dma_alloc_coherent(&perf->ntb->dev, peer->inbuf_size,
-					 &peer->inbuf_xlat, GFP_KERNEL);
+	peer->inbuf = dma_alloc_coherent(&perf->ntb->pdev->dev,
+					 peer->inbuf_size, &peer->inbuf_xlat,
+					 GFP_KERNEL);
 	if (!peer->inbuf) {
 		dev_err(&perf->ntb->dev, "Failed to alloc inbuf of %pa\n",
 			&peer->inbuf_size);
@@ -639,6 +641,7 @@ static void perf_service_work(struct work_struct *work)
 		perf_setup_outbuf(peer);
 
 	if (test_and_clear_bit(PERF_CMD_CLEAR, &peer->sts)) {
+		init_completion(&peer->init_comp);
 		clear_bit(PERF_STS_DONE, &peer->sts);
 		if (test_bit(0, &peer->perf->busy_flag) &&
 		    peer == peer->perf->test_peer) {
@@ -655,7 +658,7 @@ static int perf_init_service(struct perf_ctx *perf)
 {
 	u64 mask;
 
-	if (ntb_peer_mw_count(perf->ntb) < perf->pcnt + 1) {
+	if (ntb_peer_mw_count(perf->ntb) < perf->pcnt) {
 		dev_err(&perf->ntb->dev, "Not enough memory windows\n");
 		return -EINVAL;
 	}
@@ -737,8 +740,6 @@ static void perf_disable_service(struct perf_ctx *perf)
 {
 	int pidx;
 
-	ntb_link_disable(perf->ntb);
-
 	if (perf->cmd_send == perf_msg_cmd_send) {
 		u64 inbits;
 
@@ -755,6 +756,16 @@ static void perf_disable_service(struct perf_ctx *perf)
 
 	for (pidx = 0; pidx < perf->pcnt; pidx++)
 		flush_work(&perf->peers[pidx].service);
+
+	for (pidx = 0; pidx < perf->pcnt; pidx++) {
+		struct perf_peer *peer = &perf->peers[pidx];
+
+		ntb_spad_write(perf->ntb, PERF_SPAD_CMD(peer->gidx), 0);
+	}
+
+	ntb_db_clear(perf->ntb, PERF_SPAD_NOTIFY(perf->gidx));
+
+	ntb_link_disable(perf->ntb);
 }
 
 /*==============================================================================
@@ -777,6 +788,10 @@ static int perf_copy_chunk(struct perf_thread *pthr,
 	struct dmaengine_unmap_data *unmap;
 	struct device *dma_dev;
 	int try = 0, ret = 0;
+	struct perf_peer *peer = pthr->perf->test_peer;
+	void __iomem *vbase;
+	void __iomem *dst_vaddr;
+	dma_addr_t dst_dma_addr;
 
 	if (!use_dma) {
 		memcpy_toio(dst, src, len);
@@ -789,7 +804,11 @@ static int perf_copy_chunk(struct perf_thread *pthr,
 				 offset_in_page(dst), len))
 		return -EIO;
 
-	unmap = dmaengine_get_unmap_data(dma_dev, 2, GFP_NOWAIT);
+	vbase = peer->outbuf;
+	dst_vaddr = dst;
+	dst_dma_addr = peer->dma_dst_addr + (dst_vaddr - vbase);
+
+	unmap = dmaengine_get_unmap_data(dma_dev, 1, GFP_NOWAIT);
 	if (!unmap)
 		return -ENOMEM;
 
@@ -802,16 +821,8 @@ static int perf_copy_chunk(struct perf_thread *pthr,
 	}
 	unmap->to_cnt = 1;
 
-	unmap->addr[1] = dma_map_page(dma_dev, virt_to_page(dst),
-		offset_in_page(dst), len, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dma_dev, unmap->addr[1])) {
-		ret = -EIO;
-		goto err_free_resource;
-	}
-	unmap->from_cnt = 1;
-
 	do {
-		tx = dmaengine_prep_dma_memcpy(pthr->dma_chan, unmap->addr[1],
+		tx = dmaengine_prep_dma_memcpy(pthr->dma_chan, dst_dma_addr,
 			unmap->addr[0], len, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!tx)
 			msleep(DMA_MDELAY);
@@ -860,6 +871,7 @@ static int perf_init_test(struct perf_thread *pthr)
 {
 	struct perf_ctx *perf = pthr->perf;
 	dma_cap_mask_t dma_mask;
+	struct perf_peer *peer = pthr->perf->test_peer;
 
 	pthr->src = kmalloc_node(perf->test_peer->outbuf_size, GFP_KERNEL,
 				 dev_to_node(&perf->ntb->dev));
@@ -877,15 +889,33 @@ static int perf_init_test(struct perf_thread *pthr)
 	if (!pthr->dma_chan) {
 		dev_err(&perf->ntb->dev, "%d: Failed to get DMA channel\n",
 			pthr->tidx);
-		atomic_dec(&perf->tsync);
-		wake_up(&perf->twait);
-		kfree(pthr->src);
-		return -ENODEV;
+		goto err_free;
 	}
+	peer->dma_dst_addr =
+		dma_map_resource(pthr->dma_chan->device->dev,
+				 peer->out_phys_addr, peer->outbuf_size,
+				 DMA_FROM_DEVICE, 0);
+	if (dma_mapping_error(pthr->dma_chan->device->dev,
+			      peer->dma_dst_addr)) {
+		dev_err(pthr->dma_chan->device->dev, "%d: Failed to map DMA addr\n",
+			pthr->tidx);
+		peer->dma_dst_addr = 0;
+		dma_release_channel(pthr->dma_chan);
+		goto err_free;
+	}
+	dev_dbg(pthr->dma_chan->device->dev, "%d: Map MMIO %pa to DMA addr %pad\n",
+			pthr->tidx,
+			&peer->out_phys_addr,
+			&peer->dma_dst_addr);
 
 	atomic_set(&pthr->dma_sync, 0);
-
 	return 0;
+
+err_free:
+	atomic_dec(&perf->tsync);
+	wake_up(&perf->twait);
+	kfree(pthr->src);
+	return -ENODEV;
 }
 
 static int perf_run_test(struct perf_thread *pthr)
@@ -973,6 +1003,11 @@ static void perf_clear_test(struct perf_thread *pthr)
 	 * We call it anyway just to be sure of the transfers completion.
 	 */
 	(void)dmaengine_terminate_sync(pthr->dma_chan);
+	if (pthr->perf->test_peer->dma_dst_addr)
+		dma_unmap_resource(pthr->dma_chan->device->dev,
+				   pthr->perf->test_peer->dma_dst_addr,
+				   pthr->perf->test_peer->outbuf_size,
+				   DMA_FROM_DEVICE, 0);
 
 	dma_release_channel(pthr->dma_chan);
 
@@ -1046,8 +1081,9 @@ static int perf_submit_test(struct perf_peer *peer)
 	struct perf_thread *pthr;
 	int tidx, ret;
 
-	if (!test_bit(PERF_STS_DONE, &peer->sts))
-		return -ENOLINK;
+	ret = wait_for_completion_interruptible(&peer->init_comp);
+	if (ret < 0)
+		return ret;
 
 	if (test_and_set_bit_lock(0, &perf->busy_flag))
 		return -EBUSY;
@@ -1188,6 +1224,9 @@ static ssize_t perf_dbgfs_read_info(struct file *filep, char __user *ubuf,
 
 		pos += scnprintf(buf + pos, buf_size - pos,
 			"\tOut buffer addr 0x%pK\n", peer->outbuf);
+
+		pos += scnprintf(buf + pos, buf_size - pos,
+			"\tOut buff phys addr %pa[p]\n", &peer->out_phys_addr);
 
 		pos += scnprintf(buf + pos, buf_size - pos,
 			"\tOut buffer size %pa\n", &peer->outbuf_size);
@@ -1373,7 +1412,7 @@ static int perf_setup_peer_mw(struct perf_peer *peer)
 	int ret;
 
 	/* Get outbound MW parameters and map it */
-	ret = ntb_peer_mw_get_addr(perf->ntb, peer->gidx, &phys_addr,
+	ret = ntb_peer_mw_get_addr(perf->ntb, perf->gidx, &phys_addr,
 				   &peer->outbuf_size);
 	if (ret)
 		return ret;
@@ -1382,6 +1421,8 @@ static int perf_setup_peer_mw(struct perf_peer *peer)
 					peer->outbuf_size);
 	if (!peer->outbuf)
 		return -ENOMEM;
+
+	peer->out_phys_addr = phys_addr;
 
 	if (max_mw_size && peer->outbuf_size > max_mw_size) {
 		peer->outbuf_size = max_mw_size;
@@ -1413,9 +1454,20 @@ static int perf_init_peers(struct perf_ctx *perf)
 			peer->gidx = pidx;
 		}
 		INIT_WORK(&peer->service, perf_service_work);
+		init_completion(&peer->init_comp);
 	}
 	if (perf->gidx == -1)
 		perf->gidx = pidx;
+
+	/*
+	 * Hardware with only two ports may not have unique port
+	 * numbers. In this case, the gidxs should all be zero.
+	 */
+	if (perf->pcnt == 1 &&  ntb_port_number(perf->ntb) == 0 &&
+	    ntb_peer_port_number(perf->ntb, 0) == 0) {
+		perf->gidx = 0;
+		perf->peers[0].gidx = 0;
+	}
 
 	for (pidx = 0; pidx < perf->pcnt; pidx++) {
 		ret = perf_setup_peer_mw(&perf->peers[pidx]);
@@ -1512,4 +1564,3 @@ static void __exit perf_exit(void)
 	destroy_workqueue(perf_wq);
 }
 module_exit(perf_exit);
-

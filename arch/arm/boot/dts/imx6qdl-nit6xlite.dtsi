@@ -11,6 +11,7 @@
 	};
 
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x20000000>;
 	};
 
@@ -496,6 +497,7 @@
 };
 
 &pwm1 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
@@ -508,6 +510,7 @@
 };
 
 &pwm4 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm4>;
 	status = "okay";
@@ -555,8 +558,6 @@
 	non-removable;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_wlan_vmmc>;
-	vqmmc-1-8-v;
-	ocr-limit = <0x180>;     /* 1.65v - 2.1v */
 	cap-power-off-card;
 	keep-power-in-suspend;
 	status = "okay";

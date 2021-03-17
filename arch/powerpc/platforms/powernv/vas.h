@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2016-17 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _VAS_H
@@ -105,11 +101,9 @@
 /*
  * Initial per-process credits.
  * Max send window credits:    4K-1 (12-bits in VAS_TX_WCRED)
- * Max receive window credits: 64K-1 (16 bits in VAS_LRX_WCRED)
  *
  * TODO: Needs tuning for per-process credits
  */
-#define VAS_RX_WCREDS_MAX		((64 << 10) - 1)
 #define VAS_TX_WCREDS_MAX		((4 << 10) - 1)
 #define VAS_WCREDS_DEFAULT		(1 << 10)
 
@@ -300,6 +294,22 @@ enum vas_notify_after_count {
 };
 
 /*
+ * NX can generate an interrupt for multiple faults and expects kernel
+ * to process all of them. So read all valid CRB entries until find the
+ * invalid one. So use pswid which is pasted by NX and ccw[0] (reserved
+ * bit in BE) to check valid CRB. CCW[0] will not be touched by user
+ * space. Application gets CRB formt error if it updates this bit.
+ *
+ * Invalidate FIFO during allocation and process all entries from last
+ * successful read until finds invalid pswid and ccw[0] values.
+ * After reading each CRB entry from fault FIFO, the kernel invalidate
+ * it by updating pswid with FIFO_INVALID_ENTRY and CCW[0] with
+ * CCW0_INVALID.
+ */
+#define FIFO_INVALID_ENTRY	0xffffffff
+#define CCW0_INVALID		1
+
+/*
  * One per instance of VAS. Each instance will have a separate set of
  * receive windows, one per coprocessor type.
  *
@@ -316,6 +326,15 @@ struct vas_instance {
 	u64 uwc_bar_start;
 	u64 paste_base_addr;
 	u64 paste_win_id_shift;
+
+	u64 irq_port;
+	int virq;
+	int fault_crbs;
+	int fault_fifo_size;
+	int fifo_in_progress;	/* To wake up thread or return IRQ_HANDLED */
+	spinlock_t fault_lock;	/* Protects fifo_in_progress update */
+	void *fault_fifo;
+	struct vas_window *fault_win; /* Fault window */
 
 	struct mutex mutex;
 	struct vas_window *rxwin[VAS_COP_TYPE_MAX];
@@ -337,7 +356,9 @@ struct vas_window {
 	bool user_win;		/* True if user space window */
 	void *hvwc_map;		/* HV window context */
 	void *uwc_map;		/* OS/User window context */
-	pid_t pid;		/* Linux process id of owner */
+	struct pid *pid;	/* Linux process id of owner */
+	struct pid *tgid;	/* Thread group ID of owner */
+	struct mm_struct *mm;	/* Linux process mm_struct */
 	int wcreds_max;		/* Window credits */
 
 	char *dbgname;
@@ -410,6 +431,19 @@ extern void vas_init_dbgdir(void);
 extern void vas_instance_init_dbgdir(struct vas_instance *vinst);
 extern void vas_window_init_dbgdir(struct vas_window *win);
 extern void vas_window_free_dbgdir(struct vas_window *win);
+extern int vas_setup_fault_window(struct vas_instance *vinst);
+extern irqreturn_t vas_fault_thread_fn(int irq, void *data);
+extern irqreturn_t vas_fault_handler(int irq, void *dev_id);
+extern void vas_return_credit(struct vas_window *window, bool tx);
+extern struct vas_window *vas_pswid_to_window(struct vas_instance *vinst,
+						uint32_t pswid);
+extern void vas_win_paste_addr(struct vas_window *window, u64 *addr,
+					int *len);
+
+static inline int vas_window_pid(struct vas_window *window)
+{
+	return pid_vnr(window->pid);
+}
 
 static inline void vas_log_write(struct vas_window *win, char *name,
 			void *regptr, u64 val)
@@ -460,12 +494,7 @@ static inline u64 read_hvwc_reg(struct vas_window *win,
  */
 static inline u32 encode_pswid(int vasid, int winid)
 {
-	u32 pswid = 0;
-
-	pswid |= vasid << (31 - 7);
-	pswid |= winid;
-
-	return pswid;
+	return ((u32)winid | (vasid << (31 - 7)));
 }
 
 static inline void decode_pswid(u32 pswid, int *vasid, int *winid)

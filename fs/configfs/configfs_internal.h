@@ -1,22 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset:8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
  * configfs_internal.h - Internal stuff for configfs
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  *
  * Based on sysfs:
  * 	sysfs is Copyright (C) 2001, 2002, 2003 Patrick Mochel
@@ -34,12 +20,21 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+struct configfs_fragment {
+	atomic_t frag_count;
+	struct rw_semaphore frag_sem;
+	bool frag_dead;
+};
+
+void put_fragment(struct configfs_fragment *);
+struct configfs_fragment *get_fragment(struct configfs_fragment *);
+
 struct configfs_dirent {
 	atomic_t		s_count;
 	int			s_dependent_count;
 	struct list_head	s_sibling;
 	struct list_head	s_children;
-	struct list_head	s_links;
+	int			s_links;
 	void			* s_element;
 	int			s_type;
 	umode_t			s_mode;
@@ -48,6 +43,7 @@ struct configfs_dirent {
 #ifdef CONFIG_LOCKDEP
 	int			s_depth;
 #endif
+	struct configfs_fragment *s_frag;
 };
 
 #define CONFIGFS_ROOT		0x0001
@@ -70,13 +66,13 @@ extern struct kmem_cache *configfs_dir_cachep;
 extern int configfs_is_root(struct config_item *item);
 
 extern struct inode * configfs_new_inode(umode_t mode, struct configfs_dirent *, struct super_block *);
-extern int configfs_create(struct dentry *, umode_t mode, void (*init)(struct inode *));
+extern struct inode *configfs_create(struct dentry *, umode_t mode);
 
 extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
 extern int configfs_create_bin_file(struct config_item *,
 				    const struct configfs_bin_attribute *);
-extern int configfs_make_dirent(struct configfs_dirent *,
-				struct dentry *, void *, umode_t, int);
+extern int configfs_make_dirent(struct configfs_dirent *, struct dentry *,
+				void *, umode_t, int, struct configfs_fragment *);
 extern int configfs_dirent_is_ready(struct configfs_dirent *);
 
 extern void configfs_hash_and_remove(struct dentry * dir, const char * name);
@@ -88,7 +84,6 @@ extern int configfs_setattr(struct dentry *dentry, struct iattr *iattr);
 extern struct dentry *configfs_pin_fs(void);
 extern void configfs_release_fs(void);
 
-extern struct rw_semaphore configfs_rename_sem;
 extern const struct file_operations configfs_dir_operations;
 extern const struct file_operations configfs_file_operations;
 extern const struct file_operations configfs_bin_file_operations;
@@ -101,14 +96,8 @@ extern int configfs_symlink(struct inode *dir, struct dentry *dentry,
 			    const char *symname);
 extern int configfs_unlink(struct inode *dir, struct dentry *dentry);
 
-struct configfs_symlink {
-	struct list_head sl_list;
-	struct config_item *sl_target;
-};
-
-extern int configfs_create_link(struct configfs_symlink *sl,
-				struct dentry *parent,
-				struct dentry *dentry);
+int configfs_create_link(struct configfs_dirent *target, struct dentry *parent,
+		struct dentry *dentry, char *body);
 
 static inline struct config_item * to_item(struct dentry * dentry)
 {
@@ -136,11 +125,7 @@ static inline struct config_item *configfs_get_config_item(struct dentry *dentry
 	spin_lock(&dentry->d_lock);
 	if (!d_unhashed(dentry)) {
 		struct configfs_dirent * sd = dentry->d_fsdata;
-		if (sd->s_type & CONFIGFS_ITEM_LINK) {
-			struct configfs_symlink * sl = sd->s_element;
-			item = config_item_get(sl->sl_target);
-		} else
-			item = config_item_get(sd->s_element);
+		item = config_item_get(sd->s_element);
 	}
 	spin_unlock(&dentry->d_lock);
 
@@ -151,6 +136,7 @@ static inline void release_configfs_dirent(struct configfs_dirent * sd)
 {
 	if (!(sd->s_type & CONFIGFS_ROOT)) {
 		kfree(sd->s_iattr);
+		put_fragment(sd->s_frag);
 		kmem_cache_free(configfs_dir_cachep, sd);
 	}
 }

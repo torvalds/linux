@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SCSI_CHELSIO_FCOE
 	tristate "Chelsio Communications FCoE support"
 	depends on PCI && SCSI

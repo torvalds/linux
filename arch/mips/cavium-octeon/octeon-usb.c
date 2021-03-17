@@ -253,17 +253,17 @@ static int dwc3_octeon_config_power(struct device *dev, u64 base)
 		    && gpio <= 31) {
 			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(gpio));
 			gpio_bit.s.tx_oe = 1;
-			gpio_bit.cn73xx.output_sel = (index == 0 ? 0x14 : 0x15);
+			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x15);
 			cvmx_write_csr(CVMX_GPIO_BIT_CFGX(gpio), gpio_bit.u64);
 		} else if (gpio <= 15) {
 			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(gpio));
 			gpio_bit.s.tx_oe = 1;
-			gpio_bit.cn70xx.output_sel = (index == 0 ? 0x14 : 0x19);
+			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x19);
 			cvmx_write_csr(CVMX_GPIO_BIT_CFGX(gpio), gpio_bit.u64);
 		} else {
 			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_XBIT_CFGX(gpio));
 			gpio_bit.s.tx_oe = 1;
-			gpio_bit.cn70xx.output_sel = (index == 0 ? 0x14 : 0x19);
+			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x19);
 			cvmx_write_csr(CVMX_GPIO_XBIT_CFGX(gpio), gpio_bit.u64);
 		}
 
@@ -398,6 +398,7 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 	default:
 		dev_err(dev, "Invalid ref_clk %u, using 100000000 instead\n",
 			clock_rate);
+		fallthrough;
 	case 100000000:
 		mpll_mul = 0x19;
 		if (ref_clk_sel < 2)
@@ -517,6 +518,7 @@ static int __init dwc3_octeon_device_init(void)
 
 			res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 			if (res == NULL) {
+				put_device(&pdev->dev);
 				dev_err(&pdev->dev, "No memory resources\n");
 				return -ENXIO;
 			}
@@ -528,8 +530,10 @@ static int __init dwc3_octeon_device_init(void)
 			 * know the difference.
 			 */
 			base = devm_ioremap_resource(&pdev->dev, res);
-			if (IS_ERR(base))
+			if (IS_ERR(base)) {
+				put_device(&pdev->dev);
 				return PTR_ERR(base);
+			}
 
 			mutex_lock(&dwc3_octeon_clocks_mutex);
 			dwc3_octeon_clocks_start(&pdev->dev, (u64)base);

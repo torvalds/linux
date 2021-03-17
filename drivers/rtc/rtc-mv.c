@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the RTC in Marvell SoCs.
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/init.h>
@@ -60,7 +57,7 @@ static int mv_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_reg = (bin2bcd(tm->tm_mday) << RTC_MDAY_OFFS) |
 		(bin2bcd(tm->tm_mon + 1) << RTC_MONTH_OFFS) |
-		(bin2bcd(tm->tm_year % 100) << RTC_YEAR_OFFS);
+		(bin2bcd(tm->tm_year - 100) << RTC_YEAR_OFFS);
 	writel(rtc_reg, ioaddr + RTC_DATE_REG_OFFS);
 
 	return 0;
@@ -125,13 +122,9 @@ static int mv_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	/* hw counts from year 2000, but tm_year is relative to 1900 */
 	alm->time.tm_year = bcd2bin(year) + 100;
 
-	if (rtc_valid_tm(&alm->time) < 0) {
-		dev_err(dev, "retrieved alarm date/time is not valid.\n");
-		rtc_time_to_tm(0, &alm->time);
-	}
-
 	alm->enabled = !!readl(ioaddr + RTC_ALARM_INTERRUPT_MASK_REG_OFFS);
-	return 0;
+
+	return rtc_valid_tm(&alm->time);
 }
 
 static int mv_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
@@ -163,7 +156,7 @@ static int mv_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 			<< RTC_MONTH_OFFS;
 
 	if (alm->time.tm_year >= 0)
-		rtc_reg |= (RTC_ALARM_VALID | bin2bcd(alm->time.tm_year % 100))
+		rtc_reg |= (RTC_ALARM_VALID | bin2bcd(alm->time.tm_year - 100))
 			<< RTC_YEAR_OFFS;
 
 	writel(rtc_reg, ioaddr + RTC_ALARM_DATE_REG_OFFS);
@@ -219,7 +212,6 @@ static const struct rtc_class_ops mv_rtc_alarm_ops = {
 
 static int __init mv_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct rtc_plat_data *pdata;
 	u32 rtc_time;
 	int ret = 0;
@@ -228,8 +220,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 
@@ -261,15 +252,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pdata);
 
-	if (pdata->irq >= 0) {
-		device_init_wakeup(&pdev->dev, 1);
-		pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-						 &mv_rtc_alarm_ops,
-						 THIS_MODULE);
-	} else {
-		pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-						 &mv_rtc_ops, THIS_MODULE);
-	}
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(pdata->rtc)) {
 		ret = PTR_ERR(pdata->rtc);
 		goto out;
@@ -285,7 +268,19 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	return 0;
+	if (pdata->irq >= 0) {
+		device_init_wakeup(&pdev->dev, 1);
+		pdata->rtc->ops = &mv_rtc_alarm_ops;
+	} else {
+		pdata->rtc->ops = &mv_rtc_ops;
+	}
+
+	pdata->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	pdata->rtc->range_max = RTC_TIMESTAMP_END_2099;
+
+	ret = rtc_register_device(pdata->rtc);
+	if (!ret)
+		return 0;
 out:
 	if (!IS_ERR(pdata->clk))
 		clk_disable_unprepare(pdata->clk);

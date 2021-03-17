@@ -29,7 +29,8 @@ int bench_futex_wake_parallel(int argc __maybe_unused, const char **argv __maybe
 #include <linux/time64.h>
 #include <errno.h>
 #include "futex.h"
-#include "cpumap.h"
+#include <internal/cpumap.h>
+#include <perf/cpumap.h>
 
 #include <err.h>
 #include <stdlib.h>
@@ -138,7 +139,7 @@ static void *blocked_workerfn(void *arg __maybe_unused)
 }
 
 static void block_threads(pthread_t *w, pthread_attr_t thread_attr,
-			  struct cpu_map *cpu)
+			  struct perf_cpu_map *cpu)
 {
 	cpu_set_t cpuset;
 	unsigned int i;
@@ -224,7 +225,7 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 	struct sigaction act;
 	pthread_attr_t thread_attr;
 	struct thread_data *waking_worker;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options,
 			     bench_futex_wake_parallel_usage, 0);
@@ -233,11 +234,12 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	memset(&act, 0, sizeof(act));
 	sigfillset(&act.sa_mask);
 	act.sa_sigaction = toggle_done;
 	sigaction(SIGINT, &act, NULL);
 
-	cpu = cpu_map__new(NULL);
+	cpu = perf_cpu_map__new(NULL);
 	if (!cpu)
 		err(EXIT_FAILURE, "calloc");
 

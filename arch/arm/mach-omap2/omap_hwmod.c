@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod implementation for OMAP2/3/4
  *
@@ -9,10 +10,6 @@
  * Created in collaboration with (alphabetical order): Thara Gopinath,
  * Tony Lindgren, Rajendra Nayak, Vikram Pandita, Sakari Poussa, Anand
  * Sawant, Santosh Shilimkar, Richard Woodruff
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Introduction
  * ------------
@@ -141,7 +138,7 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <linux/platform_data/ti-sysc.h>
 
@@ -155,6 +152,8 @@
 #include "soc.h"
 #include "common.h"
 #include "clockdomain.h"
+#include "hdq1w.h"
+#include "mmc.h"
 #include "powerdomain.h"
 #include "cm2xxx.h"
 #include "cm3xxx.h"
@@ -165,6 +164,7 @@
 #include "prm33xx.h"
 #include "prminst44xx.h"
 #include "pm.h"
+#include "wd_timer.h"
 
 /* Name of the OMAP hwmod for the MPU */
 #define MPU_INITIATOR_NAME		"mpu"
@@ -188,21 +188,35 @@
 
 /**
  * struct clkctrl_provider - clkctrl provider mapping data
- * @addr: base address for the provider
- * @size: size of the provider address space
- * @offset: offset of the provider from PRCM instance base
+ * @num_addrs: number of base address ranges for the provider
+ * @addr: base address(es) for the provider
+ * @size: size(s) of the provider address space(s)
  * @node: device node associated with the provider
  * @link: list link
  */
 struct clkctrl_provider {
-	u32			addr;
-	u32			size;
-	u16			offset;
+	int			num_addrs;
+	u32			*addr;
+	u32			*size;
 	struct device_node	*node;
 	struct list_head	link;
 };
 
 static LIST_HEAD(clkctrl_providers);
+
+/**
+ * struct omap_hwmod_reset - IP specific reset functions
+ * @match: string to match against the module name
+ * @len: number of characters to match
+ * @reset: IP specific reset function
+ *
+ * Used only in cases where struct omap_hwmod is dynamically allocated.
+ */
+struct omap_hwmod_reset {
+	const char *match;
+	int len;
+	int (*reset)(struct omap_hwmod *oh);
+};
 
 /**
  * struct omap_hwmod_soc_ops - fn ptrs for some SoC-specific operations
@@ -235,6 +249,7 @@ static struct omap_hwmod_soc_ops soc_ops;
 
 /* omap_hwmod_list contains all registered struct omap_hwmods */
 static LIST_HEAD(omap_hwmod_list);
+static DEFINE_MUTEX(list_lock);
 
 /* mpu_oh: used to add/remove MPU initiator from sleepdep list */
 static struct omap_hwmod *mpu_oh;
@@ -608,39 +623,6 @@ static int _enable_wakeup(struct omap_hwmod *oh, u32 *v)
 	return 0;
 }
 
-/**
- * _disable_wakeup: clear OCP_SYSCONFIG.ENAWAKEUP bit in the hardware
- * @oh: struct omap_hwmod *
- *
- * Prevent the hardware module @oh to send wakeups.  Returns -EINVAL
- * upon error or 0 upon success.
- */
-static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
-{
-	if (!oh->class->sysc ||
-	    !((oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP) ||
-	      (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP) ||
-	      (oh->class->sysc->idlemodes & MSTANDBY_SMART_WKUP)))
-		return -EINVAL;
-
-	if (!oh->class->sysc->sysc_fields) {
-		WARN(1, "omap_hwmod: %s: offset struct for sysconfig not provided in class\n", oh->name);
-		return -EINVAL;
-	}
-
-	if (oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP)
-		*v &= ~(0x1 << oh->class->sysc->sysc_fields->enwkup_shift);
-
-	if (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP)
-		_set_slave_idlemode(oh, HWMOD_IDLEMODE_SMART, v);
-	if (oh->class->sysc->idlemodes & MSTANDBY_SMART_WKUP)
-		_set_master_standbymode(oh, HWMOD_IDLEMODE_SMART, v);
-
-	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
-
-	return 0;
-}
-
 static struct clockdomain *_get_clkdm(struct omap_hwmod *oh)
 {
 	struct clk_hw_omap *clk;
@@ -648,10 +630,10 @@ static struct clockdomain *_get_clkdm(struct omap_hwmod *oh)
 	if (oh->clkdm) {
 		return oh->clkdm;
 	} else if (oh->_clk) {
-		if (__clk_get_flags(oh->_clk) & CLK_IS_BASIC)
+		if (!omap2_clk_is_hw_omap(__clk_get_hw(oh->_clk)))
 			return NULL;
 		clk = to_clk_hw_omap(__clk_get_hw(oh->_clk));
-		return  clk->clkdm;
+		return clk->clkdm;
 	}
 	return NULL;
 }
@@ -724,23 +706,36 @@ static int __init _setup_clkctrl_provider(struct device_node *np)
 	const __be32 *addrp;
 	struct clkctrl_provider *provider;
 	u64 size;
+	int i;
 
-	provider = memblock_virt_alloc(sizeof(*provider), 0);
+	provider = memblock_alloc(sizeof(*provider), SMP_CACHE_BYTES);
 	if (!provider)
 		return -ENOMEM;
 
-	addrp = of_get_address(np, 0, &size, NULL);
-	provider->addr = (u32)of_translate_address(np, addrp);
-	addrp = of_get_address(np->parent, 0, NULL, NULL);
-	provider->offset = provider->addr -
-			   (u32)of_translate_address(np->parent, addrp);
-	provider->addr &= ~0xff;
-	provider->size = size | 0xff;
 	provider->node = np;
 
-	pr_debug("%s: %s: %x...%x [+%x]\n", __func__, np->parent->name,
-		 provider->addr, provider->addr + provider->size,
-		 provider->offset);
+	provider->num_addrs =
+		of_property_count_elems_of_size(np, "reg", sizeof(u32)) / 2;
+
+	provider->addr =
+		memblock_alloc(sizeof(void *) * provider->num_addrs,
+			       SMP_CACHE_BYTES);
+	if (!provider->addr)
+		return -ENOMEM;
+
+	provider->size =
+		memblock_alloc(sizeof(u32) * provider->num_addrs,
+			       SMP_CACHE_BYTES);
+	if (!provider->size)
+		return -ENOMEM;
+
+	for (i = 0; i < provider->num_addrs; i++) {
+		addrp = of_get_address(np, i, &size, NULL);
+		provider->addr[i] = (u32)of_translate_address(np, addrp);
+		provider->size[i] = size;
+		pr_debug("%s: %pOF: %x...%x\n", __func__, np, provider->addr[i],
+			 provider->addr[i] + provider->size[i]);
+	}
 
 	list_add(&provider->link, &clkctrl_providers);
 
@@ -787,23 +782,26 @@ static struct clk *_lookup_clkctrl_clk(struct omap_hwmod *oh)
 	pr_debug("%s: %s: addr=%x\n", __func__, oh->name, addr);
 
 	list_for_each_entry(provider, &clkctrl_providers, link) {
-		if (provider->addr <= addr &&
-		    provider->addr + provider->size >= addr) {
-			struct of_phandle_args clkspec;
+		int i;
 
-			clkspec.np = provider->node;
-			clkspec.args_count = 2;
-			clkspec.args[0] = addr - provider->addr -
-					  provider->offset;
-			clkspec.args[1] = 0;
+		for (i = 0; i < provider->num_addrs; i++) {
+			if (provider->addr[i] <= addr &&
+			    provider->addr[i] + provider->size[i] > addr) {
+				struct of_phandle_args clkspec;
 
-			clk = of_clk_get_from_provider(&clkspec);
+				clkspec.np = provider->node;
+				clkspec.args_count = 2;
+				clkspec.args[0] = addr - provider->addr[0];
+				clkspec.args[1] = 0;
 
-			pr_debug("%s: %s got %p (offset=%x, provider=%s)\n",
-				 __func__, oh->name, clk, clkspec.args[0],
-				 provider->node->parent->name);
+				clk = of_clk_get_from_provider(&clkspec);
 
-			return clk;
+				pr_debug("%s: %s got %p (offset=%x, provider=%pOF)\n",
+					 __func__, oh->name, clk,
+					 clkspec.args[0], provider->node);
+
+				return clk;
+			}
 		}
 	}
 
@@ -986,8 +984,10 @@ static int _enable_clocks(struct omap_hwmod *oh)
 		clk_enable(oh->_clk);
 
 	list_for_each_entry(os, &oh->slave_ports, node) {
-		if (os->_clk && (os->flags & OCPIF_SWSUP_IDLE))
+		if (os->_clk && (os->flags & OCPIF_SWSUP_IDLE)) {
+			omap2_clk_deny_idle(os->_clk);
 			clk_enable(os->_clk);
+		}
 	}
 
 	/* The opt clocks are controlled by the device driver. */
@@ -1039,8 +1039,10 @@ static int _disable_clocks(struct omap_hwmod *oh)
 		clk_disable(oh->_clk);
 
 	list_for_each_entry(os, &oh->slave_ports, node) {
-		if (os->_clk && (os->flags & OCPIF_SWSUP_IDLE))
+		if (os->_clk && (os->flags & OCPIF_SWSUP_IDLE)) {
 			clk_disable(os->_clk);
+			omap2_clk_allow_idle(os->_clk);
+		}
 	}
 
 	if (oh->flags & HWMOD_OPT_CLKS_NEEDED)
@@ -1851,23 +1853,6 @@ static int _omap4_get_context_lost(struct omap_hwmod *oh)
 }
 
 /**
- * _enable_preprogram - Pre-program an IP block during the _enable() process
- * @oh: struct omap_hwmod *
- *
- * Some IP blocks (such as AESS) require some additional programming
- * after enable before they can enter idle.  If a function pointer to
- * do so is present in the hwmod data, then call it and pass along the
- * return value; otherwise, return 0.
- */
-static int _enable_preprogram(struct omap_hwmod *oh)
-{
-	if (!oh->class->enable_preprogram)
-		return 0;
-
-	return oh->class->enable_preprogram(oh);
-}
-
-/**
  * _enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -1950,7 +1935,6 @@ static int _enable(struct omap_hwmod *oh)
 				_update_sysc_cache(oh);
 			_enable_sysc(oh);
 		}
-		r = _enable_preprogram(oh);
 	} else {
 		if (soc_ops.disable_module)
 			soc_ops.disable_module(oh);
@@ -2107,8 +2091,8 @@ static int of_dev_find_hwmod(struct device_node *np,
 		if (res)
 			continue;
 		if (!strcmp(p, oh->name)) {
-			pr_debug("omap_hwmod: dt %s[%i] uses hwmod %s\n",
-				 np->name, i, oh->name);
+			pr_debug("omap_hwmod: dt %pOFn[%i] uses hwmod %s\n",
+				 np, i, oh->name);
 			return i;
 		}
 	}
@@ -2241,8 +2225,8 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 		return -ENOENT;
 
 	if (nr_addr != 1 || nr_size != 1) {
-		pr_err("%s: invalid range for %s->%s\n", __func__,
-		       oh->name, np->name);
+		pr_err("%s: invalid range for %s->%pOFn\n", __func__,
+		       oh->name, np);
 		return -EINVAL;
 	}
 
@@ -2250,8 +2234,8 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 	base = of_translate_address(np, ranges++);
 	size = be32_to_cpup(ranges);
 
-	pr_debug("omap_hwmod: %s %s at 0x%llx size 0x%llx\n",
-		 oh ? oh->name : "", np->name, base, size);
+	pr_debug("omap_hwmod: %s %pOFn at 0x%llx size 0x%llx\n",
+		 oh->name, np, base, size);
 
 	if (oh && oh->mpu_rt_idx) {
 		omap_hwmod_fix_mpu_rt_idx(oh, np, res);
@@ -2329,6 +2313,17 @@ static int __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data,
 	return 0;
 }
 
+static void __init parse_module_flags(struct omap_hwmod *oh,
+				      struct device_node *np)
+{
+	if (of_find_property(np, "ti,no-reset-on-init", NULL))
+		oh->flags |= HWMOD_INIT_NO_RESET;
+	if (of_find_property(np, "ti,no-idle-on-init", NULL))
+		oh->flags |= HWMOD_INIT_NO_IDLE;
+	if (of_find_property(np, "ti,no-idle", NULL))
+		oh->flags |= HWMOD_NO_IDLE;
+}
+
 /**
  * _init - initialize internal data for the hwmod @oh
  * @oh: struct omap_hwmod *
@@ -2359,8 +2354,8 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 	if (r)
 		pr_debug("omap_hwmod: %s missing dt data\n", oh->name);
 	else if (np && index)
-		pr_warn("omap_hwmod: %s using broken dt data from %s\n",
-			oh->name, np->name);
+		pr_warn("omap_hwmod: %s using broken dt data from %pOFn\n",
+			oh->name, np);
 
 	r = _init_mpu_rt_base(oh, NULL, index, np);
 	if (r < 0) {
@@ -2376,12 +2371,12 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 	}
 
 	if (np) {
-		if (of_find_property(np, "ti,no-reset-on-init", NULL))
-			oh->flags |= HWMOD_INIT_NO_RESET;
-		if (of_find_property(np, "ti,no-idle-on-init", NULL))
-			oh->flags |= HWMOD_INIT_NO_IDLE;
-		if (of_find_property(np, "ti,no-idle", NULL))
-			oh->flags |= HWMOD_NO_IDLE;
+		struct device_node *child;
+
+		parse_module_flags(oh, np);
+		child = of_get_next_child(np, NULL);
+		if (child)
+			parse_module_flags(oh, child);
 	}
 
 	oh->_state = _HWMOD_STATE_INITIALIZED;
@@ -2397,7 +2392,7 @@ static int __init _init(struct omap_hwmod *oh, void *data)
  * a stub; implementing this properly requires iclk autoidle usecounting in
  * the clock code.   No return value.
  */
-static void __init _setup_iclk_autoidle(struct omap_hwmod *oh)
+static void _setup_iclk_autoidle(struct omap_hwmod *oh)
 {
 	struct omap_hwmod_ocp_if *os;
 
@@ -2409,9 +2404,13 @@ static void __init _setup_iclk_autoidle(struct omap_hwmod *oh)
 			continue;
 
 		if (os->flags & OCPIF_SWSUP_IDLE) {
-			/* XXX omap_iclk_deny_idle(c); */
+			/*
+			 * we might have multiple users of one iclk with
+			 * different requirements, disable autoidle when
+			 * the module is enabled, e.g. dss iclk
+			 */
 		} else {
-			/* XXX omap_iclk_allow_idle(c); */
+			/* we are enabling autoidle afterwards anyways */
 			clk_enable(os->_clk);
 		}
 	}
@@ -2428,9 +2427,9 @@ static void __init _setup_iclk_autoidle(struct omap_hwmod *oh)
  * reset.  Returns 0 upon success or a negative error code upon
  * failure.
  */
-static int __init _setup_reset(struct omap_hwmod *oh)
+static int _setup_reset(struct omap_hwmod *oh)
 {
-	int r;
+	int r = 0;
 
 	if (oh->_state != _HWMOD_STATE_INITIALIZED)
 		return -EINVAL;
@@ -2489,7 +2488,7 @@ static int __init _setup_reset(struct omap_hwmod *oh)
  *
  * No return value.
  */
-static void __init _setup_postsetup(struct omap_hwmod *oh)
+static void _setup_postsetup(struct omap_hwmod *oh)
 {
 	u8 postsetup_state;
 
@@ -2589,7 +2588,7 @@ static int _setup(struct omap_hwmod *oh, void *data)
  * that the copy process would be relatively complex due to the large number
  * of substructures.
  */
-static int __init _register(struct omap_hwmod *oh)
+static int _register(struct omap_hwmod *oh)
 {
 	if (!oh || !oh->name || !oh->class || !oh->class->name ||
 	    (oh->_state != _HWMOD_STATE_UNKNOWN))
@@ -2628,7 +2627,7 @@ static int __init _register(struct omap_hwmod *oh)
  * locking in this code.  Changes to this assumption will require
  * additional locking.  Returns 0.
  */
-static int __init _add_link(struct omap_hwmod_ocp_if *oi)
+static int _add_link(struct omap_hwmod_ocp_if *oi)
 {
 	pr_debug("omap_hwmod: %s -> %s: adding link\n", oi->master->name,
 		 oi->slave->name);
@@ -3149,15 +3148,14 @@ static int omap_hwmod_check_sysc(struct device *dev,
 /**
  * omap_hwmod_init_regbits - init sysconfig specific register bits
  * @dev: struct device
+ * @oh: module
  * @data: module data
  * @sysc_fields: new sysc configuration
  */
-static int omap_hwmod_init_regbits(struct device *dev,
+static int omap_hwmod_init_regbits(struct device *dev, struct omap_hwmod *oh,
 				   const struct ti_sysc_module_data *data,
 				   struct sysc_regbits **sysc_fields)
 {
-	*sysc_fields = NULL;
-
 	switch (data->cap->type) {
 	case TI_SYSC_OMAP2:
 	case TI_SYSC_OMAP2_TIMER:
@@ -3192,6 +3190,12 @@ static int omap_hwmod_init_regbits(struct device *dev,
 		*sysc_fields = &omap_hwmod_sysc_type_usb_host_fs;
 		break;
 	default:
+		*sysc_fields = NULL;
+		if (!oh->class->sysc->sysc_fields)
+			return 0;
+
+		dev_err(dev, "sysc_fields not found\n");
+
 		return -EINVAL;
 	}
 
@@ -3206,9 +3210,10 @@ static int omap_hwmod_init_regbits(struct device *dev,
  * @sysc_offs: sysc register offset
  * @syss_offs: syss register offset
  */
-int omap_hwmod_init_reg_offs(struct device *dev,
-			     const struct ti_sysc_module_data *data,
-			     s32 *rev_offs, s32 *sysc_offs, s32 *syss_offs)
+static int omap_hwmod_init_reg_offs(struct device *dev,
+				    const struct ti_sysc_module_data *data,
+				    s32 *rev_offs, s32 *sysc_offs,
+				    s32 *syss_offs)
 {
 	*rev_offs = -ENODEV;
 	*sysc_offs = 0;
@@ -3232,9 +3237,9 @@ int omap_hwmod_init_reg_offs(struct device *dev,
  * @data: module data
  * @sysc_flags: module configuration
  */
-int omap_hwmod_init_sysc_flags(struct device *dev,
-			       const struct ti_sysc_module_data *data,
-			       u32 *sysc_flags)
+static int omap_hwmod_init_sysc_flags(struct device *dev,
+				      const struct ti_sysc_module_data *data,
+				      u32 *sysc_flags)
 {
 	*sysc_flags = 0;
 
@@ -3306,9 +3311,9 @@ int omap_hwmod_init_sysc_flags(struct device *dev,
  * @data: module data
  * @idlemodes: module supported idle modes
  */
-int omap_hwmod_init_idlemodes(struct device *dev,
-			      const struct ti_sysc_module_data *data,
-			      u32 *idlemodes)
+static int omap_hwmod_init_idlemodes(struct device *dev,
+				     const struct ti_sysc_module_data *data,
+				     u32 *idlemodes)
 {
 	*idlemodes = 0;
 
@@ -3356,9 +3361,9 @@ static int omap_hwmod_check_module(struct device *dev,
 	if (!oh->class->sysc)
 		return -ENODEV;
 
-	if (sysc_fields != oh->class->sysc->sysc_fields)
-		dev_warn(dev, "sysc_fields %p != %p\n", sysc_fields,
-			 oh->class->sysc->sysc_fields);
+	if (oh->class->sysc->sysc_fields &&
+	    sysc_fields != oh->class->sysc->sysc_fields)
+		dev_warn(dev, "sysc_fields mismatch\n");
 
 	if (rev_offs != oh->class->sysc->rev_offs)
 		dev_warn(dev, "rev_offs %08x != %08x\n", rev_offs,
@@ -3391,6 +3396,7 @@ static int omap_hwmod_check_module(struct device *dev,
  * @dev: struct device
  * @oh: module
  * @sysc_fields: sysc register bits
+ * @clockdomain: clockdomain
  * @rev_offs: revision register offset
  * @sysc_offs: sysconfig register offset
  * @syss_offs: sysstatus register offset
@@ -3399,14 +3405,17 @@ static int omap_hwmod_check_module(struct device *dev,
  *
  * Note that the allocations here cannot use devm as ti-sysc can rebind.
  */
-int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
-			       const struct ti_sysc_module_data *data,
-			       struct sysc_regbits *sysc_fields,
-			       s32 rev_offs, s32 sysc_offs, s32 syss_offs,
-			       u32 sysc_flags, u32 idlemodes)
+static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
+				      const struct ti_sysc_module_data *data,
+				      struct sysc_regbits *sysc_fields,
+				      struct clockdomain *clkdm,
+				      s32 rev_offs, s32 sysc_offs,
+				      s32 syss_offs, u32 sysc_flags,
+				      u32 idlemodes)
 {
 	struct omap_hwmod_class_sysconfig *sysc;
-	struct omap_hwmod_class *class;
+	struct omap_hwmod_class *class = NULL;
+	struct omap_hwmod_ocp_if *oi = NULL;
 	void __iomem *regs = NULL;
 	unsigned long flags;
 
@@ -3426,28 +3435,108 @@ int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 		regs = ioremap(data->module_pa,
 			       data->module_size);
 		if (!regs)
-			return -ENOMEM;
+			goto out_free_sysc;
 	}
 
 	/*
-	 * We need new oh->class as the other devices in the same class
+	 * We may need a new oh->class as the other devices in the same class
 	 * may not yet have ioremapped their registers.
 	 */
-	class = kmemdup(oh->class, sizeof(*oh->class), GFP_KERNEL);
-	if (!class)
-		return -ENOMEM;
+	if (oh->class->name && strcmp(oh->class->name, data->name)) {
+		class = kmemdup(oh->class, sizeof(*oh->class), GFP_KERNEL);
+		if (!class)
+			goto out_unmap;
+	}
 
-	class->sysc = sysc;
+	if (list_empty(&oh->slave_ports)) {
+		oi = kcalloc(1, sizeof(*oi), GFP_KERNEL);
+		if (!oi)
+			goto out_free_class;
+
+		/*
+		 * Note that we assume interconnect interface clocks will be
+		 * managed by the interconnect driver for OCPIF_SWSUP_IDLE case
+		 * on omap24xx and omap3.
+		 */
+		oi->slave = oh;
+		oi->user = OCP_USER_MPU | OCP_USER_SDMA;
+	}
 
 	spin_lock_irqsave(&oh->_lock, flags);
 	if (regs)
 		oh->_mpu_rt_va = regs;
-	oh->class = class;
+	if (class)
+		oh->class = class;
+	oh->class->sysc = sysc;
+	if (oi)
+		_add_link(oi);
+	if (clkdm)
+		oh->clkdm = clkdm;
 	oh->_state = _HWMOD_STATE_INITIALIZED;
+	oh->_postsetup_state = _HWMOD_STATE_DEFAULT;
 	_setup(oh, NULL);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
+
+out_free_class:
+	kfree(class);
+out_unmap:
+	iounmap(regs);
+out_free_sysc:
+	kfree(sysc);
+	return -ENOMEM;
+}
+
+static const struct omap_hwmod_reset omap24xx_reset_quirks[] = {
+	{ .match = "msdi", .len = 4, .reset = omap_msdi_reset, },
+};
+
+static const struct omap_hwmod_reset dra7_reset_quirks[] = {
+	{ .match = "pcie", .len = 4, .reset = dra7xx_pciess_reset, },
+};
+
+static const struct omap_hwmod_reset omap_reset_quirks[] = {
+	{ .match = "dss_core", .len = 8, .reset = omap_dss_reset, },
+	{ .match = "hdq1w", .len = 5, .reset = omap_hdq1w_reset, },
+	{ .match = "i2c", .len = 3, .reset = omap_i2c_reset, },
+	{ .match = "wd_timer", .len = 8, .reset = omap2_wd_timer_reset, },
+};
+
+static void
+omap_hwmod_init_reset_quirk(struct device *dev, struct omap_hwmod *oh,
+			    const struct ti_sysc_module_data *data,
+			    const struct omap_hwmod_reset *quirks,
+			    int quirks_sz)
+{
+	const struct omap_hwmod_reset *quirk;
+	int i;
+
+	for (i = 0; i < quirks_sz; i++) {
+		quirk = &quirks[i];
+		if (!strncmp(data->name, quirk->match, quirk->len)) {
+			oh->class->reset = quirk->reset;
+
+			return;
+		}
+	}
+}
+
+static void
+omap_hwmod_init_reset_quirks(struct device *dev, struct omap_hwmod *oh,
+			     const struct ti_sysc_module_data *data)
+{
+	if (soc_is_omap24xx())
+		omap_hwmod_init_reset_quirk(dev, oh, data,
+					    omap24xx_reset_quirks,
+					    ARRAY_SIZE(omap24xx_reset_quirks));
+
+	if (soc_is_dra7xx())
+		omap_hwmod_init_reset_quirk(dev, oh, data, dra7_reset_quirks,
+					    ARRAY_SIZE(dra7_reset_quirks));
+
+	omap_hwmod_init_reset_quirk(dev, oh, data, omap_reset_quirks,
+				    ARRAY_SIZE(omap_reset_quirks));
 }
 
 /**
@@ -3466,16 +3555,39 @@ int omap_hwmod_init_module(struct device *dev,
 	u32 sysc_flags, idlemodes;
 	int error;
 
-	if (!dev || !data)
+	if (!dev || !data || !data->name || !cookie)
 		return -EINVAL;
 
 	oh = _lookup(data->name);
-	if (!oh)
-		return -ENODEV;
+	if (!oh) {
+		oh = kzalloc(sizeof(*oh), GFP_KERNEL);
+		if (!oh)
+			return -ENOMEM;
+
+		oh->name = data->name;
+		oh->_state = _HWMOD_STATE_UNKNOWN;
+		lockdep_register_key(&oh->hwmod_key);
+
+		/* Unused, can be handled by PRM driver handling resets */
+		oh->prcm.omap4.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT;
+
+		oh->class = kzalloc(sizeof(*oh->class), GFP_KERNEL);
+		if (!oh->class) {
+			kfree(oh);
+			return -ENOMEM;
+		}
+
+		omap_hwmod_init_reset_quirks(dev, oh, data);
+
+		oh->class->name = data->name;
+		mutex_lock(&list_lock);
+		error = _register(oh);
+		mutex_unlock(&list_lock);
+	}
 
 	cookie->data = oh;
 
-	error = omap_hwmod_init_regbits(dev, data, &sysc_fields);
+	error = omap_hwmod_init_regbits(dev, oh, data, &sysc_fields);
 	if (error)
 		return error;
 
@@ -3492,10 +3604,20 @@ int omap_hwmod_init_module(struct device *dev,
 	if (error)
 		return error;
 
+	if (data->cfg->quirks & SYSC_QUIRK_NO_IDLE)
+		oh->flags |= HWMOD_NO_IDLE;
 	if (data->cfg->quirks & SYSC_QUIRK_NO_IDLE_ON_INIT)
 		oh->flags |= HWMOD_INIT_NO_IDLE;
 	if (data->cfg->quirks & SYSC_QUIRK_NO_RESET_ON_INIT)
 		oh->flags |= HWMOD_INIT_NO_RESET;
+	if (data->cfg->quirks & SYSC_QUIRK_USE_CLOCKACT)
+		oh->flags |= HWMOD_SET_DEFAULT_CLOCKACT;
+	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_SIDLE)
+		oh->flags |= HWMOD_SWSUP_SIDLE;
+	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_SIDLE_ACT)
+		oh->flags |= HWMOD_SWSUP_SIDLE_ACT;
+	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_MSTANDBY)
+		oh->flags |= HWMOD_SWSUP_MSTANDBY;
 
 	error = omap_hwmod_check_module(dev, oh, data, sysc_fields,
 					rev_offs, sysc_offs, syss_offs,
@@ -3504,7 +3626,8 @@ int omap_hwmod_init_module(struct device *dev,
 		return error;
 
 	return omap_hwmod_allocate_module(dev, oh, data, sysc_fields,
-					  rev_offs, sysc_offs, syss_offs,
+					  cookie->clkdm, rev_offs,
+					  sysc_offs, syss_offs,
 					  sysc_flags, idlemodes);
 }
 
@@ -3705,70 +3828,6 @@ void __iomem *omap_hwmod_get_mpu_rt_va(struct omap_hwmod *oh)
  * XXX what about functions for drivers to save/restore ocp_sysconfig
  * for context save/restore operations?
  */
-
-/**
- * omap_hwmod_enable_wakeup - allow device to wake up the system
- * @oh: struct omap_hwmod *
- *
- * Sets the module OCP socket ENAWAKEUP bit to allow the module to
- * send wakeups to the PRCM, and enable I/O ring wakeup events for
- * this IP block if it has dynamic mux entries.  Eventually this
- * should set PRCM wakeup registers to cause the PRCM to receive
- * wakeup events from the module.  Does not set any wakeup routing
- * registers beyond this point - if the module is to wake up any other
- * module or subsystem, that must be set separately.  Called by
- * omap_device code.  Returns -EINVAL on error or 0 upon success.
- */
-int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
-{
-	unsigned long flags;
-	u32 v;
-
-	spin_lock_irqsave(&oh->_lock, flags);
-
-	if (oh->class->sysc &&
-	    (oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP)) {
-		v = oh->_sysc_cache;
-		_enable_wakeup(oh, &v);
-		_write_sysconfig(v, oh);
-	}
-
-	spin_unlock_irqrestore(&oh->_lock, flags);
-
-	return 0;
-}
-
-/**
- * omap_hwmod_disable_wakeup - prevent device from waking the system
- * @oh: struct omap_hwmod *
- *
- * Clears the module OCP socket ENAWAKEUP bit to prevent the module
- * from sending wakeups to the PRCM, and disable I/O ring wakeup
- * events for this IP block if it has dynamic mux entries.  Eventually
- * this should clear PRCM wakeup registers to cause the PRCM to ignore
- * wakeup events from the module.  Does not set any wakeup routing
- * registers beyond this point - if the module is to wake up any other
- * module or subsystem, that must be set separately.  Called by
- * omap_device code.  Returns -EINVAL on error or 0 upon success.
- */
-int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
-{
-	unsigned long flags;
-	u32 v;
-
-	spin_lock_irqsave(&oh->_lock, flags);
-
-	if (oh->class->sysc &&
-	    (oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP)) {
-		v = oh->_sysc_cache;
-		_disable_wakeup(oh, &v);
-		_write_sysconfig(v, oh);
-	}
-
-	spin_unlock_irqrestore(&oh->_lock, flags);
-
-	return 0;
-}
 
 /**
  * omap_hwmod_assert_hardreset - assert the HW reset line of submodules

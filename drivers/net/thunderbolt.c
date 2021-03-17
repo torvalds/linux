@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Networking over Thunderbolt cable using Apple ThunderboltIP protocol
  *
@@ -5,10 +6,6 @@
  * Authors: Amir Levy <amir.jer.levy@intel.com>
  *          Michael Jamet <michael.jamet@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/atomic.h>
@@ -869,8 +866,8 @@ static int tbnet_open(struct net_device *dev)
 	eof_mask = BIT(TBIP_PDF_FRAME_END);
 
 	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, TBNET_RING_SIZE,
-				RING_FLAG_FRAME | RING_FLAG_E2E, sof_mask,
-				eof_mask, tbnet_start_poll, net);
+				RING_FLAG_FRAME, sof_mask, eof_mask,
+				tbnet_start_poll, net);
 	if (!ring) {
 		netdev_err(dev, "failed to allocate Rx ring\n");
 		tb_ring_free(net->tx_ring.ring);
@@ -1008,7 +1005,7 @@ static void *tbnet_kmap_frag(struct sk_buff *skb, unsigned int frag_num,
 	const skb_frag_t *frag = &skb_shinfo(skb)->frags[frag_num];
 
 	*len = skb_frag_size(frag);
-	return kmap_atomic(skb_frag_page(frag)) + frag->page_offset;
+	return kmap_atomic(skb_frag_page(frag)) + skb_frag_off(frag);
 }
 
 static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
@@ -1285,6 +1282,7 @@ static int __maybe_unused tbnet_suspend(struct device *dev)
 		tbnet_tear_down(net, true);
 	}
 
+	tb_unregister_protocol_handler(&net->handler);
 	return 0;
 }
 
@@ -1292,6 +1290,8 @@ static int __maybe_unused tbnet_resume(struct device *dev)
 {
 	struct tb_service *svc = tb_to_service(dev);
 	struct tbnet *net = tb_service_get_drvdata(svc);
+
+	tb_register_protocol_handler(&net->handler);
 
 	netif_carrier_off(net->dev);
 	if (netif_running(net->dev)) {
@@ -1335,6 +1335,10 @@ static int __init tbnet_init(void)
 	tb_property_add_immediate(tbnet_dir, "prtcid", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcvers", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcrevs", 1);
+	/* Currently only announce support for match frags ID (bit 1). Bit 0
+	 * is reserved for full E2E flow control which we do not support at
+	 * the moment.
+	 */
 	tb_property_add_immediate(tbnet_dir, "prtcstns",
 				  TBNET_MATCH_FRAGS_ID);
 

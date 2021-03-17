@@ -1,8 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 / {
 	gpio_keys {
@@ -69,6 +65,7 @@
 		pinctrl-0 = <&pwm_pins>;
 		ti,timers = <&timer10>;
 		#pwm-cells = <3>;
+		ti,clock-source = <0x01>;
 	};
 
 };
@@ -84,6 +81,8 @@
 };
 
 &mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
 	status = "okay";
 };
 
@@ -105,14 +104,20 @@
 	};
 };
 
+&hdqw1w {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdq_pins>;
+};
+
+
 &vpll2 {
 	regulator-always-on;
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 	vdds_dsi-supply = <&vpll2>;
-	vdda_video-supply = <&video_reg>;
+	vdda_video-supply = <&vpll2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&dss_dpi_pins1>;
 	port {
@@ -128,43 +133,18 @@
 		display0 = &lcd0;
 	};
 
-	video_reg: video_reg {
+	lcd0: display {
+		/* This isn't the exact LCD, but the timings meet spec */
+		compatible = "newhaven,nhd-4.3-480272ef-atxl";
+		label = "15";
 		pinctrl-names = "default";
 		pinctrl-0 = <&panel_pwr_pins>;
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-supply";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio5 27 GPIO_ACTIVE_HIGH>;	/* gpio155, lcd INI */
-	};
-
-	lcd0: display {
-		compatible = "panel-dpi";
-		label = "15";
-		status = "okay";
-		/* default-on; */
-		pinctrl-names = "default";
-
+		backlight = <&bl>;
+		enable-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;
 		port {
 			lcd_in: endpoint {
 				remote-endpoint = <&dpi_out>;
 			};
-		};
-
-		panel-timing {
-			clock-frequency = <9000000>;
-			hactive = <480>;
-			vactive = <272>;
-			hfront-porch = <3>;
-			hback-porch = <2>;
-			hsync-len = <42>;
-			vback-porch = <3>;
-			vfront-porch = <4>;
-			vsync-len = <11>;
-			hsync-active = <0>;
-			vsync-active = <0>;
-			de-active = <1>;
-			pixelclk-active = <1>;
 		};
 	};
 
@@ -194,6 +174,12 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d6, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_clk.gpio_178 */
 			OMAP3_CORE1_IOPAD(0x21dc, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_cs0.gpio_181 */
+		>;
+	};
+
+	hdq_pins: hdq_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21c6, PIN_INPUT_PULLUP | MUX_MODE0) /* hdq_sio */
 		>;
 	};
 

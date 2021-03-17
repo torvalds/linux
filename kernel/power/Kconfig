@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SUSPEND
 	bool "Suspend to RAM and standby"
 	depends on ARCH_SUSPEND_POSSIBLE
 	default y
-	---help---
+	help
 	  Allow the system to enter sleep states in which main memory is
 	  powered and thus its contents are preserved, such as the
 	  suspend-to-RAM state (e.g. the ACPI S3 state).
@@ -26,7 +27,10 @@ config SUSPEND_SKIP_SYNC
 	  Skip the kernel sys_sync() before freezing user processes.
 	  Some systems prefer not to pay this cost on every invocation
 	  of suspend, or they are content with invoking sync() from
-	  user-space before invoking suspend.  Say Y if that's your case.
+	  user-space before invoking suspend.  There's a run-time switch
+	  at '/sys/power/sync_on_suspend' to configure this behaviour.
+	  This setting changes the default for the run-tim switch. Say Y
+	  to change the default to disable the kernel sys_sync().
 
 config HIBERNATE_CALLBACKS
 	bool
@@ -38,7 +42,7 @@ config HIBERNATION
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
 	select CRC32
-	---help---
+	help
 	  Enable the suspend to disk (STD) functionality, which is usually
 	  called "hibernation" in user interfaces.  STD checkpoints the
 	  system and powers it off; and restores that checkpoint on reboot.
@@ -65,7 +69,7 @@ config HIBERNATION
 	  need to run mkswap against the swap partition used for the suspend.
 
 	  It also works with swap files to a limited extent (for details see
-	  <file:Documentation/power/swsusp-and-swap-files.txt>).
+	  <file:Documentation/power/swsusp-and-swap-files.rst>).
 
 	  Right now you may boot without resuming and resume later but in the
 	  meantime you cannot use the swap partition(s)/file(s) involved in
@@ -74,16 +78,25 @@ config HIBERNATION
 	  MOUNT any journaled filesystems mounted before the suspend or they
 	  will get corrupted in a nasty way.
 
-	  For more information take a look at <file:Documentation/power/swsusp.txt>.
+	  For more information take a look at <file:Documentation/power/swsusp.rst>.
 
-config ARCH_SAVE_PAGE_KEYS
-	bool
+config HIBERNATION_SNAPSHOT_DEV
+	bool "Userspace snapshot device"
+	depends on HIBERNATION
+	default y
+	help
+	  Device used by the uswsusp tools.
+
+	  Say N if no snapshotting from userspace is needed, this also
+	  reduces the attack surface of the kernel.
+
+	  If in doubt, say Y.
 
 config PM_STD_PARTITION
 	string "Default resume partition"
 	depends on HIBERNATION
 	default ""
-	---help---
+	help
 	  The default resume partition is the partition that the suspend-
 	  to-disk implementation will look for a suspended disk image. 
 
@@ -114,11 +127,20 @@ config PM_SLEEP_SMP
 	depends on PM_SLEEP
 	select HOTPLUG_CPU
 
+config PM_SLEEP_SMP_NONZERO_CPU
+	def_bool y
+	depends on PM_SLEEP_SMP
+	depends on ARCH_SUSPEND_NONZERO_CPU
+	help
+	If an arch can suspend (for suspend, hibernate, kexec, etc) on a
+	non-zero numbered CPU, it may define ARCH_SUSPEND_NONZERO_CPU. This
+	will allow nohz_full mask to include CPU0.
+
 config PM_AUTOSLEEP
 	bool "Opportunistic sleep"
 	depends on PM_SLEEP
 	default n
-	---help---
+	help
 	Allow the kernel to trigger a system transition into a global sleep
 	state automatically whenever there are no active wakeup sources.
 
@@ -126,7 +148,7 @@ config PM_WAKELOCKS
 	bool "User space wakeup sources interface"
 	depends on PM_SLEEP
 	default n
-	---help---
+	help
 	Allow user space to create, activate and deactivate wakeup source
 	objects with the help of a sysfs-based interface.
 
@@ -143,7 +165,7 @@ config PM_WAKELOCKS_GC
 
 config PM
 	bool "Device power management core functionality"
-	---help---
+	help
 	  Enable functionality allowing I/O devices to be put into energy-saving
 	  (low power) states, for example after a specified period of inactivity
 	  (autosuspended), and woken up in response to a hardware-generated
@@ -157,7 +179,7 @@ config PM
 config PM_DEBUG
 	bool "Power Management Debug Support"
 	depends on PM
-	---help---
+	help
 	This option enables various debugging support in the Power Management
 	code. This is helpful when debugging and reporting PM bugs, like
 	suspend support.
@@ -165,7 +187,7 @@ config PM_DEBUG
 config PM_ADVANCED_DEBUG
 	bool "Extra PM attributes in sysfs for low-level debugging/testing"
 	depends on PM_DEBUG
-	---help---
+	help
 	Add extra sysfs attributes allowing one to access some Power Management
 	fields of device objects from user space.  If you are not a kernel
 	developer interested in debugging/testing Power Management, say "no".
@@ -173,7 +195,7 @@ config PM_ADVANCED_DEBUG
 config PM_TEST_SUSPEND
 	bool "Test suspend/resume and wakealarm during bootup"
 	depends on SUSPEND && PM_DEBUG && RTC_CLASS=y
-	---help---
+	help
 	This option will let you suspend your machine during bootup, and
 	make it wake up a few seconds later using an RTC wakeup alarm.
 	Enable this with a kernel parameter like "test_suspend=mem".
@@ -188,7 +210,7 @@ config PM_SLEEP_DEBUG
 config DPM_WATCHDOG
 	bool "Device suspend/resume watchdog"
 	depends on PM_DEBUG && PSTORE && EXPERT
-	---help---
+	help
 	  Sets up a watchdog timer to capture drivers that are
 	  locked up attempting to suspend/resume a device.
 	  A detected lockup causes system panic with message
@@ -221,7 +243,7 @@ config PM_TRACE_RTC
 	depends on PM_SLEEP_DEBUG
 	depends on X86
 	select PM_TRACE
-	---help---
+	help
 	This enables some cheesy code to save the last PM event point in the
 	RTC across reboots, so that you can debug a machine that just hangs
 	during suspend (or more commonly, during resume).
@@ -246,7 +268,7 @@ config APM_EMULATION
 	  notification of APM "events" (e.g. battery status change).
 
 	  In order to use APM, you will need supporting software. For location
-	  and more information, read <file:Documentation/power/apm-acpi.txt>
+	  and more information, read <file:Documentation/power/apm-acpi.rst>
 	  and the Battery Powered Linux mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -298,3 +320,18 @@ config PM_GENERIC_DOMAINS_OF
 
 config CPU_PM
 	bool
+
+config ENERGY_MODEL
+	bool "Energy Model for CPUs"
+	depends on SMP
+	depends on CPU_FREQ
+	default n
+	help
+	  Several subsystems (thermal and/or the task scheduler for example)
+	  can leverage information about the energy consumed by CPUs to make
+	  smarter decisions. This config option enables the framework from
+	  which subsystems can access the energy models.
+
+	  The exact usage of the energy model is subsystem-dependent.
+
+	  If in doubt, say N.

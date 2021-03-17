@@ -43,6 +43,8 @@ static struct cma *vmcp_cma;
 
 static int __init early_parse_vmcp_cma(char *p)
 {
+	if (!p)
+		return 1;
 	vmcp_cma_size = ALIGN(memparse(p, NULL), PAGE_SIZE);
 	return 0;
 }
@@ -68,7 +70,7 @@ static void vmcp_response_alloc(struct vmcp_session *session)
 	 * anymore the system won't work anyway.
 	 */
 	if (order > 2)
-		page = cma_alloc(vmcp_cma, nr_pages, 0, false);
+		page = cma_alloc(vmcp_cma, nr_pages, 0, GFP_KERNEL);
 	if (page) {
 		session->response = (char *)page_to_phys(page);
 		session->cma_alloc = 1;

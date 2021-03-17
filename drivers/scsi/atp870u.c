@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 
  *  Copyright (C) 1997	Wu Ching Chen
  *  2.1.x update (C) 1998  Krzysztof G. Baranowski
@@ -194,12 +195,11 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				((unsigned char *) &adrcnt)[2] = atp_readb_io(dev, c, 0x12);
 				((unsigned char *) &adrcnt)[1] = atp_readb_io(dev, c, 0x13);
 				((unsigned char *) &adrcnt)[0] = atp_readb_io(dev, c, 0x14);
-				if (dev->id[c][target_id].last_len != adrcnt)
-				{
-			   		k = dev->id[c][target_id].last_len;
+				if (dev->id[c][target_id].last_len != adrcnt) {
+					k = dev->id[c][target_id].last_len;
 			   		k -= adrcnt;
 			   		dev->id[c][target_id].tran_len = k;			   
-			   	dev->id[c][target_id].last_len = adrcnt;			   
+					dev->id[c][target_id].last_len = adrcnt;
 				}
 #ifdef ED_DBGP
 				printk("dev->id[c][target_id].last_len = %d dev->id[c][target_id].tran_len = %d\n",dev->id[c][target_id].last_len,dev->id[c][target_id].tran_len);
@@ -1193,7 +1193,7 @@ static void atp870u_free_tables(struct Scsi_Host *host)
 		for (k = 0; k < 16; k++) {
 			if (!atp_dev->id[j][k].prd_table)
 				continue;
-			pci_free_consistent(atp_dev->pdev, 1024, atp_dev->id[j][k].prd_table, atp_dev->id[j][k].prd_bus);
+			dma_free_coherent(&atp_dev->pdev->dev, 1024, atp_dev->id[j][k].prd_table, atp_dev->id[j][k].prd_bus);
 			atp_dev->id[j][k].prd_table = NULL;
 		}
 	}
@@ -1205,7 +1205,7 @@ static int atp870u_init_tables(struct Scsi_Host *host)
 	int c,k;
 	for(c=0;c < 2;c++) {
 	   	for(k=0;k<16;k++) {
-	   			atp_dev->id[c][k].prd_table = pci_alloc_consistent(atp_dev->pdev, 1024, &(atp_dev->id[c][k].prd_bus));
+				atp_dev->id[c][k].prd_table = dma_alloc_coherent(&atp_dev->pdev->dev, 1024, &(atp_dev->id[c][k].prd_bus), GFP_KERNEL);
 	   			if (!atp_dev->id[c][k].prd_table) {
 	   				printk("atp870u_init_tables fail\n");
 				atp870u_free_tables(host);
@@ -1509,7 +1509,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto fail;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
                 printk(KERN_ERR "atp870u: DMA mask required but not available.\n");
                 err = -EIO;
                 goto disable_device;
@@ -1680,8 +1680,7 @@ static struct scsi_host_template atp870u_template = {
      .bios_param        	= atp870u_biosparam	/* biosparm */,
      .can_queue         	= qcnt			/* can_queue */,
      .this_id           	= 7			/* SCSI ID */,
-     .sg_tablesize      	= ATP870U_SCATTER	/*SG_ALL*/ /*SG_NONE*/,
-     .use_clustering    	= ENABLE_CLUSTERING,
+     .sg_tablesize      	= ATP870U_SCATTER	/*SG_ALL*/,
      .max_sectors		= ATP870U_MAX_SECTORS,
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43 wireless driver
@@ -6,23 +7,10 @@
   Copyright (c) 2008 Michael Buesch <m@bues.ch>
   Copyright (c) 2010-2011 Rafał Miłecki <zajec5@gmail.com>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
+#include <linux/cordic.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -110,7 +98,7 @@ static inline bool b43_nphy_ipa(struct b43_wldev *dev)
 		(dev->phy.n->ipa5g_on && band == NL80211_BAND_5GHZ));
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCoreGetState */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCoreGetState */
 static u8 b43_nphy_get_rx_core_state(struct b43_wldev *dev)
 {
 	return (b43_phy_read(dev, B43_NPHY_RFSEQCA) & B43_NPHY_RFSEQCA_RXEN) >>
@@ -121,7 +109,7 @@ static u8 b43_nphy_get_rx_core_state(struct b43_wldev *dev)
  * RF (just without b43_nphy_rf_ctl_intc_override)
  **************************************************/
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ForceRFSeq */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/ForceRFSeq */
 static void b43_nphy_force_rf_sequence(struct b43_wldev *dev,
 				       enum b43_nphy_rf_sequence seq)
 {
@@ -158,7 +146,7 @@ static void b43_nphy_rf_ctl_override_rev19(struct b43_wldev *dev, u16 field,
 	/* TODO */
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverrideRev7 */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverrideRev7 */
 static void b43_nphy_rf_ctl_override_rev7(struct b43_wldev *dev, u16 field,
 					  u16 value, u8 core, bool off,
 					  u8 override)
@@ -205,7 +193,7 @@ static void b43_nphy_rf_ctl_override_rev7(struct b43_wldev *dev, u16 field,
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverideOneToMany */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverideOneToMany */
 static void b43_nphy_rf_ctl_override_one_to_many(struct b43_wldev *dev,
 						 enum n_rf_ctl_over_cmd cmd,
 						 u16 value, u8 core, bool off)
@@ -249,7 +237,7 @@ static void b43_nphy_rf_ctl_override_one_to_many(struct b43_wldev *dev,
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverride */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverride */
 static void b43_nphy_rf_ctl_override(struct b43_wldev *dev, u16 field,
 				     u16 value, u8 core, bool off)
 {
@@ -394,7 +382,7 @@ static void b43_nphy_rf_ctl_intc_override_rev7(struct b43_wldev *dev,
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlIntcOverride */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlIntcOverride */
 static void b43_nphy_rf_ctl_intc_override(struct b43_wldev *dev,
 					  enum n_intc_override intc_override,
 					  u16 value, u8 core)
@@ -502,7 +490,7 @@ static void b43_nphy_rf_ctl_intc_override(struct b43_wldev *dev,
  * Various PHY ops
  **************************************************/
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
 static void b43_nphy_write_clip_detection(struct b43_wldev *dev,
 					  const u16 *clip_st)
 {
@@ -510,14 +498,14 @@ static void b43_nphy_write_clip_detection(struct b43_wldev *dev,
 	b43_phy_write(dev, B43_NPHY_C2_CLIP1THRES, clip_st[1]);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
 static void b43_nphy_read_clip_detection(struct b43_wldev *dev, u16 *clip_st)
 {
 	clip_st[0] = b43_phy_read(dev, B43_NPHY_C1_CLIP1THRES);
 	clip_st[1] = b43_phy_read(dev, B43_NPHY_C2_CLIP1THRES);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/classifier */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/classifier */
 static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 {
 	u16 tmp;
@@ -538,7 +526,7 @@ static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 	return tmp;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CCA */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/CCA */
 static void b43_nphy_reset_cca(struct b43_wldev *dev)
 {
 	u16 bbcfg;
@@ -552,7 +540,7 @@ static void b43_nphy_reset_cca(struct b43_wldev *dev)
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/carriersearch */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/carriersearch */
 static void b43_nphy_stay_in_carrier_search(struct b43_wldev *dev, bool enable)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -576,7 +564,7 @@ static void b43_nphy_stay_in_carrier_search(struct b43_wldev *dev, bool enable)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/PHY/N/Read_Lpf_Bw_Ctl */
+/* https://bcm-v4.sipsolutions.net/PHY/N/Read_Lpf_Bw_Ctl */
 static u16 b43_nphy_read_lpf_ctl(struct b43_wldev *dev, u16 offset)
 {
 	if (!offset)
@@ -584,7 +572,7 @@ static u16 b43_nphy_read_lpf_ctl(struct b43_wldev *dev, u16 offset)
 	return b43_ntab_read(dev, B43_NTAB16(7, offset)) & 0x7;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/AdjustLnaGainTbl */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/AdjustLnaGainTbl */
 static void b43_nphy_adjust_lna_gain_table(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -640,7 +628,7 @@ static void b43_nphy_adjust_lna_gain_table(struct b43_wldev *dev)
 		b43_nphy_stay_in_carrier_search(dev, 0);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SetRfSeq */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/SetRfSeq */
 static void b43_nphy_set_rf_sequence(struct b43_wldev *dev, u8 cmd,
 					u8 *events, u8 *delays, u8 length)
 {
@@ -817,7 +805,7 @@ static void b43_radio_2057_setup(struct b43_wldev *dev,
 }
 
 /* Calibrate resistors in LPF of PLL?
- * http://bcm-v4.sipsolutions.net/PHY/radio205x_rcal
+ * https://bcm-v4.sipsolutions.net/PHY/radio205x_rcal
  */
 static u8 b43_radio_2057_rcal(struct b43_wldev *dev)
 {
@@ -931,7 +919,7 @@ static u8 b43_radio_2057_rcal(struct b43_wldev *dev)
 }
 
 /* Calibrate the internal RC oscillator?
- * http://bcm-v4.sipsolutions.net/PHY/radio2057_rccal
+ * https://bcm-v4.sipsolutions.net/PHY/radio2057_rccal
  */
 static u16 b43_radio_2057_rccal(struct b43_wldev *dev)
 {
@@ -1042,7 +1030,7 @@ static void b43_radio_2057_init_post(struct b43_wldev *dev)
 	b43_radio_mask(dev, R2057_RFPLL_MASTER, ~0x8);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/Radio/2057/Init */
+/* https://bcm-v4.sipsolutions.net/802.11/Radio/2057/Init */
 static void b43_radio_2057_init(struct b43_wldev *dev)
 {
 	b43_radio_2057_init_pre(dev);
@@ -1129,7 +1117,7 @@ static void b43_chantab_radio_2056_upload(struct b43_wldev *dev,
 					e->radio_tx1_mixg_boost_tune);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/Radio/2056Setup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/Radio/2056Setup */
 static void b43_radio_2056_setup(struct b43_wldev *dev,
 				const struct b43_nphy_channeltab_entry_rev3 *e)
 {
@@ -1368,7 +1356,7 @@ static void b43_radio_init2056_post(struct b43_wldev *dev)
 
 /*
  * Initialize a Broadcom 2056 N-radio
- * http://bcm-v4.sipsolutions.net/802.11/Radio/2056/Init
+ * https://bcm-v4.sipsolutions.net/802.11/Radio/2056/Init
  */
 static void b43_radio_init2056(struct b43_wldev *dev)
 {
@@ -1418,7 +1406,7 @@ static void b43_chantab_radio_upload(struct b43_wldev *dev,
 	b43_radio_write(dev, B2055_C2_TX_MXBGTRIM, e->radio_c2_tx_mxbgtrim);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/Radio/2055Setup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/Radio/2055Setup */
 static void b43_radio_2055_setup(struct b43_wldev *dev,
 				const struct b43_nphy_channeltab_entry_rev2 *e)
 {
@@ -1492,7 +1480,7 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 
 /*
  * Initialize a Broadcom 2055 N-radio
- * http://bcm-v4.sipsolutions.net/802.11/Radio/2055/Init
+ * https://bcm-v4.sipsolutions.net/802.11/Radio/2055/Init
  */
 static void b43_radio_init2055(struct b43_wldev *dev)
 {
@@ -1511,9 +1499,9 @@ static void b43_radio_init2055(struct b43_wldev *dev)
  * Samples
  **************************************************/
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/LoadSampleTable */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/LoadSampleTable */
 static int b43_nphy_load_samples(struct b43_wldev *dev,
-					struct b43_c32 *samples, u16 len) {
+					struct cordic_iq *samples, u16 len) {
 	struct b43_phy_n *nphy = dev->phy.n;
 	u16 i;
 	u32 *data;
@@ -1538,13 +1526,13 @@ static int b43_nphy_load_samples(struct b43_wldev *dev,
 	return 0;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GenLoadSamples */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/GenLoadSamples */
 static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 					bool test)
 {
 	int i;
 	u16 bw, len, rot, angle;
-	struct b43_c32 *samples;
+	struct cordic_iq *samples;
 
 	bw = b43_is_40mhz(dev) ? 40 : 20;
 	len = bw << 3;
@@ -1561,7 +1549,7 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 		len = bw << 1;
 	}
 
-	samples = kcalloc(len, sizeof(struct b43_c32), GFP_KERNEL);
+	samples = kcalloc(len, sizeof(struct cordic_iq), GFP_KERNEL);
 	if (!samples) {
 		b43err(dev->wl, "allocation for samples generation failed\n");
 		return 0;
@@ -1570,10 +1558,10 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 	angle = 0;
 
 	for (i = 0; i < len; i++) {
-		samples[i] = b43_cordic(angle);
+		samples[i] = cordic_calc_iq(CORDIC_FIXED(angle));
 		angle += rot;
-		samples[i].q = CORDIC_CONVERT(samples[i].q * max);
-		samples[i].i = CORDIC_CONVERT(samples[i].i * max);
+		samples[i].q = CORDIC_FLOAT(samples[i].q * max);
+		samples[i].i = CORDIC_FLOAT(samples[i].i * max);
 	}
 
 	i = b43_nphy_load_samples(dev, samples, len);
@@ -1581,7 +1569,7 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 	return (i < 0) ? 0 : len;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RunSamples */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RunSamples */
 static void b43_nphy_run_samples(struct b43_wldev *dev, u16 samps, u16 loops,
 				 u16 wait, bool iqmode, bool dac_test,
 				 bool modify_bbmult)
@@ -1662,7 +1650,7 @@ static void b43_nphy_run_samples(struct b43_wldev *dev, u16 samps, u16 loops,
  * RSSI
  **************************************************/
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ScaleOffsetRssi */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/ScaleOffsetRssi */
 static void b43_nphy_scale_offset_rssi(struct b43_wldev *dev, u16 scale,
 					s8 offset, u8 core,
 					enum n_rail_type rail,
@@ -1907,7 +1895,7 @@ static void b43_nphy_rev2_rssi_select(struct b43_wldev *dev, u8 code,
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSISel */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSISel */
 static void b43_nphy_rssi_select(struct b43_wldev *dev, u8 code,
 				 enum n_rssi_type type)
 {
@@ -1919,7 +1907,7 @@ static void b43_nphy_rssi_select(struct b43_wldev *dev, u8 code,
 		b43_nphy_rev2_rssi_select(dev, code, type);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SetRssi2055Vcm */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/SetRssi2055Vcm */
 static void b43_nphy_set_rssi_2055_vcm(struct b43_wldev *dev,
 				       enum n_rssi_type rssi_type, u8 *buf)
 {
@@ -1948,7 +1936,7 @@ static void b43_nphy_set_rssi_2055_vcm(struct b43_wldev *dev,
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/PollRssi */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/PollRssi */
 static int b43_nphy_poll_rssi(struct b43_wldev *dev, enum n_rssi_type rssi_type,
 			      s32 *buf, u8 nsamp)
 {
@@ -2037,7 +2025,7 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, enum n_rssi_type rssi_type,
 	return out;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICalRev3 */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICalRev3 */
 static void b43_nphy_rev3_rssi_cal(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -2299,7 +2287,7 @@ static void b43_nphy_rev3_rssi_cal(struct b43_wldev *dev)
 	b43_nphy_write_clip_detection(dev, clip_state);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICal */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICal */
 static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, enum n_rssi_type type)
 {
 	int i, j, vcm;
@@ -2465,7 +2453,7 @@ static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, enum n_rssi_type type)
 
 /*
  * RSSI Calibration
- * http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICal
+ * https://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICal
  */
 static void b43_nphy_rssi_cal(struct b43_wldev *dev)
 {
@@ -2692,7 +2680,7 @@ static void b43_nphy_gain_ctl_workarounds_rev1_2(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_PHY_N(0xC5D), 0xFF80, 4);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/WorkaroundsGainCtrl */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/WorkaroundsGainCtrl */
 static void b43_nphy_gain_ctl_workarounds(struct b43_wldev *dev)
 {
 	if (dev->phy.rev >= 19)
@@ -3251,7 +3239,7 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 		if (!(dev->phy.rev >= 4 &&
 		      b43_current_band(dev->wl) == NL80211_BAND_2GHZ))
 			break;
-		/* FALL THROUGH */
+		fallthrough;
 	case 0:
 	case 1:
 		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x08), 4, vmid);
@@ -3354,8 +3342,9 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_ED_CRS20UDEASSERTTHRESH0, 0x0381);
 	b43_phy_write(dev, B43_NPHY_ED_CRS20UDEASSERTTHRESH1, 0x0381);
 
-	if (dev->phy.rev >= 6 && sprom->boardflags2_lo & B43_BFL2_SINGLEANT_CCK)
+	if (dev->phy.rev >= 6 && sprom->boardflags2_lo & B43_BFL2_SINGLEANT_CCK) {
 		; /* TODO: 0x0080000000000000 HF */
+	}
 }
 
 static void b43_nphy_workarounds_rev1_2(struct b43_wldev *dev)
@@ -3445,7 +3434,7 @@ static void b43_nphy_workarounds_rev1_2(struct b43_wldev *dev)
 				B43_NPHY_FINERX2_CGC_DECGC);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/Workarounds */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/Workarounds */
 static void b43_nphy_workarounds(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -3480,7 +3469,7 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 
 /*
  * Transmits a known value for LO calibration
- * http://bcm-v4.sipsolutions.net/802.11/PHY/N/TXTone
+ * https://bcm-v4.sipsolutions.net/802.11/PHY/N/TXTone
  */
 static int b43_nphy_tx_tone(struct b43_wldev *dev, u32 freq, u16 max_val,
 			    bool iqmode, bool dac_test, bool modify_bbmult)
@@ -3493,7 +3482,7 @@ static int b43_nphy_tx_tone(struct b43_wldev *dev, u32 freq, u16 max_val,
 	return 0;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/Chains */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/Chains */
 static void b43_nphy_update_txrx_chain(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -3521,7 +3510,7 @@ static void b43_nphy_update_txrx_chain(struct b43_wldev *dev)
 				~B43_NPHY_RFSEQMODE_CAOVER);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/stop-playback */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/stop-playback */
 static void b43_nphy_stop_playback(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -3558,7 +3547,7 @@ static void b43_nphy_stop_playback(struct b43_wldev *dev)
 		b43_nphy_stay_in_carrier_search(dev, 0);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/IqCalGainParams */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/IqCalGainParams */
 static void b43_nphy_iq_cal_gain_params(struct b43_wldev *dev, u16 core,
 					struct nphy_txgains target,
 					struct nphy_iqcal_params *params)
@@ -3607,7 +3596,7 @@ static void b43_nphy_iq_cal_gain_params(struct b43_wldev *dev, u16 core,
  * Tx and Rx
  **************************************************/
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlEnable */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlEnable */
 static void b43_nphy_tx_power_ctrl(struct b43_wldev *dev, bool enable)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -3744,7 +3733,7 @@ static void b43_nphy_tx_power_ctrl(struct b43_wldev *dev, bool enable)
 		b43_nphy_stay_in_carrier_search(dev, 0);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrFix */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrFix */
 static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -3938,7 +3927,7 @@ static void b43_nphy_ipa_internal_tssi_setup(struct b43_wldev *dev)
 /*
  * Stop radio and transmit known signal. Then check received signal strength to
  * get TSSI (Transmit Signal Strength Indicator).
- * http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlIdleTssi
+ * https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlIdleTssi
  */
 static void b43_nphy_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 {
@@ -3990,7 +3979,7 @@ static void b43_nphy_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 	nphy->pwr_ctl_info[1].idle_tssi_2g = (tmp >> 8) & 0xFF;
 }
 
-/* http://bcm-v4.sipsolutions.net/PHY/N/TxPwrLimitToTbl */
+/* https://bcm-v4.sipsolutions.net/PHY/N/TxPwrLimitToTbl */
 static void b43_nphy_tx_prepare_adjusted_power_table(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -4051,7 +4040,7 @@ static void b43_nphy_tx_prepare_adjusted_power_table(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlSetup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlSetup */
 static void b43_nphy_tx_power_ctl_setup(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -4234,7 +4223,7 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
 	u32 rfpwr_offset;
 	u8 pga_gain, pad_gain;
 	int i;
-	const s16 *uninitialized_var(rf_pwr_offset_table);
+	const s16 *rf_pwr_offset_table = NULL;
 
 	table = b43_nphy_get_tx_gain_table(dev);
 	if (!table)
@@ -4284,7 +4273,7 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/PA%20override */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/PA%20override */
 static void b43_nphy_pa_override(struct b43_wldev *dev, bool enable)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -4322,7 +4311,7 @@ static void b43_nphy_pa_override(struct b43_wldev *dev, bool enable)
 
 /*
  * TX low-pass filter bandwidth setup
- * http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxLpFbw
+ * https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxLpFbw
  */
 static void b43_nphy_tx_lpf_bw(struct b43_wldev *dev)
 {
@@ -4345,7 +4334,7 @@ static void b43_nphy_tx_lpf_bw(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqEst */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqEst */
 static void b43_nphy_rx_iq_est(struct b43_wldev *dev, struct nphy_iq_est *est,
 				u16 samps, u8 time, bool wait)
 {
@@ -4384,7 +4373,7 @@ static void b43_nphy_rx_iq_est(struct b43_wldev *dev, struct nphy_iq_est *est,
 	memset(est, 0, sizeof(*est));
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqCoeffs */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqCoeffs */
 static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 					struct b43_phy_n_iq_comp *pcomp)
 {
@@ -4403,7 +4392,7 @@ static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 
 #if 0
 /* Ready but not used anywhere */
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhyCleanup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhyCleanup */
 static void b43_nphy_rx_cal_phy_cleanup(struct b43_wldev *dev, u8 core)
 {
 	u16 *regs = dev->phy.n->tx_rx_cal_phy_saveregs;
@@ -4426,7 +4415,7 @@ static void b43_nphy_rx_cal_phy_cleanup(struct b43_wldev *dev, u8 core)
 	b43_phy_write(dev, B43_NPHY_PAPD_EN1, regs[10]);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhySetup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhySetup */
 static void b43_nphy_rx_cal_phy_setup(struct b43_wldev *dev, u8 core)
 {
 	u8 rxval, txval;
@@ -4488,7 +4477,7 @@ static void b43_nphy_rx_cal_phy_setup(struct b43_wldev *dev, u8 core)
 }
 #endif
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalcRxIqComp */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/CalcRxIqComp */
 static void b43_nphy_calc_rx_iq_comp(struct b43_wldev *dev, u8 mask)
 {
 	int i;
@@ -4586,7 +4575,7 @@ static void b43_nphy_calc_rx_iq_comp(struct b43_wldev *dev, u8 mask)
 	b43_nphy_rx_iq_coeffs(dev, true, &new);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxIqWar */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxIqWar */
 static void b43_nphy_tx_iq_workaround(struct b43_wldev *dev)
 {
 	u16 array[4];
@@ -4598,7 +4587,7 @@ static void b43_nphy_tx_iq_workaround(struct b43_wldev *dev)
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_NPHY_TXIQW3, array[3]);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SpurWar */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/SpurWar */
 static void b43_nphy_spur_workaround(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -4614,10 +4603,11 @@ static void b43_nphy_spur_workaround(struct b43_wldev *dev)
 
 	if (nphy->gband_spurwar_en) {
 		/* TODO: N PHY Adjust Analog Pfbw (7) */
-		if (channel == 11 && b43_is_40mhz(dev))
+		if (channel == 11 && b43_is_40mhz(dev)) {
 			; /* TODO: N PHY Adjust Min Noise Var(2, tone, noise)*/
-		else
+		} else {
 			; /* TODO: N PHY Adjust Min Noise Var(0, NULL, NULL)*/
+		}
 		/* TODO: N PHY Adjust CRS Min Power (0x1E) */
 	}
 
@@ -4647,17 +4637,18 @@ static void b43_nphy_spur_workaround(struct b43_wldev *dev)
 			noise[0] = 0;
 		}
 
-		if (!tone[0] && !noise[0])
+		if (!tone[0] && !noise[0]) {
 			; /* TODO: N PHY Adjust Min Noise Var(1, tone, noise)*/
-		else
+		} else {
 			; /* TODO: N PHY Adjust Min Noise Var(0, NULL, NULL)*/
+		}
 	}
 
 	if (nphy->hang_avoid)
 		b43_nphy_stay_in_carrier_search(dev, 0);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlCoefSetup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlCoefSetup */
 static void b43_nphy_tx_pwr_ctrl_coef_setup(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -4725,7 +4716,7 @@ static void b43_nphy_tx_pwr_ctrl_coef_setup(struct b43_wldev *dev)
 
 /*
  * Restore RSSI Calibration
- * http://bcm-v4.sipsolutions.net/802.11/PHY/N/RestoreRssiCal
+ * https://bcm-v4.sipsolutions.net/802.11/PHY/N/RestoreRssiCal
  */
 static void b43_nphy_restore_rssi_cal(struct b43_wldev *dev)
 {
@@ -4834,7 +4825,7 @@ static void b43_nphy_tx_cal_radio_setup_rev7(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxCalRadioSetup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxCalRadioSetup */
 static void b43_nphy_tx_cal_radio_setup(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -4933,7 +4924,7 @@ static void b43_nphy_tx_cal_radio_setup(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/UpdateTxCalLadder */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/UpdateTxCalLadder */
 static void b43_nphy_update_tx_cal_ladder(struct b43_wldev *dev, u16 core)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -4967,14 +4958,14 @@ static void b43_nphy_pa_set_tx_dig_filter(struct b43_wldev *dev, u16 offset,
 		b43_phy_write(dev, offset, filter[i]);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ExtPaSetTxDigiFilts */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/ExtPaSetTxDigiFilts */
 static void b43_nphy_ext_pa_set_tx_dig_filters(struct b43_wldev *dev)
 {
 	b43_nphy_pa_set_tx_dig_filter(dev, 0x2C5,
 				      tbl_tx_filter_coef_rev4[2]);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/IpaSetTxDigiFilts */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/IpaSetTxDigiFilts */
 static void b43_nphy_int_pa_set_tx_dig_filters(struct b43_wldev *dev)
 {
 	/* B43_NPHY_TXF_20CO_S0A1, B43_NPHY_TXF_40CO_S0A1, unknown */
@@ -5014,7 +5005,7 @@ static void b43_nphy_int_pa_set_tx_dig_filters(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetTxGain */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/GetTxGain */
 static struct nphy_txgains b43_nphy_get_tx_gains(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -5089,7 +5080,7 @@ static struct nphy_txgains b43_nphy_get_tx_gains(struct b43_wldev *dev)
 	return target;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxCalPhyCleanup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxCalPhyCleanup */
 static void b43_nphy_tx_cal_phy_cleanup(struct b43_wldev *dev)
 {
 	u16 *regs = dev->phy.n->tx_rx_cal_phy_saveregs;
@@ -5118,7 +5109,7 @@ static void b43_nphy_tx_cal_phy_cleanup(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxCalPhySetup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxCalPhySetup */
 static void b43_nphy_tx_cal_phy_setup(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -5219,7 +5210,7 @@ static void b43_nphy_tx_cal_phy_setup(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SaveCal */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/SaveCal */
 static void b43_nphy_save_cal(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -5290,7 +5281,7 @@ static void b43_nphy_save_cal(struct b43_wldev *dev)
 		b43_nphy_stay_in_carrier_search(dev, 0);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RestoreCal */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RestoreCal */
 static void b43_nphy_restore_cal(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -5378,7 +5369,7 @@ static void b43_nphy_restore_cal(struct b43_wldev *dev)
 	b43_nphy_rx_iq_coeffs(dev, true, rxcal_coeffs);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalTxIqlo */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/CalTxIqlo */
 static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 				struct nphy_txgains target,
 				bool full, bool mphase)
@@ -5519,7 +5510,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 			core = (cmd & 0x3000) >> 12;
 			type = (cmd & 0x0F00) >> 8;
 
-			if (phy6or5x && updated[core] == 0) {
+			if (phy6or5x && !updated[core]) {
 				b43_nphy_update_tx_cal_ladder(dev, core);
 				updated[core] = true;
 			}
@@ -5611,7 +5602,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 	return error;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ReapplyTxCalCoeffs */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/ReapplyTxCalCoeffs */
 static void b43_nphy_reapply_tx_cal_coeffs(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -5646,7 +5637,7 @@ static void b43_nphy_reapply_tx_cal_coeffs(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalRxIqRev2 */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/CalRxIqRev2 */
 static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 			struct nphy_txgains target, u8 type, bool debug)
 {
@@ -5655,7 +5646,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 	u8 rfctl[2];
 	u8 afectl_core;
 	u16 tmp[6];
-	u16 uninitialized_var(cur_hpf1), uninitialized_var(cur_hpf2), cur_lna;
+	u16 cur_hpf1, cur_hpf2, cur_lna;
 	u32 real, imag;
 	enum nl80211_band band;
 
@@ -5833,7 +5824,7 @@ static int b43_nphy_rev3_cal_rx_iq(struct b43_wldev *dev,
 	return -1;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalRxIq */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/CalRxIq */
 static int b43_nphy_cal_rx_iq(struct b43_wldev *dev,
 			struct nphy_txgains target, u8 type, bool debug)
 {
@@ -5846,7 +5837,7 @@ static int b43_nphy_cal_rx_iq(struct b43_wldev *dev,
 		return b43_nphy_rev2_cal_rx_iq(dev, target, type, debug);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCoreSetState */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCoreSetState */
 static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -5894,7 +5885,6 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 	struct ieee80211_channel *channel = dev->wl->hw->conf.chandef.chan;
 	struct b43_ppr *ppr = &nphy->tx_pwr_max_ppr;
 	u8 max; /* qdBm */
-	bool tx_pwr_state;
 
 	if (nphy->tx_pwr_last_recalc_freq == channel->center_freq &&
 	    nphy->tx_pwr_last_recalc_limit == phy->desired_txpower)
@@ -5930,7 +5920,6 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 	b43_ppr_apply_min(dev, ppr, INT_TO_Q52(8));
 
 	/* Apply */
-	tx_pwr_state = nphy->txpwrctrl;
 	b43_mac_suspend(dev);
 	b43_nphy_tx_power_ctl_setup(dev);
 	if (dev->dev->core_rev == 11 || dev->dev->core_rev == 12) {
@@ -5953,7 +5942,7 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
  * N-PHY init
  **************************************************/
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/MIMOConfig */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/MIMOConfig */
 static void b43_nphy_update_mimo_config(struct b43_wldev *dev, s32 preamble)
 {
 	u16 mimocfg = b43_phy_read(dev, B43_NPHY_MIMOCFG);
@@ -5967,7 +5956,7 @@ static void b43_nphy_update_mimo_config(struct b43_wldev *dev, s32 preamble)
 	b43_phy_write(dev, B43_NPHY_MIMOCFG, mimocfg);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BPHYInit */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/BPHYInit */
 static void b43_nphy_bphy_init(struct b43_wldev *dev)
 {
 	unsigned int i;
@@ -5986,7 +5975,7 @@ static void b43_nphy_bphy_init(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_N_BMODE(0x38), 0x668);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SuperSwitchInit */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/SuperSwitchInit */
 static void b43_nphy_superswitch_init(struct b43_wldev *dev, bool init)
 {
 	if (dev->phy.rev >= 7)
@@ -6043,7 +6032,6 @@ static int b43_phy_initn(struct b43_wldev *dev)
 	u8 tx_pwr_state;
 	struct nphy_txgains target;
 	u16 tmp;
-	enum nl80211_band tmp2;
 	bool do_rssi_cal;
 
 	u16 clip[2];
@@ -6137,7 +6125,6 @@ static int b43_phy_initn(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_DUP40_BL, 0x9A4);
 	}
 
-	tmp2 = b43_current_band(dev->wl);
 	if (b43_nphy_ipa(dev)) {
 		b43_phy_set(dev, B43_NPHY_PAPD_EN0, 0x1);
 		b43_phy_maskset(dev, B43_NPHY_EPS_TABLE_ADJ0, 0x007F,
@@ -6182,8 +6169,9 @@ static int b43_phy_initn(struct b43_wldev *dev)
 
 	if (nphy->phyrxchain != 3)
 		b43_nphy_set_rx_core_state(dev, nphy->phyrxchain);
-	if (nphy->mphase_cal_phase_id > 0)
+	if (nphy->mphase_cal_phase_id > 0) {
 		;/* TODO PHY Periodic Calibration Multi-Phase Restart */
+	}
 
 	do_rssi_cal = false;
 	if (phy->rev >= 3) {
@@ -6227,8 +6215,9 @@ static int b43_phy_initn(struct b43_wldev *dev)
 				if (!b43_nphy_cal_tx_iq_lo(dev, target, true, false))
 					if (b43_nphy_cal_rx_iq(dev, target, 2, 0) == 0)
 						b43_nphy_save_cal(dev);
-			} else if (nphy->mphase_cal_phase_id == 0)
+			} else if (nphy->mphase_cal_phase_id == 0) {
 				;/* N PHY Periodic Calibration with arg 3 */
+			}
 		} else {
 			b43_nphy_restore_cal(dev);
 		}
@@ -6262,7 +6251,7 @@ static void b43_chantab_phy_upload(struct b43_wldev *dev,
 	b43_phy_write(dev, B43_NPHY_BW6, e->phy_bw6);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PmuSpurAvoid */
+/* https://bcm-v4.sipsolutions.net/802.11/PmuSpurAvoid */
 static void b43_nphy_pmu_spur_avoid(struct b43_wldev *dev, bool avoid)
 {
 	switch (dev->dev->bus_type) {
@@ -6281,7 +6270,7 @@ static void b43_nphy_pmu_spur_avoid(struct b43_wldev *dev, bool avoid)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ChanspecSetup */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/ChanspecSetup */
 static void b43_nphy_channel_setup(struct b43_wldev *dev,
 				const struct b43_phy_n_sfo_cfg *e,
 				struct ieee80211_channel *new_channel)
@@ -6388,7 +6377,7 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 		b43_nphy_spur_workaround(dev);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SetChanspec */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/SetChanspec */
 static int b43_nphy_set_channel(struct b43_wldev *dev,
 				struct ieee80211_channel *channel,
 				enum nl80211_channel_type channel_type)
@@ -6605,7 +6594,7 @@ static void b43_nphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 	b43_write16(dev, B43_MMIO_RADIO_DATA_LOW, value);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/Radio/Switch%20Radio */
+/* https://bcm-v4.sipsolutions.net/802.11/Radio/Switch%20Radio */
 static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
 {
@@ -6659,7 +6648,7 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/Anacore */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/Anacore */
 static void b43_nphy_op_switch_analog(struct b43_wldev *dev, bool on)
 {
 	struct b43_phy *phy = &dev->phy;

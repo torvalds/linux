@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_tpg.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2002-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -44,9 +31,6 @@
 #include "target_core_ua.h"
 
 extern struct se_device *g_lun0_dev;
-
-static DEFINE_SPINLOCK(tpg_lock);
-static LIST_HEAD(tpg_list);
 
 /*	__core_tpg_get_initiator_node_acl():
  *
@@ -151,7 +135,7 @@ void core_tpg_add_node_to_devs(
 
 		pr_debug("TARGET_CORE[%s]->TPG[%u]_LUN[%llu] - Adding %s"
 			" access for LUN in Demo Mode\n",
-			tpg->se_tpg_tfo->get_fabric_name(),
+			tpg->se_tpg_tfo->fabric_name,
 			tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 			lun_access_ro ? "READ-ONLY" : "READ-WRITE");
 
@@ -176,7 +160,7 @@ target_set_nacl_queue_depth(struct se_portal_group *tpg,
 
 	if (!acl->queue_depth) {
 		pr_warn("Queue depth for %s Initiator Node: %s is 0,"
-			"defaulting to 1.\n", tpg->se_tpg_tfo->get_fabric_name(),
+			"defaulting to 1.\n", tpg->se_tpg_tfo->fabric_name,
 			acl->initiatorname);
 		acl->queue_depth = 1;
 	}
@@ -227,11 +211,11 @@ static void target_add_node_acl(struct se_node_acl *acl)
 
 	pr_debug("%s_TPG[%hu] - Added %s ACL with TCQ Depth: %d for %s"
 		" Initiator Node: %s\n",
-		tpg->se_tpg_tfo->get_fabric_name(),
+		tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg),
 		acl->dynamic_node_acl ? "DYNAMIC" : "",
 		acl->queue_depth,
-		tpg->se_tpg_tfo->get_fabric_name(),
+		tpg->se_tpg_tfo->fabric_name,
 		acl->initiatorname);
 }
 
@@ -313,7 +297,7 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 		if (acl->dynamic_node_acl) {
 			acl->dynamic_node_acl = 0;
 			pr_debug("%s_TPG[%u] - Replacing dynamic ACL"
-				" for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
+				" for %s\n", tpg->se_tpg_tfo->fabric_name,
 				tpg->se_tpg_tfo->tpg_get_tag(tpg), initiatorname);
 			mutex_unlock(&tpg->acl_node_mutex);
 			return acl;
@@ -321,7 +305,7 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 
 		pr_err("ACL entry for %s Initiator"
 			" Node %s already exists for TPG %u, ignoring"
-			" request.\n",  tpg->se_tpg_tfo->get_fabric_name(),
+			" request.\n",  tpg->se_tpg_tfo->fabric_name,
 			initiatorname, tpg->se_tpg_tfo->tpg_get_tag(tpg));
 		mutex_unlock(&tpg->acl_node_mutex);
 		return ERR_PTR(-EEXIST);
@@ -380,9 +364,9 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 	core_free_device_list_for_node(acl, tpg);
 
 	pr_debug("%s_TPG[%hu] - Deleted ACL with TCQ Depth: %d for %s"
-		" Initiator Node: %s\n", tpg->se_tpg_tfo->get_fabric_name(),
+		" Initiator Node: %s\n", tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), acl->queue_depth,
-		tpg->se_tpg_tfo->get_fabric_name(), acl->initiatorname);
+		tpg->se_tpg_tfo->fabric_name, acl->initiatorname);
 
 	kfree(acl);
 }
@@ -418,7 +402,7 @@ int core_tpg_set_initiator_node_queue_depth(
 
 	pr_debug("Successfully changed queue depth to: %d for Initiator"
 		" Node: %s on %s Target Portal Group: %u\n", acl->queue_depth,
-		acl->initiatorname, tpg->se_tpg_tfo->get_fabric_name(),
+		acl->initiatorname, tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg));
 
 	return 0;
@@ -488,7 +472,6 @@ int core_tpg_register(
 	se_tpg->se_tpg_wwn = se_wwn;
 	atomic_set(&se_tpg->tpg_pr_ref_count, 0);
 	INIT_LIST_HEAD(&se_tpg->acl_node_list);
-	INIT_LIST_HEAD(&se_tpg->se_tpg_node);
 	INIT_LIST_HEAD(&se_tpg->tpg_sess_list);
 	spin_lock_init(&se_tpg->session_lock);
 	mutex_init(&se_tpg->tpg_lun_mutex);
@@ -507,12 +490,8 @@ int core_tpg_register(
 		}
 	}
 
-	spin_lock_bh(&tpg_lock);
-	list_add_tail(&se_tpg->se_tpg_node, &tpg_list);
-	spin_unlock_bh(&tpg_lock);
-
 	pr_debug("TARGET_CORE[%s]: Allocated portal_group for endpoint: %s, "
-		 "Proto: %d, Portal Tag: %u\n", se_tpg->se_tpg_tfo->get_fabric_name(),
+		 "Proto: %d, Portal Tag: %u\n", se_tpg->se_tpg_tfo->fabric_name,
 		se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg) ?
 		se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg) : NULL,
 		se_tpg->proto_id, se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg));
@@ -528,13 +507,9 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 	LIST_HEAD(node_list);
 
 	pr_debug("TARGET_CORE[%s]: Deallocating portal_group for endpoint: %s, "
-		 "Proto: %d, Portal Tag: %u\n", tfo->get_fabric_name(),
+		 "Proto: %d, Portal Tag: %u\n", tfo->fabric_name,
 		tfo->tpg_get_wwn(se_tpg) ? tfo->tpg_get_wwn(se_tpg) : NULL,
 		se_tpg->proto_id, tfo->tpg_get_tag(se_tpg));
-
-	spin_lock_bh(&tpg_lock);
-	list_del(&se_tpg->se_tpg_node);
-	spin_unlock_bh(&tpg_lock);
 
 	while (atomic_read(&se_tpg->tpg_pr_ref_count) != 0)
 		cpu_relax();
@@ -577,7 +552,6 @@ struct se_lun *core_tpg_alloc_lun(
 	}
 	lun->unpacked_lun = unpacked_lun;
 	atomic_set(&lun->lun_acl_count, 0);
-	init_completion(&lun->lun_ref_comp);
 	init_completion(&lun->lun_shutdown_comp);
 	INIT_LIST_HEAD(&lun->lun_deve_list);
 	INIT_LIST_HEAD(&lun->lun_dev_link);
@@ -608,8 +582,7 @@ int core_tpg_add_lun(
 	if (ret)
 		goto out_kill_ref;
 
-	if (!(dev->transport->transport_flags &
-	     TRANSPORT_FLAG_PASSTHROUGH_ALUA) &&
+	if (!(dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA) &&
 	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		target_attach_tg_pt_gp(lun, dev->t10_alua.default_tg_pt_gp);
 

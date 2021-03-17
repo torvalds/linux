@@ -2,6 +2,7 @@
 #include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +14,7 @@
 #include <sys/mman.h>
 #include <linux/stringify.h>
 
-#include "util.h"
+#include "build-id.h"
 #include "event.h"
 #include "debug.h"
 #include "evlist.h"
@@ -25,9 +26,10 @@
 #include "jit.h"
 #include "jitdump.h"
 #include "genelf.h"
-#include "../builtin.h"
+#include "thread.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 struct jit_buf_desc {
 	struct perf_data *output;
@@ -38,7 +40,7 @@ struct jit_buf_desc {
 	uint64_t	 sample_type;
 	size_t           bufsize;
 	FILE             *in;
-	bool		 needs_bswap; /* handles cross-endianess */
+	bool		 needs_bswap; /* handles cross-endianness */
 	bool		 use_arch_timestamp;
 	void		 *debug_data;
 	void		 *unwinding_data;
@@ -56,7 +58,7 @@ struct debug_line_info {
 	unsigned long vma;
 	unsigned int lineno;
 	/* The filename format is unspecified, absolute path, relative etc. */
-	char const filename[0];
+	char const filename[];
 };
 
 struct jit_tool {
@@ -116,13 +118,13 @@ jit_close(struct jit_buf_desc *jd)
 static int
 jit_validate_events(struct perf_session *session)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	/*
 	 * check that all events use CLOCK_MONOTONIC
 	 */
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.use_clockid == 0 || evsel->attr.clockid != CLOCK_MONOTONIC)
+		if (evsel->core.attr.use_clockid == 0 || evsel->core.attr.clockid != CLOCK_MONOTONIC)
 			return -1;
 	}
 	return 0;
@@ -372,11 +374,15 @@ static uint64_t convert_timestamp(struct jit_buf_desc *jd, uint64_t timestamp)
 	if (!jd->use_arch_timestamp)
 		return timestamp;
 
-	tc.time_shift = jd->session->time_conv.time_shift;
-	tc.time_mult  = jd->session->time_conv.time_mult;
-	tc.time_zero  = jd->session->time_conv.time_zero;
+	tc.time_shift	       = jd->session->time_conv.time_shift;
+	tc.time_mult	       = jd->session->time_conv.time_mult;
+	tc.time_zero	       = jd->session->time_conv.time_zero;
+	tc.time_cycles	       = jd->session->time_conv.time_cycles;
+	tc.time_mask	       = jd->session->time_conv.time_mask;
+	tc.cap_user_time_zero  = jd->session->time_conv.cap_user_time_zero;
+	tc.cap_user_time_short = jd->session->time_conv.cap_user_time_short;
 
-	if (!tc.time_mult)
+	if (!tc.cap_user_time_zero)
 		return 0;
 
 	return tsc_to_perf_time(timestamp, &tc);
@@ -394,7 +400,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 	size_t size;
 	u16 idr_size;
 	const char *sym;
-	uint32_t count;
+	uint64_t count;
 	int ret, csize, usize;
 	pid_t pid, tid;
 	struct {
@@ -417,7 +423,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 		return -1;
 
 	filename = event->mmap2.filename;
-	size = snprintf(filename, PATH_MAX, "%s/jitted-%d-%u.so",
+	size = snprintf(filename, PATH_MAX, "%s/jitted-%d-%" PRIu64 ".so",
 			jd->dir,
 			pid,
 			count);
@@ -430,14 +436,12 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 			   jd->unwinding_data, jd->eh_frame_hdr_size, jd->unwinding_size);
 
 	if (jd->debug_data && jd->nr_debug_entries) {
-		free(jd->debug_data);
-		jd->debug_data = NULL;
+		zfree(&jd->debug_data);
 		jd->nr_debug_entries = 0;
 	}
 
 	if (jd->unwinding_data && jd->eh_frame_hdr_size) {
-		free(jd->unwinding_data);
-		jd->unwinding_data = NULL;
+		zfree(&jd->unwinding_data);
 		jd->eh_frame_hdr_size = 0;
 		jd->unwinding_mapped_size = 0;
 		jd->unwinding_size = 0;
@@ -530,7 +534,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 		return -1;
 
 	filename = event->mmap2.filename;
-	size = snprintf(filename, PATH_MAX, "%s/jitted-%d-%"PRIu64,
+	size = snprintf(filename, PATH_MAX, "%s/jitted-%d-%" PRIu64 ".so",
 	         jd->dir,
 	         pid,
 		 jr->move.code_index);
@@ -750,6 +754,28 @@ jit_detect(char *mmap_name, pid_t pid)
 	return 0;
 }
 
+static void jit_add_pid(struct machine *machine, pid_t pid)
+{
+	struct thread *thread = machine__findnew_thread(machine, pid, pid);
+
+	if (!thread) {
+		pr_err("%s: thread %d not found or created\n", __func__, pid);
+		return;
+	}
+
+	thread->priv = (void *)1;
+}
+
+static bool jit_has_pid(struct machine *machine, pid_t pid)
+{
+	struct thread *thread = machine__find_thread(machine, pid, pid);
+
+	if (!thread)
+		return 0;
+
+	return (bool)thread->priv;
+}
+
 int
 jit_process(struct perf_session *session,
 	    struct perf_data *output,
@@ -758,15 +784,20 @@ jit_process(struct perf_session *session,
 	    pid_t pid,
 	    u64 *nbytes)
 {
-	struct perf_evsel *first;
+	struct evsel *first;
 	struct jit_buf_desc jd;
 	int ret;
 
 	/*
 	 * first, detect marker mmap (i.e., the jitdump mmap)
 	 */
-	if (jit_detect(filename, pid))
+	if (jit_detect(filename, pid)) {
+		// Strip //anon* mmaps if we processed a jitdump for this pid
+		if (jit_has_pid(machine, pid) && (strncmp(filename, "//anon", 6) == 0))
+			return 1;
+
 		return 0;
+	}
 
 	memset(&jd, 0, sizeof(jd));
 
@@ -778,13 +809,14 @@ jit_process(struct perf_session *session,
 	 * track sample_type to compute id_all layout
 	 * perf sets the same sample type to all events as of now
 	 */
-	first = perf_evlist__first(session->evlist);
-	jd.sample_type = first->attr.sample_type;
+	first = evlist__first(session->evlist);
+	jd.sample_type = first->core.attr.sample_type;
 
 	*nbytes = 0;
 
 	ret = jit_inject(&jd, filename);
 	if (!ret) {
+		jit_add_pid(machine, pid);
 		*nbytes = jd.bytes_written;
 		ret = 1;
 	}

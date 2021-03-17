@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 menu "Memory management options"
 
-config QUICKLIST
-	def_bool y
-
 config MMU
         bool "Support for memory management hardware"
 	depends on !CPU_SH2
@@ -18,8 +15,7 @@ config MMU
 
 config PAGE_OFFSET
 	hex
-	default "0x80000000" if MMU && SUPERH32
-	default "0x20000000" if MMU && SUPERH64
+	default "0x80000000" if MMU
 	default "0x00000000"
 
 config FORCE_MAX_ZONEORDER
@@ -48,7 +44,7 @@ config FORCE_MAX_ZONEORDER
 config MEMORY_START
 	hex "Physical memory start address"
 	default "0x08000000"
-	---help---
+	help
 	  Computers built with Hitachi SuperH processors always
 	  map the ROM starting at address zero.  But the processor
 	  does not specify the range that RAM takes.
@@ -75,12 +71,11 @@ config MEMORY_SIZE
 
 config 29BIT
 	def_bool !32BIT
-	depends on SUPERH32
 	select UNCACHED_MAPPING
 
 config 32BIT
 	bool
-	default y if CPU_SH5 || !MMU
+	default !MMU
 
 config PMB
 	bool "Support 32-bit physical addressing through PMB"
@@ -155,7 +150,7 @@ config ARCH_MEMORY_PROBE
 
 config IOREMAP_FIXED
        def_bool y
-       depends on X2TLB || SUPERH64
+       depends on X2TLB
 
 config UNCACHED_MAPPING
 	bool
@@ -187,7 +182,7 @@ config PAGE_SIZE_16KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !MMU || CPU_SH4 || CPU_SH5
+	depends on !MMU || CPU_SH4
 	help
 	  This enables support for 64kB pages, possible on all SH-4
 	  CPUs and later.
@@ -219,10 +214,6 @@ config HUGETLB_PAGE_SIZE_64MB
 	bool "64MB"
 	depends on X2TLB
 
-config HUGETLB_PAGE_SIZE_512MB
-	bool "512MB"
-	depends on CPU_SH5
-
 endchoice
 
 config SCHED_MC
@@ -245,7 +236,7 @@ config SH7705_CACHE_32KB
 
 choice
 	prompt "Cache mode"
-	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5
+	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4
 	default CACHE_WRITETHROUGH if (CPU_SH2 && !CPU_SH2A)
 
 config CACHE_WRITEBACK

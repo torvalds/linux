@@ -22,9 +22,9 @@
 struct shmid64_ds {
 	struct ipc64_perm	shm_perm;	/* operation perms */
 #ifdef __powerpc64__
-	__kernel_time_t		shm_atime;	/* last attach time */
-	__kernel_time_t		shm_dtime;	/* last detach time */
-	__kernel_time_t		shm_ctime;	/* last change time */
+	long		shm_atime;	/* last attach time */
+	long		shm_dtime;	/* last detach time */
+	long		shm_ctime;	/* last change time */
 #else
 	unsigned long		shm_atime_high;
 	unsigned long		shm_atime;	/* last attach time */

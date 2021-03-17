@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  c 2001 PPC 64 Team, IBM Corp
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  * scan-log-data driver for PPC64  Todd Inglett <tinglett@vnet.ibm.com>
  *
@@ -63,7 +59,7 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 		return -EINVAL;
 	}
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	for (;;) {
@@ -156,13 +152,12 @@ static int scanlog_release(struct inode * inode, struct file * file)
 	return 0;
 }
 
-static const struct file_operations scanlog_fops = {
-	.owner		= THIS_MODULE,
-	.read		= scanlog_read,
-	.write		= scanlog_write,
-	.open		= scanlog_open,
-	.release	= scanlog_release,
-	.llseek		= noop_llseek,
+static const struct proc_ops scanlog_proc_ops = {
+	.proc_read	= scanlog_read,
+	.proc_write	= scanlog_write,
+	.proc_open	= scanlog_open,
+	.proc_release	= scanlog_release,
+	.proc_lseek	= noop_llseek,
 };
 
 static int __init scanlog_init(void)
@@ -180,7 +175,7 @@ static int __init scanlog_init(void)
 		goto err;
 
 	ent = proc_create("powerpc/rtas/scan-log-dump", 0400, NULL,
-			  &scanlog_fops);
+			  &scanlog_proc_ops);
 	if (!ent)
 		goto err;
 	return 0;

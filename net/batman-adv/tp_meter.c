@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2012-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2020  B.A.T.M.A.N. contributors:
  *
  * Edo Monticelli, Antonio Quartulli
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "tp_meter.h"
@@ -33,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/kthread.h>
+#include <linux/limits.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/param.h>
@@ -77,7 +66,7 @@
 
 /**
  * BATADV_TP_MAX_RTO - Maximum sender timeout. If the sender RTO gets beyond
- * such amound of milliseconds, the receiver is considered unreachable and the
+ * such amount of milliseconds, the receiver is considered unreachable and the
  * connection is killed
  */
 #define BATADV_TP_MAX_RTO 30000
@@ -119,10 +108,10 @@ static u32 batadv_tp_session_cookie(const u8 session[2], u8 icmp_uid)
  * batadv_tp_cwnd() - compute the new cwnd size
  * @base: base cwnd size value
  * @increment: the value to add to base to get the new size
- * @min: minumim cwnd value (usually MSS)
+ * @min: minimum cwnd value (usually MSS)
  *
- * Return the new cwnd size and ensures it does not exceed the Advertised
- * Receiver Window size. It is wrap around safe.
+ * Return the new cwnd size and ensure it does not exceed the Advertised
+ * Receiver Window size. It is wrapped around safely.
  * For details refer to Section 3.1 of RFC5681
  *
  * Return: new congestion window size in bytes
@@ -265,7 +254,7 @@ static void batadv_tp_batctl_error_notify(enum batadv_tp_meter_reason reason,
  * @dst: the other endpoint MAC address to look for
  *
  * Look for a tp_vars object matching dst as end_point and return it after
- * having incremented the refcounter. Return NULL is not found
+ * having increment the refcounter. Return NULL is not found
  *
  * Return: matching tp_vars or NULL when no tp_vars with @dst was found
  */
@@ -302,7 +291,7 @@ static struct batadv_tp_vars *batadv_tp_list_find(struct batadv_priv *bat_priv,
  * @session: session identifier
  *
  * Look for a tp_vars object matching dst as end_point, session as tp meter
- * session and return it after having incremented the refcounter. Return NULL
+ * session and return it after having increment the refcounter. Return NULL
  * is not found
  *
  * Return: matching tp_vars or NULL when no tp_vars was found

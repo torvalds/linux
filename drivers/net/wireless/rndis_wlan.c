@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for RNDIS based wireless USB devices.
  *
  * Copyright (C) 2007 by Bjorge Dijkstra <bjd@jooz.net>
  * Copyright (C) 2008-2009 by Jussi Kivilinna <jussi.kivilinna@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *  Portions of this file are based on NDISwrapper project,
  *  Copyright (C) 2003-2005 Pontus Fuchs, Giridhar Pemmasani
@@ -213,7 +201,7 @@ struct ndis_80211_pmkid_candidate {
 struct ndis_80211_pmkid_cand_list {
 	__le32 version;
 	__le32 num_candidates;
-	struct ndis_80211_pmkid_candidate candidate_list[0];
+	struct ndis_80211_pmkid_candidate candidate_list[];
 } __packed;
 
 struct ndis_80211_status_indication {
@@ -258,12 +246,12 @@ struct ndis_80211_bssid_ex {
 	__le32 net_infra;
 	u8 rates[NDIS_802_11_LENGTH_RATES_EX];
 	__le32 ie_length;
-	u8 ies[0];
+	u8 ies[];
 } __packed;
 
 struct ndis_80211_bssid_list_ex {
 	__le32 num_items;
-	struct ndis_80211_bssid_ex bssid[0];
+	struct ndis_80211_bssid_ex bssid[];
 } __packed;
 
 struct ndis_80211_fixed_ies {
@@ -324,17 +312,11 @@ struct ndis_80211_assoc_info {
 	__le32 offset_resp_ies;
 } __packed;
 
-struct ndis_80211_auth_encr_pair {
-	__le32 auth_mode;
-	__le32 encr_mode;
-} __packed;
-
 struct ndis_80211_capability {
 	__le32 length;
 	__le32 version;
 	__le32 num_pmkids;
 	__le32 num_auth_encr_pair;
-	struct ndis_80211_auth_encr_pair auth_encr_pair[0];
 } __packed;
 
 struct ndis_80211_bssid_info {
@@ -345,7 +327,7 @@ struct ndis_80211_bssid_info {
 struct ndis_80211_pmkid {
 	__le32 length;
 	__le32 bssid_info_count;
-	struct ndis_80211_bssid_info bssid_info[0];
+	struct ndis_80211_bssid_info bssid_info[];
 } __packed;
 
 /*
@@ -1707,7 +1689,7 @@ static struct ndis_80211_pmkid *get_device_pmkids(struct usbnet *usbdev)
 	int len, ret, max_pmkids;
 
 	max_pmkids = priv->wdev.wiphy->max_num_pmkids;
-	len = sizeof(*pmkids) + max_pmkids * sizeof(pmkids->bssid_info[0]);
+	len = struct_size(pmkids, bssid_info, max_pmkids);
 
 	pmkids = kzalloc(len, GFP_KERNEL);
 	if (!pmkids)
@@ -1740,7 +1722,7 @@ static int set_device_pmkids(struct usbnet *usbdev,
 	int ret, len, num_pmkids;
 
 	num_pmkids = le32_to_cpu(pmkids->bssid_info_count);
-	len = sizeof(*pmkids) + num_pmkids * sizeof(pmkids->bssid_info[0]);
+	len = struct_size(pmkids, bssid_info, num_pmkids);
 	pmkids->length = cpu_to_le32(len);
 
 	debug_print_pmkids(usbdev, pmkids, __func__);
@@ -1761,7 +1743,7 @@ static struct ndis_80211_pmkid *remove_pmkid(struct usbnet *usbdev,
 						struct cfg80211_pmksa *pmksa,
 						int max_pmkids)
 {
-	int i, newlen, err;
+	int i, err;
 	unsigned int count;
 
 	count = le32_to_cpu(pmkids->bssid_info_count);
@@ -1786,9 +1768,7 @@ static struct ndis_80211_pmkid *remove_pmkid(struct usbnet *usbdev,
 		pmkids->bssid_info[i] = pmkids->bssid_info[i + 1];
 
 	count--;
-	newlen = sizeof(*pmkids) + count * sizeof(pmkids->bssid_info[0]);
-
-	pmkids->length = cpu_to_le32(newlen);
+	pmkids->length = cpu_to_le32(struct_size(pmkids, bssid_info, count));
 	pmkids->bssid_info_count = cpu_to_le32(count);
 
 	return pmkids;
@@ -1831,7 +1811,7 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 	}
 
 	/* add new pmkid */
-	newlen = sizeof(*pmkids) + (count + 1) * sizeof(pmkids->bssid_info[0]);
+	newlen = struct_size(pmkids, bssid_info, count + 1);
 
 	new_pmkids = krealloc(pmkids, newlen, GFP_KERNEL);
 	if (!new_pmkids) {
@@ -3123,8 +3103,7 @@ static int rndis_wlan_get_caps(struct usbnet *usbdev, struct wiphy *wiphy)
 		__le32	num_items;
 		__le32	items[8];
 	} networks_supported;
-	struct ndis_80211_capability *caps;
-	u8 caps_buf[sizeof(*caps) + sizeof(caps->auth_encr_pair) * 16];
+	struct ndis_80211_capability caps;
 	int len, retval, i, n;
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 
@@ -3133,7 +3112,7 @@ static int rndis_wlan_get_caps(struct usbnet *usbdev, struct wiphy *wiphy)
 	retval = rndis_query_oid(usbdev,
 				 RNDIS_OID_802_11_NETWORK_TYPES_SUPPORTED,
 				 &networks_supported, &len);
-	if (retval >= 0) {
+	if (!retval) {
 		n = le32_to_cpu(networks_supported.num_items);
 		if (n > 8)
 			n = 8;
@@ -3154,19 +3133,18 @@ static int rndis_wlan_get_caps(struct usbnet *usbdev, struct wiphy *wiphy)
 	}
 
 	/* get device 802.11 capabilities, number of PMKIDs */
-	caps = (struct ndis_80211_capability *)caps_buf;
-	len = sizeof(caps_buf);
+	len = sizeof(caps);
 	retval = rndis_query_oid(usbdev,
 				 RNDIS_OID_802_11_CAPABILITY,
-				 caps, &len);
-	if (retval >= 0) {
+				 &caps, &len);
+	if (!retval) {
 		netdev_dbg(usbdev->net, "RNDIS_OID_802_11_CAPABILITY -> len %d, "
 				"ver %d, pmkids %d, auth-encr-pairs %d\n",
-				le32_to_cpu(caps->length),
-				le32_to_cpu(caps->version),
-				le32_to_cpu(caps->num_pmkids),
-				le32_to_cpu(caps->num_auth_encr_pair));
-		wiphy->max_num_pmkids = le32_to_cpu(caps->num_pmkids);
+				le32_to_cpu(caps.length),
+				le32_to_cpu(caps.version),
+				le32_to_cpu(caps.num_pmkids),
+				le32_to_cpu(caps.num_auth_encr_pair));
+		wiphy->max_num_pmkids = le32_to_cpu(caps.num_pmkids);
 	} else
 		wiphy->max_num_pmkids = 0;
 

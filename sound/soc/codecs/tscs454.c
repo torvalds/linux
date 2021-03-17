@@ -22,7 +22,6 @@
 
 #include "tscs454.h"
 
-static const unsigned int PLL_48K_RATE = (48000 * 256);
 static const unsigned int PLL_44_1K_RATE = (44100 * 256);
 
 #define COEFF_SIZE 3
@@ -354,12 +353,7 @@ static int write_coeff_ram(struct snd_soc_component *component, u8 *coeff_ram,
 	for (cnt = 0; cnt < coeff_cnt; cnt++, coeff_addr++) {
 
 		for (trys = 0; trys < DACCRSTAT_MAX_TRYS; trys++) {
-			ret = snd_soc_component_read(component, r_stat, &val);
-			if (ret < 0) {
-				dev_err(component->dev,
-					"Failed to read stat (%d)\n", ret);
-				return ret;
-			}
+			val = snd_soc_component_read(component, r_stat);
 			if (!val)
 				break;
 		}
@@ -445,12 +439,7 @@ static int coeff_ram_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&tscs454->pll1.lock);
 	mutex_lock(&tscs454->pll2.lock);
 
-	ret = snd_soc_component_read(component, R_PLLSTAT, &val);
-	if (ret < 0) {
-		dev_err(component->dev, "Failed to read PLL status (%d)\n",
-				ret);
-		goto exit;
-	}
+	val = snd_soc_component_read(component, R_PLLSTAT);
 	if (val) { /* PLLs locked */
 		ret = write_coeff_ram(component, coeff_ram,
 			r_stat, r_addr, r_wr,
@@ -2643,13 +2632,10 @@ static int tscs454_set_sysclk(struct snd_soc_dai *dai,
 	struct tscs454 *tscs454 = snd_soc_component_get_drvdata(component);
 	unsigned int val;
 	int bclk_dai;
-	int ret;
 
 	dev_dbg(component->dev, "%s(): freq = %u\n", __func__, freq);
 
-	ret = snd_soc_component_read(component, R_PLLCTL, &val);
-	if (ret < 0)
-		return ret;
+	val = snd_soc_component_read(component, R_PLLCTL);
 
 	bclk_dai = (val & FM_PLLCTL_BCLKSEL) >> FB_PLLCTL_BCLKSEL;
 	if (bclk_dai != dai->id)
@@ -3205,10 +3191,7 @@ static int tscs454_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (!aifs_active(&tscs454->aifs_status)) { /* First active aif */
-		ret = snd_soc_component_read(component, R_ISRC, &val);
-		if (ret < 0)
-			goto exit;
-
+		val = snd_soc_component_read(component, R_ISRC);
 		if ((val & FM_ISRC_IBR) == FV_IBR_48)
 			tscs454->internal_rate.pll = &tscs454->pll1;
 		else
@@ -3459,7 +3442,7 @@ static int tscs454_i2c_probe(struct i2c_client *i2c,
 	/* Sync pg sel reg with cache */
 	regmap_write(tscs454->regmap, R_PAGESEL, 0x00);
 
-	ret = snd_soc_register_component(&i2c->dev, &soc_component_dev_tscs454,
+	ret = devm_snd_soc_register_component(&i2c->dev, &soc_component_dev_tscs454,
 			tscs454_dais, ARRAY_SIZE(tscs454_dais));
 	if (ret) {
 		dev_err(&i2c->dev, "Failed to register component (%d)\n", ret);

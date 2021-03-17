@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB frontend part of the Linux driver for TwinhanDTV Alpha/MagicBoxII USB2.0
  * DVB-T receiver.
  *
@@ -5,12 +6,7 @@
  *
  * Thanks to Twinhan who kindly provided hardware and information.
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
- *
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "vp7045.h"
 

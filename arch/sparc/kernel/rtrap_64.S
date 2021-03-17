@@ -39,6 +39,7 @@ __handle_preemption:
 		 wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 
 __handle_user_windows:
+		add			%sp, PTREGS_OFF, %o0
 		call			fault_in_user_windows
 661:		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		/* If userspace is using ADI, it could potentially pass
@@ -309,7 +310,7 @@ kern_rtt_restore:
 		retry
 
 to_kernel:
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 		ldsw			[%g6 + TI_PRE_COUNT], %l5
 		brnz			%l5, kern_fpucheck
 		 ldx			[%g6 + TI_FLAGS], %l5

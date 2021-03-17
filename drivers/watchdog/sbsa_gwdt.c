@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SBSA(Server Base System Architecture) Generic Watchdog driver
  *
@@ -6,15 +7,6 @@
  *         Suravee Suthikulpanit <Suravee.Suthikulpanit@amd.com>
  *         Al Stone <al.stone@linaro.org>
  *         Timur Tabi <timur@codeaurora.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * ARM SBSA Generic Watchdog has two stage timeouts:
  * the first signal (WS0) is for alerting the system by interrupt,
@@ -46,7 +38,6 @@
  * by WOR, in the single stage mode, the timeout is (WOR * 2); in the two
  * stages mode, the timeout is WOR. The maximum timeout in the two stages mode
  * is half of that in the single stage mode.
- *
  */
 
 #include <linux/io.h>
@@ -161,7 +152,7 @@ static unsigned int sbsa_gwdt_get_timeleft(struct watchdog_device *wdd)
 		timeleft += readl(gwdt->control_base + SBSA_GWDT_WOR);
 
 	timeleft += lo_hi_readq(gwdt->control_base + SBSA_GWDT_WCV) -
-		    arch_counter_get_cntvct();
+		    arch_timer_read_counter();
 
 	do_div(timeleft, gwdt->clk);
 
@@ -231,7 +222,6 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdd;
 	struct sbsa_gwdt *gwdt;
-	struct resource *res;
 	int ret, irq;
 	u32 status;
 
@@ -240,13 +230,11 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, gwdt);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cf_base = devm_ioremap_resource(dev, res);
+	cf_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cf_base))
 		return PTR_ERR(cf_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	rf_base = devm_ioremap_resource(dev, res);
+	rf_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(rf_base))
 		return PTR_ERR(rf_base);
 
@@ -313,29 +301,14 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	 */
 	sbsa_gwdt_set_timeout(wdd, wdd->timeout);
 
-	ret = watchdog_register_device(wdd);
+	watchdog_stop_on_reboot(wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
 	if (ret)
 		return ret;
 
 	dev_info(dev, "Initialized with %ds timeout @ %u Hz, action=%d.%s\n",
 		 wdd->timeout, gwdt->clk, action,
 		 status & SBSA_GWDT_WCS_EN ? " [enabled]" : "");
-
-	return 0;
-}
-
-static void sbsa_gwdt_shutdown(struct platform_device *pdev)
-{
-	struct sbsa_gwdt *gwdt = platform_get_drvdata(pdev);
-
-	sbsa_gwdt_stop(&gwdt->wdd);
-}
-
-static int sbsa_gwdt_remove(struct platform_device *pdev)
-{
-	struct sbsa_gwdt *gwdt = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&gwdt->wdd);
 
 	return 0;
 }
@@ -385,8 +358,6 @@ static struct platform_driver sbsa_gwdt_driver = {
 		.of_match_table = sbsa_gwdt_of_match,
 	},
 	.probe = sbsa_gwdt_probe,
-	.remove = sbsa_gwdt_remove,
-	.shutdown = sbsa_gwdt_shutdown,
 	.id_table = sbsa_gwdt_pdev_match,
 };
 

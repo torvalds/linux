@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MIPI-DSI based s6e3ha2 AMOLED 5.7 inch panel driver.
  *
@@ -5,19 +6,18 @@
  * Donghwa Lee <dh09.lee@samsung.com>
  * Hyungwon Hwang <human.hwang@samsung.com>
  * Hoegeun Kwon <hoegeun.kwon@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
+
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 #define S6E3HA2_MIN_BRIGHTNESS		0
 #define S6E3HA2_MAX_BRIGHTNESS		100
@@ -616,7 +616,6 @@ static const struct drm_display_mode s6e3ha2_mode = {
 	.vsync_start = 2560 + 1,
 	.vsync_end = 2560 + 1 + 1,
 	.vtotal = 2560 + 1 + 1 + 15,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -635,7 +634,6 @@ static const struct drm_display_mode s6e3hf2_mode = {
 	.vsync_start = 2560 + 1,
 	.vsync_end = 2560 + 1 + 1,
 	.vtotal = 2560 + 1 + 1 + 15,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -644,17 +642,17 @@ static const struct s6e3ha2_panel_desc samsung_s6e3hf2 = {
 	.type = HF2_TYPE,
 };
 
-static int s6e3ha2_get_modes(struct drm_panel *panel)
+static int s6e3ha2_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct s6e3ha2 *ctx = container_of(panel, struct s6e3ha2, panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, ctx->desc->mode);
+	mode = drm_mode_duplicate(connector->dev, ctx->desc->mode);
 	if (!mode) {
-		DRM_ERROR("failed to add mode %ux%ux@%u\n",
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
-			ctx->desc->mode->vrefresh);
+			drm_mode_vrefresh(ctx->desc->mode));
 		return -ENOMEM;
 	}
 
@@ -731,13 +729,10 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 	ctx->bl_dev->props.brightness = S6E3HA2_DEFAULT_BRIGHTNESS;
 	ctx->bl_dev->props.power = FB_BLANK_POWERDOWN;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &s6e3ha2_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &s6e3ha2_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		goto unregister_backlight;
+	drm_panel_add(&ctx->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)
@@ -747,8 +742,6 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 
 remove_panel:
 	drm_panel_remove(&ctx->panel);
-
-unregister_backlight:
 	backlight_device_unregister(ctx->bl_dev);
 
 	return ret;

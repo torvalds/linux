@@ -1,14 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  include/linux/eventpoll.h ( Efficient event polling implementation )
  *  Copyright (C) 2001,...,2006	 Davide Libenzi
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
  *  Davide Libenzi <davidel@xmailserver.org>
- *
  */
 #ifndef _LINUX_EVENTPOLL_H
 #define _LINUX_EVENTPOLL_H
@@ -64,6 +59,15 @@ static inline void eventpoll_release(struct file *file)
 	 * from its containers.
 	 */
 	eventpoll_release_file(file);
+}
+
+int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
+		 bool nonblock);
+
+/* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
+static inline int ep_op_has_event(int op)
+{
+	return op != EPOLL_CTL_DEL;
 }
 
 #else

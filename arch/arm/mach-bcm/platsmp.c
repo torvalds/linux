@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014-2015 Broadcom Corporation
  * Copyright 2014 Linaro Limited
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/cpumask.h>
@@ -29,6 +21,8 @@
 #include <asm/smp.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
+
+#include "platsmp.h"
 
 /* Size of mapped Cortex A9 SCU address space */
 #define CORTEX_A9_SCU_SIZE	0x58
@@ -111,7 +105,7 @@ static int nsp_write_lut(unsigned int cpu)
 	if (!secondary_boot_addr)
 		return -EINVAL;
 
-	sku_rom_lut = ioremap_nocache((phys_addr_t)secondary_boot_addr,
+	sku_rom_lut = ioremap((phys_addr_t)secondary_boot_addr,
 				      sizeof(phys_addr_t));
 	if (!sku_rom_lut) {
 		pr_warn("unable to ioremap SKU-ROM LUT register for cpu %u\n", cpu);
@@ -180,7 +174,7 @@ static int kona_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	if (!secondary_boot_addr)
 		return -EINVAL;
 
-	boot_reg = ioremap_nocache((phys_addr_t)secondary_boot_addr,
+	boot_reg = ioremap((phys_addr_t)secondary_boot_addr,
 				   sizeof(phys_addr_t));
 	if (!boot_reg) {
 		pr_err("unable to map boot register for cpu %u\n", cpu_id);

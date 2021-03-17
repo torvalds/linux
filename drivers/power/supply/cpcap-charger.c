@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Motorola CPCAP PMIC battery charger driver
  *
@@ -7,15 +8,6 @@
  * on earlier driver found in the Motorola Linux kernel:
  *
  * Copyright (C) 2009-2010 Motorola, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/atomic.h>
@@ -116,6 +108,9 @@
 #define CPCAP_REG_CRM_ICHRG_1A596	CPCAP_REG_CRM_ICHRG(0xe)
 #define CPCAP_REG_CRM_ICHRG_NO_LIMIT	CPCAP_REG_CRM_ICHRG(0xf)
 
+/* CPCAP_REG_VUSBC register bits needed for VBUS */
+#define CPCAP_BIT_VBUS_SWITCH		BIT(0)	/* VBUS boost to 5V */
+
 enum {
 	CPCAP_CHARGER_IIO_BATTDET,
 	CPCAP_CHARGER_IIO_VOLTAGE,
@@ -123,6 +118,13 @@ enum {
 	CPCAP_CHARGER_IIO_CHRG_CURRENT,
 	CPCAP_CHARGER_IIO_BATT_CURRENT,
 	CPCAP_CHARGER_IIO_NR,
+};
+
+enum {
+	CPCAP_CHARGER_DISCONNECTED,
+	CPCAP_CHARGER_DETECTING,
+	CPCAP_CHARGER_CHARGING,
+	CPCAP_CHARGER_DONE,
 };
 
 struct cpcap_charger_ddata {
@@ -138,10 +140,13 @@ struct cpcap_charger_ddata {
 	struct power_supply *usb;
 
 	struct phy_companion comparator;	/* For USB VBUS */
-	bool vbus_enabled;
+	unsigned int vbus_enabled:1;
+	unsigned int feeding_vbus:1;
 	atomic_t active;
 
 	int status;
+	int state;
+	int voltage;
 };
 
 struct cpcap_interrupt_desc {
@@ -157,6 +162,7 @@ struct cpcap_charger_ints_state {
 
 	bool chrg_se1b;
 	bool rvrs_mode;
+	bool chrgcurr2;
 	bool chrgcurr1;
 	bool vbusvld;
 
@@ -166,24 +172,26 @@ struct cpcap_charger_ints_state {
 static enum power_supply_property cpcap_charger_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
+/* No battery always shows temperature of -40000 */
 static bool cpcap_charger_battery_found(struct cpcap_charger_ddata *ddata)
 {
 	struct iio_channel *channel;
-	int error, value;
+	int error, temperature;
 
 	channel = ddata->channels[CPCAP_CHARGER_IIO_BATTDET];
-	error = iio_read_channel_raw(channel, &value);
+	error = iio_read_channel_processed(channel, &temperature);
 	if (error < 0) {
 		dev_warn(ddata->dev, "%s failed: %i\n", __func__, error);
 
 		return false;
 	}
 
-	return value == 1;
+	return temperature > -20000 && temperature < 60000;
 }
 
 static int cpcap_charger_get_charge_voltage(struct cpcap_charger_ddata *ddata)
@@ -228,6 +236,9 @@ static int cpcap_charger_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = ddata->status;
 		break;
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		val->intval = ddata->voltage;
+		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		if (ddata->status == POWER_SUPPLY_STATUS_CHARGING)
 			val->intval = cpcap_charger_get_charge_voltage(ddata) *
@@ -250,6 +261,83 @@ static int cpcap_charger_get_property(struct power_supply *psy,
 	}
 
 	return 0;
+}
+
+static int cpcap_charger_match_voltage(int voltage)
+{
+	switch (voltage) {
+	case 0 ... 4100000 - 1: return 3800000;
+	case 4100000 ... 4120000 - 1: return 4100000;
+	case 4120000 ... 4150000 - 1: return 4120000;
+	case 4150000 ... 4170000 - 1: return 4150000;
+	case 4170000 ... 4200000 - 1: return 4170000;
+	case 4200000 ... 4230000 - 1: return 4200000;
+	case 4230000 ... 4250000 - 1: return 4230000;
+	case 4250000 ... 4270000 - 1: return 4250000;
+	case 4270000 ... 4300000 - 1: return 4270000;
+	case 4300000 ... 4330000 - 1: return 4300000;
+	case 4330000 ... 4350000 - 1: return 4330000;
+	case 4350000 ... 4380000 - 1: return 4350000;
+	case 4380000 ... 4400000 - 1: return 4380000;
+	case 4400000 ... 4420000 - 1: return 4400000;
+	case 4420000 ... 4440000 - 1: return 4420000;
+	case 4440000: return 4440000;
+	default: return 0;
+	}
+}
+
+static int
+cpcap_charger_get_bat_const_charge_voltage(struct cpcap_charger_ddata *ddata)
+{
+	union power_supply_propval prop;
+	struct power_supply *battery;
+	int voltage = ddata->voltage;
+	int error;
+
+	battery = power_supply_get_by_name("battery");
+	if (battery) {
+		error = power_supply_get_property(battery,
+				POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
+				&prop);
+		if (!error)
+			voltage = prop.intval;
+	}
+
+	return voltage;
+}
+
+static int cpcap_charger_set_property(struct power_supply *psy,
+				      enum power_supply_property psp,
+				      const union power_supply_propval *val)
+{
+	struct cpcap_charger_ddata *ddata = dev_get_drvdata(psy->dev.parent);
+	int voltage, batvolt;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		voltage = cpcap_charger_match_voltage(val->intval);
+		batvolt = cpcap_charger_get_bat_const_charge_voltage(ddata);
+		if (voltage > batvolt)
+			voltage = batvolt;
+		ddata->voltage = voltage;
+		schedule_delayed_work(&ddata->detect_work, 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cpcap_charger_property_is_writeable(struct power_supply *psy,
+					       enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 static void cpcap_charger_set_cable_path(struct cpcap_charger_ddata *ddata,
@@ -333,7 +421,6 @@ static bool cpcap_charger_vbus_valid(struct cpcap_charger_ddata *ddata)
 }
 
 /* VBUS control functions for the USB PHY companion */
-
 static void cpcap_charger_vbus_work(struct work_struct *work)
 {
 	struct cpcap_charger_ddata *ddata;
@@ -351,10 +438,17 @@ static void cpcap_charger_vbus_work(struct work_struct *work)
 			return;
 		}
 
+		ddata->feeding_vbus = true;
 		cpcap_charger_set_cable_path(ddata, false);
 		cpcap_charger_set_inductive_path(ddata, false);
 
 		error = cpcap_charger_set_state(ddata, 0, 0, 0);
+		if (error)
+			goto out_err;
+
+		error = regmap_update_bits(ddata->reg, CPCAP_REG_VUSBC,
+					   CPCAP_BIT_VBUS_SWITCH,
+					   CPCAP_BIT_VBUS_SWITCH);
 		if (error)
 			goto out_err;
 
@@ -364,6 +458,11 @@ static void cpcap_charger_vbus_work(struct work_struct *work)
 		if (error)
 			goto out_err;
 	} else {
+		error = regmap_update_bits(ddata->reg, CPCAP_REG_VUSBC,
+					   CPCAP_BIT_VBUS_SWITCH, 0);
+		if (error)
+			goto out_err;
+
 		error = regmap_update_bits(ddata->reg, CPCAP_REG_CRM,
 					   CPCAP_REG_CRM_RVRSMODE, 0);
 		if (error)
@@ -371,6 +470,7 @@ static void cpcap_charger_vbus_work(struct work_struct *work)
 
 		cpcap_charger_set_cable_path(ddata, true);
 		cpcap_charger_set_inductive_path(ddata, true);
+		ddata->feeding_vbus = false;
 	}
 
 	return;
@@ -414,6 +514,7 @@ static int cpcap_charger_get_ints_state(struct cpcap_charger_ddata *ddata,
 
 	s->chrg_se1b = val & BIT(13);
 	s->rvrs_mode = val & BIT(6);
+	s->chrgcurr2 = val & BIT(5);
 	s->chrgcurr1 = val & BIT(4);
 	s->vbusvld = val & BIT(3);
 
@@ -424,6 +525,79 @@ static int cpcap_charger_get_ints_state(struct cpcap_charger_ddata *ddata,
 	s->battdetb = val & BIT(6);
 
 	return 0;
+}
+
+static void cpcap_charger_update_state(struct cpcap_charger_ddata *ddata,
+				       int state)
+{
+	const char *status;
+
+	if (state > CPCAP_CHARGER_DONE) {
+		dev_warn(ddata->dev, "unknown state: %i\n", state);
+
+		return;
+	}
+
+	ddata->state = state;
+
+	switch (state) {
+	case CPCAP_CHARGER_DISCONNECTED:
+		status = "DISCONNECTED";
+		break;
+	case CPCAP_CHARGER_DETECTING:
+		status = "DETECTING";
+		break;
+	case CPCAP_CHARGER_CHARGING:
+		status = "CHARGING";
+		break;
+	case CPCAP_CHARGER_DONE:
+		status = "DONE";
+		break;
+	default:
+		return;
+	}
+
+	dev_dbg(ddata->dev, "state: %s\n", status);
+}
+
+static int cpcap_charger_voltage_to_regval(int voltage)
+{
+	int offset;
+
+	switch (voltage) {
+	case 0 ... 4100000 - 1:
+		return 0;
+	case 4100000 ... 4200000 - 1:
+		offset = 1;
+		break;
+	case 4200000 ... 4300000 - 1:
+		offset = 0;
+		break;
+	case 4300000 ... 4380000 - 1:
+		offset = -1;
+		break;
+	case 4380000 ... 4440000:
+		offset = -2;
+		break;
+	default:
+		return 0;
+	}
+
+	return ((voltage - 4100000) / 20000) + offset;
+}
+
+static void cpcap_charger_disconnect(struct cpcap_charger_ddata *ddata,
+				     int state, unsigned long delay)
+{
+	int error;
+
+	error = cpcap_charger_set_state(ddata, 0, 0, 0);
+	if (error)
+		return;
+
+	cpcap_charger_update_state(ddata, state);
+	power_supply_changed(ddata->usb);
+	schedule_delayed_work(&ddata->detect_work, delay);
 }
 
 static void cpcap_usb_detect(struct work_struct *work)
@@ -439,25 +613,70 @@ static void cpcap_usb_detect(struct work_struct *work)
 	if (error)
 		return;
 
-	if (cpcap_charger_vbus_valid(ddata) && s.chrgcurr1) {
+	/* Just init the state if a charger is connected with no chrg_det set */
+	if (!s.chrg_det && s.chrgcurr1 && s.vbusvld) {
+		cpcap_charger_update_state(ddata, CPCAP_CHARGER_DETECTING);
+
+		return;
+	}
+
+	/*
+	 * If battery voltage is higher than charge voltage, it may have been
+	 * charged to 4.35V by Android. Try again in 10 minutes.
+	 */
+	if (cpcap_charger_get_charge_voltage(ddata) > ddata->voltage) {
+		cpcap_charger_disconnect(ddata, CPCAP_CHARGER_DETECTING,
+					 HZ * 60 * 10);
+
+		return;
+	}
+
+	/* Throttle chrgcurr2 interrupt for charger done and retry */
+	switch (ddata->state) {
+	case CPCAP_CHARGER_CHARGING:
+		if (s.chrgcurr2)
+			break;
+		if (s.chrgcurr1 && s.vbusvld) {
+			cpcap_charger_disconnect(ddata, CPCAP_CHARGER_DONE,
+						 HZ * 5);
+			return;
+		}
+		break;
+	case CPCAP_CHARGER_DONE:
+		if (!s.chrgcurr2)
+			break;
+		cpcap_charger_disconnect(ddata, CPCAP_CHARGER_DETECTING,
+					 HZ * 5);
+		return;
+	default:
+		break;
+	}
+
+	if (!ddata->feeding_vbus && cpcap_charger_vbus_valid(ddata) &&
+	    s.chrgcurr1) {
 		int max_current;
+		int vchrg;
 
 		if (cpcap_charger_battery_found(ddata))
 			max_current = CPCAP_REG_CRM_ICHRG_1A596;
 		else
 			max_current = CPCAP_REG_CRM_ICHRG_0A532;
 
+		vchrg = cpcap_charger_voltage_to_regval(ddata->voltage);
 		error = cpcap_charger_set_state(ddata,
-						CPCAP_REG_CRM_VCHRG_4V35,
+						CPCAP_REG_CRM_VCHRG(vchrg),
 						max_current, 0);
 		if (error)
 			goto out_err;
+		cpcap_charger_update_state(ddata, CPCAP_CHARGER_CHARGING);
 	} else {
 		error = cpcap_charger_set_state(ddata, 0, 0, 0);
 		if (error)
 			goto out_err;
+		cpcap_charger_update_state(ddata, CPCAP_CHARGER_DISCONNECTED);
 	}
 
+	power_supply_changed(ddata->usb);
 	return;
 
 out_err:
@@ -514,7 +733,7 @@ static const char * const cpcap_charger_irqs[] = {
 	"chrg_det", "rvrs_chrg",
 
 	/* REG_INT1 */
-	"chrg_se1b", "se0conn", "rvrs_mode", "chrgcurr1", "vbusvld",
+	"chrg_se1b", "se0conn", "rvrs_mode", "chrgcurr2", "chrgcurr1", "vbusvld",
 
 	/* REG_INT_3 */
 	"battdetb",
@@ -544,7 +763,7 @@ static void cpcap_charger_init_optional_gpios(struct cpcap_charger_ddata *ddata)
 		if (IS_ERR(ddata->gpio[i])) {
 			dev_info(ddata->dev, "no mode change GPIO%i: %li\n",
 				 i, PTR_ERR(ddata->gpio[i]));
-				 ddata->gpio[i] = NULL;
+			ddata->gpio[i] = NULL;
 		}
 	}
 }
@@ -573,8 +792,9 @@ static int cpcap_charger_init_iio(struct cpcap_charger_ddata *ddata)
 	return 0;
 
 out_err:
-	dev_err(ddata->dev, "could not initialize VBUS or ID IIO: %i\n",
-		error);
+	if (error != -EPROBE_DEFER)
+		dev_err(ddata->dev, "could not initialize VBUS or ID IIO: %i\n",
+			error);
 
 	return error;
 }
@@ -585,6 +805,8 @@ static const struct power_supply_desc cpcap_charger_usb_desc = {
 	.properties	= cpcap_charger_props,
 	.num_properties	= ARRAY_SIZE(cpcap_charger_props),
 	.get_property	= cpcap_charger_get_property,
+	.set_property	= cpcap_charger_set_property,
+	.property_is_writeable = cpcap_charger_property_is_writeable,
 };
 
 #ifdef CONFIG_OF
@@ -614,6 +836,7 @@ static int cpcap_charger_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ddata->dev = &pdev->dev;
+	ddata->voltage = 4200000;
 
 	ddata->reg = dev_get_regmap(ddata->dev->parent, NULL);
 	if (!ddata->reg)

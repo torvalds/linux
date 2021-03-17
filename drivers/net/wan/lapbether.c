@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	"LAPB via ethernet" driver release 001
  *
  *	This code REQUIRES 2.1.15 or higher/ NET3.038
- *
- *	This module:
- *		This module is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *	This is a "pseudo" network driver to allow LAPB over Ethernet.
  *
@@ -69,7 +64,7 @@ static struct lapbethdev *lapbeth_get_x25_dev(struct net_device *dev)
 {
 	struct lapbethdev *lapbeth;
 
-	list_for_each_entry_rcu(lapbeth, &lapbeth_devices, node) {
+	list_for_each_entry_rcu(lapbeth, &lapbeth_devices, node, lockdep_rtnl_is_held()) {
 		if (lapbeth->ethdev == dev) 
 			return lapbeth;
 	}
@@ -133,10 +128,12 @@ static int lapbeth_data_indication(struct net_device *dev, struct sk_buff *skb)
 {
 	unsigned char *ptr;
 
-	skb_push(skb, 1);
-
-	if (skb_cow(skb, 1))
+	if (skb_cow(skb, 1)) {
+		kfree_skb(skb);
 		return NET_RX_DROP;
+	}
+
+	skb_push(skb, 1);
 
 	ptr  = skb->data;
 	*ptr = X25_IFACE_DATA;
@@ -160,6 +157,12 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 	if (!netif_running(dev))
 		goto drop;
 
+	/* There should be a pseudo header of 1 byte added by upper layers.
+	 * Check to make sure it is there before reading it.
+	 */
+	if (skb->len < 1)
+		goto drop;
+
 	switch (skb->data[0]) {
 	case X25_IFACE_DATA:
 		break;
@@ -170,7 +173,7 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 	case X25_IFACE_DISCONNECT:
 		if ((err = lapb_disconnect_request(dev)) != LAPB_OK)
 			pr_err("lapb_disconnect_request err: %d\n", err);
-		/* Fall thru */
+		fallthrough;
 	default:
 		goto drop;
 	}
@@ -195,8 +198,6 @@ static void lapbeth_data_transmit(struct net_device *ndev, struct sk_buff *skb)
 	struct net_device *dev;
 	int size = skb->len;
 
-	skb->protocol = htons(ETH_P_X25);
-
 	ptr = skb_push(skb, 2);
 
 	*ptr++ = size % 256;
@@ -206,6 +207,10 @@ static void lapbeth_data_transmit(struct net_device *ndev, struct sk_buff *skb)
 	ndev->stats.tx_bytes += size;
 
 	skb->dev = dev = lapbeth->ethdev;
+
+	skb->protocol = htons(ETH_P_DEC);
+
+	skb_reset_network_header(skb);
 
 	dev_hard_header(skb, dev, ETH_P_DEC, bcast_addr, NULL, 0);
 
@@ -308,7 +313,7 @@ static void lapbeth_setup(struct net_device *dev)
 	dev->netdev_ops	     = &lapbeth_netdev_ops;
 	dev->needs_free_netdev = true;
 	dev->type            = ARPHRD_X25;
-	dev->hard_header_len = 3;
+	dev->hard_header_len = 0;
 	dev->mtu             = 1000;
 	dev->addr_len        = 0;
 }
@@ -328,6 +333,16 @@ static int lapbeth_new_device(struct net_device *dev)
 			    lapbeth_setup);
 	if (!ndev)
 		goto out;
+
+	/* When transmitting data:
+	 * first this driver removes a pseudo header of 1 byte,
+	 * then the lapb module prepends an LAPB header of at most 3 bytes,
+	 * then this driver prepends a length field of 2 bytes,
+	 * then the underlying Ethernet device prepends its own header.
+	 */
+	ndev->needed_headroom = -1 + 3 + 2 + dev->hard_header_len
+					   + dev->needed_headroom;
+	ndev->needed_tailroom = dev->needed_tailroom;
 
 	lapbeth = netdev_priv(ndev);
 	lapbeth->axdev = ndev;

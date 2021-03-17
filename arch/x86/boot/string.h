@@ -11,10 +11,7 @@ void *memcpy(void *dst, const void *src, size_t len);
 void *memset(void *dst, int c, size_t len);
 int memcmp(const void *s1, const void *s2, size_t len);
 
-/*
- * Access builtin version by default. If one needs to use optimized version,
- * do "undef memcpy" in .c file and link against right string.c
- */
+/* Access builtin version by default. */
 #define memcpy(d,s,l) __builtin_memcpy(d,s,l)
 #define memset(d,c,l) __builtin_memset(d,c,l)
 #define memcmp	__builtin_memcmp
@@ -29,4 +26,6 @@ extern unsigned int atou(const char *s);
 extern unsigned long long simple_strtoull(const char *cp, char **endp,
 					  unsigned int base);
 
+int kstrtoull(const char *s, unsigned int base, unsigned long long *res);
+int boot_kstrtoul(const char *s, unsigned int base, unsigned long *res);
 #endif /* BOOT_STRING_H */

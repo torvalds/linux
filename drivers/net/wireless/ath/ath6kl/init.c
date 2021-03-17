@@ -710,8 +710,8 @@ static bool check_device_tree(struct ath6kl *ar)
 	for_each_compatible_node(node, NULL, "atheros,ath6kl") {
 		board_id = of_get_property(node, board_id_prop, NULL);
 		if (board_id == NULL) {
-			ath6kl_warn("No \"%s\" property on %s node.\n",
-				    board_id_prop, node->name);
+			ath6kl_warn("No \"%s\" property on %pOFn node.\n",
+				    board_id_prop, node);
 			continue;
 		}
 		snprintf(board_filename, sizeof(board_filename),
@@ -1140,7 +1140,7 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 
 		len -= ie_len;
 		data += ie_len;
-	};
+	}
 
 	ret = 0;
 out:
@@ -1575,7 +1575,7 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 
 int ath6kl_init_hw_params(struct ath6kl *ar)
 {
-	const struct ath6kl_hw *uninitialized_var(hw);
+	const struct ath6kl_hw *hw;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hw_list); i++) {
@@ -1752,7 +1752,7 @@ static int __ath6kl_init_hw_start(struct ath6kl *ar)
 
 	ret = ath6kl_init_service_ep(ar);
 	if (ret) {
-		ath6kl_err("Endpoint service initilisation failed: %d\n", ret);
+		ath6kl_err("Endpoint service initialization failed: %d\n", ret);
 		goto err_cleanup_scatter;
 	}
 

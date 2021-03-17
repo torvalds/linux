@@ -9,10 +9,7 @@ Required properties:
 - resets	: Phandle and reset specifier for this bridge's reset
 - clocks	: Clocks used by this module.
 
-Optional properties:
-- bridge-enable	: 0 if driver should disable bridge at startup.
-		  1 if driver should enable bridge at startup.
-		  Default is to leave bridge in its current state.
+See Documentation/devicetree/bindings/fpga/fpga-bridge.txt for generic bindings.
 
 Example:
 	fpga_bridge0: fpga-bridge@ff400000 {

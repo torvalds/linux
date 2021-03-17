@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <asm/clock.h>
 #include <asm/heartbeat.h>
@@ -39,6 +36,7 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/videodev2.h>
+#include <linux/dma-map-ops.h>
 
 #include <media/drv-intf/renesas-ceu.h>
 #include <media/i2c/mt9t112.h>
@@ -374,19 +372,31 @@ static struct platform_device lcdc_device = {
 	},
 };
 
-static struct gpio_backlight_platform_data gpio_backlight_data = {
-	.fbdev = &lcdc_device.dev,
-	.gpio = GPIO_PTR1,
-	.def_value = 1,
-	.name = "backlight",
-};
-
-static struct platform_device gpio_backlight_device = {
-	.name = "gpio-backlight",
-	.dev = {
-		.platform_data = &gpio_backlight_data,
+static struct gpiod_lookup_table gpio_backlight_lookup = {
+	.dev_id		= "gpio-backlight.0",
+	.table = {
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTR1, NULL, GPIO_ACTIVE_HIGH),
+		{ }
 	},
 };
+
+static struct property_entry gpio_backlight_props[] = {
+	PROPERTY_ENTRY_BOOL("default-on"),
+	{ }
+};
+
+static struct gpio_backlight_platform_data gpio_backlight_data = {
+	.fbdev = &lcdc_device.dev,
+};
+
+static const struct platform_device_info gpio_backlight_device_info = {
+	.name = "gpio-backlight",
+	.data = &gpio_backlight_data,
+	.size_data = sizeof(gpio_backlight_data),
+	.properties = gpio_backlight_props,
+};
+
+static struct platform_device *gpio_backlight_device;
 
 /* CEU0 */
 static struct ceu_platform_data ceu0_pdata = {
@@ -633,8 +643,6 @@ static struct regulator_init_data cn12_power_init_data = {
 static struct fixed_voltage_config cn12_power_info = {
 	.supply_name = "CN12 SD/MMC Vdd",
 	.microvolts = 3300000,
-	.gpio = GPIO_PTB7,
-	.enable_high = 1,
 	.init_data = &cn12_power_init_data,
 };
 
@@ -643,6 +651,16 @@ static struct platform_device cn12_power = {
 	.id   = 0,
 	.dev  = {
 		.platform_data = &cn12_power_info,
+	},
+};
+
+static struct gpiod_lookup_table cn12_power_gpiod_table = {
+	.dev_id = "reg-fixed-voltage.0",
+	.table = {
+		/* Offset 7 on port B */
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTB7,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -665,8 +683,6 @@ static struct regulator_init_data sdhi0_power_init_data = {
 static struct fixed_voltage_config sdhi0_power_info = {
 	.supply_name = "CN11 SD/MMC Vdd",
 	.microvolts = 3300000,
-	.gpio = GPIO_PTB6,
-	.enable_high = 1,
 	.init_data = &sdhi0_power_init_data,
 };
 
@@ -678,13 +694,30 @@ static struct platform_device sdhi0_power = {
 	},
 };
 
+static struct gpiod_lookup_table sdhi0_power_gpiod_table = {
+	.dev_id = "reg-fixed-voltage.1",
+	.table = {
+		/* Offset 6 on port B */
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTB6,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table sdhi0_gpio_table = {
+	.dev_id = "sh_mobile_sdhi.0",
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTY7, "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct tmio_mmc_data sdhi0_info = {
 	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
 	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
 	.capabilities	= MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.flags		= TMIO_MMC_USE_GPIO_CD,
-	.cd_gpio	= GPIO_PTY7,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -717,8 +750,15 @@ static struct tmio_mmc_data sdhi1_info = {
 	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI1_RX,
 	.capabilities	= MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.flags		= TMIO_MMC_USE_GPIO_CD,
-	.cd_gpio	= GPIO_PTW7,
+};
+
+static struct gpiod_lookup_table sdhi1_gpio_table = {
+	.dev_id = "sh_mobile_sdhi.1",
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTW7, "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct resource sdhi1_resources[] = {
@@ -758,9 +798,19 @@ static struct mmc_spi_platform_data mmc_spi_info = {
 	.caps2 = MMC_CAP2_RO_ACTIVE_HIGH,
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34, /* 3.3V only */
 	.setpower = mmc_spi_setpower,
-	.flags = MMC_SPI_USE_CD_GPIO | MMC_SPI_USE_RO_GPIO,
-	.cd_gpio = GPIO_PTY7,
-	.ro_gpio = GPIO_PTY6,
+};
+
+static struct gpiod_lookup_table mmc_spi_gpio_table = {
+	.dev_id = "mmc_spi.0", /* device "mmc_spi" @ CS0 */
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP_IDX("sh7724_pfc", GPIO_PTY7, NULL, 0,
+				GPIO_ACTIVE_LOW),
+		/* Write protect */
+		GPIO_LOOKUP_IDX("sh7724_pfc", GPIO_PTY6, NULL, 1,
+				GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct spi_board_info spi_bus[] = {
@@ -769,7 +819,6 @@ static struct spi_board_info spi_bus[] = {
 		.platform_data	= &mmc_spi_info,
 		.max_speed_hz	= 5000000,
 		.mode		= SPI_MODE_0,
-		.controller_data = (void *) GPIO_PTM4,
 	},
 };
 
@@ -799,6 +848,14 @@ static struct platform_device msiof0_device = {
 	},
 	.num_resources	= ARRAY_SIZE(msiof0_resources),
 	.resource	= msiof0_resources,
+};
+
+static struct gpiod_lookup_table msiof_gpio_table = {
+	.dev_id = "spi_sh_msiof.0",
+	.table = {
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTM4, "cs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 #endif
@@ -962,7 +1019,6 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&usb1_common_device,
 	&usbhs_device,
 	&lcdc_device,
-	&gpio_backlight_device,
 	&keysc_device,
 	&cn12_power,
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
@@ -1259,11 +1315,11 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_MSIOF0_TXD, NULL);
 	gpio_request(GPIO_FN_MSIOF0_RXD, NULL);
 	gpio_request(GPIO_FN_MSIOF0_TSCK, NULL);
-	gpio_request(GPIO_PTM4, NULL); /* software CS control of TSYNC pin */
-	gpio_direction_output(GPIO_PTM4, 1); /* active low CS */
 	gpio_request(GPIO_PTB6, NULL); /* 3.3V power control */
 	gpio_direction_output(GPIO_PTB6, 0); /* disable power by default */
 
+	gpiod_add_lookup_table(&mmc_spi_gpio_table);
+	gpiod_add_lookup_table(&msiof_gpio_table);
 	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 #endif
 
@@ -1396,22 +1452,33 @@ static int __init arch_setup(void)
 
 	/* Initialize CEU platform devices separately to map memory first */
 	device_initialize(&ecovec_ceu_devices[0]->dev);
-	arch_setup_pdev_archdata(ecovec_ceu_devices[0]);
 	dma_declare_coherent_memory(&ecovec_ceu_devices[0]->dev,
 				    ceu0_dma_membase, ceu0_dma_membase,
 				    ceu0_dma_membase +
-				    CEU_BUFFER_MEMORY_SIZE - 1,
-				    DMA_MEMORY_EXCLUSIVE);
+				    CEU_BUFFER_MEMORY_SIZE - 1);
 	platform_device_add(ecovec_ceu_devices[0]);
 
 	device_initialize(&ecovec_ceu_devices[1]->dev);
-	arch_setup_pdev_archdata(ecovec_ceu_devices[1]);
 	dma_declare_coherent_memory(&ecovec_ceu_devices[1]->dev,
 				    ceu1_dma_membase, ceu1_dma_membase,
 				    ceu1_dma_membase +
-				    CEU_BUFFER_MEMORY_SIZE - 1,
-				    DMA_MEMORY_EXCLUSIVE);
+				    CEU_BUFFER_MEMORY_SIZE - 1);
 	platform_device_add(ecovec_ceu_devices[1]);
+
+	gpiod_add_lookup_table(&cn12_power_gpiod_table);
+#if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
+	gpiod_add_lookup_table(&sdhi0_power_gpiod_table);
+	gpiod_add_lookup_table(&sdhi0_gpio_table);
+#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+	gpiod_add_lookup_table(&sdhi1_gpio_table);
+#endif
+#endif
+
+	gpiod_add_lookup_table(&gpio_backlight_lookup);
+	gpio_backlight_device = platform_device_register_full(
+					&gpio_backlight_device_info);
+	if (IS_ERR(gpio_backlight_device))
+		return PTR_ERR(gpio_backlight_device);
 
 	return platform_add_devices(ecovec_devices,
 				    ARRAY_SIZE(ecovec_devices));
@@ -1431,12 +1498,18 @@ static void __init ecovec_mv_mem_reserve(void)
 	phys_addr_t phys;
 	phys_addr_t size = CEU_BUFFER_MEMORY_SIZE;
 
-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
+	phys = memblock_phys_alloc(size, PAGE_SIZE);
+	if (!phys)
+		panic("Failed to allocate CEU0 memory\n");
+
 	memblock_free(phys, size);
 	memblock_remove(phys, size);
 	ceu0_dma_membase = phys;
 
-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
+	phys = memblock_phys_alloc(size, PAGE_SIZE);
+	if (!phys)
+		panic("Failed to allocate CEU1 memory\n");
+
 	memblock_free(phys, size);
 	memblock_remove(phys, size);
 	ceu1_dma_membase = phys;

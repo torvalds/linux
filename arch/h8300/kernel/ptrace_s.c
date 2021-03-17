@@ -40,5 +40,5 @@ void user_enable_single_step(struct task_struct *child)
 asmlinkage void trace_trap(unsigned long bp)
 {
 	(void)bp;
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 }

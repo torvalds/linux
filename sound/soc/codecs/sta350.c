@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Codec driver for ST STA350 2.1-channel high-efficiency digital audio system
  *
@@ -11,11 +12,6 @@
  *	  Mark Brown <broonie@opensource.wolfsonmicro.com>
  *	Freescale Semiconductor, Inc.
  *	  Timur Tabi <timur@freescale.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s:%d: " fmt, __func__, __LINE__
@@ -730,7 +726,7 @@ static int sta350_hw_params(struct snd_pcm_substream *substream,
 	switch (params_width(params)) {
 	case 24:
 		dev_dbg(component->dev, "24bit\n");
-		/* fall through */
+		fallthrough;
 	case 32:
 		dev_dbg(component->dev, "24bit or 32bit\n");
 		switch (sta350->format) {

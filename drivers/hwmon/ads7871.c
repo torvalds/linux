@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ads7871 - driver for TI ADS7871 A/D converter
  *
  *  Copyright (c) 2010 Paul Thomas <pthomas8589@gmail.com>
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 or
- *  later as publishhed by the Free Software Foundation.
  *
  *	You need to have something like this in struct spi_board_info
  *	{
@@ -96,8 +88,8 @@ static int ads7871_write_reg8(struct spi_device *spi, int reg, u8 val)
 	return spi_write(spi, tmp, sizeof(tmp));
 }
 
-static ssize_t show_voltage(struct device *dev,
-		struct device_attribute *da, char *buf)
+static ssize_t voltage_show(struct device *dev, struct device_attribute *da,
+			    char *buf)
 {
 	struct ads7871_data *pdata = dev_get_drvdata(dev);
 	struct spi_device *spi = pdata->spi;
@@ -138,14 +130,14 @@ static ssize_t show_voltage(struct device *dev,
 	}
 }
 
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, show_voltage, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, show_voltage, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, show_voltage, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, show_voltage, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, show_voltage, NULL, 4);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, show_voltage, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, show_voltage, NULL, 6);
-static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, show_voltage, NULL, 7);
+static SENSOR_DEVICE_ATTR_RO(in0_input, voltage, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, voltage, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, voltage, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, voltage, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, voltage, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_input, voltage, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_input, voltage, 6);
+static SENSOR_DEVICE_ATTR_RO(in7_input, voltage, 7);
 
 static struct attribute *ads7871_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,

@@ -14,6 +14,4 @@
 
 #define COMMAND_LINE_SIZE	256
 
-extern void set_except_vector(int n, void *addr);
-
 #endif

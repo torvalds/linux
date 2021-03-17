@@ -105,6 +105,11 @@ enum fid_type {
 	FILEID_LUSTRE = 0x97,
 
 	/*
+	 * 64 bit unique kernfs id
+	 */
+	FILEID_KERNFS = 0xfe,
+
+	/*
 	 * Filesystems must not use 0xff file ID.
 	 */
 	FILEID_INVALID = 0xff,
@@ -139,7 +144,7 @@ struct fid {
  * @get_parent:     find the parent of a given directory
  * @commit_metadata: commit metadata changes to stable storage
  *
- * See Documentation/filesystems/nfs/Exporting for details on how to use
+ * See Documentation/filesystems/nfs/exporting.rst for details on how to use
  * this interface correctly.
  *
  * encode_fh:
@@ -173,7 +178,7 @@ struct fid {
  * get_name:
  *    @get_name should find a name for the given @child in the given @parent
  *    directory.  The name should be stored in the @name (with the
- *    understanding that it is already pointing to a a %NAME_MAX+1 sized
+ *    understanding that it is already pointing to a %NAME_MAX+1 sized
  *    buffer.   get_name() should return %0 on success, a negative error code
  *    or error.  @get_name will be called without @parent->i_mutex held.
  *

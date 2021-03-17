@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Secure Processor device driver
  *
- * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2019 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -149,6 +146,14 @@ static struct sp_device *psp_get_master(void)
 	return sp_dev_master;
 }
 
+static void psp_clear_master(struct sp_device *sp)
+{
+	if (sp == sp_dev_master) {
+		sp_dev_master = NULL;
+		dev_dbg(sp->dev, "Cleared sp_dev_master\n");
+	}
+}
+
 static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct sp_device *sp;
@@ -209,6 +214,7 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 	sp->set_psp_master_device = psp_set_master;
 	sp->get_psp_master_device = psp_get_master;
+	sp->clear_psp_master_device = psp_clear_master;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
@@ -225,8 +231,6 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = sp_init(sp);
 	if (ret)
 		goto e_err;
-
-	dev_notice(dev, "enabled\n");
 
 	return 0;
 
@@ -246,42 +250,59 @@ static void sp_pci_remove(struct pci_dev *pdev)
 	sp_destroy(sp);
 
 	sp_free_irqs(sp);
-
-	dev_notice(dev, "disabled\n");
 }
 
-#ifdef CONFIG_PM
-static int sp_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused sp_pci_suspend(struct device *dev)
 {
-	struct device *dev = &pdev->dev;
 	struct sp_device *sp = dev_get_drvdata(dev);
 
-	return sp_suspend(sp, state);
+	return sp_suspend(sp);
 }
 
-static int sp_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused sp_pci_resume(struct device *dev)
 {
-	struct device *dev = &pdev->dev;
 	struct sp_device *sp = dev_get_drvdata(dev);
 
 	return sp_resume(sp);
 }
-#endif
 
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
-static const struct psp_vdata pspv1 = {
+static const struct sev_vdata sevv1 = {
 	.cmdresp_reg		= 0x10580,
 	.cmdbuff_addr_lo_reg	= 0x105e0,
 	.cmdbuff_addr_hi_reg	= 0x105e4,
+};
+
+static const struct sev_vdata sevv2 = {
+	.cmdresp_reg		= 0x10980,
+	.cmdbuff_addr_lo_reg	= 0x109e0,
+	.cmdbuff_addr_hi_reg	= 0x109e4,
+};
+
+static const struct tee_vdata teev1 = {
+	.cmdresp_reg		= 0x10544,
+	.cmdbuff_addr_lo_reg	= 0x10548,
+	.cmdbuff_addr_hi_reg	= 0x1054c,
+	.ring_wptr_reg          = 0x10550,
+	.ring_rptr_reg          = 0x10554,
+};
+
+static const struct psp_vdata pspv1 = {
+	.sev			= &sevv1,
 	.feature_reg		= 0x105fc,
 	.inten_reg		= 0x10610,
 	.intsts_reg		= 0x10614,
 };
 
 static const struct psp_vdata pspv2 = {
-	.cmdresp_reg		= 0x10980,
-	.cmdbuff_addr_lo_reg	= 0x109e0,
-	.cmdbuff_addr_hi_reg	= 0x109e4,
+	.sev			= &sevv2,
+	.feature_reg		= 0x109fc,
+	.inten_reg		= 0x10690,
+	.intsts_reg		= 0x10694,
+};
+
+static const struct psp_vdata pspv3 = {
+	.tee			= &teev1,
 	.feature_reg		= 0x109fc,
 	.inten_reg		= 0x10690,
 	.intsts_reg		= 0x10694,
@@ -319,26 +340,35 @@ static const struct sp_dev_vdata dev_vdata[] = {
 		.psp_vdata = &pspv2,
 #endif
 	},
+	{	/* 4 */
+		.bar = 2,
+#ifdef CONFIG_CRYPTO_DEV_SP_CCP
+		.ccp_vdata = &ccpv5a,
+#endif
+#ifdef CONFIG_CRYPTO_DEV_SP_PSP
+		.psp_vdata = &pspv3,
+#endif
+	},
 };
 static const struct pci_device_id sp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&dev_vdata[0] },
 	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&dev_vdata[1] },
 	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&dev_vdata[2] },
 	{ PCI_VDEVICE(AMD, 0x1486), (kernel_ulong_t)&dev_vdata[3] },
+	{ PCI_VDEVICE(AMD, 0x15DF), (kernel_ulong_t)&dev_vdata[4] },
 	/* Last entry must be zero */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sp_pci_table);
+
+static SIMPLE_DEV_PM_OPS(sp_pci_pm_ops, sp_pci_suspend, sp_pci_resume);
 
 static struct pci_driver sp_pci_driver = {
 	.name = "ccp",
 	.id_table = sp_pci_table,
 	.probe = sp_pci_probe,
 	.remove = sp_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = sp_pci_suspend,
-	.resume = sp_pci_resume,
-#endif
+	.driver.pm = &sp_pci_pm_ops,
 };
 
 int sp_pci_init(void)

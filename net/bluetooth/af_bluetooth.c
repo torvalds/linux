@@ -154,16 +154,26 @@ void bt_sock_unlink(struct bt_sock_list *l, struct sock *sk)
 }
 EXPORT_SYMBOL(bt_sock_unlink);
 
-void bt_accept_enqueue(struct sock *parent, struct sock *sk)
+void bt_accept_enqueue(struct sock *parent, struct sock *sk, bool bh)
 {
 	BT_DBG("parent %p, sk %p", parent, sk);
 
 	sock_hold(sk);
-	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
+
+	if (bh)
+		bh_lock_sock_nested(sk);
+	else
+		lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
+
 	list_add_tail(&bt_sk(sk)->accept_q, &bt_sk(parent)->accept_q);
 	bt_sk(sk)->parent = parent;
-	release_sock(sk);
-	parent->sk_ack_backlog++;
+
+	if (bh)
+		bh_unlock_sock(sk);
+	else
+		release_sock(sk);
+
+	sk_acceptq_added(parent);
 }
 EXPORT_SYMBOL(bt_accept_enqueue);
 
@@ -175,7 +185,7 @@ void bt_accept_unlink(struct sock *sk)
 	BT_DBG("sk %p state %d", sk, sk->sk_state);
 
 	list_del_init(&bt_sk(sk)->accept_q);
-	bt_sk(sk)->parent->sk_ack_backlog--;
+	sk_acceptq_removed(bt_sk(sk)->parent);
 	bt_sk(sk)->parent = NULL;
 	sock_put(sk);
 }
@@ -276,6 +286,9 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		if (msg->msg_name && bt_sk(sk)->skb_msg_name)
 			bt_sk(sk)->skb_msg_name(skb, msg->msg_name,
 						&msg->msg_namelen);
+
+		if (bt_sk(sk)->skb_put_cmsg)
+			bt_sk(sk)->skb_put_cmsg(skb, msg, sk);
 	}
 
 	skb_free_datagram(sk, skb);
@@ -443,14 +456,12 @@ __poll_t bt_sock_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	__poll_t mask = 0;
 
-	BT_DBG("sock %p, sk %p", sock, sk);
-
 	poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_state == BT_LISTEN)
 		return bt_accept_poll(sk);
 
-	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
+	if (sk->sk_err || !skb_queue_empty_lockless(&sk->sk_error_queue))
 		mask |= EPOLLERR |
 			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? EPOLLPRI : 0);
 
@@ -460,7 +471,7 @@ __poll_t bt_sock_poll(struct file *file, struct socket *sock,
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
 		mask |= EPOLLHUP;
 
-	if (!skb_queue_empty(&sk->sk_receive_queue))
+	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	if (sk->sk_state == BT_CLOSED)
@@ -509,14 +520,6 @@ int bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		amount = skb ? skb->len : 0;
 		release_sock(sk);
 		err = put_user(amount, (int __user *) arg);
-		break;
-
-	case SIOCGSTAMP:
-		err = sock_get_timestamp(sk, (struct timeval __user *) arg);
-		break;
-
-	case SIOCGSTAMPNS:
-		err = sock_get_timestampns(sk, (struct timespec __user *) arg);
 		break;
 
 	default:

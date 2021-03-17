@@ -37,10 +37,10 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/console.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_atomic.h>
 
 #include "nouveau_drv.h"
@@ -189,8 +189,10 @@ nouveau_fbcon_open(struct fb_info *info, int user)
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
 	int ret = pm_runtime_get_sync(drm->dev->dev);
-	if (ret < 0 && ret != -EACCES)
+	if (ret < 0 && ret != -EACCES) {
+		pm_runtime_put(drm->dev->dev);
 		return ret;
+	}
 	return 0;
 }
 
@@ -203,7 +205,7 @@ nouveau_fbcon_release(struct fb_info *info, int user)
 	return 0;
 }
 
-static struct fb_ops nouveau_fbcon_ops = {
+static const struct fb_ops nouveau_fbcon_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open = nouveau_fbcon_open,
@@ -214,7 +216,7 @@ static struct fb_ops nouveau_fbcon_ops = {
 	.fb_sync = nouveau_fbcon_sync,
 };
 
-static struct fb_ops nouveau_fbcon_sw_ops = {
+static const struct fb_ops nouveau_fbcon_sw_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open = nouveau_fbcon_open,
@@ -254,13 +256,13 @@ nouveau_fbcon_accel_fini(struct drm_device *dev)
 			fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
 		console_unlock();
 		nouveau_channel_idle(drm->channel);
-		nvif_object_fini(&fbcon->twod);
-		nvif_object_fini(&fbcon->blit);
-		nvif_object_fini(&fbcon->gdi);
-		nvif_object_fini(&fbcon->patt);
-		nvif_object_fini(&fbcon->rop);
-		nvif_object_fini(&fbcon->clip);
-		nvif_object_fini(&fbcon->surf2d);
+		nvif_object_dtor(&fbcon->twod);
+		nvif_object_dtor(&fbcon->blit);
+		nvif_object_dtor(&fbcon->gdi);
+		nvif_object_dtor(&fbcon->patt);
+		nvif_object_dtor(&fbcon->rop);
+		nvif_object_dtor(&fbcon->clip);
+		nvif_object_dtor(&fbcon->surf2d);
 	}
 }
 
@@ -312,10 +314,10 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
 	struct fb_info *info;
-	struct nouveau_framebuffer *fb;
+	struct drm_framebuffer *fb;
 	struct nouveau_channel *chan;
 	struct nouveau_bo *nvbo;
-	struct drm_mode_fb_cmd2 mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd = {};
 	int ret;
 
 	mode_cmd.width = sizes->surface_width;
@@ -335,11 +337,11 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	ret = nouveau_framebuffer_new(dev, &mode_cmd, nvbo, &fb);
+	ret = nouveau_framebuffer_new(dev, &mode_cmd, &nvbo->bo.base, &fb);
 	if (ret)
 		goto out_unref;
 
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, false);
+	ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, false);
 	if (ret) {
 		NV_ERROR(drm, "failed to pin fb: %d\n", ret);
 		goto out_unref;
@@ -353,7 +355,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	chan = nouveau_nofbaccel ? NULL : drm->channel;
 	if (chan && device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(nvbo, &drm->client.vmm, &fb->vma);
+		ret = nouveau_vma_new(nvbo, chan->vmm, &fbcon->vma);
 		if (ret) {
 			NV_ERROR(drm, "failed to map fb into chan: %d\n", ret);
 			chan = NULL;
@@ -365,32 +367,24 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(info);
 		goto out_unlock;
 	}
-	info->skip_vt_switch = 1;
-
-	info->par = fbcon;
 
 	/* setup helper */
-	fbcon->helper.fb = &fb->base;
+	fbcon->helper.fb = fb;
 
-	strcpy(info->fix.id, "nouveaufb");
 	if (!chan)
-		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_DISABLED;
+		info->flags = FBINFO_HWACCEL_DISABLED;
 	else
-		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
+		info->flags = FBINFO_HWACCEL_COPYAREA |
 			      FBINFO_HWACCEL_FILLRECT |
 			      FBINFO_HWACCEL_IMAGEBLIT;
-	info->flags |= FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &nouveau_fbcon_sw_ops;
-	info->fix.smem_start = fb->nvbo->bo.mem.bus.base +
-			       fb->nvbo->bo.mem.bus.offset;
-	info->fix.smem_len = fb->nvbo->bo.mem.num_pages << PAGE_SHIFT;
+	info->fix.smem_start = nvbo->bo.mem.bus.offset;
+	info->fix.smem_len = nvbo->bo.mem.num_pages << PAGE_SHIFT;
 
-	info->screen_base = nvbo_kmap_obj_iovirtual(fb->nvbo);
-	info->screen_size = fb->nvbo->bo.mem.num_pages << PAGE_SHIFT;
+	info->screen_base = nvbo_kmap_obj_iovirtual(nvbo);
+	info->screen_size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
 
-	drm_fb_helper_fill_fix(info, fb->base.pitches[0],
-			       fb->base.format->depth);
-	drm_fb_helper_fill_var(info, &fbcon->helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, &fbcon->helper, sizes);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
@@ -400,19 +394,19 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	/* To allow resizeing without swapping buffers */
 	NV_INFO(drm, "allocated %dx%d fb: 0x%llx, bo %p\n",
-		fb->base.width, fb->base.height, fb->nvbo->bo.offset, nvbo);
+		fb->width, fb->height, nvbo->offset, nvbo);
 
 	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
 
 out_unlock:
 	if (chan)
-		nouveau_vma_del(&fb->vma);
-	nouveau_bo_unmap(fb->nvbo);
+		nouveau_vma_del(&fbcon->vma);
+	nouveau_bo_unmap(nvbo);
 out_unpin:
-	nouveau_bo_unpin(fb->nvbo);
+	nouveau_bo_unpin(nvbo);
 out_unref:
-	nouveau_bo_ref(NULL, &fb->nvbo);
+	nouveau_bo_ref(NULL, &nvbo);
 out:
 	return ret;
 }
@@ -420,16 +414,18 @@ out:
 static int
 nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 {
-	struct nouveau_framebuffer *nouveau_fb = nouveau_framebuffer(fbcon->helper.fb);
+	struct drm_framebuffer *fb = fbcon->helper.fb;
+	struct nouveau_bo *nvbo;
 
 	drm_fb_helper_unregister_fbi(&fbcon->helper);
 	drm_fb_helper_fini(&fbcon->helper);
 
-	if (nouveau_fb && nouveau_fb->nvbo) {
-		nouveau_vma_del(&nouveau_fb->vma);
-		nouveau_bo_unmap(nouveau_fb->nvbo);
-		nouveau_bo_unpin(nouveau_fb->nvbo);
-		drm_framebuffer_put(&nouveau_fb->base);
+	if (fb && fb->obj[0]) {
+		nvbo = nouveau_gem_object(fb->obj[0]);
+		nouveau_vma_del(&fbcon->vma);
+		nouveau_bo_unmap(nvbo);
+		nouveau_bo_unpin(nvbo);
+		drm_framebuffer_put(fb);
 	}
 
 	return 0;
@@ -565,13 +561,9 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, &fbcon->helper, &nouveau_fbcon_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &fbcon->helper, 4);
+	ret = drm_fb_helper_init(dev, &fbcon->helper);
 	if (ret)
 		goto free;
-
-	ret = drm_fb_helper_single_add_all_connectors(&fbcon->helper);
-	if (ret)
-		goto fini;
 
 	if (preferred_bpp != 8 && preferred_bpp != 16 && preferred_bpp != 32) {
 		if (drm->client.device.info.ram_size <= 32 * 1024 * 1024)
@@ -599,6 +591,7 @@ fini:
 	drm_fb_helper_fini(&fbcon->helper);
 free:
 	kfree(fbcon);
+	drm->fbcon = NULL;
 	return ret;
 }
 

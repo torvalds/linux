@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# HabanaLabs AI accelerators driver
+#
+
+config HABANA_AI
+	tristate "HabanaAI accelerators (habanalabs)"
+	depends on PCI && HAS_IOMEM
+	select FRAME_VECTOR
+	select GENERIC_ALLOCATOR
+	select HWMON
+	help
+	  Enables PCIe card driver for Habana's AI Processors (AIP) that are
+	  designed to accelerate Deep Learning inference and training workloads.
+
+	  The driver manages the PCIe devices and provides IOCTL interface for
+	  the user to submit workloads to the devices.
+
+	  The user-space interface is described in
+	  include/uapi/misc/habanalabs.h
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called habanalabs.

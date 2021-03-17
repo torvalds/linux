@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Bit sliced AES using NEON instructions
  *
  * Copyright (C) 2016 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -383,7 +380,7 @@ ISRM0:	.octa		0x0306090c00070a0d01040b0e0205080f
 	/*
 	 * void aesbs_convert_key(u8 out[], u32 const rk[], int rounds)
 	 */
-ENTRY(aesbs_convert_key)
+SYM_FUNC_START(aesbs_convert_key)
 	ld1		{v7.4s}, [x1], #16		// load round 0 key
 	ld1		{v17.4s}, [x1], #16		// load round 1 key
 
@@ -428,10 +425,10 @@ ENTRY(aesbs_convert_key)
 	eor		v17.16b, v17.16b, v7.16b
 	str		q17, [x0]
 	ret
-ENDPROC(aesbs_convert_key)
+SYM_FUNC_END(aesbs_convert_key)
 
 	.align		4
-aesbs_encrypt8:
+SYM_FUNC_START_LOCAL(aesbs_encrypt8)
 	ldr		q9, [bskey], #16		// round 0 key
 	ldr		q8, M0SR
 	ldr		q24, SR
@@ -491,10 +488,10 @@ aesbs_encrypt8:
 	eor		v2.16b, v2.16b, v12.16b
 	eor		v5.16b, v5.16b, v12.16b
 	ret
-ENDPROC(aesbs_encrypt8)
+SYM_FUNC_END(aesbs_encrypt8)
 
 	.align		4
-aesbs_decrypt8:
+SYM_FUNC_START_LOCAL(aesbs_decrypt8)
 	lsl		x9, rounds, #7
 	add		bskey, bskey, x9
 
@@ -556,7 +553,7 @@ aesbs_decrypt8:
 	eor		v3.16b, v3.16b, v12.16b
 	eor		v5.16b, v5.16b, v12.16b
 	ret
-ENDPROC(aesbs_decrypt8)
+SYM_FUNC_END(aesbs_decrypt8)
 
 	/*
 	 * aesbs_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
@@ -624,21 +621,21 @@ ENDPROC(aesbs_decrypt8)
 	.endm
 
 	.align		4
-ENTRY(aesbs_ecb_encrypt)
+SYM_FUNC_START(aesbs_ecb_encrypt)
 	__ecb_crypt	aesbs_encrypt8, v0, v1, v4, v6, v3, v7, v2, v5
-ENDPROC(aesbs_ecb_encrypt)
+SYM_FUNC_END(aesbs_ecb_encrypt)
 
 	.align		4
-ENTRY(aesbs_ecb_decrypt)
+SYM_FUNC_START(aesbs_ecb_decrypt)
 	__ecb_crypt	aesbs_decrypt8, v0, v1, v6, v4, v2, v7, v3, v5
-ENDPROC(aesbs_ecb_decrypt)
+SYM_FUNC_END(aesbs_ecb_decrypt)
 
 	/*
 	 * aesbs_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 	 *		     int blocks, u8 iv[])
 	 */
 	.align		4
-ENTRY(aesbs_cbc_decrypt)
+SYM_FUNC_START(aesbs_cbc_decrypt)
 	frame_push	6
 
 	mov		x19, x0
@@ -723,7 +720,7 @@ ENTRY(aesbs_cbc_decrypt)
 
 2:	frame_pop
 	ret
-ENDPROC(aesbs_cbc_decrypt)
+SYM_FUNC_END(aesbs_cbc_decrypt)
 
 	.macro		next_tweak, out, in, const, tmp
 	sshr		\tmp\().2d,  \in\().2d,   #63
@@ -733,18 +730,13 @@ ENDPROC(aesbs_cbc_decrypt)
 	eor		\out\().16b, \out\().16b, \tmp\().16b
 	.endm
 
-	.align		4
-.Lxts_mul_x:
-CPU_LE(	.quad		1, 0x87		)
-CPU_BE(	.quad		0x87, 1		)
-
 	/*
 	 * aesbs_xts_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 	 *		     int blocks, u8 iv[])
 	 * aesbs_xts_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 	 *		     int blocks, u8 iv[])
 	 */
-__xts_crypt8:
+SYM_FUNC_START_LOCAL(__xts_crypt8)
 	mov		x6, #1
 	lsl		x6, x6, x23
 	subs		w23, w23, #8
@@ -796,8 +788,8 @@ __xts_crypt8:
 
 0:	mov		bskey, x21
 	mov		rounds, x22
-	br		x7
-ENDPROC(__xts_crypt8)
+	br		x16
+SYM_FUNC_END(__xts_crypt8)
 
 	.macro		__xts_crypt, do8, o0, o1, o2, o3, o4, o5, o6, o7
 	frame_push	6, 64
@@ -809,10 +801,12 @@ ENDPROC(__xts_crypt8)
 	mov		x23, x4
 	mov		x24, x5
 
-0:	ldr		q30, .Lxts_mul_x
+0:	movi		v30.2s, #0x1
+	movi		v25.2s, #0x87
+	uzp1		v30.4s, v30.4s, v25.4s
 	ld1		{v25.16b}, [x24]
 
-99:	adr		x7, \do8
+99:	adr		x16, \do8
 	bl		__xts_crypt8
 
 	ldp		q16, q17, [sp, #.Lframe_local_offset]
@@ -860,13 +854,13 @@ ENDPROC(__xts_crypt8)
 	ret
 	.endm
 
-ENTRY(aesbs_xts_encrypt)
+SYM_FUNC_START(aesbs_xts_encrypt)
 	__xts_crypt	aesbs_encrypt8, v0, v1, v4, v6, v3, v7, v2, v5
-ENDPROC(aesbs_xts_encrypt)
+SYM_FUNC_END(aesbs_xts_encrypt)
 
-ENTRY(aesbs_xts_decrypt)
+SYM_FUNC_START(aesbs_xts_decrypt)
 	__xts_crypt	aesbs_decrypt8, v0, v1, v6, v4, v2, v7, v3, v5
-ENDPROC(aesbs_xts_decrypt)
+SYM_FUNC_END(aesbs_xts_decrypt)
 
 	.macro		next_ctr, v
 	mov		\v\().d[1], x8
@@ -880,7 +874,7 @@ ENDPROC(aesbs_xts_decrypt)
 	 * aesbs_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[],
 	 *		     int rounds, int blocks, u8 iv[], u8 final[])
 	 */
-ENTRY(aesbs_ctr_encrypt)
+SYM_FUNC_START(aesbs_ctr_encrypt)
 	frame_push	8
 
 	mov		x19, x0
@@ -971,18 +965,22 @@ CPU_LE(	rev		x8, x8		)
 
 8:	next_ctr	v0
 	st1		{v0.16b}, [x24]
-	cbz		x23, 0f
+	cbz		x23, .Lctr_done
 
 	cond_yield_neon	98b
 	b		99b
 
-0:	frame_pop
+.Lctr_done:
+	frame_pop
 	ret
 
 	/*
 	 * If we are handling the tail of the input (x6 != NULL), return the
 	 * final keystream block back to the caller.
 	 */
+0:	cbz		x25, 8b
+	st1		{v0.16b}, [x25]
+	b		8b
 1:	cbz		x25, 8b
 	st1		{v1.16b}, [x25]
 	b		8b
@@ -1004,4 +1002,4 @@ CPU_LE(	rev		x8, x8		)
 7:	cbz		x25, 8b
 	st1		{v5.16b}, [x25]
 	b		8b
-ENDPROC(aesbs_ctr_encrypt)
+SYM_FUNC_END(aesbs_ctr_encrypt)

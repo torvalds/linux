@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 static struct resword {
 	const char *name;
 	int token;
 } keywords[] = {
-	{ "EXPORT_SYMBOL", EXPORT_SYMBOL_KEYW },
-	{ "EXPORT_SYMBOL_GPL", EXPORT_SYMBOL_KEYW },
-	{ "EXPORT_SYMBOL_GPL_FUTURE", EXPORT_SYMBOL_KEYW },
-	{ "EXPORT_UNUSED_SYMBOL", EXPORT_SYMBOL_KEYW },
-	{ "EXPORT_UNUSED_SYMBOL_GPL", EXPORT_SYMBOL_KEYW },
+	{ "__GENKSYMS_EXPORT_SYMBOL", EXPORT_SYMBOL_KEYW },
 	{ "__asm", ASM_KEYW },
 	{ "__asm__", ASM_KEYW },
 	{ "__attribute", ATTRIBUTE_KEYW },
@@ -24,9 +21,13 @@ static struct resword {
 	{ "__volatile__", VOLATILE_KEYW },
 	{ "__builtin_va_list", VA_LIST_KEYW },
 
-	// According to rth, c99 defines "_Bool", __restrict", __restrict__", "restrict".  KAO
+	{ "__int128", BUILTIN_INT_KEYW },
+	{ "__int128_t", BUILTIN_INT_KEYW },
+	{ "__uint128_t", BUILTIN_INT_KEYW },
+
+	// According to rth, c99 defines "_Bool", "__restrict", "__restrict__", "restrict".  KAO
 	{ "_Bool", BOOL_KEYW },
-	{ "_restrict", RESTRICT_KEYW },
+	{ "__restrict", RESTRICT_KEYW },
 	{ "__restrict__", RESTRICT_KEYW },
 	{ "restrict", RESTRICT_KEYW },
 	{ "asm", ASM_KEYW },

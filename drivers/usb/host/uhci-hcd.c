@@ -581,7 +581,7 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	hcd->uses_new_polling = 1;
 	/* Accept arbitrarily long scatter-gather lists */
-	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
+	if (!hcd->localmem_pool)
 		hcd->self.sg_tablesize = ~0;
 
 	spin_lock_init(&uhci->lock);
@@ -596,9 +596,9 @@ static int uhci_start(struct usb_hcd *hcd)
 					   &uhci_debug_operations);
 #endif
 
-	uhci->frame = dma_zalloc_coherent(uhci_dev(uhci),
-			UHCI_NUMFRAMES * sizeof(*uhci->frame),
-			&uhci->frame_dma_handle, GFP_KERNEL);
+	uhci->frame = dma_alloc_coherent(uhci_dev(uhci),
+					 UHCI_NUMFRAMES * sizeof(*uhci->frame),
+					 &uhci->frame_dma_handle, GFP_KERNEL);
 	if (!uhci->frame) {
 		dev_err(uhci_dev(uhci),
 			"unable to allocate consistent memory for frame list\n");

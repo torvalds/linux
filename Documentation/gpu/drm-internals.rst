@@ -24,9 +24,9 @@ Driver Initialization
 At the core of every DRM driver is a :c:type:`struct drm_driver
 <drm_driver>` structure. Drivers typically statically initialize
 a drm_driver structure, and then pass it to
-:c:func:`drm_dev_alloc()` to allocate a device instance. After the
+drm_dev_alloc() to allocate a device instance. After the
 device instance is fully initialized it can be registered (which makes
-it accessible from userspace) using :c:func:`drm_dev_register()`.
+it accessible from userspace) using drm_dev_register().
 
 The :c:type:`struct drm_driver <drm_driver>` structure
 contains static information that describes the driver and features it
@@ -38,68 +38,6 @@ sections.
 
 Driver Information
 ------------------
-
-Driver Features
-~~~~~~~~~~~~~~~
-
-Drivers inform the DRM core about their requirements and supported
-features by setting appropriate flags in the driver_features field.
-Since those flags influence the DRM core behaviour since registration
-time, most of them must be set to registering the :c:type:`struct
-drm_driver <drm_driver>` instance.
-
-u32 driver_features;
-
-DRIVER_USE_AGP
-    Driver uses AGP interface, the DRM core will manage AGP resources.
-
-DRIVER_LEGACY
-    Denote a legacy driver using shadow attach. Don't use.
-
-DRIVER_KMS_LEGACY_CONTEXT
-    Used only by nouveau for backwards compatibility with existing userspace.
-    Don't use.
-
-DRIVER_PCI_DMA
-    Driver is capable of PCI DMA, mapping of PCI DMA buffers to
-    userspace will be enabled. Deprecated.
-
-DRIVER_SG
-    Driver can perform scatter/gather DMA, allocation and mapping of
-    scatter/gather buffers will be enabled. Deprecated.
-
-DRIVER_HAVE_DMA
-    Driver supports DMA, the userspace DMA API will be supported.
-    Deprecated.
-
-DRIVER_HAVE_IRQ; DRIVER_IRQ_SHARED
-    DRIVER_HAVE_IRQ indicates whether the driver has an IRQ handler
-    managed by the DRM Core. The core will support simple IRQ handler
-    installation when the flag is set. The installation process is
-    described in ?.
-
-    DRIVER_IRQ_SHARED indicates whether the device & handler support
-    shared IRQs (note that this is required of PCI drivers).
-
-DRIVER_GEM
-    Driver use the GEM memory manager.
-
-DRIVER_MODESET
-    Driver supports mode setting interfaces (KMS).
-
-DRIVER_PRIME
-    Driver implements DRM PRIME buffer sharing.
-
-DRIVER_RENDER
-    Driver supports dedicated render nodes.
-
-DRIVER_ATOMIC
-    Driver supports atomic properties. In this case the driver must
-    implement appropriate obj->atomic_get_property() vfuncs for any
-    modeset objects with driver specific properties.
-
-DRIVER_SYNCOBJ
-    Driver support drm sync objects.
 
 Major, Minor and Patchlevel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -143,6 +81,9 @@ Device Instance and Driver Handling
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :doc: driver instance overview
 
+.. kernel-doc:: include/drm/drm_device.h
+   :internal:
+
 .. kernel-doc:: include/drm/drm_drv.h
    :internal:
 
@@ -152,6 +93,11 @@ Device Instance and Driver Handling
 Driver Load
 -----------
 
+Component Helper Usage
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/drm_drv.c
+   :doc: component helper usage recommendations
 
 IRQ Helper Library
 ~~~~~~~~~~~~~~~~~~
@@ -185,6 +131,18 @@ been mapped and any necessary information has been extracted, it should
 be unmapped; on many devices, the ROM address decoder is shared with
 other BARs, so leaving it mapped could cause undesired behaviour like
 hangs or memory corruption.
+
+Managed Resources
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_managed.c
+   :doc: managed resources
+
+.. kernel-doc:: drivers/gpu/drm/drm_managed.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_managed.h
+   :internal:
 
 Bus-specific Device Registration and PCI Support
 ------------------------------------------------
@@ -229,6 +187,15 @@ Printer
 
 .. kernel-doc:: drivers/gpu/drm/drm_print.c
    :export:
+
+Utilities
+---------
+
+.. kernel-doc:: include/drm/drm_util.h
+   :doc: drm utils
+
+.. kernel-doc:: include/drm/drm_util.h
+   :internal:
 
 
 Legacy Support Code

@@ -1,37 +1,28 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __DPU_KMS_H__
 #define __DPU_KMS_H__
 
+#include <linux/interconnect.h>
+
+#include <drm/drm_drv.h>
+
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "msm_mmu.h"
 #include "msm_gem.h"
-#include "dpu_dbg.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_ctl.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_interrupts.h"
 #include "dpu_hw_top.h"
+#include "dpu_io_util.h"
 #include "dpu_rm.h"
-#include "dpu_power_handle.h"
-#include "dpu_irq.h"
 #include "dpu_core_perf.h"
 
 #define DRMID(x) ((x) ? (x)->base.id : -1)
@@ -42,7 +33,7 @@
  */
 #define DPU_DEBUG(fmt, ...)                                                \
 	do {                                                               \
-		if (unlikely(drm_debug & DRM_UT_KMS))                      \
+		if (drm_debug_enabled(DRM_UT_KMS))                         \
 			DRM_DEBUG(fmt, ##__VA_ARGS__); \
 		else                                                       \
 			pr_debug(fmt, ##__VA_ARGS__);                      \
@@ -54,7 +45,7 @@
  */
 #define DPU_DEBUG_DRIVER(fmt, ...)                                         \
 	do {                                                               \
-		if (unlikely(drm_debug & DRM_UT_DRIVER))                   \
+		if (drm_debug_enabled(DRM_UT_DRIVER))                      \
 			DRM_ERROR(fmt, ##__VA_ARGS__); \
 		else                                                       \
 			pr_debug(fmt, ##__VA_ARGS__);                      \
@@ -74,9 +65,6 @@
 	ktime_compare(ktime_sub((A), (B)), ktime_set(0, 0))
 
 #define DPU_NAME_SIZE  12
-
-/* timeout in frames waiting for frame done */
-#define DPU_FRAME_DONE_TIMEOUT	60
 
 /*
  * struct dpu_irq_callback - IRQ callback handlers
@@ -104,7 +92,6 @@ struct dpu_irq {
 	atomic_t *enable_counts;
 	atomic_t *irq_counts;
 	spinlock_t cb_lock;
-	struct dentry *debugfs_file;
 };
 
 struct dpu_kms {
@@ -113,18 +100,8 @@ struct dpu_kms {
 	int core_rev;
 	struct dpu_mdss_cfg *catalog;
 
-	struct dpu_power_handle phandle;
-	struct dpu_power_client *core_client;
-	struct dpu_power_event *power_event;
-
-	/* directory entry for debugfs */
-	struct dentry *debugfs_root;
-	struct dentry *debugfs_danger;
-	struct dentry *debugfs_vbif;
-
 	/* io/register spaces: */
 	void __iomem *mmio, *vbif[VBIF_MAX], *reg_dma;
-	unsigned long mmio_len, vbif_len[VBIF_MAX], reg_dma_len;
 
 	struct regulator *vdd;
 	struct regulator *mmagic;
@@ -135,9 +112,12 @@ struct dpu_kms {
 
 	struct dpu_core_perf perf;
 
-	/* saved atomic state during system suspend */
-	struct drm_atomic_state *suspend_state;
-	bool suspend_block;
+	/*
+	 * Global private object state, Do not access directly, use
+	 * dpu_kms_global_get_state()
+	 */
+	struct drm_modeset_lock global_state_lock;
+	struct drm_private_obj global_state;
 
 	struct dpu_rm rm;
 	bool rm_init;
@@ -149,7 +129,21 @@ struct dpu_kms {
 
 	struct platform_device *pdev;
 	bool rpm_enabled;
+
+	struct opp_table *opp_table;
+	bool has_opp_table;
+
 	struct dss_module_power mp;
+
+	/* reference count bandwidth requests, so we know when we can
+	 * release bandwidth.  Each atomic update increments, and frame-
+	 * done event decrements.  Additionally, for video mode, the
+	 * reference is incremented when crtc is enabled, and decremented
+	 * when disabled.
+	 */
+	atomic_t bandwidth_ref;
+	struct icc_path *path[2];
+	u32 num_paths;
 };
 
 struct vsync_info {
@@ -159,43 +153,32 @@ struct vsync_info {
 
 #define to_dpu_kms(x) container_of(x, struct dpu_kms, base)
 
-/* get struct msm_kms * from drm_device * */
-#define ddev_to_msm_kms(D) ((D) && (D)->dev_private ? \
-		((struct msm_drm_private *)((D)->dev_private))->kms : NULL)
+#define to_dpu_global_state(x) container_of(x, struct dpu_global_state, base)
 
-/**
- * dpu_kms_is_suspend_state - whether or not the system is pm suspended
- * @dev: Pointer to drm device
- * Return: Suspend status
+/* Global private object state for tracking resources that are shared across
+ * multiple kms objects (planes/crtcs/etc).
  */
-static inline bool dpu_kms_is_suspend_state(struct drm_device *dev)
-{
-	if (!ddev_to_msm_kms(dev))
-		return false;
+struct dpu_global_state {
+	struct drm_private_state base;
 
-	return to_dpu_kms(ddev_to_msm_kms(dev))->suspend_state != NULL;
-}
+	uint32_t pingpong_to_enc_id[PINGPONG_MAX - PINGPONG_0];
+	uint32_t mixer_to_enc_id[LM_MAX - LM_0];
+	uint32_t ctl_to_enc_id[CTL_MAX - CTL_0];
+	uint32_t intf_to_enc_id[INTF_MAX - INTF_0];
+	uint32_t dspp_to_enc_id[DSPP_MAX - DSPP_0];
+};
 
-/**
- * dpu_kms_is_suspend_blocked - whether or not commits are blocked due to pm
- *				suspend status
- * @dev: Pointer to drm device
- * Return: True if commits should be rejected due to pm suspend
- */
-static inline bool dpu_kms_is_suspend_blocked(struct drm_device *dev)
-{
-	if (!dpu_kms_is_suspend_state(dev))
-		return false;
-
-	return to_dpu_kms(ddev_to_msm_kms(dev))->suspend_block;
-}
+struct dpu_global_state
+	*dpu_kms_get_existing_global_state(struct dpu_kms *dpu_kms);
+struct dpu_global_state
+	*__must_check dpu_kms_get_global_state(struct drm_atomic_state *s);
 
 /**
  * Debugfs functions - extra helper functions for debugfs support
  *
  * Main debugfs documentation is located at,
  *
- * Documentation/filesystems/debugfs.txt
+ * Documentation/filesystems/debugfs.rst
  *
  * @dpu_debugfs_setup_regset32: Initialize data for dpu_debugfs_create_regset32
  * @dpu_debugfs_create_regset32: Create 32-bit register dump file
@@ -243,12 +226,8 @@ void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
  * @mode:   File mode within debugfs
  * @parent: Parent directory entry within debugfs, can be NULL
  * @regset: Pointer to persistent register block definition
- *
- * Return: dentry pointer for newly created file, use either debugfs_remove()
- *         or debugfs_remove_recursive() (on a parent directory) to remove the
- *         file
  */
-void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
+void dpu_debugfs_create_regset32(const char *name, umode_t mode,
 		void *parent, struct dpu_debugfs_regset32 *regset);
 
 /**

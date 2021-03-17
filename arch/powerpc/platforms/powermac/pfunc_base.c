@@ -101,9 +101,8 @@ static void macio_gpio_init_one(struct macio_chip *macio)
 	 * Find the "gpio" parent node
 	 */
 
-	for (gparent = NULL;
-	     (gparent = of_get_next_child(macio->of_node, gparent)) != NULL;)
-		if (strcmp(gparent->name, "gpio") == 0)
+	for_each_child_of_node(macio->of_node, gparent)
+		if (of_node_name_eq(gparent, "gpio"))
 			break;
 	if (gparent == NULL)
 		return;
@@ -115,7 +114,7 @@ static void macio_gpio_init_one(struct macio_chip *macio)
 	 * Ok, got one, we dont need anything special to track them down, so
 	 * we just create them all
 	 */
-	for (gp = NULL; (gp = of_get_next_child(gparent, gp)) != NULL;) {
+	for_each_child_of_node(gparent, gp) {
 		const u32 *reg = of_get_property(gp, "reg", NULL);
 		unsigned long offset;
 		if (reg == NULL)
@@ -134,7 +133,7 @@ static void macio_gpio_init_one(struct macio_chip *macio)
 	    macio->of_node);
 
 	/* And now we run all the init ones */
-	for (gp = NULL; (gp = of_get_next_child(gparent, gp)) != NULL;)
+	for_each_child_of_node(gparent, gp)
 		pmf_do_functions(gp, NULL, 0, PMF_FLAGS_ON_INIT, NULL);
 
 	/* Note: We do not at this point implement the "at sleep" or "at wake"
@@ -313,7 +312,7 @@ static void uninorth_install_pfunc(void)
 	 * Install handlers for the hwclock child if any
 	 */
 	for (np = NULL; (np = of_get_next_child(uninorth_node, np)) != NULL;)
-		if (strcmp(np->name, "hw-clock") == 0) {
+		if (of_node_name_eq(np, "hw-clock")) {
 			unin_hwclock = np;
 			break;
 		}

@@ -200,7 +200,7 @@ static int __cvmx_helper_sgmii_hardware_init_link(int interface, int index)
  */
 static int __cvmx_helper_sgmii_hardware_init_link_speed(int interface,
 							int index,
-							cvmx_helper_link_info_t
+							union cvmx_helper_link_info
 							link_info)
 {
 	int is_enabled;
@@ -394,9 +394,9 @@ int __cvmx_helper_sgmii_enable(int interface)
  *
  * Returns Link state
  */
-cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
+union cvmx_helper_link_info __cvmx_helper_sgmii_link_get(int ipd_port)
 {
-	cvmx_helper_link_info_t result;
+	union cvmx_helper_link_info result;
 	union cvmx_pcsx_miscx_ctl_reg pcs_misc_ctl_reg;
 	int interface = cvmx_helper_get_interface_num(ipd_port);
 	int index = cvmx_helper_get_interface_index_num(ipd_port);
@@ -505,49 +505,11 @@ cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
  * Returns Zero on success, negative on failure
  */
 int __cvmx_helper_sgmii_link_set(int ipd_port,
-				 cvmx_helper_link_info_t link_info)
+				 union cvmx_helper_link_info link_info)
 {
 	int interface = cvmx_helper_get_interface_num(ipd_port);
 	int index = cvmx_helper_get_interface_index_num(ipd_port);
 	__cvmx_helper_sgmii_hardware_init_link(interface, index);
 	return __cvmx_helper_sgmii_hardware_init_link_speed(interface, index,
 							    link_info);
-}
-
-/**
- * Configure a port for internal and/or external loopback. Internal
- * loopback causes packets sent by the port to be received by
- * Octeon. External loopback causes packets received from the wire to
- * sent out again.
- *
- * @ipd_port: IPD/PKO port to loopback.
- * @enable_internal:
- *		   Non zero if you want internal loopback
- * @enable_external:
- *		   Non zero if you want external loopback
- *
- * Returns Zero on success, negative on failure.
- */
-int __cvmx_helper_sgmii_configure_loopback(int ipd_port, int enable_internal,
-					   int enable_external)
-{
-	int interface = cvmx_helper_get_interface_num(ipd_port);
-	int index = cvmx_helper_get_interface_index_num(ipd_port);
-	union cvmx_pcsx_mrx_control_reg pcsx_mrx_control_reg;
-	union cvmx_pcsx_miscx_ctl_reg pcsx_miscx_ctl_reg;
-
-	pcsx_mrx_control_reg.u64 =
-	    cvmx_read_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface));
-	pcsx_mrx_control_reg.s.loopbck1 = enable_internal;
-	cvmx_write_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface),
-		       pcsx_mrx_control_reg.u64);
-
-	pcsx_miscx_ctl_reg.u64 =
-	    cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
-	pcsx_miscx_ctl_reg.s.loopbck2 = enable_external;
-	cvmx_write_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface),
-		       pcsx_miscx_ctl_reg.u64);
-
-	__cvmx_helper_sgmii_hardware_init_link(interface, index);
-	return 0;
 }

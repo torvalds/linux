@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tcs3472.c - Support for TAOS TCS3472 color light-to-digital converter
  *
  * Copyright (c) 2013 Peter Meerwald <pmeerw@pmeerw.net>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Color light sensor with 16-bit channels for red, green, blue, clear);
  * 7-bit I2C slave address 0x39 (TCS34721, TCS34723) or 0x29 (TCS34725,
@@ -457,7 +454,6 @@ static int tcs3472_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &tcs3472_info;
 	indio_dev->name = TCS3472_DRV_NAME;
 	indio_dev->channels = tcs3472_channels;

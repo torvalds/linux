@@ -3,7 +3,7 @@
  *
  * Name: achware.h -- hardware specific interfaces
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -73,9 +73,15 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width);
 
 acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width);
 
+acpi_status acpi_hw_validate_io_block(u64 address, u32 bit_width, u32 count);
+
 /*
  * hwgpe - GPE support
  */
+acpi_status acpi_hw_gpe_read(u64 *value, struct acpi_gpe_address *reg);
+
+acpi_status acpi_hw_gpe_write(u64 value, struct acpi_gpe_address *reg);
+
 u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status
@@ -101,16 +107,27 @@ acpi_status acpi_hw_enable_all_runtime_gpes(void);
 
 acpi_status acpi_hw_enable_all_wakeup_gpes(void);
 
+u8 acpi_hw_check_all_gpes(acpi_handle gpe_skip_device, u32 gpe_skip_number);
+
 acpi_status
 acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				 struct acpi_gpe_block_info *gpe_block,
 				 void *context);
 
+#ifdef ACPI_PCI_CONFIGURED
 /*
  * hwpci - PCI configuration support
  */
 acpi_status
 acpi_hw_derive_pci_id(struct acpi_pci_id *pci_id,
 		      acpi_handle root_pci_device, acpi_handle pci_region);
+#else
+static inline acpi_status
+acpi_hw_derive_pci_id(struct acpi_pci_id *pci_id, acpi_handle root_pci_device,
+		      acpi_handle pci_region)
+{
+	return AE_SUPPORT;
+}
+#endif
 
 #endif				/* __ACHWARE_H__ */

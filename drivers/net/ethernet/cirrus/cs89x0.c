@@ -1128,7 +1128,7 @@ net_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-static void net_timeout(struct net_device *dev)
+static void net_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	/* If we get here, some higher level has decided we are broken.
 	   There should really be a "kick me" function call instead. */
@@ -1844,15 +1844,11 @@ cleanup_module(void)
 static int __init cs89x0_platform_probe(struct platform_device *pdev)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
-	struct net_local *lp;
-	struct resource *mem_res;
 	void __iomem *virt_addr;
 	int err;
 
 	if (!dev)
 		return -ENOMEM;
-
-	lp = netdev_priv(dev);
 
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq <= 0) {
@@ -1861,8 +1857,7 @@ static int __init cs89x0_platform_probe(struct platform_device *pdev)
 		goto free;
 	}
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	virt_addr = devm_ioremap_resource(&pdev->dev, mem_res);
+	virt_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(virt_addr)) {
 		err = PTR_ERR(virt_addr);
 		goto free;

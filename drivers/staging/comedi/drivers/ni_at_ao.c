@@ -244,7 +244,7 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 
 		/* write the channel and last data value to the caldac */
 		/* clock the bitstring to the caldac; MSB -> LSB */
-		for (bit = 1 << 10; bit; bit >>= 1) {
+		for (bit = BIT(10); bit; bit >>= 1) {
 			bits = (bit & bitstring) ? ATAO_CFG2_SDATA : 0;
 
 			outw(bits, dev->iobase + ATAO_CFG2_REG);
@@ -369,6 +369,6 @@ static struct comedi_driver ni_at_ao_driver = {
 };
 module_comedi_driver(ni_at_ao_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for NI AT-AO-6/10 boards");
 MODULE_LICENSE("GPL");

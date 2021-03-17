@@ -90,7 +90,21 @@ static inline void radeon_bo_unreserve(struct radeon_bo *bo)
  */
 static inline u64 radeon_bo_gpu_offset(struct radeon_bo *bo)
 {
-	return bo->tbo.offset;
+	struct radeon_device *rdev;
+	u64 start = 0;
+
+	rdev = radeon_get_rdev(bo->tbo.bdev);
+
+	switch (bo->tbo.mem.mem_type) {
+	case TTM_PL_TT:
+		start = rdev->mc.gtt_start;
+		break;
+	case TTM_PL_VRAM:
+		start = rdev->mc.vram_start;
+		break;
+	}
+
+	return (bo->tbo.mem.start << PAGE_SHIFT) + start;
 }
 
 static inline unsigned long radeon_bo_size(struct radeon_bo *bo)
@@ -116,7 +130,7 @@ static inline unsigned radeon_bo_gpu_page_alignment(struct radeon_bo *bo)
  */
 static inline u64 radeon_bo_mmap_offset(struct radeon_bo *bo)
 {
-	return drm_vma_node_offset_addr(&bo->tbo.vma_node);
+	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
 }
 
 extern int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
@@ -126,7 +140,7 @@ extern int radeon_bo_create(struct radeon_device *rdev,
 			    unsigned long size, int byte_align,
 			    bool kernel, u32 domain, u32 flags,
 			    struct sg_table *sg,
-			    struct reservation_object *resv,
+			    struct dma_resv *resv,
 			    struct radeon_bo **bo_ptr);
 extern int radeon_bo_kmap(struct radeon_bo *bo, void **ptr);
 extern void radeon_bo_kunmap(struct radeon_bo *bo);
@@ -151,7 +165,7 @@ extern int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 				bool force_drop);
 extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 				  bool evict,
-				  struct ttm_mem_reg *new_mem);
+				  struct ttm_resource *new_mem);
 extern int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
 extern void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,

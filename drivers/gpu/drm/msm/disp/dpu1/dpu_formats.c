@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -216,7 +208,7 @@ static const struct dpu_format dpu_format_map[] = {
 	INTERLEAVED_RGB_FMT(XBGR8888,
 		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, 0,
+		false, 4, 0,
 		DPU_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBA8888,
@@ -479,90 +471,6 @@ static const struct dpu_format dpu_format_map[] = {
 };
 
 /*
- * A5x tile formats tables:
- * These tables hold the A5x tile formats supported.
- */
-static const struct dpu_format dpu_format_map_tile[] = {
-	INTERLEAVED_RGB_FMT_TILED(BGR565,
-		0, COLOR_5BIT, COLOR_6BIT, COLOR_5BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
-		false, 2, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(ARGB8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
-		true, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(ABGR8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
-		true, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(XBGR8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		false, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(RGBA8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(BGRA8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
-		true, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(BGRX8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
-		false, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(XRGB8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
-		false, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(RGBX8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		false, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(ABGR2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(XBGR2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	PSEUDO_YUV_FMT_TILED(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_NV12),
-
-	PSEUDO_YUV_FMT_TILED(NV21,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C1_B_Cb,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_NV12),
-};
-
-/*
  * UBWC formats table:
  * This table holds the UBWC formats supported.
  * If a compression ratio needs to be used for this or any other format,
@@ -581,7 +489,23 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 		true, 4, DPU_FORMAT_FLAG_COMPRESSED,
 		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
+	/* ARGB8888 and ABGR8888 purposely have the same color
+	 * ordering.  The hardware only supports ABGR8888 UBWC
+	 * natively.
+	 */
+	INTERLEAVED_RGB_FMT_TILED(ARGB8888,
+		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, DPU_FORMAT_FLAG_COMPRESSED,
+		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+
 	INTERLEAVED_RGB_FMT_TILED(XBGR8888,
+		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		false, 4, DPU_FORMAT_FLAG_COMPRESSED,
+		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+
+	INTERLEAVED_RGB_FMT_TILED(XRGB8888,
 		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		false, 4, DPU_FORMAT_FLAG_COMPRESSED,
@@ -604,32 +528,6 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 		C1_B_Cb, C2_R_Cr,
 		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV |
 				DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
-};
-
-static const struct dpu_format dpu_format_map_p010[] = {
-	PSEUDO_YUV_FMT_LOOSE(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, (DPU_FORMAT_FLAG_YUV | DPU_FORMAT_FLAG_DX),
-		DPU_FETCH_LINEAR, 2),
-};
-
-static const struct dpu_format dpu_format_map_p010_ubwc[] = {
-	PSEUDO_YUV_FMT_LOOSE_TILED(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, (DPU_FORMAT_FLAG_YUV | DPU_FORMAT_FLAG_DX |
-				DPU_FORMAT_FLAG_COMPRESSED),
-		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
-};
-
-static const struct dpu_format dpu_format_map_tp10_ubwc[] = {
-	PSEUDO_YUV_FMT_TILED(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, (DPU_FORMAT_FLAG_YUV | DPU_FORMAT_FLAG_DX |
-				DPU_FORMAT_FLAG_COMPRESSED),
 		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
 };
 
@@ -668,7 +566,9 @@ static int _dpu_format_get_media_color_ubwc(const struct dpu_format *fmt)
 {
 	static const struct dpu_media_color_map dpu_media_ubwc_map[] = {
 		{DRM_FORMAT_ABGR8888, COLOR_FMT_RGBA8888_UBWC},
+		{DRM_FORMAT_ARGB8888, COLOR_FMT_RGBA8888_UBWC},
 		{DRM_FORMAT_XBGR8888, COLOR_FMT_RGBA8888_UBWC},
+		{DRM_FORMAT_XRGB8888, COLOR_FMT_RGBA8888_UBWC},
 		{DRM_FORMAT_ABGR2101010, COLOR_FMT_RGBA1010102_UBWC},
 		{DRM_FORMAT_XBGR2101010, COLOR_FMT_RGBA1010102_UBWC},
 		{DRM_FORMAT_BGR565, COLOR_FMT_RGB565_UBWC},
@@ -921,7 +821,7 @@ static int _dpu_format_populate_addrs_ubwc(
 			+ layout->plane_size[2] + layout->plane_size[3];
 
 		if (!meta)
-			goto done;
+			return 0;
 
 		/* configure Y metadata plane */
 		layout->plane_addr[2] = base_addr;
@@ -952,12 +852,11 @@ static int _dpu_format_populate_addrs_ubwc(
 		layout->plane_addr[1] = 0;
 
 		if (!meta)
-			goto done;
+			return 0;
 
 		layout->plane_addr[2] = base_addr;
 		layout->plane_addr[3] = 0;
 	}
-done:
 	return 0;
 }
 
@@ -1041,10 +940,11 @@ int dpu_format_check_modified_format(
 		const struct drm_mode_fb_cmd2 *cmd,
 		struct drm_gem_object **bos)
 {
-	int ret, i, num_base_fmt_planes;
+	const struct drm_format_info *info;
 	const struct dpu_format *fmt;
 	struct dpu_hw_fmt_layout layout;
 	uint32_t bos_total_size = 0;
+	int ret, i;
 
 	if (!msm_fmt || !cmd || !bos) {
 		DRM_ERROR("invalid arguments\n");
@@ -1052,14 +952,16 @@ int dpu_format_check_modified_format(
 	}
 
 	fmt = to_dpu_format(msm_fmt);
-	num_base_fmt_planes = drm_format_num_planes(fmt->base.pixel_format);
+	info = drm_format_info(fmt->base.pixel_format);
+	if (!info)
+		return -EINVAL;
 
 	ret = dpu_format_get_plane_sizes(fmt, cmd->width, cmd->height,
 			&layout, cmd->pitches);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < num_base_fmt_planes; i++) {
+	for (i = 0; i < info->num_planes; i++) {
 		if (!bos[i]) {
 			DRM_ERROR("invalid handle for plane %d\n", i);
 			return -EINVAL;
@@ -1137,37 +1039,4 @@ const struct msm_format *dpu_get_msm_format(
 	if (fmt)
 		return &fmt->base;
 	return NULL;
-}
-
-uint32_t dpu_populate_formats(
-		const struct dpu_format_extended *format_list,
-		uint32_t *pixel_formats,
-		uint64_t *pixel_modifiers,
-		uint32_t pixel_formats_max)
-{
-	uint32_t i, fourcc_format;
-
-	if (!format_list || !pixel_formats)
-		return 0;
-
-	for (i = 0, fourcc_format = 0;
-			format_list->fourcc_format && i < pixel_formats_max;
-			++format_list) {
-		/* verify if listed format is in dpu_format_map? */
-
-		/* optionally return modified formats */
-		if (pixel_modifiers) {
-			/* assume same modifier for all fb planes */
-			pixel_formats[i] = format_list->fourcc_format;
-			pixel_modifiers[i++] = format_list->modifier;
-		} else {
-			/* assume base formats grouped together */
-			if (fourcc_format != format_list->fourcc_format) {
-				fourcc_format = format_list->fourcc_format;
-				pixel_formats[i++] = fourcc_format;
-			}
-		}
-	}
-
-	return i;
 }

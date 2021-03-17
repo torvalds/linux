@@ -56,7 +56,9 @@
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <linux/bottom_half.h>
+#include <linux/lockdep.h>
 #include <asm/barrier.h>
+#include <asm/mmiowb.h>
 
 
 /*
@@ -74,7 +76,7 @@
 #define LOCK_SECTION_END                        \
         ".previous\n\t"
 
-#define __lockfunc __attribute__((section(".spinlock.text")))
+#define __lockfunc __section(".spinlock.text")
 
 /*
  * Pull the arch_spinlock_t and arch_rwlock_t definitions:
@@ -92,12 +94,13 @@
 
 #ifdef CONFIG_DEBUG_SPINLOCK
   extern void __raw_spin_lock_init(raw_spinlock_t *lock, const char *name,
-				   struct lock_class_key *key);
-# define raw_spin_lock_init(lock)				\
-do {								\
-	static struct lock_class_key __key;			\
-								\
-	__raw_spin_lock_init((lock), #lock, &__key);		\
+				   struct lock_class_key *key, short inner);
+
+# define raw_spin_lock_init(lock)					\
+do {									\
+	static struct lock_class_key __key;				\
+									\
+	__raw_spin_lock_init((lock), #lock, &__key, LD_WAIT_SPIN);	\
 } while (0)
 
 #else
@@ -178,6 +181,7 @@ static inline void do_raw_spin_lock(raw_spinlock_t *lock) __acquires(lock)
 {
 	__acquire(lock);
 	arch_spin_lock(&lock->raw_lock);
+	mmiowb_spin_lock();
 }
 
 #ifndef arch_spin_lock_flags
@@ -189,15 +193,22 @@ do_raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long *flags) __acquires(lo
 {
 	__acquire(lock);
 	arch_spin_lock_flags(&lock->raw_lock, *flags);
+	mmiowb_spin_lock();
 }
 
 static inline int do_raw_spin_trylock(raw_spinlock_t *lock)
 {
-	return arch_spin_trylock(&(lock)->raw_lock);
+	int ret = arch_spin_trylock(&(lock)->raw_lock);
+
+	if (ret)
+		mmiowb_spin_lock();
+
+	return ret;
 }
 
 static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 {
+	mmiowb_spin_unlock();
 	arch_spin_unlock(&lock->raw_lock);
 	__release(lock);
 }
@@ -205,7 +216,7 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 
 /*
  * Define the various spin_lock methods.  Note we define these
- * regardless of whether CONFIG_SMP or CONFIG_PREEMPT are set. The
+ * regardless of whether CONFIG_SMP or CONFIG_PREEMPTION are set. The
  * various methods are defined as nops in the case they are not
  * required.
  */
@@ -318,11 +329,25 @@ static __always_inline raw_spinlock_t *spinlock_check(spinlock_t *lock)
 	return &lock->rlock;
 }
 
-#define spin_lock_init(_lock)				\
-do {							\
-	spinlock_check(_lock);				\
-	raw_spin_lock_init(&(_lock)->rlock);		\
+#ifdef CONFIG_DEBUG_SPINLOCK
+
+# define spin_lock_init(lock)					\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	__raw_spin_lock_init(spinlock_check(lock),		\
+			     #lock, &__key, LD_WAIT_CONFIG);	\
 } while (0)
+
+#else
+
+# define spin_lock_init(_lock)			\
+do {						\
+	spinlock_check(_lock);			\
+	*(_lock) = __SPIN_LOCK_UNLOCKED(_lock);	\
+} while (0)
+
+#endif
 
 static __always_inline void spin_lock(spinlock_t *lock)
 {

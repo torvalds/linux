@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Magnetometer sensors
 #
@@ -174,5 +175,34 @@ config SENSORS_HMC5843_SPI
 	  If so, these modules will be created:
 	  - hmc5843_core (core functions)
 	  - hmc5843_spi (support for HMC5983)
+
+config SENSORS_RM3100
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config SENSORS_RM3100_I2C
+	tristate "PNI RM3100 3-Axis Magnetometer (I2C)"
+	depends on I2C
+	select SENSORS_RM3100
+	select REGMAP_I2C
+	help
+	  Say Y here to add support for the PNI RM3100 3-Axis Magnetometer.
+
+	  This driver can also be compiled as a module.
+	  To compile this driver as a module, choose M here: the module
+	  will be called rm3100-i2c.
+
+config SENSORS_RM3100_SPI
+	tristate "PNI RM3100 3-Axis Magnetometer (SPI)"
+	depends on SPI_MASTER
+	select SENSORS_RM3100
+	select REGMAP_SPI
+	help
+	  Say Y here to add support for the PNI RM3100 3-Axis Magnetometer.
+
+	  This driver can also be compiled as a module.
+	  To compile this driver as a module, choose M here: the module
+	  will be called rm3100-spi.
 
 endmenu

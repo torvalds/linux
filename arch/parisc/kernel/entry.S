@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Linux/PA-RISC Project (http://www.parisc-linux.org/)
  *
@@ -6,20 +7,6 @@
  *  Copyright (C) 1999 SuSE GmbH Nuernberg 
  *  Copyright (C) 2000 Hewlett-Packard (John Marvin)
  *  Copyright (C) 1999 Hewlett-Packard (Frank Rowand)
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <asm/asm-offsets.h>
@@ -32,14 +19,15 @@
 #include <asm/psw.h>
 #include <asm/cache.h>		/* for L1_CACHE_SHIFT */
 #include <asm/assembly.h>	/* for LDREG/STREG defines */
-#include <asm/pgtable.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
 #include <asm/ldcw.h>
 #include <asm/traps.h>
 #include <asm/thread_info.h>
+#include <asm/alternative.h>
 
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 
 #ifdef CONFIG_64BIT
 	.level 2.0w
@@ -49,12 +37,8 @@
 
 	.import		pa_tlb_lock,data
 	.macro  load_pa_tlb_lock reg
-#if __PA_LDCW_ALIGNMENT > 4
-	load32	PA(pa_tlb_lock) + __PA_LDCW_ALIGNMENT-1, \reg
-	depi	0,31,__PA_LDCW_ALIGN_ORDER, \reg
-#else
-	load32	PA(pa_tlb_lock), \reg
-#endif
+	mfctl		%cr25,\reg
+	addil		L%(PAGE_SIZE << (PGD_ALLOC_ORDER - 1)),\reg
 	.endm
 
 	/* space_to_prot macro creates a prot id from a space id */
@@ -186,7 +170,7 @@
 	bv,n	0(%r3)
 	nop
 	.word	0		/* checksum (will be patched) */
-	.word	PA(os_hpmc)	/* address of handler */
+	.word	0		/* address of handler */
 	.word	0		/* length of handler */
 	.endm
 
@@ -393,6 +377,7 @@
 	*/
 	.macro		space_check	spc,tmp,fault
 	mfsp		%sr7,\tmp
+	/* check against %r0 which is same value as LINUX_GATEWAY_SPACE */
 	or,COND(<>)	%r0,\spc,%r0	/* user may execute gateway page
 					 * as kernel, so defeat the space
 					 * check if it is */
@@ -426,13 +411,10 @@
 	ldw,s		\index(\pmd),\pmd
 	bb,>=,n		\pmd,_PxD_PRESENT_BIT,\fault
 	dep		%r0,31,PxD_FLAG_SHIFT,\pmd /* clear flags */
-	copy		\pmd,%r9
-	SHLREG		%r9,PxD_VALUE_SHIFT,\pmd
+	SHLREG		\pmd,PxD_VALUE_SHIFT,\pmd
 	extru		\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
 	dep		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
 	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd /* pmd is now pte */
-	LDREG		%r0(\pmd),\pte
-	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
 	.endm
 
 	/* Look up PTE in a 3-Level scheme.
@@ -448,7 +430,6 @@
 	.macro		L3_ptep pgd,pte,index,va,fault
 #if CONFIG_PGTABLE_LEVELS == 3 /* we might have a 2-Level scheme, e.g. with 16kb page size */
 	extrd,u		\va,63-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
-	copy		%r0,\pte
 	extrd,u,*=	\va,63-ASM_PGDIR_SHIFT,64-ASM_PGDIR_SHIFT,%r0
 	ldw,s		\index(\pgd),\pgd
 	extrd,u,*=	\va,63-ASM_PGDIR_SHIFT,64-ASM_PGDIR_SHIFT,%r0
@@ -463,36 +444,44 @@
 	L2_ptep		\pgd,\pte,\index,\va,\fault
 	.endm
 
-	/* Acquire pa_tlb_lock lock and recheck page is still present. */
+	/* Acquire pa_tlb_lock lock and check page is present. */
 	.macro		tlb_lock	spc,ptp,pte,tmp,tmp1,fault
 #ifdef CONFIG_SMP
-	cmpib,COND(=),n	0,\spc,2f
+98:	cmpib,COND(=),n	0,\spc,2f
 	load_pa_tlb_lock \tmp
 1:	LDCW		0(\tmp),\tmp1
 	cmpib,COND(=)	0,\tmp1,1b
 	nop
 	LDREG		0(\ptp),\pte
-	bb,<,n		\pte,_PAGE_PRESENT_BIT,2f
+	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
 	b		\fault
-	stw		 \spc,0(\tmp)
-2:
+	stw		\spc,0(\tmp)
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
+2:	LDREG		0(\ptp),\pte
+	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
+3:
 	.endm
 
-	/* Release pa_tlb_lock lock without reloading lock address. */
+	/* Release pa_tlb_lock lock without reloading lock address.
+	   Note that the values in the register spc are limited to
+	   NR_SPACE_IDS (262144). Thus, the stw instruction always
+	   stores a nonzero value even when register spc is 64 bits.
+	   We use an ordered store to ensure all prior accesses are
+	   performed prior to releasing the lock. */
 	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
-	or,COND(=)	%r0,\spc,%r0
-	sync
-	or,COND(=)	%r0,\spc,%r0
-	stw             \spc,0(\tmp)
+98:	or,COND(=)	%r0,\spc,%r0
+	stw,ma		\spc,0(\tmp)
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
 	/* Release pa_tlb_lock lock. */
 	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
-	load_pa_tlb_lock \tmp
+98:	load_pa_tlb_lock \tmp
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 	tlb_unlock0	\spc,\tmp
 #endif
 	.endm
@@ -910,19 +899,19 @@ intr_check_sig:
 	 * Only do signals if we are returning to user space
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
-	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* forward */
 	LDREG	PT_IASQ1(%r16), %r20
-	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
-
-	/* NOTE: We need to enable interrupts if we have to deliver
-	 * signals. We used to do this earlier but it caused kernel
-	 * stack overflows. */
-	ssm     PSW_SM_I, %r0
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* forward */
 
 	copy	%r0, %r25			/* long in_syscall = 0 */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
+
+	/* NOTE: We need to enable interrupts if we have to deliver
+	 * signals. We used to do this earlier but it caused kernel
+	 * stack overflows. */
+	ssm	PSW_SM_I, %r0
 
 	BL	do_notify_resume,%r2
 	copy	%r16, %r26			/* struct pt_regs *regs */
@@ -953,14 +942,14 @@ intr_restore:
 	rfi
 	nop
 
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 # define intr_do_preempt	intr_restore
-#endif /* !CONFIG_PREEMPT */
+#endif /* !CONFIG_PREEMPTION */
 
 	.import schedule,code
 intr_do_resched:
 	/* Only call schedule on return to userspace. If we're returning
-	 * to kernel space, we may schedule if CONFIG_PREEMPT, otherwise
+	 * to kernel space, we may schedule if CONFIG_PREEMPTION, otherwise
 	 * we jump back to intr_restore.
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
@@ -992,7 +981,7 @@ intr_do_resched:
 	 * and preempt_count is 0. otherwise, we continue on
 	 * our merry way back to the current running task.
 	 */
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	.import preempt_schedule_irq,code
 intr_do_preempt:
 	rsm	PSW_SM_I, %r0		/* disable interrupts */
@@ -1008,11 +997,18 @@ intr_do_preempt:
 	bb,<,n	%r20, 31 - PSW_SM_I, intr_restore
 	nop
 
+	/* ssm PSW_SM_I done later in intr_restore */
+#ifdef CONFIG_MLONGCALLS
+	ldil	L%intr_restore, %r2
+	load32	preempt_schedule_irq, %r1
+	bv	%r0(%r1)
+	ldo	R%intr_restore(%r2), %r2
+#else
+	ldil	L%intr_restore, %r1
 	BL	preempt_schedule_irq, %r2
-	nop
-
-	b,n	intr_restore		/* ssm PSW_SM_I done by intr_restore */
-#endif /* CONFIG_PREEMPT */
+	ldo	R%intr_restore(%r1), %r2
+#endif
+#endif /* CONFIG_PREEMPTION */
 
 	/*
 	 * External interrupts.
@@ -1658,7 +1654,7 @@ dbit_fault:
 
 itlb_fault:
 	b               intr_save
-	ldi             6,%r8
+	ldi             PARISC_ITLB_TRAP,%r8
 
 nadtlb_fault:
 	b               intr_save
@@ -1745,6 +1741,7 @@ ENDPROC_CFI(sys_\name\()_wrapper)
 	.endm
 
 fork_like clone
+fork_like clone3
 fork_like fork
 fork_like vfork
 
@@ -2008,6 +2005,7 @@ _mcount:
 	 * calling mcount(), and 2 instructions for ftrace_stub().  That way we
 	 * have all on one L1 cacheline.
 	 */
+	ldi	0, %arg3
 	b	ftrace_function_trampoline
 	copy	%r3, %arg2	/* caller original %sp */
 ftrace_stub:
@@ -2024,6 +2022,168 @@ ftrace_stub:
 	.dword 0 /* code in head.S puts value of global gp here */
 #endif
 ENDPROC_CFI(mcount)
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+#ifdef CONFIG_64BIT
+#define FTRACE_FRAME_SIZE (2*FRAME_SIZE)
+#else
+#define FTRACE_FRAME_SIZE FRAME_SIZE
+#endif
+ENTRY_CFI(ftrace_caller, caller,frame=FTRACE_FRAME_SIZE,CALLS,SAVE_RP,SAVE_SP)
+ftrace_caller:
+	.global ftrace_caller
+
+	STREG	%r3, -FTRACE_FRAME_SIZE+1*REG_SZ(%sp)
+	ldo	-FTRACE_FRAME_SIZE(%sp), %r3
+	STREG	%rp, -RP_OFFSET(%r3)
+
+	/* Offset 0 is already allocated for %r1 */
+	STREG	%r23, 2*REG_SZ(%r3)
+	STREG	%r24, 3*REG_SZ(%r3)
+	STREG	%r25, 4*REG_SZ(%r3)
+	STREG	%r26, 5*REG_SZ(%r3)
+	STREG	%r28, 6*REG_SZ(%r3)
+	STREG	%r29, 7*REG_SZ(%r3)
+#ifdef CONFIG_64BIT
+	STREG	%r19, 8*REG_SZ(%r3)
+	STREG	%r20, 9*REG_SZ(%r3)
+	STREG	%r21, 10*REG_SZ(%r3)
+	STREG	%r22, 11*REG_SZ(%r3)
+	STREG	%r27, 12*REG_SZ(%r3)
+	STREG	%r31, 13*REG_SZ(%r3)
+	loadgp
+	ldo	-16(%sp),%r29
+#endif
+	LDREG	0(%r3), %r25
+	copy	%rp, %r26
+	ldo	-8(%r25), %r25
+	ldi	0, %r23		/* no pt_regs */
+	b,l	ftrace_function_trampoline, %rp
+	copy	%r3, %r24
+
+	LDREG	-RP_OFFSET(%r3), %rp
+	LDREG	2*REG_SZ(%r3), %r23
+	LDREG	3*REG_SZ(%r3), %r24
+	LDREG	4*REG_SZ(%r3), %r25
+	LDREG	5*REG_SZ(%r3), %r26
+	LDREG	6*REG_SZ(%r3), %r28
+	LDREG	7*REG_SZ(%r3), %r29
+#ifdef CONFIG_64BIT
+	LDREG	8*REG_SZ(%r3), %r19
+	LDREG	9*REG_SZ(%r3), %r20
+	LDREG	10*REG_SZ(%r3), %r21
+	LDREG	11*REG_SZ(%r3), %r22
+	LDREG	12*REG_SZ(%r3), %r27
+	LDREG	13*REG_SZ(%r3), %r31
+#endif
+	LDREG	1*REG_SZ(%r3), %r3
+
+	LDREGM	-FTRACE_FRAME_SIZE(%sp), %r1
+	/* Adjust return point to jump back to beginning of traced function */
+	ldo	-4(%r1), %r1
+	bv,n	(%r1)
+
+ENDPROC_CFI(ftrace_caller)
+
+#ifdef CONFIG_HAVE_DYNAMIC_FTRACE_WITH_REGS
+ENTRY_CFI(ftrace_regs_caller,caller,frame=FTRACE_FRAME_SIZE+PT_SZ_ALGN,
+	CALLS,SAVE_RP,SAVE_SP)
+ftrace_regs_caller:
+	.global ftrace_regs_caller
+
+	ldo	-FTRACE_FRAME_SIZE(%sp), %r1
+	STREG	%rp, -RP_OFFSET(%r1)
+
+	copy	%sp, %r1
+	ldo	PT_SZ_ALGN(%sp), %sp
+
+	STREG	%rp, PT_GR2(%r1)
+	STREG	%r3, PT_GR3(%r1)
+	STREG	%r4, PT_GR4(%r1)
+	STREG	%r5, PT_GR5(%r1)
+	STREG	%r6, PT_GR6(%r1)
+	STREG	%r7, PT_GR7(%r1)
+	STREG	%r8, PT_GR8(%r1)
+	STREG	%r9, PT_GR9(%r1)
+	STREG   %r10, PT_GR10(%r1)
+	STREG   %r11, PT_GR11(%r1)
+	STREG   %r12, PT_GR12(%r1)
+	STREG   %r13, PT_GR13(%r1)
+	STREG   %r14, PT_GR14(%r1)
+	STREG   %r15, PT_GR15(%r1)
+	STREG   %r16, PT_GR16(%r1)
+	STREG   %r17, PT_GR17(%r1)
+	STREG   %r18, PT_GR18(%r1)
+	STREG	%r19, PT_GR19(%r1)
+	STREG	%r20, PT_GR20(%r1)
+	STREG	%r21, PT_GR21(%r1)
+	STREG	%r22, PT_GR22(%r1)
+	STREG	%r23, PT_GR23(%r1)
+	STREG	%r24, PT_GR24(%r1)
+	STREG	%r25, PT_GR25(%r1)
+	STREG	%r26, PT_GR26(%r1)
+	STREG	%r27, PT_GR27(%r1)
+	STREG	%r28, PT_GR28(%r1)
+	STREG	%r29, PT_GR29(%r1)
+	STREG	%r30, PT_GR30(%r1)
+	STREG	%r31, PT_GR31(%r1)
+	mfctl	%cr11, %r26
+	STREG	%r26, PT_SAR(%r1)
+
+	copy	%rp, %r26
+	LDREG	-FTRACE_FRAME_SIZE-PT_SZ_ALGN(%sp), %r25
+	ldo	-8(%r25), %r25
+	ldo	-FTRACE_FRAME_SIZE(%r1), %arg2
+	b,l	ftrace_function_trampoline, %rp
+	copy	%r1, %arg3 /* struct pt_regs */
+
+	ldo	-PT_SZ_ALGN(%sp), %r1
+
+	LDREG	PT_SAR(%r1), %rp
+	mtctl	%rp, %cr11
+
+	LDREG	PT_GR2(%r1), %rp
+	LDREG	PT_GR3(%r1), %r3
+	LDREG	PT_GR4(%r1), %r4
+	LDREG	PT_GR5(%r1), %r5
+	LDREG	PT_GR6(%r1), %r6
+	LDREG	PT_GR7(%r1), %r7
+	LDREG	PT_GR8(%r1), %r8
+	LDREG	PT_GR9(%r1), %r9
+	LDREG   PT_GR10(%r1),%r10
+	LDREG   PT_GR11(%r1),%r11
+	LDREG   PT_GR12(%r1),%r12
+	LDREG   PT_GR13(%r1),%r13
+	LDREG   PT_GR14(%r1),%r14
+	LDREG   PT_GR15(%r1),%r15
+	LDREG   PT_GR16(%r1),%r16
+	LDREG   PT_GR17(%r1),%r17
+	LDREG   PT_GR18(%r1),%r18
+	LDREG   PT_GR19(%r1),%r19
+	LDREG   PT_GR20(%r1),%r20
+	LDREG   PT_GR21(%r1),%r21
+	LDREG   PT_GR22(%r1),%r22
+	LDREG   PT_GR23(%r1),%r23
+	LDREG   PT_GR24(%r1),%r24
+	LDREG   PT_GR25(%r1),%r25
+	LDREG   PT_GR26(%r1),%r26
+	LDREG   PT_GR27(%r1),%r27
+	LDREG   PT_GR28(%r1),%r28
+	LDREG   PT_GR29(%r1),%r29
+	LDREG   PT_GR30(%r1),%r30
+	LDREG   PT_GR31(%r1),%r31
+
+	ldo	-PT_SZ_ALGN(%sp), %sp
+	LDREGM	-FTRACE_FRAME_SIZE(%sp), %r1
+	/* Adjust return point to jump back to beginning of traced function */
+	ldo	-4(%r1), %r1
+	bv,n	(%r1)
+
+ENDPROC_CFI(ftrace_regs_caller)
+
+#endif
+#endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.align 8

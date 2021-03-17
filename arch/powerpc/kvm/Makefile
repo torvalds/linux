@@ -3,19 +3,12 @@
 # Makefile for Kernel-based Virtual Machine module
 #
 
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
-
 ccflags-y := -Ivirt/kvm -Iarch/powerpc/kvm
 KVM := ../../../virt/kvm
 
 common-objs-y = $(KVM)/kvm_main.o $(KVM)/eventfd.o
 common-objs-$(CONFIG_KVM_VFIO) += $(KVM)/vfio.o
 common-objs-$(CONFIG_KVM_MMIO) += $(KVM)/coalesced_mmio.o
-
-CFLAGS_e500_mmu.o := -I.
-CFLAGS_e500_mmu_host.o := -I.
-CFLAGS_emulate.o  := -I.
-CFLAGS_emulate_loadstore.o  := -I.
 
 common-objs-y += powerpc.o emulate_loadstore.o
 obj-$(CONFIG_KVM_EXIT_TIMING) += timing.o
@@ -75,7 +68,11 @@ kvm-hv-y += \
 	book3s_hv.o \
 	book3s_hv_interrupts.o \
 	book3s_64_mmu_hv.o \
-	book3s_64_mmu_radix.o
+	book3s_64_mmu_radix.o \
+	book3s_hv_nested.o
+
+kvm-hv-$(CONFIG_PPC_UV) += \
+	book3s_hv_uvmem.o
 
 kvm-hv-$(CONFIG_PPC_TRANSACTIONAL_MEM) += \
 	book3s_hv_tm.o
@@ -100,7 +97,7 @@ endif
 kvm-book3s_64-objs-$(CONFIG_KVM_XICS) += \
 	book3s_xics.o
 
-kvm-book3s_64-objs-$(CONFIG_KVM_XIVE) += book3s_xive.o
+kvm-book3s_64-objs-$(CONFIG_KVM_XIVE) += book3s_xive.o book3s_xive_native.o
 kvm-book3s_64-objs-$(CONFIG_SPAPR_TCE_IOMMU) += book3s_64_vio.o
 
 kvm-book3s_64-module-objs := \

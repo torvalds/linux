@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiS 300/540/630[S]/730[S],
  * SiS 315[E|PRO]/550/[M]65x/[M]66x[F|M|G]X/[M]74x[GX]/330/[M]76x[GX],
@@ -5,20 +6,6 @@
  * frame buffer driver for Linux kernels >= 2.4.14 and >=2.6.3
  *
  * Copyright (C) 2001-2005 Thomas Winischhofer, Vienna, Austria.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the named License,
- * or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Author:	Thomas Winischhofer <thomas@winischhofer.net>
  *
@@ -30,7 +17,6 @@
  *
  * Originally based on the VBE 2.0 compliant graphic boards framebuffer driver,
  * which is (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
- *
  */
 
 #include <linux/module.h>
@@ -1753,7 +1739,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
-		/* fall through */
+		fallthrough;
 	   case SISFB_GET_INFO:  /* For communication with X driver */
 		ivideo->sisfb_infoblock.sisfb_id         = SISFB_ID;
 		ivideo->sisfb_infoblock.sisfb_version    = VER_MAJOR;
@@ -1807,7 +1793,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
-		/* fall through */
+		fallthrough;
 	   case SISFB_GET_VBRSTATUS:
 		if(sisfb_CheckVBRetrace(ivideo))
 			return put_user((u32)1, argp);
@@ -1818,7 +1804,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
-		/* fall through */
+		fallthrough;
 	   case SISFB_GET_AUTOMAXIMIZE:
 		if(ivideo->sisfb_max)
 			return put_user((u32)1, argp);
@@ -1829,7 +1815,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
-		/* fall through */
+		fallthrough;
 	   case SISFB_SET_AUTOMAXIMIZE:
 		if(get_user(gpu32, argp))
 			return -EFAULT;
@@ -1920,7 +1906,7 @@ sisfb_get_fix(struct fb_fix_screeninfo *fix, int con, struct fb_info *info)
 
 /* ----------------  fb_ops structures ----------------- */
 
-static struct fb_ops sisfb_ops = {
+static const struct fb_ops sisfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= sisfb_open,
 	.fb_release	= sisfb_release,

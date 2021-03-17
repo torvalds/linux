@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/ctype.h>
@@ -90,10 +86,12 @@ const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 	const char *end = fqname + n;
 	const char *name = skipn_spaces(fqname, n);
 
-	if (!name)
-		return NULL;
 	*ns_name = NULL;
 	*ns_len = 0;
+
+	if (!name)
+		return NULL;
+
 	if (name[0] == ':') {
 		char *split = strnchr(&name[1], end - &name[1], ':');
 		*ns_name = skipn_spaces(&name[1], end - &name[1]);
@@ -294,13 +292,13 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 	switch (AUDIT_MODE(profile)) {
 	case AUDIT_ALL:
 		perms->audit = ALL_PERMS_MASK;
-		/* fall through */
+		fallthrough;
 	case AUDIT_NOQUIET:
 		perms->quiet = 0;
 		break;
 	case AUDIT_QUIET:
 		perms->audit = 0;
-		/* fall through */
+		fallthrough;
 	case AUDIT_QUIET_DENIED:
 		perms->quiet = ALL_PERMS_MASK;
 		break;

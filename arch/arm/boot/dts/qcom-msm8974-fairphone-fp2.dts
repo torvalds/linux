@@ -50,6 +50,12 @@
 		};
 	};
 
+	vibrator {
+		compatible = "gpio-vibrator";
+		enable-gpios = <&msmgpio 86 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&pm8941_l18>;
+	};
+
 	smd {
 		rpm {
 			rpm_requests {
@@ -215,6 +221,8 @@
 						regulator-max-microvolt = <2950000>;
 
 						regulator-boot-on;
+						regulator-system-load = <200000>;
+						regulator-allow-set-load;
 					};
 
 					l21 {
@@ -251,6 +259,25 @@
 		status = "ok";
 	};
 
+	remoteproc@fb21b000 {
+		status = "ok";
+
+		vddmx-supply = <&pm8841_s1>;
+		vddcx-supply = <&pm8841_s2>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wcnss_pin_a>;
+
+		smd-edge {
+			qcom,remote-pid = <4>;
+			label = "pronto";
+
+			wcnss {
+				status = "ok";
+			};
+		};
+	};
+
 	pinctrl@fd510000 {
 		sdhc1_pin_a: sdhc1-pin-active {
 			clk {
@@ -266,14 +293,6 @@
 			};
 		};
 
-		sdhc2_cd_pin_a: sdhc2-cd-pin-active {
-			pins = "gpio62";
-			function = "gpio";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-
 		sdhc2_pin_a: sdhc2-pin-active {
 			clk {
 				pins = "sdc2_clk";
@@ -285,6 +304,32 @@
 				pins = "sdc2_cmd", "sdc2_data";
 				drive-strength = <6>;
 				bias-pull-up;
+			};
+		};
+
+		wcnss_pin_a: wcnss-pin-active {
+			wlan {
+				pins =  "gpio36", "gpio37", "gpio38", "gpio39", "gpio40";
+				function = "wlan";
+
+				drive-strength = <6>;
+				bias-pull-down;
+			};
+
+			bt {
+				pins = "gpio35", "gpio43", "gpio44";
+				function = "bt";
+
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+
+			fm {
+				pins = "gpio41", "gpio42";
+				function = "fm";
+
+				drive-strength = <2>;
+				bias-pull-down;
 			};
 		};
 	};
@@ -311,7 +356,7 @@
 		bus-width = <4>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;
+		pinctrl-0 = <&sdhc2_pin_a>;
 	};
 
 	usb@f9a55000 {
@@ -336,6 +381,16 @@
 				extcon = <&smbb>;
 				qcom,init-seq = /bits/ 8 <0x1 0x64>;
 			};
+		};
+	};
+
+	imem@fe805000 {
+		status = "okay";
+
+		reboot-mode {
+			mode-normal	= <0x77665501>;
+			mode-bootloader	= <0x77665500>;
+			mode-recovery	= <0x77665502>;
 		};
 	};
 };

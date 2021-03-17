@@ -1,10 +1,10 @@
 /*
- * Marvell Wireless LAN device driver: station event handling
+ * NXP Wireless LAN device driver: station event handling
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
+ * Copyright 2011-2020 NXP
  *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
+ * This software file (the "File") is distributed by NXP
+ * under the terms of the GNU General Public License Version 2, June 1991
  * (the "License").  You may use, redistribute and/or modify this File in
  * accordance with the terms and conditions of the License, a copy of which
  * is available by writing to the Free Software Foundation, Inc.,
@@ -27,9 +27,9 @@
 
 #define MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE    12
 
-static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
-					       struct mwifiex_sta_node *sta_ptr,
-					       struct sk_buff *event)
+static int mwifiex_check_ibss_peer_capabilities(struct mwifiex_private *priv,
+					        struct mwifiex_sta_node *sta_ptr,
+					        struct sk_buff *event)
 {
 	int evt_len, ele_len;
 	u8 *curr;
@@ -42,7 +42,7 @@ static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
 	evt_len = event->len;
 	curr = event->data;
 
-	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilties:",
+	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilities:",
 			 event->data, event->len);
 
 	skb_push(event, MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE);
@@ -345,7 +345,6 @@ static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
 {
 	struct mwifiex_tx_pause_tlv *tp;
 	struct mwifiex_sta_node *sta_ptr;
-	unsigned long flags;
 
 	tp = (void *)tlv;
 	mwifiex_dbg(priv->adapter, EVENT,
@@ -361,14 +360,14 @@ static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
 	} else if (is_multicast_ether_addr(tp->peermac)) {
 		mwifiex_update_ralist_tx_pause(priv, tp->peermac, tp->tx_pause);
 	} else {
-		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		spin_lock_bh(&priv->sta_list_spinlock);
 		sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
 		if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
 			sta_ptr->tx_pause = tp->tx_pause;
 			mwifiex_update_ralist_tx_pause(priv, tp->peermac,
 						       tp->tx_pause);
 		}
-		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+		spin_unlock_bh(&priv->sta_list_spinlock);
 	}
 }
 
@@ -378,7 +377,6 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 	struct mwifiex_tx_pause_tlv *tp;
 	struct mwifiex_sta_node *sta_ptr;
 	int status;
-	unsigned long flags;
 
 	tp = (void *)tlv;
 	mwifiex_dbg(priv->adapter, EVENT,
@@ -397,7 +395,7 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 
 		status = mwifiex_get_tdls_link_status(priv, tp->peermac);
 		if (mwifiex_is_tdls_link_setup(status)) {
-			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+			spin_lock_bh(&priv->sta_list_spinlock);
 			sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
 			if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
 				sta_ptr->tx_pause = tp->tx_pause;
@@ -405,7 +403,7 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 							       tp->peermac,
 							       tp->tx_pause);
 			}
-			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+			spin_unlock_bh(&priv->sta_list_spinlock);
 		}
 	}
 }
@@ -937,8 +935,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 			    ibss_sta_addr);
 		sta_ptr = mwifiex_add_sta_entry(priv, ibss_sta_addr);
 		if (sta_ptr && adapter->adhoc_11n_enabled) {
-			mwifiex_check_ibss_peer_capabilties(priv, sta_ptr,
-							    adapter->event_skb);
+			mwifiex_check_ibss_peer_capabilities(priv, sta_ptr,
+							     adapter->event_skb);
 			if (sta_ptr->is_11n_enabled)
 				for (i = 0; i < MAX_NUM_TID; i++)
 					sta_ptr->ampdu_sta[i] =

@@ -11,8 +11,7 @@
 
 /*  Some variables can't get from outsrc BT-Coex, */
 /*  so we need to save here */
-typedef struct _BT_COEXIST
-{
+typedef struct _BT_COEXIST {
 	u8 bBtExist;
 	u8 btTotalAntNum;
 	u8 btChipType;
@@ -22,13 +21,13 @@ typedef struct _BT_COEXIST
 void DBG_BT_INFO(u8 *dbgmsg);
 
 void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist);
-u8 hal_btcoex_IsBtExist(struct adapter *padapter);
-u8 hal_btcoex_IsBtDisabled(struct adapter *);
+bool hal_btcoex_IsBtExist(struct adapter *padapter);
+bool hal_btcoex_IsBtDisabled(struct adapter *);
 void hal_btcoex_SetChipType(struct adapter *padapter, u8 chipType);
 void hal_btcoex_SetPgAntNum(struct adapter *padapter, u8 antNum);
 void hal_btcoex_SetSingleAntPath(struct adapter *padapter, u8 singleAntPath);
 
-u8 hal_btcoex_Initialize(struct adapter *padapter);
+void hal_btcoex_Initialize(void *padapter);
 void hal_btcoex_PowerOnSetting(struct adapter *padapter);
 void hal_btcoex_InitHwConfig(struct adapter *padapter, u8 bWifiOnly);
 
@@ -43,12 +42,12 @@ void hal_btcoex_BtInfoNotify(struct adapter *padapter, u8 length, u8 *tmpBuf);
 void hal_btcoex_SuspendNotify(struct adapter *padapter, u8 state);
 void hal_btcoex_HaltNotify(struct adapter *padapter);
 
-void hal_btcoex_Hanlder(struct adapter *padapter);
+void hal_btcoex_Handler(struct adapter *padapter);
 
 s32 hal_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter);
 void hal_btcoex_SetManualControl(struct adapter *padapter, u8 bmanual);
-u8 hal_btcoex_IsBtControlLps(struct adapter *);
-u8 hal_btcoex_IsLpsOn(struct adapter *);
+bool hal_btcoex_IsBtControlLps(struct adapter *padapter);
+bool hal_btcoex_IsLpsOn(struct adapter *padapter);
 u8 hal_btcoex_RpwmVal(struct adapter *);
 u8 hal_btcoex_LpsVal(struct adapter *);
 u32 hal_btcoex_GetRaMask(struct adapter *);

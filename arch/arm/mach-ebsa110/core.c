@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-ebsa110/core.c
  *
  *  Copyright (C) 1998-2001 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Extra MM routines for the EBSA-110 architecture
  */
@@ -20,7 +17,6 @@
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/system_misc.h>
 
@@ -204,17 +200,13 @@ ebsa110_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction ebsa110_timer_irq = {
-	.name		= "EBSA110 Timer Tick",
-	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= ebsa110_timer_interrupt,
-};
-
 /*
  * Set up timer interrupt.
  */
 void __init ebsa110_timer_init(void)
 {
+	int irq = IRQ_EBSA110_TIMER0;
+
 	arch_gettimeoffset = ebsa110_gettimeoffset;
 
 	/*
@@ -224,7 +216,9 @@ void __init ebsa110_timer_init(void)
 	__raw_writeb(COUNT & 0xff, PIT_T1);
 	__raw_writeb(COUNT >> 8, PIT_T1);
 
-	setup_irq(IRQ_EBSA110_TIMER0, &ebsa110_timer_irq);
+	if (request_irq(irq, ebsa110_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
+			"EBSA110 Timer Tick", NULL))
+		pr_err("Failed to request irq %d (EBSA110 Timer Tick)\n", irq);
 }
 
 static struct plat_serial8250_port serial_platform_data[] = {

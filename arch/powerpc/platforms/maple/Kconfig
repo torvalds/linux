@@ -2,7 +2,7 @@
 config PPC_MAPLE
 	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
 	bool "Maple 970FX Evaluation Board"
-	select PCI
+	select FORCE_PCI
 	select MPIC
 	select U3_DART
 	select MPIC_U3_HT_IRQS
@@ -13,7 +13,6 @@ config PPC_MAPLE
 	select PPC_RTAS
 	select MMIO_NVRAM
 	select ATA_NONSTANDARD if ATA
-	default n
 	help
-          This option enables support for the Maple 970FX Evaluation Board.
+	  This option enables support for the Maple 970FX Evaluation Board.
 	  For more information, refer to <http://www.970eval.com>

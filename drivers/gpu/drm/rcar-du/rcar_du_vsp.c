@@ -1,24 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * rcar_du_vsp.h  --  R-Car Display Unit VSP-Based Compositor
  *
  * Copyright (C) 2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_vblank.h>
 
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
@@ -31,16 +28,19 @@
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_vsp.h"
+#include "rcar_du_writeback.h"
 
-static void rcar_du_vsp_complete(void *private, bool completed, u32 crc)
+static void rcar_du_vsp_complete(void *private, unsigned int status, u32 crc)
 {
 	struct rcar_du_crtc *crtc = private;
 
 	if (crtc->vblank_enable)
 		drm_crtc_handle_vblank(&crtc->crtc);
 
-	if (completed)
+	if (status & VSP1_DU_STATUS_COMPLETE)
 		rcar_du_crtc_finish_page_flip(crtc);
+	if (status & VSP1_DU_STATUS_WRITEBACK)
+		rcar_du_writeback_complete(crtc);
 
 	drm_crtc_add_crc_entry(&crtc->crtc, false, 0, &crc);
 }
@@ -48,10 +48,11 @@ static void rcar_du_vsp_complete(void *private, bool completed, u32 crc)
 void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 {
 	const struct drm_display_mode *mode = &crtc->crtc.state->adjusted_mode;
-	struct rcar_du_device *rcdu = crtc->group->dev;
+	struct rcar_du_device *rcdu = crtc->dev;
 	struct vsp1_du_lif_config cfg = {
 		.width = mode->hdisplay,
 		.height = mode->vdisplay,
+		.interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE,
 		.callback = rcar_du_vsp_complete,
 		.callback_data = crtc,
 	};
@@ -111,11 +112,12 @@ void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc)
 	state = to_rcar_crtc_state(crtc->crtc.state);
 	cfg.crc = state->crc;
 
+	rcar_du_writeback_setup(crtc, &cfg.writeback);
+
 	vsp1_du_atomic_flush(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
 }
 
-/* Keep the two tables in sync. */
-static const u32 formats_kms[] = {
+static const u32 rcar_du_vsp_formats[] = {
 	DRM_FORMAT_RGB332,
 	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_XRGB4444,
@@ -129,7 +131,6 @@ static const u32 formats_kms[] = {
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_UYVY,
-	DRM_FORMAT_VYUY,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_NV12,
@@ -144,41 +145,13 @@ static const u32 formats_kms[] = {
 	DRM_FORMAT_YVU444,
 };
 
-static const u32 formats_v4l2[] = {
-	V4L2_PIX_FMT_RGB332,
-	V4L2_PIX_FMT_ARGB444,
-	V4L2_PIX_FMT_XRGB444,
-	V4L2_PIX_FMT_ARGB555,
-	V4L2_PIX_FMT_XRGB555,
-	V4L2_PIX_FMT_RGB565,
-	V4L2_PIX_FMT_RGB24,
-	V4L2_PIX_FMT_BGR24,
-	V4L2_PIX_FMT_ARGB32,
-	V4L2_PIX_FMT_XRGB32,
-	V4L2_PIX_FMT_ABGR32,
-	V4L2_PIX_FMT_XBGR32,
-	V4L2_PIX_FMT_UYVY,
-	V4L2_PIX_FMT_VYUY,
-	V4L2_PIX_FMT_YUYV,
-	V4L2_PIX_FMT_YVYU,
-	V4L2_PIX_FMT_NV12M,
-	V4L2_PIX_FMT_NV21M,
-	V4L2_PIX_FMT_NV16M,
-	V4L2_PIX_FMT_NV61M,
-	V4L2_PIX_FMT_YUV420M,
-	V4L2_PIX_FMT_YVU420M,
-	V4L2_PIX_FMT_YUV422M,
-	V4L2_PIX_FMT_YVU422M,
-	V4L2_PIX_FMT_YUV444M,
-	V4L2_PIX_FMT_YVU444M,
-};
-
 static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 {
 	struct rcar_du_vsp_plane_state *state =
 		to_rcar_vsp_plane_state(plane->plane.state);
 	struct rcar_du_crtc *crtc = to_rcar_crtc(state->state.crtc);
 	struct drm_framebuffer *fb = plane->plane.state->fb;
+	const struct rcar_du_format_info *format;
 	struct vsp1_du_atomic_config cfg = {
 		.pixelformat = 0,
 		.pitch = fb->pitches[0],
@@ -201,15 +174,47 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 		cfg.mem[i] = sg_dma_address(state->sg_tables[i].sgl)
 			   + fb->offsets[i];
 
-	for (i = 0; i < ARRAY_SIZE(formats_kms); ++i) {
-		if (formats_kms[i] == state->format->fourcc) {
-			cfg.pixelformat = formats_v4l2[i];
-			break;
-		}
-	}
+	format = rcar_du_format_info(state->format->fourcc);
+	cfg.pixelformat = format->v4l2;
 
 	vsp1_du_atomic_update(plane->vsp->vsp, crtc->vsp_pipe,
 			      plane->index, &cfg);
+}
+
+int rcar_du_vsp_map_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
+		       struct sg_table sg_tables[3])
+{
+	struct rcar_du_device *rcdu = vsp->dev;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < fb->format->num_planes; ++i) {
+		struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(fb, i);
+		struct sg_table *sgt = &sg_tables[i];
+
+		ret = dma_get_sgtable(rcdu->dev, sgt, gem->vaddr, gem->paddr,
+				      gem->base.size);
+		if (ret)
+			goto fail;
+
+		ret = vsp1_du_map_sg(vsp->vsp, sgt);
+		if (ret) {
+			sg_free_table(sgt);
+			goto fail;
+		}
+	}
+
+	return 0;
+
+fail:
+	while (i--) {
+		struct sg_table *sgt = &sg_tables[i];
+
+		vsp1_du_unmap_sg(vsp->vsp, sgt);
+		sg_free_table(sgt);
+	}
+
+	return ret;
 }
 
 static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
@@ -217,8 +222,6 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 {
 	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
 	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
-	struct rcar_du_device *rcdu = vsp->dev;
-	unsigned int i;
 	int ret;
 
 	/*
@@ -228,39 +231,24 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 	if (!state->visible)
 		return 0;
 
-	for (i = 0; i < rstate->format->planes; ++i) {
-		struct drm_gem_cma_object *gem =
-			drm_fb_cma_get_gem_obj(state->fb, i);
-		struct sg_table *sgt = &rstate->sg_tables[i];
+	ret = rcar_du_vsp_map_fb(vsp, state->fb, rstate->sg_tables);
+	if (ret < 0)
+		return ret;
 
-		ret = dma_get_sgtable(rcdu->dev, sgt, gem->vaddr, gem->paddr,
-				      gem->base.size);
-		if (ret)
-			goto fail;
+	return drm_gem_fb_prepare_fb(plane, state);
+}
 
-		ret = vsp1_du_map_sg(vsp->vsp, sgt);
-		if (!ret) {
-			sg_free_table(sgt);
-			ret = -ENOMEM;
-			goto fail;
-		}
-	}
+void rcar_du_vsp_unmap_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
+			  struct sg_table sg_tables[3])
+{
+	unsigned int i;
 
-	ret = drm_gem_fb_prepare_fb(plane, state);
-	if (ret)
-		goto fail;
-
-	return 0;
-
-fail:
-	while (i--) {
-		struct sg_table *sgt = &rstate->sg_tables[i];
+	for (i = 0; i < fb->format->num_planes; ++i) {
+		struct sg_table *sgt = &sg_tables[i];
 
 		vsp1_du_unmap_sg(vsp->vsp, sgt);
 		sg_free_table(sgt);
 	}
-
-	return ret;
 }
 
 static void rcar_du_vsp_plane_cleanup_fb(struct drm_plane *plane,
@@ -268,17 +256,11 @@ static void rcar_du_vsp_plane_cleanup_fb(struct drm_plane *plane,
 {
 	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
 	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
-	unsigned int i;
 
 	if (!state->visible)
 		return;
 
-	for (i = 0; i < rstate->format->planes; ++i) {
-		struct sg_table *sgt = &rstate->sg_tables[i];
-
-		vsp1_du_unmap_sg(vsp->vsp, sgt);
-		sg_free_table(sgt);
-	}
+	rcar_du_vsp_unmap_fb(vsp, state->fb, rstate->sg_tables);
 }
 
 static int rcar_du_vsp_plane_atomic_check(struct drm_plane *plane,
@@ -297,7 +279,7 @@ static void rcar_du_vsp_plane_atomic_update(struct drm_plane *plane,
 
 	if (plane->state->visible)
 		rcar_du_vsp_plane_setup(rplane);
-	else
+	else if (old_state->crtc)
 		vsp1_du_atomic_update(rplane->vsp->vsp, crtc->vsp_pipe,
 				      rplane->index, NULL);
 }
@@ -346,11 +328,8 @@ static void rcar_du_vsp_plane_reset(struct drm_plane *plane)
 	if (state == NULL)
 		return;
 
-	state->state.alpha = DRM_BLEND_ALPHA_OPAQUE;
+	__drm_atomic_helper_plane_reset(plane, &state->state);
 	state->state.zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
-
-	plane->state = &state->state;
-	plane->state->plane = plane;
 }
 
 static const struct drm_plane_funcs rcar_du_vsp_plane_funcs = {
@@ -361,6 +340,13 @@ static const struct drm_plane_funcs rcar_du_vsp_plane_funcs = {
 	.atomic_duplicate_state = rcar_du_vsp_plane_atomic_duplicate_state,
 	.atomic_destroy_state = rcar_du_vsp_plane_atomic_destroy_state,
 };
+
+static void rcar_du_vsp_cleanup(struct drm_device *dev, void *res)
+{
+	struct rcar_du_vsp *vsp = res;
+
+	put_device(vsp->vsp);
+}
 
 int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 		     unsigned int crtcs)
@@ -377,6 +363,10 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 		return -ENXIO;
 
 	vsp->vsp = &pdev->dev;
+
+	ret = drmm_add_action(rcdu->ddev, rcar_du_vsp_cleanup, vsp);
+	if (ret < 0)
+		return ret;
 
 	ret = vsp1_du_init(vsp->vsp);
 	if (ret < 0)
@@ -404,8 +394,8 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 
 		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
 					       &rcar_du_vsp_plane_funcs,
-					       formats_kms,
-					       ARRAY_SIZE(formats_kms),
+					       rcar_du_vsp_formats,
+					       ARRAY_SIZE(rcar_du_vsp_formats),
 					       NULL, type, NULL);
 		if (ret < 0)
 			return ret;
@@ -413,12 +403,14 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 		drm_plane_helper_add(&plane->plane,
 				     &rcar_du_vsp_plane_helper_funcs);
 
-		if (type == DRM_PLANE_TYPE_PRIMARY)
-			continue;
-
-		drm_plane_create_alpha_property(&plane->plane);
-		drm_plane_create_zpos_property(&plane->plane, 1, 1,
-					       vsp->num_planes - 1);
+		if (type == DRM_PLANE_TYPE_PRIMARY) {
+			drm_plane_create_zpos_immutable_property(&plane->plane,
+								 0);
+		} else {
+			drm_plane_create_alpha_property(&plane->plane);
+			drm_plane_create_zpos_property(&plane->plane, 1, 1,
+						       vsp->num_planes - 1);
+		}
 	}
 
 	return 0;

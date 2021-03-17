@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 *_32
 *_64
 single_step_syscall
@@ -11,5 +12,4 @@ ldt_gdt
 iopl
 mpx-mini-test
 ioperm
-protection_keys
 test_vdso

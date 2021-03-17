@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2013 Texas Instruments Inc.
  *
  * David Griego, <dagriego@biglakesoftware.com>
  * Dale Farnsworth, <dale@farnsworth.org>
  * Archit Taneja, <archit@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #ifndef TI_CSC_H
 #define TI_CSC_H
@@ -61,8 +58,8 @@ struct csc_data {
 void csc_dump_regs(struct csc_data *csc);
 void csc_set_coeff_bypass(struct csc_data *csc, u32 *csc_reg5);
 void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
-		enum v4l2_colorspace src_colorspace,
-		enum v4l2_colorspace dst_colorspace);
+		   struct v4l2_format *src_fmt, struct v4l2_format *dst_fmt);
+
 struct csc_data *csc_create(struct platform_device *pdev, const char *res_name);
 
 #endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright 2007-2010 Red Hat, Inc.
  *  by Peter Jones <pjones@redhat.com>
@@ -7,18 +8,9 @@
  *  by Konrad Rzeszutek <ketuzsezr@darnok.org>
  *
  * This code finds the iSCSI Boot Format Table.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/blkdev.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
@@ -104,7 +96,7 @@ unsigned long __init find_ibft_region(unsigned long *sizep)
 
 	if (ibft_addr) {
 		*sizep = PAGE_ALIGN(ibft_addr->header.length);
-		return (u64)isa_virt_to_bus(ibft_addr);
+		return (u64)virt_to_phys(ibft_addr);
 	}
 
 	*sizep = 0;

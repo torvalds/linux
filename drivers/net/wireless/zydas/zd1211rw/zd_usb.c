@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ZD1211 USB-WLAN driver for Linux
  *
  * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
  * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  * Copyright (C) 2006-2007 Michael Wu <flamingice@sourmilk.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -390,7 +378,6 @@ static inline void handle_regs_int(struct urb *urb)
 	int len;
 	u16 int_num;
 
-	ZD_ASSERT(in_interrupt());
 	spin_lock_irqsave(&intr->lock, flags);
 
 	int_num = le16_to_cpu(*(__le16 *)(urb->transfer_buffer+2));
@@ -612,9 +599,7 @@ void zd_usb_disable_int(struct zd_usb *usb)
 	dev_dbg_f(zd_usb_dev(usb), "urb %p killed\n", urb);
 	usb_free_urb(urb);
 
-	if (buffer)
-		usb_free_coherent(udev, USB_MAX_EP_INT_BUFFER,
-				  buffer, buffer_dma);
+	usb_free_coherent(udev, USB_MAX_EP_INT_BUFFER, buffer, buffer_dma);
 }
 
 static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
@@ -1154,9 +1139,9 @@ static void zd_rx_idle_timer_handler(struct work_struct *work)
 	zd_usb_reset_rx(usb);
 }
 
-static void zd_usb_reset_rx_idle_timer_tasklet(unsigned long param)
+static void zd_usb_reset_rx_idle_timer_tasklet(struct tasklet_struct *t)
 {
-	struct zd_usb *usb = (struct zd_usb *)param;
+	struct zd_usb *usb = from_tasklet(usb, t, rx.reset_timer_tasklet);
 
 	zd_usb_reset_rx_idle_timer(usb);
 }
@@ -1192,8 +1177,9 @@ static inline void init_usb_rx(struct zd_usb *usb)
 	}
 	ZD_ASSERT(rx->fragment_length == 0);
 	INIT_DELAYED_WORK(&rx->idle_work, zd_rx_idle_timer_handler);
-	rx->reset_timer_tasklet.func = zd_usb_reset_rx_idle_timer_tasklet;
-	rx->reset_timer_tasklet.data = (unsigned long)usb;
+	rx->reset_timer_tasklet.func = (void (*))
+					zd_usb_reset_rx_idle_timer_tasklet;
+	rx->reset_timer_tasklet.data = (unsigned long)&rx->reset_timer_tasklet;
 }
 
 static inline void init_usb_tx(struct zd_usb *usb)
@@ -1275,7 +1261,7 @@ static void print_id(struct usb_device *udev)
 static int eject_installer(struct usb_interface *intf)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
-	struct usb_host_interface *iface_desc = &intf->altsetting[0];
+	struct usb_host_interface *iface_desc = intf->cur_altsetting;
 	struct usb_endpoint_descriptor *endpoint;
 	unsigned char *cmd;
 	u8 bulk_out_ep;
@@ -1609,11 +1595,6 @@ static int zd_ep_regs_out_msg(struct usb_device *udev, void *data, int len,
 	}
 }
 
-static int usb_int_regs_length(unsigned int count)
-{
-	return sizeof(struct usb_int_regs) + count * sizeof(struct reg_data);
-}
-
 static void prepare_read_regs_int(struct zd_usb *usb,
 				  struct usb_req_read_regs *req,
 				  unsigned int count)
@@ -1648,10 +1629,10 @@ static bool check_read_regs(struct zd_usb *usb, struct usb_req_read_regs *req,
 	/* The created block size seems to be larger than expected.
 	 * However results appear to be correct.
 	 */
-	if (rr->length < usb_int_regs_length(count)) {
+	if (rr->length < struct_size(regs, regs, count)) {
 		dev_dbg_f(zd_usb_dev(usb),
-			 "error: actual length %d less than expected %d\n",
-			 rr->length, usb_int_regs_length(count));
+			 "error: actual length %d less than expected %zu\n",
+			 rr->length, struct_size(regs, regs, count));
 		return false;
 	}
 
@@ -1917,8 +1898,7 @@ int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 	if (!urb)
 		return -ENOMEM;
 
-	req_len = sizeof(struct usb_req_write_regs) +
-		  count * sizeof(struct reg_data);
+	req_len = struct_size(req, reg_writes, count);
 	req = kmalloc(req_len, GFP_KERNEL);
 	if (!req) {
 		r = -ENOMEM;

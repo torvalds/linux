@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2019 Linaro Ltd.
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/misc/hisilicon-hikey-usb.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: HiKey960 onboard USB GPIO Hub
+
+maintainers:
+  - John Stultz <john.stultz@linaro.org>
+
+description: |
+  Supports the onboard HiKey960 USB GPIO hub, which acts as a
+  role-switch intermediary to detect the state of the USB-C
+  port, to switch the hub into dual-role USB-C or host mode,
+  which enables the onboard USB-A host ports.
+
+  Schematics about the hub can be found here:
+    https://github.com/96boards/documentation/raw/master/consumer/hikey/hikey960/hardware-docs/HiKey960_Schematics.pdf
+
+properties:
+  compatible:
+    items:
+      - const: hisilicon,gpio_hubv1
+
+  typec-vbus-gpios:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to the typec-vbus gpio
+
+  otg-switch-gpios:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to the otg-switch gpio
+
+  hub-vdd33-en-gpios:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to the hub 3.3v power enablement gpio
+
+  usb-role-switch:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Support role switch.
+
+  port:
+    description: |
+      any connector to the data bus of this controller should be modelled
+      using the OF graph bindings specified, if the "usb-role-switch"
+      property is used. Note for this driver, two ports are supported,
+      the first being the endpoint that will be notified by this driver,
+      and the second being the endpoint that notifies this driver of a
+      role switch.
+
+
+required:
+  - compatible
+  - typec-vbus-gpios
+  - otg-switch-gpios
+  - hub-vdd33-en-gpios
+  - usb-role-switch
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    hisi_hikey_usb: hisi_hikey_usb {
+        compatible = "hisilicon,gpio_hubv1";
+        typec-vbus-gpios = <&gpio25 2 GPIO_ACTIVE_HIGH>;
+        otg-switch-gpios = <&gpio25 6 GPIO_ACTIVE_HIGH>;
+        hub-vdd33-en-gpios = <&gpio5 6 GPIO_ACTIVE_HIGH>;
+        usb-role-switch;
+
+        port {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            hikey_usb_ep0: endpoint@0 {
+                reg = <0>;
+                remote-endpoint = <&dwc3_role_switch>;
+            };
+            hikey_usb_ep1: endpoint@1 {
+                reg = <1>;
+                remote-endpoint = <&rt1711h_ep>;
+            };
+        };
+    };

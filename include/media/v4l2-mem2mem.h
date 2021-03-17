@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Memory-to-memory device framework for Video for Linux 2.
  *
@@ -7,11 +8,6 @@
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
  * Pawel Osciak, <pawel@osciak.com>
  * Marek Szyprowski, <m.szyprowski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version
  */
 
 #ifndef _MEDIA_V4L2_MEM2MEM_H
@@ -25,7 +21,8 @@
  *		callback.
  *		The job does NOT have to end before this callback returns
  *		(and it will be the usual case). When the job finishes,
- *		v4l2_m2m_job_finish() has to be called.
+ *		v4l2_m2m_job_finish() or v4l2_m2m_buf_done_and_job_finish()
+ *		has to be called.
  * @job_ready:	optional. Should return 0 if the driver does not have a job
  *		fully prepared to run yet (i.e. it will not be able to finish a
  *		transaction without sleeping). If not provided, it will be
@@ -37,7 +34,8 @@
  *		stop the device safely; e.g. in the next interrupt handler),
  *		even if the transaction would not have been finished by then.
  *		After the driver performs the necessary steps, it has to call
- *		v4l2_m2m_job_finish() (as if the transaction ended normally).
+ *		v4l2_m2m_job_finish() or v4l2_m2m_buf_done_and_job_finish() as
+ *		if the transaction ended normally.
  *		This function does not have to (and will usually not) wait
  *		until the device enters a state when it can be stopped.
  */
@@ -77,6 +75,15 @@ struct v4l2_m2m_queue_ctx {
  * struct v4l2_m2m_ctx - Memory to memory context structure
  *
  * @q_lock: struct &mutex lock
+ * @new_frame: valid in the device_run callback: if true, then this
+ *		starts a new frame; if false, then this is a new slice
+ *		for an existing frame. This is always true unless
+ *		V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF is set, which
+ *		indicates slicing support.
+ * @is_draining: indicates device is in draining phase
+ * @last_src_buf: indicate the last source buffer for draining
+ * @next_buf_last: next capture queud buffer will be tagged as last
+ * @has_stopped: indicate the device has been stopped
  * @m2m_dev: opaque pointer to the internal data to handle M2M context
  * @cap_q_ctx: Capture (output to memory) queue context
  * @out_q_ctx: Output (input from memory) queue context
@@ -92,6 +99,13 @@ struct v4l2_m2m_queue_ctx {
 struct v4l2_m2m_ctx {
 	/* optional cap/out vb2 queues lock */
 	struct mutex			*q_lock;
+
+	bool				new_frame;
+
+	bool				is_draining;
+	struct vb2_v4l2_buffer		*last_src_buf;
+	bool				next_buf_last;
+	bool				has_stopped;
 
 	/* internal use only */
 	struct v4l2_m2m_dev		*m2m_dev;
@@ -177,11 +191,140 @@ void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx);
 void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 			 struct v4l2_m2m_ctx *m2m_ctx);
 
+/**
+ * v4l2_m2m_buf_done_and_job_finish() - return source/destination buffers with
+ * state and inform the framework that a job has been finished and have it
+ * clean up
+ *
+ * @m2m_dev: opaque pointer to the internal data to handle M2M context
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ * @state: vb2 buffer state passed to v4l2_m2m_buf_done().
+ *
+ * Drivers that set V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF must use this
+ * function instead of job_finish() to take held buffers into account. It is
+ * optional for other drivers.
+ *
+ * This function removes the source buffer from the ready list and returns
+ * it with the given state. The same is done for the destination buffer, unless
+ * it is marked 'held'. In that case the buffer is kept on the ready list.
+ *
+ * After that the job is finished (see job_finish()).
+ *
+ * This allows for multiple output buffers to be used to fill in a single
+ * capture buffer. This is typically used by stateless decoders where
+ * multiple e.g. H.264 slices contribute to a single decoded frame.
+ */
+void v4l2_m2m_buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
+				      struct v4l2_m2m_ctx *m2m_ctx,
+				      enum vb2_buffer_state state);
+
 static inline void
 v4l2_m2m_buf_done(struct vb2_v4l2_buffer *buf, enum vb2_buffer_state state)
 {
 	vb2_buffer_done(&buf->vb2_buf, state);
 }
+
+/**
+ * v4l2_m2m_clear_state() - clear encoding/decoding state
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+static inline void
+v4l2_m2m_clear_state(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	m2m_ctx->next_buf_last = false;
+	m2m_ctx->is_draining = false;
+	m2m_ctx->has_stopped = false;
+}
+
+/**
+ * v4l2_m2m_mark_stopped() - set current encoding/decoding state as stopped
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+static inline void
+v4l2_m2m_mark_stopped(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	m2m_ctx->next_buf_last = false;
+	m2m_ctx->is_draining = false;
+	m2m_ctx->has_stopped = true;
+}
+
+/**
+ * v4l2_m2m_dst_buf_is_last() - return the current encoding/decoding session
+ * draining management state of next queued capture buffer
+ *
+ * This last capture buffer should be tagged with V4L2_BUF_FLAG_LAST to notify
+ * the end of the capture session.
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+static inline bool
+v4l2_m2m_dst_buf_is_last(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	return m2m_ctx->is_draining && m2m_ctx->next_buf_last;
+}
+
+/**
+ * v4l2_m2m_has_stopped() - return the current encoding/decoding session
+ * stopped state
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+static inline bool
+v4l2_m2m_has_stopped(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	return m2m_ctx->has_stopped;
+}
+
+/**
+ * v4l2_m2m_is_last_draining_src_buf() - return the output buffer draining
+ * state in the current encoding/decoding session
+ *
+ * This will identify the last output buffer queued before a session stop
+ * was required, leading to an actual encoding/decoding session stop state
+ * in the encoding/decoding process after being processed.
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ * @vbuf: pointer to struct &v4l2_buffer
+ */
+static inline bool
+v4l2_m2m_is_last_draining_src_buf(struct v4l2_m2m_ctx *m2m_ctx,
+				  struct vb2_v4l2_buffer *vbuf)
+{
+	return m2m_ctx->is_draining && vbuf == m2m_ctx->last_src_buf;
+}
+
+/**
+ * v4l2_m2m_last_buffer_done() - marks the buffer with LAST flag and DONE
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ * @vbuf: pointer to struct &v4l2_buffer
+ */
+void v4l2_m2m_last_buffer_done(struct v4l2_m2m_ctx *m2m_ctx,
+			       struct vb2_v4l2_buffer *vbuf);
+
+/**
+ * v4l2_m2m_suspend() - stop new jobs from being run and wait for current job
+ * to finish
+ *
+ * @m2m_dev: opaque pointer to the internal data to handle M2M context
+ *
+ * Called by a driver in the suspend hook. Stop new jobs from being run, and
+ * wait for current running job to finish.
+ */
+void v4l2_m2m_suspend(struct v4l2_m2m_dev *m2m_dev);
+
+/**
+ * v4l2_m2m_resume() - resume job running and try to run a queued job
+ *
+ * @m2m_dev: opaque pointer to the internal data to handle M2M context
+ *
+ * Called by a driver in the resume hook. This reverts the operation of
+ * v4l2_m2m_suspend() and allows job to be run. Also try to run a queued job if
+ * there is any.
+ */
+void v4l2_m2m_resume(struct v4l2_m2m_dev *m2m_dev);
 
 /**
  * v4l2_m2m_reqbufs() - multi-queue-aware REQBUFS multiplexer
@@ -279,6 +422,46 @@ int v4l2_m2m_streamon(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
  */
 int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		       enum v4l2_buf_type type);
+
+/**
+ * v4l2_m2m_update_start_streaming_state() - update the encoding/decoding
+ * session state when a start of streaming of a video queue is requested
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ * @q: queue
+ */
+void v4l2_m2m_update_start_streaming_state(struct v4l2_m2m_ctx *m2m_ctx,
+					   struct vb2_queue *q);
+
+/**
+ * v4l2_m2m_update_stop_streaming_state() -  update the encoding/decoding
+ * session state when a stop of streaming of a video queue is requested
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ * @q: queue
+ */
+void v4l2_m2m_update_stop_streaming_state(struct v4l2_m2m_ctx *m2m_ctx,
+					  struct vb2_queue *q);
+
+/**
+ * v4l2_m2m_encoder_cmd() - execute an encoder command
+ *
+ * @file: pointer to struct &file
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ * @ec: pointer to the encoder command
+ */
+int v4l2_m2m_encoder_cmd(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+			 struct v4l2_encoder_cmd *ec);
+
+/**
+ * v4l2_m2m_decoder_cmd() - execute a decoder command
+ *
+ * @file: pointer to struct &file
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ * @dc: pointer to the decoder command
+ */
+int v4l2_m2m_decoder_cmd(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+			 struct v4l2_decoder_cmd *dc);
 
 /**
  * v4l2_m2m_poll() - poll replacement, for destination buffers only
@@ -425,7 +608,7 @@ unsigned int v4l2_m2m_num_dst_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @q_ctx: pointer to struct @v4l2_m2m_queue_ctx
  */
-void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
+struct vb2_v4l2_buffer *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
  * v4l2_m2m_next_src_buf() - return next source buffer from the list of ready
@@ -433,7 +616,8 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_next_buf(&m2m_ctx->out_q_ctx);
 }
@@ -444,7 +628,8 @@ static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_next_buf(&m2m_ctx->cap_q_ctx);
 }
@@ -454,7 +639,7 @@ static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @q_ctx: pointer to struct @v4l2_m2m_queue_ctx
  */
-void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
+struct vb2_v4l2_buffer *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
  * v4l2_m2m_last_src_buf() - return last destination buffer from the list of
@@ -462,7 +647,8 @@ void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_last_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_last_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_last_buf(&m2m_ctx->out_q_ctx);
 }
@@ -473,7 +659,8 @@ static inline void *v4l2_m2m_last_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_last_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_last_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_last_buf(&m2m_ctx->cap_q_ctx);
 }
@@ -547,7 +734,7 @@ struct vb2_queue *v4l2_m2m_get_dst_vq(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @q_ctx: pointer to struct @v4l2_m2m_queue_ctx
  */
-void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx);
+struct vb2_v4l2_buffer *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
  * v4l2_m2m_src_buf_remove() - take off a source buffer from the list of ready
@@ -555,7 +742,8 @@ void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx);
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_buf_remove(&m2m_ctx->out_q_ctx);
 }
@@ -566,7 +754,8 @@ static inline void *v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_dst_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_dst_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_buf_remove(&m2m_ctx->cap_q_ctx);
 }
@@ -622,6 +811,30 @@ v4l2_m2m_dst_buf_remove_by_idx(struct v4l2_m2m_ctx *m2m_ctx, unsigned int idx)
 	return v4l2_m2m_buf_remove_by_idx(&m2m_ctx->cap_q_ctx, idx);
 }
 
+/**
+ * v4l2_m2m_buf_copy_metadata() - copy buffer metadata from
+ * the output buffer to the capture buffer
+ *
+ * @out_vb: the output buffer that is the source of the metadata.
+ * @cap_vb: the capture buffer that will receive the metadata.
+ * @copy_frame_flags: copy the KEY/B/PFRAME flags as well.
+ *
+ * This helper function copies the timestamp, timecode (if the TIMECODE
+ * buffer flag was set), field and the TIMECODE, KEYFRAME, BFRAME, PFRAME
+ * and TSTAMP_SRC_MASK flags from @out_vb to @cap_vb.
+ *
+ * If @copy_frame_flags is false, then the KEYFRAME, BFRAME and PFRAME
+ * flags are not copied. This is typically needed for encoders that
+ * set this bits explicitly.
+ */
+void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,
+				struct vb2_v4l2_buffer *cap_vb,
+				bool copy_frame_flags);
+
+/* v4l2 request helper */
+
+void v4l2_m2m_request_queue(struct media_request *req);
+
 /* v4l2 ioctl helpers */
 
 int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,
@@ -642,6 +855,18 @@ int v4l2_m2m_ioctl_streamon(struct file *file, void *fh,
 				enum v4l2_buf_type type);
 int v4l2_m2m_ioctl_streamoff(struct file *file, void *fh,
 				enum v4l2_buf_type type);
+int v4l2_m2m_ioctl_encoder_cmd(struct file *file, void *fh,
+			       struct v4l2_encoder_cmd *ec);
+int v4l2_m2m_ioctl_decoder_cmd(struct file *file, void *fh,
+			       struct v4l2_decoder_cmd *dc);
+int v4l2_m2m_ioctl_try_encoder_cmd(struct file *file, void *fh,
+				   struct v4l2_encoder_cmd *ec);
+int v4l2_m2m_ioctl_try_decoder_cmd(struct file *file, void *fh,
+				   struct v4l2_decoder_cmd *dc);
+int v4l2_m2m_ioctl_stateless_try_decoder_cmd(struct file *file, void *fh,
+					     struct v4l2_decoder_cmd *dc);
+int v4l2_m2m_ioctl_stateless_decoder_cmd(struct file *file, void *priv,
+					 struct v4l2_decoder_cmd *dc);
 int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma);
 __poll_t v4l2_m2m_fop_poll(struct file *file, poll_table *wait);
 

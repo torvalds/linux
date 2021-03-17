@@ -106,7 +106,7 @@ config CPU_ARM922T
 	help
 	  The ARM922T is a version of the ARM920T, but with smaller
 	  instruction and data caches. It is used in Altera's
-	  Excalibur XA device family and Micrel's KS8695 Centaur.
+	  Excalibur XA device family and the ARM Integrator.
 
 	  Say Y if you want support for the ARM922T processor.
 	  Otherwise, say N.
@@ -663,6 +663,7 @@ config ARM_LPAE
 	depends on MMU && CPU_32v7 && !CPU_32v6 && !CPU_32v5 && \
 		!CPU_32v4 && !CPU_32v3
 	select PHYS_ADDR_T_64BIT
+	select SWIOTLB
 	help
 	  Say Y if you have an ARMv7 processor supporting the LPAE page
 	  table format and you would like to access memory beyond the
@@ -709,7 +710,7 @@ config ARM_VIRT_EXT
 	  assistance.
 
 	  A compliant bootloader is required in order to make maximum
-	  use of this feature.  Refer to Documentation/arm/Booting for
+	  use of this feature.  Refer to Documentation/arm/booting.rst for
 	  details.
 
 config SWP_EMULATE
@@ -742,6 +743,7 @@ config SWP_EMULATE
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
 	depends on ARCH_SUPPORTS_BIG_ENDIAN
+	depends on !LD_IS_LLD
 	help
 	  Say Y if you plan on running a kernel in big-endian mode.
 	  Note that your board must be properly built and your board
@@ -779,6 +781,14 @@ config CPU_ICACHE_DISABLE
 	help
 	  Say Y here to disable the processor instruction cache. Unless
 	  you have a reason not to or are unsure, say N.
+
+config CPU_ICACHE_MISMATCH_WORKAROUND
+	bool "Workaround for I-Cache line size mismatch between CPU cores"
+	depends on SMP && CPU_V7
+	help
+	  Some big.LITTLE systems have I-Cache line size mismatch between
+	  LITTLE and big cores.  Say Y here to enable a workaround for
+	  proper I-Cache support on such systems.  If unsure, say N.
 
 config CPU_DCACHE_DISABLE
 	bool "Disable D-Cache (C-bit)"
@@ -867,7 +877,7 @@ config KUSER_HELPERS
 	  the CPU type fitted to the system.  This permits binaries to be
 	  run on ARMv4 through to ARMv7 without modification.
 
-	  See Documentation/arm/kernel_user_helpers.txt for details.
+	  See Documentation/arm/kernel_user_helpers.rst for details.
 
 	  However, the fixed address nature of these helpers can be used
 	  by ROP (return orientated programming) authors when creating
@@ -887,7 +897,10 @@ config VDSO
 	bool "Enable VDSO for acceleration of some system calls"
 	depends on AEABI && MMU && CPU_V7
 	default y if ARM_ARCH_TIMER
+	select HAVE_GENERIC_VDSO
 	select GENERIC_TIME_VSYSCALL
+	select GENERIC_VDSO_32
+	select GENERIC_GETTIMEOFDAY
 	help
 	  Place in the process address space an ELF shared object
 	  providing fast implementations of gettimeofday and
@@ -1032,7 +1045,7 @@ endif
 
 config CACHE_TAUROS2
 	bool "Enable the Tauros2 L2 cache controller"
-	depends on (ARCH_DOVE || ARCH_MMP || CPU_PJ4)
+	depends on (CPU_MOHAWK || CPU_PJ4)
 	default y
 	select OUTER_CACHE
 	help

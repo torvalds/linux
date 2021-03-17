@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -125,7 +126,7 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 	/* retry only "normal" I/O: */
 	if (blk_rq_is_passthrough(rq)) {
 		if (ata_taskfile_request(rq)) {
-			struct ide_cmd *cmd = rq->special;
+			struct ide_cmd *cmd = ide_req(rq)->special;
 
 			if (cmd)
 				ide_complete_cmd(drive, cmd, stat, err);

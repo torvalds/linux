@@ -571,18 +571,14 @@ static int socfpga_fpga_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	mgr = fpga_mgr_create(dev, "Altera SOCFPGA FPGA Manager",
-			      &socfpga_fpga_ops, priv);
+	mgr = devm_fpga_mgr_create(dev, "Altera SOCFPGA FPGA Manager",
+				   &socfpga_fpga_ops, priv);
 	if (!mgr)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, mgr);
 
-	ret = fpga_mgr_register(mgr);
-	if (ret)
-		fpga_mgr_free(mgr);
-
-	return ret;
+	return fpga_mgr_register(mgr);
 }
 
 static int socfpga_fpga_remove(struct platform_device *pdev)

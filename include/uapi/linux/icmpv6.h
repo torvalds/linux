@@ -68,6 +68,7 @@ struct icmp6hdr {
 #define icmp6_mtu		icmp6_dataun.un_data32[0]
 #define icmp6_unused		icmp6_dataun.un_data32[0]
 #define icmp6_maxdelay		icmp6_dataun.un_data16[0]
+#define icmp6_datagram_len	icmp6_dataun.un_data8[0]
 #define icmp6_router		icmp6_dataun.u_nd_advt.router
 #define icmp6_solicited		icmp6_dataun.u_nd_advt.solicited
 #define icmp6_override		icmp6_dataun.u_nd_advt.override
@@ -90,6 +91,8 @@ struct icmp6hdr {
 #define ICMPV6_TIME_EXCEED		3
 #define ICMPV6_PARAMPROB		4
 
+#define ICMPV6_ERRMSG_MAX       127
+
 #define ICMPV6_INFOMSG_MASK		0x80
 
 #define ICMPV6_ECHO_REQUEST		128
@@ -107,6 +110,10 @@ struct icmp6hdr {
 #define ICMPV6_DHAAD_REPLY		145
 #define ICMPV6_MOBILE_PREFIX_SOL	146
 #define ICMPV6_MOBILE_PREFIX_ADV	147
+
+#define ICMPV6_MRDISC_ADV		151
+
+#define ICMPV6_MSG_MAX          255
 
 /*
  *	Codes for Destination Unreachable
@@ -131,6 +138,7 @@ struct icmp6hdr {
 #define ICMPV6_HDR_FIELD		0
 #define ICMPV6_UNK_NEXTHDR		1
 #define ICMPV6_UNK_OPTION		2
+#define ICMPV6_HDR_INCOMP		3
 
 /*
  *	constants for (set|get)sockopt

@@ -124,35 +124,14 @@ static int ipoib_mcg_seq_show(struct seq_file *file, void *iter_ptr)
 	return 0;
 }
 
-static const struct seq_operations ipoib_mcg_seq_ops = {
+static const struct seq_operations ipoib_mcg_sops = {
 	.start = ipoib_mcg_seq_start,
 	.next  = ipoib_mcg_seq_next,
 	.stop  = ipoib_mcg_seq_stop,
 	.show  = ipoib_mcg_seq_show,
 };
 
-static int ipoib_mcg_open(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq;
-	int ret;
-
-	ret = seq_open(file, &ipoib_mcg_seq_ops);
-	if (ret)
-		return ret;
-
-	seq = file->private_data;
-	seq->private = inode->i_private;
-
-	return 0;
-}
-
-static const struct file_operations ipoib_mcg_fops = {
-	.owner   = THIS_MODULE,
-	.open    = ipoib_mcg_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release
-};
+DEFINE_SEQ_ATTRIBUTE(ipoib_mcg);
 
 static void *ipoib_path_seq_start(struct seq_file *file, loff_t *pos)
 {
@@ -229,35 +208,14 @@ static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
 	return 0;
 }
 
-static const struct seq_operations ipoib_path_seq_ops = {
+static const struct seq_operations ipoib_path_sops = {
 	.start = ipoib_path_seq_start,
 	.next  = ipoib_path_seq_next,
 	.stop  = ipoib_path_seq_stop,
 	.show  = ipoib_path_seq_show,
 };
 
-static int ipoib_path_open(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq;
-	int ret;
-
-	ret = seq_open(file, &ipoib_path_seq_ops);
-	if (ret)
-		return ret;
-
-	seq = file->private_data;
-	seq->private = inode->i_private;
-
-	return 0;
-}
-
-static const struct file_operations ipoib_path_fops = {
-	.owner   = THIS_MODULE,
-	.open    = ipoib_path_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release
-};
+DEFINE_SEQ_ATTRIBUTE(ipoib_path);
 
 void ipoib_create_debug_files(struct net_device *dev)
 {
@@ -267,14 +225,10 @@ void ipoib_create_debug_files(struct net_device *dev)
 	snprintf(name, sizeof(name), "%s_mcg", dev->name);
 	priv->mcg_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
 					       ipoib_root, dev, &ipoib_mcg_fops);
-	if (!priv->mcg_dentry)
-		ipoib_warn(priv, "failed to create mcg debug file\n");
 
 	snprintf(name, sizeof(name), "%s_path", dev->name);
 	priv->path_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
 						ipoib_root, dev, &ipoib_path_fops);
-	if (!priv->path_dentry)
-		ipoib_warn(priv, "failed to create path debug file\n");
 }
 
 void ipoib_delete_debug_files(struct net_device *dev)
@@ -286,10 +240,9 @@ void ipoib_delete_debug_files(struct net_device *dev)
 	priv->mcg_dentry = priv->path_dentry = NULL;
 }
 
-int ipoib_register_debugfs(void)
+void ipoib_register_debugfs(void)
 {
 	ipoib_root = debugfs_create_dir("ipoib", NULL);
-	return ipoib_root ? 0 : -ENOMEM;
 }
 
 void ipoib_unregister_debugfs(void)

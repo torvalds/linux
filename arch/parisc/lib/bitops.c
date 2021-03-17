@@ -18,7 +18,7 @@ arch_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned = {
 #endif
 
 #ifdef CONFIG_64BIT
-unsigned long __xchg64(unsigned long x, unsigned long *ptr)
+unsigned long __xchg64(unsigned long x, volatile unsigned long *ptr)
 {
 	unsigned long temp, flags;
 
@@ -30,7 +30,7 @@ unsigned long __xchg64(unsigned long x, unsigned long *ptr)
 }
 #endif
 
-unsigned long __xchg32(int x, int *ptr)
+unsigned long __xchg32(int x, volatile int *ptr)
 {
 	unsigned long flags;
 	long temp;
@@ -43,7 +43,7 @@ unsigned long __xchg32(int x, int *ptr)
 }
 
 
-unsigned long __xchg8(char x, char *ptr)
+unsigned long __xchg8(char x, volatile char *ptr)
 {
 	unsigned long flags;
 	long temp;
@@ -78,4 +78,16 @@ unsigned long __cmpxchg_u32(volatile unsigned int *ptr, unsigned int old, unsign
 		*ptr = new;
 	_atomic_spin_unlock_irqrestore(ptr, flags);
 	return (unsigned long)prev;
+}
+
+u8 __cmpxchg_u8(volatile u8 *ptr, u8 old, u8 new)
+{
+	unsigned long flags;
+	u8 prev;
+
+	_atomic_spin_lock_irqsave(ptr, flags);
+	if ((prev = *ptr) == old)
+		*ptr = new;
+	_atomic_spin_unlock_irqrestore(ptr, flags);
+	return prev;
 }

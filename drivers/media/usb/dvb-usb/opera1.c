@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB framework compliant Linux driver for the Opera1 DVB-S Card
 *
 * Copyright (C) 2006 Mario Hlawitschka (dh1pa@amsat.org)
 * Copyright (C) 2006 Marco Gittler (g.marco@freenet.de)
 *
-*	This program is free software; you can redistribute it and/or modify it
-*	under the terms of the GNU General Public License as published by the Free
-*	Software Foundation, version 2.
-*
-* see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+* see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
 */
 
 #define DVB_USB_LOG_PREFIX "opera"

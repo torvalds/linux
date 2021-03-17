@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * mace.h - definitions for the registers in the Am79C940 MACE
  * (Medium Access Control for Ethernet) controller.
  *
  * Copyright (C) 1996 Paul Mackerras.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define REG(x)	volatile unsigned char x; char x ## _pad[15]

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/cpu.h>
@@ -98,25 +95,17 @@ EXPORT_SYMBOL_GPL(kvm_free_hpt_cma);
 void __init kvm_cma_reserve(void)
 {
 	unsigned long align_size;
-	struct memblock_region *reg;
-	phys_addr_t selected_size = 0;
+	phys_addr_t selected_size;
 
 	/*
 	 * We need CMA reservation only when we are in HV mode
 	 */
 	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return;
-	/*
-	 * We cannot use memblock_phys_mem_size() here, because
-	 * memblock_analyze() has not been called yet.
-	 */
-	for_each_memblock(memory, reg)
-		selected_size += memblock_region_memory_end_pfn(reg) -
-				 memblock_region_memory_base_pfn(reg);
 
-	selected_size = (selected_size * kvm_cma_resv_ratio / 100) << PAGE_SHIFT;
+	selected_size = PAGE_ALIGN(memblock_phys_mem_size() * kvm_cma_resv_ratio / 100);
 	if (selected_size) {
-		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
+		pr_info("%s: reserving %ld MiB for global area\n", __func__,
 			 (unsigned long)selected_size / SZ_1M);
 		align_size = HPT_ALIGN_PAGES << PAGE_SHIFT;
 		cma_declare_contiguous(0, selected_size, 0, align_size,
@@ -231,6 +220,15 @@ void kvmhv_rm_send_ipi(int cpu)
 	void __iomem *xics_phys;
 	unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 
+	/* For a nested hypervisor, use the XICS via hcall */
+	if (kvmhv_on_pseries()) {
+		unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+		plpar_hcall_raw(H_IPI, retbuf, get_hard_smp_processor_id(cpu),
+				IPI_PRIORITY);
+		return;
+	}
+
 	/* On POWER9 we can use msgsnd for any destination cpu. */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		msg |= get_hard_smp_processor_id(cpu);
@@ -248,7 +246,7 @@ void kvmhv_rm_send_ipi(int cpu)
 	}
 
 	/* We should never reach this */
-	if (WARN_ON_ONCE(xive_enabled()))
+	if (WARN_ON_ONCE(xics_on_xive()))
 	    return;
 
 	/* Else poke the target with an IPI */
@@ -460,12 +458,19 @@ static long kvmppc_read_one_intr(bool *again)
 		return 1;
 
 	/* Now read the interrupt from the ICP */
-	xics_phys = local_paca->kvm_hstate.xics_phys;
-	rc = 0;
-	if (!xics_phys)
-		rc = opal_int_get_xirr(&xirr, false);
-	else
-		xirr = __raw_rm_readl(xics_phys + XICS_XIRR);
+	if (kvmhv_on_pseries()) {
+		unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+		rc = plpar_hcall_raw(H_XIRR, retbuf, 0xFF);
+		xirr = cpu_to_be32(retbuf[0]);
+	} else {
+		xics_phys = local_paca->kvm_hstate.xics_phys;
+		rc = 0;
+		if (!xics_phys)
+			rc = opal_int_get_xirr(&xirr, false);
+		else
+			xirr = __raw_rm_readl(xics_phys + XICS_XIRR);
+	}
 	if (rc < 0)
 		return 1;
 
@@ -494,7 +499,13 @@ static long kvmppc_read_one_intr(bool *again)
 	 */
 	if (xisr == XICS_IPI) {
 		rc = 0;
-		if (xics_phys) {
+		if (kvmhv_on_pseries()) {
+			unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+			plpar_hcall_raw(H_IPI, retbuf,
+					hard_smp_processor_id(), 0xff);
+			plpar_hcall_raw(H_EOI, retbuf, h_xirr);
+		} else if (xics_phys) {
 			__raw_rm_writeb(0xff, xics_phys + XICS_MFRR);
 			__raw_rm_writel(xirr, xics_phys + XICS_XIRR);
 		} else {
@@ -520,7 +531,13 @@ static long kvmppc_read_one_intr(bool *again)
 			/* We raced with the host,
 			 * we need to resend that IPI, bummer
 			 */
-			if (xics_phys)
+			if (kvmhv_on_pseries()) {
+				unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+				plpar_hcall_raw(H_IPI, retbuf,
+						hard_smp_processor_id(),
+						IPI_PRIORITY);
+			} else if (xics_phys)
 				__raw_rm_writeb(IPI_PRIORITY,
 						xics_phys + XICS_MFRR);
 			else
@@ -549,7 +566,7 @@ unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_xirr(vcpu);
 		if (unlikely(!__xive_vm_h_xirr))
@@ -564,7 +581,7 @@ unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu)
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
 	vcpu->arch.regs.gpr[5] = get_tb();
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_xirr(vcpu);
 		if (unlikely(!__xive_vm_h_xirr))
@@ -578,7 +595,7 @@ unsigned long kvmppc_rm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_ipoll(vcpu, server);
 		if (unlikely(!__xive_vm_h_ipoll))
@@ -593,7 +610,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_ipi(vcpu, server, mfrr);
 		if (unlikely(!__xive_vm_h_ipi))
@@ -607,7 +624,7 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_cppr(vcpu, cppr);
 		if (unlikely(!__xive_vm_h_cppr))
@@ -621,7 +638,7 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_eoi(vcpu, xirr);
 		if (unlikely(!__xive_vm_h_eoi))
@@ -729,3 +746,165 @@ void kvmhv_p9_restore_lpcr(struct kvm_split_mode *sip)
 	smp_mb();
 	local_paca->kvm_hstate.kvm_split_mode = NULL;
 }
+
+static void kvmppc_end_cede(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.ceded = 0;
+	if (vcpu->arch.timer_running) {
+		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
+		vcpu->arch.timer_running = 0;
+	}
+}
+
+void kvmppc_set_msr_hv(struct kvm_vcpu *vcpu, u64 msr)
+{
+	/*
+	 * Check for illegal transactional state bit combination
+	 * and if we find it, force the TS field to a safe state.
+	 */
+	if ((msr & MSR_TS_MASK) == MSR_TS_MASK)
+		msr &= ~MSR_TS_MASK;
+	vcpu->arch.shregs.msr = msr;
+	kvmppc_end_cede(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvmppc_set_msr_hv);
+
+static void inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 srr1_flags)
+{
+	unsigned long msr, pc, new_msr, new_pc;
+
+	msr = kvmppc_get_msr(vcpu);
+	pc = kvmppc_get_pc(vcpu);
+	new_msr = vcpu->arch.intr_msr;
+	new_pc = vec;
+
+	/* If transactional, change to suspend mode on IRQ delivery */
+	if (MSR_TM_TRANSACTIONAL(msr))
+		new_msr |= MSR_TS_S;
+	else
+		new_msr |= msr & MSR_TS_MASK;
+
+	/*
+	 * Perform MSR and PC adjustment for LPCR[AIL]=3 if it is set and
+	 * applicable. AIL=2 is not supported.
+	 *
+	 * AIL does not apply to SRESET, MCE, or HMI (which is never
+	 * delivered to the guest), and does not apply if IR=0 or DR=0.
+	 */
+	if (vec != BOOK3S_INTERRUPT_SYSTEM_RESET &&
+	    vec != BOOK3S_INTERRUPT_MACHINE_CHECK &&
+	    (vcpu->arch.vcore->lpcr & LPCR_AIL) == LPCR_AIL_3 &&
+	    (msr & (MSR_IR|MSR_DR)) == (MSR_IR|MSR_DR) ) {
+		new_msr |= MSR_IR | MSR_DR;
+		new_pc += 0xC000000000004000ULL;
+	}
+
+	kvmppc_set_srr0(vcpu, pc);
+	kvmppc_set_srr1(vcpu, (msr & SRR1_MSR_BITS) | srr1_flags);
+	kvmppc_set_pc(vcpu, new_pc);
+	vcpu->arch.shregs.msr = new_msr;
+}
+
+void kvmppc_inject_interrupt_hv(struct kvm_vcpu *vcpu, int vec, u64 srr1_flags)
+{
+	inject_interrupt(vcpu, vec, srr1_flags);
+	kvmppc_end_cede(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvmppc_inject_interrupt_hv);
+
+/*
+ * Is there a PRIV_DOORBELL pending for the guest (on POWER9)?
+ * Can we inject a Decrementer or a External interrupt?
+ */
+void kvmppc_guest_entry_inject_int(struct kvm_vcpu *vcpu)
+{
+	int ext;
+	unsigned long lpcr;
+
+	/* Insert EXTERNAL bit into LPCR at the MER bit position */
+	ext = (vcpu->arch.pending_exceptions >> BOOK3S_IRQPRIO_EXTERNAL) & 1;
+	lpcr = mfspr(SPRN_LPCR);
+	lpcr |= ext << LPCR_MER_SH;
+	mtspr(SPRN_LPCR, lpcr);
+	isync();
+
+	if (vcpu->arch.shregs.msr & MSR_EE) {
+		if (ext) {
+			inject_interrupt(vcpu, BOOK3S_INTERRUPT_EXTERNAL, 0);
+		} else {
+			long int dec = mfspr(SPRN_DEC);
+			if (!(lpcr & LPCR_LD))
+				dec = (int) dec;
+			if (dec < 0)
+				inject_interrupt(vcpu,
+					BOOK3S_INTERRUPT_DECREMENTER, 0);
+		}
+	}
+
+	if (vcpu->arch.doorbell_request) {
+		mtspr(SPRN_DPDES, 1);
+		vcpu->arch.vcore->dpdes = 1;
+		smp_wmb();
+		vcpu->arch.doorbell_request = 0;
+	}
+}
+
+static void flush_guest_tlb(struct kvm *kvm)
+{
+	unsigned long rb, set;
+
+	rb = PPC_BIT(52);	/* IS = 2 */
+	if (kvm_is_radix(kvm)) {
+		/* R=1 PRS=1 RIC=2 */
+		asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+			     : : "r" (rb), "i" (1), "i" (1), "i" (2),
+			       "r" (0) : "memory");
+		for (set = 1; set < kvm->arch.tlb_sets; ++set) {
+			rb += PPC_BIT(51);	/* increment set number */
+			/* R=1 PRS=1 RIC=0 */
+			asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+				     : : "r" (rb), "i" (1), "i" (1), "i" (0),
+				       "r" (0) : "memory");
+		}
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_RADIX_INVALIDATE_ERAT_GUEST : : :"memory");
+	} else {
+		for (set = 0; set < kvm->arch.tlb_sets; ++set) {
+			/* R=0 PRS=0 RIC=0 */
+			asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+				     : : "r" (rb), "i" (0), "i" (0), "i" (0),
+				       "r" (0) : "memory");
+			rb += PPC_BIT(51);	/* increment set number */
+		}
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT : : :"memory");
+	}
+}
+
+void kvmppc_check_need_tlb_flush(struct kvm *kvm, int pcpu,
+				 struct kvm_nested_guest *nested)
+{
+	cpumask_t *need_tlb_flush;
+
+	/*
+	 * On POWER9, individual threads can come in here, but the
+	 * TLB is shared between the 4 threads in a core, hence
+	 * invalidating on one thread invalidates for all.
+	 * Thus we make all 4 threads use the same bit.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pcpu = cpu_first_thread_sibling(pcpu);
+
+	if (nested)
+		need_tlb_flush = &nested->need_tlb_flush;
+	else
+		need_tlb_flush = &kvm->arch.need_tlb_flush;
+
+	if (cpumask_test_cpu(pcpu, need_tlb_flush)) {
+		flush_guest_tlb(kvm);
+
+		/* Clear the bit after the TLB flush */
+		cpumask_clear_cpu(pcpu, need_tlb_flush);
+	}
+}
+EXPORT_SYMBOL_GPL(kvmppc_check_need_tlb_flush);

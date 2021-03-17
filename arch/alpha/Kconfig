@@ -5,8 +5,14 @@ config ALPHA
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_NO_PREEMPT
+	select ARCH_NO_SG_CHAIN
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select DMA_OPS if PCI
+	select FORCE_PCI if !ALPHA_JENSEN
+	select PCI_DOMAINS if PCI
+	select PCI_SYSCALL if PCI
 	select HAVE_AOUT
+	select HAVE_ASM_MODVERSIONS
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_PCSPKR_PLATFORM
@@ -15,6 +21,7 @@ config ALPHA
 	select NEED_SG_DMA_LENGTH
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
+	select GENERIC_PCI_IOMAP if PCI
 	select AUTO_IRQ_AFFINITY if SMP
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -31,6 +38,8 @@ config ALPHA
 	select ODD_RT_SIGACTION
 	select OLD_SIGSUSPEND
 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
+	select MMU_GATHER_NO_RANGE
+	select SET_FS
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
@@ -41,13 +50,6 @@ config 64BIT
 	def_bool y
 
 config MMU
-	bool
-	default y
-
-config RWSEM_GENERIC_SPINLOCK
-	bool
-
-config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
@@ -83,7 +85,7 @@ menu "System setup"
 choice
 	prompt "Alpha system type"
 	default ALPHA_GENERIC
-	---help---
+	help
 	  This is the system type of your hardware.  A "generic" kernel will
 	  run on any supported Alpha system. However, if you configure a
 	  kernel for your specific system, it will be faster and smaller.
@@ -125,11 +127,13 @@ choice
 config ALPHA_GENERIC
 	bool "Generic"
 	depends on TTY
+	select HAVE_EISA
 	help
 	  A generic kernel will run on all supported Alpha hardware.
 
 config ALPHA_ALCOR
 	bool "Alcor/Alpha-XLT"
+	select HAVE_EISA
 	help
 	  For systems using the Digital ALCOR chipset: 5 chips (4, 64-bit data
 	  slices (Data Switch, DSW) - 208-pin PQFP and 1 control (Control, I/O
@@ -202,7 +206,7 @@ config ALPHA_EIGER
 config ALPHA_JENSEN
 	bool "Jensen"
 	depends on BROKEN
-	select DMA_DIRECT_OPS
+	select HAVE_EISA
 	help
 	  DEC PC 150 AXP (aka Jensen): This is a very old Digital system - one
 	  of the first-generation Alpha systems. A number of these systems
@@ -219,6 +223,7 @@ config ALPHA_LX164
 
 config ALPHA_LYNX
 	bool "Lynx"
+	select HAVE_EISA
 	help
 	  AlphaServer 2100A-based systems.
 
@@ -229,6 +234,7 @@ config ALPHA_MARVEL
 
 config ALPHA_MIATA
 	bool "Miata"
+	select HAVE_EISA
 	help
 	  The Digital PersonalWorkStation (PWS 433a, 433au, 500a, 500au, 600a,
 	  or 600au).
@@ -248,6 +254,7 @@ config ALPHA_NONAME_CH
 
 config ALPHA_NORITAKE
 	bool "Noritake"
+	select HAVE_EISA
 	help
 	  AlphaServer 1000A, AlphaServer 600A, and AlphaServer 800-based
 	  systems.
@@ -260,6 +267,7 @@ config ALPHA_P2K
 
 config ALPHA_RAWHIDE
 	bool "Rawhide"
+	select HAVE_EISA
 	help
 	  AlphaServer 1200, AlphaServer 4000 and AlphaServer 4100 machines.
 	  See HOWTO at
@@ -279,6 +287,7 @@ config ALPHA_SX164
 
 config ALPHA_SABLE
 	bool "Sable"
+	select HAVE_EISA
 	help
 	  Digital AlphaServer 2000 and 2100-based systems.
 
@@ -318,24 +327,6 @@ config ISA
 config ISA_DMA_API
 	bool
 	default y
-
-config PCI
-	bool
-	depends on !ALPHA_JENSEN
-	select GENERIC_PCI_IOMAP
-	default y
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
-config PCI_DOMAINS
-	bool
-	default y
-
-config PCI_SYSCALL
-	def_bool PCI
 
 config ALPHA_NONAME
 	bool
@@ -491,7 +482,7 @@ config VGA_HOSE
 config ALPHA_QEMU
 	bool "Run under QEMU emulation"
 	depends on !ALPHA_GENERIC
-	---help---
+	help
 	  Assume the presence of special features supported by QEMU PALcode
 	  that reduce the overhead of system emulation.
 
@@ -506,7 +497,7 @@ config ALPHA_SRM
 	bool "Use SRM as bootloader" if ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS || ALPHA_NONAME
 	depends on TTY
 	default y if ALPHA_JENSEN || ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
-	---help---
+	help
 	  There are two different types of booting firmware on Alphas: SRM,
 	  which is command line driven, and ARC, which uses menus and arrow
 	  keys. Details about the Linux/Alpha booting process are contained in
@@ -526,18 +517,13 @@ config ALPHA_SRM
 
 	  If unsure, say N.
 
-config EISA
-	bool
-	depends on ALPHA_GENERIC || ALPHA_JENSEN || ALPHA_ALCOR || ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_RAWHIDE
-	default y
-
 config ARCH_MAY_HAVE_PC_FDC
 	def_bool y
 
 config SMP
 	bool "Symmetric multi-processing support"
 	depends on ALPHA_SABLE || ALPHA_LYNX || ALPHA_RAWHIDE || ALPHA_DP264 || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_GENERIC || ALPHA_SHARK || ALPHA_MARVEL
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.
@@ -561,7 +547,7 @@ config NR_CPUS
 	default "4" if !ALPHA_GENERIC && !ALPHA_MARVEL
 	help
 	  MARVEL support can handle a maximum of 32 CPUs, all the others
-          with working support have a maximum of 4 CPUs.
+	  with working support have a maximum of 4 CPUs.
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool "Discontiguous Memory Support"
@@ -585,7 +571,7 @@ config ALPHA_WTINT
 	default n if ALPHA_EV5 || ALPHA_EV56 || (ALPHA_EV4 && !ALPHA_LCA)
 	default n if !ALPHA_SRM && !ALPHA_GENERIC
 	default y if SMP
-	---help---
+	help
 	  The Wait for Interrupt (WTINT) PALcall attempts to place the CPU
 	  to sleep until the next interrupt.  This may reduce the power
 	  consumed, and the heat produced by the computer.  However, it has
@@ -611,7 +597,7 @@ config NODES_SHIFT
 # LARGE_VMALLOC is racy, if you *really* need it then fix it first
 config ALPHA_LARGE_VMALLOC
 	bool
-	---help---
+	help
 	  Process creation and other aspects of virtual memory management can
 	  be streamlined if we restrict the kernel to one PGD for all vmalloc
 	  allocations.  This equates to about 8GB.
@@ -630,7 +616,7 @@ config VERBOSE_MCHECK_ON
 	int "Verbose Printing Mode (0=off, 1=on, 2=all)"
 	depends on VERBOSE_MCHECK
 	default 1
-	---help---
+	help
 	  This option allows the default printing mode to be set, and then
 	  possibly overridden by a boot command argument.
 
@@ -649,7 +635,7 @@ choice
 	default HZ_128 if ALPHA_QEMU
 	default HZ_1200 if ALPHA_RAWHIDE
 	default HZ_1024
-	---help---
+	help
 	  The frequency at which timer interrupts occur.  A high frequency
 	  minimizes latency, whereas a low frequency minimizes overhead of
 	  process accounting.  The later effect is especially significant
@@ -673,7 +659,7 @@ choice
 endchoice
 
 config HZ
-	int 
+	int
 	default 32 if HZ_32
 	default 64 if HZ_64
 	default 128 if HZ_128
@@ -681,15 +667,10 @@ config HZ
 	default 1200 if HZ_1200
 	default 1024
 
-source "drivers/pci/Kconfig"
-source "drivers/eisa/Kconfig"
-
-source "drivers/pcmcia/Kconfig"
-
 config SRM_ENV
 	tristate "SRM environment through procfs"
 	depends on PROC_FS
-	---help---
+	help
 	  If you enable this option, a subdirectory inside /proc called
 	  /proc/srm_environment will give you access to the all important
 	  SRM environment variables (those which have a name) and also

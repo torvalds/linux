@@ -7,7 +7,6 @@
  * @no_wprotect: Set this to indicate there is no write-protect switch.
  * @no_detect: Set this if there is no detect switch.
  * @wprotect_invert: Invert the default sense of the write protect switch.
- * @detect_invert: Invert the default sense of the write protect switch.
  * @use_dma: Set to allow the use of DMA.
  * @gpio_detect: GPIO number for the card detect line.
  * @gpio_wprotect: GPIO number for the write protect line.
@@ -31,14 +30,12 @@ struct s3c24xx_mci_pdata {
 	unsigned int	no_wprotect:1;
 	unsigned int	no_detect:1;
 	unsigned int	wprotect_invert:1;
-	unsigned int	detect_invert:1;	/* set => detect active high */
 	unsigned int	use_dma:1;
 
-	unsigned int	gpio_detect;
-	unsigned int	gpio_wprotect;
 	unsigned long	ocr_avail;
 	void		(*set_power)(unsigned char power_mode,
 				     unsigned short vdd);
+	struct gpio_desc *bus[6];
 };
 
 /**
@@ -48,6 +45,7 @@ struct s3c24xx_mci_pdata {
  * Copy the platform data supplied by @pdata so that this can be marked
  * __initdata.
  */
+extern void s3c24xx_mci_def_set_power(unsigned char power_mode, unsigned short vdd);
 extern void s3c24xx_mci_set_platdata(struct s3c24xx_mci_pdata *pdata);
 
 #endif /* _ARCH_NCI_H */

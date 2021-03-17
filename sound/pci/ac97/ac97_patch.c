@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Universal interface for Audio Codec '97
@@ -5,22 +6,6 @@
  *  For more details look to AC '97 component specification revision 2.2
  *  by Intel Corporation (http://developer.intel.com) and to datasheets
  *  for specific codecs.
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include "ac97_local.h"
@@ -34,7 +19,7 @@ static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 						    const char *name);
 static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 				const unsigned int *tlv,
-				const char * const *slaves);
+				const char * const *followers);
 
 /*
  *  Chip specific initialization
@@ -1226,25 +1211,25 @@ static const struct snd_ac97_build_ops patch_sigmatel_stac9758_ops = {
 
 static int patch_sigmatel_stac9758(struct snd_ac97 * ac97)
 {
-	static unsigned short regs[4] = {
+	static const unsigned short regs[4] = {
 		AC97_SIGMATEL_OUTSEL,
 		AC97_SIGMATEL_IOMISC,
 		AC97_SIGMATEL_INSEL,
 		AC97_SIGMATEL_VARIOUS
 	};
-	static unsigned short def_regs[4] = {
+	static const unsigned short def_regs[4] = {
 		/* OUTSEL */ 0xd794, /* CL:CL, SR:SR, LO:MX, LI:DS, MI:DS */
 		/* IOMISC */ 0x2001,
 		/* INSEL */ 0x0201, /* LI:LI, MI:M1 */
 		/* VARIOUS */ 0x0040
 	};
-	static unsigned short m675_regs[4] = {
+	static const unsigned short m675_regs[4] = {
 		/* OUTSEL */ 0xfc70, /* CL:MX, SR:MX, LO:DS, LI:MX, MI:DS */
 		/* IOMISC */ 0x2102, /* HP amp on */
 		/* INSEL */ 0x0203, /* LI:LI, MI:FR */
 		/* VARIOUS */ 0x0041 /* stereo mic */
 	};
-	unsigned short *pregs = def_regs;
+	const unsigned short *pregs = def_regs;
 	int i;
 
 	/* Gateway M675 notebook */
@@ -1371,12 +1356,12 @@ static int patch_cx20551(struct snd_ac97 *ac97)
 }
 
 /*
- * Analog Device AD18xx, AD19xx codecs
+ * Analog Devices AD18xx, AD19xx codecs
  */
 #ifdef CONFIG_PM
 static void ad18xx_resume(struct snd_ac97 *ac97)
 {
-	static unsigned short setup_regs[] = {
+	static const unsigned short setup_regs[] = {
 		AC97_AD_MISC, AC97_AD_SERIAL_CFG, AC97_AD_JACK_SPDIF,
 	};
 	int i, codec;
@@ -1485,7 +1470,7 @@ static unsigned short patch_ad1881_unchained(struct snd_ac97 * ac97, int idx, un
 
 static int patch_ad1881_chained1(struct snd_ac97 * ac97, int idx, unsigned short codec_bits)
 {
-	static int cfg_bits[3] = { 1<<12, 1<<14, 1<<13 };
+	static const int cfg_bits[3] = { 1<<12, 1<<14, 1<<13 };
 	unsigned short val;
 	
 	snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 0x7000, cfg_bits[idx]);
@@ -1806,10 +1791,10 @@ static const struct snd_kcontrol_new snd_ac97_ad1981x_jack_sense[] = {
 	AC97_SINGLE("Line Jack Sense", AC97_AD_JACK_SPDIF, 12, 1, 0),
 };
 
-/* black list to avoid HP/Line jack-sense controls
+/* deny list to avoid HP/Line jack-sense controls
  * (SS vendor << 16 | device)
  */
-static unsigned int ad1981_jacks_blacklist[] = {
+static const unsigned int ad1981_jacks_denylist[] = {
 	0x10140523, /* Thinkpad R40 */
 	0x10140534, /* Thinkpad X31 */
 	0x10140537, /* Thinkpad T41p */
@@ -1836,7 +1821,7 @@ static int check_list(struct snd_ac97 *ac97, const unsigned int *list)
 
 static int patch_ad1981a_specific(struct snd_ac97 * ac97)
 {
-	if (check_list(ac97, ad1981_jacks_blacklist))
+	if (check_list(ac97, ad1981_jacks_denylist))
 		return 0;
 	return patch_build_controls(ac97, snd_ac97_ad1981x_jack_sense,
 				    ARRAY_SIZE(snd_ac97_ad1981x_jack_sense));
@@ -1850,10 +1835,10 @@ static const struct snd_ac97_build_ops patch_ad1981a_build_ops = {
 #endif
 };
 
-/* white list to enable HP jack-sense bits
+/* allow list to enable HP jack-sense bits
  * (SS vendor << 16 | device)
  */
-static unsigned int ad1981_jacks_whitelist[] = {
+static const unsigned int ad1981_jacks_allowlist[] = {
 	0x0e11005a, /* HP nc4000/4010 */
 	0x103c0890, /* HP nc6000 */
 	0x103c0938, /* HP nc4220 */
@@ -1868,7 +1853,7 @@ static unsigned int ad1981_jacks_whitelist[] = {
 
 static void check_ad1981_hp_jack_sense(struct snd_ac97 *ac97)
 {
-	if (check_list(ac97, ad1981_jacks_whitelist))
+	if (check_list(ac97, ad1981_jacks_allowlist))
 		/* enable headphone jack sense */
 		snd_ac97_update_bits(ac97, AC97_AD_JACK_SPDIF, 1<<11, 1<<11);
 }
@@ -1892,7 +1877,7 @@ static int patch_ad1981b_specific(struct snd_ac97 *ac97)
 
 	if ((err = patch_build_controls(ac97, &snd_ac97_ad198x_2cmic, 1)) < 0)
 		return err;
-	if (check_list(ac97, ad1981_jacks_blacklist))
+	if (check_list(ac97, ad1981_jacks_denylist))
 		return 0;
 	return patch_build_controls(ac97, snd_ac97_ad1981x_jack_sense,
 				    ARRAY_SIZE(snd_ac97_ad1981x_jack_sense));
@@ -3131,22 +3116,22 @@ static void cm9761_update_jacks(struct snd_ac97 *ac97)
 	/* FIXME: check the bits for each model
 	 *        model 83 is confirmed to work
 	 */
-	static unsigned short surr_on[3][2] = {
+	static const unsigned short surr_on[3][2] = {
 		{ 0x0008, 0x0000 }, /* 9761-78 & 82 */
 		{ 0x0000, 0x0008 }, /* 9761-82 rev.B */
 		{ 0x0000, 0x0008 }, /* 9761-83 */
 	};
-	static unsigned short clfe_on[3][2] = {
+	static const unsigned short clfe_on[3][2] = {
 		{ 0x0000, 0x1000 }, /* 9761-78 & 82 */
 		{ 0x1000, 0x0000 }, /* 9761-82 rev.B */
 		{ 0x0000, 0x1000 }, /* 9761-83 */
 	};
-	static unsigned short surr_shared[3][2] = {
+	static const unsigned short surr_shared[3][2] = {
 		{ 0x0000, 0x0400 }, /* 9761-78 & 82 */
 		{ 0x0000, 0x0400 }, /* 9761-82 rev.B */
 		{ 0x0000, 0x0400 }, /* 9761-83 */
 	};
-	static unsigned short clfe_shared[3][2] = {
+	static const unsigned short clfe_shared[3][2] = {
 		{ 0x2000, 0x0880 }, /* 9761-78 & 82 */
 		{ 0x0000, 0x2880 }, /* 9761-82 rev.B */
 		{ 0x2000, 0x0800 }, /* 9761-83 */
@@ -3388,7 +3373,7 @@ AC97_SINGLE("Downmix LFE and Center to Front", 0x5a, 12, 1, 0),
 AC97_SINGLE("Downmix Surround to Front", 0x5a, 11, 1, 0),
 };
 
-static const char * const slave_vols_vt1616[] = {
+static const char * const follower_vols_vt1616[] = {
 	"Front Playback Volume",
 	"Surround Playback Volume",
 	"Center Playback Volume",
@@ -3396,7 +3381,7 @@ static const char * const slave_vols_vt1616[] = {
 	NULL
 };
 
-static const char * const slave_sws_vt1616[] = {
+static const char * const follower_sws_vt1616[] = {
 	"Front Playback Switch",
 	"Surround Playback Switch",
 	"Center Playback Switch",
@@ -3415,10 +3400,10 @@ static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 	return snd_ctl_find_id(ac97->bus->card, &id);
 }
 
-/* create a virtual master control and add slaves */
+/* create a virtual master control and add followers */
 static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 				const unsigned int *tlv,
-				const char * const *slaves)
+				const char * const *followers)
 {
 	struct snd_kcontrol *kctl;
 	const char * const *s;
@@ -3431,16 +3416,16 @@ static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 	if (err < 0)
 		return err;
 
-	for (s = slaves; *s; s++) {
+	for (s = followers; *s; s++) {
 		struct snd_kcontrol *sctl;
 
 		sctl = snd_ac97_find_mixer_ctl(ac97, *s);
 		if (!sctl) {
 			dev_dbg(ac97->bus->card->dev,
-				"Cannot find slave %s, skipped\n", *s);
+				"Cannot find follower %s, skipped\n", *s);
 			continue;
 		}
-		err = snd_ctl_add_slave(kctl, sctl);
+		err = snd_ctl_add_follower(kctl, sctl);
 		if (err < 0)
 			return err;
 	}
@@ -3466,12 +3451,12 @@ static int patch_vt1616_specific(struct snd_ac97 * ac97)
 	snd_ac97_rename_vol_ctl(ac97, "Master Playback", "Front Playback");
 
 	err = snd_ac97_add_vmaster(ac97, "Master Playback Volume",
-				   kctl->tlv.p, slave_vols_vt1616);
+				   kctl->tlv.p, follower_vols_vt1616);
 	if (err < 0)
 		return err;
 
 	err = snd_ac97_add_vmaster(ac97, "Master Playback Switch",
-				   NULL, slave_sws_vt1616);
+				   NULL, follower_sws_vt1616);
 	if (err < 0)
 		return err;
 
@@ -3650,7 +3635,7 @@ struct vt1618_uaj_item {
 
 /* This list reflects the vt1618 docs for Vendor Defined Register 0x60. */
 
-static struct vt1618_uaj_item vt1618_uaj[3] = {
+static const struct vt1618_uaj_item vt1618_uaj[3] = {
 	{
 		/* speaker jack */
 		.mask  = 0x03,
@@ -3886,7 +3871,7 @@ static int mpatch_si3036(struct snd_ac97 * ac97)
  * check_volume_resolution().
  */
 
-static struct snd_ac97_res_table lm4550_restbl[] = {
+static const struct snd_ac97_res_table lm4550_restbl[] = {
 	{ AC97_MASTER, 0x1f1f },
 	{ AC97_HEADPHONE, 0x1f1f },
 	{ AC97_MASTER_MONO, 0x001f },

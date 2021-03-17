@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Virtualization support drivers
 #
 
 menuconfig VIRT_DRIVERS
 	bool "Virtualization drivers"
-	---help---
+	help
 	  Say Y here to get to see options for device drivers that support
 	  virtualization environments.
 
@@ -31,4 +32,6 @@ config FSL_HV_MANAGER
 	     partition shuts down.
 
 source "drivers/virt/vboxguest/Kconfig"
+
+source "drivers/virt/nitro_enclaves/Kconfig"
 endif

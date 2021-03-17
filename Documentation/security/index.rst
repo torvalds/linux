@@ -8,8 +8,11 @@ Security Documentation
    credentials
    IMA-templates
    keys/index
-   LSM
-   LSM-sctp
-   SELinux-sctp
+   lsm
+   lsm-development
+   sak
+   SCTP
    self-protection
+   siphash
    tpm/index
+   digsig

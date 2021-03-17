@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Input core configuration
 #
@@ -15,7 +16,6 @@ if INPUT_KEYBOARD
 config KEYBOARD_ADC
 	tristate "ADC Ladder Buttons"
 	depends on IIO
-	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
 	  to an ADC using a resistor ladder.
@@ -69,6 +69,24 @@ config KEYBOARD_AMIGA
 
 config ATARI_KBD_CORE
 	bool
+
+config KEYBOARD_APPLESPI
+	tristate "Apple SPI keyboard and trackpad"
+	depends on ACPI && EFI
+	depends on SPI
+	depends on X86 || COMPILE_TEST
+	depends on LEDS_CLASS
+	select CRC16
+	help
+	  Say Y here if you are running Linux on any Apple MacBook8,1 or later,
+	  or any MacBookPro13,* or MacBookPro14,*.
+
+	  You will also need to enable appropriate SPI master controllers:
+	  spi_pxa2xx_platform and spi_pxa2xx_pci for MacBook8,1, and
+	  spi_pxa2xx_platform and intel_lpss_pci for the rest.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called applespi.
 
 config KEYBOARD_ATARI
 	tristate "Atari keyboard"
@@ -137,15 +155,26 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
 
-config KEYBOARD_QT1070
-       tristate "Atmel AT42QT1070 Touch Sensor Chip"
-       depends on I2C
-       help
-         Say Y here if you want to use Atmel AT42QT1070 QTouch
-         Sensor chip as input device.
+config KEYBOARD_QT1050
+	tristate "Microchip AT42QT1050 Touch Sensor Chip"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here if you want to use Microchip AT42QT1050 QTouch
+	  Sensor chip as input device.
 
-         To compile this driver as a module, choose M here:
-         the module will be called qt1070
+	  To compile this driver as a module, choose M here:
+	  the module will be called qt1050
+
+config KEYBOARD_QT1070
+	tristate "Atmel AT42QT1070 Touch Sensor Chip"
+	depends on I2C
+	help
+	  Say Y here if you want to use Atmel AT42QT1070 QTouch
+	  Sensor chip as input device.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called qt1070
 
 config KEYBOARD_QT2160
 	tristate "Atmel AT42QT2160 Touch Sensor Chip"
@@ -161,7 +190,6 @@ config KEYBOARD_CLPS711X
 	tristate "CLPS711X Keypad support"
 	depends on OF_GPIO && (ARCH_CLPS711X || COMPILE_TEST)
 	select INPUT_MATRIXKMAP
-	select INPUT_POLLDEV
 	help
 	  Say Y here to enable the matrix keypad on the Cirrus Logic
 	  CLPS711X CPUs.
@@ -194,7 +222,7 @@ config KEYBOARD_LKKBD
 
 config KEYBOARD_EP93XX
 	tristate "EP93xx Matrix Keypad support"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here to enable the matrix keypad on the Cirrus EP93XX.
@@ -220,7 +248,6 @@ config KEYBOARD_GPIO
 config KEYBOARD_GPIO_POLLED
 	tristate "Polled GPIO buttons"
 	depends on GPIOLIB
-	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
 	  to GPIO pins that are not capable of generating interrupts.
@@ -312,7 +339,6 @@ config KEYBOARD_HIL
 config KEYBOARD_HP6XX
 	tristate "HP Jornada 6xx keyboard"
 	depends on SH_HP6XX
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you have a HP Jornada 620/660/680/690 and want to
 	  support the built-in keyboard.
@@ -420,11 +446,11 @@ config KEYBOARD_MPR121
 
 config KEYBOARD_SNVS_PWRKEY
 	tristate "IMX SNVS Power Key Driver"
-	depends on SOC_IMX6SX
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
 	help
 	  This is the snvs powerkey driver for the Freescale i.MX application
-	  processors that are newer than i.MX6 SX.
+	  processors.
 
 	  To compile this driver as a module, choose M here; the
 	  module will be called snvs_pwrkey.
@@ -438,6 +464,16 @@ config KEYBOARD_IMX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx_keypad.
+
+config KEYBOARD_IMX_SC_KEY
+	tristate "IMX SCU Key Driver"
+	depends on IMX_SCU
+	help
+	  This is the system controller key driver for NXP i.MX SoCs with
+	  system controller inside.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx_sc_key.
 
 config KEYBOARD_NEWTON
 	tristate "Newton keyboard"
@@ -627,6 +663,16 @@ config KEYBOARD_IPAQ_MICRO
 	  To compile this driver as a module, choose M here: the
 	  module will be called ipaq-micro-keys.
 
+config KEYBOARD_IQS62X
+	tristate "Azoteq IQS620A/621/622/624/625 keys and switches"
+	depends on MFD_IQS62X
+	help
+	  Say Y here to enable key and switch support for the Azoteq IQS620A,
+	  IQS621, IQS622, IQS624 and IQS625 multi-function sensors.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called iqs62x-keys.
+
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
 	depends on ARCH_OMAP1
@@ -655,7 +701,7 @@ config KEYBOARD_SPEAR
 	  Say Y here if you want to use the SPEAR keyboard.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called spear-keboard.
+	  module will be called spear-keyboard.
 
 config KEYBOARD_TC3589X
 	tristate "TC3589X Keypad support"
@@ -703,21 +749,10 @@ config KEYBOARD_XTKBD
 	  To compile this driver as a module, choose M here: the
 	  module will be called xtkbd.
 
-config KEYBOARD_W90P910
-	tristate "W90P910 Matrix Keypad support"
-	depends on ARCH_W90X900
-	select INPUT_MATRIXKMAP
-	help
-	  Say Y here to enable the matrix keypad on evaluation board
-	  based on W90P910.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w90p910_keypad.
-
 config KEYBOARD_CROS_EC
 	tristate "ChromeOS EC keyboard"
 	select INPUT_MATRIXKMAP
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  Say Y here to enable the matrix keyboard used by ChromeOS devices
 	  and implemented on the ChromeOS EC. You must enable one bus option

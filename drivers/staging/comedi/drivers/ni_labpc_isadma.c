@@ -176,6 +176,6 @@ static void __exit ni_labpc_isadma_cleanup_module(void)
 }
 module_exit(ni_labpc_isadma_cleanup_module);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi NI Lab-PC ISA DMA support");
 MODULE_LICENSE("GPL");

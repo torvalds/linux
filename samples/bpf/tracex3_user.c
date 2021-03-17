@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013-2015 PLUMgrid, http://plumgrid.com
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,14 +7,11 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
-#include <linux/bpf.h>
 #include <sys/resource.h>
 
 #include <bpf/bpf.h>
-#include "bpf_load.h"
+#include <bpf/libbpf.h>
 #include "bpf_util.h"
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 #define SLOTS 100
 
@@ -113,21 +107,12 @@ static void print_hist(int fd)
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {1024*1024, RLIM_INFINITY};
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_link *links[2];
+	struct bpf_program *prog;
+	struct bpf_object *obj;
 	char filename[256];
-	int i;
-
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return 1;
-	}
-
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
-		return 1;
-	}
+	int map_fd, i, j = 0;
 
 	for (i = 1; i < ac; i++) {
 		if (strcmp(argv[i], "-a") == 0) {
@@ -140,6 +125,40 @@ int main(int ac, char **argv)
 			       "  -t text only\n");
 			return 1;
 		}
+	}
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
+	}
+
+	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return 0;
+	}
+
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
+	}
+
+	map_fd = bpf_object__find_map_fd_by_name(obj, "lat_map");
+	if (map_fd < 0) {
+		fprintf(stderr, "ERROR: finding a map in obj file failed\n");
+		goto cleanup;
+	}
+
+	bpf_object__for_each_program(prog, obj) {
+		links[j] = bpf_program__attach(prog);
+		if (libbpf_get_error(links[j])) {
+			fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+			links[j] = NULL;
+			goto cleanup;
+		}
+		j++;
 	}
 
 	printf("  heatmap of IO latency\n");
@@ -158,9 +177,14 @@ int main(int ac, char **argv)
 	for (i = 0; ; i++) {
 		if (i % 20 == 0)
 			print_banner();
-		print_hist(map_fd[1]);
+		print_hist(map_fd);
 		sleep(2);
 	}
 
+cleanup:
+	for (j--; j >= 0; j--)
+		bpf_link__destroy(links[j]);
+
+	bpf_object__close(obj);
 	return 0;
 }

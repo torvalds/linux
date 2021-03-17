@@ -50,10 +50,12 @@ void
 gv100_disp_dmac_fini(struct nv50_disp_chan *chan)
 {
 	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	const u32 uoff = (chan->chid.ctrl - 1) * 0x1000;
 	const u32 coff = chan->chid.ctrl * 0x04;
 	nvkm_mask(device, 0x6104e0 + coff, 0x00000010, 0x00000000);
 	gv100_disp_dmac_idle(chan);
 	nvkm_mask(device, 0x6104e0 + coff, 0x00000002, 0x00000000);
+	chan->suspend_put = nvkm_rd32(device, 0x690000 + uoff);
 }
 
 int
@@ -71,7 +73,7 @@ gv100_disp_dmac_init(struct nv50_disp_chan *chan)
 	nvkm_wr32(device, 0x610b2c + poff, 0x00000040);
 
 	nvkm_mask(device, 0x6104e0 + coff, 0x00000010, 0x00000010);
-	nvkm_wr32(device, 0x690000 + uoff, 0x00000000);
+	nvkm_wr32(device, 0x690000 + uoff, chan->suspend_put);
 	nvkm_wr32(device, 0x6104e0 + coff, 0x00000013);
 	return gv100_disp_dmac_idle(chan);
 }

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ECDH key-agreement protocol
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Salvator Benedetto <salvatore.benedetto@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -43,7 +39,8 @@ static int ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	struct ecdh params;
 	unsigned int ndigits;
 
-	if (crypto_ecdh_decode_key(buf, len, &params) < 0)
+	if (crypto_ecdh_decode_key(buf, len, &params) < 0 ||
+	    params.key_size > sizeof(ctx->private_key))
 		return -EINVAL;
 
 	ndigits = ecdh_supported_curve(params.curve_id);
@@ -57,12 +54,13 @@ static int ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 		return ecc_gen_privkey(ctx->curve_id, ctx->ndigits,
 				       ctx->private_key);
 
-	if (ecc_is_key_valid(ctx->curve_id, ctx->ndigits,
-			     (const u64 *)params.key, params.key_size) < 0)
-		return -EINVAL;
-
 	memcpy(ctx->private_key, params.key, params.key_size);
 
+	if (ecc_is_key_valid(ctx->curve_id, ctx->ndigits,
+			     ctx->private_key, params.key_size) < 0) {
+		memzero_explicit(ctx->private_key, params.key_size);
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -128,7 +126,7 @@ static int ecdh_compute_value(struct kpp_request *req)
 
 	/* fall through */
 free_all:
-	kzfree(shared_secret);
+	kfree_sensitive(shared_secret);
 free_pubkey:
 	kfree(public_key);
 	return ret;
@@ -166,7 +164,7 @@ static void ecdh_exit(void)
 	crypto_unregister_kpp(&ecdh);
 }
 
-module_init(ecdh_init);
+subsys_initcall(ecdh_init);
 module_exit(ecdh_exit);
 MODULE_ALIAS_CRYPTO("ecdh");
 MODULE_LICENSE("GPL");

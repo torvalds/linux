@@ -27,15 +27,17 @@
  *	We should probably make this generic and share it with Medfield
  */
 
-#include <drm/drmP.h>
+#include <linux/pm_runtime.h>
+
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include "psb_intel_drv.h"
-#include "psb_drv.h"
-#include "psb_intel_reg.h"
+#include <drm/drm_simple_kms_helper.h>
+
 #include "cdv_device.h"
-#include <linux/pm_runtime.h>
+#include "psb_drv.h"
+#include "psb_intel_drv.h"
+#include "psb_intel_reg.h"
 
 /* hdmi control bits */
 #define HDMI_NULL_PACKETS_DURING_VSYNC	(1 << 9)
@@ -310,8 +312,7 @@ void cdv_hdmi_init(struct drm_device *dev,
 			   &cdv_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DVID);
 
-	drm_encoder_init(dev, encoder, &psb_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 	gma_encoder->type = INTEL_OUTPUT_HDMI;

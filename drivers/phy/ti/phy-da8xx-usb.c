@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * phy-da8xx-usb - TI DaVinci DA8xx USB PHY driver
  *
  * Copyright (C) 2016 David Lechner <david@lechnology.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -93,7 +85,8 @@ static int da8xx_usb20_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static int da8xx_usb20_phy_set_mode(struct phy *phy, enum phy_mode mode)
+static int da8xx_usb20_phy_set_mode(struct phy *phy,
+				    enum phy_mode mode, int submode)
 {
 	struct da8xx_usb_phy *d_phy = phy_get_drvdata(phy);
 	u32 val;

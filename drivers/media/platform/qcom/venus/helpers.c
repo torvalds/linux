@@ -1,23 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
-#include <linux/clk.h>
-#include <linux/iopoll.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/kernel.h>
 #include <media/videobuf2-dma-sg.h>
 #include <media/v4l2-mem2mem.h>
 #include <asm/div64.h>
@@ -25,7 +14,7 @@
 #include "core.h"
 #include "helpers.h"
 #include "hfi_helper.h"
-#include "hfi_venus_io.h"
+#include "pm_helpers.h"
 
 struct intbuf {
 	struct list_head list;
@@ -88,7 +77,7 @@ bool venus_helper_check_codec(struct venus_inst *inst, u32 v4l2_pixfmt)
 }
 EXPORT_SYMBOL_GPL(venus_helper_check_codec);
 
-static int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
+int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
 {
 	struct intbuf *buf;
 	int ret = 0;
@@ -109,6 +98,7 @@ static int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
 fail:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(venus_helper_queue_dpb_bufs);
 
 int venus_helper_free_dpb_bufs(struct venus_inst *inst)
 {
@@ -287,7 +277,7 @@ static const unsigned int intbuf_types_4xx[] = {
 	HFI_BUFFER_INTERNAL_PERSIST_1,
 };
 
-static int intbufs_alloc(struct venus_inst *inst)
+int venus_helper_intbufs_alloc(struct venus_inst *inst)
 {
 	const unsigned int *intbuf;
 	size_t arr_sz, i;
@@ -313,90 +303,59 @@ error:
 	intbufs_unset_buffers(inst);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(venus_helper_intbufs_alloc);
 
-static int intbufs_free(struct venus_inst *inst)
+int venus_helper_intbufs_free(struct venus_inst *inst)
 {
 	return intbufs_unset_buffers(inst);
 }
+EXPORT_SYMBOL_GPL(venus_helper_intbufs_free);
 
-static u32 load_per_instance(struct venus_inst *inst)
+int venus_helper_intbufs_realloc(struct venus_inst *inst)
 {
-	u32 mbs;
-
-	if (!inst || !(inst->state >= INST_INIT && inst->state < INST_STOP))
-		return 0;
-
-	mbs = (ALIGN(inst->width, 16) / 16) * (ALIGN(inst->height, 16) / 16);
-
-	return mbs * inst->fps;
-}
-
-static u32 load_per_type(struct venus_core *core, u32 session_type)
-{
-	struct venus_inst *inst = NULL;
-	u32 mbs_per_sec = 0;
-
-	mutex_lock(&core->lock);
-	list_for_each_entry(inst, &core->instances, list) {
-		if (inst->session_type != session_type)
-			continue;
-
-		mbs_per_sec += load_per_instance(inst);
-	}
-	mutex_unlock(&core->lock);
-
-	return mbs_per_sec;
-}
-
-static int load_scale_clocks(struct venus_core *core)
-{
-	const struct freq_tbl *table = core->res->freq_tbl;
-	unsigned int num_rows = core->res->freq_tbl_size;
-	unsigned long freq = table[0].freq;
-	struct clk *clk = core->clks[0];
-	struct device *dev = core->dev;
-	u32 mbs_per_sec;
-	unsigned int i;
+	enum hfi_version ver = inst->core->res->hfi_version;
+	struct hfi_buffer_desc bd;
+	struct intbuf *buf, *n;
 	int ret;
 
-	mbs_per_sec = load_per_type(core, VIDC_SESSION_TYPE_ENC) +
-		      load_per_type(core, VIDC_SESSION_TYPE_DEC);
+	list_for_each_entry_safe(buf, n, &inst->internalbufs, list) {
+		if (buf->type == HFI_BUFFER_INTERNAL_PERSIST ||
+		    buf->type == HFI_BUFFER_INTERNAL_PERSIST_1)
+			continue;
 
-	if (mbs_per_sec > core->res->max_load)
-		dev_warn(dev, "HW is overloaded, needed: %d max: %d\n",
-			 mbs_per_sec, core->res->max_load);
+		memset(&bd, 0, sizeof(bd));
+		bd.buffer_size = buf->size;
+		bd.buffer_type = buf->type;
+		bd.num_buffers = 1;
+		bd.device_addr = buf->da;
+		bd.response_required = true;
 
-	if (!mbs_per_sec && num_rows > 1) {
-		freq = table[num_rows - 1].freq;
-		goto set_freq;
+		ret = hfi_session_unset_buffers(inst, &bd);
+
+		dma_free_attrs(inst->core->dev, buf->size, buf->va, buf->da,
+			       buf->attrs);
+
+		list_del_init(&buf->list);
+		kfree(buf);
 	}
 
-	for (i = 0; i < num_rows; i++) {
-		if (mbs_per_sec > table[i].load)
-			break;
-		freq = table[i].freq;
-	}
-
-set_freq:
-
-	ret = clk_set_rate(clk, freq);
+	ret = intbufs_set_buffer(inst, HFI_BUFFER_INTERNAL_SCRATCH(ver));
 	if (ret)
 		goto err;
 
-	ret = clk_set_rate(core->core0_clk, freq);
+	ret = intbufs_set_buffer(inst, HFI_BUFFER_INTERNAL_SCRATCH_1(ver));
 	if (ret)
 		goto err;
 
-	ret = clk_set_rate(core->core1_clk, freq);
+	ret = intbufs_set_buffer(inst, HFI_BUFFER_INTERNAL_SCRATCH_2(ver));
 	if (ret)
 		goto err;
 
 	return 0;
-
 err:
-	dev_err(dev, "failed to set clock rate %lu (%d)\n", freq, ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(venus_helper_intbufs_realloc);
 
 static void fill_buffer_desc(const struct venus_buffer *buf,
 			     struct hfi_buffer_desc *bd, bool response)
@@ -422,6 +381,57 @@ static void return_buf_error(struct venus_inst *inst,
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 }
 
+static void
+put_ts_metadata(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
+{
+	struct vb2_buffer *vb = &vbuf->vb2_buf;
+	unsigned int i;
+	int slot = -1;
+	u64 ts_us = vb->timestamp;
+
+	for (i = 0; i < ARRAY_SIZE(inst->tss); i++) {
+		if (!inst->tss[i].used) {
+			slot = i;
+			break;
+		}
+	}
+
+	if (slot == -1) {
+		dev_dbg(inst->core->dev, VDBGL "no free slot\n");
+		return;
+	}
+
+	do_div(ts_us, NSEC_PER_USEC);
+
+	inst->tss[slot].used = true;
+	inst->tss[slot].flags = vbuf->flags;
+	inst->tss[slot].tc = vbuf->timecode;
+	inst->tss[slot].ts_us = ts_us;
+	inst->tss[slot].ts_ns = vb->timestamp;
+}
+
+void venus_helper_get_ts_metadata(struct venus_inst *inst, u64 timestamp_us,
+				  struct vb2_v4l2_buffer *vbuf)
+{
+	struct vb2_buffer *vb = &vbuf->vb2_buf;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(inst->tss); ++i) {
+		if (!inst->tss[i].used)
+			continue;
+
+		if (inst->tss[i].ts_us != timestamp_us)
+			continue;
+
+		inst->tss[i].used = false;
+		vbuf->flags |= inst->tss[i].flags;
+		vbuf->timecode = inst->tss[i].tc;
+		vb->timestamp = inst->tss[i].ts_ns;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(venus_helper_get_ts_metadata);
+
 static int
 session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 {
@@ -439,9 +449,6 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 	fdata.flags = 0;
 	fdata.clnt_data = vbuf->vb2_buf.index;
 
-	if (!fdata.timestamp)
-		fdata.flags |= HFI_BUFFERFLAG_TIMESTAMPINVALID;
-
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		fdata.buffer_type = HFI_BUFFER_INPUT;
 		fdata.filled_len = vb2_get_plane_payload(vb, 0);
@@ -449,6 +456,11 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 
 		if (vbuf->flags & V4L2_BUF_FLAG_LAST || !fdata.filled_len)
 			fdata.flags |= HFI_BUFFERFLAG_EOS;
+
+		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
+			put_ts_metadata(inst, vbuf);
+
+		venus_pm_load_scale(inst);
 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (inst->session_type == VIDC_SESSION_TYPE_ENC)
 			fdata.buffer_type = HFI_BUFFER_OUTPUT;
@@ -470,14 +482,21 @@ static bool is_dynamic_bufmode(struct venus_inst *inst)
 	struct venus_core *core = inst->core;
 	struct venus_caps *caps;
 
+	/*
+	 * v4 doesn't send BUFFER_ALLOC_MODE_SUPPORTED property and supports
+	 * dynamic buffer mode by default for HFI_BUFFER_OUTPUT/OUTPUT2.
+	 */
+	if (IS_V4(core))
+		return true;
+
 	caps = venus_caps_by_codec(core, inst->hfi_codec, inst->session_type);
 	if (!caps)
-		return 0;
+		return false;
 
 	return caps->cap_bufs_mode_dynamic;
 }
 
-static int session_unregister_bufs(struct venus_inst *inst)
+int venus_helper_unregister_bufs(struct venus_inst *inst)
 {
 	struct venus_buffer *buf, *n;
 	struct hfi_buffer_desc bd;
@@ -494,6 +513,7 @@ static int session_unregister_bufs(struct venus_inst *inst)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(venus_helper_unregister_bufs);
 
 static int session_register_bufs(struct venus_inst *inst)
 {
@@ -563,6 +583,244 @@ int venus_helper_get_bufreq(struct venus_inst *inst, u32 type,
 }
 EXPORT_SYMBOL_GPL(venus_helper_get_bufreq);
 
+struct id_mapping {
+	u32 hfi_id;
+	u32 v4l2_id;
+};
+
+static const struct id_mapping mpeg4_profiles[] = {
+	{ HFI_MPEG4_PROFILE_SIMPLE, V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE },
+	{ HFI_MPEG4_PROFILE_ADVANCEDSIMPLE, V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_SIMPLE },
+};
+
+static const struct id_mapping mpeg4_levels[] = {
+	{ HFI_MPEG4_LEVEL_0, V4L2_MPEG_VIDEO_MPEG4_LEVEL_0 },
+	{ HFI_MPEG4_LEVEL_0b, V4L2_MPEG_VIDEO_MPEG4_LEVEL_0B },
+	{ HFI_MPEG4_LEVEL_1, V4L2_MPEG_VIDEO_MPEG4_LEVEL_1 },
+	{ HFI_MPEG4_LEVEL_2, V4L2_MPEG_VIDEO_MPEG4_LEVEL_2 },
+	{ HFI_MPEG4_LEVEL_3, V4L2_MPEG_VIDEO_MPEG4_LEVEL_3 },
+	{ HFI_MPEG4_LEVEL_4, V4L2_MPEG_VIDEO_MPEG4_LEVEL_4 },
+	{ HFI_MPEG4_LEVEL_5, V4L2_MPEG_VIDEO_MPEG4_LEVEL_5 },
+};
+
+static const struct id_mapping mpeg2_profiles[] = {
+	{ HFI_MPEG2_PROFILE_SIMPLE, V4L2_MPEG_VIDEO_MPEG2_PROFILE_SIMPLE },
+	{ HFI_MPEG2_PROFILE_MAIN, V4L2_MPEG_VIDEO_MPEG2_PROFILE_MAIN },
+	{ HFI_MPEG2_PROFILE_SNR, V4L2_MPEG_VIDEO_MPEG2_PROFILE_SNR_SCALABLE },
+	{ HFI_MPEG2_PROFILE_SPATIAL, V4L2_MPEG_VIDEO_MPEG2_PROFILE_SPATIALLY_SCALABLE },
+	{ HFI_MPEG2_PROFILE_HIGH, V4L2_MPEG_VIDEO_MPEG2_PROFILE_HIGH },
+};
+
+static const struct id_mapping mpeg2_levels[] = {
+	{ HFI_MPEG2_LEVEL_LL, V4L2_MPEG_VIDEO_MPEG2_LEVEL_LOW },
+	{ HFI_MPEG2_LEVEL_ML, V4L2_MPEG_VIDEO_MPEG2_LEVEL_MAIN },
+	{ HFI_MPEG2_LEVEL_H14, V4L2_MPEG_VIDEO_MPEG2_LEVEL_HIGH_1440 },
+	{ HFI_MPEG2_LEVEL_HL, V4L2_MPEG_VIDEO_MPEG2_LEVEL_HIGH },
+};
+
+static const struct id_mapping h264_profiles[] = {
+	{ HFI_H264_PROFILE_BASELINE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE },
+	{ HFI_H264_PROFILE_MAIN, V4L2_MPEG_VIDEO_H264_PROFILE_MAIN },
+	{ HFI_H264_PROFILE_HIGH, V4L2_MPEG_VIDEO_H264_PROFILE_HIGH },
+	{ HFI_H264_PROFILE_STEREO_HIGH, V4L2_MPEG_VIDEO_H264_PROFILE_STEREO_HIGH },
+	{ HFI_H264_PROFILE_MULTIVIEW_HIGH, V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH },
+	{ HFI_H264_PROFILE_CONSTRAINED_BASE, V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE },
+	{ HFI_H264_PROFILE_CONSTRAINED_HIGH, V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_HIGH },
+};
+
+static const struct id_mapping h264_levels[] = {
+	{ HFI_H264_LEVEL_1, V4L2_MPEG_VIDEO_H264_LEVEL_1_0 },
+	{ HFI_H264_LEVEL_1b, V4L2_MPEG_VIDEO_H264_LEVEL_1B },
+	{ HFI_H264_LEVEL_11, V4L2_MPEG_VIDEO_H264_LEVEL_1_1 },
+	{ HFI_H264_LEVEL_12, V4L2_MPEG_VIDEO_H264_LEVEL_1_2 },
+	{ HFI_H264_LEVEL_13, V4L2_MPEG_VIDEO_H264_LEVEL_1_3 },
+	{ HFI_H264_LEVEL_2, V4L2_MPEG_VIDEO_H264_LEVEL_2_0 },
+	{ HFI_H264_LEVEL_21, V4L2_MPEG_VIDEO_H264_LEVEL_2_1 },
+	{ HFI_H264_LEVEL_22, V4L2_MPEG_VIDEO_H264_LEVEL_2_2 },
+	{ HFI_H264_LEVEL_3, V4L2_MPEG_VIDEO_H264_LEVEL_3_0 },
+	{ HFI_H264_LEVEL_31, V4L2_MPEG_VIDEO_H264_LEVEL_3_1 },
+	{ HFI_H264_LEVEL_32, V4L2_MPEG_VIDEO_H264_LEVEL_3_2 },
+	{ HFI_H264_LEVEL_4, V4L2_MPEG_VIDEO_H264_LEVEL_4_0 },
+	{ HFI_H264_LEVEL_41, V4L2_MPEG_VIDEO_H264_LEVEL_4_1 },
+	{ HFI_H264_LEVEL_42, V4L2_MPEG_VIDEO_H264_LEVEL_4_2 },
+	{ HFI_H264_LEVEL_5, V4L2_MPEG_VIDEO_H264_LEVEL_5_0 },
+	{ HFI_H264_LEVEL_51, V4L2_MPEG_VIDEO_H264_LEVEL_5_1 },
+	{ HFI_H264_LEVEL_52, V4L2_MPEG_VIDEO_H264_LEVEL_5_1 },
+};
+
+static const struct id_mapping hevc_profiles[] = {
+	{ HFI_HEVC_PROFILE_MAIN, V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN },
+	{ HFI_HEVC_PROFILE_MAIN_STILL_PIC, V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE },
+	{ HFI_HEVC_PROFILE_MAIN10, V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10 },
+};
+
+static const struct id_mapping hevc_levels[] = {
+	{ HFI_HEVC_LEVEL_1, V4L2_MPEG_VIDEO_HEVC_LEVEL_1 },
+	{ HFI_HEVC_LEVEL_2, V4L2_MPEG_VIDEO_HEVC_LEVEL_2 },
+	{ HFI_HEVC_LEVEL_21, V4L2_MPEG_VIDEO_HEVC_LEVEL_2_1 },
+	{ HFI_HEVC_LEVEL_3, V4L2_MPEG_VIDEO_HEVC_LEVEL_3 },
+	{ HFI_HEVC_LEVEL_31, V4L2_MPEG_VIDEO_HEVC_LEVEL_3_1 },
+	{ HFI_HEVC_LEVEL_4, V4L2_MPEG_VIDEO_HEVC_LEVEL_4 },
+	{ HFI_HEVC_LEVEL_41, V4L2_MPEG_VIDEO_HEVC_LEVEL_4_1 },
+	{ HFI_HEVC_LEVEL_5, V4L2_MPEG_VIDEO_HEVC_LEVEL_5 },
+	{ HFI_HEVC_LEVEL_51, V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1 },
+	{ HFI_HEVC_LEVEL_52, V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2 },
+	{ HFI_HEVC_LEVEL_6, V4L2_MPEG_VIDEO_HEVC_LEVEL_6 },
+	{ HFI_HEVC_LEVEL_61, V4L2_MPEG_VIDEO_HEVC_LEVEL_6_1 },
+	{ HFI_HEVC_LEVEL_62, V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2 },
+};
+
+static const struct id_mapping vp8_profiles[] = {
+	{ HFI_VPX_PROFILE_VERSION_0, V4L2_MPEG_VIDEO_VP8_PROFILE_0 },
+	{ HFI_VPX_PROFILE_VERSION_1, V4L2_MPEG_VIDEO_VP8_PROFILE_1 },
+	{ HFI_VPX_PROFILE_VERSION_2, V4L2_MPEG_VIDEO_VP8_PROFILE_2 },
+	{ HFI_VPX_PROFILE_VERSION_3, V4L2_MPEG_VIDEO_VP8_PROFILE_3 },
+};
+
+static const struct id_mapping vp9_profiles[] = {
+	{ HFI_VP9_PROFILE_P0, V4L2_MPEG_VIDEO_VP9_PROFILE_0 },
+	{ HFI_VP9_PROFILE_P2_10B, V4L2_MPEG_VIDEO_VP9_PROFILE_2 },
+};
+
+static const struct id_mapping vp9_levels[] = {
+	{ HFI_VP9_LEVEL_1, V4L2_MPEG_VIDEO_VP9_LEVEL_1_0 },
+	{ HFI_VP9_LEVEL_11, V4L2_MPEG_VIDEO_VP9_LEVEL_1_1 },
+	{ HFI_VP9_LEVEL_2, V4L2_MPEG_VIDEO_VP9_LEVEL_2_0},
+	{ HFI_VP9_LEVEL_21, V4L2_MPEG_VIDEO_VP9_LEVEL_2_1 },
+	{ HFI_VP9_LEVEL_3, V4L2_MPEG_VIDEO_VP9_LEVEL_3_0},
+	{ HFI_VP9_LEVEL_31, V4L2_MPEG_VIDEO_VP9_LEVEL_3_1 },
+	{ HFI_VP9_LEVEL_4, V4L2_MPEG_VIDEO_VP9_LEVEL_4_0 },
+	{ HFI_VP9_LEVEL_41, V4L2_MPEG_VIDEO_VP9_LEVEL_4_1 },
+	{ HFI_VP9_LEVEL_5, V4L2_MPEG_VIDEO_VP9_LEVEL_5_0 },
+	{ HFI_VP9_LEVEL_51, V4L2_MPEG_VIDEO_VP9_LEVEL_5_1 },
+	{ HFI_VP9_LEVEL_6, V4L2_MPEG_VIDEO_VP9_LEVEL_6_0 },
+	{ HFI_VP9_LEVEL_61, V4L2_MPEG_VIDEO_VP9_LEVEL_6_1 },
+};
+
+static u32 find_v4l2_id(u32 hfi_id, const struct id_mapping *array, unsigned int array_sz)
+{
+	unsigned int i;
+
+	if (!array || !array_sz)
+		return 0;
+
+	for (i = 0; i < array_sz; i++)
+		if (hfi_id == array[i].hfi_id)
+			return array[i].v4l2_id;
+
+	return 0;
+}
+
+static u32 find_hfi_id(u32 v4l2_id, const struct id_mapping *array, unsigned int array_sz)
+{
+	unsigned int i;
+
+	if (!array || !array_sz)
+		return 0;
+
+	for (i = 0; i < array_sz; i++)
+		if (v4l2_id == array[i].v4l2_id)
+			return array[i].hfi_id;
+
+	return 0;
+}
+
+static void
+v4l2_id_profile_level(u32 hfi_codec, struct hfi_profile_level *pl, u32 *profile, u32 *level)
+{
+	u32 hfi_pf = pl->profile;
+	u32 hfi_lvl = pl->level;
+
+	switch (hfi_codec) {
+	case HFI_VIDEO_CODEC_H264:
+		*profile = find_v4l2_id(hfi_pf, h264_profiles, ARRAY_SIZE(h264_profiles));
+		*level = find_v4l2_id(hfi_lvl, h264_levels, ARRAY_SIZE(h264_levels));
+		break;
+	case HFI_VIDEO_CODEC_MPEG2:
+		*profile = find_v4l2_id(hfi_pf, mpeg2_profiles, ARRAY_SIZE(mpeg2_profiles));
+		*level = find_v4l2_id(hfi_lvl, mpeg2_levels, ARRAY_SIZE(mpeg2_levels));
+		break;
+	case HFI_VIDEO_CODEC_MPEG4:
+		*profile = find_v4l2_id(hfi_pf, mpeg4_profiles, ARRAY_SIZE(mpeg4_profiles));
+		*level = find_v4l2_id(hfi_lvl, mpeg4_levels, ARRAY_SIZE(mpeg4_levels));
+		break;
+	case HFI_VIDEO_CODEC_VP8:
+		*profile = find_v4l2_id(hfi_pf, vp8_profiles, ARRAY_SIZE(vp8_profiles));
+		*level = 0;
+		break;
+	case HFI_VIDEO_CODEC_VP9:
+		*profile = find_v4l2_id(hfi_pf, vp9_profiles, ARRAY_SIZE(vp9_profiles));
+		*level = find_v4l2_id(hfi_lvl, vp9_levels, ARRAY_SIZE(vp9_levels));
+		break;
+	case HFI_VIDEO_CODEC_HEVC:
+		*profile = find_v4l2_id(hfi_pf, hevc_profiles, ARRAY_SIZE(hevc_profiles));
+		*level = find_v4l2_id(hfi_lvl, hevc_levels, ARRAY_SIZE(hevc_levels));
+		break;
+	default:
+		break;
+	}
+}
+
+static void
+hfi_id_profile_level(u32 hfi_codec, u32 v4l2_pf, u32 v4l2_lvl, struct hfi_profile_level *pl)
+{
+	switch (hfi_codec) {
+	case HFI_VIDEO_CODEC_H264:
+		pl->profile = find_hfi_id(v4l2_pf, h264_profiles, ARRAY_SIZE(h264_profiles));
+		pl->level = find_hfi_id(v4l2_lvl, h264_levels, ARRAY_SIZE(h264_levels));
+		break;
+	case HFI_VIDEO_CODEC_MPEG2:
+		pl->profile = find_hfi_id(v4l2_pf, mpeg2_profiles, ARRAY_SIZE(mpeg2_profiles));
+		pl->level = find_hfi_id(v4l2_lvl, mpeg2_levels, ARRAY_SIZE(mpeg2_levels));
+		break;
+	case HFI_VIDEO_CODEC_MPEG4:
+		pl->profile = find_hfi_id(v4l2_pf, mpeg4_profiles, ARRAY_SIZE(mpeg4_profiles));
+		pl->level = find_hfi_id(v4l2_lvl, mpeg4_levels, ARRAY_SIZE(mpeg4_levels));
+		break;
+	case HFI_VIDEO_CODEC_VP8:
+		pl->profile = find_hfi_id(v4l2_pf, vp8_profiles, ARRAY_SIZE(vp8_profiles));
+		pl->level = 0;
+		break;
+	case HFI_VIDEO_CODEC_VP9:
+		pl->profile = find_hfi_id(v4l2_pf, vp9_profiles, ARRAY_SIZE(vp9_profiles));
+		pl->level = find_hfi_id(v4l2_lvl, vp9_levels, ARRAY_SIZE(vp9_levels));
+		break;
+	case HFI_VIDEO_CODEC_HEVC:
+		pl->profile = find_hfi_id(v4l2_pf, hevc_profiles, ARRAY_SIZE(hevc_profiles));
+		pl->level = find_hfi_id(v4l2_lvl, hevc_levels, ARRAY_SIZE(hevc_levels));
+		break;
+	default:
+		break;
+	}
+}
+
+int venus_helper_get_profile_level(struct venus_inst *inst, u32 *profile, u32 *level)
+{
+	const u32 ptype = HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT;
+	union hfi_get_property hprop;
+	int ret;
+
+	ret = hfi_session_get_property(inst, ptype, &hprop);
+	if (ret)
+		return ret;
+
+	v4l2_id_profile_level(inst->hfi_codec, &hprop.profile_level, profile, level);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(venus_helper_get_profile_level);
+
+int venus_helper_set_profile_level(struct venus_inst *inst, u32 profile, u32 level)
+{
+	const u32 ptype = HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT;
+	struct hfi_profile_level pl;
+
+	hfi_id_profile_level(inst->hfi_codec, profile, level, &pl);
+
+	return hfi_session_set_property(inst, ptype, &pl);
+}
+EXPORT_SYMBOL_GPL(venus_helper_set_profile_level);
+
 static u32 get_framesize_raw_nv12(u32 width, u32 height)
 {
 	u32 y_stride, uv_stride, y_plane;
@@ -607,6 +865,78 @@ static u32 get_framesize_raw_nv12_ubwc(u32 width, u32 height)
 		     max(extradata, y_stride * 48), SZ_4K);
 }
 
+static u32 get_framesize_raw_p010(u32 width, u32 height)
+{
+	u32 y_plane, uv_plane, y_stride, uv_stride, y_sclines, uv_sclines;
+
+	y_stride = ALIGN(width * 2, 256);
+	uv_stride = ALIGN(width * 2, 256);
+	y_sclines = ALIGN(height, 32);
+	uv_sclines = ALIGN((height + 1) >> 1, 16);
+	y_plane = y_stride * y_sclines;
+	uv_plane = uv_stride * uv_sclines;
+
+	return ALIGN((y_plane + uv_plane), SZ_4K);
+}
+
+static u32 get_framesize_raw_p010_ubwc(u32 width, u32 height)
+{
+	u32 y_stride, uv_stride, y_sclines, uv_sclines;
+	u32 y_ubwc_plane, uv_ubwc_plane;
+	u32 y_meta_stride, y_meta_scanlines;
+	u32 uv_meta_stride, uv_meta_scanlines;
+	u32 y_meta_plane, uv_meta_plane;
+	u32 size;
+
+	y_stride = ALIGN(width * 2, 256);
+	uv_stride = ALIGN(width * 2, 256);
+	y_sclines = ALIGN(height, 16);
+	uv_sclines = ALIGN((height + 1) >> 1, 16);
+
+	y_ubwc_plane = ALIGN(y_stride * y_sclines, SZ_4K);
+	uv_ubwc_plane = ALIGN(uv_stride * uv_sclines, SZ_4K);
+	y_meta_stride = ALIGN(DIV_ROUND_UP(width, 32), 64);
+	y_meta_scanlines = ALIGN(DIV_ROUND_UP(height, 4), 16);
+	y_meta_plane = ALIGN(y_meta_stride * y_meta_scanlines, SZ_4K);
+	uv_meta_stride = ALIGN(DIV_ROUND_UP((width + 1) >> 1, 16), 64);
+	uv_meta_scanlines = ALIGN(DIV_ROUND_UP((height + 1) >> 1, 4), 16);
+	uv_meta_plane = ALIGN(uv_meta_stride * uv_meta_scanlines, SZ_4K);
+
+	size = y_ubwc_plane + uv_ubwc_plane + y_meta_plane + uv_meta_plane;
+
+	return ALIGN(size, SZ_4K);
+}
+
+static u32 get_framesize_raw_yuv420_tp10_ubwc(u32 width, u32 height)
+{
+	u32 y_stride, uv_stride, y_sclines, uv_sclines;
+	u32 y_ubwc_plane, uv_ubwc_plane;
+	u32 y_meta_stride, y_meta_scanlines;
+	u32 uv_meta_stride, uv_meta_scanlines;
+	u32 y_meta_plane, uv_meta_plane;
+	u32 extradata = SZ_16K;
+	u32 size;
+
+	y_stride = ALIGN(ALIGN(width, 192) * 4 / 3, 256);
+	uv_stride = ALIGN(ALIGN(width, 192) * 4 / 3, 256);
+	y_sclines = ALIGN(height, 16);
+	uv_sclines = ALIGN((height + 1) >> 1, 16);
+
+	y_ubwc_plane = ALIGN(y_stride * y_sclines, SZ_4K);
+	uv_ubwc_plane = ALIGN(uv_stride * uv_sclines, SZ_4K);
+	y_meta_stride = ALIGN(DIV_ROUND_UP(width, 48), 64);
+	y_meta_scanlines = ALIGN(DIV_ROUND_UP(height, 4), 16);
+	y_meta_plane = ALIGN(y_meta_stride * y_meta_scanlines, SZ_4K);
+	uv_meta_stride = ALIGN(DIV_ROUND_UP((width + 1) >> 1, 24), 64);
+	uv_meta_scanlines = ALIGN(DIV_ROUND_UP((height + 1) >> 1, 4), 16);
+	uv_meta_plane = ALIGN(uv_meta_stride * uv_meta_scanlines, SZ_4K);
+
+	size = y_ubwc_plane + uv_ubwc_plane + y_meta_plane + uv_meta_plane;
+	size += max(extradata + SZ_8K, y_stride * 48);
+
+	return ALIGN(size, SZ_4K);
+}
+
 u32 venus_helper_get_framesz_raw(u32 hfi_fmt, u32 width, u32 height)
 {
 	switch (hfi_fmt) {
@@ -615,6 +945,12 @@ u32 venus_helper_get_framesz_raw(u32 hfi_fmt, u32 width, u32 height)
 		return get_framesize_raw_nv12(width, height);
 	case HFI_COLOR_FORMAT_NV12_UBWC:
 		return get_framesize_raw_nv12_ubwc(width, height);
+	case HFI_COLOR_FORMAT_P010:
+		return get_framesize_raw_p010(width, height);
+	case HFI_COLOR_FORMAT_P010_UBWC:
+		return get_framesize_raw_p010_ubwc(width, height);
+	case HFI_COLOR_FORMAT_YUV420_TP10_UBWC:
+		return get_framesize_raw_yuv420_tp10_ubwc(width, height);
 	default:
 		return 0;
 	}
@@ -704,19 +1040,35 @@ int venus_helper_set_work_mode(struct venus_inst *inst, u32 mode)
 }
 EXPORT_SYMBOL_GPL(venus_helper_set_work_mode);
 
-int venus_helper_set_core_usage(struct venus_inst *inst, u32 usage)
+int venus_helper_init_codec_freq_data(struct venus_inst *inst)
 {
-	const u32 ptype = HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE;
-	struct hfi_videocores_usage_type cu;
+	const struct codec_freq_data *data;
+	unsigned int i, data_size;
+	u32 pixfmt;
+	int ret = 0;
 
 	if (!IS_V4(inst->core))
 		return 0;
 
-	cu.video_core_enable_mask = usage;
+	data = inst->core->res->codec_freq_data;
+	data_size = inst->core->res->codec_freq_data_size;
+	pixfmt = inst->session_type == VIDC_SESSION_TYPE_DEC ?
+			inst->fmt_out->pixfmt : inst->fmt_cap->pixfmt;
 
-	return hfi_session_set_property(inst, ptype, &cu);
+	for (i = 0; i < data_size; i++) {
+		if (data[i].pixfmt == pixfmt &&
+		    data[i].session_type == inst->session_type) {
+			inst->clk_data.codec_freq_data = &data[i];
+			break;
+		}
+	}
+
+	if (!inst->clk_data.codec_freq_data)
+		ret = -EINVAL;
+
+	return ret;
 }
-EXPORT_SYMBOL_GPL(venus_helper_set_core_usage);
+EXPORT_SYMBOL_GPL(venus_helper_init_codec_freq_data);
 
 int venus_helper_set_num_bufs(struct venus_inst *inst, unsigned int input_bufs,
 			      unsigned int output_bufs,
@@ -952,6 +1304,17 @@ int venus_helper_vb2_buf_prepare(struct vb2_buffer *vb)
 {
 	struct venus_inst *inst = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned int out_buf_size = venus_helper_get_opb_size(inst);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+
+	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
+		if (vbuf->field == V4L2_FIELD_ANY)
+			vbuf->field = V4L2_FIELD_NONE;
+		if (vbuf->field != V4L2_FIELD_NONE) {
+			dev_err(inst->core->dev, "%s field isn't supported\n",
+				__func__);
+			return -EINVAL;
+		}
+	}
 
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
 	    vb2_plane_size(vb, 0) < out_buf_size)
@@ -964,6 +1327,15 @@ int venus_helper_vb2_buf_prepare(struct vb2_buffer *vb)
 }
 EXPORT_SYMBOL_GPL(venus_helper_vb2_buf_prepare);
 
+static void cache_payload(struct venus_inst *inst, struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	unsigned int idx = vbuf->vb2_buf.index;
+
+	if (vbuf->vb2_buf.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		inst->payloads[idx] = vb2_get_plane_payload(vb, 0);
+}
+
 void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -975,31 +1347,39 @@ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
 
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
 
-	if (!(inst->streamon_out & inst->streamon_cap))
+	cache_payload(inst, vb);
+
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC &&
+	    !(inst->streamon_out && inst->streamon_cap))
 		goto unlock;
 
-	ret = is_buf_refed(inst, vbuf);
-	if (ret)
-		goto unlock;
+	if (vb2_start_streaming_called(vb->vb2_queue)) {
+		ret = is_buf_refed(inst, vbuf);
+		if (ret)
+			goto unlock;
 
-	ret = session_process_buf(inst, vbuf);
-	if (ret)
-		return_buf_error(inst, vbuf);
+		ret = session_process_buf(inst, vbuf);
+		if (ret)
+			return_buf_error(inst, vbuf);
+	}
 
 unlock:
 	mutex_unlock(&inst->lock);
 }
 EXPORT_SYMBOL_GPL(venus_helper_vb2_buf_queue);
 
-void venus_helper_buffers_done(struct venus_inst *inst,
+void venus_helper_buffers_done(struct venus_inst *inst, unsigned int type,
 			       enum vb2_buffer_state state)
 {
 	struct vb2_v4l2_buffer *buf;
 
-	while ((buf = v4l2_m2m_src_buf_remove(inst->m2m_ctx)))
-		v4l2_m2m_buf_done(buf, state);
-	while ((buf = v4l2_m2m_dst_buf_remove(inst->m2m_ctx)))
-		v4l2_m2m_buf_done(buf, state);
+	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		while ((buf = v4l2_m2m_src_buf_remove(inst->m2m_ctx)))
+			v4l2_m2m_buf_done(buf, state);
+	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		while ((buf = v4l2_m2m_dst_buf_remove(inst->m2m_ctx)))
+			v4l2_m2m_buf_done(buf, state);
+	}
 }
 EXPORT_SYMBOL_GPL(venus_helper_buffers_done);
 
@@ -1014,8 +1394,8 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 	if (inst->streamon_out & inst->streamon_cap) {
 		ret = hfi_session_stop(inst);
 		ret |= hfi_session_unload_res(inst);
-		ret |= session_unregister_bufs(inst);
-		ret |= intbufs_free(inst);
+		ret |= venus_helper_unregister_bufs(inst);
+		ret |= venus_helper_intbufs_free(inst);
 		ret |= hfi_session_deinit(inst);
 
 		if (inst->session_error || core->sys_error)
@@ -1026,27 +1406,67 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 
 		venus_helper_free_dpb_bufs(inst);
 
-		load_scale_clocks(core);
+		venus_pm_load_scale(inst);
 		INIT_LIST_HEAD(&inst->registeredbufs);
 	}
 
-	venus_helper_buffers_done(inst, VB2_BUF_STATE_ERROR);
+	venus_helper_buffers_done(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
+				  VB2_BUF_STATE_ERROR);
+	venus_helper_buffers_done(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
+				  VB2_BUF_STATE_ERROR);
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		inst->streamon_out = 0;
 	else
 		inst->streamon_cap = 0;
 
+	venus_pm_release_core(inst);
+
 	mutex_unlock(&inst->lock);
 }
 EXPORT_SYMBOL_GPL(venus_helper_vb2_stop_streaming);
 
-int venus_helper_vb2_start_streaming(struct venus_inst *inst)
+int venus_helper_process_initial_cap_bufs(struct venus_inst *inst)
 {
-	struct venus_core *core = inst->core;
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *buf, *n;
 	int ret;
 
-	ret = intbufs_alloc(inst);
+	v4l2_m2m_for_each_dst_buf_safe(m2m_ctx, buf, n) {
+		ret = session_process_buf(inst, &buf->vb);
+		if (ret) {
+			return_buf_error(inst, &buf->vb);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(venus_helper_process_initial_cap_bufs);
+
+int venus_helper_process_initial_out_bufs(struct venus_inst *inst)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *buf, *n;
+	int ret;
+
+	v4l2_m2m_for_each_src_buf_safe(m2m_ctx, buf, n) {
+		ret = session_process_buf(inst, &buf->vb);
+		if (ret) {
+			return_buf_error(inst, &buf->vb);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(venus_helper_process_initial_out_bufs);
+
+int venus_helper_vb2_start_streaming(struct venus_inst *inst)
+{
+	int ret;
+
+	ret = venus_helper_intbufs_alloc(inst);
 	if (ret)
 		return ret;
 
@@ -1054,7 +1474,7 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 	if (ret)
 		goto err_bufs_free;
 
-	load_scale_clocks(core);
+	venus_pm_load_scale(inst);
 
 	ret = hfi_session_load_res(inst);
 	if (ret)
@@ -1064,20 +1484,14 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 	if (ret)
 		goto err_unload_res;
 
-	ret = venus_helper_queue_dpb_bufs(inst);
-	if (ret)
-		goto err_session_stop;
-
 	return 0;
 
-err_session_stop:
-	hfi_session_stop(inst);
 err_unload_res:
 	hfi_session_unload_res(inst);
 err_unreg_bufs:
-	session_unregister_bufs(inst);
+	venus_helper_unregister_bufs(inst);
 err_bufs_free:
-	intbufs_free(inst);
+	venus_helper_intbufs_free(inst);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(venus_helper_vb2_start_streaming);
@@ -1155,6 +1569,27 @@ int venus_helper_get_out_fmts(struct venus_inst *inst, u32 v4l2_fmt,
 	if (!caps)
 		return -EINVAL;
 
+	if (inst->bit_depth == VIDC_BITDEPTH_10 &&
+	    inst->session_type == VIDC_SESSION_TYPE_DEC) {
+		found_ubwc =
+			find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT,
+					   HFI_COLOR_FORMAT_YUV420_TP10_UBWC);
+		found = find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT2,
+					   HFI_COLOR_FORMAT_NV12);
+		if (found_ubwc && found) {
+			/*
+			 * Hard-code DPB buffers to be 10bit UBWC and decoder
+			 * output buffers in 8bit NV12 until V4L2 is able to
+			 * expose compressed/tiled formats to applications.
+			 */
+			*out_fmt = HFI_COLOR_FORMAT_YUV420_TP10_UBWC;
+			*out2_fmt = HFI_COLOR_FORMAT_NV12;
+			return 0;
+		}
+
+		return -EINVAL;
+	}
+
 	if (ubwc) {
 		ubwc_fmt = fmt | HFI_COLOR_FORMAT_UBWC_BASE;
 		found_ubwc = find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT,
@@ -1185,52 +1620,3 @@ int venus_helper_get_out_fmts(struct venus_inst *inst, u32 v4l2_fmt,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(venus_helper_get_out_fmts);
-
-int venus_helper_power_enable(struct venus_core *core, u32 session_type,
-			      bool enable)
-{
-	void __iomem *ctrl, *stat;
-	u32 val;
-	int ret;
-
-	if (!IS_V3(core) && !IS_V4(core))
-		return 0;
-
-	if (IS_V3(core)) {
-		if (session_type == VIDC_SESSION_TYPE_DEC)
-			ctrl = core->base + WRAPPER_VDEC_VCODEC_POWER_CONTROL;
-		else
-			ctrl = core->base + WRAPPER_VENC_VCODEC_POWER_CONTROL;
-		if (enable)
-			writel(0, ctrl);
-		else
-			writel(1, ctrl);
-
-		return 0;
-	}
-
-	if (session_type == VIDC_SESSION_TYPE_DEC) {
-		ctrl = core->base + WRAPPER_VCODEC0_MMCC_POWER_CONTROL;
-		stat = core->base + WRAPPER_VCODEC0_MMCC_POWER_STATUS;
-	} else {
-		ctrl = core->base + WRAPPER_VCODEC1_MMCC_POWER_CONTROL;
-		stat = core->base + WRAPPER_VCODEC1_MMCC_POWER_STATUS;
-	}
-
-	if (enable) {
-		writel(0, ctrl);
-
-		ret = readl_poll_timeout(stat, val, val & BIT(1), 1, 100);
-		if (ret)
-			return ret;
-	} else {
-		writel(1, ctrl);
-
-		ret = readl_poll_timeout(stat, val, !(val & BIT(1)), 1, 100);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(venus_helper_power_enable);

@@ -32,7 +32,8 @@ class SPDXdata(object):
 def read_spdxdata(repo):
 
     # The subdirectories of LICENSES in the kernel source
-    license_dirs = [ "preferred", "other", "exceptions" ]
+    # Note: exceptions needs to be parsed as last directory.
+    license_dirs = [ "preferred", "dual", "deprecated", "exceptions" ]
     lictree = repo.head.commit.tree['LICENSES']
 
     spdx = SPDXdata()
@@ -58,13 +59,13 @@ def read_spdxdata(repo):
                 elif l.startswith('SPDX-Licenses:'):
                     for lic in l.split(':')[1].upper().strip().replace(' ', '').replace('\t', '').split(','):
                         if not lic in spdx.licenses:
-                            raise SPDXException(None, 'Exception %s missing license %s' %(ex, lic))
+                            raise SPDXException(None, 'Exception %s missing license %s' %(exception, lic))
                         spdx.exceptions[exception].append(lic)
 
                 elif l.startswith("License-Text:"):
                     if exception:
                         if not len(spdx.exceptions[exception]):
-                            raise SPDXException(el, 'Exception %s is missing SPDX-Licenses' %excid)
+                            raise SPDXException(el, 'Exception %s is missing SPDX-Licenses' %exception)
                         spdx.exception_files += 1
                     else:
                         spdx.license_files += 1
@@ -175,7 +176,16 @@ class id_parser(object):
                 self.lines_checked += 1
                 if line.find("SPDX-License-Identifier:") < 0:
                     continue
-                expr = line.split(':')[1].replace('*/', '').strip()
+                expr = line.split(':')[1].strip()
+                # Remove trailing comment closure
+                if line.strip().endswith('*/'):
+                    expr = expr.rstrip('*/').strip()
+                # Remove trailing xml comment closure
+                if line.strip().endswith('-->'):
+                    expr = expr.rstrip('-->').strip()
+                # Special case for SH magic boot code files
+                if line.startswith('LIST \"'):
+                    expr = expr.rstrip('\"').strip()
                 self.parse(expr)
                 self.spdx_valid += 1
                 #
@@ -250,12 +260,13 @@ if __name__ == '__main__':
 
     try:
         if len(args.path) and args.path[0] == '-':
-            parser.parse_lines(sys.stdin, args.maxlines, '-')
+            stdin = os.fdopen(sys.stdin.fileno(), 'rb')
+            parser.parse_lines(stdin, args.maxlines, '-')
         else:
             if args.path:
                 for p in args.path:
                     if os.path.isfile(p):
-                        parser.parse_lines(open(p), args.maxlines, p)
+                        parser.parse_lines(open(p, 'rb'), args.maxlines, p)
                     elif os.path.isdir(p):
                         scan_git_subtree(repo.head.reference.commit.tree, p)
                     else:

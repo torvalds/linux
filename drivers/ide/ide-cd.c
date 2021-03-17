@@ -9,7 +9,7 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  *
- * See Documentation/cdrom/ide-cd for usage information.
+ * See Documentation/cdrom/ide-cd.rst for usage information.
  *
  * Suggestions are welcome. Patches that work are more welcome though. ;-)
  *
@@ -25,6 +25,7 @@
 
 #define IDECD_VERSION "5.00"
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -211,12 +212,12 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 {
 	/*
-	 * For ATA_PRIV_SENSE, "rq->special" points to the original
+	 * For ATA_PRIV_SENSE, "ide_req(rq)->special" points to the original
 	 * failed request.  Also, the sense data should be read
 	 * directly from rq which might be different from the original
 	 * sense buffer if it got copied during mapping.
 	 */
-	struct request *failed = (struct request *)rq->special;
+	struct request *failed = ide_req(rq)->special;
 	void *sense = bio_data(rq->bio);
 
 	if (failed) {
@@ -258,9 +259,20 @@ static int ide_cd_breathe(ide_drive_t *drive, struct request *rq)
 		/*
 		 * take a breather
 		 */
-		blk_delay_queue(drive->queue, 1);
+		blk_mq_requeue_request(rq, false);
+		blk_mq_delay_kick_requeue_list(drive->queue, 1);
 		return 1;
 	}
+}
+
+static void ide_cd_free_sense(ide_drive_t *drive)
+{
+	if (!drive->sense_rq)
+		return;
+
+	blk_mq_free_request(drive->sense_rq);
+	drive->sense_rq = NULL;
+	drive->sense_rq_armed = false;
 }
 
 /**
@@ -338,7 +350,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		 */
 		if (scsi_req(rq)->cmd[0] == GPCMD_START_STOP_UNIT)
 			break;
-		/* fall-through */
+		fallthrough;
 	case DATA_PROTECT:
 		/*
 		 * No point in retrying after an illegal request or data
@@ -516,6 +528,82 @@ static bool ide_cd_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 	return false;
 }
 
+/* standard prep_rq that builds 10 byte cmds */
+static bool ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
+{
+	int hard_sect = queue_logical_block_size(q);
+	long block = (long)blk_rq_pos(rq) / (hard_sect >> 9);
+	unsigned long blocks = blk_rq_sectors(rq) / (hard_sect >> 9);
+	struct scsi_request *req = scsi_req(rq);
+
+	if (rq_data_dir(rq) == READ)
+		req->cmd[0] = GPCMD_READ_10;
+	else
+		req->cmd[0] = GPCMD_WRITE_10;
+
+	/*
+	 * fill in lba
+	 */
+	req->cmd[2] = (block >> 24) & 0xff;
+	req->cmd[3] = (block >> 16) & 0xff;
+	req->cmd[4] = (block >>  8) & 0xff;
+	req->cmd[5] = block & 0xff;
+
+	/*
+	 * and transfer length
+	 */
+	req->cmd[7] = (blocks >> 8) & 0xff;
+	req->cmd[8] = blocks & 0xff;
+	req->cmd_len = 10;
+	return true;
+}
+
+/*
+ * Most of the SCSI commands are supported directly by ATAPI devices.
+ * This transform handles the few exceptions.
+ */
+static bool ide_cdrom_prep_pc(struct request *rq)
+{
+	u8 *c = scsi_req(rq)->cmd;
+
+	/* transform 6-byte read/write commands to the 10-byte version */
+	if (c[0] == READ_6 || c[0] == WRITE_6) {
+		c[8] = c[4];
+		c[5] = c[3];
+		c[4] = c[2];
+		c[3] = c[1] & 0x1f;
+		c[2] = 0;
+		c[1] &= 0xe0;
+		c[0] += (READ_10 - READ_6);
+		scsi_req(rq)->cmd_len = 10;
+		return true;
+	}
+
+	/*
+	 * it's silly to pretend we understand 6-byte sense commands, just
+	 * reject with ILLEGAL_REQUEST and the caller should take the
+	 * appropriate action
+	 */
+	if (c[0] == MODE_SENSE || c[0] == MODE_SELECT) {
+		scsi_req(rq)->result = ILLEGAL_REQUEST;
+		return false;
+	}
+
+	return true;
+}
+
+static bool ide_cdrom_prep_rq(ide_drive_t *drive, struct request *rq)
+{
+	if (!blk_rq_is_passthrough(rq)) {
+		scsi_req_init(scsi_req(rq));
+
+		return ide_cdrom_prep_fs(drive->queue, rq);
+	} else if (blk_rq_is_scsi(rq))
+		return ide_cdrom_prep_pc(rq);
+
+	return true;
+}
+
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -662,7 +750,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	case REQ_OP_DRV_IN:
 	case REQ_OP_DRV_OUT:
 		expiry = ide_cd_expiry;
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		timeout = ATAPI_WAIT_PC;
 		break;
@@ -675,7 +763,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 out_end:
 	if (blk_rq_is_scsi(rq) && rc == 0) {
 		scsi_req(rq)->resid_len = 0;
-		blk_end_request_all(rq, BLK_STS_OK);
+		blk_mq_end_request(rq, BLK_STS_OK);
 		hwif->rq = NULL;
 	} else {
 		if (sense && uptodate)
@@ -705,6 +793,8 @@ out_end:
 		if (sense && rc == 2)
 			ide_error(drive, "request sense failure", stat);
 	}
+
+	ide_cd_free_sense(drive);
 	return ide_stopped;
 }
 
@@ -729,7 +819,7 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 		 * We may be retrying this request after an error.  Fix up any
 		 * weirdness which might be present in the request packet.
 		 */
-		q->prep_rq_fn(q, rq);
+		ide_cdrom_prep_rq(drive, rq);
 	}
 
 	/* fs requests *must* be hardware frame aligned */
@@ -944,8 +1034,8 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	return 0;
 }
 
-static int cdrom_read_tocentry(ide_drive_t *drive, int trackno, int msf_flag,
-				int format, char *buf, int buflen)
+static int ide_cdrom_read_tocentry(ide_drive_t *drive, int trackno,
+		int msf_flag, int format, char *buf, int buflen)
 {
 	unsigned char cmd[BLK_MAX_CDB];
 
@@ -1014,7 +1104,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 				     sectors_per_frame << SECTOR_SHIFT);
 
 	/* first read just the header, so we know how long the TOC is */
-	stat = cdrom_read_tocentry(drive, 0, 1, 0, (char *) &toc->hdr,
+	stat = ide_cdrom_read_tocentry(drive, 0, 1, 0, (char *) &toc->hdr,
 				    sizeof(struct atapi_toc_header));
 	if (stat)
 		return stat;
@@ -1031,7 +1121,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 		ntracks = MAX_TRACKS;
 
 	/* now read the whole schmeer */
-	stat = cdrom_read_tocentry(drive, toc->hdr.first_track, 1, 0,
+	stat = ide_cdrom_read_tocentry(drive, toc->hdr.first_track, 1, 0,
 				  (char *)&toc->hdr,
 				   sizeof(struct atapi_toc_header) +
 				   (ntracks + 1) *
@@ -1051,7 +1141,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 		 * Heiko Eißfeldt.
 		 */
 		ntracks = 0;
-		stat = cdrom_read_tocentry(drive, CDROM_LEADOUT, 1, 0,
+		stat = ide_cdrom_read_tocentry(drive, CDROM_LEADOUT, 1, 0,
 					   (char *)&toc->hdr,
 					   sizeof(struct atapi_toc_header) +
 					   (ntracks + 1) *
@@ -1091,7 +1181,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 
 	if (toc->hdr.first_track != CDROM_LEADOUT) {
 		/* read the multisession information */
-		stat = cdrom_read_tocentry(drive, 0, 0, 1, (char *)&ms_tmp,
+		stat = ide_cdrom_read_tocentry(drive, 0, 0, 1, (char *)&ms_tmp,
 					   sizeof(ms_tmp));
 		if (stat)
 			return stat;
@@ -1105,7 +1195,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 
 	if (drive->atapi_flags & IDE_AFLAG_TOCADDR_AS_BCD) {
 		/* re-read multisession information using MSF format */
-		stat = cdrom_read_tocentry(drive, 0, 1, 1, (char *)&ms_tmp,
+		stat = ide_cdrom_read_tocentry(drive, 0, 1, 1, (char *)&ms_tmp,
 					   sizeof(ms_tmp));
 		if (stat)
 			return stat;
@@ -1215,8 +1305,7 @@ static int ide_cdrom_register(ide_drive_t *drive, int nslots)
 	if (drive->atapi_flags & IDE_AFLAG_NO_SPEED_SELECT)
 		devinfo->mask |= CDC_SELECT_SPEED;
 
-	devinfo->disk = info->disk;
-	return register_cdrom(devinfo);
+	return register_cdrom(info->disk, devinfo);
 }
 
 static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
@@ -1321,82 +1410,6 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 			 be16_to_cpup((__be16 *)&buf[8 + 12]));
 
 	return nslots;
-}
-
-/* standard prep_rq_fn that builds 10 byte cmds */
-static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
-{
-	int hard_sect = queue_logical_block_size(q);
-	long block = (long)blk_rq_pos(rq) / (hard_sect >> 9);
-	unsigned long blocks = blk_rq_sectors(rq) / (hard_sect >> 9);
-	struct scsi_request *req = scsi_req(rq);
-
-	q->initialize_rq_fn(rq);
-
-	if (rq_data_dir(rq) == READ)
-		req->cmd[0] = GPCMD_READ_10;
-	else
-		req->cmd[0] = GPCMD_WRITE_10;
-
-	/*
-	 * fill in lba
-	 */
-	req->cmd[2] = (block >> 24) & 0xff;
-	req->cmd[3] = (block >> 16) & 0xff;
-	req->cmd[4] = (block >>  8) & 0xff;
-	req->cmd[5] = block & 0xff;
-
-	/*
-	 * and transfer length
-	 */
-	req->cmd[7] = (blocks >> 8) & 0xff;
-	req->cmd[8] = blocks & 0xff;
-	req->cmd_len = 10;
-	return BLKPREP_OK;
-}
-
-/*
- * Most of the SCSI commands are supported directly by ATAPI devices.
- * This transform handles the few exceptions.
- */
-static int ide_cdrom_prep_pc(struct request *rq)
-{
-	u8 *c = scsi_req(rq)->cmd;
-
-	/* transform 6-byte read/write commands to the 10-byte version */
-	if (c[0] == READ_6 || c[0] == WRITE_6) {
-		c[8] = c[4];
-		c[5] = c[3];
-		c[4] = c[2];
-		c[3] = c[1] & 0x1f;
-		c[2] = 0;
-		c[1] &= 0xe0;
-		c[0] += (READ_10 - READ_6);
-		scsi_req(rq)->cmd_len = 10;
-		return BLKPREP_OK;
-	}
-
-	/*
-	 * it's silly to pretend we understand 6-byte sense commands, just
-	 * reject with ILLEGAL_REQUEST and the caller should take the
-	 * appropriate action
-	 */
-	if (c[0] == MODE_SENSE || c[0] == MODE_SELECT) {
-		scsi_req(rq)->result = ILLEGAL_REQUEST;
-		return BLKPREP_KILL;
-	}
-
-	return BLKPREP_OK;
-}
-
-static int ide_cdrom_prep_fn(struct request_queue *q, struct request *rq)
-{
-	if (!blk_rq_is_passthrough(rq))
-		return ide_cdrom_prep_fs(q, rq);
-	else if (blk_rq_is_scsi(rq))
-		return ide_cdrom_prep_pc(rq);
-
-	return 0;
 }
 
 struct cd_list_entry {
@@ -1508,7 +1521,7 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 
 	ide_debug_log(IDE_DBG_PROBE, "enter");
 
-	blk_queue_prep_rq(q, ide_cdrom_prep_fn);
+	drive->prep_rq = ide_cdrom_prep_rq;
 	blk_queue_dma_alignment(q, 31);
 	blk_queue_update_dma_pad(q, 15);
 
@@ -1569,7 +1582,7 @@ static void ide_cd_release(struct device *dev)
 	if (devinfo->handle == drive)
 		unregister_cdrom(devinfo);
 	drive->driver_data = NULL;
-	blk_queue_prep_rq(drive->queue, NULL);
+	drive->prep_rq = NULL;
 	g->private_data = NULL;
 	put_disk(g);
 	kfree(info);
@@ -1598,7 +1611,11 @@ static int idecd_open(struct block_device *bdev, fmode_t mode)
 	struct cdrom_info *info;
 	int rc = -ENXIO;
 
-	check_disk_change(bdev);
+	if (bdev_check_media_change(bdev)) {
+		info = ide_drv_g(bdev->bd_disk, cdrom_info);
+
+		ide_cd_read_toc(info->drive);
+	}
 
 	mutex_lock(&ide_cd_mutex);
 	info = ide_cd_get(bdev->bd_disk);
@@ -1697,6 +1714,41 @@ static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
 	return ret;
 }
 
+static int idecd_locked_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			unsigned int cmd, unsigned long arg)
+{
+	struct cdrom_info *info = ide_drv_g(bdev->bd_disk, cdrom_info);
+	void __user *argp = compat_ptr(arg);
+	int err;
+
+	switch (cmd) {
+	case CDROMSETSPINDOWN:
+		return idecd_set_spindown(&info->devinfo, (unsigned long)argp);
+	case CDROMGETSPINDOWN:
+		return idecd_get_spindown(&info->devinfo, (unsigned long)argp);
+	default:
+		break;
+	}
+
+	err = generic_ide_ioctl(info->drive, bdev, cmd, arg);
+	if (err == -EINVAL)
+		err = cdrom_ioctl(&info->devinfo, bdev, mode, cmd,
+				  (unsigned long)argp);
+
+	return err;
+}
+
+static int idecd_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&ide_cd_mutex);
+	ret = idecd_locked_compat_ioctl(bdev, mode, cmd, arg);
+	mutex_unlock(&ide_cd_mutex);
+
+	return ret;
+}
 
 static unsigned int idecd_check_events(struct gendisk *disk,
 				       unsigned int clearing)
@@ -1705,22 +1757,14 @@ static unsigned int idecd_check_events(struct gendisk *disk,
 	return cdrom_check_events(&info->devinfo, clearing);
 }
 
-static int idecd_revalidate_disk(struct gendisk *disk)
-{
-	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
-
-	ide_cd_read_toc(info->drive);
-
-	return  0;
-}
-
 static const struct block_device_operations idecd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idecd_open,
 	.release		= idecd_release,
 	.ioctl			= idecd_ioctl,
+	.compat_ioctl		= IS_ENABLED(CONFIG_COMPAT) ?
+				  idecd_compat_ioctl : NULL,
 	.check_events		= idecd_check_events,
-	.revalidate_disk	= idecd_revalidate_disk
 };
 
 /* module options */
@@ -1784,7 +1828,8 @@ static int ide_cd_probe(ide_drive_t *drive)
 	ide_cd_read_toc(drive);
 	g->fops = &idecd_ops;
 	g->flags |= GENHD_FL_REMOVABLE | GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
-	device_add_disk(&drive->gendev, g);
+	g->events = DISK_EVENT_MEDIA_CHANGE;
+	device_add_disk(&drive->gendev, g, NULL);
 	return 0;
 
 out_free_disk:

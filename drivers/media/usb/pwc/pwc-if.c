@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Linux driver for Philips webcam
    USB and Video4Linux interface part.
    (C) 1999-2004 Nemosoft Unv.
@@ -10,19 +11,6 @@
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
 
@@ -76,41 +64,52 @@
 #include "pwc-dec23.h"
 #include "pwc-dec1.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/pwc.h>
+
 /* Function prototypes and driver templates */
 
 /* hotplug device table support */
 static const struct usb_device_id pwc_device_table [] = {
-	{ USB_DEVICE(0x0471, 0x0302) }, /* Philips models */
-	{ USB_DEVICE(0x0471, 0x0303) },
-	{ USB_DEVICE(0x0471, 0x0304) },
-	{ USB_DEVICE(0x0471, 0x0307) },
-	{ USB_DEVICE(0x0471, 0x0308) },
-	{ USB_DEVICE(0x0471, 0x030C) },
-	{ USB_DEVICE(0x0471, 0x0310) },
-	{ USB_DEVICE(0x0471, 0x0311) }, /* Philips ToUcam PRO II */
-	{ USB_DEVICE(0x0471, 0x0312) },
-	{ USB_DEVICE(0x0471, 0x0313) }, /* the 'new' 720K */
-	{ USB_DEVICE(0x0471, 0x0329) }, /* Philips SPC 900NC PC Camera */
-	{ USB_DEVICE(0x0471, 0x032C) }, /* Philips SPC 880NC PC Camera */
-	{ USB_DEVICE(0x069A, 0x0001) }, /* Askey */
-	{ USB_DEVICE(0x046D, 0x08B0) }, /* Logitech QuickCam Pro 3000 */
+	{ USB_DEVICE(0x041E, 0x400C) }, /* Creative Webcam 5 */
+	{ USB_DEVICE(0x041E, 0x4011) }, /* Creative Webcam Pro Ex */
+
+	{ USB_DEVICE(0x046D, 0x08B0) }, /* Logitech QuickCam 3000 Pro */
 	{ USB_DEVICE(0x046D, 0x08B1) }, /* Logitech QuickCam Notebook Pro */
-	{ USB_DEVICE(0x046D, 0x08B2) }, /* Logitech QuickCam Pro 4000 */
+	{ USB_DEVICE(0x046D, 0x08B2) }, /* Logitech QuickCam 4000 Pro */
 	{ USB_DEVICE(0x046D, 0x08B3) }, /* Logitech QuickCam Zoom (old model) */
 	{ USB_DEVICE(0x046D, 0x08B4) }, /* Logitech QuickCam Zoom (new model) */
 	{ USB_DEVICE(0x046D, 0x08B5) }, /* Logitech QuickCam Orbit/Sphere */
-	{ USB_DEVICE(0x046D, 0x08B6) }, /* Cisco VT Camera */
+	{ USB_DEVICE(0x046D, 0x08B6) }, /* Logitech/Cisco VT Camera */
 	{ USB_DEVICE(0x046D, 0x08B7) }, /* Logitech ViewPort AV 100 */
-	{ USB_DEVICE(0x046D, 0x08B8) }, /* Logitech (reserved) */
+	{ USB_DEVICE(0x046D, 0x08B8) }, /* Logitech QuickCam */
+
+	{ USB_DEVICE(0x0471, 0x0302) }, /* Philips PCA645VC */
+	{ USB_DEVICE(0x0471, 0x0303) }, /* Philips PCA646VC */
+	{ USB_DEVICE(0x0471, 0x0304) }, /* Askey VC010 type 2 */
+	{ USB_DEVICE(0x0471, 0x0307) }, /* Philips PCVC675K (Vesta) */
+	{ USB_DEVICE(0x0471, 0x0308) }, /* Philips PCVC680K (Vesta Pro) */
+	{ USB_DEVICE(0x0471, 0x030C) }, /* Philips PCVC690K (Vesta Pro Scan) */
+	{ USB_DEVICE(0x0471, 0x0310) }, /* Philips PCVC730K (ToUCam Fun)/PCVC830 (ToUCam II) */
+	{ USB_DEVICE(0x0471, 0x0311) }, /* Philips PCVC740K (ToUCam Pro)/PCVC840 (ToUCam II) */
+	{ USB_DEVICE(0x0471, 0x0312) }, /* Philips PCVC750K (ToUCam Pro Scan) */
+	{ USB_DEVICE(0x0471, 0x0313) }, /* Philips PCVC720K/40 (ToUCam XS) */
+	{ USB_DEVICE(0x0471, 0x0329) }, /* Philips SPC 900NC webcam */
+	{ USB_DEVICE(0x0471, 0x032C) }, /* Philips SPC 880NC webcam */
+
+	{ USB_DEVICE(0x04CC, 0x8116) }, /* Sotec Afina Eye */
+
 	{ USB_DEVICE(0x055D, 0x9000) }, /* Samsung MPC-C10 */
 	{ USB_DEVICE(0x055D, 0x9001) }, /* Samsung MPC-C30 */
 	{ USB_DEVICE(0x055D, 0x9002) },	/* Samsung SNC-35E (Ver3.0) */
-	{ USB_DEVICE(0x041E, 0x400C) }, /* Creative Webcam 5 */
-	{ USB_DEVICE(0x041E, 0x4011) }, /* Creative Webcam Pro Ex */
-	{ USB_DEVICE(0x04CC, 0x8116) }, /* Afina Eye */
-	{ USB_DEVICE(0x06BE, 0x8116) }, /* new Afina Eye */
-	{ USB_DEVICE(0x0d81, 0x1910) }, /* Visionite */
-	{ USB_DEVICE(0x0d81, 0x1900) },
+
+	{ USB_DEVICE(0x069A, 0x0001) }, /* Askey VC010 type 1 */
+
+	{ USB_DEVICE(0x06BE, 0x8116) }, /* AME Co. Afina Eye */
+
+	{ USB_DEVICE(0x0d81, 0x1900) }, /* Visionite VCS-UC300 */
+	{ USB_DEVICE(0x0d81, 0x1910) }, /* Visionite VCS-UM100 */
+
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, pwc_device_table);
@@ -155,6 +154,35 @@ static const struct video_device pwc_template = {
 
 /***************************************************************************/
 /* Private functions */
+
+static void *pwc_alloc_urb_buffer(struct usb_device *dev,
+				  size_t size, dma_addr_t *dma_handle)
+{
+	struct device *dmadev = dev->bus->sysdev;
+	void *buffer = kmalloc(size, GFP_KERNEL);
+
+	if (!buffer)
+		return NULL;
+
+	*dma_handle = dma_map_single(dmadev, buffer, size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dmadev, *dma_handle)) {
+		kfree(buffer);
+		return NULL;
+	}
+
+	return buffer;
+}
+
+static void pwc_free_urb_buffer(struct usb_device *dev,
+				size_t size,
+				void *buffer,
+				dma_addr_t dma_handle)
+{
+	struct device *dmadev = dev->bus->sysdev;
+
+	dma_unmap_single(dmadev, dma_handle, size, DMA_FROM_DEVICE);
+	kfree(buffer);
+}
 
 static struct pwc_frame_buf *pwc_get_next_fill_buf(struct pwc_device *pdev)
 {
@@ -257,8 +285,11 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 static void pwc_isoc_handler(struct urb *urb)
 {
 	struct pwc_device *pdev = (struct pwc_device *)urb->context;
+	struct device *dmadev = urb->dev->bus->sysdev;
 	int i, fst, flen;
 	unsigned char *iso_buf = NULL;
+
+	trace_pwc_handler_enter(urb, pdev);
 
 	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
 	    urb->status == -ESHUTDOWN) {
@@ -300,6 +331,11 @@ static void pwc_isoc_handler(struct urb *urb)
 
 	/* Reset ISOC error counter. We did get here, after all. */
 	pdev->visoc_errors = 0;
+
+	dma_sync_single_for_cpu(dmadev,
+				urb->transfer_dma,
+				urb->transfer_buffer_length,
+				DMA_FROM_DEVICE);
 
 	/* vsync: 0 = don't copy data
 		  1 = sync-hunt
@@ -347,7 +383,14 @@ static void pwc_isoc_handler(struct urb *urb)
 		pdev->vlast_packet_size = flen;
 	}
 
+	dma_sync_single_for_device(dmadev,
+				   urb->transfer_dma,
+				   urb->transfer_buffer_length,
+				   DMA_FROM_DEVICE);
+
 handler_end:
+	trace_pwc_handler_exit(urb, pdev);
+
 	i = usb_submit_urb(urb, GFP_ATOMIC);
 	if (i != 0)
 		PWC_ERROR("Error (%d) re-submitting urb in pwc_isoc_handler.\n", i);
@@ -421,16 +464,15 @@ retry:
 		urb->dev = udev;
 		urb->pipe = usb_rcvisocpipe(udev, pdev->vendpoint);
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
-		urb->transfer_buffer = usb_alloc_coherent(udev,
-							  ISO_BUFFER_SIZE,
-							  GFP_KERNEL,
-							  &urb->transfer_dma);
+		urb->transfer_buffer_length = ISO_BUFFER_SIZE;
+		urb->transfer_buffer = pwc_alloc_urb_buffer(udev,
+							    urb->transfer_buffer_length,
+							    &urb->transfer_dma);
 		if (urb->transfer_buffer == NULL) {
 			PWC_ERROR("Failed to allocate urb buffer %d\n", i);
 			pwc_isoc_cleanup(pdev);
 			return -ENOMEM;
 		}
-		urb->transfer_buffer_length = ISO_BUFFER_SIZE;
 		urb->complete = pwc_isoc_handler;
 		urb->context = pdev;
 		urb->start_frame = 0;
@@ -481,15 +523,16 @@ static void pwc_iso_free(struct pwc_device *pdev)
 
 	/* Freeing ISOC buffers one by one */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		if (pdev->urbs[i]) {
+		struct urb *urb = pdev->urbs[i];
+
+		if (urb) {
 			PWC_DEBUG_MEMORY("Freeing URB\n");
-			if (pdev->urbs[i]->transfer_buffer) {
-				usb_free_coherent(pdev->udev,
-					pdev->urbs[i]->transfer_buffer_length,
-					pdev->urbs[i]->transfer_buffer,
-					pdev->urbs[i]->transfer_dma);
-			}
-			usb_free_urb(pdev->urbs[i]);
+			if (urb->transfer_buffer)
+				pwc_free_urb_buffer(urb->dev,
+						    urb->transfer_buffer_length,
+						    urb->transfer_buffer,
+						    urb->transfer_dma);
+			usb_free_urb(urb);
 			pdev->urbs[i] = NULL;
 		}
 	}
@@ -610,7 +653,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vb->vb2_queue);
 
-	/* Don't allow queing new buffers after device disconnection */
+	/* Don't allow queueing new buffers after device disconnection */
 	if (!pdev->udev)
 		return -ENODEV;
 
@@ -1027,7 +1070,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	/* Init video_device structure */
 	pdev->vdev = pwc_template;
-	strcpy(pdev->vdev.name, name);
+	strscpy(pdev->vdev.name, name, sizeof(pdev->vdev.name));
 	pdev->vdev.queue = &pdev->vb_queue;
 	pdev->vdev.queue->lock = &pdev->vb_queue_lock;
 	video_set_drvdata(&pdev->vdev, pdev);
@@ -1082,8 +1125,10 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->v4l2_dev.ctrl_handler = &pdev->ctrl_handler;
 	pdev->vdev.v4l2_dev = &pdev->v4l2_dev;
 	pdev->vdev.lock = &pdev->v4l2_lock;
+	pdev->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+				 V4L2_CAP_READWRITE;
 
-	rc = video_register_device(&pdev->vdev, VFL_TYPE_GRABBER, -1);
+	rc = video_register_device(&pdev->vdev, VFL_TYPE_VIDEO, -1);
 	if (rc < 0) {
 		PWC_ERROR("Failed to register as video device (%d).\n", rc);
 		goto err_unregister_v4l2_dev;

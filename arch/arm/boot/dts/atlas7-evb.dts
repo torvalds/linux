@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DTS file for CSR SiRFatlas7 Evaluation Board
  *
  * Copyright (c) 2014 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 /dts-v1/;
@@ -120,7 +119,7 @@
 				label = "rearview key";
 				linux,code = <KEY_CAMERA>;
 				gpios = <&gpio_1 3 GPIO_ACTIVE_LOW>;
-				debounce_interval = <100>;
+				debounce-interval = <100>;
 			};
 		};
 

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI CDCE706 programmable 3-PLL clock synthesizer driver
  *
  * Copyright (c) 2014 Cadence Design Systems Inc.
  *
- * Reference: http://www.ti.com/lit/ds/symlink/cdce706.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Reference: https://www.ti.com/lit/ds/symlink/cdce706.pdf
  */
 
 #include <linux/clk.h>
@@ -633,7 +630,7 @@ of_clk_cdce_get(struct of_phandle_args *clkspec, void *data)
 static int cdce706_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct cdce706_dev_data *cdce;
 	int ret;
 

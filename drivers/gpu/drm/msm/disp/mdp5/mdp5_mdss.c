@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/irqdomain.h>
@@ -132,7 +121,7 @@ static int mdss_irq_domain_init(struct mdp5_mdss *mdp5_mdss)
 	d = irq_domain_add_linear(dev->of_node, 32, &mdss_hw_irqdomain_ops,
 				  mdp5_mdss);
 	if (!d) {
-		dev_err(dev, "mdss irq domain add failed\n");
+		DRM_DEV_ERROR(dev, "mdss irq domain add failed\n");
 		return -ENXIO;
 	}
 
@@ -246,7 +235,7 @@ int mdp5_mdss_init(struct drm_device *dev)
 
 	ret = msm_mdss_get_clocks(mdp5_mdss);
 	if (ret) {
-		dev_err(dev->dev, "failed to get clocks: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get clocks: %d\n", ret);
 		goto fail;
 	}
 
@@ -259,7 +248,7 @@ int mdp5_mdss_init(struct drm_device *dev)
 
 	ret = regulator_enable(mdp5_mdss->vdd);
 	if (ret) {
-		dev_err(dev->dev, "failed to enable regulator vdd: %d\n",
+		DRM_DEV_ERROR(dev->dev, "failed to enable regulator vdd: %d\n",
 			ret);
 		goto fail;
 	}
@@ -267,13 +256,13 @@ int mdp5_mdss_init(struct drm_device *dev)
 	ret = devm_request_irq(dev->dev, platform_get_irq(pdev, 0),
 			       mdss_irq, 0, "mdss_isr", mdp5_mdss);
 	if (ret) {
-		dev_err(dev->dev, "failed to init irq: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to init irq: %d\n", ret);
 		goto fail_irq;
 	}
 
 	ret = mdss_irq_domain_init(mdp5_mdss);
 	if (ret) {
-		dev_err(dev->dev, "failed to init sub-block irqs: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to init sub-block irqs: %d\n", ret);
 		goto fail_irq;
 	}
 

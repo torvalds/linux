@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Performance counter support for POWER9 processors.
  *
  * Copyright 2009 Paul Mackerras, IBM Corporation.
  * Copyright 2013 Michael Ellerman, IBM Corporation.
  * Copyright 2016 Madhavan Srinivasan, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or later version.
  */
 
 #define pr_fmt(fmt)	"power9-pmu: " fmt
@@ -63,16 +59,8 @@
  *	MMCRA[9:11] = thresh_cmp[0:2]
  *	MMCRA[12:18] = thresh_cmp[3:9]
  *
- * if unit == 6 or unit == 7
- *	MMCRC[53:55] = cache_sel[1:3]      (L2EVENT_SEL)
- * else if unit == 8 or unit == 9:
- *	if cache_sel[0] == 0: # L3 bank
- *		MMCRC[47:49] = cache_sel[1:3]  (L3EVENT_SEL0)
- *	else if cache_sel[0] == 1:
- *		MMCRC[50:51] = cache_sel[2:3]  (L3EVENT_SEL1)
- * else if cache_sel[1]: # L1 event
- *	MMCR1[16] = cache_sel[2]
- *	MMCR1[17] = cache_sel[3]
+ * MMCR1[16] = cache_sel[2]
+ * MMCR1[17] = cache_sel[3]
  *
  * if mark:
  *	MMCRA[63]    = 1		(SAMPLE_ENABLE)
@@ -100,6 +88,9 @@ enum {
 #define POWER9_MMCRA_IFM1		0x0000000040000000UL
 #define POWER9_MMCRA_IFM2		0x0000000080000000UL
 #define POWER9_MMCRA_IFM3		0x00000000C0000000UL
+#define POWER9_MMCRA_BHRB_MASK		0x00000000C0000000UL
+
+extern u64 PERF_REG_EXTENDED_MASK;
 
 /* Nasty Power9 specific hack */
 #define PVR_POWER9_CUMULUS		0x00002000
@@ -168,6 +159,8 @@ GENERIC_EVENT_ATTR(branch-instructions,		PM_BR_CMPL);
 GENERIC_EVENT_ATTR(branch-misses,		PM_BR_MPRED_CMPL);
 GENERIC_EVENT_ATTR(cache-references,		PM_LD_REF_L1);
 GENERIC_EVENT_ATTR(cache-misses,		PM_LD_MISS_L1_FIN);
+GENERIC_EVENT_ATTR(mem-loads,			MEM_LOADS);
+GENERIC_EVENT_ATTR(mem-stores,			MEM_STORES);
 
 CACHE_EVENT_ATTR(L1-dcache-load-misses,		PM_LD_MISS_L1_FIN);
 CACHE_EVENT_ATTR(L1-dcache-loads,		PM_LD_REF_L1);
@@ -179,8 +172,6 @@ CACHE_EVENT_ATTR(L1-icache-prefetches,		PM_IC_PREF_WRITE);
 CACHE_EVENT_ATTR(LLC-load-misses,		PM_DATA_FROM_L3MISS);
 CACHE_EVENT_ATTR(LLC-loads,			PM_DATA_FROM_L3);
 CACHE_EVENT_ATTR(LLC-prefetches,		PM_L3_PREF_ALL);
-CACHE_EVENT_ATTR(LLC-store-misses,		PM_L2_ST_MISS);
-CACHE_EVENT_ATTR(LLC-stores,			PM_L2_ST);
 CACHE_EVENT_ATTR(branch-load-misses,		PM_BR_MPRED_CMPL);
 CACHE_EVENT_ATTR(branch-loads,			PM_BR_CMPL);
 CACHE_EVENT_ATTR(dTLB-load-misses,		PM_DTLB_MISS);
@@ -195,6 +186,8 @@ static struct attribute *power9_events_attr[] = {
 	GENERIC_EVENT_PTR(PM_BR_MPRED_CMPL),
 	GENERIC_EVENT_PTR(PM_LD_REF_L1),
 	GENERIC_EVENT_PTR(PM_LD_MISS_L1_FIN),
+	GENERIC_EVENT_PTR(MEM_LOADS),
+	GENERIC_EVENT_PTR(MEM_STORES),
 	CACHE_EVENT_PTR(PM_LD_MISS_L1_FIN),
 	CACHE_EVENT_PTR(PM_LD_REF_L1),
 	CACHE_EVENT_PTR(PM_L1_PREF),
@@ -205,8 +198,6 @@ static struct attribute *power9_events_attr[] = {
 	CACHE_EVENT_PTR(PM_DATA_FROM_L3MISS),
 	CACHE_EVENT_PTR(PM_DATA_FROM_L3),
 	CACHE_EVENT_PTR(PM_L3_PREF_ALL),
-	CACHE_EVENT_PTR(PM_L2_ST_MISS),
-	CACHE_EVENT_PTR(PM_L2_ST),
 	CACHE_EVENT_PTR(PM_BR_MPRED_CMPL),
 	CACHE_EVENT_PTR(PM_BR_CMPL),
 	CACHE_EVENT_PTR(PM_DTLB_MISS),
@@ -308,6 +299,8 @@ static u64 power9_bhrb_filter_map(u64 branch_sample_type)
 
 static void power9_config_bhrb(u64 pmu_bhrb_filter)
 {
+	pmu_bhrb_filter &= POWER9_MMCRA_BHRB_MASK;
+
 	/* Enable BHRB filter in PMU */
 	mtspr(SPRN_MMCRA, (mfspr(SPRN_MMCRA) | pmu_bhrb_filter));
 }
@@ -319,7 +312,7 @@ static void power9_config_bhrb(u64 pmu_bhrb_filter)
  * 0 means not supported, -1 means nonsensical, other values
  * are event codes.
  */
-static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[ C(L1D) ] = {
 		[ C(OP_READ) ] = {
 			[ C(RESULT_ACCESS) ] = PM_LD_REF_L1,
@@ -354,8 +347,8 @@ static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 			[ C(RESULT_MISS)   ] = PM_DATA_FROM_L3MISS,
 		},
 		[ C(OP_WRITE) ] = {
-			[ C(RESULT_ACCESS) ] = PM_L2_ST,
-			[ C(RESULT_MISS)   ] = PM_L2_ST_MISS,
+			[ C(RESULT_ACCESS) ] = 0,
+			[ C(RESULT_MISS)   ] = 0,
 		},
 		[ C(OP_PREFETCH) ] = {
 			[ C(RESULT_ACCESS) ] = PM_L3_PREF_ALL,
@@ -427,6 +420,8 @@ static struct power_pmu power9_pmu = {
 	.n_counter		= MAX_PMU_COUNTERS,
 	.add_fields		= ISA207_ADD_FIELDS,
 	.test_adder		= ISA207_TEST_ADDER,
+	.group_constraint_mask	= CNST_CACHE_PMC4_MASK,
+	.group_constraint_val	= CNST_CACHE_PMC4_VAL,
 	.compute_mmcr		= isa207_compute_mmcr,
 	.config_bhrb		= power9_config_bhrb,
 	.bhrb_filter_map	= power9_bhrb_filter_map,
@@ -441,9 +436,10 @@ static struct power_pmu power9_pmu = {
 	.cache_events		= &power9_cache_events,
 	.attr_groups		= power9_pmu_attr_groups,
 	.bhrb_nr		= 32,
+	.capabilities           = PERF_PMU_CAP_EXTENDED_REGS,
 };
 
-static int __init init_power9_pmu(void)
+int init_power9_pmu(void)
 {
 	int rc = 0;
 	unsigned int pvr = mfspr(SPRN_PVR);
@@ -464,6 +460,9 @@ static int __init init_power9_pmu(void)
 		}
 	}
 
+	/* Set the PERF_REG_EXTENDED_MASK here */
+	PERF_REG_EXTENDED_MASK = PERF_REG_PMU_MASK_300;
+
 	rc = register_power_pmu(&power9_pmu);
 	if (rc)
 		return rc;
@@ -473,4 +472,3 @@ static int __init init_power9_pmu(void)
 
 	return 0;
 }
-early_initcall(init_power9_pmu);

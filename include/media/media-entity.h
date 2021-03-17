@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Media entity
  *
@@ -5,15 +6,6 @@
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _MEDIA_ENTITY_H
@@ -156,11 +148,40 @@ struct media_link {
 };
 
 /**
+ * enum media_pad_signal_type - type of the signal inside a media pad
+ *
+ * @PAD_SIGNAL_DEFAULT:
+ *	Default signal. Use this when all inputs or all outputs are
+ *	uniquely identified by the pad number.
+ * @PAD_SIGNAL_ANALOG:
+ *	The pad contains an analog signal. It can be Radio Frequency,
+ *	Intermediate Frequency, a baseband signal or sub-cariers.
+ *	Tuner inputs, IF-PLL demodulators, composite and s-video signals
+ *	should use it.
+ * @PAD_SIGNAL_DV:
+ *	Contains a digital video signal, with can be a bitstream of samples
+ *	taken from an analog TV video source. On such case, it usually
+ *	contains the VBI data on it.
+ * @PAD_SIGNAL_AUDIO:
+ *	Contains an Intermediate Frequency analog signal from an audio
+ *	sub-carrier or an audio bitstream. IF signals are provided by tuners
+ *	and consumed by	audio AM/FM decoders. Bitstream audio is provided by
+ *	an audio decoder.
+ */
+enum media_pad_signal_type {
+	PAD_SIGNAL_DEFAULT = 0,
+	PAD_SIGNAL_ANALOG,
+	PAD_SIGNAL_DV,
+	PAD_SIGNAL_AUDIO,
+};
+
+/**
  * struct media_pad - A media pad graph object.
  *
  * @graph_obj:	Embedded structure containing the media object common data
  * @entity:	Entity this pad belongs to
  * @index:	Pad index in the entity pads array, numbered from 0 to n
+ * @sig_type:	Type of the signal inside a media pad
  * @flags:	Pad flags, as defined in
  *		:ref:`include/uapi/linux/media.h <media_header>`
  *		(seek for ``MEDIA_PAD_FL_*``)
@@ -169,6 +190,7 @@ struct media_pad {
 	struct media_gobj graph_obj;	/* must be first field in struct */
 	struct media_entity *entity;
 	u16 index;
+	enum media_pad_signal_type sig_type;
 	unsigned long flags;
 };
 
@@ -190,7 +212,8 @@ struct media_pad {
  *    mutex held.
  */
 struct media_entity_operations {
-	int (*get_fwnode_pad)(struct fwnode_endpoint *endpoint);
+	int (*get_fwnode_pad)(struct media_entity *entity,
+			      struct fwnode_endpoint *endpoint);
 	int (*link_setup)(struct media_entity *entity,
 			  const struct media_pad *local,
 			  const struct media_pad *remote, u32 flags);
@@ -641,6 +664,24 @@ static inline void media_entity_cleanup(struct media_entity *entity) {}
 #endif
 
 /**
+ * media_get_pad_index() - retrieves a pad index from an entity
+ *
+ * @entity:	entity where the pads belong
+ * @is_sink:	true if the pad is a sink, false if it is a source
+ * @sig_type:	type of signal of the pad to be search
+ *
+ * This helper function finds the first pad index inside an entity that
+ * satisfies both @is_sink and @sig_type conditions.
+ *
+ * Return:
+ *
+ * On success, return the pad number. If the pad was not found or the media
+ * entity is a NULL pointer, return -EINVAL.
+ */
+int media_get_pad_index(struct media_entity *entity, bool is_sink,
+			enum media_pad_signal_type sig_type);
+
+/**
  * media_create_pad_link() - creates a link between two entities.
  *
  * @source:	pointer to &media_entity of the source pad.
@@ -762,7 +803,7 @@ int __media_entity_setup_link(struct media_link *link, u32 flags);
  * @flags:	the requested new link flags
  *
  * The only configurable property is the %MEDIA_LNK_FL_ENABLED link flag
- * flag to enable/disable a link. Links marked with the
+ * to enable/disable a link. Links marked with the
  * %MEDIA_LNK_FL_IMMUTABLE link flag can not be enabled or disabled.
  *
  * When a link is enabled or disabled, the media framework calls the
@@ -817,19 +858,6 @@ struct media_link *media_entity_find_link(struct media_pad *source,
 struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
 
 /**
- * media_entity_get - Get a reference to the parent module
- *
- * @entity: The entity
- *
- * Get a reference to the parent media device module.
- *
- * The function will return immediately if @entity is %NULL.
- *
- * Return: returns a pointer to the entity on success or %NULL on failure.
- */
-struct media_entity *media_entity_get(struct media_entity *entity);
-
-/**
  * media_entity_get_fwnode_pad - Get pad number from fwnode
  *
  * @entity: The entity
@@ -867,17 +895,6 @@ __must_check int media_graph_walk_init(
  * @graph: Media graph structure that will be used to walk the graph
  */
 void media_graph_walk_cleanup(struct media_graph *graph);
-
-/**
- * media_entity_put - Release the reference to the parent module
- *
- * @entity: The entity
- *
- * Release the reference count acquired by media_entity_get().
- *
- * The function will return immediately if @entity is %NULL.
- */
-void media_entity_put(struct media_entity *entity);
 
 /**
  * media_graph_walk_start - Start walking the media graph at a

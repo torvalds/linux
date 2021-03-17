@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Activity LED trigger
  *
  * Copyright (C) 2017 Willy Tarreau <w@1wt.eu>
  * Partially based on Atsushi Nemoto's ledtrig-heartbeat.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -60,11 +57,15 @@ static void led_activity_function(struct timer_list *t)
 	curr_used = 0;
 
 	for_each_possible_cpu(i) {
-		curr_used += kcpustat_cpu(i).cpustat[CPUTIME_USER]
-			  +  kcpustat_cpu(i).cpustat[CPUTIME_NICE]
-			  +  kcpustat_cpu(i).cpustat[CPUTIME_SYSTEM]
-			  +  kcpustat_cpu(i).cpustat[CPUTIME_SOFTIRQ]
-			  +  kcpustat_cpu(i).cpustat[CPUTIME_IRQ];
+		struct kernel_cpustat kcpustat;
+
+		kcpustat_cpu_fetch(&kcpustat, i);
+
+		curr_used += kcpustat.cpustat[CPUTIME_USER]
+			  +  kcpustat.cpustat[CPUTIME_NICE]
+			  +  kcpustat.cpustat[CPUTIME_SYSTEM]
+			  +  kcpustat.cpustat[CPUTIME_SOFTIRQ]
+			  +  kcpustat.cpustat[CPUTIME_IRQ];
 		cpus++;
 	}
 
@@ -73,7 +74,7 @@ static void led_activity_function(struct timer_list *t)
 	 * down to 16us, ensuring we won't overflow 32-bit computations below
 	 * even up to 3k CPUs, while keeping divides cheap on smaller systems.
 	 */
-	curr_boot = ktime_get_boot_ns() * cpus;
+	curr_boot = ktime_get_boottime_ns() * cpus;
 	diff_boot = (curr_boot - activity_data->last_boot) >> 16;
 	diff_used = (curr_used - activity_data->last_used) >> 16;
 	activity_data->last_boot = curr_boot;

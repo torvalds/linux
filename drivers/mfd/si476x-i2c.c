@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/mfd/si476x-i2c.c -- Core device driver for si476x MFD
  * device
@@ -6,16 +7,6 @@
  * Copyright (C) 2013 Andrey Smirnov
  *
  * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 #include <linux/module.h>
 
@@ -543,6 +534,11 @@ static irqreturn_t si476x_core_interrupt(int irq, void *dev)
 /**
  * si476x_firmware_version_to_revision()
  * @core: Core device structure
+ * @func: Selects the boot function of the device:
+ *         *_BOOTLOADER  - Boot loader
+ *         *_FM_RECEIVER - FM receiver
+ *         *_AM_RECEIVER - AM receiver
+ *         *_WB_RECEIVER - Weatherband receiver
  * @major:  Firmware major number
  * @minor1: Firmware first minor number
  * @minor2: Firmware second minor number
@@ -592,7 +588,7 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 			goto unknown_revision;
 		}
 	case SI476X_FUNC_BOOTLOADER:
-	default:		/* FALLTHROUG */
+	default:		/* FALLTHROUGH */
 		BUG();
 		return -1;
 	}

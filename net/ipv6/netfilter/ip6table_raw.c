@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 raw table, a port of the IPv4 raw table to IPv6
  *
- * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@netfilter.org>
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -65,15 +66,23 @@ static int __net_init ip6table_raw_table_init(struct net *net)
 	return ret;
 }
 
+static void __net_exit ip6table_raw_net_pre_exit(struct net *net)
+{
+	if (net->ipv6.ip6table_raw)
+		ip6t_unregister_table_pre_exit(net, net->ipv6.ip6table_raw,
+					       rawtable_ops);
+}
+
 static void __net_exit ip6table_raw_net_exit(struct net *net)
 {
 	if (!net->ipv6.ip6table_raw)
 		return;
-	ip6t_unregister_table(net, net->ipv6.ip6table_raw, rawtable_ops);
+	ip6t_unregister_table_exit(net, net->ipv6.ip6table_raw);
 	net->ipv6.ip6table_raw = NULL;
 }
 
 static struct pernet_operations ip6table_raw_net_ops = {
+	.pre_exit = ip6table_raw_net_pre_exit,
 	.exit = ip6table_raw_net_exit,
 };
 

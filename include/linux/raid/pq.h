@@ -1,12 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright 2003 H. Peter Anvin - All Rights Reserved
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Boston MA 02111-1307, USA; either version 2 of the License, or
- *   (at your option) any later version; incorporated herein by reference.
  *
  * ----------------------------------------------------------------------- */
 
@@ -32,9 +27,10 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 
 #include <errno.h>
 #include <inttypes.h>
-#include <limits.h>
 #include <stddef.h>
+#include <string.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <sys/types.h>
 
 /* Not standard, but glibc defines it */
@@ -48,11 +44,16 @@ typedef uint64_t u64;
 #ifndef PAGE_SIZE
 # define PAGE_SIZE 4096
 #endif
+#ifndef PAGE_SHIFT
+# define PAGE_SHIFT 12
+#endif
 extern const char raid6_empty_zero_page[PAGE_SIZE];
 
 #define __init
 #define __exit
-#define __attribute_const__ __attribute__((const))
+#ifndef __attribute_const__
+# define __attribute_const__ __attribute__((const))
+#endif
 #define noinline __attribute__((noinline))
 
 #define preempt_enable()
@@ -61,12 +62,17 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #define enable_kernel_altivec()
 #define disable_kernel_altivec()
 
+#undef	EXPORT_SYMBOL
 #define EXPORT_SYMBOL(sym)
+#undef	EXPORT_SYMBOL_GPL
 #define EXPORT_SYMBOL_GPL(sym)
 #define MODULE_LICENSE(licence)
 #define MODULE_DESCRIPTION(desc)
 #define subsys_initcall(x)
 #define module_exit(x)
+
+#define IS_ENABLED(x) (x)
+#define CONFIG_RAID6_PQ_BENCHMARK 1
 #endif /* __KERNEL__ */
 
 /* Routine choices */

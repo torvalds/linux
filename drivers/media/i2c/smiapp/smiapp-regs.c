@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/media/i2c/smiapp/smiapp-regs.c
  *
@@ -5,16 +6,9 @@
  *
  * Copyright (C) 2011--2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
+
+#include <asm/unaligned.h>
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -77,18 +71,19 @@ static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
-	unsigned char data[4];
-	u16 offset = reg;
+	unsigned char data_buf[sizeof(u32)] = { 0 };
+	unsigned char offset_buf[sizeof(u16)];
 	int r;
+
+	if (len > sizeof(data_buf))
+		return -EINVAL;
 
 	msg.addr = client->addr;
 	msg.flags = 0;
-	msg.len = 2;
-	msg.buf = data;
+	msg.len = sizeof(offset_buf);
+	msg.buf = offset_buf;
+	put_unaligned_be16(reg, offset_buf);
 
-	/* high byte goes out first */
-	data[0] = (u8) (offset >> 8);
-	data[1] = (u8) offset;
 	r = i2c_transfer(client->adapter, &msg, 1);
 	if (r != 1) {
 		if (r >= 0)
@@ -98,6 +93,8 @@ static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
 
 	msg.len = len;
 	msg.flags = I2C_M_RD;
+	msg.buf = &data_buf[sizeof(data_buf) - len];
+
 	r = i2c_transfer(client->adapter, &msg, 1);
 	if (r != 1) {
 		if (r >= 0)
@@ -105,27 +102,12 @@ static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
 		goto err;
 	}
 
-	*val = 0;
-	/* high byte comes first */
-	switch (len) {
-	case SMIAPP_REG_32BIT:
-		*val = (data[0] << 24) + (data[1] << 16) + (data[2] << 8) +
-			data[3];
-		break;
-	case SMIAPP_REG_16BIT:
-		*val = (data[0] << 8) + data[1];
-		break;
-	case SMIAPP_REG_8BIT:
-		*val = data[0];
-		break;
-	default:
-		BUG();
-	}
+	*val = get_unaligned_be32(data_buf);
 
 	return 0;
 
 err:
-	dev_err(&client->dev, "read from offset 0x%x error %d\n", offset, r);
+	dev_err(&client->dev, "read from offset 0x%x error %d\n", reg, r);
 
 	return r;
 }
@@ -166,7 +148,7 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	    && len != SMIAPP_REG_32BIT)
 		return -EINVAL;
 
-	if (len == SMIAPP_REG_8BIT || !only8)
+	if (!only8)
 		rval = ____smiapp_read(sensor, SMIAPP_REG_ADDR(reg), len, val);
 	else
 		rval = ____smiapp_read_8only(sensor, SMIAPP_REG_ADDR(reg), len,
@@ -222,44 +204,19 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	struct i2c_msg msg;
 	unsigned char data[6];
 	unsigned int retries;
-	u8 flags = SMIAPP_REG_FLAGS(reg);
 	u8 len = SMIAPP_REG_WIDTH(reg);
-	u16 offset = SMIAPP_REG_ADDR(reg);
 	int r;
 
-	if ((len != SMIAPP_REG_8BIT && len != SMIAPP_REG_16BIT &&
-	     len != SMIAPP_REG_32BIT) || flags)
+	if (len > sizeof(data) - 2)
 		return -EINVAL;
-
-	if (!sensor->active)
-		return 0;
 
 	msg.addr = client->addr;
 	msg.flags = 0; /* Write */
 	msg.len = 2 + len;
 	msg.buf = data;
 
-	/* high byte goes out first */
-	data[0] = (u8) (reg >> 8);
-	data[1] = (u8) (reg & 0xff);
-
-	switch (len) {
-	case SMIAPP_REG_8BIT:
-		data[2] = val;
-		break;
-	case SMIAPP_REG_16BIT:
-		data[2] = val >> 8;
-		data[3] = val;
-		break;
-	case SMIAPP_REG_32BIT:
-		data[2] = val >> 24;
-		data[3] = val >> 16;
-		data[4] = val >> 8;
-		data[5] = val;
-		break;
-	default:
-		BUG();
-	}
+	put_unaligned_be16(SMIAPP_REG_ADDR(reg), data);
+	put_unaligned_be32(val << (8 * (sizeof(val) - len)), data + 2);
 
 	for (retries = 0; retries < 5; retries++) {
 		/*
@@ -280,7 +237,8 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	}
 
 	dev_err(&client->dev,
-		"wrote 0x%x to offset 0x%x error %d\n", val, offset, r);
+		"wrote 0x%x to offset 0x%x error %d\n", val,
+		SMIAPP_REG_ADDR(reg), r);
 
 	return r;
 }

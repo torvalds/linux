@@ -237,7 +237,7 @@
 #define H_CREATE_RPT            0x1A4
 #define H_REMOVE_RPT            0x1A8
 #define H_REGISTER_RPAGES       0x1AC
-#define H_DISABLE_AND_GETC      0x1B0
+#define H_DISABLE_AND_GET       0x1B0
 #define H_ERROR_DATA            0x1B4
 #define H_GET_HCA_INFO          0x1B8
 #define H_GET_PERF_COUNT        0x1BC
@@ -278,6 +278,7 @@
 #define H_COP			0x304
 #define H_GET_MPP_X		0x314
 #define H_SET_MODE		0x31C
+#define H_BLOCK_REMOVE		0x328
 #define H_CLEAR_HPT		0x358
 #define H_REQUEST_VMC		0x360
 #define H_RESIZE_HPT_PREPARE	0x36C
@@ -295,7 +296,21 @@
 #define H_INT_ESB               0x3C8
 #define H_INT_SYNC              0x3CC
 #define H_INT_RESET             0x3D0
-#define MAX_HCALL_OPCODE	H_INT_RESET
+#define H_SCM_READ_METADATA     0x3E4
+#define H_SCM_WRITE_METADATA    0x3E8
+#define H_SCM_BIND_MEM          0x3EC
+#define H_SCM_UNBIND_MEM        0x3F0
+#define H_SCM_QUERY_BLOCK_MEM_BINDING 0x3F4
+#define H_SCM_QUERY_LOGICAL_MEM_BINDING 0x3F8
+#define H_SCM_UNBIND_ALL        0x3FC
+#define H_SCM_HEALTH            0x400
+#define H_SCM_PERFORMANCE_STATS 0x418
+#define H_RPT_INVALIDATE	0x448
+#define MAX_HCALL_OPCODE	H_RPT_INVALIDATE
+
+/* Scope args for H_SCM_UNBIND_ALL */
+#define H_UNBIND_SCOPE_ALL (0x1)
+#define H_UNBIND_SCOPE_DRC (0x2)
 
 /* H_VIOCTL functions */
 #define H_GET_VIOA_DUMP_SIZE	0x01
@@ -322,11 +337,28 @@
 #define H_GET_24X7_DATA		0xF07C
 #define H_GET_PERF_COUNTER_INFO	0xF080
 
+/* Platform-specific hcalls used for nested HV KVM */
+#define H_SET_PARTITION_TABLE	0xF800
+#define H_ENTER_NESTED		0xF804
+#define H_TLB_INVALIDATE	0xF808
+#define H_COPY_TOFROM_GUEST	0xF80C
+
+/* Flags for H_SVM_PAGE_IN */
+#define H_PAGE_IN_SHARED        0x1
+
+/* Platform-specific hcalls used by the Ultravisor */
+#define H_SVM_PAGE_IN		0xEF00
+#define H_SVM_PAGE_OUT		0xEF04
+#define H_SVM_INIT_START	0xEF08
+#define H_SVM_INIT_DONE		0xEF0C
+#define H_SVM_INIT_ABORT	0xEF14
+
 /* Values for 2nd argument to H_SET_MODE */
 #define H_SET_MODE_RESOURCE_SET_CIABR		1
-#define H_SET_MODE_RESOURCE_SET_DAWR		2
+#define H_SET_MODE_RESOURCE_SET_DAWR0		2
 #define H_SET_MODE_RESOURCE_ADDR_TRANS_MODE	3
 #define H_SET_MODE_RESOURCE_LE			4
+#define H_SET_MODE_RESOURCE_SET_DAWR1		5
 
 /* Values for argument to H_SIGNAL_SYS_RESET */
 #define H_SIGNAL_SYS_RESET_ALL			-1
@@ -343,11 +375,13 @@
 #define H_CPU_CHAR_THREAD_RECONFIG_CTRL	(1ull << 57) // IBM bit 6
 #define H_CPU_CHAR_COUNT_CACHE_DISABLED	(1ull << 56) // IBM bit 7
 #define H_CPU_CHAR_BCCTR_FLUSH_ASSIST	(1ull << 54) // IBM bit 9
+#define H_CPU_CHAR_BCCTR_LINK_FLUSH_ASSIST (1ull << 52) // IBM bit 11
 
 #define H_CPU_BEHAV_FAVOUR_SECURITY	(1ull << 63) // IBM bit 0
 #define H_CPU_BEHAV_L1D_FLUSH_PR	(1ull << 62) // IBM bit 1
 #define H_CPU_BEHAV_BNDS_CHK_SPEC_BAR	(1ull << 61) // IBM bit 2
 #define H_CPU_BEHAV_FLUSH_COUNT_CACHE	(1ull << 58) // IBM bit 5
+#define H_CPU_BEHAV_FLUSH_LINK_STACK	(1ull << 57) // IBM bit 6
 
 /* Flag values used in H_REGISTER_PROC_TBL hcall */
 #define PROC_TABLE_OP_MASK	0x18
@@ -358,6 +392,37 @@
 #define PROC_TABLE_HPT_PT	0x02
 #define PROC_TABLE_RADIX	0x04
 #define PROC_TABLE_GTSE		0x01
+
+/*
+ * Defines for
+ * H_RPT_INVALIDATE - Invalidate RPT translation lookaside information.
+ */
+
+/* Type of translation to invalidate (type) */
+#define H_RPTI_TYPE_NESTED	0x0001	/* Invalidate nested guest partition-scope */
+#define H_RPTI_TYPE_TLB		0x0002	/* Invalidate TLB */
+#define H_RPTI_TYPE_PWC		0x0004	/* Invalidate Page Walk Cache */
+/* Invalidate Process Table Entries if H_RPTI_TYPE_NESTED is clear */
+#define H_RPTI_TYPE_PRT		0x0008
+/* Invalidate Partition Table Entries if H_RPTI_TYPE_NESTED is set */
+#define H_RPTI_TYPE_PAT		0x0008
+#define H_RPTI_TYPE_ALL		(H_RPTI_TYPE_TLB | H_RPTI_TYPE_PWC | \
+				 H_RPTI_TYPE_PRT)
+#define H_RPTI_TYPE_NESTED_ALL	(H_RPTI_TYPE_TLB | H_RPTI_TYPE_PWC | \
+				 H_RPTI_TYPE_PAT)
+
+/* Invalidation targets (target) */
+#define H_RPTI_TARGET_CMMU		0x01 /* All virtual processors in the partition */
+#define H_RPTI_TARGET_CMMU_LOCAL	0x02 /* Current virtual processor */
+/* All nest/accelerator agents in use by the partition */
+#define H_RPTI_TARGET_NMMU		0x04
+
+/* Page size mask (page sizes) */
+#define H_RPTI_PAGE_4K	0x01
+#define H_RPTI_PAGE_64K	0x02
+#define H_RPTI_PAGE_2M	0x04
+#define H_RPTI_PAGE_1G	0x08
+#define H_RPTI_PAGE_ALL (-1UL)
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
@@ -460,6 +525,78 @@ struct h_cpu_char_result {
 	u64 character;
 	u64 behaviour;
 };
+
+/* Register state for entering a nested guest with H_ENTER_NESTED */
+struct hv_guest_state {
+	u64 version;		/* version of this structure layout */
+	u32 lpid;
+	u32 vcpu_token;
+	/* These registers are hypervisor privileged (at least for writing) */
+	u64 lpcr;
+	u64 pcr;
+	u64 amor;
+	u64 dpdes;
+	u64 hfscr;
+	s64 tb_offset;
+	u64 dawr0;
+	u64 dawrx0;
+	u64 ciabr;
+	u64 hdec_expiry;
+	u64 purr;
+	u64 spurr;
+	u64 ic;
+	u64 vtb;
+	u64 hdar;
+	u64 hdsisr;
+	u64 heir;
+	u64 asdr;
+	/* These are OS privileged but need to be set late in guest entry */
+	u64 srr0;
+	u64 srr1;
+	u64 sprg[4];
+	u64 pidr;
+	u64 cfar;
+	u64 ppr;
+};
+
+/* Latest version of hv_guest_state structure */
+#define HV_GUEST_STATE_VERSION	1
+
+/*
+ * From the document "H_GetPerformanceCounterInfo Interface" v1.07
+ *
+ * H_GET_PERF_COUNTER_INFO argument
+ */
+struct hv_get_perf_counter_info_params {
+	__be32 counter_request; /* I */
+	__be32 starting_index;  /* IO */
+	__be16 secondary_index; /* IO */
+	__be16 returned_values; /* O */
+	__be32 detail_rc; /* O, only needed when called via *_norets() */
+
+	/*
+	 * O, size each of counter_value element in bytes, only set for version
+	 * >= 0x3
+	 */
+	__be16 cv_element_size;
+
+	/* I, 0 (zero) for versions < 0x3 */
+	__u8 counter_info_version_in;
+
+	/* O, 0 (zero) if version < 0x3. Must be set to 0 when making hcall */
+	__u8 counter_info_version_out;
+	__u8 reserved[0xC];
+	__u8 counter_value[];
+} __packed;
+
+#define HGPCI_REQ_BUFFER_SIZE	4096
+#define HGPCI_MAX_DATA_BYTES \
+	(HGPCI_REQ_BUFFER_SIZE - sizeof(struct hv_get_perf_counter_info_params))
+
+struct hv_gpci_request_buffer {
+	struct hv_get_perf_counter_info_params params;
+	uint8_t bytes[HGPCI_MAX_DATA_BYTES];
+} __packed;
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

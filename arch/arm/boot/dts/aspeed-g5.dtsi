@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <dt-bindings/clock/aspeed-clock.h>
+#include <dt-bindings/interrupt-controller/aspeed-scu-ic.h>
 
 / {
 	model = "Aspeed BMC";
@@ -53,7 +54,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		fmc: flash-controller@1e620000 {
+		fmc: spi@1e620000 {
 			reg = < 0x1e620000 0xc4
 				0x20000000 0x10000000 >;
 			#address-cells = <1>;
@@ -65,21 +66,24 @@
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@2 {
 				reg = < 2 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 		};
 
-		spi1: flash-controller@1e630000 {
+		spi1: spi@1e630000 {
 			reg = < 0x1e630000 0xc4
 				0x30000000 0x08000000 >;
 			#address-cells = <1>;
@@ -90,16 +94,18 @@
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 		};
 
-		spi2: flash-controller@1e631000 {
+		spi2: spi@1e631000 {
 			reg = < 0x1e631000 0xc4
 				0x38000000 0x08000000 >;
 			#address-cells = <1>;
@@ -110,11 +116,13 @@
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 		};
@@ -188,6 +196,8 @@
 			reg = <0x1e6a0000 0x300>;
 			interrupts = <5>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			aspeed,vhub-downstream-ports = <5>;
+			aspeed,vhub-generic-endpoints = <15>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb2ad_default>;
 			status = "disabled";
@@ -199,18 +209,40 @@
 			#size-cells = <1>;
 			ranges;
 
+			edac: memory-controller@1e6e0000 {
+				compatible = "aspeed,ast2500-sdram-edac";
+				reg = <0x1e6e0000 0x174>;
+				interrupts = <0>;
+				status = "disabled";
+			};
+
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
 				#address-cells = <1>;
-				#size-cells = <0>;
+				#size-cells = <1>;
+				ranges = <0 0x1e6e2000 0x1000>;
 				#clock-cells = <1>;
 				#reset-cells = <1>;
 
-				pinctrl: pinctrl {
-					compatible = "aspeed,g5-pinctrl";
-					aspeed,external-nodes = <&gfx &lhc>;
+				scu_ic: interrupt-controller@18 {
+					#interrupt-cells = <1>;
+					compatible = "aspeed,ast2500-scu-ic";
+					reg = <0x18 0x4>;
+					interrupts = <21>;
+					interrupt-controller;
+				};
 
+				p2a: p2a-control@2c {
+					compatible = "aspeed,ast2500-p2a-ctrl";
+					reg = <0x2c 0x4>;
+					status = "disabled";
+				};
+
+				pinctrl: pinctrl@80 {
+					compatible = "aspeed,ast2500-pinctrl";
+					reg = <0x80 0x18>, <0xa0 0x10>;
+					aspeed,external-nodes = <&gfx>, <&lhc>;
 				};
 			};
 
@@ -225,6 +257,21 @@
 				compatible = "aspeed,ast2500-gfx", "syscon";
 				reg = <0x1e6e6000 0x1000>;
 				reg-io-width = <4>;
+				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
+				resets = <&syscon ASPEED_RESET_CRT1>;
+				status = "disabled";
+				interrupts = <0x19>;
+			};
+
+			xdma: xdma@1e6e7000 {
+				compatible = "aspeed,ast2500-xdma";
+				reg = <0x1e6e7000 0x100>;
+				clocks = <&syscon ASPEED_CLK_GATE_BCLK>;
+				resets = <&syscon ASPEED_RESET_XDMA>;
+				interrupts-extended = <&vic 6>, <&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>;
+				aspeed,pcie-device = "bmc";
+				aspeed,scu = <&syscon>;
+				status = "disabled";
 			};
 
 			adc: adc@1e6e9000 {
@@ -236,20 +283,80 @@
 				status = "disabled";
 			};
 
+			video: video@1e700000 {
+				compatible = "aspeed,ast2500-video-engine";
+				reg = <0x1e700000 0x1000>;
+				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
+					 <&syscon ASPEED_CLK_GATE_ECLK>;
+				clock-names = "vclk", "eclk";
+				interrupts = <7>;
+				status = "disabled";
+			};
+
 			sram: sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x9000>;	// 36K
+			};
+
+			sdmmc: sd-controller@1e740000 {
+				compatible = "aspeed,ast2500-sd-controller";
+				reg = <0x1e740000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e740000 0x10000>;
+				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
+				status = "disabled";
+
+				sdhci0: sdhci@100 {
+					compatible = "aspeed,ast2500-sdhci";
+					reg = <0x100 0x100>;
+					interrupts = <26>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
+
+				sdhci1: sdhci@200 {
+					compatible = "aspeed,ast2500-sdhci";
+					reg = <0x200 0x100>;
+					interrupts = <26>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
 			};
 
 			gpio: gpio@1e780000 {
 				#gpio-cells = <2>;
 				gpio-controller;
 				compatible = "aspeed,ast2500-gpio";
-				reg = <0x1e780000 0x1000>;
+				reg = <0x1e780000 0x200>;
 				interrupts = <20>;
-				gpio-ranges = <&pinctrl 0 0 220>;
+				gpio-ranges = <&pinctrl 0 0 232>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			sgpio: sgpio@1e780200 {
+				#gpio-cells = <2>;
+				compatible = "aspeed,ast2500-sgpio";
+				gpio-controller;
+				interrupts = <40>;
+				reg = <0x1e780200 0x0100>;
+				clocks = <&syscon ASPEED_CLK_APB>;
+				interrupt-controller;
+				ngpios = <8>;
+				bus-frequency = <12000000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_sgpm_default>;
+				status = "disabled";
+			};
+
+			rtc: rtc@1e781000 {
+				compatible = "aspeed,ast2500-rtc";
+				reg = <0x1e781000 0x18>;
+				status = "disabled";
 			};
 
 			timer: timer@1e782000 {
@@ -330,8 +437,32 @@
 				ranges = <0x0 0x1e789000 0x1000>;
 
 				lpc_bmc: lpc-bmc@0 {
-					compatible = "aspeed,ast2500-lpc-bmc";
+					compatible = "aspeed,ast2500-lpc-bmc", "simple-mfd", "syscon";
 					reg = <0x0 0x80>;
+					reg-io-width = <4>;
+
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0x0 0x0 0x80>;
+
+					kcs1: kcs@24 {
+						compatible = "aspeed,ast2500-kcs-bmc-v2";
+						reg = <0x24 0x1>, <0x30 0x1>, <0x3c 0x1>;
+						interrupts = <8>;
+						status = "disabled";
+					};
+					kcs2: kcs@28 {
+						compatible = "aspeed,ast2500-kcs-bmc-v2";
+						reg = <0x28 0x1>, <0x34 0x1>, <0x40 0x1>;
+						interrupts = <8>;
+						status = "disabled";
+					};
+					kcs3: kcs@2c {
+						compatible = "aspeed,ast2500-kcs-bmc-v2";
+						reg = <0x2c 0x1>, <0x38 0x1>, <0x44 0x1>;
+						interrupts = <8>;
+						status = "disabled";
+					};
 				};
 
 				lpc_host: lpc-host@80 {
@@ -343,23 +474,25 @@
 					#size-cells = <1>;
 					ranges = <0x0 0x80 0x1e0>;
 
-					lpc_ctrl: lpc-ctrl@0 {
-						compatible = "aspeed,ast2500-lpc-ctrl";
-						reg = <0x0 0x80>;
-						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
-						status = "disabled";
-					};
-
-					lpc_snoop: lpc-snoop@0 {
-						compatible = "aspeed,ast2500-lpc-snoop";
-						reg = <0x0 0x80>;
+					kcs4: kcs@94 {
+						compatible = "aspeed,ast2500-kcs-bmc-v2";
+						reg = <0x94 0x1>, <0x98 0x1>, <0x9c 0x1>;
 						interrupts = <8>;
 						status = "disabled";
 					};
 
-					lhc: lhc@20 {
-						compatible = "aspeed,ast2500-lhc";
-						reg = <0x20 0x24 0x48 0x8>;
+					lpc_ctrl: lpc-ctrl@0 {
+						compatible = "aspeed,ast2500-lpc-ctrl";
+						reg = <0x0 0x10>;
+						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+						status = "disabled";
+					};
+
+					lpc_snoop: lpc-snoop@10 {
+						compatible = "aspeed,ast2500-lpc-snoop";
+						reg = <0x10 0x8>;
+						interrupts = <8>;
+						status = "disabled";
 					};
 
 					lpc_reset: reset-controller@18 {
@@ -367,6 +500,12 @@
 						reg = <0x18 0x4>;
 						#reset-cells = <1>;
 					};
+
+					lhc: lhc@20 {
+						compatible = "aspeed,ast2500-lhc";
+						reg = <0x20 0x24 0x48 0x8>;
+					};
+
 
 					ibt: ibt@c0 {
 						compatible = "aspeed,ast2500-ibt-bmc";
@@ -410,7 +549,7 @@
 				status = "disabled";
 			};
 
-			i2c: i2c@1e78a000 {
+			i2c: bus@1e78a000 {
 				compatible = "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -1280,6 +1419,11 @@
 	pinctrl_sda2_default: sda2_default {
 		function = "SDA2";
 		groups = "SDA2";
+	};
+
+	pinctrl_sgpm_default: sgpm_default {
+		function = "SGPM";
+		groups = "SGPM";
 	};
 
 	pinctrl_sgps1_default: sgps1_default {

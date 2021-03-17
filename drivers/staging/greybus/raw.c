@@ -13,8 +13,7 @@
 #include <linux/fs.h>
 #include <linux/idr.h>
 #include <linux/uaccess.h>
-
-#include "greybus.h"
+#include <linux/greybus.h>
 
 struct gb_raw {
 	struct gb_connection *connection;
@@ -30,7 +29,7 @@ struct gb_raw {
 struct raw_data {
 	struct list_head entry;
 	u32 len;
-	u8 data[0];
+	u8 data[];
 };
 
 static struct class *raw_class;

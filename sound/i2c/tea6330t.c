@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Routines for control of the TEA6330T circuit via i2c bus
  *  Sound fader control circuit for car radios by Philips Semiconductors
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -275,7 +260,7 @@ static int snd_tea6330t_put_treble(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_tea6330t_controls[] = {
+static const struct snd_kcontrol_new snd_tea6330t_controls[] = {
 TEA6330T_MASTER_SWITCH("Master Playback Switch", 0),
 TEA6330T_MASTER_VOLUME("Master Playback Volume", 0),
 TEA6330T_BASS("Tone Control - Bass", 0),
@@ -293,7 +278,7 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
 {
 	struct snd_i2c_device *device;
 	struct tea6330t *tea;
-	struct snd_kcontrol_new *knew;
+	const struct snd_kcontrol_new *knew;
 	unsigned int idx;
 	int err = -ENOMEM;
 	u8 default_treble, default_bass;

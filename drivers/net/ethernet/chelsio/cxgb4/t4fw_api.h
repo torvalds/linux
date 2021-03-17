@@ -87,6 +87,7 @@ enum fw_wr_opcodes {
 	FW_ULPTX_WR                    = 0x04,
 	FW_TP_WR                       = 0x05,
 	FW_ETH_TX_PKT_WR               = 0x08,
+	FW_ETH_TX_EO_WR                = 0x1c,
 	FW_OFLD_CONNECTION_WR          = 0x2f,
 	FW_FLOWC_WR                    = 0x0a,
 	FW_OFLD_TX_DATA_WR             = 0x0b,
@@ -534,6 +535,47 @@ struct fw_eth_tx_pkt_wr {
 	__be64 r3;
 };
 
+enum fw_eth_tx_eo_type {
+	FW_ETH_TX_EO_TYPE_UDPSEG = 0,
+	FW_ETH_TX_EO_TYPE_TCPSEG,
+};
+
+struct fw_eth_tx_eo_wr {
+	__be32 op_immdlen;
+	__be32 equiq_to_len16;
+	__be64 r3;
+	union fw_eth_tx_eo {
+		struct fw_eth_tx_eo_udpseg {
+			__u8   type;
+			__u8   ethlen;
+			__be16 iplen;
+			__u8   udplen;
+			__u8   rtplen;
+			__be16 r4;
+			__be16 mss;
+			__be16 schedpktsize;
+			__be32 plen;
+		} udpseg;
+		struct fw_eth_tx_eo_tcpseg {
+			__u8   type;
+			__u8   ethlen;
+			__be16 iplen;
+			__u8   tcplen;
+			__u8   tsclk_tsoff;
+			__be16 r4;
+			__be16 mss;
+			__be16 r5;
+			__be32 plen;
+		} tcpseg;
+	} u;
+};
+
+#define FW_ETH_TX_EO_WR_IMMDLEN_S	0
+#define FW_ETH_TX_EO_WR_IMMDLEN_M	0x1ff
+#define FW_ETH_TX_EO_WR_IMMDLEN_V(x)	((x) << FW_ETH_TX_EO_WR_IMMDLEN_S)
+#define FW_ETH_TX_EO_WR_IMMDLEN_G(x)	\
+	(((x) >> FW_ETH_TX_EO_WR_IMMDLEN_S) & FW_ETH_TX_EO_WR_IMMDLEN_M)
+
 struct fw_ofld_connection_wr {
 	__be32 op_compl;
 	__be32 len16_pkd;
@@ -660,6 +702,12 @@ enum fw_flowc_mnem_tcpstate {
 	FW_FLOWC_MNEM_TCPSTATE_TIMEWAIT = 10, /* not expected */
 };
 
+enum fw_flowc_mnem_eostate {
+	FW_FLOWC_MNEM_EOSTATE_ESTABLISHED = 1, /* default */
+	/* graceful close, after sending outstanding payload */
+	FW_FLOWC_MNEM_EOSTATE_CLOSING = 2,
+};
+
 enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_PFNVFN,		/* PFN [15:8] VFN [7:0] */
 	FW_FLOWC_MNEM_CH,
@@ -689,7 +737,7 @@ struct fw_flowc_mnemval {
 struct fw_flowc_wr {
 	__be32 op_to_nparams;
 	__be32 flowid_len16;
-	struct fw_flowc_mnemval mnemval[0];
+	struct fw_flowc_mnemval mnemval[];
 };
 
 #define FW_FLOWC_WR_NPARAMS_S           0
@@ -1134,6 +1182,7 @@ enum fw_caps_config_nic {
 	FW_CAPS_CONFIG_NIC		= 0x00000001,
 	FW_CAPS_CONFIG_NIC_VM		= 0x00000002,
 	FW_CAPS_CONFIG_NIC_HASHFILTER	= 0x00000020,
+	FW_CAPS_CONFIG_NIC_ETHOFLD	= 0x00000040,
 };
 
 enum fw_caps_config_ofld {
@@ -1156,6 +1205,7 @@ enum fw_caps_config_crypto {
 	FW_CAPS_CONFIG_CRYPTO_LOOKASIDE = 0x00000001,
 	FW_CAPS_CONFIG_TLS_INLINE = 0x00000002,
 	FW_CAPS_CONFIG_IPSEC_INLINE = 0x00000004,
+	FW_CAPS_CONFIG_TLS_HW = 0x00000008,
 };
 
 enum fw_caps_config_fcoe {
@@ -1221,6 +1271,23 @@ enum fw_params_mnem {
 /*
  * device parameters
  */
+
+#define FW_PARAMS_PARAM_FILTER_MODE_S 16
+#define FW_PARAMS_PARAM_FILTER_MODE_M 0xffff
+#define FW_PARAMS_PARAM_FILTER_MODE_V(x)          \
+	((x) << FW_PARAMS_PARAM_FILTER_MODE_S)
+#define FW_PARAMS_PARAM_FILTER_MODE_G(x)          \
+	(((x) >> FW_PARAMS_PARAM_FILTER_MODE_S) & \
+	FW_PARAMS_PARAM_FILTER_MODE_M)
+
+#define FW_PARAMS_PARAM_FILTER_MASK_S 0
+#define FW_PARAMS_PARAM_FILTER_MASK_M 0xffff
+#define FW_PARAMS_PARAM_FILTER_MASK_V(x)          \
+	((x) << FW_PARAMS_PARAM_FILTER_MASK_S)
+#define FW_PARAMS_PARAM_FILTER_MASK_G(x)          \
+	(((x) >> FW_PARAMS_PARAM_FILTER_MASK_S) & \
+	FW_PARAMS_PARAM_FILTER_MASK_M)
+
 enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_CCLK	= 0x00, /* chip core clock in khz */
 	FW_PARAMS_PARAM_DEV_PORTVEC	= 0x01, /* the port vector */
@@ -1250,9 +1317,19 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
 	FW_PARAMS_PARAM_DEV_FILTER2_WR  = 0x1D,
 	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
+	FW_PARAMS_PARAM_DEV_TPCHMAP     = 0x1F,
 	FW_PARAMS_PARAM_DEV_HMA_SIZE	= 0x20,
 	FW_PARAMS_PARAM_DEV_RDMA_WRITE_WITH_IMM = 0x21,
+	FW_PARAMS_PARAM_DEV_PPOD_EDRAM  = 0x23,
 	FW_PARAMS_PARAM_DEV_RI_WRITE_CMPL_WR    = 0x24,
+	FW_PARAMS_PARAM_DEV_HPFILTER_REGION_SUPPORT = 0x26,
+	FW_PARAMS_PARAM_DEV_OPAQUE_VIID_SMT_EXTN = 0x27,
+	FW_PARAMS_PARAM_DEV_HASHFILTER_WITH_OFLD = 0x28,
+	FW_PARAMS_PARAM_DEV_DBQ_TIMER	= 0x29,
+	FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK = 0x2A,
+	FW_PARAMS_PARAM_DEV_NUM_TM_CLASS = 0x2B,
+	FW_PARAMS_PARAM_DEV_FILTER = 0x2E,
+	FW_PARAMS_PARAM_DEV_KTLS_HW = 0x31,
 };
 
 /*
@@ -1309,6 +1386,16 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_RAWF_END = 0x37,
 	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x39,
 	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
+	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_START = 0x3B,
+	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_END = 0x3C,
+	FW_PARAMS_PARAM_PFVF_LINK_STATE = 0x40,
+};
+
+/* Virtual link state as seen by the specified VF */
+enum vf_link_states {
+	FW_VF_LINK_STATE_AUTO		= 0x00,
+	FW_VF_LINK_STATE_ENABLE		= 0x01,
+	FW_VF_LINK_STATE_DISABLE	= 0x02,
 };
 
 /*
@@ -1321,7 +1408,14 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_CTRL = 0x11,
 	FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH = 0x12,
 	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13,
+	FW_PARAMS_PARAM_DMAQ_EQ_TIMERIX	= 0x15,
 	FW_PARAMS_PARAM_DMAQ_CONM_CTXT = 0x20,
+};
+
+enum fw_params_param_dev_ktls_hw {
+	FW_PARAMS_PARAM_DEV_KTLS_HW_DISABLE      = 0x00,
+	FW_PARAMS_PARAM_DEV_KTLS_HW_ENABLE       = 0x01,
+	FW_PARAMS_PARAM_DEV_KTLS_HW_USER_ENABLE  = 0x01,
 };
 
 enum fw_params_param_dev_phyfw {
@@ -1332,6 +1426,12 @@ enum fw_params_param_dev_phyfw {
 enum fw_params_param_dev_diag {
 	FW_PARAM_DEV_DIAG_TMP		= 0x00,
 	FW_PARAM_DEV_DIAG_VDD		= 0x01,
+	FW_PARAM_DEV_DIAG_MAXTMPTHRESH	= 0x02,
+};
+
+enum fw_params_param_dev_filter {
+	FW_PARAM_DEV_FILTER_VNIC_MODE   = 0x00,
+	FW_PARAM_DEV_FILTER_MODE_MASK   = 0x01,
 };
 
 enum fw_params_param_dev_fwcache {
@@ -1749,8 +1849,8 @@ struct fw_eq_eth_cmd {
 	__be32 fetchszm_to_iqid;
 	__be32 dcaen_to_eqsize;
 	__be64 eqaddr;
-	__be32 viid_pkd;
-	__be32 r8_lo;
+	__be32 autoequiqe_to_viid;
+	__be32 timeren_timerix;
 	__be64 r9;
 };
 
@@ -1845,12 +1945,29 @@ struct fw_eq_eth_cmd {
 #define FW_EQ_ETH_CMD_EQSIZE_S		0
 #define FW_EQ_ETH_CMD_EQSIZE_V(x)	((x) << FW_EQ_ETH_CMD_EQSIZE_S)
 
+#define FW_EQ_ETH_CMD_AUTOEQUIQE_S	31
+#define FW_EQ_ETH_CMD_AUTOEQUIQE_V(x)	((x) << FW_EQ_ETH_CMD_AUTOEQUIQE_S)
+#define FW_EQ_ETH_CMD_AUTOEQUIQE_F	FW_EQ_ETH_CMD_AUTOEQUIQE_V(1U)
+
 #define FW_EQ_ETH_CMD_AUTOEQUEQE_S	30
 #define FW_EQ_ETH_CMD_AUTOEQUEQE_V(x)	((x) << FW_EQ_ETH_CMD_AUTOEQUEQE_S)
 #define FW_EQ_ETH_CMD_AUTOEQUEQE_F	FW_EQ_ETH_CMD_AUTOEQUEQE_V(1U)
 
 #define FW_EQ_ETH_CMD_VIID_S	16
 #define FW_EQ_ETH_CMD_VIID_V(x)	((x) << FW_EQ_ETH_CMD_VIID_S)
+
+#define FW_EQ_ETH_CMD_TIMEREN_S		3
+#define FW_EQ_ETH_CMD_TIMEREN_M		0x1
+#define FW_EQ_ETH_CMD_TIMEREN_V(x)	((x) << FW_EQ_ETH_CMD_TIMEREN_S)
+#define FW_EQ_ETH_CMD_TIMEREN_G(x)	\
+    (((x) >> FW_EQ_ETH_CMD_TIMEREN_S) & FW_EQ_ETH_CMD_TIMEREN_M)
+#define FW_EQ_ETH_CMD_TIMEREN_F	FW_EQ_ETH_CMD_TIMEREN_V(1U)
+
+#define FW_EQ_ETH_CMD_TIMERIX_S		0
+#define FW_EQ_ETH_CMD_TIMERIX_M		0x7
+#define FW_EQ_ETH_CMD_TIMERIX_V(x)	((x) << FW_EQ_ETH_CMD_TIMERIX_S)
+#define FW_EQ_ETH_CMD_TIMERIX_G(x)	\
+    (((x) >> FW_EQ_ETH_CMD_TIMERIX_S) & FW_EQ_ETH_CMD_TIMERIX_M)
 
 struct fw_eq_ctrl_cmd {
 	__be32 op_to_vfn;
@@ -2108,6 +2225,19 @@ struct fw_vi_cmd {
 #define FW_VI_CMD_FREE_V(x)	((x) << FW_VI_CMD_FREE_S)
 #define FW_VI_CMD_FREE_F	FW_VI_CMD_FREE_V(1U)
 
+#define FW_VI_CMD_VFVLD_S	24
+#define FW_VI_CMD_VFVLD_M	0x1
+#define FW_VI_CMD_VFVLD_V(x)	((x) << FW_VI_CMD_VFVLD_S)
+#define FW_VI_CMD_VFVLD_G(x)	\
+	(((x) >> FW_VI_CMD_VFVLD_S) & FW_VI_CMD_VFVLD_M)
+#define FW_VI_CMD_VFVLD_F	FW_VI_CMD_VFVLD_V(1U)
+
+#define FW_VI_CMD_VIN_S		16
+#define FW_VI_CMD_VIN_M		0xff
+#define FW_VI_CMD_VIN_V(x)	((x) << FW_VI_CMD_VIN_S)
+#define FW_VI_CMD_VIN_G(x)	\
+	(((x) >> FW_VI_CMD_VIN_S) & FW_VI_CMD_VIN_M)
+
 #define FW_VI_CMD_VIID_S	0
 #define FW_VI_CMD_VIID_M	0xfff
 #define FW_VI_CMD_VIID_V(x)	((x) << FW_VI_CMD_VIID_S)
@@ -2180,6 +2310,12 @@ struct fw_vi_mac_cmd {
 		} exact_vni[2];
 	} u;
 };
+
+#define FW_VI_MAC_CMD_SMTID_S		12
+#define FW_VI_MAC_CMD_SMTID_M		0xff
+#define FW_VI_MAC_CMD_SMTID_V(x)	((x) << FW_VI_MAC_CMD_SMTID_S)
+#define FW_VI_MAC_CMD_SMTID_G(x)	\
+	(((x) >> FW_VI_MAC_CMD_SMTID_S) & FW_VI_MAC_CMD_SMTID_M)
 
 #define FW_VI_MAC_CMD_VIID_S	0
 #define FW_VI_MAC_CMD_VIID_V(x)	((x) << FW_VI_MAC_CMD_VIID_S)
@@ -2464,6 +2600,7 @@ struct fw_acl_vlan_cmd {
 
 #define FW_ACL_VLAN_CMD_DROPNOVLAN_S	7
 #define FW_ACL_VLAN_CMD_DROPNOVLAN_V(x)	((x) << FW_ACL_VLAN_CMD_DROPNOVLAN_S)
+#define FW_ACL_VLAN_CMD_DROPNOVLAN_F    FW_ACL_VLAN_CMD_DROPNOVLAN_V(1U)
 
 #define FW_ACL_VLAN_CMD_FM_S		6
 #define FW_ACL_VLAN_CMD_FM_M		0x1

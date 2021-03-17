@@ -3,26 +3,21 @@
  * Copyright(c) 2018 Intel Corporation.
  */
 
+#include <linux/log2.h>
 #include <linux/slab.h>
+#include <linux/overflow.h>
+#include <net/xdp_sock_drv.h>
 
 #include "xsk_queue.h"
 
-void xskq_set_umem(struct xsk_queue *q, struct xdp_umem_props *umem_props)
+static size_t xskq_get_ring_size(struct xsk_queue *q, bool umem_queue)
 {
-	if (!q)
-		return;
+	struct xdp_umem_ring *umem_ring;
+	struct xdp_rxtx_ring *rxtx_ring;
 
-	q->umem_props = *umem_props;
-}
-
-static u32 xskq_umem_get_ring_size(struct xsk_queue *q)
-{
-	return sizeof(struct xdp_umem_ring) + q->nentries * sizeof(u64);
-}
-
-static u32 xskq_rxtx_get_ring_size(struct xsk_queue *q)
-{
-	return sizeof(struct xdp_ring) + q->nentries * sizeof(struct xdp_desc);
+	if (umem_queue)
+		return struct_size(umem_ring, desc, q->nentries);
+	return struct_size(rxtx_ring, desc, q->nentries);
 }
 
 struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)
@@ -40,8 +35,7 @@ struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)
 
 	gfp_flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN |
 		    __GFP_COMP  | __GFP_NORETRY;
-	size = umem_queue ? xskq_umem_get_ring_size(q) :
-	       xskq_rxtx_get_ring_size(q);
+	size = xskq_get_ring_size(q, umem_queue);
 
 	q->ring = (struct xdp_ring *)__get_free_pages(gfp_flags,
 						      get_order(size));

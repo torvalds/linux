@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include "mt7601u.h"
@@ -124,9 +116,9 @@ static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
 	u16 dma_len = get_unaligned_le16(data);
 
 	if (data_len < min_seg_len ||
-	    WARN_ON(!dma_len) ||
-	    WARN_ON(dma_len + MT_DMA_HDRS > data_len) ||
-	    WARN_ON(dma_len & 0x3))
+	    WARN_ON_ONCE(!dma_len) ||
+	    WARN_ON_ONCE(dma_len + MT_DMA_HDRS > data_len) ||
+	    WARN_ON_ONCE(dma_len & 0x3))
 		return 0;
 
 	return MT_DMA_HDRS + dma_len;
@@ -160,8 +152,7 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 
 	if (new_p) {
 		/* we have one extra ref from the allocator */
-		__free_pages(e->p, MT_RX_ORDER);
-
+		put_page(e->p);
 		e->p = new_p;
 	}
 }
@@ -193,10 +184,23 @@ static void mt7601u_complete_rx(struct urb *urb)
 	struct mt7601u_rx_queue *q = &dev->rx_q;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->rx_lock, flags);
+	/* do no schedule rx tasklet if urb has been unlinked
+	 * or the device has been removed
+	 */
+	switch (urb->status) {
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+	case -ENOENT:
+		return;
+	default:
+		dev_err_ratelimited(dev->dev, "rx urb failed: %d\n",
+				    urb->status);
+		fallthrough;
+	case 0:
+		break;
+	}
 
-	if (mt7601u_urb_has_error(urb))
-		dev_err(dev->dev, "Error: RX urb failed:%d\n", urb->status);
+	spin_lock_irqsave(&dev->rx_lock, flags);
 	if (WARN_ONCE(q->e[q->end].urb != urb, "RX urb mismatch"))
 		goto out;
 
@@ -228,14 +232,25 @@ static void mt7601u_complete_tx(struct urb *urb)
 	struct sk_buff *skb;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->tx_lock, flags);
+	switch (urb->status) {
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+	case -ENOENT:
+		return;
+	default:
+		dev_err_ratelimited(dev->dev, "tx urb failed: %d\n",
+				    urb->status);
+		fallthrough;
+	case 0:
+		break;
+	}
 
-	if (mt7601u_urb_has_error(urb))
-		dev_err(dev->dev, "Error: TX urb failed:%d\n", urb->status);
+	spin_lock_irqsave(&dev->tx_lock, flags);
 	if (WARN_ONCE(q->e[q->start].urb != urb, "TX urb mismatch"))
 		goto out;
 
 	skb = q->e[q->start].skb;
+	q->e[q->start].skb = NULL;
 	trace_mt_tx_dma_done(dev, skb);
 
 	__skb_queue_tail(&dev->tx_skb_done, skb);
@@ -294,7 +309,6 @@ static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
 	}
 
 	e = &q->e[q->end];
-	e->skb = skb;
 	usb_fill_bulk_urb(e->urb, usb_dev, snd_pipe, skb->data, skb->len,
 			  mt7601u_complete_tx, q);
 	ret = usb_submit_urb(e->urb, GFP_ATOMIC);
@@ -312,6 +326,7 @@ static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
 
 	q->end = (q->end + 1) % q->entries;
 	q->used++;
+	e->skb = skb;
 
 	if (q->used >= q->entries)
 		ieee80211_stop_queue(dev->hw, skb_get_queue_mapping(skb));
@@ -363,19 +378,9 @@ int mt7601u_dma_enqueue_tx(struct mt7601u_dev *dev, struct sk_buff *skb,
 static void mt7601u_kill_rx(struct mt7601u_dev *dev)
 {
 	int i;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->rx_lock, flags);
-
-	for (i = 0; i < dev->rx_q.entries; i++) {
-		int next = dev->rx_q.end;
-
-		spin_unlock_irqrestore(&dev->rx_lock, flags);
-		usb_poison_urb(dev->rx_q.e[next].urb);
-		spin_lock_irqsave(&dev->rx_lock, flags);
-	}
-
-	spin_unlock_irqrestore(&dev->rx_lock, flags);
+	for (i = 0; i < dev->rx_q.entries; i++)
+		usb_poison_urb(dev->rx_q.e[i].urb);
 }
 
 static int mt7601u_submit_rx_buf(struct mt7601u_dev *dev,
@@ -445,10 +450,10 @@ static void mt7601u_free_tx_queue(struct mt7601u_tx_queue *q)
 {
 	int i;
 
-	WARN_ON(q->used);
-
 	for (i = 0; i < q->entries; i++)  {
 		usb_poison_urb(q->e[i].urb);
+		if (q->e[i].skb)
+			mt7601u_tx_status(q->dev, q->e[i].skb);
 		usb_free_urb(q->e[i].urb);
 	}
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # RapidIO master port configuration
 #
@@ -6,5 +7,5 @@ config RAPIDIO_TSI721
 	tristate "IDT Tsi721 PCI Express SRIO Controller support"
 	depends on RAPIDIO && PCIEPORTBUS
 	default "n"
-	---help---
+	help
 	  Include support for IDT Tsi721 PCI Express Serial RapidIO controller.

@@ -172,6 +172,19 @@ struct comedi_isadma *comedi_isadma_alloc(struct comedi_device *dev,
 		goto no_dma;
 	dma->desc = desc;
 	dma->n_desc = n_desc;
+	if (dev->hw_dev) {
+		dma->dev = dev->hw_dev;
+	} else {
+		/* Fall back to using the "class" device. */
+		if (!dev->class_dev)
+			goto no_dma;
+		/* Need 24-bit mask for ISA DMA. */
+		if (dma_coerce_mask_and_coherent(dev->class_dev,
+						 DMA_BIT_MASK(24))) {
+			goto no_dma;
+		}
+		dma->dev = dev->class_dev;
+	}
 
 	dma_chans[0] = dma_chan1;
 	if (dma_chan2 == 0 || dma_chan2 == dma_chan1)
@@ -192,7 +205,7 @@ struct comedi_isadma *comedi_isadma_alloc(struct comedi_device *dev,
 		desc = &dma->desc[i];
 		desc->chan = dma_chans[i];
 		desc->maxsize = maxsize;
-		desc->virt_addr = dma_alloc_coherent(NULL, desc->maxsize,
+		desc->virt_addr = dma_alloc_coherent(dma->dev, desc->maxsize,
 						     &desc->hw_addr,
 						     GFP_KERNEL);
 		if (!desc->virt_addr)
@@ -224,7 +237,7 @@ void comedi_isadma_free(struct comedi_isadma *dma)
 		for (i = 0; i < dma->n_desc; i++) {
 			desc = &dma->desc[i];
 			if (desc->virt_addr)
-				dma_free_coherent(NULL, desc->maxsize,
+				dma_free_coherent(dma->dev, desc->maxsize,
 						  desc->virt_addr,
 						  desc->hw_addr);
 		}

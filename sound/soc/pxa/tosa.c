@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tosa.c  --  SoC audio for Tosa
  *
@@ -7,15 +8,9 @@
  * Authors: Liam Girdwood <lrg@slimlogic.co.uk>
  *          Richard Purdie <richard@openedhand.com>
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  * GPIO's
  *  1 - Jack Insertion
  *  5 - Hookswitch (headset answer/hang up switch)
- *
  */
 
 #include <linux/module.h>
@@ -77,7 +72,7 @@ static void tosa_ext_control(struct snd_soc_dapm_context *dapm)
 
 static int tosa_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
 	/* check the jack status at stream startup */
 	tosa_ext_control(&rtd->card->dapm);
@@ -182,24 +177,28 @@ static const struct snd_kcontrol_new tosa_controls[] = {
 		tosa_set_spk),
 };
 
+SND_SOC_DAILINK_DEFS(ac97,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
+SND_SOC_DAILINK_DEFS(ac97_aux,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97-aux")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-aux")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link tosa_dai[] = {
 {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "pxa2xx-ac97",
-	.codec_dai_name = "wm9712-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm9712-codec",
 	.ops = &tosa_ops,
+	SND_SOC_DAILINK_REG(ac97),
 },
 {
 	.name = "AC97 Aux",
 	.stream_name = "AC97 Aux",
-	.cpu_dai_name = "pxa2xx-ac97-aux",
-	.codec_dai_name = "wm9712-aux",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm9712-codec",
 	.ops = &tosa_ops,
+	SND_SOC_DAILINK_REG(ac97_aux),
 },
 };
 

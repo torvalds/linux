@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  TI FlashMedia driver
  *
  *  Copyright (C) 2007 Alex Dubov <oakad@yahoo.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Special thanks to Carlos Corbacho for providing various MemoryStick cards
  * that made this driver possible.
- *
  */
 
 #include <linux/tifm.h>
@@ -166,9 +162,11 @@ static unsigned int tifm_ms_write_data(struct tifm_ms *host,
 	case 3:
 		host->io_word |= buf[off + 2] << 16;
 		host->io_pos++;
+		fallthrough;
 	case 2:
 		host->io_word |= buf[off + 1] << 8;
 		host->io_pos++;
+		fallthrough;
 	case 1:
 		host->io_word |= buf[off];
 		host->io_pos++;
@@ -200,7 +198,7 @@ static unsigned int tifm_ms_transfer_data(struct tifm_ms *host)
 		host->block_pos);
 
 	while (length) {
-		unsigned int uninitialized_var(p_off);
+		unsigned int p_off;
 
 		if (host->req->long_data) {
 			pg = nth_page(sg_page(&host->req->sg),
@@ -254,7 +252,6 @@ static unsigned int tifm_ms_transfer_data(struct tifm_ms *host)
 static int tifm_ms_issue_cmd(struct tifm_ms *host)
 {
 	struct tifm_dev *sock = host->dev;
-	unsigned char *data;
 	unsigned int data_len, cmd, sys_param;
 
 	host->cmd_flags = 0;
@@ -262,8 +259,6 @@ static int tifm_ms_issue_cmd(struct tifm_ms *host)
 	host->io_pos = 0;
 	host->io_word = 0;
 	host->cmd_flags = 0;
-
-	data = host->req->data;
 
 	host->use_dma = !no_dma;
 

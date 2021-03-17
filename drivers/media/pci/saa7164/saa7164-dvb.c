@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include "saa7164.h"
@@ -120,14 +110,14 @@ static int si2157_attach(struct saa7164_port *port, struct i2c_adapter *adapter,
 
 	memset(&bi, 0, sizeof(bi));
 
-	strlcpy(bi.type, "si2157", I2C_NAME_SIZE);
+	strscpy(bi.type, "si2157", I2C_NAME_SIZE);
 	bi.platform_data = cfg;
 	bi.addr = addr8bit >> 1;
 
 	request_module(bi.type);
 
-	tuner = i2c_new_device(adapter, &bi);
-	if (tuner == NULL || tuner->dev.driver == NULL)
+	tuner = i2c_new_client_device(adapter, &bi);
+	if (!i2c_client_has_driver(tuner))
 		return -ENODEV;
 
 	if (!try_module_get(tuner->dev.driver->owner)) {
@@ -347,8 +337,7 @@ static int dvb_register(struct saa7164_port *port)
 
 	dprintk(DBGLVL_DVB, "%s(port=%d)\n", __func__, port->nr);
 
-	if (port->type != SAA7164_MPEG_DVB)
-		BUG();
+	BUG_ON(port->type != SAA7164_MPEG_DVB);
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
@@ -489,8 +478,7 @@ int saa7164_dvb_unregister(struct saa7164_port *port)
 
 	dprintk(DBGLVL_DVB, "%s()\n", __func__);
 
-	if (port->type != SAA7164_MPEG_DVB)
-		BUG();
+	BUG_ON(port->type != SAA7164_MPEG_DVB);
 
 	/* Remove any allocated buffers */
 	mutex_lock(&port->dmaqueue_lock);
@@ -529,7 +517,7 @@ int saa7164_dvb_unregister(struct saa7164_port *port)
 	return 0;
 }
 
-/* All the DVB attach calls go here, this function get's modified
+/* All the DVB attach calls go here, this function gets modified
  * for each new card.
  */
 int saa7164_dvb_register(struct saa7164_port *port)
@@ -643,13 +631,12 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			si2168_config.fe = &port->dvb.frontend;
 			si2168_config.ts_mode = SI2168_TS_SERIAL;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			strscpy(info.type, "si2168", I2C_NAME_SIZE);
 			info.addr = 0xc8 >> 1;
 			info.platform_data = &si2168_config;
 			request_module(info.type);
-			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap,
-						      &info);
-			if (!client_demod || !client_demod->dev.driver)
+			client_demod = i2c_new_client_device(&dev->i2c_bus[2].i2c_adap, &info);
+			if (!i2c_client_has_driver(client_demod))
 				goto frontend_detach;
 
 			if (!try_module_get(client_demod->dev.driver->owner)) {
@@ -663,13 +650,12 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			si2157_config.if_port = 1;
 			si2157_config.fe = port->dvb.frontend;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			strscpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0xc0 >> 1;
 			info.platform_data = &si2157_config;
 			request_module(info.type);
-			client_tuner = i2c_new_device(&dev->i2c_bus[0].i2c_adap,
-						      &info);
-			if (!client_tuner || !client_tuner->dev.driver) {
+			client_tuner = i2c_new_client_device(&dev->i2c_bus[0].i2c_adap, &info);
+			if (!i2c_client_has_driver(client_tuner)) {
 				module_put(client_demod->dev.driver->owner);
 				i2c_unregister_device(client_demod);
 				goto frontend_detach;
@@ -688,13 +674,12 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			si2168_config.fe = &port->dvb.frontend;
 			si2168_config.ts_mode = SI2168_TS_SERIAL;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			strscpy(info.type, "si2168", I2C_NAME_SIZE);
 			info.addr = 0xcc >> 1;
 			info.platform_data = &si2168_config;
 			request_module(info.type);
-			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap,
-						      &info);
-			if (!client_demod || !client_demod->dev.driver)
+			client_demod = i2c_new_client_device(&dev->i2c_bus[2].i2c_adap, &info);
+			if (!i2c_client_has_driver(client_demod))
 				goto frontend_detach;
 
 			if (!try_module_get(client_demod->dev.driver->owner)) {
@@ -708,13 +693,12 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			si2157_config.fe = port->dvb.frontend;
 			si2157_config.if_port = 1;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			strscpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0xc0 >> 1;
 			info.platform_data = &si2157_config;
 			request_module(info.type);
-			client_tuner = i2c_new_device(&dev->i2c_bus[1].i2c_adap,
-						      &info);
-			if (!client_tuner || !client_tuner->dev.driver) {
+			client_tuner = i2c_new_client_device(&dev->i2c_bus[1].i2c_adap, &info);
+			if (!i2c_client_has_driver(client_tuner)) {
 				module_put(client_demod->dev.driver->owner);
 				i2c_unregister_device(client_demod);
 				goto frontend_detach;
@@ -754,4 +738,3 @@ frontend_detach:
 	printk(KERN_ERR "%s() Frontend/I2C initialization failed\n", __func__);
 	return -1;
 }
-

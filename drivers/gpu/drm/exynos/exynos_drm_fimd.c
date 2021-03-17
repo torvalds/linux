@@ -1,38 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* exynos_drm_fimd.c
  *
  * Copyright (C) 2011 Samsung Electronics Co.Ltd
  * Authors:
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Inki Dae <inki.dae@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
-#include <drm/drmP.h>
 
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/component.h>
-#include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/samsung_fimd.h>
+
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
+#include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
-#include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
-#include "exynos_drm_iommu.h"
 
 /*
  * FIMD stands for Fully Interactive Mobile Display and
@@ -171,6 +167,7 @@ static struct fimd_driver_data exynos5420_fimd_driver_data = {
 struct fimd_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
+	void				*dma_priv;
 	struct exynos_drm_crtc		*crtc;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
 	struct exynos_drm_plane_config	configs[WINDOWS_NR];
@@ -228,6 +225,21 @@ static const uint32_t fimd_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 };
+
+static const unsigned int capabilities[WINDOWS_NR] = {
+	0,
+	EXYNOS_DRM_PLANE_CAP_WIN_BLEND | EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+	EXYNOS_DRM_PLANE_CAP_WIN_BLEND | EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+	EXYNOS_DRM_PLANE_CAP_WIN_BLEND | EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+	EXYNOS_DRM_PLANE_CAP_WIN_BLEND | EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+};
+
+static inline void fimd_set_bits(struct fimd_context *ctx, u32 reg, u32 mask,
+				 u32 val)
+{
+	val = (val & mask) | (readl(ctx->regs + reg) & ~mask);
+	writel(val, ctx->regs + reg);
+}
 
 static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
 {
@@ -301,7 +313,7 @@ static void fimd_wait_for_vblank(struct exynos_drm_crtc *crtc)
 	if (!wait_event_timeout(ctx->wait_vsync_queue,
 				!atomic_read(&ctx->wait_vsync_event),
 				HZ/20))
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev, "vblank wait timed out.\n");
 }
 
 static void fimd_enable_video_output(struct fimd_context *ctx, unsigned int win,
@@ -335,8 +347,6 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* Hardware is in unknown state, so ensure it gets enabled properly */
 	pm_runtime_get_sync(ctx->dev);
@@ -386,7 +396,7 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 	u32 clkdiv;
 
 	if (mode->clock == 0) {
-		DRM_INFO("Mode has zero clock value.\n");
+		DRM_DEV_ERROR(ctx->dev, "Mode has zero clock value.\n");
 		return -EINVAL;
 	}
 
@@ -402,15 +412,17 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 
 	lcd_rate = clk_get_rate(ctx->lcd_clk);
 	if (2 * lcd_rate < ideal_clk) {
-		DRM_INFO("sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
-			 lcd_rate, ideal_clk);
+		DRM_DEV_ERROR(ctx->dev,
+			      "sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
+			      lcd_rate, ideal_clk);
 		return -EINVAL;
 	}
 
 	/* Find the clock divider value that gets us closest to ideal_clk */
 	clkdiv = DIV_ROUND_CLOSEST(lcd_rate, ideal_clk);
 	if (clkdiv >= 0x200) {
-		DRM_INFO("requested pixel clock(%lu) too low\n", ideal_clk);
+		DRM_DEV_ERROR(ctx->dev, "requested pixel clock(%lu) too low\n",
+			      ideal_clk);
 		return -EINVAL;
 	}
 
@@ -467,7 +479,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 					driver_data->lcdblk_offset,
 					0x3 << driver_data->lcdblk_vt_shift,
 					0x1 << driver_data->lcdblk_vt_shift)) {
-			DRM_ERROR("Failed to update sysreg for I80 i/f.\n");
+			DRM_DEV_ERROR(ctx->dev,
+				      "Failed to update sysreg for I80 i/f.\n");
 			return;
 		}
 	} else {
@@ -511,7 +524,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 				driver_data->lcdblk_offset,
 				0x1 << driver_data->lcdblk_bypass_shift,
 				0x1 << driver_data->lcdblk_bypass_shift)) {
-		DRM_ERROR("Failed to update sysreg for bypass setting.\n");
+		DRM_DEV_ERROR(ctx->dev,
+			      "Failed to update sysreg for bypass setting.\n");
 		return;
 	}
 
@@ -523,7 +537,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 				driver_data->lcdblk_offset,
 				0x1 << driver_data->lcdblk_mic_bypass_shift,
 				0x1 << driver_data->lcdblk_mic_bypass_shift)) {
-		DRM_ERROR("Failed to update sysreg for bypass mic.\n");
+		DRM_DEV_ERROR(ctx->dev,
+			      "Failed to update sysreg for bypass mic.\n");
 		return;
 	}
 
@@ -552,13 +567,88 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	writel(val, ctx->regs + VIDCON0);
 }
 
+static void fimd_win_set_bldeq(struct fimd_context *ctx, unsigned int win,
+			       unsigned int alpha, unsigned int pixel_alpha)
+{
+	u32 mask = BLENDEQ_A_FUNC_F(0xf) | BLENDEQ_B_FUNC_F(0xf);
+	u32 val = 0;
+
+	switch (pixel_alpha) {
+	case DRM_MODE_BLEND_PIXEL_NONE:
+	case DRM_MODE_BLEND_COVERAGE:
+		val |= BLENDEQ_A_FUNC_F(BLENDEQ_ALPHA_A);
+		val |= BLENDEQ_B_FUNC_F(BLENDEQ_ONE_MINUS_ALPHA_A);
+		break;
+	case DRM_MODE_BLEND_PREMULTI:
+	default:
+		if (alpha != DRM_BLEND_ALPHA_OPAQUE) {
+			val |= BLENDEQ_A_FUNC_F(BLENDEQ_ALPHA0);
+			val |= BLENDEQ_B_FUNC_F(BLENDEQ_ONE_MINUS_ALPHA_A);
+		} else {
+			val |= BLENDEQ_A_FUNC_F(BLENDEQ_ONE);
+			val |= BLENDEQ_B_FUNC_F(BLENDEQ_ONE_MINUS_ALPHA_A);
+		}
+		break;
+	}
+	fimd_set_bits(ctx, BLENDEQx(win), mask, val);
+}
+
+static void fimd_win_set_bldmod(struct fimd_context *ctx, unsigned int win,
+				unsigned int alpha, unsigned int pixel_alpha)
+{
+	u32 win_alpha_l = (alpha >> 8) & 0xf;
+	u32 win_alpha_h = alpha >> 12;
+	u32 val = 0;
+
+	switch (pixel_alpha) {
+	case DRM_MODE_BLEND_PIXEL_NONE:
+		break;
+	case DRM_MODE_BLEND_COVERAGE:
+	case DRM_MODE_BLEND_PREMULTI:
+	default:
+		val |= WINCON1_ALPHA_SEL;
+		val |= WINCON1_BLD_PIX;
+		val |= WINCON1_ALPHA_MUL;
+		break;
+	}
+	fimd_set_bits(ctx, WINCON(win), WINCONx_BLEND_MODE_MASK, val);
+
+	/* OSD alpha */
+	val = VIDISD14C_ALPHA0_R(win_alpha_h) |
+		VIDISD14C_ALPHA0_G(win_alpha_h) |
+		VIDISD14C_ALPHA0_B(win_alpha_h) |
+		VIDISD14C_ALPHA1_R(0x0) |
+		VIDISD14C_ALPHA1_G(0x0) |
+		VIDISD14C_ALPHA1_B(0x0);
+	writel(val, ctx->regs + VIDOSD_C(win));
+
+	val = VIDW_ALPHA_R(win_alpha_l) | VIDW_ALPHA_G(win_alpha_l) |
+		VIDW_ALPHA_B(win_alpha_l);
+	writel(val, ctx->regs + VIDWnALPHA0(win));
+
+	val = VIDW_ALPHA_R(0x0) | VIDW_ALPHA_G(0x0) |
+		VIDW_ALPHA_B(0x0);
+	writel(val, ctx->regs + VIDWnALPHA1(win));
+
+	fimd_set_bits(ctx, BLENDCON, BLENDCON_NEW_MASK,
+			BLENDCON_NEW_8BIT_ALPHA_VALUE);
+}
 
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
-				uint32_t pixel_format, int width)
+				struct drm_framebuffer *fb, int width)
 {
-	unsigned long val;
+	struct exynos_drm_plane plane = ctx->planes[win];
+	struct exynos_drm_plane_state *state =
+		to_exynos_plane_state(plane.base.state);
+	uint32_t pixel_format = fb->format->format;
+	unsigned int alpha = state->base.alpha;
+	u32 val = WINCONx_ENWIN;
+	unsigned int pixel_alpha;
 
-	val = WINCONx_ENWIN;
+	if (fb->format->has_alpha)
+		pixel_alpha = state->base.pixel_blend_mode;
+	else
+		pixel_alpha = DRM_MODE_BLEND_PIXEL_NONE;
 
 	/*
 	 * In case of s3c64xx, window 0 doesn't support alpha channel.
@@ -592,8 +682,7 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 		break;
 	case DRM_FORMAT_ARGB8888:
 	default:
-		val |= WINCON1_BPPMODE_25BPP_A1888
-			| WINCON1_BLD_PIX | WINCON1_ALPHA_SEL;
+		val |= WINCON1_BPPMODE_25BPP_A1888;
 		val |= WINCONx_WSWP;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
@@ -611,25 +700,12 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_4WORD;
 	}
-
-	writel(val, ctx->regs + WINCON(win));
+	fimd_set_bits(ctx, WINCON(win), ~WINCONx_BLEND_MODE_MASK, val);
 
 	/* hardware window 0 doesn't support alpha channel. */
 	if (win != 0) {
-		/* OSD alpha */
-		val = VIDISD14C_ALPHA0_R(0xf) |
-			VIDISD14C_ALPHA0_G(0xf) |
-			VIDISD14C_ALPHA0_B(0xf) |
-			VIDISD14C_ALPHA1_R(0xf) |
-			VIDISD14C_ALPHA1_G(0xf) |
-			VIDISD14C_ALPHA1_B(0xf);
-
-		writel(val, ctx->regs + VIDOSD_C(win));
-
-		val = VIDW_ALPHA_R(0xf) | VIDW_ALPHA_G(0xf) |
-			VIDW_ALPHA_G(0xf);
-		writel(val, ctx->regs + VIDWnALPHA0(win));
-		writel(val, ctx->regs + VIDWnALPHA1(win));
+		fimd_win_set_bldmod(ctx, win, alpha, pixel_alpha);
+		fimd_win_set_bldeq(ctx, win, alpha, pixel_alpha);
 	}
 }
 
@@ -739,10 +815,11 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	val = (unsigned long)(dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
-	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
-			(unsigned long)dma_addr, val, size);
-	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			state->crtc.w, state->crtc.h);
+	DRM_DEV_DEBUG_KMS(ctx->dev,
+			  "start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
+			  (unsigned long)dma_addr, val, size);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "ovl_width = %d, ovl_height = %d\n",
+			  state->crtc.w, state->crtc.h);
 
 	/* buffer size */
 	buf_offsize = pitch - (state->crtc.w * cpp);
@@ -772,8 +849,9 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(val, ctx->regs + VIDOSD_B(win));
 
-	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
-			state->crtc.x, state->crtc.y, last_x, last_y);
+	DRM_DEV_DEBUG_KMS(ctx->dev,
+			  "osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
+			  state->crtc.x, state->crtc.y, last_x, last_y);
 
 	/* OSD size */
 	if (win != 3 && win != 4) {
@@ -783,10 +861,11 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		val = state->crtc.w * state->crtc.h;
 		writel(val, ctx->regs + offset);
 
-		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
+		DRM_DEV_DEBUG_KMS(ctx->dev, "osd size = 0x%x\n",
+				  (unsigned int)val);
 	}
 
-	fimd_win_set_pixfmt(ctx, win, fb->format->format, state->src.w);
+	fimd_win_set_pixfmt(ctx, win, fb, state->src.w);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)
@@ -816,7 +895,7 @@ static void fimd_disable_plane(struct exynos_drm_crtc *crtc,
 		fimd_enable_shadow_channel_path(ctx, win, false);
 }
 
-static void fimd_enable(struct exynos_drm_crtc *crtc)
+static void fimd_atomic_enable(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 
@@ -834,7 +913,7 @@ static void fimd_enable(struct exynos_drm_crtc *crtc)
 	fimd_commit(ctx->crtc);
 }
 
-static void fimd_disable(struct exynos_drm_crtc *crtc)
+static void fimd_atomic_disable(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	int i;
@@ -928,8 +1007,8 @@ static void fimd_dp_clock_enable(struct exynos_drm_clk *clk, bool enable)
 }
 
 static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
-	.enable = fimd_enable,
-	.disable = fimd_disable,
+	.atomic_enable = fimd_atomic_enable,
+	.atomic_disable = fimd_atomic_disable,
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
 	.atomic_begin = fimd_atomic_begin,
@@ -988,6 +1067,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[i].num_pixel_formats = ARRAY_SIZE(fimd_formats);
 		ctx->configs[i].zpos = i;
 		ctx->configs[i].type = fimd_win_types[i];
+		ctx->configs[i].capabilities = capabilities[i];
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
 					&ctx->configs[i]);
 		if (ret)
@@ -1011,7 +1091,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);
 
-	return drm_iommu_attach_device(drm_dev, dev);
+	return exynos_drm_register_dma(drm_dev, dev, &ctx->dma_priv);
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,
@@ -1019,9 +1099,9 @@ static void fimd_unbind(struct device *dev, struct device *master,
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 
-	fimd_disable(ctx->crtc);
+	fimd_atomic_disable(ctx->crtc);
 
-	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
+	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev, &ctx->dma_priv);
 
 	if (ctx->encoder)
 		exynos_dpi_remove(ctx->encoder);
@@ -1176,13 +1256,17 @@ static int exynos_fimd_resume(struct device *dev)
 
 	ret = clk_prepare_enable(ctx->bus_clk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
+		DRM_DEV_ERROR(dev,
+			      "Failed to prepare_enable the bus clk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->lcd_clk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
+		DRM_DEV_ERROR(dev,
+			      "Failed to prepare_enable the lcd clk [%d]\n",
+			      ret);
 		return ret;
 	}
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FIFO_PRIV_H__
 #define __NVKM_FIFO_PRIV_H__
 #define nvkm_fifo(p) container_of((p), struct nvkm_fifo, engine)
@@ -37,4 +37,6 @@ struct nvkm_fifo_func {
 void nv04_fifo_intr(struct nvkm_fifo *);
 void nv04_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nv04_fifo_start(struct nvkm_fifo *, unsigned long *);
+
+void gf100_fifo_intr_fault(struct nvkm_fifo *, int);
 #endif

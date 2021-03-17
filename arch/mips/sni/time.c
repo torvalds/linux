@@ -55,12 +55,6 @@ static irqreturn_t a20r_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction a20r_irqaction = {
-	.handler	= a20r_interrupt,
-	.flags		= IRQF_PERCPU | IRQF_TIMER,
-	.name		= "a20r-timer",
-};
-
 /*
  * a20r platform uses 2 counters to divide the input frequency.
  * Counter 2 output is connected to Counter 0 & 1 input.
@@ -68,13 +62,13 @@ static struct irqaction a20r_irqaction = {
 static void __init sni_a20r_timer_setup(void)
 {
 	struct clock_event_device *cd = &a20r_clockevent_device;
-	struct irqaction *action = &a20r_irqaction;
 	unsigned int cpu = smp_processor_id();
 
 	cd->cpumask		= cpumask_of(cpu);
 	clockevents_register_device(cd);
-	action->dev_id = cd;
-	setup_irq(SNI_A20R_IRQ_TIMER, &a20r_irqaction);
+	if (request_irq(SNI_A20R_IRQ_TIMER, a20r_interrupt,
+			IRQF_PERCPU | IRQF_TIMER, "a20r-timer", cd))
+		pr_err("Failed to register a20r-timer interrupt\n");
 }
 
 #define SNI_8254_TICK_RATE	  1193182UL

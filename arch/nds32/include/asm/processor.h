@@ -1,14 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef __ASM_NDS32_PROCESSOR_H
 #define __ASM_NDS32_PROCESSOR_H
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
 #ifdef __KERNEL__
 
@@ -41,6 +35,8 @@ struct thread_struct {
 	unsigned long address;
 	unsigned long trap_no;
 	unsigned long error_code;
+
+	struct fpu_struct fpu;
 };
 
 #define INIT_THREAD  {	}
@@ -78,6 +74,11 @@ struct task_struct;
 
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
+#if IS_ENABLED(CONFIG_FPU)
+#if !IS_ENABLED(CONFIG_UNLAZU_FPU)
+extern struct task_struct *last_task_used_math;
+#endif
+#endif
 
 /* Prepare to copy thread state - unlazy all lazy status */
 #define prepare_to_copy(tsk)	do { } while (0)

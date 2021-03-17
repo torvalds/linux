@@ -1,26 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aic94xx SAS/SATA DDB management
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This file is part of the aic94xx driver.
- *
- * The aic94xx driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * The aic94xx driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the aic94xx driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * $Id: //depot/aic94xx/aic94xx_dev.c#21 $
  */
@@ -187,9 +170,7 @@ static int asd_init_target_ddb(struct domain_device *dev)
 			}
 		} else {
 			flags |= CONCURRENT_CONN_SUPP;
-			if (!dev->parent &&
-			    (dev->dev_type == SAS_EDGE_EXPANDER_DEVICE ||
-			     dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE))
+			if (!dev->parent && dev_is_expander(dev->dev_type))
 				asd_ddbsite_write_byte(asd_ha, ddb, MAX_CCONN,
 						       4);
 			else
@@ -255,7 +236,7 @@ static int asd_init_sata_pm_table_ddb(struct domain_device *dev)
 
 /**
  * asd_init_sata_pm_port_ddb -- SATA Port Multiplier Port
- * dev: pointer to domain device
+ * @dev: pointer to domain device
  *
  * For SATA Port Multiplier Ports we need to allocate one SATA Port
  * Multiplier Port DDB and depending on whether the target on it
@@ -300,7 +281,7 @@ static int asd_init_initiator_ddb(struct domain_device *dev)
 
 /**
  * asd_init_sata_pm_ddb -- SATA Port Multiplier
- * dev: pointer to domain device
+ * @dev: pointer to domain device
  *
  * For STP and direct-attached SATA Port Multipliers we need
  * one target port DDB entry and one SATA PM table DDB entry.

@@ -25,8 +25,8 @@ struct dentry *bcache_debug;
 	for (i = (start);						\
 	     (void *) i < (void *) (start) + (KEY_SIZE(&b->key) << 9) &&\
 	     i->seq == (start)->seq;					\
-	     i = (void *) i + set_blocks(i, block_bytes(b->c)) *	\
-		 block_bytes(b->c))
+	     i = (void *) i + set_blocks(i, block_bytes(b->c->cache)) *	\
+		 block_bytes(b->c->cache))
 
 void bch_btree_verify(struct btree *b)
 {
@@ -82,14 +82,14 @@ void bch_btree_verify(struct btree *b)
 
 		for_each_written_bset(b, ondisk, i) {
 			unsigned int block = ((void *) i - (void *) ondisk) /
-				block_bytes(b->c);
+				block_bytes(b->c->cache);
 
 			pr_err("*** on disk block %u:\n", block);
 			bch_dump_bset(&b->keys, i, block);
 		}
 
 		pr_err("*** block %zu not written\n",
-		       ((void *) i - (void *) ondisk) / block_bytes(b->c));
+		       ((void *) i - (void *) ondisk) / block_bytes(b->c->cache));
 
 		for (j = 0; j < inmemory->keys; j++)
 			if (inmemory->d[j] != sorted->d[j])
@@ -178,10 +178,9 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 	while (size) {
 		struct keybuf_key *w;
 		unsigned int bytes = min(i->bytes, size);
-		int err = copy_to_user(buf, i->buf, bytes);
 
-		if (err)
-			return err;
+		if (copy_to_user(buf, i->buf, bytes))
+			return -EFAULT;
 
 		ret	 += bytes;
 		buf	 += bytes;
@@ -239,7 +238,7 @@ void bch_debug_init_cache_set(struct cache_set *c)
 	if (!IS_ERR_OR_NULL(bcache_debug)) {
 		char name[50];
 
-		snprintf(name, 50, "bcache-%pU", c->sb.set_uuid);
+		snprintf(name, 50, "bcache-%pU", c->set_uuid);
 		c->debug = debugfs_create_file(name, 0400, bcache_debug, c,
 					       &cache_set_debug_ops);
 	}
@@ -249,11 +248,10 @@ void bch_debug_init_cache_set(struct cache_set *c)
 
 void bch_debug_exit(void)
 {
-	if (!IS_ERR_OR_NULL(bcache_debug))
-		debugfs_remove_recursive(bcache_debug);
+	debugfs_remove_recursive(bcache_debug);
 }
 
-void __init bch_debug_init(struct kobject *kobj)
+void __init bch_debug_init(void)
 {
 	/*
 	 * it is unnecessary to check return value of

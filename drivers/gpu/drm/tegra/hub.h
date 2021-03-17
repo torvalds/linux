@@ -1,15 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2017 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef TEGRA_HUB_H
 #define TEGRA_HUB_H 1
 
-#include <drm/drmP.h>
 #include <drm/drm_plane.h>
 
 #include "plane.h"
@@ -21,7 +17,7 @@ struct tegra_windowgroup {
 	struct mutex lock;
 
 	unsigned int index;
-	struct device *parent;
+	struct host1x_client *parent;
 	struct reset_control *rst;
 };
 
@@ -38,6 +34,7 @@ to_tegra_shared_plane(struct drm_plane *plane)
 
 struct tegra_display_hub_soc {
 	unsigned int num_wgrps;
+	bool supports_dsc;
 };
 
 struct tegra_display_hub {
@@ -47,6 +44,9 @@ struct tegra_display_hub {
 	struct clk *clk_dsc;
 	struct clk *clk_hub;
 	struct reset_control *rst;
+
+	unsigned int num_heads;
+	struct clk **clk_heads;
 
 	const struct tegra_display_hub_soc *soc;
 	struct tegra_windowgroup *wgrps;

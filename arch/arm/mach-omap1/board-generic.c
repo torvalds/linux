@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-generic.c
  *
@@ -7,10 +8,6 @@
  * the device drivers take care of all the necessary hardware initialization.
  * Do not put any board specific code to this file; create a new machine
  * type if you need custom low-level initializations.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/kernel.h>

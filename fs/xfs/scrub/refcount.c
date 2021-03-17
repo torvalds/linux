@@ -7,22 +7,12 @@
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
-#include "xfs_trans_resv.h"
-#include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_btree.h"
-#include "xfs_bit.h"
-#include "xfs_log_format.h"
-#include "xfs_trans.h"
-#include "xfs_sb.h"
-#include "xfs_alloc.h"
 #include "xfs_rmap.h"
 #include "xfs_refcount.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
-#include "scrub/trace.h"
 
 /*
  * Set us up to scrub reference count btrees.
@@ -180,7 +170,6 @@ xchk_refcountbt_process_rmap_fragments(
 	 */
 	INIT_LIST_HEAD(&worklist);
 	rbno = NULLAGBLOCK;
-	nr = 1;
 
 	/* Make sure the fragments actually /are/ in agbno order. */
 	bno = 0;
@@ -194,15 +183,14 @@ xchk_refcountbt_process_rmap_fragments(
 	 * Find all the rmaps that start at or before the refc extent,
 	 * and put them on the worklist.
 	 */
+	nr = 0;
 	list_for_each_entry_safe(frag, n, &refchk->fragments, list) {
-		if (frag->rm.rm_startblock > refchk->bno)
-			goto done;
+		if (frag->rm.rm_startblock > refchk->bno || nr > target_nr)
+			break;
 		bno = frag->rm.rm_startblock + frag->rm.rm_blockcount;
 		if (bno < rbno)
 			rbno = bno;
 		list_move_tail(&frag->list, &worklist);
-		if (nr == target_nr)
-			break;
 		nr++;
 	}
 
@@ -346,12 +334,11 @@ xchk_refcountbt_rec(
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
 	xfs_agblock_t		*cow_blocks = bs->private;
-	xfs_agnumber_t		agno = bs->cur->bc_private.a.agno;
+	xfs_agnumber_t		agno = bs->cur->bc_ag.agno;
 	xfs_agblock_t		bno;
 	xfs_extlen_t		len;
 	xfs_nlink_t		refcount;
 	bool			has_cowflag;
-	int			error = 0;
 
 	bno = be32_to_cpu(rec->refc.rc_startblock);
 	len = be32_to_cpu(rec->refc.rc_blockcount);
@@ -376,14 +363,13 @@ xchk_refcountbt_rec(
 
 	xchk_refcountbt_xref(bs->sc, bno, len, refcount);
 
-	return error;
+	return 0;
 }
 
 /* Make sure we have as many refc blocks as the rmap says. */
 STATIC void
 xchk_refcount_xref_rmap(
 	struct xfs_scrub	*sc,
-	struct xfs_owner_info	*oinfo,
 	xfs_filblks_t		cow_blocks)
 {
 	xfs_extlen_t		refcbt_blocks = 0;
@@ -397,17 +383,16 @@ xchk_refcount_xref_rmap(
 	error = xfs_btree_count_blocks(sc->sa.refc_cur, &refcbt_blocks);
 	if (!xchk_btree_process_error(sc, sc->sa.refc_cur, 0, &error))
 		return;
-	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, oinfo,
-			&blocks);
+	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur,
+			&XFS_RMAP_OINFO_REFC, &blocks);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (blocks != refcbt_blocks)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 
 	/* Check that we saw as many cow blocks as the rmap knows about. */
-	xfs_rmap_ag_owner(oinfo, XFS_RMAP_OWN_COW);
-	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, oinfo,
-			&blocks);
+	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur,
+			&XFS_RMAP_OINFO_COW, &blocks);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (blocks != cow_blocks)
@@ -419,17 +404,15 @@ int
 xchk_refcountbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info	oinfo;
 	xfs_agblock_t		cow_blocks = 0;
 	int			error;
 
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_REFC);
 	error = xchk_btree(sc, sc->sa.refc_cur, xchk_refcountbt_rec,
-			&oinfo, &cow_blocks);
+			&XFS_RMAP_OINFO_REFC, &cow_blocks);
 	if (error)
 		return error;
 
-	xchk_refcount_xref_rmap(sc, &oinfo, cow_blocks);
+	xchk_refcount_xref_rmap(sc, cow_blocks);
 
 	return 0;
 }

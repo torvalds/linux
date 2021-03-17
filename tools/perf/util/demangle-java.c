@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include "util.h"
-#include "debug.h"
 #include "symbol.h"
 
 #include "demangle-java.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
+#include <linux/kernel.h>
 
 enum {
 	MODE_PREFIX = 0,
 	MODE_CLASS  = 1,
 	MODE_FUNC   = 2,
 	MODE_TYPE   = 3,
-	MODE_CTYPE  = 3, /* class arg */
+	MODE_CTYPE  = 4, /* class arg */
 };
 
 #define BASE_ENT(c, n)	[c - 'A']=n
@@ -27,7 +27,7 @@ static const char *base_types['Z' - 'A' + 1] = {
 	BASE_ENT('I', "int" ),
 	BASE_ENT('J', "long" ),
 	BASE_ENT('S', "short" ),
-	BASE_ENT('Z', "bool" ),
+	BASE_ENT('Z', "boolean" ),
 };
 
 /*
@@ -59,15 +59,16 @@ __demangle_java_sym(const char *str, const char *end, char *buf, int maxlen, int
 
 		switch (*q) {
 		case 'L':
-			if (mode == MODE_PREFIX || mode == MODE_CTYPE) {
-				if (mode == MODE_CTYPE) {
+			if (mode == MODE_PREFIX || mode == MODE_TYPE) {
+				if (mode == MODE_TYPE) {
 					if (narg)
 						rlen += scnprintf(buf + rlen, maxlen - rlen, ", ");
 					narg++;
 				}
-				rlen += scnprintf(buf + rlen, maxlen - rlen, "class ");
 				if (mode == MODE_PREFIX)
 					mode = MODE_CLASS;
+				else
+					mode = MODE_CTYPE;
 			} else
 				buf[rlen++] = *q;
 			break;
@@ -120,7 +121,7 @@ __demangle_java_sym(const char *str, const char *end, char *buf, int maxlen, int
 			if (mode != MODE_CLASS && mode != MODE_CTYPE)
 				goto error;
 			/* safe because at least one other char to process */
-			if (isalpha(*(q + 1)))
+			if (isalpha(*(q + 1)) && mode == MODE_CLASS)
 				rlen += scnprintf(buf + rlen, maxlen - rlen, ".");
 			if (mode == MODE_CLASS)
 				mode = MODE_FUNC;

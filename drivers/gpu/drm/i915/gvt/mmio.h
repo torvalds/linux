@@ -36,6 +36,8 @@
 #ifndef _GVT_MMIO_H_
 #define _GVT_MMIO_H_
 
+#include <linux/types.h>
+
 struct intel_gvt;
 struct intel_vgpu;
 
@@ -43,15 +45,16 @@ struct intel_vgpu;
 #define D_SKL	(1 << 1)
 #define D_KBL	(1 << 2)
 #define D_BXT	(1 << 3)
+#define D_CFL	(1 << 4)
 
-#define D_GEN9PLUS	(D_SKL | D_KBL | D_BXT)
-#define D_GEN8PLUS	(D_BDW | D_SKL | D_KBL | D_BXT)
+#define D_GEN9PLUS	(D_SKL | D_KBL | D_BXT | D_CFL)
+#define D_GEN8PLUS	(D_BDW | D_SKL | D_KBL | D_BXT | D_CFL)
 
-#define D_SKL_PLUS	(D_SKL | D_KBL | D_BXT)
-#define D_BDW_PLUS	(D_BDW | D_SKL | D_KBL | D_BXT)
+#define D_SKL_PLUS	(D_SKL | D_KBL | D_BXT | D_CFL)
+#define D_BDW_PLUS	(D_BDW | D_SKL | D_KBL | D_BXT | D_CFL)
 
 #define D_PRE_SKL	(D_BDW)
-#define D_ALL		(D_BDW | D_SKL | D_KBL | D_BXT)
+#define D_ALL		(D_BDW | D_SKL | D_KBL | D_BXT | D_CFL)
 
 typedef int (*gvt_mmio_func)(struct intel_vgpu *, unsigned int, void *,
 			     unsigned int);
@@ -66,8 +69,8 @@ struct intel_gvt_mmio_info {
 	struct hlist_node node;
 };
 
-int intel_gvt_render_mmio_to_ring_id(struct intel_gvt *gvt,
-		unsigned int reg);
+const struct intel_engine_cs *
+intel_gvt_render_mmio_to_engine(struct intel_gvt *gvt, unsigned int reg);
 unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt);
 bool intel_gvt_match_device(struct intel_gvt *gvt, unsigned long device);
 

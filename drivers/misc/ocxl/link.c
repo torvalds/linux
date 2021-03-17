@@ -6,6 +6,7 @@
 #include <linux/mmu_context.h>
 #include <asm/copro.h>
 #include <asm/pnv-ocxl.h>
+#include <asm/xive.h>
 #include <misc/ocxl.h>
 #include "ocxl_internal.h"
 #include "trace.h"
@@ -76,7 +77,7 @@ struct spa {
  * limited number of opencapi slots on a system and lookup is only
  * done when the device is probed
  */
-struct link {
+struct ocxl_link {
 	struct list_head list;
 	struct kref ref;
 	int domain;
@@ -163,7 +164,7 @@ static void xsl_fault_handler_bh(struct work_struct *fault_work)
 		if (fault->dsisr & SPA_XSL_S)
 			access |= _PAGE_WRITE;
 
-		if (REGION_ID(fault->dar) != USER_REGION_ID)
+		if (get_region_id(fault->dar) != USER_REGION_ID)
 			access |= _PAGE_PRIVILEGED;
 
 		local_irq_save(flags);
@@ -179,12 +180,12 @@ ack:
 
 static irqreturn_t xsl_fault_handler(int irq, void *data)
 {
-	struct link *link = (struct link *) data;
+	struct ocxl_link *link = (struct ocxl_link *) data;
 	struct spa *spa = link->spa;
 	u64 dsisr, dar, pe_handle;
 	struct pe_data *pe_data;
 	struct ocxl_process_element *pe;
-	int lpid, pid, tid;
+	int pid;
 	bool schedule = false;
 
 	read_irq(spa, &dsisr, &dar, &pe_handle);
@@ -192,9 +193,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 
 	WARN_ON(pe_handle > SPA_PE_MASK);
 	pe = spa->spa_mem + pe_handle;
-	lpid = be32_to_cpu(pe->lpid);
 	pid = be32_to_cpu(pe->pid);
-	tid = be32_to_cpu(pe->tid);
 	/* We could be reading all null values here if the PE is being
 	 * removed while an interrupt kicks in. It's not supposed to
 	 * happen if the driver notified the AFU to terminate the
@@ -223,6 +222,17 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 		 */
 		rcu_read_unlock();
 		pr_debug("Unknown mm context for xsl interrupt\n");
+		ack_irq(spa, ADDRESS_ERROR);
+		return IRQ_HANDLED;
+	}
+
+	if (!pe_data->mm) {
+		/*
+		 * translation fault from a kernel context - an OpenCAPI
+		 * device tried to access a bad kernel address
+		 */
+		rcu_read_unlock();
+		pr_warn("Unresolved OpenCAPI xsl fault in kernel context\n");
 		ack_irq(spa, ADDRESS_ERROR);
 		return IRQ_HANDLED;
 	}
@@ -256,7 +266,7 @@ static int map_irq_registers(struct pci_dev *dev, struct spa *spa)
 				&spa->reg_tfc, &spa->reg_pe_handle);
 }
 
-static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
+static int setup_xsl_irq(struct pci_dev *dev, struct ocxl_link *link)
 {
 	struct spa *spa = link->spa;
 	int rc;
@@ -273,9 +283,9 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	spa->irq_name = kasprintf(GFP_KERNEL, "ocxl-xsl-%x-%x-%x",
 				link->domain, link->bus, link->dev);
 	if (!spa->irq_name) {
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev, "Can't allocate name for xsl interrupt\n");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto err_xsl;
 	}
 	/*
 	 * At some point, we'll need to look into allowing a higher
@@ -283,11 +293,10 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	 */
 	spa->virq = irq_create_mapping(NULL, hwirq);
 	if (!spa->virq) {
-		kfree(spa->irq_name);
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev,
 			"irq_create_mapping failed for translation interrupt\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_name;
 	}
 
 	dev_dbg(&dev->dev, "hwirq %d mapped to virq %d\n", hwirq, spa->virq);
@@ -295,18 +304,24 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	rc = request_irq(spa->virq, xsl_fault_handler, 0, spa->irq_name,
 			link);
 	if (rc) {
-		irq_dispose_mapping(spa->virq);
-		kfree(spa->irq_name);
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev,
 			"request_irq failed for translation interrupt: %d\n",
 			rc);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_mapping;
 	}
 	return 0;
+
+err_mapping:
+	irq_dispose_mapping(spa->virq);
+err_name:
+	kfree(spa->irq_name);
+err_xsl:
+	unmap_irq_registers(spa);
+	return rc;
 }
 
-static void release_xsl_irq(struct link *link)
+static void release_xsl_irq(struct ocxl_link *link)
 {
 	struct spa *spa = link->spa;
 
@@ -318,7 +333,7 @@ static void release_xsl_irq(struct link *link)
 	unmap_irq_registers(spa);
 }
 
-static int alloc_spa(struct pci_dev *dev, struct link *link)
+static int alloc_spa(struct pci_dev *dev, struct ocxl_link *link)
 {
 	struct spa *spa;
 
@@ -345,7 +360,7 @@ static int alloc_spa(struct pci_dev *dev, struct link *link)
 	return 0;
 }
 
-static void free_spa(struct link *link)
+static void free_spa(struct ocxl_link *link)
 {
 	struct spa *spa = link->spa;
 
@@ -359,12 +374,12 @@ static void free_spa(struct link *link)
 	}
 }
 
-static int alloc_link(struct pci_dev *dev, int PE_mask, struct link **out_link)
+static int alloc_link(struct pci_dev *dev, int PE_mask, struct ocxl_link **out_link)
 {
-	struct link *link;
+	struct ocxl_link *link;
 	int rc;
 
-	link = kzalloc(sizeof(struct link), GFP_KERNEL);
+	link = kzalloc(sizeof(struct ocxl_link), GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
 
@@ -400,7 +415,7 @@ err_free:
 	return rc;
 }
 
-static void free_link(struct link *link)
+static void free_link(struct ocxl_link *link)
 {
 	release_xsl_irq(link);
 	free_spa(link);
@@ -410,7 +425,7 @@ static void free_link(struct link *link)
 int ocxl_link_setup(struct pci_dev *dev, int PE_mask, void **link_handle)
 {
 	int rc = 0;
-	struct link *link;
+	struct ocxl_link *link;
 
 	mutex_lock(&links_list_lock);
 	list_for_each_entry(link, &links_list, list) {
@@ -437,7 +452,7 @@ EXPORT_SYMBOL_GPL(ocxl_link_setup);
 
 static void release_xsl(struct kref *ref)
 {
-	struct link *link = container_of(ref, struct link, ref);
+	struct ocxl_link *link = container_of(ref, struct ocxl_link, ref);
 
 	list_del(&link->list);
 	/* call platform code before releasing data */
@@ -447,7 +462,7 @@ static void release_xsl(struct kref *ref)
 
 void ocxl_link_release(struct pci_dev *dev, void *link_handle)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 
 	mutex_lock(&links_list_lock);
 	kref_put(&link->ref, release_xsl);
@@ -483,7 +498,7 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 		void (*xsl_err_cb)(void *data, u64 addr, u64 dsisr),
 		void *xsl_err_data)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	int pe_handle, rc = 0;
@@ -520,7 +535,13 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	pe->amr = cpu_to_be64(amr);
 	pe->software_state = cpu_to_be32(SPA_PE_VALID);
 
-	mm_context_add_copro(mm);
+	/*
+	 * For user contexts, register a copro so that TLBIs are seen
+	 * by the nest MMU. If we have a kernel context, TLBIs are
+	 * already global.
+	 */
+	if (mm)
+		mm_context_add_copro(mm);
 	/*
 	 * Barrier is to make sure PE is visible in the SPA before it
 	 * is used by the device. It also helps with the global TLBI
@@ -543,7 +564,8 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	 * have a reference on mm_users. Incrementing mm_count solves
 	 * the problem.
 	 */
-	mmgrab(mm);
+	if (mm)
+		mmgrab(mm);
 	trace_ocxl_context_add(current->pid, spa->spa_mem, pasid, pidr, tidr);
 unlock:
 	mutex_unlock(&spa->spa_lock);
@@ -553,7 +575,7 @@ EXPORT_SYMBOL_GPL(ocxl_link_add_pe);
 
 int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	int pe_handle, rc;
@@ -566,7 +588,7 @@ int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 
 	mutex_lock(&spa->spa_lock);
 
-	pe->tid = tid;
+	pe->tid = cpu_to_be32(tid);
 
 	/*
 	 * The barrier makes sure the PE is updated
@@ -589,7 +611,7 @@ int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 
 int ocxl_link_remove_pe(void *link_handle, int pasid)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	struct pe_data *pe_data;
@@ -649,8 +671,10 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 	if (!pe_data) {
 		WARN(1, "Couldn't find pe data when removing PE\n");
 	} else {
-		mm_context_remove_copro(pe_data->mm);
-		mmdrop(pe_data->mm);
+		if (pe_data->mm) {
+			mm_context_remove_copro(pe_data->mm);
+			mmdrop(pe_data->mm);
+		}
 		kfree_rcu(pe_data, rcu);
 	}
 unlock:
@@ -659,32 +683,30 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(ocxl_link_remove_pe);
 
-int ocxl_link_irq_alloc(void *link_handle, int *hw_irq, u64 *trigger_addr)
+int ocxl_link_irq_alloc(void *link_handle, int *hw_irq)
 {
-	struct link *link = (struct link *) link_handle;
-	int rc, irq;
-	u64 addr;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
+	int irq;
 
 	if (atomic_dec_if_positive(&link->irq_available) < 0)
 		return -ENOSPC;
 
-	rc = pnv_ocxl_alloc_xive_irq(&irq, &addr);
-	if (rc) {
+	irq = xive_native_alloc_irq();
+	if (!irq) {
 		atomic_inc(&link->irq_available);
-		return rc;
+		return -ENXIO;
 	}
 
 	*hw_irq = irq;
-	*trigger_addr = addr;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ocxl_link_irq_alloc);
 
 void ocxl_link_free_irq(void *link_handle, int hw_irq)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 
-	pnv_ocxl_free_xive_irq(hw_irq);
+	xive_native_free_irq(hw_irq);
 	atomic_inc(&link->irq_available);
 }
 EXPORT_SYMBOL_GPL(ocxl_link_free_irq);

@@ -346,7 +346,7 @@ void camss_disable_clocks(int nclocks, struct camss_clock *clock)
  *
  * Return a pointer to sensor media entity or NULL if not found
  */
-static struct media_entity *camss_find_sensor(struct media_entity *entity)
+struct media_entity *camss_find_sensor(struct media_entity *entity)
 {
 	struct media_pad *pad;
 
@@ -462,61 +462,50 @@ static int camss_of_parse_endpoint_node(struct device *dev,
  *
  * Return number of "port" nodes found in "ports" node
  */
-static int camss_of_parse_ports(struct device *dev,
-				struct v4l2_async_notifier *notifier)
+static int camss_of_parse_ports(struct camss *camss)
 {
+	struct device *dev = camss->dev;
 	struct device_node *node = NULL;
 	struct device_node *remote = NULL;
-	unsigned int size, i;
-	int ret;
+	int ret, num_subdevs = 0;
 
-	while ((node = of_graph_get_next_endpoint(dev->of_node, node)))
-		if (of_device_is_available(node))
-			notifier->num_subdevs++;
-
-	of_node_put(node);
-	size = sizeof(*notifier->subdevs) * notifier->num_subdevs;
-	notifier->subdevs = devm_kzalloc(dev, size, GFP_KERNEL);
-	if (!notifier->subdevs) {
-		dev_err(dev, "Failed to allocate memory\n");
-		return -ENOMEM;
-	}
-
-	i = 0;
-	while ((node = of_graph_get_next_endpoint(dev->of_node, node))) {
+	for_each_endpoint_of_node(dev->of_node, node) {
 		struct camss_async_subdev *csd;
+		struct v4l2_async_subdev *asd;
 
 		if (!of_device_is_available(node))
 			continue;
 
-		csd = devm_kzalloc(dev, sizeof(*csd), GFP_KERNEL);
-		if (!csd) {
-			of_node_put(node);
-			dev_err(dev, "Failed to allocate memory\n");
-			return -ENOMEM;
-		}
-
-		notifier->subdevs[i++] = &csd->asd;
-
-		ret = camss_of_parse_endpoint_node(dev, node, csd);
-		if (ret < 0) {
-			of_node_put(node);
-			return ret;
-		}
-
 		remote = of_graph_get_remote_port_parent(node);
 		if (!remote) {
 			dev_err(dev, "Cannot get remote parent\n");
-			of_node_put(node);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_cleanup;
 		}
 
-		csd->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		csd->asd.match.fwnode = of_fwnode_handle(remote);
-	}
-	of_node_put(node);
+		asd = v4l2_async_notifier_add_fwnode_subdev(
+			&camss->notifier, of_fwnode_handle(remote),
+			sizeof(*csd));
+		of_node_put(remote);
+		if (IS_ERR(asd)) {
+			ret = PTR_ERR(asd);
+			goto err_cleanup;
+		}
 
-	return notifier->num_subdevs;
+		csd = container_of(asd, struct camss_async_subdev, asd);
+
+		ret = camss_of_parse_endpoint_node(dev, node, csd);
+		if (ret < 0)
+			goto err_cleanup;
+
+		num_subdevs++;
+	}
+
+	return num_subdevs;
+
+err_cleanup:
+	of_node_put(node);
+	return ret;
 }
 
 /*
@@ -823,7 +812,7 @@ static int camss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct camss *camss;
-	int ret;
+	int num_subdevs, ret;
 
 	camss = kzalloc(sizeof(*camss), GFP_KERNEL);
 	if (!camss)
@@ -845,38 +834,49 @@ static int camss_probe(struct platform_device *pdev)
 		camss->csid_num = 4;
 		camss->vfe_num = 2;
 	} else {
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_free;
 	}
 
 	camss->csiphy = devm_kcalloc(dev, camss->csiphy_num,
 				     sizeof(*camss->csiphy), GFP_KERNEL);
-	if (!camss->csiphy)
-		return -ENOMEM;
+	if (!camss->csiphy) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
 
 	camss->csid = devm_kcalloc(dev, camss->csid_num, sizeof(*camss->csid),
 				   GFP_KERNEL);
-	if (!camss->csid)
-		return -ENOMEM;
+	if (!camss->csid) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
 
 	camss->vfe = devm_kcalloc(dev, camss->vfe_num, sizeof(*camss->vfe),
 				  GFP_KERNEL);
-	if (!camss->vfe)
-		return -ENOMEM;
+	if (!camss->vfe) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
 
-	ret = camss_of_parse_ports(dev, &camss->notifier);
-	if (ret < 0)
-		return ret;
+	v4l2_async_notifier_init(&camss->notifier);
+
+	num_subdevs = camss_of_parse_ports(camss);
+	if (num_subdevs < 0) {
+		ret = num_subdevs;
+		goto err_cleanup;
+	}
 
 	ret = camss_init_subdevices(camss);
 	if (ret < 0)
-		return ret;
+		goto err_cleanup;
 
 	ret = dma_set_mask_and_coherent(dev, 0xffffffff);
 	if (ret)
-		return ret;
+		goto err_cleanup;
 
 	camss->media_dev.dev = camss->dev;
-	strlcpy(camss->media_dev.model, "Qualcomm Camera Subsystem",
+	strscpy(camss->media_dev.model, "Qualcomm Camera Subsystem",
 		sizeof(camss->media_dev.model));
 	camss->media_dev.ops = &camss_media_ops;
 	media_device_init(&camss->media_dev);
@@ -885,14 +885,14 @@ static int camss_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(camss->dev, &camss->v4l2_dev);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register V4L2 device: %d\n", ret);
-		return ret;
+		goto err_cleanup;
 	}
 
 	ret = camss_register_entities(camss);
 	if (ret < 0)
 		goto err_register_entities;
 
-	if (camss->notifier.num_subdevs) {
+	if (num_subdevs) {
 		camss->notifier.ops = &camss_subdev_notifier_ops;
 
 		ret = v4l2_async_notifier_register(&camss->v4l2_dev,
@@ -942,6 +942,10 @@ err_register_subdevs:
 	camss_unregister_entities(camss);
 err_register_entities:
 	v4l2_device_unregister(&camss->v4l2_dev);
+err_cleanup:
+	v4l2_async_notifier_cleanup(&camss->notifier);
+err_free:
+	kfree(camss);
 
 	return ret;
 }
@@ -970,14 +974,10 @@ void camss_delete(struct camss *camss)
  */
 static int camss_remove(struct platform_device *pdev)
 {
-	unsigned int i;
-
 	struct camss *camss = platform_get_drvdata(pdev);
 
-	for (i = 0; i < camss->vfe_num; i++)
-		msm_vfe_stop_streaming(&camss->vfe[i]);
-
 	v4l2_async_notifier_unregister(&camss->notifier);
+	v4l2_async_notifier_cleanup(&camss->notifier);
 	camss_unregister_entities(camss);
 
 	if (atomic_read(&camss->ref_count) == 0)

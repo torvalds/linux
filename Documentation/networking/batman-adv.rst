@@ -27,24 +27,8 @@ Load the batman-adv module into your kernel::
   $ insmod batman-adv.ko
 
 The module is now waiting for activation. You must add some interfaces on which
-batman can operate. After loading the module batman advanced will scan your
-systems interfaces to search for compatible interfaces. Once found, it will
-create subfolders in the ``/sys`` directories of each supported interface,
-e.g.::
-
-  $ ls /sys/class/net/eth0/batman_adv/
-  elp_interval iface_status mesh_iface throughput_override
-
-If an interface does not have the ``batman_adv`` subfolder, it probably is not
-supported. Not supported interfaces are: loopback, non-ethernet and batman's
-own interfaces.
-
-Note: After the module was loaded it will continuously watch for new
-interfaces to verify the compatibility. There is no need to reload the module
-if you plug your USB wifi adapter into your machine after batman advanced was
-initially loaded.
-
-The batman-adv soft-interface can be created using the iproute2 tool ``ip``::
+batman-adv can operate. The batman-adv soft-interface can be created using the
+iproute2 tool ``ip``::
 
   $ ip link add name bat0 type batadv
 
@@ -52,56 +36,45 @@ To activate a given interface simply attach it to the ``bat0`` interface::
 
   $ ip link set dev eth0 master bat0
 
-Repeat this step for all interfaces you wish to add. Now batman starts
+Repeat this step for all interfaces you wish to add. Now batman-adv starts
 using/broadcasting on this/these interface(s).
-
-By reading the "iface_status" file you can check its status::
-
-  $ cat /sys/class/net/eth0/batman_adv/iface_status
-  active
 
 To deactivate an interface you have to detach it from the "bat0" interface::
 
   $ ip link set dev eth0 nomaster
 
+The same can also be done using the batctl interface subcommand::
 
-All mesh wide settings can be found in batman's own interface folder::
+  batctl -m bat0 interface create
+  batctl -m bat0 interface add -M eth0
 
-  $ ls /sys/class/net/bat0/mesh/
-  aggregated_ogms       fragmentation isolation_mark routing_algo
-  ap_isolation          gw_bandwidth  log_level      vlan0
-  bonding               gw_mode       multicast_mode
-  bridge_loop_avoidance gw_sel_class  network_coding
-  distributed_arp_table hop_penalty   orig_interval
+To detach eth0 and destroy bat0::
 
-There is a special folder for debugging information::
+  batctl -m bat0 interface del -M eth0
+  batctl -m bat0 interface destroy
 
-  $ ls /sys/kernel/debug/batman_adv/bat0/
-  bla_backbone_table log         neighbors         transtable_local
-  bla_claim_table    mcast_flags originators
-  dat_cache          nc          socket
-  gateways           nc_nodes    transtable_global
+There are additional settings for each batadv mesh interface, vlan and hardif
+which can be modified using batctl. Detailed information about this can be found
+in its manual.
 
-Some of the files contain all sort of status information regarding the mesh
-network. For example, you can view the table of originators (mesh
-participants) with::
+For instance, you can check the current originator interval (value
+in milliseconds which determines how often batman-adv sends its broadcast
+packets)::
 
-  $ cat /sys/kernel/debug/batman_adv/bat0/originators
-
-Other files allow to change batman's behaviour to better fit your requirements.
-For instance, you can check the current originator interval (value in
-milliseconds which determines how often batman sends its broadcast packets)::
-
-  $ cat /sys/class/net/bat0/mesh/orig_interval
+  $ batctl -M bat0 orig_interval
   1000
 
 and also change its value::
 
-  $ echo 3000 > /sys/class/net/bat0/mesh/orig_interval
+  $ batctl -M bat0 orig_interval 3000
 
 In very mobile scenarios, you might want to adjust the originator interval to a
 lower value. This will make the mesh more responsive to topology changes, but
 will also increase the overhead.
+
+Information about the current state can be accessed via the batadv generic
+netlink family. batctl provides a human readable version via its debug tables
+subcommands.
 
 
 Usage
@@ -142,48 +115,21 @@ are prefixed with "batman-adv:" So to see just these messages try::
   $ dmesg | grep batman-adv
 
 When investigating problems with your mesh network, it is sometimes necessary to
-see more detail debug messages. This must be enabled when compiling the
-batman-adv module. When building batman-adv as part of kernel, use "make
+see more detailed debug messages. This must be enabled when compiling the
+batman-adv module. When building batman-adv as part of the kernel, use "make
 menuconfig" and enable the option ``B.A.T.M.A.N. debugging``
 (``CONFIG_BATMAN_ADV_DEBUG=y``).
 
-Those additional debug messages can be accessed using a special file in
-debugfs::
+Those additional debug messages can be accessed using the perf infrastructure::
 
-  $ cat /sys/kernel/debug/batman_adv/bat0/log
+  $ trace-cmd stream -e batadv:batadv_dbg
 
 The additional debug output is by default disabled. It can be enabled during
-run time. Following log_levels are defined:
+run time::
 
-.. flat-table::
+  $ batctl -m bat0 loglevel routes tt
 
-   * - 0
-     - All debug output disabled
-   * - 1
-     - Enable messages related to routing / flooding / broadcasting
-   * - 2
-     - Enable messages related to route added / changed / deleted
-   * - 4
-     - Enable messages related to translation table operations
-   * - 8
-     - Enable messages related to bridge loop avoidance
-   * - 16
-     - Enable messages related to DAT, ARP snooping and parsing
-   * - 32
-     - Enable messages related to network coding
-   * - 64
-     - Enable messages related to multicast
-   * - 128
-     - Enable messages related to throughput meter
-   * - 255
-     - Enable all messages
-
-The debug output can be changed at runtime using the file
-``/sys/class/net/bat0/mesh/log_level``. e.g.::
-
-  $ echo 6 > /sys/class/net/bat0/mesh/log_level
-
-will enable debug messages for when routes change.
+will enable debug messages for when routes and translation table entries change.
 
 Counters for different types of packets entering and leaving the batman-adv
 module are available through ethtool::
@@ -214,7 +160,7 @@ IRC:
   #batman on irc.freenode.org
 Mailing-list:
   b.a.t.m.a.n@open-mesh.org (optional subscription at
-  https://lists.open-mesh.org/mm/listinfo/b.a.t.m.a.n)
+  https://lists.open-mesh.org/mailman3/postorius/lists/b.a.t.m.a.n.lists.open-mesh.org/)
 
 You can also contact the Authors:
 

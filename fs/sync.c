@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/namei.h>
-#include <linux/sched.h>
+#include <linux/sched/xacct.h>
 #include <linux/writeback.h>
 #include <linux/syscalls.h>
 #include <linux/linkage.h>
@@ -76,7 +76,8 @@ static void sync_inodes_one_sb(struct super_block *sb, void *arg)
 
 static void sync_fs_one_sb(struct super_block *sb, void *arg)
 {
-	if (!sb_rdonly(sb) && sb->s_op->sync_fs)
+	if (!sb_rdonly(sb) && !(sb->s_iflags & SB_I_SKIP_SYNC) &&
+	    sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, *(int *)arg);
 }
 
@@ -161,7 +162,7 @@ SYSCALL_DEFINE1(syncfs, int, fd)
 {
 	struct fd f = fdget(fd);
 	struct super_block *sb;
-	int ret;
+	int ret, ret2;
 
 	if (!f.file)
 		return -EBADF;
@@ -171,8 +172,10 @@ SYSCALL_DEFINE1(syncfs, int, fd)
 	ret = sync_filesystem(sb);
 	up_read(&sb->s_umount);
 
+	ret2 = errseq_check_and_advance(&sb->s_wb_err, &f.file->f_sb_err);
+
 	fdput(f);
-	return ret;
+	return ret ? ret : ret2;
 }
 
 /**
@@ -220,6 +223,7 @@ static int do_fsync(unsigned int fd, int datasync)
 	if (f.file) {
 		ret = vfs_fsync(f.file, datasync);
 		fdput(f);
+		inc_syscfs(current);
 	}
 	return ret;
 }
@@ -234,58 +238,10 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 	return do_fsync(fd, 1);
 }
 
-/*
- * sys_sync_file_range() permits finely controlled syncing over a segment of
- * a file in the range offset .. (offset+nbytes-1) inclusive.  If nbytes is
- * zero then sys_sync_file_range() will operate from offset out to EOF.
- *
- * The flag bits are:
- *
- * SYNC_FILE_RANGE_WAIT_BEFORE: wait upon writeout of all pages in the range
- * before performing the write.
- *
- * SYNC_FILE_RANGE_WRITE: initiate writeout of all those dirty pages in the
- * range which are not presently under writeback. Note that this may block for
- * significant periods due to exhaustion of disk request structures.
- *
- * SYNC_FILE_RANGE_WAIT_AFTER: wait upon writeout of all pages in the range
- * after performing the write.
- *
- * Useful combinations of the flag bits are:
- *
- * SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE: ensures that all pages
- * in the range which were dirty on entry to sys_sync_file_range() are placed
- * under writeout.  This is a start-write-for-data-integrity operation.
- *
- * SYNC_FILE_RANGE_WRITE: start writeout of all dirty pages in the range which
- * are not presently under writeout.  This is an asynchronous flush-to-disk
- * operation.  Not suitable for data integrity operations.
- *
- * SYNC_FILE_RANGE_WAIT_BEFORE (or SYNC_FILE_RANGE_WAIT_AFTER): wait for
- * completion of writeout of all pages in the range.  This will be used after an
- * earlier SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE operation to wait
- * for that operation to complete and to return the result.
- *
- * SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER:
- * a traditional sync() operation.  This is a write-for-data-integrity operation
- * which will ensure that all pages in the range which were dirty on entry to
- * sys_sync_file_range() are committed to disk.
- *
- *
- * SYNC_FILE_RANGE_WAIT_BEFORE and SYNC_FILE_RANGE_WAIT_AFTER will detect any
- * I/O errors or ENOSPC conditions and will return those to the caller, after
- * clearing the EIO and ENOSPC flags in the address_space.
- *
- * It should be noted that none of these operations write out the file's
- * metadata.  So unless the application is strictly performing overwrites of
- * already-instantiated disk blocks, there are no guarantees here that the data
- * will be available after a crash.
- */
-int ksys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
-			 unsigned int flags)
+int sync_file_range(struct file *file, loff_t offset, loff_t nbytes,
+		    unsigned int flags)
 {
 	int ret;
-	struct fd f;
 	struct address_space *mapping;
 	loff_t endbyte;			/* inclusive */
 	umode_t i_mode;
@@ -325,38 +281,102 @@ int ksys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
 	else
 		endbyte--;		/* inclusive */
 
-	ret = -EBADF;
-	f = fdget(fd);
-	if (!f.file)
-		goto out;
-
-	i_mode = file_inode(f.file)->i_mode;
+	i_mode = file_inode(file)->i_mode;
 	ret = -ESPIPE;
 	if (!S_ISREG(i_mode) && !S_ISBLK(i_mode) && !S_ISDIR(i_mode) &&
 			!S_ISLNK(i_mode))
-		goto out_put;
+		goto out;
 
-	mapping = f.file->f_mapping;
+	mapping = file->f_mapping;
 	ret = 0;
 	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
-		ret = file_fdatawait_range(f.file, offset, endbyte);
+		ret = file_fdatawait_range(file, offset, endbyte);
 		if (ret < 0)
-			goto out_put;
+			goto out;
 	}
 
 	if (flags & SYNC_FILE_RANGE_WRITE) {
+		int sync_mode = WB_SYNC_NONE;
+
+		if ((flags & SYNC_FILE_RANGE_WRITE_AND_WAIT) ==
+			     SYNC_FILE_RANGE_WRITE_AND_WAIT)
+			sync_mode = WB_SYNC_ALL;
+
 		ret = __filemap_fdatawrite_range(mapping, offset, endbyte,
-						 WB_SYNC_NONE);
+						 sync_mode);
 		if (ret < 0)
-			goto out_put;
+			goto out;
 	}
 
 	if (flags & SYNC_FILE_RANGE_WAIT_AFTER)
-		ret = file_fdatawait_range(f.file, offset, endbyte);
+		ret = file_fdatawait_range(file, offset, endbyte);
 
-out_put:
-	fdput(f);
 out:
+	return ret;
+}
+
+/*
+ * ksys_sync_file_range() permits finely controlled syncing over a segment of
+ * a file in the range offset .. (offset+nbytes-1) inclusive.  If nbytes is
+ * zero then ksys_sync_file_range() will operate from offset out to EOF.
+ *
+ * The flag bits are:
+ *
+ * SYNC_FILE_RANGE_WAIT_BEFORE: wait upon writeout of all pages in the range
+ * before performing the write.
+ *
+ * SYNC_FILE_RANGE_WRITE: initiate writeout of all those dirty pages in the
+ * range which are not presently under writeback. Note that this may block for
+ * significant periods due to exhaustion of disk request structures.
+ *
+ * SYNC_FILE_RANGE_WAIT_AFTER: wait upon writeout of all pages in the range
+ * after performing the write.
+ *
+ * Useful combinations of the flag bits are:
+ *
+ * SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE: ensures that all pages
+ * in the range which were dirty on entry to ksys_sync_file_range() are placed
+ * under writeout.  This is a start-write-for-data-integrity operation.
+ *
+ * SYNC_FILE_RANGE_WRITE: start writeout of all dirty pages in the range which
+ * are not presently under writeout.  This is an asynchronous flush-to-disk
+ * operation.  Not suitable for data integrity operations.
+ *
+ * SYNC_FILE_RANGE_WAIT_BEFORE (or SYNC_FILE_RANGE_WAIT_AFTER): wait for
+ * completion of writeout of all pages in the range.  This will be used after an
+ * earlier SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE operation to wait
+ * for that operation to complete and to return the result.
+ *
+ * SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER
+ * (a.k.a. SYNC_FILE_RANGE_WRITE_AND_WAIT):
+ * a traditional sync() operation.  This is a write-for-data-integrity operation
+ * which will ensure that all pages in the range which were dirty on entry to
+ * ksys_sync_file_range() are written to disk.  It should be noted that disk
+ * caches are not flushed by this call, so there are no guarantees here that the
+ * data will be available on disk after a crash.
+ *
+ *
+ * SYNC_FILE_RANGE_WAIT_BEFORE and SYNC_FILE_RANGE_WAIT_AFTER will detect any
+ * I/O errors or ENOSPC conditions and will return those to the caller, after
+ * clearing the EIO and ENOSPC flags in the address_space.
+ *
+ * It should be noted that none of these operations write out the file's
+ * metadata.  So unless the application is strictly performing overwrites of
+ * already-instantiated disk blocks, there are no guarantees here that the data
+ * will be available after a crash.
+ */
+int ksys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
+			 unsigned int flags)
+{
+	int ret;
+	struct fd f;
+
+	ret = -EBADF;
+	f = fdget(fd);
+	if (f.file)
+		ret = sync_file_range(f.file, offset, nbytes, flags);
+
+	fdput(f);
 	return ret;
 }
 

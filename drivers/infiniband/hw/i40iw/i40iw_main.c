@@ -54,10 +54,6 @@
 #define DRV_VERSION	__stringify(DRV_VERSION_MAJOR) "."		\
 	__stringify(DRV_VERSION_MINOR) "." __stringify(DRV_VERSION_BUILD)
 
-static int push_mode;
-module_param(push_mode, int, 0644);
-MODULE_PARM_DESC(push_mode, "Low latency mode: 0=disabled (default), 1=enabled)");
-
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug flags: 0=disabled (default), 0x7fffffff=all");
@@ -192,9 +188,9 @@ static void i40iw_enable_intr(struct i40iw_sc_dev *dev, u32 msix_id)
  * i40iw_dpc - tasklet for aeq and ceq 0
  * @data: iwarp device
  */
-static void i40iw_dpc(unsigned long data)
+static void i40iw_dpc(struct tasklet_struct *t)
 {
-	struct i40iw_device *iwdev = (struct i40iw_device *)data;
+	struct i40iw_device *iwdev = from_tasklet(iwdev, t, dpc_tasklet);
 
 	if (iwdev->msix_shared)
 		i40iw_process_ceq(iwdev, iwdev->ceqlist);
@@ -206,9 +202,9 @@ static void i40iw_dpc(unsigned long data)
  * i40iw_ceq_dpc - dpc handler for CEQ
  * @data: data points to CEQ
  */
-static void i40iw_ceq_dpc(unsigned long data)
+static void i40iw_ceq_dpc(struct tasklet_struct *t)
 {
-	struct i40iw_ceq *iwceq = (struct i40iw_ceq *)data;
+	struct i40iw_ceq *iwceq = from_tasklet(iwceq, t, dpc_tasklet);
 	struct i40iw_device *iwdev = iwceq->iwdev;
 
 	i40iw_process_ceq(iwdev, iwceq);
@@ -689,10 +685,10 @@ static enum i40iw_status_code i40iw_configure_ceq_vector(struct i40iw_device *iw
 	enum i40iw_status_code status;
 
 	if (iwdev->msix_shared && !ceq_id) {
-		tasklet_init(&iwdev->dpc_tasklet, i40iw_dpc, (unsigned long)iwdev);
+		tasklet_setup(&iwdev->dpc_tasklet, i40iw_dpc);
 		status = request_irq(msix_vec->irq, i40iw_irq_handler, 0, "AEQCEQ", iwdev);
 	} else {
-		tasklet_init(&iwceq->dpc_tasklet, i40iw_ceq_dpc, (unsigned long)iwceq);
+		tasklet_setup(&iwceq->dpc_tasklet, i40iw_ceq_dpc);
 		status = request_irq(msix_vec->irq, i40iw_ceq_handler, 0, "CEQ", iwceq);
 	}
 
@@ -841,7 +837,7 @@ static enum i40iw_status_code i40iw_configure_aeq_vector(struct i40iw_device *iw
 	u32 ret = 0;
 
 	if (!iwdev->msix_shared) {
-		tasklet_init(&iwdev->dpc_tasklet, i40iw_dpc, (unsigned long)iwdev);
+		tasklet_setup(&iwdev->dpc_tasklet, i40iw_dpc);
 		ret = request_irq(msix_vec->irq, i40iw_irq_handler, 0, "i40iw", iwdev);
 	}
 	if (ret) {
@@ -1212,18 +1208,19 @@ static void i40iw_add_ipv4_addr(struct i40iw_device *iwdev)
 {
 	struct net_device *dev;
 	struct in_device *idev;
-	bool got_lock = true;
 	u32 ip_addr;
 
-	if (!rtnl_trylock())
-		got_lock = false;
-
-	for_each_netdev(&init_net, dev) {
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
 		if ((((rdma_vlan_dev_vlan_id(dev) < 0xFFFF) &&
 		      (rdma_vlan_dev_real_dev(dev) == iwdev->netdev)) ||
-		    (dev == iwdev->netdev)) && (dev->flags & IFF_UP)) {
-			idev = in_dev_get(dev);
-			for_ifa(idev) {
+		    (dev == iwdev->netdev)) && (READ_ONCE(dev->flags) & IFF_UP)) {
+			const struct in_ifaddr *ifa;
+
+			idev = __in_dev_get_rcu(dev);
+			if (!idev)
+				continue;
+			in_dev_for_each_ifa_rcu(ifa, idev) {
 				i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_CM,
 					    "IP=%pI4, vlan_id=%d, MAC=%pM\n", &ifa->ifa_address,
 					     rdma_vlan_dev_vlan_id(dev), dev->dev_addr);
@@ -1235,12 +1232,9 @@ static void i40iw_add_ipv4_addr(struct i40iw_device *iwdev)
 						       true,
 						       I40IW_ARP_ADD);
 			}
-			endfor_ifa(idev);
-			in_dev_put(idev);
 		}
 	}
-	if (got_lock)
-		rtnl_unlock();
+	rcu_read_unlock();
 }
 
 /**
@@ -1491,36 +1485,35 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev)
 		iwdev->iw_status = 0;
 		i40iw_port_ibevent(iwdev);
 		i40iw_destroy_rdma_device(iwdev->iwibdev);
-		/* fallthrough */
+		fallthrough;
 	case IP_ADDR_REGISTERED:
 		if (!iwdev->reset)
 			i40iw_del_macip_entry(iwdev, (u8)iwdev->mac_ip_table_idx);
-		/* fallthrough */
-		/* fallthrough */
+		fallthrough;
 	case PBLE_CHUNK_MEM:
 		i40iw_destroy_pble_pool(dev, iwdev->pble_rsrc);
-		/* fallthrough */
+		fallthrough;
 	case CEQ_CREATED:
 		i40iw_dele_ceqs(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case AEQ_CREATED:
 		i40iw_destroy_aeq(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case IEQ_CREATED:
 		i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_IEQ, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case ILQ_CREATED:
 		i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_ILQ, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case CCQ_CREATED:
 		i40iw_destroy_ccq(iwdev);
-		/* fallthrough */
+		fallthrough;
 	case HMC_OBJS_CREATED:
 		i40iw_del_hmc_objects(dev, dev->hmc_info, true, iwdev->reset);
-		/* fallthrough */
+		fallthrough;
 	case CQP_CREATED:
 		i40iw_destroy_cqp(iwdev, true);
-		/* fallthrough */
+		fallthrough;
 	case INITIAL_STATE:
 		i40iw_cleanup_cm_core(&iwdev->cm_core);
 		if (iwdev->vsi.pestat) {
@@ -1530,7 +1523,6 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev)
 		i40iw_del_init_mem(iwdev);
 		break;
 	case INVALID_STATE:
-		/* fallthrough */
 	default:
 		i40iw_pr_err("bad init_state = %d\n", iwdev->init_state);
 		break;
@@ -1577,14 +1569,13 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 	status = i40iw_save_msix_info(iwdev, ldev);
 	if (status)
 		return status;
-	iwdev->hw.dev_context = (void *)ldev->pcidev;
+	iwdev->hw.pcidev = ldev->pcidev;
 	iwdev->hw.hw_addr = ldev->hw_addr;
 	status = i40iw_allocate_dma_mem(&iwdev->hw,
 					&iwdev->obj_mem, 8192, 4096);
 	if (status)
 		goto exit;
 	iwdev->obj_next = iwdev->obj_mem;
-	iwdev->push_mode = push_mode;
 
 	init_waitqueue_head(&iwdev->vchnl_waitq);
 	init_waitqueue_head(&dev->vf_reqs);
@@ -1641,7 +1632,10 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 	iwdev = &hdl->device;
 	iwdev->hdl = hdl;
 	dev = &iwdev->sc_dev;
-	i40iw_setup_cm_core(iwdev);
+	if (i40iw_setup_cm_core(iwdev)) {
+		kfree(iwdev->hdl);
+		return -ENOMEM;
+	}
 
 	dev->back_dev = (void *)iwdev;
 	iwdev->ldev = &hdl->ldev;
@@ -1682,6 +1676,12 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 		status = i40iw_setup_ceqs(iwdev, ldev);
 		if (status)
 			break;
+
+		status = i40iw_get_rdma_features(dev);
+		if (status)
+			dev->feature_info[I40IW_FEATURE_FW_INFO] =
+				I40IW_FW_VER_DEFAULT;
+
 		iwdev->init_state = CEQ_CREATED;
 		status = i40iw_initialize_hw_resources(iwdev);
 		if (status)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2011-2017, The Linux Foundation
  */
@@ -60,12 +60,6 @@
 #define SLIM_MSG_MC_NEXT_DEACTIVATE_CHANNEL      0x55
 #define SLIM_MSG_MC_NEXT_REMOVE_CHANNEL          0x58
 #define SLIM_MSG_MC_RECONFIGURE_NOW              0x5F
-
-/*
- * Clock pause flag to indicate that the reconfig message
- * corresponds to clock pause sequence
- */
-#define SLIM_MSG_CLK_PAUSE_SEQ_FLG		(1U << 8)
 
 /* Clock pause values per SLIMbus spec */
 #define SLIM_CLK_FAST				0
@@ -445,7 +439,7 @@ static inline bool slim_tid_txn(u8 mt, u8 mc)
 		(mc == SLIM_MSG_MC_REQUEST_INFORMATION ||
 		 mc == SLIM_MSG_MC_REQUEST_CLEAR_INFORMATION ||
 		 mc == SLIM_MSG_MC_REQUEST_VALUE ||
-		 mc == SLIM_MSG_MC_REQUEST_CLEAR_INFORMATION));
+		 mc == SLIM_MSG_MC_REQUEST_CHANGE_VALUE));
 }
 
 static inline bool slim_ec_txn(u8 mt, u8 mc)

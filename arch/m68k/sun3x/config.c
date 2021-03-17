@@ -49,7 +49,6 @@ void __init config_sun3x(void)
 	mach_sched_init      = sun3x_sched_init;
 	mach_init_IRQ        = sun3_init_IRQ;
 
-	arch_gettimeoffset   = sun3x_gettimeoffset;
 	mach_reset           = sun3x_reboot;
 
 	mach_hwclk           = sun3x_hwclk;
@@ -71,7 +70,6 @@ void __init config_sun3x(void)
 		break;
 	default:
 		serial_console = 0;
-		conswitchp = &dummy_con;
 		break;
 	}
 #endif

@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2012-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2020  B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll, Jeppe Ledet-Pedersen
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "network-coding.h"
@@ -38,8 +26,8 @@
 #include <linux/lockdep.h>
 #include <linux/net.h>
 #include <linux/netdevice.h>
+#include <linux/prandom.h>
 #include <linux/printk.h>
-#include <linux/random.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/seq_file.h>
@@ -146,7 +134,7 @@ static void batadv_nc_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_nc_mesh_init() - initialise coding hash table and start house keeping
+ * batadv_nc_mesh_init() - initialise coding hash table and start housekeeping
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: 0 on success or negative error number in case of failure
@@ -262,7 +250,7 @@ static void batadv_nc_path_put(struct batadv_nc_path *nc_path)
 /**
  * batadv_nc_packet_free() - frees nc packet
  * @nc_packet: the nc packet to free
- * @dropped: whether the packet is freed because is is dropped
+ * @dropped: whether the packet is freed because is dropped
  */
 static void batadv_nc_packet_free(struct batadv_nc_packet *nc_packet,
 				  bool dropped)
@@ -712,7 +700,7 @@ batadv_nc_process_nc_paths(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_nc_worker() - periodic task for house keeping related to network
+ * batadv_nc_worker() - periodic task for housekeeping related to network
  *  coding
  * @work: kernel work struct
  */
@@ -1021,15 +1009,8 @@ static struct batadv_nc_path *batadv_nc_get_path(struct batadv_priv *bat_priv,
  */
 static u8 batadv_nc_random_weight_tq(u8 tq)
 {
-	u8 rand_val, rand_tq;
-
-	get_random_bytes(&rand_val, sizeof(rand_val));
-
 	/* randomize the estimated packet loss (max TQ - estimated TQ) */
-	rand_tq = rand_val * (BATADV_TQ_MAX_VALUE - tq);
-
-	/* normalize the randomized packet loss */
-	rand_tq /= BATADV_TQ_MAX_VALUE;
+	u8 rand_tq = prandom_u32_max(BATADV_TQ_MAX_VALUE + 1 - tq);
 
 	/* convert to (randomized) estimated tq again */
 	return BATADV_TQ_MAX_VALUE - rand_tq;
@@ -1335,7 +1316,7 @@ batadv_nc_path_search(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_nc_skb_src_search() - Loops through the list of neighoring nodes of
+ * batadv_nc_skb_src_search() - Loops through the list of neighboring nodes of
  *  the skb's sender (may be equal to the originator).
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: data skb to forward
@@ -1421,10 +1402,10 @@ static void batadv_nc_skb_store_before_coding(struct batadv_priv *bat_priv,
  * @neigh_node: next hop to forward packet to
  * @ethhdr: pointer to the ethernet header inside the skb
  *
- * Loops through list of neighboring nodes the next hop has a good connection to
- * (receives OGMs with a sufficient quality). We need to find a neighbor of our
- * next hop that potentially sent a packet which our next hop also received
- * (overheard) and has stored for later decoding.
+ * Loops through the list of neighboring nodes the next hop has a good
+ * connection to (receives OGMs with a sufficient quality). We need to find a
+ * neighbor of our next hop that potentially sent a packet which our next hop
+ * also received (overheard) and has stored for later decoding.
  *
  * Return: true if the skb was consumed (encoded packet sent) or false otherwise
  */
@@ -1963,34 +1944,19 @@ out:
 /**
  * batadv_nc_init_debugfs() - create nc folder and related files in debugfs
  * @bat_priv: the bat priv with all the soft interface information
- *
- * Return: 0 on success or negative error number in case of failure
  */
-int batadv_nc_init_debugfs(struct batadv_priv *bat_priv)
+void batadv_nc_init_debugfs(struct batadv_priv *bat_priv)
 {
-	struct dentry *nc_dir, *file;
+	struct dentry *nc_dir;
 
 	nc_dir = debugfs_create_dir("nc", bat_priv->debug_dir);
-	if (!nc_dir)
-		goto out;
 
-	file = debugfs_create_u8("min_tq", 0644, nc_dir, &bat_priv->nc.min_tq);
-	if (!file)
-		goto out;
+	debugfs_create_u8("min_tq", 0644, nc_dir, &bat_priv->nc.min_tq);
 
-	file = debugfs_create_u32("max_fwd_delay", 0644, nc_dir,
-				  &bat_priv->nc.max_fwd_delay);
-	if (!file)
-		goto out;
+	debugfs_create_u32("max_fwd_delay", 0644, nc_dir,
+			   &bat_priv->nc.max_fwd_delay);
 
-	file = debugfs_create_u32("max_buffer_time", 0644, nc_dir,
-				  &bat_priv->nc.max_buffer_time);
-	if (!file)
-		goto out;
-
-	return 0;
-
-out:
-	return -ENOMEM;
+	debugfs_create_u32("max_buffer_time", 0644, nc_dir,
+			   &bat_priv->nc.max_buffer_time);
 }
 #endif

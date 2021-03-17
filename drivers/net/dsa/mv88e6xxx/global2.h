@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Marvell 88E6xxx Switch Global 2 Registers support
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _MV88E6XXX_GLOBAL2_H
@@ -117,7 +113,16 @@
 #define MV88E6XXX_G2_SWITCH_MAC_DATA_MASK	0x00ff
 
 /* Offset 0x0E: ATU Stats Register */
-#define MV88E6XXX_G2_ATU_STATS		0x0e
+#define MV88E6XXX_G2_ATU_STATS				0x0e
+#define MV88E6XXX_G2_ATU_STATS_BIN_0			(0x0 << 14)
+#define MV88E6XXX_G2_ATU_STATS_BIN_1			(0x1 << 14)
+#define MV88E6XXX_G2_ATU_STATS_BIN_2			(0x2 << 14)
+#define MV88E6XXX_G2_ATU_STATS_BIN_3			(0x3 << 14)
+#define MV88E6XXX_G2_ATU_STATS_MODE_ALL			(0x0 << 12)
+#define MV88E6XXX_G2_ATU_STATS_MODE_ALL_DYNAMIC		(0x1 << 12)
+#define MV88E6XXX_G2_ATU_STATS_MODE_FID_ALL		(0x2 << 12)
+#define MV88E6XXX_G2_ATU_STATS_MODE_FID_ALL_DYNAMIC	(0x3 << 12)
+#define MV88E6XXX_G2_ATU_STATS_MASK			0x0fff
 
 /* Offset 0x0F: Priority Override Table */
 #define MV88E6XXX_G2_PRIO_OVERRIDE		0x0f
@@ -206,6 +211,18 @@
 #define MV88E6XXX_G2_SCRATCH_MISC_DATA_MASK	0x00ff
 
 /* Offset 0x1B: Watch Dog Control Register */
+#define MV88E6250_G2_WDOG_CTL			0x1b
+#define MV88E6250_G2_WDOG_CTL_QC_HISTORY	0x0100
+#define MV88E6250_G2_WDOG_CTL_QC_EVENT		0x0080
+#define MV88E6250_G2_WDOG_CTL_QC_ENABLE		0x0040
+#define MV88E6250_G2_WDOG_CTL_EGRESS_HISTORY	0x0020
+#define MV88E6250_G2_WDOG_CTL_EGRESS_EVENT	0x0010
+#define MV88E6250_G2_WDOG_CTL_EGRESS_ENABLE	0x0008
+#define MV88E6250_G2_WDOG_CTL_FORCE_IRQ		0x0004
+#define MV88E6250_G2_WDOG_CTL_HISTORY		0x0002
+#define MV88E6250_G2_WDOG_CTL_SWRESET		0x0001
+
+/* Offset 0x1B: Watch Dog Control Register */
 #define MV88E6352_G2_WDOG_CTL			0x1b
 #define MV88E6352_G2_WDOG_CTL_EGRESS_EVENT	0x0080
 #define MV88E6352_G2_WDOG_CTL_RMU_TIMEOUT	0x0040
@@ -287,8 +304,8 @@ static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 
 int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
 int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val);
-int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update);
-int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask);
+int mv88e6xxx_g2_wait_bit(struct mv88e6xxx_chip *chip, int reg,
+			  int bit, int val);
 
 int mv88e6352_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port);
@@ -334,6 +351,7 @@ int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip, int target,
 				      int port);
 
 extern const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops;
+extern const struct mv88e6xxx_irq_ops mv88e6250_watchdog_ops;
 extern const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops;
 
 extern const struct mv88e6xxx_avb_ops mv88e6165_avb_ops;
@@ -344,6 +362,8 @@ extern const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops;
 
 int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 				      bool external);
+int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip, u16 kind, u16 bin);
+int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip, u16 *stats);
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
@@ -367,12 +387,8 @@ static inline int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 v
 	return -EOPNOTSUPP;
 }
 
-static inline int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
+static inline int mv88e6xxx_g2_wait_bit(struct mv88e6xxx_chip *chip,
+					int reg, int bit, int val)
 {
 	return -EOPNOTSUPP;
 }
@@ -484,6 +500,7 @@ static inline int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
 }
 
 static const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {};
+static const struct mv88e6xxx_irq_ops mv88e6250_watchdog_ops = {};
 static const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops = {};
 
 static const struct mv88e6xxx_avb_ops mv88e6165_avb_ops = {};
@@ -505,6 +522,18 @@ static inline int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip)
 
 static inline int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip,
 						    int target, int port)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip,
+					     u16 kind, u16 bin)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip,
+					     u16 *stats)
 {
 	return -EOPNOTSUPP;
 }

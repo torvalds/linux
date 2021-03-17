@@ -219,7 +219,7 @@ static s32 bcma_erom_get_mst_port(struct bcma_bus *bus, u32 __iomem **eromptr)
 static u32 bcma_erom_get_addr_desc(struct bcma_bus *bus, u32 __iomem **eromptr,
 				  u32 type, u8 port)
 {
-	u32 addrl, addrh, sizel, sizeh = 0;
+	u32 addrl;
 	u32 size;
 
 	u32 ent = bcma_erom_get_ent(bus, eromptr);
@@ -233,18 +233,13 @@ static u32 bcma_erom_get_addr_desc(struct bcma_bus *bus, u32 __iomem **eromptr,
 
 	addrl = ent & SCAN_ADDR_ADDR;
 	if (ent & SCAN_ADDR_AG32)
-		addrh = bcma_erom_get_ent(bus, eromptr);
-	else
-		addrh = 0;
+		bcma_erom_get_ent(bus, eromptr);
 
 	if ((ent & SCAN_ADDR_SZ) == SCAN_ADDR_SZ_SZD) {
 		size = bcma_erom_get_ent(bus, eromptr);
-		sizel = size & SCAN_SIZE_SZ;
 		if (size & SCAN_SIZE_SG32)
-			sizeh = bcma_erom_get_ent(bus, eromptr);
-	} else
-		sizel = SCAN_ADDR_SZ_BASE <<
-				((ent & SCAN_ADDR_SZ) >> SCAN_ADDR_SZ_SHIFT);
+			bcma_erom_get_ent(bus, eromptr);
+	}
 
 	return addrl;
 }
@@ -425,11 +420,11 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		}
 	}
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
-		core->io_addr = ioremap_nocache(core->addr, BCMA_CORE_SIZE);
+		core->io_addr = ioremap(core->addr, BCMA_CORE_SIZE);
 		if (!core->io_addr)
 			return -ENOMEM;
 		if (core->wrap) {
-			core->io_wrap = ioremap_nocache(core->wrap,
+			core->io_wrap = ioremap(core->wrap,
 							BCMA_CORE_SIZE);
 			if (!core->io_wrap) {
 				iounmap(core->io_addr);
@@ -472,7 +467,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 
 	erombase = bcma_scan_read32(bus, 0, BCMA_CC_EROM);
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
-		eromptr = ioremap_nocache(erombase, BCMA_CORE_SIZE);
+		eromptr = ioremap(erombase, BCMA_CORE_SIZE);
 		if (!eromptr)
 			return -ENOMEM;
 	} else {

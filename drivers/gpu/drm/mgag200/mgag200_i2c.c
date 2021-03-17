@@ -25,10 +25,11 @@
 /*
  * Authors: Dave Airlie <airlied@redhat.com>
  */
+
 #include <linux/export.h>
-#include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <drm/drmP.h>
+#include <linux/i2c.h>
+#include <linux/pci.h>
 
 #include "mgag200_drv.h"
 
@@ -60,34 +61,34 @@ static inline void mga_i2c_set(struct mga_device *mdev, int mask, int state)
 static void mga_gpio_setsda(void *data, int state)
 {
 	struct mga_i2c_chan *i2c = data;
-	struct mga_device *mdev = i2c->dev->dev_private;
+	struct mga_device *mdev = to_mga_device(i2c->dev);
 	mga_i2c_set(mdev, i2c->data, state);
 }
 
 static void mga_gpio_setscl(void *data, int state)
 {
 	struct mga_i2c_chan *i2c = data;
-	struct mga_device *mdev = i2c->dev->dev_private;
+	struct mga_device *mdev = to_mga_device(i2c->dev);
 	mga_i2c_set(mdev, i2c->clock, state);
 }
 
 static int mga_gpio_getsda(void *data)
 {
 	struct mga_i2c_chan *i2c = data;
-	struct mga_device *mdev = i2c->dev->dev_private;
+	struct mga_device *mdev = to_mga_device(i2c->dev);
 	return (mga_i2c_read_gpio(mdev) & i2c->data) ? 1 : 0;
 }
 
 static int mga_gpio_getscl(void *data)
 {
 	struct mga_i2c_chan *i2c = data;
-	struct mga_device *mdev = i2c->dev->dev_private;
+	struct mga_device *mdev = to_mga_device(i2c->dev);
 	return (mga_i2c_read_gpio(mdev) & i2c->clock) ? 1 : 0;
 }
 
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev)
 {
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	struct mga_i2c_chan *i2c;
 	int ret;
 	int data, clock;

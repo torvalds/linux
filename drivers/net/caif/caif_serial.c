@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/hardirq.h>
@@ -94,26 +94,20 @@ static inline void update_tty_status(struct ser_device *ser)
 }
 static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
 {
-	ser->debugfs_tty_dir =
-			debugfs_create_dir(tty->name, debugfsdir);
-	if (!IS_ERR(ser->debugfs_tty_dir)) {
-		debugfs_create_blob("last_tx_msg", 0400,
-				    ser->debugfs_tty_dir,
-				    &ser->tx_blob);
+	ser->debugfs_tty_dir = debugfs_create_dir(tty->name, debugfsdir);
 
-		debugfs_create_blob("last_rx_msg", 0400,
-				    ser->debugfs_tty_dir,
-				    &ser->rx_blob);
+	debugfs_create_blob("last_tx_msg", 0400, ser->debugfs_tty_dir,
+			    &ser->tx_blob);
 
-		debugfs_create_x32("ser_state", 0400,
-				   ser->debugfs_tty_dir,
-				   (u32 *)&ser->state);
+	debugfs_create_blob("last_rx_msg", 0400, ser->debugfs_tty_dir,
+			    &ser->rx_blob);
 
-		debugfs_create_x8("tty_status", 0400,
-				  ser->debugfs_tty_dir,
-				  &ser->tty_status);
+	debugfs_create_xul("ser_state", 0400, ser->debugfs_tty_dir,
+			   &ser->state);
 
-	}
+	debugfs_create_x8("tty_status", 0400, ser->debugfs_tty_dir,
+			  &ser->tty_status);
+
 	ser->tx_blob.data = ser->tx_data;
 	ser->tx_blob.size = 0;
 	ser->rx_blob.data = ser->rx_data;
@@ -257,10 +251,7 @@ static int handle_tx(struct ser_device *ser)
 		if (skb->len == 0) {
 			struct sk_buff *tmp = skb_dequeue(&ser->head);
 			WARN_ON(tmp != skb);
-			if (in_interrupt())
-				dev_kfree_skb_irq(skb);
-			else
-				kfree_skb(skb);
+			dev_consume_skb_any(skb);
 		}
 	}
 	/* Send flow off if queue is empty */
@@ -275,11 +266,13 @@ error:
 	return tty_wr;
 }
 
-static int caif_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t caif_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ser_device *ser;
 
-	BUG_ON(dev == NULL);
+	if (WARN_ON(!dev))
+		return -EINVAL;
+
 	ser = netdev_priv(dev);
 
 	/* Send flow off once, on high water mark */

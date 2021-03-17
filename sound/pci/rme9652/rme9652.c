@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for RME Digi9652 audio interfaces 
  *
  *	Copyright (c) 1999 IEM - Winfried Ritsch
  *      Copyright (c) 1999-2001  Paul Davis
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -243,7 +229,7 @@ struct snd_rme9652 {
 	int last_spdif_sample_rate;	/* so that we can catch externally ... */
 	int last_adat_sample_rate;	/* ... induced rate changes            */
 
-        char *channel_map;
+	const char *channel_map;
 
 	struct snd_card *card;
 	struct snd_pcm *pcm;
@@ -260,12 +246,12 @@ struct snd_rme9652 {
    where the data for that channel can be read/written from/to.
 */
 
-static char channel_map_9652_ss[26] = {
+static const char channel_map_9652_ss[26] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
 	18, 19, 20, 21, 22, 23, 24, 25
 };
 
-static char channel_map_9636_ss[26] = {
+static const char channel_map_9636_ss[26] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 
 	/* channels 16 and 17 are S/PDIF */
 	24, 25,
@@ -273,7 +259,7 @@ static char channel_map_9636_ss[26] = {
 	-1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_9652_ds[26] = {
+static const char channel_map_9652_ds[26] = {
 	/* ADAT channels are remapped */
 	1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23,
 	/* channels 12 and 13 are S/PDIF */
@@ -282,7 +268,7 @@ static char channel_map_9652_ds[26] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_9636_ds[26] = {
+static const char channel_map_9636_ds[26] = {
 	/* ADAT channels are remapped */
 	1, 3, 5, 7, 9, 11, 13, 15,
 	/* channels 8 and 9 are S/PDIF */
@@ -293,12 +279,7 @@ static char channel_map_9636_ds[26] = {
 
 static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer *dmab, size_t size)
 {
-	dmab->dev.type = SNDRV_DMA_TYPE_DEV;
-	dmab->dev.dev = snd_dma_pci_data(pci);
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-				size, dmab) < 0)
-		return -ENOMEM;
-	return 0;
+	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev, size, dmab);
 }
 
 static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_dev *pci)
@@ -1473,7 +1454,7 @@ static int snd_rme9652_get_tc_value(void *private_data,
 
 #endif				/* ALSA_HAS_STANDARD_WAY_OF_RETURNING_TIMECODE */
 
-static struct snd_kcontrol_new snd_rme9652_controls[] = {
+static const struct snd_kcontrol_new snd_rme9652_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -1528,10 +1509,10 @@ RME9652_TC_VALID("Timecode Valid", 0),
 RME9652_PASSTHRU("Passthru", 0)
 };
 
-static struct snd_kcontrol_new snd_rme9652_adat3_check =
+static const struct snd_kcontrol_new snd_rme9652_adat3_check =
 RME9652_ADAT_SYNC("ADAT3 Sync Check", 0, 2);
 
-static struct snd_kcontrol_new snd_rme9652_adat1_input =
+static const struct snd_kcontrol_new snd_rme9652_adat1_input =
 RME9652_ADAT1_IN("ADAT1 Input Source", 0);
 
 static int snd_rme9652_create_controls(struct snd_card *card, struct snd_rme9652 *rme9652)
@@ -1737,10 +1718,8 @@ snd_rme9652_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 
 static void snd_rme9652_proc_init(struct snd_rme9652 *rme9652)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(rme9652->card, "rme9652", &entry))
-		snd_info_set_text_ops(entry, rme9652, snd_rme9652_proc_read);
+	snd_card_ro_proc_new(rme9652->card, "rme9652", rme9652,
+			     snd_rme9652_proc_read);
 }
 
 static void snd_rme9652_free_buffers(struct snd_rme9652 *rme9652)
@@ -2174,13 +2153,12 @@ static int snd_rme9652_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	unsigned long flags;
-	int result = 0;
 
 	spin_lock_irqsave(&rme9652->lock, flags);
 	if (!rme9652->running)
 		rme9652_reset_hw_pointer(rme9652);
 	spin_unlock_irqrestore(&rme9652->lock, flags);
-	return result;
+	return 0;
 }
 
 static const struct snd_pcm_hardware snd_rme9652_playback_subinfo =
@@ -2488,7 +2466,7 @@ static int snd_rme9652_create(struct snd_card *card,
 	if ((err = pci_request_regions(pci, "rme9652")) < 0)
 		return err;
 	rme9652->port = pci_resource_start(pci, 0);
-	rme9652->iobase = ioremap_nocache(rme9652->port, RME9652_IO_EXTENT);
+	rme9652->iobase = ioremap(rme9652->port, RME9652_IO_EXTENT);
 	if (rme9652->iobase == NULL) {
 		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
 			rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);
@@ -2501,6 +2479,7 @@ static int snd_rme9652_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	rme9652->irq = pci->irq;
+	card->sync_irq = rme9652->irq;
 	rme9652->precise_ptr = precise_ptr;
 
 	/* Determine the h/w rev level of the card. This seems like

@@ -1,18 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /*
@@ -40,7 +27,7 @@
 static int cs46xx_dsp_async_init (struct snd_cs46xx *chip,
 				  struct dsp_scb_descriptor * fg_entry);
 
-static enum wide_opcode wide_opcodes[] = { 
+static const enum wide_opcode wide_opcodes[] = {
 	WIDE_FOR_BEGIN_LOOP,
 	WIDE_FOR_BEGIN_LOOP2,
 	WIDE_COND_GOTO_ADDR,
@@ -799,92 +786,49 @@ int cs46xx_dsp_proc_init (struct snd_card *card, struct snd_cs46xx *chip)
 
 	ins->snd_card = card;
 
-	if ((entry = snd_info_create_card_entry(card, "dsp", card->proc_root)) != NULL) {
-		entry->content = SNDRV_INFO_CONTENT_TEXT;
+	entry = snd_info_create_card_entry(card, "dsp", card->proc_root);
+	if (entry)
 		entry->mode = S_IFDIR | 0555;
-      
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-
 	ins->proc_dsp_dir = entry;
 
 	if (!ins->proc_dsp_dir)
 		return -ENOMEM;
 
-	if ((entry = snd_info_create_card_entry(card, "spos_symbols", ins->proc_dsp_dir)) != NULL) {
-		entry->content = SNDRV_INFO_CONTENT_TEXT;
-		entry->private_data = chip;
-		entry->mode = S_IFREG | 0644;
-		entry->c.text.read = cs46xx_dsp_proc_symbol_table_read;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	ins->proc_sym_info_entry = entry;
+	entry = snd_info_create_card_entry(card, "spos_symbols",
+					   ins->proc_dsp_dir);
+	if (entry)
+		snd_info_set_text_ops(entry, chip,
+				      cs46xx_dsp_proc_symbol_table_read);
     
-	if ((entry = snd_info_create_card_entry(card, "spos_modules", ins->proc_dsp_dir)) != NULL) {
-		entry->content = SNDRV_INFO_CONTENT_TEXT;
-		entry->private_data = chip;
-		entry->mode = S_IFREG | 0644;
-		entry->c.text.read = cs46xx_dsp_proc_modules_read;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	ins->proc_modules_info_entry = entry;
+	entry = snd_info_create_card_entry(card, "spos_modules",
+					   ins->proc_dsp_dir);
+	if (entry)
+		snd_info_set_text_ops(entry, chip,
+				      cs46xx_dsp_proc_modules_read);
 
-	if ((entry = snd_info_create_card_entry(card, "parameter", ins->proc_dsp_dir)) != NULL) {
-		entry->content = SNDRV_INFO_CONTENT_TEXT;
-		entry->private_data = chip;
-		entry->mode = S_IFREG | 0644;
-		entry->c.text.read = cs46xx_dsp_proc_parameter_dump_read;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	ins->proc_parameter_dump_info_entry = entry;
+	entry = snd_info_create_card_entry(card, "parameter",
+					   ins->proc_dsp_dir);
+	if (entry)
+		snd_info_set_text_ops(entry, chip,
+				      cs46xx_dsp_proc_parameter_dump_read);
 
-	if ((entry = snd_info_create_card_entry(card, "sample", ins->proc_dsp_dir)) != NULL) {
-		entry->content = SNDRV_INFO_CONTENT_TEXT;
-		entry->private_data = chip;
-		entry->mode = S_IFREG | 0644;
-		entry->c.text.read = cs46xx_dsp_proc_sample_dump_read;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	ins->proc_sample_dump_info_entry = entry;
+	entry = snd_info_create_card_entry(card, "sample",
+					   ins->proc_dsp_dir);
+	if (entry)
+		snd_info_set_text_ops(entry, chip,
+				      cs46xx_dsp_proc_sample_dump_read);
 
-	if ((entry = snd_info_create_card_entry(card, "task_tree", ins->proc_dsp_dir)) != NULL) {
-		entry->content = SNDRV_INFO_CONTENT_TEXT;
-		entry->private_data = chip;
-		entry->mode = S_IFREG | 0644;
-		entry->c.text.read = cs46xx_dsp_proc_task_tree_read;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	ins->proc_task_info_entry = entry;
+	entry = snd_info_create_card_entry(card, "task_tree",
+					   ins->proc_dsp_dir);
+	if (entry)
+		snd_info_set_text_ops(entry, chip,
+				      cs46xx_dsp_proc_task_tree_read);
 
-	if ((entry = snd_info_create_card_entry(card, "scb_info", ins->proc_dsp_dir)) != NULL) {
-		entry->content = SNDRV_INFO_CONTENT_TEXT;
-		entry->private_data = chip;
-		entry->mode = S_IFREG | 0644;
-		entry->c.text.read = cs46xx_dsp_proc_scb_read;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	ins->proc_scb_info_entry = entry;
+	entry = snd_info_create_card_entry(card, "scb_info",
+					   ins->proc_dsp_dir);
+	if (entry)
+		snd_info_set_text_ops(entry, chip,
+				      cs46xx_dsp_proc_scb_read);
 
 	mutex_lock(&chip->spos_mutex);
 	/* register/update SCB's entries on proc */
@@ -903,23 +847,8 @@ int cs46xx_dsp_proc_done (struct snd_cs46xx *chip)
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i;
 
-	snd_info_free_entry(ins->proc_sym_info_entry);
-	ins->proc_sym_info_entry = NULL;
-
-	snd_info_free_entry(ins->proc_modules_info_entry);
-	ins->proc_modules_info_entry = NULL;
-
-	snd_info_free_entry(ins->proc_parameter_dump_info_entry);
-	ins->proc_parameter_dump_info_entry = NULL;
-
-	snd_info_free_entry(ins->proc_sample_dump_info_entry);
-	ins->proc_sample_dump_info_entry = NULL;
-
-	snd_info_free_entry(ins->proc_scb_info_entry);
-	ins->proc_scb_info_entry = NULL;
-
-	snd_info_free_entry(ins->proc_task_info_entry);
-	ins->proc_task_info_entry = NULL;
+	if (!ins)
+		return 0;
 
 	mutex_lock(&chip->spos_mutex);
 	for (i = 0; i < ins->nscb; ++i) {
@@ -1109,7 +1038,7 @@ int cs46xx_dsp_scb_and_task_init (struct snd_cs46xx *chip)
 	
 	int fifo_addr, fifo_span, valid_slots;
 
-	static struct dsp_spos_control_block sposcb = {
+	static const struct dsp_spos_control_block sposcb = {
 		/* 0 */ HFG_TREE_SCB,HFG_STACK,
 		/* 1 */ SPOSCB_ADDR,BG_TREE_SCB_ADDR,
 		/* 2 */ DSP_SPOS_DC,0,

@@ -1,39 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0
 # All platforms listed in alphabetic order
 
-platforms += alchemy
-platforms += ar7
-platforms += ath25
-platforms += ath79
-platforms += bcm47xx
-platforms += bcm63xx
-platforms += bmips
-platforms += cavium-octeon
-platforms += cobalt
-platforms += dec
-platforms += emma
-platforms += generic
-platforms += jazz
-platforms += jz4740
-platforms += lantiq
-platforms += lasat
-platforms += loongson32
-platforms += loongson64
-platforms += mti-malta
-platforms += netlogic
-platforms += paravirt
-platforms += pic32
-platforms += pistachio
-platforms += pmcs-msp71xx
-platforms += pnx833x
-platforms += ralink
-platforms += rb532
-platforms += sgi-ip22
-platforms += sgi-ip27
-platforms += sgi-ip32
-platforms += sibyte
-platforms += sni
-platforms += txx9
-platforms += vr41xx
+platform-$(CONFIG_MIPS_ALCHEMY)		+= alchemy/
+platform-$(CONFIG_AR7)			+= ar7/
+platform-$(CONFIG_ATH25)		+= ath25/
+platform-$(CONFIG_ATH79)		+= ath79/
+platform-$(CONFIG_BCM47XX)		+= bcm47xx/
+platform-$(CONFIG_BCM63XX)		+= bcm63xx/
+platform-$(CONFIG_BMIPS_GENERIC)	+= bmips/
+platform-$(CONFIG_CAVIUM_OCTEON_SOC)	+= cavium-octeon/
+platform-$(CONFIG_MIPS_COBALT)		+= cobalt/
+platform-$(CONFIG_MACH_DECSTATION)	+= dec/
+platform-$(CONFIG_MIPS_GENERIC)		+= generic/
+platform-$(CONFIG_MACH_JAZZ)		+= jazz/
+platform-$(CONFIG_LANTIQ)		+= lantiq/
+platform-$(CONFIG_MACH_LOONGSON2EF)	+= loongson2ef/
+platform-$(CONFIG_MACH_LOONGSON32)	+= loongson32/
+platform-$(CONFIG_MACH_LOONGSON64)	+= loongson64/
+platform-$(CONFIG_MIPS_MALTA)		+= mti-malta/
+platform-$(CONFIG_NLM_COMMON)		+= netlogic/
+platform-$(CONFIG_PIC32MZDA)		+= pic32/
+platform-$(CONFIG_MACH_PISTACHIO)	+= pistachio/
+platform-$(CONFIG_RALINK)		+= ralink/
+platform-$(CONFIG_MIKROTIK_RB532)	+= rb532/
+platform-$(CONFIG_SGI_IP22)		+= sgi-ip22/
+platform-$(CONFIG_SGI_IP27)		+= sgi-ip27/
+platform-$(CONFIG_SGI_IP28)		+= sgi-ip22/
+platform-$(CONFIG_SGI_IP30)		+= sgi-ip30/
+platform-$(CONFIG_SGI_IP32)		+= sgi-ip32/
+platform-$(CONFIG_SIBYTE_BCM112X)	+= sibyte/
+platform-$(CONFIG_SIBYTE_SB1250)	+= sibyte/
+platform-$(CONFIG_SIBYTE_BCM1x55)	+= sibyte/
+platform-$(CONFIG_SIBYTE_BCM1x80)	+= sibyte/
+platform-$(CONFIG_SNI_RM)		+= sni/
+platform-$(CONFIG_MACH_TX39XX)		+= txx9/
+platform-$(CONFIG_MACH_TX49XX)		+= txx9/
+platform-$(CONFIG_MACH_VR41XX)		+= vr41xx/
 
 # include the platform specific files
-include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))
+include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platform-y))

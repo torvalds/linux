@@ -7,6 +7,7 @@
 #include <asm/facility.h>
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
+#include "boot.h"
 
 /*
  * The code within this file will be called very early. It may _not_
@@ -58,7 +59,7 @@ static void u16_to_decimal(char *str, u16 val)
 	*str = '\0';
 }
 
-static void print_missing_facilities(void)
+void print_missing_facilities(void)
 {
 	static char als_str[80] = "Missing facilities: ";
 	unsigned long val;
@@ -90,7 +91,6 @@ static void print_missing_facilities(void)
 	}
 	strcat(als_str, "\n");
 	sclp_early_printk(als_str);
-	sclp_early_printk("See Principles of Operations for facility bits\n");
 }
 
 static void facility_mismatch(void)
@@ -98,27 +98,15 @@ static void facility_mismatch(void)
 	sclp_early_printk("The Linux kernel requires more recent processor hardware\n");
 	print_machine_type();
 	print_missing_facilities();
-	disabled_wait(0x8badcccc);
+	sclp_early_printk("See Principles of Operations for facility bits\n");
+	disabled_wait();
 }
 
 void verify_facilities(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(S390_lowcore.stfle_fac_list); i++)
-		S390_lowcore.stfle_fac_list[i] = 0;
-	asm volatile(
-		"	stfl	0(0)\n"
-		: "=m" (S390_lowcore.stfl_fac_list));
-	S390_lowcore.stfle_fac_list[0] = (u64)S390_lowcore.stfl_fac_list << 32;
-	if (S390_lowcore.stfl_fac_list & 0x01000000) {
-		register unsigned long reg0 asm("0") = ARRAY_SIZE(als) - 1;
-
-		asm volatile(".insn s,0xb2b00000,0(%1)" /* stfle */
-			     : "+d" (reg0)
-			     : "a" (&S390_lowcore.stfle_fac_list)
-			     : "memory", "cc");
-	}
+	__stfle(S390_lowcore.stfle_fac_list, ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
 		if ((S390_lowcore.stfle_fac_list[i] & als[i]) != als[i])
 			facility_mismatch();

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,11 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -31,7 +26,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
@@ -91,11 +86,8 @@ static int iwl_mvm_binding_cmd(struct iwl_mvm *mvm, u32 action,
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT)) {
 		size = sizeof(cmd);
-		if (phyctxt->channel->band == NL80211_BAND_2GHZ ||
-		    !iwl_mvm_is_cdb_supported(mvm))
-			cmd.lmac_id = cpu_to_le32(IWL_LMAC_24G_INDEX);
-		else
-			cmd.lmac_id = cpu_to_le32(IWL_LMAC_5G_INDEX);
+		cmd.lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm->fw,
+							      phyctxt->channel->band));
 	} else {
 		size = IWL_BINDING_CMD_SIZE_V1;
 	}

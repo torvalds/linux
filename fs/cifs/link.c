@@ -103,9 +103,9 @@ parse_mf_symlink(const u8 *buf, unsigned int buf_len, unsigned int *_link_len,
 		return rc;
 	}
 
-	snprintf(md5_str2, sizeof(md5_str2),
-		 CIFS_MF_SYMLINK_MD5_FORMAT,
-		 CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
+	scnprintf(md5_str2, sizeof(md5_str2),
+		  CIFS_MF_SYMLINK_MD5_FORMAT,
+		  CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
 
 	if (strncmp(md5_str1, md5_str2, 17) != 0)
 		return -EINVAL;
@@ -142,10 +142,10 @@ format_mf_symlink(u8 *buf, unsigned int buf_len, const char *link_str)
 		return rc;
 	}
 
-	snprintf(buf, buf_len,
-		 CIFS_MF_SYMLINK_LEN_FORMAT CIFS_MF_SYMLINK_MD5_FORMAT,
-		 link_len,
-		 CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
+	scnprintf(buf, buf_len,
+		  CIFS_MF_SYMLINK_LEN_FORMAT CIFS_MF_SYMLINK_MD5_FORMAT,
+		  link_len,
+		  CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
 
 	ofs = CIFS_MF_SYMLINK_LINK_OFFSET;
 	memcpy(buf + ofs, link_str, link_len);
@@ -308,14 +308,14 @@ cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	int oplock = 0;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 	int buf_type = CIFS_NO_BUFFER;
 	FILE_ALL_INFO file_info;
 
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = GENERIC_READ;
-	oparms.create_options = CREATE_NOT_DIR;
+	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
 	oparms.disposition = FILE_OPEN;
 	oparms.path = path;
 	oparms.fid = &fid;
@@ -352,16 +352,12 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	int oplock = 0;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms;
-	int create_options = CREATE_NOT_DIR;
-
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
+	struct cifs_io_parms io_parms = {0};
 
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = GENERIC_WRITE;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
 	oparms.disposition = FILE_CREATE;
 	oparms.path = path;
 	oparms.fid = &fid;
@@ -393,7 +389,7 @@ smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 	int buf_type = CIFS_NO_BUFFER;
 	__le16 *utf16_path;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
@@ -402,9 +398,7 @@ smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = GENERIC_READ;
-	oparms.create_options = CREATE_NOT_DIR;
-	if (backup_cred(cifs_sb))
-		oparms.create_options |= CREATE_OPEN_BACKUP_INTENT;
+	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
 	oparms.disposition = FILE_OPEN;
 	oparms.fid = &fid;
 	oparms.reconnect = false;
@@ -422,7 +416,7 @@ smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, pfile_info, NULL,
-		       NULL);
+		       NULL, NULL);
 	if (rc)
 		goto qmf_out_open_fail;
 
@@ -456,14 +450,10 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms;
-	int create_options = CREATE_NOT_DIR;
+	struct cifs_io_parms io_parms = {0};
 	__le16 *utf16_path;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct kvec iov[2];
-
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
 	cifs_dbg(FYI, "%s: path: %s\n", __func__, path);
 
@@ -474,13 +464,13 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = GENERIC_WRITE;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
 	oparms.disposition = FILE_CREATE;
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL,
-		       NULL);
+		       NULL, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;
@@ -648,9 +638,16 @@ cifs_get_link(struct dentry *direntry, struct inode *inode,
 		rc = query_mf_symlink(xid, tcon, cifs_sb, full_path,
 				      &target_path);
 
-	if (rc != 0 && server->ops->query_symlink)
-		rc = server->ops->query_symlink(xid, tcon, full_path,
-						&target_path, cifs_sb);
+	if (rc != 0 && server->ops->query_symlink) {
+		struct cifsInodeInfo *cifsi = CIFS_I(inode);
+		bool reparse_point = false;
+
+		if (cifsi->cifsAttrs & ATTR_REPARSE)
+			reparse_point = true;
+
+		rc = server->ops->query_symlink(xid, tcon, cifs_sb, full_path,
+						&target_path, reparse_point);
+	}
 
 	kfree(full_path);
 	free_xid(xid);
@@ -704,7 +701,9 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 					cifs_sb_target->local_nls); */
 
 	if (rc == 0) {
-		if (pTcon->unix_ext)
+		if (pTcon->posix_extensions)
+			rc = smb311_posix_get_inode_info(&newinode, full_path, inode->i_sb, xid);
+		else if (pTcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						      inode->i_sb, xid);
 		else

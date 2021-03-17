@@ -26,8 +26,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 
-#include <sound/aess.h>
-
 #include "omap_hwmod.h"
 #include "common.h"
 
@@ -39,28 +37,6 @@
 #define OMAP_RTC_KICK1_VALUE	0x95A4F1E0
 #define OMAP_RTC_STATUS_BUSY	BIT(0)
 #define OMAP_RTC_MAX_READY_TIME	50
-
-/**
- * omap_hwmod_aess_preprogram - enable AESS internal autogating
- * @oh: struct omap_hwmod *
- *
- * The AESS will not IdleAck to the PRCM until its internal autogating
- * is enabled.  Since internal autogating is disabled by default after
- * AESS reset, we must enable autogating after the hwmod code resets
- * the AESS.  Returns 0.
- */
-int omap_hwmod_aess_preprogram(struct omap_hwmod *oh)
-{
-	void __iomem *va;
-
-	va = omap_hwmod_get_mpu_rt_va(oh);
-	if (!va)
-		return -EINVAL;
-
-	aess_enable_autogating(va);
-
-	return 0;
-}
 
 /**
  * omap_rtc_wait_not_busy - Wait for the RTC BUSY flag

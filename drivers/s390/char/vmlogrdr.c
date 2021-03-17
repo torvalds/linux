@@ -153,7 +153,7 @@ static struct vmlogrdr_priv_t sys_ser[] = {
 	}
 };
 
-#define MAXMINOR  (sizeof(sys_ser)/sizeof(struct vmlogrdr_priv_t))
+#define MAXMINOR  ARRAY_SIZE(sys_ser)
 
 static char FENCE[] = {"EOR"};
 static int vmlogrdr_major = 0;

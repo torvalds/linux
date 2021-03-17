@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright (C) Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
@@ -40,7 +37,7 @@
 #include <linux/export.h>
 
 static ax25_route *ax25_route_list;
-static DEFINE_RWLOCK(ax25_route_lock);
+DEFINE_RWLOCK(ax25_route_lock);
 
 void ax25_rt_device_down(struct net_device *dev)
 {
@@ -335,6 +332,7 @@ const struct seq_operations ax25_rt_seqops = {
  *	Find AX.25 route
  *
  *	Only routes with a reference count of zero can be destroyed.
+ *	Must be called with ax25_route_lock read locked.
  */
 ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
 {
@@ -342,7 +340,6 @@ ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
 	ax25_route *ax25_def_rt = NULL;
 	ax25_route *ax25_rt;
 
-	read_lock(&ax25_route_lock);
 	/*
 	 *	Bind to the physical interface we heard them on, or the default
 	 *	route if none is found;
@@ -364,11 +361,6 @@ ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
 	ax25_rt = ax25_def_rt;
 	if (ax25_spe_rt != NULL)
 		ax25_rt = ax25_spe_rt;
-
-	if (ax25_rt != NULL)
-		ax25_hold_route(ax25_rt);
-
-	read_unlock(&ax25_route_lock);
 
 	return ax25_rt;
 }
@@ -400,9 +392,12 @@ int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 	ax25_route *ax25_rt;
 	int err = 0;
 
-	if ((ax25_rt = ax25_get_route(addr, NULL)) == NULL)
+	ax25_route_lock_use();
+	ax25_rt = ax25_get_route(addr, NULL);
+	if (!ax25_rt) {
+		ax25_route_lock_unuse();
 		return -EHOSTUNREACH;
-
+	}
 	if ((ax25->ax25_dev = ax25_dev_ax25dev(ax25_rt->dev)) == NULL) {
 		err = -EHOSTUNREACH;
 		goto put;
@@ -431,14 +426,15 @@ int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 	}
 
 	if (ax25->sk != NULL) {
+		local_bh_disable();
 		bh_lock_sock(ax25->sk);
 		sock_reset_flag(ax25->sk, SOCK_ZAPPED);
 		bh_unlock_sock(ax25->sk);
+		local_bh_enable();
 	}
 
 put:
-	ax25_put_route(ax25_rt);
-
+	ax25_route_lock_unuse();
 	return err;
 }
 

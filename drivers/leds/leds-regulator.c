@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * leds-regulator.c - LED class driver for regulator driven LEDs.
  *
  * Copyright (C) 2009 Antonio Ospite <ospite@studenti.unina.it>
  *
  * Inspired by leds-wm8350 driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>

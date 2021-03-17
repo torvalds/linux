@@ -1,17 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Common Clock Framework support for S3C2410 and following SoCs.
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk/samsung.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/syscore_ops.h>
 
 #include <dt-bindings/clock/s3c2410.h>
 
@@ -40,9 +37,6 @@ enum s3c2410_plls {
 
 static void __iomem *reg_base;
 
-#ifdef CONFIG_PM_SLEEP
-static struct samsung_clk_reg_dump *s3c2410_save;
-
 /*
  * list of controller registers to be saved and restored during a
  * suspend/resume cycle.
@@ -56,42 +50,6 @@ static unsigned long s3c2410_clk_regs[] __initdata = {
 	CLKDIVN,
 	CAMDIVN,
 };
-
-static int s3c2410_clk_suspend(void)
-{
-	samsung_clk_save(reg_base, s3c2410_save,
-				ARRAY_SIZE(s3c2410_clk_regs));
-
-	return 0;
-}
-
-static void s3c2410_clk_resume(void)
-{
-	samsung_clk_restore(reg_base, s3c2410_save,
-				ARRAY_SIZE(s3c2410_clk_regs));
-}
-
-static struct syscore_ops s3c2410_clk_syscore_ops = {
-	.suspend = s3c2410_clk_suspend,
-	.resume = s3c2410_clk_resume,
-};
-
-static void __init s3c2410_clk_sleep_init(void)
-{
-	s3c2410_save = samsung_clk_alloc_reg_dump(s3c2410_clk_regs,
-						ARRAY_SIZE(s3c2410_clk_regs));
-	if (!s3c2410_save) {
-		pr_warn("%s: failed to allocate sleep save data, no sleep support!\n",
-			__func__);
-		return;
-	}
-
-	register_syscore_ops(&s3c2410_clk_syscore_ops);
-	return;
-}
-#else
-static void __init s3c2410_clk_sleep_init(void) {}
-#endif
 
 PNAME(fclk_p) = { "mpll", "div_slow" };
 
@@ -461,7 +419,8 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 			ARRAY_SIZE(s3c244x_common_aliases));
 	}
 
-	s3c2410_clk_sleep_init();
+	samsung_clk_sleep_init(reg_base, s3c2410_clk_regs,
+			       ARRAY_SIZE(s3c2410_clk_regs));
 
 	samsung_clk_of_add_provider(np, ctx);
 }

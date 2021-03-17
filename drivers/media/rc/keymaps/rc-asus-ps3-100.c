@@ -20,16 +20,16 @@ static struct rc_map_table asus_ps3_100[] = {
 	{ 0x0807, KEY_GREEN },            /* green */
 
 	/* Keys 0 to 9 */
-	{ 0x082a, KEY_0 },
-	{ 0x0816, KEY_1 },
-	{ 0x0812, KEY_2 },
-	{ 0x0814, KEY_3 },
-	{ 0x0836, KEY_4 },
-	{ 0x0832, KEY_5 },
-	{ 0x0834, KEY_6 },
-	{ 0x080e, KEY_7 },
-	{ 0x080a, KEY_8 },
-	{ 0x080c, KEY_9 },
+	{ 0x082a, KEY_NUMERIC_0 },
+	{ 0x0816, KEY_NUMERIC_1 },
+	{ 0x0812, KEY_NUMERIC_2 },
+	{ 0x0814, KEY_NUMERIC_3 },
+	{ 0x0836, KEY_NUMERIC_4 },
+	{ 0x0832, KEY_NUMERIC_5 },
+	{ 0x0834, KEY_NUMERIC_6 },
+	{ 0x080e, KEY_NUMERIC_7 },
+	{ 0x080a, KEY_NUMERIC_8 },
+	{ 0x080c, KEY_NUMERIC_9 },
 
 	{ 0x0815, KEY_VOLUMEUP },
 	{ 0x0826, KEY_VOLUMEDOWN },

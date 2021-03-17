@@ -23,11 +23,14 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/radeon_drm.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+#include <drm/radeon_drm.h>
+
 #include "radeon.h"
 #include "atom.h"
 #include "atom-bits.h"
@@ -241,9 +244,8 @@ static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
-	if (ASIC_IS_DCE8(rdev)) {
+	if (ASIC_IS_DCE8(rdev))
 		WREG32(vga_control_regs[radeon_crtc->crtc_id], vga_control);
-	}
 }
 
 static void atombios_powergate_crtc(struct drm_crtc *crtc, int state)
@@ -1254,6 +1256,16 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
 		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB8888));
+		fb_swap = (EVERGREEN_GRPH_RED_CROSSBAR(EVERGREEN_GRPH_RED_SEL_B) |
+			   EVERGREEN_GRPH_BLUE_CROSSBAR(EVERGREEN_GRPH_BLUE_SEL_R));
+#ifdef __BIG_ENDIAN
+		fb_swap |= EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
+		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
 		          drm_get_format_name(target_fb->format->format, &format_name));
@@ -1550,6 +1562,21 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 #endif
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_32BPP |
+		    AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
+		if (rdev->family >= CHIP_R600)
+			fb_swap =
+			    (R600_D1GRPH_RED_CROSSBAR(R600_D1GRPH_RED_SEL_B) |
+			     R600_D1GRPH_BLUE_CROSSBAR(R600_D1GRPH_BLUE_SEL_R));
+		else /* DCE1 (R5xx) */
+			fb_format |= AVIVO_D1GRPH_SWAP_RB;
+#ifdef __BIG_ENDIAN
+		fb_swap |= R600_D1GRPH_SWAP_ENDIAN_32BIT;
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
@@ -2204,6 +2231,7 @@ static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
 	.prepare = atombios_crtc_prepare,
 	.commit = atombios_crtc_commit,
 	.disable = atombios_crtc_disable,
+	.get_scanout_position = radeon_get_crtc_scanout_position,
 };
 
 void radeon_atombios_init_crtc(struct drm_device *dev,

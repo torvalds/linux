@@ -292,7 +292,7 @@ static void cleanup_scsitaskmgmt_handles(struct idr *idrtable,
  * @tasktype: Type of taskmgmt command
  * @scsidev:  Scsidev that issued command
  *
- * Create a cmdrsp packet and send it to the Serivce Partition
+ * Create a cmdrsp packet and send it to the Service Partition
  * that will service this request.
  *
  * Return: Int representing whether command was queued successfully or not
@@ -305,7 +305,7 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 		(struct visorhba_devdata *)scsidev->host->hostdata;
 	int notifyresult = 0xffff;
 	wait_queue_head_t notifyevent;
-	int scsicmd_id = 0;
+	int scsicmd_id;
 
 	if (devdata->serverdown || devdata->serverchangingstate)
 		return FAILED;
@@ -645,7 +645,6 @@ static struct scsi_host_template visorhba_driver_template = {
 	.this_id = -1,
 	.slave_alloc = visorhba_slave_alloc,
 	.slave_destroy = visorhba_slave_destroy,
-	.use_clustering = ENABLE_CLUSTERING,
 };
 
 /*
@@ -681,19 +680,7 @@ static int info_debugfs_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-static int info_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, info_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations info_debugfs_fops = {
-	.owner = THIS_MODULE,
-	.open = info_debugfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(info_debugfs);
 
 /*
  * complete_taskmgmt_command - Complete task management
@@ -884,12 +871,11 @@ static void do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp,
 			return;
 		}
 
-		sg = scsi_sglist(scsicmd);
-		for (i = 0; i < scsi_sg_count(scsicmd); i++) {
-			this_page_orig = kmap_atomic(sg_page(sg + i));
+		scsi_for_each_sg(scsicmd, sg, scsi_sg_count(scsicmd), i) {
+			this_page_orig = kmap_atomic(sg_page(sg));
 			this_page = (void *)((unsigned long)this_page_orig |
-					     sg[i].offset);
-			memcpy(this_page, buf + bufind, sg[i].length);
+					     sg->offset);
+			memcpy(this_page, buf + bufind, sg->length);
 			kunmap_atomic(this_page_orig);
 		}
 		kfree(buf);
@@ -1200,7 +1186,7 @@ static struct visor_driver visorhba_driver = {
  */
 static int visorhba_init(void)
 {
-	int rc = -ENOMEM;
+	int rc;
 
 	visorhba_debugfs_dir = debugfs_create_dir("visorhba", NULL);
 	if (!visorhba_debugfs_dir)

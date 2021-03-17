@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/irqchip.h>
 #include <linux/mfd/syscon.h>
@@ -32,12 +29,6 @@ static int ar8031_phy_fixup(struct phy_device *dev)
 	val = phy_read(dev, 0xe);
 	val &= ~(0x1 << 8);
 	phy_write(dev, 0xe, val);
-
-	/* introduce tx clock delay */
-	phy_write(dev, 0x1d, 0x5);
-	val = phy_read(dev, 0x1e);
-	val |= 0x0100;
-	phy_write(dev, 0x1e, val);
 
 	return 0;
 }
@@ -87,14 +78,14 @@ static inline void imx7d_enet_init(void)
 
 static void __init imx7d_init_machine(void)
 {
-	struct device *parent;
-
-	parent = imx_soc_device_init();
-	if (parent == NULL)
-		pr_warn("failed to initialize soc device\n");
-
 	imx_anatop_init();
 	imx7d_enet_init();
+}
+
+static void __init imx7d_init_late(void)
+{
+	if (IS_ENABLED(CONFIG_ARM_IMX_CPUFREQ_DT))
+		platform_device_register_simple("imx-cpufreq-dt", -1, NULL, 0);
 }
 
 static void __init imx7d_init_irq(void)
@@ -113,5 +104,6 @@ static const char *const imx7d_dt_compat[] __initconst = {
 DT_MACHINE_START(IMX7D, "Freescale i.MX7 Dual (Device Tree)")
 	.init_irq	= imx7d_init_irq,
 	.init_machine	= imx7d_init_machine,
+	.init_late      = imx7d_init_late,
 	.dt_compat	= imx7d_dt_compat,
 MACHINE_END

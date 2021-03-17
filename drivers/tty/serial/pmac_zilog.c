@@ -61,10 +61,6 @@
 #define of_machine_is_compatible(x) (0)
 #endif
 
-#if defined (CONFIG_SERIAL_PMACZILOG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 
@@ -217,9 +213,10 @@ static void pmz_interrupt_control(struct uart_pmac_port *uap, int enable)
 }
 
 static bool pmz_receive_chars(struct uart_pmac_port *uap)
+	__must_hold(&uap->port.lock)
 {
 	struct tty_port *port;
-	unsigned char ch, r1, drop, error, flag;
+	unsigned char ch, r1, drop, flag;
 	int loops = 0;
 
 	/* Sanity check, make sure the old bug is no longer happening */
@@ -231,7 +228,6 @@ static bool pmz_receive_chars(struct uart_pmac_port *uap)
 	port = &uap->port.state->port;
 
 	while (1) {
-		error = 0;
 		drop = 0;
 
 		r1 = read_zsreg(uap, R1);
@@ -273,7 +269,6 @@ static bool pmz_receive_chars(struct uart_pmac_port *uap)
 		uap->port.icount.rx++;
 
 		if (r1 & (PAR_ERR | Rx_OVR | CRC_ERR | BRK_ABRT)) {
-			error = 1;
 			if (r1 & BRK_ABRT) {
 				pmz_debug("pmz: got break !\n");
 				r1 &= ~(PAR_ERR | CRC_ERR);
@@ -1566,9 +1561,9 @@ static int pmz_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	 * to work around bugs in ancient Apple device-trees
 	 */
 	if (macio_request_resources(uap->dev, "pmac_zilog"))
-		printk(KERN_WARNING "%s: Failed to request resource"
+		printk(KERN_WARNING "%pOFn: Failed to request resource"
 		       ", port still active\n",
-		       uap->node->name);
+		       uap->node);
 	else
 		uap->flags |= PMACZILOG_FLAG_RSRC_REQUESTED;
 
@@ -1649,10 +1644,10 @@ static int __init pmz_probe(void)
 		 * TODO: Add routines with proper locking to do that...
 		 */
 		node_a = node_b = NULL;
-		for (np = NULL; (np = of_get_next_child(node_p, np)) != NULL;) {
-			if (strncmp(np->name, "ch-a", 4) == 0)
+		for_each_child_of_node(node_p, np) {
+			if (of_node_name_prefix(np, "ch-a"))
 				node_a = of_node_get(np);
-			else if (strncmp(np->name, "ch-b", 4) == 0)
+			else if (of_node_name_prefix(np, "ch-b"))
 				node_b = of_node_get(np);
 		}
 		if (!node_a && !node_b) {
@@ -1698,22 +1693,26 @@ static int __init pmz_probe(void)
 
 #else
 
+/* On PCI PowerMacs, pmz_probe() does an explicit search of the OpenFirmware
+ * tree to obtain the device_nodes needed to start the console before the
+ * macio driver. On Macs without OpenFirmware, global platform_devices take
+ * the place of those device_nodes.
+ */
 extern struct platform_device scc_a_pdev, scc_b_pdev;
 
 static int __init pmz_init_port(struct uart_pmac_port *uap)
 {
-	struct resource *r_ports;
-	int irq;
+	struct resource *r_ports, *r_irq;
 
 	r_ports = platform_get_resource(uap->pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_irq(uap->pdev, 0);
-	if (!r_ports || irq <= 0)
+	r_irq = platform_get_resource(uap->pdev, IORESOURCE_IRQ, 0);
+	if (!r_ports || !r_irq)
 		return -ENODEV;
 
 	uap->port.mapbase  = r_ports->start;
 	uap->port.membase  = (unsigned char __iomem *) r_ports->start;
 	uap->port.iotype   = UPIO_MEM;
-	uap->port.irq      = irq;
+	uap->port.irq      = r_irq->start;
 	uap->port.uartclk  = ZS_CLOCK;
 	uap->port.fifosize = 1;
 	uap->port.ops      = &pmz_pops;
@@ -1723,6 +1722,7 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 	uap->control_reg   = uap->port.membase;
 	uap->data_reg      = uap->control_reg + 4;
 	uap->port_type     = 0;
+	uap->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_PMACZILOG_CONSOLE);
 
 	pmz_convert_to_zs(uap, CS8, 0, 9600);
 

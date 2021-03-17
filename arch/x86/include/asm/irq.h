@@ -11,16 +11,19 @@
 #include <asm/apicdef.h>
 #include <asm/irq_vectors.h>
 
+/*
+ * The irq entry code is in the noinstr section and the start/end of
+ * __irqentry_text is emitted via labels. Make the build fail if
+ * something moves a C function into the __irq_entry section.
+ */
+#define __irq_entry __invalid_section
+
 static inline int irq_canonicalize(int irq)
 {
 	return ((irq == 2) ? 9 : irq);
 }
 
-#ifdef CONFIG_X86_32
-extern void irq_ctx_init(int cpu);
-#else
-# define irq_ctx_init(cpu) do { } while (0)
-#endif
+extern int irq_init_percpu_irqstack(unsigned int cpu);
 
 #define __ARCH_HAS_DO_SOFTIRQ
 
@@ -35,15 +38,18 @@ extern void kvm_set_posted_intr_wakeup_handler(void (*handler)(void));
 extern void (*x86_platform_ipi_callback)(void);
 extern void native_init_IRQ(void);
 
-extern bool handle_irq(struct irq_desc *desc, struct pt_regs *regs);
+extern void __handle_irq(struct irq_desc *desc, struct pt_regs *regs);
 
-extern __visible unsigned int do_IRQ(struct pt_regs *regs);
+extern __visible void do_IRQ(struct pt_regs *regs, unsigned long vector);
 
 extern void init_ISA_irqs(void);
+
+extern void __init init_IRQ(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 void arch_trigger_cpumask_backtrace(const struct cpumask *mask,
 				    bool exclude_self);
+
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 #endif
 

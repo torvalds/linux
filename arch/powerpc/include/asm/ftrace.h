@@ -8,6 +8,8 @@
 #define MCOUNT_ADDR		((unsigned long)(_mcount))
 #define MCOUNT_INSN_SIZE	4 /* sizeof mcount call */
 
+#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+
 #ifdef __ASSEMBLY__
 
 /* Based off of objdump optput from glibc */
@@ -106,9 +108,23 @@ static inline void this_cpu_enable_ftrace(void)
 {
 	get_paca()->ftrace_enabled = 1;
 }
+
+/* Disable ftrace on this CPU if possible (may not be implemented) */
+static inline void this_cpu_set_ftrace_enabled(u8 ftrace_enabled)
+{
+	get_paca()->ftrace_enabled = ftrace_enabled;
+}
+
+static inline u8 this_cpu_get_ftrace_enabled(void)
+{
+	return get_paca()->ftrace_enabled;
+}
+
 #else /* CONFIG_PPC64 */
 static inline void this_cpu_disable_ftrace(void) { }
 static inline void this_cpu_enable_ftrace(void) { }
+static inline void this_cpu_set_ftrace_enabled(u8 ftrace_enabled) { }
+static inline u8 this_cpu_get_ftrace_enabled(void) { return 1; }
 #endif /* CONFIG_PPC64 */
 #endif /* !__ASSEMBLY__ */
 

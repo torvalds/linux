@@ -291,7 +291,7 @@ for example), it must be considered immutable, barring two exceptions:
 
  1. The reference count may be altered.
 
- 2. Whilst the keyring subscriptions of a set of credentials may not be
+ 2. While the keyring subscriptions of a set of credentials may not be
     changed, the keyrings subscribed to may have their contents altered.
 
 To catch accidental credential alteration at compile time, struct task_struct
@@ -323,7 +323,6 @@ credentials (the value is simply returned in each case)::
 	uid_t current_fsuid(void)	Current's file access UID
 	gid_t current_fsgid(void)	Current's file access GID
 	kernel_cap_t current_cap(void)	Current's effective capabilities
-	void *current_security(void)	Current's LSM security pointer
 	struct user_struct *current_user(void)  Current's user account
 
 There are also convenience wrappers for retrieving specific associated pairs of
@@ -358,7 +357,7 @@ Once a reference has been obtained, it must be released with ``put_cred()``,
 Accessing Another Task's Credentials
 ------------------------------------
 
-Whilst a task may access its own credentials without the need for locking, the
+While a task may access its own credentials without the need for locking, the
 same is not true of a task wanting to access another task's credentials.  It
 must use the RCU read lock and ``rcu_dereference()``.
 
@@ -382,7 +381,7 @@ This should be used inside the RCU read lock, as in the following example::
 	}
 
 Should it be necessary to hold another task's credentials for a long period of
-time, and possibly to sleep whilst doing so, then the caller should get a
+time, and possibly to sleep while doing so, then the caller should get a
 reference on them using::
 
 	const struct cred *get_task_cred(struct task_struct *task);
@@ -442,7 +441,7 @@ duplicate of the current process's credentials, returning with the mutex still
 held if successful.  It returns NULL if not successful (out of memory).
 
 The mutex prevents ``ptrace()`` from altering the ptrace state of a process
-whilst security checks on credentials construction and changing is taking place
+while security checks on credentials construction and changing is taking place
 as the ptrace state may alter the outcome, particularly in the case of
 ``execve()``.
 
@@ -453,9 +452,9 @@ still at this point.
 
 When replacing the group list, the new list must be sorted before it
 is added to the credential, as a binary search is used to test for
-membership.  In practice, this means :c:func:`groups_sort` should be
-called before :c:func:`set_groups` or :c:func:`set_current_groups`.
-:c:func:`groups_sort)` must not be called on a ``struct group_list`` which
+membership.  In practice, this means groups_sort() should be
+called before set_groups() or set_current_groups().
+groups_sort() must not be called on a ``struct group_list`` which
 is shared as it may permute elements as part of the sorting process
 even if the array is already sorted.
 
@@ -548,6 +547,10 @@ pointer will not change over the lifetime of the file struct, and nor will the
 contents of the cred struct pointed to, barring the exceptions listed above
 (see the Task Credentials section).
 
+To avoid "confused deputy" privilege escalation attacks, access control checks
+during subsequent operations on an opened file should use these credentials
+instead of "current"'s credentials, as the file may have been passed to a more
+privileged process.
 
 Overriding the VFS's Use of Credentials
 =======================================

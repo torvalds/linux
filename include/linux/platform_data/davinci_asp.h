@@ -1,7 +1,7 @@
 /*
  * TI DaVinci Audio Serial Port support
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -79,6 +79,7 @@ struct davinci_mcasp_pdata {
 	/* McASP specific fields */
 	int tdm_slots;
 	u8 op_mode;
+	u8 dismod;
 	u8 num_serializer;
 	u8 *serial_dir;
 	u8 version;

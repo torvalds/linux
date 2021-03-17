@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Fence mechanism for dma-buf to allow for asynchronous dma access
  *
@@ -7,15 +8,6 @@
  * Authors:
  * Rob Clark <robdclark@gmail.com>
  * Maarten Lankhorst <maarten.lankhorst@canonical.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __LINUX_DMA_FENCE_H
@@ -71,15 +63,35 @@ struct dma_fence_cb;
  * been completed, or never called at all.
  */
 struct dma_fence {
-	struct kref refcount;
-	const struct dma_fence_ops *ops;
-	struct rcu_head rcu;
-	struct list_head cb_list;
 	spinlock_t *lock;
+	const struct dma_fence_ops *ops;
+	/*
+	 * We clear the callback list on kref_put so that by the time we
+	 * release the fence it is unused. No one should be adding to the
+	 * cb_list that they don't themselves hold a reference for.
+	 *
+	 * The lifetime of the timestamp is similarly tied to both the
+	 * rcu freelist and the cb_list. The timestamp is only set upon
+	 * signaling while simultaneously notifying the cb_list. Ergo, we
+	 * only use either the cb_list of timestamp. Upon destruction,
+	 * neither are accessible, and so we can use the rcu. This means
+	 * that the cb_list is *only* valid until the signal bit is set,
+	 * and to read either you *must* hold a reference to the fence,
+	 * and not just the rcu_read_lock.
+	 *
+	 * Listed in chronological order.
+	 */
+	union {
+		struct list_head cb_list;
+		/* @cb_list replaced by @timestamp on dma_fence_signal() */
+		ktime_t timestamp;
+		/* @timestamp replaced by @rcu on dma_fence_release() */
+		struct rcu_head rcu;
+	};
 	u64 context;
-	unsigned seqno;
+	u64 seqno;
 	unsigned long flags;
-	ktime_t timestamp;
+	struct kref refcount;
 	int error;
 };
 
@@ -111,6 +123,14 @@ struct dma_fence_cb {
  *
  */
 struct dma_fence_ops {
+	/**
+	 * @use_64bit_seqno:
+	 *
+	 * True if this dma_fence implementation uses 64bit seqno, false
+	 * otherwise.
+	 */
+	bool use_64bit_seqno;
+
 	/**
 	 * @get_driver_name:
 	 *
@@ -244,7 +264,7 @@ struct dma_fence_ops {
 };
 
 void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
-		    spinlock_t *lock, u64 context, unsigned seqno);
+		    spinlock_t *lock, u64 context, u64 seqno);
 
 void dma_fence_release(struct kref *kref);
 void dma_fence_free(struct dma_fence *fence);
@@ -273,7 +293,7 @@ static inline struct dma_fence *dma_fence_get(struct dma_fence *fence)
 }
 
 /**
- * dma_fence_get_rcu - get a fence from a reservation_object_list with
+ * dma_fence_get_rcu - get a fence from a dma_resv_list with
  *                     rcu read lock
  * @fence: fence to increase refcount of
  *
@@ -297,7 +317,7 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  * so long as the caller is using RCU on the pointer to the fence.
  *
  * An alternative mechanism is to employ a seqlock to protect a bunch of
- * fences, such as used by struct reservation_object. When using a seqlock,
+ * fences, such as used by struct dma_resv. When using a seqlock,
  * the seqlock must be taken before and checked after a reference to the
  * fence is acquired (as shown here).
  *
@@ -336,6 +356,19 @@ dma_fence_get_rcu_safe(struct dma_fence __rcu **fencep)
 		dma_fence_put(fence);
 	} while (1);
 }
+
+#ifdef CONFIG_LOCKDEP
+bool dma_fence_begin_signalling(void);
+void dma_fence_end_signalling(bool cookie);
+void __dma_fence_might_wait(void);
+#else
+static inline bool dma_fence_begin_signalling(void)
+{
+	return true;
+}
+static inline void dma_fence_end_signalling(bool cookie) {}
+static inline void __dma_fence_might_wait(void) {}
+#endif
 
 int dma_fence_signal(struct dma_fence *fence);
 int dma_fence_signal_locked(struct dma_fence *fence);
@@ -410,13 +443,22 @@ dma_fence_is_signaled(struct dma_fence *fence)
  * __dma_fence_is_later - return if f1 is chronologically later than f2
  * @f1: the first fence's seqno
  * @f2: the second fence's seqno from the same context
+ * @ops: dma_fence_ops associated with the seqno
  *
  * Returns true if f1 is chronologically later than f2. Both fences must be
  * from the same context, since a seqno is not common across contexts.
  */
-static inline bool __dma_fence_is_later(u32 f1, u32 f2)
+static inline bool __dma_fence_is_later(u64 f1, u64 f2,
+					const struct dma_fence_ops *ops)
 {
-	return (int)(f1 - f2) > 0;
+	/* This is for backward compatibility with drivers which can only handle
+	 * 32bit sequence numbers. Use a 64bit compare when the driver says to
+	 * do so.
+	 */
+	if (ops->use_64bit_seqno)
+		return f1 > f2;
+
+	return (int)(lower_32_bits(f1) - lower_32_bits(f2)) > 0;
 }
 
 /**
@@ -433,7 +475,7 @@ static inline bool dma_fence_is_later(struct dma_fence *f1,
 	if (WARN_ON(f1->context != f2->context))
 		return false;
 
-	return __dma_fence_is_later(f1->seqno, f2->seqno);
+	return __dma_fence_is_later(f1->seqno, f2->seqno, f1->ops);
 }
 
 /**
@@ -541,27 +583,28 @@ static inline signed long dma_fence_wait(struct dma_fence *fence, bool intr)
 	return ret < 0 ? ret : 0;
 }
 
+struct dma_fence *dma_fence_get_stub(void);
 u64 dma_fence_context_alloc(unsigned num);
 
 #define DMA_FENCE_TRACE(f, fmt, args...) \
 	do {								\
 		struct dma_fence *__ff = (f);				\
 		if (IS_ENABLED(CONFIG_DMA_FENCE_TRACE))			\
-			pr_info("f %llu#%u: " fmt,			\
+			pr_info("f %llu#%llu: " fmt,			\
 				__ff->context, __ff->seqno, ##args);	\
 	} while (0)
 
 #define DMA_FENCE_WARN(f, fmt, args...) \
 	do {								\
 		struct dma_fence *__ff = (f);				\
-		pr_warn("f %llu#%u: " fmt, __ff->context, __ff->seqno,	\
+		pr_warn("f %llu#%llu: " fmt, __ff->context, __ff->seqno,\
 			 ##args);					\
 	} while (0)
 
 #define DMA_FENCE_ERR(f, fmt, args...) \
 	do {								\
 		struct dma_fence *__ff = (f);				\
-		pr_err("f %llu#%u: " fmt, __ff->context, __ff->seqno,	\
+		pr_err("f %llu#%llu: " fmt, __ff->context, __ff->seqno,	\
 			##args);					\
 	} while (0)
 

@@ -1,9 +1,5 @@
-/* Copyright (C) 2014 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (C) 2014 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 /* Kernel module implementing an IP set type: the hash:mac type */
 
@@ -23,7 +19,7 @@
 #define IPSET_TYPE_REV_MAX	0
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
+MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@netfilter.org>");
 IP_SET_MODULE_DESC("hash:mac", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_hash:mac");
 
@@ -41,7 +37,7 @@ struct hash_mac4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_mac4_data_equal(const struct hash_mac4_elem *e1,
 		     const struct hash_mac4_elem *e2,
 		     u32 *multi)
@@ -49,7 +45,7 @@ hash_mac4_data_equal(const struct hash_mac4_elem *e1,
 	return ether_addr_equal(e1->ether, e2->ether);
 }
 
-static inline bool
+static bool
 hash_mac4_data_list(struct sk_buff *skb, const struct hash_mac4_elem *e)
 {
 	if (nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN, e->ether))
@@ -60,7 +56,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_mac4_data_next(struct hash_mac4_elem *next,
 		    const struct hash_mac4_elem *e)
 {
@@ -81,15 +77,15 @@ hash_mac4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct hash_mac4_elem e = { { .foo[0] = 0, .foo[1] = 0 } };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
-	 /* MAC can be src only */
-	if (!(opt->flags & IPSET_DIM_ONE_SRC))
-		return 0;
-
 	if (skb_mac_header(skb) < skb->head ||
 	    (skb_mac_header(skb) + ETH_HLEN) > skb->data)
 		return -EINVAL;
 
-	ether_addr_copy(e.ether, eth_hdr(skb)->h_source);
+	if (opt->flags & IPSET_DIM_ONE_SRC)
+		ether_addr_copy(e.ether, eth_hdr(skb)->h_source);
+	else
+		ether_addr_copy(e.ether, eth_hdr(skb)->h_dest);
+
 	if (is_zero_ether_addr(e.ether))
 		return -EINVAL;
 	return adtfn(set, &e, &ext, &opt->ext, opt->cmdflags);

@@ -21,9 +21,10 @@ struct sock_reuseport {
 	unsigned int		synq_overflow_ts;
 	/* ID stays the same even after the size of socks[] grows. */
 	unsigned int		reuseport_id;
-	bool			bind_inany;
+	unsigned int		bind_inany:1;
+	unsigned int		has_conns:1;
 	struct bpf_prog __rcu	*prog;		/* optional BPF sock selector */
-	struct sock		*socks[0];	/* array of sock pointers */
+	struct sock		*socks[];	/* array of sock pointers */
 };
 
 extern int reuseport_alloc(struct sock *sk, bool bind_inany);
@@ -35,6 +36,23 @@ extern struct sock *reuseport_select_sock(struct sock *sk,
 					  struct sk_buff *skb,
 					  int hdr_len);
 extern int reuseport_attach_prog(struct sock *sk, struct bpf_prog *prog);
-int reuseport_get_id(struct sock_reuseport *reuse);
+extern int reuseport_detach_prog(struct sock *sk);
+
+static inline bool reuseport_has_conns(struct sock *sk, bool set)
+{
+	struct sock_reuseport *reuse;
+	bool ret = false;
+
+	rcu_read_lock();
+	reuse = rcu_dereference(sk->sk_reuseport_cb);
+	if (reuse) {
+		if (set)
+			reuse->has_conns = 1;
+		ret = reuse->has_conns;
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
 
 #endif  /* _SOCK_REUSEPORT_H */

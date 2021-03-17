@@ -1,23 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 IBM Corporation
  *
  * Authors:
  * Mimi Zohar <zohar@us.ibm.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
- *
  * File: evm_secfs.c
  *	- Used to signal when key is on keyring
  *	- Get the key and enable EVM
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/audit.h>
 #include <linux/uaccess.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mutex.h>
 #include "evm.h"
 
@@ -192,7 +187,8 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 	if (count > XATTR_NAME_MAX)
 		return -E2BIG;
 
-	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_INTEGRITY_EVM_XATTR);
+	ab = audit_log_start(audit_context(), GFP_KERNEL,
+			     AUDIT_INTEGRITY_EVM_XATTR);
 	if (!ab)
 		return -ENOMEM;
 
@@ -214,6 +210,9 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 	if (len && xattr->name[len-1] == '\n')
 		xattr->name[len-1] = '\0';
 
+	audit_log_format(ab, "xattr=");
+	audit_log_untrustedstring(ab, xattr->name);
+
 	if (strcmp(xattr->name, ".") == 0) {
 		evm_xattrs_locked = 1;
 		newattrs.ia_mode = S_IFREG | 0440;
@@ -222,14 +221,10 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 		inode_lock(inode);
 		err = simple_setattr(evm_xattrs, &newattrs);
 		inode_unlock(inode);
-		audit_log_format(ab, "locked");
 		if (!err)
 			err = count;
 		goto out;
 	}
-
-	audit_log_format(ab, "xattr=");
-	audit_log_untrustedstring(ab, xattr->name);
 
 	if (strncmp(xattr->name, XATTR_SECURITY_PREFIX,
 		    XATTR_SECURITY_PREFIX_LEN) != 0) {
@@ -237,7 +232,14 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	/* Guard against races in evm_read_xattrs */
+	/*
+	 * xattr_list_mutex guards against races in evm_read_xattrs().
+	 * Entries are only added to the evm_config_xattrnames list
+	 * and never deleted. Therefore, the list is traversed
+	 * using list_for_each_entry_lockless() without holding
+	 * the mutex in evm_calc_hmac_or_hash(), evm_find_protected_xattrs()
+	 * and evm_protected_xattr().
+	 */
 	mutex_lock(&xattr_list_mutex);
 	list_for_each_entry(tmp, &evm_config_xattrnames, list) {
 		if (strcmp(xattr->name, tmp->name) == 0) {

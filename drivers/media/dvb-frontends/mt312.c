@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Driver for Zarlink VP310/MT312/ZL10313 Satellite Channel Decoder
 
     Copyright (C) 2003 Andreas Oberritter <obi@linuxtv.org>
     Copyright (C) 2008 Matthias Schwarzott <zzam@gentoo.org>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     References:
     http://products.zarlink.com/product_profiles/MT312.htm
@@ -148,11 +135,6 @@ static inline int mt312_writereg(struct mt312_state *state,
 	return mt312_write(state, reg, &tmp, 1);
 }
 
-static inline u32 mt312_div(u32 a, u32 b)
-{
-	return (a + (b / 2)) / b;
-}
-
 static int mt312_reset(struct mt312_state *state, const u8 full)
 {
 	return mt312_writereg(state, RESET, full ? 0x80 : 0x40);
@@ -200,7 +182,7 @@ static int mt312_get_symbol_rate(struct mt312_state *state, u32 *sr)
 		monitor = (buf[0] << 8) | buf[1];
 
 		dprintk("sr(auto) = %u\n",
-		       mt312_div(monitor * 15625, 4));
+			DIV_ROUND_CLOSEST(monitor * 15625, 4));
 	} else {
 		ret = mt312_writereg(state, MON_CTRL, 0x05);
 		if (ret < 0)
@@ -304,10 +286,10 @@ static int mt312_initfe(struct dvb_frontend *fe)
 	}
 
 	/* SYS_CLK */
-	buf[0] = mt312_div(state->xtal * state->freq_mult * 2, 1000000);
+	buf[0] = DIV_ROUND_CLOSEST(state->xtal * state->freq_mult * 2, 1000000);
 
 	/* DISEQC_RATIO */
-	buf[1] = mt312_div(state->xtal, 22000 * 4);
+	buf[1] = DIV_ROUND_CLOSEST(state->xtal, 22000 * 4);
 
 	ret = mt312_write(state, SYS_CLK, buf, sizeof(buf));
 	if (ret < 0)
@@ -623,7 +605,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	}
 
 	/* sr = (u16)(sr * 256.0 / 1000000.0) */
-	sr = mt312_div(p->symbol_rate * 4, 15625);
+	sr = DIV_ROUND_CLOSEST(p->symbol_rate * 4, 15625);
 
 	/* SYM_RATE */
 	buf[0] = (sr >> 8) & 0x3f;
@@ -645,7 +627,9 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
-	mt312_reset(state, 0);
+	ret = mt312_reset(state, 0);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -815,17 +799,20 @@ struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 
 	switch (state->id) {
 	case ID_VP310:
-		strcpy(state->frontend.ops.info.name, "Zarlink VP310 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink VP310 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK;
 		state->freq_mult = 9;
 		break;
 	case ID_MT312:
-		strcpy(state->frontend.ops.info.name, "Zarlink MT312 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink MT312 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK;
 		state->freq_mult = 6;
 		break;
 	case ID_ZL10313:
-		strcpy(state->frontend.ops.info.name, "Zarlink ZL10313 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink ZL10313 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK_10_111;
 		state->freq_mult = 9;
 		break;

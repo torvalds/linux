@@ -60,6 +60,7 @@ typedef __u32			xfs_nlink_t;
 #include <linux/list_sort.h>
 #include <linux/ratelimit.h>
 #include <linux/rhashtable.h>
+#include <linux/xattr.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -101,16 +102,10 @@ typedef __u32			xfs_nlink_t;
 #define xfs_cowb_secs		xfs_params.cowb_timer.val
 
 #define current_cpu()		(raw_smp_processor_id())
-#define current_pid()		(current->pid)
-#define current_test_flags(f)	(current->flags & (f))
 #define current_set_flags_nested(sp, f)		\
 		(*(sp) = current->flags, current->flags |= (f))
-#define current_clear_flags_nested(sp, f)	\
-		(*(sp) = current->flags, current->flags &= ~(f))
 #define current_restore_flags_nested(sp, f)	\
 		(current->flags = ((current->flags & ~(f)) | (*(sp) & (f))))
-
-#define spinlock_destroy(lock)
 
 #define NBBY		8		/* number of bits per byte */
 
@@ -128,7 +123,6 @@ typedef __u32			xfs_nlink_t;
 #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
 #define EFSBADCRC	EBADMSG		/* Bad CRC detected */
 
-#define SYNCHRONIZE()	barrier()
 #define __return_address __builtin_return_address(0)
 
 /*
@@ -165,32 +159,6 @@ struct xstats {
 
 extern struct xstats xfsstats;
 
-/* Kernel uid/gid conversion. These are used to convert to/from the on disk
- * uid_t/gid_t types to the kuid_t/kgid_t types that the kernel uses internally.
- * The conversion here is type only, the value will remain the same since we
- * are converting to the init_user_ns. The uid is later mapped to a particular
- * user namespace value when crossing the kernel/user boundary.
- */
-static inline uint32_t xfs_kuid_to_uid(kuid_t uid)
-{
-	return from_kuid(&init_user_ns, uid);
-}
-
-static inline kuid_t xfs_uid_to_kuid(uint32_t uid)
-{
-	return make_kuid(&init_user_ns, uid);
-}
-
-static inline uint32_t xfs_kgid_to_gid(kgid_t gid)
-{
-	return from_kgid(&init_user_ns, gid);
-}
-
-static inline kgid_t xfs_gid_to_kgid(uint32_t gid)
-{
-	return make_kgid(&init_user_ns, gid);
-}
-
 static inline dev_t xfs_to_linux_dev_t(xfs_dev_t dev)
 {
 	return MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
@@ -207,6 +175,12 @@ static inline xfs_dev_t linux_to_xfs_dev_t(dev_t dev)
 #define xfs_sort(a,n,s,fn)	sort(a,n,s,fn,NULL)
 #define xfs_stack_trace()	dump_stack()
 
+static inline uint64_t rounddown_64(uint64_t x, uint32_t y)
+{
+	do_div(x, y);
+	return x * y;
+}
+
 static inline uint64_t roundup_64(uint64_t x, uint32_t y)
 {
 	x += y - 1;
@@ -221,26 +195,35 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 	return x;
 }
 
+int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
+		char *data, unsigned int op);
+
 #define ASSERT_ALWAYS(expr)	\
-	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
+	(likely(expr) ? (void)0 : assfail(NULL, #expr, __FILE__, __LINE__))
 
 #ifdef DEBUG
 #define ASSERT(expr)	\
-	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
+	(likely(expr) ? (void)0 : assfail(NULL, #expr, __FILE__, __LINE__))
 
 #else	/* !DEBUG */
 
 #ifdef XFS_WARN
 
 #define ASSERT(expr)	\
-	(likely(expr) ? (void)0 : asswarn(#expr, __FILE__, __LINE__))
+	(likely(expr) ? (void)0 : asswarn(NULL, #expr, __FILE__, __LINE__))
 
 #else	/* !DEBUG && !XFS_WARN */
 
-#define ASSERT(expr)	((void)0)
+#define ASSERT(expr)		((void)0)
 
 #endif /* XFS_WARN */
 #endif /* DEBUG */
+
+#define XFS_IS_CORRUPT(mp, expr)	\
+	(unlikely(expr) ? xfs_corruption_error(#expr, XFS_ERRLEVEL_LOW, (mp), \
+					       NULL, 0, __FILE__, __LINE__, \
+					       __this_address), \
+			  true : false)
 
 #define STATIC static noinline
 

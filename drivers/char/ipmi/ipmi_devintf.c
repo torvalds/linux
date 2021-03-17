@@ -29,7 +29,6 @@ struct ipmi_file_private
 	struct ipmi_user     *user;
 	spinlock_t           recv_msg_lock;
 	struct list_head     recv_msgs;
-	struct file          *file;
 	struct fasync_struct *fasync_queue;
 	wait_queue_head_t    wait;
 	struct mutex	     recv_mutex;
@@ -94,8 +93,6 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	priv->file = file;
 
 	rv = ipmi_create_user(if_num,
 			      &ipmi_hndlrs,
@@ -207,7 +204,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 	struct list_head *entry;
 	struct ipmi_recv_msg  *msg;
 	unsigned long    flags;
-	int rv = 0;
+	int rv = 0, rv2 = 0;
 
 	/* We claim a mutex because we don't want two
 	   users getting something from the queue at a time.
@@ -250,7 +247,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 	if (msg->msg.data_len > 0) {
 		if (rsp->msg.data_len < msg->msg.data_len) {
-			rv = -EMSGSIZE;
+			rv2 = -EMSGSIZE;
 			if (trunc)
 				msg->msg.data_len = rsp->msg.data_len;
 			else
@@ -274,7 +271,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 	mutex_unlock(&priv->recv_mutex);
 	ipmi_free_recv_msg(msg);
-	return 0;
+	return rv2;
 
 recv_putback_on_err:
 	/* If we got an error, put the message back onto
@@ -818,8 +815,7 @@ static void ipmi_new_smi(int if_num, struct device *device)
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		printk(KERN_ERR "ipmi_devintf: Unable to create the"
-		       " ipmi class device link\n");
+		pr_err("ipmi_devintf: Unable to create the ipmi class device link\n");
 		return;
 	}
 	entry->dev = dev;
@@ -861,18 +857,18 @@ static int __init init_ipmi_devintf(void)
 	if (ipmi_major < 0)
 		return -EINVAL;
 
-	printk(KERN_INFO "ipmi device interface\n");
+	pr_info("ipmi device interface\n");
 
 	ipmi_class = class_create(THIS_MODULE, "ipmi");
 	if (IS_ERR(ipmi_class)) {
-		printk(KERN_ERR "ipmi: can't register device class\n");
+		pr_err("ipmi: can't register device class\n");
 		return PTR_ERR(ipmi_class);
 	}
 
 	rv = register_chrdev(ipmi_major, DEVICE_NAME, &ipmi_fops);
 	if (rv < 0) {
 		class_destroy(ipmi_class);
-		printk(KERN_ERR "ipmi: can't get major %d\n", ipmi_major);
+		pr_err("ipmi: can't get major %d\n", ipmi_major);
 		return rv;
 	}
 
@@ -884,7 +880,7 @@ static int __init init_ipmi_devintf(void)
 	if (rv) {
 		unregister_chrdev(ipmi_major, DEVICE_NAME);
 		class_destroy(ipmi_class);
-		printk(KERN_WARNING "ipmi: can't register smi watcher\n");
+		pr_warn("ipmi: can't register smi watcher\n");
 		return rv;
 	}
 

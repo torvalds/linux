@@ -1,5 +1,10 @@
-kselftest
+# SPDX-License-Identifier: GPL-2.0-only
 gpiogpio-event-mon
 gpiogpio-hammer
 gpioinclude/
 gpiolsgpio
+tpm2/SpaceTest.log
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]

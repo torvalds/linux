@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to setting various queue properties from drivers
  */
@@ -6,11 +7,12 @@
 #include <linux/init.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
-#include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
+#include <linux/memblock.h>	/* for max_pfn/max_low_pfn */
 #include <linux/gcd.h>
 #include <linux/lcm.h>
 #include <linux/jiffies.h>
 #include <linux/gfp.h>
+#include <linux/dma-mapping.h>
 
 #include "blk.h"
 #include "blk-wbt.h"
@@ -20,64 +22,11 @@ EXPORT_SYMBOL(blk_max_low_pfn);
 
 unsigned long blk_max_pfn;
 
-/**
- * blk_queue_prep_rq - set a prepare_request function for queue
- * @q:		queue
- * @pfn:	prepare_request function
- *
- * It's possible for a queue to register a prepare_request callback which
- * is invoked before the request is handed to the request_fn. The goal of
- * the function is to prepare a request for I/O, it can be used to build a
- * cdb from the request data for instance.
- *
- */
-void blk_queue_prep_rq(struct request_queue *q, prep_rq_fn *pfn)
-{
-	q->prep_rq_fn = pfn;
-}
-EXPORT_SYMBOL(blk_queue_prep_rq);
-
-/**
- * blk_queue_unprep_rq - set an unprepare_request function for queue
- * @q:		queue
- * @ufn:	unprepare_request function
- *
- * It's possible for a queue to register an unprepare_request callback
- * which is invoked before the request is finally completed. The goal
- * of the function is to deallocate any data that was allocated in the
- * prepare_request callback.
- *
- */
-void blk_queue_unprep_rq(struct request_queue *q, unprep_rq_fn *ufn)
-{
-	q->unprep_rq_fn = ufn;
-}
-EXPORT_SYMBOL(blk_queue_unprep_rq);
-
-void blk_queue_softirq_done(struct request_queue *q, softirq_done_fn *fn)
-{
-	q->softirq_done_fn = fn;
-}
-EXPORT_SYMBOL(blk_queue_softirq_done);
-
 void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
 {
 	q->rq_timeout = timeout;
 }
 EXPORT_SYMBOL_GPL(blk_queue_rq_timeout);
-
-void blk_queue_rq_timed_out(struct request_queue *q, rq_timed_out_fn *fn)
-{
-	WARN_ON_ONCE(q->mq_ops);
-	q->rq_timed_out_fn = fn;
-}
-EXPORT_SYMBOL_GPL(blk_queue_rq_timed_out);
-
-void blk_queue_lld_busy(struct request_queue *q, lld_busy_fn *fn)
-{
-	q->lld_busy_fn = fn;
-}
-EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 
 /**
  * blk_set_default_limits - reset limits to default values
@@ -99,6 +48,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->chunk_sectors = 0;
 	lim->max_write_same_sectors = 0;
 	lim->max_write_zeroes_sectors = 0;
+	lim->max_zone_append_sectors = 0;
 	lim->max_discard_sectors = 0;
 	lim->max_hw_discard_sectors = 0;
 	lim->discard_granularity = 0;
@@ -109,7 +59,6 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->alignment_offset = 0;
 	lim->io_opt = 0;
 	lim->misaligned = 0;
-	lim->cluster = 1;
 	lim->zoned = BLK_ZONED_NONE;
 }
 EXPORT_SYMBOL(blk_set_default_limits);
@@ -135,46 +84,9 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	lim->max_dev_sectors = UINT_MAX;
 	lim->max_write_same_sectors = UINT_MAX;
 	lim->max_write_zeroes_sectors = UINT_MAX;
+	lim->max_zone_append_sectors = UINT_MAX;
 }
 EXPORT_SYMBOL(blk_set_stacking_limits);
-
-/**
- * blk_queue_make_request - define an alternate make_request function for a device
- * @q:  the request queue for the device to be affected
- * @mfn: the alternate make_request function
- *
- * Description:
- *    The normal way for &struct bios to be passed to a device
- *    driver is for them to be collected into requests on a request
- *    queue, and then to allow the device driver to select requests
- *    off that queue when it is ready.  This works well for many block
- *    devices. However some block devices (typically virtual devices
- *    such as md or lvm) do not benefit from the processing on the
- *    request queue, and are served best by having the requests passed
- *    directly to them.  This can be achieved by providing a function
- *    to blk_queue_make_request().
- *
- * Caveat:
- *    The driver that does this *must* be able to deal appropriately
- *    with buffers in "highmemory". This can be accomplished by either calling
- *    kmap_atomic() to get a temporary kernel mapping, or by calling
- *    blk_queue_bounce() to create a buffer in normal memory.
- **/
-void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
-{
-	/*
-	 * set defaults
-	 */
-	q->nr_requests = BLKDEV_MAX_RQ;
-
-	q->make_request_fn = mfn;
-	blk_queue_dma_alignment(q, 511);
-	blk_queue_congestion_threshold(q);
-	q->nr_batching = BLK_BATCH_REQ;
-
-	blk_set_default_limits(&q->limits);
-}
-EXPORT_SYMBOL(blk_queue_make_request);
 
 /**
  * blk_queue_bounce_limit - set bounce buffer limit for queue
@@ -260,15 +172,13 @@ EXPORT_SYMBOL(blk_queue_max_hw_sectors);
  *
  * Description:
  *    If a driver doesn't want IOs to cross a given chunk size, it can set
- *    this limit and prevent merging across chunks. Note that the chunk size
- *    must currently be a power-of-2 in sectors. Also note that the block
- *    layer must accept a page worth of data at any offset. So if the
- *    crossing of chunks is a hard limitation in the driver, it must still be
- *    prepared to split single page bios.
+ *    this limit and prevent merging across chunks. Note that the block layer
+ *    must accept a page worth of data at any offset. So if the crossing of
+ *    chunks is a hard limitation in the driver, it must still be prepared
+ *    to split single page bios.
  **/
 void blk_queue_chunk_sectors(struct request_queue *q, unsigned int chunk_sectors)
 {
-	BUG_ON(!is_power_of_2(chunk_sectors));
 	q->limits.chunk_sectors = chunk_sectors;
 }
 EXPORT_SYMBOL(blk_queue_chunk_sectors);
@@ -310,6 +220,33 @@ void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
 	q->limits.max_write_zeroes_sectors = max_write_zeroes_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_write_zeroes_sectors);
+
+/**
+ * blk_queue_max_zone_append_sectors - set max sectors for a single zone append
+ * @q:  the request queue for the device
+ * @max_zone_append_sectors: maximum number of sectors to write per command
+ **/
+void blk_queue_max_zone_append_sectors(struct request_queue *q,
+		unsigned int max_zone_append_sectors)
+{
+	unsigned int max_sectors;
+
+	if (WARN_ON(!blk_queue_is_zoned(q)))
+		return;
+
+	max_sectors = min(q->limits.max_hw_sectors, max_zone_append_sectors);
+	max_sectors = min(q->limits.chunk_sectors, max_sectors);
+
+	/*
+	 * Signal eventual driver bugs resulting in the max_zone_append sectors limit
+	 * being 0 due to a 0 argument, the chunk_sectors limit (zone size) not set,
+	 * or the max_hw_sectors limit not set.
+	 */
+	WARN_ON(!max_sectors);
+
+	q->limits.max_zone_append_sectors = max_sectors;
+}
+EXPORT_SYMBOL_GPL(blk_queue_max_zone_append_sectors);
 
 /**
  * blk_queue_max_segments - set max hw segments for a request for this queue
@@ -365,6 +302,9 @@ void blk_queue_max_segment_size(struct request_queue *q, unsigned int max_size)
 		       __func__, max_size);
 	}
 
+	/* see blk_queue_virt_boundary() for the explanation */
+	WARN_ON_ONCE(q->limits.virt_boundary_mask);
+
 	q->limits.max_segment_size = max_size;
 }
 EXPORT_SYMBOL(blk_queue_max_segment_size);
@@ -379,7 +319,7 @@ EXPORT_SYMBOL(blk_queue_max_segment_size);
  *   storage device can address.  The default of 512 covers most
  *   hardware.
  **/
-void blk_queue_logical_block_size(struct request_queue *q, unsigned short size)
+void blk_queue_logical_block_size(struct request_queue *q, unsigned int size)
 {
 	q->limits.logical_block_size = size;
 
@@ -431,6 +371,19 @@ void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset)
 	q->limits.misaligned = 0;
 }
 EXPORT_SYMBOL(blk_queue_alignment_offset);
+
+void blk_queue_update_readahead(struct request_queue *q)
+{
+	/*
+	 * For read-ahead of large files to be effective, we need to read ahead
+	 * at least twice the optimal I/O size.
+	 */
+	q->backing_dev_info->ra_pages =
+		max(queue_io_opt(q) * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
+	q->backing_dev_info->io_pages =
+		queue_max_sectors(q) >> (PAGE_SHIFT - 9);
+}
+EXPORT_SYMBOL_GPL(blk_queue_update_readahead);
 
 /**
  * blk_limits_io_min - set minimum request size for a device
@@ -510,19 +463,10 @@ EXPORT_SYMBOL(blk_limits_io_opt);
 void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 {
 	blk_limits_io_opt(&q->limits, opt);
+	q->backing_dev_info->ra_pages =
+		max(queue_io_opt(q) * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
 }
 EXPORT_SYMBOL(blk_queue_io_opt);
-
-/**
- * blk_queue_stack_limits - inherit underlying queue limits for stacked drivers
- * @t:	the stacking driver (top)
- * @b:  the underlying device (bottom)
- **/
-void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
-{
-	blk_stack_limits(&t->limits, &b->limits, 0);
-}
-EXPORT_SYMBOL(blk_queue_stack_limits);
 
 /**
  * blk_stack_limits - adjust queue_limits for stacked devices
@@ -557,6 +501,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					b->max_write_same_sectors);
 	t->max_write_zeroes_sectors = min(t->max_write_zeroes_sectors,
 					b->max_write_zeroes_sectors);
+	t->max_zone_append_sectors = min(t->max_zone_append_sectors,
+					b->max_zone_append_sectors);
 	t->bounce_pfn = min_not_zero(t->bounce_pfn, b->bounce_pfn);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
@@ -602,7 +548,9 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->io_min = max(t->io_min, b->io_min);
 	t->io_opt = lcm_not_zero(t->io_opt, b->io_opt);
 
-	t->cluster &= b->cluster;
+	/* Set non-power-of-2 compatible chunk_sectors boundary */
+	if (b->chunk_sectors)
+		t->chunk_sectors = gcd(t->chunk_sectors, b->chunk_sectors);
 
 	/* Physical block size a multiple of the logical block size? */
 	if (t->physical_block_size & (t->logical_block_size - 1)) {
@@ -621,6 +569,13 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	/* Optimal I/O a multiple of the physical block size? */
 	if (t->io_opt & (t->physical_block_size - 1)) {
 		t->io_opt = 0;
+		t->misaligned = 1;
+		ret = -1;
+	}
+
+	/* chunk_sectors a multiple of the physical block size? */
+	if ((t->chunk_sectors << 9) & (t->physical_block_size - 1)) {
+		t->chunk_sectors = 0;
 		t->misaligned = 1;
 		ret = -1;
 	}
@@ -663,35 +618,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 			t->discard_granularity;
 	}
 
-	if (b->chunk_sectors)
-		t->chunk_sectors = min_not_zero(t->chunk_sectors,
-						b->chunk_sectors);
-
+	t->zoned = max(t->zoned, b->zoned);
 	return ret;
 }
 EXPORT_SYMBOL(blk_stack_limits);
-
-/**
- * bdev_stack_limits - adjust queue limits for stacked drivers
- * @t:	the stacking driver limits (top device)
- * @bdev:  the component block_device (bottom)
- * @start:  first data sector within component device
- *
- * Description:
- *    Merges queue limits for a top device and a block_device.  Returns
- *    0 if alignment didn't change.  Returns -1 if adding the bottom
- *    device caused misalignment.
- */
-int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
-		      sector_t start)
-{
-	struct request_queue *bq = bdev_get_queue(bdev);
-
-	start += get_start_sect(bdev);
-
-	return blk_stack_limits(t, &bq->limits, start);
-}
-EXPORT_SYMBOL(bdev_stack_limits);
 
 /**
  * disk_stack_limits - adjust queue limits for stacked drivers
@@ -708,7 +638,8 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 {
 	struct request_queue *t = disk->queue;
 
-	if (bdev_stack_limits(&t->limits, bdev, offset >> 9) < 0) {
+	if (blk_stack_limits(&t->limits, &bdev_get_queue(bdev)->limits,
+			get_start_sect(bdev) + (offset >> 9)) < 0) {
 		char top[BDEVNAME_SIZE], bottom[BDEVNAME_SIZE];
 
 		disk_name(disk, 0, top);
@@ -717,24 +648,10 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 		printk(KERN_NOTICE "%s: Warning: Device %s is misaligned\n",
 		       top, bottom);
 	}
+
+	blk_queue_update_readahead(disk->queue);
 }
 EXPORT_SYMBOL(disk_stack_limits);
-
-/**
- * blk_queue_dma_pad - set pad mask
- * @q:     the request queue for the device
- * @mask:  pad mask
- *
- * Set dma pad mask.
- *
- * Appending pad buffer to a request modifies the last entry of a
- * scatter list such that it includes the pad buffer.
- **/
-void blk_queue_dma_pad(struct request_queue *q, unsigned int mask)
-{
-	q->dma_pad_mask = mask;
-}
-EXPORT_SYMBOL(blk_queue_dma_pad);
 
 /**
  * blk_queue_update_dma_pad - update pad mask
@@ -752,43 +669,6 @@ void blk_queue_update_dma_pad(struct request_queue *q, unsigned int mask)
 		q->dma_pad_mask = mask;
 }
 EXPORT_SYMBOL(blk_queue_update_dma_pad);
-
-/**
- * blk_queue_dma_drain - Set up a drain buffer for excess dma.
- * @q:  the request queue for the device
- * @dma_drain_needed: fn which returns non-zero if drain is necessary
- * @buf:	physically contiguous buffer
- * @size:	size of the buffer in bytes
- *
- * Some devices have excess DMA problems and can't simply discard (or
- * zero fill) the unwanted piece of the transfer.  They have to have a
- * real area of memory to transfer it into.  The use case for this is
- * ATAPI devices in DMA mode.  If the packet command causes a transfer
- * bigger than the transfer size some HBAs will lock up if there
- * aren't DMA elements to contain the excess transfer.  What this API
- * does is adjust the queue so that the buf is always appended
- * silently to the scatterlist.
- *
- * Note: This routine adjusts max_hw_segments to make room for appending
- * the drain buffer.  If you call blk_queue_max_segments() after calling
- * this routine, you must set the limit to one fewer than your device
- * can support otherwise there won't be room for the drain buffer.
- */
-int blk_queue_dma_drain(struct request_queue *q,
-			       dma_drain_needed_fn *dma_drain_needed,
-			       void *buf, unsigned int size)
-{
-	if (queue_max_segments(q) < 2)
-		return -EINVAL;
-	/* make room for appending the drain */
-	blk_queue_max_segments(q, queue_max_segments(q) - 1);
-	q->dma_drain_needed = dma_drain_needed;
-	q->dma_drain_buffer = buf;
-	q->dma_drain_size = size;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blk_queue_dma_drain);
 
 /**
  * blk_queue_segment_boundary - set boundary rules for segment merging
@@ -815,6 +695,15 @@ EXPORT_SYMBOL(blk_queue_segment_boundary);
 void blk_queue_virt_boundary(struct request_queue *q, unsigned long mask)
 {
 	q->limits.virt_boundary_mask = mask;
+
+	/*
+	 * Devices that require a virtual boundary do not support scatter/gather
+	 * I/O natively, but instead require a descriptor list entry for each
+	 * page (which might not be idential to the Linux PAGE_SIZE).  Because
+	 * of that they are not limited by our notion of "segment size".
+	 */
+	if (mask)
+		q->limits.max_segment_size = UINT_MAX;
 }
 EXPORT_SYMBOL(blk_queue_virt_boundary);
 
@@ -857,15 +746,6 @@ void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 }
 EXPORT_SYMBOL(blk_queue_update_dma_alignment);
 
-void blk_queue_flush_queueable(struct request_queue *q, bool queueable)
-{
-	if (queueable)
-		blk_queue_flag_clear(QUEUE_FLAG_FLUSH_NQ, q);
-	else
-		blk_queue_flag_set(QUEUE_FLAG_FLUSH_NQ, q);
-}
-EXPORT_SYMBOL_GPL(blk_queue_flush_queueable);
-
 /**
  * blk_set_queue_depth - tell the block layer about the device queue depth
  * @q:		the request queue for the device
@@ -875,7 +755,7 @@ EXPORT_SYMBOL_GPL(blk_queue_flush_queueable);
 void blk_set_queue_depth(struct request_queue *q, unsigned int depth)
 {
 	q->queue_depth = depth;
-	wbt_set_queue_depth(q, depth);
+	rq_qos_queue_depth_changed(q);
 }
 EXPORT_SYMBOL(blk_set_queue_depth);
 
@@ -889,20 +769,102 @@ EXPORT_SYMBOL(blk_set_queue_depth);
  */
 void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
 {
-	spin_lock_irq(q->queue_lock);
 	if (wc)
-		queue_flag_set(QUEUE_FLAG_WC, q);
+		blk_queue_flag_set(QUEUE_FLAG_WC, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_WC, q);
+		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
 	if (fua)
-		queue_flag_set(QUEUE_FLAG_FUA, q);
+		blk_queue_flag_set(QUEUE_FLAG_FUA, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_FUA, q);
-	spin_unlock_irq(q->queue_lock);
+		blk_queue_flag_clear(QUEUE_FLAG_FUA, q);
 
 	wbt_set_write_cache(q, test_bit(QUEUE_FLAG_WC, &q->queue_flags));
 }
 EXPORT_SYMBOL_GPL(blk_queue_write_cache);
+
+/**
+ * blk_queue_required_elevator_features - Set a queue required elevator features
+ * @q:		the request queue for the target device
+ * @features:	Required elevator features OR'ed together
+ *
+ * Tell the block layer that for the device controlled through @q, only the
+ * only elevators that can be used are those that implement at least the set of
+ * features specified by @features.
+ */
+void blk_queue_required_elevator_features(struct request_queue *q,
+					  unsigned int features)
+{
+	q->required_elevator_features = features;
+}
+EXPORT_SYMBOL_GPL(blk_queue_required_elevator_features);
+
+/**
+ * blk_queue_can_use_dma_map_merging - configure queue for merging segments.
+ * @q:		the request queue for the device
+ * @dev:	the device pointer for dma
+ *
+ * Tell the block layer about merging the segments by dma map of @q.
+ */
+bool blk_queue_can_use_dma_map_merging(struct request_queue *q,
+				       struct device *dev)
+{
+	unsigned long boundary = dma_get_merge_boundary(dev);
+
+	if (!boundary)
+		return false;
+
+	/* No need to update max_segment_size. see blk_queue_virt_boundary() */
+	blk_queue_virt_boundary(q, boundary);
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(blk_queue_can_use_dma_map_merging);
+
+/**
+ * blk_queue_set_zoned - configure a disk queue zoned model.
+ * @disk:	the gendisk of the queue to configure
+ * @model:	the zoned model to set
+ *
+ * Set the zoned model of the request queue of @disk according to @model.
+ * When @model is BLK_ZONED_HM (host managed), this should be called only
+ * if zoned block device support is enabled (CONFIG_BLK_DEV_ZONED option).
+ * If @model specifies BLK_ZONED_HA (host aware), the effective model used
+ * depends on CONFIG_BLK_DEV_ZONED settings and on the existence of partitions
+ * on the disk.
+ */
+void blk_queue_set_zoned(struct gendisk *disk, enum blk_zoned_model model)
+{
+	switch (model) {
+	case BLK_ZONED_HM:
+		/*
+		 * Host managed devices are supported only if
+		 * CONFIG_BLK_DEV_ZONED is enabled.
+		 */
+		WARN_ON_ONCE(!IS_ENABLED(CONFIG_BLK_DEV_ZONED));
+		break;
+	case BLK_ZONED_HA:
+		/*
+		 * Host aware devices can be treated either as regular block
+		 * devices (similar to drive managed devices) or as zoned block
+		 * devices to take advantage of the zone command set, similarly
+		 * to host managed devices. We try the latter if there are no
+		 * partitions and zoned block device support is enabled, else
+		 * we do nothing special as far as the block layer is concerned.
+		 */
+		if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED) ||
+		    disk_has_partitions(disk))
+			model = BLK_ZONED_NONE;
+		break;
+	case BLK_ZONED_NONE:
+	default:
+		if (WARN_ON_ONCE(model != BLK_ZONED_NONE))
+			model = BLK_ZONED_NONE;
+		break;
+	}
+
+	disk->queue->limits.zoned = model;
+}
+EXPORT_SYMBOL_GPL(blk_queue_set_zoned);
 
 static int __init blk_settings_init(void)
 {

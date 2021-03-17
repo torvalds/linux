@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  net/dccp/ackvec.c
  *
  *  An implementation of Ack Vectors for the DCCP protocol
  *  Copyright (c) 2007 University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
- *
- *      This program is free software; you can redistribute it and/or modify it
- *      under the terms of the GNU General Public License as published by the
- *      Free Software Foundation; version 2 of the License;
  */
 #include "dccp.h"
 #include <linux/kernel.h>
@@ -277,7 +274,7 @@ void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
 /**
  * dccp_ackvec_clear_state  -  Perform house-keeping / garbage-collection
  * This routine is called when the peer acknowledges the receipt of Ack Vectors
- * up to and including @ackno. While based on on section A.3 of RFC 4340, here
+ * up to and including @ackno. While based on section A.3 of RFC 4340, here
  * are additional precautions to prevent corrupted buffer state. In particular,
  * we use tail_ackno to identify outdated records; it always marks the earliest
  * packet of group (2) in 11.4.2.

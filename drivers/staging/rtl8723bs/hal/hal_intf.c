@@ -365,11 +365,11 @@ void rtw_hal_dm_watchdog_in_lps(struct adapter *padapter)
 {
 	if (adapter_to_pwrctl(padapter)->bFwCurrentInPSMode == true) {
 		if (padapter->HalFunc.hal_dm_watchdog_in_lps)
-			padapter->HalFunc.hal_dm_watchdog_in_lps(padapter); /* this fuction caller is in interrupt context */
+			padapter->HalFunc.hal_dm_watchdog_in_lps(padapter); /* this function caller is in interrupt context */
 	}
 }
 
-void rtw_hal_bcn_related_reg_setting(struct adapter *padapter)
+void beacon_timing_control(struct adapter *padapter)
 {
 	if (padapter->HalFunc.SetBeaconRelatedRegistersHandler)
 		padapter->HalFunc.SetBeaconRelatedRegistersHandler(padapter);
@@ -398,11 +398,6 @@ void rtw_hal_reset_security_engine(struct adapter *adapter)
 bool rtw_hal_c2h_valid(struct adapter *adapter, u8 *buf)
 {
 	return c2h_evt_valid((struct c2h_evt_hdr_88xx *)buf);
-}
-
-s32 rtw_hal_c2h_evt_read(struct adapter *adapter, u8 *buf)
-{
-	return c2h_evt_read_88xx(adapter, buf);
 }
 
 s32 rtw_hal_c2h_handler(struct adapter *adapter, u8 *c2h_evt)

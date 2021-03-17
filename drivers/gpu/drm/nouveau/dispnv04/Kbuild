@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nouveau-y += dispnv04/arb.o
 nouveau-y += dispnv04/crtc.o
 nouveau-y += dispnv04/cursor.o

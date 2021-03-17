@@ -306,7 +306,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id);
 static int lance_close(struct net_device *dev);
 static struct net_device_stats *lance_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static void lance_tx_timeout (struct net_device *dev);
+static void lance_tx_timeout (struct net_device *dev, unsigned int txqueue);
 
 
 
@@ -913,7 +913,7 @@ lance_restart(struct net_device *dev, unsigned int csr0_bits, int must_reinit)
 }
 
 
-static void lance_tx_timeout (struct net_device *dev)
+static void lance_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct lance_private *lp = (struct lance_private *) dev->ml_priv;
 	int ioaddr = dev->base_addr;
@@ -1084,7 +1084,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 				/* We must free the original skb if it's not a data-only copy
 				   in the bounce buffer. */
 				if (lp->tx_skbuff[entry]) {
-					dev_kfree_skb_irq(lp->tx_skbuff[entry]);
+					dev_consume_skb_irq(lp->tx_skbuff[entry]);
 					lp->tx_skbuff[entry] = NULL;
 				}
 				dirty_tx++;

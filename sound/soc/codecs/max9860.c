@@ -334,7 +334,7 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 		ifc1a ^= MAX9860_WCI;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_IB_NF:
 		ifc1a ^= MAX9860_DBCI;
 		ifc1b ^= MAX9860_ABCI;
@@ -615,7 +615,8 @@ static int max9860_probe(struct i2c_client *i2c)
 
 	max9860->dvddio_nb.notifier_call = max9860_dvddio_event;
 
-	ret = regulator_register_notifier(max9860->dvddio, &max9860->dvddio_nb);
+	ret = devm_regulator_register_notifier(max9860->dvddio,
+					       &max9860->dvddio_nb);
 	if (ret)
 		dev_err(dev, "Failed to register DVDDIO notifier: %d\n", ret);
 

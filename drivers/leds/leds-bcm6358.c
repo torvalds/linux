@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for BCM6358 memory-mapped LEDs, based on leds-syscon.c
  *
  * Copyright 2015 Álvaro Fernández Rojas <noltari@gmail.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -98,6 +94,7 @@ static void bcm6358_led_set(struct led_classdev *led_cdev,
 static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 		       void __iomem *mem, spinlock_t *lock)
 {
+	struct led_init_data init_data = {};
 	struct bcm6358_led *led;
 	const char *state;
 	int rc;
@@ -112,11 +109,6 @@ static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 
 	if (of_property_read_bool(nc, "active-low"))
 		led->active_low = true;
-
-	led->cdev.name = of_get_property(nc, "label", NULL) ? : nc->name;
-	led->cdev.default_trigger = of_get_property(nc,
-						    "linux,default-trigger",
-						    NULL);
 
 	if (!of_property_read_string(nc, "default-state", &state)) {
 		if (!strcmp(state, "on")) {
@@ -140,8 +132,9 @@ static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 	bcm6358_led_set(&led->cdev, led->cdev.brightness);
 
 	led->cdev.brightness_set = bcm6358_led_set;
+	init_data.fwnode = of_fwnode_handle(nc);
 
-	rc = led_classdev_register(dev, &led->cdev);
+	rc = devm_led_classdev_register_ext(dev, &led->cdev, &init_data);
 	if (rc < 0)
 		return rc;
 
@@ -153,19 +146,14 @@ static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 static int bcm6358_leds_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev_of_node(&pdev->dev);
 	struct device_node *child;
-	struct resource *mem_r;
 	void __iomem *mem;
 	spinlock_t *lock; /* memory lock */
 	unsigned long val;
 	u32 clk_div;
 
-	mem_r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_r)
-		return -EINVAL;
-
-	mem = devm_ioremap_resource(dev, mem_r);
+	mem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 

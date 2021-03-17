@@ -1,29 +1,9 @@
-config SND_JZ4740_SOC
-	tristate "SoC Audio for Ingenic JZ4740 SoC"
-	depends on MACH_JZ4740 || COMPILE_TEST
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	help
-	  Say Y or M if you want to add support for codecs attached to
-	  the JZ4740 I2S interface. You will also need to select the audio
-	  interfaces to support below.
-
-if SND_JZ4740_SOC
-
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_JZ4740_SOC_I2S
 	tristate "SoC Audio (I2S protocol) for Ingenic JZ4740 SoC"
-	depends on HAS_IOMEM
+	depends on MIPS || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y if you want to use I2S protocol and I2S codec on Ingenic JZ4740
 	  based boards.
-
-config SND_JZ4740_SOC_QI_LB60
-	tristate "SoC Audio support for Qi LB60"
-	depends on HAS_IOMEM
-	depends on JZ4740_QI_LB60 || COMPILE_TEST
-	select SND_JZ4740_SOC_I2S
-    select SND_SOC_JZ4740_CODEC
-	help
-	  Say Y if you want to add support for ASoC audio on the Qi LB60 board
-	  a.k.a Qi Ben NanoNote.
-
-endif

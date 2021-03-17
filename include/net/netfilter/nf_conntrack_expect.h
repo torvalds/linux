@@ -48,7 +48,7 @@ struct nf_conntrack_expect {
 	/* Expectation class */
 	unsigned int class;
 
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 	union nf_inet_addr saved_addr;
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
@@ -75,6 +75,11 @@ struct nf_conntrack_expect_policy {
 
 #define NF_CT_EXPECT_CLASS_DEFAULT	0
 #define NF_CT_EXPECT_MAX_CNT		255
+
+/* Allow to reuse expectations with the same tuples from different master
+ * conntracks.
+ */
+#define NF_CT_EXP_F_SKIP_MASTER	0x1
 
 int nf_conntrack_expect_pernet_init(struct net *net);
 void nf_conntrack_expect_pernet_fini(struct net *net);
@@ -121,11 +126,12 @@ void nf_ct_expect_init(struct nf_conntrack_expect *, unsigned int, u_int8_t,
 		       const union nf_inet_addr *,
 		       u_int8_t, const __be16 *, const __be16 *);
 void nf_ct_expect_put(struct nf_conntrack_expect *exp);
-int nf_ct_expect_related_report(struct nf_conntrack_expect *expect, 
-				u32 portid, int report);
-static inline int nf_ct_expect_related(struct nf_conntrack_expect *expect)
+int nf_ct_expect_related_report(struct nf_conntrack_expect *expect,
+				u32 portid, int report, unsigned int flags);
+static inline int nf_ct_expect_related(struct nf_conntrack_expect *expect,
+				       unsigned int flags)
 {
-	return nf_ct_expect_related_report(expect, 0, 0);
+	return nf_ct_expect_related_report(expect, 0, 0, flags);
 }
 
 #endif /*_NF_CONNTRACK_EXPECT_H*/

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for the High Speed UART DMA
  *
@@ -5,10 +6,6 @@
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  *
  * Partially based on the bits found in drivers/tty/serial/mfd.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -64,10 +61,10 @@ static void hsu_dma_chan_start(struct hsu_dma_chan *hsuc)
 
 	if (hsuc->direction == DMA_MEM_TO_DEV) {
 		bsr = config->dst_maxburst;
-		mtsr = config->src_addr_width;
+		mtsr = config->dst_addr_width;
 	} else if (hsuc->direction == DMA_DEV_TO_MEM) {
 		bsr = config->src_maxburst;
-		mtsr = config->dst_addr_width;
+		mtsr = config->src_addr_width;
 	}
 
 	hsu_chan_disable(hsuc);
@@ -347,10 +344,6 @@ static int hsu_dma_slave_config(struct dma_chan *chan,
 				struct dma_slave_config *config)
 {
 	struct hsu_dma_chan *hsuc = to_hsu_dma_chan(chan);
-
-	/* Check if chan will be configured for slave transfers */
-	if (!is_slave_direction(config->direction))
-		return -EINVAL;
 
 	memcpy(&hsuc->config, config, sizeof(hsuc->config));
 

@@ -1,12 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Platform drivers
 #	Most drivers here are currently for webcam support
 
 menuconfig V4L_PLATFORM_DRIVERS
 	bool "V4L platform devices"
-	depends on MEDIA_CAMERA_SUPPORT
-	default n
-	---help---
+	help
 	  Say Y here to enable support for platform-specific V4L drivers.
 
 if V4L_PLATFORM_DRIVERS
@@ -15,8 +14,8 @@ source "drivers/media/platform/marvell-ccic/Kconfig"
 
 config VIDEO_VIA_CAMERA
 	tristate "VIAFB camera controller support"
-	depends on FB_VIA
-	select VIDEOBUF_DMA_SG
+	depends on FB_VIA && VIDEO_V4L2
+	select VIDEOBUF2_DMA_SG
 	select VIDEO_OV7670
 	help
 	   Driver support for the integrated camera controller in VIA
@@ -32,9 +31,17 @@ source "drivers/media/platform/davinci/Kconfig"
 
 source "drivers/media/platform/omap/Kconfig"
 
+config VIDEO_ASPEED
+	tristate "Aspeed AST2400 and AST2500 Video Engine driver"
+	depends on VIDEO_V4L2
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Support for the Aspeed Video Engine (VE) embedded in the Aspeed
+	  AST2400 and AST2500 SOCs. The VE can capture and compress video data
+	  from digital or analog sources.
+
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
-	depends on MEDIA_CAMERA_SUPPORT
 	depends on VIDEO_DEV && I2C
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -46,7 +53,7 @@ config VIDEO_VIU
 	depends on VIDEO_V4L2 && (PPC_MPC512x || COMPILE_TEST) && I2C
 	select VIDEOBUF_DMA_CONTIG
 	default y
-	---help---
+	help
 	  Support for Freescale VIU video driver. This device captures
 	  video data, or overlays video on DIU frame buffer.
 
@@ -56,27 +63,32 @@ config VIDEO_VIU
 config VIDEO_MUX
 	tristate "Video Multiplexer"
 	select MULTIPLEXER
-	depends on VIDEO_V4L2 && OF && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
+	depends on VIDEO_V4L2 && OF
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP
+	select V4L2_FWNODE
 	help
 	  This driver provides support for N:1 video bus multiplexers.
 
 config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
 	depends on (ARCH_OMAP3 && OMAP_IOMMU) || COMPILE_TEST
 	depends on COMMON_CLK && OF
 	select ARM_DMA_USE_IOMMU if OMAP_IOMMU
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	select MFD_SYSCON
 	select V4L2_FWNODE
-	---help---
+	help
 	  Driver for an OMAP 3 camera controller.
 
 config VIDEO_OMAP3_DEBUG
 	bool "OMAP 3 Camera debug messages"
 	depends on VIDEO_OMAP3
-	---help---
+	help
 	  Enable debug messages on OMAP 3 camera controller driver.
 
 config VIDEO_PXA27x
@@ -86,23 +98,26 @@ config VIDEO_PXA27x
 	select VIDEOBUF2_DMA_SG
 	select SG_SPLIT
 	select V4L2_FWNODE
-	---help---
+	help
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
 
 config VIDEO_QCOM_CAMSS
 	tristate "Qualcomm V4L2 Camera Subsystem driver"
-	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2
 	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_SG
 	select V4L2_FWNODE
 
 config VIDEO_S3C_CAMIF
 	tristate "Samsung S3C24XX/S3C64XX SoC Camera Interface driver"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
-	depends on PM
+	depends on VIDEO_V4L2 && I2C && PM
 	depends on ARCH_S3C64XX || PLAT_S3C24XX || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
-	---help---
+	help
 	  This is a v4l2 driver for s3c24xx and s3c64xx SoC series camera
 	  host interface (CAMIF).
 
@@ -114,8 +129,9 @@ config VIDEO_STM32_DCMI
 	depends on VIDEO_V4L2 && OF
 	depends on ARCH_STM32 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
+	select MEDIA_CONTROLLER
 	select V4L2_FWNODE
-	---help---
+	help
 	  This module makes the STM32 Digital Camera Memory Interface (DCMI)
 	  available as a v4l2 device.
 
@@ -128,24 +144,25 @@ config VIDEO_RENESAS_CEU
 	depends on ARCH_SHMOBILE || ARCH_R7S72100 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
-	---help---
+	help
 	  This is a v4l2 driver for the Renesas CEU Interface
 
-source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
 source "drivers/media/platform/rcar-vin/Kconfig"
 source "drivers/media/platform/atmel/Kconfig"
+source "drivers/media/platform/sunxi/Kconfig"
 
 config VIDEO_TI_CAL
 	tristate "TI CAL (Camera Adaptation Layer) driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on SOC_DRA7XX || COMPILE_TEST
+	depends on VIDEO_DEV && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	depends on SOC_DRA7XX || ARCH_K3 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
-	default n
-	---help---
+	help
 	  Support for the TI CAL (Camera Adaptation Layer) block
 	  found on DRA72X SoC.
 	  In TI Technical Reference Manual this module is referred as
@@ -156,9 +173,7 @@ endif # V4L_PLATFORM_DRIVERS
 menuconfig V4L_MEM2MEM_DRIVERS
 	bool "Memory-to-memory multimedia devices"
 	depends on VIDEO_V4L2
-	depends on MEDIA_CAMERA_SUPPORT
-	default n
-	---help---
+	help
 	  Say Y here to enable selecting drivers for V4L devices that
 	  use system memory for both source and destination buffers, as opposed
 	  to capture and output drivers, which use memory buffers for just
@@ -172,23 +187,33 @@ config VIDEO_CODA
 	select SRAM
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
+	select V4L2_JPEG_HELPER
 	select V4L2_MEM2MEM_DEV
 	select GENERIC_ALLOCATOR
-	---help---
+	help
 	   Coda is a range of video codec IPs that supports
 	   H.264, MPEG-4, and other video formats.
 
 config VIDEO_IMX_VDOA
 	def_tristate VIDEO_CODA if SOC_IMX6Q || COMPILE_TEST
 
+config VIDEO_IMX_PXP
+	tristate "i.MX Pixel Pipeline (PXP)"
+	depends on VIDEO_DEV && VIDEO_V4L2 && (ARCH_MXC || COMPILE_TEST)
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	  The i.MX Pixel Pipeline is a memory-to-memory engine for scaling,
+	  color space conversion, and rotation.
+
 config VIDEO_MEDIATEK_JPEG
 	tristate "Mediatek JPEG Codec driver"
-	depends on MTK_IOMMU_V1 || COMPILE_TEST
+	depends on MTK_IOMMU_V1 || MTK_IOMMU || COMPILE_TEST
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
-	---help---
+	help
 	  Mediatek jpeg codec driver provides HW capability to decode
 	  JPEG format
 
@@ -199,7 +224,7 @@ config VIDEO_MEDIATEK_VPU
 	tristate "Mediatek Video Processor Unit"
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MEDIATEK || COMPILE_TEST
-	---help---
+	help
 	    This driver provides downloading VPU firmware and
 	    communicating with VPU. This driver for hw video
 	    codec embedded in Mediatek's MT8173 SOCs. It is able
@@ -216,8 +241,7 @@ config VIDEO_MEDIATEK_MDP
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	select VIDEO_MEDIATEK_VPU
-	default n
-	---help---
+	help
 	    It is a v4l2 driver and present in Mediatek MT8173 SoCs.
 	    The driver supports for scaling and color space conversion.
 
@@ -229,17 +253,31 @@ config VIDEO_MEDIATEK_VCODEC
 	depends on MTK_IOMMU || COMPILE_TEST
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on VIDEO_MEDIATEK_VPU || MTK_SCP
+	# The two following lines ensure we have the same state ("m" or "y") as
+	# our dependencies, to avoid missing symbols during link.
+	depends on VIDEO_MEDIATEK_VPU || !VIDEO_MEDIATEK_VPU
+	depends on MTK_SCP || !MTK_SCP
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
-	select VIDEO_MEDIATEK_VPU
-	default n
-	---help---
-	    Mediatek video codec driver provides HW capability to
-	    encode and decode in a range of video formats
-	    This driver rely on VPU driver to communicate with VPU.
+	select VIDEO_MEDIATEK_VCODEC_VPU if VIDEO_MEDIATEK_VPU
+	select VIDEO_MEDIATEK_VCODEC_SCP if MTK_SCP
+	help
+	  Mediatek video codec driver provides HW capability to
+	  encode and decode in a range of video formats on MT8173
+	  and MT8183.
 
-	    To compile this driver as a module, choose M here: the
-	    module will be called mtk-vcodec
+	  Note that support for MT8173 requires VIDEO_MEDIATEK_VPU to
+	  also be selected. Support for MT8183 depends on MTK_SCP.
+
+	  To compile this driver as modules, choose M here: the
+	  modules will be called mtk-vcodec-dec and mtk-vcodec-enc.
+
+config VIDEO_MEDIATEK_VCODEC_VPU
+	bool
+
+config VIDEO_MEDIATEK_VCODEC_SCP
+	bool
 
 config VIDEO_MEM2MEM_DEINTERLACE
 	tristate "Deinterlace support"
@@ -256,8 +294,7 @@ config VIDEO_SAMSUNG_S5P_G2D
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
-	default n
-	---help---
+	help
 	  This is a v4l2 driver for Samsung S5P and EXYNOS4 G2D
 	  2d graphics accelerator.
 
@@ -267,7 +304,7 @@ config VIDEO_SAMSUNG_S5P_JPEG
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
-	---help---
+	help
 	  This is a v4l2 driver for Samsung S5P, EXYNOS3250
 	  and EXYNOS4 JPEG codec
 
@@ -276,7 +313,6 @@ config VIDEO_SAMSUNG_S5P_MFC
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
-	default n
 	help
 	    MFC 5.1 and 6.x driver for V4L2
 
@@ -372,15 +408,6 @@ config VIDEO_STI_DELTA_DRIVER
 
 endif # VIDEO_STI_DELTA
 
-config VIDEO_SH_VEU
-	tristate "SuperH VEU mem2mem video processing driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
-	help
-	    Support for the Video Engine Unit (VEU) on SuperH and
-	    SH-Mobile SoCs.
-
 config VIDEO_RENESAS_FDP1
 	tristate "Renesas Fine Display Processor"
 	depends on VIDEO_DEV && VIDEO_V4L2
@@ -388,7 +415,7 @@ config VIDEO_RENESAS_FDP1
 	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
-	---help---
+	help
 	  This is a V4L2 driver for the Renesas Fine Display Processor
 	  providing colour space conversion, and de-interlacing features.
 
@@ -401,7 +428,7 @@ config VIDEO_RENESAS_JPU
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
-	---help---
+	help
 	  This is a V4L2 driver for the Renesas JPEG Processing Unit.
 
 	  To compile this driver as a module, choose M here: the module
@@ -411,23 +438,25 @@ config VIDEO_RENESAS_FCP
 	tristate "Renesas Frame Compression Processor"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on OF
-	---help---
+	help
 	  This is a driver for the Renesas Frame Compression Processor (FCP).
 	  The FCP is a companion module of video processing modules in the
-	  Renesas R-Car Gen3 SoCs. It handles memory access for the codec,
-	  VSP and FDP modules.
+	  Renesas R-Car Gen3 and RZ/G2 SoCs. It handles memory access for
+	  the codec, VSP and FDP modules.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called rcar-fcp.
 
 config VIDEO_RENESAS_VSP1
 	tristate "Renesas VSP1 Video Processing Engine"
-	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
-	---help---
+	help
 	  This is a V4L2 driver for the Renesas VSP1 video processing engine.
 
 	  To compile this driver as a module, choose M here: the module
@@ -439,8 +468,7 @@ config VIDEO_ROCKCHIP_RGA
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select VIDEOBUF2_DMA_SG
 	select V4L2_MEM2MEM_DEV
-	default n
-	---help---
+	help
 	  This is a v4l2 driver for Rockchip SOC RGA 2d graphics accelerator.
 	  Rockchip RGA is a separate 2D raster graphic acceleration unit.
 	  It accelerates 2D graphics operations, such as point/line drawing,
@@ -457,30 +485,55 @@ config VIDEO_TI_VPE
 	select VIDEO_TI_VPDMA
 	select VIDEO_TI_SC
 	select VIDEO_TI_CSC
-	default n
-	---help---
+	help
 	  Support for the TI VPE(Video Processing Engine) block
 	  found on DRA7XX SoC.
 
 config VIDEO_TI_VPE_DEBUG
 	bool "VPE debug messages"
 	depends on VIDEO_TI_VPE
-	---help---
+	help
 	  Enable debug messages on VPE driver.
 
 config VIDEO_QCOM_VENUS
 	tristate "Qualcomm Venus V4L2 encoder/decoder driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
+	depends on INTERCONNECT || !INTERCONNECT
 	select QCOM_MDT_LOADER if ARCH_QCOM
 	select QCOM_SCM if ARCH_QCOM
 	select VIDEOBUF2_DMA_SG
 	select V4L2_MEM2MEM_DEV
-	---help---
+	help
 	  This is a V4L2 driver for Qualcomm Venus video accelerator
 	  hardware. It accelerates encoding and decoding operations
 	  on various Qualcomm SoCs.
 	  To compile this driver as a module choose m here.
+
+config VIDEO_SUN8I_DEINTERLACE
+	tristate "Allwinner Deinterlace driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on COMMON_CLK && OF
+	depends on PM
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	   Support for the Allwinner deinterlace unit with scaling
+	   capability found on some SoCs, like H3.
+	   To compile this driver as a module choose m here.
+
+config VIDEO_SUN8I_ROTATE
+	tristate "Allwinner DE2 rotation driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on COMMON_CLK && OF
+	depends on PM
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	   Support for the Allwinner DE2 rotation unit.
+	   To compile this driver as a module choose m here.
 
 endif # V4L_MEM2MEM_DRIVERS
 
@@ -495,143 +548,30 @@ config VIDEO_TI_SC
 config VIDEO_TI_CSC
 	tristate
 
-menuconfig V4L_TEST_DRIVERS
-	bool "Media test drivers"
-	depends on MEDIA_CAMERA_SUPPORT
-
-if V4L_TEST_DRIVERS
-
-source "drivers/media/platform/vimc/Kconfig"
-
-source "drivers/media/platform/vivid/Kconfig"
-
-config VIDEO_VIM2M
-	tristate "Virtual Memory-to-Memory Driver"
-	depends on VIDEO_DEV && VIDEO_V4L2
-	select VIDEOBUF2_VMALLOC
-	select V4L2_MEM2MEM_DEV
-	default n
-	---help---
-	  This is a virtual test device for the memory-to-memory driver
-	  framework.
-
-source "drivers/media/platform/vicodec/Kconfig"
-
-endif #V4L_TEST_DRIVERS
-
 menuconfig DVB_PLATFORM_DRIVERS
 	bool "DVB platform devices"
 	depends on MEDIA_DIGITAL_TV_SUPPORT
-	default n
-	---help---
+	help
 	  Say Y here to enable support for platform-specific Digital TV drivers.
 
 if DVB_PLATFORM_DRIVERS
 source "drivers/media/platform/sti/c8sectpfe/Kconfig"
 endif #DVB_PLATFORM_DRIVERS
 
-menuconfig CEC_PLATFORM_DRIVERS
-	bool "CEC platform devices"
-	depends on MEDIA_CEC_SUPPORT
-
-if CEC_PLATFORM_DRIVERS
-
-config VIDEO_CROS_EC_CEC
-	tristate "ChromeOS EC CEC driver"
-	depends on MFD_CROS_EC
-	select CEC_CORE
-	select CEC_NOTIFIER
-	select CHROME_PLATFORMS
-	select CROS_EC_PROTO
-	---help---
-	  If you say yes here you will get support for the
-	  ChromeOS Embedded Controller's CEC.
-	  The CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_MESON_AO_CEC
-	tristate "Amlogic Meson AO CEC driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	select CEC_CORE
-	select CEC_NOTIFIER
-	---help---
-	  This is a driver for Amlogic Meson SoCs AO CEC interface. It uses the
-	  generic CEC framework interface.
-	  CEC bus is present in the HDMI connector and enables communication
-
-config CEC_GPIO
-	tristate "Generic GPIO-based CEC driver"
-	depends on PREEMPT || COMPILE_TEST
-	select CEC_CORE
-	select CEC_PIN
-	select GPIOLIB
-	---help---
-	  This is a generic GPIO-based CEC driver.
-	  The CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_SAMSUNG_S5P_CEC
-       tristate "Samsung S5P CEC driver"
-       depends on ARCH_EXYNOS || COMPILE_TEST
-       select CEC_CORE
-       select CEC_NOTIFIER
-       ---help---
-	 This is a driver for Samsung S5P HDMI CEC interface. It uses the
-	 generic CEC framework interface.
-	 CEC bus is present in the HDMI connector and enables communication
-	 between compatible devices.
-
-config VIDEO_STI_HDMI_CEC
-       tristate "STMicroelectronics STiH4xx HDMI CEC driver"
-       depends on ARCH_STI || COMPILE_TEST
-       select CEC_CORE
-       select CEC_NOTIFIER
-       ---help---
-	 This is a driver for STIH4xx HDMI CEC interface. It uses the
-	 generic CEC framework interface.
-	 CEC bus is present in the HDMI connector and enables communication
-	 between compatible devices.
-
-config VIDEO_STM32_HDMI_CEC
-       tristate "STMicroelectronics STM32 HDMI CEC driver"
-       depends on ARCH_STM32 || COMPILE_TEST
-       select REGMAP
-       select REGMAP_MMIO
-       select CEC_CORE
-       ---help---
-	 This is a driver for STM32 interface. It uses the
-	 generic CEC framework interface.
-	 CEC bus is present in the HDMI connector and enables communication
-	 between compatible devices.
-
-config VIDEO_TEGRA_HDMI_CEC
-       tristate "Tegra HDMI CEC driver"
-       depends on ARCH_TEGRA || COMPILE_TEST
-       select CEC_CORE
-       select CEC_NOTIFIER
-       ---help---
-	 This is a driver for the Tegra HDMI CEC interface. It uses the
-	 generic CEC framework interface.
-	 The CEC bus is present in the HDMI connector and enables communication
-	 between compatible devices.
-
-endif #CEC_PLATFORM_DRIVERS
-
 menuconfig SDR_PLATFORM_DRIVERS
 	bool "SDR platform devices"
 	depends on MEDIA_SDR_SUPPORT
-	default n
-	---help---
+	help
 	  Say Y here to enable support for platform-specific SDR Drivers.
 
 if SDR_PLATFORM_DRIVERS
 
 config VIDEO_RCAR_DRIF
-	tristate "Renesas Digitial Radio Interface (DRIF)"
+	tristate "Renesas Digital Radio Interface (DRIF)"
 	depends on VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_VMALLOC
-	---help---
+	help
 	  Say Y if you want to enable R-Car Gen3 DRIF support. DRIF is Digital
 	  Radio Interface that interfaces with an RF front end chip. It is a
 	  receiver of digital data which uses DMA to transfer received data to

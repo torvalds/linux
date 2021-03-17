@@ -1,19 +1,42 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_HISI_KIRIN
 	tristate "DRM Support for Hisilicon Kirin series SoCs Platform"
 	depends on DRM && OF && ARM64
 	select DRM_KMS_HELPER
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
-	select HISI_KIRIN_DW_DSI
+	select DRM_MIPI_DSI
+	select DRM_PANEL
 	help
-	  Choose this option if you have a hisilicon Kirin chipsets(hi6220).
+	  Choose this option if you have a hisilicon Kirin chipsets.
 	  If M is selected the module will be called kirin-drm.
 
-config HISI_KIRIN_DW_DSI
-	tristate "HiSilicon Kirin specific extensions for Synopsys DW MIPI DSI"
+if DRM_HISI_KIRIN
+config DRM_HISI_KIRIN620
+	bool "DRM Support for Hisilicon Kirin620 Platform"
+	default n
 	depends on DRM_HISI_KIRIN
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DSI
+	select DRM_PANEL
 	help
-	 This selects support for HiSilicon Kirin SoC specific extensions for
-	 the Synopsys DesignWare DSI driver. If you want to enable MIPI DSI on
-	 hi6220 based SoC, you should selet this option.
+	  Choose this option if you have hisilicon Kirin Chipset(kirin620).
+	  It includes kirin620 ade and dsi drivers.
+	  If y is to build kirin620 drm into kirin drm drivers.
+
+config DRM_HISI_KIRIN960
+	bool "DRM Support for Hisilicon Kirin960 Platform"
+	default n
+	depends on DRM_HISI_KIRIN
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	help
+	  Choose this option if you have hisilicon Kirin Chipset(kirin960), such
+	  as hikey board. It includes kirin620 dpe and dsi drivers.
+	  If y is to build kirin960 drm into kirin drm drivers.
+endif

@@ -1,19 +1,7 @@
-/*
- * Copyright (C) 2005 Marc Kleine-Budde, Pengutronix
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (C) 2005 Marc Kleine-Budde, Pengutronix
  * Copyright (C) 2006 Andrey Volkov, Varma Electronics
  * Copyright (C) 2008-2009 Wolfgang Grandegger <wg@grandegger.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -23,6 +11,7 @@
 #include <linux/if_arp.h>
 #include <linux/workqueue.h>
 #include <linux/can.h>
+#include <linux/can/can-ml.h>
 #include <linux/can/dev.h>
 #include <linux/can/skb.h>
 #include <linux/can/netlink.h>
@@ -71,10 +60,8 @@ EXPORT_SYMBOL_GPL(can_len2dlc);
 
 #ifdef CONFIG_CAN_CALC_BITTIMING
 #define CAN_CALC_MAX_ERROR 50 /* in one-tenth of a percent */
-#define CAN_CALC_SYNC_SEG 1
 
-/*
- * Bit-timing calculation derived from:
+/* Bit-timing calculation derived from:
  *
  * Code based on LinCAN sources and H8S2638 project
  * Copyright 2004-2006 Pavel Pisa - DCE FELK CVUT cz
@@ -86,10 +73,11 @@ EXPORT_SYMBOL_GPL(can_len2dlc);
  * registers of the CAN controller. You can find more information
  * in the header file linux/can/netlink.h.
  */
-static int can_update_sample_point(const struct can_bittiming_const *btc,
-			  unsigned int sample_point_nominal, unsigned int tseg,
-			  unsigned int *tseg1_ptr, unsigned int *tseg2_ptr,
-			  unsigned int *sample_point_error_ptr)
+static int
+can_update_sample_point(const struct can_bittiming_const *btc,
+			unsigned int sample_point_nominal, unsigned int tseg,
+			unsigned int *tseg1_ptr, unsigned int *tseg2_ptr,
+			unsigned int *sample_point_error_ptr)
 {
 	unsigned int sample_point_error, best_sample_point_error = UINT_MAX;
 	unsigned int sample_point, best_sample_point = 0;
@@ -97,7 +85,9 @@ static int can_update_sample_point(const struct can_bittiming_const *btc,
 	int i;
 
 	for (i = 0; i <= 1; i++) {
-		tseg2 = tseg + CAN_CALC_SYNC_SEG - (sample_point_nominal * (tseg + CAN_CALC_SYNC_SEG)) / 1000 - i;
+		tseg2 = tseg + CAN_SYNC_SEG -
+			(sample_point_nominal * (tseg + CAN_SYNC_SEG)) /
+			1000 - i;
 		tseg2 = clamp(tseg2, btc->tseg2_min, btc->tseg2_max);
 		tseg1 = tseg - tseg2;
 		if (tseg1 > btc->tseg1_max) {
@@ -105,10 +95,12 @@ static int can_update_sample_point(const struct can_bittiming_const *btc,
 			tseg2 = tseg - tseg1;
 		}
 
-		sample_point = 1000 * (tseg + CAN_CALC_SYNC_SEG - tseg2) / (tseg + CAN_CALC_SYNC_SEG);
+		sample_point = 1000 * (tseg + CAN_SYNC_SEG - tseg2) /
+			(tseg + CAN_SYNC_SEG);
 		sample_point_error = abs(sample_point_nominal - sample_point);
 
-		if ((sample_point <= sample_point_nominal) && (sample_point_error < best_sample_point_error)) {
+		if (sample_point <= sample_point_nominal &&
+		    sample_point_error < best_sample_point_error) {
 			best_sample_point = sample_point;
 			best_sample_point_error = sample_point_error;
 			*tseg1_ptr = tseg1;
@@ -152,14 +144,14 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	/* tseg even = round down, odd = round up */
 	for (tseg = (btc->tseg1_max + btc->tseg2_max) * 2 + 1;
 	     tseg >= (btc->tseg1_min + btc->tseg2_min) * 2; tseg--) {
-		tsegall = CAN_CALC_SYNC_SEG + tseg / 2;
+		tsegall = CAN_SYNC_SEG + tseg / 2;
 
 		/* Compute all possible tseg choices (tseg=tseg1+tseg2) */
 		brp = priv->clock.freq / (tsegall * bt->bitrate) + tseg % 2;
 
 		/* choose brp step which is possible in system */
 		brp = (brp / btc->brp_inc) * btc->brp_inc;
-		if ((brp < btc->brp_min) || (brp > btc->brp_max))
+		if (brp < btc->brp_min || brp > btc->brp_max)
 			continue;
 
 		bitrate = priv->clock.freq / (brp * tsegall);
@@ -173,7 +165,8 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 		if (bitrate_error < best_bitrate_error)
 			best_sample_point_error = UINT_MAX;
 
-		can_update_sample_point(btc, sample_point_nominal, tseg / 2, &tseg1, &tseg2, &sample_point_error);
+		can_update_sample_point(btc, sample_point_nominal, tseg / 2,
+					&tseg1, &tseg2, &sample_point_error);
 		if (sample_point_error > best_sample_point_error)
 			continue;
 
@@ -202,8 +195,9 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	}
 
 	/* real sample point */
-	bt->sample_point = can_update_sample_point(btc, sample_point_nominal, best_tseg,
-					  &tseg1, &tseg2, NULL);
+	bt->sample_point = can_update_sample_point(btc, sample_point_nominal,
+						   best_tseg, &tseg1, &tseg2,
+						   NULL);
 
 	v64 = (u64)best_brp * 1000 * 1000 * 1000;
 	do_div(v64, priv->clock.freq);
@@ -227,7 +221,8 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	bt->brp = best_brp;
 
 	/* real bitrate */
-	bt->bitrate = priv->clock.freq / (bt->brp * (CAN_CALC_SYNC_SEG + tseg1 + tseg2));
+	bt->bitrate = priv->clock.freq /
+		(bt->brp * (CAN_SYNC_SEG + tseg1 + tseg2));
 
 	return 0;
 }
@@ -240,8 +235,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
 
-/*
- * Checks the validity of the specified bit-timing parameters prop_seg,
+/* Checks the validity of the specified bit-timing parameters prop_seg,
  * phase_seg1, phase_seg2 and sjw and tries to determine the bitrate
  * prescaler value brp. You can find more information in the header
  * file linux/can/netlink.h.
@@ -281,9 +275,10 @@ static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt,
 }
 
 /* Checks the validity of predefined bitrate settings */
-static int can_validate_bitrate(struct net_device *dev, struct can_bittiming *bt,
-				const u32 *bitrate_const,
-				const unsigned int bitrate_const_cnt)
+static int
+can_validate_bitrate(struct net_device *dev, struct can_bittiming *bt,
+		     const u32 *bitrate_const,
+		     const unsigned int bitrate_const_cnt)
 {
 	struct can_priv *priv = netdev_priv(dev);
 	unsigned int i;
@@ -306,8 +301,7 @@ static int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt,
 {
 	int err;
 
-	/*
-	 * Depending on the given can_bittiming parameter structure the CAN
+	/* Depending on the given can_bittiming parameter structure the CAN
 	 * timing parameters are calculated based on the provided bitrate OR
 	 * alternatively the CAN timing parameters (tq, prop_seg, etc.) are
 	 * provided directly which are then checked and fixed up.
@@ -376,6 +370,28 @@ static int can_rx_state_to_frame(struct net_device *dev, enum can_state state)
 	}
 }
 
+static const char *can_get_state_str(const enum can_state state)
+{
+	switch (state) {
+	case CAN_STATE_ERROR_ACTIVE:
+		return "Error Active";
+	case CAN_STATE_ERROR_WARNING:
+		return "Error Warning";
+	case CAN_STATE_ERROR_PASSIVE:
+		return "Error Passive";
+	case CAN_STATE_BUS_OFF:
+		return "Bus Off";
+	case CAN_STATE_STOPPED:
+		return "Stopped";
+	case CAN_STATE_SLEEPING:
+		return "Sleeping";
+	default:
+		return "<unknown>";
+	}
+
+	return "<unknown>";
+}
+
 void can_change_state(struct net_device *dev, struct can_frame *cf,
 		      enum can_state tx_state, enum can_state rx_state)
 {
@@ -387,7 +403,9 @@ void can_change_state(struct net_device *dev, struct can_frame *cf,
 		return;
 	}
 
-	netdev_dbg(dev, "New error state: %d\n", new_state);
+	netdev_dbg(dev, "Controller changed from %s State (%d) into %s State (%d).\n",
+		   can_get_state_str(priv->state), priv->state,
+		   can_get_state_str(new_state), new_state);
 
 	can_update_state_error_stats(dev, new_state);
 	priv->state = new_state;
@@ -408,8 +426,7 @@ void can_change_state(struct net_device *dev, struct can_frame *cf,
 }
 EXPORT_SYMBOL_GPL(can_change_state);
 
-/*
- * Local echo of CAN messages
+/* Local echo of CAN messages
  *
  * CAN network devices *should* support a local echo functionality
  * (see Documentation/networking/can.rst). To test the handling of CAN
@@ -434,15 +451,14 @@ static void can_flush_echo_skb(struct net_device *dev)
 	}
 }
 
-/*
- * Put the skb on the stack to be looped backed locally lateron
+/* Put the skb on the stack to be looped backed locally lateron
  *
  * The function is typically called in the start_xmit function
  * of the device driver. The driver must protect access to
  * priv->echo_skb, if necessary.
  */
-void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
-		      unsigned int idx)
+int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
+		     unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
@@ -453,14 +469,13 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 	    (skb->protocol != htons(ETH_P_CAN) &&
 	     skb->protocol != htons(ETH_P_CANFD))) {
 		kfree_skb(skb);
-		return;
+		return 0;
 	}
 
 	if (!priv->echo_skb[idx]) {
-
 		skb = can_create_echo_skb(skb);
 		if (!skb)
-			return;
+			return -ENOMEM;
 
 		/* make settings for echo to reduce code in irq context */
 		skb->pkt_type = PACKET_BROADCAST;
@@ -471,14 +486,48 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		priv->echo_skb[idx] = skb;
 	} else {
 		/* locking problem with netif_stop_queue() ?? */
-		netdev_err(dev, "%s: BUG! echo_skb is occupied!\n", __func__);
+		netdev_err(dev, "%s: BUG! echo_skb %d is occupied!\n", __func__, idx);
 		kfree_skb(skb);
+		return -EBUSY;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(can_put_echo_skb);
 
-/*
- * Get the skb from the stack and loop it back locally
+struct sk_buff *
+__can_get_echo_skb(struct net_device *dev, unsigned int idx, u8 *len_ptr)
+{
+	struct can_priv *priv = netdev_priv(dev);
+
+	if (idx >= priv->echo_skb_max) {
+		netdev_err(dev, "%s: BUG! Trying to access can_priv::echo_skb out of bounds (%u/max %u)\n",
+			   __func__, idx, priv->echo_skb_max);
+		return NULL;
+	}
+
+	if (priv->echo_skb[idx]) {
+		/* Using "struct canfd_frame::len" for the frame
+		 * length is supported on both CAN and CANFD frames.
+		 */
+		struct sk_buff *skb = priv->echo_skb[idx];
+		struct canfd_frame *cf = (struct canfd_frame *)skb->data;
+
+		/* get the real payload length for netdev statistics */
+		if (cf->can_id & CAN_RTR_FLAG)
+			*len_ptr = 0;
+		else
+			*len_ptr = cf->len;
+
+		priv->echo_skb[idx] = NULL;
+
+		return skb;
+	}
+
+	return NULL;
+}
+
+/* Get the skb from the stack and loop it back locally
  *
  * The function is typically called when the TX done interrupt
  * is handled in the device driver. The driver must protect
@@ -486,30 +535,27 @@ EXPORT_SYMBOL_GPL(can_put_echo_skb);
  */
 unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx)
 {
-	struct can_priv *priv = netdev_priv(dev);
+	struct sk_buff *skb;
+	u8 len;
 
-	BUG_ON(idx >= priv->echo_skb_max);
+	skb = __can_get_echo_skb(dev, idx, &len);
+	if (!skb)
+		return 0;
 
-	if (priv->echo_skb[idx]) {
-		struct sk_buff *skb = priv->echo_skb[idx];
-		struct can_frame *cf = (struct can_frame *)skb->data;
-		u8 dlc = cf->can_dlc;
+	skb_get(skb);
+	if (netif_rx(skb) == NET_RX_SUCCESS)
+		dev_consume_skb_any(skb);
+	else
+		dev_kfree_skb_any(skb);
 
-		netif_rx(priv->echo_skb[idx]);
-		priv->echo_skb[idx] = NULL;
-
-		return dlc;
-	}
-
-	return 0;
+	return len;
 }
 EXPORT_SYMBOL_GPL(can_get_echo_skb);
 
-/*
-  * Remove the skb from the stack and free it.
-  *
-  * The function is typically called when TX failed.
-  */
+/* Remove the skb from the stack and free it.
+ *
+ * The function is typically called when TX failed.
+ */
 void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -523,9 +569,7 @@ void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 }
 EXPORT_SYMBOL_GPL(can_free_echo_skb);
 
-/*
- * CAN device restart for bus-off recovery
- */
+/* CAN device restart for bus-off recovery */
 static void can_restart(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -536,24 +580,22 @@ static void can_restart(struct net_device *dev)
 
 	BUG_ON(netif_carrier_ok(dev));
 
-	/*
-	 * No synchronization needed because the device is bus-off and
+	/* No synchronization needed because the device is bus-off and
 	 * no messages can come in or go out.
 	 */
 	can_flush_echo_skb(dev);
 
 	/* send restart message upstream */
 	skb = alloc_can_err_skb(dev, &cf);
-	if (skb == NULL) {
-		err = -ENOMEM;
+	if (!skb)
 		goto restart;
-	}
-	cf->can_id |= CAN_ERR_RESTARTED;
 
-	netif_rx(skb);
+	cf->can_id |= CAN_ERR_RESTARTED;
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+
+	netif_rx_ni(skb);
 
 restart:
 	netdev_dbg(dev, "restarted\n");
@@ -570,7 +612,8 @@ restart:
 static void can_restart_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct can_priv *priv = container_of(dwork, struct can_priv, restart_work);
+	struct can_priv *priv = container_of(dwork, struct can_priv,
+					     restart_work);
 
 	can_restart(priv->dev);
 }
@@ -579,8 +622,7 @@ int can_restart_now(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	/*
-	 * A manual restart is only permitted if automatic restart is
+	/* A manual restart is only permitted if automatic restart is
 	 * disabled and the device is in the bus-off state
 	 */
 	if (priv->restart_ms)
@@ -594,8 +636,7 @@ int can_restart_now(struct net_device *dev)
 	return 0;
 }
 
-/*
- * CAN bus-off
+/* CAN bus-off
  *
  * This functions should be called when the device goes bus-off to
  * tell the netif layer that no more packets can be sent or received.
@@ -605,7 +646,11 @@ void can_bus_off(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	netdev_info(dev, "bus-off\n");
+	if (priv->restart_ms)
+		netdev_info(dev, "bus-off, scheduling restart in %d ms\n",
+			    priv->restart_ms);
+	else
+		netdev_info(dev, "bus-off\n");
 
 	netif_carrier_off(dev);
 
@@ -698,9 +743,7 @@ struct sk_buff *alloc_can_err_skb(struct net_device *dev, struct can_frame **cf)
 }
 EXPORT_SYMBOL_GPL(alloc_can_err_skb);
 
-/*
- * Allocate and setup space for the CAN network device
- */
+/* Allocate and setup space for the CAN network device */
 struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 				    unsigned int txqs, unsigned int rxqs)
 {
@@ -708,11 +751,24 @@ struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 	struct can_priv *priv;
 	int size;
 
+	/* We put the driver's priv, the CAN mid layer priv and the
+	 * echo skb into the netdevice's priv. The memory layout for
+	 * the netdev_priv is like this:
+	 *
+	 * +-------------------------+
+	 * | driver's priv           |
+	 * +-------------------------+
+	 * | struct can_ml_priv      |
+	 * +-------------------------+
+	 * | array of struct sk_buff |
+	 * +-------------------------+
+	 */
+
+	size = ALIGN(sizeof_priv, NETDEV_ALIGN) + sizeof(struct can_ml_priv);
+
 	if (echo_skb_max)
-		size = ALIGN(sizeof_priv, sizeof(struct sk_buff *)) +
+		size = ALIGN(size, sizeof(struct sk_buff *)) +
 			echo_skb_max * sizeof(struct sk_buff *);
-	else
-		size = sizeof_priv;
 
 	dev = alloc_netdev_mqs(size, "can%d", NET_NAME_UNKNOWN, can_setup,
 			       txqs, rxqs);
@@ -722,10 +778,12 @@ struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 	priv = netdev_priv(dev);
 	priv->dev = dev;
 
+	dev->ml_priv = (void *)priv + ALIGN(sizeof_priv, NETDEV_ALIGN);
+
 	if (echo_skb_max) {
 		priv->echo_skb_max = echo_skb_max;
 		priv->echo_skb = (void *)priv +
-			ALIGN(sizeof_priv, sizeof(struct sk_buff *));
+			(size - echo_skb_max * sizeof(struct sk_buff *));
 	}
 
 	priv->state = CAN_STATE_STOPPED;
@@ -736,18 +794,14 @@ struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 }
 EXPORT_SYMBOL_GPL(alloc_candev_mqs);
 
-/*
- * Free space of the CAN network device
- */
+/* Free space of the CAN network device */
 void free_candev(struct net_device *dev)
 {
 	free_netdev(dev);
 }
 EXPORT_SYMBOL_GPL(free_candev);
 
-/*
- * changing MTU and control mode for CAN/CANFD devices
- */
+/* changing MTU and control mode for CAN/CANFD devices */
 int can_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -784,8 +838,7 @@ int can_change_mtu(struct net_device *dev, int new_mtu)
 }
 EXPORT_SYMBOL_GPL(can_change_mtu);
 
-/*
- * Common open function when the device gets opened.
+/* Common open function when the device gets opened.
  *
  * This function should be called in the open function of the device
  * driver.
@@ -802,7 +855,7 @@ int open_candev(struct net_device *dev)
 	/* For CAN FD the data bitrate has to be >= the arbitration bitrate */
 	if ((priv->ctrlmode & CAN_CTRLMODE_FD) &&
 	    (!priv->data_bittiming.bitrate ||
-	     (priv->data_bittiming.bitrate < priv->bittiming.bitrate))) {
+	     priv->data_bittiming.bitrate < priv->bittiming.bitrate)) {
 		netdev_err(dev, "incorrect/missing data bit-timing\n");
 		return -EINVAL;
 	}
@@ -832,14 +885,14 @@ void of_can_transceiver(struct net_device *dev)
 		return;
 
 	ret = of_property_read_u32(dn, "max-bitrate", &priv->bitrate_max);
+	of_node_put(dn);
 	if ((ret && ret != -EINVAL) || (!ret && !priv->bitrate_max))
 		netdev_warn(dev, "Invalid value for transceiver max bitrate. Ignoring bitrate limit.\n");
 }
 EXPORT_SYMBOL_GPL(of_can_transceiver);
 #endif
 
-/*
- * Common close function for cleanup before the device gets closed.
+/* Common close function for cleanup before the device gets closed.
  *
  * This function should be called in the close function of the device
  * driver.
@@ -853,9 +906,7 @@ void close_candev(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(close_candev);
 
-/*
- * CAN netlink interface
- */
+/* CAN netlink interface */
 static const struct nla_policy can_policy[IFLA_CAN_MAX + 1] = {
 	[IFLA_CAN_STATE]	= { .type = NLA_U32 },
 	[IFLA_CAN_CTRLMODE]	= { .len = sizeof(struct can_ctrlmode) },
@@ -870,6 +921,7 @@ static const struct nla_policy can_policy[IFLA_CAN_MAX + 1] = {
 				= { .len = sizeof(struct can_bittiming) },
 	[IFLA_CAN_DATA_BITTIMING_CONST]
 				= { .len = sizeof(struct can_bittiming_const) },
+	[IFLA_CAN_TERMINATION]	= { .type = NLA_U16 },
 };
 
 static int can_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -1111,7 +1163,7 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 	struct can_ctrlmode cm = {.flags = priv->ctrlmode};
-	struct can_berr_counter bec;
+	struct can_berr_counter bec = { };
 	enum can_state state = priv->state;
 
 	if (priv->do_get_state)
@@ -1199,7 +1251,6 @@ static int can_newlink(struct net *src_net, struct net_device *dev,
 
 static void can_dellink(struct net_device *dev, struct list_head *head)
 {
-	return;
 }
 
 static struct rtnl_link_ops can_link_ops __read_mostly = {
@@ -1217,9 +1268,7 @@ static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.fill_xstats	= can_fill_xstats,
 };
 
-/*
- * Register the CAN network device
- */
+/* Register the CAN network device */
 int register_candev(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -1239,26 +1288,25 @@ int register_candev(struct net_device *dev)
 		return -EINVAL;
 
 	dev->rtnl_link_ops = &can_link_ops;
+	netif_carrier_off(dev);
+
 	return register_netdev(dev);
 }
 EXPORT_SYMBOL_GPL(register_candev);
 
-/*
- * Unregister the CAN network device
- */
+/* Unregister the CAN network device */
 void unregister_candev(struct net_device *dev)
 {
 	unregister_netdev(dev);
 }
 EXPORT_SYMBOL_GPL(unregister_candev);
 
-/*
- * Test if a network device is a candev based device
+/* Test if a network device is a candev based device
  * and return the can_priv* if so.
  */
 struct can_priv *safe_candev_priv(struct net_device *dev)
 {
-	if ((dev->type != ARPHRD_CAN) || (dev->rtnl_link_ops != &can_link_ops))
+	if (dev->type != ARPHRD_CAN || dev->rtnl_link_ops != &can_link_ops)
 		return NULL;
 
 	return netdev_priv(dev);
@@ -1273,7 +1321,7 @@ static __init int can_dev_init(void)
 
 	err = rtnl_link_register(&can_link_ops);
 	if (!err)
-		printk(KERN_INFO MOD_DESC "\n");
+		pr_info(MOD_DESC "\n");
 
 	return err;
 }

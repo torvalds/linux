@@ -46,9 +46,17 @@ struct hclgevf_cmq_ring {
 
 enum hclgevf_cmd_return_status {
 	HCLGEVF_CMD_EXEC_SUCCESS	= 0,
-	HCLGEVF_CMD_NO_AUTH	= 1,
-	HCLGEVF_CMD_NOT_EXEC	= 2,
-	HCLGEVF_CMD_QUEUE_FULL	= 3,
+	HCLGEVF_CMD_NO_AUTH		= 1,
+	HCLGEVF_CMD_NOT_SUPPORTED	= 2,
+	HCLGEVF_CMD_QUEUE_FULL		= 3,
+	HCLGEVF_CMD_NEXT_ERR		= 4,
+	HCLGEVF_CMD_UNEXE_ERR		= 5,
+	HCLGEVF_CMD_PARA_ERR		= 6,
+	HCLGEVF_CMD_RESULT_ERR		= 7,
+	HCLGEVF_CMD_TIMEOUT		= 8,
+	HCLGEVF_CMD_HILINK_ERR		= 9,
+	HCLGEVF_CMD_QUEUE_ILLEGAL	= 10,
+	HCLGEVF_CMD_INVALID		= 11,
 };
 
 enum hclgevf_cmd_status {
@@ -83,12 +91,17 @@ enum hclgevf_opcode_type {
 	/* Generic command */
 	HCLGEVF_OPC_QUERY_FW_VER	= 0x0001,
 	HCLGEVF_OPC_QUERY_VF_RSRC	= 0x0024,
+	HCLGEVF_OPC_QUERY_DEV_SPECS	= 0x0050,
+
 	/* TQP command */
 	HCLGEVF_OPC_QUERY_TX_STATUS	= 0x0B03,
 	HCLGEVF_OPC_QUERY_RX_STATUS	= 0x0B13,
 	HCLGEVF_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
+	/* GRO command */
+	HCLGEVF_OPC_GRO_GENERIC_CONFIG  = 0x0C10,
 	/* RSS cmd */
 	HCLGEVF_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
+	HCLGEVF_OPC_RSS_INPUT_TUPLE     = 0x0D02,
 	HCLGEVF_OPC_RSS_INDIR_TABLE	= 0x0D07,
 	HCLGEVF_OPC_RSS_TC_MODE		= 0x0D08,
 	/* Mailbox cmd */
@@ -130,9 +143,26 @@ struct hclgevf_ctrl_vector_chain {
 	u8 resv;
 };
 
+enum HCLGEVF_CAP_BITS {
+	HCLGEVF_CAP_UDP_GSO_B,
+	HCLGEVF_CAP_QB_B,
+	HCLGEVF_CAP_FD_FORWARD_TC_B,
+	HCLGEVF_CAP_PTP_B,
+	HCLGEVF_CAP_INT_QL_B,
+	HCLGEVF_CAP_SIMPLE_BD_B,
+	HCLGEVF_CAP_TX_PUSH_B,
+	HCLGEVF_CAP_PHY_IMP_B,
+	HCLGEVF_CAP_TQP_TXRX_INDEP_B,
+	HCLGEVF_CAP_HW_PAD_B,
+	HCLGEVF_CAP_STASH_B,
+};
+
+#define HCLGEVF_QUERY_CAP_LENGTH		3
 struct hclgevf_query_version_cmd {
 	__le32 firmware;
-	__le32 firmware_rsv[5];
+	__le32 hardware;
+	__le32 rsv;
+	__le32 caps[HCLGEVF_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
 #define HCLGEVF_MSIX_OFT_ROCEE_S       0
@@ -148,7 +178,14 @@ struct hclgevf_query_res_cmd {
 	__le16 rsv[7];
 };
 
-#define HCLGEVF_RSS_HASH_KEY_OFFSET	4
+#define HCLGEVF_GRO_EN_B               0
+struct hclgevf_cfg_gro_status_cmd {
+	u8 gro_en;
+	u8 rsv[23];
+};
+
+#define HCLGEVF_RSS_DEFAULT_OUTPORT_B	4
+#define HCLGEVF_RSS_HASH_KEY_OFFSET_B	4
 #define HCLGEVF_RSS_HASH_KEY_NUM	16
 struct hclgevf_rss_config_cmd {
 	u8 hash_config;
@@ -159,11 +196,11 @@ struct hclgevf_rss_config_cmd {
 struct hclgevf_rss_input_tuple_cmd {
 	u8 ipv4_tcp_en;
 	u8 ipv4_udp_en;
-	u8 ipv4_stcp_en;
+	u8 ipv4_sctp_en;
 	u8 ipv4_fragment_en;
 	u8 ipv6_tcp_en;
 	u8 ipv6_udp_en;
-	u8 ipv6_stcp_en;
+	u8 ipv6_sctp_en;
 	u8 ipv6_fragment_en;
 	u8 rsv[16];
 };
@@ -226,11 +263,27 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 #define HCLGEVF_NIC_CRQ_DEPTH_REG	0x27020
 #define HCLGEVF_NIC_CRQ_TAIL_REG	0x27024
 #define HCLGEVF_NIC_CRQ_HEAD_REG	0x27028
-#define HCLGEVF_NIC_CMQ_EN_B		16
-#define HCLGEVF_NIC_CMQ_ENABLE		BIT(HCLGEVF_NIC_CMQ_EN_B)
+
+/* this bit indicates that the driver is ready for hardware reset */
+#define HCLGEVF_NIC_SW_RST_RDY_B	16
+#define HCLGEVF_NIC_SW_RST_RDY		BIT(HCLGEVF_NIC_SW_RST_RDY_B)
+
 #define HCLGEVF_NIC_CMQ_DESC_NUM	1024
 #define HCLGEVF_NIC_CMQ_DESC_NUM_S	3
 #define HCLGEVF_NIC_CMDQ_INT_SRC_REG	0x27100
+
+#define HCLGEVF_QUERY_DEV_SPECS_BD_NUM		4
+
+struct hclgevf_dev_specs_0_cmd {
+	__le32 rsv0;
+	__le32 mac_entry_num;
+	__le32 mng_entry_num;
+	__le16 rss_ind_tbl_size;
+	__le16 rss_key_size;
+	__le16 int_ql_max;
+	u8 max_non_tso_bd_num;
+	u8 rsv1[5];
+};
 
 static inline void hclgevf_write_reg(void __iomem *base, u32 reg, u32 value)
 {
@@ -254,6 +307,7 @@ static inline u32 hclgevf_read_reg(u8 __iomem *base, u32 reg)
 
 int hclgevf_cmd_init(struct hclgevf_dev *hdev);
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev);
+int hclgevf_cmd_queue_init(struct hclgevf_dev *hdev);
 
 int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num);
 void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,

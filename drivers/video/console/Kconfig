@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Video configuration
 #
@@ -21,56 +22,10 @@ config VGA_CONSOLE
 
 	  Say Y.
 
-config VGACON_SOFT_SCROLLBACK
-       bool "Enable Scrollback Buffer in System RAM"
-       depends on VGA_CONSOLE
-       default n
-       help
-         The scrollback buffer of the standard VGA console is located in
-	 the VGA RAM.  The size of this RAM is fixed and is quite small.
-	 If you require a larger scrollback buffer, this can be placed in
-	 System RAM which is dynamically allocated during initialization.
-	 Placing the scrollback buffer in System RAM will slightly slow
-	 down the console.
-
-	 If you want this feature, say 'Y' here and enter the amount of
-	 RAM to allocate for this buffer.  If unsure, say 'N'.
-
-config VGACON_SOFT_SCROLLBACK_SIZE
-       int "Scrollback Buffer Size (in KB)"
-       depends on VGACON_SOFT_SCROLLBACK
-       range 1 1024
-       default "64"
-       help
-	  Enter the amount of System RAM to allocate for scrollback
-	  buffers of VGA consoles. Each 64KB will give you approximately
-	  16 80x25 screenfuls of scrollback buffer.
-
-config VGACON_SOFT_SCROLLBACK_PERSISTENT_ENABLE_BY_DEFAULT
-	bool "Persistent Scrollback History for each console by default"
-	depends on VGACON_SOFT_SCROLLBACK
-	default n
-	help
-	  Say Y here if the scrollback history should persist by default when
-	  switching between consoles. Otherwise, the scrollback history will be
-	  flushed each time the console is switched. This feature can also be
-	  enabled using the boot command line parameter
-	  'vgacon.scrollback_persistent=1'.
-
-	  This feature might break your tool of choice to flush the scrollback
-	  buffer, e.g. clear(1) will work fine but Debian's clear_console(1)
-	  will be broken, which might cause security issues.
-	  You can use the escape sequence \e[3J instead if this feature is
-	  activated.
-
-	  Note that a buffer of VGACON_SOFT_SCROLLBACK_SIZE is taken for each
-	  created tty device.
-	  So if you use a RAM-constrained system, say N here.
-
 config MDA_CONSOLE
 	depends on !M68K && !PARISC && ISA
 	tristate "MDA text console (dual-headed)"
-	---help---
+	help
 	  Say Y here if you have an old MDA or monochrome Hercules graphics
 	  adapter in your system acting as a second head ( = video card). You
 	  will then be able to use two monitors with your Linux system. Do not
@@ -83,37 +38,36 @@ config MDA_CONSOLE
 	  If unsure, say N.
 
 config SGI_NEWPORT_CONSOLE
-        tristate "SGI Newport Console support"
+	tristate "SGI Newport Console support"
 	depends on SGI_IP22 && HAS_IOMEM
-        select FONT_SUPPORT
-        help
-          Say Y here if you want the console on the Newport aka XL graphics
-          card of your Indy.  Most people say Y here.
+	select FONT_SUPPORT
+	help
+	  Say Y here if you want the console on the Newport aka XL graphics
+	  card of your Indy.  Most people say Y here.
 
 config DUMMY_CONSOLE
 	bool
-	depends on VGA_CONSOLE!=y || SGI_NEWPORT_CONSOLE!=y 
 	default y
 
 config DUMMY_CONSOLE_COLUMNS
-        int "Initial number of console screen columns"
-        depends on DUMMY_CONSOLE && !ARM
-        default 160 if PARISC
-        default 80
-        help
-          On PA-RISC, the default value is 160, which should fit a 1280x1024
-          monitor.
-          Select 80 if you use a 640x480 resolution by default.
+	int "Initial number of console screen columns"
+	depends on DUMMY_CONSOLE && !ARM
+	default 160 if PARISC
+	default 80
+	help
+	  On PA-RISC, the default value is 160, which should fit a 1280x1024
+	  monitor.
+	  Select 80 if you use a 640x480 resolution by default.
 
 config DUMMY_CONSOLE_ROWS
-        int "Initial number of console screen rows"
-        depends on DUMMY_CONSOLE && !ARM
-        default 64 if PARISC
-        default 25
-        help
-          On PA-RISC, the default value is 64, which should fit a 1280x1024
-          monitor.
-          Select 25 if you use a 640x480 resolution by default.
+	int "Initial number of console screen rows"
+	depends on DUMMY_CONSOLE && !ARM
+	default 64 if PARISC
+	default 25
+	help
+	  On PA-RISC, the default value is 64, which should fit a 1280x1024
+	  monitor.
+	  Select 25 if you use a 640x480 resolution by default.
 
 config FRAMEBUFFER_CONSOLE
 	bool "Framebuffer Console support"
@@ -128,12 +82,12 @@ config FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
        bool "Map the console to the primary display device"
        depends on FRAMEBUFFER_CONSOLE
        default n
-       ---help---
-         If this option is selected, the framebuffer console will
-         automatically select the primary display device (if the architecture
+	help
+	 If this option is selected, the framebuffer console will
+	 automatically select the primary display device (if the architecture
 	 supports this feature).  Otherwise, the framebuffer console will
-         always select the first framebuffer driver that is loaded. The latter
-         is the default behavior.
+	 always select the first framebuffer driver that is loaded. The latter
+	 is the default behavior.
 
 	 You can always override the automatic selection of the primary device
 	 by using the fbcon=map: boot option.
@@ -144,11 +98,11 @@ config FRAMEBUFFER_CONSOLE_ROTATION
        bool "Framebuffer Console Rotation"
        depends on FRAMEBUFFER_CONSOLE
        help
-         Enable display rotation for the framebuffer console.  This is done
-         in software and may be significantly slower than a normally oriented
-         display.  Note that the rotation is done at the console level only
-         such that other users of the framebuffer will remain normally
-         oriented.
+	 Enable display rotation for the framebuffer console.  This is done
+	 in software and may be significantly slower than a normally oriented
+	 display.  Note that the rotation is done at the console level only
+	 such that other users of the framebuffer will remain normally
+	 oriented.
 
 config FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
 	bool "Framebuffer Console Deferred Takeover"
@@ -162,14 +116,15 @@ config FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
 	  black screen as soon as fbcon loads.
 
 config STI_CONSOLE
-        bool "STI text console"
+	bool "STI text console"
 	depends on PARISC && HAS_IOMEM
-        select FONT_SUPPORT
-        default y
-        help
-          The STI console is the builtin display/keyboard on HP-PARISC
-          machines.  Say Y here to build support for it into your kernel.
-          The alternative is to use your primary serial port as a console.
+	select FONT_SUPPORT
+	select CRC32
+	default y
+	help
+	  The STI console is the builtin display/keyboard on HP-PARISC
+	  machines.  Say Y here to build support for it into your kernel.
+	  The alternative is to use your primary serial port as a console.
 
 endmenu
 

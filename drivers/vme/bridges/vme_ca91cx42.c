@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for the Tundra Universe I/II VME-PCI Bridge Chips
  *
@@ -8,11 +9,6 @@
  * Copyright 2004 Motorola Inc.
  *
  * Derived from ca91c042.c by Michael Wyrick
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -558,7 +554,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 		goto err_resource;
 	}
 
-	image->kern_base = ioremap_nocache(
+	image->kern_base = ioremap(
 		image->bus_resource.start, size);
 	if (!image->kern_base) {
 		dev_err(ca91cx42_bridge->parent, "Failed to remap resource\n");
@@ -1642,7 +1638,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* map registers in BAR 0 */
-	ca91cx42_device->base = ioremap_nocache(pci_resource_start(pdev, 0),
+	ca91cx42_device->base = ioremap(pci_resource_start(pdev, 0),
 		4096);
 	if (!ca91cx42_device->base) {
 		dev_err(&pdev->dev, "Unable to remap CRG region\n");

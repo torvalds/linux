@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * multipath.c : Multiple Devices driver for Linux
  *
@@ -8,15 +9,6 @@
  * MULTIPATH management functions.
  *
  * derived from raid1.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * You should have received a copy of the GNU General Public License
- * (for example /usr/src/linux/COPYING); if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/blkdev.h>
@@ -112,10 +104,9 @@ static bool multipath_make_request(struct mddev *mddev, struct bio * bio)
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
 
-	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
-		md_flush_request(mddev, bio);
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH)
+	    && md_flush_request(mddev, bio))
 		return true;
-	}
 
 	mp_bh = mempool_alloc(&conf->pool, GFP_NOIO);
 
@@ -140,7 +131,7 @@ static bool multipath_make_request(struct mddev *mddev, struct bio * bio)
 	mp_bh->bio.bi_private = mp_bh;
 	mddev_check_writesame(mddev, &mp_bh->bio);
 	mddev_check_write_zeroes(mddev, &mp_bh->bio);
-	generic_make_request(&mp_bh->bio);
+	submit_bio_noacct(&mp_bh->bio);
 	return true;
 }
 
@@ -158,28 +149,6 @@ static void multipath_status(struct seq_file *seq, struct mddev *mddev)
 	}
 	rcu_read_unlock();
 	seq_putc(seq, ']');
-}
-
-static int multipath_congested(struct mddev *mddev, int bits)
-{
-	struct mpconf *conf = mddev->private;
-	int i, ret = 0;
-
-	rcu_read_lock();
-	for (i = 0; i < mddev->raid_disks ; i++) {
-		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
-			struct request_queue *q = bdev_get_queue(rdev->bdev);
-
-			ret |= bdi_congested(q->backing_dev_info, bits);
-			/* Just like multipath_map, we just check the
-			 * first available device
-			 */
-			break;
-		}
-	}
-	rcu_read_unlock();
-	return ret;
 }
 
 /*
@@ -357,7 +326,7 @@ static void multipathd(struct md_thread *thread)
 			bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 			bio->bi_end_io = multipath_end_request;
 			bio->bi_private = mp_bh;
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		}
 	}
 	spin_unlock_irqrestore(&conf->device_lock, flags);
@@ -487,7 +456,6 @@ static struct md_personality multipath_personality =
 	.hot_add_disk	= multipath_add_disk,
 	.hot_remove_disk= multipath_remove_disk,
 	.size		= multipath_size,
-	.congested	= multipath_congested,
 };
 
 static int __init multipath_init (void)

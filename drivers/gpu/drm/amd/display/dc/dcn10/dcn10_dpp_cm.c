@@ -51,10 +51,6 @@
 
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
 
-struct dcn10_input_csc_matrix {
-	enum dc_color_space color_space;
-	uint16_t regval[12];
-};
 
 enum dcn10_coef_filter_type_sel {
 	SCL_COEF_LUMA_VERT_FILTER = 0,
@@ -90,33 +86,6 @@ enum dscl_mode_sel {
 	DSCL_MODE_SCALING_420_LUMA_BYPASS = 4,
 	DSCL_MODE_SCALING_420_CHROMA_BYPASS = 5,
 	DSCL_MODE_DSCL_BYPASS = 6
-};
-
-enum gamut_remap_select {
-	GAMUT_REMAP_BYPASS = 0,
-	GAMUT_REMAP_COEFF,
-	GAMUT_REMAP_COMA_COEFF,
-	GAMUT_REMAP_COMB_COEFF
-};
-
-static const struct dcn10_input_csc_matrix dcn10_input_csc_matrix[] = {
-	{COLOR_SPACE_SRGB,
-		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
-	{COLOR_SPACE_SRGB_LIMITED,
-		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
-	{COLOR_SPACE_YCBCR601,
-		{0x2cdd, 0x2000, 0, 0xe991, 0xe926, 0x2000, 0xf4fd, 0x10ef,
-						0, 0x2000, 0x38b4, 0xe3a6} },
-	{COLOR_SPACE_YCBCR601_LIMITED,
-		{0x3353, 0x2568, 0, 0xe400, 0xe5dc, 0x2568, 0xf367, 0x1108,
-						0, 0x2568, 0x40de, 0xdd3a} },
-	{COLOR_SPACE_YCBCR709,
-		{0x3265, 0x2000, 0, 0xe6ce, 0xf105, 0x2000, 0xfa01, 0xa7d, 0,
-						0x2000, 0x3b61, 0xe24f} },
-
-	{COLOR_SPACE_YCBCR709_LIMITED,
-		{0x39a6, 0x2568, 0, 0xe0d6, 0xeedd, 0x2568, 0xf925, 0x9a8, 0,
-						0x2568, 0x43ee, 0xdbb2} }
 };
 
 static void program_gamut_remap(
@@ -363,6 +332,8 @@ void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
 	uint32_t i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
+	REG_SEQ_START();
+
 	for (i = 0 ; i < num; i++) {
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
@@ -454,7 +425,7 @@ void dpp1_program_input_csc(
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	int i;
-	int arr_size = sizeof(dcn10_input_csc_matrix)/sizeof(struct dcn10_input_csc_matrix);
+	int arr_size = sizeof(dpp_input_csc_matrix)/sizeof(struct dpp_input_csc_matrix);
 	const uint16_t *regval = NULL;
 	uint32_t cur_select = 0;
 	enum dcn10_input_csc_select select;
@@ -467,8 +438,8 @@ void dpp1_program_input_csc(
 
 	if (tbl_entry == NULL) {
 		for (i = 0; i < arr_size; i++)
-			if (dcn10_input_csc_matrix[i].color_space == color_space) {
-				regval = dcn10_input_csc_matrix[i].regval;
+			if (dpp_input_csc_matrix[i].color_space == color_space) {
+				regval = dpp_input_csc_matrix[i].regval;
 				break;
 			}
 
@@ -637,10 +608,16 @@ void dpp1_set_degamma(
 	case IPP_DEGAMMA_MODE_HW_xvYCC:
 		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 2);
 			break;
+	case IPP_DEGAMMA_MODE_USER_PWL:
+		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 3);
+		break;
 	default:
 		BREAK_TO_DEBUGGER();
 		break;
 	}
+
+	REG_SEQ_SUBMIT();
+	REG_SEQ_WAIT_DONE();
 }
 
 void dpp1_degamma_ram_select(
@@ -742,6 +719,8 @@ void dpp1_full_bypass(struct dpp *dpp_base)
 	/* COLOR_KEYER_CONTROL.COLOR_KEYER_EN = 0 this should be default */
 	if (dpp->tf_mask->CM_BYPASS_EN)
 		REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
+	else
+		REG_SET(CM_CONTROL, 0, CM_BYPASS, 1);
 
 	/* Setting degamma bypass for now */
 	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);

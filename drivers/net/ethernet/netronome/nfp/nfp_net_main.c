@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_net_main.c
@@ -146,13 +116,13 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 	n_rx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_RXRINGS);
 
 	/* Allocate and initialise the vNIC */
-	nn = nfp_net_alloc(pf->pdev, needs_netdev, n_tx_rings, n_rx_rings);
+	nn = nfp_net_alloc(pf->pdev, ctrl_bar, needs_netdev,
+			   n_tx_rings, n_rx_rings);
 	if (IS_ERR(nn))
 		return nn;
 
 	nn->app = pf->app;
 	nfp_net_get_fw_version(&nn->fw_ver, ctrl_bar);
-	nn->dp.ctrl_bar = ctrl_bar;
 	nn->tx_bar = qc_bar + tx_base * NFP_QCP_QUEUE_ADDR_SZ;
 	nn->rx_bar = qc_bar + rx_base * NFP_QCP_QUEUE_ADDR_SZ;
 	nn->dp.is_vf = 0;
@@ -180,34 +150,39 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 
 	nn->id = id;
 
-	err = nfp_net_init(nn);
-	if (err)
-		return err;
-
-	nfp_net_debugfs_vnic_add(nn, pf->ddir);
-
 	if (nn->port) {
 		err = nfp_devlink_port_register(pf->app, nn->port);
 		if (err)
-			goto err_dfs_clean;
+			return err;
 	}
+
+	err = nfp_net_init(nn);
+	if (err)
+		goto err_devlink_port_clean;
+
+	nfp_net_debugfs_vnic_add(nn, pf->ddir);
+
+	if (nn->port)
+		nfp_devlink_port_type_eth_set(nn->port);
 
 	nfp_net_info(nn);
 
 	if (nfp_net_is_data_vnic(nn)) {
 		err = nfp_app_vnic_init(pf->app, nn);
 		if (err)
-			goto err_devlink_port_clean;
+			goto err_devlink_port_type_clean;
 	}
 
 	return 0;
 
+err_devlink_port_type_clean:
+	if (nn->port)
+		nfp_devlink_port_type_clear(nn->port);
+	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_clean(nn);
 err_devlink_port_clean:
 	if (nn->port)
 		nfp_devlink_port_unregister(nn->port);
-err_dfs_clean:
-	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-	nfp_net_clean(nn);
 	return err;
 }
 
@@ -230,10 +205,8 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
 
 		/* Kill the vNIC if app init marked it as invalid */
-		if (nn->port && nn->port->type == NFP_PORT_INVALID) {
+		if (nn->port && nn->port->type == NFP_PORT_INVALID)
 			nfp_net_pf_free_vnic(pf, nn);
-			continue;
-		}
 	}
 
 	if (list_empty(&pf->vnics))
@@ -251,9 +224,11 @@ static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 	if (nfp_net_is_data_vnic(nn))
 		nfp_app_vnic_clean(pf->app, nn);
 	if (nn->port)
-		nfp_devlink_port_unregister(nn->port);
+		nfp_devlink_port_type_clear(nn->port);
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
+	if (nn->port)
+		nfp_devlink_port_unregister(nn->port);
 }
 
 static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
@@ -470,8 +445,8 @@ static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
 
 static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 {
+	u32 min_size, cpp_id;
 	u8 __iomem *mem;
-	u32 min_size;
 	int err;
 
 	min_size = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
@@ -519,9 +494,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		pf->vfcfg_tbl2 = NULL;
 	}
 
-	mem = nfp_cpp_map_area(pf->cpp, "net.qc", 0, 0,
-			       NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
-			       &pf->qc_area);
+	cpp_id = NFP_CPP_ISLAND_ID(0, NFP_CPP_ACTION_RW, 0, 0);
+	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id, NFP_PCIE_QUEUE(0),
+			       NFP_QCP_QUEUE_AREA_SZ, &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);
@@ -734,6 +709,10 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_devlink_unreg;
 
+	err = nfp_devlink_params_register(pf);
+	if (err)
+		goto err_shared_buf_unreg;
+
 	mutex_lock(&pf->lock);
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
@@ -767,6 +746,8 @@ err_free_vnics:
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 	mutex_unlock(&pf->lock);
+	nfp_devlink_params_unregister(pf);
+err_shared_buf_unreg:
 	nfp_shared_buf_unregister(pf);
 err_devlink_unreg:
 	cancel_work_sync(&pf->port_refresh_work);
@@ -796,6 +777,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 
 	mutex_unlock(&pf->lock);
 
+	nfp_devlink_params_unregister(pf);
 	nfp_shared_buf_unregister(pf);
 	devlink_unregister(priv_to_devlink(pf));
 

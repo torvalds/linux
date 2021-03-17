@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -36,7 +37,6 @@
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 
 #include "sunqe.h"
@@ -544,7 +544,7 @@ static void qe_tx_reclaim(struct sunqe *qep)
 	qep->tx_old = elem;
 }
 
-static void qe_tx_timeout(struct net_device *dev)
+static void qe_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sunqe *qep = netdev_priv(dev);
 	int tx_full;
@@ -570,7 +570,7 @@ out:
 }
 
 /* Get a packet queued to go onto the wire. */
-static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sunqe *qep = netdev_priv(dev);
 	struct sunqe_buffers *qbufs = qep->buffers;

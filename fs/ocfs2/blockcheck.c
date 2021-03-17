@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -6,15 +7,6 @@
  * Checksum and ECC codes for the OCFS2 userspace library.
  *
  * Copyright (C) 2006, 2008 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License, version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -132,7 +124,7 @@ u32 ocfs2_hamming_encode(u32 parity, void *data, unsigned int d, unsigned int nr
 		 * parity bits that are part of the bit number
 		 * representation.  Huh?
 		 *
-		 * <wikipedia href="http://en.wikipedia.org/wiki/Hamming_code">
+		 * <wikipedia href="https://en.wikipedia.org/wiki/Hamming_code">
 		 * In other words, the parity bit at position 2^k
 		 * checks bits in positions having bit k set in
 		 * their binary representation.  Conversely, for
@@ -239,68 +231,36 @@ static int blockcheck_u64_get(void *data, u64 *val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(blockcheck_fops, blockcheck_u64_get, NULL, "%llu\n");
 
-static struct dentry *blockcheck_debugfs_create(const char *name,
-						struct dentry *parent,
-						u64 *value)
-{
-	return debugfs_create_file(name, S_IFREG | S_IRUSR, parent, value,
-				   &blockcheck_fops);
-}
-
 static void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *stats)
 {
 	if (stats) {
-		debugfs_remove(stats->b_debug_check);
-		stats->b_debug_check = NULL;
-		debugfs_remove(stats->b_debug_failure);
-		stats->b_debug_failure = NULL;
-		debugfs_remove(stats->b_debug_recover);
-		stats->b_debug_recover = NULL;
-		debugfs_remove(stats->b_debug_dir);
+		debugfs_remove_recursive(stats->b_debug_dir);
 		stats->b_debug_dir = NULL;
 	}
 }
 
-static int ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
-					  struct dentry *parent)
+static void ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
+					   struct dentry *parent)
 {
-	int rc = -EINVAL;
+	struct dentry *dir;
 
-	if (!stats)
-		goto out;
+	dir = debugfs_create_dir("blockcheck", parent);
+	stats->b_debug_dir = dir;
 
-	stats->b_debug_dir = debugfs_create_dir("blockcheck", parent);
-	if (!stats->b_debug_dir)
-		goto out;
+	debugfs_create_file("blocks_checked", S_IFREG | S_IRUSR, dir,
+			    &stats->b_check_count, &blockcheck_fops);
 
-	stats->b_debug_check =
-		blockcheck_debugfs_create("blocks_checked",
-					  stats->b_debug_dir,
-					  &stats->b_check_count);
+	debugfs_create_file("checksums_failed", S_IFREG | S_IRUSR, dir,
+			    &stats->b_failure_count, &blockcheck_fops);
 
-	stats->b_debug_failure =
-		blockcheck_debugfs_create("checksums_failed",
-					  stats->b_debug_dir,
-					  &stats->b_failure_count);
+	debugfs_create_file("ecc_recoveries", S_IFREG | S_IRUSR, dir,
+			    &stats->b_recover_count, &blockcheck_fops);
 
-	stats->b_debug_recover =
-		blockcheck_debugfs_create("ecc_recoveries",
-					  stats->b_debug_dir,
-					  &stats->b_recover_count);
-	if (stats->b_debug_check && stats->b_debug_failure &&
-	    stats->b_debug_recover)
-		rc = 0;
-
-out:
-	if (rc)
-		ocfs2_blockcheck_debug_remove(stats);
-	return rc;
 }
 #else
-static inline int ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
-						 struct dentry *parent)
+static inline void ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
+						  struct dentry *parent)
 {
-	return 0;
 }
 
 static inline void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *stats)
@@ -309,10 +269,10 @@ static inline void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *
 #endif  /* CONFIG_DEBUG_FS */
 
 /* Always-called wrappers for starting and stopping the debugfs files */
-int ocfs2_blockcheck_stats_debugfs_install(struct ocfs2_blockcheck_stats *stats,
-					   struct dentry *parent)
+void ocfs2_blockcheck_stats_debugfs_install(struct ocfs2_blockcheck_stats *stats,
+					    struct dentry *parent)
 {
-	return ocfs2_blockcheck_debug_install(stats, parent);
+	ocfs2_blockcheck_debug_install(stats, parent);
 }
 
 void ocfs2_blockcheck_stats_debugfs_remove(struct ocfs2_blockcheck_stats *stats)

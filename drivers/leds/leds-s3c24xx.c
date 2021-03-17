@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/leds/leds-s3c24xx.c
  *
  * (c) 2006 Simtec Electronics
@@ -5,28 +6,22 @@
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C24XX - LEDs GPIO driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_data/leds-s3c24xx.h>
-
-#include <mach/regs-gpio.h>
-#include <plat/gpio-cfg.h>
 
 /* our context */
 
 struct s3c24xx_gpio_led {
 	struct led_classdev		 cdev;
 	struct s3c24xx_led_platdata	*pdata;
+	struct gpio_desc		*gpiod;
 };
 
 static inline struct s3c24xx_gpio_led *to_gpio(struct led_classdev *led_cdev)
@@ -38,20 +33,8 @@ static void s3c24xx_led_set(struct led_classdev *led_cdev,
 			    enum led_brightness value)
 {
 	struct s3c24xx_gpio_led *led = to_gpio(led_cdev);
-	struct s3c24xx_led_platdata *pd = led->pdata;
-	int state = (value ? 1 : 0) ^ (pd->flags & S3C24XX_LEDF_ACTLOW);
 
-	/* there will be a short delay between setting the output and
-	 * going from output to input when using tristate. */
-
-	gpio_set_value(pd->gpio, state);
-
-	if (pd->flags & S3C24XX_LEDF_TRISTATE) {
-		if (value)
-			gpio_direction_output(pd->gpio, state);
-		else
-			gpio_direction_input(pd->gpio);
-	}
+	gpiod_set_value(led->gpiod, !!value);
 }
 
 static int s3c24xx_led_probe(struct platform_device *dev)
@@ -72,22 +55,12 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 
 	led->pdata = pdata;
 
-	ret = devm_gpio_request(&dev->dev, pdata->gpio, "S3C24XX_LED");
-	if (ret < 0)
-		return ret;
-
-	/* no point in having a pull-up if we are always driving */
-
-	s3c_gpio_setpull(pdata->gpio, S3C_GPIO_PULL_NONE);
-
-	if (pdata->flags & S3C24XX_LEDF_TRISTATE)
-		gpio_direction_input(pdata->gpio);
-	else
-		gpio_direction_output(pdata->gpio,
-			pdata->flags & S3C24XX_LEDF_ACTLOW ? 1 : 0);
+	/* Default to off */
+	led->gpiod = devm_gpiod_get(&dev->dev, NULL, GPIOD_OUT_LOW);
+	if (IS_ERR(led->gpiod))
+		return PTR_ERR(led->gpiod);
 
 	/* register our new led device */
-
 	ret = devm_led_classdev_register(&dev->dev, &led->cdev);
 	if (ret < 0)
 		dev_err(&dev->dev, "led_classdev_register failed\n");

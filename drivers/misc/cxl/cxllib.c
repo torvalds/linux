@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2017 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/hugetlb.h>
@@ -211,7 +207,7 @@ static int get_vma_info(struct mm_struct *mm, u64 addr,
 	struct vm_area_struct *vma = NULL;
 	int rc = 0;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	vma = find_vma(mm, addr);
 	if (!vma) {
@@ -222,7 +218,7 @@ static int get_vma_info(struct mm_struct *mm, u64 addr,
 	*vma_start = vma->vm_start;
 	*vma_end = vma->vm_end;
 out:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return rc;
 }
 
@@ -249,9 +245,8 @@ int cxllib_handle_fault(struct mm_struct *mm, u64 addr, u64 size, u64 flags)
 	     dar += page_size) {
 		if (dar < vma_start || dar >= vma_end) {
 			/*
-			 * We don't hold the mm->mmap_sem semaphore
-			 * while iterating, since the semaphore is
-			 * required by one of the lower-level page
+			 * We don't hold mm->mmap_lock while iterating, since
+			 * the lock is required by one of the lower-level page
 			 * fault processing functions and it could
 			 * create a deadlock.
 			 *

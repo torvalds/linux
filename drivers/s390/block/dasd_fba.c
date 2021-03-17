@@ -40,6 +40,7 @@
 MODULE_LICENSE("GPL");
 
 static struct dasd_discipline dasd_fba_discipline;
+static void *dasd_fba_zero_page;
 
 struct dasd_fba_private {
 	struct dasd_fba_characteristics rdc_data;
@@ -270,7 +271,7 @@ static void ccw_write_zero(struct ccw1 *ccw, int count)
 	ccw->cmd_code = DASD_FBA_CCW_WRITE;
 	ccw->flags |= CCW_FLAG_SLI;
 	ccw->count = count;
-	ccw->cda = (__u32) (addr_t) page_to_phys(ZERO_PAGE(0));
+	ccw->cda = (__u32) (addr_t) dasd_fba_zero_page;
 }
 
 /*
@@ -770,27 +771,46 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 }
 
 /*
- * max_blocks is dependent on the amount of storage that is available
- * in the static io buffer for each device. Currently each device has
- * 8192 bytes (=2 pages). For 64 bit one dasd_mchunkt_t structure has
- * 24 bytes, the struct dasd_ccw_req has 136 bytes and each block can use
- * up to 16 bytes (8 for the ccw and 8 for the idal pointer). In
- * addition we have one define extent ccw + 16 bytes of data and a
- * locate record ccw for each block (stupid devices!) + 16 bytes of data.
- * That makes:
- * (8192 - 24 - 136 - 8 - 16) / 40 = 200.2 blocks at maximum.
- * We want to fit two into the available memory so that we can immediately
- * start the next request if one finishes off. That makes 100.1 blocks
- * for one request. Give a little safety and the result is 96.
+ * Initialize block layer request queue.
  */
+static void dasd_fba_setup_blk_queue(struct dasd_block *block)
+{
+	unsigned int logical_block_size = block->bp_block;
+	struct request_queue *q = block->request_queue;
+	unsigned int max_bytes, max_discard_sectors;
+	int max;
+
+	max = DASD_FBA_MAX_BLOCKS << block->s2b_shift;
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+	q->limits.max_dev_sectors = max;
+	blk_queue_logical_block_size(q, logical_block_size);
+	blk_queue_max_hw_sectors(q, max);
+	blk_queue_max_segments(q, USHRT_MAX);
+	/* With page sized segments each segment can be translated into one idaw/tidaw */
+	blk_queue_max_segment_size(q, PAGE_SIZE);
+	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
+
+	q->limits.discard_granularity = logical_block_size;
+	q->limits.discard_alignment = PAGE_SIZE;
+
+	/* Calculate max_discard_sectors and make it PAGE aligned */
+	max_bytes = USHRT_MAX * logical_block_size;
+	max_bytes = ALIGN_DOWN(max_bytes, PAGE_SIZE);
+	max_discard_sectors = max_bytes / logical_block_size;
+
+	blk_queue_max_discard_sectors(q, max_discard_sectors);
+	blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
+	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
+}
+
 static struct dasd_discipline dasd_fba_discipline = {
 	.owner = THIS_MODULE,
 	.name = "FBA ",
 	.ebcname = "FBA ",
-	.max_blocks = 96,
 	.check_device = dasd_fba_check_characteristics,
 	.do_analysis = dasd_fba_do_analysis,
 	.verify_path = dasd_generic_verify_path,
+	.setup_blk_queue = dasd_fba_setup_blk_queue,
 	.fill_geometry = dasd_fba_fill_geometry,
 	.start_IO = dasd_start_IO,
 	.term_IO = dasd_term_IO,
@@ -811,6 +831,11 @@ dasd_fba_init(void)
 	int ret;
 
 	ASCEBC(dasd_fba_discipline.ebcname, 4);
+
+	dasd_fba_zero_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!dasd_fba_zero_page)
+		return -ENOMEM;
+
 	ret = ccw_driver_register(&dasd_fba_driver);
 	if (!ret)
 		wait_for_device_probe();
@@ -822,6 +847,7 @@ static void __exit
 dasd_fba_cleanup(void)
 {
 	ccw_driver_unregister(&dasd_fba_driver);
+	free_page((unsigned long)dasd_fba_zero_page);
 }
 
 module_init(dasd_fba_init);

@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Header file for the Atmel AHB DMA Controller driver
  *
  * Copyright (C) 2008 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef AT_HDMAC_REGS_H
 #define	AT_HDMAC_REGS_H
@@ -247,7 +243,6 @@ enum atc_status {
  * @active_list: list of descriptors dmaengine is being running on
  * @queue: list of descriptors ready to be submitted to engine
  * @free_list: list of descriptors usable by the channel
- * @descs_allocated: records the actual size of the descriptor pool
  */
 struct at_dma_chan {
 	struct dma_chan		chan_common;
@@ -268,7 +263,6 @@ struct at_dma_chan {
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
-	unsigned int		descs_allocated;
 };
 
 #define	channel_readl(atchan, name) \
@@ -337,7 +331,7 @@ struct at_dma {
 	struct dma_pool		*dma_desc_pool;
 	struct dma_pool		*memset_pool;
 	/* AT THE END channels table */
-	struct at_dma_chan	chan[0];
+	struct at_dma_chan	chan[];
 };
 
 #define	dma_readl(atdma, name) \

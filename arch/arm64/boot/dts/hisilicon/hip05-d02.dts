@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * dts file for Hisilicon D02 Development Board
  *
  * Copyright (C) 2014,2015 Hisilicon Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * publishhed by the Free Software Foundation.
- *
  */
 
 /dts-v1/;
@@ -46,15 +42,15 @@
 };
 
 &uart0 {
-	status = "ok";
+	status = "okay";
 };
 
 &peri_gpio0 {
-	status = "ok";
+	status = "okay";
 };
 
 &lbc {
-	status = "ok";
+	status = "okay";
 	#address-cells = <2>;
 	#size-cells = <1>;
 	ranges = <0 0 0x0 0x90000000 0x08000000>,

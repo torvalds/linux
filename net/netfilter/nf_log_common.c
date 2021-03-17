@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -156,25 +153,35 @@ nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 			  const struct net_device *out,
 			  const struct nf_loginfo *loginfo, const char *prefix)
 {
+	const struct net_device *physoutdev __maybe_unused;
+	const struct net_device *physindev __maybe_unused;
+
 	nf_log_buf_add(m, KERN_SOH "%c%sIN=%s OUT=%s ",
 	       '0' + loginfo->u.log.level, prefix,
 	       in ? in->name : "",
 	       out ? out->name : "");
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	if (skb->nf_bridge) {
-		const struct net_device *physindev;
-		const struct net_device *physoutdev;
-
-		physindev = nf_bridge_get_physindev(skb);
-		if (physindev && in != physindev)
-			nf_log_buf_add(m, "PHYSIN=%s ", physindev->name);
-		physoutdev = nf_bridge_get_physoutdev(skb);
-		if (physoutdev && out != physoutdev)
-			nf_log_buf_add(m, "PHYSOUT=%s ", physoutdev->name);
-	}
+	physindev = nf_bridge_get_physindev(skb);
+	if (physindev && in != physindev)
+		nf_log_buf_add(m, "PHYSIN=%s ", physindev->name);
+	physoutdev = nf_bridge_get_physoutdev(skb);
+	if (physoutdev && out != physoutdev)
+		nf_log_buf_add(m, "PHYSOUT=%s ", physoutdev->name);
 #endif
 }
 EXPORT_SYMBOL_GPL(nf_log_dump_packet_common);
+
+void nf_log_dump_vlan(struct nf_log_buf *m, const struct sk_buff *skb)
+{
+	u16 vid;
+
+	if (!skb_vlan_tag_present(skb))
+		return;
+
+	vid = skb_vlan_tag_get(skb);
+	nf_log_buf_add(m, "VPROTO=%04x VID=%u ", ntohs(skb->vlan_proto), vid);
+}
+EXPORT_SYMBOL_GPL(nf_log_dump_vlan);
 
 /* bridge and netdev logging families share this code. */
 void nf_log_l2packet(struct net *net, u_int8_t pf,

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 // Copyright 2017 IBM Corp.
 #ifndef _OCXL_INTERNAL_H_
 #define _OCXL_INTERNAL_H_
@@ -11,11 +11,7 @@
 #define MAX_IRQ_PER_LINK	2000
 #define MAX_IRQ_PER_CONTEXT	MAX_IRQ_PER_LINK
 
-#define to_ocxl_function(d) container_of(d, struct ocxl_fn, dev)
-#define to_ocxl_afu(d) container_of(d, struct ocxl_afu, dev)
-
 extern struct pci_driver ocxl_pci_driver;
-
 
 struct ocxl_fn {
 	struct device dev;
@@ -31,11 +27,17 @@ struct ocxl_fn {
 	void *link;
 };
 
-struct ocxl_afu {
-	struct ocxl_fn *fn;
-	struct list_head list;
+struct ocxl_file_info {
+	struct ocxl_afu *afu;
 	struct device dev;
 	struct cdev cdev;
+	struct bin_attribute attr_global_mmio;
+};
+
+struct ocxl_afu {
+	struct kref kref;
+	struct ocxl_fn *fn;
+	struct list_head list;
 	struct ocxl_afu_config config;
 	int pasid_base;
 	int pasid_count; /* opened contexts */
@@ -49,7 +51,7 @@ struct ocxl_afu {
 	u64 irq_base_offset;
 	void __iomem *global_mmio_ptr;
 	u64 pp_mmio_start;
-	struct bin_attribute attr_global_mmio;
+	void *private;
 };
 
 enum ocxl_context_status {
@@ -92,41 +94,58 @@ struct ocxl_process_element {
 	__be32 software_state;
 };
 
+int ocxl_create_cdev(struct ocxl_afu *afu);
+void ocxl_destroy_cdev(struct ocxl_afu *afu);
+int ocxl_file_register_afu(struct ocxl_afu *afu);
+void ocxl_file_unregister_afu(struct ocxl_afu *afu);
 
-extern struct ocxl_afu *ocxl_afu_get(struct ocxl_afu *afu);
-extern void ocxl_afu_put(struct ocxl_afu *afu);
+int ocxl_file_init(void);
+void ocxl_file_exit(void);
 
-extern int ocxl_create_cdev(struct ocxl_afu *afu);
-extern void ocxl_destroy_cdev(struct ocxl_afu *afu);
-extern int ocxl_register_afu(struct ocxl_afu *afu);
-extern void ocxl_unregister_afu(struct ocxl_afu *afu);
+int ocxl_pasid_afu_alloc(struct ocxl_fn *fn, u32 size);
+void ocxl_pasid_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
+int ocxl_actag_afu_alloc(struct ocxl_fn *fn, u32 size);
+void ocxl_actag_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
 
-extern int ocxl_file_init(void);
-extern void ocxl_file_exit(void);
+/*
+ * Get the max PASID value that can be used by the function
+ */
+int ocxl_config_get_pasid_info(struct pci_dev *dev, int *count);
 
-extern int ocxl_pasid_afu_alloc(struct ocxl_fn *fn, u32 size);
-extern void ocxl_pasid_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
-extern int ocxl_actag_afu_alloc(struct ocxl_fn *fn, u32 size);
-extern void ocxl_actag_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
+/*
+ * Control whether the FPGA is reloaded on a link reset
+ */
+int ocxl_config_get_reset_reload(struct pci_dev *dev, int *val);
+int ocxl_config_set_reset_reload(struct pci_dev *dev, int val);
 
-extern struct ocxl_context *ocxl_context_alloc(void);
-extern int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
-			struct address_space *mapping);
-extern int ocxl_context_attach(struct ocxl_context *ctx, u64 amr);
-extern int ocxl_context_mmap(struct ocxl_context *ctx,
+/*
+ * Check if an AFU index is valid for the given function.
+ *
+ * AFU indexes can be sparse, so a driver should check all indexes up
+ * to the maximum found in the function description
+ */
+int ocxl_config_check_afu_index(struct pci_dev *dev,
+				struct ocxl_fn_config *fn, int afu_idx);
+
+/**
+ * ocxl_link_update_pe() - Update values within a Process Element
+ * @link_handle: the link handle associated with the process element
+ * @pasid: the PASID for the AFU context
+ * @tid: the new thread id for the process element
+ *
+ * Returns 0 on success
+ */
+int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid);
+
+int ocxl_context_mmap(struct ocxl_context *ctx,
 			struct vm_area_struct *vma);
-extern int ocxl_context_detach(struct ocxl_context *ctx);
-extern void ocxl_context_detach_all(struct ocxl_afu *afu);
-extern void ocxl_context_free(struct ocxl_context *ctx);
+void ocxl_context_detach_all(struct ocxl_afu *afu);
 
-extern int ocxl_sysfs_add_afu(struct ocxl_afu *afu);
-extern void ocxl_sysfs_remove_afu(struct ocxl_afu *afu);
+int ocxl_sysfs_register_afu(struct ocxl_file_info *info);
+void ocxl_sysfs_unregister_afu(struct ocxl_file_info *info);
 
-extern int ocxl_afu_irq_alloc(struct ocxl_context *ctx, u64 *irq_offset);
-extern int ocxl_afu_irq_free(struct ocxl_context *ctx, u64 irq_offset);
-extern void ocxl_afu_irq_free_all(struct ocxl_context *ctx);
-extern int ocxl_afu_irq_set_fd(struct ocxl_context *ctx, u64 irq_offset,
-			int eventfd);
-extern u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, u64 irq_offset);
+int ocxl_irq_offset_to_id(struct ocxl_context *ctx, u64 offset);
+u64 ocxl_irq_id_to_offset(struct ocxl_context *ctx, int irq_id);
+void ocxl_afu_irq_free_all(struct ocxl_context *ctx);
 
 #endif /* _OCXL_INTERNAL_H_ */

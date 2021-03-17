@@ -40,11 +40,15 @@ void __onstack_fence_init(struct i915_sw_fence *fence,
 
 	__init_waitqueue_head(&fence->wait, name, key);
 	atomic_set(&fence->pending, 1);
+	fence->error = 0;
 	fence->flags = (unsigned long)nop_fence_notify;
 }
 
 void onstack_fence_fini(struct i915_sw_fence *fence)
 {
+	if (!fence->flags)
+		return;
+
 	i915_sw_fence_commit(fence);
 	i915_sw_fence_fini(fence);
 }
@@ -75,4 +79,58 @@ void timed_fence_fini(struct timed_fence *tf)
 
 	destroy_timer_on_stack(&tf->timer);
 	i915_sw_fence_fini(&tf->fence);
+}
+
+struct heap_fence {
+	struct i915_sw_fence fence;
+	union {
+		struct kref ref;
+		struct rcu_head rcu;
+	};
+};
+
+static int __i915_sw_fence_call
+heap_fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
+	struct heap_fence *h = container_of(fence, typeof(*h), fence);
+
+	switch (state) {
+	case FENCE_COMPLETE:
+		break;
+
+	case FENCE_FREE:
+		heap_fence_put(&h->fence);
+	}
+
+	return NOTIFY_DONE;
+}
+
+struct i915_sw_fence *heap_fence_create(gfp_t gfp)
+{
+	struct heap_fence *h;
+
+	h = kmalloc(sizeof(*h), gfp);
+	if (!h)
+		return NULL;
+
+	i915_sw_fence_init(&h->fence, heap_fence_notify);
+	refcount_set(&h->ref.refcount, 2);
+
+	return &h->fence;
+}
+
+static void heap_fence_release(struct kref *ref)
+{
+	struct heap_fence *h = container_of(ref, typeof(*h), ref);
+
+	i915_sw_fence_fini(&h->fence);
+
+	kfree_rcu(h, rcu);
+}
+
+void heap_fence_put(struct i915_sw_fence *fence)
+{
+	struct heap_fence *h = container_of(fence, typeof(*h), fence);
+
+	kref_put(&h->ref, heap_fence_release);
 }

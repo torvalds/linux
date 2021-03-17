@@ -274,10 +274,10 @@ fields of ``struct uio_mem``:
    region, it will show up in the corresponding sysfs node.
 
 -  ``int memtype``: Required if the mapping is used. Set this to
-   ``UIO_MEM_PHYS`` if you you have physical memory on your card to be
+   ``UIO_MEM_PHYS`` if you have physical memory on your card to be
    mapped. Use ``UIO_MEM_LOGICAL`` for logical memory (e.g. allocated
-   with :c:func:`kmalloc()`). There's also ``UIO_MEM_VIRTUAL`` for
-   virtual memory.
+   with :c:func:`__get_free_pages()` but not kmalloc()). There's also
+   ``UIO_MEM_VIRTUAL`` for virtual memory.
 
 -  ``phys_addr_t addr``: Required if the mapping is used. Fill in the
    address of your memory block. This address is the one that appears in
@@ -408,6 +408,13 @@ handler code. You also do not need to know anything about the chip's
 internal registers to create the kernel part of the driver. All you need
 to know is the irq number of the pin the chip is connected to.
 
+When used in a device-tree enabled system, the driver needs to be
+probed with the ``"of_id"`` module parameter set to the ``"compatible"``
+string of the node the driver is supposed to handle. By default, the
+node's name (without the unit address) is exposed as name for the
+UIO device in userspace. To set a custom name, a property named
+``"linux,uio-name"`` may be specified in the DT node.
+
 Using uio_dmem_genirq for platform devices
 ------------------------------------------
 
@@ -463,8 +470,8 @@ Getting information about your UIO device
 
 Information about all UIO devices is available in sysfs. The first thing
 you should do in your driver is check ``name`` and ``version`` to make
-sure your talking to the right device and that its kernel driver has the
-version you expect.
+sure you're talking to the right device and that its kernel driver has
+the version you expect.
 
 You should also make sure that the memory mapping you need exists and
 has the size you expect.

@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2019 Linaro Ltd.
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/firmware/intel,ixp4xx-network-processing-engine.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Intel IXP4xx Network Processing Engine
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  On the IXP4xx SoCs, the Network Processing Engine (NPE) is a small
+  processor that can load a firmware to perform offloading of networking
+  and crypto tasks. It also manages the MDIO bus to the ethernet PHYs
+  on the IXP4xx platform. All IXP4xx platforms have three NPEs at
+  consecutive memory locations. They are all included in the same
+  device node since they are not independent of each other.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: intel,ixp4xx-network-processing-engine
+
+  reg:
+    items:
+      - description: NPE0 register range
+      - description: NPE1 register range
+      - description: NPE2 register range
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    npe@c8006000 {
+         compatible = "intel,ixp4xx-network-processing-engine";
+         reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
+    };
+...

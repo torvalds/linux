@@ -6,13 +6,18 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 /* HDformatter registers */
 #define HDA_ANA_CFG                     0x0000
@@ -226,7 +231,7 @@ static const struct sti_hda_video_config hda_supported_modes[] = {
 	 AWGi_720x480p_60, NN_720x480p_60, VID_ED}
 };
 
-/**
+/*
  * STI hd analog structure
  *
  * @dev: driver device
@@ -362,16 +367,16 @@ static struct drm_info_list hda_debugfs_files[] = {
 	{ "hda", hda_dbg_show, 0, NULL },
 };
 
-static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
+static void hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(hda_debugfs_files); i++)
 		hda_debugfs_files[i].data = hda;
 
-	return drm_debugfs_create_files(hda_debugfs_files,
-					ARRAY_SIZE(hda_debugfs_files),
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(hda_debugfs_files,
+				 ARRAY_SIZE(hda_debugfs_files),
+				 minor->debugfs_root, minor);
 }
 
 /**
@@ -508,8 +513,8 @@ static void sti_hda_pre_enable(struct drm_bridge *bridge)
 }
 
 static void sti_hda_set_mode(struct drm_bridge *bridge,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
+			     const struct drm_display_mode *mode,
+			     const struct drm_display_mode *adjusted_mode)
 {
 	struct sti_hda *hda = bridge->driver_private;
 	u32 mode_idx;
@@ -581,7 +586,6 @@ static int sti_hda_connector_get_modes(struct drm_connector *connector)
 					&hda_supported_modes[i].mode);
 		if (!mode)
 			continue;
-		mode->vrefresh = drm_mode_vrefresh(mode);
 
 		/* the first mode is the preferred mode */
 		if (i == 0)
@@ -638,10 +642,7 @@ static int sti_hda_late_register(struct drm_connector *connector)
 		= to_sti_hda_connector(connector);
 	struct sti_hda *hda = hda_connector->hda;
 
-	if (hda_debugfs_init(hda, hda->drm_dev->primary)) {
-		DRM_ERROR("HDA debugfs setup failed\n");
-		return -EINVAL;
-	}
+	hda_debugfs_init(hda, hda->drm_dev->primary);
 
 	return 0;
 }
@@ -696,7 +697,7 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 
 	bridge->driver_private = hda;
 	bridge->funcs = &sti_hda_bridge_funcs;
-	drm_bridge_attach(encoder, bridge, NULL);
+	drm_bridge_attach(encoder, bridge, NULL, 0);
 
 	connector->encoder = encoder;
 
@@ -721,7 +722,6 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 	return 0;
 
 err_sysfs:
-	drm_bridge_remove(bridge);
 	return -EINVAL;
 }
 
@@ -755,14 +755,14 @@ static int sti_hda_probe(struct platform_device *pdev)
 		DRM_ERROR("Invalid hda resource\n");
 		return -ENOMEM;
 	}
-	hda->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	hda->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!hda->regs)
 		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 			"video-dacs-ctrl");
 	if (res) {
-		hda->video_dacs_ctrl = devm_ioremap_nocache(dev, res->start,
+		hda->video_dacs_ctrl = devm_ioremap(dev, res->start,
 				resource_size(res));
 		if (!hda->video_dacs_ctrl)
 			return -ENOMEM;

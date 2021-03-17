@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * ELF register definitions..
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_POWERPC_ELF_H
 #define _ASM_POWERPC_ELF_H
@@ -56,8 +52,6 @@ static inline void ppc_elf_core_copy_regs(elf_gregset_t elf_regs,
 	PPC_ELF_CORE_COPY_REGS(elf_regs, regs);
 }
 #define ELF_CORE_COPY_REGS(gregs, regs) ppc_elf_core_copy_regs(gregs, regs);
-
-typedef elf_vrregset_t elf_fpxregset_t;
 
 /* ELF_HWCAP yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
@@ -178,5 +172,8 @@ do {									\
 	VDSO_AUX_ENT(AT_SYSINFO_EHDR, current->mm->context.vdso_base);	\
 	ARCH_DLINFO_CACHE_GEOMETRY;					\
 } while (0)
+
+/* Relocate the kernel image to @final_address */
+void relocate(unsigned long final_address);
 
 #endif /* _ASM_POWERPC_ELF_H */

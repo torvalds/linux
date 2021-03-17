@@ -63,7 +63,7 @@ struct acpi_peripheral {
 struct chromeos_laptop {
 	/*
 	 * Note that we can't mark this pointer as const because
-	 * i2c_new_probed_device() changes passed in I2C board info, so.
+	 * i2c_new_scanned_device() changes passed in I2C board info, so.
 	 */
 	struct i2c_peripheral *i2c_peripherals;
 	unsigned int num_i2c_peripherals;
@@ -87,8 +87,8 @@ chromes_laptop_instantiate_i2c_device(struct i2c_adapter *adapter,
 	 * address we scan secondary addresses. In any case the client
 	 * structure gets assigned primary address.
 	 */
-	client = i2c_new_probed_device(adapter, info, addr_list, NULL);
-	if (!client && alt_addr) {
+	client = i2c_new_scanned_device(adapter, info, addr_list, NULL);
+	if (IS_ERR(client) && alt_addr) {
 		struct i2c_board_info dummy_info = {
 			I2C_BOARD_INFO("dummy", info->addr),
 		};
@@ -97,22 +97,24 @@ chromes_laptop_instantiate_i2c_device(struct i2c_adapter *adapter,
 		};
 		struct i2c_client *dummy;
 
-		dummy = i2c_new_probed_device(adapter, &dummy_info,
-					      alt_addr_list, NULL);
-		if (dummy) {
+		dummy = i2c_new_scanned_device(adapter, &dummy_info,
+					       alt_addr_list, NULL);
+		if (!IS_ERR(dummy)) {
 			pr_debug("%d-%02x is probed at %02x\n",
 				 adapter->nr, info->addr, dummy->addr);
 			i2c_unregister_device(dummy);
-			client = i2c_new_device(adapter, info);
+			client = i2c_new_client_device(adapter, info);
 		}
 	}
 
-	if (!client)
+	if (IS_ERR(client)) {
+		client = NULL;
 		pr_debug("failed to register device %d-%02x\n",
 			 adapter->nr, info->addr);
-	else
+	} else {
 		pr_debug("added i2c device %d-%02x\n",
 			 adapter->nr, info->addr);
+	}
 
 	return client;
 }
@@ -125,7 +127,7 @@ static bool chromeos_laptop_match_adapter_devid(struct device *dev, u32 devid)
 		return false;
 
 	pdev = to_pci_dev(dev);
-	return devid == PCI_DEVID(pdev->bus->number, pdev->devfn);
+	return devid == pci_dev_id(pdev);
 }
 
 static void chromeos_laptop_check_adapter(struct i2c_adapter *adapter)
@@ -838,18 +840,14 @@ static void chromeos_laptop_destroy(const struct chromeos_laptop *cros_laptop)
 		i2c_dev = &cros_laptop->i2c_peripherals[i];
 		info = &i2c_dev->board_info;
 
-		if (i2c_dev->client)
-			i2c_unregister_device(i2c_dev->client);
-
-		if (info->properties)
-			property_entries_free(info->properties);
+		i2c_unregister_device(i2c_dev->client);
+		property_entries_free(info->properties);
 	}
 
 	for (i = 0; i < cros_laptop->num_acpi_peripherals; i++) {
 		acpi_dev = &cros_laptop->acpi_peripherals[i];
 
-		if (acpi_dev->properties)
-			property_entries_free(acpi_dev->properties);
+		property_entries_free(acpi_dev->properties);
 	}
 
 	kfree(cros_laptop->i2c_peripherals);

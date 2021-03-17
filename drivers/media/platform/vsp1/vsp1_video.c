@@ -38,9 +38,7 @@
 #define VSP1_VIDEO_DEF_WIDTH		1024
 #define VSP1_VIDEO_DEF_HEIGHT		768
 
-#define VSP1_VIDEO_MIN_WIDTH		2U
 #define VSP1_VIDEO_MAX_WIDTH		8190U
-#define VSP1_VIDEO_MIN_HEIGHT		2U
 #define VSP1_VIDEO_MAX_HEIGHT		8190U
 
 /* -----------------------------------------------------------------------------
@@ -136,9 +134,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	height = round_down(height, info->vsub);
 
 	/* Clamp the width and height. */
-	pix->width = clamp(width, VSP1_VIDEO_MIN_WIDTH, VSP1_VIDEO_MAX_WIDTH);
-	pix->height = clamp(height, VSP1_VIDEO_MIN_HEIGHT,
-			    VSP1_VIDEO_MAX_HEIGHT);
+	pix->width = clamp(width, info->hsub, VSP1_VIDEO_MAX_WIDTH);
+	pix->height = clamp(height, info->vsub, VSP1_VIDEO_MAX_HEIGHT);
 
 	/*
 	 * Compute and clamp the stride and image size. While not documented in
@@ -226,7 +223,7 @@ static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
 	 * If the modulus is less than half of the partition size,
 	 * the penultimate partition is reduced to half, which is added
 	 * to the final partition: |1234|1234|1234|12|341|
-	 * to prevents this:       |1234|1234|1234|1234|1|.
+	 * to prevent this:        |1234|1234|1234|1234|1|.
 	 */
 	if (modulus) {
 		/*
@@ -310,11 +307,6 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
  * This function completes the current buffer by filling its sequence number,
  * time stamp and payload size, and hands it back to the videobuf core.
  *
- * When operating in DU output mode (deep pipeline to the DU through the LIF),
- * the VSP1 needs to constantly supply frames to the display. In that case, if
- * no other buffer is queued, reuse the one that has just been processed instead
- * of handing it back to the videobuf core.
- *
  * Return the next queued buffer or NULL if the queue is empty.
  */
 static struct vsp1_vb2_buffer *
@@ -335,12 +327,6 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 
 	done = list_first_entry(&video->irqqueue,
 				struct vsp1_vb2_buffer, queue);
-
-	/* In DU output mode reuse the buffer if the list is singular. */
-	if (pipe->lif && list_is_singular(&video->irqqueue)) {
-		spin_unlock_irqrestore(&video->irqlock, flags);
-		return done;
-	}
 
 	list_del(&done->queue);
 
@@ -435,7 +421,7 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	}
 
 	/* Complete, and commit the head display list. */
-	vsp1_dl_list_commit(dl, false);
+	vsp1_dl_list_commit(dl, 0);
 	pipe->configured = true;
 
 	vsp1_pipeline_run(pipe);
@@ -839,7 +825,8 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		vsp1_entity_route_setup(entity, pipe, pipe->stream_config);
-		vsp1_entity_configure_stream(entity, pipe, pipe->stream_config);
+		vsp1_entity_configure_stream(entity, pipe, NULL,
+					     pipe->stream_config);
 	}
 
 	return 0;
@@ -867,7 +854,7 @@ static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
 	pipe->stream_config = NULL;
 	pipe->configured = false;
 
-	/* Release our partition table allocation */
+	/* Release our partition table allocation. */
 	kfree(pipe->part_table);
 	pipe->part_table = NULL;
 }
@@ -969,15 +956,9 @@ vsp1_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 			  | V4L2_CAP_VIDEO_CAPTURE_MPLANE
 			  | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
 
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		cap->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE
-				 | V4L2_CAP_STREAMING;
-	else
-		cap->device_caps = V4L2_CAP_VIDEO_OUTPUT_MPLANE
-				 | V4L2_CAP_STREAMING;
 
-	strlcpy(cap->driver, "vsp1", sizeof(cap->driver));
-	strlcpy(cap->card, video->video.name, sizeof(cap->card));
+	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
+	strscpy(cap->card, video->video.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(video->vsp1->dev));
 
@@ -1281,11 +1262,15 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 		video->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		video->pad.flags = MEDIA_PAD_FL_SOURCE;
 		video->video.vfl_dir = VFL_DIR_TX;
+		video->video.device_caps = V4L2_CAP_VIDEO_OUTPUT_MPLANE |
+					   V4L2_CAP_STREAMING;
 	} else {
 		direction = "output";
 		video->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 		video->pad.flags = MEDIA_PAD_FL_SINK;
 		video->video.vfl_dir = VFL_DIR_RX;
+		video->video.device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE |
+					   V4L2_CAP_STREAMING;
 	}
 
 	mutex_init(&video->lock);
@@ -1308,7 +1293,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	video->video.fops = &vsp1_video_fops;
 	snprintf(video->video.name, sizeof(video->video.name), "%s %s",
 		 rwpf->entity.subdev.name, direction);
-	video->video.vfl_type = VFL_TYPE_GRABBER;
+	video->video.vfl_type = VFL_TYPE_VIDEO;
 	video->video.release = video_device_release_empty;
 	video->video.ioctl_ops = &vsp1_video_ioctl_ops;
 
@@ -1331,7 +1316,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 
 	/* ... and register the video device. */
 	video->video.queue = &video->queue;
-	ret = video_register_device(&video->video, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&video->video, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(video->vsp1->dev, "failed to register video device\n");
 		goto error;

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Sanechips Technology Co., Ltd.
  * Copyright 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -151,7 +148,7 @@ static int zx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static int zx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			struct pwm_state *state)
+			const struct pwm_state *state)
 {
 	struct zx_pwm_chip *zpc = to_zx_pwm_chip(chip);
 	struct pwm_state cstate;
@@ -241,6 +238,7 @@ static int zx_pwm_probe(struct platform_device *pdev)
 	ret = pwmchip_add(&zpc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
+		clk_disable_unprepare(zpc->pclk);
 		return ret;
 	}
 

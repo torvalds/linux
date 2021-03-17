@@ -95,7 +95,7 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.target_alloc	= iscsi_target_alloc,
-	.use_clustering	= DISABLE_CLUSTERING,
+	.dma_boundary	= PAGE_SIZE - 1,
 	.this_id	= -1,
 	.track_queue_depth = 1,
 };
@@ -361,7 +361,7 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 	/* len includes the length of any HW ULP additions */
 	req->len = htonl(len);
 	/* V_TX_ULP_SUBMODE sets both the mode and submode */
-	req->flags = htonl(V_TX_ULP_SUBMODE(cxgbi_skcb_ulp_mode(skb)) |
+	req->flags = htonl(V_TX_ULP_SUBMODE(cxgbi_skcb_tx_ulp_mode(skb)) |
 			   V_TX_SHOVE((skb_peek(&csk->write_queue) ? 0 : 1)));
 	req->sndseq = htonl(csk->snd_nxt);
 	req->param = htonl(V_TX_PORT(l2t->smt_idx));
@@ -375,10 +375,8 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 	}
 }
 
-/**
+/*
  * push_tx_frames -- start transmit
- * @c3cn: the offloaded connection
- * @req_completion: request wr_ack or not
  *
  * Prepends TX_DATA_WR or CPL_CLOSE_CON_REQ headers to buffers waiting in a
  * connection's send queue and sends them on to T3.  Must be called with the
@@ -442,7 +440,7 @@ static int push_tx_frames(struct cxgbi_sock *csk, int req_completion)
 				req_completion = 1;
 				csk->wr_una_cred = 0;
 			}
-			len += cxgbi_ulp_extra_len(cxgbi_skcb_ulp_mode(skb));
+			len += cxgbi_ulp_extra_len(cxgbi_skcb_tx_ulp_mode(skb));
 			make_tx_data_wr(csk, skb, len, req_completion);
 			csk->snd_nxt += len;
 			cxgbi_skcb_clear_flag(skb, SKCBF_TX_NEED_HDR);
@@ -645,7 +643,7 @@ static int abort_status_to_errno(struct cxgbi_sock *csk, int abort_reason,
 				 int *need_rst)
 {
 	switch (abort_reason) {
-	case CPL_ERR_BAD_SYN: /* fall through */
+	case CPL_ERR_BAD_SYN:
 	case CPL_ERR_CONN_RESET:
 		return csk->state > CTP_ESTABLISHED ? -EPIPE : -ECONNRESET;
 	case CPL_ERR_XMIT_TIMEDOUT:
@@ -886,11 +884,6 @@ free_cpl_skbs:
 	return -ENOMEM;
 }
 
-/**
- * release_offload_resources - release offload resource
- * @c3cn: the offloaded iscsi tcp connection.
- * Release resources held by an offload connection (TID, L2T entry, etc.)
- */
 static void l2t_put(struct cxgbi_sock *csk)
 {
 	struct t3cdev *t3dev = (struct t3cdev *)csk->cdev->lldev;
@@ -902,6 +895,10 @@ static void l2t_put(struct cxgbi_sock *csk)
 	}
 }
 
+/*
+ * release_offload_resources - release offload resource
+ * Release resources held by an offload connection (TID, L2T entry, etc.)
+ */
 static void release_offload_resources(struct cxgbi_sock *csk)
 {
 	struct t3cdev *t3dev = (struct t3cdev *)csk->cdev->lldev;
@@ -959,6 +956,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	struct net_device *ndev = cdev->ports[csk->port_id];
 	struct cxgbi_hba *chba = cdev->hbas[csk->port_id];
 	struct sk_buff *skb = NULL;
+	int ret;
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx.\n", csk, csk->state, csk->flags);
@@ -979,14 +977,17 @@ static int init_act_open(struct cxgbi_sock *csk)
 	csk->atid = cxgb3_alloc_atid(t3dev, &t3_client, csk);
 	if (csk->atid < 0) {
 		pr_err("NO atid available.\n");
-		goto rel_resource;
+		ret = -EINVAL;
+		goto put_sock;
 	}
 	cxgbi_sock_set_flag(csk, CTPF_HAS_ATID);
 	cxgbi_sock_get(csk);
 
 	skb = alloc_wr(sizeof(struct cpl_act_open_req), 0, GFP_KERNEL);
-	if (!skb)
-		goto rel_resource;
+	if (!skb) {
+		ret = -ENOMEM;
+		goto free_atid;
+	}
 	skb->sk = (struct sock *)csk;
 	set_arp_failure_handler(skb, act_open_arp_failure);
 	csk->snd_win = cxgb3i_snd_win;
@@ -1008,10 +1009,14 @@ static int init_act_open(struct cxgbi_sock *csk)
 	send_act_open_req(csk, skb, csk->l2t);
 	return 0;
 
-rel_resource:
-	if (skb)
-		__kfree_skb(skb);
-	return -EINVAL;
+free_atid:
+	cxgb3_free_atid(t3dev, csk->atid);
+put_sock:
+	cxgbi_sock_put(csk);
+	l2t_release(t3dev, csk->l2t);
+	csk->l2t = NULL;
+
+	return ret;
 }
 
 cxgb3_cpl_handler_func cxgb3i_cpl_handlers[NUM_CPL_CMDS] = {
@@ -1144,7 +1149,7 @@ static void ddp_clear_map(struct cxgbi_device *cdev, struct cxgbi_ppm *ppm,
 }
 
 static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
-				       unsigned int tid, int pg_idx, bool reply)
+				unsigned int tid, int pg_idx)
 {
 	struct sk_buff *skb = alloc_wr(sizeof(struct cpl_set_tcb_field), 0,
 					GFP_KERNEL);
@@ -1160,7 +1165,7 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
 	req = (struct cpl_set_tcb_field *)skb->head;
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(reply ? 0 : 1);
+	req->reply = V_NO_REPLY(1);
 	req->cpu_idx = 0;
 	req->word = htons(31);
 	req->mask = cpu_to_be64(0xF0000000);
@@ -1177,11 +1182,10 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
  * @tid: connection id
  * @hcrc: header digest enabled
  * @dcrc: data digest enabled
- * @reply: request reply from h/w
  * set up the iscsi digest settings for a connection identified by tid
  */
 static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
-			     int hcrc, int dcrc, int reply)
+				 int hcrc, int dcrc)
 {
 	struct sk_buff *skb = alloc_wr(sizeof(struct cpl_set_tcb_field), 0,
 					GFP_KERNEL);
@@ -1197,7 +1201,7 @@ static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 	req = (struct cpl_set_tcb_field *)skb->head;
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(reply ? 0 : 1);
+	req->reply = V_NO_REPLY(1);
 	req->cpu_idx = 0;
 	req->word = htons(31);
 	req->mask = cpu_to_be64(0x0F000000);
@@ -1246,8 +1250,12 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 		tformat.pgsz_order[i] = uinfo.pgsz_factor[i];
 	cxgbi_tagmask_check(tagmask, &tformat);
 
-	cxgbi_ddp_ppm_setup(&tdev->ulp_iscsi, cdev, &tformat, ppmax,
-			    uinfo.llimit, uinfo.llimit, 0);
+	err = cxgbi_ddp_ppm_setup(&tdev->ulp_iscsi, cdev, &tformat,
+				  (uinfo.ulimit - uinfo.llimit + 1),
+				  uinfo.llimit, uinfo.llimit, 0, 0, 0);
+	if (err)
+		return err;
+
 	if (!(cdev->flags & CXGBI_FLAG_DDP_OFF)) {
 		uinfo.tagmask = tagmask;
 		uinfo.ulimit = uinfo.llimit + (ppmax << PPOD_SIZE_SHIFT);
@@ -1321,7 +1329,7 @@ static void cxgb3i_dev_open(struct t3cdev *t3dev)
 
 	err = cxgb3i_ddp_init(cdev);
 	if (err) {
-		pr_info("0x%p ddp init failed\n", cdev);
+		pr_info("0x%p ddp init failed %d\n", cdev, err);
 		goto err_out;
 	}
 

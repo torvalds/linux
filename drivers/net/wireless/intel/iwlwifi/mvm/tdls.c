@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(C) 2018 Intel Corporation
+ * Copyright(C) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,9 +17,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -32,7 +29,7 @@
  *
  * Copyright(c) 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(C) 2018 Intel Corporation
+ * Copyright(C) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,7 +77,7 @@ void iwl_mvm_teardown_tdls_peers(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
 		if (!sta || IS_ERR(sta) || !sta->tdls)
@@ -103,7 +100,7 @@ int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
 		if (!sta || IS_ERR(sta) || !sta->tdls)
@@ -147,7 +144,7 @@ static void iwl_mvm_tdls_config(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	/* populate TDLS peer data */
 	cnt = 0;
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
 		if (IS_ERR_OR_NULL(sta) || !sta->tdls)
@@ -208,19 +205,16 @@ void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u32 duration = 2 * vif->bss_conf.dtim_period * vif->bss_conf.beacon_int;
 
-	/*
-	 * iwl_mvm_protect_session() reads directly from the device
-	 * (the system time), so make sure it is available.
-	 */
-	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PROTECT_TDLS))
-		return;
-
-	mutex_lock(&mvm->mutex);
 	/* Protect the session to hear the TDLS setup response on the channel */
-	iwl_mvm_protect_session(mvm, vif, duration, duration, 100, true);
+	mutex_lock(&mvm->mutex);
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD))
+		iwl_mvm_schedule_session_protection(mvm, vif, duration,
+						    duration, true);
+	else
+		iwl_mvm_protect_session(mvm, vif, duration,
+					duration, 100, true);
 	mutex_unlock(&mvm->mutex);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_TDLS);
 }
 
 static const char *
@@ -255,8 +249,7 @@ static void iwl_mvm_tdls_update_cs_state(struct iwl_mvm *mvm,
 
 	/* we only send requests to our switching peer - update sent time */
 	if (state == IWL_MVM_TDLS_SW_REQ_SENT)
-		mvm->tdls_cs.peer.sent_timestamp =
-			iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG);
+		mvm->tdls_cs.peer.sent_timestamp = iwl_mvm_get_systime(mvm);
 
 	if (state == IWL_MVM_TDLS_SW_IDLE)
 		mvm->tdls_cs.cur_sta_id = IWL_MVM_INVALID_STA;
@@ -280,7 +273,7 @@ void iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		return;
 	}
 
-	if (WARN_ON(sta_id >= IWL_MVM_STATION_COUNT))
+	if (WARN_ON(sta_id >= mvm->fw->ucode_capa.num_stations))
 		return;
 
 	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
@@ -402,6 +395,9 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hdr *hdr;
 	struct iwl_tdls_channel_switch_cmd cmd = {0};
+	struct iwl_tdls_channel_switch_cmd_tail *tail =
+		iwl_mvm_chan_info_cmd_tail(mvm, &cmd.ci);
+	u16 len = sizeof(cmd) - iwl_mvm_chan_info_padding(mvm);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -417,9 +413,9 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 	}
 
 	cmd.switch_type = type;
-	cmd.timing.frame_timestamp = cpu_to_le32(timestamp);
-	cmd.timing.switch_time = cpu_to_le32(switch_time);
-	cmd.timing.switch_timeout = cpu_to_le32(switch_timeout);
+	tail->timing.frame_timestamp = cpu_to_le32(timestamp);
+	tail->timing.switch_time = cpu_to_le32(switch_time);
+	tail->timing.switch_timeout = cpu_to_le32(switch_timeout);
 
 	rcu_read_lock();
 	sta = ieee80211_find_sta(vif, peer);
@@ -451,21 +447,16 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 		}
 	}
 
-	if (chandef) {
-		cmd.ci.band = (chandef->chan->band == NL80211_BAND_2GHZ ?
-			       PHY_BAND_24 : PHY_BAND_5);
-		cmd.ci.channel = chandef->chan->hw_value;
-		cmd.ci.width = iwl_mvm_get_channel_width(chandef);
-		cmd.ci.ctrl_pos = iwl_mvm_get_ctrl_pos(chandef);
-	}
+	if (chandef)
+		iwl_mvm_set_chan_info_chandef(mvm, &cmd.ci, chandef);
 
 	/* keep quota calculation simple for now - 50% of DTIM for TDLS */
-	cmd.timing.max_offchan_duration =
+	tail->timing.max_offchan_duration =
 			cpu_to_le32(TU_TO_US(vif->bss_conf.dtim_period *
 					     vif->bss_conf.beacon_int) / 2);
 
 	/* Switch time is the first element in the switch-timing IE. */
-	cmd.frame.switch_time_offset = cpu_to_le32(ch_sw_tm_ie + 2);
+	tail->frame.switch_time_offset = cpu_to_le32(ch_sw_tm_ie + 2);
 
 	info = IEEE80211_SKB_CB(skb);
 	hdr = (void *)skb->data;
@@ -475,20 +466,19 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 			ret = -EINVAL;
 			goto out;
 		}
-		iwl_mvm_set_tx_cmd_ccmp(info, &cmd.frame.tx_cmd);
+		iwl_mvm_set_tx_cmd_ccmp(info, &tail->frame.tx_cmd);
 	}
 
-	iwl_mvm_set_tx_cmd(mvm, skb, &cmd.frame.tx_cmd, info,
+	iwl_mvm_set_tx_cmd(mvm, skb, &tail->frame.tx_cmd, info,
 			   mvmsta->sta_id);
 
-	iwl_mvm_set_tx_cmd_rate(mvm, &cmd.frame.tx_cmd, info, sta,
+	iwl_mvm_set_tx_cmd_rate(mvm, &tail->frame.tx_cmd, info, sta,
 				hdr->frame_control);
 	rcu_read_unlock();
 
-	memcpy(cmd.frame.data, skb->data, skb->len);
+	memcpy(tail->frame.data, skb->data, skb->len);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, TDLS_CHANNEL_SWITCH_CMD, 0,
-				   sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, TDLS_CHANNEL_SWITCH_CMD, 0, len, &cmd);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to send TDLS_CHANNEL_SWITCH cmd: %d\n",
 			ret);

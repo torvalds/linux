@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
 #include "qla_def.h"
@@ -12,205 +11,206 @@
  */
 
 struct qla2300_fw_dump {
-	uint16_t hccr;
-	uint16_t pbiu_reg[8];
-	uint16_t risc_host_reg[8];
-	uint16_t mailbox_reg[32];
-	uint16_t resp_dma_reg[32];
-	uint16_t dma_reg[48];
-	uint16_t risc_hdw_reg[16];
-	uint16_t risc_gp0_reg[16];
-	uint16_t risc_gp1_reg[16];
-	uint16_t risc_gp2_reg[16];
-	uint16_t risc_gp3_reg[16];
-	uint16_t risc_gp4_reg[16];
-	uint16_t risc_gp5_reg[16];
-	uint16_t risc_gp6_reg[16];
-	uint16_t risc_gp7_reg[16];
-	uint16_t frame_buf_hdw_reg[64];
-	uint16_t fpm_b0_reg[64];
-	uint16_t fpm_b1_reg[64];
-	uint16_t risc_ram[0xf800];
-	uint16_t stack_ram[0x1000];
-	uint16_t data_ram[1];
+	__be16 hccr;
+	__be16 pbiu_reg[8];
+	__be16 risc_host_reg[8];
+	__be16 mailbox_reg[32];
+	__be16 resp_dma_reg[32];
+	__be16 dma_reg[48];
+	__be16 risc_hdw_reg[16];
+	__be16 risc_gp0_reg[16];
+	__be16 risc_gp1_reg[16];
+	__be16 risc_gp2_reg[16];
+	__be16 risc_gp3_reg[16];
+	__be16 risc_gp4_reg[16];
+	__be16 risc_gp5_reg[16];
+	__be16 risc_gp6_reg[16];
+	__be16 risc_gp7_reg[16];
+	__be16 frame_buf_hdw_reg[64];
+	__be16 fpm_b0_reg[64];
+	__be16 fpm_b1_reg[64];
+	__be16 risc_ram[0xf800];
+	__be16 stack_ram[0x1000];
+	__be16 data_ram[1];
 };
 
 struct qla2100_fw_dump {
-	uint16_t hccr;
-	uint16_t pbiu_reg[8];
-	uint16_t mailbox_reg[32];
-	uint16_t dma_reg[48];
-	uint16_t risc_hdw_reg[16];
-	uint16_t risc_gp0_reg[16];
-	uint16_t risc_gp1_reg[16];
-	uint16_t risc_gp2_reg[16];
-	uint16_t risc_gp3_reg[16];
-	uint16_t risc_gp4_reg[16];
-	uint16_t risc_gp5_reg[16];
-	uint16_t risc_gp6_reg[16];
-	uint16_t risc_gp7_reg[16];
-	uint16_t frame_buf_hdw_reg[16];
-	uint16_t fpm_b0_reg[64];
-	uint16_t fpm_b1_reg[64];
-	uint16_t risc_ram[0xf000];
+	__be16 hccr;
+	__be16 pbiu_reg[8];
+	__be16 mailbox_reg[32];
+	__be16 dma_reg[48];
+	__be16 risc_hdw_reg[16];
+	__be16 risc_gp0_reg[16];
+	__be16 risc_gp1_reg[16];
+	__be16 risc_gp2_reg[16];
+	__be16 risc_gp3_reg[16];
+	__be16 risc_gp4_reg[16];
+	__be16 risc_gp5_reg[16];
+	__be16 risc_gp6_reg[16];
+	__be16 risc_gp7_reg[16];
+	__be16 frame_buf_hdw_reg[16];
+	__be16 fpm_b0_reg[64];
+	__be16 fpm_b1_reg[64];
+	__be16 risc_ram[0xf000];
+	u8	queue_dump[];
 };
 
 struct qla24xx_fw_dump {
-	uint32_t host_status;
-	uint32_t host_reg[32];
-	uint32_t shadow_reg[7];
-	uint16_t mailbox_reg[32];
-	uint32_t xseq_gp_reg[128];
-	uint32_t xseq_0_reg[16];
-	uint32_t xseq_1_reg[16];
-	uint32_t rseq_gp_reg[128];
-	uint32_t rseq_0_reg[16];
-	uint32_t rseq_1_reg[16];
-	uint32_t rseq_2_reg[16];
-	uint32_t cmd_dma_reg[16];
-	uint32_t req0_dma_reg[15];
-	uint32_t resp0_dma_reg[15];
-	uint32_t req1_dma_reg[15];
-	uint32_t xmt0_dma_reg[32];
-	uint32_t xmt1_dma_reg[32];
-	uint32_t xmt2_dma_reg[32];
-	uint32_t xmt3_dma_reg[32];
-	uint32_t xmt4_dma_reg[32];
-	uint32_t xmt_data_dma_reg[16];
-	uint32_t rcvt0_data_dma_reg[32];
-	uint32_t rcvt1_data_dma_reg[32];
-	uint32_t risc_gp_reg[128];
-	uint32_t lmc_reg[112];
-	uint32_t fpm_hdw_reg[192];
-	uint32_t fb_hdw_reg[176];
-	uint32_t code_ram[0x2000];
-	uint32_t ext_mem[1];
+	__be32	host_status;
+	__be32	host_reg[32];
+	__be32	shadow_reg[7];
+	__be16	mailbox_reg[32];
+	__be32	xseq_gp_reg[128];
+	__be32	xseq_0_reg[16];
+	__be32	xseq_1_reg[16];
+	__be32	rseq_gp_reg[128];
+	__be32	rseq_0_reg[16];
+	__be32	rseq_1_reg[16];
+	__be32	rseq_2_reg[16];
+	__be32	cmd_dma_reg[16];
+	__be32	req0_dma_reg[15];
+	__be32	resp0_dma_reg[15];
+	__be32	req1_dma_reg[15];
+	__be32	xmt0_dma_reg[32];
+	__be32	xmt1_dma_reg[32];
+	__be32	xmt2_dma_reg[32];
+	__be32	xmt3_dma_reg[32];
+	__be32	xmt4_dma_reg[32];
+	__be32	xmt_data_dma_reg[16];
+	__be32	rcvt0_data_dma_reg[32];
+	__be32	rcvt1_data_dma_reg[32];
+	__be32	risc_gp_reg[128];
+	__be32	lmc_reg[112];
+	__be32	fpm_hdw_reg[192];
+	__be32	fb_hdw_reg[176];
+	__be32	code_ram[0x2000];
+	__be32	ext_mem[1];
 };
 
 struct qla25xx_fw_dump {
-	uint32_t host_status;
-	uint32_t host_risc_reg[32];
-	uint32_t pcie_regs[4];
-	uint32_t host_reg[32];
-	uint32_t shadow_reg[11];
-	uint32_t risc_io_reg;
-	uint16_t mailbox_reg[32];
-	uint32_t xseq_gp_reg[128];
-	uint32_t xseq_0_reg[48];
-	uint32_t xseq_1_reg[16];
-	uint32_t rseq_gp_reg[128];
-	uint32_t rseq_0_reg[32];
-	uint32_t rseq_1_reg[16];
-	uint32_t rseq_2_reg[16];
-	uint32_t aseq_gp_reg[128];
-	uint32_t aseq_0_reg[32];
-	uint32_t aseq_1_reg[16];
-	uint32_t aseq_2_reg[16];
-	uint32_t cmd_dma_reg[16];
-	uint32_t req0_dma_reg[15];
-	uint32_t resp0_dma_reg[15];
-	uint32_t req1_dma_reg[15];
-	uint32_t xmt0_dma_reg[32];
-	uint32_t xmt1_dma_reg[32];
-	uint32_t xmt2_dma_reg[32];
-	uint32_t xmt3_dma_reg[32];
-	uint32_t xmt4_dma_reg[32];
-	uint32_t xmt_data_dma_reg[16];
-	uint32_t rcvt0_data_dma_reg[32];
-	uint32_t rcvt1_data_dma_reg[32];
-	uint32_t risc_gp_reg[128];
-	uint32_t lmc_reg[128];
-	uint32_t fpm_hdw_reg[192];
-	uint32_t fb_hdw_reg[192];
-	uint32_t code_ram[0x2000];
-	uint32_t ext_mem[1];
+	__be32	host_status;
+	__be32	host_risc_reg[32];
+	__be32	pcie_regs[4];
+	__be32	host_reg[32];
+	__be32	shadow_reg[11];
+	__be32	risc_io_reg;
+	__be16	mailbox_reg[32];
+	__be32	xseq_gp_reg[128];
+	__be32	xseq_0_reg[48];
+	__be32	xseq_1_reg[16];
+	__be32	rseq_gp_reg[128];
+	__be32	rseq_0_reg[32];
+	__be32	rseq_1_reg[16];
+	__be32	rseq_2_reg[16];
+	__be32	aseq_gp_reg[128];
+	__be32	aseq_0_reg[32];
+	__be32	aseq_1_reg[16];
+	__be32	aseq_2_reg[16];
+	__be32	cmd_dma_reg[16];
+	__be32	req0_dma_reg[15];
+	__be32	resp0_dma_reg[15];
+	__be32	req1_dma_reg[15];
+	__be32	xmt0_dma_reg[32];
+	__be32	xmt1_dma_reg[32];
+	__be32	xmt2_dma_reg[32];
+	__be32	xmt3_dma_reg[32];
+	__be32	xmt4_dma_reg[32];
+	__be32	xmt_data_dma_reg[16];
+	__be32	rcvt0_data_dma_reg[32];
+	__be32	rcvt1_data_dma_reg[32];
+	__be32	risc_gp_reg[128];
+	__be32	lmc_reg[128];
+	__be32	fpm_hdw_reg[192];
+	__be32	fb_hdw_reg[192];
+	__be32	code_ram[0x2000];
+	__be32	ext_mem[1];
 };
 
 struct qla81xx_fw_dump {
-	uint32_t host_status;
-	uint32_t host_risc_reg[32];
-	uint32_t pcie_regs[4];
-	uint32_t host_reg[32];
-	uint32_t shadow_reg[11];
-	uint32_t risc_io_reg;
-	uint16_t mailbox_reg[32];
-	uint32_t xseq_gp_reg[128];
-	uint32_t xseq_0_reg[48];
-	uint32_t xseq_1_reg[16];
-	uint32_t rseq_gp_reg[128];
-	uint32_t rseq_0_reg[32];
-	uint32_t rseq_1_reg[16];
-	uint32_t rseq_2_reg[16];
-	uint32_t aseq_gp_reg[128];
-	uint32_t aseq_0_reg[32];
-	uint32_t aseq_1_reg[16];
-	uint32_t aseq_2_reg[16];
-	uint32_t cmd_dma_reg[16];
-	uint32_t req0_dma_reg[15];
-	uint32_t resp0_dma_reg[15];
-	uint32_t req1_dma_reg[15];
-	uint32_t xmt0_dma_reg[32];
-	uint32_t xmt1_dma_reg[32];
-	uint32_t xmt2_dma_reg[32];
-	uint32_t xmt3_dma_reg[32];
-	uint32_t xmt4_dma_reg[32];
-	uint32_t xmt_data_dma_reg[16];
-	uint32_t rcvt0_data_dma_reg[32];
-	uint32_t rcvt1_data_dma_reg[32];
-	uint32_t risc_gp_reg[128];
-	uint32_t lmc_reg[128];
-	uint32_t fpm_hdw_reg[224];
-	uint32_t fb_hdw_reg[208];
-	uint32_t code_ram[0x2000];
-	uint32_t ext_mem[1];
+	__be32	host_status;
+	__be32	host_risc_reg[32];
+	__be32	pcie_regs[4];
+	__be32	host_reg[32];
+	__be32	shadow_reg[11];
+	__be32	risc_io_reg;
+	__be16	mailbox_reg[32];
+	__be32	xseq_gp_reg[128];
+	__be32	xseq_0_reg[48];
+	__be32	xseq_1_reg[16];
+	__be32	rseq_gp_reg[128];
+	__be32	rseq_0_reg[32];
+	__be32	rseq_1_reg[16];
+	__be32	rseq_2_reg[16];
+	__be32	aseq_gp_reg[128];
+	__be32	aseq_0_reg[32];
+	__be32	aseq_1_reg[16];
+	__be32	aseq_2_reg[16];
+	__be32	cmd_dma_reg[16];
+	__be32	req0_dma_reg[15];
+	__be32	resp0_dma_reg[15];
+	__be32	req1_dma_reg[15];
+	__be32	xmt0_dma_reg[32];
+	__be32	xmt1_dma_reg[32];
+	__be32	xmt2_dma_reg[32];
+	__be32	xmt3_dma_reg[32];
+	__be32	xmt4_dma_reg[32];
+	__be32	xmt_data_dma_reg[16];
+	__be32	rcvt0_data_dma_reg[32];
+	__be32	rcvt1_data_dma_reg[32];
+	__be32	risc_gp_reg[128];
+	__be32	lmc_reg[128];
+	__be32	fpm_hdw_reg[224];
+	__be32	fb_hdw_reg[208];
+	__be32	code_ram[0x2000];
+	__be32	ext_mem[1];
 };
 
 struct qla83xx_fw_dump {
-	uint32_t host_status;
-	uint32_t host_risc_reg[48];
-	uint32_t pcie_regs[4];
-	uint32_t host_reg[32];
-	uint32_t shadow_reg[11];
-	uint32_t risc_io_reg;
-	uint16_t mailbox_reg[32];
-	uint32_t xseq_gp_reg[256];
-	uint32_t xseq_0_reg[48];
-	uint32_t xseq_1_reg[16];
-	uint32_t xseq_2_reg[16];
-	uint32_t rseq_gp_reg[256];
-	uint32_t rseq_0_reg[32];
-	uint32_t rseq_1_reg[16];
-	uint32_t rseq_2_reg[16];
-	uint32_t rseq_3_reg[16];
-	uint32_t aseq_gp_reg[256];
-	uint32_t aseq_0_reg[32];
-	uint32_t aseq_1_reg[16];
-	uint32_t aseq_2_reg[16];
-	uint32_t aseq_3_reg[16];
-	uint32_t cmd_dma_reg[64];
-	uint32_t req0_dma_reg[15];
-	uint32_t resp0_dma_reg[15];
-	uint32_t req1_dma_reg[15];
-	uint32_t xmt0_dma_reg[32];
-	uint32_t xmt1_dma_reg[32];
-	uint32_t xmt2_dma_reg[32];
-	uint32_t xmt3_dma_reg[32];
-	uint32_t xmt4_dma_reg[32];
-	uint32_t xmt_data_dma_reg[16];
-	uint32_t rcvt0_data_dma_reg[32];
-	uint32_t rcvt1_data_dma_reg[32];
-	uint32_t risc_gp_reg[128];
-	uint32_t lmc_reg[128];
-	uint32_t fpm_hdw_reg[256];
-	uint32_t rq0_array_reg[256];
-	uint32_t rq1_array_reg[256];
-	uint32_t rp0_array_reg[256];
-	uint32_t rp1_array_reg[256];
-	uint32_t queue_control_reg[16];
-	uint32_t fb_hdw_reg[432];
-	uint32_t at0_array_reg[128];
-	uint32_t code_ram[0x2400];
-	uint32_t ext_mem[1];
+	__be32	host_status;
+	__be32	host_risc_reg[48];
+	__be32	pcie_regs[4];
+	__be32	host_reg[32];
+	__be32	shadow_reg[11];
+	__be32	risc_io_reg;
+	__be16	mailbox_reg[32];
+	__be32	xseq_gp_reg[256];
+	__be32	xseq_0_reg[48];
+	__be32	xseq_1_reg[16];
+	__be32	xseq_2_reg[16];
+	__be32	rseq_gp_reg[256];
+	__be32	rseq_0_reg[32];
+	__be32	rseq_1_reg[16];
+	__be32	rseq_2_reg[16];
+	__be32	rseq_3_reg[16];
+	__be32	aseq_gp_reg[256];
+	__be32	aseq_0_reg[32];
+	__be32	aseq_1_reg[16];
+	__be32	aseq_2_reg[16];
+	__be32	aseq_3_reg[16];
+	__be32	cmd_dma_reg[64];
+	__be32	req0_dma_reg[15];
+	__be32	resp0_dma_reg[15];
+	__be32	req1_dma_reg[15];
+	__be32	xmt0_dma_reg[32];
+	__be32	xmt1_dma_reg[32];
+	__be32	xmt2_dma_reg[32];
+	__be32	xmt3_dma_reg[32];
+	__be32	xmt4_dma_reg[32];
+	__be32	xmt_data_dma_reg[16];
+	__be32	rcvt0_data_dma_reg[32];
+	__be32	rcvt1_data_dma_reg[32];
+	__be32	risc_gp_reg[128];
+	__be32	lmc_reg[128];
+	__be32	fpm_hdw_reg[256];
+	__be32	rq0_array_reg[256];
+	__be32	rq1_array_reg[256];
+	__be32	rp0_array_reg[256];
+	__be32	rp1_array_reg[256];
+	__be32	queue_control_reg[16];
+	__be32	fb_hdw_reg[432];
+	__be32	at0_array_reg[128];
+	__be32	code_ram[0x2400];
+	__be32	ext_mem[1];
 };
 
 #define EFT_NUM_BUFFERS		4
@@ -223,44 +223,45 @@ struct qla83xx_fw_dump {
 #define fce_calc_size(b)	((FCE_BYTES_PER_BUFFER) * (b))
 
 struct qla2xxx_fce_chain {
-	uint32_t type;
-	uint32_t chain_size;
+	__be32	type;
+	__be32	chain_size;
 
-	uint32_t size;
-	uint32_t addr_l;
-	uint32_t addr_h;
-	uint32_t eregs[8];
+	__be32	size;
+	__be32	addr_l;
+	__be32	addr_h;
+	__be32	eregs[8];
 };
 
 /* used by exchange off load and extended login offload */
 struct qla2xxx_offld_chain {
-	uint32_t type;
-	uint32_t chain_size;
+	__be32	type;
+	__be32	chain_size;
 
-	uint32_t size;
-	u64	 addr;
+	__be32	size;
+	__be32	reserved;
+	__be64	addr;
 };
 
 struct qla2xxx_mq_chain {
-	uint32_t type;
-	uint32_t chain_size;
+	__be32	type;
+	__be32	chain_size;
 
-	uint32_t count;
-	uint32_t qregs[4 * QLA_MQ_SIZE];
+	__be32	count;
+	__be32	qregs[4 * QLA_MQ_SIZE];
 };
 
 struct qla2xxx_mqueue_header {
-	uint32_t queue;
+	__be32	queue;
 #define TYPE_REQUEST_QUEUE	0x1
 #define TYPE_RESPONSE_QUEUE	0x2
 #define TYPE_ATIO_QUEUE		0x3
-	uint32_t number;
-	uint32_t size;
+	__be32	number;
+	__be32	size;
 };
 
 struct qla2xxx_mqueue_chain {
-	uint32_t type;
-	uint32_t chain_size;
+	__be32	type;
+	__be32	chain_size;
 };
 
 #define DUMP_CHAIN_VARIANT	0x80000000
@@ -273,28 +274,28 @@ struct qla2xxx_mqueue_chain {
 
 struct qla2xxx_fw_dump {
 	uint8_t signature[4];
-	uint32_t version;
+	__be32	version;
 
-	uint32_t fw_major_version;
-	uint32_t fw_minor_version;
-	uint32_t fw_subminor_version;
-	uint32_t fw_attributes;
+	__be32 fw_major_version;
+	__be32 fw_minor_version;
+	__be32 fw_subminor_version;
+	__be32 fw_attributes;
 
-	uint32_t vendor;
-	uint32_t device;
-	uint32_t subsystem_vendor;
-	uint32_t subsystem_device;
+	__be32 vendor;
+	__be32 device;
+	__be32 subsystem_vendor;
+	__be32 subsystem_device;
 
-	uint32_t fixed_size;
-	uint32_t mem_size;
-	uint32_t req_q_size;
-	uint32_t rsp_q_size;
+	__be32	fixed_size;
+	__be32	mem_size;
+	__be32	req_q_size;
+	__be32	rsp_q_size;
 
-	uint32_t eft_size;
-	uint32_t eft_addr_l;
-	uint32_t eft_addr_h;
+	__be32	eft_size;
+	__be32	eft_addr_l;
+	__be32	eft_addr_h;
 
-	uint32_t header_size;
+	__be32	header_size;
 
 	union {
 		struct qla2100_fw_dump isp21;
@@ -318,20 +319,20 @@ struct qla2xxx_fw_dump {
 				   * as compared to other log levels.
 				   */
 
-extern int ql_errlev;
+extern uint ql_errlev;
 
 void __attribute__((format (printf, 4, 5)))
-ql_dbg(uint32_t, scsi_qla_host_t *vha, int32_t, const char *fmt, ...);
+ql_dbg(uint, scsi_qla_host_t *vha, uint, const char *fmt, ...);
 void __attribute__((format (printf, 4, 5)))
-ql_dbg_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
+ql_dbg_pci(uint, struct pci_dev *pdev, uint, const char *fmt, ...);
 void __attribute__((format (printf, 4, 5)))
 ql_dbg_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);
 
 
 void __attribute__((format (printf, 4, 5)))
-ql_log(uint32_t, scsi_qla_host_t *vha, int32_t, const char *fmt, ...);
+ql_log(uint, scsi_qla_host_t *vha, uint, const char *fmt, ...);
 void __attribute__((format (printf, 4, 5)))
-ql_log_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
+ql_log_pci(uint, struct pci_dev *pdev, uint, const char *fmt, ...);
 
 void __attribute__((format (printf, 4, 5)))
 ql_log_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);
@@ -369,8 +370,17 @@ ql_log_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);
 
 extern int qla27xx_dump_mpi_ram(struct qla_hw_data *, uint32_t, uint32_t *,
 	uint32_t, void **);
-extern int qla24xx_dump_ram(struct qla_hw_data *, uint32_t, uint32_t *,
+extern int qla24xx_dump_ram(struct qla_hw_data *, uint32_t, __be32 *,
 	uint32_t, void **);
 extern void qla24xx_pause_risc(struct device_reg_24xx __iomem *,
 	struct qla_hw_data *);
 extern int qla24xx_soft_reset(struct qla_hw_data *);
+
+static inline int
+ql_mask_match(uint level)
+{
+	if (ql2xextended_error_logging == 1)
+		ql2xextended_error_logging = QL_DBG_DEFAULT1_MASK;
+
+	return (level & ql2xextended_error_logging) == level;
+}

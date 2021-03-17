@@ -5,7 +5,6 @@
  *
  ******************************************************************************/
 
-
 #ifndef	__HALDMOUTSRC_H__
 #define __HALDMOUTSRC_H__
 
@@ -40,7 +39,6 @@
 /* 3============================================================ */
 #define		DPK_DELTA_MAPPING_NUM	13
 #define		index_mapping_HP_NUM	15
-
 
 /*  */
 /* 3 PSD Handler */
@@ -239,13 +237,12 @@ struct odm_rate_adapt {
 
 #define IQK_MAC_REG_NUM		4
 #define IQK_ADDA_REG_NUM	16
-#define IQK_BB_REG_NUM_MAX	10
 #define IQK_BB_REG_NUM		9
 #define HP_THERMAL_NUM		8
 
 #define AVG_THERMAL_NUM		8
 #define IQK_Matrix_REG_NUM	8
-#define IQK_Matrix_Settings_NUM	1+24+21
+#define IQK_Matrix_Settings_NUM	(1 + 24 + 21)
 
 #define	DM_Type_ByFWi		0
 #define	DM_Type_ByDriver	1
@@ -914,7 +911,6 @@ enum dm_dig_op {
 
 #define		DM_SCAN_RSSI_TH		0x14 /* scan return issue for LC */
 
-
 #define		DM_false_ALARM_THRESH_LOW	400
 #define		DM_false_ALARM_THRESH_HIGH	1000
 
@@ -992,7 +988,6 @@ enum dm_dig_op {
 /* 3 BB Power Save */
 /* 3=========================================================== */
 
-
 enum dm_1r_cca {
 	CCA_1R = 0,
 	CCA_2R = 1,
@@ -1045,7 +1040,6 @@ extern	u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8];
 
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal);
 void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm);
-void odm_DIGbyRSSI_LPS(struct odm_dm_struct *pDM_Odm);
 void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres);
 bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI,
 		      bool bForceUpdate, u8 *pRATRState);

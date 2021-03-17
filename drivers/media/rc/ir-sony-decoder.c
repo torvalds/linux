@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-sony-decoder.c - handle Sony IR Pulse/Space protocol
  *
  * Copyright (C) 2010 by David Härdeman <david@hardeman.nu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitrev.h>
 #include <linux/module.h>
 #include "rc-core-priv.h"
 
-#define SONY_UNIT		600000 /* ns */
+#define SONY_UNIT		600 /* us */
 #define SONY_HEADER_PULSE	(4 * SONY_UNIT)
 #define	SONY_HEADER_SPACE	(1 * SONY_UNIT)
 #define SONY_BIT_0_PULSE	(1 * SONY_UNIT)
@@ -56,7 +48,7 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		goto out;
 
 	dev_dbg(&dev->dev, "Sony decode started at state %d (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -110,7 +102,7 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		}
 
 		data->state = STATE_FINISHED;
-		/* Fall through */
+		fallthrough;
 
 	case STATE_FINISHED:
 		if (ev.pulse)
@@ -162,7 +154,7 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 out:
 	dev_dbg(&dev->dev, "Sony decode failed at state %d (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 

@@ -53,10 +53,10 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
+#include <linux/pgtable.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bitops.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -219,7 +219,7 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			dev_kfree_skb_any(skb);
 			spin_unlock_irqrestore(&lp->lock, flags);
 
-			return NETDEV_TX_BUSY;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -917,7 +917,7 @@ static void korina_restart_task(struct work_struct *work)
 	enable_irq(lp->rx_irq);
 }
 
-static void korina_tx_timeout(struct net_device *dev)
+static void korina_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct korina_private *lp = netdev_priv(dev);
 
@@ -1043,7 +1043,7 @@ static int korina_probe(struct platform_device *pdev)
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_regs");
 	dev->base_addr = r->start;
-	lp->eth_regs = ioremap_nocache(r->start, resource_size(r));
+	lp->eth_regs = ioremap(r->start, resource_size(r));
 	if (!lp->eth_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap registers\n");
 		rc = -ENXIO;
@@ -1051,7 +1051,7 @@ static int korina_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_dma_rx");
-	lp->rx_dma_regs = ioremap_nocache(r->start, resource_size(r));
+	lp->rx_dma_regs = ioremap(r->start, resource_size(r));
 	if (!lp->rx_dma_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap Rx DMA registers\n");
 		rc = -ENXIO;
@@ -1059,7 +1059,7 @@ static int korina_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_dma_tx");
-	lp->tx_dma_regs = ioremap_nocache(r->start, resource_size(r));
+	lp->tx_dma_regs = ioremap(r->start, resource_size(r));
 	if (!lp->tx_dma_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap Tx DMA registers\n");
 		rc = -ENXIO;
@@ -1113,7 +1113,7 @@ out:
 	return rc;
 
 probe_err_register:
-	kfree(lp->td_ring);
+	kfree((struct dma_desc *)KSEG0ADDR(lp->td_ring));
 probe_err_td_ring:
 	iounmap(lp->tx_dma_regs);
 probe_err_dma_tx:
@@ -1133,6 +1133,7 @@ static int korina_remove(struct platform_device *pdev)
 	iounmap(lp->eth_regs);
 	iounmap(lp->rx_dma_regs);
 	iounmap(lp->tx_dma_regs);
+	kfree((struct dma_desc *)KSEG0ADDR(lp->td_ring));
 
 	unregister_netdev(bif->dev);
 	free_netdev(bif->dev);

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2013 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #ifndef BRCMFMAC_PROTO_H
 #define BRCMFMAC_PROTO_H
@@ -43,7 +32,7 @@ struct brcmf_proto {
 			    u8 peer[ETH_ALEN]);
 	void (*add_tdls_peer)(struct brcmf_pub *drvr, int ifidx,
 			      u8 peer[ETH_ALEN]);
-	void (*rxreorder)(struct brcmf_if *ifp, struct sk_buff *skb);
+	void (*rxreorder)(struct brcmf_if *ifp, struct sk_buff *skb, bool inirq);
 	void (*add_if)(struct brcmf_if *ifp);
 	void (*del_if)(struct brcmf_if *ifp);
 	void (*reset_if)(struct brcmf_if *ifp);
@@ -120,9 +109,9 @@ static inline bool brcmf_proto_is_reorder_skb(struct sk_buff *skb)
 }
 
 static inline void
-brcmf_proto_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb)
+brcmf_proto_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb, bool inirq)
 {
-	ifp->drvr->proto->rxreorder(ifp, skb);
+	ifp->drvr->proto->rxreorder(ifp, skb, inirq);
 }
 
 static inline void

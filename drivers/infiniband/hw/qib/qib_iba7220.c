@@ -2175,7 +2175,6 @@ static void qib_7220_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 		pa = chippa;
 	}
 	writeq(pa, tidptr);
-	mmiowb();
 }
 
 /**
@@ -2704,9 +2703,7 @@ static void qib_update_7220_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 {
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
-	mmiowb();
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
-	mmiowb();
 }
 
 static u32 qib_7220_hdrqempty(struct qib_ctxtdata *rcd)
@@ -3589,11 +3586,11 @@ static u32 qib_7220_iblink_state(u64 ibcs)
 		state = IB_PORT_ARMED;
 		break;
 	case IB_7220_L_STATE_ACTIVE:
-		/* fall through */
 	case IB_7220_L_STATE_ACT_DEFER:
 		state = IB_PORT_ACTIVE;
 		break;
-	default: /* fall through */
+	default:
+		fallthrough;
 	case IB_7220_L_STATE_DOWN:
 		state = IB_PORT_DOWN;
 		break;
@@ -4043,7 +4040,6 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	/* we always allocate at least 2048 bytes for eager buffers */
 	ret = ib_mtu_enum_to_int(qib_ibmtu);
 	dd->rcvegrbufsize = ret != -1 ? max(ret, 2048) : QIB_DEFAULT_MTU;
-	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
 	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_7220_tidtemplate(dd);
@@ -4252,7 +4248,6 @@ static int init_sdma_7220_regs(struct qib_pportdata *ppd)
 		unsigned word = i / 64;
 		unsigned bit = i & 63;
 
-		BUG_ON(word >= 3);
 		senddmabufmask[word] |= 1ULL << bit;
 	}
 	qib_write_kreg(dd, kr_senddmabufmask0, senddmabufmask[0]);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Types and definitions for AF_INET6 
  *	Linux INET6 implementation 
@@ -11,11 +12,6 @@
  *
  *	Advanced Sockets API for IPv6
  *	<draft-stevens-advanced-api-00.txt>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 #ifndef _LINUX_IN6_H
 #define _LINUX_IN6_H

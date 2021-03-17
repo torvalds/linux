@@ -146,10 +146,10 @@ snic_release_req_buf(struct snic *snic,
 		      CMD_FLAGS(sc));
 
 	if (req->u.icmnd.sense_addr)
-		pci_unmap_single(snic->pdev,
+		dma_unmap_single(&snic->pdev->dev,
 				 le64_to_cpu(req->u.icmnd.sense_addr),
 				 SCSI_SENSE_BUFFERSIZE,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 
 	scsi_dma_unmap(sc);
 
@@ -185,12 +185,11 @@ snic_queue_icmnd_req(struct snic *snic,
 		}
 	}
 
-	pa = pci_map_single(snic->pdev,
+	pa = dma_map_single(&snic->pdev->dev,
 			    sc->sense_buffer,
 			    SCSI_SENSE_BUFFERSIZE,
-			    PCI_DMA_FROMDEVICE);
-
-	if (pci_dma_mapping_error(snic->pdev, pa)) {
+			    DMA_FROM_DEVICE);
+	if (dma_mapping_error(&snic->pdev->dev, pa)) {
 		SNIC_HOST_ERR(snic->shost,
 			      "QIcmnd:PCI Map Failed for sns buf %p tag %x\n",
 			      sc->sense_buffer, snic_cmd_tag(sc));
@@ -1388,19 +1387,15 @@ snic_issue_tm_req(struct snic *snic,
 	}
 
 	ret = snic_queue_itmf_req(snic, tmreq, sc, tmf, req_id);
-	if (ret)
-		goto tmreq_err;
-
-	ret = 0;
 
 tmreq_err:
 	if (ret) {
 		SNIC_HOST_ERR(snic->shost,
-			      "issu_tmreq: Queing ITMF(%d) Req, sc %p rqi %p req_id %d tag %x fails err = %d\n",
+			      "issu_tmreq: Queueing ITMF(%d) Req, sc %p rqi %p req_id %d tag %x fails err = %d\n",
 			      tmf, sc, rqi, req_id, tag, ret);
 	} else {
 		SNIC_SCSI_DBG(snic->shost,
-			      "issu_tmreq: Queuing ITMF(%d) Req, sc %p, rqi %p, req_id %d tag %x - Success.\n",
+			      "issu_tmreq: Queueing ITMF(%d) Req, sc %p, rqi %p, req_id %d tag %x - Success.\n",
 			      tmf, sc, rqi, req_id, tag);
 	}
 
@@ -2001,7 +1996,7 @@ snic_dr_finish(struct snic *snic, struct scsi_cmnd *sc)
 	}
 
 dr_failed:
-	SNIC_BUG_ON(!spin_is_locked(io_lock));
+	lockdep_assert_held(io_lock);
 	if (rqi)
 		CMD_SP(sc) = NULL;
 	spin_unlock_irqrestore(io_lock, flags);
@@ -2604,7 +2599,7 @@ snic_internal_abort_io(struct snic *snic, struct scsi_cmnd *sc, int tmf)
 	ret = SUCCESS;
 
 skip_internal_abts:
-	SNIC_BUG_ON(!spin_is_locked(io_lock));
+	lockdep_assert_held(io_lock);
 	spin_unlock_irqrestore(io_lock, flags);
 
 	return ret;

@@ -1,0 +1,240 @@
+Framework for Maintaining Common National Instruments Terminal/Signal names
+
+The contents of this directory are primarily for maintaining and formatting all
+known valid signal routes for various National Instruments devices.
+
+Some background:
+  There have been significant confusions over the past many years for users
+  when trying to understand how to connect to/from signals and terminals on
+  NI hardware using comedi.  The major reason for this is that the actual
+  register values were exposed and required to be used by users.  Several
+  major reasons exist why this caused major confusion for users:
+
+  1) The register values are _NOT_ in user documentation, but rather in
+    arcane locations, such as a few register programming manuals that are
+    increasingly hard to find and the NI-MHDDK (comments in in example code).
+    There is no one place to find the various valid values of the registers.
+
+  2) The register values are _NOT_ completely consistent.  There is no way to
+    gain any sense of intuition of which values, or even enums one should use
+    for various registers.  There was some attempt in prior use of comedi to
+    name enums such that a user might know which enums should be used for
+    varying purposes, but the end-user had to gain a knowledge of register
+    values to correctly wield this approach.
+
+  3) The names for signals and registers found in the various register level
+    programming manuals and vendor-provided documentation are _not_ even
+    close to the same names that are in the end-user documentation.
+
+  4) The sets of routes that are valid are not consistent from device to device.
+    One additional major challenge is that this information does not seem to be
+    obtainable in any programmatic fashion, neither through the proprietary
+    NIDAQmx(-base) c-libraries, nor with register level programming, _nor_
+    through any documentation.  In fact, the only consistent source of this
+    information is through the proprietary NI-MAX software, which currently only
+    runs on Windows platforms.  A further challenge is that this information
+    cannot be exported from NI-MAX, except by screenshot.
+
+
+
+The content of this directory is part of an effort to greatly simplify the use
+of signal routing capabilities of National Instruments data-acquisition and
+control hardware.  In order to facilitate the transfer of register-level
+information _and_ the knowledge of valid routes per device, a few specific
+choices were made:
+
+
+1) The names of the National Instruments signals/terminals that are used in this
+  directory are chosen to be consistent with (a) the NI's user level
+  documentation, (b) NI's user-level code, (c) the information as provided by
+  the proprietary NI-MAX software, and (d) the user interface code provided by
+  the user-land comedilib library.
+
+  The impact of this choice implies that one allows the use of CamelScript names
+  in the kernel.  In short, the choice to use CamelScript and the exact names
+  below is for maintainability, clarity, similarity to manufacturer's
+  documentation, _and_ a mitigation for confusion that has plagued the use of
+  these drivers for years!
+
+2) The bulk of the real content for this directory is stored in two separate
+  collections (i.e. sub-directories) of tables stored in c source files:
+
+  (a) ni_route_values/ni_[series-label]series.c
+
+        This data represents all the various register values to use for the
+        multiple different signal MUXes for the specific device families.
+
+        The values are all wrapped in one of three macros to help document and
+        track which values have been implemented and tested.
+        These macros are:
+          V(<value>) : register value is valid, tested, and implemented
+          I(<value>) : register value is implemented but needs testing
+          U(<value>) : register value is not implemented
+
+        The actual function of these macros will depend on whether the code is
+        compiled in the kernel or whether it is compiled into the conversion
+        tools.  For the conversion tools, it can be used to indicate the status
+        of the register value.  For the kernel, V() and I() both perform the
+        same function and prepare data to be used; U() zeroes out the value to
+        ensure that it cannot be used.
+
+        *** It would be a great help for users to test these values such that
+        these files can be correctly marked/documented ***
+
+  (b) ni_device_routes/[board-name].c
+
+        This data represents the known set of valid signal routes that are
+        possible for each specific board.  Although the family defines the
+        register values to use for a particular signal MUX, not all possible
+        signals are actually available on each board.
+
+        In order for a particular board to take advantage of the effort to
+        simplify/clarify signal routing on NI devices, a corresponding
+        [board-name].c file must be created.  This file should reflect the known
+        valid _direct_ routing capabilities of the board.
+
+        As noted above, the only known consistent source of information for
+        valid device routes comes from the proprietary National Instruments
+        Windows software, NI-MAX.  Also, as noted above, this information can
+        only be visually conveyed from NI-MAX to other media.  To make this
+        easier, the naming conventions used in the [board-name].c file are
+        similar to the naming conventions as presented by NI-MAX.
+
+
+3) Two other files aggregate the above data to integrate it into comedi:
+    ni_route_values.c
+    ni_device_routes.c
+
+  When adding a new [board-name].c file, be sure to also add in the line in
+  ni_device_routes.c to include this information into comedi.
+
+
+4) Several tools have been included to convert from/to the c file formats.
+  These tools are best used/demonstrated via the included Makefile targets:
+  (a) `make csv-files`
+     Creates new csv-files using content of c-files of existing
+     ni_routing/* content.  New csv files are placed in csv
+     sub-directory.
+
+     As noted above, the only consistent source of information of valid
+     device routes comes from the proprietary National Instruments Windows
+     software, NI-MAX.  Also, as noted above, this information can only be
+     visually conveyed from NI-MAX to other media.  This make target creates
+     spreadsheet representations of the routing data.  The choice of using a
+     spreadsheet (ala CSV) to copy this information allows for easy direct
+     visual comparison to the NI-MAX "Valid Routes" tables.
+
+     Furthermore, the register-level information is much easier to identify and
+     correct when entire families of NI devices are shown side by side in table
+     format.  This is made easy by using a file-storage format that can be
+     loaded into a spreadsheet application.
+
+     Finally, .csv content is very easy to edit and read using a variety of
+     tools, including spreadsheets or various other scripting languages.  In
+     fact, the tools provided here enable quick conversion of the
+     spreadsheet-like .csv format to c-files that follow the kernel coding
+     conventions.
+
+
+  (b) `make c-files`
+     Creates new c-files using content of csv sub-directory.  These
+     new c-files can be compared to the active content in the
+     ni_routing directory.
+  (c) `make csv-blank`
+     Create a new blank csv file.  This is useful for establishing a
+     new data table for either a device family (less likely) or a
+     specific board of an existing device family (more likely).
+  (d) `make clean`
+     Remove all generated files/directories.
+  (e) `make everything`
+     Build all csv-files, then all new c-files.
+
+
+
+
+In summary, similar confusion about signal routing configuration, albeit less,
+plagued NI's previous version of their own proprietary drivers.  Earlier than
+2003, NI greatly simplified the situation for users by releasing a new API that
+abstracted the names of signals/terminals to a common and intuitive set of
+names.  In addition, this new API provided a much more common interface to use
+for most of NI hardware.
+
+Comedi already provides such a common interface for data-acquisition and control
+hardware.  This effort complements comedi's abstraction layers by further
+abstracting much more of the use cases for NI hardware, but allowing users _and_
+developers to directly refer to NI documentation (user-level, register-level,
+and the register-level examples of the NI-MHDDK).
+
+
+
+--------------------------------------------------------------------------------
+Various naming conventions and relations:
+--------------------------------------------------------------------------------
+These are various notes that help to relate the naming conventions used in the
+NI-STC with those naming conventions used here.
+--------------------------------------------------------------------------------
+
+  Signal sources for most signals-destinations are given a specific naming
+  convention, although the register values are not consistent.  This next table
+  shows the mapping between the names used in comedi for NI and those names
+  typically used within the NI-STC documentation.
+
+  (comedi)                      (NI-STC input or output)    (NOTE)
+  ------------------------------------------------------------------------------
+  TRIGGER_LINE(i)               RTSI_Trig_i_Output_Select   i in range [0..7]
+  NI_AI_STOP                    AI_STOP
+  NI_AI_SampleClock             AI_START_Select
+  NI_AI_SampleClockTimebase     AI_SI                       If internal sample
+                                                            clock signal is used
+  NI_AI_StartTrigger            AI_START1_Select
+  NI_AI_ReferenceTrigger        AI_START2_Select            for pre-triggered
+                                                            acquisition---not
+                                                            currently supported
+                                                            in comedi
+  NI_AI_ConvertClock            AI_CONVERT_Source_Select
+  NI_AI_ConvertClockTimebase    AI_SI2                      If internal convert
+                                                            signal is used
+  NI_AI_HoldCompleteEvent
+  NI_AI_PauseTrigger            AI_External_Gate
+  NI_AO_SampleClock             AO_UPDATE
+  NI_AO_SampleClockTimebase     AO_UI
+  NI_AO_StartTrigger            AO_START1
+  NI_AO_PauseTrigger            AO_External_Gate
+  NI_DI_SampleClock
+  NI_DO_SampleClock
+  NI_MasterTimebase
+  NI_20MHzTimebase              TIMEBASE 1 && TIMEBASE 3 if no higher clock exists
+  NI_80MHzTimebase              TIMEBASE 3
+  NI_100kHzTimebase             TIMEBASE 2
+  NI_10MHzRefClock
+  PXI_Clk10
+  NI_CtrOut(0)                  GPFO_0                      external ctr0out pin
+  NI_CtrOut(1)                  GPFO_1                      external ctr1out pin
+  NI_CtrSource(0)
+  NI_CtrSource(1)
+  NI_CtrGate(0)
+  NI_CtrGate(1)
+  NI_CtrInternalOutput(0)       G_OUT0, G0_TC               for Ctr1Source, Ctr1Gate
+  NI_CtrInternalOutput(1)       G_OUT1, G1_TC               for Ctr0Source, Ctr0Gate
+  NI_RGOUT0                     RGOUT0                      internal signal
+  NI_FrequencyOutput
+  #NI_FrequencyOutputTimebase
+  NI_ChangeDetectionEvent
+  NI_RTSI_BRD(0)
+  NI_RTSI_BRD(1)
+  NI_RTSI_BRD(2)
+  NI_RTSI_BRD(3)
+  #NI_SoftwareStrobe
+  NI_LogicLow
+  NI_CtrA(0)                    G0_A_Select                 see M-Series user
+                                                            manual (371022K-01)
+  NI_CtrA(1)                    G1_A_Select                 see M-Series user
+                                                            manual (371022K-01)
+  NI_CtrB(0)                    G0_B_Select, up/down        see M-Series user
+                                                            manual (371022K-01)
+  NI_CtrB(1)                    G1_B_Select, up/down        see M-Series user
+                                                            manual (371022K-01)
+  NI_CtrZ(0)                                                see M-Series user
+                                                            manual (371022K-01)
+  NI_CtrZ(1)                                                see M-Series user
+                                                            manual (371022K-01)

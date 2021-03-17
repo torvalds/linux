@@ -333,7 +333,8 @@ static void ftdi_elan_abandon_completions(struct usb_ftdi *ftdi)
 		*respond->result = -ESHUTDOWN;
 		*respond->value = 0;
 		complete(&respond->wait_completion);
-	} mutex_unlock(&ftdi->u132_lock);
+	}
+	mutex_unlock(&ftdi->u132_lock);
 }
 
 static void ftdi_elan_abandon_targets(struct usb_ftdi *ftdi)
@@ -763,7 +764,8 @@ static int ftdi_elan_total_command_size(struct usb_ftdi *ftdi, int command_size)
 		struct u132_command *command = &ftdi->command[COMMAND_MASK &
 							      i++];
 		total_size += 5 + command->follows;
-	} return total_size;
+	}
+	return total_size;
 }
 
 static int ftdi_elan_command_engine(struct usb_ftdi *ftdi)
@@ -915,7 +917,6 @@ static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi)
 	int bytes_read = 0;
 	int retry_on_empty = 1;
 	int retry_on_timeout = 3;
-	int empty_packets = 0;
 read:{
 		int packet_bytes = 0;
 		int retval = usb_bulk_msg(ftdi->udev,
@@ -960,31 +961,6 @@ read:{
 			dev_err(&ftdi->udev->dev, "error = %d with packet_bytes = %d with total %d bytes%s\n",
 				retval, packet_bytes, bytes_read, diag);
 			return retval;
-		} else if (packet_bytes == 2) {
-			unsigned char s0 = ftdi->bulk_in_buffer[0];
-			unsigned char s1 = ftdi->bulk_in_buffer[1];
-			empty_packets += 1;
-			if (s0 == 0x31 && s1 == 0x60) {
-				if (retry_on_empty-- > 0) {
-					goto more;
-				} else
-					return 0;
-			} else if (s0 == 0x31 && s1 == 0x00) {
-				if (retry_on_empty-- > 0) {
-					goto more;
-				} else
-					return 0;
-			} else {
-				if (retry_on_empty-- > 0) {
-					goto more;
-				} else
-					return 0;
-			}
-		} else if (packet_bytes == 1) {
-			if (retry_on_empty-- > 0) {
-				goto more;
-			} else
-				return 0;
 		} else {
 			if (retry_on_empty-- > 0) {
 				goto more;
@@ -2049,13 +2025,6 @@ static int ftdi_elan_synchronize(struct usb_ftdi *ftdi)
 						goto read;
 					} else
 						goto reset;
-				} else if (s1 == 0x31 && s2 == 0x60) {
-					if (read_stop-- > 0) {
-						goto read;
-					} else {
-						dev_err(&ftdi->udev->dev, "retry limit reached\n");
-						continue;
-					}
 				} else {
 					if (read_stop-- > 0) {
 						goto read;

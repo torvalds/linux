@@ -100,8 +100,7 @@ device_initcall(ipc_init);
 static const struct rhashtable_params ipc_kht_params = {
 	.head_offset		= offsetof(struct kern_ipc_perm, khtnode),
 	.key_offset		= offsetof(struct kern_ipc_perm, key),
-	.key_len		= FIELD_SIZEOF(struct kern_ipc_perm, key),
-	.locks_mul		= 1,
+	.key_len		= sizeof_field(struct kern_ipc_perm, key),
 	.automatic_shrinking	= true,
 };
 
@@ -110,7 +109,7 @@ static const struct rhashtable_params ipc_kht_params = {
  * @ids: ipc identifier set
  *
  * Set up the sequence range to use for the ipc identifier range (limited
- * below IPCMNI) then initialise the keys hashtable and ids idr.
+ * below ipc_mni) then initialise the keys hashtable and ids idr.
  */
 void ipc_init_ids(struct ipc_ids *ids)
 {
@@ -120,13 +119,14 @@ void ipc_init_ids(struct ipc_ids *ids)
 	rhashtable_init(&ids->key_ht, &ipc_kht_params);
 	idr_init(&ids->ipcs_idr);
 	ids->max_idx = -1;
+	ids->last_idx = -1;
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	ids->next_id = -1;
 #endif
 }
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations sysvipc_proc_fops;
+static const struct proc_ops sysvipc_proc_ops;
 /**
  * ipc_init_proc_interface -  create a proc interface for sysipc types using a seq_file interface.
  * @path: Path in procfs
@@ -151,7 +151,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 	pde = proc_create_data(path,
 			       S_IRUGO,        /* world readable */
 			       NULL,           /* parent dir */
-			       &sysvipc_proc_fops,
+			       &sysvipc_proc_ops,
 			       iface);
 	if (!pde)
 		kfree(iface);
@@ -193,6 +193,10 @@ static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
  *
  * The caller must own kern_ipc_perm.lock.of the new object.
  * On error, the function returns a (negative) error code.
+ *
+ * To conserve sequence number space, especially with extended ipc_mni,
+ * the sequence number is incremented only when the returned ID is less than
+ * the last one.
  */
 static inline int ipc_idr_alloc(struct ipc_ids *ids, struct kern_ipc_perm *new)
 {
@@ -216,17 +220,42 @@ static inline int ipc_idr_alloc(struct ipc_ids *ids, struct kern_ipc_perm *new)
 	 */
 
 	if (next_id < 0) { /* !CHECKPOINT_RESTORE or next_id is unset */
-		new->seq = ids->seq++;
-		if (ids->seq > IPCID_SEQ_MAX)
-			ids->seq = 0;
-		idx = idr_alloc(&ids->ipcs_idr, new, 0, 0, GFP_NOWAIT);
+		int max_idx;
+
+		max_idx = max(ids->in_use*3/2, ipc_min_cycle);
+		max_idx = min(max_idx, ipc_mni);
+
+		/* allocate the idx, with a NULL struct kern_ipc_perm */
+		idx = idr_alloc_cyclic(&ids->ipcs_idr, NULL, 0, max_idx,
+					GFP_NOWAIT);
+
+		if (idx >= 0) {
+			/*
+			 * idx got allocated successfully.
+			 * Now calculate the sequence number and set the
+			 * pointer for real.
+			 */
+			if (idx <= ids->last_idx) {
+				ids->seq++;
+				if (ids->seq >= ipcid_seq_max())
+					ids->seq = 0;
+			}
+			ids->last_idx = idx;
+
+			new->seq = ids->seq;
+			/* no need for smp_wmb(), this is done
+			 * inside idr_replace, as part of
+			 * rcu_assign_pointer
+			 */
+			idr_replace(&ids->ipcs_idr, new, idx);
+		}
 	} else {
 		new->seq = ipcid_to_seqx(next_id);
 		idx = idr_alloc(&ids->ipcs_idr, new, ipcid_to_idx(next_id),
 				0, GFP_NOWAIT);
 	}
 	if (idx >= 0)
-		new->id = SEQ_MULTIPLIER * new->seq + idx;
+		new->id = (new->seq << ipcmni_seq_shift()) + idx;
 	return idx;
 }
 
@@ -254,8 +283,8 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 	/* 1) Initialize the refcount so that ipc_rcu_putref works */
 	refcount_set(&new->refcount, 1);
 
-	if (limit > IPCMNI)
-		limit = IPCMNI;
+	if (limit > ipc_mni)
+		limit = ipc_mni;
 
 	if (ids->in_use >= limit)
 		return -ENOSPC;
@@ -735,21 +764,21 @@ static struct kern_ipc_perm *sysvipc_find_ipc(struct ipc_ids *ids, loff_t pos,
 			total++;
 	}
 
+	ipc = NULL;
 	if (total >= ids->in_use)
-		return NULL;
+		goto out;
 
-	for (; pos < IPCMNI; pos++) {
+	for (; pos < ipc_mni; pos++) {
 		ipc = idr_find(&ids->ipcs_idr, pos);
 		if (ipc != NULL) {
-			*new_pos = pos + 1;
 			rcu_read_lock();
 			ipc_lock_object(ipc);
-			return ipc;
+			break;
 		}
 	}
-
-	/* Out of range - return NULL to terminate iteration */
-	return NULL;
+out:
+	*new_pos = pos + 1;
+	return ipc;
 }
 
 static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
@@ -855,10 +884,11 @@ static int sysvipc_proc_release(struct inode *inode, struct file *file)
 	return seq_release_private(inode, file);
 }
 
-static const struct file_operations sysvipc_proc_fops = {
-	.open    = sysvipc_proc_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = sysvipc_proc_release,
+static const struct proc_ops sysvipc_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
+	.proc_open	= sysvipc_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= sysvipc_proc_release,
 };
 #endif /* CONFIG_PROC_FS */

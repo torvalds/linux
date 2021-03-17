@@ -30,18 +30,14 @@
  */
 #define GASKET_SYSFS_MAX_NODES 196
 
-/* End markers for sysfs struct arrays. */
-#define GASKET_ARRAY_END_TOKEN GASKET_RESERVED_ARRAY_END
-#define GASKET_ARRAY_END_MARKER __stringify(GASKET_ARRAY_END_TOKEN)
-
 /*
  * Terminator struct for a gasket_sysfs_attr array. Must be at the end of
  * all gasket_sysfs_attribute arrays.
  */
 #define GASKET_END_OF_ATTR_ARRAY                                               \
 	{                                                                      \
-		.attr = __ATTR(GASKET_ARRAY_END_TOKEN, S_IRUGO, NULL, NULL),   \
-		.data.attr_type = 0,                                           \
+		.attr = __ATTR_NULL,				\
+		.data.attr_type = 0,				\
 	}
 
 /*
@@ -75,7 +71,7 @@ struct gasket_sysfs_attribute {
 
 #define GASKET_SYSFS_RO(_name, _show_function, _attr_type)                     \
 	{                                                                      \
-		.attr = __ATTR(_name, S_IRUGO, _show_function, NULL),          \
+		.attr = __ATTR(_name, 0444, _show_function, NULL),          \
 		.data.attr_type = _attr_type                                   \
 	}
 
@@ -152,8 +148,8 @@ void gasket_sysfs_put_device_data(struct device *device,
  * Returns the Gasket sysfs attribute associated with the kernel device
  * attribute and device structure itself. Upon success, this call will take a
  * reference to internal sysfs data that must be released with a call to
- * gasket_sysfs_get_device_data. While this reference is held, the underlying
- * device sysfs information/structure will remain valid/will not be deleted.
+ * gasket_sysfs_put_attr. While this reference is held, the underlying device
+ * sysfs information/structure will remain valid/will not be deleted.
  */
 struct gasket_sysfs_attribute *
 gasket_sysfs_get_attr(struct device *device, struct device_attribute *attr);

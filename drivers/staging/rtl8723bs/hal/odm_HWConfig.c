@@ -19,11 +19,11 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 	else if (AntPower >= 0)
 		return	100;
 	else
-		return	(100+AntPower);
+		return 100 + AntPower;
 
 }
 
-static s32 odm_SignalScaleMapping_92CSeries(PDM_ODM_T pDM_Odm, s32 CurrSig)
+s32 odm_SignalScaleMapping(PDM_ODM_T pDM_Odm, s32 CurrSig)
 {
 	s32 RetSig = 0;
 
@@ -47,11 +47,6 @@ static s32 odm_SignalScaleMapping_92CSeries(PDM_ODM_T pDM_Odm, s32 CurrSig)
 	}
 
 	return RetSig;
-}
-
-s32 odm_SignalScaleMapping(PDM_ODM_T pDM_Odm, s32 CurrSig)
-{
-	return odm_SignalScaleMapping_92CSeries(pDM_Odm, CurrSig);
 }
 
 static u8 odm_EVMdbToPercentage(s8 Value)
@@ -94,7 +89,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	u8 RSSI, total_rssi = 0;
 	bool isCCKrate = false;
 	u8 rf_rx_num = 0;
-	u8 cck_highpwr = 0;
 	u8 LNA_idx, VGA_idx;
 	PPHY_STATUS_RPT_8192CD_T pPhyStaRpt = (PPHY_STATUS_RPT_8192CD_T)pPhyStatus;
 
@@ -109,19 +103,13 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 		pDM_Odm->PhyDbgInfo.NumQryPhyStatusCCK++;
 		/*  */
 		/*  (1)Hardware does not provide RSSI for CCK */
-		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
+		/*  (2)PWDB, Average PWDB calculated by hardware (for rate adaptive) */
 		/*  */
 
-		/* if (pHalData->eRFPowerState == eRfOn) */
-		cck_highpwr = pDM_Odm->bCckHighPower;
-		/* else */
-		/* cck_highpwr = false; */
-
-		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a ;
+		cck_agc_rpt = pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a;
 
 		/* 2011.11.28 LukeLee: 88E use different LNA & VGA gain table */
 		/* The RSSI formula should be modified according to the gain table */
-		/* In 88E, cck_highpwr is always set to 1 */
 		LNA_idx = ((cck_agc_rpt & 0xE0)>>5);
 		VGA_idx = (cck_agc_rpt & 0x1F);
 		rx_pwr_all = odm_CCKRSSI_8723B(LNA_idx, VGA_idx);
@@ -190,7 +178,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 
 
 		/*  */
-		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
+		/*  (2)PWDB, Average PWDB calculated by hardware (for rate adaptive) */
 		/*  */
 		rx_pwr_all = (((pPhyStaRpt->cck_sig_qual_ofdm_pwdb_all) >> 1)&0x7f)-110;
 
@@ -496,32 +484,3 @@ HAL_STATUS ODM_ConfigBBWithHeaderFile(
 	return HAL_STATUS_SUCCESS;
 }
 
-HAL_STATUS ODM_ConfigMACWithHeaderFile(PDM_ODM_T pDM_Odm)
-{
-	u8 result = HAL_STATUS_SUCCESS;
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		(
-			"===>ODM_ConfigMACWithHeaderFile (%s)\n",
-			(pDM_Odm->bIsMPChip) ? "MPChip" : "TestChip"
-		)
-	);
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		(
-			"pDM_Odm->SupportPlatform: 0x%X, pDM_Odm->SupportInterface: 0x%X, pDM_Odm->BoardType: 0x%X\n",
-			pDM_Odm->SupportPlatform,
-			pDM_Odm->SupportInterface,
-			pDM_Odm->BoardType
-		)
-	);
-
-	READ_AND_CONFIG(8723B, _MAC_REG);
-
-	return result;
-}

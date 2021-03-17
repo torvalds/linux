@@ -7,7 +7,6 @@
 #ifndef __WLAN_BSSDEF_H__
 #define __WLAN_BSSDEF_H__
 
-
 #define MAX_IE_SZ			768
 
 #define NDIS_802_11_LENGTH_SSID         32
@@ -17,8 +16,8 @@
 #define NDIS_802_11_RSSI long           /*  in dBm */
 
 struct ndis_802_11_ssid {
-	u32  SsidLength;
-	u8  Ssid[32];
+	u32  ssid_length;
+	u8  ssid[32];
 };
 
 enum NDIS_802_11_NETWORK_TYPE {
@@ -61,8 +60,6 @@ struct ndis_802_11_fixed_ie {
 	u16  BeaconInterval;
 	u16  Capabilities;
 };
-
-
 
 struct ndis_802_11_var_ie {
 	u8  ElementID;
@@ -149,7 +146,7 @@ enum ndis_802_11_status_type {
 #define MIC_CHECK_TIME	60000000
 
 #ifndef Ndis802_11APMode
-#define Ndis802_11APMode (Ndis802_11InfrastructureMax+1)
+#define Ndis802_11APMode (Ndis802_11InfrastructureMax + 1)
 #endif
 
 struct wlan_phy_info {
@@ -180,7 +177,7 @@ struct wlan_bssid_ex {
 	u32  Length;
 	unsigned char MacAddress[ETH_ALEN];
 	u8  Reserved[2];/* 0]: IS beacon frame */
-	struct ndis_802_11_ssid  Ssid;
+	struct ndis_802_11_ssid  ssid;
 	u32  Privacy;
 	NDIS_802_11_RSSI  Rssi;/* in dBM,raw data ,get from PHY) */
 	enum  NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;

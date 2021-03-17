@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 'raw' table, which is the very first hooked in at PRE_ROUTING and LOCAL_OUT .
  *
- * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@netfilter.org>
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -66,15 +67,23 @@ static int __net_init iptable_raw_table_init(struct net *net)
 	return ret;
 }
 
+static void __net_exit iptable_raw_net_pre_exit(struct net *net)
+{
+	if (net->ipv4.iptable_raw)
+		ipt_unregister_table_pre_exit(net, net->ipv4.iptable_raw,
+					      rawtable_ops);
+}
+
 static void __net_exit iptable_raw_net_exit(struct net *net)
 {
 	if (!net->ipv4.iptable_raw)
 		return;
-	ipt_unregister_table(net, net->ipv4.iptable_raw, rawtable_ops);
+	ipt_unregister_table_exit(net, net->ipv4.iptable_raw);
 	net->ipv4.iptable_raw = NULL;
 }
 
 static struct pernet_operations iptable_raw_net_ops = {
+	.pre_exit = iptable_raw_net_pre_exit,
 	.exit = iptable_raw_net_exit,
 };
 

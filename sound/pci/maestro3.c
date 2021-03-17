@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ESS Maestro3/Allegro (ES1988) soundcards.
  * Copyright (c) 2000 by Zach Brown <zab@zabbo.net>
@@ -6,26 +7,10 @@
  * Most of the hardware init stuffs are based on maestro3 driver for
  * OSS/Free by Zach Brown.  Many thanks to Zach!
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
- *
  * ChangeLog:
  * Aug. 27, 2001
  *     - Fixed deadlock on capture
  *     - Added Canyon3D-2 support by Rob Riggs <rob@pangalactic.org>
- *
  */
  
 #define CARD_NAME "ESS Maestro3/Allegro/Canyon3D-2"
@@ -822,7 +807,7 @@ static const struct pci_device_id snd_m3_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_m3_ids);
 
-static struct snd_pci_quirk m3_amp_quirk_list[] = {
+static const struct snd_pci_quirk m3_amp_quirk_list[] = {
 	SND_PCI_QUIRK(0x0E11, 0x0094, "Compaq Evo N600c", 0x0c),
 	SND_PCI_QUIRK(0x10f7, 0x833e, "Panasonic CF-28", 0x0d),
 	SND_PCI_QUIRK(0x10f7, 0x833d, "Panasonic CF-72", 0x0d),
@@ -831,7 +816,7 @@ static struct snd_pci_quirk m3_amp_quirk_list[] = {
 	{ } /* END */
 };
 
-static struct snd_pci_quirk m3_irda_quirk_list[] = {
+static const struct snd_pci_quirk m3_irda_quirk_list[] = {
 	SND_PCI_QUIRK(0x1028, 0x00b0, "Dell Inspiron 4000", 1),
 	SND_PCI_QUIRK(0x1028, 0x00a4, "Dell Inspiron 8000", 1),
 	SND_PCI_QUIRK(0x1028, 0x00e6, "Dell Inspiron 8100", 1),
@@ -839,7 +824,7 @@ static struct snd_pci_quirk m3_irda_quirk_list[] = {
 };
 
 /* hardware volume quirks */
-static struct snd_pci_quirk m3_hv_quirk_list[] = {
+static const struct snd_pci_quirk m3_hv_quirk_list[] = {
 	/* Allegro chips */
 	SND_PCI_QUIRK(0x0E11, 0x002E, NULL, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD),
 	SND_PCI_QUIRK(0x0E11, 0x0094, NULL, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD),
@@ -917,7 +902,7 @@ static struct snd_pci_quirk m3_hv_quirk_list[] = {
 };
 
 /* HP Omnibook quirks */
-static struct snd_pci_quirk m3_omnibook_quirk_list[] = {
+static const struct snd_pci_quirk m3_omnibook_quirk_list[] = {
 	SND_PCI_QUIRK_ID(0x103c, 0x0010), /* HP OmniBook 6000 */
 	SND_PCI_QUIRK_ID(0x103c, 0x0011), /* HP OmniBook 500 */
 	{ } /* END */
@@ -1396,10 +1381,7 @@ static int snd_m3_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *hw_params)
 {
 	struct m3_dma *s = substream->runtime->private_data;
-	int err;
 
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
 	/* set buffer address */
 	s->buffer_addr = substream->runtime->dma_addr;
 	if (s->buffer_addr & 0x3) {
@@ -1416,7 +1398,6 @@ static int snd_m3_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (substream->runtime->private_data == NULL)
 		return 0;
 	s = substream->runtime->private_data;
-	snd_pcm_lib_free_pages(substream);
 	s->buffer_addr = 0;
 	return 0;
 }
@@ -1837,7 +1818,6 @@ snd_m3_capture_close(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops snd_m3_playback_ops = {
 	.open =		snd_m3_playback_open,
 	.close =	snd_m3_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_m3_pcm_hw_params,
 	.hw_free =	snd_m3_pcm_hw_free,
 	.prepare =	snd_m3_pcm_prepare,
@@ -1848,7 +1828,6 @@ static const struct snd_pcm_ops snd_m3_playback_ops = {
 static const struct snd_pcm_ops snd_m3_capture_ops = {
 	.open =		snd_m3_capture_open,
 	.close =	snd_m3_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_m3_pcm_hw_params,
 	.hw_free =	snd_m3_pcm_hw_free,
 	.prepare =	snd_m3_pcm_prepare,
@@ -1875,8 +1854,8 @@ snd_m3_pcm(struct snd_m3 * chip, int device)
 	strcpy(pcm->name, chip->card->driver);
 	chip->pcm = pcm;
 	
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci), 64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev, 64*1024, 64*1024);
 
 	return 0;
 }
@@ -2057,7 +2036,7 @@ static int snd_m3_mixer(struct snd_m3 *chip)
 	struct snd_ctl_elem_id elem_id;
 #endif
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_m3_ac97_write,
 		.read = snd_m3_ac97_read,
 	};
@@ -2422,7 +2401,6 @@ static int m3_suspend(struct device *dev)
 	chip->in_suspend = 1;
 	cancel_work_sync(&chip->hwvol_work);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 
 	msleep(10); /* give the assp a chance to idle.. */
@@ -2544,7 +2522,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	struct snd_m3 *chip;
 	int i, err;
 	const struct snd_pci_quirk *quirk;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_m3_dev_free,
 	};
 
@@ -2655,6 +2633,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 		goto free_chip;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 #ifdef CONFIG_PM_SLEEP
 	chip->suspend_mem =

@@ -8,21 +8,25 @@
 #ifndef _ASM_THREAD_INFO_H
 #define _ASM_THREAD_INFO_H
 
-#include <linux/const.h>
+#include <linux/bits.h>
 
 /*
- * Size of kernel stack for each process
+ * General size of kernel stacks
  */
+#ifdef CONFIG_KASAN
+#define THREAD_SIZE_ORDER 4
+#else
 #define THREAD_SIZE_ORDER 2
-#define ASYNC_ORDER  2
-
+#endif
+#define BOOT_STACK_ORDER  2
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
-#define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
 
 #ifndef __ASSEMBLY__
 #include <asm/lowcore.h>
 #include <asm/page.h>
-#include <asm/processor.h>
+
+#define STACK_INIT_OFFSET \
+	(THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs))
 
 /*
  * low level task data that entry.S needs immediate access to
@@ -77,21 +81,21 @@ void arch_setup_new_exec(void);
 #define TIF_SECCOMP		26	/* secure computing */
 #define TIF_SYSCALL_TRACEPOINT	27	/* syscall tracepoint instrumentation */
 
-#define _TIF_NOTIFY_RESUME	_BITUL(TIF_NOTIFY_RESUME)
-#define _TIF_SIGPENDING		_BITUL(TIF_SIGPENDING)
-#define _TIF_NEED_RESCHED	_BITUL(TIF_NEED_RESCHED)
-#define _TIF_UPROBE		_BITUL(TIF_UPROBE)
-#define _TIF_GUARDED_STORAGE	_BITUL(TIF_GUARDED_STORAGE)
-#define _TIF_PATCH_PENDING	_BITUL(TIF_PATCH_PENDING)
-#define _TIF_ISOLATE_BP		_BITUL(TIF_ISOLATE_BP)
-#define _TIF_ISOLATE_BP_GUEST	_BITUL(TIF_ISOLATE_BP_GUEST)
+#define _TIF_NOTIFY_RESUME	BIT(TIF_NOTIFY_RESUME)
+#define _TIF_SIGPENDING		BIT(TIF_SIGPENDING)
+#define _TIF_NEED_RESCHED	BIT(TIF_NEED_RESCHED)
+#define _TIF_UPROBE		BIT(TIF_UPROBE)
+#define _TIF_GUARDED_STORAGE	BIT(TIF_GUARDED_STORAGE)
+#define _TIF_PATCH_PENDING	BIT(TIF_PATCH_PENDING)
+#define _TIF_ISOLATE_BP		BIT(TIF_ISOLATE_BP)
+#define _TIF_ISOLATE_BP_GUEST	BIT(TIF_ISOLATE_BP_GUEST)
 
-#define _TIF_31BIT		_BITUL(TIF_31BIT)
-#define _TIF_SINGLE_STEP	_BITUL(TIF_SINGLE_STEP)
+#define _TIF_31BIT		BIT(TIF_31BIT)
+#define _TIF_SINGLE_STEP	BIT(TIF_SINGLE_STEP)
 
-#define _TIF_SYSCALL_TRACE	_BITUL(TIF_SYSCALL_TRACE)
-#define _TIF_SYSCALL_AUDIT	_BITUL(TIF_SYSCALL_AUDIT)
-#define _TIF_SECCOMP		_BITUL(TIF_SECCOMP)
-#define _TIF_SYSCALL_TRACEPOINT	_BITUL(TIF_SYSCALL_TRACEPOINT)
+#define _TIF_SYSCALL_TRACE	BIT(TIF_SYSCALL_TRACE)
+#define _TIF_SYSCALL_AUDIT	BIT(TIF_SYSCALL_AUDIT)
+#define _TIF_SECCOMP		BIT(TIF_SECCOMP)
+#define _TIF_SYSCALL_TRACEPOINT	BIT(TIF_SYSCALL_TRACEPOINT)
 
 #endif /* _ASM_THREAD_INFO_H */

@@ -20,7 +20,7 @@ SYNOPSIS
 PERF COMMANDS
 =============
 
-|	**bpftool** **perf { show | list }**
+|	**bpftool** **perf** { **show** | **list** }
 |	**bpftool** **perf help**
 
 DESCRIPTION
@@ -40,18 +40,7 @@ DESCRIPTION
 
 OPTIONS
 =======
-	-h, --help
-		  Print short generic help message (similar to **bpftool help**).
-
-	-v, --version
-		  Print version number (similar to **bpftool version**).
-
-	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
-
-	-p, --pretty
-		  Generate human-readable JSON output. Implies **-j**.
+	.. include:: common_options.rst
 
 EXAMPLES
 ========
@@ -74,8 +63,3 @@ EXAMPLES
      {"pid":21765,"fd":5,"prog_id":7,"fd_type":"kretprobe","func":"__x64_sys_nanosleep","offset":0}, \
      {"pid":21767,"fd":5,"prog_id":8,"fd_type":"tracepoint","tracepoint":"sys_enter_nanosleep"}, \
      {"pid":21800,"fd":5,"prog_id":9,"fd_type":"uprobe","filename":"/home/yhs/a.out","offset":1159}]
-
-
-SEE ALSO
-========
-	**bpftool**\ (8), **bpftool-prog**\ (8), **bpftool-map**\ (8)

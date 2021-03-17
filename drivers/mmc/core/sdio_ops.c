@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  linux/drivers/mmc/sdio_ops.c
  *
  *  Copyright 2006-2007 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/scatterlist.h>
@@ -125,6 +121,7 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	struct sg_table sgtable;
 	unsigned int nents, left_size, i;
 	unsigned int seg_size = card->host->max_seg_size;
+	int err;
 
 	WARN_ON(blksz == 0);
 
@@ -174,28 +171,32 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 
 	mmc_set_data_timeout(&data, card);
 
+	mmc_pre_req(card->host, &mrq);
+
 	mmc_wait_for_req(card->host, &mrq);
+
+	if (cmd.error)
+		err = cmd.error;
+	else if (data.error)
+		err = data.error;
+	else if (mmc_host_is_spi(card->host))
+		/* host driver already reported errors */
+		err = 0;
+	else if (cmd.resp[0] & R5_ERROR)
+		err = -EIO;
+	else if (cmd.resp[0] & R5_FUNCTION_NUMBER)
+		err = -EINVAL;
+	else if (cmd.resp[0] & R5_OUT_OF_RANGE)
+		err = -ERANGE;
+	else
+		err = 0;
+
+	mmc_post_req(card->host, &mrq, err);
 
 	if (nents > 1)
 		sg_free_table(&sgtable);
 
-	if (cmd.error)
-		return cmd.error;
-	if (data.error)
-		return data.error;
-
-	if (mmc_host_is_spi(card->host)) {
-		/* host driver already reported errors */
-	} else {
-		if (cmd.resp[0] & R5_ERROR)
-			return -EIO;
-		if (cmd.resp[0] & R5_FUNCTION_NUMBER)
-			return -EINVAL;
-		if (cmd.resp[0] & R5_OUT_OF_RANGE)
-			return -ERANGE;
-	}
-
-	return 0;
+	return err;
 }
 
 int sdio_reset(struct mmc_host *host)

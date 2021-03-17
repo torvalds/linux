@@ -181,16 +181,12 @@ static void mlx5e_tls_complete_sync_skb(struct sk_buff *skb,
 	 */
 	nskb->ip_summed = CHECKSUM_PARTIAL;
 
-	nskb->xmit_more = 1;
 	nskb->queue_mapping = skb->queue_mapping;
 }
 
-static struct sk_buff *
-mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
-		     struct mlx5e_txqsq *sq, struct sk_buff *skb,
-		     struct mlx5e_tx_wqe **wqe,
-		     u16 *pi,
-		     struct mlx5e_tls *tls)
+static bool mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
+				 struct mlx5e_txqsq *sq, struct sk_buff *skb,
+				 struct mlx5e_tls *tls)
 {
 	u32 tcp_seq = ntohl(tcp_hdr(skb)->seq);
 	struct sync_info info;
@@ -218,7 +214,7 @@ mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 		if (likely(payload <= -info.sync_len))
 			/* SKB payload doesn't require offload
 			 */
-			return skb;
+			return true;
 
 		atomic64_inc(&tls->sw_stats.tx_tls_drop_bypass_required);
 		goto err_out;
@@ -248,20 +244,17 @@ mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 	sq->stats->tls_resync_bytes += nskb->len;
 	mlx5e_tls_complete_sync_skb(skb, nskb, tcp_seq, headln,
 				    cpu_to_be64(info.rcd_sn));
-	mlx5e_sq_xmit(sq, nskb, *wqe, *pi);
-	mlx5e_sq_fetch_wqe(sq, wqe, pi);
-	return skb;
+	mlx5e_sq_xmit_simple(sq, nskb, true);
+
+	return true;
 
 err_out:
 	dev_kfree_skb_any(skb);
-	return NULL;
+	return false;
 }
 
-struct sk_buff *mlx5e_tls_handle_tx_skb(struct net_device *netdev,
-					struct mlx5e_txqsq *sq,
-					struct sk_buff *skb,
-					struct mlx5e_tx_wqe **wqe,
-					u16 *pi)
+bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
+			     struct sk_buff *skb, struct mlx5e_accel_tx_tls_state *state)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_tls_offload_context_tx *context;
@@ -271,35 +264,47 @@ struct sk_buff *mlx5e_tls_handle_tx_skb(struct net_device *netdev,
 	u32 skb_seq;
 
 	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
-		goto out;
+		return true;
 
 	datalen = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
 	if (!datalen)
-		goto out;
+		return true;
+
+	mlx5e_tx_mpwqe_ensure_complete(sq);
 
 	tls_ctx = tls_get_ctx(skb->sk);
-	if (unlikely(tls_ctx->netdev != netdev))
-		goto out;
+	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
+		goto err_out;
 
+	if (mlx5_accel_is_ktls_tx(sq->channel->mdev))
+		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, datalen, state);
+
+	/* FPGA */
 	skb_seq = ntohl(tcp_hdr(skb)->seq);
 	context = mlx5e_get_tls_tx_context(tls_ctx);
 	expected_seq = context->expected_seq;
 
-	if (unlikely(expected_seq != skb_seq)) {
-		skb = mlx5e_tls_handle_ooo(context, sq, skb, wqe, pi, priv->tls);
-		goto out;
-	}
+	if (unlikely(expected_seq != skb_seq))
+		return mlx5e_tls_handle_ooo(context, sq, skb, priv->tls);
 
 	if (unlikely(mlx5e_tls_add_metadata(skb, context->swid))) {
 		atomic64_inc(&priv->tls->sw_stats.tx_tls_drop_metadata);
 		dev_kfree_skb_any(skb);
-		skb = NULL;
-		goto out;
+		return false;
 	}
 
 	context->expected_seq = skb_seq + datalen;
-out:
-	return skb;
+	return true;
+
+err_out:
+	dev_kfree_skb_any(skb);
+	return false;
+}
+
+void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
+			     struct mlx5e_accel_tx_tls_state *state)
+{
+	cseg->tis_tir_num = cpu_to_be32(state->tls_tisn << 8);
 }
 
 static int tls_update_resync_sn(struct net_device *netdev,
@@ -348,14 +353,12 @@ out:
 	return 0;
 }
 
-void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
-			     u32 *cqe_bcnt)
+/* FPGA tls rx handler */
+void mlx5e_tls_handle_rx_skb_metadata(struct mlx5e_rq *rq, struct sk_buff *skb,
+				      u32 *cqe_bcnt)
 {
 	struct mlx5e_tls_metadata *mdata;
 	struct mlx5e_priv *priv;
-
-	if (!is_metadata_hdr_valid(skb))
-		return;
 
 	/* Use the metadata */
 	mdata = (struct mlx5e_tls_metadata *)(skb->data + ETH_HLEN);
@@ -364,13 +367,13 @@ void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 		skb->decrypted = 1;
 		break;
 	case SYNDROM_RESYNC_REQUEST:
-		tls_update_resync_sn(netdev, skb, mdata);
-		priv = netdev_priv(netdev);
+		tls_update_resync_sn(rq->netdev, skb, mdata);
+		priv = netdev_priv(rq->netdev);
 		atomic64_inc(&priv->tls->sw_stats.rx_tls_resync_request);
 		break;
 	case SYNDROM_AUTH_FAILED:
 		/* Authentication failure will be observed and verified by kTLS */
-		priv = netdev_priv(netdev);
+		priv = netdev_priv(rq->netdev);
 		atomic64_inc(&priv->tls->sw_stats.rx_tls_auth_fail);
 		break;
 	default:
@@ -380,4 +383,19 @@ void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 
 	remove_metadata_hdr(skb);
 	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
+}
+
+u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
+{
+	struct mlx5_core_dev *mdev = sq->channel->mdev;
+
+	if (!mlx5_accel_is_tls_device(mdev))
+		return 0;
+
+	if (mlx5_accel_is_ktls_device(mdev))
+		return mlx5e_ktls_get_stop_room(sq);
+
+	/* FPGA */
+	/* Resync SKB. */
+	return mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
 }

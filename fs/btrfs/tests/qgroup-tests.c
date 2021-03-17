@@ -32,7 +32,7 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		return -ENOMEM;
 	}
 
@@ -82,7 +82,7 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		return -ENOMEM;
 	}
 
@@ -132,7 +132,7 @@ static int remove_extent_item(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		return -ENOMEM;
 	}
 	path->leave_spinning = 1;
@@ -166,7 +166,7 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		return -ENOMEM;
 	}
 
@@ -215,7 +215,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 
 	btrfs_init_dummy_trans(&trans, fs_info);
 
-	test_msg("qgroup basic add");
+	test_msg("running qgroup add/remove tests");
 	ret = btrfs_create_qgroup(&trans, BTRFS_FS_TREE_OBJECTID);
 	if (ret) {
 		test_err("couldn't create a qgroup %d", ret);
@@ -316,7 +316,7 @@ static int test_multiple_refs(struct btrfs_root *root,
 
 	btrfs_init_dummy_trans(&trans, fs_info);
 
-	test_msg("qgroup multiple refs test");
+	test_msg("running qgroup multiple refs test");
 
 	/*
 	 * We have BTRFS_FS_TREE_OBJECTID created already from the
@@ -457,13 +457,13 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
-		test_err("couldn't allocate dummy fs info");
+		test_std_err(TEST_ALLOC_FS_INFO);
 		return -ENOMEM;
 	}
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
-		test_err("couldn't allocate root");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(root);
 		goto out;
 	}
@@ -484,9 +484,9 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	 * *cough*backref walking code*cough*
 	 */
 	root->node = alloc_test_extent_buffer(root->fs_info, nodesize);
-	if (!root->node) {
+	if (IS_ERR(root->node)) {
 		test_err("couldn't allocate dummy buffer");
-		ret = -ENOMEM;
+		ret = PTR_ERR(root->node);
 		goto out;
 	}
 	btrfs_set_header_level(root->node, 0);
@@ -495,7 +495,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 
 	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
-		test_err("couldn't allocate a fs root");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(tmp_root);
 		goto out;
 	}
@@ -507,10 +507,11 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 		test_err("couldn't insert fs root %d", ret);
 		goto out;
 	}
+	btrfs_put_root(tmp_root);
 
 	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
-		test_err("couldn't allocate a fs root");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(tmp_root);
 		goto out;
 	}
@@ -521,6 +522,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 		test_err("couldn't insert fs root %d", ret);
 		goto out;
 	}
+	btrfs_put_root(tmp_root);
 
 	test_msg("running qgroup tests");
 	ret = test_no_shared_qgroup(root, sectorsize, nodesize);

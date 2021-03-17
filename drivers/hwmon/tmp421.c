@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* tmp421.c
  *
  * Copyright (C) 2009 Andre Prendel <andre.prendel@gmx.de>
  * Preliminary support by:
  * Melvin Rook, Raymond Ng
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -70,7 +61,7 @@ static const struct i2c_device_id tmp421_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp421_id);
 
-static const struct of_device_id tmp421_of_match[] = {
+static const struct of_device_id __maybe_unused tmp421_of_match[] = {
 	{
 		.compatible = "ti,tmp421",
 		.data = (void *)2
@@ -88,7 +79,7 @@ static const struct of_device_id tmp421_of_match[] = {
 		.data = (void *)2
 	},
 	{
-		.compatible = "ti,tmp422",
+		.compatible = "ti,tmp442",
 		.data = (void *)3
 	},
 	{ },
@@ -136,7 +127,8 @@ static struct tmp421_data *tmp421_update_device(struct device *dev)
 
 	mutex_lock(&data->update_lock);
 
-	if (time_after(jiffies, data->last_updated + 2 * HZ) || !data->valid) {
+	if (time_after(jiffies, data->last_updated + (HZ / 2)) ||
+	    !data->valid) {
 		data->config = i2c_smbus_read_byte_data(client,
 			TMP421_CONFIG_REG_1);
 
@@ -187,9 +179,9 @@ static umode_t tmp421_is_visible(const void *data, enum hwmon_sensor_types type,
 	case hwmon_temp_fault:
 		if (channel == 0)
 			return 0;
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_input:
-		return S_IRUGO;
+		return 0444;
 	default:
 		return 0;
 	}
@@ -226,8 +218,10 @@ static int tmp421_detect(struct i2c_client *client,
 {
 	enum chips kind;
 	struct i2c_adapter *adapter = client->adapter;
-	const char * const names[] = { "TMP421", "TMP422", "TMP423",
-				       "TMP441", "TMP442" };
+	static const char * const names[] = {
+		"TMP421", "TMP422", "TMP423",
+		"TMP441", "TMP442"
+	};
 	int addr = client->addr;
 	u8 reg;
 
@@ -285,8 +279,7 @@ static const struct hwmon_ops tmp421_ops = {
 	.read = tmp421_read,
 };
 
-static int tmp421_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int tmp421_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -302,7 +295,7 @@ static int tmp421_probe(struct i2c_client *client,
 		data->channels = (unsigned long)
 			of_device_get_match_data(&client->dev);
 	else
-		data->channels = id->driver_data;
+		data->channels = i2c_match_id(tmp421_id, client)->driver_data;
 	data->client = client;
 
 	err = tmp421_init_client(client);
@@ -333,7 +326,7 @@ static struct i2c_driver tmp421_driver = {
 		.name	= "tmp421",
 		.of_match_table = of_match_ptr(tmp421_of_match),
 	},
-	.probe = tmp421_probe,
+	.probe_new = tmp421_probe,
 	.id_table = tmp421_id,
 	.detect = tmp421_detect,
 	.address_list = normal_i2c,

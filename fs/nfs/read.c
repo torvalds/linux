@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/fs/nfs/read.c
  *
@@ -90,19 +91,25 @@ void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_read_mds);
 
-static void nfs_readpage_release(struct nfs_page *req)
+static void nfs_readpage_release(struct nfs_page *req, int error)
 {
-	struct inode *inode = d_inode(req->wb_context->dentry);
+	struct inode *inode = d_inode(nfs_req_openctx(req)->dentry);
+	struct page *page = req->wb_page;
 
 	dprintk("NFS: read done (%s/%llu %d@%lld)\n", inode->i_sb->s_id,
 		(unsigned long long)NFS_FILEID(inode), req->wb_bytes,
 		(long long)req_offset(req));
 
+	if (nfs_error_is_fatal_on_server(error) && error != -ETIMEDOUT)
+		SetPageError(page);
 	if (nfs_page_group_sync_on_bit(req, PG_UNLOCKPAGE)) {
-		if (PageUptodate(req->wb_page))
-			nfs_readpage_to_fscache(inode, req->wb_page, 0);
+		struct address_space *mapping = page_file_mapping(page);
 
-		unlock_page(req->wb_page);
+		if (PageUptodate(page))
+			nfs_readpage_to_fscache(inode, page, 0);
+		else if (!PageError(page) && !PagePrivate(page))
+			generic_error_remove_page(mapping, page);
+		unlock_page(page);
 	}
 	nfs_release_request(req);
 }
@@ -118,7 +125,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
-	new = nfs_create_request(ctx, page, NULL, 0, len);
+	new = nfs_create_request(ctx, page, 0, len);
 	if (IS_ERR(new)) {
 		unlock_page(page);
 		return PTR_ERR(new);
@@ -130,7 +137,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 			     &nfs_async_read_completion_ops);
 	if (!nfs_pageio_add_request(&pgio, new)) {
 		nfs_list_remove_request(new);
-		nfs_readpage_release(new);
+		nfs_readpage_release(new, pgio.pg_error);
 	}
 	nfs_pageio_complete(&pgio);
 
@@ -152,6 +159,7 @@ static void nfs_page_group_set_uptodate(struct nfs_page *req)
 static void nfs_read_completion(struct nfs_pgio_header *hdr)
 {
 	unsigned long bytes = 0;
+	int error;
 
 	if (test_bit(NFS_IOHDR_REDO, &hdr->flags))
 		goto out;
@@ -178,14 +186,19 @@ static void nfs_read_completion(struct nfs_pgio_header *hdr)
 				zero_user_segment(page, start, end);
 			}
 		}
+		error = 0;
 		bytes += req->wb_bytes;
 		if (test_bit(NFS_IOHDR_ERROR, &hdr->flags)) {
 			if (bytes <= hdr->good_bytes)
 				nfs_page_group_set_uptodate(req);
+			else {
+				error = hdr->error;
+				xchg(&nfs_req_openctx(req)->error, error);
+			}
 		} else
 			nfs_page_group_set_uptodate(req);
 		nfs_list_remove_request(req);
-		nfs_readpage_release(req);
+		nfs_readpage_release(req, error);
 	}
 out:
 	hdr->release(hdr);
@@ -201,18 +214,18 @@ static void nfs_initiate_read(struct nfs_pgio_header *hdr,
 
 	task_setup_data->flags |= swap_flags;
 	rpc_ops->read_setup(hdr, msg);
-	trace_nfs_initiate_read(inode, hdr->io_start, hdr->good_bytes);
+	trace_nfs_initiate_read(hdr);
 }
 
 static void
-nfs_async_read_error(struct list_head *head)
+nfs_async_read_error(struct list_head *head, int error)
 {
 	struct nfs_page	*req;
 
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		nfs_readpage_release(req);
+		nfs_readpage_release(req, error);
 	}
 }
 
@@ -234,11 +247,10 @@ static int nfs_readpage_done(struct rpc_task *task,
 		return status;
 
 	nfs_add_stats(inode, NFSIOS_SERVERREADBYTES, hdr->res.count);
-	trace_nfs_readpage_done(inode, task->tk_status,
-				hdr->args.offset, hdr->res.eof);
+	trace_nfs_readpage_done(task, hdr);
 
 	if (task->tk_status == -ESTALE) {
-		set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
+		nfs_set_inode_stale(inode);
 		nfs_mark_for_revalidate(inode);
 	}
 	return 0;
@@ -252,6 +264,8 @@ static void nfs_readpage_retry(struct rpc_task *task,
 
 	/* This is a short read! */
 	nfs_inc_stats(hdr->inode, NFSIOS_SHORTREAD);
+	trace_nfs_readpage_short(task, hdr);
+
 	/* Has the server at least made some progress? */
 	if (resp->count == 0) {
 		nfs_set_pgio_error(hdr, -EIO, argp->offset);
@@ -269,6 +283,8 @@ static void nfs_readpage_retry(struct rpc_task *task,
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
 	argp->count -= resp->count;
+	resp->count = 0;
+	resp->eof = 0;
 	rpc_restart_call_prepare(task);
 }
 
@@ -276,16 +292,14 @@ static void nfs_readpage_result(struct rpc_task *task,
 				struct nfs_pgio_header *hdr)
 {
 	if (hdr->res.eof) {
-		loff_t bound;
+		loff_t pos = hdr->args.offset + hdr->res.count;
+		unsigned int new = pos - hdr->io_start;
 
-		bound = hdr->args.offset + hdr->res.count;
-		spin_lock(&hdr->lock);
-		if (bound < hdr->io_start + hdr->good_bytes) {
+		if (hdr->good_bytes > new) {
+			hdr->good_bytes = new;
 			set_bit(NFS_IOHDR_EOF, &hdr->flags);
 			clear_bit(NFS_IOHDR_ERROR, &hdr->flags);
-			hdr->good_bytes = bound - hdr->io_start;
 		}
-		spin_unlock(&hdr->lock);
 	} else if (hdr->res.count < hdr->args.count)
 		nfs_readpage_retry(task, hdr);
 }
@@ -338,8 +352,13 @@ int nfs_readpage(struct file *file, struct page *page)
 			goto out;
 	}
 
+	xchg(&ctx->error, 0);
 	error = nfs_readpage_async(ctx, inode, page);
-
+	if (!error) {
+		error = wait_on_page_locked_killable(page);
+		if (!PageUptodate(page) && !error)
+			error = xchg(&ctx->error, 0);
+	}
 out:
 	put_nfs_open_context(ctx);
 	return error;
@@ -365,7 +384,7 @@ readpage_async_filler(void *data, struct page *page)
 	if (len == 0)
 		return nfs_return_empty_page(page);
 
-	new = nfs_create_request(desc->ctx, page, NULL, 0, len);
+	new = nfs_create_request(desc->ctx, page, 0, len);
 	if (IS_ERR(new))
 		goto out_error;
 
@@ -373,8 +392,8 @@ readpage_async_filler(void *data, struct page *page)
 		zero_user_segment(page, len, PAGE_SIZE);
 	if (!nfs_pageio_add_request(desc->pgio, new)) {
 		nfs_list_remove_request(new);
-		nfs_readpage_release(new);
 		error = desc->pgio->pg_error;
+		nfs_readpage_release(new, error);
 		goto out;
 	}
 	return 0;

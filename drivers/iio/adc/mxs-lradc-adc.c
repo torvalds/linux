@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale MXS LRADC ADC driver
  *
@@ -7,16 +8,6 @@
  * Authors:
  *  Marek Vasut <marex@denx.de>
  *  Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/completion.h>
@@ -465,6 +456,8 @@ static int mxs_lradc_adc_trigger_init(struct iio_dev *iio)
 
 	trig = devm_iio_trigger_alloc(&iio->dev, "%s-dev%i", iio->name,
 				      iio->id);
+	if (!trig)
+		return -ENOMEM;
 
 	trig->dev.parent = adc->dev;
 	iio_trigger_set_drvdata(trig, iio);
@@ -575,8 +568,6 @@ static bool mxs_lradc_adc_validate_scan_mask(struct iio_dev *iio,
 
 static const struct iio_buffer_setup_ops mxs_lradc_adc_buffer_ops = {
 	.preenable = &mxs_lradc_adc_buffer_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &mxs_lradc_adc_buffer_postdisable,
 	.validate_scan_mask = &mxs_lradc_adc_validate_scan_mask,
 };
@@ -729,7 +720,6 @@ static int mxs_lradc_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, iio);
 
 	iio->name = pdev->name;
-	iio->dev.parent = dev;
 	iio->dev.of_node = dev->parent->of_node;
 	iio->info = &mxs_lradc_adc_iio_info;
 	iio->modes = INDIO_DIRECT_MODE;

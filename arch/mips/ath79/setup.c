@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Atheros AR71XX/AR724X/AR913X specific setup
  *
@@ -6,33 +7,28 @@
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
  *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/io.h>
+#include <linux/memblock.h>
 #include <linux/err.h>
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
+#include <linux/irqchip.h>
 
 #include <asm/bootinfo.h>
 #include <asm/idle.h>
 #include <asm/time.h>		/* for mips_hpt_frequency */
 #include <asm/reboot.h>		/* for _machine_{restart,halt} */
-#include <asm/mips_machine.h>
 #include <asm/prom.h>
 #include <asm/fw/fw.h>
 
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include "common.h"
-#include "dev-common.h"
-#include "machtypes.h"
 
 #define ATH79_SYS_TYPE_LEN	64
 
@@ -156,8 +152,7 @@ static void __init ath79_detect_sys_type(void)
 	case REV_ID_MAJOR_QCA9533_V2:
 		ver = 2;
 		ath79_soc_rev = 2;
-		/* drop through */
-
+		fallthrough;
 	case REV_ID_MAJOR_QCA9533:
 		ath79_soc = ATH79_SOC_QCA9533;
 		chip = "9533";
@@ -211,12 +206,6 @@ const char *get_system_type(void)
 	return ath79_sys_type;
 }
 
-int get_c0_perfcount_int(void)
-{
-	return ATH79_MISC_IRQ(5);
-}
-EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
-
 unsigned int get_c0_compare_int(void)
 {
 	return CP0_LEGACY_COMPARE_IRQ;
@@ -235,25 +224,21 @@ void __init plat_mem_setup(void)
 	else if (fw_passed_dtb)
 		__dt_setup_arch((void *)KSEG0ADDR(fw_passed_dtb));
 
-	if (mips_machtype != ATH79_MACH_GENERIC_OF) {
-		ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
-						   AR71XX_RESET_SIZE);
-		ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
-						 AR71XX_PLL_SIZE);
-		ath79_detect_sys_type();
-		ath79_ddr_ctrl_init();
+	ath79_reset_base = ioremap(AR71XX_RESET_BASE,
+					   AR71XX_RESET_SIZE);
+	ath79_pll_base = ioremap(AR71XX_PLL_BASE,
+					 AR71XX_PLL_SIZE);
+	ath79_detect_sys_type();
+	ath79_ddr_ctrl_init();
 
-		detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
+	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 
-		/* OF machines should use the reset driver */
-		_machine_restart = ath79_restart;
-	}
-
+	_machine_restart = ath79_restart;
 	_machine_halt = ath79_halt;
 	pm_power_off = ath79_halt;
 }
 
-static void __init ath79_of_plat_time_init(void)
+void __init plat_time_init(void)
 {
 	struct device_node *np;
 	struct clk *clk;
@@ -283,61 +268,12 @@ static void __init ath79_of_plat_time_init(void)
 	clk_put(clk);
 }
 
-void __init plat_time_init(void)
+void __init arch_init_irq(void)
 {
-	unsigned long cpu_clk_rate;
-	unsigned long ahb_clk_rate;
-	unsigned long ddr_clk_rate;
-	unsigned long ref_clk_rate;
-
-	if (IS_ENABLED(CONFIG_OF) && mips_machtype == ATH79_MACH_GENERIC_OF) {
-		ath79_of_plat_time_init();
-		return;
-	}
-
-	ath79_clocks_init();
-
-	cpu_clk_rate = ath79_get_sys_clk_rate("cpu");
-	ahb_clk_rate = ath79_get_sys_clk_rate("ahb");
-	ddr_clk_rate = ath79_get_sys_clk_rate("ddr");
-	ref_clk_rate = ath79_get_sys_clk_rate("ref");
-
-	pr_info("Clocks: CPU:%lu.%03luMHz, DDR:%lu.%03luMHz, AHB:%lu.%03luMHz, Ref:%lu.%03luMHz\n",
-		cpu_clk_rate / 1000000, (cpu_clk_rate / 1000) % 1000,
-		ddr_clk_rate / 1000000, (ddr_clk_rate / 1000) % 1000,
-		ahb_clk_rate / 1000000, (ahb_clk_rate / 1000) % 1000,
-		ref_clk_rate / 1000000, (ref_clk_rate / 1000) % 1000);
-
-	mips_hpt_frequency = cpu_clk_rate / 2;
+	irqchip_init();
 }
-
-static int __init ath79_setup(void)
-{
-	if  (mips_machtype == ATH79_MACH_GENERIC_OF)
-		return 0;
-
-	ath79_gpio_init();
-	ath79_register_uart();
-	ath79_register_wdt();
-
-	mips_machine_setup();
-
-	return 0;
-}
-
-arch_initcall(ath79_setup);
 
 void __init device_tree_init(void)
 {
 	unflatten_and_copy_device_tree();
 }
-
-MIPS_MACHINE(ATH79_MACH_GENERIC,
-	     "Generic",
-	     "Generic AR71XX/AR724X/AR913X based board",
-	     NULL);
-
-MIPS_MACHINE(ATH79_MACH_GENERIC_OF,
-	     "DTB",
-	     "Generic AR71XX/AR724X/AR913X based board (DT)",
-	     NULL);

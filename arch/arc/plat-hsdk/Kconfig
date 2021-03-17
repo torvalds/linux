@@ -1,14 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) 2017 Synopsys, Inc. (www.synopsys.com)
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
 #
 
 menuconfig ARC_SOC_HSDK
 	bool "ARC HS Development Kit SOC"
 	depends on ISA_ARCV2
 	select ARC_HAS_ACCL_REGS
+	select ARC_IRQ_NO_AUTOSAVE
 	select CLK_HSDK
+	select RESET_CONTROLLER
 	select RESET_HSDK
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI

@@ -9,6 +9,7 @@ Required properties:
 	"nxp,pca9550"
 	"nxp,pca9551"
 	"nxp,pca9552"
+	"ibm,pca9552"
 	"nxp,pca9553"
 - #address-cells: must be 1
 - #size-cells: must be 0
@@ -26,9 +27,9 @@ LED sub-node properties:
 		from 0 to 15 for the pca9552
 		from 0 to  3 for the pca9553
 - type: (optional) either
-	PCA9532_TYPE_NONE
-	PCA9532_TYPE_LED
-	PCA9532_TYPE_GPIO
+	PCA955X_TYPE_NONE
+	PCA955X_TYPE_LED
+	PCA955X_TYPE_GPIO
 	see dt-bindings/leds/leds-pca955x.h (default to LED)
 - label : (optional)
 	see Documentation/devicetree/bindings/leds/common.txt

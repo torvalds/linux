@@ -45,6 +45,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/crc32c.h>
+#include <linux/net/intel/i40e_client.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
@@ -57,7 +58,6 @@
 #include "i40iw_d.h"
 #include "i40iw_hmc.h"
 
-#include <i40e_client.h>
 #include "i40iw_type.h"
 #include "i40iw_p.h"
 #include <rdma/i40iw-abi.h>
@@ -67,7 +67,7 @@
 #include "i40iw_user.h"
 #include "i40iw_puda.h"
 
-#define I40IW_FW_VERSION  2
+#define I40IW_FW_VER_DEFAULT 2
 #define I40IW_HW_VERSION  2
 
 #define I40IW_ARP_ADD     1
@@ -326,6 +326,26 @@ struct i40iw_handler {
 };
 
 /**
+ * i40iw_fw_major_ver - get firmware major version
+ * @dev: iwarp device
+ **/
+static inline u64 i40iw_fw_major_ver(struct i40iw_sc_dev *dev)
+{
+	return RS_64(dev->feature_info[I40IW_FEATURE_FW_INFO],
+		     I40IW_FW_VER_MAJOR);
+}
+
+/**
+ * i40iw_fw_minor_ver - get firmware minor version
+ * @dev: iwarp device
+ **/
+static inline u64 i40iw_fw_minor_ver(struct i40iw_sc_dev *dev)
+{
+	return RS_64(dev->feature_info[I40IW_FEATURE_FW_INFO],
+		     I40IW_FW_VER_MINOR);
+}
+
+/**
  * to_iwdev - get device
  * @ibdev: ib device
  **/
@@ -362,15 +382,6 @@ static inline struct i40iw_mr *to_iwmr(struct ib_mr *ibmr)
 }
 
 /**
- * to_iwmr_from_ibfmr - get device memory region
- * @ibfmr: ib fmr
- **/
-static inline struct i40iw_mr *to_iwmr_from_ibfmr(struct ib_fmr *ibfmr)
-{
-	return container_of(ibfmr, struct i40iw_mr, ibfmr);
-}
-
-/**
  * to_iwmw - get device memory window
  * @ibmw: ib memory window
  **/
@@ -398,8 +409,8 @@ static inline struct i40iw_qp *to_iwqp(struct ib_qp *ibqp)
 }
 
 /* i40iw.c */
-void i40iw_add_ref(struct ib_qp *);
-void i40iw_rem_ref(struct ib_qp *);
+void i40iw_qp_add_ref(struct ib_qp *ibqp);
+void i40iw_qp_rem_ref(struct ib_qp *ibqp);
 struct ib_qp *i40iw_get_qp(struct ib_device *, int);
 
 void i40iw_flush_wqes(struct i40iw_device *iwdev,
@@ -543,16 +554,15 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 					  bool wait);
 void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf);
 void i40iw_free_sqbuf(struct i40iw_sc_vsi *vsi, void *bufp);
-void i40iw_free_qp_resources(struct i40iw_device *iwdev,
-			     struct i40iw_qp *iwqp,
-			     u32 qp_num);
+void i40iw_free_qp_resources(struct i40iw_qp *iwqp);
+
 enum i40iw_status_code i40iw_obj_aligned_mem(struct i40iw_device *iwdev,
 					     struct i40iw_dma_mem *memptr,
 					     u32 size, u32 mask);
 
 void i40iw_request_reset(struct i40iw_device *iwdev);
 void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev);
-void i40iw_setup_cm_core(struct i40iw_device *iwdev);
+int i40iw_setup_cm_core(struct i40iw_device *iwdev);
 void i40iw_cleanup_cm_core(struct i40iw_cm_core *cm_core);
 void i40iw_process_ceq(struct i40iw_device *, struct i40iw_ceq *iwceq);
 void i40iw_process_aeq(struct i40iw_device *);

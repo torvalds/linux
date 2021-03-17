@@ -12,6 +12,9 @@
 #ifndef _UAPI_LINUX_RTC_H_
 #define _UAPI_LINUX_RTC_H_
 
+#include <linux/const.h>
+#include <linux/ioctl.h>
+
 /*
  * The struct used to pass data via the following ioctl. Similar to the
  * struct tm in <time.h>, but it needs to be here so that the kernel
@@ -92,7 +95,13 @@ struct rtc_pll_info {
 #define RTC_PLL_GET	_IOR('p', 0x11, struct rtc_pll_info)  /* Get PLL correction */
 #define RTC_PLL_SET	_IOW('p', 0x12, struct rtc_pll_info)  /* Set PLL correction */
 
-#define RTC_VL_READ	_IOR('p', 0x13, int)	/* Voltage low detector */
+#define RTC_VL_DATA_INVALID	_BITUL(0) /* Voltage too low, RTC data is invalid */
+#define RTC_VL_BACKUP_LOW	_BITUL(1) /* Backup voltage is low */
+#define RTC_VL_BACKUP_EMPTY	_BITUL(2) /* Backup empty or not present */
+#define RTC_VL_ACCURACY_LOW	_BITUL(3) /* Voltage is low, RTC accuracy is reduced */
+#define RTC_VL_BACKUP_SWITCH	_BITUL(4) /* Backup switchover happened */
+
+#define RTC_VL_READ	_IOR('p', 0x13, unsigned int)	/* Voltage low detection */
 #define RTC_VL_CLR	_IO('p', 0x14)		/* Clear voltage low information */
 
 /* interrupt flags */

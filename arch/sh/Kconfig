@@ -1,106 +1,86 @@
 # SPDX-License-Identifier: GPL-2.0
 config SUPERH
 	def_bool y
-	select ARCH_HAS_PTE_SPECIAL
-	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-	select ARCH_MIGHT_HAVE_PC_PARPORT
-	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
-	select HAVE_PATA_PLATFORM
-	select CLKDEV_LOOKUP
-	select HAVE_IDE if HAS_IOPORT_MAP
-	select HAVE_MEMBLOCK
-	select HAVE_MEMBLOCK_NODE_MAP
-	select NO_BOOTMEM
-	select ARCH_DISCARD_MEMBLOCK
-	select HAVE_OPROFILE
-	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_ARCH_TRACEHOOK
-	select HAVE_PERF_EVENTS
-	select HAVE_DEBUG_BUGVERBOSE
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if (GUSA_RB || CPU_SH4A)
+	select ARCH_HAS_BINFMT_FLAT if !MMU
+	select ARCH_HAS_GIGANTIC_PAGE
 	select ARCH_HAS_GCOV_PROFILE_ALL
-	select PERF_USE_VMALLOC
-	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_KERNEL_GZIP
-	select CPU_NO_EFFICIENT_FFS
-	select HAVE_KERNEL_BZIP2
-	select HAVE_KERNEL_LZMA
-	select HAVE_KERNEL_XZ
-	select HAVE_KERNEL_LZO
-	select HAVE_UID16
+	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HIBERNATION_POSSIBLE if MMU
+	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_REGS_AND_STACK_ACCESS_API
-	select MAY_HAVE_SPARSE_IRQ
-	select IRQ_FORCED_THREADING
-	select RTC_LIB
+	select CLKDEV_LOOKUP
+	select CPU_NO_EFFICIENT_FFS
+	select DMA_DECLARE_COHERENT
 	select GENERIC_ATOMIC64
-	select GENERIC_IRQ_SHOW
-	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE if SH_SH03 || SH_DREAMCAST
+	select GENERIC_IDLE_POLL_SETUP
+	select GENERIC_IRQ_SHOW
+	select GENERIC_PCI_IOMAP if PCI
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
-	select HAVE_MOD_ARCH_SPECIFIC if DWARF_UNWINDER
-	select MODULES_USE_ELF_RELA
-	select OLD_SIGSUSPEND
-	select OLD_SIGACTION
+	select GENERIC_SMP_IDLE_THREAD
+	select GUP_GET_PTE_LOW_HIGH if X2TLB
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FAST_GUP if MMU
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_HW_BREAKPOINT
+	select HAVE_IDE if HAS_IOPORT_MAP
+	select HAVE_IOREMAP_PROT if MMU && !X2TLB
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
+	select HAVE_MIXED_BREAKPOINTS_REGS
+	select HAVE_MOD_ARCH_SPECIFIC if DWARF_UNWINDER
 	select HAVE_NMI
+	select HAVE_OPROFILE
+	select HAVE_PATA_PLATFORM
+	select HAVE_PERF_EVENTS
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_UID16
+	select HAVE_STACKPROTECTOR
+	select HAVE_SYSCALL_TRACEPOINTS
+	select IRQ_FORCED_THREADING
+	select MAY_HAVE_SPARSE_IRQ
+	select MODULES_USE_ELF_RELA
 	select NEED_SG_DMA_LENGTH
-
+	select NO_DMA if !MMU && !DMA_COHERENT
+	select NO_GENERIC_PCI_IOPORT_MAP if PCI
+	select OLD_SIGACTION
+	select OLD_SIGSUSPEND
+	select PCI_DOMAINS if PCI
+	select PERF_EVENTS
+	select PERF_USE_VMALLOC
+	select RTC_LIB
+	select SET_FS
+	select SPARSE_IRQ
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
 	  gaming console.  The SuperH port has a home page at
 	  <http://www.linux-sh.org/>.
 
-config SUPERH32
-	def_bool "$(ARCH)" = "sh"
-	select HAVE_KPROBES
-	select HAVE_KRETPROBES
-	select HAVE_IOREMAP_PROT if MMU && !X2TLB
-	select HAVE_FUNCTION_TRACER
-	select HAVE_FTRACE_MCOUNT_RECORD
-	select HAVE_DYNAMIC_FTRACE
-	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
-	select ARCH_WANT_IPC_PARSE_VERSION
-	select HAVE_FUNCTION_GRAPH_TRACER
-	select HAVE_ARCH_KGDB
-	select HAVE_HW_BREAKPOINT
-	select HAVE_MIXED_BREAKPOINTS_REGS
-	select PERF_EVENTS
-	select ARCH_HIBERNATION_POSSIBLE if MMU
-	select SPARSE_IRQ
-	select HAVE_STACKPROTECTOR
-
-config SUPERH64
-	def_bool "$(ARCH)" = "sh64"
-	select HAVE_EXIT_THREAD
-	select KALLSYMS
-
-config ARCH_DEFCONFIG
-	string
-	default "arch/sh/configs/shx3_defconfig" if SUPERH32
-	default "arch/sh/configs/cayman_defconfig" if SUPERH64
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-
 config GENERIC_BUG
 	def_bool y
-	depends on BUG && SUPERH32
-
-config GENERIC_CSUM
-	def_bool y
-	depends on SUPERH64
+	depends on BUG
 
 config GENERIC_HWEIGHT
 	def_bool y
@@ -110,7 +90,7 @@ config GENERIC_CALIBRATE_DELAY
 
 config GENERIC_LOCKBREAK
 	def_bool y
-	depends on SMP && PREEMPT
+	depends on SMP && PREEMPTION
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool n
@@ -131,9 +111,6 @@ config SYS_SUPPORTS_SMP
 config SYS_SUPPORTS_NUMA
 	bool
 
-config SYS_SUPPORTS_PCI
-	bool
-
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -148,8 +125,8 @@ config ARCH_HAS_ILOG2_U64
 
 config NO_IOPORT_MAP
 	def_bool !PCI
-	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV && !SH_SHMIN && \
-		   !SH_HP6XX && !SH_SOLUTION_ENGINE
+	depends on !SH_SH4202_MICRODEV && !SH_SHMIN && !SH_HP6XX && \
+		   !SH_SOLUTION_ENGINE
 
 config IO_TRAPPED
 	bool
@@ -158,13 +135,13 @@ config SWAP_IO_SPACE
 	bool
 
 config DMA_COHERENT
-	select DMA_DIRECT_OPS
 	bool
 
 config DMA_NONCOHERENT
-	def_bool !DMA_COHERENT
+	def_bool !NO_DMA && !DMA_COHERENT
+	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select DMA_NONCOHERENT_OPS
+	select DMA_DIRECT_REMAP
 
 config PGTABLE_LEVELS
 	default 3 if X2TLB
@@ -215,12 +192,6 @@ config CPU_SH4AL_DSP
 	select CPU_SH4A
 	select CPU_HAS_DSP
 
-config CPU_SH5
-	bool
-	select CPU_HAS_FPU
-	select SYS_SUPPORTS_SH_TMU
-	select SYS_SUPPORTS_HUGETLBFS if MMU
-
 config CPU_SHX2
 	bool
 
@@ -239,8 +210,6 @@ config CPU_HAS_PMU
        depends on CPU_SH4 || CPU_SH4A
        default y
        bool
-
-if SUPERH32
 
 choice
 	prompt "Processor sub-type selection"
@@ -530,27 +499,6 @@ config CPU_SUBTYPE_SH7366
 
 endchoice
 
-endif
-
-if SUPERH64
-
-choice
-	prompt "Processor sub-type selection"
-
-# SH-5 Processor Support
-
-config CPU_SUBTYPE_SH5_101
-	bool "Support SH5-101 processor"
-	select CPU_SH5
-
-config CPU_SUBTYPE_SH5_103
-	bool "Support SH5-103 processor"
-	select CPU_SH5
-
-endchoice
-
-endif
-
 source "arch/sh/mm/Kconfig"
  
 source "arch/sh/Kconfig.cpu"
@@ -600,11 +548,11 @@ endmenu
 
 menu "Kernel features"
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on SUPERH32 && MMU
+	depends on MMU
 	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
@@ -622,7 +570,7 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on SUPERH32 && BROKEN_ON_SMP
+	depends on BROKEN_ON_SMP
 	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
@@ -632,11 +580,11 @@ config CRASH_DUMP
 	  to a memory address not used by the main kernel using
 	  PHYSICAL_START.
 
-	  For more details see Documentation/kdump/kdump.txt
+	  For more details see Documentation/admin-guide/kdump/kdump.rst
 
 config KEXEC_JUMP
 	bool "kexec jump (EXPERIMENTAL)"
-	depends on SUPERH32 && KEXEC && HIBERNATION
+	depends on KEXEC && HIBERNATION
 	help
 	  Jump between original kernel and kexeced kernel and invoke
 	  code via KEXEC
@@ -644,7 +592,7 @@ config KEXEC_JUMP
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EXPERT || CRASH_DUMP)
 	default MEMORY_START
-	---help---
+	help
 	  This gives the physical address where the kernel is loaded
 	  and is ordinarily the same as MEMORY_START.
 
@@ -652,26 +600,10 @@ config PHYSICAL_START
 	  where the fail safe kernel needs to run at a different address
 	  than the panic-ed kernel.
 
-config SECCOMP
-	bool "Enable seccomp to safely compute untrusted bytecode"
-	depends on PROC_FS
-	help
-	  This kernel feature is useful for number crunching applications
-	  that may need to compute untrusted bytecode during their
-	  execution. By using pipes or other transports made available to
-	  the process as file descriptors supporting the read/write
-	  syscalls, it's possible to isolate those applications in
-	  their own address space using seccomp. Once seccomp is
-	  enabled via prctl, it cannot be disabled and the task is only
-	  allowed to execute a few safe syscalls defined by each seccomp
-	  mode.
-
-	  If unsure, say N.
-
 config SMP
 	bool "Symmetric multi-processing support"
 	depends on SYS_SUPPORTS_SMP
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.
@@ -685,8 +617,8 @@ config SMP
 	  People using multiprocessor machines who say Y here should also say
 	  Y to "Enhanced Real Time Clock Support", below.
 
-	  See also <file:Documentation/lockup-watchdogs.txt> and the SMP-HOWTO
-	  available at <http://www.tldp.org/docs.html#howto>.
+	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
+	  available at <https://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 
@@ -713,7 +645,7 @@ config HOTPLUG_CPU
 
 config GUSA
 	def_bool y
-	depends on !SMP && SUPERH32
+	depends on !SMP
 	help
 	  This enables support for gUSA (general UserSpace Atomicity).
 	  This is the default implementation for both UP and non-ll/sc
@@ -782,7 +714,6 @@ config ZERO_PAGE_OFFSET
 config BOOT_LINK_OFFSET
 	hex
 	default "0x00210000" if SH_SHMIN
-	default "0x00400000" if SH_CAYMAN
 	default "0x00810000" if SH_7780_SOLUTION_ENGINE
 	default "0x009e0000" if SH_TITAN
 	default "0x01800000" if SH_SDK7780
@@ -857,24 +788,6 @@ config MAPLE
 	 probably want to say 'Y' here, unless you are only using the
 	 Dreamcast with a serial line terminal or a remote network
 	 connection.
-
-config PCI
-	bool "PCI support"
-	depends on SYS_SUPPORTS_PCI
-	select PCI_DOMAINS
-	select GENERIC_PCI_IOMAP
-	select NO_GENERIC_PCI_IOPORT_MAP
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. If you have PCI, say Y, otherwise N.
-
-config PCI_DOMAINS
-	bool
-
-source "drivers/pci/Kconfig"
-
-source "drivers/pcmcia/Kconfig"
 
 endmenu
 

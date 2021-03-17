@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  * Copyright (c) 2013 Eric Leblond <eric@regit.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
@@ -33,7 +30,8 @@ int nft_reject_validate(const struct nft_ctx *ctx,
 	return nft_chain_validate_hooks(ctx->chain,
 					(1 << NF_INET_LOCAL_IN) |
 					(1 << NF_INET_FORWARD) |
-					(1 << NF_INET_LOCAL_OUT));
+					(1 << NF_INET_LOCAL_OUT) |
+					(1 << NF_INET_PRE_ROUTING));
 }
 EXPORT_SYMBOL_GPL(nft_reject_validate);
 
@@ -94,7 +92,8 @@ static u8 icmp_code_v4[NFT_REJECT_ICMPX_MAX + 1] = {
 
 int nft_reject_icmp_code(u8 code)
 {
-	BUG_ON(code > NFT_REJECT_ICMPX_MAX);
+	if (WARN_ON_ONCE(code > NFT_REJECT_ICMPX_MAX))
+		return ICMP_NET_UNREACH;
 
 	return icmp_code_v4[code];
 }
@@ -111,7 +110,8 @@ static u8 icmp_code_v6[NFT_REJECT_ICMPX_MAX + 1] = {
 
 int nft_reject_icmpv6_code(u8 code)
 {
-	BUG_ON(code > NFT_REJECT_ICMPX_MAX);
+	if (WARN_ON_ONCE(code > NFT_REJECT_ICMPX_MAX))
+		return ICMPV6_NOROUTE;
 
 	return icmp_code_v6[code];
 }
@@ -120,3 +120,4 @@ EXPORT_SYMBOL_GPL(nft_reject_icmpv6_code);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
+MODULE_DESCRIPTION("Netfilter x_tables over nftables module");

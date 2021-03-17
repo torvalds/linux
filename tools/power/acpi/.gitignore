@@ -1,4 +1,5 @@
-acpidbg
-acpidump
-ec
-include
+# SPDX-License-Identifier: GPL-2.0-only
+/acpidbg
+/acpidump
+/ec
+/include/

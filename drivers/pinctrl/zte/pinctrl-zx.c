@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Sanechips Technology Co., Ltd.
  * Copyright 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>
@@ -97,7 +94,7 @@ static int zx_set_mux(struct pinctrl_dev *pctldev, unsigned int func_selector,
 	if (data->aon_pin) {
 		/*
 		 * It's an AON pin, whose mux register offset and bit position
-		 * can be caluculated from pin number.  Each register covers 16
+		 * can be calculated from pin number.  Each register covers 16
 		 * pins, and each pin occupies 2 bits.
 		 */
 		u16 aoffset = pindesc->number / 16 * 4;
@@ -390,7 +387,6 @@ int zx_pinctrl_init(struct platform_device *pdev,
 	struct pinctrl_desc *pctldesc;
 	struct zx_pinctrl *zpctl;
 	struct device_node *np;
-	struct resource *res;
 	int ret;
 
 	zpctl = devm_kzalloc(&pdev->dev, sizeof(*zpctl), GFP_KERNEL);
@@ -399,8 +395,7 @@ int zx_pinctrl_init(struct platform_device *pdev,
 
 	spin_lock_init(&zpctl->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	zpctl->base = devm_ioremap_resource(&pdev->dev, res);
+	zpctl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(zpctl->base))
 		return PTR_ERR(zpctl->base);
 
@@ -411,6 +406,7 @@ int zx_pinctrl_init(struct platform_device *pdev,
 	}
 
 	zpctl->aux_base = of_iomap(np, 0);
+	of_node_put(np);
 	if (!zpctl->aux_base)
 		return -ENOMEM;
 

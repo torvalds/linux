@@ -47,7 +47,6 @@ static int tps68470_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	return !!(val & BIT(offset));
 }
 
-/* Return 0 if output, 1 if input */
 static int tps68470_gpio_get_direction(struct gpio_chip *gc,
 				       unsigned int offset)
 {
@@ -57,7 +56,7 @@ static int tps68470_gpio_get_direction(struct gpio_chip *gc,
 
 	/* rest are always outputs */
 	if (offset >= TPS68470_N_REGULAR_GPIO)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	ret = regmap_read(regmap, TPS68470_GPIO_CTL_REG_A(offset), &val);
 	if (ret) {
@@ -67,7 +66,8 @@ static int tps68470_gpio_get_direction(struct gpio_chip *gc,
 	}
 
 	val &= TPS68470_GPIO_MODE_MASK;
-	return val >= TPS68470_GPIO_MODE_OUT_CMOS ? 0 : 1;
+	return val >= TPS68470_GPIO_MODE_OUT_CMOS ? GPIO_LINE_DIRECTION_OUT :
+						    GPIO_LINE_DIRECTION_IN;
 }
 
 static void tps68470_gpio_set(struct gpio_chip *gc, unsigned int offset,

@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OMAP1 internal LCD controller
  *
  * Copyright (C) 2004 Nokia Corporation
  * Author: Imre Deak <imre.deak@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/module.h>
 #include <linux/device.h>
@@ -341,13 +328,13 @@ static int omap_lcdc_setup_plane(int plane, int channel_out,
 			lcdc.bpp = 12;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case OMAPFB_COLOR_YUV422:
 		if (lcdc.ext_mode) {
 			lcdc.bpp = 16;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	default:
 		/* FIXME: other BPPs.
 		 * bpp1: code  0,     size 256

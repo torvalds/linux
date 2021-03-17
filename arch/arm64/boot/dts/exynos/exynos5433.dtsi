@@ -18,10 +18,35 @@
 
 / {
 	compatible = "samsung,exynos5433";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	interrupt-parent = <&gic>;
+
+	arm_a53_pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	};
+
+	arm_a57_pmu {
+		compatible = "arm,cortex-a57-pmu";
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
+	};
+
+	xxti: clock {
+		/* XXTI */
+		compatible = "fixed-clock";
+		clock-output-names = "oscclk";
+		#clock-cells = <0>;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -29,7 +54,7 @@
 
 		cpu0: cpu@100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			enable-method = "psci";
 			reg = <0x100>;
 			clock-frequency = <1300000000>;
@@ -41,7 +66,7 @@
 
 		cpu1: cpu@101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			enable-method = "psci";
 			reg = <0x101>;
 			clock-frequency = <1300000000>;
@@ -51,7 +76,7 @@
 
 		cpu2: cpu@102 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			enable-method = "psci";
 			reg = <0x102>;
 			clock-frequency = <1300000000>;
@@ -61,7 +86,7 @@
 
 		cpu3: cpu@103 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			enable-method = "psci";
 			reg = <0x103>;
 			clock-frequency = <1300000000>;
@@ -71,7 +96,7 @@
 
 		cpu4: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			enable-method = "psci";
 			reg = <0x0>;
 			clock-frequency = <1900000000>;
@@ -83,7 +108,7 @@
 
 		cpu5: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			enable-method = "psci";
 			reg = <0x1>;
 			clock-frequency = <1900000000>;
@@ -93,7 +118,7 @@
 
 		cpu6: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			enable-method = "psci";
 			reg = <0x2>;
 			clock-frequency = <1900000000>;
@@ -103,7 +128,7 @@
 
 		cpu7: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			enable-method = "psci";
 			reg = <0x3>;
 			clock-frequency = <1900000000>;
@@ -231,39 +256,15 @@
 		cpu_on = <0xC4000003>;
 	};
 
-	soc: soc {
+	soc: soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges;
-
-		arm_a53_pmu {
-			compatible = "arm,cortex-a53-pmu", "arm,armv8-pmuv3";
-			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
-		};
-
-		arm_a57_pmu {
-			compatible = "arm,cortex-a57-pmu", "arm,armv8-pmuv3";
-			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-affinity = <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
-		};
+		ranges = <0x0 0x0 0x0 0x18000000>;
 
 		chipid@10000000 {
 			compatible = "samsung,exynos4210-chipid";
 			reg = <0x10000000 0x100>;
-		};
-
-		xxti: xxti {
-			compatible = "fixed-clock";
-			clock-output-names = "oscclk";
-			#clock-cells = <0>;
 		};
 
 		cmu_top: clock-controller@10030000 {
@@ -544,6 +545,30 @@
 			power-domains = <&pd_cam1>;
 		};
 
+		cmu_imem: clock-controller@11060000 {
+			compatible = "samsung,exynos5433-cmu-imem";
+			reg = <0x11060000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk",
+				"aclk_imem_sssx_266",
+				"aclk_imem_266",
+				"aclk_imem_200";
+			clocks = <&xxti>,
+				<&cmu_top CLK_DIV_ACLK_IMEM_SSSX_266>,
+				<&cmu_top CLK_DIV_ACLK_IMEM_266>,
+				<&cmu_top CLK_DIV_ACLK_IMEM_200>;
+		};
+
+		slim_sss: slim-sss@11140000 {
+			compatible = "samsung,exynos5433-slim-sss";
+			reg = <0x11140000 0x1000>;
+			interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_imem CLK_ACLK_SLIMSSS>,
+				 <&cmu_imem CLK_PCLK_SLIMSSS>;
+		};
+
 		pd_gscl: power-domain@105c4000 {
 			compatible = "samsung,exynos5433-pd";
 			reg = <0x105c4000 0x20>;
@@ -678,7 +703,7 @@
 			status = "disabled";
 		};
 
-		mct@101c0000 {
+		timer@101c0000 {
 			compatible = "samsung,exynos4210-mct";
 			reg = <0x101c0000 0x800>;
 			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
@@ -833,12 +858,13 @@
 				<&cmu_disp CLK_ACLK_XIU_DECON1X>,
 				<&cmu_disp CLK_PCLK_SMMU_DECON1X>,
 				<&cmu_disp CLK_SCLK_DECON_VCLK>,
-				<&cmu_disp CLK_SCLK_DECON_ECLK>;
+				<&cmu_disp CLK_SCLK_DECON_ECLK>,
+				<&cmu_disp CLK_SCLK_DSD>;
 			clock-names = "pclk", "aclk_decon", "aclk_smmu_decon0x",
 				"aclk_xiu_decon0x", "pclk_smmu_decon0x",
 				"aclk_smmu_decon1x", "aclk_xiu_decon1x",
 				"pclk_smmu_decon1x", "sclk_decon_vclk",
-				"sclk_decon_eclk";
+				"sclk_decon_eclk", "dsd";
 			power-domains = <&pd_disp>;
 			interrupt-names = "fifo", "vsync", "lcd_sys";
 			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
@@ -875,12 +901,13 @@
 				 <&cmu_disp CLK_ACLK_XIU_TV1X>,
 				 <&cmu_disp CLK_PCLK_SMMU_TV1X>,
 				 <&cmu_disp CLK_SCLK_DECON_TV_VCLK>,
-				 <&cmu_disp CLK_SCLK_DECON_TV_ECLK>;
+				 <&cmu_disp CLK_SCLK_DECON_TV_ECLK>,
+				 <&cmu_disp CLK_SCLK_DSD>;
 			clock-names = "pclk", "aclk_decon", "aclk_smmu_decon0x",
 				      "aclk_xiu_decon0x", "pclk_smmu_decon0x",
 				      "aclk_smmu_decon1x", "aclk_xiu_decon1x",
 				      "pclk_smmu_decon1x", "sclk_decon_vclk",
-				      "sclk_decon_eclk";
+				      "sclk_decon_eclk", "dsd";
 			samsung,disp-sysreg = <&syscon_disp>;
 			power-domains = <&pd_disp>;
 			interrupt-names = "fifo", "vsync", "lcd_sys";
@@ -988,17 +1015,17 @@
 		};
 
 		syscon_disp: syscon@13b80000 {
-			compatible = "syscon";
+			compatible = "samsung,exynos5433-sysreg", "syscon";
 			reg = <0x13b80000 0x1010>;
 		};
 
 		syscon_cam0: syscon@120f0000 {
-			compatible = "syscon";
+			compatible = "samsung,exynos5433-sysreg", "syscon";
 			reg = <0x120f0000 0x1020>;
 		};
 
 		syscon_cam1: syscon@145f0000 {
-			compatible = "syscon";
+			compatible = "samsung,exynos5433-sysreg", "syscon";
 			reg = <0x145f0000 0x1038>;
 		};
 
@@ -1007,11 +1034,12 @@
 			reg = <0x13c00000 0x1000>;
 			interrupts = <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "pclk", "aclk", "aclk_xiu",
-				      "aclk_gsclbend";
+				      "aclk_gsclbend", "gsd";
 			clocks = <&cmu_gscl CLK_PCLK_GSCL0>,
 				 <&cmu_gscl CLK_ACLK_GSCL0>,
 				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
-				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
+				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>,
+				 <&cmu_gscl CLK_ACLK_GSD>;
 			iommus = <&sysmmu_gscl0>;
 			power-domains = <&pd_gscl>;
 		};
@@ -1021,11 +1049,12 @@
 			reg = <0x13c10000 0x1000>;
 			interrupts = <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "pclk", "aclk", "aclk_xiu",
-				      "aclk_gsclbend";
+				      "aclk_gsclbend", "gsd";
 			clocks = <&cmu_gscl CLK_PCLK_GSCL1>,
 				 <&cmu_gscl CLK_ACLK_GSCL1>,
 				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
-				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
+				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>,
+				 <&cmu_gscl CLK_ACLK_GSD>;
 			iommus = <&sysmmu_gscl1>;
 			power-domains = <&pd_gscl>;
 		};
@@ -1035,13 +1064,65 @@
 			reg = <0x13c20000 0x1000>;
 			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "pclk", "aclk", "aclk_xiu",
-				      "aclk_gsclbend";
+				      "aclk_gsclbend", "gsd";
 			clocks = <&cmu_gscl CLK_PCLK_GSCL2>,
 				 <&cmu_gscl CLK_ACLK_GSCL2>,
 				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
-				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
+				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>,
+				 <&cmu_gscl CLK_ACLK_GSD>;
 			iommus = <&sysmmu_gscl2>;
 			power-domains = <&pd_gscl>;
+		};
+
+		gpu: gpu@14ac0000 {
+			compatible = "samsung,exynos5433-mali", "arm,mali-t760";
+			reg = <0x14ac0000 0x5000>;
+			interrupts = <GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 283 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "job", "mmu", "gpu";
+			clocks = <&cmu_g3d CLK_ACLK_G3D>;
+			clock-names = "core";
+			power-domains = <&pd_g3d>;
+			operating-points-v2 = <&gpu_opp_table>;
+			status = "disabled";
+
+			gpu_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-160000000 {
+					opp-hz = /bits/ 64 <160000000>;
+					opp-microvolt = <1000000>;
+				};
+				opp-267000000 {
+					opp-hz = /bits/ 64 <267000000>;
+					opp-microvolt = <1000000>;
+				};
+				opp-350000000 {
+					opp-hz = /bits/ 64 <350000000>;
+					opp-microvolt = <1025000>;
+				};
+				opp-420000000 {
+					opp-hz = /bits/ 64 <420000000>;
+					opp-microvolt = <1025000>;
+				};
+				opp-500000000 {
+					opp-hz = /bits/ 64 <500000000>;
+					opp-microvolt = <1075000>;
+				};
+				opp-550000000 {
+					opp-hz = /bits/ 64 <550000000>;
+					opp-microvolt = <1125000>;
+				};
+				opp-600000000 {
+					opp-hz = /bits/ 64 <600000000>;
+					opp-microvolt = <1150000>;
+				};
+				opp-700000000 {
+					opp-hz = /bits/ 64 <700000000>;
+					opp-microvolt = <1150000>;
+				};
+			};
 		};
 
 		scaler_0: scaler@15000000 {
@@ -1098,9 +1179,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a00000 0x1000>;
 			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_disp CLK_PCLK_SMMU_DECON0X>,
-				<&cmu_disp CLK_ACLK_SMMU_DECON0X>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_disp CLK_ACLK_SMMU_DECON0X>,
+				<&cmu_disp CLK_PCLK_SMMU_DECON0X>;
 			power-domains = <&pd_disp>;
 			#iommu-cells = <0>;
 		};
@@ -1109,9 +1190,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a10000 0x1000>;
 			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_disp CLK_PCLK_SMMU_DECON1X>,
-				<&cmu_disp CLK_ACLK_SMMU_DECON1X>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_disp CLK_ACLK_SMMU_DECON1X>,
+				<&cmu_disp CLK_PCLK_SMMU_DECON1X>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_disp>;
 		};
@@ -1120,9 +1201,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a20000 0x1000>;
 			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_disp CLK_PCLK_SMMU_TV0X>,
-				<&cmu_disp CLK_ACLK_SMMU_TV0X>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_disp CLK_ACLK_SMMU_TV0X>,
+				<&cmu_disp CLK_PCLK_SMMU_TV0X>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_disp>;
 		};
@@ -1131,9 +1212,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a30000 0x1000>;
 			interrupts = <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_disp CLK_PCLK_SMMU_TV1X>,
-				<&cmu_disp CLK_ACLK_SMMU_TV1X>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_disp CLK_ACLK_SMMU_TV1X>,
+				<&cmu_disp CLK_PCLK_SMMU_TV1X>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_disp>;
 		};
@@ -1175,9 +1256,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15040000 0x1000>;
 			interrupts = <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mscl CLK_PCLK_SMMU_M2MSCALER0>,
-				 <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER0>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER0>,
+				<&cmu_mscl CLK_PCLK_SMMU_M2MSCALER0>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mscl>;
 		};
@@ -1186,9 +1267,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15050000 0x1000>;
 			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mscl CLK_PCLK_SMMU_M2MSCALER1>,
-				 <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER1>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER1>,
+				<&cmu_mscl CLK_PCLK_SMMU_M2MSCALER1>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mscl>;
 		};
@@ -1197,9 +1278,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15060000 0x1000>;
 			interrupts = <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mscl CLK_PCLK_SMMU_JPEG>,
-				 <&cmu_mscl CLK_ACLK_SMMU_JPEG>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mscl CLK_ACLK_SMMU_JPEG>,
+				<&cmu_mscl CLK_PCLK_SMMU_JPEG>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mscl>;
 		};
@@ -1208,9 +1289,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15200000 0x1000>;
 			interrupts = <GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mfc CLK_PCLK_SMMU_MFC_0>,
-				 <&cmu_mfc CLK_ACLK_SMMU_MFC_0>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mfc CLK_ACLK_SMMU_MFC_0>,
+				<&cmu_mfc CLK_PCLK_SMMU_MFC_0>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mfc>;
 		};
@@ -1219,9 +1300,9 @@
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x15210000 0x1000>;
 			interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "pclk", "aclk";
-			clocks = <&cmu_mfc CLK_PCLK_SMMU_MFC_1>,
-				 <&cmu_mfc CLK_ACLK_SMMU_MFC_1>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_mfc CLK_ACLK_SMMU_MFC_1>,
+				<&cmu_mfc CLK_PCLK_SMMU_MFC_1>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_mfc>;
 		};
@@ -1371,7 +1452,7 @@
 		i2s1: i2s@14d60000 {
 			compatible = "samsung,exynos7-i2s";
 			reg = <0x14d60000 0x100>;
-			dmas = <&pdma0 31 &pdma0 30>;
+			dmas = <&pdma0 31>, <&pdma0 30>;
 			dma-names = "tx", "rx";
 			interrupts = <GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peric CLK_PCLK_I2S1>,
@@ -1379,10 +1460,6 @@
 				 <&cmu_peric CLK_SCLK_I2S1>;
 			clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 			#clock-cells = <1>;
-			samsung,supports-6ch;
-			samsung,supports-rstclr;
-			samsung,supports-tdm;
-			samsung,supports-low-rfs;
 			#sound-dai-cells = <1>;
 			status = "disabled";
 		};
@@ -1559,10 +1636,12 @@
 		};
 
 		usbdrd30: usbdrd {
-			compatible = "samsung,exynos5250-dwusb3";
+			compatible = "samsung,exynos5433-dwusb3";
 			clocks = <&cmu_fsys CLK_ACLK_USBDRD30>,
-				<&cmu_fsys CLK_SCLK_USBDRD30>;
-			clock-names = "usbdrd30", "usbdrd30_susp_clk";
+				<&cmu_fsys CLK_SCLK_USBDRD30>,
+				<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK>,
+				<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK>;
+			clock-names = "aclk", "susp_clk", "phyclk", "pipe_pclk";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -1570,6 +1649,10 @@
 
 			usbdrd_dwc3: dwc3@15400000 {
 				compatible = "snps,dwc3";
+				clocks = <&cmu_fsys CLK_SCLK_USBDRD30>,
+					<&cmu_fsys CLK_ACLK_USBDRD30>,
+					<&cmu_fsys CLK_SCLK_USBDRD30>;
+				clock-names = "ref", "bus_early", "suspend";
 				reg = <0x15400000 0x10000>;
 				interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usbdrd30_phy 0>, <&usbdrd30_phy 1>;
@@ -1606,10 +1689,12 @@
 		};
 
 		usbhost30: usbhost {
-			compatible = "samsung,exynos5250-dwusb3";
+			compatible = "samsung,exynos5433-dwusb3";
 			clocks = <&cmu_fsys CLK_ACLK_USBHOST30>,
-				<&cmu_fsys CLK_SCLK_USBHOST30>;
-			clock-names = "usbdrd30", "usbdrd30_susp_clk";
+				<&cmu_fsys CLK_SCLK_USBHOST30>,
+				<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK>,
+				<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK>;
+			clock-names = "aclk", "susp_clk", "phyclk", "pipe_pclk";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -1617,6 +1702,10 @@
 
 			usbhost_dwc3: dwc3@15a00000 {
 				compatible = "snps,dwc3";
+				clocks = <&cmu_fsys CLK_SCLK_USBHOST30>,
+					<&cmu_fsys CLK_ACLK_USBHOST30>,
+					<&cmu_fsys CLK_SCLK_USBHOST30>;
+				clock-names = "ref", "bus_early", "suspend";
 				reg = <0x15a00000 0x10000>;
 				interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usbhost30_phy 0>, <&usbhost30_phy 1>;
@@ -1663,33 +1752,26 @@
 			status = "disabled";
 		};
 
-		amba {
-			compatible = "simple-bus";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
+		pdma0: pdma@15610000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x15610000 0x1000>;
+			interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_fsys CLK_PDMA0>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+		};
 
-			pdma0: pdma@15610000 {
-				compatible = "arm,pl330", "arm,primecell";
-				reg = <0x15610000 0x1000>;
-				interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cmu_fsys CLK_PDMA0>;
-				clock-names = "apb_pclk";
-				#dma-cells = <1>;
-				#dma-channels = <8>;
-				#dma-requests = <32>;
-			};
-
-			pdma1: pdma@15600000 {
-				compatible = "arm,pl330", "arm,primecell";
-				reg = <0x15600000 0x1000>;
-				interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cmu_fsys CLK_PDMA1>;
-				clock-names = "apb_pclk";
-				#dma-cells = <1>;
-				#dma-channels = <8>;
-				#dma-requests = <32>;
-			};
+		pdma1: pdma@15600000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x15600000 0x1000>;
+			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_fsys CLK_PDMA1>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
 		};
 
 		audio-subsystem@11400000 {
@@ -1718,7 +1800,7 @@
 			i2s0: i2s@11440000 {
 				compatible = "samsung,exynos7-i2s";
 				reg = <0x11440000 0x100>;
-				dmas = <&adma 0 &adma 2>;
+				dmas = <&adma 0>, <&adma 2>;
 				dma-names = "tx", "rx";
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;

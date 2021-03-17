@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Universal Interface for Intel High Definition Audio Codec
  *
  * Local helper functions
  *
  * Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the Free
- *  Software Foundation; either version 2 of the License, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
- *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #ifndef __SOUND_HDA_LOCAL_H
@@ -113,7 +100,7 @@ int snd_hda_mixer_amp_volume_get(struct snd_kcontrol *kcontrol,
 int snd_hda_mixer_amp_volume_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol);
 int snd_hda_mixer_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag,
-			  unsigned int size, unsigned int __user *tlv);
+			  unsigned int size, unsigned int __user *_tlv);
 int snd_hda_mixer_amp_switch_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo);
 int snd_hda_mixer_amp_switch_get(struct snd_kcontrol *kcontrol,
@@ -132,7 +119,7 @@ int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
 int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid,
 			     int ch, int dir, int idx, int mask, int val);
 int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
-			     int dir, int idx, int mask, int val);
+			     int direction, int idx, int mask, int val);
 int snd_hda_codec_amp_init(struct hda_codec *codec, hda_nid_t nid, int ch,
 			   int direction, int idx, int mask, int val);
 int snd_hda_codec_amp_init_stereo(struct hda_codec *codec, hda_nid_t nid,
@@ -142,14 +129,16 @@ void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
 struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
 int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
-			  unsigned int *tlv, const char * const *slaves,
-			  const char *suffix, bool init_slave_vol,
+			  unsigned int *tlv, const char * const *followers,
+			  const char *suffix, bool init_follower_vol,
 			  struct snd_kcontrol **ctl_ret);
-#define snd_hda_add_vmaster(codec, name, tlv, slaves, suffix) \
-	__snd_hda_add_vmaster(codec, name, tlv, slaves, suffix, true, NULL)
+#define snd_hda_add_vmaster(codec, name, tlv, followers, suffix) \
+	__snd_hda_add_vmaster(codec, name, tlv, followers, suffix, true, NULL)
 int snd_hda_codec_reset(struct hda_codec *codec);
 void snd_hda_codec_register(struct hda_codec *codec);
 void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec);
+
+#define snd_hda_regmap_sync(codec)	snd_hdac_regmap_sync(&(codec)->core)
 
 enum {
 	HDA_VMUTE_OFF,
@@ -209,7 +198,7 @@ int snd_hda_input_mux_put(struct hda_codec *codec,
 			  unsigned int *cur_val);
 int snd_hda_add_imux_item(struct hda_codec *codec,
 			  struct hda_input_mux *imux, const char *label,
-			  int index, int *type_index_ret);
+			  int index, int *type_idx);
 
 /*
  * Multi-channel / digital-out PCM helper
@@ -227,7 +216,7 @@ struct hda_multi_out {
 	hda_nid_t hp_out_nid[HDA_MAX_OUTS];	/* DACs for multiple HPs */
 	hda_nid_t extra_out_nid[HDA_MAX_OUTS];	/* other (e.g. speaker) DACs */
 	hda_nid_t dig_out_nid;	/* digital out audio widget */
-	const hda_nid_t *slave_dig_outs;
+	const hda_nid_t *follower_dig_outs;
 	int max_channels;	/* currently supported analog channels */
 	int dig_out_used;	/* current usage of digital out (HDA_DIG_XXX) */
 	int no_share_stream;	/* don't share a stream with multiple pins */
@@ -374,7 +363,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_fixup *fixlist);
 void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			    const struct snd_hda_pin_quirk *pin_quirk,
-			    const struct hda_fixup *fixlist);
+			    const struct hda_fixup *fixlist,
+			    bool match_all_pins);
 
 /* helper macros to retrieve pin default-config values */
 #define get_defcfg_connect(cfg) \
@@ -652,7 +642,7 @@ unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
  */
 int snd_hda_enum_helper_info(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_info *uinfo,
-			     int num_entries, const char * const *texts);
+			     int num_items, const char * const *texts);
 #define snd_hda_enum_bool_helper_info(kcontrol, uinfo) \
 	snd_hda_enum_helper_info(kcontrol, uinfo, 0, NULL)
 

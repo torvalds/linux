@@ -1,24 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux I2C core SMBus and SMBus emulation code
  *
  * This file contains the SMBus functions which are always included in the I2C
  * core because they can be emulated via I2C. SMBus specific extensions
- * (e.g. smbalert) are handled in a seperate i2c-smbus module.
+ * (e.g. smbalert) are handled in a separate i2c-smbus module.
  *
  * All SMBus-related things are written by Frodo Looijaard <frodol@dds.nl>
  * SMBus 2.0 support by Mark Studebaker <mdsxyz123@yahoo.com> and
  * Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
 #include <linux/slab.h>
+
+#include "i2c-core.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/smbus.h>
@@ -497,6 +495,13 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			break;
 		case I2C_SMBUS_BLOCK_DATA:
 		case I2C_SMBUS_BLOCK_PROC_CALL:
+			if (msg[1].buf[0] > I2C_SMBUS_BLOCK_MAX) {
+				dev_err(&adapter->dev,
+					"Invalid block size returned: %d\n",
+					msg[1].buf[0]);
+				status = -EPROTO;
+				goto cleanup;
+			}
 			for (i = 0; i < msg[1].buf[0] + 1; i++)
 				data->block[i] = msg[1].buf[i];
 			break;
@@ -530,7 +535,10 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 {
 	s32 res;
 
-	i2c_lock_bus(adapter, I2C_LOCK_SEGMENT);
+	res = __i2c_lock_bus_helper(adapter);
+	if (res)
+		return res;
+
 	res = __i2c_smbus_xfer(adapter, addr, flags, read_write,
 			       command, protocol, data);
 	i2c_unlock_bus(adapter, I2C_LOCK_SEGMENT);
@@ -543,9 +551,16 @@ s32 __i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		     unsigned short flags, char read_write,
 		     u8 command, int protocol, union i2c_smbus_data *data)
 {
+	int (*xfer_func)(struct i2c_adapter *adap, u16 addr,
+			 unsigned short flags, char read_write,
+			 u8 command, int size, union i2c_smbus_data *data);
 	unsigned long orig_jiffies;
 	int try;
 	s32 res;
+
+	res = __i2c_check_suspended(adapter);
+	if (res)
+		return res;
 
 	/* If enabled, the following two tracepoints are conditional on
 	 * read_write and protocol.
@@ -557,13 +572,20 @@ s32 __i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 
 	flags &= I2C_M_TEN | I2C_CLIENT_PEC | I2C_CLIENT_SCCB;
 
-	if (adapter->algo->smbus_xfer) {
+	xfer_func = adapter->algo->smbus_xfer;
+	if (i2c_in_atomic_xfer_mode()) {
+		if (adapter->algo->smbus_xfer_atomic)
+			xfer_func = adapter->algo->smbus_xfer_atomic;
+		else if (adapter->algo->master_xfer_atomic)
+			xfer_func = NULL; /* fallback to I2C emulation */
+	}
+
+	if (xfer_func) {
 		/* Retry automatically on arbitration loss */
 		orig_jiffies = jiffies;
 		for (res = 0, try = 0; try <= adapter->retries; try++) {
-			res = adapter->algo->smbus_xfer(adapter, addr, flags,
-							read_write, command,
-							protocol, data);
+			res = xfer_func(adapter, addr, flags, read_write,
+					command, protocol, data);
 			if (res != -EAGAIN)
 				break;
 			if (time_after(jiffies,
@@ -585,7 +607,7 @@ s32 __i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 trace:
 	/* If enabled, the reply tracepoint is conditional on read_write. */
 	trace_smbus_reply(adapter, addr, flags, read_write,
-			  command, protocol, data);
+			  command, protocol, data, res);
 	trace_smbus_result(adapter, addr, flags, read_write,
 			   command, protocol, res);
 
@@ -651,7 +673,7 @@ s32 i2c_smbus_read_i2c_block_data_or_emulated(const struct i2c_client *client,
 EXPORT_SYMBOL(i2c_smbus_read_i2c_block_data_or_emulated);
 
 /**
- * i2c_setup_smbus_alert - Setup SMBus alert support
+ * i2c_new_smbus_alert_device - get ara client for SMBus alert support
  * @adapter: the target adapter
  * @setup: setup data for the SMBus alert handler
  * Context: can sleep
@@ -661,31 +683,25 @@ EXPORT_SYMBOL(i2c_smbus_read_i2c_block_data_or_emulated);
  * Handling can be done either through our IRQ handler, or by the
  * adapter (from its handler, periodic polling, or whatever).
  *
- * NOTE that if we manage the IRQ, we *MUST* know if it's level or
- * edge triggered in order to hand it to the workqueue correctly.
- * If triggering the alert seems to wedge the system, you probably
- * should have said it's level triggered.
- *
  * This returns the ara client, which should be saved for later use with
- * i2c_handle_smbus_alert() and ultimately i2c_unregister_device(); or NULL
- * to indicate an error.
+ * i2c_handle_smbus_alert() and ultimately i2c_unregister_device(); or an
+ * ERRPTR to indicate an error.
  */
-struct i2c_client *i2c_setup_smbus_alert(struct i2c_adapter *adapter,
-					 struct i2c_smbus_alert_setup *setup)
+struct i2c_client *i2c_new_smbus_alert_device(struct i2c_adapter *adapter,
+					      struct i2c_smbus_alert_setup *setup)
 {
 	struct i2c_board_info ara_board_info = {
 		I2C_BOARD_INFO("smbus_alert", 0x0c),
 		.platform_data = setup,
 	};
 
-	return i2c_new_device(adapter, &ara_board_info);
+	return i2c_new_client_device(adapter, &ara_board_info);
 }
-EXPORT_SYMBOL_GPL(i2c_setup_smbus_alert);
+EXPORT_SYMBOL_GPL(i2c_new_smbus_alert_device);
 
 #if IS_ENABLED(CONFIG_I2C_SMBUS) && IS_ENABLED(CONFIG_OF)
 int of_i2c_setup_smbus_alert(struct i2c_adapter *adapter)
 {
-	struct i2c_client *client;
 	int irq;
 
 	irq = of_property_match_string(adapter->dev.of_node, "interrupt-names",
@@ -695,11 +711,7 @@ int of_i2c_setup_smbus_alert(struct i2c_adapter *adapter)
 	else if (irq < 0)
 		return irq;
 
-	client = i2c_setup_smbus_alert(adapter, NULL);
-	if (!client)
-		return -ENODEV;
-
-	return 0;
+	return PTR_ERR_OR_ZERO(i2c_new_smbus_alert_device(adapter, NULL));
 }
 EXPORT_SYMBOL_GPL(of_i2c_setup_smbus_alert);
 #endif

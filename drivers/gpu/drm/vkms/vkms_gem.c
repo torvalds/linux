@@ -1,12 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
+#include <linux/dma-buf.h>
 #include <linux/shmem_fs.h>
+#include <linux/vmalloc.h>
+#include <drm/drm_prime.h>
 
 #include "vkms_drv.h"
 
@@ -37,20 +34,22 @@ void vkms_gem_free_object(struct drm_gem_object *obj)
 	struct vkms_gem_object *gem = container_of(obj, struct vkms_gem_object,
 						   gem);
 
-	kvfree(gem->pages);
+	WARN_ON(gem->pages);
+	WARN_ON(gem->vaddr);
+
 	mutex_destroy(&gem->pages_lock);
 	drm_gem_object_release(obj);
 	kfree(gem);
 }
 
-int vkms_gem_fault(struct vm_fault *vmf)
+vm_fault_t vkms_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct vkms_gem_object *obj = vma->vm_private_data;
 	unsigned long vaddr = vmf->address;
 	pgoff_t page_offset;
 	loff_t num_pages;
-	int ret;
+	vm_fault_t ret = VM_FAULT_SIGBUS;
 
 	page_offset = (vaddr - vma->vm_start) >> PAGE_SHIFT;
 	num_pages = DIV_ROUND_UP(obj->gem.size, PAGE_SIZE);
@@ -58,7 +57,6 @@ int vkms_gem_fault(struct vm_fault *vmf)
 	if (page_offset > num_pages)
 		return VM_FAULT_SIGBUS;
 
-	ret = -ENOENT;
 	mutex_lock(&obj->pages_lock);
 	if (obj->pages) {
 		get_page(obj->pages[page_offset]);
@@ -99,10 +97,10 @@ int vkms_gem_fault(struct vm_fault *vmf)
 	return ret;
 }
 
-struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
-				       struct drm_file *file,
-				       u32 *handle,
-				       u64 size)
+static struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
+					      struct drm_file *file,
+					      u32 *handle,
+					      u64 size)
 {
 	struct vkms_gem_object *obj;
 	int ret;
@@ -115,12 +113,8 @@ struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
 		return ERR_CAST(obj);
 
 	ret = drm_gem_handle_create(file, &obj->gem, handle);
-	drm_gem_object_put_unlocked(&obj->gem);
-	if (ret) {
-		drm_gem_object_release(&obj->gem);
-		kfree(obj);
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	return &obj->gem;
 }
@@ -147,33 +141,108 @@ int vkms_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->size = gem_obj->size;
 	args->pitch = pitch;
 
+	drm_gem_object_put(gem_obj);
+
 	DRM_DEBUG_DRIVER("Created object of size %lld\n", size);
 
 	return 0;
 }
 
-int vkms_dumb_map(struct drm_file *file, struct drm_device *dev,
-		  u32 handle, u64 *offset)
+static struct page **_get_pages(struct vkms_gem_object *vkms_obj)
 {
-	struct drm_gem_object *obj;
-	int ret;
+	struct drm_gem_object *gem_obj = &vkms_obj->gem;
 
-	obj = drm_gem_object_lookup(file, handle);
-	if (!obj)
-		return -ENOENT;
+	if (!vkms_obj->pages) {
+		struct page **pages = drm_gem_get_pages(gem_obj);
 
-	if (!obj->filp) {
-		ret = -EINVAL;
-		goto unref;
+		if (IS_ERR(pages))
+			return pages;
+
+		if (cmpxchg(&vkms_obj->pages, NULL, pages))
+			drm_gem_put_pages(gem_obj, pages, false, true);
 	}
 
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto unref;
+	return vkms_obj->pages;
+}
 
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
-unref:
-	drm_gem_object_put_unlocked(obj);
+void vkms_gem_vunmap(struct drm_gem_object *obj)
+{
+	struct vkms_gem_object *vkms_obj = drm_gem_to_vkms_gem(obj);
 
+	mutex_lock(&vkms_obj->pages_lock);
+	if (vkms_obj->vmap_count < 1) {
+		WARN_ON(vkms_obj->vaddr);
+		WARN_ON(vkms_obj->pages);
+		mutex_unlock(&vkms_obj->pages_lock);
+		return;
+	}
+
+	vkms_obj->vmap_count--;
+
+	if (vkms_obj->vmap_count == 0) {
+		vunmap(vkms_obj->vaddr);
+		vkms_obj->vaddr = NULL;
+		drm_gem_put_pages(obj, vkms_obj->pages, false, true);
+		vkms_obj->pages = NULL;
+	}
+
+	mutex_unlock(&vkms_obj->pages_lock);
+}
+
+int vkms_gem_vmap(struct drm_gem_object *obj)
+{
+	struct vkms_gem_object *vkms_obj = drm_gem_to_vkms_gem(obj);
+	int ret = 0;
+
+	mutex_lock(&vkms_obj->pages_lock);
+
+	if (!vkms_obj->vaddr) {
+		unsigned int n_pages = obj->size >> PAGE_SHIFT;
+		struct page **pages = _get_pages(vkms_obj);
+
+		if (IS_ERR(pages)) {
+			ret = PTR_ERR(pages);
+			goto out;
+		}
+
+		vkms_obj->vaddr = vmap(pages, n_pages, VM_MAP, PAGE_KERNEL);
+		if (!vkms_obj->vaddr)
+			goto err_vmap;
+	}
+
+	vkms_obj->vmap_count++;
+	goto out;
+
+err_vmap:
+	ret = -ENOMEM;
+	drm_gem_put_pages(obj, vkms_obj->pages, false, true);
+	vkms_obj->pages = NULL;
+out:
+	mutex_unlock(&vkms_obj->pages_lock);
 	return ret;
+}
+
+struct drm_gem_object *
+vkms_prime_import_sg_table(struct drm_device *dev,
+			   struct dma_buf_attachment *attach,
+			   struct sg_table *sg)
+{
+	struct vkms_gem_object *obj;
+	int npages;
+
+	obj = __vkms_gem_create(dev, attach->dmabuf->size);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	npages = PAGE_ALIGN(attach->dmabuf->size) / PAGE_SIZE;
+	DRM_DEBUG_PRIME("Importing %d pages\n", npages);
+
+	obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!obj->pages) {
+		vkms_gem_free_object(&obj->gem);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	drm_prime_sg_to_page_addr_arrays(sg, obj->pages, NULL, npages);
+	return &obj->gem;
 }

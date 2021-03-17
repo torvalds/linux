@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for M-5MOLS 8M Pixel camera sensor with ISP
  *
@@ -6,11 +7,6 @@
  *
  * Copyright (C) 2009 Samsung Electronics Co., Ltd.
  * Author: Dongsoo Nathaniel Kim <dongsoo45.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/i2c.h>
@@ -291,7 +287,7 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
  * @reg: the I2C_REG() address of an 8-bit status register to check
  * @value: expected status register value
  * @mask: bit mask for the read status register value
- * @timeout: timeout in miliseconds, or -1 for default timeout
+ * @timeout: timeout in milliseconds, or -1 for default timeout
  *
  * The @reg register value is ORed with @mask before comparing with @value.
  *
@@ -768,7 +764,8 @@ static int m5mols_sensor_power(struct m5mols_info *info, bool enable)
 
 		ret = regulator_bulk_enable(ARRAY_SIZE(supplies), supplies);
 		if (ret) {
-			info->set_power(&client->dev, 0);
+			if (info->set_power)
+				info->set_power(&client->dev, 0);
 			return ret;
 		}
 
@@ -987,7 +984,8 @@ static int m5mols_probe(struct i2c_client *client,
 
 	sd = &info->sd;
 	v4l2_i2c_subdev_init(sd, client, &m5mols_ops);
-	strlcpy(sd->name, MODULE_NAME, sizeof(sd->name));
+	/* Static name; NEVER use in new drivers! */
+	strscpy(sd->name, MODULE_NAME, sizeof(sd->name));
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	sd->internal_ops = &m5mols_subdev_internal_ops;

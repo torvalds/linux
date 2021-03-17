@@ -26,7 +26,7 @@
  */
 
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_vce.h"
 #include "cikd.h"
@@ -283,7 +283,7 @@ static int vce_v2_0_stop(struct amdgpu_device *adev)
 	}
 
 	if (vce_v2_0_wait_for_idle(adev)) {
-		DRM_INFO("VCE is busy, Can't set clock gateing");
+		DRM_INFO("VCE is busy, Can't set clock gating");
 		return 0;
 	}
 
@@ -417,7 +417,7 @@ static int vce_v2_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* VCE */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 167, &adev->vce.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 167, &adev->vce.irq);
 	if (r)
 		return r;
 
@@ -434,7 +434,8 @@ static int vce_v2_0_sw_init(void *handle)
 		ring = &adev->vce.ring[i];
 		sprintf(ring->name, "vce%d", i);
 		r = amdgpu_ring_init(adev, ring, 512,
-				     &adev->vce.irq, 0);
+				     &adev->vce.irq, 0,
+				     AMDGPU_RING_PRIO_DEFAULT);
 		if (r)
 			return r;
 	}
@@ -463,15 +464,11 @@ static int vce_v2_0_hw_init(void *handle)
 
 	amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
 	vce_v2_0_enable_mgcg(adev, true, false);
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].ready = false;
 
 	for (i = 0; i < adev->vce.num_rings; i++) {
-		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
+		r = amdgpu_ring_test_helper(&adev->vce.ring[i]);
 		if (r)
 			return r;
-		else
-			adev->vce.ring[i].ready = true;
 	}
 
 	DRM_INFO("VCE initialized successfully.\n");
@@ -609,6 +606,7 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = VCE_CMD_NO_OP,
 	.support_64bit_ptrs = false,
+	.no_user_fence = true,
 	.get_rptr = vce_v2_0_ring_get_rptr,
 	.get_wptr = vce_v2_0_ring_get_wptr,
 	.set_wptr = vce_v2_0_ring_set_wptr,

@@ -20,9 +20,11 @@
 #include <asm/irqdomain.h>
 #include <asm/hpet.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #include <asm/pci_x86.h>
 #include <asm/setup.h>
 #include <asm/i8259.h>
+#include <asm/prom.h>
 
 __initdata u64 initial_dtb;
 char __initdata cmd_line[COMMAND_LINE_SIZE];
@@ -140,7 +142,7 @@ static void __init dtb_cpu_setup(void)
 	int ret;
 
 	version = GET_APIC_VERSION(apic_read(APIC_LVR));
-	for_each_node_by_type(dn, "cpu") {
+	for_each_of_cpu_node(dn) {
 		ret = of_property_read_u32(dn, "reg", &apic_id);
 		if (ret < 0) {
 			pr_warn("%pOF: missing local APIC ID\n", dn);
@@ -227,8 +229,8 @@ static int dt_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	it = &of_ioapic_type[type_index];
 	ioapic_set_alloc_attr(&tmp, NUMA_NO_NODE, it->trigger, it->polarity);
-	tmp.ioapic_id = mpc_ioapic_id(mp_irqdomain_ioapic_idx(domain));
-	tmp.ioapic_pin = fwspec->param[0];
+	tmp.devid = mpc_ioapic_id(mp_irqdomain_ioapic_idx(domain));
+	tmp.ioapic.pin = fwspec->param[0];
 
 	return mp_irqdomain_alloc(domain, virq, nr_irqs, &tmp);
 }

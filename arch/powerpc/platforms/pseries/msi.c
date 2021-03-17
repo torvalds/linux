@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2006 Jake Moilanen <moilanen@austin.ibm.com>, IBM Corp.
  * Copyright 2006-2007 Michael Ellerman, IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2 of the
- * License.
- *
  */
 
 #include <linux/device.h>
@@ -203,7 +198,8 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 	/* Get the top level device in the PE */
 	edev = pdn_to_eeh_dev(PCI_DN(dn));
 	if (edev->pe)
-		edev = list_first_entry(&edev->pe->edevs, struct eeh_dev, list);
+		edev = list_first_entry(&edev->pe->edevs, struct eeh_dev,
+					entry);
 	dn = pci_device_to_OF_node(edev->pdev);
 	if (!dn)
 		return NULL;
@@ -462,7 +458,8 @@ again:
 			return hwirq;
 		}
 
-		virq = irq_create_mapping(NULL, hwirq);
+		virq = irq_create_mapping_affinity(NULL, hwirq,
+						   entry->affinity);
 
 		if (!virq) {
 			pr_debug("rtas_msi: Failed mapping hwirq %d\n", hwirq);

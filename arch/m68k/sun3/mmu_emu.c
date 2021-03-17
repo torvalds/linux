@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/sched/mm.h>
@@ -22,7 +22,6 @@
 #include <asm/traps.h>
 #include <linux/uaccess.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/sun3mmu.h>
 #include <asm/segment.h>
 #include <asm/oplib.h>

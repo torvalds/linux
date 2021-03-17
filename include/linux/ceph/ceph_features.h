@@ -11,14 +11,14 @@
 #define CEPH_FEATURE_INCARNATION_2 (1ull<<57) // CEPH_FEATURE_SERVER_JEWEL
 
 #define DEFINE_CEPH_FEATURE(bit, incarnation, name)			\
-	static const uint64_t CEPH_FEATURE_##name = (1ULL<<bit);		\
-	static const uint64_t CEPH_FEATUREMASK_##name =			\
+	static const uint64_t __maybe_unused CEPH_FEATURE_##name = (1ULL<<bit);		\
+	static const uint64_t __maybe_unused CEPH_FEATUREMASK_##name =			\
 		(1ULL<<bit | CEPH_FEATURE_INCARNATION_##incarnation);
 
 /* this bit is ignored but still advertised by release *when* */
 #define DEFINE_CEPH_FEATURE_DEPRECATED(bit, incarnation, name, when) \
-	static const uint64_t DEPRECATED_CEPH_FEATURE_##name = (1ULL<<bit); \
-	static const uint64_t DEPRECATED_CEPH_FEATUREMASK_##name =		\
+	static const uint64_t __maybe_unused DEPRECATED_CEPH_FEATURE_##name = (1ULL<<bit);	\
+	static const uint64_t __maybe_unused DEPRECATED_CEPH_FEATUREMASK_##name =		\
 		(1ULL<<bit | CEPH_FEATURE_INCARNATION_##incarnation);
 
 /*
@@ -58,7 +58,7 @@
  *    because 10.2.z (jewel) did not care if its peers advertised this
  *    feature bit.
  *
- *  - In the second phase we stop advertising the the bit and call it
+ *  - In the second phase we stop advertising the bit and call it
  *    RETIRED.  This can normally be done in the *next* major release
  *    following the one in which we marked the feature DEPRECATED.  In
  *    the above example, for 12.0.z (luminous) we can say:
@@ -211,14 +211,9 @@ DEFINE_CEPH_FEATURE_DEPRECATED(63, 1, RESERVED_BROKEN, LUMINOUS) // client-facin
 	 CEPH_FEATURE_MON_STATEFUL_SUB |	\
 	 CEPH_FEATURE_CRUSH_TUNABLES5 |		\
 	 CEPH_FEATURE_NEW_OSDOPREPLY_ENCODING |	\
+	 CEPH_FEATURE_MSG_ADDR2 |		\
 	 CEPH_FEATURE_CEPHX_V2)
 
-#define CEPH_FEATURES_REQUIRED_DEFAULT   \
-	(CEPH_FEATURE_NOSRCADDR |	 \
-	 CEPH_FEATURE_SUBSCRIBE2 |	 \
-	 CEPH_FEATURE_RECONNECT_SEQ |	 \
-	 CEPH_FEATURE_PGID64 |		 \
-	 CEPH_FEATURE_PGPOOL3 |		 \
-	 CEPH_FEATURE_OSDENC)
+#define CEPH_FEATURES_REQUIRED_DEFAULT	0
 
 #endif

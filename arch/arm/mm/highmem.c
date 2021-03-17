@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mm/highmem.c -- ARM highmem support
  *
  * Author:	Nicolas Pitre
  * Created:	september 8, 2008
  * Copyright:	Marvell Semiconductors Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -21,7 +18,7 @@
 static inline void set_fixmap_pte(int idx, pte_t pte)
 {
 	unsigned long vaddr = __fix_to_virt(idx);
-	pte_t *ptep = pte_offset_kernel(pmd_off_k(vaddr), vaddr);
+	pte_t *ptep = virt_to_kpte(vaddr);
 
 	set_pte_ext(ptep, pte, 0);
 	local_flush_tlb_kernel_page(vaddr);
@@ -29,40 +26,17 @@ static inline void set_fixmap_pte(int idx, pte_t pte)
 
 static inline pte_t get_fixmap_pte(unsigned long vaddr)
 {
-	pte_t *ptep = pte_offset_kernel(pmd_off_k(vaddr), vaddr);
+	pte_t *ptep = virt_to_kpte(vaddr);
 
 	return *ptep;
 }
 
-void *kmap(struct page *page)
-{
-	might_sleep();
-	if (!PageHighMem(page))
-		return page_address(page);
-	return kmap_high(page);
-}
-EXPORT_SYMBOL(kmap);
-
-void kunmap(struct page *page)
-{
-	BUG_ON(in_interrupt());
-	if (!PageHighMem(page))
-		return;
-	kunmap_high(page);
-}
-EXPORT_SYMBOL(kunmap);
-
-void *kmap_atomic(struct page *page)
+void *kmap_atomic_high_prot(struct page *page, pgprot_t prot)
 {
 	unsigned int idx;
 	unsigned long vaddr;
 	void *kmap;
 	int type;
-
-	preempt_disable();
-	pagefault_disable();
-	if (!PageHighMem(page))
-		return page_address(page);
 
 #ifdef CONFIG_DEBUG_HIGHMEM
 	/*
@@ -93,13 +67,13 @@ void *kmap_atomic(struct page *page)
 	 * in place, so the contained TLB flush ensures the TLB is updated
 	 * with the new mapping.
 	 */
-	set_fixmap_pte(idx, mk_pte(page, kmap_prot));
+	set_fixmap_pte(idx, mk_pte(page, prot));
 
 	return (void *)vaddr;
 }
-EXPORT_SYMBOL(kmap_atomic);
+EXPORT_SYMBOL(kmap_atomic_high_prot);
 
-void __kunmap_atomic(void *kvaddr)
+void kunmap_atomic_high(void *kvaddr)
 {
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
 	int idx, type;
@@ -121,10 +95,8 @@ void __kunmap_atomic(void *kvaddr)
 		/* this address was obtained through kmap_high_get() */
 		kunmap_high(pte_page(pkmap_page_table[PKMAP_NR(vaddr)]));
 	}
-	pagefault_enable();
-	preempt_enable();
 }
-EXPORT_SYMBOL(__kunmap_atomic);
+EXPORT_SYMBOL(kunmap_atomic_high);
 
 void *kmap_atomic_pfn(unsigned long pfn)
 {

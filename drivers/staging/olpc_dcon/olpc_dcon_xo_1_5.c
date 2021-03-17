@@ -1,16 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2009,2010       One Laptop per Child
- *
- * This program is free software.  You can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/i2c.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <asm/olpc.h>
 
 /* TODO: this eventually belongs in linux/vx855.h */
@@ -41,6 +40,33 @@
 
 #define PREFIX "OLPC DCON:"
 
+enum dcon_gpios {
+	OLPC_DCON_STAT0,
+	OLPC_DCON_STAT1,
+	OLPC_DCON_LOAD,
+};
+
+struct gpiod_lookup_table gpios_table = {
+	.dev_id = NULL,
+	.table = {
+		GPIO_LOOKUP("VX855 South Bridge", VX855_GPIO(1), "dcon_load",
+			    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("VX855 South Bridge", VX855_GPI(10), "dcon_stat0",
+			    GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("VX855 South Bridge", VX855_GPI(11), "dcon_stat1",
+			    GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static const struct dcon_gpio gpios_asis[] = {
+	[OLPC_DCON_STAT0] = { .name = "dcon_stat0", .flags = GPIOD_ASIS },
+	[OLPC_DCON_STAT1] = { .name = "dcon_stat1", .flags = GPIOD_ASIS },
+	[OLPC_DCON_LOAD] = { .name = "dcon_load", .flags = GPIOD_ASIS },
+};
+
+static struct gpio_desc *gpios[3];
+
 static void dcon_clear_irq(void)
 {
 	/* irq status will appear in PMIO_Rx50[6] (RW1C) on gpio12 */
@@ -60,6 +86,25 @@ static int dcon_was_irq(void)
 static int dcon_init_xo_1_5(struct dcon_priv *dcon)
 {
 	unsigned int irq;
+	const struct dcon_gpio *pin = &gpios_asis[0];
+	int i;
+	int ret;
+
+	/* Add GPIO look up table */
+	gpios_table.dev_id = dev_name(&dcon->client->dev);
+	gpiod_add_lookup_table(&gpios_table);
+
+	/* Get GPIO descriptor */
+	for (i = 0; i < ARRAY_SIZE(gpios_asis); i++) {
+		gpios[i] = devm_gpiod_get(&dcon->client->dev, pin[i].name,
+					  pin[i].flags);
+		if (IS_ERR(gpios[i])) {
+			ret = PTR_ERR(gpios[i]);
+			pr_err("failed to request %s GPIO: %d\n", pin[i].name,
+			       ret);
+			return ret;
+		}
+	}
 
 	dcon_clear_irq();
 
@@ -134,7 +179,7 @@ static void dcon_wiggle_xo_1_5(void)
 
 static void dcon_set_dconload_xo_1_5(int val)
 {
-	gpio_set_value(VX855_GPIO(1), val);
+	gpiod_set_value(gpios[OLPC_DCON_LOAD], val);
 }
 
 static int dcon_read_status_xo_1_5(u8 *status)
@@ -143,8 +188,8 @@ static int dcon_read_status_xo_1_5(u8 *status)
 		return -1;
 
 	/* i believe this is the same as "inb(0x44b) & 3" */
-	*status = gpio_get_value(VX855_GPI(10));
-	*status |= gpio_get_value(VX855_GPI(11)) << 1;
+	*status = gpiod_get_value(gpios[OLPC_DCON_STAT0]);
+	*status |= gpiod_get_value(gpios[OLPC_DCON_STAT1]) << 1;
 
 	dcon_clear_irq();
 

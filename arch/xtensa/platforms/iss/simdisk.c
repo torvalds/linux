@@ -101,9 +101,9 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 	spin_unlock(&dev->lock);
 }
 
-static blk_qc_t simdisk_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t simdisk_submit_bio(struct bio *bio)
 {
-	struct simdisk *dev = q->queuedata;
+	struct simdisk *dev = bio->bi_disk->private_data;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 	sector_t sector = bio->bi_iter.bi_sector;
@@ -127,8 +127,6 @@ static int simdisk_open(struct block_device *bdev, fmode_t mode)
 	struct simdisk *dev = bdev->bd_disk->private_data;
 
 	spin_lock(&dev->lock);
-	if (!dev->users)
-		check_disk_change(bdev);
 	++dev->users;
 	spin_unlock(&dev->lock);
 	return 0;
@@ -144,6 +142,7 @@ static void simdisk_release(struct gendisk *disk, fmode_t mode)
 
 static const struct block_device_operations simdisk_ops = {
 	.owner		= THIS_MODULE,
+	.submit_bio	= simdisk_submit_bio,
 	.open		= simdisk_open,
 	.release	= simdisk_release,
 };
@@ -251,10 +250,10 @@ out_free:
 	return err;
 }
 
-static const struct file_operations fops = {
-	.read = proc_read_simdisk,
-	.write = proc_write_simdisk,
-	.llseek = default_llseek,
+static const struct proc_ops simdisk_proc_ops = {
+	.proc_read	= proc_read_simdisk,
+	.proc_write	= proc_write_simdisk,
+	.proc_lseek	= default_llseek,
 };
 
 static int __init simdisk_setup(struct simdisk *dev, int which,
@@ -267,14 +266,11 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 	spin_lock_init(&dev->lock);
 	dev->users = 0;
 
-	dev->queue = blk_alloc_queue(GFP_KERNEL);
+	dev->queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (dev->queue == NULL) {
 		pr_err("blk_alloc_queue failed\n");
 		goto out_alloc_queue;
 	}
-
-	blk_queue_make_request(dev->queue, simdisk_make_request);
-	dev->queue->queuedata = dev;
 
 	dev->gd = alloc_disk(SIMDISK_MINORS);
 	if (dev->gd == NULL) {
@@ -290,15 +286,14 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 	set_capacity(dev->gd, 0);
 	add_disk(dev->gd);
 
-	dev->procfile = proc_create_data(tmp, 0644, procdir, &fops, dev);
+	dev->procfile = proc_create_data(tmp, 0644, procdir, &simdisk_proc_ops, dev);
 	return 0;
 
 out_alloc_disk:
 	blk_cleanup_queue(dev->queue);
 	dev->queue = NULL;
 out_alloc_queue:
-	simc_close(dev->fd);
-	return -EIO;
+	return -ENOMEM;
 }
 
 static int __init simdisk_init(void)

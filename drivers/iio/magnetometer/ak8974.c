@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Asahi Kasei EMD Corporation AK8974
  * and Aichi Steel AMI305 magnetometer chips.
@@ -11,6 +12,7 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -48,6 +50,7 @@
 #define AK8974_WHOAMI_VALUE_AMI306 0x46
 #define AK8974_WHOAMI_VALUE_AMI305 0x47
 #define AK8974_WHOAMI_VALUE_AK8974 0x48
+#define AK8974_WHOAMI_VALUE_HSCDTD008A 0x49
 
 #define AK8974_DATA_X		0x10
 #define AK8974_DATA_Y		0x12
@@ -139,6 +142,12 @@
 #define AK8974_INT_CTRL_PULSE	BIT(1) /* 0 = latched; 1 = pulse (50 usec) */
 #define AK8974_INT_CTRL_RESDEF	(AK8974_INT_CTRL_XYZEN | AK8974_INT_CTRL_POL)
 
+/* HSCDTD008A-specific control register */
+#define HSCDTD008A_CTRL4	0x1E
+#define HSCDTD008A_CTRL4_MMD	BIT(7)	/* must be set to 1 */
+#define HSCDTD008A_CTRL4_RANGE	BIT(4)	/* 0 = 14-bit output; 1 = 15-bit output */
+#define HSCDTD008A_CTRL4_RESDEF	(HSCDTD008A_CTRL4_MMD | HSCDTD008A_CTRL4_RANGE)
+
 /* The AMI305 has elaborate FW version and serial number registers */
 #define AMI305_VER		0xE8
 #define AMI305_SN		0xEA
@@ -172,6 +181,7 @@
  * @drdy_irq: uses the DRDY IRQ line
  * @drdy_complete: completion for DRDY
  * @drdy_active_low: the DRDY IRQ is active low
+ * @scan: timestamps
  */
 struct ak8974 {
 	struct i2c_client *i2c;
@@ -184,6 +194,11 @@ struct ak8974 {
 	bool drdy_irq;
 	struct completion drdy_complete;
 	bool drdy_active_low;
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		__le16 channels[3];
+		s64 ts __aligned(8);
+	} scan;
 };
 
 static const char ak8974_reg_avdd[] = "avdd";
@@ -240,10 +255,17 @@ static int ak8974_reset(struct ak8974 *ak8974)
 	ret = regmap_write(ak8974->map, AK8974_CTRL3, AK8974_CTRL3_RESDEF);
 	if (ret)
 		return ret;
-	ret = regmap_write(ak8974->map, AK8974_INT_CTRL,
-			   AK8974_INT_CTRL_RESDEF);
-	if (ret)
-		return ret;
+	if (ak8974->variant != AK8974_WHOAMI_VALUE_HSCDTD008A) {
+		ret = regmap_write(ak8974->map, AK8974_INT_CTRL,
+				   AK8974_INT_CTRL_RESDEF);
+		if (ret)
+			return ret;
+	} else {
+		ret = regmap_write(ak8974->map, HSCDTD008A_CTRL4,
+				   HSCDTD008A_CTRL4_RESDEF);
+		if (ret)
+			return ret;
+	}
 
 	/* After reset, power off is default state */
 	return ak8974_set_power(ak8974, AK8974_PWR_OFF);
@@ -266,6 +288,8 @@ static int ak8974_configure(struct ak8974 *ak8974)
 		if (ret)
 			return ret;
 	}
+	if (ak8974->variant == AK8974_WHOAMI_VALUE_HSCDTD008A)
+		return 0;
 	ret = regmap_write(ak8974->map, AK8974_INT_CTRL, AK8974_INT_CTRL_POL);
 	if (ret)
 		return ret;
@@ -476,7 +500,7 @@ static int ak8974_detect(struct ak8974 *ak8974)
 	switch (whoami) {
 	case AK8974_WHOAMI_VALUE_AMI306:
 		name = "ami306";
-		/* fall-through */
+		fallthrough;
 	case AK8974_WHOAMI_VALUE_AMI305:
 		ret = regmap_read(ak8974->map, AMI305_VER, &fw);
 		if (ret)
@@ -493,6 +517,10 @@ static int ak8974_detect(struct ak8974 *ak8974)
 	case AK8974_WHOAMI_VALUE_AK8974:
 		name = "ak8974";
 		dev_info(&ak8974->i2c->dev, "detected AK8974\n");
+		break;
+	case AK8974_WHOAMI_VALUE_HSCDTD008A:
+		name = "hscdtd008a";
+		dev_info(&ak8974->i2c->dev, "detected hscdtd008a\n");
 		break;
 	default:
 		dev_err(&ak8974->i2c->dev, "unsupported device (%02x) ",
@@ -533,42 +561,33 @@ static int ak8974_detect(struct ak8974 *ak8974)
 	return 0;
 }
 
-static int ak8974_read_raw(struct iio_dev *indio_dev,
-			   struct iio_chan_spec const *chan,
-			   int *val, int *val2,
-			   long mask)
+static int ak8974_measure_channel(struct ak8974 *ak8974, unsigned long address,
+				  int *val)
 {
-	struct ak8974 *ak8974 = iio_priv(indio_dev);
 	__le16 hw_values[3];
-	int ret = -EINVAL;
+	int ret;
 
 	pm_runtime_get_sync(&ak8974->i2c->dev);
 	mutex_lock(&ak8974->lock);
 
-	switch (mask) {
-	case IIO_CHAN_INFO_RAW:
-		if (chan->address > 2) {
-			dev_err(&ak8974->i2c->dev, "faulty channel address\n");
-			ret = -EIO;
-			goto out_unlock;
-		}
-		ret = ak8974_trigmeas(ak8974);
-		if (ret)
-			goto out_unlock;
-		ret = ak8974_getresult(ak8974, hw_values);
-		if (ret)
-			goto out_unlock;
-
-		/*
-		 * We read all axes and discard all but one, for optimized
-		 * reading, use the triggered buffer.
-		 */
-		*val = le16_to_cpu(hw_values[chan->address]);
-
-		ret = IIO_VAL_INT;
-	}
-
- out_unlock:
+	/*
+	 * We read all axes and discard all but one, for optimized
+	 * reading, use the triggered buffer.
+	 */
+	ret = ak8974_trigmeas(ak8974);
+	if (ret)
+		goto out_unlock;
+	ret = ak8974_getresult(ak8974, hw_values);
+	if (ret)
+		goto out_unlock;
+	/*
+	 * This explicit cast to (s16) is necessary as the measurement
+	 * is done in 2's complement with positive and negative values.
+	 * The follwing assignment to *val will then convert the signed
+	 * s16 value to a signed int value.
+	 */
+	*val = (s16)le16_to_cpu(hw_values[address]);
+out_unlock:
 	mutex_unlock(&ak8974->lock);
 	pm_runtime_mark_last_busy(&ak8974->i2c->dev);
 	pm_runtime_put_autosuspend(&ak8974->i2c->dev);
@@ -576,11 +595,75 @@ static int ak8974_read_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
+static int ak8974_read_raw(struct iio_dev *indio_dev,
+			   struct iio_chan_spec const *chan,
+			   int *val, int *val2,
+			   long mask)
+{
+	struct ak8974 *ak8974 = iio_priv(indio_dev);
+	int ret;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		if (chan->address > 2) {
+			dev_err(&ak8974->i2c->dev, "faulty channel address\n");
+			return -EIO;
+		}
+		ret = ak8974_measure_channel(ak8974, chan->address, val);
+		if (ret)
+			return ret;
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		switch (ak8974->variant) {
+		case AK8974_WHOAMI_VALUE_AMI306:
+		case AK8974_WHOAMI_VALUE_AMI305:
+			/*
+			 * The datasheet for AMI305 and AMI306, page 6
+			 * specifies the range of the sensor to be
+			 * +/- 12 Gauss.
+			 */
+			*val = 12;
+			/*
+			 * 12 bits are used, +/- 2^11
+			 * [ -2048 .. 2047 ] (manual page 20)
+			 * [ 0xf800 .. 0x07ff ]
+			 */
+			*val2 = 11;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		case AK8974_WHOAMI_VALUE_HSCDTD008A:
+			/*
+			 * The datasheet for HSCDTF008A, page 3 specifies the
+			 * range of the sensor as +/- 2.4 mT per axis, which
+			 * corresponds to +/- 2400 uT = +/- 24 Gauss.
+			 */
+			*val = 24;
+			/*
+			 * 15 bits are used (set up in CTRL4), +/- 2^14
+			 * [ -16384 .. 16383 ] (manual page 24)
+			 * [ 0xc000 .. 0x3fff ]
+			 */
+			*val2 = 14;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		default:
+			/* GUESSING +/- 12 Gauss */
+			*val = 12;
+			/* GUESSING 12 bits ADC +/- 2^11 */
+			*val2 = 11;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		}
+		break;
+	default:
+		/* Unknown request */
+		break;
+	}
+
+	return -EINVAL;
+}
+
 static void ak8974_fill_buffer(struct iio_dev *indio_dev)
 {
 	struct ak8974 *ak8974 = iio_priv(indio_dev);
 	int ret;
-	__le16 hw_values[8]; /* Three axes + 64bit padding */
 
 	pm_runtime_get_sync(&ak8974->i2c->dev);
 	mutex_lock(&ak8974->lock);
@@ -590,13 +673,13 @@ static void ak8974_fill_buffer(struct iio_dev *indio_dev)
 		dev_err(&ak8974->i2c->dev, "error triggering measure\n");
 		goto out_unlock;
 	}
-	ret = ak8974_getresult(ak8974, hw_values);
+	ret = ak8974_getresult(ak8974, ak8974->scan.channels);
 	if (ret) {
 		dev_err(&ak8974->i2c->dev, "error getting measures\n");
 		goto out_unlock;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, hw_values,
+	iio_push_to_buffers_with_timestamp(indio_dev, &ak8974->scan,
 					   iio_get_time_ns(indio_dev));
 
  out_unlock:
@@ -630,27 +713,44 @@ static const struct iio_chan_spec_ext_info ak8974_ext_info[] = {
 	{ },
 };
 
-#define AK8974_AXIS_CHANNEL(axis, index)				\
+#define AK8974_AXIS_CHANNEL(axis, index, bits)				\
 	{								\
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+			BIT(IIO_CHAN_INFO_SCALE),			\
 		.ext_info = ak8974_ext_info,				\
 		.address = index,					\
 		.scan_index = index,					\
 		.scan_type = {						\
 			.sign = 's',					\
-			.realbits = 16,					\
+			.realbits = bits,				\
 			.storagebits = 16,				\
 			.endianness = IIO_LE				\
 		},							\
 	}
 
-static const struct iio_chan_spec ak8974_channels[] = {
-	AK8974_AXIS_CHANNEL(X, 0),
-	AK8974_AXIS_CHANNEL(Y, 1),
-	AK8974_AXIS_CHANNEL(Z, 2),
+/*
+ * We have no datasheet for the AK8974 but we guess that its
+ * ADC is 12 bits. The AMI305 and AMI306 certainly has 12bit
+ * ADC.
+ */
+static const struct iio_chan_spec ak8974_12_bits_channels[] = {
+	AK8974_AXIS_CHANNEL(X, 0, 12),
+	AK8974_AXIS_CHANNEL(Y, 1, 12),
+	AK8974_AXIS_CHANNEL(Z, 2, 12),
+	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
+/*
+ * The HSCDTD008A has 15 bits resolution the way we set it up
+ * in CTRL4.
+ */
+static const struct iio_chan_spec ak8974_15_bits_channels[] = {
+	AK8974_AXIS_CHANNEL(X, 0, 15),
+	AK8974_AXIS_CHANNEL(Y, 1, 15),
+	AK8974_AXIS_CHANNEL(Z, 2, 15),
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
@@ -673,18 +773,18 @@ static bool ak8974_writeable_reg(struct device *dev, unsigned int reg)
 	case AK8974_INT_CTRL:
 	case AK8974_INT_THRES:
 	case AK8974_INT_THRES + 1:
+		return true;
 	case AK8974_PRESET:
 	case AK8974_PRESET + 1:
-		return true;
+		return ak8974->variant != AK8974_WHOAMI_VALUE_HSCDTD008A;
 	case AK8974_OFFSET_X:
 	case AK8974_OFFSET_X + 1:
 	case AK8974_OFFSET_Y:
 	case AK8974_OFFSET_Y + 1:
 	case AK8974_OFFSET_Z:
 	case AK8974_OFFSET_Z + 1:
-		if (ak8974->variant == AK8974_WHOAMI_VALUE_AK8974)
-			return true;
-		return false;
+		return ak8974->variant == AK8974_WHOAMI_VALUE_AK8974 ||
+		       ak8974->variant == AK8974_WHOAMI_VALUE_HSCDTD008A;
 	case AMI305_OFFSET_X:
 	case AMI305_OFFSET_X + 1:
 	case AMI305_OFFSET_Y:
@@ -733,9 +833,8 @@ static int ak8974_probe(struct i2c_client *i2c,
 	ak8974->i2c = i2c;
 	mutex_init(&ak8974->lock);
 
-	ret = of_iio_read_mount_matrix(&i2c->dev,
-				       "mount-matrix",
-				       &ak8974->orientation);
+	ret = iio_read_mount_matrix(&i2c->dev, "mount-matrix",
+				    &ak8974->orientation);
 	if (ret)
 		return ret;
 
@@ -745,10 +844,8 @@ static int ak8974_probe(struct i2c_client *i2c,
 	ret = devm_regulator_bulk_get(&i2c->dev,
 				      ARRAY_SIZE(ak8974->regs),
 				      ak8974->regs);
-	if (ret < 0) {
-		dev_err(&i2c->dev, "cannot get regulators\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&i2c->dev, ret, "cannot get regulators\n");
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(ak8974->regs), ak8974->regs);
 	if (ret < 0) {
@@ -764,19 +861,21 @@ static int ak8974_probe(struct i2c_client *i2c,
 	ak8974->map = devm_regmap_init_i2c(i2c, &ak8974_regmap_config);
 	if (IS_ERR(ak8974->map)) {
 		dev_err(&i2c->dev, "failed to allocate register map\n");
+		pm_runtime_put_noidle(&i2c->dev);
+		pm_runtime_disable(&i2c->dev);
 		return PTR_ERR(ak8974->map);
 	}
 
 	ret = ak8974_set_power(ak8974, AK8974_PWR_ON);
 	if (ret) {
 		dev_err(&i2c->dev, "could not power on\n");
-		goto power_off;
+		goto disable_pm;
 	}
 
 	ret = ak8974_detect(ak8974);
 	if (ret) {
 		dev_err(&i2c->dev, "neither AK8974 nor AMI30x found\n");
-		goto power_off;
+		goto disable_pm;
 	}
 
 	ret = ak8974_selftest(ak8974);
@@ -786,17 +885,24 @@ static int ak8974_probe(struct i2c_client *i2c,
 	ret = ak8974_reset(ak8974);
 	if (ret) {
 		dev_err(&i2c->dev, "AK8974 reset failed\n");
-		goto power_off;
+		goto disable_pm;
 	}
 
-	pm_runtime_set_autosuspend_delay(&i2c->dev,
-					 AK8974_AUTOSUSPEND_DELAY);
-	pm_runtime_use_autosuspend(&i2c->dev);
-	pm_runtime_put(&i2c->dev);
-
-	indio_dev->dev.parent = &i2c->dev;
-	indio_dev->channels = ak8974_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ak8974_channels);
+	switch (ak8974->variant) {
+	case AK8974_WHOAMI_VALUE_AMI306:
+	case AK8974_WHOAMI_VALUE_AMI305:
+		indio_dev->channels = ak8974_12_bits_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ak8974_12_bits_channels);
+		break;
+	case AK8974_WHOAMI_VALUE_HSCDTD008A:
+		indio_dev->channels = ak8974_15_bits_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ak8974_15_bits_channels);
+		break;
+	default:
+		indio_dev->channels = ak8974_12_bits_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ak8974_12_bits_channels);
+		break;
+	}
 	indio_dev->info = &ak8974_info;
 	indio_dev->available_scan_masks = ak8974_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -846,6 +952,11 @@ no_irq:
 		goto cleanup_buffer;
 	}
 
+	pm_runtime_set_autosuspend_delay(&i2c->dev,
+					 AK8974_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(&i2c->dev);
+	pm_runtime_put(&i2c->dev);
+
 	return 0;
 
 cleanup_buffer:
@@ -854,7 +965,6 @@ disable_pm:
 	pm_runtime_put_noidle(&i2c->dev);
 	pm_runtime_disable(&i2c->dev);
 	ak8974_set_power(ak8974, AK8974_PWR_OFF);
-power_off:
 	regulator_bulk_disable(ARRAY_SIZE(ak8974->regs), ak8974->regs);
 
 	return ret;
@@ -926,12 +1036,14 @@ static const struct i2c_device_id ak8974_id[] = {
 	{"ami305", 0 },
 	{"ami306", 0 },
 	{"ak8974", 0 },
+	{"hscdtd008a", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ak8974_id);
 
 static const struct of_device_id ak8974_of_match[] = {
 	{ .compatible = "asahi-kasei,ak8974", },
+	{ .compatible = "alps,hscdtd008a", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ak8974_of_match);
@@ -940,7 +1052,7 @@ static struct i2c_driver ak8974_driver = {
 	.driver	 = {
 		.name	= "ak8974",
 		.pm = &ak8974_dev_pm_ops,
-		.of_match_table = of_match_ptr(ak8974_of_match),
+		.of_match_table = ak8974_of_match,
 	},
 	.probe	  = ak8974_probe,
 	.remove	  = ak8974_remove,

@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __HNAE_H
@@ -278,9 +274,6 @@ struct hnae_ring {
 	/* statistic */
 	struct ring_stats stats;
 
-	/* ring lock for poll one */
-	spinlock_t lock;
-
 	dma_addr_t desc_dma_addr;
 	u32 buf_size;       /* size for hnae_desc->addr, preset by AE */
 	u16 desc_num;       /* total number of desc */
@@ -357,7 +350,7 @@ struct hnae_buf_ops {
 };
 
 struct hnae_queue {
-	void __iomem *io_base;
+	u8 __iomem *io_base;
 	phys_addr_t phy_base;
 	struct hnae_ae_dev *dev;	/* the device who use this queue */
 	struct hnae_ring rx_ring ____cacheline_internodealigned_in_smp;

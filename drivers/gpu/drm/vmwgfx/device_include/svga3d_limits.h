@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 2007-2015 VMware, Inc.
+ * Copyright 2007-2019 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -40,11 +40,25 @@
 #include "includeCheck.h"
 
 #define SVGA3D_NUM_CLIPPLANES                   6
+#define SVGA3D_MAX_CONTEXT_IDS                  256
+#define SVGA3D_MAX_SURFACE_IDS                  (32 * 1024)
+
+/*
+ * While there are separate bind-points for RenderTargetViews and
+ * UnorderedAccessViews in a DXContext, there is in fact one shared
+ * semantic space that the guest-driver can use on any given draw call.
+ * So there are really only 8 slots that can be spilt up between them, with the
+ * spliceIndex controlling where the UAV's sit in the collapsed array.
+ */
 #define SVGA3D_MAX_RENDER_TARGETS               8
 #define SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS  (SVGA3D_MAX_RENDER_TARGETS)
 #define SVGA3D_MAX_UAVIEWS                      8
-#define SVGA3D_MAX_CONTEXT_IDS                  256
-#define SVGA3D_MAX_SURFACE_IDS                  (32 * 1024)
+#define SVGA3D_DX11_1_MAX_UAVIEWS               64
+
+/*
+ * Maximum canonical size of a surface in host-backed mode (pre-GBObjects).
+ */
+#define SVGA3D_HB_MAX_SURFACE_SIZE MBYTES_2_BYTES(128)
 
 /*
  * Maximum ID a shader can be assigned on a given context.
@@ -59,6 +73,8 @@
 #define SVGA3D_NUM_TEXTURE_UNITS                32
 #define SVGA3D_NUM_LIGHTS                       8
 
+#define SVGA3D_MAX_VIDEOPROCESSOR_SAMPLERS      32
+
 /*
  * Maximum size in dwords of shader text the SVGA device will allow.
  * Currently 8 MB.
@@ -66,6 +82,11 @@
 #define SVGA3D_MAX_SHADER_MEMORY_BYTES (8 * 1024 * 1024)
 #define SVGA3D_MAX_SHADER_MEMORY  (SVGA3D_MAX_SHADER_MEMORY_BYTES / \
                                    sizeof(uint32))
+
+/*
+ * The maximum value of threadGroupCount in each dimension
+ */
+#define SVGA3D_MAX_SHADER_THREAD_GROUPS 65535
 
 #define SVGA3D_MAX_CLIP_PLANES    6
 
@@ -85,7 +106,9 @@
 /*
  * Maximum number of array indexes in a GB surface (with DX enabled).
  */
-#define SVGA3D_MAX_SURFACE_ARRAYSIZE 512
+#define SVGA3D_SM4_MAX_SURFACE_ARRAYSIZE 512
+#define SVGA3D_SM5_MAX_SURFACE_ARRAYSIZE 2048
+#define SVGA3D_MAX_SURFACE_ARRAYSIZE SVGA3D_SM5_MAX_SURFACE_ARRAYSIZE
 
 /*
  * The maximum number of vertex arrays we're guaranteed to support in
@@ -98,5 +121,10 @@
  * in SVGA_3D_CMD_DRAWPRIMITIVES.
  */
 #define SVGA3D_MAX_DRAW_PRIMITIVE_RANGES 32
+
+/*
+ * The maximum number of samples that can be contained in a surface.
+ */
+#define SVGA3D_MAX_SAMPLES 8
 
 #endif /* _SVGA3D_LIMITS_H_ */

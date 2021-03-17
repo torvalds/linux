@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sca3000_core.c -- support VTI sca3000 series accelerometers via SPI
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Copyright (c) 2009 Jonathan Cameron <jic23@kernel.org>
  *
@@ -114,7 +111,7 @@
 /* Currently unsupported */
 #define SCA3000_MD_CTRL_AND_Y				BIT(3)
 #define SCA3000_MD_CTRL_AND_X				BIT(4)
-#define SAC3000_MD_CTRL_AND_Z				BIT(5)
+#define SCA3000_MD_CTRL_AND_Z				BIT(5)
 
 /*
  * Some control registers of complex access methods requiring this register to
@@ -189,9 +186,9 @@ struct sca3000_state {
  * @option_mode_2_freq:		option mode 2 sampling frequency
  * @option_mode_2_3db_freq:	3db cutoff frequency of the low pass filter for
  * the second option mode.
- * @mod_det_mult_xz:		Bit wise multipliers to calculate the threshold
+ * @mot_det_mult_xz:		Bit wise multipliers to calculate the threshold
  * for motion detection in the x and z axis.
- * @mod_det_mult_y:		Bit wise multipliers to calculate the threshold
+ * @mot_det_mult_y:		Bit wise multipliers to calculate the threshold
  * for motion detection in the y axis.
  *
  * This structure is used to hold information about the functionality of a given
@@ -862,9 +859,9 @@ error_ret:
  */
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(sca3000_read_av_freq);
 
-/**
+/*
  * sca3000_read_event_value() - query of a threshold or period
- **/
+ */
 static int sca3000_read_event_value(struct iio_dev *indio_dev,
 				    const struct iio_chan_spec *chan,
 				    enum iio_event_type type,
@@ -872,8 +869,9 @@ static int sca3000_read_event_value(struct iio_dev *indio_dev,
 				    enum iio_event_info info,
 				    int *val, int *val2)
 {
-	int ret, i;
 	struct sca3000_state *st = iio_priv(indio_dev);
+	long ret;
+	int i;
 
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
@@ -885,11 +883,11 @@ static int sca3000_read_event_value(struct iio_dev *indio_dev,
 			return ret;
 		*val = 0;
 		if (chan->channel2 == IIO_MOD_Y)
-			for_each_set_bit(i, (unsigned long *)&ret,
+			for_each_set_bit(i, &ret,
 					 ARRAY_SIZE(st->info->mot_det_mult_y))
 				*val += st->info->mot_det_mult_y[i];
 		else
-			for_each_set_bit(i, (unsigned long *)&ret,
+			for_each_set_bit(i, &ret,
 					 ARRAY_SIZE(st->info->mot_det_mult_xz))
 				*val += st->info->mot_det_mult_xz[i];
 
@@ -982,7 +980,7 @@ static int sca3000_read_data(struct sca3000_state *st,
 	st->tx[0] = SCA3000_READ_REG(reg_address_high);
 	ret = spi_sync_transfer(st->us, xfer, ARRAY_SIZE(xfer));
 	if (ret) {
-		dev_err(get_device(&st->us->dev), "problem reading register");
+		dev_err(&st->us->dev, "problem reading register\n");
 		return ret;
 	}
 
@@ -1102,9 +1100,9 @@ done:
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * sca3000_read_event_config() what events are enabled
- **/
+ */
 static int sca3000_read_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
@@ -1469,7 +1467,6 @@ static int sca3000_probe(struct spi_device *spi)
 	st->info = &sca3000_spi_chip_info_tbl[spi_get_device_id(spi)
 					      ->driver_data];
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &sca3000_info;
 	if (st->info->temp_output) {

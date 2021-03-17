@@ -19,9 +19,13 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include <linux/delay.h>
+
+#include <trace/events/dma_fence.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
-#include <trace/events/dma_fence.h>
 
 /*
  * drawable cmd cache - allocate a bunch of VRAM pages, suballocate
@@ -217,7 +221,7 @@ int qxl_release_list_add(struct qxl_release *release, struct qxl_bo *bo)
 
 	qxl_bo_ref(bo);
 	entry->tv.bo = &bo->tbo;
-	entry->tv.shared = false;
+	entry->tv.num_shared = 0;
 	list_add_tail(&entry->tv.head, &release->bos);
 	return 0;
 }
@@ -234,12 +238,12 @@ static int qxl_release_validate_bo(struct qxl_bo *bo)
 			return ret;
 	}
 
-	ret = reservation_object_reserve_shared(bo->tbo.resv);
+	ret = dma_resv_reserve_shared(bo->tbo.base.resv, 1);
 	if (ret)
 		return ret;
 
 	/* allocate a surface for reserved + validated buffers */
-	ret = qxl_bo_check_id(bo->gem_base.dev->dev_private, bo);
+	ret = qxl_bo_check_id(to_qxl(bo->tbo.base.dev), bo);
 	if (ret)
 		return ret;
 	return 0;
@@ -281,7 +285,6 @@ void qxl_release_backoff_reserve_list(struct qxl_release *release)
 
 	ttm_eu_backoff_reservation(&release->ticket, &release->bos);
 }
-
 
 int qxl_alloc_surface_release_reserved(struct qxl_device *qdev,
 				       enum qxl_surface_cmd_type surface_cmd_type,
@@ -426,10 +429,7 @@ void qxl_release_unmap(struct qxl_device *qdev,
 void qxl_release_fence_buffer_objects(struct qxl_release *release)
 {
 	struct ttm_buffer_object *bo;
-	struct ttm_bo_global *glob;
 	struct ttm_bo_device *bdev;
-	struct ttm_bo_driver *driver;
-	struct qxl_bo *qbo;
 	struct ttm_validate_buffer *entry;
 	struct qxl_device *qdev;
 
@@ -450,20 +450,16 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		       release->id | 0xf0000000, release->base.seqno);
 	trace_dma_fence_emit(&release->base);
 
-	driver = bdev->driver;
-	glob = bdev->glob;
-
-	spin_lock(&glob->lru_lock);
+	spin_lock(&ttm_bo_glob.lru_lock);
 
 	list_for_each_entry(entry, &release->bos, head) {
 		bo = entry->bo;
-		qbo = to_qxl_bo(bo);
 
-		reservation_object_add_shared_fence(bo->resv, &release->base);
-		ttm_bo_add_to_lru(bo);
-		reservation_object_unlock(bo->resv);
+		dma_resv_add_shared_fence(bo->base.resv, &release->base);
+		ttm_bo_move_to_lru_tail(bo, NULL);
+		dma_resv_unlock(bo->base.resv);
 	}
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 	ww_acquire_fini(&release->ticket);
 }
 

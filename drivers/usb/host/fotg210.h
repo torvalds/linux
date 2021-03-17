@@ -177,10 +177,13 @@ struct fotg210_hcd {			/* one per controller */
 	/* irq statistics */
 #ifdef FOTG210_STATS
 	struct fotg210_stats	stats;
-#	define COUNT(x) ((x)++)
+#	define INCR(x) ((x)++)
 #else
-#	define COUNT(x)
+#	define INCR(x) do {} while (0)
 #endif
+
+	/* silicon clock */
+	struct clk		*pclk;
 
 	/* debug files */
 	struct dentry		*debug_dir;
@@ -487,7 +490,7 @@ struct fotg210_iso_packet {
 struct fotg210_iso_sched {
 	struct list_head	td_list;
 	unsigned		span;
-	struct fotg210_iso_packet	packet[0];
+	struct fotg210_iso_packet	packet[];
 };
 
 /*

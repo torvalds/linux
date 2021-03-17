@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+
 #include <linux/acpi.h>
 #include <linux/cpu.h>
 #include <linux/kexec.h>
@@ -9,8 +11,10 @@
 
 #include <asm/cpu.h>
 #include <asm/smp.h>
+#include <asm/io_apic.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
+#include <asm/idtentry.h>
 #include <asm/hypervisor.h>
 #include <asm/e820/api.h>
 #include <asm/early_ioremap.h>
@@ -116,6 +120,17 @@ static void __init init_hvm_pv_info(void)
 		this_cpu_write(xen_vcpu_id, smp_processor_id());
 }
 
+DEFINE_IDTENTRY_SYSVEC(sysvec_xen_hvm_callback)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	inc_irq_stat(irq_hv_callback_count);
+
+	xen_hvm_evtchn_do_upcall();
+
+	set_irq_regs(old_regs);
+}
+
 #ifdef CONFIG_KEXEC_CORE
 static void xen_hvm_shutdown(void)
 {
@@ -173,6 +188,8 @@ static int xen_cpu_dead_hvm(unsigned int cpu)
        return 0;
 }
 
+static bool no_vector_callback __initdata;
+
 static void __init xen_hvm_guest_init(void)
 {
 	if (xen_pv_domain())
@@ -192,7 +209,7 @@ static void __init xen_hvm_guest_init(void)
 
 	xen_panic_handler_init();
 
-	if (xen_feature(XENFEAT_hvm_callback_vector))
+	if (!no_vector_callback && xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
 
 	xen_hvm_smp_init();
@@ -208,18 +225,25 @@ static void __init xen_hvm_guest_init(void)
 #endif
 }
 
-static bool xen_nopv;
 static __init int xen_parse_nopv(char *arg)
 {
-       xen_nopv = true;
-       return 0;
+	pr_notice("\"xen_nopv\" is deprecated, please use \"nopv\" instead\n");
+
+	if (xen_cpuid_base())
+		nopv = true;
+	return 0;
 }
 early_param("xen_nopv", xen_parse_nopv);
 
-bool xen_hvm_need_lapic(void)
+static __init int xen_parse_no_vector_callback(char *arg)
 {
-	if (xen_nopv)
-		return false;
+	no_vector_callback = true;
+	return 0;
+}
+early_param("xen_no_vector_callback", xen_parse_no_vector_callback);
+
+bool __init xen_hvm_need_lapic(void)
+{
 	if (xen_pv_domain())
 		return false;
 	if (!xen_hvm_domain())
@@ -227,15 +251,6 @@ bool xen_hvm_need_lapic(void)
 	if (xen_feature(XENFEAT_hvm_pirqs) && xen_have_vector_callback)
 		return false;
 	return true;
-}
-EXPORT_SYMBOL_GPL(xen_hvm_need_lapic);
-
-static uint32_t __init xen_platform_hvm(void)
-{
-	if (xen_pv_domain() || xen_nopv)
-		return 0;
-
-	return xen_cpuid_base();
 }
 
 static __init void xen_hvm_guest_late_init(void)
@@ -249,6 +264,9 @@ static __init void xen_hvm_guest_late_init(void)
 	/* PVH detected. */
 	xen_pvh = true;
 
+	if (nopv)
+		panic("\"nopv\" and \"xen_nopv\" parameters are unsupported in PVH guest.");
+
 	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
 	if (!nr_ioapics && acpi_irq_model == ACPI_IRQ_MODEL_PIC)
 		acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
@@ -258,7 +276,38 @@ static __init void xen_hvm_guest_late_init(void)
 #endif
 }
 
-const __initconst struct hypervisor_x86 x86_hyper_xen_hvm = {
+static uint32_t __init xen_platform_hvm(void)
+{
+	uint32_t xen_domain = xen_cpuid_base();
+	struct x86_hyper_init *h = &x86_hyper_xen_hvm.init;
+
+	if (xen_pv_domain())
+		return 0;
+
+	if (xen_pvh_domain() && nopv) {
+		/* Guest booting via the Xen-PVH boot entry goes here */
+		pr_info("\"nopv\" parameter is ignored in PVH guest\n");
+		nopv = false;
+	} else if (nopv && xen_domain) {
+		/*
+		 * Guest booting via normal boot entry (like via grub2) goes
+		 * here.
+		 *
+		 * Use interface functions for bare hardware if nopv,
+		 * xen_hvm_guest_late_init is an exception as we need to
+		 * detect PVH and panic there.
+		 */
+		h->init_platform = x86_init_noop;
+		h->x2apic_available = bool_x86_init_noop;
+		h->init_mem_mapping = x86_init_noop;
+		h->init_after_bootmem = x86_init_noop;
+		h->guest_late_init = xen_hvm_guest_late_init;
+		x86_hyper_xen_hvm.runtime.pin_vcpu = x86_op_int_noop;
+	}
+	return xen_domain;
+}
+
+struct hypervisor_x86 x86_hyper_xen_hvm __initdata = {
 	.name                   = "Xen HVM",
 	.detect                 = xen_platform_hvm,
 	.type			= X86_HYPER_XEN_HVM,
@@ -267,4 +316,5 @@ const __initconst struct hypervisor_x86 x86_hyper_xen_hvm = {
 	.init.init_mem_mapping	= xen_hvm_init_mem_mapping,
 	.init.guest_late_init	= xen_hvm_guest_late_init,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
+	.ignore_nopv            = true,
 };

@@ -1,19 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) */
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _UAPI_LINUX_BATADV_PACKET_H_
@@ -84,8 +72,8 @@ enum batadv_subtype {
 
 /**
  * enum batadv_iv_flags - flags used in B.A.T.M.A.N. IV OGM packets
- * @BATADV_NOT_BEST_NEXT_HOP: flag is set when ogm packet is forwarded and was
- *     previously received from someone else than the best neighbor.
+ * @BATADV_NOT_BEST_NEXT_HOP: flag is set when the ogm packet is forwarded and
+ *  was previously received from someone other than the best neighbor.
  * @BATADV_PRIMARIES_FIRST_HOP: flag unused.
  * @BATADV_DIRECTLINK: flag is for the first hop or if rebroadcasted from a
  *     one hop neighbor on the interface where it was originally received.
@@ -119,12 +107,20 @@ enum batadv_icmp_packettype {
  * @BATADV_MCAST_WANT_ALL_UNSNOOPABLES: we want all packets destined for
  *  224.0.0.0/24 or ff02::1
  * @BATADV_MCAST_WANT_ALL_IPV4: we want all IPv4 multicast packets
+ *  (both link-local and routable ones)
  * @BATADV_MCAST_WANT_ALL_IPV6: we want all IPv6 multicast packets
+ *  (both link-local and routable ones)
+ * @BATADV_MCAST_WANT_NO_RTR4: we have no IPv4 multicast router and therefore
+ * only need routable IPv4 multicast packets we signed up for explicitly
+ * @BATADV_MCAST_WANT_NO_RTR6: we have no IPv6 multicast router and therefore
+ * only need routable IPv6 multicast packets we signed up for explicitly
  */
 enum batadv_mcast_flags {
 	BATADV_MCAST_WANT_ALL_UNSNOOPABLES	= 1UL << 0,
 	BATADV_MCAST_WANT_ALL_IPV4		= 1UL << 1,
 	BATADV_MCAST_WANT_ALL_IPV6		= 1UL << 2,
+	BATADV_MCAST_WANT_NO_RTR4		= 1UL << 3,
+	BATADV_MCAST_WANT_NO_RTR6		= 1UL << 4,
 };
 
 /* tt data subtypes */
@@ -199,8 +195,8 @@ struct batadv_bla_claim_dst {
 /**
  * struct batadv_ogm_packet - ogm (routing protocol) packet
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @flags: contains routing relevant flags - see enum batadv_iv_flags
  * @seqno: sequence identification
  * @orig: address of the source node
@@ -229,7 +225,7 @@ struct batadv_ogm_packet {
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the general header
  * @ttl: time to live for this packet, part of the general header
- * @flags: reseved for routing relevant flags - currently always 0
+ * @flags: reserved for routing relevant flags - currently always 0
  * @seqno: sequence number
  * @orig: originator mac address
  * @tvlv_len: length of the appended tvlv buffer (in bytes)
@@ -251,7 +247,7 @@ struct batadv_ogm2_packet {
 /**
  * struct batadv_elp_packet - elp (neighbor discovery) packet
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
  * @orig: originator mac address
  * @seqno: sequence number
  * @elp_interval: currently used ELP sending interval in ms
@@ -269,15 +265,15 @@ struct batadv_elp_packet {
 /**
  * struct batadv_icmp_header - common members among all the ICMP packets
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @msg_type: ICMP packet type
  * @dst: address of the destination node
  * @orig: address of the source node
  * @uid: local ICMP socket identifier
  * @align: not used - useful for alignment purposes only
  *
- * This structure is used for ICMP packets parsing only and it is never sent
+ * This structure is used for ICMP packet parsing only and it is never sent
  * over the wire. The alignment field at the end is there to ensure that
  * members are padded the same way as they are in real packets.
  */
@@ -295,8 +291,8 @@ struct batadv_icmp_header {
 /**
  * struct batadv_icmp_packet - ICMP packet
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @msg_type: ICMP packet type
  * @dst: address of the destination node
  * @orig: address of the source node
@@ -319,8 +315,8 @@ struct batadv_icmp_packet {
 /**
  * struct batadv_icmp_tp_packet - ICMP TP Meter packet
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @msg_type: ICMP packet type
  * @dst: address of the destination node
  * @orig: address of the source node
@@ -362,8 +358,8 @@ enum batadv_icmp_tp_subtype {
 /**
  * struct batadv_icmp_packet_rr - ICMP RouteRecord packet
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @msg_type: ICMP packet type
  * @dst: address of the destination node
  * @orig: address of the source node
@@ -401,8 +397,8 @@ struct batadv_icmp_packet_rr {
 /**
  * struct batadv_unicast_packet - unicast packet for network payload
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @ttvn: translation table version number
  * @dest: originator destination of the unicast packet
  */
@@ -437,8 +433,8 @@ struct batadv_unicast_4addr_packet {
 /**
  * struct batadv_frag_packet - fragmented packet
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @dest: final destination used when routing fragments
  * @orig: originator of the fragment used when merging the packet
  * @no: fragment number within this sequence
@@ -471,8 +467,8 @@ struct batadv_frag_packet {
 /**
  * struct batadv_bcast_packet - broadcast packet for network payload
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @reserved: reserved byte for alignment
  * @seqno: sequence identification
  * @orig: originator of the broadcast packet
@@ -492,10 +488,10 @@ struct batadv_bcast_packet {
 /**
  * struct batadv_coded_packet - network coded packet
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @first_source: original source of first included packet
- * @first_orig_dest: original destinal of first included packet
+ * @first_orig_dest: original destination of first included packet
  * @first_crc: checksum of first included packet
  * @first_ttvn: tt-version number of first included packet
  * @second_ttl: ttl of second packet
@@ -527,8 +523,8 @@ struct batadv_coded_packet {
 /**
  * struct batadv_unicast_tvlv_packet - generic unicast packet with tvlv payload
  * @packet_type: batman-adv packet type, part of the general header
- * @version: batman-adv protocol version, part of the genereal header
- * @ttl: time to live for this packet, part of the genereal header
+ * @version: batman-adv protocol version, part of the general header
+ * @ttl: time to live for this packet, part of the general header
  * @reserved: reserved field (for packet alignment)
  * @src: address of the source
  * @dst: address of the destination

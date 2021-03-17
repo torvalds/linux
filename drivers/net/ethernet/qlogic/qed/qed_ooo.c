@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -211,9 +185,8 @@ void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 			if (!p_buffer)
 				break;
 
-			list_del(&p_buffer->list_entry);
-			list_add_tail(&p_buffer->list_entry,
-				      &p_ooo_info->free_buffers_list);
+			list_move_tail(&p_buffer->list_entry,
+				       &p_ooo_info->free_buffers_list);
 		}
 		list_add_tail(&p_isle->list_entry,
 			      &p_ooo_info->free_isles_list);
@@ -247,9 +220,8 @@ void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 				if (!p_buffer)
 					break;
 
-			list_del(&p_buffer->list_entry);
-				list_add_tail(&p_buffer->list_entry,
-					      &p_ooo_info->free_buffers_list);
+				list_move_tail(&p_buffer->list_entry,
+					       &p_ooo_info->free_buffers_list);
 			}
 			list_add_tail(&p_isle->list_entry,
 				      &p_ooo_info->free_isles_list);
@@ -353,11 +325,9 @@ void qed_ooo_delete_isles(struct qed_hwfn *p_hwfn,
 			  struct qed_ooo_info *p_ooo_info,
 			  u32 cid, u8 drop_isle, u8 drop_size)
 {
-	struct qed_ooo_archipelago *p_archipelago = NULL;
 	struct qed_ooo_isle *p_isle = NULL;
 	u8 isle_idx;
 
-	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
 	for (isle_idx = 0; isle_idx < drop_size; isle_idx++) {
 		p_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid, drop_isle);
 		if (!p_isle) {
@@ -462,7 +432,6 @@ void qed_ooo_add_new_buffer(struct qed_hwfn *p_hwfn,
 void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 			struct qed_ooo_info *p_ooo_info, u32 cid, u8 left_isle)
 {
-	struct qed_ooo_archipelago *p_archipelago = NULL;
 	struct qed_ooo_isle *p_right_isle = NULL;
 	struct qed_ooo_isle *p_left_isle = NULL;
 
@@ -475,7 +444,6 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 		return;
 	}
 
-	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
 	list_del(&p_right_isle->list_entry);
 	p_ooo_info->cur_isles_number--;
 	if (left_isle) {

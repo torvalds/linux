@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom Northstar USB 3.0 PHY Driver
  *
@@ -7,15 +8,12 @@
  * All magic values used for initialization (and related comments) were obtained
  * from Broadcom's SDK:
  * Copyright (c) Broadcom Corp, 2012
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/bcma/bcma.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/iopoll.h>
 #include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -261,29 +259,24 @@ static struct mdio_driver bcm_ns_usb3_mdio_driver = {
  **************************************************/
 
 static int bcm_ns_usb3_wait_reg(struct bcm_ns_usb3 *usb3, void __iomem *addr,
-				u32 mask, u32 value, unsigned long timeout)
+				u32 mask, u32 value, int usec)
 {
-	unsigned long deadline = jiffies + timeout;
 	u32 val;
+	int ret;
 
-	do {
-		val = readl(addr);
-		if ((val & mask) == value)
-			return 0;
-		cpu_relax();
-		udelay(10);
-	} while (!time_after_eq(jiffies, deadline));
+	ret = readl_poll_timeout_atomic(addr, val, ((val & mask) == value),
+					10, usec);
+	if (ret)
+		dev_err(usb3->dev, "Timeout waiting for register %p\n", addr);
 
-	dev_err(usb3->dev, "Timeout waiting for register %p\n", addr);
-
-	return -EBUSY;
+	return ret;
 }
 
 static inline int bcm_ns_usb3_mii_mng_wait_idle(struct bcm_ns_usb3 *usb3)
 {
 	return bcm_ns_usb3_wait_reg(usb3, usb3->ccb_mii + BCMA_CCB_MII_MNG_CTL,
 				    0x0100, 0x0000,
-				    usecs_to_jiffies(BCM_NS_USB3_MII_MNG_TIMEOUT_US));
+				    BCM_NS_USB3_MII_MNG_TIMEOUT_US);
 }
 
 static int bcm_ns_usb3_platform_phy_write(struct bcm_ns_usb3 *usb3, u16 reg,

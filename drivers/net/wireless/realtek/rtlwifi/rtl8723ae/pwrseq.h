@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL8723E_PWRSEQ_H__
 #define __RTL8723E_PWRSEQ_H__
@@ -327,14 +305,14 @@ extern struct wlan_pwr_cfg rtl8723A_leave_lps_flow
 		[RTL8723A_TRANS_LPS_TO_ACT_STEPS + RTL8723A_TRANS_END_STEPS];
 
 /* RTL8723 Power Configuration CMDs for PCIe interface */
-#define Rtl8723_NIC_PWR_ON_FLOW		rtl8723A_power_on_flow
-#define Rtl8723_NIC_RF_OFF_FLOW		rtl8723A_radio_off_flow
-#define Rtl8723_NIC_DISABLE_FLOW	rtl8723A_card_disable_flow
-#define Rtl8723_NIC_ENABLE_FLOW		rtl8723A_card_enable_flow
-#define Rtl8723_NIC_SUSPEND_FLOW	rtl8723A_suspend_flow
-#define Rtl8723_NIC_RESUME_FLOW		rtl8723A_resume_flow
-#define Rtl8723_NIC_PDN_FLOW		rtl8723A_hwpdn_flow
-#define Rtl8723_NIC_LPS_ENTER_FLOW	rtl8723A_enter_lps_flow
-#define Rtl8723_NIC_LPS_LEAVE_FLOW	rtl8723A_leave_lps_flow
+#define RTL8723_NIC_PWR_ON_FLOW		rtl8723A_power_on_flow
+#define RTL8723_NIC_RF_OFF_FLOW		rtl8723A_radio_off_flow
+#define RTL8723_NIC_DISABLE_FLOW	rtl8723A_card_disable_flow
+#define RTL8723_NIC_ENABLE_FLOW		rtl8723A_card_enable_flow
+#define RTL8723_NIC_SUSPEND_FLOW	rtl8723A_suspend_flow
+#define RTL8723_NIC_RESUME_FLOW		rtl8723A_resume_flow
+#define RTL8723_NIC_PDN_FLOW		rtl8723A_hwpdn_flow
+#define RTL8723_NIC_LPS_ENTER_FLOW	rtl8723A_enter_lps_flow
+#define RTL8723_NIC_LPS_LEAVE_FLOW	rtl8723A_leave_lps_flow
 
 #endif

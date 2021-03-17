@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* RxRPC security handling
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -105,62 +101,58 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 }
 
 /*
- * initialise the security on a server connection
+ * Find the security key for a server connection.
  */
-int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
+bool rxrpc_look_up_server_security(struct rxrpc_local *local, struct rxrpc_sock *rx,
+				   const struct rxrpc_security **_sec,
+				   struct key **_key,
+				   struct sk_buff *skb)
 {
 	const struct rxrpc_security *sec;
-	struct rxrpc_local *local = conn->params.local;
-	struct rxrpc_sock *rx;
-	struct key *key;
-	key_ref_t kref;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	key_ref_t kref = NULL;
 	char kdesc[5 + 1 + 3 + 1];
 
 	_enter("");
 
-	sprintf(kdesc, "%u:%u", conn->service_id, conn->security_ix);
+	sprintf(kdesc, "%u:%u", sp->hdr.serviceId, sp->hdr.securityIndex);
 
-	sec = rxrpc_security_lookup(conn->security_ix);
+	sec = rxrpc_security_lookup(sp->hdr.securityIndex);
 	if (!sec) {
-		_leave(" = -ENOKEY [lookup]");
-		return -ENOKEY;
+		trace_rxrpc_abort(0, "SVS",
+				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
+				  RX_INVALID_OPERATION, EKEYREJECTED);
+		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
+		skb->priority = RX_INVALID_OPERATION;
+		return false;
 	}
 
-	/* find the service */
-	read_lock(&local->services_lock);
-	rx = rcu_dereference_protected(local->service,
-				       lockdep_is_held(&local->services_lock));
-	if (rx && (rx->srx.srx_service == conn->service_id ||
-		   rx->second_service == conn->service_id))
-		goto found_service;
+	if (sp->hdr.securityIndex == RXRPC_SECURITY_NONE)
+		goto out;
 
-	/* the service appears to have died */
-	read_unlock(&local->services_lock);
-	_leave(" = -ENOENT");
-	return -ENOENT;
-
-found_service:
 	if (!rx->securities) {
-		read_unlock(&local->services_lock);
-		_leave(" = -ENOKEY");
-		return -ENOKEY;
+		trace_rxrpc_abort(0, "SVR",
+				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
+				  RX_INVALID_OPERATION, EKEYREJECTED);
+		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
+		skb->priority = RX_INVALID_OPERATION;
+		return false;
 	}
 
 	/* look through the service's keyring */
 	kref = keyring_search(make_key_ref(rx->securities, 1UL),
-			      &key_type_rxrpc_s, kdesc);
+			      &key_type_rxrpc_s, kdesc, true);
 	if (IS_ERR(kref)) {
-		read_unlock(&local->services_lock);
-		_leave(" = %ld [search]", PTR_ERR(kref));
-		return PTR_ERR(kref);
+		trace_rxrpc_abort(0, "SVK",
+				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
+				  sec->no_key_abort, EKEYREJECTED);
+		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
+		skb->priority = sec->no_key_abort;
+		return false;
 	}
 
-	key = key_ref_to_ptr(kref);
-	read_unlock(&local->services_lock);
-
-	conn->server_key = key;
-	conn->security = sec;
-
-	_leave(" = 0");
-	return 0;
+out:
+	*_sec = sec;
+	*_key = key_ref_to_ptr(kref);
+	return true;
 }

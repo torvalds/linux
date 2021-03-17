@@ -7,6 +7,8 @@
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/math64.h>
+#include <linux/ktime.h>
 
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/mon_client.h>
@@ -18,6 +20,7 @@
 #ifdef CONFIG_DEBUG_FS
 
 #include "mds_client.h"
+#include "metric.h"
 
 static int mdsmap_show(struct seq_file *s, void *p)
 {
@@ -33,11 +36,11 @@ static int mdsmap_show(struct seq_file *s, void *p)
 	seq_printf(s, "max_mds %d\n", mdsmap->m_max_mds);
 	seq_printf(s, "session_timeout %d\n", mdsmap->m_session_timeout);
 	seq_printf(s, "session_autoclose %d\n", mdsmap->m_session_autoclose);
-	for (i = 0; i < mdsmap->m_num_mds; i++) {
+	for (i = 0; i < mdsmap->possible_max_rank; i++) {
 		struct ceph_entity_addr *addr = &mdsmap->m_info[i].addr;
 		int state = mdsmap->m_info[i].state;
 		seq_printf(s, "\tmds%d\t%s\t(%s)\n", i,
-			       ceph_pr_addr(&addr->in_addr),
+			       ceph_pr_addr(addr),
 			       ceph_mds_state_name(state));
 	}
 	return 0;
@@ -52,7 +55,7 @@ static int mdsc_show(struct seq_file *s, void *p)
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	struct rb_node *rp;
-	int pathlen;
+	int pathlen = 0;
 	u64 pathbase;
 	char *path;
 
@@ -88,7 +91,7 @@ static int mdsc_show(struct seq_file *s, void *p)
 				   req->r_dentry,
 				   path ? path : "");
 			spin_unlock(&req->r_dentry->d_lock);
-			kfree(path);
+			ceph_mdsc_free_path(path, pathlen);
 		} else if (req->r_path1) {
 			seq_printf(s, " #%llx/%s", req->r_ino1.ino,
 				   req->r_path1);
@@ -108,7 +111,7 @@ static int mdsc_show(struct seq_file *s, void *p)
 				   req->r_old_dentry,
 				   path ? path : "");
 			spin_unlock(&req->r_old_dentry->d_lock);
-			kfree(path);
+			ceph_mdsc_free_path(path, pathlen);
 		} else if (req->r_path2 && req->r_op != CEPH_MDS_OP_SYMLINK) {
 			if (req->r_ino2.ino)
 				seq_printf(s, " #%llx/%s", req->r_ino2.ino,
@@ -124,34 +127,143 @@ static int mdsc_show(struct seq_file *s, void *p)
 	return 0;
 }
 
+#define CEPH_METRIC_SHOW(name, total, avg, min, max, sq) {		\
+	s64 _total, _avg, _min, _max, _sq, _st;				\
+	_avg = ktime_to_us(avg);					\
+	_min = ktime_to_us(min == KTIME_MAX ? 0 : min);			\
+	_max = ktime_to_us(max);					\
+	_total = total - 1;						\
+	_sq = _total > 0 ? DIV64_U64_ROUND_CLOSEST(sq, _total) : 0;	\
+	_st = int_sqrt64(_sq);						\
+	_st = ktime_to_us(_st);						\
+	seq_printf(s, "%-14s%-12lld%-16lld%-16lld%-16lld%lld\n",	\
+		   name, total, _avg, _min, _max, _st);			\
+}
+
+static int metric_show(struct seq_file *s, void *p)
+{
+	struct ceph_fs_client *fsc = s->private;
+	struct ceph_mds_client *mdsc = fsc->mdsc;
+	struct ceph_client_metric *m = &mdsc->metric;
+	int nr_caps = 0;
+	s64 total, sum, avg, min, max, sq;
+
+	sum = percpu_counter_sum(&m->total_inodes);
+	seq_printf(s, "item                               total\n");
+	seq_printf(s, "------------------------------------------\n");
+	seq_printf(s, "%-35s%lld / %lld\n", "opened files  / total inodes",
+		   atomic64_read(&m->opened_files), sum);
+	seq_printf(s, "%-35s%lld / %lld\n", "pinned i_caps / total inodes",
+		   atomic64_read(&m->total_caps), sum);
+	seq_printf(s, "%-35s%lld / %lld\n", "opened inodes / total inodes",
+		   percpu_counter_sum(&m->opened_inodes), sum);
+
+	seq_printf(s, "\n");
+	seq_printf(s, "item          total       avg_lat(us)     min_lat(us)     max_lat(us)     stdev(us)\n");
+	seq_printf(s, "-----------------------------------------------------------------------------------\n");
+
+	spin_lock(&m->read_latency_lock);
+	total = m->total_reads;
+	sum = m->read_latency_sum;
+	avg = total > 0 ? DIV64_U64_ROUND_CLOSEST(sum, total) : 0;
+	min = m->read_latency_min;
+	max = m->read_latency_max;
+	sq = m->read_latency_sq_sum;
+	spin_unlock(&m->read_latency_lock);
+	CEPH_METRIC_SHOW("read", total, avg, min, max, sq);
+
+	spin_lock(&m->write_latency_lock);
+	total = m->total_writes;
+	sum = m->write_latency_sum;
+	avg = total > 0 ? DIV64_U64_ROUND_CLOSEST(sum, total) : 0;
+	min = m->write_latency_min;
+	max = m->write_latency_max;
+	sq = m->write_latency_sq_sum;
+	spin_unlock(&m->write_latency_lock);
+	CEPH_METRIC_SHOW("write", total, avg, min, max, sq);
+
+	spin_lock(&m->metadata_latency_lock);
+	total = m->total_metadatas;
+	sum = m->metadata_latency_sum;
+	avg = total > 0 ? DIV64_U64_ROUND_CLOSEST(sum, total) : 0;
+	min = m->metadata_latency_min;
+	max = m->metadata_latency_max;
+	sq = m->metadata_latency_sq_sum;
+	spin_unlock(&m->metadata_latency_lock);
+	CEPH_METRIC_SHOW("metadata", total, avg, min, max, sq);
+
+	seq_printf(s, "\n");
+	seq_printf(s, "item          total           miss            hit\n");
+	seq_printf(s, "-------------------------------------------------\n");
+
+	seq_printf(s, "%-14s%-16lld%-16lld%lld\n", "d_lease",
+		   atomic64_read(&m->total_dentries),
+		   percpu_counter_sum(&m->d_lease_mis),
+		   percpu_counter_sum(&m->d_lease_hit));
+
+	nr_caps = atomic64_read(&m->total_caps);
+	seq_printf(s, "%-14s%-16d%-16lld%lld\n", "caps", nr_caps,
+		   percpu_counter_sum(&m->i_caps_mis),
+		   percpu_counter_sum(&m->i_caps_hit));
+
+	return 0;
+}
+
+static int caps_show_cb(struct inode *inode, struct ceph_cap *cap, void *p)
+{
+	struct seq_file *s = p;
+
+	seq_printf(s, "0x%-17llx%-3d%-17s%-17s\n", ceph_ino(inode),
+		   cap->session->s_mds,
+		   ceph_cap_string(cap->issued),
+		   ceph_cap_string(cap->implemented));
+	return 0;
+}
+
 static int caps_show(struct seq_file *s, void *p)
 {
 	struct ceph_fs_client *fsc = s->private;
-	int total, avail, used, reserved, min;
+	struct ceph_mds_client *mdsc = fsc->mdsc;
+	int total, avail, used, reserved, min, i;
+	struct cap_wait	*cw;
 
 	ceph_reservation_status(fsc, &total, &avail, &used, &reserved, &min);
 	seq_printf(s, "total\t\t%d\n"
 		   "avail\t\t%d\n"
 		   "used\t\t%d\n"
 		   "reserved\t%d\n"
-		   "min\t%d\n",
+		   "min\t\t%d\n\n",
 		   total, avail, used, reserved, min);
-	return 0;
-}
+	seq_printf(s, "ino              mds  issued           implemented\n");
+	seq_printf(s, "--------------------------------------------------\n");
 
-static int dentry_lru_show(struct seq_file *s, void *ptr)
-{
-	struct ceph_fs_client *fsc = s->private;
-	struct ceph_mds_client *mdsc = fsc->mdsc;
-	struct ceph_dentry_info *di;
+	mutex_lock(&mdsc->mutex);
+	for (i = 0; i < mdsc->max_sessions; i++) {
+		struct ceph_mds_session *session;
 
-	spin_lock(&mdsc->dentry_lru_lock);
-	list_for_each_entry(di, &mdsc->dentry_lru, lru) {
-		struct dentry *dentry = di->dentry;
-		seq_printf(s, "%p %p\t%pd\n",
-			   di, dentry, dentry);
+		session = __ceph_lookup_mds_session(mdsc, i);
+		if (!session)
+			continue;
+		mutex_unlock(&mdsc->mutex);
+		mutex_lock(&session->s_mutex);
+		ceph_iterate_session_caps(session, caps_show_cb, s);
+		mutex_unlock(&session->s_mutex);
+		ceph_put_mds_session(session);
+		mutex_lock(&mdsc->mutex);
 	}
-	spin_unlock(&mdsc->dentry_lru_lock);
+	mutex_unlock(&mdsc->mutex);
+
+	seq_printf(s, "\n\nWaiters:\n--------\n");
+	seq_printf(s, "tgid         ino                need             want\n");
+	seq_printf(s, "-----------------------------------------------------\n");
+
+	spin_lock(&mdsc->caps_list_lock);
+	list_for_each_entry(cw, &mdsc->cap_wait_list, list) {
+		seq_printf(s, "%-13d0x%-17llx%-17s%-17s\n", cw->tgid, cw->ino,
+				ceph_cap_string(cw->need),
+				ceph_cap_string(cw->want));
+	}
+	spin_unlock(&mdsc->caps_list_lock);
 
 	return 0;
 }
@@ -162,7 +274,7 @@ static int mds_sessions_show(struct seq_file *s, void *ptr)
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_auth_client *ac = fsc->client->monc.auth;
 	struct ceph_options *opt = fsc->client->options;
-	int mds = -1;
+	int mds;
 
 	mutex_lock(&mdsc->mutex);
 
@@ -192,11 +304,11 @@ static int mds_sessions_show(struct seq_file *s, void *ptr)
 	return 0;
 }
 
-CEPH_DEFINE_SHOW_FUNC(mdsmap_show)
-CEPH_DEFINE_SHOW_FUNC(mdsc_show)
-CEPH_DEFINE_SHOW_FUNC(caps_show)
-CEPH_DEFINE_SHOW_FUNC(dentry_lru_show)
-CEPH_DEFINE_SHOW_FUNC(mds_sessions_show)
+DEFINE_SHOW_ATTRIBUTE(mdsmap);
+DEFINE_SHOW_ATTRIBUTE(mdsc);
+DEFINE_SHOW_ATTRIBUTE(caps);
+DEFINE_SHOW_ATTRIBUTE(mds_sessions);
+DEFINE_SHOW_ATTRIBUTE(metric);
 
 
 /*
@@ -230,88 +342,65 @@ void ceph_fs_debugfs_cleanup(struct ceph_fs_client *fsc)
 	debugfs_remove(fsc->debugfs_mdsmap);
 	debugfs_remove(fsc->debugfs_mds_sessions);
 	debugfs_remove(fsc->debugfs_caps);
+	debugfs_remove(fsc->debugfs_metric);
 	debugfs_remove(fsc->debugfs_mdsc);
-	debugfs_remove(fsc->debugfs_dentry_lru);
 }
 
-int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
+void ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 {
 	char name[100];
-	int err = -ENOMEM;
 
 	dout("ceph_fs_debugfs_init\n");
-	BUG_ON(!fsc->client->debugfs_dir);
 	fsc->debugfs_congestion_kb =
 		debugfs_create_file("writeback_congestion_kb",
 				    0600,
 				    fsc->client->debugfs_dir,
 				    fsc,
 				    &congestion_kb_fops);
-	if (!fsc->debugfs_congestion_kb)
-		goto out;
 
 	snprintf(name, sizeof(name), "../../bdi/%s",
-		 dev_name(fsc->sb->s_bdi->dev));
+		 bdi_dev_name(fsc->sb->s_bdi));
 	fsc->debugfs_bdi =
 		debugfs_create_symlink("bdi",
 				       fsc->client->debugfs_dir,
 				       name);
-	if (!fsc->debugfs_bdi)
-		goto out;
 
 	fsc->debugfs_mdsmap = debugfs_create_file("mdsmap",
 					0400,
 					fsc->client->debugfs_dir,
 					fsc,
-					&mdsmap_show_fops);
-	if (!fsc->debugfs_mdsmap)
-		goto out;
+					&mdsmap_fops);
 
 	fsc->debugfs_mds_sessions = debugfs_create_file("mds_sessions",
 					0400,
 					fsc->client->debugfs_dir,
 					fsc,
-					&mds_sessions_show_fops);
-	if (!fsc->debugfs_mds_sessions)
-		goto out;
+					&mds_sessions_fops);
 
 	fsc->debugfs_mdsc = debugfs_create_file("mdsc",
 						0400,
 						fsc->client->debugfs_dir,
 						fsc,
-						&mdsc_show_fops);
-	if (!fsc->debugfs_mdsc)
-		goto out;
+						&mdsc_fops);
+
+	fsc->debugfs_metric = debugfs_create_file("metrics",
+						  0400,
+						  fsc->client->debugfs_dir,
+						  fsc,
+						  &metric_fops);
 
 	fsc->debugfs_caps = debugfs_create_file("caps",
-						   0400,
-						   fsc->client->debugfs_dir,
-						   fsc,
-						   &caps_show_fops);
-	if (!fsc->debugfs_caps)
-		goto out;
-
-	fsc->debugfs_dentry_lru = debugfs_create_file("dentry_lru",
-					0400,
-					fsc->client->debugfs_dir,
-					fsc,
-					&dentry_lru_show_fops);
-	if (!fsc->debugfs_dentry_lru)
-		goto out;
-
-	return 0;
-
-out:
-	ceph_fs_debugfs_cleanup(fsc);
-	return err;
+						0400,
+						fsc->client->debugfs_dir,
+						fsc,
+						&caps_fops);
 }
 
 
 #else  /* CONFIG_DEBUG_FS */
 
-int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
+void ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 {
-	return 0;
 }
 
 void ceph_fs_debugfs_cleanup(struct ceph_fs_client *fsc)

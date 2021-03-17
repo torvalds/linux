@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Marvell 88E6xxx Address Translation Unit (ATU) support
  *
  * Copyright (c) 2008 Marvell Semiconductor
  * Copyright (c) 2017 Savoir-faire Linux, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
+
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 
@@ -75,12 +73,45 @@ int mv88e6xxx_g1_atu_set_age_time(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
+int mv88e6165_g1_atu_get_hash(struct mv88e6xxx_chip *chip, u8 *hash)
+{
+	int err;
+	u16 val;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_CTL, &val);
+	if (err)
+		return err;
+
+	*hash = val & MV88E6161_G1_ATU_CTL_HASH_MASK;
+
+	return 0;
+}
+
+int mv88e6165_g1_atu_set_hash(struct mv88e6xxx_chip *chip, u8 hash)
+{
+	int err;
+	u16 val;
+
+	if (hash & ~MV88E6161_G1_ATU_CTL_HASH_MASK)
+		return -EINVAL;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_CTL, &val);
+	if (err)
+		return err;
+
+	val &= ~MV88E6161_G1_ATU_CTL_HASH_MASK;
+	val |= hash;
+
+	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_ATU_CTL, val);
+}
+
 /* Offset 0x0B: ATU Operation Register */
 
 static int mv88e6xxx_g1_atu_op_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g1_wait(chip, MV88E6XXX_G1_ATU_OP,
-				 MV88E6XXX_G1_ATU_OP_BUSY);
+	int bit = __bf_shf(MV88E6XXX_G1_ATU_OP_BUSY);
+
+	return mv88e6xxx_g1_wait_bit(chip, MV88E6XXX_G1_ATU_OP, bit, 0);
 }
 
 static int mv88e6xxx_g1_atu_op(struct mv88e6xxx_chip *chip, u16 fid, u16 op)
@@ -94,7 +125,7 @@ static int mv88e6xxx_g1_atu_op(struct mv88e6xxx_chip *chip, u16 fid, u16 op)
 		if (err)
 			return err;
 	} else {
-		if (mv88e6xxx_num_databases(chip) > 16) {
+		if (mv88e6xxx_num_databases(chip) > 64) {
 			/* ATU DBNum[7:4] are located in ATU Control 15:12 */
 			err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_CTL,
 						&val);
@@ -106,6 +137,9 @@ static int mv88e6xxx_g1_atu_op(struct mv88e6xxx_chip *chip, u16 fid, u16 op)
 						 val);
 			if (err)
 				return err;
+		} else if (mv88e6xxx_num_databases(chip) > 16) {
+			/* ATU DBNum[5:4] are located in ATU Operation 9:8 */
+			op |= (fid & 0x30) << 4;
 		}
 
 		/* ATU DBNum[3:0] are located in ATU Operation 3:0 */
@@ -118,6 +152,11 @@ static int mv88e6xxx_g1_atu_op(struct mv88e6xxx_chip *chip, u16 fid, u16 op)
 		return err;
 
 	return mv88e6xxx_g1_atu_op_wait(chip);
+}
+
+int mv88e6xxx_g1_atu_get_next(struct mv88e6xxx_chip *chip, u16 fid)
+{
+	return mv88e6xxx_g1_atu_op(chip, fid, MV88E6XXX_G1_ATU_OP_GET_NEXT_DB);
 }
 
 /* Offset 0x0C: ATU Data Register */
@@ -133,7 +172,7 @@ static int mv88e6xxx_g1_atu_data_read(struct mv88e6xxx_chip *chip,
 		return err;
 
 	entry->state = val & 0xf;
-	if (entry->state != MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (entry->state) {
 		entry->trunk = !!(val & MV88E6XXX_G1_ATU_DATA_TRUNK);
 		entry->portvec = (val >> 4) & mv88e6xxx_port_mask(chip);
 	}
@@ -146,7 +185,7 @@ static int mv88e6xxx_g1_atu_data_write(struct mv88e6xxx_chip *chip,
 {
 	u16 data = entry->state & 0xf;
 
-	if (entry->state != MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (entry->state) {
 		if (entry->trunk)
 			data |= MV88E6XXX_G1_ATU_DATA_TRUNK;
 
@@ -207,7 +246,7 @@ int mv88e6xxx_g1_atu_getnext(struct mv88e6xxx_chip *chip, u16 fid,
 		return err;
 
 	/* Write the MAC address to iterate from only once */
-	if (entry->state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (!entry->state) {
 		err = mv88e6xxx_g1_atu_mac_write(chip, entry);
 		if (err)
 			return err;
@@ -314,10 +353,11 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 {
 	struct mv88e6xxx_chip *chip = dev_id;
 	struct mv88e6xxx_atu_entry entry;
+	int spid;
 	int err;
 	u16 val;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6xxx_g1_atu_op(chip, 0,
 				  MV88E6XXX_G1_ATU_OP_GET_CLR_VIOLATION);
@@ -336,6 +376,8 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 	if (err)
 		goto out;
 
+	spid = entry.state;
+
 	if (val & MV88E6XXX_G1_ATU_OP_AGE_OUT_VIOLATION) {
 		dev_err_ratelimited(chip->dev,
 				    "ATU age out violation for %pM\n",
@@ -344,30 +386,30 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 
 	if (val & MV88E6XXX_G1_ATU_OP_MEMBER_VIOLATION) {
 		dev_err_ratelimited(chip->dev,
-				    "ATU member violation for %pM portvec %x\n",
-				    entry.mac, entry.portvec);
-		chip->ports[entry.portvec].atu_member_violation++;
+				    "ATU member violation for %pM portvec %x spid %d\n",
+				    entry.mac, entry.portvec, spid);
+		chip->ports[spid].atu_member_violation++;
 	}
 
 	if (val & MV88E6XXX_G1_ATU_OP_MISS_VIOLATION) {
 		dev_err_ratelimited(chip->dev,
-				    "ATU miss violation for %pM portvec %x\n",
-				    entry.mac, entry.portvec);
-		chip->ports[entry.portvec].atu_miss_violation++;
+				    "ATU miss violation for %pM portvec %x spid %d\n",
+				    entry.mac, entry.portvec, spid);
+		chip->ports[spid].atu_miss_violation++;
 	}
 
 	if (val & MV88E6XXX_G1_ATU_OP_FULL_VIOLATION) {
 		dev_err_ratelimited(chip->dev,
-				    "ATU full violation for %pM portvec %x\n",
-				    entry.mac, entry.portvec);
-		chip->ports[entry.portvec].atu_full_violation++;
+				    "ATU full violation for %pM portvec %x spid %d\n",
+				    entry.mac, entry.portvec, spid);
+		chip->ports[spid].atu_full_violation++;
 	}
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return IRQ_HANDLED;
 
 out:
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	dev_err(chip->dev, "ATU problem: error %d while handling interrupt\n",
 		err);
@@ -383,9 +425,12 @@ int mv88e6xxx_g1_atu_prob_irq_setup(struct mv88e6xxx_chip *chip)
 	if (chip->atu_prob_irq < 0)
 		return chip->atu_prob_irq;
 
+	snprintf(chip->atu_prob_irq_name, sizeof(chip->atu_prob_irq_name),
+		 "mv88e6xxx-%s-g1-atu-prob", dev_name(chip->dev));
+
 	err = request_threaded_irq(chip->atu_prob_irq, NULL,
 				   mv88e6xxx_g1_atu_prob_irq_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-g1-atu-prob",
+				   IRQF_ONESHOT, chip->atu_prob_irq_name,
 				   chip);
 	if (err)
 		irq_dispose_mapping(chip->atu_prob_irq);

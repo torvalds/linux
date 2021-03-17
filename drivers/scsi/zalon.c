@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Zalon 53c7xx device driver.
  * By Richard Hirst (rhirst@linuxcare.com)
@@ -88,7 +89,7 @@ zalon_probe(struct parisc_device *dev)
 	struct gsc_irq gsc_irq;
 	u32 zalon_vers;
 	int error = -ENODEV;
-	void __iomem *zalon = ioremap_nocache(dev->hpa.start, 4096);
+	void __iomem *zalon = ioremap(dev->hpa.start, 4096);
 	void __iomem *io_port = zalon + GSC_SCSI_ZALON_OFFSET;
 	static int unit = 0;
 	struct Scsi_Host *host;

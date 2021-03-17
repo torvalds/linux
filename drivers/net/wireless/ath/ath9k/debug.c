@@ -148,7 +148,7 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 		{ "OFDM LEVEL", ah->ani.ofdmNoiseImmunityLevel },
 		{ "CCK LEVEL", ah->ani.cckNoiseImmunityLevel },
 		{ "SPUR UP", ah->stats.ast_ani_spurup },
-		{ "SPUR DOWN", ah->stats.ast_ani_spurup },
+		{ "SPUR DOWN", ah->stats.ast_ani_spurdown },
 		{ "OFDM WS-DET ON", ah->stats.ast_ani_ofdmon },
 		{ "OFDM WS-DET OFF", ah->stats.ast_ani_ofdmoff },
 		{ "MRC-CCK ON", ah->stats.ast_ani_ccklow },
@@ -785,35 +785,35 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 {
 	int qnum = txq->axq_qnum;
 
-	TX_STAT_INC(qnum, tx_pkts_all);
+	TX_STAT_INC(sc, qnum, tx_pkts_all);
 	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
 
 	if (bf_isampdu(bf)) {
 		if (flags & ATH_TX_ERROR)
-			TX_STAT_INC(qnum, a_xretries);
+			TX_STAT_INC(sc, qnum, a_xretries);
 		else
-			TX_STAT_INC(qnum, a_completed);
+			TX_STAT_INC(sc, qnum, a_completed);
 	} else {
 		if (ts->ts_status & ATH9K_TXERR_XRETRY)
-			TX_STAT_INC(qnum, xretries);
+			TX_STAT_INC(sc, qnum, xretries);
 		else
-			TX_STAT_INC(qnum, completed);
+			TX_STAT_INC(sc, qnum, completed);
 	}
 
 	if (ts->ts_status & ATH9K_TXERR_FILT)
-		TX_STAT_INC(qnum, txerr_filtered);
+		TX_STAT_INC(sc, qnum, txerr_filtered);
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
-		TX_STAT_INC(qnum, fifo_underrun);
+		TX_STAT_INC(sc, qnum, fifo_underrun);
 	if (ts->ts_status & ATH9K_TXERR_XTXOP)
-		TX_STAT_INC(qnum, xtxop);
+		TX_STAT_INC(sc, qnum, xtxop);
 	if (ts->ts_status & ATH9K_TXERR_TIMER_EXPIRED)
-		TX_STAT_INC(qnum, timer_exp);
+		TX_STAT_INC(sc, qnum, timer_exp);
 	if (ts->ts_flags & ATH9K_TX_DESC_CFG_ERR)
-		TX_STAT_INC(qnum, desc_cfg_err);
+		TX_STAT_INC(sc, qnum, desc_cfg_err);
 	if (ts->ts_flags & ATH9K_TX_DATA_UNDERRUN)
-		TX_STAT_INC(qnum, data_underrun);
+		TX_STAT_INC(sc, qnum, data_underrun);
 	if (ts->ts_flags & ATH9K_TX_DELIM_UNDERRUN)
-		TX_STAT_INC(qnum, delim_underrun);
+		TX_STAT_INC(sc, qnum, delim_underrun);
 }
 
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
@@ -989,19 +989,6 @@ static int read_file_dump_nfcal(struct seq_file *file, void *data)
 
 	return 0;
 }
-
-static int open_file_dump_nfcal(struct inode *inode, struct file *f)
-{
-	return single_open(f, read_file_dump_nfcal, inode->i_private);
-}
-
-static const struct file_operations fops_dump_nfcal = {
-	.read = seq_read,
-	.open = open_file_dump_nfcal,
-	.owner = THIS_MODULE,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 static ssize_t read_file_btcoex(struct file *file, char __user *user_buf,
@@ -1455,9 +1442,6 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc, &fops_ackto);
 #endif
 	debugfs_create_file("tpc", 0600, sc->debug.debugfs_phy, sc, &fops_tpc);
-
-	debugfs_create_u16("airtime_flags", 0600,
-			   sc->debug.debugfs_phy, &sc->airtime_flags);
 
 	debugfs_create_file("nf_override", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_nf_override);

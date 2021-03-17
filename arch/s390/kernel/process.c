@@ -37,8 +37,10 @@
 #include <asm/irq.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
+#include <asm/stacktrace.h>
 #include <asm/switch_to.h>
 #include <asm/runtime_instr.h>
+#include <asm/unwind.h>
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
@@ -78,8 +80,8 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	return 0;
 }
 
-int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
-		    unsigned long arg, struct task_struct *p, unsigned long tls)
+int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
+		unsigned long arg, struct task_struct *p, unsigned long tls)
 {
 	struct fake_frame
 	{
@@ -104,6 +106,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	p->thread.system_timer = 0;
 	p->thread.hardirq_timer = 0;
 	p->thread.softirq_timer = 0;
+	p->thread.last_break = 1;
 
 	frame->sf.back_chain = 0;
 	/* new return point is ret_from_fork */
@@ -157,46 +160,33 @@ asmlinkage void execve_tail(void)
 	asm volatile("sfpc %0" : : "d" (0));
 }
 
-/*
- * fill in the FPU structure for a core dump.
- */
-int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
-{
-	save_fpu_regs();
-	fpregs->fpc = current->thread.fpu.fpc;
-	fpregs->pad = 0;
-	if (MACHINE_HAS_VX)
-		convert_vx_to_fp((freg_t *)&fpregs->fprs,
-				 current->thread.fpu.vxrs);
-	else
-		memcpy(&fpregs->fprs, current->thread.fpu.fprs,
-		       sizeof(fpregs->fprs));
-	return 1;
-}
-EXPORT_SYMBOL(dump_fpu);
-
 unsigned long get_wchan(struct task_struct *p)
 {
-	struct stack_frame *sf, *low, *high;
-	unsigned long return_address;
-	int count;
+	struct unwind_state state;
+	unsigned long ip = 0;
 
 	if (!p || p == current || p->state == TASK_RUNNING || !task_stack_page(p))
 		return 0;
-	low = task_stack_page(p);
-	high = (struct stack_frame *) task_pt_regs(p);
-	sf = (struct stack_frame *) p->thread.ksp;
-	if (sf <= low || sf > high)
+
+	if (!try_get_task_stack(p))
 		return 0;
-	for (count = 0; count < 16; count++) {
-		sf = (struct stack_frame *) sf->back_chain;
-		if (sf <= low || sf > high)
-			return 0;
-		return_address = sf->gprs[8];
-		if (!in_sched_functions(return_address))
-			return return_address;
+
+	unwind_for_each_frame(&state, p, NULL, 0) {
+		if (state.stack_info.type != STACK_TYPE_TASK) {
+			ip = 0;
+			break;
+		}
+
+		ip = unwind_get_return_address(&state);
+		if (!ip)
+			break;
+
+		if (!in_sched_functions(ip))
+			break;
 	}
-	return 0;
+
+	put_task_stack(p);
+	return ip;
 }
 
 unsigned long arch_align_stack(unsigned long sp)

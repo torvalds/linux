@@ -415,13 +415,13 @@
 #define	IMR_BCNDMAINT3_8723B		BIT23	/*  Beacon DMA Interrupt 3 */
 #define	IMR_BCNDMAINT2_8723B		BIT22	/*  Beacon DMA Interrupt 2 */
 #define	IMR_BCNDMAINT1_8723B		BIT21	/*  Beacon DMA Interrupt 1 */
-#define	IMR_BCNDOK7_8723B		BIT20	/*  Beacon Queue DMA OK Interrup 7 */
-#define	IMR_BCNDOK6_8723B		BIT19	/*  Beacon Queue DMA OK Interrup 6 */
-#define	IMR_BCNDOK5_8723B		BIT18	/*  Beacon Queue DMA OK Interrup 5 */
-#define	IMR_BCNDOK4_8723B		BIT17	/*  Beacon Queue DMA OK Interrup 4 */
-#define	IMR_BCNDOK3_8723B		BIT16	/*  Beacon Queue DMA OK Interrup 3 */
-#define	IMR_BCNDOK2_8723B		BIT15	/*  Beacon Queue DMA OK Interrup 2 */
-#define	IMR_BCNDOK1_8723B		BIT14	/*  Beacon Queue DMA OK Interrup 1 */
+#define	IMR_BCNDOK7_8723B		BIT20	/*  Beacon Queue DMA OK Interrupt 7 */
+#define	IMR_BCNDOK6_8723B		BIT19	/*  Beacon Queue DMA OK Interrupt 6 */
+#define	IMR_BCNDOK5_8723B		BIT18	/*  Beacon Queue DMA OK Interrupt 5 */
+#define	IMR_BCNDOK4_8723B		BIT17	/*  Beacon Queue DMA OK Interrupt 4 */
+#define	IMR_BCNDOK3_8723B		BIT16	/*  Beacon Queue DMA OK Interrupt 3 */
+#define	IMR_BCNDOK2_8723B		BIT15	/*  Beacon Queue DMA OK Interrupt 2 */
+#define	IMR_BCNDOK1_8723B		BIT14	/*  Beacon Queue DMA OK Interrupt 1 */
 #define	IMR_ATIMEND_E_8723B		BIT13	/*  ATIM Window End Extension for Win7 */
 #define	IMR_TXERR_8723B			BIT11	/*  Tx Error Flag Interrupt Status, write 1 clear. */
 #define	IMR_RXERR_8723B			BIT10	/*  Rx Error Flag INT Status, Write 1 clear */

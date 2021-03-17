@@ -1,0 +1,24 @@
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+
+DEFCONFIG=hikey960_gki_defconfig
+PRE_DEFCONFIG_CMDS="cat ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/hikey960_gki.fragment > ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG};"
+POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+
+EXT_MODULES="
+hikey-modules/midgard
+"
+
+MAKE_GOALS="${MAKE_GOALS}
+hisilicon/hi3660-hikey960.dtb
+Image.gz
+"
+
+FILES="${FILES}
+arch/arm64/boot/Image.gz
+arch/arm64/boot/dts/hisilicon/hi3660-hikey960.dtb
+vmlinux
+System.map
+"
+KMI_SYMBOL_LIST=android/abi_gki_aarch64_hikey960
+GKI_MODULES_LIST=android/gki_aarch64_modules

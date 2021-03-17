@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # wan devices configuration
 #
 
 menuconfig WAN
 	bool "Wan interfaces support"
-	---help---
+	help
 	  Wide Area Networks (WANs), such as X.25, Frame Relay and leased
 	  lines, are used to interconnect Local Area Networks (LANs) over vast
 	  distances with data transfer rates significantly higher than those
@@ -38,7 +39,7 @@ config HOSTESS_SV11
 config COSA
 	tristate "COSA/SRP sync serial boards support"
 	depends on ISA && m && ISA_DMA_API && HDLC && VIRT_TO_BUS
-	---help---
+	help
 	  Driver for COSA and SRP synchronous serial boards.
 
 	  These boards allow to connect synchronous serial devices (for example
@@ -62,7 +63,7 @@ config COSA
 config LANMEDIA
 	tristate "LanMedia Corp. SSI/V.35, T1/E1, HSSI, T3 boards"
 	depends on PCI && VIRT_TO_BUS && HDLC
-	---help---
+	help
 	  Driver for the following Lan Media family of serial boards:
 
 	  - LMC 1000 board allows you to connect synchronous serial devices
@@ -199,7 +200,7 @@ config WANXL_BUILD_FIRMWARE
 	depends on WANXL && !PREVENT_FIRMWARE_BUILD
 	help
 	  Allows you to rebuild firmware run by the QUICC processor.
-	  It requires as68k, ld68k and hexdump programs.
+	  It requires m68k toolchains and hexdump programs.
 
 	  You should never need this option, say N.
 
@@ -250,7 +251,7 @@ config C101
 config FARSYNC
 	tristate "FarSync T-Series support"
 	depends on HDLC && PCI
-	---help---
+	help
 	  Support for the FarSync T-Series X.21 (and V.35/V.24) cards by
 	  FarSite Communications Ltd.
 
@@ -265,20 +266,6 @@ config FARSYNC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called farsync.
-
-config DSCC4
-	tristate "Etinc PCISYNC serial board support"
-	depends on HDLC && PCI && m
-	help
-	  Driver for Etinc PCISYNC boards based on the Infineon (ex. Siemens)
-	  DSCC4 chipset.
-
-	  This is supposed to work with the four port card. Take a look at
-	  <http://www.cogenit.fr/dscc4/> for further information about the
-	  driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dscc4.
 
 config FSL_UCC_HDLC
 	tristate "Freescale QUICC Engine HDLC support"
@@ -295,6 +282,7 @@ config SLIC_DS26522
 	tristate "Slic Maxim ds26522 card support"
 	depends on SPI
 	depends on FSL_SOC || ARCH_MXC || ARCH_LAYERSCAPE || COMPILE_TEST
+	select BITREVERSE
 	help
 	  This module initializes and configures the slic maxim card
 	  in T1 or E1 mode.
@@ -328,14 +316,15 @@ config DSCC4_PCI_RST
 
 config IXP4XX_HSS
 	tristate "Intel IXP4xx HSS (synchronous serial port) support"
-	depends on HDLC && ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR
+	depends on HDLC && IXP4XX_NPE && IXP4XX_QMGR
+	depends on ARCH_IXP4XX
 	help
 	  Say Y here if you want to use built-in HSS ports
 	  on IXP4xx processor.
 
 config DLCI
 	tristate "Frame Relay DLCI support"
-	---help---
+	help
 	  Support for the Frame Relay protocol.
 
 	  Frame Relay is a fast low-cost way to connect to a remote Internet
@@ -348,7 +337,7 @@ config DLCI
 
 	  To use frame relay, you need supporting hardware (called FRAD) and
 	  certain programs from the net-tools package as explained in
-	  <file:Documentation/networking/framerelay.txt>.
+	  <file:Documentation/networking/framerelay.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dlci.
@@ -373,7 +362,7 @@ config SDLA
 
 	  These are multi-protocol cards, but only Frame Relay is supported
 	  by the driver at this time. Please read
-	  <file:Documentation/networking/framerelay.txt>.
+	  <file:Documentation/networking/framerelay.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sdla.
@@ -382,7 +371,7 @@ config SDLA
 config LAPBETHER
 	tristate "LAPB over Ethernet driver"
 	depends on LAPB && X25
-	---help---
+	help
 	  Driver for a pseudo device (typically called /dev/lapb0) which allows
 	  you to open an LAPB point-to-point connection to some other computer
 	  on your Ethernet network.
@@ -398,7 +387,7 @@ config LAPBETHER
 config X25_ASY
 	tristate "X.25 async driver"
 	depends on LAPB && X25 && TTY
-	---help---
+	help
 	  Send and receive X.25 frames over regular asynchronous serial
 	  lines such as telephone lines equipped with ordinary modems.
 
@@ -413,7 +402,7 @@ config X25_ASY
 config SBNI
 	tristate "Granch SBNI12 Leased Line adapter support"
 	depends on X86
-	---help---
+	help
 	  Driver for ISA SBNI12-xx cards which are low cost alternatives to
 	  leased line modems.
 

@@ -146,14 +146,12 @@ static int skl_format_to_drm(int format, bool rgb_order, bool alpha,
 static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 	u32 tiled, int stride_mask, int bpp)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 
 	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		switch (tiled) {
 		case PLANE_CTL_TILED_LINEAR:
 			stride = stride_reg * 64;
@@ -204,8 +202,8 @@ static int get_active_pipe(struct intel_vgpu *vgpu)
 int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_primary_plane_format *plane)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	u32 val, fmt;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int pipe;
 
 	pipe = get_active_pipe(vgpu);
@@ -217,9 +215,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (!plane->enabled)
 		return -ENODEV;
 
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		plane->tiled = val & PLANE_CTL_TILED_MASK;
 		fmt = skl_format_to_drm(
 			val & PLANE_CTL_FORMAT_MASK,
@@ -235,7 +231,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		plane->bpp = skl_pixel_formats[fmt].bpp;
 		plane->drm_format = skl_pixel_formats[fmt].drm_format;
 	} else {
-		plane->tiled = !!(val & DISPPLANE_TILED);
+		plane->tiled = val & DISPPLANE_TILED;
 		fmt = bdw_format_to_drm(val & DISPPLANE_PIXFORMAT_MASK);
 		plane->bpp = bdw_pixel_formats[fmt].bpp;
 		plane->drm_format = bdw_pixel_formats[fmt].drm_format;
@@ -249,7 +245,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	plane->hw_format = fmt;
 
 	plane->base = vgpu_vreg_t(vgpu, DSPSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
@@ -260,9 +256,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	}
 
 	plane->stride = intel_vgpu_get_stride(vgpu, pipe, plane->tiled,
-		(IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) ?
+		(INTEL_GEN(dev_priv) >= 9) ?
 			(_PRI_PLANE_STRIDE_MASK >> 6) :
 				_PRI_PLANE_STRIDE_MASK, plane->bpp);
 
@@ -338,9 +332,9 @@ static int cursor_mode_to_drm(int mode)
 int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_cursor_plane_format *plane)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	u32 val, mode, index;
 	u32 alpha_plane, alpha_force;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int pipe;
 
 	pipe = get_active_pipe(vgpu);
@@ -374,7 +368,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 			alpha_plane, alpha_force);
 
 	plane->base = vgpu_vreg_t(vgpu, CURBASE(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
@@ -478,7 +472,7 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	plane->drm_format = drm_format;
 
 	plane->base = vgpu_vreg_t(vgpu, SPRSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);

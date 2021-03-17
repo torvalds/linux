@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "routing.h"
@@ -83,13 +71,13 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 	 * the code needs to ensure the curr_router variable contains a pointer
 	 * to the replaced best neighbor.
 	 */
-	curr_router = rcu_dereference_protected(orig_ifinfo->router, true);
 
 	/* increase refcount of new best neighbor */
 	if (neigh_node)
 		kref_get(&neigh_node->refcount);
 
-	rcu_assign_pointer(orig_ifinfo->router, neigh_node);
+	curr_router = rcu_replace_pointer(orig_ifinfo->router, neigh_node,
+					  true);
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 	batadv_orig_ifinfo_put(orig_ifinfo);
 
@@ -461,7 +449,7 @@ free_skb:
  * @skb: packet to check
  * @hdr_size: size of header to pull
  *
- * Check for short header and bad addresses in given packet.
+ * Checks for short header and bad addresses in the given packet.
  *
  * Return: negative value when check fails and 0 otherwise. The negative value
  * depends on the reason: -ENODATA for bad header, -EBADR for broadcast
@@ -838,6 +826,10 @@ static bool batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	vid = batadv_get_vid(skb, hdr_len);
 	ethhdr = (struct ethhdr *)(skb->data + hdr_len);
 
+	/* do not reroute multicast frames in a unicast header */
+	if (is_multicast_ether_addr(ethhdr->h_dest))
+		return true;
+
 	/* check if the destination client was served by this node and it is now
 	 * roaming. In this case, it means that the node has got a ROAM_ADV
 	 * message and that it knows the new destination in the mesh to re-route
@@ -1043,6 +1035,8 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 							hdr_size))
 			goto rx_success;
 
+		batadv_dat_snoop_incoming_dhcp_ack(bat_priv, skb, hdr_size);
+
 		batadv_interface_rx(recv_if->soft_iface, skb, hdr_size,
 				    orig_node);
 
@@ -1123,7 +1117,7 @@ free_skb:
  * @recv_if: interface that the skb is received on
  *
  * This function does one of the three following things: 1) Forward fragment, if
- * the assembled packet will exceed our MTU; 2) Buffer fragment, if we till
+ * the assembled packet will exceed our MTU; 2) Buffer fragment, if we still
  * lack further fragments; 3) Merge fragments, if we have all needed parts.
  *
  * Return: NET_RX_DROP if the skb is not consumed, NET_RX_SUCCESS otherwise.
@@ -1277,6 +1271,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 		goto rx_success;
 	if (batadv_dat_snoop_incoming_arp_reply(bat_priv, skb, hdr_size))
 		goto rx_success;
+
+	batadv_dat_snoop_incoming_dhcp_ack(bat_priv, skb, hdr_size);
 
 	/* broadcast for me */
 	batadv_interface_rx(recv_if->soft_iface, skb, hdr_size, orig_node);

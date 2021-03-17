@@ -18,6 +18,7 @@
 	};
 
 	memory@90000000 {
+		device_type = "memory";
 		reg = <0x90000000 0x10000000>;
 	};
 
@@ -112,6 +113,7 @@
 };
 
 &pwm1 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm_backlight>;
 	status = "okay";

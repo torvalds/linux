@@ -89,7 +89,7 @@ they are write protected for COW (other case of B apply too).
 
 So here because at time N+2 the clear page table entry was not pair with a
 notification to invalidate the secondary TLB, the device see the new value for
-addrB before seing the new value for addrA. This break total memory ordering
+addrB before seeing the new value for addrA. This break total memory ordering
 for the device.
 
 When changing a pte to write protect or to point to a new write protected page

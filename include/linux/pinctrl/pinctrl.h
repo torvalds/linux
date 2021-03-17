@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Interface the pinctrl subsystem
  *
@@ -6,13 +7,9 @@
  * This interface is used in the core to keep track of pins.
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #ifndef __LINUX_PINCTRL_PINCTRL_H
 #define __LINUX_PINCTRL_PINCTRL_H
-
-#ifdef CONFIG_PINCTRL
 
 #include <linux/radix-tree.h>
 #include <linux/list.h>
@@ -125,6 +122,10 @@ struct pinctrl_ops {
  *	the hardware description
  * @custom_conf_items: Information how to print @params in debugfs, must be
  *	the same size as the @custom_params, i.e. @num_custom_params
+ * @link_consumers: If true create a device link between pinctrl and its
+ *	consumers (i.e. the devices requesting pin control states). This is
+ *	sometimes necessary to ascertain the right suspend/resume order for
+ *	example.
  */
 struct pinctrl_desc {
 	const char *name;
@@ -139,6 +140,7 @@ struct pinctrl_desc {
 	const struct pinconf_generic_params *custom_params;
 	const struct pin_config_item *custom_conf_items;
 #endif
+	bool link_consumers;
 };
 
 /* External interface to pin controller */
@@ -167,7 +169,6 @@ extern struct pinctrl_dev *devm_pinctrl_register(struct device *dev,
 extern void devm_pinctrl_unregister(struct device *dev,
 				struct pinctrl_dev *pctldev);
 
-extern bool pin_is_valid(struct pinctrl_dev *pctldev, int pin);
 extern void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 				struct pinctrl_gpio_range *range);
 extern void pinctrl_add_gpio_ranges(struct pinctrl_dev *pctldev,
@@ -185,7 +186,7 @@ extern int pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 				const char *pin_group, const unsigned **pins,
 				unsigned *num_pins);
 
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_PINCTRL)
 extern struct pinctrl_dev *of_pinctrl_get(struct device_node *np);
 #else
 static inline
@@ -198,16 +199,5 @@ struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
 extern const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev);
 extern const char *pinctrl_dev_get_devname(struct pinctrl_dev *pctldev);
 extern void *pinctrl_dev_get_drvdata(struct pinctrl_dev *pctldev);
-#else
-
-struct pinctrl_dev;
-
-/* Sufficiently stupid default functions when pinctrl is not in use */
-static inline bool pin_is_valid(struct pinctrl_dev *pctldev, int pin)
-{
-	return pin >= 0;
-}
-
-#endif /* !CONFIG_PINCTRL */
 
 #endif /* __LINUX_PINCTRL_PINCTRL_H */

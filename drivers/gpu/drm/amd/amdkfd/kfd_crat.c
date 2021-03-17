@@ -26,6 +26,7 @@
 #include "kfd_priv.h"
 #include "kfd_topology.h"
 #include "kfd_iommu.h"
+#include "amdgpu_amdkfd.h"
 
 /* GPU Processor ID base for dGPUs for which VCRAT needs to be created.
  * GPU processor ID are expressed with Bit[31]=1.
@@ -132,9 +133,14 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 #define fiji_cache_info  carrizo_cache_info
 #define polaris10_cache_info carrizo_cache_info
 #define polaris11_cache_info carrizo_cache_info
+#define polaris12_cache_info carrizo_cache_info
+#define vegam_cache_info carrizo_cache_info
 /* TODO - check & update Vega10 cache details */
 #define vega10_cache_info carrizo_cache_info
 #define raven_cache_info carrizo_cache_info
+#define renoir_cache_info carrizo_cache_info
+/* TODO - check & update Navi10 cache details */
+#define navi10_cache_info carrizo_cache_info
 
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
@@ -346,15 +352,15 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 					struct list_head *device_list)
 {
 	struct kfd_iolink_properties *props = NULL, *props2;
-	struct kfd_topology_device *dev, *cpu_dev;
+	struct kfd_topology_device *dev, *to_dev;
 	uint32_t id_from;
 	uint32_t id_to;
 
 	id_from = iolink->proximity_domain_from;
 	id_to = iolink->proximity_domain_to;
 
-	pr_debug("Found IO link entry in CRAT table with id_from=%d\n",
-			id_from);
+	pr_debug("Found IO link entry in CRAT table with id_from=%d, id_to %d\n",
+			id_from, id_to);
 	list_for_each_entry(dev, device_list, list) {
 		if (id_from == dev->proximity_domain) {
 			props = kfd_alloc_struct(props);
@@ -369,6 +375,8 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 
 			if (props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS)
 				props->weight = 20;
+			else if (props->iolink_type == CRAT_IOLINK_TYPE_XGMI)
+				props->weight = 15 * iolink->num_hops_xgmi;
 			else
 				props->weight = node_distance(id_from, id_to);
 
@@ -389,20 +397,23 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 	/* CPU topology is created before GPUs are detected, so CPU->GPU
 	 * links are not built at that time. If a PCIe type is discovered, it
 	 * means a GPU is detected and we are adding GPU->CPU to the topology.
-	 * At this time, also add the corresponded CPU->GPU link.
+	 * At this time, also add the corresponded CPU->GPU link if GPU
+	 * is large bar.
+	 * For xGMI, we only added the link with one direction in the crat
+	 * table, add corresponded reversed direction link now.
 	 */
-	if (props && props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS) {
-		cpu_dev = kfd_topology_device_by_proximity_domain(id_to);
-		if (!cpu_dev)
+	if (props && (iolink->flags & CRAT_IOLINK_FLAGS_BI_DIRECTIONAL)) {
+		to_dev = kfd_topology_device_by_proximity_domain(id_to);
+		if (!to_dev)
 			return -ENODEV;
 		/* same everything but the other direction */
 		props2 = kmemdup(props, sizeof(*props2), GFP_KERNEL);
 		props2->node_from = id_to;
 		props2->node_to = id_from;
 		props2->kobj = NULL;
-		cpu_dev->io_link_count++;
-		cpu_dev->node_props.io_links_count++;
-		list_add_tail(&props2->list, &cpu_dev->io_link_props);
+		to_dev->io_link_count++;
+		to_dev->node_props.io_links_count++;
+		list_add_tail(&props2->list, &to_dev->io_link_props);
 	}
 
 	return 0;
@@ -491,7 +502,7 @@ int kfd_parse_crat_table(void *crat_image, struct list_head *device_list,
 	num_nodes = crat_table->num_domains;
 	image_len = crat_table->length;
 
-	pr_info("Parsing CRAT table with %d nodes\n", num_nodes);
+	pr_debug("Parsing CRAT table with %d nodes\n", num_nodes);
 
 	for (node_id = 0; node_id < num_nodes; node_id++) {
 		top_dev = kfd_create_topology_device(device_list);
@@ -641,13 +652,36 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		pcache_info = polaris11_cache_info;
 		num_of_cache_types = ARRAY_SIZE(polaris11_cache_info);
 		break;
+	case CHIP_POLARIS12:
+		pcache_info = polaris12_cache_info;
+		num_of_cache_types = ARRAY_SIZE(polaris12_cache_info);
+		break;
+	case CHIP_VEGAM:
+		pcache_info = vegam_cache_info;
+		num_of_cache_types = ARRAY_SIZE(vegam_cache_info);
+		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
+	case CHIP_ARCTURUS:
 		pcache_info = vega10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
 		break;
 	case CHIP_RAVEN:
 		pcache_info = raven_cache_info;
 		num_of_cache_types = ARRAY_SIZE(raven_cache_info);
+		break;
+	case CHIP_RENOIR:
+		pcache_info = renoir_cache_info;
+		num_of_cache_types = ARRAY_SIZE(renoir_cache_info);
+		break;
+	case CHIP_NAVI10:
+	case CHIP_NAVI12:
+	case CHIP_NAVI14:
+	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
+		pcache_info = navi10_cache_info;
+		num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
 		break;
 	default:
 		return -EINVAL;
@@ -678,7 +712,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 						pcache_info,
 						cu_info,
 						mem_available,
-						cu_info->cu_bitmap[i][j],
+						cu_info->cu_bitmap[i % 4][j + i / 4],
 						ct,
 						cu_processor_id,
 						k);
@@ -708,6 +742,22 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	return 0;
 }
 
+static bool kfd_ignore_crat(void)
+{
+	bool ret;
+
+	if (ignore_crat)
+		return true;
+
+#ifndef KFD_SUPPORT_IOMMU_V2
+	ret = true;
+#else
+	ret = false;
+#endif
+
+	return ret;
+}
+
 /*
  * kfd_create_crat_image_acpi - Allocates memory for CRAT image and
  * copies CRAT from ACPI (if available).
@@ -724,6 +774,7 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 	struct acpi_table_header *crat_table;
 	acpi_status status;
 	void *pcrat_image;
+	int rc = 0;
 
 	if (!crat_image)
 		return -EINVAL;
@@ -742,31 +793,32 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -EINVAL;
 	}
 
-	if (ignore_crat) {
+	if (kfd_ignore_crat()) {
 		pr_info("CRAT table disabled by module option\n");
 		return -ENODATA;
 	}
 
-	pcrat_image = kmalloc(crat_table->length, GFP_KERNEL);
-	if (!pcrat_image)
-		return -ENOMEM;
+	pcrat_image = kvmalloc(crat_table->length, GFP_KERNEL);
+	if (!pcrat_image) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	memcpy(pcrat_image, crat_table, crat_table->length);
-
 	*crat_image = pcrat_image;
 	*size = crat_table->length;
-
-	return 0;
+out:
+	acpi_put_table(crat_table);
+	return rc;
 }
 
 /* Memory required to create Virtual CRAT.
  * Since there is no easy way to predict the amount of memory required, the
- * following amount are allocated for CPU and GPU Virtual CRAT. This is
+ * following amount is allocated for GPU Virtual CRAT. This is
  * expected to cover all known conditions. But to be safe additional check
  * is put in the code to ensure we don't overwrite.
  */
-#define VCRAT_SIZE_FOR_CPU	(2 * PAGE_SIZE)
-#define VCRAT_SIZE_FOR_GPU	(3 * PAGE_SIZE)
+#define VCRAT_SIZE_FOR_GPU	(4 * PAGE_SIZE)
 
 /* kfd_fill_cu_for_cpu - Fill in Compute info for the given CPU NUMA node
  *
@@ -842,7 +894,7 @@ static int kfd_fill_mem_info_for_cpu(int numa_node_id, int *avail_size,
 	 */
 	pgdat = NODE_DATA(numa_node_id);
 	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
-		mem_in_bytes += pgdat->node_zones[zone_type].managed_pages;
+		mem_in_bytes += zone_managed_pages(&pgdat->node_zones[zone_type]);
 	mem_in_bytes <<= PAGE_SHIFT;
 
 	sub_type_hdr->length_low = lower_32_bits(mem_in_bytes);
@@ -852,6 +904,7 @@ static int kfd_fill_mem_info_for_cpu(int numa_node_id, int *avail_size,
 	return 0;
 }
 
+#ifdef CONFIG_X86_64
 static int kfd_fill_iolink_info_for_cpu(int numa_node_id, int *avail_size,
 				uint32_t *num_entries,
 				struct crat_subtype_iolink *sub_type_hdr)
@@ -894,6 +947,7 @@ static int kfd_fill_iolink_info_for_cpu(int numa_node_id, int *avail_size,
 
 	return 0;
 }
+#endif
 
 /* kfd_create_vcrat_image_cpu - Create Virtual CRAT for CPU
  *
@@ -909,10 +963,12 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 	struct crat_subtype_generic *sub_type_hdr;
 	int avail_size = *size;
 	int numa_node_id;
+#ifdef CONFIG_X86_64
 	uint32_t entries = 0;
+#endif
 	int ret = 0;
 
-	if (!pcrat_image || avail_size < VCRAT_SIZE_FOR_CPU)
+	if (!pcrat_image)
 		return -EINVAL;
 
 	/* Fill in CRAT Header.
@@ -936,6 +992,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 				CRAT_OEMID_LENGTH);
 		memcpy(crat_table->oem_table_id, acpi_table->oem_table_id,
 				CRAT_OEMTABLEID_LENGTH);
+		acpi_put_table(acpi_table);
 	}
 	crat_table->total_entries = 0;
 	crat_table->num_domains = 0;
@@ -971,16 +1028,23 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 			sub_type_hdr->length);
 
 		/* Fill in Subtype: IO Link */
+#ifdef CONFIG_X86_64
 		ret = kfd_fill_iolink_info_for_cpu(numa_node_id, &avail_size,
 				&entries,
 				(struct crat_subtype_iolink *)sub_type_hdr);
 		if (ret < 0)
 			return ret;
-		crat_table->length += (sub_type_hdr->length * entries);
-		crat_table->total_entries += entries;
 
-		sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
-				sub_type_hdr->length * entries);
+		if (entries) {
+			crat_table->length += (sub_type_hdr->length * entries);
+			crat_table->total_entries += entries;
+
+			sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
+					sub_type_hdr->length * entries);
+		}
+#else
+		pr_info("IO link not available for non x86 platforms\n");
+#endif
 
 		crat_table->num_domains++;
 	}
@@ -1037,7 +1101,7 @@ static int kfd_fill_gpu_memory_affinity(int *avail_size,
  *
  *	Return 0 if successful else return -ve value
  */
-static int kfd_fill_gpu_direct_io_link(int *avail_size,
+static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 			struct kfd_dev *kdev,
 			struct crat_subtype_iolink *sub_type_hdr,
 			uint32_t proximity_domain)
@@ -1052,6 +1116,8 @@ static int kfd_fill_gpu_direct_io_link(int *avail_size,
 	sub_type_hdr->type = CRAT_SUBTYPE_IOLINK_AFFINITY;
 	sub_type_hdr->length = sizeof(struct crat_subtype_iolink);
 	sub_type_hdr->flags |= CRAT_SUBTYPE_FLAGS_ENABLED;
+	if (kfd_dev_is_large_bar(kdev))
+		sub_type_hdr->flags |= CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
 
 	/* Fill in IOLINK subtype.
 	 * TODO: Fill-in other fields of iolink subtype
@@ -1069,6 +1135,32 @@ static int kfd_fill_gpu_direct_io_link(int *avail_size,
 	return 0;
 }
 
+static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
+			struct kfd_dev *kdev,
+			struct kfd_dev *peer_kdev,
+			struct crat_subtype_iolink *sub_type_hdr,
+			uint32_t proximity_domain_from,
+			uint32_t proximity_domain_to)
+{
+	*avail_size -= sizeof(struct crat_subtype_iolink);
+	if (*avail_size < 0)
+		return -ENOMEM;
+
+	memset((void *)sub_type_hdr, 0, sizeof(struct crat_subtype_iolink));
+
+	sub_type_hdr->type = CRAT_SUBTYPE_IOLINK_AFFINITY;
+	sub_type_hdr->length = sizeof(struct crat_subtype_iolink);
+	sub_type_hdr->flags |= CRAT_SUBTYPE_FLAGS_ENABLED |
+			       CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
+
+	sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
+	sub_type_hdr->proximity_domain_from = proximity_domain_from;
+	sub_type_hdr->proximity_domain_to = proximity_domain_to;
+	sub_type_hdr->num_hops_xgmi =
+		amdgpu_amdkfd_get_xgmi_hops_count(kdev->kgd, peer_kdev->kgd);
+	return 0;
+}
+
 /* kfd_create_vcrat_image_gpu - Create Virtual CRAT for CPU
  *
  *	@pcrat_image: Fill in VCRAT for GPU
@@ -1081,14 +1173,16 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 {
 	struct crat_header *crat_table = (struct crat_header *)pcrat_image;
 	struct crat_subtype_generic *sub_type_hdr;
+	struct kfd_local_mem_info local_mem_info;
+	struct kfd_topology_device *peer_dev;
 	struct crat_subtype_computeunit *cu;
 	struct kfd_cu_info cu_info;
 	int avail_size = *size;
 	uint32_t total_num_of_cu;
 	int num_of_cache_entries = 0;
 	int cache_mem_filled = 0;
+	uint32_t nid = 0;
 	int ret = 0;
-	struct kfd_local_mem_info local_mem_info;
 
 	if (!pcrat_image || avail_size < VCRAT_SIZE_FOR_GPU)
 		return -EINVAL;
@@ -1128,7 +1222,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	cu->flags |= CRAT_CU_FLAGS_GPU_PRESENT;
 	cu->proximity_domain = proximity_domain;
 
-	kdev->kfd2kgd->get_cu_info(kdev->kgd, &cu_info);
+	amdgpu_amdkfd_get_cu_info(kdev->kgd, &cu_info);
 	cu->num_simd_per_cu = cu_info.simd_per_cu;
 	cu->num_simd_cores = cu_info.simd_per_cu * cu_info.cu_active_number;
 	cu->max_waves_simd = cu_info.max_waves_per_simd;
@@ -1159,7 +1253,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * report the total FB size (public+private) as a single
 	 * private heap.
 	 */
-	kdev->kfd2kgd->get_local_mem_info(kdev->kgd, &local_mem_info);
+	amdgpu_amdkfd_get_local_mem_info(kdev->kgd, &local_mem_info);
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 
@@ -1212,7 +1306,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 */
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 		cache_mem_filled);
-	ret = kfd_fill_gpu_direct_io_link(&avail_size, kdev,
+	ret = kfd_fill_gpu_direct_io_link_to_cpu(&avail_size, kdev,
 		(struct crat_subtype_iolink *)sub_type_hdr, proximity_domain);
 
 	if (ret < 0)
@@ -1221,6 +1315,35 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	crat_table->length += sub_type_hdr->length;
 	crat_table->total_entries++;
 
+
+	/* Fill in Subtype: IO_LINKS
+	 * Direct links from GPU to other GPUs through xGMI.
+	 * We will loop GPUs that already be processed (with lower value
+	 * of proximity_domain), add the link for the GPUs with same
+	 * hive id (from this GPU to other GPU) . The reversed iolink
+	 * (from other GPU to this GPU) will be added
+	 * in kfd_parse_subtype_iolink.
+	 */
+	if (kdev->hive_id) {
+		for (nid = 0; nid < proximity_domain; ++nid) {
+			peer_dev = kfd_topology_device_by_proximity_domain(nid);
+			if (!peer_dev->gpu)
+				continue;
+			if (peer_dev->gpu->hive_id != kdev->hive_id)
+				continue;
+			sub_type_hdr = (typeof(sub_type_hdr))(
+				(char *)sub_type_hdr +
+				sizeof(struct crat_subtype_iolink));
+			ret = kfd_fill_gpu_xgmi_link_to_gpu(
+				&avail_size, kdev, peer_dev->gpu,
+				(struct crat_subtype_iolink *)sub_type_hdr,
+				proximity_domain, nid);
+			if (ret < 0)
+				return ret;
+			crat_table->length += sub_type_hdr->length;
+			crat_table->total_entries++;
+		}
+	}
 	*size = crat_table->length;
 	pr_info("Virtual CRAT table created for GPU\n");
 
@@ -1249,30 +1372,37 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
 				  uint32_t proximity_domain)
 {
 	void *pcrat_image = NULL;
-	int ret = 0;
+	int ret = 0, num_nodes;
+	size_t dyn_size;
 
 	if (!crat_image)
 		return -EINVAL;
 
 	*crat_image = NULL;
 
-	/* Allocate one VCRAT_SIZE_FOR_CPU for CPU virtual CRAT image and
-	 * VCRAT_SIZE_FOR_GPU for GPU virtual CRAT image. This should cover
-	 * all the current conditions. A check is put not to overwrite beyond
-	 * allocated size
+	/* Allocate the CPU Virtual CRAT size based on the number of online
+	 * nodes. Allocate VCRAT_SIZE_FOR_GPU for GPU virtual CRAT image.
+	 * This should cover all the current conditions. A check is put not
+	 * to overwrite beyond allocated size for GPUs
 	 */
 	switch (flags) {
 	case COMPUTE_UNIT_CPU:
-		pcrat_image = kmalloc(VCRAT_SIZE_FOR_CPU, GFP_KERNEL);
+		num_nodes = num_online_nodes();
+		dyn_size = sizeof(struct crat_header) +
+			num_nodes * (sizeof(struct crat_subtype_computeunit) +
+			sizeof(struct crat_subtype_memory) +
+			(num_nodes - 1) * sizeof(struct crat_subtype_iolink));
+		pcrat_image = kvmalloc(dyn_size, GFP_KERNEL);
 		if (!pcrat_image)
 			return -ENOMEM;
-		*size = VCRAT_SIZE_FOR_CPU;
+		*size = dyn_size;
+		pr_debug("CRAT size is %ld", dyn_size);
 		ret = kfd_create_vcrat_image_cpu(pcrat_image, size);
 		break;
 	case COMPUTE_UNIT_GPU:
 		if (!kdev)
 			return -EINVAL;
-		pcrat_image = kmalloc(VCRAT_SIZE_FOR_GPU, GFP_KERNEL);
+		pcrat_image = kvmalloc(VCRAT_SIZE_FOR_GPU, GFP_KERNEL);
 		if (!pcrat_image)
 			return -ENOMEM;
 		*size = VCRAT_SIZE_FOR_GPU;
@@ -1291,7 +1421,7 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
 	if (!ret)
 		*crat_image = pcrat_image;
 	else
-		kfree(pcrat_image);
+		kvfree(pcrat_image);
 
 	return ret;
 }
@@ -1304,5 +1434,5 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
  */
 void kfd_destroy_crat_image(void *crat_image)
 {
-	kfree(crat_image);
+	kvfree(crat_image);
 }

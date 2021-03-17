@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) ST-Ericsson SA 2010-2013
  * Author: Rickard Andersson <rickard.andersson@stericsson.com> for
  *         ST-Ericsson.
  * Author: Daniel Lezcano <daniel.lezcano@linaro.org> for Linaro.
- * License terms: GNU General Public License (GPL) version 2
- *
  */
 
 #ifndef ARM_UX500_PM_H

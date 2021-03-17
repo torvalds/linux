@@ -1,23 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Low-level parallel-support for PC-style hardware integrated in the
  *	LASI-Controller (on GSC-Bus) for HP-PARISC Workstations
  *
  *	(C) 1999-2001 by Helge Deller <deller@gmx.de>
- *
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
- *
- *	This program is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	GNU General Public License for more details.
- *
- *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
- *	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * based on parport_pc.c by
  * 	    Grant Guenther <grant@torque.net>
@@ -85,7 +71,7 @@ struct parport_gsc_private {
 static inline void parport_gsc_write_data(struct parport *p, unsigned char d)
 {
 #ifdef DEBUG_PARPORT
-	printk (KERN_DEBUG "parport_gsc_write_data(%p,0x%02x)\n", p, d);
+	printk(KERN_DEBUG "%s(%p,0x%02x)\n", __func__, p, d);
 #endif
 	parport_writeb(d, DATA(p));
 }
@@ -94,8 +80,7 @@ static inline unsigned char parport_gsc_read_data(struct parport *p)
 {
 	unsigned char val = parport_readb (DATA (p));
 #ifdef DEBUG_PARPORT
-	printk (KERN_DEBUG "parport_gsc_read_data(%p) = 0x%02x\n",
-		p, val);
+	printk(KERN_DEBUG "%s(%p) = 0x%02x\n", __func__, p, val);
 #endif
 	return val;
 }
@@ -109,9 +94,9 @@ static inline unsigned char __parport_gsc_frob_control(struct parport *p,
 	struct parport_gsc_private *priv = p->physport->private_data;
 	unsigned char ctr = priv->ctr;
 #ifdef DEBUG_PARPORT
-	printk (KERN_DEBUG
-		"__parport_gsc_frob_control(%02x,%02x): %02x -> %02x\n",
-		mask, val, ctr, ((ctr & ~mask) ^ val) & priv->ctr_writable);
+	printk(KERN_DEBUG "%s(%02x,%02x): %02x -> %02x\n",
+	       __func__, mask, val,
+	       ctr, ((ctr & ~mask) ^ val) & priv->ctr_writable);
 #endif
 	ctr = (ctr & ~mask) ^ val;
 	ctr &= priv->ctr_writable; /* only write writable bits. */
@@ -140,8 +125,8 @@ static inline void parport_gsc_write_control(struct parport *p,
 
 	/* Take this out when drivers have adapted to newer interface. */
 	if (d & 0x20) {
-		printk (KERN_DEBUG "%s (%s): use data_reverse for this!\n",
-			p->name, p->cad->name);
+		printk(KERN_DEBUG "%s (%s): use data_reverse for this!\n",
+		       p->name, p->cad->name);
 		parport_gsc_data_reverse (p);
 	}
 
@@ -169,9 +154,9 @@ static inline unsigned char parport_gsc_frob_control(struct parport *p,
 
 	/* Take this out when drivers have adapted to newer interface. */
 	if (mask & 0x20) {
-		printk (KERN_DEBUG "%s (%s): use data_%s for this!\n",
-			p->name, p->cad->name,
-			(val & 0x20) ? "reverse" : "forward");
+		printk(KERN_DEBUG "%s (%s): use data_%s for this!\n",
+		       p->name, p->cad->name,
+		       (val & 0x20) ? "reverse" : "forward");
 		if (val & 0x20)
 			parport_gsc_data_reverse (p);
 		else

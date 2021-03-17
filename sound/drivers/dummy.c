@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Dummy soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -131,7 +117,7 @@ struct dummy_model {
 
 struct snd_dummy {
 	struct snd_card *card;
-	struct dummy_model *model;
+	const struct dummy_model *model;
 	struct snd_pcm *pcm;
 	struct snd_pcm_hardware pcm_hw;
 	spinlock_t mixer_lock;
@@ -158,13 +144,13 @@ static int emu10k1_playback_constraints(struct snd_pcm_runtime *runtime)
 	return 0;
 }
 
-static struct dummy_model model_emu10k1 = {
+static const struct dummy_model model_emu10k1 = {
 	.name = "emu10k1",
 	.playback_constraints = emu10k1_playback_constraints,
 	.buffer_bytes_max = 128 * 1024,
 };
 
-static struct dummy_model model_rme9652 = {
+static const struct dummy_model model_rme9652 = {
 	.name = "rme9652",
 	.buffer_bytes_max = 26 * 64 * 1024,
 	.formats = SNDRV_PCM_FMTBIT_S32_LE,
@@ -174,7 +160,7 @@ static struct dummy_model model_rme9652 = {
 	.periods_max = 2,
 };
 
-static struct dummy_model model_ice1712 = {
+static const struct dummy_model model_ice1712 = {
 	.name = "ice1712",
 	.buffer_bytes_max = 256 * 1024,
 	.formats = SNDRV_PCM_FMTBIT_S32_LE,
@@ -184,7 +170,7 @@ static struct dummy_model model_ice1712 = {
 	.periods_max = 1024,
 };
 
-static struct dummy_model model_uda1341 = {
+static const struct dummy_model model_uda1341 = {
 	.name = "uda1341",
 	.buffer_bytes_max = 16380,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
@@ -194,7 +180,7 @@ static struct dummy_model model_uda1341 = {
 	.periods_max = 255,
 };
 
-static struct dummy_model model_ac97 = {
+static const struct dummy_model model_ac97 = {
 	.name = "ac97",
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.channels_min = 2,
@@ -204,7 +190,7 @@ static struct dummy_model model_ac97 = {
 	.rate_max = 48000,
 };
 
-static struct dummy_model model_ca0106 = {
+static const struct dummy_model model_ca0106 = {
 	.name = "ca0106",
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.buffer_bytes_max = ((65536-64)*8),
@@ -218,7 +204,7 @@ static struct dummy_model model_ca0106 = {
 	.rate_max = 192000,
 };
 
-static struct dummy_model *dummy_models[] = {
+static const struct dummy_model *dummy_models[] = {
 	&model_emu10k1,
 	&model_rme9652,
 	&model_ice1712,
@@ -543,21 +529,13 @@ static int dummy_pcm_hw_params(struct snd_pcm_substream *substream,
 		substream->runtime->dma_bytes = params_buffer_bytes(hw_params);
 		return 0;
 	}
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-static int dummy_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	if (fake_buffer)
-		return 0;
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int dummy_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_dummy *dummy = snd_pcm_substream_chip(substream);
-	struct dummy_model *model = dummy->model;
+	const struct dummy_model *model = dummy->model;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	const struct dummy_timer_ops *ops;
 	int err;
@@ -666,23 +644,19 @@ static struct page *dummy_pcm_page(struct snd_pcm_substream *substream,
 	return virt_to_page(dummy_page[substream->stream]); /* the same page */
 }
 
-static struct snd_pcm_ops dummy_pcm_ops = {
+static const struct snd_pcm_ops dummy_pcm_ops = {
 	.open =		dummy_pcm_open,
 	.close =	dummy_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	dummy_pcm_hw_params,
-	.hw_free =	dummy_pcm_hw_free,
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,
 	.pointer =	dummy_pcm_pointer,
 };
 
-static struct snd_pcm_ops dummy_pcm_ops_no_buf = {
+static const struct snd_pcm_ops dummy_pcm_ops_no_buf = {
 	.open =		dummy_pcm_open,
 	.close =	dummy_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	dummy_pcm_hw_params,
-	.hw_free =	dummy_pcm_hw_free,
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,
 	.pointer =	dummy_pcm_pointer,
@@ -696,7 +670,7 @@ static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 			      int substreams)
 {
 	struct snd_pcm *pcm;
-	struct snd_pcm_ops *ops;
+	const struct snd_pcm_ops *ops;
 	int err;
 
 	err = snd_pcm_new(dummy->card, "Dummy PCM", device,
@@ -714,9 +688,9 @@ static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "Dummy PCM");
 	if (!fake_buffer) {
-		snd_pcm_lib_preallocate_pages_for_all(pcm,
+		snd_pcm_set_managed_buffer_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
-			snd_dma_continuous_data(GFP_KERNEL),
+			NULL,
 			0, 64*1024);
 	}
 	return 0;
@@ -875,7 +849,7 @@ static int snd_dummy_iobox_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_dummy_controls[] = {
+static const struct snd_kcontrol_new snd_dummy_controls[] = {
 DUMMY_VOLUME("Master Volume", 0, MIXER_ADDR_MASTER),
 DUMMY_CAPSRC("Master Capture Switch", 0, MIXER_ADDR_MASTER),
 DUMMY_VOLUME("Synth Volume", 0, MIXER_ADDR_SYNTH),
@@ -927,10 +901,10 @@ static int snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 static void print_formats(struct snd_dummy *dummy,
 			  struct snd_info_buffer *buffer)
 {
-	int i;
+	snd_pcm_format_t i;
 
-	for (i = 0; i < SNDRV_PCM_FORMAT_LAST; i++) {
-		if (dummy->pcm_hw.formats & (1ULL << i))
+	pcm_for_each_format(i) {
+		if (dummy->pcm_hw.formats & pcm_format_to_bits(i))
 			snd_iprintf(buffer, " %s", snd_pcm_format_name(i));
 	}
 }
@@ -938,7 +912,7 @@ static void print_formats(struct snd_dummy *dummy,
 static void print_rates(struct snd_dummy *dummy,
 			struct snd_info_buffer *buffer)
 {
-	static int rates[] = {
+	static const int rates[] = {
 		5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000,
 		64000, 88200, 96000, 176400, 192000,
 	};
@@ -970,7 +944,7 @@ struct dummy_hw_field {
 	.offset = offsetof(struct snd_pcm_hardware, item), \
 	.size = sizeof(dummy_pcm_hardware.item) }
 
-static struct dummy_hw_field fields[] = {
+static const struct dummy_hw_field fields[] = {
 	FIELD_ENTRY(formats, "%#llx"),
 	FIELD_ENTRY(rates, "%#x"),
 	FIELD_ENTRY(rate_min, "%d"),
@@ -1037,14 +1011,8 @@ static void dummy_proc_write(struct snd_info_entry *entry,
 
 static void dummy_proc_init(struct snd_dummy *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(chip->card, "dummy_pcm", &entry)) {
-		snd_info_set_text_ops(entry, chip, dummy_proc_read);
-		entry->c.text.write = dummy_proc_write;
-		entry->mode |= 0200;
-		entry->private_data = chip;
-	}
+	snd_card_rw_proc_new(chip->card, "dummy_pcm", chip,
+			     dummy_proc_read, dummy_proc_write);
 }
 #else
 #define dummy_proc_init(x)
@@ -1054,7 +1022,7 @@ static int snd_dummy_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_dummy *dummy;
-	struct dummy_model *m = NULL, **mdl;
+	const struct dummy_model *m = NULL, **mdl;
 	int idx, err;
 	int dev = devptr->id;
 
@@ -1138,10 +1106,8 @@ static int snd_dummy_remove(struct platform_device *devptr)
 static int snd_dummy_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
-	struct snd_dummy *dummy = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(dummy->pcm);
 	return 0;
 }
 	

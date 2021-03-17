@@ -88,7 +88,7 @@ static void ls_pcie_disable_outbound_atus(struct ls_pcie *pcie)
 	int i;
 
 	for (i = 0; i < PCIE_IATU_NUM; i++)
-		dw_pcie_disable_atu(pcie->pci, DW_PCIE_REGION_OUTBOUND, i);
+		dw_pcie_disable_atu(pcie->pci, i, DW_PCIE_REGION_OUTBOUND);
 }
 
 static int ls1021_pcie_link_up(struct dw_pcie *pci)
@@ -201,6 +201,7 @@ static int ls_pcie_msi_host_init(struct pcie_port *pp)
 		return -EINVAL;
 	}
 
+	of_node_put(msi_node);
 	return 0;
 }
 
@@ -222,12 +223,12 @@ static const struct dw_pcie_ops dw_ls_pcie_ops = {
 	.link_up = ls_pcie_link_up,
 };
 
-static struct ls_pcie_drvdata ls1021_drvdata = {
+static const struct ls_pcie_drvdata ls1021_drvdata = {
 	.ops = &ls1021_pcie_host_ops,
 	.dw_pcie_ops = &dw_ls1021_pcie_ops,
 };
 
-static struct ls_pcie_drvdata ls1043_drvdata = {
+static const struct ls_pcie_drvdata ls1043_drvdata = {
 	.lut_offset = 0x10000,
 	.ltssm_shift = 24,
 	.lut_dbg = 0x7fc,
@@ -235,7 +236,7 @@ static struct ls_pcie_drvdata ls1043_drvdata = {
 	.dw_pcie_ops = &dw_ls_pcie_ops,
 };
 
-static struct ls_pcie_drvdata ls1046_drvdata = {
+static const struct ls_pcie_drvdata ls1046_drvdata = {
 	.lut_offset = 0x80000,
 	.ltssm_shift = 24,
 	.lut_dbg = 0x407fc,
@@ -243,7 +244,7 @@ static struct ls_pcie_drvdata ls1046_drvdata = {
 	.dw_pcie_ops = &dw_ls_pcie_ops,
 };
 
-static struct ls_pcie_drvdata ls2080_drvdata = {
+static const struct ls_pcie_drvdata ls2080_drvdata = {
 	.lut_offset = 0x80000,
 	.ltssm_shift = 0,
 	.lut_dbg = 0x7fc,
@@ -251,7 +252,7 @@ static struct ls_pcie_drvdata ls2080_drvdata = {
 	.dw_pcie_ops = &dw_ls_pcie_ops,
 };
 
-static struct ls_pcie_drvdata ls2088_drvdata = {
+static const struct ls_pcie_drvdata ls2088_drvdata = {
 	.lut_offset = 0x80000,
 	.ltssm_shift = 0,
 	.lut_dbg = 0x407fc,
@@ -262,6 +263,7 @@ static struct ls_pcie_drvdata ls2088_drvdata = {
 static const struct of_device_id ls_pcie_of_match[] = {
 	{ .compatible = "fsl,ls1012a-pcie", .data = &ls1046_drvdata },
 	{ .compatible = "fsl,ls1021a-pcie", .data = &ls1021_drvdata },
+	{ .compatible = "fsl,ls1028a-pcie", .data = &ls2088_drvdata },
 	{ .compatible = "fsl,ls1043a-pcie", .data = &ls1043_drvdata },
 	{ .compatible = "fsl,ls1046a-pcie", .data = &ls1046_drvdata },
 	{ .compatible = "fsl,ls2080a-pcie", .data = &ls2080_drvdata },

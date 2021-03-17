@@ -22,16 +22,16 @@ static struct rc_map_table encore_enltv[] = {
 	{ 0x01, KEY_AUDIO },		/* music */
 	{ 0x02, KEY_CAMERA },		/* picture */
 
-	{ 0x1f, KEY_1 },
-	{ 0x03, KEY_2 },
-	{ 0x04, KEY_3 },
-	{ 0x05, KEY_4 },
-	{ 0x1c, KEY_5 },
-	{ 0x06, KEY_6 },
-	{ 0x07, KEY_7 },
-	{ 0x08, KEY_8 },
-	{ 0x1d, KEY_9 },
-	{ 0x0a, KEY_0 },
+	{ 0x1f, KEY_NUMERIC_1 },
+	{ 0x03, KEY_NUMERIC_2 },
+	{ 0x04, KEY_NUMERIC_3 },
+	{ 0x05, KEY_NUMERIC_4 },
+	{ 0x1c, KEY_NUMERIC_5 },
+	{ 0x06, KEY_NUMERIC_6 },
+	{ 0x07, KEY_NUMERIC_7 },
+	{ 0x08, KEY_NUMERIC_8 },
+	{ 0x1d, KEY_NUMERIC_9 },
+	{ 0x0a, KEY_NUMERIC_0 },
 
 	{ 0x09, KEY_LIST },		/* -/-- */
 	{ 0x0b, KEY_LAST },		/* recall */

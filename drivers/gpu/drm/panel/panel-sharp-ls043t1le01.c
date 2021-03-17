@@ -1,41 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Red Hat
  * Copyright (C) 2015 Sony Mobile Communications Inc.
  * Author: Werner Johansson <werner.johansson@sonymobile.com>
  *
  * Based on AUO panel driver by Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drmP.h>
+#include <video/mipi_display.h>
+
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
-
-#include <video/mipi_display.h>
 
 struct sharp_nt_panel {
 	struct drm_panel base;
 	struct mipi_dsi_device *dsi;
 
-	struct backlight_device *backlight;
 	struct regulator *supply;
 	struct gpio_desc *reset_gpio;
 
@@ -116,8 +104,6 @@ static int sharp_nt_panel_disable(struct drm_panel *panel)
 
 	if (!sharp_nt->enabled)
 		return 0;
-
-	backlight_disable(sharp_nt->backlight);
 
 	sharp_nt->enabled = false;
 
@@ -200,8 +186,6 @@ static int sharp_nt_panel_enable(struct drm_panel *panel)
 	if (sharp_nt->enabled)
 		return 0;
 
-	backlight_enable(sharp_nt->backlight);
-
 	sharp_nt->enabled = true;
 
 	return 0;
@@ -217,27 +201,27 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 960 + 3,
 	.vsync_end = 960 + 3 + 15,
 	.vtotal = 960 + 3 + 15 + 1,
-	.vrefresh = 60,
 };
 
-static int sharp_nt_panel_get_modes(struct drm_panel *panel)
+static int sharp_nt_panel_get_modes(struct drm_panel *panel,
+				    struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		dev_err(panel->drm->dev, "failed to add mode %ux%ux@%u\n",
-				default_mode.hdisplay, default_mode.vdisplay,
-				default_mode.vrefresh);
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+			default_mode.hdisplay, default_mode.vdisplay,
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
 	drm_mode_set_name(mode);
 
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = 54;
-	panel->connector->display_info.height_mm = 95;
+	connector->display_info.width_mm = 54;
+	connector->display_info.height_mm = 95;
 
 	return 1;
 }
@@ -253,6 +237,7 @@ static const struct drm_panel_funcs sharp_nt_panel_funcs = {
 static int sharp_nt_panel_add(struct sharp_nt_panel *sharp_nt)
 {
 	struct device *dev = &sharp_nt->dsi->dev;
+	int ret;
 
 	sharp_nt->mode = &default_mode;
 
@@ -269,16 +254,16 @@ static int sharp_nt_panel_add(struct sharp_nt_panel *sharp_nt)
 		gpiod_set_value(sharp_nt->reset_gpio, 0);
 	}
 
-	sharp_nt->backlight = devm_of_find_backlight(dev);
+	drm_panel_init(&sharp_nt->base, &sharp_nt->dsi->dev,
+		       &sharp_nt_panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
-	if (IS_ERR(sharp_nt->backlight))
-		return PTR_ERR(sharp_nt->backlight);
+	ret = drm_panel_of_backlight(&sharp_nt->base);
+	if (ret)
+		return ret;
 
-	drm_panel_init(&sharp_nt->base);
-	sharp_nt->base.funcs = &sharp_nt_panel_funcs;
-	sharp_nt->base.dev = &sharp_nt->dsi->dev;
+	drm_panel_add(&sharp_nt->base);
 
-	return drm_panel_add(&sharp_nt->base);
+	return 0;
 }
 
 static void sharp_nt_panel_del(struct sharp_nt_panel *sharp_nt)
@@ -319,7 +304,7 @@ static int sharp_nt_panel_remove(struct mipi_dsi_device *dsi)
 	struct sharp_nt_panel *sharp_nt = mipi_dsi_get_drvdata(dsi);
 	int ret;
 
-	ret = sharp_nt_panel_disable(&sharp_nt->base);
+	ret = drm_panel_disable(&sharp_nt->base);
 	if (ret < 0)
 		dev_err(&dsi->dev, "failed to disable panel: %d\n", ret);
 
@@ -336,7 +321,7 @@ static void sharp_nt_panel_shutdown(struct mipi_dsi_device *dsi)
 {
 	struct sharp_nt_panel *sharp_nt = mipi_dsi_get_drvdata(dsi);
 
-	sharp_nt_panel_disable(&sharp_nt->base);
+	drm_panel_disable(&sharp_nt->base);
 }
 
 static const struct of_device_id sharp_nt_of_match[] = {

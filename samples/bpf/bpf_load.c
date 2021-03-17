@@ -16,7 +16,6 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/types.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
@@ -41,7 +40,7 @@ int prog_cnt;
 int prog_array_fd = -1;
 
 struct bpf_map_data map_data[MAX_MAPS];
-int map_data_count = 0;
+int map_data_count;
 
 static int populate_prog_array(const char *event, int prog_fd)
 {
@@ -53,6 +52,25 @@ static int populate_prog_array(const char *event, int prog_fd)
 		return -1;
 	}
 	return 0;
+}
+
+static int write_kprobe_events(const char *val)
+{
+	int fd, ret, flags;
+
+	if (val == NULL)
+		return -1;
+	else if (val[0] == '\0')
+		flags = O_WRONLY | O_TRUNC;
+	else
+		flags = O_WRONLY | O_APPEND;
+
+	fd = open(DEBUGFS "kprobe_events", flags);
+
+	ret = write(fd, val, strlen(val));
+	close(fd);
+
+	return ret;
 }
 
 static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
@@ -166,10 +184,9 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 
 #ifdef __x86_64__
 		if (strncmp(event, "sys_", 4) == 0) {
-			snprintf(buf, sizeof(buf),
-				 "echo '%c:__x64_%s __x64_%s' >> /sys/kernel/debug/tracing/kprobe_events",
-				 is_kprobe ? 'p' : 'r', event, event);
-			err = system(buf);
+			snprintf(buf, sizeof(buf), "%c:__x64_%s __x64_%s",
+				is_kprobe ? 'p' : 'r', event, event);
+			err = write_kprobe_events(buf);
 			if (err >= 0) {
 				need_normal_check = false;
 				event_prefix = "__x64_";
@@ -177,10 +194,9 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		}
 #endif
 		if (need_normal_check) {
-			snprintf(buf, sizeof(buf),
-				 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
-				 is_kprobe ? 'p' : 'r', event, event);
-			err = system(buf);
+			snprintf(buf, sizeof(buf), "%c:%s %s",
+				is_kprobe ? 'p' : 'r', event, event);
+			err = write_kprobe_events(buf);
 			if (err < 0) {
 				printf("failed to create kprobe '%s' error '%s'\n",
 				       event, strerror(errno));
@@ -285,8 +301,8 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 							numa_node);
 		}
 		if (map_fd[i] < 0) {
-			printf("failed to create a map: %d %s\n",
-			       errno, strerror(errno));
+			printf("failed to create map %d (%s): %d %s\n",
+			       i, maps[i].name, errno, strerror(errno));
 			return 1;
 		}
 		maps[i].fd = map_fd[i];
@@ -474,8 +490,8 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 
 		/* Verify no newer features were requested */
 		if (validate_zero) {
-			addr = (unsigned char*) def + map_sz_copy;
-			end  = (unsigned char*) def + map_sz_elf;
+			addr = (unsigned char *) def + map_sz_copy;
+			end  = (unsigned char *) def + map_sz_elf;
 			for (; addr < end; addr++) {
 				if (*addr != 0) {
 					free(sym);
@@ -520,7 +536,7 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		return 1;
 
 	/* clear all kprobes */
-	i = system("echo \"\" > /sys/kernel/debug/tracing/kprobe_events");
+	i = write_kprobe_events("");
 
 	/* scan over all elf sections to get license and map info */
 	for (i = 1; i < ehdr.e_shnum; i++) {
@@ -648,24 +664,4 @@ int load_bpf_file(char *path)
 int load_bpf_file_fixup_map(const char *path, fixup_map_cb fixup_map)
 {
 	return do_load_bpf_file(path, fixup_map);
-}
-
-void read_trace_pipe(void)
-{
-	int trace_fd;
-
-	trace_fd = open(DEBUGFS "trace_pipe", O_RDONLY, 0);
-	if (trace_fd < 0)
-		return;
-
-	while (1) {
-		static char buf[4096];
-		ssize_t sz;
-
-		sz = read(trace_fd, buf, sizeof(buf));
-		if (sz > 0) {
-			buf[sz] = 0;
-			puts(buf);
-		}
-	}
 }

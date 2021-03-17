@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright © 2006-2011 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
@@ -23,6 +11,10 @@
 #define _GMA_DISPLAY_H_
 
 #include <linux/pm_runtime.h>
+#include <drm/drm_vblank.h>
+
+struct drm_encoder;
+struct drm_mode_set;
 
 struct gma_clock_t {
 	/* given values */
@@ -80,6 +72,11 @@ extern void gma_crtc_prepare(struct drm_crtc *crtc);
 extern void gma_crtc_commit(struct drm_crtc *crtc);
 extern void gma_crtc_disable(struct drm_crtc *crtc);
 extern void gma_crtc_destroy(struct drm_crtc *crtc);
+extern int gma_crtc_page_flip(struct drm_crtc *crtc,
+			      struct drm_framebuffer *fb,
+			      struct drm_pending_vblank_event *event,
+			      uint32_t page_flip_flags,
+			      struct drm_modeset_acquire_ctx *ctx);
 extern int gma_crtc_set_config(struct drm_mode_set *set,
 			       struct drm_modeset_acquire_ctx *ctx);
 

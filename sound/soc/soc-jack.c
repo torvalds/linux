@@ -24,62 +24,6 @@ struct jack_gpio_tbl {
 };
 
 /**
- * snd_soc_component_set_jack - configure component jack.
- * @component: COMPONENTs
- * @jack: structure to use for the jack
- * @data: can be used if codec driver need extra data for configuring jack
- *
- * Configures and enables jack detection function.
- */
-int snd_soc_component_set_jack(struct snd_soc_component *component,
-			       struct snd_soc_jack *jack, void *data)
-{
-	if (component->driver->set_jack)
-		return component->driver->set_jack(component, jack, data);
-
-	return -ENOTSUPP;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_set_jack);
-
-/**
- * snd_soc_card_jack_new - Create a new jack
- * @card:  ASoC card
- * @id:    an identifying string for this jack
- * @type:  a bitmask of enum snd_jack_type values that can be detected by
- *         this jack
- * @jack:  structure to use for the jack
- * @pins:  Array of jack pins to be added to the jack or NULL
- * @num_pins: Number of elements in the @pins array
- *
- * Creates a new jack object.
- *
- * Returns zero if successful, or a negative error code on failure.
- * On success jack will be initialised.
- */
-int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
-	struct snd_soc_jack *jack, struct snd_soc_jack_pin *pins,
-	unsigned int num_pins)
-{
-	int ret;
-
-	mutex_init(&jack->mutex);
-	jack->card = card;
-	INIT_LIST_HEAD(&jack->pins);
-	INIT_LIST_HEAD(&jack->jack_zones);
-	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
-
-	ret = snd_jack_new(card->snd_card, id, type, &jack->jack, false, false);
-	if (ret)
-		return ret;
-
-	if (num_pins)
-		return snd_soc_jack_add_pins(jack, num_pins, pins);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_card_jack_new);
-
-/**
  * snd_soc_jack_report - Report the current status for a jack
  *
  * @jack:   the jack
@@ -100,10 +44,9 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	unsigned int sync = 0;
 	int enable;
 
-	trace_snd_soc_jack_report(jack, mask, status);
-
 	if (!jack)
 		return;
+	trace_snd_soc_jack_report(jack, mask, status);
 
 	dapm = &jack->card->dapm;
 

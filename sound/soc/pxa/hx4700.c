@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SoC audio for HP iPAQ hx4700
  *
  * Copyright (c) 2009 Philipp Zabel
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -58,9 +53,9 @@ static struct snd_soc_jack_gpio hs_jack_gpio = {
 static int hx4700_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	int ret = 0;
 
 	/* set the I2S system clock as output */
@@ -139,17 +134,19 @@ static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* hx4700 digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(ak4641,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("ak4641.0-0012", "ak4641-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link hx4700_dai = {
 	.name = "ak4641",
 	.stream_name = "AK4641",
-	.cpu_dai_name = "pxa2xx-i2s",
-	.codec_dai_name = "ak4641-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "ak4641.0-0012",
 	.init = hx4700_ak4641_init,
 	.dai_fmt = SND_SOC_DAIFMT_MSB | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &hx4700_ops,
+	SND_SOC_DAILINK_REG(ak4641),
 };
 
 /* hx4700 audio machine driver */

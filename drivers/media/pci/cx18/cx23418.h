@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  cx18 header containing common defines.
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #ifndef CX23418_H
@@ -439,7 +430,7 @@
 /* Error in I2C data xfer (but I2C device is present) */
 #define CXERR_I2CDEV_XFERERR    0x000011
 
-/* Chanel changing component not ready */
+/* Channel changing component not ready */
 #define CXERR_CHANNELNOTREADY   0x000012
 
 /* PPU (Presensation/Decoder) mail box is corrupted */

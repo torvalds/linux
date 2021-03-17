@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
  * l1oip.c  low level driver for tunneling layer 1 over IP
@@ -5,21 +6,6 @@
  * NOTE: It is not compatible with TDMoIP nor "ISDN over IP".
  *
  * Author	Andreas Eversberg (jolly@eversberg.eu)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 /* module parameters:
@@ -718,8 +704,7 @@ l1oip_socket_thread(void *data)
 		printk(KERN_DEBUG "%s: socket created and open\n",
 		       __func__);
 	while (!signal_pending(current)) {
-		iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1,
-				recvbuf_size);
+		iov_iter_kvec(&msg.msg_iter, READ, &iov, 1, recvbuf_size);
 		recvlen = sock_recvmsg(socket, &msg, 0);
 		if (recvlen > 0) {
 			l1oip_socket_parse(hc, &sin_rx, recvbuf, recvlen);
@@ -1269,8 +1254,7 @@ release_card(struct l1oip *hc)
 			mISDN_freebchannel(hc->chan[ch].bch);
 			kfree(hc->chan[ch].bch);
 #ifdef REORDER_DEBUG
-			if (hc->chan[ch].disorder_skb)
-				dev_kfree_skb(hc->chan[ch].disorder_skb);
+			dev_kfree_skb(hc->chan[ch].disorder_skb);
 #endif
 		}
 	}

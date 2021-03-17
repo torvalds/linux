@@ -30,7 +30,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
 
 #include "radeon.h"
@@ -454,7 +454,7 @@ static int radeon_uvd_validate_codec(struct radeon_cs_parser *p,
 		if (p->rdev->family >= CHIP_PALM)
 			return 0;
 
-		/* fall through */
+		fallthrough;
 	default:
 		DRM_ERROR("UVD codec not supported by hardware %d!\n",
 			  stream_type);
@@ -477,7 +477,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		return -EINVAL;
 	}
 
-	f = reservation_object_get_excl(bo->tbo.resv);
+	f = dma_resv_get_excl(bo->tbo.base.resv);
 	if (f) {
 		r = radeon_fence_wait((struct radeon_fence *)f, false);
 		if (r) {

@@ -49,15 +49,19 @@ the issue, it may also contain the word **Oops**, as on this one::
 
 Despite being an **Oops** or some other sort of stack trace, the offended
 line is usually required to identify and handle the bug. Along this chapter,
-we'll refer to "Oops" for all kinds of stack traces that need to be analized.
+we'll refer to "Oops" for all kinds of stack traces that need to be analyzed.
 
-.. note::
+If the kernel is compiled with ``CONFIG_DEBUG_INFO``, you can enhance the
+quality of the stack trace by using file:`scripts/decode_stacktrace.sh`.
 
-  ``ksymoops`` is useless on 2.6 or upper.  Please use the Oops in its original
-  format (from ``dmesg``, etc).  Ignore any references in this or other docs to
-  "decoding the Oops" or "running it through ksymoops".
-  If you post an Oops from 2.6+ that has been run through ``ksymoops``,
-  people will just tell you to repost it.
+Modules linked in
+-----------------
+
+Modules that are tainted or are being loaded or unloaded are marked with
+"(...)", where the taint flags are described in
+file:`Documentation/admin-guide/tainted-kernels.rst`, "being loaded" is
+annotated with "+", and "being unloaded" is annotated with "-".
+
 
 Where is the Oops message is located?
 -------------------------------------
@@ -71,7 +75,7 @@ by running ``journalctl`` command.
 Sometimes ``klogd`` dies, in which case you can run ``dmesg > file`` to
 read the data from the kernel buffers and save it.  Or you can
 ``cat /proc/kmsg > file``, however you have to break in to stop the transfer,
-``kmsg`` is a "never ending file".
+since ``kmsg`` is a "never ending file".
 
 If the machine has crashed so badly that you cannot enter commands or
 the disk is not available then you have three options:
@@ -81,18 +85,18 @@ the disk is not available then you have three options:
     planned for a crash. Alternatively, you can take a picture of
     the screen with a digital camera - not nice, but better than
     nothing.  If the messages scroll off the top of the console, you
-    may find that booting with a higher resolution (eg, ``vga=791``)
+    may find that booting with a higher resolution (e.g., ``vga=791``)
     will allow you to read more of the text. (Caveat: This needs ``vesafb``,
-    so won't help for 'early' oopses)
+    so won't help for 'early' oopses.)
 
 (2) Boot with a serial console (see
     :ref:`Documentation/admin-guide/serial-console.rst <serial_console>`),
     run a null modem to a second machine and capture the output there
     using your favourite communication program.  Minicom works well.
 
-(3) Use Kdump (see Documentation/kdump/kdump.txt),
+(3) Use Kdump (see Documentation/admin-guide/kdump/kdump.rst),
     extract the kernel ring buffer from old memory with using dmesg
-    gdbmacro in Documentation/kdump/gdbmacros.txt.
+    gdbmacro in Documentation/admin-guide/kdump/gdbmacros.txt.
 
 Finding the bug's location
 --------------------------
@@ -104,7 +108,7 @@ Kernel source file. There are two methods for doing that. Usually, using
 gdb
 ^^^
 
-The GNU debug (``gdb``) is the best way to figure out the exact file and line
+The GNU debugger (``gdb``) is the best way to figure out the exact file and line
 number of the OOPS from the ``vmlinux`` file.
 
 The usage of gdb works best on a kernel compiled with ``CONFIG_DEBUG_INFO``.
@@ -165,7 +169,7 @@ If you have a call trace, such as::
       [<ffffffff8802770b>] :jbd:journal_stop+0x1be/0x1ee
       ...
 
-this shows the problem likely in the :jbd: module. You can load that module
+this shows the problem likely is in the :jbd: module. You can load that module
 in gdb and list the relevant code::
 
   $ gdb fs/jbd/jbd.ko
@@ -199,8 +203,9 @@ in the kernel hacking menu of the menu configuration.) For example::
    You need to be at the top level of the kernel tree for this to pick up
    your C files.
 
-If you don't have access to the code you can also debug on some crash dumps
-e.g. crash dump output as shown by Dave Miller::
+If you don't have access to the source code you can still debug some crash
+dumps using the following method (example crash dump output as shown by
+Dave Miller)::
 
      EIP is at 	+0x14/0x4c0
       ...
@@ -230,6 +235,9 @@ e.g. crash dump output as shown by Dave Miller::
          mov        0x8(%ebp), %ebx         ! %ebx = skb->sk
          mov        0x13c(%ebx), %eax       ! %eax = inet_sk(sk)->opt
 
+file:`scripts/decodecode` can be used to automate most of this, depending
+on what CPU architecture is being debugged.
+
 Reporting the bug
 -----------------
 
@@ -241,7 +249,7 @@ used for the development of the affected code. This can be done by using
 the ``get_maintainer.pl`` script.
 
 For example, if you find a bug at the gspca's sonixj.c file, you can get
-their maintainers with::
+its maintainers with::
 
 	$ ./scripts/get_maintainer.pl -f drivers/media/usb/gspca/sonixj.c
 	Hans Verkuil <hverkuil@xs4all.nl> (odd fixer:GSPCA USB WEBCAM DRIVER,commit_signer:1/1=100%)
@@ -253,16 +261,17 @@ their maintainers with::
 
 Please notice that it will point to:
 
-- The last developers that touched on the source code. On the above example,
-  Tejun and Bhaktipriya (in this specific case, none really envolved on the
-  development of this file);
+- The last developers that touched the source code (if this is done inside
+  a git tree). On the above example, Tejun and Bhaktipriya (in this
+  specific case, none really envolved on the development of this file);
 - The driver maintainer (Hans Verkuil);
 - The subsystem maintainer (Mauro Carvalho Chehab);
 - The driver and/or subsystem mailing list (linux-media@vger.kernel.org);
 - the Linux Kernel mailing list (linux-kernel@vger.kernel.org).
 
 Usually, the fastest way to have your bug fixed is to report it to mailing
-list used for the development of the code (linux-media ML) copying the driver maintainer (Hans).
+list used for the development of the code (linux-media ML) copying the
+driver maintainer (Hans).
 
 If you are totally stumped as to whom to send the report, and
 ``get_maintainer.pl`` didn't provide you anything useful, send it to
@@ -303,9 +312,9 @@ protection fault message can be simply cut out of the message files
 and forwarded to the kernel developers.
 
 Two types of address resolution are performed by ``klogd``.  The first is
-static translation and the second is dynamic translation.  Static
-translation uses the System.map file in much the same manner that
-ksymoops does.  In order to do static translation the ``klogd`` daemon
+static translation and the second is dynamic translation.
+Static translation uses the System.map file.
+In order to do static translation the ``klogd`` daemon
 must be able to find a system map file at daemon initialization time.
 See the klogd man page for information on how ``klogd`` searches for map
 files.

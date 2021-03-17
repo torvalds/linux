@@ -4,15 +4,16 @@
 #ifndef _A6XX_GMU_H_
 #define _A6XX_GMU_H_
 
+#include <linux/iopoll.h>
 #include <linux/interrupt.h>
 #include "msm_drv.h"
 #include "a6xx_hfi.h"
 
 struct a6xx_gmu_bo {
+	struct drm_gem_object *obj;
 	void *virt;
 	size_t size;
 	u64 iova;
-	struct page **pages;
 };
 
 /*
@@ -25,9 +26,6 @@ struct a6xx_gmu_bo {
 
 /* the GMU is coming up for the first time or back from a power collapse */
 #define GMU_COLD_BOOT 1
-
-/* The GMU is being soft reset after a fault */
-#define GMU_RESET 2
 
 /*
  * These define the level of control that the GMU has - the higher the number
@@ -46,25 +44,31 @@ struct a6xx_gmu_bo {
 struct a6xx_gmu {
 	struct device *dev;
 
+	struct msm_gem_address_space *aspace;
+
 	void * __iomem mmio;
-	void * __iomem pdc_mmio;
+	void * __iomem rscc;
 
 	int hfi_irq;
 	int gmu_irq;
 
-	struct regulator *gx;
-
-	struct iommu_domain *domain;
-	u64 uncached_iova_base;
+	struct device *gxpd;
 
 	int idle_level;
 
-	struct a6xx_gmu_bo *hfi;
-	struct a6xx_gmu_bo *debug;
+	struct a6xx_gmu_bo hfi;
+	struct a6xx_gmu_bo debug;
+	struct a6xx_gmu_bo icache;
+	struct a6xx_gmu_bo dcache;
+	struct a6xx_gmu_bo dummy;
+	struct a6xx_gmu_bo log;
 
 	int nr_clocks;
 	struct clk_bulk_data *clocks;
 	struct clk *core_clk;
+
+	/* current performance index set externally */
+	int current_perf_index;
 
 	int nr_gpu_freqs;
 	unsigned long gpu_freqs[16];
@@ -74,9 +78,13 @@ struct a6xx_gmu {
 	unsigned long gmu_freqs[4];
 	u32 cx_arc_votes[4];
 
+	unsigned long freq;
+
 	struct a6xx_hfi_queue queues[2];
 
-	struct tasklet_struct hfi_tasklet;
+	bool initialized;
+	bool hung;
+	bool legacy; /* a618 or a630 */
 };
 
 static inline u32 gmu_read(struct a6xx_gmu *gmu, u32 offset)
@@ -89,9 +97,11 @@ static inline void gmu_write(struct a6xx_gmu *gmu, u32 offset, u32 value)
 	return msm_writel(value, gmu->mmio + (offset << 2));
 }
 
-static inline void pdc_write(struct a6xx_gmu *gmu, u32 offset, u32 value)
+static inline void
+gmu_write_bulk(struct a6xx_gmu *gmu, u32 offset, const u32 *data, u32 size)
 {
-	return msm_writel(value, gmu->pdc_mmio + (offset << 2));
+	memcpy_toio(gmu->mmio + (offset << 2), data, size);
+	wmb();
 }
 
 static inline void gmu_rmw(struct a6xx_gmu *gmu, u32 reg, u32 mask, u32 or)
@@ -103,8 +113,32 @@ static inline void gmu_rmw(struct a6xx_gmu *gmu, u32 reg, u32 mask, u32 or)
 	gmu_write(gmu, reg, val | or);
 }
 
+static inline u64 gmu_read64(struct a6xx_gmu *gmu, u32 lo, u32 hi)
+{
+	u64 val;
+
+	val = (u64) msm_readl(gmu->mmio + (lo << 2));
+	val |= ((u64) msm_readl(gmu->mmio + (hi << 2)) << 32);
+
+	return val;
+}
+
 #define gmu_poll_timeout(gmu, addr, val, cond, interval, timeout) \
 	readl_poll_timeout((gmu)->mmio + ((addr) << 2), val, cond, \
+		interval, timeout)
+
+static inline u32 gmu_read_rscc(struct a6xx_gmu *gmu, u32 offset)
+{
+	return msm_readl(gmu->rscc + (offset << 2));
+}
+
+static inline void gmu_write_rscc(struct a6xx_gmu *gmu, u32 offset, u32 value)
+{
+	return msm_writel(value, gmu->rscc + (offset << 2));
+}
+
+#define gmu_poll_timeout_rscc(gmu, addr, val, cond, interval, timeout) \
+	readl_poll_timeout((gmu)->rscc + ((addr) << 2), val, cond, \
 		interval, timeout)
 
 /*
@@ -152,11 +186,18 @@ enum a6xx_gmu_oob_state {
 #define GMU_OOB_GPU_SET_ACK	24
 #define GMU_OOB_GPU_SET_CLEAR	24
 
+#define GMU_OOB_GPU_SET_REQUEST_NEW	30
+#define GMU_OOB_GPU_SET_ACK_NEW		31
+#define GMU_OOB_GPU_SET_CLEAR_NEW	31
+
 
 void a6xx_hfi_init(struct a6xx_gmu *gmu);
 int a6xx_hfi_start(struct a6xx_gmu *gmu, int boot_state);
 void a6xx_hfi_stop(struct a6xx_gmu *gmu);
+int a6xx_hfi_send_prep_slumber(struct a6xx_gmu *gmu);
+int a6xx_hfi_set_freq(struct a6xx_gmu *gmu, int index);
 
-void a6xx_hfi_task(unsigned long data);
+bool a6xx_gmu_gx_is_on(struct a6xx_gmu *gmu);
+bool a6xx_gmu_sptprac_is_on(struct a6xx_gmu *gmu);
 
 #endif

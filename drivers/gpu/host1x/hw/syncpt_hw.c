@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra host1x Syncpoints
  *
  * Copyright (c) 2010-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/io.h>
@@ -37,10 +26,12 @@ static void syncpt_restore(struct host1x_syncpt *sp)
  */
 static void syncpt_restore_wait_base(struct host1x_syncpt *sp)
 {
+#if HOST1X_HW < 7
 	struct host1x *host = sp->host;
 
 	host1x_sync_writel(host, sp->base_val,
 			   HOST1X_SYNC_SYNCPT_BASE(sp->id));
+#endif
 }
 
 /*
@@ -48,10 +39,12 @@ static void syncpt_restore_wait_base(struct host1x_syncpt *sp)
  */
 static void syncpt_read_wait_base(struct host1x_syncpt *sp)
 {
+#if HOST1X_HW < 7
 	struct host1x *host = sp->host;
 
 	sp->base_val =
 		host1x_sync_readl(host, HOST1X_SYNC_SYNCPT_BASE(sp->id));
+#endif
 }
 
 /*

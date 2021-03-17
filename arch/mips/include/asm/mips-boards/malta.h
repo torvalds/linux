@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  * Defines of the Malta board specific address-MAP, registers, etc.
  */
@@ -103,5 +91,7 @@ static inline unsigned long get_msc_port_base(unsigned long reg)
 #define SMSC_WRITE(x, a)     outb(x, a)
 
 #define MALTA_JMPRS_REG		0x1f000210
+
+extern void __init *malta_dt_shim(void *fdt);
 
 #endif /* __ASM_MIPS_BOARDS_MALTA_H */

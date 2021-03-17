@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * arch/xtensa/platform-iss/setup.c
@@ -9,38 +10,18 @@
  *
  * Copyright 2001 - 2005 Tensilica Inc.
  * Copyright 2017 Cadence Design Systems Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
-#include <linux/bootmem.h>
-#include <linux/stddef.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/reboot.h>
-#include <linux/kdev_t.h>
-#include <linux/types.h>
-#include <linux/major.h>
-#include <linux/blkdev.h>
-#include <linux/console.h>
-#include <linux/delay.h>
-#include <linux/stringify.h>
+#include <linux/kernel.h>
 #include <linux/notifier.h>
+#include <linux/printk.h>
+#include <linux/string.h>
 
 #include <asm/platform.h>
-#include <asm/bootparam.h>
 #include <asm/setup.h>
 
 #include <platform/simcall.h>
 
-
-void __init platform_init(bp_tag_t* bootparam)
-{
-}
 
 void platform_halt(void)
 {
@@ -53,16 +34,13 @@ void platform_power_off(void)
 	pr_info(" ** Called platform_power_off() **\n");
 	simc_exit(0);
 }
+
 void platform_restart(void)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
 	cpu_reset();
 	/* control never gets here */
-}
-
-void platform_heartbeat(void)
-{
 }
 
 static int

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PXA168 ethernet driver.
  * Most of the code is derived from mv643xx ethernet driver.
@@ -7,19 +8,6 @@
  *		Zhangfei Gao <zgao6@marvell.com>
  *		Philip Rakity <prakity@marvell.com>
  *		Mark Brown <markb@marvell.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bitops.h>
@@ -43,8 +31,8 @@
 #include <linux/types.h>
 #include <linux/udp.h>
 #include <linux/workqueue.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 
 #define DRIVER_NAME	"pxa168-eth"
@@ -201,6 +189,7 @@ struct tx_desc {
 };
 
 struct pxa168_eth_private {
+	struct platform_device *pdev;
 	int port_num;		/* User Ethernet port number    */
 	int phy_addr;
 	int phy_speed;
@@ -331,7 +320,7 @@ static void rxq_refill(struct net_device *dev)
 		used_rx_desc = pep->rx_used_desc_q;
 		p_used_rx_desc = &pep->p_rx_desc_area[used_rx_desc];
 		size = skb_end_pointer(skb) - skb->data;
-		p_used_rx_desc->buf_ptr = dma_map_single(NULL,
+		p_used_rx_desc->buf_ptr = dma_map_single(&pep->pdev->dev,
 							 skb->data,
 							 size,
 							 DMA_FROM_DEVICE);
@@ -557,9 +546,9 @@ static int init_hash_table(struct pxa168_eth_private *pep)
 	 * table is full.
 	 */
 	if (!pep->htpr) {
-		pep->htpr = dma_zalloc_coherent(pep->dev->dev.parent,
-						HASH_ADDR_TABLE_SIZE,
-						&pep->htpr_dma, GFP_KERNEL);
+		pep->htpr = dma_alloc_coherent(pep->dev->dev.parent,
+					       HASH_ADDR_TABLE_SIZE,
+					       &pep->htpr_dma, GFP_KERNEL);
 		if (!pep->htpr)
 			return -ENOMEM;
 	} else {
@@ -743,7 +732,7 @@ static int txq_reclaim(struct net_device *dev, int force)
 				netdev_err(dev, "Error in TX\n");
 			dev->stats.tx_errors++;
 		}
-		dma_unmap_single(NULL, addr, count, DMA_TO_DEVICE);
+		dma_unmap_single(&pep->pdev->dev, addr, count, DMA_TO_DEVICE);
 		if (skb)
 			dev_kfree_skb_irq(skb);
 		released++;
@@ -753,7 +742,7 @@ txq_reclaim_end:
 	return released;
 }
 
-static void pxa168_eth_tx_timeout(struct net_device *dev)
+static void pxa168_eth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
@@ -805,7 +794,7 @@ static int rxq_process(struct net_device *dev, int budget)
 		if (rx_next_curr_desc == rx_used_desc)
 			pep->rx_resource_err = 1;
 		pep->rx_desc_count--;
-		dma_unmap_single(NULL, rx_desc->buf_ptr,
+		dma_unmap_single(&pep->pdev->dev, rx_desc->buf_ptr,
 				 rx_desc->buf_size,
 				 DMA_FROM_DEVICE);
 		received_packets++;
@@ -988,8 +977,8 @@ static int pxa168_init_phy(struct net_device *dev)
 	cmd.base.phy_address = pep->phy_addr;
 	cmd.base.speed = pep->phy_speed;
 	cmd.base.duplex = pep->phy_duplex;
-	ethtool_convert_legacy_u32_to_link_mode(cmd.link_modes.advertising,
-						PHY_BASIC_FEATURES);
+	bitmap_copy(cmd.link_modes.advertising, PHY_BASIC_FEATURES,
+		    __ETHTOOL_LINK_MODE_MASK_NBITS);
 	cmd.base.autoneg = AUTONEG_ENABLE;
 
 	if (cmd.base.speed != 0)
@@ -1044,9 +1033,9 @@ static int rxq_init(struct net_device *dev)
 	pep->rx_desc_count = 0;
 	size = pep->rx_ring_size * sizeof(struct rx_desc);
 	pep->rx_desc_area_size = size;
-	pep->p_rx_desc_area = dma_zalloc_coherent(pep->dev->dev.parent, size,
-						  &pep->rx_desc_dma,
-						  GFP_KERNEL);
+	pep->p_rx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
+						 &pep->rx_desc_dma,
+						 GFP_KERNEL);
 	if (!pep->p_rx_desc_area)
 		goto out;
 
@@ -1103,9 +1092,9 @@ static int txq_init(struct net_device *dev)
 	pep->tx_desc_count = 0;
 	size = pep->tx_ring_size * sizeof(struct tx_desc);
 	pep->tx_desc_area_size = size;
-	pep->p_tx_desc_area = dma_zalloc_coherent(pep->dev->dev.parent, size,
-						  &pep->tx_desc_dma,
-						  GFP_KERNEL);
+	pep->p_tx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
+						 &pep->tx_desc_dma,
+						 GFP_KERNEL);
 	if (!pep->p_tx_desc_area)
 		goto out;
 	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
@@ -1198,11 +1187,10 @@ static int pxa168_eth_stop(struct net_device *dev)
 
 static int pxa168_eth_change_mtu(struct net_device *dev, int mtu)
 {
-	int retval;
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
 	dev->mtu = mtu;
-	retval = set_port_config_ext(pep);
+	set_port_config_ext(pep);
 
 	if (!netif_running(dev))
 		return 0;
@@ -1260,7 +1248,8 @@ static int pxa168_rx_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static int pxa168_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t
+pxa168_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
@@ -1273,7 +1262,8 @@ static int pxa168_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	length = skb->len;
 	pep->tx_skb[tx_index] = skb;
 	desc->byte_cnt = length;
-	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
+	desc->buf_ptr = dma_map_single(&pep->pdev->dev, skb->data, length,
+					DMA_TO_DEVICE);
 
 	skb_tx_timestamp(skb);
 
@@ -1353,15 +1343,6 @@ static int pxa168_smi_write(struct mii_bus *bus, int phy_addr, int regnum,
 	return 0;
 }
 
-static int pxa168_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr,
-			       int cmd)
-{
-	if (dev->phydev)
-		return phy_mii_ioctl(dev->phydev, ifr, cmd);
-
-	return -EOPNOTSUPP;
-}
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void pxa168_eth_netpoll(struct net_device *dev)
 {
@@ -1396,7 +1377,7 @@ static const struct net_device_ops pxa168_eth_netdev_ops = {
 	.ndo_set_rx_mode	= pxa168_eth_set_rx_mode,
 	.ndo_set_mac_address	= pxa168_eth_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= pxa168_eth_do_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 	.ndo_change_mtu		= pxa168_eth_change_mtu,
 	.ndo_tx_timeout		= pxa168_eth_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1434,10 +1415,9 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	pep->dev = dev;
 	pep->clk = clk;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pep->base = devm_ioremap_resource(&pdev->dev, res);
+	pep->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pep->base)) {
-		err = -ENOMEM;
+		err = PTR_ERR(pep->base);
 		goto err_netdev;
 	}
 
@@ -1458,7 +1438,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		mac_addr = of_get_mac_address(pdev->dev.of_node);
 
-	if (mac_addr && is_valid_ether_addr(mac_addr)) {
+	if (!IS_ERR_OR_NULL(mac_addr)) {
 		ether_addr_copy(dev->dev_addr, mac_addr);
 	} else {
 		/* try reading the mac address, if set by the bootloader */
@@ -1499,8 +1479,10 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 			goto err_netdev;
 		}
 		of_property_read_u32(np, "reg", &pep->phy_addr);
-		pep->phy_intf = of_get_phy_mode(pdev->dev.of_node);
 		of_node_put(np);
+		err = of_get_phy_mode(pdev->dev.of_node, &pep->phy_intf);
+		if (err && err != -ENODEV)
+			goto err_netdev;
 	}
 
 	/* Hardware supports only 3 ports */
@@ -1527,6 +1509,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	if (err)
 		goto err_free_mdio;
 
+	pep->pdev = pdev;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	pxa168_init_hw(pep);
 	err = register_netdev(dev);
@@ -1557,10 +1540,8 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	}
 	if (dev->phydev)
 		phy_disconnect(dev->phydev);
-	if (pep->clk) {
-		clk_disable_unprepare(pep->clk);
-	}
 
+	clk_disable_unprepare(pep->clk);
 	mdiobus_unregister(pep->smi_bus);
 	mdiobus_free(pep->smi_bus);
 	unregister_netdev(dev);

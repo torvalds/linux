@@ -3,7 +3,7 @@ menuconfig AGP
 	tristate "/dev/agpgart (AGP Support)"
 	depends on ALPHA || IA64 || PARISC || PPC || X86
 	depends on PCI
-	---help---
+	help
 	  AGP (Accelerated Graphics Port) is a bus system mainly used to
 	  connect graphics cards to the rest of the system.
 
@@ -30,7 +30,7 @@ menuconfig AGP
 config AGP_ALI
 	tristate "ALI chipset support"
 	depends on AGP && X86_32
-	---help---
+	help
 	  This option gives you AGP support for the GLX component of
 	  X on the following ALi chipsets.  The supported chipsets
 	  include M1541, M1621, M1631, M1632, M1641,M1647,and M1651.
@@ -45,7 +45,7 @@ config AGP_ALI
 config AGP_ATI
 	tristate "ATI chipset support"
 	depends on AGP && X86_32
-	---help---
+	help
 	  This option gives you AGP support for the GLX component of
 	  X on the ATI RadeonIGP family of chipsets.
 
@@ -63,7 +63,7 @@ config AGP_AMD64
 	  This option gives you AGP support for the GLX component of
 	  X using the on-CPU northbridge of the AMD Athlon64/Opteron CPUs.
 	  You still need an external AGP bridge like the AMD 8151, VIA
-          K8T400M, SiS755. It may also support other AGP bridges when loaded
+	  K8T400M, SiS755. It may also support other AGP bridges when loaded
 	  with agp_try_unsupported=1.
 
 config AGP_INTEL
@@ -111,14 +111,14 @@ config AGP_VIA
 
 config AGP_I460
 	tristate "Intel 460GX chipset support"
-	depends on AGP && (IA64_DIG || IA64_GENERIC)
+	depends on AGP && IA64
 	help
 	  This option gives you AGP GART support for the Intel 460GX chipset
 	  for IA64 processors.
 
 config AGP_HP_ZX1
 	tristate "HP ZX1 chipset AGP support"
-	depends on AGP && (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC)
+	depends on AGP && IA64
 	help
 	  This option gives you AGP GART support for the HP ZX1 chipset
 	  for IA64 processors.
@@ -149,13 +149,6 @@ config AGP_EFFICEON
 	help
 	  This option gives you AGP support for the Transmeta Efficeon
 	  series processors with integrated northbridges.
-
-config AGP_SGI_TIOCA
-        tristate "SGI TIO chipset AGP support"
-        depends on AGP && (IA64_SGI_SN2 || IA64_GENERIC)
-        help
-          This option gives you AGP GART support for the SGI TIO chipset
-          for IA64 processors.
 
 config INTEL_GTT
 	tristate

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # RxRPC session sockets
 #
@@ -17,7 +18,7 @@ config AF_RXRPC
 	  This module at the moment only supports client operations and is
 	  currently incomplete.
 
-	  See Documentation/networking/rxrpc.txt.
+	  See Documentation/networking/rxrpc.rst.
 
 config AF_RXRPC_IPV6
 	bool "IPv6 support for RxRPC"
@@ -40,7 +41,7 @@ config AF_RXRPC_DEBUG
 	help
 	  Say Y here to make runtime controllable debugging messages appear.
 
-	  See Documentation/networking/rxrpc.txt.
+	  See Documentation/networking/rxrpc.rst.
 
 
 config RXKAD
@@ -48,11 +49,11 @@ config RXKAD
 	depends on AF_RXRPC
 	select CRYPTO
 	select CRYPTO_MANAGER
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_PCBC
 	select CRYPTO_FCRYPT
 	help
 	  Provide kerberos 4 and AFS kaserver security handling for AF_RXRPC
 	  through the use of the key retention service.
 
-	  See Documentation/networking/rxrpc.txt.
+	  See Documentation/networking/rxrpc.rst.

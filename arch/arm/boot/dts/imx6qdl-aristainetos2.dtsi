@@ -110,23 +110,23 @@
 };
 
 &ecspi1 {
-	cs-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH
-		    &gpio4 10 GPIO_ACTIVE_HIGH
-		    &gpio4 11 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio4 9 GPIO_ACTIVE_LOW
+		    &gpio4 10 GPIO_ACTIVE_LOW
+		    &gpio4 11 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 };
 
 &ecspi2 {
-	cs-gpios = <&gpio2 26 GPIO_ACTIVE_HIGH &gpio2 27 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio2 26 GPIO_ACTIVE_LOW &gpio2 27 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
 };
 
 &ecspi4 {
-	cs-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH &gpio5 2 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio3 29 GPIO_ACTIVE_LOW &gpio5 2 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
 	status = "okay";
@@ -336,6 +336,7 @@
 };
 
 &pwm1 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";

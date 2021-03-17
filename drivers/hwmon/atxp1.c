@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * atxp1.c - kernel module for setting CPU VID and general purpose
  *	     I/Os using the Attansic ATXP1 chip.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * The ATXP1 can reside on I2C addresses 0x37 or 0x4e. The chip is
  * not auto-detected by the driver and must be instantiated explicitly.
- * See Documentation/i2c/instantiating-devices for more information.
+ * See Documentation/i2c/instantiating-devices.rst for more information.
  */
 
 #include <linux/kernel.h>
@@ -253,8 +244,7 @@ static struct attribute *atxp1_attrs[] = {
 };
 ATTRIBUTE_GROUPS(atxp1);
 
-static int atxp1_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int atxp1_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct atxp1_data *data;
@@ -297,7 +287,7 @@ static struct i2c_driver atxp1_driver = {
 	.driver = {
 		.name	= "atxp1",
 	},
-	.probe		= atxp1_probe,
+	.probe_new	= atxp1_probe,
 	.id_table	= atxp1_id,
 };
 

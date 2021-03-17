@@ -210,13 +210,12 @@ out:
 	return ret;
 }
 
-static const struct file_operations pnpbios_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pnpbios_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= pnpbios_proc_write,
+static const struct proc_ops pnpbios_proc_ops = {
+	.proc_open	= pnpbios_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= pnpbios_proc_write,
 };
 
 int pnpbios_interface_attach_device(struct pnp_bios_node *node)
@@ -228,13 +227,13 @@ int pnpbios_interface_attach_device(struct pnp_bios_node *node)
 	if (!proc_pnp)
 		return -EIO;
 	if (!pnpbios_dont_use_current_config) {
-		proc_create_data(name, 0644, proc_pnp, &pnpbios_proc_fops,
+		proc_create_data(name, 0644, proc_pnp, &pnpbios_proc_ops,
 				 (void *)(long)(node->handle));
 	}
 
 	if (!proc_pnp_boot)
 		return -EIO;
-	if (proc_create_data(name, 0644, proc_pnp_boot, &pnpbios_proc_fops,
+	if (proc_create_data(name, 0644, proc_pnp_boot, &pnpbios_proc_ops,
 			     (void *)(long)(node->handle + 0x100)))
 		return 0;
 	return -EIO;

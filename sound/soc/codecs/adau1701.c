@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ADAU1701 SigmaDSP processor
  *
  * Copyright 2011 Analog Devices Inc.
  * Author: Lars-Peter Clausen <lars@metafoo.de>
  *	based on an inital version by Cliff Cai <cliff.cai@analog.com>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -574,7 +573,7 @@ static int adau1701_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
-static int adau1701_digital_mute(struct snd_soc_dai *dai, int mute)
+static int adau1701_mute_stream(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	unsigned int mask = ADAU1701_DSPCTRL_DAM;
@@ -632,8 +631,9 @@ static int adau1701_startup(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops adau1701_dai_ops = {
 	.set_fmt	= adau1701_set_dai_fmt,
 	.hw_params	= adau1701_hw_params,
-	.digital_mute	= adau1701_digital_mute,
+	.mute_stream	= adau1701_mute_stream,
 	.startup	= adau1701_startup,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver adau1701_dai = {

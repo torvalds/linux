@@ -641,8 +641,8 @@ alloc_scq(struct idt77252_dev *card, int class)
 	scq = kzalloc(sizeof(struct scq_info), GFP_KERNEL);
 	if (!scq)
 		return NULL;
-	scq->base = dma_zalloc_coherent(&card->pcidev->dev, SCQ_SIZE,
-					&scq->paddr, GFP_KERNEL);
+	scq->base = dma_alloc_coherent(&card->pcidev->dev, SCQ_SIZE,
+				       &scq->paddr, GFP_KERNEL);
 	if (scq->base == NULL) {
 		kfree(scq);
 		return NULL;
@@ -835,6 +835,7 @@ queue_skb(struct idt77252_dev *card, struct vc_map *vc,
 	unsigned long flags;
 	int error;
 	int aal;
+	u32 word4;
 
 	if (skb->len == 0) {
 		printk("%s: invalid skb->len (%d)\n", card->name, skb->len);
@@ -846,6 +847,8 @@ queue_skb(struct idt77252_dev *card, struct vc_map *vc,
 
 	tbd = &IDT77252_PRV_TBD(skb);
 	vcc = ATM_SKB(skb)->vcc;
+	word4 = (skb->data[0] << 24) | (skb->data[1] << 16) |
+			(skb->data[2] <<  8) | (skb->data[3] <<  0);
 
 	IDT77252_PRV_PADDR(skb) = dma_map_single(&card->pcidev->dev, skb->data,
 						 skb->len, DMA_TO_DEVICE);
@@ -859,8 +862,7 @@ queue_skb(struct idt77252_dev *card, struct vc_map *vc,
 		tbd->word_1 = SAR_TBD_OAM | ATM_CELL_PAYLOAD | SAR_TBD_EPDU;
 		tbd->word_2 = IDT77252_PRV_PADDR(skb) + 4;
 		tbd->word_3 = 0x00000000;
-		tbd->word_4 = (skb->data[0] << 24) | (skb->data[1] << 16) |
-			      (skb->data[2] <<  8) | (skb->data[3] <<  0);
+		tbd->word_4 = word4;
 
 		if (test_bit(VCF_RSV, &vc->flags))
 			vc = card->vcs[0];
@@ -890,8 +892,7 @@ queue_skb(struct idt77252_dev *card, struct vc_map *vc,
 
 		tbd->word_2 = IDT77252_PRV_PADDR(skb) + 4;
 		tbd->word_3 = 0x00000000;
-		tbd->word_4 = (skb->data[0] << 24) | (skb->data[1] << 16) |
-			      (skb->data[2] <<  8) | (skb->data[3] <<  0);
+		tbd->word_4 = word4;
 		break;
 
 	case ATM_AAL5:
@@ -971,8 +972,8 @@ init_rsq(struct idt77252_dev *card)
 {
 	struct rsq_entry *rsqe;
 
-	card->rsq.base = dma_zalloc_coherent(&card->pcidev->dev, RSQSIZE,
-					     &card->rsq.paddr, GFP_KERNEL);
+	card->rsq.base = dma_alloc_coherent(&card->pcidev->dev, RSQSIZE,
+					    &card->rsq.paddr, GFP_KERNEL);
 	if (card->rsq.base == NULL) {
 		printk("%s: can't allocate RSQ.\n", card->name);
 		return -1;
@@ -1379,7 +1380,6 @@ init_tsq(struct idt77252_dev *card)
 		printk("%s: can't allocate TSQ.\n", card->name);
 		return -1;
 	}
-	memset(card->tsq.base, 0, TSQSIZE);
 
 	card->tsq.last = card->tsq.base + TSQ_NUM_ENTRIES - 1;
 	card->tsq.next = card->tsq.last;
@@ -3390,10 +3390,10 @@ static int init_card(struct atm_dev *dev)
 	writel(0, SAR_REG_GP);
 
 	/* Initialize RAW Cell Handle Register  */
-	card->raw_cell_hnd = dma_zalloc_coherent(&card->pcidev->dev,
-						 2 * sizeof(u32),
-						 &card->raw_cell_paddr,
-						 GFP_KERNEL);
+	card->raw_cell_hnd = dma_alloc_coherent(&card->pcidev->dev,
+						2 * sizeof(u32),
+						&card->raw_cell_paddr,
+						GFP_KERNEL);
 	if (!card->raw_cell_hnd) {
 		printk("%s: memory allocation failure.\n", card->name);
 		deinit_card(card);
@@ -3607,7 +3607,7 @@ static int idt77252_init_one(struct pci_dev *pcidev,
 
 	if ((err = dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(32)))) {
 		printk("idt77252: can't enable DMA for PCI device at %s\n", pci_name(pcidev));
-		return err;
+		goto err_out_disable_pdev;
 	}
 
 	card = kzalloc(sizeof(struct idt77252_dev), GFP_KERNEL);

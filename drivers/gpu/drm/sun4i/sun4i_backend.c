@@ -1,29 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Free Electrons
  * Copyright (C) 2015 NextThing Co
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
-
-#include <drm/drmP.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_plane_helper.h>
 
 #include <linux/component.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "sun4i_backend.h"
 #include "sun4i_drv.h"
@@ -34,6 +33,9 @@
 struct sun4i_backend_quirks {
 	/* backend <-> TCON muxing selection done in backend */
 	bool needs_output_muxing;
+
+	/* alpha at the lowest z position is not always supported */
+	bool supports_lowest_plane_alpha;
 };
 
 static const u32 sunxi_rgb2yuv_coef[12] = {
@@ -41,50 +43,6 @@ static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x00003f69, 0x00003ed6, 0x000001c1, 0x00000808,
 	0x000001c1, 0x00003e88, 0x00003fb8, 0x00000808
 };
-
-/*
- * These coefficients are taken from the A33 BSP from Allwinner.
- *
- * The formula is for each component, each coefficient being multiplied by
- * 1024 and each constant being multiplied by 16:
- * G = 1.164 * Y - 0.391 * U - 0.813 * V + 135
- * R = 1.164 * Y + 1.596 * V - 222
- * B = 1.164 * Y + 2.018 * U + 276
- *
- * This seems to be a conversion from Y[16:235] UV[16:240] to RGB[0:255],
- * following the BT601 spec.
- */
-static const u32 sunxi_bt601_yuv2rgb_coef[12] = {
-	0x000004a7, 0x00001e6f, 0x00001cbf, 0x00000877,
-	0x000004a7, 0x00000000, 0x00000662, 0x00003211,
-	0x000004a7, 0x00000812, 0x00000000, 0x00002eb1,
-};
-
-static inline bool sun4i_backend_format_is_planar_yuv(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YUV444:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline bool sun4i_backend_format_is_packed_yuv422(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-		return true;
-
-	default:
-		return false;
-	}
-}
 
 static void sun4i_backend_apply_color_correction(struct sunxi_engine *engine)
 {
@@ -178,6 +136,35 @@ static int sun4i_backend_drm_format_to_layer(u32 format, u32 *mode)
 	return 0;
 }
 
+static const uint32_t sun4i_backend_formats[] = {
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGBA4444,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+};
+
+bool sun4i_backend_format_is_supported(uint32_t fmt, uint64_t modifier)
+{
+	unsigned int i;
+
+	if (modifier != DRM_FORMAT_MOD_LINEAR)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(sun4i_backend_formats); i++)
+		if (sun4i_backend_formats[i] == fmt)
+			return true;
+
+	return false;
+}
+
 int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 				     int layer, struct drm_plane *plane)
 {
@@ -215,7 +202,8 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	uint32_t format = fb->format->format;
+	const struct drm_format_info *format = fb->format;
+	const uint32_t fmt = format->format;
 	u32 val = SUN4I_BACKEND_IYUVCTL_EN;
 	int i;
 
@@ -233,16 +221,17 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN);
 
 	/* TODO: Add support for the multi-planar YUV formats */
-	if (sun4i_backend_format_is_packed_yuv422(format))
+	if (drm_format_info_is_yuv_packed(format) &&
+	    drm_format_info_is_yuv_sampling_422(format))
 		val |= SUN4I_BACKEND_IYUVCTL_FBFMT_PACKED_YUV422;
 	else
-		DRM_DEBUG_DRIVER("Unsupported YUV format (0x%x)\n", format);
+		DRM_DEBUG_DRIVER("Unsupported YUV format (0x%x)\n", fmt);
 
 	/*
 	 * Allwinner seems to list the pixel sequence from right to left, while
 	 * DRM lists it from left to right.
 	 */
-	switch (format) {
+	switch (fmt) {
 	case DRM_FORMAT_YUYV:
 		val |= SUN4I_BACKEND_IYUVCTL_FBPS_VYUY;
 		break;
@@ -257,7 +246,7 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 		break;
 	default:
 		DRM_DEBUG_DRIVER("Unsupported YUV pixel sequence (0x%x)\n",
-				 format);
+				 fmt);
 	}
 
 	regmap_write(backend->engine.regs, SUN4I_BACKEND_IYUVCTL_REG, val);
@@ -371,13 +360,6 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
 	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
 
-	/*
-	 * backend DMA accesses DRAM directly, bypassing the system
-	 * bus. As such, the address range is different and the buffer
-	 * address needs to be corrected.
-	 */
-	paddr -= PHYS_OFFSET;
-
 	if (fb->format->is_yuv)
 		return sun4i_backend_update_yuv_buffer(backend, fb, paddr);
 
@@ -417,6 +399,15 @@ int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend, int layer,
 	return 0;
 }
 
+void sun4i_backend_cleanup_layer(struct sun4i_backend *backend,
+				 int layer)
+{
+	regmap_update_bits(backend->engine.regs,
+			   SUN4I_BACKEND_ATTCTL_REG0(layer),
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_VDOEN |
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN, 0);
+}
+
 static bool sun4i_backend_plane_uses_scaler(struct drm_plane_state *state)
 {
 	u16 src_h = state->src_h >> 16;
@@ -435,11 +426,50 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 {
 	struct sun4i_layer *layer = plane_to_sun4i_layer(state->plane);
 	struct sun4i_backend *backend = layer->backend;
+	uint32_t format = state->fb->format->format;
+	uint64_t modifier = state->fb->modifier;
 
 	if (IS_ERR(backend->frontend))
 		return false;
 
-	return sun4i_backend_plane_uses_scaler(state);
+	if (!sun4i_frontend_format_is_supported(format, modifier))
+		return false;
+
+	if (!sun4i_backend_format_is_supported(format, modifier))
+		return true;
+
+	/*
+	 * TODO: The backend alone allows 2x and 4x integer scaling, including
+	 * support for an alpha component (which the frontend doesn't support).
+	 * Use the backend directly instead of the frontend in this case, with
+	 * another test to return false.
+	 */
+
+	if (sun4i_backend_plane_uses_scaler(state))
+		return true;
+
+	/*
+	 * Here the format is supported by both the frontend and the backend
+	 * and no frontend scaling is required, so use the backend directly.
+	 */
+	return false;
+}
+
+static bool sun4i_backend_plane_is_supported(struct drm_plane_state *state,
+					     bool *uses_frontend)
+{
+	if (sun4i_backend_plane_uses_frontend(state)) {
+		*uses_frontend = true;
+		return true;
+	}
+
+	*uses_frontend = false;
+
+	/* Scaling is not supported without the frontend. */
+	if (sun4i_backend_plane_uses_scaler(state))
+		return false;
+
+	return true;
 }
 
 static void sun4i_backend_atomic_begin(struct sunxi_engine *engine,
@@ -457,12 +487,14 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 				      struct drm_crtc_state *crtc_state)
 {
 	struct drm_plane_state *plane_states[SUN4I_BACKEND_NUM_LAYERS] = { 0 };
+	struct sun4i_backend *backend = engine_to_sun4i_backend(engine);
 	struct drm_atomic_state *state = crtc_state->state;
 	struct drm_device *drm = state->dev;
 	struct drm_plane *plane;
 	unsigned int num_planes = 0;
 	unsigned int num_alpha_planes = 0;
 	unsigned int num_frontend_planes = 0;
+	unsigned int num_alpha_planes_max = 1;
 	unsigned int num_yuv_planes = 0;
 	unsigned int current_pipe = 0;
 	unsigned int i;
@@ -480,14 +512,19 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		struct drm_framebuffer *fb = plane_state->fb;
 		struct drm_format_name_buf format_name;
 
-		if (sun4i_backend_plane_uses_frontend(plane_state)) {
+		if (!sun4i_backend_plane_is_supported(plane_state,
+						      &layer_state->uses_frontend))
+			return -EINVAL;
+
+		if (layer_state->uses_frontend) {
 			DRM_DEBUG_DRIVER("Using the frontend for plane %d\n",
 					 plane->index);
-
-			layer_state->uses_frontend = true;
 			num_frontend_planes++;
 		} else {
-			layer_state->uses_frontend = false;
+			if (fb->format->is_yuv) {
+				DRM_DEBUG_DRIVER("Plane FB format is YUV\n");
+				num_yuv_planes++;
+			}
 		}
 
 		DRM_DEBUG_DRIVER("Plane FB format is %s\n",
@@ -495,11 +532,6 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 						     &format_name));
 		if (fb->format->has_alpha || (plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE))
 			num_alpha_planes++;
-
-		if (fb->format->is_yuv) {
-			DRM_DEBUG_DRIVER("Plane FB format is YUV\n");
-			num_yuv_planes++;
-		}
 
 		DRM_DEBUG_DRIVER("Plane zpos is %d\n",
 				 plane_state->normalized_zpos);
@@ -526,32 +558,38 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	 * the layer with the highest priority.
 	 *
 	 * The second step is the actual alpha blending, that takes
-	 * the two pipes as input, and uses the eventual alpha
+	 * the two pipes as input, and uses the potential alpha
 	 * component to do the transparency between the two.
 	 *
-	 * This two steps scenario makes us unable to guarantee a
+	 * This two-step scenario makes us unable to guarantee a
 	 * robust alpha blending between the 4 layers in all
 	 * situations, since this means that we need to have one layer
 	 * with alpha at the lowest position of our two pipes.
 	 *
-	 * However, we cannot even do that, since the hardware has a
-	 * bug where the lowest plane of the lowest pipe (pipe 0,
-	 * priority 0), if it has any alpha, will discard the pixel
-	 * entirely and just display the pixels in the background
-	 * color (black by default).
+	 * However, we cannot even do that on every platform, since
+	 * the hardware has a bug where the lowest plane of the lowest
+	 * pipe (pipe 0, priority 0), if it has any alpha, will
+	 * discard the pixel data entirely and just display the pixels
+	 * in the background color (black by default).
 	 *
-	 * This means that we effectively have only three valid
-	 * configurations with alpha, all of them with the alpha being
-	 * on pipe1 with the lowest position, which can be 1, 2 or 3
-	 * depending on the number of planes and their zpos.
+	 * This means that on the affected platforms, we effectively
+	 * have only three valid configurations with alpha, all of
+	 * them with the alpha being on pipe1 with the lowest
+	 * position, which can be 1, 2 or 3 depending on the number of
+	 * planes and their zpos.
 	 */
-	if (num_alpha_planes > SUN4I_BACKEND_NUM_ALPHA_LAYERS) {
+
+	/* For platforms that are not affected by the issue described above. */
+	if (backend->quirks->supports_lowest_plane_alpha)
+		num_alpha_planes_max++;
+
+	if (num_alpha_planes > num_alpha_planes_max) {
 		DRM_DEBUG_DRIVER("Too many planes with alpha, rejecting...\n");
 		return -EINVAL;
 	}
 
 	/* We can't have an alpha plane at the lowest position */
-	if (plane_states[0]->fb->format->has_alpha ||
+	if (!backend->quirks->supports_lowest_plane_alpha &&
 	    (plane_states[0]->alpha != DRM_BLEND_ALPHA_OPAQUE))
 		return -EINVAL;
 
@@ -673,33 +711,22 @@ static int sun4i_backend_free_sat(struct device *dev) {
  */
 static int sun4i_backend_of_get_id(struct device_node *node)
 {
-	struct device_node *port, *ep;
-	int ret = -EINVAL;
+	struct device_node *ep, *remote;
+	struct of_endpoint of_ep;
 
-	/* input is port 0 */
-	port = of_graph_get_port_by_id(node, 0);
-	if (!port)
+	/* Input port is 0, and we want the first endpoint. */
+	ep = of_graph_get_endpoint_by_regs(node, 0, -1);
+	if (!ep)
 		return -EINVAL;
 
-	/* try finding an upstream endpoint */
-	for_each_available_child_of_node(port, ep) {
-		struct device_node *remote;
-		u32 reg;
+	remote = of_graph_get_remote_endpoint(ep);
+	of_node_put(ep);
+	if (!remote)
+		return -EINVAL;
 
-		remote = of_graph_get_remote_endpoint(ep);
-		if (!remote)
-			continue;
-
-		ret = of_property_read_u32(remote, "reg", &reg);
-		if (ret)
-			continue;
-
-		ret = reg;
-	}
-
-	of_node_put(port);
-
-	return ret;
+	of_graph_parse_endpoint(remote, &of_ep);
+	of_node_put(remote);
+	return of_ep.id;
 }
 
 /* TODO: This needs to take multiple pipelines into account */
@@ -717,17 +744,18 @@ static struct sun4i_frontend *sun4i_backend_find_frontend(struct sun4i_drv *drv,
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote)
 			continue;
+		of_node_put(remote);
 
 		/* does this node match any registered engines? */
 		list_for_each_entry(frontend, &drv->frontend_list, list) {
 			if (remote == frontend->node) {
-				of_node_put(remote);
 				of_node_put(port);
+				of_node_put(ep);
 				return frontend;
 			}
 		}
 	}
-
+	of_node_put(port);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -741,7 +769,7 @@ static const struct sunxi_engine_ops sun4i_backend_engine_ops = {
 	.vblank_quirk			= sun4i_backend_vblank_quirk,
 };
 
-static struct regmap_config sun4i_backend_regmap_config = {
+static const struct regmap_config sun4i_backend_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
@@ -765,6 +793,38 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 	dev_set_drvdata(dev, backend);
 	spin_lock_init(&backend->frontend_lock);
+
+	if (of_find_property(dev->of_node, "interconnects", NULL)) {
+		/*
+		 * This assume we have the same DMA constraints for all our the
+		 * devices in our pipeline (all the backends, but also the
+		 * frontends). This sounds bad, but it has always been the case
+		 * for us, and DRM doesn't do per-device allocation either, so
+		 * we would need to fix DRM first...
+		 */
+		ret = of_dma_configure(drm->dev, dev->of_node, true);
+		if (ret)
+			return ret;
+	} else {
+		/*
+		 * If we don't have the interconnect property, most likely
+		 * because of an old DT, we need to set the DMA offset by hand
+		 * on our device since the RAM mapping is at 0 for the DMA bus,
+		 * unlike the CPU.
+		 *
+		 * XXX(hch): this has no business in a driver and needs to move
+		 * to the device tree.
+		 *
+		 * If we have two subsequent calls to dma_direct_set_offset
+		 * returns -EINVAL. Unfortunately, this happens when we have two
+		 * backends in the system, and will result in the driver
+		 * reporting an error while it has been setup properly before.
+		 * Ignore EINVAL, but it should really be removed eventually.
+		 */
+		ret = dma_direct_set_offset(drm->dev, PHYS_OFFSET, 0, SZ_4G);
+		if (ret && ret != -EINVAL)
+			return ret;
+	}
 
 	backend->engine.node = dev->of_node;
 	backend->engine.ops = &sun4i_backend_engine_ops;
@@ -807,6 +867,13 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		ret = PTR_ERR(backend->mod_clk);
 		goto err_disable_bus_clk;
 	}
+
+	ret = clk_set_rate_exclusive(backend->mod_clk, 300000000);
+	if (ret) {
+		dev_err(dev, "Couldn't set the module clock frequency\n");
+		goto err_disable_bus_clk;
+	}
+
 	clk_prepare_enable(backend->mod_clk);
 
 	backend->ram_clk = devm_clk_get(dev, "ram");
@@ -876,11 +943,14 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 				    : SUN4I_BACKEND_MODCTL_OUT_LCD0));
 	}
 
+	backend->quirks = quirks;
+
 	return 0;
 
 err_disable_ram_clk:
 	clk_disable_unprepare(backend->ram_clk);
 err_disable_mod_clk:
+	clk_rate_exclusive_put(backend->mod_clk);
 	clk_disable_unprepare(backend->mod_clk);
 err_disable_bus_clk:
 	clk_disable_unprepare(backend->bus_clk);
@@ -901,6 +971,7 @@ static void sun4i_backend_unbind(struct device *dev, struct device *master,
 		sun4i_backend_free_sat(dev);
 
 	clk_disable_unprepare(backend->ram_clk);
+	clk_rate_exclusive_put(backend->mod_clk);
 	clk_disable_unprepare(backend->mod_clk);
 	clk_disable_unprepare(backend->bus_clk);
 	reset_control_assert(backend->reset);
@@ -938,6 +1009,7 @@ static const struct sun4i_backend_quirks sun7i_backend_quirks = {
 };
 
 static const struct sun4i_backend_quirks sun8i_a33_backend_quirks = {
+	.supports_lowest_plane_alpha = true,
 };
 
 static const struct sun4i_backend_quirks sun9i_backend_quirks = {
@@ -959,6 +1031,10 @@ static const struct of_device_id sun4i_backend_of_table[] = {
 	{
 		.compatible = "allwinner,sun7i-a20-display-backend",
 		.data = &sun7i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun8i-a23-display-backend",
+		.data = &sun8i_a33_backend_quirks,
 	},
 	{
 		.compatible = "allwinner,sun8i-a33-display-backend",

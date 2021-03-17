@@ -140,11 +140,6 @@
 	soc {
 		internal-regs {
 			i2c@11000 {
-				clock-frequency = <400000>;
-				pinctrl-0 = <&i2c0_pins>;
-				pinctrl-names = "default";
-				status = "okay";
-
 				/*
 				 * PCA9655 GPIO expander, up to 1MHz clock.
 				 *  0-Board Revision bit 0 #

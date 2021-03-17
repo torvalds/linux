@@ -291,6 +291,7 @@ static int cb_pcidda_ao_insn_write(struct comedi_device *dev,
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int ctrl;
+	unsigned int i;
 
 	if (range != devpriv->ao_range[channel])
 		cb_pcidda_calibrate(dev, channel, range);
@@ -317,7 +318,8 @@ static int cb_pcidda_ao_insn_write(struct comedi_device *dev,
 
 	outw(ctrl, devpriv->daqio + CB_DDA_DA_CTRL_REG);
 
-	outw(data[0], devpriv->daqio + CB_DDA_DA_DATA_REG(channel));
+	for (i = 0; i < insn->n; i++)
+		outw(data[i], devpriv->daqio + CB_DDA_DA_DATA_REG(channel));
 
 	return insn->n;
 }
@@ -414,6 +416,6 @@ static struct pci_driver cb_pcidda_pci_driver = {
 };
 module_comedi_pci_driver(cb_pcidda_driver, cb_pcidda_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * TLB Exception Handling for ARC
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Vineetg: April 2011 :
  *  -MMU v1: moved out legacy code into a seperate file
@@ -36,9 +33,9 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/entry.h>
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/arcregs.h>
 #include <asm/cache.h>
 #include <asm/processor.h>
@@ -125,17 +122,27 @@ ex_saved_reg1:
 #else	/* ARCv2 */
 
 .macro TLBMISS_FREEUP_REGS
+#ifdef CONFIG_ARC_HAS_LL64
+	std   r0, [sp, -16]
+	std   r2, [sp, -8]
+#else
 	PUSH  r0
 	PUSH  r1
 	PUSH  r2
 	PUSH  r3
+#endif
 .endm
 
 .macro TLBMISS_RESTORE_REGS
+#ifdef CONFIG_ARC_HAS_LL64
+	ldd   r0, [sp, -16]
+	ldd   r2, [sp, -8]
+#else
 	POP   r3
 	POP   r2
 	POP   r1
 	POP   r0
+#endif
 .endm
 
 #endif
@@ -196,7 +203,7 @@ ex_saved_reg1:
 
 	lr  r2, [efa]
 
-#ifndef CONFIG_SMP
+#ifdef ARC_USE_SCRATCH_REG
 	lr  r1, [ARC_REG_SCRATCH_DATA0] ; current pgd
 #else
 	GET_CURR_TASK_ON_CPU  r1
@@ -274,22 +281,11 @@ ex_saved_reg1:
 .macro COMMIT_ENTRY_TO_MMU
 #if (CONFIG_ARC_MMU_VER < 4)
 
-#ifdef CONFIG_EZNPS_MTM_EXT
-	/* verify if entry for this vaddr+ASID already exists */
-	sr    TLBProbe, [ARC_REG_TLBCOMMAND]
-	lr    r0, [ARC_REG_TLBINDEX]
-	bbit0 r0, 31, 88f
-#endif
-
 	/* Get free TLB slot: Set = computed from vaddr, way = random */
 	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
 
 	/* Commit the Write */
-#if (CONFIG_ARC_MMU_VER >= 2)   /* introduced in v2 */
 	sr TLBWriteNI, [ARC_REG_TLBCOMMAND]
-#else
-	sr TLBWrite, [ARC_REG_TLBCOMMAND]
-#endif
 
 #else
 	sr TLBInsertEntry, [ARC_REG_TLBCOMMAND]
@@ -373,9 +369,7 @@ ENTRY(EV_TLBMissD)
 
 	;----------------------------------------------------------------
 	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
-	lr      r3, [ecr]
 	or      r0, r0, _PAGE_ACCESSED        ; Accessed bit always
-	btst_s  r3,  ECR_C_BIT_DTLB_ST_MISS   ; See if it was a Write Access ?
 	or.nz   r0, r0, _PAGE_DIRTY           ; if Write, set Dirty bit as well
 	st_s    r0, [r1]                      ; Write back PTE
 
@@ -395,6 +389,17 @@ EV_TLBMissD_fast_ret:	; additional label for VDK OS-kit instrumentation
 
 ;-------- Common routine to call Linux Page Fault Handler -----------
 do_slow_path_pf:
+
+#ifdef CONFIG_ISA_ARCV2
+	; Set Z flag if exception in U mode. Hardware micro-ops do this on any
+	; taken interrupt/exception, and thus is already the case at the entry
+	; above, but ensuing code would have already clobbered.
+	; EXCEPTION_PROLOGUE called in slow path, relies on correct Z flag set
+
+	lr	r2, [erstatus]
+	and	r2, r2, STATUS_U_MASK
+	bxor.f	0, r2, STATUS_U_BIT
+#endif
 
 	; Restore the 4-scratch regs saved by fast path miss handler
 	TLBMISS_RESTORE_REGS

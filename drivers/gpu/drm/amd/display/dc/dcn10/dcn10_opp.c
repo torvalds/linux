@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 #include "dcn10_opp.h"
 #include "reg_helper.h"
@@ -166,7 +168,10 @@ static void opp1_set_pixel_encoding(
 		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 0);
 		break;
 	case PIXEL_ENCODING_YCBCR422:
-		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 1);
+		REG_UPDATE_3(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 1,
+				FMT_SUBSAMPLING_MODE, 2,
+				FMT_CBCR_BIT_REDUCTION_BYPASS, 0);
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 2);
@@ -234,6 +239,9 @@ void opp1_set_dyn_expansion(
 	REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,
 			FMT_DYNAMIC_EXP_EN, 0,
 			FMT_DYNAMIC_EXP_MODE, 0);
+
+	if (opp->dyn_expansion == DYN_EXPANSION_DISABLE)
+		return;
 
 	/*00 - 10-bit -> 12-bit dynamic expansion*/
 	/*01 - 8-bit  -> 12-bit dynamic expansion*/
@@ -365,6 +373,9 @@ void opp1_program_oppbuf(
 	 */
 	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, oppbuf->pixel_repetition);
 
+	/* Controls the number of padded pixels at the end of a segment */
+	if (REG(OPPBUF_CONTROL1))
+		REG_UPDATE(OPPBUF_CONTROL1, OPPBUF_NUM_SEGMENT_PADDED_PIXELS, oppbuf->num_segment_padded_pixels);
 }
 
 void opp1_pipe_clock_control(struct output_pixel_processor *opp, bool enable)
@@ -391,6 +402,8 @@ static const struct opp_funcs dcn10_opp_funcs = {
 		.opp_program_bit_depth_reduction = opp1_program_bit_depth_reduction,
 		.opp_program_stereo = opp1_program_stereo,
 		.opp_pipe_clock_control = opp1_pipe_clock_control,
+		.opp_set_disp_pattern_generator = NULL,
+		.dpg_is_blanked = NULL,
 		.opp_destroy = opp1_destroy
 };
 

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel SOC Telemetry debugfs Driver: Currently supports APL
  * Copyright (c) 2015, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * This file provides the debugfs interfaces for telemetry.
  * /sys/kernel/debug/telemetry/pss_info: Shows Primary Control Sub-Sys Counters
@@ -23,6 +15,7 @@
  */
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/mfd/intel_pmc_bxt.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
@@ -30,7 +23,6 @@
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
-#include <asm/intel_pmc_ipc.h>
 #include <asm/intel_telemetry.h>
 
 #define DRIVER_NAME			"telemetry_soc_debugfs"
@@ -71,9 +63,6 @@
 #define TELEM_PSS_LTR_BLOCKING_EVTS	20
 #define TELEM_IOSS_DX_D0IX_EVTS		25
 #define TELEM_IOSS_PG_EVTS		30
-
-#define TELEM_DEBUGFS_CPU(model, data) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&data}
 
 #define TELEM_CHECK_AND_PARSE_EVTS(EVTID, EVTNUM, BUF, EVTLOG, EVTDAT, MASK) { \
 	if (evtlog[index].telem_evtid == (EVTID)) { \
@@ -319,11 +308,10 @@ static struct telemetry_debugfs_conf telem_apl_debugfs_conf = {
 };
 
 static const struct x86_cpu_id telemetry_debugfs_cpu_ids[] = {
-	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GOLDMONT, telem_apl_debugfs_conf),
-	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GEMINI_LAKE, telem_apl_debugfs_conf),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&telem_apl_debugfs_conf),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_PLUS,	&telem_apl_debugfs_conf),
 	{}
 };
-
 MODULE_DEVICE_TABLE(x86cpu, telemetry_debugfs_cpu_ids);
 
 static int telemetry_debugfs_check_evts(void)
@@ -477,17 +465,7 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int telem_pss_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, telem_pss_states_show, inode->i_private);
-}
-
-static const struct file_operations telem_pss_ops = {
-	.open		= telem_pss_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(telem_pss_states);
 
 static int telem_ioss_states_show(struct seq_file *s, void *unused)
 {
@@ -516,17 +494,7 @@ static int telem_ioss_states_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int telem_ioss_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, telem_ioss_states_show, inode->i_private);
-}
-
-static const struct file_operations telem_ioss_ops = {
-	.open		= telem_ioss_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(telem_ioss_states);
 
 static int telem_soc_states_show(struct seq_file *s, void *unused)
 {
@@ -675,24 +643,15 @@ static int telem_soc_states_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int telem_soc_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, telem_soc_states_show, inode->i_private);
-}
-
-static const struct file_operations telem_socstate_ops = {
-	.open		= telem_soc_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(telem_soc_states);
 
 static int telem_s0ix_res_get(void *data, u64 *val)
 {
+	struct telemetry_plt_config *plt_config = telemetry_get_pltdata();
 	u64 s0ix_total_res;
 	int ret;
 
-	ret = intel_pmc_s0ix_counter_read(&s0ix_total_res);
+	ret = intel_pmc_s0ix_counter_read(plt_config->pmc, &s0ix_total_res);
 	if (ret) {
 		pr_err("Failed to read S0ix residency");
 		return ret;
@@ -727,13 +686,14 @@ static ssize_t telem_pss_trc_verb_write(struct file *file,
 	u32 verbosity;
 	int err;
 
-	if (kstrtou32_from_user(userbuf, count, 0, &verbosity))
-		return -EFAULT;
+	err = kstrtou32_from_user(userbuf, count, 0, &verbosity);
+	if (err)
+		return err;
 
 	err = telemetry_set_trace_verbosity(TELEM_PSS, verbosity);
 	if (err) {
 		pr_err("Changing PSS Trace Verbosity Failed. Error %d\n", err);
-		count = err;
+		return err;
 	}
 
 	return count;
@@ -774,13 +734,14 @@ static ssize_t telem_ioss_trc_verb_write(struct file *file,
 	u32 verbosity;
 	int err;
 
-	if (kstrtou32_from_user(userbuf, count, 0, &verbosity))
-		return -EFAULT;
+	err = kstrtou32_from_user(userbuf, count, 0, &verbosity);
+	if (err)
+		return err;
 
 	err = telemetry_set_trace_verbosity(TELEM_IOSS, verbosity);
 	if (err) {
 		pr_err("Changing IOSS Trace Verbosity Failed. Error %d\n", err);
-		count = err;
+		return err;
 	}
 
 	return count;
@@ -877,12 +838,15 @@ static int pm_suspend_exit_cb(void)
 	 */
 	if (suspend_shlw_ctr_exit == suspend_shlw_ctr_temp &&
 	    suspend_deep_ctr_exit == suspend_deep_ctr_temp) {
-		ret = intel_pmc_gcr_read64(PMC_GCR_TELEM_SHLW_S0IX_REG,
+		struct telemetry_plt_config *plt_config = telemetry_get_pltdata();
+		struct intel_pmc_dev *pmc = plt_config->pmc;
+
+		ret = intel_pmc_gcr_read64(pmc, PMC_GCR_TELEM_SHLW_S0IX_REG,
 					  &suspend_shlw_res_exit);
 		if (ret < 0)
 			goto out;
 
-		ret = intel_pmc_gcr_read64(PMC_GCR_TELEM_DEEP_S0IX_REG,
+		ret = intel_pmc_gcr_read64(pmc, PMC_GCR_TELEM_DEEP_S0IX_REG,
 					  &suspend_deep_res_exit);
 		if (ret < 0)
 			goto out;
@@ -941,7 +905,7 @@ static int __init telemetry_debugfs_init(void)
 {
 	const struct x86_cpu_id *id;
 	int err;
-	struct dentry *f;
+	struct dentry *dir;
 
 	/* Only APL supported for now */
 	id = x86_match_cpu(telemetry_debugfs_cpu_ids);
@@ -950,78 +914,35 @@ static int __init telemetry_debugfs_init(void)
 
 	debugfs_conf = (struct telemetry_debugfs_conf *)id->driver_data;
 
-	err = telemetry_pltconfig_valid();
-	if (err < 0)
+	if (!telemetry_get_pltdata()) {
+		pr_info("Invalid pltconfig, ensure IPC1 device is enabled in BIOS\n");
 		return -ENODEV;
+	}
 
 	err = telemetry_debugfs_check_evts();
-	if (err < 0)
+	if (err < 0) {
+		pr_info("telemetry_debugfs_check_evts failed\n");
 		return -EINVAL;
+	}
 
 	register_pm_notifier(&pm_notifier);
 
-	err = -ENOMEM;
-	debugfs_conf->telemetry_dbg_dir = debugfs_create_dir("telemetry", NULL);
-	if (!debugfs_conf->telemetry_dbg_dir)
-		goto out_pm;
+	dir = debugfs_create_dir("telemetry", NULL);
+	debugfs_conf->telemetry_dbg_dir = dir;
 
-	f = debugfs_create_file("pss_info", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir, NULL,
-				&telem_pss_ops);
-	if (!f) {
-		pr_err("pss_sample_info debugfs register failed\n");
-		goto out;
-	}
-
-	f = debugfs_create_file("ioss_info", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir, NULL,
-				&telem_ioss_ops);
-	if (!f) {
-		pr_err("ioss_sample_info debugfs register failed\n");
-		goto out;
-	}
-
-	f = debugfs_create_file("soc_states", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir,
-				NULL, &telem_socstate_ops);
-	if (!f) {
-		pr_err("ioss_sample_info debugfs register failed\n");
-		goto out;
-	}
-
-	f = debugfs_create_file("s0ix_residency_usec", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir,
-				NULL, &telem_s0ix_fops);
-	if (!f) {
-		pr_err("s0ix_residency_usec debugfs register failed\n");
-		goto out;
-	}
-
-	f = debugfs_create_file("pss_trace_verbosity", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir, NULL,
-				&telem_pss_trc_verb_ops);
-	if (!f) {
-		pr_err("pss_trace_verbosity debugfs register failed\n");
-		goto out;
-	}
-
-	f = debugfs_create_file("ioss_trace_verbosity", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir, NULL,
-				&telem_ioss_trc_verb_ops);
-	if (!f) {
-		pr_err("ioss_trace_verbosity debugfs register failed\n");
-		goto out;
-	}
-
+	debugfs_create_file("pss_info", S_IFREG | S_IRUGO, dir, NULL,
+			    &telem_pss_states_fops);
+	debugfs_create_file("ioss_info", S_IFREG | S_IRUGO, dir, NULL,
+			    &telem_ioss_states_fops);
+	debugfs_create_file("soc_states", S_IFREG | S_IRUGO, dir, NULL,
+			    &telem_soc_states_fops);
+	debugfs_create_file("s0ix_residency_usec", S_IFREG | S_IRUGO, dir, NULL,
+			    &telem_s0ix_fops);
+	debugfs_create_file("pss_trace_verbosity", S_IFREG | S_IRUGO, dir, NULL,
+			    &telem_pss_trc_verb_ops);
+	debugfs_create_file("ioss_trace_verbosity", S_IFREG | S_IRUGO, dir,
+			    NULL, &telem_ioss_trc_verb_ops);
 	return 0;
-
-out:
-	debugfs_remove_recursive(debugfs_conf->telemetry_dbg_dir);
-	debugfs_conf->telemetry_dbg_dir = NULL;
-out_pm:
-	unregister_pm_notifier(&pm_notifier);
-
-	return err;
 }
 
 static void __exit telemetry_debugfs_exit(void)
@@ -1037,4 +958,4 @@ module_exit(telemetry_debugfs_exit);
 MODULE_AUTHOR("Souvik Kumar Chakravarty <souvik.k.chakravarty@intel.com>");
 MODULE_DESCRIPTION("Intel SoC Telemetry debugfs Interface");
 MODULE_VERSION(DRIVER_VERSION);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

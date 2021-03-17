@@ -1,16 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* General filesystem caching interface
  *
  * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  * NOTE!!! See:
  *
- *	Documentation/filesystems/caching/netfs-api.txt
+ *	Documentation/filesystems/caching/netfs-api.rst
  *
  * for a description of the network filesystem interface declared here.
  */
@@ -237,7 +233,7 @@ extern void __fscache_enable_cookie(struct fscache_cookie *, const void *, loff_
  *
  * Register a filesystem as desiring caching services if they're available.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -257,7 +253,7 @@ int fscache_register_netfs(struct fscache_netfs *netfs)
  * Indicate that a filesystem no longer desires caching services for the
  * moment.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -274,7 +270,7 @@ void fscache_unregister_netfs(struct fscache_netfs *netfs)
  * Acquire a specific cache referral tag that can be used to select a specific
  * cache in which to cache an index.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -292,7 +288,7 @@ struct fscache_cache_tag *fscache_lookup_cache_tag(const char *name)
  *
  * Release a reference to a cache referral tag previously looked up.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -319,7 +315,7 @@ void fscache_release_cache_tag(struct fscache_cache_tag *tag)
  * that can be used to locate files.  This is done by requesting a cookie for
  * each index in the path to the file.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -355,7 +351,7 @@ struct fscache_cookie *fscache_acquire_cookie(
  * provided to update the auxiliary data in the cache before the object is
  * disconnected.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -398,7 +394,7 @@ int fscache_check_consistency(struct fscache_cookie *cookie,
  * cookie.  The auxiliary data on the cookie will be updated first if @aux_data
  * is set.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -414,7 +410,7 @@ void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data)
  *
  * Permit data-storage cache objects to be pinned in the cache.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -429,7 +425,7 @@ int fscache_pin_cookie(struct fscache_cookie *cookie)
  *
  * Permit data-storage cache objects to be unpinned from the cache.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -445,7 +441,7 @@ void fscache_unpin_cookie(struct fscache_cookie *cookie)
  * changed.  This includes the data size.  These attributes will be obtained
  * through the get_attr() cookie definition op.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -467,7 +463,7 @@ int fscache_attr_changed(struct fscache_cookie *cookie)
  *
  * This can be called with spinlocks held.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -483,7 +479,7 @@ void fscache_invalidate(struct fscache_cookie *cookie)
  *
  * Wait for the invalidation of an object to complete.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -502,7 +498,7 @@ void fscache_wait_on_invalidate(struct fscache_cookie *cookie)
  * cookie so that a write to that object within the space can always be
  * honoured.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -537,7 +533,7 @@ int fscache_reserve_space(struct fscache_cookie *cookie, loff_t size)
  * Else, if the page is unbacked, -ENODATA is returned and a block may have
  * been allocated in the cache.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -586,7 +582,7 @@ int fscache_read_or_alloc_page(struct fscache_cookie *cookie,
  * regard to different pages, the return values are prioritised in that order.
  * Any pages submitted for reading are removed from the pages list.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -621,7 +617,7 @@ int fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
  * Else, a block will be allocated if one wasn't already, and 0 will be
  * returned
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -671,7 +667,7 @@ void fscache_readpages_cancel(struct fscache_cookie *cookie,
  * be cleared at the completion of the write to indicate the success or failure
  * of the operation.  Note that the completion may happen before the return.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -697,7 +693,7 @@ int fscache_write_page(struct fscache_cookie *cookie,
  * Note that this cannot cancel any outstanding I/O operations between this
  * page and the cache.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -715,7 +711,7 @@ void fscache_uncache_page(struct fscache_cookie *cookie,
  *
  * Ask the cache if a page is being written to the cache.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -735,7 +731,7 @@ bool fscache_check_page_write(struct fscache_cookie *cookie,
  * Ask the cache to wake us up when a page is no longer being written to the
  * cache.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline

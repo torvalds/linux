@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * genelf_debug.c
  * Copyright (C) 2015, Google, Inc
  *
  * Contributed by:
  * 	Stephane Eranian <eranian@google.com>
- *
- * Released under the GPL v2.
  *
  * based on GPLv2 source code from Oprofile
  * @remark Copyright 2007 OProfile authors
@@ -25,7 +24,6 @@
 #include <err.h>
 #include <dwarf.h>
 
-#include "perf.h"
 #include "genelf.h"
 #include "../util/jitdump.h"
 
@@ -344,7 +342,7 @@ static void emit_lineno_info(struct buffer_ext *be,
 	 */
 
 	/* start state of the state machine we take care of */
-	unsigned long last_vma = code_addr;
+	unsigned long last_vma = 0;
 	char const  *cur_filename = NULL;
 	unsigned long cur_file_idx = 0;
 	int last_line = 1;
@@ -475,7 +473,7 @@ jit_process_debug_info(uint64_t code_addr,
 		ent = debug_entry_next(ent);
 	}
 	add_compilation_unit(di, buffer_ext_size(dl));
-	add_debug_line(dl, debug, nr_debug_entries, 0);
+	add_debug_line(dl, debug, nr_debug_entries, GEN_ELF_TEXT_OFFSET);
 	add_debug_abbrev(da);
 	if (0) buffer_ext_dump(da, "abbrev");
 

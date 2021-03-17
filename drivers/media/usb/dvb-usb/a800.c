@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB framework compliant Linux driver for the AVerMedia AverTV DVB-T
  * USB2.0 (A800) DVB-T receiver.
  *
@@ -7,11 +8,7 @@
  *   - AVerMedia who kindly provided information and
  *   - Glen Harris who suffered from my mistakes during development.
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dibusb.h"
 
@@ -30,8 +27,10 @@ static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
 }
 
 /* assure to put cold to 0 for iManufacturer == 1 */
-static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
-	struct dvb_usb_device_description **desc, int *cold)
+static int a800_identify_state(struct usb_device *udev,
+			       const struct dvb_usb_device_properties *props,
+			       const struct dvb_usb_device_description **desc,
+			       int *cold)
 {
 	*cold = udev->descriptor.iManufacturer != 1;
 	return 0;

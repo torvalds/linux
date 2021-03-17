@@ -4,8 +4,10 @@ Required properties:
 - compatible : For Tegra20, must contain "nvidia,tegra20-efuse".  For Tegra30,
   must contain "nvidia,tegra30-efuse".  For Tegra114, must contain
   "nvidia,tegra114-efuse".  For Tegra124, must contain "nvidia,tegra124-efuse".
-  Otherwise, must contain "nvidia,<chip>-efuse", plus one of the above, where
-  <chip> is tegra132.
+  For Tegra132 must contain "nvidia,tegra132-efuse", "nvidia,tegra124-efuse".
+  For Tegra210 must contain "nvidia,tegra210-efuse". For Tegra186 must contain
+  "nvidia,tegra186-efuse". For Tegra194 must contain "nvidia,tegra194-efuse".
+  For Tegra234 must contain "nvidia,tegra234-efuse".
   Details:
   nvidia,tegra20-efuse: Tegra20 requires using APB DMA to read the fuse data
 	due to a hardware bug. Tegra20 also lacks certain information which is

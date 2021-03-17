@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * FPGA Manager Driver for Lattice iCE40.
  *
  *  Copyright (c) 2016 Joel Holdsworth
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  *
  * This driver adds support to the FPGA manager for configuring the SRAM of
  * Lattice iCE40 FPGAs through slave SPI.
@@ -49,10 +46,16 @@ static int ice40_fpga_ops_write_init(struct fpga_manager *mgr,
 	struct spi_message message;
 	struct spi_transfer assert_cs_then_reset_delay = {
 		.cs_change   = 1,
-		.delay_usecs = ICE40_SPI_RESET_DELAY
+		.delay = {
+			.value = ICE40_SPI_RESET_DELAY,
+			.unit = SPI_DELAY_UNIT_USECS
+		}
 	};
 	struct spi_transfer housekeeping_delay_then_release_cs = {
-		.delay_usecs = ICE40_SPI_HOUSEKEEPING_DELAY
+		.delay = {
+			.value = ICE40_SPI_HOUSEKEEPING_DELAY,
+			.unit = SPI_DELAY_UNIT_USECS
+		}
 	};
 	int ret;
 
@@ -175,18 +178,14 @@ static int ice40_fpga_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	mgr = fpga_mgr_create(dev, "Lattice iCE40 FPGA Manager",
-			      &ice40_fpga_ops, priv);
+	mgr = devm_fpga_mgr_create(dev, "Lattice iCE40 FPGA Manager",
+				   &ice40_fpga_ops, priv);
 	if (!mgr)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, mgr);
 
-	ret = fpga_mgr_register(mgr);
-	if (ret)
-		fpga_mgr_free(mgr);
-
-	return ret;
+	return fpga_mgr_register(mgr);
 }
 
 static int ice40_fpga_remove(struct spi_device *spi)

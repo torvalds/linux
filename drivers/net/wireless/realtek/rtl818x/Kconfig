@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # RTL818X Wireless LAN device configuration
 #
@@ -5,7 +6,7 @@ config RTL8180
 	tristate "Realtek 8180/8185/8187SE PCI support"
 	depends on MAC80211 && PCI
 	select EEPROM_93CX6
-	---help---
+	help
 	  This is a driver for RTL8180, RTL8185 and RTL8187SE based cards.
 	  These are PCI based chips found in cards such as:
 
@@ -61,7 +62,7 @@ config RTL8187
 	tristate "Realtek 8187 and 8187B USB support"
 	depends on MAC80211 && USB
 	select EEPROM_93CX6
-	---help---
+	help
 	  This is a driver for RTL8187 and RTL8187B based cards.
 	  These are USB based chips found in devices such as:
 

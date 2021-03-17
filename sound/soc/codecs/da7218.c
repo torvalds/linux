@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * da7218.c - DA7218 ALSA SoC Codec Driver
  *
  * Copyright (c) 2015 Dialog Semiconductor
  *
  * Author: Adam Thomson <Adam.Thomson.Opensource@diasemi.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/clk.h>
@@ -302,22 +298,22 @@ static void da7218_alc_calib(struct snd_soc_component *component)
 	bool calibrated = false;
 
 	/* Save current state of MIC control registers */
-	mic_1_ctrl = snd_soc_component_read32(component, DA7218_MIC_1_CTRL);
-	mic_2_ctrl = snd_soc_component_read32(component, DA7218_MIC_2_CTRL);
+	mic_1_ctrl = snd_soc_component_read(component, DA7218_MIC_1_CTRL);
+	mic_2_ctrl = snd_soc_component_read(component, DA7218_MIC_2_CTRL);
 
 	/* Save current state of input mixer control registers */
-	mixin_1_ctrl = snd_soc_component_read32(component, DA7218_MIXIN_1_CTRL);
-	mixin_2_ctrl = snd_soc_component_read32(component, DA7218_MIXIN_2_CTRL);
+	mixin_1_ctrl = snd_soc_component_read(component, DA7218_MIXIN_1_CTRL);
+	mixin_2_ctrl = snd_soc_component_read(component, DA7218_MIXIN_2_CTRL);
 
 	/* Save current state of input filter control registers */
-	in_1l_filt_ctrl = snd_soc_component_read32(component, DA7218_IN_1L_FILTER_CTRL);
-	in_1r_filt_ctrl = snd_soc_component_read32(component, DA7218_IN_1R_FILTER_CTRL);
-	in_2l_filt_ctrl = snd_soc_component_read32(component, DA7218_IN_2L_FILTER_CTRL);
-	in_2r_filt_ctrl = snd_soc_component_read32(component, DA7218_IN_2R_FILTER_CTRL);
+	in_1l_filt_ctrl = snd_soc_component_read(component, DA7218_IN_1L_FILTER_CTRL);
+	in_1r_filt_ctrl = snd_soc_component_read(component, DA7218_IN_1R_FILTER_CTRL);
+	in_2l_filt_ctrl = snd_soc_component_read(component, DA7218_IN_2L_FILTER_CTRL);
+	in_2r_filt_ctrl = snd_soc_component_read(component, DA7218_IN_2R_FILTER_CTRL);
 
 	/* Save current state of input HPF control registers */
-	in_1_hpf_ctrl = snd_soc_component_read32(component, DA7218_IN_1_HPF_FILTER_CTRL);
-	in_2_hpf_ctrl = snd_soc_component_read32(component, DA7218_IN_2_HPF_FILTER_CTRL);
+	in_1_hpf_ctrl = snd_soc_component_read(component, DA7218_IN_1_HPF_FILTER_CTRL);
+	in_2_hpf_ctrl = snd_soc_component_read(component, DA7218_IN_2_HPF_FILTER_CTRL);
 
 	/* Enable then Mute MIC PGAs */
 	snd_soc_component_update_bits(component, DA7218_MIC_1_CTRL, DA7218_MIC_1_AMP_EN_MASK,
@@ -373,7 +369,7 @@ static void da7218_alc_calib(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, DA7218_CALIB_CTRL, DA7218_CALIB_AUTO_EN_MASK,
 			    DA7218_CALIB_AUTO_EN_MASK);
 	do {
-		calib_ctrl = snd_soc_component_read32(component, DA7218_CALIB_CTRL);
+		calib_ctrl = snd_soc_component_read(component, DA7218_CALIB_CTRL);
 		if (calib_ctrl & DA7218_CALIB_AUTO_EN_MASK) {
 			++i;
 			usleep_range(DA7218_ALC_CALIB_DELAY_MIN,
@@ -617,7 +613,7 @@ static int da7218_biquad_coeff_put(struct snd_kcontrol *kcontrol,
 	}
 
 	/* Make sure at least out filter1 enabled to allow programming */
-	out_filt1l = snd_soc_component_read32(component, DA7218_OUT_1L_FILTER_CTRL);
+	out_filt1l = snd_soc_component_read(component, DA7218_OUT_1L_FILTER_CTRL);
 	snd_soc_component_write(component, DA7218_OUT_1L_FILTER_CTRL,
 		      out_filt1l | DA7218_OUT_1L_FILTER_EN_MASK);
 
@@ -1423,7 +1419,7 @@ static int da7218_dai_event(struct snd_soc_dapm_widget *w,
 		i = 0;
 		success = false;
 		do {
-			refosc_cal = snd_soc_component_read32(component, DA7218_PLL_REFOSC_CAL);
+			refosc_cal = snd_soc_component_read(component, DA7218_PLL_REFOSC_CAL);
 			if (!(refosc_cal & DA7218_PLL_REFOSC_CAL_START_MASK)) {
 				success = true;
 			} else {
@@ -1442,7 +1438,7 @@ static int da7218_dai_event(struct snd_soc_dapm_widget *w,
 			      DA7218_PC_RESYNC_AUTO_MASK);
 
 		/* If SRM not enabled, we don't need to check status */
-		pll_ctrl = snd_soc_component_read32(component, DA7218_PLL_CTRL);
+		pll_ctrl = snd_soc_component_read(component, DA7218_PLL_CTRL);
 		if ((pll_ctrl & DA7218_PLL_MODE_MASK) != DA7218_PLL_MODE_SRM)
 			return 0;
 
@@ -1450,7 +1446,7 @@ static int da7218_dai_event(struct snd_soc_dapm_widget *w,
 		i = 0;
 		success = false;
 		do {
-			pll_status = snd_soc_component_read32(component, DA7218_PLL_STATUS);
+			pll_status = snd_soc_component_read(component, DA7218_PLL_STATUS);
 			if (pll_status & DA7218_PLL_SRM_STATUS_SRM_LOCK) {
 				success = true;
 			} else {
@@ -2240,7 +2236,7 @@ static void da7218_hpldet_irq(struct snd_soc_component *component)
 	u8 jack_status;
 	int report;
 
-	jack_status = snd_soc_component_read32(component, DA7218_EVENT_STATUS);
+	jack_status = snd_soc_component_read(component, DA7218_EVENT_STATUS);
 
 	if (jack_status & DA7218_HPLDET_JACK_STS_MASK)
 		report = SND_JACK_HEADPHONE;
@@ -2260,7 +2256,7 @@ static irqreturn_t da7218_irq_thread(int irq, void *data)
 	u8 status;
 
 	/* Read IRQ status reg */
-	status = snd_soc_component_read32(component, DA7218_EVENT);
+	status = snd_soc_component_read(component, DA7218_EVENT);
 	if (!status)
 		return IRQ_NONE;
 

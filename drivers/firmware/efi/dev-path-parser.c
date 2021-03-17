@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dev-path-parser.c - EFI Device Path parser
  * Copyright (C) 2016 Lukas Wunner <lukas@wunner.de>
@@ -5,14 +6,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2) as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/acpi.h>
@@ -24,9 +17,9 @@ struct acpi_hid_uid {
 	char uid[11]; /* UINT_MAX + null byte */
 };
 
-static int __init match_acpi_dev(struct device *dev, void *data)
+static int __init match_acpi_dev(struct device *dev, const void *data)
 {
-	struct acpi_hid_uid hid_uid = *(struct acpi_hid_uid *)data;
+	struct acpi_hid_uid hid_uid = *(const struct acpi_hid_uid *)data;
 	struct acpi_device *adev = to_acpi_device(dev);
 
 	if (acpi_match_device_ids(adev, hid_uid.hid))
@@ -38,13 +31,13 @@ static int __init match_acpi_dev(struct device *dev, void *data)
 		return !strcmp("0", hid_uid.uid);
 }
 
-static long __init parse_acpi_path(struct efi_dev_path *node,
+static long __init parse_acpi_path(const struct efi_dev_path *node,
 				   struct device *parent, struct device **child)
 {
 	struct acpi_hid_uid hid_uid = {};
 	struct device *phys_dev;
 
-	if (node->length != 12)
+	if (node->header.length != 12)
 		return -EINVAL;
 
 	sprintf(hid_uid.hid[0].id, "%c%c%c%04X",
@@ -76,12 +69,12 @@ static int __init match_pci_dev(struct device *dev, void *data)
 	return dev_is_pci(dev) && to_pci_dev(dev)->devfn == devfn;
 }
 
-static long __init parse_pci_path(struct efi_dev_path *node,
+static long __init parse_pci_path(const struct efi_dev_path *node,
 				  struct device *parent, struct device **child)
 {
 	unsigned int devfn;
 
-	if (node->length != 6)
+	if (node->header.length != 6)
 		return -EINVAL;
 	if (!parent)
 		return -EINVAL;
@@ -112,19 +105,19 @@ static long __init parse_pci_path(struct efi_dev_path *node,
  * search for a device.
  */
 
-static long __init parse_end_path(struct efi_dev_path *node,
+static long __init parse_end_path(const struct efi_dev_path *node,
 				  struct device *parent, struct device **child)
 {
-	if (node->length != 4)
+	if (node->header.length != 4)
 		return -EINVAL;
-	if (node->sub_type != EFI_DEV_END_INSTANCE &&
-	    node->sub_type != EFI_DEV_END_ENTIRE)
+	if (node->header.sub_type != EFI_DEV_END_INSTANCE &&
+	    node->header.sub_type != EFI_DEV_END_ENTIRE)
 		return -EINVAL;
 	if (!parent)
 		return -ENODEV;
 
 	*child = get_device(parent);
-	return node->sub_type;
+	return node->header.sub_type;
 }
 
 /**
@@ -163,7 +156,7 @@ static long __init parse_end_path(struct efi_dev_path *node,
  *	%ERR_PTR(-EINVAL) if a node is malformed or exceeds @len,
  *	%ERR_PTR(-ENOTSUPP) if support for a node type is not yet implemented.
  */
-struct device * __init efi_get_device_by_path(struct efi_dev_path **node,
+struct device * __init efi_get_device_by_path(const struct efi_dev_path **node,
 					      size_t *len)
 {
 	struct device *parent = NULL, *child;
@@ -173,16 +166,16 @@ struct device * __init efi_get_device_by_path(struct efi_dev_path **node,
 		return NULL;
 
 	while (!ret) {
-		if (*len < 4 || *len < (*node)->length)
+		if (*len < 4 || *len < (*node)->header.length)
 			ret = -EINVAL;
-		else if ((*node)->type     == EFI_DEV_ACPI &&
-			 (*node)->sub_type == EFI_DEV_BASIC_ACPI)
+		else if ((*node)->header.type		== EFI_DEV_ACPI &&
+			 (*node)->header.sub_type	== EFI_DEV_BASIC_ACPI)
 			ret = parse_acpi_path(*node, parent, &child);
-		else if ((*node)->type     == EFI_DEV_HW &&
-			 (*node)->sub_type == EFI_DEV_PCI)
+		else if ((*node)->header.type		== EFI_DEV_HW &&
+			 (*node)->header.sub_type	== EFI_DEV_PCI)
 			ret = parse_pci_path(*node, parent, &child);
-		else if (((*node)->type    == EFI_DEV_END_PATH ||
-			  (*node)->type    == EFI_DEV_END_PATH2))
+		else if (((*node)->header.type		== EFI_DEV_END_PATH ||
+			  (*node)->header.type		== EFI_DEV_END_PATH2))
 			ret = parse_end_path(*node, parent, &child);
 		else
 			ret = -ENOTSUPP;
@@ -192,8 +185,8 @@ struct device * __init efi_get_device_by_path(struct efi_dev_path **node,
 			return ERR_PTR(ret);
 
 		parent = child;
-		*node  = (void *)*node + (*node)->length;
-		*len  -= (*node)->length;
+		*node  = (void *)*node + (*node)->header.length;
+		*len  -= (*node)->header.length;
 	}
 
 	if (ret == EFI_DEV_END_ENTIRE)

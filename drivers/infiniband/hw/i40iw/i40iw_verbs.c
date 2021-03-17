@@ -45,6 +45,7 @@
 #include <rdma/iw_cm.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_umem.h>
+#include <rdma/uverbs_ioctl.h>
 #include "i40iw.h"
 
 /**
@@ -63,7 +64,8 @@ static int i40iw_query_device(struct ib_device *ibdev,
 		return -EINVAL;
 	memset(props, 0, sizeof(*props));
 	ether_addr_copy((u8 *)&props->sys_image_guid, iwdev->netdev->dev_addr);
-	props->fw_ver = I40IW_FW_VERSION;
+	props->fw_ver = i40iw_fw_major_ver(&iwdev->sc_dev) << 32 |
+			i40iw_fw_minor_ver(&iwdev->sc_dev);
 	props->device_cap_flags = iwdev->device_cap_flags;
 	props->vendor_id = iwdev->ldev->pcidev->vendor;
 	props->vendor_part_id = iwdev->ldev->pcidev->device;
@@ -81,7 +83,6 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	props->max_qp_rd_atom = I40IW_MAX_IRD_SIZE;
 	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
 	props->atomic_cap = IB_ATOMIC_NONE;
-	props->max_map_per_fmr = 1;
 	props->max_fast_reg_page_list_len = I40IW_MAX_PAGES_PER_FMR;
 	return 0;
 }
@@ -96,22 +97,10 @@ static int i40iw_query_port(struct ib_device *ibdev,
 			    u8 port,
 			    struct ib_port_attr *props)
 {
-	struct i40iw_device *iwdev = to_iwdev(ibdev);
-	struct net_device *netdev = iwdev->netdev;
-
-	/* props being zeroed by the caller, avoid zeroing it here */
-	props->max_mtu = IB_MTU_4096;
-	props->active_mtu = ib_mtu_int_to_enum(netdev->mtu);
-
 	props->lid = 1;
-	if (netif_carrier_ok(iwdev->netdev))
-		props->state = IB_PORT_ACTIVE;
-	else
-		props->state = IB_PORT_DOWN;
 	props->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_REINIT_SUP |
 		IB_PORT_VENDOR_CLASS_SUP | IB_PORT_BOOT_MGMT_SUP;
 	props->gid_tbl_len = 1;
-	props->pkey_tbl_len = 1;
 	props->active_width = IB_WIDTH_4X;
 	props->active_speed = 1;
 	props->max_msg_sz = I40IW_MAX_OUTBOUND_MESSAGE_SIZE;
@@ -120,78 +109,55 @@ static int i40iw_query_port(struct ib_device *ibdev,
 
 /**
  * i40iw_alloc_ucontext - Allocate the user context data structure
- * @ibdev: device pointer from stack
+ * @uctx: Uverbs context pointer from stack
  * @udata: user data
  *
  * This keeps track of all objects associated with a particular
  * user-mode client.
  */
-static struct ib_ucontext *i40iw_alloc_ucontext(struct ib_device *ibdev,
-						struct ib_udata *udata)
+static int i40iw_alloc_ucontext(struct ib_ucontext *uctx,
+				struct ib_udata *udata)
 {
+	struct ib_device *ibdev = uctx->device;
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct i40iw_alloc_ucontext_req req;
-	struct i40iw_alloc_ucontext_resp uresp;
-	struct i40iw_ucontext *ucontext;
+	struct i40iw_alloc_ucontext_resp uresp = {};
+	struct i40iw_ucontext *ucontext = to_ucontext(uctx);
 
 	if (ib_copy_from_udata(&req, udata, sizeof(req)))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (req.userspace_ver < 4 || req.userspace_ver > I40IW_ABI_VER) {
 		i40iw_pr_err("Unsupported provider library version %u.\n", req.userspace_ver);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
-	memset(&uresp, 0, sizeof(uresp));
 	uresp.max_qps = iwdev->max_qp;
 	uresp.max_pds = iwdev->max_pd;
 	uresp.wq_size = iwdev->max_qp_wr * 2;
 	uresp.kernel_ver = req.userspace_ver;
 
-	ucontext = kzalloc(sizeof(*ucontext), GFP_KERNEL);
-	if (!ucontext)
-		return ERR_PTR(-ENOMEM);
-
 	ucontext->iwdev = iwdev;
 	ucontext->abi_ver = req.userspace_ver;
 
-	if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
-		kfree(ucontext);
-		return ERR_PTR(-EFAULT);
-	}
+	if (ib_copy_to_udata(udata, &uresp, sizeof(uresp)))
+		return -EFAULT;
 
 	INIT_LIST_HEAD(&ucontext->cq_reg_mem_list);
 	spin_lock_init(&ucontext->cq_reg_mem_list_lock);
 	INIT_LIST_HEAD(&ucontext->qp_reg_mem_list);
 	spin_lock_init(&ucontext->qp_reg_mem_list_lock);
 
-	return &ucontext->ibucontext;
+	return 0;
 }
 
 /**
  * i40iw_dealloc_ucontext - deallocate the user context data structure
  * @context: user context created during alloc
  */
-static int i40iw_dealloc_ucontext(struct ib_ucontext *context)
+static void i40iw_dealloc_ucontext(struct ib_ucontext *context)
 {
-	struct i40iw_ucontext *ucontext = to_ucontext(context);
-	unsigned long flags;
-
-	spin_lock_irqsave(&ucontext->cq_reg_mem_list_lock, flags);
-	if (!list_empty(&ucontext->cq_reg_mem_list)) {
-		spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
-	spin_lock_irqsave(&ucontext->qp_reg_mem_list_lock, flags);
-	if (!list_empty(&ucontext->qp_reg_mem_list)) {
-		spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
-
-	kfree(ucontext);
-	return 0;
+	return;
 }
 
 /**
@@ -201,41 +167,16 @@ static int i40iw_dealloc_ucontext(struct ib_ucontext *context)
  */
 static int i40iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
-	struct i40iw_ucontext *ucontext;
-	u64 db_addr_offset;
-	u64 push_offset;
+	struct i40iw_ucontext *ucontext = to_ucontext(context);
+	u64 dbaddr;
 
-	ucontext = to_ucontext(context);
-	if (ucontext->iwdev->sc_dev.is_pf) {
-		db_addr_offset = I40IW_DB_ADDR_OFFSET;
-		push_offset = I40IW_PUSH_OFFSET;
-		if (vma->vm_pgoff)
-			vma->vm_pgoff += I40IW_PF_FIRST_PUSH_PAGE_INDEX - 1;
-	} else {
-		db_addr_offset = I40IW_VF_DB_ADDR_OFFSET;
-		push_offset = I40IW_VF_PUSH_OFFSET;
-		if (vma->vm_pgoff)
-			vma->vm_pgoff += I40IW_VF_FIRST_PUSH_PAGE_INDEX - 1;
-	}
+	if (vma->vm_pgoff || vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
 
-	vma->vm_pgoff += db_addr_offset >> PAGE_SHIFT;
+	dbaddr = I40IW_DB_ADDR_OFFSET + pci_resource_start(ucontext->iwdev->ldev->pcidev, 0);
 
-	if (vma->vm_pgoff == (db_addr_offset >> PAGE_SHIFT)) {
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		vma->vm_private_data = ucontext;
-	} else {
-		if ((vma->vm_pgoff - (push_offset >> PAGE_SHIFT)) % 2)
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		else
-			vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	}
-
-	if (io_remap_pfn_range(vma, vma->vm_start,
-			       vma->vm_pgoff + (pci_resource_start(ucontext->iwdev->ldev->pcidev, 0) >> PAGE_SHIFT),
-			       PAGE_SIZE, vma->vm_page_prot))
-		return -EAGAIN;
-
-	return 0;
+	return rdma_user_mmap_io(context, vma, dbaddr >> PAGE_SHIFT, PAGE_SIZE,
+				 pgprot_noncached(vma->vm_page_prot), NULL);
 }
 
 /**
@@ -312,43 +253,34 @@ static void i40iw_dealloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_
 
 /**
  * i40iw_alloc_pd - allocate protection domain
- * @ibdev: device pointer from stack
- * @context: user context created during alloc
+ * @pd: PD pointer
  * @udata: user data
  */
-static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
-				    struct ib_ucontext *context,
-				    struct ib_udata *udata)
+static int i40iw_alloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
-	struct i40iw_pd *iwpd;
-	struct i40iw_device *iwdev = to_iwdev(ibdev);
+	struct i40iw_pd *iwpd = to_iwpd(pd);
+	struct i40iw_device *iwdev = to_iwdev(pd->device);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	struct i40iw_alloc_pd_resp uresp;
 	struct i40iw_sc_pd *sc_pd;
-	struct i40iw_ucontext *ucontext;
 	u32 pd_id = 0;
 	int err;
 
 	if (iwdev->closing)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	err = i40iw_alloc_resource(iwdev, iwdev->allocated_pds,
 				   iwdev->max_pd, &pd_id, &iwdev->next_pd);
 	if (err) {
 		i40iw_pr_err("alloc resource failed\n");
-		return ERR_PTR(err);
-	}
-
-	iwpd = kzalloc(sizeof(*iwpd), GFP_KERNEL);
-	if (!iwpd) {
-		err = -ENOMEM;
-		goto free_res;
+		return err;
 	}
 
 	sc_pd = &iwpd->sc_pd;
 
-	if (context) {
-		ucontext = to_ucontext(context);
+	if (udata) {
+		struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+			udata, struct i40iw_ucontext, ibucontext);
 		dev->iw_pd_ops->pd_init(dev, sc_pd, pd_id, ucontext->abi_ver);
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.pd_id = pd_id;
@@ -361,19 +293,19 @@ static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
 	}
 
 	i40iw_add_pdusecount(iwpd);
-	return &iwpd->ibpd;
+	return 0;
+
 error:
-	kfree(iwpd);
-free_res:
 	i40iw_free_resource(iwdev, iwdev->allocated_pds, pd_id);
-	return ERR_PTR(err);
+	return err;
 }
 
 /**
  * i40iw_dealloc_pd - deallocate pd
  * @ibpd: ptr of pd to be deallocated
+ * @udata: user data or null for kernel object
  */
-static int i40iw_dealloc_pd(struct ib_pd *ibpd)
+static int i40iw_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);
 	struct i40iw_device *iwdev = to_iwdev(ibpd->device);
@@ -409,11 +341,11 @@ static struct i40iw_pbl *i40iw_get_pbl(unsigned long va,
  * @iwqp: qp ptr (user or kernel)
  * @qp_num: qp number assigned
  */
-void i40iw_free_qp_resources(struct i40iw_device *iwdev,
-			     struct i40iw_qp *iwqp,
-			     u32 qp_num)
+void i40iw_free_qp_resources(struct i40iw_qp *iwqp)
 {
 	struct i40iw_pbl *iwpbl = &iwqp->iwpbl;
+	struct i40iw_device *iwdev = iwqp->iwdev;
+	u32 qp_num = iwqp->ibqp.qp_num;
 
 	i40iw_ieq_cleanup_qp(iwdev->vsi.ieq, &iwqp->sc_qp);
 	i40iw_dealloc_push_page(iwdev, &iwqp->sc_qp);
@@ -425,7 +357,7 @@ void i40iw_free_qp_resources(struct i40iw_device *iwdev,
 	i40iw_free_dma_mem(iwdev->sc_dev.hw, &iwqp->kqp.dma_mem);
 	kfree(iwqp->kqp.wrid_mem);
 	iwqp->kqp.wrid_mem = NULL;
-	kfree(iwqp->allocated_buffer);
+	kfree(iwqp);
 }
 
 /**
@@ -444,9 +376,13 @@ static void i40iw_clean_cqes(struct i40iw_qp *iwqp, struct i40iw_cq *iwcq)
  * i40iw_destroy_qp - destroy qp
  * @ibqp: qp's ib pointer also to get to device's qp address
  */
-static int i40iw_destroy_qp(struct ib_qp *ibqp)
+static int i40iw_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct i40iw_qp *iwqp = to_iwqp(ibqp);
+	struct ib_qp_attr attr;
+	struct i40iw_device *iwdev = iwqp->iwdev;
+
+	memset(&attr, 0, sizeof(attr));
 
 	iwqp->destroyed = 1;
 
@@ -461,7 +397,15 @@ static int i40iw_destroy_qp(struct ib_qp *ibqp)
 		}
 	}
 
-	i40iw_rem_ref(&iwqp->ibqp);
+	attr.qp_state = IB_QPS_ERR;
+	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
+	i40iw_qp_rem_ref(&iwqp->ibqp);
+	wait_for_completion(&iwqp->free_qp);
+	i40iw_cqp_qp_destroy_cmd(&iwdev->sc_dev, &iwqp->sc_qp);
+	i40iw_rem_pdusecount(iwqp->iwpd, iwdev);
+	i40iw_free_qp_resources(iwqp);
+	i40iw_rem_devusecount(iwdev);
+
 	return 0;
 }
 
@@ -565,11 +509,11 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	struct i40iw_device *iwdev = to_iwdev(ibpd->device);
 	struct i40iw_cqp *iwcqp = &iwdev->cqp;
 	struct i40iw_qp *iwqp;
-	struct i40iw_ucontext *ucontext;
+	struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct i40iw_ucontext, ibucontext);
 	struct i40iw_create_qp_req req;
 	struct i40iw_create_qp_resp uresp;
 	u32 qp_num = 0;
-	void *mem;
 	enum i40iw_status_code ret;
 	int err_code;
 	int sq_size;
@@ -611,16 +555,15 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	init_info.qp_uk_init_info.max_rq_frag_cnt = init_attr->cap.max_recv_sge;
 	init_info.qp_uk_init_info.max_inline_data = init_attr->cap.max_inline_data;
 
-	mem = kzalloc(sizeof(*iwqp), GFP_KERNEL);
-	if (!mem)
+	iwqp = kzalloc(sizeof(*iwqp), GFP_KERNEL);
+	if (!iwqp)
 		return ERR_PTR(-ENOMEM);
 
-	iwqp = (struct i40iw_qp *)mem;
-	iwqp->allocated_buffer = mem;
 	qp = &iwqp->sc_qp;
 	qp->back_qp = (void *)iwqp;
 	qp->push_idx = I40IW_INVALID_PUSH_PAGE_INDEX;
 
+	iwqp->iwdev = iwdev;
 	iwqp->ctx_info.iwarp_info = &iwqp->iwarp_info;
 
 	if (i40iw_allocate_dma_mem(dev->hw,
@@ -645,7 +588,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		goto error;
 	}
 
-	iwqp->iwdev = iwdev;
 	iwqp->iwpd = iwpd;
 	iwqp->ibqp.qp_num = qp_num;
 	qp = &iwqp->sc_qp;
@@ -661,7 +603,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	iwqp->ctx_info.qp_compl_ctx = (uintptr_t)qp;
 
 	if (init_attr->qp_type != IB_QPT_RC) {
-		err_code = -EINVAL;
+		err_code = -EOPNOTSUPP;
 		goto error;
 	}
 	if (iwdev->push_mode)
@@ -673,28 +615,25 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 			goto error;
 		}
 		iwqp->ctx_info.qp_compl_ctx = req.user_compl_ctx;
-		if (ibpd->uobject && ibpd->uobject->context) {
-			iwqp->user_mode = 1;
-			ucontext = to_ucontext(ibpd->uobject->context);
+		iwqp->user_mode = 1;
 
-			if (req.user_wqe_buffers) {
-				struct i40iw_pbl *iwpbl;
+		if (req.user_wqe_buffers) {
+			struct i40iw_pbl *iwpbl;
 
-				spin_lock_irqsave(
-				    &ucontext->qp_reg_mem_list_lock, flags);
-				iwpbl = i40iw_get_pbl(
-				    (unsigned long)req.user_wqe_buffers,
-				    &ucontext->qp_reg_mem_list);
-				spin_unlock_irqrestore(
-				    &ucontext->qp_reg_mem_list_lock, flags);
+			spin_lock_irqsave(
+			    &ucontext->qp_reg_mem_list_lock, flags);
+			iwpbl = i40iw_get_pbl(
+			    (unsigned long)req.user_wqe_buffers,
+			    &ucontext->qp_reg_mem_list);
+			spin_unlock_irqrestore(
+			    &ucontext->qp_reg_mem_list_lock, flags);
 
-				if (!iwpbl) {
-					err_code = -ENODATA;
-					i40iw_pr_err("no pbl info\n");
-					goto error;
-				}
-				memcpy(&iwqp->iwpbl, iwpbl, sizeof(iwqp->iwpbl));
+			if (!iwpbl) {
+				err_code = -ENODATA;
+				i40iw_pr_err("no pbl info\n");
+				goto error;
 			}
+			memcpy(&iwqp->iwpbl, iwpbl, sizeof(iwqp->iwpbl));
 		}
 		err_code = i40iw_setup_virt_qp(iwdev, iwqp, &init_info);
 	} else {
@@ -762,13 +701,13 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		goto error;
 	}
 
-	i40iw_add_ref(&iwqp->ibqp);
+	refcount_set(&iwqp->refcount, 1);
 	spin_lock_init(&iwqp->lock);
 	iwqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR) ? 1 : 0;
 	iwdev->qp_table[qp_num] = iwqp;
 	i40iw_add_pdusecount(iwqp->iwpd);
 	i40iw_add_devusecount(iwdev);
-	if (ibpd->uobject && udata) {
+	if (udata) {
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.actual_sq_size = sq_size;
 		uresp.actual_rq_size = rq_size;
@@ -777,17 +716,18 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		err_code = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 		if (err_code) {
 			i40iw_pr_err("copy_to_udata failed\n");
-			i40iw_destroy_qp(&iwqp->ibqp);
-			   /* let the completion of the qp destroy free the qp */
+			i40iw_destroy_qp(&iwqp->ibqp, udata);
+			/* let the completion of the qp destroy free the qp */
 			return ERR_PTR(err_code);
 		}
 	}
 	init_completion(&iwqp->sq_drained);
 	init_completion(&iwqp->rq_drained);
+	init_completion(&iwqp->free_qp);
 
 	return &iwqp->ibqp;
 error:
-	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
+	i40iw_free_qp_resources(iwqp);
 	return ERR_PTR(err_code);
 }
 
@@ -806,6 +746,8 @@ static int i40iw_query_qp(struct ib_qp *ibqp,
 	struct i40iw_qp *iwqp = to_iwqp(ibqp);
 	struct i40iw_sc_qp *qp = &iwqp->sc_qp;
 
+	attr->qp_state = iwqp->ibqp_state;
+	attr->cur_qp_state = attr->qp_state;
 	attr->qp_access_flags = 0;
 	attr->cap.max_send_wr = qp->qp_uk.sq_size;
 	attr->cap.max_recv_wr = qp->qp_uk.rq_size;
@@ -856,7 +798,7 @@ void i40iw_hw_modify_qp(struct i40iw_device *iwdev, struct i40iw_qp *iwqp,
 	case I40IW_QP_STATE_RTS:
 		if (iwqp->iwarp_state == I40IW_QP_STATE_IDLE)
 			i40iw_send_reset(iwqp->cm_node);
-		/* fall through */
+		fallthrough;
 	case I40IW_QP_STATE_IDLE:
 	case I40IW_QP_STATE_TERMINATE:
 	case I40IW_QP_STATE_CLOSING:
@@ -1096,47 +1038,41 @@ void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq)
 /**
  * i40iw_destroy_cq - destroy cq
  * @ib_cq: cq pointer
+ * @udata: user data or NULL for kernel object
  */
-static int i40iw_destroy_cq(struct ib_cq *ib_cq)
+static int i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct i40iw_cq *iwcq;
 	struct i40iw_device *iwdev;
 	struct i40iw_sc_cq *cq;
-
-	if (!ib_cq) {
-		i40iw_pr_err("ib_cq == NULL\n");
-		return 0;
-	}
 
 	iwcq = to_iwcq(ib_cq);
 	iwdev = to_iwdev(ib_cq->device);
 	cq = &iwcq->sc_cq;
 	i40iw_cq_wq_destroy(iwdev, cq);
 	cq_free_resources(iwdev, iwcq);
-	kfree(iwcq);
 	i40iw_rem_devusecount(iwdev);
 	return 0;
 }
 
 /**
  * i40iw_create_cq - create cq
- * @ibdev: device pointer from stack
+ * @ibcq: CQ allocated
  * @attr: attributes for cq
- * @context: user context created during alloc
  * @udata: user data
  */
-static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
-				     const struct ib_cq_init_attr *attr,
-				     struct ib_ucontext *context,
-				     struct ib_udata *udata)
+static int i40iw_create_cq(struct ib_cq *ibcq,
+			   const struct ib_cq_init_attr *attr,
+			   struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
-	struct i40iw_cq *iwcq;
+	struct i40iw_cq *iwcq = to_iwcq(ibcq);
 	struct i40iw_pbl *iwpbl;
 	u32 cq_num = 0;
 	struct i40iw_sc_cq *cq;
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
-	struct i40iw_cq_init_info info;
+	struct i40iw_cq_init_info info = {};
 	enum i40iw_status_code status;
 	struct i40iw_cqp_request *cqp_request;
 	struct cqp_commands_info *cqp_info;
@@ -1146,22 +1082,16 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	int entries = attr->cqe;
 
 	if (iwdev->closing)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	if (entries > iwdev->max_cqe)
-		return ERR_PTR(-EINVAL);
-
-	iwcq = kzalloc(sizeof(*iwcq), GFP_KERNEL);
-	if (!iwcq)
-		return ERR_PTR(-ENOMEM);
-
-	memset(&info, 0, sizeof(info));
+		return -EINVAL;
 
 	err_code = i40iw_alloc_resource(iwdev, iwdev->allocated_cqs,
 					iwdev->max_cq, &cq_num,
 					&iwdev->next_cq);
 	if (err_code)
-		goto error;
+		return err_code;
 
 	cq = &iwcq->sc_cq;
 	cq->back_cq = (void *)iwcq;
@@ -1177,14 +1107,14 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	info.ceq_id_valid = true;
 	info.ceqe_mask = 1;
 	info.type = I40IW_CQ_TYPE_IWARP;
-	if (context) {
-		struct i40iw_ucontext *ucontext;
+	if (udata) {
+		struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+			udata, struct i40iw_ucontext, ibucontext);
 		struct i40iw_create_cq_req req;
 		struct i40iw_cq_mr *cqmr;
 
 		memset(&req, 0, sizeof(req));
 		iwcq->user_mode = true;
-		ucontext = to_ucontext(context);
 		if (ib_copy_from_udata(&req, udata, sizeof(struct i40iw_create_cq_req))) {
 			err_code = -EFAULT;
 			goto cq_free_resources;
@@ -1254,7 +1184,7 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 		goto cq_free_resources;
 	}
 
-	if (context) {
+	if (udata) {
 		struct i40iw_create_cq_resp resp;
 
 		memset(&resp, 0, sizeof(resp));
@@ -1268,15 +1198,13 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	}
 
 	i40iw_add_devusecount(iwdev);
-	return (struct ib_cq *)iwcq;
+	return 0;
 
 cq_destroy:
 	i40iw_cq_wq_destroy(iwdev, cq);
 cq_free_resources:
 	cq_free_resources(iwdev, iwcq);
-error:
-	kfree(iwcq);
-	return ERR_PTR(err_code);
+	return err_code;
 }
 
 /**
@@ -1371,55 +1299,20 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 {
 	struct ib_umem *region = iwmr->region;
 	struct i40iw_pbl *iwpbl = &iwmr->iwpbl;
-	int chunk_pages, entry, i;
 	struct i40iw_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct i40iw_pble_info *pinfo;
-	struct scatterlist *sg;
-	u64 pg_addr = 0;
+	struct ib_block_iter biter;
 	u32 idx = 0;
 
 	pinfo = (level == I40IW_LEVEL_1) ? NULL : palloc->level2.leaf;
 
-	for_each_sg(region->sg_head.sgl, sg, region->nmap, entry) {
-		chunk_pages = sg_dma_len(sg) >> region->page_shift;
-		if ((iwmr->type == IW_MEMREG_TYPE_QP) &&
-		    !iwpbl->qp_mr.sq_page)
-			iwpbl->qp_mr.sq_page = sg_page(sg);
-		for (i = 0; i < chunk_pages; i++) {
-			pg_addr = sg_dma_address(sg) +
-				(i << region->page_shift);
+	if (iwmr->type == IW_MEMREG_TYPE_QP)
+		iwpbl->qp_mr.sq_page = sg_page(region->sg_head.sgl);
 
-			if ((entry + i) == 0)
-				*pbl = cpu_to_le64(pg_addr & iwmr->page_msk);
-			else if (!(pg_addr & ~iwmr->page_msk))
-				*pbl = cpu_to_le64(pg_addr);
-			else
-				continue;
-			pbl = i40iw_next_pbl_addr(pbl, &pinfo, &idx);
-		}
+	rdma_umem_for_each_dma_block(region, &biter, iwmr->page_size) {
+		*pbl = rdma_block_iter_dma_address(&biter);
+		pbl = i40iw_next_pbl_addr(pbl, &pinfo, &idx);
 	}
-}
-
-/**
- * i40iw_set_hugetlb_params - set MR pg size and mask to huge pg values.
- * @addr: virtual address
- * @iwmr: mr pointer for this memory registration
- */
-static void i40iw_set_hugetlb_values(u64 addr, struct i40iw_mr *iwmr)
-{
-	struct vm_area_struct *vma;
-	struct hstate *h;
-
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, addr);
-	if (vma && is_vm_hugetlb_page(vma)) {
-		h = hstate_vma(vma);
-		if (huge_page_size(h) == 0x200000) {
-			iwmr->page_size = huge_page_size(h);
-			iwmr->page_msk = huge_page_mask(h);
-		}
-	}
-	up_read(&current->mm->mmap_sem);
 }
 
 /**
@@ -1638,8 +1531,7 @@ static int i40iw_hw_alloc_stag(struct i40iw_device *iwdev, struct i40iw_mr *iwmr
  * @mr_type: memory for stag registrion
  * @max_num_sg: man number of pages
  */
-static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd,
-				    enum ib_mr_type mr_type,
+static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 				    u32 max_num_sg)
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
@@ -1833,28 +1725,29 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);
-	struct i40iw_ucontext *ucontext;
+	struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct i40iw_ucontext, ibucontext);
 	struct i40iw_pble_alloc *palloc;
 	struct i40iw_pbl *iwpbl;
 	struct i40iw_mr *iwmr;
 	struct ib_umem *region;
 	struct i40iw_mem_reg_req req;
-	u64 pbl_depth = 0;
 	u32 stag = 0;
 	u16 access;
-	u64 region_length;
 	bool use_pbles = false;
 	unsigned long flags;
 	int err = -ENOSYS;
 	int ret;
-	int pg_shift;
+
+	if (!udata)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (iwdev->closing)
 		return ERR_PTR(-ENODEV);
 
 	if (length > I40IW_MAX_MR_SIZE)
 		return ERR_PTR(-EINVAL);
-	region = ib_umem_get(pd->uobject->context, start, length, acc, 0);
+	region = ib_umem_get(pd->device, start, length, acc);
 	if (IS_ERR(region))
 		return (struct ib_mr *)region;
 
@@ -1874,25 +1767,18 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	iwmr->region = region;
 	iwmr->ibmr.pd = pd;
 	iwmr->ibmr.device = pd->device;
-	ucontext = to_ucontext(pd->uobject->context);
 
 	iwmr->page_size = PAGE_SIZE;
-	iwmr->page_msk = PAGE_MASK;
-
-	if (region->hugetlb && (req.reg_type == IW_MEMREG_TYPE_MEM))
-		i40iw_set_hugetlb_values(start, iwmr);
-
-	region_length = region->length + (start & (iwmr->page_size - 1));
-	pg_shift = ffs(iwmr->page_size) - 1;
-	pbl_depth = region_length >> pg_shift;
-	pbl_depth += (region_length & (iwmr->page_size - 1)) ? 1 : 0;
+	if (req.reg_type == IW_MEMREG_TYPE_MEM)
+		iwmr->page_size = ib_umem_find_best_pgsz(region, SZ_4K | SZ_2M,
+							 virt);
 	iwmr->length = region->length;
 
 	iwpbl->user_base = virt;
 	palloc = &iwpbl->pble_alloc;
 
 	iwmr->type = req.reg_type;
-	iwmr->page_cnt = (u32)pbl_depth;
+	iwmr->page_cnt = ib_umem_num_dma_blocks(region, iwmr->page_size);
 
 	switch (req.reg_type) {
 	case IW_MEMREG_TYPE_QP:
@@ -2074,7 +1960,7 @@ static void i40iw_del_memlist(struct i40iw_mr *iwmr,
  * i40iw_dereg_mr - deregister mr
  * @ib_mr: mr ptr for dereg
  */
-static int i40iw_dereg_mr(struct ib_mr *ib_mr)
+static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct ib_pd *ibpd = ib_mr->pd;
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);
@@ -2088,14 +1974,17 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 	struct cqp_commands_info *cqp_info;
 	u32 stag_idx;
 
-	if (iwmr->region)
-		ib_umem_release(iwmr->region);
+	ib_umem_release(iwmr->region);
 
 	if (iwmr->type != IW_MEMREG_TYPE_MEM) {
-		if (ibpd->uobject) {
-			struct i40iw_ucontext *ucontext;
+		/* region is released. only test for userness. */
+		if (iwmr->region) {
+			struct i40iw_ucontext *ucontext =
+				rdma_udata_to_drv_context(
+					udata,
+					struct i40iw_ucontext,
+					ibucontext);
 
-			ucontext = to_ucontext(ibpd->uobject->context);
 			i40iw_del_memlist(iwmr, ucontext);
 		}
 		if (iwpbl->pbl_allocated && iwmr->type != IW_MEMREG_TYPE_QP)
@@ -2135,46 +2024,48 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 }
 
 /**
- * i40iw_show_rev
+ * hw_rev_show
  */
-static ssize_t i40iw_show_rev(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t hw_rev_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
-	struct i40iw_ib_device *iwibdev = container_of(dev,
-						       struct i40iw_ib_device,
-						       ibdev.dev);
+	struct i40iw_ib_device *iwibdev =
+		rdma_device_to_drv_device(dev, struct i40iw_ib_device, ibdev);
 	u32 hw_rev = iwibdev->iwdev->sc_dev.hw_rev;
 
 	return sprintf(buf, "%x\n", hw_rev);
 }
+static DEVICE_ATTR_RO(hw_rev);
 
 /**
- * i40iw_show_hca
+ * hca_type_show
  */
-static ssize_t i40iw_show_hca(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t hca_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "I40IW\n");
 }
+static DEVICE_ATTR_RO(hca_type);
 
 /**
- * i40iw_show_board
+ * board_id_show
  */
-static ssize_t i40iw_show_board(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static ssize_t board_id_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%.*s\n", 32, "I40IW Board ID");
 }
+static DEVICE_ATTR_RO(board_id);
 
-static DEVICE_ATTR(hw_rev, S_IRUGO, i40iw_show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, i40iw_show_hca, NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, i40iw_show_board, NULL);
+static struct attribute *i40iw_dev_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
+};
 
-static struct device_attribute *i40iw_dev_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static const struct attribute_group i40iw_attr_group = {
+	.attrs = i40iw_dev_attributes,
 };
 
 /**
@@ -2233,7 +2124,6 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 
 		switch (ib_wr->opcode) {
 		case IB_WR_SEND:
-			/* fall-through */
 		case IB_WR_SEND_WITH_INV:
 			if (ib_wr->opcode == IB_WR_SEND) {
 				if (ib_wr->send_flags & IB_SEND_SOLICITED)
@@ -2290,7 +2180,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			break;
 		case IB_WR_RDMA_READ_WITH_INV:
 			inv_stag = true;
-			/* fall-through*/
+			fallthrough;
 		case IB_WR_RDMA_READ:
 			if (ib_wr->num_sge > I40IW_MAX_SGE_RD) {
 				err = -EINVAL;
@@ -2547,7 +2437,6 @@ static int i40iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	if (err)
 		return err;
 
-	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 
 	return 0;
@@ -2621,10 +2510,11 @@ static const char * const i40iw_hw_stat_names[] = {
 
 static void i40iw_get_dev_fw_str(struct ib_device *dev, char *str)
 {
-	u32 firmware_version = I40IW_FW_VERSION;
+	struct i40iw_device *iwdev = to_iwdev(dev);
 
-	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u", firmware_version,
-		 (firmware_version & 0x000000ff));
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%llu.%llu",
+		 i40iw_fw_major_ver(&iwdev->sc_dev),
+		 i40iw_fw_minor_ver(&iwdev->sc_dev));
 }
 
 /**
@@ -2702,40 +2592,53 @@ static int i40iw_query_gid(struct ib_device *ibdev,
 	return 0;
 }
 
-/**
- * i40iw_query_pkey - Query partition key
- * @ibdev: device pointer from stack
- * @port: port number
- * @index: index of pkey
- * @pkey: pointer to store the pkey
- */
-static int i40iw_query_pkey(struct ib_device *ibdev,
-			    u8 port,
-			    u16 index,
-			    u16 *pkey)
-{
-	*pkey = 0;
-	return 0;
-}
+static const struct ib_device_ops i40iw_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_I40IW,
+	/* NOTE: Older kernels wrongly use 0 for the uverbs_abi_ver */
+	.uverbs_abi_ver = I40IW_ABI_VER,
 
-/**
- * i40iw_get_vector_affinity - report IRQ affinity mask
- * @ibdev: IB device
- * @comp_vector: completion vector index
- */
-static const struct cpumask *i40iw_get_vector_affinity(struct ib_device *ibdev,
-						       int comp_vector)
-{
-	struct i40iw_device *iwdev = to_iwdev(ibdev);
-	struct i40iw_msix_vector *msix_vec;
-
-	if (iwdev->msix_shared)
-		msix_vec = &iwdev->iw_msixtbl[comp_vector];
-	else
-		msix_vec = &iwdev->iw_msixtbl[comp_vector + 1];
-
-	return irq_get_affinity_mask(msix_vec->irq);
-}
+	.alloc_hw_stats = i40iw_alloc_hw_stats,
+	.alloc_mr = i40iw_alloc_mr,
+	.alloc_pd = i40iw_alloc_pd,
+	.alloc_ucontext = i40iw_alloc_ucontext,
+	.create_cq = i40iw_create_cq,
+	.create_qp = i40iw_create_qp,
+	.dealloc_pd = i40iw_dealloc_pd,
+	.dealloc_ucontext = i40iw_dealloc_ucontext,
+	.dereg_mr = i40iw_dereg_mr,
+	.destroy_cq = i40iw_destroy_cq,
+	.destroy_qp = i40iw_destroy_qp,
+	.drain_rq = i40iw_drain_rq,
+	.drain_sq = i40iw_drain_sq,
+	.get_dev_fw_str = i40iw_get_dev_fw_str,
+	.get_dma_mr = i40iw_get_dma_mr,
+	.get_hw_stats = i40iw_get_hw_stats,
+	.get_port_immutable = i40iw_port_immutable,
+	.iw_accept = i40iw_accept,
+	.iw_add_ref = i40iw_qp_add_ref,
+	.iw_connect = i40iw_connect,
+	.iw_create_listen = i40iw_create_listen,
+	.iw_destroy_listen = i40iw_destroy_listen,
+	.iw_get_qp = i40iw_get_qp,
+	.iw_reject = i40iw_reject,
+	.iw_rem_ref = i40iw_qp_rem_ref,
+	.map_mr_sg = i40iw_map_mr_sg,
+	.mmap = i40iw_mmap,
+	.modify_qp = i40iw_modify_qp,
+	.poll_cq = i40iw_poll_cq,
+	.post_recv = i40iw_post_recv,
+	.post_send = i40iw_post_send,
+	.query_device = i40iw_query_device,
+	.query_gid = i40iw_query_gid,
+	.query_port = i40iw_query_port,
+	.query_qp = i40iw_query_qp,
+	.reg_user_mr = i40iw_reg_user_mr,
+	.req_notify_cq = i40iw_req_notify_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, i40iw_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_cq, i40iw_cq, ibcq),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, i40iw_ucontext, ibucontext),
+};
 
 /**
  * i40iw_init_rdma_device - initialization of iwarp device
@@ -2745,15 +2648,13 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 {
 	struct i40iw_ib_device *iwibdev;
 	struct net_device *netdev = iwdev->netdev;
-	struct pci_dev *pcidev = (struct pci_dev *)iwdev->hw.dev_context;
+	struct pci_dev *pcidev = iwdev->hw.pcidev;
 
-	iwibdev = (struct i40iw_ib_device *)ib_alloc_device(sizeof(*iwibdev));
+	iwibdev = ib_alloc_device(i40iw_ib_device, ibdev);
 	if (!iwibdev) {
 		i40iw_pr_err("iwdev == NULL\n");
 		return NULL;
 	}
-	strlcpy(iwibdev->ibdev.name, "i40iw%d", IB_DEVICE_NAME_MAX);
-	iwibdev->ibdev.owner = THIS_MODULE;
 	iwdev->iwibdev = iwibdev;
 	iwibdev->iwdev = iwdev;
 
@@ -2784,53 +2685,9 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.phys_port_cnt = 1;
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
-	iwibdev->ibdev.query_port = i40iw_query_port;
-	iwibdev->ibdev.query_pkey = i40iw_query_pkey;
-	iwibdev->ibdev.query_gid = i40iw_query_gid;
-	iwibdev->ibdev.alloc_ucontext = i40iw_alloc_ucontext;
-	iwibdev->ibdev.dealloc_ucontext = i40iw_dealloc_ucontext;
-	iwibdev->ibdev.mmap = i40iw_mmap;
-	iwibdev->ibdev.alloc_pd = i40iw_alloc_pd;
-	iwibdev->ibdev.dealloc_pd = i40iw_dealloc_pd;
-	iwibdev->ibdev.create_qp = i40iw_create_qp;
-	iwibdev->ibdev.modify_qp = i40iw_modify_qp;
-	iwibdev->ibdev.query_qp = i40iw_query_qp;
-	iwibdev->ibdev.destroy_qp = i40iw_destroy_qp;
-	iwibdev->ibdev.create_cq = i40iw_create_cq;
-	iwibdev->ibdev.destroy_cq = i40iw_destroy_cq;
-	iwibdev->ibdev.get_dma_mr = i40iw_get_dma_mr;
-	iwibdev->ibdev.reg_user_mr = i40iw_reg_user_mr;
-	iwibdev->ibdev.dereg_mr = i40iw_dereg_mr;
-	iwibdev->ibdev.alloc_hw_stats = i40iw_alloc_hw_stats;
-	iwibdev->ibdev.get_hw_stats = i40iw_get_hw_stats;
-	iwibdev->ibdev.query_device = i40iw_query_device;
-	iwibdev->ibdev.drain_sq = i40iw_drain_sq;
-	iwibdev->ibdev.drain_rq = i40iw_drain_rq;
-	iwibdev->ibdev.alloc_mr = i40iw_alloc_mr;
-	iwibdev->ibdev.map_mr_sg = i40iw_map_mr_sg;
-	iwibdev->ibdev.iwcm = kzalloc(sizeof(*iwibdev->ibdev.iwcm), GFP_KERNEL);
-	if (!iwibdev->ibdev.iwcm) {
-		ib_dealloc_device(&iwibdev->ibdev);
-		return NULL;
-	}
-
-	iwibdev->ibdev.iwcm->add_ref = i40iw_add_ref;
-	iwibdev->ibdev.iwcm->rem_ref = i40iw_rem_ref;
-	iwibdev->ibdev.iwcm->get_qp = i40iw_get_qp;
-	iwibdev->ibdev.iwcm->connect = i40iw_connect;
-	iwibdev->ibdev.iwcm->accept = i40iw_accept;
-	iwibdev->ibdev.iwcm->reject = i40iw_reject;
-	iwibdev->ibdev.iwcm->create_listen = i40iw_create_listen;
-	iwibdev->ibdev.iwcm->destroy_listen = i40iw_destroy_listen;
-	memcpy(iwibdev->ibdev.iwcm->ifname, netdev->name,
-	       sizeof(iwibdev->ibdev.iwcm->ifname));
-	iwibdev->ibdev.get_port_immutable   = i40iw_port_immutable;
-	iwibdev->ibdev.get_dev_fw_str       = i40iw_get_dev_fw_str;
-	iwibdev->ibdev.poll_cq = i40iw_poll_cq;
-	iwibdev->ibdev.req_notify_cq = i40iw_req_notify_cq;
-	iwibdev->ibdev.post_send = i40iw_post_send;
-	iwibdev->ibdev.post_recv = i40iw_post_recv;
-	iwibdev->ibdev.get_vector_affinity = i40iw_get_vector_affinity;
+	memcpy(iwibdev->ibdev.iw_ifname, netdev->name,
+	       sizeof(iwibdev->ibdev.iw_ifname));
+	ib_set_device_ops(&iwibdev->ibdev, &i40iw_dev_ops);
 
 	return iwibdev;
 }
@@ -2851,31 +2708,12 @@ void i40iw_port_ibevent(struct i40iw_device *iwdev)
 }
 
 /**
- * i40iw_unregister_rdma_device - unregister of iwarp from IB
- * @iwibdev: rdma device ptr
- */
-static void i40iw_unregister_rdma_device(struct i40iw_ib_device *iwibdev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(i40iw_dev_attributes); ++i)
-		device_remove_file(&iwibdev->ibdev.dev,
-				   i40iw_dev_attributes[i]);
-	ib_unregister_device(&iwibdev->ibdev);
-}
-
-/**
  * i40iw_destroy_rdma_device - destroy rdma device and free resources
  * @iwibdev: IB device ptr
  */
 void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev)
 {
-	if (!iwibdev)
-		return;
-
-	i40iw_unregister_rdma_device(iwibdev);
-	kfree(iwibdev->ibdev.iwcm);
-	iwibdev->ibdev.iwcm = NULL;
+	ib_unregister_device(&iwibdev->ibdev);
 	wait_event_timeout(iwibdev->iwdev->close_wq,
 			   !atomic64_read(&iwibdev->iwdev->use_count),
 			   I40IW_EVENT_TIMEOUT);
@@ -2888,36 +2726,25 @@ void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev)
  */
 int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 {
-	int i, ret;
+	int ret;
 	struct i40iw_ib_device *iwibdev;
 
 	iwdev->iwibdev = i40iw_init_rdma_device(iwdev);
 	if (!iwdev->iwibdev)
 		return -ENOMEM;
 	iwibdev = iwdev->iwibdev;
-
-	iwibdev->ibdev.driver_id = RDMA_DRIVER_I40IW;
-	ret = ib_register_device(&iwibdev->ibdev, NULL);
+	rdma_set_device_sysfs_group(&iwibdev->ibdev, &i40iw_attr_group);
+	ret = ib_device_set_netdev(&iwibdev->ibdev, iwdev->netdev, 1);
 	if (ret)
 		goto error;
 
-	for (i = 0; i < ARRAY_SIZE(i40iw_dev_attributes); ++i) {
-		ret =
-		    device_create_file(&iwibdev->ibdev.dev,
-				       i40iw_dev_attributes[i]);
-		if (ret) {
-			while (i > 0) {
-				i--;
-				device_remove_file(&iwibdev->ibdev.dev, i40iw_dev_attributes[i]);
-			}
-			ib_unregister_device(&iwibdev->ibdev);
-			goto error;
-		}
-	}
+	dma_set_max_seg_size(&iwdev->hw.pcidev->dev, UINT_MAX);
+	ret = ib_register_device(&iwibdev->ibdev, "i40iw%d", &iwdev->hw.pcidev->dev);
+	if (ret)
+		goto error;
+
 	return 0;
 error:
-	kfree(iwdev->iwibdev->ibdev.iwcm);
-	iwdev->iwibdev->ibdev.iwcm = NULL;
 	ib_dealloc_device(&iwdev->iwibdev->ibdev);
 	return ret;
 }

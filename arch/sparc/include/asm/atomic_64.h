@@ -12,7 +12,6 @@
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
 
-#define ATOMIC_INIT(i)		{ (i) }
 #define ATOMIC64_INIT(i)	{ (i) }
 
 #define atomic_read(v)		READ_ONCE((v)->counter)
@@ -23,15 +22,15 @@
 
 #define ATOMIC_OP(op)							\
 void atomic_##op(int, atomic_t *);					\
-void atomic64_##op(long, atomic64_t *);
+void atomic64_##op(s64, atomic64_t *);
 
 #define ATOMIC_OP_RETURN(op)						\
 int atomic_##op##_return(int, atomic_t *);				\
-long atomic64_##op##_return(long, atomic64_t *);
+s64 atomic64_##op##_return(s64, atomic64_t *);
 
 #define ATOMIC_FETCH_OP(op)						\
 int atomic_fetch_##op(int, atomic_t *);					\
-long atomic64_fetch_##op(long, atomic64_t *);
+s64 atomic64_fetch_##op(s64, atomic64_t *);
 
 #define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op) ATOMIC_FETCH_OP(op)
 
@@ -61,7 +60,7 @@ static inline int atomic_xchg(atomic_t *v, int new)
 	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
 
-long atomic64_dec_if_positive(atomic64_t *v);
+s64 atomic64_dec_if_positive(atomic64_t *v);
 #define atomic64_dec_if_positive atomic64_dec_if_positive
 
 #endif /* !(__ARCH_SPARC64_ATOMIC__) */

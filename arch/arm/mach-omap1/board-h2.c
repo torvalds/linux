@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-h2.c
  *
@@ -13,10 +14,6 @@
  *
  * H2 specific changes and cleanup
  * Copyright (C) 2004 Nokia Corporation by Imre Deak <imre.deak@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/kernel.h>
@@ -24,8 +21,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/rawnand.h>
-#include <linux/mtd/partitions.h>
+#include <linux/mtd/platnand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/mfd/tps65010.h>
@@ -182,7 +178,7 @@ static struct mtd_partition h2_nand_partitions[] = {
 
 #define H2_NAND_RB_GPIO_PIN	62
 
-static int h2_nand_dev_ready(struct mtd_info *mtd)
+static int h2_nand_dev_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(H2_NAND_RB_GPIO_PIN);
 }

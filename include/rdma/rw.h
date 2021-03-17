@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016 HGST, a Western Digital Company.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #ifndef _RDMA_RW_H
 #define _RDMA_RW_H
@@ -47,15 +39,6 @@ struct rdma_rw_ctx {
 			struct ib_send_wr	inv_wr;
 			struct ib_mr		*mr;
 		} *reg;
-
-		struct {
-			struct rdma_rw_reg_ctx	data;
-			struct rdma_rw_reg_ctx	prot;
-			struct ib_send_wr	sig_inv_wr;
-			struct ib_mr		*sig_mr;
-			struct ib_sge		sig_sge;
-			struct ib_sig_handover_wr sig_wr;
-		} *sig;
 	};
 };
 

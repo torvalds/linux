@@ -1,18 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Merrifield SoC GPIO driver
  *
  * Copyright (c) 2016 Intel Corporation.
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -166,7 +162,10 @@ static int mrfld_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	void __iomem *gpdr = gpio_reg(chip, offset, GPDR);
 
-	return !(readl(gpdr) & BIT(offset % 32));
+	if (readl(gpdr) & BIT(offset % 32))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int mrfld_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
@@ -366,8 +365,9 @@ static void mrfld_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(irqchip, desc);
 }
 
-static void mrfld_irq_init_hw(struct mrfld_gpio *priv)
+static int mrfld_irq_init_hw(struct gpio_chip *chip)
 {
+	struct mrfld_gpio *priv = gpiochip_get_data(chip);
 	void __iomem *reg;
 	unsigned int base;
 
@@ -379,22 +379,56 @@ static void mrfld_irq_init_hw(struct mrfld_gpio *priv)
 		reg = gpio_reg(&priv->chip, base, GFER);
 		writel(0, reg);
 	}
+
+	return 0;
 }
 
-static const char *mrfld_gpio_get_pinctrl_dev_name(void)
+static const char *mrfld_gpio_get_pinctrl_dev_name(struct mrfld_gpio *priv)
 {
-	const char *dev_name = acpi_dev_get_first_match_name("INTC1002", NULL, -1);
-	return dev_name ? dev_name : "pinctrl-merrifield";
+	struct acpi_device *adev;
+	const char *name;
+
+	adev = acpi_dev_get_first_match_dev("INTC1002", NULL, -1);
+	if (adev) {
+		name = devm_kstrdup(priv->dev, acpi_dev_name(adev), GFP_KERNEL);
+		acpi_dev_put(adev);
+	} else {
+		name = "pinctrl-merrifield";
+	}
+
+	return name;
+}
+
+static int mrfld_gpio_add_pin_ranges(struct gpio_chip *chip)
+{
+	struct mrfld_gpio *priv = gpiochip_get_data(chip);
+	const struct mrfld_gpio_pinrange *range;
+	const char *pinctrl_dev_name;
+	unsigned int i;
+	int retval;
+
+	pinctrl_dev_name = mrfld_gpio_get_pinctrl_dev_name(priv);
+	for (i = 0; i < ARRAY_SIZE(mrfld_gpio_ranges); i++) {
+		range = &mrfld_gpio_ranges[i];
+		retval = gpiochip_add_pin_range(&priv->chip, pinctrl_dev_name,
+						range->gpio_base,
+						range->pin_base,
+						range->npins);
+		if (retval) {
+			dev_err(priv->dev, "failed to add GPIO pin range\n");
+			return retval;
+		}
+	}
+
+	return 0;
 }
 
 static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	const struct mrfld_gpio_pinrange *range;
-	const char *pinctrl_dev_name;
+	struct gpio_irq_chip *girq;
 	struct mrfld_gpio *priv;
 	u32 gpio_base, irq_base;
 	void __iomem *base;
-	unsigned int i;
 	int retval;
 
 	retval = pcim_enable_device(pdev);
@@ -409,8 +443,8 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 	base = pcim_iomap_table(pdev)[1];
 
-	irq_base = readl(base);
-	gpio_base = readl(sizeof(u32) + base);
+	irq_base = readl(base + 0 * sizeof(u32));
+	gpio_base = readl(base + 1 * sizeof(u32));
 
 	/* Release the IO mapping, since we already get the info from BAR1 */
 	pcim_iounmap_regions(pdev, BIT(1));
@@ -435,42 +469,35 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	priv->chip.base = gpio_base;
 	priv->chip.ngpio = MRFLD_NGPIO;
 	priv->chip.can_sleep = false;
+	priv->chip.add_pin_ranges = mrfld_gpio_add_pin_ranges;
 
 	raw_spin_lock_init(&priv->lock);
 
-	pci_set_drvdata(pdev, priv);
+	retval = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (retval < 0)
+		return retval;
+
+	girq = &priv->chip.irq;
+	girq->chip = &mrfld_irqchip;
+	girq->init_hw = mrfld_irq_init_hw;
+	girq->parent_handler = mrfld_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
+				     sizeof(*girq->parents), GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = pci_irq_vector(pdev, 0);
+	girq->first = irq_base;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_bad_irq;
+
 	retval = devm_gpiochip_add_data(&pdev->dev, &priv->chip, priv);
 	if (retval) {
 		dev_err(&pdev->dev, "gpiochip_add error %d\n", retval);
 		return retval;
 	}
 
-	pinctrl_dev_name = mrfld_gpio_get_pinctrl_dev_name();
-	for (i = 0; i < ARRAY_SIZE(mrfld_gpio_ranges); i++) {
-		range = &mrfld_gpio_ranges[i];
-		retval = gpiochip_add_pin_range(&priv->chip,
-						pinctrl_dev_name,
-						range->gpio_base,
-						range->pin_base,
-						range->npins);
-		if (retval) {
-			dev_err(&pdev->dev, "failed to add GPIO pin range\n");
-			return retval;
-		}
-	}
-
-	retval = gpiochip_irqchip_add(&priv->chip, &mrfld_irqchip, irq_base,
-				      handle_bad_irq, IRQ_TYPE_NONE);
-	if (retval) {
-		dev_err(&pdev->dev, "could not connect irqchip to gpiochip\n");
-		return retval;
-	}
-
-	mrfld_irq_init_hw(priv);
-
-	gpiochip_set_chained_irqchip(&priv->chip, &mrfld_irqchip, pdev->irq,
-				     mrfld_irq_handler);
-
+	pci_set_drvdata(pdev, priv);
 	return 0;
 }
 

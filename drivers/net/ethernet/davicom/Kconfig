@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Davicom device configuration
 #
@@ -7,7 +8,7 @@ config DM9000
 	depends on ARM || MIPS || COLDFIRE || NIOS2
 	select CRC32
 	select MII
-	---help---
+	help
 	  Support for DM9000 chipset.
 
 	  To compile this driver as a module, choose M here.  The module
@@ -16,7 +17,7 @@ config DM9000
 config DM9000_FORCE_SIMPLE_PHY_POLL
 	bool "Force simple NSR based PHY polling"
 	depends on DM9000
-	---help---
+	help
 	  This configuration forces the DM9000 to use the NSR's LinkStatus
 	  bit to determine if the link is up or down instead of the more
 	  costly MII PHY reads. Note, this will not work if the chip is

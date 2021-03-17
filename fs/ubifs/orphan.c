@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Author: Adrian Hunter
  */
@@ -54,30 +42,24 @@
 
 static int dbg_check_orphans(struct ubifs_info *c);
 
-/**
- * ubifs_add_orphan - add an orphan.
- * @c: UBIFS file-system description object
- * @inum: orphan inode number
- *
- * Add an orphan. This function is called when an inodes link count drops to
- * zero.
- */
-int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
+static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ino_t inum,
+				       struct ubifs_orphan *parent_orphan)
 {
 	struct ubifs_orphan *orphan, *o;
 	struct rb_node **p, *parent = NULL;
 
 	orphan = kzalloc(sizeof(struct ubifs_orphan), GFP_NOFS);
 	if (!orphan)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	orphan->inum = inum;
 	orphan->new = 1;
+	INIT_LIST_HEAD(&orphan->child_list);
 
 	spin_lock(&c->orphan_lock);
 	if (c->tot_orphans >= c->max_orphans) {
 		spin_unlock(&c->orphan_lock);
 		kfree(orphan);
-		return -ENFILE;
+		return ERR_PTR(-ENFILE);
 	}
 	p = &c->orph_tree.rb_node;
 	while (*p) {
@@ -91,7 +73,7 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
 			ubifs_err(c, "orphaned twice");
 			spin_unlock(&c->orphan_lock);
 			kfree(orphan);
-			return 0;
+			return ERR_PTR(-EINVAL);
 		}
 	}
 	c->tot_orphans += 1;
@@ -100,8 +82,118 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
 	rb_insert_color(&orphan->rb, &c->orph_tree);
 	list_add_tail(&orphan->list, &c->orph_list);
 	list_add_tail(&orphan->new_list, &c->orph_new);
+
+	if (parent_orphan) {
+		list_add_tail(&orphan->child_list,
+			      &parent_orphan->child_list);
+	}
+
 	spin_unlock(&c->orphan_lock);
 	dbg_gen("ino %lu", (unsigned long)inum);
+	return orphan;
+}
+
+static struct ubifs_orphan *lookup_orphan(struct ubifs_info *c, ino_t inum)
+{
+	struct ubifs_orphan *o;
+	struct rb_node *p;
+
+	p = c->orph_tree.rb_node;
+	while (p) {
+		o = rb_entry(p, struct ubifs_orphan, rb);
+		if (inum < o->inum)
+			p = p->rb_left;
+		else if (inum > o->inum)
+			p = p->rb_right;
+		else {
+			return o;
+		}
+	}
+	return NULL;
+}
+
+static void __orphan_drop(struct ubifs_info *c, struct ubifs_orphan *o)
+{
+	rb_erase(&o->rb, &c->orph_tree);
+	list_del(&o->list);
+	c->tot_orphans -= 1;
+
+	if (o->new) {
+		list_del(&o->new_list);
+		c->new_orphans -= 1;
+	}
+
+	kfree(o);
+}
+
+static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
+{
+	if (orph->del) {
+		dbg_gen("deleted twice ino %lu", (unsigned long)orph->inum);
+		return;
+	}
+
+	if (orph->cmt) {
+		orph->del = 1;
+		orph->dnext = c->orph_dnext;
+		c->orph_dnext = orph;
+		dbg_gen("delete later ino %lu", (unsigned long)orph->inum);
+		return;
+	}
+
+	__orphan_drop(c, orph);
+}
+
+/**
+ * ubifs_add_orphan - add an orphan.
+ * @c: UBIFS file-system description object
+ * @inum: orphan inode number
+ *
+ * Add an orphan. This function is called when an inodes link count drops to
+ * zero.
+ */
+int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
+{
+	int err = 0;
+	ino_t xattr_inum;
+	union ubifs_key key;
+	struct ubifs_dent_node *xent, *pxent = NULL;
+	struct fscrypt_name nm = {0};
+	struct ubifs_orphan *xattr_orphan;
+	struct ubifs_orphan *orphan;
+
+	orphan = orphan_add(c, inum, NULL);
+	if (IS_ERR(orphan))
+		return PTR_ERR(orphan);
+
+	lowest_xent_key(c, &key, inum);
+	while (1) {
+		xent = ubifs_tnc_next_ent(c, &key, &nm);
+		if (IS_ERR(xent)) {
+			err = PTR_ERR(xent);
+			if (err == -ENOENT)
+				break;
+			kfree(pxent);
+			return err;
+		}
+
+		fname_name(&nm) = xent->name;
+		fname_len(&nm) = le16_to_cpu(xent->nlen);
+		xattr_inum = le64_to_cpu(xent->inum);
+
+		xattr_orphan = orphan_add(c, xattr_inum, orphan);
+		if (IS_ERR(xattr_orphan)) {
+			kfree(pxent);
+			kfree(xent);
+			return PTR_ERR(xattr_orphan);
+		}
+
+		kfree(pxent);
+		pxent = xent;
+		key_read(c, &xent->key, &key);
+	}
+	kfree(pxent);
+
 	return 0;
 }
 
@@ -114,49 +206,27 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
  */
 void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum)
 {
-	struct ubifs_orphan *o;
-	struct rb_node *p;
+	struct ubifs_orphan *orph, *child_orph, *tmp_o;
 
 	spin_lock(&c->orphan_lock);
-	p = c->orph_tree.rb_node;
-	while (p) {
-		o = rb_entry(p, struct ubifs_orphan, rb);
-		if (inum < o->inum)
-			p = p->rb_left;
-		else if (inum > o->inum)
-			p = p->rb_right;
-		else {
-			if (o->del) {
-				spin_unlock(&c->orphan_lock);
-				dbg_gen("deleted twice ino %lu",
-					(unsigned long)inum);
-				return;
-			}
-			if (o->cmt) {
-				o->del = 1;
-				o->dnext = c->orph_dnext;
-				c->orph_dnext = o;
-				spin_unlock(&c->orphan_lock);
-				dbg_gen("delete later ino %lu",
-					(unsigned long)inum);
-				return;
-			}
-			rb_erase(p, &c->orph_tree);
-			list_del(&o->list);
-			c->tot_orphans -= 1;
-			if (o->new) {
-				list_del(&o->new_list);
-				c->new_orphans -= 1;
-			}
-			spin_unlock(&c->orphan_lock);
-			kfree(o);
-			dbg_gen("inum %lu", (unsigned long)inum);
-			return;
-		}
+
+	orph = lookup_orphan(c, inum);
+	if (!orph) {
+		spin_unlock(&c->orphan_lock);
+		ubifs_err(c, "missing orphan ino %lu", (unsigned long)inum);
+		dump_stack();
+
+		return;
 	}
+
+	list_for_each_entry_safe(child_orph, tmp_o, &orph->child_list, child_list) {
+		list_del(&child_orph->child_list);
+		orphan_delete(c, child_orph);
+	}
+	
+	orphan_delete(c, orph);
+
 	spin_unlock(&c->orphan_lock);
-	ubifs_err(c, "missing orphan ino %lu", (unsigned long)inum);
-	dump_stack();
 }
 
 /**
@@ -563,16 +633,22 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 {
 	struct ubifs_scan_node *snod;
 	struct ubifs_orph_node *orph;
+	struct ubifs_ino_node *ino = NULL;
 	unsigned long long cmt_no;
 	ino_t inum;
 	int i, n, err, first = 1;
+
+	ino = kmalloc(UBIFS_MAX_INO_NODE_SZ, GFP_NOFS);
+	if (!ino)
+		return -ENOMEM;
 
 	list_for_each_entry(snod, &sleb->nodes, list) {
 		if (snod->type != UBIFS_ORPH_NODE) {
 			ubifs_err(c, "invalid node type %d in orphan area at %d:%d",
 				  snod->type, sleb->lnum, snod->offs);
 			ubifs_dump_node(c, snod->node);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_free;
 		}
 
 		orph = snod->node;
@@ -599,11 +675,13 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 				ubifs_err(c, "out of order commit number %llu in orphan node at %d:%d",
 					  cmt_no, sleb->lnum, snod->offs);
 				ubifs_dump_node(c, snod->node);
-				return -EINVAL;
+				err = -EINVAL;
+				goto out_free;
 			}
 			dbg_rcvry("out of date LEB %d", sleb->lnum);
 			*outofdate = 1;
-			return 0;
+			err = 0;
+			goto out_free;
 		}
 
 		if (first)
@@ -611,15 +689,34 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 
 		n = (le32_to_cpu(orph->ch.len) - UBIFS_ORPH_NODE_SZ) >> 3;
 		for (i = 0; i < n; i++) {
+			union ubifs_key key1, key2;
+
 			inum = le64_to_cpu(orph->inos[i]);
-			dbg_rcvry("deleting orphaned inode %lu",
-				  (unsigned long)inum);
-			err = ubifs_tnc_remove_ino(c, inum);
-			if (err)
-				return err;
+
+			ino_key_init(c, &key1, inum);
+			err = ubifs_tnc_lookup(c, &key1, ino);
+			if (err && err != -ENOENT)
+				goto out_free;
+
+			/*
+			 * Check whether an inode can really get deleted.
+			 * linkat() with O_TMPFILE allows rebirth of an inode.
+			 */
+			if (err == 0 && ino->nlink == 0) {
+				dbg_rcvry("deleting orphaned inode %lu",
+					  (unsigned long)inum);
+
+				lowest_ino_key(c, &key1, inum);
+				highest_ino_key(c, &key2, inum);
+
+				err = ubifs_tnc_remove_range(c, &key1, &key2);
+				if (err)
+					goto out_ro;
+			}
+
 			err = insert_dead_orphan(c, inum);
 			if (err)
-				return err;
+				goto out_free;
 		}
 
 		*last_cmt_no = cmt_no;
@@ -631,7 +728,15 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 			*last_flagged = 0;
 	}
 
-	return 0;
+	err = 0;
+out_free:
+	kfree(ino);
+	return err;
+
+out_ro:
+	ubifs_ro_mode(c, err);
+	kfree(ino);
+	return err;
 }
 
 /**
@@ -744,26 +849,15 @@ struct check_info {
 	struct rb_root root;
 };
 
-static int dbg_find_orphan(struct ubifs_info *c, ino_t inum)
+static bool dbg_find_orphan(struct ubifs_info *c, ino_t inum)
 {
-	struct ubifs_orphan *o;
-	struct rb_node *p;
+	bool found = false;
 
 	spin_lock(&c->orphan_lock);
-	p = c->orph_tree.rb_node;
-	while (p) {
-		o = rb_entry(p, struct ubifs_orphan, rb);
-		if (inum < o->inum)
-			p = p->rb_left;
-		else if (inum > o->inum)
-			p = p->rb_right;
-		else {
-			spin_unlock(&c->orphan_lock);
-			return 1;
-		}
-	}
+	found = !!lookup_orphan(c, inum);
 	spin_unlock(&c->orphan_lock);
-	return 0;
+
+	return found;
 }
 
 static int dbg_ins_check_orphan(struct rb_root *root, ino_t inum)
@@ -885,7 +979,7 @@ static int dbg_scan_orphans(struct ubifs_info *c, struct check_info *ci)
 	if (c->no_orphs)
 		return 0;
 
-	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	buf = __vmalloc(c->leb_size, GFP_NOFS);
 	if (!buf) {
 		ubifs_err(c, "cannot allocate memory to check orphans");
 		return 0;

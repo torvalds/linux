@@ -12,10 +12,8 @@
 	 * The decompressor and also some bootloaders rely on a
 	 * pre-existing /chosen node to be available to insert the
 	 * command line and merge other ATAGS info.
-	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; };
 
 	aliases {
 		ethernet0 = &fec;
@@ -77,7 +75,7 @@
 		interrupt-parent = <&asic>;
 		ranges;
 
-		aips@43f00000 { /* AIPS1 */
+		bus@43f00000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -168,7 +166,7 @@
 				status = "disabled";
 			};
 
-			spi1: cspi@43fa4000 {
+			spi1: spi@43fa4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
@@ -209,7 +207,7 @@
 			reg = <0x50000000 0x40000>;
 			ranges;
 
-			spi3: cspi@50004000 {
+			spi3: spi@50004000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
@@ -238,7 +236,7 @@
 				status = "disabled";
 			};
 
-			spi2: cspi@50010000 {
+			spi2: spi@50010000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
@@ -334,7 +332,7 @@
 			};
 		};
 
-		aips@53f00000 { /* AIPS2 */
+		bus@53f00000 { /* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -388,12 +386,16 @@
 			epit1: timer@53f94000 {
 				compatible = "fsl,imx25-epit";
 				reg = <0x53f94000 0x4000>;
+				clocks = <&clks 83>, <&clks 43>;
+				clock-names = "ipg", "per";
 				interrupts = <28>;
 			};
 
 			epit2: timer@53f98000 {
 				compatible = "fsl,imx25-epit";
 				reg = <0x53f98000 0x4000>;
+				clocks = <&clks 84>, <&clks 43>;
+				clock-names = "ipg", "per";
 				interrupts = <27>;
 			};
 
@@ -409,7 +411,7 @@
 
 			pwm2: pwm@53fa0000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				reg = <0x53fa0000 0x4000>;
 				clocks = <&clks 106>, <&clks 52>;
 				clock-names = "ipg", "per";
@@ -428,7 +430,7 @@
 
 			pwm3: pwm@53fa8000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				reg = <0x53fa8000 0x4000>;
 				clocks = <&clks 107>, <&clks 52>;
 				clock-names = "ipg", "per";
@@ -451,7 +453,7 @@
 				interrupts = <22>;
 			};
 
-			esdhc1: esdhc@53fb4000 {
+			esdhc1: mmc@53fb4000 {
 				compatible = "fsl,imx25-esdhc";
 				reg = <0x53fb4000 0x4000>;
 				interrupts = <9>;
@@ -460,7 +462,7 @@
 				status = "disabled";
 			};
 
-			esdhc2: esdhc@53fb8000 {
+			esdhc2: mmc@53fb8000 {
 				compatible = "fsl,imx25-esdhc";
 				reg = <0x53fb8000 0x4000>;
 				interrupts = <8>;
@@ -486,7 +488,7 @@
 
 			pwm4: pwm@53fc8000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				reg = <0x53fc8000 0x4000>;
 				clocks = <&clks 108>, <&clks 52>;
 				clock-names = "ipg", "per";
@@ -533,14 +535,14 @@
 
 			pwm1: pwm@53fe0000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				reg = <0x53fe0000 0x4000>;
 				clocks = <&clks 105>, <&clks 52>;
 				clock-names = "ipg", "per";
 				interrupts = <26>;
 			};
 
-			iim: iim@53ff0000 {
+			iim: efuse@53ff0000 {
 				compatible = "fsl,imx25-iim", "fsl,imx27-iim";
 				reg = <0x53ff0000 0x4000>;
 				interrupts = <19>;
@@ -568,6 +570,9 @@
 				clock-names = "ipg", "ahb", "per";
 				fsl,usbmisc = <&usbmisc 1>;
 				fsl,usbphy = <&usbphy1>;
+				maximum-speed = "full-speed";
+				phy_type = "serial";
+				dr_mode = "host";
 				status = "disabled";
 			};
 

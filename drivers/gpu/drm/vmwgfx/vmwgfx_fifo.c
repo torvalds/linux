@@ -25,9 +25,11 @@
  *
  **************************************************************************/
 
-#include "vmwgfx_drv.h"
-#include <drm/drmP.h>
+#include <linux/sched/signal.h>
+
 #include <drm/ttm/ttm_placement.h>
+
+#include "vmwgfx_drv.h"
 
 struct vmw_temp_set_context {
 	SVGA3dCmdHeader header;
@@ -167,10 +169,8 @@ void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason)
 {
 	u32 *fifo_mem = dev_priv->mmio_virt;
 
-	preempt_disable();
 	if (cmpxchg(fifo_mem + SVGA_FIFO_BUSY, 0, 1) == 0)
 		vmw_write(dev_priv, SVGA_REG_SYNC, reason);
-	preempt_enable();
 }
 
 void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
@@ -395,12 +395,8 @@ void *vmw_fifo_reserve_dx(struct vmw_private *dev_priv, uint32_t bytes,
 		WARN(1, "Command buffer has not been allocated.\n");
 		ret = NULL;
 	}
-	if (IS_ERR_OR_NULL(ret)) {
-		DRM_ERROR("Fifo reserve failure of %u bytes.\n",
-			  (unsigned) bytes);
-		dump_stack();
+	if (IS_ERR_OR_NULL(ret))
 		return NULL;
-	}
 
 	return ret;
 }
@@ -544,7 +540,7 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 	int ret = 0;
 	uint32_t bytes = sizeof(u32) + sizeof(*cmd_fence);
 
-	fm = vmw_fifo_reserve(dev_priv, bytes);
+	fm = VMW_FIFO_RESERVE(dev_priv, bytes);
 	if (unlikely(fm == NULL)) {
 		*seqno = atomic_read(&dev_priv->marker_seq);
 		ret = -ENOMEM;
@@ -603,12 +599,9 @@ static int vmw_fifo_emit_dummy_legacy_query(struct vmw_private *dev_priv,
 		SVGA3dCmdWaitForQuery body;
 	} *cmd;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of fifo space for dummy query.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_WAIT_FOR_QUERY;
 	cmd->header.size = sizeof(cmd->body);
@@ -617,7 +610,7 @@ static int vmw_fifo_emit_dummy_legacy_query(struct vmw_private *dev_priv,
 
 	if (bo->mem.mem_type == TTM_PL_VRAM) {
 		cmd->body.guestResult.gmrId = SVGA_GMR_FRAMEBUFFER;
-		cmd->body.guestResult.offset = bo->offset;
+		cmd->body.guestResult.offset = bo->mem.start << PAGE_SHIFT;
 	} else {
 		cmd->body.guestResult.gmrId = bo->mem.start;
 		cmd->body.guestResult.offset = 0;
@@ -652,12 +645,9 @@ static int vmw_fifo_emit_dummy_gb_query(struct vmw_private *dev_priv,
 		SVGA3dCmdWaitForGBQuery body;
 	} *cmd;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of fifo space for dummy query.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_WAIT_FOR_GB_QUERY;
 	cmd->header.size = sizeof(cmd->body);
@@ -698,9 +688,4 @@ int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
 		return vmw_fifo_emit_dummy_gb_query(dev_priv, cid);
 
 	return vmw_fifo_emit_dummy_legacy_query(dev_priv, cid);
-}
-
-void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes)
-{
-	return vmw_fifo_reserve_dx(dev_priv, bytes, SVGA3D_INVALID_ID);
 }

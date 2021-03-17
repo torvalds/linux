@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * clk-flexgen.c
  *
  * Copyright (C) ST-Microelectronics SA 2013
  * Author:  Maxime Coquelin <maxime.coquelin@st.com> for ST-Microelectronics.
- * License terms:  GNU General Public License (GPL), version 2  */
+ */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -210,7 +211,7 @@ static struct clk *clk_register_flexgen(const char *name,
 
 	init.name = name;
 	init.ops = &flexgen_ops;
-	init.flags = CLK_IS_BASIC | CLK_GET_RATE_NOCACHE | flexgen_flags;
+	init.flags = CLK_GET_RATE_NOCACHE | flexgen_flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
@@ -325,6 +326,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 		return;
 
 	reg = of_iomap(pnode, 0);
+	of_node_put(pnode);
 	if (!reg)
 		return;
 
@@ -373,6 +375,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 			break;
 		}
 
+		flex_flags &= ~CLK_IS_CRITICAL;
 		of_clk_detect_critical(np, i, &flex_flags);
 
 		/*

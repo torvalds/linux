@@ -15,7 +15,6 @@
 #include <linux/vmalloc.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/sun3mmu.h>
 

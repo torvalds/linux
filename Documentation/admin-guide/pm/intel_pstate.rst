@@ -1,10 +1,13 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 ===============================================
 ``intel_pstate`` CPU Performance Scaling Driver
 ===============================================
 
-::
+:Copyright: |copy| 2017 Intel Corporation
 
- Copyright (c) 2017 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
 
 General Information
@@ -20,11 +23,10 @@ you have not done that yet.]
 
 For the processors supported by ``intel_pstate``, the P-state concept is broader
 than just an operating frequency or an operating performance point (see the
-`LinuxCon Europe 2015 presentation by Kristen Accardi <LCEU2015_>`_ for more
+LinuxCon Europe 2015 presentation by Kristen Accardi [1]_ for more
 information about that).  For this reason, the representation of P-states used
 by ``intel_pstate`` internally follows the hardware specification (for details
-refer to `Intel® 64 and IA-32 Architectures Software Developer’s Manual
-Volume 3: System Programming Guide <SDM_>`_).  However, the ``CPUFreq`` core
+refer to Intel Software Developer’s Manual [2]_).  However, the ``CPUFreq`` core
 uses frequencies for identifying operating performance points of CPUs and
 frequencies are involved in the user space interface exposed by it, so
 ``intel_pstate`` maps its internal representation of P-states to frequencies too
@@ -52,17 +54,21 @@ registered (see `below <status_attr_>`_).
 Operation Modes
 ===============
 
-``intel_pstate`` can operate in three different modes: in the active mode with
-or without hardware-managed P-states support and in the passive mode.  Which of
-them will be in effect depends on what kernel command line options are used and
-on the capabilities of the processor.
+``intel_pstate`` can operate in two different modes, active or passive.  In the
+active mode, it uses its own internal performance scaling governor algorithm or
+allows the hardware to do preformance scaling by itself, while in the passive
+mode it responds to requests made by a generic ``CPUFreq`` governor implementing
+a certain performance scaling algorithm.  Which of them will be in effect
+depends on what kernel command line options are used and on the capabilities of
+the processor.
 
 Active Mode
 -----------
 
-This is the default operation mode of ``intel_pstate``.  If it works in this
-mode, the ``scaling_driver`` policy attribute in ``sysfs`` for all ``CPUFreq``
-policies contains the string "intel_pstate".
+This is the default operation mode of ``intel_pstate`` for processors with
+hardware-managed P-states (HWP) support.  If it works in this mode, the
+``scaling_driver`` policy attribute in ``sysfs`` for all ``CPUFreq`` policies
+contains the string "intel_pstate".
 
 In this mode the driver bypasses the scaling governors layer of ``CPUFreq`` and
 provides its own scaling algorithms for P-state selection.  Those algorithms
@@ -117,7 +123,9 @@ Energy-Performance Bias (EPB) knob (otherwise), which means that the processor's
 internal P-state selection logic is expected to focus entirely on performance.
 
 This will override the EPP/EPB setting coming from the ``sysfs`` interface
-(see `Energy vs Performance Hints`_ below).
+(see `Energy vs Performance Hints`_ below).  Moreover, any attempts to change
+the EPP/EPB to a value different from 0 ("performance") via ``sysfs`` in this
+configuration will be rejected.
 
 Also, in this configuration the range of P-states available to the processor's
 internal P-state selection logic is always restricted to the upper boundary
@@ -136,12 +144,13 @@ internal P-state selection logic to be less performance-focused.
 Active Mode Without HWP
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-This is the default operation mode for processors that do not support the HWP
-feature.  It also is used by default with the ``intel_pstate=no_hwp`` argument
-in the kernel command line.  However, in this mode ``intel_pstate`` may refuse
-to work with the given processor if it does not recognize it.  [Note that
-``intel_pstate`` will never refuse to work with any processor with the HWP
-feature enabled.]
+This operation mode is optional for processors that do not support the HWP
+feature or when the ``intel_pstate=no_hwp`` argument is passed to the kernel in
+the command line.  The active mode is used in those cases if the
+``intel_pstate=active`` argument is passed to the kernel in the command line.
+In this mode ``intel_pstate`` may refuse to work with processors that are not
+recognized by it.  [Note that ``intel_pstate`` will never refuse to work with
+any processor with the HWP feature enabled.]
 
 In this mode ``intel_pstate`` registers utilization update callbacks with the
 CPU scheduler in order to run a P-state selection algorithm, either
@@ -186,10 +195,15 @@ is not set.
 Passive Mode
 ------------
 
-This mode is used if the ``intel_pstate=passive`` argument is passed to the
-kernel in the command line (it implies the ``intel_pstate=no_hwp`` setting too).
-Like in the active mode without HWP support, in this mode ``intel_pstate`` may
-refuse to work with the given processor if it does not recognize it.
+This is the default operation mode of ``intel_pstate`` for processors without
+hardware-managed P-states (HWP) support.  It is always used if the
+``intel_pstate=passive`` argument is passed to the kernel in the command line
+regardless of whether or not the given processor supports HWP.  [Note that the
+``intel_pstate=no_hwp`` setting causes the driver to start in the passive mode
+if it is not combined with ``intel_pstate=active``.]  Like in the active mode
+without HWP support, in this mode ``intel_pstate`` may refuse to work with
+processors that are not recognized by it if HWP is prevented from being enabled
+through the kernel command line.
 
 If the driver works in this mode, the ``scaling_driver`` policy attribute in
 ``sysfs`` for all ``CPUFreq`` policies contains the string "intel_cpufreq".
@@ -310,10 +324,9 @@ manuals need to be consulted to get to it too.
 
 For this reason, there is a list of supported processors in ``intel_pstate`` and
 the driver initialization will fail if the detected processor is not in that
-list, unless it supports the `HWP feature <Active Mode_>`_.  [The interface to
-obtain all of the information listed above is the same for all of the processors
-supporting the HWP feature, which is why they all are supported by
-``intel_pstate``.]
+list, unless it supports the HWP feature.  [The interface to obtain all of the
+information listed above is the same for all of the processors supporting the
+HWP feature, which is why ``intel_pstate`` works with all of them.]
 
 
 User Space Interface in ``sysfs``
@@ -417,11 +430,16 @@ argument is passed to the kernel in the command line.
 	as well as the per-policy ones) are then reset to their default
 	values, possibly depending on the target operation mode.]
 
-	That only is supported in some configurations, though (for example, if
-	the `HWP feature is enabled in the processor <Active Mode With HWP_>`_,
-	the operation mode of the driver cannot be changed), and if it is not
-	supported in the current configuration, writes to this attribute will
-	fail with an appropriate error.
+``energy_efficiency``
+	This attribute is only present on platforms with CPUs matching the Kaby
+	Lake or Coffee Lake desktop CPU model. By default, energy-efficiency
+	optimizations are disabled on these CPU models if HWP is enabled.
+	Enabling energy-efficiency optimizations may limit maximum operating
+	frequency with or without the HWP feature.  With HWP enabled, the
+	optimizations are done only in the turbo frequency range.  Without it,
+	they are done in the entire available frequency range.  Setting this
+	attribute to "1" enables the energy-efficiency optimizations and setting
+	to "0" disables them.
 
 Interpretation of Policy Attributes
 -----------------------------------
@@ -465,6 +483,13 @@ Next, the following policy attributes have special meaning if
 	policy for the time interval between the last two invocations of the
 	driver's utilization update callback by the CPU scheduler for that CPU.
 
+One more policy attribute is present if the HWP feature is enabled in the
+processor:
+
+``base_frequency``
+	Shows the base frequency of the CPU. Any frequency above this will be
+	in the turbo frequency range.
+
 The meaning of these attributes in the `passive mode <Passive Mode_>`_ is the
 same as for other scaling drivers.
 
@@ -488,15 +513,23 @@ on the following rules, regardless of the current operation mode of the driver:
 
  2. Each individual CPU is affected by its own per-policy limits (that is, it
     cannot be requested to run faster than its own per-policy maximum and it
-    cannot be requested to run slower than its own per-policy minimum).
+    cannot be requested to run slower than its own per-policy minimum). The
+    effective performance depends on whether the platform supports per core
+    P-states, hyper-threading is enabled and on current performance requests
+    from other CPUs. When platform doesn't support per core P-states, the
+    effective performance can be more than the policy limits set on a CPU, if
+    other CPUs are requesting higher performance at that moment. Even with per
+    core P-states support, when hyper-threading is enabled, if the sibling CPU
+    is requesting higher performance, the other siblings will get higher
+    performance than their policy limits.
 
  3. The global and per-policy limits can be set independently.
 
-If the `HWP feature is enabled in the processor <Active Mode With HWP_>`_, the
-resulting effective values are written into its registers whenever the limits
-change in order to request its internal P-state selection logic to always set
-P-states within these limits.  Otherwise, the limits are taken into account by
-scaling governors (in the `passive mode <Passive Mode_>`_) and by the driver
+In the `active mode with the HWP feature enabled <Active Mode With HWP_>`_, the
+resulting effective values are written into hardware registers whenever the
+limits change in order to request its internal P-state selection logic to always
+set P-states within these limits.  Otherwise, the limits are taken into account
+by scaling governors (in the `passive mode <Passive Mode_>`_) and by the driver
 every time before setting a new P-state for a CPU.
 
 Additionally, if the ``intel_pstate=per_cpu_perf_limits`` command line argument
@@ -507,12 +540,11 @@ at all and the only way to set the limits is by using the policy attributes.
 Energy vs Performance Hints
 ---------------------------
 
-If ``intel_pstate`` works in the `active mode with the HWP feature enabled
-<Active Mode With HWP_>`_ in the processor, additional attributes are present
-in every ``CPUFreq`` policy directory in ``sysfs``.  They are intended to allow
-user space to help ``intel_pstate`` to adjust the processor's internal P-state
-selection logic by focusing it on performance or on energy-efficiency, or
-somewhere between the two extremes:
+If the hardware-managed P-states (HWP) is enabled in the processor, additional
+attributes, intended to allow user space to help ``intel_pstate`` to adjust the
+processor's internal P-state selection logic by focusing it on performance or on
+energy-efficiency, or somewhere between the two extremes, are present in every
+``CPUFreq`` policy directory in ``sysfs``.  They are :
 
 ``energy_performance_preference``
 	Current value of the energy vs performance hint for the given policy
@@ -531,7 +563,11 @@ somewhere between the two extremes:
 Strings written to the ``energy_performance_preference`` attribute are
 internally translated to integer values written to the processor's
 Energy-Performance Preference (EPP) knob (if supported) or its
-Energy-Performance Bias (EPB) knob.
+Energy-Performance Bias (EPB) knob. It is also possible to write a positive
+integer value between 0 to 255, if the EPP feature is present. If the EPP
+feature is not present, writing integer value to this attribute is not
+supported. In this case, user can use the
+"/sys/devices/system/cpu/cpu*/power/energy_perf_bias" interface.
 
 [Note that tasks may by migrated from one CPU to another by the scheduler's
 load-balancing algorithm and if different energy vs performance hints are
@@ -546,9 +582,9 @@ or to pin every task potentially sensitive to them to a specific CPU.]
 
 On the majority of systems supported by ``intel_pstate``, the ACPI tables
 provided by the platform firmware contain ``_PSS`` objects returning information
-that can be used for CPU performance scaling (refer to the `ACPI specification`_
-for details on the ``_PSS`` objects and the format of the information returned
-by them).
+that can be used for CPU performance scaling (refer to the ACPI specification
+[3]_ for details on the ``_PSS`` objects and the format of the information
+returned by them).
 
 The information returned by the ACPI ``_PSS`` objects is used by the
 ``acpi-cpufreq`` scaling driver.  On systems supported by ``intel_pstate``
@@ -612,11 +648,13 @@ of them have to be prepended with the ``intel_pstate=`` prefix.
 	Do not register ``intel_pstate`` as the scaling driver even if the
 	processor is supported by it.
 
+``active``
+	Register ``intel_pstate`` in the `active mode <Active Mode_>`_ to start
+	with.
+
 ``passive``
 	Register ``intel_pstate`` in the `passive mode <Passive Mode_>`_ to
 	start with.
-
-	This option implies the ``no_hwp`` one described below.
 
 ``force``
 	Register ``intel_pstate`` as the scaling driver instead of
@@ -632,13 +670,12 @@ of them have to be prepended with the ``intel_pstate=`` prefix.
 	driver is used instead of ``acpi-cpufreq``.
 
 ``no_hwp``
-	Do not enable the `hardware-managed P-states (HWP) feature
-	<Active Mode With HWP_>`_ even if it is supported by the processor.
+	Do not enable the hardware-managed P-states (HWP) feature even if it is
+	supported by the processor.
 
 ``hwp_only``
 	Register ``intel_pstate`` as the scaling driver only if the
-	`hardware-managed P-states (HWP) feature <Active Mode With HWP_>`_ is
-	supported by the processor.
+	hardware-managed P-states (HWP) feature is supported by the processor.
 
 ``support_acpi_ppc``
 	Take ACPI ``_PPC`` performance limits into account.
@@ -685,7 +722,7 @@ core (for the policies with other scaling governors).
 
 The ``ftrace`` interface can be used for low-level diagnostics of
 ``intel_pstate``.  For example, to check how often the function to set a
-P-state is called, the ``ftrace`` filter can be set to to
+P-state is called, the ``ftrace`` filter can be set to
 :c:func:`intel_pstate_set_pstate`::
 
  # cd /sys/kernel/debug/tracing/
@@ -713,6 +750,14 @@ P-state is called, the ``ftrace`` filter can be set to to
            <idle>-0     [000] ..s.  2537.654843: intel_pstate_set_pstate <-intel_pstate_timer_func
 
 
-.. _LCEU2015: http://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf
-.. _SDM: http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html
-.. _ACPI specification: http://www.uefi.org/sites/default/files/resources/ACPI_6_1.pdf
+References
+==========
+
+.. [1] Kristen Accardi, *Balancing Power and Performance in the Linux Kernel*,
+       https://events.static.linuxfound.org/sites/events/files/slides/LinuxConEurope_2015.pdf
+
+.. [2] *Intel® 64 and IA-32 Architectures Software Developer’s Manual Volume 3: System Programming Guide*,
+       https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html
+
+.. [3] *Advanced Configuration and Power Interface Specification*,
+       https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf

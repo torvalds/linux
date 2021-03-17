@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  QLogic FCoE Offload Driver
  *  Copyright (c) 2016-2018 Cavium Inc.
- *
- *  This software is available under the terms of the GNU General Public License
- *  (GPL) Version 2, available from the file COPYING in the main directory of
- *  this source tree.
  */
 #ifndef _QEDFC_H_
 #define _QEDFC_H_
@@ -35,9 +32,6 @@
 #define QEDF_DESCR "QLogic FCoE Offload Driver"
 #define QEDF_MODULE_NAME "qedf"
 
-#define QEDF_MIN_XID		0
-#define QEDF_MAX_SCSI_XID	(NUM_TASKS_PER_CONNECTION - 1)
-#define QEDF_MAX_ELS_XID	4095
 #define QEDF_FLOGI_RETRY_CNT	3
 #define QEDF_RPORT_RETRY_CNT	255
 #define QEDF_MAX_SESSIONS	1024
@@ -52,9 +46,10 @@
 	sizeof(struct fc_frame_header))
 #define QEDF_MAX_NPIV		64
 #define QEDF_TM_TIMEOUT		10
-#define QEDF_ABORT_TIMEOUT	10
-#define QEDF_CLEANUP_TIMEOUT	10
+#define QEDF_ABORT_TIMEOUT	(10 * 1000)
+#define QEDF_CLEANUP_TIMEOUT	1
 #define QEDF_MAX_CDB_LEN	16
+#define QEDF_LL2_BUF_SIZE	2500	/* Buffer size required for LL2 Rx */
 
 #define UPSTREAM_REMOVE		1
 #define UPSTREAM_KEEP		1
@@ -85,6 +80,7 @@ struct qedf_els_cb_arg {
 };
 
 enum qedf_ioreq_event {
+	QEDF_IOREQ_EV_NONE,
 	QEDF_IOREQ_EV_ABORT_SUCCESS,
 	QEDF_IOREQ_EV_ABORT_FAILED,
 	QEDF_IOREQ_EV_SEND_RRQ,
@@ -105,7 +101,6 @@ struct qedf_ioreq {
 	struct list_head link;
 	uint16_t xid;
 	struct scsi_cmnd *sc_cmd;
-	bool use_slowpath; /* Use slow SGL for this I/O */
 #define QEDF_SCSI_CMD		1
 #define QEDF_TASK_MGMT_CMD	2
 #define QEDF_ABTS		3
@@ -117,22 +112,43 @@ struct qedf_ioreq {
 #define QEDF_CMD_IN_ABORT		0x1
 #define QEDF_CMD_IN_CLEANUP		0x2
 #define QEDF_CMD_SRR_SENT		0x3
+#define QEDF_CMD_DIRTY			0x4
+#define QEDF_CMD_ERR_SCSI_DONE		0x5
 	u8 io_req_flags;
 	uint8_t tm_flags;
 	struct qedf_rport *fcport;
+#define	QEDF_CMD_ST_INACTIVE		0
+#define	QEDFC_CMD_ST_IO_ACTIVE		1
+#define	QEDFC_CMD_ST_ABORT_ACTIVE	2
+#define	QEDFC_CMD_ST_ABORT_ACTIVE_EH	3
+#define	QEDFC_CMD_ST_CLEANUP_ACTIVE	4
+#define	QEDFC_CMD_ST_CLEANUP_ACTIVE_EH	5
+#define	QEDFC_CMD_ST_RRQ_ACTIVE		6
+#define	QEDFC_CMD_ST_RRQ_WAIT		7
+#define	QEDFC_CMD_ST_OXID_RETIRE_WAIT	8
+#define	QEDFC_CMD_ST_TMF_ACTIVE		9
+#define	QEDFC_CMD_ST_DRAIN_ACTIVE	10
+#define	QEDFC_CMD_ST_CLEANED		11
+#define	QEDFC_CMD_ST_ELS_ACTIVE		12
+	atomic_t state;
 	unsigned long flags;
 	enum qedf_ioreq_event event;
 	size_t data_xfer_len;
+	/* ID: 001: Alloc cmd (qedf_alloc_cmd) */
+	/* ID: 002: Initiate ABTS (qedf_initiate_abts) */
+	/* ID: 003: For RRQ (qedf_process_abts_compl) */
 	struct kref refcount;
 	struct qedf_cmd_mgr *cmd_mgr;
 	struct io_bdt *bd_tbl;
 	struct delayed_work timeout_work;
 	struct completion tm_done;
 	struct completion abts_done;
+	struct completion cleanup_done;
 	struct e4_fcoe_task_context *task;
 	struct fcoe_task_params *task_params;
 	struct scsi_sgl_task_params *sgl_task_params;
 	int idx;
+	int lun;
 /*
  * Need to allocate enough room for both sense data and FCP response data
  * which has a max length of 8 bytes according to spec.
@@ -155,9 +171,9 @@ struct qedf_ioreq {
 	int fp_idx;
 	unsigned int cpu;
 	unsigned int int_cpu;
-#define QEDF_IOREQ_SLOW_SGE		0
-#define QEDF_IOREQ_SINGLE_SGE		1
-#define QEDF_IOREQ_FAST_SGE		2
+#define QEDF_IOREQ_UNKNOWN_SGE		1
+#define QEDF_IOREQ_SLOW_SGE		2
+#define QEDF_IOREQ_FAST_SGE		3
 	u8 sge_type;
 	struct delayed_work rrq_work;
 
@@ -172,6 +188,8 @@ struct qedf_ioreq {
 	 * during some form of error processing.
 	 */
 	bool return_scsi_cmd_on_abts;
+
+	unsigned int alloc;
 };
 
 extern struct workqueue_struct *qedf_io_wq;
@@ -181,7 +199,10 @@ struct qedf_rport {
 #define QEDF_RPORT_SESSION_READY 1
 #define QEDF_RPORT_UPLOADING_CONNECTION	2
 #define QEDF_RPORT_IN_RESET 3
+#define QEDF_RPORT_IN_LUN_RESET 4
+#define QEDF_RPORT_IN_TARGET_RESET 5
 	unsigned long flags;
+	int lun_reset_lun;
 	unsigned long retry_delay_timestamp;
 	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
@@ -191,6 +212,7 @@ struct qedf_rport {
 	void __iomem *p_doorbell;
 	/* Send queue management */
 	atomic_t free_sqes;
+	atomic_t ios_to_queue;
 	atomic_t num_active_ios;
 	struct fcoe_wqe *sq;
 	dma_addr_t sq_dma;
@@ -295,8 +317,6 @@ struct qedf_ctx {
 #define QEDF_DCBX_PENDING	0
 #define QEDF_DCBX_DONE		1
 	atomic_t dcbx;
-	uint16_t max_scsi_xid;
-	uint16_t max_els_xid;
 #define QEDF_NULL_VLAN_ID	-1
 #define QEDF_FALLBACK_VLAN	1002
 #define QEDF_DEFAULT_PRIO	3
@@ -335,6 +355,7 @@ struct qedf_ctx {
 #define QEDF_GRCDUMP_CAPTURE		4
 #define QEDF_IN_RECOVERY		5
 #define QEDF_DBG_STOP_IO		6
+#define QEDF_PROBING			8
 	unsigned long flags; /* Miscellaneous state flags */
 	int fipvlan_retries;
 	u8 num_queues;
@@ -367,11 +388,13 @@ struct qedf_ctx {
 #define QEDF_IO_WORK_MIN		64
 	mempool_t *io_mempool;
 	struct workqueue_struct *dpc_wq;
+	struct delayed_work recovery_work;
+	struct delayed_work board_disable_work;
 	struct delayed_work grcdump_work;
+	struct delayed_work stag_work;
 
 	u32 slow_sge_ios;
 	u32 fast_sge_ios;
-	u32 single_sge_ios;
 
 	uint8_t	*grcdump;
 	uint32_t grcdump_size;
@@ -384,6 +407,7 @@ struct qedf_ctx {
 
 	u32 flogi_cnt;
 	u32 flogi_failed;
+	u32 flogi_pending;
 
 	/* Used for fc statistics */
 	struct mutex stats_mutex;
@@ -396,6 +420,8 @@ struct qedf_ctx {
 	u8 target_resets;
 	u8 task_set_fulls;
 	u8 busy;
+	/* Used for flush routine */
+	struct mutex flush_mutex;
 };
 
 struct io_bdt {
@@ -435,13 +461,19 @@ static inline void qedf_stop_all_io(struct qedf_ctx *qedf)
 /*
  * Externs
  */
+
+/*
+ * (QEDF_LOG_NPIV | QEDF_LOG_SESS | QEDF_LOG_LPORT | QEDF_LOG_ELS | QEDF_LOG_MQ
+ * | QEDF_LOG_IO | QEDF_LOG_UNSOL | QEDF_LOG_SCSI_TM | QEDF_LOG_MP_REQ |
+ * QEDF_LOG_EVT | QEDF_LOG_CONN | QEDF_LOG_DISC | QEDF_LOG_INFO)
+ */
 #define QEDF_DEFAULT_LOG_MASK		0x3CFB6
 extern const struct qed_fcoe_ops *qed_ops;
 extern uint qedf_dump_frames;
 extern uint qedf_io_tracing;
 extern uint qedf_stop_io_on_error;
 extern uint qedf_link_down_tmo;
-#define QEDF_RETRY_DELAY_MAX		20 /* 2 seconds */
+#define QEDF_RETRY_DELAY_MAX		600 /* 60 seconds */
 extern bool qedf_retry_delay;
 extern uint qedf_debug;
 
@@ -494,7 +526,7 @@ extern void qedf_set_vlan_id(struct qedf_ctx *qedf, int vlan_id);
 extern void qedf_create_sysfs_ctx_attr(struct qedf_ctx *qedf);
 extern void qedf_remove_sysfs_ctx_attr(struct qedf_ctx *qedf);
 extern void qedf_capture_grc_dump(struct qedf_ctx *qedf);
-extern void qedf_wait_for_upload(struct qedf_ctx *qedf);
+bool qedf_wait_for_upload(struct qedf_ctx *qedf);
 extern void qedf_process_unsol_compl(struct qedf_ctx *qedf, uint16_t que_idx,
 	struct fcoe_cqe *cqe);
 extern void qedf_restart_rport(struct qedf_rport *fcport);
@@ -508,9 +540,19 @@ extern void qedf_get_protocol_tlv_data(void *dev, void *data);
 extern void qedf_fp_io_handler(struct work_struct *work);
 extern void qedf_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data);
 extern void qedf_wq_grcdump(struct work_struct *work);
+void qedf_stag_change_work(struct work_struct *work);
+void qedf_ctx_soft_reset(struct fc_lport *lport);
+extern void qedf_board_disable_work(struct work_struct *work);
+extern void qedf_schedule_hw_err_handler(void *dev,
+		enum qed_hw_err_type err_type);
 
 #define FCOE_WORD_TO_BYTE  4
 #define QEDF_MAX_TASK_NUM	0xFFFF
+#define QL45xxx			0x165C
+#define QL41xxx			0x8080
+#define MAX_CT_PAYLOAD		2048
+#define DISCOVERED_PORTS	4
+#define NUMBER_OF_PORTS		1
 
 struct fip_vlan {
 	struct ethhdr eth;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ddbridge-core.c: Digital Devices bridge core functions
  *
@@ -5,19 +6,14 @@
  *                         Marcus Metzler <mocm@metzlerbros.de>
  *                         Ralph Metzler <rjkm@metzlerbros.de>
  *
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 2 only, as published by the Free Software Foundation.
- *
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -54,7 +50,7 @@
 #include "stv6111.h"
 #include "lnbh25.h"
 #include "cxd2099.h"
-#include "dvb_dummy_fe.h"
+#include "ddbridge-dummy-fe.h"
 
 /****************************************************************************/
 
@@ -1269,7 +1265,7 @@ static int demod_attach_dummy(struct ddb_input *input)
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct device *dev = input->port->dev->dev;
 
-	dvb->fe = dvb_attach(dvb_dummy_fe_qam_attach);
+	dvb->fe = dvb_attach(ddbridge_dummy_fe_qam_attach);
 	if (!dvb->fe) {
 		dev_err(dev, "QAM dummy attach failed!\n");
 		return -ENODEV;
@@ -1314,7 +1310,7 @@ static void dvb_input_detach(struct ddb_input *input)
 			dvb_unregister_frontend(dvb->fe2);
 		if (dvb->fe)
 			dvb_unregister_frontend(dvb->fe);
-		/* fallthrough */
+		fallthrough;
 	case 0x30:
 		dvb_module_release(dvb->i2c_client[0]);
 		dvb->i2c_client[0] = NULL;
@@ -1325,22 +1321,22 @@ static void dvb_input_detach(struct ddb_input *input)
 			dvb_frontend_detach(dvb->fe);
 		dvb->fe = NULL;
 		dvb->fe2 = NULL;
-		/* fallthrough */
+		fallthrough;
 	case 0x20:
 		dvb_net_release(&dvb->dvbnet);
-		/* fallthrough */
+		fallthrough;
 	case 0x12:
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &dvb->hw_frontend);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &dvb->mem_frontend);
-		/* fallthrough */
+		fallthrough;
 	case 0x11:
 		dvb_dmxdev_release(&dvb->dmxdev);
-		/* fallthrough */
+		fallthrough;
 	case 0x10:
 		dvb_dmx_release(&dvb->demux);
-		/* fallthrough */
+		fallthrough;
 	case 0x01:
 		break;
 	}
@@ -1563,7 +1559,7 @@ static int dvb_input_attach(struct ddb_input *input)
 			osc24 = 0;
 		else
 			osc24 = 1;
-		/* fall-through */
+		fallthrough;
 	case DDB_TUNER_DVBCT2_SONY_P:
 	case DDB_TUNER_DVBC2T2_SONY_P:
 	case DDB_TUNER_ISDBT_SONY_P:
@@ -1579,7 +1575,7 @@ static int dvb_input_attach(struct ddb_input *input)
 		break;
 	case DDB_TUNER_DVBC2T2I_SONY:
 		osc24 = 1;
-		/* fall-through */
+		fallthrough;
 	case DDB_TUNER_DVBCT2_SONY:
 	case DDB_TUNER_DVBC2T2_SONY:
 	case DDB_TUNER_ISDBT_SONY:
@@ -2040,7 +2036,7 @@ static int ddb_port_attach(struct ddb_port *port)
 		ret = ddb_ci_attach(port, ci_bitrate);
 		if (ret < 0)
 			break;
-		/* fall-through */
+		fallthrough;
 	case DDB_PORT_LOOP:
 		ret = dvb_register_device(port->dvb[0].adap,
 					  &port->dvb[0].dev,
@@ -2436,7 +2432,8 @@ void ddb_ports_init(struct ddb *dev)
 					ddb_input_init(port, 4 + i, 1, 4 + i);
 					ddb_output_init(port, i);
 					break;
-				} /* fallthrough */
+				}
+				fallthrough;
 			case DDB_OCTOPUS:
 				ddb_input_init(port, 2 * i, 0, 2 * i);
 				ddb_input_init(port, 2 * i + 1, 1, 2 * i + 1);
@@ -3421,7 +3418,7 @@ int ddb_exit_ddbridge(int stage, int error)
 	default:
 	case 2:
 		destroy_workqueue(ddb_wq);
-		/* fall-through */
+		fallthrough;
 	case 1:
 		ddb_class_destroy();
 		break;

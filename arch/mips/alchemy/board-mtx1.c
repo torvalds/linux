@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MTX-1 platform devices registration (Au1500)
  *
  * Copyright (C) 2007-2009, Florian Fainelli <florian@openwrt.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/init.h>
@@ -24,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/mtd/partitions.h>
@@ -40,23 +28,6 @@
 const char *get_system_type(void)
 {
 	return "MTX-1";
-}
-
-void __init prom_init(void)
-{
-	unsigned char *memsize_str;
-	unsigned long memsize;
-
-	prom_argc = fw_arg0;
-	prom_argv = (char **)fw_arg1;
-	prom_envp = (char **)fw_arg2;
-
-	prom_init_cmdline();
-
-	memsize_str = prom_getenv("memsize");
-	if (!memsize_str || kstrtoul(memsize_str, 0, &memsize))
-		memsize = 0x04000000;
-	add_memory_region(0, memsize, BOOT_MEM_RAM);
 }
 
 void prom_putchar(char c)
@@ -130,20 +101,18 @@ static struct platform_device mtx1_button = {
 	}
 };
 
-static struct resource mtx1_wdt_res[] = {
-	[0] = {
-		.start	= 215,
-		.end	= 215,
-		.name	= "mtx1-wdt-gpio",
-		.flags	= IORESOURCE_IRQ,
-	}
+static struct gpiod_lookup_table mtx1_wdt_gpio_table = {
+	.dev_id = "mtx1-wdt.0",
+	.table = {
+		/* Global number 215 is offset 15 on Alchemy GPIO 2 */
+		GPIO_LOOKUP("alchemy-gpio2", 15, NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device mtx1_wdt = {
 	.name = "mtx1-wdt",
 	.id = 0,
-	.num_resources = ARRAY_SIZE(mtx1_wdt_res),
-	.resource = mtx1_wdt_res,
 };
 
 static const struct gpio_led default_leds[] = {
@@ -310,6 +279,7 @@ static int __init mtx1_register_devices(void)
 	}
 	gpio_direction_input(mtx1_gpio_button[0].gpio);
 out:
+	gpiod_add_lookup_table(&mtx1_wdt_gpio_table);
 	return platform_add_devices(mtx1_devs, ARRAY_SIZE(mtx1_devs));
 }
 arch_initcall(mtx1_register_devices);

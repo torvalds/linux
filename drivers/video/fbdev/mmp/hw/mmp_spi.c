@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/drivers/video/mmp/hw/mmp_spi.c
  * using the spi in LCD controler for commands send
@@ -6,20 +7,6 @@
  * Authors:  Guoqing Li <ligq@marvell.com>
  *          Lisa Du <cldu@marvell.com>
  *          Zhou Zhu <zzhu3@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 #include <linux/errno.h>
 #include <linux/delay.h>
@@ -44,7 +31,7 @@ static inline int lcd_spi_write(struct spi_device *spi, u32 data)
 {
 	int timeout = 100000, isr, ret = 0;
 	u32 tmp;
-	void *reg_base =
+	void __iomem *reg_base = (void __iomem *)
 		*(void **)spi_master_get_devdata(spi->master);
 
 	/* clear ISR */
@@ -93,7 +80,7 @@ static inline int lcd_spi_write(struct spi_device *spi, u32 data)
 
 static int lcd_spi_setup(struct spi_device *spi)
 {
-	void *reg_base =
+	void __iomem *reg_base = (void __iomem *)
 		*(void **)spi_master_get_devdata(spi->master);
 	u32 tmp;
 
@@ -159,7 +146,7 @@ int lcd_spi_register(struct mmphw_ctrl *ctrl)
 		return -ENOMEM;
 	}
 	p_regbase = spi_master_get_devdata(master);
-	*p_regbase = ctrl->reg_base;
+	*p_regbase = (void __force *)ctrl->reg_base;
 
 	/* set bus num to 5 to avoid conflict with other spi hosts */
 	master->bus_num = 5;

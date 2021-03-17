@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  QLogic FCoE Offload Driver
  *  Copyright (c) 2016-2018 Cavium Inc.
- *
- *  This software is available under the terms of the GNU General Public License
- *  (GPL) Version 2, available from the file COPYING in the main directory of
- *  this source tree.
  */
 #include "qedf.h"
 
@@ -23,8 +20,6 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	int rc = 0;
 	uint32_t did, sid;
 	uint16_t xid;
-	uint32_t start_time = jiffies / HZ;
-	uint32_t current_time;
 	struct fcoe_wqe *sqe;
 	unsigned long flags;
 	u16 sqe_idx;
@@ -59,18 +54,12 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 		goto els_err;
 	}
 
-retry_els:
 	els_req = qedf_alloc_cmd(fcport, QEDF_ELS);
 	if (!els_req) {
-		current_time = jiffies / HZ;
-		if ((current_time - start_time) > 10) {
-			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS,
-				   "els: Failed els 0x%x\n", op);
-			rc = -ENOMEM;
-			goto els_err;
-		}
-		mdelay(20 * USEC_PER_MSEC);
-		goto retry_els;
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_ELS,
+			  "Failed to alloc ELS request 0x%x\n", op);
+		rc = -ENOMEM;
+		goto els_err;
 	}
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "initiate_els els_req = "
@@ -135,7 +124,7 @@ retry_els:
 	task = qedf_get_task_mem(&qedf->tasks, xid);
 	qedf_init_mp_task(els_req, task, sqe);
 
-	/* Put timer on original I/O request */
+	/* Put timer on els request */
 	if (timer_msec)
 		qedf_cmd_timer_set(qedf, els_req, timer_msec);
 
@@ -143,6 +132,8 @@ retry_els:
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Ringing doorbell for ELS "
 		   "req\n");
 	qedf_ring_doorbell(fcport);
+	set_bit(QEDF_CMD_OUTSTANDING, &els_req->flags);
+
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 els_err:
 	return rc;
@@ -151,20 +142,38 @@ els_err:
 void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *els_req)
 {
-	struct fcoe_task_context *task_ctx;
-	struct scsi_cmnd *sc_cmd;
-	uint16_t xid;
 	struct fcoe_cqe_midpath_info *mp_info;
+	struct qedf_rport *fcport;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Entered with xid = 0x%x"
 		   " cmd_type = %d.\n", els_req->xid, els_req->cmd_type);
 
+	if ((els_req->event == QEDF_IOREQ_EV_ELS_FLUSH)
+		|| (els_req->event == QEDF_IOREQ_EV_CLEANUP_SUCCESS)
+		|| (els_req->event == QEDF_IOREQ_EV_CLEANUP_FAILED)) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+			"ELS completion xid=0x%x after flush event=0x%x",
+			els_req->xid, els_req->event);
+		return;
+	}
+
+	fcport = els_req->fcport;
+
+	/* When flush is active,
+	 * let the cmds be completed from the cleanup context
+	 */
+	if (test_bit(QEDF_RPORT_IN_TARGET_RESET, &fcport->flags) ||
+		test_bit(QEDF_RPORT_IN_LUN_RESET, &fcport->flags)) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+			"Dropping ELS completion xid=0x%x as fcport is flushing",
+			els_req->xid);
+		return;
+	}
+
+	clear_bit(QEDF_CMD_OUTSTANDING, &els_req->flags);
+
 	/* Kill the ELS timer */
 	cancel_delayed_work(&els_req->timeout_work);
-
-	xid = els_req->xid;
-	task_ctx = qedf_get_task_mem(&qedf->tasks, xid);
-	sc_cmd = els_req->sc_cmd;
 
 	/* Get ELS response length from CQE */
 	mp_info = &cqe->cqe_info.midpath_info;
@@ -193,20 +202,23 @@ static void qedf_rrq_compl(struct qedf_els_cb_arg *cb_arg)
 
 	orig_io_req = cb_arg->aborted_io_req;
 
-	if (!orig_io_req)
+	if (!orig_io_req) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Original io_req is NULL, rrq_req = %p.\n", rrq_req);
 		goto out_free;
-
-	if (rrq_req->event != QEDF_IOREQ_EV_ELS_TMO &&
-	    rrq_req->event != QEDF_IOREQ_EV_ELS_ERR_DETECT)
-		cancel_delayed_work_sync(&orig_io_req->timeout_work);
+	}
 
 	refcount = kref_read(&orig_io_req->refcount);
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "rrq_compl: orig io = %p,"
 		   " orig xid = 0x%x, rrq_xid = 0x%x, refcount=%d\n",
 		   orig_io_req, orig_io_req->xid, rrq_req->xid, refcount);
 
-	/* This should return the aborted io_req to the command pool */
-	if (orig_io_req)
+	/*
+	 * This should return the aborted io_req to the command pool. Note that
+	 * we need to check the refcound in case the original request was
+	 * flushed but we get a completion on this xid.
+	 */
+	if (orig_io_req && refcount > 0)
 		kref_put(&orig_io_req->refcount, qedf_release_cmd);
 
 out_free:
@@ -233,6 +245,7 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	uint32_t sid;
 	uint32_t r_a_tov;
 	int rc;
+	int refcount;
 
 	if (!aborted_io_req) {
 		QEDF_ERR(NULL, "abort_io_req is NULL.\n");
@@ -240,6 +253,15 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	}
 
 	fcport = aborted_io_req->fcport;
+
+	if (!fcport) {
+		refcount = kref_read(&aborted_io_req->refcount);
+		QEDF_ERR(NULL,
+			 "RRQ work was queued prior to a flush xid=0x%x, refcount=%d.\n",
+			 aborted_io_req->xid, refcount);
+		kref_put(&aborted_io_req->refcount, qedf_release_cmd);
+		return -EINVAL;
+	}
 
 	/* Check that fcport is still offloaded */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
@@ -253,6 +275,19 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	}
 
 	qedf = fcport->qedf;
+
+	/*
+	 * Sanity check that we can send a RRQ to make sure that refcount isn't
+	 * 0
+	 */
+	refcount = kref_read(&aborted_io_req->refcount);
+	if (refcount != 1) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_ELS,
+			  "refcount for xid=%x io_req=%p refcount=%d is not 1.\n",
+			  aborted_io_req->xid, aborted_io_req, refcount);
+		return -EINVAL;
+	}
+
 	lport = qedf->lport;
 	sid = fcport->sid;
 	r_a_tov = lport->r_a_tov;
@@ -335,32 +370,47 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 	struct fc_lport *lport;
 	struct fc_rport_priv *rdata;
 	u32 port_id;
+	unsigned long flags;
 
-	if (!fcport)
+	if (!fcport) {
+		QEDF_ERR(NULL, "fcport is NULL.\n");
 		return;
+	}
 
+	spin_lock_irqsave(&fcport->rport_lock, flags);
 	if (test_bit(QEDF_RPORT_IN_RESET, &fcport->flags) ||
 	    !test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) ||
 	    test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
 		QEDF_ERR(&(fcport->qedf->dbg_ctx), "fcport %p already in reset or not offloaded.\n",
 		    fcport);
+		spin_unlock_irqrestore(&fcport->rport_lock, flags);
 		return;
 	}
 
 	/* Set that we are now in reset */
 	set_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
+	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 
 	rdata = fcport->rdata;
-	if (rdata) {
+	if (rdata && !kref_get_unless_zero(&rdata->kref)) {
+		fcport->rdata = NULL;
+		rdata = NULL;
+	}
+
+	if (rdata && rdata->rp_state == RPORT_ST_READY) {
 		lport = fcport->qedf->lport;
 		port_id = rdata->ids.port_id;
 		QEDF_ERR(&(fcport->qedf->dbg_ctx),
 		    "LOGO port_id=%x.\n", port_id);
 		fc_rport_logoff(rdata);
+		kref_put(&rdata->kref, fc_rport_destroy);
+		mutex_lock(&lport->disc.disc_mutex);
 		/* Recreate the rport and log back in */
 		rdata = fc_rport_create(lport, port_id);
+		mutex_unlock(&lport->disc.disc_mutex);
 		if (rdata)
 			fc_rport_login(rdata);
+		fcport->rdata = rdata;
 	}
 	clear_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
 }
@@ -388,8 +438,11 @@ static void qedf_l2_els_compl(struct qedf_els_cb_arg *cb_arg)
 	 * If we are flushing the command just free the cb_arg as none of the
 	 * response data will be valid.
 	 */
-	if (els_req->event == QEDF_IOREQ_EV_ELS_FLUSH)
+	if (els_req->event == QEDF_IOREQ_EV_ELS_FLUSH) {
+		QEDF_ERR(NULL, "els_req xid=0x%x event is flush.\n",
+			 els_req->xid);
 		goto free_arg;
+	}
 
 	fcport = els_req->fcport;
 	mp_req = &(els_req->mp_req);
@@ -502,8 +555,10 @@ static void qedf_srr_compl(struct qedf_els_cb_arg *cb_arg)
 
 	orig_io_req = cb_arg->aborted_io_req;
 
-	if (!orig_io_req)
+	if (!orig_io_req) {
+		QEDF_ERR(NULL, "orig_io_req is NULL.\n");
 		goto out_free;
+	}
 
 	clear_bit(QEDF_CMD_SRR_SENT, &orig_io_req->flags);
 
@@ -517,8 +572,11 @@ static void qedf_srr_compl(struct qedf_els_cb_arg *cb_arg)
 		   orig_io_req, orig_io_req->xid, srr_req->xid, refcount);
 
 	/* If a SRR times out, simply free resources */
-	if (srr_req->event == QEDF_IOREQ_EV_ELS_TMO)
+	if (srr_req->event == QEDF_IOREQ_EV_ELS_TMO) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "ELS timeout rec_xid=0x%x.\n", srr_req->xid);
 		goto out_put;
+	}
 
 	/* Normalize response data into struct fc_frame */
 	mp_req = &(srr_req->mp_req);
@@ -569,7 +627,7 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 	struct qedf_rport *fcport;
 	struct fc_lport *lport;
 	struct qedf_els_cb_arg *cb_arg = NULL;
-	u32 sid, r_a_tov;
+	u32 r_a_tov;
 	int rc;
 
 	if (!orig_io_req) {
@@ -595,7 +653,6 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 
 	qedf = fcport->qedf;
 	lport = qedf->lport;
-	sid = fcport->sid;
 	r_a_tov = lport->r_a_tov;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Sending SRR orig_io=%p, "
@@ -692,8 +749,11 @@ void qedf_process_seq_cleanup_compl(struct qedf_ctx *qedf,
 	cb_arg = io_req->cb_arg;
 
 	/* If we timed out just free resources */
-	if (io_req->event == QEDF_IOREQ_EV_ELS_TMO || !cqe)
+	if (io_req->event == QEDF_IOREQ_EV_ELS_TMO || !cqe) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "cqe is NULL or timeout event (0x%x)", io_req->event);
 		goto free;
+	}
 
 	/* Kill the timer we put on the request */
 	cancel_delayed_work_sync(&io_req->timeout_work);
@@ -796,8 +856,10 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 
 	orig_io_req = cb_arg->aborted_io_req;
 
-	if (!orig_io_req)
+	if (!orig_io_req) {
+		QEDF_ERR(NULL, "orig_io_req is NULL.\n");
 		goto out_free;
+	}
 
 	if (rec_req->event != QEDF_IOREQ_EV_ELS_TMO &&
 	    rec_req->event != QEDF_IOREQ_EV_ELS_ERR_DETECT)
@@ -809,8 +871,12 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 		   orig_io_req, orig_io_req->xid, rec_req->xid, refcount);
 
 	/* If a REC times out, free resources */
-	if (rec_req->event == QEDF_IOREQ_EV_ELS_TMO)
+	if (rec_req->event == QEDF_IOREQ_EV_ELS_TMO) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Got TMO event, orig_io_req %p orig_io_xid=0x%x.\n",
+			 orig_io_req, orig_io_req->xid);
 		goto out_put;
+	}
 
 	/* Normalize response data into struct fc_frame */
 	mp_req = &(rec_req->mp_req);
@@ -836,6 +902,11 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 	opcode = fc_frame_payload_op(fp);
 	if (opcode == ELS_LS_RJT) {
 		rjt = fc_frame_payload_get(fp, sizeof(*rjt));
+		if (!rjt) {
+			QEDF_ERR(&qedf->dbg_ctx, "payload get failed");
+			goto out_free_frame;
+		}
+
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS,
 		    "Received LS_RJT for REC: er_reason=0x%x, "
 		    "er_explan=0x%x.\n", rjt->er_reason, rjt->er_explan);

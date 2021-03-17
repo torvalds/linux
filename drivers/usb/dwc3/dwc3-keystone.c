@@ -2,7 +2,7 @@
 /**
  * dwc3-keystone.c - Keystone Specific Glue layer
  *
- * Copyright (C) 2010-2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2010-2013 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: WingMan Kwok <w-kwok2@ti.com>
  */
@@ -14,6 +14,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
+#include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
 
 /* USBSS register offsets */
@@ -34,6 +35,7 @@
 struct dwc3_keystone {
 	struct device			*dev;
 	void __iomem			*usbss;
+	struct phy			*usb3_phy;
 };
 
 static inline u32 kdwc3_readl(void __iomem *base, u32 offset)
@@ -81,7 +83,6 @@ static int kdwc3_probe(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	struct device_node	*node = pdev->dev.of_node;
 	struct dwc3_keystone	*kdwc;
-	struct resource		*res;
 	int			error, irq;
 
 	kdwc = devm_kzalloc(dev, sizeof(*kdwc), GFP_KERNEL);
@@ -92,13 +93,37 @@ static int kdwc3_probe(struct platform_device *pdev)
 
 	kdwc->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	kdwc->usbss = devm_ioremap_resource(dev, res);
+	kdwc->usbss = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kdwc->usbss))
 		return PTR_ERR(kdwc->usbss);
 
-	pm_runtime_enable(kdwc->dev);
+	/* PSC dependency on AM65 needs SERDES0 to be powered before USB0 */
+	kdwc->usb3_phy = devm_phy_optional_get(dev, "usb3-phy");
+	if (IS_ERR(kdwc->usb3_phy))
+		return dev_err_probe(dev, PTR_ERR(kdwc->usb3_phy), "couldn't get usb3 phy\n");
 
+	phy_pm_runtime_get_sync(kdwc->usb3_phy);
+
+	error = phy_reset(kdwc->usb3_phy);
+	if (error < 0) {
+		dev_err(dev, "usb3 phy reset failed: %d\n", error);
+		return error;
+	}
+
+	error = phy_init(kdwc->usb3_phy);
+	if (error < 0) {
+		dev_err(dev, "usb3 phy init failed: %d\n", error);
+		return error;
+	}
+
+	error = phy_power_on(kdwc->usb3_phy);
+	if (error < 0) {
+		dev_err(dev, "usb3 phy power on failed: %d\n", error);
+		phy_exit(kdwc->usb3_phy);
+		return error;
+	}
+
+	pm_runtime_enable(kdwc->dev);
 	error = pm_runtime_get_sync(kdwc->dev);
 	if (error < 0) {
 		dev_err(kdwc->dev, "pm_runtime_get_sync failed, error %d\n",
@@ -106,9 +131,12 @@ static int kdwc3_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
+	/* IRQ processing not required currently for AM65 */
+	if (of_device_is_compatible(node, "ti,am654-dwc3"))
+		goto skip_irq;
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "missing irq\n");
 		error = irq;
 		goto err_irq;
 	}
@@ -123,6 +151,7 @@ static int kdwc3_probe(struct platform_device *pdev)
 
 	kdwc3_enable_irqs(kdwc);
 
+skip_irq:
 	error = of_platform_populate(node, NULL, NULL, dev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to create dwc3 core\n");
@@ -136,6 +165,9 @@ err_core:
 err_irq:
 	pm_runtime_put_sync(kdwc->dev);
 	pm_runtime_disable(kdwc->dev);
+	phy_power_off(kdwc->usb3_phy);
+	phy_exit(kdwc->usb3_phy);
+	phy_pm_runtime_put_sync(kdwc->usb3_phy);
 
 	return error;
 }
@@ -152,11 +184,18 @@ static int kdwc3_remove_core(struct device *dev, void *c)
 static int kdwc3_remove(struct platform_device *pdev)
 {
 	struct dwc3_keystone *kdwc = platform_get_drvdata(pdev);
+	struct device_node *node = pdev->dev.of_node;
 
-	kdwc3_disable_irqs(kdwc);
+	if (!of_device_is_compatible(node, "ti,am654-dwc3"))
+		kdwc3_disable_irqs(kdwc);
+
 	device_for_each_child(&pdev->dev, NULL, kdwc3_remove_core);
 	pm_runtime_put_sync(kdwc->dev);
 	pm_runtime_disable(kdwc->dev);
+
+	phy_power_off(kdwc->usb3_phy);
+	phy_exit(kdwc->usb3_phy);
+	phy_pm_runtime_put_sync(kdwc->usb3_phy);
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -165,6 +204,7 @@ static int kdwc3_remove(struct platform_device *pdev)
 
 static const struct of_device_id kdwc3_of_match[] = {
 	{ .compatible = "ti,keystone-dwc3", },
+	{ .compatible = "ti,am654-dwc3" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, kdwc3_of_match);

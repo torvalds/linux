@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Simple USB RGB LED driver
  *
  * Copyright 2016 Heiner Kallweit <hkallweit1@gmail.com>
  * Based on drivers/hid/hid-thingm.c and
  * drivers/usb/misc/usbled.c
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
  */
 
 #include <linux/hid.h>

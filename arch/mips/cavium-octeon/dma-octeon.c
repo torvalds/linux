@@ -11,7 +11,7 @@
  * Copyright (C) 2010 Cavium Networks, Inc.
  */
 #include <linux/dma-direct.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/swiotlb.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -168,7 +168,7 @@ void __init octeon_pci_dma_init(void)
 }
 #endif /* CONFIG_PCI */
 
-dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
+dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
 #ifdef CONFIG_PCI
 	if (dev && dev_is_pci(dev))
@@ -177,7 +177,7 @@ dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
 	return paddr;
 }
 
-phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
+phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
 #ifdef CONFIG_PCI
 	if (dev && dev_is_pci(dev))
@@ -190,29 +190,25 @@ char *octeon_swiotlb;
 
 void __init plat_swiotlb_setup(void)
 {
-	int i;
+	phys_addr_t start, end;
 	phys_addr_t max_addr;
 	phys_addr_t addr_size;
 	size_t swiotlbsize;
 	unsigned long swiotlb_nslabs;
+	u64 i;
 
 	max_addr = 0;
 	addr_size = 0;
 
-	for (i = 0 ; i < boot_mem_map.nr_map; i++) {
-		struct boot_mem_map_entry *e = &boot_mem_map.map[i];
-		if (e->type != BOOT_MEM_RAM && e->type != BOOT_MEM_INIT_RAM)
-			continue;
-
+	for_each_mem_range(i, &start, &end) {
 		/* These addresses map low for PCI. */
-		if (e->addr > 0x410000000ull && !OCTEON_IS_OCTEON2())
+		if (start > 0x410000000ull && !OCTEON_IS_OCTEON2())
 			continue;
 
-		addr_size += e->size;
+		addr_size += (end - start);
 
-		if (max_addr < e->addr + e->size)
-			max_addr = e->addr + e->size;
-
+		if (max_addr < end)
+			max_addr = end;
 	}
 
 	swiotlbsize = PAGE_SIZE;
@@ -244,7 +240,10 @@ void __init plat_swiotlb_setup(void)
 	swiotlb_nslabs = ALIGN(swiotlb_nslabs, IO_TLB_SEGSIZE);
 	swiotlbsize = swiotlb_nslabs << IO_TLB_SHIFT;
 
-	octeon_swiotlb = alloc_bootmem_low_pages(swiotlbsize);
+	octeon_swiotlb = memblock_alloc_low(swiotlbsize, PAGE_SIZE);
+	if (!octeon_swiotlb)
+		panic("%s: Failed to allocate %zu bytes align=%lx\n",
+		      __func__, swiotlbsize, PAGE_SIZE);
 
 	if (swiotlb_init_with_tbl(octeon_swiotlb, swiotlb_nslabs, 1) == -ENOMEM)
 		panic("Cannot allocate SWIOTLB buffer");

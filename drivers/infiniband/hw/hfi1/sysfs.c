@@ -494,20 +494,21 @@ static struct kobj_type hfi1_vl2mtu_ktype = {
  * Start of per-unit (or driver, in some cases, but replicated
  * per unit) functions (these get a device *)
  */
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
+			   char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 
 	return sprintf(buf, "%x\n", dd_from_dev(dev)->minrev);
 }
+static DEVICE_ATTR_RO(hw_rev);
 
-static ssize_t show_hfi(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t board_id_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 	int ret;
 
@@ -517,23 +518,25 @@ static ssize_t show_hfi(struct device *device, struct device_attribute *attr,
 		ret = scnprintf(buf, PAGE_SIZE, "%s\n", dd->boardname);
 	return ret;
 }
+static DEVICE_ATTR_RO(board_id);
 
-static ssize_t show_boardversion(struct device *device,
+static ssize_t boardversion_show(struct device *device,
 				 struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->boardversion);
 }
+static DEVICE_ATTR_RO(boardversion);
 
-static ssize_t show_nctxts(struct device *device,
+static ssize_t nctxts_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	/*
@@ -546,34 +549,37 @@ static ssize_t show_nctxts(struct device *device,
 			 min(dd->num_user_contexts,
 			     (u32)dd->sc_sizes[SC_USER].count));
 }
+static DEVICE_ATTR_RO(nctxts);
 
-static ssize_t show_nfreectxts(struct device *device,
+static ssize_t nfreectxts_show(struct device *device,
 			       struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	/* Return the number of free user ports (contexts) available. */
 	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->freectxts);
 }
+static DEVICE_ATTR_RO(nfreectxts);
 
-static ssize_t show_serial(struct device *device,
+static ssize_t serial_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->serial);
 }
+static DEVICE_ATTR_RO(serial);
 
-static ssize_t store_chip_reset(struct device *device,
+static ssize_t chip_reset_store(struct device *device,
 				struct device_attribute *attr, const char *buf,
 				size_t count)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 	int ret;
 
@@ -586,6 +592,7 @@ static ssize_t store_chip_reset(struct device *device,
 bail:
 	return ret < 0 ? ret : count;
 }
+static DEVICE_ATTR_WO(chip_reset);
 
 /*
  * Convert the reported temperature from an integer (reported in
@@ -598,11 +605,11 @@ bail:
 /*
  * Dump tempsense values, in decimal, to ease shell-scripts.
  */
-static ssize_t show_tempsense(struct device *device,
+static ssize_t tempsense_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 	struct hfi1_temp temp;
 	int ret;
@@ -622,6 +629,7 @@ static ssize_t show_tempsense(struct device *device,
 	}
 	return ret;
 }
+static DEVICE_ATTR_RO(tempsense);
 
 /*
  * end of per-unit (or driver, in some cases, but replicated
@@ -629,24 +637,20 @@ static ssize_t show_tempsense(struct device *device,
  */
 
 /* start of per-unit file structures and support code */
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_hfi, NULL);
-static DEVICE_ATTR(nctxts, S_IRUGO, show_nctxts, NULL);
-static DEVICE_ATTR(nfreectxts, S_IRUGO, show_nfreectxts, NULL);
-static DEVICE_ATTR(serial, S_IRUGO, show_serial, NULL);
-static DEVICE_ATTR(boardversion, S_IRUGO, show_boardversion, NULL);
-static DEVICE_ATTR(tempsense, S_IRUGO, show_tempsense, NULL);
-static DEVICE_ATTR(chip_reset, S_IWUSR, NULL, store_chip_reset);
+static struct attribute *hfi1_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_board_id.attr,
+	&dev_attr_nctxts.attr,
+	&dev_attr_nfreectxts.attr,
+	&dev_attr_serial.attr,
+	&dev_attr_boardversion.attr,
+	&dev_attr_tempsense.attr,
+	&dev_attr_chip_reset.attr,
+	NULL,
+};
 
-static struct device_attribute *hfi1_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_board_id,
-	&dev_attr_nctxts,
-	&dev_attr_nfreectxts,
-	&dev_attr_serial,
-	&dev_attr_boardversion,
-	&dev_attr_tempsense,
-	&dev_attr_chip_reset,
+const struct attribute_group ib_hfi1_attr_group = {
+	.attrs = hfi1_attributes,
 };
 
 int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
@@ -670,7 +674,11 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		dd_dev_err(dd,
 			   "Skipping sc2vl sysfs info, (err %d) port %u\n",
 			   ret, port_num);
-		goto bail;
+		/*
+		 * Based on the documentation for kobject_init_and_add(), the
+		 * caller should call kobject_put even if this call fails.
+		 */
+		goto bail_sc2vl;
 	}
 	kobject_uevent(&ppd->sc2vl_kobj, KOBJ_ADD);
 
@@ -680,7 +688,7 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		dd_dev_err(dd,
 			   "Skipping sl2sc sysfs info, (err %d) port %u\n",
 			   ret, port_num);
-		goto bail_sc2vl;
+		goto bail_sl2sc;
 	}
 	kobject_uevent(&ppd->sl2sc_kobj, KOBJ_ADD);
 
@@ -690,7 +698,7 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		dd_dev_err(dd,
 			   "Skipping vl2mtu sysfs info, (err %d) port %u\n",
 			   ret, port_num);
-		goto bail_sl2sc;
+		goto bail_vl2mtu;
 	}
 	kobject_uevent(&ppd->vl2mtu_kobj, KOBJ_ADD);
 
@@ -700,7 +708,7 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		dd_dev_err(dd,
 			   "Skipping Congestion Control sysfs info, (err %d) port %u\n",
 			   ret, port_num);
-		goto bail_vl2mtu;
+		goto bail_cc;
 	}
 
 	kobject_uevent(&ppd->pport_cc_kobj, KOBJ_ADD);
@@ -738,7 +746,6 @@ bail_sl2sc:
 	kobject_put(&ppd->sl2sc_kobj);
 bail_sc2vl:
 	kobject_put(&ppd->sc2vl_kobj);
-bail:
 	return ret;
 }
 
@@ -832,12 +839,6 @@ int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd)
 	struct device *class_dev = &dev->dev;
 	int i, j, ret;
 
-	for (i = 0; i < ARRAY_SIZE(hfi1_attributes); ++i) {
-		ret = device_create_file(&dev->dev, hfi1_attributes[i]);
-		if (ret)
-			goto bail;
-	}
-
 	for (i = 0; i < dd->num_sdma; i++) {
 		ret = kobject_init_and_add(&dd->per_sdma[i].kobj,
 					   &sde_ktype, &class_dev->kobj,
@@ -855,11 +856,13 @@ int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd)
 
 	return 0;
 bail:
-	for (i = 0; i < ARRAY_SIZE(hfi1_attributes); ++i)
-		device_remove_file(&dev->dev, hfi1_attributes[i]);
-
-	for (i = 0; i < dd->num_sdma; i++)
-		kobject_del(&dd->per_sdma[i].kobj);
+	/*
+	 * The function kobject_put() will call kobject_del() if the kobject
+	 * has been added successfully. The sysfs files created under the
+	 * kobject directory will also be removed during the process.
+	 */
+	for (; i >= 0; i--)
+		kobject_put(&dd->per_sdma[i].kobj);
 
 	return ret;
 }
@@ -871,6 +874,10 @@ void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd)
 {
 	struct hfi1_pportdata *ppd;
 	int i;
+
+	/* Unwind operations in hfi1_verbs_register_sysfs() */
+	for (i = 0; i < dd->num_sdma; i++)
+		kobject_put(&dd->per_sdma[i].kobj);
 
 	for (i = 0; i < dd->num_pports; i++) {
 		ppd = &dd->pport[i];

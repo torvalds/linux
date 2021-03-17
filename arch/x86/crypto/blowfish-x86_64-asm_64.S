@@ -1,23 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Blowfish Cipher Algorithm (x86_64)
  *
  * Copyright (C) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
  */
 
 #include <linux/linkage.h>
@@ -118,7 +103,7 @@
 	bswapq 			RX0; \
 	xorq RX0, 		(RIO);
 
-ENTRY(__blowfish_enc_blk)
+SYM_FUNC_START(__blowfish_enc_blk)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -154,9 +139,9 @@ ENTRY(__blowfish_enc_blk)
 .L__enc_xor:
 	xor_block();
 	ret;
-ENDPROC(__blowfish_enc_blk)
+SYM_FUNC_END(__blowfish_enc_blk)
 
-ENTRY(blowfish_dec_blk)
+SYM_FUNC_START(blowfish_dec_blk)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -186,7 +171,7 @@ ENTRY(blowfish_dec_blk)
 	movq %r11, %r12;
 
 	ret;
-ENDPROC(blowfish_dec_blk)
+SYM_FUNC_END(blowfish_dec_blk)
 
 /**********************************************************************
   4-way blowfish, four blocks parallel
@@ -298,7 +283,7 @@ ENDPROC(blowfish_dec_blk)
 	bswapq 			RX3; \
 	xorq RX3,		24(RIO);
 
-ENTRY(__blowfish_enc_blk_4way)
+SYM_FUNC_START(__blowfish_enc_blk_4way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -345,9 +330,9 @@ ENTRY(__blowfish_enc_blk_4way)
 	popq %rbx;
 	popq %r12;
 	ret;
-ENDPROC(__blowfish_enc_blk_4way)
+SYM_FUNC_END(__blowfish_enc_blk_4way)
 
-ENTRY(blowfish_dec_blk_4way)
+SYM_FUNC_START(blowfish_dec_blk_4way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -380,4 +365,4 @@ ENTRY(blowfish_dec_blk_4way)
 	popq %r12;
 
 	ret;
-ENDPROC(blowfish_dec_blk_4way)
+SYM_FUNC_END(blowfish_dec_blk_4way)

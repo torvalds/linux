@@ -178,14 +178,14 @@ static int benchmark_event_kthread(void *arg)
 int trace_benchmark_reg(void)
 {
 	if (!ok_to_run) {
-		pr_warning("trace benchmark cannot be started via kernel command line\n");
+		pr_warn("trace benchmark cannot be started via kernel command line\n");
 		return -EBUSY;
 	}
 
 	bm_event_thread = kthread_run(benchmark_event_kthread,
 				      NULL, "event_benchmark");
 	if (IS_ERR(bm_event_thread)) {
-		pr_warning("trace benchmark failed to create kernel thread\n");
+		pr_warn("trace benchmark failed to create kernel thread\n");
 		return PTR_ERR(bm_event_thread);
 	}
 

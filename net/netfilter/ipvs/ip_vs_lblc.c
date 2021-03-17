@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS:        Locality-Based Least-Connection scheduling module
  *
  * Authors:     Wensong Zhang <wensong@gnuchina.org>
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Changes:
  *     Martin Hamilton         :    fixed the terrible locking bugs
@@ -18,7 +14,6 @@
  *     Julian Anastasov        :    replaced del_timer call with del_timer_sync
  *                                   to avoid the possible race between timer
  *                                   handler and del_timer thread in SMP
- *
  */
 
 /*

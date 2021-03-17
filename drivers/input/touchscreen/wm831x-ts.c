@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Touchscreen driver for WM831x PMICs
  *
  * Copyright 2011 Wolfson Microelectronics plc.
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -294,7 +290,7 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 		default:
 			dev_err(&pdev->dev, "Unsupported ISEL setting: %d\n",
 				pdata->isel);
-			/* Fall through */
+			fallthrough;
 		case 200:
 		case 0:
 			wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_2,

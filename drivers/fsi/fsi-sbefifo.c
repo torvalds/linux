@@ -289,11 +289,11 @@ static int sbefifo_check_sbe_state(struct sbefifo *sbefifo)
 	switch ((sbm & CFAM_SBM_SBE_STATE_MASK) >> CFAM_SBM_SBE_STATE_SHIFT) {
 	case SBE_STATE_UNKNOWN:
 		return -ESHUTDOWN;
+	case SBE_STATE_DMT:
+		return -EBUSY;
 	case SBE_STATE_IPLING:
 	case SBE_STATE_ISTEP:
 	case SBE_STATE_MPIPL:
-	case SBE_STATE_DMT:
-		return -EBUSY;
 	case SBE_STATE_RUNTIME:
 	case SBE_STATE_DUMP: /* Not sure about that one */
 		break;
@@ -638,7 +638,7 @@ static void sbefifo_collect_async_ffdc(struct sbefifo *sbefifo)
 	}
         ffdc_iov.iov_base = ffdc;
 	ffdc_iov.iov_len = SBEFIFO_MAX_FFDC_SIZE;
-        iov_iter_kvec(&ffdc_iter, WRITE | ITER_KVEC, &ffdc_iov, 1, SBEFIFO_MAX_FFDC_SIZE);
+        iov_iter_kvec(&ffdc_iter, WRITE, &ffdc_iov, 1, SBEFIFO_MAX_FFDC_SIZE);
 	cmd[0] = cpu_to_be32(2);
 	cmd[1] = cpu_to_be32(SBEFIFO_CMD_GET_SBE_FFDC);
 	rc = sbefifo_do_command(sbefifo, cmd, 2, &ffdc_iter);
@@ -735,7 +735,7 @@ int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
 	rbytes = (*resp_len) * sizeof(__be32);
 	resp_iov.iov_base = response;
 	resp_iov.iov_len = rbytes;
-        iov_iter_kvec(&resp_iter, WRITE | ITER_KVEC, &resp_iov, 1, rbytes);
+        iov_iter_kvec(&resp_iter, WRITE, &resp_iov, 1, rbytes);
 
 	/* Perform the command */
 	mutex_lock(&sbefifo->lock);
@@ -1028,7 +1028,7 @@ static int sbefifo_remove(struct device *dev)
 	return 0;
 }
 
-static struct fsi_device_id sbefifo_ids[] = {
+static const struct fsi_device_id sbefifo_ids[] = {
 	{
 		.engine_type = FSI_ENGID_SBE,
 		.version = FSI_VERSION_ANY,

@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  SR-IPv6 implementation
  *
  *  Authors:
  *  David Lebrun <david.lebrun@uclouvain.be>
  *  eBPF support: Mathieu Xhonneux <m.xhonneux@gmail.com>
- *
- *
- *  This program is free software; you can redistribute it and/or
- *        modify it under the terms of the GNU General Public License
- *        as published by the Free Software Foundation; either version
- *        2 of the License, or (at your option) any later version.
  */
 
 #include <linux/types.h>
@@ -28,6 +23,7 @@
 #include <net/addrconf.h>
 #include <net/ip6_route.h>
 #include <net/dst_cache.h>
+#include <net/ip_tunnels.h>
 #ifdef CONFIG_IPV6_SEG6_HMAC
 #include <net/seg6_hmac.h>
 #endif
@@ -86,7 +82,12 @@ static struct ipv6_sr_hdr *get_srh(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, srhoff + len))
 		return NULL;
 
-	if (!seg6_validate_srh(srh, len))
+	/* note that pskb_may_pull may change pointers in header;
+	 * for this reason it is necessary to reload them when needed.
+	 */
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+
+	if (!seg6_validate_srh(srh, len, true))
 		return NULL;
 
 	return srh;
@@ -135,7 +136,8 @@ static bool decap_and_validate(struct sk_buff *skb, int proto)
 
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
-	skb->encapsulation = 0;
+	if (iptunnel_pull_offloads(skb))
+		return false;
 
 	return true;
 }
@@ -149,8 +151,9 @@ static void advance_nextseg(struct ipv6_sr_hdr *srh, struct in6_addr *daddr)
 	*daddr = *addr;
 }
 
-int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
-			u32 tbl_id)
+static int
+seg6_lookup_any_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
+			u32 tbl_id, bool local_delivery)
 {
 	struct net *net = dev_net(skb->dev);
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -158,6 +161,7 @@ int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 	struct dst_entry *dst = NULL;
 	struct rt6_info *rt;
 	struct flowi6 fl6;
+	int dev_flags = 0;
 
 	fl6.flowi6_iif = skb->dev->ifindex;
 	fl6.daddr = nhaddr ? *nhaddr : hdr->daddr;
@@ -182,7 +186,13 @@ int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 		dst = &rt->dst;
 	}
 
-	if (dst && dst->dev->flags & IFF_LOOPBACK && !dst->error) {
+	/* we want to discard traffic destined for local packet processing,
+	 * if @local_delivery is set to false.
+	 */
+	if (!local_delivery)
+		dev_flags |= IFF_LOOPBACK;
+
+	if (dst && (dst->dev->flags & dev_flags) && !dst->error) {
 		dst_release(dst);
 		dst = NULL;
 	}
@@ -197,6 +207,12 @@ out:
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
 	return dst->error;
+}
+
+int seg6_lookup_nexthop(struct sk_buff *skb,
+			struct in6_addr *nhaddr, u32 tbl_id)
+{
+	return seg6_lookup_any_nexthop(skb, nhaddr, tbl_id, false);
 }
 
 /* regular endpoint function */
@@ -266,7 +282,7 @@ static int input_action_end_dx2(struct sk_buff *skb,
 	struct net_device *odev;
 	struct ethhdr *eth;
 
-	if (!decap_and_validate(skb, NEXTHDR_NONE))
+	if (!decap_and_validate(skb, IPPROTO_ETHERNET))
 		goto drop;
 
 	if (!pskb_may_pull(skb, ETH_HLEN))
@@ -341,6 +357,8 @@ static int input_action_end_dx6(struct sk_buff *skb,
 	if (!ipv6_addr_any(&slwt->nh6))
 		nhaddr = &slwt->nh6;
 
+	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+
 	seg6_lookup_nexthop(skb, nhaddr, 0);
 
 	return dst_input(skb);
@@ -370,6 +388,8 @@ static int input_action_end_dx4(struct sk_buff *skb,
 
 	skb_dst_drop(skb);
 
+	skb_set_transport_header(skb, sizeof(struct iphdr));
+
 	err = ip_route_input(skb, nhaddr, iph->saddr, 0, skb->dev);
 	if (err)
 		goto drop;
@@ -390,7 +410,9 @@ static int input_action_end_dt6(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
 
-	seg6_lookup_nexthop(skb, NULL, slwt->table);
+	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+
+	seg6_lookup_any_nexthop(skb, NULL, slwt->table, true);
 
 	return dst_input(skb);
 
@@ -473,7 +495,7 @@ bool seg6_bpf_has_valid_srh(struct sk_buff *skb)
 			return false;
 
 		srh->hdrlen = (u8)(srh_state->hdrlen >> 3);
-		if (!seg6_validate_srh(srh, (srh->hdrlen + 1) << 3))
+		if (!seg6_validate_srh(srh, (srh->hdrlen + 1) << 3, true))
 			return false;
 
 		srh_state->valid = true;
@@ -648,7 +670,7 @@ static int parse_nla_srh(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	if (len < sizeof(*srh) + sizeof(struct in6_addr))
 		return -EINVAL;
 
-	if (!seg6_validate_srh(srh, len))
+	if (!seg6_validate_srh(srh, len, false))
 		return -EINVAL;
 
 	slwt->srh = kmemdup(srh, len, GFP_KERNEL);
@@ -823,8 +845,9 @@ static int parse_nla_bpf(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	int ret;
 	u32 fd;
 
-	ret = nla_parse_nested(tb, SEG6_LOCAL_BPF_PROG_MAX,
-			       attrs[SEG6_LOCAL_BPF], bpf_prog_policy, NULL);
+	ret = nla_parse_nested_deprecated(tb, SEG6_LOCAL_BPF_PROG_MAX,
+					  attrs[SEG6_LOCAL_BPF],
+					  bpf_prog_policy, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -853,7 +876,7 @@ static int put_nla_bpf(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	if (!slwt->bpf.prog)
 		return 0;
 
-	nest = nla_nest_start(skb, SEG6_LOCAL_BPF);
+	nest = nla_nest_start_noflag(skb, SEG6_LOCAL_BPF);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -947,8 +970,9 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	return 0;
 }
 
-static int seg6_local_build_state(struct nlattr *nla, unsigned int family,
-				  const void *cfg, struct lwtunnel_state **ts,
+static int seg6_local_build_state(struct net *net, struct nlattr *nla,
+				  unsigned int family, const void *cfg,
+				  struct lwtunnel_state **ts,
 				  struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[SEG6_LOCAL_MAX + 1];
@@ -959,8 +983,8 @@ static int seg6_local_build_state(struct nlattr *nla, unsigned int family,
 	if (family != AF_INET6)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, SEG6_LOCAL_MAX, nla, seg6_local_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, SEG6_LOCAL_MAX, nla,
+					  seg6_local_policy, extack);
 
 	if (err < 0)
 		return err;

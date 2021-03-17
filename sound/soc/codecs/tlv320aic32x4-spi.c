@@ -1,21 +1,11 @@
-/*
- * linux/sound/soc/codecs/tlv320aic32x4-spi.c
+/* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2011 NW Digital Radio
+ * Copyright 2011-2019 NW Digital Radio
  *
- * Author: Jeremy McDermond <nh6z@nh6z.net>
+ * Author: Annaliese McDermond <nh6z@nh6z.net>
  *
  * Based on sound/soc/codecs/wm8974 and TI driver for kernel 2.6.27.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/spi/spi.h>
@@ -74,5 +64,5 @@ static struct spi_driver aic32x4_spi_driver = {
 module_spi_driver(aic32x4_spi_driver);
 
 MODULE_DESCRIPTION("ASoC TLV320AIC32x4 codec driver SPI");
-MODULE_AUTHOR("Jeremy McDermond <nh6z@nh6z.net>");
+MODULE_AUTHOR("Annaliese McDermond <nh6z@nh6z.net>");
 MODULE_LICENSE("GPL");

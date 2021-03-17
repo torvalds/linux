@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # RMI4 configuration
 #
@@ -98,6 +99,14 @@ config RMI4_F34
 	  Function 34 provides support for upgrading the firmware on the RMI4
 	  device via the firmware loader interface. This is triggered using a
 	  sysfs attribute.
+
+config RMI4_F3A
+	bool "RMI4 Function 3A (GPIO)"
+	help
+	  Say Y here if you want to add support for RMI4 function 3A.
+
+	  Function 3A provides GPIO support for RMI4 devices. This includes
+	  support for buttons on TouchPads and ClickPads.
 
 config RMI4_F54
 	bool "RMI4 Function 54 (Analog diagnostics)"

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -69,10 +57,6 @@
 /**
  * switch_gc_head - switch the garbage collection journal head.
  * @c: UBIFS file-system description object
- * @buf: buffer to write
- * @len: length of the buffer to write
- * @lnum: LEB number written is returned here
- * @offs: offset written is returned here
  *
  * This function switch the GC head to the next LEB which is reserved in
  * @c->gc_lnum. Returns %0 in case of success, %-EAGAIN if commit is required,
@@ -254,7 +238,8 @@ static int sort_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 			     snod->type == UBIFS_DATA_NODE ||
 			     snod->type == UBIFS_DENT_NODE ||
 			     snod->type == UBIFS_XENT_NODE ||
-			     snod->type == UBIFS_TRUN_NODE);
+			     snod->type == UBIFS_TRUN_NODE ||
+			     snod->type == UBIFS_AUTH_NODE);
 
 		if (snod->type != UBIFS_INO_NODE  &&
 		    snod->type != UBIFS_DATA_NODE &&
@@ -364,12 +349,13 @@ static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 
 	/* Write nodes to their new location. Use the first-fit strategy */
 	while (1) {
-		int avail;
+		int avail, moved = 0;
 		struct ubifs_scan_node *snod, *tmp;
 
 		/* Move data nodes */
 		list_for_each_entry_safe(snod, tmp, &sleb->nodes, list) {
-			avail = c->leb_size - wbuf->offs - wbuf->used;
+			avail = c->leb_size - wbuf->offs - wbuf->used -
+					ubifs_auth_node_sz(c);
 			if  (snod->len > avail)
 				/*
 				 * Do not skip data nodes in order to optimize
@@ -377,14 +363,21 @@ static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 				 */
 				break;
 
+			err = ubifs_shash_update(c, c->jheads[GCHD].log_hash,
+						 snod->node, snod->len);
+			if (err)
+				goto out;
+
 			err = move_node(c, sleb, snod, wbuf);
 			if (err)
 				goto out;
+			moved = 1;
 		}
 
 		/* Move non-data nodes */
 		list_for_each_entry_safe(snod, tmp, &nondata, list) {
-			avail = c->leb_size - wbuf->offs - wbuf->used;
+			avail = c->leb_size - wbuf->offs - wbuf->used -
+					ubifs_auth_node_sz(c);
 			if (avail < min)
 				break;
 
@@ -402,9 +395,41 @@ static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 				continue;
 			}
 
+			err = ubifs_shash_update(c, c->jheads[GCHD].log_hash,
+						 snod->node, snod->len);
+			if (err)
+				goto out;
+
 			err = move_node(c, sleb, snod, wbuf);
 			if (err)
 				goto out;
+			moved = 1;
+		}
+
+		if (ubifs_authenticated(c) && moved) {
+			struct ubifs_auth_node *auth;
+
+			auth = kmalloc(ubifs_auth_node_sz(c), GFP_NOFS);
+			if (!auth) {
+				err = -ENOMEM;
+				goto out;
+			}
+
+			err = ubifs_prepare_auth_node(c, auth,
+						c->jheads[GCHD].log_hash);
+			if (err) {
+				kfree(auth);
+				goto out;
+			}
+
+			err = ubifs_wbuf_write_nolock(wbuf, auth,
+						      ubifs_auth_node_sz(c));
+			if (err) {
+				kfree(auth);
+				goto out;
+			}
+
+			ubifs_add_dirt(c, wbuf->lnum, ubifs_auth_node_sz(c));
 		}
 
 		if (list_empty(&sleb->nodes) && list_empty(&nondata))

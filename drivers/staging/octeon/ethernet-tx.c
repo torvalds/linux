@@ -22,20 +22,10 @@
 #include <linux/atomic.h>
 #include <net/sch_generic.h>
 
-#include <asm/octeon/octeon.h>
-
-#include "ethernet-defines.h"
 #include "octeon-ethernet.h"
+#include "ethernet-defines.h"
 #include "ethernet-tx.h"
 #include "ethernet-util.h"
-
-#include <asm/octeon/cvmx-wqe.h>
-#include <asm/octeon/cvmx-fau.h>
-#include <asm/octeon/cvmx-pip.h>
-#include <asm/octeon/cvmx-pko.h>
-#include <asm/octeon/cvmx-helper.h>
-
-#include <asm/octeon/cvmx-gmxx-defs.h>
 
 #define CVM_OCT_SKB_CB(skb)	((u64 *)((skb)->cb))
 
@@ -51,7 +41,7 @@
 #endif
 
 static void cvm_oct_tx_do_cleanup(unsigned long arg);
-static DECLARE_TASKLET(cvm_oct_tx_cleanup_tasklet, cvm_oct_tx_do_cleanup, 0);
+static DECLARE_TASKLET_OLD(cvm_oct_tx_cleanup_tasklet, cvm_oct_tx_do_cleanup);
 
 /* Maximum number of SKBs to try to free per xmit packet. */
 #define MAX_SKB_TO_FREE (MAX_OUT_QUEUE_DEPTH * 2)
@@ -137,7 +127,7 @@ static void cvm_oct_free_tx_skbs(struct net_device *dev)
  */
 int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	cvmx_pko_command_word0_t pko_command;
+	union cvmx_pko_command_word0 pko_command;
 	union cvmx_buf_ptr hw_buffer;
 	u64 old_scratch;
 	u64 old_scratch2;
@@ -214,8 +204,10 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 				 * Get the number of skbuffs in use
 				 * by the hardware
 				 */
-				skb_to_free = cvmx_fau_fetch_and_add32(
-					priv->fau + qos * 4, MAX_SKB_TO_FREE);
+				skb_to_free =
+				     cvmx_fau_fetch_and_add32(priv->fau +
+							      qos * 4,
+							      MAX_SKB_TO_FREE);
 			}
 			skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
 								 priv->fau +
@@ -269,24 +261,24 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Build the PKO buffer pointer */
 	hw_buffer.u64 = 0;
 	if (skb_shinfo(skb)->nr_frags == 0) {
-		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)skb->data);
+		hw_buffer.s.addr = XKPHYS_TO_PHYS((uintptr_t)skb->data);
 		hw_buffer.s.pool = 0;
 		hw_buffer.s.size = skb->len;
 	} else {
-		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)skb->data);
+		hw_buffer.s.addr = XKPHYS_TO_PHYS((uintptr_t)skb->data);
 		hw_buffer.s.pool = 0;
 		hw_buffer.s.size = skb_headlen(skb);
 		CVM_OCT_SKB_CB(skb)[0] = hw_buffer.u64;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			struct skb_frag_struct *fs = skb_shinfo(skb)->frags + i;
+			skb_frag_t *fs = skb_shinfo(skb)->frags + i;
 
-			hw_buffer.s.addr = XKPHYS_TO_PHYS(
-				(u64)(page_address(fs->page.p) +
-				fs->page_offset));
-			hw_buffer.s.size = fs->size;
+			hw_buffer.s.addr =
+				XKPHYS_TO_PHYS((uintptr_t)skb_frag_address(fs));
+			hw_buffer.s.size = skb_frag_size(fs);
 			CVM_OCT_SKB_CB(skb)[i + 1] = hw_buffer.u64;
 		}
-		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)CVM_OCT_SKB_CB(skb));
+		hw_buffer.s.addr =
+			XKPHYS_TO_PHYS((uintptr_t)CVM_OCT_SKB_CB(skb));
 		hw_buffer.s.size = skb_shinfo(skb)->nr_frags + 1;
 		pko_command.s.segs = skb_shinfo(skb)->nr_frags + 1;
 		pko_command.s.gather = 1;
@@ -358,15 +350,12 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	dst_release(skb_dst(skb));
 	skb_dst_set(skb, NULL);
-#ifdef CONFIG_XFRM
-	secpath_put(skb->sp);
-	skb->sp = NULL;
-#endif
-	nf_reset(skb);
+	skb_ext_reset(skb);
+	nf_reset_ct(skb);
+	skb_reset_redirect(skb);
 
 #ifdef CONFIG_NET_SCHED
 	skb->tc_index = 0;
-	skb_reset_tc(skb);
 #endif /* CONFIG_NET_SCHED */
 #endif /* REUSE_SKBUFFS_WITHOUT_FREE */
 
@@ -414,8 +403,8 @@ dont_put_skbuff_in_hw:
 		queue_type = QUEUE_HW;
 	}
 	if (USE_ASYNC_IOBDMA)
-		cvmx_fau_async_fetch_and_add32(
-				CVMX_SCR_SCRATCH, FAU_TOTAL_TX_TO_CLEAN, 1);
+		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH,
+					       FAU_TOTAL_TX_TO_CLEAN, 1);
 
 	spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 
@@ -492,8 +481,8 @@ skip_xmit:
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH + 8, old_scratch2);
 	} else {
-		total_to_clean = cvmx_fau_fetch_and_add32(
-						FAU_TOTAL_TX_TO_CLEAN, 1);
+		total_to_clean =
+			cvmx_fau_fetch_and_add32(FAU_TOTAL_TX_TO_CLEAN, 1);
 	}
 
 	if (total_to_clean & 0x3ff) {
@@ -525,7 +514,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	void *copy_location;
 
 	/* Get a work queue entry */
-	cvmx_wqe_t *work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
+	struct cvmx_wqe *work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
 
 	if (unlikely(!work)) {
 		printk_ratelimited("%s: Failed to allocate a work queue entry\n",
@@ -609,7 +598,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 #endif
 		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0) ||
 					  (ip_hdr(skb)->frag_off ==
-					      1 << 14));
+					      cpu_to_be16(1 << 14)));
 #if 0
 		/* Assume Linux is sending a good packet */
 		work->word2.s.IP_exc = 0;

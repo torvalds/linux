@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/swp_emulate.c
  *
  *  Copyright (C) 2009 ARM Limited
  *  __user_* functions adapted from include/asm/uaccess.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Implements emulation of the SWP/SWPB instructions using load-exclusive and
  *  store-exclusive for processors that have them disabled (or future ones that
@@ -98,22 +95,20 @@ static int proc_status_show(struct seq_file *m, void *v)
  */
 static void set_segfault(struct pt_regs *regs, unsigned long addr)
 {
-	siginfo_t info;
+	int si_code;
 
-	clear_siginfo(&info);
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 	if (find_vma(current->mm, addr) == NULL)
-		info.si_code = SEGV_MAPERR;
+		si_code = SEGV_MAPERR;
 	else
-		info.si_code = SEGV_ACCERR;
-	up_read(&current->mm->mmap_sem);
-
-	info.si_signo = SIGSEGV;
-	info.si_errno = 0;
-	info.si_addr  = (void *) instruction_pointer(regs);
+		si_code = SEGV_ACCERR;
+	mmap_read_unlock(current->mm);
 
 	pr_debug("SWP{B} emulation: access caused memory abort!\n");
-	arm_notify_die("Illegal memory access", regs, &info, 0, 0);
+	arm_notify_die("Illegal memory access", regs,
+		       SIGSEGV, si_code,
+		       (void __user *)instruction_pointer(regs),
+		       0, 0);
 
 	abtcounter++;
 }
@@ -200,7 +195,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 		 destreg, EXTRACT_REG_NUM(instr, RT2_OFFSET), data);
 
 	/* Check access in reasonable access range for both SWP and SWPB */
-	if (!access_ok(VERIFY_WRITE, (address & ~3), 4)) {
+	if (!access_ok((address & ~3), 4)) {
 		pr_debug("SWP{B} emulation: access to %p not allowed!\n",
 			 (void *)address);
 		res = -EFAULT;

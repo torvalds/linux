@@ -138,9 +138,6 @@ static const struct gasket_mappable_region mappable_regions[NUM_REGIONS] = {
 	{ 0x48000, 0x1000 },
 };
 
-static const struct gasket_mappable_region cm_mappable_regions[1] = { { 0x0,
-	APEX_CH_MEM_BYTES } };
-
 /* Gasket device interrupts enums must be dense (i.e., no empty slots). */
 enum apex_interrupt {
 	APEX_INTERRUPT_INSTR_QUEUE = 0,
@@ -228,7 +225,6 @@ static struct gasket_interrupt_desc apex_interrupts[] = {
 	},
 };
 
-
 /* Allows device to enter power save upon driver close(). */
 static int allow_power_save = 1;
 
@@ -298,7 +294,7 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev)
 
 	/*    - Wait for RAM shutdown. */
 	if (gasket_wait_with_reschedule(gasket_dev, APEX_BAR_INDEX,
-					APEX_BAR2_REG_SCU_3, 1 << 6, 1 << 6,
+					APEX_BAR2_REG_SCU_3, BIT(6), BIT(6),
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
 		dev_err(gasket_dev->dev,
 			"RAM did not shut down within timeout (%d ms)\n",
@@ -344,7 +340,7 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev)
 
 	/*    - Wait for RAM enable. */
 	if (gasket_wait_with_reschedule(gasket_dev, APEX_BAR_INDEX,
-					APEX_BAR2_REG_SCU_3, 1 << 6, 0,
+					APEX_BAR2_REG_SCU_3, BIT(6), 0,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
 		dev_err(gasket_dev->dev,
 			"RAM did not enable within timeout (%d ms)\n",
@@ -443,9 +439,7 @@ static int apex_reset(struct gasket_dev *gasket_dev)
 		if (ret)
 			return ret;
 	}
-	ret = apex_quit_reset(gasket_dev);
-
-	return ret;
+	return apex_quit_reset(gasket_dev);
 }
 
 /*
@@ -515,6 +509,8 @@ static ssize_t sysfs_show(struct device *device, struct device_attribute *attr,
 	struct gasket_dev *gasket_dev;
 	struct gasket_sysfs_attribute *gasket_attr;
 	enum sysfs_attribute_type type;
+	struct gasket_page_table *gpt;
+	uint val;
 
 	gasket_dev = gasket_sysfs_get_device_data(device);
 	if (!gasket_dev) {
@@ -529,30 +525,26 @@ static ssize_t sysfs_show(struct device *device, struct device_attribute *attr,
 		return -ENODEV;
 	}
 
-	type = (enum sysfs_attribute_type)gasket_sysfs_get_attr(device, attr);
+	type = (enum sysfs_attribute_type)gasket_attr->data.attr_type;
+	gpt = gasket_dev->page_table[0];
 	switch (type) {
 	case ATTR_KERNEL_HIB_PAGE_TABLE_SIZE:
-		ret = scnprintf(buf, PAGE_SIZE, "%u\n",
-				gasket_page_table_num_entries(
-					gasket_dev->page_table[0]));
+		val = gasket_page_table_num_entries(gpt);
 		break;
 	case ATTR_KERNEL_HIB_SIMPLE_PAGE_TABLE_SIZE:
-		ret = scnprintf(buf, PAGE_SIZE, "%u\n",
-				gasket_page_table_num_entries(
-					gasket_dev->page_table[0]));
+		val = gasket_page_table_num_simple_entries(gpt);
 		break;
 	case ATTR_KERNEL_HIB_NUM_ACTIVE_PAGES:
-		ret = scnprintf(buf, PAGE_SIZE, "%u\n",
-				gasket_page_table_num_active_pages(
-					gasket_dev->page_table[0]));
+		val = gasket_page_table_num_active_pages(gpt);
 		break;
 	default:
 		dev_dbg(gasket_dev->dev, "Unknown attribute: %s\n",
 			attr->attr.name);
 		ret = 0;
-		break;
+		goto exit;
 	}
-
+	ret = scnprintf(buf, PAGE_SIZE, "%u\n", val);
+exit:
 	gasket_sysfs_put_attr(device, gasket_attr);
 	gasket_sysfs_put_device_data(device, gasket_dev);
 	return ret;
@@ -577,13 +569,6 @@ static int apex_device_open_cb(struct gasket_dev *gasket_dev)
 static const struct pci_device_id apex_pci_ids[] = {
 	{ PCI_DEVICE(APEX_PCI_VENDOR_ID, APEX_PCI_DEVICE_ID) }, { 0 }
 };
-
-static void apex_pci_fixup_class(struct pci_dev *pdev)
-{
-	pdev->class = (PCI_CLASS_SYSTEM_OTHER << 8) | pdev->class;
-}
-DECLARE_PCI_FIXUP_CLASS_HEADER(APEX_PCI_VENDOR_ID, APEX_PCI_DEVICE_ID,
-			       PCI_CLASS_NOT_DEFINED, 8, apex_pci_fixup_class);
 
 static int apex_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)
@@ -665,7 +650,7 @@ static void apex_pci_remove(struct pci_dev *pci_dev)
 	pci_disable_device(pci_dev);
 }
 
-static struct gasket_driver_desc apex_desc = {
+static const struct gasket_driver_desc apex_desc = {
 	.name = "apex",
 	.driver_version = APEX_DRIVER_VERSION,
 	.major = 120,

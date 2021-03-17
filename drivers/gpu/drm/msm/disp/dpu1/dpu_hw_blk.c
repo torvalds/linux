@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -30,16 +22,10 @@ static LIST_HEAD(dpu_hw_blk_list);
  * @type: hw block type - enum dpu_hw_blk_type
  * @id: instance id of the hw block
  * @ops: Pointer to block operations
- * return: 0 if success; error code otherwise
  */
-int dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
+void dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
 		struct dpu_hw_blk_ops *ops)
 {
-	if (!hw_blk) {
-		pr_err("invalid parameters\n");
-		return -EINVAL;
-	}
-
 	INIT_LIST_HEAD(&hw_blk->list);
 	hw_blk->type = type;
 	hw_blk->id = id;
@@ -51,8 +37,6 @@ int dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
 	mutex_lock(&dpu_hw_blk_lock);
 	list_add(&hw_blk->list, &dpu_hw_blk_list);
 	mutex_unlock(&dpu_hw_blk_lock);
-
-	return 0;
 }
 
 /**

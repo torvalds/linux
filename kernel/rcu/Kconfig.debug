@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # RCU-related debugging configuration options
 #
@@ -7,16 +8,29 @@ menu "RCU Debugging"
 config PROVE_RCU
 	def_bool PROVE_LOCKING
 
+config PROVE_RCU_LIST
+	bool "RCU list lockdep debugging"
+	depends on PROVE_RCU && RCU_EXPERT
+	default n
+	help
+	  Enable RCU lockdep checking for list usages. By default it is
+	  turned off since there are several list RCU users that still
+	  need to be converted to pass a lockdep expression. To prevent
+	  false-positive splats, we keep it default disabled but once all
+	  users are converted, we can remove this config option.
+
 config TORTURE_TEST
 	tristate
 	default n
 
-config RCU_PERF_TEST
+config RCU_SCALE_TEST
 	tristate "performance tests for RCU"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
 	select SRCU
 	select TASKS_RCU
+	select TASKS_RUDE_RCU
+	select TASKS_TRACE_RCU
 	default n
 	help
 	  This option provides a kernel module that runs performance
@@ -34,6 +48,8 @@ config RCU_TORTURE_TEST
 	select TORTURE_TEST
 	select SRCU
 	select TASKS_RCU
+	select TASKS_RUDE_RCU
+	select TASKS_TRACE_RCU
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
@@ -43,6 +59,25 @@ config RCU_TORTURE_TEST
 	  Say Y here if you want RCU torture tests to be built into
 	  the kernel.
 	  Say M if you want the RCU torture tests to build as a module.
+	  Say N if you are unsure.
+
+config RCU_REF_SCALE_TEST
+	tristate "Scalability tests for read-side synchronization (RCU and others)"
+	depends on DEBUG_KERNEL
+	select TORTURE_TEST
+	select SRCU
+	select TASKS_RCU
+	select TASKS_RUDE_RCU
+	select TASKS_TRACE_RCU
+	default n
+	help
+	  This option provides a kernel module that runs performance tests
+	  useful comparing RCU with various read-side synchronization mechanisms.
+	  The kernel module may be built after the fact on the running kernel to be
+	  tested, if desired.
+
+	  Say Y here if you want these performance tests built into the kernel.
+	  Say M if you want to build it as a module instead.
 	  Say N if you are unsure.
 
 config RCU_CPU_STALL_TIMEOUT
@@ -78,5 +113,20 @@ config RCU_EQS_DEBUG
 
 	  Say N here if you need ultimate kernel/user switch latencies
 	  Say Y if you are unsure
+
+config RCU_STRICT_GRACE_PERIOD
+	bool "Provide debug RCU implementation with short grace periods"
+	depends on DEBUG_KERNEL && RCU_EXPERT
+	default n
+	select PREEMPT_COUNT if PREEMPT=n
+	help
+	  Select this option to build an RCU variant that is strict about
+	  grace periods, making them as short as it can.  This limits
+	  scalability, destroys real-time response, degrades battery
+	  lifetime and kills performance.  Don't try this on large
+	  machines, as in systems with more than about 10 or 20 CPUs.
+	  But in conjunction with tools like KASAN, it can be helpful
+	  when looking for certain types of RCU usage bugs, for example,
+	  too-short RCU read-side critical sections.
 
 endmenu # "RCU Debugging"

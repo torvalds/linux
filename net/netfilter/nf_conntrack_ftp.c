@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* FTP extension for connection tracking. */
 
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2003,2004 USAGI/WIDE Project <http://www.linux-ipv6.org>
  * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -29,11 +26,13 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/nf_conntrack_ftp.h>
 
+#define HELPER_NAME "ftp"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp connection tracking helper");
 MODULE_ALIAS("ip_conntrack_ftp");
-MODULE_ALIAS_NFCT_HELPER("ftp");
+MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
 /* This is slow, but it's simple. --RR */
 static char *ftp_buffer;
@@ -163,7 +162,7 @@ static int try_rfc959(const char *data, size_t dlen,
 	if (length == 0)
 		return 0;
 
-	cmd->u3.ip =  htonl((array[0] << 24) | (array[1] << 16) |
+	cmd->u3.ip = htonl((array[0] << 24) | (array[1] << 16) |
 				    (array[2] << 8) | array[3]);
 	cmd->u.tcp.port = htons((array[4] << 8) | array[5]);
 	return length;
@@ -323,7 +322,7 @@ static int find_pattern(const char *data, size_t dlen,
 		i++;
 	}
 
-	pr_debug("Skipped up to `%c'!\n", skip);
+	pr_debug("Skipped up to 0x%hhx delimiter!\n", skip);
 
 	*numoff = i;
 	*numlen = getnum(data + i, dlen - i, cmd, term, numoff);
@@ -383,7 +382,7 @@ static int help(struct sk_buff *skb,
 	int ret;
 	u32 seq;
 	int dir = CTINFO2DIR(ctinfo);
-	unsigned int uninitialized_var(matchlen), uninitialized_var(matchoff);
+	unsigned int matchlen, matchoff;
 	struct nf_ct_ftp_master *ct_ftp_info = nfct_help_data(ct);
 	struct nf_conntrack_expect *exp;
 	union nf_inet_addr *daddr;
@@ -526,7 +525,7 @@ skip_nl_seq:
 				 protoff, matchoff, matchlen, exp);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
-		if (nf_ct_expect_related(exp) != 0) {
+		if (nf_ct_expect_related(exp, 0) != 0) {
 			nf_ct_helper_log(skb, ct, "cannot add expectation");
 			ret = NF_DROP;
 		} else
@@ -588,12 +587,14 @@ static int __init nf_conntrack_ftp_init(void)
 	/* FIXME should be configurable whether IPv4 and IPv6 FTP connections
 		 are tracked or not - YK */
 	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&ftp[2 * i], AF_INET, IPPROTO_TCP, "ftp",
-				  FTP_PORT, ports[i], ports[i], &ftp_exp_policy,
-				  0, help, nf_ct_ftp_from_nlattr, THIS_MODULE);
-		nf_ct_helper_init(&ftp[2 * i + 1], AF_INET6, IPPROTO_TCP, "ftp",
-				  FTP_PORT, ports[i], ports[i], &ftp_exp_policy,
-				  0, help, nf_ct_ftp_from_nlattr, THIS_MODULE);
+		nf_ct_helper_init(&ftp[2 * i], AF_INET, IPPROTO_TCP,
+				  HELPER_NAME, FTP_PORT, ports[i], ports[i],
+				  &ftp_exp_policy, 0, help,
+				  nf_ct_ftp_from_nlattr, THIS_MODULE);
+		nf_ct_helper_init(&ftp[2 * i + 1], AF_INET6, IPPROTO_TCP,
+				  HELPER_NAME, FTP_PORT, ports[i], ports[i],
+				  &ftp_exp_policy, 0, help,
+				  nf_ct_ftp_from_nlattr, THIS_MODULE);
 	}
 
 	ret = nf_conntrack_helpers_register(ftp, ports_c * 2);

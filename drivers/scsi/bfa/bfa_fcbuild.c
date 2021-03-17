@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
  * Copyright (c) 2014- QLogic Corporation.
@@ -5,15 +6,6 @@
  * www.qlogic.com
  *
  * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 /*
  * fcbuild.c - FC link service frame building and parsing routines
@@ -188,27 +180,6 @@ fc_els_rsp_build(struct fchs_s *fchs, u32 d_id, u32 s_id, __be16 ox_id)
 	fchs->d_id = d_id;
 	fchs->s_id = s_id;
 	fchs->ox_id = ox_id;
-}
-
-enum fc_parse_status
-fc_els_rsp_parse(struct fchs_s *fchs, int len)
-{
-	struct fc_els_cmd_s *els_cmd = (struct fc_els_cmd_s *) (fchs + 1);
-	struct fc_ls_rjt_s *ls_rjt = (struct fc_ls_rjt_s *) els_cmd;
-
-	len = len;
-
-	switch (els_cmd->els_code) {
-	case FC_ELS_LS_RJT:
-		if (ls_rjt->reason_code == FC_LS_RJT_RSN_LOGICAL_BUSY)
-			return FC_PARSE_BUSY;
-		else
-			return FC_PARSE_FAILURE;
-
-	case FC_ELS_ACC:
-		return FC_PARSE_OK;
-	}
-	return FC_PARSE_OK;
 }
 
 static void
@@ -831,18 +802,6 @@ fc_rpsc_acc_build(struct fchs_s *fchs, struct fc_rpsc_acc_s *rpsc_acc,
 }
 
 u16
-fc_logo_rsp_parse(struct fchs_s *fchs, int len)
-{
-	struct fc_els_cmd_s *els_cmd = (struct fc_els_cmd_s *) (fchs + 1);
-
-	len = len;
-	if (els_cmd->els_code != FC_ELS_ACC)
-		return FC_PARSE_FAILURE;
-
-	return FC_PARSE_OK;
-}
-
-u16
 fc_pdisc_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u16 ox_id,
 	       wwn_t port_name, wwn_t node_name, u16 pdu_size)
 {
@@ -908,40 +867,6 @@ fc_prlo_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u16 ox_id,
 }
 
 u16
-fc_prlo_rsp_parse(struct fchs_s *fchs, int len)
-{
-	struct fc_prlo_acc_s *prlo = (struct fc_prlo_acc_s *) (fchs + 1);
-	int             num_pages = 0;
-	int             page = 0;
-
-	len = len;
-
-	if (prlo->command != FC_ELS_ACC)
-		return FC_PARSE_FAILURE;
-
-	num_pages = ((be16_to_cpu(prlo->payload_len)) - 4) / 16;
-
-	for (page = 0; page < num_pages; page++) {
-		if (prlo->prlo_acc_params[page].type != FC_TYPE_FCP)
-			return FC_PARSE_FAILURE;
-
-		if (prlo->prlo_acc_params[page].opa_valid != 0)
-			return FC_PARSE_FAILURE;
-
-		if (prlo->prlo_acc_params[page].rpa_valid != 0)
-			return FC_PARSE_FAILURE;
-
-		if (prlo->prlo_acc_params[page].orig_process_assc != 0)
-			return FC_PARSE_FAILURE;
-
-		if (prlo->prlo_acc_params[page].resp_process_assc != 0)
-			return FC_PARSE_FAILURE;
-	}
-	return FC_PARSE_OK;
-
-}
-
-u16
 fc_tprlo_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u16 ox_id,
 	       int num_pages, enum fc_tprlo_type tprlo_type, u32 tpr_id)
 {
@@ -969,47 +894,6 @@ fc_tprlo_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u16 ox_id,
 	}
 
 	return be16_to_cpu(tprlo->payload_len);
-}
-
-u16
-fc_tprlo_rsp_parse(struct fchs_s *fchs, int len)
-{
-	struct fc_tprlo_acc_s *tprlo = (struct fc_tprlo_acc_s *) (fchs + 1);
-	int             num_pages = 0;
-	int             page = 0;
-
-	len = len;
-
-	if (tprlo->command != FC_ELS_ACC)
-		return FC_PARSE_ACC_INVAL;
-
-	num_pages = (be16_to_cpu(tprlo->payload_len) - 4) / 16;
-
-	for (page = 0; page < num_pages; page++) {
-		if (tprlo->tprlo_acc_params[page].type != FC_TYPE_FCP)
-			return FC_PARSE_NOT_FCP;
-		if (tprlo->tprlo_acc_params[page].opa_valid != 0)
-			return FC_PARSE_OPAFLAG_INVAL;
-		if (tprlo->tprlo_acc_params[page].rpa_valid != 0)
-			return FC_PARSE_RPAFLAG_INVAL;
-		if (tprlo->tprlo_acc_params[page].orig_process_assc != 0)
-			return FC_PARSE_OPA_INVAL;
-		if (tprlo->tprlo_acc_params[page].resp_process_assc != 0)
-			return FC_PARSE_RPA_INVAL;
-	}
-	return FC_PARSE_OK;
-}
-
-enum fc_parse_status
-fc_rrq_rsp_parse(struct fchs_s *fchs, int len)
-{
-	struct fc_els_cmd_s *els_cmd = (struct fc_els_cmd_s *) (fchs + 1);
-
-	len = len;
-	if (els_cmd->els_code != FC_ELS_ACC)
-		return FC_PARSE_FAILURE;
-
-	return FC_PARSE_OK;
 }
 
 u16

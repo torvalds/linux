@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -6,12 +7,6 @@
  * Based on the reference implementation by Antoon Bosselaers, ESAT-COSIC
  *
  * Copyright (c) 2008 Adrian-Ken Rueegsegger <ken@codelabs.ch>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
@@ -347,6 +342,7 @@ static struct shash_alg alg = {
 	.descsize	=	sizeof(struct rmd160_ctx),
 	.base		=	{
 		.cra_name	 =	"rmd160",
+		.cra_driver_name =	"rmd160-generic",
 		.cra_blocksize	 =	RMD160_BLOCK_SIZE,
 		.cra_module	 =	THIS_MODULE,
 	}
@@ -362,7 +358,7 @@ static void __exit rmd160_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(rmd160_mod_init);
+subsys_initcall(rmd160_mod_init);
 module_exit(rmd160_mod_fini);
 
 MODULE_LICENSE("GPL");

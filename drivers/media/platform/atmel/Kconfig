@@ -1,7 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_ATMEL_ISC
 	tristate "ATMEL Image Sensor Controller (ISC) support"
-	depends on VIDEO_V4L2 && COMMON_CLK && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && COMMON_CLK
 	depends on ARCH_AT91 || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	select REGMAP_MMIO
 	select V4L2_FWNODE
@@ -15,6 +18,6 @@ config VIDEO_ATMEL_ISI
 	depends on ARCH_AT91 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
-	---help---
+	help
 	  This module makes the ATMEL Image Sensor Interface available
 	  as a v4l2 device.

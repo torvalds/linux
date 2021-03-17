@@ -103,7 +103,6 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 	context->out_param = out_param;
 	complete(&context->done);
 }
-EXPORT_SYMBOL_GPL(hns_roce_cmd_event);
 
 /* this should be called with "use_events" */
 static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
@@ -162,7 +161,7 @@ static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
 				  u8 op_modifier, u16 op, unsigned long timeout)
 {
-	int ret = 0;
+	int ret;
 
 	down(&hr_dev->cmd.event_sem);
 	ret = __hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
@@ -176,19 +175,34 @@ int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 		      unsigned long in_modifier, u8 op_modifier, u16 op,
 		      unsigned long timeout)
 {
-	if (hr_dev->is_reset)
-		return 0;
+	int ret;
+
+	if (hr_dev->hw->rst_prc_mbox) {
+		ret = hr_dev->hw->rst_prc_mbox(hr_dev);
+		if (ret == CMD_RST_PRC_SUCCESS)
+			return 0;
+		else if (ret == CMD_RST_PRC_EBUSY)
+			return -EBUSY;
+	}
 
 	if (hr_dev->cmd.use_events)
-		return hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
-					      in_modifier, op_modifier, op,
-					      timeout);
+		ret = hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
+					     in_modifier, op_modifier, op,
+					     timeout);
 	else
-		return hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param,
-					      in_modifier, op_modifier, op,
-					      timeout);
+		ret = hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param,
+					     in_modifier, op_modifier, op,
+					     timeout);
+
+	if (ret == CMD_RST_PRC_EBUSY)
+		return -EBUSY;
+
+	if (ret && (hr_dev->hw->rst_prc_mbox &&
+		    hr_dev->hw->rst_prc_mbox(hr_dev) == CMD_RST_PRC_SUCCESS))
+		return 0;
+
+	return ret;
 }
-EXPORT_SYMBOL_GPL(hns_roce_cmd_mbox);
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 {
@@ -197,7 +211,6 @@ int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 	mutex_init(&hr_dev->cmd.hcr_mutex);
 	sema_init(&hr_dev->cmd.poll_sem, 1);
 	hr_dev->cmd.use_events = 0;
-	hr_dev->cmd.toggle = 1;
 	hr_dev->cmd.max_cmds = CMD_MAX_NUM;
 	hr_dev->cmd.pool = dma_pool_create("hns_roce_cmd", dev,
 					   HNS_ROCE_MAILBOX_SIZE,
@@ -238,23 +251,15 @@ int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev)
 	hr_cmd->token_mask = CMD_TOKEN_MASK;
 	hr_cmd->use_events = 1;
 
-	down(&hr_cmd->poll_sem);
-
 	return 0;
 }
 
 void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmdq *hr_cmd = &hr_dev->cmd;
-	int i;
-
-	hr_cmd->use_events = 0;
-
-	for (i = 0; i < hr_cmd->max_cmds; ++i)
-		down(&hr_cmd->event_sem);
 
 	kfree(hr_cmd->context);
-	up(&hr_cmd->poll_sem);
+	hr_cmd->use_events = 0;
 }
 
 struct hns_roce_cmd_mailbox
@@ -275,7 +280,6 @@ struct hns_roce_cmd_mailbox
 
 	return mailbox;
 }
-EXPORT_SYMBOL_GPL(hns_roce_alloc_cmd_mailbox);
 
 void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_cmd_mailbox *mailbox)
@@ -286,4 +290,3 @@ void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 	dma_pool_free(hr_dev->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
 }
-EXPORT_SYMBOL_GPL(hns_roce_free_cmd_mailbox);

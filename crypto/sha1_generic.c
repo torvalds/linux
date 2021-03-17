@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -9,18 +10,11 @@
  * Copyright (c) Alan Smithee.
  * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
  * Copyright (c) Jean-Francois Dive <jef@linuxbe.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/cryptohash.h>
 #include <linux/types.h>
 #include <crypto/sha.h>
 #include <crypto/sha1_base.h>
@@ -36,10 +30,10 @@ EXPORT_SYMBOL_GPL(sha1_zero_message_hash);
 static void sha1_generic_block_fn(struct sha1_state *sst, u8 const *src,
 				  int blocks)
 {
-	u32 temp[SHA_WORKSPACE_WORDS];
+	u32 temp[SHA1_WORKSPACE_WORDS];
 
 	while (blocks--) {
-		sha_transform(sst->state, src, temp);
+		sha1_transform(sst->state, src, temp);
 		src += SHA1_BLOCK_SIZE;
 	}
 	memzero_explicit(temp, sizeof(temp));
@@ -92,7 +86,7 @@ static void __exit sha1_generic_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(sha1_generic_mod_init);
+subsys_initcall(sha1_generic_mod_init);
 module_exit(sha1_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

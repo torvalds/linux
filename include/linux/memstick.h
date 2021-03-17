@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Sony MemoryStick support
  *
  *  Copyright (C) 2007 Alex Dubov <oakad@yahoo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _MEMSTICK_H
@@ -285,6 +281,7 @@ struct memstick_host {
 
 	struct memstick_dev *card;
 	unsigned int        retries;
+	bool removing;
 
 	/* Notify the host that some requests are pending. */
 	void                (*request)(struct memstick_host *host);
@@ -292,7 +289,7 @@ struct memstick_host {
 	int                 (*set_param)(struct memstick_host *host,
 					 enum memstick_param param,
 					 int value);
-	unsigned long       private[0] ____cacheline_aligned;
+	unsigned long       private[] ____cacheline_aligned;
 };
 
 struct memstick_driver {

@@ -12,7 +12,7 @@
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/pkt_cls.h>
 
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 /*
  * This struct is stored in the XDP 'data_meta' area, which is located

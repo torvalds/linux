@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is the 1999 rewrite of IP Firewalling, aiming for kernel 2.3.x.
  *
  * Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
  * Copyright (C) 2000-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -76,16 +73,24 @@ static int __net_init ip6table_filter_net_init(struct net *net)
 	return 0;
 }
 
+static void __net_exit ip6table_filter_net_pre_exit(struct net *net)
+{
+	if (net->ipv6.ip6table_filter)
+		ip6t_unregister_table_pre_exit(net, net->ipv6.ip6table_filter,
+					       filter_ops);
+}
+
 static void __net_exit ip6table_filter_net_exit(struct net *net)
 {
 	if (!net->ipv6.ip6table_filter)
 		return;
-	ip6t_unregister_table(net, net->ipv6.ip6table_filter, filter_ops);
+	ip6t_unregister_table_exit(net, net->ipv6.ip6table_filter);
 	net->ipv6.ip6table_filter = NULL;
 }
 
 static struct pernet_operations ip6table_filter_net_ops = {
 	.init = ip6table_filter_net_init,
+	.pre_exit = ip6table_filter_net_pre_exit,
 	.exit = ip6table_filter_net_exit,
 };
 

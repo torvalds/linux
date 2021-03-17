@@ -27,6 +27,8 @@
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
 
+#include <uapi/drm/drm_mode.h>
+
 /**
  * struct drm_property_enum - symbolic values for enumerations
  * @value: numeric property value for this enum entry
@@ -151,7 +153,8 @@ struct drm_property {
 	 *     userspace. The kernel is allowed to update the value of these
 	 *     properties. This is generally used to expose probe state to
 	 *     userspace, e.g. the EDID, or the connector path property on DP
-	 *     MST sinks.
+	 *     MST sinks. Kernel can update the value of an immutable property
+	 *     by calling drm_object_property_set_value().
 	 */
 	uint32_t flags;
 

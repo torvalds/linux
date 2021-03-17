@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP Crypto driver common support routines.
  *
  * Copyright (c) 2017 Texas Instruments Incorporated
  *   Tero Kristo <t-kristo@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -157,6 +154,47 @@ int omap_crypto_align_sg(struct scatterlist **sg, int total, int bs,
 }
 EXPORT_SYMBOL_GPL(omap_crypto_align_sg);
 
+static void omap_crypto_copy_data(struct scatterlist *src,
+				  struct scatterlist *dst,
+				  int offset, int len)
+{
+	int amt;
+	void *srcb, *dstb;
+	int srco = 0, dsto = offset;
+
+	while (src && dst && len) {
+		if (srco >= src->length) {
+			srco -= src->length;
+			src = sg_next(src);
+			continue;
+		}
+
+		if (dsto >= dst->length) {
+			dsto -= dst->length;
+			dst = sg_next(dst);
+			continue;
+		}
+
+		amt = min(src->length - srco, dst->length - dsto);
+		amt = min(len, amt);
+
+		srcb = kmap_atomic(sg_page(src)) + srco + src->offset;
+		dstb = kmap_atomic(sg_page(dst)) + dsto + dst->offset;
+
+		memcpy(dstb, srcb, amt);
+
+		if (!PageSlab(sg_page(dst)))
+			flush_kernel_dcache_page(sg_page(dst));
+
+		kunmap_atomic(srcb);
+		kunmap_atomic(dstb);
+
+		srco += amt;
+		dsto += amt;
+		len -= amt;
+	}
+}
+
 void omap_crypto_cleanup(struct scatterlist *sg, struct scatterlist *orig,
 			 int offset, int len, u8 flags_shift,
 			 unsigned long flags)
@@ -174,7 +212,7 @@ void omap_crypto_cleanup(struct scatterlist *sg, struct scatterlist *orig,
 	pages = get_order(len);
 
 	if (orig && (flags & OMAP_CRYPTO_COPY_MASK))
-		scatterwalk_map_and_copy(buf, orig, offset, len, 1);
+		omap_crypto_copy_data(sg, orig, offset, len);
 
 	if (flags & OMAP_CRYPTO_DATA_COPIED)
 		free_pages((unsigned long)buf, pages);

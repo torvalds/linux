@@ -60,19 +60,19 @@ void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal);
 
 bool dp_set_hw_training_pattern(
 	struct dc_link *link,
-	enum hw_dp_training_pattern pattern);
+	enum dc_dp_training_pattern pattern,
+	uint32_t offset);
 
 void dp_set_hw_lane_settings(
 	struct dc_link *link,
-	const struct link_training_settings *link_settings);
+	const struct link_training_settings *link_settings,
+	uint32_t offset);
 
 void dp_set_hw_test_pattern(
 	struct dc_link *link,
 	enum dp_test_pattern test_pattern,
 	uint8_t *custom_pattern,
 	uint32_t custom_pattern_size);
-
-enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 
 void dp_retrain_link_dp_test(struct dc_link *link,
 		struct dc_link_settings *link_setting,

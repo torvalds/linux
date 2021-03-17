@@ -319,7 +319,7 @@
 			>;
 		};
 
-		PCIE0: pciex@d00000000 {
+		PCIE0: pcie@d00000000 {
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -360,7 +360,7 @@
 				0x0 0x0 0x0 0x4 &UIC3 0x3 0x4 /* swizzled int D */>;
 		};
 
-		PCIE1: pciex@d20000000 {
+		PCIE1: pcie@d20000000 {
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -401,7 +401,7 @@
 				0x0 0x0 0x0 0x4 &UIC3 0x7 0x4 /* swizzled int D */>;
 		};
 
-		PCIE2: pciex@d40000000 {
+		PCIE2: pcie@d40000000 {
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;

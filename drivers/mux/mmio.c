@@ -28,6 +28,7 @@ static const struct mux_control_ops mux_mmio_ops = {
 
 static const struct of_device_id mux_mmio_dt_ids[] = {
 	{ .compatible = "mmio-mux", },
+	{ .compatible = "reg-mux", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mux_mmio_dt_ids);
@@ -43,7 +44,10 @@ static int mux_mmio_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	regmap = syscon_node_to_regmap(np->parent);
+	if (of_device_is_compatible(np, "mmio-mux"))
+		regmap = syscon_node_to_regmap(np->parent);
+	else
+		regmap = dev_get_regmap(dev->parent, NULL) ?: ERR_PTR(-ENODEV);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		dev_err(dev, "failed to get regmap: %d\n", ret);

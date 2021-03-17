@@ -1,19 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD5592R Digital <-> Analog converters driver
  *
  * Copyright 2015-2016 Analog Devices Inc.
  * Author: Paul Cercueil <paul.cercueil@analog.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include "ad5592r-base.h"
 
 #include <linux/bitops.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
-#include <linux/acpi.h>
 
 #define AD5592R_GPIO_READBACK_EN	BIT(10)
 #define AD5592R_LDAC_READBACK_EN	BIT(6)
@@ -99,7 +97,7 @@ static int ad5592r_reg_read(struct ad5592r_state *st, u8 reg, u16 *value)
 	return 0;
 }
 
-static int ad5593r_gpio_read(struct ad5592r_state *st, u8 *value)
+static int ad5592r_gpio_read(struct ad5592r_state *st, u8 *value)
 {
 	int ret;
 
@@ -122,7 +120,7 @@ static const struct ad5592r_rw_ops ad5592r_rw_ops = {
 	.read_adc = ad5592r_read_adc,
 	.reg_write = ad5592r_reg_write,
 	.reg_read = ad5592r_reg_read,
-	.gpio_read = ad5593r_gpio_read,
+	.gpio_read = ad5592r_gpio_read,
 };
 
 static int ad5592r_spi_probe(struct spi_device *spi)
@@ -158,8 +156,8 @@ MODULE_DEVICE_TABLE(acpi, ad5592r_acpi_match);
 static struct spi_driver ad5592r_spi_driver = {
 	.driver = {
 		.name = "ad5592r",
-		.of_match_table = of_match_ptr(ad5592r_of_match),
-		.acpi_match_table = ACPI_PTR(ad5592r_acpi_match),
+		.of_match_table = ad5592r_of_match,
+		.acpi_match_table = ad5592r_acpi_match,
 	},
 	.probe = ad5592r_spi_probe,
 	.remove = ad5592r_spi_remove,

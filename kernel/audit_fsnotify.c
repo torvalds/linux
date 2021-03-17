@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* audit_fsnotify.c -- tracking inodes
  *
  * Copyright 2003-2009,2014-2015 Red Hat, Inc.
  * Copyright 2005 Hewlett-Packard Development Company, L.P.
  * Copyright 2005 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -45,7 +36,7 @@ static struct fsnotify_group *audit_fsnotify_group;
 
 /* fsnotify events we care about. */
 #define AUDIT_FS_EVENTS (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
-			 FS_MOVE_SELF | FS_EVENT_ON_CHILD)
+			 FS_MOVE_SELF)
 
 static void audit_fsnotify_mark_free(struct audit_fsnotify_mark *audit_mark)
 {
@@ -127,13 +118,11 @@ static void audit_mark_log_rule_change(struct audit_fsnotify_mark *audit_mark, c
 
 	if (!audit_enabled)
 		return;
-	ab = audit_log_start(NULL, GFP_NOFS, AUDIT_CONFIG_CHANGE);
+	ab = audit_log_start(audit_context(), GFP_NOFS, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return;
-	audit_log_format(ab, "auid=%u ses=%u op=%s",
-			 from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			 audit_get_sessionid(current), op);
-	audit_log_format(ab, " path=");
+	audit_log_session_info(ab);
+	audit_log_format(ab, " op=%s path=", op);
 	audit_log_untrustedstring(ab, audit_mark->path);
 	audit_log_key(ab, rule->filterkey);
 	audit_log_format(ab, " list=%d res=1", rule->listnr);
@@ -163,44 +152,31 @@ static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
 }
 
 /* Update mark data in audit rules based on fsnotify events. */
-static int audit_mark_handle_event(struct fsnotify_group *group,
-				    struct inode *to_tell,
-				    u32 mask, const void *data, int data_type,
-				    const unsigned char *dname, u32 cookie,
-				    struct fsnotify_iter_info *iter_info)
+static int audit_mark_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
+				   struct inode *inode, struct inode *dir,
+				   const struct qstr *dname, u32 cookie)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct audit_fsnotify_mark *audit_mark;
-	const struct inode *inode = NULL;
 
 	audit_mark = container_of(inode_mark, struct audit_fsnotify_mark, mark);
 
-	BUG_ON(group != audit_fsnotify_group);
-
-	switch (data_type) {
-	case (FSNOTIFY_EVENT_PATH):
-		inode = ((const struct path *)data)->dentry->d_inode;
-		break;
-	case (FSNOTIFY_EVENT_INODE):
-		inode = (const struct inode *)data;
-		break;
-	default:
-		BUG();
+	if (WARN_ON_ONCE(inode_mark->group != audit_fsnotify_group) ||
+	    WARN_ON_ONCE(!inode))
 		return 0;
-	}
 
 	if (mask & (FS_CREATE|FS_MOVED_TO|FS_DELETE|FS_MOVED_FROM)) {
 		if (audit_compare_dname_path(dname, audit_mark->path, AUDIT_NAME_FULL))
 			return 0;
 		audit_update_mark(audit_mark, inode);
-	} else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF))
+	} else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF)) {
 		audit_autoremove_mark_rule(audit_mark);
+	}
 
 	return 0;
 }
 
 static const struct fsnotify_ops audit_mark_fsnotify_ops = {
-	.handle_event =	audit_mark_handle_event,
+	.handle_inode_event = audit_mark_handle_event,
 	.free_mark = audit_fsnotify_free_mark,
 };
 

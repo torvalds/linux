@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Driver for Realtek PCI-Express card reader
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
@@ -110,18 +98,6 @@
 	iowrite8(value, (pcr)->remap_addr + reg)
 #define rtsx_pci_readb(pcr, reg) \
 	ioread8((pcr)->remap_addr + reg)
-
-#define rtsx_pci_read_config_byte(pcr, where, val) \
-	pci_read_config_byte((pcr)->pci, where, val)
-
-#define rtsx_pci_write_config_byte(pcr, where, val) \
-	pci_write_config_byte((pcr)->pci, where, val)
-
-#define rtsx_pci_read_config_dword(pcr, where, val) \
-	pci_read_config_dword((pcr)->pci, where, val)
-
-#define rtsx_pci_write_config_dword(pcr, where, val) \
-	pci_write_config_dword((pcr)->pci, where, val)
 
 #define STATE_TRANS_NONE		0
 #define STATE_TRANS_CMD			1
@@ -317,6 +293,8 @@
 #define   SD30_CLK_STOP_CFG0		0x01
 #define REG_PRE_RW_MODE			0xFD70
 #define EN_INFINITE_MODE		0x01
+#define REG_CRC_DUMMY_0		0xFD71
+#define CFG_SD_POW_AUTO_PD		(1<<0)
 
 #define SRCTL				0xFC13
 
@@ -611,6 +589,7 @@
 
 #define ASPM_FORCE_CTL			0xFE57
 #define   FORCE_ASPM_CTL0		0x10
+#define   FORCE_ASPM_CTL1		0x20
 #define   FORCE_ASPM_VAL_MASK		0x03
 #define   FORCE_ASPM_L1_EN		0x02
 #define   FORCE_ASPM_L0_EN		0x01
@@ -678,6 +657,11 @@
 #define   RESET_PIN_WAKE		0x02
 #define   PM_WAKE_EN			0x01
 #define PM_CTRL4			0xFF47
+
+#define REG_CFG_OOBS_OFF_TIMER 0xFEA6
+#define REG_CFG_OOBS_ON_TIMER 0xFEA7
+#define REG_CFG_VCM_ON_TIMER 0xFEA8
+#define REG_CFG_OOBS_POLLING 0xFEA9
 
 /* Memory mapping */
 #define SRAM_BASE			0xE600
@@ -1053,10 +1037,6 @@
 #define   PHY_DIG1E_RX_EN_KEEP		0x0001
 #define PHY_DUM_REG			0x1F
 
-#define PCR_ASPM_SETTING_REG1		0x160
-#define PCR_ASPM_SETTING_REG2		0x168
-#define PCR_ASPM_SETTING_5260		0x178
-
 #define PCR_SETTING_REG1		0x724
 #define PCR_SETTING_REG2		0x814
 #define PCR_SETTING_REG3		0x747
@@ -1092,11 +1072,7 @@ struct pcr_ops {
 	void		(*stop_cmd)(struct rtsx_pcr *pcr);
 
 	void (*set_aspm)(struct rtsx_pcr *pcr, bool enable);
-	int (*set_ltr_latency)(struct rtsx_pcr *pcr, u32 latency);
-	int (*set_l1off_sub)(struct rtsx_pcr *pcr, u8 val);
 	void (*set_l1off_cfg_sub_d0)(struct rtsx_pcr *pcr, int active);
-	void (*full_on)(struct rtsx_pcr *pcr);
-	void (*power_saving)(struct rtsx_pcr *pcr);
 	void (*enable_ocp)(struct rtsx_pcr *pcr);
 	void (*disable_ocp)(struct rtsx_pcr *pcr);
 	void (*init_ocp)(struct rtsx_pcr *pcr);
@@ -1107,11 +1083,6 @@ struct pcr_ops {
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
 
-#define ASPM_L1_1_EN_MASK		BIT(3)
-#define ASPM_L1_2_EN_MASK		BIT(2)
-#define PM_L1_1_EN_MASK		BIT(1)
-#define PM_L1_2_EN_MASK		BIT(0)
-
 #define ASPM_L1_1_EN			BIT(0)
 #define ASPM_L1_2_EN			BIT(1)
 #define PM_L1_1_EN				BIT(2)
@@ -1119,13 +1090,6 @@ enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
 #define LTR_L1SS_PWR_GATE_EN	BIT(4)
 #define L1_SNOOZE_TEST_EN		BIT(5)
 #define LTR_L1SS_PWR_GATE_CHECK_CARD_EN	BIT(6)
-
-enum dev_aspm_mode {
-	DEV_ASPM_DYNAMIC,
-	DEV_ASPM_BACKDOOR,
-	DEV_ASPM_STATIC,
-	DEV_ASPM_DISABLE,
-};
 
 /*
  * struct rtsx_cr_option  - card reader option
@@ -1137,7 +1101,6 @@ enum dev_aspm_mode {
  * @ltr_active_latency: ltr mode active latency
  * @ltr_idle_latency: ltr mode idle latency
  * @ltr_l1off_latency: ltr mode l1off latency
- * @dev_aspm_mode: device aspm mode
  * @l1_snooze_delay: l1 snooze delay
  * @ltr_l1off_sspwrgate: ltr l1off sspwrgate
  * @ltr_l1off_snooze_sspwrgate: ltr l1off snooze sspwrgate
@@ -1154,7 +1117,6 @@ struct rtsx_cr_option {
 	u32 ltr_active_latency;
 	u32 ltr_idle_latency;
 	u32 ltr_l1off_latency;
-	enum dev_aspm_mode dev_aspm_mode;
 	u32 l1_snooze_delay;
 	u8 ltr_l1off_sspwrgate;
 	u8 ltr_l1off_snooze_sspwrgate;
@@ -1183,7 +1145,6 @@ struct rtsx_hw_param {
 struct rtsx_pcr {
 	struct pci_dev			*pci;
 	unsigned int			id;
-	int				pcie_cap;
 	struct rtsx_cr_option	option;
 	struct rtsx_hw_param hw_param;
 
@@ -1229,6 +1190,7 @@ struct rtsx_pcr {
 #define EXTRA_CAPS_MMC_HSDDR		(1 << 3)
 #define EXTRA_CAPS_MMC_HS200		(1 << 4)
 #define EXTRA_CAPS_MMC_8BIT		(1 << 5)
+#define EXTRA_CAPS_NO_MMC		(1 << 7)
 	u32				extra_caps;
 
 #define IC_VER_A			0
@@ -1267,6 +1229,7 @@ struct rtsx_pcr {
 	u8				dma_error_count;
 	u8			ocp_stat;
 	u8			ocp_stat2;
+	u8			rtd3_en;
 };
 
 #define PID_524A	0x524A
@@ -1274,6 +1237,8 @@ struct rtsx_pcr {
 #define PID_5250	0x5250
 #define PID_525A	0x525A
 #define PID_5260	0x5260
+#define PID_5261	0x5261
+#define PID_5228	0x5228
 
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))
 #define PCI_VID(pcr)			((pcr)->pci->vendor)
@@ -1329,18 +1294,6 @@ void rtsx_pci_complete_unfinished_transfer(struct rtsx_pcr *pcr);
 static inline u8 *rtsx_pci_get_cmd_data(struct rtsx_pcr *pcr)
 {
 	return (u8 *)(pcr->host_cmds_ptr);
-}
-
-static inline int rtsx_pci_update_cfg_byte(struct rtsx_pcr *pcr, int addr,
-		u8 mask, u8 append)
-{
-	int err;
-	u8 val;
-
-	err = pci_read_config_byte(pcr->pci, addr, &val);
-	if (err < 0)
-		return err;
-	return pci_write_config_byte(pcr->pci, addr, (val & mask) | append);
 }
 
 static inline void rtsx_pci_write_be32(struct rtsx_pcr *pcr, u16 reg, u32 val)

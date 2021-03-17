@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -121,6 +112,26 @@ static u32 get_hw_cons_idx(struct hinic_api_cmd_chain *chain)
 	return HINIC_API_CMD_STATUS_GET(val, CONS_IDX);
 }
 
+static void dump_api_chain_reg(struct hinic_api_cmd_chain *chain)
+{
+	u32 addr, val;
+
+	addr = HINIC_CSR_API_CMD_STATUS_ADDR(chain->chain_type);
+	val  = hinic_hwif_read_reg(chain->hwif, addr);
+
+	dev_err(&chain->hwif->pdev->dev, "Chain type: 0x%x, cpld error: 0x%x, check error: 0x%x, current fsm: 0x%x\n",
+		chain->chain_type, HINIC_API_CMD_STATUS_GET(val, CPLD_ERR),
+		HINIC_API_CMD_STATUS_GET(val, CHKSUM_ERR),
+		HINIC_API_CMD_STATUS_GET(val, FSM));
+
+	dev_err(&chain->hwif->pdev->dev, "Chain hw current ci: 0x%x\n",
+		HINIC_API_CMD_STATUS_GET(val, CONS_IDX));
+
+	addr = HINIC_CSR_API_CMD_CHAIN_PI_ADDR(chain->chain_type);
+	val  = hinic_hwif_read_reg(chain->hwif, addr);
+	dev_err(&chain->hwif->pdev->dev, "Chain hw current pi: 0x%x\n", val);
+}
+
 /**
  * chain_busy - check if the chain is still processing last requests
  * @chain: chain to check
@@ -140,8 +151,10 @@ static int chain_busy(struct hinic_api_cmd_chain *chain)
 
 		/* check for a space for a new command */
 		if (chain->cons_idx == MASKED_IDX(chain, prod_idx + 1)) {
-			dev_err(&pdev->dev, "API CMD chain %d is busy\n",
-				chain->chain_type);
+			dev_err(&pdev->dev, "API CMD chain %d is busy, cons_idx: %d, prod_idx: %d\n",
+				chain->chain_type, chain->cons_idx,
+				chain->prod_idx);
+			dump_api_chain_reg(chain);
 			return -EBUSY;
 		}
 		break;
@@ -341,6 +354,7 @@ static int wait_for_api_cmd_completion(struct hinic_api_cmd_chain *chain)
 		err = wait_for_status_poll(chain);
 		if (err) {
 			dev_err(&pdev->dev, "API CMD Poll status timeout\n");
+			dump_api_chain_reg(chain);
 			break;
 		}
 		break;
@@ -359,7 +373,7 @@ static int wait_for_api_cmd_completion(struct hinic_api_cmd_chain *chain)
  * @chain: chain for the command
  * @dest: destination node on the card that will receive the command
  * @cmd: command data
- * @size: the command size
+ * @cmd_size: the command size
  *
  * Return 0 - Success, negative - Failure
  **/
@@ -613,8 +627,8 @@ static int alloc_cmd_buf(struct hinic_api_cmd_chain *chain,
 	u8 *cmd_vaddr;
 	int err = 0;
 
-	cmd_vaddr = dma_zalloc_coherent(&pdev->dev, API_CMD_BUF_SIZE,
-					&cmd_paddr, GFP_KERNEL);
+	cmd_vaddr = dma_alloc_coherent(&pdev->dev, API_CMD_BUF_SIZE,
+				       &cmd_paddr, GFP_KERNEL);
 	if (!cmd_vaddr) {
 		dev_err(&pdev->dev, "Failed to allocate API CMD DMA memory\n");
 		return -ENOMEM;
@@ -663,8 +677,8 @@ static int api_cmd_create_cell(struct hinic_api_cmd_chain *chain,
 	dma_addr_t node_paddr;
 	int err;
 
-	node = dma_zalloc_coherent(&pdev->dev, chain->cell_size,
-				   &node_paddr, GFP_KERNEL);
+	node = dma_alloc_coherent(&pdev->dev, chain->cell_size, &node_paddr,
+				  GFP_KERNEL);
 	if (!node) {
 		dev_err(&pdev->dev, "Failed to allocate dma API CMD cell\n");
 		return -ENOMEM;
@@ -821,10 +835,10 @@ static int api_chain_init(struct hinic_api_cmd_chain *chain,
 	if (!chain->cell_ctxt)
 		return -ENOMEM;
 
-	chain->wb_status = dma_zalloc_coherent(&pdev->dev,
-					       sizeof(*chain->wb_status),
-					       &chain->wb_status_paddr,
-					       GFP_KERNEL);
+	chain->wb_status = dma_alloc_coherent(&pdev->dev,
+					      sizeof(*chain->wb_status),
+					      &chain->wb_status_paddr,
+					      GFP_KERNEL);
 	if (!chain->wb_status) {
 		dev_err(&pdev->dev, "Failed to allocate DMA wb status\n");
 		return -ENOMEM;

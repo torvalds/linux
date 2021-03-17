@@ -1,7 +1,7 @@
 /*
  * AM33XX Clock Domain data.
  *
- * Copyright (C) 2011-2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2012 Texas Instruments Incorporated - https://www.ti.com/
  * Vaibhav Hiremath <hvaibhav@ti.com>
  *
  * This program is free software; you can redistribute it and/or

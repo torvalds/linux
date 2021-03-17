@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 ioctl system call
  *
@@ -5,16 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx18-driver.h"
@@ -87,7 +78,7 @@ static u16 select_service_from_set(int field, int line, u16 set, int is_pal)
 			return 0;
 	}
 	for (i = 0; i < 32; i++) {
-		if ((1 << i) & set)
+		if (BIT(i) & set)
 			return 1 << i;
 	}
 	return 0;
@@ -394,16 +385,13 @@ static int cx18_querycap(struct file *file, void *fh,
 				struct v4l2_capability *vcap)
 {
 	struct cx18_open_id *id = fh2id(fh);
-	struct cx18_stream *s = video_drvdata(file);
 	struct cx18 *cx = id->cx;
 
-	strlcpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
-	strlcpy(vcap->card, cx->card_name, sizeof(vcap->card));
+	strscpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
+	strscpy(vcap->card, cx->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
 		 "PCI:%s", pci_name(cx->pci_dev));
-	vcap->capabilities = cx->v4l2_cap;	/* capabilities */
-	vcap->device_caps = s->v4l2_dev_caps;	/* device capabilities */
-	vcap->capabilities |= V4L2_CAP_DEVICE_CAPS;
+	vcap->capabilities = cx->v4l2_cap | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -441,15 +429,16 @@ static int cx18_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
 	return cx18_get_input(cx, vin->index, vin);
 }
 
-static int cx18_cropcap(struct file *file, void *fh,
-			struct v4l2_cropcap *cropcap)
+static int cx18_g_pixelaspect(struct file *file, void *fh,
+			      int type, struct v4l2_fract *f)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	cropcap->pixelaspect.numerator = cx->is_50hz ? 54 : 11;
-	cropcap->pixelaspect.denominator = cx->is_50hz ? 59 : 10;
+
+	f->numerator = cx->is_50hz ? 54 : 11;
+	f->denominator = cx->is_50hz ? 59 : 10;
 	return 0;
 }
 
@@ -477,14 +466,24 @@ static int cx18_enum_fmt_vid_cap(struct file *file, void *fh,
 					struct v4l2_fmtdesc *fmt)
 {
 	static const struct v4l2_fmtdesc formats[] = {
-		{ 0, V4L2_BUF_TYPE_VIDEO_CAPTURE, 0,
-		  "HM12 (YUV 4:1:1)", V4L2_PIX_FMT_HM12, { 0, 0, 0, 0 }
+		{
+			.index = 0,
+			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			.description = "HM12 (YUV 4:1:1)",
+			.pixelformat = V4L2_PIX_FMT_HM12,
 		},
-		{ 1, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FMT_FLAG_COMPRESSED,
-		  "MPEG", V4L2_PIX_FMT_MPEG, { 0, 0, 0, 0 }
+		{
+			.index = 1,
+			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			.flags = V4L2_FMT_FLAG_COMPRESSED,
+			.description = "MPEG",
+			.pixelformat = V4L2_PIX_FMT_MPEG,
 		},
-		{ 2, V4L2_BUF_TYPE_VIDEO_CAPTURE, 0,
-		  "UYVY 4:2:2", V4L2_PIX_FMT_UYVY, { 0, 0, 0, 0 }
+		{
+			.index = 2,
+			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			.description = "UYVY 4:2:2",
+			.pixelformat = V4L2_PIX_FMT_UYVY,
 		},
 	};
 
@@ -632,9 +631,9 @@ static int cx18_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	cx18_call_all(cx, tuner, g_tuner, vt);
 
 	if (vt->type == V4L2_TUNER_RADIO)
-		strlcpy(vt->name, "cx18 Radio Tuner", sizeof(vt->name));
+		strscpy(vt->name, "cx18 Radio Tuner", sizeof(vt->name));
 	else
-		strlcpy(vt->name, "cx18 TV Tuner", sizeof(vt->name));
+		strscpy(vt->name, "cx18 TV Tuner", sizeof(vt->name));
 	return 0;
 }
 
@@ -675,7 +674,7 @@ static int _cx18_process_idx_data(struct cx18_buffer *buf,
 	struct cx18_enc_idx_entry *e_buf;
 
 	/* Frame type lookup: 1=I, 2=P, 4=B */
-	const int mapping[8] = {
+	static const int mapping[8] = {
 		-1, V4L2_ENC_IDX_FRAME_I, V4L2_ENC_IDX_FRAME_P,
 		-1, V4L2_ENC_IDX_FRAME_B, -1, -1, -1
 	};
@@ -1079,7 +1078,7 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_g_audio                 = cx18_g_audio,
 	.vidioc_enumaudio               = cx18_enumaudio,
 	.vidioc_enum_input              = cx18_enum_input,
-	.vidioc_cropcap                 = cx18_cropcap,
+	.vidioc_g_pixelaspect           = cx18_g_pixelaspect,
 	.vidioc_g_selection             = cx18_g_selection,
 	.vidioc_g_input                 = cx18_g_input,
 	.vidioc_s_input                 = cx18_s_input,

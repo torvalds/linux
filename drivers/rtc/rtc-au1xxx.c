@@ -34,7 +34,7 @@ static int au1xtoy_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	t = alchemy_rdsys(AU1000_SYS_TOYREAD);
 
-	rtc_time_to_tm(t, tm);
+	rtc_time64_to_tm(t, tm);
 
 	return 0;
 }
@@ -43,7 +43,7 @@ static int au1xtoy_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long t;
 
-	rtc_tm_to_time(tm, &t);
+	t = rtc_tm_to_time64(tm);
 
 	alchemy_wrsys(t, AU1000_SYS_TOYWRITE);
 
@@ -65,16 +65,12 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtcdev;
 	unsigned long t;
-	int ret;
 
 	t = alchemy_rdsys(AU1000_SYS_CNTRCTRL);
 	if (!(t & CNTR_OK)) {
 		dev_err(&pdev->dev, "counters not working; aborting.\n");
-		ret = -ENODEV;
-		goto out_err;
+		return -ENODEV;
 	}
-
-	ret = -ETIMEDOUT;
 
 	/* set counter0 tickrate to 1Hz if necessary */
 	if (alchemy_rdsys(AU1000_SYS_TOYTRIM) != 32767) {
@@ -88,7 +84,7 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 			 * counters are unusable.
 			 */
 			dev_err(&pdev->dev, "timeout waiting for access\n");
-			goto out_err;
+			return -ETIMEDOUT;
 		}
 
 		/* set 1Hz TOY tick rate */
@@ -99,19 +95,16 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C0S)
 		msleep(1);
 
-	rtcdev = devm_rtc_device_register(&pdev->dev, "rtc-au1xxx",
-				     &au1xtoy_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtcdev)) {
-		ret = PTR_ERR(rtcdev);
-		goto out_err;
-	}
+	rtcdev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtcdev))
+		return PTR_ERR(rtcdev);
+
+	rtcdev->ops = &au1xtoy_rtc_ops;
+	rtcdev->range_max = U32_MAX;
 
 	platform_set_drvdata(pdev, rtcdev);
 
-	return 0;
-
-out_err:
-	return ret;
+	return rtc_register_device(rtcdev);
 }
 
 static struct platform_driver au1xrtc_driver = {

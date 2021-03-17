@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 packet mangling table, a port of the IPv4 mangle table to IPv6
  *
  * Copyright (C) 2000-2001 by Harald Welte <laforge@gnumonks.org>
  * Copyright (C) 2000-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
@@ -60,7 +57,7 @@ ip6t_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 	     skb->mark != mark ||
 	     ipv6_hdr(skb)->hop_limit != hop_limit ||
 	     flowlabel != *((u_int32_t *)ipv6_hdr(skb)))) {
-		err = ip6_route_me_harder(state->net, skb);
+		err = ip6_route_me_harder(state->net, state->sk, skb);
 		if (err < 0)
 			ret = NF_DROP_ERR(err);
 	}
@@ -96,16 +93,24 @@ static int __net_init ip6table_mangle_table_init(struct net *net)
 	return ret;
 }
 
+static void __net_exit ip6table_mangle_net_pre_exit(struct net *net)
+{
+	if (net->ipv6.ip6table_mangle)
+		ip6t_unregister_table_pre_exit(net, net->ipv6.ip6table_mangle,
+					       mangle_ops);
+}
+
 static void __net_exit ip6table_mangle_net_exit(struct net *net)
 {
 	if (!net->ipv6.ip6table_mangle)
 		return;
 
-	ip6t_unregister_table(net, net->ipv6.ip6table_mangle, mangle_ops);
+	ip6t_unregister_table_exit(net, net->ipv6.ip6table_mangle);
 	net->ipv6.ip6table_mangle = NULL;
 }
 
 static struct pernet_operations ip6table_mangle_net_ops = {
+	.pre_exit = ip6table_mangle_net_pre_exit,
 	.exit = ip6table_mangle_net_exit,
 };
 

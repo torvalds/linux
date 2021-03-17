@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 #include <linux/debugfs.h>
@@ -201,46 +190,6 @@ struct sdesc {
 	char ctx[];
 };
 
-/* do a synchronous decrypt operation */
-int do_decrypt(char *alg_name,
-	       void *key_ptr, unsigned int key_len,
-	       void *iv_ptr, void *src_ptr, void *dst_ptr,
-	       unsigned int block_len)
-{
-	struct scatterlist sg_in[1], sg_out[1];
-	struct crypto_blkcipher *tfm =
-	    crypto_alloc_blkcipher(alg_name, 0, CRYPTO_ALG_ASYNC);
-	struct blkcipher_desc desc = {.tfm = tfm, .flags = 0 };
-	int ret = 0;
-	void *iv;
-	int ivsize;
-
-	flow_log("%s() name:%s block_len:%u\n", __func__, alg_name, block_len);
-
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	crypto_blkcipher_setkey((void *)tfm, key_ptr, key_len);
-
-	sg_init_table(sg_in, 1);
-	sg_set_buf(sg_in, src_ptr, block_len);
-
-	sg_init_table(sg_out, 1);
-	sg_set_buf(sg_out, dst_ptr, block_len);
-
-	iv = crypto_blkcipher_crt(tfm)->iv;
-	ivsize = crypto_blkcipher_ivsize(tfm);
-	memcpy(iv, iv_ptr, ivsize);
-
-	ret = crypto_blkcipher_decrypt(&desc, sg_out, sg_in, block_len);
-	crypto_free_blkcipher(tfm);
-
-	if (ret < 0)
-		pr_err("aes_decrypt failed %d\n", ret);
-
-	return ret;
-}
-
 /**
  * do_shash() - Do a synchronous hash operation in software
  * @name:       The name of the hash algorithm
@@ -282,7 +231,6 @@ int do_shash(unsigned char *name, unsigned char *result,
 		goto do_shash_err;
 	}
 	sdesc->shash.tfm = hash;
-	sdesc->shash.flags = 0x0;
 
 	if (key_len > 0) {
 		rc = crypto_shash_setkey(hash, key, key_len);
@@ -418,88 +366,88 @@ static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 
 	ipriv = filp->private_data;
 	out_offset = 0;
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Number of SPUs.........%u\n",
 			       ipriv->spu.num_spu);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Current sessions.......%u\n",
 			       atomic_read(&ipriv->session_count));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Session count..........%u\n",
 			       atomic_read(&ipriv->stream_count));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Cipher setkey..........%u\n",
 			       atomic_read(&ipriv->setkey_cnt[SPU_OP_CIPHER]));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Cipher Ops.............%u\n",
 			       atomic_read(&ipriv->op_counts[SPU_OP_CIPHER]));
 	for (alg = 0; alg < CIPHER_ALG_LAST; alg++) {
 		for (mode = 0; mode < CIPHER_MODE_LAST; mode++) {
 			op_cnt = atomic_read(&ipriv->cipher_cnt[alg][mode]);
 			if (op_cnt) {
-				out_offset += snprintf(buf + out_offset,
+				out_offset += scnprintf(buf + out_offset,
 						       out_count - out_offset,
 			       "  %-13s%11u\n",
 			       spu_alg_name(alg, mode), op_cnt);
 			}
 		}
 	}
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Hash Ops...............%u\n",
 			       atomic_read(&ipriv->op_counts[SPU_OP_HASH]));
 	for (alg = 0; alg < HASH_ALG_LAST; alg++) {
 		op_cnt = atomic_read(&ipriv->hash_cnt[alg]);
 		if (op_cnt) {
-			out_offset += snprintf(buf + out_offset,
+			out_offset += scnprintf(buf + out_offset,
 					       out_count - out_offset,
 		       "  %-13s%11u\n",
 		       hash_alg_name[alg], op_cnt);
 		}
 	}
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "HMAC setkey............%u\n",
 			       atomic_read(&ipriv->setkey_cnt[SPU_OP_HMAC]));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "HMAC Ops...............%u\n",
 			       atomic_read(&ipriv->op_counts[SPU_OP_HMAC]));
 	for (alg = 0; alg < HASH_ALG_LAST; alg++) {
 		op_cnt = atomic_read(&ipriv->hmac_cnt[alg]);
 		if (op_cnt) {
-			out_offset += snprintf(buf + out_offset,
+			out_offset += scnprintf(buf + out_offset,
 					       out_count - out_offset,
 		       "  %-13s%11u\n",
 		       hash_alg_name[alg], op_cnt);
 		}
 	}
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "AEAD setkey............%u\n",
 			       atomic_read(&ipriv->setkey_cnt[SPU_OP_AEAD]));
 
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "AEAD Ops...............%u\n",
 			       atomic_read(&ipriv->op_counts[SPU_OP_AEAD]));
 	for (alg = 0; alg < AEAD_TYPE_LAST; alg++) {
 		op_cnt = atomic_read(&ipriv->aead_cnt[alg]);
 		if (op_cnt) {
-			out_offset += snprintf(buf + out_offset,
+			out_offset += scnprintf(buf + out_offset,
 					       out_count - out_offset,
 		       "  %-13s%11u\n",
 		       aead_alg_name[alg], op_cnt);
 		}
 	}
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Bytes of req data......%llu\n",
 			       (u64)atomic64_read(&ipriv->bytes_out));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Bytes of resp data.....%llu\n",
 			       (u64)atomic64_read(&ipriv->bytes_in));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Mailbox full...........%u\n",
 			       atomic_read(&ipriv->mb_no_spc));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Mailbox send failures..%u\n",
 			       atomic_read(&ipriv->mb_send_fail));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Check ICV errors.......%u\n",
 			       atomic_read(&ipriv->bad_icv));
 	if (ipriv->spu.spu_type == SPU_TYPE_SPUM)
@@ -507,7 +455,7 @@ static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 			spu_ofifo_ctrl = ioread32(ipriv->spu.reg_vbase[i] +
 						  SPU_OFIFO_CTRL);
 			fifo_len = spu_ofifo_ctrl & SPU_FIFO_WATERMARK;
-			out_offset += snprintf(buf + out_offset,
+			out_offset += scnprintf(buf + out_offset,
 					       out_count - out_offset,
 				       "SPU %d output FIFO high water.....%u\n",
 				       i, fifo_len);

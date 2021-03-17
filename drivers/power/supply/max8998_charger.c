@@ -1,23 +1,9 @@
-/*
- * max8998_charger.c - Power supply consumer driver for the Maxim 8998/LP3974
- *
- *  Copyright (C) 2009-2010 Samsung Electronics
- *  MyungJoo Ham <myungjoo.ham@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// max8998_charger.c - Power supply consumer driver for the Maxim 8998/LP3974
+//
+//  Copyright (C) 2009-2010 Samsung Electronics
+//  MyungJoo Ham <myungjoo.ham@samsung.com>
 
 #include <linux/err.h>
 #include <linux/module.h>
@@ -37,6 +23,7 @@ struct max8998_battery_data {
 static enum power_supply_property max8998_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT, /* the presence of battery */
 	POWER_SUPPLY_PROP_ONLINE, /* charger is active or not */
+	POWER_SUPPLY_PROP_STATUS, /* charger is charging/discharging/full */
 };
 
 /* Note that the charger control is done by a current regulator "CHARGER" */
@@ -63,10 +50,28 @@ static int max8998_battery_get_property(struct power_supply *psy,
 		ret = max8998_read_reg(i2c, MAX8998_REG_STATUS2, &reg);
 		if (ret)
 			return ret;
-		if (reg & (1 << 3))
-			val->intval = 0;
-		else
+
+		if (reg & (1 << 5))
 			val->intval = 1;
+		else
+			val->intval = 0;
+
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = max8998_read_reg(i2c, MAX8998_REG_STATUS2, &reg);
+		if (ret)
+			return ret;
+
+		if (!(reg & (1 << 5))) {
+			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		} else {
+			if (reg & (1 << 6))
+				val->intval = POWER_SUPPLY_STATUS_FULL;
+			else if (reg & (1 << 3))
+				val->intval = POWER_SUPPLY_STATUS_CHARGING;
+			else
+				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -86,7 +91,7 @@ static const struct power_supply_desc max8998_battery_desc = {
 static int max8998_battery_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max8998_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct max8998_platform_data *pdata = iodev->pdata;
 	struct power_supply_config psy_cfg = {};
 	struct max8998_battery_data *max8998;
 	struct i2c_client *i2c;

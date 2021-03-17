@@ -1,8 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig DLM
 	tristate "Distributed Lock Manager (DLM)"
 	depends on INET
 	depends on SYSFS && CONFIGFS_FS && (IPV6 || IPV6=n)
 	select IP_SCTP
+	select SRCU
 	help
 	A general purpose distributed lock manager for kernel or userspace
 	applications.

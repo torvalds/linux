@@ -1,4 +1,4 @@
-* Analog Device AD5755 IIO Multi-Channel DAC Linux Driver
+* Analog Devices AD5755 IIO Multi-Channel DAC Linux Driver
 
 Required properties:
  - compatible: Has to contain one of the following:

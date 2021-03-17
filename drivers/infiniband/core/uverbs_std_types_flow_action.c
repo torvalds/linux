@@ -30,11 +30,13 @@
  * SOFTWARE.
  */
 
+#include "rdma_core.h"
 #include "uverbs.h"
 #include <rdma/uverbs_std_types.h>
 
 static int uverbs_free_flow_action(struct ib_uobject *uobject,
-				   enum rdma_remove_reason why)
+				   enum rdma_remove_reason why,
+				   struct uverbs_attr_bundle *attrs)
 {
 	struct ib_flow_action *action = uobject->object;
 	int ret;
@@ -43,7 +45,7 @@ static int uverbs_free_flow_action(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	return action->device->destroy_flow_action(action);
+	return action->device->ops.destroy_flow_action(action);
 }
 
 static u64 esp_flags_uverbs_to_verbs(struct uverbs_attr_bundle *attrs,
@@ -223,7 +225,6 @@ struct ib_flow_action_esp_attr {
 
 #define ESP_LAST_SUPPORTED_FLAG		IB_UVERBS_FLOW_ACTION_ESP_FLAGS_ESN_NEW_WINDOW
 static int parse_flow_action_esp(struct ib_device *ib_dev,
-				 struct ib_uverbs_file *file,
 				 struct uverbs_attr_bundle *attrs,
 				 struct ib_flow_action_esp_attr *esp_attr,
 				 bool is_modify)
@@ -305,38 +306,36 @@ static int parse_flow_action_esp(struct ib_device *ib_dev,
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_CREATE_FLOW_ACTION_ESP_HANDLE);
-	struct ib_device *ib_dev = uobj->context->device;
+	struct ib_device *ib_dev = attrs->context->device;
 	int				  ret;
 	struct ib_flow_action		  *action;
 	struct ib_flow_action_esp_attr	  esp_attr = {};
 
-	if (!ib_dev->create_flow_action_esp)
+	if (!ib_dev->ops.create_flow_action_esp)
 		return -EOPNOTSUPP;
 
-	ret = parse_flow_action_esp(ib_dev, file, attrs, &esp_attr, false);
+	ret = parse_flow_action_esp(ib_dev, attrs, &esp_attr, false);
 	if (ret)
 		return ret;
 
 	/* No need to check as this attribute is marked as MANDATORY */
-	action = ib_dev->create_flow_action_esp(ib_dev, &esp_attr.hdr, attrs);
+	action = ib_dev->ops.create_flow_action_esp(ib_dev, &esp_attr.hdr,
+						    attrs);
 	if (IS_ERR(action))
 		return PTR_ERR(action);
 
-	atomic_set(&action->usecnt, 0);
-	action->device = ib_dev;
-	action->type = IB_FLOW_ACTION_ESP;
-	action->uobject = uobj;
-	uobj->object = action;
+	uverbs_flow_action_fill_action(action, uobj, ib_dev,
+				       IB_FLOW_ACTION_ESP);
 
 	return 0;
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_MODIFY_FLOW_ACTION_ESP_HANDLE);
@@ -344,19 +343,19 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(
 	int				  ret;
 	struct ib_flow_action_esp_attr	  esp_attr = {};
 
-	if (!action->device->modify_flow_action_esp)
+	if (!action->device->ops.modify_flow_action_esp)
 		return -EOPNOTSUPP;
 
-	ret = parse_flow_action_esp(action->device, file, attrs, &esp_attr,
-				    true);
+	ret = parse_flow_action_esp(action->device, attrs, &esp_attr, true);
 	if (ret)
 		return ret;
 
 	if (action->type != IB_FLOW_ACTION_ESP)
 		return -EINVAL;
 
-	return action->device->modify_flow_action_esp(action, &esp_attr.hdr,
-						      attrs);
+	return action->device->ops.modify_flow_action_esp(action,
+							  &esp_attr.hdr,
+							  attrs);
 }
 
 static const struct uverbs_attr_spec uverbs_flow_action_esp_keymat[] = {
@@ -441,3 +440,10 @@ DECLARE_UVERBS_NAMED_OBJECT(
 	&UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE),
 	&UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_DESTROY),
 	&UVERBS_METHOD(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY));
+
+const struct uapi_definition uverbs_def_obj_flow_action[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		UVERBS_OBJECT_FLOW_ACTION,
+		UAPI_DEF_OBJ_NEEDS_FN(destroy_flow_action)),
+	{}
+};

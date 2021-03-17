@@ -133,7 +133,7 @@ TRACE_EVENT(jbd2_submit_inode_data,
 		  (unsigned long) __entry->ino)
 );
 
-TRACE_EVENT(jbd2_handle_start,
+DECLARE_EVENT_CLASS(jbd2_handle_start_class,
 	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
 		 unsigned int line_no, int requested_blocks),
 
@@ -159,6 +159,20 @@ TRACE_EVENT(jbd2_handle_start,
 		  "requested_blocks %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->tid,
 		  __entry->type, __entry->line_no, __entry->requested_blocks)
+);
+
+DEFINE_EVENT(jbd2_handle_start_class, jbd2_handle_start,
+	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
+		 unsigned int line_no, int requested_blocks),
+
+	TP_ARGS(dev, tid, type, line_no, requested_blocks)
+);
+
+DEFINE_EVENT(jbd2_handle_start_class, jbd2_handle_restart,
+	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
+		 unsigned int line_no, int requested_blocks),
+
+	TP_ARGS(dev, tid, type, line_no, requested_blocks)
 );
 
 TRACE_EVENT(jbd2_handle_extend,

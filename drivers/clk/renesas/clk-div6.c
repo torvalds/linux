@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7790 Common Clock Framework support
  *
  * Copyright (C) 2013  Renesas Solutions Corp.
  *
  * Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/clk-provider.h>
@@ -33,8 +30,8 @@
  * @div: divisor value (1-64)
  * @src_shift: Shift to access the register bits to select the parent clock
  * @src_width: Number of register bits to select the parent clock (may be 0)
- * @parents: Array to map from valid parent clocks indices to hardware indices
  * @nb: Notifier block to save/restore clock state for system resume
+ * @parents: Array to map from valid parent clocks indices to hardware indices
  */
 struct div6_clock {
 	struct clk_hw hw;
@@ -42,8 +39,8 @@ struct div6_clock {
 	unsigned int div;
 	u32 src_shift;
 	u32 src_width;
-	u8 *parents;
 	struct notifier_block nb;
+	u8 parents[];
 };
 
 #define to_div6_clock(_hw) container_of(_hw, struct div6_clock, hw)
@@ -224,16 +221,9 @@ struct clk * __init cpg_div6_register(const char *name,
 	struct clk *clk;
 	unsigned int i;
 
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
+	clock = kzalloc(struct_size(clock, parents, num_parents), GFP_KERNEL);
 	if (!clock)
 		return ERR_PTR(-ENOMEM);
-
-	clock->parents = kmalloc_array(num_parents, sizeof(*clock->parents),
-				       GFP_KERNEL);
-	if (!clock->parents) {
-		clk = ERR_PTR(-ENOMEM);
-		goto free_clock;
-	}
 
 	clock->reg = reg;
 
@@ -262,7 +252,7 @@ struct clk * __init cpg_div6_register(const char *name,
 		pr_err("%s: invalid number of parents for DIV6 clock %s\n",
 		       __func__, name);
 		clk = ERR_PTR(-EINVAL);
-		goto free_parents;
+		goto free_clock;
 	}
 
 	/* Filter out invalid parents */
@@ -277,7 +267,7 @@ struct clk * __init cpg_div6_register(const char *name,
 	/* Register the clock. */
 	init.name = name;
 	init.ops = &cpg_div6_clock_ops;
-	init.flags = CLK_IS_BASIC;
+	init.flags = 0;
 	init.parent_names = parent_names;
 	init.num_parents = valid_parents;
 
@@ -285,7 +275,7 @@ struct clk * __init cpg_div6_register(const char *name,
 
 	clk = clk_register(NULL, &clock->hw);
 	if (IS_ERR(clk))
-		goto free_parents;
+		goto free_clock;
 
 	if (notifiers) {
 		clock->nb.notifier_call = cpg_div6_clock_notifier_call;
@@ -294,8 +284,6 @@ struct clk * __init cpg_div6_register(const char *name,
 
 	return clk;
 
-free_parents:
-	kfree(clock->parents);
 free_clock:
 	kfree(clock);
 	return clk;
@@ -312,8 +300,8 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents < 1) {
-		pr_err("%s: no parent found for %s DIV6 clock\n",
-		       __func__, np->name);
+		pr_err("%s: no parent found for %pOFn DIV6 clock\n",
+		       __func__, np);
 		return;
 	}
 
@@ -324,8 +312,8 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 
 	reg = of_iomap(np, 0);
 	if (reg == NULL) {
-		pr_err("%s: failed to map %s DIV6 clock register\n",
-		       __func__, np->name);
+		pr_err("%s: failed to map %pOFn DIV6 clock register\n",
+		       __func__, np);
 		goto error;
 	}
 
@@ -337,8 +325,8 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 
 	clk = cpg_div6_register(clk_name, num_parents, parent_names, reg, NULL);
 	if (IS_ERR(clk)) {
-		pr_err("%s: failed to register %s DIV6 clock (%ld)\n",
-		       __func__, np->name, PTR_ERR(clk));
+		pr_err("%s: failed to register %pOFn DIV6 clock (%ld)\n",
+		       __func__, np, PTR_ERR(clk));
 		goto error;
 	}
 

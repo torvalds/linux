@@ -10,7 +10,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
+
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-intel.h"
@@ -18,6 +18,7 @@
 #define ICL_PAD_OWN	0x020
 #define ICL_PADCFGLOCK	0x080
 #define ICL_HOSTSW_OWN	0x0b0
+#define ICL_GPI_IS	0x100
 #define ICL_GPI_IE	0x110
 
 #define ICL_GPP(r, s, e, g)				\
@@ -28,14 +29,13 @@
 		.gpio_base = (g),			\
 	}
 
-#define ICL_NO_GPIO	-1
-
 #define ICL_COMMUNITY(b, s, e, g)			\
 	{						\
 		.barno = (b),				\
 		.padown_offset = ICL_PAD_OWN,		\
 		.padcfglock_offset = ICL_PADCFGLOCK,	\
 		.hostown_offset = ICL_HOSTSW_OWN,	\
+		.is_offset = ICL_GPI_IS,		\
 		.ie_offset = ICL_GPI_IE,		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
@@ -303,29 +303,29 @@ static const struct pinctrl_pin_desc icllp_pins[] = {
 };
 
 static const struct intel_padgroup icllp_community0_gpps[] = {
-	ICL_GPP(0, 0, 7, 0),			/* GPP_G */
-	ICL_GPP(1, 8, 33, 32),			/* GPP_B */
-	ICL_GPP(2, 34, 58, 64),			/* GPP_A */
+	ICL_GPP(0, 0, 7, 0),				/* GPP_G */
+	ICL_GPP(1, 8, 33, 32),				/* GPP_B */
+	ICL_GPP(2, 34, 58, 64),				/* GPP_A */
 };
 
 static const struct intel_padgroup icllp_community1_gpps[] = {
-	ICL_GPP(0, 59, 82, 96),			/* GPP_H */
-	ICL_GPP(1, 83, 103, 128),		/* GPP_D */
-	ICL_GPP(2, 104, 123, 160),		/* GPP_F */
-	ICL_GPP(3, 124, 152, 192),		/* vGPIO */
+	ICL_GPP(0, 59, 82, 96),				/* GPP_H */
+	ICL_GPP(1, 83, 103, 128),			/* GPP_D */
+	ICL_GPP(2, 104, 123, 160),			/* GPP_F */
+	ICL_GPP(3, 124, 152, 192),			/* vGPIO */
 };
 
 static const struct intel_padgroup icllp_community4_gpps[] = {
-	ICL_GPP(0, 153, 176, 224),		/* GPP_C */
-	ICL_GPP(1, 177, 182, ICL_NO_GPIO),	/* HVCMOS */
-	ICL_GPP(2, 183, 206, 256),		/* GPP_E */
-	ICL_GPP(3, 207, 215, ICL_NO_GPIO),	/* JTAG */
+	ICL_GPP(0, 153, 176, 224),			/* GPP_C */
+	ICL_GPP(1, 177, 182, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
+	ICL_GPP(2, 183, 206, 256),			/* GPP_E */
+	ICL_GPP(3, 207, 215, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
 };
 
 static const struct intel_padgroup icllp_community5_gpps[] = {
-	ICL_GPP(0, 216, 223, 288),		/* GPP_R */
-	ICL_GPP(1, 224, 231, 320),		/* GPP_S */
-	ICL_GPP(2, 232, 240, ICL_NO_GPIO),	/* SPI */
+	ICL_GPP(0, 216, 223, 288),			/* GPP_R */
+	ICL_GPP(1, 224, 231, 320),			/* GPP_S */
+	ICL_GPP(2, 232, 240, INTEL_GPIO_BASE_NOMAP),	/* SPI */
 };
 
 static const struct intel_community icllp_communities[] = {
@@ -403,24 +403,16 @@ static const struct intel_pinctrl_soc_data icllp_soc_data = {
 	.ncommunities = ARRAY_SIZE(icllp_communities),
 };
 
-static int icl_pinctrl_probe(struct platform_device *pdev)
-{
-	return intel_pinctrl_probe(pdev, &icllp_soc_data);
-}
-
-static const struct dev_pm_ops icl_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(icl_pinctrl_pm_ops);
 
 static const struct acpi_device_id icl_pinctrl_acpi_match[] = {
-	{ "INT3455" },
-	{ },
+	{ "INT3455", (kernel_ulong_t)&icllp_soc_data },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, icl_pinctrl_acpi_match);
 
 static struct platform_driver icl_pinctrl_driver = {
-	.probe = icl_pinctrl_probe,
+	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "icelake-pinctrl",
 		.acpi_match_table = icl_pinctrl_acpi_match,

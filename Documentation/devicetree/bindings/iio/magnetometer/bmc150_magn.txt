@@ -4,7 +4,11 @@ http://ae-bst.resource.bosch.com/media/products/dokumente/bmc150/BST-BMC150-DS00
 
 Required properties:
 
-  - compatible : should be "bosch,bmc150_magn"
+  - compatible : should be one of:
+                 "bosch,bmc150_magn"
+                 "bosch,bmc156_magn"
+                 "bosch,bmm150"
+                 "bosch,bmm150_magn" (DEPRECATED, use bosch,bmm150)
   - reg : the I2C address of the magnetometer
 
 Optional properties:

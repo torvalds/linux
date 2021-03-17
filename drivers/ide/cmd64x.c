@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
  *           Due to massive hardware bugs, UltraDMA is only supported
@@ -64,6 +65,9 @@ static void cmd64x_program_timings(ide_drive_t *drive, u8 mode)
 	static const u8 drwtim_regs[4] = {DRWTIM0, DRWTIM1, DRWTIM2, DRWTIM3};
 	struct ide_timing t;
 	u8 arttim = 0;
+
+	if (drive->dn >= ARRAY_SIZE(drwtim_regs))
+		return;
 
 	ide_timing_compute(drive, mode, &t, T, 0);
 

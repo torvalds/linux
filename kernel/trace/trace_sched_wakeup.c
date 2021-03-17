@@ -35,25 +35,18 @@ static arch_spinlock_t wakeup_lock =
 
 static void wakeup_reset(struct trace_array *tr);
 static void __wakeup_reset(struct trace_array *tr);
+static int start_func_tracer(struct trace_array *tr, int graph);
+static void stop_func_tracer(struct trace_array *tr, int graph);
 
 static int save_flags;
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static int wakeup_display_graph(struct trace_array *tr, int set);
 # define is_graph(tr) ((tr)->trace_flags & TRACE_ITER_DISPLAY_GRAPH)
 #else
-static inline int wakeup_display_graph(struct trace_array *tr, int set)
-{
-	return 0;
-}
 # define is_graph(tr) false
 #endif
 
-
 #ifdef CONFIG_FUNCTION_TRACER
-
-static int wakeup_graph_entry(struct ftrace_graph_ent *trace);
-static void wakeup_graph_return(struct ftrace_graph_ret *trace);
 
 static bool function_enabled;
 
@@ -89,7 +82,7 @@ func_prolog_preempt_disable(struct trace_array *tr,
 	if (cpu != wakeup_current_cpu)
 		goto out_enable;
 
-	*data = per_cpu_ptr(tr->trace_buffer.data, cpu);
+	*data = per_cpu_ptr(tr->array_buffer.data, cpu);
 	disabled = atomic_inc_return(&(*data)->disabled);
 	if (unlikely(disabled != 1))
 		goto out;
@@ -104,122 +97,8 @@ out_enable:
 	return 0;
 }
 
-/*
- * wakeup uses its own tracer function to keep the overhead down:
- */
-static void
-wakeup_tracer_call(unsigned long ip, unsigned long parent_ip,
-		   struct ftrace_ops *op, struct pt_regs *pt_regs)
-{
-	struct trace_array *tr = wakeup_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	int pc;
-
-	if (!func_prolog_preempt_disable(tr, &data, &pc))
-		return;
-
-	local_irq_save(flags);
-	trace_function(tr, ip, parent_ip, flags, pc);
-	local_irq_restore(flags);
-
-	atomic_dec(&data->disabled);
-	preempt_enable_notrace();
-}
-
-static int register_wakeup_function(struct trace_array *tr, int graph, int set)
-{
-	int ret;
-
-	/* 'set' is set if TRACE_ITER_FUNCTION is about to be set */
-	if (function_enabled || (!set && !(tr->trace_flags & TRACE_ITER_FUNCTION)))
-		return 0;
-
-	if (graph)
-		ret = register_ftrace_graph(&wakeup_graph_return,
-					    &wakeup_graph_entry);
-	else
-		ret = register_ftrace_function(tr->ops);
-
-	if (!ret)
-		function_enabled = true;
-
-	return ret;
-}
-
-static void unregister_wakeup_function(struct trace_array *tr, int graph)
-{
-	if (!function_enabled)
-		return;
-
-	if (graph)
-		unregister_ftrace_graph();
-	else
-		unregister_ftrace_function(tr->ops);
-
-	function_enabled = false;
-}
-
-static int wakeup_function_set(struct trace_array *tr, u32 mask, int set)
-{
-	if (!(mask & TRACE_ITER_FUNCTION))
-		return 0;
-
-	if (set)
-		register_wakeup_function(tr, is_graph(tr), 1);
-	else
-		unregister_wakeup_function(tr, is_graph(tr));
-	return 1;
-}
-#else
-static int register_wakeup_function(struct trace_array *tr, int graph, int set)
-{
-	return 0;
-}
-static void unregister_wakeup_function(struct trace_array *tr, int graph) { }
-static int wakeup_function_set(struct trace_array *tr, u32 mask, int set)
-{
-	return 0;
-}
-#endif /* CONFIG_FUNCTION_TRACER */
-
-static int wakeup_flag_changed(struct trace_array *tr, u32 mask, int set)
-{
-	struct tracer *tracer = tr->current_trace;
-
-	if (wakeup_function_set(tr, mask, set))
-		return 0;
-
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (mask & TRACE_ITER_DISPLAY_GRAPH)
-		return wakeup_display_graph(tr, set);
-#endif
 
-	return trace_keep_overwrite(tracer, mask, set);
-}
-
-static int start_func_tracer(struct trace_array *tr, int graph)
-{
-	int ret;
-
-	ret = register_wakeup_function(tr, graph, 0);
-
-	if (!ret && tracing_is_enabled())
-		tracer_enabled = 1;
-	else
-		tracer_enabled = 0;
-
-	return ret;
-}
-
-static void stop_func_tracer(struct trace_array *tr, int graph)
-{
-	tracer_enabled = 0;
-
-	unregister_wakeup_function(tr, graph);
-}
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int wakeup_display_graph(struct trace_array *tr, int set)
 {
 	if (!(is_graph(tr) ^ set))
@@ -270,6 +149,8 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace)
 	unsigned long flags;
 	int pc;
 
+	ftrace_graph_addr_finish(trace);
+
 	if (!func_prolog_preempt_disable(tr, &data, &pc))
 		return;
 
@@ -280,6 +161,11 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace)
 	preempt_enable_notrace();
 	return;
 }
+
+static struct fgraph_ops fgraph_wakeup_ops = {
+	.entryfunc = &wakeup_graph_entry,
+	.retfunc = &wakeup_graph_return,
+};
 
 static void wakeup_trace_open(struct trace_iterator *iter)
 {
@@ -294,8 +180,11 @@ static void wakeup_trace_close(struct trace_iterator *iter)
 }
 
 #define GRAPH_TRACER_FLAGS (TRACE_GRAPH_PRINT_PROC | \
-			    TRACE_GRAPH_PRINT_ABS_TIME | \
-			    TRACE_GRAPH_PRINT_DURATION)
+			    TRACE_GRAPH_PRINT_CPU |  \
+			    TRACE_GRAPH_PRINT_REL_TIME | \
+			    TRACE_GRAPH_PRINT_DURATION | \
+			    TRACE_GRAPH_PRINT_OVERHEAD | \
+			    TRACE_GRAPH_PRINT_IRQS)
 
 static enum print_line_t wakeup_print_line(struct trace_iterator *iter)
 {
@@ -316,6 +205,100 @@ static void wakeup_print_header(struct seq_file *s)
 	else
 		trace_default_header(s);
 }
+#endif /* else CONFIG_FUNCTION_GRAPH_TRACER */
+
+/*
+ * wakeup uses its own tracer function to keep the overhead down:
+ */
+static void
+wakeup_tracer_call(unsigned long ip, unsigned long parent_ip,
+		   struct ftrace_ops *op, struct pt_regs *pt_regs)
+{
+	struct trace_array *tr = wakeup_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	int pc;
+
+	if (!func_prolog_preempt_disable(tr, &data, &pc))
+		return;
+
+	local_irq_save(flags);
+	trace_function(tr, ip, parent_ip, flags, pc);
+	local_irq_restore(flags);
+
+	atomic_dec(&data->disabled);
+	preempt_enable_notrace();
+}
+
+static int register_wakeup_function(struct trace_array *tr, int graph, int set)
+{
+	int ret;
+
+	/* 'set' is set if TRACE_ITER_FUNCTION is about to be set */
+	if (function_enabled || (!set && !(tr->trace_flags & TRACE_ITER_FUNCTION)))
+		return 0;
+
+	if (graph)
+		ret = register_ftrace_graph(&fgraph_wakeup_ops);
+	else
+		ret = register_ftrace_function(tr->ops);
+
+	if (!ret)
+		function_enabled = true;
+
+	return ret;
+}
+
+static void unregister_wakeup_function(struct trace_array *tr, int graph)
+{
+	if (!function_enabled)
+		return;
+
+	if (graph)
+		unregister_ftrace_graph(&fgraph_wakeup_ops);
+	else
+		unregister_ftrace_function(tr->ops);
+
+	function_enabled = false;
+}
+
+static int wakeup_function_set(struct trace_array *tr, u32 mask, int set)
+{
+	if (!(mask & TRACE_ITER_FUNCTION))
+		return 0;
+
+	if (set)
+		register_wakeup_function(tr, is_graph(tr), 1);
+	else
+		unregister_wakeup_function(tr, is_graph(tr));
+	return 1;
+}
+#else /* CONFIG_FUNCTION_TRACER */
+static int register_wakeup_function(struct trace_array *tr, int graph, int set)
+{
+	return 0;
+}
+static void unregister_wakeup_function(struct trace_array *tr, int graph) { }
+static int wakeup_function_set(struct trace_array *tr, u32 mask, int set)
+{
+	return 0;
+}
+#endif /* else CONFIG_FUNCTION_TRACER */
+
+#ifndef CONFIG_FUNCTION_GRAPH_TRACER
+static enum print_line_t wakeup_print_line(struct trace_iterator *iter)
+{
+	return TRACE_TYPE_UNHANDLED;
+}
+
+static void wakeup_trace_open(struct trace_iterator *iter) { }
+static void wakeup_trace_close(struct trace_iterator *iter) { }
+
+static void wakeup_print_header(struct seq_file *s)
+{
+	trace_default_header(s);
+}
+#endif /* !CONFIG_FUNCTION_GRAPH_TRACER */
 
 static void
 __trace_function(struct trace_array *tr,
@@ -327,34 +310,42 @@ __trace_function(struct trace_array *tr,
 	else
 		trace_function(tr, ip, parent_ip, flags, pc);
 }
-#else
-#define __trace_function trace_function
 
-static enum print_line_t wakeup_print_line(struct trace_iterator *iter)
+static int wakeup_flag_changed(struct trace_array *tr, u32 mask, int set)
 {
-	return TRACE_TYPE_UNHANDLED;
+	struct tracer *tracer = tr->current_trace;
+
+	if (wakeup_function_set(tr, mask, set))
+		return 0;
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	if (mask & TRACE_ITER_DISPLAY_GRAPH)
+		return wakeup_display_graph(tr, set);
+#endif
+
+	return trace_keep_overwrite(tracer, mask, set);
 }
 
-static void wakeup_trace_open(struct trace_iterator *iter) { }
-static void wakeup_trace_close(struct trace_iterator *iter) { }
+static int start_func_tracer(struct trace_array *tr, int graph)
+{
+	int ret;
 
-#ifdef CONFIG_FUNCTION_TRACER
-static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
-{
-	return -1;
+	ret = register_wakeup_function(tr, graph, 0);
+
+	if (!ret && tracing_is_enabled())
+		tracer_enabled = 1;
+	else
+		tracer_enabled = 0;
+
+	return ret;
 }
-static void wakeup_graph_return(struct ftrace_graph_ret *trace) { }
-static void wakeup_print_header(struct seq_file *s)
+
+static void stop_func_tracer(struct trace_array *tr, int graph)
 {
-	trace_default_header(s);
+	tracer_enabled = 0;
+
+	unregister_wakeup_function(tr, graph);
 }
-#else
-static void wakeup_print_header(struct seq_file *s)
-{
-	trace_latency_header(s);
-}
-#endif /* CONFIG_FUNCTION_TRACER */
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 /*
  * Should this new latency be reported/recorded?
@@ -387,7 +378,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 			   unsigned long flags, int pc)
 {
 	struct trace_event_call *call = &event_context_switch;
-	struct ring_buffer *buffer = tr->trace_buffer.buffer;
+	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
 
@@ -417,7 +408,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	struct trace_event_call *call = &event_wakeup;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
-	struct ring_buffer *buffer = tr->trace_buffer.buffer;
+	struct trace_buffer *buffer = tr->array_buffer.buffer;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_WAKE,
 					  sizeof(*entry), flags, pc);
@@ -468,7 +459,7 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
 
 	/* disable local data, not wakeup_cpu data */
 	cpu = raw_smp_processor_id();
-	disabled = atomic_inc_return(&per_cpu_ptr(wakeup_trace->trace_buffer.data, cpu)->disabled);
+	disabled = atomic_inc_return(&per_cpu_ptr(wakeup_trace->array_buffer.data, cpu)->disabled);
 	if (likely(disabled != 1))
 		goto out;
 
@@ -480,10 +471,11 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
 		goto out_unlock;
 
 	/* The task we are waiting for is waking up */
-	data = per_cpu_ptr(wakeup_trace->trace_buffer.data, wakeup_cpu);
+	data = per_cpu_ptr(wakeup_trace->array_buffer.data, wakeup_cpu);
 
 	__trace_function(wakeup_trace, CALLER_ADDR0, CALLER_ADDR1, flags, pc);
 	tracing_sched_switch_trace(wakeup_trace, prev, next, flags, pc);
+	__trace_stack(wakeup_trace, flags, 0, pc);
 
 	T0 = data->preempt_timestamp;
 	T1 = ftrace_now(cpu);
@@ -494,7 +486,7 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
 
 	if (likely(!is_tracing_stopped())) {
 		wakeup_trace->max_latency = delta;
-		update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
+		update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu, NULL);
 	}
 
 out_unlock:
@@ -502,7 +494,7 @@ out_unlock:
 	arch_spin_unlock(&wakeup_lock);
 	local_irq_restore(flags);
 out:
-	atomic_dec(&per_cpu_ptr(wakeup_trace->trace_buffer.data, cpu)->disabled);
+	atomic_dec(&per_cpu_ptr(wakeup_trace->array_buffer.data, cpu)->disabled);
 }
 
 static void __wakeup_reset(struct trace_array *tr)
@@ -521,7 +513,7 @@ static void wakeup_reset(struct trace_array *tr)
 {
 	unsigned long flags;
 
-	tracing_reset_online_cpus(&tr->trace_buffer);
+	tracing_reset_online_cpus(&tr->array_buffer);
 
 	local_irq_save(flags);
 	arch_spin_lock(&wakeup_lock);
@@ -559,7 +551,7 @@ probe_wakeup(void *ignore, struct task_struct *p)
 		return;
 
 	pc = preempt_count();
-	disabled = atomic_inc_return(&per_cpu_ptr(wakeup_trace->trace_buffer.data, cpu)->disabled);
+	disabled = atomic_inc_return(&per_cpu_ptr(wakeup_trace->array_buffer.data, cpu)->disabled);
 	if (unlikely(disabled != 1))
 		goto out;
 
@@ -587,14 +579,14 @@ probe_wakeup(void *ignore, struct task_struct *p)
 	else
 		tracing_dl = 0;
 
-	wakeup_task = p;
-	get_task_struct(wakeup_task);
+	wakeup_task = get_task_struct(p);
 
 	local_save_flags(flags);
 
-	data = per_cpu_ptr(wakeup_trace->trace_buffer.data, wakeup_cpu);
+	data = per_cpu_ptr(wakeup_trace->array_buffer.data, wakeup_cpu);
 	data->preempt_timestamp = ftrace_now(cpu);
 	tracing_sched_wakeup_trace(wakeup_trace, p, current, flags, pc);
+	__trace_stack(wakeup_trace, flags, 0, pc);
 
 	/*
 	 * We must be careful in using CALLER_ADDR2. But since wake_up
@@ -606,7 +598,7 @@ probe_wakeup(void *ignore, struct task_struct *p)
 out_locked:
 	arch_spin_unlock(&wakeup_lock);
 out:
-	atomic_dec(&per_cpu_ptr(wakeup_trace->trace_buffer.data, cpu)->disabled);
+	atomic_dec(&per_cpu_ptr(wakeup_trace->array_buffer.data, cpu)->disabled);
 }
 
 static void start_wakeup_tracer(struct trace_array *tr)
@@ -638,7 +630,7 @@ static void start_wakeup_tracer(struct trace_array *tr)
 	if (ret) {
 		pr_info("wakeup trace: Couldn't activate tracepoint"
 			" probe to kernel_sched_migrate_task\n");
-		return;
+		goto fail_deprobe_sched_switch;
 	}
 
 	wakeup_reset(tr);
@@ -656,6 +648,8 @@ static void start_wakeup_tracer(struct trace_array *tr)
 		printk(KERN_ERR "failed to start wakeup tracer\n");
 
 	return;
+fail_deprobe_sched_switch:
+	unregister_trace_sched_switch(probe_wakeup_sched_switch, NULL);
 fail_deprobe_wake_new:
 	unregister_trace_sched_wakeup_new(probe_wakeup, NULL);
 fail_deprobe:

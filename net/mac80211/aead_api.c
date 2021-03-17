@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2003-2004, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2014-2015, Qualcomm Atheros, Inc.
  *
  * Rewrite: Copyright (C) 2013 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -44,7 +41,7 @@ int aead_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad, size_t aad_len,
 	aead_request_set_ad(aead_req, sg[0].length);
 
 	crypto_aead_encrypt(aead_req);
-	kzfree(aead_req);
+	kfree_sensitive(aead_req);
 
 	return 0;
 }
@@ -79,7 +76,7 @@ int aead_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad, size_t aad_len,
 	aead_request_set_ad(aead_req, sg[0].length);
 
 	err = crypto_aead_decrypt(aead_req);
-	kzfree(aead_req);
+	kfree_sensitive(aead_req);
 
 	return err;
 }

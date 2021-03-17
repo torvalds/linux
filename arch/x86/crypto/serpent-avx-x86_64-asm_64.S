@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Serpent Cipher 8-way parallel algorithm (x86_64/AVX)
  *
@@ -5,22 +6,6 @@
  *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
  *
  * Copyright © 2011-2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
  */
 
 #include <linux/linkage.h>
@@ -570,7 +555,7 @@
 	transpose_4x4(x0, x1, x2, x3, t0, t1, t2)
 
 .align 8
-__serpent_enc_blk8_avx:
+SYM_FUNC_START_LOCAL(__serpent_enc_blk8_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: blocks
@@ -621,10 +606,10 @@ __serpent_enc_blk8_avx:
 	write_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
 	ret;
-ENDPROC(__serpent_enc_blk8_avx)
+SYM_FUNC_END(__serpent_enc_blk8_avx)
 
 .align 8
-__serpent_dec_blk8_avx:
+SYM_FUNC_START_LOCAL(__serpent_dec_blk8_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: encrypted blocks
@@ -675,9 +660,9 @@ __serpent_dec_blk8_avx:
 	write_blocks(RC2, RD2, RB2, RE2, RK0, RK1, RK2);
 
 	ret;
-ENDPROC(__serpent_dec_blk8_avx)
+SYM_FUNC_END(__serpent_dec_blk8_avx)
 
-ENTRY(serpent_ecb_enc_8way_avx)
+SYM_FUNC_START(serpent_ecb_enc_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -693,9 +678,9 @@ ENTRY(serpent_ecb_enc_8way_avx)
 
 	FRAME_END
 	ret;
-ENDPROC(serpent_ecb_enc_8way_avx)
+SYM_FUNC_END(serpent_ecb_enc_8way_avx)
 
-ENTRY(serpent_ecb_dec_8way_avx)
+SYM_FUNC_START(serpent_ecb_dec_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -711,9 +696,9 @@ ENTRY(serpent_ecb_dec_8way_avx)
 
 	FRAME_END
 	ret;
-ENDPROC(serpent_ecb_dec_8way_avx)
+SYM_FUNC_END(serpent_ecb_dec_8way_avx)
 
-ENTRY(serpent_cbc_dec_8way_avx)
+SYM_FUNC_START(serpent_cbc_dec_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -729,9 +714,9 @@ ENTRY(serpent_cbc_dec_8way_avx)
 
 	FRAME_END
 	ret;
-ENDPROC(serpent_cbc_dec_8way_avx)
+SYM_FUNC_END(serpent_cbc_dec_8way_avx)
 
-ENTRY(serpent_ctr_8way_avx)
+SYM_FUNC_START(serpent_ctr_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -749,9 +734,9 @@ ENTRY(serpent_ctr_8way_avx)
 
 	FRAME_END
 	ret;
-ENDPROC(serpent_ctr_8way_avx)
+SYM_FUNC_END(serpent_ctr_8way_avx)
 
-ENTRY(serpent_xts_enc_8way_avx)
+SYM_FUNC_START(serpent_xts_enc_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -771,9 +756,9 @@ ENTRY(serpent_xts_enc_8way_avx)
 
 	FRAME_END
 	ret;
-ENDPROC(serpent_xts_enc_8way_avx)
+SYM_FUNC_END(serpent_xts_enc_8way_avx)
 
-ENTRY(serpent_xts_dec_8way_avx)
+SYM_FUNC_START(serpent_xts_dec_8way_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -793,4 +778,4 @@ ENTRY(serpent_xts_dec_8way_avx)
 
 	FRAME_END
 	ret;
-ENDPROC(serpent_xts_dec_8way_avx)
+SYM_FUNC_END(serpent_xts_dec_8way_avx)

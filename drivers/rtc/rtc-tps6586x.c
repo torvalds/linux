@@ -23,6 +23,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/mfd/tps6586x.h>
 #include <linux/module.h>
@@ -259,7 +260,6 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
-		dev_err(&pdev->dev, "RTC allocate device: ret %d\n", ret);
 		goto fail_rtc_register;
 	}
 
@@ -267,6 +267,8 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->range_max = (1ULL << 30) - 1; /* 30-bit seconds */
 	rtc->rtc->start_secs = mktime64(2009, 1, 1, 0, 0, 0);
 	rtc->rtc->set_start_time = true;
+
+	irq_set_status_flags(rtc->irq, IRQ_NOAUTOEN);
 
 	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
 				tps6586x_rtc_irq,
@@ -277,13 +279,10 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 				rtc->irq, ret);
 		goto fail_rtc_register;
 	}
-	disable_irq(rtc->irq);
 
 	ret = rtc_register_device(rtc->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "RTC device register: ret %d\n", ret);
+	if (ret)
 		goto fail_rtc_register;
-	}
 
 	return 0;
 

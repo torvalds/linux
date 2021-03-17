@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Backlight driver for Wolfson Microelectronics WM831x PMICs
  *
  * Copyright 2009 Wolfson Microelectonics plc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -94,18 +91,7 @@ err:
 
 static int wm831x_backlight_update_status(struct backlight_device *bl)
 {
-	int brightness = bl->props.brightness;
-
-	if (bl->props.power != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	if (bl->props.state & BL_CORE_SUSPENDED)
-		brightness = 0;
-
-	return wm831x_backlight_set(bl, brightness);
+	return wm831x_backlight_set(bl, backlight_get_brightness(bl));
 }
 
 static int wm831x_backlight_get_brightness(struct backlight_device *bl)

@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2012 Intel Corporation
  *    Author: Liu Jinsong <jinsong.liu@intel.com>
  *    Author: Jiang Yunhong <yunhong.jiang@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -239,7 +229,7 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 	case ACPI_NOTIFY_BUS_CHECK:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			"\nReceived BUS CHECK notification for device\n"));
-		/* Fall Through */
+		fallthrough;
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		if (event == ACPI_NOTIFY_DEVICE_CHECK)
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,

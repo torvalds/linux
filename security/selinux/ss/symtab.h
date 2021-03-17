@@ -13,11 +13,14 @@
 #include "hashtab.h"
 
 struct symtab {
-	struct hashtab *table;	/* hash table (keyed on a string) */
+	struct hashtab table;	/* hash table (keyed on a string) */
 	u32 nprim;		/* number of primary names in table */
 };
 
 int symtab_init(struct symtab *s, unsigned int size);
+
+int symtab_insert(struct symtab *s, char *name, void *datum);
+void *symtab_search(struct symtab *s, const char *name);
 
 #endif	/* _SS_SYMTAB_H_ */
 

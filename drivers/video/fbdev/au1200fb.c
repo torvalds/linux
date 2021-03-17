@@ -147,6 +147,7 @@ struct au1200_lcd_iodata_t {
 struct au1200fb_device {
 	struct fb_info *fb_info;		/* FB driver info record */
 	struct au1200fb_platdata *pd;
+	struct device *dev;
 
 	int					plane;
 	unsigned char* 		fb_mem;		/* FrameBuffer memory map */
@@ -1232,10 +1233,8 @@ static int au1200fb_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct au1200fb_device *fbdev = info->par;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	pgprot_val(vma->vm_page_prot) |= _CACHE_MASK; /* CCA=7 */
-
-	return vm_iomap_memory(vma, fbdev->fb_phys, fbdev->fb_len);
+	return dma_mmap_attrs(fbdev->dev, vma, fbdev->fb_mem, fbdev->fb_phys,
+			fbdev->fb_len, 0);
 }
 
 static void set_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
@@ -1484,7 +1483,7 @@ static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
 }
 
 
-static struct fb_ops au1200fb_fb_ops = {
+static const struct fb_ops au1200fb_fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= au1200fb_fb_check_var,
 	.fb_set_par	= au1200fb_fb_set_par,
@@ -1647,7 +1646,6 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 	struct au1200fb_device *fbdev;
 	struct au1200fb_platdata *pd;
 	struct fb_info *fbi = NULL;
-	unsigned long page;
 	int bpp, plane, ret, irq;
 
 	print_info("" DRIVER_DESC "");
@@ -1685,6 +1683,7 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 		fbdev = fbi->par;
 		fbdev->fb_info = fbi;
 		fbdev->pd = pd;
+		fbdev->dev = &dev->dev;
 
 		fbdev->plane = plane;
 
@@ -1693,8 +1692,7 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 
 		fbdev->fb_mem = dmam_alloc_attrs(&dev->dev,
 				PAGE_ALIGN(fbdev->fb_len),
-				&fbdev->fb_phys, GFP_KERNEL,
-				DMA_ATTR_NON_CONSISTENT);
+				&fbdev->fb_phys, GFP_KERNEL, 0);
 		if (!fbdev->fb_mem) {
 			print_err("fail to allocate framebuffer (size: %dK))",
 				  fbdev->fb_len / 1024);
@@ -1702,16 +1700,6 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 			goto failed;
 		}
 
-		/*
-		 * Set page reserved so that mmap will work. This is necessary
-		 * since we'll be remapping normal memory.
-		 */
-		for (page = (unsigned long)fbdev->fb_phys;
-		     page < PAGE_ALIGN((unsigned long)fbdev->fb_phys +
-			     fbdev->fb_len);
-		     page += PAGE_SIZE) {
-			SetPageReserved(pfn_to_page(page >> PAGE_SHIFT)); /* LCD DMA is NOT coherent on Au1200 */
-		}
 		print_dbg("Framebuffer memory map at %p", fbdev->fb_mem);
 		print_dbg("phys=0x%08x, size=%dK", fbdev->fb_phys, fbdev->fb_len / 1024);
 

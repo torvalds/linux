@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2001 PPC64 Team, IBM Corp
  *
@@ -14,11 +15,6 @@
  *
  * Note that the offsets of the fields in this struct correspond with
  * the PT_* values below.  This simplifies arch/powerpc/kernel/ptrace.c.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_POWERPC_PTRACE_H
 #define _ASM_POWERPC_PTRACE_H
@@ -26,6 +22,45 @@
 #include <uapi/asm/ptrace.h>
 #include <asm/asm-const.h>
 
+#ifndef __ASSEMBLY__
+struct pt_regs
+{
+	union {
+		struct user_pt_regs user_regs;
+		struct {
+			unsigned long gpr[32];
+			unsigned long nip;
+			unsigned long msr;
+			unsigned long orig_gpr3;
+			unsigned long ctr;
+			unsigned long link;
+			unsigned long xer;
+			unsigned long ccr;
+#ifdef CONFIG_PPC64
+			unsigned long softe;
+#else
+			unsigned long mq;
+#endif
+			unsigned long trap;
+			unsigned long dar;
+			unsigned long dsisr;
+			unsigned long result;
+		};
+	};
+
+	union {
+		struct {
+#ifdef CONFIG_PPC64
+			unsigned long ppr;
+#endif
+#ifdef CONFIG_PPC_KUAP
+			unsigned long kuap;
+#endif
+		};
+		unsigned long __pad[2];	/* Maintain 16 byte interrupt stack alignment */
+	};
+};
+#endif
 
 #ifdef __powerpc64__
 
@@ -76,17 +111,35 @@
 
 #ifndef __ASSEMBLY__
 
-#define GET_IP(regs)		((regs)->nip)
-#define GET_USP(regs)		((regs)->gpr[1])
-#define GET_FP(regs)		(0)
-#define SET_FP(regs, val)
+static inline unsigned long instruction_pointer(struct pt_regs *regs)
+{
+	return regs->nip;
+}
+
+static inline void instruction_pointer_set(struct pt_regs *regs,
+		unsigned long val)
+{
+	regs->nip = val;
+}
+
+static inline unsigned long user_stack_pointer(struct pt_regs *regs)
+{
+	return regs->gpr[1];
+}
+
+static inline unsigned long frame_pointer(struct pt_regs *regs)
+{
+	return 0;
+}
 
 #ifdef CONFIG_SMP
 extern unsigned long profile_pc(struct pt_regs *regs);
-#define profile_pc profile_pc
+#else
+#define profile_pc(regs) instruction_pointer(regs)
 #endif
 
-#include <asm-generic/ptrace.h>
+long do_syscall_trace_enter(struct pt_regs *regs);
+void do_syscall_trace_leave(struct pt_regs *regs);
 
 #define kernel_stack_pointer(regs) ((regs)->gpr[1])
 static inline int is_syscall_success(struct pt_regs *regs)
@@ -100,6 +153,11 @@ static inline long regs_return_value(struct pt_regs *regs)
 		return regs->gpr[3];
 	else
 		return -regs->gpr[3];
+}
+
+static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
+{
+	regs->gpr[3] = rc;
 }
 
 #ifdef __powerpc64__
@@ -120,7 +178,23 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
 			  unsigned long data);
 
 #define current_pt_regs() \
-	((struct pt_regs *)((unsigned long)current_thread_info() + THREAD_SIZE) - 1)
+	((struct pt_regs *)((unsigned long)task_stack_page(current) + THREAD_SIZE) - 1)
+
+#ifdef __powerpc64__
+#ifdef CONFIG_PPC_BOOK3S
+#define TRAP_FLAGS_MASK		0x10
+#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
+#define FULL_REGS(regs)		true
+#define SET_FULL_REGS(regs)	do { } while (0)
+#else
+#define TRAP_FLAGS_MASK		0x11
+#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
+#define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
+#define SET_FULL_REGS(regs)	((regs)->trap |= 1)
+#endif
+#define CHECK_FULL_REGS(regs)	BUG_ON(!FULL_REGS(regs))
+#define NV_REG_POISON		0xdeadbeefdeadbeefUL
+#else
 /*
  * We use the least-significant bit of the trap field to indicate
  * whether we have saved the full set of registers, or only a
@@ -128,17 +202,13 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
  * On 4xx we use the next bit to indicate whether the exception
  * is a critical exception (1 means it is).
  */
+#define TRAP_FLAGS_MASK		0x1F
+#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
 #define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
-#ifndef __powerpc64__
+#define SET_FULL_REGS(regs)	((regs)->trap |= 1)
 #define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
 #define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
 #define IS_DEBUG_EXC(regs)	(((regs)->trap & 8) != 0)
-#endif /* ! __powerpc64__ */
-#define TRAP(regs)		((regs)->trap & ~0xF)
-#ifdef __powerpc64__
-#define NV_REG_POISON		0xdeadbeefdeadbeefUL
-#define CHECK_FULL_REGS(regs)	BUG_ON(regs->trap & 1)
-#else
 #define NV_REG_POISON		0xdeadbeef
 #define CHECK_FULL_REGS(regs)						      \
 do {									      \
@@ -147,9 +217,34 @@ do {									      \
 } while (0)
 #endif /* __powerpc64__ */
 
+static inline void set_trap(struct pt_regs *regs, unsigned long val)
+{
+	regs->trap = (regs->trap & TRAP_FLAGS_MASK) | (val & ~TRAP_FLAGS_MASK);
+}
+
+static inline bool trap_is_scv(struct pt_regs *regs)
+{
+	return (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && TRAP(regs) == 0x3000);
+}
+
+static inline bool trap_is_syscall(struct pt_regs *regs)
+{
+	return (trap_is_scv(regs) || TRAP(regs) == 0xc00);
+}
+
+static inline bool trap_norestart(struct pt_regs *regs)
+{
+	return regs->trap & 0x10;
+}
+
+static inline void set_trap_norestart(struct pt_regs *regs)
+{
+	regs->trap |= 0x10;
+}
+
 #define arch_has_single_step()	(1)
-#define arch_has_block_step()	(!cpu_has_feature(CPU_FTR_601))
-#define ARCH_HAS_USER_SINGLE_STEP_INFO
+#define arch_has_block_step()	(true)
+#define ARCH_HAS_USER_SINGLE_STEP_REPORT
 
 /*
  * kprobe-based event tracer support
@@ -217,6 +312,8 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 #endif /* __ASSEMBLY__ */
 
 #ifndef __powerpc64__
+/* We need PT_SOFTE defined at all time to avoid #ifdefs */
+#define PT_SOFTE PT_MQ
 #else /* __powerpc64__ */
 #define PT_FPSCR32 (PT_FPR0 + 2*32 + 1)	/* each FP reg occupies 2 32-bit userspace slots */
 #define PT_VR0_32 164	/* each Vector reg occupies 4 slots in 32-bit */

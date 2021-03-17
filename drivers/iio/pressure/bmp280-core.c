@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2010 Christoph Mair <christoph.mair@gmail.com>
  * Copyright (c) 2012 Bosch Sensortec GmbH
@@ -6,10 +7,6 @@
  * Copyright (c) 2016 Linus Walleij <linus.walleij@linaro.org>
  *
  * Driver for Bosch Sensortec BMP180 and BMP280 digital pressure sensor.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Datasheet:
  * https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BMP180-DS000-121.pdf
@@ -77,6 +74,12 @@ struct bmp280_calib {
 	s8  H6;
 };
 
+static const char *const bmp280_supply_names[] = {
+	"vddd", "vdda"
+};
+
+#define BMP280_NUM_SUPPLIES ARRAY_SIZE(bmp280_supply_names)
+
 struct bmp280_data {
 	struct device *dev;
 	struct mutex lock;
@@ -88,8 +91,7 @@ struct bmp280_data {
 		struct bmp180_calib bmp180;
 		struct bmp280_calib bmp280;
 	} calib;
-	struct regulator *vddd;
-	struct regulator *vdda;
+	struct regulator_bulk_data supplies[BMP280_NUM_SUPPLIES];
 	unsigned int start_up_time; /* in microseconds */
 
 	/* log of base 2 of oversampling rate */
@@ -151,6 +153,8 @@ static int bmp280_read_calib(struct bmp280_data *data,
 {
 	int ret;
 	unsigned int tmp;
+	__le16 l16;
+	__be16 b16;
 	struct device *dev = data->dev;
 	__le16 t_buf[BMP280_COMP_TEMP_REG_COUNT / 2];
 	__le16 p_buf[BMP280_COMP_PRESS_REG_COUNT / 2];
@@ -164,6 +168,9 @@ static int bmp280_read_calib(struct bmp280_data *data,
 		return ret;
 	}
 
+	/* Toss the temperature calibration data into the entropy pool */
+	add_device_randomness(t_buf, sizeof(t_buf));
+
 	calib->T1 = le16_to_cpu(t_buf[T1]);
 	calib->T2 = le16_to_cpu(t_buf[T2]);
 	calib->T3 = le16_to_cpu(t_buf[T3]);
@@ -176,6 +183,9 @@ static int bmp280_read_calib(struct bmp280_data *data,
 			"failed to read pressure calibration parameters\n");
 		return ret;
 	}
+
+	/* Toss the pressure calibration data into the entropy pool */
+	add_device_randomness(p_buf, sizeof(p_buf));
 
 	calib->P1 = le16_to_cpu(p_buf[P1]);
 	calib->P2 = le16_to_cpu(p_buf[P2]);
@@ -204,12 +214,12 @@ static int bmp280_read_calib(struct bmp280_data *data,
 	}
 	calib->H1 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H2, &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H2, &l16, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H2 comp value\n");
 		return ret;
 	}
-	calib->H2 = sign_extend32(le16_to_cpu(tmp), 15);
+	calib->H2 = sign_extend32(le16_to_cpu(l16), 15);
 
 	ret = regmap_read(data->regmap, BMP280_REG_COMP_H3, &tmp);
 	if (ret < 0) {
@@ -218,20 +228,20 @@ static int bmp280_read_calib(struct bmp280_data *data,
 	}
 	calib->H3 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H4, &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H4, &b16, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H4 comp value\n");
 		return ret;
 	}
-	calib->H4 = sign_extend32(((be16_to_cpu(tmp) >> 4) & 0xff0) |
-				  (be16_to_cpu(tmp) & 0xf), 11);
+	calib->H4 = sign_extend32(((be16_to_cpu(b16) >> 4) & 0xff0) |
+				  (be16_to_cpu(b16) & 0xf), 11);
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H5, &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H5, &l16, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H5 comp value\n");
 		return ret;
 	}
-	calib->H5 = sign_extend32(((le16_to_cpu(tmp) >> 4) & 0xfff), 11);
+	calib->H5 = sign_extend32(((le16_to_cpu(l16) >> 4) & 0xfff), 11);
 
 	ret = regmap_read(data->regmap, BMP280_REG_COMP_H6, &tmp);
 	if (ret < 0) {
@@ -260,6 +270,8 @@ static u32 bmp280_compensate_humidity(struct bmp280_data *data,
 		* (((var * (s32)calib->H3) >> 11) + (s32)32768)) >> 10)
 		+ (s32)2097152) * calib->H2 + 8192) >> 14);
 	var -= ((((var >> 15) * (var >> 15)) >> 7) * (s32)calib->H1) >> 4;
+
+	var = clamp_val(var, 0, 419430400);
 
 	return var >> 12;
 };
@@ -327,8 +339,7 @@ static int bmp280_read_temp(struct bmp280_data *data,
 	__be32 tmp = 0;
 	s32 adc_temp, comp_temp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB,
-			       (u8 *) &tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB, &tmp, 3);
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read temperature\n");
 		return ret;
@@ -367,8 +378,7 @@ static int bmp280_read_press(struct bmp280_data *data,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_PRESS_MSB,
-			       (u8 *) &tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_PRESS_MSB, &tmp, 3);
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read pressure\n");
 		return ret;
@@ -390,8 +400,8 @@ static int bmp280_read_press(struct bmp280_data *data,
 
 static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 {
+	__be16 tmp;
 	int ret;
-	__be16 tmp = 0;
 	s32 adc_humidity;
 	u32 comp_humidity;
 
@@ -400,8 +410,7 @@ static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_HUMIDITY_MSB,
-			       (u8 *) &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_HUMIDITY_MSB, &tmp, 2);
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read humidity\n");
 		return ret;
@@ -565,57 +574,38 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static ssize_t bmp280_show_avail(char *buf, const int *vals, const int n)
+static int bmp280_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long mask)
 {
-	size_t len = 0;
-	int i;
+	struct bmp280_data *data = iio_priv(indio_dev);
 
-	for (i = 0; i < n; i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ", vals[i]);
-
-	buf[len - 1] = '\n';
-
-	return len;
+	switch (mask) {
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		switch (chan->type) {
+		case IIO_PRESSURE:
+			*vals = data->chip_info->oversampling_press_avail;
+			*length = data->chip_info->num_oversampling_press_avail;
+			break;
+		case IIO_TEMP:
+			*vals = data->chip_info->oversampling_temp_avail;
+			*length = data->chip_info->num_oversampling_temp_avail;
+			break;
+		default:
+			return -EINVAL;
+		}
+		*type = IIO_VAL_INT;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
 }
-
-static ssize_t bmp280_show_temp_oversampling_avail(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct bmp280_data *data = iio_priv(dev_to_iio_dev(dev));
-
-	return bmp280_show_avail(buf, data->chip_info->oversampling_temp_avail,
-				 data->chip_info->num_oversampling_temp_avail);
-}
-
-static ssize_t bmp280_show_press_oversampling_avail(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct bmp280_data *data = iio_priv(dev_to_iio_dev(dev));
-
-	return bmp280_show_avail(buf, data->chip_info->oversampling_press_avail,
-				 data->chip_info->num_oversampling_press_avail);
-}
-
-static IIO_DEVICE_ATTR(in_temp_oversampling_ratio_available,
-	S_IRUGO, bmp280_show_temp_oversampling_avail, NULL, 0);
-
-static IIO_DEVICE_ATTR(in_pressure_oversampling_ratio_available,
-	S_IRUGO, bmp280_show_press_oversampling_avail, NULL, 0);
-
-static struct attribute *bmp280_attributes[] = {
-	&iio_dev_attr_in_temp_oversampling_ratio_available.dev_attr.attr,
-	&iio_dev_attr_in_pressure_oversampling_ratio_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group bmp280_attrs_group = {
-	.attrs = bmp280_attributes,
-};
 
 static const struct iio_info bmp280_info = {
 	.read_raw = &bmp280_read_raw,
+	.read_avail = &bmp280_read_avail,
 	.write_raw = &bmp280_write_raw,
-	.attrs = &bmp280_attrs_group,
 };
 
 static int bmp280_chip_config(struct bmp280_data *data)
@@ -703,7 +693,7 @@ static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 	unsigned int ctrl;
 
 	if (data->use_eoc)
-		init_completion(&data->done);
+		reinit_completion(&data->done);
 
 	ret = regmap_write(data->regmap, BMP280_REG_CTRL_MEAS, ctrl_meas);
 	if (ret)
@@ -742,14 +732,14 @@ static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 
 static int bmp180_read_adc_temp(struct bmp280_data *data, int *val)
 {
+	__be16 tmp;
 	int ret;
-	__be16 tmp = 0;
 
 	ret = bmp180_measure(data, BMP180_MEAS_TEMP);
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, (u8 *)&tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, &tmp, 2);
 	if (ret)
 		return ret;
 
@@ -846,7 +836,7 @@ static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, (u8 *)&tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, &tmp, 3);
 	if (ret)
 		return ret;
 
@@ -955,10 +945,12 @@ static int bmp085_fetch_eoc_irq(struct device *dev,
 
 	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
 	if (irq_trig != IRQF_TRIGGER_RISING) {
-		dev_err(dev, "non-rising trigger given for EOC interrupt, "
-			"trying to enforce it\n");
+		dev_err(dev, "non-rising trigger given for EOC interrupt, trying to enforce it\n");
 		irq_trig = IRQF_TRIGGER_RISING;
 	}
+
+	init_completion(&data->done);
+
 	ret = devm_request_threaded_irq(dev,
 			irq,
 			bmp085_eoc_irq,
@@ -974,6 +966,22 @@ static int bmp085_fetch_eoc_irq(struct device *dev,
 
 	data->use_eoc = true;
 	return 0;
+}
+
+static void bmp280_pm_disable(void *data)
+{
+	struct device *dev = data;
+
+	pm_runtime_get_sync(dev);
+	pm_runtime_put_noidle(dev);
+	pm_runtime_disable(dev);
+}
+
+static void bmp280_regulators_disable(void *data)
+{
+	struct regulator_bulk_data *supplies = data;
+
+	regulator_bulk_disable(BMP280_NUM_SUPPLIES, supplies);
 }
 
 int bmp280_common_probe(struct device *dev,
@@ -996,7 +1004,6 @@ int bmp280_common_probe(struct device *dev,
 	mutex_init(&data->lock);
 	data->dev = dev;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->channels = bmp280_channels;
 	indio_dev->info = &bmp280_info;
@@ -1030,34 +1037,35 @@ int bmp280_common_probe(struct device *dev,
 	}
 
 	/* Bring up regulators */
-	data->vddd = devm_regulator_get(dev, "vddd");
-	if (IS_ERR(data->vddd)) {
-		dev_err(dev, "failed to get VDDD regulator\n");
-		return PTR_ERR(data->vddd);
-	}
-	ret = regulator_enable(data->vddd);
+	regulator_bulk_set_supply_names(data->supplies,
+					bmp280_supply_names,
+					BMP280_NUM_SUPPLIES);
+
+	ret = devm_regulator_bulk_get(dev,
+				      BMP280_NUM_SUPPLIES, data->supplies);
 	if (ret) {
-		dev_err(dev, "failed to enable VDDD regulator\n");
+		dev_err(dev, "failed to get regulators\n");
 		return ret;
 	}
-	data->vdda = devm_regulator_get(dev, "vdda");
-	if (IS_ERR(data->vdda)) {
-		dev_err(dev, "failed to get VDDA regulator\n");
-		ret = PTR_ERR(data->vdda);
-		goto out_disable_vddd;
-	}
-	ret = regulator_enable(data->vdda);
+
+	ret = regulator_bulk_enable(BMP280_NUM_SUPPLIES, data->supplies);
 	if (ret) {
-		dev_err(dev, "failed to enable VDDA regulator\n");
-		goto out_disable_vddd;
+		dev_err(dev, "failed to enable regulators\n");
+		return ret;
 	}
+
+	ret = devm_add_action_or_reset(dev, bmp280_regulators_disable,
+				       data->supplies);
+	if (ret)
+		return ret;
+
 	/* Wait to make sure we started up properly */
 	usleep_range(data->start_up_time, data->start_up_time + 100);
 
 	/* Bring chip out of reset if there is an assigned GPIO line */
-	gpiod = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	gpiod = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	/* Deassert the signal */
-	if (!IS_ERR(gpiod)) {
+	if (gpiod) {
 		dev_info(dev, "release reset\n");
 		gpiod_set_value(gpiod, 0);
 	}
@@ -1065,17 +1073,16 @@ int bmp280_common_probe(struct device *dev,
 	data->regmap = regmap;
 	ret = regmap_read(regmap, BMP280_REG_ID, &chip_id);
 	if (ret < 0)
-		goto out_disable_vdda;
+		return ret;
 	if (chip_id != chip) {
 		dev_err(dev, "bad chip id: expected %x got %x\n",
 			chip, chip_id);
-		ret = -EINVAL;
-		goto out_disable_vdda;
+		return -EINVAL;
 	}
 
 	ret = data->chip_info->chip_config(data);
 	if (ret < 0)
-		goto out_disable_vdda;
+		return ret;
 
 	dev_set_drvdata(dev, indio_dev);
 
@@ -1089,14 +1096,14 @@ int bmp280_common_probe(struct device *dev,
 		if (ret < 0) {
 			dev_err(data->dev,
 				"failed to read calibration coefficients\n");
-			goto out_disable_vdda;
+			return ret;
 		}
 	} else if (chip_id == BMP280_CHIP_ID || chip_id == BME280_CHIP_ID) {
 		ret = bmp280_read_calib(data, &data->calib.bmp280, chip_id);
 		if (ret < 0) {
 			dev_err(data->dev,
 				"failed to read calibration coefficients\n");
-			goto out_disable_vdda;
+			return ret;
 		}
 	}
 
@@ -1108,7 +1115,7 @@ int bmp280_common_probe(struct device *dev,
 	if (irq > 0 || (chip_id  == BMP180_CHIP_ID)) {
 		ret = bmp085_fetch_eoc_irq(dev, name, irq, data);
 		if (ret)
-			goto out_disable_vdda;
+			return ret;
 	}
 
 	/* Enable runtime PM */
@@ -1123,51 +1130,21 @@ int bmp280_common_probe(struct device *dev,
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_put(dev);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_add_action_or_reset(dev, bmp280_pm_disable, dev);
 	if (ret)
-		goto out_runtime_pm_disable;
+		return ret;
 
-
-	return 0;
-
-out_runtime_pm_disable:
-	pm_runtime_get_sync(data->dev);
-	pm_runtime_put_noidle(data->dev);
-	pm_runtime_disable(data->dev);
-out_disable_vdda:
-	regulator_disable(data->vdda);
-out_disable_vddd:
-	regulator_disable(data->vddd);
-	return ret;
+	return devm_iio_device_register(dev, indio_dev);
 }
 EXPORT_SYMBOL(bmp280_common_probe);
-
-int bmp280_common_remove(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct bmp280_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	pm_runtime_get_sync(data->dev);
-	pm_runtime_put_noidle(data->dev);
-	pm_runtime_disable(data->dev);
-	regulator_disable(data->vdda);
-	regulator_disable(data->vddd);
-	return 0;
-}
-EXPORT_SYMBOL(bmp280_common_remove);
 
 #ifdef CONFIG_PM
 static int bmp280_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmp280_data *data = iio_priv(indio_dev);
-	int ret;
 
-	ret = regulator_disable(data->vdda);
-	if (ret)
-		return ret;
-	return regulator_disable(data->vddd);
+	return regulator_bulk_disable(BMP280_NUM_SUPPLIES, data->supplies);
 }
 
 static int bmp280_runtime_resume(struct device *dev)
@@ -1176,10 +1153,7 @@ static int bmp280_runtime_resume(struct device *dev)
 	struct bmp280_data *data = iio_priv(indio_dev);
 	int ret;
 
-	ret = regulator_enable(data->vddd);
-	if (ret)
-		return ret;
-	ret = regulator_enable(data->vdda);
+	ret = regulator_bulk_enable(BMP280_NUM_SUPPLIES, data->supplies);
 	if (ret)
 		return ret;
 	usleep_range(data->start_up_time, data->start_up_time + 100);

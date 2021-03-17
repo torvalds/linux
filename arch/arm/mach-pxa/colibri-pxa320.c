@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  arch/arm/mach-pxa/colibri-pxa320.c
  *
@@ -5,21 +6,17 @@
  *
  *  Daniel Mack <daniel@caiaq.de>
  *  Matthias Meier <matthias.j.meier@gmx.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
-#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 
@@ -147,17 +144,18 @@ static inline void __init colibri_pxa320_init_eth(void) {}
 #endif /* CONFIG_AX88796 */
 
 #if defined(CONFIG_USB_PXA27X)||defined(CONFIG_USB_PXA27X_MODULE)
-static struct gpio_vbus_mach_info colibri_pxa320_gpio_vbus_info = {
-	.gpio_vbus		= mfp_to_gpio(MFP_PIN_GPIO96),
-	.gpio_pullup		= -1,
+static struct gpiod_lookup_table gpio_vbus_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", MFP_PIN_GPIO96,
+			    "vbus", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device colibri_pxa320_gpio_vbus = {
 	.name	= "gpio-vbus",
 	.id	= -1,
-	.dev	= {
-		.platform_data	= &colibri_pxa320_gpio_vbus_info,
-	},
 };
 
 static void colibri_pxa320_udc_command(int cmd)
@@ -176,6 +174,7 @@ static struct pxa2xx_udc_mach_info colibri_pxa320_udc_info __initdata = {
 static void __init colibri_pxa320_init_udc(void)
 {
 	pxa_set_udc_info(&colibri_pxa320_udc_info);
+	gpiod_add_lookup_table(&gpio_vbus_gpiod_table);
 	platform_device_register(&colibri_pxa320_gpio_vbus);
 }
 #else

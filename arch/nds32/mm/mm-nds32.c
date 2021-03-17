@@ -2,6 +2,8 @@
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #include <linux/init_task.h>
+
+#define __HAVE_ARCH_PGD_FREE
 #include <asm/pgalloc.h>
 
 #define FIRST_KERNEL_PGD_NR	(USER_PTRS_PER_PGD)
@@ -74,6 +76,8 @@ void setup_mm_for_reboot(char mode)
 {
 	unsigned long pmdval;
 	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
 	pmd_t *pmd;
 	int i;
 
@@ -84,7 +88,9 @@ void setup_mm_for_reboot(char mode)
 
 	for (i = 0; i < USER_PTRS_PER_PGD; i++) {
 		pmdval = (i << PGDIR_SHIFT);
-		pmd = pmd_offset(pgd + i, i << PGDIR_SHIFT);
+		p4d = p4d_offset(pgd, i << PGDIR_SHIFT);
+		pud = pud_offset(p4d, i << PGDIR_SHIFT);
+		pmd = pmd_offset(pud + i, i << PGDIR_SHIFT);
 		set_pmd(pmd, __pmd(pmdval));
 	}
 }

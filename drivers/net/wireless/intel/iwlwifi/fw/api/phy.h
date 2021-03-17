@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2019 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2019 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,6 +90,11 @@ enum iwl_phy_ops_subcmd_ids {
 	 * @GEO_TX_POWER_LIMIT: &struct iwl_geo_tx_power_profiles_cmd
 	 */
 	GEO_TX_POWER_LIMIT = 0x05,
+
+	/**
+	 * @PER_PLATFORM_ANT_GAIN_CMD: &struct iwl_ppag_table_cmd
+	 */
+	PER_PLATFORM_ANT_GAIN_CMD = 0x07,
 
 	/**
 	 * @CT_KILL_NOTIFICATION: &struct ct_kill_notif
@@ -205,6 +212,15 @@ struct iwl_dts_measurement_notif_v2 {
 	__le32 voltage;
 	__le32 threshold_idx;
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_2 */
+
+/**
+ * struct iwl_dts_measurement_resp - measurements response
+ *
+ * @temp: the measured temperature
+ */
+struct iwl_dts_measurement_resp {
+	__le32 temp;
+} __packed; /* CMD_DTS_MEASUREMENT_RSP_API_S_VER_1 */
 
 /**
  * struct ct_kill_notif - CT-kill entry notification

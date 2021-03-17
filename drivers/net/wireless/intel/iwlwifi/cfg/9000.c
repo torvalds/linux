@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,16 +55,16 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "fw/file.h"
+#include "iwl-prph.h"
 
 /* Highest firmware API version supported */
-#define IWL9000_UCODE_API_MAX	38
+#define IWL9000_UCODE_API_MAX	46
 
 /* Lowest firmware API version supported */
 #define IWL9000_UCODE_API_MIN	30
 
 /* NVM versions */
 #define IWL9000_NVM_VERSION		0x0a1d
-#define IWL9000_TX_POWER_VERSION	0xffff /* meaningless */
 
 /* Memory offsets and lengths */
 #define IWL9000_DCCM_OFFSET		0x800000
@@ -74,26 +74,15 @@
 #define IWL9000_SMEM_OFFSET		0x400000
 #define IWL9000_SMEM_LEN		0x68000
 
-#define  IWL9000A_FW_PRE "iwlwifi-9000-pu-a0-jf-a0-"
-#define  IWL9000B_FW_PRE "iwlwifi-9000-pu-b0-jf-b0-"
-#define  IWL9000RFB_FW_PRE "iwlwifi-9000-pu-a0-jf-b0-"
-#define  IWL9260A_FW_PRE "iwlwifi-9260-th-a0-jf-a0-"
-#define  IWL9260B_FW_PRE "iwlwifi-9260-th-b0-jf-b0-"
-#define IWL9000A_MODULE_FIRMWARE(api) \
-	IWL9000A_FW_PRE __stringify(api) ".ucode"
-#define IWL9000B_MODULE_FIRMWARE(api) \
-	IWL9000B_FW_PRE __stringify(api) ".ucode"
-#define IWL9000RFB_MODULE_FIRMWARE(api) \
-	IWL9000RFB_FW_PRE __stringify(api) ".ucode"
-#define IWL9260A_MODULE_FIRMWARE(api) \
-	IWL9260A_FW_PRE __stringify(api) ".ucode"
-#define IWL9260B_MODULE_FIRMWARE(api) \
-	IWL9260B_FW_PRE __stringify(api) ".ucode"
-
-#define NVM_HW_SECTION_NUM_FAMILY_9000		10
+#define  IWL9000_FW_PRE "iwlwifi-9000-pu-b0-jf-b0-"
+#define  IWL9260_FW_PRE "iwlwifi-9260-th-b0-jf-b0-"
+#define IWL9000_MODULE_FIRMWARE(api) \
+	IWL9000_FW_PRE __stringify(api) ".ucode"
+#define IWL9260_MODULE_FIRMWARE(api) \
+	IWL9260_FW_PRE __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl9000_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_9000,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 31,
 	.max_tfd_queue_size = 256,
 	.shadow_ram_support = true,
@@ -134,10 +123,8 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 #define IWL_DEVICE_9000							\
 	.ucode_api_max = IWL9000_UCODE_API_MAX,				\
 	.ucode_api_min = IWL9000_UCODE_API_MIN,				\
-	.device_family = IWL_DEVICE_FAMILY_9000,			\
-	.base_params = &iwl9000_base_params,				\
 	.led_mode = IWL_LED_RF_STATE,					\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_9000,		\
+	.nvm_hw_section_num = 10,					\
 	.non_shared_ant = ANT_B,					\
 	.dccm_offset = IWL9000_DCCM_OFFSET,				\
 	.dccm_len = IWL9000_DCCM_LEN,					\
@@ -148,257 +135,103 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
 	.thermal_params = &iwl9000_tt_params,				\
 	.apmg_not_supported = true,					\
-	.mq_rx_supported = true,					\
+	.num_rbds = 512,						\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = true,					\
-	.rf_id = true,							\
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x800000,				\
-	.csr = &iwl_csr_v1
+	.d3_debug_data_base_addr = 0x401000,				\
+	.d3_debug_data_length = 92 * 1024,				\
+	.ht_params = &iwl9000_ht_params,				\
+	.nvm_ver = IWL9000_NVM_VERSION,					\
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,		\
+	.mon_smem_regs = {						\
+		.write_ptr = {						\
+			.addr = LDBG_M2S_BUF_WPTR,			\
+			.mask = LDBG_M2S_BUF_WPTR_VAL_MSK,		\
+		},							\
+		.cycle_cnt = {						\
+			.addr = LDBG_M2S_BUF_WRAP_CNT,			\
+			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,		\
+		},							\
+	},								\
+	.mon_dram_regs = {						\
+		.write_ptr = {						\
+			.addr = MON_BUFF_WRPTR_VER2,			\
+			.mask = 0xffffffff,				\
+		},							\
+		.cycle_cnt = {						\
+			.addr = MON_BUFF_CYCLE_CNT_VER2,		\
+			.mask = 0xffffffff,				\
+		},							\
+	}
 
-const struct iwl_cfg iwl9160_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9160",
-	.fw_name_pre = IWL9260A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9260B_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+const struct iwl_cfg_trans_params iwl9000_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_9000,
+	.base_params = &iwl9000_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
 };
+
+const struct iwl_cfg_trans_params iwl9560_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_9000,
+	.base_params = &iwl9000_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
+	.integrated = true,
+	.xtal_latency = 650,
+};
+
+const struct iwl_cfg_trans_params iwl9560_long_latency_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_9000,
+	.base_params = &iwl9000_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
+	.integrated = true,
+	.xtal_latency = 2820,
+};
+
+const struct iwl_cfg_trans_params iwl9560_shared_clk_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_9000,
+	.base_params = &iwl9000_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
+	.integrated = true,
+	.xtal_latency = 670,
+	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
+};
+
+const char iwl9162_name[] = "Intel(R) Wireless-AC 9162";
+const char iwl9260_name[] = "Intel(R) Wireless-AC 9260";
+const char iwl9260_1_name[] = "Intel(R) Wireless-AC 9260-1";
+const char iwl9270_name[] = "Intel(R) Wireless-AC 9270";
+const char iwl9461_name[] = "Intel(R) Wireless-AC 9461";
+const char iwl9462_name[] = "Intel(R) Wireless-AC 9462";
+const char iwl9560_name[] = "Intel(R) Wireless-AC 9560";
+const char iwl9162_160_name[] = "Intel(R) Wireless-AC 9162 160MHz";
+const char iwl9260_160_name[] = "Intel(R) Wireless-AC 9260 160MHz";
+const char iwl9270_160_name[] = "Intel(R) Wireless-AC 9270 160MHz";
+const char iwl9461_160_name[] = "Intel(R) Wireless-AC 9461 160MHz";
+const char iwl9462_160_name[] = "Intel(R) Wireless-AC 9462 160MHz";
+const char iwl9560_160_name[] = "Intel(R) Wireless-AC 9560 160MHz";
+
+const char iwl9260_killer_1550_name[] =
+	"Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW)";
+const char iwl9560_killer_1550i_name[] =
+	"Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)";
+const char iwl9560_killer_1550s_name[] =
+	"Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)";
 
 const struct iwl_cfg iwl9260_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9260",
-	.fw_name_pre = IWL9260A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9260B_FW_PRE,
+	.fw_name_pre = IWL9260_FW_PRE,
 	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-};
-
-const struct iwl_cfg iwl9260_killer_2ac_cfg = {
-	.name = "Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW)",
-	.fw_name_pre = IWL9260A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9260B_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-};
-
-const struct iwl_cfg iwl9270_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9270",
-	.fw_name_pre = IWL9260A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9260B_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-};
-
-const struct iwl_cfg iwl9460_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9460",
-	.fw_name_pre = IWL9260A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9260B_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-};
-
-const struct iwl_cfg iwl9460_2ac_cfg_soc = {
-	.name = "Intel(R) Dual Band Wireless AC 9460",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-};
-
-const struct iwl_cfg iwl9461_2ac_cfg_soc = {
-		.name = "Intel(R) Dual Band Wireless AC 9461",
-		.fw_name_pre = IWL9000A_FW_PRE,
-		.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-		.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-		IWL_DEVICE_9000,
-		.ht_params = &iwl9000_ht_params,
-		.nvm_ver = IWL9000_NVM_VERSION,
-		.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-		.integrated = true,
-		.soc_latency = 5000,
-};
-
-const struct iwl_cfg iwl9462_2ac_cfg_soc = {
-		.name = "Intel(R) Dual Band Wireless AC 9462",
-		.fw_name_pre = IWL9000A_FW_PRE,
-		.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-		.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-		IWL_DEVICE_9000,
-		.ht_params = &iwl9000_ht_params,
-		.nvm_ver = IWL9000_NVM_VERSION,
-		.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-		.integrated = true,
-		.soc_latency = 5000,
-};
-
-const struct iwl_cfg iwl9560_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9560",
-	.fw_name_pre = IWL9260A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9260B_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 
 const struct iwl_cfg iwl9560_2ac_cfg_soc = {
-	.name = "Intel(R) Dual Band Wireless AC 9560",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
+	.fw_name_pre = IWL9000_FW_PRE,
 	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
 };
 
-const struct iwl_cfg iwl9560_killer_2ac_cfg_soc = {
-	.name = "Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-};
-
-const struct iwl_cfg iwl9560_killer_s_2ac_cfg_soc = {
-	.name = "Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-};
-
-const struct iwl_cfg iwl9460_2ac_cfg_shared_clk = {
-	.name = "Intel(R) Dual Band Wireless AC 9460",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
-};
-
-const struct iwl_cfg iwl9461_2ac_cfg_shared_clk = {
-	.name = "Intel(R) Dual Band Wireless AC 9461",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
-};
-
-const struct iwl_cfg iwl9462_2ac_cfg_shared_clk = {
-	.name = "Intel(R) Dual Band Wireless AC 9462",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
-};
-
-const struct iwl_cfg iwl9560_2ac_cfg_shared_clk = {
-	.name = "Intel(R) Dual Band Wireless AC 9560",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
-};
-
-const struct iwl_cfg iwl9560_killer_2ac_cfg_shared_clk = {
-	.name = "Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
-};
-
-const struct iwl_cfg iwl9560_killer_s_2ac_cfg_shared_clk = {
-	.name = "Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)",
-	.fw_name_pre = IWL9000A_FW_PRE,
-	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
-	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-	.soc_latency = 5000,
-	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
-};
-
-MODULE_FIRMWARE(IWL9000A_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL9000B_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL9000RFB_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL9260A_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL9260B_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL9260_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));

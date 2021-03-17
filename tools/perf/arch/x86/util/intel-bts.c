@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel-bts.c: Intel Processor Trace support
  * Copyright (c) 2013-2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <errno.h>
@@ -18,17 +9,21 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 
-#include "../../util/cpumap.h"
-#include "../../util/evsel.h"
-#include "../../util/evlist.h"
-#include "../../util/session.h"
-#include "../../util/util.h"
-#include "../../util/pmu.h"
-#include "../../util/debug.h"
-#include "../../util/tsc.h"
-#include "../../util/auxtrace.h"
-#include "../../util/intel-bts.h"
+#include "../../../util/cpumap.h"
+#include "../../../util/event.h"
+#include "../../../util/evsel.h"
+#include "../../../util/evlist.h"
+#include "../../../util/mmap.h"
+#include "../../../util/session.h"
+#include "../../../util/pmu.h"
+#include "../../../util/debug.h"
+#include "../../../util/record.h"
+#include "../../../util/tsc.h"
+#include "../../../util/auxtrace.h"
+#include "../../../util/intel-bts.h"
+#include <internal/lib.h> // page_size
 
 #define KiB(x) ((x) * 1024)
 #define MiB(x) ((x) * 1024 * 1024)
@@ -44,7 +39,7 @@ struct intel_bts_snapshot_ref {
 struct intel_bts_recording {
 	struct auxtrace_record		itr;
 	struct perf_pmu			*intel_bts_pmu;
-	struct perf_evlist		*evlist;
+	struct evlist		*evlist;
 	bool				snapshot_mode;
 	size_t				snapshot_size;
 	int				snapshot_ref_cnt;
@@ -59,14 +54,14 @@ struct branch {
 
 static size_t
 intel_bts_info_priv_size(struct auxtrace_record *itr __maybe_unused,
-			 struct perf_evlist *evlist __maybe_unused)
+			 struct evlist *evlist __maybe_unused)
 {
 	return INTEL_BTS_AUXTRACE_PRIV_SIZE;
 }
 
 static int intel_bts_info_fill(struct auxtrace_record *itr,
 			       struct perf_session *session,
-			       struct auxtrace_info_event *auxtrace_info,
+			       struct perf_record_auxtrace_info *auxtrace_info,
 			       size_t priv_size)
 {
 	struct intel_bts_recording *btsr =
@@ -80,10 +75,10 @@ static int intel_bts_info_fill(struct auxtrace_record *itr,
 	if (priv_size != INTEL_BTS_AUXTRACE_PRIV_SIZE)
 		return -EINVAL;
 
-	if (!session->evlist->nr_mmaps)
+	if (!session->evlist->core.nr_mmaps)
 		return -EINVAL;
 
-	pc = session->evlist->mmap[0].base;
+	pc = session->evlist->mmap[0].core.base;
 	if (pc) {
 		err = perf_read_tsc_conversion(pc, &tc);
 		if (err) {
@@ -108,27 +103,32 @@ static int intel_bts_info_fill(struct auxtrace_record *itr,
 }
 
 static int intel_bts_recording_options(struct auxtrace_record *itr,
-				       struct perf_evlist *evlist,
+				       struct evlist *evlist,
 				       struct record_opts *opts)
 {
 	struct intel_bts_recording *btsr =
 			container_of(itr, struct intel_bts_recording, itr);
 	struct perf_pmu *intel_bts_pmu = btsr->intel_bts_pmu;
-	struct perf_evsel *evsel, *intel_bts_evsel = NULL;
-	const struct cpu_map *cpus = evlist->cpus;
-	bool privileged = geteuid() == 0 || perf_event_paranoid() < 0;
+	struct evsel *evsel, *intel_bts_evsel = NULL;
+	const struct perf_cpu_map *cpus = evlist->core.cpus;
+	bool privileged = perf_event_paranoid_check(-1);
+
+	if (opts->auxtrace_sample_mode) {
+		pr_err("Intel BTS does not support AUX area sampling\n");
+		return -EINVAL;
+	}
 
 	btsr->evlist = evlist;
 	btsr->snapshot_mode = opts->auxtrace_snapshot_mode;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type == intel_bts_pmu->type) {
+		if (evsel->core.attr.type == intel_bts_pmu->type) {
 			if (intel_bts_evsel) {
 				pr_err("There may be only one " INTEL_BTS_PMU_NAME " event\n");
 				return -EINVAL;
 			}
-			evsel->attr.freq = 0;
-			evsel->attr.sample_period = 1;
+			evsel->core.attr.freq = 0;
+			evsel->core.attr.sample_period = 1;
 			intel_bts_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -142,7 +142,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 	if (!opts->full_auxtrace)
 		return 0;
 
-	if (opts->full_auxtrace && !cpu_map__empty(cpus)) {
+	if (opts->full_auxtrace && !perf_cpu_map__empty(cpus)) {
 		pr_err(INTEL_BTS_PMU_NAME " does not support per-cpu recording\n");
 		return -EINVAL;
 	}
@@ -223,25 +223,25 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 		 * In the case of per-cpu mmaps, we need the CPU on the
 		 * AUX event.
 		 */
-		if (!cpu_map__empty(cpus))
-			perf_evsel__set_sample_bit(intel_bts_evsel, CPU);
+		if (!perf_cpu_map__empty(cpus))
+			evsel__set_sample_bit(intel_bts_evsel, CPU);
 	}
 
 	/* Add dummy event to keep tracking */
 	if (opts->full_auxtrace) {
-		struct perf_evsel *tracking_evsel;
+		struct evsel *tracking_evsel;
 		int err;
 
 		err = parse_events(evlist, "dummy:u", NULL);
 		if (err)
 			return err;
 
-		tracking_evsel = perf_evlist__last(evlist);
+		tracking_evsel = evlist__last(evlist);
 
 		perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
-		tracking_evsel->attr.freq = 0;
-		tracking_evsel->attr.sample_period = 1;
+		tracking_evsel->core.attr.freq = 0;
+		tracking_evsel->core.attr.sample_period = 1;
 	}
 
 	return 0;
@@ -322,11 +322,11 @@ static int intel_bts_snapshot_start(struct auxtrace_record *itr)
 {
 	struct intel_bts_recording *btsr =
 			container_of(itr, struct intel_bts_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(btsr->evlist, evsel) {
-		if (evsel->attr.type == btsr->intel_bts_pmu->type)
-			return perf_evsel__disable(evsel);
+		if (evsel->core.attr.type == btsr->intel_bts_pmu->type)
+			return evsel__disable(evsel);
 	}
 	return -EINVAL;
 }
@@ -335,11 +335,11 @@ static int intel_bts_snapshot_finish(struct auxtrace_record *itr)
 {
 	struct intel_bts_recording *btsr =
 			container_of(itr, struct intel_bts_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(btsr->evlist, evsel) {
-		if (evsel->attr.type == btsr->intel_bts_pmu->type)
-			return perf_evsel__enable(evsel);
+		if (evsel->core.attr.type == btsr->intel_bts_pmu->type)
+			return evsel__enable(evsel);
 	}
 	return -EINVAL;
 }
@@ -413,20 +413,6 @@ out_err:
 	return err;
 }
 
-static int intel_bts_read_finish(struct auxtrace_record *itr, int idx)
-{
-	struct intel_bts_recording *btsr =
-			container_of(itr, struct intel_bts_recording, itr);
-	struct perf_evsel *evsel;
-
-	evlist__for_each_entry(btsr->evlist, evsel) {
-		if (evsel->attr.type == btsr->intel_bts_pmu->type)
-			return perf_evlist__enable_event_idx(btsr->evlist,
-							     evsel, idx);
-	}
-	return -EINVAL;
-}
-
 struct auxtrace_record *intel_bts_recording_init(int *err)
 {
 	struct perf_pmu *intel_bts_pmu = perf_pmu__find(INTEL_BTS_PMU_NAME);
@@ -447,6 +433,7 @@ struct auxtrace_record *intel_bts_recording_init(int *err)
 	}
 
 	btsr->intel_bts_pmu = intel_bts_pmu;
+	btsr->itr.pmu = intel_bts_pmu;
 	btsr->itr.recording_options = intel_bts_recording_options;
 	btsr->itr.info_priv_size = intel_bts_info_priv_size;
 	btsr->itr.info_fill = intel_bts_info_fill;
@@ -456,7 +443,7 @@ struct auxtrace_record *intel_bts_recording_init(int *err)
 	btsr->itr.find_snapshot = intel_bts_find_snapshot;
 	btsr->itr.parse_snapshot_options = intel_bts_parse_snapshot_options;
 	btsr->itr.reference = intel_bts_reference;
-	btsr->itr.read_finish = intel_bts_read_finish;
+	btsr->itr.read_finish = auxtrace_record__read_finish;
 	btsr->itr.alignment = sizeof(struct branch);
 	return &btsr->itr;
 }

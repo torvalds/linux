@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  osi.c - _OSI implementation
  *
  *  Copyright (C) 2016 Intel Corporation
  *    Author: Lv Zheng <lv.zheng@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 /* Uncomment next line to get verbose printout */
@@ -74,6 +61,13 @@ osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 	 * a BIOS workaround.
 	 */
 	{"Linux-Lenovo-NV-HDMI-Audio", true},
+	/*
+	 * Linux-HPI-Hybrid-Graphics is used by BIOS to enable dGPU to
+	 * output video directly to external monitors on HP Inc. mobile
+	 * workstations as Nvidia and AMD VGA drivers provide limited
+	 * hybrid graphics supports.
+	 */
+	{"Linux-HPI-Hybrid-Graphics", true},
 };
 
 static u32 acpi_osi_handler(acpi_string interface, u32 supported)
@@ -479,9 +473,9 @@ static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 	 */
 
 	/*
-	 * Without this this EEEpc exports a non working WMI interface, with
-	 * this it exports a working "good old" eeepc_laptop interface, fixing
-	 * both brightness control, and rfkill not working.
+	 * Without this EEEpc exports a non working WMI interface, with
+	 * this it exports a working "good old" eeepc_laptop interface,
+	 * fixing both brightness control, and rfkill not working.
 	 */
 	{
 	.callback = dmi_enable_osi_linux,

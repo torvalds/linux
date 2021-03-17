@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Input misc drivers configuration
 #
@@ -99,7 +100,6 @@ config INPUT_ATMEL_CAPTOUCH
 config INPUT_BMA150
 	tristate "BMA150/SMB380 acceleration sensor support"
 	depends on I2C
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you have Bosch Sensortec's BMA150 or SMB380
 	  acceleration sensor hooked to an I2C bus.
@@ -180,6 +180,15 @@ config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
 
+config INPUT_MAX77650_ONKEY
+	tristate "Maxim MAX77650 ONKEY support"
+	depends on MFD_MAX77650
+	help
+	  Support the ONKEY of the MAX77650 PMIC as an input device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called max77650-onkey.
+
 config INPUT_MAX77693_HAPTIC
 	tristate "MAXIM MAX77693/MAX77843 haptic controller support"
 	depends on (MFD_MAX77693 || MFD_MAX77843) && PWM
@@ -226,7 +235,6 @@ config INPUT_MC13783_PWRBUTTON
 config INPUT_MMA8450
 	tristate "MMA8450 - Freescale's 3-Axis, 8/12-bit Digital Accelerometer"
 	depends on I2C
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want to support Freescale's MMA8450 Accelerometer
 	  through I2C interface.
@@ -237,7 +245,6 @@ config INPUT_MMA8450
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
 	depends on X86 && I2C && LEDS_CLASS
-	select INPUT_POLLDEV
 	select CHECK_SIGNATURE
 	help
 	 Say Y here for support of the Application Panel buttons, used on
@@ -247,17 +254,6 @@ config INPUT_APANEL
 
 	 To compile this driver as a module, choose M here: the module will
 	 be called apanel.
-
-config INPUT_GP2A
-	tristate "Sharp GP2AP002A00F I2C Proximity/Opto sensor driver"
-	depends on I2C
-	depends on GPIOLIB || COMPILE_TEST
-	help
-	  Say Y here if you have a Sharp GP2AP002A00F proximity/als combo-chip
-	  hooked to an I2C bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gp2ap002a00f.
 
 config INPUT_GPIO_BEEPER
 	tristate "Generic GPIO Beeper support"
@@ -271,7 +267,6 @@ config INPUT_GPIO_BEEPER
 config INPUT_GPIO_DECODER
 	tristate "Polled GPIO Decoder Input driver"
 	depends on GPIOLIB || COMPILE_TEST
-	select INPUT_POLLDEV
 	help
 	 Say Y here if you want driver to read status of multiple GPIO
 	 lines and report the encoded value as an absolute integer to
@@ -279,6 +274,18 @@ config INPUT_GPIO_DECODER
 
 	 To compile this driver as a module, choose M here: the module
 	 will be called gpio_decoder.
+
+config INPUT_GPIO_VIBRA
+	tristate "GPIO vibrator support"
+	depends on GPIOLIB || COMPILE_TEST
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here to get support for GPIO based vibrator devices.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called gpio-vibra.
 
 config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"
@@ -295,7 +302,6 @@ config INPUT_IXP4XX_BEEPER
 config INPUT_COBALT_BTNS
 	tristate "Cobalt button interface"
 	depends on MIPS_COBALT
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want to support MIPS Cobalt button interface.
 
@@ -315,7 +321,6 @@ config INPUT_CPCAP_PWRBUTTON
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86_32
-	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -377,13 +382,6 @@ config INPUT_KXTJ9
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called kxtj9.
-
-config INPUT_KXTJ9_POLLED_MODE
-	bool "Enable polling mode support"
-	depends on INPUT_KXTJ9
-	select INPUT_POLLDEV
-	help
-	  Say Y here if you need accelerometer to work in polling mode.
 
 config INPUT_POWERMATE
 	tristate "Griffin PowerMate and Contour Jog support"
@@ -514,7 +512,6 @@ config INPUT_UINPUT
 config INPUT_SGI_BTNS
 	tristate "SGI Indy/O2 volume button interface"
 	depends on SGI_IP22 || SGI_IP32
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want to support SGI Indy/O2 volume button interface.
 
@@ -605,7 +602,6 @@ config INPUT_RB532_BUTTON
 	tristate "Mikrotik Routerboard 532 button interface"
 	depends on MIKROTIK_RB532
 	depends on GPIOLIB
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want support for the S1 button built into
 	  Mikrotik's Routerboard 532.
@@ -722,6 +718,17 @@ config INPUT_IMS_PCU
 	  To compile this driver as a module, choose M here: the module will be
 	  called ims_pcu.
 
+config INPUT_IQS269A
+	tristate "Azoteq IQS269A capacitive touch controller"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the Azoteq IQS269A capacitive
+	  touch controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iqs269a.
+
 config INPUT_CMA3000
 	tristate "VTI CMA3000 Tri-axis accelerometer"
 	help
@@ -781,10 +788,10 @@ config INPUT_IDEAPAD_SLIDEBAR
 
 config INPUT_SOC_BUTTON_ARRAY
 	tristate "Windows-compatible SoC Button Array"
-	depends on KEYBOARD_GPIO
+	depends on KEYBOARD_GPIO && ACPI
 	help
-	  Say Y here if you have a SoC-based tablet that originally
-	  runs Windows 8.
+	  Say Y here if you have a SoC-based tablet that originally runs
+	  Windows 8 or a Microsoft Surface Book 2, Pro 5, Laptop 1 or later.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called soc_button_array.
@@ -850,5 +857,16 @@ config INPUT_SC27XX_VIBRA
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called sc27xx_vibra.
+
+config INPUT_STPMIC1_ONKEY
+	tristate "STPMIC1 PMIC Onkey support"
+	depends on MFD_STPMIC1
+	help
+	  Say Y to enable support of onkey embedded into STPMIC1 PMIC. onkey
+	  can be used to wakeup from low power modes and force a shut-down on
+	  long press.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stpmic1_onkey.
 
 endif

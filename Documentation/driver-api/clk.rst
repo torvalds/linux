@@ -175,9 +175,9 @@ the following::
 To take advantage of your data you'll need to support valid operations
 for your clk::
 
-	struct clk_ops clk_foo_ops {
-		.enable		= &clk_foo_enable;
-		.disable	= &clk_foo_disable;
+	struct clk_ops clk_foo_ops = {
+		.enable		= &clk_foo_enable,
+		.disable	= &clk_foo_disable,
 	};
 
 Implement the above functions using container_of::

@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *      Intel Atom E6xx Watchdog driver
  *
  *      Copyright (C) 2011 Alexander Stein
  *                <alexander.stein@systec-electronic.com>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of version 2 of the GNU General
- *      Public License as published by the Free Software Foundation.
- *
- *      This program is distributed in the hope that it will be
- *      useful, but WITHOUT ANY WARRANTY; without even the implied
- *      warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- *      PURPOSE.  See the GNU General Public License for more details.
- *      You should have received a copy of the GNU General Public
- *      License along with this program; if not, write to the Free
- *      Software Foundation, Inc., 59 Temple Place - Suite 330,
- *      Boston, MA  02111-1307, USA.
- *      The full GNU General Public License is included in this
- *      distribution in the file called COPYING.
- *
  */
 
 #include <linux/module.h>
@@ -81,7 +66,7 @@ MODULE_PARM_DESC(resetmode,
 
 static struct {
 	unsigned short sch_wdtba;
-	struct spinlock unlock_sequence;
+	spinlock_t unlock_sequence;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
@@ -193,7 +178,7 @@ static struct watchdog_device ie6xx_wdt_dev = {
 
 #ifdef CONFIG_DEBUG_FS
 
-static int ie6xx_wdt_dbg_show(struct seq_file *s, void *unused)
+static int ie6xx_wdt_show(struct seq_file *s, void *unused)
 {
 	seq_printf(s, "PV1   = 0x%08x\n",
 		inl(ie6xx_wdt_data.sch_wdtba + PV1));
@@ -212,23 +197,13 @@ static int ie6xx_wdt_dbg_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int ie6xx_wdt_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ie6xx_wdt_dbg_show, NULL);
-}
-
-static const struct file_operations ie6xx_wdt_dbg_operations = {
-	.open		= ie6xx_wdt_dbg_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ie6xx_wdt);
 
 static void ie6xx_wdt_debugfs_init(void)
 {
 	/* /sys/kernel/debug/ie6xx_wdt */
 	ie6xx_wdt_data.debugfs = debugfs_create_file("ie6xx_wdt",
-		S_IFREG | S_IRUGO, NULL, NULL, &ie6xx_wdt_dbg_operations);
+		S_IFREG | S_IRUGO, NULL, NULL, &ie6xx_wdt_fops);
 }
 
 static void ie6xx_wdt_debugfs_exit(void)
@@ -279,12 +254,8 @@ static int ie6xx_wdt_probe(struct platform_device *pdev)
 	ie6xx_wdt_debugfs_init();
 
 	ret = watchdog_register_device(&ie6xx_wdt_dev);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Watchdog timer: cannot register device (err =%d)\n",
-									ret);
+	if (ret)
 		goto misc_register_error;
-	}
 
 	return 0;
 

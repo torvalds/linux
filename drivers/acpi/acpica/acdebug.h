@@ -3,7 +3,7 @@
  *
  * Name: acdebug.h - ACPI/AML debugger
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -16,7 +16,8 @@
 #include "acdisasm.h"
 #endif
 
-#define ACPI_DEBUG_BUFFER_SIZE  0x4000	/* 16K buffer for return objects */
+#define ACPI_DEBUG_BUFFER_SIZE      0x4000	/* 16K buffer for return objects */
+#define ACPI_DEBUG_LENGTH_FORMAT    " (%.4X bits, %.3X bytes)"
 
 struct acpi_db_command_info {
 	const char *name;	/* Command Name */
@@ -36,12 +37,14 @@ struct acpi_db_argument_info {
 struct acpi_db_execute_walk {
 	u32 count;
 	u32 max_count;
+	char name_seg[ACPI_NAMESEG_SIZE + 1];
 };
 
 #define PARAM_LIST(pl)                  pl
 
 #define EX_NO_SINGLE_STEP               1
 #define EX_SINGLE_STEP                  2
+#define EX_ALL                          4
 
 /*
  * dbxface - external debugger interfaces
@@ -123,6 +126,8 @@ void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op);
 
 void acpi_db_evaluate_predefined_names(void);
 
+void acpi_db_evaluate_all(char *name_seg);
+
 /*
  * dbnames - namespace commands
  */
@@ -146,6 +151,8 @@ void acpi_db_check_integrity(void);
 void acpi_db_find_references(char *object_arg);
 
 void acpi_db_get_bus_info(void);
+
+acpi_status acpi_db_display_fields(u32 address_space_id);
 
 /*
  * dbdisply - debug display commands

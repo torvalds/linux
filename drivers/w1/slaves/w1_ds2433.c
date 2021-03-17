@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	w1_ds2433.c - w1 family 23 (DS2433) driver
  *
  * Copyright (c) 2005 Ben Gardner <bgardner@wabtec.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>
@@ -290,7 +288,7 @@ static void w1_f23_remove_slave(struct w1_slave *sl)
 #endif	/* CONFIG_W1_SLAVE_DS2433_CRC */
 }
 
-static struct w1_family_ops w1_f23_fops = {
+static const struct w1_family_ops w1_f23_fops = {
 	.add_slave      = w1_f23_add_slave,
 	.remove_slave   = w1_f23_remove_slave,
 	.groups		= w1_f23_groups,

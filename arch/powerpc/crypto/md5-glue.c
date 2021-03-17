@@ -1,22 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Glue code for MD5 implementation for PPC assembler
  *
  * Based on generic implementation.
  *
  * Copyright (c) 2015 Markus Stockhausen <stockhausen@collogia.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/cryptohash.h>
 #include <linux/types.h>
 #include <crypto/md5.h>
 #include <asm/byteorder.h>

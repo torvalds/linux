@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #include <asm/nds32.h>
@@ -33,4 +33,9 @@ static inline void arch_local_irq_restore(unsigned long flags)
 static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
 	return !flags;
+}
+
+static inline int arch_irqs_disabled(void)
+{
+	return arch_irqs_disabled_flags(arch_local_save_flags());
 }

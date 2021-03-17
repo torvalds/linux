@@ -198,26 +198,24 @@ static const struct rtc_class_ops remote_rtc_ops = {
 static int __init
 alpha_rtc_init(void)
 {
-	const struct rtc_class_ops *ops;
 	struct platform_device *pdev;
 	struct rtc_device *rtc;
-	const char *name;
 
 	init_rtc_epoch();
-	name = "rtc-alpha";
-	ops = &alpha_rtc_ops;
 
-#ifdef HAVE_REMOTE_RTC
-	if (alpha_mv.rtc_boot_cpu_only)
-		ops = &remote_rtc_ops;
-#endif
-
-	pdev = platform_device_register_simple(name, -1, NULL, 0);
-	rtc = devm_rtc_device_register(&pdev->dev, name, ops, THIS_MODULE);
+	pdev = platform_device_register_simple("rtc-alpha", -1, NULL, 0);
+	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
 	platform_set_drvdata(pdev, rtc);
-	return 0;
+	rtc->ops = &alpha_rtc_ops;
+
+#ifdef HAVE_REMOTE_RTC
+	if (alpha_mv.rtc_boot_cpu_only)
+		rtc->ops = &remote_rtc_ops;
+#endif
+
+	return rtc_register_device(rtc);
 }
 device_initcall(alpha_rtc_init);

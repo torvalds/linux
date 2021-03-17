@@ -33,6 +33,7 @@ obj-y                   += irq_$(BITS).o
 obj-$(CONFIG_SPARC32)   += sun4m_irq.o sun4d_irq.o
 
 obj-y                   += process_$(BITS).o
+obj-y                   += process.o
 obj-y                   += signal_$(BITS).o
 obj-y                   += sigutil_$(BITS).o
 obj-$(CONFIG_SPARC32)   += ioport.o
@@ -118,4 +119,4 @@ pc--$(CONFIG_PERF_EVENTS) := perf_event.o
 obj-$(CONFIG_SPARC64)	+= $(pc--y)
 
 obj-$(CONFIG_UPROBES)	+= uprobes.o
-obj-$(CONFIG_SPARC64)	+= jump_label.o
+obj-$(CONFIG_JUMP_LABEL) += jump_label.o

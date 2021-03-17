@@ -34,6 +34,7 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
 #include "mlx5_ib.h"
+#include <linux/jiffies.h>
 
 /* @umem: umem object to scan
  * @addr: ib virtual address requested by the user
@@ -55,27 +56,16 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	int i = 0;
 	struct scatterlist *sg;
 	int entry;
-	unsigned long page_shift = umem->page_shift;
 
-	if (umem->odp_data) {
-		*ncont = ib_umem_page_count(umem);
-		*count = *ncont << (page_shift - PAGE_SHIFT);
-		*shift = page_shift;
-		if (order)
-			*order = ilog2(roundup_pow_of_two(*ncont));
-
-		return;
-	}
-
-	addr = addr >> page_shift;
+	addr = addr >> PAGE_SHIFT;
 	tmp = (unsigned long)addr;
 	m = find_first_bit(&tmp, BITS_PER_LONG);
 	if (max_page_shift)
-		m = min_t(unsigned long, max_page_shift - page_shift, m);
+		m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
 
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> page_shift;
-		pfn = sg_dma_address(sg) >> page_shift;
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
+		pfn = sg_dma_address(sg) >> PAGE_SHIFT;
 		if (base + p != pfn) {
 			/* If either the offset or the new
 			 * base are unaligned update m
@@ -107,23 +97,9 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 
 		*ncont = 0;
 	}
-	*shift = page_shift + m;
+	*shift = PAGE_SHIFT + m;
 	*count = i;
 }
-
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-static u64 umem_dma_to_mtt(dma_addr_t umem_dma)
-{
-	u64 mtt_entry = umem_dma & ODP_DMA_ADDR_MASK;
-
-	if (umem_dma & ODP_READ_ALLOWED_BIT)
-		mtt_entry |= MLX5_IB_MTT_READ;
-	if (umem_dma & ODP_WRITE_ALLOWED_BIT)
-		mtt_entry |= MLX5_IB_MTT_WRITE;
-
-	return mtt_entry;
-}
-#endif
 
 /*
  * Populate the given array with bus addresses from the umem.
@@ -142,8 +118,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			    int page_shift, size_t offset, size_t num_pages,
 			    __be64 *pas, int access_flags)
 {
-	unsigned long umem_page_shift = umem->page_shift;
-	int shift = page_shift - umem_page_shift;
+	int shift = page_shift - PAGE_SHIFT;
 	int mask = (1 << shift) - 1;
 	int i, k, idx;
 	u64 cur = 0;
@@ -151,25 +126,10 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	int len;
 	struct scatterlist *sg;
 	int entry;
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	const bool odp = umem->odp_data != NULL;
-
-	if (odp) {
-		WARN_ON(shift != 0);
-		WARN_ON(access_flags != (MLX5_IB_MTT_READ | MLX5_IB_MTT_WRITE));
-
-		for (i = 0; i < num_pages; ++i) {
-			dma_addr_t pa = umem->odp_data->dma_list[offset + i];
-
-			pas[i] = cpu_to_be64(umem_dma_to_mtt(pa));
-		}
-		return;
-	}
-#endif
 
 	i = 0;
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> umem_page_shift;
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
 		base = sg_dma_address(sg);
 
 		/* Skip elements below offset */
@@ -188,7 +148,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 
 		for (; k < len; k++) {
 			if (!(i & mask)) {
-				cur = base + (k << umem_page_shift);
+				cur = base + (k << PAGE_SHIFT);
 				cur |= access_flags;
 				idx = (i >> shift) - offset;
 
@@ -209,8 +169,8 @@ void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			  int page_shift, __be64 *pas, int access_flags)
 {
 	return __mlx5_ib_populate_pas(dev, umem, page_shift, 0,
-				      ib_umem_num_pages(umem), pas,
-				      access_flags);
+				      ib_umem_num_dma_blocks(umem, PAGE_SIZE),
+				      pas, access_flags);
 }
 int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
 {
@@ -231,4 +191,202 @@ int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
 
 	*offset = buf_off >> ilog2(off_size);
 	return 0;
+}
+
+#define WR_ID_BF 0xBF
+#define WR_ID_END 0xBAD
+#define TEST_WC_NUM_WQES 255
+#define TEST_WC_POLLING_MAX_TIME_JIFFIES msecs_to_jiffies(100)
+static int post_send_nop(struct mlx5_ib_dev *dev, struct ib_qp *ibqp, u64 wr_id,
+			 bool signaled)
+{
+	struct mlx5_ib_qp *qp = to_mqp(ibqp);
+	struct mlx5_wqe_ctrl_seg *ctrl;
+	struct mlx5_bf *bf = &qp->bf;
+	__be32 mmio_wqe[16] = {};
+	unsigned long flags;
+	unsigned int idx;
+	int i;
+
+	if (unlikely(dev->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR))
+		return -EIO;
+
+	spin_lock_irqsave(&qp->sq.lock, flags);
+
+	idx = qp->sq.cur_post & (qp->sq.wqe_cnt - 1);
+	ctrl = mlx5_frag_buf_get_wqe(&qp->sq.fbc, idx);
+
+	memset(ctrl, 0, sizeof(struct mlx5_wqe_ctrl_seg));
+	ctrl->fm_ce_se = signaled ? MLX5_WQE_CTRL_CQ_UPDATE : 0;
+	ctrl->opmod_idx_opcode =
+		cpu_to_be32(((u32)(qp->sq.cur_post) << 8) | MLX5_OPCODE_NOP);
+	ctrl->qpn_ds = cpu_to_be32((sizeof(struct mlx5_wqe_ctrl_seg) / 16) |
+				   (qp->trans_qp.base.mqp.qpn << 8));
+
+	qp->sq.wrid[idx] = wr_id;
+	qp->sq.w_list[idx].opcode = MLX5_OPCODE_NOP;
+	qp->sq.wqe_head[idx] = qp->sq.head + 1;
+	qp->sq.cur_post += DIV_ROUND_UP(sizeof(struct mlx5_wqe_ctrl_seg),
+					MLX5_SEND_WQE_BB);
+	qp->sq.w_list[idx].next = qp->sq.cur_post;
+	qp->sq.head++;
+
+	memcpy(mmio_wqe, ctrl, sizeof(*ctrl));
+	((struct mlx5_wqe_ctrl_seg *)&mmio_wqe)->fm_ce_se |=
+		MLX5_WQE_CTRL_CQ_UPDATE;
+
+	/* Make sure that descriptors are written before
+	 * updating doorbell record and ringing the doorbell
+	 */
+	wmb();
+
+	qp->db.db[MLX5_SND_DBR] = cpu_to_be32(qp->sq.cur_post);
+
+	/* Make sure doorbell record is visible to the HCA before
+	 * we hit doorbell
+	 */
+	wmb();
+	for (i = 0; i < 8; i++)
+		mlx5_write64(&mmio_wqe[i * 2],
+			     bf->bfreg->map + bf->offset + i * 8);
+
+	bf->offset ^= bf->buf_size;
+
+	spin_unlock_irqrestore(&qp->sq.lock, flags);
+
+	return 0;
+}
+
+static int test_wc_poll_cq_result(struct mlx5_ib_dev *dev, struct ib_cq *cq)
+{
+	int ret;
+	struct ib_wc wc = {};
+	unsigned long end = jiffies + TEST_WC_POLLING_MAX_TIME_JIFFIES;
+
+	do {
+		ret = ib_poll_cq(cq, 1, &wc);
+		if (ret < 0 || wc.status)
+			return ret < 0 ? ret : -EINVAL;
+		if (ret)
+			break;
+	} while (!time_after(jiffies, end));
+
+	if (!ret)
+		return -ETIMEDOUT;
+
+	if (wc.wr_id != WR_ID_BF)
+		ret = 0;
+
+	return ret;
+}
+
+static int test_wc_do_send(struct mlx5_ib_dev *dev, struct ib_qp *qp)
+{
+	int err, i;
+
+	for (i = 0; i < TEST_WC_NUM_WQES; i++) {
+		err = post_send_nop(dev, qp, WR_ID_BF, false);
+		if (err)
+			return err;
+	}
+
+	return post_send_nop(dev, qp, WR_ID_END, true);
+}
+
+int mlx5_ib_test_wc(struct mlx5_ib_dev *dev)
+{
+	struct ib_cq_init_attr cq_attr = { .cqe = TEST_WC_NUM_WQES + 1 };
+	int port_type_cap = MLX5_CAP_GEN(dev->mdev, port_type);
+	struct ib_qp_init_attr qp_init_attr = {
+		.cap = { .max_send_wr = TEST_WC_NUM_WQES },
+		.qp_type = IB_QPT_UD,
+		.sq_sig_type = IB_SIGNAL_REQ_WR,
+		.create_flags = MLX5_IB_QP_CREATE_WC_TEST,
+	};
+	struct ib_qp_attr qp_attr = { .port_num = 1 };
+	struct ib_device *ibdev = &dev->ib_dev;
+	struct ib_qp *qp;
+	struct ib_cq *cq;
+	struct ib_pd *pd;
+	int ret;
+
+	if (!MLX5_CAP_GEN(dev->mdev, bf))
+		return 0;
+
+	if (!dev->mdev->roce.roce_en &&
+	    port_type_cap == MLX5_CAP_PORT_TYPE_ETH) {
+		if (mlx5_core_is_pf(dev->mdev))
+			dev->wc_support = arch_can_pci_mmap_wc();
+		return 0;
+	}
+
+	ret = mlx5_alloc_bfreg(dev->mdev, &dev->wc_bfreg, true, false);
+	if (ret)
+		goto print_err;
+
+	if (!dev->wc_bfreg.wc)
+		goto out1;
+
+	pd = ib_alloc_pd(ibdev, 0);
+	if (IS_ERR(pd)) {
+		ret = PTR_ERR(pd);
+		goto out1;
+	}
+
+	cq = ib_create_cq(ibdev, NULL, NULL, NULL, &cq_attr);
+	if (IS_ERR(cq)) {
+		ret = PTR_ERR(cq);
+		goto out2;
+	}
+
+	qp_init_attr.recv_cq = cq;
+	qp_init_attr.send_cq = cq;
+	qp = ib_create_qp(pd, &qp_init_attr);
+	if (IS_ERR(qp)) {
+		ret = PTR_ERR(qp);
+		goto out3;
+	}
+
+	qp_attr.qp_state = IB_QPS_INIT;
+	ret = ib_modify_qp(qp, &qp_attr,
+			   IB_QP_STATE | IB_QP_PORT | IB_QP_PKEY_INDEX |
+				   IB_QP_QKEY);
+	if (ret)
+		goto out4;
+
+	qp_attr.qp_state = IB_QPS_RTR;
+	ret = ib_modify_qp(qp, &qp_attr, IB_QP_STATE);
+	if (ret)
+		goto out4;
+
+	qp_attr.qp_state = IB_QPS_RTS;
+	ret = ib_modify_qp(qp, &qp_attr, IB_QP_STATE | IB_QP_SQ_PSN);
+	if (ret)
+		goto out4;
+
+	ret = test_wc_do_send(dev, qp);
+	if (ret < 0)
+		goto out4;
+
+	ret = test_wc_poll_cq_result(dev, cq);
+	if (ret > 0) {
+		dev->wc_support = true;
+		ret = 0;
+	}
+
+out4:
+	ib_destroy_qp(qp);
+out3:
+	ib_destroy_cq(cq);
+out2:
+	ib_dealloc_pd(pd);
+out1:
+	mlx5_free_bfreg(dev->mdev, &dev->wc_bfreg);
+print_err:
+	if (ret)
+		mlx5_ib_err(
+			dev,
+			"Error %d while trying to test write-combining support\n",
+			ret);
+	return ret;
 }

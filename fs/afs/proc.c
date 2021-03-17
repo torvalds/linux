@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* /proc interface for AFS
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/slab.h>
@@ -16,6 +12,11 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include "internal.h"
+
+struct afs_vl_seq_net_private {
+	struct seq_net_private		seq;	/* Must be first */
+	struct afs_vlserver_list	*vllist;
+};
 
 static inline struct afs_net *afs_seq2net(struct seq_file *m)
 {
@@ -32,16 +33,26 @@ static inline struct afs_net *afs_seq2net_single(struct seq_file *m)
  */
 static int afs_proc_cells_show(struct seq_file *m, void *v)
 {
-	struct afs_cell *cell = list_entry(v, struct afs_cell, proc_link);
+	struct afs_vlserver_list *vllist;
+	struct afs_cell *cell;
 
 	if (v == SEQ_START_TOKEN) {
 		/* display header on line 1 */
-		seq_puts(m, "USE NAME\n");
+		seq_puts(m, "USE ACT    TTL SV ST NAME\n");
 		return 0;
 	}
 
+	cell = list_entry(v, struct afs_cell, proc_link);
+	vllist = rcu_dereference(cell->vl_servers);
+
 	/* display one cell per line on subsequent lines */
-	seq_printf(m, "%3u %s\n", atomic_read(&cell->usage), cell->name);
+	seq_printf(m, "%3u %3u %6lld %2u %2u %s\n",
+		   atomic_read(&cell->ref),
+		   atomic_read(&cell->active),
+		   cell->dns_expiry - ktime_get_real_seconds(),
+		   vllist ? vllist->nr_servers : 0,
+		   cell->state,
+		   cell->name);
 	return 0;
 }
 
@@ -118,7 +129,7 @@ static int afs_proc_cells_write(struct file *file, char *buf, size_t size)
 		}
 
 		if (test_and_set_bit(AFS_CELL_FL_NO_GC, &cell->flags))
-			afs_put_cell(net, cell);
+			afs_unuse_cell(net, cell, afs_cell_trace_unuse_no_pin);
 	} else {
 		goto inval;
 	}
@@ -144,13 +155,11 @@ static int afs_proc_rootcell_show(struct seq_file *m, void *v)
 	struct afs_net *net;
 
 	net = afs_seq2net_single(m);
-	if (rcu_access_pointer(net->ws_cell)) {
-		rcu_read_lock();
-		cell = rcu_dereference(net->ws_cell);
-		if (cell)
-			seq_printf(m, "%s\n", cell->name);
-		rcu_read_unlock();
-	}
+	down_read(&net->cells_lock);
+	cell = net->ws_cell;
+	if (cell)
+		seq_printf(m, "%s\n", cell->name);
+	up_read(&net->cells_lock);
 	return 0;
 }
 
@@ -199,18 +208,18 @@ static const char afs_vol_types[3][3] = {
  */
 static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
 {
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
-	struct afs_volume *vol = list_entry(v, struct afs_volume, proc_link);
+	struct afs_volume *vol = hlist_entry(v, struct afs_volume, proc_link);
 
 	/* Display header on line 1 */
-	if (v == &cell->proc_volumes) {
-		seq_puts(m, "USE VID      TY\n");
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(m, "USE VID      TY NAME\n");
 		return 0;
 	}
 
-	seq_printf(m, "%3d %08x %s\n",
+	seq_printf(m, "%3d %08llx %s %s\n",
 		   atomic_read(&vol->usage), vol->vid,
-		   afs_vol_types[vol->type]);
+		   afs_vol_types[vol->type],
+		   vol->name);
 
 	return 0;
 }
@@ -220,8 +229,8 @@ static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
 {
 	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
 
-	read_lock(&cell->proc_lock);
-	return seq_list_start_head(&cell->proc_volumes, *_pos);
+	rcu_read_lock();
+	return seq_hlist_start_head_rcu(&cell->proc_volumes, *_pos);
 }
 
 static void *afs_proc_cell_volumes_next(struct seq_file *m, void *v,
@@ -229,15 +238,13 @@ static void *afs_proc_cell_volumes_next(struct seq_file *m, void *v,
 {
 	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
 
-	return seq_list_next(v, &cell->proc_volumes, _pos);
+	return seq_hlist_next_rcu(v, &cell->proc_volumes, _pos);
 }
 
 static void afs_proc_cell_volumes_stop(struct seq_file *m, void *v)
 	__releases(cell->proc_lock)
 {
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
-
-	read_unlock(&cell->proc_lock);
+	rcu_read_unlock();
 }
 
 static const struct seq_operations afs_proc_cell_volumes_ops = {
@@ -247,61 +254,107 @@ static const struct seq_operations afs_proc_cell_volumes_ops = {
 	.show	= afs_proc_cell_volumes_show,
 };
 
+static const char *const dns_record_sources[NR__dns_record_source + 1] = {
+	[DNS_RECORD_UNAVAILABLE]	= "unav",
+	[DNS_RECORD_FROM_CONFIG]	= "cfg",
+	[DNS_RECORD_FROM_DNS_A]		= "A",
+	[DNS_RECORD_FROM_DNS_AFSDB]	= "AFSDB",
+	[DNS_RECORD_FROM_DNS_SRV]	= "SRV",
+	[DNS_RECORD_FROM_NSS]		= "nss",
+	[NR__dns_record_source]		= "[weird]"
+};
+
+static const char *const dns_lookup_statuses[NR__dns_lookup_status + 1] = {
+	[DNS_LOOKUP_NOT_DONE]		= "no-lookup",
+	[DNS_LOOKUP_GOOD]		= "good",
+	[DNS_LOOKUP_GOOD_WITH_BAD]	= "good/bad",
+	[DNS_LOOKUP_BAD]		= "bad",
+	[DNS_LOOKUP_GOT_NOT_FOUND]	= "not-found",
+	[DNS_LOOKUP_GOT_LOCAL_FAILURE]	= "local-failure",
+	[DNS_LOOKUP_GOT_TEMP_FAILURE]	= "temp-failure",
+	[DNS_LOOKUP_GOT_NS_FAILURE]	= "ns-failure",
+	[NR__dns_lookup_status]		= "[weird]"
+};
+
 /*
  * Display the list of Volume Location servers we're using for a cell.
  */
 static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 {
-	struct sockaddr_rxrpc *addr = v;
+	const struct afs_vl_seq_net_private *priv = m->private;
+	const struct afs_vlserver_list *vllist = priv->vllist;
+	const struct afs_vlserver_entry *entry;
+	const struct afs_vlserver *vlserver;
+	const struct afs_addr_list *alist;
+	int i;
 
-	/* display header on line 1 */
-	if (v == (void *)1) {
-		seq_puts(m, "ADDRESS\n");
+	if (v == SEQ_START_TOKEN) {
+		seq_printf(m, "# source %s, status %s\n",
+			   dns_record_sources[vllist ? vllist->source : 0],
+			   dns_lookup_statuses[vllist ? vllist->status : 0]);
 		return 0;
 	}
 
-	/* display one cell per line on subsequent lines */
-	seq_printf(m, "%pISp\n", &addr->transport);
+	entry = v;
+	vlserver = entry->server;
+	alist = rcu_dereference(vlserver->addresses);
+
+	seq_printf(m, "%s [p=%hu w=%hu s=%s,%s]:\n",
+		   vlserver->name, entry->priority, entry->weight,
+		   dns_record_sources[alist ? alist->source : entry->source],
+		   dns_lookup_statuses[alist ? alist->status : entry->status]);
+	if (alist) {
+		for (i = 0; i < alist->nr_addrs; i++)
+			seq_printf(m, " %c %pISpc\n",
+				   alist->preferred == i ? '>' : '-',
+				   &alist->addrs[i].transport);
+	}
+	seq_printf(m, " info: fl=%lx rtt=%d\n", vlserver->flags, vlserver->rtt);
+	seq_printf(m, " probe: fl=%x e=%d ac=%d out=%d\n",
+		   vlserver->probe.flags, vlserver->probe.error,
+		   vlserver->probe.abort_code,
+		   atomic_read(&vlserver->probe_outstanding));
 	return 0;
 }
 
 static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 	__acquires(rcu)
 {
-	struct afs_addr_list *alist;
+	struct afs_vl_seq_net_private *priv = m->private;
+	struct afs_vlserver_list *vllist;
 	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
 	loff_t pos = *_pos;
 
 	rcu_read_lock();
 
-	alist = rcu_dereference(cell->vl_addrs);
+	vllist = rcu_dereference(cell->vl_servers);
+	priv->vllist = vllist;
 
-	/* allow for the header line */
-	if (!pos)
-		return (void *) 1;
-	pos--;
+	if (pos < 0)
+		*_pos = pos = 0;
+	if (pos == 0)
+		return SEQ_START_TOKEN;
 
-	if (!alist || pos >= alist->nr_addrs)
+	if (pos - 1 >= vllist->nr_servers)
 		return NULL;
 
-	return alist->addrs + pos;
+	return &vllist->servers[pos - 1];
 }
 
 static void *afs_proc_cell_vlservers_next(struct seq_file *m, void *v,
 					  loff_t *_pos)
 {
-	struct afs_addr_list *alist;
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+	struct afs_vl_seq_net_private *priv = m->private;
+	struct afs_vlserver_list *vllist = priv->vllist;
 	loff_t pos;
 
-	alist = rcu_dereference(cell->vl_addrs);
-
 	pos = *_pos;
-	(*_pos)++;
-	if (!alist || pos >= alist->nr_addrs)
+	pos++;
+	*_pos = pos;
+	if (!vllist || pos - 1 >= vllist->nr_servers)
 		return NULL;
 
-	return alist->addrs + pos;
+	return &vllist->servers[pos - 1];
 }
 
 static void afs_proc_cell_vlservers_stop(struct seq_file *m, void *v)
@@ -327,21 +380,27 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 	int i;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_puts(m, "UUID                                 USE ADDR\n");
+		seq_puts(m, "UUID                                 REF ACT\n");
 		return 0;
 	}
 
 	server = list_entry(v, struct afs_server, proc_link);
 	alist = rcu_dereference(server->addresses);
-	seq_printf(m, "%pU %3d %pISpc%s\n",
+	seq_printf(m, "%pU %3d %3d\n",
 		   &server->uuid,
-		   atomic_read(&server->usage),
-		   &alist->addrs[0].transport,
-		   alist->index == 0 ? "*" : "");
-	for (i = 1; i < alist->nr_addrs; i++)
-		seq_printf(m, "                                         %pISpc%s\n",
-			   &alist->addrs[i].transport,
-			   alist->index == i ? "*" : "");
+		   atomic_read(&server->ref),
+		   atomic_read(&server->active));
+	seq_printf(m, "  - info: fl=%lx rtt=%u brk=%x\n",
+		   server->flags, server->rtt, server->cb_s_break);
+	seq_printf(m, "  - probe: last=%d out=%d\n",
+		   (int)(jiffies - server->probed_at) / HZ,
+		   atomic_read(&server->probe_outstanding));
+	seq_printf(m, "  - ALIST v=%u rsp=%lx f=%lx\n",
+		   alist->version, alist->responded, alist->failed);
+	for (i = 0; i < alist->nr_addrs; i++)
+		seq_printf(m, "    [%x] %pISpc%s\n",
+			   i, &alist->addrs[i].transport,
+			   alist->preferred == i ? "*" : "");
 	return 0;
 }
 
@@ -512,6 +571,7 @@ void afs_put_sysnames(struct afs_sysnames *sysnames)
 			if (sysnames->subs[i] != afs_init_sysname &&
 			    sysnames->subs[i] != sysnames->blank)
 				kfree(sysnames->subs[i]);
+		kfree(sysnames);
 	}
 }
 
@@ -562,7 +622,7 @@ int afs_proc_cell_setup(struct afs_cell *cell)
 
 	if (!proc_create_net_data("vlservers", 0444, dir,
 				  &afs_proc_cell_vlservers_ops,
-				  sizeof(struct seq_net_private),
+				  sizeof(struct afs_vl_seq_net_private),
 				  cell) ||
 	    !proc_create_net_data("volumes", 0444, dir,
 				  &afs_proc_cell_volumes_ops,

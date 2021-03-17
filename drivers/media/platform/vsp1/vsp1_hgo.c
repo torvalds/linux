@@ -131,6 +131,7 @@ static const struct v4l2_ctrl_config hgo_num_bins_control = {
 
 static void hgo_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_hgo *hgo = to_hgo(&entity->subdev);

@@ -398,6 +398,7 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 		}
 		if (dstat == 0x08)
 			break;
+		fallthrough;
 	case 0x04:
 		/* Device end interrupt. */
 		if ((raw = req->info) == NULL)
@@ -977,7 +978,6 @@ static int tty3215_install(struct tty_driver *driver, struct tty_struct *tty)
 static int tty3215_open(struct tty_struct *tty, struct file * filp)
 {
 	struct raw3215_info *raw = tty->driver_data;
-	int retval;
 
 	tty_port_tty_set(&raw->port, tty);
 
@@ -985,11 +985,7 @@ static int tty3215_open(struct tty_struct *tty, struct file * filp)
 	/*
 	 * Start up 3215 device
 	 */
-	retval = raw3215_startup(raw);
-	if (retval)
-		return retval;
-
-	return 0;
+	return raw3215_startup(raw);
 }
 
 /*

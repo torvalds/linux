@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 #include <sound/initval.h>
@@ -22,8 +23,15 @@
 
 #include "ak5558.h"
 
+#define AK5558_NUM_SUPPLIES 2
+static const char *ak5558_supply_names[AK5558_NUM_SUPPLIES] = {
+	"DVDD",
+	"AVDD",
+};
+
 /* AK5558 Codec Private Data */
 struct ak5558_priv {
+	struct regulator_bulk_data supplies[AK5558_NUM_SUPPLIES];
 	struct snd_soc_component component;
 	struct regmap *regmap;
 	struct i2c_client *i2c;
@@ -130,16 +138,12 @@ static int ak5558_hw_params(struct snd_pcm_substream *substream,
 	u8 bits;
 	int pcm_width = max(params_physical_width(params), ak5558->slot_width);
 
-	/* set master/slave audio interface */
-	bits = snd_soc_component_read32(component, AK5558_02_CONTROL1);
-	bits &= ~AK5558_BITS;
-
 	switch (pcm_width) {
 	case 16:
-		bits |= AK5558_DIF_24BIT_MODE;
+		bits = AK5558_DIF_24BIT_MODE;
 		break;
 	case 32:
-		bits |= AK5558_DIF_32BIT_MODE;
+		bits = AK5558_DIF_32BIT_MODE;
 		break;
 	default:
 		return -EINVAL;
@@ -168,18 +172,15 @@ static int ak5558_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	/* set master/slave audio interface */
-	format = snd_soc_component_read32(component, AK5558_02_CONTROL1);
-	format &= ~AK5558_DIF;
-
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		format |= AK5558_DIF_I2S_MODE;
+		format = AK5558_DIF_I2S_MODE;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		format |= AK5558_DIF_MSB_MODE;
+		format = AK5558_DIF_MSB_MODE;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		format |= AK5558_DIF_MSB_MODE;
+		format = AK5558_DIF_MSB_MODE;
 		break;
 	default:
 		return -EINVAL;
@@ -246,7 +247,7 @@ static int ak5558_startup(struct snd_pcm_substream *substream,
 					  &ak5558_rate_constraints);
 }
 
-static struct snd_soc_dai_ops ak5558_dai_ops = {
+static const struct snd_soc_dai_ops ak5558_dai_ops = {
 	.startup        = ak5558_startup,
 	.hw_params	= ak5558_hw_params,
 
@@ -306,12 +307,22 @@ static int __maybe_unused ak5558_runtime_suspend(struct device *dev)
 	regcache_cache_only(ak5558->regmap, true);
 	ak5558_power_off(ak5558);
 
+	regulator_bulk_disable(ARRAY_SIZE(ak5558->supplies),
+			       ak5558->supplies);
 	return 0;
 }
 
 static int __maybe_unused ak5558_runtime_resume(struct device *dev)
 {
 	struct ak5558_priv *ak5558 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(ak5558->supplies),
+				    ak5558->supplies);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
 
 	ak5558_power_off(ak5558);
 	ak5558_power_on(ak5558);
@@ -357,6 +368,7 @@ static int ak5558_i2c_probe(struct i2c_client *i2c)
 {
 	struct ak5558_priv *ak5558;
 	int ret = 0;
+	int i;
 
 	ak5558 = devm_kzalloc(&i2c->dev, sizeof(*ak5558), GFP_KERNEL);
 	if (!ak5558)
@@ -374,6 +386,16 @@ static int ak5558_i2c_probe(struct i2c_client *i2c)
 	if (IS_ERR(ak5558->reset_gpiod))
 		return PTR_ERR(ak5558->reset_gpiod);
 
+	for (i = 0; i < ARRAY_SIZE(ak5558->supplies); i++)
+		ak5558->supplies[i].supply = ak5558_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(ak5558->supplies),
+				      ak5558->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				     &soc_codec_dev_ak5558,
 				     &ak5558_dai, 1);
@@ -381,6 +403,7 @@ static int ak5558_i2c_probe(struct i2c_client *i2c)
 		return ret;
 
 	pm_runtime_enable(&i2c->dev);
+	regcache_cache_only(ak5558->regmap, true);
 
 	return 0;
 }

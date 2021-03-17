@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  SGI Volume Button interface driver
  *
  *  Copyright (C) 2008  Thomas Bogendoerfer <tsbogend@alpha.franken.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-#include <linux/input-polldev.h>
+#include <linux/input.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -58,15 +45,13 @@ static const unsigned short sgi_map[] = {
 };
 
 struct buttons_dev {
-	struct input_polled_dev *poll_dev;
 	unsigned short keymap[ARRAY_SIZE(sgi_map)];
 	int count[ARRAY_SIZE(sgi_map)];
 };
 
-static void handle_buttons(struct input_polled_dev *dev)
+static void handle_buttons(struct input_dev *input)
 {
-	struct buttons_dev *bdev = dev->private;
-	struct input_dev *input = dev->input;
+	struct buttons_dev *bdev = input_get_drvdata(input);
 	u8 status;
 	int i;
 
@@ -93,28 +78,24 @@ static void handle_buttons(struct input_polled_dev *dev)
 static int sgi_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
-	struct input_polled_dev *poll_dev;
 	struct input_dev *input;
 	int error, i;
 
-	bdev = kzalloc(sizeof(struct buttons_dev), GFP_KERNEL);
-	poll_dev = input_allocate_polled_device();
-	if (!bdev || !poll_dev) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	bdev = devm_kzalloc(&pdev->dev, sizeof(*bdev), GFP_KERNEL);
+	if (!bdev)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input)
+		return -ENOMEM;
 
 	memcpy(bdev->keymap, sgi_map, sizeof(bdev->keymap));
 
-	poll_dev->private = bdev;
-	poll_dev->poll = handle_buttons;
-	poll_dev->poll_interval = BUTTONS_POLL_INTERVAL;
+	input_set_drvdata(input, bdev);
 
-	input = poll_dev->input;
 	input->name = "SGI buttons";
 	input->phys = "sgi/input0";
 	input->id.bustype = BUS_HOST;
-	input->dev.parent = &pdev->dev;
 
 	input->keycode = bdev->keymap;
 	input->keycodemax = ARRAY_SIZE(bdev->keymap);
@@ -126,35 +107,21 @@ static int sgi_buttons_probe(struct platform_device *pdev)
 		__set_bit(bdev->keymap[i], input->keybit);
 	__clear_bit(KEY_RESERVED, input->keybit);
 
-	bdev->poll_dev = poll_dev;
-	platform_set_drvdata(pdev, bdev);
-
-	error = input_register_polled_device(poll_dev);
+	error = input_setup_polling(input, handle_buttons);
 	if (error)
-		goto err_free_mem;
+		return error;
 
-	return 0;
+	input_set_poll_interval(input, BUTTONS_POLL_INTERVAL);
 
- err_free_mem:
-	input_free_polled_device(poll_dev);
-	kfree(bdev);
-	return error;
-}
-
-static int sgi_buttons_remove(struct platform_device *pdev)
-{
-	struct buttons_dev *bdev = platform_get_drvdata(pdev);
-
-	input_unregister_polled_device(bdev->poll_dev);
-	input_free_polled_device(bdev->poll_dev);
-	kfree(bdev);
+	error = input_register_device(input);
+	if (error)
+		return error;
 
 	return 0;
 }
 
 static struct platform_driver sgi_buttons_driver = {
 	.probe	= sgi_buttons_probe,
-	.remove	= sgi_buttons_remove,
 	.driver	= {
 		.name	= "sgibtns",
 	},

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * KMX61 - Kionix 6-axis Accelerometer/Magnetometer
  *
  * Copyright (c) 2014, Intel Corporation.
  *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
- *
  * IIO driver for KMX61 (7-bit I2C slave address 0x0E or 0x0F).
- *
  */
 
 #include <linux/module.h>
@@ -316,10 +312,10 @@ static int kmx61_convert_wake_up_odr_to_bit(int val, int val2)
 
 /**
  * kmx61_set_mode() - set KMX61 device operating mode
- * @data - kmx61 device private data pointer
- * @mode - bitmask, indicating operating mode for @device
- * @device - bitmask, indicating device for which @mode needs to be set
- * @update - update stby bits stored in device's private  @data
+ * @data: kmx61 device private data pointer
+ * @mode: bitmask, indicating operating mode for @device
+ * @device: bitmask, indicating device for which @mode needs to be set
+ * @update: update stby bits stored in device's private  @data
  *
  * For each sensor (accelerometer/magnetometer) there are two operating modes
  * STANDBY and OPERATION. Neither accel nor magn can be disabled independently
@@ -722,9 +718,9 @@ static int kmx61_setup_any_motion_interrupt(struct kmx61_data *data,
 
 /**
  * kmx61_set_power_state() - set power state for kmx61 @device
- * @data - kmx61 device private pointer
- * @on - power state to be set for @device
- * @device - bitmask indicating device for which @on state needs to be set
+ * @data: kmx61 device private pointer
+ * @on: power state to be set for @device
+ * @device: bitmask indicating device for which @on state needs to be set
  *
  * Notice that when ACC power state needs to be set to ON and MAG is in
  * OPERATION then we know that kmx61_runtime_resume was already called
@@ -1252,7 +1248,6 @@ static struct iio_dev *kmx61_indiodev_setup(struct kmx61_data *data,
 
 	kmx61_set_data(indio_dev, data);
 
-	indio_dev->dev.parent = &data->client->dev;
 	indio_dev->channels = chan;
 	indio_dev->num_channels = num_channels;
 	indio_dev->name = name;

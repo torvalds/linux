@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cryptographic API.
  *
@@ -5,15 +6,12 @@
  *
  * Copyright (c) 2016 Ryder Lee <ryder.lee@mediatek.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Some ideas are from atmel-aes.c drivers.
  */
 
 #include <crypto/aes.h>
 #include <crypto/gcm.h>
+#include <crypto/internal/skcipher.h>
 #include "mtk-platform.h"
 
 #define AES_QUEUE_SIZE		512
@@ -26,7 +24,7 @@
 
 #define AES_CT_CTRL_HDR		cpu_to_le32(0x00220000)
 
-/* AES-CBC/ECB/CTR command token */
+/* AES-CBC/ECB/CTR/OFB/CFB command token */
 #define AES_CMD0		cpu_to_le32(0x05000000)
 #define AES_CMD1		cpu_to_le32(0x2d060000)
 #define AES_CMD2		cpu_to_le32(0xe4a63806)
@@ -53,6 +51,8 @@
 /* AES transform information word 1 fields */
 #define AES_TFM_ECB		cpu_to_le32(0x0 << 0)
 #define AES_TFM_CBC		cpu_to_le32(0x1 << 0)
+#define AES_TFM_OFB		cpu_to_le32(0x4 << 0)
+#define AES_TFM_CFB128		cpu_to_le32(0x5 << 0)
 #define AES_TFM_CTR_INIT	cpu_to_le32(0x2 << 0)	/* init counter to 1 */
 #define AES_TFM_CTR_LOAD	cpu_to_le32(0x6 << 0)	/* load/reuse counter */
 #define AES_TFM_3IV		cpu_to_le32(0x7 << 5)	/* using IV 0-2 */
@@ -61,13 +61,15 @@
 #define AES_TFM_ENC_HASH	cpu_to_le32(0x1 << 17)
 
 /* AES flags */
-#define AES_FLAGS_CIPHER_MSK	GENMASK(2, 0)
+#define AES_FLAGS_CIPHER_MSK	GENMASK(4, 0)
 #define AES_FLAGS_ECB		BIT(0)
 #define AES_FLAGS_CBC		BIT(1)
 #define AES_FLAGS_CTR		BIT(2)
-#define AES_FLAGS_GCM		BIT(3)
-#define AES_FLAGS_ENCRYPT	BIT(4)
-#define AES_FLAGS_BUSY		BIT(5)
+#define AES_FLAGS_OFB		BIT(3)
+#define AES_FLAGS_CFB128	BIT(4)
+#define AES_FLAGS_GCM		BIT(5)
+#define AES_FLAGS_ENCRYPT	BIT(6)
+#define AES_FLAGS_BUSY		BIT(7)
 
 #define AES_AUTH_TAG_ERR	cpu_to_le32(BIT(26))
 
@@ -104,6 +106,7 @@ struct mtk_aes_reqctx {
 struct mtk_aes_base_ctx {
 	struct mtk_cryp *cryp;
 	u32 keylen;
+	__le32 key[12];
 	__le32 keymode;
 
 	mtk_aes_fn start;
@@ -123,7 +126,7 @@ struct mtk_aes_ctx {
 struct mtk_aes_ctr_ctx {
 	struct mtk_aes_base_ctx base;
 
-	u32	iv[AES_BLOCK_SIZE / sizeof(u32)];
+	__be32	iv[AES_BLOCK_SIZE / sizeof(u32)];
 	size_t offset;
 	struct scatterlist src[2];
 	struct scatterlist dst[2];
@@ -134,8 +137,6 @@ struct mtk_aes_gcm_ctx {
 
 	u32 authsize;
 	size_t textlen;
-
-	struct crypto_skcipher *ctr;
 };
 
 struct mtk_aes_drv {
@@ -241,22 +242,6 @@ static inline void mtk_aes_restore_sg(const struct mtk_aes_dma *dma)
 	sg->length += dma->remainder;
 }
 
-static inline void mtk_aes_write_state_le(__le32 *dst, const u32 *src, u32 size)
-{
-	int i;
-
-	for (i = 0; i < SIZE_IN_WORDS(size); i++)
-		dst[i] = cpu_to_le32(src[i]);
-}
-
-static inline void mtk_aes_write_state_be(__be32 *dst, const u32 *src, u32 size)
-{
-	int i;
-
-	for (i = 0; i < SIZE_IN_WORDS(size); i++)
-		dst[i] = cpu_to_be32(src[i]);
-}
-
 static inline int mtk_aes_complete(struct mtk_cryp *cryp,
 				   struct mtk_aes_rec *aes,
 				   int err)
@@ -320,7 +305,7 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 
 	/* Prepare enough space for authenticated tag */
 	if (aes->flags & AES_FLAGS_GCM)
-		res->hdr += AES_BLOCK_SIZE;
+		le32_add_cpu(&res->hdr, AES_BLOCK_SIZE);
 
 	/*
 	 * Make sure that all changes to the DMA ring are done before we
@@ -408,11 +393,11 @@ exit:
 	return mtk_aes_complete(cryp, aes, -EINVAL);
 }
 
-/* Initialize transform information of CBC/ECB/CTR mode */
+/* Initialize transform information of CBC/ECB/CTR/OFB/CFB mode */
 static void mtk_aes_info_init(struct mtk_cryp *cryp, struct mtk_aes_rec *aes,
 			      size_t len)
 {
-	struct ablkcipher_request *req = ablkcipher_request_cast(aes->areq);
+	struct skcipher_request *req = skcipher_request_cast(aes->areq);
 	struct mtk_aes_base_ctx *ctx = aes->ctx;
 	struct mtk_aes_info *info = &ctx->info;
 	u32 cnt = 0;
@@ -437,16 +422,21 @@ static void mtk_aes_info_init(struct mtk_cryp *cryp, struct mtk_aes_rec *aes,
 	case AES_FLAGS_CTR:
 		info->tfm[1] = AES_TFM_CTR_LOAD;
 		goto ctr;
-
+	case AES_FLAGS_OFB:
+		info->tfm[1] = AES_TFM_OFB;
+		break;
+	case AES_FLAGS_CFB128:
+		info->tfm[1] = AES_TFM_CFB128;
+		break;
 	default:
 		/* Should not happen... */
 		return;
 	}
 
-	mtk_aes_write_state_le(info->state + ctx->keylen, req->info,
-			       AES_BLOCK_SIZE);
+	memcpy(info->state + ctx->keylen, req->iv, AES_BLOCK_SIZE);
 ctr:
-	info->tfm[0] += AES_TFM_SIZE(SIZE_IN_WORDS(AES_BLOCK_SIZE));
+	le32_add_cpu(&info->tfm[0],
+		     le32_to_cpu(AES_TFM_SIZE(SIZE_IN_WORDS(AES_BLOCK_SIZE))));
 	info->tfm[1] |= AES_TFM_FULL_IV;
 	info->cmd[cnt++] = AES_CMD2;
 ecb:
@@ -528,6 +518,8 @@ static int mtk_aes_handle_queue(struct mtk_cryp *cryp, u8 id,
 		backlog->complete(backlog, -EINPROGRESS);
 
 	ctx = crypto_tfm_ctx(areq->tfm);
+	/* Write key into state buffer */
+	memcpy(ctx->info.state, ctx->key, sizeof(ctx->key));
 
 	aes->areq = areq;
 	aes->ctx = ctx;
@@ -543,13 +535,13 @@ static int mtk_aes_transfer_complete(struct mtk_cryp *cryp,
 
 static int mtk_aes_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 {
-	struct ablkcipher_request *req = ablkcipher_request_cast(aes->areq);
-	struct mtk_aes_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct skcipher_request *req = skcipher_request_cast(aes->areq);
+	struct mtk_aes_reqctx *rctx = skcipher_request_ctx(req);
 
 	mtk_aes_set_mode(aes, rctx);
 	aes->resume = mtk_aes_transfer_complete;
 
-	return mtk_aes_dma(cryp, aes, req->src, req->dst, req->nbytes);
+	return mtk_aes_dma(cryp, aes, req->src, req->dst, req->cryptlen);
 }
 
 static inline struct mtk_aes_ctr_ctx *
@@ -562,7 +554,7 @@ static int mtk_aes_ctr_transfer(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 {
 	struct mtk_aes_base_ctx *ctx = aes->ctx;
 	struct mtk_aes_ctr_ctx *cctx = mtk_aes_ctr_ctx_cast(ctx);
-	struct ablkcipher_request *req = ablkcipher_request_cast(aes->areq);
+	struct skcipher_request *req = skcipher_request_cast(aes->areq);
 	struct scatterlist *src, *dst;
 	u32 start, end, ctr, blocks;
 	size_t datalen;
@@ -570,11 +562,11 @@ static int mtk_aes_ctr_transfer(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 
 	/* Check for transfer completion. */
 	cctx->offset += aes->total;
-	if (cctx->offset >= req->nbytes)
+	if (cctx->offset >= req->cryptlen)
 		return mtk_aes_transfer_complete(cryp, aes);
 
 	/* Compute data length. */
-	datalen = req->nbytes - cctx->offset;
+	datalen = req->cryptlen - cctx->offset;
 	blocks = DIV_ROUND_UP(datalen, AES_BLOCK_SIZE);
 	ctr = be32_to_cpu(cctx->iv[3]);
 
@@ -582,7 +574,7 @@ static int mtk_aes_ctr_transfer(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 	start = ctr;
 	end = start + blocks - 1;
 	if (end < start) {
-		ctr |= 0xffffffff;
+		ctr = 0xffffffff;
 		datalen = AES_BLOCK_SIZE * -start;
 		fragmented = true;
 	}
@@ -593,8 +585,7 @@ static int mtk_aes_ctr_transfer(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 	       scatterwalk_ffwd(cctx->dst, req->dst, cctx->offset));
 
 	/* Write IVs into transform state buffer. */
-	mtk_aes_write_state_le(ctx->info.state + ctx->keylen, cctx->iv,
-			       AES_BLOCK_SIZE);
+	memcpy(ctx->info.state + ctx->keylen, cctx->iv, AES_BLOCK_SIZE);
 
 	if (unlikely(fragmented)) {
 	/*
@@ -611,12 +602,12 @@ static int mtk_aes_ctr_transfer(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 static int mtk_aes_ctr_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 {
 	struct mtk_aes_ctr_ctx *cctx = mtk_aes_ctr_ctx_cast(aes->ctx);
-	struct ablkcipher_request *req = ablkcipher_request_cast(aes->areq);
-	struct mtk_aes_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct skcipher_request *req = skcipher_request_cast(aes->areq);
+	struct mtk_aes_reqctx *rctx = skcipher_request_ctx(req);
 
 	mtk_aes_set_mode(aes, rctx);
 
-	memcpy(cctx->iv, req->info, AES_BLOCK_SIZE);
+	memcpy(cctx->iv, req->iv, AES_BLOCK_SIZE);
 	cctx->offset = 0;
 	aes->total = 0;
 	aes->resume = mtk_aes_ctr_transfer;
@@ -625,10 +616,10 @@ static int mtk_aes_ctr_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 }
 
 /* Check and set the AES key to transform state buffer */
-static int mtk_aes_setkey(struct crypto_ablkcipher *tfm,
+static int mtk_aes_setkey(struct crypto_skcipher *tfm,
 			  const u8 *key, u32 keylen)
 {
-	struct mtk_aes_base_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct mtk_aes_base_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	switch (keylen) {
 	case AES_KEYSIZE_128:
@@ -642,153 +633,188 @@ static int mtk_aes_setkey(struct crypto_ablkcipher *tfm,
 		break;
 
 	default:
-		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
 	ctx->keylen = SIZE_IN_WORDS(keylen);
-	mtk_aes_write_state_le(ctx->info.state, (const u32 *)key, keylen);
+	memcpy(ctx->key, key, keylen);
 
 	return 0;
 }
 
-static int mtk_aes_crypt(struct ablkcipher_request *req, u64 mode)
+static int mtk_aes_crypt(struct skcipher_request *req, u64 mode)
 {
-	struct mtk_aes_base_ctx *ctx;
+	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
+	struct mtk_aes_base_ctx *ctx = crypto_skcipher_ctx(skcipher);
 	struct mtk_aes_reqctx *rctx;
+	struct mtk_cryp *cryp;
 
-	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
-	rctx = ablkcipher_request_ctx(req);
+	cryp = mtk_aes_find_dev(ctx);
+	if (!cryp)
+		return -ENODEV;
+
+	rctx = skcipher_request_ctx(req);
 	rctx->mode = mode;
 
-	return mtk_aes_handle_queue(ctx->cryp, !(mode & AES_FLAGS_ENCRYPT),
+	return mtk_aes_handle_queue(cryp, !(mode & AES_FLAGS_ENCRYPT),
 				    &req->base);
 }
 
-static int mtk_aes_ecb_encrypt(struct ablkcipher_request *req)
+static int mtk_aes_ecb_encrypt(struct skcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_ENCRYPT | AES_FLAGS_ECB);
 }
 
-static int mtk_aes_ecb_decrypt(struct ablkcipher_request *req)
+static int mtk_aes_ecb_decrypt(struct skcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_ECB);
 }
 
-static int mtk_aes_cbc_encrypt(struct ablkcipher_request *req)
+static int mtk_aes_cbc_encrypt(struct skcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_ENCRYPT | AES_FLAGS_CBC);
 }
 
-static int mtk_aes_cbc_decrypt(struct ablkcipher_request *req)
+static int mtk_aes_cbc_decrypt(struct skcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_CBC);
 }
 
-static int mtk_aes_ctr_encrypt(struct ablkcipher_request *req)
+static int mtk_aes_ctr_encrypt(struct skcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_ENCRYPT | AES_FLAGS_CTR);
 }
 
-static int mtk_aes_ctr_decrypt(struct ablkcipher_request *req)
+static int mtk_aes_ctr_decrypt(struct skcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_CTR);
 }
 
-static int mtk_aes_cra_init(struct crypto_tfm *tfm)
+static int mtk_aes_ofb_encrypt(struct skcipher_request *req)
 {
-	struct mtk_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct mtk_cryp *cryp = NULL;
+	return mtk_aes_crypt(req, AES_FLAGS_ENCRYPT | AES_FLAGS_OFB);
+}
 
-	cryp = mtk_aes_find_dev(&ctx->base);
-	if (!cryp) {
-		pr_err("can't find crypto device\n");
-		return -ENODEV;
-	}
+static int mtk_aes_ofb_decrypt(struct skcipher_request *req)
+{
+	return mtk_aes_crypt(req, AES_FLAGS_OFB);
+}
 
-	tfm->crt_ablkcipher.reqsize = sizeof(struct mtk_aes_reqctx);
+static int mtk_aes_cfb_encrypt(struct skcipher_request *req)
+{
+	return mtk_aes_crypt(req, AES_FLAGS_ENCRYPT | AES_FLAGS_CFB128);
+}
+
+static int mtk_aes_cfb_decrypt(struct skcipher_request *req)
+{
+	return mtk_aes_crypt(req, AES_FLAGS_CFB128);
+}
+
+static int mtk_aes_init_tfm(struct crypto_skcipher *tfm)
+{
+	struct mtk_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct mtk_aes_reqctx));
 	ctx->base.start = mtk_aes_start;
 	return 0;
 }
 
-static int mtk_aes_ctr_cra_init(struct crypto_tfm *tfm)
+static int mtk_aes_ctr_init_tfm(struct crypto_skcipher *tfm)
 {
-	struct mtk_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct mtk_cryp *cryp = NULL;
+	struct mtk_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	cryp = mtk_aes_find_dev(&ctx->base);
-	if (!cryp) {
-		pr_err("can't find crypto device\n");
-		return -ENODEV;
-	}
-
-	tfm->crt_ablkcipher.reqsize = sizeof(struct mtk_aes_reqctx);
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct mtk_aes_reqctx));
 	ctx->base.start = mtk_aes_ctr_start;
 	return 0;
 }
 
-static struct crypto_alg aes_algs[] = {
+static struct skcipher_alg aes_algs[] = {
 {
-	.cra_name		= "cbc(aes)",
-	.cra_driver_name	= "cbc-aes-mtk",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC,
-	.cra_init		= mtk_aes_cra_init,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct mtk_aes_ctx),
-	.cra_alignmask		= 0xf,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.setkey		= mtk_aes_setkey,
-		.encrypt	= mtk_aes_cbc_encrypt,
-		.decrypt	= mtk_aes_cbc_decrypt,
-		.ivsize		= AES_BLOCK_SIZE,
-	}
+	.base.cra_name		= "cbc(aes)",
+	.base.cra_driver_name	= "cbc-aes-mtk",
+	.base.cra_priority	= 400,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_ctxsize	= sizeof(struct mtk_aes_ctx),
+	.base.cra_alignmask	= 0xf,
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.setkey			= mtk_aes_setkey,
+	.encrypt		= mtk_aes_cbc_encrypt,
+	.decrypt		= mtk_aes_cbc_decrypt,
+	.ivsize			= AES_BLOCK_SIZE,
+	.init			= mtk_aes_init_tfm,
 },
 {
-	.cra_name		= "ecb(aes)",
-	.cra_driver_name	= "ecb-aes-mtk",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC,
-	.cra_init		= mtk_aes_cra_init,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct mtk_aes_ctx),
-	.cra_alignmask		= 0xf,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.setkey		= mtk_aes_setkey,
-		.encrypt	= mtk_aes_ecb_encrypt,
-		.decrypt	= mtk_aes_ecb_decrypt,
-	}
+	.base.cra_name		= "ecb(aes)",
+	.base.cra_driver_name	= "ecb-aes-mtk",
+	.base.cra_priority	= 400,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_ctxsize	= sizeof(struct mtk_aes_ctx),
+	.base.cra_alignmask	= 0xf,
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.setkey			= mtk_aes_setkey,
+	.encrypt		= mtk_aes_ecb_encrypt,
+	.decrypt		= mtk_aes_ecb_decrypt,
+	.init			= mtk_aes_init_tfm,
 },
 {
-	.cra_name		= "ctr(aes)",
-	.cra_driver_name	= "ctr-aes-mtk",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC,
-	.cra_init		= mtk_aes_ctr_cra_init,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct mtk_aes_ctr_ctx),
-	.cra_alignmask		= 0xf,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= mtk_aes_setkey,
-		.encrypt	= mtk_aes_ctr_encrypt,
-		.decrypt	= mtk_aes_ctr_decrypt,
-	}
+	.base.cra_name		= "ctr(aes)",
+	.base.cra_driver_name	= "ctr-aes-mtk",
+	.base.cra_priority	= 400,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_blocksize	= 1,
+	.base.cra_ctxsize	= sizeof(struct mtk_aes_ctx),
+	.base.cra_alignmask	= 0xf,
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.ivsize			= AES_BLOCK_SIZE,
+	.setkey			= mtk_aes_setkey,
+	.encrypt		= mtk_aes_ctr_encrypt,
+	.decrypt		= mtk_aes_ctr_decrypt,
+	.init			= mtk_aes_ctr_init_tfm,
+},
+{
+	.base.cra_name		= "ofb(aes)",
+	.base.cra_driver_name	= "ofb-aes-mtk",
+	.base.cra_priority	= 400,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_ctxsize	= sizeof(struct mtk_aes_ctx),
+	.base.cra_alignmask	= 0xf,
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.ivsize			= AES_BLOCK_SIZE,
+	.setkey			= mtk_aes_setkey,
+	.encrypt		= mtk_aes_ofb_encrypt,
+	.decrypt		= mtk_aes_ofb_decrypt,
+},
+{
+	.base.cra_name		= "cfb(aes)",
+	.base.cra_driver_name	= "cfb-aes-mtk",
+	.base.cra_priority	= 400,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_blocksize	= 1,
+	.base.cra_ctxsize	= sizeof(struct mtk_aes_ctx),
+	.base.cra_alignmask	= 0xf,
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.ivsize			= AES_BLOCK_SIZE,
+	.setkey			= mtk_aes_setkey,
+	.encrypt		= mtk_aes_cfb_encrypt,
+	.decrypt		= mtk_aes_cfb_decrypt,
 },
 };
 
@@ -805,7 +831,7 @@ mtk_aes_gcm_ctx_cast(struct mtk_aes_base_ctx *ctx)
 static int mtk_aes_gcm_tag_verify(struct mtk_cryp *cryp,
 				  struct mtk_aes_rec *aes)
 {
-	u32 status = cryp->ring[aes->id]->res_prev->ct;
+	__le32 status = cryp->ring[aes->id]->res_prev->ct;
 
 	return mtk_aes_complete(cryp, aes, (status & AES_AUTH_TAG_ERR) ?
 				-EBADMSG : 0);
@@ -823,7 +849,7 @@ static void mtk_aes_gcm_info_init(struct mtk_cryp *cryp,
 	u32 ivsize = crypto_aead_ivsize(crypto_aead_reqtfm(req));
 	u32 cnt = 0;
 
-	ctx->ct_hdr = AES_CT_CTRL_HDR | len;
+	ctx->ct_hdr = AES_CT_CTRL_HDR | cpu_to_le32(len);
 
 	info->cmd[cnt++] = AES_GCM_CMD0 | cpu_to_le32(req->assoclen);
 	info->cmd[cnt++] = AES_GCM_CMD1 | cpu_to_le32(req->assoclen);
@@ -846,8 +872,8 @@ static void mtk_aes_gcm_info_init(struct mtk_cryp *cryp,
 	info->tfm[1] = AES_TFM_CTR_INIT | AES_TFM_IV_CTR_MODE | AES_TFM_3IV |
 		       AES_TFM_ENC_HASH;
 
-	mtk_aes_write_state_le(info->state + ctx->keylen + SIZE_IN_WORDS(
-			       AES_BLOCK_SIZE), (const u32 *)req->iv, ivsize);
+	memcpy(info->state + ctx->keylen + SIZE_IN_WORDS(AES_BLOCK_SIZE),
+	       req->iv, ivsize);
 }
 
 static int mtk_aes_gcm_dma(struct mtk_cryp *cryp, struct mtk_aes_rec *aes,
@@ -908,14 +934,11 @@ static int mtk_aes_gcm_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 		aes->resume = mtk_aes_transfer_complete;
 		/* Compute total process length. */
 		aes->total = len + gctx->authsize;
-		/* Compute text length. */
-		gctx->textlen = req->cryptlen;
 		/* Hardware will append authenticated tag to output buffer */
 		scatterwalk_map_and_copy(tag, req->dst, len, gctx->authsize, 1);
 	} else {
 		aes->resume = mtk_aes_gcm_tag_verify;
 		aes->total = len;
-		gctx->textlen = req->cryptlen - gctx->authsize;
 	}
 
 	return mtk_aes_gcm_dma(cryp, aes, req->src, req->dst, len);
@@ -926,6 +949,15 @@ static int mtk_aes_gcm_crypt(struct aead_request *req, u64 mode)
 	struct mtk_aes_base_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct mtk_aes_gcm_ctx *gctx = mtk_aes_gcm_ctx_cast(ctx);
 	struct mtk_aes_reqctx *rctx = aead_request_ctx(req);
+	struct mtk_cryp *cryp;
+	bool enc = !!(mode & AES_FLAGS_ENCRYPT);
+
+	cryp = mtk_aes_find_dev(ctx);
+	if (!cryp)
+		return -ENODEV;
+
+	/* Compute text length. */
+	gctx->textlen = req->cryptlen - (enc ? 0 : gctx->authsize);
 
 	/* Empty messages are not supported yet */
 	if (!gctx->textlen && !req->assoclen)
@@ -933,8 +965,7 @@ static int mtk_aes_gcm_crypt(struct aead_request *req, u64 mode)
 
 	rctx->mode = AES_FLAGS_GCM | mode;
 
-	return mtk_aes_handle_queue(ctx->cryp, !!(mode & AES_FLAGS_ENCRYPT),
-				    &req->base);
+	return mtk_aes_handle_queue(cryp, enc, &req->base);
 }
 
 /*
@@ -946,18 +977,13 @@ static int mtk_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 			      u32 keylen)
 {
 	struct mtk_aes_base_ctx *ctx = crypto_aead_ctx(aead);
-	struct mtk_aes_gcm_ctx *gctx = mtk_aes_gcm_ctx_cast(ctx);
-	struct crypto_skcipher *ctr = gctx->ctr;
-	struct {
-		u32 hash[4];
-		u8 iv[8];
-
-		struct crypto_wait wait;
-
-		struct scatterlist sg[1];
-		struct skcipher_request req;
-	} *data;
+	union {
+		u32 x32[SIZE_IN_WORDS(AES_BLOCK_SIZE)];
+		u8 x8[AES_BLOCK_SIZE];
+	} hash = {};
+	struct crypto_aes_ctx aes_ctx;
 	int err;
+	int i;
 
 	switch (keylen) {
 	case AES_KEYSIZE_128:
@@ -971,49 +997,27 @@ static int mtk_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 		break;
 
 	default:
-		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
 	ctx->keylen = SIZE_IN_WORDS(keylen);
 
-	/* Same as crypto_gcm_setkey() from crypto/gcm.c */
-	crypto_skcipher_clear_flags(ctr, CRYPTO_TFM_REQ_MASK);
-	crypto_skcipher_set_flags(ctr, crypto_aead_get_flags(aead) &
-				  CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(ctr, key, keylen);
-	crypto_aead_set_flags(aead, crypto_skcipher_get_flags(ctr) &
-			      CRYPTO_TFM_RES_MASK);
+	err = aes_expandkey(&aes_ctx, key, keylen);
 	if (err)
 		return err;
 
-	data = kzalloc(sizeof(*data) + crypto_skcipher_reqsize(ctr),
-		       GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	aes_encrypt(&aes_ctx, hash.x8, hash.x8);
+	memzero_explicit(&aes_ctx, sizeof(aes_ctx));
 
-	crypto_init_wait(&data->wait);
-	sg_init_one(data->sg, &data->hash, AES_BLOCK_SIZE);
-	skcipher_request_set_tfm(&data->req, ctr);
-	skcipher_request_set_callback(&data->req, CRYPTO_TFM_REQ_MAY_SLEEP |
-				      CRYPTO_TFM_REQ_MAY_BACKLOG,
-				      crypto_req_done, &data->wait);
-	skcipher_request_set_crypt(&data->req, data->sg, data->sg,
-				   AES_BLOCK_SIZE, data->iv);
+	memcpy(ctx->key, key, keylen);
 
-	err = crypto_wait_req(crypto_skcipher_encrypt(&data->req),
-			      &data->wait);
-	if (err)
-		goto out;
+	/* Why do we need to do this? */
+	for (i = 0; i < SIZE_IN_WORDS(AES_BLOCK_SIZE); i++)
+		hash.x32[i] = swab32(hash.x32[i]);
 
-	/* Write key into state buffer */
-	mtk_aes_write_state_le(ctx->info.state, (const u32 *)key, keylen);
-	/* Write key(H) into state buffer */
-	mtk_aes_write_state_be(ctx->info.state + ctx->keylen, data->hash,
-			       AES_BLOCK_SIZE);
-out:
-	kzfree(data);
-	return err;
+	memcpy(ctx->key + ctx->keylen, &hash, AES_BLOCK_SIZE);
+
+	return 0;
 }
 
 static int mtk_aes_gcm_setauthsize(struct crypto_aead *aead,
@@ -1049,31 +1053,10 @@ static int mtk_aes_gcm_decrypt(struct aead_request *req)
 static int mtk_aes_gcm_init(struct crypto_aead *aead)
 {
 	struct mtk_aes_gcm_ctx *ctx = crypto_aead_ctx(aead);
-	struct mtk_cryp *cryp = NULL;
-
-	cryp = mtk_aes_find_dev(&ctx->base);
-	if (!cryp) {
-		pr_err("can't find crypto device\n");
-		return -ENODEV;
-	}
-
-	ctx->ctr = crypto_alloc_skcipher("ctr(aes)", 0,
-					 CRYPTO_ALG_ASYNC);
-	if (IS_ERR(ctx->ctr)) {
-		pr_err("Error allocating ctr(aes)\n");
-		return PTR_ERR(ctx->ctr);
-	}
 
 	crypto_aead_set_reqsize(aead, sizeof(struct mtk_aes_reqctx));
 	ctx->base.start = mtk_aes_gcm_start;
 	return 0;
-}
-
-static void mtk_aes_gcm_exit(struct crypto_aead *aead)
-{
-	struct mtk_aes_gcm_ctx *ctx = crypto_aead_ctx(aead);
-
-	crypto_free_skcipher(ctx->ctr);
 }
 
 static struct aead_alg aes_gcm_alg = {
@@ -1082,7 +1065,6 @@ static struct aead_alg aes_gcm_alg = {
 	.encrypt	= mtk_aes_gcm_encrypt,
 	.decrypt	= mtk_aes_gcm_decrypt,
 	.init		= mtk_aes_gcm_init,
-	.exit		= mtk_aes_gcm_exit,
 	.ivsize		= GCM_AES_IV_SIZE,
 	.maxauthsize	= AES_BLOCK_SIZE,
 
@@ -1201,7 +1183,7 @@ static void mtk_aes_unregister_algs(void)
 	crypto_unregister_aead(&aes_gcm_alg);
 
 	for (i = 0; i < ARRAY_SIZE(aes_algs); i++)
-		crypto_unregister_alg(&aes_algs[i]);
+		crypto_unregister_skcipher(&aes_algs[i]);
 }
 
 static int mtk_aes_register_algs(void)
@@ -1209,7 +1191,7 @@ static int mtk_aes_register_algs(void)
 	int err, i;
 
 	for (i = 0; i < ARRAY_SIZE(aes_algs); i++) {
-		err = crypto_register_alg(&aes_algs[i]);
+		err = crypto_register_skcipher(&aes_algs[i]);
 		if (err)
 			goto err_aes_algs;
 	}
@@ -1222,7 +1204,7 @@ static int mtk_aes_register_algs(void)
 
 err_aes_algs:
 	for (; i--; )
-		crypto_unregister_alg(&aes_algs[i]);
+		crypto_unregister_skcipher(&aes_algs[i]);
 
 	return err;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -72,13 +72,6 @@
  * compilation unit
  */
 
-/*
- * If a packet's QP[23:16] bits match this value, then it is
- * a PSM packet and the hardware will expect a KDETH header
- * following the BTH.
- */
-#define DEFAULT_KDETH_QP 0x80
-
 /* driver/hw feature set bitmask */
 #define HFI1_CAP_USER_SHIFT      24
 #define HFI1_CAP_MASK            ((1UL << HFI1_CAP_USER_SHIFT) - 1)
@@ -136,18 +129,22 @@
 				  HFI1_CAP_ALLOW_PERM_JKEY |		\
 				  HFI1_CAP_STATIC_RATE_CTRL |		\
 				  HFI1_CAP_PRINT_UNIMPL |		\
-				  HFI1_CAP_TID_UNMAP)
+				  HFI1_CAP_TID_UNMAP |			\
+				  HFI1_CAP_OPFN)
 /*
  * A set of capability bits that are "global" and are not allowed to be
  * set in the user bitmask.
  */
 #define HFI1_CAP_RESERVED_MASK   ((HFI1_CAP_SDMA |			\
-				  HFI1_CAP_USE_SDMA_HEAD |		\
-				  HFI1_CAP_EXTENDED_PSN |		\
-				  HFI1_CAP_PRINT_UNIMPL |		\
-				  HFI1_CAP_NO_INTEGRITY |		\
-				  HFI1_CAP_PKEY_CHECK) <<		\
-				 HFI1_CAP_USER_SHIFT)
+				   HFI1_CAP_USE_SDMA_HEAD |		\
+				   HFI1_CAP_EXTENDED_PSN |		\
+				   HFI1_CAP_PRINT_UNIMPL |		\
+				   HFI1_CAP_NO_INTEGRITY |		\
+				   HFI1_CAP_PKEY_CHECK |		\
+				   HFI1_CAP_TID_RDMA |			\
+				   HFI1_CAP_OPFN |			\
+				   HFI1_CAP_AIP) <<			\
+				  HFI1_CAP_USER_SHIFT)
 /*
  * Set of capabilities that need to be enabled for kernel context in
  * order to be allowed for user contexts, as well.
@@ -163,6 +160,7 @@
 				 HFI1_CAP_PKEY_CHECK |			\
 				 HFI1_CAP_MULTI_PKT_EGR |		\
 				 HFI1_CAP_EXTENDED_PSN |		\
+				 HFI1_CAP_AIP |				\
 				 ((HFI1_CAP_HDRSUPP |			\
 				   HFI1_CAP_MULTI_PKT_EGR |		\
 				   HFI1_CAP_STATIC_RATE_CTRL |		\
@@ -283,7 +281,7 @@ struct diag_pkt {
 #define RHF_TID_ERR		(0x1ull << 59)
 #define RHF_LEN_ERR		(0x1ull << 60)
 #define RHF_ECC_ERR		(0x1ull << 61)
-#define RHF_VCRC_ERR		(0x1ull << 62)
+#define RHF_RESERVED		(0x1ull << 62)
 #define RHF_ICRC_ERR		(0x1ull << 63)
 
 #define RHF_ERROR_SMASK 0xffe0000000000000ull		/* bits 63:53 */
@@ -320,6 +318,9 @@ struct diag_pkt {
 /* RHF receive type error - bypass packet errors */
 #define RHF_RTE_BYPASS_NO_ERR		0x0
 
+/* MAX RcvSEQ */
+#define RHF_MAX_SEQ 13
+
 /* IB - LRH header constants */
 #define HFI1_LRH_GRH 0x0003      /* 1. word of IB LRH - next header: GRH */
 #define HFI1_LRH_BTH 0x0002      /* 1. word of IB LRH - next header: BTH */
@@ -336,6 +337,10 @@ struct diag_pkt {
 #define DEFAULT_P_KEY LIM_MGMT_P_KEY
 
 #define HFI1_PSM_IOC_BASE_SEQ 0x0
+
+/* Number of BTH.PSN bits used for sequence number in expected rcvs */
+#define HFI1_KDETH_BTH_SEQ_SHIFT 11
+#define HFI1_KDETH_BTH_SEQ_MASK (BIT(HFI1_KDETH_BTH_SEQ_SHIFT) - 1)
 
 static inline __u64 rhf_to_cpu(const __le32 *rbuf)
 {

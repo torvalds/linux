@@ -144,7 +144,7 @@ static int e1000e_phc_get_syncdevicetime(ktime_t *device,
 /**
  * e1000e_phc_getsynctime - Reads the current system/device cross timestamp
  * @ptp: ptp clock structure
- * @cts: structure containing timestamp
+ * @xtstamp: structure containing timestamp
  *
  * Read device and system (ART) clock simultaneously and return the scaled
  * clock values in ns.
@@ -161,22 +161,30 @@ static int e1000e_phc_getcrosststamp(struct ptp_clock_info *ptp,
 #endif/*CONFIG_E1000E_HWTS*/
 
 /**
- * e1000e_phc_gettime - Reads the current time from the hardware clock
+ * e1000e_phc_gettimex - Reads the current time from the hardware clock and
+ *                       system clock
  * @ptp: ptp clock structure
- * @ts: timespec structure to hold the current time value
+ * @ts: timespec structure to hold the current PHC time
+ * @sts: structure to hold the current system time
  *
  * Read the timecounter and return the correct value in ns after converting
  * it into a struct timespec.
  **/
-static int e1000e_phc_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
+static int e1000e_phc_gettimex(struct ptp_clock_info *ptp,
+			       struct timespec64 *ts,
+			       struct ptp_system_timestamp *sts)
 {
 	struct e1000_adapter *adapter = container_of(ptp, struct e1000_adapter,
 						     ptp_clock_info);
 	unsigned long flags;
-	u64 ns;
+	u64 cycles, ns;
 
 	spin_lock_irqsave(&adapter->systim_lock, flags);
-	ns = timecounter_read(&adapter->tc);
+
+	/* NOTE: Non-monotonic SYSTIM readings may be returned */
+	cycles = e1000e_read_systim(adapter, sts);
+	ns = timecounter_cyc2time(&adapter->tc, cycles);
+
 	spin_unlock_irqrestore(&adapter->systim_lock, flags);
 
 	*ts = ns_to_timespec64(ns);
@@ -232,9 +240,12 @@ static void e1000e_systim_overflow_work(struct work_struct *work)
 						     systim_overflow_work.work);
 	struct e1000_hw *hw = &adapter->hw;
 	struct timespec64 ts;
+	u64 ns;
 
-	adapter->ptp_clock_info.gettime64(&adapter->ptp_clock_info, &ts);
+	/* Update the timecounter */
+	ns = timecounter_read(&adapter->tc);
 
+	ts = ns_to_timespec64(ns);
 	e_dbg("SYSTIM overflow check at %lld.%09lu\n",
 	      (long long) ts.tv_sec, ts.tv_nsec);
 
@@ -251,7 +262,7 @@ static const struct ptp_clock_info e1000e_ptp_clock_info = {
 	.pps		= 0,
 	.adjfreq	= e1000e_phc_adjfreq,
 	.adjtime	= e1000e_phc_adjtime,
-	.gettime64	= e1000e_phc_gettime,
+	.gettimex64	= e1000e_phc_gettimex,
 	.settime64	= e1000e_phc_settime,
 	.enable		= e1000e_phc_enable,
 };
@@ -284,12 +295,15 @@ void e1000e_ptp_init(struct e1000_adapter *adapter)
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
 	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
 		if ((hw->mac.type < e1000_pch_lpt) ||
 		    (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI)) {
 			adapter->ptp_clock_info.max_adj = 24000000 - 1;
 			break;
 		}
-		/* fall-through */
+		fallthrough;
 	case e1000_82574:
 	case e1000_82583:
 		adapter->ptp_clock_info.max_adj = 600000000 - 1;

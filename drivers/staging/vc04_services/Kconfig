@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig BCM_VIDEOCORE
 	tristate "Broadcom VideoCore support"
 	depends on OF
@@ -21,6 +22,8 @@ config BCM2835_VCHIQ
 source "drivers/staging/vc04_services/bcm2835-audio/Kconfig"
 
 source "drivers/staging/vc04_services/bcm2835-camera/Kconfig"
+
+source "drivers/staging/vc04_services/vchiq-mmal/Kconfig"
 
 endif
 

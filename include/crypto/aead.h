@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * AEAD: Authenticated Encryption with Associated Data
  * 
  * Copyright (c) 2007-2015 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 
 #ifndef _CRYPTO_AEAD_H
@@ -48,27 +43,33 @@
  *
  * Memory Structure:
  *
- * To support the needs of the most prominent user of AEAD ciphers, namely
- * IPSEC, the AEAD ciphers have a special memory layout the caller must adhere
- * to.
+ * The source scatterlist must contain the concatenation of
+ * associated data || plaintext or ciphertext.
  *
- * The scatter list pointing to the input data must contain:
+ * The destination scatterlist has the same layout, except that the plaintext
+ * (resp. ciphertext) will grow (resp. shrink) by the authentication tag size
+ * during encryption (resp. decryption).
  *
- * * for RFC4106 ciphers, the concatenation of
- *   associated authentication data || IV || plaintext or ciphertext. Note, the
- *   same IV (buffer) is also set with the aead_request_set_crypt call. Note,
- *   the API call of aead_request_set_ad must provide the length of the AAD and
- *   the IV. The API call of aead_request_set_crypt only points to the size of
- *   the input plaintext or ciphertext.
+ * In-place encryption/decryption is enabled by using the same scatterlist
+ * pointer for both the source and destination.
  *
- * * for "normal" AEAD ciphers, the concatenation of
- *   associated authentication data || plaintext or ciphertext.
+ * Even in the out-of-place case, space must be reserved in the destination for
+ * the associated data, even though it won't be written to.  This makes the
+ * in-place and out-of-place cases more consistent.  It is permissible for the
+ * "destination" associated data to alias the "source" associated data.
  *
- * It is important to note that if multiple scatter gather list entries form
- * the input data mentioned above, the first entry must not point to a NULL
- * buffer. If there is any potential where the AAD buffer can be NULL, the
- * calling code must contain a precaution to ensure that this does not result
- * in the first scatter gather list entry pointing to a NULL buffer.
+ * As with the other scatterlist crypto APIs, zero-length scatterlist elements
+ * are not allowed in the used part of the scatterlist.  Thus, if there is no
+ * associated data, the first element must point to the plaintext/ciphertext.
+ *
+ * To meet the needs of IPsec, a special quirk applies to rfc4106, rfc4309,
+ * rfc4543, and rfc7539esp ciphers.  For these ciphers, the final 'ivsize' bytes
+ * of the associated data buffer must contain a second copy of the IV.  This is
+ * in addition to the copy passed to aead_request_set_crypt().  These two IV
+ * copies must not differ; different implementations of the same algorithm may
+ * behave differently in that case.  Note that the algorithm might not actually
+ * treat the IV as associated data; nevertheless the length passed to
+ * aead_request_set_ad() must include it.
  */
 
 struct crypto_aead;
@@ -115,7 +116,6 @@ struct aead_request {
  * @setkey: see struct skcipher_alg
  * @encrypt: see struct skcipher_alg
  * @decrypt: see struct skcipher_alg
- * @geniv: see struct skcipher_alg
  * @ivsize: see struct skcipher_alg
  * @chunksize: see struct skcipher_alg
  * @init: Initialize the cryptographic transformation object. This function
@@ -141,8 +141,6 @@ struct aead_alg {
 	int (*decrypt)(struct aead_request *req);
 	int (*init)(struct crypto_aead *tfm);
 	void (*exit)(struct crypto_aead *tfm);
-
-	const char *geniv;
 
 	unsigned int ivsize;
 	unsigned int maxauthsize;
@@ -235,6 +233,16 @@ static inline unsigned int crypto_aead_authsize(struct crypto_aead *tfm)
 	return tfm->authsize;
 }
 
+static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
+{
+	return alg->maxauthsize;
+}
+
+static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
+{
+	return crypto_aead_alg_maxauthsize(crypto_aead_alg(aead));
+}
+
 /**
  * crypto_aead_blocksize() - obtain block size of cipher
  * @tfm: cipher handle
@@ -325,19 +333,11 @@ static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
  *
  * Return: 0 if the cipher operation was successful; < 0 if an error occurred
  */
-static inline int crypto_aead_encrypt(struct aead_request *req)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-
-	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-
-	return crypto_aead_alg(aead)->encrypt(req);
-}
+int crypto_aead_encrypt(struct aead_request *req);
 
 /**
  * crypto_aead_decrypt() - decrypt ciphertext
- * @req: reference to the ablkcipher_request handle that holds all information
+ * @req: reference to the aead_request handle that holds all information
  *	 needed to perform the cipher operation
  *
  * Decrypt ciphertext data using the aead_request handle. That data structure
@@ -357,18 +357,7 @@ static inline int crypto_aead_encrypt(struct aead_request *req)
  *	   integrity of the ciphertext or the associated data was violated);
  *	   < 0 if an error occurred.
  */
-static inline int crypto_aead_decrypt(struct aead_request *req)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-
-	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-
-	if (req->cryptlen < crypto_aead_authsize(aead))
-		return -EINVAL;
-
-	return crypto_aead_alg(aead)->decrypt(req);
-}
+int crypto_aead_decrypt(struct aead_request *req);
 
 /**
  * DOC: Asynchronous AEAD Request Handle
@@ -436,7 +425,7 @@ static inline struct aead_request *aead_request_alloc(struct crypto_aead *tfm,
  */
 static inline void aead_request_free(struct aead_request *req)
 {
-	kzfree(req);
+	kfree_sensitive(req);
 }
 
 /**

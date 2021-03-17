@@ -14,6 +14,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/sys_soc.h>
 
 #include <media/v4l2-ctrls.h>
@@ -51,8 +52,8 @@ struct rcar_csi2;
 
 /*
  * Channel Data Type Select
- * VCDT[0-15]:  Channel 1 VCDT[16-31]:  Channel 2
- * VCDT2[0-15]: Channel 3 VCDT2[16-31]: Channel 4
+ * VCDT[0-15]:  Channel 0 VCDT[16-31]:  Channel 1
+ * VCDT2[0-15]: Channel 2 VCDT2[16-31]: Channel 3
  */
 #define VCDT_REG			0x10
 #define VCDT2_REG			0x14
@@ -67,6 +68,7 @@ struct rcar_csi2;
 /* Field Detection Control */
 #define FLD_REG				0x1c
 #define FLD_FLD_NUM(n)			(((n) & 0xff) << 16)
+#define FLD_DET_SEL(n)			(((n) & 0x3) << 4)
 #define FLD_FLD_EN4			BIT(3)
 #define FLD_FLD_EN3			BIT(2)
 #define FLD_FLD_EN2			BIT(1)
@@ -83,6 +85,9 @@ struct rcar_csi2;
 
 /* Interrupt Enable */
 #define INTEN_REG			0x30
+#define INTEN_INT_AFIFO_OF		BIT(27)
+#define INTEN_INT_ERRSOTHS		BIT(4)
+#define INTEN_INT_ERRSOTSYNCHS		BIT(3)
 
 /* Interrupt Source Mask */
 #define INTCLOSE_REG			0x34
@@ -315,6 +320,10 @@ static const struct rcar_csi2_format rcar_csi2_formats[] = {
 	{ .code = MEDIA_BUS_FMT_YUYV8_1X16,	.datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_UYVY8_2X8,	.datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_YUYV10_2X10,	.datatype = 0x1e, .bpp = 20 },
+	{ .code = MEDIA_BUS_FMT_SBGGR8_1X8,     .datatype = 0x2a, .bpp = 8 },
+	{ .code = MEDIA_BUS_FMT_SGBRG8_1X8,     .datatype = 0x2a, .bpp = 8 },
+	{ .code = MEDIA_BUS_FMT_SGRBG8_1X8,     .datatype = 0x2a, .bpp = 8 },
+	{ .code = MEDIA_BUS_FMT_SRGGB8_1X8,     .datatype = 0x2a, .bpp = 8 },
 };
 
 static const struct rcar_csi2_format *rcsi2_code_to_fmt(unsigned int code)
@@ -339,9 +348,10 @@ enum rcar_csi2_pads {
 
 struct rcar_csi2_info {
 	int (*init_phtw)(struct rcar_csi2 *priv, unsigned int mbps);
-	int (*confirm_start)(struct rcar_csi2 *priv);
+	int (*phy_post_init)(struct rcar_csi2 *priv);
 	const struct rcsi2_mbps_reg *hsfreqrange;
 	unsigned int csi0clkfreqrange;
+	unsigned int num_channels;
 	bool clear_ulps;
 };
 
@@ -349,13 +359,14 @@ struct rcar_csi2 {
 	struct device *dev;
 	void __iomem *base;
 	const struct rcar_csi2_info *info;
+	struct reset_control *rstc;
 
 	struct v4l2_subdev subdev;
 	struct media_pad pads[NR_OF_RCAR_CSI2_PAD];
 
 	struct v4l2_async_notifier notifier;
-	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *remote;
+	unsigned int remote_pad;
 
 	struct v4l2_mbus_framefmt mf;
 
@@ -386,20 +397,29 @@ static void rcsi2_write(struct rcar_csi2 *priv, unsigned int reg, u32 data)
 	iowrite32(data, priv->base + reg);
 }
 
-static void rcsi2_reset(struct rcar_csi2 *priv)
+static void rcsi2_enter_standby(struct rcar_csi2 *priv)
 {
-	rcsi2_write(priv, SRST_REG, SRST_SRST);
+	rcsi2_write(priv, PHYCNT_REG, 0);
+	rcsi2_write(priv, PHTC_REG, PHTC_TESTCLR);
+	reset_control_assert(priv->rstc);
 	usleep_range(100, 150);
-	rcsi2_write(priv, SRST_REG, 0);
+	pm_runtime_put(priv->dev);
 }
 
-static int rcsi2_wait_phy_start(struct rcar_csi2 *priv)
+static void rcsi2_exit_standby(struct rcar_csi2 *priv)
+{
+	pm_runtime_get_sync(priv->dev);
+	reset_control_deassert(priv->rstc);
+}
+
+static int rcsi2_wait_phy_start(struct rcar_csi2 *priv,
+				unsigned int lanes)
 {
 	unsigned int timeout;
 
 	/* Wait for the clock and data lanes to enter LP-11 state. */
 	for (timeout = 0; timeout <= 20; timeout++) {
-		const u32 lane_mask = (1 << priv->lanes) - 1;
+		const u32 lane_mask = (1 << lanes) - 1;
 
 		if ((rcsi2_read(priv, PHCLM_REG) & PHCLM_STOPSTATECKL)  &&
 		    (rcsi2_read(priv, PHDLM_REG) & lane_mask) == lane_mask)
@@ -431,7 +451,8 @@ static int rcsi2_set_phypll(struct rcar_csi2 *priv, unsigned int mbps)
 	return 0;
 }
 
-static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp)
+static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp,
+			   unsigned int lanes)
 {
 	struct v4l2_subdev *source;
 	struct v4l2_ctrl *ctrl;
@@ -456,15 +477,64 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp)
 	 * bps = link_freq * 2
 	 */
 	mbps = v4l2_ctrl_g_ctrl_int64(ctrl) * bpp;
-	do_div(mbps, priv->lanes * 1000000);
+	do_div(mbps, lanes * 1000000);
 
 	return mbps;
 }
 
-static int rcsi2_start(struct rcar_csi2 *priv)
+static int rcsi2_get_active_lanes(struct rcar_csi2 *priv,
+				  unsigned int *lanes)
+{
+	struct v4l2_mbus_config mbus_config = { 0 };
+	unsigned int num_lanes = UINT_MAX;
+	int ret;
+
+	*lanes = priv->lanes;
+
+	ret = v4l2_subdev_call(priv->remote, pad, get_mbus_config,
+			       priv->remote_pad, &mbus_config);
+	if (ret == -ENOIOCTLCMD) {
+		dev_dbg(priv->dev, "No remote mbus configuration available\n");
+		return 0;
+	}
+
+	if (ret) {
+		dev_err(priv->dev, "Failed to get remote mbus configuration\n");
+		return ret;
+	}
+
+	if (mbus_config.type != V4L2_MBUS_CSI2_DPHY) {
+		dev_err(priv->dev, "Unsupported media bus type %u\n",
+			mbus_config.type);
+		return -EINVAL;
+	}
+
+	if (mbus_config.flags & V4L2_MBUS_CSI2_1_LANE)
+		num_lanes = 1;
+	else if (mbus_config.flags & V4L2_MBUS_CSI2_2_LANE)
+		num_lanes = 2;
+	else if (mbus_config.flags & V4L2_MBUS_CSI2_3_LANE)
+		num_lanes = 3;
+	else if (mbus_config.flags & V4L2_MBUS_CSI2_4_LANE)
+		num_lanes = 4;
+
+	if (num_lanes > priv->lanes) {
+		dev_err(priv->dev,
+			"Unsupported mbus config: too many data lanes %u\n",
+			num_lanes);
+		return -EINVAL;
+	}
+
+	*lanes = num_lanes;
+
+	return 0;
+}
+
+static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 {
 	const struct rcar_csi2_format *format;
-	u32 phycnt, vcdt = 0, vcdt2 = 0;
+	u32 phycnt, vcdt = 0, vcdt2 = 0, fld = 0;
+	unsigned int lanes;
 	unsigned int i;
 	int mbps, ret;
 
@@ -476,13 +546,14 @@ static int rcsi2_start(struct rcar_csi2 *priv)
 	format = rcsi2_code_to_fmt(priv->mf.code);
 
 	/*
-	 * Enable all Virtual Channels.
+	 * Enable all supported CSI-2 channels with virtual channel and
+	 * data type matching.
 	 *
 	 * NOTE: It's not possible to get individual datatype for each
 	 *       source virtual channel. Once this is possible in V4L2
 	 *       it should be used here.
 	 */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < priv->info->num_channels; i++) {
 		u32 vcdt_part;
 
 		vcdt_part = VCDT_SEL_VC(i) | VCDT_VCDTN_EN | VCDT_SEL_DTN_ON |
@@ -495,23 +566,43 @@ static int rcsi2_start(struct rcar_csi2 *priv)
 			vcdt2 |= vcdt_part << ((i % 2) * 16);
 	}
 
-	phycnt = PHYCNT_ENABLECLK;
-	phycnt |= (1 << priv->lanes) - 1;
+	if (priv->mf.field == V4L2_FIELD_ALTERNATE) {
+		fld = FLD_DET_SEL(1) | FLD_FLD_EN4 | FLD_FLD_EN3 | FLD_FLD_EN2
+			| FLD_FLD_EN;
 
-	mbps = rcsi2_calc_mbps(priv, format->bpp);
+		if (priv->mf.height == 240)
+			fld |= FLD_FLD_NUM(0);
+		else
+			fld |= FLD_FLD_NUM(1);
+	}
+
+	/*
+	 * Get the number of active data lanes inspecting the remote mbus
+	 * configuration.
+	 */
+	ret = rcsi2_get_active_lanes(priv, &lanes);
+	if (ret)
+		return ret;
+
+	phycnt = PHYCNT_ENABLECLK;
+	phycnt |= (1 << lanes) - 1;
+
+	mbps = rcsi2_calc_mbps(priv, format->bpp, lanes);
 	if (mbps < 0)
 		return mbps;
 
+	/* Enable interrupts. */
+	rcsi2_write(priv, INTEN_REG, INTEN_INT_AFIFO_OF | INTEN_INT_ERRSOTHS
+		    | INTEN_INT_ERRSOTSYNCHS);
+
 	/* Init */
 	rcsi2_write(priv, TREF_REG, TREF_TREF);
-	rcsi2_reset(priv);
 	rcsi2_write(priv, PHTC_REG, 0);
 
 	/* Configure */
-	rcsi2_write(priv, FLD_REG, FLD_FLD_NUM(2) | FLD_FLD_EN4 |
-		    FLD_FLD_EN3 | FLD_FLD_EN2 | FLD_FLD_EN);
 	rcsi2_write(priv, VCDT_REG, vcdt);
-	rcsi2_write(priv, VCDT2_REG, vcdt2);
+	if (vcdt2)
+		rcsi2_write(priv, VCDT2_REG, vcdt2);
 	/* Lanes are zero indexed. */
 	rcsi2_write(priv, LSWAP_REG,
 		    LSWAP_L0SEL(priv->lane_swap[0] - 1) |
@@ -539,16 +630,17 @@ static int rcsi2_start(struct rcar_csi2 *priv)
 	rcsi2_write(priv, PHYCNT_REG, phycnt);
 	rcsi2_write(priv, LINKCNT_REG, LINKCNT_MONITOR_EN |
 		    LINKCNT_REG_MONI_PACT_EN | LINKCNT_ICLK_NONSTOP);
+	rcsi2_write(priv, FLD_REG, fld);
 	rcsi2_write(priv, PHYCNT_REG, phycnt | PHYCNT_SHUTDOWNZ);
 	rcsi2_write(priv, PHYCNT_REG, phycnt | PHYCNT_SHUTDOWNZ | PHYCNT_RSTZ);
 
-	ret = rcsi2_wait_phy_start(priv);
+	ret = rcsi2_wait_phy_start(priv, lanes);
 	if (ret)
 		return ret;
 
-	/* Confirm start */
-	if (priv->info->confirm_start) {
-		ret = priv->info->confirm_start(priv);
+	/* Run post PHY start initialization, if needed. */
+	if (priv->info->phy_post_init) {
+		ret = priv->info->phy_post_init(priv);
 		if (ret)
 			return ret;
 	}
@@ -561,19 +653,36 @@ static int rcsi2_start(struct rcar_csi2 *priv)
 	return 0;
 }
 
+static int rcsi2_start(struct rcar_csi2 *priv)
+{
+	int ret;
+
+	rcsi2_exit_standby(priv);
+
+	ret = rcsi2_start_receiver(priv);
+	if (ret) {
+		rcsi2_enter_standby(priv);
+		return ret;
+	}
+
+	ret = v4l2_subdev_call(priv->remote, video, s_stream, 1);
+	if (ret) {
+		rcsi2_enter_standby(priv);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void rcsi2_stop(struct rcar_csi2 *priv)
 {
-	rcsi2_write(priv, PHYCNT_REG, 0);
-
-	rcsi2_reset(priv);
-
-	rcsi2_write(priv, PHTC_REG, PHTC_TESTCLR);
+	rcsi2_enter_standby(priv);
+	v4l2_subdev_call(priv->remote, video, s_stream, 0);
 }
 
 static int rcsi2_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct rcar_csi2 *priv = sd_to_csi2(sd);
-	struct v4l2_subdev *nextsd;
 	int ret = 0;
 
 	mutex_lock(&priv->lock);
@@ -583,27 +692,12 @@ static int rcsi2_s_stream(struct v4l2_subdev *sd, int enable)
 		goto out;
 	}
 
-	nextsd = priv->remote;
-
 	if (enable && priv->stream_count == 0) {
-		pm_runtime_get_sync(priv->dev);
-
 		ret = rcsi2_start(priv);
-		if (ret) {
-			pm_runtime_put(priv->dev);
+		if (ret)
 			goto out;
-		}
-
-		ret = v4l2_subdev_call(nextsd, video, s_stream, 1);
-		if (ret) {
-			rcsi2_stop(priv);
-			pm_runtime_put(priv->dev);
-			goto out;
-		}
 	} else if (!enable && priv->stream_count == 1) {
 		rcsi2_stop(priv);
-		v4l2_subdev_call(nextsd, video, s_stream, 0);
-		pm_runtime_put(priv->dev);
 	}
 
 	priv->stream_count += enable ? 1 : -1;
@@ -661,6 +755,43 @@ static const struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
 	.pad	= &rcar_csi2_pad_ops,
 };
 
+static irqreturn_t rcsi2_irq(int irq, void *data)
+{
+	struct rcar_csi2 *priv = data;
+	u32 status, err_status;
+
+	status = rcsi2_read(priv, INTSTATE_REG);
+	err_status = rcsi2_read(priv, INTERRSTATE_REG);
+
+	if (!status)
+		return IRQ_HANDLED;
+
+	rcsi2_write(priv, INTSTATE_REG, status);
+
+	if (!err_status)
+		return IRQ_HANDLED;
+
+	rcsi2_write(priv, INTERRSTATE_REG, err_status);
+
+	dev_info(priv->dev, "Transfer error, restarting CSI-2 receiver\n");
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t rcsi2_irq_thread(int irq, void *data)
+{
+	struct rcar_csi2 *priv = data;
+
+	mutex_lock(&priv->lock);
+	rcsi2_stop(priv);
+	usleep_range(1000, 2000);
+	if (rcsi2_start(priv))
+		dev_warn(priv->dev, "Failed to restart CSI-2 receiver\n");
+	mutex_unlock(&priv->lock);
+
+	return IRQ_HANDLED;
+}
+
 /* -----------------------------------------------------------------------------
  * Async handling and registration of subdevices and links.
  */
@@ -680,6 +811,7 @@ static int rcsi2_notify_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	priv->remote = subdev;
+	priv->remote_pad = pad;
 
 	dev_dbg(priv->dev, "Bound %s pad: %d\n", subdev->name, pad);
 
@@ -714,7 +846,7 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 	if (vep->base.port || vep->base.id)
 		return -ENOTCONN;
 
-	if (vep->bus_type != V4L2_MBUS_CSI2) {
+	if (vep->bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(priv->dev, "Unsupported bus: %u\n", vep->bus_type);
 		return -EINVAL;
 	}
@@ -742,8 +874,10 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 
 static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 {
+	struct v4l2_async_subdev *asd;
+	struct fwnode_handle *fwnode;
 	struct device_node *ep;
-	struct v4l2_fwnode_endpoint v4l2_ep;
+	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
 	int ret;
 
 	ep = of_graph_get_endpoint_by_regs(priv->dev->of_node, 0, 0);
@@ -765,27 +899,26 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 		return ret;
 	}
 
-	priv->asd.match.fwnode =
-		fwnode_graph_get_remote_endpoint(of_fwnode_handle(ep));
-	priv->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-
+	fwnode = fwnode_graph_get_remote_endpoint(of_fwnode_handle(ep));
 	of_node_put(ep);
 
-	priv->notifier.subdevs = devm_kzalloc(priv->dev,
-					      sizeof(*priv->notifier.subdevs),
-					      GFP_KERNEL);
-	if (!priv->notifier.subdevs)
-		return -ENOMEM;
+	dev_dbg(priv->dev, "Found '%pOF'\n", to_of_node(fwnode));
 
-	priv->notifier.num_subdevs = 1;
-	priv->notifier.subdevs[0] = &priv->asd;
+	v4l2_async_notifier_init(&priv->notifier);
 	priv->notifier.ops = &rcar_csi2_notify_ops;
 
-	dev_dbg(priv->dev, "Found '%pOF'\n",
-		to_of_node(priv->asd.match.fwnode));
+	asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier, fwnode,
+						    sizeof(*asd));
+	fwnode_handle_put(fwnode);
+	if (IS_ERR(asd))
+		return PTR_ERR(asd);
 
-	return v4l2_async_subdev_notifier_register(&priv->subdev,
-						   &priv->notifier);
+	ret = v4l2_async_subdev_notifier_register(&priv->subdev,
+						  &priv->notifier);
+	if (ret)
+		v4l2_async_notifier_cleanup(&priv->notifier);
+
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------
@@ -847,7 +980,8 @@ static int rcsi2_phtw_write_mbps(struct rcar_csi2 *priv, unsigned int mbps,
 	return rcsi2_phtw_write(priv, value->reg, code);
 }
 
-static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
+static int __rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv,
+					unsigned int mbps)
 {
 	static const struct phtw_value step1[] = {
 		{ .data = 0xcc, .code = 0xe2 },
@@ -873,7 +1007,7 @@ static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
 	if (ret)
 		return ret;
 
-	if (mbps <= 250) {
+	if (mbps != 0 && mbps <= 250) {
 		ret = rcsi2_phtw_write(priv, 0x39, 0x05);
 		if (ret)
 			return ret;
@@ -887,19 +1021,29 @@ static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
 	return rcsi2_phtw_write_array(priv, step2);
 }
 
+static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
+{
+	return __rcsi2_init_phtw_h3_v3h_m3n(priv, mbps);
+}
+
+static int rcsi2_init_phtw_h3es2(struct rcar_csi2 *priv, unsigned int mbps)
+{
+	return __rcsi2_init_phtw_h3_v3h_m3n(priv, 0);
+}
+
 static int rcsi2_init_phtw_v3m_e3(struct rcar_csi2 *priv, unsigned int mbps)
 {
 	return rcsi2_phtw_write_mbps(priv, mbps, phtw_mbps_v3m_e3, 0x44);
 }
 
-static int rcsi2_confirm_start_v3m_e3(struct rcar_csi2 *priv)
+static int rcsi2_phy_post_init_v3m_e3(struct rcar_csi2 *priv)
 {
 	static const struct phtw_value step1[] = {
-		{ .data = 0xed, .code = 0x34 },
-		{ .data = 0xed, .code = 0x44 },
-		{ .data = 0xed, .code = 0x54 },
-		{ .data = 0xed, .code = 0x84 },
-		{ .data = 0xed, .code = 0x94 },
+		{ .data = 0xee, .code = 0x34 },
+		{ .data = 0xee, .code = 0x44 },
+		{ .data = 0xee, .code = 0x54 },
+		{ .data = 0xee, .code = 0x84 },
+		{ .data = 0xee, .code = 0x94 },
 		{ /* sentinel */ },
 	};
 
@@ -918,7 +1062,7 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 				 struct platform_device *pdev)
 {
 	struct resource *res;
-	int irq;
+	int irq, ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
@@ -929,37 +1073,87 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 	if (irq < 0)
 		return irq;
 
-	return 0;
+	ret = devm_request_threaded_irq(&pdev->dev, irq, rcsi2_irq,
+					rcsi2_irq_thread, IRQF_SHARED,
+					KBUILD_MODNAME, priv);
+	if (ret)
+		return ret;
+
+	priv->rstc = devm_reset_control_get(&pdev->dev, NULL);
+
+	return PTR_ERR_OR_ZERO(priv->rstc);
 }
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
 	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
 	.csi0clkfreqrange = 0x20,
+	.num_channels = 4,
 	.clear_ulps = true,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795es1 = {
 	.hsfreqrange = hsfreqrange_m3w_h3es1,
+	.num_channels = 4,
+};
+
+static const struct rcar_csi2_info rcar_csi2_info_r8a7795es2 = {
+	.init_phtw = rcsi2_init_phtw_h3es2,
+	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
+	.csi0clkfreqrange = 0x20,
+	.num_channels = 4,
+	.clear_ulps = true,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7796 = {
 	.hsfreqrange = hsfreqrange_m3w_h3es1,
+	.num_channels = 4,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77965 = {
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
 	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
 	.csi0clkfreqrange = 0x20,
+	.num_channels = 4,
 	.clear_ulps = true,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77970 = {
 	.init_phtw = rcsi2_init_phtw_v3m_e3,
-	.confirm_start = rcsi2_confirm_start_v3m_e3,
+	.phy_post_init = rcsi2_phy_post_init_v3m_e3,
+	.num_channels = 4,
+};
+
+static const struct rcar_csi2_info rcar_csi2_info_r8a77980 = {
+	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
+	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
+	.csi0clkfreqrange = 0x20,
+	.clear_ulps = true,
+};
+
+static const struct rcar_csi2_info rcar_csi2_info_r8a77990 = {
+	.init_phtw = rcsi2_init_phtw_v3m_e3,
+	.phy_post_init = rcsi2_phy_post_init_v3m_e3,
+	.num_channels = 2,
 };
 
 static const struct of_device_id rcar_csi2_of_table[] = {
+	{
+		.compatible = "renesas,r8a774a1-csi2",
+		.data = &rcar_csi2_info_r8a7796,
+	},
+	{
+		.compatible = "renesas,r8a774b1-csi2",
+		.data = &rcar_csi2_info_r8a77965,
+	},
+	{
+		.compatible = "renesas,r8a774c0-csi2",
+		.data = &rcar_csi2_info_r8a77990,
+	},
+	{
+		.compatible = "renesas,r8a774e1-csi2",
+		.data = &rcar_csi2_info_r8a7795,
+	},
 	{
 		.compatible = "renesas,r8a7795-csi2",
 		.data = &rcar_csi2_info_r8a7795,
@@ -976,14 +1170,26 @@ static const struct of_device_id rcar_csi2_of_table[] = {
 		.compatible = "renesas,r8a77970-csi2",
 		.data = &rcar_csi2_info_r8a77970,
 	},
+	{
+		.compatible = "renesas,r8a77980-csi2",
+		.data = &rcar_csi2_info_r8a77980,
+	},
+	{
+		.compatible = "renesas,r8a77990-csi2",
+		.data = &rcar_csi2_info_r8a77990,
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, rcar_csi2_of_table);
 
-static const struct soc_device_attribute r8a7795es1[] = {
+static const struct soc_device_attribute r8a7795[] = {
 	{
 		.soc_id = "r8a7795", .revision = "ES1.*",
 		.data = &rcar_csi2_info_r8a7795es1,
+	},
+	{
+		.soc_id = "r8a7795", .revision = "ES2.*",
+		.data = &rcar_csi2_info_r8a7795es2,
 	},
 	{ /* sentinel */ },
 };
@@ -1002,10 +1208,10 @@ static int rcsi2_probe(struct platform_device *pdev)
 	priv->info = of_device_get_match_data(&pdev->dev);
 
 	/*
-	 * r8a7795 ES1.x behaves differently than the ES2.0+ but doesn't
-	 * have it's own compatible string.
+	 * The different ES versions of r8a7795 (H3) behave differently but
+	 * share the same compatible string.
 	 */
-	attr = soc_device_match(r8a7795es1);
+	attr = soc_device_match(r8a7795);
 	if (attr)
 		priv->info = attr->data;
 

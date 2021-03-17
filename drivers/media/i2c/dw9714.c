@@ -169,8 +169,9 @@ static int dw9714_probe(struct i2c_client *client)
 	return 0;
 
 err_cleanup:
-	dw9714_subdev_cleanup(dw9714_dev);
-	dev_err(&client->dev, "Probe failed: %d\n", rval);
+	v4l2_ctrl_handler_free(&dw9714_dev->ctrls_vcm);
+	media_entity_cleanup(&dw9714_dev->sd.entity);
+
 	return rval;
 }
 
@@ -266,7 +267,7 @@ static struct i2c_driver dw9714_i2c_driver = {
 module_i2c_driver(dw9714_i2c_driver);
 
 MODULE_AUTHOR("Tianshu Qiu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Jian Xu Zheng <jian.xu.zheng@intel.com>");
+MODULE_AUTHOR("Jian Xu Zheng");
 MODULE_AUTHOR("Yuning Pu <yuning.pu@intel.com>");
 MODULE_AUTHOR("Jouni Ukkonen <jouni.ukkonen@intel.com>");
 MODULE_AUTHOR("Tommi Franttila <tommi.franttila@intel.com>");

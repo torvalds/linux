@@ -2,7 +2,6 @@
 #ifndef _R819XU_PHYREG_H
 #define _R819XU_PHYREG_H
 
-
 #define   RF_DATA				0x1d4					/* FW will write RF data in the register.*/
 
 /* page8 */
@@ -53,7 +52,7 @@
 /* page c */
 #define rOFDM0_TRxPathEnable		0xc04
 #define rOFDM0_XARxAFE				0xc10  /* RxIQ DC offset, Rx digital filter, DC notch filter */
-#define rOFDM0_XARxIQImbalance		0xc14  /* RxIQ imblance matrix */
+#define rOFDM0_XARxIQImbalance		0xc14  /* RxIQ imbalance matrix */
 #define rOFDM0_XBRxAFE				0xc18
 #define rOFDM0_XBRxIQImbalance		0xc1c
 #define rOFDM0_XCRxAFE				0xc20
@@ -81,7 +80,6 @@
 #define rOFDM0_XDTxIQImbalance		0xc98
 #define rOFDM0_XDTxAFE				0xc9c
 
-
 /* page d */
 #define rOFDM1_LSTF				0xd00
 #define rOFDM1_TRxPathEnable		0xd04
@@ -94,7 +92,6 @@
 #define rTxAGC_Mcs07_Mcs04			0xe14
 #define rTxAGC_Mcs11_Mcs08			0xe18
 #define rTxAGC_Mcs15_Mcs12			0xe1c
-
 
 /* RF
  * Zebra1

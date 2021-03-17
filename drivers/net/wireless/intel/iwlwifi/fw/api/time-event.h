@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -318,6 +320,25 @@ struct iwl_time_event_notif {
 } __packed; /* MAC_TIME_EVENT_NTFY_API_S_VER_1 */
 
 /*
+ * struct iwl_hs20_roc_req_tail - tail of iwl_hs20_roc_req
+ *
+ * @node_addr: Our MAC Address
+ * @reserved: reserved for alignment
+ * @apply_time: GP2 value to start (should always be the current GP2 value)
+ * @apply_time_max_delay: Maximum apply time delay value in TU. Defines max
+ *	time by which start of the event is allowed to be postponed.
+ * @duration: event duration in TU To calculate event duration:
+ *	timeEventDuration = min(duration, remainingQuota)
+ */
+struct iwl_hs20_roc_req_tail {
+	u8 node_addr[ETH_ALEN];
+	__le16 reserved;
+	__le32 apply_time;
+	__le32 apply_time_max_delay;
+	__le32 duration;
+} __packed;
+
+/*
  * Aux ROC command
  *
  * Command requests the firmware to create a time event for a certain duration
@@ -336,13 +357,6 @@ struct iwl_time_event_notif {
  * @sta_id_and_color: station id and color, resumed during "Remain On Channel"
  *	activity.
  * @channel_info: channel info
- * @node_addr: Our MAC Address
- * @reserved: reserved for alignment
- * @apply_time: GP2 value to start (should always be the current GP2 value)
- * @apply_time_max_delay: Maximum apply time delay value in TU. Defines max
- *	time by which start of the event is allowed to be postponed.
- * @duration: event duration in TU To calculate event duration:
- *	timeEventDuration = min(duration, remainingQuota)
  */
 struct iwl_hs20_roc_req {
 	/* COMMON_INDEX_HDR_API_S_VER_1 hdr */
@@ -351,11 +365,7 @@ struct iwl_hs20_roc_req {
 	__le32 event_unique_id;
 	__le32 sta_id_and_color;
 	struct iwl_fw_channel_info channel_info;
-	u8 node_addr[ETH_ALEN];
-	__le16 reserved;
-	__le32 apply_time;
-	__le32 apply_time_max_delay;
-	__le32 duration;
+	struct iwl_hs20_roc_req_tail tail;
 } __packed; /* HOT_SPOT_CMD_API_S_VER_1 */
 
 /*
@@ -382,5 +392,85 @@ struct iwl_hs20_roc_res {
 	__le32 event_unique_id;
 	__le32 status;
 } __packed; /* HOT_SPOT_RSP_API_S_VER_1 */
+
+/**
+ * enum iwl_mvm_session_prot_conf_id - session protection's configurations
+ * @SESSION_PROTECT_CONF_ASSOC: Start a session protection for association.
+ *	The firmware will allocate two events.
+ *	Valid for BSS_STA and P2P_STA.
+ *	* A rather short event that can't be fragmented and with a very
+ *	high priority. If every goes well (99% of the cases) the
+ *	association should complete within this first event. During
+ *	that event, no other activity will happen in the firmware,
+ *	which is why it can't be too long.
+ *	The length of this event is hard-coded in the firmware: 300TUs.
+ *	* Another event which can be much longer (it's duration is
+ *	configurable by the driver) which has a slightly lower
+ *	priority and that can be fragmented allowing other activities
+ *	to run while this event is running.
+ *	The firmware will automatically remove both events once the driver sets
+ *	the BSS MAC as associated. Neither of the events will be removed
+ *	for the P2P_STA MAC.
+ *	Only the duration is configurable for this protection.
+ * @SESSION_PROTECT_CONF_GO_CLIENT_ASSOC: not used
+ * @SESSION_PROTECT_CONF_P2P_DEVICE_DISCOV: Schedule the P2P Device to be in
+ *	listen mode. Will be fragmented. Valid only on the P2P Device MAC.
+ *	Valid only on the P2P Device MAC. The firmware will take into account
+ *	the duration, the interval and the repetition count.
+ * @SESSION_PROTECT_CONF_P2P_GO_NEGOTIATION: Schedule the P2P Device to be be
+ *	able to run the GO Negotiation. Will not be fragmented and not
+ *	repetitive. Valid only on the P2P Device MAC. Only the duration will
+ *	be taken into account.
+ * @SESSION_PROTECT_CONF_MAX_ID: not used
+ */
+enum iwl_mvm_session_prot_conf_id {
+	SESSION_PROTECT_CONF_ASSOC,
+	SESSION_PROTECT_CONF_GO_CLIENT_ASSOC,
+	SESSION_PROTECT_CONF_P2P_DEVICE_DISCOV,
+	SESSION_PROTECT_CONF_P2P_GO_NEGOTIATION,
+	SESSION_PROTECT_CONF_MAX_ID,
+}; /* SESSION_PROTECTION_CONF_ID_E_VER_1 */
+
+/**
+ * struct iwl_mvm_session_prot_cmd - configure a session protection
+ * @id_and_color: the id and color of the mac for which this session protection
+ *	is sent
+ * @action: can be either FW_CTXT_ACTION_ADD or FW_CTXT_ACTION_REMOVE
+ * @conf_id: see &enum iwl_mvm_session_prot_conf_id
+ * @duration_tu: the duration of the whole protection in TUs.
+ * @repetition_count: not used
+ * @interval: not used
+ *
+ * Note: the session protection will always be scheduled to start as
+ * early as possible, but the maximum delay is configuration dependent.
+ * The firmware supports only one concurrent session protection per vif.
+ * Adding a new session protection will remove any currently running session.
+ */
+struct iwl_mvm_session_prot_cmd {
+	/* COMMON_INDEX_HDR_API_S_VER_1 hdr */
+	__le32 id_and_color;
+	__le32 action;
+	__le32 conf_id;
+	__le32 duration_tu;
+	__le32 repetition_count;
+	__le32 interval;
+} __packed; /* SESSION_PROTECTION_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_mvm_session_prot_notif - session protection started / ended
+ * @mac_id: the mac id for which the session protection started / ended
+ * @status: 1 means success, 0 means failure
+ * @start: 1 means the session protection started, 0 means it ended
+ * @conf_id: see &enum iwl_mvm_session_prot_conf_id
+ *
+ * Note that any session protection will always get two notifications: start
+ * and end even the firmware could not schedule it.
+ */
+struct iwl_mvm_session_prot_notif {
+	__le32 mac_id;
+	__le32 status;
+	__le32 start;
+	__le32 conf_id;
+} __packed; /* SESSION_PROTECTION_NOTIFICATION_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_time_event_h__ */

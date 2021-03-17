@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Epson RTC module RX-6110 SA
  *
  * Copyright(C) 2015 Pengutronix, Steffen Trumtrar <kernel@pengutronix.de>
  * Copyright(C) SEIKO EPSON CORPORATION 2013. All rights reserved.
- *
- * This driver software is distributed as is, without any warranty of any kind,
- * either express or implied as further specified in the GNU Public License.
- * This software may be used and distributed according to the terms of the GNU
- * Public License, version 2 as published by the Free Software Foundation.
- * See the file COPYING in the main directory of this archive for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bcd.h>
@@ -21,6 +13,8 @@
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/rtc.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 
 /* RX-6110 Register definitions */
@@ -114,9 +108,7 @@ struct rx6110_data {
  */
 static int rx6110_rtc_tm_to_data(struct rtc_time *tm, u8 *data)
 {
-	pr_debug("%s: date %ds %dm %dh %dmd %dm %dy\n", __func__,
-		 tm->tm_sec, tm->tm_min, tm->tm_hour,
-		 tm->tm_mday, tm->tm_mon, tm->tm_year);
+	pr_debug("%s: date %ptRr\n", __func__, tm);
 
 	/*
 	 * The year in the RTC is a value between 0 and 99.
@@ -154,9 +146,7 @@ static int rx6110_data_to_rtc_tm(u8 *data, struct rtc_time *tm)
 	tm->tm_mon = bcd2bin(data[RTC_MONTH] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(data[RTC_YEAR]) + 100;
 
-	pr_debug("%s: date %ds %dm %dh %dmd %dm %dy\n", __func__,
-		 tm->tm_sec, tm->tm_min, tm->tm_hour,
-		 tm->tm_mday, tm->tm_mon, tm->tm_year);
+	pr_debug("%s: date %ptRr\n", __func__, tm);
 
 	/*
 	 * The year in the RTC is a value between 0 and 99.
@@ -248,9 +238,7 @@ static int rx6110_get_time(struct device *dev, struct rtc_time *tm)
 	if (ret)
 		return ret;
 
-	dev_dbg(dev, "%s: date %ds %dm %dh %dmd %dm %dy\n", __func__,
-		tm->tm_sec, tm->tm_min, tm->tm_hour,
-		tm->tm_mday, tm->tm_mon, tm->tm_year);
+	dev_dbg(dev, "%s: date %ptRr\n", __func__, tm);
 
 	return 0;
 }
@@ -374,23 +362,24 @@ static int rx6110_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int rx6110_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
 static const struct spi_device_id rx6110_id[] = {
 	{ "rx6110", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, rx6110_id);
 
+static const struct of_device_id rx6110_spi_of_match[] = {
+	{ .compatible = "epson,rx6110" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, rx6110_spi_of_match);
+
 static struct spi_driver rx6110_driver = {
 	.driver = {
 		.name = RX6110_DRIVER_NAME,
+		.of_match_table = of_match_ptr(rx6110_spi_of_match),
 	},
 	.probe		= rx6110_probe,
-	.remove		= rx6110_remove,
 	.id_table	= rx6110_id,
 };
 

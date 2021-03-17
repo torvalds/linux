@@ -10,8 +10,7 @@
 
 #include "blk.h"
 
-static struct bio *next_bio(struct bio *bio, unsigned int nr_pages,
-		gfp_t gfp)
+struct bio *blk_next_bio(struct bio *bio, unsigned int nr_pages, gfp_t gfp)
 {
 	struct bio *new = bio_alloc(gfp, nr_pages);
 
@@ -30,7 +29,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct bio *bio = *biop;
 	unsigned int op;
-	sector_t bs_mask;
+	sector_t bs_mask, part_offset = 0;
 
 	if (!q)
 		return -ENXIO;
@@ -48,29 +47,61 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		op = REQ_OP_DISCARD;
 	}
 
+	/* In case the discard granularity isn't set by buggy device driver */
+	if (WARN_ON_ONCE(!q->limits.discard_granularity)) {
+		char dev_name[BDEVNAME_SIZE];
+
+		bdevname(bdev, dev_name);
+		pr_err_ratelimited("%s: Error: discard_granularity is 0.\n", dev_name);
+		return -EOPNOTSUPP;
+	}
+
 	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
 	if ((sector | nr_sects) & bs_mask)
 		return -EINVAL;
 
+	if (!nr_sects)
+		return -EINVAL;
+
+	/* In case the discard request is in a partition */
+	if (bdev_is_partition(bdev))
+		part_offset = bdev->bd_part->start_sect;
+
 	while (nr_sects) {
-		unsigned int req_sects = nr_sects;
-		sector_t end_sect;
+		sector_t granularity_aligned_lba, req_sects;
+		sector_t sector_mapped = sector + part_offset;
 
-		if (!req_sects)
-			goto fail;
-		if (req_sects > UINT_MAX >> 9)
-			req_sects = UINT_MAX >> 9;
+		granularity_aligned_lba = round_up(sector_mapped,
+				q->limits.discard_granularity >> SECTOR_SHIFT);
 
-		end_sect = sector + req_sects;
+		/*
+		 * Check whether the discard bio starts at a discard_granularity
+		 * aligned LBA,
+		 * - If no: set (granularity_aligned_lba - sector_mapped) to
+		 *   bi_size of the first split bio, then the second bio will
+		 *   start at a discard_granularity aligned LBA on the device.
+		 * - If yes: use bio_aligned_discard_max_sectors() as the max
+		 *   possible bi_size of the first split bio. Then when this bio
+		 *   is split in device drive, the split ones are very probably
+		 *   to be aligned to discard_granularity of the device's queue.
+		 */
+		if (granularity_aligned_lba == sector_mapped)
+			req_sects = min_t(sector_t, nr_sects,
+					  bio_aligned_discard_max_sectors(q));
+		else
+			req_sects = min_t(sector_t, nr_sects,
+					  granularity_aligned_lba - sector_mapped);
 
-		bio = next_bio(bio, 0, gfp_mask);
+		WARN_ON_ONCE((req_sects << 9) > UINT_MAX);
+
+		bio = blk_next_bio(bio, 0, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio_set_dev(bio, bdev);
 		bio_set_op_attrs(bio, op, 0);
 
 		bio->bi_iter.bi_size = req_sects << 9;
+		sector += req_sects;
 		nr_sects -= req_sects;
-		sector = end_sect;
 
 		/*
 		 * We can loop for a long time in here, if someone does
@@ -83,14 +114,6 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 
 	*biop = bio;
 	return 0;
-
-fail:
-	if (bio) {
-		submit_bio_wait(bio);
-		bio_put(bio);
-	}
-	*biop = NULL;
-	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(__blkdev_issue_discard);
 
@@ -162,10 +185,10 @@ static int __blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 		return -EOPNOTSUPP;
 
 	/* Ensure that max_write_same_sectors doesn't overflow bi_size */
-	max_write_same_sectors = UINT_MAX >> 9;
+	max_write_same_sectors = bio_allowed_max_sectors(q);
 
 	while (nr_sects) {
-		bio = next_bio(bio, 1, gfp_mask);
+		bio = blk_next_bio(bio, 1, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio_set_dev(bio, bdev);
 		bio->bi_vcnt = 1;
@@ -241,7 +264,7 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 		return -EOPNOTSUPP;
 
 	while (nr_sects) {
-		bio = next_bio(bio, 0, gfp_mask);
+		bio = blk_next_bio(bio, 0, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio_set_dev(bio, bdev);
 		bio->bi_opf = REQ_OP_WRITE_ZEROES;
@@ -292,8 +315,8 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
 		return -EPERM;
 
 	while (nr_sects != 0) {
-		bio = next_bio(bio, __blkdev_sectors_to_bio_pages(nr_sects),
-			       gfp_mask);
+		bio = blk_next_bio(bio, __blkdev_sectors_to_bio_pages(nr_sects),
+				   gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio_set_dev(bio, bdev);
 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);

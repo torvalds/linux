@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/kernfs/file.c - kernfs file implementation
  *
  * Copyright (c) 2001-3 Patrick Mochel
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007, 2013 Tejun Heo <tj@kernel.org>
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/fs.h>
@@ -15,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/sched/mm.h>
 #include <linux/fsnotify.h>
+#include <linux/uio.h>
 
 #include "kernfs-internal.h"
 
@@ -181,11 +181,10 @@ static const struct seq_operations kernfs_seq_ops = {
  * it difficult to use seq_file.  Implement simplistic custom buffering for
  * bin files.
  */
-static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
-				       char __user *user_buf, size_t count,
-				       loff_t *ppos)
+static ssize_t kernfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	ssize_t len = min_t(size_t, count, PAGE_SIZE);
+	struct kernfs_open_file *of = kernfs_of(iocb->ki_filp);
+	ssize_t len = min_t(size_t, iov_iter_count(iter), PAGE_SIZE);
 	const struct kernfs_ops *ops;
 	char *buf;
 
@@ -211,7 +210,7 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 	of->event = atomic_read(&of->kn->attr.open->event);
 	ops = kernfs_ops(of->kn);
 	if (ops->read)
-		len = ops->read(of, buf, len, *ppos);
+		len = ops->read(of, buf, len, iocb->ki_pos);
 	else
 		len = -EINVAL;
 
@@ -221,12 +220,12 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 	if (len < 0)
 		goto out_free;
 
-	if (copy_to_user(user_buf, buf, len)) {
+	if (copy_to_iter(buf, len, iter) != len) {
 		len = -EFAULT;
 		goto out_free;
 	}
 
-	*ppos += len;
+	iocb->ki_pos += len;
 
  out_free:
 	if (buf == of->prealloc_buf)
@@ -236,31 +235,14 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 	return len;
 }
 
-/**
- * kernfs_fop_read - kernfs vfs read callback
- * @file: file pointer
- * @user_buf: data to write
- * @count: number of bytes
- * @ppos: starting offset
- */
-static ssize_t kernfs_fop_read(struct file *file, char __user *user_buf,
-			       size_t count, loff_t *ppos)
+static ssize_t kernfs_fop_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct kernfs_open_file *of = kernfs_of(file);
-
-	if (of->kn->flags & KERNFS_HAS_SEQ_SHOW)
-		return seq_read(file, user_buf, count, ppos);
-	else
-		return kernfs_file_direct_read(of, user_buf, count, ppos);
+	if (kernfs_of(iocb->ki_filp)->kn->flags & KERNFS_HAS_SEQ_SHOW)
+		return seq_read_iter(iocb, iter);
+	return kernfs_file_read_iter(iocb, iter);
 }
 
-/**
- * kernfs_fop_write - kernfs vfs write callback
- * @file: file pointer
- * @user_buf: data to write
- * @count: number of bytes
- * @ppos: starting offset
- *
+/*
  * Copy data in from userland and pass it to the matching kernfs write
  * operation.
  *
@@ -270,20 +252,18 @@ static ssize_t kernfs_fop_read(struct file *file, char __user *user_buf,
  * modify only the the value you're changing, then write entire buffer
  * back.
  */
-static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
-				size_t count, loff_t *ppos)
+static ssize_t kernfs_fop_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct kernfs_open_file *of = kernfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(iocb->ki_filp);
+	ssize_t len = iov_iter_count(iter);
 	const struct kernfs_ops *ops;
-	ssize_t len;
 	char *buf;
 
 	if (of->atomic_write_len) {
-		len = count;
 		if (len > of->atomic_write_len)
 			return -E2BIG;
 	} else {
-		len = min_t(size_t, count, PAGE_SIZE);
+		len = min_t(size_t, len, PAGE_SIZE);
 	}
 
 	buf = of->prealloc_buf;
@@ -294,7 +274,7 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
-	if (copy_from_user(buf, user_buf, len)) {
+	if (copy_from_iter(buf, len, iter) != len) {
 		len = -EFAULT;
 		goto out_free;
 	}
@@ -313,7 +293,7 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 
 	ops = kernfs_ops(of->kn);
 	if (ops->write)
-		len = ops->write(of, buf, len, *ppos);
+		len = ops->write(of, buf, len, iocb->ki_pos);
 	else
 		len = -EINVAL;
 
@@ -321,7 +301,7 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 	mutex_unlock(&of->mutex);
 
 	if (len > 0)
-		*ppos += len;
+		iocb->ki_pos += len;
 
 out_free:
 	if (buf == of->prealloc_buf)
@@ -653,9 +633,9 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	 * The following is done to give a different lockdep key to
 	 * @of->mutex for files which implement mmap.  This is a rather
 	 * crude way to avoid false positive lockdep warning around
-	 * mm->mmap_sem - mmap nests @of->mutex under mm->mmap_sem and
+	 * mm->mmap_lock - mmap nests @of->mutex under mm->mmap_lock and
 	 * reading /sys/block/sda/trace/act_mask grabs sr_mutex, under
-	 * which mm->mmap_sem nests, while holding @of->mutex.  As each
+	 * which mm->mmap_lock nests, while holding @of->mutex.  As each
 	 * open file has a separate mutex, it's okay as long as those don't
 	 * happen on the same file.  At this point, we can't easily give
 	 * each file a separate locking class.  Let's differentiate on
@@ -674,7 +654,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 
 	/*
 	 * Write path needs to atomic_write_len outside active reference.
-	 * Cache it in open_file.  See kernfs_fop_write() for details.
+	 * Cache it in open_file.  See kernfs_fop_write_iter() for details.
 	 */
 	of->atomic_write_len = ops->atomic_write_len;
 
@@ -832,32 +812,40 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
  * to see if it supports poll (Neither 'poll' nor 'select' return
  * an appropriate error code).  When in doubt, set a suitable timeout value.
  */
+__poll_t kernfs_generic_poll(struct kernfs_open_file *of, poll_table *wait)
+{
+	struct kernfs_node *kn = kernfs_dentry_node(of->file->f_path.dentry);
+	struct kernfs_open_node *on = kn->attr.open;
+
+	poll_wait(of->file, &on->poll, wait);
+
+	if (of->event != atomic_read(&on->event))
+		return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
+
+	return DEFAULT_POLLMASK;
+}
+
 static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
 {
 	struct kernfs_open_file *of = kernfs_of(filp);
 	struct kernfs_node *kn = kernfs_dentry_node(filp->f_path.dentry);
-	struct kernfs_open_node *on = kn->attr.open;
+	__poll_t ret;
 
 	if (!kernfs_get_active(kn))
-		goto trigger;
+		return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
 
-	poll_wait(filp, &on->poll, wait);
+	if (kn->attr.ops->poll)
+		ret = kn->attr.ops->poll(of, wait);
+	else
+		ret = kernfs_generic_poll(of, wait);
 
 	kernfs_put_active(kn);
-
-	if (of->event != atomic_read(&on->event))
-		goto trigger;
-
-	return DEFAULT_POLLMASK;
-
- trigger:
-	return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
+	return ret;
 }
 
 static void kernfs_notify_workfn(struct work_struct *work)
 {
 	struct kernfs_node *kn;
-	struct kernfs_open_node *on;
 	struct kernfs_super_info *info;
 repeat:
 	/* pop one off the notify_list */
@@ -871,23 +859,14 @@ repeat:
 	kn->attr.notify_next = NULL;
 	spin_unlock_irq(&kernfs_notify_lock);
 
-	/* kick poll */
-	spin_lock_irq(&kernfs_open_node_lock);
-
-	on = kn->attr.open;
-	if (on) {
-		atomic_inc(&on->event);
-		wake_up_interruptible(&on->poll);
-	}
-
-	spin_unlock_irq(&kernfs_open_node_lock);
-
 	/* kick fsnotify */
 	mutex_lock(&kernfs_mutex);
 
 	list_for_each_entry(info, &kernfs_root(kn)->supers, node) {
 		struct kernfs_node *parent;
+		struct inode *p_inode = NULL;
 		struct inode *inode;
+		struct qstr name;
 
 		/*
 		 * We want fsnotify_modify() on @kn but as the
@@ -895,26 +874,27 @@ repeat:
 		 * have the matching @file available.  Look up the inodes
 		 * and generate the events manually.
 		 */
-		inode = ilookup(info->sb, kn->id.ino);
+		inode = ilookup(info->sb, kernfs_ino(kn));
 		if (!inode)
 			continue;
 
+		name = (struct qstr)QSTR_INIT(kn->name, strlen(kn->name));
 		parent = kernfs_get_parent(kn);
 		if (parent) {
-			struct inode *p_inode;
-
-			p_inode = ilookup(info->sb, parent->id.ino);
+			p_inode = ilookup(info->sb, kernfs_ino(parent));
 			if (p_inode) {
-				fsnotify(p_inode, FS_MODIFY | FS_EVENT_ON_CHILD,
-					 inode, FSNOTIFY_EVENT_INODE, kn->name, 0);
+				fsnotify(FS_MODIFY | FS_EVENT_ON_CHILD,
+					 inode, FSNOTIFY_EVENT_INODE,
+					 p_inode, &name, inode, 0);
 				iput(p_inode);
 			}
 
 			kernfs_put(parent);
 		}
 
-		fsnotify(inode, FS_MODIFY, inode, FSNOTIFY_EVENT_INODE,
-			 kn->name, 0);
+		if (!p_inode)
+			fsnotify_inode(inode, FS_MODIFY);
+
 		iput(inode);
 	}
 
@@ -934,10 +914,21 @@ void kernfs_notify(struct kernfs_node *kn)
 {
 	static DECLARE_WORK(kernfs_notify_work, kernfs_notify_workfn);
 	unsigned long flags;
+	struct kernfs_open_node *on;
 
 	if (WARN_ON(kernfs_type(kn) != KERNFS_FILE))
 		return;
 
+	/* kick poll immediately */
+	spin_lock_irqsave(&kernfs_open_node_lock, flags);
+	on = kn->attr.open;
+	if (on) {
+		atomic_inc(&on->event);
+		wake_up_interruptible(&on->poll);
+	}
+	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+
+	/* schedule work to kick fsnotify */
 	spin_lock_irqsave(&kernfs_notify_lock, flags);
 	if (!kn->attr.notify_next) {
 		kernfs_get(kn);
@@ -950,14 +941,16 @@ void kernfs_notify(struct kernfs_node *kn)
 EXPORT_SYMBOL_GPL(kernfs_notify);
 
 const struct file_operations kernfs_file_fops = {
-	.read		= kernfs_fop_read,
-	.write		= kernfs_fop_write,
+	.read_iter	= kernfs_fop_read_iter,
+	.write_iter	= kernfs_fop_write_iter,
 	.llseek		= generic_file_llseek,
 	.mmap		= kernfs_fop_mmap,
 	.open		= kernfs_fop_open,
 	.release	= kernfs_fop_release,
 	.poll		= kernfs_fop_poll,
 	.fsync		= noop_fsync,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= iter_file_splice_write,
 };
 
 /**
@@ -1001,7 +994,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	if (key) {
-		lockdep_init_map(&kn->dep_map, "kn->count", key, 0);
+		lockdep_init_map(&kn->dep_map, "kn->active", key, 0);
 		kn->flags |= KERNFS_LOCKDEP;
 	}
 #endif

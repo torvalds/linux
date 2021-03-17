@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 VanguardiaSur - www.vanguardiasur.com.ar
  *
  * Based on original driver by Krzysztof Ha?asa:
  * Copyright (C) 2015 Industrial Research Institute for Automation
  * and Measurements PIAP
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
  */
 
 #include <linux/init.h>
@@ -765,13 +761,10 @@ static int tw686x_querycap(struct file *file, void *priv,
 	struct tw686x_video_channel *vc = video_drvdata(file);
 	struct tw686x_dev *dev = vc->dev;
 
-	strlcpy(cap->driver, "tw686x", sizeof(cap->driver));
-	strlcpy(cap->card, dev->name, sizeof(cap->card));
+	strscpy(cap->driver, "tw686x", sizeof(cap->driver));
+	strscpy(cap->card, dev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "PCI:%s", pci_name(dev->pci_dev));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
-			   V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1284,10 +1277,12 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		vdev->minor = -1;
 		vdev->lock = &vc->vb_mutex;
 		vdev->ctrl_handler = &vc->ctrl_handler;
+		vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE |
+				    V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
 		vc->device = vdev;
 		video_set_drvdata(vdev, vc);
 
-		err = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+		err = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 		if (err < 0)
 			goto error;
 		vc->num = vdev->num;

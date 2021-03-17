@@ -664,15 +664,13 @@ static int jpu_querycap(struct file *file, void *priv,
 	struct jpu_ctx *ctx = fh_to_ctx(priv);
 
 	if (ctx->encoder)
-		strlcpy(cap->card, DRV_NAME " encoder", sizeof(cap->card));
+		strscpy(cap->card, DRV_NAME " encoder", sizeof(cap->card));
 	else
-		strlcpy(cap->card, DRV_NAME " decoder", sizeof(cap->card));
+		strscpy(cap->card, DRV_NAME " decoder", sizeof(cap->card));
 
-	strlcpy(cap->driver, DRV_NAME, sizeof(cap->driver));
+	strscpy(cap->driver, DRV_NAME, sizeof(cap->driver));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(ctx->jpu->dev));
-	cap->device_caps |= V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
-	cap->capabilities = V4L2_CAP_DEVICE_CAPS | cap->device_caps;
 	memset(cap->reserved, 0, sizeof(cap->reserved));
 
 	return 0;
@@ -948,8 +946,8 @@ static int jpu_streamon(struct file *file, void *priv, enum v4l2_buf_type type)
 static const struct v4l2_ioctl_ops jpu_ioctl_ops = {
 	.vidioc_querycap		= jpu_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane = jpu_enum_fmt_cap,
-	.vidioc_enum_fmt_vid_out_mplane = jpu_enum_fmt_out,
+	.vidioc_enum_fmt_vid_cap	= jpu_enum_fmt_cap,
+	.vidioc_enum_fmt_vid_out	= jpu_enum_fmt_out,
 	.vidioc_g_fmt_vid_cap_mplane	= jpu_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane	= jpu_g_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= jpu_try_fmt,
@@ -1068,7 +1066,7 @@ static int jpu_buf_prepare(struct vb2_buffer *vb)
 		}
 
 		/* decoder capture queue */
-		if (!ctx->encoder && !V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type))
+		if (!ctx->encoder && V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type))
 			vb2_set_plane_payload(vb, i, size);
 	}
 
@@ -1654,7 +1652,7 @@ static int jpu_probe(struct platform_device *pdev)
 	for (i = 0; i < JPU_MAX_QUALITY; i++)
 		jpu_generate_hdr(i, (unsigned char *)jpeg_hdrs[i]);
 
-	strlcpy(jpu->vfd_encoder.name, DRV_NAME, sizeof(jpu->vfd_encoder.name));
+	strscpy(jpu->vfd_encoder.name, DRV_NAME, sizeof(jpu->vfd_encoder.name));
 	jpu->vfd_encoder.fops		= &jpu_fops;
 	jpu->vfd_encoder.ioctl_ops	= &jpu_ioctl_ops;
 	jpu->vfd_encoder.minor		= -1;
@@ -1662,8 +1660,10 @@ static int jpu_probe(struct platform_device *pdev)
 	jpu->vfd_encoder.lock		= &jpu->mutex;
 	jpu->vfd_encoder.v4l2_dev	= &jpu->v4l2_dev;
 	jpu->vfd_encoder.vfl_dir	= VFL_DIR_M2M;
+	jpu->vfd_encoder.device_caps	= V4L2_CAP_STREAMING |
+					  V4L2_CAP_VIDEO_M2M_MPLANE;
 
-	ret = video_register_device(&jpu->vfd_encoder, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&jpu->vfd_encoder, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&jpu->v4l2_dev, "Failed to register video device\n");
 		goto m2m_init_rollback;
@@ -1671,7 +1671,7 @@ static int jpu_probe(struct platform_device *pdev)
 
 	video_set_drvdata(&jpu->vfd_encoder, jpu);
 
-	strlcpy(jpu->vfd_decoder.name, DRV_NAME, sizeof(jpu->vfd_decoder.name));
+	strscpy(jpu->vfd_decoder.name, DRV_NAME, sizeof(jpu->vfd_decoder.name));
 	jpu->vfd_decoder.fops		= &jpu_fops;
 	jpu->vfd_decoder.ioctl_ops	= &jpu_ioctl_ops;
 	jpu->vfd_decoder.minor		= -1;
@@ -1679,8 +1679,10 @@ static int jpu_probe(struct platform_device *pdev)
 	jpu->vfd_decoder.lock		= &jpu->mutex;
 	jpu->vfd_decoder.v4l2_dev	= &jpu->v4l2_dev;
 	jpu->vfd_decoder.vfl_dir	= VFL_DIR_M2M;
+	jpu->vfd_decoder.device_caps	= V4L2_CAP_STREAMING |
+					  V4L2_CAP_VIDEO_M2M_MPLANE;
 
-	ret = video_register_device(&jpu->vfd_decoder, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&jpu->vfd_decoder, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&jpu->v4l2_dev, "Failed to register video device\n");
 		goto enc_vdev_register_rollback;

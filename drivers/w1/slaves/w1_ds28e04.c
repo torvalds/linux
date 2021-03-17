@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	w1_ds28e04.c - w1 family 1C (DS28E04) driver
  *
  * Copyright (c) 2012 Markus Franke <franke.m@sebakmt.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>
@@ -412,7 +410,7 @@ static void w1_f1C_remove_slave(struct w1_slave *sl)
 	sl->family_data = NULL;
 }
 
-static struct w1_family_ops w1_f1C_fops = {
+static const struct w1_family_ops w1_f1C_fops = {
 	.add_slave      = w1_f1C_add_slave,
 	.remove_slave   = w1_f1C_remove_slave,
 	.groups		= w1_f1C_groups,

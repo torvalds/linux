@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Driver for the ADT7411 (I2C/SPI 8 channel 10 bit ADC & temperature-sensor)
  *
  *  Copyright (C) 2008, 2010 Pengutronix
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  *
  *  TODO: SPI, use power-down mode for suspend?, interrupt handling?
  */
@@ -639,40 +636,22 @@ static int adt7411_init_device(struct adt7411_data *data)
 	return i2c_smbus_write_byte_data(data->client, ADT7411_REG_CFG1, val);
 }
 
-static const u32 adt7411_in_config[] = {
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info adt7411_in = {
-	.type = hwmon_in,
-	.config = adt7411_in_config,
-};
-
-static const u32 adt7411_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MIN_ALARM |
-		HWMON_T_MAX | HWMON_T_MAX_ALARM,
-	HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MIN_ALARM |
-		HWMON_T_MAX | HWMON_T_MAX_ALARM | HWMON_T_FAULT,
-	0
-};
-
-static const struct hwmon_channel_info adt7411_temp = {
-	.type = hwmon_temp,
-	.config = adt7411_temp_config,
-};
-
 static const struct hwmon_channel_info *adt7411_info[] = {
-	&adt7411_in,
-	&adt7411_temp,
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX | HWMON_T_MAX_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX | HWMON_T_MAX_ALARM | HWMON_T_FAULT),
 	NULL
 };
 
@@ -687,8 +666,7 @@ static const struct hwmon_chip_info adt7411_chip_info = {
 	.info = adt7411_info,
 };
 
-static int adt7411_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int adt7411_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct adt7411_data *data;
@@ -728,7 +706,7 @@ static struct i2c_driver adt7411_driver = {
 	.driver		= {
 		.name		= "adt7411",
 	},
-	.probe  = adt7411_probe,
+	.probe_new = adt7411_probe,
 	.id_table = adt7411_id,
 	.detect = adt7411_detect,
 	.address_list = normal_i2c,
@@ -737,7 +715,6 @@ static struct i2c_driver adt7411_driver = {
 
 module_i2c_driver(adt7411_driver);
 
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de> and "
-	"Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Sascha Hauer, Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("ADT7411 driver");
 MODULE_LICENSE("GPL v2");

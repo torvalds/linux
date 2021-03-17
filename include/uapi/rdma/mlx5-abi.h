@@ -45,6 +45,11 @@ enum {
 	MLX5_QP_FLAG_BFREG_INDEX	= 1 << 3,
 	MLX5_QP_FLAG_TYPE_DCT		= 1 << 4,
 	MLX5_QP_FLAG_TYPE_DCI		= 1 << 5,
+	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC = 1 << 6,
+	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC = 1 << 7,
+	MLX5_QP_FLAG_ALLOW_SCATTER_CQE	= 1 << 8,
+	MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE	= 1 << 9,
+	MLX5_QP_FLAG_UAR_PAGE_INDEX = 1 << 10,
 };
 
 enum {
@@ -74,6 +79,7 @@ struct mlx5_ib_alloc_ucontext_req {
 
 enum mlx5_lib_caps {
 	MLX5_LIB_CAP_4K_UAR	= (__u64)1 << 0,
+	MLX5_LIB_CAP_DYN_UAR	= (__u64)1 << 1,
 };
 
 enum mlx5_ib_alloc_uctx_v2_flags {
@@ -94,6 +100,7 @@ struct mlx5_ib_alloc_ucontext_req_v2 {
 enum mlx5_ib_alloc_ucontext_resp_mask {
 	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_CORE_CLOCK_OFFSET = 1UL << 0,
 	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_DUMP_FILL_MKEY    = 1UL << 1,
+	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_ECE               = 1UL << 2,
 };
 
 enum mlx5_user_cmds_supp_uhw {
@@ -233,6 +240,8 @@ enum mlx5_ib_query_dev_resp_flags {
 	/* Support 128B CQE compression */
 	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_COMP = 1 << 0,
 	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_PAD  = 1 << 1,
+	MLX5_IB_QUERY_DEV_RESP_PACKET_BASED_CREDIT_MODE = 1 << 2,
+	MLX5_IB_QUERY_DEV_RESP_FLAGS_SCAT2CQE_DCT = 1 << 3,
 };
 
 enum mlx5_ib_tunnel_offloads {
@@ -260,6 +269,7 @@ struct mlx5_ib_query_device_resp {
 
 enum mlx5_ib_create_cq_flags {
 	MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD	= 1 << 0,
+	MLX5_IB_CREATE_CQ_FLAGS_UAR_PAGE_INDEX  = 1 << 1,
 };
 
 struct mlx5_ib_create_cq {
@@ -269,6 +279,9 @@ struct mlx5_ib_create_cq {
 	__u8    cqe_comp_en;
 	__u8    cqe_comp_res_format;
 	__u16	flags;
+	__u16	uar_page_index;
+	__u16	reserved0;
+	__u32	reserved1;
 };
 
 struct mlx5_ib_create_cq_resp {
@@ -310,6 +323,8 @@ struct mlx5_ib_create_qp {
 		__aligned_u64 sq_buf_addr;
 		__aligned_u64 access_key;
 	};
+	__u32  ece_options;
+	__u32  reserved;
 };
 
 /* RX Hash function flags */
@@ -349,9 +364,24 @@ struct mlx5_ib_create_qp_rss {
 	__u32	flags;
 };
 
+enum mlx5_ib_create_qp_resp_mask {
+	MLX5_IB_CREATE_QP_RESP_MASK_TIRN = 1UL << 0,
+	MLX5_IB_CREATE_QP_RESP_MASK_TISN = 1UL << 1,
+	MLX5_IB_CREATE_QP_RESP_MASK_RQN  = 1UL << 2,
+	MLX5_IB_CREATE_QP_RESP_MASK_SQN  = 1UL << 3,
+	MLX5_IB_CREATE_QP_RESP_MASK_TIR_ICM_ADDR  = 1UL << 4,
+};
+
 struct mlx5_ib_create_qp_resp {
 	__u32	bfreg_index;
-	__u32   reserved;
+	__u32   ece_options;
+	__u32	comp_mask;
+	__u32	tirn;
+	__u32	tisn;
+	__u32	rqn;
+	__u32	sqn;
+	__u32   reserved1;
+	__u64	tir_icm_addr;
 };
 
 struct mlx5_ib_alloc_mw {
@@ -393,12 +423,14 @@ struct mlx5_ib_burst_info {
 struct mlx5_ib_modify_qp {
 	__u32			   comp_mask;
 	struct mlx5_ib_burst_info  burst_info;
-	__u32			   reserved;
+	__u32			   ece_options;
 };
 
 struct mlx5_ib_modify_qp_resp {
 	__u32	response_length;
 	__u32	dctn;
+	__u32   ece_options;
+	__u32   reserved;
 };
 
 struct mlx5_ib_create_wq_resp {

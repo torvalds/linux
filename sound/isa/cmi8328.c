@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for C-Media CMI8328-based soundcards, such as AudioExcel AV500
  * Copyright (c) 2012 Ondrej Zary
@@ -31,7 +32,7 @@ MODULE_LICENSE("GPL");
 #endif
 
 /* I/O port is configured by jumpers on the card to one of these */
-static int cmi8328_ports[] = { 0x530, 0xe80, 0xf40, 0x604 };
+static const int cmi8328_ports[] = { 0x530, 0xe80, 0xf40, 0x604 };
 #define CMI8328_MAX	ARRAY_SIZE(cmi8328_ports)
 
 static int index[CMI8328_MAX] =     {[0 ... (CMI8328_MAX-1)] = -1};
@@ -192,7 +193,7 @@ static int snd_cmi8328_mixer(struct snd_wss *chip)
 }
 
 /* find index of an item in "-1"-ended array */
-static int array_find(int array[], int item)
+static int array_find(const int array[], int item)
 {
 	int i;
 
@@ -203,7 +204,7 @@ static int array_find(int array[], int item)
 	return -1;
 }
 /* the same for long */
-static int array_find_l(long array[], long item)
+static int array_find_l(const long array[], long item)
 {
 	int i;
 
@@ -223,16 +224,16 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	struct resource *res;
 #endif
 	int err, pos;
-	static long mpu_ports[] = { 0x330, 0x300, 0x310, 0x320, 0x332, 0x334,
+	static const long mpu_ports[] = { 0x330, 0x300, 0x310, 0x320, 0x332, 0x334,
 				   0x336, -1 };
-	static u8 mpu_port_bits[] = { 3, 0, 1, 2, 4, 5, 6 };
-	static int mpu_irqs[] = { 9, 7, 5, 3, -1 };
-	static u8 mpu_irq_bits[] = { 3, 2, 1, 0 };
-	static int irqs[] = { 9, 10, 11, 7, -1 };
-	static u8 irq_bits[] = { 2, 3, 4, 1 };
-	static int dma1s[] = { 3, 1, 0, -1 };
-	static u8 dma_bits[] = { 3, 2, 1 };
-	static int dma2s[][2] = { {1, -1}, {0, -1}, {-1, -1}, {0, -1} };
+	static const u8 mpu_port_bits[] = { 3, 0, 1, 2, 4, 5, 6 };
+	static const int mpu_irqs[] = { 9, 7, 5, 3, -1 };
+	static const u8 mpu_irq_bits[] = { 3, 2, 1, 0 };
+	static const int irqs[] = { 9, 10, 11, 7, -1 };
+	static const u8 irq_bits[] = { 2, 3, 4, 1 };
+	static const int dma1s[] = { 3, 1, 0, -1 };
+	static const u8 dma_bits[] = { 3, 2, 1 };
+	static const int dma2s[][2] = { {1, -1}, {0, -1}, {-1, -1}, {0, -1} };
 	u16 port = cmi8328_ports[ndev];
 	u8 val;
 
@@ -434,7 +435,6 @@ static int snd_cmi8328_suspend(struct device *pdev, unsigned int n,
 	cmi = card->private_data;
 	snd_cmi8328_cfg_save(cmi->port, cmi->cfg);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(cmi->wss->pcm);
 	cmi->wss->suspend(cmi->wss);
 
 	return 0;

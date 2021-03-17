@@ -1,15 +1,6 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * Copyright (C) 2012 ARM Limited
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2012 ARM Limited
 
 #define DRVNAME "vexpress-regulator"
 #define pr_fmt(fmt) DRVNAME ": " fmt
@@ -23,17 +14,10 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/vexpress.h>
 
-struct vexpress_regulator {
-	struct regulator_desc desc;
-	struct regulator_dev *regdev;
-	struct regmap *regmap;
-};
-
 static int vexpress_regulator_get_voltage(struct regulator_dev *regdev)
 {
-	struct vexpress_regulator *reg = rdev_get_drvdata(regdev);
-	u32 uV;
-	int err = regmap_read(reg->regmap, 0, &uV);
+	unsigned int uV;
+	int err = regmap_read(regdev->regmap, 0, &uV);
 
 	return err ? err : uV;
 }
@@ -41,62 +25,57 @@ static int vexpress_regulator_get_voltage(struct regulator_dev *regdev)
 static int vexpress_regulator_set_voltage(struct regulator_dev *regdev,
 		int min_uV, int max_uV, unsigned *selector)
 {
-	struct vexpress_regulator *reg = rdev_get_drvdata(regdev);
-
-	return regmap_write(reg->regmap, 0, min_uV);
+	return regmap_write(regdev->regmap, 0, min_uV);
 }
 
-static struct regulator_ops vexpress_regulator_ops_ro = {
+static const struct regulator_ops vexpress_regulator_ops_ro = {
 	.get_voltage = vexpress_regulator_get_voltage,
 };
 
-static struct regulator_ops vexpress_regulator_ops = {
+static const struct regulator_ops vexpress_regulator_ops = {
 	.get_voltage = vexpress_regulator_get_voltage,
 	.set_voltage = vexpress_regulator_set_voltage,
 };
 
 static int vexpress_regulator_probe(struct platform_device *pdev)
 {
-	struct vexpress_regulator *reg;
+	struct regulator_desc *desc;
 	struct regulator_init_data *init_data;
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
+	struct regmap *regmap;
 
-	reg = devm_kzalloc(&pdev->dev, sizeof(*reg), GFP_KERNEL);
-	if (!reg)
+	desc = devm_kzalloc(&pdev->dev, sizeof(*desc), GFP_KERNEL);
+	if (!desc)
 		return -ENOMEM;
 
-	reg->regmap = devm_regmap_init_vexpress_config(&pdev->dev);
-	if (IS_ERR(reg->regmap))
-		return PTR_ERR(reg->regmap);
+	regmap = devm_regmap_init_vexpress_config(&pdev->dev);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
-	reg->desc.name = dev_name(&pdev->dev);
-	reg->desc.type = REGULATOR_VOLTAGE;
-	reg->desc.owner = THIS_MODULE;
-	reg->desc.continuous_voltage_range = true;
+	desc->name = dev_name(&pdev->dev);
+	desc->type = REGULATOR_VOLTAGE;
+	desc->owner = THIS_MODULE;
+	desc->continuous_voltage_range = true;
 
 	init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
-					       &reg->desc);
+					       desc);
 	if (!init_data)
 		return -EINVAL;
 
 	init_data->constraints.apply_uV = 0;
 	if (init_data->constraints.min_uV && init_data->constraints.max_uV)
-		reg->desc.ops = &vexpress_regulator_ops;
+		desc->ops = &vexpress_regulator_ops;
 	else
-		reg->desc.ops = &vexpress_regulator_ops_ro;
+		desc->ops = &vexpress_regulator_ops_ro;
 
+	config.regmap = regmap;
 	config.dev = &pdev->dev;
 	config.init_data = init_data;
-	config.driver_data = reg;
 	config.of_node = pdev->dev.of_node;
 
-	reg->regdev = devm_regulator_register(&pdev->dev, &reg->desc, &config);
-	if (IS_ERR(reg->regdev))
-		return PTR_ERR(reg->regdev);
-
-	platform_set_drvdata(pdev, reg);
-
-	return 0;
+	rdev = devm_regulator_register(&pdev->dev, desc, &config);
+	return PTR_ERR_OR_ZERO(rdev);
 }
 
 static const struct of_device_id vexpress_regulator_of_match[] = {

@@ -144,6 +144,7 @@ static inline int llc_fixup_skb(struct sk_buff *skb)
  *	@skb: received pdu
  *	@dev: device that receive pdu
  *	@pt: packet type
+ *	@orig_dev: the original receive net device
  *
  *	When the system receives a 802.2 frame this function is called. It
  *	checks SAP and connection of received pdu and passes frame to

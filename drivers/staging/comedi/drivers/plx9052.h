@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Definitions for the PLX-9052 PCI interface chip
  *
- * Copyright (C) 2002 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2002 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>

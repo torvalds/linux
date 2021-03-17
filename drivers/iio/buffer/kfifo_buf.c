@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -97,8 +98,7 @@ static int iio_store_to_kfifo(struct iio_buffer *r,
 	return 0;
 }
 
-static int iio_read_first_n_kfifo(struct iio_buffer *r,
-			   size_t n, char __user *buf)
+static int iio_read_kfifo(struct iio_buffer *r, size_t n, char __user *buf)
 {
 	int ret, copied;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
@@ -140,7 +140,7 @@ static void iio_kfifo_buffer_release(struct iio_buffer *buffer)
 
 static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.store_to = &iio_store_to_kfifo,
-	.read_first_n = &iio_read_first_n_kfifo,
+	.read = &iio_read_kfifo,
 	.data_available = iio_kfifo_buf_data_available,
 	.request_update = &iio_request_update_kfifo,
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,
@@ -179,16 +179,6 @@ static void devm_iio_kfifo_release(struct device *dev, void *res)
 	iio_kfifo_free(*(struct iio_buffer **)res);
 }
 
-static int devm_iio_kfifo_match(struct device *dev, void *res, void *data)
-{
-	struct iio_buffer **r = res;
-
-	if (WARN_ON(!r || !*r))
-		return 0;
-
-	return *r == data;
-}
-
 /**
  * devm_iio_fifo_allocate - Resource-managed iio_kfifo_allocate()
  * @dev:		Device to allocate kfifo buffer for
@@ -215,17 +205,5 @@ struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
 	return r;
 }
 EXPORT_SYMBOL(devm_iio_kfifo_allocate);
-
-/**
- * devm_iio_fifo_free - Resource-managed iio_kfifo_free()
- * @dev:		Device the buffer belongs to
- * @r:			The buffer associated with the device
- */
-void devm_iio_kfifo_free(struct device *dev, struct iio_buffer *r)
-{
-	WARN_ON(devres_release(dev, devm_iio_kfifo_release,
-			       devm_iio_kfifo_match, r));
-}
-EXPORT_SYMBOL(devm_iio_kfifo_free);
 
 MODULE_LICENSE("GPL");

@@ -1,26 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tda18271c2dd: Driver for the TDA18271C2 tuner
  *
  * Copyright (C) 2010 Digital Devices GmbH
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -106,7 +92,7 @@ struct tda_state {
 	s32   m_RF_B2[7];
 	u32   m_RF3[7];
 
-	u8    m_TMValue_RFCal;    /* Calibration temperatur */
+	u8    m_TMValue_RFCal;    /* Calibration temperature */
 
 	bool  m_bFMInput;         /* true to use Pin 8 for FM Radio */
 
@@ -212,58 +198,55 @@ static void reset(struct tda_state *state)
 	state->m_bFMInput = (ulFMInput == 2);
 }
 
-static bool SearchMap1(struct SMap Map[],
-		       u32 Frequency, u8 *pParam)
+static bool SearchMap1(const struct SMap map[], u32 frequency, u8 *param)
 {
 	int i = 0;
 
-	while ((Map[i].m_Frequency != 0) && (Frequency > Map[i].m_Frequency))
+	while ((map[i].m_Frequency != 0) && (frequency > map[i].m_Frequency))
 		i += 1;
-	if (Map[i].m_Frequency == 0)
+	if (map[i].m_Frequency == 0)
 		return false;
-	*pParam = Map[i].m_Param;
+	*param = map[i].m_Param;
 	return true;
 }
 
-static bool SearchMap2(struct SMapI Map[],
-		       u32 Frequency, s32 *pParam)
+static bool SearchMap2(const struct SMapI map[], u32 frequency, s32 *param)
 {
 	int i = 0;
 
-	while ((Map[i].m_Frequency != 0) &&
-	       (Frequency > Map[i].m_Frequency))
+	while ((map[i].m_Frequency != 0) &&
+	       (frequency > map[i].m_Frequency))
 		i += 1;
-	if (Map[i].m_Frequency == 0)
+	if (map[i].m_Frequency == 0)
 		return false;
-	*pParam = Map[i].m_Param;
+	*param = map[i].m_Param;
 	return true;
 }
 
-static bool SearchMap3(struct SMap2 Map[], u32 Frequency,
-		       u8 *pParam1, u8 *pParam2)
+static bool SearchMap3(const struct SMap2 map[], u32 frequency, u8 *param1,
+		       u8 *param2)
 {
 	int i = 0;
 
-	while ((Map[i].m_Frequency != 0) &&
-	       (Frequency > Map[i].m_Frequency))
+	while ((map[i].m_Frequency != 0) &&
+	       (frequency > map[i].m_Frequency))
 		i += 1;
-	if (Map[i].m_Frequency == 0)
+	if (map[i].m_Frequency == 0)
 		return false;
-	*pParam1 = Map[i].m_Param1;
-	*pParam2 = Map[i].m_Param2;
+	*param1 = map[i].m_Param1;
+	*param2 = map[i].m_Param2;
 	return true;
 }
 
-static bool SearchMap4(struct SRFBandMap Map[],
-		       u32 Frequency, u8 *pRFBand)
+static bool SearchMap4(const struct SRFBandMap map[], u32 frequency, u8 *rfband)
 {
 	int i = 0;
 
-	while (i < 7 && (Frequency > Map[i].m_RF_max))
+	while (i < 7 && (frequency > map[i].m_RF_max))
 		i += 1;
 	if (i == 7)
 		return false;
-	*pRFBand = i;
+	*rfband = i;
 	return true;
 }
 
@@ -401,7 +384,7 @@ static int CalibrateRF(struct tda_state *state,
 			break;
 
 		/* Switching off LT (as datasheet says) causes calibration on C1 to fail */
-		/* (Readout of Cprog is allways 255) */
+		/* (Readout of Cprog is always 255) */
 		if (state->m_Regs[ID] != 0x83)    /* C1: ID == 83, C2: ID == 84 */
 			state->m_Regs[EP3] |= 0x40; /* SM_LT = 1 */
 
@@ -645,7 +628,7 @@ static int PowerScan(struct tda_state *state,
 		if (status < 0)
 			break;
 		CID_Gain = Regs[EB10] & 0x3F;
-		state->m_Regs[ID] = Regs[ID];  /* Chip version, (needed for C1 workarround in CalibrateRF) */
+		state->m_Regs[ID] = Regs[ID];  /* Chip version, (needed for C1 workaround in CalibrateRF) */
 
 		*pRF_Out = RF_in;
 

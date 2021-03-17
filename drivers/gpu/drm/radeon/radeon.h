@@ -68,6 +68,10 @@
 #include <linux/hashtable.h>
 #include <linux/dma-fence.h>
 
+#ifdef CONFIG_MMU_NOTIFIER
+#include <linux/mmu_notifier.h>
+#endif
+
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -448,10 +452,7 @@ struct radeon_surface_reg {
  * TTM.
  */
 struct radeon_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
 	struct ttm_bo_device		bdev;
-	bool				mem_global_referenced;
 	bool				initialized;
 
 #if defined(CONFIG_DEBUG_FS)
@@ -508,15 +509,15 @@ struct radeon_bo {
 	struct list_head		va;
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
-	struct drm_gem_object		gem_base;
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
 
-	struct radeon_mn		*mn;
-	struct list_head		mn_list;
+#ifdef CONFIG_MMU_NOTIFIER
+	struct mmu_interval_notifier	notifier;
+#endif
 };
-#define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
+#define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, tbo.base)
 
 int radeon_gem_debugfs_init(struct radeon_device *rdev);
 
@@ -623,7 +624,7 @@ void radeon_sync_fence(struct radeon_sync *sync,
 		       struct radeon_fence *fence);
 int radeon_sync_resv(struct radeon_device *rdev,
 		     struct radeon_sync *sync,
-		     struct reservation_object *resv,
+		     struct dma_resv *resv,
 		     bool shared);
 int radeon_sync_rings(struct radeon_device *rdev,
 		      struct radeon_sync *sync,
@@ -1916,20 +1917,20 @@ struct radeon_asic {
 					     uint64_t src_offset,
 					     uint64_t dst_offset,
 					     unsigned num_gpu_pages,
-					     struct reservation_object *resv);
+					     struct dma_resv *resv);
 		u32 blit_ring_index;
 		struct radeon_fence *(*dma)(struct radeon_device *rdev,
 					    uint64_t src_offset,
 					    uint64_t dst_offset,
 					    unsigned num_gpu_pages,
-					    struct reservation_object *resv);
+					    struct dma_resv *resv);
 		u32 dma_ring_index;
 		/* method used for bo copy */
 		struct radeon_fence *(*copy)(struct radeon_device *rdev,
 					     uint64_t src_offset,
 					     uint64_t dst_offset,
 					     unsigned num_gpu_pages,
-					     struct reservation_object *resv);
+					     struct dma_resv *resv);
 		/* ring used for bo copies */
 		u32 copy_ring_index;
 	} copy;
@@ -2390,7 +2391,6 @@ struct radeon_device {
 	struct radeon_wb		wb;
 	struct radeon_dummy_page	dummy_page;
 	bool				shutdown;
-	bool				need_dma32;
 	bool				need_swiotlb;
 	bool				accel_working;
 	bool				fastfb_working; /* IGP feature*/
@@ -2454,9 +2454,6 @@ struct radeon_device {
 	/* tracking pinned memory */
 	u64 vram_pin_size;
 	u64 gart_pin_size;
-
-	struct mutex	mn_lock;
-	DECLARE_HASHTABLE(mn_hash, 7);
 };
 
 bool radeon_is_px(struct drm_device *dev);
@@ -2818,10 +2815,12 @@ extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enabl
 extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
-extern int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
+extern int radeon_ttm_tt_set_userptr(struct radeon_device *rdev,
+				     struct ttm_tt *ttm, uint64_t addr,
 				     uint32_t flags);
-extern bool radeon_ttm_tt_has_userptr(struct ttm_tt *ttm);
-extern bool radeon_ttm_tt_is_readonly(struct ttm_tt *ttm);
+extern bool radeon_ttm_tt_has_userptr(struct radeon_device *rdev, struct ttm_tt *ttm);
+extern bool radeon_ttm_tt_is_readonly(struct radeon_device *rdev, struct ttm_tt *ttm);
+bool radeon_ttm_tt_is_bound(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
 extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
@@ -2831,6 +2830,7 @@ extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size
 extern void radeon_program_register_sequence(struct radeon_device *rdev,
 					     const u32 *registers,
 					     const u32 array_size);
+struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev);
 
 /*
  * vm
@@ -2859,7 +2859,7 @@ int radeon_vm_clear_invalids(struct radeon_device *rdev,
 			     struct radeon_vm *vm);
 int radeon_vm_bo_update(struct radeon_device *rdev,
 			struct radeon_bo_va *bo_va,
-			struct ttm_mem_reg *mem);
+			struct ttm_resource *mem);
 void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 			     struct radeon_bo *bo);
 struct radeon_bo_va *radeon_vm_bo_find(struct radeon_vm *vm,

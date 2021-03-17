@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Split from entry_64.S
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/magic.h>
@@ -13,6 +9,18 @@
 #include <asm/ftrace.h>
 #include <asm/ppc-opcode.h>
 #include <asm/export.h>
+
+.pushsection ".tramp.ftrace.text","aw",@progbits;
+.globl ftrace_tramp_text
+ftrace_tramp_text:
+	.space 64
+.popsection
+
+.pushsection ".tramp.ftrace.init","aw",@progbits;
+.globl ftrace_tramp_init
+ftrace_tramp_init:
+	.space 64
+.popsection
 
 _GLOBAL(mcount)
 _GLOBAL(_mcount)

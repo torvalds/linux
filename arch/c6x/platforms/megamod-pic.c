@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Support for C64x+ Megamodule Interrupt Controller
  *
  *  Copyright (C) 2010, 2011 Texas Instruments Incorporated
  *  Contributed by: Mark Salter <msalter@redhat.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/interrupt.h>

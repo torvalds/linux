@@ -115,7 +115,7 @@ struct vudc_device {
 	struct list_head dev_entry;
 };
 
-extern const struct attribute_group vudc_attr_group;
+extern const struct attribute_group *vudc_groups[];
 
 /* visible everywhere */
 

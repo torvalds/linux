@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cs42l52.c -- CS42L52 ALSA SoC audio driver
  *
@@ -5,11 +6,6 @@
  *
  * Author: Georgi Vlaev <joe@nucleusys.com>
  * Author: Brian Austin <brian.austin@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -788,7 +784,7 @@ static int cs42l52_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static int cs42l52_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs42l52_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -869,9 +865,10 @@ static int cs42l52_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops cs42l52_ops = {
 	.hw_params	= cs42l52_pcm_hw_params,
-	.digital_mute	= cs42l52_digital_mute,
+	.mute_stream	= cs42l52_mute,
 	.set_fmt	= cs42l52_set_fmt,
 	.set_sysclk	= cs42l52_set_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42l52_dai = {

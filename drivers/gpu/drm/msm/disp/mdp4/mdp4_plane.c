@@ -1,19 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_fourcc.h>
 
 #include "mdp4_kms.h"
 
@@ -68,7 +60,6 @@ static void mdp4_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 
-	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 
 	kfree(mdp4_plane);
@@ -235,22 +226,22 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 	format = to_mdp_format(msm_framebuffer_format(fb));
 
 	if (src_w > (crtc_w * DOWN_SCALE_MAX)) {
-		dev_err(dev->dev, "Width down scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Width down scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (src_h > (crtc_h * DOWN_SCALE_MAX)) {
-		dev_err(dev->dev, "Height down scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Height down scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (crtc_w > (src_w * UP_SCALE_MAX)) {
-		dev_err(dev->dev, "Width up scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Width up scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (crtc_h > (src_h * UP_SCALE_MAX)) {
-		dev_err(dev->dev, "Height up scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Height up scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
@@ -391,6 +382,8 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &mdp4_plane_helper_funcs);
 
 	mdp4_plane_install_properties(plane, &plane->base);
+
+	drm_plane_enable_fb_damage_clips(plane);
 
 	return plane;
 

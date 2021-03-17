@@ -103,7 +103,7 @@
 #define MT9V111_MAX_CLKIN				27000000
 
 /* The default sensor configuration at startup time. */
-static struct v4l2_mbus_framefmt mt9v111_def_fmt = {
+static const struct v4l2_mbus_framefmt mt9v111_def_fmt = {
 	.width		= 640,
 	.height		= 480,
 	.code		= MEDIA_BUS_FMT_UYVY8_2X8,

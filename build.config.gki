@@ -1,0 +1,3 @@
+DEFCONFIG=gki_defconfig
+POST_DEFCONFIG_CMDS="check_defconfig"
+

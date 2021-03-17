@@ -9,7 +9,7 @@
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <crypto/skcipher.h>
 #include <crypto/xts.h>
 #include <crypto/internal/skcipher.h>
@@ -153,11 +153,30 @@ static void sec_alg_skcipher_init_context(struct crypto_skcipher *atfm,
 				       ctx->cipher_alg);
 }
 
+static void sec_free_hw_sgl(struct sec_hw_sgl *hw_sgl,
+			    dma_addr_t psec_sgl, struct sec_dev_info *info)
+{
+	struct sec_hw_sgl *sgl_current, *sgl_next;
+	dma_addr_t sgl_next_dma;
+
+	sgl_current = hw_sgl;
+	while (sgl_current) {
+		sgl_next = sgl_current->next;
+		sgl_next_dma = sgl_current->next_sgl;
+
+		dma_pool_free(info->hw_sgl_pool, sgl_current, psec_sgl);
+
+		sgl_current = sgl_next;
+		psec_sgl = sgl_next_dma;
+	}
+}
+
 static int sec_alloc_and_fill_hw_sgl(struct sec_hw_sgl **sec_sgl,
 				     dma_addr_t *psec_sgl,
 				     struct scatterlist *sgl,
 				     int count,
-				     struct sec_dev_info *info)
+				     struct sec_dev_info *info,
+				     gfp_t gfp)
 {
 	struct sec_hw_sgl *sgl_current = NULL;
 	struct sec_hw_sgl *sgl_next;
@@ -172,7 +191,7 @@ static int sec_alloc_and_fill_hw_sgl(struct sec_hw_sgl **sec_sgl,
 		sge_index = i % SEC_MAX_SGE_NUM;
 		if (sge_index == 0) {
 			sgl_next = dma_pool_zalloc(info->hw_sgl_pool,
-						   GFP_KERNEL, &sgl_next_dma);
+						   gfp, &sgl_next_dma);
 			if (!sgl_next) {
 				ret = -ENOMEM;
 				goto err_free_hw_sgls;
@@ -199,33 +218,10 @@ static int sec_alloc_and_fill_hw_sgl(struct sec_hw_sgl **sec_sgl,
 	return 0;
 
 err_free_hw_sgls:
-	sgl_current = *sec_sgl;
-	while (sgl_current) {
-		sgl_next = sgl_current->next;
-		dma_pool_free(info->hw_sgl_pool, sgl_current,
-			      sgl_current->next_sgl);
-		sgl_current = sgl_next;
-	}
+	sec_free_hw_sgl(*sec_sgl, *psec_sgl, info);
 	*psec_sgl = 0;
 
 	return ret;
-}
-
-static void sec_free_hw_sgl(struct sec_hw_sgl *hw_sgl,
-			    dma_addr_t psec_sgl, struct sec_dev_info *info)
-{
-	struct sec_hw_sgl *sgl_current, *sgl_next;
-
-	if (!hw_sgl)
-		return;
-	sgl_current = hw_sgl;
-	while (sgl_current->next) {
-		sgl_next = sgl_current->next;
-		dma_pool_free(info->hw_sgl_pool, sgl_current,
-			      sgl_current->next_sgl);
-		sgl_current = sgl_next;
-	}
-	dma_pool_free(info->hw_sgl_pool, hw_sgl, psec_sgl);
 }
 
 static int sec_alg_skcipher_setkey(struct crypto_skcipher *tfm,
@@ -241,8 +237,8 @@ static int sec_alg_skcipher_setkey(struct crypto_skcipher *tfm,
 		memset(ctx->key, 0, SEC_MAX_CIPHER_KEY);
 	} else {
 		/* new key */
-		ctx->key = dma_zalloc_coherent(dev, SEC_MAX_CIPHER_KEY,
-					       &ctx->pkey, GFP_KERNEL);
+		ctx->key = dma_alloc_coherent(dev, SEC_MAX_CIPHER_KEY,
+					      &ctx->pkey, GFP_KERNEL);
 		if (!ctx->key) {
 			mutex_unlock(&ctx->lock);
 			return -ENOMEM;
@@ -347,38 +343,30 @@ static int sec_alg_skcipher_setkey_aes_xts(struct crypto_skcipher *tfm,
 static int sec_alg_skcipher_setkey_des_ecb(struct crypto_skcipher *tfm,
 					   const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_ECB_64);
+	return verify_skcipher_des_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_ECB_64);
 }
 
 static int sec_alg_skcipher_setkey_des_cbc(struct crypto_skcipher *tfm,
 					   const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_CBC_64);
+	return verify_skcipher_des_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_CBC_64);
 }
 
 static int sec_alg_skcipher_setkey_3des_ecb(struct crypto_skcipher *tfm,
 					    const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE * 3)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen,
+	return verify_skcipher_des3_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen,
 				       SEC_C_3DES_ECB_192_3KEY);
 }
 
 static int sec_alg_skcipher_setkey_3des_cbc(struct crypto_skcipher *tfm,
 					    const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES3_EDE_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen,
+	return verify_skcipher_des3_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen,
 				       SEC_C_3DES_CBC_192_3KEY);
 }
 
@@ -558,14 +546,14 @@ void sec_alg_callback(struct sec_bd_info *resp, void *shadow)
 }
 
 static int sec_alg_alloc_and_calc_split_sizes(int length, size_t **split_sizes,
-					      int *steps)
+					      int *steps, gfp_t gfp)
 {
 	size_t *sizes;
 	int i;
 
 	/* Split into suitable sized blocks */
 	*steps = roundup(length, SEC_REQ_LIMIT) / SEC_REQ_LIMIT;
-	sizes = kcalloc(*steps, sizeof(*sizes), GFP_KERNEL);
+	sizes = kcalloc(*steps, sizeof(*sizes), gfp);
 	if (!sizes)
 		return -ENOMEM;
 
@@ -581,7 +569,7 @@ static int sec_map_and_split_sg(struct scatterlist *sgl, size_t *split_sizes,
 				int steps, struct scatterlist ***splits,
 				int **splits_nents,
 				int sgl_len_in,
-				struct device *dev)
+				struct device *dev, gfp_t gfp)
 {
 	int ret, count;
 
@@ -589,12 +577,12 @@ static int sec_map_and_split_sg(struct scatterlist *sgl, size_t *split_sizes,
 	if (!count)
 		return -EINVAL;
 
-	*splits = kcalloc(steps, sizeof(struct scatterlist *), GFP_KERNEL);
+	*splits = kcalloc(steps, sizeof(struct scatterlist *), gfp);
 	if (!*splits) {
 		ret = -ENOMEM;
 		goto err_unmap_sg;
 	}
-	*splits_nents = kcalloc(steps, sizeof(int), GFP_KERNEL);
+	*splits_nents = kcalloc(steps, sizeof(int), gfp);
 	if (!*splits_nents) {
 		ret = -ENOMEM;
 		goto err_free_splits;
@@ -602,7 +590,7 @@ static int sec_map_and_split_sg(struct scatterlist *sgl, size_t *split_sizes,
 
 	/* output the scatter list before and after this */
 	ret = sg_split(sgl, count, 0, steps, split_sizes,
-		       *splits, *splits_nents, GFP_KERNEL);
+		       *splits, *splits_nents, gfp);
 	if (ret) {
 		ret = -ENOMEM;
 		goto err_free_splits_nents;
@@ -643,13 +631,13 @@ static struct sec_request_el
 			   int el_size, bool different_dest,
 			   struct scatterlist *sgl_in, int n_ents_in,
 			   struct scatterlist *sgl_out, int n_ents_out,
-			   struct sec_dev_info *info)
+			   struct sec_dev_info *info, gfp_t gfp)
 {
 	struct sec_request_el *el;
 	struct sec_bd_info *req;
 	int ret;
 
-	el = kzalloc(sizeof(*el), GFP_KERNEL);
+	el = kzalloc(sizeof(*el), gfp);
 	if (!el)
 		return ERR_PTR(-ENOMEM);
 	el->el_length = el_size;
@@ -681,7 +669,7 @@ static struct sec_request_el
 	el->sgl_in = sgl_in;
 
 	ret = sec_alloc_and_fill_hw_sgl(&el->in, &el->dma_in, el->sgl_in,
-					n_ents_in, info);
+					n_ents_in, info, gfp);
 	if (ret)
 		goto err_free_el;
 
@@ -692,7 +680,7 @@ static struct sec_request_el
 		el->sgl_out = sgl_out;
 		ret = sec_alloc_and_fill_hw_sgl(&el->out, &el->dma_out,
 						el->sgl_out,
-						n_ents_out, info);
+						n_ents_out, info, gfp);
 		if (ret)
 			goto err_free_hw_sgl_in;
 
@@ -732,6 +720,8 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	int *splits_in_nents;
 	int *splits_out_nents = NULL;
 	struct sec_request_el *el, *temp;
+	bool split = skreq->src != skreq->dst;
+	gfp_t gfp = skreq->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL : GFP_ATOMIC;
 
 	mutex_init(&sec_req->lock);
 	sec_req->req_base = &skreq->base;
@@ -740,21 +730,21 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	sec_req->len_in = sg_nents(skreq->src);
 
 	ret = sec_alg_alloc_and_calc_split_sizes(skreq->cryptlen, &split_sizes,
-						 &steps);
+						 &steps, gfp);
 	if (ret)
 		return ret;
 	sec_req->num_elements = steps;
 	ret = sec_map_and_split_sg(skreq->src, split_sizes, steps, &splits_in,
 				   &splits_in_nents, sec_req->len_in,
-				   info->dev);
+				   info->dev, gfp);
 	if (ret)
 		goto err_free_split_sizes;
 
-	if (skreq->src != skreq->dst) {
+	if (split) {
 		sec_req->len_out = sg_nents(skreq->dst);
 		ret = sec_map_and_split_sg(skreq->dst, split_sizes, steps,
 					   &splits_out, &splits_out_nents,
-					   sec_req->len_out, info->dev);
+					   sec_req->len_out, info->dev, gfp);
 		if (ret)
 			goto err_unmap_in_sg;
 	}
@@ -785,8 +775,9 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 					       split_sizes[i],
 					       skreq->src != skreq->dst,
 					       splits_in[i], splits_in_nents[i],
-					       splits_out[i],
-					       splits_out_nents[i], info);
+					       split ? splits_out[i] : NULL,
+					       split ? splits_out_nents[i] : 0,
+					       info, gfp);
 		if (IS_ERR(el)) {
 			ret = PTR_ERR(el);
 			goto err_free_elements;
@@ -806,13 +797,6 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	 * more refined but this is unlikely to happen so no need.
 	 */
 
-	/* Cleanup - all elements in pointer arrays have been coppied */
-	kfree(splits_in_nents);
-	kfree(splits_in);
-	kfree(splits_out_nents);
-	kfree(splits_out);
-	kfree(split_sizes);
-
 	/* Grab a big lock for a long time to avoid concurrency issues */
 	mutex_lock(&queue->queuelock);
 
@@ -827,13 +811,13 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	     (!queue->havesoftqueue ||
 	      kfifo_avail(&queue->softqueue) > steps)) ||
 	    !list_empty(&ctx->backlog)) {
+		ret = -EBUSY;
 		if ((skreq->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG)) {
 			list_add_tail(&sec_req->backlog_head, &ctx->backlog);
 			mutex_unlock(&queue->queuelock);
-			return -EBUSY;
+			goto out;
 		}
 
-		ret = -EBUSY;
 		mutex_unlock(&queue->queuelock);
 		goto err_free_elements;
 	}
@@ -842,7 +826,15 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	if (ret)
 		goto err_free_elements;
 
-	return -EINPROGRESS;
+	ret = -EINPROGRESS;
+out:
+	/* Cleanup - all elements in pointer arrays have been copied */
+	kfree(splits_in_nents);
+	kfree(splits_in);
+	kfree(splits_out_nents);
+	kfree(splits_out);
+	kfree(split_sizes);
+	return ret;
 
 err_free_elements:
 	list_for_each_entry_safe(el, temp, &sec_req->elements, head) {
@@ -854,7 +846,7 @@ err_free_elements:
 				 crypto_skcipher_ivsize(atfm),
 				 DMA_BIDIRECTIONAL);
 err_unmap_out_sg:
-	if (skreq->src != skreq->dst)
+	if (split)
 		sec_unmap_sg_on_err(skreq->dst, steps, splits_out,
 				    splits_out_nents, sec_req->len_out,
 				    info->dev);
@@ -942,7 +934,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "ecb(aes)",
 			.cra_driver_name = "hisi_sec_aes_ecb",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -961,7 +954,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "cbc(aes)",
 			.cra_driver_name = "hisi_sec_aes_cbc",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -980,7 +974,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "ctr(aes)",
 			.cra_driver_name = "hisi_sec_aes_ctr",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -999,7 +994,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "xts(aes)",
 			.cra_driver_name = "hisi_sec_aes_xts",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -1019,7 +1015,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "ecb(des)",
 			.cra_driver_name = "hisi_sec_des_ecb",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -1038,7 +1035,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "cbc(des)",
 			.cra_driver_name = "hisi_sec_des_cbc",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -1057,7 +1055,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "cbc(des3_ede)",
 			.cra_driver_name = "hisi_sec_3des_cbc",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -1076,7 +1075,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "ecb(des3_ede)",
 			.cra_driver_name = "hisi_sec_3des_ecb",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,

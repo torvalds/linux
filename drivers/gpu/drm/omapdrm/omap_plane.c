@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob.clark@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <drm/drm_atomic.h>
@@ -64,8 +53,12 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	memset(&info, 0, sizeof(info));
 	info.rotation_type = OMAP_DSS_ROT_NONE;
 	info.rotation = DRM_MODE_ROTATE_0;
-	info.global_alpha = 0xff;
+	info.global_alpha = state->alpha >> 8;
 	info.zorder = state->normalized_zpos;
+	if (state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
+		info.pre_mult_alpha = 1;
+	else
+		info.pre_mult_alpha = 0;
 
 	/* update scanout: */
 	omap_framebuffer_update_scanout(state->fb, state, &info);
@@ -296,6 +289,9 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	omap_plane_install_properties(plane, &plane->base);
 	drm_plane_create_zpos_property(plane, 0, 0, num_planes - 1);
+	drm_plane_create_alpha_property(plane);
+	drm_plane_create_blend_mode_property(plane, BIT(DRM_MODE_BLEND_PREMULTI) |
+					     BIT(DRM_MODE_BLEND_COVERAGE));
 
 	return plane;
 

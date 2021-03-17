@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __HNS_DSAF_MAIN_H
@@ -466,5 +462,7 @@ int hns_dsaf_rm_mac_addr(
 int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     u8 mac_id, u8 port_num);
 int hns_dsaf_wait_pkt_clean(struct dsaf_device *dsaf_dev, int port);
+
+int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
 
 #endif /* __HNS_DSAF_MAIN_H__ */

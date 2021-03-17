@@ -667,6 +667,9 @@ static int vmk80xx_find_usb_endpoints(struct comedi_device *dev)
 	if (!devpriv->ep_rx || !devpriv->ep_tx)
 		return -ENODEV;
 
+	if (!usb_endpoint_maxp(devpriv->ep_rx) || !usb_endpoint_maxp(devpriv->ep_tx))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -682,10 +685,8 @@ static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 
 	size = usb_endpoint_maxp(devpriv->ep_tx);
 	devpriv->usb_tx_buf = kzalloc(size, GFP_KERNEL);
-	if (!devpriv->usb_tx_buf) {
-		kfree(devpriv->usb_rx_buf);
+	if (!devpriv->usb_tx_buf)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -800,6 +801,8 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 
 	devpriv->model = board->model;
 
+	sema_init(&devpriv->limit_sem, 8);
+
 	ret = vmk80xx_find_usb_endpoints(dev);
 	if (ret)
 		return ret;
@@ -807,8 +810,6 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 	ret = vmk80xx_alloc_usb_buffers(dev);
 	if (ret)
 		return ret;
-
-	sema_init(&devpriv->limit_sem, 8);
 
 	usb_set_intfdata(intf, devpriv);
 

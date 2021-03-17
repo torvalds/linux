@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * drivers/media/i2c/smiapp/smiapp-reg.h
  *
@@ -5,39 +6,38 @@
  *
  * Copyright (C) 2011--2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __SMIAPP_REG_H_
 #define __SMIAPP_REG_H_
 
+#include <linux/bits.h>
+
 #include "smiapp-reg-defs.h"
 
 /* Bits for above register */
-#define SMIAPP_IMAGE_ORIENTATION_HFLIP		(1 << 0)
-#define SMIAPP_IMAGE_ORIENTATION_VFLIP		(1 << 1)
+#define SMIAPP_IMAGE_ORIENTATION_HFLIP			BIT(0)
+#define SMIAPP_IMAGE_ORIENTATION_VFLIP			BIT(1)
 
-#define SMIAPP_DATA_TRANSFER_IF_1_CTRL_EN		(1 << 0)
-#define SMIAPP_DATA_TRANSFER_IF_1_CTRL_RD_EN		(0 << 1)
-#define SMIAPP_DATA_TRANSFER_IF_1_CTRL_WR_EN		(1 << 1)
-#define SMIAPP_DATA_TRANSFER_IF_1_CTRL_ERR_CLEAR	(1 << 2)
-#define SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY	(1 << 0)
-#define SMIAPP_DATA_TRANSFER_IF_1_STATUS_WR_READY	(1 << 1)
-#define SMIAPP_DATA_TRANSFER_IF_1_STATUS_EDATA		(1 << 2)
-#define SMIAPP_DATA_TRANSFER_IF_1_STATUS_EUSAGE		(1 << 3)
+#define SMIAPP_DATA_TRANSFER_IF_1_CTRL_EN		BIT(0)
+#define SMIAPP_DATA_TRANSFER_IF_1_CTRL_WR_EN		BIT(1)
+#define SMIAPP_DATA_TRANSFER_IF_1_CTRL_ERR_CLEAR	BIT(2)
+#define SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY	BIT(0)
+#define SMIAPP_DATA_TRANSFER_IF_1_STATUS_WR_READY	BIT(1)
+#define SMIAPP_DATA_TRANSFER_IF_1_STATUS_EDATA		BIT(2)
+#define SMIAPP_DATA_TRANSFER_IF_1_STATUS_EUSAGE		BIT(3)
 
-#define SMIAPP_SOFTWARE_RESET				(1 << 0)
+#define SMIAPP_DATA_TRANSFER_IF_CAPABILITY_SUPPORTED	BIT(0)
+#define SMIAPP_DATA_TRANSFER_IF_CAPABILITY_POLL		BIT(2)
 
-#define SMIAPP_FLASH_MODE_CAPABILITY_SINGLE_STROBE	(1 << 0)
-#define SMIAPP_FLASH_MODE_CAPABILITY_MULTIPLE_STROBE	(1 << 1)
+#define SMIAPP_SOFTWARE_RESET				BIT(0)
+
+#define SMIAPP_FLASH_MODE_CAPABILITY_SINGLE_STROBE	BIT(0)
+#define SMIAPP_FLASH_MODE_CAPABILITY_MULTIPLE_STROBE	BIT(1)
+
+#define SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_CLOCK	0
+#define SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE	1
+#define SMIAPP_CSI_SIGNALLING_MODE_CSI2			2
 
 #define SMIAPP_DPHY_CTRL_AUTOMATIC			0
 /* DPHY control based on REQUESTED_LINK_BIT_RATE_MBPS */

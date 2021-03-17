@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SUNXI_CCU
 	bool "Clock support for Allwinner SoCs"
 	depends on ARCH_SUNXI || COMPILE_TEST
@@ -6,8 +7,23 @@ config SUNXI_CCU
 
 if SUNXI_CCU
 
+config SUNIV_F1C100S_CCU
+	bool "Support for the Allwinner newer F1C100s CCU"
+	default MACH_SUNIV
+	depends on MACH_SUNIV || COMPILE_TEST
+
 config SUN50I_A64_CCU
 	bool "Support for the Allwinner A64 CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN50I_A100_CCU
+	bool "Support for the Allwinner A100 CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN50I_A100_R_CCU
+	bool "Support for the Allwinner A100 PRCM CCU"
 	default ARM64 && ARCH_SUNXI
 	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 
@@ -63,6 +79,7 @@ config SUN8I_V3S_CCU
 
 config SUN8I_DE2_CCU
 	bool "Support for the Allwinner SoCs DE2 CCU"
+	default MACH_SUN8I || (ARM64 && ARCH_SUNXI)
 
 config SUN8I_R40_CCU
 	bool "Support for the Allwinner R40 CCU"

@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      uvc_entity.c  --  USB Video Class driver
  *
  *      Copyright (C) 2005-2011
  *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -78,9 +73,44 @@ static int uvc_mc_init_entity(struct uvc_video_chain *chain,
 	int ret;
 
 	if (UVC_ENTITY_TYPE(entity) != UVC_TT_STREAMING) {
+		u32 function;
+
 		v4l2_subdev_init(&entity->subdev, &uvc_subdev_ops);
-		strlcpy(entity->subdev.name, entity->name,
+		strscpy(entity->subdev.name, entity->name,
 			sizeof(entity->subdev.name));
+
+		switch (UVC_ENTITY_TYPE(entity)) {
+		case UVC_VC_SELECTOR_UNIT:
+			function = MEDIA_ENT_F_VID_MUX;
+			break;
+		case UVC_VC_PROCESSING_UNIT:
+		case UVC_VC_EXTENSION_UNIT:
+			/* For lack of a better option. */
+			function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
+			break;
+		case UVC_COMPOSITE_CONNECTOR:
+		case UVC_COMPONENT_CONNECTOR:
+			function = MEDIA_ENT_F_CONN_COMPOSITE;
+			break;
+		case UVC_SVIDEO_CONNECTOR:
+			function = MEDIA_ENT_F_CONN_SVIDEO;
+			break;
+		case UVC_ITT_CAMERA:
+			function = MEDIA_ENT_F_CAM_SENSOR;
+			break;
+		case UVC_TT_VENDOR_SPECIFIC:
+		case UVC_ITT_VENDOR_SPECIFIC:
+		case UVC_ITT_MEDIA_TRANSPORT_INPUT:
+		case UVC_OTT_VENDOR_SPECIFIC:
+		case UVC_OTT_DISPLAY:
+		case UVC_OTT_MEDIA_TRANSPORT_OUTPUT:
+		case UVC_EXTERNAL_VENDOR_SPECIFIC:
+		default:
+			function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
+			break;
+		}
+
+		entity->subdev.entity.function = function;
 
 		ret = media_entity_pads_init(&entity->subdev.entity,
 					entity->num_pads, entity->pads);

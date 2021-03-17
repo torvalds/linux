@@ -48,5 +48,6 @@ int ipu_plane_irq(struct ipu_plane *plane);
 
 void ipu_plane_disable(struct ipu_plane *ipu_plane, bool disable_dp_channel);
 void ipu_plane_disable_deferred(struct drm_plane *plane);
+bool ipu_plane_atomic_update_pending(struct drm_plane *plane);
 
 #endif

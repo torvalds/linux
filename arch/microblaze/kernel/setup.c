@@ -18,6 +18,7 @@
 #include <linux/console.h>
 #include <linux/debugfs.h>
 #include <linux/of_fdt.h>
+#include <linux/pgtable.h>
 
 #include <asm/setup.h>
 #include <asm/sections.h>
@@ -33,7 +34,6 @@
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
 
-#include <asm/pgtable.h>
 
 DEFINE_PER_CPU(unsigned int, KSP);	/* Saved kernel stack pointer */
 DEFINE_PER_CPU(unsigned int, KM);	/* Kernel/user mode */
@@ -41,20 +41,18 @@ DEFINE_PER_CPU(unsigned int, ENTRY_SP);	/* Saved SP on kernel entry */
 DEFINE_PER_CPU(unsigned int, R11_SAVE);	/* Temp variable for entry */
 DEFINE_PER_CPU(unsigned int, CURRENT_SAVE);	/* Saved current pointer */
 
-unsigned int boot_cpuid;
 /*
  * Placed cmd_line to .data section because can be initialized from
  * ASM code. Default position is BSS section which is cleared
  * in machine_early_init().
  */
-char cmd_line[COMMAND_LINE_SIZE] __attribute__ ((section(".data")));
+char cmd_line[COMMAND_LINE_SIZE] __section(".data");
 
 void __init setup_arch(char **cmdline_p)
 {
 	*cmdline_p = boot_command_line;
 
 	setup_memory();
-	parse_early_param();
 
 	console_verbose();
 
@@ -65,10 +63,6 @@ void __init setup_arch(char **cmdline_p)
 	microblaze_cache_init();
 
 	xilinx_pci_init();
-
-#if defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;
-#endif
 }
 
 #ifdef CONFIG_MTD_UCLINUX
@@ -192,23 +186,14 @@ struct dentry *of_debugfs_root;
 static int microblaze_debugfs_init(void)
 {
 	of_debugfs_root = debugfs_create_dir("microblaze", NULL);
-
-	return of_debugfs_root == NULL;
+	return 0;
 }
 arch_initcall(microblaze_debugfs_init);
 
 # ifdef CONFIG_MMU
 static int __init debugfs_tlb(void)
 {
-	struct dentry *d;
-
-	if (!of_debugfs_root)
-		return -ENODEV;
-
-	d = debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
-	if (!d)
-		return -ENOMEM;
-
+	debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
 	return 0;
 }
 device_initcall(debugfs_tlb);

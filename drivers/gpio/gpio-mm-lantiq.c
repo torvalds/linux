@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
@@ -38,7 +36,7 @@ struct ltq_mm {
  * @chip:     Pointer to our private data structure.
  *
  * Write the shadow value to the EBU to set the gpios. We need to set the
- * global EBU lock to make sure that PCI/MTD dont break.
+ * global EBU lock to make sure that PCI/MTD don't break.
  */
 static void ltq_mm_apply(struct ltq_mm *chip)
 {

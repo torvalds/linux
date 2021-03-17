@@ -1,3 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+# This Kconfig option is also used by the legacy av7110 driver
+config TTPCI_EEPROM
+	tristate
+	depends on I2C
+
 if USB && MEDIA_SUPPORT
 
 menuconfig MEDIA_USB_SUPPORT
@@ -24,7 +31,6 @@ if MEDIA_ANALOG_TV_SUPPORT
 	comment "Analog TV USB devices"
 source "drivers/media/usb/pvrusb2/Kconfig"
 source "drivers/media/usb/hdpvr/Kconfig"
-source "drivers/media/usb/usbvision/Kconfig"
 source "drivers/media/usb/stk1160/Kconfig"
 source "drivers/media/usb/go7007/Kconfig"
 endif
@@ -58,12 +64,6 @@ if MEDIA_SDR_SUPPORT
 source "drivers/media/usb/airspy/Kconfig"
 source "drivers/media/usb/hackrf/Kconfig"
 source "drivers/media/usb/msi2500/Kconfig"
-endif
-
-if MEDIA_CEC_SUPPORT
-	comment "USB HDMI CEC adapters"
-source "drivers/media/usb/pulse8-cec/Kconfig"
-source "drivers/media/usb/rainshadow-cec/Kconfig"
 endif
 
 endif #MEDIA_USB_SUPPORT

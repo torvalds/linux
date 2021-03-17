@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EMIF driver
  *
@@ -5,10 +6,6 @@
  *
  * Aneesh V <aneesh@ti.com>
  * Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -26,8 +23,9 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/pm.h>
-#include <memory/jedec_ddr.h>
+
 #include "emif.h"
+#include "jedec_ddr.h"
 #include "of_memory.h"
 
 /**
@@ -133,16 +131,7 @@ static int emif_regdump_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int emif_regdump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, emif_regdump_show, inode->i_private);
-}
-
-static const struct file_operations emif_regdump_fops = {
-	.open			= emif_regdump_open,
-	.read			= seq_read,
-	.release		= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(emif_regdump);
 
 static int emif_mr4_show(struct seq_file *s, void *unused)
 {
@@ -152,48 +141,16 @@ static int emif_mr4_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int emif_mr4_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, emif_mr4_show, inode->i_private);
-}
-
-static const struct file_operations emif_mr4_fops = {
-	.open			= emif_mr4_open,
-	.read			= seq_read,
-	.release		= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(emif_mr4);
 
 static int __init_or_module emif_debugfs_init(struct emif_data *emif)
 {
-	struct dentry	*dentry;
-	int		ret;
-
-	dentry = debugfs_create_dir(dev_name(emif->dev), NULL);
-	if (!dentry) {
-		ret = -ENOMEM;
-		goto err0;
-	}
-	emif->debugfs_root = dentry;
-
-	dentry = debugfs_create_file("regcache_dump", S_IRUGO,
-			emif->debugfs_root, emif, &emif_regdump_fops);
-	if (!dentry) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	dentry = debugfs_create_file("mr4", S_IRUGO,
-			emif->debugfs_root, emif, &emif_mr4_fops);
-	if (!dentry) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
+	emif->debugfs_root = debugfs_create_dir(dev_name(emif->dev), NULL);
+	debugfs_create_file("regcache_dump", S_IRUGO, emif->debugfs_root, emif,
+			    &emif_regdump_fops);
+	debugfs_create_file("mr4", S_IRUGO, emif->debugfs_root, emif,
+			    &emif_mr4_fops);
 	return 0;
-err1:
-	debugfs_remove_recursive(emif->debugfs_root);
-err0:
-	return ret;
 }
 
 static void __exit emif_debugfs_exit(struct emif_data *emif)
@@ -284,10 +241,9 @@ static void set_lpmode(struct emif_data *emif, u8 lpmode)
 	 * the EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field to 0x4.
 	 */
 	if ((emif->plat_data->ip_rev == EMIF_4D) &&
-	    (EMIF_LP_MODE_PWR_DN == lpmode)) {
+	    (lpmode == EMIF_LP_MODE_PWR_DN)) {
 		WARN_ONCE(1,
-			  "REG_LP_MODE = LP_MODE_PWR_DN(4) is prohibited by"
-			  "erratum i743 switch to LP_MODE_SELF_REFRESH(2)\n");
+			  "REG_LP_MODE = LP_MODE_PWR_DN(4) is prohibited by erratum i743 switch to LP_MODE_SELF_REFRESH(2)\n");
 		/* rollback LP_MODE to Self-refresh mode */
 		lpmode = EMIF_LP_MODE_SELF_REFRESH;
 	}
@@ -716,7 +672,7 @@ static u32 get_ext_phy_ctrl_2_intelliphy_4d5(void)
 	u32 fifo_we_slave_ratio;
 
 	fifo_we_slave_ratio =  DIV_ROUND_CLOSEST(
-		EMIF_INTELLI_PHY_DQS_GATE_OPENING_DELAY_PS * 256 , t_ck);
+		EMIF_INTELLI_PHY_DQS_GATE_OPENING_DELAY_PS * 256, t_ck);
 
 	return fifo_we_slave_ratio | fifo_we_slave_ratio << 11 |
 		fifo_we_slave_ratio << 22;
@@ -727,7 +683,7 @@ static u32 get_ext_phy_ctrl_3_intelliphy_4d5(void)
 	u32 fifo_we_slave_ratio;
 
 	fifo_we_slave_ratio =  DIV_ROUND_CLOSEST(
-		EMIF_INTELLI_PHY_DQS_GATE_OPENING_DELAY_PS * 256 , t_ck);
+		EMIF_INTELLI_PHY_DQS_GATE_OPENING_DELAY_PS * 256, t_ck);
 
 	return fifo_we_slave_ratio >> 10 | fifo_we_slave_ratio << 1 |
 		fifo_we_slave_ratio << 12 | fifo_we_slave_ratio << 23;
@@ -738,7 +694,7 @@ static u32 get_ext_phy_ctrl_4_intelliphy_4d5(void)
 	u32 fifo_we_slave_ratio;
 
 	fifo_we_slave_ratio =  DIV_ROUND_CLOSEST(
-		EMIF_INTELLI_PHY_DQS_GATE_OPENING_DELAY_PS * 256 , t_ck);
+		EMIF_INTELLI_PHY_DQS_GATE_OPENING_DELAY_PS * 256, t_ck);
 
 	return fifo_we_slave_ratio >> 9 | fifo_we_slave_ratio << 2 |
 		fifo_we_slave_ratio << 13;
@@ -977,8 +933,7 @@ static irqreturn_t handle_temp_alert(void __iomem *base, struct emif_data *emif)
 				EMIF_CUSTOM_CONFIG_EXTENDED_TEMP_PART)) {
 		if (emif->temperature_level >= SDRAM_TEMP_HIGH_DERATE_REFRESH) {
 			dev_err(emif->dev,
-				"%s:NOT Extended temperature capable memory."
-				"Converting MR4=0x%02x as shutdown event\n",
+				"%s:NOT Extended temperature capable memory. Converting MR4=0x%02x as shutdown event\n",
 				__func__, emif->temperature_level);
 			/*
 			 * Temperature far too high - do kernel_power_off()
@@ -1320,9 +1275,9 @@ static void __init_or_module of_get_ddr_info(struct device_node *np_emif,
 	if (of_find_property(np_emif, "cal-resistor-per-cs", &len))
 		dev_info->cal_resistors_per_cs = true;
 
-	if (of_device_is_compatible(np_ddr , "jedec,lpddr2-s4"))
+	if (of_device_is_compatible(np_ddr, "jedec,lpddr2-s4"))
 		dev_info->type = DDR_TYPE_LPDDR2_S4;
-	else if (of_device_is_compatible(np_ddr , "jedec,lpddr2-s2"))
+	else if (of_device_is_compatible(np_ddr, "jedec,lpddr2-s2"))
 		dev_info->type = DDR_TYPE_LPDDR2_S2;
 
 	of_property_read_u32(np_ddr, "density", &density);
@@ -1565,11 +1520,8 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 		goto error;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(emif->dev, "%s: error getting IRQ resource - %d\n",
-			__func__, irq);
+	if (irq < 0)
 		goto error;
-	}
 
 	emif_onetime_settings(emif);
 	emif_debugfs_init(emif);
@@ -1615,7 +1567,7 @@ static void emif_shutdown(struct platform_device *pdev)
 static int get_emif_reg_values(struct emif_data *emif, u32 freq,
 		struct emif_regs *regs)
 {
-	u32				cs1_used, ip_rev, phy_type;
+	u32				ip_rev, phy_type;
 	u32				cl, type;
 	const struct lpddr2_timings	*timings;
 	const struct lpddr2_min_tck	*min_tck;
@@ -1623,7 +1575,6 @@ static int get_emif_reg_values(struct emif_data *emif, u32 freq,
 	const struct lpddr2_addressing	*addressing;
 	struct emif_data		*emif_for_calc;
 	struct device			*dev;
-	const struct emif_custom_configs *custom_configs;
 
 	dev = emif->dev;
 	/*
@@ -1641,12 +1592,10 @@ static int get_emif_reg_values(struct emif_data *emif, u32 freq,
 
 	device_info	= emif_for_calc->plat_data->device_info;
 	type		= device_info->type;
-	cs1_used	= device_info->cs1_used;
 	ip_rev		= emif_for_calc->plat_data->ip_rev;
 	phy_type	= emif_for_calc->plat_data->phy_type;
 
 	min_tck		= emif_for_calc->plat_data->min_tck;
-	custom_configs	= emif_for_calc->plat_data->custom_configs;
 
 	set_ddr_clk_period(freq);
 

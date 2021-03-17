@@ -44,6 +44,19 @@ Optional properties:
   Admission Control Block supports reporting the number of packets in-flight in a
   switch queue
 
+- resets: a single phandle and reset identifier pair. See
+  Documentation/devicetree/bindings/reset/reset.txt for details.
+
+- reset-names: If the "reset" property is specified, this property should have
+  the value "switch" to denote the switch reset line.
+
+- clocks: when provided, the first phandle is to the switch's main clock and
+  is valid for both BCM7445 and BCM7278. The second phandle is only applicable
+  to BCM7445 and is to support dividing the switch core clock.
+
+- clock-names: when provided, the first phandle must be "sw_switch", and the
+  second must be named "sw_switch_mdiv".
+
 Port subnodes:
 
 Optional properties:

@@ -8,15 +8,21 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <drm/drm_dp_helper.h>
+
 #include <media/cec.h>
+
+#include <drm/drm_connector.h>
+#include <drm/drm_device.h>
+#include <drm/drm_dp_helper.h>
 
 /*
  * Unfortunately it turns out that we have a chicken-and-egg situation
  * here. Quite a few active (mini-)DP-to-HDMI or USB-C-to-HDMI adapters
  * have a converter chip that supports CEC-Tunneling-over-AUX (usually the
  * Parade PS176), but they do not wire up the CEC pin, thus making CEC
- * useless.
+ * useless. Note that MegaChips 2900-based adapters appear to have good
+ * support for CEC tunneling. Those adapters that I have tested using
+ * this chipset all have the CEC line connected.
  *
  * Sadly there is no way for this driver to know this. What happens is
  * that a /dev/cecX device is created that is isolated and unable to see
@@ -238,6 +244,10 @@ void drm_dp_cec_irq(struct drm_dp_aux *aux)
 	u8 cec_irq;
 	int ret;
 
+	/* No transfer function was set, so not a DP connector */
+	if (!aux->transfer)
+		return;
+
 	mutex_lock(&aux->cec.lock);
 	if (!aux->cec.adap)
 		goto unlock;
@@ -289,9 +299,16 @@ static void drm_dp_cec_unregister_work(struct work_struct *work)
  */
 void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid)
 {
-	u32 cec_caps = CEC_CAP_DEFAULTS | CEC_CAP_NEEDS_HPD;
+	struct drm_connector *connector = aux->cec.connector;
+	u32 cec_caps = CEC_CAP_DEFAULTS | CEC_CAP_NEEDS_HPD |
+		       CEC_CAP_CONNECTOR_INFO;
+	struct cec_connector_info conn_info;
 	unsigned int num_las = 1;
 	u8 cap;
+
+	/* No transfer function was set, so not a DP connector */
+	if (!aux->transfer)
+		return;
 
 #ifndef CONFIG_MEDIA_CEC_RC
 	/*
@@ -334,13 +351,17 @@ void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid)
 
 	/* Create a new adapter */
 	aux->cec.adap = cec_allocate_adapter(&drm_dp_cec_adap_ops,
-					     aux, aux->cec.name, cec_caps,
+					     aux, connector->name, cec_caps,
 					     num_las);
 	if (IS_ERR(aux->cec.adap)) {
 		aux->cec.adap = NULL;
 		goto unlock;
 	}
-	if (cec_register_adapter(aux->cec.adap, aux->cec.parent)) {
+
+	cec_fill_conn_info_from_drm(&conn_info, connector);
+	cec_s_conn_info(aux->cec.adap, &conn_info);
+
+	if (cec_register_adapter(aux->cec.adap, connector->dev->dev)) {
 		cec_delete_adapter(aux->cec.adap);
 		aux->cec.adap = NULL;
 	} else {
@@ -361,6 +382,10 @@ EXPORT_SYMBOL(drm_dp_cec_set_edid);
  */
 void drm_dp_cec_unset_edid(struct drm_dp_aux *aux)
 {
+	/* No transfer function was set, so not a DP connector */
+	if (!aux->transfer)
+		return;
+
 	cancel_delayed_work_sync(&aux->cec.unregister_work);
 
 	mutex_lock(&aux->cec.lock);
@@ -392,24 +417,22 @@ EXPORT_SYMBOL(drm_dp_cec_unset_edid);
 /**
  * drm_dp_cec_register_connector() - register a new connector
  * @aux: DisplayPort AUX channel
- * @name: name of the CEC device
- * @parent: parent device
+ * @connector: drm connector
  *
  * A new connector was registered with associated CEC adapter name and
  * CEC adapter parent device. After registering the name and parent
  * drm_dp_cec_set_edid() is called to check if the connector supports
  * CEC and to register a CEC adapter if that is the case.
  */
-void drm_dp_cec_register_connector(struct drm_dp_aux *aux, const char *name,
-				   struct device *parent)
+void drm_dp_cec_register_connector(struct drm_dp_aux *aux,
+				   struct drm_connector *connector)
 {
 	WARN_ON(aux->cec.adap);
-	aux->cec.name = name;
-	aux->cec.parent = parent;
+	if (WARN_ON(!aux->transfer))
+		return;
+	aux->cec.connector = connector;
 	INIT_DELAYED_WORK(&aux->cec.unregister_work,
 			  drm_dp_cec_unregister_work);
-
-	drm_dp_cec_set_edid(aux, NULL);
 }
 EXPORT_SYMBOL(drm_dp_cec_register_connector);
 

@@ -1,18 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016 Linaro Limited.
  * Copyright (c) 2014-2016 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef __DW_DSI_REG_H__
 #define __DW_DSI_REG_H__
 
 #define MASK(x)				(BIT(x) - 1)
-
+#define DEFAULT_MAX_TX_ESC_CLK	(10 * 1000000UL)	//for hikey960
 /*
  * regs
  */
@@ -56,6 +52,50 @@
 #define VID_VACTIVE_LINES       0x60  /* Vertical resolution */
 #define VID_PKT_SIZE            0x3C  /* Video packet size */
 #define VID_MODE_CFG            0x38  /* Video mode configuration */
+/***************************for hikey960***********************************/
+#define GEN_HDR			0x6c
+#define GEN_HDATA(data)		(((data) & 0xffff) << 8)
+#define GEN_HDATA_MASK		(0xffff << 8)
+#define GEN_HTYPE(type)		(((type) & 0xff) << 0)
+#define GEN_HTYPE_MASK		0xff
+#define GEN_PLD_DATA		0x70
+#define CMD_PKT_STATUS		0x74
+#define GEN_CMD_EMPTY		BIT(0)
+#define GEN_CMD_FULL		BIT(1)
+#define GEN_PLD_W_EMPTY		BIT(2)
+#define GEN_PLD_W_FULL		BIT(3)
+#define GEN_PLD_R_EMPTY		BIT(4)
+#define GEN_PLD_R_FULL		BIT(5)
+#define GEN_RD_CMD_BUSY		BIT(6)
+#define CMD_MODE_CFG		0x68
+#define MAX_RD_PKT_SIZE_LP	BIT(24)
+#define DCS_LW_TX_LP		BIT(19)
+#define DCS_SR_0P_TX_LP		BIT(18)
+#define DCS_SW_1P_TX_LP		BIT(17)
+#define DCS_SW_0P_TX_LP		BIT(16)
+#define GEN_LW_TX_LP		BIT(14)
+#define GEN_SR_2P_TX_LP		BIT(13)
+#define GEN_SR_1P_TX_LP		BIT(12)
+#define GEN_SR_0P_TX_LP		BIT(11)
+#define GEN_SW_2P_TX_LP		BIT(10)
+#define GEN_SW_1P_TX_LP		BIT(9)
+#define GEN_SW_0P_TX_LP		BIT(8)
+#define EN_ACK_RQST		BIT(1)
+#define EN_TEAR_FX		BIT(0)
+#define CMD_PKT_STATUS_TIMEOUT_US	20000
+#define CMD_MODE_ALL_LP		(MAX_RD_PKT_SIZE_LP | \
+				 DCS_LW_TX_LP | \
+				 DCS_SR_0P_TX_LP | \
+				 DCS_SW_1P_TX_LP | \
+				 DCS_SW_0P_TX_LP | \
+				 GEN_LW_TX_LP | \
+				 GEN_SR_2P_TX_LP | \
+				 GEN_SR_1P_TX_LP | \
+				 GEN_SR_0P_TX_LP | \
+				 GEN_SW_2P_TX_LP | \
+				 GEN_SW_1P_TX_LP | \
+				 GEN_SW_0P_TX_LP)
+/***************************for hikey960***********************************/
 #define PHY_TMR_CFG             0x9C  /* Data lanes timing configuration */
 #define BTA_TO_CNT              0x8C  /* Response timeout definition */
 #define PHY_TMR_LPCLK_CFG       0x98  /* clock lane timing configuration */

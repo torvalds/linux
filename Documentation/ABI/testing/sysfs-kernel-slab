@@ -346,6 +346,7 @@ Description:
 		number of objects per slab.  If a slab cannot be allocated
 		because of fragmentation, SLUB will retry with the minimum order
 		possible depending on its characteristics.
+
 		When debug_guardpage_minorder=N (N > 0) parameter is specified
 		(see Documentation/admin-guide/kernel-parameters.rst), the minimum possible
 		order is used and this sysfs entry can not be used to change
@@ -361,6 +362,7 @@ Description:
 		new slab has not been possible at the cache's order and instead
 		fallen back to its minimum possible order.  It can be written to
 		clear the current count.
+
 		Available when CONFIG_SLUB_STATS is enabled.
 
 What:		/sys/kernel/slab/cache/partial
@@ -410,6 +412,7 @@ Description:
 		slab from a remote node as opposed to allocating a new slab on
 		the local node.  This reduces the amount of wasted memory over
 		the entire system but can be expensive.
+
 		Available when CONFIG_NUMA is enabled.
 
 What:		/sys/kernel/slab/cache/sanity_checks
@@ -429,10 +432,15 @@ KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
-		The shrink file is written when memory should be reclaimed from
-		a cache.  Empty partial slabs are freed and the partial list is
-		sorted so the slabs with the fewest available objects are used
-		first.
+		The shrink file is used to reclaim unused slab cache
+		memory from a cache.  Empty per-cpu or partial slabs
+		are freed and the partial list is sorted so the slabs
+		with the fewest available objects are used first.
+		It only accepts a value of "1" on write for shrinking
+		the cache. Other input values are considered invalid.
+		Shrinking slab caches might be expensive and can
+		adversely impact other running applications.  So it
+		should be used with care.
 
 What:		/sys/kernel/slab/cache/slab_size
 Date:		May 2007

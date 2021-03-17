@@ -12,28 +12,57 @@ SYNOPSIS
 
 OPTIONS
 -------
---debug::
-	Setup debug variable (see list below) in value
-	range (0, 10). Use like:
-	  --debug verbose   # sets verbose = 1
-	  --debug verbose=2 # sets verbose = 2
-
-	List of debug variables allowed to set:
-	  verbose          - general debug messages
-	  ordered-events   - ordered events object debug messages
-	  data-convert     - data convert command debug messages
-
---buildid-dir::
-	Setup buildid cache directory. It has higher priority than
-	buildid.dir config file option.
+-h::
+--help::
+        Run perf help command.
 
 -v::
 --version::
-  Display perf version.
+        Display perf version.
 
--h::
---help::
-  Run perf help command.
+-vv::
+        Print the compiled-in status of libraries.
+
+--exec-path::
+        Display or set exec path.
+
+--html-path::
+        Display html documentation path.
+
+-p::
+--paginate::
+        Set up pager.
+
+--no-pager::
+        Do not set pager.
+
+--buildid-dir::
+        Setup buildid cache directory. It has higher priority
+        than buildid.dir config file option.
+
+--list-cmds::
+        List the most commonly used perf commands.
+
+--list-opts::
+        List available perf options.
+
+--debugfs-dir::
+        Set debugfs directory or set environment variable PERF_DEBUGFS_DIR.
+
+--debug::
+        Setup debug variable (see list below) in value
+        range (0, 10). Use like:
+          --debug verbose   # sets verbose = 1
+          --debug verbose=2 # sets verbose = 2
+
+        List of debug variables allowed to set:
+          verbose          - general debug messages
+          ordered-events   - ordered events object debug messages
+          data-convert     - data convert command debug messages
+          stderr           - write debug output (option -v) to stderr
+                             in browser mode
+          perf-event-open  - Print perf_event_open() arguments and
+                             return value
 
 DESCRIPTION
 -----------

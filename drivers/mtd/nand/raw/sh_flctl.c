@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH FLCTL nand controller
  *
@@ -5,20 +6,6 @@
  * Copyright (c) 2008 Atom Create Engineering Co., Ltd.
  *
  * Based on fsl_elbc_nand.c, Copyright (c) 2006-2007 Freescale Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/module.h>
@@ -114,14 +101,12 @@ static const struct mtd_ooblayout_ops flctl_4secc_oob_largepage_ops = {
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr flctl_4secc_smallpage = {
-	.options = NAND_BBT_SCAN2NDPAGE,
 	.offs = 11,
 	.len = 1,
 	.pattern = scan_ff_pattern,
 };
 
 static struct nand_bbt_descr flctl_4secc_largepage = {
-	.options = NAND_BBT_SCAN2NDPAGE,
 	.offs = 0,
 	.len = 2,
 	.pattern = scan_ff_pattern,
@@ -480,7 +465,7 @@ static void read_fiforeg(struct sh_flctl *flctl, int rlen, int offset)
 
 	/* initiate DMA transfer */
 	if (flctl->chan_fifo0_rx && rlen >= 32 &&
-		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_DEV_TO_MEM) > 0)
+		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_FROM_DEVICE) > 0)
 			goto convert;	/* DMA success */
 
 	/* do polling transfer */
@@ -539,7 +524,7 @@ static void write_ec_fiforeg(struct sh_flctl *flctl, int rlen,
 
 	/* initiate DMA transfer */
 	if (flctl->chan_fifo0_tx && rlen >= 32 &&
-		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_MEM_TO_DEV) > 0)
+		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_TO_DEVICE) > 0)
 			return;	/* DMA success */
 
 	/* do polling transfer */
@@ -611,21 +596,24 @@ static void set_cmd_regs(struct mtd_info *mtd, uint32_t cmd, uint32_t flcmcdr_va
 	writel(flcmcdr_val, FLCMCDR(flctl));
 }
 
-static int flctl_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf, int oob_required, int page)
+static int flctl_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
+				 int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+		chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 	return 0;
 }
 
-static int flctl_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				  const uint8_t *buf, int oob_required,
-				  int page)
+static int flctl_write_page_hwecc(struct nand_chip *chip, const uint8_t *buf,
+				  int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 	return nand_prog_page_end_op(chip);
 }
 
@@ -747,9 +735,10 @@ static void execmd_write_oob(struct mtd_info *mtd)
 	}
 }
 
-static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
+static void flctl_cmdfunc(struct nand_chip *chip, unsigned int command,
 			int column, int page_addr)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
 	uint32_t read_cmd = 0;
 
@@ -923,9 +912,9 @@ runtime_exit:
 	return;
 }
 
-static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
+static void flctl_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	struct sh_flctl *flctl = mtd_to_flctl(nand_to_mtd(chip));
 	int ret;
 
 	switch (chipnr) {
@@ -967,17 +956,17 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 	}
 }
 
-static void flctl_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void flctl_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	struct sh_flctl *flctl = mtd_to_flctl(nand_to_mtd(chip));
 
 	memcpy(&flctl->done_buff[flctl->index], buf, len);
 	flctl->index += len;
 }
 
-static uint8_t flctl_read_byte(struct mtd_info *mtd)
+static uint8_t flctl_read_byte(struct nand_chip *chip)
 {
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	struct sh_flctl *flctl = mtd_to_flctl(nand_to_mtd(chip));
 	uint8_t data;
 
 	data = flctl->done_buff[flctl->index];
@@ -985,18 +974,9 @@ static uint8_t flctl_read_byte(struct mtd_info *mtd)
 	return data;
 }
 
-static uint16_t flctl_read_word(struct mtd_info *mtd)
+static void flctl_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	uint16_t *buf = (uint16_t *)&flctl->done_buff[flctl->index];
-
-	flctl->index += 2;
-	return *buf;
-}
-
-static void flctl_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
-{
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	struct sh_flctl *flctl = mtd_to_flctl(nand_to_mtd(chip));
 
 	memcpy(buf, &flctl->done_buff[flctl->index], len);
 	flctl->index += len;
@@ -1004,6 +984,7 @@ static void flctl_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 
 static int flctl_chip_attach_chip(struct nand_chip *chip)
 {
+	u64 targetsize = nanddev_target_size(&chip->base);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
 
@@ -1016,11 +997,11 @@ static int flctl_chip_attach_chip(struct nand_chip *chip)
 
 	if (mtd->writesize == 512) {
 		flctl->page_size = 0;
-		if (chip->chipsize > (32 << 20)) {
+		if (targetsize > (32 << 20)) {
 			/* big than 32MB */
 			flctl->rw_ADRCNT = ADRCNT_4;
 			flctl->erase_ADRCNT = ADRCNT_3;
-		} else if (chip->chipsize > (2 << 16)) {
+		} else if (targetsize > (2 << 16)) {
 			/* big than 128KB */
 			flctl->rw_ADRCNT = ADRCNT_3;
 			flctl->erase_ADRCNT = ADRCNT_2;
@@ -1030,11 +1011,11 @@ static int flctl_chip_attach_chip(struct nand_chip *chip)
 		}
 	} else {
 		flctl->page_size = 1;
-		if (chip->chipsize > (128 << 20)) {
+		if (targetsize > (128 << 20)) {
 			/* big than 128MB */
 			flctl->rw_ADRCNT = ADRCNT2_E;
 			flctl->erase_ADRCNT = ADRCNT_3;
-		} else if (chip->chipsize > (8 << 16)) {
+		} else if (targetsize > (8 << 16)) {
 			/* big than 512KB */
 			flctl->rw_ADRCNT = ADRCNT_4;
 			flctl->erase_ADRCNT = ADRCNT_2;
@@ -1058,13 +1039,13 @@ static int flctl_chip_attach_chip(struct nand_chip *chip)
 		chip->ecc.strength = 4;
 		chip->ecc.read_page = flctl_read_page_hwecc;
 		chip->ecc.write_page = flctl_write_page_hwecc;
-		chip->ecc.mode = NAND_ECC_HW;
+		chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 
 		/* 4 symbols ECC enabled */
 		flctl->flcmncr_base |= _4ECCEN;
 	} else {
-		chip->ecc.mode = NAND_ECC_SOFT;
-		chip->ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 	}
 
 	return 0;
@@ -1148,10 +1129,8 @@ static int flctl_probe(struct platform_device *pdev)
 	flctl->fifo = res->start + 0x24; /* FLDTFIFO */
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get flste irq data: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, flctl_handle_flste, IRQF_SHARED,
 			       "flste", flctl);
@@ -1183,27 +1162,28 @@ static int flctl_probe(struct platform_device *pdev)
 
 	/* Set address of hardware control function */
 	/* 20 us command delay time */
-	nand->chip_delay = 20;
+	nand->legacy.chip_delay = 20;
 
-	nand->read_byte = flctl_read_byte;
-	nand->read_word = flctl_read_word;
-	nand->write_buf = flctl_write_buf;
-	nand->read_buf = flctl_read_buf;
-	nand->select_chip = flctl_select_chip;
-	nand->cmdfunc = flctl_cmdfunc;
-	nand->set_features = nand_get_set_features_notsupp;
-	nand->get_features = nand_get_set_features_notsupp;
+	nand->legacy.read_byte = flctl_read_byte;
+	nand->legacy.write_buf = flctl_write_buf;
+	nand->legacy.read_buf = flctl_read_buf;
+	nand->legacy.select_chip = flctl_select_chip;
+	nand->legacy.cmdfunc = flctl_cmdfunc;
+	nand->legacy.set_features = nand_get_set_features_notsupp;
+	nand->legacy.get_features = nand_get_set_features_notsupp;
 
 	if (pdata->flcmncr_val & SEL_16BIT)
 		nand->options |= NAND_BUSWIDTH_16;
+
+	nand->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
 
 	flctl_setup_dma(flctl);
 
-	nand->dummy_controller.ops = &flctl_nand_controller_ops;
-	ret = nand_scan(flctl_mtd, 1);
+	nand->legacy.dummy_controller.ops = &flctl_nand_controller_ops;
+	ret = nand_scan(nand, 1);
 	if (ret)
 		goto err_chip;
 
@@ -1224,9 +1204,13 @@ err_chip:
 static int flctl_remove(struct platform_device *pdev)
 {
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &flctl->chip;
+	int ret;
 
 	flctl_release_dma(flctl);
-	nand_release(nand_to_mtd(&flctl->chip));
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
@@ -1242,7 +1226,7 @@ static struct platform_driver flctl_driver = {
 
 module_platform_driver_probe(flctl_driver, flctl_probe);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 MODULE_DESCRIPTION("SuperH FLCTL driver");
 MODULE_ALIAS("platform:sh_flctl");

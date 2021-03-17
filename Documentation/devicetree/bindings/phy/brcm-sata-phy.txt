@@ -2,12 +2,14 @@
 
 Required properties:
 - compatible: should be one or more of
+     "brcm,bcm7216-sata-phy"
      "brcm,bcm7425-sata-phy"
      "brcm,bcm7445-sata-phy"
      "brcm,iproc-ns2-sata-phy"
      "brcm,iproc-nsp-sata-phy"
      "brcm,phy-sata3"
      "brcm,iproc-sr-sata-phy"
+     "brcm,bcm63138-sata-phy"
 - address-cells: should be 1
 - size-cells: should be 0
 - reg: register ranges for the PHY PCB interface

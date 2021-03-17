@@ -13,6 +13,7 @@
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -171,14 +172,12 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct i2s_pll_clk *pll_clk;
 	struct clk_init_data init;
-	struct resource *mem;
 
 	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);
 	if (!pll_clk)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pll_clk->base = devm_ioremap_resource(dev, mem);
+	pll_clk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pll_clk->base))
 		return PTR_ERR(pll_clk->base);
 

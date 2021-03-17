@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004 IBM Corporation
  *
@@ -11,12 +12,6 @@
  *
  * Device driver for TCG/TCPA TPM (trusted platform module).
  * Specifications at www.trustedcomputinggroup.org	 
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
- * 
  */
 
 #include <linux/platform_device.h>
@@ -226,7 +221,7 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 	}
 	outb(NSC_COMMAND_EOC, priv->base + NSC_COMMAND);
 
-	return count;
+	return 0;
 }
 
 static void tpm_nsc_cancel(struct tpm_chip *chip)

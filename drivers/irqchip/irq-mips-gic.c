@@ -46,7 +46,7 @@
 
 void __iomem *mips_gic_base;
 
-DEFINE_PER_CPU_READ_MOSTLY(unsigned long[GIC_MAX_LONGS], pcpu_masks);
+static DEFINE_PER_CPU_READ_MOSTLY(unsigned long[GIC_MAX_LONGS], pcpu_masks);
 
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
@@ -388,7 +388,7 @@ static void gic_all_vpes_irq_cpu_online(struct irq_data *d)
 	intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
 	cd = irq_data_get_irq_chip_data(d);
 
-	write_gic_vl_map(intr, cd->map);
+	write_gic_vl_map(mips_gic_vx_map_reg(intr), cd->map);
 	if (cd->mask)
 		write_gic_vl_smask(BIT(intr));
 }
@@ -480,7 +480,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	case GIC_LOCAL_INT_TIMER:
 		/* CONFIG_MIPS_CMP workaround (see __gic_init) */
 		map = GIC_MAP_PIN_MAP_TO_PIN | timer_cpu_pin;
-		/* fall-through */
+		fallthrough;
 	case GIC_LOCAL_INT_PERFCTR:
 	case GIC_LOCAL_INT_FDC:
 		/*
@@ -517,7 +517,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	spin_lock_irqsave(&gic_lock, flags);
 	for_each_online_cpu(cpu) {
 		write_gic_vl_other(mips_cm_vp_id(cpu));
-		write_gic_vo_map(intr, map);
+		write_gic_vo_map(mips_gic_vx_map_reg(intr), map);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 
@@ -617,8 +617,8 @@ error:
 	return ret;
 }
 
-void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
-			 unsigned int nr_irqs)
+static void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
+				unsigned int nr_irqs)
 {
 	irq_hw_number_t base_hwirq;
 	struct irq_data *data;
@@ -631,8 +631,8 @@ void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
 	bitmap_set(ipi_available, base_hwirq, nr_irqs);
 }
 
-int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
-			 enum irq_domain_bus_token bus_token)
+static int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
+				enum irq_domain_bus_token bus_token)
 {
 	bool is_ipi;
 
@@ -716,7 +716,7 @@ static int __init gic_of_init(struct device_node *node,
 		__sync();
 	}
 
-	mips_gic_base = ioremap_nocache(gic_base, gic_len);
+	mips_gic_base = ioremap(gic_base, gic_len);
 
 	gicconfig = read_gic_config();
 	gic_shared_intrs = gicconfig & GIC_CONFIG_NUMINTERRUPTS;

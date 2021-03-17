@@ -1,18 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mm/copypage-v6.c
  *
  *  Copyright (C) 2002 Deep Blue Solutions Ltd, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 
-#include <asm/pgtable.h>
 #include <asm/shmparam.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>

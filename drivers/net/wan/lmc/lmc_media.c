@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* $Id: lmc_media.c,v 1.13 2000/04/11 05:25:26 asj Exp $ */
 
 #include <linux/kernel.h>
@@ -37,9 +38,6 @@
   * Rob Braun (bbraun@vix.com),
   * Michael Graff (explorer@vix.com) and
   * Matt Thomas (matt@3am-software.com).
-  *
-  * This software may be used and distributed according to the terms
-  * of the GNU General Public License version 2, incorporated herein by reference.
   */
 
 /*
@@ -1028,7 +1026,6 @@ lmc_t1_get_link_status (lmc_softc_t * const sc)
    * led3 red    = Loss of Signal (LOS) or out of frame (OOF)
    *               conditions detected on T3 receive signal
    */
-    lmc_trace(sc->lmc_device, "lmc_t1_get_link_status in");
     lmc_led_on(sc, LMC_DS3_LED2);
 
     lmc_mii_writereg (sc, 0, 17, T1FRAMER_ALARM1_STATUS);
@@ -1121,9 +1118,6 @@ lmc_t1_get_link_status (lmc_softc_t * const sc)
 
     lmc_mii_writereg (sc, 0, 17, T1FRAMER_ALARM2_STATUS);
     sc->lmc_xinfo.t1_alarm2_status = lmc_mii_readreg (sc, 0, 18);
-
-    
-    lmc_trace(sc->lmc_device, "lmc_t1_get_link_status out");
 
     return ret;
 }

@@ -23,9 +23,8 @@ source "arch/powerpc/platforms/amigaone/Kconfig"
 
 config KVM_GUEST
 	bool "KVM Guest support"
-	default n
 	select EPAPR_PARAVIRT
-	---help---
+	help
 	  This option enables various optimizations for running under the KVM
 	  hypervisor. Overhead for the kernel when not running inside KVM should
 	  be minimal.
@@ -34,7 +33,6 @@ config KVM_GUEST
 
 config EPAPR_PARAVIRT
 	bool "ePAPR para-virtualization support"
-	default n
 	help
 	  Enables ePAPR para-virtualization support for guests.
 
@@ -42,7 +40,7 @@ config EPAPR_PARAVIRT
 
 config PPC_NATIVE
 	bool
-	depends on 6xx || PPC64
+	depends on PPC_BOOK3S_32 || PPC64
 	help
 	  Support for running natively on the hardware, i.e. without
 	  a hypervisor. This option is not user-selectable but should
@@ -50,7 +48,7 @@ config PPC_NATIVE
 
 config PPC_OF_BOOT_TRAMPOLINE
 	bool "Support booting from Open Firmware or yaboot"
-	depends on 6xx || PPC64
+	depends on PPC_BOOK3S_32 || PPC64
 	default y
 	help
 	  Support from booting from Open Firmware or yaboot using an
@@ -74,7 +72,6 @@ config PPC_DT_CPU_FTRS
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
 	depends on PPC_RTAS
-	default n
 
 config PPC_SMP_MUXED_IPI
 	bool
@@ -86,16 +83,13 @@ config PPC_SMP_MUXED_IPI
 
 config IPIC
 	bool
-	default n
 
 config MPIC
 	bool
-	default n
 
 config MPIC_TIMER
 	bool "MPIC Global Timer"
 	depends on MPIC && FSL_SOC
-	default n
 	help
 	  The MPIC global timer is a hardware timer inside the
 	  Freescale PIC complying with OpenPIC standard. When the
@@ -107,7 +101,6 @@ config MPIC_TIMER
 config FSL_MPIC_TIMER_WAKEUP
 	tristate "Freescale MPIC global timer wakeup driver"
 	depends on FSL_SOC &&  MPIC_TIMER && PM
-	default n
 	help
 	  The driver provides a way to wake up the system by MPIC
 	  timer.
@@ -115,43 +108,35 @@ config FSL_MPIC_TIMER_WAKEUP
 
 config PPC_EPAPR_HV_PIC
 	bool
-	default n
 	select EPAPR_PARAVIRT
 
 config MPIC_WEIRD
 	bool
-	default n
 
 config MPIC_MSGR
 	bool "MPIC message register support"
 	depends on MPIC
-	default n
 	help
 	  Enables support for the MPIC message registers.  These
 	  registers are used for inter-processor communication.
 
 config PPC_I8259
 	bool
-	default n
 
 config U3_DART
 	bool
 	depends on PPC64
-	default n
 
 config PPC_RTAS
 	bool
-	default n
 
 config RTAS_ERROR_LOGGING
 	bool
 	depends on PPC_RTAS
-	default n
 
 config PPC_RTAS_DAEMON
 	bool
 	depends on PPC_RTAS
-	default n
 
 config RTAS_PROC
 	bool "Proc interface to RTAS"
@@ -164,11 +149,9 @@ config RTAS_FLASH
 
 config MMIO_NVRAM
 	bool
-	default n
 
 config MPIC_U3_HT_IRQS
 	bool
-	default n
 
 config MPIC_BROKEN_REGREAD
 	bool
@@ -187,15 +170,16 @@ config EEH
 
 config PPC_MPC106
 	bool
-	default n
 
 config PPC_970_NAP
 	bool
-	default n
 
 config PPC_P7_NAP
 	bool
-	default n
+
+config PPC_BOOK3S_IDLE
+	def_bool y
+	depends on (PPC_970_NAP || PPC_P7_NAP)
 
 config PPC_INDIRECT_PIO
 	bool
@@ -215,53 +199,33 @@ source "drivers/cpuidle/Kconfig"
 
 endmenu
 
-config PPC601_SYNC_FIX
-	bool "Workarounds for PPC601 bugs"
-	depends on 6xx && PPC_PMAC
-	help
-	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
-	  mean that extra synchronization instructions are required near
-	  certain instructions, typically those that make major changes to the
-	  CPU state.  These extra instructions reduce performance slightly.
-	  If you say N here, these extra instructions will not be included,
-	  resulting in a kernel which will run faster but may not run at all
-	  on some systems with the PPC601 chip.
-
-	  If in doubt, say Y here.
-
 config TAU
 	bool "On-chip CPU temperature sensor support"
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
 	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
 	  temperature within 2-4 degrees Celsius. This option shows the current
 	  on-die temperature in /proc/cpuinfo if the cpu supports it.
 
-	  Unfortunately, on some chip revisions, this sensor is very inaccurate
-	  and in many cases, does not work at all, so don't assume the cpu
-	  temp is actually what /proc/cpuinfo says it is.
+	  Unfortunately, this sensor is very inaccurate when uncalibrated, so
+	  don't assume the cpu temp is actually what /proc/cpuinfo says it is.
 
 config TAU_INT
-	bool "Interrupt driven TAU driver (DANGEROUS)"
+	bool "Interrupt driven TAU driver (EXPERIMENTAL)"
 	depends on TAU
-	---help---
+	help
 	  The TAU supports an interrupt driven mode which causes an interrupt
 	  whenever the temperature goes out of range. This is the fastest way
 	  to get notified the temp has exceeded a range. With this option off,
 	  a timer is used to re-check the temperature periodically.
 
-	  However, on some cpus it appears that the TAU interrupt hardware
-	  is buggy and can cause a situation which would lead unexplained hard
-	  lockups.
-
-	  Unless you are extending the TAU driver, or enjoy kernel/hardware
-	  debugging, leave this option off.
+	  If in doubt, say N here.
 
 config TAU_AVERAGE
 	bool "Average high and low temp"
 	depends on TAU
-	---help---
+	help
 	  The TAU hardware can compare the temperature to an upper and lower
 	  bound.  The default behavior is to show both the upper and lower
 	  bound in /proc/cpuinfo. If the range is large, the temperature is
@@ -285,7 +249,7 @@ config CPM2
 	bool "Enable support for the CPM2 (Communications Processor Module)"
 	depends on (FSL_SOC_BOOKE && PPC32) || 8260
 	select CPM
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select GPIOLIB
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
@@ -295,7 +259,6 @@ config CPM2
 
 config FSL_ULI1575
 	bool
-	default n
 	select GENERIC_ISA_DMA
 	help
 	  Supports for the ULI1575 PCIe south bridge that exists on some
@@ -323,16 +286,6 @@ config GEN_RTC
 	  replacing their get_rtc_time/set_rtc_time callbacks with
 	  a proper RTC device driver.
 
-config SIMPLE_GPIO
-	bool "Support for simple, memory-mapped GPIO controllers"
-	depends on PPC
-	select GPIOLIB
-	help
-	  Say Y here to support simple, memory-mapped GPIO controllers.
-	  These are usually BCSRs used to control board's switches, LEDs,
-	  chip-selects, Ethernet/USB PHY's power and various other small
-	  on-board peripherals.
-
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
 	depends on I2C=y && PPC_83xx
@@ -342,9 +295,5 @@ config MCU_MPC8349EMITX
 	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will
 	  also register MCU GPIOs with the generic GPIO API, so you'll able
 	  to use MCU pins as GPIOs.
-
-config XILINX_PCI
-	bool "Xilinx PCI host bridge support"
-	depends on PCI && XILINX_VIRTEX
 
 endmenu

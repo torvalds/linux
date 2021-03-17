@@ -95,6 +95,14 @@
 #define MPT3DIAGREADBUFFER _IOWR(MPT3_MAGIC_NUMBER, 30, \
 	struct mpt3_diag_read_buffer)
 
+/* Trace Buffer default UniqueId */
+#define MPT2DIAGBUFFUNIQUEID (0x07075900)
+#define MPT3DIAGBUFFUNIQUEID (0x4252434D)
+
+/* UID not found */
+#define MPT3_DIAG_UID_NOT_FOUND (0xFF)
+
+
 /**
  * struct mpt3_ioctl_header - main header structure
  * @ioc_number -  IOC unit number
@@ -310,6 +318,7 @@ struct mpt3_ioctl_btdh_mapping {
 #define MPT3_APP_FLAGS_APP_OWNED	(0x0001)
 #define MPT3_APP_FLAGS_BUFFER_VALID	(0x0002)
 #define MPT3_APP_FLAGS_FW_BUFFER_ACCESS	(0x0004)
+#define MPT3_APP_FLAGS_DYNAMIC_BUFFER_ALLOC (0x0008)
 
 /* flags for mpt3_diag_read_buffer */
 #define MPT3_FLAGS_REREGISTER		(0x0001)

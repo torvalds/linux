@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * V4L2 flash LED sub-device registration helpers.
  *
  *	Copyright (C) 2015 Samsung Electronics Co., Ltd
  *	Author: Jacek Anaszewski <j.anaszewski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/led-class-flash.h>
@@ -640,7 +637,7 @@ static struct v4l2_flash *__v4l2_flash_init(
 	v4l2_subdev_init(sd, &v4l2_flash_subdev_ops);
 	sd->internal_ops = &v4l2_flash_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strlcpy(sd->name, config->dev_name, sizeof(sd->name));
+	strscpy(sd->name, config->dev_name, sizeof(sd->name));
 
 	ret = media_entity_pads_init(&sd->entity, 0, NULL);
 	if (ret < 0)

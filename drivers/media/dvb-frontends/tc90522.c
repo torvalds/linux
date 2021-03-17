@@ -685,10 +685,33 @@ tc90522_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		p += new_msgs[j].len;
 	}
 
-	if (i < num)
+	if (i < num) {
 		ret = -ENOMEM;
-	else
+	} else if (!state->cfg.split_tuner_read_i2c || rd_num == 0) {
 		ret = i2c_transfer(state->i2c_client->adapter, new_msgs, j);
+	} else {
+		/*
+		 * Split transactions at each I2C_M_RD message.
+		 * Some of the parent device require this,
+		 * such as Friio (see. dvb-usb-gl861).
+		 */
+		int from, to;
+
+		ret = 0;
+		from = 0;
+		do {
+			int r;
+
+			to = from + 1;
+			while (to < j && !(new_msgs[to].flags & I2C_M_RD))
+				to++;
+			r = i2c_transfer(state->i2c_client->adapter,
+					 &new_msgs[from], to - from);
+			ret = (r <= 0) ? r : ret + r;
+			from = to;
+		} while (from < j && ret > 0);
+	}
+
 	if (ret >= 0 && ret < j)
 		ret = -EIO;
 	kfree(new_msgs);
@@ -781,7 +804,7 @@ static int tc90522_probe(struct i2c_client *client,
 	adap->owner = THIS_MODULE;
 	adap->algo = &tc90522_tuner_i2c_algo;
 	adap->dev.parent = &client->dev;
-	strlcpy(adap->name, "tc90522_sub", sizeof(adap->name));
+	strscpy(adap->name, "tc90522_sub", sizeof(adap->name));
 	i2c_set_adapdata(adap, state);
 	ret = i2c_add_adapter(adap);
 	if (ret < 0)

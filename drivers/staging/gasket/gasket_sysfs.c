@@ -223,18 +223,15 @@ int gasket_sysfs_create_entries(struct device *device,
 
 	if (!mapping) {
 		dev_dbg(device,
-			"Creating entries for device without first "
-			"initializing mapping\n");
+			"Creating entries for device without first initializing mapping\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&mapping->mutex);
-	for (i = 0; strcmp(attrs[i].attr.attr.name, GASKET_ARRAY_END_MARKER);
-		i++) {
+	for (i = 0; attrs[i].attr.attr.name != NULL; i++) {
 		if (mapping->attribute_count == GASKET_SYSFS_MAX_NODES) {
 			dev_err(device,
-				"Maximum number of sysfs nodes reached for "
-				"device\n");
+				"Maximum number of sysfs nodes reached for device\n");
 			mutex_unlock(&mapping->mutex);
 			put_mapping(mapping);
 			return -ENOMEM;
@@ -264,8 +261,7 @@ void gasket_sysfs_remove_mapping(struct device *device)
 
 	if (!mapping) {
 		dev_err(device,
-			"Attempted to remove non-existent sysfs mapping to "
-			"device\n");
+			"Attempted to remove non-existent sysfs mapping to device\n");
 		return;
 	}
 
@@ -343,6 +339,7 @@ void gasket_sysfs_put_attr(struct device *device,
 
 	dev_err(device, "Unable to put unknown attribute: %s\n",
 		attr->attr.attr.name);
+	put_mapping(mapping);
 }
 EXPORT_SYMBOL(gasket_sysfs_put_attr);
 
@@ -376,6 +373,7 @@ ssize_t gasket_sysfs_register_store(struct device *device,
 	gasket_dev = mapping->gasket_dev;
 	if (!gasket_dev) {
 		dev_err(device, "Device driver may have been removed\n");
+		put_mapping(mapping);
 		return 0;
 	}
 

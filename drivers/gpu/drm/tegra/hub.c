@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/host1x.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -16,10 +14,10 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_probe_helper.h>
 
 #include "drm.h"
 #include "dc.h"
@@ -97,17 +95,25 @@ static inline void tegra_plane_writel(struct tegra_plane *plane, u32 value,
 
 static int tegra_windowgroup_enable(struct tegra_windowgroup *wgrp)
 {
+	int err = 0;
+
 	mutex_lock(&wgrp->lock);
 
 	if (wgrp->usecount == 0) {
-		pm_runtime_get_sync(wgrp->parent);
+		err = host1x_client_resume(wgrp->parent);
+		if (err < 0) {
+			dev_err(wgrp->parent->dev, "failed to resume: %d\n", err);
+			goto unlock;
+		}
+
 		reset_control_deassert(wgrp->rst);
 	}
 
 	wgrp->usecount++;
-	mutex_unlock(&wgrp->lock);
 
-	return 0;
+unlock:
+	mutex_unlock(&wgrp->lock);
+	return err;
 }
 
 static void tegra_windowgroup_disable(struct tegra_windowgroup *wgrp)
@@ -123,7 +129,7 @@ static void tegra_windowgroup_disable(struct tegra_windowgroup *wgrp)
 			       wgrp->index);
 		}
 
-		pm_runtime_put(wgrp->parent);
+		host1x_client_suspend(wgrp->parent);
 	}
 
 	wgrp->usecount--;
@@ -143,7 +149,9 @@ int tegra_display_hub_prepare(struct tegra_display_hub *hub)
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
 
-		tegra_windowgroup_enable(wgrp);
+		/* Skip orphaned window group whose parent DC is disabled */
+		if (wgrp->parent)
+			tegra_windowgroup_enable(wgrp);
 	}
 
 	return 0;
@@ -160,7 +168,9 @@ void tegra_display_hub_cleanup(struct tegra_display_hub *hub)
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
 
-		tegra_windowgroup_disable(wgrp);
+		/* Skip orphaned window group whose parent DC is disabled */
+		if (wgrp->parent)
+			tegra_windowgroup_disable(wgrp);
 	}
 }
 
@@ -378,13 +388,22 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
 					      struct drm_plane_state *old_state)
 {
-	struct tegra_dc *dc = to_tegra_dc(old_state->crtc);
 	struct tegra_plane *p = to_tegra_plane(plane);
+	struct tegra_dc *dc;
 	u32 value;
+	int err;
 
 	/* rien ne va plus */
 	if (!old_state || !old_state->crtc)
 		return;
+
+	dc = to_tegra_dc(old_state->crtc);
+
+	err = host1x_client_resume(&dc->client);
+	if (err < 0) {
+		dev_err(dc->dev, "failed to resume: %d\n", err);
+		return;
+	}
 
 	/*
 	 * XXX Legacy helpers seem to sometimes call ->atomic_disable() even
@@ -394,15 +413,13 @@ static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
 	if (WARN_ON(p->dc == NULL))
 		p->dc = dc;
 
-	pm_runtime_get_sync(dc->dev);
-
 	value = tegra_plane_readl(p, DC_WIN_WIN_OPTIONS);
 	value &= ~WIN_ENABLE;
 	tegra_plane_writel(p, value, DC_WIN_WIN_OPTIONS);
 
 	tegra_dc_remove_shared_plane(dc, p);
 
-	pm_runtime_put(dc->dev);
+	host1x_client_suspend(&dc->client);
 }
 
 static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
@@ -413,9 +430,9 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	unsigned int zpos = plane->state->normalized_zpos;
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
-	struct tegra_bo *bo;
 	dma_addr_t base;
 	u32 value;
+	int err;
 
 	/* rien ne va plus */
 	if (!plane->state->crtc || !plane->state->fb)
@@ -426,7 +443,11 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	pm_runtime_get_sync(dc->dev);
+	err = host1x_client_resume(&dc->client);
+	if (err < 0) {
+		dev_err(dc->dev, "failed to resume: %d\n", err);
+		return;
+	}
 
 	tegra_dc_assign_shared_plane(dc, p);
 
@@ -456,8 +477,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	/* disable compression */
 	tegra_plane_writel(p, 0, DC_WINBUF_CDE_CONTROL);
 
-	bo = tegra_fb_get_plane(fb, 0);
-	base = bo->paddr;
+	base = state->iova[0] + fb->offsets[0];
 
 	tegra_plane_writel(p, state->format, DC_WIN_COLOR_DEPTH);
 	tegra_plane_writel(p, 0, DC_WIN_PRECOMP_WGRP_PARAMS);
@@ -517,10 +537,12 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	value &= ~CONTROL_CSC_ENABLE;
 	tegra_plane_writel(p, value, DC_WIN_WINDOW_SET_CONTROL);
 
-	pm_runtime_put(dc->dev);
+	host1x_client_suspend(&dc->client);
 }
 
 static const struct drm_plane_helper_funcs tegra_shared_plane_helper_funcs = {
+	.prepare_fb = tegra_plane_prepare_fb,
+	.cleanup_fb = tegra_plane_cleanup_fb,
 	.atomic_check = tegra_shared_plane_atomic_check,
 	.atomic_update = tegra_shared_plane_atomic_update,
 	.atomic_disable = tegra_shared_plane_atomic_disable,
@@ -551,7 +573,7 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	plane->base.index = index;
 
 	plane->wgrp = &hub->wgrps[wgrp];
-	plane->wgrp->parent = dc->dev;
+	plane->wgrp->parent = &dc->client;
 
 	p = &plane->base.base;
 
@@ -605,10 +627,7 @@ static struct tegra_display_hub_state *
 tegra_display_hub_get_state(struct tegra_display_hub *hub,
 			    struct drm_atomic_state *state)
 {
-	struct drm_device *drm = dev_get_drvdata(hub->client.parent);
 	struct drm_private_state *priv;
-
-	WARN_ON(!drm_modeset_is_locked(&drm->mode_config.connection_mutex));
 
 	priv = drm_atomic_get_private_obj_state(state, &hub->base);
 	if (IS_ERR(priv))
@@ -659,8 +678,13 @@ int tegra_display_hub_atomic_check(struct drm_device *drm,
 static void tegra_display_hub_update(struct tegra_dc *dc)
 {
 	u32 value;
+	int err;
 
-	pm_runtime_get_sync(dc->dev);
+	err = host1x_client_resume(&dc->client);
+	if (err < 0) {
+		dev_err(dc->dev, "failed to resume: %d\n", err);
+		return;
+	}
 
 	value = tegra_dc_readl(dc, DC_CMD_IHUB_COMMON_MISC_CTL);
 	value &= ~LATENCY_EVENT;
@@ -675,7 +699,7 @@ static void tegra_display_hub_update(struct tegra_dc *dc)
 	tegra_dc_writel(dc, COMMON_ACTREQ, DC_CMD_STATE_CONTROL);
 	tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 
-	pm_runtime_put(dc->dev);
+	host1x_client_suspend(&dc->client);
 }
 
 void tegra_display_hub_atomic_commit(struct drm_device *drm,
@@ -708,7 +732,7 @@ void tegra_display_hub_atomic_commit(struct drm_device *drm,
 static int tegra_display_hub_init(struct host1x_client *client)
 {
 	struct tegra_display_hub *hub = to_tegra_display_hub(client);
-	struct drm_device *drm = dev_get_drvdata(client->parent);
+	struct drm_device *drm = dev_get_drvdata(client->host);
 	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_display_hub_state *state;
 
@@ -716,7 +740,7 @@ static int tegra_display_hub_init(struct host1x_client *client)
 	if (!state)
 		return -ENOMEM;
 
-	drm_atomic_private_obj_init(&hub->base, &state->base,
+	drm_atomic_private_obj_init(drm, &hub->base, &state->base,
 				    &tegra_display_hub_state_funcs);
 
 	tegra->hub = hub;
@@ -726,7 +750,7 @@ static int tegra_display_hub_init(struct host1x_client *client)
 
 static int tegra_display_hub_exit(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
+	struct drm_device *drm = dev_get_drvdata(client->host);
 	struct tegra_drm *tegra = drm->dev_private;
 
 	drm_atomic_private_obj_fini(&tegra->hub->base);
@@ -735,14 +759,92 @@ static int tegra_display_hub_exit(struct host1x_client *client)
 	return 0;
 }
 
+static int tegra_display_hub_runtime_suspend(struct host1x_client *client)
+{
+	struct tegra_display_hub *hub = to_tegra_display_hub(client);
+	struct device *dev = client->dev;
+	unsigned int i = hub->num_heads;
+	int err;
+
+	err = reset_control_assert(hub->rst);
+	if (err < 0)
+		return err;
+
+	while (i--)
+		clk_disable_unprepare(hub->clk_heads[i]);
+
+	clk_disable_unprepare(hub->clk_hub);
+	clk_disable_unprepare(hub->clk_dsc);
+	clk_disable_unprepare(hub->clk_disp);
+
+	pm_runtime_put_sync(dev);
+
+	return 0;
+}
+
+static int tegra_display_hub_runtime_resume(struct host1x_client *client)
+{
+	struct tegra_display_hub *hub = to_tegra_display_hub(client);
+	struct device *dev = client->dev;
+	unsigned int i;
+	int err;
+
+	err = pm_runtime_get_sync(dev);
+	if (err < 0) {
+		dev_err(dev, "failed to get runtime PM: %d\n", err);
+		return err;
+	}
+
+	err = clk_prepare_enable(hub->clk_disp);
+	if (err < 0)
+		goto put_rpm;
+
+	err = clk_prepare_enable(hub->clk_dsc);
+	if (err < 0)
+		goto disable_disp;
+
+	err = clk_prepare_enable(hub->clk_hub);
+	if (err < 0)
+		goto disable_dsc;
+
+	for (i = 0; i < hub->num_heads; i++) {
+		err = clk_prepare_enable(hub->clk_heads[i]);
+		if (err < 0)
+			goto disable_heads;
+	}
+
+	err = reset_control_deassert(hub->rst);
+	if (err < 0)
+		goto disable_heads;
+
+	return 0;
+
+disable_heads:
+	while (i--)
+		clk_disable_unprepare(hub->clk_heads[i]);
+
+	clk_disable_unprepare(hub->clk_hub);
+disable_dsc:
+	clk_disable_unprepare(hub->clk_dsc);
+disable_disp:
+	clk_disable_unprepare(hub->clk_disp);
+put_rpm:
+	pm_runtime_put_sync(dev);
+	return err;
+}
+
 static const struct host1x_client_ops tegra_display_hub_ops = {
 	.init = tegra_display_hub_init,
 	.exit = tegra_display_hub_exit,
+	.suspend = tegra_display_hub_runtime_suspend,
+	.resume = tegra_display_hub_runtime_resume,
 };
 
 static int tegra_display_hub_probe(struct platform_device *pdev)
 {
+	struct device_node *child = NULL;
 	struct tegra_display_hub *hub;
+	struct clk *clk;
 	unsigned int i;
 	int err;
 
@@ -758,10 +860,12 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	hub->clk_dsc = devm_clk_get(&pdev->dev, "dsc");
-	if (IS_ERR(hub->clk_dsc)) {
-		err = PTR_ERR(hub->clk_dsc);
-		return err;
+	if (hub->soc->supports_dsc) {
+		hub->clk_dsc = devm_clk_get(&pdev->dev, "dsc");
+		if (IS_ERR(hub->clk_dsc)) {
+			err = PTR_ERR(hub->clk_dsc);
+			return err;
+		}
 	}
 
 	hub->clk_hub = devm_clk_get(&pdev->dev, "hub");
@@ -799,6 +903,34 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 			return err;
 	}
 
+	hub->num_heads = of_get_child_count(pdev->dev.of_node);
+
+	hub->clk_heads = devm_kcalloc(&pdev->dev, hub->num_heads, sizeof(clk),
+				      GFP_KERNEL);
+	if (!hub->clk_heads)
+		return -ENOMEM;
+
+	for (i = 0; i < hub->num_heads; i++) {
+		child = of_get_next_child(pdev->dev.of_node, child);
+		if (!child) {
+			dev_err(&pdev->dev, "failed to find node for head %u\n",
+				i);
+			return -ENODEV;
+		}
+
+		clk = devm_get_clk_from_child(&pdev->dev, child, "dc");
+		if (IS_ERR(clk)) {
+			dev_err(&pdev->dev, "failed to get clock for head %u\n",
+				i);
+			of_node_put(child);
+			return PTR_ERR(clk);
+		}
+
+		hub->clk_heads[i] = clk;
+	}
+
+	of_node_put(child);
+
 	/* XXX: enable clock across reset? */
 	err = reset_control_assert(hub->rst);
 	if (err < 0)
@@ -816,12 +948,22 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register host1x client: %d\n",
 			err);
 
+	err = devm_of_platform_populate(&pdev->dev);
+	if (err < 0)
+		goto unregister;
+
+	return err;
+
+unregister:
+	host1x_client_unregister(&hub->client);
+	pm_runtime_disable(&pdev->dev);
 	return err;
 }
 
 static int tegra_display_hub_remove(struct platform_device *pdev)
 {
 	struct tegra_display_hub *hub = platform_get_drvdata(pdev);
+	unsigned int i;
 	int err;
 
 	err = host1x_client_unregister(&hub->client);
@@ -830,70 +972,32 @@ static int tegra_display_hub_remove(struct platform_device *pdev)
 			err);
 	}
 
+	for (i = 0; i < hub->soc->num_wgrps; i++) {
+		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
+
+		mutex_destroy(&wgrp->lock);
+	}
+
 	pm_runtime_disable(&pdev->dev);
 
 	return err;
 }
 
-static int __maybe_unused tegra_display_hub_suspend(struct device *dev)
-{
-	struct tegra_display_hub *hub = dev_get_drvdata(dev);
-	int err;
-
-	err = reset_control_assert(hub->rst);
-	if (err < 0)
-		return err;
-
-	clk_disable_unprepare(hub->clk_hub);
-	clk_disable_unprepare(hub->clk_dsc);
-	clk_disable_unprepare(hub->clk_disp);
-
-	return 0;
-}
-
-static int __maybe_unused tegra_display_hub_resume(struct device *dev)
-{
-	struct tegra_display_hub *hub = dev_get_drvdata(dev);
-	int err;
-
-	err = clk_prepare_enable(hub->clk_disp);
-	if (err < 0)
-		return err;
-
-	err = clk_prepare_enable(hub->clk_dsc);
-	if (err < 0)
-		goto disable_disp;
-
-	err = clk_prepare_enable(hub->clk_hub);
-	if (err < 0)
-		goto disable_dsc;
-
-	err = reset_control_deassert(hub->rst);
-	if (err < 0)
-		goto disable_hub;
-
-	return 0;
-
-disable_hub:
-	clk_disable_unprepare(hub->clk_hub);
-disable_dsc:
-	clk_disable_unprepare(hub->clk_dsc);
-disable_disp:
-	clk_disable_unprepare(hub->clk_disp);
-	return err;
-}
-
-static const struct dev_pm_ops tegra_display_hub_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra_display_hub_suspend,
-			   tegra_display_hub_resume, NULL)
-};
-
 static const struct tegra_display_hub_soc tegra186_display_hub = {
 	.num_wgrps = 6,
+	.supports_dsc = true,
+};
+
+static const struct tegra_display_hub_soc tegra194_display_hub = {
+	.num_wgrps = 6,
+	.supports_dsc = false,
 };
 
 static const struct of_device_id tegra_display_hub_of_match[] = {
 	{
+		.compatible = "nvidia,tegra194-display",
+		.data = &tegra194_display_hub
+	}, {
 		.compatible = "nvidia,tegra186-display",
 		.data = &tegra186_display_hub
 	}, {
@@ -906,7 +1010,6 @@ struct platform_driver tegra_display_hub_driver = {
 	.driver = {
 		.name = "tegra-display-hub",
 		.of_match_table = tegra_display_hub_of_match,
-		.pm = &tegra_display_hub_pm_ops,
 	},
 	.probe = tegra_display_hub_probe,
 	.remove = tegra_display_hub_remove,

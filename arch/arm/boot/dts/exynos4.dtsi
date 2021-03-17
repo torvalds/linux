@@ -51,6 +51,12 @@
 		serial3 = &serial_3;
 	};
 
+	pmu: pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&combiner>;
+		status = "disabled";
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -105,28 +111,28 @@
 			syscon = <&pmu_system_controller>;
 		};
 
-		pd_mfc: mfc-power-domain@10023c40 {
+		pd_mfc: power-domain@10023c40 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C40 0x20>;
 			#power-domain-cells = <0>;
 			label = "MFC";
 		};
 
-		pd_g3d: g3d-power-domain@10023c60 {
+		pd_g3d: power-domain@10023c60 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C60 0x20>;
 			#power-domain-cells = <0>;
 			label = "G3D";
 		};
 
-		pd_lcd0: lcd0-power-domain@10023c80 {
+		pd_lcd0: power-domain@10023c80 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C80 0x20>;
 			#power-domain-cells = <0>;
 			label = "LCD0";
 		};
 
-		pd_tv: tv-power-domain@10023c20 {
+		pd_tv: power-domain@10023c20 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C20 0x20>;
 			#power-domain-cells = <0>;
@@ -134,21 +140,21 @@
 			label = "TV";
 		};
 
-		pd_cam: cam-power-domain@10023c00 {
+		pd_cam: power-domain@10023c00 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C00 0x20>;
 			#power-domain-cells = <0>;
 			label = "CAM";
 		};
 
-		pd_gps: gps-power-domain@10023ce0 {
+		pd_gps: power-domain@10023ce0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023CE0 0x20>;
 			#power-domain-cells = <0>;
 			label = "GPS";
 		};
 
-		pd_gps_alive: gps-alive-power-domain@10023d00 {
+		pd_gps_alive: power-domain@10023d00 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023D00 0x20>;
 			#power-domain-cells = <0>;
@@ -167,12 +173,6 @@
 			#interrupt-cells = <2>;
 			interrupt-controller;
 			reg = <0x10440000 0x1000>;
-		};
-
-		pmu: pmu {
-			compatible = "arm,cortex-a9-pmu";
-			interrupt-parent = <&combiner>;
-			interrupts = <2 2>, <3 2>;
 		};
 
 		sys_reg: syscon@10010000 {
@@ -380,23 +380,8 @@
 			clocks = <&clock CLK_USB_HOST>;
 			clock-names = "usbhost";
 			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				phys = <&exynos_usbphy 1>;
-				status = "disabled";
-			};
-			port@1 {
-				reg = <1>;
-				phys = <&exynos_usbphy 2>;
-				status = "disabled";
-			};
-			port@2 {
-				reg = <2>;
-				phys = <&exynos_usbphy 3>;
-				status = "disabled";
-			};
+			phys = <&exynos_usbphy 1>, <&exynos_usbphy 2>, <&exynos_usbphy 3>;
+			phy-names = "host", "hsic0", "hsic1";
 		};
 
 		ohci: ohci@12590000 {
@@ -406,13 +391,22 @@
 			clocks = <&clock CLK_USB_HOST>;
 			clock-names = "usbhost";
 			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				phys = <&exynos_usbphy 1>;
-				status = "disabled";
-			};
+			phys = <&exynos_usbphy 1>;
+			phy-names = "host";
+		};
+
+		gpu: gpu@13000000 {
+			compatible = "samsung,exynos4210-mali", "arm,mali-400";
+			reg = <0x13000000 0x10000>;
+			/*
+			 * CLK_G3D is not actually bus clock but a IP-level clock.
+			 * The bus clock is not described in hardware manual.
+			 */
+			clocks = <&clock CLK_G3D>,
+				 <&clock CLK_SCLK_G3D>;
+			clock-names = "bus", "core";
+			power-domains = <&pd_g3d>;
+			status = "disabled";
 		};
 
 		i2s1: i2s@13960000 {
@@ -675,45 +669,37 @@
 			status = "disabled";
 		};
 
-		amba {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "simple-bus";
-			interrupt-parent = <&gic>;
-			ranges;
+		pdma0: pdma@12680000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x12680000 0x1000>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_PDMA0>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+		};
 
-			pdma0: pdma@12680000 {
-				compatible = "arm,pl330", "arm,primecell";
-				reg = <0x12680000 0x1000>;
-				interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clock CLK_PDMA0>;
-				clock-names = "apb_pclk";
-				#dma-cells = <1>;
-				#dma-channels = <8>;
-				#dma-requests = <32>;
-			};
+		pdma1: pdma@12690000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x12690000 0x1000>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_PDMA1>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+		};
 
-			pdma1: pdma@12690000 {
-				compatible = "arm,pl330", "arm,primecell";
-				reg = <0x12690000 0x1000>;
-				interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clock CLK_PDMA1>;
-				clock-names = "apb_pclk";
-				#dma-cells = <1>;
-				#dma-channels = <8>;
-				#dma-requests = <32>;
-			};
-
-			mdma1: mdma@12850000 {
-				compatible = "arm,pl330", "arm,primecell";
-				reg = <0x12850000 0x1000>;
-				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clock CLK_MDMA>;
-				clock-names = "apb_pclk";
-				#dma-cells = <1>;
-				#dma-channels = <8>;
-				#dma-requests = <1>;
-			};
+		mdma1: mdma@12850000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x12850000 0x1000>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_MDMA>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <1>;
 		};
 
 		fimd: fimd@11c00000 {

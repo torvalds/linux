@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 #ifndef __CC_FIPS_H__
 #define __CC_FIPS_H__
@@ -18,6 +18,7 @@ int cc_fips_init(struct cc_drvdata *p_drvdata);
 void cc_fips_fini(struct cc_drvdata *drvdata);
 void fips_handler(struct cc_drvdata *drvdata);
 void cc_set_ree_fips_status(struct cc_drvdata *drvdata, bool ok);
+void cc_tee_handle_fips_error(struct cc_drvdata *p_drvdata);
 
 #else  /* CONFIG_CRYPTO_FIPS */
 
@@ -30,6 +31,7 @@ static inline void cc_fips_fini(struct cc_drvdata *drvdata) {}
 static inline void cc_set_ree_fips_status(struct cc_drvdata *drvdata,
 					  bool ok) {}
 static inline void fips_handler(struct cc_drvdata *drvdata) {}
+static inline void cc_tee_handle_fips_error(struct cc_drvdata *p_drvdata) {}
 
 #endif /* CONFIG_CRYPTO_FIPS */
 

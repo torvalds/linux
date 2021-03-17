@@ -14,8 +14,7 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
-#include <misc/charlcd.h>
-
+#include "charlcd.h"
 
 enum hd44780_pin {
 	/* Order does matter due to writing to GPIO array subsets! */
@@ -62,20 +61,15 @@ static void hd44780_strobe_gpio(struct hd44780 *hd)
 /* write to an LCD panel register in 8 bit GPIO mode */
 static void hd44780_write_gpio8(struct hd44780 *hd, u8 val, unsigned int rs)
 {
-	int values[10];	/* for DATA[0-7], RS, RW */
-	unsigned int i, n;
+	DECLARE_BITMAP(values, 10); /* for DATA[0-7], RS, RW */
+	unsigned int n;
 
-	for (i = 0; i < 8; i++)
-		values[PIN_DATA0 + i] = !!(val & BIT(i));
-	values[PIN_CTRL_RS] = rs;
-	n = 9;
-	if (hd->pins[PIN_CTRL_RW]) {
-		values[PIN_CTRL_RW] = 0;
-		n++;
-	}
+	values[0] = val;
+	__assign_bit(8, values, rs);
+	n = hd->pins[PIN_CTRL_RW] ? 10 : 9;
 
 	/* Present the data to the port */
-	gpiod_set_array_value_cansleep(n, &hd->pins[PIN_DATA0], values);
+	gpiod_set_array_value_cansleep(n, &hd->pins[PIN_DATA0], NULL, values);
 
 	hd44780_strobe_gpio(hd);
 }
@@ -83,32 +77,25 @@ static void hd44780_write_gpio8(struct hd44780 *hd, u8 val, unsigned int rs)
 /* write to an LCD panel register in 4 bit GPIO mode */
 static void hd44780_write_gpio4(struct hd44780 *hd, u8 val, unsigned int rs)
 {
-	int values[10];	/* for DATA[0-7], RS, RW, but DATA[0-3] is unused */
-	unsigned int i, n;
+	DECLARE_BITMAP(values, 6); /* for DATA[4-7], RS, RW */
+	unsigned int n;
 
 	/* High nibble + RS, RW */
-	for (i = 4; i < 8; i++)
-		values[PIN_DATA0 + i] = !!(val & BIT(i));
-	values[PIN_CTRL_RS] = rs;
-	n = 5;
-	if (hd->pins[PIN_CTRL_RW]) {
-		values[PIN_CTRL_RW] = 0;
-		n++;
-	}
+	values[0] = val >> 4;
+	__assign_bit(4, values, rs);
+	n = hd->pins[PIN_CTRL_RW] ? 6 : 5;
 
 	/* Present the data to the port */
-	gpiod_set_array_value_cansleep(n, &hd->pins[PIN_DATA4],
-				       &values[PIN_DATA4]);
+	gpiod_set_array_value_cansleep(n, &hd->pins[PIN_DATA4], NULL, values);
 
 	hd44780_strobe_gpio(hd);
 
 	/* Low nibble */
-	for (i = 0; i < 4; i++)
-		values[PIN_DATA4 + i] = !!(val & BIT(i));
+	values[0] &= ~0x0fUL;
+	values[0] |= val & 0x0f;
 
 	/* Present the data to the port */
-	gpiod_set_array_value_cansleep(n, &hd->pins[PIN_DATA4],
-				       &values[PIN_DATA4]);
+	gpiod_set_array_value_cansleep(n, &hd->pins[PIN_DATA4], NULL, values);
 
 	hd44780_strobe_gpio(hd);
 }
@@ -155,23 +142,16 @@ static void hd44780_write_cmd_gpio4(struct charlcd *lcd, int cmd)
 /* Send 4-bits of a command to the LCD panel in raw 4 bit GPIO mode */
 static void hd44780_write_cmd_raw_gpio4(struct charlcd *lcd, int cmd)
 {
-	int values[10];	/* for DATA[0-7], RS, RW, but DATA[0-3] is unused */
+	DECLARE_BITMAP(values, 6); /* for DATA[4-7], RS, RW */
 	struct hd44780 *hd = lcd->drvdata;
-	unsigned int i, n;
+	unsigned int n;
 
 	/* Command nibble + RS, RW */
-	for (i = 0; i < 4; i++)
-		values[PIN_DATA4 + i] = !!(cmd & BIT(i));
-	values[PIN_CTRL_RS] = 0;
-	n = 5;
-	if (hd->pins[PIN_CTRL_RW]) {
-		values[PIN_CTRL_RW] = 0;
-		n++;
-	}
+	values[0] = cmd & 0x0f;
+	n = hd->pins[PIN_CTRL_RW] ? 6 : 5;
 
 	/* Present the data to the port */
-	gpiod_set_array_value_cansleep(n, &hd->pins[PIN_DATA4],
-				       &values[PIN_DATA4]);
+	gpiod_set_array_value_cansleep(n, &hd->pins[PIN_DATA4], NULL, values);
 
 	hd44780_strobe_gpio(hd);
 }
@@ -290,7 +270,7 @@ static int hd44780_probe(struct platform_device *pdev)
 	return 0;
 
 fail:
-	kfree(lcd);
+	charlcd_free(lcd);
 	return ret;
 }
 
@@ -299,6 +279,8 @@ static int hd44780_remove(struct platform_device *pdev)
 	struct charlcd *lcd = platform_get_drvdata(pdev);
 
 	charlcd_unregister(lcd);
+
+	charlcd_free(lcd);
 	return 0;
 }
 

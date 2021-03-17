@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OLPC HGPK (XO-1) touchpad PS/2 mouse driver
  *
@@ -12,10 +13,6 @@
  * Copyright (c) 2003-2005 Peter Osterlund <petero2@telia.com>
  * Copyright (c) 2004 Dmitry Torokhov <dtor@mail.ru>
  * Copyright (c) 2005 Vojtech Pavlik <vojtech@suse.cz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -241,7 +238,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
 		/* we're not spewing, but this packet might be the start */
 		priv->spew_flag = MAYBE_SPEWING;
 
-		/* fall-through */
+		fallthrough;
 
 	case MAYBE_SPEWING:
 		priv->spew_count++;
@@ -252,7 +249,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
 		/* excessive spew detected, request recalibration */
 		priv->spew_flag = SPEW_DETECTED;
 
-		/* fall-through */
+		fallthrough;
 
 	case SPEW_DETECTED:
 		/* only recalibrate when the overall delta to the cursor

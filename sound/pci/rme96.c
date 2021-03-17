@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for RME Digi96, Digi96/8 and Digi96/8 PRO/PAD/PST audio
  *   interfaces 
@@ -6,21 +7,6 @@
  *    
  *      Thanks to Henk Hesselink <henk@anda.nl> for the analog volume control
  *      code.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */      
 
 #include <linux/delay.h>
@@ -1522,7 +1508,6 @@ snd_rme96_capture_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_rme96_playback_spdif_ops = {
 	.open =		snd_rme96_playback_spdif_open,
 	.close =	snd_rme96_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_rme96_playback_hw_params,
 	.prepare =	snd_rme96_playback_prepare,
 	.trigger =	snd_rme96_playback_trigger,
@@ -1536,7 +1521,6 @@ static const struct snd_pcm_ops snd_rme96_playback_spdif_ops = {
 static const struct snd_pcm_ops snd_rme96_capture_spdif_ops = {
 	.open =		snd_rme96_capture_spdif_open,
 	.close =	snd_rme96_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_rme96_capture_hw_params,
 	.prepare =	snd_rme96_capture_prepare,
 	.trigger =	snd_rme96_capture_trigger,
@@ -1549,7 +1533,6 @@ static const struct snd_pcm_ops snd_rme96_capture_spdif_ops = {
 static const struct snd_pcm_ops snd_rme96_playback_adat_ops = {
 	.open =		snd_rme96_playback_adat_open,
 	.close =	snd_rme96_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_rme96_playback_hw_params,
 	.prepare =	snd_rme96_playback_prepare,
 	.trigger =	snd_rme96_playback_trigger,
@@ -1563,7 +1546,6 @@ static const struct snd_pcm_ops snd_rme96_playback_adat_ops = {
 static const struct snd_pcm_ops snd_rme96_capture_adat_ops = {
 	.open =		snd_rme96_capture_adat_open,
 	.close =	snd_rme96_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_rme96_capture_hw_params,
 	.prepare =	snd_rme96_capture_prepare,
 	.trigger =	snd_rme96_capture_trigger,
@@ -1633,7 +1615,7 @@ snd_rme96_create(struct rme96 *rme96)
 		return err;
 	rme96->port = pci_resource_start(rme96->pci, 0);
 
-	rme96->iobase = ioremap_nocache(rme96->port, RME96_IO_SIZE);
+	rme96->iobase = ioremap(rme96->port, RME96_IO_SIZE);
 	if (!rme96->iobase) {
 		dev_err(rme96->card->dev,
 			"unable to remap memory region 0x%lx-0x%lx\n",
@@ -1647,6 +1629,7 @@ snd_rme96_create(struct rme96 *rme96)
 		return -EBUSY;
 	}
 	rme96->irq = pci->irq;
+	rme96->card->sync_irq = rme96->irq;
 
 	/* read the card's revision number */
 	pci_read_config_byte(pci, 8, &rme96->rev);	
@@ -1868,10 +1851,7 @@ snd_rme96_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer
 
 static void snd_rme96_proc_init(struct rme96 *rme96)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(rme96->card, "rme96", &entry))
-		snd_info_set_text_ops(entry, rme96, snd_rme96_proc_read);
+	snd_card_ro_proc_new(rme96->card, "rme96", rme96, snd_rme96_proc_read);
 }
 
 /*
@@ -2273,7 +2253,7 @@ snd_rme96_dac_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_valu
         return change;
 }
 
-static struct snd_kcontrol_new snd_rme96_controls[] = {
+static const struct snd_kcontrol_new snd_rme96_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -2388,8 +2368,6 @@ static int rme96_suspend(struct device *dev)
 	struct rme96 *rme96 = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend(rme96->playback_substream);
-	snd_pcm_suspend(rme96->capture_substream);
 
 	/* save capture & playback pointers */
 	rme96->playback_pointer = readl(rme96->iobase + RME96_IO_GET_PLAY_POS)

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
  *
  * CPU Frequency Scaling driver for Freescale QorIQ SoCs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -13,7 +10,6 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/cpufreq.h>
-#include <linux/cpu_cooling.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -22,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
+#include <linux/platform_device.h>
 
 /**
  * struct cpu_data
@@ -31,14 +28,7 @@
 struct cpu_data {
 	struct clk **pclk;
 	struct cpufreq_frequency_table *table;
-	struct thermal_cooling_device *cdev;
 };
-
-/*
- * Don't use cpufreq on this SoC -- used when the SoC would have otherwise
- * matched a more generic compatible.
- */
-#define SOC_BLACKLIST		1
 
 /**
  * struct soc_data - SoC specific data
@@ -239,7 +229,6 @@ static int qoriq_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct cpu_data *data = policy->driver_data;
 
-	cpufreq_cooling_unregister(data->cdev);
 	kfree(data->pclk);
 	kfree(data->table);
 	kfree(data);
@@ -258,82 +247,63 @@ static int qoriq_cpufreq_target(struct cpufreq_policy *policy,
 	return clk_set_parent(policy->clk, parent);
 }
 
-
-static void qoriq_cpufreq_ready(struct cpufreq_policy *policy)
-{
-	struct cpu_data *cpud = policy->driver_data;
-
-	cpud->cdev = of_cpufreq_cooling_register(policy);
-}
-
 static struct cpufreq_driver qoriq_cpufreq_driver = {
 	.name		= "qoriq_cpufreq",
-	.flags		= CPUFREQ_CONST_LOOPS,
+	.flags		= CPUFREQ_CONST_LOOPS |
+			  CPUFREQ_IS_COOLING_DEV,
 	.init		= qoriq_cpufreq_cpu_init,
 	.exit		= qoriq_cpufreq_cpu_exit,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= qoriq_cpufreq_target,
 	.get		= cpufreq_generic_get,
-	.ready		= qoriq_cpufreq_ready,
 	.attr		= cpufreq_generic_attr,
 };
 
-static const struct soc_data blacklist = {
-	.flags = SOC_BLACKLIST,
-};
-
-static const struct of_device_id node_matches[] __initconst = {
+static const struct of_device_id qoriq_cpufreq_blacklist[] = {
 	/* e6500 cannot use cpufreq due to erratum A-008083 */
-	{ .compatible = "fsl,b4420-clockgen", &blacklist },
-	{ .compatible = "fsl,b4860-clockgen", &blacklist },
-	{ .compatible = "fsl,t2080-clockgen", &blacklist },
-	{ .compatible = "fsl,t4240-clockgen", &blacklist },
-
-	{ .compatible = "fsl,ls1012a-clockgen", },
-	{ .compatible = "fsl,ls1021a-clockgen", },
-	{ .compatible = "fsl,ls1043a-clockgen", },
-	{ .compatible = "fsl,ls1046a-clockgen", },
-	{ .compatible = "fsl,ls1088a-clockgen", },
-	{ .compatible = "fsl,ls2080a-clockgen", },
-	{ .compatible = "fsl,p4080-clockgen", },
-	{ .compatible = "fsl,qoriq-clockgen-1.0", },
-	{ .compatible = "fsl,qoriq-clockgen-2.0", },
+	{ .compatible = "fsl,b4420-clockgen", },
+	{ .compatible = "fsl,b4860-clockgen", },
+	{ .compatible = "fsl,t2080-clockgen", },
+	{ .compatible = "fsl,t4240-clockgen", },
 	{}
 };
 
-static int __init qoriq_cpufreq_init(void)
+static int qoriq_cpufreq_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct device_node  *np;
-	const struct of_device_id *match;
-	const struct soc_data *data;
+	struct device_node *np;
 
-	np = of_find_matching_node(NULL, node_matches);
-	if (!np)
+	np = of_find_matching_node(NULL, qoriq_cpufreq_blacklist);
+	if (np) {
+		dev_info(&pdev->dev, "Disabling due to erratum A-008083");
 		return -ENODEV;
-
-	match = of_match_node(node_matches, np);
-	data = match->data;
-
-	of_node_put(np);
-
-	if (data && data->flags & SOC_BLACKLIST)
-		return -ENODEV;
+	}
 
 	ret = cpufreq_register_driver(&qoriq_cpufreq_driver);
-	if (!ret)
-		pr_info("Freescale QorIQ CPU frequency scaling driver\n");
+	if (ret)
+		return ret;
 
-	return ret;
+	dev_info(&pdev->dev, "Freescale QorIQ CPU frequency scaling driver\n");
+	return 0;
 }
-module_init(qoriq_cpufreq_init);
 
-static void __exit qoriq_cpufreq_exit(void)
+static int qoriq_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&qoriq_cpufreq_driver);
-}
-module_exit(qoriq_cpufreq_exit);
 
+	return 0;
+}
+
+static struct platform_driver qoriq_cpufreq_platform_driver = {
+	.driver = {
+		.name = "qoriq-cpufreq",
+	},
+	.probe = qoriq_cpufreq_probe,
+	.remove = qoriq_cpufreq_remove,
+};
+module_platform_driver(qoriq_cpufreq_platform_driver);
+
+MODULE_ALIAS("platform:qoriq-cpufreq");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tang Yuantian <Yuantian.Tang@freescale.com>");
 MODULE_DESCRIPTION("cpufreq driver for Freescale QorIQ series SoCs");

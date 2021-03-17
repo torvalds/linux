@@ -8,10 +8,10 @@
 #include <unistd.h>
 #include <api/fs/fs.h>
 #include <linux/kernel.h>
+#include "map_symbol.h"
 #include "mem-events.h"
 #include "debug.h"
 #include "symbol.h"
-#include "sort.h"
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 
@@ -28,7 +28,7 @@ struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
 static char mem_loads_name[100];
 static bool mem_loads_name__init;
 
-char *perf_mem_events__name(int i)
+char * __weak perf_mem_events__name(int i)
 {
 	if (i == PERF_MEM_EVENTS__LOAD) {
 		if (!mem_loads_name__init) {
@@ -101,6 +101,21 @@ int perf_mem_events__init(void)
 	}
 
 	return found ? 0 : -ENOENT;
+}
+
+void perf_mem_events__list(void)
+{
+	int j;
+
+	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+		struct perf_mem_event *e = &perf_mem_events[j];
+
+		fprintf(stderr, "%-13s%-*s%s\n",
+			e->tag,
+			verbose > 0 ? 25 : 0,
+			verbose > 0 ? perf_mem_events__name(j) : "",
+			e->supported ? ": available" : "");
+	}
 }
 
 static const char * const tlb_access[] = {
@@ -410,7 +425,7 @@ do {				\
 		return -1;
 	}
 
-	if (!mi->daddr.map || !mi->iaddr.map) {
+	if (!mi->daddr.ms.map || !mi->iaddr.ms.map) {
 		stats->nomap++;
 		return -1;
 	}

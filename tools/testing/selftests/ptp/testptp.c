@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PTP 1588 clock support - User space test program
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #define _GNU_SOURCE
 #define __SANE_USERSPACE_TYPES__        /* For PPC64, to get LL64 types */
@@ -48,6 +35,8 @@
 #define CLOCK_INVALID -1
 #endif
 
+#define NSEC_PER_SEC 1000000000LL
+
 /* clock_adjtime is not available in GLIBC < 2.14 */
 #if !__GLIBC_PREREQ(2, 14)
 #include <sys/syscall.h>
@@ -57,34 +46,50 @@ static int clock_adjtime(clockid_t id, struct timex *tx)
 }
 #endif
 
+static void show_flag_test(int rq_index, unsigned int flags, int err)
+{
+	printf("PTP_EXTTS_REQUEST%c flags 0x%08x : (%d) %s\n",
+	       rq_index ? '1' + rq_index : ' ',
+	       flags, err, strerror(errno));
+	/* sigh, uClibc ... */
+	errno = 0;
+}
+
+static void do_flag_test(int fd, unsigned int index)
+{
+	struct ptp_extts_request extts_request;
+	unsigned long request[2] = {
+		PTP_EXTTS_REQUEST,
+		PTP_EXTTS_REQUEST2,
+	};
+	unsigned int enable_flags[5] = {
+		PTP_ENABLE_FEATURE,
+		PTP_ENABLE_FEATURE | PTP_RISING_EDGE,
+		PTP_ENABLE_FEATURE | PTP_FALLING_EDGE,
+		PTP_ENABLE_FEATURE | PTP_RISING_EDGE | PTP_FALLING_EDGE,
+		PTP_ENABLE_FEATURE | (PTP_EXTTS_VALID_FLAGS + 1),
+	};
+	int err, i, j;
+
+	memset(&extts_request, 0, sizeof(extts_request));
+	extts_request.index = index;
+
+	for (i = 0; i < 2; i++) {
+		for (j = 0; j < 5; j++) {
+			extts_request.flags = enable_flags[j];
+			err = ioctl(fd, request[i], &extts_request);
+			show_flag_test(i, extts_request.flags, err);
+
+			extts_request.flags = 0;
+			err = ioctl(fd, request[i], &extts_request);
+		}
+	}
+}
+
 static clockid_t get_clockid(int fd)
 {
 #define CLOCKFD 3
 	return (((unsigned int) ~fd) << 3) | CLOCKFD;
-}
-
-static void handle_alarm(int s)
-{
-	printf("received signal %d\n", s);
-}
-
-static int install_handler(int signum, void (*handler)(int))
-{
-	struct sigaction action;
-	sigset_t mask;
-
-	/* Unblock the signal. */
-	sigemptyset(&mask);
-	sigaddset(&mask, signum);
-	sigprocmask(SIG_UNBLOCK, &mask, NULL);
-
-	/* Install the signal handler. */
-	action.sa_handler = handler;
-	action.sa_flags = 0;
-	sigemptyset(&action.sa_mask);
-	sigaction(signum, &action, NULL);
-
-	return 0;
 }
 
 static long ppb_to_scaled_ppm(int ppb)
@@ -112,8 +117,6 @@ static void usage(char *progname)
 {
 	fprintf(stderr,
 		"usage: %s [options]\n"
-		" -a val     request a one-shot alarm after 'val' seconds\n"
-		" -A val     request a periodic alarm every 'val' seconds\n"
 		" -c         query the ptp clock's capabilities\n"
 		" -d name    device to open\n"
 		" -e val     read 'val' external time stamp events\n"
@@ -131,11 +134,14 @@ static void usage(char *progname)
 		"            1 - external time stamp\n"
 		"            2 - periodic output\n"
 		" -p val     enable output with a period of 'val' nanoseconds\n"
+		" -H val     set output phase to 'val' nanoseconds (requires -p)\n"
+		" -w val     set output pulse width to 'val' nanoseconds (requires -p)\n"
 		" -P val     enable or disable (val=1|0) the system clock PPS\n"
 		" -s         set the ptp clock time from the system time\n"
 		" -S         set the system time from the ptp clock time\n"
 		" -t val     shift the ptp clock time by 'val' seconds\n"
-		" -T val     set the ptp clock time to 'val' seconds\n",
+		" -T val     set the ptp clock time to 'val' seconds\n"
+		" -z         test combinations of rising/falling external time stamp flags\n",
 		progname);
 }
 
@@ -148,14 +154,8 @@ int main(int argc, char *argv[])
 	struct ptp_pin_desc desc;
 	struct timespec ts;
 	struct timex tx;
-
-	static timer_t timerid;
-	struct itimerspec timeout;
-	struct sigevent sigevent;
-
 	struct ptp_clock_time *pct;
 	struct ptp_sys_offset *sysoff;
-
 
 	char *progname;
 	unsigned int i;
@@ -167,14 +167,12 @@ int main(int argc, char *argv[])
 	int adjtime = 0;
 	int capabilities = 0;
 	int extts = 0;
+	int flagtest = 0;
 	int gettime = 0;
 	int index = 0;
 	int list_pins = 0;
-	int oneshot = 0;
 	int pct_offset = 0;
 	int n_samples = 0;
-	int periodic = 0;
-	int perout = -1;
 	int pin_index = -1, pin_func;
 	int pps = -1;
 	int seconds = 0;
@@ -182,17 +180,14 @@ int main(int argc, char *argv[])
 
 	int64_t t1, t2, tp;
 	int64_t interval, offset;
+	int64_t perout_phase = -1;
+	int64_t pulsewidth = -1;
+	int64_t perout = -1;
 
 	progname = strrchr(argv[0], '/');
 	progname = progname ? 1+progname : argv[0];
-	while (EOF != (c = getopt(argc, argv, "a:A:cd:e:f:ghi:k:lL:p:P:sSt:T:v"))) {
+	while (EOF != (c = getopt(argc, argv, "cd:e:f:ghH:i:k:lL:p:P:sSt:T:w:z"))) {
 		switch (c) {
-		case 'a':
-			oneshot = atoi(optarg);
-			break;
-		case 'A':
-			periodic = atoi(optarg);
-			break;
 		case 'c':
 			capabilities = 1;
 			break;
@@ -207,6 +202,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'g':
 			gettime = 1;
+			break;
+		case 'H':
+			perout_phase = atoll(optarg);
 			break;
 		case 'i':
 			index = atoi(optarg);
@@ -226,7 +224,7 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'p':
-			perout = atoi(optarg);
+			perout = atoll(optarg);
 			break;
 		case 'P':
 			pps = atoi(optarg);
@@ -243,6 +241,12 @@ int main(int argc, char *argv[])
 		case 'T':
 			settime = 3;
 			seconds = atoi(optarg);
+			break;
+		case 'w':
+			pulsewidth = atoi(optarg);
+			break;
+		case 'z':
+			flagtest = 1;
 			break;
 		case 'h':
 			usage(progname);
@@ -277,14 +281,16 @@ int main(int argc, char *argv[])
 			       "  %d programmable periodic signals\n"
 			       "  %d pulse per second\n"
 			       "  %d programmable pins\n"
-			       "  %d cross timestamping\n",
+			       "  %d cross timestamping\n"
+			       "  %d adjust_phase\n",
 			       caps.max_adj,
 			       caps.n_alarm,
 			       caps.n_ext_ts,
 			       caps.n_per_out,
 			       caps.pps,
 			       caps.n_pins,
-			       caps.cross_timestamping);
+			       caps.cross_timestamping,
+			       caps.adjust_phase);
 		}
 	}
 
@@ -375,6 +381,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (flagtest) {
+		do_flag_test(fd, index);
+	}
+
 	if (list_pins) {
 		int n_pins = 0;
 		if (ioctl(fd, PTP_CLOCK_GETCAPS, &caps)) {
@@ -393,47 +403,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (oneshot) {
-		install_handler(SIGALRM, handle_alarm);
-		/* Create a timer. */
-		sigevent.sigev_notify = SIGEV_SIGNAL;
-		sigevent.sigev_signo = SIGALRM;
-		if (timer_create(clkid, &sigevent, &timerid)) {
-			perror("timer_create");
-			return -1;
-		}
-		/* Start the timer. */
-		memset(&timeout, 0, sizeof(timeout));
-		timeout.it_value.tv_sec = oneshot;
-		if (timer_settime(timerid, 0, &timeout, NULL)) {
-			perror("timer_settime");
-			return -1;
-		}
-		pause();
-		timer_delete(timerid);
+	if (pulsewidth >= 0 && perout < 0) {
+		puts("-w can only be specified together with -p");
+		return -1;
 	}
 
-	if (periodic) {
-		install_handler(SIGALRM, handle_alarm);
-		/* Create a timer. */
-		sigevent.sigev_notify = SIGEV_SIGNAL;
-		sigevent.sigev_signo = SIGALRM;
-		if (timer_create(clkid, &sigevent, &timerid)) {
-			perror("timer_create");
-			return -1;
-		}
-		/* Start the timer. */
-		memset(&timeout, 0, sizeof(timeout));
-		timeout.it_interval.tv_sec = periodic;
-		timeout.it_value.tv_sec = periodic;
-		if (timer_settime(timerid, 0, &timeout, NULL)) {
-			perror("timer_settime");
-			return -1;
-		}
-		while (1) {
-			pause();
-		}
-		timer_delete(timerid);
+	if (perout_phase >= 0 && perout < 0) {
+		puts("-H can only be specified together with -p");
+		return -1;
 	}
 
 	if (perout >= 0) {
@@ -443,11 +420,24 @@ int main(int argc, char *argv[])
 		}
 		memset(&perout_request, 0, sizeof(perout_request));
 		perout_request.index = index;
-		perout_request.start.sec = ts.tv_sec + 2;
-		perout_request.start.nsec = 0;
-		perout_request.period.sec = 0;
-		perout_request.period.nsec = perout;
-		if (ioctl(fd, PTP_PEROUT_REQUEST, &perout_request)) {
+		perout_request.period.sec = perout / NSEC_PER_SEC;
+		perout_request.period.nsec = perout % NSEC_PER_SEC;
+		perout_request.flags = 0;
+		if (pulsewidth >= 0) {
+			perout_request.flags |= PTP_PEROUT_DUTY_CYCLE;
+			perout_request.on.sec = pulsewidth / NSEC_PER_SEC;
+			perout_request.on.nsec = pulsewidth % NSEC_PER_SEC;
+		}
+		if (perout_phase >= 0) {
+			perout_request.flags |= PTP_PEROUT_PHASE;
+			perout_request.phase.sec = perout_phase / NSEC_PER_SEC;
+			perout_request.phase.nsec = perout_phase % NSEC_PER_SEC;
+		} else {
+			perout_request.start.sec = ts.tv_sec + 2;
+			perout_request.start.nsec = 0;
+		}
+
+		if (ioctl(fd, PTP_PEROUT_REQUEST2, &perout_request)) {
 			perror("PTP_PEROUT_REQUEST");
 		} else {
 			puts("periodic output request okay");

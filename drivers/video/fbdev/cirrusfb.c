@@ -42,7 +42,6 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
-#include <asm/pgtable.h>
 
 #ifdef CONFIG_ZORRO
 #include <linux/zorro.h>
@@ -1477,11 +1476,11 @@ static void init_vgachip(struct fb_info *info)
 		mdelay(100);
 		/* mode */
 		vga_wgfx(cinfo->regbase, CL_GR31, 0x00);
-		/* fall through */
+		fallthrough;
 	case BT_GD5480:
 		/* from Klaus' NetBSD driver: */
 		vga_wgfx(cinfo->regbase, CL_GR2F, 0x00);
-		/* fall through */
+		fallthrough;
 	case BT_ALPINE:
 		/* put blitter into 542x compat */
 		vga_wgfx(cinfo->regbase, CL_GR33, 0x00);
@@ -1956,7 +1955,7 @@ static void cirrusfb_zorro_unmap(struct fb_info *info)
 #endif /* CONFIG_ZORRO */
 
 /* function table of the above functions */
-static struct fb_ops cirrusfb_ops = {
+static const struct fb_ops cirrusfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= cirrusfb_open,
 	.fb_release	= cirrusfb_release,
@@ -2093,7 +2092,6 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct cirrusfb_info), &pdev->dev);
 	if (!info) {
-		printk(KERN_ERR "cirrusfb: could not allocate memory\n");
 		ret = -ENOMEM;
 		goto err_out;
 	}
@@ -2206,10 +2204,8 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	struct cirrusfb_info *cinfo;
 
 	info = framebuffer_alloc(sizeof(struct cirrusfb_info), &z->dev);
-	if (!info) {
-		printk(KERN_ERR "cirrusfb: could not allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	zcl = (const struct zorrocl *)ent->driver_data;
 	btype = zcl->type;

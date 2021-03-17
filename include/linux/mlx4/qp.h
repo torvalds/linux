@@ -362,7 +362,7 @@ struct mlx4_wqe_datagram_seg {
 
 struct mlx4_wqe_lso_seg {
 	__be32			mss_hdr_size;
-	__be32			header[0];
+	__be32			header[];
 };
 
 enum mlx4_wqe_bind_seg_flags2 {

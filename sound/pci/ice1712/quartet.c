@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble VT1724 (Envy24HT)
  *
  *   Lowlevel functions for Infrasonic Quartet
  *
  *	Copyright (c) 2009 Pavel Hofman <pavel.hofman@ivitera.com>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -502,9 +487,7 @@ static void proc_regs_read(struct snd_info_entry *entry,
 
 static void proc_init(struct snd_ice1712 *ice)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ice->card, "quartet", &entry))
-		snd_info_set_text_ops(entry, ice, proc_regs_read);
+	snd_card_ro_proc_new(ice->card, "quartet", ice, proc_regs_read);
 }
 
 static int qtet_mute_get(struct snd_kcontrol *kcontrol,
@@ -674,7 +657,7 @@ static int qtet_php_put(struct snd_kcontrol *kcontrol,
 	.get_register = get_##xreg,\
 	.texts = {xtext1, xtext2} }
 
-static struct qtet_kcontrol_private qtet_privates[] = {
+static const struct qtet_kcontrol_private qtet_privates[] = {
 	PRIV_ENUM2(IN12_SEL, CPLD_IN12_SEL, cpld, "An In 1/2", "An In 3/4"),
 	PRIV_ENUM2(IN34_SEL, CPLD_IN34_SEL, cpld, "An In 3/4", "IEC958 In"),
 	PRIV_ENUM2(AIN34_SEL, SCR_AIN34_SEL, scr, "Line In 3/4", "Hi-Z"),
@@ -737,7 +720,7 @@ static int qtet_sw_put(struct snd_kcontrol *kcontrol,
 	.put = qtet_sw_put,\
 	.private_value = xpriv }
 
-static struct snd_kcontrol_new qtet_controls[] = {
+static const struct snd_kcontrol_new qtet_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -774,7 +757,7 @@ static struct snd_kcontrol_new qtet_controls[] = {
 	QTET_CONTROL("Output 3/4 to Monitor 1/2", sw, OUT34_MON12),
 };
 
-static char *slave_vols[] = {
+static const char * const follower_vols[] = {
 	PCM_12_PLAYBACK_VOLUME,
 	PCM_34_PLAYBACK_VOLUME,
 	NULL
@@ -793,13 +776,13 @@ static struct snd_kcontrol *ctl_find(struct snd_card *card,
 	return snd_ctl_find_id(card, &sid);
 }
 
-static void add_slaves(struct snd_card *card,
-		       struct snd_kcontrol *master, char * const *list)
+static void add_followers(struct snd_card *card,
+			  struct snd_kcontrol *master, const char * const *list)
 {
 	for (; *list; list++) {
-		struct snd_kcontrol *slave = ctl_find(card, *list);
-		if (slave)
-			snd_ctl_add_slave(master, slave);
+		struct snd_kcontrol *follower = ctl_find(card, *list);
+		if (follower)
+			snd_ctl_add_follower(master, follower);
 	}
 }
 
@@ -823,7 +806,7 @@ static int qtet_add_controls(struct snd_ice1712 *ice)
 			qtet_master_db_scale);
 	if (!vmaster)
 		return -ENOMEM;
-	add_slaves(ice->card, vmaster, slave_vols);
+	add_followers(ice->card, vmaster, follower_vols);
 	err = snd_ctl_add(ice->card, vmaster);
 	if (err < 0)
 		return err;
@@ -1070,7 +1053,7 @@ static int qtet_init(struct snd_ice1712 *ice)
 	return 0;
 }
 
-static unsigned char qtet_eeprom[] = {
+static const unsigned char qtet_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x28,	/* clock 256(24MHz), mpu401, 1xADC,
 					   1xDACs, SPDIF in */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */

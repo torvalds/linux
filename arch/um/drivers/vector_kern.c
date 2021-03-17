@@ -1,15 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2017 - Cambridge Greys Limited
+ * Copyright (C) 2017 - 2019 Cambridge Greys Limited
  * Copyright (C) 2011 - 2014 Cisco Systems Inc
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
  * James Leu (jleu@mindspring.net).
  * Copyright (C) 2001 by various other people who didn't put their name here.
- * Licensed under the GPL.
  */
 
 #include <linux/version.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/inetdevice.h>
@@ -21,6 +21,9 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/firmware.h>
+#include <linux/fs.h>
+#include <uapi/linux/filter.h>
 #include <init.h>
 #include <irq_kern.h>
 #include <irq_user.h>
@@ -43,7 +46,6 @@
 
 
 #define DRIVER_NAME "uml-vector"
-#define DRIVER_VERSION "01"
 struct vector_cmd_line_arg {
 	struct list_head list;
 	int unit;
@@ -76,6 +78,7 @@ static void vector_eth_configure(int n, struct arglist *def);
 #define DEFAULT_VECTOR_SIZE 64
 #define TX_SMALL_PACKET 128
 #define MAX_IOV_SIZE (MAX_SKB_FRAGS + 1)
+#define MAX_ITERATIONS 64
 
 static const struct {
 	const char string[ETH_GSTRING_LEN];
@@ -121,9 +124,27 @@ static int get_mtu(struct arglist *def)
 
 	if (mtu != NULL) {
 		if (kstrtoul(mtu, 10, &result) == 0)
-			return result;
+			if ((result < (1 << 16) - 1) && (result >= 576))
+				return result;
 	}
 	return ETH_MAX_PACKET;
+}
+
+static char *get_bpf_file(struct arglist *def)
+{
+	return uml_vector_fetch_arg(def, "bpffile");
+}
+
+static bool get_bpf_flash(struct arglist *def)
+{
+	char *allow = uml_vector_fetch_arg(def, "bpfflash");
+	long result;
+
+	if (allow != NULL) {
+		if (kstrtoul(allow, 10, &result) == 0)
+			return (allow > 0);
+	}
+	return false;
 }
 
 static int get_depth(struct arglist *def)
@@ -174,6 +195,10 @@ static int get_transport_options(struct arglist *def)
 	int vec_rx = VECTOR_RX;
 	int vec_tx = VECTOR_TX;
 	long parsed;
+	int result = 0;
+
+	if (transport == NULL)
+		return -EINVAL;
 
 	if (vector != NULL) {
 		if (kstrtoul(vector, 10, &parsed) == 0) {
@@ -184,12 +209,16 @@ static int get_transport_options(struct arglist *def)
 		}
 	}
 
+	if (get_bpf_flash(def))
+		result = VECTOR_BPF_FLASH;
 
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
-		return (vec_rx | VECTOR_BPF);
+		return result;
+	if (strncmp(transport, TRANS_HYBRID, TRANS_HYBRID_LEN) == 0)
+		return (result | vec_rx | VECTOR_BPF);
 	if (strncmp(transport, TRANS_RAW, TRANS_RAW_LEN) == 0)
-		return (vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
-	return (vec_rx | vec_tx);
+		return (result | vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
+	return (result | vec_rx | vec_tx);
 }
 
 
@@ -415,6 +444,7 @@ static int vector_send(struct vector_queue *qi)
 					if (net_ratelimit())
 						netdev_err(vp->dev, "sendmmsg err=%i\n",
 							result);
+					vp->in_error = true;
 					result = send_len;
 				}
 				if (result > 0) {
@@ -842,6 +872,10 @@ static int vector_legacy_rx(struct vector_private *vp)
 	}
 
 	pkt_len = uml_vector_recvmsg(vp->fds->rx_fd, &hdr, 0);
+	if (pkt_len < 0) {
+		vp->in_error = true;
+		return pkt_len;
+	}
 
 	if (skb != NULL) {
 		if (pkt_len > vp->header_size) {
@@ -888,11 +922,15 @@ static int writev_tx(struct vector_private *vp, struct sk_buff *skb)
 
 	if (iov_count < 1)
 		goto drop;
+
 	pkt_len = uml_vector_writev(
 		vp->fds->tx_fd,
 		(struct iovec *) &iov,
 		iov_count
 	);
+
+	if (pkt_len < 0)
+		goto drop;
 
 	netif_trans_update(vp->dev);
 	netif_wake_queue(vp->dev);
@@ -908,6 +946,8 @@ static int writev_tx(struct vector_private *vp, struct sk_buff *skb)
 drop:
 	vp->dev->stats.tx_dropped++;
 	consume_skb(skb);
+	if (pkt_len < 0)
+		vp->in_error = true;
 	return pkt_len;
 }
 
@@ -935,6 +975,9 @@ static int vector_mmsg_rx(struct vector_private *vp)
 
 	packet_count = uml_vector_recvmmsg(
 		vp->fds->rx_fd, qi->mmsg_vector, qi->max_depth, 0);
+
+	if (packet_count < 0)
+		vp->in_error = true;
 
 	if (packet_count <= 0)
 		return packet_count;
@@ -1005,21 +1048,31 @@ static int vector_mmsg_rx(struct vector_private *vp)
 static void vector_rx(struct vector_private *vp)
 {
 	int err;
+	int iter = 0;
 
 	if ((vp->options & VECTOR_RX) > 0)
-		while ((err = vector_mmsg_rx(vp)) > 0)
-			;
+		while (((err = vector_mmsg_rx(vp)) > 0) && (iter < MAX_ITERATIONS))
+			iter++;
 	else
-		while ((err = vector_legacy_rx(vp)) > 0)
-			;
+		while (((err = vector_legacy_rx(vp)) > 0) && (iter < MAX_ITERATIONS))
+			iter++;
 	if ((err != 0) && net_ratelimit())
 		netdev_err(vp->dev, "vector_rx: error(%d)\n", err);
+	if (iter == MAX_ITERATIONS)
+		netdev_err(vp->dev, "vector_rx: device stuck, remote end may have closed the connection\n");
 }
 
 static int vector_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vector_private *vp = netdev_priv(dev);
 	int queue_depth = 0;
+
+	if (vp->in_error) {
+		deactivate_fd(vp->fds->rx_fd, vp->rx_irq);
+		if ((vp->fds->rx_fd != vp->fds->tx_fd) && (vp->tx_irq != 0))
+			deactivate_fd(vp->fds->tx_fd, vp->tx_irq);
+		return NETDEV_TX_BUSY;
+	}
 
 	if ((vp->options & VECTOR_TX) == 0) {
 		writev_tx(vp, skb);
@@ -1043,7 +1096,7 @@ static int vector_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vector_send(vp->tx_queue);
 		return NETDEV_TX_OK;
 	}
-	if (skb->xmit_more) {
+	if (netdev_xmit_more()) {
 		mod_timer(&vp->tl, vp->coalesce);
 		return NETDEV_TX_OK;
 	}
@@ -1111,6 +1164,8 @@ static int vector_net_close(struct net_device *dev)
 	}
 	tasklet_kill(&vp->tx_poll);
 	if (vp->fds->rx_fd > 0) {
+		if (vp->bpf)
+			uml_vector_detach_bpf(vp->fds->rx_fd, vp->bpf);
 		os_close_file(vp->fds->rx_fd);
 		vp->fds->rx_fd = -1;
 	}
@@ -1119,15 +1174,13 @@ static int vector_net_close(struct net_device *dev)
 		vp->fds->tx_fd = -1;
 	}
 	if (vp->bpf != NULL)
-		kfree(vp->bpf);
-	if (vp->fds->remote_addr != NULL)
-		kfree(vp->fds->remote_addr);
-	if (vp->transport_data != NULL)
-		kfree(vp->transport_data);
-	if (vp->header_rxbuffer != NULL)
-		kfree(vp->header_rxbuffer);
-	if (vp->header_txbuffer != NULL)
-		kfree(vp->header_txbuffer);
+		kfree(vp->bpf->filter);
+	kfree(vp->bpf);
+	vp->bpf = NULL;
+	kfree(vp->fds->remote_addr);
+	kfree(vp->transport_data);
+	kfree(vp->header_rxbuffer);
+	kfree(vp->header_txbuffer);
 	if (vp->rx_queue != NULL)
 		destroy_queue(vp->rx_queue);
 	if (vp->tx_queue != NULL)
@@ -1136,6 +1189,7 @@ static int vector_net_close(struct net_device *dev)
 	vp->fds = NULL;
 	spin_lock_irqsave(&vp->lock, flags);
 	vp->opened = false;
+	vp->in_error = false;
 	spin_unlock_irqrestore(&vp->lock, flags);
 	return 0;
 }
@@ -1157,6 +1211,7 @@ static void vector_reset_tx(struct work_struct *work)
 	netif_start_queue(vp->dev);
 	netif_wake_queue(vp->dev);
 }
+
 static int vector_net_open(struct net_device *dev)
 {
 	struct vector_private *vp = netdev_priv(dev);
@@ -1171,6 +1226,8 @@ static int vector_net_open(struct net_device *dev)
 	}
 	vp->opened = true;
 	spin_unlock_irqrestore(&vp->lock, flags);
+
+	vp->bpf = uml_vector_user_bpf(get_bpf_file(vp->parsed));
 
 	vp->fds = uml_vector_user_open(vp->unit, vp->parsed);
 
@@ -1243,8 +1300,11 @@ static int vector_net_open(struct net_device *dev)
 		if (!uml_raw_enable_qdisc_bypass(vp->fds->rx_fd))
 			vp->options |= VECTOR_BPF;
 	}
-	if ((vp->options & VECTOR_BPF) != 0)
-		vp->bpf = uml_vector_default_bpf(vp->fds->rx_fd, dev->dev_addr);
+	if (((vp->options & VECTOR_BPF) != 0) && (vp->bpf == NULL))
+		vp->bpf = uml_vector_default_bpf(dev->dev_addr);
+
+	if (vp->bpf != NULL)
+		uml_vector_attach_bpf(vp->fds->rx_fd, vp->bpf);
 
 	netif_start_queue(dev);
 
@@ -1274,7 +1334,7 @@ static void vector_net_set_multicast_list(struct net_device *dev)
 	return;
 }
 
-static void vector_net_tx_timeout(struct net_device *dev)
+static void vector_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct vector_private *vp = netdev_priv(dev);
 
@@ -1320,7 +1380,65 @@ static void vector_net_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+}
+
+static int vector_net_load_bpf_flash(struct net_device *dev,
+				struct ethtool_flash *efl)
+{
+	struct vector_private *vp = netdev_priv(dev);
+	struct vector_device *vdevice;
+	const struct firmware *fw;
+	int result = 0;
+
+	if (!(vp->options & VECTOR_BPF_FLASH)) {
+		netdev_err(dev, "loading firmware not permitted: %s\n", efl->data);
+		return -1;
+	}
+
+	spin_lock(&vp->lock);
+
+	if (vp->bpf != NULL) {
+		if (vp->opened)
+			uml_vector_detach_bpf(vp->fds->rx_fd, vp->bpf);
+		kfree(vp->bpf->filter);
+		vp->bpf->filter = NULL;
+	} else {
+		vp->bpf = kmalloc(sizeof(struct sock_fprog), GFP_ATOMIC);
+		if (vp->bpf == NULL) {
+			netdev_err(dev, "failed to allocate memory for firmware\n");
+			goto flash_fail;
+		}
+	}
+
+	vdevice = find_device(vp->unit);
+
+	if (request_firmware(&fw, efl->data, &vdevice->pdev.dev))
+		goto flash_fail;
+
+	vp->bpf->filter = kmemdup(fw->data, fw->size, GFP_ATOMIC);
+	if (!vp->bpf->filter)
+		goto free_buffer;
+
+	vp->bpf->len = fw->size / sizeof(struct sock_filter);
+	release_firmware(fw);
+
+	if (vp->opened)
+		result = uml_vector_attach_bpf(vp->fds->rx_fd, vp->bpf);
+
+	spin_unlock(&vp->lock);
+
+	return result;
+
+free_buffer:
+	release_firmware(fw);
+
+flash_fail:
+	spin_unlock(&vp->lock);
+	if (vp->bpf != NULL)
+		kfree(vp->bpf->filter);
+	kfree(vp->bpf);
+	vp->bpf = NULL;
+	return -1;
 }
 
 static void vector_get_ringparam(struct net_device *netdev,
@@ -1391,6 +1509,7 @@ static int vector_set_coalesce(struct net_device *netdev,
 }
 
 static const struct ethtool_ops vector_net_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_TX_USECS,
 	.get_drvinfo	= vector_net_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
@@ -1400,6 +1519,7 @@ static const struct ethtool_ops vector_net_ethtool_ops = {
 	.get_ethtool_stats = vector_get_ethtool_stats,
 	.get_coalesce	= vector_get_coalesce,
 	.set_coalesce	= vector_set_coalesce,
+	.flash_device	= vector_net_load_bpf_flash,
 };
 
 
@@ -1503,8 +1623,10 @@ static void vector_eth_configure(
 		.transport_data		= NULL,
 		.in_write_poll		= false,
 		.coalesce		= 2,
-		.req_size		= get_req_size(def)
-		});
+		.req_size		= get_req_size(def),
+		.in_error		= false,
+		.bpf			= NULL
+	});
 
 	dev->features = dev->hw_features = (NETIF_F_SG | NETIF_F_FRAGLIST);
 	tasklet_init(&vp->tx_poll, vector_tx_poll, (unsigned long)vp);
@@ -1580,7 +1702,10 @@ static int __init vector_setup(char *str)
 				 str, error);
 		return 1;
 	}
-	new = alloc_bootmem(sizeof(*new));
+	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
+	if (!new)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*new));
 	INIT_LIST_HEAD(&new->list);
 	new->unit = n;
 	new->arguments = str;

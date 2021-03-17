@@ -838,12 +838,10 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	struct dma_pub *dma = NULL;
 	struct d11txh *txh = NULL;
 	struct scb *scb = NULL;
-	bool free_pdu;
-	int tx_rts, tx_frame_count, tx_rts_count;
-	uint totlen, supr_status;
+	int tx_frame_count;
+	uint supr_status;
 	bool lastframe;
 	struct ieee80211_hdr *h;
-	u16 mcl;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *txrate;
 	int i;
@@ -880,7 +878,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	}
 
 	txh = (struct d11txh *) (p->data);
-	mcl = le16_to_cpu(txh->MacTxControlLow);
 
 	if (txs->phyerr)
 		brcms_dbg_tx(wlc->hw->d11core, "phyerr 0x%x, rate 0x%x\n",
@@ -917,11 +914,8 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 			     CHSPEC_CHANNEL(wlc->default_bss->chanspec));
 	}
 
-	tx_rts = le16_to_cpu(txh->MacTxControlLow) & TXC_SENDRTS;
 	tx_frame_count =
 	    (txs->status & TX_STATUS_FRM_RTX_MASK) >> TX_STATUS_FRM_RTX_SHIFT;
-	tx_rts_count =
-	    (txs->status & TX_STATUS_RTS_RTX_MASK) >> TX_STATUS_RTS_RTX_SHIFT;
 
 	lastframe = !ieee80211_has_morefrags(h->frame_control);
 
@@ -988,9 +982,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		if (txs->status & TX_STATUS_ACK_RCV)
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	}
-
-	totlen = p->len;
-	free_pdu = true;
 
 	if (lastframe) {
 		/* remove PLCP & Broadcom tx descriptor header */
@@ -1064,7 +1055,7 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 		txs->lasttxtime = 0;
 
 		*fatal = brcms_c_dotxstatus(wlc_hw->wlc, txs);
-		if (*fatal == true)
+		if (*fatal)
 			return false;
 		n++;
 	}
@@ -1783,7 +1774,6 @@ void brcms_b_phy_reset(struct brcms_hardware *wlc_hw)
 {
 	struct brcms_phy_pub *pih = wlc_hw->band->pi;
 	u32 phy_bw_clkbits;
-	bool phy_in_reset = false;
 
 	brcms_dbg_info(wlc_hw->d11core, "wl%d: reset phy\n", wlc_hw->unit);
 
@@ -1806,7 +1796,6 @@ void brcms_b_phy_reset(struct brcms_hardware *wlc_hw)
 		/* reset the PHY */
 		brcms_b_core_ioctl(wlc_hw, (SICF_PRST | SICF_PCLKE),
 				   (SICF_PRST | SICF_PCLKE));
-		phy_in_reset = true;
 	} else {
 		brcms_b_core_ioctl(wlc_hw,
 				   (SICF_PRST | SICF_PCLKE | SICF_BWMASK),
@@ -1816,8 +1805,7 @@ void brcms_b_phy_reset(struct brcms_hardware *wlc_hw)
 	udelay(2);
 	brcms_b_core_phy_clk(wlc_hw, ON);
 
-	if (pih)
-		wlc_phy_anacore(pih, ON);
+	wlc_phy_anacore(pih, ON);
 }
 
 /* switch to and initialize new band */
@@ -2278,10 +2266,7 @@ static void brcms_ucode_write(struct brcms_hardware *wlc_hw,
 
 static void brcms_ucode_download(struct brcms_hardware *wlc_hw)
 {
-	struct brcms_c_info *wlc;
 	struct brcms_ucode *ucode = &wlc_hw->wlc->wl->ucode;
-
-	wlc = wlc_hw->wlc;
 
 	if (wlc_hw->ucode_loaded)
 		return;
@@ -3181,7 +3166,6 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 {
 	struct brcms_hardware *wlc_hw = wlc->hw;
 	struct bcma_device *core = wlc_hw->d11core;
-	u32 sflags;
 	u32 bcnint_us;
 	uint i = 0;
 	bool fifosz_fixup = false;
@@ -3214,7 +3198,7 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 
 	brcms_c_gpio_init(wlc);
 
-	sflags = bcma_aread32(core, BCMA_IOST);
+	bcma_aread32(core, BCMA_IOST);
 
 	if (D11REV_IS(wlc_hw->corerev, 17) || D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band))
@@ -3776,17 +3760,14 @@ static void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc)
  * Write this BSS config's MAC address to core.
  * Updates RXE match engine.
  */
-static int brcms_c_set_mac(struct brcms_bss_cfg *bsscfg)
+static void brcms_c_set_mac(struct brcms_bss_cfg *bsscfg)
 {
-	int err = 0;
 	struct brcms_c_info *wlc = bsscfg->wlc;
 
 	/* enter the MAC addr into the RXE match registers */
 	brcms_c_set_addrmatch(wlc, RCM_MAC_OFFSET, wlc->pub->cur_etheraddr);
 
 	brcms_c_ampdu_macaddr_upd(wlc);
-
-	return err;
 }
 
 /* Write the BSS config's BSSID address to core (set_bssid in d11procs.tcl).
@@ -3910,7 +3891,6 @@ static void brcms_c_setband(struct brcms_c_info *wlc,
 static void brcms_c_set_chanspec(struct brcms_c_info *wlc, u16 chanspec)
 {
 	uint bandunit;
-	bool switchband = false;
 	u16 old_chanspec = wlc->chanspec;
 
 	if (!brcms_c_valid_chanspec_db(wlc->cmi, chanspec)) {
@@ -3923,7 +3903,6 @@ static void brcms_c_set_chanspec(struct brcms_c_info *wlc, u16 chanspec)
 	if (wlc->pub->_nbands > 1) {
 		bandunit = chspec_bandunit(chanspec);
 		if (wlc->band->bandunit != bandunit || wlc->bandinit_pending) {
-			switchband = true;
 			if (wlc->bandlocked) {
 				brcms_err(wlc->hw->d11core,
 					  "wl%d: %s: chspec %d band is locked!\n",
@@ -5106,13 +5085,6 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	return 0;
 }
 
-static uint brcms_c_down_del_timer(struct brcms_c_info *wlc)
-{
-	uint callbacks = 0;
-
-	return callbacks;
-}
-
 static int brcms_b_bmac_down_prep(struct brcms_hardware *wlc_hw)
 {
 	bool dev_gone;
@@ -5190,7 +5162,6 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 
 	uint callbacks = 0;
 	int i;
-	bool dev_gone = false;
 
 	brcms_dbg_info(wlc->hw->d11core, "wl%d\n", wlc->pub->unit);
 
@@ -5208,7 +5179,7 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 
 	callbacks += brcms_b_bmac_down_prep(wlc->hw);
 
-	dev_gone = brcms_deviceremoved(wlc);
+	brcms_deviceremoved(wlc);
 
 	/* Call any registered down handlers */
 	for (i = 0; i < BRCMS_MAXMODULES; i++) {
@@ -5223,8 +5194,6 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 			callbacks++;
 		wlc->WDarmed = false;
 	}
-	/* cancel all other timers */
-	callbacks += brcms_c_down_del_timer(wlc);
 
 	wlc->pub->up = false;
 
@@ -5248,15 +5217,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	/* Default to 54g Auto */
 	/* Advertise and use shortslot (-1/0/1 Auto/Off/On) */
 	s8 shortslot = BRCMS_SHORTSLOT_AUTO;
-	bool shortslot_restrict = false; /* Restrict association to stations
-					  * that support shortslot
-					  */
 	bool ofdm_basic = false;	/* Make 6, 12, and 24 basic rates */
-	/* Advertise and use short preambles (-1/0/1 Auto/Off/On) */
-	int preamble = BRCMS_PLCP_LONG;
-	bool preamble_restrict = false;	/* Restrict association to stations
-					 * that support short preambles
-					 */
 	struct brcms_band *band;
 
 	/* if N-support is enabled, allow Gmode set as long as requested
@@ -5297,16 +5258,11 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 
 	case GMODE_ONLY:
 		ofdm_basic = true;
-		preamble = BRCMS_PLCP_SHORT;
-		preamble_restrict = true;
 		break;
 
 	case GMODE_PERFORMANCE:
 		shortslot = BRCMS_SHORTSLOT_ON;
-		shortslot_restrict = true;
 		ofdm_basic = true;
-		preamble = BRCMS_PLCP_SHORT;
-		preamble_restrict = true;
 		break;
 
 	default:
@@ -5414,22 +5370,14 @@ brcms_c_set_internal_rateset(struct brcms_c_info *wlc,
 
 static void brcms_c_ofdm_rateset_war(struct brcms_c_info *wlc)
 {
-	u8 r;
-	bool war = false;
-
-	if (wlc->pub->associated)
-		r = wlc->bsscfg->current_bss->rateset.rates[0];
-	else
-		r = wlc->default_bss->rateset.rates[0];
-
-	wlc_phy_ofdm_rateset_war(wlc->band->pi, war);
+	wlc_phy_ofdm_rateset_war(wlc->band->pi, false);
 }
 
 int brcms_c_set_channel(struct brcms_c_info *wlc, u16 channel)
 {
 	u16 chspec = ch20mhz_chspec(channel);
 
-	if (channel < 0 || channel > MAXCHANNEL)
+	if (channel > MAXCHANNEL)
 		return -EINVAL;
 
 	if (!brcms_c_valid_chanspec_db(wlc->cmi, chspec))
@@ -5897,7 +5845,6 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 	bool issgi = ((int_val & NRATE_SGI_MASK) >> NRATE_SGI_SHIFT);
 	bool override_mcs_only = ((int_val & NRATE_OVERRIDE_MCS_ONLY)
 				  == NRATE_OVERRIDE_MCS_ONLY);
-	int bcmerror = 0;
 
 	if (!ismcs)
 		return (u32) rate;
@@ -5908,7 +5855,6 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 		if (stf > PHY_TXC1_MODE_SDM) {
 			brcms_err(core, "wl%d: %s: Invalid stf\n",
 				  wlc->pub->unit, __func__);
-			bcmerror = -EINVAL;
 			goto done;
 		}
 
@@ -5919,7 +5865,6 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 			     && (stf != PHY_TXC1_MODE_CDD))) {
 				brcms_err(core, "wl%d: %s: Invalid mcs 32\n",
 					  wlc->pub->unit, __func__);
-				bcmerror = -EINVAL;
 				goto done;
 			}
 			/* mcs > 7 must use stf SDM */
@@ -5941,7 +5886,6 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 			     && (stf == PHY_TXC1_MODE_STBC))) {
 				brcms_err(core, "wl%d: %s: Invalid STBC\n",
 					  wlc->pub->unit, __func__);
-				bcmerror = -EINVAL;
 				goto done;
 			}
 		}
@@ -5949,7 +5893,6 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 		if ((stf != PHY_TXC1_MODE_CDD) && (stf != PHY_TXC1_MODE_SISO)) {
 			brcms_err(core, "wl%d: %s: Invalid OFDM\n",
 				  wlc->pub->unit, __func__);
-			bcmerror = -EINVAL;
 			goto done;
 		}
 	} else if (is_cck_rate(rate)) {
@@ -5957,20 +5900,17 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 		    || (stf != PHY_TXC1_MODE_SISO)) {
 			brcms_err(core, "wl%d: %s: Invalid CCK\n",
 				  wlc->pub->unit, __func__);
-			bcmerror = -EINVAL;
 			goto done;
 		}
 	} else {
 		brcms_err(core, "wl%d: %s: Unknown rate type\n",
 			  wlc->pub->unit, __func__);
-		bcmerror = -EINVAL;
 		goto done;
 	}
 	/* make sure multiple antennae are available for non-siso rates */
 	if ((stf != PHY_TXC1_MODE_SISO) && (wlc->stf->txstreams == 1)) {
 		brcms_err(core, "wl%d: %s: SISO antenna but !SISO "
 			  "request\n", wlc->pub->unit, __func__);
-		bcmerror = -EINVAL;
 		goto done;
 	}
 
@@ -6234,7 +6174,6 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	bool use_rts = false;
 	bool use_cts = false;
 	bool use_rifs = false;
-	bool short_preamble[2] = { false, false };
 	u8 preamble_type[2] = { BRCMS_LONG_PREAMBLE, BRCMS_LONG_PREAMBLE };
 	u8 rts_preamble_type[2] = { BRCMS_LONG_PREAMBLE, BRCMS_LONG_PREAMBLE };
 	u8 *rts_plcp, rts_plcp_fallback[D11_PHY_HDR_LEN];
@@ -6320,10 +6259,6 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				rspec[k] =
 				    hw->wiphy->bands[tx_info->band]->
 				    bitrates[txrate[k]->idx].hw_value;
-				short_preamble[k] =
-				    txrate[k]->
-				    flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ?
-				    true : false;
 			} else {
 				rspec[k] = BRCM_RATE_1M;
 			}
@@ -7397,9 +7332,7 @@ static void brcms_c_update_beacon_hw(struct brcms_c_info *wlc,
 				     false, true);
 		/* mark beacon0 valid */
 		bcma_set32(core, D11REGOFFS(maccommand), MCMD_BCN1VLD);
-		return;
 	}
-	return;
 }
 
 /*

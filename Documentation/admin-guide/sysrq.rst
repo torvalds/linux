@@ -48,9 +48,10 @@ always allowed (by a user with admin privileges).
 How do I use the magic SysRq key?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-On x86   - You press the key combo :kbd:`ALT-SysRq-<command key>`.
+On x86
+	You press the key combo :kbd:`ALT-SysRq-<command key>`.
 
-.. note::
+	.. note::
 	   Some
            keyboards may not have a key labeled 'SysRq'. The 'SysRq' key is
            also known as the 'Print Screen' key. Also some keyboards cannot
@@ -58,14 +59,15 @@ On x86   - You press the key combo :kbd:`ALT-SysRq-<command key>`.
 	   have better luck with press :kbd:`Alt`, press :kbd:`SysRq`,
 	   release :kbd:`SysRq`, press :kbd:`<command key>`, release everything.
 
-On SPARC - You press :kbd:`ALT-STOP-<command key>`, I believe.
+On SPARC
+	You press :kbd:`ALT-STOP-<command key>`, I believe.
 
 On the serial console (PC style standard serial ports only)
         You send a ``BREAK``, then within 5 seconds a command key. Sending
         ``BREAK`` twice is interpreted as a normal BREAK.
 
 On PowerPC
-	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`,
+	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`.
         :kbd:`Print Screen` (or :kbd:`F13`) - :kbd:`<command key>` may suffice.
 
 On other
@@ -73,9 +75,11 @@ On other
         let me know so I can add them to this section.
 
 On all
-	write a character to /proc/sysrq-trigger.  e.g.::
+	Write a character to /proc/sysrq-trigger.  e.g.::
 
 		echo t > /proc/sysrq-trigger
+
+The :kbd:`<command key>` is case sensitive.
 
 What are the 'command' keys?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -171,22 +175,20 @@ It seems others find it useful as (System Attention Key) which is
 useful when you want to exit a program that will not let you switch consoles.
 (For example, X or a svgalib program.)
 
-``reboot(b)`` is good when you're unable to shut down. But you should also
-``sync(s)`` and ``umount(u)`` first.
+``reboot(b)`` is good when you're unable to shut down, it is an equivalent
+of pressing the "reset" button.
 
 ``crash(c)`` can be used to manually trigger a crashdump when the system is hung.
 Note that this just triggers a crash if there is no dump mechanism available.
 
-``sync(s)`` is great when your system is locked up, it allows you to sync your
-disks and will certainly lessen the chance of data loss and fscking. Note
-that the sync hasn't taken place until you see the "OK" and "Done" appear
-on the screen. (If the kernel is really in strife, you may not ever get the
-OK or Done message...)
+``sync(s)`` is handy before yanking removable medium or after using a rescue
+shell that provides no graceful shutdown -- it will ensure your data is
+safely written to the disk. Note that the sync hasn't taken place until you see
+the "OK" and "Done" appear on the screen.
 
-``umount(u)`` is basically useful in the same ways as ``sync(s)``. I generally
-``sync(s)``, ``umount(u)``, then ``reboot(b)`` when my system locks. It's saved
-me many a fsck. Again, the unmount (remount read-only) hasn't taken place until
-you see the "OK" and "Done" message appear on the screen.
+``umount(u)`` can be used to mark filesystems as properly unmounted. From the
+running system's point of view, they will be remounted read-only. The remount
+isn't complete until you see the "OK" and "Done" message appear on the screen.
 
 The loglevels ``0``-``9`` are useful when your console is being flooded with
 kernel messages you do not want to see. Selecting ``0`` will prevent all but
@@ -231,13 +233,13 @@ prints help, and C) an action_msg string, that will print right before your
 handler is called. Your handler must conform to the prototype in 'sysrq.h'.
 
 After the ``sysrq_key_op`` is created, you can call the kernel function
-``register_sysrq_key(int key, struct sysrq_key_op *op_p);`` this will
+``register_sysrq_key(int key, const struct sysrq_key_op *op_p);`` this will
 register the operation pointed to by ``op_p`` at table key 'key',
 if that slot in the table is blank. At module unload time, you must call
-the function ``unregister_sysrq_key(int key, struct sysrq_key_op *op_p)``, which
-will remove the key op pointed to by 'op_p' from the key 'key', if and only if
-it is currently registered in that slot. This is in case the slot has been
-overwritten since you registered it.
+the function ``unregister_sysrq_key(int key, const struct sysrq_key_op *op_p)``,
+which will remove the key op pointed to by 'op_p' from the key 'key', if and
+only if it is currently registered in that slot. This is in case the slot has
+been overwritten since you registered it.
 
 The Magic SysRQ system works by registering key operations against a key op
 lookup table, which is defined in 'drivers/tty/sysrq.c'. This key table has
@@ -284,7 +286,7 @@ Just ask them on the linux-kernel mailing list:
 Credits
 ~~~~~~~
 
-Written by Mydraal <vulpyne@vulpyne.net>
-Updated by Adam Sulmicki <adam@cfar.umd.edu>
-Updated by Jeremy M. Dolan <jmd@turbogeek.org> 2001/01/28 10:15:59
-Added to by Crutcher Dunnavant <crutcher+kernel@datastacks.com>
+- Written by Mydraal <vulpyne@vulpyne.net>
+- Updated by Adam Sulmicki <adam@cfar.umd.edu>
+- Updated by Jeremy M. Dolan <jmd@turbogeek.org> 2001/01/28 10:15:59
+- Added to by Crutcher Dunnavant <crutcher+kernel@datastacks.com>

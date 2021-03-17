@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL.
  */
 
 #include <stdio.h>
@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/termios.h>
+#include <termios.h>
 #include <sys/wait.h>
 #include <net_user.h>
 #include <os.h>

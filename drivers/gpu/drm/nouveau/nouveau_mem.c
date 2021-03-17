@@ -87,12 +87,12 @@ nouveau_mem_fini(struct nouveau_mem *mem)
 	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[1]);
 	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[0]);
 	mutex_lock(&mem->cli->drm->master.lock);
-	nvif_mem_fini(&mem->mem);
+	nvif_mem_dtor(&mem->mem);
 	mutex_unlock(&mem->cli->drm->master.lock);
 }
 
 int
-nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
+nouveau_mem_host(struct ttm_resource *reg, struct ttm_dma_tt *tt)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nouveau_cli *cli = mem->cli;
@@ -121,7 +121,7 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 
 	mutex_lock(&drm->master.lock);
 	cli->base.super = true;
-	ret = nvif_mem_init_type(mmu, cli->mem->oclass, type, PAGE_SHIFT,
+	ret = nvif_mem_ctor_type(mmu, "ttmHostMem", cli->mem->oclass, type, PAGE_SHIFT,
 				 reg->num_pages << PAGE_SHIFT,
 				 &args, sizeof(args), &mem->mem);
 	cli->base.super = super;
@@ -130,7 +130,7 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 }
 
 int
-nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
+nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nouveau_cli *cli = mem->cli;
@@ -144,7 +144,7 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 	cli->base.super = true;
 	switch (cli->mem->oclass) {
 	case NVIF_CLASS_MEM_GF100:
-		ret = nvif_mem_init_type(mmu, cli->mem->oclass,
+		ret = nvif_mem_ctor_type(mmu, "ttmVram", cli->mem->oclass,
 					 drm->ttm.type_vram, page, size,
 					 &(struct gf100_mem_v0) {
 						.contig = contig,
@@ -152,7 +152,7 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 					 &mem->mem);
 		break;
 	case NVIF_CLASS_MEM_NV50:
-		ret = nvif_mem_init_type(mmu, cli->mem->oclass,
+		ret = nvif_mem_ctor_type(mmu, "ttmVram", cli->mem->oclass,
 					 drm->ttm.type_vram, page, size,
 					 &(struct nv50_mem_v0) {
 						.bankswz = mmu->kind[mem->kind] == 2,
@@ -173,9 +173,11 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 }
 
 void
-nouveau_mem_del(struct ttm_mem_reg *reg)
+nouveau_mem_del(struct ttm_resource *reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
+	if (!mem)
+		return;
 	nouveau_mem_fini(mem);
 	kfree(reg->mm_node);
 	reg->mm_node = NULL;
@@ -183,7 +185,7 @@ nouveau_mem_del(struct ttm_mem_reg *reg)
 
 int
 nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
-		struct ttm_mem_reg *reg)
+		struct ttm_resource *reg)
 {
 	struct nouveau_mem *mem;
 

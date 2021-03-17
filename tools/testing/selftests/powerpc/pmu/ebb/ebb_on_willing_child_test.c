@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <signal.h>
@@ -37,8 +37,6 @@ static int victim_child(union pipe read_pipe, union pipe write_pipe)
 
 	ebb_global_disable();
 	ebb_freeze_pmcs();
-
-	count_pmc(1, sample_period);
 
 	dump_ebb_state();
 

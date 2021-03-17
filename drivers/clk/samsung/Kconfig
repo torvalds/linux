@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Recent Exynos platforms should just select COMMON_CLK_SAMSUNG:
 config COMMON_CLK_SAMSUNG
 	bool "Samsung Exynos clock controller support" if COMPILE_TEST

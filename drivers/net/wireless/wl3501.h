@@ -231,7 +231,7 @@ struct iw_mgmt_info_element {
 	u8 id; /* one of enum iw_mgmt_info_element_ids,
 		  but sizeof(enum) > sizeof(u8) :-( */
 	u8 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct iw_mgmt_essid_pset {

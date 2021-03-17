@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Glue code for SHA512 hashing optimized for sparc64 crypto opcodes.
  *
  * This is based largely upon crypto/sha512_generic.c
@@ -13,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/cryptohash.h>
 #include <linux/types.h>
 #include <crypto/sha.h>
 

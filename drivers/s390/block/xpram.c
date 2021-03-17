@@ -182,7 +182,7 @@ static unsigned long xpram_highest_page_index(void)
 /*
  * Block device make request function.
  */
-static blk_qc_t xpram_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t xpram_submit_bio(struct bio *bio)
 {
 	xpram_device_t *xdev = bio->bi_disk->private_data;
 	struct bio_vec bvec;
@@ -191,7 +191,7 @@ static blk_qc_t xpram_make_request(struct request_queue *q, struct bio *bio)
 	unsigned long page_addr;
 	unsigned long bytes;
 
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
 	if ((bio->bi_iter.bi_sector & 7) != 0 ||
 	    (bio->bi_iter.bi_size & 4095) != 0)
@@ -250,6 +250,7 @@ static int xpram_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 static const struct block_device_operations xpram_devops =
 {
 	.owner	= THIS_MODULE,
+	.submit_bio = xpram_submit_bio,
 	.getgeo	= xpram_getgeo,
 };
 
@@ -343,14 +344,13 @@ static int __init xpram_setup_blkdev(void)
 		xpram_disks[i] = alloc_disk(1);
 		if (!xpram_disks[i])
 			goto out;
-		xpram_queues[i] = blk_alloc_queue(GFP_KERNEL);
+		xpram_queues[i] = blk_alloc_queue(NUMA_NO_NODE);
 		if (!xpram_queues[i]) {
 			put_disk(xpram_disks[i]);
 			goto out;
 		}
 		blk_queue_flag_set(QUEUE_FLAG_NONROT, xpram_queues[i]);
 		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, xpram_queues[i]);
-		blk_queue_make_request(xpram_queues[i], xpram_make_request);
 		blk_queue_logical_block_size(xpram_queues[i], 4096);
 	}
 

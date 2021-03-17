@@ -3,25 +3,12 @@
  *  FC Transport BSG Interface
  *
  *  Copyright (C) 2008   James Smart, Emulex Corporation
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #ifndef SCSI_BSG_FC_H
 #define SCSI_BSG_FC_H
+
+#include <linux/types.h>
 
 /*
  * This file intended to be included by both kernel and user space
@@ -81,10 +68,10 @@
  * with the transport upon completion of the login.
  */
 struct fc_bsg_host_add_rport {
-	uint8_t		reserved;
+	__u8	reserved;
 
 	/* FC Address Identier of the remote port to login to */
-	uint8_t		port_id[3];
+	__u8	port_id[3];
 };
 
 /* Response:
@@ -102,10 +89,10 @@ struct fc_bsg_host_add_rport {
  * remain logged in with the remote port.
  */
 struct fc_bsg_host_del_rport {
-	uint8_t		reserved;
+	__u8	reserved;
 
 	/* FC Address Identier of the remote port to logout of */
-	uint8_t		port_id[3];
+	__u8	port_id[3];
 };
 
 /* Response:
@@ -126,10 +113,10 @@ struct fc_bsg_host_els {
 	 * ELS Command Code being sent (must be the same as byte 0
 	 * of the payload)
 	 */
-	uint8_t 	command_code;
+	__u8	command_code;
 
 	/* FC Address Identier of the remote port to send the ELS to */
-	uint8_t		port_id[3];
+	__u8	port_id[3];
 };
 
 /* Response:
@@ -166,14 +153,14 @@ struct fc_bsg_ctels_reply {
 	 * Note: x_RJT/BSY status will indicae that the rjt_data field
 	 *   is valid and contains the reason/explanation values.
 	 */
-	uint32_t	status;		/* See FC_CTELS_STATUS_xxx */
+	__u32	status;		/* See FC_CTELS_STATUS_xxx */
 
 	/* valid if status is not FC_CTELS_STATUS_OK */
 	struct	{
-		uint8_t	action;		/* fragment_id for CT REJECT */
-		uint8_t	reason_code;
-		uint8_t	reason_explanation;
-		uint8_t	vendor_unique;
+		__u8	action;		/* fragment_id for CT REJECT */
+		__u8	reason_code;
+		__u8	reason_explanation;
+		__u8	vendor_unique;
 	} rjt_data;
 };
 
@@ -189,17 +176,17 @@ struct fc_bsg_ctels_reply {
  * and whether to tear it down after the request.
  */
 struct fc_bsg_host_ct {
-	uint8_t		reserved;
+	__u8	reserved;
 
 	/* FC Address Identier of the remote port to send the ELS to */
-	uint8_t		port_id[3];
+	__u8	port_id[3];
 
 	/*
 	 * We need words 0-2 of the generic preamble for the LLD's
 	 */
-	uint32_t	preamble_word0;	/* revision & IN_ID */
-	uint32_t	preamble_word1;	/* GS_Type, GS_SubType, Options, Rsvd */
-	uint32_t	preamble_word2;	/* Cmd Code, Max Size */
+	__u32	preamble_word0;	/* revision & IN_ID */
+	__u32	preamble_word1;	/* GS_Type, GS_SubType, Options, Rsvd */
+	__u32	preamble_word2;	/* Cmd Code, Max Size */
 
 };
 /* Response:
@@ -219,17 +206,17 @@ struct fc_bsg_host_vendor {
 	 * Identifies the vendor that the message is formatted for. This
 	 * should be the recipient of the message.
 	 */
-	uint64_t vendor_id;
+	__u64 vendor_id;
 
 	/* start of vendor command area */
-	uint32_t vendor_cmd[0];
+	__u32 vendor_cmd[0];
 };
 
 /* Response:
  */
 struct fc_bsg_host_vendor_reply {
 	/* start of vendor response area */
-	uint32_t vendor_rsp[0];
+	__u32 vendor_rsp[0];
 };
 
 
@@ -248,7 +235,7 @@ struct fc_bsg_rport_els {
 	 * ELS Command Code being sent (must be the same as
 	 * byte 0 of the payload)
 	 */
-	uint8_t els_code;
+	__u8 els_code;
 };
 
 /* Response:
@@ -266,9 +253,9 @@ struct fc_bsg_rport_ct {
 	/*
 	 * We need words 0-2 of the generic preamble for the LLD's
 	 */
-	uint32_t	preamble_word0;	/* revision & IN_ID */
-	uint32_t	preamble_word1;	/* GS_Type, GS_SubType, Options, Rsvd */
-	uint32_t	preamble_word2;	/* Cmd Code, Max Size */
+	__u32	preamble_word0;	/* revision & IN_ID */
+	__u32	preamble_word1;	/* GS_Type, GS_SubType, Options, Rsvd */
+	__u32	preamble_word2;	/* Cmd Code, Max Size */
 };
 /* Response:
  *
@@ -280,7 +267,7 @@ struct fc_bsg_rport_ct {
 
 /* request (CDB) structure of the sg_io_v4 */
 struct fc_bsg_request {
-	uint32_t msgcode;
+	__u32 msgcode;
 	union {
 		struct fc_bsg_host_add_rport	h_addrport;
 		struct fc_bsg_host_del_rport	h_delrport;
@@ -304,10 +291,10 @@ struct fc_bsg_reply {
 	 *    msg and status fields. The per-msgcode reply structure
 	 *    will contain valid data.
 	 */
-	uint32_t result;
+	__u32 result;
 
 	/* If there was reply_payload, how much was recevied ? */
-	uint32_t reply_payload_rcv_len;
+	__u32 reply_payload_rcv_len;
 
 	union {
 		struct fc_bsg_host_vendor_reply		vendor_reply;

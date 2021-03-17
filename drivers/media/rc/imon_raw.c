@@ -8,59 +8,70 @@
 #include <media/rc-core.h>
 
 /* Each bit is 250us */
-#define BIT_DURATION 250000
+#define BIT_DURATION 250
 
 struct imon {
 	struct device *dev;
 	struct urb *ir_urb;
 	struct rc_dev *rcdev;
-	u8 ir_buf[8];
+	__be64 ir_buf;
 	char phys[64];
 };
 
 /*
- * ffs/find_next_bit() searches in the wrong direction, so open-code our own.
+ * The first 5 bytes of data represent IR pulse or space. Each bit, starting
+ * from highest bit in the first byte, represents 250µs of data. It is 1
+ * for space and 0 for pulse.
+ *
+ * The station sends 10 packets, and the 7th byte will be number 1 to 10, so
+ * when we receive 10 we assume all the data has arrived.
  */
-static inline int is_bit_set(const u8 *buf, int bit)
-{
-	return buf[bit / 8] & (0x80 >> (bit & 7));
-}
-
 static void imon_ir_data(struct imon *imon)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
-	int offset = 0, size = 5 * 8;
+	struct ir_raw_event rawir = {};
+	u64 data = be64_to_cpu(imon->ir_buf);
+	u8 packet_no = data & 0xff;
+	int offset = 40;
 	int bit;
 
-	dev_dbg(imon->dev, "data: %*ph", 8, imon->ir_buf);
+	if (packet_no == 0xff)
+		return;
 
-	while (offset < size) {
-		bit = offset;
-		while (!is_bit_set(imon->ir_buf, bit) && bit < size)
-			bit++;
-		dev_dbg(imon->dev, "pulse: %d bits", bit - offset);
-		if (bit > offset) {
-			rawir.pulse = true;
-			rawir.duration = (bit - offset) * BIT_DURATION;
+	dev_dbg(imon->dev, "data: %*ph", 8, &imon->ir_buf);
+
+	/*
+	 * Only the first 5 bytes contain IR data. Right shift so we move
+	 * the IR bits to the lower 40 bits.
+	 */
+	data >>= 24;
+
+	do {
+		/*
+		 * Find highest set bit which is less or equal to offset
+		 *
+		 * offset is the bit above (base 0) where we start looking.
+		 *
+		 * data & (BIT_ULL(offset) - 1) masks off any unwanted bits,
+		 * so we have just bits less than offset.
+		 *
+		 * fls will tell us the highest bit set plus 1 (or 0 if no
+		 * bits are set).
+		 */
+		rawir.pulse = !rawir.pulse;
+		bit = fls64(data & (BIT_ULL(offset) - 1));
+		if (bit < offset) {
+			dev_dbg(imon->dev, "%s: %d bits",
+				rawir.pulse ? "pulse" : "space", offset - bit);
+			rawir.duration = (offset - bit) * BIT_DURATION;
 			ir_raw_event_store_with_filter(imon->rcdev, &rawir);
+
+			offset = bit;
 		}
 
-		if (bit >= size)
-			break;
+		data = ~data;
+	} while (offset > 0);
 
-		offset = bit;
-		while (is_bit_set(imon->ir_buf, bit) && bit < size)
-			bit++;
-		dev_dbg(imon->dev, "space: %d bits", bit - offset);
-
-		rawir.pulse = false;
-		rawir.duration = (bit - offset) * BIT_DURATION;
-		ir_raw_event_store_with_filter(imon->rcdev, &rawir);
-
-		offset = bit;
-	}
-
-	if (imon->ir_buf[7] == 0x0a) {
+	if (packet_no == 0x0a && !imon->rcdev->idle) {
 		ir_raw_event_set_idle(imon->rcdev, true);
 		ir_raw_event_handle(imon->rcdev);
 	}
@@ -73,8 +84,7 @@ static void imon_ir_rx(struct urb *urb)
 
 	switch (urb->status) {
 	case 0:
-		if (imon->ir_buf[7] != 0xff)
-			imon_ir_data(imon);
+		imon_ir_data(imon);
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
@@ -130,7 +140,7 @@ static int imon_probe(struct usb_interface *intf,
 	imon->dev = &intf->dev;
 	usb_fill_int_urb(imon->ir_urb, udev,
 			 usb_rcvintpipe(udev, ir_ep->bEndpointAddress),
-			 imon->ir_buf, sizeof(imon->ir_buf),
+			 &imon->ir_buf, sizeof(imon->ir_buf),
 			 imon_ir_rx, imon, ir_ep->bInterval);
 
 	rcdev = devm_rc_allocate_device(&intf->dev, RC_DRIVER_IR_RAW);

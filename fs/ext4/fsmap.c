@@ -108,6 +108,9 @@ static int ext4_getfsmap_helper(struct super_block *sb,
 
 	/* Are we just counting mappings? */
 	if (info->gfi_head->fmh_count == 0) {
+		if (info->gfi_head->fmh_entries == UINT_MAX)
+			return EXT4_QUERY_RANGE_ABORT;
+
 		if (rec_fsblk > info->gfi_next_fsblk)
 			info->gfi_head->fmh_entries++;
 
@@ -277,7 +280,7 @@ static int ext4_getfsmap_logdev(struct super_block *sb, struct ext4_fsmap *keys,
 
 	/* Fabricate an rmap entry for the external log device. */
 	irec.fmr_physical = journal->j_blk_offset;
-	irec.fmr_length = journal->j_maxlen;
+	irec.fmr_length = journal->j_total_len;
 	irec.fmr_owner = EXT4_FMR_OWN_LOG;
 	irec.fmr_flags = 0;
 
@@ -571,8 +574,8 @@ static bool ext4_getfsmap_is_valid_device(struct super_block *sb,
 	if (fm->fmr_device == 0 || fm->fmr_device == UINT_MAX ||
 	    fm->fmr_device == new_encode_dev(sb->s_bdev->bd_dev))
 		return true;
-	if (EXT4_SB(sb)->journal_bdev &&
-	    fm->fmr_device == new_encode_dev(EXT4_SB(sb)->journal_bdev->bd_dev))
+	if (EXT4_SB(sb)->s_journal_bdev &&
+	    fm->fmr_device == new_encode_dev(EXT4_SB(sb)->s_journal_bdev->bd_dev))
 		return true;
 	return false;
 }
@@ -626,7 +629,7 @@ int ext4_getfsmap(struct super_block *sb, struct ext4_fsmap_head *head,
 {
 	struct ext4_fsmap dkeys[2];	/* per-dev keys */
 	struct ext4_getfsmap_dev handlers[EXT4_GETFSMAP_DEVS];
-	struct ext4_getfsmap_info info = {0};
+	struct ext4_getfsmap_info info = { NULL };
 	int i;
 	int error = 0;
 
@@ -642,9 +645,9 @@ int ext4_getfsmap(struct super_block *sb, struct ext4_fsmap_head *head,
 	memset(handlers, 0, sizeof(handlers));
 	handlers[0].gfd_dev = new_encode_dev(sb->s_bdev->bd_dev);
 	handlers[0].gfd_fn = ext4_getfsmap_datadev;
-	if (EXT4_SB(sb)->journal_bdev) {
+	if (EXT4_SB(sb)->s_journal_bdev) {
 		handlers[1].gfd_dev = new_encode_dev(
-				EXT4_SB(sb)->journal_bdev->bd_dev);
+				EXT4_SB(sb)->s_journal_bdev->bd_dev);
 		handlers[1].gfd_fn = ext4_getfsmap_logdev;
 	}
 

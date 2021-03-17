@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network port table
  *
@@ -10,21 +11,10 @@
  * This code is heavily based on the "netif" concept originally developed by
  * James Morris <jmorris@redhat.com>
  *   (see security/selinux/netif.c for more information)
- *
  */
 
 /*
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2008
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/types.h>
@@ -140,16 +130,16 @@ static void sel_netport_insert(struct sel_netport *port)
  * @sid: port SID
  *
  * Description:
- * This function determines the SID of a network port by quering the security
+ * This function determines the SID of a network port by querying the security
  * policy.  The result is added to the network port table to speedup future
  * queries.  Returns zero on success, negative values on failure.
  *
  */
 static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 {
-	int ret = -ENOMEM;
+	int ret;
 	struct sel_netport *port;
-	struct sel_netport *new = NULL;
+	struct sel_netport *new;
 
 	spin_lock_bh(&sel_netport_lock);
 	port = sel_netport_find(protocol, pnum);
@@ -158,25 +148,23 @@ static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 		spin_unlock_bh(&sel_netport_lock);
 		return 0;
 	}
-	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (new == NULL)
-		goto out;
+
 	ret = security_port_sid(&selinux_state, protocol, pnum, sid);
 	if (ret != 0)
 		goto out;
-
-	new->psec.port = pnum;
-	new->psec.protocol = protocol;
-	new->psec.sid = *sid;
-	sel_netport_insert(new);
+	new = kzalloc(sizeof(*new), GFP_ATOMIC);
+	if (new) {
+		new->psec.port = pnum;
+		new->psec.protocol = protocol;
+		new->psec.sid = *sid;
+		sel_netport_insert(new);
+	}
 
 out:
 	spin_unlock_bh(&sel_netport_lock);
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		pr_warn("SELinux: failure in %s(), unable to determine network port label\n",
 			__func__);
-		kfree(new);
-	}
 	return ret;
 }
 
@@ -237,7 +225,7 @@ static __init int sel_netport_init(void)
 {
 	int iter;
 
-	if (!selinux_enabled)
+	if (!selinux_enabled_boot)
 		return 0;
 
 	for (iter = 0; iter < SEL_NETPORT_HASH_SIZE; iter++) {

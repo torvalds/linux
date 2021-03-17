@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/connector/analog-tv-connector.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog TV Connector
+
+maintainers:
+  - Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
+
+properties:
+  compatible:
+    enum:
+      - composite-video-connector
+      - svideo-connector
+
+  label: true
+
+  sdtv-standards:
+    description:
+      Limit the supported TV standards on a connector to the given ones. If
+      not specified all TV standards are allowed. Possible TV standards are
+      defined in include/dt-bindings/display/sdtv-standards.h.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  port:
+    description: Connection to controller providing analog TV signals
+
+required:
+  - compatible
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/display/sdtv-standards.h>
+
+    connector {
+        compatible = "composite-video-connector";
+        label = "tv";
+        sdtv-standards = <(SDTV_STD_PAL | SDTV_STD_NTSC)>;
+
+        port {
+            tv_connector_in: endpoint {
+                remote-endpoint = <&venc_out>;
+            };
+        };
+    };
+
+...

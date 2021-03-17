@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Industrial I/O driver for Microchip digital potentiometers
  * Copyright (c) 2015  Axentia Technologies AB
@@ -22,17 +23,13 @@
  * mcp4652	2	257		5, 10, 50, 100          01011xx
  * mcp4661	2	257		5, 10, 50, 100          0101xxx
  * mcp4662	2	257		5, 10, 50, 100          01011xx
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 
 #include <linux/iio/iio.h>
 
@@ -278,8 +275,6 @@ static const struct i2c_device_id mcp4531_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcp4531_id);
 
-#ifdef CONFIG_OF
-
 #define MCP4531_COMPATIBLE(of_compatible, cfg) {	\
 			.compatible = of_compatible,	\
 			.data = &mcp4531_cfg[cfg],	\
@@ -353,14 +348,12 @@ static const struct of_device_id mcp4531_of_match[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mcp4531_of_match);
-#endif
 
 static int mcp4531_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct mcp4531_data *data;
 	struct iio_dev *indio_dev;
-	const struct of_device_id *match;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
@@ -375,13 +368,10 @@ static int mcp4531_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	match = of_match_device(of_match_ptr(mcp4531_of_match), dev);
-	if (match)
-		data->cfg = of_device_get_match_data(dev);
-	else
+	data->cfg = device_get_match_data(dev);
+	if (!data->cfg)
 		data->cfg = &mcp4531_cfg[i2c_match_id(mcp4531_id, client)->driver_data];
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &mcp4531_info;
 	indio_dev->channels = mcp4531_channels;
 	indio_dev->num_channels = data->cfg->wipers;
@@ -393,7 +383,7 @@ static int mcp4531_probe(struct i2c_client *client)
 static struct i2c_driver mcp4531_driver = {
 	.driver = {
 		.name	= "mcp4531",
-		.of_match_table = of_match_ptr(mcp4531_of_match),
+		.of_match_table = mcp4531_of_match,
 	},
 	.probe_new	= mcp4531_probe,
 	.id_table	= mcp4531_id,
@@ -403,4 +393,4 @@ module_i2c_driver(mcp4531_driver);
 
 MODULE_AUTHOR("Peter Rosin <peda@axentia.se>");
 MODULE_DESCRIPTION("MCP4531 digital potentiometer");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

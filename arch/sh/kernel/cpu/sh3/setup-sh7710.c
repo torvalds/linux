@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH3 Setup code for SH7710, SH7712
  *
  *  Copyright (C) 2006 - 2009  Paul Mundt
  *  Copyright (C) 2007  Nobuhiro Iwamatsu
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -16,6 +13,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <asm/rtc.h>
+#include <asm/platform_early.h>
 
 enum {
 	UNUSED = 0,
@@ -180,7 +178,7 @@ static struct platform_device *sh7710_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh7710_early_devices,
+	sh_early_platform_add_devices(sh7710_early_devices,
 				   ARRAY_SIZE(sh7710_early_devices));
 }
 

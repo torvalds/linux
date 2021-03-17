@@ -25,9 +25,9 @@
  *
  **************************************************************************/
 
-#include "vmwgfx_drv.h"
-#include <drm/drmP.h>
 #include <drm/ttm/ttm_bo_driver.h>
+
+#include "vmwgfx_drv.h"
 
 #define VMW_PPN_SIZE (sizeof(unsigned long))
 /* A future safe maximum remap size. */
@@ -51,7 +51,7 @@ static int vmw_gmr2_bind(struct vmw_private *dev_priv,
 	uint32_t cmd_size = define_size + remap_size;
 	uint32_t i;
 
-	cmd_orig = cmd = vmw_fifo_reserve(dev_priv, cmd_size);
+	cmd_orig = cmd = VMW_FIFO_RESERVE(dev_priv, cmd_size);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -110,11 +110,10 @@ static void vmw_gmr2_unbind(struct vmw_private *dev_priv,
 	uint32_t define_size = sizeof(define_cmd) + 4;
 	uint32_t *cmd;
 
-	cmd = vmw_fifo_reserve(dev_priv, define_size);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("GMR2 unbind failed.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, define_size);
+	if (unlikely(cmd == NULL))
 		return;
-	}
+
 	define_cmd.gmrId = gmr_id;
 	define_cmd.numPages = 0;
 

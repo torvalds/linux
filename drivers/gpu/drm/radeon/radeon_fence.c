@@ -28,15 +28,21 @@
  *    Jerome Glisse <glisse@freedesktop.org>
  *    Dave Airlie
  */
-#include <linux/seq_file.h>
+
 #include <linux/atomic.h>
-#include <linux/wait.h>
-#include <linux/kref.h>
-#include <linux/slab.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
-#include "radeon_reg.h"
+#include <linux/kref.h>
+#include <linux/sched/signal.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/wait.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "radeon_trace.h"
 
 /*
@@ -859,8 +865,8 @@ int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring)
 	}
 	radeon_fence_write(rdev, atomic64_read(&rdev->fence_drv[ring].last_seq), ring);
 	rdev->fence_drv[ring].initialized = true;
-	dev_info(rdev->dev, "fence driver on ring %d use gpu addr 0x%016llx and cpu addr 0x%p\n",
-		 ring, rdev->fence_drv[ring].gpu_addr, rdev->fence_drv[ring].cpu_addr);
+	dev_info(rdev->dev, "fence driver on ring %d use gpu addr 0x%016llx\n",
+		 ring, rdev->fence_drv[ring].gpu_addr);
 	return 0;
 }
 

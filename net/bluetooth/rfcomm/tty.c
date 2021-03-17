@@ -413,10 +413,8 @@ static int __rfcomm_create_dev(struct sock *sk, void __user *arg)
 		dlc = rfcomm_dlc_exists(&req.src, &req.dst, req.channel);
 		if (IS_ERR(dlc))
 			return PTR_ERR(dlc);
-		else if (dlc) {
-			rfcomm_dlc_put(dlc);
+		if (dlc)
 			return -EBUSY;
-		}
 		dlc = rfcomm_dlc_alloc(GFP_KERNEL);
 		if (!dlc)
 			return -ENOMEM;
@@ -838,18 +836,6 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned l
 	case TIOCMIWAIT:
 		BT_DBG("TIOCMIWAIT");
 		break;
-
-	case TIOCGSERIAL:
-		BT_ERR("TIOCGSERIAL is not supported");
-		return -ENOIOCTLCMD;
-
-	case TIOCSSERIAL:
-		BT_ERR("TIOCSSERIAL is not supported");
-		return -ENOIOCTLCMD;
-
-	case TIOCSERGSTRUCT:
-		BT_ERR("TIOCSERGSTRUCT is not supported");
-		return -ENOIOCTLCMD;
 
 	case TIOCSERGETLSR:
 		BT_ERR("TIOCSERGETLSR is not supported");

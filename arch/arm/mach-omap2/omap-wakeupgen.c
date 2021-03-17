@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP WakeupGen Source file
  *
@@ -10,10 +11,6 @@
  *
  * Copyright (C) 2011 Texas Instruments, Inc.
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -49,6 +46,9 @@
 #define CPU1_ID			0x1
 #define OMAP4_NR_BANKS		4
 #define OMAP4_NR_IRQS		128
+
+#define SYS_NIRQ1_EXT_SYS_IRQ_1	7
+#define SYS_NIRQ2_EXT_SYS_IRQ_2	119
 
 static void __iomem *wakeupgen_base;
 static void __iomem *sar_base;
@@ -151,6 +151,37 @@ static void wakeupgen_unmask(struct irq_data *d)
 	_wakeupgen_set(d->hwirq, irq_target_cpu[d->hwirq]);
 	raw_spin_unlock_irqrestore(&wakeupgen_lock, flags);
 	irq_chip_unmask_parent(d);
+}
+
+/*
+ * The sys_nirq pins bypass peripheral modules and are wired directly
+ * to MPUSS wakeupgen. They get automatically inverted for GIC.
+ */
+static int wakeupgen_irq_set_type(struct irq_data *d, unsigned int type)
+{
+	bool inverted = false;
+
+	switch (type) {
+	case IRQ_TYPE_LEVEL_LOW:
+		type &= ~IRQ_TYPE_LEVEL_MASK;
+		type |= IRQ_TYPE_LEVEL_HIGH;
+		inverted = true;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		type &= ~IRQ_TYPE_EDGE_BOTH;
+		type |= IRQ_TYPE_EDGE_RISING;
+		inverted = true;
+		break;
+	default:
+		break;
+	}
+
+	if (inverted && d->hwirq != SYS_NIRQ1_EXT_SYS_IRQ_1 &&
+	    d->hwirq != SYS_NIRQ2_EXT_SYS_IRQ_2)
+		pr_warn("wakeupgen: irq%li polarity inverted in dts\n",
+			d->hwirq);
+
+	return irq_chip_set_type_parent(d, type);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -402,13 +433,13 @@ static int irq_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
-		if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+		if (omap_type() == OMAP2_DEVICE_TYPE_GP || soc_is_am43xx())
 			irq_save_context();
 		else
 			irq_save_secure_context();
 		break;
 	case CPU_CLUSTER_PM_EXIT:
-		if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+		if (omap_type() == OMAP2_DEVICE_TYPE_GP || soc_is_am43xx())
 			irq_restore_context();
 		break;
 	}
@@ -446,7 +477,7 @@ static struct irq_chip wakeupgen_chip = {
 	.irq_mask		= wakeupgen_mask,
 	.irq_unmask		= wakeupgen_unmask,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
-	.irq_set_type		= irq_chip_set_type_parent,
+	.irq_set_type		= wakeupgen_irq_set_type,
 	.flags			= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= irq_chip_set_affinity_parent,

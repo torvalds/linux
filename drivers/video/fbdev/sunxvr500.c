@@ -186,7 +186,7 @@ static void e3d_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 	spin_unlock_irqrestore(&ep->lock, flags);
 }
 
-static struct fb_ops e3d_ops = {
+static const struct fb_ops e3d_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= e3d_setcolreg,
 	.fb_fillrect		= e3d_fillrect,
@@ -272,7 +272,6 @@ static int e3d_pci_register(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct e3d_info), &pdev->dev);
 	if (!info) {
-		printk(KERN_ERR "e3d: Cannot allocate fb_info\n");
 		err = -ENOMEM;
 		goto err_disable;
 	}

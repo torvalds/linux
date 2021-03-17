@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Zarlink DVB-T ZL10353 demodulator
  *
  * Copyright (C) 2006, 2007 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -211,7 +201,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 		break;
 	default:
 		c->bandwidth_hz = 8000000;
-		/* fall through */
+		fallthrough;
 	case 8000000:
 		zl10353_single_write(fe, MCLK_RATIO, 0x75);
 		zl10353_single_write(fe, 0x64, 0x36);
@@ -268,7 +258,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 		if (c->hierarchy == HIERARCHY_AUTO ||
 		    c->hierarchy == HIERARCHY_NONE)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}

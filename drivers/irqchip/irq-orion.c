@@ -64,14 +64,14 @@ static int __init orion_irq_init(struct device_node *np,
 				num_chips * ORION_IRQS_PER_CHIP,
 				&irq_generic_chip_ops, NULL);
 	if (!orion_irq_domain)
-		panic("%s: unable to add irq domain\n", np->name);
+		panic("%pOFn: unable to add irq domain\n", np);
 
 	ret = irq_alloc_domain_generic_chips(orion_irq_domain,
-				ORION_IRQS_PER_CHIP, 1, np->name,
+				ORION_IRQS_PER_CHIP, 1, np->full_name,
 				handle_level_irq, clr, 0,
 				IRQ_GC_INIT_MASK_CACHE);
 	if (ret)
-		panic("%s: unable to alloc irq domain gc\n", np->name);
+		panic("%pOFn: unable to alloc irq domain gc\n", np);
 
 	for (n = 0, base = 0; n < num_chips; n++, base += ORION_IRQS_PER_CHIP) {
 		struct irq_chip_generic *gc =
@@ -80,12 +80,12 @@ static int __init orion_irq_init(struct device_node *np,
 		of_address_to_resource(np, n, &r);
 
 		if (!request_mem_region(r.start, resource_size(&r), np->name))
-			panic("%s: unable to request mem region %d",
-			      np->name, n);
+			panic("%pOFn: unable to request mem region %d",
+			      np, n);
 
 		gc->reg_base = ioremap(r.start, resource_size(&r));
 		if (!gc->reg_base)
-			panic("%s: unable to map resource %d", np->name, n);
+			panic("%pOFn: unable to map resource %d", np, n);
 
 		gc->chip_types[0].regs.mask = ORION_IRQ_MASK;
 		gc->chip_types[0].chip.irq_mask = irq_gc_mask_clr_bit;
@@ -150,20 +150,20 @@ static int __init orion_bridge_irq_init(struct device_node *np,
 	domain = irq_domain_add_linear(np, nrirqs,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("%s: unable to add irq domain\n", np->name);
+		pr_err("%pOFn: unable to add irq domain\n", np);
 		return -ENOMEM;
 	}
 
 	ret = irq_alloc_domain_generic_chips(domain, nrirqs, 1, np->name,
 			     handle_edge_irq, clr, 0, IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
-		pr_err("%s: unable to alloc irq domain gc\n", np->name);
+		pr_err("%pOFn: unable to alloc irq domain gc\n", np);
 		return ret;
 	}
 
 	ret = of_address_to_resource(np, 0, &r);
 	if (ret) {
-		pr_err("%s: unable to get resource\n", np->name);
+		pr_err("%pOFn: unable to get resource\n", np);
 		return ret;
 	}
 
@@ -175,14 +175,14 @@ static int __init orion_bridge_irq_init(struct device_node *np,
 	/* Map the parent interrupt for the chained handler */
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
-		pr_err("%s: unable to parse irq\n", np->name);
+		pr_err("%pOFn: unable to parse irq\n", np);
 		return -EINVAL;
 	}
 
 	gc = irq_get_domain_generic_chip(domain, 0);
 	gc->reg_base = ioremap(r.start, resource_size(&r));
 	if (!gc->reg_base) {
-		pr_err("%s: unable to map resource\n", np->name);
+		pr_err("%pOFn: unable to map resource\n", np);
 		return -ENOMEM;
 	}
 

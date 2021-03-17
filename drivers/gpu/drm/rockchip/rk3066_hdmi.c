@@ -1,54 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  *    Zheng Yang <zhengyang@rock-chips.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/irq.h>
+#include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
+
 #include <linux/clk.h>
-#include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/hdmi.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-#include <drm/drm_of.h>
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_edid.h>
-
-#include <sound/hdmi-codec.h>
+#include "rk3066_hdmi.h"
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
-#include "rk3066_hdmi.h"
-
-#define DEFAULT_PLLA_RATE	30000000
-
-struct audio_info {
-	int sample_rate;
-	int channels;
-	int sample_width;
-};
+#define DEFAULT_PLLA_RATE 30000000
 
 struct hdmi_data_info {
-	int vic;
+	int vic; /* The CEA Video ID (VIC) of the current drm display mode. */
 	bool sink_is_hdmi;
-	bool sink_has_audio;
-	unsigned int enc_in_format;
 	unsigned int enc_out_format;
 	unsigned int colorimetry;
 };
@@ -60,39 +34,31 @@ struct rk3066_hdmi_i2c {
 	u8 segment_addr;
 	u8 stat;
 
-	struct mutex lock;	/*for i2c operation*/
-	struct completion cmp;
+	struct mutex i2c_lock; /* For i2c operation. */
+	struct completion cmpltn;
 };
 
 struct rk3066_hdmi {
 	struct device *dev;
 	struct drm_device *drm_dev;
-	struct regmap *regmap;
+	struct regmap *grf_regmap;
 	int irq;
 	struct clk *hclk;
 	void __iomem *regs;
 
-	struct drm_connector	connector;
-	struct drm_encoder	encoder;
+	struct drm_connector connector;
+	struct drm_encoder encoder;
 
 	struct rk3066_hdmi_i2c *i2c;
 	struct i2c_adapter *ddc;
 
 	unsigned int tmdsclk;
-	unsigned int powermode;
 
-	struct platform_device *audio_pdev;
-	bool audio_enable;
-
-	struct hdmi_data_info	hdmi_data;
-	struct audio_info	audio;
+	struct hdmi_data_info hdmi_data;
 	struct drm_display_mode previous_mode;
 };
 
-#define to_rk3066_hdmi(x)	container_of(x, struct rk3066_hdmi, x)
-
-static int
-rk3066_hdmi_config_audio(struct rk3066_hdmi *hdmi, struct audio_info *audio);
+#define to_rk3066_hdmi(x) container_of(x, struct rk3066_hdmi, x)
 
 static inline u8 hdmi_readb(struct rk3066_hdmi *hdmi, u16 offset)
 {
@@ -122,7 +88,7 @@ static void rk3066_hdmi_i2c_init(struct rk3066_hdmi *hdmi)
 	hdmi_writeb(hdmi, HDMI_DDC_BUS_FREQ_L, ddc_bus_freq & 0xFF);
 	hdmi_writeb(hdmi, HDMI_DDC_BUS_FREQ_H, (ddc_bus_freq >> 8) & 0xFF);
 
-	/* Clear the EDID interrupt flag and mute the interrupt */
+	/* Clear the EDID interrupt flag and mute the interrupt. */
 	hdmi_modb(hdmi, HDMI_INTR_MASK1, HDMI_INTR_EDID_MASK, 0);
 	hdmi_writeb(hdmi, HDMI_INTR_STATUS1, HDMI_INTR_EDID_MASK);
 }
@@ -134,18 +100,29 @@ static inline u8 rk3066_hdmi_get_power_mode(struct rk3066_hdmi *hdmi)
 
 static void rk3066_hdmi_set_power_mode(struct rk3066_hdmi *hdmi, int mode)
 {
-	u8 previous_mode, next_mode;
+	u8 current_mode, next_mode;
+	u8 i = 0;
 
-	previous_mode = rk3066_hdmi_get_power_mode(hdmi);
+	current_mode = rk3066_hdmi_get_power_mode(hdmi);
 
-	if (previous_mode == mode)
+	DRM_DEV_DEBUG(hdmi->dev, "mode         :%d\n", mode);
+	DRM_DEV_DEBUG(hdmi->dev, "current_mode :%d\n", current_mode);
+
+	if (current_mode == mode)
 		return;
 
 	do {
-		if (previous_mode > mode)
-			next_mode = previous_mode / 2;
-		else
-			next_mode = previous_mode * 2;
+		if (current_mode > mode) {
+			next_mode = current_mode / 2;
+		} else {
+			if (current_mode < HDMI_SYS_POWER_MODE_A)
+				next_mode = HDMI_SYS_POWER_MODE_A;
+			else
+				next_mode = current_mode * 2;
+		}
+
+		DRM_DEV_DEBUG(hdmi->dev, "%d: next_mode :%d\n", i, next_mode);
+
 		if (next_mode != HDMI_SYS_POWER_MODE_D) {
 			hdmi_modb(hdmi, HDMI_SYS_CTRL,
 				  HDMI_SYS_POWER_MODE_MASK, next_mode);
@@ -161,13 +138,14 @@ static void rk3066_hdmi_set_power_mode(struct rk3066_hdmi *hdmi, int mode)
 			hdmi_writeb(hdmi, HDMI_SYS_CTRL,
 				    HDMI_SYS_POWER_MODE_D);
 		}
-		previous_mode = next_mode;
-	} while (next_mode != mode);
+		current_mode = next_mode;
+		i = i + 1;
+	} while ((next_mode != mode) && (i < 5));
 
 	/*
-	 * When IP controller haven't configured to an accurate video
-	 * timing, DDC_CLK is equal to PLLA freq which is 30MHz,so we
-	 * need to init the TMDS rate to PCLK rate, and reconfigure
+	 * When the IP controller isn't configured with accurate video timing,
+	 * DDC_CLK should be equal to the PLLA frequency, which is 30MHz,
+	 * so we need to init the TMDS rate to the PCLK rate and reconfigure
 	 * the DDC clock.
 	 */
 	if (mode < HDMI_SYS_POWER_MODE_D)
@@ -210,7 +188,8 @@ static int rk3066_hdmi_config_avi(struct rk3066_hdmi *hdmi,
 	union hdmi_infoframe frame;
 	int rc;
 
-	rc = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	rc = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						      &hdmi->connector, mode);
 
 	if (hdmi->hdmi_data.enc_out_format == HDMI_COLORSPACE_YUV444)
 		frame.avi.colorspace = HDMI_COLORSPACE_YUV444;
@@ -226,26 +205,12 @@ static int rk3066_hdmi_config_avi(struct rk3066_hdmi *hdmi,
 					HDMI_INFOFRAME_AVI, 0, 0, 0);
 }
 
-static int rk3066_hdmi_config_aai(struct rk3066_hdmi *hdmi,
-				  struct audio_info *audio)
-{
-	struct hdmi_audio_infoframe *faudio;
-	union hdmi_infoframe frame;
-	int rc;
-
-	rc = hdmi_audio_infoframe_init(&frame.audio);
-	faudio = (struct hdmi_audio_infoframe *)&frame;
-
-	return rk3066_hdmi_upload_frame(hdmi, rc, &frame,
-					HDMI_INFOFRAME_AAI, 0, 0, 0);
-}
-
 static int rk3066_hdmi_config_video_timing(struct rk3066_hdmi *hdmi,
 					   struct drm_display_mode *mode)
 {
 	int value, vsync_offset;
 
-	/* Set detail external video timing polarity and interlace mode */
+	/* Set the details for the external polarity and interlace mode. */
 	value = HDMI_EXT_VIDEO_SET_EN;
 	value |= mode->flags & DRM_MODE_FLAG_PHSYNC ?
 		 HDMI_VIDEO_HSYNC_ACTIVE_HIGH : HDMI_VIDEO_HSYNC_ACTIVE_LOW;
@@ -253,14 +218,16 @@ static int rk3066_hdmi_config_video_timing(struct rk3066_hdmi *hdmi,
 		 HDMI_VIDEO_VSYNC_ACTIVE_HIGH : HDMI_VIDEO_VSYNC_ACTIVE_LOW;
 	value |= mode->flags & DRM_MODE_FLAG_INTERLACE ?
 		 HDMI_VIDEO_MODE_INTERLACE : HDMI_VIDEO_MODE_PROGRESSIVE;
+
 	if (hdmi->hdmi_data.vic == 2 || hdmi->hdmi_data.vic == 3)
 		vsync_offset = 6;
 	else
 		vsync_offset = 0;
-	value |= vsync_offset << 4;
+
+	value |= vsync_offset << HDMI_VIDEO_VSYNC_OFFSET_SHIFT;
 	hdmi_writeb(hdmi, HDMI_EXT_VIDEO_PARA, value);
 
-	/* Set detail external video timing */
+	/* Set the details for the external video timing. */
 	value = mode->htotal;
 	hdmi_writeb(hdmi, HDMI_EXT_HTOTAL_L, value & 0xFF);
 	hdmi_writeb(hdmi, HDMI_EXT_HTOTAL_H, (value >> 8) & 0xFF);
@@ -306,8 +273,14 @@ rk3066_hdmi_phy_write(struct rk3066_hdmi *hdmi, u16 offset, u8 value)
 
 static void rk3066_hdmi_config_phy(struct rk3066_hdmi *hdmi)
 {
-	/* tmds frequency same as input dclk */
+	/* TMDS uses the same frequency as dclk. */
 	hdmi_writeb(hdmi, HDMI_DEEP_COLOR_MODE, 0x22);
+
+	/*
+	 * The semi-public documentation does not describe the hdmi registers
+	 * used by the function rk3066_hdmi_phy_write(), so we keep using
+	 * these magic values for now.
+	 */
 	if (hdmi->tmdsclk > 100000000) {
 		rk3066_hdmi_phy_write(hdmi, 0x158, 0x0E);
 		rk3066_hdmi_phy_write(hdmi, 0x15c, 0x00);
@@ -345,8 +318,6 @@ static int rk3066_hdmi_setup(struct rk3066_hdmi *hdmi,
 			     struct drm_display_mode *mode)
 {
 	hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
-
-	hdmi->hdmi_data.enc_in_format = HDMI_COLORSPACE_RGB;
 	hdmi->hdmi_data.enc_out_format = HDMI_COLORSPACE_RGB;
 
 	if (hdmi->hdmi_data.vic == 6 || hdmi->hdmi_data.vic == 7 ||
@@ -359,15 +330,15 @@ static int rk3066_hdmi_setup(struct rk3066_hdmi *hdmi,
 
 	hdmi->tmdsclk = mode->clock * 1000;
 
-	/* Mute video and audio output */
+	/* Mute video and audio output. */
 	hdmi_modb(hdmi, HDMI_VIDEO_CTRL2, HDMI_VIDEO_AUDIO_DISABLE_MASK,
 		  HDMI_AUDIO_DISABLE | HDMI_VIDEO_DISABLE);
 
-	/* Set power state to mode b */
+	/* Set power state to mode B. */
 	if (rk3066_hdmi_get_power_mode(hdmi) != HDMI_SYS_POWER_MODE_B)
 		rk3066_hdmi_set_power_mode(hdmi, HDMI_SYS_POWER_MODE_B);
 
-	/* Input video mode is RGB24bit, Data enable signal from external */
+	/* Input video mode is RGB 24 bit. Use external data enable signal. */
 	hdmi_modb(hdmi, HDMI_AV_CTRL1,
 		  HDMI_VIDEO_DE_MASK, HDMI_VIDEO_EXTERNAL_DE);
 	hdmi_writeb(hdmi, HDMI_VIDEO_CTRL1,
@@ -382,7 +353,6 @@ static int rk3066_hdmi_setup(struct rk3066_hdmi *hdmi,
 		hdmi_modb(hdmi, HDMI_HDCP_CTRL, HDMI_VIDEO_MODE_MASK,
 			  HDMI_VIDEO_MODE_HDMI);
 		rk3066_hdmi_config_avi(hdmi, mode);
-		rk3066_hdmi_config_audio(hdmi, &hdmi->audio);
 	} else {
 		hdmi_modb(hdmi, HDMI_HDCP_CTRL, HDMI_VIDEO_MODE_MASK, 0);
 	}
@@ -392,26 +362,16 @@ static int rk3066_hdmi_setup(struct rk3066_hdmi *hdmi,
 	rk3066_hdmi_set_power_mode(hdmi, HDMI_SYS_POWER_MODE_E);
 
 	/*
-	 * When IP controller have configured to an accurate video
-	 * timing, then the TMDS clock source would be switched to
-	 * DCLK_LCDC, so we need to init the TMDS rate to mode pixel
-	 * clock rate, and reconfigure the DDC clock.
+	 * When the IP controller is configured with accurate video
+	 * timing, the TMDS clock source should be switched to
+	 * DCLK_LCDC, so we need to init the TMDS rate to the pixel mode
+	 * clock rate and reconfigure the DDC clock.
 	 */
 	rk3066_hdmi_i2c_init(hdmi);
 
-	/* Unmute video and audio output */
+	/* Unmute video output. */
 	hdmi_modb(hdmi, HDMI_VIDEO_CTRL2,
 		  HDMI_VIDEO_AUDIO_DISABLE_MASK, HDMI_AUDIO_DISABLE);
-	if (hdmi->audio_enable) {
-		hdmi_modb(hdmi, HDMI_VIDEO_CTRL2, HDMI_AUDIO_DISABLE, 0);
-		/* Reset Audio cature logic */
-		hdmi_modb(hdmi, HDMI_VIDEO_CTRL2,
-			  HDMI_AUDIO_CP_LOGIC_RESET_MASK,
-			  HDMI_AUDIO_CP_LOGIC_RESET);
-		usleep_range(900, 1000);
-		hdmi_modb(hdmi, HDMI_VIDEO_CTRL2,
-			  HDMI_AUDIO_CP_LOGIC_RESET_MASK, 0);
-	}
 	return 0;
 }
 
@@ -422,13 +382,25 @@ rk3066_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(encoder);
 
-	/* Store the display mode for plugin/DPMS poweron events */
+	/* Store the display mode for plugin/DPMS poweron events. */
 	memcpy(&hdmi->previous_mode, adj_mode, sizeof(hdmi->previous_mode));
 }
 
 static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(encoder);
+	int mux, val;
+
+	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
+	if (mux)
+		val = (HDMI_VIDEO_SEL << 16) | HDMI_VIDEO_SEL;
+	else
+		val = HDMI_VIDEO_SEL << 16;
+
+	regmap_write(hdmi->grf_regmap, GRF_SOC_CON0, val);
+
+	DRM_DEV_DEBUG(hdmi->dev, "hdmi encoder enable select: vop%s\n",
+		      (mux) ? "1" : "0");
 
 	rk3066_hdmi_setup(hdmi, &hdmi->previous_mode);
 }
@@ -436,6 +408,8 @@ static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder)
 static void rk3066_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(encoder);
+
+	DRM_DEV_DEBUG(hdmi->dev, "hdmi encoder disable\n");
 
 	if (rk3066_hdmi_get_power_mode(hdmi) == HDMI_SYS_POWER_MODE_E) {
 		hdmi_writeb(hdmi, HDMI_VIDEO_CTRL2,
@@ -465,22 +439,17 @@ rk3066_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_P888;
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
-	s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
 	return 0;
 }
 
 static const
 struct drm_encoder_helper_funcs rk3066_hdmi_encoder_helper_funcs = {
-	.enable     = rk3066_hdmi_encoder_enable,
-	.disable    = rk3066_hdmi_encoder_disable,
-	.mode_fixup = rk3066_hdmi_encoder_mode_fixup,
-	.mode_set   = rk3066_hdmi_encoder_mode_set,
+	.enable       = rk3066_hdmi_encoder_enable,
+	.disable      = rk3066_hdmi_encoder_disable,
+	.mode_fixup   = rk3066_hdmi_encoder_mode_fixup,
+	.mode_set     = rk3066_hdmi_encoder_mode_set,
 	.atomic_check = rk3066_hdmi_encoder_atomic_check,
-};
-
-static const struct drm_encoder_funcs rk3066_hdmi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
 };
 
 static enum drm_connector_status
@@ -496,7 +465,6 @@ static int rk3066_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(connector);
 	struct edid *edid;
-	struct drm_display_info *info = &connector->display_info;
 	int ret = 0;
 
 	if (!hdmi->ddc)
@@ -505,19 +473,9 @@ static int rk3066_hdmi_connector_get_modes(struct drm_connector *connector)
 	edid = drm_get_edid(connector, hdmi->ddc);
 	if (edid) {
 		hdmi->hdmi_data.sink_is_hdmi = drm_detect_hdmi_monitor(edid);
-		hdmi->hdmi_data.sink_has_audio = drm_detect_monitor_audio(edid);
-		drm_mode_connector_update_edid_property(connector, edid);
+		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
-	} else {
-		hdmi->hdmi_data.sink_is_hdmi = true;
-		hdmi->hdmi_data.sink_has_audio = true;
-		ret = rockchip_drm_add_modes_noedid(connector);
-		info->edid_hdmi_dc_modes = 0;
-		info->hdmi.y420_dc_modes = 0;
-		info->color_formats = 0;
-
-		dev_info(hdmi->dev, "failed to get edid\n");
 	}
 
 	return ret;
@@ -547,7 +505,12 @@ static int
 rk3066_hdmi_probe_single_connector_modes(struct drm_connector *connector,
 					 uint32_t maxX, uint32_t maxY)
 {
-	return drm_helper_probe_single_connector_modes(connector, 1920, 1080);
+	if (maxX > 1920)
+		maxX = 1920;
+	if (maxY > 1080)
+		maxY = 1080;
+
+	return drm_helper_probe_single_connector_modes(connector, maxX, maxY);
 }
 
 static void rk3066_hdmi_connector_destroy(struct drm_connector *connector)
@@ -557,7 +520,6 @@ static void rk3066_hdmi_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs rk3066_hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = rk3066_hdmi_probe_single_connector_modes,
 	.detect = rk3066_hdmi_connector_detect,
 	.destroy = rk3066_hdmi_connector_destroy,
@@ -572,224 +534,6 @@ struct drm_connector_helper_funcs rk3066_hdmi_connector_helper_funcs = {
 	.mode_valid = rk3066_hdmi_connector_mode_valid,
 	.best_encoder = rk3066_hdmi_connector_best_encoder,
 };
-
-static int
-rk3066_hdmi_config_audio(struct rk3066_hdmi *hdmi, struct audio_info *audio)
-{
-	u32 rate, channel, word_length, N, CTS;
-	u64 tmp;
-
-	if (audio->channels < 3)
-		channel = HDMI_AUDIO_I2S_CHANNEL_1_2;
-	else if (audio->channels < 5)
-		channel = HDMI_AUDIO_I2S_CHANNEL_3_4;
-	else if (audio->channels < 7)
-		channel = HDMI_AUDIO_I2S_CHANNEL_5_6;
-	else
-		channel = HDMI_AUDIO_I2S_CHANNEL_7_8;
-
-	switch (audio->sample_rate) {
-	case 32000:
-		rate = HDMI_AUDIO_SAMPLE_FRE_32000;
-		N = N_32K;
-		break;
-	case 44100:
-		rate = HDMI_AUDIO_SAMPLE_FRE_44100;
-		N = N_441K;
-		break;
-	case 48000:
-		rate = HDMI_AUDIO_SAMPLE_FRE_48000;
-		N = N_48K;
-		break;
-	case 88200:
-		rate = HDMI_AUDIO_SAMPLE_FRE_88200;
-		N = N_882K;
-		break;
-	case 96000:
-		rate = HDMI_AUDIO_SAMPLE_FRE_96000;
-		N = N_96K;
-		break;
-	case 176400:
-		rate = HDMI_AUDIO_SAMPLE_FRE_176400;
-		N = N_1764K;
-		break;
-	case 192000:
-		rate = HDMI_AUDIO_SAMPLE_FRE_192000;
-		N = N_192K;
-		break;
-	default:
-		dev_err(hdmi->dev, "[%s] not support such sample rate %d\n",
-			__func__, audio->sample_rate);
-		return -ENOENT;
-	}
-
-	switch (audio->sample_width) {
-	case 16:
-		word_length = 0x02;
-		break;
-	case 20:
-		word_length = 0x0a;
-		break;
-	case 24:
-		word_length = 0x0b;
-		break;
-	default:
-		dev_err(hdmi->dev, "[%s] not support such word length %d\n",
-			__func__, audio->sample_width);
-		return -ENOENT;
-	}
-
-	tmp = (u64)hdmi->tmdsclk * N;
-	do_div(tmp, 128 * audio->sample_rate);
-	CTS = tmp;
-
-	/* set_audio source I2S */
-	hdmi_writeb(hdmi, HDMI_AUDIO_CTRL1, 0x00);
-	hdmi_writeb(hdmi, HDMI_AUDIO_CTRL2, 0x40);
-	hdmi_writeb(hdmi, HDMI_I2S_AUDIO_CTRL,
-		    HDMI_AUDIO_I2S_FORMAT_STANDARD | channel);
-	hdmi_writeb(hdmi, HDMI_I2S_SWAP, 0x00);
-	hdmi_modb(hdmi, HDMI_AV_CTRL1, HDMI_AUDIO_SAMPLE_FRE_MASK, rate);
-	hdmi_writeb(hdmi, HDMI_AUDIO_SRC_NUM_AND_LENGTH, word_length);
-
-	/* Set N value */
-	hdmi_modb(hdmi, HDMI_LR_SWAP_N3,
-		  HDMI_AUDIO_N_19_16_MASK, (N >> 16) & 0x0F);
-	hdmi_writeb(hdmi, HDMI_N2, (N >> 8) & 0xFF);
-	hdmi_writeb(hdmi, HDMI_N1, N & 0xFF);
-
-	/* Set CTS value */
-	hdmi_writeb(hdmi, HDMI_CTS_EXT1, CTS & 0xff);
-	hdmi_writeb(hdmi, HDMI_CTS_EXT2, (CTS >> 8) & 0xff);
-	hdmi_writeb(hdmi, HDMI_CTS_EXT3, (CTS >> 16) & 0xff);
-
-	if (audio->channels > 2)
-		hdmi_modb(hdmi, HDMI_LR_SWAP_N3,
-			  HDMI_AUDIO_LR_SWAP_MASK,
-			  HDMI_AUDIO_LR_SWAP_SUBPACKET1);
-	rate = (~(rate >> 4)) & 0x0f;
-	hdmi_writeb(hdmi, HDMI_AUDIO_STA_BIT_CTRL1, rate);
-	hdmi_writeb(hdmi, HDMI_AUDIO_STA_BIT_CTRL2, 0);
-
-	return rk3066_hdmi_config_aai(hdmi, audio);
-}
-
-static int rk3066_hdmi_audio_hw_params(struct device *dev, void *d,
-				       struct hdmi_codec_daifmt *daifmt,
-				       struct hdmi_codec_params *params)
-{
-	struct rk3066_hdmi *hdmi = dev_get_drvdata(dev);
-
-	if (!hdmi->hdmi_data.sink_has_audio) {
-		dev_err(hdmi->dev, "Sink do not support audio!\n");
-		return -ENODEV;
-	}
-
-	if (!hdmi->encoder.crtc)
-		return -ENODEV;
-
-	switch (daifmt->fmt) {
-	case HDMI_I2S:
-		break;
-	default:
-		dev_err(dev, "%s: Invalid format %d\n", __func__, daifmt->fmt);
-		return -EINVAL;
-	}
-
-	hdmi->audio.sample_width = params->sample_width;
-	hdmi->audio.sample_rate = params->sample_rate;
-	hdmi->audio.channels = params->channels;
-
-	return rk3066_hdmi_config_audio(hdmi, &hdmi->audio);
-}
-
-static void rk3066_hdmi_audio_shutdown(struct device *dev, void *d)
-{
-	/* do nothing */
-}
-
-static int
-rk3066_hdmi_audio_digital_mute(struct device *dev, void *d, bool mute)
-{
-	struct rk3066_hdmi *hdmi = dev_get_drvdata(dev);
-
-	if (!hdmi->hdmi_data.sink_has_audio) {
-		dev_err(hdmi->dev, "Sink do not support audio!\n");
-		return -ENODEV;
-	}
-
-	hdmi->audio_enable = !mute;
-
-	if (mute)
-		hdmi_modb(hdmi, HDMI_VIDEO_CTRL2,
-			  HDMI_AUDIO_DISABLE, HDMI_AUDIO_DISABLE);
-	else
-		hdmi_modb(hdmi, HDMI_VIDEO_CTRL2, HDMI_AUDIO_DISABLE, 0);
-
-	/*
-	 * Under power mode e, we need to reset audio capture logic to
-	 * make audio setting update.
-	 */
-	if (rk3066_hdmi_get_power_mode(hdmi) == HDMI_SYS_POWER_MODE_E) {
-		hdmi_modb(hdmi, HDMI_VIDEO_CTRL2,
-			  HDMI_AUDIO_CP_LOGIC_RESET_MASK,
-			  HDMI_AUDIO_CP_LOGIC_RESET);
-		usleep_range(900, 1000);
-		hdmi_modb(hdmi, HDMI_VIDEO_CTRL2,
-			  HDMI_AUDIO_CP_LOGIC_RESET_MASK, 0);
-	}
-
-	return 0;
-}
-
-static int rk3066_hdmi_audio_get_eld(struct device *dev, void *d,
-				     uint8_t *buf, size_t len)
-{
-	struct rk3066_hdmi *hdmi = dev_get_drvdata(dev);
-	struct drm_mode_config *config = &hdmi->encoder.dev->mode_config;
-	struct drm_connector *connector;
-	int ret = -ENODEV;
-
-	mutex_lock(&config->mutex);
-	list_for_each_entry(connector, &config->connector_list, head) {
-		if (&hdmi->encoder == connector->encoder) {
-			memcpy(buf, connector->eld,
-			       min(sizeof(connector->eld), len));
-			ret = 0;
-		}
-	}
-	mutex_unlock(&config->mutex);
-
-	return ret;
-}
-
-static const struct hdmi_codec_ops audio_codec_ops = {
-	.hw_params = rk3066_hdmi_audio_hw_params,
-	.audio_shutdown = rk3066_hdmi_audio_shutdown,
-	.digital_mute = rk3066_hdmi_audio_digital_mute,
-	.get_eld = rk3066_hdmi_audio_get_eld,
-};
-
-static int rk3066_hdmi_audio_codec_init(struct rk3066_hdmi *hdmi,
-					struct device *dev)
-{
-	struct hdmi_codec_pdata codec_data = {
-		.i2s = 1,
-		.ops = &audio_codec_ops,
-		.max_i2s_channels = 8,
-	};
-	hdmi->audio.channels = 2;
-	hdmi->audio.sample_rate = 48000;
-	hdmi->audio_enable = false;
-	hdmi->audio_pdev =
-		platform_device_register_data(dev,
-					      HDMI_CODEC_DRV_NAME,
-					      PLATFORM_DEVID_NONE,
-					      &codec_data,
-					      sizeof(codec_data));
-
-	return PTR_ERR_OR_ZERO(hdmi->audio_pdev);
-}
 
 static int
 rk3066_hdmi_register(struct drm_device *drm, struct rk3066_hdmi *hdmi)
@@ -810,37 +554,20 @@ rk3066_hdmi_register(struct drm_device *drm, struct rk3066_hdmi *hdmi)
 		return -EPROBE_DEFER;
 
 	drm_encoder_helper_add(encoder, &rk3066_hdmi_encoder_helper_funcs);
-	drm_encoder_init(drm, encoder, &rk3066_hdmi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_TMDS);
 
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_HPD;
-	hdmi->connector.port = dev->of_node;
 
 	drm_connector_helper_add(&hdmi->connector,
 				 &rk3066_hdmi_connector_helper_funcs);
-	drm_connector_init(drm, &hdmi->connector,
-			   &rk3066_hdmi_connector_funcs,
-			   DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(drm, &hdmi->connector,
+				    &rk3066_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    hdmi->ddc);
 
-	drm_mode_connector_attach_encoder(&hdmi->connector, encoder);
-
-	rk3066_hdmi_audio_codec_init(hdmi, dev);
+	drm_connector_attach_encoder(&hdmi->connector, encoder);
 
 	return 0;
-}
-
-static irqreturn_t rk3066_hdmi_i2c_irq(struct rk3066_hdmi *hdmi, u8 stat)
-{
-	struct rk3066_hdmi_i2c *i2c = hdmi->i2c;
-
-	if (!(stat & HDMI_INTR_EDID_MASK))
-		return IRQ_NONE;
-
-	i2c->stat = stat;
-
-	complete(&i2c->cmp);
-
-	return IRQ_HANDLED;
 }
 
 static irqreturn_t rk3066_hdmi_hardirq(int irq, void *dev_id)
@@ -856,8 +583,10 @@ static irqreturn_t rk3066_hdmi_hardirq(int irq, void *dev_id)
 	if (interrupt)
 		hdmi_writeb(hdmi, HDMI_INTR_STATUS1, interrupt);
 
-	if (hdmi->i2c)
-		ret = rk3066_hdmi_i2c_irq(hdmi, interrupt);
+	if (interrupt & HDMI_INTR_EDID_MASK) {
+		hdmi->i2c->stat = interrupt;
+		complete(&hdmi->i2c->cmpltn);
+	}
 
 	if (interrupt & (HDMI_INTR_HOTPLUG | HDMI_INTR_MSENS))
 		ret = IRQ_WAKE_THREAD;
@@ -880,7 +609,7 @@ static int rk3066_hdmi_i2c_read(struct rk3066_hdmi *hdmi, struct i2c_msg *msgs)
 	u8 *buf = msgs->buf;
 	int ret;
 
-	ret = wait_for_completion_timeout(&hdmi->i2c->cmp, HZ / 10);
+	ret = wait_for_completion_timeout(&hdmi->i2c->cmpltn, HZ / 10);
 	if (!ret || hdmi->i2c->stat & HDMI_INTR_EDID_ERR)
 		return -EAGAIN;
 
@@ -893,25 +622,28 @@ static int rk3066_hdmi_i2c_read(struct rk3066_hdmi *hdmi, struct i2c_msg *msgs)
 static int rk3066_hdmi_i2c_write(struct rk3066_hdmi *hdmi, struct i2c_msg *msgs)
 {
 	/*
-	 * The DDC module only support read EDID message, so
+	 * The DDC module only supports read EDID message, so
 	 * we assume that each word write to this i2c adapter
-	 * should be the offset of EDID word address.
+	 * should be the offset of the EDID word address.
 	 */
 	if (msgs->len != 1 ||
 	    (msgs->addr != DDC_ADDR && msgs->addr != DDC_SEGMENT_ADDR))
 		return -EINVAL;
 
-	reinit_completion(&hdmi->i2c->cmp);
+	reinit_completion(&hdmi->i2c->cmpltn);
 
 	if (msgs->addr == DDC_SEGMENT_ADDR)
 		hdmi->i2c->segment_addr = msgs->buf[0];
 	if (msgs->addr == DDC_ADDR)
 		hdmi->i2c->ddc_addr = msgs->buf[0];
 
-	/* Set edid word address 0x00/0x80 */
+	/* Set edid fifo first address. */
+	hdmi_writeb(hdmi, HDMI_EDID_FIFO_ADDR, 0x00);
+
+	/* Set edid word address 0x00/0x80. */
 	hdmi_writeb(hdmi, HDMI_EDID_WORD_ADDR, hdmi->i2c->ddc_addr);
 
-	/* Set edid segment pointer */
+	/* Set edid segment pointer. */
 	hdmi_writeb(hdmi, HDMI_EDID_SEGMENT_POINTER, hdmi->i2c->segment_addr);
 
 	return 0;
@@ -924,18 +656,19 @@ static int rk3066_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	struct rk3066_hdmi_i2c *i2c = hdmi->i2c;
 	int i, ret = 0;
 
-	mutex_lock(&i2c->lock);
+	mutex_lock(&i2c->i2c_lock);
 
 	rk3066_hdmi_i2c_init(hdmi);
 
-	/* Unmute the interrupt */
+	/* Unmute HDMI EDID interrupt. */
 	hdmi_modb(hdmi, HDMI_INTR_MASK1,
 		  HDMI_INTR_EDID_MASK, HDMI_INTR_EDID_MASK);
 	i2c->stat = 0;
 
 	for (i = 0; i < num; i++) {
-		dev_dbg(hdmi->dev, "xfer: num: %d/%d, len: %d, flags: %#x\n",
-			i + 1, num, msgs[i].len, msgs[i].flags);
+		DRM_DEV_DEBUG(hdmi->dev,
+			      "xfer: num: %d/%d, len: %d, flags: %#x\n",
+			      i + 1, num, msgs[i].len, msgs[i].flags);
 
 		if (msgs[i].flags & I2C_M_RD)
 			ret = rk3066_hdmi_i2c_read(hdmi, &msgs[i]);
@@ -949,10 +682,10 @@ static int rk3066_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	if (!ret)
 		ret = num;
 
-	/* Mute HDMI EDID interrupt */
+	/* Mute HDMI EDID interrupt. */
 	hdmi_modb(hdmi, HDMI_INTR_MASK1, HDMI_INTR_EDID_MASK, 0);
 
-	mutex_unlock(&i2c->lock);
+	mutex_unlock(&i2c->i2c_lock);
 
 	return ret;
 }
@@ -963,8 +696,8 @@ static u32 rk3066_hdmi_i2c_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm rk3066_hdmi_algorithm = {
-	.master_xfer	= rk3066_hdmi_i2c_xfer,
-	.functionality	= rk3066_hdmi_i2c_func,
+	.master_xfer   = rk3066_hdmi_i2c_xfer,
+	.functionality = rk3066_hdmi_i2c_func,
 };
 
 static struct i2c_adapter *rk3066_hdmi_i2c_adapter(struct rk3066_hdmi *hdmi)
@@ -977,8 +710,8 @@ static struct i2c_adapter *rk3066_hdmi_i2c_adapter(struct rk3066_hdmi *hdmi)
 	if (!i2c)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_init(&i2c->lock);
-	init_completion(&i2c->cmp);
+	mutex_init(&i2c->i2c_lock);
+	init_completion(&i2c->cmpltn);
 
 	adap = &i2c->adap;
 	adap->class = I2C_CLASS_DDC;
@@ -991,14 +724,15 @@ static struct i2c_adapter *rk3066_hdmi_i2c_adapter(struct rk3066_hdmi *hdmi)
 
 	ret = i2c_add_adapter(adap);
 	if (ret) {
-		dev_warn(hdmi->dev, "cannot add %s I2C adapter\n", adap->name);
+		DRM_DEV_ERROR(hdmi->dev, "cannot add %s I2C adapter\n",
+			      adap->name);
 		devm_kfree(hdmi->dev, i2c);
 		return ERR_PTR(ret);
 	}
 
 	hdmi->i2c = i2c;
 
-	dev_info(hdmi->dev, "registered %s I2C bus driver\n", adap->name);
+	DRM_DEV_DEBUG(hdmi->dev, "registered %s I2C bus driver\n", adap->name);
 
 	return adap;
 }
@@ -1009,7 +743,6 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = data;
 	struct rk3066_hdmi *hdmi;
-	struct resource *iores;
 	int irq;
 	int ret;
 
@@ -1019,12 +752,7 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 
 	hdmi->dev = dev;
 	hdmi->drm_dev = drm;
-
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores)
-		return -ENXIO;
-
-	hdmi->regs = devm_ioremap_resource(dev, iores);
+	hdmi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
 
@@ -1032,24 +760,23 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 	if (irq < 0)
 		return irq;
 
-	hdmi->hclk = devm_clk_get(hdmi->dev, "hclk");
+	hdmi->hclk = devm_clk_get(dev, "hclk");
 	if (IS_ERR(hdmi->hclk)) {
-		dev_err(hdmi->dev, "Unable to get HDMI hclk clk\n");
+		DRM_DEV_ERROR(dev, "unable to get HDMI hclk clock\n");
 		return PTR_ERR(hdmi->hclk);
 	}
 
 	ret = clk_prepare_enable(hdmi->hclk);
 	if (ret) {
-		dev_err(hdmi->dev, "Cannot enable HDMI hclk clock: %d\n", ret);
+		DRM_DEV_ERROR(dev, "cannot enable HDMI hclk clock: %d\n", ret);
 		return ret;
 	}
 
-	hdmi->regmap =
-		syscon_regmap_lookup_by_phandle(hdmi->dev->of_node,
-						"rockchip,grf");
-	if (IS_ERR(hdmi->regmap)) {
-		dev_err(hdmi->dev, "Unable to get rockchip,grf\n");
-		ret = PTR_ERR(hdmi->regmap);
+	hdmi->grf_regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+							   "rockchip,grf");
+	if (IS_ERR(hdmi->grf_regmap)) {
+		DRM_DEV_ERROR(dev, "unable to get rockchip,grf\n");
+		ret = PTR_ERR(hdmi->grf_regmap);
 		goto err_disable_hclk;
 	}
 
@@ -1063,7 +790,6 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 		goto err_disable_hclk;
 	}
 
-	hdmi->powermode = HDMI_SYS_POWER_MODE_A;
 	rk3066_hdmi_set_power_mode(hdmi, HDMI_SYS_POWER_MODE_B);
 	usleep_range(999, 1000);
 	hdmi_writeb(hdmi, HDMI_INTR_MASK1, HDMI_INTR_HOTPLUG);
@@ -1074,7 +800,7 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 
 	ret = rk3066_hdmi_register(drm, hdmi);
 	if (ret)
-		goto err_disable_hclk;
+		goto err_disable_i2c;
 
 	dev_set_drvdata(dev, hdmi);
 
@@ -1082,13 +808,17 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 					rk3066_hdmi_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
 	if (ret) {
-		dev_err(hdmi->dev,
-			"failed to request hdmi irq: %d\n", ret);
-		goto err_disable_hclk;
+		DRM_DEV_ERROR(dev, "failed to request hdmi irq: %d\n", ret);
+		goto err_cleanup_hdmi;
 	}
 
 	return 0;
 
+err_cleanup_hdmi:
+	hdmi->connector.funcs->destroy(&hdmi->connector);
+	hdmi->encoder.funcs->destroy(&hdmi->encoder);
+err_disable_i2c:
+	i2c_put_adapter(hdmi->ddc);
 err_disable_hclk:
 	clk_disable_unprepare(hdmi->hclk);
 
@@ -1103,13 +833,13 @@ static void rk3066_hdmi_unbind(struct device *dev, struct device *master,
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
 
-	clk_disable_unprepare(hdmi->hclk);
 	i2c_put_adapter(hdmi->ddc);
+	clk_disable_unprepare(hdmi->hclk);
 }
 
 static const struct component_ops rk3066_hdmi_ops = {
-	.bind	= rk3066_hdmi_bind,
-	.unbind	= rk3066_hdmi_unbind,
+	.bind   = rk3066_hdmi_bind,
+	.unbind = rk3066_hdmi_unbind,
 };
 
 static int rk3066_hdmi_probe(struct platform_device *pdev)
@@ -1125,24 +855,16 @@ static int rk3066_hdmi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rk3066_hdmi_dt_ids[] = {
-	{ .compatible = "rockchip,rk3066-hdmi",
-	},
-	{},
+	{ .compatible = "rockchip,rk3066-hdmi" },
+	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, rk3066_hdmi_dt_ids);
 
-static struct platform_driver rk3066_hdmi_driver = {
+struct platform_driver rk3066_hdmi_driver = {
 	.probe  = rk3066_hdmi_probe,
 	.remove = rk3066_hdmi_remove,
 	.driver = {
-		.name = "rk3066hdmi-rockchip",
+		.name = "rockchip-rk3066-hdmi",
 		.of_match_table = rk3066_hdmi_dt_ids,
 	},
 };
-
-module_platform_driver(rk3066_hdmi_driver);
-
-MODULE_AUTHOR("Zheng Yang <zhengyang@rock-chips.com>");
-MODULE_DESCRIPTION("Rockchip Specific RK3066-HDMI Driver");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:rk3066hdmi-rockchip");

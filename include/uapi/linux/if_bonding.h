@@ -95,6 +95,16 @@
 #define BOND_XMIT_POLICY_ENCAP23	3 /* encapsulated layer 2+3 */
 #define BOND_XMIT_POLICY_ENCAP34	4 /* encapsulated layer 3+4 */
 
+/* 802.3ad port state definitions (43.4.2.2 in the 802.3ad standard) */
+#define LACP_STATE_LACP_ACTIVITY   0x1
+#define LACP_STATE_LACP_TIMEOUT    0x2
+#define LACP_STATE_AGGREGATION     0x4
+#define LACP_STATE_SYNCHRONIZATION 0x8
+#define LACP_STATE_COLLECTING      0x10
+#define LACP_STATE_DISTRIBUTING    0x20
+#define LACP_STATE_DEFAULTED       0x40
+#define LACP_STATE_EXPIRED         0x80
+
 typedef struct ifbond {
 	__s32 bond_mode;
 	__s32 num_slaves;
@@ -116,6 +126,30 @@ struct ad_info {
 	__u16 partner_key;
 	__u8 partner_system[ETH_ALEN];
 };
+
+/* Embedded inside LINK_XSTATS_TYPE_BOND */
+enum {
+	BOND_XSTATS_UNSPEC,
+	BOND_XSTATS_3AD,
+	__BOND_XSTATS_MAX
+};
+#define BOND_XSTATS_MAX (__BOND_XSTATS_MAX - 1)
+
+/* Embedded inside BOND_XSTATS_3AD */
+enum {
+	BOND_3AD_STAT_LACPDU_RX,
+	BOND_3AD_STAT_LACPDU_TX,
+	BOND_3AD_STAT_LACPDU_UNKNOWN_RX,
+	BOND_3AD_STAT_LACPDU_ILLEGAL_RX,
+	BOND_3AD_STAT_MARKER_RX,
+	BOND_3AD_STAT_MARKER_TX,
+	BOND_3AD_STAT_MARKER_RESP_RX,
+	BOND_3AD_STAT_MARKER_RESP_TX,
+	BOND_3AD_STAT_MARKER_UNKNOWN_RX,
+	BOND_3AD_STAT_PAD,
+	__BOND_3AD_STAT_MAX
+};
+#define BOND_3AD_STAT_MAX (__BOND_3AD_STAT_MAX - 1)
 
 #endif /* _LINUX_IF_BONDING_H */
 

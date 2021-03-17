@@ -20,3 +20,11 @@
 		reg = <0x0 0x0 0x0 0x40000000>; /* 1 GiB or 2 GiB */
 	};
 };
+
+&ir {
+	linux,rc-map-name = "rc-tanix-tx3mini";
+};
+
+&usb {
+	dr_mode = "host";
+};

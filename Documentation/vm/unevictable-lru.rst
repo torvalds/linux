@@ -98,7 +98,7 @@ Memory Control Group Interaction
 --------------------------------
 
 The unevictable LRU facility interacts with the memory control group [aka
-memory controller; see Documentation/cgroup-v1/memory.txt] by extending the
+memory controller; see Documentation/admin-guide/cgroup-v1/memory.rst] by extending the
 lru_list enum.
 
 The memory controller data structure automatically gets a per-zone unevictable
@@ -143,7 +143,7 @@ using a number of wrapper functions:
 	Query the address space, and return true if it is completely
 	unevictable.
 
-These are currently used in two places in the kernel:
+These are currently used in three places in the kernel:
 
  (1) By ramfs to mark the address spaces of its inodes when they are created,
      and this mark remains for the life of the inode.
@@ -153,6 +153,10 @@ These are currently used in two places in the kernel:
      Note that SHM_LOCK is not required to page in the locked pages if they're
      swapped out; the application must touch the pages manually if it wants to
      ensure they're in memory.
+
+ (3) By the i915 driver to mark pinned address space until it's unpinned. The
+     amount of unevictable memory marked by i915 driver is roughly the bounded
+     object size in debugfs/dri/0/i915_gem_objects.
 
 
 Detecting Unevictable Pages
@@ -435,7 +439,7 @@ Compacting MLOCKED Pages
 
 The unevictable LRU can be scanned for compactable regions and the default
 behavior is to do so.  /proc/sys/vm/compact_unevictable_allowed controls
-this behavior (see Documentation/sysctl/vm.txt).  Once scanning of the
+this behavior (see Documentation/admin-guide/sysctl/vm.rst).  Once scanning of the
 unevictable LRU is enabled, the work of compaction is mostly handled by
 the page migration code and the same work flow as described in MIGRATING
 MLOCKED PAGES will apply.

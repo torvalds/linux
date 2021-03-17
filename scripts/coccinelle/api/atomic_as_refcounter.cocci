@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 // Check if refcount_t type and API should be used
 // instead of atomic_t type when dealing with refcounters
 //

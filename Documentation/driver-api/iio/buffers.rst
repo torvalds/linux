@@ -2,7 +2,7 @@
 Buffers
 =======
 
-* struct :c:type:`iio_buffer` — general buffer structure
+* struct iio_buffer — general buffer structure
 * :c:func:`iio_validate_scan_mask_onehot` — Validates that exactly one channel
   is selected
 * :c:func:`iio_buffer_get` — Grab a reference to the buffer
@@ -26,7 +26,7 @@ IIO buffer setup
 ================
 
 The meta information associated with a channel reading placed in a buffer is
-called a scan element . The important bits configuring scan elements are
+called a scan element. The important bits configuring scan elements are
 exposed to userspace applications via the
 :file:`/sys/bus/iio/iio:device{X}/scan_elements/*` directory. This file contains
 attributes of the following form:
@@ -88,7 +88,7 @@ fields in iio_chan_spec definition::
 The driver implementing the accelerometer described above will have the
 following channel definition::
 
-   struct struct iio_chan_spec accel_channels[] = {
+   struct iio_chan_spec accel_channels[] = {
            {
                    .type = IIO_ACCEL,
 		   .modified = 1,

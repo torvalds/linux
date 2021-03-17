@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Nomadik clock implementation
  * Copyright (C) 2013 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 
@@ -97,8 +97,8 @@ static void __init nomadik_src_init(void)
 	}
 	src_base = of_iomap(np, 0);
 	if (!src_base) {
-		pr_err("%s: must have src parent node with REGS (%s)\n",
-		       __func__, np->name);
+		pr_err("%s: must have src parent node with REGS (%pOFn)\n",
+		       __func__, np);
 		return;
 	}
 
@@ -455,7 +455,7 @@ static const char * const src_clk_names[] = {
 	"RNGCCLK   ",
 };
 
-static int nomadik_src_clk_show(struct seq_file *s, void *what)
+static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
 {
 	int i;
 	u32 src_pcksr0 = readl(src_base + SRC_PCKSR0);
@@ -479,17 +479,7 @@ static int nomadik_src_clk_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-static int nomadik_src_clk_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nomadik_src_clk_show, NULL);
-}
-
-static const struct file_operations nomadik_src_clk_debugfs_ops = {
-	.open           = nomadik_src_clk_open,
-	.read           = seq_read,
-        .llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(nomadik_src_clk_debugfs);
 
 static int __init nomadik_src_clk_init_debugfs(void)
 {
@@ -499,7 +489,7 @@ static int __init nomadik_src_clk_init_debugfs(void)
 	src_pcksr0_boot = readl(src_base + SRC_PCKSR0);
 	src_pcksr1_boot = readl(src_base + SRC_PCKSR1);
 	debugfs_create_file("nomadik-src-clk", S_IFREG | S_IRUGO,
-			    NULL, NULL, &nomadik_src_clk_debugfs_ops);
+			    NULL, NULL, &nomadik_src_clk_debugfs_fops);
 	return 0;
 }
 device_initcall(nomadik_src_clk_init_debugfs);

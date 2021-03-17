@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _VDSO_DATAPAGE_H
 #define _VDSO_DATAPAGE_H
 #ifdef __KERNEL__
@@ -6,11 +7,6 @@
  * Copyright (C) 2002 Peter Bergner <bergner@vnet.ibm.com>, IBM
  * Copyright (C) 2005 Benjamin Herrenschmidy <benh@kernel.crashing.org>,
  * 		      IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 
@@ -82,10 +78,12 @@ struct vdso_data {
 	__u32 icache_block_size;		/* L1 i-cache block size     */
 	__u32 dcache_log_block_size;		/* L1 d-cache log block size */
 	__u32 icache_log_block_size;		/* L1 i-cache log block size */
-	__s32 wtom_clock_sec;			/* Wall to monotonic clock */
-	__s32 wtom_clock_nsec;
-	struct timespec stamp_xtime;	/* xtime as at tb_orig_stamp */
-	__u32 stamp_sec_fraction;	/* fractional seconds of stamp_xtime */
+	__u32 stamp_sec_fraction;		/* fractional seconds of stamp_xtime */
+	__s32 wtom_clock_nsec;			/* Wall to monotonic clock nsec */
+	__s64 wtom_clock_sec;			/* Wall to monotonic clock sec */
+	__s64 stamp_xtime_sec;			/* xtime secs as at tb_orig_stamp */
+	__s64 stamp_xtime_nsec;			/* xtime nsecs as at tb_orig_stamp */
+	__u32 hrtimer_res;			/* hrtimer resolution */
    	__u32 syscall_map_64[SYSCALL_MAP_SIZE]; /* map of syscalls  */
    	__u32 syscall_map_32[SYSCALL_MAP_SIZE]; /* map of syscalls */
 };
@@ -105,18 +103,26 @@ struct vdso_data {
 	__u32 tz_dsttime;		/* Type of dst correction	0x5C */
 	__s32 wtom_clock_sec;			/* Wall to monotonic clock */
 	__s32 wtom_clock_nsec;
-	struct timespec stamp_xtime;	/* xtime as at tb_orig_stamp */
+	__s32 stamp_xtime_sec;		/* xtime seconds as at tb_orig_stamp */
+	__s32 stamp_xtime_nsec;		/* xtime nsecs as at tb_orig_stamp */
 	__u32 stamp_sec_fraction;	/* fractional seconds of stamp_xtime */
+	__u32 hrtimer_res;		/* hrtimer resolution */
    	__u32 syscall_map_32[SYSCALL_MAP_SIZE]; /* map of syscalls */
-	__u32 dcache_block_size;	/* L1 d-cache block size     */
-	__u32 icache_block_size;	/* L1 i-cache block size     */
-	__u32 dcache_log_block_size;	/* L1 d-cache log block size */
-	__u32 icache_log_block_size;	/* L1 i-cache log block size */
 };
 
 #endif /* CONFIG_PPC64 */
 
 extern struct vdso_data *vdso_data;
+
+#else /* __ASSEMBLY__ */
+
+.macro get_datapage ptr, tmp
+	bcl	20, 31, .+4
+	mflr	\ptr
+	addi	\ptr, \ptr, (__kernel_datapage_offset - (.-4))@l
+	lwz	\tmp, 0(\ptr)
+	add	\ptr, \tmp, \ptr
+.endm
 
 #endif /* __ASSEMBLY__ */
 

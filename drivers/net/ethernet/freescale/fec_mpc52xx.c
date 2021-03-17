@@ -74,7 +74,7 @@ struct mpc52xx_fec_priv {
 static irqreturn_t mpc52xx_fec_interrupt(int, void *);
 static irqreturn_t mpc52xx_fec_rx_interrupt(int, void *);
 static irqreturn_t mpc52xx_fec_tx_interrupt(int, void *);
-static void mpc52xx_fec_stop(struct net_device *dev);
+static void mpc52xx_fec_stop(struct net_device *dev, bool may_sleep);
 static void mpc52xx_fec_start(struct net_device *dev);
 static void mpc52xx_fec_reset(struct net_device *dev);
 
@@ -84,7 +84,7 @@ static int debug = -1;	/* the above default */
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "debugging messages level");
 
-static void mpc52xx_fec_tx_timeout(struct net_device *dev)
+static void mpc52xx_fec_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	unsigned long flags;
@@ -283,7 +283,7 @@ static int mpc52xx_fec_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	mpc52xx_fec_stop(dev);
+	mpc52xx_fec_stop(dev, true);
 
 	mpc52xx_fec_free_rx_buffers(dev, priv->rx_dmatsk);
 
@@ -305,7 +305,8 @@ static int mpc52xx_fec_close(struct net_device *dev)
  * invariant will hold if you make sure that the netif_*_queue()
  * calls are done at the proper times.
  */
-static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t
+mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	struct bcom_fec_bd *bd;
@@ -368,7 +369,7 @@ static irqreturn_t mpc52xx_fec_tx_interrupt(int irq, void *dev_id)
 		dma_unmap_single(dev->dev.parent, bd->skb_pa, skb->len,
 				 DMA_TO_DEVICE);
 
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 	spin_unlock(&priv->lock);
 
@@ -692,7 +693,7 @@ static void mpc52xx_fec_start(struct net_device *dev)
  *
  * stop all activity on fec and empty dma buffers
  */
-static void mpc52xx_fec_stop(struct net_device *dev)
+static void mpc52xx_fec_stop(struct net_device *dev, bool may_sleep)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	struct mpc52xx_fec __iomem *fec = priv->fec;
@@ -705,7 +706,7 @@ static void mpc52xx_fec_stop(struct net_device *dev)
 	bcom_disable(priv->rx_dmatsk);
 
 	/* Wait for tx queue to drain, but only if we're in process context */
-	if (!in_interrupt()) {
+	if (may_sleep) {
 		timeout = jiffies + msecs_to_jiffies(2000);
 		while (time_before(jiffies, timeout) &&
 				!bcom_queue_empty(priv->tx_dmatsk))
@@ -737,7 +738,7 @@ static void mpc52xx_fec_reset(struct net_device *dev)
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	struct mpc52xx_fec __iomem *fec = priv->fec;
 
-	mpc52xx_fec_stop(dev);
+	mpc52xx_fec_stop(dev, false);
 
 	out_be32(&fec->rfifo_status, in_be32(&fec->rfifo_status));
 	out_be32(&fec->reset_cntrl, FEC_RESET_CNTRL_RESET_FIFO);
@@ -784,16 +785,6 @@ static const struct ethtool_ops mpc52xx_fec_ethtool_ops = {
 };
 
 
-static int mpc52xx_fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENOTSUPP;
-
-	return phy_mii_ioctl(phydev, rq, cmd);
-}
-
 static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 	.ndo_open = mpc52xx_fec_open,
 	.ndo_stop = mpc52xx_fec_close,
@@ -801,7 +792,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 	.ndo_set_rx_mode = mpc52xx_fec_set_multicast_list,
 	.ndo_set_mac_address = mpc52xx_fec_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_do_ioctl = mpc52xx_fec_ioctl,
+	.ndo_do_ioctl = phy_do_ioctl,
 	.ndo_tx_timeout = mpc52xx_fec_tx_timeout,
 	.ndo_get_stats = mpc52xx_fec_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -901,8 +892,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	 * First try to read MAC address from DT
 	 */
 	mac_addr = of_get_mac_address(np);
-	if (mac_addr) {
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr)) {
+		ether_addr_copy(ndev->dev_addr, mac_addr);
 	} else {
 		struct mpc52xx_fec __iomem *fec = priv->fec;
 

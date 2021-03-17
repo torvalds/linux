@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_pscsi.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -179,20 +166,20 @@ out_free:
 static void
 pscsi_set_inquiry_info(struct scsi_device *sdev, struct t10_wwn *wwn)
 {
-	unsigned char *buf;
-
 	if (sdev->inquiry_len < INQUIRY_LEN)
 		return;
-
-	buf = sdev->inquiry;
-	if (!buf)
-		return;
 	/*
-	 * Use sdev->inquiry from drivers/scsi/scsi_scan.c:scsi_alloc_sdev()
+	 * Use sdev->inquiry data from drivers/scsi/scsi_scan.c:scsi_add_lun()
 	 */
-	memcpy(&wwn->vendor[0], &buf[8], sizeof(wwn->vendor));
-	memcpy(&wwn->model[0], &buf[16], sizeof(wwn->model));
-	memcpy(&wwn->revision[0], &buf[32], sizeof(wwn->revision));
+	BUILD_BUG_ON(sizeof(wwn->vendor) != INQUIRY_VENDOR_LEN + 1);
+	snprintf(wwn->vendor, sizeof(wwn->vendor),
+		 "%." __stringify(INQUIRY_VENDOR_LEN) "s", sdev->vendor);
+	BUILD_BUG_ON(sizeof(wwn->model) != INQUIRY_MODEL_LEN + 1);
+	snprintf(wwn->model, sizeof(wwn->model),
+		 "%." __stringify(INQUIRY_MODEL_LEN) "s", sdev->model);
+	BUILD_BUG_ON(sizeof(wwn->revision) != INQUIRY_REVISION_LEN + 1);
+	snprintf(wwn->revision, sizeof(wwn->revision),
+		 "%." __stringify(INQUIRY_REVISION_LEN) "s", sdev->rev);
 }
 
 static int
@@ -811,7 +798,6 @@ static ssize_t pscsi_show_configfs_dev_params(struct se_device *dev, char *b)
 	struct scsi_device *sd = pdv->pdv_sd;
 	unsigned char host_id[16];
 	ssize_t bl;
-	int i;
 
 	if (phv->phv_mode == PHV_VIRTUAL_HOST_ID)
 		snprintf(host_id, 16, "%d", pdv->pdv_host_id);
@@ -824,29 +810,12 @@ static ssize_t pscsi_show_configfs_dev_params(struct se_device *dev, char *b)
 		host_id);
 
 	if (sd) {
-		bl += sprintf(b + bl, "        ");
-		bl += sprintf(b + bl, "Vendor: ");
-		for (i = 0; i < 8; i++) {
-			if (ISPRINT(sd->vendor[i]))   /* printable character? */
-				bl += sprintf(b + bl, "%c", sd->vendor[i]);
-			else
-				bl += sprintf(b + bl, " ");
-		}
-		bl += sprintf(b + bl, " Model: ");
-		for (i = 0; i < 16; i++) {
-			if (ISPRINT(sd->model[i]))   /* printable character ? */
-				bl += sprintf(b + bl, "%c", sd->model[i]);
-			else
-				bl += sprintf(b + bl, " ");
-		}
-		bl += sprintf(b + bl, " Rev: ");
-		for (i = 0; i < 4; i++) {
-			if (ISPRINT(sd->rev[i]))   /* printable character ? */
-				bl += sprintf(b + bl, "%c", sd->rev[i]);
-			else
-				bl += sprintf(b + bl, " ");
-		}
-		bl += sprintf(b + bl, "\n");
+		bl += sprintf(b + bl, "        Vendor: %."
+			__stringify(INQUIRY_VENDOR_LEN) "s", sd->vendor);
+		bl += sprintf(b + bl, " Model: %."
+			__stringify(INQUIRY_MODEL_LEN) "s", sd->model);
+		bl += sprintf(b + bl, " Rev: %."
+			__stringify(INQUIRY_REVISION_LEN) "s\n", sd->rev);
 	}
 	return bl;
 }
@@ -1094,16 +1063,16 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 		break;
 	}
 
-	__blk_put_request(req->q, req);
+	blk_put_request(req);
 	kfree(pt);
 }
 
 static const struct target_backend_ops pscsi_ops = {
 	.name			= "pscsi",
 	.owner			= THIS_MODULE,
-	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH |
-				  TRANSPORT_FLAG_PASSTHROUGH_ALUA |
-				  TRANSPORT_FLAG_PASSTHROUGH_PGR,
+	.transport_flags_default = TRANSPORT_FLAG_PASSTHROUGH |
+				   TRANSPORT_FLAG_PASSTHROUGH_ALUA |
+				   TRANSPORT_FLAG_PASSTHROUGH_PGR,
 	.attach_hba		= pscsi_attach_hba,
 	.detach_hba		= pscsi_detach_hba,
 	.pmode_enable_hba	= pscsi_pmode_enable_hba,

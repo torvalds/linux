@@ -20,9 +20,15 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/uaccess.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_file.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mode_config.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <linux/dma-resv.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -97,8 +103,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	struct drm_connector_list_iter conn_iter;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
-
+		return -EOPNOTSUPP;
 
 	mutex_lock(&file_priv->fbs_lock);
 	count = 0;
@@ -298,6 +303,13 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.prop_crtc_id = prop;
 
+	prop = drm_property_create(dev,
+			DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB,
+			"FB_DAMAGE_CLIPS", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_fb_damage_clips = prop;
+
 	prop = drm_property_create_bool(dev, DRM_MODE_PROP_ATOMIC,
 			"ACTIVE");
 	if (!prop)
@@ -310,6 +322,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.prop_mode_id = prop;
+
+	prop = drm_property_create_bool(dev, 0,
+			"VRR_ENABLED");
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_vrr_enabled = prop;
 
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_BLOB,
@@ -356,8 +374,14 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	return 0;
 }
 
+static void drm_mode_config_init_release(struct drm_device *dev, void *ptr)
+{
+	drm_mode_config_cleanup(dev);
+}
+
 /**
- * drm_mode_config_init - initialize DRM mode_configuration structure
+ * drmm_mode_config_init - managed DRM mode_configuration structure
+ * 	initialization
  * @dev: DRM device
  *
  * Initialize @dev's mode_config structure, used for tracking the graphics
@@ -367,8 +391,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
  * problem, since this should happen single threaded at init time. It is the
  * driver's problem to ensure this guarantee.
  *
+ * Cleanup is automatically handled through registering drm_mode_config_cleanup
+ * with drmm_add_action().
+ *
+ * Returns: 0 on success, negative error value on failure.
  */
-void drm_mode_config_init(struct drm_device *dev)
+int drmm_mode_config_init(struct drm_device *dev)
 {
 	mutex_init(&dev->mode_config.mutex);
 	drm_modeset_lock_init(&dev->mode_config.connection_mutex);
@@ -382,7 +410,8 @@ void drm_mode_config_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev->mode_config.property_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
 	INIT_LIST_HEAD(&dev->mode_config.plane_list);
-	idr_init(&dev->mode_config.crtc_idr);
+	INIT_LIST_HEAD(&dev->mode_config.privobj_list);
+	idr_init(&dev->mode_config.object_idr);
 	idr_init(&dev->mode_config.tile_idr);
 	ida_init(&dev->mode_config.connector_ida);
 	spin_lock_init(&dev->mode_config.connector_list_lock);
@@ -398,8 +427,38 @@ void drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.num_crtc = 0;
 	dev->mode_config.num_encoder = 0;
 	dev->mode_config.num_total_plane = 0;
+
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		struct drm_modeset_acquire_ctx modeset_ctx;
+		struct ww_acquire_ctx resv_ctx;
+		struct dma_resv resv;
+		int ret;
+
+		dma_resv_init(&resv);
+
+		drm_modeset_acquire_init(&modeset_ctx, 0);
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       &modeset_ctx);
+		if (ret == -EDEADLK)
+			ret = drm_modeset_backoff(&modeset_ctx);
+
+		ww_acquire_init(&resv_ctx, &reservation_ww_class);
+		ret = dma_resv_lock(&resv, &resv_ctx);
+		if (ret == -EDEADLK)
+			dma_resv_lock_slow(&resv, &resv_ctx);
+
+		dma_resv_unlock(&resv);
+		ww_acquire_fini(&resv_ctx);
+
+		drm_modeset_drop_locks(&modeset_ctx);
+		drm_modeset_acquire_fini(&modeset_ctx);
+		dma_resv_fini(&resv);
+	}
+
+	return drmm_add_action_or_reset(dev, drm_mode_config_init_release,
+					NULL);
 }
-EXPORT_SYMBOL(drm_mode_config_init);
+EXPORT_SYMBOL(drmm_mode_config_init);
 
 /**
  * drm_mode_config_cleanup - free up DRM mode_config info
@@ -412,7 +471,8 @@ EXPORT_SYMBOL(drm_mode_config_init);
  * teardown time, no locking is required. It's the driver's job to ensure that
  * this guarantee actually holds true.
  *
- * FIXME: cleanup any dangling user buffer objects too
+ * FIXME: With the managed drmm_mode_config_init() it is no longer necessary for
+ * drivers to explicitly call this function.
  */
 void drm_mode_config_cleanup(struct drm_device *dev)
 {
@@ -478,6 +538,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
 		struct drm_printer p = drm_debug_printer("[leaked fb]");
+
 		drm_printf(&p, "framebuffer[%u]:\n", fb->base.id);
 		drm_framebuffer_print_info(&p, 1, fb);
 		drm_framebuffer_free(&fb->base.refcount);
@@ -485,7 +546,94 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 
 	ida_destroy(&dev->mode_config.connector_ida);
 	idr_destroy(&dev->mode_config.tile_idr);
-	idr_destroy(&dev->mode_config.crtc_idr);
+	idr_destroy(&dev->mode_config.object_idr);
 	drm_modeset_lock_fini(&dev->mode_config.connection_mutex);
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
+
+static u32 full_encoder_mask(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+	u32 encoder_mask = 0;
+
+	drm_for_each_encoder(encoder, dev)
+		encoder_mask |= drm_encoder_mask(encoder);
+
+	return encoder_mask;
+}
+
+/*
+ * For some reason we want the encoder itself included in
+ * possible_clones. Make life easy for drivers by allowing them
+ * to leave possible_clones unset if no cloning is possible.
+ */
+static void fixup_encoder_possible_clones(struct drm_encoder *encoder)
+{
+	if (encoder->possible_clones == 0)
+		encoder->possible_clones = drm_encoder_mask(encoder);
+}
+
+static void validate_encoder_possible_clones(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	u32 encoder_mask = full_encoder_mask(dev);
+	struct drm_encoder *other;
+
+	drm_for_each_encoder(other, dev) {
+		WARN(!!(encoder->possible_clones & drm_encoder_mask(other)) !=
+		     !!(other->possible_clones & drm_encoder_mask(encoder)),
+		     "possible_clones mismatch: "
+		     "[ENCODER:%d:%s] mask=0x%x possible_clones=0x%x vs. "
+		     "[ENCODER:%d:%s] mask=0x%x possible_clones=0x%x\n",
+		     encoder->base.id, encoder->name,
+		     drm_encoder_mask(encoder), encoder->possible_clones,
+		     other->base.id, other->name,
+		     drm_encoder_mask(other), other->possible_clones);
+	}
+
+	WARN((encoder->possible_clones & drm_encoder_mask(encoder)) == 0 ||
+	     (encoder->possible_clones & ~encoder_mask) != 0,
+	     "Bogus possible_clones: "
+	     "[ENCODER:%d:%s] possible_clones=0x%x (full encoder mask=0x%x)\n",
+	     encoder->base.id, encoder->name,
+	     encoder->possible_clones, encoder_mask);
+}
+
+static u32 full_crtc_mask(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	u32 crtc_mask = 0;
+
+	drm_for_each_crtc(crtc, dev)
+		crtc_mask |= drm_crtc_mask(crtc);
+
+	return crtc_mask;
+}
+
+static void validate_encoder_possible_crtcs(struct drm_encoder *encoder)
+{
+	u32 crtc_mask = full_crtc_mask(encoder->dev);
+
+	WARN((encoder->possible_crtcs & crtc_mask) == 0 ||
+	     (encoder->possible_crtcs & ~crtc_mask) != 0,
+	     "Bogus possible_crtcs: "
+	     "[ENCODER:%d:%s] possible_crtcs=0x%x (full crtc mask=0x%x)\n",
+	     encoder->base.id, encoder->name,
+	     encoder->possible_crtcs, crtc_mask);
+}
+
+void drm_mode_config_validate(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	drm_for_each_encoder(encoder, dev)
+		fixup_encoder_possible_clones(encoder);
+
+	drm_for_each_encoder(encoder, dev) {
+		validate_encoder_possible_clones(encoder);
+		validate_encoder_possible_crtcs(encoder);
+	}
+}

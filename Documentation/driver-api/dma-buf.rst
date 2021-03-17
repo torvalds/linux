@@ -11,7 +11,7 @@ course not limited to GPU use cases.
 The three main components of this are: (1) dma-buf, representing a
 sg_table and exposed to userspace as a file descriptor to allow passing
 between devices, (2) fence, which provides a mechanism to signal when
-one device as finished access, and (3) reservation, which manages the
+one device has finished access, and (3) reservation, which manages the
 shared or exclusive fence(s) associated with the buffer.
 
 Shared DMA Buffers
@@ -31,7 +31,7 @@ The exporter
  - implements and manages operations in :c:type:`struct dma_buf_ops
    <dma_buf_ops>` for the buffer,
  - allows other users to share the buffer by using dma_buf sharing APIs,
- - manages the details of buffer allocation, wrapped int a :c:type:`struct
+ - manages the details of buffer allocation, wrapped in a :c:type:`struct
    dma_buf <dma_buf>`,
  - decides about the actual backing storage where this allocation happens,
  - and takes care of any migration of scatterlist - for all (shared) users of
@@ -85,7 +85,7 @@ consider though:
 - Memory mapping the contents of the DMA buffer is also supported. See the
   discussion below on `CPU Access to DMA Buffer Objects`_ for the full details.
 
-- The DMA buffer FD is also pollable, see `Fence Poll Support`_ below for
+- The DMA buffer FD is also pollable, see `Implicit Fence Poll Support`_ below for
   details.
 
 Basic Operation and Device DMA Access
@@ -100,11 +100,11 @@ CPU Access to DMA Buffer Objects
 .. kernel-doc:: drivers/dma-buf/dma-buf.c
    :doc: cpu access
 
-Fence Poll Support
-~~~~~~~~~~~~~~~~~~
+Implicit Fence Poll Support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/dma-buf/dma-buf.c
-   :doc: fence polling
+   :doc: implicit fence polling
 
 Kernel Functions and Structures Reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -118,13 +118,13 @@ Kernel Functions and Structures Reference
 Reservation Objects
 -------------------
 
-.. kernel-doc:: drivers/dma-buf/reservation.c
+.. kernel-doc:: drivers/dma-buf/dma-resv.c
    :doc: Reservation Object Overview
 
-.. kernel-doc:: drivers/dma-buf/reservation.c
+.. kernel-doc:: drivers/dma-buf/dma-resv.c
    :export:
 
-.. kernel-doc:: include/linux/reservation.h
+.. kernel-doc:: include/linux/dma-resv.h
    :internal:
 
 DMA Fences
@@ -132,6 +132,18 @@ DMA Fences
 
 .. kernel-doc:: drivers/dma-buf/dma-fence.c
    :doc: DMA fences overview
+
+DMA Fence Cross-Driver Contract
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/dma-buf/dma-fence.c
+   :doc: fence cross-driver contract
+
+DMA Fence Signalling Annotations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/dma-buf/dma-fence.c
+   :doc: fence signalling annotation
 
 DMA Fences Functions Reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -166,3 +178,73 @@ DMA Fence uABI/Sync File
 .. kernel-doc:: include/linux/sync_file.h
    :internal:
 
+Indefinite DMA Fences
+~~~~~~~~~~~~~~~~~~~~~
+
+At various times &dma_fence with an indefinite time until dma_fence_wait()
+finishes have been proposed. Examples include:
+
+* Future fences, used in HWC1 to signal when a buffer isn't used by the display
+  any longer, and created with the screen update that makes the buffer visible.
+  The time this fence completes is entirely under userspace's control.
+
+* Proxy fences, proposed to handle &drm_syncobj for which the fence has not yet
+  been set. Used to asynchronously delay command submission.
+
+* Userspace fences or gpu futexes, fine-grained locking within a command buffer
+  that userspace uses for synchronization across engines or with the CPU, which
+  are then imported as a DMA fence for integration into existing winsys
+  protocols.
+
+* Long-running compute command buffers, while still using traditional end of
+  batch DMA fences for memory management instead of context preemption DMA
+  fences which get reattached when the compute job is rescheduled.
+
+Common to all these schemes is that userspace controls the dependencies of these
+fences and controls when they fire. Mixing indefinite fences with normal
+in-kernel DMA fences does not work, even when a fallback timeout is included to
+protect against malicious userspace:
+
+* Only the kernel knows about all DMA fence dependencies, userspace is not aware
+  of dependencies injected due to memory management or scheduler decisions.
+
+* Only userspace knows about all dependencies in indefinite fences and when
+  exactly they will complete, the kernel has no visibility.
+
+Furthermore the kernel has to be able to hold up userspace command submission
+for memory management needs, which means we must support indefinite fences being
+dependent upon DMA fences. If the kernel also support indefinite fences in the
+kernel like a DMA fence, like any of the above proposal would, there is the
+potential for deadlocks.
+
+.. kernel-render:: DOT
+   :alt: Indefinite Fencing Dependency Cycle
+   :caption: Indefinite Fencing Dependency Cycle
+
+   digraph "Fencing Cycle" {
+      node [shape=box bgcolor=grey style=filled]
+      kernel [label="Kernel DMA Fences"]
+      userspace [label="userspace controlled fences"]
+      kernel -> userspace [label="memory management"]
+      userspace -> kernel [label="Future fence, fence proxy, ..."]
+
+      { rank=same; kernel userspace }
+   }
+
+This means that the kernel might accidentally create deadlocks
+through memory management dependencies which userspace is unaware of, which
+randomly hangs workloads until the timeout kicks in. Workloads, which from
+userspace's perspective, do not contain a deadlock.  In such a mixed fencing
+architecture there is no single entity with knowledge of all dependencies.
+Thefore preventing such deadlocks from within the kernel is not possible.
+
+The only solution to avoid dependencies loops is by not allowing indefinite
+fences in the kernel. This means:
+
+* No future fences, proxy fences or userspace fences imported as DMA fences,
+  with or without a timeout.
+
+* No DMA fences that signal end of batchbuffer for command submission where
+  userspace is allowed to use userspace fencing or long running compute
+  workloads. This also means no implicit fencing for shared buffers in these
+  cases.

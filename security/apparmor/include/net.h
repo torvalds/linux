@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_NET_H
@@ -83,6 +79,13 @@ struct aa_sk_ctx {
 	__e;					\
 })
 
+struct aa_secmark {
+	u8 audit;
+	u8 deny;
+	u32 secid;
+	char *label;
+};
+
 extern struct aa_sfs_entry aa_sfs_entry_network[];
 
 void audit_net_cb(struct audit_buffer *ab, void *va);
@@ -102,5 +105,8 @@ int aa_sk_perm(const char *op, u32 request, struct sock *sk);
 
 int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
 		      struct socket *sock);
+
+int apparmor_secmark_check(struct aa_label *label, char *op, u32 request,
+			   u32 secid, struct sock *sk);
 
 #endif /* __AA_NET_H */

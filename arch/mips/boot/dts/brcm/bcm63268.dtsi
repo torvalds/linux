@@ -51,16 +51,22 @@
 		compatible = "simple-bus";
 		ranges;
 
-		periph_cntl: syscon@10000000 {
+		clkctl: clock-controller@10000004 {
+			compatible = "brcm,bcm63268-clocks";
+			reg = <0x10000004 0x4>;
+			#clock-cells = <1>;
+		};
+
+		periph_cntl: syscon@10000008 {
 			compatible = "syscon";
-			reg = <0x10000000 0x14>;
+			reg = <0x10000000 0xc>;
 			native-endian;
 		};
 
 		reboot: syscon-reboot@10000008 {
 			compatible = "syscon-reboot";
 			regmap = <&periph_cntl>;
-			offset = <0x8>;
+			offset = <0x0>;
 			mask = <0x1>;
 		};
 
@@ -109,6 +115,12 @@
 			reg = <0x10001900 0x24>;
 
 			status = "disabled";
+		};
+
+		periph_pwr: power-controller@1000184c {
+			compatible = "brcm,bcm6328-power-controller";
+			reg = <0x1000184c 0x4>;
+			#power-domain-cells = <1>;
 		};
 
 		ehci: usb@10002500 {

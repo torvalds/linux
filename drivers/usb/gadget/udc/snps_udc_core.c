@@ -2,7 +2,7 @@
 /*
  * amd5536.c -- AMD 5536 UDC high/full speed USB device controller
  *
- * Copyright (C) 2005-2007 AMD (http://www.amd.com)
+ * Copyright (C) 2005-2007 AMD (https://www.amd.com)
  * Author: Thomas Dahlmann
  */
 
@@ -36,7 +36,6 @@
 #include <asm/unaligned.h>
 #include "amd5536udc.h"
 
-static void udc_tasklet_disconnect(unsigned long);
 static void udc_setup_endpoints(struct udc *dev);
 static void udc_soft_reset(struct udc *dev);
 static struct udc_request *udc_alloc_bna_dummy(struct udc_ep *ep);
@@ -94,11 +93,6 @@ static DECLARE_COMPLETION(on_exit);
 static struct timer_list udc_pollstall_timer;
 static int stop_pollstall_timer;
 static DECLARE_COMPLETION(on_pollstall_exit);
-
-/* tasklet for usb disconnect */
-static DECLARE_TASKLET(disconnect_tasklet, udc_tasklet_disconnect,
-		(unsigned long) &udc);
-
 
 /* endpoint names used for print */
 static const char ep0_string[] = "ep0in";
@@ -947,15 +941,14 @@ static int prep_dma(struct udc_ep *ep, struct udc_request *req, gfp_t gfp)
 				UDC_DMA_STP_STS_BS_HOST_READY,
 				UDC_DMA_STP_STS_BS);
 
-
-			/* clear NAK by writing CNAK */
-			if (ep->naking) {
-				tmp = readl(&ep->regs->ctl);
-				tmp |= AMD_BIT(UDC_EPCTL_CNAK);
-				writel(tmp, &ep->regs->ctl);
-				ep->naking = 0;
-				UDC_QUEUE_CNAK(ep, ep->num);
-			}
+		/* clear NAK by writing CNAK */
+		if (ep->naking) {
+			tmp = readl(&ep->regs->ctl);
+			tmp |= AMD_BIT(UDC_EPCTL_CNAK);
+			writel(tmp, &ep->regs->ctl);
+			ep->naking = 0;
+			UDC_QUEUE_CNAK(ep, ep->num);
+		}
 
 	}
 
@@ -1640,6 +1633,8 @@ static void usb_connect(struct udc *dev)
  */
 static void usb_disconnect(struct udc *dev)
 {
+	u32 tmp;
+
 	/* Return if already disconnected */
 	if (!dev->connected)
 		return;
@@ -1651,23 +1646,6 @@ static void usb_disconnect(struct udc *dev)
 	/* mask interrupts */
 	udc_mask_unused_interrupts(dev);
 
-	/* REVISIT there doesn't seem to be a point to having this
-	 * talk to a tasklet ... do it directly, we already hold
-	 * the spinlock needed to process the disconnect.
-	 */
-
-	tasklet_schedule(&disconnect_tasklet);
-}
-
-/* Tasklet for disconnect to be outside of interrupt context */
-static void udc_tasklet_disconnect(unsigned long par)
-{
-	struct udc *dev = (struct udc *)(*((struct udc **) par));
-	u32 tmp;
-
-	DBG(dev, "Tasklet disconnect\n");
-	spin_lock_irq(&dev->lock);
-
 	if (dev->driver) {
 		spin_unlock(&dev->lock);
 		dev->driver->disconnect(&dev->gadget);
@@ -1676,13 +1654,10 @@ static void udc_tasklet_disconnect(unsigned long par)
 		/* empty queues */
 		for (tmp = 0; tmp < UDC_EP_NUM; tmp++)
 			empty_req_queue(&dev->ep[tmp]);
-
 	}
 
 	/* disable ep0 */
-	ep_init(dev->regs,
-			&dev->ep[UDC_EP0IN_IX]);
-
+	ep_init(dev->regs, &dev->ep[UDC_EP0IN_IX]);
 
 	if (!soft_reset_occured) {
 		/* init controller by soft reset */
@@ -1698,8 +1673,6 @@ static void udc_tasklet_disconnect(unsigned long par)
 		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_FS, UDC_DEVCFG_SPD);
 		writel(tmp, &dev->regs->cfg);
 	}
-
-	spin_unlock_irq(&dev->lock);
 }
 
 /* Reset the UDC core */

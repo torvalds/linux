@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2004-2006  Sebastian Witt <se.witt@gmx.net>
  *
- *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon reverse engineered information
  *
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
@@ -123,8 +123,6 @@ static void nforce2_write_pll(int pll)
 	/* Now write the value in all 64 registers */
 	for (temp = 0; temp <= 0x3f; temp++)
 		pci_write_config_dword(nforce2_dev, NFORCE2_PLLREG, pll);
-
-	return;
 }
 
 /**
@@ -293,7 +291,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
  * nforce2_verify - verifies a new CPUFreq policy
  * @policy: new policy
  */
-static int nforce2_verify(struct cpufreq_policy *policy)
+static int nforce2_verify(struct cpufreq_policy_data *policy)
 {
 	unsigned int fsb_pol_max;
 
@@ -438,4 +436,3 @@ static void __exit nforce2_exit(void)
 
 module_init(nforce2_init);
 module_exit(nforce2_exit);
-

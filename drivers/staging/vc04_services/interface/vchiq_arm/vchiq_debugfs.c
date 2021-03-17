@@ -1,35 +1,7 @@
-/**
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
  * Copyright (c) 2014 Raspberry Pi (Trading) Ltd. All rights reserved.
  * Copyright (c) 2010-2012 Broadcom. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2, as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <linux/debugfs.h>
@@ -114,7 +86,7 @@ static ssize_t debugfs_log_write(struct file *file,
 	if (count >= DEBUGFS_WRITE_BUF_SIZE)
 		count = DEBUGFS_WRITE_BUF_SIZE;
 
-	if (copy_from_user(kbuf, buffer, count) != 0)
+	if (copy_from_user(kbuf, buffer, count))
 		return -EFAULT;
 	kbuf[count - 1] = 0;
 
@@ -145,7 +117,7 @@ static const struct file_operations debugfs_log_fops = {
 
 static int debugfs_usecount_show(struct seq_file *f, void *offset)
 {
-	VCHIQ_INSTANCE_T instance = f->private;
+	struct vchiq_instance *instance = f->private;
 	int use_count;
 
 	use_count = vchiq_instance_get_use_count(instance);
@@ -153,23 +125,11 @@ static int debugfs_usecount_show(struct seq_file *f, void *offset)
 
 	return 0;
 }
-
-static int debugfs_usecount_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debugfs_usecount_show, inode->i_private);
-}
-
-static const struct file_operations debugfs_usecount_fops = {
-	.owner		= THIS_MODULE,
-	.open		= debugfs_usecount_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(debugfs_usecount);
 
 static int debugfs_trace_show(struct seq_file *f, void *offset)
 {
-	VCHIQ_INSTANCE_T instance = f->private;
+	struct vchiq_instance *instance = f->private;
 	int trace;
 
 	trace = vchiq_instance_get_trace(instance);
@@ -188,10 +148,10 @@ static ssize_t debugfs_trace_write(struct file *file,
 	size_t count, loff_t *ppos)
 {
 	struct seq_file *f = (struct seq_file *)file->private_data;
-	VCHIQ_INSTANCE_T instance = f->private;
+	struct vchiq_instance *instance = f->private;
 	char firstchar;
 
-	if (copy_from_user(&firstchar, buffer, 1) != 0)
+	if (copy_from_user(&firstchar, buffer, 1))
 		return -EFAULT;
 
 	switch (firstchar) {
@@ -224,7 +184,7 @@ static const struct file_operations debugfs_trace_fops = {
 };
 
 /* add an instance (process) to the debugfs entries */
-void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_debugfs_add_instance(struct vchiq_instance *instance)
 {
 	char pidstr[16];
 	struct dentry *top;
@@ -241,9 +201,10 @@ void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
 	vchiq_instance_get_debugfs_node(instance)->dentry = top;
 }
 
-void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_debugfs_remove_instance(struct vchiq_instance *instance)
 {
-	VCHIQ_DEBUGFS_NODE_T *node = vchiq_instance_get_debugfs_node(instance);
+	struct vchiq_debugfs_node *node =
+				vchiq_instance_get_debugfs_node(instance);
 
 	debugfs_remove_recursive(node->dentry);
 }
@@ -281,11 +242,11 @@ void vchiq_debugfs_deinit(void)
 {
 }
 
-void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_debugfs_add_instance(struct vchiq_instance *instance)
 {
 }
 
-void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_debugfs_remove_instance(struct vchiq_instance *instance)
 {
 }
 

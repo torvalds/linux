@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 Neil Armstrong <narmstrong@baylibre.com>
  * Copyright (c) 2014 Joachim Eastwood <manabian@gmail.com>
@@ -7,13 +8,29 @@
  *
  * Also based on pwm-samsung.c
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
  * Description:
  *   This file is the core OMAP support for the generic, Linux
- *   PWM driver / controller, using the OMAP's dual-mode timers.
+ *   PWM driver / controller, using the OMAP's dual-mode timers
+ *   with a timer counter that goes up. When it overflows it gets
+ *   reloaded with the load value and the pwm output goes up.
+ *   When counter matches with match register, the output goes down.
+ *   Reference Manual: https://www.ti.com/lit/ug/spruh73q/spruh73q.pdf
+ *
+ * Limitations:
+ * - When PWM is stopped, timer counter gets stopped immediately. This
+ *   doesn't allow the current PWM period to complete and stops abruptly.
+ * - When PWM is running and changing both duty cycle and period,
+ *   we cannot prevent in software that the output might produce
+ *   a period with mixed settings. Especially when period/duty_cyle
+ *   is updated while the pwm pin is high, current pwm period/duty_cycle
+ *   can get updated as below based on the current timer counter:
+ *   	- period for current cycle =  current_period + new period
+ *   	- duty_cycle for current period = current period + new duty_cycle.
+ * - PWM OMAP DM timer cannot change the polarity when pwm is active. When
+ *   user requests a change in polarity when in active state:
+ *	- PWM is stopped abruptly(without completing the current cycle)
+ *	- Polarity is changed
+ *	- A fresh cycle is started.
  */
 
 #include <linux/clk.h>
@@ -23,8 +40,8 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <clocksource/timer-ti-dm.h>
 #include <linux/platform_data/dmtimer-omap.h>
-#include <linux/platform_data/pwm_omap_dmtimer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
@@ -34,10 +51,20 @@
 #define DM_TIMER_LOAD_MIN 0xfffffffe
 #define DM_TIMER_MAX      0xffffffff
 
+/**
+ * struct pwm_omap_dmtimer_chip - Structure representing a pwm chip
+ *				  corresponding to omap dmtimer.
+ * @chip:		PWM chip structure representing PWM controller
+ * @mutex:		Mutex to protect pwm apply state
+ * @dm_timer:		Pointer to omap dm timer.
+ * @pdata:		Pointer to omap dm timer ops.
+ * @dm_timer_pdev:	Pointer to omap dm timer platform device
+ */
 struct pwm_omap_dmtimer_chip {
 	struct pwm_chip chip;
+	/* Mutex to protect pwm apply state */
 	struct mutex mutex;
-	pwm_omap_dmtimer *dm_timer;
+	struct omap_dm_timer *dm_timer;
 	const struct omap_dm_timer_ops *pdata;
 	struct platform_device *dm_timer_pdev;
 };
@@ -48,11 +75,22 @@ to_pwm_omap_dmtimer_chip(struct pwm_chip *chip)
 	return container_of(chip, struct pwm_omap_dmtimer_chip, chip);
 }
 
+/**
+ * pwm_omap_dmtimer_get_clock_cycles() - Get clock cycles in a time frame
+ * @clk_rate:	pwm timer clock rate
+ * @ns:		time frame in nano seconds.
+ *
+ * Return number of clock cycles in a given period(ins ns).
+ */
 static u32 pwm_omap_dmtimer_get_clock_cycles(unsigned long clk_rate, int ns)
 {
 	return DIV_ROUND_CLOSEST_ULL((u64)clk_rate * ns, NSEC_PER_SEC);
 }
 
+/**
+ * pwm_omap_dmtimer_start() - Start the pwm omap dm timer in pwm mode
+ * @omap:	Pointer to pwm omap dm timer chip
+ */
 static void pwm_omap_dmtimer_start(struct pwm_omap_dmtimer_chip *omap)
 {
 	/*
@@ -70,28 +108,46 @@ static void pwm_omap_dmtimer_start(struct pwm_omap_dmtimer_chip *omap)
 	omap->pdata->start(omap->dm_timer);
 }
 
-static int pwm_omap_dmtimer_enable(struct pwm_chip *chip,
-				   struct pwm_device *pwm)
+/**
+ * pwm_omap_dmtimer_is_enabled() -  Detect if the pwm is enabled.
+ * @omap:	Pointer to pwm omap dm timer chip
+ *
+ * Return true if pwm is enabled else false.
+ */
+static bool pwm_omap_dmtimer_is_enabled(struct pwm_omap_dmtimer_chip *omap)
 {
-	struct pwm_omap_dmtimer_chip *omap = to_pwm_omap_dmtimer_chip(chip);
+	u32 status;
 
-	mutex_lock(&omap->mutex);
-	pwm_omap_dmtimer_start(omap);
-	mutex_unlock(&omap->mutex);
+	status = omap->pdata->get_pwm_status(omap->dm_timer);
 
-	return 0;
+	return !!(status & OMAP_TIMER_CTRL_ST);
 }
 
-static void pwm_omap_dmtimer_disable(struct pwm_chip *chip,
-				     struct pwm_device *pwm)
+/**
+ * pwm_omap_dmtimer_polarity() -  Detect the polarity of pwm.
+ * @omap:	Pointer to pwm omap dm timer chip
+ *
+ * Return the polarity of pwm.
+ */
+static int pwm_omap_dmtimer_polarity(struct pwm_omap_dmtimer_chip *omap)
 {
-	struct pwm_omap_dmtimer_chip *omap = to_pwm_omap_dmtimer_chip(chip);
+	u32 status;
 
-	mutex_lock(&omap->mutex);
-	omap->pdata->stop(omap->dm_timer);
-	mutex_unlock(&omap->mutex);
+	status = omap->pdata->get_pwm_status(omap->dm_timer);
+
+	return !!(status & OMAP_TIMER_CTRL_SCPWM);
 }
 
+/**
+ * pwm_omap_dmtimer_config() - Update the configuration of pwm omap dm timer
+ * @chip:	Pointer to PWM controller
+ * @pwm:	Pointer to PWM channel
+ * @duty_ns:	New duty cycle in nano seconds
+ * @period_ns:	New period in nano seconds
+ *
+ * Return 0 if successfully changed the period/duty_cycle else appropriate
+ * error.
+ */
 static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 				   struct pwm_device *pwm,
 				   int duty_ns, int period_ns)
@@ -99,31 +155,26 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 	struct pwm_omap_dmtimer_chip *omap = to_pwm_omap_dmtimer_chip(chip);
 	u32 period_cycles, duty_cycles;
 	u32 load_value, match_value;
-	struct clk *fclk;
 	unsigned long clk_rate;
-	bool timer_active;
+	struct clk *fclk;
 
 	dev_dbg(chip->dev, "requested duty cycle: %d ns, period: %d ns\n",
 		duty_ns, period_ns);
 
-	mutex_lock(&omap->mutex);
 	if (duty_ns == pwm_get_duty_cycle(pwm) &&
-	    period_ns == pwm_get_period(pwm)) {
-		/* No change - don't cause any transients. */
-		mutex_unlock(&omap->mutex);
+	    period_ns == pwm_get_period(pwm))
 		return 0;
-	}
 
 	fclk = omap->pdata->get_fclk(omap->dm_timer);
 	if (!fclk) {
 		dev_err(chip->dev, "invalid pmtimer fclk\n");
-		goto err_einval;
+		return -EINVAL;
 	}
 
 	clk_rate = clk_get_rate(fclk);
 	if (!clk_rate) {
 		dev_err(chip->dev, "invalid pmtimer fclk rate\n");
-		goto err_einval;
+		return -EINVAL;
 	}
 
 	dev_dbg(chip->dev, "clk rate: %luHz\n", clk_rate);
@@ -151,7 +202,7 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 		dev_info(chip->dev,
 			 "period %d ns too short for clock rate %lu Hz\n",
 			 period_ns, clk_rate);
-		goto err_einval;
+		return -EINVAL;
 	}
 
 	if (duty_cycles < 1) {
@@ -177,79 +228,103 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 	load_value = (DM_TIMER_MAX - period_cycles) + 1;
 	match_value = load_value + duty_cycles - 1;
 
-	/*
-	 * We MUST stop the associated dual-mode timer before attempting to
-	 * write its registers, but calls to omap_dm_timer_start/stop must
-	 * be balanced so check if timer is active before calling timer_stop.
-	 */
-	timer_active = pm_runtime_active(&omap->dm_timer_pdev->dev);
-	if (timer_active)
-		omap->pdata->stop(omap->dm_timer);
-
-	omap->pdata->set_load(omap->dm_timer, true, load_value);
+	omap->pdata->set_load(omap->dm_timer, load_value);
 	omap->pdata->set_match(omap->dm_timer, true, match_value);
 
 	dev_dbg(chip->dev, "load value: %#08x (%d), match value: %#08x (%d)\n",
 		load_value, load_value,	match_value, match_value);
 
-	omap->pdata->set_pwm(omap->dm_timer,
-			      pwm_get_polarity(pwm) == PWM_POLARITY_INVERSED,
-			      true,
-			      PWM_OMAP_DMTIMER_TRIGGER_OVERFLOW_AND_COMPARE);
-
-	/* If config was called while timer was running it must be reenabled. */
-	if (timer_active)
-		pwm_omap_dmtimer_start(omap);
-
-	mutex_unlock(&omap->mutex);
-
 	return 0;
-
-err_einval:
-	mutex_unlock(&omap->mutex);
-
-	return -EINVAL;
 }
 
-static int pwm_omap_dmtimer_set_polarity(struct pwm_chip *chip,
-					 struct pwm_device *pwm,
-					 enum pwm_polarity polarity)
+/**
+ * pwm_omap_dmtimer_set_polarity() - Changes the polarity of the pwm dm timer.
+ * @chip:	Pointer to PWM controller
+ * @pwm:	Pointer to PWM channel
+ * @polarity:	New pwm polarity to be set
+ */
+static void pwm_omap_dmtimer_set_polarity(struct pwm_chip *chip,
+					  struct pwm_device *pwm,
+					  enum pwm_polarity polarity)
 {
 	struct pwm_omap_dmtimer_chip *omap = to_pwm_omap_dmtimer_chip(chip);
+	bool enabled;
 
-	/*
-	 * PWM core will not call set_polarity while PWM is enabled so it's
-	 * safe to reconfigure the timer here without stopping it first.
-	 */
-	mutex_lock(&omap->mutex);
+	/* Disable the PWM before changing the polarity. */
+	enabled = pwm_omap_dmtimer_is_enabled(omap);
+	if (enabled)
+		omap->pdata->stop(omap->dm_timer);
+
 	omap->pdata->set_pwm(omap->dm_timer,
-			      polarity == PWM_POLARITY_INVERSED,
-			      true,
-			      PWM_OMAP_DMTIMER_TRIGGER_OVERFLOW_AND_COMPARE);
+			     polarity == PWM_POLARITY_INVERSED,
+			     true, OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE,
+			     true);
+
+	if (enabled)
+		pwm_omap_dmtimer_start(omap);
+}
+
+/**
+ * pwm_omap_dmtimer_apply() - Changes the state of the pwm omap dm timer.
+ * @chip:	Pointer to PWM controller
+ * @pwm:	Pointer to PWM channel
+ * @state:	New state to apply
+ *
+ * Return 0 if successfully changed the state else appropriate error.
+ */
+static int pwm_omap_dmtimer_apply(struct pwm_chip *chip,
+				  struct pwm_device *pwm,
+				  const struct pwm_state *state)
+{
+	struct pwm_omap_dmtimer_chip *omap = to_pwm_omap_dmtimer_chip(chip);
+	int ret = 0;
+
+	mutex_lock(&omap->mutex);
+
+	if (pwm_omap_dmtimer_is_enabled(omap) && !state->enabled) {
+		omap->pdata->stop(omap->dm_timer);
+		goto unlock_mutex;
+	}
+
+	if (pwm_omap_dmtimer_polarity(omap) != state->polarity)
+		pwm_omap_dmtimer_set_polarity(chip, pwm, state->polarity);
+
+	ret = pwm_omap_dmtimer_config(chip, pwm, state->duty_cycle,
+				      state->period);
+	if (ret)
+		goto unlock_mutex;
+
+	if (!pwm_omap_dmtimer_is_enabled(omap) && state->enabled) {
+		omap->pdata->set_pwm(omap->dm_timer,
+				     state->polarity == PWM_POLARITY_INVERSED,
+				     true,
+				     OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE,
+				     true);
+		pwm_omap_dmtimer_start(omap);
+	}
+
+unlock_mutex:
 	mutex_unlock(&omap->mutex);
 
-	return 0;
+	return ret;
 }
 
 static const struct pwm_ops pwm_omap_dmtimer_ops = {
-	.enable	= pwm_omap_dmtimer_enable,
-	.disable = pwm_omap_dmtimer_disable,
-	.config	= pwm_omap_dmtimer_config,
-	.set_polarity = pwm_omap_dmtimer_set_polarity,
+	.apply = pwm_omap_dmtimer_apply,
 	.owner = THIS_MODULE,
 };
 
 static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *timer;
-	struct platform_device *timer_pdev;
-	struct pwm_omap_dmtimer_chip *omap;
 	struct dmtimer_platform_data *timer_pdata;
 	const struct omap_dm_timer_ops *pdata;
-	pwm_omap_dmtimer *dm_timer;
-	u32 v;
+	struct platform_device *timer_pdev;
+	struct pwm_omap_dmtimer_chip *omap;
+	struct omap_dm_timer *dm_timer;
+	struct device_node *timer;
 	int ret = 0;
+	u32 v;
 
 	timer = of_parse_phandle(np, "ti,timers", 0);
 	if (!timer)
@@ -259,7 +334,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	if (!timer_pdev) {
 		dev_err(&pdev->dev, "Unable to find Timer pdev\n");
 		ret = -ENODEV;
-		goto put;
+		goto err_find_timer_pdev;
 	}
 
 	timer_pdata = dev_get_platdata(&timer_pdev->dev);
@@ -267,7 +342,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev,
 			 "dmtimer pdata structure NULL, deferring probe\n");
 		ret = -EPROBE_DEFER;
-		goto put;
+		goto err_platdata;
 	}
 
 	pdata = timer_pdata->timer_ops;
@@ -282,34 +357,30 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	    !pdata->set_load ||
 	    !pdata->set_match ||
 	    !pdata->set_pwm ||
+	    !pdata->get_pwm_status ||
 	    !pdata->set_prescaler ||
 	    !pdata->write_counter) {
 		dev_err(&pdev->dev, "Incomplete dmtimer pdata structure\n");
 		ret = -EINVAL;
-		goto put;
+		goto err_platdata;
 	}
 
 	if (!of_get_property(timer, "ti,timer-pwm", NULL)) {
 		dev_err(&pdev->dev, "Missing ti,timer-pwm capability\n");
 		ret = -ENODEV;
-		goto put;
+		goto err_timer_property;
 	}
 
 	dm_timer = pdata->request_by_node(timer);
 	if (!dm_timer) {
 		ret = -EPROBE_DEFER;
-		goto put;
+		goto err_request_timer;
 	}
-
-put:
-	of_node_put(timer);
-	if (ret < 0)
-		return ret;
 
 	omap = devm_kzalloc(&pdev->dev, sizeof(*omap), GFP_KERNEL);
 	if (!omap) {
-		pdata->free(dm_timer);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_alloc_omap;
 	}
 
 	omap->pdata = pdata;
@@ -342,27 +413,56 @@ put:
 	ret = pwmchip_add(&omap->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to register PWM\n");
-		omap->pdata->free(omap->dm_timer);
-		return ret;
+		goto err_pwmchip_add;
 	}
+
+	of_node_put(timer);
 
 	platform_set_drvdata(pdev, omap);
 
 	return 0;
+
+err_pwmchip_add:
+
+	/*
+	 * *omap is allocated using devm_kzalloc,
+	 * so no free necessary here
+	 */
+err_alloc_omap:
+
+	pdata->free(dm_timer);
+err_request_timer:
+
+err_timer_property:
+err_platdata:
+
+	put_device(&timer_pdev->dev);
+err_find_timer_pdev:
+
+	of_node_put(timer);
+
+	return ret;
 }
 
 static int pwm_omap_dmtimer_remove(struct platform_device *pdev)
 {
 	struct pwm_omap_dmtimer_chip *omap = platform_get_drvdata(pdev);
+	int ret;
+
+	ret = pwmchip_remove(&omap->chip);
+	if (ret)
+		return ret;
 
 	if (pm_runtime_active(&omap->dm_timer_pdev->dev))
 		omap->pdata->stop(omap->dm_timer);
 
 	omap->pdata->free(omap->dm_timer);
 
+	put_device(&omap->dm_timer_pdev->dev);
+
 	mutex_destroy(&omap->mutex);
 
-	return pwmchip_remove(&omap->chip);
+	return 0;
 }
 
 static const struct of_device_id pwm_omap_dmtimer_of_match[] = {

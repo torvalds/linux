@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	w1_ds28e17.c - w1 family 19 (DS28E17) driver
  *
  * Copyright (c) 2016 Jan Kandziora <jjj@gmx.de>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/crc16.h>
@@ -743,7 +741,7 @@ static void w1_f19_remove_slave(struct w1_slave *sl)
 
 
 /* Declarations within the w1 subsystem. */
-static struct w1_family_ops w1_f19_fops = {
+static const struct w1_family_ops w1_f19_fops = {
 	.add_slave = w1_f19_add_slave,
 	.remove_slave = w1_f19_remove_slave,
 	.groups = w1_f19_groups,

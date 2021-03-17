@@ -1,8 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 /dts-v1/;
 
@@ -13,5 +9,5 @@
 
 / {
 	model = "LogicPD Zoom OMAP35xx Torpedo Development Kit";
-	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3";
+	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3430", "ti,omap3";
 };

@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/allwinner,sun4i-a10-tv-encoder.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A10 TV Encoder Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+properties:
+  compatible:
+    const: allwinner,sun4i-a10-tv-encoder
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  port:
+    type: object
+    description:
+      A port node with endpoint definitions as defined in
+      Documentation/devicetree/bindings/media/video-interfaces.txt. The
+      first port should be the input endpoint, usually coming from the
+      associated TCON.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - resets
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    tve0: tv-encoder@1c0a000 {
+        compatible = "allwinner,sun4i-a10-tv-encoder";
+        reg = <0x01c0a000 0x1000>;
+        clocks = <&ahb_gates 34>;
+        resets = <&tcon_ch0_clk 0>;
+
+        port {
+            tve0_in_tcon0: endpoint {
+                remote-endpoint = <&tcon0_out_tve0>;
+            };
+        };
+    };
+
+...

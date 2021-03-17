@@ -91,6 +91,7 @@ const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
 void tomoyo_convert_time(time64_t time64, struct tomoyo_time *stamp)
 {
 	struct tm tm;
+
 	time64_to_tm(time64, 0, &tm);
 	stamp->sec = tm.tm_sec;
 	stamp->min = tm.tm_min;
@@ -106,13 +107,14 @@ void tomoyo_convert_time(time64_t time64, struct tomoyo_time *stamp)
  * @string: String representation for permissions in foo/bar/buz format.
  * @keyword: Keyword to find from @string/
  *
- * Returns ture if @keyword was found in @string, false otherwise.
+ * Returns true if @keyword was found in @string, false otherwise.
  *
  * This function assumes that strncmp(w1, w2, strlen(w1)) != 0 if w1 != w2.
  */
 bool tomoyo_permstr(const char *string, const char *keyword)
 {
 	const char *cp = strstr(string, keyword);
+
 	if (cp)
 		return cp == string || *(cp - 1) == '/';
 	return false;
@@ -132,6 +134,7 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param)
 {
 	char *pos = param->data;
 	char *del = strchr(pos, ' ');
+
 	if (del)
 		*del++ = '\0';
 	else
@@ -139,6 +142,8 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param)
 	param->data = del;
 	return pos;
 }
+
+static bool tomoyo_correct_path2(const char *filename, const size_t len);
 
 /**
  * tomoyo_get_domainname - Read a domainname from a line.
@@ -152,11 +157,12 @@ const struct tomoyo_path_info *tomoyo_get_domainname
 {
 	char *start = param->data;
 	char *pos = start;
+
 	while (*pos) {
-		if (*pos++ != ' ' || *pos++ == '/')
+		if (*pos++ != ' ' ||
+		    tomoyo_correct_path2(pos, strchrnul(pos, ' ') - pos))
 			continue;
-		pos -= 2;
-		*pos++ = '\0';
+		*(pos - 1) = '\0';
 		break;
 	}
 	param->data = pos;
@@ -181,8 +187,10 @@ u8 tomoyo_parse_ulong(unsigned long *result, char **str)
 	const char *cp = *str;
 	char *ep;
 	int base = 10;
+
 	if (*cp == '0') {
 		char c = *(cp + 1);
+
 		if (c == 'x' || c == 'X') {
 			base = 16;
 			cp += 2;
@@ -240,6 +248,7 @@ bool tomoyo_parse_name_union(struct tomoyo_acl_param *param,
 			     struct tomoyo_name_union *ptr)
 {
 	char *filename;
+
 	if (param->data[0] == '@') {
 		param->data++;
 		ptr->group = tomoyo_get_group(param, TOMOYO_PATH_GROUP);
@@ -266,6 +275,7 @@ bool tomoyo_parse_number_union(struct tomoyo_acl_param *param,
 	char *data;
 	u8 type;
 	unsigned long v;
+
 	memset(ptr, 0, sizeof(*ptr));
 	if (param->data[0] == '@') {
 		param->data++;
@@ -429,6 +439,7 @@ static bool tomoyo_correct_word2(const char *string, size_t len)
 	unsigned char c;
 	unsigned char d;
 	unsigned char e;
+
 	if (!len)
 		goto out;
 	while (len--) {
@@ -505,6 +516,22 @@ bool tomoyo_correct_word(const char *string)
 }
 
 /**
+ * tomoyo_correct_path2 - Check whether the given pathname follows the naming rules.
+ *
+ * @filename: The pathname to check.
+ * @len:      Length of @filename.
+ *
+ * Returns true if @filename follows the naming rules, false otherwise.
+ */
+static bool tomoyo_correct_path2(const char *filename, const size_t len)
+{
+	const char *cp1 = memchr(filename, '/', len);
+	const char *cp2 = memchr(filename, '.', len);
+
+	return cp1 && (!cp2 || (cp1 < cp2)) && tomoyo_correct_word2(filename, len);
+}
+
+/**
  * tomoyo_correct_path - Validate a pathname.
  *
  * @filename: The pathname to check.
@@ -514,7 +541,7 @@ bool tomoyo_correct_word(const char *string)
  */
 bool tomoyo_correct_path(const char *filename)
 {
-	return *filename == '/' && tomoyo_correct_word(filename);
+	return tomoyo_correct_path2(filename, strlen(filename));
 }
 
 /**
@@ -533,10 +560,10 @@ bool tomoyo_correct_domain(const unsigned char *domainname)
 		return true;
 	while (1) {
 		const unsigned char *cp = strchr(domainname, ' ');
+
 		if (!cp)
 			break;
-		if (*domainname != '/' ||
-		    !tomoyo_correct_word2(domainname, cp - domainname))
+		if (!tomoyo_correct_path2(domainname, cp - domainname))
 			return false;
 		domainname = cp + 1;
 	}
@@ -554,6 +581,7 @@ bool tomoyo_domain_def(const unsigned char *buffer)
 {
 	const unsigned char *cp;
 	int len;
+
 	if (*buffer != '<')
 		return false;
 	cp = strchr(buffer, ' ');
@@ -583,7 +611,8 @@ struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname)
 
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
-	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
+	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (!domain->is_deleted &&
 		    !tomoyo_pathcmp(&name, domain->domainname))
 			return domain;
@@ -668,6 +697,9 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
 {
 	while (filename < filename_end && pattern < pattern_end) {
 		char c;
+		int i;
+		int j;
+
 		if (*pattern != '\\') {
 			if (*filename++ != *pattern++)
 				return false;
@@ -676,8 +708,6 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
 		c = *filename;
 		pattern++;
 		switch (*pattern) {
-			int i;
-			int j;
 		case '?':
 			if (c == '/') {
 				return false;
@@ -985,6 +1015,7 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
 			     struct tomoyo_domain_info *domain, const u8 index)
 {
 	u8 profile;
+
 	memset(r, 0, sizeof(*r));
 	if (!domain)
 		domain = tomoyo_domain();
@@ -1015,9 +1046,11 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		return false;
 	if (!domain)
 		return true;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
+	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		u16 perm;
 		u8 i;
+
 		if (ptr->is_deleted)
 			continue;
 		switch (ptr->type) {
@@ -1062,9 +1095,10 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		domain->flags[TOMOYO_DIF_QUOTA_WARNED] = true;
 		/* r->granted = false; */
 		tomoyo_write_log(r, "%s", tomoyo_dif[TOMOYO_DIF_QUOTA_WARNED]);
-		printk(KERN_WARNING "WARNING: "
-		       "Domain '%s' has too many ACLs to hold. "
-		       "Stopped learning mode.\n", domain->domainname->name);
+#ifndef CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING
+		pr_warn("WARNING: Domain '%s' has too many ACLs to hold. Stopped learning mode.\n",
+			domain->domainname->name);
+#endif
 	}
 	return false;
 }

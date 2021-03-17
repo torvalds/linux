@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* jazz_esp.c: ESP front-end for MIPS JAZZ systems.
  *
  * Copyright (C) 2007 Thomas Bogendörfer (tsbogend@alpha.frankende)
@@ -36,30 +37,6 @@ static void jazz_esp_write8(struct esp *esp, u8 val, unsigned long reg)
 static u8 jazz_esp_read8(struct esp *esp, unsigned long reg)
 {
 	return *(volatile u8 *)(esp->regs + reg);
-}
-
-static dma_addr_t jazz_esp_map_single(struct esp *esp, void *buf,
-				      size_t sz, int dir)
-{
-	return dma_map_single(esp->dev, buf, sz, dir);
-}
-
-static int jazz_esp_map_sg(struct esp *esp, struct scatterlist *sg,
-				  int num_sg, int dir)
-{
-	return dma_map_sg(esp->dev, sg, num_sg, dir);
-}
-
-static void jazz_esp_unmap_single(struct esp *esp, dma_addr_t addr,
-				  size_t sz, int dir)
-{
-	dma_unmap_single(esp->dev, addr, sz, dir);
-}
-
-static void jazz_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
-			      int num_sg, int dir)
-{
-	dma_unmap_sg(esp->dev, sg, num_sg, dir);
 }
 
 static int jazz_esp_irq_pending(struct esp *esp)
@@ -117,10 +94,6 @@ static int jazz_esp_dma_error(struct esp *esp)
 static const struct esp_driver_ops jazz_esp_ops = {
 	.esp_write8	=	jazz_esp_write8,
 	.esp_read8	=	jazz_esp_read8,
-	.map_single	=	jazz_esp_map_single,
-	.map_sg		=	jazz_esp_map_sg,
-	.unmap_single	=	jazz_esp_unmap_single,
-	.unmap_sg	=	jazz_esp_unmap_sg,
 	.irq_pending	=	jazz_esp_irq_pending,
 	.reset_dma	=	jazz_esp_reset_dma,
 	.dma_drain	=	jazz_esp_dma_drain,
@@ -182,7 +155,7 @@ static int esp_jazz_probe(struct platform_device *dev)
 
 	dev_set_drvdata(&dev->dev, esp);
 
-	err = scsi_esp_register(esp, &dev->dev);
+	err = scsi_esp_register(esp);
 	if (err)
 		goto fail_free_irq;
 
@@ -228,21 +201,9 @@ static struct platform_driver esp_jazz_driver = {
 		.name	= "jazz_esp",
 	},
 };
-
-static int __init jazz_esp_init(void)
-{
-	return platform_driver_register(&esp_jazz_driver);
-}
-
-static void __exit jazz_esp_exit(void)
-{
-	platform_driver_unregister(&esp_jazz_driver);
-}
+module_platform_driver(esp_jazz_driver);
 
 MODULE_DESCRIPTION("JAZZ ESP SCSI driver");
 MODULE_AUTHOR("Thomas Bogendoerfer (tsbogend@alpha.franken.de)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(jazz_esp_init);
-module_exit(jazz_esp_exit);

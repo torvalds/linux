@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  pxa3xx-gcu.c - Linux kernel module for PXA3xx graphics controllers
  *
@@ -7,20 +8,6 @@
  *  Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
  *  Copyright (c) 2009 Janine Kropp <nin@directfb.org>
  *  Copyright (c) 2009 Denis Oliver Kropp <dok@directfb.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -49,7 +36,6 @@
 #include "pxa3xx-gcu.h"
 
 #define DRV_NAME	"pxa3xx-gcu"
-#define MISCDEV_MINOR	197
 
 #define REG_GCCR	0x00
 #define GCCR_SYNC_CLR	(1 << 9)
@@ -96,6 +82,7 @@ struct pxa3xx_gcu_batch {
 };
 
 struct pxa3xx_gcu_priv {
+	struct device		 *dev;
 	void __iomem		 *mmio_base;
 	struct clk		 *clk;
 	struct pxa3xx_gcu_shared *shared;
@@ -493,7 +480,7 @@ pxa3xx_gcu_mmap(struct file *file, struct vm_area_struct *vma)
 		if (size != SHARED_SIZE)
 			return -EINVAL;
 
-		return dma_mmap_coherent(NULL, vma,
+		return dma_mmap_coherent(priv->dev, vma,
 			priv->shared, priv->shared_phys, size);
 
 	case SHARED_SIZE >> PAGE_SHIFT:
@@ -607,7 +594,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	 * container_of(). This isn't really necessary as we have a fixed minor
 	 * number anyway, but this is to avoid statics. */
 
-	priv->misc_dev.minor	= MISCDEV_MINOR,
+	priv->misc_dev.minor	= PXA3XX_GCU_MINOR,
 	priv->misc_dev.name	= DRV_NAME,
 	priv->misc_dev.fops	= &pxa3xx_gcu_miscdev_fops;
 
@@ -650,7 +637,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	ret = misc_register(&priv->misc_dev);
 	if (ret < 0) {
 		dev_err(dev, "misc_register() for minor %d failed\n",
-			MISCDEV_MINOR);
+			PXA3XX_GCU_MINOR);
 		goto err_free_dma;
 	}
 
@@ -670,6 +657,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 	priv->resource_mem = r;
+	priv->dev = dev;
 	pxa3xx_gcu_reset(priv);
 	pxa3xx_gcu_init_debug_timer(priv);
 
@@ -725,7 +713,7 @@ module_platform_driver(pxa3xx_gcu_driver);
 
 MODULE_DESCRIPTION("PXA3xx graphics controller unit driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(MISCDEV_MINOR);
+MODULE_ALIAS_MISCDEV(PXA3XX_GCU_MINOR);
 MODULE_AUTHOR("Janine Kropp <nin@directfb.org>, "
 		"Denis Oliver Kropp <dok@directfb.org>, "
 		"Daniel Mack <daniel@caiaq.de>");

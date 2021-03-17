@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Generic parts
  *	Linux ethernet bridge
  *
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -31,6 +27,8 @@
  */
 static int br_device_event(struct notifier_block *unused, unsigned long event, void *ptr)
 {
+	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
+	struct netdev_notifier_pre_changeaddr_info *prechaddr_info;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net_bridge_port *p;
 	struct net_bridge *br;
@@ -38,10 +36,19 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	bool changed_addr;
 	int err;
 
-	/* register of bridge completed, add sysfs entries */
-	if ((dev->priv_flags & IFF_EBRIDGE) && event == NETDEV_REGISTER) {
-		br_sysfs_addbr(dev);
-		return NOTIFY_DONE;
+	if (dev->priv_flags & IFF_EBRIDGE) {
+		err = br_vlan_bridge_event(dev, event, ptr);
+		if (err)
+			return notifier_from_errno(err);
+
+		if (event == NETDEV_REGISTER) {
+			/* register of bridge completed, add sysfs entries */
+			err = br_sysfs_addbr(dev);
+			if (err)
+				return notifier_from_errno(err);
+
+			return NOTIFY_DONE;
+		}
 	}
 
 	/* not a port of a bridge */
@@ -54,6 +61,17 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	switch (event) {
 	case NETDEV_CHANGEMTU:
 		br_mtu_auto_adjust(br);
+		break;
+
+	case NETDEV_PRE_CHANGEADDR:
+		if (br->dev->addr_assign_type == NET_ADDR_SET)
+			break;
+		prechaddr_info = ptr;
+		err = dev_pre_changeaddr_notify(br->dev,
+						prechaddr_info->dev_addr,
+						extack);
+		if (err)
+			return notifier_from_errno(err);
 		break;
 
 	case NETDEV_CHANGEADDR:
@@ -113,6 +131,9 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		break;
 	}
 
+	if (event != NETDEV_UNREGISTER)
+		br_vlan_port_event(p, event);
+
 	/* Events that may cause spanning tree to refresh */
 	if (!notified && (event == NETDEV_CHANGEADDR || event == NETDEV_UP ||
 			  event == NETDEV_CHANGE || event == NETDEV_DOWN))
@@ -151,7 +172,7 @@ static int br_switchdev_event(struct notifier_block *unused,
 			break;
 		}
 		br_fdb_offloaded_set(br, p, fdb_info->addr,
-				     fdb_info->vid);
+				     fdb_info->vid, true);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
 		fdb_info = ptr;
@@ -163,7 +184,12 @@ static int br_switchdev_event(struct notifier_block *unused,
 	case SWITCHDEV_FDB_OFFLOADED:
 		fdb_info = ptr;
 		br_fdb_offloaded_set(br, p, fdb_info->addr,
-				     fdb_info->vid);
+				     fdb_info->vid, fdb_info->offloaded);
+		break;
+	case SWITCHDEV_FDB_FLUSH_TO_BRIDGE:
+		fdb_info = ptr;
+		/* Don't delete static entries */
+		br_fdb_delete_by_port(br, p, fdb_info->vid, 0);
 		break;
 	}
 
@@ -174,6 +200,98 @@ out:
 static struct notifier_block br_switchdev_notifier = {
 	.notifier_call = br_switchdev_event,
 };
+
+/* br_boolopt_toggle - change user-controlled boolean option
+ *
+ * @br: bridge device
+ * @opt: id of the option to change
+ * @on: new option value
+ * @extack: extack for error messages
+ *
+ * Changes the value of the respective boolean option to @on taking care of
+ * any internal option value mapping and configuration.
+ */
+int br_boolopt_toggle(struct net_bridge *br, enum br_boolopt_id opt, bool on,
+		      struct netlink_ext_ack *extack)
+{
+	switch (opt) {
+	case BR_BOOLOPT_NO_LL_LEARN:
+		br_opt_toggle(br, BROPT_NO_LL_LEARN, on);
+		break;
+	default:
+		/* shouldn't be called with unsupported options */
+		WARN_ON(1);
+		break;
+	}
+
+	return 0;
+}
+
+int br_boolopt_get(const struct net_bridge *br, enum br_boolopt_id opt)
+{
+	switch (opt) {
+	case BR_BOOLOPT_NO_LL_LEARN:
+		return br_opt_get(br, BROPT_NO_LL_LEARN);
+	default:
+		/* shouldn't be called with unsupported options */
+		WARN_ON(1);
+		break;
+	}
+
+	return 0;
+}
+
+int br_boolopt_multi_toggle(struct net_bridge *br,
+			    struct br_boolopt_multi *bm,
+			    struct netlink_ext_ack *extack)
+{
+	unsigned long bitmap = bm->optmask;
+	int err = 0;
+	int opt_id;
+
+	for_each_set_bit(opt_id, &bitmap, BR_BOOLOPT_MAX) {
+		bool on = !!(bm->optval & BIT(opt_id));
+
+		err = br_boolopt_toggle(br, opt_id, on, extack);
+		if (err) {
+			br_debug(br, "boolopt multi-toggle error: option: %d current: %d new: %d error: %d\n",
+				 opt_id, br_boolopt_get(br, opt_id), on, err);
+			break;
+		}
+	}
+
+	return err;
+}
+
+void br_boolopt_multi_get(const struct net_bridge *br,
+			  struct br_boolopt_multi *bm)
+{
+	u32 optval = 0;
+	int opt_id;
+
+	for (opt_id = 0; opt_id < BR_BOOLOPT_MAX; opt_id++)
+		optval |= (br_boolopt_get(br, opt_id) << opt_id);
+
+	bm->optval = optval;
+	bm->optmask = GENMASK((BR_BOOLOPT_MAX - 1), 0);
+}
+
+/* private bridge options, controlled by the kernel */
+void br_opt_toggle(struct net_bridge *br, enum net_bridge_opts opt, bool on)
+{
+	bool cur = !!br_opt_get(br, opt);
+
+	br_debug(br, "toggle option: %d state: %d -> %d\n",
+		 opt, cur, on);
+
+	if (cur == on)
+		return;
+
+	if (on)
+		set_bit(opt, &br->options);
+	else
+		clear_bit(opt, &br->options);
+}
 
 static void __net_exit br_net_exit(struct net *net)
 {
@@ -202,7 +320,7 @@ static int __init br_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct br_input_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD_BUG_ON(sizeof(struct br_input_skb_cb) > sizeof_field(struct sk_buff, cb));
 
 	err = stp_proto_register(&br_stp_proto);
 	if (err < 0) {

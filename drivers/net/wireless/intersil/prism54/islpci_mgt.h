@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright (C) 2003 Luis R. Rodriguez <mcgrof@ruslug.rutgers.edu>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #ifndef _ISLPCI_MGT_H
@@ -111,7 +99,7 @@ struct islpci_mgmtframe {
 	pimfor_header_t *header;      /* payload header, points into buf */
 	void *data;		      /* payload ex header, points into buf */
         struct work_struct ws;	      /* argument for schedule_work() */
-	char buf[0];		      /* fragment buffer */
+	char buf[];		      /* fragment buffer */
 };
 
 int

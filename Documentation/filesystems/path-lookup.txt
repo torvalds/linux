@@ -375,7 +375,7 @@ common path elements, the more likely they will exist in dentry cache.
 Papers and other documentation on dcache locking
 ================================================
 
-1. Scaling dcache with RCU (http://linuxjournal.com/article.php?sid=7124).
+1. Scaling dcache with RCU (https://linuxjournal.com/article.php?sid=7124).
 
 2. http://lse.sourceforge.net/locking/dcache/dcache.html
 

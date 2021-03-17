@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015-2017 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -26,10 +14,11 @@
  */
 
 #include <subcmd/parse-options.h>
+#include <string.h>
 #include "builtin.h"
-#include "check.h"
+#include "objtool.h"
 
-bool no_fp, no_unreachable, retpoline, module;
+bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats, validate_dup, vmlinux, mcount, noinstr;
 
 static const char * const check_usage[] = {
 	"objtool check [<options>] file.o",
@@ -41,12 +30,21 @@ const struct option check_options[] = {
 	OPT_BOOLEAN('u', "no-unreachable", &no_unreachable, "Skip 'unreachable instruction' warnings"),
 	OPT_BOOLEAN('r', "retpoline", &retpoline, "Validate retpoline assumptions"),
 	OPT_BOOLEAN('m', "module", &module, "Indicates the object will be part of a kernel module"),
+	OPT_BOOLEAN('b', "backtrace", &backtrace, "unwind on error"),
+	OPT_BOOLEAN('a', "uaccess", &uaccess, "enable uaccess checking"),
+	OPT_BOOLEAN('s', "stats", &stats, "print statistics"),
+	OPT_BOOLEAN('d', "duplicate", &validate_dup, "duplicate validation for vmlinux.o"),
+	OPT_BOOLEAN('n', "noinstr", &noinstr, "noinstr validation for vmlinux.o"),
+	OPT_BOOLEAN('l', "vmlinux", &vmlinux, "vmlinux.o validation"),
+	OPT_BOOLEAN('M', "mcount", &mcount, "generate __mcount_loc"),
 	OPT_END(),
 };
 
 int cmd_check(int argc, const char **argv)
 {
 	const char *objname;
+	struct objtool_file *file;
+	int ret;
 
 	argc = parse_options(argc, argv, check_options, check_usage, 0);
 
@@ -55,5 +53,16 @@ int cmd_check(int argc, const char **argv)
 
 	objname = argv[0];
 
-	return check(objname, false);
+	file = objtool_open_read(objname);
+	if (!file)
+		return 1;
+
+	ret = check(file);
+	if (ret)
+		return ret;
+
+	if (file->elf->changed)
+		return elf_write(file->elf);
+
+	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/generic.c
  *
@@ -6,10 +7,6 @@
  *  Copyright:	MontaVista Software Inc.
  *
  * Code common to all PXA machines.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Since this file should be linked before any other machine specific file,
  * the __initcall() here will be executed first.  This serves as default

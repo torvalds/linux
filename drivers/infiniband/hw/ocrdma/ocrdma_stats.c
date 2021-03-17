@@ -73,8 +73,8 @@ bool ocrdma_alloc_stats_resources(struct ocrdma_dev *dev)
 	mem->size = max_t(u32, sizeof(struct ocrdma_rdma_stats_req),
 			sizeof(struct ocrdma_rdma_stats_resp));
 
-	mem->va = dma_zalloc_coherent(&dev->nic_info.pdev->dev, mem->size,
-				      &mem->pa, GFP_KERNEL);
+	mem->va = dma_alloc_coherent(&dev->nic_info.pdev->dev, mem->size,
+				     &mem->pa, GFP_KERNEL);
 	if (!mem->va) {
 		pr_err("%s: stats mbox allocation failed\n", __func__);
 		return false;
@@ -423,8 +423,8 @@ static char *ocrdma_rxqp_errstats(struct ocrdma_dev *dev)
 	memset(stats, 0, (OCRDMA_MAX_DBGFS_MEM));
 
 	pcur = stats;
-	pcur += ocrdma_add_stat(stats, pcur, "nak_invalid_requst_errors",
-			(u64)rx_qp_err_stats->nak_invalid_requst_errors);
+	pcur += ocrdma_add_stat(stats, pcur, "nak_invalid_request_errors",
+			(u64)rx_qp_err_stats->nak_invalid_request_errors);
 	pcur += ocrdma_add_stat(stats, pcur, "nak_remote_operation_errors",
 			(u64)rx_qp_err_stats->nak_remote_operation_errors);
 	pcur += ocrdma_add_stat(stats, pcur, "nak_count_remote_access_errors",
@@ -670,12 +670,10 @@ err:
 	return -EFAULT;
 }
 
-int ocrdma_pma_counters(struct ocrdma_dev *dev,
-			struct ib_mad *out_mad)
+void ocrdma_pma_counters(struct ocrdma_dev *dev, struct ib_mad *out_mad)
 {
 	struct ib_pma_portcounters *pma_cnt;
 
-	memset(out_mad->data, 0, sizeof out_mad->data);
 	pma_cnt = (void *)(out_mad->data + 40);
 	ocrdma_update_stats(dev);
 
@@ -683,7 +681,6 @@ int ocrdma_pma_counters(struct ocrdma_dev *dev,
 	pma_cnt->port_rcv_data     = cpu_to_be32(ocrdma_sysfs_rcv_data(dev));
 	pma_cnt->port_xmit_packets = cpu_to_be32(ocrdma_sysfs_xmit_pkts(dev));
 	pma_cnt->port_rcv_packets  = cpu_to_be32(ocrdma_sysfs_rcv_pkts(dev));
-	return 0;
 }
 
 static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,
@@ -760,93 +757,72 @@ static const struct file_operations ocrdma_dbg_ops = {
 
 void ocrdma_add_port_stats(struct ocrdma_dev *dev)
 {
+	const struct pci_dev *pdev = dev->nic_info.pdev;
+
 	if (!ocrdma_dbgfs_dir)
 		return;
 
 	/* Create post stats base dir */
-	dev->dir = debugfs_create_dir(dev->ibdev.name, ocrdma_dbgfs_dir);
-	if (!dev->dir)
-		goto err;
+	dev->dir = debugfs_create_dir(pci_name(pdev), ocrdma_dbgfs_dir);
 
 	dev->rsrc_stats.type = OCRDMA_RSRC_STATS;
 	dev->rsrc_stats.dev = dev;
-	if (!debugfs_create_file("resource_stats", S_IRUSR, dev->dir,
-				 &dev->rsrc_stats, &ocrdma_dbg_ops))
-		goto err;
+	debugfs_create_file("resource_stats", S_IRUSR, dev->dir,
+			    &dev->rsrc_stats, &ocrdma_dbg_ops);
 
 	dev->rx_stats.type = OCRDMA_RXSTATS;
 	dev->rx_stats.dev = dev;
-	if (!debugfs_create_file("rx_stats", S_IRUSR, dev->dir,
-				 &dev->rx_stats, &ocrdma_dbg_ops))
-		goto err;
+	debugfs_create_file("rx_stats", S_IRUSR, dev->dir, &dev->rx_stats,
+			    &ocrdma_dbg_ops);
 
 	dev->wqe_stats.type = OCRDMA_WQESTATS;
 	dev->wqe_stats.dev = dev;
-	if (!debugfs_create_file("wqe_stats", S_IRUSR, dev->dir,
-				 &dev->wqe_stats, &ocrdma_dbg_ops))
-		goto err;
+	debugfs_create_file("wqe_stats", S_IRUSR, dev->dir, &dev->wqe_stats,
+			    &ocrdma_dbg_ops);
 
 	dev->tx_stats.type = OCRDMA_TXSTATS;
 	dev->tx_stats.dev = dev;
-	if (!debugfs_create_file("tx_stats", S_IRUSR, dev->dir,
-				 &dev->tx_stats, &ocrdma_dbg_ops))
-		goto err;
+	debugfs_create_file("tx_stats", S_IRUSR, dev->dir, &dev->tx_stats,
+			    &ocrdma_dbg_ops);
 
 	dev->db_err_stats.type = OCRDMA_DB_ERRSTATS;
 	dev->db_err_stats.dev = dev;
-	if (!debugfs_create_file("db_err_stats", S_IRUSR, dev->dir,
-				 &dev->db_err_stats, &ocrdma_dbg_ops))
-		goto err;
-
+	debugfs_create_file("db_err_stats", S_IRUSR, dev->dir,
+			    &dev->db_err_stats, &ocrdma_dbg_ops);
 
 	dev->tx_qp_err_stats.type = OCRDMA_TXQP_ERRSTATS;
 	dev->tx_qp_err_stats.dev = dev;
-	if (!debugfs_create_file("tx_qp_err_stats", S_IRUSR, dev->dir,
-				 &dev->tx_qp_err_stats, &ocrdma_dbg_ops))
-		goto err;
+	debugfs_create_file("tx_qp_err_stats", S_IRUSR, dev->dir,
+			    &dev->tx_qp_err_stats, &ocrdma_dbg_ops);
 
 	dev->rx_qp_err_stats.type = OCRDMA_RXQP_ERRSTATS;
 	dev->rx_qp_err_stats.dev = dev;
-	if (!debugfs_create_file("rx_qp_err_stats", S_IRUSR, dev->dir,
-				 &dev->rx_qp_err_stats, &ocrdma_dbg_ops))
-		goto err;
-
+	debugfs_create_file("rx_qp_err_stats", S_IRUSR, dev->dir,
+			    &dev->rx_qp_err_stats, &ocrdma_dbg_ops);
 
 	dev->tx_dbg_stats.type = OCRDMA_TX_DBG_STATS;
 	dev->tx_dbg_stats.dev = dev;
-	if (!debugfs_create_file("tx_dbg_stats", S_IRUSR, dev->dir,
-				 &dev->tx_dbg_stats, &ocrdma_dbg_ops))
-		goto err;
+	debugfs_create_file("tx_dbg_stats", S_IRUSR, dev->dir,
+			    &dev->tx_dbg_stats, &ocrdma_dbg_ops);
 
 	dev->rx_dbg_stats.type = OCRDMA_RX_DBG_STATS;
 	dev->rx_dbg_stats.dev = dev;
-	if (!debugfs_create_file("rx_dbg_stats", S_IRUSR, dev->dir,
-				 &dev->rx_dbg_stats, &ocrdma_dbg_ops))
-		goto err;
+	debugfs_create_file("rx_dbg_stats", S_IRUSR, dev->dir,
+			    &dev->rx_dbg_stats, &ocrdma_dbg_ops);
 
 	dev->driver_stats.type = OCRDMA_DRV_STATS;
 	dev->driver_stats.dev = dev;
-	if (!debugfs_create_file("driver_dbg_stats", S_IRUSR, dev->dir,
-					&dev->driver_stats, &ocrdma_dbg_ops))
-		goto err;
+	debugfs_create_file("driver_dbg_stats", S_IRUSR, dev->dir,
+			    &dev->driver_stats, &ocrdma_dbg_ops);
 
 	dev->reset_stats.type = OCRDMA_RESET_STATS;
 	dev->reset_stats.dev = dev;
-	if (!debugfs_create_file("reset_stats", 0200, dev->dir,
-				&dev->reset_stats, &ocrdma_dbg_ops))
-		goto err;
-
-
-	return;
-err:
-	debugfs_remove_recursive(dev->dir);
-	dev->dir = NULL;
+	debugfs_create_file("reset_stats", 0200, dev->dir, &dev->reset_stats,
+			    &ocrdma_dbg_ops);
 }
 
 void ocrdma_rem_port_stats(struct ocrdma_dev *dev)
 {
-	if (!dev->dir)
-		return;
 	debugfs_remove_recursive(dev->dir);
 }
 

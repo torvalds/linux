@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
 **  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -99,7 +97,6 @@ do { \
                __LINE__, __FILE__, #x, jiffies); \
     {do} \
     printk("\n"); \
-    BUG(); \
     panic("DLM:  Record message above and reboot.\n"); \
   } \
 }
@@ -423,7 +420,7 @@ struct dlm_message {
 	int			m_bastmode;
 	int			m_asts;
 	int			m_result;	/* 0 or -EXXX */
-	char			m_extra[0];	/* name or lvb */
+	char			m_extra[];	/* name or lvb */
 };
 
 
@@ -452,7 +449,7 @@ struct dlm_rcom {
 	uint64_t		rc_id;		/* match reply with request */
 	uint64_t		rc_seq;		/* sender's ls_recover_seq */
 	uint64_t		rc_seq_reply;	/* remote ls_recover_seq */
-	char			rc_buf[0];
+	char			rc_buf[];
 };
 
 union dlm_packet {
@@ -508,7 +505,7 @@ struct rcom_lock {
 	__le16			rl_wait_type;
 	__le16			rl_namelen;
 	char			rl_name[DLM_RESNAME_MAXLEN];
-	char			rl_lvb[0];
+	char			rl_lvb[];
 };
 
 /*
@@ -721,14 +718,14 @@ int dlm_plock_init(void);
 void dlm_plock_exit(void);
 
 #ifdef CONFIG_DLM_DEBUG
-int dlm_register_debugfs(void);
+void dlm_register_debugfs(void);
 void dlm_unregister_debugfs(void);
-int dlm_create_debug_file(struct dlm_ls *ls);
+void dlm_create_debug_file(struct dlm_ls *ls);
 void dlm_delete_debug_file(struct dlm_ls *ls);
 #else
-static inline int dlm_register_debugfs(void) { return 0; }
+static inline void dlm_register_debugfs(void) { }
 static inline void dlm_unregister_debugfs(void) { }
-static inline int dlm_create_debug_file(struct dlm_ls *ls) { return 0; }
+static inline void dlm_create_debug_file(struct dlm_ls *ls) { }
 static inline void dlm_delete_debug_file(struct dlm_ls *ls) { }
 #endif
 

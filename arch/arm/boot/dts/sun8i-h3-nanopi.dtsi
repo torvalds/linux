@@ -59,8 +59,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&leds_npi>, <&leds_r_npi>;
 
 		status {
 			label = "nanopi:blue:status";
@@ -78,8 +76,6 @@
 	r_gpio_keys {
 		compatible = "gpio-keys";
 		input-name = "k1";
-		pinctrl-names = "default";
-		pinctrl-0 = <&sw_r_npi>;
 
 		k1 {
 			label = "k1";
@@ -104,28 +100,9 @@
 	status = "okay";
 };
 
-&pio {
-	leds_npi: led_pins {
-		pins = "PA10";
-		function = "gpio_out";
-	};
-};
-
-&r_pio {
-	leds_r_npi: led_pins {
-		pins = "PL10";
-		function = "gpio_out";
-	};
-
-	sw_r_npi: key_pins {
-		pins = "PL3";
-		function = "gpio_in";
-	};
-};
-
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

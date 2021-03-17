@@ -1,7 +1,7 @@
 /*
  * AM43x PRCM defines
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -68,6 +68,7 @@
 #define AM43XX_CM_PER_ICSS_CDOFFS			0x0300
 #define AM43XX_CM_PER_L4LS_CDOFFS			0x0400
 #define AM43XX_CM_PER_EMIF_CDOFFS			0x0700
+#define AM43XX_CM_PER_LCDC_CDOFFS			0x0800
 #define AM43XX_CM_PER_DSS_CDOFFS			0x0a00
 #define AM43XX_CM_PER_CPSW_CDOFFS			0x0b00
 #define AM43XX_CM_PER_OCPWP_L3_CDOFFS			0x0c00

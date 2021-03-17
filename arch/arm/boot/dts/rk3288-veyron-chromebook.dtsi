@@ -10,56 +10,13 @@
 #include <dt-bindings/input/input.h>
 #include "rk3288-veyron.dtsi"
 #include "rk3288-veyron-analog-audio.dtsi"
+#include "rk3288-veyron-edp.dtsi"
 #include "rk3288-veyron-sdmmc.dtsi"
 
 / {
 	aliases {
 		/* Assign 20 so we don't get confused w/ builtin ones */
 		i2c20 = &i2c_tunnel;
-	};
-
-	backlight: backlight {
-		compatible = "pwm-backlight";
-		brightness-levels = <
-			  0   1   2   3   4   5   6   7
-			  8   9  10  11  12  13  14  15
-			 16  17  18  19  20  21  22  23
-			 24  25  26  27  28  29  30  31
-			 32  33  34  35  36  37  38  39
-			 40  41  42  43  44  45  46  47
-			 48  49  50  51  52  53  54  55
-			 56  57  58  59  60  61  62  63
-			 64  65  66  67  68  69  70  71
-			 72  73  74  75  76  77  78  79
-			 80  81  82  83  84  85  86  87
-			 88  89  90  91  92  93  94  95
-			 96  97  98  99 100 101 102 103
-			104 105 106 107 108 109 110 111
-			112 113 114 115 116 117 118 119
-			120 121 122 123 124 125 126 127
-			128 129 130 131 132 133 134 135
-			136 137 138 139 140 141 142 143
-			144 145 146 147 148 149 150 151
-			152 153 154 155 156 157 158 159
-			160 161 162 163 164 165 166 167
-			168 169 170 171 172 173 174 175
-			176 177 178 179 180 181 182 183
-			184 185 186 187 188 189 190 191
-			192 193 194 195 196 197 198 199
-			200 201 202 203 204 205 206 207
-			208 209 210 211 212 213 214 215
-			216 217 218 219 220 221 222 223
-			224 225 226 227 228 229 230 231
-			232 233 234 235 236 237 238 239
-			240 241 242 243 244 245 246 247
-			248 249 250 251 252 253 254 255>;
-		default-brightness-level = <128>;
-		enable-gpios = <&gpio7 RK_PA2 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&bl_en>;
-		pwms = <&pwm0 0 1000000 0>;
-		post-pwm-on-delay-ms = <10>;
-		pwm-off-delay-ms = <10>;
 	};
 
 	gpio-charger {
@@ -70,18 +27,18 @@
 		pinctrl-0 = <&ac_present_ap>;
 	};
 
-	panel: panel {
-		compatible ="innolux,n116bge", "simple-panel";
-		status = "okay";
-		power-supply = <&vcc33_lcd>;
-		backlight = <&backlight>;
+	lid_switch: lid-switch {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ap_lid_int_l>;
 
-		ports {
-			panel_in: port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&edp_out_panel>;
-				};
-			};
+		lid {
+			label = "Lid";
+			gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+			linux,code = <SW_LID>;
+			linux,input-type = <EV_SW>;
+			debounce-interval = <1>;
 		};
 	};
 
@@ -126,45 +83,6 @@
 	};
 };
 
-&edp {
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&edp_hpd>;
-
-	ports {
-		edp_out: port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			edp_out_panel: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
-};
-
-&edp_phy {
-	status = "okay";
-};
-
-&gpio_keys {
-	pinctrl-0 = <&pwr_key_l &ap_lid_int_l>;
-	lid {
-		label = "Lid";
-		gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
-		wakeup-source;
-		linux,code = <0>; /* SW_LID */
-		linux,input-type = <5>; /* EV_SW */
-		debounce-interval = <1>;
-	};
-};
-
-&pwm0 {
-	status = "okay";
-};
-
 &rk808 {
 	vcc11-supply = <&vcc_5v>;
 
@@ -176,8 +94,7 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-state-mem {
-				regulator-on-in-suspend;
-				regulator-suspend-microvolt = <3300000>;
+				regulator-off-in-suspend;
 			};
 		};
 	};
@@ -218,77 +135,48 @@
 	};
 };
 
-&vopl {
-	status = "okay";
-};
-
-&vopl_mmu {
-	status = "okay";
-};
-
 &pinctrl {
-	pinctrl-0 = <
-		/* Common for sleep and wake, but no owners */
-		&global_pwroff
-
-		/* Wake only */
-		&suspend_l_wake
-	>;
-	pinctrl-1 = <
-		/* Common for sleep and wake, but no owners */
-		&global_pwroff
-
-		/* Sleep only */
-		&suspend_l_sleep
-	>;
-
-	backlight {
-		bl_en: bl-en {
-			rockchip,pins = <7 2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
 	buttons {
 		ap_lid_int_l: ap-lid-int-l {
-			rockchip,pins = <0 6 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	charger {
 		ac_present_ap: ac-present-ap {
-			rockchip,pins = <0 8 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	cros-ec {
 		ec_int: ec-int {
-			rockchip,pins = <7 7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	suspend {
 		suspend_l_wake: suspend-l-wake {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		suspend_l_sleep: suspend-l-sleep {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_output_high>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
 
 	trackpad {
 		trackpad_int: trackpad-int {
-			rockchip,pins = <7 3 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <7 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	usb-host {
 		host1_pwr_en: host1-pwr-en {
-			rockchip,pins = <0 11 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		usbotg_pwren_h: usbotg-pwren-h {
-			rockchip,pins = <0 12 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_AT91
 	bool "AT91/Microchip SoCs"
 	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
@@ -21,7 +22,6 @@ config SOC_SAMA5D2
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select CACHE_L2X0
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_USB_CLK
 	select HAVE_AT91_H32MX
@@ -36,7 +36,6 @@ config SOC_SAMA5D3
 	bool "SAMA5D3 family"
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
@@ -50,7 +49,6 @@ config SOC_SAMA5D4
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select CACHE_L2X0
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
@@ -107,6 +105,46 @@ config SOC_AT91SAM9
 	    AT91SAM9X35
 	    AT91SAM9XE
 
+config SOC_SAM9X60
+	bool "SAM9X60"
+	depends on ARCH_MULTI_V5
+	select ATMEL_AIC5_IRQ
+	select ATMEL_PM if PM
+	select ATMEL_SDRAMC
+	select CPU_ARM926T
+	select HAVE_AT91_USB_CLK
+	select HAVE_AT91_GENERATED_CLK
+	select HAVE_AT91_SAM9X60_PLL
+	select MEMORY
+	select PINCTRL_AT91
+	select SOC_SAM_V4_V5
+	select SRAM if PM
+	help
+	  Select this if you are using Microchip's SAM9X60 SoC
+
+comment "Clocksource driver selection"
+
+config ATMEL_CLOCKSOURCE_PIT
+	bool "Periodic Interval Timer (PIT) support"
+	depends on SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAMA5
+	default SOC_AT91SAM9 || SOC_SAMA5
+	select ATMEL_PIT
+	help
+	  Select this to get a clocksource based on the Atmel Periodic Interval
+	  Timer. It has a relatively low resolution and the TC Block clocksource
+	  should be preferred.
+
+config ATMEL_CLOCKSOURCE_TCB
+	bool "Timer Counter Blocks (TCB) support"
+	default SOC_AT91RM9200 || SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAMA5
+	select ATMEL_TCB_CLKSRC
+	help
+	  Select this to get a high precision clocksource based on a
+	  TC block with a 5+ MHz base clock rate.
+	  On platforms with 16-bit counters, two timer channels are combined
+	  to make a single 32-bit timer.
+	  It can also be used as a clock event device supporting oneshot mode.
+
 config HAVE_AT91_UTMI
 	bool
 
@@ -115,7 +153,6 @@ config HAVE_AT91_USB_CLK
 
 config COMMON_CLK_AT91
 	bool
-	select COMMON_CLK
 	select MFD_SYSCON
 
 config HAVE_AT91_SMD
@@ -131,6 +168,9 @@ config HAVE_AT91_AUDIO_PLL
 	bool
 
 config HAVE_AT91_I2S_MUX_CLK
+	bool
+
+config HAVE_AT91_SAM9X60_PLL
 	bool
 
 config SOC_SAM_V4_V5

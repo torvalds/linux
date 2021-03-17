@@ -1,11 +1,4 @@
-/*
- *  smdk_wm8994.c
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
 #include "../codecs/wm8994.h"
 #include <sound/pcm_params.h>
@@ -51,8 +44,8 @@ static struct smdk_wm8994_data smdk_board_data = {
 static int smdk_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	unsigned int pll_out;
 	int ret;
 
@@ -107,28 +100,32 @@ static int smdk_wm8994_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+SND_SOC_DAILINK_DEFS(aif1,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(fifo_tx,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s-sec")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s-sec")));
+
 static struct snd_soc_dai_link smdk_dai[] = {
 	{ /* Primary DAI i/f */
 		.name = "WM8994 AIF1",
 		.stream_name = "Pri_Dai",
-		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm8994-aif1",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm8994-codec",
 		.init = smdk_wm8994_init_paiftx,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBM_CFM,
 		.ops = &smdk_ops,
+		SND_SOC_DAILINK_REG(aif1),
 	}, { /* Sec_Fifo Playback i/f */
 		.name = "Sec_FIFO TX",
 		.stream_name = "Sec_Dai",
-		.cpu_dai_name = "samsung-i2s-sec",
-		.codec_dai_name = "wm8994-aif1",
-		.platform_name = "samsung-i2s-sec",
-		.codec_name = "wm8994-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBM_CFM,
 		.ops = &smdk_ops,
+		SND_SOC_DAILINK_REG(fifo_tx),
 	},
 };
 
@@ -160,17 +157,17 @@ static int smdk_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (np) {
-		smdk_dai[0].cpu_dai_name = NULL;
-		smdk_dai[0].cpu_of_node = of_parse_phandle(np,
+		smdk_dai[0].cpus->dai_name = NULL;
+		smdk_dai[0].cpus->of_node = of_parse_phandle(np,
 				"samsung,i2s-controller", 0);
-		if (!smdk_dai[0].cpu_of_node) {
+		if (!smdk_dai[0].cpus->of_node) {
 			dev_err(&pdev->dev,
 			   "Property 'samsung,i2s-controller' missing or invalid\n");
 			ret = -EINVAL;
 		}
 
-		smdk_dai[0].platform_name = NULL;
-		smdk_dai[0].platform_of_node = smdk_dai[0].cpu_of_node;
+		smdk_dai[0].platforms->name = NULL;
+		smdk_dai[0].platforms->of_node = smdk_dai[0].cpus->of_node;
 	}
 
 	id = of_match_device(of_match_ptr(samsung_wm8994_of_match), &pdev->dev);
@@ -181,7 +178,7 @@ static int smdk_audio_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 
-	if (ret)
+	if (ret && ret != -EPROBE_DEFER)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed:%d\n", ret);
 
 	return ret;

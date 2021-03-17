@@ -7,6 +7,13 @@ Description:
 		The name of devfreq object denoted as ... is same as the
 		name of device using devfreq.
 
+What:		/sys/class/devfreq/.../name
+Date:		November 2019
+Contact:	Chanwoo Choi <cw00.choi@samsung.com>
+Description:
+		The /sys/class/devfreq/.../name shows the name of device
+		of the corresponding devfreq object.
+
 What:		/sys/class/devfreq/.../governor
 Date:		September 2011
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -47,13 +54,17 @@ Description:
 What:		/sys/class/devfreq/.../trans_stat
 Date:		October 2012
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
-Descrtiption:
-		This ABI shows the statistics of devfreq behavior on a
-		specific device. It shows the time spent in each state and
-		the number of transitions between states.
+Description:
+		This ABI shows or clears the statistics of devfreq behavior
+		on a specific device. It shows the time spent in each state
+		and the number of transitions between states.
 		In order to activate this ABI, the devfreq target device
 		driver should provide the list of available frequencies
-		with its profile.
+		with its profile. If need to reset the statistics of devfreq
+		behavior on a specific device, enter 0(zero) to 'trans_stat'
+		as following::
+
+			echo 0 > /sys/class/devfreq/.../trans_stat
 
 What:		/sys/class/devfreq/.../userspace/set_freq
 Date:		September 2011
@@ -98,3 +109,16 @@ Description:
 		frequency requested by governors and min_freq.
 		The max_freq overrides min_freq because max_freq may be
 		used to throttle devices to avoid overheating.
+
+What:		/sys/class/devfreq/.../timer
+Date:		July 2020
+Contact:	Chanwoo Choi <cw00.choi@samsung.com>
+Description:
+		This ABI shows and stores the kind of work timer by users.
+		This work timer is used by devfreq workqueue in order to
+		monitor the device status such as utilization. The user
+		can change the work timer on runtime according to their demand
+		as following::
+
+			echo deferrable > /sys/class/devfreq/.../timer
+			echo delayed > /sys/class/devfreq/.../timer

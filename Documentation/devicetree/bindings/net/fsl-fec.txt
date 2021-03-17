@@ -7,18 +7,6 @@ Required properties:
 - phy-mode : See ethernet.txt file in the same directory
 
 Optional properties:
-- phy-reset-gpios : Should specify the gpio for phy reset
-- phy-reset-duration : Reset duration in milliseconds.  Should present
-  only if property "phy-reset-gpios" is available.  Missing the property
-  will have the duration be 1 millisecond.  Numbers greater than 1000 are
-  invalid and 1 millisecond will be used instead.
-- phy-reset-active-high : If present then the reset sequence using the GPIO
-  specified in the "phy-reset-gpios" property is reversed (H=reset state,
-  L=operation state).
-- phy-reset-post-delay : Post reset delay in milliseconds. If present then
-  a delay of phy-reset-post-delay milliseconds will be observed after the
-  phy-reset-gpios has been toggled. Can be omitted thus no delay is
-  observed. Delay is in range of 1ms to 1000ms. Other delays are invalid.
 - phy-supply : regulator that powers the Ethernet PHY.
 - phy-handle : phandle to the PHY device connected to this device.
 - fixed-link : Assume a fixed link. See fixed-link.txt in the same directory.
@@ -34,6 +22,11 @@ Optional properties:
 - fsl,err006687-workaround-present: If present indicates that the system has
   the hardware workaround for ERR006687 applied and does not need a software
   workaround.
+- fsl,stop-mode: register bits of stop mode control, the format is
+		 <&gpr req_gpr req_bit>.
+		 gpr is the phandle to general purpose register node.
+		 req_gpr is the gpr register offset for ENET stop request.
+		 req_bit is the gpr bit offset for ENET stop request.
  -interrupt-names:  names of the interrupts listed in interrupts property in
   the same order. The defaults if not specified are
   __Number of interrupts__   __Default__
@@ -47,10 +40,26 @@ Optional properties:
   For imx6sx, "int0" handles all 3 queues and ENET_MII. "pps" is for the pulse
   per second interrupt associated with 1588 precision time protocol(PTP).
 
-
 Optional subnodes:
 - mdio : specifies the mdio bus in the FEC, used as a container for phy nodes
   according to phy.txt in the same directory
+
+Deprecated optional properties:
+	To avoid these, create a phy node according to phy.txt in the same
+	directory, and point the fec's "phy-handle" property to it. Then use
+	the phy's reset binding, again described by phy.txt.
+- phy-reset-gpios : Should specify the gpio for phy reset
+- phy-reset-duration : Reset duration in milliseconds.  Should present
+  only if property "phy-reset-gpios" is available.  Missing the property
+  will have the duration be 1 millisecond.  Numbers greater than 1000 are
+  invalid and 1 millisecond will be used instead.
+- phy-reset-active-high : If present then the reset sequence using the GPIO
+  specified in the "phy-reset-gpios" property is reversed (H=reset state,
+  L=operation state).
+- phy-reset-post-delay : Post reset delay in milliseconds. If present then
+  a delay of phy-reset-post-delay milliseconds will be observed after the
+  phy-reset-gpios has been toggled. Can be omitted thus no delay is
+  observed. Delay is in range of 1ms to 1000ms. Other delays are invalid.
 
 Example:
 
@@ -76,6 +85,7 @@ ethernet@83fec000 {
 	phy-supply = <&reg_fec_supply>;
 	phy-handle = <&ethphy>;
 	mdio {
+	        clock-frequency = <5000000>;
 		ethphy: ethernet-phy@6 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <6>;

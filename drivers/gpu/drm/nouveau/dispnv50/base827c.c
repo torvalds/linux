@@ -21,27 +21,60 @@
  */
 #include "base.h"
 
-static void
+#include <nvif/push507c.h>
+
+#include <nvhw/class/cl827c.h>
+
+static int
 base827c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 10))) {
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, asyw->image.mode << 8 |
-			       asyw->image.interval << 4);
-		evo_mthd(push, 0x00c0, 1);
-		evo_data(push, asyw->image.handle[0]);
-		evo_mthd(push, 0x0800, 5);
-		evo_data(push, asyw->image.offset[0] >> 8);
-		evo_data(push, 0x00000000);
-		evo_data(push, asyw->image.h << 16 | asyw->image.w);
-		evo_data(push, asyw->image.layout << 20 |
-			       (asyw->image.pitch[0] >> 8) << 8 |
-			       asyw->image.blocks[0] << 8 |
-			       asyw->image.blockh);
-		evo_data(push, asyw->image.format << 8);
-		evo_kick(push, &wndw->wndw);
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 13)))
+		return ret;
+
+	PUSH_MTHD(push, NV827C, SET_PRESENT_CONTROL,
+		  NVVAL(NV827C, SET_PRESENT_CONTROL, BEGIN_MODE, asyw->image.mode) |
+		  NVVAL(NV827C, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, asyw->image.interval));
+
+	PUSH_MTHD(push, NV827C, SET_CONTEXT_DMAS_ISO(0), asyw->image.handle, 1);
+
+	if (asyw->image.format == NV827C_SURFACE_SET_PARAMS_FORMAT_RF16_GF16_BF16_AF16) {
+		PUSH_MTHD(push, NV827C, SET_PROCESSING,
+			  NVDEF(NV827C, SET_PROCESSING, USE_GAIN_OFS, ENABLE),
+
+					SET_CONVERSION,
+			  NVVAL(NV827C, SET_CONVERSION, GAIN, 0) |
+			  NVVAL(NV827C, SET_CONVERSION, OFS, 0x64));
+	} else {
+		PUSH_MTHD(push, NV827C, SET_PROCESSING,
+			  NVDEF(NV827C, SET_PROCESSING, USE_GAIN_OFS, DISABLE),
+
+					SET_CONVERSION,
+			  NVVAL(NV827C, SET_CONVERSION, GAIN, 0) |
+			  NVVAL(NV827C, SET_CONVERSION, OFS, 0));
 	}
+
+	PUSH_MTHD(push, NV827C, SURFACE_SET_OFFSET(0, 0), asyw->image.offset[0] >> 8,
+				SURFACE_SET_OFFSET(0, 1), 0x00000000,
+
+				SURFACE_SET_SIZE(0),
+		  NVVAL(NV827C, SURFACE_SET_SIZE, WIDTH, asyw->image.w) |
+		  NVVAL(NV827C, SURFACE_SET_SIZE, HEIGHT, asyw->image.h),
+
+				SURFACE_SET_STORAGE(0),
+		  NVVAL(NV827C, SURFACE_SET_STORAGE, BLOCK_HEIGHT, asyw->image.blockh) |
+		  NVVAL(NV827C, SURFACE_SET_STORAGE, PITCH, asyw->image.pitch[0] >> 8) |
+		  NVVAL(NV827C, SURFACE_SET_STORAGE, PITCH, asyw->image.blocks[0]) |
+		  NVVAL(NV827C, SURFACE_SET_STORAGE, MEMORY_LAYOUT, asyw->image.layout),
+
+				SURFACE_SET_PARAMS(0),
+		  NVVAL(NV827C, SURFACE_SET_PARAMS, FORMAT, asyw->image.format) |
+		  NVDEF(NV827C, SURFACE_SET_PARAMS, SUPER_SAMPLE, X1_AA) |
+		  NVDEF(NV827C, SURFACE_SET_PARAMS, GAMMA, LINEAR) |
+		  NVDEF(NV827C, SURFACE_SET_PARAMS, LAYOUT, FRM));
+	return 0;
 }
 
 static const struct nv50_wndw_func

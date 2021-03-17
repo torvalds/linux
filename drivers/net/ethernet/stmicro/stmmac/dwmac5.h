@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
 // Copyright (c) 2017 Synopsys, Inc. and/or its affiliates.
 // stmmac Support for 5.xx Ethernet QoS cores
 
@@ -10,6 +10,9 @@
 #define MAC_FSM_CONTROL			0x00000148
 #define PRTYEN				BIT(1)
 #define TMOUTEN				BIT(0)
+
+#define MAC_FPE_CTRL_STS		0x00000234
+#define EFPE				BIT(0)
 
 #define MAC_PPS_CONTROL			0x00000b70
 #define PPS_MAXIDX(x)			((((x) + 1) * 8) - 1)
@@ -29,6 +32,23 @@
 #define TTSL0				GENMASK(30, 0)
 #define MAC_PPSx_INTERVAL(x)		(0x00000b88 + ((x) * 0x10))
 #define MAC_PPSx_WIDTH(x)		(0x00000b8c + ((x) * 0x10))
+
+#define MTL_EST_CONTROL			0x00000c50
+#define PTOV				GENMASK(31, 24)
+#define PTOV_SHIFT			24
+#define SSWL				BIT(1)
+#define EEST				BIT(0)
+#define MTL_EST_GCL_CONTROL		0x00000c80
+#define BTR_LOW				0x0
+#define BTR_HIGH			0x1
+#define CTR_LOW				0x2
+#define CTR_HIGH			0x3
+#define TER				0x4
+#define LLR				0x5
+#define ADDR_SHIFT			8
+#define GCRR				BIT(2)
+#define SRWO				BIT(0)
+#define MTL_EST_GCL_DATA		0x00000c84
 
 #define MTL_RXP_CONTROL_STATUS		0x00000ca0
 #define RXPI				BIT(31)
@@ -72,6 +92,12 @@
 #define TCEIE				BIT(0)
 #define DMA_ECC_INT_STATUS		0x00001088
 
+/* EQoS version 5.xx VLAN Tag Filter Fail Packets Queuing */
+#define GMAC_RXQ_CTRL4			0x00000094
+#define GMAC_RXQCTRL_VFFQ_MASK		GENMASK(19, 17)
+#define GMAC_RXQCTRL_VFFQ_SHIFT		17
+#define GMAC_RXQCTRL_VFFQE		BIT(16)
+
 int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp);
 int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,
@@ -83,5 +109,9 @@ int dwmac5_rxp_config(void __iomem *ioaddr, struct stmmac_tc_entry *entries,
 int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 			   struct stmmac_pps_cfg *cfg, bool enable,
 			   u32 sub_second_inc, u32 systime_flags);
+int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
+			 unsigned int ptp_rate);
+void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
+			  bool enable);
 
 #endif /* __DWMAC5_H__ */

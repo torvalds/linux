@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tsys01.c - Support for Measurement-Specialties tsys01 temperature sensor
  *
  * Copyright (c) 2015 Measurement-Specialties
- *
- * Licensed under the GPL-2.
  *
  * Datasheet:
  *  http://www.meas-spec.com/downloads/TSYS01_Digital_Temperature_Sensor.pdf
@@ -14,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/stat.h>
@@ -161,7 +161,6 @@ static int tsys01_probe(struct iio_dev *indio_dev, struct device *dev)
 
 	indio_dev->info = &tsys01_info;
 	indio_dev->name = dev->driver->name;
-	indio_dev->dev.parent = dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = tsys01_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tsys01_channels);
@@ -224,7 +223,7 @@ static struct i2c_driver tsys01_driver = {
 	.id_table = tsys01_id,
 	.driver = {
 		   .name = "tsys01",
-		   .of_match_table = of_match_ptr(tsys01_of_match),
+		   .of_match_table = tsys01_of_match,
 		   },
 };
 

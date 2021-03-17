@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Uros Bizjak <uros@kss-loka.si>
  *                   
  *  Routines for OPL2/OPL3/OPL4 control
- *
- *   This program is free software; you can redistribute it and/or modify 
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/slab.h>
@@ -104,6 +90,8 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 	case SNDRV_DM_FM_IOCTL_INFO:
 		{
 			struct snd_dm_fm_info info;
+
+			memset(&info, 0, sizeof(info));
 
 			info.fm_mode = opl3->fm_mode;
 			info.rhythm = opl3->rhythm;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVIF_CL0080_H__
 #define __NVIF_CL0080_H__
 
@@ -32,6 +32,7 @@ struct nv_device_info_v0 {
 #define NV_DEVICE_INFO_V0_MAXWELL                                          0x09
 #define NV_DEVICE_INFO_V0_PASCAL                                           0x0a
 #define NV_DEVICE_INFO_V0_VOLTA                                            0x0b
+#define NV_DEVICE_INFO_V0_TURING                                           0x0c
 	__u8  family;
 	__u8  pad06[2];
 	__u64 ram_size;

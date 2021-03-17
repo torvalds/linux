@@ -52,205 +52,6 @@ int snd_soc_params_to_bclk(struct snd_pcm_hw_params *params)
 }
 EXPORT_SYMBOL_GPL(snd_soc_params_to_bclk);
 
-int snd_soc_component_enable_pin(struct snd_soc_component *component,
-				 const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_enable_pin(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_enable_pin(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_enable_pin);
-
-int snd_soc_component_enable_pin_unlocked(struct snd_soc_component *component,
-					  const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_enable_pin_unlocked(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_enable_pin_unlocked(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_enable_pin_unlocked);
-
-int snd_soc_component_disable_pin(struct snd_soc_component *component,
-				  const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_disable_pin(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_disable_pin(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_disable_pin);
-
-int snd_soc_component_disable_pin_unlocked(struct snd_soc_component *component,
-					   const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_disable_pin_unlocked(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_disable_pin_unlocked(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_disable_pin_unlocked);
-
-int snd_soc_component_nc_pin(struct snd_soc_component *component,
-			     const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_nc_pin(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_nc_pin(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_nc_pin);
-
-int snd_soc_component_nc_pin_unlocked(struct snd_soc_component *component,
-				      const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_nc_pin_unlocked(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_nc_pin_unlocked(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_nc_pin_unlocked);
-
-int snd_soc_component_get_pin_status(struct snd_soc_component *component,
-				     const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_get_pin_status(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_get_pin_status(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_get_pin_status);
-
-int snd_soc_component_force_enable_pin(struct snd_soc_component *component,
-				       const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_force_enable_pin(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_force_enable_pin(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin);
-
-int snd_soc_component_force_enable_pin_unlocked(
-					struct snd_soc_component *component,
-					const char *pin)
-{
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	char *full_name;
-	int ret;
-
-	if (!component->name_prefix)
-		return snd_soc_dapm_force_enable_pin_unlocked(dapm, pin);
-
-	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
-
-	ret = snd_soc_dapm_force_enable_pin_unlocked(dapm, full_name);
-	kfree(full_name);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin_unlocked);
-
 static const struct snd_pcm_hardware dummy_dma_hardware = {
 	/* Random values to keep userspace happy when checking constraints */
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
@@ -262,9 +63,10 @@ static const struct snd_pcm_hardware dummy_dma_hardware = {
 	.periods_max		= 128,
 };
 
-static int dummy_dma_open(struct snd_pcm_substream *substream)
+static int dummy_dma_open(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
 	/* BE's dont need dummy params */
 	if (!rtd->dai_link->no_pcm)
@@ -273,13 +75,8 @@ static int dummy_dma_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static const struct snd_pcm_ops dummy_dma_ops = {
-	.open		= dummy_dma_open,
-	.ioctl		= snd_pcm_lib_ioctl,
-};
-
 static const struct snd_soc_component_driver dummy_platform = {
-	.ops = &dummy_dma_ops,
+	.open		= dummy_dma_open,
 };
 
 static const struct snd_soc_component_driver dummy_codec = {
@@ -289,12 +86,13 @@ static const struct snd_soc_component_driver dummy_codec = {
 	.non_legacy_dai_naming	= 1,
 };
 
-#define STUB_RATES	SNDRV_PCM_RATE_8000_192000
+#define STUB_RATES	SNDRV_PCM_RATE_8000_384000
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S8 | \
 			SNDRV_PCM_FMTBIT_U8 | \
 			SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_U16_LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | \
+			SNDRV_PCM_FMTBIT_S24_3LE | \
 			SNDRV_PCM_FMTBIT_U24_LE | \
 			SNDRV_PCM_FMTBIT_S32_LE | \
 			SNDRV_PCM_FMTBIT_U32_LE | \

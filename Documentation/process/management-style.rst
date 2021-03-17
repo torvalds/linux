@@ -5,8 +5,9 @@ Linux kernel management style
 
 This is a short document describing the preferred (or made up, depending
 on who you ask) management style for the linux kernel.  It's meant to
-mirror the process/coding-style.rst document to some degree, and mainly written to
-avoid answering [#f1]_  the same (or similar) questions over and over again.
+mirror the :ref:`process/coding-style.rst <codingstyle>` document to some
+degree, and mainly written to avoid answering [#f1]_  the same (or similar)
+questions over and over again.
 
 Management style is very personal and much harder to quantify than
 simple coding style rules, so this document may or may not have anything
@@ -226,7 +227,7 @@ incompetence will grudgingly admit that you at least didn't try to weasel
 out of it.
 
 Then make the developer who really screwed up (if you can find them) know
-**in_private** that they screwed up.  Not just so they can avoid it in the
+**in private** that they screwed up.  Not just so they can avoid it in the
 future, but so that they know they owe you one.  And, perhaps even more
 importantly, they're also likely the person who can fix it.  Because, let's
 face it, it sure ain't you.

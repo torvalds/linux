@@ -367,7 +367,7 @@ static const struct can_bittiming_const kvaser_usb_hydra_kcan_bittiming_c = {
 	.tseg2_max = 32,
 	.sjw_max = 16,
 	.brp_min = 1,
-	.brp_max = 4096,
+	.brp_max = 8192,
 	.brp_inc = 1,
 };
 
@@ -1019,6 +1019,11 @@ kvaser_usb_hydra_error_frame(struct kvaser_usb_net_priv *priv,
 					new_state : CAN_STATE_ERROR_ACTIVE;
 
 			can_change_state(netdev, cf, tx_state, rx_state);
+
+			if (priv->can.restart_ms &&
+			    old_state >= CAN_STATE_BUS_OFF &&
+			    new_state < CAN_STATE_BUS_OFF)
+				cf->can_id |= CAN_ERR_RESTARTED;
 		}
 
 		if (new_state == CAN_STATE_BUS_OFF) {
@@ -1028,11 +1033,6 @@ kvaser_usb_hydra_error_frame(struct kvaser_usb_net_priv *priv,
 
 			can_bus_off(netdev);
 		}
-
-		if (priv->can.restart_ms &&
-		    old_state >= CAN_STATE_BUS_OFF &&
-		    new_state < CAN_STATE_BUS_OFF)
-			cf->can_id |= CAN_ERR_RESTARTED;
 	}
 
 	if (!skb) {
@@ -1590,7 +1590,7 @@ static int kvaser_usb_hydra_setup_endpoints(struct kvaser_usb *dev)
 	struct usb_endpoint_descriptor *ep;
 	int i;
 
-	iface_desc = &dev->intf->altsetting[0];
+	iface_desc = dev->intf->cur_altsetting;
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		ep = &iface_desc->endpoint[i].desc;

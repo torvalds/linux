@@ -58,15 +58,17 @@ struct encoder_feature_support {
 			uint32_t IS_HBR3_CAPABLE:1;
 			uint32_t IS_TPS3_CAPABLE:1;
 			uint32_t IS_TPS4_CAPABLE:1;
-			uint32_t IS_YCBCR_CAPABLE:1;
 			uint32_t HDMI_6GB_EN:1;
+			uint32_t DP_IS_USB_C:1;
 		} bits;
 		uint32_t raw;
 	} flags;
 
 	enum dc_color_depth max_hdmi_deep_color;
 	unsigned int max_hdmi_pixel_clock;
-	bool ycbcr420_supported;
+	bool hdmi_ycbcr420_supported;
+	bool dp_ycbcr420_supported;
+	bool fec_supported;
 };
 
 union dpcd_psr_configuration {
@@ -112,9 +114,21 @@ struct link_encoder {
 	struct encoder_feature_support features;
 	enum transmitter transmitter;
 	enum hpd_source_id hpd_source;
+	bool usbc_combo_phy;
+};
+
+struct link_enc_state {
+
+		uint32_t dphy_fec_en;
+		uint32_t dphy_fec_ready_shadow;
+		uint32_t dphy_fec_active_status;
+		uint32_t dp_link_training_complete;
+
 };
 
 struct link_encoder_funcs {
+	void (*read_state)(
+			struct link_encoder *enc, struct link_enc_state *s);
 	bool (*validate_output_with_stream)(
 		struct link_encoder *enc, const struct dc_stream_state *stream);
 	void (*hw_init)(struct link_encoder *enc);
@@ -131,6 +145,9 @@ struct link_encoder_funcs {
 	void (*enable_dp_mst_output)(struct link_encoder *enc,
 		const struct dc_link_settings *link_settings,
 		enum clock_source_id clock_source);
+	void (*enable_lvds_output)(struct link_encoder *enc,
+		enum clock_source_id clock_source,
+		uint32_t pixel_clock);
 	void (*disable_output)(struct link_encoder *link_enc,
 		enum signal_type signal);
 	void (*dp_set_lane_settings)(struct link_encoder *enc,
@@ -150,7 +167,23 @@ struct link_encoder_funcs {
 	void (*enable_hpd)(struct link_encoder *enc);
 	void (*disable_hpd)(struct link_encoder *enc);
 	bool (*is_dig_enabled)(struct link_encoder *enc);
+	unsigned int (*get_dig_frontend)(struct link_encoder *enc);
 	void (*destroy)(struct link_encoder **enc);
+
+	void (*fec_set_enable)(struct link_encoder *enc,
+		bool enable);
+
+	void (*fec_set_ready)(struct link_encoder *enc,
+		bool ready);
+
+	bool (*fec_is_active)(struct link_encoder *enc);
+	bool (*is_in_alt_mode) (struct link_encoder *enc);
+
+	void (*get_max_link_cap)(struct link_encoder *enc,
+		struct dc_link_settings *link_settings);
+
+	enum signal_type (*get_dig_mode)(
+		struct link_encoder *enc);
 };
 
 #endif /* LINK_ENCODER_H_ */

@@ -48,6 +48,7 @@
 	compatible = "lwn,display5", "fsl,imx6q";
 
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x40000000>;
 	};
 
@@ -398,7 +399,6 @@
 };
 
 &pwm2 {
-	#pwm-cells = <3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
 	status = "okay";

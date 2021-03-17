@@ -136,6 +136,7 @@ qxl_image_init_helper(struct qxl_device *qdev,
 		int remain;
 		int page;
 		int size;
+
 		if (stride == linesize && chunk_stride == stride) {
 			remain = linesize * height;
 			page = 0;
@@ -162,7 +163,8 @@ qxl_image_init_helper(struct qxl_device *qdev,
 				page++;
 			}
 		} else {
-			unsigned page_base, page_offset, out_offset;
+			unsigned int page_base, page_offset, out_offset;
+
 			for (i = 0 ; i < height ; ++i) {
 				i_data = (void *)data + i * stride;
 				remain = linesize;
@@ -210,7 +212,8 @@ qxl_image_init_helper(struct qxl_device *qdev,
 		break;
 	default:
 		DRM_ERROR("unsupported image bit depth\n");
-		return -EINVAL; /* TODO: cleanup */
+		qxl_bo_kunmap_atomic_page(qdev, image_bo, ptr);
+		return -EINVAL;
 	}
 	image->u.bitmap.flags = QXL_BITMAP_TOP_DOWN;
 	image->u.bitmap.x = width;

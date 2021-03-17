@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/allwinner,sun6i-a31-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A31 USB PHY Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+properties:
+  "#phy-cells":
+    const: 1
+
+  compatible:
+    const: allwinner,sun6i-a31-usb-phy
+
+  reg:
+    items:
+      - description: PHY Control registers
+      - description: PHY PMU1 registers
+      - description: PHY PMU2 registers
+
+  reg-names:
+    items:
+      - const: phy_ctrl
+      - const: pmu1
+      - const: pmu2
+
+  clocks:
+    items:
+      - description: USB OTG PHY bus clock
+      - description: USB Host 0 PHY bus clock
+      - description: USB Host 1 PHY bus clock
+
+  clock-names:
+    items:
+      - const: usb0_phy
+      - const: usb1_phy
+      - const: usb2_phy
+
+  resets:
+    items:
+      - description: USB OTG reset
+      - description: USB Host 1 Controller reset
+      - description: USB Host 2 Controller reset
+
+  reset-names:
+    items:
+      - const: usb0_reset
+      - const: usb1_reset
+      - const: usb2_reset
+
+  usb0_id_det-gpios:
+    description: GPIO to the USB OTG ID pin
+
+  usb0_vbus_det-gpios:
+    description: GPIO to the USB OTG VBUS detect pin
+
+  usb0_vbus_power-supply:
+    description: Power supply to detect the USB OTG VBUS
+
+  usb0_vbus-supply:
+    description: Regulator controlling USB OTG VBUS
+
+  usb1_vbus-supply:
+    description: Regulator controlling USB1 Host controller
+
+  usb2_vbus-supply:
+    description: Regulator controlling USB2 Host controller
+
+required:
+  - "#phy-cells"
+  - compatible
+  - clocks
+  - clock-names
+  - reg
+  - reg-names
+  - resets
+  - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/clock/sun6i-a31-ccu.h>
+    #include <dt-bindings/reset/sun6i-a31-ccu.h>
+
+    phy@1c19400 {
+        #phy-cells = <1>;
+        compatible = "allwinner,sun6i-a31-usb-phy";
+        reg = <0x01c19400 0x10>,
+              <0x01c1a800 0x4>,
+              <0x01c1b800 0x4>;
+        reg-names = "phy_ctrl",
+                    "pmu1",
+                    "pmu2";
+        clocks = <&ccu CLK_USB_PHY0>,
+                 <&ccu CLK_USB_PHY1>,
+                 <&ccu CLK_USB_PHY2>;
+        clock-names = "usb0_phy",
+                      "usb1_phy",
+                      "usb2_phy";
+        resets = <&ccu RST_USB_PHY0>,
+                 <&ccu RST_USB_PHY1>,
+                 <&ccu RST_USB_PHY2>;
+        reset-names = "usb0_reset",
+                      "usb1_reset",
+                      "usb2_reset";
+        usb0_id_det-gpios = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
+        usb0_vbus_det-gpios = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */
+        usb0_vbus_power-supply = <&usb_power_supply>;
+        usb0_vbus-supply = <&reg_drivevbus>;
+        usb1_vbus-supply = <&reg_usb1_vbus>;
+        usb2_vbus-supply = <&reg_usb2_vbus>;
+    };

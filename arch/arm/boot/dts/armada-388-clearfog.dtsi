@@ -48,7 +48,7 @@
 					     &clearfog_sdhci_cd_pins>;
 				pinctrl-names = "default";
 				status = "okay";
-				vmmc = <&reg_3p3v>;
+				vmmc-supply = <&reg_3p3v>;
 				wp-inverted;
 			};
 
@@ -93,6 +93,7 @@
 	bm,pool-long = <2>;
 	bm,pool-short = <1>;
 	buffer-manager = <&bm>;
+	phys = <&comphy1 1>;
 	phy-mode = "sgmii";
 	status = "okay";
 };
@@ -103,17 +104,13 @@
 	bm,pool-short = <1>;
 	buffer-manager = <&bm>;
 	managed = "in-band-status";
+	phys = <&comphy5 2>;
 	phy-mode = "sgmii";
 	sfp = <&sfp>;
 	status = "okay";
 };
 
 &i2c0 {
-	clock-frequency = <400000>;
-	pinctrl-0 = <&i2c0_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-
 	/*
 	 * PCA9655 GPIO expander, up to 1MHz clock.
 	 *  0-CON3 CLKREQ#
@@ -180,6 +177,12 @@
 	mikrobus_adc: mcp3021@4c {
 		compatible = "microchip,mcp3021";
 		reg = <0x4c>;
+	};
+
+	eeprom@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+		pagesize = <16>;
 	};
 };
 

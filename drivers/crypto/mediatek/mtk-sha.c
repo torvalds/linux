@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cryptographic API.
  *
  * Driver for EIP97 SHA1/SHA2(HMAC) acceleration.
  *
  * Copyright (c) 2016 Ryder Lee <ryder.lee@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Some ideas are from atmel-sha.c and omap-sham.c drivers.
  */
@@ -110,7 +107,7 @@ struct mtk_sha_ctx {
 	u8 id;
 	u8 buf[SHA_BUF_SIZE] __aligned(sizeof(u32));
 
-	struct mtk_sha_hmac_ctx	base[0];
+	struct mtk_sha_hmac_ctx	base[];
 };
 
 struct mtk_sha_drv {
@@ -242,7 +239,7 @@ static int mtk_sha_append_sg(struct mtk_sha_reqctx *ctx)
 static void mtk_sha_fill_padding(struct mtk_sha_reqctx *ctx, u32 len)
 {
 	u32 index, padlen;
-	u64 bits[2];
+	__be64 bits[2];
 	u64 size = ctx->digcnt;
 
 	size += ctx->bufcnt;
@@ -365,7 +362,6 @@ static int mtk_sha_finish_hmac(struct ahash_request *req)
 	SHASH_DESC_ON_STACK(shash, bctx->shash);
 
 	shash->tfm = bctx->shash;
-	shash->flags = 0; /* not CRYPTO_TFM_REQ_MAY_SLEEP */
 
 	return crypto_shash_init(shash) ?:
 	       crypto_shash_update(shash, bctx->opad, ctx->bs) ?:
@@ -782,7 +778,9 @@ static int mtk_sha_finup(struct ahash_request *req)
 	ctx->flags |= SHA_FLAGS_FINUP;
 
 	err1 = mtk_sha_update(req);
-	if (err1 == -EINPROGRESS || err1 == -EBUSY)
+	if (err1 == -EINPROGRESS ||
+	    (err1 == -EBUSY && (ahash_request_flags(req) &
+				CRYPTO_TFM_REQ_MAY_BACKLOG)))
 		return err1;
 	/*
 	 * final() has to be always called to cleanup resources
@@ -807,14 +805,9 @@ static int mtk_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 	size_t ds = crypto_shash_digestsize(bctx->shash);
 	int err, i;
 
-	SHASH_DESC_ON_STACK(shash, bctx->shash);
-
-	shash->tfm = bctx->shash;
-	shash->flags = crypto_shash_get_flags(bctx->shash) &
-		       CRYPTO_TFM_REQ_MAY_SLEEP;
-
 	if (keylen > bs) {
-		err = crypto_shash_digest(shash, key, keylen, bctx->ipad);
+		err = crypto_shash_tfm_digest(bctx->shash, key, keylen,
+					      bctx->ipad);
 		if (err)
 			return err;
 		keylen = ds;

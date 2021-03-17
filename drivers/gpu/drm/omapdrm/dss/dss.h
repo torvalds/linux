@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __OMAP2_DSS_H
@@ -238,6 +227,8 @@ struct dss_device {
 	struct regmap	*syscon_pll_ctrl;
 	u32		syscon_pll_ctrl_offset;
 
+	struct platform_device *drm_pdev;
+
 	struct clk	*parent_clk;
 	struct clk	*dss_clk;
 	unsigned long	dss_clk_rate;
@@ -267,6 +258,8 @@ struct dss_device {
 
 	struct dispc_device *dispc;
 	const struct dispc_ops *dispc_ops;
+	const struct dss_mgr_ops *mgr_ops;
+	struct omap_drm_private *mgr_ops_priv;
 };
 
 /* core */
@@ -313,8 +306,6 @@ void dss_runtime_put(struct dss_device *dss);
 
 unsigned long dss_get_dispc_clk_rate(struct dss_device *dss);
 unsigned long dss_get_max_fck_rate(struct dss_device *dss);
-enum omap_dss_output_id dss_get_supported_outputs(struct dss_device *dss,
-						  enum omap_channel channel);
 int dss_dpi_select_source(struct dss_device *dss, int port,
 			  enum omap_channel channel);
 void dss_select_hdmi_venc_clk_source(struct dss_device *dss,
@@ -374,8 +365,6 @@ static inline void sdi_uninit_port(struct device_node *port)
 
 #ifdef CONFIG_OMAP2_DSS_DSI
 
-void dsi_dump_clocks(struct seq_file *s);
-
 void dsi_irq_handler(void);
 
 #endif
@@ -417,9 +406,6 @@ bool dispc_div_calc(struct dispc_device *dispc, unsigned long dispc_freq,
 		    unsigned long pck_min, unsigned long pck_max,
 		    dispc_div_calc_func func, void *data);
 
-bool dispc_mgr_timings_ok(struct dispc_device *dispc,
-			  enum omap_channel channel,
-			  const struct videomode *vm);
 int dispc_calc_clock_rates(struct dispc_device *dispc,
 			   unsigned long dispc_fclk_rate,
 			   struct dispc_clock_info *cinfo);

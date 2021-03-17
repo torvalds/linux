@@ -25,17 +25,11 @@
 
 #include "octeon_config.h"
 
-#define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
 #define LIQUIDIO_BASE_MINOR_VERSION 7
 #define LIQUIDIO_BASE_MICRO_VERSION 2
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
-#define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
-#define LIQUIDIO_VERSION        LIQUIDIO_PACKAGE \
-				__stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
-				__stringify(LIQUIDIO_BASE_MINOR_VERSION) \
-				"." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
 
 struct lio_version {
 	u16  major;
@@ -118,6 +112,10 @@ enum octeon_tag_type {
 /* App specific capabilities from firmware to pf driver */
 #define LIQUIDIO_TIME_SYNC_CAP 0x1
 #define LIQUIDIO_SWITCHDEV_CAP 0x2
+#define LIQUIDIO_SPOOFCHK_CAP  0x4
+
+/* error status return from firmware */
+#define OCTEON_REQUEST_NO_PERMISSION 0xc
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
@@ -241,6 +239,10 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_CMD_QUEUE_COUNT_CTL	0x1f
 
+#define   OCTNET_CMD_GROUP1             1
+#define   OCTNET_CMD_SET_VF_SPOOFCHK    0x1
+#define   OCTNET_GROUP1_LAST_CMD        OCTNET_CMD_SET_VF_SPOOFCHK
+
 #define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
 #define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
 #define   OCTNET_CMD_RXCSUM_ENABLE     0x0
@@ -250,8 +252,17 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
 #define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
 
+#define   OCTNET_CMD_FAIL 0x1
+
+#define   SEAPI_CMD_FEC_SET             0x0
+#define   SEAPI_CMD_FEC_SET_DISABLE       0x0
+#define   SEAPI_CMD_FEC_SET_RS            0x1
+#define   SEAPI_CMD_FEC_GET             0x1
+
 #define   SEAPI_CMD_SPEED_SET           0x2
 #define   SEAPI_CMD_SPEED_GET           0x3
+
+#define OPCODE_NIC_VF_PORT_STATS        0x22
 
 #define   LIO_CMD_WAIT_TM 100
 
@@ -301,7 +312,8 @@ union octnet_cmd {
 
 		u64 more:6; /* How many udd words follow the command */
 
-		u64 reserved:29;
+		u64 cmdgroup:8;
+		u64 reserved:21;
 
 		u64 param1:16;
 
@@ -313,7 +325,8 @@ union octnet_cmd {
 
 		u64 param1:16;
 
-		u64 reserved:29;
+		u64 reserved:21;
+		u64 cmdgroup:8;
 
 		u64 more:6;
 
@@ -757,13 +770,17 @@ struct oct_link_info {
 #ifdef __BIG_ENDIAN_BITFIELD
 	u64 gmxport:16;
 	u64 macaddr_is_admin_asgnd:1;
-	u64 rsvd:31;
+	u64 rsvd:13;
+	u64 macaddr_spoofchk:1;
+	u64 rsvd1:17;
 	u64 num_txpciq:8;
 	u64 num_rxpciq:8;
 #else
 	u64 num_rxpciq:8;
 	u64 num_txpciq:8;
-	u64 rsvd:31;
+	u64 rsvd1:17;
+	u64 macaddr_spoofchk:1;
+	u64 rsvd:13;
 	u64 macaddr_is_admin_asgnd:1;
 	u64 gmxport:16;
 #endif

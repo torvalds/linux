@@ -62,7 +62,7 @@
 	wm8904: wm8904@1a {
 		compatible = "wlf,wm8904";
 		reg = <0x1a>;
-		clocks = <&pck2>;
+		clocks = <&pmc PMC_TYPE_SYSTEM 10>;
 		clock-names = "mclk";
 	};
 };
@@ -70,9 +70,9 @@
 &i2c1 {
 	status = "okay";
 
-	eeprom@87 {
+	eeprom@57 {
 		compatible = "giantec,gt24c32a", "atmel,24c32";
-		reg = <87>;
+		reg = <0x57>;
 		pagesize = <32>;
 	};
 };

@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MX35 CPU type detection
  *
  * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 
 #include "hardware.h"
@@ -18,9 +15,15 @@ static int mx35_cpu_rev = -1;
 
 static int mx35_read_cpu_rev(void)
 {
+	void __iomem *iim_base;
+	struct device_node *np;
 	u32 rev;
 
-	rev = imx_readl(MX35_IO_ADDRESS(MX35_IIM_BASE_ADDR + MXC_IIMSREV));
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx35-iim");
+	iim_base = of_iomap(np, 0);
+	BUG_ON(!iim_base);
+
+	rev = imx_readl(iim_base + MXC_IIMSREV);
 	switch (rev) {
 	case 0x00:
 		return IMX_CHIP_REVISION_1_0;

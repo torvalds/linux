@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_VOLT_PRIV_H__
 #define __NVKM_VOLT_PRIV_H__
 #define nvkm_volt(p) container_of((p), struct nvkm_volt, subdev)

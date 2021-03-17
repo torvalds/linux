@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * evk-pro3.dts - Device Tree file for Telit EVK-PRO3 with Telit GE863-PRO3
  *
  * Copyright (C) 2012 Telit,
  *               2012 Fabio Porcedda <fabio.porcedda@gmail.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 /dts-v1/;

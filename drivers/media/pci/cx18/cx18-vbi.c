@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 Vertical Blank Interval support functions
  *
  *  Derived from ivtv-vbi.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx18-driver.h"
@@ -24,7 +15,7 @@
 /*
  * Raster Reference/Protection (RP) bytes, used in Start/End Active
  * Video codes emitted from the digitzer in VIP 1.x mode, that flag the start
- * of VBI sample or VBI ancillary data regions in the digitial ratser line.
+ * of VBI sample or VBI ancillary data regions in the digital ratser line.
  *
  * Task FieldEven VerticalBlank HorizontalBlank 0 0 0 0
  */

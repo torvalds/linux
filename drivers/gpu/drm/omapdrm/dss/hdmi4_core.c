@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HDMI TI81xx, TI38xx, TI OMAP4 etc IP driver Library
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "HDMICORE"
@@ -43,7 +32,7 @@ static inline void __iomem *hdmi_av_base(struct hdmi_core_data *core)
 	return core->base + HDMI_CORE_AV;
 }
 
-static int hdmi_core_ddc_init(struct hdmi_core_data *core)
+int hdmi4_core_ddc_init(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 
@@ -85,13 +74,11 @@ static int hdmi_core_ddc_init(struct hdmi_core_data *core)
 	return 0;
 }
 
-static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
-		u8 *pedid, int ext)
+int hdmi4_core_ddc_read(void *data, u8 *buf, unsigned int block, size_t len)
 {
+	struct hdmi_core_data *core = data;
 	void __iomem *base = core->base;
 	u32 i;
-	char checksum;
-	u32 offset = 0;
 
 	/* HDMI_CORE_DDC_STATUS_IN_PROG */
 	if (hdmi_wait_for_bit_change(base, HDMI_CORE_DDC_STATUS,
@@ -100,24 +87,21 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 		return -ETIMEDOUT;
 	}
 
-	if (ext % 2 != 0)
-		offset = 0x80;
-
 	/* Load Segment Address Register */
-	REG_FLD_MOD(base, HDMI_CORE_DDC_SEGM, ext / 2, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_DDC_SEGM, block / 2, 7, 0);
 
 	/* Load Slave Address Register */
 	REG_FLD_MOD(base, HDMI_CORE_DDC_ADDR, 0xA0 >> 1, 7, 1);
 
 	/* Load Offset Address Register */
-	REG_FLD_MOD(base, HDMI_CORE_DDC_OFFSET, offset, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_DDC_OFFSET, block % 2 ? 0x80 : 0, 7, 0);
 
 	/* Load Byte Count */
-	REG_FLD_MOD(base, HDMI_CORE_DDC_COUNT1, 0x80, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_DDC_COUNT1, len, 7, 0);
 	REG_FLD_MOD(base, HDMI_CORE_DDC_COUNT2, 0x0, 1, 0);
 
 	/* Set DDC_CMD */
-	if (ext)
+	if (block)
 		REG_FLD_MOD(base, HDMI_CORE_DDC_CMD, 0x4, 3, 0);
 	else
 		REG_FLD_MOD(base, HDMI_CORE_DDC_CMD, 0x2, 3, 0);
@@ -133,7 +117,7 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 		return -EIO;
 	}
 
-	for (i = 0; i < 0x80; ++i) {
+	for (i = 0; i < len; ++i) {
 		int t;
 
 		/* IN_PROG */
@@ -152,46 +136,10 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 			udelay(1);
 		}
 
-		pedid[i] = REG_GET(base, HDMI_CORE_DDC_DATA, 7, 0);
-	}
-
-	checksum = 0;
-	for (i = 0; i < 0x80; ++i)
-		checksum += pedid[i];
-
-	if (checksum != 0) {
-		DSSERR("E-EDID checksum failed!!\n");
-		return -EIO;
+		buf[i] = REG_GET(base, HDMI_CORE_DDC_DATA, 7, 0);
 	}
 
 	return 0;
-}
-
-int hdmi4_read_edid(struct hdmi_core_data *core, u8 *edid, int len)
-{
-	int r, l;
-
-	if (len < 128)
-		return -EINVAL;
-
-	r = hdmi_core_ddc_init(core);
-	if (r)
-		return r;
-
-	r = hdmi_core_ddc_edid(core, edid, 0);
-	if (r)
-		return r;
-
-	l = 128;
-
-	if (len >= 128 * 2 && edid[0x7e] > 0) {
-		r = hdmi_core_ddc_edid(core, edid + 0x80, 1);
-		if (r)
-			return r;
-		l += 128;
-	}
-
-	return l;
 }
 
 static void hdmi_core_init(struct hdmi_core_video_config *video_cfg)
@@ -553,8 +501,9 @@ static void hdmi_core_audio_config(struct hdmi_core_data *core,
 	}
 
 	/* Set ACR clock divisor */
-	REG_FLD_MOD(av_base,
-			HDMI_CORE_AV_FREQ_SVAL, cfg->mclk_mode, 2, 0);
+	if (cfg->use_mclk)
+		REG_FLD_MOD(av_base, HDMI_CORE_AV_FREQ_SVAL,
+			    cfg->mclk_mode, 2, 0);
 
 	r = hdmi_read_reg(av_base, HDMI_CORE_AV_ACR_CTRL);
 	/*
@@ -686,7 +635,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	struct hdmi_audio_format audio_format;
 	struct hdmi_audio_dma audio_dma;
 	struct hdmi_core_audio_config acore;
-	int err, n, cts, channel_count;
+	int n, cts, channel_count;
 	unsigned int fs_nr;
 	bool word_length_16b = false;
 
@@ -708,7 +657,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	else
 		acore.i2s_cfg.justification = HDMI_AUDIO_JUSTIFY_RIGHT;
 	/*
-	 * The I2S input word length is twice the lenght given in the IEC-60958
+	 * The I2S input word length is twice the length given in the IEC-60958
 	 * status word. If the word size is greater than
 	 * 20 bits, increment by one.
 	 */
@@ -748,7 +697,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 		return -EINVAL;
 	}
 
-	err = hdmi_compute_acr(pclk, fs_nr, &n, &cts);
+	hdmi_compute_acr(pclk, fs_nr, &n, &cts);
 
 	/* Audio clock regeneration settings */
 	acore.n = n;

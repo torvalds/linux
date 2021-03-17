@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * timberdale.c timberdale FPGA MFD driver
  * Copyright (c) 2009 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* Supports:
@@ -638,8 +626,7 @@ static const struct mfd_cell timberdale_cells_bar2[] = {
 static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct timberdale_device *priv = pci_get_drvdata(pdev);
+	struct timberdale_device *priv = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d.%d.%d\n", priv->fw.major, priv->fw.minor,
 		priv->fw.config);

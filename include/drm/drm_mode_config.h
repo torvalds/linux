@@ -52,6 +52,12 @@ struct drm_mode_config_funcs {
 	 * requested metadata, but most of that is left to the driver. See
 	 * &struct drm_mode_fb_cmd2 for details.
 	 *
+	 * To validate the pixel format and modifier drivers can use
+	 * drm_any_plane_has_format() to make sure at least one plane supports
+	 * the requested values. Note that the driver must first determine the
+	 * actual modifier used if the request doesn't have it specified,
+	 * ie. when (@mode_cmd->flags & DRM_MODE_FB_MODIFIERS) == 0.
+	 *
 	 * If the parameters are deemed valid and the backing storage objects in
 	 * the underlying memory manager all exist, then the driver allocates
 	 * a new &drm_framebuffer structure, subclassed to contain
@@ -355,7 +361,7 @@ struct drm_mode_config {
 	 *
 	 * This is the big scary modeset BKL which protects everything that
 	 * isn't protect otherwise. Scope is unclear and fuzzy, try to remove
-	 * anything from under it's protection and move it into more well-scoped
+	 * anything from under its protection and move it into more well-scoped
 	 * locks.
 	 *
 	 * The one important thing this protects is the use of @acquire_ctx.
@@ -385,18 +391,18 @@ struct drm_mode_config {
 	/**
 	 * @idr_mutex:
 	 *
-	 * Mutex for KMS ID allocation and management. Protects both @crtc_idr
+	 * Mutex for KMS ID allocation and management. Protects both @object_idr
 	 * and @tile_idr.
 	 */
 	struct mutex idr_mutex;
 
 	/**
-	 * @crtc_idr:
+	 * @object_idr:
 	 *
 	 * Main KMS ID tracking object. Use this idr for all IDs, fb, crtc,
 	 * connector, modes - just makes life easier to have only one.
 	 */
-	struct idr crtc_idr;
+	struct idr object_idr;
 
 	/**
 	 * @tile_idr:
@@ -506,6 +512,15 @@ struct drm_mode_config {
 	 */
 	struct list_head property_list;
 
+	/**
+	 * @privobj_list:
+	 *
+	 * List of private objects linked with &drm_private_obj.head. This is
+	 * invariant over the lifetime of a device and hence doesn't need any
+	 * locks.
+	 */
+	struct list_head privobj_list;
+
 	int min_width, min_height;
 	int max_width, max_height;
 	const struct drm_mode_config_funcs *funcs;
@@ -588,22 +603,22 @@ struct drm_mode_config {
 	struct drm_property *prop_src_h;
 	/**
 	 * @prop_crtc_x: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_x;
 	/**
 	 * @prop_crtc_y: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_y;
 	/**
 	 * @prop_crtc_w: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_w;
 	/**
 	 * @prop_crtc_h: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_h;
 	/**
@@ -628,6 +643,15 @@ struct drm_mode_config {
 	 */
 	struct drm_property *prop_crtc_id;
 	/**
+	 * @prop_fb_damage_clips: Optional plane property to mark damaged
+	 * regions on the plane in framebuffer coordinates of the framebuffer
+	 * attached to the plane.
+	 *
+	 * The layout of blob data is simply an array of &drm_mode_rect. Unlike
+	 * plane src coordinates, damage clips are not in 16.16 fixed point.
+	 */
+	struct drm_property *prop_fb_damage_clips;
+	/**
 	 * @prop_active: Default atomic CRTC property to control the active
 	 * state, which is the simplified implementation for DPMS in atomic
 	 * drivers.
@@ -639,6 +663,11 @@ struct drm_mode_config {
 	 * connectors must be of and active must be set to disabled, too.
 	 */
 	struct drm_property *prop_mode_id;
+	/**
+	 * @prop_vrr_enabled: Default atomic CRTC property to indicate
+	 * whether variable refresh rate should be enabled on the CRTC.
+	 */
+	struct drm_property *prop_vrr_enabled;
 
 	/**
 	 * @dvi_i_subconnector_property: Optional DVI-I property to
@@ -650,6 +679,12 @@ struct drm_mode_config {
 	 * select between analog or digital mode.
 	 */
 	struct drm_property *dvi_i_select_subconnector_property;
+
+	/**
+	 * @dp_subconnector_property: Optional DP property to differentiate
+	 * between different DP downstream port types.
+	 */
+	struct drm_property *dp_subconnector_property;
 
 	/**
 	 * @tv_subconnector_property: Optional TV property to differentiate
@@ -668,22 +703,22 @@ struct drm_mode_config {
 	struct drm_property *tv_mode_property;
 	/**
 	 * @tv_left_margin_property: Optional TV property to set the left
-	 * margin.
+	 * margin (expressed in pixels).
 	 */
 	struct drm_property *tv_left_margin_property;
 	/**
 	 * @tv_right_margin_property: Optional TV property to set the right
-	 * margin.
+	 * margin (expressed in pixels).
 	 */
 	struct drm_property *tv_right_margin_property;
 	/**
 	 * @tv_top_margin_property: Optional TV property to set the right
-	 * margin.
+	 * margin (expressed in pixels).
 	 */
 	struct drm_property *tv_top_margin_property;
 	/**
 	 * @tv_bottom_margin_property: Optional TV property to set the right
-	 * margin.
+	 * margin (expressed in pixels).
 	 */
 	struct drm_property *tv_bottom_margin_property;
 	/**
@@ -807,8 +842,68 @@ struct drm_mode_config {
 	 */
 	struct drm_property *writeback_out_fence_ptr_property;
 
+	/**
+	 * @hdr_output_metadata_property: Connector property containing hdr
+	 * metatada. This will be provided by userspace compositors based
+	 * on HDR content
+	 */
+	struct drm_property *hdr_output_metadata_property;
+
+	/**
+	 * @content_protection_property: DRM ENUM property for content
+	 * protection. See drm_connector_attach_content_protection_property().
+	 */
+	struct drm_property *content_protection_property;
+
+	/**
+	 * @hdcp_content_type_property: DRM ENUM property for type of
+	 * Protected Content.
+	 */
+	struct drm_property *hdcp_content_type_property;
+
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
+
+	/**
+	 * @prefer_shadow_fbdev:
+	 *
+	 * Hint to framebuffer emulation to prefer shadow-fb rendering.
+	 */
+	bool prefer_shadow_fbdev;
+
+	/**
+	 * @fbdev_use_iomem:
+	 *
+	 * Set to true if framebuffer reside in iomem.
+	 * When set to true memcpy_toio() is used when copying the framebuffer in
+	 * drm_fb_helper.drm_fb_helper_dirty_blit_real().
+	 *
+	 * FIXME: This should be replaced with a per-mapping is_iomem
+	 * flag (like ttm does), and then used everywhere in fbdev code.
+	 */
+	bool fbdev_use_iomem;
+
+	/**
+	 * @quirk_addfb_prefer_xbgr_30bpp:
+	 *
+	 * Special hack for legacy ADDFB to keep nouveau userspace happy. Should
+	 * only ever be set by the nouveau kernel driver.
+	 */
+	bool quirk_addfb_prefer_xbgr_30bpp;
+
+	/**
+	 * @quirk_addfb_prefer_host_byte_order:
+	 *
+	 * When set to true drm_mode_addfb() will pick host byte order
+	 * pixel_format when calling drm_mode_addfb2().  This is how
+	 * drm_mode_addfb() should have worked from day one.  It
+	 * didn't though, so we ended up with quirks in both kernel
+	 * and userspace drivers to deal with the broken behavior.
+	 * Simply fixing drm_mode_addfb() unconditionally would break
+	 * these drivers, so add a quirk bit here to allow drivers
+	 * opt-in.
+	 */
+	bool quirk_addfb_prefer_host_byte_order;
 
 	/**
 	 * @async_page_flip: Does this device support async flips on the primary
@@ -852,7 +947,23 @@ struct drm_mode_config {
 	const struct drm_mode_config_helper_funcs *helper_private;
 };
 
-void drm_mode_config_init(struct drm_device *dev);
+int __must_check drmm_mode_config_init(struct drm_device *dev);
+
+/**
+ * drm_mode_config_init - DRM mode_configuration structure initialization
+ * @dev: DRM device
+ *
+ * This is the unmanaged version of drmm_mode_config_init() for drivers which
+ * still explicitly call drm_mode_config_cleanup().
+ *
+ * FIXME: This function is deprecated and drivers should be converted over to
+ * drmm_mode_config_init().
+ */
+static inline int drm_mode_config_init(struct drm_device *dev)
+{
+	return drmm_mode_config_init(dev);
+}
+
 void drm_mode_config_reset(struct drm_device *dev);
 void drm_mode_config_cleanup(struct drm_device *dev);
 

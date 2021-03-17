@@ -553,7 +553,6 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 
 	tty = tty_port_tty_get(&port->port);
 	if (tty == NULL) {
-		word_count = byte_count >> 1;
 		while (byte_count > 1) {
 			inw(base);
 			byte_count -= 2;
@@ -1091,34 +1090,33 @@ static int isicom_tiocmset(struct tty_struct *tty,
 }
 
 static int isicom_set_serial_info(struct tty_struct *tty,
-					struct serial_struct __user *info)
+					struct serial_struct *ss)
 {
 	struct isi_port *port = tty->driver_data;
-	struct serial_struct newinfo;
 	int reconfig_port;
 
-	if (copy_from_user(&newinfo, info, sizeof(newinfo)))
-		return -EFAULT;
+	if (isicom_paranoia_check(port, tty->name, "isicom_ioctl"))
+		return -ENODEV;
 
 	mutex_lock(&port->port.mutex);
 	reconfig_port = ((port->port.flags & ASYNC_SPD_MASK) !=
-		(newinfo.flags & ASYNC_SPD_MASK));
+		(ss->flags & ASYNC_SPD_MASK));
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if ((newinfo.close_delay != port->port.close_delay) ||
-				(newinfo.closing_wait != port->port.closing_wait) ||
-				((newinfo.flags & ~ASYNC_USR_MASK) !=
+		if ((ss->close_delay != port->port.close_delay) ||
+				(ss->closing_wait != port->port.closing_wait) ||
+				((ss->flags & ~ASYNC_USR_MASK) !=
 				(port->port.flags & ~ASYNC_USR_MASK))) {
 			mutex_unlock(&port->port.mutex);
 			return -EPERM;
 		}
 		port->port.flags = ((port->port.flags & ~ASYNC_USR_MASK) |
-				(newinfo.flags & ASYNC_USR_MASK));
+				(ss->flags & ASYNC_USR_MASK));
 	} else {
-		port->port.close_delay = newinfo.close_delay;
-		port->port.closing_wait = newinfo.closing_wait;
+		port->port.close_delay = ss->close_delay;
+		port->port.closing_wait = ss->closing_wait;
 		port->port.flags = ((port->port.flags & ~ASYNC_FLAGS) |
-				(newinfo.flags & ASYNC_FLAGS));
+				(ss->flags & ASYNC_FLAGS));
 	}
 	if (reconfig_port) {
 		unsigned long flags;
@@ -1130,46 +1128,24 @@ static int isicom_set_serial_info(struct tty_struct *tty,
 	return 0;
 }
 
-static int isicom_get_serial_info(struct isi_port *port,
-	struct serial_struct __user *info)
-{
-	struct serial_struct out_info;
-
-	mutex_lock(&port->port.mutex);
-	memset(&out_info, 0, sizeof(out_info));
-/*	out_info.type = ? */
-	out_info.line = port - isi_ports;
-	out_info.port = port->card->base;
-	out_info.irq = port->card->irq;
-	out_info.flags = port->port.flags;
-/*	out_info.baud_base = ? */
-	out_info.close_delay = port->port.close_delay;
-	out_info.closing_wait = port->port.closing_wait;
-	mutex_unlock(&port->port.mutex);
-	if (copy_to_user(info, &out_info, sizeof(out_info)))
-		return -EFAULT;
-	return 0;
-}
-
-static int isicom_ioctl(struct tty_struct *tty,
-	unsigned int cmd, unsigned long arg)
+static int isicom_get_serial_info(struct tty_struct *tty,
+	struct serial_struct *ss)
 {
 	struct isi_port *port = tty->driver_data;
-	void __user *argp = (void __user *)arg;
 
 	if (isicom_paranoia_check(port, tty->name, "isicom_ioctl"))
 		return -ENODEV;
 
-	switch (cmd) {
-	case TIOCGSERIAL:
-		return isicom_get_serial_info(port, argp);
-
-	case TIOCSSERIAL:
-		return isicom_set_serial_info(tty, argp);
-
-	default:
-		return -ENOIOCTLCMD;
-	}
+	mutex_lock(&port->port.mutex);
+/*	ss->type = ? */
+	ss->line = port - isi_ports;
+	ss->port = port->card->base;
+	ss->irq = port->card->irq;
+	ss->flags = port->port.flags;
+/*	ss->baud_base = ? */
+	ss->close_delay = port->port.close_delay;
+	ss->closing_wait = port->port.closing_wait;
+	mutex_unlock(&port->port.mutex);
 	return 0;
 }
 
@@ -1273,7 +1249,6 @@ static const struct tty_operations isicom_ops = {
 	.flush_chars		= isicom_flush_chars,
 	.write_room		= isicom_write_room,
 	.chars_in_buffer	= isicom_chars_in_buffer,
-	.ioctl			= isicom_ioctl,
 	.set_termios		= isicom_set_termios,
 	.throttle		= isicom_throttle,
 	.unthrottle		= isicom_unthrottle,
@@ -1284,6 +1259,8 @@ static const struct tty_operations isicom_ops = {
 	.tiocmget		= isicom_tiocmget,
 	.tiocmset		= isicom_tiocmset,
 	.break_ctl		= isicom_send_break,
+	.get_serial		= isicom_get_serial_info,
+	.set_serial		= isicom_set_serial_info,
 };
 
 static const struct tty_port_operations isicom_port_ops = {
@@ -1537,7 +1514,7 @@ static unsigned int card_count;
 static int isicom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
-	unsigned int uninitialized_var(signature), index;
+	unsigned int signature, index;
 	int retval = -EPERM;
 	struct isi_board *board = NULL;
 

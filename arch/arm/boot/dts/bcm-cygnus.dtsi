@@ -34,15 +34,20 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/bcm-cygnus.h>
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "brcm,cygnus";
 	model = "Broadcom Cygnus SoC";
 	interrupt-parent = <&gic>;
 
 	aliases {
 		ethernet0 = &eth0;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0>;
 	};
 
 	cpus {
@@ -64,7 +69,7 @@
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	core {
+	core@19000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x19000000 0x1000000>;
 		#address-cells = <1>;
@@ -86,7 +91,7 @@
 			      <0x20100 0x100>;
 		};
 
-		L2: l2-cache {
+		L2: cache-controller@22000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x22000 0x1000>;
 			cache-unified;
@@ -169,8 +174,8 @@
 		mdio: mdio@18002000 {
 			compatible = "brcm,iproc-mdio";
 			reg = <0x18002000 0x8>;
-			#size-cells = <1>;
-			#address-cells = <0>;
+			#size-cells = <0>;
+			#address-cells = <1>;
 			status = "disabled";
 
 			gphy0: ethernet-phy@0 {
@@ -229,8 +234,8 @@
 			compatible = "arm,sp805" , "arm,primecell";
 			reg = <0x18009000 0x1000>;
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&axi81_clk>;
-			clock-names = "apb_pclk";
+			clocks = <&axi81_clk>, <&axi81_clk>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		gpio_ccm: gpio@1800a000 {

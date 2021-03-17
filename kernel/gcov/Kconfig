@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "GCOV-based kernel profiling"
 
 config GCOV_KERNEL
@@ -5,7 +6,7 @@ config GCOV_KERNEL
 	depends on DEBUG_FS
 	select CONSTRUCTORS if !UML
 	default n
-	---help---
+	help
 	This option enables gcov-based code profiling (e.g. for code coverage
 	measurements).
 
@@ -41,7 +42,7 @@ config GCOV_PROFILE_ALL
 	depends on GCOV_KERNEL
 	depends on ARCH_HAS_GCOV_PROFILE_ALL
 	default n
-	---help---
+	help
 	This options activates profiling for the entire kernel.
 
 	If unsure, say N.
@@ -49,28 +50,5 @@ config GCOV_PROFILE_ALL
 	Note that a kernel compiled with profiling flags will be significantly
 	larger and run slower. Also be sure to exclude files from profiling
 	which are not linked to the kernel image to prevent linker errors.
-
-choice
-	prompt "Specify GCOV format"
-	depends on GCOV_KERNEL
-	---help---
-	The gcov format is usually determined by the GCC version, and the
-	default is chosen according to your GCC version. However, there are
-	exceptions where format changes are integrated in lower-version GCCs.
-	In such a case, change this option to adjust the format used in the
-	kernel accordingly.
-
-config GCOV_FORMAT_3_4
-	bool "GCC 3.4 format"
-	depends on CC_IS_GCC && GCC_VERSION < 40700
-	---help---
-	Select this option to use the format defined by GCC 3.4.
-
-config GCOV_FORMAT_4_7
-	bool "GCC 4.7 format"
-	---help---
-	Select this option to use the format defined by GCC 4.7.
-
-endchoice
 
 endmenu

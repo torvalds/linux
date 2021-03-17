@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1996-2001  Linus Torvalds & author (see below)
  */
@@ -298,7 +299,7 @@ static void __init qd6500_init_dev(ide_drive_t *drive)
 static void __init qd6580_init_dev(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u16 t1, t2;
+	unsigned long t1, t2;
 	u8 base = (hwif->config_data & 0xff00) >> 8;
 	u8 config = QD_CONFIG(hwif);
 

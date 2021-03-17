@@ -1,4 +1,4 @@
-For all of the nmem device attributes under nfit/*, see the 'NVDIMM Firmware
+For all of the nmem device attributes under ``nfit/*``, see the 'NVDIMM Firmware
 Interface Table (NFIT)' section in the ACPI specification
 (http://www.uefi.org/specifications) for more details.
 
@@ -202,6 +202,25 @@ Description:
 		functions. See the section named 'NVDIMM Root Device _DSMs' in
 		the ACPI specification.
 
+What:		/sys/bus/nd/devices/ndbusX/nfit/firmware_activate_noidle
+Date:		Apr, 2020
+KernelVersion:	v5.8
+Contact:	linux-nvdimm@lists.01.org
+Description:
+		(RW) The Intel platform implementation of firmware activate
+		support exposes an option let the platform force idle devices in
+		the system over the activation event, or trust that the OS will
+		do it. The safe default is to let the platform force idle
+		devices since the kernel is already in a suspend state, and on
+		the chance that a driver does not properly quiesce bus-mastering
+		after a suspend callback the platform will handle it.  However,
+		the activation might abort if, for example, platform firmware
+		determines that the activation time exceeds the max PCI-E
+		completion timeout. Since the platform does not know whether the
+		OS is running the activation from a suspend context it aborts,
+		but if the system owner trusts driver suspend callback to be
+		sufficient then 'firmware_activation_noidle' can be
+		enabled to bypass the activation abort.
 
 What:		/sys/bus/nd/devices/regionX/nfit/range_index
 Date:		Jun, 2015

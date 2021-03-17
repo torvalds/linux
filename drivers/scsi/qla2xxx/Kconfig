@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SCSI_QLA_FC
 	tristate "QLogic QLA2XXX Fibre Channel Support"
 	depends on PCI && SCSI
@@ -5,7 +6,7 @@ config SCSI_QLA_FC
 	depends on NVME_FC || !NVME_FC
 	select FW_LOADER
 	select BTREE
-	---help---
+	help
 	This qla2xxx driver supports all QLogic Fibre Channel
 	PCI and PCIe host adapters.
 
@@ -36,14 +37,14 @@ config TCM_QLA2XXX
 	depends on LIBFC
 	select BTREE
 	default n
-	---help---
+	help
 	Say Y here to enable the TCM_QLA2XXX fabric module for QLogic 24xx+ series target mode HBAs
 
 if TCM_QLA2XXX
 config TCM_QLA2XXX_DEBUG
 	bool "TCM_QLA2XXX fabric module DEBUG mode for QLogic 24xx+ series target mode HBAs"
 	default n
-	---help---
+	help
 	Say Y here to enable the TCM_QLA2XXX fabric module DEBUG for QLogic 24xx+ series target mode HBAs
 	This will include code to enable the SCSI command jammer
 endif

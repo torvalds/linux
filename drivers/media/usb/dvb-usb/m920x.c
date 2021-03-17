@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant linux driver for MSI Mega Sky 580 DVB-T USB2.0 receiver
  *
  * Copyright (C) 2006 Aapo Tahkola (aet@rasterburn.org)
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the
- *	Free Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 
 #include "m920x.h"
@@ -462,8 +459,8 @@ static int m920x_firmware_download(struct usb_device *udev, const struct firmwar
 
 /* Callbacks for DVB USB */
 static int m920x_identify_state(struct usb_device *udev,
-				struct dvb_usb_device_properties *props,
-				struct dvb_usb_device_description **desc,
+				const struct dvb_usb_device_properties *props,
+				const struct dvb_usb_device_description **desc,
 				int *cold)
 {
 	struct usb_host_interface *alt;

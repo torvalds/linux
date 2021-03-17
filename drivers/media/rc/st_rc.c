@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2013 STMicroelectronics Limited
  * Author: Srinivas Kandagatla <srinivas.kandagatla@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/clk.h>
@@ -67,8 +63,7 @@ struct st_rc_device {
 
 static void st_rc_send_lirc_timeout(struct rc_dev *rdev)
 {
-	DEFINE_IR_RAW_EVENT(ev);
-	ev.timeout = true;
+	struct ir_raw_event ev = { .timeout = true, .duration = rdev->timeout };
 	ir_raw_event_store(rdev, &ev);
 }
 
@@ -101,7 +96,7 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 	struct st_rc_device *dev = data;
 	int last_symbol = 0;
 	u32 status, int_status;
-	DEFINE_IR_RAW_EVENT(ev);
+	struct ir_raw_event ev = {};
 
 	if (dev->irq_wake)
 		pm_wakeup_event(dev->dev, 0);
@@ -139,12 +134,12 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 				mark /= dev->sample_div;
 			}
 
-			ev.duration = US_TO_NS(mark);
+			ev.duration = mark;
 			ev.pulse = true;
 			ir_raw_event_store(dev->rdev, &ev);
 
 			if (!last_symbol) {
-				ev.duration = US_TO_NS(symbol);
+				ev.duration = symbol;
 				ev.pulse = false;
 				ir_raw_event_store(dev->rdev, &ev);
 			} else  {
@@ -297,7 +292,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	/* rx sampling rate is 10Mhz */
 	rdev->rx_resolution = 100;
-	rdev->timeout = US_TO_NS(MAX_SYMB_TIME);
+	rdev->timeout = MAX_SYMB_TIME;
 	rdev->priv = rc_dev;
 	rdev->open = st_rc_open;
 	rdev->close = st_rc_close;

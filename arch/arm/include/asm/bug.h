@@ -62,8 +62,8 @@ do {								\
 struct pt_regs;
 void die(const char *msg, struct pt_regs *regs, int err);
 
-struct siginfo;
-void arm_notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+void arm_notify_die(const char *str, struct pt_regs *regs,
+		int signo, int si_code, void __user *addr,
 		unsigned long err, unsigned long trap);
 
 #ifdef CONFIG_ARM_LPAE
@@ -82,10 +82,11 @@ void hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int,
 				       struct pt_regs *),
 		     int sig, int code, const char *name);
 
-extern asmlinkage void c_backtrace(unsigned long fp, int pmode);
+extern asmlinkage void c_backtrace(unsigned long fp, int pmode,
+				   const char *loglvl);
 
 struct mm_struct;
-extern void show_pte(struct mm_struct *mm, unsigned long addr);
+void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 
 #endif

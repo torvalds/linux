@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * arch/arm/mach-prima2/include/mach/debug-macro.S
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #define SIRF_LLUART_TXFIFO_STATUS	0x0114
@@ -30,7 +29,10 @@
 	.macro	busyuart,rd,rx
 	.endm
 
-	.macro	waituart,rd,rx
+	.macro	waituartcts,rd,rx
+	.endm
+
+	.macro	waituarttxrdy,rd,rx
 1001:	ldr	\rd, [\rx, #SIRF_LLUART_TXFIFO_STATUS]
 	tst	\rd, #SIRF_LLUART_TXFIFO_EMPTY
 	beq	1001b

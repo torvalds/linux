@@ -40,7 +40,7 @@
 
 #include <linux/timex.h>
 
-static unsigned long clocktick __read_mostly;	/* timer cycles per tick */
+static unsigned long clocktick __ro_after_init;	/* timer cycles per tick */
 
 /*
  * We keep time on PA-RISC Linux by using the Interval Timer which is
@@ -180,9 +180,16 @@ static int rtc_generic_get_time(struct device *dev, struct rtc_time *tm)
 static int rtc_generic_set_time(struct device *dev, struct rtc_time *tm)
 {
 	time64_t secs = rtc_tm_to_time64(tm);
+	int ret;
 
-	if (pdc_tod_set(secs, 0) < 0)
+	/* hppa has Y2K38 problem: pdc_tod_set() takes an u32 value! */
+	ret = pdc_tod_set(secs, 0);
+	if (ret != 0) {
+		pr_warn("pdc_tod_set(%lld) returned error %d\n", secs, ret);
+		if (ret == PDC_INVALID_ARG)
+			return -EINVAL;
 		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }

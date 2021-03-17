@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for the CC770 and AN82527 CAN controllers
  *
  * Copyright (C) 2009, 2011 Wolfgang Grandegger <wg@grandegger.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -546,7 +538,7 @@ static int cc770_err(struct net_device *dev, u8 status)
 			priv->can.can_stats.error_warning++;
 		}
 	} else {
-		/* Back to error avtive */
+		/* Back to error active */
 		cf->can_id |= CAN_ERR_PROT;
 		cf->data[2] = CAN_ERR_PROT_ACTIVE;
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;

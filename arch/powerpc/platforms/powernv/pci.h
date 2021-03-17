@@ -2,14 +2,12 @@
 #ifndef __POWERNV_PCI_H
 #define __POWERNV_PCI_H
 
+#include <linux/compiler.h>		/* for __printf */
 #include <linux/iommu.h>
 #include <asm/iommu.h>
 #include <asm/msi_bitmap.h>
 
 struct pci_dn;
-
-/* Maximum possible number of ATSD MMIO registers per NPU */
-#define NV_NMMU_ATSD_REGS 8
 
 enum pnv_phb_type {
 	PNV_PHB_IODA1		= 0,
@@ -34,6 +32,24 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_MASTER	(1 << 3)	/* Master PE in compound case	*/
 #define PNV_IODA_PE_SLAVE	(1 << 4)	/* Slave PE in compound case	*/
 #define PNV_IODA_PE_VF		(1 << 5)	/* PE for one VF 		*/
+
+/*
+ * A brief note on PNV_IODA_PE_BUS_ALL
+ *
+ * This is needed because of the behaviour of PCIe-to-PCI bridges. The PHB uses
+ * the Requester ID field of the PCIe request header to determine the device
+ * (and PE) that initiated a DMA. In legacy PCI individual memory read/write
+ * requests aren't tagged with the RID. To work around this the PCIe-to-PCI
+ * bridge will use (secondary_bus_no << 8) | 0x00 as the RID on the PCIe side.
+ *
+ * PCIe-to-X bridges have a similar issue even though PCI-X requests also have
+ * a RID in the transaction header. The PCIe-to-X bridge is permitted to "take
+ * ownership" of a transaction by a PCI-X device when forwarding it to the PCIe
+ * side of the bridge.
+ *
+ * To work around these problems we use the BUS_ALL flag since every subordinate
+ * bus of the bridge should go into the same PE.
+ */
 
 /* Indicates operations are frozen for a PE: MMIO in PESTA & DMA in PESTB. */
 #define PNV_IODA_STOPPED_STATE	0x8000000000000000
@@ -65,12 +81,20 @@ struct pnv_ioda_pe {
 
 	/* "Base" iommu table, ie, 4K TCEs, 32-bit DMA */
 	struct iommu_table_group table_group;
+	struct npu_comp		*npucomp;
 
 	/* 64-bit TCE bypass region */
 	bool			tce_bypass_enabled;
 	uint64_t		tce_bypass_base;
 
-	/* MSIs. MVE index is identical for for 32 and 64 bit MSI
+	/*
+	 * Used to track whether we've done DMA setup for this PE or not. We
+	 * want to defer allocating TCE tables, etc until we've added a
+	 * non-bridge device to the PE.
+	 */
+	bool			dma_setup_done;
+
+	/* MSIs. MVE index is identical for 32 and 64 bit MSI
 	 * and -1 if not supported. (It's actually identical to the
 	 * PE number)
 	 */
@@ -79,9 +103,6 @@ struct pnv_ioda_pe {
 	/* PEs in compound case */
 	struct pnv_ioda_pe	*master;
 	struct list_head	slaves;
-
-	/* PCI peer-to-peer*/
-	int			p2p_initiator_count;
 
 	/* Link in list of PE#s */
 	struct list_head	list;
@@ -106,20 +127,13 @@ struct pnv_phb {
 	struct dentry		*dbgfs;
 #endif
 
-#ifdef CONFIG_PCI_MSI
 	unsigned int		msi_base;
 	unsigned int		msi32_support;
 	struct msi_bitmap	msi_bmp;
-#endif
 	int (*msi_setup)(struct pnv_phb *phb, struct pci_dev *dev,
 			 unsigned int hwirq, unsigned int virq,
 			 unsigned int is_64, struct msi_msg *msg);
-	void (*dma_dev_setup)(struct pnv_phb *phb, struct pci_dev *pdev);
-	void (*fixup_phb)(struct pci_controller *hose);
 	int (*init_m64)(struct pnv_phb *phb);
-	void (*reserve_m64_pe)(struct pci_bus *bus,
-			       unsigned long *pe_bitmap, bool all);
-	struct pnv_ioda_pe *(*pick_m64_pe)(struct pci_bus *bus, bool all);
 	int (*get_pe_state)(struct pnv_phb *phb, int pe_no);
 	void (*freeze_pe)(struct pnv_phb *phb, int pe_no);
 	int (*unfreeze_pe)(struct pnv_phb *phb, int pe_no, int opt);
@@ -129,7 +143,6 @@ struct pnv_phb {
 		unsigned int		total_pe_num;
 		unsigned int		reserved_pe_idx;
 		unsigned int		root_pe_idx;
-		bool			root_pe_populated;
 
 		/* 32-bit MMIO window */
 		unsigned int		m32_size;
@@ -141,6 +154,7 @@ struct pnv_phb {
 		unsigned long		m64_size;
 		unsigned long		m64_segsize;
 		unsigned long		m64_base;
+#define MAX_M64_BARS 64
 		unsigned long		m64_bar_alloc;
 
 		/* IO ports */
@@ -179,22 +193,90 @@ struct pnv_phb {
 	/* PHB and hub diagnostics */
 	unsigned int		diag_data_size;
 	u8			*diag_data;
-
-	/* Nvlink2 data */
-	struct npu {
-		int index;
-		__be64 *mmio_atsd_regs[NV_NMMU_ATSD_REGS];
-		unsigned int mmio_atsd_count;
-
-		/* Bitmask for MMIO register usage */
-		unsigned long mmio_atsd_usage;
-
-		/* Do we need to explicitly flush the nest mmu? */
-		bool nmmu_flush;
-	} npu;
-
-	int p2p_target_count;
 };
+
+
+/* IODA PE management */
+
+static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
+{
+	/*
+	 * WARNING: We cannot rely on the resource flags. The Linux PCI
+	 * allocation code sometimes decides to put a 64-bit prefetchable
+	 * BAR in the 32-bit window, so we have to compare the addresses.
+	 *
+	 * For simplicity we only test resource start.
+	 */
+	return (r->start >= phb->ioda.m64_base &&
+		r->start < (phb->ioda.m64_base + phb->ioda.m64_size));
+}
+
+static inline bool pnv_pci_is_m64_flags(unsigned long resource_flags)
+{
+	unsigned long flags = (IORESOURCE_MEM_64 | IORESOURCE_PREFETCH);
+
+	return (resource_flags & flags) == flags;
+}
+
+int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe);
+int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe);
+
+void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe);
+void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe);
+
+struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb, int count);
+void pnv_ioda_free_pe(struct pnv_ioda_pe *pe);
+
+#ifdef CONFIG_PCI_IOV
+/*
+ * For SR-IOV we want to put each VF's MMIO resource in to a separate PE.
+ * This requires a bit of acrobatics with the MMIO -> PE configuration
+ * and this structure is used to keep track of it all.
+ */
+struct pnv_iov_data {
+	/* number of VFs enabled */
+	u16     num_vfs;
+
+	/* pointer to the array of VF PEs. num_vfs long*/
+	struct pnv_ioda_pe *vf_pe_arr;
+
+	/* Did we map the VF BAR with single-PE IODA BARs? */
+	bool    m64_single_mode[PCI_SRIOV_NUM_BARS];
+
+	/*
+	 * True if we're using any segmented windows. In that case we need
+	 * shift the start of the IOV resource the segment corresponding to
+	 * the allocated PE.
+	 */
+	bool    need_shift;
+
+	/*
+	 * Bit mask used to track which m64 windows are used to map the
+	 * SR-IOV BARs for this device.
+	 */
+	DECLARE_BITMAP(used_m64_bar_mask, MAX_M64_BARS);
+
+	/*
+	 * If we map the SR-IOV BARs with a segmented window then
+	 * parts of that window will be "claimed" by other PEs.
+	 *
+	 * "holes" here is used to reserve the leading portion
+	 * of the window that is used by other (non VF) PEs.
+	 */
+	struct resource holes[PCI_SRIOV_NUM_BARS];
+};
+
+static inline struct pnv_iov_data *pnv_iov_get(struct pci_dev *pdev)
+{
+	return pdev->dev.archdata.iov_data;
+}
+
+void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev);
+resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev, int resno);
+
+int pnv_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs);
+int pnv_pcibios_sriov_disable(struct pci_dev *pdev);
+#endif /* CONFIG_PCI_IOV */
 
 extern struct pci_ops pnv_pci_ops;
 
@@ -210,18 +292,20 @@ extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 extern void pnv_pci_init_npu_phb(struct device_node *np);
 extern void pnv_pci_init_npu2_opencapi_phb(struct device_node *np);
+extern void pnv_npu2_map_lpar(struct pnv_ioda_pe *gpe, unsigned long msr);
 extern void pnv_pci_reset_secondary_bus(struct pci_dev *dev);
 extern int pnv_eeh_phb_reset(struct pci_controller *hose, int option);
 
-extern void pnv_pci_dma_dev_setup(struct pci_dev *pdev);
-extern void pnv_pci_dma_bus_setup(struct pci_bus *bus);
 extern int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
 extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
+extern struct pnv_ioda_pe *pnv_pci_bdfn_to_pe(struct pnv_phb *phb, u16 bdfn);
 extern struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev);
 extern void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq);
-extern void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable);
+extern unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
+		__u64 window_size, __u32 levels);
 extern int pnv_eeh_post_init(void);
 
+__printf(3, 4)
 extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			    const char *fmt, ...);
 #define pe_err(pe, fmt, ...)					\
@@ -234,16 +318,10 @@ extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 /* Nvlink functions */
 extern void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass);
 extern void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm);
-extern struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe);
-extern long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
-		struct iommu_table *tbl);
-extern long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num);
-extern void pnv_npu_take_ownership(struct pnv_ioda_pe *npe);
-extern void pnv_npu_release_ownership(struct pnv_ioda_pe *npe);
-extern int pnv_npu2_init(struct pnv_phb *phb);
+extern void pnv_pci_npu_setup_iommu_groups(void);
 
 /* pci-ioda-tce.c */
-#define POWERNV_IOMMU_DEFAULT_LEVELS	1
+#define POWERNV_IOMMU_DEFAULT_LEVELS	2
 #define POWERNV_IOMMU_MAX_LEVELS	5
 
 extern int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
@@ -270,5 +348,17 @@ extern void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
 extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 		void *tce_mem, u64 tce_size,
 		u64 dma_offset, unsigned int page_shift);
+
+extern unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb);
+
+static inline struct pnv_phb *pci_bus_to_pnvhb(struct pci_bus *bus)
+{
+	struct pci_controller *hose = bus->sysdata;
+
+	if (hose)
+		return hose->private_data;
+
+	return NULL;
+}
 
 #endif /* __POWERNV_PCI_H */

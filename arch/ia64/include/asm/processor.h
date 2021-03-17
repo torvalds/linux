@@ -280,15 +280,6 @@ struct thread_struct {
 	__u64 map_base;			/* base address for get_unmapped_area() */
 	__u64 rbs_bot;			/* the base address for the RBS */
 	int last_fph_cpu;		/* CPU that may hold the contents of f32-f127 */
-
-#ifdef CONFIG_PERFMON
-	void *pfm_context;		     /* pointer to detailed PMU context */
-	unsigned long pfm_needs_checking;    /* when >0, pending perfmon work on kernel exit */
-# define INIT_THREAD_PM		.pfm_context =		NULL,     \
-				.pfm_needs_checking =	0UL,
-#else
-# define INIT_THREAD_PM
-#endif
 	unsigned long dbr[IA64_NUM_DBG_REGS];
 	unsigned long ibr[IA64_NUM_DBG_REGS];
 	struct ia64_fpreg fph[96];	/* saved/loaded on demand */
@@ -301,7 +292,6 @@ struct thread_struct {
 	.map_base =	DEFAULT_MAP_BASE,			\
 	.rbs_bot =	STACK_TOP - DEFAULT_USER_STACK_SIZE,	\
 	.last_fph_cpu =  -1,					\
-	INIT_THREAD_PM						\
 	.dbr =		{0, },					\
 	.ibr =		{0, },					\
 	.fph =		{{{{0}}}, }				\
@@ -602,12 +592,6 @@ ia64_set_unat (__u64 *unat, void *spill_addr, unsigned long nat)
 	*unat = (*unat & ~mask) | (nat << bit);
 }
 
-/*
- * Get the current instruction/program counter value.
- */
-#define current_text_addr() \
-	({ void *_pc; _pc = (void *)ia64_getreg(_IA64_REG_IP); _pc; })
-
 static inline __u64
 ia64_get_ivr (void)
 {
@@ -684,8 +668,6 @@ enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_FORCE_MWAIT,
 			 IDLE_NOMWAIT, IDLE_POLL};
 
 void default_idle(void);
-
-#define ia64_platform_is(x) (strcmp(x, ia64_platform_name) == 0)
 
 #endif /* !__ASSEMBLY__ */
 

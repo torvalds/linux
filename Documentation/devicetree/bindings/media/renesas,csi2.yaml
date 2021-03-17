@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2020 Renesas Electronics Corp.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/renesas,csi2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car MIPI CSI-2 receiver
+
+maintainers:
+  - Niklas Söderlund <niklas.soderlund@ragnatech.se>
+
+description:
+  The R-Car CSI-2 receiver device provides MIPI CSI-2 capabilities for the
+  Renesas R-Car and RZ/G2 family of devices. It is used in conjunction with the
+  R-Car VIN module, which provides the video capture capabilities.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,r8a774a1-csi2 # RZ/G2M
+          - renesas,r8a774b1-csi2 # RZ/G2N
+          - renesas,r8a774c0-csi2 # RZ/G2E
+          - renesas,r8a774e1-csi2 # RZ/G2H
+          - renesas,r8a7795-csi2  # R-Car H3
+          - renesas,r8a7796-csi2  # R-Car M3-W
+          - renesas,r8a77965-csi2 # R-Car M3-N
+          - renesas,r8a77970-csi2 # R-Car V3M
+          - renesas,r8a77980-csi2 # R-Car V3H
+          - renesas,r8a77990-csi2 # R-Car E3
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  ports:
+    type: object
+    description:
+      A node containing input and output port nodes with endpoint definitions
+      as documented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
+
+    properties:
+      port@0:
+        type: object
+        description:
+          Input port node, single endpoint describing the CSI-2 transmitter.
+
+        properties:
+          reg:
+            const: 0
+
+          endpoint:
+            type: object
+
+            properties:
+              clock-lanes:
+                maxItems: 1
+
+              data-lanes:
+                maxItems: 1
+
+              remote-endpoint: true
+
+            required:
+              - clock-lanes
+              - data-lanes
+              - remote-endpoint
+
+            additionalProperties: false
+
+        additionalProperties: false
+
+      port@1:
+        type: object
+        description:
+          Output port node, multiple endpoints describing all the R-Car VIN
+          modules connected the CSI-2 receiver.
+
+        properties:
+          '#address-cells':
+            const: 1
+
+          '#size-cells':
+            const: 0
+
+          reg:
+            const: 1
+
+        patternProperties:
+          "^endpoint@[0-9a-f]$":
+            type: object
+
+            properties:
+              reg:
+                maxItems: 1
+
+              remote-endpoint: true
+
+            required:
+              - reg
+              - remote-endpoint
+
+            additionalProperties: false
+
+        additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - power-domains
+  - resets
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7796-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7796-sysc.h>
+
+    csi20: csi2@fea80000 {
+            compatible = "renesas,r8a7796-csi2";
+            reg = <0xfea80000 0x10000>;
+            interrupts = <0 184 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 714>;
+            power-domains = <&sysc R8A7796_PD_ALWAYS_ON>;
+            resets = <&cpg 714>;
+
+            ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    port@0 {
+                            reg = <0>;
+
+                            csi20_in: endpoint {
+                                    clock-lanes = <0>;
+                                    data-lanes = <1>;
+                                    remote-endpoint = <&adv7482_txb>;
+                            };
+                    };
+
+                    port@1 {
+                            #address-cells = <1>;
+                            #size-cells = <0>;
+
+                            reg = <1>;
+
+                            csi20vin0: endpoint@0 {
+                                    reg = <0>;
+                                    remote-endpoint = <&vin0csi20>;
+                            };
+                            csi20vin1: endpoint@1 {
+                                    reg = <1>;
+                                    remote-endpoint = <&vin1csi20>;
+                            };
+                            csi20vin2: endpoint@2 {
+                                    reg = <2>;
+                                    remote-endpoint = <&vin2csi20>;
+                            };
+                            csi20vin3: endpoint@3 {
+                                    reg = <3>;
+                                    remote-endpoint = <&vin3csi20>;
+                            };
+                            csi20vin4: endpoint@4 {
+                                    reg = <4>;
+                                    remote-endpoint = <&vin4csi20>;
+                            };
+                            csi20vin5: endpoint@5 {
+                                    reg = <5>;
+                                    remote-endpoint = <&vin5csi20>;
+                            };
+                            csi20vin6: endpoint@6 {
+                                    reg = <6>;
+                                    remote-endpoint = <&vin6csi20>;
+                            };
+                            csi20vin7: endpoint@7 {
+                                    reg = <7>;
+                                    remote-endpoint = <&vin7csi20>;
+                            };
+                    };
+            };
+    };

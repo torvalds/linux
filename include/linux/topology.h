@@ -27,6 +27,7 @@
 #ifndef _LINUX_TOPOLOGY_H
 #define _LINUX_TOPOLOGY_H
 
+#include <linux/arch_topology.h>
 #include <linux/cpumask.h>
 #include <linux/bitops.h>
 #include <linux/mmzone.h>
@@ -59,6 +60,20 @@ int arch_update_cpu_topology(void);
  */
 #define RECLAIM_DISTANCE 30
 #endif
+
+/*
+ * The following tunable allows platforms to override the default node
+ * reclaim distance (RECLAIM_DISTANCE) if remote memory accesses are
+ * sufficiently fast that the default value actually hurts
+ * performance.
+ *
+ * AMD EPYC machines use this because even though the 2-hop distance
+ * is 32 (3.2x slower than a local memory access) performance actually
+ * *improves* if allowed to reclaim memory and load balance tasks
+ * between NUMA nodes 2-hops apart.
+ */
+extern int __read_mostly node_reclaim_distance;
+
 #ifndef PENALTY_FOR_NODE_WITH_CPUS
 #define PENALTY_FOR_NODE_WITH_CPUS	(1)
 #endif
@@ -115,20 +130,11 @@ static inline int numa_node_id(void)
  * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
  */
 DECLARE_PER_CPU(int, _numa_mem_);
-extern int _node_numa_mem_[MAX_NUMNODES];
 
 #ifndef set_numa_mem
 static inline void set_numa_mem(int node)
 {
 	this_cpu_write(_numa_mem_, node);
-	_node_numa_mem_[numa_node_id()] = node;
-}
-#endif
-
-#ifndef node_to_mem_node
-static inline int node_to_mem_node(int node)
-{
-	return _node_numa_mem_[node];
 }
 #endif
 
@@ -151,7 +157,6 @@ static inline int cpu_to_mem(int cpu)
 static inline void set_cpu_numa_mem(int cpu, int node)
 {
 	per_cpu(_numa_mem_, cpu) = node;
-	_node_numa_mem_[cpu_to_node(cpu)] = node;
 }
 #endif
 
@@ -162,13 +167,6 @@ static inline void set_cpu_numa_mem(int cpu, int node)
 static inline int numa_mem_id(void)
 {
 	return numa_node_id();
-}
-#endif
-
-#ifndef node_to_mem_node
-static inline int node_to_mem_node(int node)
-{
-	return node;
 }
 #endif
 
@@ -184,6 +182,9 @@ static inline int cpu_to_mem(int cpu)
 #ifndef topology_physical_package_id
 #define topology_physical_package_id(cpu)	((void)(cpu), -1)
 #endif
+#ifndef topology_die_id
+#define topology_die_id(cpu)			((void)(cpu), -1)
+#endif
 #ifndef topology_core_id
 #define topology_core_id(cpu)			((void)(cpu), 0)
 #endif
@@ -193,8 +194,11 @@ static inline int cpu_to_mem(int cpu)
 #ifndef topology_core_cpumask
 #define topology_core_cpumask(cpu)		cpumask_of(cpu)
 #endif
+#ifndef topology_die_cpumask
+#define topology_die_cpumask(cpu)		cpumask_of(cpu)
+#endif
 
-#ifdef CONFIG_SCHED_SMT
+#if defined(CONFIG_SCHED_SMT) && !defined(cpu_smt_mask)
 static inline const struct cpumask *cpu_smt_mask(int cpu)
 {
 	return topology_sibling_cpumask(cpu);

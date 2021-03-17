@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
  *
- * Device tree source file for SAMSUNG SMDK6410 board which is based on
+ * Device tree source file for Samsung SMDK6410 board which is based on
  * Samsung's S3C6410 SoC.
  */
 
@@ -16,7 +16,7 @@
 #include "s3c6410.dtsi"
 
 / {
-	model = "SAMSUNG SMDK6410 board based on S3C6410";
+	model = "Samsung SMDK6410 board based on S3C6410";
 	compatible = "samsung,mini6410", "samsung,s3c6410";
 
 	memory@50000000 {
@@ -28,29 +28,21 @@
 		bootargs = "console=ttySAC0,115200n8 earlyprintk rootwait root=/dev/mmcblk0p1";
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		fin_pll: oscillator@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			clock-frequency = <12000000>;
-			clock-output-names = "fin_pll";
-			#clock-cells = <0>;
-		};
-
-		xusbxti: oscillator@1 {
-			compatible = "fixed-clock";
-			reg = <1>;
-			clock-output-names = "xusbxti";
-			clock-frequency = <48000000>;
-			#clock-cells = <0>;
-		};
+	fin_pll: oscillator-0 {
+		compatible = "fixed-clock";
+		clock-frequency = <12000000>;
+		clock-output-names = "fin_pll";
+		#clock-cells = <0>;
 	};
 
-	srom-cs1@18000000 {
+	xusbxti: oscillator-1 {
+		compatible = "fixed-clock";
+		clock-output-names = "xusbxti";
+		clock-frequency = <48000000>;
+		#clock-cells = <0>;
+	};
+
+	srom-cs1-bus@18000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -67,6 +59,10 @@
 			smsc,force-internal-phy;
 		};
 	};
+};
+
+&clocks {
+	clocks = <&fin_pll>;
 };
 
 &sdhci0 {

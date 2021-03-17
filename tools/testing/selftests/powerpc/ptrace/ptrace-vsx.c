@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ptrace test for VMX/VSX registers
  *
  * Copyright (C) 2015 Anshuman Khandual, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include "ptrace.h"
 #include "ptrace-vsx.h"
@@ -64,6 +60,8 @@ int ptrace_vsx(void)
 {
 	pid_t pid;
 	int ret, status, i;
+
+	SKIP_IF(!have_hwcap(PPC_FEATURE_HAS_VSX));
 
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 2, 0777|IPC_CREAT);
 

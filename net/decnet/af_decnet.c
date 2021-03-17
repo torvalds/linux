@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
@@ -46,15 +47,6 @@
 /******************************************************************************
     (c) 1995-1998 E.M. Serrat		emserrat@geocities.com
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 
 HISTORY:
 
@@ -158,7 +150,8 @@ static struct hlist_head dn_sk_hash[DN_SK_HASH_SIZE];
 static struct hlist_head dn_wild_sk;
 static atomic_long_t decnet_memory_allocated;
 
-static int __dn_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen, int flags);
+static int __dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen, int flags);
 static int __dn_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen, int flags);
 
 static struct hlist_head *dn_find_list(struct sock *sk)
@@ -192,7 +185,7 @@ static int check_port(__le16 port)
 static unsigned short port_alloc(struct sock *sk)
 {
 	struct dn_scp *scp = DN_SK(sk);
-static unsigned short port = 0x2000;
+	static unsigned short port = 0x2000;
 	unsigned short i_port = port;
 
 	while(check_port(cpu_to_le16(++port)) != 0) {
@@ -444,7 +437,7 @@ static void dn_destruct(struct sock *sk)
 	skb_queue_purge(&scp->other_xmit_queue);
 	skb_queue_purge(&scp->other_receive_queue);
 
-	dst_release(rcu_dereference_check(sk->sk_dst_cache, 1));
+	dst_release(rcu_dereference_protected(sk->sk_dst_cache, 1));
 }
 
 static unsigned long dn_memory_pressure;
@@ -630,12 +623,12 @@ static void dn_destroy_sock(struct sock *sk)
 		goto disc_reject;
 	case DN_RUN:
 		scp->state = DN_DI;
-		/* fall through */
+		fallthrough;
 	case DN_DI:
 	case DN_DR:
 disc_reject:
 		dn_nsp_send_disc(sk, NSP_DISCINIT, 0, sk->sk_allocation);
-		/* fall through */
+		fallthrough;
 	case DN_NC:
 	case DN_NR:
 	case DN_RJ:
@@ -649,7 +642,7 @@ disc_reject:
 		break;
 	default:
 		printk(KERN_DEBUG "DECnet: dn_destroy_sock passed socket in invalid state\n");
-		/* fall through */
+		fallthrough;
 	case DN_O:
 		dn_stop_slow_timer(sk);
 
@@ -678,7 +671,7 @@ static int dn_create(struct net *net, struct socket *sock, int protocol,
 {
 	struct sock *sk;
 
-	if (protocol < 0 || protocol > SK_PROTOCOL_MAX)
+	if (protocol < 0 || protocol > U8_MAX)
 		return -EINVAL;
 
 	if (!net_eq(net, &init_net))
@@ -1099,7 +1092,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags,
 	}
 
 	cb = DN_SKB_CB(skb);
-	sk->sk_ack_backlog--;
+	sk_acceptq_removed(sk);
 	newsk = dn_alloc_sock(sock_net(sk), newsock, sk->sk_allocation, kern);
 	if (newsk == NULL) {
 		release_sock(sk);
@@ -1213,7 +1206,7 @@ static __poll_t dn_poll(struct file *file, struct socket *sock, poll_table  *wai
 	struct dn_scp *scp = DN_SK(sk);
 	__poll_t mask = datagram_poll(file, sock, wait);
 
-	if (!skb_queue_empty(&scp->other_receive_queue))
+	if (!skb_queue_empty_lockless(&scp->other_receive_queue))
 		mask |= EPOLLRDBAND;
 
 	return mask;
@@ -1328,7 +1321,8 @@ out:
 	return err;
 }
 
-static int dn_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
+static int dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err;
@@ -1346,7 +1340,8 @@ static int dn_setsockopt(struct socket *sock, int level, int optname, char __use
 	return err;
 }
 
-static int __dn_setsockopt(struct socket *sock, int level,int optname, char __user *optval, unsigned int optlen, int flags)
+static int __dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen, int flags)
 {
 	struct	sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
@@ -1362,13 +1357,13 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 	} u;
 	int err;
 
-	if (optlen && !optval)
+	if (optlen && sockptr_is_null(optval))
 		return -EINVAL;
 
 	if (optlen > sizeof(u))
 		return -EINVAL;
 
-	if (copy_from_user(&u, optval, optlen))
+	if (copy_from_sockptr(&u, optval, optlen))
 		return -EFAULT;
 
 	switch (optname) {
@@ -2142,14 +2137,11 @@ static struct sock *dn_socket_get_next(struct seq_file *seq,
 	struct dn_iter_state *state = seq->private;
 
 	n = sk_next(n);
-try_again:
-	if (n)
-		goto out;
-	if (++state->bucket >= DN_SK_HASH_SIZE)
-		goto out;
-	n = sk_head(&dn_sk_hash[state->bucket]);
-	goto try_again;
-out:
+	while (!n) {
+		if (++state->bucket >= DN_SK_HASH_SIZE)
+			break;
+		n = sk_head(&dn_sk_hash[state->bucket]);
+	}
 	return n;
 }
 
@@ -2405,7 +2397,7 @@ static void __exit decnet_exit(void)
 
 	proto_unregister(&dn_proto);
 
-	rcu_barrier_bh(); /* Wait for completion of call_rcu_bh()'s */
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 module_exit(decnet_exit);
 #endif

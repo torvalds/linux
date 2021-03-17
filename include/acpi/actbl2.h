@@ -3,7 +3,7 @@
  *
  * Name: actbl2.h - ACPI Table Definitions (tables not in ACPI spec)
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -43,6 +43,7 @@
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
 #define ACPI_SIG_SDEI           "SDEI"	/* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SDEV           "SDEV"	/* Secure Devices table */
+#define ACPI_SIG_NHLT           "NHLT"	/* Non-HDAudio Link Table */
 
 /*
  * All tables must be byte-packed to match the ACPI specification, since
@@ -143,7 +144,7 @@ struct acpi_iort_memory_access {
  */
 struct acpi_iort_its_group {
 	u32 its_count;
-	u32 identifiers[1];	/* GIC ITS identifier arrary */
+	u32 identifiers[1];	/* GIC ITS identifier array */
 };
 
 struct acpi_iort_named_component {
@@ -274,7 +275,8 @@ struct acpi_ivrs_header {
 /* Values for subtable Type above */
 
 enum acpi_ivrs_type {
-	ACPI_IVRS_TYPE_HARDWARE = 0x10,
+	ACPI_IVRS_TYPE_HARDWARE1 = 0x10,
+	ACPI_IVRS_TYPE_HARDWARE2 = 0x11,
 	ACPI_IVRS_TYPE_MEMORY1 = 0x20,
 	ACPI_IVRS_TYPE_MEMORY2 = 0x21,
 	ACPI_IVRS_TYPE_MEMORY3 = 0x22
@@ -301,13 +303,26 @@ enum acpi_ivrs_type {
 
 /* 0x10: I/O Virtualization Hardware Definition Block (IVHD) */
 
-struct acpi_ivrs_hardware {
+struct acpi_ivrs_hardware_10 {
 	struct acpi_ivrs_header header;
 	u16 capability_offset;	/* Offset for IOMMU control fields */
 	u64 base_address;	/* IOMMU control registers */
 	u16 pci_segment_group;
 	u16 info;		/* MSI number and unit ID */
-	u32 reserved;
+	u32 feature_reporting;
+};
+
+/* 0x11: I/O Virtualization Hardware Definition Block (IVHD) */
+
+struct acpi_ivrs_hardware_11 {
+	struct acpi_ivrs_header header;
+	u16 capability_offset;	/* Offset for IOMMU control fields */
+	u64 base_address;	/* IOMMU control registers */
+	u16 pci_segment_group;
+	u16 info;		/* MSI number and unit ID */
+	u32 attributes;
+	u64 efr_register_image;
+	u64 reserved;
 };
 
 /* Masks for Info field above */
@@ -623,7 +638,7 @@ struct acpi_madt_local_x2apic_nmi {
 	u8 reserved[3];		/* reserved - must be zero */
 };
 
-/* 11: Generic Interrupt (ACPI 5.0 + ACPI 6.0 changes) */
+/* 11: Generic interrupt - GICC (ACPI 5.0 + ACPI 6.0 + ACPI 6.3 changes) */
 
 struct acpi_madt_generic_interrupt {
 	struct acpi_subtable_header header;
@@ -641,7 +656,8 @@ struct acpi_madt_generic_interrupt {
 	u64 gicr_base_address;
 	u64 arm_mpidr;
 	u8 efficiency_class;
-	u8 reserved2[3];
+	u8 reserved2[1];
+	u16 spe_interrupt;	/* ACPI 6.3 */
 };
 
 /* Masks for Flags field above */
@@ -1361,6 +1377,7 @@ struct acpi_pdtt_channel {
 
 #define ACPI_PDTT_RUNTIME_TRIGGER           (1)
 #define ACPI_PDTT_WAIT_COMPLETION           (1<<1)
+#define ACPI_PDTT_TRIGGER_ORDER             (1<<2)
 
 /*******************************************************************************
  *
@@ -1472,8 +1489,11 @@ struct acpi_pptt_processor {
 
 /* Flags */
 
-#define ACPI_PPTT_PHYSICAL_PACKAGE          (1)	/* Physical package */
-#define ACPI_PPTT_ACPI_PROCESSOR_ID_VALID   (2)	/* ACPI Processor ID valid */
+#define ACPI_PPTT_PHYSICAL_PACKAGE          (1)
+#define ACPI_PPTT_ACPI_PROCESSOR_ID_VALID   (1<<1)
+#define ACPI_PPTT_ACPI_PROCESSOR_IS_THREAD  (1<<2)	/* ACPI 6.3 */
+#define ACPI_PPTT_ACPI_LEAF_NODE            (1<<3)	/* ACPI 6.3 */
+#define ACPI_PPTT_ACPI_IDENTICAL            (1<<4)	/* ACPI 6.3 */
 
 /* 1: Cache Type Structure */
 

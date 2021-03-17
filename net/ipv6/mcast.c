@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Multicast support for IPv6
  *	Linux INET6 implementation
@@ -6,11 +7,6 @@
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	Based on linux/ipv4/igmp.c and linux/ipv4/ip_sockglue.c
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 /* Changes:
@@ -461,7 +457,8 @@ done:
 	return err;
 }
 
-int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
+int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf,
+		    struct sockaddr_storage *list)
 {
 	const struct in6_addr *group;
 	struct ipv6_mc_socklist *pmc;
@@ -513,10 +510,10 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 			goto done;
 		}
 		newpsl->sl_max = newpsl->sl_count = gsf->gf_numsrc;
-		for (i = 0; i < newpsl->sl_count; ++i) {
+		for (i = 0; i < newpsl->sl_count; ++i, ++list) {
 			struct sockaddr_in6 *psin6;
 
-			psin6 = (struct sockaddr_in6 *)&gsf->gf_slist[i];
+			psin6 = (struct sockaddr_in6 *)list;
 			newpsl->sl_addr[i] = psin6->sin6_addr;
 		}
 		err = ip6_mc_add_src(idev, group, gsf->gf_fmode,
@@ -551,7 +548,7 @@ done:
 }
 
 int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
-	struct group_filter __user *optval, int __user *optlen)
+	struct sockaddr_storage *p)
 {
 	int err, i, count, copycount;
 	const struct in6_addr *group;
@@ -596,14 +593,10 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 
 	copycount = count < gsf->gf_numsrc ? count : gsf->gf_numsrc;
 	gsf->gf_numsrc = count;
-	if (put_user(GROUP_FILTER_SIZE(copycount), optlen) ||
-	    copy_to_user(optval, gsf, GROUP_FILTER_SIZE(0))) {
-		return -EFAULT;
-	}
 	/* changes to psl require the socket lock, and a write lock
 	 * on pmc->sflock. We have the socket lock so reading here is safe.
 	 */
-	for (i = 0; i < copycount; i++) {
+	for (i = 0; i < copycount; i++, p++) {
 		struct sockaddr_in6 *psin6;
 		struct sockaddr_storage ss;
 
@@ -611,7 +604,7 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 		memset(&ss, 0, sizeof(ss));
 		psin6->sin6_family = AF_INET6;
 		psin6->sin6_addr = psl->sl_addr[i];
-		if (copy_to_user(&optval->gf_slist[i], &ss, sizeof(ss)))
+		if (copy_to_user(p, &ss, sizeof(ss)))
 			return -EFAULT;
 	}
 	return 0;
@@ -636,7 +629,7 @@ bool inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
 	}
 	if (!mc) {
 		rcu_read_unlock();
-		return true;
+		return np->mc_all;
 	}
 	read_lock(&mc->sflock);
 	psl = mc->sflist;
@@ -791,14 +784,15 @@ static void mld_del_delrec(struct inet6_dev *idev, struct ifmcaddr6 *im)
 	if (pmc) {
 		im->idev = pmc->idev;
 		if (im->mca_sfmode == MCAST_INCLUDE) {
-			im->mca_tomb = pmc->mca_tomb;
-			im->mca_sources = pmc->mca_sources;
+			swap(im->mca_tomb, pmc->mca_tomb);
+			swap(im->mca_sources, pmc->mca_sources);
 			for (psf = im->mca_sources; psf; psf = psf->sf_next)
 				psf->sf_crcount = idev->mc_qrv;
 		} else {
 			im->mca_crcount = idev->mc_qrv;
 		}
 		in6_dev_put(pmc->idev);
+		ip6_mc_clear_src(pmc);
 		kfree(pmc);
 	}
 	spin_unlock_bh(&im->mca_lock);
@@ -940,6 +934,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 {
 	return __ipv6_dev_mc_inc(dev, addr, MCAST_EXCLUDE);
 }
+EXPORT_SYMBOL(ipv6_dev_mc_inc);
 
 /*
  *	device multicast group del
@@ -987,6 +982,7 @@ int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
 
 	return err;
 }
+EXPORT_SYMBOL(ipv6_dev_mc_dec);
 
 /*
  *	check if the interface/address pair is valid
@@ -2619,6 +2615,7 @@ void ipv6_mc_destroy_dev(struct inet6_dev *idev)
 		idev->mc_list = i->next;
 
 		write_unlock_bh(&idev->lock);
+		ip6_mc_clear_src(i);
 		ma_put(i);
 		write_lock_bh(&idev->lock);
 	}

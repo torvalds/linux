@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config QCOM_BAM_DMA
 	tristate "QCOM BAM DMA support"
 	depends on ARCH_QCOM || (COMPILE_TEST && OF && ARM)
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	---help---
+	help
 	  Enable support for the QCOM BAM DMA controller.  This controller
 	  provides DMA capabilities for a variety of on-chip devices.
 

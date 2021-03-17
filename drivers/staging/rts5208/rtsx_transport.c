@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Realtek PCI-Express card reader
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG (wei_wang@realsil.com.cn)
@@ -269,8 +257,8 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 	spin_unlock_irq(&rtsx->reg_lock);
 
 	/* Wait for TRANS_OK_INT */
-	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, msecs_to_jiffies(timeout));
+	timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+							     msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
 			chip->int_reg);
@@ -296,8 +284,8 @@ finish_send_cmd:
 	return err;
 }
 
-static inline void rtsx_add_sg_tbl(
-	struct rtsx_chip *chip, u32 addr, u32 len, u8 option)
+static inline void rtsx_add_sg_tbl(struct rtsx_chip *chip,
+				   u32 addr, u32 len, u8 option)
 {
 	__le64 *sgb = (__le64 *)(chip->host_sg_tbl_ptr);
 	u64 val = 0;
@@ -405,10 +393,9 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 			*offset = 0;
 			*index = *index + 1;
 		}
-		if ((i == (sg_cnt - 1)) || !resid)
-			option = RTSX_SG_VALID | RTSX_SG_END | RTSX_SG_TRANS_DATA;
-		else
-			option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
+		option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
+		if ((i == sg_cnt - 1) || !resid)
+			option |= RTSX_SG_END;
 
 		rtsx_add_sg_tbl(chip, (u32)addr, (u32)len, option);
 
@@ -432,8 +419,8 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 
 	spin_unlock_irq(&rtsx->reg_lock);
 
-	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, msecs_to_jiffies(timeout));
+	timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+							     msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 			__func__, __LINE__);
@@ -456,8 +443,8 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 	if (rtsx->trans_result == TRANS_NOT_READY) {
 		init_completion(&trans_done);
 		spin_unlock_irq(&rtsx->reg_lock);
-		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, msecs_to_jiffies(timeout));
+		timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+								     msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -553,10 +540,9 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 			dev_dbg(rtsx_dev(chip), "DMA addr: 0x%x, Len: 0x%x\n",
 				(unsigned int)addr, len);
 
+			option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
 			if (j == (sg_cnt - 1))
-				option = RTSX_SG_VALID | RTSX_SG_END | RTSX_SG_TRANS_DATA;
-			else
-				option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
+				option |= RTSX_SG_END;
 
 			rtsx_add_sg_tbl(chip, (u32)addr, (u32)len, option);
 
@@ -577,8 +563,8 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 
 		spin_unlock_irq(&rtsx->reg_lock);
 
-		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, msecs_to_jiffies(timeout));
+		timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+								     msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -604,8 +590,8 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 	if (rtsx->trans_result == TRANS_NOT_READY) {
 		init_completion(&trans_done);
 		spin_unlock_irq(&rtsx->reg_lock);
-		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, msecs_to_jiffies(timeout));
+		timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+								     msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -691,8 +677,8 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 	spin_unlock_irq(&rtsx->reg_lock);
 
 	/* Wait for TRANS_OK_INT */
-	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, msecs_to_jiffies(timeout));
+	timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+							     msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 			__func__, __LINE__);

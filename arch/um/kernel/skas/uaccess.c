@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <linux/err.h>
@@ -10,13 +10,13 @@
 #include <linux/sched.h>
 #include <asm/current.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <kern_util.h>
 #include <os.h>
 
 pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 
@@ -27,7 +27,11 @@ pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr)
 	if (!pgd_present(*pgd))
 		return NULL;
 
-	pud = pud_offset(pgd, addr);
+	p4d = p4d_offset(pgd, addr);
+	if (!p4d_present(*p4d))
+		return NULL;
+
+	pud = pud_offset(p4d, addr);
 	if (!pud_present(*pud))
 		return NULL;
 
@@ -59,30 +63,30 @@ static pte_t *maybe_map(unsigned long virt, int is_write)
 static int do_op_one_page(unsigned long addr, int len, int is_write,
 		 int (*op)(unsigned long addr, int len, void *arg), void *arg)
 {
-	jmp_buf buf;
 	struct page *page;
 	pte_t *pte;
-	int n, faulted;
+	int n;
 
 	pte = maybe_map(addr, is_write);
 	if (pte == NULL)
 		return -1;
 
 	page = pte_page(*pte);
+#ifdef CONFIG_64BIT
+	pagefault_disable();
+	addr = (unsigned long) page_address(page) +
+		(addr & ~PAGE_MASK);
+#else
 	addr = (unsigned long) kmap_atomic(page) +
 		(addr & ~PAGE_MASK);
+#endif
+	n = (*op)(addr, len, arg);
 
-	current->thread.fault_catcher = &buf;
-
-	faulted = UML_SETJMP(&buf);
-	if (faulted == 0)
-		n = (*op)(addr, len, arg);
-	else
-		n = -1;
-
-	current->thread.fault_catcher = NULL;
-
+#ifdef CONFIG_64BIT
+	pagefault_enable();
+#else
 	kunmap_atomic((void *)addr);
+#endif
 
 	return n;
 }

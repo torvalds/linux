@@ -68,10 +68,13 @@ nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 
 	if (nvbios_M0203Em(bios, ramcfg, &ver, &hdr, &M0203E)) {
 		switch (M0203E.type) {
-		case M0203E_TYPE_DDR2 : return NVKM_RAM_TYPE_DDR2;
-		case M0203E_TYPE_DDR3 : return NVKM_RAM_TYPE_DDR3;
-		case M0203E_TYPE_GDDR3: return NVKM_RAM_TYPE_GDDR3;
-		case M0203E_TYPE_GDDR5: return NVKM_RAM_TYPE_GDDR5;
+		case M0203E_TYPE_DDR2  : return NVKM_RAM_TYPE_DDR2;
+		case M0203E_TYPE_DDR3  : return NVKM_RAM_TYPE_DDR3;
+		case M0203E_TYPE_GDDR3 : return NVKM_RAM_TYPE_GDDR3;
+		case M0203E_TYPE_GDDR5 : return NVKM_RAM_TYPE_GDDR5;
+		case M0203E_TYPE_GDDR5X: return NVKM_RAM_TYPE_GDDR5X;
+		case M0203E_TYPE_GDDR6 : return NVKM_RAM_TYPE_GDDR6;
+		case M0203E_TYPE_HBM2  : return NVKM_RAM_TYPE_HBM2;
 		default:
 			nvkm_warn(subdev, "M0203E type %02x\n", M0203E.type);
 			return NVKM_RAM_TYPE_UNKNOWN;
@@ -123,6 +126,34 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 }
 
 static int
+nvkm_fb_init_scrub_vpr(struct nvkm_fb *fb)
+{
+	struct nvkm_subdev *subdev = &fb->subdev;
+	int ret;
+
+	nvkm_debug(subdev, "VPR locked, running scrubber binary\n");
+
+	if (!fb->vpr_scrubber.size) {
+		nvkm_warn(subdev, "VPR locked, but no scrubber binary!\n");
+		return 0;
+	}
+
+	ret = fb->func->vpr.scrub(fb);
+	if (ret) {
+		nvkm_error(subdev, "VPR scrubber binary failed\n");
+		return ret;
+	}
+
+	if (fb->func->vpr.scrub_required(fb)) {
+		nvkm_error(subdev, "VPR still locked after scrub!\n");
+		return -EIO;
+	}
+
+	nvkm_debug(subdev, "VPR scrubber binary successful\n");
+	return 0;
+}
+
+static int
 nvkm_fb_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_fb *fb = nvkm_fb(subdev);
@@ -151,6 +182,14 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 
 	if (fb->func->init_unkn)
 		fb->func->init_unkn(fb);
+
+	if (fb->func->vpr.scrub_required &&
+	    fb->func->vpr.scrub_required(fb)) {
+		ret = nvkm_fb_init_scrub_vpr(fb);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -168,6 +207,8 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 
 	nvkm_mm_fini(&fb->tags);
 	nvkm_ram_del(&fb->ram);
+
+	nvkm_blob_dtor(&fb->vpr_scrubber);
 
 	if (fb->func->dtor)
 		return fb->func->dtor(fb);

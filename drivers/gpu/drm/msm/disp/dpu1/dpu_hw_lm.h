@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DPU_HW_LM_H
@@ -61,18 +53,6 @@ struct dpu_hw_lm_ops {
 	void (*setup_border_color)(struct dpu_hw_mixer *ctx,
 		struct dpu_mdss_color *color,
 		u8 border_en);
-	/**
-	 * setup_gc : enable/disable gamma correction feature
-	 */
-	void (*setup_gc)(struct dpu_hw_mixer *mixer,
-			void *cfg);
-
-	/* setup_misr: enables/disables MISR in HW register */
-	void (*setup_misr)(struct dpu_hw_mixer *ctx,
-			bool enable, u32 frame_count);
-
-	/* collect_misr: reads and stores MISR data from HW register */
-	u32 (*collect_misr)(struct dpu_hw_mixer *ctx);
 };
 
 struct dpu_hw_mixer {
@@ -111,7 +91,7 @@ static inline struct dpu_hw_mixer *to_dpu_hw_mixer(struct dpu_hw_blk *hw)
  */
 struct dpu_hw_mixer *dpu_hw_lm_init(enum dpu_lm idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m);
+		const struct dpu_mdss_cfg *m);
 
 /**
  * dpu_hw_lm_destroy(): Destroys layer mixer driver context

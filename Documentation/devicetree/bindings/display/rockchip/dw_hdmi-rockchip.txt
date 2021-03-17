@@ -12,7 +12,9 @@ following device-specific properties.
 Required properties:
 
 - compatible: should be one of the following:
+		"rockchip,rk3228-dw-hdmi"
 		"rockchip,rk3288-dw-hdmi"
+		"rockchip,rk3328-dw-hdmi"
 		"rockchip,rk3399-dw-hdmi"
 - reg: See dw_hdmi.txt.
 - reg-io-width: See dw_hdmi.txt. Shall be 4.
@@ -34,6 +36,15 @@ Optional properties
 - clock-names: May contain "cec" as defined in dw_hdmi.txt.
 - clock-names: May contain "grf", power for grf io.
 - clock-names: May contain "vpll", external clock for some hdmi phy.
+- phys: from general PHY binding: the phandle for the PHY device.
+- phy-names: Should be "hdmi" if phys references an external phy.
+
+Optional pinctrl entry:
+- If you have both a "unwedge" and "default" pinctrl entry, dw_hdmi
+  will switch to the unwedge pinctrl state for 10ms if it ever gets an
+  i2c timeout.  It's intended that this unwedge pinctrl entry will
+  cause the SDA line to be driven low to work around a hardware
+  errata.
 
 Example:
 

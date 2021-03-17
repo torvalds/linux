@@ -1,26 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Partial Parity Log for closing the RAID5 write hole
  * Copyright (c) 2017, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/crc32c.h>
-#include <linux/flex_array.h>
 #include <linux/async_tx.h>
 #include <linux/raid/md_p.h>
 #include "md.h"
 #include "raid5.h"
+#include "raid5-log.h"
 
 /*
  * PPL consists of a 4KB header (struct ppl_header) and at least 128KB for
@@ -116,6 +108,8 @@ struct ppl_conf {
 	/* stripes to retry if failed to allocate io_unit */
 	struct list_head no_mem_stripes;
 	spinlock_t no_mem_stripes_lock;
+
+	unsigned short write_hint;
 };
 
 struct ppl_log {
@@ -165,7 +159,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 		       struct dma_async_tx_descriptor *tx)
 {
 	int disks = sh->disks;
-	struct page **srcs = flex_array_get(percpu->scribble, 0);
+	struct page **srcs = percpu->scribble;
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct async_submit_ctl submit;
 
@@ -196,8 +190,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 	}
 
 	init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST, tx,
-			  NULL, sh, flex_array_get(percpu->scribble, 0)
-			  + sizeof(struct page *) * (sh->disks + 2));
+			  NULL, sh, (void *) (srcs + sh->disks + 2));
 
 	if (count == 1)
 		tx = async_memcpy(sh->ppl_page, srcs[0], 0, 0, PAGE_SIZE,
@@ -331,7 +324,7 @@ static int ppl_log_stripe(struct ppl_log *log, struct stripe_head *sh)
 		 * be just after the last logged stripe and write to the same
 		 * disks. Use bit shift and logarithm to avoid 64-bit division.
 		 */
-		if ((sh->sector == sh_last->sector + STRIPE_SECTORS) &&
+		if ((sh->sector == sh_last->sector + RAID5_STRIPE_SECTORS(conf)) &&
 		    (data_sector >> ilog2(conf->chunk_sectors) ==
 		     data_sector_last >> ilog2(conf->chunk_sectors)) &&
 		    ((data_sector - data_sector_last) * data_disks ==
@@ -476,6 +469,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 	bio_set_dev(bio, log->rdev->bdev);
 	bio->bi_iter.bi_sector = log->next_io_sector;
 	bio_add_page(bio, io->header_page, PAGE_SIZE, 0);
+	bio->bi_write_hint = ppl_conf->write_hint;
 
 	pr_debug("%s: log->current_io_sector: %llu\n", __func__,
 	    (unsigned long long)log->next_io_sector);
@@ -505,6 +499,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 			bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_PAGES,
 					       &ppl_conf->bs);
 			bio->bi_opf = prev->bi_opf;
+			bio->bi_write_hint = prev->bi_write_hint;
 			bio_copy_dev(bio, prev);
 			bio->bi_iter.bi_sector = bio_end_sector(prev);
 			bio_add_page(bio, sh->ppl_page, PAGE_SIZE, 0);
@@ -849,9 +844,9 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 
 	/* if start and end is 4k aligned, use a 4k block */
 	if (block_size == 512 &&
-	    (r_sector_first & (STRIPE_SECTORS - 1)) == 0 &&
-	    (r_sector_last & (STRIPE_SECTORS - 1)) == 0)
-		block_size = STRIPE_SIZE;
+	    (r_sector_first & (RAID5_STRIPE_SECTORS(conf) - 1)) == 0 &&
+	    (r_sector_last & (RAID5_STRIPE_SECTORS(conf) - 1)) == 0)
+		block_size = RAID5_STRIPE_SIZE(conf);
 
 	/* iterate through blocks in strip */
 	for (i = 0; i < strip_sectors; i += (block_size >> 9)) {
@@ -1042,7 +1037,7 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 	}
 
 	/* flush the disk cache after recovery if necessary */
-	ret = blkdev_issue_flush(rdev->bdev, GFP_KERNEL, NULL);
+	ret = blkdev_issue_flush(rdev->bdev, GFP_KERNEL);
 out:
 	__free_page(page);
 	return ret;
@@ -1279,7 +1274,8 @@ static int ppl_validate_rdev(struct md_rdev *rdev)
 	ppl_data_sectors = rdev->ppl.size - (PPL_HEADER_SIZE >> 9);
 
 	if (ppl_data_sectors > 0)
-		ppl_data_sectors = rounddown(ppl_data_sectors, STRIPE_SECTORS);
+		ppl_data_sectors = rounddown(ppl_data_sectors,
+				RAID5_STRIPE_SECTORS((struct r5conf *)rdev->mddev->private));
 
 	if (ppl_data_sectors <= 0) {
 		pr_warn("md/raid:%s: PPL space too small on %s\n",
@@ -1365,7 +1361,7 @@ int ppl_init_log(struct r5conf *conf)
 		return -EINVAL;
 	}
 
-	max_disks = FIELD_SIZEOF(struct ppl_log, disk_flush_bitmap) *
+	max_disks = sizeof_field(struct ppl_log, disk_flush_bitmap) *
 		BITS_PER_BYTE;
 	if (conf->raid_disks > max_disks) {
 		pr_warn("md/raid:%s PPL doesn't support over %d disks in the array\n",
@@ -1409,6 +1405,7 @@ int ppl_init_log(struct r5conf *conf)
 	atomic64_set(&ppl_conf->seq, 0);
 	INIT_LIST_HEAD(&ppl_conf->no_mem_stripes);
 	spin_lock_init(&ppl_conf->no_mem_stripes_lock);
+	ppl_conf->write_hint = RWH_WRITE_LIFE_NOT_SET;
 
 	if (!mddev->external) {
 		ppl_conf->signature = ~crc32c_le(~0, mddev->uuid, sizeof(mddev->uuid));
@@ -1503,3 +1500,60 @@ int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add)
 
 	return ret;
 }
+
+static ssize_t
+ppl_write_hint_show(struct mddev *mddev, char *buf)
+{
+	size_t ret = 0;
+	struct r5conf *conf;
+	struct ppl_conf *ppl_conf = NULL;
+
+	spin_lock(&mddev->lock);
+	conf = mddev->private;
+	if (conf && raid5_has_ppl(conf))
+		ppl_conf = conf->log_private;
+	ret = sprintf(buf, "%d\n", ppl_conf ? ppl_conf->write_hint : 0);
+	spin_unlock(&mddev->lock);
+
+	return ret;
+}
+
+static ssize_t
+ppl_write_hint_store(struct mddev *mddev, const char *page, size_t len)
+{
+	struct r5conf *conf;
+	struct ppl_conf *ppl_conf;
+	int err = 0;
+	unsigned short new;
+
+	if (len >= PAGE_SIZE)
+		return -EINVAL;
+	if (kstrtou16(page, 10, &new))
+		return -EINVAL;
+
+	err = mddev_lock(mddev);
+	if (err)
+		return err;
+
+	conf = mddev->private;
+	if (!conf) {
+		err = -ENODEV;
+	} else if (raid5_has_ppl(conf)) {
+		ppl_conf = conf->log_private;
+		if (!ppl_conf)
+			err = -EINVAL;
+		else
+			ppl_conf->write_hint = new;
+	} else {
+		err = -EINVAL;
+	}
+
+	mddev_unlock(mddev);
+
+	return err ?: len;
+}
+
+struct md_sysfs_entry
+ppl_write_hint = __ATTR(ppl_write_hint, S_IRUGO | S_IWUSR,
+			ppl_write_hint_show,
+			ppl_write_hint_store);

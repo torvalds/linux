@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADIS16130 Digital Output, High Precision Angular Rate Sensor driver
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/mutex.h>
@@ -12,6 +11,8 @@
 #include <linux/module.h>
 
 #include <linux/iio/iio.h>
+
+#include <asm/unaligned.h>
 
 #define ADIS16130_CON         0x0
 #define ADIS16130_CON_RD      (1 << 6)
@@ -60,7 +61,7 @@ static int adis16130_spi_read(struct iio_dev *indio_dev, u8 reg_addr, u32 *val)
 
 	ret = spi_sync_transfer(st->us, &xfer, 1);
 	if (ret == 0)
-		*val = (st->buf[1] << 16) | (st->buf[2] << 8) | st->buf[3];
+		*val = get_unaligned_be24(&st->buf[1]);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -77,9 +78,7 @@ static int adis16130_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		/* Take the iio_dev status lock */
-		mutex_lock(&indio_dev->mlock);
 		ret = adis16130_spi_read(indio_dev, chan->address, &temp);
-		mutex_unlock(&indio_dev->mlock);
 		if (ret)
 			return ret;
 		*val = temp;
@@ -156,7 +155,6 @@ static int adis16130_probe(struct spi_device *spi)
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->channels = adis16130_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16130_channels);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16130_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

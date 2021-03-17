@@ -56,9 +56,7 @@
 MODULE_AUTHOR("YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>");
 MODULE_DESCRIPTION("WorkBit NinjaSCSI-3 / NinjaSCSI-32Bi(16bit) PCMCIA SCSI host adapter module");
 MODULE_SUPPORTED_DEVICE("sd,sr,sg,st");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
 
 #include "nsp_io.h"
 
@@ -86,7 +84,7 @@ static struct scsi_host_template nsp_driver_template = {
 	.can_queue		 = 1,
 	.this_id		 = NSP_INITIATOR_ID,
 	.sg_tablesize		 = SG_ALL,
-	.use_clustering		 = DISABLE_CLUSTERING,
+	.dma_boundary		 = PAGE_SIZE - 1,
 };
 
 static nsp_hw_data nsp_data_base; /* attach <-> detect glue */
@@ -136,6 +134,7 @@ static inline void nsp_inc_resid(struct scsi_cmnd *SCpnt, int residInc)
 	scsi_set_resid(SCpnt, scsi_get_resid(SCpnt) + residInc);
 }
 
+__printf(4, 5)
 static void nsp_cs_message(const char *func, int line, char *type, char *fmt, ...)
 {
 	va_list args;
@@ -691,14 +690,14 @@ static int nsp_fifo_count(struct scsi_cmnd *SCpnt)
 {
 	unsigned int base = SCpnt->device->host->io_port;
 	unsigned int count;
-	unsigned int l, m, h, dummy;
+	unsigned int l, m, h;
 
 	nsp_index_write(base, POINTERCLR, POINTER_CLEAR | ACK_COUNTER);
 
 	l     = nsp_index_read(base, TRANSFERCOUNT);
 	m     = nsp_index_read(base, TRANSFERCOUNT);
 	h     = nsp_index_read(base, TRANSFERCOUNT);
-	dummy = nsp_index_read(base, TRANSFERCOUNT); /* required this! */
+	nsp_index_read(base, TRANSFERCOUNT); /* required this! */
 
 	count = (h << 16) | (m << 8) | (l << 0);
 
@@ -789,7 +788,7 @@ static void nsp_pio_read(struct scsi_cmnd *SCpnt)
 		    SCpnt->SCp.buffers_residual != 0 ) {
 			//nsp_dbg(NSP_DEBUG_DATA_IO, "scatterlist next timeout=%d", time_out);
 			SCpnt->SCp.buffers_residual--;
-			SCpnt->SCp.buffer++;
+			SCpnt->SCp.buffer = sg_next(SCpnt->SCp.buffer);
 			SCpnt->SCp.ptr		 = BUFFER_ADDR;
 			SCpnt->SCp.this_residual = SCpnt->SCp.buffer->length;
 			time_out = 1000;
@@ -887,7 +886,7 @@ static void nsp_pio_write(struct scsi_cmnd *SCpnt)
 		    SCpnt->SCp.buffers_residual != 0 ) {
 			//nsp_dbg(NSP_DEBUG_DATA_IO, "scatterlist next");
 			SCpnt->SCp.buffers_residual--;
-			SCpnt->SCp.buffer++;
+			SCpnt->SCp.buffer = sg_next(SCpnt->SCp.buffer);
 			SCpnt->SCp.ptr		 = BUFFER_ADDR;
 			SCpnt->SCp.this_residual = SCpnt->SCp.buffer->length;
 			time_out = 1000;
@@ -1114,7 +1113,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 			nsp_scsi_done(tmpSC);
 			return IRQ_HANDLED;
 		}
-		/* fall thru */
+		fallthrough;
 	default:
 		if ((irq_status & (IRQSTATUS_SCSI | IRQSTATUS_FIFO)) == 0) {
 			return IRQ_HANDLED;
@@ -1134,7 +1133,8 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 
 		//*sync_neg       = SYNC_NOT_YET;
 
-		if ((tmpSC->SCp.Message == MSG_COMMAND_COMPLETE)) {     /* all command complete and return status */
+		/* all command complete and return status */
+		if (tmpSC->SCp.Message == MSG_COMMAND_COMPLETE) {
 			tmpSC->result = (DID_OK		             << 16) |
 					((tmpSC->SCp.Message & 0xff) <<  8) |
 					((tmpSC->SCp.Status  & 0xff) <<  0);
@@ -1561,7 +1561,7 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 			goto next_entry;
 
 		data->MmioAddress = (unsigned long)
-			ioremap_nocache(p_dev->resource[2]->start,
+			ioremap(p_dev->resource[2]->start,
 					resource_size(p_dev->resource[2]));
 		data->MmioLength  = resource_size(p_dev->resource[2]);
 	}
@@ -1742,19 +1742,6 @@ static struct pcmcia_driver nsp_driver = {
 	.suspend	= nsp_cs_suspend,
 	.resume		= nsp_cs_resume,
 };
-
-static int __init nsp_cs_init(void)
-{
-	return pcmcia_register_driver(&nsp_driver);
-}
-
-static void __exit nsp_cs_exit(void)
-{
-	pcmcia_unregister_driver(&nsp_driver);
-}
-
-
-module_init(nsp_cs_init)
-module_exit(nsp_cs_exit)
+module_pcmcia_driver(nsp_driver);
 
 /* end */

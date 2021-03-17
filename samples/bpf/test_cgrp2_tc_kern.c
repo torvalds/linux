@@ -10,7 +10,7 @@
 #include <uapi/linux/ipv6.h>
 #include <uapi/linux/pkt_cls.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 /* copy of 'struct ethhdr' without __packed */
 struct eth_hdr {

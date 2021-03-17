@@ -84,7 +84,8 @@ int usb_cypress_load_firmware(struct usb_device *udev, const struct firmware *fw
 }
 EXPORT_SYMBOL(usb_cypress_load_firmware);
 
-int dvb_usb_download_firmware(struct usb_device *udev, struct dvb_usb_device_properties *props)
+int dvb_usb_download_firmware(struct usb_device *udev,
+			      const struct dvb_usb_device_properties *props)
 {
 	int ret;
 	const struct firmware *fw = NULL;

@@ -26,16 +26,18 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/slab.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/slab.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_simple_kms_helper.h>
+
+#include "gma_display.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "gma_display.h"
-#include <drm/drm_dp_helper.h>
 
 /**
  * struct i2c_algo_dp_aux_data - driver interface structure for i2c over dp
@@ -1270,37 +1272,8 @@ cdv_intel_get_adjust_request_pre_emphasis(uint8_t link_status[DP_LINK_STATUS_SIZ
 	return ((l >> s) & 3) << DP_TRAIN_PRE_EMPHASIS_SHIFT;
 }
 
-
-#if 0
-static char	*voltage_names[] = {
-	"0.4V", "0.6V", "0.8V", "1.2V"
-};
-static char	*pre_emph_names[] = {
-	"0dB", "3.5dB", "6dB", "9.5dB"
-};
-static char	*link_train_names[] = {
-	"pattern 1", "pattern 2", "idle", "off"
-};
-#endif
-
 #define CDV_DP_VOLTAGE_MAX	    DP_TRAIN_VOLTAGE_SWING_LEVEL_3
-/*
-static uint8_t
-cdv_intel_dp_pre_emphasis_max(uint8_t voltage_swing)
-{
-	switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-	case DP_TRAIN_VOLTAGE_SWING_400:
-		return DP_TRAIN_PRE_EMPHASIS_6;
-	case DP_TRAIN_VOLTAGE_SWING_600:
-		return DP_TRAIN_PRE_EMPHASIS_6;
-	case DP_TRAIN_VOLTAGE_SWING_800:
-		return DP_TRAIN_PRE_EMPHASIS_3_5;
-	case DP_TRAIN_VOLTAGE_SWING_1200:
-	default:
-		return DP_TRAIN_PRE_EMPHASIS_0;
-	}
-}
-*/
+
 static void
 cdv_intel_get_adjust_train(struct gma_encoder *encoder)
 {
@@ -1593,7 +1566,6 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
-	bool channel_eq = false;
 	int tries, cr_tries;
 	u32 reg;
 	uint32_t DP = intel_dp->DP;
@@ -1601,7 +1573,6 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 	/* channel equalization */
 	tries = 0;
 	cr_tries = 0;
-	channel_eq = false;
 
 	DRM_DEBUG_KMS("\n");
 		reg = DP | DP_LINK_TRAIN_PAT_2;
@@ -1647,7 +1618,6 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 
 		if (cdv_intel_channel_eq_ok(encoder)) {
 			DRM_DEBUG_KMS("PT2 train is done\n");
-			channel_eq = true;
 			break;
 		}
 
@@ -1910,11 +1880,6 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static void cdv_intel_dp_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
 static const struct drm_encoder_helper_funcs cdv_intel_dp_helper_funcs = {
 	.dpms = cdv_intel_dp_dpms,
 	.mode_fixup = cdv_intel_dp_mode_fixup,
@@ -1936,11 +1901,6 @@ static const struct drm_connector_helper_funcs cdv_intel_dp_connector_helper_fun
 	.mode_valid = cdv_intel_dp_mode_valid,
 	.best_encoder = gma_best_encoder,
 };
-
-static const struct drm_encoder_funcs cdv_intel_dp_enc_funcs = {
-	.destroy = cdv_intel_dp_encoder_destroy,
-};
-
 
 static void cdv_intel_dp_add_properties(struct drm_connector *connector)
 {
@@ -2018,8 +1978,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	encoder = &gma_encoder->base;
 
 	drm_connector_init(dev, connector, &cdv_intel_dp_connector_funcs, type);
-	drm_encoder_init(dev, encoder, &cdv_intel_dp_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
@@ -2119,12 +2078,12 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 					       intel_dp->dpcd,
 					       sizeof(intel_dp->dpcd));
 		cdv_intel_edp_panel_vdd_off(gma_encoder);
-		if (ret == 0) {
+		if (ret <= 0) {
 			/* if this fails, presume the device is a ghost */
 			DRM_INFO("failed to retrieve link info, disabling eDP\n");
-			cdv_intel_dp_encoder_destroy(encoder);
+			drm_encoder_cleanup(encoder);
 			cdv_intel_dp_destroy(connector);
-			goto err_priv;
+			goto err_connector;
 		} else {
         		DRM_DEBUG_KMS("DPCD: Rev=%x LN_Rate=%x LN_CNT=%x LN_DOWNSP=%x\n",
 				intel_dp->dpcd[0], intel_dp->dpcd[1], 

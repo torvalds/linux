@@ -1,9 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * relocate_kernel.S - put the kernel image in place to boot
  * Copyright (C) 2002-2005 Eric Biederman  <ebiederm@xmission.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #include <linux/linkage.h>
@@ -11,6 +9,8 @@
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
 #include <asm/pgtable_types.h>
+#include <asm/nospec-branch.h>
+#include <asm/unwind_hints.h>
 
 /*
  * Must be relocatable PIC code callable as a C function
@@ -40,8 +40,8 @@
 	.text
 	.align PAGE_SIZE
 	.code64
-	.globl relocate_kernel
-relocate_kernel:
+SYM_CODE_START_NOALIGN(relocate_kernel)
+	UNWIND_HINT_EMPTY
 	/*
 	 * %rdi indirection_page
 	 * %rsi page_list
@@ -105,8 +105,10 @@ relocate_kernel:
 	addq	$(identity_mapped - relocate_kernel), %r8
 	pushq	%r8
 	ret
+SYM_CODE_END(relocate_kernel)
 
-identity_mapped:
+SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
+	UNWIND_HINT_EMPTY
 	/* set return address to 0 if not preserving context */
 	pushq	$0
 	/* store the start address on the stack */
@@ -194,14 +196,12 @@ identity_mapped:
 1:
 	popq	%rdx
 	leaq	PAGE_SIZE(%r10), %rsp
+	ANNOTATE_RETPOLINE_SAFE
 	call	*%rdx
 
 	/* get the re-entry point of the peer system */
 	movq	0(%rsp), %rbp
-	call	1f
-1:
-	popq	%r8
-	subq	$(1b - relocate_kernel), %r8
+	leaq	relocate_kernel(%rip), %r8
 	movq	CP_PA_SWAP_PAGE(%r8), %r10
 	movq	CP_PA_BACKUP_PAGES_MAP(%r8), %rdi
 	movq	CP_PA_TABLE_PAGE(%r8), %rax
@@ -211,8 +211,10 @@ identity_mapped:
 	movq	$virtual_mapped, %rax
 	pushq	%rax
 	ret
+SYM_CODE_END(identity_mapped)
 
-virtual_mapped:
+SYM_CODE_START_LOCAL_NOALIGN(virtual_mapped)
+	UNWIND_HINT_EMPTY
 	movq	RSP(%r8), %rsp
 	movq	CR4(%r8), %rax
 	movq	%rax, %cr4
@@ -230,9 +232,11 @@ virtual_mapped:
 	popq	%rbp
 	popq	%rbx
 	ret
+SYM_CODE_END(virtual_mapped)
 
 	/* Do the copies */
-swap_pages:
+SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
+	UNWIND_HINT_EMPTY
 	movq	%rdi, %rcx 	/* Put the page_list in %rcx */
 	xorl	%edi, %edi
 	xorl	%esi, %esi
@@ -285,6 +289,7 @@ swap_pages:
 	jmp	0b
 3:
 	ret
+SYM_CODE_END(swap_pages)
 
 	.globl kexec_control_code_size
 .set kexec_control_code_size, . - relocate_kernel

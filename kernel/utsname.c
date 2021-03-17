@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2004 IBM Corporation
  *
  *  Author: Serge Hallyn <serue@us.ibm.com>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation, version 2 of the
- *  License.
  */
 
 #include <linux/export.h>
@@ -144,12 +140,13 @@ static void utsns_put(struct ns_common *ns)
 	put_uts_ns(to_uts_ns(ns));
 }
 
-static int utsns_install(struct nsproxy *nsproxy, struct ns_common *new)
+static int utsns_install(struct nsset *nsset, struct ns_common *new)
 {
+	struct nsproxy *nsproxy = nsset->nsproxy;
 	struct uts_namespace *ns = to_uts_ns(new);
 
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
-	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+	    !ns_capable(nsset->cred->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	get_uts_ns(ns);

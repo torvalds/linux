@@ -42,8 +42,10 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			int trylock, int read, int check,
 			struct lockdep_map *nest_lock, unsigned long ip);
-void lock_release(struct lockdep_map *lock, int nested,
-			unsigned long ip);
+void lock_release(struct lockdep_map *lock, unsigned long ip);
+void lockdep_reset_lock(struct lockdep_map *lock);
+void lockdep_register_key(struct lock_class_key *key);
+void lockdep_unregister_key(struct lock_class_key *key);
 extern void debug_check_no_locks_freed(const void *from, unsigned long len);
 
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm PM8xxx PMIC XOADC driver
  *
@@ -119,7 +120,7 @@
 #define ADC_ARB_USRP_DATA0			0x19D
 #define ADC_ARB_USRP_DATA1			0x19C
 
-/**
+/*
  * Physical channels which MUST exist on all PM variants in order to provide
  * proper reference points for calibration.
  *
@@ -387,6 +388,7 @@ struct pm8xxx_chan_info {
  * struct pm8xxx_xoadc - state container for the XOADC
  * @dev: pointer to device
  * @map: regmap to access registers
+ * @variant: XOADC variant characteristics
  * @vref: reference voltage regulator
  * characteristics of the channels, and sensible default settings
  * @nchans: number of channels, configured by the device tree
@@ -423,18 +425,14 @@ static irqreturn_t pm8xxx_eoc_irq(int irq, void *d)
 static struct pm8xxx_chan_info *
 pm8xxx_get_channel(struct pm8xxx_xoadc *adc, u8 chan)
 {
-	struct pm8xxx_chan_info *ch;
 	int i;
 
 	for (i = 0; i < adc->nchans; i++) {
-		ch = &adc->chans[i];
+		struct pm8xxx_chan_info *ch = &adc->chans[i];
 		if (ch->hwchan->amux_channel == chan)
-			break;
+			return ch;
 	}
-	if (i == adc->nchans)
-		return NULL;
-
-	return ch;
+	return NULL;
 }
 
 static int pm8xxx_read_channel_rsv(struct pm8xxx_xoadc *adc,
@@ -708,8 +706,8 @@ static int pm8xxx_of_xlate(struct iio_dev *indio_dev,
 	 * mux.
 	 */
 	if (iiospec->args_count != 2) {
-		dev_err(&indio_dev->dev, "wrong number of arguments for %s need 2 got %d\n",
-			iiospec->np->name,
+		dev_err(&indio_dev->dev, "wrong number of arguments for %pOFn need 2 got %d\n",
+			iiospec->np,
 			iiospec->args_count);
 		return -EINVAL;
 	}
@@ -936,8 +934,6 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 		goto out_disable_vref;
 	}
 
-	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = np;
 	indio_dev->name = variant->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &pm8xxx_xoadc_info;

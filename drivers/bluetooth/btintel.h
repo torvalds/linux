@@ -1,25 +1,76 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *
  *  Bluetooth support for Intel devices
  *
  *  Copyright (C) 2015  Intel Corporation
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
+
+/* List of tlv type */
+enum {
+	INTEL_TLV_CNVI_TOP = 0x10,
+	INTEL_TLV_CNVR_TOP,
+	INTEL_TLV_CNVI_BT,
+	INTEL_TLV_CNVR_BT,
+	INTEL_TLV_CNVI_OTP,
+	INTEL_TLV_CNVR_OTP,
+	INTEL_TLV_DEV_REV_ID,
+	INTEL_TLV_USB_VENDOR_ID,
+	INTEL_TLV_USB_PRODUCT_ID,
+	INTEL_TLV_PCIE_VENDOR_ID,
+	INTEL_TLV_PCIE_DEVICE_ID,
+	INTEL_TLV_PCIE_SUBSYSTEM_ID,
+	INTEL_TLV_IMAGE_TYPE,
+	INTEL_TLV_TIME_STAMP,
+	INTEL_TLV_BUILD_TYPE,
+	INTEL_TLV_BUILD_NUM,
+	INTEL_TLV_FW_BUILD_PRODUCT,
+	INTEL_TLV_FW_BUILD_HW,
+	INTEL_TLV_FW_STEP,
+	INTEL_TLV_BT_SPEC,
+	INTEL_TLV_MFG_NAME,
+	INTEL_TLV_HCI_REV,
+	INTEL_TLV_LMP_SUBVER,
+	INTEL_TLV_OTP_PATCH_VER,
+	INTEL_TLV_SECURE_BOOT,
+	INTEL_TLV_KEY_FROM_HDR,
+	INTEL_TLV_OTP_LOCK,
+	INTEL_TLV_API_LOCK,
+	INTEL_TLV_DEBUG_LOCK,
+	INTEL_TLV_MIN_FW,
+	INTEL_TLV_LIMITED_CCE,
+	INTEL_TLV_SBE_TYPE,
+	INTEL_TLV_OTP_BDADDR,
+	INTEL_TLV_UNLOCKED_STATE
+};
+
+struct intel_tlv {
+	u8 type;
+	u8 len;
+	u8 val[];
+} __packed;
+
+struct intel_version_tlv {
+	u32	cnvi_top;
+	u32	cnvr_top;
+	u32	cnvi_bt;
+	u32	cnvr_bt;
+	u16	dev_rev_id;
+	u8	img_type;
+	u16	timestamp;
+	u8	build_type;
+	u32	build_num;
+	u8	secure_boot;
+	u8	otp_lock;
+	u8	api_lock;
+	u8	debug_lock;
+	u8	min_fw_build_nn;
+	u8	min_fw_build_cw;
+	u8	min_fw_build_yy;
+	u8	limited_cce;
+	u8	sbe_type;
+	bdaddr_t otp_bd_addr;
+};
 
 struct intel_version {
 	u8 status;
@@ -77,6 +128,10 @@ struct intel_reset {
 	__le32   boot_param;
 } __packed;
 
+struct intel_debug_features {
+	__u8    page1[16];
+} __packed;
+
 #if IS_ENABLED(CONFIG_BT_INTEL)
 
 int btintel_check_bdaddr(struct hci_dev *hdev);
@@ -88,12 +143,14 @@ int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable);
 void btintel_hw_error(struct hci_dev *hdev, u8 code);
 
 void btintel_version_info(struct hci_dev *hdev, struct intel_version *ver);
+void btintel_version_info_tlv(struct hci_dev *hdev, struct intel_version_tlv *version);
 int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type, u32 plen,
 			const void *param);
 int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name);
 int btintel_set_event_mask(struct hci_dev *hdev, bool debug);
 int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug);
 int btintel_read_version(struct hci_dev *hdev, struct intel_version *ver);
+int btintel_read_version_tlv(struct hci_dev *hdev, struct intel_version_tlv *ver);
 
 struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 				   u16 opcode_write);
@@ -102,6 +159,15 @@ int btintel_read_boot_params(struct hci_dev *hdev,
 			     struct intel_boot_params *params);
 int btintel_download_firmware(struct hci_dev *dev, const struct firmware *fw,
 			      u32 *boot_param);
+int btintel_download_firmware_newgen(struct hci_dev *hdev,
+				     const struct firmware *fw,
+				     u32 *boot_param, u8 hw_variant,
+				     u8 sbe_type);
+void btintel_reset_to_bootloader(struct hci_dev *hdev);
+int btintel_read_debug_features(struct hci_dev *hdev,
+				struct intel_debug_features *features);
+int btintel_set_debug_features(struct hci_dev *hdev,
+			       const struct intel_debug_features *features);
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
@@ -143,6 +209,11 @@ static inline void btintel_version_info(struct hci_dev *hdev,
 {
 }
 
+static inline void btintel_version_info_tlv(struct hci_dev *hdev,
+					    struct intel_version_tlv *version)
+{
+}
+
 static inline int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type,
 				      u32 plen, const void *param)
 {
@@ -167,6 +238,12 @@ static inline int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug)
 
 static inline int btintel_read_version(struct hci_dev *hdev,
 				       struct intel_version *ver)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_read_version_tlv(struct hci_dev *hdev,
+					   struct intel_version_tlv *ver)
 {
 	return -EOPNOTSUPP;
 }
@@ -196,4 +273,29 @@ static inline int btintel_download_firmware(struct hci_dev *dev,
 {
 	return -EOPNOTSUPP;
 }
+
+static inline int btintel_download_firmware_newgen(struct hci_dev *hdev,
+						   const struct firmware *fw,
+						   u32 *boot_param,
+						   u8 hw_variant, u8 sbe_type)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void btintel_reset_to_bootloader(struct hci_dev *hdev)
+{
+}
+
+static inline int btintel_read_debug_features(struct hci_dev *hdev,
+					      struct intel_debug_features *features)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_set_debug_features(struct hci_dev *hdev,
+					     const struct intel_debug_features *features)
+{
+	return -EOPNOTSUPP;
+}
+
 #endif

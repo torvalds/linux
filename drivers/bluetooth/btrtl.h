@@ -1,18 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Bluetooth support for Realtek devices
  *
  *  Copyright (C) 2015 Endless Mobile, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #define RTL_FRAG_LEN 252
@@ -48,13 +38,13 @@ struct rtl_epatch_header {
 struct rtl_vendor_config_entry {
 	__le16 offset;
 	__u8 len;
-	__u8 data[0];
+	__u8 data[];
 } __packed;
 
 struct rtl_vendor_config {
 	__le32 signature;
 	__le16 total_len;
-	struct rtl_vendor_config_entry entry[0];
+	struct rtl_vendor_config_entry entry[];
 } __packed;
 
 #if IS_ENABLED(CONFIG_BT_RTL)
@@ -65,6 +55,7 @@ void btrtl_free(struct btrtl_device_info *btrtl_dev);
 int btrtl_download_firmware(struct hci_dev *hdev,
 			    struct btrtl_device_info *btrtl_dev);
 int btrtl_setup_realtek(struct hci_dev *hdev);
+int btrtl_shutdown_realtek(struct hci_dev *hdev);
 int btrtl_get_uart_settings(struct hci_dev *hdev,
 			    struct btrtl_device_info *btrtl_dev,
 			    unsigned int *controller_baudrate,
@@ -89,6 +80,11 @@ static inline int btrtl_download_firmware(struct hci_dev *hdev,
 }
 
 static inline int btrtl_setup_realtek(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btrtl_shutdown_realtek(struct hci_dev *hdev)
 {
 	return -EOPNOTSUPP;
 }

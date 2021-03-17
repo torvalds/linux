@@ -1,34 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef RXE_QUEUE_H
@@ -63,7 +36,7 @@ struct rxe_queue_buf {
 	__u32			pad_2[31];
 	__u32			consumer_index;
 	__u32			pad_3[31];
-	__u8			data[0];
+	__u8			data[];
 };
 
 struct rxe_queue {
@@ -76,12 +49,9 @@ struct rxe_queue {
 	unsigned int		index_mask;
 };
 
-int do_mmap_info(struct rxe_dev *rxe,
-		 struct mminfo __user *outbuf,
-		 struct ib_ucontext *context,
-		 struct rxe_queue_buf *buf,
-		 size_t buf_size,
-		 struct rxe_mmap_info **ip_p);
+int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
+		 struct ib_udata *udata, struct rxe_queue_buf *buf,
+		 size_t buf_size, struct rxe_mmap_info **ip_p);
 
 void rxe_queue_reset(struct rxe_queue *q);
 
@@ -89,10 +59,8 @@ struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe,
 				 int *num_elem,
 				 unsigned int elem_size);
 
-int rxe_queue_resize(struct rxe_queue *q,
-		     unsigned int *num_elem_p,
-		     unsigned int elem_size,
-		     struct ib_ucontext *context,
+int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
+		     unsigned int elem_size, struct ib_udata *udata,
 		     struct mminfo __user *outbuf,
 		     /* Protect producers while resizing queue */
 		     spinlock_t *producer_lock,

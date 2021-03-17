@@ -1,18 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ACPI support for PNP bus type
  *
  * Copyright (C) 2014, Intel Corporation
  * Authors: Zhang Rui <rui.zhang@intel.com>
  *          Rafael J. Wysocki <rafael.j.wysocki@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
+
+#include "internal.h"
 
 static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	/* pata_isapnp */
@@ -319,6 +318,9 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 static bool matching_id(const char *idstr, const char *list_id)
 {
 	int i;
+
+	if (strlen(idstr) != strlen(list_id))
+		return false;
 
 	if (memcmp(idstr, list_id, 3))
 		return false;

@@ -11,7 +11,7 @@
 #ifndef _XTENSA_CACHE_H
 #define _XTENSA_CACHE_H
 
-#include <variant/core.h>
+#include <asm/core.h>
 
 #define L1_CACHE_SHIFT	XCHAL_DCACHE_LINEWIDTH
 #define L1_CACHE_BYTES	XCHAL_DCACHE_LINESIZE
@@ -30,5 +30,11 @@
 #endif
 
 #define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+
+/*
+ * R/O after init is actually writable, it cannot go to .rodata
+ * according to vmlinux linker script.
+ */
+#define __ro_after_init __read_mostly
 
 #endif	/* _XTENSA_CACHE_H */

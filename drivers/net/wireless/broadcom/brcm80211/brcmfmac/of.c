@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/init.h>
 #include <linux/of.h>
@@ -27,10 +16,32 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 		    struct brcmf_mp_device *settings)
 {
 	struct brcmfmac_sdio_pd *sdio = &settings->bus.sdio;
-	struct device_node *np = dev->of_node;
+	struct device_node *root, *np = dev->of_node;
 	int irq;
 	u32 irqf;
 	u32 val;
+
+	/* Set board-type to the first string of the machine compatible prop */
+	root = of_find_node_by_path("/");
+	if (root) {
+		int i, len;
+		char *board_type;
+		const char *tmp;
+
+		of_property_read_string_index(root, "compatible", 0, &tmp);
+
+		/* get rid of '/' in the compatible string to be able to find the FW */
+		len = strlen(tmp) + 1;
+		board_type = devm_kzalloc(dev, len, GFP_KERNEL);
+		strscpy(board_type, tmp, len);
+		for (i = 0; i < board_type[i]; i++) {
+			if (board_type[i] == '/')
+				board_type[i] = '-';
+		}
+		settings->board_type = board_type;
+
+		of_node_put(root);
+	}
 
 	if (!np || bus_type != BRCMF_BUSTYPE_SDIO ||
 	    !of_device_is_compatible(np, "brcm,bcm4329-fmac"))

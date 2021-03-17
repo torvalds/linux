@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * stv0367_defs.h
  *
@@ -6,17 +7,6 @@
  * Copyright (C) ST Microelectronics.
  * Copyright (C) 2010,2011 NetUP Inc.
  * Copyright (C) 2010,2011 Igor M. Liplianin <liplianin@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- * GNU General Public License for more details.
  */
 
 #ifndef STV0367_DEFS_H
@@ -1096,7 +1086,7 @@ static const struct st_register def0367dd_ofdm[] = {
 };
 
 static const struct st_register def0367dd_qam[] = {
-	{R367CAB_CTRL_1,                  0x06}, /* Orginal 0x04 */
+	{R367CAB_CTRL_1,                  0x06}, /* Original 0x04 */
 	{R367CAB_CTRL_2,                  0x03},
 	{R367CAB_IT_STATUS1,              0x2b},
 	{R367CAB_IT_STATUS2,              0x08},

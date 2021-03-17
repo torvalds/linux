@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w83l786ng.c - Linux kernel driver for hardware monitoring
  * Copyright (c) 2007 Kevin Lo <kevlo@kevlo.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation - version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301 USA.
  */
 
 /*
@@ -719,7 +706,7 @@ static void w83l786ng_init_client(struct i2c_client *client)
 }
 
 static int
-w83l786ng_probe(struct i2c_client *client, const struct i2c_device_id *id)
+w83l786ng_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct w83l786ng_data *data;
@@ -765,7 +752,7 @@ static struct i2c_driver w83l786ng_driver = {
 	.driver = {
 		   .name = "w83l786ng",
 	},
-	.probe		= w83l786ng_probe,
+	.probe_new	= w83l786ng_probe,
 	.id_table	= w83l786ng_id,
 	.detect		= w83l786ng_detect,
 	.address_list	= normal_i2c,

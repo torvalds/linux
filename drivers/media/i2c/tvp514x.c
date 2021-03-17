@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/media/i2c/tvp514x.c
  *
@@ -13,16 +14,6 @@
  *     Manjunath Hadli <mrh@ti.com>
  *     Karicheri Muralidharan <m-karicheri2@ti.com>
  *     Prabhakar Lad <prabhakar.lad@ti.com>
- *
- * This package is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/i2c.h>
@@ -67,7 +58,7 @@ enum tvp514x_std {
 };
 
 /**
- * struct tvp514x_std_info - Structure to store standard informations
+ * struct tvp514x_std_info - Structure to store standard information
  * @width: Line width in pixels
  * @height:Number of active lines
  * @video_std: Value to write in REG_VIDEO_STD register
@@ -989,7 +980,7 @@ static struct tvp514x_platform_data *
 tvp514x_get_pdata(struct i2c_client *client)
 {
 	struct tvp514x_platform_data *pdata = NULL;
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct device_node *endpoint;
 	unsigned int flags;
 

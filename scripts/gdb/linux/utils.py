@@ -66,6 +66,7 @@ Note that TYPE and ELEMENT have to be quoted as strings."""
         return container_of(ptr, gdb.lookup_type(typename.string()).pointer(),
                             elementname.string())
 
+
 ContainerOf()
 
 
@@ -91,15 +92,16 @@ def read_memoryview(inf, start, length):
     return memoryview(inf.read_memory(start, length))
 
 
-def read_u16(buffer):
+def read_u16(buffer, offset):
+    buffer_val = buffer[offset:offset + 2]
     value = [0, 0]
 
-    if type(buffer[0]) is str:
-        value[0] = ord(buffer[0])
-        value[1] = ord(buffer[1])
+    if type(buffer_val[0]) is str:
+        value[0] = ord(buffer_val[0])
+        value[1] = ord(buffer_val[1])
     else:
-        value[0] = buffer[0]
-        value[1] = buffer[1]
+        value[0] = buffer_val[0]
+        value[1] = buffer_val[1]
 
     if get_target_endianness() == LITTLE_ENDIAN:
         return value[0] + (value[1] << 8)
@@ -107,18 +109,25 @@ def read_u16(buffer):
         return value[1] + (value[0] << 8)
 
 
-def read_u32(buffer):
+def read_u32(buffer, offset):
     if get_target_endianness() == LITTLE_ENDIAN:
-        return read_u16(buffer[0:2]) + (read_u16(buffer[2:4]) << 16)
+        return read_u16(buffer, offset) + (read_u16(buffer, offset + 2) << 16)
     else:
-        return read_u16(buffer[2:4]) + (read_u16(buffer[0:2]) << 16)
+        return read_u16(buffer, offset + 2) + (read_u16(buffer, offset) << 16)
 
 
-def read_u64(buffer):
+def read_u64(buffer, offset):
     if get_target_endianness() == LITTLE_ENDIAN:
-        return read_u32(buffer[0:4]) + (read_u32(buffer[4:8]) << 32)
+        return read_u32(buffer, offset) + (read_u32(buffer, offset + 4) << 32)
     else:
-        return read_u32(buffer[4:8]) + (read_u32(buffer[0:4]) << 32)
+        return read_u32(buffer, offset + 4) + (read_u32(buffer, offset) << 32)
+
+
+def read_ulong(buffer, offset):
+    if get_long_type().sizeof == 8:
+        return read_u64(buffer, offset)
+    else:
+        return read_u32(buffer, offset)
 
 
 target_arch = None
@@ -148,14 +157,14 @@ def get_gdbserver_type():
     def probe_qemu():
         try:
             return gdb.execute("monitor info version", to_string=True) != ""
-        except:
+        except gdb.error:
             return False
 
     def probe_kgdb():
         try:
             thread_info = gdb.execute("info thread 2", to_string=True)
             return "shadowCPU0" in thread_info
-        except:
+        except gdb.error:
             return False
 
     global gdbserver_type
@@ -172,7 +181,7 @@ def get_gdbserver_type():
 def gdb_eval_or_none(expresssion):
     try:
         return gdb.parse_and_eval(expresssion)
-    except:
+    except gdb.error:
         return None
 
 

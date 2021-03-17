@@ -1,0 +1,38 @@
+MediaTek Universal Flash Storage (UFS) M-PHY binding
+--------------------------------------------------------
+
+UFS M-PHY nodes are defined to describe on-chip UFS M-PHY hardware macro.
+Each UFS M-PHY node should have its own node.
+
+To bind UFS M-PHY with UFS host controller, the controller node should
+contain a phandle reference to UFS M-PHY node.
+
+Required properties for UFS M-PHY nodes:
+- compatible         : Compatible list, contains the following controller:
+                       "mediatek,mt8183-ufsphy" for ufs phy
+                       persent on MT81xx chipsets.
+- reg                : Address and length of the UFS M-PHY register set.
+- #phy-cells         : This property shall be set to 0.
+- clocks             : List of phandle and clock specifier pairs.
+- clock-names        : List of clock input name strings sorted in the same
+                       order as the clocks property. Following clocks are
+                       mandatory.
+                       "unipro": Unipro core control clock.
+                       "mp": M-PHY core control clock.
+
+Example:
+
+	ufsphy: phy@11fa0000 {
+		compatible = "mediatek,mt8183-ufsphy";
+		reg = <0 0x11fa0000 0 0xc000>;
+		#phy-cells = <0>;
+
+		clocks = <&infracfg_ao INFRACFG_AO_UNIPRO_SCK_CG>,
+			 <&infracfg_ao INFRACFG_AO_UFS_MP_SAP_BCLK_CG>;
+		clock-names = "unipro", "mp";
+	};
+
+	ufshci@11270000 {
+		...
+		phys = <&ufsphy>;
+	};

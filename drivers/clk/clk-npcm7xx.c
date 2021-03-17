@@ -549,7 +549,7 @@ static void __init npcm7xx_clk_init(struct device_node *clk_np)
 
 	ret = of_address_to_resource(clk_np, 0, &res);
 	if (ret) {
-		pr_err("%s: failed to get resource, ret %d\n", clk_np->name,
+		pr_err("%pOFn: failed to get resource, ret %d\n", clk_np,
 			ret);
 		return;
 	}

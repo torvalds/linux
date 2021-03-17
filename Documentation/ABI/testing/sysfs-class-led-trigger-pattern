@@ -1,0 +1,37 @@
+What:		/sys/class/leds/<led>/pattern
+Date:		September 2018
+KernelVersion:	4.20
+Description:
+		Specify a software pattern for the LED, that supports altering
+		the brightness for the specified duration with one software
+		timer. It can do gradual dimming and step change of brightness.
+
+		The pattern is given by a series of tuples, of brightness and
+		duration (ms).
+
+		The exact format is described in:
+		Documentation/devicetree/bindings/leds/leds-trigger-pattern.txt
+
+What:		/sys/class/leds/<led>/hw_pattern
+Date:		September 2018
+KernelVersion:	4.20
+Description:
+		Specify a hardware pattern for the LED, for LED hardware that
+		supports autonomously controlling brightness over time, according
+		to some preprogrammed hardware patterns. It deactivates any active
+		software pattern.
+
+		Since different LED hardware can have different semantics of
+		hardware patterns, each driver is expected to provide its own
+		description for the hardware patterns in their documentation
+		file at Documentation/leds/.
+
+What:		/sys/class/leds/<led>/repeat
+Date:		September 2018
+KernelVersion:	4.20
+Description:
+		Specify a pattern repeat number. -1 means repeat indefinitely,
+		other negative numbers and number 0 are invalid.
+
+		This file will always return the originally written repeat
+		number.

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An implementation of host to guest copy functionality for Linux.
  *
  * Copyright (C) 2014, Microsoft, Inc.
  *
  * Author : K. Y. Srinivasan <kys@microsoft.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
  */
 
 
@@ -89,6 +80,8 @@ static int hv_start_fcopy(struct hv_start_fcopy *smsg)
 
 	error = 0;
 done:
+	if (error)
+		target_fname[0] = '\0';
 	return error;
 }
 
@@ -117,15 +110,29 @@ static int hv_copy_data(struct hv_do_fcopy *cpmsg)
 	return ret;
 }
 
+/*
+ * Reset target_fname to "" in the two below functions for hibernation: if
+ * the fcopy operation is aborted by hibernation, the daemon should remove the
+ * partially-copied file; to achieve this, the hv_utils driver always fakes a
+ * CANCEL_FCOPY message upon suspend, and later when the VM resumes back,
+ * the daemon calls hv_copy_cancel() to remove the file; if a file is copied
+ * successfully before suspend, hv_copy_finished() must reset target_fname to
+ * avoid that the file can be incorrectly removed upon resume, since the faked
+ * CANCEL_FCOPY message is spurious in this case.
+ */
 static int hv_copy_finished(void)
 {
 	close(target_fd);
+	target_fname[0] = '\0';
 	return 0;
 }
 static int hv_copy_cancel(void)
 {
 	close(target_fd);
-	unlink(target_fname);
+	if (strlen(target_fname) > 0) {
+		unlink(target_fname);
+		target_fname[0] = '\0';
+	}
 	return 0;
 
 }
@@ -140,7 +147,7 @@ void print_usage(char *argv[])
 
 int main(int argc, char *argv[])
 {
-	int fcopy_fd;
+	int fcopy_fd = -1;
 	int error;
 	int daemonize = 1, long_index = 0, opt;
 	int version = FCOPY_CURRENT_VERSION;
@@ -150,7 +157,7 @@ int main(int argc, char *argv[])
 		struct hv_do_fcopy copy;
 		__u32 kernel_modver;
 	} buffer = { };
-	int in_handshake = 1;
+	int in_handshake;
 
 	static struct option long_options[] = {
 		{"help",	no_argument,	   0,  'h' },
@@ -179,6 +186,12 @@ int main(int argc, char *argv[])
 	openlog("HV_FCOPY", 0, LOG_USER);
 	syslog(LOG_INFO, "starting; pid is:%d", getpid());
 
+reopen_fcopy_fd:
+	if (fcopy_fd != -1)
+		close(fcopy_fd);
+	/* Remove any possible partially-copied file on error */
+	hv_copy_cancel();
+	in_handshake = 1;
 	fcopy_fd = open("/dev/vmbus/hv_fcopy", O_RDWR);
 
 	if (fcopy_fd < 0) {
@@ -205,7 +218,7 @@ int main(int argc, char *argv[])
 		len = pread(fcopy_fd, &buffer, sizeof(buffer), 0);
 		if (len < 0) {
 			syslog(LOG_ERR, "pread failed: %s", strerror(errno));
-			exit(EXIT_FAILURE);
+			goto reopen_fcopy_fd;
 		}
 
 		if (in_handshake) {
@@ -240,9 +253,14 @@ int main(int argc, char *argv[])
 
 		}
 
+		/*
+		 * pwrite() may return an error due to the faked CANCEL_FCOPY
+		 * message upon hibernation. Ignore the error by resetting the
+		 * dev file, i.e. closing and re-opening it.
+		 */
 		if (pwrite(fcopy_fd, &error, sizeof(int), 0) != sizeof(int)) {
 			syslog(LOG_ERR, "pwrite failed: %s", strerror(errno));
-			exit(EXIT_FAILURE);
+			goto reopen_fcopy_fd;
 		}
 	}
 }

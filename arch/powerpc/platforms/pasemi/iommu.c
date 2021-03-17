@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005-2008, PA Semi, Inc
  *
  * Maintained by: Olof Johansson <olof@lixom.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #undef DEBUG
@@ -158,7 +146,7 @@ static void iommu_table_iobmap_setup(void)
 	 */
 	iommu_table_iobmap.it_blocksize = 4;
 	iommu_table_iobmap.it_ops = &iommu_table_iobmap_ops;
-	iommu_init_table(&iommu_table_iobmap, 0);
+	iommu_init_table(&iommu_table_iobmap, 0, 0, 0);
 	pr_debug(" <- %s\n", __func__);
 }
 
@@ -186,7 +174,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	 */
 	if (dev->vendor == 0x1959 && dev->device == 0xa007 &&
 	    !firmware_has_feature(FW_FEATURE_LPAR)) {
-		dev->dev.dma_ops = &dma_nommu_ops;
+		dev->dev.dma_ops = NULL;
 		/*
 		 * Set the coherent DMA mask to prevent the iommu
 		 * being used unnecessarily
@@ -208,12 +196,17 @@ static int __init iob_init(struct device_node *dn)
 	pr_debug(" -> %s\n", __func__);
 
 	/* For 2G space, 8x64 pages (2^21 bytes) is max total l2 size */
-	iob_l2_base = (u32 *)__va(memblock_alloc_base(1UL<<21, 1UL<<21, 0x80000000));
+	iob_l2_base = memblock_alloc_try_nid_raw(1UL << 21, 1UL << 21,
+					MEMBLOCK_LOW_LIMIT, 0x80000000,
+					NUMA_NO_NODE);
+	if (!iob_l2_base)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx max_addr=%x\n",
+		      __func__, 1UL << 21, 1UL << 21, 0x80000000);
 
 	pr_info("IOBMAP L2 allocated at: %p\n", iob_l2_base);
 
 	/* Allocate a spare page to map all invalid IOTLB pages. */
-	tmp = memblock_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
+	tmp = memblock_phys_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
 	if (!tmp)
 		panic("IOBMAP: Cannot allocate spare page!");
 	/* Empty l1 is marked invalid */
@@ -269,4 +262,3 @@ void __init iommu_init_early_pasemi(void)
 	pasemi_pci_controller_ops.dma_bus_setup = pci_dma_bus_setup_pasemi;
 	set_pci_dma_ops(&dma_iommu_ops);
 }
-

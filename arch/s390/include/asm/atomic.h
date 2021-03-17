@@ -15,8 +15,6 @@
 #include <asm/barrier.h>
 #include <asm/cmpxchg.h>
 
-#define ATOMIC_INIT(i)  { (i) }
-
 static inline int atomic_read(const atomic_t *v)
 {
 	int c;
@@ -47,7 +45,11 @@ static inline int atomic_fetch_add(int i, atomic_t *v)
 static inline void atomic_add(int i, atomic_t *v)
 {
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
-	if (__builtin_constant_p(i) && (i > -129) && (i < 128)) {
+	/*
+	 * Order of conditions is important to circumvent gcc 10 bug:
+	 * https://gcc.gnu.org/pipermail/gcc-patches/2020-July/549318.html
+	 */
+	if ((i > -129) && (i < 128) && __builtin_constant_p(i)) {
 		__atomic_add_const(i, &v->counter);
 		return;
 	}
@@ -84,9 +86,9 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 
 #define ATOMIC64_INIT(i)  { (i) }
 
-static inline long atomic64_read(const atomic64_t *v)
+static inline s64 atomic64_read(const atomic64_t *v)
 {
-	long c;
+	s64 c;
 
 	asm volatile(
 		"	lg	%0,%1\n"
@@ -94,49 +96,53 @@ static inline long atomic64_read(const atomic64_t *v)
 	return c;
 }
 
-static inline void atomic64_set(atomic64_t *v, long i)
+static inline void atomic64_set(atomic64_t *v, s64 i)
 {
 	asm volatile(
 		"	stg	%1,%0\n"
 		: "=Q" (v->counter) : "d" (i));
 }
 
-static inline long atomic64_add_return(long i, atomic64_t *v)
+static inline s64 atomic64_add_return(s64 i, atomic64_t *v)
 {
-	return __atomic64_add_barrier(i, &v->counter) + i;
+	return __atomic64_add_barrier(i, (long *)&v->counter) + i;
 }
 
-static inline long atomic64_fetch_add(long i, atomic64_t *v)
+static inline s64 atomic64_fetch_add(s64 i, atomic64_t *v)
 {
-	return __atomic64_add_barrier(i, &v->counter);
+	return __atomic64_add_barrier(i, (long *)&v->counter);
 }
 
-static inline void atomic64_add(long i, atomic64_t *v)
+static inline void atomic64_add(s64 i, atomic64_t *v)
 {
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
-	if (__builtin_constant_p(i) && (i > -129) && (i < 128)) {
-		__atomic64_add_const(i, &v->counter);
+	/*
+	 * Order of conditions is important to circumvent gcc 10 bug:
+	 * https://gcc.gnu.org/pipermail/gcc-patches/2020-July/549318.html
+	 */
+	if ((i > -129) && (i < 128) && __builtin_constant_p(i)) {
+		__atomic64_add_const(i, (long *)&v->counter);
 		return;
 	}
 #endif
-	__atomic64_add(i, &v->counter);
+	__atomic64_add(i, (long *)&v->counter);
 }
 
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
 
-static inline long atomic64_cmpxchg(atomic64_t *v, long old, long new)
+static inline s64 atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
 {
-	return __atomic64_cmpxchg(&v->counter, old, new);
+	return __atomic64_cmpxchg((long *)&v->counter, old, new);
 }
 
 #define ATOMIC64_OPS(op)						\
-static inline void atomic64_##op(long i, atomic64_t *v)			\
+static inline void atomic64_##op(s64 i, atomic64_t *v)			\
 {									\
-	__atomic64_##op(i, &v->counter);				\
+	__atomic64_##op(i, (long *)&v->counter);			\
 }									\
-static inline long atomic64_fetch_##op(long i, atomic64_t *v)		\
+static inline long atomic64_fetch_##op(s64 i, atomic64_t *v)		\
 {									\
-	return __atomic64_##op##_barrier(i, &v->counter);		\
+	return __atomic64_##op##_barrier(i, (long *)&v->counter);	\
 }
 
 ATOMIC64_OPS(and)
@@ -145,8 +151,8 @@ ATOMIC64_OPS(xor)
 
 #undef ATOMIC64_OPS
 
-#define atomic64_sub_return(_i, _v)	atomic64_add_return(-(long)(_i), _v)
-#define atomic64_fetch_sub(_i, _v)	atomic64_fetch_add(-(long)(_i), _v)
-#define atomic64_sub(_i, _v)		atomic64_add(-(long)(_i), _v)
+#define atomic64_sub_return(_i, _v)	atomic64_add_return(-(s64)(_i), _v)
+#define atomic64_fetch_sub(_i, _v)	atomic64_fetch_add(-(s64)(_i), _v)
+#define atomic64_sub(_i, _v)		atomic64_add(-(s64)(_i), _v)
 
 #endif /* __ARCH_S390_ATOMIC__  */

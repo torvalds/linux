@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  SH7201 setup
  *
  *  Copyright (C) 2008  Peter Griffin pgriffin@mpc-data.co.uk
  *  Copyright (C) 2009  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -14,6 +11,7 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
 #include <linux/io.h>
+#include <asm/platform_early.h>
 
 enum {
 	UNUSED = 0,
@@ -415,6 +413,6 @@ void __init plat_early_device_setup(void)
 	/* enable MTU2 clock */
 	__raw_writeb(__raw_readb(STBCR3) & ~0x20, STBCR3);
 
-	early_platform_add_devices(sh7201_early_devices,
+	sh_early_platform_add_devices(sh7201_early_devices,
 				   ARRAY_SIZE(sh7201_early_devices));
 }

@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Crypto engine API
  *
  * Copyright (c) 2016 Baolin Wang <baolin.wang@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_ENGINE_H
 #define _CRYPTO_ENGINE_H
@@ -29,7 +24,9 @@
  * @idling: the engine is entering idle state
  * @busy: request pump is busy
  * @running: the engine is on working
- * @cur_req_prepared: current request is prepared
+ * @retry_support: indication that the hardware allows re-execution
+ * of a failed backlog request
+ * crypto-engine, in head position to keep order
  * @list: link with the global crypto engine list
  * @queue_lock: spinlock to syncronise access to request queue
  * @queue: the crypto queue of the engine
@@ -40,6 +37,8 @@
  * @unprepare_crypt_hardware: there are currently no more requests on the
  * queue so the subsystem notifies the driver that it may relax the
  * hardware by issuing this call
+ * @do_batch_requests: execute a batch of requests. Depends on multiple
+ * requests support.
  * @kworker: kthread worker struct for request pump
  * @pump_requests: work struct for scheduling work to the request pump
  * @priv_data: the engine private data
@@ -50,7 +49,8 @@ struct crypto_engine {
 	bool			idling;
 	bool			busy;
 	bool			running;
-	bool			cur_req_prepared;
+
+	bool			retry_support;
 
 	struct list_head	list;
 	spinlock_t		queue_lock;
@@ -61,6 +61,8 @@ struct crypto_engine {
 
 	int (*prepare_crypt_hardware)(struct crypto_engine *engine);
 	int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
+	int (*do_batch_requests)(struct crypto_engine *engine);
+
 
 	struct kthread_worker           *kworker;
 	struct kthread_work             pump_requests;
@@ -88,8 +90,6 @@ struct crypto_engine_ctx {
 	struct crypto_engine_op op;
 };
 
-int crypto_transfer_ablkcipher_request_to_engine(struct crypto_engine *engine,
-						 struct ablkcipher_request *req);
 int crypto_transfer_aead_request_to_engine(struct crypto_engine *engine,
 					   struct aead_request *req);
 int crypto_transfer_akcipher_request_to_engine(struct crypto_engine *engine,
@@ -98,8 +98,6 @@ int crypto_transfer_hash_request_to_engine(struct crypto_engine *engine,
 					       struct ahash_request *req);
 int crypto_transfer_skcipher_request_to_engine(struct crypto_engine *engine,
 					       struct skcipher_request *req);
-void crypto_finalize_ablkcipher_request(struct crypto_engine *engine,
-					struct ablkcipher_request *req, int err);
 void crypto_finalize_aead_request(struct crypto_engine *engine,
 				  struct aead_request *req, int err);
 void crypto_finalize_akcipher_request(struct crypto_engine *engine,
@@ -111,6 +109,10 @@ void crypto_finalize_skcipher_request(struct crypto_engine *engine,
 int crypto_engine_start(struct crypto_engine *engine);
 int crypto_engine_stop(struct crypto_engine *engine);
 struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt);
+struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
+						       bool retry_support,
+						       int (*cbk_do_batch)(struct crypto_engine *engine),
+						       bool rt, int qlen);
 int crypto_engine_exit(struct crypto_engine *engine);
 
 #endif /* _CRYPTO_ENGINE_H */

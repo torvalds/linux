@@ -112,9 +112,6 @@ int hfi1_alloc_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
  */
 void hfi1_free_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
 {
-	WARN_ON(!EXP_TID_SET_EMPTY(rcd->tid_full_list));
-	WARN_ON(!EXP_TID_SET_EMPTY(rcd->tid_used_list));
-
 	kfree(rcd->groups);
 	rcd->groups = NULL;
 	hfi1_exp_tid_group_init(rcd);

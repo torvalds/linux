@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ngene.c: nGene PCIe bridge driver
  *
@@ -7,20 +8,6 @@
  *                         Modifications for new nGene firmware,
  *                         support for EEPROM-copying,
  *                         support for new dual DVB-S2 card prototype
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -63,9 +50,9 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 /* nGene interrupt handler **************************************************/
 /****************************************************************************/
 
-static void event_tasklet(unsigned long data)
+static void event_tasklet(struct tasklet_struct *t)
 {
-	struct ngene *dev = (struct ngene *)data;
+	struct ngene *dev = from_tasklet(dev, t, event_tasklet);
 
 	while (dev->EventQueueReadIndex != dev->EventQueueWriteIndex) {
 		struct EVENT_BUFFER Event =
@@ -81,9 +68,9 @@ static void event_tasklet(unsigned long data)
 	}
 }
 
-static void demux_tasklet(unsigned long data)
+static void demux_tasklet(struct tasklet_struct *t)
 {
-	struct ngene_channel *chan = (struct ngene_channel *)data;
+	struct ngene_channel *chan = from_tasklet(chan, t, demux_tasklet);
 	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct SBufferHeader *Cur = chan->nextBuffer;
 
@@ -867,8 +854,6 @@ static int create_ring_buffer(struct pci_dev *pci_dev,
 	if (!Head)
 		return -ENOMEM;
 
-	memset(Head, 0, MemSize);
-
 	PARingBufferCur = PARingBufferHead;
 	Cur = Head;
 
@@ -919,8 +904,6 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 	PASCListMem = tmp;
 	if (SCListMem == NULL)
 		return -ENOMEM;
-
-	memset(SCListMem, 0, SCListMemSize);
 
 	pRingBuffer->SCListMem = SCListMem;
 	pRingBuffer->PASCListMem = PASCListMem;
@@ -1014,7 +997,7 @@ static int FillTSIdleBuffer(struct SRingBufferDescriptor *pIdleBuffer,
 	/* Point to first buffer entry */
 	struct SBufferHeader *Cur = pRingBuffer->Head;
 	int i;
-	/* Loop thru all buffer and set Buffer 2 pointers to TSIdlebuffer */
+	/* Loop through all buffer and set Buffer 2 pointers to TSIdlebuffer */
 	for (i = 0; i < n; i++) {
 		Cur->Buffer2 = pIdleBuffer->Head->Buffer1;
 		Cur->scList2 = pIdleBuffer->Head->scList1;
@@ -1198,7 +1181,7 @@ static void ngene_init(struct ngene *dev)
 	struct device *pdev = &dev->pci_dev->dev;
 	int i;
 
-	tasklet_init(&dev->event_tasklet, event_tasklet, (unsigned long)dev);
+	tasklet_setup(&dev->event_tasklet, event_tasklet);
 
 	memset_io(dev->iomem + 0xc000, 0x00, 0x220);
 	memset_io(dev->iomem + 0xc400, 0x00, 0x100);
@@ -1462,7 +1445,7 @@ static int init_channel(struct ngene_channel *chan)
 	struct ngene_info *ni = dev->card_info;
 	int io = ni->io_type[nr];
 
-	tasklet_init(&chan->demux_tasklet, demux_tasklet, (unsigned long)chan);
+	tasklet_setup(&chan->demux_tasklet, demux_tasklet);
 	chan->users = 0;
 	chan->type = io;
 	chan->mode = chan->type;	/* for now only one mode */

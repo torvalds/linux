@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * oxfw-spkr.c - a part of driver for OXFW970/971 based devices
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "oxfw.h"
@@ -270,8 +270,9 @@ int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie)
 	unsigned int i, first_ch;
 	int err;
 
-	spkr = kzalloc(sizeof(struct fw_spkr), GFP_KERNEL);
-	if (spkr == NULL)
+	spkr = devm_kzalloc(&oxfw->card->card_dev, sizeof(struct fw_spkr),
+			    GFP_KERNEL);
+	if (!spkr)
 		return -ENOMEM;
 	oxfw->spec = spkr;
 

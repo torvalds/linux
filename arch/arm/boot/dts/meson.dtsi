@@ -1,71 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright 2014 Carlo Caione <carlo@caione.org>
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This library is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This library is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public
- *     License along with this library; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-/include/ "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	interrupt-parent = <&gic>;
-
-	L2: l2-cache-controller@c4200000 {
-		compatible = "arm,pl310-cache";
-		reg = <0xc4200000 0x1000>;
-		cache-unified;
-		cache-level = <2>;
-	};
-
-	gic: interrupt-controller@c4301000 {
-		compatible = "arm,cortex-a9-gic";
-		reg = <0xc4301000 0x1000>,
-		      <0xc4300100 0x0100>;
-		interrupt-controller;
-		#interrupt-cells = <3>;
-	};
 
 	soc {
 		compatible = "simple-bus";
@@ -79,6 +23,13 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xc1100000 0x200000>;
+
+			hhi: system-controller@4000 {
+				compatible = "amlogic,meson-hhi-sysctrl",
+					     "simple-mfd",
+					     "syscon";
+				reg = <0x4000 0x400>;
+			};
 
 			assist: assist@7c00 {
 				compatible = "amlogic,meson-mx-assist", "syscon";
@@ -182,6 +133,13 @@
 				status = "disabled";
 			};
 
+			sdhc: mmc@8e00 {
+				compatible = "amlogic,meson-mx-sdhc";
+				reg = <0x8e00 0x42>;
+				interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
 			gpio_intc: interrupt-controller@9880 {
 				compatible = "amlogic,meson-gpio-intc";
 				reg = <0x9880 0x10>;
@@ -197,10 +155,36 @@
 				interrupts = <GIC_SPI 0 IRQ_TYPE_EDGE_RISING>;
 			};
 
-			timer@9940 {
+			timer_abcde: timer@9940 {
 				compatible = "amlogic,meson6-timer";
 				reg = <0x9940 0x18>;
-				interrupts = <GIC_SPI 10 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 11 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 6 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		L2: cache-controller@c4200000 {
+			compatible = "arm,pl310-cache";
+			reg = <0xc4200000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		periph: bus@c4300000 {
+			compatible = "simple-bus";
+			reg = <0xc4300000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xc4300000 0x10000>;
+
+			gic: interrupt-controller@1000 {
+				compatible = "arm,cortex-a9-gic";
+				reg = <0x1000 0x1000>,
+				      <0x100 0x100>;
+				interrupt-controller;
+				#interrupt-cells = <3>;
 			};
 		};
 
@@ -233,6 +217,15 @@
 				#size-cells = <0>;
 				status = "disabled";
 			};
+
+			rtc: rtc@740 {
+				compatible = "amlogic,meson6-rtc";
+				reg = <0x740 0x14>;
+				interrupts = <GIC_SPI 72 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				status = "disabled";
+			};
 		};
 
 		usb0: usb@c9040000 {
@@ -243,6 +236,9 @@
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb0_phy>;
 			phy-names = "usb2-phy";
+			g-rx-fifo-size = <512>;
+			g-np-tx-fifo-size = <500>;
+			g-tx-fifo-size = <256 192 128 128 128>;
 			dr_mode = "host";
 			status = "disabled";
 		};
@@ -263,7 +259,7 @@
 			compatible = "amlogic,meson6-dwmac", "snps,dwmac";
 			reg = <0xc9410000 0x10000
 			       0xc1108108 0x4>;
-			interrupts = <GIC_SPI 8 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			status = "disabled";
 		};
@@ -295,5 +291,12 @@
 				#size-cells = <1>;
 			};
 		};
+	};
+
+	xtal: xtal-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "xtal";
+		#clock-cells = <0>;
 	};
 }; /* end of / */

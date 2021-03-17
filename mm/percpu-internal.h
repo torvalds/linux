@@ -6,11 +6,39 @@
 #include <linux/percpu.h>
 
 /*
+ * There are two chunk types: root and memcg-aware.
+ * Chunks of each type have separate slots list.
+ *
+ * Memcg-aware chunks have an attached vector of obj_cgroup pointers, which is
+ * used to store memcg membership data of a percpu object.  Obj_cgroups are
+ * ref-counted pointers to a memory cgroup with an ability to switch dynamically
+ * to the parent memory cgroup.  This allows to reclaim a deleted memory cgroup
+ * without reclaiming of all outstanding objects, which hold a reference at it.
+ */
+enum pcpu_chunk_type {
+	PCPU_CHUNK_ROOT,
+#ifdef CONFIG_MEMCG_KMEM
+	PCPU_CHUNK_MEMCG,
+#endif
+	PCPU_NR_CHUNK_TYPES,
+	PCPU_FAIL_ALLOC = PCPU_NR_CHUNK_TYPES
+};
+
+/*
  * pcpu_block_md is the metadata block struct.
  * Each chunk's bitmap is split into a number of full blocks.
  * All units are in terms of bits.
+ *
+ * The scan hint is the largest known contiguous area before the contig hint.
+ * It is not necessarily the actual largest contig hint though.  There is an
+ * invariant that the scan_hint_start > contig_hint_start iff
+ * scan_hint == contig_hint.  This is necessary because when scanning forward,
+ * we don't know if a new contig hint would be better than the current one.
  */
 struct pcpu_block_md {
+	int			scan_hint;	/* scan hint for block */
+	int			scan_hint_start; /* block relative starting
+						    position of the scan hint */
 	int                     contig_hint;    /* contig hint for block */
 	int                     contig_hint_start; /* block relative starting
 						      position of the contig hint */
@@ -19,6 +47,7 @@ struct pcpu_block_md {
 	int                     right_free;     /* size of free space along
 						   the right side of the block */
 	int                     first_free;     /* block position of first free */
+	int			nr_bits;	/* total bits responsible for */
 };
 
 struct pcpu_chunk {
@@ -29,9 +58,7 @@ struct pcpu_chunk {
 
 	struct list_head	list;		/* linked to pcpu_slot lists */
 	int			free_bytes;	/* free bytes in the chunk */
-	int			contig_bits;	/* max contiguous size hint */
-	int			contig_bits_start; /* contig_bits starting
-						      offset */
+	struct pcpu_block_md	chunk_md;
 	void			*base_addr;	/* base address of this chunk */
 
 	unsigned long		*alloc_map;	/* allocation map */
@@ -39,7 +66,6 @@ struct pcpu_chunk {
 	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
 
 	void			*data;		/* chunk data */
-	int			first_bit;	/* no free below this */
 	bool			immutable;	/* no [de]population allowed */
 	int			start_offset;	/* the overlap with the previous
 						   region to have a page aligned
@@ -47,6 +73,9 @@ struct pcpu_chunk {
 	int			end_offset;	/* additional area required to
 						   have the region end page
 						   aligned */
+#ifdef CONFIG_MEMCG_KMEM
+	struct obj_cgroup	**obj_cgroups;	/* vector of object cgroups */
+#endif
 
 	int			nr_pages;	/* # of pages served by this chunk */
 	int			nr_populated;	/* # of populated pages */
@@ -56,7 +85,7 @@ struct pcpu_chunk {
 
 extern spinlock_t pcpu_lock;
 
-extern struct list_head *pcpu_slot;
+extern struct list_head *pcpu_chunk_lists;
 extern int pcpu_nr_slots;
 extern int pcpu_nr_empty_pop_pages;
 
@@ -97,6 +126,37 @@ static inline int pcpu_nr_pages_to_map_bits(int pages)
 static inline int pcpu_chunk_map_bits(struct pcpu_chunk *chunk)
 {
 	return pcpu_nr_pages_to_map_bits(chunk->nr_pages);
+}
+
+#ifdef CONFIG_MEMCG_KMEM
+static inline enum pcpu_chunk_type pcpu_chunk_type(struct pcpu_chunk *chunk)
+{
+	if (chunk->obj_cgroups)
+		return PCPU_CHUNK_MEMCG;
+	return PCPU_CHUNK_ROOT;
+}
+
+static inline bool pcpu_is_memcg_chunk(enum pcpu_chunk_type chunk_type)
+{
+	return chunk_type == PCPU_CHUNK_MEMCG;
+}
+
+#else
+static inline enum pcpu_chunk_type pcpu_chunk_type(struct pcpu_chunk *chunk)
+{
+	return PCPU_CHUNK_ROOT;
+}
+
+static inline bool pcpu_is_memcg_chunk(enum pcpu_chunk_type chunk_type)
+{
+	return false;
+}
+#endif
+
+static inline struct list_head *pcpu_chunk_list(enum pcpu_chunk_type chunk_type)
+{
+	return &pcpu_chunk_lists[pcpu_nr_slots *
+				 pcpu_is_memcg_chunk(chunk_type)];
 }
 
 #ifdef CONFIG_PERCPU_STATS

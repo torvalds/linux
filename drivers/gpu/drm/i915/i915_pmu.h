@@ -10,7 +10,7 @@
 #include <linux/hrtimer.h>
 #include <linux/perf_event.h>
 #include <linux/spinlock_types.h>
-#include <drm/i915_drm.h>
+#include <uapi/drm/i915_drm.h>
 
 struct drm_i915_private;
 
@@ -18,7 +18,7 @@ enum {
 	__I915_SAMPLE_FREQ_ACT = 0,
 	__I915_SAMPLE_FREQ_REQ,
 	__I915_SAMPLE_RC6,
-	__I915_SAMPLE_RC6_ESTIMATED,
+	__I915_SAMPLE_RC6_LAST_REPORTED,
 	__I915_NUM_PMU_SAMPLERS
 };
 
@@ -31,19 +31,28 @@ enum {
 	((1 << I915_PMU_SAMPLE_BITS) + \
 	 (I915_PMU_LAST + 1 - __I915_PMU_OTHER(0)))
 
+#define I915_ENGINE_SAMPLE_COUNT (I915_SAMPLE_SEMA + 1)
+
 struct i915_pmu_sample {
 	u64 cur;
 };
 
 struct i915_pmu {
 	/**
-	 * @node: List node for CPU hotplug handling.
+	 * @cpuhp: Struct used for CPU hotplug handling.
 	 */
-	struct hlist_node node;
+	struct {
+		struct hlist_node node;
+		enum cpuhp_state slot;
+	} cpuhp;
 	/**
 	 * @base: PMU base.
 	 */
 	struct pmu base;
+	/**
+	 * @name: Name as registered with perf core.
+	 */
+	const char *name;
 	/**
 	 * @lock: Lock protecting enable mask and ref count handling.
 	 */
@@ -95,9 +104,13 @@ struct i915_pmu {
 	 */
 	struct i915_pmu_sample sample[__I915_NUM_PMU_SAMPLERS];
 	/**
-	 * @suspended_jiffies_last: Cached suspend time from PM core.
+	 * @sleep_last: Last time GT parked for RC6 estimation.
 	 */
-	unsigned long suspended_jiffies_last;
+	ktime_t sleep_last;
+	/**
+	 * @events_attr_group: Device events attribute group.
+	 */
+	struct attribute_group events_attr_group;
 	/**
 	 * @i915_attr: Memory block holding device attributes.
 	 */

@@ -66,6 +66,15 @@ struct dpaa2_fd {
 #define SG_BPID_MASK		0x3FFF
 #define SG_FINAL_FLAG_MASK	0x1
 #define SG_FINAL_FLAG_SHIFT	15
+#define FL_SHORT_LEN_FLAG_MASK	0x1
+#define FL_SHORT_LEN_FLAG_SHIFT	14
+#define FL_SHORT_LEN_MASK	0x3FFFF
+#define FL_OFFSET_MASK		0x0FFF
+#define FL_FORMAT_MASK		0x3
+#define FL_FORMAT_SHIFT		12
+#define FL_BPID_MASK		0x3FFF
+#define FL_FINAL_FLAG_MASK	0x1
+#define FL_FINAL_FLAG_SHIFT	15
 
 /* Error bits in FD CTRL */
 #define FD_CTRL_ERR_MASK	0x000000FF
@@ -433,6 +442,239 @@ static inline void dpaa2_sg_set_final(struct dpaa2_sg_entry *sg, bool final)
 	sg->format_offset &= cpu_to_le16((~(SG_FINAL_FLAG_MASK
 					 << SG_FINAL_FLAG_SHIFT)) & 0xFFFF);
 	sg->format_offset |= cpu_to_le16(final << SG_FINAL_FLAG_SHIFT);
+}
+
+/**
+ * struct dpaa2_fl_entry - structure for frame list entry.
+ * @addr:          address in the FLE
+ * @len:           length in the FLE
+ * @bpid:          buffer pool ID
+ * @format_offset: format, offset, and short-length fields
+ * @frc:           frame context
+ * @ctrl:          control bits...including pta, pvt1, pvt2, err, etc
+ * @flc:           flow context address
+ */
+struct dpaa2_fl_entry {
+	__le64 addr;
+	__le32 len;
+	__le16 bpid;
+	__le16 format_offset;
+	__le32 frc;
+	__le32 ctrl;
+	__le64 flc;
+};
+
+enum dpaa2_fl_format {
+	dpaa2_fl_single = 0,
+	dpaa2_fl_res,
+	dpaa2_fl_sg
+};
+
+/**
+ * dpaa2_fl_get_addr() - get the addr field of FLE
+ * @fle: the given frame list entry
+ *
+ * Return the address in the frame list entry.
+ */
+static inline dma_addr_t dpaa2_fl_get_addr(const struct dpaa2_fl_entry *fle)
+{
+	return (dma_addr_t)le64_to_cpu(fle->addr);
+}
+
+/**
+ * dpaa2_fl_set_addr() - Set the addr field of FLE
+ * @fle: the given frame list entry
+ * @addr: the address needs to be set in frame list entry
+ */
+static inline void dpaa2_fl_set_addr(struct dpaa2_fl_entry *fle,
+				     dma_addr_t addr)
+{
+	fle->addr = cpu_to_le64(addr);
+}
+
+/**
+ * dpaa2_fl_get_frc() - Get the frame context in the FLE
+ * @fle: the given frame list entry
+ *
+ * Return the frame context field in the frame lsit entry.
+ */
+static inline u32 dpaa2_fl_get_frc(const struct dpaa2_fl_entry *fle)
+{
+	return le32_to_cpu(fle->frc);
+}
+
+/**
+ * dpaa2_fl_set_frc() - Set the frame context in the FLE
+ * @fle: the given frame list entry
+ * @frc: the frame context needs to be set in frame list entry
+ */
+static inline void dpaa2_fl_set_frc(struct dpaa2_fl_entry *fle, u32 frc)
+{
+	fle->frc = cpu_to_le32(frc);
+}
+
+/**
+ * dpaa2_fl_get_ctrl() - Get the control bits in the FLE
+ * @fle: the given frame list entry
+ *
+ * Return the control bits field in the frame list entry.
+ */
+static inline u32 dpaa2_fl_get_ctrl(const struct dpaa2_fl_entry *fle)
+{
+	return le32_to_cpu(fle->ctrl);
+}
+
+/**
+ * dpaa2_fl_set_ctrl() - Set the control bits in the FLE
+ * @fle: the given frame list entry
+ * @ctrl: the control bits to be set in the frame list entry
+ */
+static inline void dpaa2_fl_set_ctrl(struct dpaa2_fl_entry *fle, u32 ctrl)
+{
+	fle->ctrl = cpu_to_le32(ctrl);
+}
+
+/**
+ * dpaa2_fl_get_flc() - Get the flow context in the FLE
+ * @fle: the given frame list entry
+ *
+ * Return the flow context in the frame list entry.
+ */
+static inline dma_addr_t dpaa2_fl_get_flc(const struct dpaa2_fl_entry *fle)
+{
+	return (dma_addr_t)le64_to_cpu(fle->flc);
+}
+
+/**
+ * dpaa2_fl_set_flc() - Set the flow context field of FLE
+ * @fle: the given frame list entry
+ * @flc_addr: the flow context needs to be set in frame list entry
+ */
+static inline void dpaa2_fl_set_flc(struct dpaa2_fl_entry *fle,
+				    dma_addr_t flc_addr)
+{
+	fle->flc = cpu_to_le64(flc_addr);
+}
+
+static inline bool dpaa2_fl_short_len(const struct dpaa2_fl_entry *fle)
+{
+	return !!((le16_to_cpu(fle->format_offset) >>
+		  FL_SHORT_LEN_FLAG_SHIFT) & FL_SHORT_LEN_FLAG_MASK);
+}
+
+/**
+ * dpaa2_fl_get_len() - Get the length in the FLE
+ * @fle: the given frame list entry
+ *
+ * Return the length field in the frame list entry.
+ */
+static inline u32 dpaa2_fl_get_len(const struct dpaa2_fl_entry *fle)
+{
+	if (dpaa2_fl_short_len(fle))
+		return le32_to_cpu(fle->len) & FL_SHORT_LEN_MASK;
+
+	return le32_to_cpu(fle->len);
+}
+
+/**
+ * dpaa2_fl_set_len() - Set the length field of FLE
+ * @fle: the given frame list entry
+ * @len: the length needs to be set in frame list entry
+ */
+static inline void dpaa2_fl_set_len(struct dpaa2_fl_entry *fle, u32 len)
+{
+	fle->len = cpu_to_le32(len);
+}
+
+/**
+ * dpaa2_fl_get_offset() - Get the offset field in the frame list entry
+ * @fle: the given frame list entry
+ *
+ * Return the offset.
+ */
+static inline u16 dpaa2_fl_get_offset(const struct dpaa2_fl_entry *fle)
+{
+	return le16_to_cpu(fle->format_offset) & FL_OFFSET_MASK;
+}
+
+/**
+ * dpaa2_fl_set_offset() - Set the offset field of FLE
+ * @fle: the given frame list entry
+ * @offset: the offset needs to be set in frame list entry
+ */
+static inline void dpaa2_fl_set_offset(struct dpaa2_fl_entry *fle, u16 offset)
+{
+	fle->format_offset &= cpu_to_le16(~FL_OFFSET_MASK);
+	fle->format_offset |= cpu_to_le16(offset);
+}
+
+/**
+ * dpaa2_fl_get_format() - Get the format field in the FLE
+ * @fle: the given frame list entry
+ *
+ * Return the format.
+ */
+static inline enum dpaa2_fl_format dpaa2_fl_get_format(const struct dpaa2_fl_entry *fle)
+{
+	return (enum dpaa2_fl_format)((le16_to_cpu(fle->format_offset) >>
+				       FL_FORMAT_SHIFT) & FL_FORMAT_MASK);
+}
+
+/**
+ * dpaa2_fl_set_format() - Set the format field of FLE
+ * @fle: the given frame list entry
+ * @format: the format needs to be set in frame list entry
+ */
+static inline void dpaa2_fl_set_format(struct dpaa2_fl_entry *fle,
+				       enum dpaa2_fl_format format)
+{
+	fle->format_offset &= cpu_to_le16(~(FL_FORMAT_MASK << FL_FORMAT_SHIFT));
+	fle->format_offset |= cpu_to_le16(format << FL_FORMAT_SHIFT);
+}
+
+/**
+ * dpaa2_fl_get_bpid() - Get the bpid field in the FLE
+ * @fle: the given frame list entry
+ *
+ * Return the buffer pool id.
+ */
+static inline u16 dpaa2_fl_get_bpid(const struct dpaa2_fl_entry *fle)
+{
+	return le16_to_cpu(fle->bpid) & FL_BPID_MASK;
+}
+
+/**
+ * dpaa2_fl_set_bpid() - Set the bpid field of FLE
+ * @fle: the given frame list entry
+ * @bpid: buffer pool id to be set
+ */
+static inline void dpaa2_fl_set_bpid(struct dpaa2_fl_entry *fle, u16 bpid)
+{
+	fle->bpid &= cpu_to_le16(~(FL_BPID_MASK));
+	fle->bpid |= cpu_to_le16(bpid);
+}
+
+/**
+ * dpaa2_fl_is_final() - Check final bit in FLE
+ * @fle: the given frame list entry
+ *
+ * Return bool.
+ */
+static inline bool dpaa2_fl_is_final(const struct dpaa2_fl_entry *fle)
+{
+	return !!(le16_to_cpu(fle->format_offset) >> FL_FINAL_FLAG_SHIFT);
+}
+
+/**
+ * dpaa2_fl_set_final() - Set the final bit in FLE
+ * @fle: the given frame list entry
+ * @final: the final boolean to be set
+ */
+static inline void dpaa2_fl_set_final(struct dpaa2_fl_entry *fle, bool final)
+{
+	fle->format_offset &= cpu_to_le16((~(FL_FINAL_FLAG_MASK <<
+					     FL_FINAL_FLAG_SHIFT)) & 0xFFFF);
+	fle->format_offset |= cpu_to_le16(final << FL_FINAL_FLAG_SHIFT);
 }
 
 #endif /* __FSL_DPAA2_FD_H */

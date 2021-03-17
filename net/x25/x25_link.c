@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	X.25 Packet Layer release 002
  *
@@ -6,12 +7,6 @@
  *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
- *
- *	This module:
- *		This module is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *	History
  *	X.25 001	Jonathan Naylor	  Started coding.
@@ -275,7 +270,7 @@ void x25_link_device_up(struct net_device *dev)
 
 /**
  *	__x25_remove_neigh - remove neighbour from x25_neigh_list
- *	@nb - neigh to remove
+ *	@nb: - neigh to remove
  *
  *	Remove neighbour from x25_neigh_list. If it was there.
  *	Caller must hold x25_neigh_list_lock.

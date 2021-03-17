@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt5668.c  --  RT5668B ALSA SoC audio component driver
  *
  * Copyright 2018 Realtek Semiconductor Corp.
  * Author: Bard Liao <bardliao@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -850,7 +847,7 @@ static int rt5668_button_detect(struct snd_soc_component *component)
 {
 	int btn_type, val;
 
-	val = snd_soc_component_read32(component, RT5668_4BTN_IL_CMD_1);
+	val = snd_soc_component_read(component, RT5668_4BTN_IL_CMD_1);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5668_4BTN_IL_CMD_1, val);
 	pr_debug("%s btn_type=%x\n", __func__, btn_type);
@@ -910,11 +907,11 @@ static int rt5668_headset_detect(struct snd_soc_component *component,
 			RT5668_TRIG_JD_MASK, RT5668_TRIG_JD_HIGH);
 
 		count = 0;
-		val = snd_soc_component_read32(component, RT5668_CBJ_CTRL_2)
+		val = snd_soc_component_read(component, RT5668_CBJ_CTRL_2)
 			& RT5668_JACK_TYPE_MASK;
 		while (val == 0 && count < 50) {
 			usleep_range(10000, 15000);
-			val = snd_soc_component_read32(component,
+			val = snd_soc_component_read(component,
 				RT5668_CBJ_CTRL_2) & RT5668_JACK_TYPE_MASK;
 			count++;
 		}
@@ -958,7 +955,7 @@ static void rt5668_jd_check_handler(struct work_struct *work)
 	struct rt5668_priv *rt5668 = container_of(work, struct rt5668_priv,
 		jd_check_work.work);
 
-	if (snd_soc_component_read32(rt5668->component, RT5668_AJD1_CTRL)
+	if (snd_soc_component_read(rt5668->component, RT5668_AJD1_CTRL)
 		& RT5668_JDH_RS_MASK) {
 		/* jack out */
 		rt5668->jack_type = rt5668_headset_detect(rt5668->component, 0);
@@ -1033,7 +1030,7 @@ static void rt5668_jack_detect_handler(struct work_struct *work)
 
 	mutex_lock(&rt5668->calibrate_mutex);
 
-	val = snd_soc_component_read32(rt5668->component, RT5668_AJD1_CTRL)
+	val = snd_soc_component_read(rt5668->component, RT5668_AJD1_CTRL)
 		& RT5668_JDH_RS_MASK;
 	if (!val) {
 		/* jack in */
@@ -1194,7 +1191,7 @@ static int set_filter_clk(struct snd_soc_dapm_widget *w,
 	int ref, val, reg, idx = -EINVAL;
 	static const int div[] = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48};
 
-	val = snd_soc_component_read32(component, RT5668_GPIO_CTRL_1) &
+	val = snd_soc_component_read(component, RT5668_GPIO_CTRL_1) &
 		RT5668_GP4_PIN_MASK;
 	if (w->shift == RT5668_PWR_ADC_S1F_BIT &&
 		val == RT5668_GP4_PIN_ADCDAT2)
@@ -1222,7 +1219,7 @@ static int is_sys_clk_from_pll1(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 
-	val = snd_soc_component_read32(component, RT5668_GLB_CLK);
+	val = snd_soc_component_read(component, RT5668_GLB_CLK);
 	val &= RT5668_SCLK_SRC_MASK;
 	if (val == RT5668_SCLK_SRC_PLL1)
 		return 1;
@@ -1250,7 +1247,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
-	val = (snd_soc_component_read32(component, reg) >> shift) & 0xf;
+	val = (snd_soc_component_read(component, reg) >> shift) & 0xf;
 	switch (val) {
 	case RT5668_CLK_SEL_I2S1_ASRC:
 	case RT5668_CLK_SEL_I2S2_ASRC:
@@ -2375,7 +2372,8 @@ static const struct regmap_config rt5668_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = rt5668_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5668_reg),
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static const struct i2c_device_id rt5668_i2c_id[] = {
@@ -2587,15 +2585,8 @@ static int rt5668_i2c_probe(struct i2c_client *i2c,
 
 	}
 
-	return snd_soc_register_component(&i2c->dev, &soc_component_dev_rt5668,
+	return devm_snd_soc_register_component(&i2c->dev, &soc_component_dev_rt5668,
 			rt5668_dai, ARRAY_SIZE(rt5668_dai));
-}
-
-static int rt5668_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_component(&i2c->dev);
-
-	return 0;
 }
 
 static void rt5668_i2c_shutdown(struct i2c_client *client)
@@ -2628,7 +2619,6 @@ static struct i2c_driver rt5668_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5668_acpi_match),
 	},
 	.probe = rt5668_i2c_probe,
-	.remove = rt5668_i2c_remove,
 	.shutdown = rt5668_i2c_shutdown,
 	.id_table = rt5668_i2c_id,
 };

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/subdev/gpio/base.o
 nvkm-y += nvkm/subdev/gpio/nv10.o
 nvkm-y += nvkm/subdev/gpio/nv50.o

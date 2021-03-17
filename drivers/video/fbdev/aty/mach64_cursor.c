@@ -194,7 +194,7 @@ static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	return 0;
 }
 
-int aty_init_cursor(struct fb_info *info)
+int aty_init_cursor(struct fb_info *info, struct fb_ops *atyfb_ops)
 {
 	unsigned long addr;
 
@@ -219,7 +219,7 @@ int aty_init_cursor(struct fb_info *info)
 	info->sprite.buf_align = 16; 	/* and 64 lines tall. */
 	info->sprite.flags = FB_PIXMAP_IO;
 
-	info->fbops->fb_cursor = atyfb_cursor;
+	atyfb_ops->fb_cursor = atyfb_cursor;
 
 	return 0;
 }

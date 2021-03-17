@@ -17,7 +17,7 @@
 #include <linux/dm-bufio.h>
 
 #define DM_MSG_PREFIX "persistent snapshot"
-#define DM_CHUNK_SIZE_DEFAULT_SECTORS 32	/* 16KB */
+#define DM_CHUNK_SIZE_DEFAULT_SECTORS 32U	/* 16KB */
 
 #define DM_PREFETCH_CHUNKS		12
 
@@ -252,7 +252,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int op,
 
 	/*
 	 * Issue the synchronous I/O from a different thread
-	 * to avoid generic_make_request recursion.
+	 * to avoid submit_bio_noacct recursion.
 	 */
 	INIT_WORK_ONSTACK(&req.work, do_metadata);
 	queue_work(ps->metadata_wq, &req.work);
@@ -284,16 +284,9 @@ static void skip_metadata(struct pstore *ps)
  */
 static int area_io(struct pstore *ps, int op, int op_flags)
 {
-	int r;
-	chunk_t chunk;
+	chunk_t chunk = area_location(ps, ps->current_area);
 
-	chunk = area_location(ps, ps->current_area);
-
-	r = chunk_io(ps, ps->area, chunk, op, op_flags, 0);
-	if (r)
-		return r;
-
-	return 0;
+	return chunk_io(ps, ps->area, chunk, op, op_flags, 0);
 }
 
 static void zero_memory_area(struct pstore *ps)
@@ -613,7 +606,7 @@ static int persistent_read_metadata(struct dm_exception_store *store,
 						    chunk_t old, chunk_t new),
 				    void *callback_context)
 {
-	int r, uninitialized_var(new_snapshot);
+	int r, new_snapshot;
 	struct pstore *ps = get_info(store);
 
 	/*

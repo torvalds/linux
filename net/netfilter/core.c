@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/rcupdate.h>
 #include <net/net_namespace.h>
+#include <net/netfilter/nf_queue.h>
 #include <net/sock.h>
 
 #include "nf_internals.h"
@@ -33,7 +34,7 @@ EXPORT_SYMBOL_GPL(nf_ipv6_ops);
 DEFINE_PER_CPU(bool, nf_skb_duplicated);
 EXPORT_SYMBOL_GPL(nf_skb_duplicated);
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 EXPORT_SYMBOL(nf_hooks_needed);
 #endif
@@ -162,7 +163,7 @@ nf_hook_entries_grow(const struct nf_hook_entries *old,
 
 static void hooks_validate(const struct nf_hook_entries *hooks)
 {
-#ifdef CONFIG_DEBUG_KERNEL
+#ifdef CONFIG_DEBUG_MISC
 	struct nf_hook_ops **orig_ops;
 	int prio = INT_MIN;
 	size_t i = 0;
@@ -281,6 +282,16 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 			return NULL;
 		return net->nf.hooks_bridge + hooknum;
 #endif
+#ifdef CONFIG_NETFILTER_INGRESS
+	case NFPROTO_INET:
+		if (WARN_ON_ONCE(hooknum != NF_INET_INGRESS))
+			return NULL;
+		if (!dev || dev_net(dev) != net) {
+			WARN_ON_ONCE(1);
+			return NULL;
+		}
+		return &dev->nf_hooks_ingress;
+#endif
 	case NFPROTO_IPV4:
 		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv4) <= hooknum))
 			return NULL;
@@ -310,20 +321,80 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 	return NULL;
 }
 
+static int nf_ingress_check(struct net *net, const struct nf_hook_ops *reg,
+			    int hooknum)
+{
+#ifndef CONFIG_NETFILTER_INGRESS
+	if (reg->hooknum == hooknum)
+		return -EOPNOTSUPP;
+#endif
+	if (reg->hooknum != hooknum ||
+	    !reg->dev || dev_net(reg->dev) != net)
+		return -EINVAL;
+
+	return 0;
+}
+
+static inline bool nf_ingress_hook(const struct nf_hook_ops *reg, int pf)
+{
+	if ((pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS) ||
+	    (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS))
+		return true;
+
+	return false;
+}
+
+static void nf_static_key_inc(const struct nf_hook_ops *reg, int pf)
+{
+#ifdef CONFIG_JUMP_LABEL
+	int hooknum;
+
+	if (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS) {
+		pf = NFPROTO_NETDEV;
+		hooknum = NF_NETDEV_INGRESS;
+	} else {
+		hooknum = reg->hooknum;
+	}
+	static_key_slow_inc(&nf_hooks_needed[pf][hooknum]);
+#endif
+}
+
+static void nf_static_key_dec(const struct nf_hook_ops *reg, int pf)
+{
+#ifdef CONFIG_JUMP_LABEL
+	int hooknum;
+
+	if (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS) {
+		pf = NFPROTO_NETDEV;
+		hooknum = NF_NETDEV_INGRESS;
+	} else {
+		hooknum = reg->hooknum;
+	}
+	static_key_slow_dec(&nf_hooks_needed[pf][hooknum]);
+#endif
+}
+
 static int __nf_register_net_hook(struct net *net, int pf,
 				  const struct nf_hook_ops *reg)
 {
 	struct nf_hook_entries *p, *new_hooks;
 	struct nf_hook_entries __rcu **pp;
+	int err;
 
-	if (pf == NFPROTO_NETDEV) {
-#ifndef CONFIG_NETFILTER_INGRESS
-		if (reg->hooknum == NF_NETDEV_INGRESS)
-			return -EOPNOTSUPP;
-#endif
-		if (reg->hooknum != NF_NETDEV_INGRESS ||
-		    !reg->dev || dev_net(reg->dev) != net)
-			return -EINVAL;
+	switch (pf) {
+	case NFPROTO_NETDEV:
+		err = nf_ingress_check(net, reg, NF_NETDEV_INGRESS);
+		if (err < 0)
+			return err;
+		break;
+	case NFPROTO_INET:
+		if (reg->hooknum != NF_INET_INGRESS)
+			break;
+
+		err = nf_ingress_check(net, reg, NF_INET_INGRESS);
+		if (err < 0)
+			return err;
+		break;
 	}
 
 	pp = nf_hook_entry_head(net, pf, reg->hooknum, reg->dev);
@@ -344,12 +415,11 @@ static int __nf_register_net_hook(struct net *net, int pf,
 
 	hooks_validate(new_hooks);
 #ifdef CONFIG_NETFILTER_INGRESS
-	if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+	if (nf_ingress_hook(reg, pf))
 		net_inc_ingress_queue();
 #endif
-#ifdef HAVE_JUMP_LABEL
-	static_key_slow_inc(&nf_hooks_needed[pf][reg->hooknum]);
-#endif
+	nf_static_key_inc(reg, pf);
+
 	BUG_ON(p == new_hooks);
 	nf_hook_entries_free(p);
 	return 0;
@@ -375,7 +445,7 @@ static bool nf_remove_net_hook(struct nf_hook_entries *old,
 		if (orig_ops[i] != unreg)
 			continue;
 		WRITE_ONCE(old->hooks[i].hook, accept_all);
-		WRITE_ONCE(orig_ops[i], &dummy_ops);
+		WRITE_ONCE(orig_ops[i], (void *)&dummy_ops);
 		return true;
 	}
 
@@ -402,12 +472,10 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 
 	if (nf_remove_net_hook(p, reg)) {
 #ifdef CONFIG_NETFILTER_INGRESS
-		if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+		if (nf_ingress_hook(reg, pf))
 			net_dec_ingress_queue();
 #endif
-#ifdef HAVE_JUMP_LABEL
-		static_key_slow_dec(&nf_hooks_needed[pf][reg->hooknum]);
-#endif
+		nf_static_key_dec(reg, pf);
 	} else {
 		WARN_ONCE(1, "hook not found, pf %d num %d", pf, reg->hooknum);
 	}
@@ -424,8 +492,12 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
 	if (reg->pf == NFPROTO_INET) {
-		__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
-		__nf_unregister_net_hook(net, NFPROTO_IPV6, reg);
+		if (reg->hooknum == NF_INET_INGRESS) {
+			__nf_unregister_net_hook(net, NFPROTO_INET, reg);
+		} else {
+			__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
+			__nf_unregister_net_hook(net, NFPROTO_IPV6, reg);
+		}
 	} else {
 		__nf_unregister_net_hook(net, reg->pf, reg);
 	}
@@ -450,14 +522,20 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	int err;
 
 	if (reg->pf == NFPROTO_INET) {
-		err = __nf_register_net_hook(net, NFPROTO_IPV4, reg);
-		if (err < 0)
-			return err;
+		if (reg->hooknum == NF_INET_INGRESS) {
+			err = __nf_register_net_hook(net, NFPROTO_INET, reg);
+			if (err < 0)
+				return err;
+		} else {
+			err = __nf_register_net_hook(net, NFPROTO_IPV4, reg);
+			if (err < 0)
+				return err;
 
-		err = __nf_register_net_hook(net, NFPROTO_IPV6, reg);
-		if (err < 0) {
-			__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
-			return err;
+			err = __nf_register_net_hook(net, NFPROTO_IPV6, reg);
+			if (err < 0) {
+				__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
+				return err;
+			}
 		}
 	} else {
 		err = __nf_register_net_hook(net, reg->pf, reg);
@@ -519,7 +597,7 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 				ret = -EPERM;
 			return ret;
 		case NF_QUEUE:
-			ret = nf_queue(skb, state, e, s, verdict);
+			ret = nf_queue(skb, state, s, verdict);
 			if (ret == 1)
 				continue;
 			return ret;
@@ -535,27 +613,25 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 }
 EXPORT_SYMBOL(nf_hook_slow);
 
-
-int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
+void nf_hook_slow_list(struct list_head *head, struct nf_hook_state *state,
+		       const struct nf_hook_entries *e)
 {
-	if (writable_len > skb->len)
-		return 0;
+	struct sk_buff *skb, *next;
+	struct list_head sublist;
+	int ret;
 
-	/* Not exclusive use of packet?  Must copy. */
-	if (!skb_cloned(skb)) {
-		if (writable_len <= skb_headlen(skb))
-			return 1;
-	} else if (skb_clone_writable(skb, writable_len))
-		return 1;
+	INIT_LIST_HEAD(&sublist);
 
-	if (writable_len <= skb_headlen(skb))
-		writable_len = 0;
-	else
-		writable_len -= skb_headlen(skb);
-
-	return !!__pskb_pull_tail(skb, writable_len);
+	list_for_each_entry_safe(skb, next, head, list) {
+		skb_list_del_init(skb);
+		ret = nf_hook_slow(skb, state, e, 0);
+		if (ret == 1)
+			list_add_tail(&skb->list, &sublist);
+	}
+	/* Put passed packets back on main list */
+	list_splice(&sublist, head);
 }
-EXPORT_SYMBOL(skb_make_writable);
+EXPORT_SYMBOL(nf_hook_slow_list);
 
 /* This needs to be compiled in any case to avoid dependencies between the
  * nfnetlink_queue code and nf_conntrack.

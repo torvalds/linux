@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hardware monitoring driver for IR35221
  *
  * Copyright (C) IBM Corporation 2017.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/err.h>
@@ -25,37 +21,42 @@
 #define IR35221_MFR_IOUT_VALLEY		0xcb
 #define IR35221_MFR_TEMP_VALLEY		0xcc
 
-static int ir35221_read_word_data(struct i2c_client *client, int page, int reg)
+static int ir35221_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	int ret;
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VIN_MAX:
-		ret = pmbus_read_word_data(client, page, IR35221_MFR_VIN_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   IR35221_MFR_VIN_PEAK);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = pmbus_read_word_data(client, page, IR35221_MFR_VOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   IR35221_MFR_VOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MAX:
-		ret = pmbus_read_word_data(client, page, IR35221_MFR_IOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   IR35221_MFR_IOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MAX:
-		ret = pmbus_read_word_data(client, page, IR35221_MFR_TEMP_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   IR35221_MFR_TEMP_PEAK);
 		break;
 	case PMBUS_VIRT_READ_VIN_MIN:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   IR35221_MFR_VIN_VALLEY);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MIN:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   IR35221_MFR_VOUT_VALLEY);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MIN:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   IR35221_MFR_IOUT_VALLEY);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MIN:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   IR35221_MFR_TEMP_VALLEY);
 		break;
 	default:
@@ -66,8 +67,7 @@ static int ir35221_read_word_data(struct i2c_client *client, int page, int reg)
 	return ret;
 }
 
-static int ir35221_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ir35221_probe(struct i2c_client *client)
 {
 	struct pmbus_driver_info *info;
 	u8 buf[I2C_SMBUS_BLOCK_MAX];
@@ -122,7 +122,7 @@ static int ir35221_probe(struct i2c_client *client,
 		| PMBUS_HAVE_STATUS_INPUT | PMBUS_HAVE_STATUS_TEMP;
 	info->func[1] = info->func[0];
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct i2c_device_id ir35221_id[] = {
@@ -136,7 +136,7 @@ static struct i2c_driver ir35221_driver = {
 	.driver = {
 		.name	= "ir35221",
 	},
-	.probe		= ir35221_probe,
+	.probe_new	= ir35221_probe,
 	.remove		= pmbus_do_remove,
 	.id_table	= ir35221_id,
 };

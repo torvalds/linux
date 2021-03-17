@@ -1,41 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
-#include <asm/pgtable.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "rxe.h"
 #include "rxe_loc.h"
@@ -140,16 +113,17 @@ done:
 /*
  * Allocate information for rxe_mmap
  */
-struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe,
-					   u32 size,
-					   struct ib_ucontext *context,
-					   void *obj)
+struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe, u32 size,
+					   struct ib_udata *udata, void *obj)
 {
 	struct rxe_mmap_info *ip;
 
+	if (!udata)
+		return ERR_PTR(-EINVAL);
+
 	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
 	if (!ip)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	size = PAGE_ALIGN(size);
 
@@ -165,7 +139,9 @@ struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe,
 
 	INIT_LIST_HEAD(&ip->pending_mmaps);
 	ip->info.size = size;
-	ip->context = context;
+	ip->context =
+		container_of(udata, struct uverbs_attr_bundle, driver_udata)
+			->context;
 	ip->obj = obj;
 	kref_init(&ip->ref);
 

@@ -21,8 +21,11 @@
  * SOFTWARE.
  */
 
-#include <drm/drmP.h>
+#include <linux/slab.h>
+
 #include <drm/drm_flip_work.h>
+#include <drm/drm_print.h>
+#include <drm/drm_util.h>
 
 /**
  * drm_flip_work_allocate_task - allocate a flip-work task

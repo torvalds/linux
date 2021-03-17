@@ -9,10 +9,12 @@ Description:	Some Samsung laptops have different "performance levels"
 		their fans quiet at all costs.  Reading from this file
 		will show the current performance level.  Writing to the
 		file can change this value.
+
 			Valid options:
-				"silent"
-				"normal"
-				"overclock"
+				- "silent"
+				- "normal"
+				- "overclock"
+
 		Note that not all laptops support all of these options.
 		Specifically, not all support the "overclock" option,
 		and it's still unknown if this value even changes
@@ -25,8 +27,9 @@ Contact:	Corentin Chary <corentin.chary@gmail.com>
 Description:	Max battery charge level can be modified, battery cycle
 		life can be extended by reducing the max battery charge
 		level.
-		0 means normal battery mode (100% charge)
-		1 means battery life extender mode (80% charge)
+
+		- 0 means normal battery mode (100% charge)
+		- 1 means battery life extender mode (80% charge)
 
 What:		/sys/devices/platform/samsung/usb_charge
 Date:		December 1, 2011

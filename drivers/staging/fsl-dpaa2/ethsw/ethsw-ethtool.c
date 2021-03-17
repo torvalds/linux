@@ -12,7 +12,7 @@
 static struct {
 	enum dpsw_counter id;
 	char name[ETH_GSTRING_LEN];
-} ethsw_ethtool_counters[] =  {
+} dpaa2_switch_ethtool_counters[] =  {
 	{DPSW_CNT_ING_FRAME,		"rx frames"},
 	{DPSW_CNT_ING_BYTE,		"rx bytes"},
 	{DPSW_CNT_ING_FLTR_FRAME,	"rx filtered frames"},
@@ -27,10 +27,10 @@ static struct {
 
 };
 
-#define ETHSW_NUM_COUNTERS	ARRAY_SIZE(ethsw_ethtool_counters)
+#define DPAA2_SWITCH_NUM_COUNTERS	ARRAY_SIZE(dpaa2_switch_ethtool_counters)
 
-static void ethsw_get_drvinfo(struct net_device *netdev,
-			      struct ethtool_drvinfo *drvinfo)
+static void dpaa2_switch_get_drvinfo(struct net_device *netdev,
+				     struct ethtool_drvinfo *drvinfo)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	u16 version_major, version_minor;
@@ -53,8 +53,8 @@ static void ethsw_get_drvinfo(struct net_device *netdev,
 }
 
 static int
-ethsw_get_link_ksettings(struct net_device *netdev,
-			 struct ethtool_link_ksettings *link_ksettings)
+dpaa2_switch_get_link_ksettings(struct net_device *netdev,
+				struct ethtool_link_ksettings *link_ksettings)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct dpsw_link_state state = {0};
@@ -65,7 +65,7 @@ ethsw_get_link_ksettings(struct net_device *netdev,
 				     port_priv->idx,
 				     &state);
 	if (err) {
-		netdev_err(netdev, "ERROR %d getting link state", err);
+		netdev_err(netdev, "ERROR %d getting link state\n", err);
 		goto out;
 	}
 
@@ -84,22 +84,25 @@ out:
 }
 
 static int
-ethsw_set_link_ksettings(struct net_device *netdev,
-			 const struct ethtool_link_ksettings *link_ksettings)
+dpaa2_switch_set_link_ksettings(struct net_device *netdev,
+				const struct ethtool_link_ksettings *link_ksettings)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpsw_link_cfg cfg = {0};
-	int err = 0;
+	bool if_running;
+	int err = 0, ret;
 
-	netdev_dbg(netdev, "Setting link parameters...");
-
-	/* Due to a temporary MC limitation, the DPSW port must be down
-	 * in order to be able to change link settings. Taking steps to let
-	 * the user know that.
-	 */
-	if (netif_running(netdev)) {
-		netdev_info(netdev, "Sorry, interface must be brought down first.\n");
-		return -EACCES;
+	/* Interface needs to be down to change link settings */
+	if_running = netif_running(netdev);
+	if (if_running) {
+		err = dpsw_if_disable(ethsw->mc_io, 0,
+				      ethsw->dpsw_handle,
+				      port_priv->idx);
+		if (err) {
+			netdev_err(netdev, "dpsw_if_disable err %d\n", err);
+			return err;
+		}
 	}
 
 	cfg.rate = link_ksettings->base.speed;
@@ -116,67 +119,69 @@ ethsw_set_link_ksettings(struct net_device *netdev,
 				   port_priv->ethsw_data->dpsw_handle,
 				   port_priv->idx,
 				   &cfg);
-	if (err)
-		/* ethtool will be loud enough if we return an error; no point
-		 * in putting our own error message on the console by default
-		 */
-		netdev_dbg(netdev, "ERROR %d setting link cfg", err);
 
+	if (if_running) {
+		ret = dpsw_if_enable(ethsw->mc_io, 0,
+				     ethsw->dpsw_handle,
+				     port_priv->idx);
+		if (ret) {
+			netdev_err(netdev, "dpsw_if_enable err %d\n", ret);
+			return ret;
+		}
+	}
 	return err;
 }
 
-static int ethsw_ethtool_get_sset_count(struct net_device *dev, int sset)
+static int dpaa2_switch_ethtool_get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ETHSW_NUM_COUNTERS;
+		return DPAA2_SWITCH_NUM_COUNTERS;
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
-static void ethsw_ethtool_get_strings(struct net_device *netdev,
-				      u32 stringset, u8 *data)
+static void dpaa2_switch_ethtool_get_strings(struct net_device *netdev,
+					     u32 stringset, u8 *data)
 {
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < ETHSW_NUM_COUNTERS; i++)
+		for (i = 0; i < DPAA2_SWITCH_NUM_COUNTERS; i++)
 			memcpy(data + i * ETH_GSTRING_LEN,
-			       ethsw_ethtool_counters[i].name, ETH_GSTRING_LEN);
+			       dpaa2_switch_ethtool_counters[i].name,
+			       ETH_GSTRING_LEN);
 		break;
 	}
 }
 
-static void ethsw_ethtool_get_stats(struct net_device *netdev,
-				    struct ethtool_stats *stats,
-				    u64 *data)
+static void dpaa2_switch_ethtool_get_stats(struct net_device *netdev,
+					   struct ethtool_stats *stats,
+					   u64 *data)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	int i, err;
 
-	memset(data, 0,
-	       sizeof(u64) * ETHSW_NUM_COUNTERS);
-
-	for (i = 0; i < ETHSW_NUM_COUNTERS; i++) {
+	for (i = 0; i < DPAA2_SWITCH_NUM_COUNTERS; i++) {
 		err = dpsw_if_get_counter(port_priv->ethsw_data->mc_io, 0,
 					  port_priv->ethsw_data->dpsw_handle,
 					  port_priv->idx,
-					  ethsw_ethtool_counters[i].id,
+					  dpaa2_switch_ethtool_counters[i].id,
 					  &data[i]);
 		if (err)
 			netdev_err(netdev, "dpsw_if_get_counter[%s] err %d\n",
-				   ethsw_ethtool_counters[i].name, err);
+				   dpaa2_switch_ethtool_counters[i].name, err);
 	}
 }
 
-const struct ethtool_ops ethsw_port_ethtool_ops = {
-	.get_drvinfo		= ethsw_get_drvinfo,
+const struct ethtool_ops dpaa2_switch_port_ethtool_ops = {
+	.get_drvinfo		= dpaa2_switch_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
-	.get_link_ksettings	= ethsw_get_link_ksettings,
-	.set_link_ksettings	= ethsw_set_link_ksettings,
-	.get_strings		= ethsw_ethtool_get_strings,
-	.get_ethtool_stats	= ethsw_ethtool_get_stats,
-	.get_sset_count		= ethsw_ethtool_get_sset_count,
+	.get_link_ksettings	= dpaa2_switch_get_link_ksettings,
+	.set_link_ksettings	= dpaa2_switch_set_link_ksettings,
+	.get_strings		= dpaa2_switch_ethtool_get_strings,
+	.get_ethtool_stats	= dpaa2_switch_ethtool_get_stats,
+	.get_sset_count		= dpaa2_switch_ethtool_get_sset_count,
 };

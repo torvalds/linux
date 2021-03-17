@@ -101,16 +101,6 @@ changes occur:
 	translations for software managed TLB configurations.
 	The sparc64 port currently does this.
 
-6) ``void tlb_migrate_finish(struct mm_struct *mm)``
-
-	This interface is called at the end of an explicit
-	process migration. This interface provides a hook
-	to allow a platform to update TLB or context-specific
-	information for the address space.
-
-	The ia64 sn2 platform is one example of a platform
-	that uses this interface.
-
 Next, we have the cache flushing interfaces.  In general, when Linux
 is changing an existing virtual-->physical mapping to a new value,
 the sequence will be in one of the following forms::
@@ -223,7 +213,7 @@ Here are the routines, one by one:
 	there will be no entries in the cache for the kernel address
 	space for virtual addresses in the range 'start' to 'end-1'.
 
-	The first of these two routines is invoked after map_vm_area()
+	The first of these two routines is invoked after map_kernel_range()
 	has installed the page table entries.  The second is invoked
 	before unmap_kernel_range() deletes the page table entries.
 

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #include <linux/slab.h>
@@ -283,7 +280,7 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 			blen++;
 		else {
 			if (bstart)
-				gfs2_free_meta(ip, bstart, blen);
+				gfs2_free_meta(ip, rgd, bstart, blen);
 			bstart = bn;
 			blen = 1;
 		}
@@ -292,7 +289,7 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 		gfs2_add_inode_blocks(&ip->i_inode, -1);
 	}
 	if (bstart)
-		gfs2_free_meta(ip, bstart, blen);
+		gfs2_free_meta(ip, rgd, bstart, blen);
 
 	if (prev && !leave) {
 		u32 len;
@@ -591,7 +588,8 @@ static int __gfs2_xattr_get(struct inode *inode, const char *name,
 
 static int gfs2_xattr_get(const struct xattr_handler *handler,
 			  struct dentry *unused, struct inode *inode,
-			  const char *name, void *buffer, size_t size)
+			  const char *name, void *buffer, size_t size,
+			  int flags)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
@@ -631,7 +629,7 @@ static int ea_alloc_blk(struct gfs2_inode *ip, struct buffer_head **bhp)
 	error = gfs2_alloc_blocks(ip, &block, &n, 0, NULL);
 	if (error)
 		return error;
-	gfs2_trans_add_unrevoke(sdp, block, 1);
+	gfs2_trans_remove_revoke(sdp, block, 1);
 	*bhp = gfs2_meta_new(ip->i_gl, block);
 	gfs2_trans_add_meta(ip->i_gl, *bhp);
 	gfs2_metatype_set(*bhp, GFS2_METATYPE_EA, GFS2_FORMAT_EA);
@@ -693,7 +691,7 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 			error = gfs2_alloc_blocks(ip, &block, &n, 0, NULL);
 			if (error)
 				return error;
-			gfs2_trans_add_unrevoke(sdp, block, 1);
+			gfs2_trans_remove_revoke(sdp, block, 1);
 			bh = gfs2_meta_new(ip->i_gl, block);
 			gfs2_trans_add_meta(ip->i_gl, bh);
 			gfs2_metatype_set(bh, GFS2_METATYPE_ED, GFS2_FORMAT_ED);
@@ -997,7 +995,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 		error = gfs2_alloc_blocks(ip, &blk, &n, 0, NULL);
 		if (error)
 			return error;
-		gfs2_trans_add_unrevoke(sdp, blk, 1);
+		gfs2_trans_remove_revoke(sdp, blk, 1);
 		indbh = gfs2_meta_new(ip->i_gl, blk);
 		gfs2_trans_add_meta(ip->i_gl, indbh);
 		gfs2_metatype_set(indbh, GFS2_METATYPE_IN, GFS2_FORMAT_IN);
@@ -1225,7 +1223,7 @@ static int gfs2_xattr_set(const struct xattr_handler *handler,
 	struct gfs2_holder gh;
 	int ret;
 
-	ret = gfs2_rsqa_alloc(ip);
+	ret = gfs2_qa_get(ip);
 	if (ret)
 		return ret;
 
@@ -1234,15 +1232,19 @@ static int gfs2_xattr_set(const struct xattr_handler *handler,
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 		if (ret)
-			return ret;
+			goto out;
 	} else {
-		if (WARN_ON_ONCE(ip->i_gl->gl_state != LM_ST_EXCLUSIVE))
-			return -EIO;
+		if (WARN_ON_ONCE(ip->i_gl->gl_state != LM_ST_EXCLUSIVE)) {
+			ret = -EIO;
+			goto out;
+		}
 		gfs2_holder_mark_uninitialized(&gh);
 	}
 	ret = __gfs2_xattr_set(inode, name, value, size, flags, handler->flags);
 	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
+out:
+	gfs2_qa_put(ip);
 	return ret;
 }
 
@@ -1250,6 +1252,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrp_list rlist;
+	struct gfs2_rgrpd *rgd;
 	struct buffer_head *indbh, *dibh;
 	__be64 *eablk, *end;
 	unsigned int rg_blocks = 0;
@@ -1299,11 +1302,10 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 	else
 		goto out;
 
-	gfs2_rlist_alloc(&rlist, LM_ST_EXCLUSIVE);
+	gfs2_rlist_alloc(&rlist);
 
 	for (x = 0; x < rlist.rl_rgrps; x++) {
-		struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(rlist.rl_ghs[x].gh_gl);
-
+		rgd = gfs2_glock2rgrp(rlist.rl_ghs[x].gh_gl);
 		rg_blocks += rgd->rd_length;
 	}
 
@@ -1320,6 +1322,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 
 	eablk = (__be64 *)(indbh->b_data + sizeof(struct gfs2_meta_header));
 	bstart = 0;
+	rgd = NULL;
 	blen = 0;
 
 	for (; eablk < end; eablk++) {
@@ -1333,8 +1336,9 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 			blen++;
 		else {
 			if (bstart)
-				gfs2_free_meta(ip, bstart, blen);
+				gfs2_free_meta(ip, rgd, bstart, blen);
 			bstart = bn;
+			rgd = gfs2_blk2rgrpd(sdp, bstart, true);
 			blen = 1;
 		}
 
@@ -1342,7 +1346,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 		gfs2_add_inode_blocks(&ip->i_inode, -1);
 	}
 	if (bstart)
-		gfs2_free_meta(ip, bstart, blen);
+		gfs2_free_meta(ip, rgd, bstart, blen);
 
 	ip->i_diskflags &= ~GFS2_DIF_EA_INDIRECT;
 
@@ -1391,7 +1395,7 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 	if (error)
 		goto out_gunlock;
 
-	gfs2_free_meta(ip, ip->i_eattr, 1);
+	gfs2_free_meta(ip, rgd, ip->i_eattr, 1);
 
 	ip->i_eattr = 0;
 	gfs2_add_inode_blocks(&ip->i_inode, -1);

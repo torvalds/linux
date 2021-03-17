@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * card driver for models with WM8776/WM8766 DACs (Xonar DS/HDAV1.3 Slim)
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- *
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License, version 2.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this driver; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -127,7 +116,8 @@ static void wm8776_write(struct oxygen *chip,
 	else
 		wm8776_write_i2c(chip, reg, value);
 	if (reg < ARRAY_SIZE(data->wm8776_regs)) {
-		if (reg >= WM8776_HPLVOL && reg <= WM8776_DACMASTER)
+		/* reg >= WM8776_HPLVOL is always true */
+		if (reg <= WM8776_DACMASTER)
 			value &= ~WM8776_UPDATE;
 		data->wm8776_regs[reg] = value;
 	}
@@ -155,7 +145,8 @@ static void wm8766_write(struct oxygen *chip,
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);
 	if (reg < ARRAY_SIZE(data->wm8766_regs)) {
-		if ((reg >= WM8766_LDA1 && reg <= WM8766_RDA1) ||
+		/* reg >= WM8766_LDA1 is always true */
+		if (reg <= WM8766_RDA1 ||
 		    (reg >= WM8766_LDA2 && reg <= WM8766_MASTDA))
 			value &= ~WM8766_UPDATE;
 		data->wm8766_regs[reg] = value;

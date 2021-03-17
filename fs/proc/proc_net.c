@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/proc/net.c
  *
@@ -73,13 +74,32 @@ static int seq_release_net(struct inode *ino, struct file *f)
 	return 0;
 }
 
-static const struct file_operations proc_net_seq_fops = {
-	.open		= seq_open_net,
-	.read		= seq_read,
-	.write		= proc_simple_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
+static const struct proc_ops proc_net_seq_ops = {
+	.proc_open	= seq_open_net,
+	.proc_read	= seq_read,
+	.proc_write	= proc_simple_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release_net,
 };
+
+int bpf_iter_init_seq_net(void *priv_data, struct bpf_iter_aux_info *aux)
+{
+#ifdef CONFIG_NET_NS
+	struct seq_net_private *p = priv_data;
+
+	p->net = get_net(current->nsproxy->net_ns);
+#endif
+	return 0;
+}
+
+void bpf_iter_fini_seq_net(void *priv_data)
+{
+#ifdef CONFIG_NET_NS
+	struct seq_net_private *p = priv_data;
+
+	put_net(p->net);
+#endif
+}
 
 struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 		struct proc_dir_entry *parent, const struct seq_operations *ops,
@@ -90,7 +110,8 @@ struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
-	p->proc_fops = &proc_net_seq_fops;
+	pde_force_lookup(p);
+	p->proc_ops = &proc_net_seq_ops;
 	p->seq_ops = ops;
 	p->state_size = state_size;
 	return proc_register(parent, p);
@@ -133,7 +154,8 @@ struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
-	p->proc_fops = &proc_net_seq_fops;
+	pde_force_lookup(p);
+	p->proc_ops = &proc_net_seq_ops;
 	p->seq_ops = ops;
 	p->state_size = state_size;
 	p->write = write;
@@ -164,12 +186,12 @@ static int single_release_net(struct inode *ino, struct file *f)
 	return single_release(ino, f);
 }
 
-static const struct file_operations proc_net_single_fops = {
-	.open		= single_open_net,
-	.read		= seq_read,
-	.write		= proc_simple_write,
-	.llseek		= seq_lseek,
-	.release	= single_release_net,
+static const struct proc_ops proc_net_single_ops = {
+	.proc_open	= single_open_net,
+	.proc_read	= seq_read,
+	.proc_write	= proc_simple_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release_net,
 };
 
 struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
@@ -181,7 +203,8 @@ struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
-	p->proc_fops = &proc_net_single_fops;
+	pde_force_lookup(p);
+	p->proc_ops = &proc_net_single_ops;
 	p->single_show = show;
 	return proc_register(parent, p);
 }
@@ -223,7 +246,8 @@ struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mo
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
-	p->proc_fops = &proc_net_single_fops;
+	pde_force_lookup(p);
+	p->proc_ops = &proc_net_single_ops;
 	p->single_show = show;
 	p->write = write;
 	return proc_register(parent, p);

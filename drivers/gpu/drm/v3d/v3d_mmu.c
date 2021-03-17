@@ -40,7 +40,7 @@ static int v3d_mmu_flush_all(struct v3d_dev *v3d)
 	ret = wait_for(!(V3D_READ(V3D_MMU_CTL) &
 			 V3D_MMU_CTL_TLB_CLEARING), 100);
 	if (ret)
-		dev_err(v3d->dev, "TLB clear wait idle pre-wait failed\n");
+		dev_err(v3d->drm.dev, "TLB clear wait idle pre-wait failed\n");
 
 	V3D_WRITE(V3D_MMU_CTL, V3D_READ(V3D_MMU_CTL) |
 		  V3D_MMU_CTL_TLB_CLEAR);
@@ -52,14 +52,14 @@ static int v3d_mmu_flush_all(struct v3d_dev *v3d)
 	ret = wait_for(!(V3D_READ(V3D_MMU_CTL) &
 			 V3D_MMU_CTL_TLB_CLEARING), 100);
 	if (ret) {
-		dev_err(v3d->dev, "TLB clear wait idle failed\n");
+		dev_err(v3d->drm.dev, "TLB clear wait idle failed\n");
 		return ret;
 	}
 
 	ret = wait_for(!(V3D_READ(V3D_MMUC_CONTROL) &
 			 V3D_MMUC_CONTROL_FLUSHING), 100);
 	if (ret)
-		dev_err(v3d->dev, "MMUC flush wait idle failed\n");
+		dev_err(v3d->drm.dev, "MMUC flush wait idle failed\n");
 
 	return ret;
 }
@@ -69,10 +69,13 @@ int v3d_mmu_set_page_table(struct v3d_dev *v3d)
 	V3D_WRITE(V3D_MMU_PT_PA_BASE, v3d->pt_paddr >> V3D_MMU_PAGE_SHIFT);
 	V3D_WRITE(V3D_MMU_CTL,
 		  V3D_MMU_CTL_ENABLE |
-		  V3D_MMU_CTL_PT_INVALID |
+		  V3D_MMU_CTL_PT_INVALID_ENABLE |
 		  V3D_MMU_CTL_PT_INVALID_ABORT |
+		  V3D_MMU_CTL_PT_INVALID_INT |
 		  V3D_MMU_CTL_WRITE_VIOLATION_ABORT |
-		  V3D_MMU_CTL_CAP_EXCEEDED_ABORT);
+		  V3D_MMU_CTL_WRITE_VIOLATION_INT |
+		  V3D_MMU_CTL_CAP_EXCEEDED_ABORT |
+		  V3D_MMU_CTL_CAP_EXCEEDED_INT);
 	V3D_WRITE(V3D_MMU_ILLEGAL_ADDR,
 		  (v3d->mmu_scratch_paddr >> V3D_MMU_PAGE_SHIFT) |
 		  V3D_MMU_ILLEGAL_ADDR_ENABLE);
@@ -83,40 +86,40 @@ int v3d_mmu_set_page_table(struct v3d_dev *v3d)
 
 void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 {
-	struct v3d_dev *v3d = to_v3d_dev(bo->base.dev);
+	struct drm_gem_shmem_object *shmem_obj = &bo->base;
+	struct v3d_dev *v3d = to_v3d_dev(shmem_obj->base.dev);
 	u32 page = bo->node.start;
 	u32 page_prot = V3D_PTE_WRITEABLE | V3D_PTE_VALID;
-	unsigned int count;
-	struct scatterlist *sgl;
+	struct sg_dma_page_iter dma_iter;
 
-	for_each_sg(bo->sgt->sgl, sgl, bo->sgt->nents, count) {
-		u32 page_address = sg_dma_address(sgl) >> V3D_MMU_PAGE_SHIFT;
+	for_each_sgtable_dma_page(shmem_obj->sgt, &dma_iter, 0) {
+		dma_addr_t dma_addr = sg_page_iter_dma_address(&dma_iter);
+		u32 page_address = dma_addr >> V3D_MMU_PAGE_SHIFT;
 		u32 pte = page_prot | page_address;
 		u32 i;
 
-		BUG_ON(page_address + (sg_dma_len(sgl) >> V3D_MMU_PAGE_SHIFT) >=
+		BUG_ON(page_address + (PAGE_SIZE >> V3D_MMU_PAGE_SHIFT) >=
 		       BIT(24));
-
-		for (i = 0; i < sg_dma_len(sgl) >> V3D_MMU_PAGE_SHIFT; i++)
+		for (i = 0; i < PAGE_SIZE >> V3D_MMU_PAGE_SHIFT; i++)
 			v3d->pt[page++] = pte + i;
 	}
 
 	WARN_ON_ONCE(page - bo->node.start !=
-		     bo->base.size >> V3D_MMU_PAGE_SHIFT);
+		     shmem_obj->base.size >> V3D_MMU_PAGE_SHIFT);
 
 	if (v3d_mmu_flush_all(v3d))
-		dev_err(v3d->dev, "MMU flush timeout\n");
+		dev_err(v3d->drm.dev, "MMU flush timeout\n");
 }
 
 void v3d_mmu_remove_ptes(struct v3d_bo *bo)
 {
-	struct v3d_dev *v3d = to_v3d_dev(bo->base.dev);
-	u32 npages = bo->base.size >> V3D_MMU_PAGE_SHIFT;
+	struct v3d_dev *v3d = to_v3d_dev(bo->base.base.dev);
+	u32 npages = bo->base.base.size >> V3D_MMU_PAGE_SHIFT;
 	u32 page;
 
 	for (page = bo->node.start; page < bo->node.start + npages; page++)
 		v3d->pt[page] = 0;
 
 	if (v3d_mmu_flush_all(v3d))
-		dev_err(v3d->dev, "MMU flush timeout\n");
+		dev_err(v3d->drm.dev, "MMU flush timeout\n");
 }

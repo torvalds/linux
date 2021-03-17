@@ -40,6 +40,9 @@ struct cstate_pstate_watermarks_st {
 struct dcn_watermarks {
 	uint32_t pte_meta_urgent_ns;
 	uint32_t urgent_ns;
+	uint32_t frac_urg_bw_nom;
+	uint32_t frac_urg_bw_flip;
+	int32_t urgent_latency_ns;
 	struct cstate_pstate_watermarks_st cstate_pstate;
 };
 
@@ -149,7 +152,7 @@ struct mem_input_funcs {
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
-		union plane_size *plane_size,
+		struct plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
 		bool horizontal_mirror);

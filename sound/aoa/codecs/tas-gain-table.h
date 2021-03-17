@@ -27,7 +27,7 @@ int main() {
  * as easy as calculating
  *      hwvalue = 1048576.0*exp(0.057564628*dB*2)
  * :) */
-static int tas_gaintable[] = {
+static const int tas_gaintable[] = {
 	0x000000, /* -infinity dB */
 	0x00014b, /* -70.0 dB */
 	0x00015f, /* -69.5 dB */

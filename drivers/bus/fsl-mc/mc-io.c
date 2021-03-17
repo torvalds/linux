@@ -82,7 +82,7 @@ int __must_check fsl_create_mc_io(struct device *dev,
 	mc_io->portal_phys_addr = mc_portal_phys_addr;
 	mc_io->portal_size = mc_portal_size;
 	if (flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
-		spin_lock_init(&mc_io->spinlock);
+		raw_spin_lock_init(&mc_io->spinlock);
 	else
 		mutex_init(&mc_io->mutex);
 
@@ -97,12 +97,12 @@ int __must_check fsl_create_mc_io(struct device *dev,
 		return -EBUSY;
 	}
 
-	mc_portal_virt_addr = devm_ioremap_nocache(dev,
+	mc_portal_virt_addr = devm_ioremap(dev,
 						   mc_portal_phys_addr,
 						   mc_portal_size);
 	if (!mc_portal_virt_addr) {
 		dev_err(dev,
-			"devm_ioremap_nocache failed for MC portal %pa\n",
+			"devm_ioremap failed for MC portal %pa\n",
 			&mc_portal_phys_addr);
 		return -ENXIO;
 	}
@@ -129,7 +129,12 @@ error_destroy_mc_io:
  */
 void fsl_destroy_mc_io(struct fsl_mc_io *mc_io)
 {
-	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
+	struct fsl_mc_device *dpmcp_dev;
+
+	if (!mc_io)
+		return;
+
+	dpmcp_dev = mc_io->dpmcp_dev;
 
 	if (dpmcp_dev)
 		fsl_mc_io_unset_dpmcp(mc_io);
@@ -209,9 +214,19 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	if (error < 0)
 		goto error_cleanup_resource;
 
+	dpmcp_dev->consumer_link = device_link_add(&mc_dev->dev,
+						   &dpmcp_dev->dev,
+						   DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!dpmcp_dev->consumer_link) {
+		error = -EINVAL;
+		goto error_cleanup_mc_io;
+	}
+
 	*new_mc_io = mc_io;
 	return 0;
 
+error_cleanup_mc_io:
+	fsl_destroy_mc_io(mc_io);
 error_cleanup_resource:
 	fsl_mc_resource_free(resource);
 	return error;
@@ -244,6 +259,8 @@ void fsl_mc_portal_free(struct fsl_mc_io *mc_io)
 
 	fsl_destroy_mc_io(mc_io);
 	fsl_mc_resource_free(resource);
+
+	dpmcp_dev->consumer_link = NULL;
 }
 EXPORT_SYMBOL_GPL(fsl_mc_portal_free);
 

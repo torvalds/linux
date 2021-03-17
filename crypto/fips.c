@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FIPS 200 support.
  *
  * Copyright (c) 2008 Neil Horman <nhorman@tuxdriver.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <linux/export.h>
@@ -16,9 +11,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sysctl.h>
+#include <linux/notifier.h>
 
 int fips_enabled;
 EXPORT_SYMBOL_GPL(fips_enabled);
+
+ATOMIC_NOTIFIER_HEAD(fips_fail_notif_chain);
+EXPORT_SYMBOL_GPL(fips_fail_notif_chain);
 
 /* Process kernel command-line parameter at boot time. fips=0 or fips=1 */
 static int fips_enable(char *str)
@@ -63,6 +62,13 @@ static void crypto_proc_fips_exit(void)
 	unregister_sysctl_table(crypto_sysctls);
 }
 
+void fips_fail_notify(void)
+{
+	if (fips_enabled)
+		atomic_notifier_call_chain(&fips_fail_notif_chain, 0, NULL);
+}
+EXPORT_SYMBOL_GPL(fips_fail_notify);
+
 static int __init fips_init(void)
 {
 	crypto_proc_fips_init();
@@ -74,5 +80,5 @@ static void __exit fips_exit(void)
 	crypto_proc_fips_exit();
 }
 
-module_init(fips_init);
+subsys_initcall(fips_init);
 module_exit(fips_exit);

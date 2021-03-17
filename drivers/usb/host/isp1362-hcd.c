@@ -1748,7 +1748,7 @@ static int isp1362_bus_suspend(struct usb_hcd *hcd)
 		isp1362_hcd->hc_control &= ~OHCI_CTRL_HCFS;
 		isp1362_hcd->hc_control |= OHCI_USB_RESET;
 		isp1362_write_reg32(isp1362_hcd, HCCONTROL, isp1362_hcd->hc_control);
-		/* FALL THROUGH */
+		fallthrough;
 	case OHCI_USB_RESET:
 		status = -EBUSY;
 		pr_warn("%s: needs reinit!\n", __func__);
@@ -2159,25 +2159,15 @@ static int isp1362_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static int isp1362_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, isp1362_show, inode);
-}
-
-static const struct file_operations debug_ops = {
-	.open = isp1362_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(isp1362);
 
 /* expect just one isp1362_hcd per system */
 static void create_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
 	isp1362_hcd->debug_file = debugfs_create_file("isp1362", S_IRUGO,
 						      usb_debug_root,
-						      isp1362_hcd, &debug_ops);
+						      isp1362_hcd,
+						      &isp1362_fops);
 }
 
 static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
@@ -2637,7 +2627,7 @@ static int isp1362_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct isp1362_hcd *isp1362_hcd;
-	struct resource *addr, *data, *irq_res;
+	struct resource *data, *irq_res;
 	void __iomem *addr_reg;
 	void __iomem *data_reg;
 	int irq;
@@ -2655,19 +2645,13 @@ static int isp1362_probe(struct platform_device *pdev)
 	if (pdev->num_resources < 3)
 		return -ENODEV;
 
-	if (pdev->dev.dma_mask) {
-		DBG(1, "won't do DMA");
-		return -ENODEV;
-	}
-
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res)
 		return -ENODEV;
 
 	irq = irq_res->start;
 
-	addr = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	addr_reg = devm_ioremap_resource(&pdev->dev, addr);
+	addr_reg = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(addr_reg))
 		return PTR_ERR(addr_reg);
 

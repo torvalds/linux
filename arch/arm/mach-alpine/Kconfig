@@ -7,9 +7,8 @@ config ARCH_ALPINE
 	select ARM_GIC
 	select GENERIC_IRQ_CHIP
 	select HAVE_ARM_ARCH_TIMER
-	select HAVE_SMP
 	select MFD_SYSCON
-	select PCI
+	select FORCE_PCI
 	select PCI_HOST_GENERIC
 	help
 	  This enables support for the Annapurna Labs Alpine V1 boards.

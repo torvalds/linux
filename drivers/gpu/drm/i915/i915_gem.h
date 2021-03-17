@@ -28,17 +28,20 @@
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 
+#include <drm/drm_drv.h>
+
+#include "i915_utils.h"
+
 struct drm_i915_private;
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
 
-#define GEM_SHOW_DEBUG() (drm_debug & DRM_UT_DRIVER)
+#define GEM_SHOW_DEBUG() drm_debug_enabled(DRM_UT_DRIVER)
 
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
-		pr_err("%s:%d GEM_BUG_ON(%s)\n", \
-		       __func__, __LINE__, __stringify(condition)); \
-		GEM_TRACE("%s:%d GEM_BUG_ON(%s)\n", \
-			  __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
+			      __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE_DUMP(); \
 		BUG(); \
 		} \
 	} while(0)
@@ -47,50 +50,82 @@ struct drm_i915_private;
 #define GEM_DEBUG_DECL(var) var
 #define GEM_DEBUG_EXEC(expr) expr
 #define GEM_DEBUG_BUG_ON(expr) GEM_BUG_ON(expr)
+#define GEM_DEBUG_WARN_ON(expr) GEM_WARN_ON(expr)
 
 #else
 
 #define GEM_SHOW_DEBUG() (0)
 
 #define GEM_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
-#define GEM_WARN_ON(expr) (BUILD_BUG_ON_INVALID(expr), 0)
+#define GEM_WARN_ON(expr) ({ unlikely(!!(expr)); })
 
 #define GEM_DEBUG_DECL(var)
 #define GEM_DEBUG_EXEC(expr) do { } while (0)
 #define GEM_DEBUG_BUG_ON(expr)
+#define GEM_DEBUG_WARN_ON(expr) ({ BUILD_BUG_ON_INVALID(expr); 0; })
 #endif
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
 #define GEM_TRACE(...) trace_printk(__VA_ARGS__)
-#define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
+#define GEM_TRACE_ERR(...) do {						\
+	pr_err(__VA_ARGS__);						\
+	trace_printk(__VA_ARGS__);					\
+} while (0)
+#define GEM_TRACE_DUMP() \
+	do { ftrace_dump(DUMP_ALL); __add_taint_for_CI(TAINT_WARN); } while (0)
 #define GEM_TRACE_DUMP_ON(expr) \
-	do { if (expr) ftrace_dump(DUMP_ALL); } while (0)
+	do { if (expr) GEM_TRACE_DUMP(); } while (0)
 #else
 #define GEM_TRACE(...) do { } while (0)
+#define GEM_TRACE_ERR(...) do { } while (0)
 #define GEM_TRACE_DUMP() do { } while (0)
 #define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
 
-#define I915_NUM_ENGINES 8
+#define I915_GEM_IDLE_TIMEOUT (HZ / 5)
 
-void i915_gem_park(struct drm_i915_private *i915);
-void i915_gem_unpark(struct drm_i915_private *i915);
+static inline void tasklet_lock(struct tasklet_struct *t)
+{
+	while (!tasklet_trylock(t))
+		cpu_relax();
+}
+
+static inline bool tasklet_is_locked(const struct tasklet_struct *t)
+{
+	return test_bit(TASKLET_STATE_RUN, &t->state);
+}
 
 static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
 {
-	if (atomic_inc_return(&t->count) == 1)
+	if (!atomic_fetch_inc(&t->count))
 		tasklet_unlock_wait(t);
-}
-
-static inline void __tasklet_enable_sync_once(struct tasklet_struct *t)
-{
-	if (atomic_dec_return(&t->count) == 0)
-		tasklet_kill(t);
 }
 
 static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
 {
 	return !atomic_read(&t->count);
 }
+
+static inline bool __tasklet_enable(struct tasklet_struct *t)
+{
+	return atomic_dec_and_test(&t->count);
+}
+
+static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
+{
+	return test_bit(TASKLET_STATE_SCHED, &t->state);
+}
+
+struct i915_gem_ww_ctx {
+	struct ww_acquire_ctx ctx;
+	struct list_head obj_list;
+	bool intr;
+	struct drm_i915_gem_object *contended;
+};
+
+void i915_gem_ww_ctx_init(struct i915_gem_ww_ctx *ctx, bool intr);
+void i915_gem_ww_ctx_fini(struct i915_gem_ww_ctx *ctx);
+int __must_check i915_gem_ww_ctx_backoff(struct i915_gem_ww_ctx *ctx);
+void i915_gem_ww_unlock_single(struct drm_i915_gem_object *obj);
 
 #endif /* __I915_GEM_H__ */

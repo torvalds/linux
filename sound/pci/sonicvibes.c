@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for S3 SonicVibes soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
@@ -5,21 +6,6 @@
  *  BUGS:
  *    It looks like 86c617 rev 3 doesn't supports DDMA buffers above 16MB?
  *    Driver sometimes hangs... Nobody knows why at this moment...
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -695,17 +681,6 @@ static int snd_sonicvibes_capture_trigger(struct snd_pcm_substream *substream,
 	return snd_sonicvibes_trigger(sonic, 2, cmd);
 }
 
-static int snd_sonicvibes_hw_params(struct snd_pcm_substream *substream,
-				    struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_sonicvibes_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static int snd_sonicvibes_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
@@ -860,9 +835,6 @@ static int snd_sonicvibes_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_sonicvibes_playback_ops = {
 	.open =		snd_sonicvibes_playback_open,
 	.close =	snd_sonicvibes_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_sonicvibes_hw_params,
-	.hw_free =	snd_sonicvibes_hw_free,
 	.prepare =	snd_sonicvibes_playback_prepare,
 	.trigger =	snd_sonicvibes_playback_trigger,
 	.pointer =	snd_sonicvibes_playback_pointer,
@@ -871,9 +843,6 @@ static const struct snd_pcm_ops snd_sonicvibes_playback_ops = {
 static const struct snd_pcm_ops snd_sonicvibes_capture_ops = {
 	.open =		snd_sonicvibes_capture_open,
 	.close =	snd_sonicvibes_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_sonicvibes_hw_params,
-	.hw_free =	snd_sonicvibes_hw_free,
 	.prepare =	snd_sonicvibes_capture_prepare,
 	.trigger =	snd_sonicvibes_capture_trigger,
 	.pointer =	snd_sonicvibes_capture_pointer,
@@ -897,8 +866,8 @@ static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device)
 	strcpy(pcm->name, "S3 SonicVibes");
 	sonic->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(sonic->pci), 64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &sonic->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
@@ -1081,7 +1050,7 @@ static int snd_sonicvibes_put_double(struct snd_kcontrol *kcontrol, struct snd_c
 	return change;
 }
 
-static struct snd_kcontrol_new snd_sonicvibes_controls[] = {
+static const struct snd_kcontrol_new snd_sonicvibes_controls[] = {
 SONICVIBES_DOUBLE("Capture Volume", 0, SV_IREG_LEFT_ADC, SV_IREG_RIGHT_ADC, 0, 0, 15, 0),
 SONICVIBES_DOUBLE("Aux Playback Switch", 0, SV_IREG_LEFT_AUX1, SV_IREG_RIGHT_AUX1, 7, 7, 1, 1),
 SONICVIBES_DOUBLE("Aux Playback Volume", 0, SV_IREG_LEFT_AUX1, SV_IREG_RIGHT_AUX1, 0, 0, 31, 1),
@@ -1171,10 +1140,8 @@ static void snd_sonicvibes_proc_read(struct snd_info_entry *entry,
 
 static void snd_sonicvibes_proc_init(struct sonicvibes *sonic)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(sonic->card, "sonicvibes", &entry))
-		snd_info_set_text_ops(entry, sonic, snd_sonicvibes_proc_read);
+	snd_card_ro_proc_new(sonic->card, "sonicvibes", sonic,
+			     snd_sonicvibes_proc_read);
 }
 
 /*
@@ -1182,7 +1149,7 @@ static void snd_sonicvibes_proc_init(struct sonicvibes *sonic)
  */
 
 #ifdef SUPPORT_JOYSTICK
-static struct snd_kcontrol_new snd_sonicvibes_game_control =
+static const struct snd_kcontrol_new snd_sonicvibes_game_control =
 SONICVIBES_SINGLE("Joystick Speed", 0, SV_IREG_GAME_PORT, 1, 15, 0);
 
 static int snd_sonicvibes_create_gameport(struct sonicvibes *sonic)
@@ -1254,7 +1221,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
 	struct sonicvibes *sonic;
 	unsigned int dmaa, dmac;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_sonicvibes_dev_free,
 	};
 
@@ -1300,6 +1267,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	sonic->irq = pci->irq;
+	card->sync_irq = sonic->irq;
 
 	pci_read_config_dword(pci, 0x40, &dmaa);
 	pci_read_config_dword(pci, 0x48, &dmac);
@@ -1407,7 +1375,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
  *  MIDI section
  */
 
-static struct snd_kcontrol_new snd_sonicvibes_midi_controls[] = {
+static const struct snd_kcontrol_new snd_sonicvibes_midi_controls[] = {
 SONICVIBES_SINGLE("SonicVibes Wave Source RAM", 0, SV_IREG_WAVE_SOURCE, 0, 1, 0),
 SONICVIBES_SINGLE("SonicVibes Wave Source RAM+ROM", 0, SV_IREG_WAVE_SOURCE, 1, 1, 0),
 SONICVIBES_SINGLE("SonicVibes Onboard Synth", 0, SV_IREG_MPU401, 0, 1, 0),

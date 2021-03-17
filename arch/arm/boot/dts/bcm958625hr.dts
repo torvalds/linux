@@ -39,15 +39,11 @@
 	model = "NorthStar Plus SVK (BCM958625HR)";
 	compatible = "brcm,bcm58625", "brcm,nsp";
 
-	aliases {
-		serial0 = &uart0;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x20000000>;
 	};
@@ -58,6 +54,23 @@
 		open-source;
 		priority = <200>;
 	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c0>;
+		mod-def0-gpios = <&gpioa 28 GPIO_ACTIVE_LOW>;
+		los-gpios = <&gpioa 24 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&gpioa 30 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpioa 26 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&dma {
+	status = "okay";
 };
 
 &amac0 {
@@ -208,6 +221,14 @@
 		port@4 {
 			label = "port4";
 			reg = <4>;
+		};
+
+		port@5 {
+			label = "sfp";
+			phy-mode = "sgmii";
+			reg = <5>;
+			sfp = <&sfp>;
+			managed = "in-band-status";
 		};
 
 		port@8 {

@@ -755,11 +755,11 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	}
 
 	if (main_ant_conf == rx_ant_conf) {
-		ANT_STAT_INC(ANT_MAIN, recv_cnt);
-		ANT_LNA_INC(ANT_MAIN, rx_ant_conf);
+		ANT_STAT_INC(sc, ANT_MAIN, recv_cnt);
+		ANT_LNA_INC(sc, ANT_MAIN, rx_ant_conf);
 	} else {
-		ANT_STAT_INC(ANT_ALT, recv_cnt);
-		ANT_LNA_INC(ANT_ALT, rx_ant_conf);
+		ANT_STAT_INC(sc, ANT_ALT, recv_cnt);
+		ANT_LNA_INC(sc, ANT_ALT, rx_ant_conf);
 	}
 
 	/* Short scan check */

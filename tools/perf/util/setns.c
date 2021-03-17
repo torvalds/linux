@@ -1,4 +1,6 @@
-#include "util.h"
+// SPDX-License-Identifier: LGPL-2.1
+
+#include "namespaces.h"
 #include <unistd.h>
 #include <sys/syscall.h>
 

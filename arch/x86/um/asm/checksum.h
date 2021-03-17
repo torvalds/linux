@@ -20,42 +20,6 @@
  */
 extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 
-/*
- *	Note: when you get a NULL pointer exception here this means someone
- *	passed in an incorrect kernel address to one of these functions.
- *
- *	If you use these functions directly please don't forget the
- *	access_ok().
- */
-
-static __inline__
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
-				       int len, __wsum sum)
-{
-	memcpy(dst, src, len);
-	return csum_partial(dst, len, sum);
-}
-
-/*
- * the same as csum_partial, but copies from src while it
- * checksums, and handles user-space pointer exceptions correctly, when needed.
- *
- * here even more important to align src and dst on a 32-bit (or even
- * better 64-bit) boundary
- */
-
-static __inline__
-__wsum csum_partial_copy_from_user(const void __user *src, void *dst,
-					 int len, __wsum sum, int *err_ptr)
-{
-	if (copy_from_user(dst, src, len)) {
-		*err_ptr = -EFAULT;
-		return (__force __wsum)-1;
-	}
-
-	return csum_partial(dst, len, sum);
-}
-
 /**
  * csum_fold - Fold and invert a 32bit checksum.
  * sum: 32bit unfolded sum

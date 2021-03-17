@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * nct6683 - Driver for the hardware monitoring functionality of
  *	     Nuvoton NCT6683D eSIO
@@ -6,16 +7,6 @@
  *
  * Derived from nct6775 driver
  * Copyright (C) 2012, 2013  Guenter Roeck <linux@roeck-us.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Supports the following chips:
  *
@@ -683,7 +674,7 @@ show_in_reg(struct device *dev, struct device_attribute *attr, char *buf)
 static umode_t nct6683_in_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int nr = index % 4;	/* attribute */
 
@@ -748,7 +739,7 @@ show_fan_pulses(struct device *dev, struct device_attribute *attr, char *buf)
 static umode_t nct6683_fan_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int fan = index / 3;	/* fan index */
 	int nr = index % 3;	/* attribute index */
@@ -866,7 +857,7 @@ show_temp_type(struct device *dev, struct device_attribute *attr, char *buf)
 static umode_t nct6683_temp_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int temp = index / 7;	/* temp index */
 	int nr = index % 7;	/* attribute index */
@@ -953,7 +944,7 @@ SENSOR_TEMPLATE(pwm, "pwm%d", S_IRUGO, show_pwm, store_pwm, 0);
 static umode_t nct6683_pwm_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int pwm = index;	/* pwm index */
 

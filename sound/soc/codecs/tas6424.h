@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Texas Instruments TAS6424 Quad-Channel Audio Amplifier
  *
- * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
  *	Author: Andreas Dannenberg <dannenberg@ti.com>
  *	Andrew F. Davis <afd@ti.com>
  */
@@ -114,6 +114,16 @@
 /* TAS6424_DC_DIAG_CTRL1 */
 #define TAS6424_LDGBYPASS_SHIFT		0
 #define TAS6424_LDGBYPASS_MASK		BIT(TAS6424_LDGBYPASS_SHIFT)
+
+/* TAS6424_GLOB_FAULT1_REG */
+#define TAS6424_FAULT_OC_CH1		BIT(7)
+#define TAS6424_FAULT_OC_CH2		BIT(6)
+#define TAS6424_FAULT_OC_CH3		BIT(5)
+#define TAS6424_FAULT_OC_CH4		BIT(4)
+#define TAS6424_FAULT_DC_CH1		BIT(3)
+#define TAS6424_FAULT_DC_CH2		BIT(2)
+#define TAS6424_FAULT_DC_CH3		BIT(1)
+#define TAS6424_FAULT_DC_CH4		BIT(0)
 
 /* TAS6424_GLOB_FAULT1_REG */
 #define TAS6424_FAULT_CLOCK		BIT(4)

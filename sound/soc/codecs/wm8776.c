@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8776.c  --  WM8776 ALSA SoC Audio driver
  *
  * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * TODO: Input ALC/limiter support
  */
@@ -285,7 +282,7 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Only need to set MCLK/LRCLK ratio if we're master */
-	if (snd_soc_component_read32(component, WM8776_MSTRCTRL) & master) {
+	if (snd_soc_component_read(component, WM8776_MSTRCTRL) & master) {
 		for (i = 0; i < ARRAY_SIZE(mclk_ratios); i++) {
 			if (wm8776->sysclk[dai->driver->id] / params_rate(params)
 			    == mclk_ratios[i])
@@ -312,7 +309,7 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8776_mute(struct snd_soc_dai *dai, int mute)
+static int wm8776_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -364,10 +361,11 @@ static int wm8776_set_bias_level(struct snd_soc_component *component,
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops wm8776_dac_ops = {
-	.digital_mute	= wm8776_mute,
+	.mute_stream	= wm8776_mute,
 	.hw_params      = wm8776_hw_params,
 	.set_fmt        = wm8776_set_fmt,
 	.set_sysclk     = wm8776_set_sysclk,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8776_adc_ops = {

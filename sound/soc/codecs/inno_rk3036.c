@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver of Inno codec for rk3036 by Rockchip Inc.
  *
@@ -47,11 +48,9 @@ static int rk3036_codec_antipop_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	int val, ret, regval;
+	int val, regval;
 
-	ret = snd_soc_component_read(component, INNO_R09, &regval);
-	if (ret)
-		return ret;
+	regval = snd_soc_component_read(component, INNO_R09);
 	val = ((regval >> INNO_R09_HPL_ANITPOP_SHIFT) &
 	       INNO_R09_HP_ANTIPOP_MSK) == INNO_R09_HP_ANTIPOP_ON;
 	ucontrol->value.integer.value[0] = val;
@@ -404,7 +403,6 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 {
 	struct rk3036_codec_priv *priv;
 	struct device_node *of_node = pdev->dev.of_node;
-	struct resource *res;
 	void __iomem *base;
 	struct regmap *grf;
 	int ret;
@@ -413,8 +411,7 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

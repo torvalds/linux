@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Debug helper to dump the current kernel pagetables of the system
  * so that we can see what the various memory ranges are set to.
@@ -6,11 +7,6 @@
  * (C) Copyright 2008 Intel Corporation
  *
  * Author: Arjan van de Ven <arjan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #include <linux/debugfs.h>
 #include <linux/fs.h>
@@ -20,7 +16,6 @@
 #include <asm/domain.h>
 #include <asm/fixmap.h>
 #include <asm/memory.h>
-#include <asm/pgtable.h>
 #include <asm/ptdump.h>
 
 static struct addr_marker address_markers[] = {
@@ -211,6 +206,7 @@ struct pg_level {
 static struct pg_level pg_level[] = {
 	{
 	}, { /* pgd */
+	}, { /* p4d */
 	}, { /* pud */
 	}, { /* pmd */
 		.bits	= section_bits,
@@ -312,7 +308,7 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start,
 
 	for (i = 0; i < PTRS_PER_PTE; i++, pte++) {
 		addr = start + i * PAGE_SIZE;
-		note_page(st, addr, 4, pte_val(*pte), domain);
+		note_page(st, addr, 5, pte_val(*pte), domain);
 	}
 }
 
@@ -354,14 +350,14 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 			addr += SECTION_SIZE;
 			pmd++;
 			domain = get_domain_name(pmd);
-			note_page(st, addr, 3, pmd_val(*pmd), domain);
+			note_page(st, addr, 4, pmd_val(*pmd), domain);
 		}
 	}
 }
 
-static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
+static void walk_pud(struct pg_state *st, p4d_t *p4d, unsigned long start)
 {
-	pud_t *pud = pud_offset(pgd, 0);
+	pud_t *pud = pud_offset(p4d, 0);
 	unsigned long addr;
 	unsigned i;
 
@@ -370,7 +366,23 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 		if (!pud_none(*pud)) {
 			walk_pmd(st, pud, addr);
 		} else {
-			note_page(st, addr, 2, pud_val(*pud), NULL);
+			note_page(st, addr, 3, pud_val(*pud), NULL);
+		}
+	}
+}
+
+static void walk_p4d(struct pg_state *st, pgd_t *pgd, unsigned long start)
+{
+	p4d_t *p4d = p4d_offset(pgd, 0);
+	unsigned long addr;
+	unsigned i;
+
+	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
+		addr = start + i * P4D_SIZE;
+		if (!p4d_none(*p4d)) {
+			walk_pud(st, p4d, addr);
+		} else {
+			note_page(st, addr, 2, p4d_val(*p4d), NULL);
 		}
 	}
 }
@@ -385,7 +397,7 @@ static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
 		addr = start + i * PGDIR_SIZE;
 		if (!pgd_none(*pgd)) {
-			walk_pud(st, pgd, addr);
+			walk_p4d(st, pgd, addr);
 		} else {
 			note_page(st, addr, 1, pgd_val(*pgd), NULL);
 		}
@@ -450,7 +462,7 @@ void ptdump_check_wx(void)
 static int ptdump_init(void)
 {
 	ptdump_initialize();
-	return ptdump_debugfs_register(&kernel_ptdump_info,
-					"kernel_page_tables");
+	ptdump_debugfs_register(&kernel_ptdump_info, "kernel_page_tables");
+	return 0;
 }
 __initcall(ptdump_init);

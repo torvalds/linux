@@ -2,19 +2,6 @@
 /*
  * Copyright(c) 2007 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Maintained at www.Open-FCoE.org
  */
 
@@ -22,6 +9,7 @@
 #define	_FC_ELS_H_
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
 
 /*
  * Fibre Channel Switch - Enhanced Link Services definitions.
@@ -52,6 +40,9 @@ enum fc_els_cmd {
 	ELS_RRQ =	0x12,	/* reinstate recovery qualifier */
 	ELS_REC =	0x13,	/* read exchange concise */
 	ELS_SRR =	0x14,	/* sequence retransmission request */
+	ELS_FPIN =	0x16,	/* Fabric Performance Impact Notification */
+	ELS_RDP =	0x18,	/* Read Diagnostic Parameters */
+	ELS_RDF =	0x19,	/* Register Diagnostic Functions */
 	ELS_PRLI =	0x20,	/* process login */
 	ELS_PRLO =	0x21,	/* process logout */
 	ELS_SCN =	0x22,	/* state change notification */
@@ -119,6 +110,9 @@ enum fc_els_cmd {
 	[ELS_RRQ] =	"RRQ",			\
 	[ELS_REC] =	"REC",			\
 	[ELS_SRR] =	"SRR",			\
+	[ELS_FPIN] =	"FPIN",			\
+	[ELS_RDP] =	"RDP",			\
+	[ELS_RDF] =	"RDF",			\
 	[ELS_PRLI] =	"PRLI",			\
 	[ELS_PRLO] =	"PRLO",			\
 	[ELS_SCN] =	"SCN",			\
@@ -217,6 +211,99 @@ enum fc_els_rjt_explan {
 	ELS_EXPL_NOT_NEIGHBOR = 0x62,	/* VN2VN_Port not in neighbor set */
 	/* TBD - above definitions incomplete */
 };
+
+/*
+ * Link Service TLV Descriptor Tag Values
+ */
+enum fc_ls_tlv_dtag {
+	ELS_DTAG_LS_REQ_INFO =		0x00000001,
+		/* Link Service Request Information Descriptor */
+	ELS_DTAG_LNK_INTEGRITY =	0x00020001,
+		/* Link Integrity Notification Descriptor */
+	ELS_DTAG_DELIVERY =		0x00020002,
+		/* Delivery Notification Descriptor */
+	ELS_DTAG_PEER_CONGEST =		0x00020003,
+		/* Peer Congestion Notification Descriptor */
+	ELS_DTAG_CONGESTION =		0x00020004,
+		/* Congestion Notification Descriptor */
+	ELS_DTAG_FPIN_REGISTER =	0x00030001,
+		/* FPIN Registration Descriptor */
+};
+
+/*
+ * Initializer useful for decoding table.
+ * Please keep this in sync with the above definitions.
+ */
+#define FC_LS_TLV_DTAG_INIT {					      \
+	{ ELS_DTAG_LS_REQ_INFO,		"Link Service Request Information" }, \
+	{ ELS_DTAG_LNK_INTEGRITY,	"Link Integrity Notification" },      \
+	{ ELS_DTAG_DELIVERY,		"Delivery Notification Present" },    \
+	{ ELS_DTAG_PEER_CONGEST,	"Peer Congestion Notification" },     \
+	{ ELS_DTAG_CONGESTION,		"Congestion Notification" },	      \
+	{ ELS_DTAG_FPIN_REGISTER,	"FPIN Registration" },		      \
+}
+
+
+/*
+ * Generic Link Service TLV Descriptor format
+ *
+ * This structure, as it defines no payload, will also be referred to
+ * as the "tlv header" - which contains the tag and len fields.
+ */
+struct fc_tlv_desc {
+	__be32		desc_tag;	/* Notification Descriptor Tag */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 */
+	__u8		desc_value[0];  /* Descriptor Value */
+};
+
+/* Descriptor tag and len fields are considered the mandatory header
+ * for a descriptor
+ */
+#define FC_TLV_DESC_HDR_SZ	sizeof(struct fc_tlv_desc)
+
+/*
+ * Macro, used when initializing payloads, to return the descriptor length.
+ * Length is size of descriptor minus the tag and len fields.
+ */
+#define FC_TLV_DESC_LENGTH_FROM_SZ(desc)	\
+		(sizeof(desc) - FC_TLV_DESC_HDR_SZ)
+
+/* Macro, used on received payloads, to return the descriptor length */
+#define FC_TLV_DESC_SZ_FROM_LENGTH(tlv)		\
+		(__be32_to_cpu((tlv)->desc_len) + FC_TLV_DESC_HDR_SZ)
+
+/*
+ * This helper is used to walk descriptors in a descriptor list.
+ * Given the address of the current descriptor, which minimally contains a
+ * tag and len field, calculate the address of the next descriptor based
+ * on the len field.
+ */
+static inline void *fc_tlv_next_desc(void *desc)
+{
+	struct fc_tlv_desc *tlv = desc;
+
+	return (desc + FC_TLV_DESC_SZ_FROM_LENGTH(tlv));
+}
+
+
+/*
+ * Link Service Request Information Descriptor
+ */
+struct fc_els_lsri_desc {
+	__be32		desc_tag;	/* descriptor tag (0x0000 0001) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes) (4).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 */
+	struct {
+		__u8	cmd;		/* ELS cmd byte */
+		__u8	bytes[3];	/* bytes 1..3 */
+	} rqst_w0;			/* Request word 0 */
+};
+
 
 /*
  * Common service parameters (N ports).
@@ -828,5 +915,121 @@ enum fc_els_clid_ic {
 	ELS_CLID_IC_LOOP_TO =	7,	/* loop initialization time out */
 	ELS_CLID_IC_LIP =	8,	/* receiving LIP */
 };
+
+
+enum fc_fpin_li_event_types {
+	FPIN_LI_UNKNOWN =		0x0,
+	FPIN_LI_LINK_FAILURE =		0x1,
+	FPIN_LI_LOSS_OF_SYNC =		0x2,
+	FPIN_LI_LOSS_OF_SIG =		0x3,
+	FPIN_LI_PRIM_SEQ_ERR =		0x4,
+	FPIN_LI_INVALID_TX_WD =		0x5,
+	FPIN_LI_INVALID_CRC =		0x6,
+	FPIN_LI_DEVICE_SPEC =		0xF,
+};
+
+/*
+ * Initializer useful for decoding table.
+ * Please keep this in sync with the above definitions.
+ */
+#define FC_FPIN_LI_EVT_TYPES_INIT {					\
+	{ FPIN_LI_UNKNOWN,		"Unknown" },			\
+	{ FPIN_LI_LINK_FAILURE,		"Link Failure" },		\
+	{ FPIN_LI_LOSS_OF_SYNC,		"Loss of Synchronization" },	\
+	{ FPIN_LI_LOSS_OF_SIG,		"Loss of Signal" },		\
+	{ FPIN_LI_PRIM_SEQ_ERR,		"Primitive Sequence Protocol Error" }, \
+	{ FPIN_LI_INVALID_TX_WD,	"Invalid Transmission Word" },	\
+	{ FPIN_LI_INVALID_CRC,		"Invalid CRC" },		\
+	{ FPIN_LI_DEVICE_SPEC,		"Device Specific" },		\
+}
+
+
+/*
+ * Link Integrity Notification Descriptor
+ */
+struct fc_fn_li_desc {
+	__be32		desc_tag;	/* Descriptor Tag (0x00020001) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 */
+	__be64		detecting_wwpn;	/* Port Name that detected event */
+	__be64		attached_wwpn;	/* Port Name of device attached to
+					 * detecting Port Name
+					 */
+	__be16		event_type;	/* see enum fc_fpin_li_event_types */
+	__be16		event_modifier;	/* Implementation specific value
+					 * describing the event type
+					 */
+	__be32		event_threshold;/* duration in ms of the link
+					 * integrity detection cycle
+					 */
+	__be32		event_count;	/* minimum number of event
+					 * occurrences during the event
+					 * threshold to caause the LI event
+					 */
+	__be32		pname_count;	/* number of portname_list elements */
+	__be64		pname_list[0];	/* list of N_Port_Names accessible
+					 * through the attached port
+					 */
+};
+
+/*
+ * ELS_FPIN - Fabric Performance Impact Notification
+ */
+struct fc_els_fpin {
+	__u8		fpin_cmd;	/* command (0x16) */
+	__u8		fpin_zero[3];	/* specified as zero - part of cmd */
+	__be32		desc_len;	/* Length of Descriptor List (in bytes).
+					 * Size of ELS excluding fpin_cmd,
+					 * fpin_zero and desc_len fields.
+					 */
+	struct fc_tlv_desc	fpin_desc[0];	/* Descriptor list */
+};
+
+/* Diagnostic Function Descriptor - FPIN Registration */
+struct fc_df_desc_fpin_reg {
+	__be32		desc_tag;	/* FPIN Registration (0x00030001) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 */
+	__be32		count;		/* Number of desc_tags elements */
+	__be32		desc_tags[0];	/* Array of Descriptor Tags.
+					 * Each tag indicates a function
+					 * supported by the N_Port (request)
+					 * or by the  N_Port and Fabric
+					 * Controller (reply; may be a subset
+					 * of the request).
+					 * See ELS_FN_DTAG_xxx for tag values.
+					 */
+};
+
+/*
+ * ELS_RDF - Register Diagnostic Functions
+ */
+struct fc_els_rdf {
+	__u8		fpin_cmd;	/* command (0x19) */
+	__u8		fpin_zero[3];	/* specified as zero - part of cmd */
+	__be32		desc_len;	/* Length of Descriptor List (in bytes).
+					 * Size of ELS excluding fpin_cmd,
+					 * fpin_zero and desc_len fields.
+					 */
+	struct fc_tlv_desc	desc[0];	/* Descriptor list */
+};
+
+/*
+ * ELS RDF LS_ACC Response.
+ */
+struct fc_els_rdf_resp {
+	struct fc_els_ls_acc	acc_hdr;
+	__be32			desc_list_len;	/* Length of response (in
+						 * bytes). Excludes acc_hdr
+						 * and desc_list_len fields.
+						 */
+	struct fc_els_lsri_desc	lsri;
+	struct fc_tlv_desc	desc[0];	/* Supported Descriptor list */
+};
+
 
 #endif /* _FC_ELS_H_ */

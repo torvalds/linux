@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * reset controller for CSR SiRFprimaII
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/kernel.h>
@@ -65,10 +64,17 @@ static struct reset_controller_dev sirfsoc_reset_controller = {
 
 #define SIRFSOC_SYS_RST_BIT  BIT(31)
 
-static void sirfsoc_restart(enum reboot_mode mode, const char *cmd)
+static int sirfsoc_restart(struct notifier_block *nb, unsigned long action,
+			   void *data)
 {
 	writel(SIRFSOC_SYS_RST_BIT, sirfsoc_rstc_base);
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block sirfsoc_restart_nb = {
+	.notifier_call  = sirfsoc_restart,
+	.priority       = 192,
+};
 
 static int sirfsoc_rstc_probe(struct platform_device *pdev)
 {
@@ -80,7 +86,7 @@ static int sirfsoc_rstc_probe(struct platform_device *pdev)
 	}
 
 	sirfsoc_reset_controller.of_node = np;
-	arm_pm_restart = sirfsoc_restart;
+	register_restart_handler(&sirfsoc_restart_nb);
 
 	if (IS_ENABLED(CONFIG_RESET_CONTROLLER))
 		reset_controller_register(&sirfsoc_reset_controller);

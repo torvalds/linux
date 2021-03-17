@@ -515,6 +515,7 @@ int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 
 	if (!enable) {
 		val |= PPSCMDx(index, 0x5);
+		val |= PPSEN0;
 		writel(val, ioaddr + MAC_PPS_CONTROL);
 		return 0;
 	}
@@ -548,4 +549,79 @@ int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 	/* Finally, activate it */
 	writel(val, ioaddr + MAC_PPS_CONTROL);
 	return 0;
+}
+
+static int dwmac5_est_write(void __iomem *ioaddr, u32 reg, u32 val, bool gcl)
+{
+	u32 ctrl;
+
+	writel(val, ioaddr + MTL_EST_GCL_DATA);
+
+	ctrl = (reg << ADDR_SHIFT);
+	ctrl |= gcl ? 0 : GCRR;
+
+	writel(ctrl, ioaddr + MTL_EST_GCL_CONTROL);
+
+	ctrl |= SRWO;
+	writel(ctrl, ioaddr + MTL_EST_GCL_CONTROL);
+
+	return readl_poll_timeout(ioaddr + MTL_EST_GCL_CONTROL,
+				  ctrl, !(ctrl & SRWO), 100, 5000);
+}
+
+int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
+			 unsigned int ptp_rate)
+{
+	int i, ret = 0x0;
+	u32 ctrl;
+
+	ret |= dwmac5_est_write(ioaddr, BTR_LOW, cfg->btr[0], false);
+	ret |= dwmac5_est_write(ioaddr, BTR_HIGH, cfg->btr[1], false);
+	ret |= dwmac5_est_write(ioaddr, TER, cfg->ter, false);
+	ret |= dwmac5_est_write(ioaddr, LLR, cfg->gcl_size, false);
+	ret |= dwmac5_est_write(ioaddr, CTR_LOW, cfg->ctr[0], false);
+	ret |= dwmac5_est_write(ioaddr, CTR_HIGH, cfg->ctr[1], false);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < cfg->gcl_size; i++) {
+		ret = dwmac5_est_write(ioaddr, i, cfg->gcl[i], true);
+		if (ret)
+			return ret;
+	}
+
+	ctrl = readl(ioaddr + MTL_EST_CONTROL);
+	ctrl &= ~PTOV;
+	ctrl |= ((1000000000 / ptp_rate) * 6) << PTOV_SHIFT;
+	if (cfg->enable)
+		ctrl |= EEST | SSWL;
+	else
+		ctrl &= ~EEST;
+
+	writel(ctrl, ioaddr + MTL_EST_CONTROL);
+	return 0;
+}
+
+void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
+			  bool enable)
+{
+	u32 value;
+
+	if (!enable) {
+		value = readl(ioaddr + MAC_FPE_CTRL_STS);
+
+		value &= ~EFPE;
+
+		writel(value, ioaddr + MAC_FPE_CTRL_STS);
+		return;
+	}
+
+	value = readl(ioaddr + GMAC_RXQ_CTRL1);
+	value &= ~GMAC_RXQCTRL_FPRQ;
+	value |= (num_rxq - 1) << GMAC_RXQCTRL_FPRQ_SHIFT;
+	writel(value, ioaddr + GMAC_RXQ_CTRL1);
+
+	value = readl(ioaddr + MAC_FPE_CTRL_STS);
+	value |= EFPE;
+	writel(value, ioaddr + MAC_FPE_CTRL_STS);
 }

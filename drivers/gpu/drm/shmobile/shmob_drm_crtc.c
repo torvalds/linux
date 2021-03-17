@@ -1,25 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * shmob_drm_crtc.c  --  SH Mobile DRM CRTCs
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/backlight.h>
 #include <linux/clk.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "shmob_drm_backlight.h"
 #include "shmob_drm_crtc.h"
@@ -560,15 +559,6 @@ static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
 	.mode_set = shmob_drm_encoder_mode_set,
 };
 
-static void shmob_drm_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
-static const struct drm_encoder_funcs encoder_funcs = {
-	.destroy = shmob_drm_encoder_destroy,
-};
-
 int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 {
 	struct drm_encoder *encoder = &sdev->encoder.encoder;
@@ -578,8 +568,8 @@ int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 
 	encoder->possible_crtcs = 1;
 
-	ret = drm_encoder_init(sdev->ddev, encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS, NULL);
+	ret = drm_simple_encoder_init(sdev->ddev, encoder,
+				      DRM_MODE_ENCODER_LVDS);
 	if (ret < 0)
 		return ret;
 

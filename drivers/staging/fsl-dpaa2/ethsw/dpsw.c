@@ -981,6 +981,57 @@ int dpsw_fdb_add_unicast(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpsw_fdb_dump() - Dump the content of FDB table into memory.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @fdb_id:	Forwarding Database Identifier
+ * @iova_addr:	Data will be stored here as an array of struct fdb_dump_entry
+ * @iova_size:	Memory size allocated at iova_addr
+ * @num_entries:Number of entries written at iova_addr
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ *
+ * The memory allocated at iova_addr must be initialized with zero before
+ * command execution. If the FDB table does not fit into memory MC will stop
+ * after the memory is filled up.
+ * The struct fdb_dump_entry array must be parsed until the end of memory
+ * area or until an entry with mac_addr set to zero is found.
+ */
+int dpsw_fdb_dump(struct fsl_mc_io *mc_io,
+		  u32 cmd_flags,
+		  u16 token,
+		  u16 fdb_id,
+		  u64 iova_addr,
+		  u32 iova_size,
+		  u16 *num_entries)
+{
+	struct dpsw_cmd_fdb_dump *cmd_params;
+	struct dpsw_rsp_fdb_dump *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	int err;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_FDB_DUMP,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_fdb_dump *)cmd.params;
+	cmd_params->fdb_id = cpu_to_le16(fdb_id);
+	cmd_params->iova_addr = cpu_to_le64(iova_addr);
+	cmd_params->iova_size = cpu_to_le32(iova_size);
+
+	/* send command to mc */
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	rsp_params = (struct dpsw_rsp_fdb_dump *)cmd.params;
+	*num_entries = le16_to_cpu(rsp_params->num_entries);
+
+	return 0;
+}
+
+/**
  * dpsw_fdb_remove_unicast() - removes an entry from MAC lookup table
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
@@ -1162,4 +1213,110 @@ int dpsw_get_api_version(struct fsl_mc_io *mc_io,
 	*minor_ver = le16_to_cpu(rsp_params->version_minor);
 
 	return 0;
+}
+
+/**
+ * dpsw_if_get_port_mac_addr()
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Identifier
+ * @mac_addr:	MAC address of the physical port, if any, otherwise 0
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_get_port_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			      u16 if_id, u8 mac_addr[6])
+{
+	struct dpsw_rsp_if_get_mac_addr *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	struct dpsw_cmd_if *cmd_params;
+	int err, i;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_GET_PORT_MAC_ADDR,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+
+	/* send command to mc*/
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* retrieve response parameters */
+	rsp_params = (struct dpsw_rsp_if_get_mac_addr *)cmd.params;
+	for (i = 0; i < 6; i++)
+		mac_addr[5 - i] = rsp_params->mac_addr[i];
+
+	return 0;
+}
+
+/**
+ * dpsw_if_get_primary_mac_addr()
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Identifier
+ * @mac_addr:	MAC address of the physical port, if any, otherwise 0
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_get_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
+				 u16 token, u16 if_id, u8 mac_addr[6])
+{
+	struct dpsw_rsp_if_get_mac_addr *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	struct dpsw_cmd_if *cmd_params;
+	int err, i;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_PRIMARY_MAC_ADDR,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+
+	/* send command to mc*/
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* retrieve response parameters */
+	rsp_params = (struct dpsw_rsp_if_get_mac_addr *)cmd.params;
+	for (i = 0; i < 6; i++)
+		mac_addr[5 - i] = rsp_params->mac_addr[i];
+
+	return 0;
+}
+
+/**
+ * dpsw_if_set_primary_mac_addr()
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Identifier
+ * @mac_addr:	MAC address of the physical port, if any, otherwise 0
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_set_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
+				 u16 token, u16 if_id, u8 mac_addr[6])
+{
+	struct dpsw_cmd_if_set_mac_addr *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+	int i;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_PRIMARY_MAC_ADDR,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if_set_mac_addr *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+	for (i = 0; i < 6; i++)
+		cmd_params->mac_addr[i] = mac_addr[5 - i];
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
 }

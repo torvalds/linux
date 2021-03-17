@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
  *
@@ -9,12 +10,6 @@
  *           York Sun <yorksun@freescale.com>
  *
  *   Based on imxfb.c Copyright (C) 2004 S.Hauer, Pengutronix
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -1292,6 +1287,7 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 		dev_warn(info->dev,
 			 "MFB_SET_PIXFMT value of 0x%08x is deprecated.\n",
 			 MFB_SET_PIXFMT_OLD);
+		fallthrough;
 	case MFB_SET_PIXFMT:
 		if (copy_from_user(&pix_fmt, buf, sizeof(pix_fmt)))
 			return -EFAULT;
@@ -1301,6 +1297,7 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 		dev_warn(info->dev,
 			 "MFB_GET_PIXFMT value of 0x%08x is deprecated.\n",
 			 MFB_GET_PIXFMT_OLD);
+		fallthrough;
 	case MFB_GET_PIXFMT:
 		pix_fmt = ad->pix_fmt;
 		if (copy_to_user(buf, &pix_fmt, sizeof(pix_fmt)))
@@ -1453,7 +1450,7 @@ static int fsl_diu_release(struct fb_info *info, int user)
 	return res;
 }
 
-static struct fb_ops fsl_diu_ops = {
+static const struct fb_ops fsl_diu_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = fsl_diu_check_var,
 	.fb_set_par = fsl_diu_set_par,
@@ -1575,8 +1572,7 @@ static void uninstall_fb(struct fb_info *info)
 
 	unregister_framebuffer(info);
 	unmap_video_memory(info);
-	if (&info->cmap)
-		fb_dealloc_cmap(&info->cmap);
+	fb_dealloc_cmap(&info->cmap);
 
 	mfbi->registered = 0;
 }
@@ -1925,7 +1921,7 @@ static int __init fsl_diu_init(void)
 	pr_info("Freescale Display Interface Unit (DIU) framebuffer driver\n");
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
-	np = of_find_node_by_type(NULL, "cpu");
+	np = of_get_cpu_node(0, NULL);
 	if (!np) {
 		pr_err("fsl-diu-fb: can't find 'cpu' device node\n");
 		return -ENODEV;

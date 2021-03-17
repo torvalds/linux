@@ -7,7 +7,7 @@
 #ifndef _S390_PTRACE_H
 #define _S390_PTRACE_H
 
-#include <linux/const.h>
+#include <linux/bits.h>
 #include <uapi/asm/ptrace.h>
 
 #define PIF_SYSCALL		0	/* inside a system call */
@@ -15,10 +15,10 @@
 #define PIF_SYSCALL_RESTART	2	/* restart the current system call */
 #define PIF_GUEST_FAULT		3	/* indicates program check in sie64a */
 
-#define _PIF_SYSCALL		_BITUL(PIF_SYSCALL)
-#define _PIF_PER_TRAP		_BITUL(PIF_PER_TRAP)
-#define _PIF_SYSCALL_RESTART	_BITUL(PIF_SYSCALL_RESTART)
-#define _PIF_GUEST_FAULT	_BITUL(PIF_GUEST_FAULT)
+#define _PIF_SYSCALL		BIT(PIF_SYSCALL)
+#define _PIF_PER_TRAP		BIT(PIF_PER_TRAP)
+#define _PIF_SYSCALL_RESTART	BIT(PIF_SYSCALL_RESTART)
+#define _PIF_GUEST_FAULT	BIT(PIF_GUEST_FAULT)
 
 #ifndef __ASSEMBLY__
 
@@ -182,6 +182,11 @@ unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
 static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {
 	return regs->gprs[15];
+}
+
+static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
+{
+	regs->gprs[2] = rc;
 }
 
 #endif /* __ASSEMBLY__ */

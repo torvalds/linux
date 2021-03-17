@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/core/dev_addr_lists.c - Functions for handling net device lists
  * Copyright (c) 2010 Jiri Pirko <jpirko@redhat.com>
  *
  * This file contains functions for working with unicast, multicast and device
  * addresses lists.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/netdevice.h>
@@ -278,6 +274,103 @@ int __hw_addr_sync_dev(struct netdev_hw_addr_list *list,
 EXPORT_SYMBOL(__hw_addr_sync_dev);
 
 /**
+ *  __hw_addr_ref_sync_dev - Synchronize device's multicast address list taking
+ *  into account references
+ *  @list: address list to synchronize
+ *  @dev:  device to sync
+ *  @sync: function to call if address or reference on it should be added
+ *  @unsync: function to call if address or some reference on it should removed
+ *
+ *  This function is intended to be called from the ndo_set_rx_mode
+ *  function of devices that require explicit address or references on it
+ *  add/remove notifications. The unsync function may be NULL in which case
+ *  the addresses or references on it requiring removal will simply be
+ *  removed without any notification to the device. That is responsibility of
+ *  the driver to identify and distribute address or references on it between
+ *  internal address tables.
+ **/
+int __hw_addr_ref_sync_dev(struct netdev_hw_addr_list *list,
+			   struct net_device *dev,
+			   int (*sync)(struct net_device *,
+				       const unsigned char *, int),
+			   int (*unsync)(struct net_device *,
+					 const unsigned char *, int))
+{
+	struct netdev_hw_addr *ha, *tmp;
+	int err, ref_cnt;
+
+	/* first go through and flush out any unsynced/stale entries */
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		/* sync if address is not used */
+		if ((ha->sync_cnt << 1) <= ha->refcount)
+			continue;
+
+		/* if fails defer unsyncing address */
+		ref_cnt = ha->refcount - ha->sync_cnt;
+		if (unsync && unsync(dev, ha->addr, ref_cnt))
+			continue;
+
+		ha->refcount = (ref_cnt << 1) + 1;
+		ha->sync_cnt = ref_cnt;
+		__hw_addr_del_entry(list, ha, false, false);
+	}
+
+	/* go through and sync updated/new entries to the list */
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		/* sync if address added or reused */
+		if ((ha->sync_cnt << 1) >= ha->refcount)
+			continue;
+
+		ref_cnt = ha->refcount - ha->sync_cnt;
+		err = sync(dev, ha->addr, ref_cnt);
+		if (err)
+			return err;
+
+		ha->refcount = ref_cnt << 1;
+		ha->sync_cnt = ref_cnt;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(__hw_addr_ref_sync_dev);
+
+/**
+ *  __hw_addr_ref_unsync_dev - Remove synchronized addresses and references on
+ *  it from device
+ *  @list: address list to remove synchronized addresses (references on it) from
+ *  @dev:  device to sync
+ *  @unsync: function to call if address and references on it should be removed
+ *
+ *  Remove all addresses that were added to the device by
+ *  __hw_addr_ref_sync_dev(). This function is intended to be called from the
+ *  ndo_stop or ndo_open functions on devices that require explicit address (or
+ *  references on it) add/remove notifications. If the unsync function pointer
+ *  is NULL then this function can be used to just reset the sync_cnt for the
+ *  addresses in the list.
+ **/
+void __hw_addr_ref_unsync_dev(struct netdev_hw_addr_list *list,
+			      struct net_device *dev,
+			      int (*unsync)(struct net_device *,
+					    const unsigned char *, int))
+{
+	struct netdev_hw_addr *ha, *tmp;
+
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		if (!ha->sync_cnt)
+			continue;
+
+		/* if fails defer unsyncing address */
+		if (unsync && unsync(dev, ha->addr, ha->sync_cnt))
+			continue;
+
+		ha->refcount -= ha->sync_cnt - 1;
+		ha->sync_cnt = 0;
+		__hw_addr_del_entry(list, ha, false, false);
+	}
+}
+EXPORT_SYMBOL(__hw_addr_ref_unsync_dev);
+
+/**
  *  __hw_addr_unsync_dev - Remove synchronized addresses from device
  *  @list: address list to remove synchronized addresses from
  *  @dev:  device to sync
@@ -401,6 +494,9 @@ int dev_addr_add(struct net_device *dev, const unsigned char *addr,
 
 	ASSERT_RTNL();
 
+	err = dev_pre_changeaddr_notify(dev, addr, NULL);
+	if (err)
+		return err;
 	err = __hw_addr_add(&dev->dev_addrs, addr, dev->addr_len, addr_type);
 	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
@@ -541,7 +637,7 @@ int dev_uc_sync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	err = __hw_addr_sync(&to->uc, &from->uc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -571,7 +667,7 @@ int dev_uc_sync_multiple(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	err = __hw_addr_sync_multiple(&to->uc, &from->uc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -594,8 +690,17 @@ void dev_uc_unsync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return;
 
+	/* netif_addr_lock_bh() uses lockdep subclass 0, this is okay for two
+	 * reasons:
+	 * 1) This is always called without any addr_list_lock, so as the
+	 *    outermost one here, it must be 0.
+	 * 2) This is called by some callers after unlinking the upper device,
+	 *    so the dev->lower_level becomes 1 again.
+	 * Therefore, the subclass for 'from' is 0, for 'to' is either 1 or
+	 * larger.
+	 */
 	netif_addr_lock_bh(from);
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	__hw_addr_unsync(&to->uc, &from->uc, to->addr_len);
 	__dev_set_rx_mode(to);
 	netif_addr_unlock(to);
@@ -762,7 +867,7 @@ int dev_mc_sync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	err = __hw_addr_sync(&to->mc, &from->mc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -792,7 +897,7 @@ int dev_mc_sync_multiple(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	err = __hw_addr_sync_multiple(&to->mc, &from->mc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -815,8 +920,9 @@ void dev_mc_unsync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return;
 
+	/* See the above comments inside dev_uc_unsync(). */
 	netif_addr_lock_bh(from);
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	__hw_addr_unsync(&to->mc, &from->mc, to->addr_len);
 	__dev_set_rx_mode(to);
 	netif_addr_unlock(to);

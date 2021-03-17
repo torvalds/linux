@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig POWER_RESET
 	bool "Board level reset or power off"
 	help
@@ -25,7 +26,7 @@ config POWER_RESET_AT91_POWEROFF
 config POWER_RESET_AT91_RESET
 	tristate "Atmel AT91 reset driver"
 	depends on ARCH_AT91
-	default SOC_AT91SAM9 || SOC_SAMA5
+	default SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAMA5
 	help
 	  This driver supports restart for Atmel AT91SAM9 and SAMA5
 	  SoCs
@@ -33,7 +34,7 @@ config POWER_RESET_AT91_RESET
 config POWER_RESET_AT91_SAMA5D2_SHDWC
 	tristate "Atmel AT91 SAMA5D2-Compatible shutdown controller driver"
 	depends on ARCH_AT91
-	default SOC_SAMA5
+	default SOC_SAM9X60 || SOC_SAMA5
 	help
 	  This driver supports the alternate shutdown controller for some Atmel
 	  SAMA5 SoCs. It is present for example on SAMA5D2 SoC.
@@ -98,6 +99,17 @@ config POWER_RESET_HISI
 	help
 	  Reboot support for Hisilicon boards.
 
+config POWER_RESET_LINKSTATION
+	tristate "Buffalo LinkStation power-off driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF_MDIO && PHYLIB
+	help
+	  This driver supports turning off some Buffalo LinkStations by
+	  setting an output pin at the ethernet PHY to the correct state.
+	  It also makes the device compatible with the WoL function.
+
+	  Say Y here if you have a Buffalo LinkStation LS421D/E.
+
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
 	depends on ARCH_QCOM
@@ -117,10 +129,17 @@ config POWER_RESET_QCOM_PON
 
 config POWER_RESET_OCELOT_RESET
 	bool "Microsemi Ocelot reset driver"
-	depends on MSCC_OCELOT || COMPILE_TEST
+	depends on MSCC_OCELOT || ARCH_SPARX5 || COMPILE_TEST
 	select MFD_SYSCON
 	help
-	  This driver supports restart for Microsemi Ocelot SoC.
+	  This driver supports restart for Microsemi Ocelot SoC and similar.
+
+config POWER_RESET_OXNAS
+	bool "OXNAS SoC restart driver"
+	depends on ARCH_OXNAS
+	default MACH_OX820
+	help
+	  Restart support for OXNAS/PLXTECH OX820 SoC.
 
 config POWER_RESET_PIIX4_POWEROFF
 	tristate "Intel PIIX4 power-off driver"
@@ -138,6 +157,16 @@ config POWER_RESET_LTC2952
 	help
 	  This driver supports an external powerdown trigger and board power
 	  down via the LTC2952. Bindings are made in the device tree.
+
+config POWER_RESET_MT6323
+	bool "MediaTek MT6323 power-off driver"
+	depends on MFD_MT6397
+	help
+	  The power-off driver is responsible for externally shutdown down
+	  the power of a remote MediaTek SoC MT6323 is connected to through
+	  controlling a tiny circuit BBPU inside MT6323 RTC.
+
+	  Say Y if you have a board where MT6323 could be found.
 
 config POWER_RESET_QNAP
 	bool "QNAP power-off driver"
@@ -173,7 +202,7 @@ config POWER_RESET_VERSATILE
 config POWER_RESET_VEXPRESS
 	bool "ARM Versatile Express power-off and reset driver"
 	depends on ARM || ARM64
-	depends on VEXPRESS_CONFIG
+	depends on VEXPRESS_CONFIG=y
 	help
 	  Power off and reset support for the ARM Ltd. Versatile
 	  Express boards.
@@ -237,13 +266,23 @@ config SYSCON_REBOOT_MODE
 	  action according to the mode.
 
 config POWER_RESET_SC27XX
-	bool "Spreadtrum SC27xx PMIC power-off driver"
+	tristate "Spreadtrum SC27xx PMIC power-off driver"
 	depends on MFD_SC27XX_PMIC || COMPILE_TEST
 	help
 	  This driver supports powering off a system through
 	  Spreadtrum SC27xx series PMICs. The SC27xx series
 	  PMICs includes the SC2720, SC2721, SC2723, SC2730
 	  and SC2731 chips.
+
+config NVMEM_REBOOT_MODE
+	tristate "Generic NVMEM reboot mode driver"
+	depends on OF
+	select REBOOT_MODE
+	help
+	  Say y here will enable reboot mode driver. This will
+	  get reboot mode arguments and store it in a NVMEM cell,
+	  then the bootloader can read it and take different
+	  action according to the mode.
 
 endif
 

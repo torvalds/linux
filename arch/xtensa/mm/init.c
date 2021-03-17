@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
@@ -26,7 +26,7 @@
 #include <linux/nodemask.h>
 #include <linux/mm.h>
 #include <linux/of_fdt.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 
 #include <asm/bootparam.h>
 #include <asm/page.h>
@@ -45,10 +45,7 @@ void __init bootmem_init(void)
 	 * If PHYS_OFFSET is zero reserve page at address 0:
 	 * successfull allocations should never return NULL.
 	 */
-	if (PHYS_OFFSET)
-		memblock_reserve(0, PHYS_OFFSET);
-	else
-		memblock_reserve(0, 1);
+	memblock_reserve(0, PHYS_OFFSET ? PHYS_OFFSET : 1);
 
 	early_init_fdt_scan_reserved_mem();
 
@@ -60,6 +57,9 @@ void __init bootmem_init(void)
 	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
 	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
 
+	early_memtest((phys_addr_t)min_low_pfn << PAGE_SHIFT,
+		      (phys_addr_t)max_low_pfn << PAGE_SHIFT);
+
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 
@@ -70,76 +70,41 @@ void __init bootmem_init(void)
 void __init zones_init(void)
 {
 	/* All pages are DMA-able, so we put them all in the DMA zone. */
-	unsigned long zones_size[MAX_NR_ZONES] = {
-		[ZONE_DMA] = max_low_pfn - ARCH_PFN_OFFSET,
+	unsigned long max_zone_pfn[MAX_NR_ZONES] = {
+		[ZONE_NORMAL] = max_low_pfn,
 #ifdef CONFIG_HIGHMEM
-		[ZONE_HIGHMEM] = max_pfn - max_low_pfn,
+		[ZONE_HIGHMEM] = max_pfn,
 #endif
 	};
-	free_area_init_node(0, zones_size, ARCH_PFN_OFFSET, NULL);
-}
-
-#ifdef CONFIG_HIGHMEM
-static void __init free_area_high(unsigned long pfn, unsigned long end)
-{
-	for (; pfn < end; pfn++)
-		free_highmem_page(pfn_to_page(pfn));
+	free_area_init(max_zone_pfn);
 }
 
 static void __init free_highpages(void)
 {
+#ifdef CONFIG_HIGHMEM
 	unsigned long max_low = max_low_pfn;
-	struct memblock_region *mem, *res;
+	phys_addr_t range_start, range_end;
+	u64 i;
 
-	reset_all_zones_managed_pages();
 	/* set highmem page free */
-	for_each_memblock(memory, mem) {
-		unsigned long start = memblock_region_memory_base_pfn(mem);
-		unsigned long end = memblock_region_memory_end_pfn(mem);
+	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE,
+				&range_start, &range_end, NULL) {
+		unsigned long start = PFN_UP(range_start);
+		unsigned long end = PFN_DOWN(range_end);
 
 		/* Ignore complete lowmem entries */
 		if (end <= max_low)
-			continue;
-
-		if (memblock_is_nomap(mem))
 			continue;
 
 		/* Truncate partial highmem entries */
 		if (start < max_low)
 			start = max_low;
 
-		/* Find and exclude any reserved regions */
-		for_each_memblock(reserved, res) {
-			unsigned long res_start, res_end;
-
-			res_start = memblock_region_reserved_base_pfn(res);
-			res_end = memblock_region_reserved_end_pfn(res);
-
-			if (res_end < start)
-				continue;
-			if (res_start < start)
-				res_start = start;
-			if (res_start > end)
-				res_start = end;
-			if (res_end > end)
-				res_end = end;
-			if (res_start != start)
-				free_area_high(start, res_start);
-			start = res_end;
-			if (start == end)
-				break;
-		}
-
-		/* And now free anything which remains */
-		if (start < end)
-			free_area_high(start, end);
+		for (; start < end; start++)
+			free_highmem_page(pfn_to_page(start));
 	}
-}
-#else
-static void __init free_highpages(void)
-{
-}
 #endif
+}
 
 /*
  * Initialize memory pages.
@@ -152,7 +117,7 @@ void __init mem_init(void)
 	max_mapnr = max_pfn - ARCH_PFN_OFFSET;
 	high_memory = (void *)__va(max_low_pfn << PAGE_SHIFT);
 
-	free_all_bootmem();
+	memblock_free_all();
 
 	mem_init_print_info(NULL);
 	pr_info("virtual kernel memory layout:\n"
@@ -193,29 +158,14 @@ void __init mem_init(void)
 		((max_low_pfn - min_low_pfn) * PAGE_SIZE) >> 20,
 		(unsigned long)_text, (unsigned long)_etext,
 		(unsigned long)(_etext - _text) >> 10,
-		(unsigned long)__start_rodata, (unsigned long)_sdata,
-		(unsigned long)(_sdata - __start_rodata) >> 10,
+		(unsigned long)__start_rodata, (unsigned long)__end_rodata,
+		(unsigned long)(__end_rodata - __start_rodata) >> 10,
 		(unsigned long)_sdata, (unsigned long)_edata,
 		(unsigned long)(_edata - _sdata) >> 10,
 		(unsigned long)__init_begin, (unsigned long)__init_end,
 		(unsigned long)(__init_end - __init_begin) >> 10,
 		(unsigned long)__bss_start, (unsigned long)__bss_stop,
 		(unsigned long)(__bss_stop - __bss_start) >> 10);
-}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-extern int initrd_is_mapped;
-
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	if (initrd_is_mapped)
-		free_reserved_area((void *)start, (void *)end, -1, "initrd");
-}
-#endif
-
-void free_initmem(void)
-{
-	free_initmem_default(-1);
 }
 
 static void __init parse_memmap_one(char *p)

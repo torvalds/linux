@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware definitions for Palm Zire72
  *
@@ -10,12 +11,7 @@
  * Rewrite for mainline:
  *	Marek Vasut <marek.vasut@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * (find more info at www.hackndev.com)
- *
  */
 
 #include <linux/platform_device.h>
@@ -29,7 +25,6 @@
 #include <linux/gpio.h>
 #include <linux/wm97xx.h>
 #include <linux/power_supply.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/platform_data/i2c-gpio.h>
 #include <linux/gpio/machine.h>
 
@@ -51,8 +46,6 @@
 
 #include "pm.h"
 #include <linux/platform_data/media/camera-pxa.h>
-
-#include <media/soc_camera.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -277,114 +270,18 @@ static int __init palmz72_pm_init(void)
 device_initcall(palmz72_pm_init);
 #endif
 
-/******************************************************************************
- * SoC Camera
- ******************************************************************************/
-#if defined(CONFIG_SOC_CAMERA_OV9640) || \
-	defined(CONFIG_SOC_CAMERA_OV9640_MODULE)
-static struct pxacamera_platform_data palmz72_pxacamera_platform_data = {
-	.flags		= PXA_CAMERA_MASTER | PXA_CAMERA_DATAWIDTH_8 |
-			PXA_CAMERA_PCLK_EN | PXA_CAMERA_MCLK_EN,
-	.mclk_10khz	= 2600,
-};
-
-/* Board I2C devices. */
-static struct i2c_board_info palmz72_i2c_device[] = {
-	{
-		I2C_BOARD_INFO("ov9640", 0x30),
-	}
-};
-
-static int palmz72_camera_power(struct device *dev, int power)
-{
-	gpio_set_value(GPIO_NR_PALMZ72_CAM_PWDN, !power);
-	mdelay(50);
-	return 0;
-}
-
-static int palmz72_camera_reset(struct device *dev)
-{
-	gpio_set_value(GPIO_NR_PALMZ72_CAM_RESET, 1);
-	mdelay(50);
-	gpio_set_value(GPIO_NR_PALMZ72_CAM_RESET, 0);
-	mdelay(50);
-	return 0;
-}
-
-static struct soc_camera_link palmz72_iclink = {
-	.bus_id		= 0, /* Match id in pxa27x_device_camera in device.c */
-	.board_info	= &palmz72_i2c_device[0],
-	.i2c_adapter_id	= 0,
-	.module_name	= "ov96xx",
-	.power		= &palmz72_camera_power,
-	.reset		= &palmz72_camera_reset,
-	.flags		= SOCAM_DATAWIDTH_8,
-};
-
-static struct gpiod_lookup_table palmz72_i2c_gpiod_table = {
-	.dev_id		= "i2c-gpio.0",
-	.table		= {
-		GPIO_LOOKUP_IDX("gpio-pxa", 118, NULL, 0,
-				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
-		GPIO_LOOKUP_IDX("gpio-pxa", 117, NULL, 1,
-				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+static struct gpiod_lookup_table palmz72_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMZ72_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMZ72_SD_RO,
+			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMZ72_SD_POWER_N,
+			    "power", GPIO_ACTIVE_LOW),
+		{ },
 	},
 };
-
-static struct i2c_gpio_platform_data palmz72_i2c_bus_data = {
-	.udelay		= 10,
-	.timeout	= 100,
-};
-
-static struct platform_device palmz72_i2c_bus_device = {
-	.name		= "i2c-gpio",
-	.id		= 0, /* we use this as a replacement for i2c-pxa */
-	.dev		= {
-		.platform_data	= &palmz72_i2c_bus_data,
-	}
-};
-
-static struct platform_device palmz72_camera = {
-	.name	= "soc-camera-pdrv",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &palmz72_iclink,
-	},
-};
-
-/* Here we request the camera GPIOs and configure them. We power up the camera
- * module, deassert the reset pin, but put it into powerdown (low to no power
- * consumption) mode. This allows us to later bring the module up fast. */
-static struct gpio palmz72_camera_gpios[] = {
-	{ GPIO_NR_PALMZ72_CAM_POWER,	GPIOF_INIT_HIGH,"Camera DVDD" },
-	{ GPIO_NR_PALMZ72_CAM_RESET,	GPIOF_INIT_LOW,	"Camera RESET" },
-	{ GPIO_NR_PALMZ72_CAM_PWDN,	GPIOF_INIT_LOW,	"Camera PWDN" },
-};
-
-static inline void __init palmz72_cam_gpio_init(void)
-{
-	int ret;
-
-	ret = gpio_request_array(ARRAY_AND_SIZE(palmz72_camera_gpios));
-	if (!ret)
-		gpio_free_array(ARRAY_AND_SIZE(palmz72_camera_gpios));
-	else
-		printk(KERN_ERR "Camera GPIO init failed!\n");
-
-	return;
-}
-
-static void __init palmz72_camera_init(void)
-{
-	palmz72_cam_gpio_init();
-	pxa_set_camera_info(&palmz72_pxacamera_platform_data);
-	gpiod_add_lookup_table(&palmz72_i2c_gpiod_table);
-	platform_device_register(&palmz72_i2c_bus_device);
-	platform_device_register(&palmz72_camera);
-}
-#else
-static inline void palmz72_camera_init(void) {}
-#endif
 
 /******************************************************************************
  * Machine init
@@ -396,8 +293,7 @@ static void __init palmz72_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	palm27x_mmc_init(GPIO_NR_PALMZ72_SD_DETECT_N, GPIO_NR_PALMZ72_SD_RO,
-			GPIO_NR_PALMZ72_SD_POWER_N, 1);
+	palm27x_mmc_init(&palmz72_mci_gpio_table);
 	palm27x_lcd_init(-1, &palm_320x320_lcd_mode);
 	palm27x_udc_init(GPIO_NR_PALMZ72_USB_DETECT_N,
 			GPIO_NR_PALMZ72_USB_PULLUP, 0);
@@ -409,7 +305,6 @@ static void __init palmz72_init(void)
 	palm27x_pmic_init();
 	palmz72_kpc_init();
 	palmz72_leds_init();
-	palmz72_camera_init();
 }
 
 MACHINE_START(PALMZ72, "Palm Zire72")

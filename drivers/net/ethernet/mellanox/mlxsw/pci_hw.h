@@ -25,10 +25,8 @@
 #define MLXSW_PCI_CIR_CTRL_STATUS_SHIFT		24
 #define MLXSW_PCI_CIR_TIMEOUT_MSECS		1000
 
-#define MLXSW_PCI_SW_RESET			0xF0010
-#define MLXSW_PCI_SW_RESET_RST_BIT		BIT(0)
-#define MLXSW_PCI_SW_RESET_TIMEOUT_MSECS	5000
-#define MLXSW_PCI_SW_RESET_WAIT_MSECS		100
+#define MLXSW_PCI_SW_RESET_TIMEOUT_MSECS	900000
+#define MLXSW_PCI_SW_RESET_WAIT_MSECS		200
 #define MLXSW_PCI_FW_READY			0xA1844
 #define MLXSW_PCI_FW_READY_MASK			0xFFFF
 #define MLXSW_PCI_FW_READY_MAGIC		0x5E
@@ -43,16 +41,25 @@
 #define MLXSW_PCI_DOORBELL(offset, type_offset, num)	\
 	((offset) + (type_offset) + (num) * 4)
 
+#define MLXSW_PCI_FREE_RUNNING_CLOCK_H(offset)	(offset)
+#define MLXSW_PCI_FREE_RUNNING_CLOCK_L(offset)	((offset) + 4)
+
 #define MLXSW_PCI_CQS_MAX	96
 #define MLXSW_PCI_EQS_COUNT	2
 #define MLXSW_PCI_EQ_ASYNC_NUM	0
 #define MLXSW_PCI_EQ_COMP_NUM	1
+
+#define MLXSW_PCI_SDQS_MIN	2 /* EMAD and control traffic */
+#define MLXSW_PCI_SDQ_EMAD_INDEX	0
+#define MLXSW_PCI_SDQ_EMAD_TC	0
+#define MLXSW_PCI_SDQ_CTL_TC	3
 
 #define MLXSW_PCI_AQ_PAGES	8
 #define MLXSW_PCI_AQ_SIZE	(MLXSW_PCI_PAGE_SIZE * MLXSW_PCI_AQ_PAGES)
 #define MLXSW_PCI_WQE_SIZE	32 /* 32 bytes per element */
 #define MLXSW_PCI_CQE01_SIZE	16 /* 16 bytes per element */
 #define MLXSW_PCI_CQE2_SIZE	32 /* 32 bytes per element */
+#define MLXSW_PCI_CQE_SIZE_MAX	MLXSW_PCI_CQE2_SIZE
 #define MLXSW_PCI_EQE_SIZE	16 /* 16 bytes per element */
 #define MLXSW_PCI_WQE_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_WQE_SIZE)
 #define MLXSW_PCI_CQE01_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_CQE01_SIZE)
@@ -169,7 +176,7 @@ MLXSW_ITEM32(pci, cqe, byte_count, 0x04, 0, 14);
 /* pci_cqe_trap_id
  * Trap ID that captured the packet.
  */
-MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 9);
+MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 10);
 
 /* pci_cqe_crc
  * Length include CRC. Indicates the length field includes
@@ -201,6 +208,16 @@ MLXSW_ITEM32(pci, cqe0, dqn, 0x0C, 1, 5);
 MLXSW_ITEM32(pci, cqe12, dqn, 0x0C, 1, 6);
 mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
 
+/* pci_cqe_user_def_val_orig_pkt_len
+ * When trap_id is an ACL: User defined value from policy engine action.
+ */
+MLXSW_ITEM32(pci, cqe2, user_def_val_orig_pkt_len, 0x14, 0, 20);
+
+/* pci_cqe_mirror_reason
+ * Mirror reason.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_reason, 0x18, 24, 8);
+
 /* pci_cqe_owner
  * Ownership bit.
  */
@@ -221,7 +238,7 @@ MLXSW_ITEM32(pci, eqe, event_type, 0x0C, 24, 8);
 MLXSW_ITEM32(pci, eqe, event_sub_type, 0x0C, 16, 8);
 
 /* pci_eqe_cqn
- * Completion Queue that triggeret this EQE.
+ * Completion Queue that triggered this EQE.
  */
 MLXSW_ITEM32(pci, eqe, cqn, 0x0C, 8, 7);
 

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Silicon Labs C2 port core Linux support
  *
  *  Copyright (c) 2007 Rodolfo Giometti <giometti@linux.it>
  *  Copyright (c) 2007 Eurotech S.p.A. <info@eurotech.it>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation
  */
 
 #include <linux/module.h>
@@ -926,7 +923,7 @@ struct c2port_device *c2port_device_register(char *name,
 	}
 	dev_set_drvdata(c2dev->dev, c2dev);
 
-	strncpy(c2dev->name, name, C2PORT_NAME_LEN);
+	strncpy(c2dev->name, name, C2PORT_NAME_LEN - 1);
 	c2dev->ops = ops;
 	mutex_init(&c2dev->mutex);
 

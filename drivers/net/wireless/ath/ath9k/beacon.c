@@ -365,7 +365,7 @@ bool ath9k_csa_is_finished(struct ath_softc *sc, struct ieee80211_vif *vif)
 	if (!vif || !vif->csa_active)
 		return false;
 
-	if (!ieee80211_csa_is_complete(vif))
+	if (!ieee80211_beacon_cntdwn_is_complete(vif))
 		return false;
 
 	ieee80211_csa_finish(vif);
@@ -385,9 +385,9 @@ void ath9k_csa_update(struct ath_softc *sc)
 						   ath9k_csa_update_vif, sc);
 }
 
-void ath9k_beacon_tasklet(unsigned long data)
+void ath9k_beacon_tasklet(struct tasklet_struct *t)
 {
-	struct ath_softc *sc = (struct ath_softc *)data;
+	struct ath_softc *sc = from_tasklet(sc, t, bcon_tasklet);
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_buf *bf = NULL;

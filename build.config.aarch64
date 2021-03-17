@@ -1,0 +1,16 @@
+ARCH=arm64
+
+LLVM_IAS=1
+CROSS_COMPILE=aarch64-linux-gnu-
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
+
+MAKE_GOALS="
+Image
+modules
+"
+
+FILES="
+arch/arm64/boot/Image
+vmlinux
+System.map
+"

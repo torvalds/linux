@@ -39,7 +39,7 @@
  * CRC32 polynomial:0x04c11db7(BE)/0xEDB88320(LE)
  * PCLMULQDQ is a new instruction in Intel SSE4.2, the reference can be found
  * at:
- * http://www.intel.com/products/processor/manuals/
+ * https://www.intel.com/products/processor/manuals/
  * Intel(R) 64 and IA-32 Architectures Software Developer's Manual
  * Volume 2B: Instruction Set Reference, N-Z
  *

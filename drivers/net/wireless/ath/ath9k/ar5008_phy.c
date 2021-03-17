@@ -18,7 +18,6 @@
 #include "hw-ops.h"
 #include "../regd.h"
 #include "ar9002_phy.h"
-#include "ar5008_initvals.h"
 
 /* All code below is for AR5008, AR9001, AR9002 */
 
@@ -37,10 +36,6 @@
 #define AR5008_11NG_HT_SS_SHIFT		12
 #define AR5008_11NG_HT_DS_SHIFT		20
 
-static const int firstep_table[] =
-/* level:  0   1   2   3   4   5   6   7   8  */
-	{ -4, -2,  0,  2,  4,  6,  8, 10, 12 }; /* lvl 0-8, default 2 */
-
 /*
  * register values to turn OFDM weak signal detection OFF
  */
@@ -54,6 +49,36 @@ static const int m1ThreshLowExt_off = 127;
 static const int m2ThreshLowExt_off = 127;
 static const int m1ThreshExt_off = 127;
 static const int m2ThreshExt_off = 127;
+
+static const u32 ar5416Bank0[][2] = {
+	/* Addr      allmodes  */
+	{0x000098b0, 0x1e5795e5},
+	{0x000098e0, 0x02008020},
+};
+
+static const u32 ar5416Bank1[][2] = {
+	/* Addr      allmodes  */
+	{0x000098b0, 0x02108421},
+	{0x000098ec, 0x00000008},
+};
+
+static const u32 ar5416Bank2[][2] = {
+	/* Addr      allmodes  */
+	{0x000098b0, 0x0e73ff17},
+	{0x000098e0, 0x00000420},
+};
+
+static const u32 ar5416Bank3[][3] = {
+	/* Addr      5G          2G        */
+	{0x000098f0, 0x01400018, 0x01c00018},
+};
+
+static const u32 ar5416Bank7[][2] = {
+	/* Addr      allmodes  */
+	{0x0000989c, 0x00000500},
+	{0x0000989c, 0x00000800},
+	{0x000098cc, 0x0000000e},
+};
 
 static const struct ar5416IniArray bank0 = STATIC_INI_ARRAY(ar5416Bank0);
 static const struct ar5416IniArray bank1 = STATIC_INI_ARRAY(ar5416Bank1);
@@ -583,14 +608,14 @@ static void ar5008_hw_init_chain_masks(struct ath_hw *ah)
 	case 0x5:
 		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
 			    AR_PHY_SWAP_ALT_CHAIN);
-		/* fall through */
+		fallthrough;
 	case 0x3:
 		if (ah->hw_version.macVersion == AR_SREV_REVISION_5416_10) {
 			REG_WRITE(ah, AR_PHY_RX_CHAINMASK, 0x7);
 			REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, 0x7);
 			break;
 		}
-		/* else: fall through */
+		fallthrough;
 	case 0x1:
 	case 0x2:
 	case 0x7:

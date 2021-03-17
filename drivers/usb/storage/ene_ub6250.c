@@ -26,6 +26,7 @@
 
 MODULE_DESCRIPTION("Driver for ENE UB6250 reader");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(USB_STORAGE);
 MODULE_FIRMWARE(SD_INIT1_FIRMWARE);
 MODULE_FIRMWARE(SD_INIT2_FIRMWARE);
 MODULE_FIRMWARE(SD_RW_FIRMWARE);
@@ -560,7 +561,7 @@ static int ene_send_scsi_cmd(struct us_data *us, u8 fDir, void *buf, int use_sg)
 		residue = min(residue, transfer_length);
 		if (us->srb != NULL)
 			scsi_set_resid(us->srb, max(scsi_get_resid(us->srb),
-								(int)residue));
+								residue));
 	}
 
 	if (bcs->Status != US_BULK_STAT_OK)
@@ -1131,7 +1132,7 @@ static int ms_lib_alloc_writebuf(struct us_data *us)
 
 	ms_lib_clear_writebuf(us);
 
-return 0;
+	return 0;
 }
 
 static int ms_lib_force_setlogical_pair(struct us_data *us, u16 logblk, u16 phyblk)

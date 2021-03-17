@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VPDMA helper library
  *
@@ -6,10 +7,6 @@
  * David Griego, <dagriego@biglakesoftware.com>
  * Dale Farnsworth, <dale@farnsworth.org>
  * Archit Taneja, <archit@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -57,6 +54,11 @@ const struct vpdma_data_format vpdma_yuv_fmts[] = {
 	[VPDMA_DATA_FMT_C420] = {
 		.type		= VPDMA_DATA_FMT_TYPE_YUV,
 		.data_type	= DATA_TYPE_C420,
+		.depth		= 4,
+	},
+	[VPDMA_DATA_FMT_CB420] = {
+		.type		= VPDMA_DATA_FMT_TYPE_YUV,
+		.data_type	= DATA_TYPE_CB420,
 		.depth		= 4,
 	},
 	[VPDMA_DATA_FMT_YCR422] = {
@@ -404,7 +406,7 @@ EXPORT_SYMBOL(vpdma_map_desc_buf);
 
 /*
  * unmap descriptor/payload DMA buffer, disabling DMA access and
- * allowing the main processor to acces the data
+ * allowing the main processor to access the data
  */
 void vpdma_unmap_desc_buf(struct vpdma_data *vpdma, struct vpdma_buf *buf)
 {
@@ -448,23 +450,25 @@ int vpdma_list_cleanup(struct vpdma_data *vpdma, int list_num,
 
 	ret = vpdma_map_desc_buf(vpdma, &abort_list.buf);
 	if (ret)
-		return ret;
+		goto free_desc;
 	ret = vpdma_submit_descs(vpdma, &abort_list, list_num);
 	if (ret)
-		return ret;
+		goto unmap_desc;
 
 	while (vpdma_list_busy(vpdma, list_num) && --timeout)
 		;
 
 	if (timeout == 0) {
 		dev_err(&vpdma->pdev->dev, "Timed out cleaning up VPDMA list\n");
-		return -EBUSY;
+		ret = -EBUSY;
 	}
 
+unmap_desc:
 	vpdma_unmap_desc_buf(vpdma, &abort_list.buf);
+free_desc:
 	vpdma_free_desc_buf(&abort_list.buf);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(vpdma_list_cleanup);
 
@@ -501,7 +505,7 @@ void vpdma_reset_desc_list(struct vpdma_desc_list *list)
 EXPORT_SYMBOL(vpdma_reset_desc_list);
 
 /*
- * free the buffer allocated fot the VPDMA descriptor list, this should be
+ * free the buffer allocated for the VPDMA descriptor list, this should be
  * called when the user doesn't want to use VPDMA any more.
  */
 void vpdma_free_desc_list(struct vpdma_desc_list *list)
@@ -760,7 +764,7 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 		pr_debug("word1: line_length = %d, xfer_height = %d\n",
 			dtd_get_line_length(dtd), dtd_get_xfer_height(dtd));
 
-	pr_debug("word2: start_addr = %pad\n", &dtd->start_addr);
+	pr_debug("word2: start_addr = %x\n", dtd->start_addr);
 
 	pr_debug("word3: pkt_type = %d, mode = %d, dir = %d, chan = %d, pri = %d, next_chan = %d\n",
 		 dtd_get_pkt_type(dtd),
@@ -790,7 +794,7 @@ static void dump_dtd(struct vpdma_dtd *dtd)
  * append an outbound data transfer descriptor to the given descriptor list,
  * this sets up a 'client to memory' VPDMA transfer for the given VPDMA channel
  *
- * @list: vpdma desc list to which we add this decriptor
+ * @list: vpdma desc list to which we add this descriptor
  * @width: width of the image in pixels in memory
  * @c_rect: compose params of output image
  * @fmt: vpdma data format of the buffer
@@ -798,7 +802,7 @@ static void dump_dtd(struct vpdma_dtd *dtd)
  * max_width: enum for maximum width of data transfer
  * max_height: enum for maximum height of data transfer
  * chan: VPDMA channel
- * flags: VPDMA flags to configure some descriptor fileds
+ * flags: VPDMA flags to configure some descriptor fields
  */
 void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 		int stride, const struct v4l2_rect *c_rect,
@@ -826,7 +830,8 @@ void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 	channel = next_chan = raw_vpdma_chan;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
-			fmt->data_type == DATA_TYPE_C420) {
+	    (fmt->data_type == DATA_TYPE_C420 ||
+	     fmt->data_type == DATA_TYPE_CB420)) {
 		rect.height >>= 1;
 		rect.top >>= 1;
 		depth = 8;
@@ -863,14 +868,14 @@ EXPORT_SYMBOL(vpdma_rawchan_add_out_dtd);
  * append an inbound data transfer descriptor to the given descriptor list,
  * this sets up a 'memory to client' VPDMA transfer for the given VPDMA channel
  *
- * @list: vpdma desc list to which we add this decriptor
+ * @list: vpdma desc list to which we add this descriptor
  * @width: width of the image in pixels in memory(not the cropped width)
  * @c_rect: crop params of input image
  * @fmt: vpdma data format of the buffer
  * dma_addr: dma address as seen by VPDMA
  * chan: VPDMA channel
  * field: top or bottom field info of the input image
- * flags: VPDMA flags to configure some descriptor fileds
+ * flags: VPDMA flags to configure some descriptor fields
  * frame_width/height: the complete width/height of the image presented to the
  *			client (this makes sense when multiple channels are
  *			connected to the same client, forming a larger frame)
@@ -894,7 +899,8 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 	channel = next_chan = chan_info[chan].num;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
-			fmt->data_type == DATA_TYPE_C420) {
+	    (fmt->data_type == DATA_TYPE_C420 ||
+	     fmt->data_type == DATA_TYPE_CB420)) {
 		rect.height >>= 1;
 		rect.top >>= 1;
 		depth = 8;
@@ -1008,7 +1014,7 @@ unsigned int vpdma_get_list_mask(struct vpdma_data *vpdma, int irq_num)
 }
 EXPORT_SYMBOL(vpdma_get_list_mask);
 
-/* clear previosuly occured list intterupts in the LIST_STAT register */
+/* clear previously occurred list interrupts in the LIST_STAT register */
 void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num,
 			   int list_num)
 {

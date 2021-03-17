@@ -17,9 +17,11 @@ KernelVersion:	4.13
 Contact:	fabrice.gasnier@st.com
 Description:
 		Configure the device counter quadrature modes:
+
 		- non-quadrature:
 			Encoder IN1 input servers as the count input (up
 			direction).
+
 		- quadrature:
 			Encoder IN1 and IN2 inputs are mixed to get direction
 			and count.
@@ -35,23 +37,26 @@ KernelVersion:	4.13
 Contact:	fabrice.gasnier@st.com
 Description:
 		Configure the device encoder/counter active edge:
+
 		- rising-edge
 		- falling-edge
 		- both-edges
 
 		In non-quadrature mode, device counts up on active edge.
+
 		In quadrature mode, encoder counting scenarios are as follows:
-		----------------------------------------------------------------
+
+		+---------+----------+--------------------+--------------------+
 		| Active  | Level on |      IN1 signal    |     IN2 signal     |
-		| edge    | opposite |------------------------------------------
+		| edge    | opposite +----------+---------+----------+---------+
 		|         | signal   |  Rising  | Falling |  Rising  | Falling |
-		----------------------------------------------------------------
-		| Rising  | High ->  |   Down   |    -    |    Up    |    -    |
-		| edge    | Low  ->  |    Up    |    -    |   Down   |    -    |
-		----------------------------------------------------------------
-		| Falling | High ->  |    -     |    Up   |    -     |   Down  |
-		| edge    | Low  ->  |    -     |   Down  |    -     |    Up   |
-		----------------------------------------------------------------
-		| Both    | High ->  |   Down   |    Up   |    Up    |   Down  |
-		| edges   | Low  ->  |    Up    |   Down  |   Down   |    Up   |
-		----------------------------------------------------------------
+		+---------+----------+----------+---------+----------+---------+
+		| Rising  | High ->  |   Down   |    -    |   Up     |    -    |
+		| edge    | Low  ->  |   Up     |    -    |   Down   |    -    |
+		+---------+----------+----------+---------+----------+---------+
+		| Falling | High ->  |    -     |   Up    |    -     |   Down  |
+		| edge    | Low  ->  |    -     |   Down  |    -     |   Up    |
+		+---------+----------+----------+---------+----------+---------+
+		| Both    | High ->  |   Down   |   Up    |   Up     |   Down  |
+		| edges   | Low  ->  |   Up     |   Down  |   Down   |   Up    |
+		+---------+----------+----------+---------+----------+---------+

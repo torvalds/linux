@@ -208,6 +208,7 @@ struct output_pixel_processor {
 	struct mpc_tree mpc_tree_params;
 	bool mpcc_disconnect_pending[MAX_PIPES];
 	const struct opp_funcs *funcs;
+	uint32_t dyn_expansion;
 };
 
 enum fmt_stereo_action {
@@ -262,6 +263,7 @@ struct oppbuf_params {
 	enum oppbuf_display_segmentation mso_segmentation;
 	uint32_t mso_overlap_pixel_num;
 	uint32_t pixel_repetition;
+	uint32_t num_segment_padded_pixels;
 };
 
 struct opp_funcs {
@@ -300,6 +302,27 @@ struct opp_funcs {
 	void (*opp_pipe_clock_control)(
 			struct output_pixel_processor *opp,
 			bool enable);
+
+	void (*opp_set_disp_pattern_generator)(
+			struct output_pixel_processor *opp,
+			enum controller_dp_test_pattern test_pattern,
+			enum controller_dp_color_space color_space,
+			enum dc_color_depth color_depth,
+			const struct tg_color *solid_color,
+			int width,
+			int height,
+			int offset);
+
+	bool (*dpg_is_blanked)(
+			struct output_pixel_processor *opp);
+
+	void (*opp_dpg_set_blank_color)(
+			struct output_pixel_processor *opp,
+			const struct tg_color *color);
+
+	void (*opp_program_left_edge_extra_pixel)(
+			struct output_pixel_processor *opp,
+			bool count);
 
 };
 

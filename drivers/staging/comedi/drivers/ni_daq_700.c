@@ -34,8 +34,8 @@
  *
  * IRQ is assigned but not used.
  *
- * Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
- *		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
+ * Manuals:	Register level:	https://www.ni.com/pdf/manuals/340698.pdf
+ *		User Manual:	https://www.ni.com/pdf/manuals/320676d.pdf
  */
 
 #include <linux/module.h>
@@ -239,7 +239,7 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan = 16;
-	s->maxdata = (1 << 12) - 1;
+	s->maxdata = BIT(12) - 1;
 	s->range_table = &range_daq700_ai;
 	s->insn_read = daq700_ai_rinsn;
 	daq700_ai_config(dev, s);

@@ -10,23 +10,45 @@
 #include <linux/spinlock.h>
 #include <linux/refcount.h>
 #include <linux/utsname.h>
+#include <linux/ktime.h>
 
 #include <linux/ceph/types.h>
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/mdsmap.h>
 #include <linux/ceph/auth.h>
 
+#include "metric.h"
+#include "super.h"
+
 /* The first 8 bits are reserved for old ceph releases */
-#define CEPHFS_FEATURE_MIMIC    8
+enum ceph_feature_type {
+	CEPHFS_FEATURE_MIMIC = 8,
+	CEPHFS_FEATURE_REPLY_ENCODING,
+	CEPHFS_FEATURE_RECLAIM_CLIENT,
+	CEPHFS_FEATURE_LAZY_CAP_WANTED,
+	CEPHFS_FEATURE_MULTI_RECONNECT,
+	CEPHFS_FEATURE_DELEG_INO,
+	CEPHFS_FEATURE_METRIC_COLLECT,
 
-#define CEPHFS_FEATURES_ALL {           \
-  0, 1, 2, 3, 4, 5, 6, 7,		\
-  CEPHFS_FEATURE_MIMIC,                 \
+	CEPHFS_FEATURE_MAX = CEPHFS_FEATURE_METRIC_COLLECT,
+};
+
+/*
+ * This will always have the highest feature bit value
+ * as the last element of the array.
+ */
+#define CEPHFS_FEATURES_CLIENT_SUPPORTED {	\
+	0, 1, 2, 3, 4, 5, 6, 7,			\
+	CEPHFS_FEATURE_MIMIC,			\
+	CEPHFS_FEATURE_REPLY_ENCODING,		\
+	CEPHFS_FEATURE_LAZY_CAP_WANTED,		\
+	CEPHFS_FEATURE_MULTI_RECONNECT,		\
+	CEPHFS_FEATURE_DELEG_INO,		\
+	CEPHFS_FEATURE_METRIC_COLLECT,		\
+						\
+	CEPHFS_FEATURE_MAX,			\
 }
-
-#define CEPHFS_FEATURES_CLIENT_SUPPORTED CEPHFS_FEATURES_ALL
 #define CEPHFS_FEATURES_CLIENT_REQUIRED {}
-
 
 /*
  * Some lock dependencies:
@@ -63,6 +85,10 @@ struct ceph_mds_reply_info_in {
 	char *pool_ns_data;
 	u64 max_bytes;
 	u64 max_files;
+	s32 dir_pin;
+	struct ceph_timespec btime;
+	struct ceph_timespec snap_btime;
+	u64 change_attr;
 };
 
 struct ceph_mds_reply_dir_entry {
@@ -139,10 +165,11 @@ enum {
 	CEPH_MDS_SESSION_OPENING = 2,
 	CEPH_MDS_SESSION_OPEN = 3,
 	CEPH_MDS_SESSION_HUNG = 4,
-	CEPH_MDS_SESSION_CLOSING = 5,
-	CEPH_MDS_SESSION_RESTARTING = 6,
-	CEPH_MDS_SESSION_RECONNECTING = 7,
-	CEPH_MDS_SESSION_REJECTED = 8,
+	CEPH_MDS_SESSION_RESTARTING = 5,
+	CEPH_MDS_SESSION_RECONNECTING = 6,
+	CEPH_MDS_SESSION_CLOSING = 7,
+	CEPH_MDS_SESSION_CLOSED = 8,
+	CEPH_MDS_SESSION_REJECTED = 9,
 };
 
 struct ceph_mds_session {
@@ -150,6 +177,7 @@ struct ceph_mds_session {
 	int               s_mds;
 	int               s_state;
 	unsigned long     s_ttl;      /* time until mds kills us */
+	unsigned long	  s_features;
 	u64               s_seq;      /* incoming msg seq # */
 	struct mutex      s_mutex;    /* serialize session messages */
 
@@ -164,22 +192,28 @@ struct ceph_mds_session {
 
 	/* protected by s_cap_lock */
 	spinlock_t        s_cap_lock;
+	refcount_t        s_ref;
 	struct list_head  s_caps;     /* all caps issued by this session */
-	int               s_nr_caps, s_trim_caps;
+	struct ceph_cap  *s_cap_iterator;
+	int               s_nr_caps;
 	int               s_num_cap_releases;
 	int		  s_cap_reconnect;
 	int		  s_readonly;
 	struct list_head  s_cap_releases; /* waiting cap_release messages */
-	struct ceph_cap  *s_cap_iterator;
+	struct work_struct s_cap_release_work;
 
-	/* protected by mutex */
+	/* See ceph_inode_info->i_dirty_item. */
+	struct list_head  s_cap_dirty;	      /* inodes w/ dirty caps */
+
+	/* See ceph_inode_info->i_flushing_item. */
 	struct list_head  s_cap_flushing;     /* inodes w/ flushing caps */
+
 	unsigned long     s_renew_requested; /* last time we sent a renew req */
 	u64               s_renew_seq;
 
-	refcount_t          s_ref;
 	struct list_head  s_waiting;  /* waiting requests */
 	struct list_head  s_unsafe;   /* unsafe requests */
+	struct xarray	  s_delegated_inos;
 };
 
 /*
@@ -213,6 +247,7 @@ struct ceph_mds_request {
 	struct rb_node r_node;
 	struct ceph_mds_client *r_mdsc;
 
+	struct kref       r_kref;
 	int r_op;                    /* mds op code */
 
 	/* operation on what? */
@@ -233,6 +268,7 @@ struct ceph_mds_request {
 #define CEPH_MDS_R_GOT_RESULT		(5) /* got a result */
 #define CEPH_MDS_R_DID_PREPOPULATE	(6) /* prepopulated readdir */
 #define CEPH_MDS_R_PARENT_LOCKED	(7) /* is r_parent->i_rwsem wlocked? */
+#define CEPH_MDS_R_ASYNC		(8) /* async request */
 	unsigned long	r_req_flags;
 
 	struct mutex r_fill_mutex;
@@ -241,6 +277,7 @@ struct ceph_mds_request {
 	int r_fmode;        /* file mode, if expecting cap */
 	kuid_t r_uid;
 	kgid_t r_gid;
+	int r_request_release_offset;
 	struct timespec64 r_stamp;
 
 	/* for choosing which mds to send this request to */
@@ -258,14 +295,20 @@ struct ceph_mds_request {
 	int r_old_inode_drop, r_old_inode_unless;
 
 	struct ceph_msg  *r_request;  /* original request */
-	int r_request_release_offset;
 	struct ceph_msg  *r_reply;
 	struct ceph_mds_reply_info_parsed r_reply_info;
-	struct page *r_locked_page;
 	int r_err;
+
+
+	struct page *r_locked_page;
+	int r_dir_caps;
+	int r_num_caps;
+	u32               r_readdir_offset;
 
 	unsigned long r_timeout;  /* optional.  jiffies, 0 is "wait forever" */
 	unsigned long r_started;  /* start time to measure timeout against */
+	unsigned long r_start_latency;  /* start time to measure latency */
+	unsigned long r_end_latency;    /* finish time to measure latency */
 	unsigned long r_request_started; /* start time for mds request only,
 					    used to measure lease durations */
 
@@ -282,8 +325,8 @@ struct ceph_mds_request {
 	int               r_num_fwd;    /* number of forward attempts */
 	int               r_resend_mds; /* mds to resend to next, if any*/
 	u32               r_sent_on_mseq; /* cap mseq request was sent at*/
+	u64		  r_deleg_ino;
 
-	struct kref       r_kref;
 	struct list_head  r_wait;
 	struct completion r_completion;
 	struct completion r_safe_completion;
@@ -294,10 +337,8 @@ struct ceph_mds_request {
 	long long	  r_dir_release_cnt;
 	long long	  r_dir_ordered_cnt;
 	int		  r_readdir_cache_idx;
-	u32               r_readdir_offset;
 
 	struct ceph_cap_reservation r_caps_reservation;
-	int r_num_caps;
 };
 
 struct ceph_pool_perm {
@@ -306,6 +347,35 @@ struct ceph_pool_perm {
 	s64 pool;
 	size_t pool_ns_len;
 	char pool_ns[];
+};
+
+struct ceph_snapid_map {
+	struct rb_node node;
+	struct list_head lru;
+	atomic_t ref;
+	u64 snap;
+	dev_t dev;
+	unsigned long last_used;
+};
+
+/*
+ * node for list of quotarealm inodes that are not visible from the filesystem
+ * mountpoint, but required to handle, e.g. quotas.
+ */
+struct ceph_quotarealm_inode {
+	struct rb_node node;
+	u64 ino;
+	unsigned long timeout; /* last time a lookup failed for this inode */
+	struct mutex mutex;
+	struct inode *inode;
+};
+
+struct cap_wait {
+	struct list_head	list;
+	u64			ino;
+	pid_t			tgid;
+	int			need;
+	int			want;
 };
 
 /*
@@ -323,10 +393,16 @@ struct ceph_mds_client {
 
 	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
 	atomic_t		num_sessions;
-	int                     max_sessions;  /* len of s_mds_sessions */
+	int                     max_sessions;  /* len of sessions array */
 	int                     stopping;      /* true if shutting down */
 
 	atomic64_t		quotarealms_count; /* # realms with quota */
+	/*
+	 * We keep a list of inodes we don't see in the mountpoint but that we
+	 * need to track quota realms.
+	 */
+	struct rb_root		quotarealms_inodes;
+	struct mutex		quotarealms_inodes_mutex;
 
 	/*
 	 * snap_rwsem will cover cap linkage into snaprealms, and
@@ -339,6 +415,7 @@ struct ceph_mds_client {
 	struct rw_semaphore     snap_rwsem;
 	struct rb_root          snap_realms;
 	struct list_head        snap_empty;
+	int			num_snap_realms;
 	spinlock_t              snap_empty_lock;  /* protect snap_empty */
 
 	u64                    last_tid;      /* most recent mds request */
@@ -354,11 +431,13 @@ struct ceph_mds_client {
 
 	u64               last_cap_flush_tid;
 	struct list_head  cap_flush_list;
-	struct list_head  cap_dirty;        /* inodes with dirty caps */
 	struct list_head  cap_dirty_migrating; /* ...that are migration... */
 	int               num_cap_flushing; /* # caps we are flushing */
 	spinlock_t        cap_dirty_lock;   /* protects above items */
 	wait_queue_head_t cap_flushing_wq;
+
+	struct work_struct cap_reclaim_work;
+	atomic_t	   cap_reclaim_pending;
 
 	/*
 	 * Cap reservations
@@ -374,15 +453,23 @@ struct ceph_mds_client {
 	spinlock_t	caps_list_lock;
 	struct		list_head caps_list; /* unused (reserved or
 						unreserved) */
+	struct		list_head cap_wait_list;
 	int		caps_total_count;    /* total caps allocated */
 	int		caps_use_count;      /* in use */
+	int		caps_use_max;	     /* max used caps */
 	int		caps_reserve_count;  /* unused, reserved */
 	int		caps_avail_count;    /* unused, unreserved */
 	int		caps_min_count;      /* keep at least this many
 						(unreserved) */
-	spinlock_t	  dentry_lru_lock;
-	struct list_head  dentry_lru;
-	int		  num_dentry;
+	spinlock_t	  dentry_list_lock;
+	struct list_head  dentry_leases;     /* fifo list */
+	struct list_head  dentry_dir_leases; /* lru list */
+
+	struct ceph_client_metric metric;
+
+	spinlock_t		snapid_map_lock;
+	struct rb_root		snapid_map_tree;
+	struct list_head	snapid_map_lru;
 
 	struct rw_semaphore     pool_perm_rwsem;
 	struct rb_root		pool_perm_tree;
@@ -392,18 +479,16 @@ struct ceph_mds_client {
 
 extern const char *ceph_mds_op_name(int op);
 
+extern bool check_session_state(struct ceph_mds_session *s);
+void inc_session_sequence(struct ceph_mds_session *s);
+
 extern struct ceph_mds_session *
 __ceph_lookup_mds_session(struct ceph_mds_client *, int mds);
 
-static inline struct ceph_mds_session *
-ceph_get_mds_session(struct ceph_mds_session *s)
-{
-	refcount_inc(&s->s_ref);
-	return s;
-}
-
 extern const char *ceph_session_state_name(int s);
 
+extern struct ceph_mds_session *
+ceph_get_mds_session(struct ceph_mds_session *s);
 extern void ceph_put_mds_session(struct ceph_mds_session *s);
 
 extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,
@@ -421,11 +506,14 @@ extern int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 					   struct inode *dir);
 extern struct ceph_mds_request *
 ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode);
-extern void ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
-				     struct ceph_mds_request *req);
+extern int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
+				    struct inode *dir,
+				    struct ceph_mds_request *req);
 extern int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 				struct inode *dir,
 				struct ceph_mds_request *req);
+extern void ceph_mdsc_release_dir_caps(struct ceph_mds_request *req);
+extern void ceph_mdsc_release_dir_caps_no_check(struct ceph_mds_request *req);
 static inline void ceph_mdsc_get_request(struct ceph_mds_request *req)
 {
 	kref_get(&req->r_kref);
@@ -436,17 +524,29 @@ static inline void ceph_mdsc_put_request(struct ceph_mds_request *req)
 	kref_put(&req->r_kref, ceph_mdsc_release_request);
 }
 
-extern void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
-				   struct ceph_mds_session *session);
-
+extern void __ceph_queue_cap_release(struct ceph_mds_session *session,
+				    struct ceph_cap *cap);
+extern void ceph_flush_cap_releases(struct ceph_mds_client *mdsc,
+				    struct ceph_mds_session *session);
+extern void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc);
+extern void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr);
+extern int ceph_iterate_session_caps(struct ceph_mds_session *session,
+				     int (*cb)(struct inode *,
+					       struct ceph_cap *, void *),
+				     void *arg);
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
+
+static inline void ceph_mdsc_free_path(char *path, int len)
+{
+	if (!IS_ERR_OR_NULL(path))
+		__putname(path - (PATH_MAX - 1 - len));
+}
 
 extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,
 				  int stop_on_nosnap);
 
 extern void __ceph_mdsc_drop_dentry_lease(struct dentry *dentry);
 extern void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
-				     struct inode *inode,
 				     struct dentry *dentry, char action,
 				     u32 seq);
 
@@ -463,4 +563,15 @@ extern void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
 extern int ceph_trim_caps(struct ceph_mds_client *mdsc,
 			  struct ceph_mds_session *session,
 			  int max_caps);
+
+static inline int ceph_wait_on_async_create(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	return wait_on_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT,
+			   TASK_INTERRUPTIBLE);
+}
+
+extern u64 ceph_get_deleg_ino(struct ceph_mds_session *session);
+extern int ceph_restore_deleg_ino(struct ceph_mds_session *session, u64 ino);
 #endif

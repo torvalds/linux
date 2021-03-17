@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Performance Monitor Drivers
 #
@@ -40,6 +41,13 @@ config ARM_CCN
 	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
 	  interconnect.
 
+config ARM_CMN
+	tristate "Arm CMN-600 PMU support"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Support for PMU events monitoring on the Arm CMN-600 Coherent Mesh
+	  Network interconnect.
+
 config ARM_PMU
 	depends on ARM || ARM64
 	bool "ARM PMU framework"
@@ -52,6 +60,15 @@ config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
 
+config ARM_SMMU_V3_PMU
+	 tristate "ARM SMMUv3 Performance Monitors Extension"
+	 depends on ARM64 && ACPI && ARM_SMMU_V3
+	   help
+	   Provides support for the ARM SMMUv3 Performance Monitor Counter
+	   Groups (PMCG), which provide monitoring of transactions passing
+	   through the SMMU and allow the resulting information to be filtered
+	   based on the Stream ID of the corresponding master.
+
 config ARM_DSU_PMU
 	tristate "ARM DynamIQ Shared Unit (DSU) PMU"
 	depends on ARM64
@@ -61,16 +78,18 @@ config ARM_DSU_PMU
 	  system, control logic. The PMU allows counting various events related
 	  to DSU.
 
-config HISI_PMU
-       bool "HiSilicon SoC PMU"
-       depends on ARM64 && ACPI
-       help
-         Support for HiSilicon SoC uncore performance monitoring
-         unit (PMU), such as: L3C, HHA and DDRC.
+config FSL_IMX8_DDR_PMU
+	tristate "Freescale i.MX8 DDR perf monitor"
+	depends on ARCH_MXC
+	  help
+	  Provides support for the DDR performance monitor in i.MX8, which
+	  can give information about memory throughput and other related
+	  events.
 
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
+	select QCOM_KRYO_L2_ACCESSORS
 	  help
 	  Provides support for the L2 cache performance monitor unit (PMU)
 	  in Qualcomm Technologies processors.
@@ -87,6 +106,15 @@ config QCOM_L3_PMU
 	   Adds the L3 cache PMU into the perf events subsystem for
 	   monitoring L3 cache events.
 
+config THUNDERX2_PMU
+	tristate "Cavium ThunderX2 SoC PMU UNCORE"
+	depends on ARCH_THUNDER2 && ARM64 && ACPI && NUMA
+	default m
+	help
+	   Provides support for ThunderX2 UNCORE events.
+	   The SoC has PMU support in its L3 cache controller (L3C) and
+	   in the DDR4 Memory Controller (DMC).
+
 config XGENE_PMU
         depends on ARCH_XGENE
         bool "APM X-Gene SoC PMU"
@@ -101,5 +129,7 @@ config ARM_SPE_PMU
 	  Enable perf support for the ARMv8.2 Statistical Profiling
 	  Extension, which provides periodic sampling of operations in
 	  the CPU pipeline and reports this via the perf AUX interface.
+
+source "drivers/perf/hisilicon/Kconfig"
 
 endmenu

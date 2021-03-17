@@ -13,6 +13,8 @@ struct nvkm_fault {
 	struct nvkm_event event;
 
 	struct nvkm_notify nrpfb;
+
+	struct nvkm_device_oclass user;
 };
 
 struct nvkm_fault_data {
@@ -29,5 +31,7 @@ struct nvkm_fault_data {
 };
 
 int gp100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
+int gp10b_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
 int gv100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
+int tu102_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
 #endif

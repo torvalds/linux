@@ -22,15 +22,17 @@
 
 #define DEADLINE_MODE_IS_ON(x) ((x)->flags & TC_ETF_DEADLINE_MODE_ON)
 #define OFFLOAD_IS_ON(x) ((x)->flags & TC_ETF_OFFLOAD_ON)
+#define SKIP_SOCK_CHECK_IS_SET(x) ((x)->flags & TC_ETF_SKIP_SOCK_CHECK)
 
 struct etf_sched_data {
 	bool offload;
 	bool deadline_mode;
+	bool skip_sock_check;
 	int clockid;
 	int queue;
 	s32 delta; /* in ns */
 	ktime_t last; /* The txtime of the last skb sent to the netdevice. */
-	struct rb_root head;
+	struct rb_root_cached head;
 	struct qdisc_watchdog watchdog;
 	ktime_t (*get_time)(void);
 };
@@ -77,7 +79,10 @@ static bool is_packet_valid(struct Qdisc *sch, struct sk_buff *nskb)
 	struct sock *sk = nskb->sk;
 	ktime_t now;
 
-	if (!sk)
+	if (q->skip_sock_check)
+		goto skip;
+
+	if (!sk || !sk_fullsock(sk))
 		return false;
 
 	if (!sock_flag(sk, SOCK_TXTIME))
@@ -92,6 +97,7 @@ static bool is_packet_valid(struct Qdisc *sch, struct sk_buff *nskb)
 	if (sk->sk_txtime_deadline_mode != q->deadline_mode)
 		return false;
 
+skip:
 	now = q->get_time();
 	if (ktime_before(txtime, now) || ktime_before(txtime, q->last))
 		return false;
@@ -104,7 +110,7 @@ static struct sk_buff *etf_peek_timesortedlist(struct Qdisc *sch)
 	struct etf_sched_data *q = qdisc_priv(sch);
 	struct rb_node *p;
 
-	p = rb_first(&q->head);
+	p = rb_first_cached(&q->head);
 	if (!p)
 		return NULL;
 
@@ -117,8 +123,10 @@ static void reset_watchdog(struct Qdisc *sch)
 	struct sk_buff *skb = etf_peek_timesortedlist(sch);
 	ktime_t next;
 
-	if (!skb)
+	if (!skb) {
+		qdisc_watchdog_cancel(&q->watchdog);
 		return;
+	}
 
 	next = ktime_sub_ns(skb->tstamp, q->delta);
 	qdisc_watchdog_schedule_ns(&q->watchdog, ktime_to_ns(next));
@@ -129,8 +137,9 @@ static void report_sock_error(struct sk_buff *skb, u32 err, u8 code)
 	struct sock_exterr_skb *serr;
 	struct sk_buff *clone;
 	ktime_t txtime = skb->tstamp;
+	struct sock *sk = skb->sk;
 
-	if (!skb->sk || !(skb->sk->sk_txtime_report_errors))
+	if (!sk || !sk_fullsock(sk) || !(sk->sk_txtime_report_errors))
 		return;
 
 	clone = skb_clone(skb, GFP_ATOMIC);
@@ -146,7 +155,7 @@ static void report_sock_error(struct sk_buff *skb, u32 err, u8 code)
 	serr->ee.ee_data = (txtime >> 32); /* high part of tstamp */
 	serr->ee.ee_info = txtime; /* low part of tstamp */
 
-	if (sock_queue_err_skb(skb->sk, clone))
+	if (sock_queue_err_skb(sk, clone))
 		kfree_skb(clone);
 }
 
@@ -154,8 +163,9 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 				      struct sk_buff **to_free)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
-	struct rb_node **p = &q->head.rb_node, *parent = NULL;
+	struct rb_node **p = &q->head.rb_root.rb_node, *parent = NULL;
 	ktime_t txtime = nskb->tstamp;
+	bool leftmost = true;
 
 	if (!is_packet_valid(sch, nskb)) {
 		report_sock_error(nskb, EINVAL,
@@ -168,13 +178,15 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 
 		parent = *p;
 		skb = rb_to_skb(parent);
-		if (ktime_after(txtime, skb->tstamp))
+		if (ktime_compare(txtime, skb->tstamp) >= 0) {
 			p = &parent->rb_right;
-		else
+			leftmost = false;
+		} else {
 			p = &parent->rb_left;
+		}
 	}
 	rb_link_node(&nskb->rbnode, parent, p);
-	rb_insert_color(&nskb->rbnode, &q->head);
+	rb_insert_color_cached(&nskb->rbnode, &q->head, leftmost);
 
 	qdisc_qstats_backlog_inc(sch, nskb);
 	sch->q.qlen++;
@@ -185,12 +197,42 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 	return NET_XMIT_SUCCESS;
 }
 
-static void timesortedlist_erase(struct Qdisc *sch, struct sk_buff *skb,
-				 bool drop)
+static void timesortedlist_drop(struct Qdisc *sch, struct sk_buff *skb,
+				ktime_t now)
+{
+	struct etf_sched_data *q = qdisc_priv(sch);
+	struct sk_buff *to_free = NULL;
+	struct sk_buff *tmp = NULL;
+
+	skb_rbtree_walk_from_safe(skb, tmp) {
+		if (ktime_after(skb->tstamp, now))
+			break;
+
+		rb_erase_cached(&skb->rbnode, &q->head);
+
+		/* The rbnode field in the skb re-uses these fields, now that
+		 * we are done with the rbnode, reset them.
+		 */
+		skb->next = NULL;
+		skb->prev = NULL;
+		skb->dev = qdisc_dev(sch);
+
+		report_sock_error(skb, ECANCELED, SO_EE_CODE_TXTIME_MISSED);
+
+		qdisc_qstats_backlog_dec(sch, skb);
+		qdisc_drop(skb, sch, &to_free);
+		qdisc_qstats_overlimit(sch);
+		sch->q.qlen--;
+	}
+
+	kfree_skb_list(to_free);
+}
+
+static void timesortedlist_remove(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
 
-	rb_erase(&skb->rbnode, &q->head);
+	rb_erase_cached(&skb->rbnode, &q->head);
 
 	/* The rbnode field in the skb re-uses these fields, now that
 	 * we are done with the rbnode, reset them.
@@ -201,19 +243,9 @@ static void timesortedlist_erase(struct Qdisc *sch, struct sk_buff *skb,
 
 	qdisc_qstats_backlog_dec(sch, skb);
 
-	if (drop) {
-		struct sk_buff *to_free = NULL;
+	qdisc_bstats_update(sch, skb);
 
-		report_sock_error(skb, ECANCELED, SO_EE_CODE_TXTIME_MISSED);
-
-		qdisc_drop(skb, sch, &to_free);
-		kfree_skb_list(to_free);
-		qdisc_qstats_overlimit(sch);
-	} else {
-		qdisc_bstats_update(sch, skb);
-
-		q->last = skb->tstamp;
-	}
+	q->last = skb->tstamp;
 
 	sch->q.qlen--;
 }
@@ -232,7 +264,7 @@ static struct sk_buff *etf_dequeue_timesortedlist(struct Qdisc *sch)
 
 	/* Drop if packet has expired while in queue. */
 	if (ktime_before(skb->tstamp, now)) {
-		timesortedlist_erase(sch, skb, true);
+		timesortedlist_drop(sch, skb, now);
 		skb = NULL;
 		goto out;
 	}
@@ -241,7 +273,7 @@ static struct sk_buff *etf_dequeue_timesortedlist(struct Qdisc *sch)
 	 * txtime from deadline to (now + delta).
 	 */
 	if (q->deadline_mode) {
-		timesortedlist_erase(sch, skb, false);
+		timesortedlist_remove(sch, skb);
 		skb->tstamp = now;
 		goto out;
 	}
@@ -250,7 +282,7 @@ static struct sk_buff *etf_dequeue_timesortedlist(struct Qdisc *sch)
 
 	/* Dequeue only if now is within the [txtime - delta, txtime] range. */
 	if (ktime_after(now, next))
-		timesortedlist_erase(sch, skb, false);
+		timesortedlist_remove(sch, skb);
 	else
 		skb = NULL;
 
@@ -326,7 +358,8 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_ETF_MAX, opt, etf_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_ETF_MAX, opt, etf_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -359,6 +392,7 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 	q->clockid = qopt->clockid;
 	q->offload = OFFLOAD_IS_ON(qopt);
 	q->deadline_mode = DEADLINE_MODE_IS_ON(qopt);
+	q->skip_sock_check = SKIP_SOCK_CHECK_IS_SET(qopt);
 
 	switch (q->clockid) {
 	case CLOCK_REALTIME:
@@ -386,14 +420,14 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 static void timesortedlist_clear(struct Qdisc *sch)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
-	struct rb_node *p = rb_first(&q->head);
+	struct rb_node *p = rb_first_cached(&q->head);
 
 	while (p) {
 		struct sk_buff *skb = rb_to_skb(p);
 
 		p = rb_next(p);
 
-		rb_erase(&skb->rbnode, &q->head);
+		rb_erase_cached(&skb->rbnode, &q->head);
 		rtnl_kfree_skbs(skb, skb);
 		sch->q.qlen--;
 	}
@@ -435,7 +469,7 @@ static int etf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_etf_qopt opt = { };
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -446,6 +480,9 @@ static int etf_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	if (q->deadline_mode)
 		opt.flags |= TC_ETF_DEADLINE_MODE_ON;
+
+	if (q->skip_sock_check)
+		opt.flags |= TC_ETF_SKIP_SOCK_CHECK;
 
 	if (nla_put(skb, TCA_ETF_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;

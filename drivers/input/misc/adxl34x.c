@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADXL345/346 Three-Axis Digital Accelerometers
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2009 Michael Hennerich, Analog Devices Inc.
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -696,7 +696,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	struct input_dev *input_dev;
 	const struct adxl34x_platform_data *pdata;
 	int err, range, i;
-	unsigned char revid;
+	int revid;
 
 	if (!irq) {
 		dev_err(dev, "no IRQ?\n");

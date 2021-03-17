@@ -50,13 +50,13 @@
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 
-		blue {
+		blue_led: led-0 {
 			gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_HIGH>;
 			label = "geekbox:blue:led";
 			default-state = "on";
 		};
 
-		red {
+		red_led: led-1 {
 			gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
 			label = "geekbox:red:led";
 			default-state = "off";
@@ -78,7 +78,6 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	clock-frequency = <150000000>;
-	disable-wp;
 	non-removable;
 	vmmc-supply = <&vcc_io>;
 	vqmmc-supply = <&vcc18_flash>;
@@ -234,23 +233,23 @@
 &pinctrl {
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <3 30 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	keys {
 		pwr_key: pwr-key {
-			rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	pmic {
 		pmic_sleep: pmic-sleep {
-			rockchip,pins = <0 0 RK_FUNC_2 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_none>;
 		};
 
 		pmic_int: pmic-int {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

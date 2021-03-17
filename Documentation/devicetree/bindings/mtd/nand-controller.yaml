@@ -1,0 +1,179 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/nand-controller.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NAND Chip and NAND Controller Generic Binding
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+  - Richard Weinberger <richard@nod.at>
+
+description: |
+  The NAND controller should be represented with its own DT node, and
+  all NAND chips attached to this controller should be defined as
+  children nodes of the NAND controller. This representation should be
+  enforced even for simple controllers supporting only one chip.
+
+  The ECC strength and ECC step size properties define the user
+  desires in terms of correction capability of a controller. Together,
+  they request the ECC engine to correct {strength} bit errors per
+  {size} bytes.
+
+  The interpretation of these parameters is implementation-defined, so
+  not all implementations must support all possible
+  combinations. However, implementations are encouraged to further
+  specify the value(s) they support.
+
+properties:
+  $nodename:
+    pattern: "^nand-controller(@.*)?"
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  ranges: true
+
+patternProperties:
+  "^nand@[a-f0-9]$":
+    type: object
+    properties:
+      reg:
+        description:
+          Contains the native Ready/Busy IDs.
+
+      nand-ecc-mode:
+        description:
+          Desired ECC engine, either hardware (most of the time
+          embedded in the NAND controller) or software correction
+          (Linux will handle the calculations). soft_bch is deprecated
+          and should be replaced by soft and nand-ecc-algo.
+        $ref: /schemas/types.yaml#/definitions/string
+        enum: [none, soft, hw, hw_syndrome, hw_oob_first, on-die]
+
+      nand-ecc-engine:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/phandle
+        description: |
+          A phandle on the hardware ECC engine if any. There are
+          basically three possibilities:
+          1/ The ECC engine is part of the NAND controller, in this
+          case the phandle should reference the parent node.
+          2/ The ECC engine is part of the NAND part (on-die), in this
+          case the phandle should reference the node itself.
+          3/ The ECC engine is external, in this case the phandle should
+          reference the specific ECC engine node.
+
+      nand-use-soft-ecc-engine:
+        type: boolean
+        description: Use a software ECC engine.
+
+      nand-no-ecc-engine:
+        type: boolean
+        description: Do not use any ECC correction.
+
+      nand-ecc-placement:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/string
+          - enum: [ oob, interleaved ]
+        description:
+          Location of the ECC bytes. This location is unknown by default
+          but can be explicitly set to "oob", if all ECC bytes are
+          known to be stored in the OOB area, or "interleaved" if ECC
+          bytes will be interleaved with regular data in the main area.
+
+      nand-ecc-algo:
+        description:
+          Desired ECC algorithm.
+        $ref: /schemas/types.yaml#/definitions/string
+        enum: [hamming, bch, rs]
+
+      nand-bus-width:
+        description:
+          Bus width to the NAND chip
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [8, 16]
+        default: 8
+
+      nand-on-flash-bbt:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          With this property, the OS will search the device for a Bad
+          Block Table (BBT). If not found, it will create one, reserve
+          a few blocks at the end of the device to store it and update
+          it as the device ages. Otherwise, the out-of-band area of a
+          few pages of all the blocks will be scanned at boot time to
+          find Bad Block Markers (BBM). These markers will help to
+          build a volatile BBT in RAM.
+
+      nand-ecc-strength:
+        description:
+          Maximum number of bits that can be corrected per ECC step.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 1
+
+      nand-ecc-step-size:
+        description:
+          Number of data bytes covered by a single ECC step.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 1
+
+      nand-ecc-maximize:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Whether or not the ECC strength should be maximized. The
+          maximum ECC strength is both controller and chip
+          dependent. The ECC engine has to select the ECC config
+          providing the best strength and taking the OOB area size
+          constraint into account. This is particularly useful when
+          only the in-band area is used by the upper layers, and you
+          want to make your NAND as reliable as possible.
+
+      nand-is-boot-medium:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Whether or not the NAND chip is a boot medium. Drivers might
+          use this information to select ECC algorithms supported by
+          the boot ROM or similar restrictions.
+
+      nand-rb:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        description:
+          Contains the native Ready/Busy IDs.
+
+      rb-gpios:
+        description:
+          Contains one or more GPIO descriptor (the numper of descriptor
+          depends on the number of R/B pins exposed by the flash) for the
+          Ready/Busy pins. Active state refers to the NAND ready state and
+          should be set to GPIOD_ACTIVE_HIGH unless the signal is inverted.
+
+    required:
+      - reg
+
+required:
+  - "#address-cells"
+  - "#size-cells"
+
+additionalProperties: true
+
+examples:
+  - |
+    nand-controller {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      /* controller specific properties */
+
+      nand@0 {
+        reg = <0>;
+        nand-ecc-mode = "soft";
+        nand-ecc-algo = "bch";
+
+        /* controller specific properties */
+      };
+    };

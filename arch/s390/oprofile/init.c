@@ -13,23 +13,17 @@
 #include <linux/oprofile.h>
 #include <linux/init.h>
 #include <asm/processor.h>
-
-static int __s390_backtrace(void *data, unsigned long address, int reliable)
-{
-	unsigned int *depth = data;
-
-	if (*depth == 0)
-		return 1;
-	(*depth)--;
-	oprofile_add_trace(address);
-	return 0;
-}
+#include <asm/unwind.h>
 
 static void s390_backtrace(struct pt_regs *regs, unsigned int depth)
 {
-	if (user_mode(regs))
-		return;
-	dump_trace(__s390_backtrace, &depth, NULL, regs->gprs[15]);
+	struct unwind_state state;
+
+	unwind_for_each_frame(&state, current, regs, 0) {
+		if (depth-- == 0)
+			break;
+		oprofile_add_trace(state.ip);
+	}
 }
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)

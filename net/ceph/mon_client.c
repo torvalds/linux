@@ -39,7 +39,7 @@ static int __validate_auth(struct ceph_mon_client *monc);
 /*
  * Decode a monmap blob (e.g., during mount).
  */
-struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
+static struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 {
 	struct ceph_monmap *m = NULL;
 	int i, err = -EINVAL;
@@ -50,7 +50,7 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	ceph_decode_32_safe(&p, end, len, bad);
 	ceph_decode_need(&p, end, len, bad);
 
-	dout("monmap_decode %p %p len %d\n", p, end, (int)(end-p));
+	dout("monmap_decode %p %p len %d (%d)\n", p, end, len, (int)(end-p));
 	p += sizeof(u16);  /* skip version */
 
 	ceph_decode_need(&p, end, sizeof(fsid) + 2*sizeof(u32), bad);
@@ -58,7 +58,6 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	epoch = ceph_decode_32(&p);
 
 	num_mon = ceph_decode_32(&p);
-	ceph_decode_need(&p, end, num_mon*sizeof(m->mon_inst[0]), bad);
 
 	if (num_mon > CEPH_MAX_MON)
 		goto bad;
@@ -68,17 +67,22 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	m->fsid = fsid;
 	m->epoch = epoch;
 	m->num_mon = num_mon;
-	ceph_decode_copy(&p, m->mon_inst, num_mon*sizeof(m->mon_inst[0]));
-	for (i = 0; i < num_mon; i++)
-		ceph_decode_addr(&m->mon_inst[i].addr);
+	for (i = 0; i < num_mon; ++i) {
+		struct ceph_entity_inst *inst = &m->mon_inst[i];
 
+		/* copy name portion */
+		ceph_decode_copy_safe(&p, end, &inst->name,
+					sizeof(inst->name), bad);
+		err = ceph_decode_entity_addr(&p, end, &inst->addr);
+		if (err)
+			goto bad;
+	}
 	dout("monmap_decode epoch %d, num_mon %d\n", m->epoch,
 	     m->num_mon);
 	for (i = 0; i < m->num_mon; i++)
 		dout("monmap_decode  mon%d is %s\n", i,
-		     ceph_pr_addr(&m->mon_inst[i].addr.in_addr));
+		     ceph_pr_addr(&m->mon_inst[i].addr));
 	return m;
-
 bad:
 	dout("monmap_decode failed with %d\n", err);
 	kfree(m);
@@ -203,10 +207,17 @@ static void reopen_session(struct ceph_mon_client *monc)
 {
 	if (!monc->hunting)
 		pr_info("mon%d %s session lost, hunting for new mon\n",
-		    monc->cur_mon, ceph_pr_addr(&monc->con.peer_addr.in_addr));
+		    monc->cur_mon, ceph_pr_addr(&monc->con.peer_addr));
 
 	__close_session(monc);
 	__open_session(monc);
+}
+
+void ceph_monc_reopen_session(struct ceph_mon_client *monc)
+{
+	mutex_lock(&monc->mutex);
+	reopen_session(monc);
+	mutex_unlock(&monc->mutex);
 }
 
 static void un_backoff(struct ceph_mon_client *monc)
@@ -456,7 +467,7 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 				 struct ceph_msg *msg)
 {
 	struct ceph_client *client = monc->client;
-	struct ceph_monmap *monmap = NULL, *old = monc->monmap;
+	struct ceph_monmap *monmap;
 	void *p, *end;
 
 	mutex_lock(&monc->mutex);
@@ -469,16 +480,17 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 	if (IS_ERR(monmap)) {
 		pr_err("problem decoding monmap, %d\n",
 		       (int)PTR_ERR(monmap));
+		ceph_msg_dump(msg);
 		goto out;
 	}
 
-	if (ceph_check_fsid(monc->client, &monmap->fsid) < 0) {
+	if (ceph_check_fsid(client, &monmap->fsid) < 0) {
 		kfree(monmap);
 		goto out;
 	}
 
-	client->monc.monmap = monmap;
-	kfree(old);
+	kfree(monc->monmap);
+	monc->monmap = monmap;
 
 	__ceph_monc_got_map(monc, CEPH_SUB_MONMAP, monc->monmap->epoch);
 	client->have_fsid = true;
@@ -884,8 +896,9 @@ bad:
 	ceph_msg_dump(msg);
 }
 
-int ceph_monc_blacklist_add(struct ceph_mon_client *monc,
-			    struct ceph_entity_addr *client_addr)
+static __printf(2, 0)
+int do_mon_command_vargs(struct ceph_mon_client *monc, const char *fmt,
+			 va_list ap)
 {
 	struct ceph_mon_generic_request *req;
 	struct ceph_mon_command *h;
@@ -913,10 +926,7 @@ int ceph_monc_blacklist_add(struct ceph_mon_client *monc,
 	h->monhdr.session_mon_tid = 0;
 	h->fsid = monc->monmap->fsid;
 	h->num_strs = cpu_to_le32(1);
-	len = sprintf(h->str, "{ \"prefix\": \"osd blacklist\", \
-		                 \"blacklistop\": \"add\", \
-				 \"addr\": \"%pISpc/%u\" }",
-		      &client_addr->in_addr, le32_to_cpu(client_addr->nonce));
+	len = vsprintf(h->str, fmt, ap);
 	h->str_len = cpu_to_le32(len);
 	send_generic_request(monc, req);
 	mutex_unlock(&monc->mutex);
@@ -926,7 +936,55 @@ out:
 	put_generic_request(req);
 	return ret;
 }
-EXPORT_SYMBOL(ceph_monc_blacklist_add);
+
+static __printf(2, 3)
+int do_mon_command(struct ceph_mon_client *monc, const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	ret = do_mon_command_vargs(monc, fmt, ap);
+	va_end(ap);
+	return ret;
+}
+
+int ceph_monc_blocklist_add(struct ceph_mon_client *monc,
+			    struct ceph_entity_addr *client_addr)
+{
+	int ret;
+
+	ret = do_mon_command(monc,
+			     "{ \"prefix\": \"osd blocklist\", \
+				\"blocklistop\": \"add\", \
+				\"addr\": \"%pISpc/%u\" }",
+			     &client_addr->in_addr,
+			     le32_to_cpu(client_addr->nonce));
+	if (ret == -EINVAL) {
+		/*
+		 * The monitor returns EINVAL on an unrecognized command.
+		 * Try the legacy command -- it is exactly the same except
+		 * for the name.
+		 */
+		ret = do_mon_command(monc,
+				     "{ \"prefix\": \"osd blacklist\", \
+					\"blacklistop\": \"add\", \
+					\"addr\": \"%pISpc/%u\" }",
+				     &client_addr->in_addr,
+				     le32_to_cpu(client_addr->nonce));
+	}
+	if (ret)
+		return ret;
+
+	/*
+	 * Make sure we have the osdmap that includes the blocklist
+	 * entry.  This is needed to ensure that the OSDs pick up the
+	 * new blocklist before processing any future requests from
+	 * this client.
+	 */
+	return ceph_wait_for_latest_osdmap(monc->client, 0);
+}
+EXPORT_SYMBOL(ceph_monc_blocklist_add);
 
 /*
  * Resend pending generic requests.
@@ -1169,7 +1227,7 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		__resend_generic_request(monc);
 
 		pr_info("mon%d %s session established\n", monc->cur_mon,
-			ceph_pr_addr(&monc->con.peer_addr.in_addr));
+			ceph_pr_addr(&monc->con.peer_addr));
 	}
 
 out:
@@ -1211,9 +1269,6 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	struct ceph_mon_client *monc = con->private;
 	int type = le16_to_cpu(msg->hdr.type);
-
-	if (!monc)
-		return;
 
 	switch (type) {
 	case CEPH_MSG_AUTH_REPLY:
@@ -1289,7 +1344,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 		 * request had a non-zero tid.  Work around this weirdness
 		 * by allocating a new message.
 		 */
-		/* fall through */
+		fallthrough;
 	case CEPH_MSG_MON_MAP:
 	case CEPH_MSG_MDS_MAP:
 	case CEPH_MSG_OSD_MAP:

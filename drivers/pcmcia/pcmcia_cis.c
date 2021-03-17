@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCMCIA high-level CIS access functions
  *
@@ -7,11 +8,6 @@
  *
  * Copyright (C) 1999	     David A. Hinds
  * Copyright (C) 2004-2010   Dominik Brodowski
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/slab.h>
@@ -82,9 +78,9 @@ done:
  * calls the @loop_tuple function for each entry. If the call to @loop_tuple
  * returns 0, the loop exits. Returns 0 on success or errorcode otherwise.
  */
-int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
-		      cisdata_t code, cisparse_t *parse, void *priv_data,
-		      int (*loop_tuple) (tuple_t *tuple,
+static int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
+			     cisdata_t code, cisparse_t *parse, void *priv_data,
+			     int (*loop_tuple) (tuple_t *tuple,
 					 cisparse_t *parse,
 					 void *priv_data))
 {

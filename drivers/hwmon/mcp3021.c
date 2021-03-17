@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mcp3021.c - driver for Microchip MCP3021 and MCP3221
  *
@@ -9,11 +10,6 @@
  * This driver export the value of analog input voltage to sysfs, the
  * voltage unit is mV. Through the sysfs interface, lm-sensors tool
  * can also display the input voltage.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -104,8 +100,9 @@ static ssize_t in0_input_show(struct device *dev,
 
 static DEVICE_ATTR_RO(in0_input);
 
-static int mcp3021_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static const struct i2c_device_id mcp3021_id[];
+
+static int mcp3021_probe(struct i2c_client *client)
 {
 	int err;
 	struct mcp3021_data *data = NULL;
@@ -136,7 +133,7 @@ static int mcp3021_probe(struct i2c_client *client,
 			data->vdd = MCP3021_VDD_REF_DEFAULT;
 	}
 
-	switch (id->driver_data) {
+	switch (i2c_match_id(mcp3021_id, client)->driver_data) {
 	case mcp3021:
 		data->sar_shift = MCP3021_SAR_SHIFT;
 		data->sar_mask = MCP3021_SAR_MASK;
@@ -201,7 +198,7 @@ static struct i2c_driver mcp3021_driver = {
 		.name = "mcp3021",
 		.of_match_table = of_match_ptr(of_mcp3021_match),
 	},
-	.probe = mcp3021_probe,
+	.probe_new = mcp3021_probe,
 	.remove = mcp3021_remove,
 	.id_table = mcp3021_id,
 };

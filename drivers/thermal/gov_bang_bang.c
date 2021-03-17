@@ -1,22 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  gov_bang_bang.c - A simple thermal throttling governor using hysteresis
  *
- *  Copyright (C) 2014 Peter Feuerer <peter@piie.net>
+ *  Copyright (C) 2014 Peter Kaestle <peter@piie.net>
  *
  *  Based on step_wise.c with following Copyrights:
  *  Copyright (C) 2012 Intel Corp
  *  Copyright (C) 2012 Durgadoss R <durgadoss.r@intel.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
- * the GNU General Public License for more details.
- *
  */
 
 #include <linux/thermal.h>
@@ -81,8 +71,8 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 /**
  * bang_bang_control - controls devices associated with the given zone
- * @tz - thermal_zone_device
- * @trip - the trip point
+ * @tz: thermal_zone_device
+ * @trip: the trip point
  *
  * Regulation Logic: a two point regulation, deliver cooling state depending
  * on the previous state shown in this diagram:
@@ -126,13 +116,4 @@ static struct thermal_governor thermal_gov_bang_bang = {
 	.name		= "bang_bang",
 	.throttle	= bang_bang_control,
 };
-
-int thermal_gov_bang_bang_register(void)
-{
-	return thermal_register_governor(&thermal_gov_bang_bang);
-}
-
-void thermal_gov_bang_bang_unregister(void)
-{
-	thermal_unregister_governor(&thermal_gov_bang_bang);
-}
+THERMAL_GOVERNOR_DECLARE(thermal_gov_bang_bang);

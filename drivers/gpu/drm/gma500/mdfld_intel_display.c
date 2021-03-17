@@ -1,32 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright Â© 2006-2007 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
-#include "psb_intel_reg.h"
-#include "gma_display.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+
 #include "framebuffer.h"
-#include "mdfld_output.h"
+#include "gma_display.h"
 #include "mdfld_dsi_output.h"
+#include "mdfld_output.h"
+#include "psb_intel_reg.h"
 
 /* Hardcoded currently */
 static int ksel = KSEL_CRYSTAL_19;
@@ -122,27 +113,6 @@ static int psb_intel_panel_fitter_pipe(struct drm_device *dev)
 	return (pfit_control >> 29) & 0x3;
 }
 
-static struct drm_device globle_dev;
-
-void mdfld__intel_plane_set_alpha(int enable)
-{
-	struct drm_device *dev = &globle_dev;
-	int dspcntr_reg = DSPACNTR;
-	u32 dspcntr;
-
-	dspcntr = REG_READ(dspcntr_reg);
-
-	if (enable) {
-		dspcntr &= ~DISPPLANE_32BPP_NO_ALPHA;
-		dspcntr |= DISPPLANE_32BPP;
-	} else {
-		dspcntr &= ~DISPPLANE_32BPP;
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
-	}
-
-	REG_WRITE(dspcntr_reg, dspcntr);
-}
-
 static int check_fb(struct drm_framebuffer *fb)
 {
 	if (!fb)
@@ -172,8 +142,6 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	unsigned long start, offset;
 	u32 dspcntr;
 	int ret;
-
-	memcpy(&globle_dev, dev, sizeof(struct drm_device));
 
 	dev_dbg(dev->dev, "pipe = 0x%x.\n", pipe);
 
@@ -690,16 +658,6 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 
 	dev_dbg(dev->dev, "pipe = 0x%x\n", pipe);
 
-#if 0
-	if (pipe == 1) {
-		if (!gma_power_begin(dev, true))
-			return 0;
-		android_hdmi_crtc_mode_set(crtc, mode, adjusted_mode,
-			x, y, old_fb);
-		goto mrst_crtc_mode_set_exit;
-	}
-#endif
-
 	ret = check_fb(crtc->primary->fb);
 	if (ret)
 		return ret;
@@ -950,14 +908,6 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 		}
 		dpll = 0;
 
-#if 0 /* FIXME revisit later */
-		if (ksel == KSEL_CRYSTAL_19 || ksel == KSEL_BYPASS_19 ||
-						ksel == KSEL_BYPASS_25)
-			dpll &= ~MDFLD_INPUT_REF_SEL;
-		else if (ksel == KSEL_BYPASS_83_100)
-			dpll |= MDFLD_INPUT_REF_SEL;
-#endif /* FIXME revisit later */
-
 		if (is_hdmi)
 			dpll |= MDFLD_VCO_SEL;
 
@@ -967,20 +917,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 		/* compute bitmask from p1 value */
 		dpll |= (1 << (clock.p1 - 2)) << 17;
 
-#if 0 /* 1080p30 & 720p */
-		dpll = 0x00050000;
-		fp = 0x000001be;
-#endif
-#if 0 /* 480p */
-		dpll = 0x02010000;
-		fp = 0x000000d2;
-#endif
 	} else {
-#if 0 /*DBI_TPO_480x864*/
-		dpll = 0x00020000;
-		fp = 0x00000156;
-#endif /* DBI_TPO_480x864 */ /* get from spec. */
-
 		dpll = 0x00800000;
 		fp = 0x000000c1;
 	}

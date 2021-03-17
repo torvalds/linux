@@ -1,19 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Random Number Generator driver for the Keystone SOC
  *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors:	Sandeep Nair
  *		Vitaly Andrianov
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/hw_random.h>
@@ -29,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/delay.h>
+#include <linux/timekeeping.h>
 
 #define SA_CMD_STATUS_OFS			0x8
 
@@ -92,14 +85,37 @@ struct ks_sa_rng {
 	struct hwrng	rng;
 	struct clk	*clk;
 	struct regmap	*regmap_cfg;
-	struct trng_regs *reg_rng;
+	struct trng_regs __iomem *reg_rng;
+	u64 ready_ts;
+	unsigned int refill_delay_ns;
 };
+
+static unsigned int cycles_to_ns(unsigned long clk_rate, unsigned int cycles)
+{
+	return DIV_ROUND_UP_ULL((TRNG_DEF_CLK_DIV_CYCLES + 1) * 1000000000ull *
+				cycles, clk_rate);
+}
+
+static unsigned int startup_delay_ns(unsigned long clk_rate)
+{
+	if (!TRNG_DEF_STARTUP_CYCLES)
+		return cycles_to_ns(clk_rate, BIT(24));
+	return cycles_to_ns(clk_rate, 256 * TRNG_DEF_STARTUP_CYCLES);
+}
+
+static unsigned int refill_delay_ns(unsigned long clk_rate)
+{
+	if (!TRNG_DEF_MAX_REFILL_CYCLES)
+		return cycles_to_ns(clk_rate, BIT(24));
+	return cycles_to_ns(clk_rate, 256 * TRNG_DEF_MAX_REFILL_CYCLES);
+}
 
 static int ks_sa_rng_init(struct hwrng *rng)
 {
 	u32 value;
 	struct device *dev = (struct device *)rng->priv;
 	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	unsigned long clk_rate = clk_get_rate(ks_sa_rng->clk);
 
 	/* Enable RNG module */
 	regmap_write_bits(ks_sa_rng->regmap_cfg, SA_CMD_STATUS_OFS,
@@ -128,6 +144,10 @@ static int ks_sa_rng_init(struct hwrng *rng)
 	value |= TRNG_CNTL_REG_TRNG_ENABLE;
 	writel(value, &ks_sa_rng->reg_rng->control);
 
+	ks_sa_rng->refill_delay_ns = refill_delay_ns(clk_rate);
+	ks_sa_rng->ready_ts = ktime_get_ns() +
+			      startup_delay_ns(clk_rate);
+
 	return 0;
 }
 
@@ -152,6 +172,7 @@ static int ks_sa_rng_data_read(struct hwrng *rng, u32 *data)
 	data[1] = readl(&ks_sa_rng->reg_rng->output_h);
 
 	writel(TRNG_INTACK_REG_READY, &ks_sa_rng->reg_rng->intack);
+	ks_sa_rng->ready_ts = ktime_get_ns() + ks_sa_rng->refill_delay_ns;
 
 	return sizeof(u32) * 2;
 }
@@ -160,9 +181,18 @@ static int ks_sa_rng_data_present(struct hwrng *rng, int wait)
 {
 	struct device *dev = (struct device *)rng->priv;
 	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	u64 now = ktime_get_ns();
 
 	u32	ready;
 	int	j;
+
+	if (wait && now < ks_sa_rng->ready_ts) {
+		/* Max delay expected here is 81920000 ns */
+		unsigned long min_delay =
+			DIV_ROUND_UP((u32)(ks_sa_rng->ready_ts - now), 1000);
+
+		usleep_range(min_delay, min_delay + SA_RNG_DATA_RETRY_DELAY);
+	}
 
 	for (j = 0; j < SA_MAX_RNG_DATA_RETRIES; j++) {
 		ready = readl(&ks_sa_rng->reg_rng->status);
@@ -182,7 +212,6 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 	struct ks_sa_rng	*ks_sa_rng;
 	struct device		*dev = &pdev->dev;
 	int			ret;
-	struct resource		*mem;
 
 	ks_sa_rng = devm_kzalloc(dev, sizeof(*ks_sa_rng), GFP_KERNEL);
 	if (!ks_sa_rng)
@@ -198,8 +227,7 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 	};
 	ks_sa_rng->rng.priv = (unsigned long)dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ks_sa_rng->reg_rng = devm_ioremap_resource(dev, mem);
+	ks_sa_rng->reg_rng = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ks_sa_rng->reg_rng))
 		return PTR_ERR(ks_sa_rng->reg_rng);
 
@@ -216,6 +244,7 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable SA power-domain\n");
+		pm_runtime_put_noidle(dev);
 		pm_runtime_disable(dev);
 		return ret;
 	}

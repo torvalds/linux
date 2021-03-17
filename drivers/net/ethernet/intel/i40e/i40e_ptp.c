@@ -28,19 +28,23 @@
  * i40e_ptp_read - Read the PHC time from the device
  * @pf: Board private structure
  * @ts: timespec structure to hold the current time value
+ * @sts: structure to hold the system time before and after reading the PHC
  *
  * This function reads the PRTTSYN_TIME registers and stores them in a
  * timespec. However, since the registers are 64 bits of nanoseconds, we must
  * convert the result to a timespec before we can return.
  **/
-static void i40e_ptp_read(struct i40e_pf *pf, struct timespec64 *ts)
+static void i40e_ptp_read(struct i40e_pf *pf, struct timespec64 *ts,
+			  struct ptp_system_timestamp *sts)
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 hi, lo;
 	u64 ns;
 
 	/* The timer latches on the lowest register read. */
+	ptp_read_system_prets(sts);
 	lo = rd32(hw, I40E_PRTTSYN_TIME_L);
+	ptp_read_system_postts(sts);
 	hi = rd32(hw, I40E_PRTTSYN_TIME_H);
 
 	ns = (((u64)hi) << 32) | lo;
@@ -136,18 +140,18 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
  * @ptp: The PTP clock structure
  * @delta: Offset in nanoseconds to adjust the PHC time by
  *
- * Adjust the frequency of the PHC by the indicated parts per billion from the
- * base frequency.
+ * Adjust the current clock time by a delta specified in nanoseconds.
  **/
 static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	struct timespec64 now;
+	struct timespec64 now, then;
 
+	then = ns_to_timespec64(delta);
 	mutex_lock(&pf->tmreg_lock);
 
-	i40e_ptp_read(pf, &now);
-	timespec64_add_ns(&now, delta);
+	i40e_ptp_read(pf, &now, NULL);
+	now = timespec64_add(now, then);
 	i40e_ptp_write(pf, (const struct timespec64 *)&now);
 
 	mutex_unlock(&pf->tmreg_lock);
@@ -156,19 +160,21 @@ static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 }
 
 /**
- * i40e_ptp_gettime - Get the time of the PHC
+ * i40e_ptp_gettimex - Get the time of the PHC
  * @ptp: The PTP clock structure
  * @ts: timespec structure to hold the current time value
+ * @sts: structure to hold the system time before and after reading the PHC
  *
  * Read the device clock and return the correct value on ns, after converting it
  * into a timespec struct.
  **/
-static int i40e_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
+static int i40e_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			     struct ptp_system_timestamp *sts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
 
 	mutex_lock(&pf->tmreg_lock);
-	i40e_ptp_read(pf, ts);
+	i40e_ptp_read(pf, ts, sts);
 	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
@@ -253,7 +259,6 @@ static u32 i40e_ptp_get_rx_events(struct i40e_pf *pf)
 /**
  * i40e_ptp_rx_hang - Detect error case when Rx timestamp registers are hung
  * @pf: The PF private data structure
- * @vsi: The VSI with the rings relevant to 1588
  *
  * This watchdog task is scheduled to detect error case where hardware has
  * dropped an Rx packet that was timestamped when the ring is full. The
@@ -580,7 +585,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		if (!(pf->hw_features & I40E_HW_PTP_L4_CAPABLE))
 			return -ERANGE;
-		/* fall through */
+		fallthrough;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
@@ -694,14 +699,15 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
 	if (!IS_ERR_OR_NULL(pf->ptp_clock))
 		return 0;
 
-	strncpy(pf->ptp_caps.name, i40e_driver_name, sizeof(pf->ptp_caps.name));
+	strlcpy(pf->ptp_caps.name, i40e_driver_name,
+		sizeof(pf->ptp_caps.name) - 1);
 	pf->ptp_caps.owner = THIS_MODULE;
 	pf->ptp_caps.max_adj = 999999999;
 	pf->ptp_caps.n_ext_ts = 0;
 	pf->ptp_caps.pps = 0;
 	pf->ptp_caps.adjfreq = i40e_ptp_adjfreq;
 	pf->ptp_caps.adjtime = i40e_ptp_adjtime;
-	pf->ptp_caps.gettime64 = i40e_ptp_gettime;
+	pf->ptp_caps.gettimex64 = i40e_ptp_gettimex;
 	pf->ptp_caps.settime64 = i40e_ptp_settime;
 	pf->ptp_caps.enable = i40e_ptp_feature_enable;
 
@@ -717,7 +723,54 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
 	pf->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 	pf->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
 
+	/* Set the previous "reset" time to the current Kernel clock time */
+	ktime_get_real_ts64(&pf->ptp_prev_hw_time);
+	pf->ptp_reset_start = ktime_get();
+
 	return 0;
+}
+
+/**
+ * i40e_ptp_save_hw_time - Save the current PTP time as ptp_prev_hw_time
+ * @pf: Board private structure
+ *
+ * Read the current PTP time and save it into pf->ptp_prev_hw_time. This should
+ * be called at the end of preparing to reset, just before hardware reset
+ * occurs, in order to preserve the PTP time as close as possible across
+ * resets.
+ */
+void i40e_ptp_save_hw_time(struct i40e_pf *pf)
+{
+	/* don't try to access the PTP clock if it's not enabled */
+	if (!(pf->flags & I40E_FLAG_PTP))
+		return;
+
+	i40e_ptp_gettimex(&pf->ptp_caps, &pf->ptp_prev_hw_time, NULL);
+	/* Get a monotonic starting time for this reset */
+	pf->ptp_reset_start = ktime_get();
+}
+
+/**
+ * i40e_ptp_restore_hw_time - Restore the ptp_prev_hw_time + delta to PTP regs
+ * @pf: Board private structure
+ *
+ * Restore the PTP hardware clock registers. We previously cached the PTP
+ * hardware time as pf->ptp_prev_hw_time. To be as accurate as possible,
+ * update this value based on the time delta since the time was saved, using
+ * CLOCK_MONOTONIC (via ktime_get()) to calculate the time difference.
+ *
+ * This ensures that the hardware clock is restored to nearly what it should
+ * have been if a reset had not occurred.
+ */
+void i40e_ptp_restore_hw_time(struct i40e_pf *pf)
+{
+	ktime_t delta = ktime_sub(ktime_get(), pf->ptp_reset_start);
+
+	/* Update the previous HW time with the ktime delta */
+	timespec64_add_ns(&pf->ptp_prev_hw_time, ktime_to_ns(delta));
+
+	/* Restore the hardware clock registers */
+	i40e_ptp_settime(&pf->ptp_caps, &pf->ptp_prev_hw_time);
 }
 
 /**
@@ -727,6 +780,11 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
  * This function sets device up for 1588 support. The first time it is run, it
  * will create a PHC clock device. It does not create a clock device if one
  * already exists. It also reconfigures the device after a reset.
+ *
+ * The first time a clock is created, i40e_ptp_create_clock will set
+ * pf->ptp_prev_hw_time to the current system time. During resets, it is
+ * expected that this timespec will be set to the last known PTP clock time,
+ * in order to preserve the clock time as close as possible across a reset.
  **/
 void i40e_ptp_init(struct i40e_pf *pf)
 {
@@ -758,7 +816,6 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		dev_err(&pf->pdev->dev, "%s: ptp_clock_register failed\n",
 			__func__);
 	} else if (pf->ptp_clock) {
-		struct timespec64 ts;
 		u32 regval;
 
 		if (pf->hw.debug_mask & I40E_DEBUG_LAN)
@@ -779,9 +836,8 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		/* reset timestamping mode */
 		i40e_ptp_set_timestamp_mode(pf, &pf->tstamp_config);
 
-		/* Set the clock value. */
-		ts = ktime_to_timespec64(ktime_get_real());
-		i40e_ptp_settime(&pf->ptp_caps, &ts);
+		/* Restore the clock time based on last known value */
+		i40e_ptp_restore_hw_time(pf);
 	}
 }
 

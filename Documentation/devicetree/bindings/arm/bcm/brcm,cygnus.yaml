@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/bcm/brcm,cygnus.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Cygnus device tree bindings
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    items:
+      - enum:
+          - brcm,bcm11300
+          - brcm,bcm11320
+          - brcm,bcm11350
+          - brcm,bcm11360
+          - brcm,bcm58300
+          - brcm,bcm58302
+          - brcm,bcm58303
+          - brcm,bcm58305
+      - const: brcm,cygnus
+
+additionalProperties: true
+
+...

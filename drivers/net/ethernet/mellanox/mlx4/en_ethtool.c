@@ -611,7 +611,7 @@ static u32 ptys_get_active_port(struct mlx4_ptys_reg *ptys_reg)
 }
 
 #define MLX4_LINK_MODES_SZ \
-	(FIELD_SIZEOF(struct mlx4_ptys_reg, eth_proto_cap) * 8)
+	(sizeof_field(struct mlx4_ptys_reg, eth_proto_cap) * 8)
 
 enum ethtool_report {
 	SUPPORTED = 0,
@@ -639,7 +639,7 @@ static unsigned long *ptys2ethtool_link_mode(struct ptys2ethtool_config *cfg,
 #define MLX4_BUILD_PTYS2ETHTOOL_CONFIG(reg_, speed_, ...)		\
 	({								\
 		struct ptys2ethtool_config *cfg;			\
-		const unsigned int modes[] = { __VA_ARGS__ };		\
+		static const unsigned int modes[] = { __VA_ARGS__ };	\
 		unsigned int i;						\
 		cfg = &ptys2ethtool_map[reg_];				\
 		cfg->speed = speed_;					\
@@ -1084,8 +1084,8 @@ static int mlx4_en_set_pauseparam(struct net_device *dev,
 
 	tx_pause = !!(pause->tx_pause);
 	rx_pause = !!(pause->rx_pause);
-	rx_ppp = priv->prof->rx_ppp && !(tx_pause || rx_pause);
-	tx_ppp = priv->prof->tx_ppp && !(tx_pause || rx_pause);
+	rx_ppp = (tx_pause || rx_pause) ? 0 : priv->prof->rx_ppp;
+	tx_ppp = (tx_pause || rx_pause) ? 0 : priv->prof->tx_ppp;
 
 	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
 				    priv->rx_skb_size + ETH_FCS_LEN,
@@ -1104,6 +1104,24 @@ static int mlx4_en_set_pauseparam(struct net_device *dev,
 	priv->prof->rx_ppp = rx_ppp;
 
 	return err;
+}
+
+static void mlx4_en_get_pause_stats(struct net_device *dev,
+				    struct ethtool_pause_stats *stats)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct bitmap_iterator it;
+
+	bitmap_iterator_init(&it, priv->stats_bitmap.bitmap, NUM_ALL_STATS);
+
+	spin_lock_bh(&priv->stats_lock);
+	if (test_bit(FLOW_PRIORITY_STATS_IDX_TX_FRAMES,
+		     priv->stats_bitmap.bitmap))
+		stats->tx_pause_frames = priv->tx_flowstats.tx_pause;
+	if (test_bit(FLOW_PRIORITY_STATS_IDX_RX_FRAMES,
+		     priv->stats_bitmap.bitmap))
+		stats->rx_pause_frames = priv->rx_flowstats.rx_pause;
+	spin_unlock_bh(&priv->stats_lock);
 }
 
 static void mlx4_en_get_pauseparam(struct net_device *dev,
@@ -1235,7 +1253,6 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u32 n = mlx4_en_get_rxfh_indir_size(dev);
 	u32 i, rss_rings;
-	int err = 0;
 
 	rss_rings = priv->prof->rss_rings ?: n;
 	rss_rings = rounddown_pow_of_two(rss_rings);
@@ -1249,7 +1266,7 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
 		memcpy(key, priv->rss_key, MLX4_EN_RSS_KEY_SIZE);
 	if (hfunc)
 		*hfunc = priv->rss_hash_fn;
-	return err;
+	return 0;
 }
 
 static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
@@ -1393,7 +1410,6 @@ static int mlx4_en_ethtool_add_mac_rule(struct ethtool_rxnfc *cmd,
 					struct mlx4_spec_list *spec_l2,
 					unsigned char *mac)
 {
-	int err = 0;
 	__be64 mac_msk = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	spec_l2->id = MLX4_NET_TRANS_RULE_ID_ETH;
@@ -1408,7 +1424,7 @@ static int mlx4_en_ethtool_add_mac_rule(struct ethtool_rxnfc *cmd,
 
 	list_add_tail(&spec_l2->list, rule_list_h);
 
-	return err;
+	return 0;
 }
 
 static int mlx4_en_ethtool_add_mac_rule_by_ipv4(struct mlx4_en_priv *priv,
@@ -1745,6 +1761,7 @@ static int mlx4_en_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		err = mlx4_en_get_flow(dev, cmd, cmd->fs.location);
 		break;
 	case ETHTOOL_GRXCLSRLALL:
+		cmd->data = MAX_NUM_OF_FS_RULES;
 		while ((!err || err == -ENOENT) && priority < cmd->rule_cnt) {
 			err = mlx4_en_get_flow(dev, cmd, i);
 			if (!err)
@@ -1811,6 +1828,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_port_profile new_prof;
 	struct mlx4_en_priv *tmp;
+	int total_tx_count;
 	int port_up = 0;
 	int xdp_count;
 	int err = 0;
@@ -1825,13 +1843,12 @@ static int mlx4_en_set_channels(struct net_device *dev,
 
 	mutex_lock(&mdev->state_lock);
 	xdp_count = priv->tx_ring_num[TX_XDP] ? channel->rx_count : 0;
-	if (channel->tx_count * priv->prof->num_up + xdp_count >
-	    priv->mdev->profile.max_num_tx_rings_p_up * priv->prof->num_up) {
+	total_tx_count = channel->tx_count * priv->prof->num_up + xdp_count;
+	if (total_tx_count > MAX_TX_RINGS) {
 		err = -EINVAL;
 		en_err(priv,
 		       "Total number of TX and XDP rings (%d) exceeds the maximum supported (%d)\n",
-		       channel->tx_count * priv->prof->num_up  + xdp_count,
-		       MAX_TX_RINGS);
+		       total_tx_count, MAX_TX_RINGS);
 		goto out;
 	}
 
@@ -2010,6 +2027,8 @@ static int mlx4_en_set_tunable(struct net_device *dev,
 	return ret;
 }
 
+#define MLX4_EEPROM_PAGE_LEN 256
+
 static int mlx4_en_get_module_info(struct net_device *dev,
 				   struct ethtool_modinfo *modinfo)
 {
@@ -2044,7 +2063,7 @@ static int mlx4_en_get_module_info(struct net_device *dev,
 		break;
 	case MLX4_MODULE_ID_SFP:
 		modinfo->type = ETH_MODULE_SFF_8472;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		modinfo->eeprom_len = MLX4_EEPROM_PAGE_LEN;
 		break;
 	default:
 		return -EINVAL;
@@ -2118,6 +2137,10 @@ static int mlx4_en_set_phys_id(struct net_device *dev,
 }
 
 const struct ethtool_ops mlx4_en_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ |
+				     ETHTOOL_COALESCE_PKT_RATE_RX_USECS,
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_link_ksettings = mlx4_en_get_link_ksettings,
 	.set_link_ksettings = mlx4_en_set_link_ksettings,
@@ -2133,6 +2156,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.set_msglevel = mlx4_en_set_msglevel,
 	.get_coalesce = mlx4_en_get_coalesce,
 	.set_coalesce = mlx4_en_set_coalesce,
+	.get_pause_stats = mlx4_en_get_pause_stats,
 	.get_pauseparam = mlx4_en_get_pauseparam,
 	.set_pauseparam = mlx4_en_set_pauseparam,
 	.get_ringparam = mlx4_en_get_ringparam,

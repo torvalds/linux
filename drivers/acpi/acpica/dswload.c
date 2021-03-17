@@ -3,7 +3,7 @@
  *
  * Module Name: dswload - Dispatcher first pass namespace load callbacks
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -14,7 +14,6 @@
 #include "acdispat.h"
 #include "acinterp.h"
 #include "acnamesp.h"
-
 #ifdef ACPI_ASL_COMPILER
 #include "acdisasm.h"
 #endif
@@ -73,12 +72,10 @@ acpi_ds_init_callbacks(struct acpi_walk_state *walk_state, u32 pass_number)
 
 		/* Execution pass */
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 		walk_state->parse_flags |= ACPI_PARSE_EXECUTE |
 		    ACPI_PARSE_DELETE_TREE;
 		walk_state->descending_callback = acpi_ds_exec_begin_op;
 		walk_state->ascending_callback = acpi_ds_exec_end_op;
-#endif
 		break;
 
 	default:
@@ -364,7 +361,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 
 	/* Initialize the op */
 
-#if (defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY))
+#ifdef ACPI_CONSTANT_EVAL_ONLY
 	op->named.path = path;
 #endif
 
@@ -401,7 +398,6 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	union acpi_parse_object *op;
 	acpi_object_type object_type;
 	acpi_status status = AE_OK;
-
 #ifdef ACPI_ASL_COMPILER
 	u8 param_count;
 #endif
@@ -411,6 +407,27 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	op = walk_state->op;
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
 			  walk_state));
+
+	/*
+	 * Disassembler: handle create field operators here.
+	 *
+	 * create_buffer_field is a deferred op that is typically processed in load
+	 * pass 2. However, disassembly of control method contents walk the parse
+	 * tree with ACPI_PARSE_LOAD_PASS1 and AML_CREATE operators are processed
+	 * in a later walk. This is a problem when there is a control method that
+	 * has the same name as the AML_CREATE object. In this case, any use of the
+	 * name segment will be detected as a method call rather than a reference
+	 * to a buffer field.
+	 *
+	 * This earlier creation during disassembly solves this issue by inserting
+	 * the named object in the ACPI namespace so that references to this name
+	 * would be a name string rather than a method call.
+	 */
+	if ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) &&
+	    (walk_state->op_info->flags & AML_CREATE)) {
+		status = acpi_ds_create_buffer_field(op, walk_state);
+		return_ACPI_STATUS(status);
+	}
 
 	/* We are only interested in opcodes that have an associated name */
 
@@ -422,7 +439,6 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 
 	object_type = walk_state->op_info->object_type;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 	if (walk_state->op_info->flags & AML_FIELD) {
 		/*
 		 * If we are executing a method, do not create any namespace objects
@@ -466,7 +482,6 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 			}
 		}
 	}
-#endif
 
 	if (op->common.aml_opcode == AML_NAME_OP) {
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Support for CX23885 analog audio capture
@@ -5,16 +6,6 @@
  *    (c) 2008 Mijhail Moreyra <mijhail.moreyra@gmail.com>
  *    Adapted from cx88-alsa.c
  *    (c) 2009 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx23885.h"
@@ -59,7 +50,7 @@ module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 
 /****************************************************************************
-			Board specific funtions
+			Board specific functions
  ****************************************************************************/
 
 /* Constants taken from cx88-reg.h */
@@ -77,7 +68,8 @@ MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 #define AUD_INT_MCHG_IRQ        (1 << 21)
 #define GP_COUNT_CONTROL_RESET	0x3
 
-static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
+static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip,
+				 unsigned long nr_pages)
 {
 	struct cx23885_audio_buffer *buf = chip->buf;
 	struct page *pg;
@@ -85,11 +77,11 @@ static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == buf->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+	dprintk(1, "vmalloc is at addr %p, size=%lu\n",
 		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
@@ -122,7 +114,7 @@ static int cx23885_alsa_dma_map(struct cx23885_audio_dev *dev)
 	struct cx23885_audio_buffer *buf = dev->buf;
 
 	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
-			buf->nr_pages, PCI_DMA_FROMDEVICE);
+			buf->nr_pages, DMA_FROM_DEVICE);
 
 	if (0 == buf->sglen) {
 		pr_warn("%s: cx23885_alsa_map_sg failed\n", __func__);
@@ -138,7 +130,7 @@ static int cx23885_alsa_dma_unmap(struct cx23885_audio_dev *dev)
 	if (!buf->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->sglen, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->nr_pages, DMA_FROM_DEVICE);
 	buf->sglen = 0;
 	return 0;
 }
@@ -504,7 +496,6 @@ static struct page *snd_cx23885_page(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_cx23885_pcm_ops = {
 	.open = snd_cx23885_pcm_open,
 	.close = snd_cx23885_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_cx23885_hw_params,
 	.hw_free = snd_cx23885_hw_free,
 	.prepare = snd_cx23885_prepare,
@@ -526,7 +517,7 @@ static int snd_cx23885_pcm(struct cx23885_audio_dev *chip, int device,
 	if (err < 0)
 		return err;
 	pcm->private_data = chip;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cx23885_pcm_ops);
 
 	return 0;
@@ -571,7 +562,7 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 	if (err < 0)
 		goto error;
 
-	strcpy(card->driver, "CX23885");
+	strscpy(card->driver, "CX23885", sizeof(card->driver));
 	sprintf(card->shortname, "Conexant CX23885");
 	sprintf(card->longname, "%s at %s", card->shortname, dev->name);
 

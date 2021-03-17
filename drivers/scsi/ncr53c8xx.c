@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
 **  Device driver for the PCI-SCSI NCR538XX controller family.
 **
 **  Copyright (C) 1994  Wolfgang Stanglmeier
 **
-**  This program is free software; you can redistribute it and/or modify
-**  it under the terms of the GNU General Public License as published by
-**  the Free Software Foundation; either version 2 of the License, or
-**  (at your option) any later version.
-**
-**  This program is distributed in the hope that it will be useful,
-**  but WITHOUT ANY WARRANTY; without even the implied warranty of
-**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-**  GNU General Public License for more details.
-**
-**  You should have received a copy of the GNU General Public License
-**  along with this program; if not, write to the Free Software
-**  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 **
 **-----------------------------------------------------------------------------
 **
@@ -1734,7 +1722,7 @@ struct ncb {
 	**	Miscellaneous configuration and status parameters.
 	**----------------------------------------------------------------
 	*/
-	u_char		disc;		/* Diconnection allowed		*/
+	u_char		disc;		/* Disconnection allowed	*/
 	u_char		scsi_mode;	/* Current SCSI BUS mode	*/
 	u_char		order;		/* Tag order to use		*/
 	u_char		verbose;	/* Verbosity for this controller*/
@@ -2215,7 +2203,7 @@ static	struct script script0 __initdata = {
 	**	Possible data corruption during Memory Write and Invalidate.
 	**	This work-around resets the addressing logic prior to the 
 	**	start of the first MOVE of a DATA IN phase.
-	**	(See Documentation/scsi/ncr53c8xx.txt for more information)
+	**	(See Documentation/scsi/ncr53c8xx.rst for more information)
 	*/
 	SCR_JUMPR ^ IFFALSE (IF (SCR_DATA_IN)),
 		20,
@@ -3652,7 +3640,7 @@ ncr_script_copy_and_bind (struct ncb *np, ncrcmd *src, ncrcmd *dst, int len)
 						new = old;
 						break;
 					}
-					/* fall through */
+					fallthrough;
 				default:
 					panic("ncr_script_copy_and_bind: weird relocation %x\n", old);
 					break;
@@ -3922,11 +3910,14 @@ static void __init ncr_prepare_setting(struct ncb *np)
 					np->scsi_mode = SMODE_HVD;
 				break;
 			}
+			fallthrough;
 		case 3:	/* SYMBIOS controllers report HVD through GPIO3 */
 			if (INB(nc_gpreg) & 0x08)
 				break;
+			fallthrough;
 		case 2:	/* Set HVD unconditionally */
 			np->scsi_mode = SMODE_HVD;
+			fallthrough;
 		case 1:	/* Trust previous settings for HVD */
 			if (np->sv_stest2 & 0x20)
 				np->scsi_mode = SMODE_HVD;
@@ -4305,7 +4296,7 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 			break;
 		cp->phys.header.wgoalp	= cpu_to_scr(goalp);
 		cp->phys.header.wlastp	= cpu_to_scr(lastp);
-		/* fall through */
+		fallthrough;
 	case DMA_FROM_DEVICE:
 		goalp = NCB_SCRIPT_PHYS (np, data_in2) + 8;
 		if (segments <= MAX_SCATTERL)
@@ -6726,6 +6717,7 @@ void ncr_int_sir (struct ncb *np)
 			OUTL_DSP (scr_to_cpu(tp->lp[0]->jump_ccb[0]));
 			return;
 		}
+		fallthrough;
 	case SIR_RESEL_BAD_TARGET:	/* Will send a TARGET RESET message */
 	case SIR_RESEL_BAD_LUN:		/* Will send a TARGET RESET message */
 	case SIR_RESEL_BAD_I_T_L_Q:	/* Will send an ABORT TAG message   */
@@ -6833,7 +6825,7 @@ void ncr_int_sir (struct ncb *np)
 		*/
 		OUTB (HS_PRT, HS_BUSY);
 
-		/* fall through */
+		fallthrough;
 
 	case SIR_NEGO_PROTO:
 		/*-------------------------------------------------------
@@ -8313,7 +8305,6 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 	tpnt->this_id		= 7;
 	tpnt->sg_tablesize	= SCSI_NCR_SG_TABLESIZE;
 	tpnt->cmd_per_lun	= SCSI_NCR_CMD_PER_LUN;
-	tpnt->use_clustering	= ENABLE_CLUSTERING;
 
 	if (device->differential)
 		driver_setup.diff_support = device->differential;

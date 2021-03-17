@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PS3 gelic network driver.
  *
  * Copyright (C) 2007 Sony Computer Entertainment Inc.
  * Copyright 2007 Sony Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #undef DEBUG
 
@@ -889,7 +877,7 @@ static int gelic_wl_set_auth(struct net_device *netdev,
 	case IW_AUTH_KEY_MGMT:
 		if (param->value & IW_AUTH_KEY_MGMT_PSK)
 			break;
-		/* intentionally fall through */
+		fallthrough;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
@@ -1094,7 +1082,7 @@ static int gelic_wl_get_encode(struct net_device *netdev,
 	struct gelic_wl_info *wl = port_wl(netdev_priv(netdev));
 	struct iw_point *enc = &data->encoding;
 	unsigned long irqflag;
-	unsigned int key_index, index_specified;
+	unsigned int key_index;
 	int ret = 0;
 
 	pr_debug("%s: <-\n", __func__);
@@ -1105,13 +1093,10 @@ static int gelic_wl_get_encode(struct net_device *netdev,
 		return -EINVAL;
 
 	spin_lock_irqsave(&wl->lock, irqflag);
-	if (key_index) {
-		index_specified = 1;
+	if (key_index)
 		key_index--;
-	} else {
-		index_specified = 0;
+	else
 		key_index = wl->current_key;
-	}
 
 	if (wl->group_cipher_method == GELIC_WL_CIPHER_WEP) {
 		switch (wl->auth_method) {

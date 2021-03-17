@@ -20,7 +20,7 @@ struct group_info *groups_alloc(int gidsetsize)
 	len = sizeof(struct group_info) + sizeof(kgid_t) * gidsetsize;
 	gi = kmalloc(len, GFP_KERNEL_ACCOUNT|__GFP_NOWARN|__GFP_NORETRY);
 	if (!gi)
-		gi = __vmalloc(len, GFP_KERNEL_ACCOUNT, PAGE_KERNEL);
+		gi = __vmalloc(len, GFP_KERNEL_ACCOUNT);
 	if (!gi)
 		return NULL;
 
@@ -178,7 +178,7 @@ bool may_setgroups(void)
 {
 	struct user_namespace *user_ns = current_user_ns();
 
-	return ns_capable(user_ns, CAP_SETGID) &&
+	return ns_capable_setid(user_ns, CAP_SETGID) &&
 		userns_may_setgroups(user_ns);
 }
 

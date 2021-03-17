@@ -11,7 +11,7 @@
 /*     H2C CMD DEFINITION    ------------------------------------------------ */
 /*  */
 /*  88e, 8723b, 8812, 8821, 92e use the same FW code base */
-enum h2c_cmd{
+enum h2c_cmd {
 	/* Common Class: 000 */
 	H2C_RSVD_PAGE = 0x00,
 	H2C_MEDIA_STATUS_RPT = 0x01,
@@ -96,9 +96,9 @@ enum h2c_cmd{
 #define H2C_PROBERSP_RSVDPAGE_LEN	5
 
 #ifdef CONFIG_WOWLAN
-#define eqMacAddr(a, b)		(((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0)
-#define cpMacAddr(des, src)	((des)[0]=(src)[0], (des)[1]=(src)[1], (des)[2]=(src)[2], (des)[3]=(src)[3], (des)[4]=(src)[4], (des)[5]=(src)[5])
-#define cpIpAddr(des, src)	((des)[0]=(src)[0], (des)[1]=(src)[1], (des)[2]=(src)[2], (des)[3]=(src)[3])
+#define eqMacAddr(a, b)		(((a)[0] == (b)[0] && (a)[1] == (b)[1] && (a)[2] == (b)[2] && (a)[3] == (b)[3] && (a)[4] == (b)[4] && (a)[5] == (b)[5]) ? 1 : 0)
+#define cpMacAddr(des, src)	((des)[0] = (src)[0], (des)[1] = (src)[1], (des)[2] = (src)[2], (des)[3] = (src)[3], (des)[4] = (src)[4], (des)[5] = (src)[5])
+#define cpIpAddr(des, src)	((des)[0] = (src)[0], (des)[1] = (src)[1], (des)[2] = (src)[2], (des)[3] = (src)[3])
 
 /*  */
 /*  ARP packet */

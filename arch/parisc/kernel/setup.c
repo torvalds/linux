@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Initial setup-routines for HP 9000 based hardware.
  *
@@ -9,21 +10,6 @@
  *    Modifications copyright 2001 Ryan Bradetich <rbradetich@uswest.net>
  *
  *    Initial PA-RISC Version: 04-23-1999 by Helge Deller
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/kernel.h>
@@ -40,6 +26,7 @@
 #include <linux/sched/clock.h>
 #include <linux/start_kernel.h>
 
+#include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/pdc.h>
@@ -99,10 +86,6 @@ void __init dma_ops_init(void)
 
 	case pcxl2:
 		pa7300lc_init();
-	case pcxl: /* falls through */
-	case pcxs:
-	case pcxt:
-		hppa_dma_ops = &dma_noncoherent_ops;
 		break;
 	default:
 		break;
@@ -166,10 +149,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_PA11
 	dma_ops_init();
-#endif
-
-#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;	/* we use do_take_over_console() later ! */
 #endif
 
 	clear_sched_clock_stable();
@@ -346,6 +325,13 @@ static int __init parisc_init(void)
 			boot_cpu_data.cpu_hz / 1000000,
 			boot_cpu_data.cpu_hz % 1000000	);
 
+#if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
+	/* Don't serialize TLB flushes if we run on one CPU only. */
+	if (num_online_cpus() == 1)
+		pa_serialize_tlb_flushes = 0;
+#endif
+
+	apply_alternatives_all();
 	parisc_setup_cache_timing();
 
 	/* These are in a non-obvious order, will fix when we have an iotree */
@@ -398,6 +384,9 @@ void __init start_parisc(void)
 
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
+
+	/* check QEMU/SeaBIOS marker in PAGE0 */
+	running_on_qemu = (memcmp(&PAGE0->pad0, "SeaBIOS", 8) == 0);
 
 	cpunum = smp_processor_id();
 

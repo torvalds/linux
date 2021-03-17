@@ -1,21 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * PS3 Storage Devices
  *
  * Copyright (C) 2007 Sony Computer Entertainment Inc.
  * Copyright 2007 Sony Corp.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published
- * by the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef _ASM_POWERPC_PS3STOR_H_
@@ -51,7 +39,7 @@ struct ps3_storage_device {
 	unsigned int num_regions;
 	unsigned long accessible_regions;
 	unsigned int region_idx;		/* first accessible region */
-	struct ps3_storage_region regions[0];	/* Must be last */
+	struct ps3_storage_region regions[];	/* Must be last */
 };
 
 static inline struct ps3_storage_device *to_ps3_storage_device(struct device *dev)

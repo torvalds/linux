@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMx3 Wkup M3 IPC driver
  *
  * Copyright (C) 2015 Texas Instruments, Inc.
  *
  * Dave Gerlach <d-gerlach@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
@@ -57,6 +49,7 @@
 static struct wkup_m3_ipc *m3_ipc_state;
 
 static const struct wkup_m3_wakeup_src wakeups[] = {
+	{.irq_nr = 16,	.src = "PRCM"},
 	{.irq_nr = 35,	.src = "USB0_PHY"},
 	{.irq_nr = 36,	.src = "USB1_PHY"},
 	{.irq_nr = 40,	.src = "I2C0"},
@@ -426,6 +419,8 @@ static void wkup_m3_rproc_boot_thread(struct wkup_m3_ipc *m3_ipc)
 	ret = rproc_boot(m3_ipc->rproc);
 	if (ret)
 		dev_err(dev, "rproc_boot failed\n");
+	else
+		m3_ipc_state = m3_ipc;
 
 	do_exit(0);
 }
@@ -511,8 +506,6 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(task);
 		goto err_put_rproc;
 	}
-
-	m3_ipc_state = m3_ipc;
 
 	return 0;
 

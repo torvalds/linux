@@ -21,28 +21,47 @@ understand and fix the security vulnerability.
 
 As it is with any bug, the more information provided the easier it
 will be to diagnose and fix.  Please review the procedure outlined in
-admin-guide/reporting-bugs.rst if you are unclear about what
+:doc:`reporting-bugs` if you are unclear about what
 information is helpful.  Any exploit code is very helpful and will not
 be released without consent from the reporter unless it has already been
 made public.
 
-Disclosure
-----------
+Please send plain text emails without attachments where possible.
+It is much harder to have a context-quoted discussion about a complex
+issue if all the details are hidden away in attachments.  Think of it like a
+:doc:`regular patch submission <../process/submitting-patches>`
+(even if you don't have a patch yet): describe the problem and impact, list
+reproduction steps, and follow it with a proposed fix, all in plain text.
 
-The goal of the Linux kernel security team is to work with the bug
-submitter to understand and fix the bug.  We prefer to publish the fix as
-soon as possible, but try to avoid public discussion of the bug itself
-and leave that to others.
+Disclosure and embargoed information
+------------------------------------
 
-Publishing the fix may be delayed when the bug or the fix is not yet
-fully understood, the solution is not well-tested or for vendor
-coordination.  However, we expect these delays to be short, measurable in
-days, not weeks or months.  A release date is negotiated by the security
-team working with the bug submitter as well as vendors.  However, the
-kernel security team holds the final say when setting a timeframe.  The
-timeframe varies from immediate (esp. if it's already publicly known bug)
-to a few weeks.  As a basic default policy, we expect report date to
-release date to be on the order of 7 days.
+The security list is not a disclosure channel.  For that, see Coordination
+below.
+
+Once a robust fix has been developed, the release process starts.  Fixes
+for publicly known bugs are released immediately.
+
+Although our preference is to release fixes for publicly undisclosed bugs
+as soon as they become available, this may be postponed at the request of
+the reporter or an affected party for up to 7 calendar days from the start
+of the release process, with an exceptional extension to 14 calendar days
+if it is agreed that the criticality of the bug requires more time.  The
+only valid reason for deferring the publication of a fix is to accommodate
+the logistics of QA and large scale rollouts which require release
+coordination.
+
+While embargoed information may be shared with trusted individuals in
+order to develop a fix, such information will not be published alongside
+the fix or on any other disclosure channel without the permission of the
+reporter.  This includes but is not limited to the original bug report
+and followup discussions (if any), exploits, CVE information or the
+identity of the reporter.
+
+In other words our only interest is in getting bugs fixed.  All other
+information submitted to the security list and any followup discussions
+of the report are treated confidentially even after the embargo has been
+lifted, in perpetuity.
 
 Coordination
 ------------
@@ -68,7 +87,7 @@ may delay the bug handling. If a reporter wishes to have a CVE identifier
 assigned ahead of public disclosure, they will need to contact the private
 linux-distros list, described above. When such a CVE identifier is known
 before a patch is provided, it is desirable to mention it in the commit
-message, though.
+message if the reporter agrees.
 
 Non-disclosure agreements
 -------------------------

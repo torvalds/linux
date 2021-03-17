@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * max98088.c -- MAX98088 ALSA SoC Audio driver
  *
  * Copyright 2010 Maxim Integrated Products
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -16,6 +13,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -42,6 +40,7 @@ struct max98088_priv {
 	struct regmap *regmap;
 	enum max98088_type devtype;
 	struct max98088_pdata *pdata;
+	struct clk *mclk;
 	unsigned int sysclk;
 	struct max98088_cdata dai[2];
 	int eq_textcnt;
@@ -997,7 +996,7 @@ static int max98088_dai1_hw_params(struct snd_pcm_substream *substream,
        cdata->rate = rate;
 
        /* Configure NI when operating as master */
-       if (snd_soc_component_read32(component, M98088_REG_14_DAI1_FORMAT)
+       if (snd_soc_component_read(component, M98088_REG_14_DAI1_FORMAT)
                & M98088_DAI_MAS) {
                if (max98088->sysclk == 0) {
                        dev_err(component->dev, "Invalid system clock frequency\n");
@@ -1064,7 +1063,7 @@ static int max98088_dai2_hw_params(struct snd_pcm_substream *substream,
        cdata->rate = rate;
 
        /* Configure NI when operating as master */
-       if (snd_soc_component_read32(component, M98088_REG_1C_DAI2_FORMAT)
+       if (snd_soc_component_read(component, M98088_REG_1C_DAI2_FORMAT)
                & M98088_DAI_MAS) {
                if (max98088->sysclk == 0) {
                        dev_err(component->dev, "Invalid system clock frequency\n");
@@ -1103,6 +1102,11 @@ static int max98088_dai_set_sysclk(struct snd_soc_dai *dai,
        if (freq == max98088->sysclk)
                return 0;
 
+	if (!IS_ERR(max98088->mclk)) {
+		freq = clk_round_rate(max98088->mclk, freq);
+		clk_set_rate(max98088->mclk, freq);
+	}
+
        /* Setup clocks for slave mode, and using the PLL
         * PSCLK = 0x01 (when master clk is 10MHz to 20MHz)
         *         0x02 (when master clk is 20MHz to 30MHz)..
@@ -1116,7 +1120,7 @@ static int max98088_dai_set_sysclk(struct snd_soc_dai *dai,
                return -EINVAL;
        }
 
-       if (snd_soc_component_read32(component, M98088_REG_51_PWR_SYS)  & M98088_SHDNRUN) {
+       if (snd_soc_component_read(component, M98088_REG_51_PWR_SYS)  & M98088_SHDNRUN) {
                snd_soc_component_update_bits(component, M98088_REG_51_PWR_SYS,
                        M98088_SHDNRUN, 0);
                snd_soc_component_update_bits(component, M98088_REG_51_PWR_SYS,
@@ -1270,7 +1274,8 @@ static int max98088_dai2_set_fmt(struct snd_soc_dai *codec_dai,
        return 0;
 }
 
-static int max98088_dai1_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int max98088_dai1_mute(struct snd_soc_dai *codec_dai, int mute,
+			      int direction)
 {
        struct snd_soc_component *component = codec_dai->component;
        int reg;
@@ -1285,7 +1290,8 @@ static int max98088_dai1_digital_mute(struct snd_soc_dai *codec_dai, int mute)
        return 0;
 }
 
-static int max98088_dai2_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int max98088_dai2_mute(struct snd_soc_dai *codec_dai, int mute,
+			      int direction)
 {
        struct snd_soc_component *component = codec_dai->component;
        int reg;
@@ -1310,6 +1316,20 @@ static int max98088_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
+		/*
+		 * SND_SOC_BIAS_PREPARE is called while preparing for a
+		 * transition to ON or away from ON. If current bias_level
+		 * is SND_SOC_BIAS_ON, then it is preparing for a transition
+		 * away from ON. Disable the clock in that case, otherwise
+		 * enable it.
+		 */
+		if (!IS_ERR(max98088->mclk)) {
+			if (snd_soc_component_get_bias_level(component) ==
+			    SND_SOC_BIAS_ON)
+				clk_disable_unprepare(max98088->mclk);
+			else
+				clk_prepare_enable(max98088->mclk);
+		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -1336,14 +1356,16 @@ static const struct snd_soc_dai_ops max98088_dai1_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai1_set_fmt,
        .hw_params = max98088_dai1_hw_params,
-       .digital_mute = max98088_dai1_digital_mute,
+       .mute_stream = max98088_dai1_mute,
+       .no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops max98088_dai2_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai2_set_fmt,
        .hw_params = max98088_dai2_hw_params,
-       .digital_mute = max98088_dai2_digital_mute,
+       .mute_stream = max98088_dai2_mute,
+       .no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver max98088_dai[] = {
@@ -1422,7 +1444,7 @@ static void max98088_setup_eq1(struct snd_soc_component *component)
                pdata->eq_cfg[best].rate, fs);
 
        /* Disable EQ while configuring, and save current on/off state */
-       save = snd_soc_component_read32(component, M98088_REG_49_CFG_LEVEL);
+       save = snd_soc_component_read(component, M98088_REG_49_CFG_LEVEL);
        snd_soc_component_update_bits(component, M98088_REG_49_CFG_LEVEL, M98088_EQ1EN, 0);
 
        coef_set = &pdata->eq_cfg[sel];
@@ -1469,7 +1491,7 @@ static void max98088_setup_eq2(struct snd_soc_component *component)
                pdata->eq_cfg[best].rate, fs);
 
        /* Disable EQ while configuring, and save current on/off state */
-       save = snd_soc_component_read32(component, M98088_REG_49_CFG_LEVEL);
+       save = snd_soc_component_read(component, M98088_REG_49_CFG_LEVEL);
        snd_soc_component_update_bits(component, M98088_REG_49_CFG_LEVEL, M98088_EQ2EN, 0);
 
        coef_set = &pdata->eq_cfg[sel];
@@ -1655,7 +1677,7 @@ static int max98088_probe(struct snd_soc_component *component)
        max98088->mic1pre = 0;
        max98088->mic2pre = 0;
 
-       ret = snd_soc_component_read32(component, M98088_REG_FF_REV_ID);
+       ret = snd_soc_component_read(component, M98088_REG_FF_REV_ID);
        if (ret < 0) {
                dev_err(component->dev, "Failed to read device revision: %d\n",
                        ret);
@@ -1725,6 +1747,11 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
        if (IS_ERR(max98088->regmap))
 	       return PTR_ERR(max98088->regmap);
 
+	max98088->mclk = devm_clk_get(&i2c->dev, "mclk");
+	if (IS_ERR(max98088->mclk))
+		if (PTR_ERR(max98088->mclk) == -EPROBE_DEFER)
+			return PTR_ERR(max98088->mclk);
+
        max98088->devtype = id->driver_data;
 
        i2c_set_clientdata(i2c, max98088);
@@ -1742,9 +1769,19 @@ static const struct i2c_device_id max98088_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
 
+#if defined(CONFIG_OF)
+static const struct of_device_id max98088_of_match[] = {
+	{ .compatible = "maxim,max98088" },
+	{ .compatible = "maxim,max98089" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max98088_of_match);
+#endif
+
 static struct i2c_driver max98088_i2c_driver = {
 	.driver = {
 		.name = "max98088",
+		.of_match_table = of_match_ptr(max98088_of_match),
 	},
 	.probe  = max98088_i2c_probe,
 	.id_table = max98088_i2c_id,

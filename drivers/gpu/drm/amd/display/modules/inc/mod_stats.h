@@ -36,7 +36,13 @@ struct mod_stats_caps {
 	bool dummy;
 };
 
-struct mod_stats *mod_stats_create(struct dc *dc);
+struct mod_stats_init_params {
+	unsigned int stats_enable;
+	unsigned int stats_entries;
+};
+
+struct mod_stats *mod_stats_create(struct dc *dc,
+		struct mod_stats_init_params *init_params);
 
 void mod_stats_destroy(struct mod_stats *mod_stats);
 

@@ -1,7 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Copyright (C) 2015 John Crispin <john@phrozen.org>
  */
@@ -32,7 +30,5 @@
 
 #define MT7621_CHIP_NAME0		0x3637544D
 #define MT7621_CHIP_NAME1		0x20203132
-
-#define MIPS_GIC_IRQ_BASE           (MIPS_CPU_IRQ_BASE + 8)
 
 #endif

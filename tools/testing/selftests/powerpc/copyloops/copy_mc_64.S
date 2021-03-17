@@ -1,0 +1,1 @@
+../../../../../arch/powerpc/lib/copy_mc_64.S

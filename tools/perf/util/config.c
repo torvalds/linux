@@ -11,18 +11,23 @@
  */
 #include <errno.h>
 #include <sys/param.h>
-#include "util.h"
 #include "cache.h"
+#include "callchain.h"
 #include <subcmd/exec-cmd.h>
+#include "util/event.h"  /* proc_map_timeout */
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
+#include "util/stat.h"  /* perf_stat__set_big_num */
+#include "build-id.h"
+#include "debug.h"
 #include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <linux/string.h>
-
-#include "sane_ctype.h"
+#include <linux/zalloc.h>
+#include <linux/ctype.h>
 
 #define MAXNAME (256)
 
@@ -369,6 +374,18 @@ int perf_config_int(int *dest, const char *name, const char *value)
 	return 0;
 }
 
+int perf_config_u8(u8 *dest, const char *name, const char *value)
+{
+	long ret = 0;
+
+	if (!perf_parse_long(value, &ret)) {
+		bad_config(name);
+		return -1;
+	}
+	*dest = ret;
+	return 0;
+}
+
 static int perf_config_bool_or_int(const char *name, const char *value, int *is_bool)
 {
 	int ret;
@@ -419,6 +436,9 @@ static int perf_buildid_config(const char *var, const char *value)
 static int perf_default_core_config(const char *var __maybe_unused,
 				    const char *value __maybe_unused)
 {
+	if (!strcmp(var, "core.proc-map-timeout"))
+		proc_map_timeout = strtoul(value, NULL, 10);
+
 	/* Add other config variables here. */
 	return 0;
 }
@@ -429,6 +449,15 @@ static int perf_ui_config(const char *var, const char *value)
 	if (!strcmp(var, "ui.show-headers"))
 		symbol_conf.show_hist_headers = perf_config_bool(var, value);
 
+	return 0;
+}
+
+static int perf_stat_config(const char *var, const char *value)
+{
+	if (!strcmp(var, "stat.big-num"))
+		perf_stat__set_big_num(perf_config_bool(var, value));
+
+	/* Add other config variables here. */
 	return 0;
 }
 
@@ -453,11 +482,14 @@ int perf_default_config(const char *var, const char *value,
 	if (strstarts(var, "buildid."))
 		return perf_buildid_config(var, value);
 
+	if (strstarts(var, "stat."))
+		return perf_stat_config(var, value);
+
 	/* Add other config variables here. */
 	return 0;
 }
 
-static int perf_config_from_file(config_fn_t fn, const char *filename, void *data)
+int perf_config_from_file(config_fn_t fn, const char *filename, void *data)
 {
 	int ret;
 	FILE *f = fopen(filename, "r");
@@ -628,11 +660,10 @@ static int collect_config(const char *var, const char *value,
 	}
 
 	ret = set_value(item, value);
-	return ret;
 
 out_free:
 	free(key);
-	return -1;
+	return ret;
 }
 
 int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
@@ -735,11 +766,15 @@ int perf_config(config_fn_t fn, void *data)
 			if (ret < 0) {
 				pr_err("Error: wrong config key-value pair %s=%s\n",
 				       key, value);
-				break;
+				/*
+				 * Can't be just a 'break', as perf_config_set__for_each_entry()
+				 * expands to two nested for() loops.
+				 */
+				goto out;
 			}
 		}
 	}
-
+out:
 	return ret;
 }
 
@@ -811,14 +846,14 @@ int config_error_nonbool(const char *var)
 void set_buildid_dir(const char *dir)
 {
 	if (dir)
-		scnprintf(buildid_dir, MAXPATHLEN-1, "%s", dir);
+		scnprintf(buildid_dir, MAXPATHLEN, "%s", dir);
 
 	/* default to $HOME/.debug */
 	if (buildid_dir[0] == '\0') {
 		char *home = getenv("HOME");
 
 		if (home) {
-			snprintf(buildid_dir, MAXPATHLEN-1, "%s/%s",
+			snprintf(buildid_dir, MAXPATHLEN, "%s/%s",
 				 home, DEBUG_CACHE_DIR);
 		} else {
 			strncpy(buildid_dir, DEBUG_CACHE_DIR, MAXPATHLEN-1);

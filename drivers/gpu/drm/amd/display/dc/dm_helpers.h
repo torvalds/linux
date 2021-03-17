@@ -35,6 +35,29 @@
 
 struct dp_mst_stream_allocation_table;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+/*
+ * Allocate memory accessible by the GPU
+ *
+ * frame buffer allocations must be aligned to a 4096-byte boundary
+ *
+ * Returns virtual address, sets addr to physical address
+ */
+void *dm_helpers_allocate_gpu_mem(
+		struct dc_context *ctx,
+		enum dc_gpu_mem_alloc_type type,
+		size_t size,
+		long long *addr);
+
+/*
+ * Free the GPU-accessible memory at the virtual address pvMem
+ */
+void dm_helpers_free_gpu_mem(
+		struct dc_context *ctx,
+		enum dc_gpu_mem_alloc_type type,
+		void *pvMem);
+
+#endif
 enum dc_edid_status dm_helpers_parse_edid_caps(
 	struct dc_context *ctx,
 	const struct dc_edid *edid,
@@ -58,6 +81,13 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		bool enable);
 
 /*
+ * poll pending down reply
+ */
+void dm_helpers_dp_mst_poll_pending_down_reply(
+	struct dc_context *ctx,
+	const struct dc_link *link);
+
+/*
  * Clear payload allocation table before enable MST DP link.
  */
 void dm_helpers_dp_mst_clear_payload_allocation_table(
@@ -67,7 +97,7 @@ void dm_helpers_dp_mst_clear_payload_allocation_table(
 /*
  * Polls for ACT (allocation change trigger) handled and
  */
-bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
+enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream);
 /*
@@ -111,6 +141,11 @@ bool dm_helpers_submit_i2c(
 		const struct dc_link *link,
 		struct i2c_command *cmd);
 
+bool dm_helpers_dp_write_dsc_enable(
+		struct dc_context *ctx,
+		const struct dc_stream_state *stream,
+		bool enable
+);
 bool dm_helpers_is_dp_sink_present(
 		struct dc_link *link);
 

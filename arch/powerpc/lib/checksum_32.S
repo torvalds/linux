@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains assembly-language implementations
  * of IP-style 1's complement checksum routines.
  *	
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * Severely hacked about by Paul Mackerras (paulus@cs.anu.edu.au).
  */
@@ -82,12 +78,10 @@ EXPORT_SYMBOL(__csum_partial)
 
 /*
  * Computes the checksum of a memory block at src, length len,
- * and adds in "sum" (32-bit), while copying the block to dst.
- * If an access exception occurs on src or dst, it stores -EFAULT
- * to *src_err or *dst_err respectively, and (for an error on
- * src) zeroes the rest of dst.
+ * and adds in 0xffffffff, while copying the block to dst.
+ * If an access exception occurs it returns zero.
  *
- * csum_partial_copy_generic(src, dst, len, sum, src_err, dst_err)
+ * csum_partial_copy_generic(src, dst, len)
  */
 #define CSUM_COPY_16_BYTES_WITHEX(n)	\
 8 ## n ## 0:			\
@@ -112,14 +106,14 @@ EXPORT_SYMBOL(__csum_partial)
 	adde	r12,r12,r10
 
 #define CSUM_COPY_16_BYTES_EXCODE(n)		\
-	EX_TABLE(8 ## n ## 0b, src_error);	\
-	EX_TABLE(8 ## n ## 1b, src_error);	\
-	EX_TABLE(8 ## n ## 2b, src_error);	\
-	EX_TABLE(8 ## n ## 3b, src_error);	\
-	EX_TABLE(8 ## n ## 4b, dst_error);	\
-	EX_TABLE(8 ## n ## 5b, dst_error);	\
-	EX_TABLE(8 ## n ## 6b, dst_error);	\
-	EX_TABLE(8 ## n ## 7b, dst_error);
+	EX_TABLE(8 ## n ## 0b, fault);	\
+	EX_TABLE(8 ## n ## 1b, fault);	\
+	EX_TABLE(8 ## n ## 2b, fault);	\
+	EX_TABLE(8 ## n ## 3b, fault);	\
+	EX_TABLE(8 ## n ## 4b, fault);	\
+	EX_TABLE(8 ## n ## 5b, fault);	\
+	EX_TABLE(8 ## n ## 6b, fault);	\
+	EX_TABLE(8 ## n ## 7b, fault);
 
 	.text
 	.stabs	"arch/powerpc/lib/",N_SO,0,0,0f
@@ -131,11 +125,8 @@ LG_CACHELINE_BYTES = L1_CACHE_SHIFT
 CACHELINE_MASK = (L1_CACHE_BYTES-1)
 
 _GLOBAL(csum_partial_copy_generic)
-	stwu	r1,-16(r1)
-	stw	r7,12(r1)
-	stw	r8,8(r1)
-
-	addic	r12,r6,0
+	li	r12,-1
+	addic	r0,r0,0			/* clear carry */
 	addi	r6,r4,-4
 	neg	r0,r4
 	addi	r4,r3,-4
@@ -245,39 +236,23 @@ _GLOBAL(csum_partial_copy_generic)
 	slwi	r0,r0,8
 	adde	r12,r12,r0
 66:	addze	r3,r12
-	addi	r1,r1,16
 	beqlr+	cr7
 	rlwinm	r3,r3,8,0,31	/* odd destination address: rotate one byte */
 	blr
 
-/* read fault */
-src_error:
-	lwz	r7,12(r1)
-	addi	r1,r1,16
-	cmpwi	cr0,r7,0
-	beqlr
-	li	r0,-EFAULT
-	stw	r0,0(r7)
-	blr
-/* write fault */
-dst_error:
-	lwz	r8,8(r1)
-	addi	r1,r1,16
-	cmpwi	cr0,r8,0
-	beqlr
-	li	r0,-EFAULT
-	stw	r0,0(r8)
+fault:
+	li	r3,0
 	blr
 
-	EX_TABLE(70b, src_error);
-	EX_TABLE(71b, dst_error);
-	EX_TABLE(72b, src_error);
-	EX_TABLE(73b, dst_error);
-	EX_TABLE(54b, dst_error);
+	EX_TABLE(70b, fault);
+	EX_TABLE(71b, fault);
+	EX_TABLE(72b, fault);
+	EX_TABLE(73b, fault);
+	EX_TABLE(54b, fault);
 
 /*
  * this stuff handles faults in the cacheline loop and branches to either
- * src_error (if in read part) or dst_error (if in write part)
+ * fault (if in read part) or fault (if in write part)
  */
 	CSUM_COPY_16_BYTES_EXCODE(0)
 #if L1_CACHE_BYTES >= 32
@@ -294,12 +269,12 @@ dst_error:
 #endif
 #endif
 
-	EX_TABLE(30b, src_error);
-	EX_TABLE(31b, dst_error);
-	EX_TABLE(40b, src_error);
-	EX_TABLE(41b, dst_error);
-	EX_TABLE(50b, src_error);
-	EX_TABLE(51b, dst_error);
+	EX_TABLE(30b, fault);
+	EX_TABLE(31b, fault);
+	EX_TABLE(40b, fault);
+	EX_TABLE(41b, fault);
+	EX_TABLE(50b, fault);
+	EX_TABLE(51b, fault);
 
 EXPORT_SYMBOL(csum_partial_copy_generic)
 

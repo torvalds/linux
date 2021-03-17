@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
+# see Documentation/kbuild/kconfig-language.rst.
 #
 # Parport configuration.
 #
@@ -14,7 +15,7 @@ config ARCH_MIGHT_HAVE_PC_PARPORT
 menuconfig PARPORT
 	tristate "Parallel port support"
 	depends on HAS_IOMEM
-	---help---
+	help
 	  If you want to use devices connected to your machine's parallel port
 	  (the connector at the computer with 25 holes), e.g. printer, ZIP
 	  drive, PLIP link (Parallel Line Internet Protocol is mainly used to

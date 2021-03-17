@@ -39,7 +39,7 @@ struct tpacket_kbdq_core {
 	char		*nxt_offset;
 	struct sk_buff	*skb;
 
-	atomic_t	blk_fill_in_prog;
+	rwlock_t	blk_fill_in_prog_lock;
 
 	/* Default is set to 8ms */
 #define DEFAULT_PRB_RETIRE_TOV	(8)
@@ -70,7 +70,10 @@ struct packet_ring_buffer {
 
 	unsigned int __percpu	*pending_refcnt;
 
-	struct tpacket_kbdq_core	prb_bdqc;
+	union {
+		unsigned long			*rx_owner_map;
+		struct tpacket_kbdq_core	prb_bdqc;
+	};
 };
 
 extern struct mutex fanout_mutex;
@@ -128,9 +131,11 @@ struct packet_sock {
 	unsigned int		tp_hdrlen;
 	unsigned int		tp_reserve;
 	unsigned int		tp_tstamp;
+	struct completion	skb_completion;
 	struct net_device __rcu	*cached_dev;
 	int			(*xmit)(struct sk_buff *skb);
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
+	atomic_t		tp_drops ____cacheline_aligned_in_smp;
 };
 
 static struct packet_sock *pkt_sk(struct sock *sk)

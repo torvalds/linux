@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Nano River Technologies viperboard GPIO lib driver
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
  *  All rights reserved.
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the	License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -19,9 +14,8 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-
 #include <linux/usb.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #include <linux/mfd/viperboard.h>
 
@@ -85,7 +79,7 @@ MODULE_PARM_DESC(gpioa_freq,
 /* ----- begin of gipo a chip -------------------------------------------- */
 
 static int vprbrd_gpioa_get(struct gpio_chip *chip,
-		unsigned offset)
+		unsigned int offset)
 {
 	int ret, answer, error = 0;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -135,7 +129,7 @@ static int vprbrd_gpioa_get(struct gpio_chip *chip,
 }
 
 static void vprbrd_gpioa_set(struct gpio_chip *chip,
-		unsigned offset, int value)
+		unsigned int offset, int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -176,7 +170,7 @@ static void vprbrd_gpioa_set(struct gpio_chip *chip,
 }
 
 static int vprbrd_gpioa_direction_input(struct gpio_chip *chip,
-			unsigned offset)
+			unsigned int offset)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -213,7 +207,7 @@ static int vprbrd_gpioa_direction_input(struct gpio_chip *chip,
 }
 
 static int vprbrd_gpioa_direction_output(struct gpio_chip *chip,
-			unsigned offset, int value)
+			unsigned int offset, int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -257,8 +251,8 @@ static int vprbrd_gpioa_direction_output(struct gpio_chip *chip,
 
 /* ----- begin of gipo b chip -------------------------------------------- */
 
-static int vprbrd_gpiob_setdir(struct vprbrd *vb, unsigned offset,
-	unsigned dir)
+static int vprbrd_gpiob_setdir(struct vprbrd *vb, unsigned int offset,
+	unsigned int dir)
 {
 	struct vprbrd_gpiob_msg *gbmsg = (struct vprbrd_gpiob_msg *)vb->buf;
 	int ret;
@@ -279,7 +273,7 @@ static int vprbrd_gpiob_setdir(struct vprbrd *vb, unsigned offset,
 }
 
 static int vprbrd_gpiob_get(struct gpio_chip *chip,
-		unsigned offset)
+		unsigned int offset)
 {
 	int ret;
 	u16 val;
@@ -311,7 +305,7 @@ static int vprbrd_gpiob_get(struct gpio_chip *chip,
 }
 
 static void vprbrd_gpiob_set(struct gpio_chip *chip,
-		unsigned offset, int value)
+		unsigned int offset, int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -344,7 +338,7 @@ static void vprbrd_gpiob_set(struct gpio_chip *chip,
 }
 
 static int vprbrd_gpiob_direction_input(struct gpio_chip *chip,
-			unsigned offset)
+			unsigned int offset)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -365,7 +359,7 @@ static int vprbrd_gpiob_direction_input(struct gpio_chip *chip,
 }
 
 static int vprbrd_gpiob_direction_output(struct gpio_chip *chip,
-			unsigned offset, int value)
+			unsigned int offset, int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);

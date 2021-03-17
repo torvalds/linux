@@ -1,34 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/skbuff.h>
@@ -146,8 +119,7 @@ void retransmit_timer(struct timer_list *t)
 	}
 }
 
-void rxe_comp_queue_pkt(struct rxe_dev *rxe, struct rxe_qp *qp,
-			struct sk_buff *skb)
+void rxe_comp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb)
 {
 	int must_sched;
 
@@ -155,7 +127,8 @@ void rxe_comp_queue_pkt(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	must_sched = skb_queue_len(&qp->resp_pkts) > 1;
 	if (must_sched != 0)
-		rxe_counter_inc(rxe, RXE_CNT_COMPLETER_SCHED);
+		rxe_counter_inc(SKB_TO_PKT(skb)->rxe, RXE_CNT_COMPLETER_SCHED);
+
 	rxe_run_task(&qp->comp.task, must_sched);
 }
 
@@ -191,6 +164,7 @@ static inline void reset_retry_counters(struct rxe_qp *qp)
 {
 	qp->comp.retry_cnt = qp->attr.retry_cnt;
 	qp->comp.rnr_retry = qp->attr.rnr_retry;
+	qp->comp.started_retry = 0;
 }
 
 static inline enum comp_state check_psn(struct rxe_qp *qp,
@@ -253,6 +227,17 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 	case IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE:
 		if (pkt->opcode != IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE &&
 		    pkt->opcode != IB_OPCODE_RC_RDMA_READ_RESPONSE_LAST) {
+			/* read retries of partial data may restart from
+			 * read response first or response only.
+			 */
+			if ((pkt->psn == wqe->first_psn &&
+			     pkt->opcode ==
+			     IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST) ||
+			    (wqe->first_psn == wqe->last_psn &&
+			     pkt->opcode ==
+			     IB_OPCODE_RC_RDMA_READ_RESPONSE_ONLY))
+				break;
+
 			return COMPST_ERROR;
 		}
 		break;
@@ -270,7 +255,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 		if ((syn & AETH_TYPE_MASK) != AETH_ACK)
 			return COMPST_ERROR;
 
-		/* fall through */
+		fallthrough;
 		/* (IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE doesn't have an AETH)
 		 */
 	case IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE:
@@ -317,7 +302,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 					qp->comp.psn = pkt->psn;
 					if (qp->req.wait_psn) {
 						qp->req.wait_psn = 0;
-						rxe_run_task(&qp->req.task, 1);
+						rxe_run_task(&qp->req.task, 0);
 					}
 				}
 				return COMPST_ERROR_RETRY;
@@ -427,6 +412,7 @@ static void make_send_cqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
  */
 static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 {
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	struct rxe_cqe cqe;
 
 	if ((qp->sq_sig_type == IB_SIGNAL_ALL_WR) ||
@@ -439,13 +425,18 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 		advance_consumer(qp->sq.queue);
 	}
 
+	if (wqe->wr.opcode == IB_WR_SEND ||
+	    wqe->wr.opcode == IB_WR_SEND_WITH_IMM ||
+	    wqe->wr.opcode == IB_WR_SEND_WITH_INV)
+		rxe_counter_inc(rxe, RXE_CNT_RDMA_SEND);
+
 	/*
 	 * we completed something so let req run again
 	 * if it is trying to fence
 	 */
 	if (qp->req.wait_fence) {
 		qp->req.wait_fence = 0;
-		rxe_run_task(&qp->req.task, 1);
+		rxe_run_task(&qp->req.task, 0);
 	}
 }
 
@@ -461,7 +452,7 @@ static inline enum comp_state complete_ack(struct rxe_qp *qp,
 		if (qp->req.need_rd_atomic) {
 			qp->comp.timeout_retry = 0;
 			qp->req.need_rd_atomic = 0;
-			rxe_run_task(&qp->req.task, 1);
+			rxe_run_task(&qp->req.task, 0);
 		}
 	}
 
@@ -499,11 +490,11 @@ static inline enum comp_state complete_wqe(struct rxe_qp *qp,
 					   struct rxe_pkt_info *pkt,
 					   struct rxe_send_wqe *wqe)
 {
-	qp->comp.opcode = -1;
-
-	if (pkt) {
-		if (psn_compare(pkt->psn, qp->comp.psn) >= 0)
-			qp->comp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
+	if (pkt && wqe->state == wqe_state_pending) {
+		if (psn_compare(wqe->last_psn, qp->comp.psn) >= 0) {
+			qp->comp.psn = (wqe->last_psn + 1) & BTH_PSN_MASK;
+			qp->comp.opcode = -1;
+		}
 
 		if (qp->req.wait_psn) {
 			qp->req.wait_psn = 0;
@@ -540,7 +531,7 @@ int rxe_completer(void *arg)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)arg;
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-	struct rxe_send_wqe *wqe = wqe;
+	struct rxe_send_wqe *wqe = NULL;
 	struct sk_buff *skb = NULL;
 	struct rxe_pkt_info *pkt = NULL;
 	enum comp_state state;
@@ -672,8 +663,21 @@ int rxe_completer(void *arg)
 			 */
 
 			/* there is nothing to retry in this case */
-			if (!wqe || (wqe->state == wqe_state_posted)) {
+			if (!wqe || (wqe->state == wqe_state_posted))
 				goto exit;
+
+			/* if we've started a retry, don't start another
+			 * retry sequence, unless this is a timeout.
+			 */
+			if (qp->comp.started_retry &&
+			    !qp->comp.timeout_retry) {
+				if (pkt) {
+					rxe_drop_ref(pkt->qp);
+					kfree_skb(skb);
+					skb = NULL;
+				}
+
+				goto done;
 			}
 
 			if (qp->comp.retry_cnt > 0) {
@@ -692,7 +696,8 @@ int rxe_completer(void *arg)
 					rxe_counter_inc(rxe,
 							RXE_CNT_COMP_RETRY);
 					qp->req.need_retry = 1;
-					rxe_run_task(&qp->req.task, 1);
+					qp->comp.started_retry = 1;
+					rxe_run_task(&qp->req.task, 0);
 				}
 
 				if (pkt) {
@@ -701,7 +706,7 @@ int rxe_completer(void *arg)
 					skb = NULL;
 				}
 
-				goto exit;
+				goto done;
 
 			} else {
 				rxe_counter_inc(rxe, RXE_CNT_RETRY_EXCEEDED);

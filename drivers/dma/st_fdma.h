@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * DMA driver header for STMicroelectronics STi FDMA controller
  *
  * Copyright (C) 2014 STMicroelectronics
  *
  * Author: Ludovic Barre <Ludovic.barre@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef __DMA_ST_FDMA_H
 #define __DMA_ST_FDMA_H

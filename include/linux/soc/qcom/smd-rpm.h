@@ -10,6 +10,7 @@ struct qcom_smd_rpm;
 /*
  * Constants used for addressing resources in the RPM.
  */
+#define QCOM_SMD_RPM_BBYB	0x62796262
 #define QCOM_SMD_RPM_BOBB	0x62626f62
 #define QCOM_SMD_RPM_BOOST	0x61747362
 #define QCOM_SMD_RPM_BUS_CLK	0x316b6c63
@@ -18,6 +19,10 @@ struct qcom_smd_rpm;
 #define QCOM_SMD_RPM_CLK_BUF_A	0x616B6C63
 #define QCOM_SMD_RPM_LDOA	0x616f646c
 #define QCOM_SMD_RPM_LDOB	0x626F646C
+#define QCOM_SMD_RPM_RWCX	0x78637772
+#define QCOM_SMD_RPM_RWMX	0x786d7772
+#define QCOM_SMD_RPM_RWLC	0x636c7772
+#define QCOM_SMD_RPM_RWLM	0x6d6c7772
 #define QCOM_SMD_RPM_MEM_CLK	0x326b6c63
 #define QCOM_SMD_RPM_MISC_CLK	0x306b6c63
 #define QCOM_SMD_RPM_NCPA	0x6170636E

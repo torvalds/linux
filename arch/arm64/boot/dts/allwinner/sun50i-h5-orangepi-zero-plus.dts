@@ -1,9 +1,6 @@
-/*
- * Copyright (C) 2016 ARM Ltd.
- * Copyright (C) 2018 Hauke Mehrtens <hauke@hauke-m.de>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR X11)
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2016 ARM Ltd.
+// Copyright (C) 2018 Hauke Mehrtens <hauke@hauke-m.de>
 
 /dts-v1/;
 #include "sun50i-h5.dtsi"
@@ -127,7 +124,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

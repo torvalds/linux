@@ -353,7 +353,7 @@ void __init hvc_opal_init_early(void)
 		if (!opal)
 			return;
 		for_each_child_of_node(opal, np) {
-			if (!strcmp(np->name, "serial")) {
+			if (of_node_name_eq(np, "serial")) {
 				stdout_node = np;
 				break;
 			}

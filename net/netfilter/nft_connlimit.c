@@ -30,7 +30,6 @@ static inline void nft_connlimit_do_eval(struct nft_connlimit *priv,
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn *ct;
 	unsigned int count;
-	bool addit;
 
 	tuple_ptr = &tuple;
 
@@ -44,19 +43,12 @@ static inline void nft_connlimit_do_eval(struct nft_connlimit *priv,
 		return;
 	}
 
-	nf_conncount_lookup(nft_net(pkt), &priv->list, tuple_ptr, zone,
-			    &addit);
-	count = priv->list.count;
-
-	if (!addit)
-		goto out;
-
-	if (nf_conncount_add(&priv->list, tuple_ptr, zone) == NF_CONNCOUNT_ERR) {
+	if (nf_conncount_add(nft_net(pkt), &priv->list, tuple_ptr, zone)) {
 		regs->verdict.code = NF_DROP;
 		return;
 	}
-	count++;
-out:
+
+	count = priv->list.count;
 
 	if ((count > priv->limit) ^ priv->invert) {
 		regs->verdict.code = NFT_BREAK;
@@ -226,8 +218,13 @@ static void nft_connlimit_destroy_clone(const struct nft_ctx *ctx,
 static bool nft_connlimit_gc(struct net *net, const struct nft_expr *expr)
 {
 	struct nft_connlimit *priv = nft_expr_priv(expr);
+	bool ret;
 
-	return nf_conncount_gc_list(net, &priv->list);
+	local_bh_disable();
+	ret = nf_conncount_gc_list(net, &priv->list);
+	local_bh_enable();
+
+	return ret;
 }
 
 static struct nft_expr_type nft_connlimit_type;
@@ -283,3 +280,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso");
 MODULE_ALIAS_NFT_EXPR("connlimit");
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CONNLIMIT);
+MODULE_DESCRIPTION("nftables connlimit rule support");

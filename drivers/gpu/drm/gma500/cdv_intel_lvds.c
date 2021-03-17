@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2006-2011 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
@@ -20,17 +8,18 @@
  *	Jesse Barnes <jesse.barnes@intel.com>
  */
 
-#include <linux/i2c.h>
 #include <linux/dmi.h>
-#include <drm/drmP.h>
+#include <linux/i2c.h>
+#include <linux/pm_runtime.h>
 
+#include <drm/drm_simple_kms_helper.h>
+
+#include "cdv_device.h"
 #include "intel_bios.h"
+#include "power.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "power.h"
-#include <linux/pm_runtime.h>
-#include "cdv_device.h"
 
 /**
  * LVDS I2C backlight control macros
@@ -84,89 +73,6 @@ static u32 cdv_intel_lvds_get_max_backlight(struct drm_device *dev)
 
 	return retval;
 }
-
-#if 0
-/*
- * Set LVDS backlight level by I2C command
- */
-static int cdv_lvds_i2c_set_brightness(struct drm_device *dev,
-					unsigned int level)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_i2c_chan *lvds_i2c_bus = dev_priv->lvds_i2c_bus;
-	u8 out_buf[2];
-	unsigned int blc_i2c_brightness;
-
-	struct i2c_msg msgs[] = {
-		{
-			.addr = lvds_i2c_bus->slave_addr,
-			.flags = 0,
-			.len = 2,
-			.buf = out_buf,
-		}
-	};
-
-	blc_i2c_brightness = BRIGHTNESS_MASK & ((unsigned int)level *
-			     BRIGHTNESS_MASK /
-			     BRIGHTNESS_MAX_LEVEL);
-
-	if (dev_priv->lvds_bl->pol == BLC_POLARITY_INVERSE)
-		blc_i2c_brightness = BRIGHTNESS_MASK - blc_i2c_brightness;
-
-	out_buf[0] = dev_priv->lvds_bl->brightnesscmd;
-	out_buf[1] = (u8)blc_i2c_brightness;
-
-	if (i2c_transfer(&lvds_i2c_bus->adapter, msgs, 1) == 1)
-		return 0;
-
-	DRM_ERROR("I2C transfer error\n");
-	return -1;
-}
-
-
-static int cdv_lvds_pwm_set_brightness(struct drm_device *dev, int level)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	u32 max_pwm_blc;
-	u32 blc_pwm_duty_cycle;
-
-	max_pwm_blc = cdv_intel_lvds_get_max_backlight(dev);
-
-	/*BLC_PWM_CTL Should be initiated while backlight device init*/
-	BUG_ON((max_pwm_blc & PSB_BLC_MAX_PWM_REG_FREQ) == 0);
-
-	blc_pwm_duty_cycle = level * max_pwm_blc / BRIGHTNESS_MAX_LEVEL;
-
-	if (dev_priv->lvds_bl->pol == BLC_POLARITY_INVERSE)
-		blc_pwm_duty_cycle = max_pwm_blc - blc_pwm_duty_cycle;
-
-	blc_pwm_duty_cycle &= PSB_BACKLIGHT_PWM_POLARITY_BIT_CLEAR;
-	REG_WRITE(BLC_PWM_CTL,
-		  (max_pwm_blc << PSB_BACKLIGHT_PWM_CTL_SHIFT) |
-		  (blc_pwm_duty_cycle));
-
-	return 0;
-}
-
-/*
- * Set LVDS backlight level either by I2C or PWM
- */
-void cdv_intel_lvds_set_brightness(struct drm_device *dev, int level)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	if (!dev_priv->lvds_bl) {
-		DRM_ERROR("NO LVDS Backlight Info\n");
-		return;
-	}
-
-	if (dev_priv->lvds_bl->type == BLC_I2C_TYPE)
-		cdv_lvds_i2c_set_brightness(dev, level);
-	else
-		cdv_lvds_pwm_set_brightness(dev, level);
-}
-#endif
 
 /**
  * Sets the backlight level.
@@ -512,16 +418,6 @@ static const struct drm_connector_funcs cdv_intel_lvds_connector_funcs = {
 	.destroy = cdv_intel_lvds_destroy,
 };
 
-
-static void cdv_intel_lvds_enc_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
-static const struct drm_encoder_funcs cdv_intel_lvds_enc_funcs = {
-	.destroy = cdv_intel_lvds_enc_destroy,
-};
-
 /*
  * Enumerate the child dev array parsed from VBT to check whether
  * the LVDS is present.
@@ -594,6 +490,9 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	int pipe;
 	u8 pin;
 
+	if (!dev_priv->lvds_enabled_in_vbt)
+		return;
+
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
 		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
@@ -626,10 +525,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 			   &cdv_intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
 
-	drm_encoder_init(dev, encoder,
-			 &cdv_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS, NULL);
-
+	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_LVDS);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 	gma_encoder->type = INTEL_OUTPUT_LVDS;

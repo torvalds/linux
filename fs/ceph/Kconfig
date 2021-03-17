@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CEPH_FS
 	tristate "Ceph distributed file system"
 	depends on INET
@@ -12,7 +13,7 @@ config CEPH_FS
 	  scalable file system designed to provide high performance,
 	  reliable access to petabytes of storage.
 
-	  More information at http://ceph.newdream.net/.
+	  More information at https://ceph.io/.
 
 	  If unsure, say N.
 
@@ -35,3 +36,15 @@ config CEPH_FS_POSIX_ACL
 	  groups beyond the owner/group/world scheme.
 
 	  If you don't know what Access Control Lists are, say N
+
+config CEPH_FS_SECURITY_LABEL
+	bool "CephFS Security Labels"
+	depends on CEPH_FS && SECURITY
+	help
+	  Security labels support alternative access control models
+	  implemented by security modules like SELinux. This option
+	  enables an extended attribute handler for file security
+	  labels in the Ceph filesystem.
+
+	  If you are not using a security module that requires using
+	  extended attributes for file security labels, say N.

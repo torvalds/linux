@@ -29,9 +29,9 @@ static ssize_t nsim_dbg_netdev_ops_read(struct file *filp,
 		return -ENOMEM;
 
 	p = buf;
-	p += snprintf(p, bufsize - (p - buf),
-		      "SA count=%u tx=%u\n",
-		      ipsec->count, ipsec->tx);
+	p += scnprintf(p, bufsize - (p - buf),
+		       "SA count=%u tx=%u\n",
+		       ipsec->count, ipsec->tx);
 
 	for (i = 0; i < NSIM_IPSEC_MAX_SA_COUNT; i++) {
 		struct nsim_sa *sap = &ipsec->sa[i];
@@ -39,18 +39,18 @@ static ssize_t nsim_dbg_netdev_ops_read(struct file *filp,
 		if (!sap->used)
 			continue;
 
-		p += snprintf(p, bufsize - (p - buf),
-			      "sa[%i] %cx ipaddr=0x%08x %08x %08x %08x\n",
-			      i, (sap->rx ? 'r' : 't'), sap->ipaddr[0],
-			      sap->ipaddr[1], sap->ipaddr[2], sap->ipaddr[3]);
-		p += snprintf(p, bufsize - (p - buf),
-			      "sa[%i]    spi=0x%08x proto=0x%x salt=0x%08x crypt=%d\n",
-			      i, be32_to_cpu(sap->xs->id.spi),
-			      sap->xs->id.proto, sap->salt, sap->crypt);
-		p += snprintf(p, bufsize - (p - buf),
-			      "sa[%i]    key=0x%08x %08x %08x %08x\n",
-			      i, sap->key[0], sap->key[1],
-			      sap->key[2], sap->key[3]);
+		p += scnprintf(p, bufsize - (p - buf),
+			       "sa[%i] %cx ipaddr=0x%08x %08x %08x %08x\n",
+			       i, (sap->rx ? 'r' : 't'), sap->ipaddr[0],
+			       sap->ipaddr[1], sap->ipaddr[2], sap->ipaddr[3]);
+		p += scnprintf(p, bufsize - (p - buf),
+			       "sa[%i]    spi=0x%08x proto=0x%x salt=0x%08x crypt=%d\n",
+			       i, be32_to_cpu(sap->xs->id.spi),
+			       sap->xs->id.proto, sap->salt, sap->crypt);
+		p += scnprintf(p, bufsize - (p - buf),
+			       "sa[%i]    key=0x%08x %08x %08x %08x\n",
+			       i, sap->key[0], sap->key[1],
+			       sap->key[2], sap->key[3]);
 	}
 
 	len = simple_read_from_buffer(buffer, count, ppos, buf, p - buf);
@@ -227,18 +227,19 @@ static const struct xfrmdev_ops nsim_xfrmdev_ops = {
 
 bool nsim_ipsec_tx(struct netdevsim *ns, struct sk_buff *skb)
 {
+	struct sec_path *sp = skb_sec_path(skb);
 	struct nsim_ipsec *ipsec = &ns->ipsec;
 	struct xfrm_state *xs;
 	struct nsim_sa *tsa;
 	u32 sa_idx;
 
 	/* do we even need to check this packet? */
-	if (!skb->sp)
+	if (!sp)
 		return true;
 
-	if (unlikely(!skb->sp->len)) {
+	if (unlikely(!sp->len)) {
 		netdev_err(ns->netdev, "no xfrm state len = %d\n",
-			   skb->sp->len);
+			   sp->len);
 		return false;
 	}
 
@@ -282,7 +283,8 @@ void nsim_ipsec_init(struct netdevsim *ns)
 	ns->netdev->features |= NSIM_ESP_FEATURES;
 	ns->netdev->hw_enc_features |= NSIM_ESP_FEATURES;
 
-	ns->ipsec.pfile = debugfs_create_file("ipsec", 0400, ns->ddir, ns,
+	ns->ipsec.pfile = debugfs_create_file("ipsec", 0400,
+					      ns->nsim_dev_port->ddir, ns,
 					      &ipsec_dbg_fops);
 }
 

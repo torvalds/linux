@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * Copyright (C) 2005 Brian Rogan <bcr6@cornell.edu>, IBM
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
 **/
 
-#include <linux/compat_time.h>
+#include <linux/time.h>
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
-#include <asm/compat.h>
+#include <linux/compat.h>
 #include <asm/oprofile_impl.h>
 
 #define STACK_SP(STACK)		*(STACK)
@@ -31,15 +28,13 @@ static unsigned int user_getsp32(unsigned int sp, int is_first)
 	unsigned int stack_frame[2];
 	void __user *p = compat_ptr(sp);
 
-	if (!access_ok(VERIFY_READ, p, sizeof(stack_frame)))
-		return 0;
-
 	/*
 	 * The most likely reason for this is that we returned -EFAULT,
 	 * which means that we've done all that we can do from
 	 * interrupt context.
 	 */
-	if (__copy_from_user_inatomic(stack_frame, p, sizeof(stack_frame)))
+	if (copy_from_user_nofault(stack_frame, (void __user *)p,
+			sizeof(stack_frame)))
 		return 0;
 
 	if (!is_first)
@@ -57,11 +52,8 @@ static unsigned long user_getsp64(unsigned long sp, int is_first)
 {
 	unsigned long stack_frame[3];
 
-	if (!access_ok(VERIFY_READ, (void __user *)sp, sizeof(stack_frame)))
-		return 0;
-
-	if (__copy_from_user_inatomic(stack_frame, (void __user *)sp,
-					sizeof(stack_frame)))
+	if (copy_from_user_nofault(stack_frame, (void __user *)sp,
+			sizeof(stack_frame)))
 		return 0;
 
 	if (!is_first)
@@ -106,7 +98,6 @@ void op_powerpc_backtrace(struct pt_regs * const regs, unsigned int depth)
 			first_frame = 0;
 		}
 	} else {
-		pagefault_disable();
 #ifdef CONFIG_PPC64
 		if (!is_32bit_task()) {
 			while (depth--) {
@@ -115,7 +106,6 @@ void op_powerpc_backtrace(struct pt_regs * const regs, unsigned int depth)
 					break;
 				first_frame = 0;
 			}
-			pagefault_enable();
 			return;
 		}
 #endif
@@ -126,6 +116,5 @@ void op_powerpc_backtrace(struct pt_regs * const regs, unsigned int depth)
 				break;
 			first_frame = 0;
 		}
-		pagefault_enable();
 	}
 }

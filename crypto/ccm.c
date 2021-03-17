@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CCM: Counter with CBC-MAC
  *
  * (C) Copyright IBM Corp. 2007 - Joy Latten <latten@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/aead.h>
@@ -19,8 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-
-#include "internal.h"
 
 struct ccm_instance_ctx {
 	struct crypto_skcipher_spawn ctr;
@@ -50,7 +43,10 @@ struct crypto_ccm_req_priv_ctx {
 	u32 flags;
 	struct scatterlist src[3];
 	struct scatterlist dst[3];
-	struct skcipher_request skreq;
+	union {
+		struct ahash_request ahreq;
+		struct skcipher_request skreq;
+	};
 };
 
 struct cbcmac_tfm_ctx {
@@ -93,26 +89,19 @@ static int crypto_ccm_setkey(struct crypto_aead *aead, const u8 *key,
 	struct crypto_ccm_ctx *ctx = crypto_aead_ctx(aead);
 	struct crypto_skcipher *ctr = ctx->ctr;
 	struct crypto_ahash *mac = ctx->mac;
-	int err = 0;
+	int err;
 
 	crypto_skcipher_clear_flags(ctr, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(ctr, crypto_aead_get_flags(aead) &
 				       CRYPTO_TFM_REQ_MASK);
 	err = crypto_skcipher_setkey(ctr, key, keylen);
-	crypto_aead_set_flags(aead, crypto_skcipher_get_flags(ctr) &
-			      CRYPTO_TFM_RES_MASK);
 	if (err)
-		goto out;
+		return err;
 
 	crypto_ahash_clear_flags(mac, CRYPTO_TFM_REQ_MASK);
 	crypto_ahash_set_flags(mac, crypto_aead_get_flags(aead) &
 				    CRYPTO_TFM_REQ_MASK);
-	err = crypto_ahash_setkey(mac, key, keylen);
-	crypto_aead_set_flags(aead, crypto_ahash_get_flags(mac) &
-			      CRYPTO_TFM_RES_MASK);
-
-out:
-	return err;
+	return crypto_ahash_setkey(mac, key, keylen);
 }
 
 static int crypto_ccm_setauthsize(struct crypto_aead *tfm,
@@ -181,7 +170,7 @@ static int crypto_ccm_auth(struct aead_request *req, struct scatterlist *plain,
 	struct crypto_ccm_req_priv_ctx *pctx = crypto_ccm_reqctx(req);
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct crypto_ccm_ctx *ctx = crypto_aead_ctx(aead);
-	AHASH_REQUEST_ON_STACK(ahreq, ctx->mac);
+	struct ahash_request *ahreq = &pctx->ahreq;
 	unsigned int assoclen = req->assoclen;
 	struct scatterlist sg[3];
 	u8 *odata = pctx->odata;
@@ -427,7 +416,7 @@ static int crypto_ccm_init_tfm(struct crypto_aead *tfm)
 	crypto_aead_set_reqsize(
 		tfm,
 		align + sizeof(struct crypto_ccm_req_priv_ctx) +
-		crypto_skcipher_reqsize(ctr));
+		max(crypto_ahash_reqsize(mac), crypto_skcipher_reqsize(ctr)));
 
 	return 0;
 
@@ -455,75 +444,63 @@ static void crypto_ccm_free(struct aead_instance *inst)
 
 static int crypto_ccm_create_common(struct crypto_template *tmpl,
 				    struct rtattr **tb,
-				    const char *full_name,
 				    const char *ctr_name,
 				    const char *mac_name)
 {
-	struct crypto_attr_type *algt;
+	u32 mask;
 	struct aead_instance *inst;
-	struct skcipher_alg *ctr;
-	struct crypto_alg *mac_alg;
-	struct hash_alg_common *mac;
 	struct ccm_instance_ctx *ictx;
+	struct skcipher_alg *ctr;
+	struct hash_alg_common *mac;
 	int err;
 
-	algt = crypto_get_attr_type(tb);
-	if (IS_ERR(algt))
-		return PTR_ERR(algt);
-
-	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
-		return -EINVAL;
-
-	mac_alg = crypto_find_alg(mac_name, &crypto_ahash_type,
-				  CRYPTO_ALG_TYPE_HASH,
-				  CRYPTO_ALG_TYPE_AHASH_MASK |
-				  CRYPTO_ALG_ASYNC);
-	if (IS_ERR(mac_alg))
-		return PTR_ERR(mac_alg);
-
-	mac = __crypto_hash_alg_common(mac_alg);
-	err = -EINVAL;
-	if (mac->digestsize != 16)
-		goto out_put_mac;
+	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_AEAD, &mask);
+	if (err)
+		return err;
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ictx), GFP_KERNEL);
-	err = -ENOMEM;
 	if (!inst)
-		goto out_put_mac;
-
+		return -ENOMEM;
 	ictx = aead_instance_ctx(inst);
-	err = crypto_init_ahash_spawn(&ictx->mac, mac,
-				      aead_crypto_instance(inst));
+
+	err = crypto_grab_ahash(&ictx->mac, aead_crypto_instance(inst),
+				mac_name, 0, mask | CRYPTO_ALG_ASYNC);
 	if (err)
 		goto err_free_inst;
+	mac = crypto_spawn_ahash_alg(&ictx->mac);
 
-	crypto_set_skcipher_spawn(&ictx->ctr, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher(&ictx->ctr, ctr_name, 0,
-				   crypto_requires_sync(algt->type,
-							algt->mask));
+	err = -EINVAL;
+	if (strncmp(mac->base.cra_name, "cbcmac(", 7) != 0 ||
+	    mac->digestsize != 16)
+		goto err_free_inst;
+
+	err = crypto_grab_skcipher(&ictx->ctr, aead_crypto_instance(inst),
+				   ctr_name, 0, mask);
 	if (err)
-		goto err_drop_mac;
-
+		goto err_free_inst;
 	ctr = crypto_spawn_skcipher_alg(&ictx->ctr);
 
-	/* Not a stream cipher? */
+	/* The skcipher algorithm must be CTR mode, using 16-byte blocks. */
 	err = -EINVAL;
-	if (ctr->base.cra_blocksize != 1)
-		goto err_drop_ctr;
+	if (strncmp(ctr->base.cra_name, "ctr(", 4) != 0 ||
+	    crypto_skcipher_alg_ivsize(ctr) != 16 ||
+	    ctr->base.cra_blocksize != 1)
+		goto err_free_inst;
 
-	/* We want the real thing! */
-	if (crypto_skcipher_alg_ivsize(ctr) != 16)
-		goto err_drop_ctr;
+	/* ctr and cbcmac must use the same underlying block cipher. */
+	if (strcmp(ctr->base.cra_name + 4, mac->base.cra_name + 7) != 0)
+		goto err_free_inst;
 
 	err = -ENAMETOOLONG;
+	if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
+		     "ccm(%s", ctr->base.cra_name + 4) >= CRYPTO_MAX_ALG_NAME)
+		goto err_free_inst;
+
 	if (snprintf(inst->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "ccm_base(%s,%s)", ctr->base.cra_driver_name,
 		     mac->base.cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
-		goto err_drop_ctr;
+		goto err_free_inst;
 
-	memcpy(inst->alg.base.cra_name, full_name, CRYPTO_MAX_ALG_NAME);
-
-	inst->alg.base.cra_flags = ctr->base.cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = (mac->base.cra_priority +
 				       ctr->base.cra_priority) / 2;
 	inst->alg.base.cra_blocksize = 1;
@@ -543,20 +520,11 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	inst->free = crypto_ccm_free;
 
 	err = aead_register_instance(tmpl, inst);
-	if (err)
-		goto err_drop_ctr;
-
-out_put_mac:
-	crypto_mod_put(mac_alg);
-	return err;
-
-err_drop_ctr:
-	crypto_drop_skcipher(&ictx->ctr);
-err_drop_mac:
-	crypto_drop_ahash(&ictx->mac);
+	if (err) {
 err_free_inst:
-	kfree(inst);
-	goto out_put_mac;
+		crypto_ccm_free(inst);
+	}
+	return err;
 }
 
 static int crypto_ccm_create(struct crypto_template *tmpl, struct rtattr **tb)
@@ -564,7 +532,6 @@ static int crypto_ccm_create(struct crypto_template *tmpl, struct rtattr **tb)
 	const char *cipher_name;
 	char ctr_name[CRYPTO_MAX_ALG_NAME];
 	char mac_name[CRYPTO_MAX_ALG_NAME];
-	char full_name[CRYPTO_MAX_ALG_NAME];
 
 	cipher_name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(cipher_name))
@@ -578,55 +545,31 @@ static int crypto_ccm_create(struct crypto_template *tmpl, struct rtattr **tb)
 		     cipher_name) >= CRYPTO_MAX_ALG_NAME)
 		return -ENAMETOOLONG;
 
-	if (snprintf(full_name, CRYPTO_MAX_ALG_NAME, "ccm(%s)", cipher_name) >=
-	    CRYPTO_MAX_ALG_NAME)
-		return -ENAMETOOLONG;
-
-	return crypto_ccm_create_common(tmpl, tb, full_name, ctr_name,
-					mac_name);
+	return crypto_ccm_create_common(tmpl, tb, ctr_name, mac_name);
 }
-
-static struct crypto_template crypto_ccm_tmpl = {
-	.name = "ccm",
-	.create = crypto_ccm_create,
-	.module = THIS_MODULE,
-};
 
 static int crypto_ccm_base_create(struct crypto_template *tmpl,
 				  struct rtattr **tb)
 {
 	const char *ctr_name;
-	const char *cipher_name;
-	char full_name[CRYPTO_MAX_ALG_NAME];
+	const char *mac_name;
 
 	ctr_name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(ctr_name))
 		return PTR_ERR(ctr_name);
 
-	cipher_name = crypto_attr_alg_name(tb[2]);
-	if (IS_ERR(cipher_name))
-		return PTR_ERR(cipher_name);
+	mac_name = crypto_attr_alg_name(tb[2]);
+	if (IS_ERR(mac_name))
+		return PTR_ERR(mac_name);
 
-	if (snprintf(full_name, CRYPTO_MAX_ALG_NAME, "ccm_base(%s,%s)",
-		     ctr_name, cipher_name) >= CRYPTO_MAX_ALG_NAME)
-		return -ENAMETOOLONG;
-
-	return crypto_ccm_create_common(tmpl, tb, full_name, ctr_name,
-					cipher_name);
+	return crypto_ccm_create_common(tmpl, tb, ctr_name, mac_name);
 }
-
-static struct crypto_template crypto_ccm_base_tmpl = {
-	.name = "ccm_base",
-	.create = crypto_ccm_base_create,
-	.module = THIS_MODULE,
-};
 
 static int crypto_rfc4309_setkey(struct crypto_aead *parent, const u8 *key,
 				 unsigned int keylen)
 {
 	struct crypto_rfc4309_ctx *ctx = crypto_aead_ctx(parent);
 	struct crypto_aead *child = ctx->child;
-	int err;
 
 	if (keylen < 3)
 		return -EINVAL;
@@ -637,11 +580,7 @@ static int crypto_rfc4309_setkey(struct crypto_aead *parent, const u8 *key,
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
 				     CRYPTO_TFM_REQ_MASK);
-	err = crypto_aead_setkey(child, key, keylen);
-	crypto_aead_set_flags(parent, crypto_aead_get_flags(child) &
-				      CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_aead_setkey(child, key, keylen);
 }
 
 static int crypto_rfc4309_setauthsize(struct crypto_aead *parent,
@@ -766,34 +705,25 @@ static void crypto_rfc4309_free(struct aead_instance *inst)
 static int crypto_rfc4309_create(struct crypto_template *tmpl,
 				 struct rtattr **tb)
 {
-	struct crypto_attr_type *algt;
+	u32 mask;
 	struct aead_instance *inst;
 	struct crypto_aead_spawn *spawn;
 	struct aead_alg *alg;
-	const char *ccm_name;
 	int err;
 
-	algt = crypto_get_attr_type(tb);
-	if (IS_ERR(algt))
-		return PTR_ERR(algt);
-
-	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
-		return -EINVAL;
-
-	ccm_name = crypto_attr_alg_name(tb[1]);
-	if (IS_ERR(ccm_name))
-		return PTR_ERR(ccm_name);
+	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_AEAD, &mask);
+	if (err)
+		return err;
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
 		return -ENOMEM;
 
 	spawn = aead_instance_ctx(inst);
-	crypto_set_aead_spawn(spawn, aead_crypto_instance(inst));
-	err = crypto_grab_aead(spawn, ccm_name, 0,
-			       crypto_requires_sync(algt->type, algt->mask));
+	err = crypto_grab_aead(spawn, aead_crypto_instance(inst),
+			       crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
-		goto out_free_inst;
+		goto err_free_inst;
 
 	alg = crypto_spawn_aead_alg(spawn);
 
@@ -801,11 +731,11 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 
 	/* We only support 16-byte blocks. */
 	if (crypto_aead_alg_ivsize(alg) != 16)
-		goto out_drop_alg;
+		goto err_free_inst;
 
 	/* Not a stream cipher? */
 	if (alg->base.cra_blocksize != 1)
-		goto out_drop_alg;
+		goto err_free_inst;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
@@ -814,9 +744,8 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 	    snprintf(inst->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "rfc4309(%s)", alg->base.cra_driver_name) >=
 	    CRYPTO_MAX_ALG_NAME)
-		goto out_drop_alg;
+		goto err_free_inst;
 
-	inst->alg.base.cra_flags = alg->base.cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = 1;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask;
@@ -838,24 +767,12 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 	inst->free = crypto_rfc4309_free;
 
 	err = aead_register_instance(tmpl, inst);
-	if (err)
-		goto out_drop_alg;
-
-out:
+	if (err) {
+err_free_inst:
+		crypto_rfc4309_free(inst);
+	}
 	return err;
-
-out_drop_alg:
-	crypto_drop_aead(spawn);
-out_free_inst:
-	kfree(inst);
-	goto out;
 }
-
-static struct crypto_template crypto_rfc4309_tmpl = {
-	.name = "rfc4309",
-	.create = crypto_rfc4309_create,
-	.module = THIS_MODULE,
-};
 
 static int crypto_cbcmac_digest_setkey(struct crypto_shash *parent,
 				     const u8 *inkey, unsigned int keylen)
@@ -924,7 +841,7 @@ static int cbcmac_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_cipher *cipher;
 	struct crypto_instance *inst = (void *)tfm->__crt_alg;
-	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
+	struct crypto_cipher_spawn *spawn = crypto_instance_ctx(inst);
 	struct cbcmac_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	cipher = crypto_spawn_cipher(spawn);
@@ -945,28 +862,29 @@ static void cbcmac_exit_tfm(struct crypto_tfm *tfm)
 static int cbcmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct shash_instance *inst;
+	struct crypto_cipher_spawn *spawn;
 	struct crypto_alg *alg;
+	u32 mask;
 	int err;
 
-	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SHASH);
+	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SHASH, &mask);
 	if (err)
 		return err;
 
-	alg = crypto_get_attr_alg(tb, CRYPTO_ALG_TYPE_CIPHER,
-				  CRYPTO_ALG_TYPE_MASK);
-	if (IS_ERR(alg))
-		return PTR_ERR(alg);
+	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+	spawn = shash_instance_ctx(inst);
 
-	inst = shash_alloc_instance("cbcmac", alg);
-	err = PTR_ERR(inst);
-	if (IS_ERR(inst))
-		goto out_put_alg;
-
-	err = crypto_init_spawn(shash_instance_ctx(inst), alg,
-				shash_crypto_instance(inst),
-				CRYPTO_ALG_TYPE_MASK);
+	err = crypto_grab_cipher(spawn, shash_crypto_instance(inst),
+				 crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
-		goto out_free_inst;
+		goto err_free_inst;
+	alg = crypto_spawn_cipher_alg(spawn);
+
+	err = crypto_inst_setname(shash_crypto_instance(inst), tmpl->name, alg);
+	if (err)
+		goto err_free_inst;
 
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = 1;
@@ -985,65 +903,49 @@ static int cbcmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.final = crypto_cbcmac_digest_final;
 	inst->alg.setkey = crypto_cbcmac_digest_setkey;
 
+	inst->free = shash_free_singlespawn_instance;
+
 	err = shash_register_instance(tmpl, inst);
-
-out_free_inst:
-	if (err)
-		shash_free_instance(shash_crypto_instance(inst));
-
-out_put_alg:
-	crypto_mod_put(alg);
+	if (err) {
+err_free_inst:
+		shash_free_singlespawn_instance(inst);
+	}
 	return err;
 }
 
-static struct crypto_template crypto_cbcmac_tmpl = {
-	.name = "cbcmac",
-	.create = cbcmac_create,
-	.free = shash_free_instance,
-	.module = THIS_MODULE,
+static struct crypto_template crypto_ccm_tmpls[] = {
+	{
+		.name = "cbcmac",
+		.create = cbcmac_create,
+		.module = THIS_MODULE,
+	}, {
+		.name = "ccm_base",
+		.create = crypto_ccm_base_create,
+		.module = THIS_MODULE,
+	}, {
+		.name = "ccm",
+		.create = crypto_ccm_create,
+		.module = THIS_MODULE,
+	}, {
+		.name = "rfc4309",
+		.create = crypto_rfc4309_create,
+		.module = THIS_MODULE,
+	},
 };
 
 static int __init crypto_ccm_module_init(void)
 {
-	int err;
-
-	err = crypto_register_template(&crypto_cbcmac_tmpl);
-	if (err)
-		goto out;
-
-	err = crypto_register_template(&crypto_ccm_base_tmpl);
-	if (err)
-		goto out_undo_cbcmac;
-
-	err = crypto_register_template(&crypto_ccm_tmpl);
-	if (err)
-		goto out_undo_base;
-
-	err = crypto_register_template(&crypto_rfc4309_tmpl);
-	if (err)
-		goto out_undo_ccm;
-
-out:
-	return err;
-
-out_undo_ccm:
-	crypto_unregister_template(&crypto_ccm_tmpl);
-out_undo_base:
-	crypto_unregister_template(&crypto_ccm_base_tmpl);
-out_undo_cbcmac:
-	crypto_register_template(&crypto_cbcmac_tmpl);
-	goto out;
+	return crypto_register_templates(crypto_ccm_tmpls,
+					 ARRAY_SIZE(crypto_ccm_tmpls));
 }
 
 static void __exit crypto_ccm_module_exit(void)
 {
-	crypto_unregister_template(&crypto_rfc4309_tmpl);
-	crypto_unregister_template(&crypto_ccm_tmpl);
-	crypto_unregister_template(&crypto_ccm_base_tmpl);
-	crypto_unregister_template(&crypto_cbcmac_tmpl);
+	crypto_unregister_templates(crypto_ccm_tmpls,
+				    ARRAY_SIZE(crypto_ccm_tmpls));
 }
 
-module_init(crypto_ccm_module_init);
+subsys_initcall(crypto_ccm_module_init);
 module_exit(crypto_ccm_module_exit);
 
 MODULE_LICENSE("GPL");
@@ -1051,3 +953,4 @@ MODULE_DESCRIPTION("Counter with CBC MAC");
 MODULE_ALIAS_CRYPTO("ccm_base");
 MODULE_ALIAS_CRYPTO("rfc4309");
 MODULE_ALIAS_CRYPTO("ccm");
+MODULE_ALIAS_CRYPTO("cbcmac");

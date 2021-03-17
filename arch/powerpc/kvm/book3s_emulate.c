@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright SUSE Linux Products GmbH 2009
  *
@@ -36,7 +25,6 @@
 #define OP_31_XOP_MTSR		210
 #define OP_31_XOP_MTSRIN	242
 #define OP_31_XOP_TLBIEL	274
-#define OP_31_XOP_TLBIE		306
 /* Opcode is officially reserved, reuse it as sc 1 when sc 1 doesn't trap */
 #define OP_31_XOP_FAKE_SC1	308
 #define OP_31_XOP_SLBMTE	402
@@ -48,6 +36,7 @@
 #define OP_31_XOP_SLBMFEV	851
 #define OP_31_XOP_EIOIO		854
 #define OP_31_XOP_SLBMFEE	915
+#define OP_31_XOP_SLBFEE	979
 
 #define OP_31_XOP_TBEGIN	654
 #define OP_31_XOP_TABORT	910
@@ -110,7 +99,7 @@ static inline void kvmppc_copyto_vcpu_tm(struct kvm_vcpu *vcpu)
 	vcpu->arch.ctr_tm = vcpu->arch.regs.ctr;
 	vcpu->arch.tar_tm = vcpu->arch.tar;
 	vcpu->arch.lr_tm = vcpu->arch.regs.link;
-	vcpu->arch.cr_tm = vcpu->arch.cr;
+	vcpu->arch.cr_tm = vcpu->arch.regs.ccr;
 	vcpu->arch.xer_tm = vcpu->arch.regs.xer;
 	vcpu->arch.vrsave_tm = vcpu->arch.vrsave;
 }
@@ -129,7 +118,7 @@ static inline void kvmppc_copyfrom_vcpu_tm(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs.ctr = vcpu->arch.ctr_tm;
 	vcpu->arch.tar = vcpu->arch.tar_tm;
 	vcpu->arch.regs.link = vcpu->arch.lr_tm;
-	vcpu->arch.cr = vcpu->arch.cr_tm;
+	vcpu->arch.regs.ccr = vcpu->arch.cr_tm;
 	vcpu->arch.regs.xer = vcpu->arch.xer_tm;
 	vcpu->arch.vrsave = vcpu->arch.vrsave_tm;
 }
@@ -141,7 +130,7 @@ static void kvmppc_emulate_treclaim(struct kvm_vcpu *vcpu, int ra_val)
 	uint64_t texasr;
 
 	/* CR0 = 0 | MSR[TS] | 0 */
-	vcpu->arch.cr = (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)) |
+	vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & ~(CR0_MASK << CR0_SHIFT)) |
 		(((guest_msr & MSR_TS_MASK) >> (MSR_TS_S_LG - 1))
 		 << CR0_SHIFT);
 
@@ -220,7 +209,7 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 	tm_abort(ra_val);
 
 	/* CR0 = 0 | MSR[TS] | 0 */
-	vcpu->arch.cr = (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)) |
+	vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & ~(CR0_MASK << CR0_SHIFT)) |
 		(((guest_msr & MSR_TS_MASK) >> (MSR_TS_S_LG - 1))
 		 << CR0_SHIFT);
 
@@ -246,7 +235,7 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 
 #endif
 
-int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
+int kvmppc_core_emulate_op_pr(struct kvm_vcpu *vcpu,
 			      unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
@@ -382,13 +371,13 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			if (kvmppc_h_pr(vcpu, cmd) == EMULATE_DONE)
 				break;
 
-			run->papr_hcall.nr = cmd;
+			vcpu->run->papr_hcall.nr = cmd;
 			for (i = 0; i < 9; ++i) {
 				ulong gpr = kvmppc_get_gpr(vcpu, 4 + i);
-				run->papr_hcall.args[i] = gpr;
+				vcpu->run->papr_hcall.args[i] = gpr;
 			}
 
-			run->exit_reason = KVM_EXIT_PAPR_HCALL;
+			vcpu->run->exit_reason = KVM_EXIT_PAPR_HCALL;
 			vcpu->arch.hcall_needed = 1;
 			emulated = EMULATE_EXIT_USER;
 			break;
@@ -416,6 +405,23 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				return EMULATE_FAIL;
 
 			vcpu->arch.mmu.slbia(vcpu);
+			break;
+		case OP_31_XOP_SLBFEE:
+			if (!(inst & 1) || !vcpu->arch.mmu.slbfee) {
+				return EMULATE_FAIL;
+			} else {
+				ulong b, t;
+				ulong cr = kvmppc_get_cr(vcpu) & ~CR0_MASK;
+
+				b = kvmppc_get_gpr(vcpu, rb);
+				if (!vcpu->arch.mmu.slbfee(vcpu, b, &t))
+					cr |= 2 << CR0_SHIFT;
+				kvmppc_set_gpr(vcpu, rt, t);
+				/* copy XER[SO] bit to CR0[SO] */
+				cr |= (vcpu->arch.regs.xer & 0x80000000) >>
+					(31 - CR0_SHIFT);
+				kvmppc_set_cr(vcpu, cr);
+			}
 			break;
 		case OP_31_XOP_SLBMFEE:
 			if (!vcpu->arch.mmu.slbmfee) {
@@ -494,8 +500,8 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 			if (!(kvmppc_get_msr(vcpu) & MSR_PR)) {
 				preempt_disable();
-				vcpu->arch.cr = (CR0_TBEGIN_FAILURE |
-				  (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)));
+				vcpu->arch.regs.ccr = (CR0_TBEGIN_FAILURE |
+				  (vcpu->arch.regs.ccr & ~(CR0_MASK << CR0_SHIFT)));
 
 				vcpu->arch.texasr = (TEXASR_FS | TEXASR_EXACT |
 					(((u64)(TM_CAUSE_EMULATE | TM_CAUSE_PERSISTENT))
@@ -623,7 +629,7 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	if (emulated == EMULATE_FAIL)
-		emulated = kvmppc_emulate_paired_single(run, vcpu);
+		emulated = kvmppc_emulate_paired_single(vcpu);
 
 	return emulated;
 }

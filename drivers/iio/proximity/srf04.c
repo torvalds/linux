@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SRF04: ultrasonic sensor for distance measuring by using GPIOs
  *
  * Copyright (c) 2017 Andreas Klinger <ak@it-klinger.de>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  * For details about the device see:
- * http://www.robot-electronics.co.uk/htm/srf04tech.htm
+ * https://www.robot-electronics.co.uk/htm/srf04tech.htm
  *
  * the measurement cycle as timing diagram looks like:
  *
@@ -23,7 +14,7 @@
  * trig:  --+   +------------------------------------------------------
  *          ^   ^
  *          |<->|
- *         udelay(10)
+ *         udelay(trigger_pulse_us)
  *
  * ultra           +-+ +-+ +-+
  * sonic           | | | | | |
@@ -48,24 +39,41 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+
+struct srf04_cfg {
+	unsigned long trigger_pulse_us;
+};
 
 struct srf04_data {
 	struct device		*dev;
 	struct gpio_desc	*gpiod_trig;
 	struct gpio_desc	*gpiod_echo;
+	struct gpio_desc	*gpiod_power;
 	struct mutex		lock;
 	int			irqnr;
 	ktime_t			ts_rising;
 	ktime_t			ts_falling;
 	struct completion	rising;
 	struct completion	falling;
+	const struct srf04_cfg	*cfg;
+	int			startup_time_ms;
+};
+
+static const struct srf04_cfg srf04_cfg = {
+	.trigger_pulse_us = 10,
+};
+
+static const struct srf04_cfg mb_lv_cfg = {
+	.trigger_pulse_us = 20,
 };
 
 static irqreturn_t srf04_handle_irq(int irq, void *dev_id)
@@ -92,6 +100,9 @@ static int srf04_read(struct srf04_data *data)
 	u64 dt_ns;
 	u32 time_ns, distance_mm;
 
+	if (data->gpiod_power)
+		pm_runtime_get_sync(data->dev);
+
 	/*
 	 * just one read-echo-cycle can take place at a time
 	 * ==> lock against concurrent reading calls
@@ -102,10 +113,15 @@ static int srf04_read(struct srf04_data *data)
 	reinit_completion(&data->falling);
 
 	gpiod_set_value(data->gpiod_trig, 1);
-	udelay(10);
+	udelay(data->cfg->trigger_pulse_us);
 	gpiod_set_value(data->gpiod_trig, 0);
 
-	/* it cannot take more than 20 ms */
+	if (data->gpiod_power) {
+		pm_runtime_mark_last_busy(data->dev);
+		pm_runtime_put_autosuspend(data->dev);
+	}
+
+	/* it should not take more than 20 ms until echo is rising */
 	ret = wait_for_completion_killable_timeout(&data->rising, HZ/50);
 	if (ret < 0) {
 		mutex_unlock(&data->lock);
@@ -115,7 +131,8 @@ static int srf04_read(struct srf04_data *data)
 		return -ETIMEDOUT;
 	}
 
-	ret = wait_for_completion_killable_timeout(&data->falling, HZ/50);
+	/* it cannot take more than 50 ms until echo is falling */
+	ret = wait_for_completion_killable_timeout(&data->falling, HZ/20);
 	if (ret < 0) {
 		mutex_unlock(&data->lock);
 		return ret;
@@ -130,19 +147,19 @@ static int srf04_read(struct srf04_data *data)
 
 	dt_ns = ktime_to_ns(ktime_dt);
 	/*
-	 * measuring more than 3 meters is beyond the capabilities of
-	 * the sensor
+	 * measuring more than 6,45 meters is beyond the capabilities of
+	 * the supported sensors
 	 * ==> filter out invalid results for not measuring echos of
 	 *     another us sensor
 	 *
 	 * formula:
-	 *         distance       3 m
-	 * time = ---------- = --------- = 9404389 ns
-	 *          speed       319 m/s
+	 *         distance     6,45 * 2 m
+	 * time = ---------- = ------------ = 40438871 ns
+	 *          speed         319 m/s
 	 *
 	 * using a minimum speed at -20 °C of 319 m/s
 	 */
-	if (dt_ns > 9404389)
+	if (dt_ns > 40438871)
 		return -EIO;
 
 	time_ns = dt_ns;
@@ -154,20 +171,20 @@ static int srf04_read(struct srf04_data *data)
 	 *   with Temp in °C
 	 *   and speed in m/s
 	 *
-	 * use 343 m/s as ultrasonic speed at 20 °C here in absence of the
+	 * use 343,5 m/s as ultrasonic speed at 20 °C here in absence of the
 	 * temperature
 	 *
 	 * therefore:
-	 *             time     343
-	 * distance = ------ * -----
-	 *             10^6       2
+	 *             time     343,5     time * 106
+	 * distance = ------ * ------- = ------------
+	 *             10^6         2         617176
 	 *   with time in ns
 	 *   and distance in mm (one way)
 	 *
-	 * because we limit to 3 meters the multiplication with 343 just
+	 * because we limit to 6,45 meters the multiplication with 106 just
 	 * fits into 32 bit
 	 */
-	distance_mm = time_ns * 343 / 2000000;
+	distance_mm = time_ns * 106 / 617176;
 
 	return distance_mm;
 }
@@ -215,6 +232,18 @@ static const struct iio_chan_spec srf04_chan_spec[] = {
 	},
 };
 
+static const struct of_device_id of_srf04_match[] = {
+	{ .compatible = "devantech,srf04", .data = &srf04_cfg},
+	{ .compatible = "maxbotix,mb1000", .data = &mb_lv_cfg},
+	{ .compatible = "maxbotix,mb1010", .data = &mb_lv_cfg},
+	{ .compatible = "maxbotix,mb1020", .data = &mb_lv_cfg},
+	{ .compatible = "maxbotix,mb1030", .data = &mb_lv_cfg},
+	{ .compatible = "maxbotix,mb1040", .data = &mb_lv_cfg},
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, of_srf04_match);
+
 static int srf04_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -230,6 +259,7 @@ static int srf04_probe(struct platform_device *pdev)
 
 	data = iio_priv(indio_dev);
 	data->dev = dev;
+	data->cfg = of_match_device(of_srf04_match, dev)->data;
 
 	mutex_init(&data->lock);
 	init_completion(&data->rising);
@@ -247,6 +277,22 @@ static int srf04_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get echo-gpios: err=%ld\n",
 					PTR_ERR(data->gpiod_echo));
 		return PTR_ERR(data->gpiod_echo);
+	}
+
+	data->gpiod_power = devm_gpiod_get_optional(dev, "power",
+								GPIOD_OUT_LOW);
+	if (IS_ERR(data->gpiod_power)) {
+		dev_err(dev, "failed to get power-gpios: err=%ld\n",
+						PTR_ERR(data->gpiod_power));
+		return PTR_ERR(data->gpiod_power);
+	}
+	if (data->gpiod_power) {
+
+		if (of_property_read_u32(dev->of_node, "startup-time-ms",
+						&data->startup_time_ms))
+			data->startup_time_ms = 100;
+		dev_dbg(dev, "using power gpio: startup-time-ms=%d\n",
+							data->startup_time_ms);
 	}
 
 	if (gpiod_cansleep(data->gpiod_echo)) {
@@ -271,27 +317,86 @@ static int srf04_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	indio_dev->name = "srf04";
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &srf04_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = srf04_chan_spec;
 	indio_dev->num_channels = ARRAY_SIZE(srf04_chan_spec);
 
-	return devm_iio_device_register(dev, indio_dev);
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(data->dev, "iio_device_register: %d\n", ret);
+		return ret;
+	}
+
+	if (data->gpiod_power) {
+		pm_runtime_set_autosuspend_delay(data->dev, 1000);
+		pm_runtime_use_autosuspend(data->dev);
+
+		ret = pm_runtime_set_active(data->dev);
+		if (ret) {
+			dev_err(data->dev, "pm_runtime_set_active: %d\n", ret);
+			iio_device_unregister(indio_dev);
+		}
+
+		pm_runtime_enable(data->dev);
+		pm_runtime_idle(data->dev);
+	}
+
+	return ret;
 }
 
-static const struct of_device_id of_srf04_match[] = {
-	{ .compatible = "devantech,srf04", },
-	{},
-};
+static int srf04_remove(struct platform_device *pdev)
+{
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct srf04_data *data = iio_priv(indio_dev);
 
-MODULE_DEVICE_TABLE(of, of_srf04_match);
+	iio_device_unregister(indio_dev);
+
+	if (data->gpiod_power) {
+		pm_runtime_disable(data->dev);
+		pm_runtime_set_suspended(data->dev);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused srf04_pm_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = container_of(dev,
+						struct platform_device, dev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct srf04_data *data = iio_priv(indio_dev);
+
+	gpiod_set_value(data->gpiod_power, 0);
+
+	return 0;
+}
+
+static int __maybe_unused srf04_pm_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = container_of(dev,
+						struct platform_device, dev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct srf04_data *data = iio_priv(indio_dev);
+
+	gpiod_set_value(data->gpiod_power, 1);
+	msleep(data->startup_time_ms);
+
+	return 0;
+}
+
+static const struct dev_pm_ops srf04_pm_ops = {
+	SET_RUNTIME_PM_OPS(srf04_pm_runtime_suspend,
+				srf04_pm_runtime_resume, NULL)
+};
 
 static struct platform_driver srf04_driver = {
 	.probe		= srf04_probe,
+	.remove		= srf04_remove,
 	.driver		= {
 		.name		= "srf04-gpio",
 		.of_match_table	= of_srf04_match,
+		.pm		= &srf04_pm_ops,
 	},
 };
 

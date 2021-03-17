@@ -1,18 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -53,6 +40,8 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 	case UAC_VERSION_1:
 	default: {
 		struct uac_format_type_i_discrete_descriptor *fmt = _fmt;
+		if (format >= 64)
+			return 0; /* invalid format */
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubframeSize;
 		format = 1ULL << format;
@@ -86,6 +75,8 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		break;
 	}
 	}
+
+	fp->fmt_bits = sample_width;
 
 	if ((pcm_formats == 0) &&
 	    (format == 0 || format == (1 << UAC_FORMAT_TYPE_I_UNDEFINED))) {
@@ -162,6 +153,19 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 	return pcm_formats;
 }
 
+static int set_fixed_rate(struct audioformat *fp, int rate, int rate_bits)
+{
+	kfree(fp->rate_table);
+	fp->rate_table = kmalloc(sizeof(int), GFP_KERNEL);
+	if (!fp->rate_table)
+		return -ENOMEM;
+	fp->nr_rates = 1;
+	fp->rate_min = rate;
+	fp->rate_max = rate;
+	fp->rates = rate_bits;
+	fp->rate_table[0] = rate;
+	return 0;
+}
 
 /*
  * parse the format descriptor and stores the possible sample rates
@@ -234,7 +238,91 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 		fp->rate_min = combine_triple(&fmt[offset + 1]);
 		fp->rate_max = combine_triple(&fmt[offset + 4]);
 	}
+
+	/* Jabra Evolve 65 headset */
+	if (chip->usb_id == USB_ID(0x0b0e, 0x030b)) {
+		/* only 48kHz for playback while keeping 16kHz for capture */
+		if (fp->nr_rates != 1)
+			return set_fixed_rate(fp, 48000, SNDRV_PCM_RATE_48000);
+	}
+
 	return 0;
+}
+
+
+/*
+ * Presonus Studio 1810c supports a limited set of sampling
+ * rates per altsetting but reports the full set each time.
+ * If we don't filter out the unsupported rates and attempt
+ * to configure the card, it will hang refusing to do any
+ * further audio I/O until a hard reset is performed.
+ *
+ * The list of supported rates per altsetting (set of available
+ * I/O channels) is described in the owner's manual, section 2.2.
+ */
+static bool s1810c_valid_sample_rate(struct audioformat *fp,
+				     unsigned int rate)
+{
+	switch (fp->altsetting) {
+	case 1:
+		/* All ADAT ports available */
+		return rate <= 48000;
+	case 2:
+		/* Half of ADAT ports available */
+		return (rate == 88200 || rate == 96000);
+	case 3:
+		/* Analog I/O only (no S/PDIF nor ADAT) */
+		return rate >= 176400;
+	default:
+		return false;
+	}
+	return false;
+}
+
+/*
+ * Many Focusrite devices supports a limited set of sampling rates per
+ * altsetting. Maximum rate is exposed in the last 4 bytes of Format Type
+ * descriptor which has a non-standard bLength = 10.
+ */
+static bool focusrite_valid_sample_rate(struct snd_usb_audio *chip,
+					struct audioformat *fp,
+					unsigned int rate)
+{
+	struct usb_interface *iface;
+	struct usb_host_interface *alts;
+	unsigned char *fmt;
+	unsigned int max_rate;
+
+	iface = usb_ifnum_to_if(chip->dev, fp->iface);
+	if (!iface)
+		return true;
+
+	alts = &iface->altsetting[fp->altset_idx];
+	fmt = snd_usb_find_csint_desc(alts->extra, alts->extralen,
+				      NULL, UAC_FORMAT_TYPE);
+	if (!fmt)
+		return true;
+
+	if (fmt[0] == 10) { /* bLength */
+		max_rate = combine_quad(&fmt[6]);
+
+		/* Validate max rate */
+		if (max_rate != 48000 &&
+		    max_rate != 96000 &&
+		    max_rate != 192000 &&
+		    max_rate != 384000) {
+
+			usb_audio_info(chip,
+				"%u:%d : unexpected max rate: %u\n",
+				fp->iface, fp->altsetting, max_rate);
+
+			return true;
+		}
+
+		return rate <= max_rate;
+	}
+
+	return true;
 }
 
 /*
@@ -273,6 +361,17 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 		}
 
 		for (rate = min; rate <= max; rate += res) {
+
+			/* Filter out invalid rates on Presonus Studio 1810c */
+			if (chip->usb_id == USB_ID(0x0194f, 0x010c) &&
+			    !s1810c_valid_sample_rate(fp, rate))
+				goto skip_rate;
+
+			/* Filter out invalid rates on Focusrite devices */
+			if (USB_ID_VENDOR(chip->usb_id) == 0x1235 &&
+			    !focusrite_valid_sample_rate(chip, fp, rate))
+				goto skip_rate;
+
 			if (fp->rate_table)
 				fp->rate_table[nr_rates] = rate;
 			if (!fp->rate_min || rate < fp->rate_min)
@@ -287,6 +386,7 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 				break;
 			}
 
+skip_rate:
 			/* avoid endless loop */
 			if (res == 0)
 				break;
@@ -294,6 +394,29 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 	}
 
 	return nr_rates;
+}
+
+/* Line6 Helix series and the Rode Rodecaster Pro don't support the
+ * UAC2_CS_RANGE usb function call. Return a static table of known
+ * clock rates.
+ */
+static int line6_parse_audio_format_rates_quirk(struct snd_usb_audio *chip,
+						struct audioformat *fp)
+{
+	switch (chip->usb_id) {
+	case USB_ID(0x0e41, 0x4241): /* Line6 Helix */
+	case USB_ID(0x0e41, 0x4242): /* Line6 Helix Rack */
+	case USB_ID(0x0e41, 0x4244): /* Line6 Helix LT */
+	case USB_ID(0x0e41, 0x4246): /* Line6 HX-Stomp */
+	case USB_ID(0x0e41, 0x4247): /* Line6 Pod Go */
+	case USB_ID(0x0e41, 0x4248): /* Line6 Helix >= fw 2.82 */
+	case USB_ID(0x0e41, 0x4249): /* Line6 Helix Rack >= fw 2.82 */
+	case USB_ID(0x0e41, 0x424a): /* Line6 Helix LT >= fw 2.82 */
+	case USB_ID(0x19f7, 0x0011): /* Rode Rodecaster Pro */
+		return set_fixed_rate(fp, 48000, SNDRV_PCM_RATE_48000);
+	}
+
+	return -ENODEV;
 }
 
 /*
@@ -305,9 +428,8 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 {
 	struct usb_device *dev = chip->dev;
 	unsigned char tmp[2], *data;
-	int nr_triplets, data_size, ret = 0;
-	int clock = snd_usb_clock_find_source(chip, fp->protocol,
-					      fp->clock, false);
+	int nr_triplets, data_size, ret = 0, ret_l6;
+	int clock = snd_usb_clock_find_source(chip, fp, false);
 
 	if (clock < 0) {
 		dev_err(&dev->dev,
@@ -324,9 +446,22 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 			      tmp, sizeof(tmp));
 
 	if (ret < 0) {
-		dev_err(&dev->dev,
-			"%s(): unable to retrieve number of sample rates (clock %d)\n",
+		/* line6 helix devices don't support UAC2_CS_CONTROL_SAM_FREQ call */
+		ret_l6 = line6_parse_audio_format_rates_quirk(chip, fp);
+		if (ret_l6 == -ENODEV) {
+			/* no line6 device found continue showing the error */
+			dev_err(&dev->dev,
+				"%s(): unable to retrieve number of sample rates (clock %d)\n",
 				__func__, clock);
+			goto err;
+		}
+		if (ret_l6 == 0) {
+			dev_info(&dev->dev,
+				"%s(): unable to retrieve number of sample rates: set it to a predefined value (clock %d).\n",
+				__func__, clock);
+			return 0;
+		}
+		ret = ret_l6;
 		goto err;
 	}
 

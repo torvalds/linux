@@ -21,6 +21,7 @@
  */
 #define HAS_DMA
 
+#ifdef CONFIG_PARPORT_PC_FIFO
 static DEFINE_SPINLOCK(dma_spin_lock);
 
 #define claim_dma_lock() \
@@ -31,6 +32,7 @@ static DEFINE_SPINLOCK(dma_spin_lock);
 
 #define release_dma_lock(__flags) \
 	spin_unlock_irqrestore(&dma_spin_lock, __flags);
+#endif
 
 static struct sparc_ebus_info {
 	struct ebus_dma_info info;
@@ -115,7 +117,7 @@ static int ecpp_probe(struct platform_device *op)
 	int slot, err;
 
 	parent = op->dev.of_node->parent;
-	if (!strcmp(parent->name, "dma")) {
+	if (of_node_name_eq(parent, "dma")) {
 		p = parport_pc_probe_port(base, base + 0x400,
 					  op->archdata.irqs[0], PARPORT_DMA_NOFIFO,
 					  op->dev.parent->parent, 0);

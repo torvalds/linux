@@ -132,7 +132,7 @@ static int bgmac_probe(struct bcma_device *core)
 		mac = of_get_mac_address(bgmac->dev->of_node);
 
 	/* If no MAC address assigned via device tree, check SPROM */
-	if (!mac) {
+	if (IS_ERR_OR_NULL(mac)) {
 		switch (core->core_unit) {
 		case 0:
 			mac = sprom->et0mac;
@@ -217,7 +217,7 @@ static int bgmac_probe(struct bcma_device *core)
 	/* BCM 471X/535X family */
 	case BCMA_CHIP_ID_BCM4716:
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
-		/* fallthrough */
+		fallthrough;
 	case BCMA_CHIP_ID_BCM47162:
 		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL2;
 		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;

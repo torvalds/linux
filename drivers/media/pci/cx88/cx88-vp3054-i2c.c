@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cx88-vp3054-i2c.c -- support for the secondary I2C bus of the
  *			DNTV Live! DVB-T Pro (VP-3054), wired as:
  *			GPIO[0] -> SCL, GPIO[1] -> SDA
  *
  * (c) 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -114,7 +105,7 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	vp3054_i2c->algo = vp3054_i2c_algo_template;
 
 	vp3054_i2c->adap.dev.parent = &dev->pci->dev;
-	strlcpy(vp3054_i2c->adap.name, core->name,
+	strscpy(vp3054_i2c->adap.name, core->name,
 		sizeof(vp3054_i2c->adap.name));
 	vp3054_i2c->adap.owner = THIS_MODULE;
 	vp3054_i2c->algo.data = dev;

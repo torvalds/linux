@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Thunderbolt control channel messages
  *
  * Copyright (C) 2014 Andreas Noever <andreas.noever@gmail.com>
  * Copyright (C) 2017, Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _TB_MSGS
@@ -31,6 +28,7 @@ enum tb_cfg_error {
 	TB_CFG_ERROR_LOOP = 8,
 	TB_CFG_ERROR_HEC_ERROR_DETECTED = 12,
 	TB_CFG_ERROR_FLOW_CONTROL_ERROR = 13,
+	TB_CFG_ERROR_LOCK = 15,
 };
 
 /* common header */
@@ -70,8 +68,12 @@ struct cfg_error_pkg {
 	u32 zero1:4;
 	u32 port:6;
 	u32 zero2:2; /* Both should be zero, still they are different fields. */
-	u32 zero3:16;
+	u32 zero3:14;
+	u32 pg:2;
 } __packed;
+
+#define TB_CFG_ERROR_PG_HOT_PLUG	0x2
+#define TB_CFG_ERROR_PG_HOT_UNPLUG	0x3
 
 /* TB_CFG_PKG_EVENT */
 struct cfg_event_pkg {
@@ -107,10 +109,11 @@ enum icm_pkg_code {
 };
 
 enum icm_event_code {
-	ICM_EVENT_DEVICE_CONNECTED = 3,
-	ICM_EVENT_DEVICE_DISCONNECTED = 4,
-	ICM_EVENT_XDOMAIN_CONNECTED = 6,
-	ICM_EVENT_XDOMAIN_DISCONNECTED = 7,
+	ICM_EVENT_DEVICE_CONNECTED = 0x3,
+	ICM_EVENT_DEVICE_DISCONNECTED = 0x4,
+	ICM_EVENT_XDOMAIN_CONNECTED = 0x6,
+	ICM_EVENT_XDOMAIN_DISCONNECTED = 0x7,
+	ICM_EVENT_RTD3_VETO = 0xa,
 };
 
 struct icm_pkg_header {
@@ -124,6 +127,8 @@ struct icm_pkg_header {
 #define ICM_FLAGS_NO_KEY		BIT(1)
 #define ICM_FLAGS_SLEVEL_SHIFT		3
 #define ICM_FLAGS_SLEVEL_MASK		GENMASK(4, 3)
+#define ICM_FLAGS_DUAL_LANE		BIT(5)
+#define ICM_FLAGS_SPEED_GEN3		BIT(7)
 #define ICM_FLAGS_WRITE			BIT(7)
 
 struct icm_pkg_driver_ready {
@@ -466,6 +471,13 @@ struct icm_tr_pkg_disconnect_xdomain_response {
 	uuid_t remote_uuid;
 };
 
+/* Ice Lake messages */
+
+struct icm_icl_event_rtd3_veto {
+	struct icm_pkg_header hdr;
+	u32 veto_reason;
+};
+
 /* XDomain messages */
 
 struct tb_xdomain_header {
@@ -493,6 +505,17 @@ struct tb_xdp_header {
 	struct tb_xdomain_header xd_hdr;
 	uuid_t uuid;
 	u32 type;
+};
+
+struct tb_xdp_uuid {
+	struct tb_xdp_header hdr;
+};
+
+struct tb_xdp_uuid_response {
+	struct tb_xdp_header hdr;
+	uuid_t src_uuid;
+	u32 src_route_hi;
+	u32 src_route_lo;
 };
 
 struct tb_xdp_properties {

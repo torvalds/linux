@@ -1,5 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+
+if MEDIA_DIGITAL_TV_SUPPORT
+
+comment "DVB Frontend drivers auto-selected by 'Autoselect ancillary drivers'"
+	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
+
 menu "Customise DVB Frontends"
-	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -791,6 +798,16 @@ config DVB_LNBH25
 	  An SEC control chip.
 	  Say Y when you want to support this chip.
 
+config DVB_LNBH29
+	tristate "LNBH29 SEC controller"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  LNB power supply and control voltage
+	  regulator chip with step-up converter
+	  and I2C interface for STMicroelectronics LNBH29.
+	  Say Y when you want to support this chip.
+
 config DVB_LNBP21
 	tristate "LNBP21/LNBH24 SEC controllers"
 	depends on DVB_CORE && I2C
@@ -930,10 +947,15 @@ config DVB_SP2
 	help
 	  CIMaX SP2/SP2HF Common Interface module.
 
+endmenu # Customise DVB Frontends
+
+endif # MEDIA_DIGITAL_TV_SUPPORT
+
 comment "Tools to develop new frontends"
+	depends on MEDIA_TEST_SUPPORT
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
-	depends on DVB_CORE
-	default n
-endmenu
+	depends on MEDIA_TEST_SUPPORT && DVB_CORE
+	help
+	  Dummy skeleton frontend driver.

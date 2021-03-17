@@ -1,12 +1,9 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * include/asm-sh/spinlock-llsc.h
  *
  * Copyright (C) 2002, 2003 Paul Mundt
  * Copyright (C) 2006, 2007 Akio Idehara
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #ifndef __ASM_SH_SPINLOCK_LLSC_H
 #define __ASM_SH_SPINLOCK_LLSC_H
@@ -50,6 +47,8 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	unsigned long tmp;
 
+	/* This could be optimised with ARCH_HAS_MMIOWB */
+	mmiowb();
 	__asm__ __volatile__ (
 		"mov		#1, %0 ! arch_spin_unlock	\n\t"
 		"mov.l		%0, @%1				\n\t"

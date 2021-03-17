@@ -71,10 +71,11 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 
 void vsp1_entity_configure_stream(struct vsp1_entity *entity,
 				  struct vsp1_pipeline *pipe,
+				  struct vsp1_dl_list *dl,
 				  struct vsp1_dl_body *dlb)
 {
 	if (entity->ops->configure_stream)
-		entity->ops->configure_stream(entity, pipe, dlb);
+		entity->ops->configure_stream(entity, pipe, dl, dlb);
 }
 
 void vsp1_entity_configure_frame(struct vsp1_entity *entity,
@@ -404,7 +405,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(entity, config, entity->source_pad);
 	*format = fmt->format;
 
-	/* Reset the crop and compose rectangles */
+	/* Reset the crop and compose rectangles. */
 	selection = vsp1_entity_get_pad_selection(entity, config, fmt->pad,
 						  V4L2_SEL_TGT_CROP);
 	selection->left = 0;

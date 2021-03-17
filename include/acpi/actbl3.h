@@ -3,7 +3,7 @@
  *
  * Name: actbl3.h - ACPI Table Definitions
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -39,7 +39,7 @@
 #define ACPI_SIG_WDDT           "WDDT"	/* Watchdog Timer Description Table */
 #define ACPI_SIG_WDRT           "WDRT"	/* Watchdog Resource Table */
 #define ACPI_SIG_WPBT           "WPBT"	/* Windows Platform Binary Table */
-#define ACPI_SIG_WSMT           "WSMT"	/* Windows SMM Security Migrations Table */
+#define ACPI_SIG_WSMT           "WSMT"	/* Windows SMM Security Mitigations Table */
 #define ACPI_SIG_XENV           "XENV"	/* Xen Environment table */
 #define ACPI_SIG_XXXX           "XXXX"	/* Intermediate AML header for ASL/ASL+ converter */
 
@@ -190,7 +190,8 @@ enum acpi_srat_type {
 	ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY = 2,
 	ACPI_SRAT_TYPE_GICC_AFFINITY = 3,
 	ACPI_SRAT_TYPE_GIC_ITS_AFFINITY = 4,	/* ACPI 6.2 */
-	ACPI_SRAT_TYPE_RESERVED = 5	/* 5 and greater are reserved */
+	ACPI_SRAT_TYPE_GENERIC_AFFINITY = 5,	/* ACPI 6.3 */
+	ACPI_SRAT_TYPE_RESERVED = 6	/* 5 and greater are reserved */
 };
 
 /*
@@ -270,6 +271,22 @@ struct acpi_srat_gic_its_affinity {
 	u16 reserved;
 	u32 its_id;
 };
+
+/* 5: Generic Initiator Affinity Structure (ACPI 6.3) */
+
+struct acpi_srat_generic_affinity {
+	struct acpi_subtable_header header;
+	u8 reserved;
+	u8 device_handle_type;
+	u32 proximity_domain;
+	u8 device_handle[16];
+	u32 flags;
+	u32 reserved1;
+};
+
+/* Flags for struct acpi_srat_generic_affinity */
+
+#define ACPI_SRAT_GENERIC_AFFINITY_ENABLED (1)	/* 00: Use affinity structure */
 
 /*******************************************************************************
  *
@@ -365,6 +382,29 @@ struct acpi_table_tcpa_server {
  *
  ******************************************************************************/
 
+/* Revision 3 */
+
+struct acpi_table_tpm23 {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 reserved;
+	u64 control_address;
+	u32 start_method;
+};
+
+/* Value for start_method above */
+
+#define ACPI_TPM23_ACPI_START_METHOD                 2
+
+/*
+ * Optional trailer for revision 3. If start method is 2, there is a 4 byte
+ * reserved area of all zeros.
+ */
+struct acpi_tmp23_trailer {
+	u32 reserved;
+};
+
+/* Revision 4 */
+
 struct acpi_table_tpm2 {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u16 platform_class;
@@ -373,6 +413,13 @@ struct acpi_table_tpm2 {
 	u32 start_method;
 
 	/* Platform-specific data follows */
+};
+
+/* Optional trailer for revision 4 holding platform-specific data */
+struct acpi_tpm2_phy {
+	u8  start_method_specific[12];
+	u32 log_area_minimum_length;
+	u64 log_area_start_address;
 };
 
 /* Values for start_method above */
@@ -633,10 +680,10 @@ struct acpi_table_wpbt {
 
 /*******************************************************************************
  *
- * WSMT - Windows SMM Security Migrations Table
+ * WSMT - Windows SMM Security Mitigations Table
  *        Version 1
  *
- * Conforms to "Windows SMM Security Migrations Table",
+ * Conforms to "Windows SMM Security Mitigations Table",
  * Version 1.0, April 18, 2016
  *
  ******************************************************************************/

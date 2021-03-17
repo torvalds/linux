@@ -632,12 +632,6 @@ core_init:
 	bal	set_zephyr
 	nop
 
-#if ENABLE_FPU==1
-	/* initialize the Floating point unit (both TPs) */
-	bal	init_fpu
-	nop
-#endif
-
 	/* set low latency memory bus */
 	li	a0, 1
 	bal	set_llmb

@@ -35,6 +35,8 @@
 #ifndef _GVT_EXECLIST_H_
 #define _GVT_EXECLIST_H_
 
+#include <linux/types.h>
+
 struct execlist_ctx_descriptor_format {
 	union {
 		u32 ldw;
@@ -168,18 +170,19 @@ struct intel_vgpu_execlist {
 	struct intel_vgpu_execlist_slot *running_slot;
 	struct intel_vgpu_execlist_slot *pending_slot;
 	struct execlist_ctx_descriptor_format *running_context;
-	int ring_id;
 	struct intel_vgpu *vgpu;
 	struct intel_vgpu_elsp_dwords elsp_dwords;
+	const struct intel_engine_cs *engine;
 };
 
 void intel_vgpu_clean_execlist(struct intel_vgpu *vgpu);
 
 int intel_vgpu_init_execlist(struct intel_vgpu *vgpu);
 
-int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id);
+int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu,
+			       const struct intel_engine_cs *engine);
 
 void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
-		unsigned long engine_mask);
+			       intel_engine_mask_t engine_mask);
 
 #endif /*_GVT_EXECLIST_H_*/

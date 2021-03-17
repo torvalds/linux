@@ -20,32 +20,6 @@
 #include <asm/sgidefs.h>
 #include <asm/asm-eva.h>
 
-#ifndef CAT
-#ifdef __STDC__
-#define __CAT(str1, str2) str1##str2
-#else
-#define __CAT(str1, str2) str1/**/str2
-#endif
-#define CAT(str1, str2) __CAT(str1, str2)
-#endif
-
-/*
- * PIC specific declarations
- * Not used for the kernel but here seems to be the right place.
- */
-#ifdef __PIC__
-#define CPRESTORE(register)				\
-		.cprestore register
-#define CPADD(register)					\
-		.cpadd	register
-#define CPLOAD(register)				\
-		.cpload register
-#else
-#define CPRESTORE(register)
-#define CPADD(register)
-#define CPLOAD(register)
-#endif
-
 /*
  * LEAF - declare leaf routine
  */
@@ -100,10 +74,15 @@ symbol:		.insn
 		.globl	symbol;				\
 symbol		=	value
 
-#define PANIC(msg)					\
+#define TEXT(msg)					\
+		.pushsection .data;			\
+8:		.asciiz msg;				\
+		.popsection;
+
+#define ASM_PANIC(msg)					\
 		.set	push;				\
 		.set	reorder;			\
-		PTR_LA	a0, 8f;				 \
+		PTR_LA	a0, 8f;				\
 		jal	panic;				\
 9:		b	9b;				\
 		.set	pop;				\
@@ -113,111 +92,16 @@ symbol		=	value
  * Print formatted string
  */
 #ifdef CONFIG_PRINTK
-#define PRINT(string)					\
+#define ASM_PRINT(string)				\
 		.set	push;				\
 		.set	reorder;			\
-		PTR_LA	a0, 8f;				 \
+		PTR_LA	a0, 8f;				\
 		jal	printk;				\
 		.set	pop;				\
 		TEXT(string)
 #else
-#define PRINT(string)
+#define ASM_PRINT(string)
 #endif
-
-#define TEXT(msg)					\
-		.pushsection .data;			\
-8:		.asciiz msg;				\
-		.popsection;
-
-/*
- * Build text tables
- */
-#define TTABLE(string)					\
-		.pushsection .text;			\
-		.word	1f;				\
-		.popsection				\
-		.pushsection .data;			\
-1:		.asciiz string;				\
-		.popsection
-
-/*
- * MIPS IV pref instruction.
- * Use with .set noreorder only!
- *
- * MIPS IV implementations are free to treat this as a nop.  The R5000
- * is one of them.  So we should have an option not to use this instruction.
- */
-#ifdef CONFIG_CPU_HAS_PREFETCH
-
-#define PREF(hint,addr)					\
-		.set	push;				\
-		.set	arch=r5000;			\
-		pref	hint, addr;			\
-		.set	pop
-
-#define PREFE(hint, addr)				\
-		.set	push;				\
-		.set	mips0;				\
-		.set	eva;				\
-		prefe	hint, addr;			\
-		.set	pop
-
-#define PREFX(hint,addr)				\
-		.set	push;				\
-		.set	arch=r5000;			\
-		prefx	hint, addr;			\
-		.set	pop
-
-#else /* !CONFIG_CPU_HAS_PREFETCH */
-
-#define PREF(hint, addr)
-#define PREFE(hint, addr)
-#define PREFX(hint, addr)
-
-#endif /* !CONFIG_CPU_HAS_PREFETCH */
-
-/*
- * MIPS ISA IV/V movn/movz instructions and equivalents for older CPUs.
- */
-#if (_MIPS_ISA == _MIPS_ISA_MIPS1)
-#define MOVN(rd, rs, rt)				\
-		.set	push;				\
-		.set	reorder;			\
-		beqz	rt, 9f;				\
-		move	rd, rs;				\
-		.set	pop;				\
-9:
-#define MOVZ(rd, rs, rt)				\
-		.set	push;				\
-		.set	reorder;			\
-		bnez	rt, 9f;				\
-		move	rd, rs;				\
-		.set	pop;				\
-9:
-#endif /* _MIPS_ISA == _MIPS_ISA_MIPS1 */
-#if (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3)
-#define MOVN(rd, rs, rt)				\
-		.set	push;				\
-		.set	noreorder;			\
-		bnezl	rt, 9f;				\
-		 move	rd, rs;				\
-		.set	pop;				\
-9:
-#define MOVZ(rd, rs, rt)				\
-		.set	push;				\
-		.set	noreorder;			\
-		beqzl	rt, 9f;				\
-		 move	rd, rs;				\
-		.set	pop;				\
-9:
-#endif /* (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3) */
-#if (_MIPS_ISA == _MIPS_ISA_MIPS4 ) || (_MIPS_ISA == _MIPS_ISA_MIPS5) || \
-    (_MIPS_ISA == _MIPS_ISA_MIPS32) || (_MIPS_ISA == _MIPS_ISA_MIPS64)
-#define MOVN(rd, rs, rt)				\
-		movn	rd, rs, rt
-#define MOVZ(rd, rs, rt)				\
-		movz	rd, rs, rt
-#endif /* MIPS IV, MIPS V, MIPS32 or MIPS64 */
 
 /*
  * Stack alignment
@@ -318,7 +202,9 @@ symbol		=	value
 #define LONG_SRA	sra
 #define LONG_SRAV	srav
 
+#ifdef __ASSEMBLY__
 #define LONG		.word
+#endif
 #define LONGSIZE	4
 #define LONGMASK	3
 #define LONGLOG		2
@@ -341,7 +227,9 @@ symbol		=	value
 #define LONG_SRA	dsra
 #define LONG_SRAV	dsrav
 
+#ifdef __ASSEMBLY__
 #define LONG		.dword
+#endif
 #define LONGSIZE	8
 #define LONGMASK	7
 #define LONGLOG		3

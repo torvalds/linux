@@ -20,9 +20,10 @@
 #include <linux/kernel.h>
 #include <linux/time64.h>
 #include <errno.h>
+#include <internal/cpumap.h>
+#include <perf/cpumap.h>
 #include "bench.h"
 #include "futex.h"
-#include "cpumap.h"
 
 #include <err.h>
 #include <stdlib.h>
@@ -42,7 +43,7 @@ static bool done = false, silent = false, fshared = false;
 static pthread_mutex_t thread_lock;
 static pthread_cond_t thread_parent, thread_worker;
 static struct stats waketime_stats, wakeup_stats;
-static unsigned int ncpus, threads_starting, nthreads = 0;
+static unsigned int threads_starting, nthreads = 0;
 static int futex_flag = 0;
 
 static const struct option options[] = {
@@ -90,7 +91,7 @@ static void print_summary(void)
 }
 
 static void block_threads(pthread_t *w,
-			  pthread_attr_t thread_attr, struct cpu_map *cpu)
+			  pthread_attr_t thread_attr, struct perf_cpu_map *cpu)
 {
 	cpu_set_t cpuset;
 	unsigned int i;
@@ -123,7 +124,7 @@ int bench_futex_wake(int argc, const char **argv)
 	unsigned int i, j;
 	struct sigaction act;
 	pthread_attr_t thread_attr;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options, bench_futex_wake_usage, 0);
 	if (argc) {
@@ -131,16 +132,17 @@ int bench_futex_wake(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	cpu = cpu_map__new(NULL);
+	cpu = perf_cpu_map__new(NULL);
 	if (!cpu)
 		err(EXIT_FAILURE, "calloc");
 
+	memset(&act, 0, sizeof(act));
 	sigfillset(&act.sa_mask);
 	act.sa_sigaction = toggle_done;
 	sigaction(SIGINT, &act, NULL);
 
 	if (!nthreads)
-		nthreads = ncpus;
+		nthreads = cpu->nr;
 
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker)

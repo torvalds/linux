@@ -26,11 +26,49 @@
 #ifndef _CRYPTO_ECC_H
 #define _CRYPTO_ECC_H
 
+/* One digit is u64 qword. */
 #define ECC_CURVE_NIST_P192_DIGITS  3
 #define ECC_CURVE_NIST_P256_DIGITS  4
-#define ECC_MAX_DIGITS              ECC_CURVE_NIST_P256_DIGITS
+#define ECC_MAX_DIGITS             (512 / 64)
 
 #define ECC_DIGITS_TO_BYTES_SHIFT 3
+
+/**
+ * struct ecc_point - elliptic curve point in affine coordinates
+ *
+ * @x:		X coordinate in vli form.
+ * @y:		Y coordinate in vli form.
+ * @ndigits:	Length of vlis in u64 qwords.
+ */
+struct ecc_point {
+	u64 *x;
+	u64 *y;
+	u8 ndigits;
+};
+
+#define ECC_POINT_INIT(x, y, ndigits)	(struct ecc_point) { x, y, ndigits }
+
+/**
+ * struct ecc_curve - definition of elliptic curve
+ *
+ * @name:	Short name of the curve.
+ * @g:		Generator point of the curve.
+ * @p:		Prime number, if Barrett's reduction is used for this curve
+ *		pre-calculated value 'mu' is appended to the @p after ndigits.
+ *		Use of Barrett's reduction is heuristically determined in
+ *		vli_mmod_fast().
+ * @n:		Order of the curve group.
+ * @a:		Curve parameter a.
+ * @b:		Curve parameter b.
+ */
+struct ecc_curve {
+	char *name;
+	struct ecc_point g;
+	u64 *p;
+	u64 *n;
+	u64 *a;
+	u64 *b;
+};
 
 /**
  * ecc_is_key_valid() - Validate a given ECDH private key
@@ -91,4 +129,131 @@ int ecc_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 			      const u64 *private_key, const u64 *public_key,
 			      u64 *secret);
+
+/**
+ * ecc_is_pubkey_valid_partial() - Partial public key validation
+ *
+ * @curve:		elliptic curve domain parameters
+ * @pk:			public key as a point
+ *
+ * Valdiate public key according to SP800-56A section 5.6.2.3.4 ECC Partial
+ * Public-Key Validation Routine.
+ *
+ * Note: There is no check that the public key is in the correct elliptic curve
+ * subgroup.
+ *
+ * Return: 0 if validation is successful, -EINVAL if validation is failed.
+ */
+int ecc_is_pubkey_valid_partial(const struct ecc_curve *curve,
+				struct ecc_point *pk);
+
+/**
+ * ecc_is_pubkey_valid_full() - Full public key validation
+ *
+ * @curve:		elliptic curve domain parameters
+ * @pk:			public key as a point
+ *
+ * Valdiate public key according to SP800-56A section 5.6.2.3.3 ECC Full
+ * Public-Key Validation Routine.
+ *
+ * Return: 0 if validation is successful, -EINVAL if validation is failed.
+ */
+int ecc_is_pubkey_valid_full(const struct ecc_curve *curve,
+			     struct ecc_point *pk);
+
+/**
+ * vli_is_zero() - Determine is vli is zero
+ *
+ * @vli:		vli to check.
+ * @ndigits:		length of the @vli
+ */
+bool vli_is_zero(const u64 *vli, unsigned int ndigits);
+
+/**
+ * vli_cmp() - compare left and right vlis
+ *
+ * @left:		vli
+ * @right:		vli
+ * @ndigits:		length of both vlis
+ *
+ * Returns sign of @left - @right, i.e. -1 if @left < @right,
+ * 0 if @left == @right, 1 if @left > @right.
+ */
+int vli_cmp(const u64 *left, const u64 *right, unsigned int ndigits);
+
+/**
+ * vli_sub() - Subtracts right from left
+ *
+ * @result:		where to write result
+ * @left:		vli
+ * @right		vli
+ * @ndigits:		length of all vlis
+ *
+ * Note: can modify in-place.
+ *
+ * Return: carry bit.
+ */
+u64 vli_sub(u64 *result, const u64 *left, const u64 *right,
+	    unsigned int ndigits);
+
+/**
+ * vli_from_be64() - Load vli from big-endian u64 array
+ *
+ * @dest:		destination vli
+ * @src:		source array of u64 BE values
+ * @ndigits:		length of both vli and array
+ */
+void vli_from_be64(u64 *dest, const void *src, unsigned int ndigits);
+
+/**
+ * vli_from_le64() - Load vli from little-endian u64 array
+ *
+ * @dest:		destination vli
+ * @src:		source array of u64 LE values
+ * @ndigits:		length of both vli and array
+ */
+void vli_from_le64(u64 *dest, const void *src, unsigned int ndigits);
+
+/**
+ * vli_mod_inv() - Modular inversion
+ *
+ * @result:		where to write vli number
+ * @input:		vli value to operate on
+ * @mod:		modulus
+ * @ndigits:		length of all vlis
+ */
+void vli_mod_inv(u64 *result, const u64 *input, const u64 *mod,
+		 unsigned int ndigits);
+
+/**
+ * vli_mod_mult_slow() - Modular multiplication
+ *
+ * @result:		where to write result value
+ * @left:		vli number to multiply with @right
+ * @right:		vli number to multiply with @left
+ * @mod:		modulus
+ * @ndigits:		length of all vlis
+ *
+ * Note: Assumes that mod is big enough curve order.
+ */
+void vli_mod_mult_slow(u64 *result, const u64 *left, const u64 *right,
+		       const u64 *mod, unsigned int ndigits);
+
+/**
+ * ecc_point_mult_shamir() - Add two points multiplied by scalars
+ *
+ * @result:		resulting point
+ * @x:			scalar to multiply with @p
+ * @p:			point to multiply with @x
+ * @y:			scalar to multiply with @q
+ * @q:			point to multiply with @y
+ * @curve:		curve
+ *
+ * Returns result = x * p + x * q over the curve.
+ * This works faster than two multiplications and addition.
+ */
+void ecc_point_mult_shamir(const struct ecc_point *result,
+			   const u64 *x, const struct ecc_point *p,
+			   const u64 *y, const struct ecc_point *q,
+			   const struct ecc_curve *curve);
 #endif

@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2010 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 #ifndef _VPBE_H
 #define _VPBE_H
@@ -92,7 +84,7 @@ struct vpbe_config {
 	struct encoder_config_info *ext_encoders;
 	/* amplifier information goes here */
 	struct amp_config_info *amp;
-	int num_outputs;
+	unsigned int num_outputs;
 	/* Order is venc outputs followed by LCD and then external encoders */
 	struct vpbe_output *outputs;
 };
@@ -100,10 +92,6 @@ struct vpbe_config {
 struct vpbe_device;
 
 struct vpbe_device_ops {
-	/* crop cap for the display */
-	int (*g_cropcap)(struct vpbe_device *vpbe_dev,
-			 struct v4l2_cropcap *cropcap);
-
 	/* Enumerate the outputs */
 	int (*enum_outputs)(struct vpbe_device *vpbe_dev,
 			    struct v4l2_output *output);

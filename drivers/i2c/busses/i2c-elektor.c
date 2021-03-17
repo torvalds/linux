@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ------------------------------------------------------------------------- */
 /* i2c-elektor.c i2c-hw access for PCF8584 style isa bus adaptes             */
 /* ------------------------------------------------------------------------- */
 /*   Copyright (C) 1995-97 Simon G. Vogl
                    1998-99 Hans Berglund
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.			     */
+ */
 /* ------------------------------------------------------------------------- */
 
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even

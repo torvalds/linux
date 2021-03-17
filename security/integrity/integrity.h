@@ -1,15 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2009-2010 IBM Corporation
  *
  * Authors:
  * Mimi Zohar <zohar@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
- *
  */
+
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/types.h>
 #include <linux/integrity.h>
@@ -36,6 +37,8 @@
 #define IMA_NEW_FILE		0x04000000
 #define EVM_IMMUTABLE_DIGSIG	0x08000000
 #define IMA_FAIL_UNVERIFIABLE_SIGS	0x10000000
+#define IMA_MODSIG_ALLOWED	0x20000000
+#define IMA_CHECK_BLACKLIST	0x40000000
 
 #define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT | \
 				 IMA_HASH | IMA_APPRAISE_SUBMASK)
@@ -79,6 +82,12 @@ enum evm_ima_xattr_type {
 
 struct evm_ima_xattr_data {
 	u8 type;
+	u8 data[];
+} __packed;
+
+/* Only used in the EVM HMAC code. */
+struct evm_xattr {
+	struct evm_ima_xattr_data data;
 	u8 digest[SHA1_DIGEST_SIZE];
 } __packed;
 
@@ -98,7 +107,7 @@ struct ima_digest_data {
 		} ng;
 		u8 data[2];
 	} xattr;
-	u8 digest[0];
+	u8 digest[];
 } __packed;
 
 /*
@@ -110,7 +119,7 @@ struct signature_v2_hdr {
 	uint8_t	hash_algo;	/* Digest algorithm [enum hash_algo] */
 	__be32 keyid;		/* IMA key identifier - not X509/PGP specific */
 	__be16 sig_size;	/* signature size */
-	uint8_t sig[0];		/* signature payload */
+	uint8_t sig[];		/* signature payload */
 } __packed;
 
 /* integrity data associated with an inode */
@@ -141,18 +150,23 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 
 #define INTEGRITY_KEYRING_EVM		0
 #define INTEGRITY_KEYRING_IMA		1
-#define INTEGRITY_KEYRING_MODULE	2
+#define INTEGRITY_KEYRING_PLATFORM	2
 #define INTEGRITY_KEYRING_MAX		3
 
 extern struct dentry *integrity_dir;
+
+struct modsig;
 
 #ifdef CONFIG_INTEGRITY_SIGNATURE
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 			    const char *digest, int digestlen);
+int integrity_modsig_verify(unsigned int id, const struct modsig *modsig);
 
 int __init integrity_init_keyring(const unsigned int id);
 int __init integrity_load_x509(const unsigned int id, const char *path);
+int __init integrity_load_cert(const unsigned int id, const char *source,
+			       const void *data, size_t len, key_perm_t perm);
 #else
 
 static inline int integrity_digsig_verify(const unsigned int id,
@@ -162,7 +176,21 @@ static inline int integrity_digsig_verify(const unsigned int id,
 	return -EOPNOTSUPP;
 }
 
+static inline int integrity_modsig_verify(unsigned int id,
+					  const struct modsig *modsig)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline int integrity_init_keyring(const unsigned int id)
+{
+	return 0;
+}
+
+static inline int __init integrity_load_cert(const unsigned int id,
+					     const char *source,
+					     const void *data, size_t len,
+					     key_perm_t perm)
 {
 	return 0;
 }
@@ -174,6 +202,16 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 #else
 static inline int asymmetric_verify(struct key *keyring, const char *sig,
 				    int siglen, const char *data, int datalen)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
+#ifdef CONFIG_IMA_APPRAISE_MODSIG
+int ima_modsig_verify(struct key *keyring, const struct modsig *modsig);
+#else
+static inline int ima_modsig_verify(struct key *keyring,
+				    const struct modsig *modsig)
 {
 	return -EOPNOTSUPP;
 }
@@ -201,6 +239,11 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int info);
 
+void integrity_audit_message(int audit_msgno, struct inode *inode,
+			     const unsigned char *fname, const char *op,
+			     const char *cause, int result, int info,
+			     int errno);
+
 static inline struct audit_buffer *
 integrity_audit_log_start(struct audit_context *ctx, gfp_t gfp_mask, int type)
 {
@@ -215,10 +258,28 @@ static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
 {
 }
 
+static inline void integrity_audit_message(int audit_msgno,
+					   struct inode *inode,
+					   const unsigned char *fname,
+					   const char *op, const char *cause,
+					   int result, int info, int errno)
+{
+}
+
 static inline struct audit_buffer *
 integrity_audit_log_start(struct audit_context *ctx, gfp_t gfp_mask, int type)
 {
 	return NULL;
 }
 
+#endif
+
+#ifdef CONFIG_INTEGRITY_PLATFORM_KEYRING
+void __init add_to_platform_keyring(const char *source, const void *data,
+				    size_t len);
+#else
+static inline void __init add_to_platform_keyring(const char *source,
+						  const void *data, size_t len)
+{
+}
 #endif

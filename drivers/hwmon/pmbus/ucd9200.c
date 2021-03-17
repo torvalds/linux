@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hardware monitoring driver for ucd9200 series Digital PWM System Controllers
  *
  * Copyright (C) 2011 Ericsson AB.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -47,7 +34,7 @@ static const struct i2c_device_id ucd9200_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ucd9200_id);
 
-static const struct of_device_id ucd9200_of_match[] = {
+static const struct of_device_id __maybe_unused ucd9200_of_match[] = {
 	{
 		.compatible = "ti,cd9200",
 		.data = (void *)ucd9200
@@ -84,8 +71,7 @@ static const struct of_device_id ucd9200_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ucd9200_of_match);
 
-static int ucd9200_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ucd9200_probe(struct i2c_client *client)
 {
 	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
 	struct pmbus_driver_info *info;
@@ -119,12 +105,12 @@ static int ucd9200_probe(struct i2c_client *client,
 	if (client->dev.of_node)
 		chip = (enum chips)of_device_get_match_data(&client->dev);
 	else
-		chip = id->driver_data;
+		chip = mid->driver_data;
 
-	if (chip != ucd9200 && chip != mid->driver_data)
+	if (chip != ucd9200 && strcmp(client->name, mid->name) != 0)
 		dev_notice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
-			   id->name, mid->name);
+			   client->name, mid->name);
 
 	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
 			    GFP_KERNEL);
@@ -205,7 +191,7 @@ static int ucd9200_probe(struct i2c_client *client,
 	if (mid->driver_data == ucd9240)
 		info->func[0] |= PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12;
 
-	return pmbus_do_probe(client, mid, info);
+	return pmbus_do_probe(client, info);
 }
 
 /* This is the driver that will be inserted */
@@ -214,7 +200,7 @@ static struct i2c_driver ucd9200_driver = {
 		.name = "ucd9200",
 		.of_match_table = of_match_ptr(ucd9200_of_match),
 	},
-	.probe = ucd9200_probe,
+	.probe_new = ucd9200_probe,
 	.remove = pmbus_do_remove,
 	.id_table = ucd9200_id,
 };

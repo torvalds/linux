@@ -1,20 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2011 Zhang, Keguang <keguang.zhang@gmail.com>
- *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
+#include <linux/io.h>
+#include <linux/init.h>
+#include <linux/smp.h>
+#include <asm/cpu-info.h>
 #include <asm/bootinfo.h>
-
-#include <prom.h>
-
-void __init plat_mem_setup(void)
-{
-	add_memory_region(0x0, (memsize << 20), BOOT_MEM_RAM);
-}
 
 const char *get_system_type(void)
 {

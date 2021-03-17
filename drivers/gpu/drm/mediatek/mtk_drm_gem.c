@@ -1,19 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_gem.h>
 #include <linux/dma-buf.h>
+
+#include <drm/drm.h>
+#include <drm/drm_device.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_prime.h>
 
 #include "mtk_drm_drv.h"
 #include "mtk_drm_gem.h"
@@ -122,7 +117,7 @@ int mtk_drm_gem_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 		goto err_handle_create;
 
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_put_unlocked(&mtk_gem->base);
+	drm_gem_object_put(&mtk_gem->base);
 
 	return 0;
 
@@ -144,7 +139,6 @@ static int mtk_drm_gem_object_mmap(struct drm_gem_object *obj,
 	 * VM_PFNMAP flag that was set by drm_gem_mmap_obj()/drm_gem_mmap().
 	 */
 	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_pgoff = 0;
 
 	ret = dma_mmap_attrs(priv->dma_dev, vma, mtk_gem->cookie,
 			     mtk_gem->dma_addr, obj->size, mtk_gem->dma_attrs);
@@ -175,6 +169,12 @@ int mtk_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 		return ret;
 
 	obj = vma->vm_private_data;
+
+	/*
+	 * Set vm_pgoff (used as a fake buffer offset by DRM) to 0 and map the
+	 * whole buffer from the start.
+	 */
+	vma->vm_pgoff = 0;
 
 	return mtk_drm_gem_object_mmap(obj, vma);
 }
@@ -212,32 +212,60 @@ struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
 			struct dma_buf_attachment *attach, struct sg_table *sg)
 {
 	struct mtk_drm_gem_obj *mtk_gem;
-	int ret;
-	struct scatterlist *s;
-	unsigned int i;
-	dma_addr_t expected;
+
+	/* check if the entries in the sg_table are contiguous */
+	if (drm_prime_get_contiguous_size(sg) < attach->dmabuf->size) {
+		DRM_ERROR("sg_table is not contiguous");
+		return ERR_PTR(-EINVAL);
+	}
 
 	mtk_gem = mtk_drm_gem_init(dev, attach->dmabuf->size);
-
 	if (IS_ERR(mtk_gem))
 		return ERR_CAST(mtk_gem);
-
-	expected = sg_dma_address(sg->sgl);
-	for_each_sg(sg->sgl, s, sg->nents, i) {
-		if (sg_dma_address(s) != expected) {
-			DRM_ERROR("sg_table is not contiguous");
-			ret = -EINVAL;
-			goto err_gem_free;
-		}
-		expected = sg_dma_address(s) + sg_dma_len(s);
-	}
 
 	mtk_gem->dma_addr = sg_dma_address(sg->sgl);
 	mtk_gem->sg = sg;
 
 	return &mtk_gem->base;
+}
 
-err_gem_free:
-	kfree(mtk_gem);
-	return ERR_PTR(ret);
+void *mtk_drm_gem_prime_vmap(struct drm_gem_object *obj)
+{
+	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
+	struct sg_table *sgt;
+	unsigned int npages;
+
+	if (mtk_gem->kvaddr)
+		return mtk_gem->kvaddr;
+
+	sgt = mtk_gem_prime_get_sg_table(obj);
+	if (IS_ERR(sgt))
+		return NULL;
+
+	npages = obj->size >> PAGE_SHIFT;
+	mtk_gem->pages = kcalloc(npages, sizeof(*mtk_gem->pages), GFP_KERNEL);
+	if (!mtk_gem->pages)
+		goto out;
+
+	drm_prime_sg_to_page_addr_arrays(sgt, mtk_gem->pages, NULL, npages);
+
+	mtk_gem->kvaddr = vmap(mtk_gem->pages, npages, VM_MAP,
+			       pgprot_writecombine(PAGE_KERNEL));
+
+out:
+	kfree(sgt);
+
+	return mtk_gem->kvaddr;
+}
+
+void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+{
+	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
+
+	if (!mtk_gem->pages)
+		return;
+
+	vunmap(vaddr);
+	mtk_gem->kvaddr = 0;
+	kfree(mtk_gem->pages);
 }

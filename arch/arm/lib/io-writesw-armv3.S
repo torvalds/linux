@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/io-writesw-armv3.S
  *
  *  Copyright (C) 1995-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
@@ -79,7 +76,7 @@ ENTRY(__raw_writesw)
 		bpl	.Loutsw_8_lp
 
 		tst	r2, #7
-		ldmeqfd	sp!, {r4, r5, r6, pc}
+		ldmfdeq	sp!, {r4, r5, r6, pc}
 
 .Lno_outsw_8:	tst	r2, #4
 		beq	.Lno_outsw_4

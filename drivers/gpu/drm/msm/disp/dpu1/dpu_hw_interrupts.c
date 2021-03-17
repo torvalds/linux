@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
@@ -170,10 +162,6 @@
 /**
  * AD4 interrupt status bit definitions
  */
-#define DPU_INTR_BRIGHTPR_UPDATED BIT(4)
-#define DPU_INTR_DARKENH_UPDATED BIT(3)
-#define DPU_INTR_STREN_OUTROI_UPDATED BIT(2)
-#define DPU_INTR_STREN_INROI_UPDATED BIT(1)
 #define DPU_INTR_BACKLIGHT_UPDATED BIT(0)
 /**
  * struct dpu_intr_reg - array of DPU register sets
@@ -782,18 +770,6 @@ static int dpu_hw_intr_irqidx_lookup(enum dpu_intr_type intr_type,
 	return -EINVAL;
 }
 
-static void dpu_hw_intr_set_mask(struct dpu_hw_intr *intr, uint32_t reg_off,
-		uint32_t mask)
-{
-	if (!intr)
-		return;
-
-	DPU_REG_WRITE(&intr->hw, reg_off, mask);
-
-	/* ensure register writes go through */
-	wmb();
-}
-
 static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
 		void (*cbfunc)(void *, int),
 		void *arg)
@@ -824,8 +800,8 @@ static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
 		start_idx = reg_idx * 32;
 		end_idx = start_idx + 32;
 
-		if (start_idx >= ARRAY_SIZE(dpu_irq_map) ||
-				end_idx > ARRAY_SIZE(dpu_irq_map))
+		if (!test_bit(reg_idx, &intr->irq_mask) ||
+			start_idx >= ARRAY_SIZE(dpu_irq_map))
 			continue;
 
 		/*
@@ -979,8 +955,11 @@ static int dpu_hw_intr_clear_irqs(struct dpu_hw_intr *intr)
 	if (!intr)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++)
-		DPU_REG_WRITE(&intr->hw, dpu_intr_set[i].clr_off, 0xffffffff);
+	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++) {
+		if (test_bit(i, &intr->irq_mask))
+			DPU_REG_WRITE(&intr->hw,
+					dpu_intr_set[i].clr_off, 0xffffffff);
+	}
 
 	/* ensure register writes go through */
 	wmb();
@@ -995,23 +974,14 @@ static int dpu_hw_intr_disable_irqs(struct dpu_hw_intr *intr)
 	if (!intr)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++)
-		DPU_REG_WRITE(&intr->hw, dpu_intr_set[i].en_off, 0x00000000);
+	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++) {
+		if (test_bit(i, &intr->irq_mask))
+			DPU_REG_WRITE(&intr->hw,
+					dpu_intr_set[i].en_off, 0x00000000);
+	}
 
 	/* ensure register writes go through */
 	wmb();
-
-	return 0;
-}
-
-static int dpu_hw_intr_get_valid_interrupts(struct dpu_hw_intr *intr,
-		uint32_t *mask)
-{
-	if (!intr || !mask)
-		return -EINVAL;
-
-	*mask = IRQ_SOURCE_MDP | IRQ_SOURCE_DSI0 | IRQ_SOURCE_DSI1
-		| IRQ_SOURCE_HDMI | IRQ_SOURCE_EDP;
 
 	return 0;
 }
@@ -1027,6 +997,9 @@ static void dpu_hw_intr_get_interrupt_statuses(struct dpu_hw_intr *intr)
 
 	spin_lock_irqsave(&intr->irq_lock, irq_flags);
 	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++) {
+		if (!test_bit(i, &intr->irq_mask))
+			continue;
+
 		/* Read interrupt status */
 		intr->save_irq_status[i] = DPU_REG_READ(&intr->hw,
 				dpu_intr_set[i].status_off);
@@ -1065,19 +1038,6 @@ static void dpu_hw_intr_clear_intr_status_nolock(struct dpu_hw_intr *intr,
 	wmb();
 }
 
-static void dpu_hw_intr_clear_interrupt_status(struct dpu_hw_intr *intr,
-		int irq_idx)
-{
-	unsigned long irq_flags;
-
-	if (!intr)
-		return;
-
-	spin_lock_irqsave(&intr->irq_lock, irq_flags);
-	dpu_hw_intr_clear_intr_status_nolock(intr, irq_idx);
-	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
-}
-
 static u32 dpu_hw_intr_get_interrupt_status(struct dpu_hw_intr *intr,
 		int irq_idx, bool clear)
 {
@@ -1113,16 +1073,13 @@ static u32 dpu_hw_intr_get_interrupt_status(struct dpu_hw_intr *intr,
 
 static void __setup_intr_ops(struct dpu_hw_intr_ops *ops)
 {
-	ops->set_mask = dpu_hw_intr_set_mask;
 	ops->irq_idx_lookup = dpu_hw_intr_irqidx_lookup;
 	ops->enable_irq = dpu_hw_intr_enable_irq;
 	ops->disable_irq = dpu_hw_intr_disable_irq;
 	ops->dispatch_irqs = dpu_hw_intr_dispatch_irq;
 	ops->clear_all_irqs = dpu_hw_intr_clear_irqs;
 	ops->disable_all_irqs = dpu_hw_intr_disable_irqs;
-	ops->get_valid_interrupts = dpu_hw_intr_get_valid_interrupts;
 	ops->get_interrupt_statuses = dpu_hw_intr_get_interrupt_statuses;
-	ops->clear_interrupt_status = dpu_hw_intr_clear_interrupt_status;
 	ops->clear_intr_status_nolock = dpu_hw_intr_clear_intr_status_nolock;
 	ops->get_interrupt_status = dpu_hw_intr_get_interrupt_status;
 }
@@ -1167,6 +1124,7 @@ struct dpu_hw_intr *dpu_hw_intr_init(void __iomem *addr,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	intr->irq_mask = m->mdss_irqs;
 	spin_lock_init(&intr->irq_lock);
 
 	return intr;

@@ -1,23 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 Freescale Semiconductor, Inc.
  *
  * Freescale DCU drm device driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/regmap.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "fsl_dcu_drm_drv.h"
 #include "fsl_dcu_drm_plane.h"
@@ -105,19 +101,19 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 		break;
 	case DRM_FORMAT_ARGB8888:
 		alpha = DCU_LAYER_AB_WHOLE_FRAME;
-		/* fall-through */
+		fallthrough;
 	case DRM_FORMAT_XRGB8888:
 		bpp = FSL_DCU_ARGB8888;
 		break;
 	case DRM_FORMAT_ARGB4444:
 		alpha = DCU_LAYER_AB_WHOLE_FRAME;
-		/* fall-through */
+		fallthrough;
 	case DRM_FORMAT_XRGB4444:
 		bpp = FSL_DCU_ARGB4444;
 		break;
 	case DRM_FORMAT_ARGB1555:
 		alpha = DCU_LAYER_AB_WHOLE_FRAME;
-		/* fall-through */
+		fallthrough;
 	case DRM_FORMAT_XRGB1555:
 		bpp = FSL_DCU_ARGB1555;
 		break;

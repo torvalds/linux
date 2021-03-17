@@ -26,7 +26,6 @@
 #include <linux/audit.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 
@@ -88,9 +87,9 @@ void user_enable_single_step(struct task_struct *task)
 		ptrace_disable(task);
 		/* Don't wake up the task, but let the
 		   parent know something happened. */
-		force_sig_fault(SIGTRAP, TRAP_TRACE,
-				(void __user *) (task_regs(task)->iaoq[0] & ~3),
-				task);
+		force_sig_fault_to_task(SIGTRAP, TRAP_TRACE,
+					(void __user *) (task_regs(task)->iaoq[0] & ~3),
+					task);
 		/* notify_parent(task, SIGCHLD); */
 		return;
 	}
@@ -167,6 +166,9 @@ long arch_ptrace(struct task_struct *child, long request,
 		if ((addr & (sizeof(unsigned long)-1)) ||
 		     addr >= sizeof(struct pt_regs))
 			break;
+		if (addr == PT_IAOQ0 || addr == PT_IAOQ1) {
+			data |= 3; /* ensure userspace privilege */
+		}
 		if ((addr >= PT_GR1 && addr <= PT_GR31) ||
 				addr == PT_IAOQ0 || addr == PT_IAOQ1 ||
 				(addr >= PT_FR0 && addr <= PT_FR31 + 4) ||
@@ -228,16 +230,18 @@ long arch_ptrace(struct task_struct *child, long request,
 
 static compat_ulong_t translate_usr_offset(compat_ulong_t offset)
 {
-	if (offset < 0)
-		return sizeof(struct pt_regs);
-	else if (offset <= 32*4)	/* gr[0..31] */
-		return offset * 2 + 4;
-	else if (offset <= 32*4+32*8)	/* gr[0..31] + fr[0..31] */
-		return offset + 32*4;
-	else if (offset < sizeof(struct pt_regs)/2 + 32*4)
-		return offset * 2 + 4 - 32*8;
+	compat_ulong_t pos;
+
+	if (offset < 32*4)	/* gr[0..31] */
+		pos = offset * 2 + 4;
+	else if (offset < 32*4+32*8)	/* fr[0] ... fr[31] */
+		pos = (offset - 32*4) + PT_FR0;
+	else if (offset < sizeof(struct pt_regs)/2 + 32*4) /* sr[0] ... ipsw */
+		pos = (offset - 32*4 - 32*8) * 2 + PT_SR0 + 4;
 	else
-		return sizeof(struct pt_regs);
+		pos = sizeof(struct pt_regs);
+
+	return pos;
 }
 
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
@@ -281,9 +285,12 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			addr = translate_usr_offset(addr);
 			if (addr >= sizeof(struct pt_regs))
 				break;
+			if (addr == PT_IAOQ0+4 || addr == PT_IAOQ1+4) {
+				data |= 3; /* ensure userspace privilege */
+			}
 			if (addr >= PT_FR0 && addr <= PT_FR31 + 4) {
 				/* Special case, fp regs are 64 bits anyway */
-				*(__u64 *) ((char *) task_regs(child) + addr) = data;
+				*(__u32 *) ((char *) task_regs(child) + addr) = data;
 				ret = 0;
 			}
 			else if ((addr >= PT_GR1+4 && addr <= PT_GR31+4) ||
@@ -308,19 +315,33 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs)) {
+	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
+		int rc = tracehook_report_syscall_entry(regs);
+
 		/*
-		 * Tracing decided this syscall should not happen or the
-		 * debugger stored an invalid system call number. Skip
-		 * the system call and the system call restart handling.
+		 * As tracesys_next does not set %r28 to -ENOSYS
+		 * when %r20 is set to -1, initialize it here.
 		 */
-		regs->gr[20] = -1UL;
-		goto out;
+		regs->gr[28] = -ENOSYS;
+
+		if (rc) {
+			/*
+			 * A nonzero return code from
+			 * tracehook_report_syscall_entry() tells us
+			 * to prevent the syscall execution.  Skip
+			 * the syscall call and the syscall restart handling.
+			 *
+			 * Note that the tracer may also just change
+			 * regs->gr[20] to an invalid syscall number,
+			 * that is handled by tracesys_next.
+			 */
+			regs->gr[20] = -1UL;
+			return -1;
+		}
 	}
 
 	/* Do the secure computing check after ptrace. */
-	if (secure_computing(NULL) == -1)
+	if (secure_computing() == -1)
 		return -1;
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
@@ -340,7 +361,6 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 			regs->gr[24] & 0xffffffff,
 			regs->gr[23] & 0xffffffff);
 
-out:
 	/*
 	 * Sign extend the syscall number to 64bit since it may have been
 	 * modified by a compat ptrace call
@@ -371,31 +391,11 @@ void do_syscall_trace_exit(struct pt_regs *regs)
 
 static int fpr_get(struct task_struct *target,
 		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-		     void *kbuf, void __user *ubuf)
+		     struct membuf to)
 {
 	struct pt_regs *regs = task_regs(target);
-	__u64 *k = kbuf;
-	__u64 __user *u = ubuf;
-	__u64 reg;
 
-	pos /= sizeof(reg);
-	count /= sizeof(reg);
-
-	if (kbuf)
-		for (; count > 0 && pos < ELF_NFPREG; --count)
-			*k++ = regs->fr[pos++];
-	else
-		for (; count > 0 && pos < ELF_NFPREG; --count)
-			if (__put_user(regs->fr[pos++], u++))
-				return -EFAULT;
-
-	kbuf = k;
-	ubuf = u;
-	pos *= sizeof(reg);
-	count *= sizeof(reg);
-	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					ELF_NFPREG * sizeof(reg), -1);
+	return membuf_write(&to, regs->fr, ELF_NFPREG * sizeof(__u64));
 }
 
 static int fpr_set(struct task_struct *target,
@@ -483,7 +483,8 @@ static void set_reg(struct pt_regs *regs, int num, unsigned long val)
 			return;
 	case RI(iaoq[0]):
 	case RI(iaoq[1]):
-			regs->iaoq[num - RI(iaoq[0])] = val;
+			/* set 2 lowest bits to ensure userspace privilege: */
+			regs->iaoq[num - RI(iaoq[0])] = val | 3;
 			return;
 	case RI(sar):	regs->sar = val;
 			return;
@@ -506,30 +507,14 @@ static void set_reg(struct pt_regs *regs, int num, unsigned long val)
 
 static int gpr_get(struct task_struct *target,
 		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-		     void *kbuf, void __user *ubuf)
+		     struct membuf to)
 {
 	struct pt_regs *regs = task_regs(target);
-	unsigned long *k = kbuf;
-	unsigned long __user *u = ubuf;
-	unsigned long reg;
+	unsigned int pos;
 
-	pos /= sizeof(reg);
-	count /= sizeof(reg);
-
-	if (kbuf)
-		for (; count > 0 && pos < ELF_NGREG; --count)
-			*k++ = get_reg(regs, pos++);
-	else
-		for (; count > 0 && pos < ELF_NGREG; --count)
-			if (__put_user(get_reg(regs, pos++), u++))
-				return -EFAULT;
-	kbuf = k;
-	ubuf = u;
-	pos *= sizeof(reg);
-	count *= sizeof(reg);
-	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					ELF_NGREG * sizeof(reg), -1);
+	for (pos = 0; pos < ELF_NGREG; pos++)
+		membuf_store(&to, get_reg(regs, pos));
+	return 0;
 }
 
 static int gpr_set(struct task_struct *target,
@@ -567,12 +552,12 @@ static const struct user_regset native_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
-		.get = gpr_get, .set = gpr_set
+		.regset_get = gpr_get, .set = gpr_set
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(__u64), .align = sizeof(__u64),
-		.get = fpr_get, .set = fpr_set
+		.regset_get = fpr_get, .set = fpr_set
 	}
 };
 
@@ -586,31 +571,15 @@ static const struct user_regset_view user_parisc_native_view = {
 
 static int gpr32_get(struct task_struct *target,
 		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-		     void *kbuf, void __user *ubuf)
+		     struct membuf to)
 {
 	struct pt_regs *regs = task_regs(target);
-	compat_ulong_t *k = kbuf;
-	compat_ulong_t __user *u = ubuf;
-	compat_ulong_t reg;
+	unsigned int pos;
 
-	pos /= sizeof(reg);
-	count /= sizeof(reg);
+	for (pos = 0; pos < ELF_NGREG; pos++)
+		membuf_store(&to, (compat_ulong_t)get_reg(regs, pos));
 
-	if (kbuf)
-		for (; count > 0 && pos < ELF_NGREG; --count)
-			*k++ = get_reg(regs, pos++);
-	else
-		for (; count > 0 && pos < ELF_NGREG; --count)
-			if (__put_user((compat_ulong_t) get_reg(regs, pos++), u++))
-				return -EFAULT;
-
-	kbuf = k;
-	ubuf = u;
-	pos *= sizeof(reg);
-	count *= sizeof(reg);
-	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					ELF_NGREG * sizeof(reg), -1);
+	return 0;
 }
 
 static int gpr32_set(struct task_struct *target,
@@ -651,12 +620,12 @@ static const struct user_regset compat_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(compat_long_t), .align = sizeof(compat_long_t),
-		.get = gpr32_get, .set = gpr32_set
+		.regset_get = gpr32_get, .set = gpr32_set
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(__u64), .align = sizeof(__u64),
-		.get = fpr_get, .set = fpr_set
+		.regset_get = fpr_get, .set = fpr_set
 	}
 };
 
@@ -775,4 +744,39 @@ const char *regs_query_register_name(unsigned int offset)
 		if (roff->offset == offset)
 			return roff->name;
 	return NULL;
+}
+
+/**
+ * regs_within_kernel_stack() - check the address in the stack
+ * @regs:      pt_regs which contains kernel stack pointer.
+ * @addr:      address which is checked.
+ *
+ * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
+ * If @addr is within the kernel stack, it returns true. If not, returns false.
+ */
+int regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
+{
+	return ((addr & ~(THREAD_SIZE - 1))  ==
+		(kernel_stack_pointer(regs) & ~(THREAD_SIZE - 1)));
+}
+
+/**
+ * regs_get_kernel_stack_nth() - get Nth entry of the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @n:		stack entry number.
+ *
+ * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
+ * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * this returns 0.
+ */
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
+{
+	unsigned long *addr = (unsigned long *)kernel_stack_pointer(regs);
+
+	addr -= n;
+
+	if (!regs_within_kernel_stack(regs, (unsigned long)addr))
+		return 0;
+
+	return *addr;
 }

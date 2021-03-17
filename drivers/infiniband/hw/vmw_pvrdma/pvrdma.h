@@ -427,7 +427,40 @@ static inline enum ib_qp_state pvrdma_qp_state_to_ib(enum pvrdma_qp_state state)
 
 static inline enum pvrdma_wr_opcode ib_wr_opcode_to_pvrdma(enum ib_wr_opcode op)
 {
-	return (enum pvrdma_wr_opcode)op;
+	switch (op) {
+	case IB_WR_RDMA_WRITE:
+		return PVRDMA_WR_RDMA_WRITE;
+	case IB_WR_RDMA_WRITE_WITH_IMM:
+		return PVRDMA_WR_RDMA_WRITE_WITH_IMM;
+	case IB_WR_SEND:
+		return PVRDMA_WR_SEND;
+	case IB_WR_SEND_WITH_IMM:
+		return PVRDMA_WR_SEND_WITH_IMM;
+	case IB_WR_RDMA_READ:
+		return PVRDMA_WR_RDMA_READ;
+	case IB_WR_ATOMIC_CMP_AND_SWP:
+		return PVRDMA_WR_ATOMIC_CMP_AND_SWP;
+	case IB_WR_ATOMIC_FETCH_AND_ADD:
+		return PVRDMA_WR_ATOMIC_FETCH_AND_ADD;
+	case IB_WR_LSO:
+		return PVRDMA_WR_LSO;
+	case IB_WR_SEND_WITH_INV:
+		return PVRDMA_WR_SEND_WITH_INV;
+	case IB_WR_RDMA_READ_WITH_INV:
+		return PVRDMA_WR_RDMA_READ_WITH_INV;
+	case IB_WR_LOCAL_INV:
+		return PVRDMA_WR_LOCAL_INV;
+	case IB_WR_REG_MR:
+		return PVRDMA_WR_FAST_REG_MR;
+	case IB_WR_MASKED_ATOMIC_CMP_AND_SWP:
+		return PVRDMA_WR_MASKED_ATOMIC_CMP_AND_SWP;
+	case IB_WR_MASKED_ATOMIC_FETCH_AND_ADD:
+		return PVRDMA_WR_MASKED_ATOMIC_FETCH_AND_ADD;
+	case IB_WR_REG_MR_INTEGRITY:
+		return PVRDMA_WR_REG_SIG_MR;
+	default:
+		return PVRDMA_WR_ERROR;
+	}
 }
 
 static inline enum ib_wc_status pvrdma_wc_status_to_ib(
@@ -474,6 +507,20 @@ static inline int pvrdma_wc_flags_to_ib(int flags)
 static inline int ib_send_flags_to_pvrdma(int flags)
 {
 	return flags & PVRDMA_MASK(PVRDMA_SEND_FLAGS_MAX);
+}
+
+static inline int pvrdma_network_type_to_ib(enum pvrdma_network_type type)
+{
+	switch (type) {
+	case PVRDMA_NETWORK_ROCE_V1:
+		return RDMA_NETWORK_ROCE_V1;
+	case PVRDMA_NETWORK_IPV4:
+		return RDMA_NETWORK_IPV4;
+	case PVRDMA_NETWORK_IPV6:
+		return RDMA_NETWORK_IPV6;
+	default:
+		return RDMA_NETWORK_IPV6;
+	}
 }
 
 void pvrdma_qp_cap_to_ib(struct ib_qp_cap *dst,

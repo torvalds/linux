@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell MVEBU CPU clock handling.
  *
@@ -5,9 +6,6 @@
  *
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -183,7 +181,7 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 		pr_warn("%s: pmu-dfs base register not set, dynamic frequency scaling not available\n",
 			__func__);
 
-	for_each_node_by_type(dn, "cpu")
+	for_each_of_cpu_node(dn)
 		ncpus++;
 
 	cpuclk = kcalloc(ncpus, sizeof(*cpuclk), GFP_KERNEL);
@@ -194,7 +192,7 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 	if (WARN_ON(!clks))
 		goto clks_out;
 
-	for_each_node_by_type(dn, "cpu") {
+	for_each_of_cpu_node(dn) {
 		struct clk_init_data init;
 		struct clk *clk;
 		char *clk_name = kzalloc(5, GFP_KERNEL);

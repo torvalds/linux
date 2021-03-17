@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# Ignore header name
+ignore define _DVBAUDIO_H_
+
+# Undocumented audio caps, as this is a deprecated API anyway
+ignore define AUDIO_CAP_DTS
+ignore define AUDIO_CAP_LPCM
+ignore define AUDIO_CAP_MP1
+ignore define AUDIO_CAP_MP2
+ignore define AUDIO_CAP_MP3
+ignore define AUDIO_CAP_AAC
+ignore define AUDIO_CAP_OGG
+ignore define AUDIO_CAP_SDDS
+ignore define AUDIO_CAP_AC3
+
+# some typedefs should point to struct/enums
+replace typedef audio_mixer_t :c:type:`audio_mixer`
+replace typedef audio_status_t :c:type:`audio_status`

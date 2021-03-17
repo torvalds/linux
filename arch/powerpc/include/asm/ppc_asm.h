@@ -311,18 +311,48 @@ n:
 	addis	reg,reg,(name - 0b)@ha;		\
 	addi	reg,reg,(name - 0b)@l;
 
-#ifdef __powerpc64__
-#ifdef HAVE_AS_ATHIGH
+#if defined(__powerpc64__) && defined(HAVE_AS_ATHIGH)
 #define __AS_ATHIGH high
 #else
 #define __AS_ATHIGH h
 #endif
-#define LOAD_REG_IMMEDIATE(reg,expr)		\
-	lis     reg,(expr)@highest;		\
-	ori     reg,reg,(expr)@higher;	\
-	rldicr  reg,reg,32,31;		\
-	oris    reg,reg,(expr)@__AS_ATHIGH;	\
-	ori     reg,reg,(expr)@l;
+
+.macro __LOAD_REG_IMMEDIATE_32 r, x
+	.if (\x) >= 0x8000 || (\x) < -0x8000
+		lis \r, (\x)@__AS_ATHIGH
+		.if (\x) & 0xffff != 0
+			ori \r, \r, (\x)@l
+		.endif
+	.else
+		li \r, (\x)@l
+	.endif
+.endm
+
+.macro __LOAD_REG_IMMEDIATE r, x
+	.if (\x) >= 0x80000000 || (\x) < -0x80000000
+		__LOAD_REG_IMMEDIATE_32 \r, (\x) >> 32
+		sldi	\r, \r, 32
+		.if (\x) & 0xffff0000 != 0
+			oris \r, \r, (\x)@__AS_ATHIGH
+		.endif
+		.if (\x) & 0xffff != 0
+			ori \r, \r, (\x)@l
+		.endif
+	.else
+		__LOAD_REG_IMMEDIATE_32 \r, \x
+	.endif
+.endm
+
+#ifdef __powerpc64__
+
+#define LOAD_REG_IMMEDIATE(reg, expr) __LOAD_REG_IMMEDIATE reg, expr
+
+#define LOAD_REG_IMMEDIATE_SYM(reg, tmp, expr)	\
+	lis	tmp, (expr)@highest;		\
+	lis	reg, (expr)@__AS_ATHIGH;	\
+	ori	tmp, tmp, (expr)@higher;	\
+	ori	reg, reg, (expr)@l;		\
+	rldimi	reg, tmp, 32, 0
 
 #define LOAD_REG_ADDR(reg,name)			\
 	ld	reg,name@got(r2)
@@ -335,11 +365,13 @@ n:
 
 #else /* 32-bit */
 
-#define LOAD_REG_IMMEDIATE(reg,expr)		\
+#define LOAD_REG_IMMEDIATE(reg, expr) __LOAD_REG_IMMEDIATE_32 reg, expr
+
+#define LOAD_REG_IMMEDIATE_SYM(reg,expr)		\
 	lis	reg,(expr)@ha;		\
 	addi	reg,reg,(expr)@l;
 
-#define LOAD_REG_ADDR(reg,name)		LOAD_REG_IMMEDIATE(reg, name)
+#define LOAD_REG_ADDR(reg,name)		LOAD_REG_IMMEDIATE_SYM(reg, name)
 
 #define LOAD_REG_ADDRBASE(reg, name)	lis	reg,name@ha
 #define ADDROFF(name)			name@l
@@ -350,26 +382,6 @@ n:
 #endif
 
 /* various errata or part fixups */
-#ifdef CONFIG_PPC601_SYNC_FIX
-#define SYNC				\
-BEGIN_FTR_SECTION			\
-	sync;				\
-	isync;				\
-END_FTR_SECTION_IFSET(CPU_FTR_601)
-#define SYNC_601			\
-BEGIN_FTR_SECTION			\
-	sync;				\
-END_FTR_SECTION_IFSET(CPU_FTR_601)
-#define ISYNC_601			\
-BEGIN_FTR_SECTION			\
-	isync;				\
-END_FTR_SECTION_IFSET(CPU_FTR_601)
-#else
-#define	SYNC
-#define SYNC_601
-#define ISYNC_601
-#endif
-
 #if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
 #define MFTB(dest)			\
 90:	mfspr dest, SPRN_TBRL;		\
@@ -391,13 +403,8 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 
 #ifndef CONFIG_SMP
 #define TLBSYNC
-#else /* CONFIG_SMP */
-/* tlbsync is not implemented on 601 */
-#define TLBSYNC				\
-BEGIN_FTR_SECTION			\
-	tlbsync;			\
-	sync;				\
-END_FTR_SECTION_IFCLR(CPU_FTR_601)
+#else
+#define TLBSYNC		tlbsync; sync
 #endif
 
 #ifdef CONFIG_PPC64
@@ -480,26 +487,11 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	ori	rd,rd,((KERNELBASE>>48)&0xFFFF);\
 	rotldi	rd,rd,48
 #else
-/*
- * On APUS (Amiga PowerPC cpu upgrade board), we don't know the
- * physical base address of RAM at compile time.
- */
 #define toreal(rd)	tophys(rd,rd)
 #define fromreal(rd)	tovirt(rd,rd)
 
-#define tophys(rd,rs)				\
-0:	addis	rd,rs,-PAGE_OFFSET@h;		\
-	.section ".vtop_fixup","aw";		\
-	.align  1;				\
-	.long   0b;				\
-	.previous
-
-#define tovirt(rd,rs)				\
-0:	addis	rd,rs,PAGE_OFFSET@h;		\
-	.section ".ptov_fixup","aw";		\
-	.align  1;				\
-	.long   0b;				\
-	.previous
+#define tophys(rd, rs)	addis	rd, rs, -PAGE_OFFSET@h
+#define tovirt(rd, rs)	addis	rd, rs, PAGE_OFFSET@h
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -752,6 +744,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define N_SLINE	68
 #define N_SO	100
 
+#define RFSCV	.long 0x4c0000a4
+
 /*
  * Create an endian fixup trampoline
  *
@@ -771,7 +765,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define FIXUP_ENDIAN
 #else
 /*
- * This version may be used in in HV or non-HV context.
+ * This version may be used in HV or non-HV context.
  * MSR[EE] must be disabled.
  */
 #define FIXUP_ENDIAN						   \
@@ -820,5 +814,15 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	stringify_in_c(.long (_fault) - . ;)	\
 	stringify_in_c(.long (_target) - . ;)	\
 	stringify_in_c(.previous)
+
+#ifdef CONFIG_PPC_FSL_BOOK3E
+#define BTB_FLUSH(reg)			\
+	lis reg,BUCSR_INIT@h;		\
+	ori reg,reg,BUCSR_INIT@l;	\
+	mtspr SPRN_BUCSR,reg;		\
+	isync;
+#else
+#define BTB_FLUSH(reg)
+#endif /* CONFIG_PPC_FSL_BOOK3E */
 
 #endif /* _ASM_POWERPC_PPC_ASM_H */

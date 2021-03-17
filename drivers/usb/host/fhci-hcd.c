@@ -396,6 +396,7 @@ static int fhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	case PIPE_CONTROL:
 		/* 1 td fro setup,1 for ack */
 		size = 2;
+		fallthrough;
 	case PIPE_BULK:
 		/* one td for every 4096 bytes(can be up to 8k) */
 		size += urb->transfer_buffer_length / 4096;
@@ -538,7 +539,7 @@ static const struct hc_driver fhci_driver = {
 
 	/* generic hardware linkage */
 	.irq = fhci_irq,
-	.flags = HCD_USB11 | HCD_MEMORY,
+	.flags = HCD_DMA | HCD_USB11 | HCD_MEMORY,
 
 	/* basic lifecycle operation */
 	.start = fhci_start,

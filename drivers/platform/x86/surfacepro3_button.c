@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * power/home/volume button support for
  * Microsoft Surface Pro 3/4 tablet.
  *
  * Copyright (c) 2015 Intel Corporation.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 #include <linux/kernel.h>
@@ -23,6 +19,12 @@
 #define SURFACE_PRO4_BUTTON_HID		"MSHW0040"
 #define SURFACE_BUTTON_OBJ_NAME		"VGBI"
 #define SURFACE_BUTTON_DEVICE_NAME	"Surface Pro 3/4 Buttons"
+
+#define MSHW0040_DSM_REVISION		0x01
+#define MSHW0040_DSM_GET_OMPR		0x02	// get OEM Platform Revision
+static const guid_t MSHW0040_DSM_UUID =
+	GUID_INIT(0x6fd05c69, 0xcde3, 0x49f4, 0x95, 0xed, 0xab, 0x16, 0x65,
+		  0x49, 0x80, 0x35);
 
 #define SURFACE_BUTTON_NOTIFY_TABLET_MODE	0xc8
 
@@ -82,28 +84,28 @@ static void surface_button_notify(struct acpi_device *device, u32 event)
 	/* Power button press,release handle */
 	case SURFACE_BUTTON_NOTIFY_PRESS_POWER:
 		pressed = true;
-		/*fall through*/
+		fallthrough;
 	case SURFACE_BUTTON_NOTIFY_RELEASE_POWER:
 		key_code = KEY_POWER;
 		break;
 	/* Home button press,release handle */
 	case SURFACE_BUTTON_NOTIFY_PRESS_HOME:
 		pressed = true;
-		/*fall through*/
+		fallthrough;
 	case SURFACE_BUTTON_NOTIFY_RELEASE_HOME:
 		key_code = KEY_LEFTMETA;
 		break;
 	/* Volume up button press,release handle */
 	case SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_UP:
 		pressed = true;
-		/*fall through*/
+		fallthrough;
 	case SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_UP:
 		key_code = KEY_VOLUMEUP;
 		break;
 	/* Volume down button press,release handle */
 	case SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_DOWN:
 		pressed = true;
-		/*fall through*/
+		fallthrough;
 	case SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_DOWN:
 		key_code = KEY_VOLUMEDOWN;
 		break;
@@ -146,6 +148,44 @@ static int surface_button_resume(struct device *dev)
 }
 #endif
 
+/*
+ * Surface Pro 4 and Surface Book 2 / Surface Pro 2017 use the same device
+ * ID (MSHW0040) for the power/volume buttons. Make sure this is the right
+ * device by checking for the _DSM method and OEM Platform Revision.
+ *
+ * Returns true if the driver should bind to this device, i.e. the device is
+ * either MSWH0028 (Pro 3) or MSHW0040 on a Pro 4 or Book 1.
+ */
+static bool surface_button_check_MSHW0040(struct acpi_device *dev)
+{
+	acpi_handle handle = dev->handle;
+	union acpi_object *result;
+	u64 oem_platform_rev = 0;	// valid revisions are nonzero
+
+	// get OEM platform revision
+	result = acpi_evaluate_dsm_typed(handle, &MSHW0040_DSM_UUID,
+					 MSHW0040_DSM_REVISION,
+					 MSHW0040_DSM_GET_OMPR,
+					 NULL, ACPI_TYPE_INTEGER);
+
+	/*
+	 * If evaluating the _DSM fails, the method is not present. This means
+	 * that we have either MSHW0028 or MSHW0040 on Pro 4 or Book 1, so we
+	 * should use this driver. We use revision 0 indicating it is
+	 * unavailable.
+	 */
+
+	if (result) {
+		oem_platform_rev = result->integer.value;
+		ACPI_FREE(result);
+	}
+
+	dev_dbg(&dev->dev, "OEM Platform Revision %llu\n", oem_platform_rev);
+
+	return oem_platform_rev == 0;
+}
+
+
 static int surface_button_add(struct acpi_device *device)
 {
 	struct surface_button *button;
@@ -156,6 +196,9 @@ static int surface_button_add(struct acpi_device *device)
 
 	if (strncmp(acpi_device_bid(device), SURFACE_BUTTON_OBJ_NAME,
 	    strlen(SURFACE_BUTTON_OBJ_NAME)))
+		return -ENODEV;
+
+	if (!surface_button_check_MSHW0040(device))
 		return -ENODEV;
 
 	button = kzalloc(sizeof(struct surface_button), GFP_KERNEL);

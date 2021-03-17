@@ -256,7 +256,8 @@ static void scm_request_finish(struct scm_request *scmrq)
 	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++) {
 		error = blk_mq_rq_to_pdu(scmrq->request[i]);
 		*error = scmrq->error;
-		blk_mq_complete_request(scmrq->request[i]);
+		if (likely(!blk_should_fake_timeout(scmrq->request[i]->q)))
+			blk_mq_complete_request(scmrq->request[i]);
 	}
 
 	atomic_dec(&bdev->queued_reqs);
@@ -500,7 +501,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 
 	/* 512 byte sectors */
 	set_capacity(bdev->gendisk, scmdev->size >> 9);
-	device_add_disk(&scmdev->dev, bdev->gendisk);
+	device_add_disk(&scmdev->dev, bdev->gendisk, NULL);
 	return 0;
 
 out_queue:

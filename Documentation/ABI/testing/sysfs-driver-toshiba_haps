@@ -4,10 +4,12 @@ KernelVersion:	3.17
 Contact:	Azael Avalos <coproscefalo@gmail.com>
 Description:	This file controls the built-in accelerometer protection level,
 		valid values are:
+
 			* 0 -> Disabled
 			* 1 -> Low
 			* 2 -> Medium
 			* 3 -> High
+
 		The default potection value is set to 2 (Medium).
 Users:		KToshiba
 

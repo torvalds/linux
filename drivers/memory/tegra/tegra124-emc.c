@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author:
  *	Mikko Perttunen <mperttunen@nvidia.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/clk-provider.h>
@@ -20,6 +11,7 @@
 #include <linux/clkdev.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -475,12 +467,20 @@ struct tegra_emc {
 
 	void __iomem *regs;
 
+	struct clk *clk;
+
 	enum emc_dram_type dram_type;
 	unsigned int dram_num;
 
 	struct emc_timing last_timing;
 	struct emc_timing *timings;
 	unsigned int num_timings;
+
+	struct {
+		struct dentry *root;
+		unsigned long min_rate;
+		unsigned long max_rate;
+	} debugfs;
 };
 
 /* Timing change sequence functions */
@@ -888,8 +888,8 @@ static int load_one_timing_from_dt(struct tegra_emc *emc,
 
 	err = of_property_read_u32(node, "clock-frequency", &value);
 	if (err) {
-		dev_err(emc->dev, "timing %s: failed to read rate: %d\n",
-			node->name, err);
+		dev_err(emc->dev, "timing %pOFn: failed to read rate: %d\n",
+			node, err);
 		return err;
 	}
 
@@ -900,16 +900,16 @@ static int load_one_timing_from_dt(struct tegra_emc *emc,
 					 ARRAY_SIZE(timing->emc_burst_data));
 	if (err) {
 		dev_err(emc->dev,
-			"timing %s: failed to read emc burst data: %d\n",
-			node->name, err);
+			"timing %pOFn: failed to read emc burst data: %d\n",
+			node, err);
 		return err;
 	}
 
 #define EMC_READ_PROP(prop, dtprop) { \
 	err = of_property_read_u32(node, dtprop, &timing->prop); \
 	if (err) { \
-		dev_err(emc->dev, "timing %s: failed to read " #prop ": %d\n", \
-			node->name, err); \
+		dev_err(emc->dev, "timing %pOFn: failed to read " #prop ": %d\n", \
+			node, err); \
 		return err; \
 	} \
 }
@@ -984,6 +984,7 @@ static int tegra_emc_load_timings_from_dt(struct tegra_emc *emc,
 
 static const struct of_device_id tegra_emc_of_match[] = {
 	{ .compatible = "nvidia,tegra124-emc" },
+	{ .compatible = "nvidia,tegra132-emc" },
 	{}
 };
 
@@ -1006,38 +1007,51 @@ tegra_emc_find_node_by_ram_code(struct device_node *node, u32 ram_code)
 	return NULL;
 }
 
-/* Debugfs entry */
+/*
+ * debugfs interface
+ *
+ * The memory controller driver exposes some files in debugfs that can be used
+ * to control the EMC frequency. The top-level directory can be found here:
+ *
+ *   /sys/kernel/debug/emc
+ *
+ * It contains the following files:
+ *
+ *   - available_rates: This file contains a list of valid, space-separated
+ *     EMC frequencies.
+ *
+ *   - min_rate: Writing a value to this file sets the given frequency as the
+ *       floor of the permitted range. If this is higher than the currently
+ *       configured EMC frequency, this will cause the frequency to be
+ *       increased so that it stays within the valid range.
+ *
+ *   - max_rate: Similarily to the min_rate file, writing a value to this file
+ *       sets the given frequency as the ceiling of the permitted range. If
+ *       the value is lower than the currently configured EMC frequency, this
+ *       will cause the frequency to be decreased so that it stays within the
+ *       valid range.
+ */
 
-static int emc_debug_rate_get(void *data, u64 *rate)
+static bool tegra_emc_validate_rate(struct tegra_emc *emc, unsigned long rate)
 {
-	struct clk *c = data;
+	unsigned int i;
 
-	*rate = clk_get_rate(c);
+	for (i = 0; i < emc->num_timings; i++)
+		if (rate == emc->timings[i].rate)
+			return true;
 
-	return 0;
+	return false;
 }
 
-static int emc_debug_rate_set(void *data, u64 rate)
-{
-	struct clk *c = data;
-
-	return clk_set_rate(c, rate);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(emc_debug_rate_fops, emc_debug_rate_get,
-			emc_debug_rate_set, "%lld\n");
-
-static int emc_debug_supported_rates_show(struct seq_file *s, void *data)
+static int tegra_emc_debug_available_rates_show(struct seq_file *s,
+						void *data)
 {
 	struct tegra_emc *emc = s->private;
 	const char *prefix = "";
 	unsigned int i;
 
 	for (i = 0; i < emc->num_timings; i++) {
-		struct emc_timing *timing = &emc->timings[i];
-
-		seq_printf(s, "%s%lu", prefix, timing->rate);
-
+		seq_printf(s, "%s%lu", prefix, emc->timings[i].rate);
 		prefix = " ";
 	}
 
@@ -1046,46 +1060,119 @@ static int emc_debug_supported_rates_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int emc_debug_supported_rates_open(struct inode *inode,
-					  struct file *file)
+DEFINE_SHOW_ATTRIBUTE(tegra_emc_debug_available_rates);
+
+static int tegra_emc_debug_min_rate_get(void *data, u64 *rate)
 {
-	return single_open(file, emc_debug_supported_rates_show,
-			   inode->i_private);
+	struct tegra_emc *emc = data;
+
+	*rate = emc->debugfs.min_rate;
+
+	return 0;
 }
 
-static const struct file_operations emc_debug_supported_rates_fops = {
-	.open = emc_debug_supported_rates_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+static int tegra_emc_debug_min_rate_set(void *data, u64 rate)
+{
+	struct tegra_emc *emc = data;
+	int err;
+
+	if (!tegra_emc_validate_rate(emc, rate))
+		return -EINVAL;
+
+	err = clk_set_min_rate(emc->clk, rate);
+	if (err < 0)
+		return err;
+
+	emc->debugfs.min_rate = rate;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(tegra_emc_debug_min_rate_fops,
+			tegra_emc_debug_min_rate_get,
+			tegra_emc_debug_min_rate_set, "%llu\n");
+
+static int tegra_emc_debug_max_rate_get(void *data, u64 *rate)
+{
+	struct tegra_emc *emc = data;
+
+	*rate = emc->debugfs.max_rate;
+
+	return 0;
+}
+
+static int tegra_emc_debug_max_rate_set(void *data, u64 rate)
+{
+	struct tegra_emc *emc = data;
+	int err;
+
+	if (!tegra_emc_validate_rate(emc, rate))
+		return -EINVAL;
+
+	err = clk_set_max_rate(emc->clk, rate);
+	if (err < 0)
+		return err;
+
+	emc->debugfs.max_rate = rate;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(tegra_emc_debug_max_rate_fops,
+			tegra_emc_debug_max_rate_get,
+			tegra_emc_debug_max_rate_set, "%llu\n");
 
 static void emc_debugfs_init(struct device *dev, struct tegra_emc *emc)
 {
-	struct dentry *root, *file;
-	struct clk *clk;
+	unsigned int i;
+	int err;
 
-	root = debugfs_create_dir("emc", NULL);
-	if (!root) {
+	emc->clk = devm_clk_get(dev, "emc");
+	if (IS_ERR(emc->clk)) {
+		if (PTR_ERR(emc->clk) != -ENODEV) {
+			dev_err(dev, "failed to get EMC clock: %ld\n",
+				PTR_ERR(emc->clk));
+			return;
+		}
+	}
+
+	emc->debugfs.min_rate = ULONG_MAX;
+	emc->debugfs.max_rate = 0;
+
+	for (i = 0; i < emc->num_timings; i++) {
+		if (emc->timings[i].rate < emc->debugfs.min_rate)
+			emc->debugfs.min_rate = emc->timings[i].rate;
+
+		if (emc->timings[i].rate > emc->debugfs.max_rate)
+			emc->debugfs.max_rate = emc->timings[i].rate;
+	}
+
+	if (!emc->num_timings) {
+		emc->debugfs.min_rate = clk_get_rate(emc->clk);
+		emc->debugfs.max_rate = emc->debugfs.min_rate;
+	}
+
+	err = clk_set_rate_range(emc->clk, emc->debugfs.min_rate,
+				 emc->debugfs.max_rate);
+	if (err < 0) {
+		dev_err(dev, "failed to set rate range [%lu-%lu] for %pC\n",
+			emc->debugfs.min_rate, emc->debugfs.max_rate,
+			emc->clk);
+		return;
+	}
+
+	emc->debugfs.root = debugfs_create_dir("emc", NULL);
+	if (!emc->debugfs.root) {
 		dev_err(dev, "failed to create debugfs directory\n");
 		return;
 	}
 
-	clk = clk_get_sys("tegra-clk-debug", "emc");
-	if (IS_ERR(clk)) {
-		dev_err(dev, "failed to get debug clock: %ld\n", PTR_ERR(clk));
-		return;
-	}
-
-	file = debugfs_create_file("rate", S_IRUGO | S_IWUSR, root, clk,
-				   &emc_debug_rate_fops);
-	if (!file)
-		dev_err(dev, "failed to create debugfs entry\n");
-
-	file = debugfs_create_file("supported_rates", S_IRUGO, root, emc,
-				   &emc_debug_supported_rates_fops);
-	if (!file)
-		dev_err(dev, "failed to create debugfs entry\n");
+	debugfs_create_file("available_rates", 0444, emc->debugfs.root, emc,
+			    &tegra_emc_debug_available_rates_fops);
+	debugfs_create_file("min_rate", 0644, emc->debugfs.root,
+			    emc, &tegra_emc_debug_min_rate_fops);
+	debugfs_create_file("max_rate", 0644, emc->debugfs.root,
+			    emc, &tegra_emc_debug_max_rate_fops);
 }
 
 static int tegra_emc_probe(struct platform_device *pdev)

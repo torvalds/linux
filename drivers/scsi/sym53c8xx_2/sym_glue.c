@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
  * of PCI-SCSI IO processors.
@@ -22,20 +23,6 @@
  * Copyright (C) 1997 Richard Waltham <dormouse@farsrobt.demon.co.uk>
  *
  *-----------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/ctype.h>
 #include <linux/init.h>
@@ -169,12 +156,8 @@ void sym_xpt_async_bus_reset(struct sym_hcb *np)
 static int sym_xerr_cam_status(int cam_status, int x_status)
 {
 	if (x_status) {
-		if	(x_status & XE_PARITY_ERR)
+		if (x_status & XE_PARITY_ERR)
 			cam_status = DID_PARITY;
-		else if	(x_status &(XE_EXTRA_DATA|XE_SODL_UNRUN|XE_SWIDE_OVRUN))
-			cam_status = DID_ERROR;
-		else if	(x_status & XE_BAD_PHASE)
-			cam_status = DID_ERROR;
 		else
 			cam_status = DID_ERROR;
 	}
@@ -1312,9 +1295,9 @@ static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
 	sprintf(np->s.inst_name, "sym%d", np->s.unit);
 
 	if ((SYM_CONF_DMA_ADDRESSING_MODE > 0) && (np->features & FE_DAC) &&
-			!pci_set_dma_mask(pdev, DMA_DAC_MASK)) {
+			!dma_set_mask(&pdev->dev, DMA_DAC_MASK)) {
 		set_dac(np);
-	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	} else if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printf_warning("%s: No suitable DMA available\n", sym_name(np));
 		goto attach_failed;
 	}
@@ -1660,7 +1643,6 @@ static struct scsi_host_template sym2_template = {
 	.eh_bus_reset_handler	= sym53c8xx_eh_bus_reset_handler,
 	.eh_host_reset_handler	= sym53c8xx_eh_host_reset_handler,
 	.this_id		= 7,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.max_sectors		= 0xFFFF,
 #ifdef SYM_LINUX_PROC_INFO_SUPPORT
 	.show_info		= sym_show_info,
@@ -1757,7 +1739,7 @@ static void sym2_remove(struct pci_dev *pdev)
  * @state: current state of the PCI slot
  */
 static pci_ers_result_t sym2_io_error_detected(struct pci_dev *pdev,
-                                         enum pci_channel_state state)
+                                         pci_channel_state_t state)
 {
 	/* If slot is permanently frozen, turn everything off */
 	if (state == pci_channel_io_perm_failure) {
@@ -1788,6 +1770,7 @@ static pci_ers_result_t sym2_io_slot_dump(struct pci_dev *pdev)
 
 /**
  * sym2_reset_workarounds - hardware-specific work-arounds
+ * @pdev: pointer to PCI device
  *
  * This routine is similar to sym_set_workarounds(), except
  * that, at this point, we already know that the device was

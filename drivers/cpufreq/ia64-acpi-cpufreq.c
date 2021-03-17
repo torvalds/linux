@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file provides the ACPI based P-state support. This
  * module works with generic cpufreq infrastructure. Most of
@@ -16,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <asm/io.h>
 #include <linux/uaccess.h>
 #include <asm/pal.h>
@@ -27,7 +27,6 @@
 MODULE_AUTHOR("Venkatesh Pallipadi");
 MODULE_DESCRIPTION("ACPI Processor P-States Driver");
 MODULE_LICENSE("GPL");
-
 
 struct cpufreq_acpi_io {
 	struct acpi_processor_performance	acpi_data;
@@ -348,10 +347,7 @@ acpi_cpufreq_exit (void)
 	pr_debug("acpi_cpufreq_exit\n");
 
 	cpufreq_unregister_driver(&acpi_cpufreq_driver);
-	return;
 }
-
 
 late_initcall(acpi_cpufreq_init);
 module_exit(acpi_cpufreq_exit);
-

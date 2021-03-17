@@ -19,12 +19,8 @@
 
 KBUILD_IMAGE := vmlinuz
 
-KBUILD_DEFCONFIG := default_defconfig
-
 NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
-LIBGCC		= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
-export LIBGCC
 
 ifdef CONFIG_64BIT
 UTS_MACHINE	:= parisc64
@@ -36,6 +32,13 @@ CC_ARCHES	= hppa hppa2.0 hppa1.1
 LD_BFD		:= elf32-hppa-linux
 endif
 
+# select defconfig based on actual architecture
+ifeq ($(shell uname -m),parisc64)
+	KBUILD_DEFCONFIG := generic-64bit_defconfig
+else
+	KBUILD_DEFCONFIG := generic-32bit_defconfig
+endif
+
 export LD_BFD
 
 ifneq ($(SUBARCH),$(UTS_MACHINE))
@@ -45,6 +48,23 @@ ifneq ($(SUBARCH),$(UTS_MACHINE))
 			$(foreach a,$(CC_ARCHES), \
 			$(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
 	endif
+endif
+
+ifdef CONFIG_DYNAMIC_FTRACE
+ifdef CONFIG_64BIT
+NOP_COUNT := 8
+else
+NOP_COUNT := 5
+endif
+
+export CC_USING_RECORD_MCOUNT:=1
+export CC_USING_PATCHABLE_FUNCTION_ENTRY:=1
+
+KBUILD_AFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY=1
+KBUILD_CFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY=1 \
+		 -DFTRACE_PATCHABLE_FUNCTION_SIZE=$(NOP_COUNT)
+
+CC_FLAGS_FTRACE := -fpatchable-function-entry=$(NOP_COUNT),$(shell echo $$(($(NOP_COUNT)-1)))
 endif
 
 OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
@@ -71,6 +91,13 @@ ifdef CONFIG_MLONGCALLS
 KBUILD_CFLAGS_KERNEL += -mlong-calls
 endif
 
+# Without this, "ld -r" results in .text sections that are too big (> 0x40000)
+# for branches to reach stubs. And multiple .text sections trigger a warning
+# when creating the sysfs module information section.
+ifndef CONFIG_64BIT
+KBUILD_CFLAGS_MODULE += -ffunction-sections
+endif
+
 # select which processor to optimise for
 cflags-$(CONFIG_PA7000)		+= -march=1.1 -mschedule=7100
 cflags-$(CONFIG_PA7200)		+= -march=1.1 -mschedule=7200
@@ -81,6 +108,8 @@ cflags-$(CONFIG_PA8X00)		+= -march=2.0 -mschedule=8000
 head-y			:= arch/parisc/kernel/head.o 
 
 KBUILD_CFLAGS	+= $(cflags-y)
+LIBGCC		:= $(shell $(CC) -print-libgcc-file-name)
+export LIBGCC
 
 kernel-y			:= mm/ kernel/ math-emu/
 
@@ -95,8 +124,8 @@ PALO := $(shell if (which palo 2>&1); then : ; \
 	elif [ -x /sbin/palo ]; then echo /sbin/palo; \
 	fi)
 
-PALOCONF := $(shell if [ -f $(src)/palo.conf ]; then echo $(src)/palo.conf; \
-	else echo $(obj)/palo.conf; \
+PALOCONF := $(shell if [ -f $(srctree)/palo.conf ]; then echo $(srctree)/palo.conf; \
+	else echo $(objtree)/palo.conf; \
 	fi)
 
 palo lifimage: vmlinuz
@@ -106,8 +135,8 @@ palo lifimage: vmlinuz
 		false; \
 	fi
 	@if test ! -f "$(PALOCONF)"; then \
-		cp $(src)/arch/parisc/defpalo.conf $(obj)/palo.conf; \
-		echo 'A generic palo config file ($(obj)/palo.conf) has been created for you.'; \
+		cp $(srctree)/arch/parisc/defpalo.conf $(objtree)/palo.conf; \
+		echo 'A generic palo config file ($(objree)/palo.conf) has been created for you.'; \
 		echo 'You should check it and re-run "make palo".'; \
 		echo 'WARNING: the "lifimage" file is now placed in this directory by default!'; \
 		false; \
@@ -133,14 +162,14 @@ vmlinuz: bzImage
 	$(OBJCOPY) $(boot)/bzImage $@
 else
 vmlinuz: vmlinux
-	@gzip -cf -9 $< > $@
+	@$(KGZIP) -cf -9 $< > $@
 endif
 
 install:
-	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \
+	$(CONFIG_SHELL) $(srctree)/arch/parisc/install.sh \
 			$(KERNELRELEASE) vmlinux System.map "$(INSTALL_PATH)"
 zinstall:
-	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \
+	$(CONFIG_SHELL) $(srctree)/arch/parisc/install.sh \
 			$(KERNELRELEASE) vmlinuz System.map "$(INSTALL_PATH)"
 
 CLEAN_FILES	+= lifimage
@@ -157,11 +186,8 @@ define archhelp
 	@echo  '  zinstall	- Install compressed vmlinuz kernel'
 endef
 
-# we require gcc 3.3 or above to compile the kernel
-archprepare: checkbin
-checkbin:
-	@if test "$(cc-version)" -lt "0303"; then \
-		echo -n "Sorry, GCC v3.3 or above is required to build " ; \
-		echo "the kernel." ; \
-		false ; \
-	fi
+archclean:
+	$(Q)$(MAKE) $(clean)=$(boot)
+
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/parisc/kernel/syscalls all

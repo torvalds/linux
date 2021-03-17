@@ -1,34 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Whiskey Cove PMIC GPIO Driver
  *
  * This driver is written based on gpio-crystalcove.c
  *
  * Copyright (C) 2016 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
-#include <linux/module.h>
-#include <linux/interrupt.h>
 #include <linux/gpio/driver.h>
+#include <linux/interrupt.h>
 #include <linux/mfd/intel_soc_pmic.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
 
 /*
  * Whiskey Cove PMIC has 13 physical GPIO pins divided into 3 banks:
- * Bank 0: Pin 0 - 6
- * Bank 1: Pin 7 - 10
- * Bank 2: Pin 11 -12
+ * Bank 0: Pin  0 - 6
+ * Bank 1: Pin  7 - 10
+ * Bank 2: Pin 11 - 12
  * Each pin has one output control register and one input control register.
  */
 #define BANK0_NR_PINS		7
@@ -75,8 +67,8 @@
 #define CTLO_RVAL_50KDOWN	(2 << 1)
 #define CTLO_RVAL_50KUP		(3 << 1)
 
-#define CTLO_INPUT_SET	(CTLO_DRV_CMOS | CTLO_DRV_REN | CTLO_RVAL_2KUP)
-#define CTLO_OUTPUT_SET	(CTLO_DIR_OUT | CTLO_INPUT_SET)
+#define CTLO_INPUT_SET		(CTLO_DRV_CMOS | CTLO_DRV_REN | CTLO_RVAL_2KUP)
+#define CTLO_OUTPUT_SET		(CTLO_DIR_OUT | CTLO_INPUT_SET)
 
 enum ctrl_register {
 	CTRL_IN,
@@ -105,7 +97,7 @@ struct wcove_gpio {
 	bool set_irq_mask;
 };
 
-static inline unsigned int to_reg(int gpio, enum ctrl_register reg_type)
+static inline int to_reg(int gpio, enum ctrl_register reg_type)
 {
 	unsigned int reg;
 
@@ -178,13 +170,16 @@ static int wcove_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
 	int ret, reg = to_reg(gpio, CTRL_OUT);
 
 	if (reg < 0)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	ret = regmap_read(wg->regmap, reg, &val);
 	if (ret)
 		return ret;
 
-	return !(val & CTLO_DIR_OUT);
+	if (val & CTLO_DIR_OUT)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int wcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
@@ -203,8 +198,7 @@ static int wcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 	return val & 0x1;
 }
 
-static void wcove_gpio_set(struct gpio_chip *chip,
-				 unsigned int gpio, int value)
+static void wcove_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
 	int reg = to_reg(gpio, CTRL_OUT);
@@ -406,6 +400,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	struct wcove_gpio *wg;
 	int virq, ret, irq;
 	struct device *dev;
+	struct gpio_irq_chip *girq;
 
 	/*
 	 * This gpio platform device is created by a mfd device (see
@@ -448,33 +443,34 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	wg->dev = dev;
 	wg->regmap = pmic->regmap;
 
-	ret = devm_gpiochip_add_data(dev, &wg->chip, wg);
-	if (ret) {
-		dev_err(dev, "Failed to add gpiochip: %d\n", ret);
-		return ret;
-	}
-
-	ret = gpiochip_irqchip_add_nested(&wg->chip, &wcove_irqchip, 0,
-					  handle_simple_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(dev, "Failed to add irqchip: %d\n", ret);
-		return ret;
-	}
-
 	virq = regmap_irq_get_virq(wg->regmap_irq_chip, irq);
 	if (virq < 0) {
 		dev_err(dev, "Failed to get virq by irq %d\n", irq);
 		return virq;
 	}
 
-	ret = devm_request_threaded_irq(dev, virq, NULL,
-		wcove_gpio_irq_handler, IRQF_ONESHOT, pdev->name, wg);
+	girq = &wg->chip.irq;
+	girq->chip = &wcove_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_simple_irq;
+	girq->threaded = true;
+
+	ret = devm_request_threaded_irq(dev, virq, NULL, wcove_gpio_irq_handler,
+					IRQF_ONESHOT, pdev->name, wg);
 	if (ret) {
 		dev_err(dev, "Failed to request irq %d\n", virq);
 		return ret;
 	}
 
-	gpiochip_set_nested_irqchip(&wg->chip, &wcove_irqchip, virq);
+	ret = devm_gpiochip_add_data(dev, &wg->chip, wg);
+	if (ret) {
+		dev_err(dev, "Failed to add gpiochip: %d\n", ret);
+		return ret;
+	}
 
 	/* Enable GPIO0 interrupts */
 	ret = regmap_update_bits(wg->regmap, IRQ_MASK_BASE, GPIO_IRQ0_MASK,

@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Veyron Tiger Rev 0+ board device tree source
+ *
+ * Copyright 2016 Google, Inc
+ */
+
+/dts-v1/;
+#include "rk3288-veyron-fievel.dts"
+#include "rk3288-veyron-edp.dtsi"
+
+/ {
+	model = "Google Tiger";
+	compatible = "google,veyron-tiger-rev8", "google,veyron-tiger-rev7",
+		     "google,veyron-tiger-rev6", "google,veyron-tiger-rev5",
+		     "google,veyron-tiger-rev4", "google,veyron-tiger-rev3",
+		     "google,veyron-tiger-rev2", "google,veyron-tiger-rev1",
+		     "google,veyron-tiger-rev0", "google,veyron-tiger",
+		     "google,veyron", "rockchip,rk3288";
+
+	/delete-node/ vcc18-lcd;
+};
+
+&backlight {
+	/* Tiger panel PWM must be >= 1%, so start non-zero brightness at 3 */
+	brightness-levels = <0 3 255>;
+	num-interpolated-steps = <252>;
+};
+
+&backlight_regulator {
+	vin-supply = <&vccsys>;
+};
+
+&i2c3 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	touchscreen@10 {
+		compatible = "elan,ekth3500";
+		reg = <0x10>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <RK_PB6 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_int &touch_rst>;
+		reset-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_LOW>;
+		vcc33-supply = <&vcc33_io>;
+		vccio-supply = <&vcc33_io>;
+		wakeup-source;
+	};
+};
+
+&panel {
+	compatible = "auo,b101ean01";
+
+	/delete-node/ panel-timing;
+
+	panel-timing {
+		clock-frequency = <66666667>;
+		hactive = <1280>;
+		hfront-porch = <18>;
+		hback-porch = <21>;
+		hsync-len = <32>;
+		vactive = <800>;
+		vfront-porch = <4>;
+		vback-porch = <8>;
+		vsync-len = <18>;
+	};
+};
+
+&pinctrl {
+	lcd {
+		/delete-node/ avdd-1v8-disp-en;
+	};
+
+	touchscreen {
+		touch_int: touch-int {
+			rockchip,pins = <2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		touch_rst: touch-rst {
+			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

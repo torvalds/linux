@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PMU driver for Wolfson Microelectronics wm831x PMICs
  *
  * Copyright 2009 Wolfson Microelectronics PLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -668,7 +665,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "Failed to find USB phy: %d\n", ret);
-		/* fall-through */
+		fallthrough;
 	case -EPROBE_DEFER:
 		goto err_bat_irq;
 		break;

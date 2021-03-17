@@ -36,7 +36,7 @@
 		};
 
 		internal-regs {
-			sdramc@1400 {
+			sdramc: sdramc@1400 {
 				compatible = "marvell,armada-xp-sdram-controller";
 				reg = <0x1400 0x500>;
 			};

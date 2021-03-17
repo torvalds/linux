@@ -28,7 +28,7 @@ struct svc_sock {
 
 	/* private TCP part */
 	/* On-the-wire fragment header: */
-	__be32			sk_reclen;
+	__be32			sk_marker;
 	/* As we receive a record, this includes the length received so
 	 * far (including the fragment header): */
 	u32			sk_tcplen;
@@ -41,12 +41,12 @@ struct svc_sock {
 
 static inline u32 svc_sock_reclen(struct svc_sock *svsk)
 {
-	return ntohl(svsk->sk_reclen) & RPC_FRAGMENT_SIZE_MASK;
+	return be32_to_cpu(svsk->sk_marker) & RPC_FRAGMENT_SIZE_MASK;
 }
 
 static inline u32 svc_sock_final_rec(struct svc_sock *svsk)
 {
-	return ntohl(svsk->sk_reclen) & RPC_LAST_STREAM_FRAGMENT;
+	return be32_to_cpu(svsk->sk_marker) & RPC_LAST_STREAM_FRAGMENT;
 }
 
 /*
@@ -59,7 +59,8 @@ void		svc_drop(struct svc_rqst *);
 void		svc_sock_update_bufs(struct svc_serv *serv);
 bool		svc_alien_sock(struct net *net, int fd);
 int		svc_addsock(struct svc_serv *serv, const int fd,
-					char *name_return, const size_t len);
+					char *name_return, const size_t len,
+					const struct cred *cred);
 void		svc_init_xprt_sock(void);
 void		svc_cleanup_xprt_sock(void);
 struct svc_xprt *svc_sock_create(struct svc_serv *serv, int prot);

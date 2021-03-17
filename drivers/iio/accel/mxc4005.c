@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 3-axis accelerometer driver for MXC4005XC Memsic sensor
  *
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -143,7 +135,7 @@ static int mxc4005_read_xyz(struct mxc4005_data *data)
 	int ret;
 
 	ret = regmap_bulk_read(data->regmap, MXC4005_REG_XOUT_UPPER,
-			       (u8 *) data->buffer, sizeof(data->buffer));
+			       data->buffer, sizeof(data->buffer));
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read axes\n");
 		return ret;
@@ -158,7 +150,7 @@ static int mxc4005_read_axis(struct mxc4005_data *data,
 	__be16 reg;
 	int ret;
 
-	ret = regmap_bulk_read(data->regmap, addr, (u8 *) &reg, sizeof(reg));
+	ret = regmap_bulk_read(data->regmap, addr, &reg, sizeof(reg));
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read reg %02x\n", addr);
 		return ret;
@@ -424,7 +416,6 @@ static int mxc4005_probe(struct i2c_client *client,
 
 	mutex_init(&data->mutex);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = mxc4005_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mxc4005_channels);
 	indio_dev->available_scan_masks = mxc4005_scan_masks;
@@ -432,7 +423,7 @@ static int mxc4005_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mxc4005_info;
 
-	ret = iio_triggered_buffer_setup(indio_dev,
+	ret = devm_iio_triggered_buffer_setup(&client->dev, indio_dev,
 					 iio_pollfunc_store_time,
 					 mxc4005_trigger_handler,
 					 NULL);
@@ -460,7 +451,7 @@ static int mxc4005_probe(struct i2c_client *client,
 		if (ret) {
 			dev_err(&client->dev,
 				"failed to init threaded irq\n");
-			goto err_buffer_cleanup;
+			return ret;
 		}
 
 		data->dready_trig->dev.parent = &client->dev;
@@ -468,53 +459,28 @@ static int mxc4005_probe(struct i2c_client *client,
 		iio_trigger_set_drvdata(data->dready_trig, indio_dev);
 		indio_dev->trig = data->dready_trig;
 		iio_trigger_get(indio_dev->trig);
-		ret = iio_trigger_register(data->dready_trig);
+		ret = devm_iio_trigger_register(&client->dev,
+						data->dready_trig);
 		if (ret) {
 			dev_err(&client->dev,
 				"failed to register trigger\n");
-			goto err_trigger_unregister;
+			return ret;
 		}
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"unable to register iio device %d\n", ret);
-		goto err_buffer_cleanup;
-	}
-
-	return 0;
-
-err_trigger_unregister:
-	iio_trigger_unregister(data->dready_trig);
-err_buffer_cleanup:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return ret;
-}
-
-static int mxc4005_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct mxc4005_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	iio_triggered_buffer_cleanup(indio_dev);
-	if (data->dready_trig)
-		iio_trigger_unregister(data->dready_trig);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct acpi_device_id mxc4005_acpi_match[] = {
 	{"MXC4005",	0},
+	{"MXC6655",	0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, mxc4005_acpi_match);
 
 static const struct i2c_device_id mxc4005_id[] = {
 	{"mxc4005",	0},
+	{"mxc6655",	0},
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, mxc4005_id);
@@ -525,7 +491,6 @@ static struct i2c_driver mxc4005_driver = {
 		.acpi_match_table = ACPI_PTR(mxc4005_acpi_match),
 	},
 	.probe		= mxc4005_probe,
-	.remove		= mxc4005_remove,
 	.id_table	= mxc4005_id,
 };
 

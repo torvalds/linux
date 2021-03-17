@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Kernel module to match running CPU */
 
 /*
  * Might be used to distribute connections on several daemons, if
  * RPS (Remote Packet Steering) is enabled or NIC is multiqueue capable,
  * each RX queue IRQ affined to one CPU (1:1 mapping)
- *
  */
 
 /* (C) 2010 Eric Dumazet
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

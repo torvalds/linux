@@ -24,9 +24,7 @@ typedef struct {
 #define USER_DS		KERNEL_DS
 #endif
 
-#define segment_eq(a, b) ((a).seg == (b).seg)
-
-#define get_ds()	(KERNEL_DS)
+#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
 
 #define get_fs()	(current_thread_info()->addr_limit)
 #define set_fs(x)	(current_thread_info()->addr_limit = (x))

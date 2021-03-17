@@ -55,6 +55,7 @@ struct task_struct;
 struct cpumask;
 struct flush_tlb_info;
 struct mmu_gather;
+struct vm_area_struct;
 
 /*
  * Wrapper type for pointers to code which uses the non-standard
@@ -66,10 +67,7 @@ struct paravirt_callee_save {
 
 /* general info */
 struct pv_info {
-	unsigned int kernel_rpl;
-	int shared_kernel_pmd;
-
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_PARAVIRT_XXL
 	u16 extra_user_64bit_cs;  /* __USER_CS if none */
 #endif
 
@@ -85,17 +83,18 @@ struct pv_init_ops {
 	 * the number of bytes of code generated, as we nop pad the
 	 * rest in generic code.
 	 */
-	unsigned (*patch)(u8 type, u16 clobber, void *insnbuf,
+	unsigned (*patch)(u8 type, void *insn_buff,
 			  unsigned long addr, unsigned len);
 } __no_randomize_layout;
 
-
+#ifdef CONFIG_PARAVIRT_XXL
 struct pv_lazy_ops {
 	/* Set deferred update mode, used for batching operations. */
 	void (*enter)(void);
 	void (*leave)(void);
 	void (*flush)(void);
 } __no_randomize_layout;
+#endif
 
 struct pv_time_ops {
 	unsigned long long (*sched_clock)(void);
@@ -104,6 +103,9 @@ struct pv_time_ops {
 
 struct pv_cpu_ops {
 	/* hooks for various privileged instructions */
+	void (*io_delay)(void);
+
+#ifdef CONFIG_PARAVIRT_XXL
 	unsigned long (*get_debugreg)(int regno);
 	void (*set_debugreg)(int regno, unsigned long value);
 
@@ -112,11 +114,6 @@ struct pv_cpu_ops {
 
 	void (*write_cr4)(unsigned long);
 
-#ifdef CONFIG_X86_64
-	unsigned long (*read_cr8)(void);
-	void (*write_cr8)(unsigned long);
-#endif
-
 	/* Segment descriptor handling */
 	void (*load_tr_desc)(void);
 	void (*load_gdt)(const struct desc_ptr *);
@@ -124,9 +121,7 @@ struct pv_cpu_ops {
 	void (*set_ldt)(const void *desc, unsigned entries);
 	unsigned long (*store_tr)(void);
 	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
-#ifdef CONFIG_X86_64
 	void (*load_gs_index)(unsigned int idx);
-#endif
 	void (*write_ldt_entry)(struct desc_struct *ldt, int entrynum,
 				const void *desc);
 	void (*write_gdt_entry)(struct desc_struct *,
@@ -138,10 +133,12 @@ struct pv_cpu_ops {
 
 	void (*load_sp0)(unsigned long sp0);
 
-	void (*set_iopl_mask)(unsigned mask);
+#ifdef CONFIG_X86_IOPL_IOPERM
+	void (*invalidate_io_bitmap)(void);
+	void (*update_io_bitmap)(void);
+#endif
 
 	void (*wbinvd)(void);
-	void (*io_delay)(void);
 
 	/* cpuid emulation, mostly so that caps bits can be disabled */
 	void (*cpuid)(unsigned int *eax, unsigned int *ebx,
@@ -176,9 +173,11 @@ struct pv_cpu_ops {
 
 	void (*start_context_switch)(struct task_struct *prev);
 	void (*end_context_switch)(struct task_struct *next);
+#endif
 } __no_randomize_layout;
 
 struct pv_irq_ops {
+#ifdef CONFIG_PARAVIRT_XXL
 	/*
 	 * Get/set interrupt state.  save_fl and restore_fl are only
 	 * expected to use X86_EFLAGS_IF; all other bits
@@ -195,27 +194,10 @@ struct pv_irq_ops {
 
 	void (*safe_halt)(void);
 	void (*halt)(void);
-
+#endif
 } __no_randomize_layout;
 
 struct pv_mmu_ops {
-	unsigned long (*read_cr2)(void);
-	void (*write_cr2)(unsigned long);
-
-	unsigned long (*read_cr3)(void);
-	void (*write_cr3)(unsigned long);
-
-	/*
-	 * Hooks for intercepting the creation/use/destruction of an
-	 * mm_struct.
-	 */
-	void (*activate_mm)(struct mm_struct *prev,
-			    struct mm_struct *next);
-	void (*dup_mmap)(struct mm_struct *oldmm,
-			 struct mm_struct *mm);
-	void (*exit_mmap)(struct mm_struct *mm);
-
-
 	/* TLB operations */
 	void (*flush_tlb_user)(void);
 	void (*flush_tlb_kernel)(void);
@@ -224,6 +206,22 @@ struct pv_mmu_ops {
 				 const struct flush_tlb_info *info);
 
 	void (*tlb_remove_table)(struct mmu_gather *tlb, void *table);
+
+	/* Hook for intercepting the destruction of an mm_struct. */
+	void (*exit_mmap)(struct mm_struct *mm);
+
+#ifdef CONFIG_PARAVIRT_XXL
+	struct paravirt_callee_save read_cr2;
+	void (*write_cr2)(unsigned long);
+
+	unsigned long (*read_cr3)(void);
+	void (*write_cr3)(unsigned long);
+
+	/* Hooks for intercepting the creation/use of an mm_struct. */
+	void (*activate_mm)(struct mm_struct *prev,
+			    struct mm_struct *next);
+	void (*dup_mmap)(struct mm_struct *oldmm,
+			 struct mm_struct *mm);
 
 	/* Hooks for allocating and freeing a pagetable top-level */
 	int  (*pgd_alloc)(struct mm_struct *mm);
@@ -244,13 +242,11 @@ struct pv_mmu_ops {
 
 	/* Pagetable manipulation functions */
 	void (*set_pte)(pte_t *ptep, pte_t pteval);
-	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
-			   pte_t *ptep, pte_t pteval);
 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
 
-	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
+	pte_t (*ptep_modify_prot_start)(struct vm_area_struct *vma, unsigned long addr,
 					pte_t *ptep);
-	void (*ptep_modify_prot_commit)(struct mm_struct *mm, unsigned long addr,
+	void (*ptep_modify_prot_commit)(struct vm_area_struct *vma, unsigned long addr,
 					pte_t *ptep, pte_t pte);
 
 	struct paravirt_callee_save pte_val;
@@ -259,21 +255,11 @@ struct pv_mmu_ops {
 	struct paravirt_callee_save pgd_val;
 	struct paravirt_callee_save make_pgd;
 
-#if CONFIG_PGTABLE_LEVELS >= 3
-#ifdef CONFIG_X86_PAE
-	void (*set_pte_atomic)(pte_t *ptep, pte_t pteval);
-	void (*pte_clear)(struct mm_struct *mm, unsigned long addr,
-			  pte_t *ptep);
-	void (*pmd_clear)(pmd_t *pmdp);
-
-#endif	/* CONFIG_X86_PAE */
-
 	void (*set_pud)(pud_t *pudp, pud_t pudval);
 
 	struct paravirt_callee_save pmd_val;
 	struct paravirt_callee_save make_pmd;
 
-#if CONFIG_PGTABLE_LEVELS >= 4
 	struct paravirt_callee_save pud_val;
 	struct paravirt_callee_save make_pud;
 
@@ -286,10 +272,6 @@ struct pv_mmu_ops {
 	void (*set_pgd)(pgd_t *pgdp, pgd_t pgdval);
 #endif	/* CONFIG_PGTABLE_LEVELS >= 5 */
 
-#endif	/* CONFIG_PGTABLE_LEVELS >= 4 */
-
-#endif	/* CONFIG_PGTABLE_LEVELS >= 3 */
-
 	struct pv_lazy_ops lazy_mode;
 
 	/* dom0 ops */
@@ -298,6 +280,7 @@ struct pv_mmu_ops {
 	   an mfn.  We can tell which is which from the index. */
 	void (*set_fixmap)(unsigned /* enum fixed_addresses */ idx,
 			   phys_addr_t phys, pgprot_t flags);
+#endif
 } __no_randomize_layout;
 
 struct arch_spinlock;
@@ -321,28 +304,23 @@ struct pv_lock_ops {
  * number for each function using the offset which we use to indicate
  * what to patch. */
 struct paravirt_patch_template {
-	struct pv_init_ops pv_init_ops;
-	struct pv_time_ops pv_time_ops;
-	struct pv_cpu_ops pv_cpu_ops;
-	struct pv_irq_ops pv_irq_ops;
-	struct pv_mmu_ops pv_mmu_ops;
-	struct pv_lock_ops pv_lock_ops;
+	struct pv_init_ops	init;
+	struct pv_time_ops	time;
+	struct pv_cpu_ops	cpu;
+	struct pv_irq_ops	irq;
+	struct pv_mmu_ops	mmu;
+	struct pv_lock_ops	lock;
 } __no_randomize_layout;
 
 extern struct pv_info pv_info;
-extern struct pv_init_ops pv_init_ops;
-extern struct pv_time_ops pv_time_ops;
-extern struct pv_cpu_ops pv_cpu_ops;
-extern struct pv_irq_ops pv_irq_ops;
-extern struct pv_mmu_ops pv_mmu_ops;
-extern struct pv_lock_ops pv_lock_ops;
+extern struct paravirt_patch_template pv_ops;
 
 #define PARAVIRT_PATCH(x)					\
 	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))
 
 #define paravirt_type(op)				\
 	[paravirt_typenum] "i" (PARAVIRT_PATCH(op)),	\
-	[paravirt_opptr] "i" (&(op))
+	[paravirt_opptr] "i" (&(pv_ops.op))
 #define paravirt_clobber(clobber)		\
 	[paravirt_clobber] "i" (clobber)
 
@@ -367,26 +345,11 @@ extern struct pv_lock_ops pv_lock_ops;
 /* Simple instruction patching code. */
 #define NATIVE_LABEL(a,x,b) "\n\t.globl " a #x "_" #b "\n" a #x "_" #b ":\n\t"
 
-#define DEF_NATIVE(ops, name, code)					\
-	__visible extern const char start_##ops##_##name[], end_##ops##_##name[];	\
-	asm(NATIVE_LABEL("start_", ops, name) code NATIVE_LABEL("end_", ops, name))
+unsigned paravirt_patch_ident_64(void *insn_buff, unsigned len);
+unsigned paravirt_patch_default(u8 type, void *insn_buff, unsigned long addr, unsigned len);
+unsigned paravirt_patch_insns(void *insn_buff, unsigned len, const char *start, const char *end);
 
-unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len);
-unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len);
-unsigned paravirt_patch_call(void *insnbuf,
-			     const void *target, u16 tgt_clobbers,
-			     unsigned long addr, u16 site_clobbers,
-			     unsigned len);
-unsigned paravirt_patch_jmp(void *insnbuf, const void *target,
-			    unsigned long addr, unsigned len);
-unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
-				unsigned long addr, unsigned len);
-
-unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
-			      const char *start, const char *end);
-
-unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
-		      unsigned long addr, unsigned len);
+unsigned native_patch(u8 type, void *insn_buff, unsigned long addr, unsigned len);
 
 int paravirt_disable_iospace(void);
 
@@ -510,9 +473,9 @@ int paravirt_disable_iospace(void);
 #endif	/* CONFIG_X86_32 */
 
 #ifdef CONFIG_PARAVIRT_DEBUG
-#define PVOP_TEST_NULL(op)	BUG_ON(op == NULL)
+#define PVOP_TEST_NULL(op)	BUG_ON(pv_ops.op == NULL)
 #else
-#define PVOP_TEST_NULL(op)	((void)op)
+#define PVOP_TEST_NULL(op)	((void)pv_ops.op)
 #endif
 
 #define PVOP_RETMASK(rettype)						\
@@ -678,17 +641,15 @@ void paravirt_leave_lazy_mmu(void);
 void paravirt_flush_lazy_mmu(void);
 
 void _paravirt_nop(void);
-u32 _paravirt_ident_32(u32);
 u64 _paravirt_ident_64(u64);
 
 #define paravirt_nop	((void *)_paravirt_nop)
 
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch_site {
-	u8 *instr; 		/* original instructions */
-	u8 instrtype;		/* type of this instruction */
+	u8 *instr;		/* original instructions */
+	u8 type;		/* type of this instruction */
 	u8 len;			/* length of original instruction */
-	u16 clobbers;		/* what registers you may clobber */
 };
 
 extern struct paravirt_patch_site __parainstructions[],

@@ -25,7 +25,8 @@
  *
  **************************************************************************/
 
-#include <drm/drmP.h>
+#include <linux/sched/signal.h>
+
 #include "vmwgfx_drv.h"
 
 #define VMW_FENCE_WRAP (1 << 31)
@@ -184,6 +185,9 @@ static long vmw_fence_wait(struct dma_fence *f, bool intr, signed long timeout)
 
 	spin_lock(f->lock);
 
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &f->flags))
+		goto out;
+
 	if (intr && signal_pending(current)) {
 		ret = -ERESTARTSYS;
 		goto out;
@@ -306,7 +310,8 @@ struct vmw_fence_manager *vmw_fence_manager_init(struct vmw_private *dev_priv)
 	INIT_LIST_HEAD(&fman->cleanup_list);
 	INIT_WORK(&fman->work, &vmw_fence_work_func);
 	fman->fifo_down = true;
-	fman->user_fence_size = ttm_round_pot(sizeof(struct vmw_user_fence));
+	fman->user_fence_size = ttm_round_pot(sizeof(struct vmw_user_fence)) +
+		TTM_OBJ_EXTRA_SIZE;
 	fman->fence_size = ttm_round_pot(sizeof(struct vmw_fence_obj));
 	fman->event_fence_action_size =
 		ttm_round_pot(sizeof(struct vmw_event_fence_action));
@@ -510,7 +515,7 @@ bool vmw_fence_obj_signaled(struct vmw_fence_obj *fence)
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->base.flags))
-		return 1;
+		return true;
 
 	vmw_fences_update(fman);
 
@@ -650,7 +655,7 @@ int vmw_user_fence_create(struct drm_file *file_priv,
 	}
 
 	*p_fence = &ufence->fence;
-	*p_handle = ufence->base.hash.key;
+	*p_handle = ufence->base.handle;
 
 	return 0;
 out_err:
@@ -905,13 +910,10 @@ static void vmw_event_fence_action_seq_passed(struct vmw_fence_action *action)
 		container_of(action, struct vmw_event_fence_action, action);
 	struct drm_device *dev = eaction->dev;
 	struct drm_pending_event *event = eaction->event;
-	struct drm_file *file_priv;
-
 
 	if (unlikely(event == NULL))
 		return;
 
-	file_priv = event->file_priv;
 	spin_lock_irq(&dev->event_lock);
 
 	if (likely(eaction->tv_sec != NULL)) {
@@ -1137,7 +1139,7 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 					  "object.\n");
 				goto out_no_ref_obj;
 			}
-			handle = base->hash.key;
+			handle = base->handle;
 		}
 		ttm_base_object_unref(&base);
 	}

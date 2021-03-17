@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MUSB OTG driver DMA controller abstraction
  *
@@ -34,6 +34,12 @@ struct musb_hw_ep;
  *  - Updating channel status on interrupts,
  *    whether shared with the Inventra core or separate.
  */
+
+#define MUSB_HSDMA_BASE		0x200
+#define MUSB_HSDMA_INTR		(MUSB_HSDMA_BASE + 0)
+#define MUSB_HSDMA_CONTROL	0x4
+#define MUSB_HSDMA_ADDRESS	0x8
+#define MUSB_HSDMA_COUNT	0xc
 
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
@@ -191,6 +197,9 @@ extern void (*musb_dma_controller_destroy)(struct dma_controller *);
 extern struct dma_controller *
 musbhs_dma_controller_create(struct musb *musb, void __iomem *base);
 extern void musbhs_dma_controller_destroy(struct dma_controller *c);
+extern struct dma_controller *
+musbhs_dma_controller_create_noirq(struct musb *musb, void __iomem *base);
+extern irqreturn_t dma_controller_irq(int irq, void *private_data);
 
 extern struct dma_controller *
 tusb_dma_controller_create(struct musb *musb, void __iomem *base);

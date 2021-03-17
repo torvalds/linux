@@ -1,24 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/seq_file.h>
+#include <linux/dma-mapping.h>
 
-#include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_modeset_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "omap_dmm_tiler.h"
@@ -66,8 +55,27 @@ struct omap_framebuffer {
 	struct mutex lock;
 };
 
+static int omap_framebuffer_dirty(struct drm_framebuffer *fb,
+				  struct drm_file *file_priv,
+				  unsigned flags, unsigned color,
+				  struct drm_clip_rect *clips,
+				  unsigned num_clips)
+{
+	struct drm_crtc *crtc;
+
+	drm_modeset_lock_all(fb->dev);
+
+	drm_for_each_crtc(crtc, fb->dev)
+		omap_crtc_flush(crtc);
+
+	drm_modeset_unlock_all(fb->dev);
+
+	return 0;
+}
+
 static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.create_handle = drm_gem_fb_create_handle,
+	.dirty = omap_framebuffer_dirty,
 	.destroy = drm_gem_fb_destroy,
 };
 
@@ -87,7 +95,7 @@ static u32 get_linear_addr(struct drm_framebuffer *fb,
 
 bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
 {
-	return omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED;
+	return omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED_MASK;
 }
 
 /* Note: DRM rotates counter-clockwise, TILER & DSS rotates clockwise */
@@ -127,7 +135,6 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	const struct drm_format_info *format = omap_fb->format;
-	struct plane *plane = &omap_fb->planes[0];
 	u32 x, y, orient = 0;
 
 	info->fourcc = fb->format->format;
@@ -146,7 +153,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	x = state->src_x >> 16;
 	y = state->src_y >> 16;
 
-	if (omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED) {
+	if (omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED_MASK) {
 		u32 w = state->src_w >> 16;
 		u32 h = state->src_h >> 16;
 
@@ -201,10 +208,8 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	info->screen_width /= format->cpp[0];
 
 	if (fb->format->format == DRM_FORMAT_NV12) {
-		plane = &omap_fb->planes[1];
-
 		if (info->rotation_type == OMAP_DSS_ROT_TILER) {
-			WARN_ON(!(omap_gem_flags(fb->obj[1]) & OMAP_BO_TILED));
+			WARN_ON(!(omap_gem_flags(fb->obj[1]) & OMAP_BO_TILED_MASK));
 			omap_gem_rotated_dma_addr(fb->obj[1], orient, x/2, y/2,
 						  &info->p_uv_addr);
 		} else {
@@ -298,7 +303,9 @@ void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	unsigned int num_planes = drm_format_num_planes(mode_cmd->pixel_format);
+	const struct drm_format_info *info = drm_get_format_info(dev,
+								 mode_cmd);
+	unsigned int num_planes = info->num_planes;
 	struct drm_gem_object *bos[4];
 	struct drm_framebuffer *fb;
 	int i;
@@ -319,7 +326,7 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 
 error:
 	while (--i >= 0)
-		drm_gem_object_unreference_unlocked(bos[i]);
+		drm_gem_object_put(bos[i]);
 
 	return fb;
 }
@@ -337,7 +344,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 			dev, mode_cmd, mode_cmd->width, mode_cmd->height,
 			(char *)&mode_cmd->pixel_format);
 
-	format = drm_format_info(mode_cmd->pixel_format);
+	format = drm_get_format_info(dev, mode_cmd);
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		if (formats[i] == mode_cmd->pixel_format)

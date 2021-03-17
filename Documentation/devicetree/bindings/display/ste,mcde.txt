@@ -1,0 +1,104 @@
+ST-Ericsson Multi Channel Display Engine MCDE
+
+The ST-Ericsson MCDE is a display controller with support for compositing
+and displaying several channels memory resident graphics data on DSI or
+LCD displays or bridges. It is used in the ST-Ericsson U8500 platform.
+
+Required properties:
+
+- compatible: must be:
+  "ste,mcde"
+- reg: register base for the main MCDE control registers, should be
+  0x1000 in size
+- interrupts: the interrupt line for the MCDE
+- epod-supply: a phandle to the EPOD regulator
+- vana-supply: a phandle to the analog voltage regulator
+- clocks: an array of the MCDE clocks in this strict order:
+  MCDECLK (main MCDE clock), LCDCLK (LCD clock), PLLDSI
+  (HDMI clock), DSI0ESCLK (DSI0 energy save clock),
+  DSI1ESCLK (DSI1 energy save clock), DSI2ESCLK (DSI2 energy
+  save clock)
+- clock-names: must be the following array:
+  "mcde", "lcd", "hdmi"
+  to match the required clock inputs above.
+- #address-cells: should be <1> (for the DSI hosts that will be children)
+- #size-cells: should be <1> (for the DSI hosts that will be children)
+- ranges: this should always be stated
+
+Required subnodes:
+
+The devicetree must specify subnodes for the DSI host adapters.
+These must have the following characteristics:
+
+- compatible: must be:
+  "ste,mcde-dsi"
+- reg: must specify the register range for the DSI host
+- vana-supply: phandle to the VANA voltage regulator
+- clocks: phandles to the high speed and low power (energy save) clocks
+  the high speed clock is not present on the third (dsi2) block, so it
+  should only have the "lp" clock
+- clock-names: "hs" for the high speed clock and "lp" for the low power
+  (energy save) clock
+- #address-cells: should be <1>
+- #size-cells: should be <0>
+
+Display panels and bridges will appear as children on the DSI hosts, and
+the displays are connected to the DSI hosts using the common binding
+for video transmitter interfaces; see
+Documentation/devicetree/bindings/media/video-interfaces.txt
+
+If a DSI host is unused (not connected) it will have no children defined.
+
+Example:
+
+mcde@a0350000 {
+	compatible = "ste,mcde";
+	reg = <0xa0350000 0x1000>;
+	interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+	epod-supply = <&db8500_b2r2_mcde_reg>;
+	vana-supply = <&ab8500_ldo_ana_reg>;
+	clocks = <&prcmu_clk PRCMU_MCDECLK>, /* Main MCDE clock */
+		 <&prcmu_clk PRCMU_LCDCLK>, /* LCD clock */
+		 <&prcmu_clk PRCMU_PLLDSI>; /* HDMI clock */
+	clock-names = "mcde", "lcd", "hdmi";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	dsi0: dsi@a0351000 {
+		compatible = "ste,mcde-dsi";
+		reg = <0xa0351000 0x1000>;
+		vana-supply = <&ab8500_ldo_ana_reg>;
+		clocks = <&prcmu_clk PRCMU_DSI0CLK>, <&prcmu_clk PRCMU_DSI0ESCCLK>;
+		clock-names = "hs", "lp";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		panel {
+			compatible = "samsung,s6d16d0";
+			reg = <0>;
+			vdd1-supply = <&ab8500_ldo_aux1_reg>;
+			reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+		};
+
+	};
+	dsi1: dsi@a0352000 {
+		compatible = "ste,mcde-dsi";
+		reg = <0xa0352000 0x1000>;
+		vana-supply = <&ab8500_ldo_ana_reg>;
+		clocks = <&prcmu_clk PRCMU_DSI1CLK>, <&prcmu_clk PRCMU_DSI1ESCCLK>;
+		clock-names = "hs", "lp";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	dsi2: dsi@a0353000 {
+		compatible = "ste,mcde-dsi";
+		reg = <0xa0353000 0x1000>;
+		vana-supply = <&ab8500_ldo_ana_reg>;
+		/* This DSI port only has the Low Power / Energy Save clock */
+		clocks = <&prcmu_clk PRCMU_DSI2ESCCLK>;
+		clock-names = "lp";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};

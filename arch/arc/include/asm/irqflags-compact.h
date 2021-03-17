@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_IRQFLAGS_ARCOMPACT_H
@@ -93,6 +90,9 @@ static inline void arch_local_irq_restore(unsigned long flags)
 /*
  * Unconditionally Enable IRQs
  */
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
+extern void arch_local_irq_enable(void);
+#else
 static inline void arch_local_irq_enable(void)
 {
 	unsigned long temp;
@@ -105,7 +105,7 @@ static inline void arch_local_irq_enable(void)
 	: "n"((STATUS_E1_MASK | STATUS_E2_MASK))
 	: "cc", "memory");
 }
-
+#endif
 
 /*
  * Unconditionally Disable IRQs

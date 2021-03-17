@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* net/atm/pppoatm.c - RFC2364 PPP over ATM/AAL5 */
 
 /* Copyright 1999-2000 by Mitchell Blank Jr */
@@ -6,10 +7,6 @@
 /* And help from Jens Axboe */
 
 /*
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * This driver provides the encapsulation and framing for sending
  * and receiving PPP frames in ATM AAL5 PDUs.
@@ -219,9 +216,7 @@ static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			pvcc->chan.mtu += LLC_LEN;
 			break;
 		}
-		pr_debug("Couldn't autodetect yet (skb: %02X %02X %02X %02X %02X %02X)\n",
-			 skb->data[0], skb->data[1], skb->data[2],
-			 skb->data[3], skb->data[4], skb->data[5]);
+		pr_debug("Couldn't autodetect yet (skb: %6ph)\n", skb->data);
 		goto error;
 	case e_vc:
 		break;
@@ -398,7 +393,7 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	 * Each PPPoATM instance has its own tasklet - this is just a
 	 * prototypical one used to initialize them
 	 */
-	static const DECLARE_TASKLET(tasklet_proto, pppoatm_wakeup_sender, 0);
+	static const DECLARE_TASKLET_OLD(tasklet_proto, pppoatm_wakeup_sender);
 	if (copy_from_user(&be, arg, sizeof be))
 		return -EFAULT;
 	if (be.encaps != PPPOATM_ENCAPS_AUTODETECT &&

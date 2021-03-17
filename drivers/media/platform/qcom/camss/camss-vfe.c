@@ -37,9 +37,9 @@
 /* VFE halt timeout */
 #define VFE_HALT_TIMEOUT_MS 100
 /* Max number of frame drop updates per frame */
-#define VFE_FRAME_DROP_UPDATES 5
-/* Frame drop value. NOTE: VAL + UPDATES should not exceed 31 */
-#define VFE_FRAME_DROP_VAL 20
+#define VFE_FRAME_DROP_UPDATES 2
+/* Frame drop value. VAL + UPDATES - 1 should not exceed 31 */
+#define VFE_FRAME_DROP_VAL 30
 
 #define VFE_NEXT_SOF_MS 500
 
@@ -659,13 +659,26 @@ static int vfe_enable_output(struct vfe_line *line)
 	struct vfe_device *vfe = to_vfe(line);
 	struct vfe_output *output = &line->output;
 	const struct vfe_hw_ops *ops = vfe->ops;
+	struct media_entity *sensor;
 	unsigned long flags;
+	unsigned int frame_skip = 0;
 	unsigned int i;
 	u16 ub_size;
 
 	ub_size = ops->get_ub_size(vfe->id);
 	if (!ub_size)
 		return -EINVAL;
+
+	sensor = camss_find_sensor(&line->subdev.entity);
+	if (sensor) {
+		struct v4l2_subdev *subdev =
+					media_entity_to_v4l2_subdev(sensor);
+
+		v4l2_subdev_call(subdev, sensor, g_skip_frames, &frame_skip);
+		/* Max frame skip is 29 frames */
+		if (frame_skip > VFE_FRAME_DROP_VAL - 1)
+			frame_skip = VFE_FRAME_DROP_VAL - 1;
+	}
 
 	spin_lock_irqsave(&vfe->output_lock, flags);
 
@@ -695,10 +708,10 @@ static int vfe_enable_output(struct vfe_line *line)
 
 	switch (output->state) {
 	case VFE_OUTPUT_SINGLE:
-		vfe_output_frame_drop(vfe, output, 1);
+		vfe_output_frame_drop(vfe, output, 1 << frame_skip);
 		break;
 	case VFE_OUTPUT_CONTINUOUS:
-		vfe_output_frame_drop(vfe, output, 3);
+		vfe_output_frame_drop(vfe, output, 3 << frame_skip);
 		break;
 	default:
 		vfe_output_frame_drop(vfe, output, 0);
@@ -1252,12 +1265,12 @@ static int vfe_get(struct vfe_device *vfe)
 
 		ret = vfe_set_clock_rates(vfe);
 		if (ret < 0)
-			goto error_clocks;
+			goto error_pm_runtime_get;
 
 		ret = camss_enable_clocks(vfe->nclocks, vfe->clock,
 					  vfe->camss->dev);
 		if (ret < 0)
-			goto error_clocks;
+			goto error_pm_runtime_get;
 
 		ret = vfe_reset(vfe);
 		if (ret < 0)
@@ -1269,7 +1282,7 @@ static int vfe_get(struct vfe_device *vfe)
 	} else {
 		ret = vfe_check_clock_rates(vfe);
 		if (ret < 0)
-			goto error_clocks;
+			goto error_pm_runtime_get;
 	}
 	vfe->power_count++;
 
@@ -1280,10 +1293,8 @@ static int vfe_get(struct vfe_device *vfe)
 error_reset:
 	camss_disable_clocks(vfe->nclocks, vfe->clock);
 
-error_clocks:
-	pm_runtime_put_sync(vfe->camss->dev);
-
 error_pm_runtime_get:
+	pm_runtime_put_sync(vfe->camss->dev);
 	camss_pm_domain_off(vfe->camss, vfe->id);
 
 error_pm_domain:
@@ -2193,14 +2204,6 @@ static const struct camss_video_ops camss_vfe_video_ops = {
 	.queue_buffer = vfe_queue_buffer,
 	.flush_buffers = vfe_flush_buffers,
 };
-
-void msm_vfe_stop_streaming(struct vfe_device *vfe)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(vfe->line); i++)
-		msm_video_stop_streaming(&vfe->line[i].video_out);
-}
 
 /*
  * msm_vfe_register_entities - Register subdev node for VFE module

@@ -55,7 +55,6 @@
 /*
  * Generic information about the driver.
  */
-#define DRV_VERSION "2.0.0-ko"
 #define DRV_DESC "Chelsio T4/T5/T6 Virtual Function (VF) Network Driver"
 
 /*
@@ -155,6 +154,8 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 		const char *fc;
 		const struct port_info *pi = netdev_priv(dev);
 
+		netif_carrier_on(dev);
+
 		switch (pi->link_cfg.speed) {
 		case 100:
 			s = "100Mbps";
@@ -200,6 +201,7 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 
 		netdev_info(dev, "link up, %s, full-duplex, %s PAUSE\n", s, fc);
 	} else {
+		netif_carrier_off(dev);
 		netdev_info(dev, "link down\n");
 	}
 }
@@ -236,6 +238,72 @@ void t4vf_os_portmod_changed(struct adapter *adapter, int pidx)
 			 "inserted\n", dev->name, pi->mod_type);
 }
 
+static int cxgb4vf_set_addr_hash(struct port_info *pi)
+{
+	struct adapter *adapter = pi->adapter;
+	u64 vec = 0;
+	bool ucast = false;
+	struct hash_mac_addr *entry;
+
+	/* Calculate the hash vector for the updated list and program it */
+	list_for_each_entry(entry, &adapter->mac_hlist, list) {
+		ucast |= is_unicast_ether_addr(entry->addr);
+		vec |= (1ULL << hash_mac_addr(entry->addr));
+	}
+	return t4vf_set_addr_hash(adapter, pi->viid, ucast, vec, false);
+}
+
+/**
+ *	cxgb4vf_change_mac - Update match filter for a MAC address.
+ *	@pi: the port_info
+ *	@viid: the VI id
+ *	@tcam_idx: TCAM index of existing filter for old value of MAC address,
+ *		   or -1
+ *	@addr: the new MAC address value
+ *	@persistent: whether a new MAC allocation should be persistent
+ *
+ *	Modifies an MPS filter and sets it to the new MAC address if
+ *	@tcam_idx >= 0, or adds the MAC address to a new filter if
+ *	@tcam_idx < 0. In the latter case the address is added persistently
+ *	if @persist is %true.
+ *	Addresses are programmed to hash region, if tcam runs out of entries.
+ *
+ */
+static int cxgb4vf_change_mac(struct port_info *pi, unsigned int viid,
+			      int *tcam_idx, const u8 *addr, bool persistent)
+{
+	struct hash_mac_addr *new_entry, *entry;
+	struct adapter *adapter = pi->adapter;
+	int ret;
+
+	ret = t4vf_change_mac(adapter, viid, *tcam_idx, addr, persistent);
+	/* We ran out of TCAM entries. try programming hash region. */
+	if (ret == -ENOMEM) {
+		/* If the MAC address to be updated is in the hash addr
+		 * list, update it from the list
+		 */
+		list_for_each_entry(entry, &adapter->mac_hlist, list) {
+			if (entry->iface_mac) {
+				ether_addr_copy(entry->addr, addr);
+				goto set_hash;
+			}
+		}
+		new_entry = kzalloc(sizeof(*new_entry), GFP_KERNEL);
+		if (!new_entry)
+			return -ENOMEM;
+		ether_addr_copy(new_entry->addr, addr);
+		new_entry->iface_mac = true;
+		list_add_tail(&new_entry->list, &adapter->mac_hlist);
+set_hash:
+		ret = cxgb4vf_set_addr_hash(pi);
+	} else if (ret >= 0) {
+		*tcam_idx = ret;
+		ret = 0;
+	}
+
+	return ret;
+}
+
 /*
  * Net device operations.
  * ======================
@@ -259,14 +327,10 @@ static int link_start(struct net_device *dev)
 	 */
 	ret = t4vf_set_rxmode(pi->adapter, pi->viid, dev->mtu, -1, -1, -1, 1,
 			      true);
-	if (ret == 0) {
-		ret = t4vf_change_mac(pi->adapter, pi->viid,
-				      pi->xact_addr_filt, dev->dev_addr, true);
-		if (ret >= 0) {
-			pi->xact_addr_filt = ret;
-			ret = 0;
-		}
-	}
+	if (ret == 0)
+		ret = cxgb4vf_change_mac(pi, pi->viid,
+					 &pi->xact_addr_filt,
+					 dev->dev_addr, true);
 
 	/*
 	 * We don't need to actually "start the link" itself since the
@@ -275,16 +339,6 @@ static int link_start(struct net_device *dev)
 	 */
 	if (ret == 0)
 		ret = t4vf_enable_pi(pi->adapter, pi, true, true);
-
-	/* The Virtual Interfaces are connected to an internal switch on the
-	 * chip which allows VIs attached to the same port to talk to each
-	 * other even when the port link is down.  As a result, we generally
-	 * want to always report a VI's link as being "up", provided there are
-	 * no errors in enabling vi.
-	 */
-
-	if (ret == 0)
-		netif_carrier_on(dev);
 
 	return ret;
 }
@@ -406,7 +460,7 @@ static void enable_rx(struct adapter *adapter)
 	 * The interrupt queue doesn't use NAPI so we do the 0-increment of
 	 * its Going To Sleep register here to get it started.
 	 */
-	if (adapter->flags & USING_MSI)
+	if (adapter->flags & CXGB4VF_USING_MSI)
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
 			     CIDXINC_V(0) |
 			     SEINTARM_V(s->intrq.intr_params) |
@@ -462,8 +516,8 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 			break;
 		}
 		cpl = (void *)p;
-		/*FALLTHROUGH*/
 	}
+		fallthrough;
 
 	case CPL_SGE_EGR_UPDATE: {
 		/*
@@ -550,7 +604,7 @@ static int setup_sge_queues(struct adapter *adapter)
 	 * the intrq's queue ID as the interrupt forwarding queue for the
 	 * subsequent calls ...
 	 */
-	if (adapter->flags & USING_MSI) {
+	if (adapter->flags & CXGB4VF_USING_MSI) {
 		err = t4vf_sge_alloc_rxq(adapter, &s->intrq, false,
 					 adapter->port[0], 0, NULL, NULL);
 		if (err)
@@ -710,7 +764,7 @@ static int adapter_up(struct adapter *adapter)
 	 * adapter setup.  Once we've done this, many of our adapter
 	 * parameters can no longer be changed ...
 	 */
-	if ((adapter->flags & FULL_INIT_DONE) == 0) {
+	if ((adapter->flags & CXGB4VF_FULL_INIT_DONE) == 0) {
 		err = setup_sge_queues(adapter);
 		if (err)
 			return err;
@@ -720,16 +774,18 @@ static int adapter_up(struct adapter *adapter)
 			return err;
 		}
 
-		if (adapter->flags & USING_MSIX)
+		if (adapter->flags & CXGB4VF_USING_MSIX)
 			name_msix_vecs(adapter);
-		adapter->flags |= FULL_INIT_DONE;
+
+		adapter->flags |= CXGB4VF_FULL_INIT_DONE;
 	}
 
 	/*
 	 * Acquire our interrupt resources.  We only support MSI-X and MSI.
 	 */
-	BUG_ON((adapter->flags & (USING_MSIX|USING_MSI)) == 0);
-	if (adapter->flags & USING_MSIX)
+	BUG_ON((adapter->flags &
+	       (CXGB4VF_USING_MSIX | CXGB4VF_USING_MSI)) == 0);
+	if (adapter->flags & CXGB4VF_USING_MSIX)
 		err = request_msix_queue_irqs(adapter);
 	else
 		err = request_irq(adapter->pdev->irq,
@@ -747,8 +803,6 @@ static int adapter_up(struct adapter *adapter)
 	enable_rx(adapter);
 	t4vf_sge_start(adapter);
 
-	/* Initialize hash mac addr list*/
-	INIT_LIST_HEAD(&adapter->mac_hlist);
 	return 0;
 }
 
@@ -762,7 +816,7 @@ static void adapter_down(struct adapter *adapter)
 	/*
 	 * Free interrupt resources.
 	 */
-	if (adapter->flags & USING_MSIX)
+	if (adapter->flags & CXGB4VF_USING_MSIX)
 		free_msix_queue_irqs(adapter);
 	else
 		free_irq(adapter->pdev->irq, adapter);
@@ -783,6 +837,13 @@ static int cxgb4vf_open(struct net_device *dev)
 	struct adapter *adapter = pi->adapter;
 
 	/*
+	 * If we don't have a connection to the firmware there's nothing we
+	 * can do.
+	 */
+	if (!(adapter->flags & CXGB4VF_FW_OK))
+		return -ENXIO;
+
+	/*
 	 * If this is the first interface that we're opening on the "adapter",
 	 * bring the "adapter" up now.
 	 */
@@ -791,6 +852,13 @@ static int cxgb4vf_open(struct net_device *dev)
 		if (err)
 			return err;
 	}
+
+	/* It's possible that the basic port information could have
+	 * changed since we first read it.
+	 */
+	err = t4vf_update_port_info(pi);
+	if (err < 0)
+		return err;
 
 	/*
 	 * Note that this interface is up and start everything up ...
@@ -862,21 +930,6 @@ static struct net_device_stats *cxgb4vf_get_stats(struct net_device *dev)
 	ns->rx_errors = stats.rx_err_frames;
 
 	return ns;
-}
-
-static inline int cxgb4vf_set_addr_hash(struct port_info *pi)
-{
-	struct adapter *adapter = pi->adapter;
-	u64 vec = 0;
-	bool ucast = false;
-	struct hash_mac_addr *entry;
-
-	/* Calculate the hash vector for the updated list and program it */
-	list_for_each_entry(entry, &adapter->mac_hlist, list) {
-		ucast |= is_unicast_ether_addr(entry->addr);
-		vec |= (1ULL << hash_mac_addr(entry->addr));
-	}
-	return t4vf_set_addr_hash(adapter, pi->viid, ucast, vec, false);
 }
 
 static int cxgb4vf_mac_sync(struct net_device *netdev, const u8 *mac_addr)
@@ -1160,13 +1213,12 @@ static int cxgb4vf_set_mac_addr(struct net_device *dev, void *_addr)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = t4vf_change_mac(pi->adapter, pi->viid, pi->xact_addr_filt,
-			      addr->sa_data, true);
+	ret = cxgb4vf_change_mac(pi, pi->viid, &pi->xact_addr_filt,
+				 addr->sa_data, true);
 	if (ret < 0)
 		return ret;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	pi->xact_addr_filt = ret;
 	return 0;
 }
 
@@ -1180,7 +1232,7 @@ static void cxgb4vf_poll_controller(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
-	if (adapter->flags & USING_MSIX) {
+	if (adapter->flags & CXGB4VF_USING_MSIX) {
 		struct sge_eth_rxq *rxq;
 		int nqsets;
 
@@ -1355,7 +1407,7 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
 		FW_CAPS_TO_LMM(SPEED_1G,  1000baseT_Full);
-		FW_CAPS_TO_LMM(SPEED_10G, 10000baseSR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
 		FW_CAPS_TO_LMM(SPEED_50G, 50000baseCR2_Full);
@@ -1364,6 +1416,13 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	default:
 		break;
+	}
+
+	if (fw_caps & FW_PORT_CAP32_FEC_V(FW_PORT_CAP32_FEC_M)) {
+		FW_CAPS_TO_LMM(FEC_RS, FEC_RS);
+		FW_CAPS_TO_LMM(FEC_BASER_RS, FEC_BASER);
+	} else {
+		SET_LMM(FEC_NONE);
 	}
 
 	FW_CAPS_TO_LMM(ANEG, Autoneg);
@@ -1416,22 +1475,6 @@ static int cxgb4vf_get_link_ksettings(struct net_device *dev,
 	} else {
 		base->speed = SPEED_UNKNOWN;
 		base->duplex = DUPLEX_UNKNOWN;
-	}
-
-	if (pi->link_cfg.fc & PAUSE_RX) {
-		if (pi->link_cfg.fc & PAUSE_TX) {
-			ethtool_link_ksettings_add_link_mode(link_ksettings,
-							     advertising,
-							     Pause);
-		} else {
-			ethtool_link_ksettings_add_link_mode(link_ksettings,
-							     advertising,
-							     Asym_Pause);
-		}
-	} else if (pi->link_cfg.fc & PAUSE_TX) {
-		ethtool_link_ksettings_add_link_mode(link_ksettings,
-						     advertising,
-						     Asym_Pause);
 	}
 
 	base->autoneg = pi->link_cfg.autoneg;
@@ -1511,7 +1554,6 @@ static void cxgb4vf_get_drvinfo(struct net_device *dev,
 	struct adapter *adapter = netdev2adap(dev);
 
 	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
 		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
@@ -1588,7 +1630,7 @@ static int cxgb4vf_set_ringparam(struct net_device *dev,
 	    rp->tx_pending < MIN_TXQ_ENTRIES)
 		return -EINVAL;
 
-	if (adapter->flags & FULL_INIT_DONE)
+	if (adapter->flags & CXGB4VF_FULL_INIT_DONE)
 		return -EBUSY;
 
 	for (qs = pi->first_qset; qs < pi->first_qset + pi->nqsets; qs++) {
@@ -1645,8 +1687,8 @@ static void cxgb4vf_get_pauseparam(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 
 	pauseparam->autoneg = (pi->link_cfg.requested_fc & PAUSE_AUTONEG) != 0;
-	pauseparam->rx_pause = (pi->link_cfg.fc & PAUSE_RX) != 0;
-	pauseparam->tx_pause = (pi->link_cfg.fc & PAUSE_TX) != 0;
+	pauseparam->rx_pause = (pi->link_cfg.advertised_fc & PAUSE_RX) != 0;
+	pauseparam->tx_pause = (pi->link_cfg.advertised_fc & PAUSE_TX) != 0;
 }
 
 /*
@@ -1872,8 +1914,12 @@ static void cxgb4vf_get_wol(struct net_device *dev,
  * TCP Segmentation Offload flags which we support.
  */
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
+#define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
+		   NETIF_F_GRO | NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
 static const struct ethtool_ops cxgb4vf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES,
 	.get_link_ksettings	= cxgb4vf_get_link_ksettings,
 	.get_fecparam		= cxgb4vf_get_fecparam,
 	.get_drvinfo		= cxgb4vf_get_drvinfo,
@@ -1971,33 +2017,14 @@ static void mboxlog_stop(struct seq_file *seq, void *v)
 {
 }
 
-static const struct seq_operations mboxlog_seq_ops = {
+static const struct seq_operations mboxlog_sops = {
 	.start = mboxlog_start,
 	.next  = mboxlog_next,
 	.stop  = mboxlog_stop,
 	.show  = mboxlog_show
 };
 
-static int mboxlog_open(struct inode *inode, struct file *file)
-{
-	int res = seq_open(file, &mboxlog_seq_ops);
-
-	if (!res) {
-		struct seq_file *seq = file->private_data;
-
-		seq->private = inode->i_private;
-	}
-	return res;
-}
-
-static const struct file_operations mboxlog_fops = {
-	.owner   = THIS_MODULE,
-	.open    = mboxlog_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
-
+DEFINE_SEQ_ATTRIBUTE(mboxlog);
 /*
  * Show SGE Queue Set information.  We display QPL Queues Sets per line.
  */
@@ -2103,7 +2130,7 @@ static int sge_qinfo_show(struct seq_file *seq, void *v)
 static int sge_queue_entries(const struct adapter *adapter)
 {
 	return DIV_ROUND_UP(adapter->sge.ethqsets, QPL) + 1 +
-		((adapter->flags & USING_MSI) != 0);
+		((adapter->flags & CXGB4VF_USING_MSI) != 0);
 }
 
 static void *sge_queue_start(struct seq_file *seq, loff_t *pos)
@@ -2125,31 +2152,14 @@ static void *sge_queue_next(struct seq_file *seq, void *v, loff_t *pos)
 	return *pos < entries ? (void *)((uintptr_t)*pos + 1) : NULL;
 }
 
-static const struct seq_operations sge_qinfo_seq_ops = {
+static const struct seq_operations sge_qinfo_sops = {
 	.start = sge_queue_start,
 	.next  = sge_queue_next,
 	.stop  = sge_queue_stop,
 	.show  = sge_qinfo_show
 };
 
-static int sge_qinfo_open(struct inode *inode, struct file *file)
-{
-	int res = seq_open(file, &sge_qinfo_seq_ops);
-
-	if (!res) {
-		struct seq_file *seq = file->private_data;
-		seq->private = inode->i_private;
-	}
-	return res;
-}
-
-static const struct file_operations sge_qinfo_debugfs_fops = {
-	.owner   = THIS_MODULE,
-	.open    = sge_qinfo_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(sge_qinfo);
 
 /*
  * Show SGE Queue Set statistics.  We display QPL Queues Sets per line.
@@ -2249,7 +2259,7 @@ static int sge_qstats_show(struct seq_file *seq, void *v)
 static int sge_qstats_entries(const struct adapter *adapter)
 {
 	return DIV_ROUND_UP(adapter->sge.ethqsets, QPL) + 1 +
-		((adapter->flags & USING_MSI) != 0);
+		((adapter->flags & CXGB4VF_USING_MSI) != 0);
 }
 
 static void *sge_qstats_start(struct seq_file *seq, loff_t *pos)
@@ -2271,31 +2281,14 @@ static void *sge_qstats_next(struct seq_file *seq, void *v, loff_t *pos)
 	return *pos < entries ? (void *)((uintptr_t)*pos + 1) : NULL;
 }
 
-static const struct seq_operations sge_qstats_seq_ops = {
+static const struct seq_operations sge_qstats_sops = {
 	.start = sge_qstats_start,
 	.next  = sge_qstats_next,
 	.stop  = sge_qstats_stop,
 	.show  = sge_qstats_show
 };
 
-static int sge_qstats_open(struct inode *inode, struct file *file)
-{
-	int res = seq_open(file, &sge_qstats_seq_ops);
-
-	if (res == 0) {
-		struct seq_file *seq = file->private_data;
-		seq->private = inode->i_private;
-	}
-	return res;
-}
-
-static const struct file_operations sge_qstats_proc_fops = {
-	.owner   = THIS_MODULE,
-	.open    = sge_qstats_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(sge_qstats);
 
 /*
  * Show PCI-E SR-IOV Virtual Function Resource Limits.
@@ -2324,19 +2317,7 @@ static int resources_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-static int resources_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, resources_show, inode->i_private);
-}
-
-static const struct file_operations resources_proc_fops = {
-	.owner   = THIS_MODULE,
-	.open    = resources_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(resources);
 
 /*
  * Show Virtual Interfaces.
@@ -2381,31 +2362,14 @@ static void interfaces_stop(struct seq_file *seq, void *v)
 {
 }
 
-static const struct seq_operations interfaces_seq_ops = {
+static const struct seq_operations interfaces_sops = {
 	.start = interfaces_start,
 	.next  = interfaces_next,
 	.stop  = interfaces_stop,
 	.show  = interfaces_show
 };
 
-static int interfaces_open(struct inode *inode, struct file *file)
-{
-	int res = seq_open(file, &interfaces_seq_ops);
-
-	if (res == 0) {
-		struct seq_file *seq = file->private_data;
-		seq->private = inode->i_private;
-	}
-	return res;
-}
-
-static const struct file_operations interfaces_proc_fops = {
-	.owner   = THIS_MODULE,
-	.open    = interfaces_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(interfaces);
 
 /*
  * /sys/kernel/debugfs/cxgb4vf/ files list.
@@ -2418,10 +2382,10 @@ struct cxgb4vf_debugfs_entry {
 
 static struct cxgb4vf_debugfs_entry debugfs_files[] = {
 	{ "mboxlog",    0444, &mboxlog_fops },
-	{ "sge_qinfo",  0444, &sge_qinfo_debugfs_fops },
-	{ "sge_qstats", 0444, &sge_qstats_proc_fops },
-	{ "resources",  0444, &resources_proc_fops },
-	{ "interfaces", 0444, &interfaces_proc_fops },
+	{ "sge_qinfo",  0444, &sge_qinfo_fops },
+	{ "sge_qstats", 0444, &sge_qstats_fops },
+	{ "resources",  0444, &resources_fops },
+	{ "interfaces", 0444, &interfaces_fops },
 };
 
 /*
@@ -2443,11 +2407,10 @@ static int setup_debugfs(struct adapter *adapter)
 	 * Debugfs support is best effort.
 	 */
 	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++)
-		(void)debugfs_create_file(debugfs_files[i].name,
-				  debugfs_files[i].mode,
-				  adapter->debugfs_root,
-				  (void *)adapter,
-				  debugfs_files[i].fops);
+		debugfs_create_file(debugfs_files[i].name,
+				    debugfs_files[i].mode,
+				    adapter->debugfs_root, adapter,
+				    debugfs_files[i].fops);
 
 	return 0;
 }
@@ -2670,6 +2633,7 @@ static int adap_init0(struct adapter *adapter)
 	 */
 	size_nports_qsets(adapter);
 
+	adapter->flags |= CXGB4VF_FW_OK;
 	return 0;
 }
 
@@ -2704,7 +2668,8 @@ static void cfg_queues(struct adapter *adapter)
 	 * support.  In particular, this means that we need to know what kind
 	 * of interrupts we'll be using ...
 	 */
-	BUG_ON((adapter->flags & (USING_MSIX|USING_MSI)) == 0);
+	BUG_ON((adapter->flags &
+	       (CXGB4VF_USING_MSIX | CXGB4VF_USING_MSI)) == 0);
 
 	/*
 	 * Count the number of 10GbE Virtual Interfaces that we have.
@@ -2881,6 +2846,39 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 #endif
 };
 
+/**
+ *	cxgb4vf_get_port_mask - Get port mask for the VF based on mac
+ *				address stored on the adapter
+ *	@adapter: The adapter
+ *
+ *	Find the the port mask for the VF based on the index of mac
+ *	address stored in the adapter. If no mac address is stored on
+ *	the adapter for the VF, use the port mask received from the
+ *	firmware.
+ */
+static unsigned int cxgb4vf_get_port_mask(struct adapter *adapter)
+{
+	unsigned int naddr = 1, pidx = 0;
+	unsigned int pmask, rmask = 0;
+	u8 mac[ETH_ALEN];
+	int err;
+
+	pmask = adapter->params.vfres.pmask;
+	while (pmask) {
+		if (pmask & 1) {
+			err = t4vf_get_vf_mac_acl(adapter, pidx, &naddr, mac);
+			if (!err && !is_zero_ether_addr(mac))
+				rmask |= (1 << pidx);
+		}
+		pmask >>= 1;
+		pidx++;
+	}
+	if (!rmask)
+		rmask = adapter->params.vfres.pmask;
+
+	return rmask;
+}
+
 /*
  * "Probe" a device: initialize a device and construct all kernel and driver
  * state needed to manage the device.  This routine is called "init_one" in
@@ -2889,19 +2887,12 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *ent)
 {
+	struct adapter *adapter;
+	struct net_device *netdev;
+	struct port_info *pi;
+	unsigned int pmask;
 	int pci_using_dac;
 	int err, pidx;
-	unsigned int pmask;
-	struct adapter *adapter;
-	struct port_info *pi;
-	struct net_device *netdev;
-	unsigned int pf;
-
-	/*
-	 * Print our driver banner the first time we're called to initialize a
-	 * device.
-	 */
-	pr_info_once("%s - version %s\n", DRV_DESC, DRV_VERSION);
 
 	/*
 	 * Initialize generic PCI device state.
@@ -3030,17 +3021,21 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * using Relaxed Ordering.
 	 */
 	if (!pcie_relaxed_ordering_enabled(pdev))
-		adapter->flags |= ROOT_NO_RELAXED_ORDERING;
+		adapter->flags |= CXGB4VF_ROOT_NO_RELAXED_ORDERING;
 
 	err = adap_init0(adapter);
 	if (err)
-		goto err_unmap_bar;
+		dev_err(&pdev->dev,
+			"Adapter initialization failed, error %d. Continuing in debug mode\n",
+			err);
+
+	/* Initialize hash mac addr list */
+	INIT_LIST_HEAD(&adapter->mac_hlist);
 
 	/*
 	 * Allocate our "adapter ports" and stitch everything together.
 	 */
-	pmask = adapter->params.vfres.pmask;
-	pf = t4vf_get_pf_from_vf(adapter);
+	pmask = cxgb4vf_get_port_mask(adapter);
 	for_each_port(adapter, pidx) {
 		int port_id, viid;
 		u8 mac[ETH_ALEN];
@@ -3056,13 +3051,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 			break;
 		port_id = ffs(pmask) - 1;
 		pmask &= ~(1 << port_id);
-		viid = t4vf_alloc_vi(adapter, port_id);
-		if (viid < 0) {
-			dev_err(&pdev->dev, "cannot allocate VI for port %d:"
-				" err=%d\n", port_id, viid);
-			err = viid;
-			goto err_free_dev;
-		}
 
 		/*
 		 * Allocate our network device and stitch things together.
@@ -3070,7 +3058,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
 					   MAX_PORT_QSETS);
 		if (netdev == NULL) {
-			t4vf_free_vi(adapter, viid);
 			err = -ENOMEM;
 			goto err_free_dev;
 		}
@@ -3080,26 +3067,21 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		pi->adapter = adapter;
 		pi->pidx = pidx;
 		pi->port_id = port_id;
-		pi->viid = viid;
 
 		/*
 		 * Initialize the starting state of our "port" and register
 		 * it.
 		 */
 		pi->xact_addr_filt = -1;
-		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
-		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
-			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
-		netdev->vlan_features = NETIF_F_SG | TSO_FLAGS |
-			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_HIGHDMA;
-		netdev->features = netdev->hw_features |
-				   NETIF_F_HW_VLAN_CTAG_TX;
+		netdev->hw_features = NETIF_F_SG | TSO_FLAGS | NETIF_F_GRO |
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
+			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
+		netdev->features = netdev->hw_features;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
+		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 		netdev->min_mtu = 81;
@@ -3108,6 +3090,23 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
 		netdev->ethtool_ops = &cxgb4vf_ethtool_ops;
 		netdev->dev_port = pi->port_id;
+
+		/*
+		 * If we haven't been able to contact the firmware, there's
+		 * nothing else we can do for this "port" ...
+		 */
+		if (!(adapter->flags & CXGB4VF_FW_OK))
+			continue;
+
+		viid = t4vf_alloc_vi(adapter, port_id);
+		if (viid < 0) {
+			dev_err(&pdev->dev,
+				"cannot allocate VI for port %d: err=%d\n",
+				port_id, viid);
+			err = viid;
+			goto err_free_dev;
+		}
+		pi->viid = viid;
 
 		/*
 		 * Initialize the hardware/software state for the port.
@@ -3119,7 +3118,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 			goto err_free_dev;
 		}
 
-		err = t4vf_get_vf_mac_acl(adapter, pf, &naddr, mac);
+		err = t4vf_get_vf_mac_acl(adapter, port_id, &naddr, mac);
 		if (err) {
 			dev_err(&pdev->dev,
 				"unable to determine MAC ACL address, "
@@ -3146,7 +3145,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * get MSI interrupts we bail with the error.
 	 */
 	if (msi == MSI_MSIX && enable_msix(adapter) == 0)
-		adapter->flags |= USING_MSIX;
+		adapter->flags |= CXGB4VF_USING_MSIX;
 	else {
 		if (msi == MSI_MSIX) {
 			dev_info(adapter->pdev_dev,
@@ -3166,7 +3165,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 				" err=%d\n", err);
 			goto err_free_dev;
 		}
-		adapter->flags |= USING_MSI;
+		adapter->flags |= CXGB4VF_USING_MSI;
 	}
 
 	/* Now that we know how many "ports" we have and what interrupt
@@ -3196,6 +3195,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 			continue;
 		}
 
+		netif_carrier_off(netdev);
 		set_bit(pidx, &adapter->registered_device_map);
 	}
 	if (adapter->registered_device_map == 0) {
@@ -3210,11 +3210,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		adapter->debugfs_root =
 			debugfs_create_dir(pci_name(pdev),
 					   cxgb4vf_debugfs_root);
-		if (IS_ERR_OR_NULL(adapter->debugfs_root))
-			dev_warn(&pdev->dev, "could not create debugfs"
-				 " directory");
-		else
-			setup_debugfs(adapter);
+		setup_debugfs(adapter);
 	}
 
 	/*
@@ -3224,8 +3220,8 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	for_each_port(adapter, pidx) {
 		dev_info(adapter->pdev_dev, "%s: Chelsio VF NIC PCIe %s\n",
 			 adapter->port[pidx]->name,
-			 (adapter->flags & USING_MSIX) ? "MSI-X" :
-			 (adapter->flags & USING_MSI)  ? "MSI" : "");
+			 (adapter->flags & CXGB4VF_USING_MSIX) ? "MSI-X" :
+			 (adapter->flags & CXGB4VF_USING_MSI)  ? "MSI" : "");
 	}
 
 	/*
@@ -3238,12 +3234,12 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * so far and return the error.
 	 */
 err_disable_interrupts:
-	if (adapter->flags & USING_MSIX) {
+	if (adapter->flags & CXGB4VF_USING_MSIX) {
 		pci_disable_msix(adapter->pdev);
-		adapter->flags &= ~USING_MSIX;
-	} else if (adapter->flags & USING_MSI) {
+		adapter->flags &= ~CXGB4VF_USING_MSIX;
+	} else if (adapter->flags & CXGB4VF_USING_MSI) {
 		pci_disable_msi(adapter->pdev);
-		adapter->flags &= ~USING_MSI;
+		adapter->flags &= ~CXGB4VF_USING_MSI;
 	}
 
 err_free_dev:
@@ -3252,13 +3248,13 @@ err_free_dev:
 		if (netdev == NULL)
 			continue;
 		pi = netdev_priv(netdev);
-		t4vf_free_vi(adapter, pi->viid);
+		if (pi->viid)
+			t4vf_free_vi(adapter, pi->viid);
 		if (test_bit(pidx, &adapter->registered_device_map))
 			unregister_netdev(netdev);
 		free_netdev(netdev);
 	}
 
-err_unmap_bar:
 	if (!is_t4(adapter->params.chip))
 		iounmap(adapter->bar2);
 
@@ -3287,6 +3283,7 @@ err_disable_device:
 static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
+	struct hash_mac_addr *entry, *tmp;
 
 	/*
 	 * Tear down driver state associated with device.
@@ -3302,12 +3299,12 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 			if (test_bit(pidx, &adapter->registered_device_map))
 				unregister_netdev(adapter->port[pidx]);
 		t4vf_sge_stop(adapter);
-		if (adapter->flags & USING_MSIX) {
+		if (adapter->flags & CXGB4VF_USING_MSIX) {
 			pci_disable_msix(adapter->pdev);
-			adapter->flags &= ~USING_MSIX;
-		} else if (adapter->flags & USING_MSI) {
+			adapter->flags &= ~CXGB4VF_USING_MSIX;
+		} else if (adapter->flags & CXGB4VF_USING_MSI) {
 			pci_disable_msi(adapter->pdev);
-			adapter->flags &= ~USING_MSI;
+			adapter->flags &= ~CXGB4VF_USING_MSI;
 		}
 
 		/*
@@ -3330,13 +3327,19 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 				continue;
 
 			pi = netdev_priv(netdev);
-			t4vf_free_vi(adapter, pi->viid);
+			if (pi->viid)
+				t4vf_free_vi(adapter, pi->viid);
 			free_netdev(netdev);
 		}
 		iounmap(adapter->regs);
 		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
 		kfree(adapter->mbox_log);
+		list_for_each_entry_safe(entry, tmp, &adapter->mac_hlist,
+					 list) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
 		kfree(adapter);
 	}
 
@@ -3373,12 +3376,12 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	 * Interrupts allowing various internal pathways to drain.
 	 */
 	t4vf_sge_stop(adapter);
-	if (adapter->flags & USING_MSIX) {
+	if (adapter->flags & CXGB4VF_USING_MSIX) {
 		pci_disable_msix(adapter->pdev);
-		adapter->flags &= ~USING_MSIX;
-	} else if (adapter->flags & USING_MSI) {
+		adapter->flags &= ~CXGB4VF_USING_MSIX;
+	} else if (adapter->flags & CXGB4VF_USING_MSI) {
 		pci_disable_msi(adapter->pdev);
-		adapter->flags &= ~USING_MSI;
+		adapter->flags &= ~CXGB4VF_USING_MSI;
 	}
 
 	/*
@@ -3405,7 +3408,6 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4vf_pci_tbl);
 
 static struct pci_driver cxgb4vf_driver = {
@@ -3432,13 +3434,11 @@ static int __init cxgb4vf_module_init(void)
 		return -EINVAL;
 	}
 
-	/* Debugfs support is optional, just warn if this fails */
+	/* Debugfs support is optional, debugfs will warn if this fails */
 	cxgb4vf_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
-		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4vf_driver);
-	if (ret < 0 && !IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
+	if (ret < 0)
 		debugfs_remove(cxgb4vf_debugfs_root);
 	return ret;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Marvell 88E6xxx Switch hardware timestamping support
  *
@@ -7,11 +8,6 @@
  *      Erik Hons <erik.hons@ni.com>
  *      Brandon Streiff <brandon.streiff@ni.com>
  *      Dane Wagner <dane.wagner@ni.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "chip.h"
@@ -151,7 +147,7 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 		return -ERANGE;
 	}
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	if (tstamp_enable) {
 		chip->enable_count += 1;
 		if (chip->enable_count == 1 && ptp_ops->global_enable)
@@ -165,7 +161,7 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 		if (chip->enable_count == 0 && ptp_ops->global_disable)
 			ptp_ops->global_disable(chip);
 	}
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	/* Once hardware has been configured, enable timestamp checks
 	 * in the RX/TX paths.
@@ -215,49 +211,20 @@ int mv88e6xxx_port_hwtstamp_get(struct dsa_switch *ds, int port,
 		-EFAULT : 0;
 }
 
-/* Get the start of the PTP header in this skb */
-static u8 *parse_ptp_header(struct sk_buff *skb, unsigned int type)
-{
-	u8 *data = skb_mac_header(skb);
-	unsigned int offset = 0;
-
-	if (type & PTP_CLASS_VLAN)
-		offset += VLAN_HLEN;
-
-	switch (type & PTP_CLASS_PMASK) {
-	case PTP_CLASS_IPV4:
-		offset += ETH_HLEN + IPV4_HLEN(data + offset) + UDP_HLEN;
-		break;
-	case PTP_CLASS_IPV6:
-		offset += ETH_HLEN + IP6_HLEN + UDP_HLEN;
-		break;
-	case PTP_CLASS_L2:
-		offset += ETH_HLEN;
-		break;
-	default:
-		return NULL;
-	}
-
-	/* Ensure that the entire header is present in this packet. */
-	if (skb->len + ETH_HLEN < offset + 34)
-		return NULL;
-
-	return data + offset;
-}
-
 /* Returns a pointer to the PTP header if the caller should time stamp,
  * or NULL if the caller should not.
  */
-static u8 *mv88e6xxx_should_tstamp(struct mv88e6xxx_chip *chip, int port,
-				   struct sk_buff *skb, unsigned int type)
+static struct ptp_header *mv88e6xxx_should_tstamp(struct mv88e6xxx_chip *chip,
+						  int port, struct sk_buff *skb,
+						  unsigned int type)
 {
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
-	u8 *hdr;
+	struct ptp_header *hdr;
 
 	if (!chip->info->ptp_support)
 		return NULL;
 
-	hdr = parse_ptp_header(skb, type);
+	hdr = ptp_parse_header(skb, type);
 	if (!hdr)
 		return NULL;
 
@@ -279,12 +246,11 @@ static int mv88e6xxx_ts_valid(u16 status)
 static int seq_match(struct sk_buff *skb, u16 ts_seqid)
 {
 	unsigned int type = SKB_PTP_TYPE(skb);
-	u8 *hdr = parse_ptp_header(skb, type);
-	__be16 *seqid;
+	struct ptp_header *hdr;
 
-	seqid = (__be16 *)(hdr + OFF_PTP_SEQUENCE_ID);
+	hdr = ptp_parse_header(skb, type);
 
-	return ts_seqid == ntohs(*seqid);
+	return ts_seqid == ntohs(hdr->sequence_id);
 }
 
 static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
@@ -305,10 +271,10 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 	skb_queue_splice_tail_init(rxq, &received);
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_port_ptp_read(chip, ps->port_id,
 				      reg, buf, ARRAY_SIZE(buf));
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	if (err)
 		pr_err("failed to get the receive time stamp\n");
 
@@ -318,9 +284,9 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 	seq_id = buf[3];
 
 	if (status & MV88E6XXX_PTP_TS_VALID) {
-		mutex_lock(&chip->reg_lock);
+		mv88e6xxx_reg_lock(chip);
 		err = mv88e6xxx_port_ptp_write(chip, ps->port_id, reg, 0);
-		mutex_unlock(&chip->reg_lock);
+		mv88e6xxx_reg_unlock(chip);
 		if (err)
 			pr_err("failed to clear the receive status\n");
 	}
@@ -331,9 +297,9 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 		if (mv88e6xxx_ts_valid(status) && seq_match(skb, seq_id)) {
 			ns = timehi << 16 | timelo;
 
-			mutex_lock(&chip->reg_lock);
+			mv88e6xxx_reg_lock(chip);
 			ns = timecounter_cyc2time(&chip->tstamp_tc, ns);
-			mutex_unlock(&chip->reg_lock);
+			mv88e6xxx_reg_unlock(chip);
 			shwt = skb_hwtstamps(skb);
 			memset(shwt, 0, sizeof(*shwt));
 			shwt->hwtstamp = ns_to_ktime(ns);
@@ -361,9 +327,9 @@ static void mv88e6xxx_rxtstamp_work(struct mv88e6xxx_chip *chip,
 				   &ps->rx_queue2);
 }
 
-static int is_pdelay_resp(u8 *msgtype)
+static int is_pdelay_resp(const struct ptp_header *hdr)
 {
-	return (*msgtype & 0xf) == 3;
+	return (hdr->tsmt & 0xf) == 3;
 }
 
 bool mv88e6xxx_port_rxtstamp(struct dsa_switch *ds, int port,
@@ -371,7 +337,7 @@ bool mv88e6xxx_port_rxtstamp(struct dsa_switch *ds, int port,
 {
 	struct mv88e6xxx_port_hwtstamp *ps;
 	struct mv88e6xxx_chip *chip;
-	u8 *hdr;
+	struct ptp_header *hdr;
 
 	chip = ds->priv;
 	ps = &chip->port_hwtstamp[port];
@@ -409,12 +375,12 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 	if (!ps->tx_skb)
 		return 0;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_port_ptp_read(chip, ps->port_id,
 				      ptp_ops->dep_sts_reg,
 				      departure_block,
 				      ARRAY_SIZE(departure_block));
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	if (err)
 		goto free_and_clear_skb;
@@ -434,9 +400,9 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 	}
 
 	/* We have the timestamp; go ahead and clear valid now */
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	mv88e6xxx_port_ptp_write(chip, ps->port_id, ptp_ops->dep_sts_reg, 0);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	status = departure_block[0] & MV88E6XXX_PTP_TS_STATUS_MASK;
 	if (status != MV88E6XXX_PTP_TS_STATUS_NORMAL) {
@@ -451,9 +417,9 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 
 	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 	time_raw = ((u32)departure_block[2] << 16) | departure_block[1];
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	ns = timecounter_cyc2time(&chip->tstamp_tc, time_raw);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	shhwtstamps.hwtstamp = ns_to_ktime(ns);
 
 	dev_dbg(chip->dev,
@@ -507,8 +473,7 @@ bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
-	__be16 *seq_ptr;
-	u8 *hdr;
+	struct ptp_header *hdr;
 
 	if (!(skb_shinfo(clone)->tx_flags & SKBTX_HW_TSTAMP))
 		return false;
@@ -517,15 +482,13 @@ bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 	if (!hdr)
 		return false;
 
-	seq_ptr = (__be16 *)(hdr + OFF_PTP_SEQUENCE_ID);
-
 	if (test_and_set_bit_lock(MV88E6XXX_HWTSTAMP_TX_IN_PROGRESS,
 				  &ps->state))
 		return false;
 
 	ps->tx_skb = clone;
 	ps->tx_tstamp_start = jiffies;
-	ps->tx_seq_id = be16_to_cpup(seq_ptr);
+	ps->tx_seq_id = be16_to_cpu(hdr->sequence_id);
 
 	ptp_schedule_worker(chip->ptp_clock, 0);
 	return true;

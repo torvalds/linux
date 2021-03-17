@@ -1,553 +1,418 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Fuel gauge driver for CellWise 2013 / 2015
  *
  * Copyright (C) 2012, RockChip
+ * Copyright (C) 2020, Tobias Schramm
  *
  * Authors: xuhuicong <xhc@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
+ * Authors: Tobias Schramm <t.schramm@manjaro.org>
  */
 
+#include <linux/bits.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/gfp.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
-#include <linux/platform_device.h>
 #include <linux/power_supply.h>
-#include <linux/slab.h>
+#include <linux/property.h>
+#include <linux/regmap.h>
+#include <linux/time.h>
 #include <linux/workqueue.h>
 
-#include <linux/power/cw2015_battery.h>
+#define CW2015_SIZE_BATINFO		64
 
-static int dbg_enable;
-module_param_named(dbg_level, dbg_enable, int, 0644);
+#define CW2015_RESET_TRIES		5
 
-#define cw_printk(args...) \
-	do { \
-		if (dbg_enable) { \
-			pr_info(args); \
-		} \
-	} while (0)
+#define CW2015_REG_VERSION		0x00
+#define CW2015_REG_VCELL		0x02
+#define CW2015_REG_SOC			0x04
+#define CW2015_REG_RRT_ALERT		0x06
+#define CW2015_REG_CONFIG		0x08
+#define CW2015_REG_MODE			0x0A
+#define CW2015_REG_BATINFO		0x10
 
-static int cw_read(struct i2c_client *client, u8 reg, u8 buf[])
+#define CW2015_MODE_SLEEP_MASK		GENMASK(7, 6)
+#define CW2015_MODE_SLEEP		(0x03 << 6)
+#define CW2015_MODE_NORMAL		(0x00 << 6)
+#define CW2015_MODE_QUICK_START		(0x03 << 4)
+#define CW2015_MODE_RESTART		(0x0f << 0)
+
+#define CW2015_CONFIG_UPDATE_FLG	(0x01 << 1)
+#define CW2015_ATHD(x)			((x) << 3)
+#define CW2015_MASK_ATHD		GENMASK(7, 3)
+#define CW2015_MASK_SOC			GENMASK(12, 0)
+
+/* reset gauge of no valid state of charge could be polled for 40s */
+#define CW2015_BAT_SOC_ERROR_MS		(40 * MSEC_PER_SEC)
+/* reset gauge if state of charge stuck for half an hour during charging */
+#define CW2015_BAT_CHARGING_STUCK_MS	(1800 * MSEC_PER_SEC)
+
+/* poll interval from CellWise GPL Android driver example */
+#define CW2015_DEFAULT_POLL_INTERVAL_MS		8000
+
+#define CW2015_AVERAGING_SAMPLES		3
+
+struct cw_battery {
+	struct device *dev;
+	struct workqueue_struct *battery_workqueue;
+	struct delayed_work battery_delay_work;
+	struct regmap *regmap;
+	struct power_supply *rk_bat;
+	struct power_supply_battery_info battery;
+	u8 *bat_profile;
+
+	bool charger_attached;
+	bool battery_changed;
+
+	int soc;
+	int voltage_mv;
+	int status;
+	int time_to_empty;
+	int charge_count;
+
+	u32 poll_interval_ms;
+	u8 alert_level;
+
+	unsigned int read_errors;
+	unsigned int charge_stuck_cnt;
+};
+
+static int cw_read_word(struct cw_battery *cw_bat, u8 reg, u16 *val)
 {
-	return i2c_smbus_read_i2c_block_data(client, reg, 1, buf);
+	__be16 value;
+	int ret;
+
+	ret = regmap_bulk_read(cw_bat->regmap, reg, &value, sizeof(value));
+	if (ret)
+		return ret;
+
+	*val = be16_to_cpu(value);
+	return 0;
 }
 
-static int cw_write(struct i2c_client *client, u8 reg, u8 const buf[])
-{
-	return i2c_smbus_write_i2c_block_data(client, reg, 1, &buf[0]);
-}
-
-static int cw_read_word(struct i2c_client *client, u8 reg, u8 buf[])
-{
-	return i2c_smbus_read_i2c_block_data(client, reg, 2, buf);
-}
-
-int cw_update_config_info(struct cw_battery *cw_bat)
+static int cw_update_profile(struct cw_battery *cw_bat)
 {
 	int ret;
-	u8 reg_val;
-	u8 i;
+	unsigned int reg_val;
 	u8 reset_val;
 
-	cw_printk("[FGADC] test config_info = 0x%x\n",
-		  cw_bat->plat_data.cw_bat_config_info[0]);
-
-	/* make sure no in sleep mode */
-	ret = cw_read(cw_bat->client, REG_MODE, &reg_val);
-	if (ret < 0)
+	/* make sure gauge is not in sleep mode */
+	ret = regmap_read(cw_bat->regmap, CW2015_REG_MODE, &reg_val);
+	if (ret)
 		return ret;
 
 	reset_val = reg_val;
-	if ((reg_val & MODE_SLEEP_MASK) == MODE_SLEEP) {
-		dev_err(&cw_bat->client->dev,
-			"device in sleep mode, cannot update battery info\n");
-		return -1;
+	if ((reg_val & CW2015_MODE_SLEEP_MASK) == CW2015_MODE_SLEEP) {
+		dev_err(cw_bat->dev,
+			"Gauge is in sleep mode, can't update battery info\n");
+		return -EINVAL;
 	}
 
-	/* update new battery info */
-	for (i = 0; i < SIZE_BATINFO; i++) {
-		ret =
-		    cw_write(cw_bat->client, REG_BATINFO + i,
-			     (u8 *)&cw_bat->plat_data.cw_bat_config_info[i]);
-
-		if (ret < 0)
-			return ret;
-	}
-
-	reg_val |= CONFIG_UPDATE_FLG;	/* set UPDATE_FLAG */
-	reg_val &= 0x07;	/* clear ATHD */
-	reg_val |= ATHD;	/* set ATHD */
-	ret = cw_write(cw_bat->client, REG_CONFIG, &reg_val);
-	if (ret < 0)
+	/* write new battery info */
+	ret = regmap_raw_write(cw_bat->regmap, CW2015_REG_BATINFO,
+			       cw_bat->bat_profile,
+			       CW2015_SIZE_BATINFO);
+	if (ret)
 		return ret;
 
-	/* check 2015/cw2013 for ATHD & update_flag */
-	ret = cw_read(cw_bat->client, REG_CONFIG, &reg_val);
-	if (ret < 0)
+	/* set config update flag  */
+	reg_val |= CW2015_CONFIG_UPDATE_FLG;
+	reg_val &= ~CW2015_MASK_ATHD;
+	reg_val |= CW2015_ATHD(cw_bat->alert_level);
+	ret = regmap_write(cw_bat->regmap, CW2015_REG_CONFIG, reg_val);
+	if (ret)
 		return ret;
 
-	if (!(reg_val & CONFIG_UPDATE_FLG)) {
-		dev_info(&cw_bat->client->dev,
-			 "update flag for new battery info have not set..\n");
-	}
-
-	if ((reg_val & 0xf8) != ATHD)
-		dev_info(&cw_bat->client->dev, "the new ATHD have not set..\n");
-
-	/* reset */
-	reset_val &= ~(MODE_RESTART);
-	reg_val = reset_val | MODE_RESTART;
-	ret = cw_write(cw_bat->client, REG_MODE, &reg_val);
-	if (ret < 0)
+	/* reset gauge to apply new battery profile */
+	reset_val &= ~CW2015_MODE_RESTART;
+	reg_val = reset_val | CW2015_MODE_RESTART;
+	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reg_val);
+	if (ret)
 		return ret;
 
-	msleep(10);
-	ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
-	if (ret < 0)
+	/* wait for gauge to reset */
+	msleep(20);
+
+	/* clear reset flag */
+	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reset_val);
+	if (ret)
 		return ret;
 
-	cw_printk("cw2015 update config success!\n");
+	/* wait for gauge to become ready */
+	ret = regmap_read_poll_timeout(cw_bat->regmap, CW2015_REG_SOC,
+				       reg_val, reg_val <= 100,
+				       10 * USEC_PER_MSEC, 10 * USEC_PER_SEC);
+	if (ret)
+		dev_err(cw_bat->dev,
+			"Gauge did not become ready after profile upload\n");
+	else
+		dev_dbg(cw_bat->dev, "Battery profile updated\n");
 
-	return 0;
+	return ret;
 }
 
 static int cw_init(struct cw_battery *cw_bat)
 {
 	int ret;
-	int i;
-	u8 reg_val = MODE_SLEEP;
+	unsigned int reg_val = CW2015_MODE_SLEEP;
 
-	if ((reg_val & MODE_SLEEP_MASK) == MODE_SLEEP) {
-		reg_val = MODE_NORMAL;
-		ret = cw_write(cw_bat->client, REG_MODE, &reg_val);
-		if (ret < 0)
+	if ((reg_val & CW2015_MODE_SLEEP_MASK) == CW2015_MODE_SLEEP) {
+		reg_val = CW2015_MODE_NORMAL;
+		ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reg_val);
+		if (ret)
 			return ret;
 	}
 
-	ret = cw_read(cw_bat->client, REG_CONFIG, &reg_val);
-	if (ret < 0)
+	ret = regmap_read(cw_bat->regmap, CW2015_REG_CONFIG, &reg_val);
+	if (ret)
 		return ret;
 
-	if ((reg_val & 0xf8) != ATHD) {
-		dev_info(&cw_bat->client->dev, "the new ATHD have not set\n");
-		reg_val &= 0x07;	/* clear ATHD */
-		reg_val |= ATHD;	/* set ATHD */
-		ret = cw_write(cw_bat->client, REG_CONFIG, &reg_val);
-		if (ret < 0)
+	if ((reg_val & CW2015_MASK_ATHD) != CW2015_ATHD(cw_bat->alert_level)) {
+		dev_dbg(cw_bat->dev, "Setting new alert level\n");
+		reg_val &= ~CW2015_MASK_ATHD;
+		reg_val |= ~CW2015_ATHD(cw_bat->alert_level);
+		ret = regmap_write(cw_bat->regmap, CW2015_REG_CONFIG, reg_val);
+		if (ret)
 			return ret;
 	}
 
-	ret = cw_read(cw_bat->client, REG_CONFIG, &reg_val);
-	if (ret < 0)
+	ret = regmap_read(cw_bat->regmap, CW2015_REG_CONFIG, &reg_val);
+	if (ret)
 		return ret;
 
-	if (!(reg_val & CONFIG_UPDATE_FLG)) {
-		cw_printk("update config flg is true, need update config\n");
-		ret = cw_update_config_info(cw_bat);
-		if (ret < 0) {
-			dev_info(&cw_bat->client->dev,
-				 "update flag for new battery info have not set\n");
+	if (!(reg_val & CW2015_CONFIG_UPDATE_FLG)) {
+		dev_dbg(cw_bat->dev,
+			"Battery profile not present, uploading battery profile\n");
+		if (cw_bat->bat_profile) {
+			ret = cw_update_profile(cw_bat);
+			if (ret) {
+				dev_err(cw_bat->dev,
+					"Failed to upload battery profile\n");
+				return ret;
+			}
+		} else {
+			dev_warn(cw_bat->dev,
+				 "No profile specified, continuing without profile\n");
+		}
+	} else if (cw_bat->bat_profile) {
+		u8 bat_info[CW2015_SIZE_BATINFO];
+
+		ret = regmap_raw_read(cw_bat->regmap, CW2015_REG_BATINFO,
+				      bat_info, CW2015_SIZE_BATINFO);
+		if (ret) {
+			dev_err(cw_bat->dev,
+				"Failed to read stored battery profile\n");
 			return ret;
+		}
+
+		if (memcmp(bat_info, cw_bat->bat_profile, CW2015_SIZE_BATINFO)) {
+			dev_warn(cw_bat->dev, "Replacing stored battery profile\n");
+			ret = cw_update_profile(cw_bat);
+			if (ret)
+				return ret;
 		}
 	} else {
-		for (i = 0; i < SIZE_BATINFO; i++) {
-			ret = cw_read(cw_bat->client, (REG_BATINFO + i),
-				      &reg_val);
-			if (ret < 0)
-				return ret;
-
-			if (cw_bat->plat_data.cw_bat_config_info[i] != reg_val)
-				break;
-		}
-
-		if (i != SIZE_BATINFO) {
-			dev_info(&cw_bat->client->dev,
-				 "update flag for new battery info have not set\n");
-			ret = cw_update_config_info(cw_bat);
-			if (ret < 0)
-				return ret;
-		}
+		dev_warn(cw_bat->dev,
+			 "Can't check current battery profile, no profile provided\n");
 	}
 
-	for (i = 0; i < 30; i++) {
-		ret = cw_read(cw_bat->client, REG_SOC, &reg_val);
-		if (ret < 0)
-			return ret;
-		else if (reg_val <= 0x64)
-			break;
-		msleep(120);
-	}
-
-	if (i >= 30) {
-		reg_val = MODE_SLEEP;
-		ret = cw_write(cw_bat->client, REG_MODE, &reg_val);
-		dev_info(&cw_bat->client->dev, "report battery capacity error");
-		return -1;
-	}
-
-	cw_printk("cw2015 init success!\n");
+	dev_dbg(cw_bat->dev, "Battery profile configured\n");
 	return 0;
 }
 
-static int check_chrg_usb_psy(struct device *dev, void *data)
-{
-	struct power_supply *psy = dev_get_drvdata(dev);
-	struct cw_battery *cw_bat = (struct cw_battery *)data;
-
-	if (psy->desc->type == POWER_SUPPLY_TYPE_USB) {
-		cw_bat->chrg_usb_psy = psy;
-		return 1;
-	}
-	return 0;
-}
-
-static int check_chrg_ac_psy(struct device *dev, void *data)
-{
-	struct power_supply *psy = dev_get_drvdata(dev);
-	struct cw_battery *cw_bat = (struct cw_battery *)data;
-
-	if (psy->desc->type == POWER_SUPPLY_TYPE_MAINS) {
-		cw_bat->chrg_ac_psy = psy;
-		return 1;
-	}
-	return 0;
-}
-
-static void get_chrg_psy(struct cw_battery *cw_bat)
-{
-	if (!cw_bat->chrg_usb_psy)
-		class_for_each_device(power_supply_class, NULL, cw_bat,
-				      check_chrg_usb_psy);
-	if (!cw_bat->chrg_ac_psy)
-		class_for_each_device(power_supply_class, NULL, cw_bat,
-				      check_chrg_ac_psy);
-}
-
-static int get_charge_state(struct cw_battery *cw_bat)
-{
-	union power_supply_propval val;
-	int ret = -ENODEV;
-	int usb_online = 0;
-	int ac_online = 0;
-	struct power_supply *chrg_usb_psy;
-	struct power_supply *chrg_ac_psy;
-
-	if (!cw_bat->chrg_usb_psy || !cw_bat->chrg_ac_psy)
-		get_chrg_psy(cw_bat);
-
-	chrg_usb_psy = cw_bat->chrg_usb_psy;
-	chrg_ac_psy = cw_bat->chrg_ac_psy;
-	if (chrg_usb_psy) {
-		ret = chrg_usb_psy->desc->get_property(chrg_usb_psy,
-						       POWER_SUPPLY_PROP_ONLINE,
-						       &val);
-		if (!ret)
-			usb_online = val.intval;
-	}
-	if (chrg_ac_psy) {
-		ret = chrg_ac_psy->desc->get_property(chrg_ac_psy,
-						      POWER_SUPPLY_PROP_ONLINE,
-						      &val);
-		if (!ret)
-			ac_online = val.intval;
-	}
-	if (!chrg_usb_psy)
-		cw_printk("Usb online didn't find\n");
-	if (!chrg_ac_psy)
-		cw_printk("Ac online didn't find\n");
-
-	cw_printk("ac_online = %d, usb_online = %d\n", ac_online, usb_online);
-	if (ac_online || usb_online)
-		return 1;
-
-	return 0;
-}
-
-static int cw_por(struct cw_battery *cw_bat)
+static int cw_power_on_reset(struct cw_battery *cw_bat)
 {
 	int ret;
 	unsigned char reset_val;
 
-	reset_val = MODE_SLEEP;
-	ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
-	if (ret < 0)
+	reset_val = CW2015_MODE_SLEEP;
+	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reset_val);
+	if (ret)
 		return ret;
-	reset_val = MODE_NORMAL;
+
+	/* wait for gauge to enter sleep */
 	msleep(20);
-	ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
-	if (ret < 0)
+
+	reset_val = CW2015_MODE_NORMAL;
+	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reset_val);
+	if (ret)
 		return ret;
+
 	ret = cw_init(cw_bat);
 	if (ret)
 		return ret;
 	return 0;
 }
 
-static int cw_get_capacity(struct cw_battery *cw_bat)
+#define HYSTERESIS(current, previous, up, down) \
+	(((current) < (previous) + (up)) && ((current) > (previous) - (down)))
+
+static int cw_get_soc(struct cw_battery *cw_bat)
 {
-	int cw_capacity;
+	unsigned int soc;
 	int ret;
-	unsigned char reg_val[2];
 
-	static int reset_loop;
-	static int charging_loop;
-	static int discharging_loop;
-	static int jump_flag;
-	static int charging_5_loop;
-	int sleep_cap;
-
-	ret = cw_read_word(cw_bat->client, REG_SOC, reg_val);
-	if (ret < 0)
+	ret = regmap_read(cw_bat->regmap, CW2015_REG_SOC, &soc);
+	if (ret)
 		return ret;
 
-	cw_capacity = reg_val[0];
+	if (soc > 100) {
+		int max_error_cycles =
+			CW2015_BAT_SOC_ERROR_MS / cw_bat->poll_interval_ms;
 
-	if ((cw_capacity < 0) || (cw_capacity > 100)) {
-		cw_printk("Error:  cw_capacity = %d\n", cw_capacity);
-		reset_loop++;
-		if (reset_loop >
-		    (BATTERY_CAPACITY_ERROR / cw_bat->monitor_sec)) {
-			cw_por(cw_bat);
-			reset_loop = 0;
+		dev_err(cw_bat->dev, "Invalid SoC %d%%\n", soc);
+		cw_bat->read_errors++;
+		if (cw_bat->read_errors > max_error_cycles) {
+			dev_warn(cw_bat->dev,
+				 "Too many invalid SoC reports, resetting gauge\n");
+			cw_power_on_reset(cw_bat);
+			cw_bat->read_errors = 0;
 		}
-		return cw_bat->capacity;
+		return cw_bat->soc;
+	}
+	cw_bat->read_errors = 0;
+
+	/* Reset gauge if stuck while charging */
+	if (cw_bat->status == POWER_SUPPLY_STATUS_CHARGING && soc == cw_bat->soc) {
+		int max_stuck_cycles =
+			CW2015_BAT_CHARGING_STUCK_MS / cw_bat->poll_interval_ms;
+
+		cw_bat->charge_stuck_cnt++;
+		if (cw_bat->charge_stuck_cnt > max_stuck_cycles) {
+			dev_warn(cw_bat->dev,
+				 "SoC stuck @%u%%, resetting gauge\n", soc);
+			cw_power_on_reset(cw_bat);
+			cw_bat->charge_stuck_cnt = 0;
+		}
 	} else {
-		reset_loop = 0;
+		cw_bat->charge_stuck_cnt = 0;
 	}
 
-	/* case 1 : aviod swing */
-	if (((cw_bat->charger_mode > 0) &&
-	     (cw_capacity <= cw_bat->capacity - 1) &&
-	     (cw_capacity > cw_bat->capacity - 9)) ||
-	    ((cw_bat->charger_mode == 0) &&
-	     (cw_capacity == (cw_bat->capacity + 1)))) {
-		if (!(cw_capacity == 0 && cw_bat->capacity <= 2))
-			cw_capacity = cw_bat->capacity;
-	}
+	/* Ignore voltage dips during charge */
+	if (cw_bat->charger_attached && HYSTERESIS(soc, cw_bat->soc, 0, 3))
+		soc = cw_bat->soc;
 
-	/* case 2 : aviod no charge full */
-	if ((cw_bat->charger_mode > 0) &&
-	    (cw_capacity >= 95) && (cw_capacity <= cw_bat->capacity)) {
-		cw_printk("Chaman join no charge full\n");
-		charging_loop++;
-		if (charging_loop >
-		    (BATTERY_UP_MAX_CHANGE / cw_bat->monitor_sec)) {
-			cw_capacity = (cw_bat->capacity + 1) <= 100 ?
-				      (cw_bat->capacity + 1) : 100;
-			charging_loop = 0;
-			jump_flag = 1;
-		} else {
-			cw_capacity = cw_bat->capacity;
-		}
-	}
+	/* Ignore voltage spikes during discharge */
+	if (!cw_bat->charger_attached && HYSTERESIS(soc, cw_bat->soc, 3, 0))
+		soc = cw_bat->soc;
 
-	/* case 3 : avoid battery level jump to CW_BAT */
-	if ((cw_bat->charger_mode == 0) &&
-	    (cw_capacity <= cw_bat->capacity) &&
-	    (cw_capacity >= 90) && (jump_flag == 1)) {
-		cw_printk("Chaman join no charge full discharging\n");
-#ifdef CONFIG_PM
-		if (cw_bat->suspend_resume_mark == 1) {
-			cw_bat->suspend_resume_mark = 0;
-			sleep_cap = (cw_bat->after.tv_sec +
-				     discharging_loop *
-				     (cw_bat->monitor_sec / 1000)) /
-				     (BATTERY_DOWN_MAX_CHANGE / 1000);
-			cw_printk("sleep_cap = %d\n", sleep_cap);
-
-			if (cw_capacity >= cw_bat->capacity - sleep_cap) {
-				return cw_capacity;
-			} else {
-				if (!sleep_cap)
-					discharging_loop = discharging_loop +
-						1 + cw_bat->after.tv_sec /
-						(cw_bat->monitor_sec / 1000);
-				else
-					discharging_loop = 0;
-				cw_printk("discharging_loop = %d\n",
-					  discharging_loop);
-				return cw_bat->capacity - sleep_cap;
-			}
-		}
-#endif
-		discharging_loop++;
-		if (discharging_loop >
-		    (BATTERY_DOWN_MAX_CHANGE / cw_bat->monitor_sec)) {
-			if (cw_capacity >= cw_bat->capacity - 1)
-				jump_flag = 0;
-			else
-				cw_capacity = cw_bat->capacity - 1;
-
-			discharging_loop = 0;
-		} else {
-			cw_capacity = cw_bat->capacity;
-		}
-	}
-
-	/* case 4 : avoid battery level is 0% when long time charging */
-	if ((cw_bat->charger_mode > 0) && (cw_capacity == 0)) {
-		charging_5_loop++;
-		if (charging_5_loop >
-		    BATTERY_CHARGING_ZERO / cw_bat->monitor_sec) {
-			cw_por(cw_bat);
-			charging_5_loop = 0;
-		}
-	} else if (charging_5_loop != 0) {
-		charging_5_loop = 0;
-	}
-#ifdef CONFIG_PM
-	if (cw_bat->suspend_resume_mark == 1)
-		cw_bat->suspend_resume_mark = 0;
-#endif
-	return cw_capacity;
+	return soc;
 }
 
 static int cw_get_voltage(struct cw_battery *cw_bat)
 {
-	int ret;
-	u8 reg_val[2];
-	u16 value16, value16_1, value16_2, value16_3;
-	int voltage;
-	int res1, res2;
+	int ret, i, voltage_mv;
+	u16 reg_val;
+	u32 avg = 0;
 
-	ret = cw_read_word(cw_bat->client, REG_VCELL, reg_val);
-	if (ret < 0)
-		return ret;
-	value16 = (reg_val[0] << 8) + reg_val[1];
+	for (i = 0; i < CW2015_AVERAGING_SAMPLES; i++) {
+		ret = cw_read_word(cw_bat, CW2015_REG_VCELL, &reg_val);
+		if (ret)
+			return ret;
 
-	ret = cw_read_word(cw_bat->client, REG_VCELL, reg_val);
-	if (ret < 0)
-		return ret;
-	value16_1 = (reg_val[0] << 8) + reg_val[1];
-
-	ret = cw_read_word(cw_bat->client, REG_VCELL, reg_val);
-	if (ret < 0)
-		return ret;
-	value16_2 = (reg_val[0] << 8) + reg_val[1];
-
-	if (value16 > value16_1) {
-		value16_3 = value16;
-		value16 = value16_1;
-		value16_1 = value16_3;
+		avg += reg_val;
 	}
+	avg /= CW2015_AVERAGING_SAMPLES;
 
-	if (value16_1 > value16_2) {
-		value16_3 = value16_1;
-		value16_1 = value16_2;
-		value16_2 = value16_3;
-	}
+	/*
+	 * 305 uV per ADC step
+	 * Use 312 / 1024  as efficient approximation of 305 / 1000
+	 * Negligible error of 0.1%
+	 */
+	voltage_mv = avg * 312 / 1024;
 
-	if (value16 > value16_1) {
-		value16_3 = value16;
-		value16 = value16_1;
-		value16_1 = value16_3;
-	}
-
-	voltage = value16_1 * 312 / 1024;
-
-	if (cw_bat->plat_data.divider_res1 &&
-	    cw_bat->plat_data.divider_res2) {
-		res1 = cw_bat->plat_data.divider_res1;
-		res2 = cw_bat->plat_data.divider_res2;
-		voltage = voltage * (res1 + res2) / res2;
-	} else if (cw_bat->dual_battery) {
-		voltage = voltage * 2;
-	}
-
-	dev_dbg(&cw_bat->client->dev, "the cw201x voltage=%d,reg_val=%x %x\n",
-		voltage, reg_val[0], reg_val[1]);
-	return voltage;
+	dev_dbg(cw_bat->dev, "Read voltage: %d mV, raw=0x%04x\n",
+		voltage_mv, reg_val);
+	return voltage_mv;
 }
 
-/*This function called when get RRT from cw2015*/
 static int cw_get_time_to_empty(struct cw_battery *cw_bat)
 {
 	int ret;
-	u8 reg_val;
 	u16 value16;
 
-	ret = cw_read(cw_bat->client, REG_RRT_ALERT, &reg_val);
-	if (ret < 0)
+	ret = cw_read_word(cw_bat, CW2015_REG_RRT_ALERT, &value16);
+	if (ret)
 		return ret;
 
-	value16 = reg_val;
-
-	ret = cw_read(cw_bat->client, REG_RRT_ALERT + 1, &reg_val);
-	if (ret < 0)
-		return ret;
-
-	value16 = ((value16 << 8) + reg_val) & 0x1fff;
-	return value16;
+	return value16 & CW2015_MASK_SOC;
 }
 
 static void cw_update_charge_status(struct cw_battery *cw_bat)
 {
-	int cw_charger_mode;
-
-	cw_charger_mode = get_charge_state(cw_bat);
-	if (cw_bat->charger_mode != cw_charger_mode) {
-		cw_bat->charger_mode = cw_charger_mode;
-		cw_bat->bat_change = 1;
-		if (cw_charger_mode)
-			cw_bat->charge_count++;
-	}
-}
-
-static void cw_update_capacity(struct cw_battery *cw_bat)
-{
-	int cw_capacity;
-
-	cw_capacity = cw_get_capacity(cw_bat);
-	if ((cw_capacity >= 0) && (cw_capacity <= 100) &&
-	    (cw_bat->capacity != cw_capacity)) {
-		cw_bat->capacity = cw_capacity;
-		cw_bat->bat_change = 1;
-	}
-}
-
-static void cw_update_vol(struct cw_battery *cw_bat)
-{
 	int ret;
 
-	ret = cw_get_voltage(cw_bat);
-	if ((ret >= 0) && (cw_bat->voltage != ret))
-		cw_bat->voltage = ret;
+	ret = power_supply_am_i_supplied(cw_bat->rk_bat);
+	if (ret < 0) {
+		dev_warn(cw_bat->dev, "Failed to get supply state: %d\n", ret);
+	} else {
+		bool charger_attached;
+
+		charger_attached = !!ret;
+		if (cw_bat->charger_attached != charger_attached) {
+			cw_bat->battery_changed = true;
+			if (charger_attached)
+				cw_bat->charge_count++;
+		}
+		cw_bat->charger_attached = charger_attached;
+	}
+}
+
+static void cw_update_soc(struct cw_battery *cw_bat)
+{
+	int soc;
+
+	soc = cw_get_soc(cw_bat);
+	if (soc < 0)
+		dev_err(cw_bat->dev, "Failed to get SoC from gauge: %d\n", soc);
+	else if (cw_bat->soc != soc) {
+		cw_bat->soc = soc;
+		cw_bat->battery_changed = true;
+	}
+}
+
+static void cw_update_voltage(struct cw_battery *cw_bat)
+{
+	int voltage_mv;
+
+	voltage_mv = cw_get_voltage(cw_bat);
+	if (voltage_mv < 0)
+		dev_err(cw_bat->dev, "Failed to get voltage from gauge: %d\n",
+			voltage_mv);
+	else
+		cw_bat->voltage_mv = voltage_mv;
 }
 
 static void cw_update_status(struct cw_battery *cw_bat)
 {
-	int status;
+	int status = POWER_SUPPLY_STATUS_DISCHARGING;
 
-	if (cw_bat->charger_mode > 0) {
-		if (cw_bat->capacity >= 100)
+	if (cw_bat->charger_attached) {
+		if (cw_bat->soc >= 100)
 			status = POWER_SUPPLY_STATUS_FULL;
 		else
 			status = POWER_SUPPLY_STATUS_CHARGING;
-	} else {
-		status = POWER_SUPPLY_STATUS_DISCHARGING;
 	}
 
-	if (cw_bat->status != status) {
-		cw_bat->status = status;
-		cw_bat->bat_change = 1;
-	}
+	if (cw_bat->status != status)
+		cw_bat->battery_changed = true;
+	cw_bat->status = status;
 }
 
 static void cw_update_time_to_empty(struct cw_battery *cw_bat)
 {
-	int ret;
+	int time_to_empty;
 
-	ret = cw_get_time_to_empty(cw_bat);
-	if ((ret >= 0) && (cw_bat->time_to_empty != ret)) {
-		cw_bat->time_to_empty = ret;
-		cw_bat->bat_change = 1;
+	time_to_empty = cw_get_time_to_empty(cw_bat);
+	if (time_to_empty < 0)
+		dev_err(cw_bat->dev, "Failed to get time to empty from gauge: %d\n",
+			time_to_empty);
+	else if (cw_bat->time_to_empty != time_to_empty) {
+		cw_bat->time_to_empty = time_to_empty;
+		cw_bat->battery_changed = true;
 	}
 }
 
@@ -556,110 +421,78 @@ static void cw_bat_work(struct work_struct *work)
 	struct delayed_work *delay_work;
 	struct cw_battery *cw_bat;
 	int ret;
-	u8 reg_val;
-	int i = 0;
+	unsigned int reg_val;
 
-	delay_work = container_of(work, struct delayed_work, work);
-	cw_bat =
-		container_of(delay_work, struct cw_battery, battery_delay_work);
-
-	/* Add for battery swap start */
-	ret = cw_read(cw_bat->client, REG_MODE, &reg_val);
-	if (ret < 0) {
-		cw_bat->bat_mode = MODE_VIRTUAL;
-		cw_bat->bat_change = 1;
+	delay_work = to_delayed_work(work);
+	cw_bat = container_of(delay_work, struct cw_battery, battery_delay_work);
+	ret = regmap_read(cw_bat->regmap, CW2015_REG_MODE, &reg_val);
+	if (ret) {
+		dev_err(cw_bat->dev, "Failed to read mode from gauge: %d\n", ret);
 	} else {
-		if ((reg_val & MODE_SLEEP_MASK) == MODE_SLEEP) {
-			for (i = 0; i < 5; i++) {
-				if (cw_por(cw_bat) == 0)
+		if ((reg_val & CW2015_MODE_SLEEP_MASK) == CW2015_MODE_SLEEP) {
+			int i;
+
+			for (i = 0; i < CW2015_RESET_TRIES; i++) {
+				if (!cw_power_on_reset(cw_bat))
 					break;
 			}
 		}
-		cw_update_capacity(cw_bat);
-		cw_update_vol(cw_bat);
+		cw_update_soc(cw_bat);
+		cw_update_voltage(cw_bat);
 		cw_update_charge_status(cw_bat);
 		cw_update_status(cw_bat);
 		cw_update_time_to_empty(cw_bat);
 	}
-	/* Add for battery swap end */
-	cw_printk("charger_mod = %d\n", cw_bat->charger_mode);
-	cw_printk("status = %d\n", cw_bat->status);
-	cw_printk("capacity = %d\n", cw_bat->capacity);
-	cw_printk("voltage = %d\n", cw_bat->voltage);
+	dev_dbg(cw_bat->dev, "charger_attached = %d\n", cw_bat->charger_attached);
+	dev_dbg(cw_bat->dev, "status = %d\n", cw_bat->status);
+	dev_dbg(cw_bat->dev, "soc = %d%%\n", cw_bat->soc);
+	dev_dbg(cw_bat->dev, "voltage = %dmV\n", cw_bat->voltage_mv);
 
-#ifdef CONFIG_PM
-	if (cw_bat->suspend_resume_mark == 1)
-		cw_bat->suspend_resume_mark = 0;
-#endif
-
-	if (cw_bat->bat_change == 1) {
+	if (cw_bat->battery_changed)
 		power_supply_changed(cw_bat->rk_bat);
-		cw_bat->bat_change = 0;
-	}
+	cw_bat->battery_changed = false;
+
 	queue_delayed_work(cw_bat->battery_workqueue,
 			   &cw_bat->battery_delay_work,
-			   msecs_to_jiffies(cw_bat->monitor_sec));
+			   msecs_to_jiffies(cw_bat->poll_interval_ms));
 }
 
-static int cw_get_capacity_leve(struct cw_battery *cw_bat)
+static bool cw_battery_valid_time_to_empty(struct cw_battery *cw_bat)
 {
-	if (cw_bat->bat_mode == MODE_VIRTUAL)
-		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
-
-	if (cw_bat->capacity < 1)
-		return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
-	else if (cw_bat->capacity <= 20)
-		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
-	else if (cw_bat->capacity <= 70)
-		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
-	else if (cw_bat->capacity <= 90)
-		return POWER_SUPPLY_CAPACITY_LEVEL_HIGH;
-	else
-		return POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+	return	cw_bat->time_to_empty > 0 &&
+		cw_bat->time_to_empty < CW2015_MASK_SOC &&
+		cw_bat->status == POWER_SUPPLY_STATUS_DISCHARGING;
 }
 
 static int cw_battery_get_property(struct power_supply *psy,
 				   enum power_supply_property psp,
 				   union power_supply_propval *val)
 {
-	int ret = 0;
 	struct cw_battery *cw_bat;
 
 	cw_bat = power_supply_get_drvdata(psy);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CAPACITY:
-		val->intval = cw_bat->capacity;
-		if (cw_bat->bat_mode == MODE_VIRTUAL)
-			val->intval = VIRTUAL_SOC;
-		break;
-	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
-		val->intval = cw_get_capacity_leve(cw_bat);
-		break;
-	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = cw_bat->status;
-		if (cw_bat->bat_mode == MODE_VIRTUAL)
-			val->intval = VIRTUAL_STATUS;
+		val->intval = cw_bat->soc;
 		break;
 
-	case POWER_SUPPLY_PROP_HEALTH:
-		val->intval = POWER_SUPPLY_HEALTH_GOOD;
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = cw_bat->status;
 		break;
+
 	case POWER_SUPPLY_PROP_PRESENT:
-		val->intval = cw_bat->voltage <= 0 ? 0 : 1;
-		if (cw_bat->bat_mode == MODE_VIRTUAL)
-			val->intval = VIRTUAL_PRESET;
+		val->intval = !!cw_bat->voltage_mv;
 		break;
 
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = cw_bat->voltage * 1000;
-		if (cw_bat->bat_mode == MODE_VIRTUAL)
-			val->intval = VIRTUAL_VOLTAGE * 1000;
+		val->intval = cw_bat->voltage_mv * 1000;
 		break;
 
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
-		val->intval = cw_bat->time_to_empty;
-		if (cw_bat->bat_mode == MODE_VIRTUAL)
-			val->intval = VIRTUAL_TIME2EMPTY;
+		if (cw_battery_valid_time_to_empty(cw_bat))
+			val->intval = cw_bat->time_to_empty;
+		else
+			val->intval = 0;
 		break;
 
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
@@ -672,28 +505,36 @@ static int cw_battery_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		val->intval = cw_bat->plat_data.design_capacity * 1000;
+		if (cw_bat->battery.charge_full_design_uah > 0)
+			val->intval = cw_bat->battery.charge_full_design_uah;
+		else
+			val->intval = 0;
 		break;
 
-	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
-		val->intval = 3600;
-		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		if (cw_battery_valid_time_to_empty(cw_bat) &&
+		    cw_bat->battery.charge_full_design_uah > 0) {
+			/* calculate remaining capacity */
+			val->intval = cw_bat->battery.charge_full_design_uah;
+			val->intval = val->intval * cw_bat->soc / 100;
 
-	case POWER_SUPPLY_PROP_TEMP:
-		val->intval = VIRTUAL_TEMPERATURE;
+			/* estimate current based on time to empty */
+			val->intval = 60 * val->intval / cw_bat->time_to_empty;
+		} else {
+			val->intval = 0;
+		}
+
 		break;
 
 	default:
 		break;
 	}
-	return ret;
+	return 0;
 }
 
 static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
@@ -701,258 +542,209 @@ static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
 static const struct power_supply_desc cw2015_bat_desc = {
-	.name		= "rk-bat",
+	.name		= "cw2015-battery",
 	.type		= POWER_SUPPLY_TYPE_BATTERY,
 	.properties	= cw_battery_properties,
 	.num_properties	= ARRAY_SIZE(cw_battery_properties),
 	.get_property	= cw_battery_get_property,
 };
 
-#ifdef CONFIG_OF
-static int cw2015_parse_dt(struct cw_battery *cw_bat)
+static int cw2015_parse_properties(struct cw_battery *cw_bat)
 {
-	struct device *dev = &cw_bat->client->dev;
-	struct device_node *node = dev->of_node;
-	struct property *prop;
+	struct device *dev = cw_bat->dev;
 	int length;
-	u32 value;
 	int ret;
-	struct cw_bat_platform_data *data = &cw_bat->plat_data;
-	struct gpio_desc *hw_id0_io;
-	struct gpio_desc *hw_id1_io;
-	int hw_id0_val;
-	int hw_id1_val;
 
-	if (!node)
-		return -ENODEV;
-
-	memset(data, 0, sizeof(*data));
-
-	ret = of_property_read_u32(node, "hw_id_check", &value);
-	if (!ret && value) {
-		hw_id0_io = gpiod_get_optional(dev, "hw-id0", GPIOD_IN);
-		if (!hw_id0_io)
-			return -EINVAL;
-		if (IS_ERR(hw_id0_io))
-			return PTR_ERR(hw_id0_io);
-
-		hw_id0_val = gpiod_get_value(hw_id0_io);
-		gpiod_put(hw_id0_io);
-
-		hw_id1_io = gpiod_get_optional(dev, "hw-id1", GPIOD_IN);
-		if (!hw_id1_io)
-			return -EINVAL;
-		if (IS_ERR(hw_id1_io))
-			return PTR_ERR(hw_id1_io);
-
-		hw_id1_val = gpiod_get_value(hw_id1_io);
-		gpiod_put(hw_id1_io);
-
-		/*
-		 * ID1 = 0, ID0 = 1 : Battery
-		 * ID1 = 1, ID0 = 0 : Dual Battery
-		 * ID1 = 0, ID0 = 0 : Adapter
-		 */
-		if (hw_id0_val == 1 && hw_id1_val == 0)
-			cw_bat->dual_battery = false;
-		else if (hw_id0_val == 0 && hw_id1_val == 1)
-			cw_bat->dual_battery = true;
-		else
-			return -EINVAL;
-	}
-
-	/* determine the number of config info */
-	prop = of_find_property(node, "bat_config_info", &length);
-	if (!prop)
+	length = device_property_count_u8(dev, "cellwise,battery-profile");
+	if (length < 0) {
+		dev_warn(cw_bat->dev,
+			 "No battery-profile found, using current flash contents\n");
+	} else if (length != CW2015_SIZE_BATINFO) {
+		dev_err(cw_bat->dev, "battery-profile must be %d bytes\n",
+			CW2015_SIZE_BATINFO);
 		return -EINVAL;
-
-	length /= sizeof(u32);
-
-	if (length > 0) {
-		size_t size = sizeof(*data->cw_bat_config_info) * length;
-
-		data->cw_bat_config_info = devm_kzalloc(dev, size, GFP_KERNEL);
-		if (!data->cw_bat_config_info)
+	} else {
+		cw_bat->bat_profile = devm_kzalloc(dev, length, GFP_KERNEL);
+		if (!cw_bat->bat_profile)
 			return -ENOMEM;
 
-		ret = of_property_read_u32_array(node, "bat_config_info",
-						 data->cw_bat_config_info,
-						 length);
-		if (ret < 0)
+		ret = device_property_read_u8_array(dev,
+						"cellwise,battery-profile",
+						cw_bat->bat_profile,
+						length);
+		if (ret)
 			return ret;
 	}
 
-	cw_bat->bat_mode = MODE_BATTARY;
-	cw_bat->monitor_sec = DEFAULT_MONITOR_SEC * TIMER_MS_COUNTS;
-
-	ret = of_property_read_u32(node, "divider_res1", &value);
-	if (ret < 0)
-		value = 0;
-	data->divider_res1 = value;
-
-	ret = of_property_read_u32(node, "divider_res2", &value);
-	if (ret < 0)
-		value = 0;
-	data->divider_res2 = value;
-
-	ret = of_property_read_u32(node, "virtual_power", &value);
-	if (ret < 0)
-		value = 0;
-	cw_bat->bat_mode = value;
-
-	ret = of_property_read_u32(node, "monitor_sec", &value);
-	if (ret < 0)
-		dev_err(dev, "monitor_sec missing!\n");
-	else
-		cw_bat->monitor_sec = value * TIMER_MS_COUNTS;
-
-	ret = of_property_read_u32(node, "design_capacity", &value);
-	if (ret < 0) {
-		dev_err(dev, "design_capacity missing!\n");
-		data->design_capacity = 2000;
-	} else {
-		data->design_capacity = value;
+	ret = device_property_read_u32(dev, "cellwise,monitor-interval-ms",
+				       &cw_bat->poll_interval_ms);
+	if (ret) {
+		dev_dbg(cw_bat->dev, "Using default poll interval\n");
+		cw_bat->poll_interval_ms = CW2015_DEFAULT_POLL_INTERVAL_MS;
 	}
 
 	return 0;
 }
-#else
-static int cw2015_parse_dt(struct cw_battery *cw_bat)
-{
-	return -ENODEV;
-}
-#endif
 
-static int cw_bat_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static const struct regmap_range regmap_ranges_rd_yes[] = {
+	regmap_reg_range(CW2015_REG_VERSION, CW2015_REG_VERSION),
+	regmap_reg_range(CW2015_REG_VCELL, CW2015_REG_CONFIG),
+	regmap_reg_range(CW2015_REG_MODE, CW2015_REG_MODE),
+	regmap_reg_range(CW2015_REG_BATINFO,
+			CW2015_REG_BATINFO + CW2015_SIZE_BATINFO - 1),
+};
+
+static const struct regmap_access_table regmap_rd_table = {
+	.yes_ranges = regmap_ranges_rd_yes,
+	.n_yes_ranges = 4,
+};
+
+static const struct regmap_range regmap_ranges_wr_yes[] = {
+	regmap_reg_range(CW2015_REG_RRT_ALERT, CW2015_REG_CONFIG),
+	regmap_reg_range(CW2015_REG_MODE, CW2015_REG_MODE),
+	regmap_reg_range(CW2015_REG_BATINFO,
+			CW2015_REG_BATINFO + CW2015_SIZE_BATINFO - 1),
+};
+
+static const struct regmap_access_table regmap_wr_table = {
+	.yes_ranges = regmap_ranges_wr_yes,
+	.n_yes_ranges = 3,
+};
+
+static const struct regmap_range regmap_ranges_vol_yes[] = {
+	regmap_reg_range(CW2015_REG_VCELL, CW2015_REG_SOC + 1),
+};
+
+static const struct regmap_access_table regmap_vol_table = {
+	.yes_ranges = regmap_ranges_vol_yes,
+	.n_yes_ranges = 1,
+};
+
+static const struct regmap_config cw2015_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.rd_table = &regmap_rd_table,
+	.wr_table = &regmap_wr_table,
+	.volatile_table = &regmap_vol_table,
+	.max_register = CW2015_REG_BATINFO + CW2015_SIZE_BATINFO - 1,
+};
+
+static int cw_bat_probe(struct i2c_client *client)
 {
 	int ret;
 	struct cw_battery *cw_bat;
-	struct power_supply_config psy_cfg = {0};
+	struct power_supply_config psy_cfg = { 0 };
 
 	cw_bat = devm_kzalloc(&client->dev, sizeof(*cw_bat), GFP_KERNEL);
-	if (!cw_bat) {
-		dev_err(&client->dev,
-			"fail to allocate memory for cw2015\n");
+	if (!cw_bat)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, cw_bat);
-	cw_bat->client = client;
+	cw_bat->dev = &client->dev;
+	cw_bat->soc = 1;
 
-	ret = cw2015_parse_dt(cw_bat);
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"failed to find cw2015 platform data\n");
-		return -1;
+	ret = cw2015_parse_properties(cw_bat);
+	if (ret) {
+		dev_err(cw_bat->dev, "Failed to parse cw2015 properties\n");
+		return ret;
 	}
 
-	cw_bat->capacity = 1;
-	cw_bat->voltage = 0;
-	cw_bat->status = 0;
-	cw_bat->suspend_resume_mark = 0;
-	cw_bat->charger_mode = NO_CHARGING;
-	cw_bat->bat_change = 0;
+	cw_bat->regmap = devm_regmap_init_i2c(client, &cw2015_regmap_config);
+	if (IS_ERR(cw_bat->regmap)) {
+		dev_err(cw_bat->dev, "Failed to allocate regmap: %ld\n",
+			PTR_ERR(cw_bat->regmap));
+		return PTR_ERR(cw_bat->regmap);
+	}
 
 	ret = cw_init(cw_bat);
 	if (ret) {
-		pr_err("%s cw_init error\n", __func__);
+		dev_err(cw_bat->dev, "Init failed: %d\n", ret);
 		return ret;
 	}
 
 	psy_cfg.drv_data = cw_bat;
+	psy_cfg.fwnode = dev_fwnode(cw_bat->dev);
 
 	cw_bat->rk_bat = devm_power_supply_register(&client->dev,
-		&cw2015_bat_desc, &psy_cfg);
+						    &cw2015_bat_desc,
+						    &psy_cfg);
 	if (IS_ERR(cw_bat->rk_bat)) {
-		dev_err(&cw_bat->client->dev,
-			"power supply register rk_bat error\n");
-		return -1;
+		dev_err(cw_bat->dev, "Failed to register power supply\n");
+		return PTR_ERR(cw_bat->rk_bat);
+	}
+
+	ret = power_supply_get_battery_info(cw_bat->rk_bat, &cw_bat->battery);
+	if (ret) {
+		dev_warn(cw_bat->dev,
+			 "No monitored battery, some properties will be missing\n");
 	}
 
 	cw_bat->battery_workqueue = create_singlethread_workqueue("rk_battery");
 	INIT_DELAYED_WORK(&cw_bat->battery_delay_work, cw_bat_work);
 	queue_delayed_work(cw_bat->battery_workqueue,
 			   &cw_bat->battery_delay_work, msecs_to_jiffies(10));
-
-	dev_info(&cw_bat->client->dev,
-		 "cw2015/cw2013 driver v1.2 probe sucess\n");
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int cw_bat_suspend(struct device *dev)
+static int __maybe_unused cw_bat_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct cw_battery *cw_bat = i2c_get_clientdata(client);
-	read_persistent_clock(&cw_bat->suspend_time_before);
-	cancel_delayed_work(&cw_bat->battery_delay_work);
+
+	cancel_delayed_work_sync(&cw_bat->battery_delay_work);
 	return 0;
 }
 
-static int cw_bat_resume(struct device *dev)
+static int __maybe_unused cw_bat_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct cw_battery *cw_bat = i2c_get_clientdata(client);
-	cw_bat->suspend_resume_mark = 1;
-	read_persistent_clock(&cw_bat->after);
-	cw_bat->after = timespec_sub(cw_bat->after,
-				     cw_bat->suspend_time_before);
+
 	queue_delayed_work(cw_bat->battery_workqueue,
-			   &cw_bat->battery_delay_work, msecs_to_jiffies(2));
+			   &cw_bat->battery_delay_work, 0);
 	return 0;
 }
 
-static const struct dev_pm_ops cw_bat_pm_ops = {
-	.suspend  = cw_bat_suspend,
-	.resume   = cw_bat_resume,
-};
-#endif
+static SIMPLE_DEV_PM_OPS(cw_bat_pm_ops, cw_bat_suspend, cw_bat_resume);
 
 static int cw_bat_remove(struct i2c_client *client)
 {
 	struct cw_battery *cw_bat = i2c_get_clientdata(client);
 
-	dev_dbg(&cw_bat->client->dev, "%s\n", __func__);
-	cancel_delayed_work(&cw_bat->battery_delay_work);
+	cancel_delayed_work_sync(&cw_bat->battery_delay_work);
+	power_supply_put_battery_info(cw_bat->rk_bat, &cw_bat->battery);
 	return 0;
 }
 
 static const struct i2c_device_id cw_bat_id_table[] = {
-	{"cw201x", 0},
-	{}
+	{ "cw2015", 0 },
+	{ }
 };
+
+static const struct of_device_id cw2015_of_match[] = {
+	{ .compatible = "cellwise,cw2015" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, cw2015_of_match);
 
 static struct i2c_driver cw_bat_driver = {
 	.driver = {
-		.name = "cw201x",
-#ifdef CONFIG_PM
+		.name = "cw2015",
+		.of_match_table = cw2015_of_match,
 		.pm = &cw_bat_pm_ops,
-#endif
 	},
-	.probe = cw_bat_probe,
+	.probe_new = cw_bat_probe,
 	.remove = cw_bat_remove,
 	.id_table = cw_bat_id_table,
 };
 
-static int __init cw_bat_init(void)
-{
-	return i2c_add_driver(&cw_bat_driver);
-}
-
-static void __exit cw_bat_exit(void)
-{
-	i2c_del_driver(&cw_bat_driver);
-}
-
-module_init(cw_bat_init);
-module_exit(cw_bat_exit);
+module_i2c_driver(cw_bat_driver);
 
 MODULE_AUTHOR("xhc<xhc@rock-chips.com>");
+MODULE_AUTHOR("Tobias Schramm <t.schramm@manjaro.org>");
 MODULE_DESCRIPTION("cw2015/cw2013 battery driver");
 MODULE_LICENSE("GPL");

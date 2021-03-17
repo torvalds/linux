@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Analog TV tuners, auto-loaded via tuner.ko
 config MEDIA_TUNER
 	tristate
@@ -14,8 +15,12 @@ config MEDIA_TUNER
 	select MEDIA_TUNER_TDA9887 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MC44S803 if MEDIA_SUBDRV_AUTOSELECT
 
+comment "Tuner drivers auto-selected by 'Autoselect ancillary drivers'"
+	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
+	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT
+
 menu "Customize TV tuners"
-	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT
 
 config MEDIA_TUNER_SIMPLE
@@ -218,7 +223,7 @@ config MEDIA_TUNER_TDA18212
 
 config MEDIA_TUNER_E4000
 	tristate "Elonics E4000 silicon tuner"
-	depends on MEDIA_SUPPORT && I2C
+	depends on MEDIA_SUPPORT && I2C && VIDEO_V4L2
 	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
@@ -226,7 +231,7 @@ config MEDIA_TUNER_E4000
 
 config MEDIA_TUNER_FC2580
 	tristate "FCI FC2580 silicon tuner"
-	depends on MEDIA_SUPPORT && I2C
+	depends on MEDIA_SUPPORT && I2C && VIDEO_V4L2
 	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help

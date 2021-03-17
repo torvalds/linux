@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig INTERCONNECT
+	bool "On-Chip Interconnect management support"
+	help
+	  Support for management of the on-chip interconnects.
+
+	  This framework is designed to provide a generic interface for
+	  managing the interconnects in a SoC.
+
+	  If unsure, say no.
+
+if INTERCONNECT
+
+source "drivers/interconnect/imx/Kconfig"
+source "drivers/interconnect/qcom/Kconfig"
+
+endif

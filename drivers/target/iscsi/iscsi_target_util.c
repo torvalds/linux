@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains the iSCSI Target specific utility functions.
  *
@@ -5,15 +6,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <linux/list.h>
@@ -56,9 +48,6 @@
 extern struct list_head g_tiqn_list;
 extern spinlock_t tiqn_lock;
 
-/*
- *	Called with cmd->r2t_lock held.
- */
 int iscsit_add_r2t_to_list(
 	struct iscsi_cmd *cmd,
 	u32 offset,
@@ -67,6 +56,10 @@ int iscsit_add_r2t_to_list(
 	u32 r2t_sn)
 {
 	struct iscsi_r2t *r2t;
+
+	lockdep_assert_held(&cmd->r2t_lock);
+
+	WARN_ON_ONCE((s32)xfer_len < 0);
 
 	r2t = kmem_cache_zalloc(lio_r2t_cache, GFP_ATOMIC);
 	if (!r2t) {
@@ -128,11 +121,10 @@ struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *cmd)
 	return NULL;
 }
 
-/*
- *	Called with cmd->r2t_lock held.
- */
 void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsi_cmd *cmd)
 {
+	lockdep_assert_held(&cmd->r2t_lock);
+
 	list_del(&r2t->r2t_list);
 	kmem_cache_free(lio_r2t_cache, r2t);
 }
@@ -150,24 +142,26 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 static int iscsit_wait_for_tag(struct se_session *se_sess, int state, int *cpup)
 {
 	int tag = -1;
-	DEFINE_WAIT(wait);
+	DEFINE_SBQ_WAIT(wait);
 	struct sbq_wait_state *ws;
+	struct sbitmap_queue *sbq;
 
 	if (state == TASK_RUNNING)
 		return tag;
 
-	ws = &se_sess->sess_tag_pool.ws[0];
+	sbq = &se_sess->sess_tag_pool;
+	ws = &sbq->ws[0];
 	for (;;) {
-		prepare_to_wait_exclusive(&ws->wait, &wait, state);
+		sbitmap_prepare_to_wait(sbq, ws, &wait, state);
 		if (signal_pending_state(state, current))
 			break;
-		tag = sbitmap_queue_get(&se_sess->sess_tag_pool, cpup);
+		tag = sbitmap_queue_get(sbq, cpup);
 		if (tag >= 0)
 			break;
 		schedule();
 	}
 
-	finish_wait(&ws->wait, &wait);
+	sbitmap_finish_wait(sbq, ws, &wait);
 	return tag;
 }
 
@@ -735,6 +729,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
 	kfree(cmd->tmr_req);
+	kfree(cmd->overflow_buf);
 	kfree(cmd->iov_data);
 	kfree(cmd->text_in_ptr);
 
@@ -760,14 +755,16 @@ void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
 		iscsit_remove_cmd_from_response_queue(cmd, conn);
 	}
 
-	if (conn && conn->conn_transport->iscsit_release_cmd)
-		conn->conn_transport->iscsit_release_cmd(conn, cmd);
+	if (conn && conn->conn_transport->iscsit_unmap_cmd)
+		conn->conn_transport->iscsit_unmap_cmd(conn, cmd);
 }
 
 void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 {
 	struct se_cmd *se_cmd = cmd->se_cmd.se_tfo ? &cmd->se_cmd : NULL;
 	int rc;
+
+	WARN_ON(!list_empty(&cmd->i_conn_node));
 
 	__iscsit_free_cmd(cmd, shutdown);
 	if (se_cmd) {
@@ -915,6 +912,7 @@ static int iscsit_add_nopin(struct iscsi_conn *conn, int want_response)
 void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 {
 	struct iscsi_conn *conn = from_timer(conn, t, nopin_response_timer);
+	struct iscsi_session *sess = conn->sess;
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -925,28 +923,14 @@ void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 		return;
 	}
 
-	pr_debug("Did not receive response to NOPIN on CID: %hu on"
-		" SID: %u, failing connection.\n", conn->cid,
-			conn->sess->sid);
+	pr_err("Did not receive response to NOPIN on CID: %hu, failing"
+		" connection for I_T Nexus %s,i,0x%6phN,%s,t,0x%02x\n",
+		conn->cid, sess->sess_ops->InitiatorName, sess->isid,
+		sess->tpg->tpg_tiqn->tiqn, (u32)sess->tpg->tpgt);
 	conn->nopin_response_timer_flags &= ~ISCSI_TF_RUNNING;
 	spin_unlock_bh(&conn->nopin_timer_lock);
 
-	{
-	struct iscsi_portal_group *tpg = conn->sess->tpg;
-	struct iscsi_tiqn *tiqn = tpg->tpg_tiqn;
-
-	if (tiqn) {
-		spin_lock_bh(&tiqn->sess_err_stats.lock);
-		strcpy(tiqn->sess_err_stats.last_sess_fail_rem_name,
-				conn->sess->sess_ops->InitiatorName);
-		tiqn->sess_err_stats.last_sess_failure_type =
-				ISCSI_SESS_ERR_CXN_TIMEOUT;
-		tiqn->sess_err_stats.cxn_timeout_errors++;
-		atomic_long_inc(&conn->sess->conn_timeout_errors);
-		spin_unlock_bh(&tiqn->sess_err_stats.lock);
-	}
-	}
-
+	iscsit_fill_cxn_timeout_err_stats(sess);
 	iscsit_cause_connection_reinstatement(conn, 0);
 	iscsit_dec_conn_usage_count(conn);
 }
@@ -967,9 +951,6 @@ void iscsit_mod_nopin_response_timer(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
 
-/*
- *	Called with conn->nopin_timer_lock held.
- */
 void iscsit_start_nopin_response_timer(struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
@@ -1027,13 +1008,13 @@ void iscsit_handle_nopin_timeout(struct timer_list *t)
 	iscsit_dec_conn_usage_count(conn);
 }
 
-/*
- * Called with conn->nopin_timer_lock held.
- */
 void __iscsit_start_nopin_timer(struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
+
+	lockdep_assert_held(&conn->nopin_timer_lock);
+
 	/*
 	* NOPIN timeout is disabled.
 	 */
@@ -1247,19 +1228,20 @@ void iscsit_print_session_params(struct iscsi_session *sess)
 	iscsi_dump_sess_ops(sess->sess_ops);
 }
 
-static int iscsit_do_rx_data(
+int rx_data(
 	struct iscsi_conn *conn,
-	struct iscsi_data_count *count)
+	struct kvec *iov,
+	int iov_count,
+	int data)
 {
-	int data = count->data_length, rx_loop = 0, total_rx = 0;
+	int rx_loop = 0, total_rx = 0;
 	struct msghdr msg;
 
 	if (!conn || !conn->sock || !conn->conn_ops)
 		return -1;
 
 	memset(&msg, 0, sizeof(struct msghdr));
-	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC,
-		      count->iov, count->iov_count, data);
+	iov_iter_kvec(&msg.msg_iter, READ, iov, iov_count, data);
 
 	while (msg_data_left(&msg)) {
 		rx_loop = sock_recvmsg(conn->sock, &msg, MSG_WAITALL);
@@ -1274,26 +1256,6 @@ static int iscsit_do_rx_data(
 	}
 
 	return total_rx;
-}
-
-int rx_data(
-	struct iscsi_conn *conn,
-	struct kvec *iov,
-	int iov_count,
-	int data)
-{
-	struct iscsi_data_count c;
-
-	if (!conn || !conn->sock || !conn->conn_ops)
-		return -1;
-
-	memset(&c, 0, sizeof(struct iscsi_data_count));
-	c.iov = iov;
-	c.iov_count = iov_count;
-	c.data_length = data;
-	c.type = ISCSI_RX_DATA;
-
-	return iscsit_do_rx_data(conn, &c);
 }
 
 int tx_data(
@@ -1315,8 +1277,7 @@ int tx_data(
 
 	memset(&msg, 0, sizeof(struct msghdr));
 
-	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC,
-		      iov, iov_count, data);
+	iov_iter_kvec(&msg.msg_iter, WRITE, iov, iov_count, data);
 
 	while (msg_data_left(&msg)) {
 		int tx_loop = sock_sendmsg(conn->sock, &msg);
@@ -1404,4 +1365,23 @@ struct iscsi_tiqn *iscsit_snmp_get_tiqn(struct iscsi_conn *conn)
 		return NULL;
 
 	return tpg->tpg_tiqn;
+}
+
+void iscsit_fill_cxn_timeout_err_stats(struct iscsi_session *sess)
+{
+	struct iscsi_portal_group *tpg = sess->tpg;
+	struct iscsi_tiqn *tiqn = tpg->tpg_tiqn;
+
+	if (!tiqn)
+		return;
+
+	spin_lock_bh(&tiqn->sess_err_stats.lock);
+	strlcpy(tiqn->sess_err_stats.last_sess_fail_rem_name,
+			sess->sess_ops->InitiatorName,
+			sizeof(tiqn->sess_err_stats.last_sess_fail_rem_name));
+	tiqn->sess_err_stats.last_sess_failure_type =
+			ISCSI_SESS_ERR_CXN_TIMEOUT;
+	tiqn->sess_err_stats.cxn_timeout_errors++;
+	atomic_long_inc(&sess->conn_timeout_errors);
+	spin_unlock_bh(&tiqn->sess_err_stats.lock);
 }

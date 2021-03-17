@@ -65,7 +65,7 @@ SYSCALL_DEFINE3(osf_sigaction, int, sig,
 
 	if (act) {
 		old_sigset_t mask;
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
+		if (!access_ok(act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
 		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
 		    __get_user(mask, &act->sa_mask))
@@ -77,7 +77,7 @@ SYSCALL_DEFINE3(osf_sigaction, int, sig,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
+		if (!access_ok(oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
 		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
 		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
@@ -207,7 +207,7 @@ do_sigreturn(struct sigcontext __user *sc)
 	sigset_t set;
 
 	/* Verify that it's a good sigcontext before using it */
-	if (!access_ok(VERIFY_READ, sc, sizeof(*sc)))
+	if (!access_ok(sc, sizeof(*sc)))
 		goto give_sigsegv;
 	if (__get_user(set.sig[0], &sc->sc_mask))
 		goto give_sigsegv;
@@ -225,7 +225,7 @@ do_sigreturn(struct sigcontext __user *sc)
 	return;
 
 give_sigsegv:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 }
 
 asmlinkage void
@@ -235,7 +235,7 @@ do_rt_sigreturn(struct rt_sigframe __user *frame)
 	sigset_t set;
 
 	/* Verify that it's a good ucontext_t before using it */
-	if (!access_ok(VERIFY_READ, &frame->uc, sizeof(frame->uc)))
+	if (!access_ok(&frame->uc, sizeof(frame->uc)))
 		goto give_sigsegv;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto give_sigsegv;
@@ -253,7 +253,7 @@ do_rt_sigreturn(struct rt_sigframe __user *frame)
 	return;
 
 give_sigsegv:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 }
 
 
@@ -332,7 +332,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 
 	oldsp = rdusp();
 	frame = get_sigframe(ksig, oldsp, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		return -EFAULT;
 
 	err |= setup_sigcontext(&frame->sc, regs, set->sig[0], oldsp);
@@ -377,7 +377,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 
 	oldsp = rdusp();
 	frame = get_sigframe(ksig, oldsp, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		return -EFAULT;
 
 	err |= copy_siginfo_to_user(&frame->info, &ksig->info);
@@ -453,7 +453,7 @@ syscall_restart(unsigned long r0, unsigned long r19,
 			regs->r0 = EINTR;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case ERESTARTNOINTR:
 		regs->r0 = r0;	/* reset v0 and a3 and replay syscall */
 		regs->r19 = r19;
@@ -531,7 +531,6 @@ do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
 				do_signal(regs, r0, r19);
 				r0 = 0;
 			} else {
-				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
 			}
 		}

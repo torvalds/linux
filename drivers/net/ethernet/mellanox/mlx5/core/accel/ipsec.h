@@ -48,13 +48,30 @@ int mlx5_accel_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
 
 void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
 				       struct mlx5_accel_esp_xfrm *xfrm,
-				       const __be32 saddr[4],
-				       const __be32 daddr[4],
-				       const __be32 spi, bool is_ipv6);
-void mlx5_accel_esp_free_hw_context(void *context);
+				       u32 *sa_handle);
+void mlx5_accel_esp_free_hw_context(struct mlx5_core_dev *mdev, void *context);
 
-int mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev);
+void mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev);
 void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev);
+
+struct mlx5_accel_ipsec_ops {
+	u32 (*device_caps)(struct mlx5_core_dev *mdev);
+	unsigned int (*counters_count)(struct mlx5_core_dev *mdev);
+	int (*counters_read)(struct mlx5_core_dev *mdev, u64 *counters, unsigned int count);
+	void* (*create_hw_context)(struct mlx5_core_dev *mdev,
+				   struct mlx5_accel_esp_xfrm *xfrm,
+				   const __be32 saddr[4], const __be32 daddr[4],
+				   const __be32 spi, bool is_ipv6, u32 *sa_handle);
+	void (*free_hw_context)(void *context);
+	int (*init)(struct mlx5_core_dev *mdev);
+	void (*cleanup)(struct mlx5_core_dev *mdev);
+	struct mlx5_accel_esp_xfrm* (*esp_create_xfrm)(struct mlx5_core_dev *mdev,
+						       const struct mlx5_accel_esp_xfrm_attrs *attrs,
+						       u32 flags);
+	int (*esp_modify_xfrm)(struct mlx5_accel_esp_xfrm *xfrm,
+			       const struct mlx5_accel_esp_xfrm_attrs *attrs);
+	void (*esp_destroy_xfrm)(struct mlx5_accel_esp_xfrm *xfrm);
+};
 
 #else
 
@@ -63,26 +80,17 @@ void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev);
 static inline void *
 mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
 				 struct mlx5_accel_esp_xfrm *xfrm,
-				 const __be32 saddr[4],
-				 const __be32 daddr[4],
-				 const __be32 spi, bool is_ipv6)
+				 u32 *sa_handle)
 {
 	return NULL;
 }
 
-static inline void mlx5_accel_esp_free_hw_context(void *context)
-{
-}
+static inline void mlx5_accel_esp_free_hw_context(struct mlx5_core_dev *mdev, void *context) {}
 
-static inline int mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev)
-{
-	return 0;
-}
+static inline void mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev) {}
 
-static inline void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev)
-{
-}
+static inline void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev) {}
 
-#endif
+#endif /* CONFIG_MLX5_ACCEL */
 
 #endif	/* __MLX5_ACCEL_IPSEC_H__ */

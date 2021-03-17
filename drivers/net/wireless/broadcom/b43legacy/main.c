@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Broadcom B43legacy wireless driver
@@ -12,21 +13,6 @@
  *  Some parts of the code in this file are derived from the ipw2200
  *  driver  Copyright(c) 2003 - 2004 Intel Corporation.
 
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
- *  Boston, MA 02110-1301, USA.
- *
  */
 
 #include <linux/delay.h>
@@ -264,7 +250,6 @@ static void b43legacy_ram_write(struct b43legacy_wldev *dev, u16 offset,
 		val = swab32(val);
 
 	b43legacy_write32(dev, B43legacy_MMIO_RAM_CONTROL, offset);
-	mmiowb();
 	b43legacy_write32(dev, B43legacy_MMIO_RAM_DATA, val);
 }
 
@@ -341,14 +326,11 @@ void b43legacy_shm_write32(struct b43legacy_wldev *dev,
 		if (offset & 0x0003) {
 			/* Unaligned access */
 			b43legacy_shm_control_word(dev, routing, offset >> 2);
-			mmiowb();
 			b43legacy_write16(dev,
 					  B43legacy_MMIO_SHM_DATA_UNALIGNED,
 					  (value >> 16) & 0xffff);
-			mmiowb();
 			b43legacy_shm_control_word(dev, routing,
 						   (offset >> 2) + 1);
-			mmiowb();
 			b43legacy_write16(dev, B43legacy_MMIO_SHM_DATA,
 					  value & 0xffff);
 			return;
@@ -356,7 +338,6 @@ void b43legacy_shm_write32(struct b43legacy_wldev *dev,
 		offset >>= 2;
 	}
 	b43legacy_shm_control_word(dev, routing, offset);
-	mmiowb();
 	b43legacy_write32(dev, B43legacy_MMIO_SHM_DATA, value);
 }
 
@@ -368,7 +349,6 @@ void b43legacy_shm_write16(struct b43legacy_wldev *dev, u16 routing, u16 offset,
 		if (offset & 0x0003) {
 			/* Unaligned access */
 			b43legacy_shm_control_word(dev, routing, offset >> 2);
-			mmiowb();
 			b43legacy_write16(dev,
 					  B43legacy_MMIO_SHM_DATA_UNALIGNED,
 					  value);
@@ -377,7 +357,6 @@ void b43legacy_shm_write16(struct b43legacy_wldev *dev, u16 routing, u16 offset,
 		offset >>= 2;
 	}
 	b43legacy_shm_control_word(dev, routing, offset);
-	mmiowb();
 	b43legacy_write16(dev, B43legacy_MMIO_SHM_DATA, value);
 }
 
@@ -471,7 +450,6 @@ static void b43legacy_time_lock(struct b43legacy_wldev *dev)
 	status = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
 	status |= B43legacy_MACCTL_TBTTHOLD;
 	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
-	mmiowb();
 }
 
 static void b43legacy_time_unlock(struct b43legacy_wldev *dev)
@@ -494,10 +472,8 @@ static void b43legacy_tsf_write_locked(struct b43legacy_wldev *dev, u64 tsf)
 		u32 hi = (tsf & 0xFFFFFFFF00000000ULL) >> 32;
 
 		b43legacy_write32(dev, B43legacy_MMIO_REV3PLUS_TSF_LOW, 0);
-		mmiowb();
 		b43legacy_write32(dev, B43legacy_MMIO_REV3PLUS_TSF_HIGH,
 				    hi);
-		mmiowb();
 		b43legacy_write32(dev, B43legacy_MMIO_REV3PLUS_TSF_LOW,
 				    lo);
 	} else {
@@ -507,13 +483,9 @@ static void b43legacy_tsf_write_locked(struct b43legacy_wldev *dev, u64 tsf)
 		u16 v3 = (tsf & 0xFFFF000000000000ULL) >> 48;
 
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_0, 0);
-		mmiowb();
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_3, v3);
-		mmiowb();
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_2, v2);
-		mmiowb();
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_1, v1);
-		mmiowb();
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_0, v0);
 	}
 }
@@ -619,7 +591,7 @@ static void b43legacy_synchronize_irq(struct b43legacy_wldev *dev)
 }
 
 /* DummyTransmission function, as documented on
- * http://bcm-specs.sipsolutions.net/DummyTransmission
+ * https://bcm-specs.sipsolutions.net/DummyTransmission
  */
 void b43legacy_dummy_transmission(struct b43legacy_wldev *dev)
 {
@@ -1250,7 +1222,6 @@ static void b43legacy_beacon_update_trigger_work(struct work_struct *work)
 		/* The handler might have updated the IRQ mask. */
 		b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK,
 				  dev->irq_mask);
-		mmiowb();
 		spin_unlock_irq(&wl->irq_lock);
 	}
 	mutex_unlock(&wl->mutex);
@@ -1304,8 +1275,9 @@ static void handle_irq_ucode_debug(struct b43legacy_wldev *dev)
 }
 
 /* Interrupt handler bottom-half */
-static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
+static void b43legacy_interrupt_tasklet(struct tasklet_struct *t)
 {
+	struct b43legacy_wldev *dev = from_tasklet(dev, t, isr_tasklet);
 	u32 reason;
 	u32 dma_reason[ARRAY_SIZE(dev->dma_reason)];
 	u32 merged_dma_reason = 0;
@@ -1346,7 +1318,6 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 			       dma_reason[2], dma_reason[3],
 			       dma_reason[4], dma_reason[5]);
 			b43legacy_controller_restart(dev, "DMA error");
-			mmiowb();
 			spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
 			return;
 		}
@@ -1369,8 +1340,9 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 		handle_irq_beacon(dev);
 	if (reason & B43legacy_IRQ_PMQ)
 		handle_irq_pmq(dev);
-	if (reason & B43legacy_IRQ_TXFIFO_FLUSH_OK)
+	if (reason & B43legacy_IRQ_TXFIFO_FLUSH_OK) {
 		;/*TODO*/
+	}
 	if (reason & B43legacy_IRQ_NOISESAMPLE_OK)
 		handle_irq_noise(dev);
 
@@ -1396,7 +1368,6 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 		handle_irq_transmit_status(dev);
 
 	b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK, dev->irq_mask);
-	mmiowb();
 	spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
 }
 
@@ -1488,7 +1459,6 @@ static irqreturn_t b43legacy_interrupt_handler(int irq, void *dev_id)
 	dev->irq_reason = reason;
 	tasklet_schedule(&dev->isr_tasklet);
 out:
-	mmiowb();
 	spin_unlock(&dev->wl->irq_lock);
 
 	return ret;
@@ -1508,8 +1478,8 @@ static void b43legacy_release_firmware(struct b43legacy_wldev *dev)
 
 static void b43legacy_print_fw_helptext(struct b43legacy_wl *wl)
 {
-	b43legacyerr(wl, "You must go to http://wireless.kernel.org/en/users/"
-		     "Drivers/b43#devicefirmware "
+	b43legacyerr(wl, "You must go to https://wireless.wiki.kernel.org/en/"
+		     "users/Drivers/b43#devicefirmware "
 		     "and download the correct firmware (version 3).\n");
 }
 
@@ -1568,7 +1538,7 @@ static int do_request_fw(struct b43legacy_wldev *dev,
 		size = be32_to_cpu(hdr->size);
 		if (size != (*fw)->size - sizeof(struct b43legacy_fw_header))
 			goto err_format;
-		/* fallthrough */
+		fallthrough;
 	case B43legacy_FW_TYPE_IV:
 		if (hdr->ver != 1)
 			goto err_format;
@@ -1901,7 +1871,7 @@ out:
 }
 
 /* Initialize the GPIOs
- * http://bcm-specs.sipsolutions.net/GPIO
+ * https://bcm-specs.sipsolutions.net/GPIO
  */
 static int b43legacy_gpio_init(struct b43legacy_wldev *dev)
 {
@@ -1991,7 +1961,7 @@ void b43legacy_mac_enable(struct b43legacy_wldev *dev)
 	}
 }
 
-/* http://bcm-specs.sipsolutions.net/SuspendMAC */
+/* https://bcm-specs.sipsolutions.net/SuspendMAC */
 void b43legacy_mac_suspend(struct b43legacy_wldev *dev)
 {
 	int i;
@@ -2107,7 +2077,7 @@ static void b43legacy_rate_memory_init(struct b43legacy_wldev *dev)
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_36MB, 1);
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_48MB, 1);
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_54MB, 1);
-		/* fallthrough */
+		fallthrough;
 	case B43legacy_PHYTYPE_B:
 		b43legacy_rate_memory_write(dev, B43legacy_CCK_RATE_1MB, 0);
 		b43legacy_rate_memory_write(dev, B43legacy_CCK_RATE_2MB, 0);
@@ -2172,7 +2142,7 @@ static void b43legacy_chip_exit(struct b43legacy_wldev *dev)
 }
 
 /* Initialize the chip
- * http://bcm-specs.sipsolutions.net/ChipInit
+ * https://bcm-specs.sipsolutions.net/ChipInit
  */
 static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 {
@@ -2611,7 +2581,7 @@ static void b43legacy_put_phy_into_reset(struct b43legacy_wldev *dev)
 static int b43legacy_switch_phymode(struct b43legacy_wl *wl,
 				      unsigned int new_mode)
 {
-	struct b43legacy_wldev *uninitialized_var(up_dev);
+	struct b43legacy_wldev *up_dev;
 	struct b43legacy_wldev *down_dev;
 	int err;
 	bool gmode = false;
@@ -2781,7 +2751,6 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK, dev->irq_mask);
-	mmiowb();
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
@@ -2900,7 +2869,6 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 	/* XXX: why? */
-	mmiowb();
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
  out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
@@ -3774,9 +3742,7 @@ static int b43legacy_one_core_attach(struct ssb_device *dev,
 	wldev->wl = wl;
 	b43legacy_set_status(wldev, B43legacy_STAT_UNINIT);
 	wldev->bad_frames_preempt = modparam_bad_frames_preempt;
-	tasklet_init(&wldev->isr_tasklet,
-		     (void (*)(unsigned long))b43legacy_interrupt_tasklet,
-		     (unsigned long)wldev);
+	tasklet_setup(&wldev->isr_tasklet, b43legacy_interrupt_tasklet);
 	if (modparam_pio)
 		wldev->__using_pio = true;
 	INIT_LIST_HEAD(&wldev->list);
@@ -3834,6 +3800,7 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 	/* fill hw info */
 	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, MFP_CAPABLE); /* Allow WPA3 in software */
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
