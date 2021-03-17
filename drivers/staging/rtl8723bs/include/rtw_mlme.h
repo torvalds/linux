@@ -81,13 +81,13 @@ enum dot11AuthAlgrthmNum {
 };
 
 /*  Scan type including active and passive scan. */
-enum RT_SCAN_TYPE {
+enum rt_scan_type {
 	SCAN_PASSIVE,
 	SCAN_ACTIVE,
 	SCAN_MIX,
 };
 
-enum  _BAND {
+enum  _band {
 	GHZ24_50 = 0,
 	GHZ_50,
 	GHZ_24,
@@ -101,7 +101,7 @@ enum DriverInterface {
 	DRIVER_CFG80211 = 2
 };
 
-enum SCAN_RESULT_TYPE {
+enum scan_result_type {
 	SCAN_RESULT_P2P_ONLY = 0,		/* 	Will return all the P2P devices. */
 	SCAN_RESULT_ALL = 1,			/* 	Will return all the scanned device, include AP. */
 	SCAN_RESULT_WFD_TYPE = 2		/* 	Will just return the correct WFD device. */
@@ -134,7 +134,7 @@ struct sitesurvey_ctrl {
 	struct timer_list	sitesurvey_ctrl_timer;
 };
 
-struct RT_LINK_DETECT_T {
+struct rt_link_detect_t {
 	u32 			NumTxOkInPeriod;
 	u32 			NumRxOkInPeriod;
 	u32 			NumRxUnicastOkInPeriod;
@@ -385,12 +385,12 @@ struct mlme_priv {
 
 	struct ht_priv htpriv;
 
-	struct RT_LINK_DETECT_T	LinkDetectInfo;
+	struct rt_link_detect_t	LinkDetectInfo;
 	struct timer_list	dynamic_chk_timer; /* dynamic/periodic check timer */
 
 	u8 acm_mask; /*  for wmm acm mask */
 	u8 ChannelPlan;
-	enum RT_SCAN_TYPE	scan_mode; /*  active: 1, passive: 0 */
+	enum rt_scan_type	scan_mode; /*  active: 1, passive: 0 */
 
 	u8 *wps_probe_req_ie;
 	u32 wps_probe_req_ie_len;

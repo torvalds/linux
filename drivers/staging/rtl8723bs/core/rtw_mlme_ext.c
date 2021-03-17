@@ -4133,7 +4133,7 @@ Following are some utility functions for WiFi MLME
 void site_survey(struct adapter *padapter)
 {
 	unsigned char 	survey_channel = 0, val8;
-	enum RT_SCAN_TYPE	ScanType = SCAN_PASSIVE;
+	enum rt_scan_type	ScanType = SCAN_PASSIVE;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	u32 initialgain = 0;
