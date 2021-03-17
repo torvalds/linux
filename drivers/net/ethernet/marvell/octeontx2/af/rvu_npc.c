@@ -647,13 +647,15 @@ void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 }
 
 void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
-				   int nixlf, u64 chan, bool allmulti)
+				   int nixlf, u64 chan, u8 chan_cnt,
+				   bool allmulti)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	int blkaddr, ucast_idx, index, kwi;
 	struct mcam_entry entry = { {0} };
 	struct nix_rx_action action = { };
+	u64 relaxed_mask;
 
 	/* Only PF or AF VF can add a promiscuous entry */
 	if ((pcifunc & RVU_PFVF_FUNC_MASK) && !is_afvf(pcifunc))
@@ -668,6 +670,16 @@ void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
 
 	entry.kw[0] = chan;
 	entry.kw_mask[0] = 0xFFFULL;
+
+	if (chan_cnt > 1) {
+		if (!is_power_of_2(chan_cnt)) {
+			dev_err(rvu->dev, "channel count more than 1, must be power of 2\n");
+			return;
+		}
+		relaxed_mask = GENMASK_ULL(BITS_PER_LONG_LONG - 1,
+					   ilog2(chan_cnt));
+		entry.kw_mask[0] &= relaxed_mask;
+	}
 
 	if (allmulti) {
 		kwi = NPC_KEXOF_DMAC / sizeof(u64);
