@@ -1,0 +1,318 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Support Intel uncore PerfMon discovery mechanism.
+ * Copyright(c) 2021 Intel Corporation.
+ */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include "uncore.h"
+#include "uncore_discovery.h"
+
+static struct rb_root discovery_tables = RB_ROOT;
+static int num_discovered_types[UNCORE_ACCESS_MAX];
+
+static bool has_generic_discovery_table(void)
+{
+	struct pci_dev *dev;
+	int dvsec;
+
+	dev = pci_get_device(PCI_VENDOR_ID_INTEL, UNCORE_DISCOVERY_TABLE_DEVICE, NULL);
+	if (!dev)
+		return false;
+
+	/* A discovery table device has the unique capability ID. */
+	dvsec = pci_find_next_ext_capability(dev, 0, UNCORE_EXT_CAP_ID_DISCOVERY);
+	pci_dev_put(dev);
+	if (dvsec)
+		return true;
+
+	return false;
+}
+
+static int logical_die_id;
+
+static int get_device_die_id(struct pci_dev *dev)
+{
+	int cpu, node = pcibus_to_node(dev->bus);
+
+	/*
+	 * If the NUMA info is not available, assume that the logical die id is
+	 * continuous in the order in which the discovery table devices are
+	 * detected.
+	 */
+	if (node < 0)
+		return logical_die_id++;
+
+	for_each_cpu(cpu, cpumask_of_node(node)) {
+		struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+		if (c->initialized && cpu_to_node(cpu) == node)
+			return c->logical_die_id;
+	}
+
+	/*
+	 * All CPUs of a node may be offlined. For this case,
+	 * the PCI and MMIO type of uncore blocks which are
+	 * enumerated by the device will be unavailable.
+	 */
+	return -1;
+}
+
+#define __node_2_type(cur)	\
+	rb_entry((cur), struct intel_uncore_discovery_type, node)
+
+static inline int __type_cmp(const void *key, const struct rb_node *b)
+{
+	struct intel_uncore_discovery_type *type_b = __node_2_type(b);
+	const u16 *type_id = key;
+
+	if (type_b->type > *type_id)
+		return -1;
+	else if (type_b->type < *type_id)
+		return 1;
+
+	return 0;
+}
+
+static inline struct intel_uncore_discovery_type *
+search_uncore_discovery_type(u16 type_id)
+{
+	struct rb_node *node = rb_find(&type_id, &discovery_tables, __type_cmp);
+
+	return (node) ? __node_2_type(node) : NULL;
+}
+
+static inline bool __type_less(struct rb_node *a, const struct rb_node *b)
+{
+	return (__node_2_type(a)->type < __node_2_type(b)->type);
+}
+
+static struct intel_uncore_discovery_type *
+add_uncore_discovery_type(struct uncore_unit_discovery *unit)
+{
+	struct intel_uncore_discovery_type *type;
+
+	if (unit->access_type >= UNCORE_ACCESS_MAX) {
+		pr_warn("Unsupported access type %d\n", unit->access_type);
+		return NULL;
+	}
+
+	type = kzalloc(sizeof(struct intel_uncore_discovery_type), GFP_KERNEL);
+	if (!type)
+		return NULL;
+
+	type->box_ctrl_die = kcalloc(__uncore_max_dies, sizeof(u64), GFP_KERNEL);
+	if (!type->box_ctrl_die)
+		goto free_type;
+
+	type->access_type = unit->access_type;
+	num_discovered_types[type->access_type]++;
+	type->type = unit->box_type;
+
+	rb_add(&type->node, &discovery_tables, __type_less);
+
+	return type;
+
+free_type:
+	kfree(type);
+
+	return NULL;
+
+}
+
+static struct intel_uncore_discovery_type *
+get_uncore_discovery_type(struct uncore_unit_discovery *unit)
+{
+	struct intel_uncore_discovery_type *type;
+
+	type = search_uncore_discovery_type(unit->box_type);
+	if (type)
+		return type;
+
+	return add_uncore_discovery_type(unit);
+}
+
+static void
+uncore_insert_box_info(struct uncore_unit_discovery *unit,
+		       int die, bool parsed)
+{
+	struct intel_uncore_discovery_type *type;
+	unsigned int *box_offset, *ids;
+	int i;
+
+	if (WARN_ON_ONCE(!unit->ctl || !unit->ctl_offset || !unit->ctr_offset))
+		return;
+
+	if (parsed) {
+		type = search_uncore_discovery_type(unit->box_type);
+		if (WARN_ON_ONCE(!type))
+			return;
+		/* Store the first box of each die */
+		if (!type->box_ctrl_die[die])
+			type->box_ctrl_die[die] = unit->ctl;
+		return;
+	}
+
+	type = get_uncore_discovery_type(unit);
+	if (!type)
+		return;
+
+	box_offset = kcalloc(type->num_boxes + 1, sizeof(unsigned int), GFP_KERNEL);
+	if (!box_offset)
+		return;
+
+	ids = kcalloc(type->num_boxes + 1, sizeof(unsigned int), GFP_KERNEL);
+	if (!ids)
+		goto free_box_offset;
+
+	/* Store generic information for the first box */
+	if (!type->num_boxes) {
+		type->box_ctrl = unit->ctl;
+		type->box_ctrl_die[die] = unit->ctl;
+		type->num_counters = unit->num_regs;
+		type->counter_width = unit->bit_width;
+		type->ctl_offset = unit->ctl_offset;
+		type->ctr_offset = unit->ctr_offset;
+		*ids = unit->box_id;
+		goto end;
+	}
+
+	for (i = 0; i < type->num_boxes; i++) {
+		ids[i] = type->ids[i];
+		box_offset[i] = type->box_offset[i];
+
+		if (WARN_ON_ONCE(unit->box_id == ids[i]))
+			goto free_ids;
+	}
+	ids[i] = unit->box_id;
+	box_offset[i] = unit->ctl - type->box_ctrl;
+	kfree(type->ids);
+	kfree(type->box_offset);
+end:
+	type->ids = ids;
+	type->box_offset = box_offset;
+	type->num_boxes++;
+	return;
+
+free_ids:
+	kfree(ids);
+
+free_box_offset:
+	kfree(box_offset);
+
+}
+
+static int parse_discovery_table(struct pci_dev *dev, int die,
+				 u32 bar_offset, bool *parsed)
+{
+	struct uncore_global_discovery global;
+	struct uncore_unit_discovery unit;
+	void __iomem *io_addr;
+	resource_size_t addr;
+	unsigned long size;
+	u32 val;
+	int i;
+
+	pci_read_config_dword(dev, bar_offset, &val);
+
+	if (val & UNCORE_DISCOVERY_MASK)
+		return -EINVAL;
+
+	addr = (resource_size_t)(val & ~UNCORE_DISCOVERY_MASK);
+	size = UNCORE_DISCOVERY_GLOBAL_MAP_SIZE;
+	io_addr = ioremap(addr, size);
+	if (!io_addr)
+		return -ENOMEM;
+
+	/* Read Global Discovery State */
+	memcpy_fromio(&global, io_addr, sizeof(struct uncore_global_discovery));
+	if (uncore_discovery_invalid_unit(global)) {
+		pr_info("Invalid Global Discovery State: 0x%llx 0x%llx 0x%llx\n",
+			global.table1, global.ctl, global.table3);
+		iounmap(io_addr);
+		return -EINVAL;
+	}
+	iounmap(io_addr);
+
+	size = (1 + global.max_units) * global.stride * 8;
+	io_addr = ioremap(addr, size);
+	if (!io_addr)
+		return -ENOMEM;
+
+	/* Parsing Unit Discovery State */
+	for (i = 0; i < global.max_units; i++) {
+		memcpy_fromio(&unit, io_addr + (i + 1) * (global.stride * 8),
+			      sizeof(struct uncore_unit_discovery));
+
+		if (uncore_discovery_invalid_unit(unit))
+			continue;
+
+		if (unit.access_type >= UNCORE_ACCESS_MAX)
+			continue;
+
+		uncore_insert_box_info(&unit, die, *parsed);
+	}
+
+	*parsed = true;
+	iounmap(io_addr);
+	return 0;
+}
+
+bool intel_uncore_has_discovery_tables(void)
+{
+	u32 device, val, entry_id, bar_offset;
+	int die, dvsec = 0, ret = true;
+	struct pci_dev *dev = NULL;
+	bool parsed = false;
+
+	if (has_generic_discovery_table())
+		device = UNCORE_DISCOVERY_TABLE_DEVICE;
+	else
+		device = PCI_ANY_ID;
+
+	/*
+	 * Start a new search and iterates through the list of
+	 * the discovery table devices.
+	 */
+	while ((dev = pci_get_device(PCI_VENDOR_ID_INTEL, device, dev)) != NULL) {
+		while ((dvsec = pci_find_next_ext_capability(dev, dvsec, UNCORE_EXT_CAP_ID_DISCOVERY))) {
+			pci_read_config_dword(dev, dvsec + UNCORE_DISCOVERY_DVSEC_OFFSET, &val);
+			entry_id = val & UNCORE_DISCOVERY_DVSEC_ID_MASK;
+			if (entry_id != UNCORE_DISCOVERY_DVSEC_ID_PMON)
+				continue;
+
+			pci_read_config_dword(dev, dvsec + UNCORE_DISCOVERY_DVSEC2_OFFSET, &val);
+
+			if (val & ~UNCORE_DISCOVERY_DVSEC2_BIR_MASK) {
+				ret = false;
+				goto err;
+			}
+			bar_offset = UNCORE_DISCOVERY_BIR_BASE +
+				     (val & UNCORE_DISCOVERY_DVSEC2_BIR_MASK) * UNCORE_DISCOVERY_BIR_STEP;
+
+			die = get_device_die_id(dev);
+			if (die < 0)
+				continue;
+
+			parse_discovery_table(dev, die, bar_offset, &parsed);
+		}
+	}
+
+	/* None of the discovery tables are available */
+	if (!parsed)
+		ret = false;
+err:
+	pci_dev_put(dev);
+
+	return ret;
+}
+
+void intel_uncore_clear_discovery_tables(void)
+{
+	struct intel_uncore_discovery_type *type, *next;
+
+	rbtree_postorder_for_each_entry_safe(type, next, &discovery_tables, node) {
+		kfree(type->box_ctrl_die);
+		kfree(type);
+	}
+}

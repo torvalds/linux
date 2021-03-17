@@ -4,7 +4,12 @@
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include "uncore.h"
+#include "uncore_discovery.h"
 
+static bool uncore_no_discover;
+module_param(uncore_no_discover, bool, 0);
+MODULE_PARM_DESC(uncore_no_discover, "Don't enable the Intel uncore PerfMon discovery mechanism "
+				     "(default: enable the discovery mechanism).");
 static struct intel_uncore_type *empty_uncore[] = { NULL, };
 struct intel_uncore_type **uncore_msr_uncores = empty_uncore;
 struct intel_uncore_type **uncore_pci_uncores = empty_uncore;
@@ -1637,6 +1642,9 @@ static const struct intel_uncore_init_fun snr_uncore_init __initconst = {
 	.mmio_init = snr_uncore_mmio_init,
 };
 
+static const struct intel_uncore_init_fun generic_uncore_init __initconst = {
+};
+
 static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM_EP,		&nhm_uncore_init),
 	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM,		&nhm_uncore_init),
@@ -1684,17 +1692,21 @@ static int __init intel_uncore_init(void)
 	struct intel_uncore_init_fun *uncore_init;
 	int pret = 0, cret = 0, mret = 0, ret;
 
-	id = x86_match_cpu(intel_uncore_match);
-	if (!id)
-		return -ENODEV;
-
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return -ENODEV;
 
 	__uncore_max_dies =
 		topology_max_packages() * topology_max_die_per_package();
 
-	uncore_init = (struct intel_uncore_init_fun *)id->driver_data;
+	id = x86_match_cpu(intel_uncore_match);
+	if (!id) {
+		if (!uncore_no_discover && intel_uncore_has_discovery_tables())
+			uncore_init = (struct intel_uncore_init_fun *)&generic_uncore_init;
+		else
+			return -ENODEV;
+	} else
+		uncore_init = (struct intel_uncore_init_fun *)id->driver_data;
+
 	if (uncore_init->pci_init) {
 		pret = uncore_init->pci_init();
 		if (!pret)
@@ -1711,8 +1723,10 @@ static int __init intel_uncore_init(void)
 		mret = uncore_mmio_init();
 	}
 
-	if (cret && pret && mret)
-		return -ENODEV;
+	if (cret && pret && mret) {
+		ret = -ENODEV;
+		goto free_discovery;
+	}
 
 	/* Install hotplug callbacks to setup the targets for each package */
 	ret = cpuhp_setup_state(CPUHP_AP_PERF_X86_UNCORE_ONLINE,
@@ -1727,6 +1741,8 @@ err:
 	uncore_types_exit(uncore_msr_uncores);
 	uncore_types_exit(uncore_mmio_uncores);
 	uncore_pci_exit();
+free_discovery:
+	intel_uncore_clear_discovery_tables();
 	return ret;
 }
 module_init(intel_uncore_init);
@@ -1737,5 +1753,6 @@ static void __exit intel_uncore_exit(void)
 	uncore_types_exit(uncore_msr_uncores);
 	uncore_types_exit(uncore_mmio_uncores);
 	uncore_pci_exit();
+	intel_uncore_clear_discovery_tables();
 }
 module_exit(intel_uncore_exit);
