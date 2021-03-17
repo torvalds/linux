@@ -2081,11 +2081,12 @@ static void
 init_vbt_missing_defaults(struct drm_i915_private *i915)
 {
 	enum port port;
+	int ports = PORT_A | PORT_B | PORT_C | PORT_D | PORT_E | PORT_F;
 
 	if (!HAS_DDI(i915) && !IS_CHERRYVIEW(i915))
 		return;
 
-	for_each_port(port) {
+	for_each_port_masked(port, ports) {
 		struct ddi_vbt_port_info *info =
 			&i915->vbt.ddi_port_info[port];
 		enum phy phy = intel_port_to_phy(i915, port);
