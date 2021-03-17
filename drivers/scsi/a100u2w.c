@@ -269,7 +269,7 @@ static u8 orc_nv_read(struct orc_host * host, u8 address, u8 *ptr)
 }
 
 /**
- *	orc_exec_sb		-	Queue an SCB with the HA
+ *	orc_exec_scb		-	Queue an SCB with the HA
  *	@host: host adapter the SCB belongs to
  *	@scb: SCB to queue for execution
  */
@@ -586,7 +586,7 @@ static int orc_reset_scsi_bus(struct orc_host * host)
  *	orc_device_reset	-	device reset handler
  *	@host: host to reset
  *	@cmd: command causing the reset
- *	@target; target device
+ *	@target: target device
  *
  *	Reset registers, reset a hanging bus and kill active and disconnected
  *	commands for target w/o soft reset
@@ -727,7 +727,7 @@ static void orc_release_scb(struct orc_host *host, struct orc_scb *scb)
 	spin_unlock_irqrestore(&(host->allocation_lock), flags);
 }
 
-/**
+/*
  *	orchid_abort_scb	-	abort a command
  *
  *	Abort a queued command that has been passed to the firmware layer
@@ -902,7 +902,7 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 }
 
 /**
- *	inia100_queue		-	queue command with host
+ *	inia100_queue_lck		-	queue command with host
  *	@cmd: Command block
  *	@done: Completion function
  *
