@@ -25,7 +25,7 @@
  *		in pppoe_release.
  * 051000 :	Initialization cleanup.
  * 111100 :	Fix recvmsg.
- * 050101 :	Fix PADT procesing.
+ * 050101 :	Fix PADT processing.
  * 140501 :	Use pppoe_rcv_core to handle all backlog. (Alexey)
  * 170701 :	Do not lock_sock with rwlock held. (DaveM)
  *		Ignore discovery frames if user has socket
@@ -96,7 +96,7 @@ struct pppoe_net {
 	 * we could use _single_ hash table for all
 	 * nets by injecting net id into the hash but
 	 * it would increase hash chains and add
-	 * a few additional math comparations messy
+	 * a few additional math comparisons messy
 	 * as well, moreover in case of SMP less locking
 	 * controversy here
 	 */
