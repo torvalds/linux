@@ -73,6 +73,7 @@
  * @handler_arg: Argument passed to the handler when triggered
  * @dm: DM which this handler belongs to
  * @irq_source: DC interrupt source that this handler is registered for
+ * @work: work struct
  */
 struct amdgpu_dm_irq_handler_data {
 	struct list_head list;
