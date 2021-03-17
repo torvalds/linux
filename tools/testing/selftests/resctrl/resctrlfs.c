@@ -606,26 +606,56 @@ char *fgrep(FILE *inf, const char *str)
  * validate_resctrl_feature_request - Check if requested feature is valid.
  * @resctrl_val:	Requested feature
  *
- * Return: 0 on success, non-zero on failure
+ * Return: True if the feature is supported, else false
  */
-bool validate_resctrl_feature_request(char *resctrl_val)
+bool validate_resctrl_feature_request(const char *resctrl_val)
 {
-	FILE *inf = fopen("/proc/cpuinfo", "r");
+	struct stat statbuf;
 	bool found = false;
 	char *res;
+	FILE *inf;
 
-	if (!inf)
+	if (!resctrl_val)
 		return false;
 
-	res = fgrep(inf, "flags");
+	if (remount_resctrlfs(false))
+		return false;
 
-	if (res) {
-		char *s = strchr(res, ':');
+	if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR))) {
+		if (!stat(L3_PATH, &statbuf))
+			return true;
+	} else if (!strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR))) {
+		if (!stat(MB_PATH, &statbuf))
+			return true;
+	} else if (!strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR)) ||
+		   !strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR))) {
+		if (!stat(L3_MON_PATH, &statbuf)) {
+			inf = fopen(L3_MON_FEATURES_PATH, "r");
+			if (!inf)
+				return false;
 
-		found = s && !strstr(s, resctrl_val);
-		free(res);
+			if (!strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR))) {
+				res = fgrep(inf, "llc_occupancy");
+				if (res) {
+					found = true;
+					free(res);
+				}
+			}
+
+			if (!strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR))) {
+				res = fgrep(inf, "mbm_total_bytes");
+				if (res) {
+					free(res);
+					res = fgrep(inf, "mbm_local_bytes");
+					if (res) {
+						found = true;
+						free(res);
+					}
+				}
+			}
+			fclose(inf);
+		}
 	}
-	fclose(inf);
 
 	return found;
 }
