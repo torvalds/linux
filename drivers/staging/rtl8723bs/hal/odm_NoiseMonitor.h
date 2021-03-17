@@ -24,7 +24,7 @@ struct noise_level {
 };
 
 
-struct ODM_NOISE_MONITOR {
+struct odm_noise_monitor {
 	s8 noise[MAX_RF_PATH];
 	s16 noise_all;
 };
