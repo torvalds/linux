@@ -116,8 +116,9 @@
 			compatible = "brcm,bcm4908-enet";
 			reg = <0x2000 0x1000>;
 
-			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "rx";
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rx", "tx";
 		};
 
 		usb_phy: usb-phy@c200 {
