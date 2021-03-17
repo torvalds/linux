@@ -94,8 +94,8 @@ int kvm_host_prepare_stage2(void *mem_pgt_pool, void *dev_pgt_pool)
 	if (ret)
 		return ret;
 
-	ret = kvm_pgtable_stage2_init(&host_kvm.pgt, &host_kvm.arch,
-				      &host_kvm.mm_ops);
+	ret = kvm_pgtable_stage2_init_flags(&host_kvm.pgt, &host_kvm.arch,
+					    &host_kvm.mm_ops, KVM_PGTABLE_S2_NOFWB);
 	if (ret)
 		return ret;
 
@@ -116,8 +116,6 @@ int __pkvm_prot_finalize(void)
 	params->vttbr = kvm_get_vttbr(mmu);
 	params->vtcr = host_kvm.arch.vtcr;
 	params->hcr_el2 |= HCR_VM;
-	if (cpus_have_const_cap(ARM64_HAS_STAGE2_FWB))
-		params->hcr_el2 |= HCR_FWB;
 	kvm_flush_dcache_to_poc(params, sizeof(*params));
 
 	write_sysreg(params->hcr_el2, hcr_el2);
