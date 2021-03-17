@@ -96,7 +96,7 @@ MODULE_PARM_DESC(barkers,
  *
  * This function just verifies that the header declaration and the
  * payload are consistent and then deals with it, either forwarding it
- * to the device or procesing it locally.
+ * to the device or processing it locally.
  *
  * In the i2400m, messages are basically commands that will carry an
  * ack, so we use i2400m_msg_to_dev() and then deliver the ack back to
