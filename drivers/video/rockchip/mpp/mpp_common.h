@@ -285,6 +285,7 @@ struct mpp_dev {
 	struct mpp_iommu_info *iommu_info;
 
 	atomic_t reset_request;
+	atomic_t session_index;
 	atomic_t task_count;
 	atomic_t task_index;
 	/* task for work queue */
@@ -304,6 +305,7 @@ struct mpp_task;
 
 struct mpp_session {
 	enum MPP_DEVICE_TYPE device_type;
+	u32 index;
 	/* the session related device private data */
 	struct mpp_service *srv;
 	struct mpp_dev *mpp;

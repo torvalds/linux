@@ -674,14 +674,15 @@ static int mpp_wait_result(struct mpp_session *session,
 		}
 	} else {
 		atomic_inc(&task->abort_request);
-		mpp_err("timeout, pid %d session %p count %d cur_task %p index %d.\n",
-			session->pid, session,
+		mpp_err("timeout, pid %d session %p:%d count %d cur_task %p index %d.\n",
+			session->pid, session, session->index,
 			atomic_read(&session->task_count), task,
 			task->task_index);
 		/* if twice and return timeout, otherwise, re-wait */
 		if (atomic_read(&task->abort_request) > 1) {
-			mpp_err("session %p, task %p index %d abort wait twice!\n",
-				session, task, task->task_index);
+			mpp_err("session %p:%d, task %p index %d abort wait twice!\n",
+				session, session->index,
+				task, task->task_index);
 			ret = -ETIMEDOUT;
 		} else {
 			return mpp_wait_result(session, msgs);
@@ -937,6 +938,7 @@ static int mpp_process_request(struct mpp_session *session,
 		session->dma = mpp_dma_session_create(mpp->dev);
 		session->dma->max_buffers = mpp->session_max_buffers;
 		session->mpp = mpp;
+		session->index = atomic_fetch_inc(&mpp->session_index);
 		if (mpp->dev_ops->init_session) {
 			ret = mpp->dev_ops->init_session(session);
 			if (ret)
@@ -1643,6 +1645,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	mpp->dev_ops = mpp->var->dev_ops;
 
 	atomic_set(&mpp->reset_request, 0);
+	atomic_set(&mpp->session_index, 0);
 	atomic_set(&mpp->task_count, 0);
 	atomic_set(&mpp->task_index, 0);
 
