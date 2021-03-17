@@ -95,9 +95,8 @@ int mlxsw_sp_acl_tcam_priority_get(struct mlxsw_sp *mlxsw_sp,
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, KVD_SIZE))
 		return -EIO;
 
-	/* Priority range is 1..cap_kvd_size-1. */
-	max_priority = MLXSW_CORE_RES_GET(mlxsw_sp->core, KVD_SIZE) - 1;
-	if (rulei->priority >= max_priority)
+	max_priority = MLXSW_CORE_RES_GET(mlxsw_sp->core, KVD_SIZE);
+	if (rulei->priority > max_priority)
 		return -EINVAL;
 
 	/* Unlike in TC, in HW, higher number means higher priority. */

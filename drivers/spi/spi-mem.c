@@ -12,8 +12,6 @@
 
 #include "internals.h"
 
-#define SPI_MEM_MAX_BUSWIDTH		4
-
 /**
  * spi_controller_dma_map_mem_op_data() - DMA-map the buffer attached to a
  *					  memory operation
@@ -151,44 +149,6 @@ static bool spi_mem_default_supports_op(struct spi_mem *mem,
 }
 EXPORT_SYMBOL_GPL(spi_mem_default_supports_op);
 
-static bool spi_mem_buswidth_is_valid(u8 buswidth)
-{
-	if (hweight8(buswidth) > 1 || buswidth > SPI_MEM_MAX_BUSWIDTH)
-		return false;
-
-	return true;
-}
-
-static int spi_mem_check_op(const struct spi_mem_op *op)
-{
-	if (!op->cmd.buswidth)
-		return -EINVAL;
-
-	if ((op->addr.nbytes && !op->addr.buswidth) ||
-	    (op->dummy.nbytes && !op->dummy.buswidth) ||
-	    (op->data.nbytes && !op->data.buswidth))
-		return -EINVAL;
-
-	if (!spi_mem_buswidth_is_valid(op->cmd.buswidth) ||
-	    !spi_mem_buswidth_is_valid(op->addr.buswidth) ||
-	    !spi_mem_buswidth_is_valid(op->dummy.buswidth) ||
-	    !spi_mem_buswidth_is_valid(op->data.buswidth))
-		return -EINVAL;
-
-	return 0;
-}
-
-static bool spi_mem_internal_supports_op(struct spi_mem *mem,
-					 const struct spi_mem_op *op)
-{
-	struct spi_controller *ctlr = mem->spi->controller;
-
-	if (ctlr->mem_ops && ctlr->mem_ops->supports_op)
-		return ctlr->mem_ops->supports_op(mem, op);
-
-	return spi_mem_default_supports_op(mem, op);
-}
-
 /**
  * spi_mem_supports_op() - Check if a memory device and the controller it is
  *			   connected to support a specific memory operation
@@ -206,10 +166,12 @@ static bool spi_mem_internal_supports_op(struct spi_mem *mem,
  */
 bool spi_mem_supports_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	if (spi_mem_check_op(op))
-		return false;
+	struct spi_controller *ctlr = mem->spi->controller;
 
-	return spi_mem_internal_supports_op(mem, op);
+	if (ctlr->mem_ops && ctlr->mem_ops->supports_op)
+		return ctlr->mem_ops->supports_op(mem, op);
+
+	return spi_mem_default_supports_op(mem, op);
 }
 EXPORT_SYMBOL_GPL(spi_mem_supports_op);
 
@@ -234,11 +196,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	u8 *tmpbuf;
 	int ret;
 
-	ret = spi_mem_check_op(op);
-	if (ret)
-		return ret;
-
-	if (!spi_mem_internal_supports_op(mem, op))
+	if (!spi_mem_supports_op(mem, op))
 		return -ENOTSUPP;
 
 	if (ctlr->mem_ops) {
@@ -388,24 +346,9 @@ EXPORT_SYMBOL_GPL(spi_mem_get_name);
 int spi_mem_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
 	struct spi_controller *ctlr = mem->spi->controller;
-	size_t len;
-
-	len = sizeof(op->cmd.opcode) + op->addr.nbytes + op->dummy.nbytes;
 
 	if (ctlr->mem_ops && ctlr->mem_ops->adjust_op_size)
 		return ctlr->mem_ops->adjust_op_size(mem, op);
-
-	if (!ctlr->mem_ops || !ctlr->mem_ops->exec_op) {
-		if (len > spi_max_transfer_size(mem->spi))
-			return -EINVAL;
-
-		op->data.nbytes = min3((size_t)op->data.nbytes,
-				       spi_max_transfer_size(mem->spi),
-				       spi_max_message_size(mem->spi) -
-				       len);
-		if (!op->data.nbytes)
-			return -EINVAL;
-	}
 
 	return 0;
 }

@@ -60,22 +60,6 @@ asmlinkage void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
 				      struct ghash_key const *k,
 				      const char *head);
 
-#ifdef CONFIG_CFI_CLANG
-static inline void __cfi_pmull_ghash_update_p64(int blocks, u64 dg[],
-                const char *src, struct ghash_key const *k, const char *head)
-{
-        return pmull_ghash_update_p64(blocks, dg, src, k, head);
-}
-#define pmull_ghash_update_p64 __cfi_pmull_ghash_update_p64
-
-static inline void __cfi_pmull_ghash_update_p8(int blocks, u64 dg[],
-                const char *src, struct ghash_key const *k, const char *head)
-{
-        return pmull_ghash_update_p8(blocks, dg, src, k, head);
-}
-#define pmull_ghash_update_p8 __cfi_pmull_ghash_update_p8
-#endif
-
 static void (*pmull_ghash_update)(int blocks, u64 dg[], const char *src,
 				  struct ghash_key const *k,
 				  const char *head);
@@ -434,11 +418,9 @@ static int gcm_encrypt(struct aead_request *req)
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
 
 		while (walk.nbytes >= (2 * AES_BLOCK_SIZE)) {
-			const int blocks =
-				walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
+			int blocks = walk.nbytes / AES_BLOCK_SIZE;
 			u8 *dst = walk.dst.virt.addr;
 			u8 *src = walk.src.virt.addr;
-			int remaining = blocks;
 
 			do {
 				__aes_arm64_encrypt(ctx->aes_key.key_enc,
@@ -448,9 +430,9 @@ static int gcm_encrypt(struct aead_request *req)
 
 				dst += AES_BLOCK_SIZE;
 				src += AES_BLOCK_SIZE;
-			} while (--remaining > 0);
+			} while (--blocks > 0);
 
-			ghash_do_update(blocks, dg,
+			ghash_do_update(walk.nbytes / AES_BLOCK_SIZE, dg,
 					walk.dst.virt.addr, &ctx->ghash_key,
 					NULL);
 
@@ -571,7 +553,7 @@ static int gcm_decrypt(struct aead_request *req)
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
 
 		while (walk.nbytes >= (2 * AES_BLOCK_SIZE)) {
-			int blocks = walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
+			int blocks = walk.nbytes / AES_BLOCK_SIZE;
 			u8 *dst = walk.dst.virt.addr;
 			u8 *src = walk.src.virt.addr;
 

@@ -100,6 +100,11 @@ static int create_orc_entry(struct section *u_sec, struct section *ip_relasec,
 	struct orc_entry *orc;
 	struct rela *rela;
 
+	if (!insn_sec->sym) {
+		WARN("missing symbol for section %s", insn_sec->name);
+		return -1;
+	}
+
 	/* populate ORC data */
 	orc = (struct orc_entry *)u_sec->data->d_buf + idx;
 	memcpy(orc, o, sizeof(*orc));
@@ -112,32 +117,8 @@ static int create_orc_entry(struct section *u_sec, struct section *ip_relasec,
 	}
 	memset(rela, 0, sizeof(*rela));
 
-	if (insn_sec->sym) {
-		rela->sym = insn_sec->sym;
-		rela->addend = insn_off;
-	} else {
-		/*
-		 * The Clang assembler doesn't produce section symbols, so we
-		 * have to reference the function symbol instead:
-		 */
-		rela->sym = find_symbol_containing(insn_sec, insn_off);
-		if (!rela->sym) {
-			/*
-			 * Hack alert.  This happens when we need to reference
-			 * the NOP pad insn immediately after the function.
-			 */
-			rela->sym = find_symbol_containing(insn_sec,
-							   insn_off - 1);
-		}
-		if (!rela->sym) {
-			WARN("missing symbol for insn at offset 0x%lx\n",
-			     insn_off);
-			return -1;
-		}
-
-		rela->addend = insn_off - rela->sym->offset;
-	}
-
+	rela->sym = insn_sec->sym;
+	rela->addend = insn_off;
 	rela->type = R_X86_64_PC32;
 	rela->offset = idx * sizeof(int);
 

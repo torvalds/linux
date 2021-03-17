@@ -1122,10 +1122,8 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 
 	channel->edge = edge;
 	channel->name = kstrdup(name, GFP_KERNEL);
-	if (!channel->name) {
-		ret = -ENOMEM;
-		goto free_channel;
-	}
+	if (!channel->name)
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&channel->tx_lock);
 	spin_lock_init(&channel->recv_lock);
@@ -1175,7 +1173,6 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 
 free_name_and_channel:
 	kfree(channel->name);
-free_channel:
 	kfree(channel);
 
 	return ERR_PTR(ret);
@@ -1338,7 +1335,7 @@ static int qcom_smd_parse_edge(struct device *dev,
 	ret = of_property_read_u32(node, key, &edge->edge_id);
 	if (ret) {
 		dev_err(dev, "edge missing %s property\n", key);
-		goto put_node;
+		return -EINVAL;
 	}
 
 	edge->remote_pid = QCOM_SMEM_HOST_ANY;
@@ -1349,37 +1346,32 @@ static int qcom_smd_parse_edge(struct device *dev,
 	edge->mbox_client.knows_txdone = true;
 	edge->mbox_chan = mbox_request_channel(&edge->mbox_client, 0);
 	if (IS_ERR(edge->mbox_chan)) {
-		if (PTR_ERR(edge->mbox_chan) != -ENODEV) {
-			ret = PTR_ERR(edge->mbox_chan);
-			goto put_node;
-		}
+		if (PTR_ERR(edge->mbox_chan) != -ENODEV)
+			return PTR_ERR(edge->mbox_chan);
 
 		edge->mbox_chan = NULL;
 
 		syscon_np = of_parse_phandle(node, "qcom,ipc", 0);
 		if (!syscon_np) {
 			dev_err(dev, "no qcom,ipc node\n");
-			ret = -ENODEV;
-			goto put_node;
+			return -ENODEV;
 		}
 
 		edge->ipc_regmap = syscon_node_to_regmap(syscon_np);
-		if (IS_ERR(edge->ipc_regmap)) {
-			ret = PTR_ERR(edge->ipc_regmap);
-			goto put_node;
-		}
+		if (IS_ERR(edge->ipc_regmap))
+			return PTR_ERR(edge->ipc_regmap);
 
 		key = "qcom,ipc";
 		ret = of_property_read_u32_index(node, key, 1, &edge->ipc_offset);
 		if (ret < 0) {
 			dev_err(dev, "no offset in %s\n", key);
-			goto put_node;
+			return -EINVAL;
 		}
 
 		ret = of_property_read_u32_index(node, key, 2, &edge->ipc_bit);
 		if (ret < 0) {
 			dev_err(dev, "no bit in %s\n", key);
-			goto put_node;
+			return -EINVAL;
 		}
 	}
 
@@ -1390,8 +1382,7 @@ static int qcom_smd_parse_edge(struct device *dev,
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq < 0) {
 		dev_err(dev, "required smd interrupt missing\n");
-		ret = irq;
-		goto put_node;
+		return -EINVAL;
 	}
 
 	ret = devm_request_irq(dev, irq,
@@ -1399,18 +1390,12 @@ static int qcom_smd_parse_edge(struct device *dev,
 			       node->name, edge);
 	if (ret) {
 		dev_err(dev, "failed to request smd irq\n");
-		goto put_node;
+		return ret;
 	}
 
 	edge->irq = irq;
 
 	return 0;
-
-put_node:
-	of_node_put(node);
-	edge->of_node = NULL;
-
-	return ret;
 }
 
 /*

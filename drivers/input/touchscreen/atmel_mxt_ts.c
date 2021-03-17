@@ -1586,10 +1586,10 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 	/* T7 config may have changed */
 	mxt_init_t7_power_cfg(data);
 
-release_mem:
-	kfree(cfg.mem);
 release_raw:
 	kfree(cfg.raw);
+release_mem:
+	kfree(cfg.mem);
 	return ret;
 }
 
@@ -3162,8 +3162,6 @@ static int __maybe_unused mxt_suspend(struct device *dev)
 
 	mutex_unlock(&input_dev->mutex);
 
-	disable_irq(data->irq);
-
 	return 0;
 }
 
@@ -3175,8 +3173,6 @@ static int __maybe_unused mxt_resume(struct device *dev)
 
 	if (!input_dev)
 		return 0;
-
-	enable_irq(data->irq);
 
 	mutex_lock(&input_dev->mutex);
 

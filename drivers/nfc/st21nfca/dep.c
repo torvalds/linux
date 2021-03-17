@@ -184,10 +184,8 @@ static int st21nfca_tm_send_atr_res(struct nfc_hci_dev *hdev,
 		memcpy(atr_res->gbi, atr_req->gbi, gb_len);
 		r = nfc_set_remote_general_bytes(hdev->ndev, atr_res->gbi,
 						  gb_len);
-		if (r < 0) {
-			kfree_skb(skb);
+		if (r < 0)
 			return r;
-		}
 	}
 
 	info->dep_info.curr_nfc_dep_pni = 0;

@@ -129,7 +129,7 @@ int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops)
 void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 {
 	struct ti_dt_clk *c;
-	struct device_node *node, *parent;
+	struct device_node *node;
 	struct clk *clk;
 	struct of_phandle_args clkspec;
 	char buf[64];
@@ -164,12 +164,8 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 			continue;
 
 		node = of_find_node_by_name(NULL, buf);
-		if (num_args) {
-			parent = node;
-			node = of_get_child_by_name(parent, "clk");
-			of_node_put(parent);
-		}
-
+		if (num_args)
+			node = of_find_node_by_name(node, "clk");
 		clkspec.np = node;
 		clkspec.args_count = num_args;
 		for (i = 0; i < num_args; i++) {
@@ -177,24 +173,19 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 			if (ret) {
 				pr_warn("Bad tag in %s at %d: %s\n",
 					c->node_name, i, tags[i]);
-				of_node_put(node);
 				return;
 			}
 		}
 		clk = of_clk_get_from_provider(&clkspec);
-		of_node_put(node);
+
 		if (!IS_ERR(clk)) {
 			c->lk.clk = clk;
 			clkdev_add(&c->lk);
 		} else {
 			if (num_args && !has_clkctrl_data) {
-				struct device_node *np;
-
-				np = of_find_compatible_node(NULL, NULL,
-							     "ti,clkctrl");
-				if (np) {
+				if (of_find_compatible_node(NULL, NULL,
+							    "ti,clkctrl")) {
 					has_clkctrl_data = true;
-					of_node_put(np);
 				} else {
 					clkctrl_nodes_missing = true;
 

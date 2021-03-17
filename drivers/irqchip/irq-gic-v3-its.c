@@ -49,6 +49,7 @@
 #define ITS_FLAGS_CMDQ_NEEDS_FLUSHING		(1ULL << 0)
 #define ITS_FLAGS_WORKAROUND_CAVIUM_22375	(1ULL << 1)
 #define ITS_FLAGS_WORKAROUND_CAVIUM_23144	(1ULL << 2)
+#define ITS_FLAGS_SAVE_SUSPEND_STATE		(1ULL << 3)
 
 #define RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING	(1 << 0)
 
@@ -92,14 +93,9 @@ struct its_device;
  * The ITS structure - contains most of the infrastructure, with the
  * top-level MSI domain, the command queue, the collections, and the
  * list of devices writing to it.
- *
- * dev_alloc_lock has to be taken for device allocations, while the
- * spinlock must be taken to parse data structures such as the device
- * list.
  */
 struct its_node {
 	raw_spinlock_t		lock;
-	struct mutex		dev_alloc_lock;
 	struct list_head	entry;
 	void __iomem		*base;
 	phys_addr_t		phys_base;
@@ -154,10 +150,8 @@ struct its_device {
 	struct its_node		*its;
 	struct event_lpi_map	event_map;
 	void			*itt;
-	u32			itt_sz;
 	u32			nr_ites;
 	u32			device_id;
-	bool			shared;
 };
 
 static struct {
@@ -182,22 +176,6 @@ static DEFINE_IDA(its_vpeid_ida);
 #define gic_data_rdist_rd_base()	(gic_data_rdist()->rd_base)
 #define gic_data_rdist_vlpi_base()	(gic_data_rdist_rd_base() + SZ_128K)
 
-static u16 get_its_list(struct its_vm *vm)
-{
-	struct its_node *its;
-	unsigned long its_list = 0;
-
-	list_for_each_entry(its, &its_nodes, entry) {
-		if (!its->is_v4)
-			continue;
-
-		if (vm->vlpi_count[its->list_nr])
-			__set_bit(its->list_nr, &its_list);
-	}
-
-	return (u16)its_list;
-}
-
 static struct its_collection *dev_event_to_col(struct its_device *its_dev,
 					       u32 event)
 {
@@ -208,7 +186,7 @@ static struct its_collection *dev_event_to_col(struct its_device *its_dev,
 
 static struct its_collection *valid_col(struct its_collection *col)
 {
-	if (WARN_ON_ONCE(col->target_address & GENMASK_ULL(15, 0)))
+	if (WARN_ON_ONCE(col->target_address & GENMASK_ULL(0, 15)))
 		return NULL;
 
 	return col;
@@ -578,7 +556,7 @@ static struct its_collection *its_build_invall_cmd(struct its_node *its,
 						   struct its_cmd_desc *desc)
 {
 	its_encode_cmd(cmd, GITS_CMD_INVALL);
-	its_encode_collection(cmd, desc->its_invall_cmd.col->col_id);
+	its_encode_collection(cmd, desc->its_mapc_cmd.col->col_id);
 
 	its_fixup_cmd(cmd);
 
@@ -756,43 +734,32 @@ static void its_flush_cmd(struct its_node *its, struct its_cmd_block *cmd)
 }
 
 static int its_wait_for_range_completion(struct its_node *its,
-					 u64	prev_idx,
+					 struct its_cmd_block *from,
 					 struct its_cmd_block *to)
 {
-	u64 rd_idx, to_idx, linear_idx;
+	u64 rd_idx, from_idx, to_idx;
 	u32 count = 1000000;	/* 1s! */
 
-	/* Linearize to_idx if the command set has wrapped around */
+	from_idx = its_cmd_ptr_to_offset(its, from);
 	to_idx = its_cmd_ptr_to_offset(its, to);
-	if (to_idx < prev_idx)
-		to_idx += ITS_CMD_QUEUE_SZ;
-
-	linear_idx = prev_idx;
 
 	while (1) {
-		s64 delta;
-
 		rd_idx = readl_relaxed(its->base + GITS_CREADR);
 
-		/*
-		 * Compute the read pointer progress, taking the
-		 * potential wrap-around into account.
-		 */
-		delta = rd_idx - prev_idx;
-		if (rd_idx < prev_idx)
-			delta += ITS_CMD_QUEUE_SZ;
+		/* Direct case */
+		if (from_idx < to_idx && rd_idx >= to_idx)
+			break;
 
-		linear_idx += delta;
-		if (linear_idx >= to_idx)
+		/* Wrapped case */
+		if (from_idx >= to_idx && rd_idx >= to_idx && rd_idx < from_idx)
 			break;
 
 		count--;
 		if (!count) {
-			pr_err_ratelimited("ITS queue timeout (%llu %llu)\n",
-					   to_idx, linear_idx);
+			pr_err_ratelimited("ITS queue timeout (%llu %llu %llu)\n",
+					   from_idx, to_idx, rd_idx);
 			return -1;
 		}
-		prev_idx = rd_idx;
 		cpu_relax();
 		udelay(1);
 	}
@@ -809,7 +776,6 @@ void name(struct its_node *its,						\
 	struct its_cmd_block *cmd, *sync_cmd, *next_cmd;		\
 	synctype *sync_obj;						\
 	unsigned long flags;						\
-	u64 rd_idx;							\
 									\
 	raw_spin_lock_irqsave(&its->lock, flags);			\
 									\
@@ -831,11 +797,10 @@ void name(struct its_node *its,						\
 	}								\
 									\
 post:									\
-	rd_idx = readl_relaxed(its->base + GITS_CREADR);		\
 	next_cmd = its_post_commands(its);				\
 	raw_spin_unlock_irqrestore(&its->lock, flags);			\
 									\
-	if (its_wait_for_range_completion(its, rd_idx, next_cmd))	\
+	if (its_wait_for_range_completion(its, cmd, next_cmd))		\
 		pr_err_ratelimited("ITS cmd %ps failed\n", builder);	\
 }
 
@@ -999,15 +964,17 @@ static void its_send_vmapp(struct its_node *its,
 
 static void its_send_vmovp(struct its_vpe *vpe)
 {
-	struct its_cmd_desc desc = {};
+	struct its_cmd_desc desc;
 	struct its_node *its;
 	unsigned long flags;
 	int col_id = vpe->col_idx;
 
 	desc.its_vmovp_cmd.vpe = vpe;
+	desc.its_vmovp_cmd.its_list = (u16)its_list_map;
 
 	if (!its_list_map) {
 		its = list_first_entry(&its_nodes, struct its_node, entry);
+		desc.its_vmovp_cmd.seq_num = 0;
 		desc.its_vmovp_cmd.col = &its->collections[col_id];
 		its_send_single_vcommand(its, its_build_vmovp_cmd, &desc);
 		return;
@@ -1024,7 +991,6 @@ static void its_send_vmovp(struct its_vpe *vpe)
 	raw_spin_lock_irqsave(&vmovp_lock, flags);
 
 	desc.its_vmovp_cmd.seq_num = vmovp_seq_num++;
-	desc.its_vmovp_cmd.its_list = get_its_list(vpe->its_vm);
 
 	/* Emit VMOVPs */
 	list_for_each_entry(its, &its_nodes, entry) {
@@ -1505,7 +1471,7 @@ static int lpi_range_cmp(void *priv, struct list_head *a, struct list_head *b)
 	ra = container_of(a, struct lpi_range, entry);
 	rb = container_of(b, struct lpi_range, entry);
 
-	return ra->base_id - rb->base_id;
+	return rb->base_id - ra->base_id;
 }
 
 static void merge_lpi_ranges(void)
@@ -1609,9 +1575,6 @@ static unsigned long *its_lpi_alloc(int nr_irqs, u32 *base, int *nr_ids)
 		nr_irqs /= 2;
 	} while (nr_irqs > 0);
 
-	if (!nr_irqs)
-		err = -ENOSPC;
-
 	if (err)
 		goto out;
 
@@ -1638,8 +1601,6 @@ static struct page *its_allocate_prop_table(gfp_t gfp_flags)
 {
 	struct page *prop_page;
 
-	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-		gfp_flags |= GFP_DMA32;
 	prop_page = alloc_pages(gfp_flags, get_order(LPI_PROPBASE_SZ));
 	if (!prop_page)
 		return NULL;
@@ -1715,7 +1676,6 @@ static int its_setup_baser(struct its_node *its, struct its_baser *baser,
 	u64 baser_phys, tmp;
 	u32 alloc_pages;
 	void *base;
-	gfp_t gfp_flags;
 
 retry_alloc_baser:
 	alloc_pages = (PAGE_ORDER_TO_SIZE(order) / psz);
@@ -1727,10 +1687,7 @@ retry_alloc_baser:
 		order = get_order(GITS_BASER_PAGES_MAX * psz);
 	}
 
-	gfp_flags = GFP_KERNEL | __GFP_ZERO;
-	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-		gfp_flags |= GFP_DMA32;
-	base = (void *)__get_free_pages(gfp_flags, order);
+	base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!base)
 		return -ENOMEM;
 
@@ -1775,14 +1732,6 @@ retry_baser:
 
 	its_write_baser(its, baser, val);
 	tmp = baser->val;
-
-	if (of_machine_is_compatible("rockchip,rk3568") ||
-	    of_machine_is_compatible("rockchip,rk3566")) {
-		if (tmp & GITS_BASER_SHAREABILITY_MASK)
-			tmp &= ~GITS_BASER_SHAREABILITY_MASK;
-		else
-			gic_flush_dcache_to_poc(base, PAGE_ORDER_TO_SIZE(order));
-	}
 
 	if ((val ^ tmp) & GITS_BASER_SHAREABILITY_MASK) {
 		/*
@@ -1935,8 +1884,6 @@ static int its_alloc_tables(struct its_node *its)
 			indirect = its_parse_indirect_baser(its, baser,
 							    psz, &order,
 							    its->device_ids);
-			break;
-
 		case GITS_BASER_TYPE_VCPU:
 			indirect = its_parse_indirect_baser(its, baser,
 							    psz, &order,
@@ -1981,8 +1928,6 @@ static struct page *its_allocate_pending_table(gfp_t gfp_flags)
 	 * The pending pages have to be at least 64kB aligned,
 	 * hence the 'max(LPI_PENDBASE_SZ, SZ_64K)' below.
 	 */
-	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-		gfp_flags |= GFP_DMA32;
 	pend_page = alloc_pages(gfp_flags | __GFP_ZERO,
 				get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
 	if (!pend_page)
@@ -1998,29 +1943,6 @@ static void its_free_pending_table(struct page *pt)
 {
 	free_pages((unsigned long)page_address(pt),
 		   get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
-}
-
-static u64 its_clear_vpend_valid(void __iomem *vlpi_base)
-{
-	u32 count = 1000000;	/* 1s! */
-	bool clean;
-	u64 val;
-
-	val = gits_read_vpendbaser(vlpi_base + GICR_VPENDBASER);
-	val &= ~GICR_VPENDBASER_Valid;
-	gits_write_vpendbaser(val, vlpi_base + GICR_VPENDBASER);
-
-	do {
-		val = gits_read_vpendbaser(vlpi_base + GICR_VPENDBASER);
-		clean = !(val & GICR_VPENDBASER_Dirty);
-		if (!clean) {
-			count--;
-			cpu_relax();
-			udelay(1);
-		}
-	} while (!clean && count);
-
-	return val;
 }
 
 static void its_cpu_init_lpis(void)
@@ -2056,9 +1978,6 @@ static void its_cpu_init_lpis(void)
 	gicr_write_propbaser(val, rbase + GICR_PROPBASER);
 	tmp = gicr_read_propbaser(rbase + GICR_PROPBASER);
 
-	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-		tmp &= ~GICR_PROPBASER_SHAREABILITY_MASK;
-
 	if ((tmp ^ val) & GICR_PROPBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GICR_PROPBASER_SHAREABILITY_MASK)) {
 			/*
@@ -2083,9 +2002,6 @@ static void its_cpu_init_lpis(void)
 	gicr_write_pendbaser(val, rbase + GICR_PENDBASER);
 	tmp = gicr_read_pendbaser(rbase + GICR_PENDBASER);
 
-	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-		tmp &= ~GICR_PENDBASER_SHAREABILITY_MASK;
-
 	if (!(tmp & GICR_PENDBASER_SHAREABILITY_MASK)) {
 		/*
 		 * The HW reports non-shareable, we must remove the
@@ -2101,30 +2017,6 @@ static void its_cpu_init_lpis(void)
 	val = readl_relaxed(rbase + GICR_CTLR);
 	val |= GICR_CTLR_ENABLE_LPIS;
 	writel_relaxed(val, rbase + GICR_CTLR);
-
-	if (gic_rdists->has_vlpis) {
-		void __iomem *vlpi_base = gic_data_rdist_vlpi_base();
-
-		/*
-		 * It's possible for CPU to receive VLPIs before it is
-		 * sheduled as a vPE, especially for the first CPU, and the
-		 * VLPI with INTID larger than 2^(IDbits+1) will be considered
-		 * as out of range and dropped by GIC.
-		 * So we initialize IDbits to known value to avoid VLPI drop.
-		 */
-		val = (LPI_NRBITS - 1) & GICR_VPROPBASER_IDBITS_MASK;
-		pr_debug("GICv4: CPU%d: Init IDbits to 0x%llx for GICR_VPROPBASER\n",
-			smp_processor_id(), val);
-		gits_write_vpropbaser(val, vlpi_base + GICR_VPROPBASER);
-
-		/*
-		 * Also clear Valid bit of GICR_VPENDBASER, in case some
-		 * ancient programming gets left in and has possibility of
-		 * corrupting memory.
-		 */
-		val = its_clear_vpend_valid(vlpi_base);
-		WARN_ON(val & GICR_VPENDBASER_Dirty);
-	}
 
 	/* Make sure the GIC has seen the above */
 	dsb(sy);
@@ -2232,11 +2124,7 @@ static bool its_alloc_table_entry(struct its_baser *baser, u32 id)
 
 	/* Allocate memory for 2nd level table */
 	if (!table[idx]) {
-		gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO;
-
-		if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-			gfp_flags |= GFP_DMA32;
-		page = alloc_pages(gfp_flags, get_order(baser->psz));
+		page = alloc_pages(GFP_KERNEL | __GFP_ZERO, get_order(baser->psz));
 		if (!page)
 			return false;
 
@@ -2310,7 +2198,6 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	int nr_lpis;
 	int nr_ites;
 	int sz;
-	gfp_t gfp_flags;
 
 	if (!its_alloc_device_table(its, dev_id))
 		return NULL;
@@ -2326,10 +2213,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	nr_ites = max(2, nvecs);
 	sz = nr_ites * its->ite_size;
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
-	gfp_flags = GFP_KERNEL;
-	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-		gfp_flags |= GFP_DMA32;
-	itt = (void *)__get_free_pages(gfp_flags, get_order(sz));
+	itt = kzalloc(sz, GFP_KERNEL);
 	if (alloc_lpis) {
 		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
 		if (lpi_map)
@@ -2343,7 +2227,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 
 	if (!dev || !itt ||  !col_map || (!lpi_map && alloc_lpis)) {
 		kfree(dev);
-		free_pages((unsigned long)itt, get_order(sz));
+		kfree(itt);
 		kfree(lpi_map);
 		kfree(col_map);
 		return NULL;
@@ -2353,7 +2237,6 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 
 	dev->its = its;
 	dev->itt = itt;
-	dev->itt_sz = sz;
 	dev->nr_ites = nr_ites;
 	dev->event_map.lpi_map = lpi_map;
 	dev->event_map.col_map = col_map;
@@ -2380,18 +2263,17 @@ static void its_free_device(struct its_device *its_dev)
 	raw_spin_lock_irqsave(&its_dev->its->lock, flags);
 	list_del(&its_dev->entry);
 	raw_spin_unlock_irqrestore(&its_dev->its->lock, flags);
-	free_pages((unsigned long)its_dev->itt, get_order(its_dev->itt_sz));
+	kfree(its_dev->itt);
 	kfree(its_dev);
 }
 
-static int its_alloc_device_irq(struct its_device *dev, int nvecs, irq_hw_number_t *hwirq)
+static int its_alloc_device_irq(struct its_device *dev, irq_hw_number_t *hwirq)
 {
 	int idx;
 
-	idx = bitmap_find_free_region(dev->event_map.lpi_map,
-				      dev->event_map.nr_lpis,
-				      get_count_order(nvecs));
-	if (idx < 0)
+	idx = find_first_zero_bit(dev->event_map.lpi_map,
+				  dev->event_map.nr_lpis);
+	if (idx == dev->event_map.nr_lpis)
 		return -ENOSPC;
 
 	*hwirq = dev->event_map.lpi_base + idx;
@@ -2407,7 +2289,6 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 	struct its_device *its_dev;
 	struct msi_domain_info *msi_info;
 	u32 dev_id;
-	int err = 0;
 
 	/*
 	 * We ignore "dev" entierely, and rely on the dev_id that has
@@ -2430,7 +2311,6 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&its->dev_alloc_lock);
 	its_dev = its_find_device(its, dev_id);
 	if (its_dev) {
 		/*
@@ -2438,22 +2318,18 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 		 * another alias (PCI bridge of some sort). No need to
 		 * create the device.
 		 */
-		its_dev->shared = true;
 		pr_debug("Reusing ITT for devID %x\n", dev_id);
 		goto out;
 	}
 
 	its_dev = its_create_device(its, dev_id, nvec, true);
-	if (!its_dev) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!its_dev)
+		return -ENOMEM;
 
 	pr_debug("ITT %d entries, %d bits\n", nvec, ilog2(nvec));
 out:
-	mutex_unlock(&its->dev_alloc_lock);
 	info->scratchpad[0].ptr = its_dev;
-	return err;
+	return 0;
 }
 
 static struct msi_domain_ops its_msi_domain_ops = {
@@ -2489,28 +2365,25 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	msi_alloc_info_t *info = args;
 	struct its_device *its_dev = info->scratchpad[0].ptr;
-	struct irq_data *irqd;
 	irq_hw_number_t hwirq;
 	int err;
 	int i;
 
-	err = its_alloc_device_irq(its_dev, nr_irqs, &hwirq);
-	if (err)
-		return err;
-
 	for (i = 0; i < nr_irqs; i++) {
-		err = its_irq_gic_domain_alloc(domain, virq + i, hwirq + i);
+		err = its_alloc_device_irq(its_dev, &hwirq);
+		if (err)
+			return err;
+
+		err = its_irq_gic_domain_alloc(domain, virq + i, hwirq);
 		if (err)
 			return err;
 
 		irq_domain_set_hwirq_and_chip(domain, virq + i,
-					      hwirq + i, &its_irq_chip, its_dev);
-		irqd = irq_get_irq_data(virq + i);
-		irqd_set_single_target(irqd);
-		irqd_set_affinity_on_activate(irqd);
+					      hwirq, &its_irq_chip, its_dev);
+		irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq + i)));
 		pr_debug("ID:%d pID:%d vID:%d\n",
-			 (int)(hwirq + i - its_dev->event_map.lpi_base),
-			 (int)(hwirq + i), virq + i);
+			 (int)(hwirq - its_dev->event_map.lpi_base),
+			 (int) hwirq, virq + i);
 	}
 
 	return 0;
@@ -2560,28 +2433,22 @@ static void its_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
 	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
-	struct its_node *its = its_dev->its;
 	int i;
-
-	bitmap_release_region(its_dev->event_map.lpi_map,
-			      its_get_event_id(irq_domain_get_irq_data(domain, virq)),
-			      get_count_order(nr_irqs));
 
 	for (i = 0; i < nr_irqs; i++) {
 		struct irq_data *data = irq_domain_get_irq_data(domain,
 								virq + i);
+		u32 event = its_get_event_id(data);
+
+		/* Mark interrupt index as unused */
+		clear_bit(event, its_dev->event_map.lpi_map);
+
 		/* Nuke the entry in the domain */
 		irq_domain_reset_irq_data(data);
 	}
 
-	mutex_lock(&its->dev_alloc_lock);
-
-	/*
-	 * If all interrupts have been freed, start mopping the
-	 * floor. This is conditionned on the device not being shared.
-	 */
-	if (!its_dev->shared &&
-	    bitmap_empty(its_dev->event_map.lpi_map,
+	/* If all interrupts have been freed, start mopping the floor */
+	if (bitmap_empty(its_dev->event_map.lpi_map,
 			 its_dev->event_map.nr_lpis)) {
 		its_lpi_free(its_dev->event_map.lpi_map,
 			     its_dev->event_map.lpi_base,
@@ -2592,8 +2459,6 @@ static void its_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 		its_send_mapd(its_dev, 0);
 		its_free_device(its_dev);
 	}
-
-	mutex_unlock(&its->dev_alloc_lock);
 
 	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
 }
@@ -2757,11 +2622,26 @@ static void its_vpe_schedule(struct its_vpe *vpe)
 static void its_vpe_deschedule(struct its_vpe *vpe)
 {
 	void __iomem *vlpi_base = gic_data_rdist_vlpi_base();
+	u32 count = 1000000;	/* 1s! */
+	bool clean;
 	u64 val;
 
-	val = its_clear_vpend_valid(vlpi_base);
+	/* We're being scheduled out */
+	val = gits_read_vpendbaser(vlpi_base + GICR_VPENDBASER);
+	val &= ~GICR_VPENDBASER_Valid;
+	gits_write_vpendbaser(val, vlpi_base + GICR_VPENDBASER);
 
-	if (unlikely(val & GICR_VPENDBASER_Dirty)) {
+	do {
+		val = gits_read_vpendbaser(vlpi_base + GICR_VPENDBASER);
+		clean = !(val & GICR_VPENDBASER_Dirty);
+		if (!clean) {
+			count--;
+			cpu_relax();
+			udelay(1);
+		}
+	} while (!clean && count);
+
+	if (unlikely(!clean && !count)) {
 		pr_err_ratelimited("ITS virtual pending table not cleaning\n");
 		vpe->idai = false;
 		vpe->pending_last = true;
@@ -2892,18 +2772,12 @@ static int its_vpe_set_irqchip_state(struct irq_data *d,
 	return 0;
 }
 
-static int its_vpe_retrigger(struct irq_data *d)
-{
-	return !its_vpe_set_irqchip_state(d, IRQCHIP_STATE_PENDING, true);
-}
-
 static struct irq_chip its_vpe_irq_chip = {
 	.name			= "GICv4-vpe",
 	.irq_mask		= its_vpe_mask_irq,
 	.irq_unmask		= its_vpe_unmask_irq,
 	.irq_eoi		= irq_chip_eoi_parent,
 	.irq_set_affinity	= its_vpe_set_affinity,
-	.irq_retrigger		= its_vpe_retrigger,
 	.irq_set_irqchip_state	= its_vpe_set_irqchip_state,
 	.irq_set_vcpu_affinity	= its_vpe_set_vcpu_affinity,
 };
@@ -2937,7 +2811,7 @@ static int its_vpe_init(struct its_vpe *vpe)
 
 	if (!its_alloc_vpe_table(vpe_id)) {
 		its_vpe_id_free(vpe_id);
-		its_free_pending_table(vpt_page);
+		its_free_pending_table(vpe->vpt_page);
 		return -ENOMEM;
 	}
 
@@ -3271,6 +3145,9 @@ static int its_save_disable(void)
 	list_for_each_entry(its, &its_nodes, entry) {
 		void __iomem *base;
 
+		if (!(its->flags & ITS_FLAGS_SAVE_SUSPEND_STATE))
+			continue;
+
 		base = its->base;
 		its->ctlr_save = readl_relaxed(base + GITS_CTLR);
 		err = its_force_quiescent(base);
@@ -3288,6 +3165,9 @@ err:
 	if (err) {
 		list_for_each_entry_continue_reverse(its, &its_nodes, entry) {
 			void __iomem *base;
+
+			if (!(its->flags & ITS_FLAGS_SAVE_SUSPEND_STATE))
+				continue;
 
 			base = its->base;
 			writel_relaxed(its->ctlr_save, base + GITS_CTLR);
@@ -3308,6 +3188,9 @@ static void its_restore_enable(void)
 		void __iomem *base;
 		int i;
 
+		if (!(its->flags & ITS_FLAGS_SAVE_SUSPEND_STATE))
+			continue;
+
 		base = its->base;
 
 		/*
@@ -3315,10 +3198,7 @@ static void its_restore_enable(void)
 		 * don't restore it since writing to CBASER or BASER<n>
 		 * registers is undefined according to the GIC v3 ITS
 		 * Specification.
-		 *
-		 * Firmware resuming with the ITS enabled is terminally broken.
 		 */
-		WARN_ON(readl_relaxed(base + GITS_CTLR) & GITS_CTLR_ENABLE);
 		ret = its_force_quiescent(base);
 		if (ret) {
 			pr_err("ITS@%pa: failed to quiesce on resume: %d\n",
@@ -3475,7 +3355,6 @@ static int __init its_probe_one(struct resource *res,
 	u32 val, ctlr;
 	u64 baser, tmp, typer;
 	int err;
-	gfp_t gfp_flags;
 
 	its_base = ioremap(res->start, resource_size(res));
 	if (!its_base) {
@@ -3505,7 +3384,6 @@ static int __init its_probe_one(struct resource *res,
 	}
 
 	raw_spin_lock_init(&its->lock);
-	mutex_init(&its->dev_alloc_lock);
 	INIT_LIST_HEAD(&its->entry);
 	INIT_LIST_HEAD(&its->its_device_list);
 	typer = gic_read_typer(its_base + GITS_TYPER);
@@ -3531,10 +3409,7 @@ static int __init its_probe_one(struct resource *res,
 
 	its->numa_node = numa_node;
 
-	gfp_flags = GFP_KERNEL | __GFP_ZERO;
-	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-		gfp_flags |= GFP_DMA32;
-	its->cmd_base = (void *)__get_free_pages(gfp_flags,
+	its->cmd_base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 						get_order(ITS_CMD_QUEUE_SZ));
 	if (!its->cmd_base) {
 		err = -ENOMEM;
@@ -3564,9 +3439,6 @@ static int __init its_probe_one(struct resource *res,
 	gits_write_cbaser(baser, its->base + GITS_CBASER);
 	tmp = gits_read_cbaser(its->base + GITS_CBASER);
 
-	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
-		tmp &= ~GITS_CBASER_SHAREABILITY_MASK;
-
 	if ((tmp ^ baser) & GITS_CBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GITS_CBASER_SHAREABILITY_MASK)) {
 			/*
@@ -3589,6 +3461,9 @@ static int __init its_probe_one(struct resource *res,
 	if (its->is_v4)
 		ctlr |= GITS_CTLR_ImDe;
 	writel_relaxed(ctlr, its->base + GITS_CTLR);
+
+	if (GITS_TYPER_HCC(typer))
+		its->flags |= ITS_FLAGS_SAVE_SUSPEND_STATE;
 
 	err = its_init_domain(handle, its);
 	if (err)

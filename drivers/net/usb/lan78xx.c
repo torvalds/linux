@@ -31,7 +31,6 @@
 #include <linux/mdio.h>
 #include <linux/phy.h>
 #include <net/ip6_checksum.h>
-#include <net/vxlan.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
@@ -388,6 +387,10 @@ struct lan78xx_net {
 	struct tasklet_struct	bh;
 	struct delayed_work	wq;
 
+	struct usb_host_endpoint *ep_blkin;
+	struct usb_host_endpoint *ep_blkout;
+	struct usb_host_endpoint *ep_intr;
+
 	int			msg_enable;
 
 	struct urb		*urb_intr;
@@ -519,7 +522,7 @@ static int lan78xx_read_stats(struct lan78xx_net *dev,
 		}
 	} else {
 		netdev_warn(dev->net,
-			    "Failed to read stat ret = %d", ret);
+			    "Failed to read stat ret = 0x%x", ret);
 	}
 
 	kfree(stats);
@@ -1275,11 +1278,8 @@ static void lan78xx_status(struct lan78xx_net *dev, struct urb *urb)
 		netif_dbg(dev, link, dev->net, "PHY INTR: 0x%08x\n", intdata);
 		lan78xx_defer_kevent(dev, EVENT_LINK_RESET);
 
-		if (dev->domain_data.phyirq > 0) {
-			local_irq_disable();
+		if (dev->domain_data.phyirq > 0)
 			generic_handle_irq(dev->domain_data.phyirq);
-			local_irq_enable();
-		}
 	} else
 		netdev_warn(dev->net,
 			    "unexpected interrupt: 0x%08x\n", intdata);
@@ -1820,7 +1820,6 @@ static int lan78xx_mdio_init(struct lan78xx_net *dev)
 	dev->mdiobus->read = lan78xx_mdiobus_read;
 	dev->mdiobus->write = lan78xx_mdiobus_write;
 	dev->mdiobus->name = "lan78xx-mdiobus";
-	dev->mdiobus->parent = &dev->udev->dev;
 
 	snprintf(dev->mdiobus->id, MII_BUS_ID_SIZE, "usb-%03d:%03d",
 		 dev->udev->bus->busnum, dev->udev->devnum);
@@ -2336,10 +2335,6 @@ static int lan78xx_set_mac_addr(struct net_device *netdev, void *p)
 	ret = lan78xx_write_reg(dev, RX_ADDRL, addr_lo);
 	ret = lan78xx_write_reg(dev, RX_ADDRH, addr_hi);
 
-	/* Added to support MAC address changes */
-	ret = lan78xx_write_reg(dev, MAF_LO(0), addr_lo);
-	ret = lan78xx_write_reg(dev, MAF_HI(0), addr_hi | MAF_HI_VALID_);
-
 	return 0;
 }
 
@@ -2733,6 +2728,11 @@ static int lan78xx_stop(struct net_device *net)
 	return 0;
 }
 
+static int lan78xx_linearize(struct sk_buff *skb)
+{
+	return skb_linearize(skb);
+}
+
 static struct sk_buff *lan78xx_tx_prep(struct lan78xx_net *dev,
 				       struct sk_buff *skb, gfp_t flags)
 {
@@ -2743,10 +2743,8 @@ static struct sk_buff *lan78xx_tx_prep(struct lan78xx_net *dev,
 		return NULL;
 	}
 
-	if (skb_linearize(skb)) {
-		dev_kfree_skb_any(skb);
+	if (lan78xx_linearize(skb) < 0)
 		return NULL;
-	}
 
 	tx_cmd_a = (u32)(skb->len & TX_CMD_A_LEN_MASK_) | TX_CMD_A_FCS_;
 
@@ -2879,11 +2877,72 @@ lan78xx_start_xmit(struct sk_buff *skb, struct net_device *net)
 	return NETDEV_TX_OK;
 }
 
+static int
+lan78xx_get_endpoints(struct lan78xx_net *dev, struct usb_interface *intf)
+{
+	int tmp;
+	struct usb_host_interface *alt = NULL;
+	struct usb_host_endpoint *in = NULL, *out = NULL;
+	struct usb_host_endpoint *status = NULL;
+
+	for (tmp = 0; tmp < intf->num_altsetting; tmp++) {
+		unsigned ep;
+
+		in = NULL;
+		out = NULL;
+		status = NULL;
+		alt = intf->altsetting + tmp;
+
+		for (ep = 0; ep < alt->desc.bNumEndpoints; ep++) {
+			struct usb_host_endpoint *e;
+			int intr = 0;
+
+			e = alt->endpoint + ep;
+			switch (e->desc.bmAttributes) {
+			case USB_ENDPOINT_XFER_INT:
+				if (!usb_endpoint_dir_in(&e->desc))
+					continue;
+				intr = 1;
+				/* FALLTHROUGH */
+			case USB_ENDPOINT_XFER_BULK:
+				break;
+			default:
+				continue;
+			}
+			if (usb_endpoint_dir_in(&e->desc)) {
+				if (!intr && !in)
+					in = e;
+				else if (intr && !status)
+					status = e;
+			} else {
+				if (!out)
+					out = e;
+			}
+		}
+		if (in && out)
+			break;
+	}
+	if (!alt || !in || !out)
+		return -EINVAL;
+
+	dev->pipe_in = usb_rcvbulkpipe(dev->udev,
+				       in->desc.bEndpointAddress &
+				       USB_ENDPOINT_NUMBER_MASK);
+	dev->pipe_out = usb_sndbulkpipe(dev->udev,
+					out->desc.bEndpointAddress &
+					USB_ENDPOINT_NUMBER_MASK);
+	dev->ep_intr = status;
+
+	return 0;
+}
+
 static int lan78xx_bind(struct lan78xx_net *dev, struct usb_interface *intf)
 {
 	struct lan78xx_priv *pdata = NULL;
 	int ret;
 	int i;
+
+	ret = lan78xx_get_endpoints(dev, intf);
 
 	dev->data[0] = (unsigned long)kzalloc(sizeof(*pdata), GFP_KERNEL);
 
@@ -3617,19 +3676,6 @@ static void lan78xx_tx_timeout(struct net_device *net)
 	tasklet_schedule(&dev->bh);
 }
 
-static netdev_features_t lan78xx_features_check(struct sk_buff *skb,
-						struct net_device *netdev,
-						netdev_features_t features)
-{
-	if (skb->len + TX_OVERHEAD > MAX_SINGLE_PACKET_SIZE)
-		features &= ~NETIF_F_GSO_MASK;
-
-	features = vlan_features_check(skb, features);
-	features = vxlan_features_check(skb, features);
-
-	return features;
-}
-
 static const struct net_device_ops lan78xx_netdev_ops = {
 	.ndo_open		= lan78xx_open,
 	.ndo_stop		= lan78xx_stop,
@@ -3643,7 +3689,6 @@ static const struct net_device_ops lan78xx_netdev_ops = {
 	.ndo_set_features	= lan78xx_set_features,
 	.ndo_vlan_rx_add_vid	= lan78xx_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= lan78xx_vlan_rx_kill_vid,
-	.ndo_features_check	= lan78xx_features_check,
 };
 
 static void lan78xx_stat_monitor(struct timer_list *t)
@@ -3656,7 +3701,6 @@ static void lan78xx_stat_monitor(struct timer_list *t)
 static int lan78xx_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
-	struct usb_host_endpoint *ep_blkin, *ep_blkout, *ep_intr;
 	struct lan78xx_net *dev;
 	struct net_device *netdev;
 	struct usb_device *udev;
@@ -3705,34 +3749,6 @@ static int lan78xx_probe(struct usb_interface *intf,
 
 	mutex_init(&dev->stats.access_lock);
 
-	if (intf->cur_altsetting->desc.bNumEndpoints < 3) {
-		ret = -ENODEV;
-		goto out2;
-	}
-
-	dev->pipe_in = usb_rcvbulkpipe(udev, BULK_IN_PIPE);
-	ep_blkin = usb_pipe_endpoint(udev, dev->pipe_in);
-	if (!ep_blkin || !usb_endpoint_is_bulk_in(&ep_blkin->desc)) {
-		ret = -ENODEV;
-		goto out2;
-	}
-
-	dev->pipe_out = usb_sndbulkpipe(udev, BULK_OUT_PIPE);
-	ep_blkout = usb_pipe_endpoint(udev, dev->pipe_out);
-	if (!ep_blkout || !usb_endpoint_is_bulk_out(&ep_blkout->desc)) {
-		ret = -ENODEV;
-		goto out2;
-	}
-
-	ep_intr = &intf->cur_altsetting->endpoint[2];
-	if (!usb_endpoint_is_int_in(&ep_intr->desc)) {
-		ret = -ENODEV;
-		goto out2;
-	}
-
-	dev->pipe_intr = usb_rcvintpipe(dev->udev,
-					usb_endpoint_num(&ep_intr->desc));
-
 	ret = lan78xx_bind(dev, intf);
 	if (ret < 0)
 		goto out2;
@@ -3743,9 +3759,19 @@ static int lan78xx_probe(struct usb_interface *intf,
 
 	/* MTU range: 68 - 9000 */
 	netdev->max_mtu = MAX_SINGLE_PACKET_SIZE;
-	netif_set_gso_max_size(netdev, MAX_SINGLE_PACKET_SIZE - MAX_HEADER);
 
-	period = ep_intr->desc.bInterval;
+	dev->ep_blkin = (intf->cur_altsetting)->endpoint + 0;
+	dev->ep_blkout = (intf->cur_altsetting)->endpoint + 1;
+	dev->ep_intr = (intf->cur_altsetting)->endpoint + 2;
+
+	dev->pipe_in = usb_rcvbulkpipe(udev, BULK_IN_PIPE);
+	dev->pipe_out = usb_sndbulkpipe(udev, BULK_OUT_PIPE);
+
+	dev->pipe_intr = usb_rcvintpipe(dev->udev,
+					dev->ep_intr->desc.bEndpointAddress &
+					USB_ENDPOINT_NUMBER_MASK);
+	period = dev->ep_intr->desc.bInterval;
+
 	maxp = usb_maxpacket(dev->udev, dev->pipe_intr, 0);
 	buf = kmalloc(maxp, GFP_KERNEL);
 	if (buf) {
@@ -3758,7 +3784,6 @@ static int lan78xx_probe(struct usb_interface *intf,
 			usb_fill_int_urb(dev->urb_intr, dev->udev,
 					 dev->pipe_intr, buf, maxp,
 					 intr_complete, dev, period);
-			dev->urb_intr->transfer_flags |= URB_FREE_BUFFER;
 		}
 	}
 
@@ -3767,14 +3792,10 @@ static int lan78xx_probe(struct usb_interface *intf,
 	/* driver requires remote-wakeup capability during autosuspend. */
 	intf->needs_remote_wakeup = 1;
 
-	ret = lan78xx_phy_init(dev);
-	if (ret < 0)
-		goto out4;
-
 	ret = register_netdev(netdev);
 	if (ret != 0) {
 		netif_err(dev, probe, netdev, "couldn't register the device\n");
-		goto out5;
+		goto out3;
 	}
 
 	usb_set_intfdata(intf, dev);
@@ -3787,12 +3808,14 @@ static int lan78xx_probe(struct usb_interface *intf,
 	pm_runtime_set_autosuspend_delay(&udev->dev,
 					 DEFAULT_AUTOSUSPEND_DELAY);
 
+	ret = lan78xx_phy_init(dev);
+	if (ret < 0)
+		goto out4;
+
 	return 0;
 
-out5:
-	phy_disconnect(netdev->phydev);
 out4:
-	usb_free_urb(dev->urb_intr);
+	unregister_netdev(netdev);
 out3:
 	lan78xx_unbind(dev, intf);
 out2:

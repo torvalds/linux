@@ -476,11 +476,6 @@ static void add_switch(struct tb_switch *parent_sw, u64 route,
 		goto out;
 
 	sw->uuid = kmemdup(uuid, sizeof(*uuid), GFP_KERNEL);
-	if (!sw->uuid) {
-		tb_sw_warn(sw, "cannot allocate memory for switch\n");
-		tb_switch_put(sw);
-		goto out;
-	}
 	sw->connection_id = connection_id;
 	sw->connection_key = connection_key;
 	sw->link = link;
@@ -801,11 +796,9 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	 * connected another host to the same port, remove the switch
 	 * first.
 	 */
-	sw = tb_switch_find_by_route(tb, route);
-	if (sw) {
+	sw = get_switch_at_route(tb->root_switch, route);
+	if (sw)
 		remove_switch(sw);
-		tb_switch_put(sw);
-	}
 
 	sw = tb_switch_find_by_link_depth(tb, link, depth);
 	if (!sw) {
@@ -1148,11 +1141,9 @@ icm_tr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	 * connected another host to the same port, remove the switch
 	 * first.
 	 */
-	sw = tb_switch_find_by_route(tb, route);
-	if (sw) {
+	sw = get_switch_at_route(tb->root_switch, route);
+	if (sw)
 		remove_switch(sw);
-		tb_switch_put(sw);
-	}
 
 	sw = tb_switch_find_by_route(tb, get_parent_route(route));
 	if (!sw) {

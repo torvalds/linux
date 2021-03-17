@@ -49,7 +49,7 @@
  * (0 -> msp; 1 -> psp). Bits [1:0] are fixed to 0b01.
  */
 #define EXC_RET_STACK_MASK			0x00000004
-#define EXC_RET_THREADMODE_PROCESSSTACK		(3 << 2)
+#define EXC_RET_THREADMODE_PROCESSSTACK		0xfffffffd
 
 /* Cache related definitions */
 

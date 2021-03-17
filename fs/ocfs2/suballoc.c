@@ -893,9 +893,9 @@ static void __ocfs2_set_steal_slot(struct ocfs2_super *osb, int slot, int type)
 {
 	spin_lock(&osb->osb_lock);
 	if (type == INODE_ALLOC_SYSTEM_INODE)
-		osb->s_inode_steal_slot = (u16)slot;
+		osb->s_inode_steal_slot = slot;
 	else if (type == EXTENT_ALLOC_SYSTEM_INODE)
-		osb->s_meta_steal_slot = (u16)slot;
+		osb->s_meta_steal_slot = slot;
 	spin_unlock(&osb->osb_lock);
 }
 
@@ -2841,12 +2841,9 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 		goto bail;
 	}
 
-	if (suballoc_slot == (u16)OCFS2_INVALID_SLOT)
-		inode_alloc_inode = ocfs2_get_system_file_inode(osb,
-			GLOBAL_INODE_ALLOC_SYSTEM_INODE, suballoc_slot);
-	else
-		inode_alloc_inode = ocfs2_get_system_file_inode(osb,
-			INODE_ALLOC_SYSTEM_INODE, suballoc_slot);
+	inode_alloc_inode =
+		ocfs2_get_system_file_inode(osb, INODE_ALLOC_SYSTEM_INODE,
+					    suballoc_slot);
 	if (!inode_alloc_inode) {
 		/* the error code could be inaccurate, but we are not able to
 		 * get the correct one. */

@@ -259,7 +259,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	if (!timer_pdev) {
 		dev_err(&pdev->dev, "Unable to find Timer pdev\n");
 		ret = -ENODEV;
-		goto err_find_timer_pdev;
+		goto put;
 	}
 
 	timer_pdata = dev_get_platdata(&timer_pdev->dev);
@@ -267,7 +267,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev,
 			 "dmtimer pdata structure NULL, deferring probe\n");
 		ret = -EPROBE_DEFER;
-		goto err_platdata;
+		goto put;
 	}
 
 	pdata = timer_pdata->timer_ops;
@@ -286,25 +286,30 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	    !pdata->write_counter) {
 		dev_err(&pdev->dev, "Incomplete dmtimer pdata structure\n");
 		ret = -EINVAL;
-		goto err_platdata;
+		goto put;
 	}
 
 	if (!of_get_property(timer, "ti,timer-pwm", NULL)) {
 		dev_err(&pdev->dev, "Missing ti,timer-pwm capability\n");
 		ret = -ENODEV;
-		goto err_timer_property;
+		goto put;
 	}
 
 	dm_timer = pdata->request_by_node(timer);
 	if (!dm_timer) {
 		ret = -EPROBE_DEFER;
-		goto err_request_timer;
+		goto put;
 	}
+
+put:
+	of_node_put(timer);
+	if (ret < 0)
+		return ret;
 
 	omap = devm_kzalloc(&pdev->dev, sizeof(*omap), GFP_KERNEL);
 	if (!omap) {
-		ret = -ENOMEM;
-		goto err_alloc_omap;
+		pdata->free(dm_timer);
+		return -ENOMEM;
 	}
 
 	omap->pdata = pdata;
@@ -337,56 +342,27 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	ret = pwmchip_add(&omap->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to register PWM\n");
-		goto err_pwmchip_add;
+		omap->pdata->free(omap->dm_timer);
+		return ret;
 	}
-
-	of_node_put(timer);
 
 	platform_set_drvdata(pdev, omap);
 
 	return 0;
-
-err_pwmchip_add:
-
-	/*
-	 * *omap is allocated using devm_kzalloc,
-	 * so no free necessary here
-	 */
-err_alloc_omap:
-
-	pdata->free(dm_timer);
-err_request_timer:
-
-err_timer_property:
-err_platdata:
-
-	put_device(&timer_pdev->dev);
-err_find_timer_pdev:
-
-	of_node_put(timer);
-
-	return ret;
 }
 
 static int pwm_omap_dmtimer_remove(struct platform_device *pdev)
 {
 	struct pwm_omap_dmtimer_chip *omap = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = pwmchip_remove(&omap->chip);
-	if (ret)
-		return ret;
 
 	if (pm_runtime_active(&omap->dm_timer_pdev->dev))
 		omap->pdata->stop(omap->dm_timer);
 
 	omap->pdata->free(omap->dm_timer);
 
-	put_device(&omap->dm_timer_pdev->dev);
-
 	mutex_destroy(&omap->mutex);
 
-	return 0;
+	return pwmchip_remove(&omap->chip);
 }
 
 static const struct of_device_id pwm_omap_dmtimer_of_match[] = {

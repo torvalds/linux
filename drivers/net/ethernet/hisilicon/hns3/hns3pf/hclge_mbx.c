@@ -181,10 +181,12 @@ static int hclge_map_unmap_ring_to_vf_vector(struct hclge_vport *vport, bool en,
 		return ret;
 
 	ret = hclge_bind_ring_with_vector(vport, vector_id, en, &ring_chain);
+	if (ret)
+		return ret;
 
 	hclge_free_vector_ring_chain(&ring_chain);
 
-	return ret;
+	return 0;
 }
 
 static int hclge_set_vf_promisc_mode(struct hclge_vport *vport,
@@ -456,12 +458,6 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 
 	/* handle all the mailbox requests in the queue */
 	while (!hclge_cmd_crq_empty(&hdev->hw)) {
-		if (test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state)) {
-			dev_warn(&hdev->pdev->dev,
-				 "command queue needs re-initializing\n");
-			return;
-		}
-
 		desc = &crq->desc[crq->next_to_use];
 		req = (struct hclge_mbx_vf_to_pf_cmd *)desc->data;
 

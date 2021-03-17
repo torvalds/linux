@@ -223,7 +223,7 @@ static void esp_output_fill_trailer(u8 *tail, int tfclen, int plen, __u8 proto)
 	tail[plen - 1] = proto;
 }
 
-static int esp_output_udp_encap(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *esp)
+static void esp_output_udp_encap(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *esp)
 {
 	int encap_type;
 	struct udphdr *uh;
@@ -231,7 +231,6 @@ static int esp_output_udp_encap(struct xfrm_state *x, struct sk_buff *skb, struc
 	__be16 sport, dport;
 	struct xfrm_encap_tmpl *encap = x->encap;
 	struct ip_esp_hdr *esph = esp->esph;
-	unsigned int len;
 
 	spin_lock_bh(&x->lock);
 	sport = encap->encap_sport;
@@ -239,14 +238,11 @@ static int esp_output_udp_encap(struct xfrm_state *x, struct sk_buff *skb, struc
 	encap_type = encap->encap_type;
 	spin_unlock_bh(&x->lock);
 
-	len = skb->len + esp->tailen - skb_transport_offset(skb);
-	if (len + sizeof(struct iphdr) >= IP_MAX_MTU)
-		return -EMSGSIZE;
-
 	uh = (struct udphdr *)esph;
 	uh->source = sport;
 	uh->dest = dport;
-	uh->len = htons(len);
+	uh->len = htons(skb->len + esp->tailen
+		  - skb_transport_offset(skb));
 	uh->check = 0;
 
 	switch (encap_type) {
@@ -263,13 +259,12 @@ static int esp_output_udp_encap(struct xfrm_state *x, struct sk_buff *skb, struc
 
 	*skb_mac_header(skb) = IPPROTO_UDP;
 	esp->esph = esph;
-
-	return 0;
 }
 
 int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *esp)
 {
 	u8 *tail;
+	u8 *vaddr;
 	int nfrags;
 	int esph_offset;
 	struct page *page;
@@ -277,12 +272,8 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 	int tailen = esp->tailen;
 
 	/* this is non-NULL only with UDP Encapsulation */
-	if (x->encap) {
-		int err = esp_output_udp_encap(x, skb, esp);
-
-		if (err < 0)
-			return err;
-	}
+	if (x->encap)
+		esp_output_udp_encap(x, skb, esp);
 
 	if (!skb_cloned(skb)) {
 		if (tailen <= skb_tailroom(skb)) {
@@ -311,9 +302,13 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 			page = pfrag->page;
 			get_page(page);
 
-			tail = page_address(page) + pfrag->offset;
+			vaddr = kmap_atomic(page);
+
+			tail = vaddr + pfrag->offset;
 
 			esp_output_fill_trailer(tail, esp->tfclen, esp->plen, esp->proto);
+
+			kunmap_atomic(vaddr);
 
 			nfrags = skb_shinfo(skb)->nr_frags;
 
@@ -330,7 +325,7 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 			skb->len += tailen;
 			skb->data_len += tailen;
 			skb->truesize += tailen;
-			if (sk && sk_fullsock(sk))
+			if (sk)
 				refcount_add(tailen, &sk->sk_wmem_alloc);
 
 			goto out;

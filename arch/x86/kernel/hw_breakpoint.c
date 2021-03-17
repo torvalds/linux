@@ -357,7 +357,6 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 #endif
 	default:
 		WARN_ON_ONCE(1);
-		return -EINVAL;
 	}
 
 	/*

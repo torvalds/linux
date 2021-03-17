@@ -19,7 +19,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -36,13 +35,10 @@
 #define CHT_PLAT_CLK_3_HZ	19200000
 #define CHT_CODEC_DAI	"HiFi"
 
-#define QUIRK_PMC_PLT_CLK_0				0x01
-
 struct cht_mc_private {
 	struct clk *mclk;
 	struct snd_soc_jack jack;
 	bool ts3a227e_present;
-	int quirks;
 };
 
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
@@ -53,10 +49,6 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dai *codec_dai;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(card);
 	int ret;
-
-	/* See the comment in snd_cht_mc_probe() */
-	if (ctx->quirks & QUIRK_PMC_PLT_CLK_0)
-		return 0;
 
 	codec_dai = snd_soc_card_get_codec_dai(card, CHT_CODEC_DAI);
 	if (!codec_dai) {
@@ -227,10 +219,6 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 			"jack detection gpios not added, error %d\n", ret);
 	}
 
-	/* See the comment in snd_cht_mc_probe() */
-	if (ctx->quirks & QUIRK_PMC_PLT_CLK_0)
-		return 0;
-
 	/*
 	 * The firmware might enable the clock at
 	 * boot (this information may or may not
@@ -397,46 +385,15 @@ static struct snd_soc_card snd_soc_card_cht = {
 	.num_controls = ARRAY_SIZE(cht_mc_controls),
 };
 
-static const struct dmi_system_id cht_max98090_quirk_table[] = {
-	{
-		/* Clapper model Chromebook */
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Clapper"),
-		},
-		.driver_data = (void *)QUIRK_PMC_PLT_CLK_0,
-	},
-	{
-		/* Gnawty model Chromebook (Acer Chromebook CB3-111) */
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Gnawty"),
-		},
-		.driver_data = (void *)QUIRK_PMC_PLT_CLK_0,
-	},
-	{
-		/* Swanky model Chromebook (Toshiba Chromebook 2) */
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Swanky"),
-		},
-		.driver_data = (void *)QUIRK_PMC_PLT_CLK_0,
-	},
-	{}
-};
-
 static int snd_cht_mc_probe(struct platform_device *pdev)
 {
-	const struct dmi_system_id *dmi_id;
 	struct device *dev = &pdev->dev;
 	int ret_val = 0;
 	struct cht_mc_private *drv;
-	const char *mclk_name;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
-
-	dmi_id = dmi_first_match(cht_max98090_quirk_table);
-	if (dmi_id)
-		drv->quirks = (unsigned long)dmi_id->driver_data;
 
 	drv->ts3a227e_present = acpi_dev_found("104C227E");
 	if (!drv->ts3a227e_present) {
@@ -454,32 +411,12 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	snd_soc_card_cht.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&snd_soc_card_cht, drv);
 
-	if (drv->quirks & QUIRK_PMC_PLT_CLK_0)
-		mclk_name = "pmc_plt_clk_0";
-	else
-		mclk_name = "pmc_plt_clk_3";
-
-	drv->mclk = devm_clk_get(&pdev->dev, mclk_name);
+	drv->mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
 	if (IS_ERR(drv->mclk)) {
 		dev_err(&pdev->dev,
-			"Failed to get MCLK from %s: %ld\n",
-			mclk_name, PTR_ERR(drv->mclk));
+			"Failed to get MCLK from pmc_plt_clk_3: %ld\n",
+			PTR_ERR(drv->mclk));
 		return PTR_ERR(drv->mclk);
-	}
-
-	/*
-	 * Boards which have the MAX98090's clk connected to clk_0 do not seem
-	 * to like it if we muck with the clock. If we disable the clock when
-	 * it is unused we get "max98090 i2c-193C9890:00: PLL unlocked" errors
-	 * and the PLL never seems to lock again.
-	 * So for these boards we enable it here once and leave it at that.
-	 */
-	if (drv->quirks & QUIRK_PMC_PLT_CLK_0) {
-		ret_val = clk_prepare_enable(drv->mclk);
-		if (ret_val < 0) {
-			dev_err(&pdev->dev, "MCLK enable error: %d\n", ret_val);
-			return ret_val;
-		}
 	}
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_cht);
@@ -492,23 +429,11 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	return ret_val;
 }
 
-static int snd_cht_mc_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(card);
-
-	if (ctx->quirks & QUIRK_PMC_PLT_CLK_0)
-		clk_disable_unprepare(ctx->mclk);
-
-	return 0;
-}
-
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
 		.name = "cht-bsw-max98090",
 	},
 	.probe = snd_cht_mc_probe,
-	.remove = snd_cht_mc_remove,
 };
 
 module_platform_driver(snd_cht_mc_driver)

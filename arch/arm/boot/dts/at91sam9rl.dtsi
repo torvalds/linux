@@ -277,26 +277,23 @@
 				atmel,adc-use-res = "highres";
 
 				trigger0 {
-					trigger-name = "external-rising";
+					trigger-name = "timer-counter-0";
 					trigger-value = <0x1>;
-					trigger-external;
 				};
-
 				trigger1 {
-					trigger-name = "external-falling";
-					trigger-value = <0x2>;
-					trigger-external;
+					trigger-name = "timer-counter-1";
+					trigger-value = <0x3>;
 				};
 
 				trigger2 {
-					trigger-name = "external-any";
-					trigger-value = <0x3>;
-					trigger-external;
+					trigger-name = "timer-counter-2";
+					trigger-value = <0x5>;
 				};
 
 				trigger3 {
-					trigger-name = "continuous";
-					trigger-value = <0x6>;
+					trigger-name = "external";
+					trigger-value = <0x13>;
+					trigger-external;
 				};
 			};
 
@@ -684,7 +681,7 @@
 				usart0 {
 					pinctrl_usart0: usart0-0 {
 						atmel,pins =
-							<AT91_PIOA 6 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
+							<AT91_PIOA 6 AT91_PERIPH_A AT91_PINCTRL_NONE>,
 							<AT91_PIOA 7 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
@@ -723,7 +720,7 @@
 				usart1 {
 					pinctrl_usart1: usart1-0 {
 						atmel,pins =
-							<AT91_PIOA 11 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
+							<AT91_PIOA 11 AT91_PERIPH_A AT91_PINCTRL_NONE>,
 							<AT91_PIOA 12 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
@@ -746,7 +743,7 @@
 				usart2 {
 					pinctrl_usart2: usart2-0 {
 						atmel,pins =
-							<AT91_PIOA 13 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
+							<AT91_PIOA 13 AT91_PERIPH_A AT91_PINCTRL_NONE>,
 							<AT91_PIOA 14 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
@@ -769,7 +766,7 @@
 				usart3 {
 					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<AT91_PIOB 0 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
+							<AT91_PIOB 0 AT91_PERIPH_A AT91_PINCTRL_NONE>,
 							<AT91_PIOB 1 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 

@@ -63,7 +63,8 @@ config PVR2_DMA
 
 config G2_DMA
 	tristate "G2 Bus DMA support"
-	depends on SH_DREAMCAST && SH_DMA_API
+	depends on SH_DREAMCAST
+	select SH_DMA_API
 	help
 	  This enables support for the DMA controller for the Dreamcast's
 	  G2 bus. Drivers that want this will generally enable this on

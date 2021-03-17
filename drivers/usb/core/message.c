@@ -588,13 +588,12 @@ void usb_sg_cancel(struct usb_sg_request *io)
 	int i, retval;
 
 	spin_lock_irqsave(&io->lock, flags);
-	if (io->status || io->count == 0) {
+	if (io->status) {
 		spin_unlock_irqrestore(&io->lock, flags);
 		return;
 	}
 	/* shut everything down */
 	io->status = -ECONNRESET;
-	io->count++;		/* Keep the request alive until we're done */
 	spin_unlock_irqrestore(&io->lock, flags);
 
 	for (i = io->entries - 1; i >= 0; --i) {
@@ -608,12 +607,6 @@ void usb_sg_cancel(struct usb_sg_request *io)
 			dev_warn(&io->dev->dev, "%s, unlink --> %d\n",
 				 __func__, retval);
 	}
-
-	spin_lock_irqsave(&io->lock, flags);
-	io->count--;
-	if (!io->count)
-		complete(&io->complete);
-	spin_unlock_irqrestore(&io->lock, flags);
 }
 EXPORT_SYMBOL_GPL(usb_sg_cancel);
 
@@ -827,11 +820,9 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
-	if (size <= 0 || !buf)
+	if (size <= 0 || !buf || !index)
 		return -EINVAL;
 	buf[0] = 0;
-	if (index <= 0 || index >= 256)
-		return -EINVAL;
 	tbuf = kmalloc(256, GFP_NOIO);
 	if (!tbuf)
 		return -ENOMEM;
@@ -1143,11 +1134,11 @@ void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr,
 
 	if (usb_endpoint_out(epaddr)) {
 		ep = dev->ep_out[epnum];
-		if (reset_hardware && epnum != 0)
+		if (reset_hardware)
 			dev->ep_out[epnum] = NULL;
 	} else {
 		ep = dev->ep_in[epnum];
-		if (reset_hardware && epnum != 0)
+		if (reset_hardware)
 			dev->ep_in[epnum] = NULL;
 	}
 	if (ep) {
@@ -1204,34 +1195,6 @@ void usb_disable_interface(struct usb_device *dev, struct usb_interface *intf,
 	}
 }
 
-/*
- * usb_disable_device_endpoints -- Disable all endpoints for a device
- * @dev: the device whose endpoints are being disabled
- * @skip_ep0: 0 to disable endpoint 0, 1 to skip it.
- */
-static void usb_disable_device_endpoints(struct usb_device *dev, int skip_ep0)
-{
-	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
-	int i;
-
-	if (hcd->driver->check_bandwidth) {
-		/* First pass: Cancel URBs, leave endpoint pointers intact. */
-		for (i = skip_ep0; i < 16; ++i) {
-			usb_disable_endpoint(dev, i, false);
-			usb_disable_endpoint(dev, i + USB_DIR_IN, false);
-		}
-		/* Remove endpoints from the host controller internal state */
-		mutex_lock(hcd->bandwidth_mutex);
-		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
-		mutex_unlock(hcd->bandwidth_mutex);
-	}
-	/* Second pass: remove endpoint pointers */
-	for (i = skip_ep0; i < 16; ++i) {
-		usb_disable_endpoint(dev, i, true);
-		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
-	}
-}
-
 /**
  * usb_disable_device - Disable all the endpoints for a USB device
  * @dev: the device whose endpoints are being disabled
@@ -1244,7 +1207,7 @@ static void usb_disable_device_endpoints(struct usb_device *dev, int skip_ep0)
  */
 void usb_disable_device(struct usb_device *dev, int skip_ep0)
 {
-	int i, j;
+	int i;
 	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
 
 	/* getting rid of interfaces will disconnect
@@ -1269,27 +1232,6 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			dev_dbg(&dev->dev, "unregistering interface %s\n",
 				dev_name(&interface->dev));
 			remove_intf_ep_devs(interface);
-
-			/*
-			 * Some special SoCs (e.g. rk322xh) USB 3.0 module
-			 * can't handle outstanding URBs by hardware when
-			 * when USB 3.0 device disconnect, so we need to
-			 * cancel all URBs pending on this device here.
-			 *
-			 * In addition, we just reuse the hub autosuspend
-			 * quirk but not add a new quirk for this issue.
-			 * Because it always occurs with autosuspend issue.
-			 */
-			if (hcd->self.root_hub->quirks &
-			    USB_QUIRK_AUTO_SUSPEND) {
-				for (j = skip_ep0; j < 16; ++j) {
-					usb_hcd_flush_endpoint(dev,
-							       dev->ep_out[j]);
-					usb_hcd_flush_endpoint(dev,
-							       dev->ep_in[j]);
-				}
-			}
-
 			device_del(&interface->dev);
 		}
 
@@ -1301,7 +1243,8 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			dev->actconfig->interface[i] = NULL;
 		}
 
-		usb_disable_usb2_hardware_lpm(dev);
+		if (dev->usb2_hw_lpm_enabled == 1)
+			usb_set_usb2_hardware_lpm(dev, 0);
 		usb_unlocked_disable_lpm(dev);
 		usb_disable_ltm(dev);
 
@@ -1312,8 +1255,22 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 
 	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __func__,
 		skip_ep0 ? "non-ep0" : "all");
-
-	usb_disable_device_endpoints(dev, skip_ep0);
+	if (hcd->driver->check_bandwidth) {
+		/* First pass: Cancel URBs, leave endpoint pointers intact. */
+		for (i = skip_ep0; i < 16; ++i) {
+			usb_disable_endpoint(dev, i, false);
+			usb_disable_endpoint(dev, i + USB_DIR_IN, false);
+		}
+		/* Remove endpoints from the host controller internal state */
+		mutex_lock(hcd->bandwidth_mutex);
+		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
+		mutex_unlock(hcd->bandwidth_mutex);
+		/* Second pass: remove endpoint pointers */
+	}
+	for (i = skip_ep0; i < 16; ++i) {
+		usb_disable_endpoint(dev, i, true);
+		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
+	}
 }
 
 /**
@@ -1556,9 +1513,6 @@ EXPORT_SYMBOL_GPL(usb_set_interface);
  * The caller must own the device lock.
  *
  * Return: Zero on success, else a negative error code.
- *
- * If this routine fails the device will probably be in an unusable state
- * with endpoints disabled, and interfaces only partially enabled.
  */
 int usb_reset_configuration(struct usb_device *dev)
 {
@@ -1574,7 +1528,10 @@ int usb_reset_configuration(struct usb_device *dev)
 	 * calls during probe() are fine
 	 */
 
-	usb_disable_device_endpoints(dev, 1); /* skip ep0*/
+	for (i = 1; i < 16; ++i) {
+		usb_disable_endpoint(dev, i, true);
+		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
+	}
 
 	config = dev->actconfig;
 	retval = 0;
@@ -1587,10 +1544,34 @@ int usb_reset_configuration(struct usb_device *dev)
 		mutex_unlock(hcd->bandwidth_mutex);
 		return -ENOMEM;
 	}
+	/* Make sure we have enough bandwidth for each alternate setting 0 */
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+		struct usb_interface *intf = config->interface[i];
+		struct usb_host_interface *alt;
 
-	/* xHCI adds all endpoints in usb_hcd_alloc_bandwidth */
-	retval = usb_hcd_alloc_bandwidth(dev, config, NULL, NULL);
+		alt = usb_altnum_to_altsetting(intf, 0);
+		if (!alt)
+			alt = &intf->altsetting[0];
+		if (alt != intf->cur_altsetting)
+			retval = usb_hcd_alloc_bandwidth(dev, NULL,
+					intf->cur_altsetting, alt);
+		if (retval < 0)
+			break;
+	}
+	/* If not, reinstate the old alternate settings */
 	if (retval < 0) {
+reset_old_alts:
+		for (i--; i >= 0; i--) {
+			struct usb_interface *intf = config->interface[i];
+			struct usb_host_interface *alt;
+
+			alt = usb_altnum_to_altsetting(intf, 0);
+			if (!alt)
+				alt = &intf->altsetting[0];
+			if (alt != intf->cur_altsetting)
+				usb_hcd_alloc_bandwidth(dev, NULL,
+						alt, intf->cur_altsetting);
+		}
 		usb_enable_lpm(dev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		return retval;
@@ -1599,12 +1580,8 @@ int usb_reset_configuration(struct usb_device *dev)
 			USB_REQ_SET_CONFIGURATION, 0,
 			config->desc.bConfigurationValue, 0,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
-	if (retval < 0) {
-		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
-		usb_enable_lpm(dev);
-		mutex_unlock(hcd->bandwidth_mutex);
-		return retval;
-	}
+	if (retval < 0)
+		goto reset_old_alts;
 	mutex_unlock(hcd->bandwidth_mutex);
 
 	/* re-init hc/hcd interface/endpoint state */
@@ -2233,14 +2210,14 @@ int cdc_parse_cdc_header(struct usb_cdc_parsed_header *hdr,
 				(struct usb_cdc_dmm_desc *)buffer;
 			break;
 		case USB_CDC_MDLM_TYPE:
-			if (elength < sizeof(struct usb_cdc_mdlm_desc))
+			if (elength < sizeof(struct usb_cdc_mdlm_desc *))
 				goto next_desc;
 			if (desc)
 				return -EINVAL;
 			desc = (struct usb_cdc_mdlm_desc *)buffer;
 			break;
 		case USB_CDC_MDLM_DETAIL_TYPE:
-			if (elength < sizeof(struct usb_cdc_mdlm_detail_desc))
+			if (elength < sizeof(struct usb_cdc_mdlm_detail_desc *))
 				goto next_desc;
 			if (detail)
 				return -EINVAL;

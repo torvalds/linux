@@ -292,10 +292,8 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 		goto error;
 
 	mc_adev = resource->data;
-	if (!mc_adev) {
-		error = -EINVAL;
+	if (!mc_adev)
 		goto error;
-	}
 
 	*new_mc_adev = mc_adev;
 	return 0;

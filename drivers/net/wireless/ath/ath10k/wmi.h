@@ -6642,17 +6642,11 @@ struct wmi_ch_info_ev_arg {
 	__le32 rx_frame_count;
 };
 
-/* From 10.4 firmware, not sure all have the same values. */
-enum wmi_vdev_start_status {
-	WMI_VDEV_START_OK = 0,
-	WMI_VDEV_START_CHAN_INVALID,
-};
-
 struct wmi_vdev_start_ev_arg {
 	__le32 vdev_id;
 	__le32 req_id;
 	__le32 resp_type; /* %WMI_VDEV_RESP_ */
-	__le32 status; /* See wmi_vdev_start_status enum above */
+	__le32 status;
 };
 
 struct wmi_peer_kick_ev_arg {
@@ -6710,7 +6704,6 @@ struct wmi_svc_rdy_ev_arg {
 };
 
 struct wmi_svc_avail_ev_arg {
-	bool service_map_ext_valid;
 	__le32 service_map_ext_len;
 	const __le32 *service_map_ext;
 };

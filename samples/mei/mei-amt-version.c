@@ -117,7 +117,7 @@ static bool mei_init(struct mei *me, const uuid_le *guid,
 
 	me->verbose = verbose;
 
-	me->fd = open("/dev/mei0", O_RDWR);
+	me->fd = open("/dev/mei", O_RDWR);
 	if (me->fd == -1) {
 		mei_err(me, "Cannot establish a handle to the Intel MEI driver\n");
 		goto err;
@@ -370,7 +370,7 @@ static uint32_t amt_host_if_call(struct amt_host_if *acmd,
 			unsigned int expected_sz)
 {
 	uint32_t in_buf_sz;
-	ssize_t out_buf_sz;
+	uint32_t out_buf_sz;
 	ssize_t written;
 	uint32_t status;
 	struct amt_host_if_resp_header *msg_hdr;

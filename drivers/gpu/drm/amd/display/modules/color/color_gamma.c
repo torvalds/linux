@@ -1069,13 +1069,9 @@ static void build_evenly_distributed_points(
 	struct dividers dividers)
 {
 	struct gamma_pixel *p = points;
-	struct gamma_pixel *p_last;
+	struct gamma_pixel *p_last = p + numberof_points - 1;
 
 	uint32_t i = 0;
-
-	// This function should not gets called with 0 as a parameter
-	ASSERT(numberof_points > 0);
-	p_last = p + numberof_points - 1;
 
 	do {
 		struct fixed31_32 value = dc_fixpt_from_fraction(i,
@@ -1087,7 +1083,7 @@ static void build_evenly_distributed_points(
 
 		++p;
 		++i;
-	} while (i < numberof_points);
+	} while (i != numberof_points);
 
 	p->r = dc_fixpt_div(p_last->r, dividers.divider1);
 	p->g = dc_fixpt_div(p_last->g, dividers.divider1);
@@ -1561,7 +1557,7 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 
 	kfree(rgb_regamma);
 rgb_regamma_alloc_fail:
-	kfree(rgb_user);
+	kvfree(rgb_user);
 rgb_user_alloc_fail:
 	return ret;
 }

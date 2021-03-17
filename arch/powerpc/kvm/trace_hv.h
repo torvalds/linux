@@ -9,6 +9,8 @@
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm_hv
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace_hv
 
 #define kvm_trace_symbol_hcall \
 	{H_REMOVE,			"H_REMOVE"}, \
@@ -495,11 +497,4 @@ TRACE_EVENT(kvmppc_run_vcpu_exit,
 #endif /* _TRACE_KVM_HV_H */
 
 /* This part must be outside protection */
-
-#undef TRACE_INCLUDE_PATH
-#undef TRACE_INCLUDE_FILE
-
-#define TRACE_INCLUDE_PATH .
-#define TRACE_INCLUDE_FILE trace_hv
-
 #include <trace/define_trace.h>

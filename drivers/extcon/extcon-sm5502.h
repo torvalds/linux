@@ -241,8 +241,6 @@ enum sm5502_reg {
 #define DM_DP_SWITCH_UART			((DM_DP_CON_SWITCH_UART <<SM5502_REG_MANUAL_SW1_DP_SHIFT) \
 						| (DM_DP_CON_SWITCH_UART <<SM5502_REG_MANUAL_SW1_DM_SHIFT))
 
-#define SM5502_REG_RESET_MASK			(0x1)
-
 /* SM5502 Interrupts */
 enum sm5502_irq {
 	/* INT1 */

@@ -190,16 +190,14 @@ int cdns_pcie_init_phy(struct device *dev, struct cdns_pcie *pcie)
 
 	for (i = 0; i < phy_count; i++) {
 		of_property_read_string_index(np, "phy-names", i, &name);
-		phy[i] = devm_phy_get(dev, name);
-		if (IS_ERR(phy[i])) {
-			ret = PTR_ERR(phy[i]);
-			goto err_phy;
-		}
+		phy[i] = devm_phy_optional_get(dev, name);
+		if (IS_ERR(phy))
+			return PTR_ERR(phy);
+
 		link[i] = device_link_add(dev, &phy[i]->dev, DL_FLAG_STATELESS);
 		if (!link[i]) {
-			devm_phy_put(dev, phy[i]);
 			ret = -EINVAL;
-			goto err_phy;
+			goto err_link;
 		}
 	}
 
@@ -209,15 +207,13 @@ int cdns_pcie_init_phy(struct device *dev, struct cdns_pcie *pcie)
 
 	ret =  cdns_pcie_enable_phy(pcie);
 	if (ret)
-		goto err_phy;
+		goto err_link;
 
 	return 0;
 
-err_phy:
-	while (--i >= 0) {
+err_link:
+	while (--i >= 0)
 		device_link_del(link[i]);
-		devm_phy_put(dev, phy[i]);
-	}
 
 	return ret;
 }

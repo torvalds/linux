@@ -99,7 +99,6 @@ struct z3fold_header {
 #define NCHUNKS		((PAGE_SIZE - ZHDR_SIZE_ALIGNED) >> CHUNK_SHIFT)
 
 #define BUDDY_MASK	(0x3)
-#define BUDDY_SHIFT	2
 
 /**
  * struct z3fold_pool - stores metadata for each z3fold pool
@@ -146,7 +145,7 @@ enum z3fold_page_flags {
 	MIDDLE_CHUNK_MAPPED,
 	NEEDS_COMPACTING,
 	PAGE_STALE,
-	PAGE_CLAIMED, /* by either reclaim or free */
+	UNDER_RECLAIM
 };
 
 /*****************
@@ -175,7 +174,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
 	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
 	clear_bit(NEEDS_COMPACTING, &page->private);
 	clear_bit(PAGE_STALE, &page->private);
-	clear_bit(PAGE_CLAIMED, &page->private);
+	clear_bit(UNDER_RECLAIM, &page->private);
 
 	spin_lock_init(&zhdr->page_lock);
 	kref_init(&zhdr->refcount);
@@ -224,11 +223,8 @@ static unsigned long encode_handle(struct z3fold_header *zhdr, enum buddy bud)
 	unsigned long handle;
 
 	handle = (unsigned long)zhdr;
-	if (bud != HEADLESS) {
-		handle |= (bud + zhdr->first_num) & BUDDY_MASK;
-		if (bud == LAST)
-			handle |= (zhdr->last_chunks << BUDDY_SHIFT);
-	}
+	if (bud != HEADLESS)
+		handle += (bud + zhdr->first_num) & BUDDY_MASK;
 	return handle;
 }
 
@@ -236,12 +232,6 @@ static unsigned long encode_handle(struct z3fold_header *zhdr, enum buddy bud)
 static struct z3fold_header *handle_to_z3fold_header(unsigned long handle)
 {
 	return (struct z3fold_header *)(handle & PAGE_MASK);
-}
-
-/* only for LAST bud, returns zero otherwise */
-static unsigned short handle_to_chunks(unsigned long handle)
-{
-	return (handle & ~PAGE_MASK) >> BUDDY_SHIFT;
 }
 
 /*
@@ -730,39 +720,37 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 	page = virt_to_page(zhdr);
 
 	if (test_bit(PAGE_HEADLESS, &page->private)) {
-		/* if a headless page is under reclaim, just leave.
-		 * NB: we use test_and_set_bit for a reason: if the bit
-		 * has not been set before, we release this page
-		 * immediately so we don't care about its value any more.
-		 */
-		if (!test_and_set_bit(PAGE_CLAIMED, &page->private)) {
-			spin_lock(&pool->lock);
-			list_del(&page->lru);
-			spin_unlock(&pool->lock);
-			free_z3fold_page(page);
-			atomic64_dec(&pool->pages_nr);
+		/* HEADLESS page stored */
+		bud = HEADLESS;
+	} else {
+		z3fold_page_lock(zhdr);
+		bud = handle_to_buddy(handle);
+
+		switch (bud) {
+		case FIRST:
+			zhdr->first_chunks = 0;
+			break;
+		case MIDDLE:
+			zhdr->middle_chunks = 0;
+			zhdr->start_middle = 0;
+			break;
+		case LAST:
+			zhdr->last_chunks = 0;
+			break;
+		default:
+			pr_err("%s: unknown bud %d\n", __func__, bud);
+			WARN_ON(1);
+			z3fold_page_unlock(zhdr);
+			return;
 		}
-		return;
 	}
 
-	/* Non-headless case */
-	z3fold_page_lock(zhdr);
-	bud = handle_to_buddy(handle);
-
-	switch (bud) {
-	case FIRST:
-		zhdr->first_chunks = 0;
-		break;
-	case MIDDLE:
-		zhdr->middle_chunks = 0;
-		break;
-	case LAST:
-		zhdr->last_chunks = 0;
-		break;
-	default:
-		pr_err("%s: unknown bud %d\n", __func__, bud);
-		WARN_ON(1);
-		z3fold_page_unlock(zhdr);
+	if (bud == HEADLESS) {
+		spin_lock(&pool->lock);
+		list_del(&page->lru);
+		spin_unlock(&pool->lock);
+		free_z3fold_page(page);
+		atomic64_dec(&pool->pages_nr);
 		return;
 	}
 
@@ -770,7 +758,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		atomic64_dec(&pool->pages_nr);
 		return;
 	}
-	if (test_bit(PAGE_CLAIMED, &page->private)) {
+	if (test_bit(UNDER_RECLAIM, &page->private)) {
 		z3fold_page_unlock(zhdr);
 		return;
 	}
@@ -848,29 +836,19 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
 		}
 		list_for_each_prev(pos, &pool->lru) {
 			page = list_entry(pos, struct page, lru);
-
-			/* this bit could have been set by free, in which case
-			 * we pass over to the next page in the pool.
-			 */
-			if (test_and_set_bit(PAGE_CLAIMED, &page->private))
-				continue;
-
-			zhdr = page_address(page);
 			if (test_bit(PAGE_HEADLESS, &page->private))
+				/* candidate found */
 				break;
 
-			if (!z3fold_page_trylock(zhdr)) {
-				zhdr = NULL;
+			zhdr = page_address(page);
+			if (!z3fold_page_trylock(zhdr))
 				continue; /* can't evict at this point */
-			}
 			kref_get(&zhdr->refcount);
 			list_del_init(&zhdr->buddy);
 			zhdr->cpu = -1;
+			set_bit(UNDER_RECLAIM, &page->private);
 			break;
 		}
-
-		if (!zhdr)
-			break;
 
 		list_del_init(&page->lru);
 		spin_unlock(&pool->lock);
@@ -920,7 +898,6 @@ next:
 		if (test_bit(PAGE_HEADLESS, &page->private)) {
 			if (ret == 0) {
 				free_z3fold_page(page);
-				atomic64_dec(&pool->pages_nr);
 				return 0;
 			}
 			spin_lock(&pool->lock);
@@ -928,7 +905,7 @@ next:
 			spin_unlock(&pool->lock);
 		} else {
 			z3fold_page_lock(zhdr);
-			clear_bit(PAGE_CLAIMED, &page->private);
+			clear_bit(UNDER_RECLAIM, &page->private);
 			if (kref_put(&zhdr->refcount,
 					release_z3fold_page_locked)) {
 				atomic64_dec(&pool->pages_nr);
@@ -987,7 +964,7 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
 		set_bit(MIDDLE_CHUNK_MAPPED, &page->private);
 		break;
 	case LAST:
-		addr += PAGE_SIZE - (handle_to_chunks(handle) << CHUNK_SHIFT);
+		addr += PAGE_SIZE - (zhdr->last_chunks << CHUNK_SHIFT);
 		break;
 	default:
 		pr_err("unknown buddy id %d\n", buddy);

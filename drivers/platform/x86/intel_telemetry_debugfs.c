@@ -320,7 +320,7 @@ static struct telemetry_debugfs_conf telem_apl_debugfs_conf = {
 
 static const struct x86_cpu_id telemetry_debugfs_cpu_ids[] = {
 	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GOLDMONT, telem_apl_debugfs_conf),
-	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GOLDMONT_PLUS, telem_apl_debugfs_conf),
+	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GEMINI_LAKE, telem_apl_debugfs_conf),
 	{}
 };
 
@@ -951,16 +951,12 @@ static int __init telemetry_debugfs_init(void)
 	debugfs_conf = (struct telemetry_debugfs_conf *)id->driver_data;
 
 	err = telemetry_pltconfig_valid();
-	if (err < 0) {
-		pr_info("Invalid pltconfig, ensure IPC1 device is enabled in BIOS\n");
+	if (err < 0)
 		return -ENODEV;
-	}
 
 	err = telemetry_debugfs_check_evts();
-	if (err < 0) {
-		pr_info("telemetry_debugfs_check_evts failed\n");
+	if (err < 0)
 		return -EINVAL;
-	}
 
 	register_pm_notifier(&pm_notifier);
 

@@ -46,10 +46,8 @@
 #define PSR_I_BIT	0x00000080
 #define PSR_A_BIT	0x00000100
 #define PSR_D_BIT	0x00000200
-#define PSR_SSBS_BIT	0x00001000
 #define PSR_PAN_BIT	0x00400000
 #define PSR_UAO_BIT	0x00800000
-#define PSR_DIT_BIT	0x01000000
 #define PSR_V_BIT	0x10000000
 #define PSR_C_BIT	0x20000000
 #define PSR_Z_BIT	0x40000000
@@ -65,6 +63,8 @@
 
 
 #ifndef __ASSEMBLY__
+
+#include <linux/prctl.h>
 
 /*
  * User structures for general purpose, floating point and debug registers.
@@ -112,10 +112,10 @@ struct user_sve_header {
 
 /*
  * Common SVE_PT_* flags:
- * These must be kept in sync with prctl interface in <linux/prctl.h>
+ * These must be kept in sync with prctl interface in <linux/ptrace.h>
  */
-#define SVE_PT_VL_INHERIT		((1 << 17) /* PR_SVE_VL_INHERIT */ >> 16)
-#define SVE_PT_VL_ONEXEC		((1 << 18) /* PR_SVE_SET_VL_ONEXEC */ >> 16)
+#define SVE_PT_VL_INHERIT		(PR_SVE_VL_INHERIT >> 16)
+#define SVE_PT_VL_ONEXEC		(PR_SVE_SET_VL_ONEXEC >> 16)
 
 
 /*
@@ -130,7 +130,7 @@ struct user_sve_header {
 
 /* Offset from the start of struct user_sve_header to the register data */
 #define SVE_PT_REGS_OFFSET					\
-	((sizeof(struct user_sve_header) + (SVE_VQ_BYTES - 1))	\
+	((sizeof(struct sve_context) + (SVE_VQ_BYTES - 1))	\
 		/ SVE_VQ_BYTES * SVE_VQ_BYTES)
 
 /*

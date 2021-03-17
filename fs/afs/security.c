@@ -87,9 +87,11 @@ void afs_clear_permits(struct afs_vnode *vnode)
 	permits = rcu_dereference_protected(vnode->permit_cache,
 					    lockdep_is_held(&vnode->lock));
 	RCU_INIT_POINTER(vnode->permit_cache, NULL);
+	vnode->cb_break++;
 	spin_unlock(&vnode->lock);
 
-	afs_put_permits(permits);
+	if (permits)
+		afs_put_permits(permits);
 }
 
 /*

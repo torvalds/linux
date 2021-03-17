@@ -46,7 +46,7 @@ out:
 
 int dwc3_host_init(struct dwc3 *dwc)
 {
-	struct property_entry	props[7];
+	struct property_entry	props[3];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	struct resource		*res;
@@ -93,17 +93,6 @@ int dwc3_host_init(struct dwc3 *dwc)
 	if (dwc->usb3_lpm_capable)
 		props[prop_idx++].name = "usb3-lpm-capable";
 
-	if (dwc->xhci_slow_suspend_quirk)
-		props[prop_idx++].name = "xhci-slow-suspend";
-
-	if (dwc->xhci_trb_ent_quirk)
-		props[prop_idx++].name = "xhci-trb-ent-quirk";
-
-	if (dwc->usb2_lpm_disable)
-		props[prop_idx++].name = "usb2-lpm-disable";
-
-	if (dwc->dis_u3_autosuspend_quirk)
-		props[prop_idx++].name = "usb3-dis-autosuspend";
 	/**
 	 * WORKAROUND: dwc3 revisions <=3.00a have a limitation
 	 * where Port Disable command doesn't work.
@@ -115,9 +104,6 @@ int dwc3_host_init(struct dwc3 *dwc)
 	 */
 	if (dwc->revision <= DWC3_REVISION_300A)
 		props[prop_idx++].name = "quirk-broken-port-ped";
-
-	if (dwc->xhci_warm_reset_on_suspend_quirk)
-		props[prop_idx++].name = "xhci-warm-reset-on-suspend";
 
 	if (prop_idx) {
 		ret = platform_device_add_properties(xhci, props);
@@ -148,7 +134,6 @@ err1:
 	platform_device_put(xhci);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dwc3_host_init);
 
 void dwc3_host_exit(struct dwc3 *dwc)
 {
@@ -158,4 +143,3 @@ void dwc3_host_exit(struct dwc3 *dwc)
 			  dev_name(dwc->dev));
 	platform_device_unregister(dwc->xhci);
 }
-EXPORT_SYMBOL_GPL(dwc3_host_exit);

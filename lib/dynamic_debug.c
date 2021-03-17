@@ -85,22 +85,22 @@ static struct { unsigned flag:8; char opt_char; } opt_array[] = {
 	{ _DPRINTK_FLAGS_NONE, '_' },
 };
 
-struct flagsbuf { char buf[ARRAY_SIZE(opt_array)+1]; };
-
 /* format a string into buf[] which describes the _ddebug's flags */
-static char *ddebug_describe_flags(unsigned int flags, struct flagsbuf *fb)
+static char *ddebug_describe_flags(struct _ddebug *dp, char *buf,
+				    size_t maxlen)
 {
-	char *p = fb->buf;
+	char *p = buf;
 	int i;
 
+	BUG_ON(maxlen < 6);
 	for (i = 0; i < ARRAY_SIZE(opt_array); ++i)
-		if (flags & opt_array[i].flag)
+		if (dp->flags & opt_array[i].flag)
 			*p++ = opt_array[i].opt_char;
-	if (p == fb->buf)
+	if (p == buf)
 		*p++ = '_';
 	*p = '\0';
 
-	return fb->buf;
+	return buf;
 }
 
 #define vpr_info(fmt, ...)					\
@@ -142,7 +142,7 @@ static int ddebug_change(const struct ddebug_query *query,
 	struct ddebug_table *dt;
 	unsigned int newflags;
 	unsigned int nfound = 0;
-	struct flagsbuf fbuf;
+	char flagbuf[10];
 
 	/* search for matching ddebugs */
 	mutex_lock(&ddebug_lock);
@@ -188,7 +188,7 @@ static int ddebug_change(const struct ddebug_query *query,
 			newflags = (dp->flags & mask) | flags;
 			if (newflags == dp->flags)
 				continue;
-#ifdef CONFIG_JUMP_LABEL
+#ifdef HAVE_JUMP_LABEL
 			if (dp->flags & _DPRINTK_FLAGS_PRINT) {
 				if (!(flags & _DPRINTK_FLAGS_PRINT))
 					static_branch_disable(&dp->key.dd_key_true);
@@ -199,7 +199,8 @@ static int ddebug_change(const struct ddebug_query *query,
 			vpr_info("changed %s:%d [%s]%s =%s\n",
 				 trim_prefix(dp->filename), dp->lineno,
 				 dt->mod_name, dp->function,
-				 ddebug_describe_flags(dp->flags, &fbuf));
+				 ddebug_describe_flags(dp, flagbuf,
+						       sizeof(flagbuf)));
 		}
 	}
 	mutex_unlock(&ddebug_lock);
@@ -778,7 +779,7 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 {
 	struct ddebug_iter *iter = m->private;
 	struct _ddebug *dp = p;
-	struct flagsbuf flags;
+	char flagsbuf[10];
 
 	vpr_info("called m=%p p=%p\n", m, p);
 
@@ -791,7 +792,7 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 	seq_printf(m, "%s:%u [%s]%s =%s \"",
 		   trim_prefix(dp->filename), dp->lineno,
 		   iter->table->mod_name, dp->function,
-		   ddebug_describe_flags(dp->flags, &flags));
+		   ddebug_describe_flags(dp, flagsbuf, sizeof(flagsbuf)));
 	seq_escape(m, dp->format, "\t\r\n\"");
 	seq_puts(m, "\"\n");
 
@@ -953,26 +954,22 @@ static void ddebug_remove_all_tables(void)
 
 static __initdata int ddebug_init_success;
 
-static int __init dynamic_debug_init_control(void)
+static int __init dynamic_debug_init_debugfs(void)
 {
-	struct proc_dir_entry *procfs_dir;
-	struct dentry *debugfs_dir;
+	struct dentry *dir, *file;
 
 	if (!ddebug_init_success)
 		return -ENODEV;
 
-	/* Create the control file in debugfs if it is enabled */
-	if (debugfs_initialized()) {
-		debugfs_dir = debugfs_create_dir("dynamic_debug", NULL);
-		debugfs_create_file("control", 0644, debugfs_dir, NULL,
-				    &ddebug_proc_fops);
+	dir = debugfs_create_dir("dynamic_debug", NULL);
+	if (!dir)
+		return -ENOMEM;
+	file = debugfs_create_file("control", 0644, dir, NULL,
+					&ddebug_proc_fops);
+	if (!file) {
+		debugfs_remove(dir);
+		return -ENOMEM;
 	}
-
-	/* Also create the control file in procfs */
-	procfs_dir = proc_mkdir("dynamic_debug", NULL);
-	if (procfs_dir)
-		proc_create("control", 0644, procfs_dir, &ddebug_proc_fops);
-
 	return 0;
 }
 
@@ -1049,4 +1046,4 @@ out_err:
 early_initcall(dynamic_debug_init);
 
 /* Debugfs setup must be done later */
-fs_initcall(dynamic_debug_init_control);
+fs_initcall(dynamic_debug_init_debugfs);

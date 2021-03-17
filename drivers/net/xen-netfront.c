@@ -63,8 +63,6 @@ module_param_named(max_queues, xennet_max_queues, uint, 0644);
 MODULE_PARM_DESC(max_queues,
 		 "Maximum number of queues per virtual interface");
 
-#define XENNET_TIMEOUT  (5 * HZ)
-
 static const struct ethtool_ops xennet_ethtool_ops;
 
 struct netfront_cb {
@@ -892,9 +890,9 @@ static int xennet_set_skb_gso(struct sk_buff *skb,
 	return 0;
 }
 
-static int xennet_fill_frags(struct netfront_queue *queue,
-			     struct sk_buff *skb,
-			     struct sk_buff_head *list)
+static RING_IDX xennet_fill_frags(struct netfront_queue *queue,
+				  struct sk_buff *skb,
+				  struct sk_buff_head *list)
 {
 	RING_IDX cons = queue->rx.rsp_cons;
 	struct sk_buff *nskb;
@@ -907,13 +905,13 @@ static int xennet_fill_frags(struct netfront_queue *queue,
 		if (skb_shinfo(skb)->nr_frags == MAX_SKB_FRAGS) {
 			unsigned int pull_to = NETFRONT_SKB_CB(skb)->pull_to;
 
-			BUG_ON(pull_to < skb_headlen(skb));
+			BUG_ON(pull_to <= skb_headlen(skb));
 			__pskb_pull_tail(skb, pull_to - skb_headlen(skb));
 		}
 		if (unlikely(skb_shinfo(skb)->nr_frags >= MAX_SKB_FRAGS)) {
-			queue->rx.rsp_cons = ++cons + skb_queue_len(list);
+			queue->rx.rsp_cons = ++cons;
 			kfree_skb(nskb);
-			return -ENOENT;
+			return ~0U;
 		}
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
@@ -924,9 +922,7 @@ static int xennet_fill_frags(struct netfront_queue *queue,
 		kfree_skb(nskb);
 	}
 
-	queue->rx.rsp_cons = cons;
-
-	return 0;
+	return cons;
 }
 
 static int checksum_setup(struct net_device *dev, struct sk_buff *skb)
@@ -1052,7 +1048,8 @@ err:
 		skb->data_len = rx->status;
 		skb->len += rx->status;
 
-		if (unlikely(xennet_fill_frags(queue, skb, &tmpq)))
+		i = xennet_fill_frags(queue, skb, &tmpq);
+		if (unlikely(i == ~0U))
 			goto err;
 
 		if (rx->flags & XEN_NETRXF_csum_blank)
@@ -1062,7 +1059,7 @@ err:
 
 		__skb_queue_tail(&rxq, skb);
 
-		i = ++queue->rx.rsp_cons;
+		queue->rx.rsp_cons = ++i;
 		work_done++;
 	}
 
@@ -1339,15 +1336,12 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 
 	netif_carrier_off(netdev);
 
-	do {
-		xenbus_switch_state(dev, XenbusStateInitialising);
-		err = wait_event_timeout(module_wq,
-				 xenbus_read_driver_state(dev->otherend) !=
-				 XenbusStateClosed &&
-				 xenbus_read_driver_state(dev->otherend) !=
-				 XenbusStateUnknown, XENNET_TIMEOUT);
-	} while (!err);
-
+	xenbus_switch_state(dev, XenbusStateInitialising);
+	wait_event(module_wq,
+		   xenbus_read_driver_state(dev->otherend) !=
+		   XenbusStateClosed &&
+		   xenbus_read_driver_state(dev->otherend) !=
+		   XenbusStateUnknown);
 	return netdev;
 
  exit:
@@ -2147,43 +2141,28 @@ static const struct attribute_group xennet_dev_group = {
 };
 #endif /* CONFIG_SYSFS */
 
-static void xennet_bus_close(struct xenbus_device *dev)
-{
-	int ret;
-
-	if (xenbus_read_driver_state(dev->otherend) == XenbusStateClosed)
-		return;
-	do {
-		xenbus_switch_state(dev, XenbusStateClosing);
-		ret = wait_event_timeout(module_wq,
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateClosing ||
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateClosed ||
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateUnknown,
-				   XENNET_TIMEOUT);
-	} while (!ret);
-
-	if (xenbus_read_driver_state(dev->otherend) == XenbusStateClosed)
-		return;
-
-	do {
-		xenbus_switch_state(dev, XenbusStateClosed);
-		ret = wait_event_timeout(module_wq,
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateClosed ||
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateUnknown,
-				   XENNET_TIMEOUT);
-	} while (!ret);
-}
-
 static int xennet_remove(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
-	xennet_bus_close(dev);
+	dev_dbg(&dev->dev, "%s\n", dev->nodename);
+
+	if (xenbus_read_driver_state(dev->otherend) != XenbusStateClosed) {
+		xenbus_switch_state(dev, XenbusStateClosing);
+		wait_event(module_wq,
+			   xenbus_read_driver_state(dev->otherend) ==
+			   XenbusStateClosing ||
+			   xenbus_read_driver_state(dev->otherend) ==
+			   XenbusStateUnknown);
+
+		xenbus_switch_state(dev, XenbusStateClosed);
+		wait_event(module_wq,
+			   xenbus_read_driver_state(dev->otherend) ==
+			   XenbusStateClosed ||
+			   xenbus_read_driver_state(dev->otherend) ==
+			   XenbusStateUnknown);
+	}
+
 	xennet_disconnect_backend(info);
 
 	if (info->netdev->reg_state == NETREG_REGISTERED)

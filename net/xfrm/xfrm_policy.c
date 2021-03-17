@@ -309,9 +309,7 @@ EXPORT_SYMBOL(xfrm_policy_destroy);
 
 static void xfrm_policy_kill(struct xfrm_policy *policy)
 {
-	write_lock_bh(&policy->lock);
 	policy->walk.dead = 1;
-	write_unlock_bh(&policy->lock);
 
 	atomic_inc(&policy->genid);
 
@@ -730,7 +728,12 @@ static void xfrm_policy_requeue(struct xfrm_policy *old,
 static bool xfrm_policy_mark_match(struct xfrm_policy *policy,
 				   struct xfrm_policy *pol)
 {
-	if (policy->mark.v == pol->mark.v &&
+	u32 mark = policy->mark.v & policy->mark.m;
+
+	if (policy->mark.v == pol->mark.v && policy->mark.m == pol->mark.m)
+		return true;
+
+	if ((mark & pol->mark.m) == pol->mark.v &&
 	    policy->priority == pol->priority)
 		return true;
 
@@ -1625,10 +1628,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		dst_copy_metrics(dst1, dst);
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
-			__u32 mark = 0;
-
-			if (xfrm[i]->props.smark.v || xfrm[i]->props.smark.m)
-				mark = xfrm_smark_get(fl->flowi_mark, xfrm[i]);
+			__u32 mark = xfrm_smark_get(fl->flowi_mark, xfrm[i]);
 
 			family = xfrm[i]->props.family;
 			dst = xfrm_dst_lookup(xfrm[i], tos, fl->flowi_oif,
@@ -2336,11 +2336,9 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	ifcb = xfrm_if_get_cb();
 
 	if (ifcb) {
-		xi = ifcb->decode_session(skb, family);
-		if (xi) {
+		xi = ifcb->decode_session(skb);
+		if (xi)
 			if_id = xi->p.if_id;
-			net = xi->net;
-		}
 	}
 	rcu_read_unlock();
 

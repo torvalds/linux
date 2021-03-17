@@ -216,14 +216,6 @@ static int mmc_decode_scr(struct mmc_card *card)
 
 	if (scr->sda_spec3)
 		scr->cmds = UNSTUFF_BITS(resp, 32, 2);
-
-	/* SD Spec says: any SD Card shall set at least bits 0 and 2 */
-	if (!(scr->bus_widths & SD_SCR_BUS_WIDTH_1) ||
-	    !(scr->bus_widths & SD_SCR_BUS_WIDTH_4)) {
-		pr_err("%s: invalid bus width\n", mmc_hostname(card->host));
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -1150,58 +1142,6 @@ out:
 	return err;
 }
 
-static int _mmc_sd_shutdown(struct mmc_host *host)
-{
-	int err = 0;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
-	mmc_claim_host(host);
-
-	if (mmc_card_suspended(host->card))
-		goto out;
-
-	if (!mmc_host_is_spi(host))
-		err = mmc_deselect_cards(host);
-
-	if (!err) {
-		mmc_power_off(host);
-		mmc_card_set_suspended(host->card);
-	}
-
-	/*
-	 * mmc_sd_shutdown is used for SD card, so what we need
-	 * is to make sure we set signal voltage to initial state
-	 * if it's used as main disk. RESTRICT_CARD_TYPE_MMC is
-	 * combined into host->restrict_caps via DT for SD cards
-	 * running system image.
-	 */
-	if (host->restrict_caps & RESTRICT_CARD_TYPE_EMMC) {
-		host->ios.signal_voltage = MMC_SIGNAL_VOLTAGE_330;
-		host->ios.vdd = fls(host->ocr_avail) - 1;
-		mmc_regulator_set_vqmmc(host, &host->ios);
-		pr_info("Set signal voltage to initial state\n");
-	}
-
-out:
-	mmc_release_host(host);
-	return err;
-}
-
-static int mmc_sd_shutdown(struct mmc_host *host)
-{
-	int err;
-
-	err = _mmc_sd_shutdown(host);
-	if (!err) {
-		pm_runtime_disable(&host->card->dev);
-		pm_runtime_set_suspended(&host->card->dev);
-	}
-
-	return err;
-}
-
 /*
  * Callback for suspend
  */
@@ -1296,7 +1236,7 @@ static const struct mmc_bus_ops mmc_sd_ops = {
 	.suspend = mmc_sd_suspend,
 	.resume = mmc_sd_resume,
 	.alive = mmc_sd_alive,
-	.shutdown = mmc_sd_shutdown,
+	.shutdown = mmc_sd_suspend,
 	.hw_reset = mmc_sd_hw_reset,
 };
 
@@ -1328,12 +1268,6 @@ int mmc_attach_sd(struct mmc_host *host)
 		if (err)
 			goto err;
 	}
-
-	/*
-	 * Some SD cards claims an out of spec VDD voltage range. Let's treat
-	 * these bits as being in-valid and especially also bit7.
-	 */
-	ocr &= ~0x7FFF;
 
 	rocr = mmc_select_voltage(host, ocr);
 

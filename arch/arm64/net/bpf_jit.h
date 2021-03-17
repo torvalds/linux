@@ -100,9 +100,11 @@
 #define A64_STXR(sf, Rt, Rn, Rs) \
 	A64_LSX(sf, Rt, Rn, Rs, STORE_EX)
 
-/* LSE atomics */
-#define A64_STADD(sf, Rn, Rs) \
-	aarch64_insn_gen_stadd(Rn, Rs, A64_SIZE(sf))
+/* Prefetch */
+#define A64_PRFM(Rn, type, target, policy) \
+	aarch64_insn_gen_prefetch(Rn, AARCH64_INSN_PRFM_TYPE_##type, \
+				  AARCH64_INSN_PRFM_TARGET_##target, \
+				  AARCH64_INSN_PRFM_POLICY_##policy)
 
 /* Add/subtract (immediate) */
 #define A64_ADDSUB_IMM(sf, Rd, Rn, imm12, type) \

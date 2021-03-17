@@ -209,9 +209,6 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 	if (*ppos < 0 || !count)
 		return -EINVAL;
 
-	if (count > (PAGE_SIZE << (MAX_ORDER - 1)))
-		count = PAGE_SIZE << (MAX_ORDER - 1);
-
 	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -360,9 +357,6 @@ static ssize_t regmap_reg_ranges_read_file(struct file *file,
 	if (*ppos < 0 || !count)
 		return -EINVAL;
 
-	if (count > (PAGE_SIZE << (MAX_ORDER - 1)))
-		count = PAGE_SIZE << (MAX_ORDER - 1);
-
 	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -459,31 +453,29 @@ static ssize_t regmap_cache_only_write_file(struct file *file,
 {
 	struct regmap *map = container_of(file->private_data,
 					  struct regmap, cache_only);
-	bool new_val, require_sync = false;
+	ssize_t result;
+	bool was_enabled, require_sync = false;
 	int err;
-
-	err = kstrtobool_from_user(user_buf, count, &new_val);
-	/* Ignore malforned data like debugfs_write_file_bool() */
-	if (err)
-		return count;
-
-	err = debugfs_file_get(file->f_path.dentry);
-	if (err)
-		return err;
 
 	map->lock(map->lock_arg);
 
-	if (new_val && !map->cache_only) {
+	was_enabled = map->cache_only;
+
+	result = debugfs_write_file_bool(file, user_buf, count, ppos);
+	if (result < 0) {
+		map->unlock(map->lock_arg);
+		return result;
+	}
+
+	if (map->cache_only && !was_enabled) {
 		dev_warn(map->dev, "debugfs cache_only=Y forced\n");
 		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
-	} else if (!new_val && map->cache_only) {
+	} else if (!map->cache_only && was_enabled) {
 		dev_warn(map->dev, "debugfs cache_only=N forced: syncing cache\n");
 		require_sync = true;
 	}
-	map->cache_only = new_val;
 
 	map->unlock(map->lock_arg);
-	debugfs_file_put(file->f_path.dentry);
 
 	if (require_sync) {
 		err = regcache_sync(map);
@@ -491,7 +483,7 @@ static ssize_t regmap_cache_only_write_file(struct file *file,
 			dev_err(map->dev, "Failed to sync cache %d\n", err);
 	}
 
-	return count;
+	return result;
 }
 
 static const struct file_operations regmap_cache_only_fops = {
@@ -506,32 +498,28 @@ static ssize_t regmap_cache_bypass_write_file(struct file *file,
 {
 	struct regmap *map = container_of(file->private_data,
 					  struct regmap, cache_bypass);
-	bool new_val;
-	int err;
-
-	err = kstrtobool_from_user(user_buf, count, &new_val);
-	/* Ignore malforned data like debugfs_write_file_bool() */
-	if (err)
-		return count;
-
-	err = debugfs_file_get(file->f_path.dentry);
-	if (err)
-		return err;
+	ssize_t result;
+	bool was_enabled;
 
 	map->lock(map->lock_arg);
 
-	if (new_val && !map->cache_bypass) {
+	was_enabled = map->cache_bypass;
+
+	result = debugfs_write_file_bool(file, user_buf, count, ppos);
+	if (result < 0)
+		goto out;
+
+	if (map->cache_bypass && !was_enabled) {
 		dev_warn(map->dev, "debugfs cache_bypass=Y forced\n");
 		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
-	} else if (!new_val && map->cache_bypass) {
+	} else if (!map->cache_bypass && was_enabled) {
 		dev_warn(map->dev, "debugfs cache_bypass=N forced\n");
 	}
-	map->cache_bypass = new_val;
 
+out:
 	map->unlock(map->lock_arg);
-	debugfs_file_put(file->f_path.dentry);
 
-	return count;
+	return result;
 }
 
 static const struct file_operations regmap_cache_bypass_fops = {
@@ -579,23 +567,16 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 		devname = dev_name(map->dev);
 
 	if (name) {
-		if (!map->debugfs_name) {
-			map->debugfs_name = kasprintf(GFP_KERNEL, "%s-%s",
+		map->debugfs_name = kasprintf(GFP_KERNEL, "%s-%s",
 					      devname, name);
-			if (!map->debugfs_name)
-				return;
-		}
 		name = map->debugfs_name;
 	} else {
 		name = devname;
 	}
 
 	if (!strcmp(name, "dummy")) {
-		kfree(map->debugfs_name);
 		map->debugfs_name = kasprintf(GFP_KERNEL, "dummy%d",
 						dummy_index);
-		if (!map->debugfs_name)
-				return;
 		name = map->debugfs_name;
 		dummy_index++;
 	}

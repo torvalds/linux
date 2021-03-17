@@ -348,7 +348,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 			nu->rx_packet_len = -1;
 			nu->rx_skb = nci_skb_alloc(nu->ndev,
 						   NCI_MAX_PACKET_SIZE,
-						   GFP_ATOMIC);
+						   GFP_KERNEL);
 			if (!nu->rx_skb)
 				return -ENOMEM;
 		}

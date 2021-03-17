@@ -28,7 +28,6 @@
 #include <linux/compiler.h>
 #include <linux/if_ether.h>
 #include <linux/kref.h>
-#include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/sched.h> /* for linux/wait.h */
@@ -92,9 +91,6 @@ struct batadv_hard_iface_bat_iv {
 
 	/** @ogm_seqno: OGM sequence number - used to identify each OGM */
 	atomic_t ogm_seqno;
-
-	/** @ogm_buff_mutex: lock protecting ogm_buff and ogm_buff_len */
-	struct mutex ogm_buff_mutex;
 };
 
 /**
@@ -1220,11 +1216,6 @@ struct batadv_priv_mcast {
 	unsigned char bridged:1;
 
 	/**
-	 * @mla_lock: a lock protecting mla_list and mla_flags
-	 */
-	spinlock_t mla_lock;
-
-	/**
 	 * @num_want_all_unsnoopables: number of nodes wanting unsnoopable IP
 	 *  traffic
 	 */
@@ -1493,9 +1484,6 @@ struct batadv_priv_bat_v {
 
 	/** @ogm_seqno: OGM sequence number - used to identify each OGM */
 	atomic_t ogm_seqno;
-
-	/** @ogm_buff_mutex: lock protecting ogm_buff and ogm_buff_len */
-	struct mutex ogm_buff_mutex;
 
 	/** @ogm_wq: workqueue used to schedule OGM transmissions */
 	struct delayed_work ogm_wq;
@@ -2136,9 +2124,6 @@ struct batadv_algo_iface_ops {
 
 	/** @enable: init routing info when hard-interface is enabled */
 	int (*enable)(struct batadv_hard_iface *hard_iface);
-
-	/** @enabled: notification when hard-interface was enabled (optional) */
-	void (*enabled)(struct batadv_hard_iface *hard_iface);
 
 	/** @disable: de-init routing info when hard-interface is disabled */
 	void (*disable)(struct batadv_hard_iface *hard_iface);

@@ -188,27 +188,27 @@ bool rsi_is_cipher_wep(struct rsi_common *common)
  * @adapter: Pointer to the adapter structure.
  * @band: Operating band to be set.
  *
- * Return: int - 0 on success, negative error on failure.
+ * Return: None.
  */
-static int rsi_register_rates_channels(struct rsi_hw *adapter, int band)
+static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 {
 	struct ieee80211_supported_band *sbands = &adapter->sbands[band];
 	void *channels = NULL;
 
 	if (band == NL80211_BAND_2GHZ) {
-		channels = kmemdup(rsi_2ghz_channels, sizeof(rsi_2ghz_channels),
-				   GFP_KERNEL);
-		if (!channels)
-			return -ENOMEM;
+		channels = kmalloc(sizeof(rsi_2ghz_channels), GFP_KERNEL);
+		memcpy(channels,
+		       rsi_2ghz_channels,
+		       sizeof(rsi_2ghz_channels));
 		sbands->band = NL80211_BAND_2GHZ;
 		sbands->n_channels = ARRAY_SIZE(rsi_2ghz_channels);
 		sbands->bitrates = rsi_rates;
 		sbands->n_bitrates = ARRAY_SIZE(rsi_rates);
 	} else {
-		channels = kmemdup(rsi_5ghz_channels, sizeof(rsi_5ghz_channels),
-				   GFP_KERNEL);
-		if (!channels)
-			return -ENOMEM;
+		channels = kmalloc(sizeof(rsi_5ghz_channels), GFP_KERNEL);
+		memcpy(channels,
+		       rsi_5ghz_channels,
+		       sizeof(rsi_5ghz_channels));
 		sbands->band = NL80211_BAND_5GHZ;
 		sbands->n_channels = ARRAY_SIZE(rsi_5ghz_channels);
 		sbands->bitrates = &rsi_rates[4];
@@ -227,7 +227,6 @@ static int rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 	sbands->ht_cap.mcs.rx_mask[0] = 0xff;
 	sbands->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 	/* sbands->ht_cap.mcs.rx_highest = 0x82; */
-	return 0;
 }
 
 /**
@@ -1986,16 +1985,11 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->available_antennas_rx = 1;
 	wiphy->available_antennas_tx = 1;
 
-	status = rsi_register_rates_channels(adapter, NL80211_BAND_2GHZ);
-	if (status)
-		return status;
+	rsi_register_rates_channels(adapter, NL80211_BAND_2GHZ);
 	wiphy->bands[NL80211_BAND_2GHZ] =
 		&adapter->sbands[NL80211_BAND_2GHZ];
 	if (common->num_supp_bands > 1) {
-		status = rsi_register_rates_channels(adapter,
-						     NL80211_BAND_5GHZ);
-		if (status)
-			return status;
+		rsi_register_rates_channels(adapter, NL80211_BAND_5GHZ);
 		wiphy->bands[NL80211_BAND_5GHZ] =
 			&adapter->sbands[NL80211_BAND_5GHZ];
 	}

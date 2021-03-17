@@ -180,8 +180,6 @@ static int rtl_phydm_init_priv(struct rtl_priv *rtlpriv,
 
 	rtlpriv->phydm.internal =
 		kzalloc(sizeof(struct phy_dm_struct), GFP_KERNEL);
-	if (!rtlpriv->phydm.internal)
-		return 0;
 
 	_rtl_phydm_init_com_info(rtlpriv, ic, params);
 

@@ -14,7 +14,7 @@
 struct gntdev_dmabuf_priv;
 struct gntdev_priv;
 
-struct gntdev_dmabuf_priv *gntdev_dmabuf_init(struct file *filp);
+struct gntdev_dmabuf_priv *gntdev_dmabuf_init(void);
 
 void gntdev_dmabuf_fini(struct gntdev_dmabuf_priv *priv);
 

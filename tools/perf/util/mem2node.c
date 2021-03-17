@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <inttypes.h>
-#include <asm/bug.h>
 #include <linux/bitmap.h>
 #include "mem2node.h"
 #include "util.h"
@@ -93,7 +92,7 @@ int mem2node__init(struct mem2node *map, struct perf_env *env)
 
 	/* Cut unused entries, due to merging. */
 	tmp_entries = realloc(entries, sizeof(*entries) * j);
-	if (tmp_entries || WARN_ON_ONCE(j == 0))
+	if (tmp_entries)
 		entries = tmp_entries;
 
 	for (i = 0; i < j; i++) {

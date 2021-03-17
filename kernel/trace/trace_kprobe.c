@@ -61,23 +61,9 @@ static nokprobe_inline bool trace_kprobe_within_module(struct trace_kprobe *tk,
 	return strncmp(mod->name, name, len) == 0 && name[len] == ':';
 }
 
-static nokprobe_inline bool trace_kprobe_module_exist(struct trace_kprobe *tk)
+static nokprobe_inline bool trace_kprobe_is_on_module(struct trace_kprobe *tk)
 {
-	char *p;
-	bool ret;
-
-	if (!tk->symbol)
-		return false;
-	p = strchr(tk->symbol, ':');
-	if (!p)
-		return true;
-	*p = '\0';
-	mutex_lock(&module_mutex);
-	ret = !!find_module(tk->symbol);
-	mutex_unlock(&module_mutex);
-	*p = ':';
-
-	return ret;
+	return !!strchr(trace_kprobe_symbol(tk), ':');
 }
 
 static nokprobe_inline unsigned long trace_kprobe_nhit(struct trace_kprobe *tk)
@@ -517,12 +503,13 @@ disable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 	return ret;
 }
 
-#if defined(CONFIG_DYNAMIC_FTRACE) && \
+#if defined(CONFIG_KPROBES_ON_FTRACE) && \
 	!defined(CONFIG_KPROBE_EVENTS_ON_NOTRACE)
-static bool __within_notrace_func(unsigned long addr)
+static bool within_notrace_func(struct trace_kprobe *tk)
 {
-	unsigned long offset, size;
+	unsigned long offset, size, addr;
 
+	addr = trace_kprobe_address(tk);
 	if (!addr || !kallsyms_lookup_size_offset(addr, &size, &offset))
 		return false;
 
@@ -534,28 +521,6 @@ static bool __within_notrace_func(unsigned long addr)
 	 * to subtract 1 byte from the end address.
 	 */
 	return !ftrace_location_range(addr, addr + size - 1);
-}
-
-static bool within_notrace_func(struct trace_kprobe *tk)
-{
-	unsigned long addr = trace_kprobe_address(tk);
-	char symname[KSYM_NAME_LEN], *p;
-
-	if (!__within_notrace_func(addr))
-		return false;
-
-	/* Check if the address is on a suffixed-symbol */
-	if (!lookup_symbol_name(addr, symname)) {
-		p = strchr(symname, '.');
-		if (!p)
-			return true;
-		*p = '\0';
-		addr = (unsigned long)kprobe_lookup_name(symname, 0);
-		if (addr)
-			return __within_notrace_func(addr);
-	}
-
-	return true;
 }
 #else
 #define within_notrace_func(tk)	(false)
@@ -589,13 +554,19 @@ static int __register_trace_kprobe(struct trace_kprobe *tk)
 	else
 		ret = register_kprobe(&tk->rp.kp);
 
-	if (ret == 0) {
+	if (ret == 0)
 		tk->tp.flags |= TP_FLAG_REGISTERED;
-	} else if (ret == -EILSEQ) {
-		pr_warn("Probing address(0x%p) is not an instruction boundary.\n",
-			tk->rp.kp.addr);
-		ret = -EINVAL;
+	else {
+		if (ret == -ENOENT && trace_kprobe_is_on_module(tk)) {
+			pr_warn("This probe might be able to register after target module is loaded. Continue.\n");
+			ret = 0;
+		} else if (ret == -EILSEQ) {
+			pr_warn("Probing address(0x%p) is not an instruction boundary.\n",
+				tk->rp.kp.addr);
+			ret = -EINVAL;
+		}
 	}
+
 	return ret;
 }
 
@@ -658,11 +629,6 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 
 	/* Register k*probe */
 	ret = __register_trace_kprobe(tk);
-	if (ret == -ENOENT && !trace_kprobe_module_exist(tk)) {
-		pr_warn("This probe might be able to register after target module is loaded. Continue.\n");
-		ret = 0;
-	}
-
 	if (ret < 0)
 		unregister_kprobe_event(tk);
 	else
@@ -975,8 +941,6 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	int i;
 
 	seq_putc(m, trace_kprobe_is_return(tk) ? 'r' : 'p');
-	if (trace_kprobe_is_return(tk) && tk->rp.maxactive)
-		seq_printf(m, "%d", tk->rp.maxactive);
 	seq_printf(m, ":%s/%s", tk->tp.call.class->system,
 			trace_event_name(&tk->tp.call));
 

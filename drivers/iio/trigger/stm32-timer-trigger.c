@@ -161,8 +161,7 @@ static int stm32_timer_start(struct stm32_timer_trigger *priv,
 	return 0;
 }
 
-static void stm32_timer_stop(struct stm32_timer_trigger *priv,
-			     struct iio_trigger *trig)
+static void stm32_timer_stop(struct stm32_timer_trigger *priv)
 {
 	u32 ccer, cr1;
 
@@ -179,12 +178,6 @@ static void stm32_timer_stop(struct stm32_timer_trigger *priv,
 	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
 	regmap_write(priv->regmap, TIM_PSC, 0);
 	regmap_write(priv->regmap, TIM_ARR, 0);
-
-	/* Force disable master mode */
-	if (stm32_timer_is_trgo2_name(trig->name))
-		regmap_update_bits(priv->regmap, TIM_CR2, TIM_CR2_MMS2, 0);
-	else
-		regmap_update_bits(priv->regmap, TIM_CR2, TIM_CR2_MMS, 0);
 
 	/* Make sure that registers are updated */
 	regmap_update_bits(priv->regmap, TIM_EGR, TIM_EGR_UG, TIM_EGR_UG);
@@ -204,7 +197,7 @@ static ssize_t stm32_tt_store_frequency(struct device *dev,
 		return ret;
 
 	if (freq == 0) {
-		stm32_timer_stop(priv, trig);
+		stm32_timer_stop(priv);
 	} else {
 		ret = stm32_timer_start(priv, trig, freq);
 		if (ret)

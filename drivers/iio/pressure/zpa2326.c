@@ -672,10 +672,8 @@ static int zpa2326_resume(const struct iio_dev *indio_dev)
 	int err;
 
 	err = pm_runtime_get_sync(indio_dev->dev.parent);
-	if (err < 0) {
-		pm_runtime_put(indio_dev->dev.parent);
+	if (err < 0)
 		return err;
-	}
 
 	if (err > 0) {
 		/*

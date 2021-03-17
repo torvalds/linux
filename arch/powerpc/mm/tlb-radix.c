@@ -215,83 +215,22 @@ static inline void __tlbie_lpid_va(unsigned long va, unsigned long lpid,
 	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 
-
-static inline void fixup_tlbie_va(unsigned long va, unsigned long pid,
-				  unsigned long ap)
+static inline void fixup_tlbie(void)
 {
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
-		asm volatile("ptesync": : :"memory");
-		__tlbie_va(va, 0, ap, RIC_FLUSH_TLB);
-	}
-
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
-		asm volatile("ptesync": : :"memory");
-		__tlbie_va(va, pid, ap, RIC_FLUSH_TLB);
-	}
-}
-
-static inline void fixup_tlbie_va_range(unsigned long va, unsigned long pid,
-					unsigned long ap)
-{
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
-		asm volatile("ptesync": : :"memory");
-		__tlbie_pid(0, RIC_FLUSH_TLB);
-	}
-
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
-		asm volatile("ptesync": : :"memory");
-		__tlbie_va(va, pid, ap, RIC_FLUSH_TLB);
-	}
-}
-
-static inline void fixup_tlbie_pid(unsigned long pid)
-{
-	/*
-	 * We can use any address for the invalidation, pick one which is
-	 * probably unused as an optimisation.
-	 */
+	unsigned long pid = 0;
 	unsigned long va = ((1UL << 52) - 1);
 
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
-		asm volatile("ptesync": : :"memory");
-		__tlbie_pid(0, RIC_FLUSH_TLB);
-	}
-
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
 		asm volatile("ptesync": : :"memory");
 		__tlbie_va(va, pid, mmu_get_ap(MMU_PAGE_64K), RIC_FLUSH_TLB);
 	}
 }
 
-
-static inline void fixup_tlbie_lpid_va(unsigned long va, unsigned long lpid,
-				       unsigned long ap)
-{
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
-		asm volatile("ptesync": : :"memory");
-		__tlbie_lpid_va(va, 0, ap, RIC_FLUSH_TLB);
-	}
-
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
-		asm volatile("ptesync": : :"memory");
-		__tlbie_lpid_va(va, lpid, ap, RIC_FLUSH_TLB);
-	}
-}
-
 static inline void fixup_tlbie_lpid(unsigned long lpid)
 {
-	/*
-	 * We can use any address for the invalidation, pick one which is
-	 * probably unused as an optimisation.
-	 */
 	unsigned long va = ((1UL << 52) - 1);
 
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
-		asm volatile("ptesync": : :"memory");
-		__tlbie_lpid(0, RIC_FLUSH_TLB);
-	}
-
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
 		asm volatile("ptesync": : :"memory");
 		__tlbie_lpid_va(va, lpid, mmu_get_ap(MMU_PAGE_64K), RIC_FLUSH_TLB);
 	}
@@ -338,7 +277,6 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	switch (ric) {
 	case RIC_FLUSH_TLB:
 		__tlbie_pid(pid, RIC_FLUSH_TLB);
-		fixup_tlbie_pid(pid);
 		break;
 	case RIC_FLUSH_PWC:
 		__tlbie_pid(pid, RIC_FLUSH_PWC);
@@ -346,8 +284,8 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	case RIC_FLUSH_ALL:
 	default:
 		__tlbie_pid(pid, RIC_FLUSH_ALL);
-		fixup_tlbie_pid(pid);
 	}
+	fixup_tlbie();
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
@@ -391,7 +329,6 @@ static inline void _tlbie_lpid(unsigned long lpid, unsigned long ric)
 	switch (ric) {
 	case RIC_FLUSH_TLB:
 		__tlbie_lpid(lpid, RIC_FLUSH_TLB);
-		fixup_tlbie_lpid(lpid);
 		break;
 	case RIC_FLUSH_PWC:
 		__tlbie_lpid(lpid, RIC_FLUSH_PWC);
@@ -399,8 +336,8 @@ static inline void _tlbie_lpid(unsigned long lpid, unsigned long ric)
 	case RIC_FLUSH_ALL:
 	default:
 		__tlbie_lpid(lpid, RIC_FLUSH_ALL);
-		fixup_tlbie_lpid(lpid);
 	}
+	fixup_tlbie_lpid(lpid);
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
@@ -429,7 +366,6 @@ static inline void _tlbiel_lpid_guest(unsigned long lpid, unsigned long ric)
 		__tlbiel_lpid_guest(lpid, set, RIC_FLUSH_TLB);
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
 }
 
 
@@ -474,8 +410,6 @@ static inline void __tlbie_va_range(unsigned long start, unsigned long end,
 
 	for (addr = start; addr < end; addr += page_size)
 		__tlbie_va(addr, pid, ap, RIC_FLUSH_TLB);
-
-	fixup_tlbie_va_range(addr - page_size, pid, ap);
 }
 
 static inline void _tlbie_va(unsigned long va, unsigned long pid,
@@ -485,7 +419,7 @@ static inline void _tlbie_va(unsigned long va, unsigned long pid,
 
 	asm volatile("ptesync": : :"memory");
 	__tlbie_va(va, pid, ap, ric);
-	fixup_tlbie_va(va, pid, ap);
+	fixup_tlbie();
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
@@ -496,7 +430,7 @@ static inline void _tlbie_lpid_va(unsigned long va, unsigned long lpid,
 
 	asm volatile("ptesync": : :"memory");
 	__tlbie_lpid_va(va, lpid, ap, ric);
-	fixup_tlbie_lpid_va(va, lpid, ap);
+	fixup_tlbie_lpid(lpid);
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
@@ -508,6 +442,7 @@ static inline void _tlbie_va_range(unsigned long start, unsigned long end,
 	if (also_pwc)
 		__tlbie_pid(pid, RIC_FLUSH_PWC);
 	__tlbie_va_range(start, end, pid, page_size, psize);
+	fixup_tlbie();
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
@@ -598,29 +533,19 @@ static void do_exit_flush_lazy_tlb(void *arg)
 	struct mm_struct *mm = arg;
 	unsigned long pid = mm->context.id;
 
-	/*
-	 * A kthread could have done a mmget_not_zero() after the flushing CPU
-	 * checked mm_is_singlethreaded, and be in the process of
-	 * kthread_use_mm when interrupted here. In that case, current->mm will
-	 * be set to mm, because kthread_use_mm() setting ->mm and switching to
-	 * the mm is done with interrupts off.
-	 */
 	if (current->mm == mm)
-		goto out_flush;
+		return; /* Local CPU */
 
 	if (current->active_mm == mm) {
-		WARN_ON_ONCE(current->mm != NULL);
-		/* Is a kernel thread and is using mm as the lazy tlb */
+		/*
+		 * Must be a kernel thread because sender is single-threaded.
+		 */
+		BUG_ON(current->mm);
 		mmgrab(&init_mm);
+		switch_mm(mm, &init_mm, current);
 		current->active_mm = &init_mm;
-		switch_mm_irqs_off(mm, &init_mm, current);
 		mmdrop(mm);
 	}
-
-	atomic_dec(&mm->context.active_cpus);
-	cpumask_clear_cpu(smp_processor_id(), mm_cpumask(mm));
-
-out_flush:
 	_tlbiel_pid(pid, RIC_FLUSH_ALL);
 }
 
@@ -635,6 +560,7 @@ static void exit_flush_lazy_tlbs(struct mm_struct *mm)
 	 */
 	smp_call_function_many(mm_cpumask(mm), do_exit_flush_lazy_tlb,
 				(void *)mm, 1);
+	mm_reset_thread_local(mm);
 }
 
 void radix__flush_tlb_mm(struct mm_struct *mm)
@@ -847,7 +773,7 @@ is_local:
 			if (gflush)
 				__tlbie_va_range(gstart, gend, pid,
 						PUD_SIZE, MMU_PAGE_1G);
-
+			fixup_tlbie();
 			asm volatile("eieio; tlbsync; ptesync": : :"memory");
 		}
 	}
@@ -1081,6 +1007,7 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 			goto local;
 		}
 		_tlbie_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
+		goto local;
 	} else {
 local:
 		_tlbiel_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);

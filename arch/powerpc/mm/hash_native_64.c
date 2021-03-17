@@ -115,8 +115,6 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	tlbiel_hash_set_isa300(0, is, 0, 2, 1);
 
 	asm volatile("ptesync": : :"memory");
-
-	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
 void hash__tlbiel_all(unsigned int action)
@@ -142,6 +140,8 @@ void hash__tlbiel_all(unsigned int action)
 		tlbiel_all_isa206(POWER7_TLB_SETS, is);
 	else
 		WARN(1, "%s called on pre-POWER7 CPU\n", __func__);
+
+	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
 static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
@@ -201,32 +201,9 @@ static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
 	return va;
 }
 
-static inline void fixup_tlbie_vpn(unsigned long vpn, int psize,
-				   int apsize, int ssize)
+static inline void fixup_tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 {
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
-		/* Radix flush for a hash guest */
-
-		unsigned long rb,rs,prs,r,ric;
-
-		rb = PPC_BIT(52); /* IS = 2 */
-		rs = 0;  /* lpid = 0 */
-		prs = 0; /* partition scoped */
-		r = 1;   /* radix format */
-		ric = 0; /* RIC_FLSUH_TLB */
-
-		/*
-		 * Need the extra ptesync to make sure we don't
-		 * re-order the tlbie
-		 */
-		asm volatile("ptesync": : :"memory");
-		asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
-			     : : "r"(rb), "i"(r), "i"(prs),
-			       "i"(ric), "r"(rs) : "memory");
-	}
-
-
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
 		/* Need the extra ptesync to ensure we don't reorder tlbie*/
 		asm volatile("ptesync": : :"memory");
 		___tlbie(vpn, psize, apsize, ssize);
@@ -310,7 +287,7 @@ static inline void tlbie(unsigned long vpn, int psize, int apsize,
 		asm volatile("ptesync": : :"memory");
 	} else {
 		__tlbie(vpn, psize, apsize, ssize);
-		fixup_tlbie_vpn(vpn, psize, apsize, ssize);
+		fixup_tlbie(vpn, psize, apsize, ssize);
 		asm volatile("eieio; tlbsync; ptesync": : :"memory");
 	}
 	if (lock_tlbie && !use_local)
@@ -883,7 +860,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 		/*
 		 * Just do one more with the last used values.
 		 */
-		fixup_tlbie_vpn(vpn, psize, psize, ssize);
+		fixup_tlbie(vpn, psize, psize, ssize);
 		asm volatile("eieio; tlbsync; ptesync":::"memory");
 
 		if (lock_tlbie)

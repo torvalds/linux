@@ -1954,14 +1954,13 @@ static void atmci_tasklet_func(unsigned long priv)
 			}
 
 			atmci_request_end(host, host->mrq);
-			goto unlock; /* atmci_request_end() sets host->state */
+			state = STATE_IDLE;
 			break;
 		}
 	} while (state != prev_state);
 
 	host->state = state;
 
-unlock:
 	spin_unlock(&host->lock);
 }
 

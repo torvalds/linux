@@ -20,7 +20,6 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/workqueue.h>
 #include <linux/bpf-cgroup.h>
-#include <linux/psi_types.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -32,7 +31,6 @@ struct kernfs_node;
 struct kernfs_ops;
 struct kernfs_open_file;
 struct seq_file;
-struct poll_table_struct;
 
 #define MAX_CGROUP_TYPE_NAMELEN 32
 #define MAX_CGROUP_ROOT_NAMELEN 64
@@ -65,12 +63,6 @@ enum {
 	 * specified at mount time and thus is implemented here.
 	 */
 	CGRP_CPUSET_CLONE_CHILDREN,
-
-	/* Control group has to be frozen. */
-	CGRP_FREEZE,
-
-	/* Cgroup is frozen. */
-	CGRP_FROZEN,
 };
 
 /* cgroup_root->flags */
@@ -215,7 +207,6 @@ struct css_set {
 	 */
 	struct list_head tasks;
 	struct list_head mg_tasks;
-	struct list_head dying_tasks;
 
 	/* all css_task_iters currently walking this cset */
 	struct list_head task_iters;
@@ -323,25 +314,6 @@ struct cgroup_rstat_cpu {
 	struct cgroup *updated_next;		/* NULL iff not on the list */
 };
 
-struct cgroup_freezer_state {
-	/* Should the cgroup and its descendants be frozen. */
-	bool freeze;
-
-	/* Should the cgroup actually be frozen? */
-	int e_freeze;
-
-	/* Fields below are protected by css_set_lock */
-
-	/* Number of frozen descendant cgroups */
-	int nr_frozen_descendants;
-
-	/*
-	 * Number of tasks, which are counted as frozen:
-	 * frozen, SIGSTOPped, and PTRACEd.
-	 */
-	int nr_frozen_tasks;
-};
-
 struct cgroup {
 	/* self css with NULL ->ss, points back to this cgroup */
 	struct cgroup_subsys_state self;
@@ -374,11 +346,6 @@ struct cgroup {
 	 * Dying cgroups are cgroups which were deleted by a user,
 	 * but are still existing because someone else is holding a reference.
 	 * max_descendants is a maximum allowed number of descent cgroups.
-	 *
-	 * nr_descendants and nr_dying_descendants are protected
-	 * by cgroup_mutex and css_set_lock. It's fine to read them holding
-	 * any of cgroup_mutex and css_set_lock; for writing both locks
-	 * should be held.
 	 */
 	int nr_descendants;
 	int nr_dying_descendants;
@@ -469,21 +436,11 @@ struct cgroup {
 	/* used to schedule release agent */
 	struct work_struct release_agent_work;
 
-	/* used to track pressure stalls */
-	struct psi_group psi;
-
 	/* used to store eBPF programs */
 	struct cgroup_bpf bpf;
 
 	/* If there is block congestion on this cgroup. */
 	atomic_t congestion_count;
-
-	/* Used to store internal freezer state */
-	struct cgroup_freezer_state freezer;
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-	ANDROID_KABI_RESERVE(3);
 
 	/* ids of the ancestors at each level including self */
 	int ancestor_ids[];
@@ -612,9 +569,6 @@ struct cftype {
 	ssize_t (*write)(struct kernfs_open_file *of,
 			 char *buf, size_t nbytes, loff_t off);
 
-	__poll_t (*poll)(struct kernfs_open_file *of,
-			 struct poll_table_struct *pt);
-
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	lockdep_key;
 #endif
@@ -643,7 +597,7 @@ struct cgroup_subsys {
 	void (*cancel_fork)(struct task_struct *task);
 	void (*fork)(struct task_struct *task);
 	void (*exit)(struct task_struct *task);
-	void (*release)(struct task_struct *task);
+	void (*free)(struct task_struct *task);
 	void (*bind)(struct cgroup_subsys_state *root_css);
 
 	bool early_init:1;
@@ -795,13 +749,7 @@ struct sock_cgroup_data {
 	union {
 #ifdef __LITTLE_ENDIAN
 		struct {
-#ifdef __GENKSYMS__
 			u8	is_data;
-#else
-			u8	is_data : 1;
-			u8	no_refcnt : 1;
-			u8	unused : 6;
-#endif
 			u8	padding;
 			u16	prioidx;
 			u32	classid;
@@ -811,9 +759,7 @@ struct sock_cgroup_data {
 			u32	classid;
 			u16	prioidx;
 			u8	padding;
-			u8	unused : 6;
-			u8	no_refcnt : 1;
-			u8	is_data : 1;
+			u8	is_data;
 		} __packed;
 #endif
 		u64		val;

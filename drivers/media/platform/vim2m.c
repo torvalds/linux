@@ -3,8 +3,7 @@
  *
  * This is a virtual device driver for testing mem-to-mem videobuf framework.
  * It simulates a device that uses memory buffers for both source and
- * destination, processes the data and issues an "irq" (simulated by a delayed
- * workqueue).
+ * destination, processes the data and issues an "irq" (simulated by a timer).
  * The device is capable of multi-instance, multi-buffer-per-transaction
  * operation (via the mem2mem framework).
  *
@@ -20,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -148,7 +148,7 @@ struct vim2m_dev {
 	struct mutex		dev_mutex;
 	spinlock_t		irqlock;
 
-	struct delayed_work	work_run;
+	struct timer_list	timer;
 
 	struct v4l2_m2m_dev	*m2m_dev;
 };
@@ -336,6 +336,12 @@ static int device_process(struct vim2m_ctx *ctx,
 	return 0;
 }
 
+static void schedule_irq(struct vim2m_dev *dev, int msec_timeout)
+{
+	dprintk(dev, "Scheduling a simulated irq\n");
+	mod_timer(&dev->timer, jiffies + msecs_to_jiffies(msec_timeout));
+}
+
 /*
  * mem2mem callbacks
  */
@@ -381,14 +387,13 @@ static void device_run(void *priv)
 
 	device_process(ctx, src_buf, dst_buf);
 
-	/* Run delayed work, which simulates a hardware irq  */
-	schedule_delayed_work(&dev->work_run, msecs_to_jiffies(ctx->transtime));
+	/* Run a timer, which simulates a hardware irq  */
+	schedule_irq(dev, ctx->transtime);
 }
 
-static void device_work(struct work_struct *w)
+static void device_isr(struct timer_list *t)
 {
-	struct vim2m_dev *vim2m_dev =
-		container_of(w, struct vim2m_dev, work_run.work);
+	struct vim2m_dev *vim2m_dev = from_timer(vim2m_dev, t, timer);
 	struct vim2m_ctx *curr_ctx;
 	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	unsigned long flags;
@@ -797,12 +802,8 @@ static int vim2m_start_streaming(struct vb2_queue *q, unsigned count)
 static void vim2m_stop_streaming(struct vb2_queue *q)
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(q);
-	struct vim2m_dev *dev = ctx->dev;
 	struct vb2_v4l2_buffer *vbuf;
 	unsigned long flags;
-
-	if (v4l2_m2m_get_curr_priv(dev->m2m_dev) == ctx)
-		cancel_delayed_work_sync(&dev->work_run);
 
 	for (;;) {
 		if (V4L2_TYPE_IS_OUTPUT(q->type))
@@ -1014,7 +1015,6 @@ static int vim2m_probe(struct platform_device *pdev)
 	vfd = &dev->vfd;
 	vfd->lock = &dev->dev_mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
-	INIT_DELAYED_WORK(&dev->work_run, device_work);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
@@ -1026,6 +1026,7 @@ static int vim2m_probe(struct platform_device *pdev)
 	v4l2_info(&dev->v4l2_dev,
 			"Device registered as /dev/video%d\n", vfd->num);
 
+	timer_setup(&dev->timer, device_isr, 0);
 	platform_set_drvdata(pdev, dev);
 
 	dev->m2m_dev = v4l2_m2m_init(&m2m_ops);
@@ -1082,6 +1083,7 @@ static int vim2m_remove(struct platform_device *pdev)
 	media_device_cleanup(&dev->mdev);
 #endif
 	v4l2_m2m_release(dev->m2m_dev);
+	del_timer_sync(&dev->timer);
 	video_unregister_device(&dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
 

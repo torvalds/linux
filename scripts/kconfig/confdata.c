@@ -784,7 +784,6 @@ int conf_write(const char *name)
 	const char *str;
 	char dirname[PATH_MAX+1], tmpname[PATH_MAX+22], newname[PATH_MAX+8];
 	char *env;
-	int i;
 
 	dirname[0] = 0;
 	if (name && name[0]) {
@@ -835,12 +834,11 @@ int conf_write(const char *name)
 				     "#\n"
 				     "# %s\n"
 				     "#\n", str);
-		} else if (!(sym->flags & SYMBOL_CHOICE) &&
-			   !(sym->flags & SYMBOL_WRITTEN)) {
+		} else if (!(sym->flags & SYMBOL_CHOICE)) {
 			sym_calc_value(sym);
 			if (!(sym->flags & SYMBOL_WRITE))
 				goto next;
-			sym->flags |= SYMBOL_WRITTEN;
+			sym->flags &= ~SYMBOL_WRITE;
 
 			conf_write_symbol(out, sym, &kconfig_printer_cb, NULL);
 		}
@@ -860,9 +858,6 @@ next:
 		}
 	}
 	fclose(out);
-
-	for_all_symbols(i, sym)
-		sym->flags &= ~SYMBOL_WRITTEN;
 
 	if (*tmpname) {
 		strcat(dirname, basename);
@@ -1028,6 +1023,8 @@ int conf_write_autoconf(int overwrite)
 
 	if (!overwrite && is_present(autoconf_name))
 		return 0;
+
+	sym_clear_all_valid();
 
 	conf_write_dep("include/config/auto.conf.cmd");
 
@@ -1314,7 +1311,7 @@ bool conf_set_all_new_symbols(enum conf_def_mode mode)
 
 		sym_calc_value(csym);
 		if (mode == def_random)
-			has_changed |= randomize_choice_values(csym);
+			has_changed = randomize_choice_values(csym);
 		else {
 			set_all_choice_values(csym);
 			has_changed = true;

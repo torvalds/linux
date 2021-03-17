@@ -1372,7 +1372,7 @@ sub reboot {
 
     } else {
 	# Make sure everything has been written to disk
-	run_ssh("sync", 10);
+	run_ssh("sync");
 
 	if (defined($time)) {
 	    start_monitor;
@@ -4177,12 +4177,7 @@ sub do_send_mail {
     $mail_command =~ s/\$SUBJECT/$subject/g;
     $mail_command =~ s/\$MESSAGE/$message/g;
 
-    my $ret = run_command $mail_command;
-    if (!$ret && defined($file)) {
-	# try again without the file
-	$message .= "\n\n*** FAILED TO SEND LOG ***\n\n";
-	do_send_email($subject, $message);
-    }
+    run_command $mail_command;
 }
 
 sub send_email {

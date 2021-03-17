@@ -22,8 +22,10 @@
 	 * The decompressor and also some bootloaders rely on a
 	 * pre-existing /chosen node to be available to insert the
 	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
+	memory { device_type = "memory"; };
 
 	aliases {
 		ethernet0 = &fec;
@@ -418,7 +420,7 @@
 				reg = <0x63fb0000 0x4000>;
 				interrupts = <6>;
 				clocks = <&clks IMX5_CLK_SDMA_GATE>,
-					 <&clks IMX5_CLK_AHB>;
+					 <&clks IMX5_CLK_SDMA_GATE>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx50.bin";

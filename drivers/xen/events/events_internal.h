@@ -32,16 +32,11 @@ enum xen_irq_type {
  */
 struct irq_info {
 	struct list_head list;
-	struct list_head eoi_list;
-	short refcnt;
-	short spurious_cnt;
+	int refcnt;
 	enum xen_irq_type type;	/* type */
 	unsigned irq;
 	unsigned int evtchn;	/* event channel */
 	unsigned short cpu;	/* cpu bound */
-	unsigned short eoi_cpu;	/* EOI must happen on this cpu */
-	unsigned int irq_epoch;	/* If eoi_cpu valid: irq_epoch of event */
-	u64 eoi_time;		/* Time in jiffies when to EOI. */
 
 	union {
 		unsigned short virq;
@@ -60,8 +55,6 @@ struct irq_info {
 #define PIRQ_SHAREABLE	(1 << 1)
 #define PIRQ_MSI_GROUP	(1 << 2)
 
-struct evtchn_loop_ctrl;
-
 struct evtchn_ops {
 	unsigned (*max_channels)(void);
 	unsigned (*nr_channels)(void);
@@ -76,18 +69,14 @@ struct evtchn_ops {
 	void (*mask)(unsigned port);
 	void (*unmask)(unsigned port);
 
-	void (*handle_events)(unsigned cpu, struct evtchn_loop_ctrl *ctrl);
+	void (*handle_events)(unsigned cpu);
 	void (*resume)(void);
-
-	int (*percpu_init)(unsigned int cpu);
-	int (*percpu_deinit)(unsigned int cpu);
 };
 
 extern const struct evtchn_ops *evtchn_ops;
 
 extern int **evtchn_to_irq;
 int get_evtchn_to_irq(unsigned int evtchn);
-void handle_irq_for_port(evtchn_port_t port, struct evtchn_loop_ctrl *ctrl);
 
 struct irq_info *info_for_irq(unsigned irq);
 unsigned cpu_from_irq(unsigned irq);
@@ -145,10 +134,9 @@ static inline void unmask_evtchn(unsigned port)
 	return evtchn_ops->unmask(port);
 }
 
-static inline void xen_evtchn_handle_events(unsigned cpu,
-					    struct evtchn_loop_ctrl *ctrl)
+static inline void xen_evtchn_handle_events(unsigned cpu)
 {
-	return evtchn_ops->handle_events(cpu, ctrl);
+	return evtchn_ops->handle_events(cpu);
 }
 
 static inline void xen_evtchn_resume(void)

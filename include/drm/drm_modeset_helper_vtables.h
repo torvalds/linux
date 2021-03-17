@@ -465,11 +465,6 @@ static inline void drm_crtc_helper_add(struct drm_crtc *crtc,
  */
 struct drm_encoder_helper_funcs {
 	/**
-	 * @loader_protect:
-	 * protect loader logo encoder's power.
-	 */
-	int (*loader_protect)(struct drm_encoder *encoder, bool on);
-	/**
 	 * @dpms:
 	 *
 	 * Callback to control power levels on the encoder.  If the mode passed in
@@ -786,12 +781,6 @@ static inline void drm_encoder_helper_add(struct drm_encoder *encoder,
  */
 struct drm_connector_helper_funcs {
 	/**
-	 * @loader_protect:
-	 *
-	 * protect loader logo connector's power
-	 */
-	int (*loader_protect)(struct drm_connector *connector, bool on);
-	/**
 	 * @get_modes:
 	 *
 	 * This function should fill in all modes currently valid for the sink
@@ -984,7 +973,7 @@ struct drm_connector_helper_funcs {
 	 * deadlock.
 	 */
 	int (*atomic_check)(struct drm_connector *connector,
-			    struct drm_atomic_state *state);
+			    struct drm_connector_state *state);
 
 	/**
 	 * @atomic_commit:
@@ -1184,14 +1173,6 @@ struct drm_plane_helper_funcs {
 	 * drivers shouldn't replace the &drm_plane_state but update the
 	 * current one with the new plane configurations in the new
 	 * plane_state.
-	 *
-	 * Drivers should also swap the framebuffers between current plane
-	 * state (&drm_plane.state) and new_state.
-	 * This is required since cleanup for async commits is performed on
-	 * the new state, rather than old state like for traditional commits.
-	 * Since we want to give up the reference on the current (old) fb
-	 * instead of our brand new one, swap them in the driver during the
-	 * async commit.
 	 *
 	 * FIXME:
 	 *  - It only works for single plane updates

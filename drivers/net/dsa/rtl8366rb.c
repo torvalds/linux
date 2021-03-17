@@ -507,8 +507,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 	irq = of_irq_get(intc, 0);
 	if (irq <= 0) {
 		dev_err(smi->dev, "failed to get parent IRQ\n");
-		ret = irq ? irq : -EINVAL;
-		goto out_put_node;
+		return irq ? irq : -EINVAL;
 	}
 
 	/* This clears the IRQ status register */
@@ -516,7 +515,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 			  &val);
 	if (ret) {
 		dev_err(smi->dev, "can't read interrupt status\n");
-		goto out_put_node;
+		return ret;
 	}
 
 	/* Fetch IRQ edge information from the descriptor */
@@ -538,7 +537,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 				 val);
 	if (ret) {
 		dev_err(smi->dev, "could not configure IRQ polarity\n");
-		goto out_put_node;
+		return ret;
 	}
 
 	ret = devm_request_threaded_irq(smi->dev, irq, NULL,
@@ -546,7 +545,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 					"RTL8366RB", smi);
 	if (ret) {
 		dev_err(smi->dev, "unable to request irq: %d\n", ret);
-		goto out_put_node;
+		return ret;
 	}
 	smi->irqdomain = irq_domain_add_linear(intc,
 					       RTL8366RB_NUM_INTERRUPT,
@@ -554,15 +553,12 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 					       smi);
 	if (!smi->irqdomain) {
 		dev_err(smi->dev, "failed to create IRQ domain\n");
-		ret = -EINVAL;
-		goto out_put_node;
+		return -EINVAL;
 	}
 	for (i = 0; i < smi->num_ports; i++)
 		irq_set_parent(irq_create_mapping(smi->irqdomain, i), irq);
 
-out_put_node:
-	of_node_put(intc);
-	return ret;
+	return 0;
 }
 
 static int rtl8366rb_set_addr(struct realtek_smi *smi)
@@ -1270,7 +1266,7 @@ static bool rtl8366rb_is_vlan_valid(struct realtek_smi *smi, unsigned int vlan)
 	if (smi->vlan4k_enabled)
 		max = RTL8366RB_NUM_VIDS - 1;
 
-	if (vlan == 0 || vlan > max)
+	if (vlan == 0 || vlan >= max)
 		return false;
 
 	return true;

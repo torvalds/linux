@@ -399,13 +399,6 @@ int phy_calibrate(struct phy *phy)
 	if (!phy || !phy->ops->calibrate)
 		return 0;
 
-	if (phy->dev.parent &&
-	    of_device_is_compatible(phy->dev.parent->of_node,
-				    "rockchip,rv1126-usb2phy")) {
-		ret = phy->ops->calibrate(phy);
-		return ret;
-	}
-
 	mutex_lock(&phy->mutex);
 	ret = phy->ops->calibrate(phy);
 	mutex_unlock(&phy->mutex);
@@ -413,70 +406,6 @@ int phy_calibrate(struct phy *phy)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_calibrate);
-
-/**
- * phy_configure() - Changes the phy parameters
- * @phy: the phy returned by phy_get()
- * @opts: New configuration to apply
- *
- * Used to change the PHY parameters. phy_init() must have been called
- * on the phy. The configuration will be applied on the current phy
- * mode, that can be changed using phy_set_mode().
- *
- * Returns: 0 if successful, an negative error code otherwise
- */
-int phy_configure(struct phy *phy, union phy_configure_opts *opts)
-{
-	int ret;
-
-	if (!phy)
-		return -EINVAL;
-
-	if (!phy->ops->configure)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&phy->mutex);
-	ret = phy->ops->configure(phy, opts);
-	mutex_unlock(&phy->mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(phy_configure);
-
-/**
- * phy_validate() - Checks the phy parameters
- * @phy: the phy returned by phy_get()
- * @mode: phy_mode the configuration is applicable to.
- * @submode: PHY submode the configuration is applicable to.
- * @opts: Configuration to check
- *
- * Used to check that the current set of parameters can be handled by
- * the phy. Implementations are free to tune the parameters passed as
- * arguments if needed by some implementation detail or
- * constraints. It will not change any actual configuration of the
- * PHY, so calling it as many times as deemed fit will have no side
- * effect.
- *
- * Returns: 0 if successful, an negative error code otherwise
- */
-int phy_validate(struct phy *phy, enum phy_mode mode, int submode,
-		 union phy_configure_opts *opts)
-{
-	int ret;
-
-	if (!phy)
-		return -EINVAL;
-
-	if (!phy->ops->validate)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&phy->mutex);
-	ret = phy->ops->validate(phy, mode, submode, opts);
-	mutex_unlock(&phy->mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(phy_validate);
 
 /**
  * _of_phy_get() - lookup and obtain a reference to a phy by phandle
@@ -1119,11 +1048,7 @@ static int __init phy_core_init(void)
 
 	return 0;
 }
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-subsys_initcall(phy_core_init);
-#else
 module_init(phy_core_init);
-#endif
 
 static void __exit phy_core_exit(void)
 {

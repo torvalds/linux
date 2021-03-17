@@ -41,10 +41,21 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	unsigned int i;
 	u32 reg, offset;
 
+	if (priv->type == BCM7445_DEVICE_ID)
+		offset = CORE_STS_OVERRIDE_IMP;
+	else
+		offset = CORE_STS_OVERRIDE_IMP2;
+
 	/* Enable the port memories */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
 	reg &= ~P_TXQ_PSM_VDD(port);
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
+
+	/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
+	reg = core_readl(priv, CORE_IMP_CTL);
+	reg |= (RX_BCST_EN | RX_MCST_EN | RX_UCST_EN);
+	reg &= ~(RX_DIS | TX_DIS);
+	core_writel(priv, reg, CORE_IMP_CTL);
 
 	/* Enable forwarding */
 	core_writel(priv, SW_FWDG_EN, CORE_SWMODE);
@@ -64,28 +75,10 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 
 	b53_brcm_hdr_setup(ds, port);
 
-	if (port == 8) {
-		if (priv->type == BCM7445_DEVICE_ID)
-			offset = CORE_STS_OVERRIDE_IMP;
-		else
-			offset = CORE_STS_OVERRIDE_IMP2;
-
-		/* Force link status for IMP port */
-		reg = core_readl(priv, offset);
-		reg |= (MII_SW_OR | LINK_STS);
-		reg &= ~GMII_SPEED_UP_2G;
-		core_writel(priv, reg, offset);
-
-		/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
-		reg = core_readl(priv, CORE_IMP_CTL);
-		reg |= (RX_BCST_EN | RX_MCST_EN | RX_UCST_EN);
-		reg &= ~(RX_DIS | TX_DIS);
-		core_writel(priv, reg, CORE_IMP_CTL);
-	} else {
-		reg = core_readl(priv, CORE_G_PCTL_PORT(port));
-		reg &= ~(RX_DIS | TX_DIS);
-		core_writel(priv, reg, CORE_G_PCTL_PORT(port));
-	}
+	/* Force link status for IMP port */
+	reg = core_readl(priv, offset);
+	reg |= (MII_SW_OR | LINK_STS);
+	core_writel(priv, reg, offset);
 }
 
 static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
@@ -310,10 +303,11 @@ static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
 	 * send them to our master MDIO bus controller
 	 */
 	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
-		return bcm_sf2_sw_indir_rw(priv, 0, addr, regnum, val);
+		bcm_sf2_sw_indir_rw(priv, 0, addr, regnum, val);
 	else
-		return mdiobus_write_nested(priv->master_mii_bus, addr,
-				regnum, val);
+		mdiobus_write_nested(priv->master_mii_bus, addr, regnum, val);
+
+	return 0;
 }
 
 static irqreturn_t bcm_sf2_switch_0_isr(int irq, void *dev_id)
@@ -461,7 +455,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	priv->slave_mii_bus->parent = ds->dev->parent;
 	priv->slave_mii_bus->phy_mask = ~priv->indir_phy_mask;
 
-	err = mdiobus_register(priv->slave_mii_bus);
+	err = of_mdiobus_register(priv->slave_mii_bus, dn);
 	if (err && dn)
 		of_node_put(dn);
 
@@ -698,7 +692,7 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 	 * port, the other ones have already been disabled during
 	 * bcm_sf2_sw_setup
 	 */
-	for (port = 0; port < ds->num_ports; port++) {
+	for (port = 0; port < DSA_MAX_PORTS; port++) {
 		if (dsa_is_user_port(ds, port) || dsa_is_cpu_port(ds, port))
 			bcm_sf2_port_disable(ds, port, NULL);
 	}
@@ -730,11 +724,10 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 {
 	struct net_device *p = ds->ports[port].cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_wolinfo pwol = { };
+	struct ethtool_wolinfo pwol;
 
 	/* Get the parent device WoL settings */
-	if (p->ethtool_ops->get_wol)
-		p->ethtool_ops->get_wol(p, &pwol);
+	p->ethtool_ops->get_wol(p, &pwol);
 
 	/* Advertise the parent device supported settings */
 	wol->supported = pwol.supported;
@@ -755,10 +748,9 @@ static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 	struct net_device *p = ds->ports[port].cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	s8 cpu_port = ds->ports[port].cpu_dp->index;
-	struct ethtool_wolinfo pwol =  { };
+	struct ethtool_wolinfo pwol;
 
-	if (p->ethtool_ops->get_wol)
-		p->ethtool_ops->get_wol(p, &pwol);
+	p->ethtool_ops->get_wol(p, &pwol);
 	if (wol->wolopts & ~pwol.supported)
 		return -EINVAL;
 
@@ -1014,7 +1006,6 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	const struct bcm_sf2_of_data *data;
 	struct b53_platform_data *pdata;
 	struct dsa_switch_ops *ops;
-	struct device_node *ports;
 	struct bcm_sf2_priv *priv;
 	struct b53_device *dev;
 	struct dsa_switch *ds;
@@ -1078,13 +1069,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	set_bit(0, priv->cfp.used);
 	set_bit(0, priv->cfp.unique);
 
-	/* Balance of_node_put() done by of_find_node_by_name() */
-	of_node_get(dn);
-	ports = of_find_node_by_name(dn, "ports");
-	if (ports) {
-		bcm_sf2_identify_ports(priv, ports);
-		of_node_put(ports);
-	}
+	bcm_sf2_identify_ports(priv, dn->child);
 
 	priv->irq0 = irq_of_parse_and_map(dn, 0);
 	priv->irq1 = irq_of_parse_and_map(dn, 1);
@@ -1106,15 +1091,11 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bcm_sf2_gphy_enable_set(priv->dev->ds, true);
-
 	ret = bcm_sf2_mdio_register(ds);
 	if (ret) {
 		pr_err("failed to register MDIO bus\n");
 		return ret;
 	}
-
-	bcm_sf2_gphy_enable_set(priv->dev->ds, false);
 
 	ret = bcm_sf2_cfp_rst(priv);
 	if (ret) {

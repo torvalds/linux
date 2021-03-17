@@ -15,7 +15,6 @@ GW_IP6=2001:db8:1::2
 SRC_IP6=2001:db8:1::3
 
 DEV_ADDR=192.51.100.1
-DEV_ADDR6=2001:db8:1::1
 DEV=dummy0
 
 log_test()
@@ -28,7 +27,6 @@ log_test()
 		nsuccess=$((nsuccess+1))
 		printf "\n    TEST: %-50s  [ OK ]\n" "${msg}"
 	else
-		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-50s  [FAIL]\n" "${msg}"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
@@ -56,8 +54,8 @@ setup()
 
 	$IP link add dummy0 type dummy
 	$IP link set dev dummy0 up
-	$IP address add $DEV_ADDR/24 dev dummy0
-	$IP -6 address add $DEV_ADDR6/64 dev dummy0
+	$IP address add 198.51.100.1/24 dev dummy0
+	$IP -6 address add 2001:db8:1::1/64 dev dummy0
 
 	set +e
 }
@@ -149,8 +147,8 @@ fib_rule6_test()
 
 	fib_check_iproute_support "ipproto" "ipproto"
 	if [ $? -eq 0 ]; then
-		match="ipproto ipv6-icmp"
-		fib_rule6_test_match_n_redirect "$match" "$match" "ipproto ipv6-icmp match"
+		match="ipproto icmp"
+		fib_rule6_test_match_n_redirect "$match" "$match" "ipproto icmp match"
 	fi
 }
 
@@ -246,10 +244,5 @@ cleanup &> /dev/null
 setup
 run_fibrule_tests
 cleanup
-
-if [ "$TESTS" != "none" ]; then
-	printf "\nTests passed: %3d\n" ${nsuccess}
-	printf "Tests failed: %3d\n"   ${nfail}
-fi
 
 exit $ret

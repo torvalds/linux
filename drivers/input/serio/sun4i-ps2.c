@@ -210,6 +210,7 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	struct sun4i_ps2data *drvdata;
 	struct serio *serio;
 	struct device *dev = &pdev->dev;
+	unsigned int irq;
 	int error;
 
 	drvdata = kzalloc(sizeof(struct sun4i_ps2data), GFP_KERNEL);
@@ -262,12 +263,14 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	writel(0, drvdata->reg_base + PS2_REG_GCTL);
 
 	/* Get IRQ for the device */
-	drvdata->irq = platform_get_irq(pdev, 0);
-	if (drvdata->irq < 0) {
-		error = drvdata->irq;
+	irq = platform_get_irq(pdev, 0);
+	if (!irq) {
+		dev_err(dev, "no IRQ found\n");
+		error = -ENXIO;
 		goto err_disable_clk;
 	}
 
+	drvdata->irq = irq;
 	drvdata->serio = serio;
 	drvdata->dev = dev;
 

@@ -1270,9 +1270,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp2 = bpf2sparc[TMP_REG_2];
 		u32 opcode = 0, rs2;
 
-		if (insn->dst_reg == BPF_REG_FP)
-			ctx->saw_frame_pointer = true;
-
 		ctx->tmp_2_used = true;
 		emit_loadimm(imm, tmp2, ctx);
 
@@ -1311,9 +1308,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp = bpf2sparc[TMP_REG_1];
 		u32 opcode = 0, rs2;
 
-		if (insn->dst_reg == BPF_REG_FP)
-			ctx->saw_frame_pointer = true;
-
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
 			opcode = ST32;
@@ -1346,9 +1340,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp2 = bpf2sparc[TMP_REG_2];
 		const u8 tmp3 = bpf2sparc[TMP_REG_3];
 
-		if (insn->dst_reg == BPF_REG_FP)
-			ctx->saw_frame_pointer = true;
-
 		ctx->tmp_1_used = true;
 		ctx->tmp_2_used = true;
 		ctx->tmp_3_used = true;
@@ -1368,9 +1359,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp = bpf2sparc[TMP_REG_1];
 		const u8 tmp2 = bpf2sparc[TMP_REG_2];
 		const u8 tmp3 = bpf2sparc[TMP_REG_3];
-
-		if (insn->dst_reg == BPF_REG_FP)
-			ctx->saw_frame_pointer = true;
 
 		ctx->tmp_1_used = true;
 		ctx->tmp_2_used = true;
@@ -1437,12 +1425,12 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	struct bpf_prog *tmp, *orig_prog = prog;
 	struct sparc64_jit_data *jit_data;
 	struct bpf_binary_header *header;
-	u32 prev_image_size, image_size;
 	bool tmp_blinded = false;
 	bool extra_pass = false;
 	struct jit_ctx ctx;
+	u32 image_size;
 	u8 *image_ptr;
-	int pass, i;
+	int pass;
 
 	if (!prog->jit_requested)
 		return orig_prog;
@@ -1473,52 +1461,27 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		header = jit_data->header;
 		extra_pass = true;
 		image_size = sizeof(u32) * ctx.idx;
-		prev_image_size = image_size;
-		pass = 1;
 		goto skip_init_ctx;
 	}
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.prog = prog;
 
-	ctx.offset = kmalloc_array(prog->len, sizeof(unsigned int), GFP_KERNEL);
+	ctx.offset = kcalloc(prog->len, sizeof(unsigned int), GFP_KERNEL);
 	if (ctx.offset == NULL) {
 		prog = orig_prog;
 		goto out_off;
 	}
 
-	/* Longest sequence emitted is for bswap32, 12 instructions.  Pre-cook
-	 * the offset array so that we converge faster.
+	/* Fake pass to detect features used, and get an accurate assessment
+	 * of what the final image size will be.
 	 */
-	for (i = 0; i < prog->len; i++)
-		ctx.offset[i] = i * (12 * 4);
-
-	prev_image_size = ~0U;
-	for (pass = 1; pass < 40; pass++) {
-		ctx.idx = 0;
-
-		build_prologue(&ctx);
-		if (build_body(&ctx)) {
-			prog = orig_prog;
-			goto out_off;
-		}
-		build_epilogue(&ctx);
-
-		if (bpf_jit_enable > 1)
-			pr_info("Pass %d: size = %u, seen = [%c%c%c%c%c%c]\n", pass,
-				ctx.idx * 4,
-				ctx.tmp_1_used ? '1' : ' ',
-				ctx.tmp_2_used ? '2' : ' ',
-				ctx.tmp_3_used ? '3' : ' ',
-				ctx.saw_frame_pointer ? 'F' : ' ',
-				ctx.saw_call ? 'C' : ' ',
-				ctx.saw_tail_call ? 'T' : ' ');
-
-		if (ctx.idx * 4 == prev_image_size)
-			break;
-		prev_image_size = ctx.idx * 4;
-		cond_resched();
+	if (build_body(&ctx)) {
+		prog = orig_prog;
+		goto out_off;
 	}
+	build_prologue(&ctx);
+	build_epilogue(&ctx);
 
 	/* Now we know the actual image size. */
 	image_size = sizeof(u32) * ctx.idx;
@@ -1531,24 +1494,28 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	ctx.image = (u32 *)image_ptr;
 skip_init_ctx:
-	ctx.idx = 0;
+	for (pass = 1; pass < 3; pass++) {
+		ctx.idx = 0;
 
-	build_prologue(&ctx);
+		build_prologue(&ctx);
 
-	if (build_body(&ctx)) {
-		bpf_jit_binary_free(header);
-		prog = orig_prog;
-		goto out_off;
-	}
+		if (build_body(&ctx)) {
+			bpf_jit_binary_free(header);
+			prog = orig_prog;
+			goto out_off;
+		}
 
-	build_epilogue(&ctx);
+		build_epilogue(&ctx);
 
-	if (ctx.idx * 4 != prev_image_size) {
-		pr_err("bpf_jit: Failed to converge, prev_size=%u size=%d\n",
-		       prev_image_size, ctx.idx * 4);
-		bpf_jit_binary_free(header);
-		prog = orig_prog;
-		goto out_off;
+		if (bpf_jit_enable > 1)
+			pr_info("Pass %d: shrink = %d, seen = [%c%c%c%c%c%c]\n", pass,
+				image_size - (ctx.idx * 4),
+				ctx.tmp_1_used ? '1' : ' ',
+				ctx.tmp_2_used ? '2' : ' ',
+				ctx.tmp_3_used ? '3' : ' ',
+				ctx.saw_frame_pointer ? 'F' : ' ',
+				ctx.saw_call ? 'C' : ' ',
+				ctx.saw_tail_call ? 'T' : ' ');
 	}
 
 	if (bpf_jit_enable > 1)

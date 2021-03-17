@@ -4,7 +4,6 @@
  * Copyright (C) 2017 Zodiac Inflight Innovations
  */
 
-#include "common.xml.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_perfmon.h"
 #include "state_hi.xml.h"
@@ -32,10 +31,16 @@ struct etnaviv_pm_domain {
 };
 
 struct etnaviv_pm_domain_meta {
-	unsigned int feature;
 	const struct etnaviv_pm_domain *domains;
 	u32 nr_domains;
 };
+
+static u32 simple_reg_read(struct etnaviv_gpu *gpu,
+	const struct etnaviv_pm_domain *domain,
+	const struct etnaviv_pm_signal *signal)
+{
+	return gpu_read(gpu, signal->data);
+}
 
 static u32 perf_reg_read(struct etnaviv_gpu *gpu,
 	const struct etnaviv_pm_domain *domain,
@@ -70,34 +75,6 @@ static u32 pipe_reg_read(struct etnaviv_gpu *gpu,
 	return value;
 }
 
-static u32 hi_total_cycle_read(struct etnaviv_gpu *gpu,
-	const struct etnaviv_pm_domain *domain,
-	const struct etnaviv_pm_signal *signal)
-{
-	u32 reg = VIVS_HI_PROFILE_TOTAL_CYCLES;
-
-	if (gpu->identity.model == chipModel_GC880 ||
-		gpu->identity.model == chipModel_GC2000 ||
-		gpu->identity.model == chipModel_GC2100)
-		reg = VIVS_MC_PROFILE_CYCLE_COUNTER;
-
-	return gpu_read(gpu, reg);
-}
-
-static u32 hi_total_idle_cycle_read(struct etnaviv_gpu *gpu,
-	const struct etnaviv_pm_domain *domain,
-	const struct etnaviv_pm_signal *signal)
-{
-	u32 reg = VIVS_HI_PROFILE_IDLE_CYCLES;
-
-	if (gpu->identity.model == chipModel_GC880 ||
-		gpu->identity.model == chipModel_GC2000 ||
-		gpu->identity.model == chipModel_GC2100)
-		reg = VIVS_HI_PROFILE_TOTAL_CYCLES;
-
-	return gpu_read(gpu, reg);
-}
-
 static const struct etnaviv_pm_domain doms_3d[] = {
 	{
 		.name = "HI",
@@ -107,13 +84,13 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 		.signal = (const struct etnaviv_pm_signal[]) {
 			{
 				"TOTAL_CYCLES",
-				0,
-				&hi_total_cycle_read
+				VIVS_HI_PROFILE_TOTAL_CYCLES,
+				&simple_reg_read
 			},
 			{
 				"IDLE_CYCLES",
-				0,
-				&hi_total_idle_cycle_read
+				VIVS_HI_PROFILE_IDLE_CYCLES,
+				&simple_reg_read
 			},
 			{
 				"AXI_CYCLES_READ_REQUEST_STALLED",
@@ -136,7 +113,7 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 		.name = "PE",
 		.profile_read = VIVS_MC_PROFILE_PE_READ,
 		.profile_config = VIVS_MC_PROFILE_CONFIG0,
-		.nr_signals = 4,
+		.nr_signals = 5,
 		.signal = (const struct etnaviv_pm_signal[]) {
 			{
 				"PIXEL_COUNT_KILLED_BY_COLOR_PIPE",
@@ -411,78 +388,36 @@ static const struct etnaviv_pm_domain doms_vg[] = {
 
 static const struct etnaviv_pm_domain_meta doms_meta[] = {
 	{
-		.feature = chipFeatures_PIPE_3D,
 		.nr_domains = ARRAY_SIZE(doms_3d),
 		.domains = &doms_3d[0]
 	},
 	{
-		.feature = chipFeatures_PIPE_2D,
 		.nr_domains = ARRAY_SIZE(doms_2d),
 		.domains = &doms_2d[0]
 	},
 	{
-		.feature = chipFeatures_PIPE_VG,
 		.nr_domains = ARRAY_SIZE(doms_vg),
 		.domains = &doms_vg[0]
 	}
 };
 
-static unsigned int num_pm_domains(const struct etnaviv_gpu *gpu)
-{
-	unsigned int num = 0, i;
-
-	for (i = 0; i < ARRAY_SIZE(doms_meta); i++) {
-		const struct etnaviv_pm_domain_meta *meta = &doms_meta[i];
-
-		if (gpu->identity.features & meta->feature)
-			num += meta->nr_domains;
-	}
-
-	return num;
-}
-
-static const struct etnaviv_pm_domain *pm_domain(const struct etnaviv_gpu *gpu,
-	unsigned int index)
-{
-	const struct etnaviv_pm_domain *domain = NULL;
-	unsigned int offset = 0, i;
-
-	for (i = 0; i < ARRAY_SIZE(doms_meta); i++) {
-		const struct etnaviv_pm_domain_meta *meta = &doms_meta[i];
-
-		if (!(gpu->identity.features & meta->feature))
-			continue;
-
-		if (index - offset >= meta->nr_domains) {
-			offset += meta->nr_domains;
-			continue;
-		}
-
-		domain = meta->domains + (index - offset);
-	}
-
-	return domain;
-}
-
 int etnaviv_pm_query_dom(struct etnaviv_gpu *gpu,
 	struct drm_etnaviv_pm_domain *domain)
 {
-	const unsigned int nr_domains = num_pm_domains(gpu);
+	const struct etnaviv_pm_domain_meta *meta = &doms_meta[domain->pipe];
 	const struct etnaviv_pm_domain *dom;
 
-	if (domain->iter >= nr_domains)
+	if (domain->iter >= meta->nr_domains)
 		return -EINVAL;
 
-	dom = pm_domain(gpu, domain->iter);
-	if (!dom)
-		return -EINVAL;
+	dom = meta->domains + domain->iter;
 
 	domain->id = domain->iter;
 	domain->nr_signals = dom->nr_signals;
 	strncpy(domain->name, dom->name, sizeof(domain->name));
 
 	domain->iter++;
-	if (domain->iter == nr_domains)
+	if (domain->iter == meta->nr_domains)
 		domain->iter = 0xff;
 
 	return 0;
@@ -491,18 +426,16 @@ int etnaviv_pm_query_dom(struct etnaviv_gpu *gpu,
 int etnaviv_pm_query_sig(struct etnaviv_gpu *gpu,
 	struct drm_etnaviv_pm_signal *signal)
 {
-	const unsigned int nr_domains = num_pm_domains(gpu);
+	const struct etnaviv_pm_domain_meta *meta = &doms_meta[signal->pipe];
 	const struct etnaviv_pm_domain *dom;
 	const struct etnaviv_pm_signal *sig;
 
-	if (signal->domain >= nr_domains)
+	if (signal->domain >= meta->nr_domains)
 		return -EINVAL;
 
-	dom = pm_domain(gpu, signal->domain);
-	if (!dom)
-		return -EINVAL;
+	dom = meta->domains + signal->domain;
 
-	if (signal->iter >= dom->nr_signals)
+	if (signal->iter > dom->nr_signals)
 		return -EINVAL;
 
 	sig = &dom->signal[signal->iter];
@@ -528,7 +461,7 @@ int etnaviv_pm_req_validate(const struct drm_etnaviv_gem_submit_pmr *r,
 
 	dom = meta->domains + r->domain;
 
-	if (r->signal >= dom->nr_signals)
+	if (r->signal > dom->nr_signals)
 		return -EINVAL;
 
 	return 0;

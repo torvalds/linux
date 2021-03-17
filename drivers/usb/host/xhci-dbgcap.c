@@ -516,6 +516,7 @@ static int xhci_do_dbc_stop(struct xhci_hcd *xhci)
 		return -1;
 
 	writel(0, &dbc->regs->control);
+	xhci_dbc_mem_cleanup(xhci);
 	dbc->state = DS_DISABLED;
 
 	return 0;
@@ -561,10 +562,8 @@ static void xhci_dbc_stop(struct xhci_hcd *xhci)
 	ret = xhci_do_dbc_stop(xhci);
 	spin_unlock_irqrestore(&dbc->lock, flags);
 
-	if (!ret) {
-		xhci_dbc_mem_cleanup(xhci);
+	if (!ret)
 		pm_runtime_put_sync(xhci_to_hcd(xhci)->self.controller);
-	}
 }
 
 static void

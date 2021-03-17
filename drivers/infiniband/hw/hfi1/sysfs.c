@@ -670,11 +670,7 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		dd_dev_err(dd,
 			   "Skipping sc2vl sysfs info, (err %d) port %u\n",
 			   ret, port_num);
-		/*
-		 * Based on the documentation for kobject_init_and_add(), the
-		 * caller should call kobject_put even if this call fails.
-		 */
-		goto bail_sc2vl;
+		goto bail;
 	}
 	kobject_uevent(&ppd->sc2vl_kobj, KOBJ_ADD);
 
@@ -684,7 +680,7 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		dd_dev_err(dd,
 			   "Skipping sl2sc sysfs info, (err %d) port %u\n",
 			   ret, port_num);
-		goto bail_sl2sc;
+		goto bail_sc2vl;
 	}
 	kobject_uevent(&ppd->sl2sc_kobj, KOBJ_ADD);
 
@@ -694,7 +690,7 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		dd_dev_err(dd,
 			   "Skipping vl2mtu sysfs info, (err %d) port %u\n",
 			   ret, port_num);
-		goto bail_vl2mtu;
+		goto bail_sl2sc;
 	}
 	kobject_uevent(&ppd->vl2mtu_kobj, KOBJ_ADD);
 
@@ -704,7 +700,7 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		dd_dev_err(dd,
 			   "Skipping Congestion Control sysfs info, (err %d) port %u\n",
 			   ret, port_num);
-		goto bail_cc;
+		goto bail_vl2mtu;
 	}
 
 	kobject_uevent(&ppd->pport_cc_kobj, KOBJ_ADD);
@@ -742,6 +738,7 @@ bail_sl2sc:
 	kobject_put(&ppd->sl2sc_kobj);
 bail_sc2vl:
 	kobject_put(&ppd->sc2vl_kobj);
+bail:
 	return ret;
 }
 
@@ -861,13 +858,8 @@ bail:
 	for (i = 0; i < ARRAY_SIZE(hfi1_attributes); ++i)
 		device_remove_file(&dev->dev, hfi1_attributes[i]);
 
-	/*
-	 * The function kobject_put() will call kobject_del() if the kobject
-	 * has been added successfully. The sysfs files created under the
-	 * kobject directory will also be removed during the process.
-	 */
-	for (; i >= 0; i--)
-		kobject_put(&dd->per_sdma[i].kobj);
+	for (i = 0; i < dd->num_sdma; i++)
+		kobject_del(&dd->per_sdma[i].kobj);
 
 	return ret;
 }
@@ -879,10 +871,6 @@ void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd)
 {
 	struct hfi1_pportdata *ppd;
 	int i;
-
-	/* Unwind operations in hfi1_verbs_register_sysfs() */
-	for (i = 0; i < dd->num_sdma; i++)
-		kobject_put(&dd->per_sdma[i].kobj);
 
 	for (i = 0; i < dd->num_pports; i++) {
 		ppd = &dd->pport[i];

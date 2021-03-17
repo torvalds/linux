@@ -257,22 +257,9 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 				continue;
 
 #ifdef CONFIG_EEH
-			/*
-			 * Release EEH state for this VF. The PCI core
-			 * has already torn down the pci_dev for this VF, but
-			 * we're responsible to removing the eeh_dev since it
-			 * has the same lifetime as the pci_dn that spawned it.
-			 */
+			/* Release EEH device for the VF */
 			edev = pdn_to_eeh_dev(pdn);
 			if (edev) {
-				/*
-				 * We allocate pci_dn's for the totalvfs count,
-				 * but only only the vfs that were activated
-				 * have a configured PE.
-				 */
-				if (edev->pe)
-					eeh_rmv_from_parent_pe(edev);
-
 				pdn->edev = NULL;
 				kfree(edev);
 			}

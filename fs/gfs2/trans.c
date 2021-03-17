@@ -56,8 +56,6 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 						   sizeof(u64));
 	INIT_LIST_HEAD(&tr->tr_databuf);
 	INIT_LIST_HEAD(&tr->tr_buf);
-	INIT_LIST_HEAD(&tr->tr_ail1_list);
-	INIT_LIST_HEAD(&tr->tr_ail2_list);
 
 	sb_start_intwrite(sdp->sd_vfs);
 
@@ -268,8 +266,6 @@ void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
 			list_del_init(&bd->bd_list);
 			gfs2_assert_withdraw(sdp, sdp->sd_log_num_revoke);
 			sdp->sd_log_num_revoke--;
-			if (bd->bd_gl)
-				gfs2_glock_remove_revoke(bd->bd_gl);
 			kmem_cache_free(gfs2_bufdata_cachep, bd);
 			tr->tr_num_revoke_rm++;
 			if (--n == 0)

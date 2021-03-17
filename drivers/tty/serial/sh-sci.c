@@ -838,9 +838,19 @@ static void sci_transmit_chars(struct uart_port *port)
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
-	if (uart_circ_empty(xmit))
+	if (uart_circ_empty(xmit)) {
 		sci_stop_tx(port);
+	} else {
+		ctrl = serial_port_in(port, SCSCR);
 
+		if (port->type != PORT_SCI) {
+			serial_port_in(port, SCxSR); /* Dummy read */
+			sci_clear_SCxSR(port, SCxSR_TDxE_CLEAR(port));
+		}
+
+		ctrl |= SCSCR_TIE;
+		serial_port_out(port, SCSCR, ctrl);
+	}
 }
 
 /* On SH3, SCIF may read end-of-break as a space->mark char */
@@ -873,16 +883,9 @@ static void sci_receive_chars(struct uart_port *port)
 				tty_insert_flip_char(tport, c, TTY_NORMAL);
 		} else {
 			for (i = 0; i < count; i++) {
-				char c;
+				char c = serial_port_in(port, SCxRDR);
 
-				if (port->type == PORT_SCIF ||
-				    port->type == PORT_HSCIF) {
-					status = serial_port_in(port, SCxSR);
-					c = serial_port_in(port, SCxRDR);
-				} else {
-					c = serial_port_in(port, SCxRDR);
-					status = serial_port_in(port, SCxSR);
-				}
+				status = serial_port_in(port, SCxSR);
 				if (uart_handle_sysrq_char(port, c)) {
 					count--; i--;
 					continue;
@@ -1328,7 +1331,7 @@ static void sci_tx_dma_release(struct sci_port *s)
 	dma_release_channel(chan);
 }
 
-static int sci_submit_rx(struct sci_port *s, bool port_lock_held)
+static void sci_submit_rx(struct sci_port *s)
 {
 	struct dma_chan *chan = s->chan_rx;
 	struct uart_port *port = &s->port;
@@ -1356,22 +1359,19 @@ static int sci_submit_rx(struct sci_port *s, bool port_lock_held)
 	s->active_rx = s->cookie_rx[0];
 
 	dma_async_issue_pending(chan);
-	return 0;
+	return;
 
 fail:
-	/* Switch to PIO */
-	if (!port_lock_held)
-		spin_lock_irqsave(&port->lock, flags);
 	if (i)
 		dmaengine_terminate_async(chan);
 	for (i = 0; i < 2; i++)
 		s->cookie_rx[i] = -EINVAL;
-	s->active_rx = 0;
+	s->active_rx = -EINVAL;
+	/* Switch to PIO */
+	spin_lock_irqsave(&port->lock, flags);
 	s->chan_rx = NULL;
 	sci_start_rx(port);
-	if (!port_lock_held)
-		spin_unlock_irqrestore(&port->lock, flags);
-	return -EAGAIN;
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void work_fn_tx(struct work_struct *work)
@@ -1383,7 +1383,6 @@ static void work_fn_tx(struct work_struct *work)
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned long flags;
 	dma_addr_t buf;
-	int head, tail;
 
 	/*
 	 * DMA is idle now.
@@ -1393,23 +1392,16 @@ static void work_fn_tx(struct work_struct *work)
 	 * consistent xmit buffer state.
 	 */
 	spin_lock_irq(&port->lock);
-	head = xmit->head;
-	tail = xmit->tail;
-	buf = s->tx_dma_addr + (tail & (UART_XMIT_SIZE - 1));
+	buf = s->tx_dma_addr + (xmit->tail & (UART_XMIT_SIZE - 1));
 	s->tx_dma_len = min_t(unsigned int,
-		CIRC_CNT(head, tail, UART_XMIT_SIZE),
-		CIRC_CNT_TO_END(head, tail, UART_XMIT_SIZE));
-	if (!s->tx_dma_len) {
-		/* Transmit buffer has been flushed */
-		spin_unlock_irq(&port->lock);
-		return;
-	}
+		CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE),
+		CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE));
+	spin_unlock_irq(&port->lock);
 
 	desc = dmaengine_prep_slave_single(chan, buf, s->tx_dma_len,
 					   DMA_MEM_TO_DEV,
 					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		spin_unlock_irq(&port->lock);
 		dev_warn(port->dev, "Failed preparing Tx DMA descriptor\n");
 		goto switch_to_pio;
 	}
@@ -1417,18 +1409,18 @@ static void work_fn_tx(struct work_struct *work)
 	dma_sync_single_for_device(chan->device->dev, buf, s->tx_dma_len,
 				   DMA_TO_DEVICE);
 
+	spin_lock_irq(&port->lock);
 	desc->callback = sci_dma_tx_complete;
 	desc->callback_param = s;
+	spin_unlock_irq(&port->lock);
 	s->cookie_tx = dmaengine_submit(desc);
 	if (dma_submit_error(s->cookie_tx)) {
-		spin_unlock_irq(&port->lock);
 		dev_warn(port->dev, "Failed submitting Tx DMA descriptor\n");
 		goto switch_to_pio;
 	}
 
-	spin_unlock_irq(&port->lock);
 	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n",
-		__func__, xmit->buf, tail, head, s->cookie_tx);
+		__func__, xmit->buf, xmit->tail, xmit->head, s->cookie_tx);
 
 	dma_async_issue_pending(chan);
 	return;
@@ -1499,7 +1491,7 @@ static enum hrtimer_restart rx_timer_fn(struct hrtimer *t)
 	}
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		sci_submit_rx(s, true);
+		sci_submit_rx(s);
 
 	/* Direct new serial port interrupts back to CPU */
 	scr = serial_port_in(port, SCSCR);
@@ -1556,13 +1548,6 @@ static void sci_request_dma(struct uart_port *port)
 	struct dma_chan *chan;
 
 	dev_dbg(port->dev, "%s: port %d\n", __func__, port->line);
-
-	/*
-	 * DMA on console may interfere with Kernel log messages which use
-	 * plain putchar(). So, simply don't use it with a console.
-	 */
-	if (uart_console(port))
-		return;
 
 	if (!port->dev->of_node)
 		return;
@@ -1629,10 +1614,10 @@ static void sci_request_dma(struct uart_port *port)
 		hrtimer_init(&s->rx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		s->rx_timer.function = rx_timer_fn;
 
-		s->chan_rx_saved = s->chan_rx = chan;
-
 		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-			sci_submit_rx(s, false);
+			sci_submit_rx(s);
+
+		s->chan_rx_saved = s->chan_rx = chan;
 	}
 }
 
@@ -1648,18 +1633,11 @@ static void sci_free_dma(struct uart_port *port)
 
 static void sci_flush_buffer(struct uart_port *port)
 {
-	struct sci_port *s = to_sci_port(port);
-
 	/*
 	 * In uart_flush_buffer(), the xmit circular buffer has just been
-	 * cleared, so we have to reset tx_dma_len accordingly, and stop any
-	 * pending transfers
+	 * cleared, so we have to reset tx_dma_len accordingly.
 	 */
-	s->tx_dma_len = 0;
-	if (s->chan_tx) {
-		dmaengine_terminate_async(s->chan_tx);
-		s->cookie_tx = -EINVAL;
-	}
+	to_sci_port(port)->tx_dma_len = 0;
 }
 #else /* !CONFIG_SERIAL_SH_SCI_DMA */
 static inline void sci_request_dma(struct uart_port *port)
@@ -1688,10 +1666,8 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 			disable_irq_nosync(irq);
 			scr |= SCSCR_RDRQE;
 		} else {
-			if (sci_submit_rx(s, false) < 0)
-				goto handle_pio;
-
 			scr &= ~SCSCR_RIE;
+			sci_submit_rx(s);
 		}
 		serial_port_out(port, SCSCR, scr);
 		/* Clear current interrupt */
@@ -1703,8 +1679,6 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 
 		return IRQ_HANDLED;
 	}
-
-handle_pio:
 #endif
 
 	if (s->rx_trigger > 1 && s->rx_fifo_timeout > 0) {
@@ -1940,7 +1914,7 @@ out_nomem:
 
 static void sci_free_irq(struct sci_port *port)
 {
-	int i, j;
+	int i;
 
 	/*
 	 * Intentionally in reverse order so we iterate over the muxed
@@ -1954,13 +1928,6 @@ static void sci_free_irq(struct sci_port *port)
 		 * interrupt sources.
 		 */
 		if (unlikely(irq < 0))
-			continue;
-
-		/* Check if already freed (irq was muxed) */
-		for (j = 0; j < i; j++)
-			if (port->irqs[j] == irq)
-				j = i + 1;
-		if (j > i)
 			continue;
 
 		free_irq(port->irqs[i], port);
@@ -2526,16 +2493,14 @@ done:
 			 * center of the last stop bit in sampling clocks.
 			 */
 			int last_stop = bits * 2 - 1;
-			int deviation = DIV_ROUND_CLOSEST(min_err * last_stop *
-							  (int)(srr + 1),
-							  2 * (int)baud);
+			int deviation = min_err * srr * last_stop / 2 / baud;
 
 			if (abs(deviation) >= 2) {
 				/* At least two sampling clocks off at the
 				 * last stop bit; we can increase the error
 				 * margin by shifting the sampling point.
 				 */
-				int shift = clamp(deviation / 2, -8, 7);
+				int shift = min(-8, max(7, deviation / 2));
 
 				hssrr |= (shift << HSCIF_SRHP_SHIFT) &
 					 HSCIF_SRHP_MASK;
@@ -3137,7 +3102,6 @@ static struct uart_driver sci_uart_driver = {
 static int sci_remove(struct platform_device *dev)
 {
 	struct sci_port *port = platform_get_drvdata(dev);
-	unsigned int type = port->port.type;	/* uart_remove_... clears it */
 
 	sci_ports_in_use &= ~BIT(port->port.line);
 	uart_remove_one_port(&sci_uart_driver, &port->port);
@@ -3148,7 +3112,8 @@ static int sci_remove(struct platform_device *dev)
 		sysfs_remove_file(&dev->dev.kobj,
 				  &dev_attr_rx_fifo_trigger.attr);
 	}
-	if (type == PORT_SCIFA || type == PORT_SCIFB || type == PORT_HSCIF) {
+	if (port->port.type == PORT_SCIFA || port->port.type == PORT_SCIFB ||
+	    port->port.type == PORT_HSCIF) {
 		sysfs_remove_file(&dev->dev.kobj,
 				  &dev_attr_rx_fifo_timeout.attr);
 	}

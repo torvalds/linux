@@ -310,7 +310,6 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x67CF, &polaris10_device_info },	/* Polaris10 */
 	{ 0x67D0, &polaris10_vf_device_info },	/* Polaris10 vf*/
 	{ 0x67DF, &polaris10_device_info },	/* Polaris10 */
-	{ 0x6FDF, &polaris10_device_info },	/* Polaris10 */
 	{ 0x67E0, &polaris11_device_info },	/* Polaris11 */
 	{ 0x67E1, &polaris11_device_info },	/* Polaris11 */
 	{ 0x67E3, &polaris11_device_info },	/* Polaris11 */
@@ -327,13 +326,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x6864, &vega10_device_info },	/* Vega10 */
 	{ 0x6867, &vega10_device_info },	/* Vega10 */
 	{ 0x6868, &vega10_device_info },	/* Vega10 */
-	{ 0x6869, &vega10_device_info },	/* Vega10 */
-	{ 0x686A, &vega10_device_info },	/* Vega10 */
-	{ 0x686B, &vega10_device_info },	/* Vega10 */
 	{ 0x686C, &vega10_vf_device_info },	/* Vega10  vf*/
-	{ 0x686D, &vega10_device_info },	/* Vega10 */
-	{ 0x686E, &vega10_device_info },	/* Vega10 */
-	{ 0x686F, &vega10_device_info },	/* Vega10 */
 	{ 0x687F, &vega10_device_info },	/* Vega10 */
 };
 
@@ -662,7 +655,6 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 {
 	uint32_t patched_ihre[KFD_MAX_RING_ENTRY_SIZE];
 	bool is_patched = false;
-	unsigned long flags;
 
 	if (!kfd->init_complete)
 		return;
@@ -672,7 +664,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 		return;
 	}
 
-	spin_lock_irqsave(&kfd->interrupt_lock, flags);
+	spin_lock(&kfd->interrupt_lock);
 
 	if (kfd->interrupts_active
 	    && interrupt_is_wanted(kfd, ih_ring_entry,
@@ -681,7 +673,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 				     is_patched ? patched_ihre : ih_ring_entry))
 		queue_work(kfd->ih_wq, &kfd->interrupt_work);
 
-	spin_unlock_irqrestore(&kfd->interrupt_lock, flags);
+	spin_unlock(&kfd->interrupt_lock);
 }
 
 int kgd2kfd_quiesce_mm(struct mm_struct *mm)
@@ -921,9 +913,9 @@ kfd_gtt_out:
 	return 0;
 
 kfd_gtt_no_free_chunk:
-	pr_debug("Allocation failed with mem_obj = %p\n", *mem_obj);
+	pr_debug("Allocation failed with mem_obj = %p\n", mem_obj);
 	mutex_unlock(&kfd->gtt_sa_lock);
-	kfree(*mem_obj);
+	kfree(mem_obj);
 	return -ENOMEM;
 }
 

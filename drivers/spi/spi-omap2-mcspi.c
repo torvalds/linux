@@ -299,7 +299,7 @@ static void omap2_mcspi_set_fifo(const struct spi_device *spi,
 	struct omap2_mcspi_cs *cs = spi->controller_state;
 	struct omap2_mcspi *mcspi;
 	unsigned int wcnt;
-	int max_fifo_depth, bytes_per_word;
+	int max_fifo_depth, fifo_depth, bytes_per_word;
 	u32 chconf, xferlevel;
 
 	mcspi = spi_master_get_devdata(master);
@@ -315,6 +315,10 @@ static void omap2_mcspi_set_fifo(const struct spi_device *spi,
 		else
 			max_fifo_depth = OMAP2_MCSPI_MAX_FIFODEPTH;
 
+		fifo_depth = gcd(t->len, max_fifo_depth);
+		if (fifo_depth < 2 || fifo_depth % bytes_per_word != 0)
+			goto disable_fifo;
+
 		wcnt = t->len / bytes_per_word;
 		if (wcnt > OMAP2_MCSPI_MAX_FIFOWCNT)
 			goto disable_fifo;
@@ -322,17 +326,16 @@ static void omap2_mcspi_set_fifo(const struct spi_device *spi,
 		xferlevel = wcnt << 16;
 		if (t->rx_buf != NULL) {
 			chconf |= OMAP2_MCSPI_CHCONF_FFER;
-			xferlevel |= (bytes_per_word - 1) << 8;
+			xferlevel |= (fifo_depth - 1) << 8;
 		}
-
 		if (t->tx_buf != NULL) {
 			chconf |= OMAP2_MCSPI_CHCONF_FFET;
-			xferlevel |= bytes_per_word - 1;
+			xferlevel |= fifo_depth - 1;
 		}
 
 		mcspi_write_reg(master, OMAP2_MCSPI_XFERLEVEL, xferlevel);
 		mcspi_write_chconf0(spi, chconf);
-		mcspi->fifo_depth = max_fifo_depth;
+		mcspi->fifo_depth = fifo_depth;
 
 		return;
 	}
@@ -582,6 +585,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 	struct dma_slave_config	cfg;
 	enum dma_slave_buswidth width;
 	unsigned es;
+	u32			burst;
 	void __iomem		*chstat_reg;
 	void __iomem            *irqstat_reg;
 	int			wait_res;
@@ -601,14 +605,22 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 	}
 
 	count = xfer->len;
+	burst = 1;
+
+	if (mcspi->fifo_depth > 0) {
+		if (count > mcspi->fifo_depth)
+			burst = mcspi->fifo_depth / es;
+		else
+			burst = count / es;
+	}
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.src_addr = cs->phys + OMAP2_MCSPI_RX0;
 	cfg.dst_addr = cs->phys + OMAP2_MCSPI_TX0;
 	cfg.src_addr_width = width;
 	cfg.dst_addr_width = width;
-	cfg.src_maxburst = 1;
-	cfg.dst_maxburst = 1;
+	cfg.src_maxburst = burst;
+	cfg.dst_maxburst = burst;
 
 	rx = xfer->rx_buf;
 	tx = xfer->tx_buf;
@@ -1443,26 +1455,13 @@ static int omap2_mcspi_remove(struct platform_device *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:omap2_mcspi");
 
-static int __maybe_unused omap2_mcspi_suspend(struct device *dev)
+#ifdef	CONFIG_SUSPEND
+static int omap2_mcspi_suspend_noirq(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
-	int error;
-
-	error = pinctrl_pm_select_sleep_state(dev);
-	if (error)
-		dev_warn(mcspi->dev, "%s: failed to set pins: %i\n",
-			 __func__, error);
-
-	error = spi_master_suspend(master);
-	if (error)
-		dev_warn(mcspi->dev, "%s: master suspend failed: %i\n",
-			 __func__, error);
-
-	return pm_runtime_force_suspend(dev);
+	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static int __maybe_unused omap2_mcspi_resume(struct device *dev)
+static int omap2_mcspi_resume_noirq(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
@@ -1473,17 +1472,17 @@ static int __maybe_unused omap2_mcspi_resume(struct device *dev)
 		dev_warn(mcspi->dev, "%s: failed to set pins: %i\n",
 			 __func__, error);
 
-	error = spi_master_resume(master);
-	if (error)
-		dev_warn(mcspi->dev, "%s: master resume failed: %i\n",
-			 __func__, error);
-
-	return pm_runtime_force_resume(dev);
+	return 0;
 }
 
+#else
+#define omap2_mcspi_suspend_noirq	NULL
+#define omap2_mcspi_resume_noirq	NULL
+#endif
+
 static const struct dev_pm_ops omap2_mcspi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(omap2_mcspi_suspend,
-				omap2_mcspi_resume)
+	.suspend_noirq = omap2_mcspi_suspend_noirq,
+	.resume_noirq = omap2_mcspi_resume_noirq,
 	.runtime_resume	= omap_mcspi_runtime_resume,
 };
 

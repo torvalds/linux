@@ -38,8 +38,6 @@
 #define DPCD_VOLTAGE_SWING_SET(x)		(((x) & 0x3) << 0)
 #define DPCD_VOLTAGE_SWING_GET(x)		(((x) >> 0) & 0x3)
 
-struct gpio_desc;
-
 enum link_lane_count_type {
 	LANE_COUNT1 = 1,
 	LANE_COUNT2 = 2,
@@ -133,7 +131,6 @@ enum dp_irq_type {
 
 struct video_info {
 	char *name;
-	struct drm_display_mode mode;
 
 	bool h_sync_polarity;
 	bool v_sync_polarity;
@@ -146,8 +143,6 @@ struct video_info {
 
 	int max_link_rate;
 	enum link_lane_count_type max_lane_count;
-
-	bool video_bist_enable;
 };
 
 struct link_train {
@@ -157,8 +152,6 @@ struct link_train {
 	u8 link_rate;
 	u8 lane_count;
 	u8 training_lane[4];
-	bool ssc;
-	bool enhanced_framing;
 
 	enum link_training_state lt_state;
 };
@@ -177,15 +170,14 @@ struct analogix_dp_device {
 	struct video_info	video_info;
 	struct link_train	link_train;
 	struct phy		*phy;
-	bool			phy_enabled;
 	int			dpms_mode;
-	struct gpio_desc	*hpd_gpiod;
+	int			hpd_gpio;
 	bool                    force_hpd;
 	bool			psr_enable;
 	bool			fast_train_enable;
 
 	struct mutex		panel_lock;
-	bool			panel_is_prepared;
+	bool			panel_is_modeset;
 
 	struct analogix_dp_plat_data *plat_data;
 };
@@ -223,8 +215,26 @@ void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp,
 				      bool enable);
 void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 				      enum pattern_set pattern);
-void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp);
-u32 analogix_dp_get_lane_link_training(struct analogix_dp_device *dp, u8 lane);
+void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level);
+void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level);
+void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level);
+void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level);
+void analogix_dp_set_lane0_link_training(struct analogix_dp_device *dp,
+					 u32 training_lane);
+void analogix_dp_set_lane1_link_training(struct analogix_dp_device *dp,
+					 u32 training_lane);
+void analogix_dp_set_lane2_link_training(struct analogix_dp_device *dp,
+					 u32 training_lane);
+void analogix_dp_set_lane3_link_training(struct analogix_dp_device *dp,
+					 u32 training_lane);
+u32 analogix_dp_get_lane0_link_training(struct analogix_dp_device *dp);
+u32 analogix_dp_get_lane1_link_training(struct analogix_dp_device *dp);
+u32 analogix_dp_get_lane2_link_training(struct analogix_dp_device *dp);
+u32 analogix_dp_get_lane3_link_training(struct analogix_dp_device *dp);
 void analogix_dp_reset_macro(struct analogix_dp_device *dp);
 void analogix_dp_init_video(struct analogix_dp_device *dp);
 
@@ -247,14 +257,5 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 			     struct edp_vsc_psr *vsc, bool blocking);
 ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			     struct drm_dp_aux_msg *msg);
-void analogix_dp_set_video_format(struct analogix_dp_device *dp);
-void analogix_dp_video_bist_enable(struct analogix_dp_device *dp);
-bool analogix_dp_ssc_supported(struct analogix_dp_device *dp);
-void analogix_dp_phy_power_on(struct analogix_dp_device *dp);
-void analogix_dp_phy_power_off(struct analogix_dp_device *dp);
-void analogix_dp_audio_config_spdif(struct analogix_dp_device *dp);
-void analogix_dp_audio_config_i2s(struct analogix_dp_device *dp);
-void analogix_dp_audio_enable(struct analogix_dp_device *dp);
-void analogix_dp_audio_disable(struct analogix_dp_device *dp);
 
 #endif /* _ANALOGIX_DP_CORE_H */

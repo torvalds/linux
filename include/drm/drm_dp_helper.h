@@ -230,8 +230,6 @@
 #define DP_DSC_MAX_BITS_PER_PIXEL_LOW       0x067   /* eDP 1.4 */
 
 #define DP_DSC_MAX_BITS_PER_PIXEL_HI        0x068   /* eDP 1.4 */
-# define DP_DSC_MAX_BITS_PER_PIXEL_HI_MASK  (0x3 << 0)
-# define DP_DSC_MAX_BITS_PER_PIXEL_HI_SHIFT 8
 
 #define DP_DSC_DEC_COLOR_FORMAT_CAP         0x069
 # define DP_DSC_RGB                         (1 << 0)
@@ -280,8 +278,6 @@
 # define DP_DSC_THROUGHPUT_MODE_1_1000      (14 << 4)
 
 #define DP_DSC_MAX_SLICE_WIDTH              0x06C
-#define DP_DSC_MIN_SLICE_WIDTH_VALUE        2560
-#define DP_DSC_SLICE_WIDTH_MULTIPLIER       320
 
 #define DP_DSC_SLICE_CAP_2                  0x06D
 # define DP_DSC_16_PER_DP_DSC_SINK          (1 << 0)
@@ -480,7 +476,6 @@
 # define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
 
 #define DP_DSC_ENABLE                       0x160   /* DP 1.4 */
-# define DP_DECOMPRESSION_EN                (1 << 0)
 
 #define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
 # define DP_PSR_ENABLE			    (1 << 0)
@@ -632,14 +627,6 @@
 # define DP_TEST_COUNT_MASK		    0xf
 
 #define DP_TEST_PHY_PATTERN                 0x248
-# define DP_TEST_PHY_PATTERN_NONE			0x0
-# define DP_TEST_PHY_PATTERN_D10_2_NO_SCRAMBLING	0x1
-# define DP_TEST_PHY_PATTERN_SYMBOL_ERR_MEASUREMENT_CNT 0x2
-# define DP_TEST_PHY_PATTERN_PRBS7			0x3
-# define DP_TEST_PHY_PATTERN_80_BIT_CUSTOM_PATTERN	0x4
-# define DP_TEST_PHY_PATTERN_CP2520_PATTERN_1		0x5
-# define DP_TEST_PHY_PATTERN_CP2520_PATTERN_2		0x6
-# define DP_TEST_PHY_PATTERN_CP2520_PATTERN_3		0x7
 #define DP_TEST_80BIT_CUSTOM_PATTERN_7_0    0x250
 #define	DP_TEST_80BIT_CUSTOM_PATTERN_15_8   0x251
 #define	DP_TEST_80BIT_CUSTOM_PATTERN_23_16  0x252
@@ -975,7 +962,6 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 
 #define DP_BRANCH_OUI_HEADER_SIZE	0xc
 #define DP_RECEIVER_CAP_SIZE		0xf
-#define DP_DSC_RECEIVER_CAP_SIZE        0xf
 #define EDP_PSR_RECEIVER_CAP_SIZE	2
 #define EDP_DISPLAY_CTL_CAP_SIZE	3
 
@@ -997,23 +983,15 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw);
 #define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
 /* 0x80+ CEA-861 infoframe types */
 
-/**
- * struct dp_sdp_header - DP secondary data packet header
- * @HB0: Secondary Data Packet ID
- * @HB1: Secondary Data Packet Type
- * @HB2: Secondary Data Packet Specific header, Byte 0
- * @HB3: Secondary Data packet Specific header, Byte 1
- */
 struct dp_sdp_header {
-	u8 HB0;
-	u8 HB1;
-	u8 HB2;
-	u8 HB3;
+	u8 HB0; /* Secondary Data Packet ID */
+	u8 HB1; /* Secondary Data Packet Type */
+	u8 HB2; /* Secondary Data Packet Specific header, Byte 0 */
+	u8 HB3; /* Secondary Data packet Specific header, Byte 1 */
 } __packed;
 
 #define EDP_SDP_HEADER_REVISION_MASK		0x1F
 #define EDP_SDP_HEADER_VALID_PAYLOAD_BYTES	0x1F
-#define DP_SDP_PPS_HEADER_PAYLOAD_BYTES_MINUS_1 0x7F
 
 struct edp_vsc_psr {
 	struct dp_sdp_header sdp_header;
@@ -1078,37 +1056,6 @@ static inline bool
 drm_dp_is_branch(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT;
-}
-
-/* DP/eDP DSC support */
-u8 drm_dp_dsc_sink_max_slice_count(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
-				   bool is_edp);
-u8 drm_dp_dsc_sink_line_buf_depth(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE]);
-int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpc[DP_DSC_RECEIVER_CAP_SIZE],
-					 u8 dsc_bpc[3]);
-
-static inline bool
-drm_dp_sink_supports_dsc(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
-{
-	return dsc_dpcd[DP_DSC_SUPPORT - DP_DSC_SUPPORT] &
-		DP_DSC_DECOMPRESSION_IS_SUPPORTED;
-}
-
-static inline u16
-drm_edp_dsc_sink_output_bpp(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
-{
-	return dsc_dpcd[DP_DSC_MAX_BITS_PER_PIXEL_LOW - DP_DSC_SUPPORT] |
-		(dsc_dpcd[DP_DSC_MAX_BITS_PER_PIXEL_HI - DP_DSC_SUPPORT] &
-		 DP_DSC_MAX_BITS_PER_PIXEL_HI_MASK <<
-		 DP_DSC_MAX_BITS_PER_PIXEL_HI_SHIFT);
-}
-
-static inline u32
-drm_dp_dsc_sink_max_slice_width(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
-{
-	/* Max Slicewidth = Number of Pixels * 320 */
-	return dsc_dpcd[DP_DSC_MAX_SLICE_WIDTH - DP_DSC_SUPPORT] *
-		DP_DSC_SLICE_WIDTH_MULTIPLIER;
 }
 
 /*
@@ -1196,7 +1143,6 @@ struct drm_dp_aux {
 	struct device *dev;
 	struct drm_crtc *crtc;
 	struct mutex hw_mutex;
-	struct mutex i2c_mutex;
 	struct work_struct crc_work;
 	u8 crc_count;
 	ssize_t (*transfer)(struct drm_dp_aux *aux,

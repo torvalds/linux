@@ -78,7 +78,7 @@ static int unstripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err;
 	}
 
-	if (sscanf(argv[4], "%llu%c", &start, &dummy) != 1 || start != (sector_t)start) {
+	if (sscanf(argv[4], "%llu%c", &start, &dummy) != 1) {
 		ti->error = "Invalid striped device offset";
 		goto err;
 	}

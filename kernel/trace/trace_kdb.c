@@ -41,22 +41,24 @@ static void ftrace_dump_buf(int skip_lines, long cpu_file)
 
 	kdb_printf("Dumping ftrace buffer:\n");
 
-	trace_iterator_reset(&iter);
+	/* reset all but tr, trace, and overruns */
+	memset(&iter.seq, 0,
+		   sizeof(struct trace_iterator) -
+		   offsetof(struct trace_iterator, seq));
 	iter.iter_flags |= TRACE_FILE_LAT_FMT;
+	iter.pos = -1;
 
 	if (cpu_file == RING_BUFFER_ALL_CPUS) {
 		for_each_tracing_cpu(cpu) {
 			iter.buffer_iter[cpu] =
-			ring_buffer_read_prepare(iter.trace_buffer->buffer,
-						 cpu, GFP_ATOMIC);
+			ring_buffer_read_prepare(iter.trace_buffer->buffer, cpu);
 			ring_buffer_read_start(iter.buffer_iter[cpu]);
 			tracing_iter_reset(&iter, cpu);
 		}
 	} else {
 		iter.cpu_file = cpu_file;
 		iter.buffer_iter[cpu_file] =
-			ring_buffer_read_prepare(iter.trace_buffer->buffer,
-						 cpu_file, GFP_ATOMIC);
+			ring_buffer_read_prepare(iter.trace_buffer->buffer, cpu_file);
 		ring_buffer_read_start(iter.buffer_iter[cpu_file]);
 		tracing_iter_reset(&iter, cpu_file);
 	}

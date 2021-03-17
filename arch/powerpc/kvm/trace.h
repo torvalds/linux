@@ -6,6 +6,8 @@
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace
 
 /*
  * Tracepoint for guest mode entry.
@@ -118,10 +120,4 @@ TRACE_EVENT(kvm_check_requests,
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */
-#undef TRACE_INCLUDE_PATH
-#undef TRACE_INCLUDE_FILE
-
-#define TRACE_INCLUDE_PATH .
-#define TRACE_INCLUDE_FILE trace
-
 #include <trace/define_trace.h>

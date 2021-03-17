@@ -131,8 +131,8 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 						 intr ? kvm_perf_overflow_intr :
 						 kvm_perf_overflow, pmc);
 	if (IS_ERR(event)) {
-		pr_debug_ratelimited("kvm_pmu: event creation failed %ld for pmc->idx = %d\n",
-			    PTR_ERR(event), pmc->idx);
+		printk_once("kvm_pmu: event creation failed %ld\n",
+			    PTR_ERR(event));
 		return;
 	}
 
@@ -282,16 +282,20 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 {
 	bool fast_mode = idx & (1u << 31);
 	struct kvm_pmc *pmc;
-	u64 mask = fast_mode ? ~0u : ~0ull;
+	u64 ctr_val;
 
 	if (is_vmware_backdoor_pmc(idx))
 		return kvm_pmu_rdpmc_vmware(vcpu, idx, data);
 
-	pmc = kvm_x86_ops->pmu_ops->msr_idx_to_pmc(vcpu, idx, &mask);
+	pmc = kvm_x86_ops->pmu_ops->msr_idx_to_pmc(vcpu, idx);
 	if (!pmc)
 		return 1;
 
-	*data = pmc_read_counter(pmc) & mask;
+	ctr_val = pmc_read_counter(pmc);
+	if (fast_mode)
+		ctr_val = (u32)ctr_val;
+
+	*data = ctr_val;
 	return 0;
 }
 

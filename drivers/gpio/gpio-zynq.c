@@ -358,28 +358,6 @@ static int zynq_gpio_dir_out(struct gpio_chip *chip, unsigned int pin,
 }
 
 /**
- * zynq_gpio_get_direction - Read the direction of the specified GPIO pin
- * @chip:	gpio_chip instance to be worked on
- * @pin:	gpio pin number within the device
- *
- * This function returns the direction of the specified GPIO.
- *
- * Return: 0 for output, 1 for input
- */
-static int zynq_gpio_get_direction(struct gpio_chip *chip, unsigned int pin)
-{
-	u32 reg;
-	unsigned int bank_num, bank_pin_num;
-	struct zynq_gpio *gpio = gpiochip_get_data(chip);
-
-	zynq_gpio_get_bank_pin(pin, &bank_num, &bank_pin_num, gpio);
-
-	reg = readl_relaxed(gpio->base_addr + ZYNQ_GPIO_DIRM_OFFSET(bank_num));
-
-	return !(reg & BIT(bank_pin_num));
-}
-
-/**
  * zynq_gpio_irq_mask - Disable the interrupts for a gpio pin
  * @irq_data:	per irq and chip data passed down to chip functions
  *
@@ -661,8 +639,6 @@ static void zynq_gpio_restore_context(struct zynq_gpio *gpio)
 	unsigned int bank_num;
 
 	for (bank_num = 0; bank_num < gpio->p_data->max_bank; bank_num++) {
-		writel_relaxed(ZYNQ_GPIO_IXR_DISABLE_ALL, gpio->base_addr +
-				ZYNQ_GPIO_INTDIS_OFFSET(bank_num));
 		writel_relaxed(gpio->context.datalsw[bank_num],
 			       gpio->base_addr +
 			       ZYNQ_GPIO_DATA_LSW_OFFSET(bank_num));
@@ -672,6 +648,9 @@ static void zynq_gpio_restore_context(struct zynq_gpio *gpio)
 		writel_relaxed(gpio->context.dirm[bank_num],
 			       gpio->base_addr +
 			       ZYNQ_GPIO_DIRM_OFFSET(bank_num));
+		writel_relaxed(gpio->context.int_en[bank_num],
+			       gpio->base_addr +
+			       ZYNQ_GPIO_INTEN_OFFSET(bank_num));
 		writel_relaxed(gpio->context.int_type[bank_num],
 			       gpio->base_addr +
 			       ZYNQ_GPIO_INTTYPE_OFFSET(bank_num));
@@ -681,9 +660,6 @@ static void zynq_gpio_restore_context(struct zynq_gpio *gpio)
 		writel_relaxed(gpio->context.int_any[bank_num],
 			       gpio->base_addr +
 			       ZYNQ_GPIO_INTANY_OFFSET(bank_num));
-		writel_relaxed(~(gpio->context.int_en[bank_num]),
-			       gpio->base_addr +
-			       ZYNQ_GPIO_INTEN_OFFSET(bank_num));
 	}
 }
 
@@ -851,7 +827,6 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	chip->free = zynq_gpio_free;
 	chip->direction_input = zynq_gpio_dir_in;
 	chip->direction_output = zynq_gpio_dir_out;
-	chip->get_direction = zynq_gpio_get_direction;
 	chip->base = of_alias_get_id(pdev->dev.of_node, "gpio");
 	chip->ngpio = gpio->p_data->ngpio;
 

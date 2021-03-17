@@ -577,8 +577,6 @@ static int gmac_setup_txqs(struct net_device *netdev)
 
 	if (port->txq_dma_base & ~DMA_Q_BASE_MASK) {
 		dev_warn(geth->dev, "TX queue base is not aligned\n");
-		dma_free_coherent(geth->dev, len * sizeof(*desc_ring),
-				  desc_ring, port->txq_dma_base);
 		kfree(skb_tab);
 		return -ENOMEM;
 	}
@@ -663,7 +661,7 @@ static void gmac_clean_txq(struct net_device *netdev, struct gmac_txq *txq,
 
 			u64_stats_update_begin(&port->tx_stats_syncp);
 			port->tx_frag_stats[nfrags]++;
-			u64_stats_update_end(&port->tx_stats_syncp);
+			u64_stats_update_end(&port->ir_stats_syncp);
 		}
 	}
 
@@ -2392,7 +2390,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 
 	dev_info(dev, "probe %s ID %d\n", dev_name(dev), id);
 
-	netdev = devm_alloc_etherdev_mqs(dev, sizeof(*port), TX_QUEUE_NUM, TX_QUEUE_NUM);
+	netdev = alloc_etherdev_mq(sizeof(*port), TX_QUEUE_NUM);
 	if (!netdev) {
 		dev_err(dev, "Can't allocate ethernet device #%d\n", id);
 		return -ENOMEM;
@@ -2451,8 +2449,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	port->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(port->reset)) {
 		dev_err(dev, "no reset\n");
-		ret = PTR_ERR(port->reset);
-		goto unprepare;
+		return PTR_ERR(port->reset);
 	}
 	reset_control_reset(port->reset);
 	usleep_range(100, 500);
@@ -2508,24 +2505,23 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 					port_names[port->id],
 					port);
 	if (ret)
-		goto unprepare;
+		return ret;
 
 	ret = register_netdev(netdev);
-	if (ret)
-		goto unprepare;
-
-	netdev_info(netdev,
-		    "irq %d, DMA @ 0x%pap, GMAC @ 0x%pap\n",
-		    port->irq, &dmares->start,
-		    &gmacres->start);
-	ret = gmac_setup_phy(netdev);
-	if (ret)
+	if (!ret) {
 		netdev_info(netdev,
-			    "PHY init failed, deferring to ifup time\n");
-	return 0;
+			    "irq %d, DMA @ 0x%pap, GMAC @ 0x%pap\n",
+			    port->irq, &dmares->start,
+			    &gmacres->start);
+		ret = gmac_setup_phy(netdev);
+		if (ret)
+			netdev_info(netdev,
+				    "PHY init failed, deferring to ifup time\n");
+		return 0;
+	}
 
-unprepare:
-	clk_disable_unprepare(port->pclk);
+	port->netdev = NULL;
+	free_netdev(netdev);
 	return ret;
 }
 

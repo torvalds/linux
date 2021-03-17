@@ -423,9 +423,6 @@ static int host1x_device_add(struct host1x *host1x,
 
 	of_dma_configure(&device->dev, host1x->dev->of_node, true);
 
-	device->dev.dma_parms = &device->dma_parms;
-	dma_set_max_seg_size(&device->dev, SZ_4M);
-
 	err = host1x_device_parse_dt(device, driver);
 	if (err < 0) {
 		kfree(device);
@@ -632,16 +629,7 @@ EXPORT_SYMBOL(host1x_driver_register_full);
  */
 void host1x_driver_unregister(struct host1x_driver *driver)
 {
-	struct host1x *host1x;
-
 	driver_unregister(&driver->driver);
-
-	mutex_lock(&devices_lock);
-
-	list_for_each_entry(host1x, &devices, list)
-		host1x_detach_driver(host1x, driver);
-
-	mutex_unlock(&devices_lock);
 
 	mutex_lock(&drivers_lock);
 	list_del_init(&driver->list);

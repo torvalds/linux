@@ -8,19 +8,27 @@ config SH_ALPHA_BOARD
 	bool
 
 config SH_DEVICE_TREE
-	bool
+	bool "Board Described by Device Tree"
 	select OF
 	select OF_EARLY_FLATTREE
 	select TIMER_OF
 	select COMMON_CLK
 	select GENERIC_CALIBRATE_DELAY
+	help
+	  Select Board Described by Device Tree to build a kernel that
+	  does not hard-code any board-specific knowledge but instead uses
+	  a device tree blob provided by the boot-loader. You must enable
+	  drivers for any hardware you want to use separately. At this
+	  time, only boards based on the open-hardware J-Core processors
+	  have sufficient driver coverage to use this option; do not
+	  select it if you are using original SuperH hardware.
 
 config SH_JCORE_SOC
 	bool "J-Core SoC"
-	select SH_DEVICE_TREE
+	depends on SH_DEVICE_TREE && (CPU_SH2 || CPU_J2)
 	select CLKSRC_JCORE_PIT
 	select JCORE_AIC
-	depends on CPU_J2
+	default y if CPU_J2
 	help
 	  Select this option to include drivers core components of the
 	  J-Core SoC, including interrupt controllers and timers.

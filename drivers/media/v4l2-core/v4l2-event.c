@@ -193,22 +193,6 @@ int v4l2_event_pending(struct v4l2_fh *fh)
 }
 EXPORT_SYMBOL_GPL(v4l2_event_pending);
 
-static void __v4l2_event_unsubscribe(struct v4l2_subscribed_event *sev)
-{
-	struct v4l2_fh *fh = sev->fh;
-	unsigned int i;
-
-	lockdep_assert_held(&fh->subscribe_lock);
-	assert_spin_locked(&fh->vdev->fh_lock);
-
-	/* Remove any pending events for this subscription */
-	for (i = 0; i < sev->in_use; i++) {
-		list_del(&sev->events[sev_pos(sev, i)].list);
-		fh->navailable--;
-	}
-	list_del(&sev->list);
-}
-
 int v4l2_event_subscribe(struct v4l2_fh *fh,
 			 const struct v4l2_event_subscription *sub, unsigned elems,
 			 const struct v4l2_subscribed_event_ops *ops)
@@ -240,23 +224,27 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 	found_ev = v4l2_event_subscribed(fh, sub->type, sub->id);
-	if (!found_ev)
-		list_add(&sev->list, &fh->subscribed);
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 
 	if (found_ev) {
 		/* Already listening */
 		kvfree(sev);
-	} else if (sev->ops && sev->ops->add) {
+		goto out_unlock;
+	}
+
+	if (sev->ops && sev->ops->add) {
 		ret = sev->ops->add(sev, elems);
 		if (ret) {
-			spin_lock_irqsave(&fh->vdev->fh_lock, flags);
-			__v4l2_event_unsubscribe(sev);
-			spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 			kvfree(sev);
+			goto out_unlock;
 		}
 	}
 
+	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	list_add(&sev->list, &fh->subscribed);
+	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+
+out_unlock:
 	mutex_unlock(&fh->subscribe_lock);
 
 	return ret;
@@ -291,6 +279,7 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 {
 	struct v4l2_subscribed_event *sev;
 	unsigned long flags;
+	int i;
 
 	if (sub->type == V4L2_EVENT_ALL) {
 		v4l2_event_unsubscribe_all(fh);
@@ -302,8 +291,14 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 
 	sev = v4l2_event_subscribed(fh, sub->type, sub->id);
-	if (sev != NULL)
-		__v4l2_event_unsubscribe(sev);
+	if (sev != NULL) {
+		/* Remove any pending events for this subscription */
+		for (i = 0; i < sev->in_use; i++) {
+			list_del(&sev->events[sev_pos(sev, i)].list);
+			fh->navailable--;
+		}
+		list_del(&sev->list);
+	}
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 

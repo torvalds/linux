@@ -1074,8 +1074,6 @@ static void log_state_transition(struct hfi1_pportdata *ppd, u32 state);
 static void log_physical_state(struct hfi1_pportdata *ppd, u32 state);
 static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				   int msecs);
-static int wait_phys_link_out_of_offline(struct hfi1_pportdata *ppd,
-					 int msecs);
 static void read_planned_down_reason_code(struct hfi1_devdata *dd, u8 *pdrrc);
 static void read_link_down_reason(struct hfi1_devdata *dd, u8 *ldr);
 static void handle_temp_err(struct hfi1_devdata *dd);
@@ -1685,14 +1683,6 @@ static u64 access_sw_pio_drain(const struct cntr_entry *entry,
 	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
 
 	return dd->verbs_dev.n_piodrain;
-}
-
-static u64 access_sw_ctx0_seq_drop(const struct cntr_entry *entry,
-				   void *context, int vl, int mode, u64 data)
-{
-	struct hfi1_devdata *dd = context;
-
-	return dd->ctx0_seq_drop;
 }
 
 static u64 access_sw_vtx_wait(const struct cntr_entry *entry,
@@ -4255,8 +4245,6 @@ static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 			    access_sw_cpu_intr),
 [C_SW_CPU_RCV_LIM] = CNTR_ELEM("RcvLimit", 0, 0, CNTR_NORMAL,
 			    access_sw_cpu_rcv_limit),
-[C_SW_CTX0_SEQ_DROP] = CNTR_ELEM("SeqDrop0", 0, 0, CNTR_NORMAL,
-			    access_sw_ctx0_seq_drop),
 [C_SW_VTX_WAIT] = CNTR_ELEM("vTxWait", 0, 0, CNTR_NORMAL,
 			    access_sw_vtx_wait),
 [C_SW_PIO_WAIT] = CNTR_ELEM("PioWait", 0, 0, CNTR_NORMAL,
@@ -9861,7 +9849,6 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 
 	/* disable the port */
 	clear_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
-	cancel_work_sync(&ppd->freeze_work);
 }
 
 static inline int init_cpu_counters(struct hfi1_devdata *dd)
@@ -10590,29 +10577,12 @@ void set_link_down_reason(struct hfi1_pportdata *ppd, u8 lcl_reason,
 	}
 }
 
-/**
- * data_vls_operational() - Verify if data VL BCT credits and MTU
- *			    are both set.
- * @ppd: pointer to hfi1_pportdata structure
- *
- * Return: true - Ok, false -otherwise.
+/*
+ * Verify if BCT for data VLs is non-zero.
  */
 static inline bool data_vls_operational(struct hfi1_pportdata *ppd)
 {
-	int i;
-	u64 reg;
-
-	if (!ppd->actual_vls_operational)
-		return false;
-
-	for (i = 0; i < ppd->vls_supported; i++) {
-		reg = read_csr(ppd->dd, SEND_CM_CREDIT_VL + (8 * i));
-		if ((reg && !ppd->dd->vld[i].mtu) ||
-		    (!reg && ppd->dd->vld[i].mtu))
-			return false;
-	}
-
-	return true;
+	return !!ppd->actual_vls_operational;
 }
 
 /*
@@ -10725,8 +10695,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 
 		if (!data_vls_operational(ppd)) {
 			dd_dev_err(dd,
-				   "%s: Invalid data VL credits or mtu\n",
-				   __func__);
+				   "%s: data VLs not operational\n", __func__);
 			ret = -EINVAL;
 			break;
 		}
@@ -10799,15 +10768,13 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			break;
 
 		ppd->port_error_action = 0;
+		ppd->host_link_state = HLS_DN_POLL;
 
 		if (quick_linkup) {
 			/* quick linkup does not go into polling */
 			ret = do_quick_linkup(dd);
 		} else {
 			ret1 = set_physical_link_state(dd, PLS_POLLING);
-			if (!ret1)
-				ret1 = wait_phys_link_out_of_offline(ppd,
-								     3000);
 			if (ret1 != HCMD_SUCCESS) {
 				dd_dev_err(dd,
 					   "Failed to transition to Polling link state, return 0x%x\n",
@@ -10815,14 +10782,6 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 				ret = -EINVAL;
 			}
 		}
-
-		/*
-		 * Change the host link state after requesting DC8051 to
-		 * change its physical state so that we can ignore any
-		 * interrupt with stale LNI(XX) error, which will not be
-		 * cleared until DC8051 transitions to Polling state.
-		 */
-		ppd->host_link_state = HLS_DN_POLL;
 		ppd->offline_disabled_reason =
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
 		/*
@@ -12526,8 +12485,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	}
 
 	/* allocate space for the counter values */
-	dd->cntrs = kcalloc(dd->ndevcntrs + num_driver_cntrs, sizeof(u64),
-			    GFP_KERNEL);
+	dd->cntrs = kcalloc(dd->ndevcntrs, sizeof(u64), GFP_KERNEL);
 	if (!dd->cntrs)
 		goto bail;
 
@@ -12944,39 +12902,6 @@ static int wait_phys_link_offline_substates(struct hfi1_pportdata *ppd,
 		if (time_after(jiffies, timeout)) {
 			dd_dev_err(ppd->dd,
 				   "timeout waiting for phy link offline.quiet substates. Read state 0x%x, %dms\n",
-				   read_state, msecs);
-			return -ETIMEDOUT;
-		}
-		usleep_range(1950, 2050); /* sleep 2ms-ish */
-	}
-
-	log_state_transition(ppd, read_state);
-	return read_state;
-}
-
-/*
- * wait_phys_link_out_of_offline - wait for any out of offline state
- * @ppd: port device
- * @msecs: the number of milliseconds to wait
- *
- * Wait up to msecs milliseconds for any out of offline physical link
- * state change to occur.
- * Returns 0 if at least one state is reached, otherwise -ETIMEDOUT.
- */
-static int wait_phys_link_out_of_offline(struct hfi1_pportdata *ppd,
-					 int msecs)
-{
-	u32 read_state;
-	unsigned long timeout;
-
-	timeout = jiffies + msecs_to_jiffies(msecs);
-	while (1) {
-		read_state = read_physical_state(ppd->dd);
-		if ((read_state & 0xF0) != PLS_OFFLINE)
-			break;
-		if (time_after(jiffies, timeout)) {
-			dd_dev_err(ppd->dd,
-				   "timeout waiting for phy link out of offline. Read state 0x%x, %dms\n",
 				   read_state, msecs);
 			return -ETIMEDOUT;
 		}
@@ -13462,7 +13387,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
-	int rmt_count;
+	int qos_rmt_count;
 	int user_rmt_reduced;
 	u32 n_usr_ctxts;
 	u32 send_contexts = chip_send_contexts(dd);
@@ -13524,20 +13449,10 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		n_usr_ctxts = rcv_contexts - total_contexts;
 	}
 
-	/*
-	 * The RMT entries are currently allocated as shown below:
-	 * 1. QOS (0 to 128 entries);
-	 * 2. FECN for PSM (num_user_contexts + num_vnic_contexts);
-	 * 3. VNIC (num_vnic_contexts).
-	 * It should be noted that PSM FECN oversubscribe num_vnic_contexts
-	 * entries of RMT because both VNIC and PSM could allocate any receive
-	 * context between dd->first_dyn_alloc_text and dd->num_rcv_contexts,
-	 * and PSM FECN must reserve an RMT entry for each possible PSM receive
-	 * context.
-	 */
-	rmt_count = qos_rmt_entries(dd, NULL, NULL) + (num_vnic_contexts * 2);
-	if (rmt_count + n_usr_ctxts > NUM_MAP_ENTRIES) {
-		user_rmt_reduced = NUM_MAP_ENTRIES - rmt_count;
+	/* each user context requires an entry in the RMT */
+	qos_rmt_count = qos_rmt_entries(dd, NULL, NULL);
+	if (qos_rmt_count + n_usr_ctxts > NUM_MAP_ENTRIES) {
+		user_rmt_reduced = NUM_MAP_ENTRIES - qos_rmt_count;
 		dd_dev_err(dd,
 			   "RMT size is reducing the number of user receive contexts from %u to %d\n",
 			   n_usr_ctxts,
@@ -14525,11 +14440,9 @@ static void init_user_fecn_handling(struct hfi1_devdata *dd,
 	u64 reg;
 	int i, idx, regoff, regidx;
 	u8 offset;
-	u32 total_cnt;
 
 	/* there needs to be enough room in the map table */
-	total_cnt = dd->num_rcv_contexts - dd->first_dyn_alloc_ctxt;
-	if (rmt->used + total_cnt >= NUM_MAP_ENTRIES) {
+	if (rmt->used + dd->num_user_contexts >= NUM_MAP_ENTRIES) {
 		dd_dev_err(dd, "User FECN handling disabled - too many user contexts allocated\n");
 		return;
 	}
@@ -14583,7 +14496,7 @@ static void init_user_fecn_handling(struct hfi1_devdata *dd,
 	/* add rule 1 */
 	add_rsm_rule(dd, RSM_INS_FECN, &rrd);
 
-	rmt->used += total_cnt;
+	rmt->used += dd->num_user_contexts;
 }
 
 /* Initialize RSM for VNIC */
@@ -14659,7 +14572,7 @@ void hfi1_deinit_vnic_rsm(struct hfi1_devdata *dd)
 		clear_rcvctrl(dd, RCV_CTRL_RCV_RSM_ENABLE_SMASK);
 }
 
-static int init_rxe(struct hfi1_devdata *dd)
+static void init_rxe(struct hfi1_devdata *dd)
 {
 	struct rsm_map_table *rmt;
 	u64 val;
@@ -14668,9 +14581,6 @@ static int init_rxe(struct hfi1_devdata *dd)
 	write_csr(dd, RCV_ERR_MASK, ~0ull);
 
 	rmt = alloc_rsm_map_table(dd);
-	if (!rmt)
-		return -ENOMEM;
-
 	/* set up QOS, including the QPN map table */
 	init_qos(dd, rmt);
 	init_user_fecn_handling(dd, rmt);
@@ -14697,7 +14607,6 @@ static int init_rxe(struct hfi1_devdata *dd)
 	val |= ((4ull & RCV_BYPASS_HDR_SIZE_MASK) <<
 		RCV_BYPASS_HDR_SIZE_SHIFT);
 	write_csr(dd, RCV_BYPASS, val);
-	return 0;
 }
 
 static void init_other(struct hfi1_devdata *dd)
@@ -15240,10 +15149,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		goto bail_cleanup;
 
 	/* set initial RXE CSRs */
-	ret = init_rxe(dd);
-	if (ret)
-		goto bail_cleanup;
-
+	init_rxe(dd);
 	/* set initial TXE CSRs */
 	init_txe(dd);
 	/* set initial non-RXE, non-TXE CSRs */

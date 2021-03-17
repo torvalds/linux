@@ -103,6 +103,13 @@ static int __init arm_idle_init_cpu(int cpu)
 		goto out_kfree_drv;
 	}
 
+	ret = cpuidle_register_driver(drv);
+	if (ret) {
+		if (ret != -EBUSY)
+			pr_err("Failed to register cpuidle driver\n");
+		goto out_kfree_drv;
+	}
+
 	/*
 	 * Call arch CPU operations in order to initialize
 	 * idle states suspend back-end specific data
@@ -110,20 +117,15 @@ static int __init arm_idle_init_cpu(int cpu)
 	ret = arm_cpuidle_init(cpu);
 
 	/*
-	 * Allow the initialization to continue for other CPUs, if the reported
+	 * Skip the cpuidle device initialization if the reported
 	 * failure is a HW misconfiguration/breakage (-ENXIO).
 	 */
+	if (ret == -ENXIO)
+		return 0;
+
 	if (ret) {
 		pr_err("CPU %d failed to init idle CPU ops\n", cpu);
-		ret = ret == -ENXIO ? 0 : ret;
-		goto out_kfree_drv;
-	}
-
-	ret = cpuidle_register_driver(drv);
-	if (ret) {
-		if (ret != -EBUSY)
-			pr_err("Failed to register cpuidle driver\n");
-		goto out_kfree_drv;
+		goto out_unregister_drv;
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);

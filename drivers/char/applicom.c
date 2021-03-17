@@ -32,7 +32,6 @@
 #include <linux/wait.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/nospec.h>
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
@@ -387,11 +386,7 @@ static ssize_t ac_write(struct file *file, const char __user *buf, size_t count,
 	TicCard = st_loc.tic_des_from_pc;	/* tic number to send            */
 	IndexCard = NumCard - 1;
 
-	if (IndexCard >= MAX_BOARD)
-		return -EINVAL;
-	IndexCard = array_index_nospec(IndexCard, MAX_BOARD);
-
-	if (!apbs[IndexCard].RamIO)
+	if((NumCard < 1) || (NumCard > MAX_BOARD) || !apbs[IndexCard].RamIO)
 		return -EINVAL;
 
 #ifdef DEBUG
@@ -702,7 +697,6 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	unsigned char IndexCard;
 	void __iomem *pmem;
 	int ret = 0;
-	static int warncount = 10;
 	volatile unsigned char byte_reset_it;
 	struct st_ram_io *adgl;
 	void __user *argp = (void __user *)arg;
@@ -717,12 +711,16 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	mutex_lock(&ac_mutex);	
 	IndexCard = adgl->num_card-1;
 	 
-	if (cmd != 6 && IndexCard >= MAX_BOARD)
-		goto err;
-	IndexCard = array_index_nospec(IndexCard, MAX_BOARD);
-
-	if (cmd != 6 && !apbs[IndexCard].RamIO)
-		goto err;
+	if(cmd != 6 && ((IndexCard >= MAX_BOARD) || !apbs[IndexCard].RamIO)) {
+		static int warncount = 10;
+		if (warncount) {
+			printk( KERN_WARNING "APPLICOM driver IOCTL, bad board number %d\n",(int)IndexCard+1);
+			warncount--;
+		}
+		kfree(adgl);
+		mutex_unlock(&ac_mutex);
+		return -EINVAL;
+	}
 
 	switch (cmd) {
 		
@@ -840,16 +838,5 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	kfree(adgl);
 	mutex_unlock(&ac_mutex);
 	return 0;
-
-err:
-	if (warncount) {
-		pr_warn("APPLICOM driver IOCTL, bad board number %d\n",
-			(int)IndexCard + 1);
-		warncount--;
-	}
-	kfree(adgl);
-	mutex_unlock(&ac_mutex);
-	return -EINVAL;
-
 }
 

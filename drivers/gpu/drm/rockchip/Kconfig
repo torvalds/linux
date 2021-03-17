@@ -1,6 +1,6 @@
 config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
-	depends on DRM
+	depends on DRM && ROCKCHIP_IOMMU
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
@@ -17,15 +17,6 @@ config DRM_ROCKCHIP
 	  IP found on the SoC.
 
 if DRM_ROCKCHIP
-
-config ROCKCHIP_DRM_DEBUG
-	tristate "Rockchip DRM debug"
-	depends on DRM_ROCKCHIP
-	help
-	  This option add a debug node to dump buf from application.
-	  dump buffer store at: /data/vop_buf
-	  debug node: /d/dri/0/ff900000.vop/vop_dump/dump
-	  cat /d/dri/0/ff900000.vop/vop_dump/dump get more help.
 
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
@@ -75,34 +66,4 @@ config ROCKCHIP_LVDS
 	  Rockchip rk3288 SoC has LVDS TX Controller can be used, and it
 	  support LVDS, rgb, dual LVDS output mode. say Y to enable its
 	  driver.
-
-config ROCKCHIP_DRM_TVE
-	bool "Rockchip TVE support"
-	depends on DRM_ROCKCHIP
-	help
-	  Choose this option to enable support for Rockchip TVE controllers.
-	  say Y to enable its driver.
-
-config ROCKCHIP_RGB
-	bool "Rockchip RGB support"
-	depends on DRM_ROCKCHIP
-	depends on PINCTRL
-	help
-	  Choose this option to enable support for Rockchip RGB output.
-	  Some Rockchip CRTCs, like rv1108, can directly output parallel
-	  and serial RGB format to panel or connect to a conversion chip.
-	  say Y to enable its driver.
-
-config DRM_ROCKCHIP_VVOP
-	tristate "Rockchip virtual VOP drm driver"
-	depends on DRM_ROCKCHIP
-	help
-	   Say y here if you want use some module of rockchip drm, but
-	   don't need a real vop driver(et: you just want rockchip drm
-	   gem driver to allocate memory).
-
-source "drivers/gpu/drm/rockchip/ebc-dev/Kconfig"
-source "drivers/gpu/drm/rockchip/rk618/Kconfig"
-source "drivers/gpu/drm/rockchip/rk628/Kconfig"
-
 endif

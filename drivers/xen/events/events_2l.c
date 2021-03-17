@@ -91,8 +91,6 @@ static void evtchn_2l_unmask(unsigned port)
 
 	BUG_ON(!irqs_disabled());
 
-	smp_wmb();	/* All writes before unmask must be visible. */
-
 	if (unlikely((cpu != cpu_from_evtchn(port))))
 		do_hypercall = 1;
 	else {
@@ -161,7 +159,7 @@ static inline xen_ulong_t active_evtchns(unsigned int cpu,
  * a bitset of words which contain pending event bits.  The second
  * level is a bitset of pending events themselves.
  */
-static void evtchn_2l_handle_events(unsigned cpu, struct evtchn_loop_ctrl *ctrl)
+static void evtchn_2l_handle_events(unsigned cpu)
 {
 	int irq;
 	xen_ulong_t pending_words;
@@ -242,7 +240,10 @@ static void evtchn_2l_handle_events(unsigned cpu, struct evtchn_loop_ctrl *ctrl)
 
 			/* Process port. */
 			port = (word_idx * BITS_PER_EVTCHN_WORD) + bit_idx;
-			handle_irq_for_port(port, ctrl);
+			irq = get_evtchn_to_irq(port);
+
+			if (irq != -1)
+				generic_handle_irq(irq);
 
 			bit_idx = (bit_idx + 1) % BITS_PER_EVTCHN_WORD;
 

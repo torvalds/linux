@@ -27,8 +27,6 @@
 #include <linux/platform_device.h>
 #include <linux/thermal.h>
 
-#include "../thermal_hwmon.h"
-
 #define BCM2835_TS_TSENSCTL			0x00
 #define BCM2835_TS_TSENSSTAT			0x04
 
@@ -128,7 +126,8 @@ static const struct debugfs_reg32 bcm2835_thermal_regs[] = {
 
 static void bcm2835_thermal_debugfs(struct platform_device *pdev)
 {
-	struct bcm2835_thermal_data *data = platform_get_drvdata(pdev);
+	struct thermal_zone_device *tz = platform_get_drvdata(pdev);
+	struct bcm2835_thermal_data *data = tz->devdata;
 	struct debugfs_regset32 *regset;
 
 	data->debugfsdir = debugfs_create_dir("bcm2835_thermal", NULL);
@@ -274,16 +273,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 
 	data->tz = tz;
 
-	platform_set_drvdata(pdev, data);
-
-	/*
-	 * Thermal_zone doesn't enable hwmon as default,
-	 * enable it here
-	 */
-	tz->tzp->no_hwmon = false;
-	err = thermal_add_hwmon_sysfs(tz);
-	if (err)
-		goto err_tz;
+	platform_set_drvdata(pdev, tz);
 
 	bcm2835_thermal_debugfs(pdev);
 
@@ -298,8 +288,8 @@ err_clk:
 
 static int bcm2835_thermal_remove(struct platform_device *pdev)
 {
-	struct bcm2835_thermal_data *data = platform_get_drvdata(pdev);
-	struct thermal_zone_device *tz = data->tz;
+	struct thermal_zone_device *tz = platform_get_drvdata(pdev);
+	struct bcm2835_thermal_data *data = tz->devdata;
 
 	debugfs_remove_recursive(data->debugfsdir);
 	thermal_zone_of_sensor_unregister(&pdev->dev, tz);

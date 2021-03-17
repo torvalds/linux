@@ -127,8 +127,7 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
 
 
 /* Legal flag mask for kmem_cache_create(), for various configurations */
-#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
-			 SLAB_CACHE_DMA32 | SLAB_PANIC | \
+#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | SLAB_PANIC | \
 			 SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
 
 #if defined(CONFIG_DEBUG_SLAB)
@@ -438,9 +437,11 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
 
 	flags &= gfp_allowed_mask;
 	for (i = 0; i < size; i++) {
-		p[i] = kasan_slab_alloc(s, p[i], flags);
-		kmemleak_alloc_recursive(p[i], s->object_size, 1,
+		void *object = p[i];
+
+		kmemleak_alloc_recursive(object, s->object_size, 1,
 					 s->flags, flags);
+		kasan_slab_alloc(s, object, flags);
 	}
 
 	if (memcg_kmem_enabled())
@@ -526,25 +527,5 @@ static inline int cache_random_seq_create(struct kmem_cache *cachep,
 }
 static inline void cache_random_seq_destroy(struct kmem_cache *cachep) { }
 #endif /* CONFIG_SLAB_FREELIST_RANDOM */
-
-static inline bool slab_want_init_on_alloc(gfp_t flags, struct kmem_cache *c)
-{
-	if (static_branch_unlikely(&init_on_alloc)) {
-		if (c->ctor)
-			return false;
-		if (c->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON))
-			return flags & __GFP_ZERO;
-		return true;
-	}
-	return flags & __GFP_ZERO;
-}
-
-static inline bool slab_want_init_on_free(struct kmem_cache *c)
-{
-	if (static_branch_unlikely(&init_on_free))
-		return !(c->ctor ||
-			 (c->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON)));
-	return false;
-}
 
 #endif /* MM_SLAB_H */

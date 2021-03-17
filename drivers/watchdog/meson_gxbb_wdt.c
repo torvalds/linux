@@ -89,8 +89,8 @@ static unsigned int meson_gxbb_wdt_get_timeleft(struct watchdog_device *wdt_dev)
 
 	reg = readl(data->reg_base + GXBB_WDT_TCNT_REG);
 
-	return ((reg & GXBB_WDT_TCNT_SETUP_MASK) -
-		(reg >> GXBB_WDT_TCNT_CNT_SHIFT)) / 1000;
+	return ((reg >> GXBB_WDT_TCNT_CNT_SHIFT) -
+		(reg & GXBB_WDT_TCNT_SETUP_MASK)) / 1000;
 }
 
 static const struct watchdog_ops meson_gxbb_wdt_ops = {

@@ -234,7 +234,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		      struct net_device *real_dev,
 		      struct rmnet_endpoint *ep)
 {
-	struct rmnet_priv *priv = netdev_priv(rmnet_dev);
+	struct rmnet_priv *priv;
 	int rc;
 
 	if (ep->egress_dev)
@@ -247,8 +247,6 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	rmnet_dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	rmnet_dev->hw_features |= NETIF_F_SG;
 
-	priv->real_dev = real_dev;
-
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
 		ep->egress_dev = rmnet_dev;
@@ -257,7 +255,9 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
 
+		priv = netdev_priv(rmnet_dev);
 		priv->mux_id = id;
+		priv->real_dev = real_dev;
 
 		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}
@@ -274,6 +274,14 @@ int rmnet_vnd_dellink(u8 id, struct rmnet_port *port,
 	ep->egress_dev = NULL;
 	port->nr_rmnet_devs--;
 	return 0;
+}
+
+u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev)
+{
+	struct rmnet_priv *priv;
+
+	priv = netdev_priv(rmnet_dev);
+	return priv->mux_id;
 }
 
 int rmnet_vnd_do_flow_control(struct net_device *rmnet_dev, int enable)

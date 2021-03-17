@@ -122,13 +122,28 @@ static void efifb_copy_bmp(u8 *src, u32 *dst, int width, struct screen_info *si)
  */
 static bool efifb_bgrt_sanity_check(struct screen_info *si, u32 bmp_width)
 {
-	/*
-	 * All x86 firmwares horizontally center the image (the yoffset
-	 * calculations differ between boards, but xoffset is predictable).
-	 */
-	u32 expected_xoffset = (si->lfb_width - bmp_width) / 2;
+	static const int default_resolutions[][2] = {
+		{  800,  600 },
+		{ 1024,  768 },
+		{ 1280, 1024 },
+	};
+	u32 i, right_margin;
 
-	return bgrt_tab.image_offset_x == expected_xoffset;
+	for (i = 0; i < ARRAY_SIZE(default_resolutions); i++) {
+		if (default_resolutions[i][0] == si->lfb_width &&
+		    default_resolutions[i][1] == si->lfb_height)
+			break;
+	}
+	/* If not a default resolution used for textmode, this should be fine */
+	if (i >= ARRAY_SIZE(default_resolutions))
+		return true;
+
+	/* If the right margin is 5 times smaller then the left one, reject */
+	right_margin = si->lfb_width - (bgrt_tab.image_offset_x + bmp_width);
+	if (right_margin < (bgrt_tab.image_offset_x / 5))
+		return false;
+
+	return true;
 }
 #else
 static bool efifb_bgrt_sanity_check(struct screen_info *si, u32 bmp_width)
@@ -449,8 +464,7 @@ static int efifb_probe(struct platform_device *dev)
 	info->apertures->ranges[0].base = efifb_fix.smem_start;
 	info->apertures->ranges[0].size = size_remap;
 
-	if (efi_enabled(EFI_MEMMAP) &&
-	    !efi_mem_desc_lookup(efifb_fix.smem_start, &md)) {
+	if (!efi_mem_desc_lookup(efifb_fix.smem_start, &md)) {
 		if ((efifb_fix.smem_start + efifb_fix.smem_len) >
 		    (md.phys_addr + (md.num_pages << EFI_PAGE_SHIFT))) {
 			pr_err("efifb: video memory @ 0x%lx spans multiple EFI memory regions\n",
@@ -462,12 +476,8 @@ static int efifb_probe(struct platform_device *dev)
 		 * If the UEFI memory map covers the efifb region, we may only
 		 * remap it using the attributes the memory map prescribes.
 		 */
-		md.attribute &= EFI_MEMORY_UC | EFI_MEMORY_WC |
-				EFI_MEMORY_WT | EFI_MEMORY_WB;
-		if (md.attribute) {
-			mem_flags |= EFI_MEMORY_WT | EFI_MEMORY_WB;
-			mem_flags &= md.attribute;
-		}
+		mem_flags |= EFI_MEMORY_WT | EFI_MEMORY_WB;
+		mem_flags &= md.attribute;
 	}
 	if (mem_flags & EFI_MEMORY_WC)
 		info->screen_base = ioremap_wc(efifb_fix.smem_start,

@@ -123,22 +123,17 @@ static int aafs_show_path(struct seq_file *seq, struct dentry *dentry)
 	return 0;
 }
 
-static void aafs_i_callback(struct rcu_head *head)
+static void aafs_evict_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
+	truncate_inode_pages_final(&inode->i_data);
+	clear_inode(inode);
 	if (S_ISLNK(inode->i_mode))
 		kfree(inode->i_link);
-	free_inode_nonrcu(inode);
-}
-
-static void aafs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, aafs_i_callback);
 }
 
 static const struct super_operations aafs_super_ops = {
 	.statfs = simple_statfs,
-	.destroy_inode = aafs_destroy_inode,
+	.evict_inode = aafs_evict_inode,
 	.show_path = aafs_show_path,
 };
 
@@ -361,7 +356,6 @@ static void aafs_remove(struct dentry *dentry)
 			simple_rmdir(dir, dentry);
 		else
 			simple_unlink(dir, dentry);
-		d_delete(dentry);
 		dput(dentry);
 	}
 	inode_unlock(dir);
@@ -424,7 +418,7 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 	 */
 	error = aa_may_manage_policy(label, ns, mask);
 	if (error)
-		goto end_section;
+		return error;
 
 	data = aa_simple_write_to_buffer(buf, size, size, pos);
 	error = PTR_ERR(data);
@@ -432,7 +426,6 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 		error = aa_replace_profiles(ns, label, mask, data);
 		aa_put_loaddata(data);
 	}
-end_section:
 	end_current_label_crit_section(label);
 
 	return error;
@@ -594,7 +587,7 @@ static __poll_t ns_revision_poll(struct file *file, poll_table *pt)
 
 void __aa_bump_ns_revision(struct aa_ns *ns)
 {
-	WRITE_ONCE(ns->revision, ns->revision + 1);
+	ns->revision++;
 	wake_up_interruptible(&ns->wait);
 }
 

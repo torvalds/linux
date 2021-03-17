@@ -38,11 +38,6 @@ struct hdc100x_data {
 
 	/* integration time of the sensor */
 	int adc_int_us[2];
-	/* Ensure natural alignment of timestamp */
-	struct {
-		__be16 channels[2];
-		s64 ts __aligned(8);
-	} scan;
 };
 
 /* integration time in us */
@@ -234,7 +229,7 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 			*val2 = 65536;
 			return IIO_VAL_FRACTIONAL;
 		} else {
-			*val = 100000;
+			*val = 100;
 			*val2 = 65536;
 			return IIO_VAL_FRACTIONAL;
 		}
@@ -324,6 +319,7 @@ static irqreturn_t hdc100x_trigger_handler(int irq, void *p)
 	struct i2c_client *client = data->client;
 	int delay = data->adc_int_us[0] + data->adc_int_us[1];
 	int ret;
+	s16 buf[8];  /* 2x s16 + padding + 8 byte timestamp */
 
 	/* dual read starts at temp register */
 	mutex_lock(&data->lock);
@@ -334,13 +330,13 @@ static irqreturn_t hdc100x_trigger_handler(int irq, void *p)
 	}
 	usleep_range(delay, delay + 1000);
 
-	ret = i2c_master_recv(client, (u8 *)data->scan.channels, 4);
+	ret = i2c_master_recv(client, (u8 *)buf, 4);
 	if (ret < 0) {
 		dev_err(&client->dev, "cannot read sensor data\n");
 		goto err;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
 					   iio_get_time_ns(indio_dev));
 err:
 	mutex_unlock(&data->lock);

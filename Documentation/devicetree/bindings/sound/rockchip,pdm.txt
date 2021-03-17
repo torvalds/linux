@@ -3,11 +3,6 @@
 Required properties:
 
 - compatible: "rockchip,pdm"
-  - "rockchip,px30-pdm"
-  - "rockchip,rk1808-pdm"
-  - "rockchip,rk3308-pdm"
-  - "rockchip,rk3568-pdm"
-  - "rockchip,rv1126-pdm"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - dmas: DMA specifiers for rx dma. See the DMA client binding,
@@ -17,37 +12,10 @@ Required properties:
 - clock-names: should contain following:
    - "pdm_hclk": clock for PDM BUS
    - "pdm_clk" : clock for PDM controller
-- resets: a list of phandle + reset-specifer paris, one for each entry in reset-names.
-- reset-names: reset names, should include "pdm-m".
-- rockchip,no-dmaengine: This is a boolean property. If present, driver will do not
-  register pcm dmaengine, only just register dai. if the dai is part of multi-dais,
-  the property should be present. Please refer to rockchip,multidais.txt about
-  multi-dais usage.
 - pinctrl-names: Must contain a "default" entry.
 - pinctrl-N: One property must exist for each entry in
 	     pinctrl-names. See ../pinctrl/pinctrl-bindings.txt
 	     for details of the property values.
-
-Optional properties:
-- rockchip,path-map: This is a variable length array, that shows the mapping
-  of SDIx to PATHx. By default, they are one-to-one mapping as follows:
-
-   path0 <-- sdi0
-   path1 <-- sdi1
-   path2 <-- sdi2
-   path3 <-- sdi3
-
-  e.g. "rockchip,path-map = <3 2 1 0>" means the mapping as follows:
-
-   path0 <-- sdi3
-   path1 <-- sdi2
-   path2 <-- sdi1
-   path3 <-- sdi0
-
-- rockchip,mclk-calibrate: This is a boolean value, if present, enable
-  clk calibrate and compenation.
-
-  note: the corresponding property 'pdm_clk_root' should be assigned.
 
 Example for rk3328 PDM controller:
 
@@ -70,13 +38,4 @@ pdm: pdm@ff040000 {
 		     &pdmm0_sdi1_sleep
 		     &pdmm0_sdi2_sleep
 		     &pdmm0_sdi3_sleep>;
-};
-
-Example for RV1126 PDM controller with mclk-calibrate:
-
-&pdm {
-	status = "okay";
-	clocks = <&cru MCLK_PDM>, <&cru HCLK_PDM>, <&cru PLL_CPLL>;
-	clock-names = "pdm_clk", "pdm_hclk", "pdm_clk_root";
-	rockchip,mclk-calibrate;
 };

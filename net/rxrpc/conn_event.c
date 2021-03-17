@@ -342,18 +342,18 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 			return ret;
 
 		spin_lock(&conn->channel_lock);
-		spin_lock_bh(&conn->state_lock);
+		spin_lock(&conn->state_lock);
 
 		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING) {
 			conn->state = RXRPC_CONN_SERVICE;
-			spin_unlock_bh(&conn->state_lock);
+			spin_unlock(&conn->state_lock);
 			for (loop = 0; loop < RXRPC_MAXCALLS; loop++)
 				rxrpc_call_is_secure(
 					rcu_dereference_protected(
 						conn->channels[loop].call,
 						lockdep_is_held(&conn->channel_lock)));
 		} else {
-			spin_unlock_bh(&conn->state_lock);
+			spin_unlock(&conn->state_lock);
 		}
 
 		spin_unlock(&conn->channel_lock);
@@ -453,11 +453,15 @@ again:
 /*
  * connection-level event processor
  */
-static void rxrpc_do_process_connection(struct rxrpc_connection *conn)
+void rxrpc_process_connection(struct work_struct *work)
 {
+	struct rxrpc_connection *conn =
+		container_of(work, struct rxrpc_connection, processor);
 	struct sk_buff *skb;
 	u32 abort_code = RX_PROTOCOL_ERROR;
 	int ret;
+
+	rxrpc_see_connection(conn);
 
 	if (test_and_clear_bit(RXRPC_CONN_EV_CHALLENGE, &conn->events))
 		rxrpc_secure_connection(conn);
@@ -486,33 +490,18 @@ static void rxrpc_do_process_connection(struct rxrpc_connection *conn)
 		}
 	}
 
+out:
+	rxrpc_put_connection(conn);
+	_leave("");
 	return;
 
 requeue_and_leave:
 	skb_queue_head(&conn->rx_queue, skb);
-	return;
+	goto out;
 
 protocol_error:
 	if (rxrpc_abort_connection(conn, ret, abort_code) < 0)
 		goto requeue_and_leave;
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
-	return;
+	goto out;
 }
-
-void rxrpc_process_connection(struct work_struct *work)
-{
-	struct rxrpc_connection *conn =
-		container_of(work, struct rxrpc_connection, processor);
-
-	rxrpc_see_connection(conn);
-
-	if (__rxrpc_use_local(conn->params.local)) {
-		rxrpc_do_process_connection(conn);
-		rxrpc_unuse_local(conn->params.local);
-	}
-
-	rxrpc_put_connection(conn);
-	_leave("");
-	return;
-}
-

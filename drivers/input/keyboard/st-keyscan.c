@@ -153,8 +153,6 @@ static int keyscan_probe(struct platform_device *pdev)
 
 	input_dev->id.bustype = BUS_HOST;
 
-	keypad_data->input_dev = input_dev;
-
 	error = keypad_matrix_key_parse_dt(keypad_data);
 	if (error)
 		return error;
@@ -169,6 +167,8 @@ static int keyscan_probe(struct platform_device *pdev)
 	}
 
 	input_set_drvdata(input_dev, keypad_data);
+
+	keypad_data->input_dev = input_dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	keypad_data->base = devm_ioremap_resource(&pdev->dev, res);

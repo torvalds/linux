@@ -309,17 +309,8 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		rcfw->aeq_handler(rcfw, qp_event, qp);
 		break;
 	default:
-		/*
-		 * Command Response
-		 * cmdq->lock needs to be acquired to synchronie
-		 * the command send and completion reaping. This function
-		 * is always called with creq->lock held. Using
-		 * the nested variant of spin_lock.
-		 *
-		 */
-
-		spin_lock_irqsave_nested(&cmdq->lock, flags,
-					 SINGLE_DEPTH_NESTING);
+		/* Command Response */
+		spin_lock_irqsave(&cmdq->lock, flags);
 		cookie = le16_to_cpu(qp_event->cookie);
 		mcookie = qp_event->cookie;
 		blocked = cookie & RCFW_CMD_IS_BLOCKING;
@@ -614,8 +605,13 @@ void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 
 	bnxt_qplib_rcfw_stop_irq(rcfw, true);
 
-	iounmap(rcfw->cmdq_bar_reg_iomem);
-	iounmap(rcfw->creq_bar_reg_iomem);
+	if (rcfw->cmdq_bar_reg_iomem)
+		iounmap(rcfw->cmdq_bar_reg_iomem);
+	rcfw->cmdq_bar_reg_iomem = NULL;
+
+	if (rcfw->creq_bar_reg_iomem)
+		iounmap(rcfw->creq_bar_reg_iomem);
+	rcfw->creq_bar_reg_iomem = NULL;
 
 	indx = find_first_bit(rcfw->cmdq_bitmap, rcfw->bmap_size);
 	if (indx != rcfw->bmap_size)
@@ -624,8 +620,6 @@ void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 	kfree(rcfw->cmdq_bitmap);
 	rcfw->bmap_size = 0;
 
-	rcfw->cmdq_bar_reg_iomem = NULL;
-	rcfw->creq_bar_reg_iomem = NULL;
 	rcfw->aeq_handler = NULL;
 	rcfw->vector = 0;
 }
@@ -711,8 +705,6 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 		dev_err(&rcfw->pdev->dev,
 			"QPLIB: CREQ BAR region %d mapping failed",
 			rcfw->creq_bar_reg);
-		iounmap(rcfw->cmdq_bar_reg_iomem);
-		rcfw->cmdq_bar_reg_iomem = NULL;
 		return -ENOMEM;
 	}
 	rcfw->creq_qp_event_processed = 0;

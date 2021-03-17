@@ -77,9 +77,8 @@ bool wil_is_tx_idle(struct wil6210_priv *wil)
 {
 	int i;
 	unsigned long data_comp_to;
-	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
-	for (i = min_ring_id; i < WIL6210_MAX_TX_RINGS; i++) {
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		struct wil_ring *vring = &wil->ring_tx[i];
 		int vring_index = vring - wil->ring_tx;
 		struct wil_ring_tx_data *txdata =
@@ -737,7 +736,6 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		[GRO_HELD]		= "GRO_HELD",
 		[GRO_NORMAL]		= "GRO_NORMAL",
 		[GRO_DROP]		= "GRO_DROP",
-		[GRO_CONSUMED]		= "GRO_CONSUMED",
 	};
 
 	wil->txrx_ops.get_netif_rx_params(skb, &cid, &security);
@@ -767,14 +765,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		return;
 	}
 
-	if (wdev->iftype == NL80211_IFTYPE_STATION) {
-		if (mcast && ether_addr_equal(eth->h_source, ndev->dev_addr)) {
-			/* mcast packet looped back to us */
-			rc = GRO_DROP;
-			dev_kfree_skb(skb);
-			goto stats;
-		}
-	} else if (wdev->iftype == NL80211_IFTYPE_AP && !vif->ap_isolate) {
+	if (wdev->iftype == NL80211_IFTYPE_AP && !vif->ap_isolate) {
 		if (mcast) {
 			/* send multicast frames both to higher layers in
 			 * local net stack and back to the wireless medium
@@ -881,7 +872,7 @@ static void wil_rx_buf_len_init(struct wil6210_priv *wil)
 	}
 }
 
-static int wil_rx_init(struct wil6210_priv *wil, uint order)
+static int wil_rx_init(struct wil6210_priv *wil, u16 size)
 {
 	struct wil_ring *vring = &wil->ring_rx;
 	int rc;
@@ -895,7 +886,7 @@ static int wil_rx_init(struct wil6210_priv *wil, uint order)
 
 	wil_rx_buf_len_init(wil);
 
-	vring->size = 1 << order;
+	vring->size = size;
 	vring->is_rx = true;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
@@ -1322,8 +1313,6 @@ found:
 			wil_dbg_txrx(wil, "BCAST DUP -> ring %d\n", i);
 			wil_set_da_for_vring(wil, skb2, i);
 			wil_tx_ring(wil, vif, v2, skb2);
-			/* successful call to wil_tx_ring takes skb2 ref */
-			dev_kfree_skb_any(skb2);
 		} else {
 			wil_err(wil, "skb_copy failed\n");
 		}
@@ -1946,7 +1935,6 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 					   bool check_stop)
 {
 	int i;
-	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
 	if (unlikely(!vif))
 		return;
@@ -1979,7 +1967,7 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 		return;
 
 	/* check wake */
-	for (i = min_ring_id; i < WIL6210_MAX_TX_RINGS; i++) {
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		struct wil_ring *cur_ring = &wil->ring_tx[i];
 		struct wil_ring_tx_data  *txdata = &wil->ring_tx_data[i];
 

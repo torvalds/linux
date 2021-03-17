@@ -3591,13 +3591,6 @@ static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
-	/*
-	 * If a custom pp table is loaded, set DPMTABLE_OD_UPDATE_VDDC flag.
-	 * That effectively disables AVFS feature.
-	 */
-	if(hwmgr->hardcode_pp_table != NULL)
-		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
-
 	vega10_update_avfs(hwmgr);
 
 	data->need_update_dpm_table &= DPMTABLE_OD_UPDATE_VDDC;
@@ -4758,7 +4751,9 @@ static void vega10_odn_update_soc_table(struct pp_hwmgr *hwmgr,
 
 	if (type == PP_OD_EDIT_SCLK_VDDC_TABLE) {
 		podn_vdd_dep = &data->odn_dpm_table.vdd_dep_on_sclk;
-		for (i = 0; i < podn_vdd_dep->count; i++)
+		for (i = 0; i < podn_vdd_dep->count - 1; i++)
+			od_vddc_lookup_table->entries[i].us_vdd = podn_vdd_dep->entries[i].vddc;
+		if (od_vddc_lookup_table->entries[i].us_vdd < podn_vdd_dep->entries[i].vddc)
 			od_vddc_lookup_table->entries[i].us_vdd = podn_vdd_dep->entries[i].vddc;
 	} else if (type == PP_OD_EDIT_MCLK_VDDC_TABLE) {
 		podn_vdd_dep = &data->odn_dpm_table.vdd_dep_on_mclk;

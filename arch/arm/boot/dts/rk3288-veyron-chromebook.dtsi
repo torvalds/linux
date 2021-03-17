@@ -145,6 +145,10 @@
 	};
 };
 
+&edp_phy {
+	status = "okay";
+};
+
 &gpio_keys {
 	pinctrl-0 = <&pwr_key_l &ap_lid_int_l>;
 	lid {

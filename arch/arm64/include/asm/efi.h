@@ -94,11 +94,7 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
 	((protocol##_t *)instance)->f(instance, ##__VA_ARGS__)
 
 #define alloc_screen_info(x...)		&screen_info
-
-static inline void free_screen_info(efi_system_table_t *sys_table_arg,
-				    struct screen_info *si)
-{
-}
+#define free_screen_info(x...)
 
 /* redeclare as 'hidden' so the compiler will generate relative references */
 extern struct screen_info screen_info __attribute__((__visibility__("hidden")));

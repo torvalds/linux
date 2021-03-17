@@ -173,12 +173,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 
 		rcu_read_lock();
 		in = __in_dev_get_rcu(upper_dev);
-
-		if (!in->ifa_list)
-			local_ipaddr = 0;
-		else
-			local_ipaddr = ntohl(in->ifa_list->ifa_address);
-
+		local_ipaddr = ntohl(in->ifa_list->ifa_address);
 		rcu_read_unlock();
 	} else {
 		local_ipaddr = ntohl(ifa->ifa_address);
@@ -190,11 +185,6 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	case NETDEV_UP:
 		/* Fall through */
 	case NETDEV_CHANGEADDR:
-
-		/* Just skip if no need to handle ARP cache */
-		if (!local_ipaddr)
-			break;
-
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,

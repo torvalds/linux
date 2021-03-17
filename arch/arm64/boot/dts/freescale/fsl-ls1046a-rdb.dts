@@ -57,12 +57,12 @@
 		reg = <0x4c>;
 	};
 
-	eeprom@52 {
+	eeprom@56 {
 		compatible = "atmel,24c512";
 		reg = <0x52>;
 	};
 
-	eeprom@53 {
+	eeprom@57 {
 		compatible = "atmel,24c512";
 		reg = <0x53>;
 	};
@@ -125,12 +125,12 @@
 &fman0 {
 	ethernet@e4000 {
 		phy-handle = <&rgmii_phy1>;
-		phy-connection-type = "rgmii-id";
+		phy-connection-type = "rgmii";
 	};
 
 	ethernet@e6000 {
 		phy-handle = <&rgmii_phy2>;
-		phy-connection-type = "rgmii-id";
+		phy-connection-type = "rgmii";
 	};
 
 	ethernet@e8000 {

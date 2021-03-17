@@ -114,7 +114,6 @@ typedef void (busy_iter_fn)(struct blk_mq_hw_ctx *, struct request *, void *,
 typedef void (busy_tag_iter_fn)(struct request *, void *, bool);
 typedef int (poll_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (map_queues_fn)(struct blk_mq_tag_set *set);
-typedef void (cleanup_rq_fn)(struct request *);
 
 
 struct blk_mq_ops {
@@ -165,12 +164,6 @@ struct blk_mq_ops {
 	exit_request_fn		*exit_request;
 	/* Called from inside blk_get_request() */
 	void (*initialize_rq_fn)(struct request *rq);
-
-	/*
-	 * Called before freeing one request which isn't completed yet,
-	 * and usually for freeing the driver private data
-	 */
-	cleanup_rq_fn		*cleanup_rq;
 
 	map_queues_fn		*map_queues;
 
@@ -330,11 +323,5 @@ static inline void *blk_mq_rq_to_pdu(struct request *rq)
 #define hctx_for_each_ctx(hctx, ctx, i)					\
 	for ((i) = 0; (i) < (hctx)->nr_ctx &&				\
 	     ({ ctx = (hctx)->ctxs[(i)]; 1; }); (i)++)
-
-static inline void blk_mq_cleanup_rq(struct request *rq)
-{
-	if (rq->q->mq_ops->cleanup_rq)
-		rq->q->mq_ops->cleanup_rq(rq);
-}
 
 #endif

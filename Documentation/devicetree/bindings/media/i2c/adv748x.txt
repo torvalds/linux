@@ -73,7 +73,7 @@ Example:
 			};
 		};
 
-		port@a {
+		port@10 {
 			reg = <10>;
 
 			adv7482_txa: endpoint {
@@ -83,7 +83,7 @@ Example:
 			};
 		};
 
-		port@b {
+		port@11 {
 			reg = <11>;
 
 			adv7482_txb: endpoint {

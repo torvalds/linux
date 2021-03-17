@@ -330,7 +330,7 @@ static const struct option longopts[] = {
 
 int main(int argc, char **argv)
 {
-	long long num_loops = 2;
+	unsigned long long num_loops = 2;
 	unsigned long timedelay = 1000000;
 	unsigned long buf_len = 128;
 

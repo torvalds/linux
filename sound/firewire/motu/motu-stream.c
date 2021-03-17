@@ -345,7 +345,7 @@ static void destroy_stream(struct snd_motu *motu,
 	}
 
 	amdtp_stream_destroy(stream);
-	fw_iso_resources_destroy(resources);
+	fw_iso_resources_free(resources);
 }
 
 int snd_motu_stream_init_duplex(struct snd_motu *motu)

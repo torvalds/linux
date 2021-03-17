@@ -292,10 +292,9 @@ bool cm_helper_translate_curve_to_hw_format(
 		seg_distr[7] = 4;
 		seg_distr[8] = 4;
 		seg_distr[9] = 4;
-		seg_distr[10] = 1;
 
 		region_start = -10;
-		region_end = 1;
+		region_end = 0;
 	}
 
 	for (i = region_end - region_start; i < MAX_REGIONS_NUMBER ; i++)

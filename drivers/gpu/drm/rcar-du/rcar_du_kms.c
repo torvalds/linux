@@ -300,7 +300,6 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		dev_dbg(rcdu->dev,
 			"connected entity %pOF is disabled, skipping\n",
 			entity);
-		of_node_put(entity);
 		return -ENODEV;
 	}
 
@@ -336,7 +335,6 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		dev_warn(rcdu->dev,
 			 "no encoder found for endpoint %pOF, skipping\n",
 			 ep->local_node);
-		of_node_put(entity);
 		return -ENODEV;
 	}
 
@@ -518,21 +516,11 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
+	dev->mode_config.max_width = 4095;
+	dev->mode_config.max_height = 2047;
 	dev->mode_config.normalize_zpos = true;
 	dev->mode_config.funcs = &rcar_du_mode_config_funcs;
 	dev->mode_config.helper_private = &rcar_du_mode_config_helper;
-
-	if (rcdu->info->gen < 3) {
-		dev->mode_config.max_width = 4095;
-		dev->mode_config.max_height = 2047;
-	} else {
-		/*
-		 * The Gen3 DU uses the VSP1 for memory access, and is limited
-		 * to frame sizes of 8190x8190.
-		 */
-		dev->mode_config.max_width = 8190;
-		dev->mode_config.max_height = 8190;
-	}
 
 	rcdu->num_crtcs = hweight8(rcdu->info->channels_mask);
 
@@ -544,7 +532,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	 * Initialize vertical blanking interrupts handling. Start with vblank
 	 * disabled for all CRTCs.
 	 */
-	ret = drm_vblank_init(dev, rcdu->num_crtcs);
+	ret = drm_vblank_init(dev, (1 << rcdu->num_crtcs) - 1);
 	if (ret < 0)
 		return ret;
 

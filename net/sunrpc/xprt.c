@@ -143,64 +143,31 @@ out:
 }
 EXPORT_SYMBOL_GPL(xprt_unregister_transport);
 
-static void
-xprt_class_release(const struct xprt_class *t)
-{
-	module_put(t->owner);
-}
-
-static const struct xprt_class *
-xprt_class_find_by_netid_locked(const char *netid)
-{
-	const struct xprt_class *t;
-	unsigned int i;
-
-	list_for_each_entry(t, &xprt_list, list) {
-		for (i = 0; t->netid[i][0] != '\0'; i++) {
-			if (strcmp(t->netid[i], netid) != 0)
-				continue;
-			if (!try_module_get(t->owner))
-				continue;
-			return t;
-		}
-	}
-	return NULL;
-}
-
-static const struct xprt_class *
-xprt_class_find_by_netid(const char *netid)
-{
-	const struct xprt_class *t;
-
-	spin_lock(&xprt_list_lock);
-	t = xprt_class_find_by_netid_locked(netid);
-	if (!t) {
-		spin_unlock(&xprt_list_lock);
-		request_module("rpc%s", netid);
-		spin_lock(&xprt_list_lock);
-		t = xprt_class_find_by_netid_locked(netid);
-	}
-	spin_unlock(&xprt_list_lock);
-	return t;
-}
-
 /**
  * xprt_load_transport - load a transport implementation
- * @netid: transport to load
+ * @transport_name: transport to load
  *
  * Returns:
  * 0:		transport successfully loaded
  * -ENOENT:	transport module not available
  */
-int xprt_load_transport(const char *netid)
+int xprt_load_transport(const char *transport_name)
 {
-	const struct xprt_class *t;
+	struct xprt_class *t;
+	int result;
 
-	t = xprt_class_find_by_netid(netid);
-	if (!t)
-		return -ENOENT;
-	xprt_class_release(t);
-	return 0;
+	result = 0;
+	spin_lock(&xprt_list_lock);
+	list_for_each_entry(t, &xprt_list, list) {
+		if (strcmp(t->name, transport_name) == 0) {
+			spin_unlock(&xprt_list_lock);
+			goto out;
+		}
+	}
+	spin_unlock(&xprt_list_lock);
+	result = request_module("xprt%s", transport_name);
+out:
+	return result;
 }
 EXPORT_SYMBOL_GPL(xprt_load_transport);
 
@@ -814,26 +781,25 @@ void xprt_connect(struct rpc_task *task)
 			return;
 		if (xprt_test_and_set_connecting(xprt))
 			return;
-		/* Race breaker */
-		if (!xprt_connected(xprt)) {
-			xprt->stat.connect_start = jiffies;
-			xprt->ops->connect(xprt, task);
-		} else {
-			xprt_clear_connecting(xprt);
-			task->tk_status = 0;
-			rpc_wake_up_queued_task(&xprt->pending, task);
-		}
+		xprt->stat.connect_start = jiffies;
+		xprt->ops->connect(xprt, task);
 	}
 	xprt_release_write(xprt, task);
 }
 
 static void xprt_connect_status(struct rpc_task *task)
 {
-	switch (task->tk_status) {
-	case 0:
+	struct rpc_xprt	*xprt = task->tk_rqstp->rq_xprt;
+
+	if (task->tk_status == 0) {
+		xprt->stat.connect_count++;
+		xprt->stat.connect_time += (long)jiffies - xprt->stat.connect_start;
 		dprintk("RPC: %5u xprt_connect_status: connection established\n",
 				task->tk_pid);
-		break;
+		return;
+	}
+
+	switch (task->tk_status) {
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ECONNABORTED:
@@ -850,7 +816,7 @@ static void xprt_connect_status(struct rpc_task *task)
 	default:
 		dprintk("RPC: %5u xprt_connect_status: error %d connecting to "
 				"server %s\n", task->tk_pid, -task->tk_status,
-				task->tk_rqstp->rq_xprt->servername);
+				xprt->servername);
 		task->tk_status = -EIO;
 	}
 }
@@ -1284,55 +1250,6 @@ void xprt_free(struct rpc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(xprt_free);
 
-static __be32
-xprt_alloc_xid(struct rpc_xprt *xprt)
-{
-	__be32 xid;
-
-	spin_lock(&xprt->reserve_lock);
-	xid = (__force __be32)xprt->xid++;
-	spin_unlock(&xprt->reserve_lock);
-	return xid;
-}
-
-static void
-xprt_init_xid(struct rpc_xprt *xprt)
-{
-	xprt->xid = prandom_u32();
-}
-
-static void
-xprt_request_init(struct rpc_task *task)
-{
-	struct rpc_xprt *xprt = task->tk_xprt;
-	struct rpc_rqst	*req = task->tk_rqstp;
-
-	INIT_LIST_HEAD(&req->rq_list);
-	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
-	req->rq_task	= task;
-	req->rq_xprt    = xprt;
-	req->rq_buffer  = NULL;
-	req->rq_xid	= xprt_alloc_xid(xprt);
-	req->rq_connect_cookie = xprt->connect_cookie - 1;
-	req->rq_bytes_sent = 0;
-	req->rq_snd_buf.len = 0;
-	req->rq_snd_buf.buflen = 0;
-	req->rq_rcv_buf.len = 0;
-	req->rq_rcv_buf.buflen = 0;
-	req->rq_release_snd_buf = NULL;
-	xprt_reset_majortimeo(req);
-	dprintk("RPC: %5u reserved req %p xid %08x\n", task->tk_pid,
-			req, ntohl(req->rq_xid));
-}
-
-static void
-xprt_do_reserve(struct rpc_xprt *xprt, struct rpc_task *task)
-{
-	xprt->ops->alloc_slot(xprt, task);
-	if (task->tk_rqstp != NULL)
-		xprt_request_init(task);
-}
-
 /**
  * xprt_reserve - allocate an RPC request slot
  * @task: RPC task requesting a slot allocation
@@ -1352,7 +1269,7 @@ void xprt_reserve(struct rpc_task *task)
 	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
 	if (!xprt_throttle_congested(xprt, task))
-		xprt_do_reserve(xprt, task);
+		xprt->ops->alloc_slot(xprt, task);
 }
 
 /**
@@ -1374,7 +1291,45 @@ void xprt_retry_reserve(struct rpc_task *task)
 
 	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
-	xprt_do_reserve(xprt, task);
+	xprt->ops->alloc_slot(xprt, task);
+}
+
+static inline __be32 xprt_alloc_xid(struct rpc_xprt *xprt)
+{
+	__be32 xid;
+
+	spin_lock(&xprt->reserve_lock);
+	xid = (__force __be32)xprt->xid++;
+	spin_unlock(&xprt->reserve_lock);
+	return xid;
+}
+
+static inline void xprt_init_xid(struct rpc_xprt *xprt)
+{
+	xprt->xid = prandom_u32();
+}
+
+void xprt_request_init(struct rpc_task *task)
+{
+	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_rqst	*req = task->tk_rqstp;
+
+	INIT_LIST_HEAD(&req->rq_list);
+	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
+	req->rq_task	= task;
+	req->rq_xprt    = xprt;
+	req->rq_buffer  = NULL;
+	req->rq_xid	= xprt_alloc_xid(xprt);
+	req->rq_connect_cookie = xprt->connect_cookie - 1;
+	req->rq_bytes_sent = 0;
+	req->rq_snd_buf.len = 0;
+	req->rq_snd_buf.buflen = 0;
+	req->rq_rcv_buf.len = 0;
+	req->rq_rcv_buf.buflen = 0;
+	req->rq_release_snd_buf = NULL;
+	xprt_reset_majortimeo(req);
+	dprintk("RPC: %5u reserved req %p xid %08x\n", task->tk_pid,
+			req, ntohl(req->rq_xid));
 }
 
 /**

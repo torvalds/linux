@@ -67,7 +67,7 @@ static inline int qedr_ib_copy_to_udata(struct ib_udata *udata, void *src,
 
 int qedr_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 {
-	if (index >= QEDR_ROCE_PKEY_TABLE_LEN)
+	if (index > QEDR_ROCE_PKEY_TABLE_LEN)
 		return -EINVAL;
 
 	*pkey = QEDR_ROCE_PKEY_DEFAULT;
@@ -158,47 +158,54 @@ int qedr_query_device(struct ib_device *ibdev,
 	return 0;
 }
 
+#define QEDR_SPEED_SDR		(1)
+#define QEDR_SPEED_DDR		(2)
+#define QEDR_SPEED_QDR		(4)
+#define QEDR_SPEED_FDR10	(8)
+#define QEDR_SPEED_FDR		(16)
+#define QEDR_SPEED_EDR		(32)
+
 static inline void get_link_speed_and_width(int speed, u8 *ib_speed,
 					    u8 *ib_width)
 {
 	switch (speed) {
 	case 1000:
-		*ib_speed = IB_SPEED_SDR;
+		*ib_speed = QEDR_SPEED_SDR;
 		*ib_width = IB_WIDTH_1X;
 		break;
 	case 10000:
-		*ib_speed = IB_SPEED_QDR;
+		*ib_speed = QEDR_SPEED_QDR;
 		*ib_width = IB_WIDTH_1X;
 		break;
 
 	case 20000:
-		*ib_speed = IB_SPEED_DDR;
+		*ib_speed = QEDR_SPEED_DDR;
 		*ib_width = IB_WIDTH_4X;
 		break;
 
 	case 25000:
-		*ib_speed = IB_SPEED_EDR;
+		*ib_speed = QEDR_SPEED_EDR;
 		*ib_width = IB_WIDTH_1X;
 		break;
 
 	case 40000:
-		*ib_speed = IB_SPEED_QDR;
+		*ib_speed = QEDR_SPEED_QDR;
 		*ib_width = IB_WIDTH_4X;
 		break;
 
 	case 50000:
-		*ib_speed = IB_SPEED_HDR;
-		*ib_width = IB_WIDTH_1X;
+		*ib_speed = QEDR_SPEED_QDR;
+		*ib_width = IB_WIDTH_4X;
 		break;
 
 	case 100000:
-		*ib_speed = IB_SPEED_EDR;
+		*ib_speed = QEDR_SPEED_EDR;
 		*ib_width = IB_WIDTH_4X;
 		break;
 
 	default:
 		/* Unsupported */
-		*ib_speed = IB_SPEED_SDR;
+		*ib_speed = QEDR_SPEED_SDR;
 		*ib_width = IB_WIDTH_1X;
 	}
 }
@@ -1694,14 +1701,6 @@ static void qedr_cleanup_user(struct qedr_dev *dev, struct qedr_qp *qp)
 	if (qp->urq.umem)
 		ib_umem_release(qp->urq.umem);
 	qp->urq.umem = NULL;
-
-	if (rdma_protocol_roce(&dev->ibdev, 1)) {
-		qedr_free_pbl(dev, &qp->usq.pbl_info, qp->usq.pbl_tbl);
-		qedr_free_pbl(dev, &qp->urq.pbl_info, qp->urq.pbl_tbl);
-	} else {
-		kfree(qp->usq.pbl_tbl);
-		kfree(qp->urq.pbl_tbl);
-	}
 }
 
 static int qedr_create_user_qp(struct qedr_dev *dev,
@@ -2522,7 +2521,7 @@ int qedr_query_qp(struct ib_qp *ibqp,
 	qp_attr->cap.max_recv_wr = qp->rq.max_wr;
 	qp_attr->cap.max_send_sge = qp->sq.max_sges;
 	qp_attr->cap.max_recv_sge = qp->rq.max_sges;
-	qp_attr->cap.max_inline_data = dev->attr.max_inline;
+	qp_attr->cap.max_inline_data = ROCE_REQ_MAX_INLINE_DATA_SIZE;
 	qp_init_attr->cap = qp_attr->cap;
 
 	qp_attr->ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
@@ -2810,8 +2809,8 @@ int qedr_dereg_mr(struct ib_mr *ib_mr)
 
 	dev->ops->rdma_free_tid(dev->rdma_ctx, mr->hw_mr.itid);
 
-	if (mr->type != QEDR_MR_DMA)
-		free_mr_info(dev, &mr->info);
+	if ((mr->type != QEDR_MR_DMA) && (mr->type != QEDR_MR_FRMR))
+		qedr_free_pbl(dev, &mr->info.pbl_info, mr->info.pbl_table);
 
 	/* it could be user registered memory. */
 	if (mr->umem)
@@ -3577,7 +3576,7 @@ static u32 qedr_srq_elem_left(struct qedr_srq_hwq_info *hw_srq)
 	 * count and consumer count and subtract it from max
 	 * work request supported so that we get elements left.
 	 */
-	used = hw_srq->wr_prod_cnt - (u32)atomic_read(&hw_srq->wr_cons_cnt);
+	used = hw_srq->wr_prod_cnt - hw_srq->wr_cons_cnt;
 
 	return hw_srq->max_wr - used;
 }
@@ -3592,6 +3591,7 @@ int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 	unsigned long flags;
 	int status = 0;
 	u32 num_sge;
+	u32 offset;
 
 	spin_lock_irqsave(&srq->lock, flags);
 
@@ -3604,8 +3604,7 @@ int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		if (!qedr_srq_elem_left(hw_srq) ||
 		    wr->num_sge > srq->hw_srq.max_sges) {
 			DP_ERR(dev, "Can't post WR  (%d,%d) || (%d > %d)\n",
-			       hw_srq->wr_prod_cnt,
-			       atomic_read(&hw_srq->wr_cons_cnt),
+			       hw_srq->wr_prod_cnt, hw_srq->wr_cons_cnt,
 			       wr->num_sge, srq->hw_srq.max_sges);
 			status = -ENOMEM;
 			*bad_wr = wr;
@@ -3639,20 +3638,22 @@ int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			hw_srq->sge_prod++;
 		}
 
-		/* Update WQE and SGE information before
+		/* Flush WQE and SGE information before
 		 * updating producer.
 		 */
-		dma_wmb();
+		wmb();
 
 		/* SRQ producer is 8 bytes. Need to update SGE producer index
 		 * in first 4 bytes and need to update WQE producer in
 		 * next 4 bytes.
 		 */
-		srq->hw_srq.virt_prod_pair_addr->sge_prod = hw_srq->sge_prod;
-		/* Make sure sge producer is updated first */
-		dma_wmb();
-		srq->hw_srq.virt_prod_pair_addr->wqe_prod = hw_srq->wqe_prod;
+		*srq->hw_srq.virt_prod_pair_addr = hw_srq->sge_prod;
+		offset = offsetof(struct rdma_srq_producers, wqe_prod);
+		*((u8 *)srq->hw_srq.virt_prod_pair_addr + offset) =
+			hw_srq->wqe_prod;
 
+		/* Flush producer after updating it. */
+		wmb();
 		wr = wr->next;
 	}
 
@@ -4075,7 +4076,7 @@ static int process_resp_one_srq(struct qedr_dev *dev, struct qedr_qp *qp,
 	} else {
 		__process_resp_one(dev, qp, cq, wc, resp, wr_id);
 	}
-	atomic_inc(&srq->hw_srq.wr_cons_cnt);
+	srq->hw_srq.wr_cons_cnt++;
 
 	return 1;
 }

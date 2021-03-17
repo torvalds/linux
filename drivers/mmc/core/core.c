@@ -53,6 +53,8 @@
 /* The max erase timeout, used when host->max_busy_timeout isn't specified */
 #define MMC_ERASE_TIMEOUT_MS	(60 * 1000) /* 60 s */
 
+static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
+
 /*
  * Enabling software CRCs on the data blocks can be a significant (30%)
  * performance cost, and for other reasons may not always be desired.
@@ -93,7 +95,7 @@ static void mmc_should_fail_request(struct mmc_host *host,
 	if (!data)
 		return;
 
-	if ((cmd && cmd->error) || data->error ||
+	if (cmd->error || data->error ||
 	    !should_fail(&host->fail_mmc_request, data->blksz * data->blocks))
 		return;
 
@@ -142,9 +144,8 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 	int err = cmd->error;
 
 	/* Flag re-tuning needed on CRC errors */
-	if (cmd->opcode != MMC_SEND_TUNING_BLOCK &&
-	    cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200 &&
-	    !host->retune_crc_disable &&
+	if ((cmd->opcode != MMC_SEND_TUNING_BLOCK &&
+	    cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200) &&
 	    (err == -EILSEQ || (mrq->sbc && mrq->sbc->error == -EILSEQ) ||
 	    (mrq->data && mrq->data->error == -EILSEQ) ||
 	    (mrq->stop && mrq->stop->error == -EILSEQ)))
@@ -2041,11 +2042,8 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	 * the erase operation does not exceed the max_busy_timeout, we should
 	 * use R1B response. Or we need to prevent the host from doing hw busy
 	 * detection, which is done by converting to a R1 response instead.
-	 * Note, some hosts requires R1B, which also means they are on their own
-	 * when it comes to deal with the busy timeout.
 	 */
-	if (!(card->host->caps & MMC_CAP_NEED_RSP_BUSY) &&
-	    card->host->max_busy_timeout &&
+	if (card->host->max_busy_timeout &&
 	    busy_timeout > card->host->max_busy_timeout) {
 		cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
 	} else {
@@ -2380,9 +2378,9 @@ unsigned int mmc_calc_max_discard(struct mmc_card *card)
 		return card->pref_erase;
 
 	max_discard = mmc_do_calc_max_discard(card, MMC_ERASE_ARG);
-	if (mmc_can_trim(card)) {
+	if (max_discard && mmc_can_trim(card)) {
 		max_trim = mmc_do_calc_max_discard(card, MMC_TRIM_ARG);
-		if (max_trim < max_discard || max_discard == 0)
+		if (max_trim < max_discard)
 			max_discard = max_trim;
 	} else if (max_discard < card->erase_size) {
 		max_discard = 0;
@@ -2429,7 +2427,6 @@ int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
 }
 EXPORT_SYMBOL(mmc_set_blockcount);
 
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 static void mmc_hw_reset_for_init(struct mmc_host *host)
 {
 	mmc_pwrseq_reset(host);
@@ -2438,7 +2435,6 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
 		return;
 	host->ops->hw_reset(host);
 }
-#endif
 
 int mmc_hw_reset(struct mmc_host *host)
 {
@@ -2501,23 +2497,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * Some eMMCs (with VCCQ always on) may not be reset after power up, so
 	 * do a hardware reset if possible.
 	 */
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	mmc_hw_reset_for_init(host);
-#endif
-
-#ifdef CONFIG_SDIO_KEEPALIVE
-	if (host->support_chip_alive) {
-		host->chip_alive = 1;
-		if (!mmc_attach_sdio(host)) {
-			return 0;
-		} else {
-			pr_err("%s: chip_alive attach sdio failed.\n", mmc_hostname(host));
-			host->chip_alive = 0;
-		}
-	} else {
-		host->chip_alive = 0;
-	}
-#endif
 
 	/*
 	 * sdio_reset sends CMD52 to reset card.  Since we do not know
@@ -2525,7 +2505,6 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * should be ignored by SD/eMMC cards.
 	 * Skip it if we already know that we do not support SDIO commands
 	 */
-#ifdef MMC_STANDARD_PROBE
 	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
 		sdio_reset(host);
 
@@ -2546,31 +2525,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	if (!(host->caps2 & MMC_CAP2_NO_MMC))
 		if (!mmc_attach_mmc(host))
 			return 0;
-#else
-#ifdef CONFIG_SDIO_KEEPALIVE
-	if ((!(host->chip_alive)) && (host->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
-		sdio_reset(host);
-#else
-	if (host->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
-		sdio_reset(host);
-#endif
 
-	mmc_go_idle(host);
-
-	if (host->restrict_caps &
-	    (RESTRICT_CARD_TYPE_SDIO | RESTRICT_CARD_TYPE_SD))
-		mmc_send_if_cond(host, host->ocr_avail);
-	/* Order's important: probe SDIO, then SD, then MMC */
-	if ((host->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
-	    !mmc_attach_sdio(host))
-		return 0;
-	if ((host->restrict_caps & RESTRICT_CARD_TYPE_SD) &&
-	    !mmc_attach_sd(host))
-		return 0;
-	if ((host->restrict_caps & RESTRICT_CARD_TYPE_EMMC) &&
-	    !mmc_attach_mmc(host))
-		return 0;
-#endif
 	mmc_power_off(host);
 	return -EIO;
 }

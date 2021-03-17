@@ -29,11 +29,7 @@
 #include <asm-generic/iomap.h>
 
 #ifdef CONFIG_ATARI
-#define atari_readb   raw_inb
-#define atari_writeb  raw_outb
-
-#define atari_inb_p   raw_inb
-#define atari_outb_p  raw_outb
+#include <asm/atarihw.h>
 #endif
 
 

@@ -133,13 +133,6 @@ static const struct dmi_system_id flip_dmi_table[] = {
 		}
 	},
 	{
-		.ident = "MSI MS-1039",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT'L CO.,LTD."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1039"),
-		}
-	},
-	{
 		.ident = "MSI MS-1632",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
@@ -925,11 +918,6 @@ static void reg_r(struct gspca_dev *gspca_dev, u16 reg, u16 length)
 	if (unlikely(result < 0 || result != length)) {
 		pr_err("Read register %02x failed %d\n", reg, result);
 		gspca_dev->usb_err = result;
-		/*
-		 * Make sure the buffer is zeroed to avoid uninitialized
-		 * values.
-		 */
-		memset(gspca_dev->usb_buf, 0, USB_BUF_SZ);
 	}
 }
 

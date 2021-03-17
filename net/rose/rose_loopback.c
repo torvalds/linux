@@ -16,7 +16,6 @@
 #include <linux/init.h>
 
 static struct sk_buff_head loopback_queue;
-#define ROSE_LOOPBACK_LIMIT 1000
 static struct timer_list loopback_timer;
 
 static void rose_set_loopback_timer(void);
@@ -36,27 +35,29 @@ static int rose_loopback_running(void)
 
 int rose_loopback_queue(struct sk_buff *skb, struct rose_neigh *neigh)
 {
-	struct sk_buff *skbn = NULL;
+	struct sk_buff *skbn;
 
-	if (skb_queue_len(&loopback_queue) < ROSE_LOOPBACK_LIMIT)
-		skbn = skb_clone(skb, GFP_ATOMIC);
+	skbn = skb_clone(skb, GFP_ATOMIC);
 
-	if (skbn) {
-		consume_skb(skb);
+	kfree_skb(skb);
+
+	if (skbn != NULL) {
 		skb_queue_tail(&loopback_queue, skbn);
 
 		if (!rose_loopback_running())
 			rose_set_loopback_timer();
-	} else {
-		kfree_skb(skb);
 	}
 
 	return 1;
 }
 
+
 static void rose_set_loopback_timer(void)
 {
-	mod_timer(&loopback_timer, jiffies + 10);
+	del_timer(&loopback_timer);
+
+	loopback_timer.expires  = jiffies + 10;
+	add_timer(&loopback_timer);
 }
 
 static void rose_loopback_timer(struct timer_list *unused)
@@ -67,12 +68,8 @@ static void rose_loopback_timer(struct timer_list *unused)
 	struct sock *sk;
 	unsigned short frametype;
 	unsigned int lci_i, lci_o;
-	int count;
 
-	for (count = 0; count < ROSE_LOOPBACK_LIMIT; count++) {
-		skb = skb_dequeue(&loopback_queue);
-		if (!skb)
-			return;
+	while ((skb = skb_dequeue(&loopback_queue)) != NULL) {
 		if (skb->len < ROSE_MIN_LEN) {
 			kfree_skb(skb);
 			continue;
@@ -99,27 +96,16 @@ static void rose_loopback_timer(struct timer_list *unused)
 		}
 
 		if (frametype == ROSE_CALL_REQUEST) {
-			if (!rose_loopback_neigh->dev) {
-				kfree_skb(skb);
-				continue;
-			}
-
-			dev = rose_dev_get(dest);
-			if (!dev) {
-				kfree_skb(skb);
-				continue;
-			}
-
-			if (rose_rx_call_request(skb, dev, rose_loopback_neigh, lci_o) == 0) {
-				dev_put(dev);
+			if ((dev = rose_dev_get(dest)) != NULL) {
+				if (rose_rx_call_request(skb, dev, rose_loopback_neigh, lci_o) == 0)
+					kfree_skb(skb);
+			} else {
 				kfree_skb(skb);
 			}
 		} else {
 			kfree_skb(skb);
 		}
 	}
-	if (!skb_queue_empty(&loopback_queue))
-		mod_timer(&loopback_timer, jiffies + 1);
 }
 
 void __exit rose_loopback_clear(void)

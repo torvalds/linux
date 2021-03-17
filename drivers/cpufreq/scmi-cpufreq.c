@@ -12,7 +12,6 @@
 #include <linux/cpufreq.h>
 #include <linux/cpumask.h>
 #include <linux/cpu_cooling.h>
-#include <linux/energy_model.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/pm_opp.h>
@@ -53,9 +52,9 @@ scmi_cpufreq_set_target(struct cpufreq_policy *policy, unsigned int index)
 	int ret;
 	struct scmi_data *priv = policy->driver_data;
 	struct scmi_perf_ops *perf_ops = handle->perf_ops;
-	u64 freq = policy->freq_table[index].frequency;
+	u64 freq = policy->freq_table[index].frequency * 1000;
 
-	ret = perf_ops->freq_set(handle, priv->domain_id, freq * 1000, false);
+	ret = perf_ops->freq_set(handle, priv->domain_id, freq, false);
 	if (!ret)
 		arch_set_freq_scale(policy->related_cpus, freq,
 				    policy->cpuinfo.max_freq);
@@ -104,42 +103,13 @@ scmi_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 	return 0;
 }
 
-static int __maybe_unused
-scmi_get_cpu_power(unsigned long *power, unsigned long *KHz, int cpu)
-{
-	struct device *cpu_dev = get_cpu_device(cpu);
-	unsigned long Hz;
-	int ret, domain;
-
-	if (!cpu_dev) {
-		pr_err("failed to get cpu%d device\n", cpu);
-		return -ENODEV;
-	}
-
-	domain = handle->perf_ops->device_domain_id(cpu_dev);
-	if (domain < 0)
-		return domain;
-
-	/* Get the power cost of the performance domain. */
-	Hz = *KHz * 1000;
-	ret = handle->perf_ops->est_power_get(handle, domain, &Hz, power);
-	if (ret)
-		return ret;
-
-	/* The EM framework specifies the frequency in KHz. */
-	*KHz = Hz / 1000;
-
-	return 0;
-}
-
 static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 {
-	int ret, nr_opp;
+	int ret;
 	unsigned int latency;
 	struct device *cpu_dev;
 	struct scmi_data *priv;
 	struct cpufreq_frequency_table *freq_table;
-	struct em_data_callback em_cb = EM_DATA_CB(scmi_get_cpu_power);
 
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
@@ -172,7 +142,6 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 		ret = -EPROBE_DEFER;
 		goto out_free_opp;
 	}
-	nr_opp = ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -202,9 +171,6 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = latency;
 
 	policy->fast_switch_possible = true;
-
-	em_register_perf_domain(policy->cpus, nr_opp, &em_cb);
-
 	return 0;
 
 out_free_priv:

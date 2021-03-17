@@ -242,23 +242,27 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
-	u16 length, amsdu_pad;
+	u16 length, iv_len, amsdu_pad;
 	u8 *start_hdr;
 	struct iwl_tso_hdr_page *hdr_page;
 	struct page **page_ptr;
 	struct tso_t tso;
+
+	/* if the packet is protected, then it must be CCMP or GCMP */
+	iv_len = ieee80211_has_protected(hdr->frame_control) ?
+		IEEE80211_CCMP_HDR_LEN : 0;
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd),
 			     &dev_cmd->hdr, start_len, 0);
 
 	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
 	snap_ip_tcp_hdrlen = 8 + ip_hdrlen + tcp_hdrlen(skb);
-	total_len = skb->len - snap_ip_tcp_hdrlen - hdr_len;
+	total_len = skb->len - snap_ip_tcp_hdrlen - hdr_len - iv_len;
 	amsdu_pad = 0;
 
 	/* total amount of header we may need for this A-MSDU */
 	hdr_room = DIV_ROUND_UP(total_len, mss) *
-		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr));
+		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr)) + iv_len;
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
 	hdr_page = get_page_hdr(trans, hdr_room);
@@ -269,12 +273,14 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 	start_hdr = hdr_page->pos;
 	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
 	*page_ptr = hdr_page->page;
+	memcpy(hdr_page->pos, skb->data + hdr_len, iv_len);
+	hdr_page->pos += iv_len;
 
 	/*
-	 * Pull the ieee80211 header to be able to use TSO core,
+	 * Pull the ieee80211 header + IV to be able to use TSO core,
 	 * we will restore it for the tx_status flow.
 	 */
-	skb_pull(skb, hdr_len);
+	skb_pull(skb, hdr_len + iv_len);
 
 	/*
 	 * Remove the length of all the headers that we don't actually
@@ -349,8 +355,8 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 		}
 	}
 
-	/* re -add the WiFi header */
-	skb_push(skb, hdr_len);
+	/* re -add the WiFi header and IV */
+	skb_push(skb, hdr_len + iv_len);
 
 	return 0;
 
@@ -520,12 +526,7 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
 
-	/*
-	 * Only build A-MSDUs here if doing so by GSO, otherwise it may be
-	 * an A-MSDU for other reasons, e.g. NAN or an A-MSDU having been
-	 * built in the higher layers already.
-	 */
-	if (amsdu && skb_shinfo(skb)->gso_size)
+	if (amsdu)
 		return iwl_pcie_gen2_build_tx_amsdu(trans, txq, dev_cmd, skb,
 						    out_meta, hdr_len, len);
 
@@ -553,6 +554,18 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		return -ENOMEM;
 
 	spin_lock(&txq->lock);
+
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		struct iwl_tx_cmd_gen3 *tx_cmd_gen3 =
+			(void *)dev_cmd->payload;
+
+		cmd_len = le16_to_cpu(tx_cmd_gen3->len);
+	} else {
+		struct iwl_tx_cmd_gen2 *tx_cmd_gen2 =
+			(void *)dev_cmd->payload;
+
+		cmd_len = le16_to_cpu(tx_cmd_gen2->len);
+	}
 
 	if (iwl_queue_space(trans, txq) < txq->high_mark) {
 		iwl_stop_queue(trans, txq);
@@ -589,18 +602,6 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (!tfd) {
 		spin_unlock(&txq->lock);
 		return -1;
-	}
-
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
-		struct iwl_tx_cmd_gen3 *tx_cmd_gen3 =
-			(void *)dev_cmd->payload;
-
-		cmd_len = le16_to_cpu(tx_cmd_gen3->len);
-	} else {
-		struct iwl_tx_cmd_gen2 *tx_cmd_gen2 =
-			(void *)dev_cmd->payload;
-
-		cmd_len = le16_to_cpu(tx_cmd_gen2->len);
 	}
 
 	/* Set up entry for this TFD in Tx byte-count array */
@@ -1230,9 +1231,6 @@ void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue)
 	}
 
 	iwl_pcie_gen2_txq_unmap(trans, queue);
-
-	iwl_pcie_gen2_txq_free_memory(trans, trans_pcie->txq[queue]);
-	trans_pcie->txq[queue] = NULL;
 
 	IWL_DEBUG_TX_QUEUES(trans, "Deactivate queue %d\n", queue);
 }

@@ -37,7 +37,6 @@
 
 struct quirk_entry {
 	bool touchpad_led;
-	bool kbd_led_not_present;
 	bool kbd_led_levels_off_1;
 	bool kbd_missing_ac_tag;
 
@@ -76,10 +75,6 @@ static struct quirk_entry quirk_dell_xps13_9370 = {
 
 static struct quirk_entry quirk_dell_latitude_e6410 = {
 	.kbd_led_levels_off_1 = true,
-};
-
-static struct quirk_entry quirk_dell_inspiron_1012 = {
-	.kbd_led_not_present = true,
 };
 
 static struct platform_driver platform_driver = {
@@ -319,24 +314,6 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 		},
 		.driver_data = &quirk_dell_latitude_e6410,
 	},
-	{
-		.callback = dmi_matched,
-		.ident = "Dell Inspiron 1012",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1012"),
-		},
-		.driver_data = &quirk_dell_inspiron_1012,
-	},
-	{
-		.callback = dmi_matched,
-		.ident = "Dell Inspiron 1018",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1018"),
-		},
-		.driver_data = &quirk_dell_inspiron_1012,
-	},
 	{ }
 };
 
@@ -555,7 +532,7 @@ static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 		return;
 	}
 
-	dell_fill_request(&buffer, 0x2, 0, 0, 0);
+	dell_fill_request(&buffer, 0, 0x2, 0, 0);
 	ret = dell_send_request(&buffer, CLASS_INFO, SELECT_RFKILL);
 	hwswitch = buffer.output[1];
 
@@ -586,7 +563,7 @@ static int dell_debugfs_show(struct seq_file *s, void *data)
 		return ret;
 	status = buffer.output[1];
 
-	dell_fill_request(&buffer, 0x2, 0, 0, 0);
+	dell_fill_request(&buffer, 0, 0x2, 0, 0);
 	hwswitch_ret = dell_send_request(&buffer, CLASS_INFO, SELECT_RFKILL);
 	if (hwswitch_ret)
 		return hwswitch_ret;
@@ -671,7 +648,7 @@ static void dell_update_rfkill(struct work_struct *ignored)
 	if (ret != 0)
 		return;
 
-	dell_fill_request(&buffer, 0x2, 0, 0, 0);
+	dell_fill_request(&buffer, 0, 0x2, 0, 0);
 	ret = dell_send_request(&buffer, CLASS_INFO, SELECT_RFKILL);
 
 	if (ret == 0 && (status & BIT(0)))
@@ -1519,9 +1496,6 @@ static inline void kbd_init_tokens(void)
 static void kbd_init(void)
 {
 	int ret;
-
-	if (quirks && quirks->kbd_led_not_present)
-		return;
 
 	ret = kbd_init_info();
 	kbd_init_tokens();

@@ -283,12 +283,16 @@ int security_capset(struct cred *new, const struct cred *old,
 				effective, inheritable, permitted);
 }
 
-int security_capable(const struct cred *cred,
-		     struct user_namespace *ns,
-		     int cap,
-		     unsigned int opts)
+int security_capable(const struct cred *cred, struct user_namespace *ns,
+		     int cap)
 {
-	return call_int_hook(capable, 0, cred, ns, cap, opts);
+	return call_int_hook(capable, 0, cred, ns, cap, SECURITY_CAP_AUDIT);
+}
+
+int security_capable_noaudit(const struct cred *cred, struct user_namespace *ns,
+			     int cap)
+{
+	return call_int_hook(capable, 0, cred, ns, cap, SECURITY_CAP_NOAUDIT);
 }
 
 int security_quotactl(int cmds, int type, int id, struct super_block *sb)
@@ -938,7 +942,6 @@ int security_mmap_addr(unsigned long addr)
 {
 	return call_int_hook(mmap_addr, 0, addr);
 }
-EXPORT_SYMBOL_GPL(security_mmap_addr);
 
 int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 			    unsigned long prot)
@@ -1000,13 +1003,6 @@ int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 
 void security_cred_free(struct cred *cred)
 {
-	/*
-	 * There is a failure case in prepare_creds() that
-	 * may result in a call here with ->security being NULL.
-	 */
-	if (unlikely(cred->security == NULL))
-		return;
-
 	call_void_hook(cred_free, cred);
 }
 
@@ -1801,30 +1797,3 @@ void security_bpf_prog_free(struct bpf_prog_aux *aux)
 	call_void_hook(bpf_prog_free_security, aux);
 }
 #endif /* CONFIG_BPF_SYSCALL */
-
-#ifdef CONFIG_PERF_EVENTS
-int security_perf_event_open(struct perf_event_attr *attr, int type)
-{
-	return call_int_hook(perf_event_open, 0, attr, type);
-}
-
-int security_perf_event_alloc(struct perf_event *event)
-{
-	return call_int_hook(perf_event_alloc, 0, event);
-}
-
-void security_perf_event_free(struct perf_event *event)
-{
-	call_void_hook(perf_event_free, event);
-}
-
-int security_perf_event_read(struct perf_event *event)
-{
-	return call_int_hook(perf_event_read, 0, event);
-}
-
-int security_perf_event_write(struct perf_event *event)
-{
-	return call_int_hook(perf_event_write, 0, event);
-}
-#endif /* CONFIG_PERF_EVENTS */

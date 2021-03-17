@@ -80,10 +80,8 @@ void ppc4xx_trng_probe(struct crypto4xx_core_device *core_dev)
 
 	/* Find the TRNG device node and map it */
 	trng = of_find_matching_node(NULL, ppc4xx_trng_match);
-	if (!trng || !of_device_is_available(trng)) {
-		of_node_put(trng);
+	if (!trng || !of_device_is_available(trng))
 		return;
-	}
 
 	dev->trng_base = of_iomap(trng, 0);
 	of_node_put(trng);
@@ -111,6 +109,7 @@ void ppc4xx_trng_probe(struct crypto4xx_core_device *core_dev)
 	return;
 
 err_out:
+	of_node_put(trng);
 	iounmap(dev->trng_base);
 	kfree(rng);
 	dev->trng_base = NULL;

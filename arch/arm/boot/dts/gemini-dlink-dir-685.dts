@@ -65,7 +65,7 @@
 		gpio-miso = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		/* Collides with pflash CE1, not so cool */
-		cs-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+		cs-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
 
 		panel: display@0 {
@@ -274,16 +274,20 @@
 				read-only;
 			};
 			/*
-			 * This firmware image contains the kernel catenated
-			 * with the squashfs root filesystem. For some reason
-			 * this is called "upgrade" on the vendor system.
+			 * Between the boot loader and the rootfs is the kernel
+			 * in a custom Storlink format flashed from the boot
+			 * menu. The rootfs is in squashfs format.
 			 */
-			partition@40000 {
-				label = "upgrade";
-				reg = <0x00040000 0x01f40000>;
+			partition@1800c0 {
+				label = "rootfs";
+				reg = <0x001800c0 0x01dbff40>;
 				read-only;
 			};
-			/* RGDB, Residental Gateway Database? */
+			partition@1f40000 {
+				label = "upgrade";
+				reg = <0x01f40000 0x00040000>;
+				read-only;
+			};
 			partition@1f80000 {
 				label = "rgdb";
 				reg = <0x01f80000 0x00040000>;

@@ -135,7 +135,6 @@ NOKPROBE_SYMBOL(disable_debug_monitors);
  */
 static int clear_os_lock(unsigned int cpu)
 {
-	write_sysreg(0, osdlr_el1);
 	write_sysreg(0, oslar_el1);
 	isb();
 	return 0;
@@ -152,20 +151,17 @@ postcore_initcall(debug_monitors_init);
 /*
  * Single step API and exception handling.
  */
-static void set_user_regs_spsr_ss(struct user_pt_regs *regs)
+static void set_regs_spsr_ss(struct pt_regs *regs)
 {
 	regs->pstate |= DBG_SPSR_SS;
 }
-NOKPROBE_SYMBOL(set_user_regs_spsr_ss);
+NOKPROBE_SYMBOL(set_regs_spsr_ss);
 
-static void clear_user_regs_spsr_ss(struct user_pt_regs *regs)
+static void clear_regs_spsr_ss(struct pt_regs *regs)
 {
 	regs->pstate &= ~DBG_SPSR_SS;
 }
-NOKPROBE_SYMBOL(clear_user_regs_spsr_ss);
-
-#define set_regs_spsr_ss(r)	set_user_regs_spsr_ss(&(r)->user_regs)
-#define clear_regs_spsr_ss(r)	clear_user_regs_spsr_ss(&(r)->user_regs)
+NOKPROBE_SYMBOL(clear_regs_spsr_ss);
 
 /* EL1 Single Step Handler hooks */
 static LIST_HEAD(step_hook);
@@ -392,24 +388,15 @@ void user_rewind_single_step(struct task_struct *task)
 	 * If single step is active for this thread, then set SPSR.SS
 	 * to 1 to avoid returning to the active-pending state.
 	 */
-	if (test_tsk_thread_flag(task, TIF_SINGLESTEP))
+	if (test_ti_thread_flag(task_thread_info(task), TIF_SINGLESTEP))
 		set_regs_spsr_ss(task_pt_regs(task));
 }
 NOKPROBE_SYMBOL(user_rewind_single_step);
 
 void user_fastforward_single_step(struct task_struct *task)
 {
-	if (test_tsk_thread_flag(task, TIF_SINGLESTEP))
+	if (test_ti_thread_flag(task_thread_info(task), TIF_SINGLESTEP))
 		clear_regs_spsr_ss(task_pt_regs(task));
-}
-
-void user_regs_reset_single_step(struct user_pt_regs *regs,
-				 struct task_struct *task)
-{
-	if (test_tsk_thread_flag(task, TIF_SINGLESTEP))
-		set_user_regs_spsr_ss(regs);
-	else
-		clear_user_regs_spsr_ss(regs);
 }
 
 /* Kernel API */

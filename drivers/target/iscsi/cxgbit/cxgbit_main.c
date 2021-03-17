@@ -58,7 +58,6 @@ static void *cxgbit_uld_add(const struct cxgb4_lld_info *lldi)
 		return ERR_PTR(-ENOMEM);
 
 	kref_init(&cdev->kref);
-	spin_lock_init(&cdev->np_lock);
 
 	cdev->lldi = *lldi;
 

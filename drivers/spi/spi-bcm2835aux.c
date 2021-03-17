@@ -178,14 +178,24 @@ static void bcm2835aux_spi_reset_hw(struct bcm2835aux_spi *bs)
 		      BCM2835_AUX_SPI_CNTL0_CLEARFIFO);
 }
 
-static void bcm2835aux_spi_transfer_helper(struct bcm2835aux_spi *bs)
+static irqreturn_t bcm2835aux_spi_interrupt(int irq, void *dev_id)
 {
-	u32 stat = bcm2835aux_rd(bs, BCM2835_AUX_SPI_STAT);
+	struct spi_master *master = dev_id;
+	struct bcm2835aux_spi *bs = spi_master_get_devdata(master);
+	irqreturn_t ret = IRQ_NONE;
+
+	/* IRQ may be shared, so return if our interrupts are disabled */
+	if (!(bcm2835aux_rd(bs, BCM2835_AUX_SPI_CNTL1) &
+	      (BCM2835_AUX_SPI_CNTL1_TXEMPTY | BCM2835_AUX_SPI_CNTL1_IDLE)))
+		return ret;
 
 	/* check if we have data to read */
-	for (; bs->rx_len && (stat & BCM2835_AUX_SPI_STAT_RX_LVL);
-	     stat = bcm2835aux_rd(bs, BCM2835_AUX_SPI_STAT))
+	while (bs->rx_len &&
+	       (!(bcm2835aux_rd(bs, BCM2835_AUX_SPI_STAT) &
+		  BCM2835_AUX_SPI_STAT_RX_EMPTY))) {
 		bcm2835aux_rd_fifo(bs);
+		ret = IRQ_HANDLED;
+	}
 
 	/* check if we have data to write */
 	while (bs->tx_len &&
@@ -193,21 +203,16 @@ static void bcm2835aux_spi_transfer_helper(struct bcm2835aux_spi *bs)
 	       (!(bcm2835aux_rd(bs, BCM2835_AUX_SPI_STAT) &
 		  BCM2835_AUX_SPI_STAT_TX_FULL))) {
 		bcm2835aux_wr_fifo(bs);
+		ret = IRQ_HANDLED;
 	}
-}
 
-static irqreturn_t bcm2835aux_spi_interrupt(int irq, void *dev_id)
-{
-	struct spi_master *master = dev_id;
-	struct bcm2835aux_spi *bs = spi_master_get_devdata(master);
-
-	/* IRQ may be shared, so return if our interrupts are disabled */
-	if (!(bcm2835aux_rd(bs, BCM2835_AUX_SPI_CNTL1) &
-	      (BCM2835_AUX_SPI_CNTL1_TXEMPTY | BCM2835_AUX_SPI_CNTL1_IDLE)))
-		return IRQ_NONE;
-
-	/* do common fifo handling */
-	bcm2835aux_spi_transfer_helper(bs);
+	/* and check if we have reached "done" */
+	while (bs->rx_len &&
+	       (!(bcm2835aux_rd(bs, BCM2835_AUX_SPI_STAT) &
+		  BCM2835_AUX_SPI_STAT_BUSY))) {
+		bcm2835aux_rd_fifo(bs);
+		ret = IRQ_HANDLED;
+	}
 
 	if (!bs->tx_len) {
 		/* disable tx fifo empty interrupt */
@@ -221,7 +226,8 @@ static irqreturn_t bcm2835aux_spi_interrupt(int irq, void *dev_id)
 		complete(&master->xfer_completion);
 	}
 
-	return IRQ_HANDLED;
+	/* and return */
+	return ret;
 }
 
 static int __bcm2835aux_spi_transfer_one_irq(struct spi_master *master,
@@ -267,6 +273,7 @@ static int bcm2835aux_spi_transfer_one_poll(struct spi_master *master,
 {
 	struct bcm2835aux_spi *bs = spi_master_get_devdata(master);
 	unsigned long timeout;
+	u32 stat;
 
 	/* configure spi */
 	bcm2835aux_wr(bs, BCM2835_AUX_SPI_CNTL1, bs->cntl[1]);
@@ -277,9 +284,24 @@ static int bcm2835aux_spi_transfer_one_poll(struct spi_master *master,
 
 	/* loop until finished the transfer */
 	while (bs->rx_len) {
+		/* read status */
+		stat = bcm2835aux_rd(bs, BCM2835_AUX_SPI_STAT);
 
-		/* do common fifo handling */
-		bcm2835aux_spi_transfer_helper(bs);
+		/* fill in tx fifo with remaining data */
+		if ((bs->tx_len) && (!(stat & BCM2835_AUX_SPI_STAT_TX_FULL))) {
+			bcm2835aux_wr_fifo(bs);
+			continue;
+		}
+
+		/* read data from fifo for both cases */
+		if (!(stat & BCM2835_AUX_SPI_STAT_RX_EMPTY)) {
+			bcm2835aux_rd_fifo(bs);
+			continue;
+		}
+		if (!(stat & BCM2835_AUX_SPI_STAT_BUSY)) {
+			bcm2835aux_rd_fifo(bs);
+			continue;
+		}
 
 		/* there is still data pending to read check the timeout */
 		if (bs->rx_len && time_after(jiffies, timeout)) {
@@ -407,7 +429,7 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 	unsigned long clk_hz;
 	int err;
 
-	master = devm_spi_alloc_master(&pdev->dev, sizeof(*bs));
+	master = spi_alloc_master(&pdev->dev, sizeof(*bs));
 	if (!master) {
 		dev_err(&pdev->dev, "spi_alloc_master() failed\n");
 		return -ENOMEM;
@@ -416,18 +438,7 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 	master->mode_bits = (SPI_CPOL | SPI_CS_HIGH | SPI_NO_CS);
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	/* even though the driver never officially supported native CS
-	 * allow a single native CS for legacy DT support purposes when
-	 * no cs-gpio is configured.
-	 * Known limitations for native cs are:
-	 * * multiple chip-selects: cs0-cs2 are all simultaniously asserted
-	 *     whenever there is a transfer -  this even includes SPI_NO_CS
-	 * * SPI_CS_HIGH: is ignores - cs are always asserted low
-	 * * cs_change: cs is deasserted after each spi_transfer
-	 * * cs_delay_usec: cs is always deasserted one SCK cycle after
-	 *     a spi_transfer
-	 */
-	master->num_chipselect = 1;
+	master->num_chipselect = -1;
 	master->transfer_one = bcm2835aux_spi_transfer_one;
 	master->handle_err = bcm2835aux_spi_handle_err;
 	master->prepare_message = bcm2835aux_spi_prepare_message;
@@ -439,27 +450,30 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 	/* the main area */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	bs->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(bs->regs))
-		return PTR_ERR(bs->regs);
+	if (IS_ERR(bs->regs)) {
+		err = PTR_ERR(bs->regs);
+		goto out_master_put;
+	}
 
 	bs->clk = devm_clk_get(&pdev->dev, NULL);
 	if ((!bs->clk) || (IS_ERR(bs->clk))) {
 		err = PTR_ERR(bs->clk);
 		dev_err(&pdev->dev, "could not get clk: %d\n", err);
-		return err;
+		goto out_master_put;
 	}
 
 	bs->irq = platform_get_irq(pdev, 0);
 	if (bs->irq <= 0) {
 		dev_err(&pdev->dev, "could not get IRQ: %d\n", bs->irq);
-		return bs->irq ? bs->irq : -ENODEV;
+		err = bs->irq ? bs->irq : -ENODEV;
+		goto out_master_put;
 	}
 
 	/* this also enables the HW block */
 	err = clk_prepare_enable(bs->clk);
 	if (err) {
 		dev_err(&pdev->dev, "could not prepare clock: %d\n", err);
-		return err;
+		goto out_master_put;
 	}
 
 	/* just checking if the clock returns a sane value */
@@ -482,7 +496,7 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	err = spi_register_master(master);
+	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {
 		dev_err(&pdev->dev, "could not register SPI master: %d\n", err);
 		goto out_clk_disable;
@@ -492,6 +506,8 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 
 out_clk_disable:
 	clk_disable_unprepare(bs->clk);
+out_master_put:
+	spi_master_put(master);
 	return err;
 }
 
@@ -499,8 +515,6 @@ static int bcm2835aux_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm2835aux_spi *bs = spi_master_get_devdata(master);
-
-	spi_unregister_master(master);
 
 	bcm2835aux_spi_reset_hw(bs);
 

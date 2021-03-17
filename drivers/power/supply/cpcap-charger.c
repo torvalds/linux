@@ -458,7 +458,6 @@ static void cpcap_usb_detect(struct work_struct *work)
 			goto out_err;
 	}
 
-	power_supply_changed(ddata->usb);
 	return;
 
 out_err:

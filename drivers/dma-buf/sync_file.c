@@ -102,39 +102,6 @@ err:
 }
 
 /**
- * sync_file_get - returns the sync_file structure related to an fd
- * @fd:	[in]	fd associated with the sync_file to be returned
- *
- * On success, returns the sync_file structure associated with an fd; uses
- * file's refcounting done by fget to increase refcount. returns NULL
- * otherwise.
- */
-struct sync_file *sync_file_get(int fd)
-{
-	return sync_file_fdget(fd);
-}
-EXPORT_SYMBOL(sync_file_get);
-
-/**
- * sync_file_put - decreases refcount of the sync_file
- * @sync_file:	[in]	sync_file to reduce refcount of
- *
- * Uses file's refcounting done implicitly by fput().
- *
- * If, as a result of this call, the refcount becomes 0, the 'release' file
- * operation related to this fd is called. It calls &sync_file_ops.release vfunc
- * in turn.
- */
-void sync_file_put(struct sync_file *sync_file)
-{
-	if (WARN_ON(!sync_file || !sync_file->file))
-		return;
-
-	fput(sync_file->file);
-}
-EXPORT_SYMBOL(sync_file_put);
-
-/**
  * sync_file_get_fence - get the fence related to the sync_file fd
  * @fd:		sync_file fd to get the fence from
  *
@@ -263,7 +230,7 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 	a_fences = get_fences(a, &a_num_fences);
 	b_fences = get_fences(b, &b_num_fences);
 	if (a_num_fences > INT_MAX - b_num_fences)
-		goto err;
+		return NULL;
 
 	num_fences = a_num_fences + b_num_fences;
 

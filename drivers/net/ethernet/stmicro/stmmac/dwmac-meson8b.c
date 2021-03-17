@@ -35,6 +35,7 @@
 #define PRG_ETH0_EXT_RMII_MODE		4
 
 /* mux to choose between fclk_div2 (bit unset) and mpll2 (bit set) */
+#define PRG_ETH0_CLK_M250_SEL_SHIFT	4
 #define PRG_ETH0_CLK_M250_SEL_MASK	GENMASK(4, 4)
 
 #define PRG_ETH0_TXDLY_SHIFT		5
@@ -117,15 +118,6 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 	struct device *dev = dwmac->dev;
 	const char *parent_name, *mux_parent_names[MUX_CLK_NUM_PARENTS];
 	struct meson8b_dwmac_clk_configs *clk_configs;
-	static const struct clk_div_table div_table[] = {
-		{ .div = 2, .val = 2, },
-		{ .div = 3, .val = 3, },
-		{ .div = 4, .val = 4, },
-		{ .div = 5, .val = 5, },
-		{ .div = 6, .val = 6, },
-		{ .div = 7, .val = 7, },
-		{ /* end of array */ }
-	};
 
 	clk_configs = devm_kzalloc(dev, sizeof(*clk_configs), GFP_KERNEL);
 	if (!clk_configs)
@@ -148,9 +140,8 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 	}
 
 	clk_configs->m250_mux.reg = dwmac->regs + PRG_ETH0;
-	clk_configs->m250_mux.shift = __ffs(PRG_ETH0_CLK_M250_SEL_MASK);
-	clk_configs->m250_mux.mask = PRG_ETH0_CLK_M250_SEL_MASK >>
-				     clk_configs->m250_mux.shift;
+	clk_configs->m250_mux.shift = PRG_ETH0_CLK_M250_SEL_SHIFT;
+	clk_configs->m250_mux.mask = PRG_ETH0_CLK_M250_SEL_MASK;
 	clk = meson8b_dwmac_register_clk(dwmac, "m250_sel", mux_parent_names,
 					 MUX_CLK_NUM_PARENTS, &clk_mux_ops,
 					 &clk_configs->m250_mux.hw);
@@ -161,9 +152,9 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 	clk_configs->m250_div.reg = dwmac->regs + PRG_ETH0;
 	clk_configs->m250_div.shift = PRG_ETH0_CLK_M250_DIV_SHIFT;
 	clk_configs->m250_div.width = PRG_ETH0_CLK_M250_DIV_WIDTH;
-	clk_configs->m250_div.table = div_table;
-	clk_configs->m250_div.flags = CLK_DIVIDER_ALLOW_ZERO |
-				      CLK_DIVIDER_ROUND_CLOSEST;
+	clk_configs->m250_div.flags = CLK_DIVIDER_ONE_BASED |
+				CLK_DIVIDER_ALLOW_ZERO |
+				CLK_DIVIDER_ROUND_CLOSEST;
 	clk = meson8b_dwmac_register_clk(dwmac, "m250_div", &parent_name, 1,
 					 &clk_divider_ops,
 					 &clk_configs->m250_div.hw);
@@ -356,7 +347,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 
 	dwmac->dev = &pdev->dev;
 	dwmac->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-	if ((int)dwmac->phy_mode < 0) {
+	if (dwmac->phy_mode < 0) {
 		dev_err(&pdev->dev, "missing phy-mode property\n");
 		ret = -EINVAL;
 		goto err_remove_config_dt;

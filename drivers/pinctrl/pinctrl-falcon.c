@@ -438,28 +438,24 @@ static int pinctrl_falcon_probe(struct platform_device *pdev)
 
 	/* load and remap the pad resources of the different banks */
 	for_each_compatible_node(np, NULL, "lantiq,pad-falcon") {
+		struct platform_device *ppdev = of_find_device_by_node(np);
 		const __be32 *bank = of_get_property(np, "lantiq,bank", NULL);
 		struct resource res;
-		struct platform_device *ppdev;
 		u32 avail;
 		int pins;
 
 		if (!of_device_is_available(np))
 			continue;
 
-		if (!bank || *bank >= PORTS)
-			continue;
-		if (of_address_to_resource(np, 0, &res))
-			continue;
-
-		ppdev = of_find_device_by_node(np);
 		if (!ppdev) {
 			dev_err(&pdev->dev, "failed to find pad pdev\n");
 			continue;
 		}
-
+		if (!bank || *bank >= PORTS)
+			continue;
+		if (of_address_to_resource(np, 0, &res))
+			continue;
 		falcon_info.clk[*bank] = clk_get(&ppdev->dev, NULL);
-		put_device(&ppdev->dev);
 		if (IS_ERR(falcon_info.clk[*bank])) {
 			dev_err(&ppdev->dev, "failed to get clock\n");
 			return PTR_ERR(falcon_info.clk[*bank]);

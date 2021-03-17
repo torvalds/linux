@@ -157,8 +157,6 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
 obj-$(CONFIG_RPMSG)		+= rpmsg/
 obj-$(CONFIG_SOUNDWIRE)		+= soundwire/
 
-obj-$(CONFIG_ENERGY_MODEL)	+= energy_model/
-
 # Virtualization drivers
 obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
 obj-$(CONFIG_HYPERV)		+= hv/
@@ -188,6 +186,3 @@ obj-$(CONFIG_MULTIPLEXER)	+= mux/
 obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
 obj-$(CONFIG_SIOX)		+= siox/
 obj-$(CONFIG_GNSS)		+= gnss/
-obj-$(CONFIG_RK_NAND)		+= rk_nand/
-obj-$(CONFIG_RK_HEADSET)	+= headset_observe/
-obj-$(CONFIG_RK_FLASH)		+= rkflash/

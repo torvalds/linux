@@ -170,7 +170,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 					      void __iomem *reg,
 					      unsigned long mask)
 {
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	struct cpg_z_clk *zclk;
 	struct clk *clk;
 
@@ -357,11 +357,11 @@ static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 	void __iomem *base, const char *parent_name,
 	struct raw_notifier_head *notifiers)
 {
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	struct sd_clock *clock;
 	struct clk *clk;
 	unsigned int i;
-	u32 val;
+	u32 sd_fc;
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
 	if (!clock)
@@ -378,9 +378,17 @@ static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 	clock->div_table = cpg_sd_div_table;
 	clock->div_num = ARRAY_SIZE(cpg_sd_div_table);
 
-	val = readl(clock->csn.reg) & ~CPG_SD_FC_MASK;
-	val |= CPG_SD_STP_MASK | (clock->div_table[0].val & CPG_SD_FC_MASK);
-	writel(val, clock->csn.reg);
+	sd_fc = readl(clock->csn.reg) & CPG_SD_FC_MASK;
+	for (i = 0; i < clock->div_num; i++)
+		if (sd_fc == (clock->div_table[i].val & CPG_SD_FC_MASK))
+			break;
+
+	if (WARN_ON(i >= clock->div_num)) {
+		kfree(clock);
+		return ERR_PTR(-EINVAL);
+	}
+
+	clock->cur_div_idx = i;
 
 	clock->div_max = clock->div_table[0].div;
 	clock->div_min = clock->div_max;

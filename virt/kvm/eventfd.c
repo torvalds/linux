@@ -44,12 +44,6 @@
 
 static struct workqueue_struct *irqfd_cleanup_wq;
 
-bool __attribute__((weak))
-kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args)
-{
-	return true;
-}
-
 static void
 irqfd_inject(struct work_struct *work)
 {
@@ -302,9 +296,6 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 
 	if (!kvm_arch_intc_initialized(kvm))
 		return -EAGAIN;
-
-	if (!kvm_arch_irqfd_allowed(kvm, args))
-		return -EINVAL;
 
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
 	if (!irqfd)

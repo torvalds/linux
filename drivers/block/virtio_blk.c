@@ -31,15 +31,6 @@ struct virtio_blk_vq {
 } ____cacheline_aligned_in_smp;
 
 struct virtio_blk {
-	/*
-	 * This mutex must be held by anything that may run after
-	 * virtblk_remove() sets vblk->vdev to NULL.
-	 *
-	 * blk-mq, virtqueue processing, and sysfs attribute code paths are
-	 * shut down before vblk->vdev is set to NULL and therefore do not need
-	 * to hold this mutex.
-	 */
-	struct mutex vdev_mutex;
 	struct virtio_device *vdev;
 
 	/* The disk structure for the kernel. */
@@ -50,13 +41,6 @@ struct virtio_blk {
 
 	/* Process context for config space updates */
 	struct work_struct config_work;
-
-	/*
-	 * Tracks references from block_device_operations open/release and
-	 * virtio_driver probe/remove so this object can be freed once no
-	 * longer in use.
-	 */
-	refcount_t refs;
 
 	/* What host tells us, plus 2 for header & tailer. */
 	unsigned int sg_elems;
@@ -287,20 +271,13 @@ static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 		err = virtblk_add_req(vblk->vqs[qid].vq, vbr, vbr->sg, num);
 	if (err) {
 		virtqueue_kick(vblk->vqs[qid].vq);
-		/* Don't stop the queue if -ENOMEM: we may have failed to
-		 * bounce the buffer due to global resource outage.
-		 */
-		if (err == -ENOSPC)
-			blk_mq_stop_hw_queue(hctx);
+		blk_mq_stop_hw_queue(hctx);
 		spin_unlock_irqrestore(&vblk->vqs[qid].lock, flags);
-		switch (err) {
-		case -ENOSPC:
+		/* Out of mem doesn't actually happen, since we fall back
+		 * to direct descriptors */
+		if (err == -ENOMEM || err == -ENOSPC)
 			return BLK_STS_DEV_RESOURCE;
-		case -ENOMEM:
-			return BLK_STS_RESOURCE;
-		default:
-			return BLK_STS_IOERR;
-		}
+		return BLK_STS_IOERR;
 	}
 
 	if (bd->last && virtqueue_kick_prepare(vblk->vqs[qid].vq))
@@ -336,55 +313,10 @@ out:
 	return err;
 }
 
-static void virtblk_get(struct virtio_blk *vblk)
-{
-	refcount_inc(&vblk->refs);
-}
-
-static void virtblk_put(struct virtio_blk *vblk)
-{
-	if (refcount_dec_and_test(&vblk->refs)) {
-		ida_simple_remove(&vd_index_ida, vblk->index);
-		mutex_destroy(&vblk->vdev_mutex);
-		kfree(vblk);
-	}
-}
-
-static int virtblk_open(struct block_device *bd, fmode_t mode)
-{
-	struct virtio_blk *vblk = bd->bd_disk->private_data;
-	int ret = 0;
-
-	mutex_lock(&vblk->vdev_mutex);
-
-	if (vblk->vdev)
-		virtblk_get(vblk);
-	else
-		ret = -ENXIO;
-
-	mutex_unlock(&vblk->vdev_mutex);
-	return ret;
-}
-
-static void virtblk_release(struct gendisk *disk, fmode_t mode)
-{
-	struct virtio_blk *vblk = disk->private_data;
-
-	virtblk_put(vblk);
-}
-
 /* We provide getgeo only to please some old bootloader/partitioning tools */
 static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 {
 	struct virtio_blk *vblk = bd->bd_disk->private_data;
-	int ret = 0;
-
-	mutex_lock(&vblk->vdev_mutex);
-
-	if (!vblk->vdev) {
-		ret = -ENXIO;
-		goto out;
-	}
 
 	/* see if the host passed in geometry config */
 	if (virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_GEOMETRY)) {
@@ -400,16 +332,12 @@ static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 		geo->sectors = 1 << 5;
 		geo->cylinders = get_capacity(bd->bd_disk) >> 11;
 	}
-out:
-	mutex_unlock(&vblk->vdev_mutex);
-	return ret;
+	return 0;
 }
 
 static const struct block_device_operations virtblk_fops = {
 	.ioctl  = virtblk_ioctl,
 	.owner  = THIS_MODULE,
-	.open = virtblk_open,
-	.release = virtblk_release,
 	.getgeo = virtblk_getgeo,
 };
 
@@ -517,8 +445,6 @@ static int init_vq(struct virtio_blk *vblk)
 				   &num_vqs);
 	if (err)
 		num_vqs = 1;
-
-	num_vqs = min_t(unsigned int, nr_cpu_ids, num_vqs);
 
 	vblk->vqs = kmalloc_array(num_vqs, sizeof(*vblk->vqs), GFP_KERNEL);
 	if (!vblk->vqs)
@@ -737,10 +663,6 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_free_index;
 	}
 
-	/* This reference is dropped in virtblk_remove(). */
-	refcount_set(&vblk->refs, 1);
-	mutex_init(&vblk->vdev_mutex);
-
 	vblk->vdev = vdev;
 	vblk->sg_elems = sg_elems;
 
@@ -882,7 +804,6 @@ out_put_disk:
 	put_disk(vblk->disk);
 out_free_vq:
 	vdev->config->del_vqs(vdev);
-	kfree(vblk->vqs);
 out_free_vblk:
 	kfree(vblk);
 out_free_index:
@@ -894,6 +815,8 @@ out:
 static void virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
+	int index = vblk->index;
+	int refc;
 
 	/* Make sure no work handler is accessing the device. */
 	flush_work(&vblk->config_work);
@@ -903,21 +826,18 @@ static void virtblk_remove(struct virtio_device *vdev)
 
 	blk_mq_free_tag_set(&vblk->tag_set);
 
-	mutex_lock(&vblk->vdev_mutex);
-
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
 
-	/* Virtqueues are stopped, nothing can use vblk->vdev anymore. */
-	vblk->vdev = NULL;
-
+	refc = kref_read(&disk_to_dev(vblk->disk)->kobj.kref);
 	put_disk(vblk->disk);
 	vdev->config->del_vqs(vdev);
 	kfree(vblk->vqs);
+	kfree(vblk);
 
-	mutex_unlock(&vblk->vdev_mutex);
-
-	virtblk_put(vblk);
+	/* Only free device id if we don't have any users */
+	if (refc == 1)
+		ida_simple_remove(&vd_index_ida, index);
 }
 
 #ifdef CONFIG_PM_SLEEP

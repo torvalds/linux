@@ -530,7 +530,7 @@ static int comp_disconnect_channel(struct most_interface *iface,
 	return 0;
 }
 
-static struct core_component comp = {
+static struct core_component comp_info = {
 	.name = "video",
 	.probe_channel = comp_probe_channel,
 	.disconnect_channel = comp_disconnect_channel,
@@ -565,7 +565,7 @@ static void __exit comp_exit(void)
 	}
 	spin_unlock_irq(&list_lock);
 
-	most_deregister_component(&comp);
+	most_deregister_component(&comp_info);
 	BUG_ON(!list_empty(&video_devices));
 }
 

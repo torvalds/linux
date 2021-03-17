@@ -321,6 +321,11 @@ static inline void activate_page_drain(int cpu)
 {
 }
 
+static bool need_activate_page_drain(int cpu)
+{
+	return false;
+}
+
 void activate_page(struct page *page)
 {
 	struct zone *zone = page_zone(page);
@@ -649,14 +654,12 @@ void lru_add_drain(void)
 	put_cpu();
 }
 
-#ifdef CONFIG_SMP
-
-static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
-
 static void lru_add_drain_per_cpu(struct work_struct *dummy)
 {
 	lru_add_drain();
 }
+
+static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
 
 /*
  * Doesn't need any cpu hotplug locking because we do rely on per-cpu
@@ -700,12 +703,6 @@ void lru_add_drain_all(void)
 
 	mutex_unlock(&lock);
 }
-#else
-void lru_add_drain_all(void)
-{
-	lru_add_drain();
-}
-#endif
 
 /**
  * release_pages - batched put_page()
@@ -740,20 +737,15 @@ void release_pages(struct page **pages, int nr)
 		if (is_huge_zero_page(page))
 			continue;
 
-		if (is_zone_device_page(page)) {
+		/* Device public page can not be huge page */
+		if (is_device_public_page(page)) {
 			if (locked_pgdat) {
 				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
 						       flags);
 				locked_pgdat = NULL;
 			}
-			/*
-			 * ZONE_DEVICE pages that return 'false' from
-			 * put_devmap_managed_page() do not require special
-			 * processing, and instead, expect a call to
-			 * put_page_testzero().
-			 */
-			if (put_devmap_managed_page(page))
-				continue;
+			put_devmap_managed_page(page);
+			continue;
 		}
 
 		page = compound_head(page);

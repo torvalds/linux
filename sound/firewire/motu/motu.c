@@ -36,7 +36,7 @@ static void name_card(struct snd_motu *motu)
 	fw_csr_iterator_init(&it, motu->unit->directory);
 	while (fw_csr_iterator_next(&it, &key, &val)) {
 		switch (key) {
-		case CSR_MODEL:
+		case CSR_VERSION:
 			version = val;
 			break;
 		}
@@ -46,7 +46,7 @@ static void name_card(struct snd_motu *motu)
 	strcpy(motu->card->shortname, motu->spec->name);
 	strcpy(motu->card->mixername, motu->spec->name);
 	snprintf(motu->card->longname, sizeof(motu->card->longname),
-		 "MOTU %s (version:%06x), GUID %08x%08x at %s, S%d",
+		 "MOTU %s (version:%d), GUID %08x%08x at %s, S%d",
 		 motu->spec->name, version,
 		 fw_dev->config_rom[3], fw_dev->config_rom[4],
 		 dev_name(&motu->unit->device), 100 << fw_dev->max_speed);
@@ -255,35 +255,23 @@ static const struct snd_motu_spec motu_audio_express = {
 	.analog_out_ports = 4,
 };
 
-static const struct snd_motu_spec motu_4pre = {
-	.name = "4pre",
-	.protocol = &snd_motu_protocol_v3,
-	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
-		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
-		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARETED_MAIN,
-	.analog_in_ports = 2,
-	.analog_out_ports = 2,
-};
-
 #define SND_MOTU_DEV_ENTRY(model, data)			\
 {							\
 	.match_flags	= IEEE1394_MATCH_VENDOR_ID |	\
-			  IEEE1394_MATCH_SPECIFIER_ID |	\
-			  IEEE1394_MATCH_VERSION,	\
+			  IEEE1394_MATCH_MODEL_ID |	\
+			  IEEE1394_MATCH_SPECIFIER_ID,	\
 	.vendor_id	= OUI_MOTU,			\
+	.model_id	= model,			\
 	.specifier_id	= OUI_MOTU,			\
-	.version	= model,			\
 	.driver_data	= (kernel_ulong_t)data,		\
 }
 
 static const struct ieee1394_device_id motu_id_table[] = {
-	SND_MOTU_DEV_ENTRY(0x000003, &motu_828mk2),
-	SND_MOTU_DEV_ENTRY(0x000009, &snd_motu_spec_traveler),
-	SND_MOTU_DEV_ENTRY(0x000015, &motu_828mk3),	/* FireWire only. */
-	SND_MOTU_DEV_ENTRY(0x000035, &motu_828mk3),	/* Hybrid. */
-	SND_MOTU_DEV_ENTRY(0x000033, &motu_audio_express),
-	SND_MOTU_DEV_ENTRY(0x000045, &motu_4pre),
+	SND_MOTU_DEV_ENTRY(0x101800, &motu_828mk2),
+	SND_MOTU_DEV_ENTRY(0x107800, &snd_motu_spec_traveler),
+	SND_MOTU_DEV_ENTRY(0x106800, &motu_828mk3),	/* FireWire only. */
+	SND_MOTU_DEV_ENTRY(0x100800, &motu_828mk3),	/* Hybrid. */
+	SND_MOTU_DEV_ENTRY(0x104800, &motu_audio_express),
 	{ }
 };
 MODULE_DEVICE_TABLE(ieee1394, motu_id_table);

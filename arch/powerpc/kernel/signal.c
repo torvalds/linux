@@ -200,27 +200,14 @@ unsigned long get_tm_stackpointer(struct task_struct *tsk)
 	 * normal/non-checkpointed stack pointer.
 	 */
 
-	unsigned long ret = tsk->thread.regs->gpr[1];
-
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	BUG_ON(tsk != current);
 
 	if (MSR_TM_ACTIVE(tsk->thread.regs->msr)) {
-		preempt_disable();
 		tm_reclaim_current(TM_CAUSE_SIGNAL);
 		if (MSR_TM_TRANSACTIONAL(tsk->thread.regs->msr))
-			ret = tsk->thread.ckpt_regs.gpr[1];
-
-		/*
-		 * If we treclaim, we must clear the current thread's TM bits
-		 * before re-enabling preemption. Otherwise we might be
-		 * preempted and have the live MSR[TS] changed behind our back
-		 * (tm_recheckpoint_new_task() would recheckpoint). Besides, we
-		 * enter the signal handler in non-transactional state.
-		 */
-		tsk->thread.regs->msr &= ~MSR_TS_MASK;
-		preempt_enable();
+			return tsk->thread.ckpt_regs.gpr[1];
 	}
 #endif
-	return ret;
+	return tsk->thread.regs->gpr[1];
 }

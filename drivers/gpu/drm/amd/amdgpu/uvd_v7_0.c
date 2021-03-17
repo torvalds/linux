@@ -175,7 +175,7 @@ static void uvd_v7_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
 static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	uint32_t rptr;
+	uint32_t rptr = amdgpu_ring_get_rptr(ring);
 	unsigned i;
 	int r;
 
@@ -188,9 +188,6 @@ static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 			  ring->me, ring->idx, r);
 		return r;
 	}
-
-	rptr = amdgpu_ring_get_rptr(ring);
-
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_END);
 	amdgpu_ring_commit(ring);
 
@@ -447,6 +444,10 @@ static int uvd_v7_0_sw_init(void *handle)
 		DRM_INFO("PSP loading UVD firmware\n");
 	}
 
+	r = amdgpu_uvd_resume(adev);
+	if (r)
+		return r;
+
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
 		if (adev->uvd.harvest_config & (1 << j))
 			continue;
@@ -477,10 +478,6 @@ static int uvd_v7_0_sw_init(void *handle)
 				return r;
 		}
 	}
-
-	r = amdgpu_uvd_resume(adev);
-	if (r)
-		return r;
 
 	r = amdgpu_uvd_entity_init(adev);
 	if (r)

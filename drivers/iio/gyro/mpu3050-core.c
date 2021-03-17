@@ -29,8 +29,7 @@
 
 #include "mpu3050.h"
 
-#define MPU3050_CHIP_ID		0x68
-#define MPU3050_CHIP_ID_MASK	0x7E
+#define MPU3050_CHIP_ID		0x69
 
 /*
  * Register map: anything suffixed *_H is a big-endian high byte and always
@@ -1177,9 +1176,8 @@ int mpu3050_common_probe(struct device *dev,
 		goto err_power_down;
 	}
 
-	if ((val & MPU3050_CHIP_ID_MASK) != MPU3050_CHIP_ID) {
-		dev_err(dev, "unsupported chip id %02x\n",
-				(u8)(val & MPU3050_CHIP_ID_MASK));
+	if (val != MPU3050_CHIP_ID) {
+		dev_err(dev, "unsupported chip id %02x\n", (u8)val);
 		ret = -ENODEV;
 		goto err_power_down;
 	}

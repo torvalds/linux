@@ -306,7 +306,7 @@ static __inline__ long atomic64_fetch_##op##_relaxed(long i, atomic64_t * v)  \
 {									      \
 	long result;							      \
 									      \
-	if (kernel_uses_llsc) {						      \
+	if (kernel_uses_llsc && R10000_LLSC_WAR) {			      \
 		long temp;						      \
 									      \
 		__asm__ __volatile__(					      \

@@ -20,7 +20,6 @@
 #include "unipro.h"
 #include "ufs-hisi.h"
 #include "ufshci.h"
-#include "ufs_quirks.h"
 
 static int ufs_hisi_check_hibern8(struct ufs_hba *hba)
 {
@@ -391,14 +390,6 @@ static void ufs_hisi_set_dev_cap(struct ufs_hisi_dev_params *hisi_param)
 
 static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 {
-	if (hba->dev_quirks & UFS_DEVICE_QUIRK_HOST_VS_DEBUGSAVECONFIGTIME) {
-		pr_info("ufs flash device must set VS_DebugSaveConfigTime 0x10\n");
-		/* VS_DebugSaveConfigTime */
-		ufshcd_dme_set(hba, UIC_ARG_MIB(0xD0A0), 0x10);
-		/* sync length */
-		ufshcd_dme_set(hba, UIC_ARG_MIB(0x1556), 0x48);
-	}
-
 	/* update */
 	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15A8), 0x1);
 	/* PA_TxSkip */
@@ -540,22 +531,10 @@ static int ufs_hisi_init_common(struct ufs_hba *hba)
 	if (!host)
 		return -ENOMEM;
 
-	/*
-	 * Inline crypto is currently broken with ufs-hisi because the keyslots
-	 * overlap with the vendor-specific SYS CTRL registers -- and even if
-	 * software uses only non-overlapping keyslots, the kernel crashes when
-	 * programming a key or a UFS error occurs on the first encrypted I/O.
-	 */
-	hba->quirks |= UFSHCD_QUIRK_BROKEN_CRYPTO;
-
 	host->hba = hba;
 	ufshcd_set_variant(hba, host);
 
 	host->rst  = devm_reset_control_get(dev, "rst");
-	if (IS_ERR(host->rst)) {
-		dev_err(dev, "%s: failed to get reset control\n", __func__);
-		return PTR_ERR(host->rst);
-	}
 
 	ufs_hisi_set_pm_lvl(hba);
 

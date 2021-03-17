@@ -51,8 +51,7 @@
 #include <rdma/rdma_vt.h>
 
 struct ib_ah *rvt_create_ah(struct ib_pd *pd,
-			    struct rdma_ah_attr *ah_attr,
-			    struct ib_udata *udata);
+			    struct rdma_ah_attr *ah_attr);
 int rvt_destroy_ah(struct ib_ah *ibah);
 int rvt_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 int rvt_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);

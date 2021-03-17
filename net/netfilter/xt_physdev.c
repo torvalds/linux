@@ -96,7 +96,8 @@ match_outdev:
 static int physdev_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_physdev_info *info = par->matchinfo;
-	static bool brnf_probed __read_mostly;
+
+	br_netfilter_enable();
 
 	if (!(info->bitmask & XT_PHYSDEV_OP_MASK) ||
 	    info->bitmask & ~XT_PHYSDEV_OP_MASK)
@@ -104,16 +105,12 @@ static int physdev_mt_check(const struct xt_mtchk_param *par)
 	if (info->bitmask & (XT_PHYSDEV_OP_OUT | XT_PHYSDEV_OP_ISOUT) &&
 	    (!(info->bitmask & XT_PHYSDEV_OP_BRIDGED) ||
 	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
-	    par->hook_mask & (1 << NF_INET_LOCAL_OUT)) {
+	    par->hook_mask & ((1 << NF_INET_LOCAL_OUT) |
+	    (1 << NF_INET_FORWARD) | (1 << NF_INET_POST_ROUTING))) {
 		pr_info_ratelimited("--physdev-out and --physdev-is-out only supported in the FORWARD and POSTROUTING chains with bridged traffic\n");
-		return -EINVAL;
+		if (par->hook_mask & (1 << NF_INET_LOCAL_OUT))
+			return -EINVAL;
 	}
-
-	if (!brnf_probed) {
-		brnf_probed = true;
-		request_module("br_netfilter");
-	}
-
 	return 0;
 }
 

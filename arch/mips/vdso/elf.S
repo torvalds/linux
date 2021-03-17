@@ -8,7 +8,7 @@
  * option) any later version.
  */
 
-#include <asm/vdso/vdso.h>
+#include "vdso.h"
 
 #include <asm/isa-rev.h>
 

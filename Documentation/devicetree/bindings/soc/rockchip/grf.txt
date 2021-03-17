@@ -13,7 +13,6 @@ On RK3328 SoCs, the GRF adds a section for USB2PHYGRF,
 Required Properties:
 
 - compatible: GRF should be one of the following:
-   - "rockchip,rk1808-grf", "syscon": for rk1808
    - "rockchip,rk3036-grf", "syscon": for rk3036
    - "rockchip,rk3066-grf", "syscon": for rk3066
    - "rockchip,rk3188-grf", "syscon": for rk3188
@@ -23,12 +22,7 @@ Required Properties:
    - "rockchip,rk3368-grf", "syscon": for rk3368
    - "rockchip,rk3399-grf", "syscon": for rk3399
    - "rockchip,rv1108-grf", "syscon": for rv1108
-   - "rockchip,rv1126-grf", "syscon": for rv1126
-- compatible: COREGRF should be one of the following
-   - "rockchip,rk1808-coregrf", "syscon": for rk1808
 - compatible: PMUGRF should be one of the following:
-   - "rockchip,rv1108-pmugrf", "syscon": for rv1108
-   - "rockchip,rv1126-pmugrf", "syscon": for rv1126
    - "rockchip,rk3368-pmugrf", "syscon": for rk3368
    - "rockchip,rk3399-pmugrf", "syscon": for rk3399
 - compatible: SGRF should be one of the following

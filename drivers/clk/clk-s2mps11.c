@@ -211,7 +211,6 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	return ret;
 
 err_reg:
-	of_node_put(s2mps11_clks[0].clk_np);
 	while (--i >= 0)
 		clkdev_drop(s2mps11_clks[i].lookup);
 
@@ -245,36 +244,6 @@ static const struct platform_device_id s2mps11_clk_id[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, s2mps11_clk_id);
-
-#ifdef CONFIG_OF
-/*
- * Device is instantiated through parent MFD device and device matching is done
- * through platform_device_id.
- *
- * However if device's DT node contains proper clock compatible and driver is
- * built as a module, then the *module* matching will be done trough DT aliases.
- * This requires of_device_id table.  In the same time this will not change the
- * actual *device* matching so do not add .of_match_table.
- */
-static const struct of_device_id s2mps11_dt_match[] __used = {
-	{
-		.compatible = "samsung,s2mps11-clk",
-		.data = (void *)S2MPS11X,
-	}, {
-		.compatible = "samsung,s2mps13-clk",
-		.data = (void *)S2MPS13X,
-	}, {
-		.compatible = "samsung,s2mps14-clk",
-		.data = (void *)S2MPS14X,
-	}, {
-		.compatible = "samsung,s5m8767-clk",
-		.data = (void *)S5M8767X,
-	}, {
-		/* Sentinel */
-	},
-};
-MODULE_DEVICE_TABLE(of, s2mps11_dt_match);
-#endif
 
 static struct platform_driver s2mps11_clk_driver = {
 	.driver = {

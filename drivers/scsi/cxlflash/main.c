@@ -3694,7 +3694,6 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	host->max_cmd_len = CXLFLASH_MAX_CDB_LEN;
 
 	cfg = shost_priv(host);
-	cfg->state = STATE_PROBING;
 	cfg->host = host;
 	rc = alloc_mem(cfg);
 	if (rc) {
@@ -3749,7 +3748,6 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	cfg->afu_cookie = cfg->ops->create_afu(pdev);
 	if (unlikely(!cfg->afu_cookie)) {
 		dev_err(dev, "%s: create_afu failed\n", __func__);
-		rc = -ENOMEM;
 		goto out_remove;
 	}
 
@@ -3784,7 +3782,6 @@ out:
 	return rc;
 
 out_remove:
-	cfg->state = STATE_PROBED;
 	cxlflash_remove(pdev);
 	goto out;
 }

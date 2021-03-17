@@ -37,13 +37,6 @@ config CPU_FREQ_STAT
 
 	  If in doubt, say N.
 
-config CPU_FREQ_TIMES
-       bool "CPU frequency time-in-state statistics"
-       help
-         Export CPU time-in-state information through procfs.
-
-         If in doubt, say N.
-
 choice
 	prompt "Default CPUFreq governor"
 	default CPU_FREQ_DEFAULT_GOV_USERSPACE if ARM_SA1100_CPUFREQ || ARM_SA1110_CPUFREQ
@@ -110,16 +103,6 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	  Use the 'schedutil' CPUFreq governor by default. If unsure,
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
-
-config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
-	bool "interactive"
-	select CPU_FREQ_GOV_INTERACTIVE
-	select CPU_FREQ_GOV_PERFORMANCE
-	help
-	  Use the CPUFreq governor 'interactive' as default. This allows
-	  you to get a full dynamic cpu frequency capable system by simply
-	  loading your cpufreq low-level hardware driver, using the
-	  'interactive' governor for latency-sensitive workloads.
 
 endchoice
 
@@ -219,26 +202,6 @@ config CPU_FREQ_GOV_SCHEDUTIL
 
 	  If in doubt, say N.
 
-config CPU_FREQ_GOV_INTERACTIVE
-	tristate "'interactive' cpufreq policy governor"
-	depends on CPU_FREQ
-	select CPU_FREQ_GOV_ATTR_SET
-	select IRQ_WORK
-	help
-	  'interactive' - This driver adds a dynamic cpufreq policy governor
-	  designed for latency-sensitive workloads.
-
-	  This governor attempts to reduce the latency of clock
-	  increases so that the system is more responsive to
-	  interactive workloads.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpufreq_interactive.
-
-	  For details, take a look at linux/Documentation/cpu-freq.
-
-	  If in doubt, say N.
-
 comment "CPU frequency scaling drivers"
 
 config CPUFREQ_DT
@@ -263,15 +226,6 @@ config CPUFREQ_DT_PLATDEV
 	  supported platforms.
 
 	  If in doubt, say N.
-
-config CPUFREQ_DUMMY
-	tristate "Dummy CPU frequency driver"
-	help
-	  This option adds a generic dummy CPUfreq driver, which sets a fake
-	  2-frequency table when initializing each policy and otherwise does
-	  nothing.
-
-	  If in doubt, say N
 
 if X86
 source "drivers/cpufreq/Kconfig.x86"

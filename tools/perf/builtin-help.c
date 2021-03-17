@@ -189,7 +189,7 @@ static void add_man_viewer(const char *name)
 	while (*p)
 		p = &((*p)->next);
 	*p = zalloc(sizeof(**p) + len + 1);
-	strcpy((*p)->name, name);
+	strncpy((*p)->name, name, len);
 }
 
 static int supported_man_viewer(const char *name, size_t len)

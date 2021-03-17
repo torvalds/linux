@@ -102,12 +102,11 @@ static bool check_buffer_pages_allocated(struct binder_alloc *alloc,
 					 struct binder_buffer *buffer,
 					 size_t size)
 {
-	void __user *page_addr;
-	void __user *end;
+	void *page_addr, *end;
 	int page_index;
 
-	end = (void __user *)PAGE_ALIGN((uintptr_t)buffer->user_data + size);
-	page_addr = buffer->user_data;
+	end = (void *)PAGE_ALIGN((uintptr_t)buffer->data + size);
+	page_addr = buffer->data;
 	for (; page_addr < end; page_addr += PAGE_SIZE) {
 		page_index = (page_addr - alloc->buffer) / PAGE_SIZE;
 		if (!alloc->pages[page_index].page_ptr ||
@@ -128,7 +127,7 @@ static void binder_selftest_alloc_buf(struct binder_alloc *alloc,
 	int i;
 
 	for (i = 0; i < BUFFER_NUM; i++) {
-		buffers[i] = binder_alloc_new_buf(alloc, sizes[i], 0, 0, 0, 0);
+		buffers[i] = binder_alloc_new_buf(alloc, sizes[i], 0, 0, 0);
 		if (IS_ERR(buffers[i]) ||
 		    !check_buffer_pages_allocated(alloc, buffers[i],
 						  sizes[i])) {

@@ -100,12 +100,11 @@ static bool _omap4_is_timeout(union omap4_timeout *time, u32 timeout)
 	 * can be from a timer that requires pm_runtime access, which
 	 * will eventually bring us here with timekeeping_suspended,
 	 * during both suspend entry and resume paths. This happens
-	 * at least on am43xx platform. Account for flakeyness
-	 * with udelay() by multiplying the timeout value by 2.
+	 * at least on am43xx platform.
 	 */
 	if (unlikely(_early_timeout || timekeeping_suspended)) {
 		if (time->cycles++ < timeout) {
-			udelay(1 * 2);
+			udelay(1);
 			return false;
 		}
 	} else {
@@ -138,6 +137,9 @@ static int _omap4_clkctrl_clk_enable(struct clk_hw *hw)
 	int ret;
 	union omap4_timeout timeout = { 0 };
 
+	if (!clk->enable_bit)
+		return 0;
+
 	if (clk->clkdm) {
 		ret = ti_clk_ll_ops->clkdm_clk_enable(clk->clkdm, hw->clk);
 		if (ret) {
@@ -148,9 +150,6 @@ static int _omap4_clkctrl_clk_enable(struct clk_hw *hw)
 			return ret;
 		}
 	}
-
-	if (!clk->enable_bit)
-		return 0;
 
 	val = ti_clk_ll_ops->clk_readl(&clk->enable_reg);
 
@@ -180,7 +179,7 @@ static void _omap4_clkctrl_clk_disable(struct clk_hw *hw)
 	union omap4_timeout timeout = { 0 };
 
 	if (!clk->enable_bit)
-		goto exit;
+		return;
 
 	val = ti_clk_ll_ops->clk_readl(&clk->enable_reg);
 
@@ -230,7 +229,6 @@ static struct clk_hw *_ti_omap4_clkctrl_xlate(struct of_phandle_args *clkspec,
 {
 	struct omap_clkctrl_provider *provider = data;
 	struct omap_clkctrl_clk *entry;
-	bool found = false;
 
 	if (clkspec->args_count != 2)
 		return ERR_PTR(-EINVAL);
@@ -240,13 +238,11 @@ static struct clk_hw *_ti_omap4_clkctrl_xlate(struct of_phandle_args *clkspec,
 
 	list_for_each_entry(entry, &provider->clocks, node) {
 		if (entry->reg_offset == clkspec->args[0] &&
-		    entry->bit_offset == clkspec->args[1]) {
-			found = true;
+		    entry->bit_offset == clkspec->args[1])
 			break;
-		}
 	}
 
-	if (!found)
+	if (!entry)
 		return ERR_PTR(-EINVAL);
 
 	return entry->clk;

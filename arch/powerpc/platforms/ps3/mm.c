@@ -212,14 +212,13 @@ void ps3_mm_vas_destroy(void)
 {
 	int result;
 
+	DBG("%s:%d: map.vas_id    = %llu\n", __func__, __LINE__, map.vas_id);
+
 	if (map.vas_id) {
 		result = lv1_select_virtual_address_space(0);
-		result += lv1_destruct_virtual_address_space(map.vas_id);
-
-		if (result) {
-			lv1_panic(0);
-		}
-
+		BUG_ON(result);
+		result = lv1_destruct_virtual_address_space(map.vas_id);
+		BUG_ON(result);
 		map.vas_id = 0;
 	}
 }
@@ -317,20 +316,19 @@ static void ps3_mm_region_destroy(struct mem_region *r)
 	int result;
 
 	if (!r->destroy) {
+		pr_info("%s:%d: Not destroying high region: %llxh %llxh\n",
+			__func__, __LINE__, r->base, r->size);
 		return;
 	}
 
+	DBG("%s:%d: r->base = %llxh\n", __func__, __LINE__, r->base);
+
 	if (r->base) {
 		result = lv1_release_memory(r->base);
-
-		if (result) {
-			lv1_panic(0);
-		}
-
+		BUG_ON(result);
 		r->size = r->base = r->offset = 0;
 		map.total = map.rm.size;
 	}
-
 	ps3_mm_set_repository_highmem(NULL);
 }
 

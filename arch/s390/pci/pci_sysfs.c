@@ -13,8 +13,6 @@
 #include <linux/stat.h>
 #include <linux/pci.h>
 
-#include "../../../drivers/pci/pci.h"
-
 #include <asm/sclp.h>
 
 #define zpci_attr(name, fmt, member)					\
@@ -42,50 +40,31 @@ zpci_attr(segment3, "0x%02x\n", pfip[3]);
 static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	struct kernfs_node *kn;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct zpci_dev *zdev = to_zpci(pdev);
-	int ret = 0;
+	int ret;
 
-	/* Can't use device_remove_self() here as that would lead us to lock
-	 * the pci_rescan_remove_lock while holding the device' kernfs lock.
-	 * This would create a possible deadlock with disable_slot() which is
-	 * not directly protected by the device' kernfs lock but takes it
-	 * during the device removal which happens under
-	 * pci_rescan_remove_lock.
-	 *
-	 * This is analogous to sdev_store_delete() in
-	 * drivers/scsi/scsi_sysfs.c
-	 */
-	kn = sysfs_break_active_protection(&dev->kobj, &attr->attr);
-	WARN_ON_ONCE(!kn);
-	/* device_remove_file() serializes concurrent calls ignoring all but
-	 * the first
-	 */
-	device_remove_file(dev, attr);
+	if (!device_remove_file_self(dev, attr))
+		return count;
 
-	/* A concurrent call to recover_store() may slip between
-	 * sysfs_break_active_protection() and the sysfs file removal.
-	 * Once it unblocks from pci_lock_rescan_remove() the original pdev
-	 * will already be removed.
-	 */
 	pci_lock_rescan_remove();
-	if (pci_dev_is_added(pdev)) {
-		pci_stop_and_remove_bus_device(pdev);
-		ret = zpci_disable_device(zdev);
-		if (ret)
-			goto out;
+	pci_stop_and_remove_bus_device(pdev);
+	ret = zpci_disable_device(zdev);
+	if (ret)
+		goto error;
 
-		ret = zpci_enable_device(zdev);
-		if (ret)
-			goto out;
-		pci_rescan_bus(zdev->bus);
-	}
-out:
+	ret = zpci_enable_device(zdev);
+	if (ret)
+		goto error;
+
+	pci_rescan_bus(zdev->bus);
 	pci_unlock_rescan_remove();
-	if (kn)
-		sysfs_unbreak_active_protection(kn);
-	return ret ? ret : count;
+
+	return count;
+
+error:
+	pci_unlock_rescan_remove();
+	return ret;
 }
 static DEVICE_ATTR_WO(recover);
 

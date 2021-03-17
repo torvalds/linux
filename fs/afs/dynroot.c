@@ -145,9 +145,6 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 
 	ASSERTCMP(d_inode(dentry), ==, NULL);
 
-	if (flags & LOOKUP_CREATE)
-		return ERR_PTR(-EOPNOTSUPP);
-
 	if (dentry->d_name.len >= AFSNAMEMAX) {
 		_leave(" = -ENAMETOOLONG");
 		return ERR_PTR(-ENAMETOOLONG);
@@ -299,17 +296,15 @@ void afs_dynroot_depopulate(struct super_block *sb)
 		net->dynroot_sb = NULL;
 	mutex_unlock(&net->proc_cells_lock);
 
-	if (root) {
-		inode_lock(root->d_inode);
+	inode_lock(root->d_inode);
 
-		/* Remove all the pins for dirs created for manually added cells */
-		list_for_each_entry_safe(subdir, tmp, &root->d_subdirs, d_child) {
-			if (subdir->d_fsdata) {
-				subdir->d_fsdata = NULL;
-				dput(subdir);
-			}
+	/* Remove all the pins for dirs created for manually added cells */
+	list_for_each_entry_safe(subdir, tmp, &root->d_subdirs, d_child) {
+		if (subdir->d_fsdata) {
+			subdir->d_fsdata = NULL;
+			dput(subdir);
 		}
-
-		inode_unlock(root->d_inode);
 	}
+
+	inode_unlock(root->d_inode);
 }

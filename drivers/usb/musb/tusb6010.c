@@ -142,7 +142,7 @@ static void tusb_ep_select(void __iomem *mbase, u8 epnum)
 /*
  * TUSB6010 doesn't allow 8-bit access; 16-bit access is the minimum.
  */
-static u8 tusb_readb(void __iomem *addr, u32 offset)
+static u8 tusb_readb(const void __iomem *addr, unsigned offset)
 {
 	u16 tmp;
 	u8 val;

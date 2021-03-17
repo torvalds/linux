@@ -672,14 +672,7 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         swp[0x1];
 	u8         swp_csum[0x1];
 	u8         swp_lso[0x1];
-	u8         cqe_checksum_full[0x1];
-	u8         tunnel_stateless_geneve_tx[0x1];
-	u8         tunnel_stateless_mpls_over_udp[0x1];
-	u8         tunnel_stateless_mpls_over_gre[0x1];
-	u8         tunnel_stateless_vxlan_gpe[0x1];
-	u8         tunnel_stateless_ipv4_over_vxlan[0x1];
-	u8         tunnel_stateless_ip_over_ip[0x1];
-	u8         reserved_at_2a[0x6];
+	u8         reserved_at_23[0xd];
 	u8         max_vxlan_udp_ports[0x8];
 	u8         reserved_at_38[0x6];
 	u8         max_geneve_opt_len[0x1];
@@ -5630,12 +5623,7 @@ struct mlx5_ifc_modify_cq_in_bits {
 
 	struct mlx5_ifc_cqc_bits cq_context;
 
-	u8         reserved_at_280[0x60];
-
- 	u8         cq_umem_valid[0x1];
-	u8         reserved_at_2e1[0x1f];
-
-	u8         reserved_at_300[0x580];
+	u8         reserved_at_280[0x600];
 
 	u8         pas[0][0x40];
 };
@@ -9059,6 +9047,8 @@ struct mlx5_ifc_query_lag_out_bits {
 	u8         reserved_at_8[0x18];
 
 	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x40];
 
 	struct mlx5_ifc_lagc_bits ctx;
 };

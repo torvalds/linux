@@ -158,11 +158,9 @@ static void pblk_prepare_resubmit(struct pblk *pblk, unsigned int sentry,
 		w_ctx = &entry->w_ctx;
 
 		/* Check if the lba has been overwritten */
-		if (w_ctx->lba != ADDR_EMPTY) {
-			ppa_l2p = pblk_trans_map_get(pblk, w_ctx->lba);
-			if (!pblk_ppa_comp(ppa_l2p, entry->cacheline))
-				w_ctx->lba = ADDR_EMPTY;
-		}
+		ppa_l2p = pblk_trans_map_get(pblk, w_ctx->lba);
+		if (!pblk_ppa_comp(ppa_l2p, entry->cacheline))
+			w_ctx->lba = ADDR_EMPTY;
 
 		/* Mark up the entry as submittable again */
 		flags = READ_ONCE(w_ctx->flags);
@@ -419,11 +417,12 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 			rqd->ppa_list[i] = addr_to_gen_ppa(pblk, paddr, id);
 	}
 
-	spin_lock(&l_mg->close_lock);
 	emeta->mem += rq_len;
-	if (emeta->mem >= lm->emeta_len[0])
+	if (emeta->mem >= lm->emeta_len[0]) {
+		spin_lock(&l_mg->close_lock);
 		list_del(&meta_line->list);
-	spin_unlock(&l_mg->close_lock);
+		spin_unlock(&l_mg->close_lock);
+	}
 
 	pblk_down_page(pblk, rqd->ppa_list, rqd->nr_ppas);
 
@@ -492,15 +491,14 @@ static struct pblk_line *pblk_should_submit_meta_io(struct pblk *pblk,
 	struct pblk_line *meta_line;
 
 	spin_lock(&l_mg->close_lock);
+retry:
 	if (list_empty(&l_mg->emeta_list)) {
 		spin_unlock(&l_mg->close_lock);
 		return NULL;
 	}
 	meta_line = list_first_entry(&l_mg->emeta_list, struct pblk_line, list);
-	if (meta_line->emeta->mem >= lm->emeta_len[0]) {
-		spin_unlock(&l_mg->close_lock);
-		return NULL;
-	}
+	if (meta_line->emeta->mem >= lm->emeta_len[0])
+		goto retry;
 	spin_unlock(&l_mg->close_lock);
 
 	if (!pblk_valid_meta_ppa(pblk, meta_line, data_rqd))

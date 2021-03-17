@@ -108,10 +108,8 @@ struct acm {
 	unsigned long flags;
 #		define EVENT_TTY_WAKEUP	0
 #		define EVENT_RX_STALL	1
-#		define ACM_ERROR_DELAY	3
-	unsigned long urbs_in_error_delay;		/* these need to be restarted after a delay */
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
-	struct delayed_work dwork;		        /* work queue entry for various purposes */
+	struct work_struct work;			/* work queue entry for line discipline waking up */
 	unsigned int ctrlin;				/* input control lines (DCD, DSR, RI, break, overruns) */
 	unsigned int ctrlout;				/* output control lines (DTR, RTS) */
 	struct async_icount iocount;			/* counters for control line changes */
@@ -142,4 +140,3 @@ struct acm {
 #define QUIRK_CONTROL_LINE_STATE	BIT(6)
 #define CLEAR_HALT_CONDITIONS		BIT(7)
 #define SEND_ZERO_PACKET		BIT(8)
-#define DISABLE_ECHO			BIT(9)

@@ -1078,7 +1078,7 @@ int ib_nl_handle_set_timeout(struct sk_buff *skb,
 	}
 
 settimeout_out:
-	return 0;
+	return skb->len;
 }
 
 static inline int ib_nl_is_good_resolve_resp(const struct nlmsghdr *nlh)
@@ -1149,7 +1149,7 @@ int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 	}
 
 resp_out:
-	return 0;
+	return skb->len;
 }
 
 static void free_sm_ah(struct kref *kref)
@@ -1232,6 +1232,7 @@ static int roce_resolve_route_from_path(struct sa_path_rec *rec,
 {
 	struct rdma_dev_addr dev_addr = {};
 	union {
+		struct sockaddr     _sockaddr;
 		struct sockaddr_in  _sockaddr_in;
 		struct sockaddr_in6 _sockaddr_in6;
 	} sgid_addr, dgid_addr;
@@ -1248,12 +1249,12 @@ static int roce_resolve_route_from_path(struct sa_path_rec *rec,
 	 */
 	dev_addr.net = &init_net;
 
-	rdma_gid2ip((struct sockaddr *)&sgid_addr, &rec->sgid);
-	rdma_gid2ip((struct sockaddr *)&dgid_addr, &rec->dgid);
+	rdma_gid2ip(&sgid_addr._sockaddr, &rec->sgid);
+	rdma_gid2ip(&dgid_addr._sockaddr, &rec->dgid);
 
 	/* validate the route */
-	ret = rdma_resolve_ip_route((struct sockaddr *)&sgid_addr,
-				    (struct sockaddr *)&dgid_addr, &dev_addr);
+	ret = rdma_resolve_ip_route(&sgid_addr._sockaddr,
+				    &dgid_addr._sockaddr, &dev_addr);
 	if (ret)
 		return ret;
 

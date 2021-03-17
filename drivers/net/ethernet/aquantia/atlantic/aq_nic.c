@@ -44,7 +44,7 @@ static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 	struct aq_rss_parameters *rss_params = &cfg->aq_rss;
 	int i = 0;
 
-	static u8 rss_key[AQ_CFG_RSS_HASHKEY_SIZE] = {
+	static u8 rss_key[40] = {
 		0x1e, 0xad, 0x71, 0x87, 0x65, 0xfc, 0x26, 0x7d,
 		0x0d, 0x45, 0x67, 0x74, 0xcd, 0x06, 0x1a, 0x18,
 		0xb6, 0xc1, 0xf0, 0xc7, 0xbb, 0x18, 0xbe, 0xf8,
@@ -399,10 +399,8 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 				     dx_buff->len,
 				     DMA_TO_DEVICE);
 
-	if (unlikely(dma_mapping_error(aq_nic_get_dev(self), dx_buff->pa))) {
-		ret = 0;
+	if (unlikely(dma_mapping_error(aq_nic_get_dev(self), dx_buff->pa)))
 		goto exit;
-	}
 
 	first = dx_buff;
 	dx_buff->len_pkt = skb->len;
@@ -532,6 +530,10 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 	if (likely(frags)) {
 		err = self->aq_hw_ops->hw_ring_tx_xmit(self->aq_hw,
 						       ring, frags);
+		if (err >= 0) {
+			++ring->stats.tx.packets;
+			ring->stats.tx.bytes += skb->len;
+		}
 	} else {
 		err = NETDEV_TX_BUSY;
 	}
@@ -588,7 +590,7 @@ int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 		}
 	}
 
-	if (i > 0 && i <= AQ_HW_MULTICAST_ADDRESS_MAX) {
+	if (i > 0 && i < AQ_HW_MULTICAST_ADDRESS_MAX) {
 		packet_filter |= IFF_MULTICAST;
 		self->mc_list.count = i;
 		self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
@@ -620,9 +622,6 @@ int aq_nic_get_regs(struct aq_nic_s *self, struct ethtool_regs *regs, void *p)
 	u32 *regs_buff = p;
 	int err = 0;
 
-	if (unlikely(!self->aq_hw_ops->hw_get_regs))
-		return -EOPNOTSUPP;
-
 	regs->version = 1;
 
 	err = self->aq_hw_ops->hw_get_regs(self->aq_hw,
@@ -637,9 +636,6 @@ err_exit:
 
 int aq_nic_get_regs_count(struct aq_nic_s *self)
 {
-	if (unlikely(!self->aq_hw_ops->hw_get_regs))
-		return 0;
-
 	return self->aq_nic_cfg.aq_hw_caps->mac_regs_count;
 }
 

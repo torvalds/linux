@@ -18,7 +18,7 @@
 #include <linux/dma-buf.h>
 #include <linux/bitops.h>
 
-#define VB2_MAX_FRAME	(64)
+#define VB2_MAX_FRAME	(32)
 #define VB2_MAX_PLANES	(8)
 
 /**
@@ -250,10 +250,6 @@ struct vb2_buffer {
 	/* private: internal use only
 	 *
 	 * state:		current buffer state; do not change
-	 * need_cache_sync_on_prepare: when set buffer's ->prepare() function
-	 *			performs cache sync/invalidation.
-	 * need_cache_sync_on_finish: when set buffer's ->finish() function
-	 *			performs cache sync/invalidation.
 	 * queued_entry:	entry on the queued buffers list, which holds
 	 *			all buffers queued from userspace
 	 * done_entry:		entry on the list that stores all buffers ready
@@ -261,8 +257,6 @@ struct vb2_buffer {
 	 * vb2_plane:		per-plane information; do not change
 	 */
 	enum vb2_buffer_state	state;
-	unsigned int		need_cache_sync_on_prepare:1;
-	unsigned int		need_cache_sync_on_finish:1;
 
 	struct vb2_plane	planes[VB2_MAX_PLANES];
 	struct list_head	queued_entry;
@@ -455,9 +449,6 @@ struct vb2_buf_ops {
  * @quirk_poll_must_check_waiting_for_buffers: Return %EPOLLERR at poll when QBUF
  *              has not been called. This is a vb1 idiom that has been adopted
  *              also by vb2.
- * @allow_cache_hints: when set user-space can pass cache management hints in
- *		order to skip cache flush/invalidation on ->prepare() or/and
- *		->finish().
  * @lock:	pointer to a mutex that protects the &struct vb2_queue. The
  *		driver can set this to a mutex to let the v4l2 core serialize
  *		the queuing ioctls. If the driver wants to handle locking
@@ -525,7 +516,6 @@ struct vb2_queue {
 	unsigned			fileio_write_immediately:1;
 	unsigned			allow_zero_bytesused:1;
 	unsigned		   quirk_poll_must_check_waiting_for_buffers:1;
-	unsigned int			allow_cache_hints:1;
 
 	struct mutex			*lock;
 	void				*owner;
@@ -561,7 +551,6 @@ struct vb2_queue {
 	unsigned int			start_streaming_called:1;
 	unsigned int			error:1;
 	unsigned int			waiting_for_buffers:1;
-	unsigned int			waiting_in_dqbuf:1;
 	unsigned int			is_multiplanar:1;
 	unsigned int			is_output:1;
 	unsigned int			copy_timestamp:1;
@@ -582,17 +571,6 @@ struct vb2_queue {
 	u32				cnt_stop_streaming;
 #endif
 };
-
-/**
- * vb2_queue_allows_cache_hints() - Return true if the queue allows cache
- * and memory consistency hints.
- *
- * @q:		pointer to &struct vb2_queue with videobuf2 queue
- */
-static inline bool vb2_queue_allows_cache_hints(struct vb2_queue *q)
-{
-	return q->allow_cache_hints && q->memory == VB2_MEMORY_MMAP;
-}
 
 /**
  * vb2_plane_vaddr() - Return a kernel virtual address of a given plane.

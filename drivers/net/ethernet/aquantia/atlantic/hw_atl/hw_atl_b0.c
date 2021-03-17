@@ -192,8 +192,8 @@ static int hw_atl_b0_hw_rss_set(struct aq_hw_s *self,
 	u32 i = 0U;
 	u32 num_rss_queues = max(1U, self->aq_nic_cfg->num_rss_queues);
 	int err = 0;
-	u16 bitary[1 + (HW_ATL_B0_RSS_REDIRECTION_MAX *
-		   HW_ATL_B0_RSS_REDIRECTION_BITS / 16U)];
+	u16 bitary[(HW_ATL_B0_RSS_REDIRECTION_MAX *
+					HW_ATL_B0_RSS_REDIRECTION_BITS / 16U)];
 
 	memset(bitary, 0, sizeof(bitary));
 
@@ -655,9 +655,9 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 		struct hw_atl_rxd_wb_s *rxd_wb = (struct hw_atl_rxd_wb_s *)
 			&ring->dx_ring[ring->hw_head * HW_ATL_B0_RXD_SIZE];
 
+		unsigned int is_err = 1U;
 		unsigned int is_rx_check_sum_enabled = 0U;
 		unsigned int pkt_type = 0U;
-		u8 rx_stat = 0U;
 
 		if (!(rxd_wb->status & 0x1U)) { /* RxD is not done */
 			break;
@@ -665,71 +665,68 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->hw_head];
 
-		rx_stat = (0x0000003CU & rxd_wb->status) >> 2;
+		is_err = (0x0000003CU & rxd_wb->status);
 
-		is_rx_check_sum_enabled = (rxd_wb->type >> 19) & 0x3U;
+		is_rx_check_sum_enabled = (rxd_wb->type) & (0x3U << 19);
+		is_err &= ~0x20U; /* exclude validity bit */
 
 		pkt_type = 0xFFU & (rxd_wb->type >> 4);
 
-		if (is_rx_check_sum_enabled & BIT(0) &&
-		    (0x0U == (pkt_type & 0x3U)))
-			buff->is_ip_cso = (rx_stat & BIT(1)) ? 0U : 1U;
+		if (is_rx_check_sum_enabled) {
+			if (0x0U == (pkt_type & 0x3U))
+				buff->is_ip_cso = (is_err & 0x08U) ? 0U : 1U;
 
-		if (is_rx_check_sum_enabled & BIT(1)) {
 			if (0x4U == (pkt_type & 0x1CU))
-				buff->is_udp_cso = (rx_stat & BIT(2)) ? 0U :
-						   !!(rx_stat & BIT(3));
+				buff->is_udp_cso = buff->is_cso_err ? 0U : 1U;
 			else if (0x0U == (pkt_type & 0x1CU))
-				buff->is_tcp_cso = (rx_stat & BIT(2)) ? 0U :
-						   !!(rx_stat & BIT(3));
-		}
-		buff->is_cso_err = !!(rx_stat & 0x6);
-		/* Checksum offload workaround for small packets */
-		if (unlikely(rxd_wb->pkt_len <= 60)) {
-			buff->is_ip_cso = 0U;
-			buff->is_cso_err = 0U;
-		}
+				buff->is_tcp_cso = buff->is_cso_err ? 0U : 1U;
 
-		dma_unmap_page(ndev, buff->pa, buff->len, DMA_FROM_DEVICE);
-
-		if ((rx_stat & BIT(0)) || rxd_wb->type & 0x1000U) {
-			/* MAC error or DMA error */
-			buff->is_error = 1U;
-		}
-		if (self->aq_nic_cfg->is_rss) {
-			/* last 4 byte */
-			u16 rss_type = rxd_wb->type & 0xFU;
-
-			if (rss_type && rss_type < 0x8U) {
-				buff->is_hash_l4 = (rss_type == 0x4 ||
-				rss_type == 0x5);
-				buff->rss_hash = rxd_wb->rss_hash;
+			/* Checksum offload workaround for small packets */
+			if (rxd_wb->pkt_len <= 60) {
+				buff->is_ip_cso = 0U;
+				buff->is_cso_err = 0U;
 			}
 		}
 
-		if (HW_ATL_B0_RXD_WB_STAT2_EOP & rxd_wb->status) {
-			buff->len = rxd_wb->pkt_len %
-				AQ_CFG_RX_FRAME_MAX;
-			buff->len = buff->len ?
-				buff->len : AQ_CFG_RX_FRAME_MAX;
-			buff->next = 0U;
-			buff->is_eop = 1U;
-		} else {
-			buff->len =
-				rxd_wb->pkt_len > AQ_CFG_RX_FRAME_MAX ?
-				AQ_CFG_RX_FRAME_MAX : rxd_wb->pkt_len;
+		is_err &= ~0x18U;
 
-			if (HW_ATL_B0_RXD_WB_STAT2_RSCCNT &
-				rxd_wb->status) {
-				/* LRO */
-				buff->next = rxd_wb->next_desc_ptr;
-				++ring->stats.rx.lro_packets;
+		dma_unmap_page(ndev, buff->pa, buff->len, DMA_FROM_DEVICE);
+
+		if (is_err || rxd_wb->type & 0x1000U) {
+			/* status error or DMA error */
+			buff->is_error = 1U;
+		} else {
+			if (self->aq_nic_cfg->is_rss) {
+				/* last 4 byte */
+				u16 rss_type = rxd_wb->type & 0xFU;
+
+				if (rss_type && rss_type < 0x8U) {
+					buff->is_hash_l4 = (rss_type == 0x4 ||
+					rss_type == 0x5);
+					buff->rss_hash = rxd_wb->rss_hash;
+				}
+			}
+
+			if (HW_ATL_B0_RXD_WB_STAT2_EOP & rxd_wb->status) {
+				buff->len = rxd_wb->pkt_len %
+					AQ_CFG_RX_FRAME_MAX;
+				buff->len = buff->len ?
+					buff->len : AQ_CFG_RX_FRAME_MAX;
+				buff->next = 0U;
+				buff->is_eop = 1U;
 			} else {
-				/* jumbo */
-				buff->next =
-					aq_ring_next_dx(ring,
-							ring->hw_head);
-				++ring->stats.rx.jumbo_packets;
+				if (HW_ATL_B0_RXD_WB_STAT2_RSCCNT &
+					rxd_wb->status) {
+					/* LRO */
+					buff->next = rxd_wb->next_desc_ptr;
+					++ring->stats.rx.lro_packets;
+				} else {
+					/* jumbo */
+					buff->next =
+						aq_ring_next_dx(ring,
+								ring->hw_head);
+					++ring->stats.rx.jumbo_packets;
+				}
 			}
 		}
 	}
@@ -918,12 +915,6 @@ static int hw_atl_b0_hw_interrupt_moderation_set(struct aq_hw_s *self)
 static int hw_atl_b0_hw_stop(struct aq_hw_s *self)
 {
 	hw_atl_b0_hw_irq_disable(self, HW_ATL_B0_INT_MASK);
-
-	/* Invalidate Descriptor Cache to prevent writing to the cached
-	 * descriptors and to the data pointer of those descriptors
-	 */
-	hw_atl_rdm_rx_dma_desc_cache_init_set(self, 1);
-
 	return aq_hw_err_from_flags(self);
 }
 

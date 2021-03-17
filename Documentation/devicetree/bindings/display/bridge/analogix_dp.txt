@@ -5,9 +5,7 @@ Required properties for dp-controller:
 		platform specific such as:
 		 * "samsung,exynos5-dp"
 		 * "rockchip,rk3288-dp"
-		 * "rockchip,rk3368-edp"
 		 * "rockchip,rk3399-edp"
-		 * "rockchip,rk3568-edp"
 	-reg:
 		physical base address of the controller and length
 		of memory mapped region.
@@ -23,8 +21,6 @@ Required properties for dp-controller:
 		from general PHY binding: Should be "dp".
 
 Optional properties for dp-controller:
-	-analogix,video-bist-enable:
-		Enable video bist pattern for DP_TX debugging.
 	-force-hpd:
 		Indicate driver need force hpd when hpd detect failed, this
 		is used for some eDP screen which don't have hpd signal.

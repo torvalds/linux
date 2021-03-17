@@ -916,12 +916,8 @@ static void pvr2_v4l2_internal_check(struct pvr2_channel *chp)
 	pvr2_v4l2_dev_disassociate_parent(vp->dev_video);
 	pvr2_v4l2_dev_disassociate_parent(vp->dev_radio);
 	if (!list_empty(&vp->dev_video->devbase.fh_list) ||
-	    (vp->dev_radio &&
-	     !list_empty(&vp->dev_radio->devbase.fh_list))) {
-		pvr2_trace(PVR2_TRACE_STRUCT,
-			   "pvr2_v4l2 internal_check exit-empty id=%p", vp);
+	    !list_empty(&vp->dev_radio->devbase.fh_list))
 		return;
-	}
 	pvr2_v4l2_destroy_no_lock(vp);
 }
 
@@ -957,8 +953,7 @@ static int pvr2_v4l2_release(struct file *file)
 	kfree(fhp);
 	if (vp->channel.mc_head->disconnect_flag &&
 	    list_empty(&vp->dev_video->devbase.fh_list) &&
-	    (!vp->dev_radio ||
-	     list_empty(&vp->dev_radio->devbase.fh_list))) {
+	    list_empty(&vp->dev_radio->devbase.fh_list)) {
 		pvr2_v4l2_destroy_no_lock(vp);
 	}
 	return 0;

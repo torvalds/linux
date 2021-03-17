@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <linux/pcitest.h>
@@ -49,13 +50,15 @@ struct pci_test {
 
 static int run_test(struct pci_test *test)
 {
-	int ret = -EINVAL;
+	long ret;
 	int fd;
+	struct timespec start, end;
+	double time;
 
 	fd = open(test->device, O_RDWR);
 	if (fd < 0) {
 		perror("can't open PCI Endpoint Test device");
-		return -ENODEV;
+		return fd;
 	}
 
 	if (test->barnum >= 0 && test->barnum <= 5) {

@@ -1,4 +1,4 @@
-ccflags-y := -I$(src)/..
+ccflags-y := -Ifs/ocfs2
 
 obj-$(CONFIG_OCFS2_FS) += ocfs2_dlmfs.o
 

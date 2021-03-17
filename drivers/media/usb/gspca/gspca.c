@@ -294,7 +294,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		/* check the packet status and length */
 		st = urb->iso_frame_desc[i].status;
 		if (st) {
-			gspca_dbg(gspca_dev, D_PACK, "ISOC data error: [%d] len=%d, status=%d\n",
+			pr_err("ISOC data error: [%d] len=%d, status=%d\n",
 			       i, len, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
@@ -314,8 +314,6 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	}
 
 resubmit:
-	if (!gspca_dev->streaming)
-		return;
 	/* resubmit the URB */
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
@@ -332,7 +330,7 @@ static void isoc_irq(struct urb *urb)
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
 
 	gspca_dbg(gspca_dev, D_PACK, "isoc irq\n");
-	if (!gspca_dev->streaming)
+	if (!vb2_start_streaming_called(&gspca_dev->queue))
 		return;
 	fill_frame(gspca_dev, urb);
 }
@@ -346,7 +344,7 @@ static void bulk_irq(struct urb *urb)
 	int st;
 
 	gspca_dbg(gspca_dev, D_PACK, "bulk irq\n");
-	if (!gspca_dev->streaming)
+	if (!vb2_start_streaming_called(&gspca_dev->queue))
 		return;
 	switch (urb->status) {
 	case 0:
@@ -369,8 +367,6 @@ static void bulk_irq(struct urb *urb)
 				urb->actual_length);
 
 resubmit:
-	if (!gspca_dev->streaming)
-		return;
 	/* resubmit the URB */
 	if (gspca_dev->cam.bulk_nurbs != 0) {
 		st = usb_submit_urb(urb, GFP_ATOMIC);
@@ -430,10 +426,10 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 
 	/* append the packet to the frame buffer */
 	if (len > 0) {
-		if (gspca_dev->image_len + len > PAGE_ALIGN(gspca_dev->pixfmt.sizeimage)) {
+		if (gspca_dev->image_len + len > gspca_dev->pixfmt.sizeimage) {
 			gspca_err(gspca_dev, "frame overflow %d > %d\n",
 				  gspca_dev->image_len + len,
-				  PAGE_ALIGN(gspca_dev->pixfmt.sizeimage));
+				  gspca_dev->pixfmt.sizeimage);
 			packet_type = DISCARD_PACKET;
 		} else {
 /* !! image is NULL only when last pkt is LAST or DISCARD
@@ -1301,19 +1297,18 @@ static int gspca_queue_setup(struct vb2_queue *vq,
 			     unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct gspca_dev *gspca_dev = vb2_get_drv_priv(vq);
-	unsigned int size = PAGE_ALIGN(gspca_dev->pixfmt.sizeimage);
 
 	if (*nplanes)
-		return sizes[0] < size ? -EINVAL : 0;
+		return sizes[0] < gspca_dev->pixfmt.sizeimage ? -EINVAL : 0;
 	*nplanes = 1;
-	sizes[0] = size;
+	sizes[0] = gspca_dev->pixfmt.sizeimage;
 	return 0;
 }
 
 static int gspca_buffer_prepare(struct vb2_buffer *vb)
 {
 	struct gspca_dev *gspca_dev = vb2_get_drv_priv(vb->vb2_queue);
-	unsigned long size = PAGE_ALIGN(gspca_dev->pixfmt.sizeimage);
+	unsigned long size = gspca_dev->pixfmt.sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
 		gspca_err(gspca_dev, "buffer too small (%lu < %lu)\n",
@@ -1473,7 +1468,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 		pr_err("couldn't kzalloc gspca struct\n");
 		return -ENOMEM;
 	}
-	gspca_dev->usb_buf = kzalloc(USB_BUF_SZ, GFP_KERNEL);
+	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
 	if (!gspca_dev->usb_buf) {
 		pr_err("out of memory\n");
 		ret = -ENOMEM;
@@ -1585,7 +1580,6 @@ out:
 		input_unregister_device(gspca_dev->input_dev);
 #endif
 	v4l2_ctrl_handler_free(gspca_dev->vdev.ctrl_handler);
-	v4l2_device_unregister(&gspca_dev->v4l2_dev);
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	return ret;
@@ -1635,8 +1629,6 @@ void gspca_disconnect(struct usb_interface *intf)
 
 	mutex_lock(&gspca_dev->usb_lock);
 	gspca_dev->present = false;
-	destroy_urbs(gspca_dev);
-	gspca_input_destroy_urb(gspca_dev);
 
 	vb2_queue_error(&gspca_dev->queue);
 

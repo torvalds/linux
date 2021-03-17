@@ -5,62 +5,6 @@
 
 / {
 	compatible = "rockchip,rk3288-evb-rk808", "rockchip,rk3288";
-
-	panel {
-		compatible = "simple-panel";
-		backlight = <&backlight>;
-		enable-gpios = <&gpio7 RK_PA4 GPIO_ACTIVE_HIGH>;
-		prepare-delay-ms = <120>;
-
-		display-timings {
-			native-mode = <&timing0>;
-
-			timing0: timing0 {
-				clock-frequency = <200000000>;
-				hactive = <1536>;
-				vactive = <2048>;
-				hfront-porch = <12>;
-				hsync-len = <16>;
-				hback-porch = <48>;
-				vfront-porch = <8>;
-				vsync-len = <4>;
-				vback-porch = <8>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
-
-		port {
-			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
-			};
-		};
-	};
-
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		clocks = <&rk808 1>;
-		clock-names = "ext_clock";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h>;
-
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
-		reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
-	};
-};
-
-&backlight {
-	enable-gpios = <&gpio7 RK_PA2 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&bl_en>;
-	pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
 };
 
 &i2c0 {
@@ -252,37 +196,6 @@
 	};
 };
 
-&edp {
-	force-hpd;
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			edp_out_panel: endpoint {
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
-};
-
-&edp_in_vopb {
-	status = "disabled";
-};
-
-&edp_in_vopl {
-	status = "okay";
-};
-
-&pwm0 {
-	status = "okay";
-};
-
-&pinctrl {
-	backlight {
-		bl_en: bl-en {
-			rockchip,pins = <7 2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
+&panel {
+	power-supply = <&vcc_lcd>;
 };

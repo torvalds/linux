@@ -47,10 +47,7 @@ struct qdisc_size_table {
 struct qdisc_skb_head {
 	struct sk_buff	*head;
 	struct sk_buff	*tail;
-	union {
-		u32		qlen;
-		atomic_t	atomic_qlen;
-	};
+	__u32		qlen;
 	spinlock_t	lock;
 };
 
@@ -273,8 +270,7 @@ struct tcf_proto_ops {
 	int			(*reoffload)(struct tcf_proto *tp, bool add,
 					     tc_setup_cb_t *cb, void *cb_priv,
 					     struct netlink_ext_ack *extack);
-	void			(*bind_class)(void *, u32, unsigned long,
-					      void *, unsigned long);
+	void			(*bind_class)(void *, u32, unsigned long);
 	void *			(*tmplt_create)(struct net *net,
 						struct tcf_chain *chain,
 						struct nlattr **tca,
@@ -388,19 +384,27 @@ static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
 	BUILD_BUG_ON(sizeof(qcb->data) < sz);
 }
 
+static inline int qdisc_qlen_cpu(const struct Qdisc *q)
+{
+	return this_cpu_ptr(q->cpu_qstats)->qlen;
+}
+
 static inline int qdisc_qlen(const struct Qdisc *q)
 {
 	return q->q.qlen;
 }
 
-static inline u32 qdisc_qlen_sum(const struct Qdisc *q)
+static inline int qdisc_qlen_sum(const struct Qdisc *q)
 {
-	u32 qlen = q->qstats.qlen;
+	__u32 qlen = q->qstats.qlen;
+	int i;
 
-	if (q->flags & TCQ_F_NOLOCK)
-		qlen += atomic_read(&q->q.atomic_qlen);
-	else
+	if (q->flags & TCQ_F_NOLOCK) {
+		for_each_possible_cpu(i)
+			qlen += per_cpu_ptr(q->cpu_qstats, i)->qlen;
+	} else {
 		qlen += q->q.qlen;
+	}
 
 	return qlen;
 }
@@ -420,11 +424,6 @@ static inline struct Qdisc *qdisc_root(const struct Qdisc *qdisc)
 	struct Qdisc *q = rcu_dereference_rtnl(qdisc->dev_queue->qdisc);
 
 	return q;
-}
-
-static inline struct Qdisc *qdisc_root_bh(const struct Qdisc *qdisc)
-{
-	return rcu_dereference_bh(qdisc->dev_queue->qdisc);
 }
 
 static inline struct Qdisc *qdisc_root_sleeping(const struct Qdisc *qdisc)
@@ -777,14 +776,14 @@ static inline void qdisc_qstats_cpu_backlog_inc(struct Qdisc *sch,
 	this_cpu_add(sch->cpu_qstats->backlog, qdisc_pkt_len(skb));
 }
 
-static inline void qdisc_qstats_atomic_qlen_inc(struct Qdisc *sch)
+static inline void qdisc_qstats_cpu_qlen_inc(struct Qdisc *sch)
 {
-	atomic_inc(&sch->q.atomic_qlen);
+	this_cpu_inc(sch->cpu_qstats->qlen);
 }
 
-static inline void qdisc_qstats_atomic_qlen_dec(struct Qdisc *sch)
+static inline void qdisc_qstats_cpu_qlen_dec(struct Qdisc *sch)
 {
-	atomic_dec(&sch->q.atomic_qlen);
+	this_cpu_dec(sch->cpu_qstats->qlen);
 }
 
 static inline void qdisc_qstats_cpu_requeues_inc(struct Qdisc *sch)

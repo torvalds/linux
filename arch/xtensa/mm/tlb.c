@@ -216,8 +216,6 @@ static int check_tlb_entry(unsigned w, unsigned e, bool dtlb)
 	unsigned tlbidx = w | (e << PAGE_SHIFT);
 	unsigned r0 = dtlb ?
 		read_dtlb_virtual(tlbidx) : read_itlb_virtual(tlbidx);
-	unsigned r1 = dtlb ?
-		read_dtlb_translation(tlbidx) : read_itlb_translation(tlbidx);
 	unsigned vpn = (r0 & PAGE_MASK) | (e << PAGE_SHIFT);
 	unsigned pte = get_pte_for_vaddr(vpn);
 	unsigned mm_asid = (get_rasid_register() >> 8) & ASID_MASK;
@@ -233,6 +231,8 @@ static int check_tlb_entry(unsigned w, unsigned e, bool dtlb)
 	}
 
 	if (tlb_asid == mm_asid) {
+		unsigned r1 = dtlb ? read_dtlb_translation(tlbidx) :
+			read_itlb_translation(tlbidx);
 		if ((pte ^ r1) & PAGE_MASK) {
 			pr_err("%cTLB: way: %u, entry: %u, mapping: %08x->%08x, PTE: %08x\n",
 					dtlb ? 'D' : 'I', w, e, r0, r1, pte);

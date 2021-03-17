@@ -148,8 +148,7 @@ mt76_check_agg_ssn(struct mt76_txq *mtxq, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
-	if (!ieee80211_is_data_qos(hdr->frame_control) ||
-	    !ieee80211_is_data_present(hdr->frame_control))
+	if (!ieee80211_is_data_qos(hdr->frame_control))
 		return;
 
 	mtxq->agg_ssn = le16_to_cpu(hdr->seq_ctrl) + 0x10;
@@ -386,12 +385,7 @@ void mt76_stop_tx_queues(struct mt76_dev *dev, struct ieee80211_sta *sta,
 
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
 		struct ieee80211_txq *txq = sta->txq[i];
-		struct mt76_txq *mtxq;
-
-		if (!txq)
-			continue;
-
-		mtxq = (struct mt76_txq *)txq->drv_priv;
+		struct mt76_txq *mtxq = (struct mt76_txq *) txq->drv_priv;
 
 		spin_lock_bh(&mtxq->hwq->lock);
 		mtxq->send_bar = mtxq->aggr && send_bar;

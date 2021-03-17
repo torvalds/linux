@@ -1668,14 +1668,24 @@ enum i40e_status_code i40e_aq_set_phy_config(struct i40e_hw *hw,
 	return status;
 }
 
-static noinline_for_stack enum i40e_status_code
-i40e_set_fc_status(struct i40e_hw *hw,
-		   struct i40e_aq_get_phy_abilities_resp *abilities,
-		   bool atomic_restart)
+/**
+ * i40e_set_fc
+ * @hw: pointer to the hw struct
+ * @aq_failures: buffer to return AdminQ failure information
+ * @atomic_restart: whether to enable atomic link restart
+ *
+ * Set the requested flow control mode using set_phy_config.
+ **/
+enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
+				  bool atomic_restart)
 {
-	struct i40e_aq_set_phy_config config;
 	enum i40e_fc_mode fc_mode = hw->fc.requested_mode;
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	struct i40e_aq_set_phy_config config;
+	enum i40e_status_code status;
 	u8 pause_mask = 0x0;
+
+	*aq_failures = 0x0;
 
 	switch (fc_mode) {
 	case I40E_FC_FULL:
@@ -1692,48 +1702,6 @@ i40e_set_fc_status(struct i40e_hw *hw,
 		break;
 	}
 
-	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
-	/* clear the old pause settings */
-	config.abilities = abilities->abilities & ~(I40E_AQ_PHY_FLAG_PAUSE_TX) &
-			   ~(I40E_AQ_PHY_FLAG_PAUSE_RX);
-	/* set the new abilities */
-	config.abilities |= pause_mask;
-	/* If the abilities have changed, then set the new config */
-	if (config.abilities == abilities->abilities)
-		return 0;
-
-	/* Auto restart link so settings take effect */
-	if (atomic_restart)
-		config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
-	/* Copy over all the old settings */
-	config.phy_type = abilities->phy_type;
-	config.phy_type_ext = abilities->phy_type_ext;
-	config.link_speed = abilities->link_speed;
-	config.eee_capability = abilities->eee_capability;
-	config.eeer = abilities->eeer_val;
-	config.low_power_ctrl = abilities->d3_lpan;
-	config.fec_config = abilities->fec_cfg_curr_mod_ext_info &
-			    I40E_AQ_PHY_FEC_CONFIG_MASK;
-
-	return i40e_aq_set_phy_config(hw, &config, NULL);
-}
-
-/**
- * i40e_set_fc
- * @hw: pointer to the hw struct
- * @aq_failures: buffer to return AdminQ failure information
- * @atomic_restart: whether to enable atomic link restart
- *
- * Set the requested flow control mode using set_phy_config.
- **/
-enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
-				  bool atomic_restart)
-{
-	struct i40e_aq_get_phy_abilities_resp abilities;
-	enum i40e_status_code status;
-
-	*aq_failures = 0x0;
-
 	/* Get the current phy config */
 	status = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
 					      NULL);
@@ -1742,10 +1710,31 @@ enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
 		return status;
 	}
 
-	status = i40e_set_fc_status(hw, &abilities, atomic_restart);
-	if (status)
-		*aq_failures |= I40E_SET_FC_AQ_FAIL_SET;
+	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
+	/* clear the old pause settings */
+	config.abilities = abilities.abilities & ~(I40E_AQ_PHY_FLAG_PAUSE_TX) &
+			   ~(I40E_AQ_PHY_FLAG_PAUSE_RX);
+	/* set the new abilities */
+	config.abilities |= pause_mask;
+	/* If the abilities have changed, then set the new config */
+	if (config.abilities != abilities.abilities) {
+		/* Auto restart link so settings take effect */
+		if (atomic_restart)
+			config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+		/* Copy over all the old settings */
+		config.phy_type = abilities.phy_type;
+		config.phy_type_ext = abilities.phy_type_ext;
+		config.link_speed = abilities.link_speed;
+		config.eee_capability = abilities.eee_capability;
+		config.eeer = abilities.eeer_val;
+		config.low_power_ctrl = abilities.d3_lpan;
+		config.fec_config = abilities.fec_cfg_curr_mod_ext_info &
+				    I40E_AQ_PHY_FEC_CONFIG_MASK;
+		status = i40e_aq_set_phy_config(hw, &config, NULL);
 
+		if (status)
+			*aq_failures |= I40E_SET_FC_AQ_FAIL_SET;
+	}
 	/* Update the link info */
 	status = i40e_update_link_info(hw);
 	if (status) {
@@ -1971,21 +1960,6 @@ i40e_status i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
 }
 
 /**
- * i40e_is_aq_api_ver_ge
- * @aq: pointer to AdminQ info containing HW API version to compare
- * @maj: API major value
- * @min: API minor value
- *
- * Assert whether current HW API version is greater/equal than provided.
- **/
-static bool i40e_is_aq_api_ver_ge(struct i40e_adminq_info *aq, u16 maj,
-				  u16 min)
-{
-	return (aq->api_maj_ver > maj ||
-		(aq->api_maj_ver == maj && aq->api_min_ver >= min));
-}
-
-/**
  * i40e_aq_add_vsi
  * @hw: pointer to the hw struct
  * @vsi_ctx: pointer to a vsi context struct
@@ -2110,16 +2084,18 @@ i40e_status i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 
 	if (set) {
 		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
-		if (rx_only_promisc && i40e_is_aq_api_ver_ge(&hw->aq, 1, 5))
-			flags |= I40E_AQC_SET_VSI_PROMISC_RX_ONLY;
+		if (rx_only_promisc &&
+		    (((hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver >= 5)) ||
+		     (hw->aq.api_maj_ver > 1)))
+			flags |= I40E_AQC_SET_VSI_PROMISC_TX;
 	}
 
 	cmd->promiscuous_flags = cpu_to_le16(flags);
 
 	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_UNICAST);
-	if (i40e_is_aq_api_ver_ge(&hw->aq, 1, 5))
-		cmd->valid_flags |=
-			cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_RX_ONLY);
+	if (((hw->aq.api_maj_ver >= 1) && (hw->aq.api_min_ver >= 5)) ||
+	    (hw->aq.api_maj_ver > 1))
+		cmd->valid_flags |= cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_TX);
 
 	cmd->seid = cpu_to_le16(seid);
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
@@ -2216,17 +2192,11 @@ enum i40e_status_code i40e_aq_set_vsi_uc_promisc_on_vlan(struct i40e_hw *hw,
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_set_vsi_promiscuous_modes);
 
-	if (enable) {
+	if (enable)
 		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
-		if (i40e_is_aq_api_ver_ge(&hw->aq, 1, 5))
-			flags |= I40E_AQC_SET_VSI_PROMISC_RX_ONLY;
-	}
 
 	cmd->promiscuous_flags = cpu_to_le16(flags);
 	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_UNICAST);
-	if (i40e_is_aq_api_ver_ge(&hw->aq, 1, 5))
-		cmd->valid_flags |=
-			cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_RX_ONLY);
 	cmd->seid = cpu_to_le16(seid);
 	cmd->vlan_tag = cpu_to_le16(vid | I40E_AQC_SET_VSI_VLAN_VALID);
 
@@ -2593,7 +2563,7 @@ i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
  * i40e_updatelink_status - update status of the HW network link
  * @hw: pointer to the hw struct
  **/
-noinline_for_stack i40e_status i40e_update_link_info(struct i40e_hw *hw)
+i40e_status i40e_update_link_info(struct i40e_hw *hw)
 {
 	struct i40e_aq_get_phy_abilities_resp abilities;
 	i40e_status status = 0;

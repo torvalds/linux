@@ -31,24 +31,6 @@
 static struct bio_set bounce_bio_set, bounce_bio_split;
 static mempool_t page_pool, isa_page_pool;
 
-static void init_bounce_bioset(void)
-{
-	static bool bounce_bs_setup;
-	int ret;
-
-	if (bounce_bs_setup)
-		return;
-
-	ret = bioset_init(&bounce_bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
-	BUG_ON(ret);
-	if (bioset_integrity_create(&bounce_bio_set, BIO_POOL_SIZE))
-		BUG_ON(1);
-
-	ret = bioset_init(&bounce_bio_split, BIO_POOL_SIZE, 0, 0);
-	BUG_ON(ret);
-	bounce_bs_setup = true;
-}
-
 #if defined(CONFIG_HIGHMEM)
 static __init int init_emergency_pool(void)
 {
@@ -62,7 +44,14 @@ static __init int init_emergency_pool(void)
 	BUG_ON(ret);
 	pr_info("pool size: %d pages\n", POOL_SIZE);
 
-	init_bounce_bioset();
+	ret = bioset_init(&bounce_bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
+	BUG_ON(ret);
+	if (bioset_integrity_create(&bounce_bio_set, BIO_POOL_SIZE))
+		BUG_ON(1);
+
+	ret = bioset_init(&bounce_bio_split, BIO_POOL_SIZE, 0, 0);
+	BUG_ON(ret);
+
 	return 0;
 }
 
@@ -97,8 +86,6 @@ static void *mempool_alloc_pages_isa(gfp_t gfp_mask, void *data)
 	return mempool_alloc_pages(gfp_mask | GFP_DMA, data);
 }
 
-static DEFINE_MUTEX(isa_mutex);
-
 /*
  * gets called "every" time someone init's a queue with BLK_BOUNCE_ISA
  * as the max address, so check if the pool has already been created.
@@ -107,20 +94,14 @@ int init_emergency_isa_pool(void)
 {
 	int ret;
 
-	mutex_lock(&isa_mutex);
-
-	if (mempool_initialized(&isa_page_pool)) {
-		mutex_unlock(&isa_mutex);
+	if (mempool_initialized(&isa_page_pool))
 		return 0;
-	}
 
 	ret = mempool_init(&isa_page_pool, ISA_POOL_SIZE, mempool_alloc_pages_isa,
 			   mempool_free_pages, (void *) 0);
 	BUG_ON(ret);
 
 	pr_info("isa pool size: %d pages\n", ISA_POOL_SIZE);
-	init_bounce_bioset();
-	mutex_unlock(&isa_mutex);
 	return 0;
 }
 
@@ -248,7 +229,6 @@ static struct bio *bounce_clone_bio(struct bio *bio_src, gfp_t gfp_mask,
 		return NULL;
 	bio->bi_disk		= bio_src->bi_disk;
 	bio->bi_opf		= bio_src->bi_opf;
-	bio->bi_ioprio		= bio_src->bi_ioprio;
 	bio->bi_write_hint	= bio_src->bi_write_hint;
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
@@ -267,12 +247,14 @@ static struct bio *bounce_clone_bio(struct bio *bio_src, gfp_t gfp_mask,
 		break;
 	}
 
-	bio_crypt_clone(bio, bio_src, gfp_mask);
+	if (bio_integrity(bio_src)) {
+		int ret;
 
-	if (bio_integrity(bio_src) &&
-	    bio_integrity_clone(bio, bio_src, gfp_mask) < 0) {
-		bio_put(bio);
-		return NULL;
+		ret = bio_integrity_clone(bio, bio_src, gfp_mask);
+		if (ret < 0) {
+			bio_put(bio);
+			return NULL;
+		}
 	}
 
 	bio_clone_blkcg_association(bio, bio_src);

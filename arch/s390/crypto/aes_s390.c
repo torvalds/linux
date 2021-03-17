@@ -27,14 +27,14 @@
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <linux/init.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/fips.h>
 #include <linux/string.h>
 #include <crypto/xts.h>
 #include <asm/cpacf.h>
 
 static u8 *ctrblk;
-static DEFINE_MUTEX(ctrblk_lock);
+static DEFINE_SPINLOCK(ctrblk_lock);
 
 static cpacf_mask_t km_functions, kmc_functions, kmctr_functions,
 		    kma_functions;
@@ -585,9 +585,6 @@ static int xts_aes_encrypt(struct blkcipher_desc *desc,
 	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
-	if (!nbytes)
-		return -EINVAL;
-
 	if (unlikely(!xts_ctx->fc))
 		return xts_fallback_encrypt(desc, dst, src, nbytes);
 
@@ -601,9 +598,6 @@ static int xts_aes_decrypt(struct blkcipher_desc *desc,
 {
 	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
-
-	if (!nbytes)
-		return -EINVAL;
 
 	if (unlikely(!xts_ctx->fc))
 		return xts_fallback_decrypt(desc, dst, src, nbytes);
@@ -704,7 +698,7 @@ static int ctr_aes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 	unsigned int n, nbytes;
 	int ret, locked;
 
-	locked = mutex_trylock(&ctrblk_lock);
+	locked = spin_trylock(&ctrblk_lock);
 
 	ret = blkcipher_walk_virt_block(desc, walk, AES_BLOCK_SIZE);
 	while ((nbytes = walk->nbytes) >= AES_BLOCK_SIZE) {
@@ -722,7 +716,7 @@ static int ctr_aes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 		ret = blkcipher_walk_done(desc, walk, nbytes - n);
 	}
 	if (locked)
-		mutex_unlock(&ctrblk_lock);
+		spin_unlock(&ctrblk_lock);
 	/*
 	 * final block may be < AES_BLOCK_SIZE, copy only nbytes
 	 */
@@ -832,45 +826,19 @@ static int gcm_aes_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 	return 0;
 }
 
-static void gcm_walk_start(struct gcm_sg_walk *gw, struct scatterlist *sg,
-			   unsigned int len)
+static void gcm_sg_walk_start(struct gcm_sg_walk *gw, struct scatterlist *sg,
+			      unsigned int len)
 {
 	memset(gw, 0, sizeof(*gw));
 	gw->walk_bytes_remain = len;
 	scatterwalk_start(&gw->walk, sg);
 }
 
-static inline unsigned int _gcm_sg_clamp_and_map(struct gcm_sg_walk *gw)
-{
-	struct scatterlist *nextsg;
-
-	gw->walk_bytes = scatterwalk_clamp(&gw->walk, gw->walk_bytes_remain);
-	while (!gw->walk_bytes) {
-		nextsg = sg_next(gw->walk.sg);
-		if (!nextsg)
-			return 0;
-		scatterwalk_start(&gw->walk, nextsg);
-		gw->walk_bytes = scatterwalk_clamp(&gw->walk,
-						   gw->walk_bytes_remain);
-	}
-	gw->walk_ptr = scatterwalk_map(&gw->walk);
-	return gw->walk_bytes;
-}
-
-static inline void _gcm_sg_unmap_and_advance(struct gcm_sg_walk *gw,
-					     unsigned int nbytes)
-{
-	gw->walk_bytes_remain -= nbytes;
-	scatterwalk_unmap(&gw->walk);
-	scatterwalk_advance(&gw->walk, nbytes);
-	scatterwalk_done(&gw->walk, 0, gw->walk_bytes_remain);
-	gw->walk_ptr = NULL;
-}
-
-static int gcm_in_walk_go(struct gcm_sg_walk *gw, unsigned int minbytesneeded)
+static int gcm_sg_walk_go(struct gcm_sg_walk *gw, unsigned int minbytesneeded)
 {
 	int n;
 
+	/* minbytesneeded <= AES_BLOCK_SIZE */
 	if (gw->buf_bytes && gw->buf_bytes >= minbytesneeded) {
 		gw->ptr = gw->buf;
 		gw->nbytes = gw->buf_bytes;
@@ -883,11 +851,13 @@ static int gcm_in_walk_go(struct gcm_sg_walk *gw, unsigned int minbytesneeded)
 		goto out;
 	}
 
-	if (!_gcm_sg_clamp_and_map(gw)) {
-		gw->ptr = NULL;
-		gw->nbytes = 0;
-		goto out;
+	gw->walk_bytes = scatterwalk_clamp(&gw->walk, gw->walk_bytes_remain);
+	if (!gw->walk_bytes) {
+		scatterwalk_start(&gw->walk, sg_next(gw->walk.sg));
+		gw->walk_bytes = scatterwalk_clamp(&gw->walk,
+						   gw->walk_bytes_remain);
 	}
+	gw->walk_ptr = scatterwalk_map(&gw->walk);
 
 	if (!gw->buf_bytes && gw->walk_bytes >= minbytesneeded) {
 		gw->ptr = gw->walk_ptr;
@@ -899,90 +869,51 @@ static int gcm_in_walk_go(struct gcm_sg_walk *gw, unsigned int minbytesneeded)
 		n = min(gw->walk_bytes, AES_BLOCK_SIZE - gw->buf_bytes);
 		memcpy(gw->buf + gw->buf_bytes, gw->walk_ptr, n);
 		gw->buf_bytes += n;
-		_gcm_sg_unmap_and_advance(gw, n);
+		gw->walk_bytes_remain -= n;
+		scatterwalk_unmap(&gw->walk);
+		scatterwalk_advance(&gw->walk, n);
+		scatterwalk_done(&gw->walk, 0, gw->walk_bytes_remain);
+
 		if (gw->buf_bytes >= minbytesneeded) {
 			gw->ptr = gw->buf;
 			gw->nbytes = gw->buf_bytes;
 			goto out;
 		}
-		if (!_gcm_sg_clamp_and_map(gw)) {
-			gw->ptr = NULL;
-			gw->nbytes = 0;
-			goto out;
+
+		gw->walk_bytes = scatterwalk_clamp(&gw->walk,
+						   gw->walk_bytes_remain);
+		if (!gw->walk_bytes) {
+			scatterwalk_start(&gw->walk, sg_next(gw->walk.sg));
+			gw->walk_bytes = scatterwalk_clamp(&gw->walk,
+							gw->walk_bytes_remain);
 		}
+		gw->walk_ptr = scatterwalk_map(&gw->walk);
 	}
 
 out:
 	return gw->nbytes;
 }
 
-static int gcm_out_walk_go(struct gcm_sg_walk *gw, unsigned int minbytesneeded)
+static void gcm_sg_walk_done(struct gcm_sg_walk *gw, unsigned int bytesdone)
 {
-	if (gw->walk_bytes_remain == 0) {
-		gw->ptr = NULL;
-		gw->nbytes = 0;
-		goto out;
-	}
+	int n;
 
-	if (!_gcm_sg_clamp_and_map(gw)) {
-		gw->ptr = NULL;
-		gw->nbytes = 0;
-		goto out;
-	}
-
-	if (gw->walk_bytes >= minbytesneeded) {
-		gw->ptr = gw->walk_ptr;
-		gw->nbytes = gw->walk_bytes;
-		goto out;
-	}
-
-	scatterwalk_unmap(&gw->walk);
-	gw->walk_ptr = NULL;
-
-	gw->ptr = gw->buf;
-	gw->nbytes = sizeof(gw->buf);
-
-out:
-	return gw->nbytes;
-}
-
-static int gcm_in_walk_done(struct gcm_sg_walk *gw, unsigned int bytesdone)
-{
 	if (gw->ptr == NULL)
-		return 0;
+		return;
 
 	if (gw->ptr == gw->buf) {
-		int n = gw->buf_bytes - bytesdone;
+		n = gw->buf_bytes - bytesdone;
 		if (n > 0) {
 			memmove(gw->buf, gw->buf + bytesdone, n);
-			gw->buf_bytes = n;
+			gw->buf_bytes -= n;
 		} else
 			gw->buf_bytes = 0;
-	} else
-		_gcm_sg_unmap_and_advance(gw, bytesdone);
-
-	return bytesdone;
-}
-
-static int gcm_out_walk_done(struct gcm_sg_walk *gw, unsigned int bytesdone)
-{
-	int i, n;
-
-	if (gw->ptr == NULL)
-		return 0;
-
-	if (gw->ptr == gw->buf) {
-		for (i = 0; i < bytesdone; i += n) {
-			if (!_gcm_sg_clamp_and_map(gw))
-				return i;
-			n = min(gw->walk_bytes, bytesdone - i);
-			memcpy(gw->walk_ptr, gw->buf + i, n);
-			_gcm_sg_unmap_and_advance(gw, n);
-		}
-	} else
-		_gcm_sg_unmap_and_advance(gw, bytesdone);
-
-	return bytesdone;
+	} else {
+		gw->walk_bytes_remain -= bytesdone;
+		scatterwalk_unmap(&gw->walk);
+		scatterwalk_advance(&gw->walk, bytesdone);
+		scatterwalk_done(&gw->walk, 0, gw->walk_bytes_remain);
+	}
 }
 
 static int gcm_aes_crypt(struct aead_request *req, unsigned int flags)
@@ -995,7 +926,7 @@ static int gcm_aes_crypt(struct aead_request *req, unsigned int flags)
 	unsigned int pclen = req->cryptlen;
 	int ret = 0;
 
-	unsigned int n, len, in_bytes, out_bytes,
+	unsigned int len, in_bytes, out_bytes,
 		     min_bytes, bytes, aad_bytes, pc_bytes;
 	struct gcm_sg_walk gw_in, gw_out;
 	u8 tag[GHASH_DIGEST_SIZE];
@@ -1032,14 +963,14 @@ static int gcm_aes_crypt(struct aead_request *req, unsigned int flags)
 	*(u32 *)(param.j0 + ivsize) = 1;
 	memcpy(param.k, ctx->key, ctx->key_len);
 
-	gcm_walk_start(&gw_in, req->src, len);
-	gcm_walk_start(&gw_out, req->dst, len);
+	gcm_sg_walk_start(&gw_in, req->src, len);
+	gcm_sg_walk_start(&gw_out, req->dst, len);
 
 	do {
 		min_bytes = min_t(unsigned int,
 				  aadlen > 0 ? aadlen : pclen, AES_BLOCK_SIZE);
-		in_bytes = gcm_in_walk_go(&gw_in, min_bytes);
-		out_bytes = gcm_out_walk_go(&gw_out, min_bytes);
+		in_bytes = gcm_sg_walk_go(&gw_in, min_bytes);
+		out_bytes = gcm_sg_walk_go(&gw_out, min_bytes);
 		bytes = min(in_bytes, out_bytes);
 
 		if (aadlen + pclen <= bytes) {
@@ -1066,11 +997,8 @@ static int gcm_aes_crypt(struct aead_request *req, unsigned int flags)
 			  gw_in.ptr + aad_bytes, pc_bytes,
 			  gw_in.ptr, aad_bytes);
 
-		n = aad_bytes + pc_bytes;
-		if (gcm_in_walk_done(&gw_in, n) != n)
-			return -ENOMEM;
-		if (gcm_out_walk_done(&gw_out, n) != n)
-			return -ENOMEM;
+		gcm_sg_walk_done(&gw_in, aad_bytes + pc_bytes);
+		gcm_sg_walk_done(&gw_out, aad_bytes + pc_bytes);
 		aadlen -= aad_bytes;
 		pclen -= pc_bytes;
 	} while (aadlen + pclen > 0);

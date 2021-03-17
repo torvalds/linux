@@ -17,22 +17,12 @@
 
 #define to_rockchip_obj(x) container_of(x, struct rockchip_gem_object, base)
 
-enum rockchip_gem_buf_type {
-	ROCKCHIP_GEM_BUF_TYPE_CMA,
-	ROCKCHIP_GEM_BUF_TYPE_SHMEM,
-	ROCKCHIP_GEM_BUF_TYPE_SECURE,
-};
-
 struct rockchip_gem_object {
 	struct drm_gem_object base;
 	unsigned int flags;
-	enum rockchip_gem_buf_type buf_type;
 
 	void *kvaddr;
-	void *cookie;
 	dma_addr_t dma_addr;
-	dma_addr_t dma_handle;
-
 	/* Used when IOMMU is disabled */
 	unsigned long dma_attrs;
 
@@ -60,35 +50,12 @@ int rockchip_gem_mmap_buf(struct drm_gem_object *obj,
 			  struct vm_area_struct *vma);
 
 struct rockchip_gem_object *
-rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
-			   bool alloc_kmap, unsigned int flags);
+	rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
+				   bool alloc_kmap);
 
 void rockchip_gem_free_object(struct drm_gem_object *obj);
 
 int rockchip_gem_dumb_create(struct drm_file *file_priv,
 			     struct drm_device *dev,
 			     struct drm_mode_create_dumb *args);
-int rockchip_gem_dumb_map_offset(struct drm_file *file_priv,
-				 struct drm_device *dev, uint32_t handle,
-				 uint64_t *offset);
-/*
- * request gem object creation and buffer allocation as the size
- * that it is calculated with framebuffer information such as width,
- * height and bpp.
- */
-int rockchip_gem_create_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
-
-/* get buffer offset to map to user space. */
-int rockchip_gem_map_offset_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file_priv);
-
-int rockchip_gem_get_phys_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
-
-int rockchip_gem_prime_begin_cpu_access(struct drm_gem_object *obj,
-					enum dma_data_direction dir);
-
-int rockchip_gem_prime_end_cpu_access(struct drm_gem_object *obj,
-				      enum dma_data_direction dir);
 #endif /* _ROCKCHIP_DRM_GEM_H */

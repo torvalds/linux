@@ -1,5 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0
-
 config USB_DWC3
 	tristate "DesignWare USB3 DRD Core Support"
 	depends on (USB || USB_GADGET) && HAS_DMA
@@ -54,8 +52,7 @@ comment "Platform Glue Driver Support"
 
 config USB_DWC3_OMAP
 	tristate "Texas Instruments OMAP5 and similar Platforms"
-	depends on ARCH_OMAP2PLUS || COMPILE_TEST
-	depends on EXTCON || !EXTCON
+	depends on EXTCON && (ARCH_OMAP2PLUS || COMPILE_TEST)
 	depends on OF
 	default USB_DWC3
 	help
@@ -105,16 +102,6 @@ config USB_DWC3_OF_SIMPLE
 	 Currently supports Xilinx and Qualcomm DWC USB3 IP.
 	 Say 'Y' or 'M' if you have one such device.
 
-config USB_DWC3_ROCKCHIP_INNO
-	tristate "Rockchip Platforms with INNO PHY"
-	depends on OF && COMMON_CLK && (ARCH_ROCKCHIP || COMPILE_TEST)
-	depends on USB=y || USB=USB_DWC3
-	default USB_DWC3
-	help
-	  Support of USB2/3 functionality in Rockchip platforms
-	  with INNO USB 3.0 PHY IP inside.
-	  say 'Y' or 'M' if you have one such device.
-
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
 	depends on (ARCH_STI || COMPILE_TEST) && OF
@@ -127,7 +114,6 @@ config USB_DWC3_ST
 config USB_DWC3_QCOM
 	tristate "Qualcomm Platform"
 	depends on ARCH_QCOM || COMPILE_TEST
-	depends on EXTCON || !EXTCON
 	depends on OF
 	default USB_DWC3
 	help

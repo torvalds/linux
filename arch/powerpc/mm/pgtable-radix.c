@@ -294,15 +294,15 @@ retry:
 		}
 
 		if (split_text_mapping && (mapping_size == PUD_SIZE) &&
-			(addr < __pa_symbol(__init_begin)) &&
-			(addr + mapping_size) > __pa_symbol(__init_begin)) {
+			(addr <= __pa_symbol(__init_begin)) &&
+			(addr + mapping_size) >= __pa_symbol(_stext)) {
 			max_mapping_size = PMD_SIZE;
 			goto retry;
 		}
 
 		if (split_text_mapping && (mapping_size == PMD_SIZE) &&
-		    (addr < __pa_symbol(__init_begin)) &&
-		    (addr + mapping_size) > __pa_symbol(__init_begin)) {
+		    (addr <= __pa_symbol(__init_begin)) &&
+		    (addr + mapping_size) >= __pa_symbol(_stext)) {
 			mapping_size = PAGE_SIZE;
 			psize = mmu_virtual_psize;
 		}
@@ -521,6 +521,14 @@ void __init radix__early_init_devtree(void)
 	mmu_psize_defs[MMU_PAGE_64K].shift = 16;
 	mmu_psize_defs[MMU_PAGE_64K].ap = 0x5;
 found:
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	if (mmu_psize_defs[MMU_PAGE_2M].shift) {
+		/*
+		 * map vmemmap using 2M if available
+		 */
+		mmu_vmemmap_psize = MMU_PAGE_2M;
+	}
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 	return;
 }
 
@@ -559,13 +567,7 @@ void __init radix__early_init_mmu(void)
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	/* vmemmap mapping */
-	if (mmu_psize_defs[MMU_PAGE_2M].shift) {
-		/*
-		 * map vmemmap using 2M if available
-		 */
-		mmu_vmemmap_psize = MMU_PAGE_2M;
-	} else
-		mmu_vmemmap_psize = mmu_virtual_psize;
+	mmu_vmemmap_psize = mmu_virtual_psize;
 #endif
 	/*
 	 * initialize page table size
@@ -717,8 +719,8 @@ static int __meminit stop_machine_change_mapping(void *data)
 
 	spin_unlock(&init_mm.page_table_lock);
 	pte_clear(&init_mm, params->aligned_start, params->pte);
-	create_physical_mapping(__pa(params->aligned_start), __pa(params->start), -1);
-	create_physical_mapping(__pa(params->end), __pa(params->aligned_end), -1);
+	create_physical_mapping(params->aligned_start, params->start, -1);
+	create_physical_mapping(params->end, params->aligned_end, -1);
 	spin_lock(&init_mm.page_table_lock);
 	return 0;
 }

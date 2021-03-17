@@ -65,7 +65,7 @@ static int bcm47xxnflash_remove(struct platform_device *pdev)
 {
 	struct bcm47xxnflash *nflash = platform_get_drvdata(pdev);
 
-	nand_release(&nflash->nand_chip);
+	nand_release(nand_to_mtd(&nflash->nand_chip));
 
 	return 0;
 }

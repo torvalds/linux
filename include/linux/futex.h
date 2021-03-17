@@ -2,14 +2,15 @@
 #ifndef _LINUX_FUTEX_H
 #define _LINUX_FUTEX_H
 
-#include <linux/sched.h>
 #include <linux/ktime.h>
-
 #include <uapi/linux/futex.h>
 
 struct inode;
 struct mm_struct;
 struct task_struct;
+
+extern int
+handle_futex_death(u32 __user *uaddr, struct task_struct *curr, int pi);
 
 /*
  * Futexes are matched on equal values of this key.
@@ -31,62 +32,52 @@ struct task_struct;
 
 union futex_key {
 	struct {
-		u64 i_seq;
 		unsigned long pgoff;
-		unsigned int offset;
+		struct inode *inode;
+		int offset;
 	} shared;
 	struct {
-		union {
-			struct mm_struct *mm;
-			u64 __tmp;
-		};
 		unsigned long address;
-		unsigned int offset;
+		struct mm_struct *mm;
+		int offset;
 	} private;
 	struct {
-		u64 ptr;
 		unsigned long word;
-		unsigned int offset;
+		void *ptr;
+		int offset;
 	} both;
 };
 
-#define FUTEX_KEY_INIT (union futex_key) { .both = { .ptr = 0ULL } }
+#define FUTEX_KEY_INIT (union futex_key) { .both = { .ptr = NULL } }
 
 #ifdef CONFIG_FUTEX
-enum {
-	FUTEX_STATE_OK,
-	FUTEX_STATE_EXITING,
-	FUTEX_STATE_DEAD,
-};
-
-static inline void futex_init_task(struct task_struct *tsk)
-{
-	tsk->robust_list = NULL;
-#ifdef CONFIG_COMPAT
-	tsk->compat_robust_list = NULL;
-#endif
-	INIT_LIST_HEAD(&tsk->pi_state_list);
-	tsk->pi_state_cache = NULL;
-	tsk->futex_state = FUTEX_STATE_OK;
-	mutex_init(&tsk->futex_exit_mutex);
-}
-
-void futex_exit_recursive(struct task_struct *tsk);
-void futex_exit_release(struct task_struct *tsk);
-void futex_exec_release(struct task_struct *tsk);
+extern void exit_robust_list(struct task_struct *curr);
 
 long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 	      u32 __user *uaddr2, u32 val2, u32 val3);
+#ifdef CONFIG_HAVE_FUTEX_CMPXCHG
+#define futex_cmpxchg_enabled 1
 #else
-static inline void futex_init_task(struct task_struct *tsk) { }
-static inline void futex_exit_recursive(struct task_struct *tsk) { }
-static inline void futex_exit_release(struct task_struct *tsk) { }
-static inline void futex_exec_release(struct task_struct *tsk) { }
+extern int futex_cmpxchg_enabled;
+#endif
+#else
+static inline void exit_robust_list(struct task_struct *curr)
+{
+}
+
 static inline long do_futex(u32 __user *uaddr, int op, u32 val,
 			    ktime_t *timeout, u32 __user *uaddr2,
 			    u32 val2, u32 val3)
 {
 	return -EINVAL;
+}
+#endif
+
+#ifdef CONFIG_FUTEX_PI
+extern void exit_pi_state_list(struct task_struct *curr);
+#else
+static inline void exit_pi_state_list(struct task_struct *curr)
+{
 }
 #endif
 

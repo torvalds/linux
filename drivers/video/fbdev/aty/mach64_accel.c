@@ -127,7 +127,7 @@ void aty_init_engine(struct atyfb_par *par, struct fb_info *info)
 
 	/* set host attributes */
 	wait_for_fifo(13, par);
-	aty_st_le32(HOST_CNTL, HOST_BYTE_ALIGN, par);
+	aty_st_le32(HOST_CNTL, 0, par);
 
 	/* set pattern attributes */
 	aty_st_le32(PAT_REG0, 0, par);
@@ -233,8 +233,7 @@ void atyfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 		rotation = rotation24bpp(dx, direction);
 	}
 
-	wait_for_fifo(5, par);
-	aty_st_le32(DP_PIX_WIDTH, par->crtc.dp_pix_width, par);
+	wait_for_fifo(4, par);
 	aty_st_le32(DP_SRC, FRGD_SRC_BLIT, par);
 	aty_st_le32(SRC_Y_X, (sx << 16) | sy, par);
 	aty_st_le32(SRC_HEIGHT1_WIDTH1, (width << 16) | area->height, par);
@@ -270,8 +269,7 @@ void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		rotation = rotation24bpp(dx, DST_X_LEFT_TO_RIGHT);
 	}
 
-	wait_for_fifo(4, par);
-	aty_st_le32(DP_PIX_WIDTH, par->crtc.dp_pix_width, par);
+	wait_for_fifo(3, par);
 	aty_st_le32(DP_FRGD_CLR, color, par);
 	aty_st_le32(DP_SRC,
 		    BKGD_SRC_BKGD_CLR | FRGD_SRC_FRGD_CLR | MONO_SRC_ONE,
@@ -286,7 +284,7 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 	u32 src_bytes, dx = image->dx, dy = image->dy, width = image->width;
-	u32 pix_width, rotation = 0, src, mix;
+	u32 pix_width_save, pix_width, host_cntl, rotation = 0, src, mix;
 
 	if (par->asleep)
 		return;
@@ -298,7 +296,8 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 	}
 
-	pix_width = par->crtc.dp_pix_width;
+	pix_width = pix_width_save = aty_ld_le32(DP_PIX_WIDTH, par);
+	host_cntl = aty_ld_le32(HOST_CNTL, par) | HOST_BYTE_ALIGN;
 
 	switch (image->depth) {
 	case 1:
@@ -346,7 +345,7 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		 * since Rage 3D IIc we have DP_HOST_TRIPLE_EN bit
 		 * this hwaccelerated triple has an issue with not aligned data
 		 */
-		if (image->depth == 1 && M64_HAS(HW_TRIPLE) && image->width % 8 == 0)
+		if (M64_HAS(HW_TRIPLE) && image->width % 8 == 0)
 			pix_width |= DP_HOST_TRIPLE_EN;
 	}
 
@@ -371,18 +370,19 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		mix = FRGD_MIX_D_XOR_S | BKGD_MIX_D;
 	}
 
-	wait_for_fifo(5, par);
+	wait_for_fifo(6, par);
+	aty_st_le32(DP_WRITE_MASK, 0xFFFFFFFF, par);
 	aty_st_le32(DP_PIX_WIDTH, pix_width, par);
 	aty_st_le32(DP_MIX, mix, par);
 	aty_st_le32(DP_SRC, src, par);
-	aty_st_le32(HOST_CNTL, HOST_BYTE_ALIGN, par);
+	aty_st_le32(HOST_CNTL, host_cntl, par);
 	aty_st_le32(DST_CNTL, DST_Y_TOP_TO_BOTTOM | DST_X_LEFT_TO_RIGHT | rotation, par);
 
 	draw_rect(dx, dy, width, image->height, par);
 	src_bytes = (((image->width * image->depth) + 7) / 8) * image->height;
 
 	/* manual triple each pixel */
-	if (image->depth == 1 && info->var.bits_per_pixel == 24 && !(pix_width & DP_HOST_TRIPLE_EN)) {
+	if (info->var.bits_per_pixel == 24 && !(pix_width & DP_HOST_TRIPLE_EN)) {
 		int inbit, outbit, mult24, byte_id_in_dword, width;
 		u8 *pbitmapin = (u8*)image->data, *pbitmapout;
 		u32 hostdword;
@@ -415,7 +415,7 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 				}
 			}
 			wait_for_fifo(1, par);
-			aty_st_le32(HOST_DATA0, le32_to_cpu(hostdword), par);
+			aty_st_le32(HOST_DATA0, hostdword, par);
 		}
 	} else {
 		u32 *pbitmap, dwords = (src_bytes + 3) / 4;
@@ -424,4 +424,8 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 			aty_st_le32(HOST_DATA0, get_unaligned_le32(pbitmap), par);
 		}
 	}
+
+	/* restore pix_width */
+	wait_for_fifo(1, par);
+	aty_st_le32(DP_PIX_WIDTH, pix_width_save, par);
 }

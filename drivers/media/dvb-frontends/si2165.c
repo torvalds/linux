@@ -275,20 +275,18 @@ static u32 si2165_get_fe_clk(struct si2165_state *state)
 
 static int si2165_wait_init_done(struct si2165_state *state)
 {
-	int ret;
+	int ret = -EINVAL;
 	u8 val = 0;
 	int i;
 
 	for (i = 0; i < 3; ++i) {
-		ret = si2165_readreg8(state, REG_INIT_DONE, &val);
-		if (ret < 0)
-			return ret;
+		si2165_readreg8(state, REG_INIT_DONE, &val);
 		if (val == 0x01)
 			return 0;
 		usleep_range(1000, 50000);
 	}
 	dev_err(&state->client->dev, "init_done was not set\n");
-	return -EINVAL;
+	return ret;
 }
 
 static int si2165_upload_firmware_block(struct si2165_state *state,

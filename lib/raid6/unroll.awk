@@ -13,7 +13,7 @@ BEGIN {
 	for (i = 0; i < rep; ++i) {
 		tmp = $0
 		gsub(/\$\$/, i, tmp)
-		gsub(/\$#/, n, tmp)
+		gsub(/\$\#/, n, tmp)
 		gsub(/\$\*/, "$", tmp)
 		print tmp
 	}

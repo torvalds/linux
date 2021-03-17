@@ -117,6 +117,8 @@ virtio_crypto_alg_validate_key(int key_len, uint32_t *alg)
 		*alg = VIRTIO_CRYPTO_CIPHER_AES_CBC;
 		break;
 	default:
+		pr_err("virtio_crypto: Unsupported key length: %d\n",
+			key_len);
 		return -EINVAL;
 	}
 	return 0;
@@ -367,18 +369,13 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 	int err;
 	unsigned long flags;
 	struct scatterlist outhdr, iv_sg, status_sg, **sgs;
+	int i;
 	u64 dst_len;
 	unsigned int num_out = 0, num_in = 0;
 	int sg_total;
 	uint8_t *iv;
-	struct scatterlist *sg;
 
 	src_nents = sg_nents_for_len(req->src, req->nbytes);
-	if (src_nents < 0) {
-		pr_err("Invalid number of src SG.\n");
-		return src_nents;
-	}
-
 	dst_nents = sg_nents(req->dst);
 
 	pr_debug("virtio_crypto: Number of sgs (src_nents: %d, dst_nents: %d)\n",
@@ -424,7 +421,6 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 		goto free;
 	}
 
-	dst_len = min_t(unsigned int, req->nbytes, dst_len);
 	pr_debug("virtio_crypto: src_len: %u, dst_len: %llu\n",
 			req->nbytes, dst_len);
 
@@ -455,22 +451,17 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 		goto free;
 	}
 	memcpy(iv, req->info, ivsize);
-	if (!vc_sym_req->encrypt)
-		scatterwalk_map_and_copy(req->info, req->src,
-					 req->nbytes - AES_BLOCK_SIZE,
-					 AES_BLOCK_SIZE, 0);
-
 	sg_init_one(&iv_sg, iv, ivsize);
 	sgs[num_out++] = &iv_sg;
 	vc_sym_req->iv = iv;
 
 	/* Source data */
-	for (sg = req->src; src_nents; sg = sg_next(sg), src_nents--)
-		sgs[num_out++] = sg;
+	for (i = 0; i < src_nents; i++)
+		sgs[num_out++] = &req->src[i];
 
 	/* Destination data */
-	for (sg = req->dst; sg; sg = sg_next(sg))
-		sgs[num_out + num_in++] = sg;
+	for (i = 0; i < dst_nents; i++)
+		sgs[num_out + num_in++] = &req->dst[i];
 
 	/* Status */
 	sg_init_one(&status_sg, &vc_req->status, sizeof(vc_req->status));
@@ -507,11 +498,6 @@ static int virtio_crypto_ablkcipher_encrypt(struct ablkcipher_request *req)
 	/* Use the first data virtqueue as default */
 	struct data_queue *data_vq = &vcrypto->data_vq[0];
 
-	if (!req->nbytes)
-		return 0;
-	if (req->nbytes % AES_BLOCK_SIZE)
-		return -EINVAL;
-
 	vc_req->dataq = data_vq;
 	vc_req->alg_cb = virtio_crypto_dataq_sym_callback;
 	vc_sym_req->ablkcipher_ctx = ctx;
@@ -531,11 +517,6 @@ static int virtio_crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
 	struct virtio_crypto *vcrypto = ctx->vcrypto;
 	/* Use the first data virtqueue as default */
 	struct data_queue *data_vq = &vcrypto->data_vq[0];
-
-	if (!req->nbytes)
-		return 0;
-	if (req->nbytes % AES_BLOCK_SIZE)
-		return -EINVAL;
 
 	vc_req->dataq = data_vq;
 	vc_req->alg_cb = virtio_crypto_dataq_sym_callback;
@@ -596,15 +577,10 @@ static void virtio_crypto_ablkcipher_finalize_req(
 	struct ablkcipher_request *req,
 	int err)
 {
-	if (vc_sym_req->encrypt)
-		scatterwalk_map_and_copy(req->info, req->dst,
-					 req->nbytes - AES_BLOCK_SIZE,
-					 AES_BLOCK_SIZE, 0);
-	kzfree(vc_sym_req->iv);
-	virtcrypto_clear_request(&vc_sym_req->base);
-
 	crypto_finalize_ablkcipher_request(vc_sym_req->base.dataq->engine,
 					   req, err);
+	kzfree(vc_sym_req->iv);
+	virtcrypto_clear_request(&vc_sym_req->base);
 }
 
 static struct virtio_crypto_algo virtio_crypto_algs[] = { {

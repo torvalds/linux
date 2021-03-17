@@ -636,19 +636,16 @@ static int imx274_write_table(struct stimx274 *priv, const struct reg_8 table[])
 
 static inline int imx274_read_reg(struct stimx274 *priv, u16 addr, u8 *val)
 {
-	unsigned int uint_val;
 	int err;
 
-	err = regmap_read(priv->regmap, addr, &uint_val);
+	err = regmap_read(priv->regmap, addr, (unsigned int *)val);
 	if (err)
 		dev_err(&priv->client->dev,
 			"%s : i2c read failed, addr = %x\n", __func__, addr);
 	else
 		dev_dbg(&priv->client->dev,
 			"%s : addr 0x%x, val=0x%x\n", __func__,
-			addr, uint_val);
-
-	*val = uint_val;
+			addr, *val);
 	return err;
 }
 
@@ -1239,8 +1236,6 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 	ret = imx274_set_frame_interval(imx274, fi->interval);
 
 	if (!ret) {
-		fi->interval = imx274->frame_interval;
-
 		/*
 		 * exposure time range is decided by frame interval
 		 * need to update it after frame interval changes
@@ -1762,9 +1757,9 @@ static int imx274_set_frame_interval(struct stimx274 *priv,
 		__func__, frame_interval.numerator,
 		frame_interval.denominator);
 
-	if (frame_interval.numerator == 0 || frame_interval.denominator == 0) {
-		frame_interval.denominator = IMX274_DEF_FRAME_RATE;
-		frame_interval.numerator = 1;
+	if (frame_interval.numerator == 0) {
+		err = -EINVAL;
+		goto fail;
 	}
 
 	req_frame_rate = (u32)(frame_interval.denominator

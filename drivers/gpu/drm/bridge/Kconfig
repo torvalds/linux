@@ -46,7 +46,6 @@ config DRM_DUMB_VGA_DAC
 config DRM_LVDS_ENCODER
 	tristate "Transparent parallel to LVDS encoder support"
 	depends on OF
-	select DRM_KMS_HELPER
 	select DRM_PANEL_BRIDGE
 	help
 	  Support for transparent parallel to LVDS encoders that don't require
@@ -81,22 +80,6 @@ config DRM_PARADE_PS8622
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
 
-config DRM_RK630_TVE
-	tristate "ROCKCHIP RK630 TVE bridge"
-	depends on OF
-	depends on MFD_RK630
-	select DRM_KMS_HELPER
-	---help---
-	  ROCKCHIP TVE bridge chip RK630 driver.
-
-config DRM_RK1000_TVE
-	tristate "Rockchip RK1000 TVE bridge"
-	depends on OF
-	select DRM_KMS_HELPER
-	select MFD_RK1000
-	help
-	  Rockchip TVE bridge chip driver.
-
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF
@@ -112,7 +95,6 @@ config DRM_SII902X
 	depends on OF
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
-	select I2C_MUX
 	---help---
 	  Silicon Image sii902x bridge chip driver.
 

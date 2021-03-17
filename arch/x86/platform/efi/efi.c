@@ -480,6 +480,7 @@ void __init efi_init(void)
 	efi_char16_t *c16;
 	char vendor[100] = "unknown";
 	int i = 0;
+	void *tmp;
 
 #ifdef CONFIG_X86_32
 	if (boot_params.efi_info.efi_systab_hi ||
@@ -504,16 +505,14 @@ void __init efi_init(void)
 	/*
 	 * Show what we know for posterity
 	 */
-	c16 = early_memremap_ro(efi.systab->fw_vendor,
-				sizeof(vendor) * sizeof(efi_char16_t));
+	c16 = tmp = early_memremap(efi.systab->fw_vendor, 2);
 	if (c16) {
-		for (i = 0; i < sizeof(vendor) - 1 && c16[i]; ++i)
-			vendor[i] = c16[i];
+		for (i = 0; i < sizeof(vendor) - 1 && *c16; ++i)
+			vendor[i] = *c16++;
 		vendor[i] = '\0';
-		early_memunmap(c16, sizeof(vendor) * sizeof(efi_char16_t));
-	} else {
+	} else
 		pr_err("Could not map the firmware vendor!\n");
-	}
+	early_memunmap(tmp, 2);
 
 	pr_info("EFI v%u.%.02u by %s\n",
 		efi.systab->hdr.revision >> 16,
@@ -894,6 +893,9 @@ static void __init kexec_enter_virtual_mode(void)
 
 	if (efi_enabled(EFI_OLD_MEMMAP) && (__supported_pte_mask & _PAGE_NX))
 		runtime_code_page_mkexec();
+
+	/* clean DUMMY object */
+	efi_delete_dummy_variable();
 #endif
 }
 
@@ -930,14 +932,16 @@ static void __init __efi_enter_virtual_mode(void)
 
 	if (efi_alloc_page_tables()) {
 		pr_err("Failed to allocate EFI page tables\n");
-		goto err;
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return;
 	}
 
 	efi_merge_regions();
 	new_memmap = efi_map_regions(&count, &pg_shift);
 	if (!new_memmap) {
 		pr_err("Error reallocating memory, EFI runtime non-functional!\n");
-		goto err;
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return;
 	}
 
 	pa = __pa(new_memmap);
@@ -951,7 +955,8 @@ static void __init __efi_enter_virtual_mode(void)
 
 	if (efi_memmap_init_late(pa, efi.memmap.desc_size * count)) {
 		pr_err("Failed to remap late EFI memory map\n");
-		goto err;
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return;
 	}
 
 	if (efi_enabled(EFI_DBG)) {
@@ -959,11 +964,12 @@ static void __init __efi_enter_virtual_mode(void)
 		efi_print_memmap();
 	}
 
-	if (WARN_ON(!efi.systab))
-		goto err;
+	BUG_ON(!efi.systab);
 
-	if (efi_setup_page_tables(pa, 1 << pg_shift))
-		goto err;
+	if (efi_setup_page_tables(pa, 1 << pg_shift)) {
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return;
+	}
 
 	efi_sync_low_kernel_mappings();
 
@@ -983,9 +989,9 @@ static void __init __efi_enter_virtual_mode(void)
 	}
 
 	if (status != EFI_SUCCESS) {
-		pr_err("Unable to switch EFI into virtual mode (status=%lx)!\n",
-		       status);
-		goto err;
+		pr_alert("Unable to switch EFI into virtual mode (status=%lx)!\n",
+			 status);
+		panic("EFI call to SetVirtualAddressMap() failed!");
 	}
 
 	/*
@@ -1012,10 +1018,6 @@ static void __init __efi_enter_virtual_mode(void)
 
 	/* clean DUMMY object */
 	efi_delete_dummy_variable();
-	return;
-
-err:
-	clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 }
 
 void __init efi_enter_virtual_mode(void)

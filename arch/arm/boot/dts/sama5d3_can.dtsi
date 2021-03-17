@@ -37,13 +37,13 @@
 					can0_clk: can0_clk {
 						#clock-cells = <0>;
 						reg = <40>;
-						atmel,clk-output-range = <0 83000000>;
+						atmel,clk-output-range = <0 66000000>;
 					};
 
 					can1_clk: can1_clk {
 						#clock-cells = <0>;
 						reg = <41>;
-						atmel,clk-output-range = <0 83000000>;
+						atmel,clk-output-range = <0 66000000>;
 					};
 				};
 			};

@@ -85,20 +85,31 @@ static void crypto_morus1280_glue_process_ad(
 
 static void crypto_morus1280_glue_process_crypt(struct morus1280_state *state,
 						struct morus1280_ops ops,
-						struct skcipher_walk *walk)
+						struct aead_request *req)
 {
-	while (walk->nbytes >= MORUS1280_BLOCK_SIZE) {
-		ops.crypt_blocks(state, walk->src.virt.addr,
-				 walk->dst.virt.addr,
-				 round_down(walk->nbytes,
-					    MORUS1280_BLOCK_SIZE));
-		skcipher_walk_done(walk, walk->nbytes % MORUS1280_BLOCK_SIZE);
-	}
+	struct skcipher_walk walk;
+	u8 *cursor_src, *cursor_dst;
+	unsigned int chunksize, base;
 
-	if (walk->nbytes) {
-		ops.crypt_tail(state, walk->src.virt.addr, walk->dst.virt.addr,
-			       walk->nbytes);
-		skcipher_walk_done(walk, 0);
+	ops.skcipher_walk_init(&walk, req, false);
+
+	while (walk.nbytes) {
+		cursor_src = walk.src.virt.addr;
+		cursor_dst = walk.dst.virt.addr;
+		chunksize = walk.nbytes;
+
+		ops.crypt_blocks(state, cursor_src, cursor_dst, chunksize);
+
+		base = chunksize & ~(MORUS1280_BLOCK_SIZE - 1);
+		cursor_src += base;
+		cursor_dst += base;
+		chunksize &= MORUS1280_BLOCK_SIZE - 1;
+
+		if (chunksize > 0)
+			ops.crypt_tail(state, cursor_src, cursor_dst,
+				       chunksize);
+
+		skcipher_walk_done(&walk, 0);
 	}
 }
 
@@ -136,15 +147,12 @@ static void crypto_morus1280_glue_crypt(struct aead_request *req,
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct morus1280_ctx *ctx = crypto_aead_ctx(tfm);
 	struct morus1280_state state;
-	struct skcipher_walk walk;
-
-	ops.skcipher_walk_init(&walk, req, true);
 
 	kernel_fpu_begin();
 
 	ctx->ops->init(&state, &ctx->key, req->iv);
 	crypto_morus1280_glue_process_ad(&state, ctx->ops, req->src, req->assoclen);
-	crypto_morus1280_glue_process_crypt(&state, ops, &walk);
+	crypto_morus1280_glue_process_crypt(&state, ops, req);
 	ctx->ops->final(&state, tag_xor, req->assoclen, cryptlen);
 
 	kernel_fpu_end();

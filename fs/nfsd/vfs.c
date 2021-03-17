@@ -396,23 +396,10 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	bool		get_write_count;
 	bool		size_change = (iap->ia_valid & ATTR_SIZE);
 
-	if (iap->ia_valid & ATTR_SIZE) {
+	if (iap->ia_valid & (ATTR_ATIME | ATTR_MTIME | ATTR_SIZE))
 		accmode |= NFSD_MAY_WRITE|NFSD_MAY_OWNER_OVERRIDE;
+	if (iap->ia_valid & ATTR_SIZE)
 		ftype = S_IFREG;
-	}
-
-	/*
-	 * If utimes(2) and friends are called with times not NULL, we should
-	 * not set NFSD_MAY_WRITE bit. Otherwise fh_verify->nfsd_permission
-	 * will return EACCESS, when the caller's effective UID does not match
-	 * the owner of the file, and the caller is not privileged. In this
-	 * situation, we should return EPERM(notify_change will return this).
-	 */
-	if (iap->ia_valid & (ATTR_ATIME | ATTR_MTIME)) {
-		accmode |= NFSD_MAY_OWNER_OVERRIDE;
-		if (!(iap->ia_valid & (ATTR_ATIME_SET | ATTR_MTIME_SET)))
-			accmode |= NFSD_MAY_WRITE;
-	}
 
 	/* Callers that do fh_verify should do the fh_want_write: */
 	get_write_count = !fhp->fh_dentry;
@@ -1016,7 +1003,6 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	host_err = vfs_iter_write(file, &iter, &pos, flags);
 	if (host_err < 0)
 		goto out_nfserr;
-	*cnt = host_err;
 	nfsdstats.io_write += *cnt;
 	fsnotify_modify(file);
 
@@ -1205,9 +1191,6 @@ nfsd_create_locked(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (!(iap->ia_valid & ATTR_MODE))
 		iap->ia_mode = 0;
 	iap->ia_mode = (iap->ia_mode & S_IALLUGO) | type;
-
-	if (!IS_POSIXACL(dirp))
-		iap->ia_mode &= ~current_umask();
 
 	err = 0;
 	host_err = 0;
@@ -1441,9 +1424,6 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		fh_drop_write(fhp);
 		goto out;
 	}
-
-	if (!IS_POSIXACL(dirp))
-		iap->ia_mode &= ~current_umask();
 
 	host_err = vfs_create(dirp, dchild, iap->ia_mode, true);
 	if (host_err < 0) {

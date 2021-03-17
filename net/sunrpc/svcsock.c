@@ -381,16 +381,12 @@ static int svc_partial_recvfrom(struct svc_rqst *rqstp,
 /*
  * Set socket snd and rcv buffer lengths
  */
-static void svc_sock_setbufsize(struct svc_sock *svsk, unsigned int nreqs)
+static void svc_sock_setbufsize(struct socket *sock, unsigned int snd,
+				unsigned int rcv)
 {
-	unsigned int max_mesg = svsk->sk_xprt.xpt_server->sv_max_mesg;
-	struct socket *sock = svsk->sk_sock;
-
-	nreqs = min(nreqs, INT_MAX / 2 / max_mesg);
-
 	lock_sock(sock->sk);
-	sock->sk->sk_sndbuf = nreqs * max_mesg * 2;
-	sock->sk->sk_rcvbuf = nreqs * max_mesg * 2;
+	sock->sk->sk_sndbuf = snd * 2;
+	sock->sk->sk_rcvbuf = rcv * 2;
 	sock->sk->sk_write_space(sock->sk);
 	release_sock(sock->sk);
 }
@@ -552,7 +548,9 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	     * provides an upper bound on the number of threads
 	     * which will access the socket.
 	     */
-	    svc_sock_setbufsize(svsk, serv->sv_nrthreads + 3);
+	    svc_sock_setbufsize(svsk->sk_sock,
+				(serv->sv_nrthreads+3) * serv->sv_max_mesg,
+				(serv->sv_nrthreads+3) * serv->sv_max_mesg);
 
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 	skb = NULL;
@@ -576,7 +574,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		/* Don't enable netstamp, sunrpc doesn't
 		   need that much accuracy */
 	}
-	sock_write_timestamp(svsk->sk_sk, skb->tstamp);
+	svsk->sk_sk->sk_stamp = skb->tstamp;
 	set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags); /* there may be more data... */
 
 	len  = skb->len;
@@ -635,8 +633,6 @@ static int
 svc_udp_sendto(struct svc_rqst *rqstp)
 {
 	int		error;
-
-	svc_release_udp_skb(rqstp);
 
 	error = svc_sendto(rqstp, &rqstp->rq_res);
 	if (error == -ECONNREFUSED)
@@ -722,7 +718,9 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
 	 * receive and respond to one request.
 	 * svc_udp_recvfrom will re-adjust if necessary
 	 */
-	svc_sock_setbufsize(svsk, 3);
+	svc_sock_setbufsize(svsk->sk_sock,
+			    3 * svsk->sk_xprt.xpt_server->sv_max_mesg,
+			    3 * svsk->sk_xprt.xpt_server->sv_max_mesg);
 
 	/* data might have come in before data_ready set up */
 	set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
@@ -1175,8 +1173,6 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 	int sent;
 	__be32 reclen;
 
-	svc_release_skb(rqstp);
-
 	/* Set up the first element of the reply kvec.
 	 * Any other kvecs that may be in use have been taken
 	 * care of by the server implementation itself.
@@ -1202,7 +1198,7 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 /*
  * Setup response header. TCP has a 4B record length field.
  */
-void svc_tcp_prep_reply_hdr(struct svc_rqst *rqstp)
+static void svc_tcp_prep_reply_hdr(struct svc_rqst *rqstp)
 {
 	struct kvec *resv = &rqstp->rq_res.head[0];
 

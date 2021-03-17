@@ -58,18 +58,12 @@ module_param_named(disable_hugepages,
 MODULE_PARM_DESC(disable_hugepages,
 		 "Disable VFIO IOMMU support for IOMMU hugepages.");
 
-static unsigned int dma_entry_limit __read_mostly = U16_MAX;
-module_param_named(dma_entry_limit, dma_entry_limit, uint, 0644);
-MODULE_PARM_DESC(dma_entry_limit,
-		 "Maximum number of user DMA mappings per container (65535).");
-
 struct vfio_iommu {
 	struct list_head	domain_list;
 	struct vfio_domain	*external_domain; /* domain for external user */
 	struct mutex		lock;
 	struct rb_root		dma_list;
 	struct blocking_notifier_head notifier;
-	unsigned int		dma_avail;
 	bool			v2;
 	bool			nesting;
 };
@@ -343,32 +337,6 @@ static int put_pfn(unsigned long pfn, int prot)
 	return 0;
 }
 
-static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
-			    unsigned long vaddr, unsigned long *pfn,
-			    bool write_fault)
-{
-	int ret;
-
-	ret = follow_pfn(vma, vaddr, pfn);
-	if (ret) {
-		bool unlocked = false;
-
-		ret = fixup_user_fault(NULL, mm, vaddr,
-				       FAULT_FLAG_REMOTE |
-				       (write_fault ?  FAULT_FLAG_WRITE : 0),
-				       &unlocked);
-		if (unlocked)
-			return -EAGAIN;
-
-		if (ret)
-			return ret;
-
-		ret = follow_pfn(vma, vaddr, pfn);
-	}
-
-	return ret;
-}
-
 static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 			 int prot, unsigned long *pfn)
 {
@@ -408,18 +376,12 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 
 	down_read(&mm->mmap_sem);
 
-	vaddr = untagged_addr(vaddr);
-
-retry:
 	vma = find_vma_intersection(mm, vaddr, vaddr + 1);
 
 	if (vma && vma->vm_flags & VM_PFNMAP) {
-		ret = follow_fault_pfn(vma, mm, vaddr, pfn, prot & IOMMU_WRITE);
-		if (ret == -EAGAIN)
-			goto retry;
-
-		if (!ret && !is_invalid_reserved_pfn(*pfn))
-			ret = -EFAULT;
+		*pfn = ((vaddr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+		if (is_invalid_reserved_pfn(*pfn))
+			ret = 0;
 	}
 
 	up_read(&mm->mmap_sem);
@@ -630,7 +592,7 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 			continue;
 		}
 
-		remote_vaddr = dma->vaddr + (iova - dma->iova);
+		remote_vaddr = dma->vaddr + iova - dma->iova;
 		ret = vfio_pin_page_external(dma, remote_vaddr, &phys_pfn[i],
 					     do_accounting);
 		if (ret)
@@ -638,8 +600,7 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 
 		ret = vfio_add_to_pfn_list(dma, iova, phys_pfn[i]);
 		if (ret) {
-			if (put_pfn(phys_pfn[i], dma->prot) && do_accounting)
-				vfio_lock_acct(dma, -1, true);
+			vfio_unpin_page_external(dma, iova, do_accounting);
 			goto pin_unwind;
 		}
 	}
@@ -875,7 +836,6 @@ static void vfio_remove_dma(struct vfio_iommu *iommu, struct vfio_dma *dma)
 	vfio_unlink_dma(iommu, dma);
 	put_task_struct(dma->task);
 	kfree(dma);
-	iommu->dma_avail++;
 }
 
 static unsigned long vfio_pgsize_bitmap(struct vfio_iommu *iommu)
@@ -918,7 +878,7 @@ static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
 		return -EINVAL;
 	if (!unmap->size || unmap->size & mask)
 		return -EINVAL;
-	if (unmap->iova + unmap->size - 1 < unmap->iova ||
+	if (unmap->iova + unmap->size < unmap->iova ||
 	    unmap->size > SIZE_MAX)
 		return -EINVAL;
 
@@ -1150,18 +1110,12 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 		goto out_unlock;
 	}
 
-	if (!iommu->dma_avail) {
-		ret = -ENOSPC;
-		goto out_unlock;
-	}
-
 	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
 	if (!dma) {
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
 
-	iommu->dma_avail--;
 	dma->iova = iova;
 	dma->vaddr = vaddr;
 	dma->prot = prot;
@@ -1226,16 +1180,13 @@ static int vfio_bus_type(struct device *dev, void *data)
 static int vfio_iommu_replay(struct vfio_iommu *iommu,
 			     struct vfio_domain *domain)
 {
-	struct vfio_domain *d = NULL;
+	struct vfio_domain *d;
 	struct rb_node *n;
 	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	int ret;
 
 	/* Arbitrarily pick the first domain in the list for lookups */
-	if (!list_empty(&iommu->domain_list))
-		d = list_first_entry(&iommu->domain_list,
-				     struct vfio_domain, next);
-
+	d = list_first_entry(&iommu->domain_list, struct vfio_domain, next);
 	n = rb_first(&iommu->dma_list);
 
 	for (; n; n = rb_next(n)) {
@@ -1252,11 +1203,6 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 			if (dma->iommu_mapped) {
 				phys_addr_t p;
 				dma_addr_t i;
-
-				if (WARN_ON(!d)) { /* mapped w/o a domain?! */
-					ret = -EINVAL;
-					goto unwind;
-				}
 
 				phys = iommu_iova_to_phys(d->domain, iova);
 
@@ -1287,7 +1233,7 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 				if (npage <= 0) {
 					WARN_ON(!npage);
 					ret = (int)npage;
-					goto unwind;
+					return ret;
 				}
 
 				phys = pfn << PAGE_SHIFT;
@@ -1296,67 +1242,14 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 
 			ret = iommu_map(domain->domain, iova, phys,
 					size, dma->prot | domain->prot);
-			if (ret) {
-				if (!dma->iommu_mapped)
-					vfio_unpin_pages_remote(dma, iova,
-							phys >> PAGE_SHIFT,
-							size >> PAGE_SHIFT,
-							true);
-				goto unwind;
-			}
+			if (ret)
+				return ret;
 
 			iova += size;
 		}
-	}
-
-	/* All dmas are now mapped, defer to second tree walk for unwind */
-	for (n = rb_first(&iommu->dma_list); n; n = rb_next(n)) {
-		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
-
 		dma->iommu_mapped = true;
 	}
-
 	return 0;
-
-unwind:
-	for (; n; n = rb_prev(n)) {
-		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
-		dma_addr_t iova;
-
-		if (dma->iommu_mapped) {
-			iommu_unmap(domain->domain, dma->iova, dma->size);
-			continue;
-		}
-
-		iova = dma->iova;
-		while (iova < dma->iova + dma->size) {
-			phys_addr_t phys, p;
-			size_t size;
-			dma_addr_t i;
-
-			phys = iommu_iova_to_phys(domain->domain, iova);
-			if (!phys) {
-				iova += PAGE_SIZE;
-				continue;
-			}
-
-			size = PAGE_SIZE;
-			p = phys + size;
-			i = iova + size;
-			while (i < dma->iova + dma->size &&
-			       p == iommu_iova_to_phys(domain->domain, i)) {
-				size += PAGE_SIZE;
-				p += PAGE_SIZE;
-				i += PAGE_SIZE;
-			}
-
-			iommu_unmap(domain->domain, iova, size);
-			vfio_unpin_pages_remote(dma, iova, phys >> PAGE_SHIFT,
-						size >> PAGE_SHIFT, true);
-		}
-	}
-
-	return ret;
 }
 
 /*
@@ -1719,7 +1612,6 @@ static void *vfio_iommu_type1_open(unsigned long arg)
 
 	INIT_LIST_HEAD(&iommu->domain_list);
 	iommu->dma_list = RB_ROOT;
-	iommu->dma_avail = dma_entry_limit;
 	mutex_init(&iommu->lock);
 	BLOCKING_INIT_NOTIFIER_HEAD(&iommu->notifier);
 

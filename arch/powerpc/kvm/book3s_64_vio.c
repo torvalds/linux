@@ -133,6 +133,7 @@ extern void kvm_spapr_tce_release_iommu_group(struct kvm *kvm,
 					continue;
 
 				kref_put(&stit->kref, kvm_spapr_tce_liobn_put);
+				return;
 			}
 		}
 	}
@@ -400,7 +401,7 @@ static long kvmppc_tce_iommu_do_unmap(struct kvm *kvm,
 	long ret;
 
 	if (WARN_ON_ONCE(iommu_tce_xchg(tbl, entry, &hpa, &dir)))
-		return H_TOO_HARD;
+		return H_HARDWARE;
 
 	if (dir == DMA_NONE)
 		return H_SUCCESS;
@@ -448,15 +449,15 @@ long kvmppc_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
 		return H_TOO_HARD;
 
 	if (WARN_ON_ONCE(mm_iommu_ua_to_hpa(mem, ua, tbl->it_page_shift, &hpa)))
-		return H_TOO_HARD;
+		return H_HARDWARE;
 
 	if (mm_iommu_mapped_inc(mem))
-		return H_TOO_HARD;
+		return H_CLOSED;
 
 	ret = iommu_tce_xchg(tbl, entry, &hpa, &dir);
 	if (WARN_ON_ONCE(ret)) {
 		mm_iommu_mapped_dec(mem);
-		return H_TOO_HARD;
+		return H_HARDWARE;
 	}
 
 	if (dir != DMA_NONE)
@@ -601,10 +602,8 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 
 		if (kvmppc_gpa_to_ua(vcpu->kvm,
 				tce & ~(TCE_PCI_READ | TCE_PCI_WRITE),
-				&ua, NULL)) {
-			ret = H_PARAMETER;
-			goto unlock_exit;
-		}
+				&ua, NULL))
+			return H_PARAMETER;
 
 		list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
 			ret = kvmppc_tce_iommu_map(vcpu->kvm, stt,

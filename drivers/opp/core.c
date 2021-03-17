@@ -191,11 +191,11 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	if (IS_ERR(opp_table))
 		return 0;
 
-	/* Regulator may not be required for the device */
-	if (!opp_table->regulators)
-		goto put_opp_table;
-
 	count = opp_table->regulator_count;
+
+	/* Regulator may not be required for the device */
+	if (!count)
+		goto put_opp_table;
 
 	uV = kmalloc_array(count, sizeof(*uV), GFP_KERNEL);
 	if (!uV)
@@ -313,7 +313,7 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 		count = PTR_ERR(opp_table);
 		dev_dbg(dev, "%s: OPP table not found (%d)\n",
 			__func__, count);
-		return count;
+		return 0;
 	}
 
 	count = _get_opp_count(opp_table);
@@ -745,91 +745,6 @@ put_opp_table:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_rate);
 
-/**
- * dev_pm_opp_check_rate_volt() - Configure new OPP based on current rate
- * @dev:	device for which we do this operation
- * @force:	when true force to set voltage
- *
- * This configures the power-supplies and clock source to the levels specified
- * by the OPP corresponding to current rate.
- *
- */
-int dev_pm_opp_check_rate_volt(struct device *dev, bool force)
-{
-	struct opp_table *opp_table;
-	struct dev_pm_opp *opp;
-	struct regulator *reg;
-	struct clk *clk;
-	unsigned long old_freq, target_freq, target_volt;
-	int old_volt;
-	int ret = 0;
-
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table)) {
-		dev_err(dev, "%s: device opp doesn't exist\n", __func__);
-		return PTR_ERR(opp_table);
-	}
-
-	clk = opp_table->clk;
-	if (!opp_table->regulators) {
-		dev_err(dev, "opp_table regulators is null\n");
-		goto put_opp_table;
-	}
-	reg = opp_table->regulators[0];
-	if (IS_ERR_OR_NULL(clk) || IS_ERR_OR_NULL(reg)) {
-		dev_err(dev, "clk or regulater is unavailable\n");
-		ret = -EINVAL;
-		goto put_opp_table;
-	}
-	old_freq = clk_get_rate(clk);
-	old_volt = regulator_get_voltage(reg);
-	if (old_volt <= 0) {
-		dev_err(dev, "failed to get volt %d\n", old_volt);
-		ret = -EINVAL;
-		goto put_opp_table;
-	}
-
-	target_freq = old_freq;
-	/* If not available, use the closest opp */
-	opp = dev_pm_opp_find_freq_ceil(dev, &target_freq);
-	if (IS_ERR(opp)) {
-		/* The freq is an upper bound. opp should be lower */
-		opp = dev_pm_opp_find_freq_floor(dev, &target_freq);
-		if (IS_ERR(opp)) {
-			dev_err(dev, "failed to find OPP for freq %lu\n",
-				target_freq);
-			ret = PTR_ERR(opp);
-			goto put_opp_table;
-		}
-	}
-	target_volt = opp->supplies->u_volt;
-	target_freq = clk_round_rate(clk, target_freq);
-
-	dev_dbg(dev, "%lu Hz %d uV --> %lu Hz %lu uV\n", old_freq, old_volt,
-		target_freq, target_volt);
-
-	if (old_freq == target_freq) {
-		if (old_volt != target_volt || force) {
-			ret = _set_opp_voltage(dev, reg, opp->supplies);
-			if (ret) {
-				dev_err(dev, "failed to set volt %lu\n",
-					target_volt);
-				goto put_opp;
-			}
-		}
-		goto put_opp;
-	}
-
-	ret = _generic_set_opp_regulator(opp_table, dev, old_freq, target_freq,
-					  NULL, opp->supplies);
-put_opp:
-	dev_pm_opp_put(opp);
-put_opp_table:
-	dev_pm_opp_put_opp_table(opp_table);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_check_rate_volt);
-
 /* OPP-dev Helpers */
 static void _remove_opp_dev(struct opp_device *opp_dev,
 			    struct opp_table *opp_table)
@@ -877,9 +792,6 @@ static struct opp_table *_allocate_opp_table(struct device *dev)
 		return NULL;
 
 	INIT_LIST_HEAD(&opp_table->dev_list);
-
-	/* Mark regulator count uninitialized */
-	opp_table->regulator_count = -1;
 
 	opp_dev = _add_opp_dev(dev, opp_table);
 	if (!opp_dev) {
@@ -1043,7 +955,7 @@ struct dev_pm_opp *_opp_allocate(struct opp_table *table)
 	int count, supply_size;
 
 	/* Allocate space for at least one supply */
-	count = table->regulator_count > 0 ? table->regulator_count : 1;
+	count = table->regulator_count ? table->regulator_count : 1;
 	supply_size = sizeof(*opp->supplies) * count;
 
 	/* allocate new OPP node and supplies structures */
@@ -1063,9 +975,6 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
 {
 	struct regulator *reg;
 	int i;
-
-	if (!opp_table->regulators)
-		return true;
 
 	for (i = 0; i < opp_table->regulator_count; i++) {
 		reg = opp_table->regulators[i];
@@ -1354,7 +1263,7 @@ static int _allocate_set_opp_data(struct opp_table *opp_table)
 	struct dev_pm_set_opp_data *data;
 	int len, count = opp_table->regulator_count;
 
-	if (WARN_ON(!opp_table->regulators))
+	if (WARN_ON(!count))
 		return -EINVAL;
 
 	/* space for set_opp_data */
@@ -1451,7 +1360,7 @@ free_regulators:
 
 	kfree(opp_table->regulators);
 	opp_table->regulators = NULL;
-	opp_table->regulator_count = -1;
+	opp_table->regulator_count = 0;
 err:
 	dev_pm_opp_put_opp_table(opp_table);
 
@@ -1480,7 +1389,7 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 
 	kfree(opp_table->regulators);
 	opp_table->regulators = NULL;
-	opp_table->regulator_count = -1;
+	opp_table->regulator_count = 0;
 
 put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
@@ -1632,9 +1541,6 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	opp_table = dev_pm_opp_get_opp_table(dev);
 	if (!opp_table)
 		return -ENOMEM;
-
-	/* Fix regulator count for dynamic OPPs */
-	opp_table->regulator_count = 1;
 
 	ret = _opp_add_v1(opp_table, dev, freq, u_volt, true);
 
@@ -1863,65 +1769,3 @@ void dev_pm_opp_remove_table(struct device *dev)
 	_dev_pm_opp_find_and_remove_table(dev, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove_table);
-
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
-
-static int opp_summary_show(struct seq_file *s, void *data)
-{
-	struct list_head *lists = (struct list_head *)s->private;
-	struct opp_table *opp_table;
-	struct dev_pm_opp *opp;
-
-	mutex_lock(&opp_table_lock);
-
-	seq_puts(s, " device                rate(Hz)    target(uV)    min(uV)    max(uV)\n");
-	seq_puts(s, "-------------------------------------------------------------------\n");
-
-	list_for_each_entry(opp_table, lists, node) {
-		seq_printf(s, " %s\n", opp_table->dentry_name);
-		mutex_lock(&opp_table->lock);
-		list_for_each_entry(opp, &opp_table->opp_list, node) {
-			seq_printf(s, "%31lu %12lu %11lu %11lu\n",
-				   opp->rate,
-				   opp->supplies[0].u_volt,
-				   opp->supplies[0].u_volt_min,
-				   opp->supplies[0].u_volt_max);
-		}
-		mutex_unlock(&opp_table->lock);
-	}
-
-	mutex_unlock(&opp_table_lock);
-
-	return 0;
-}
-
-static int opp_summary_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, opp_summary_show, inode->i_private);
-}
-
-static const struct file_operations opp_summary_fops = {
-	.open		= opp_summary_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int __init opp_debug_init(void)
-{
-	struct dentry *parent, *d;
-
-	parent = debugfs_lookup("opp", NULL);
-	if (!parent)
-		return -ENOMEM;
-
-	d = debugfs_create_file("opp_summary", 0444, parent, &opp_tables,
-				&opp_summary_fops);
-	if (!d)
-		return -ENOMEM;
-
-	return 0;
-}
-late_initcall(opp_debug_init);
-#endif

@@ -339,7 +339,6 @@ static int __lb_setup(struct net_device *ndev,
 static int __lb_up(struct net_device *ndev,
 		   enum hnae_loop loop_mode)
 {
-#define NIC_LB_TEST_WAIT_PHY_LINK_TIME 300
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
 	int speed, duplex;
@@ -365,9 +364,6 @@ static int __lb_up(struct net_device *ndev,
 	duplex = 1;
 
 	h->dev->ops->adjust_link(h, speed, duplex);
-
-	/* wait adjust link done and phy ready */
-	msleep(NIC_LB_TEST_WAIT_PHY_LINK_TIME);
 
 	return 0;
 }
@@ -419,10 +415,6 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 	/* for mutl buffer*/
 	new_skb = skb_copy(skb, GFP_ATOMIC);
 	dev_kfree_skb_any(skb);
-	if (!new_skb) {
-		netdev_err(ndev, "skb alloc failed\n");
-		return;
-	}
 	skb = new_skb;
 
 	check_ok = 0;
@@ -1165,18 +1157,16 @@ static int hns_get_regs_len(struct net_device *net_dev)
  */
 static int hns_nic_nway_reset(struct net_device *netdev)
 {
+	int ret = 0;
 	struct phy_device *phy = netdev->phydev;
 
-	if (!netif_running(netdev))
-		return 0;
+	if (netif_running(netdev)) {
+		/* if autoneg is disabled, don't restart auto-negotiation */
+		if (phy && phy->autoneg == AUTONEG_ENABLE)
+			ret = genphy_restart_aneg(phy);
+	}
 
-	if (!phy)
-		return -EOPNOTSUPP;
-
-	if (phy->autoneg != AUTONEG_ENABLE)
-		return -EINVAL;
-
-	return genphy_restart_aneg(phy);
+	return ret;
 }
 
 static u32

@@ -43,7 +43,6 @@ struct i2c_acpi_lookup {
 	int index;
 	u32 speed;
 	u32 min_speed;
-	u32 force_speed;
 };
 
 static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
@@ -219,7 +218,6 @@ static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
 void i2c_acpi_register_devices(struct i2c_adapter *adap)
 {
 	acpi_status status;
-	acpi_handle handle;
 
 	if (!has_acpi_companion(&adap->dev))
 		return;
@@ -230,15 +228,6 @@ void i2c_acpi_register_devices(struct i2c_adapter *adap)
 				     adap, NULL);
 	if (ACPI_FAILURE(status))
 		dev_warn(&adap->dev, "failed to enumerate I2C slaves\n");
-
-	if (!adap->dev.parent)
-		return;
-
-	handle = ACPI_HANDLE(adap->dev.parent);
-	if (!handle)
-		return;
-
-	acpi_walk_dep_device_list(handle);
 }
 
 const struct acpi_device_id *
@@ -250,19 +239,6 @@ i2c_acpi_match_device(const struct acpi_device_id *matches,
 
 	return acpi_match_device(matches, &client->dev);
 }
-
-static const struct acpi_device_id i2c_acpi_force_400khz_device_ids[] = {
-	/*
-	 * These Silead touchscreen controllers only work at 400KHz, for
-	 * some reason they do not work at 100KHz. On some devices the ACPI
-	 * tables list another device at their bus as only being capable
-	 * of 100KHz, testing has shown that these other devices work fine
-	 * at 400KHz (as can be expected of any recent i2c hw) so we force
-	 * the speed of the bus to 400 KHz if a Silead device is present.
-	 */
-	{ "MSSL1680", 0 },
-	{}
-};
 
 static acpi_status i2c_acpi_lookup_speed(acpi_handle handle, u32 level,
 					   void *data, void **return_value)
@@ -281,9 +257,6 @@ static acpi_status i2c_acpi_lookup_speed(acpi_handle handle, u32 level,
 
 	if (lookup->speed <= lookup->min_speed)
 		lookup->min_speed = lookup->speed;
-
-	if (acpi_match_device_ids(adev, i2c_acpi_force_400khz_device_ids) == 0)
-		lookup->force_speed = 400000;
 
 	return AE_OK;
 }
@@ -322,16 +295,7 @@ u32 i2c_acpi_find_bus_speed(struct device *dev)
 		return 0;
 	}
 
-	if (lookup.force_speed) {
-		if (lookup.force_speed != lookup.min_speed)
-			dev_warn(dev, FW_BUG "DSDT uses known not-working I2C bus speed %d, forcing it to %d\n",
-				 lookup.min_speed, lookup.force_speed);
-		return lookup.force_speed;
-	} else if (lookup.min_speed != UINT_MAX) {
-		return lookup.min_speed;
-	} else {
-		return 0;
-	}
+	return lookup.min_speed != UINT_MAX ? lookup.min_speed : 0;
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_find_bus_speed);
 
@@ -362,18 +326,10 @@ static struct i2c_adapter *i2c_acpi_find_adapter_by_handle(acpi_handle handle)
 static struct i2c_client *i2c_acpi_find_client_by_adev(struct acpi_device *adev)
 {
 	struct device *dev;
-	struct i2c_client *client;
 
 	dev = bus_find_device(&i2c_bus_type, NULL, adev,
 			      i2c_acpi_find_match_device);
-	if (!dev)
-		return NULL;
-
-	client = i2c_verify_client(dev);
-	if (!client)
-		put_device(dev);
-
-	return client;
+	return dev ? i2c_verify_client(dev) : NULL;
 }
 
 static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
@@ -703,6 +659,7 @@ int i2c_acpi_install_space_handler(struct i2c_adapter *adapter)
 		return -ENOMEM;
 	}
 
+	acpi_walk_dep_device_list(handle);
 	return 0;
 }
 

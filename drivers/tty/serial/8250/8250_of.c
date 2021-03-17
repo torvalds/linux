@@ -58,7 +58,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	struct resource resource;
 	struct device_node *np = ofdev->dev.of_node;
 	u32 clk, spd, prop;
-	int ret, irq;
+	int ret;
 
 	memset(port, 0, sizeof *port);
 
@@ -130,10 +130,6 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		port->flags |= UPF_IOREMAP;
 	}
 
-	/* Compatibility with the deprecated pxa driver and 8250_pxa drivers. */
-	if (of_device_is_compatible(np, "mrvl,mmp-uart"))
-		port->regshift = 2;
-
 	/* Check for registers offset within the devices address range */
 	if (of_property_read_u32(np, "reg-shift", &prop) == 0)
 		port->regshift = prop;
@@ -147,30 +143,25 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	if (ret >= 0)
 		port->line = ret;
 
-	irq = of_irq_get(np, 0);
-	if (irq < 0) {
-		if (irq == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto err_unprepare;
-		}
-		/* IRQ support not mandatory */
-		irq = 0;
+	port->irq = irq_of_parse_and_map(np, 0);
+	if (!port->irq) {
+		ret = -EPROBE_DEFER;
+		goto err_unprepare;
 	}
-
-	port->irq = irq;
 
 	info->rst = devm_reset_control_get_optional_shared(&ofdev->dev, NULL);
 	if (IS_ERR(info->rst)) {
 		ret = PTR_ERR(info->rst);
-		goto err_unprepare;
+		goto err_dispose;
 	}
 
 	ret = reset_control_deassert(info->rst);
 	if (ret)
-		goto err_unprepare;
+		goto err_dispose;
 
 	port->type = type;
 	port->uartclk = clk;
+	port->irqflags |= IRQF_SHARED;
 
 	if (of_property_read_bool(np, "no-loopback-test"))
 		port->flags |= UPF_SKIP_TEST;
@@ -193,6 +184,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		port->handle_irq = fsl8250_handle_irq;
 
 	return 0;
+err_dispose:
+	irq_dispose_mapping(port->irq);
 err_unprepare:
 	clk_disable_unprepare(info->clk);
 err_pmruntime:
@@ -242,11 +235,6 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 
 	if (of_property_read_bool(ofdev->dev.of_node, "auto-flow-control"))
 		port8250.capabilities |= UART_CAP_AFE;
-
-	if (of_property_read_u32(ofdev->dev.of_node,
-			"overrun-throttle-ms",
-			&port8250.overrun_backoff_time_ms) != 0)
-		port8250.overrun_backoff_time_ms = 0;
 
 	ret = serial8250_register_8250_port(&port8250);
 	if (ret < 0)

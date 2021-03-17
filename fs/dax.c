@@ -217,9 +217,6 @@ static inline void *unlock_slot(struct address_space *mapping, void **slot)
 	return (void *)entry;
 }
 
-static void put_unlocked_mapping_entry(struct address_space *mapping,
-				       pgoff_t index, void *entry);
-
 /*
  * Lookup entry in radix tree, wait for it to become unlocked if it is
  * exceptional entry and return it. The caller must call
@@ -229,8 +226,8 @@ static void put_unlocked_mapping_entry(struct address_space *mapping,
  *
  * Must be called with the i_pages lock held.
  */
-static void *get_unlocked_mapping_entry(struct address_space *mapping,
-		pgoff_t index, void ***slotp)
+static void *__get_unlocked_mapping_entry(struct address_space *mapping,
+		pgoff_t index, void ***slotp, bool (*wait_fn)(void))
 {
 	void *entry, **slot;
 	struct wait_exceptional_entry_queue ewait;
@@ -240,6 +237,8 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
 	ewait.wait.func = wake_exceptional_entry_func;
 
 	for (;;) {
+		bool revalidate;
+
 		entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
 					  &slot);
 		if (!entry ||
@@ -254,37 +253,28 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
 		prepare_to_wait_exclusive(wq, &ewait.wait,
 					  TASK_UNINTERRUPTIBLE);
 		xa_unlock_irq(&mapping->i_pages);
-		schedule();
+		revalidate = wait_fn();
 		finish_wait(wq, &ewait.wait);
 		xa_lock_irq(&mapping->i_pages);
+		if (revalidate)
+			return ERR_PTR(-EAGAIN);
 	}
 }
 
-/*
- * The only thing keeping the address space around is the i_pages lock
- * (it's cycled in clear_inode() after removing the entries from i_pages)
- * After we call xas_unlock_irq(), we cannot touch xas->xa.
- */
-static void wait_entry_unlocked(struct address_space *mapping, pgoff_t index,
-		void ***slotp, void *entry)
+static bool entry_wait(void)
 {
-	struct wait_exceptional_entry_queue ewait;
-	wait_queue_head_t *wq;
-
-	init_wait(&ewait.wait);
-	ewait.wait.func = wake_exceptional_entry_func;
-
-	wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
-	/*
-	 * Unlike get_unlocked_entry() there is no guarantee that this
-	 * path ever successfully retrieves an unlocked entry before an
-	 * inode dies. Perform a non-exclusive wait in case this path
-	 * never successfully performs its own wake up.
-	 */
-	prepare_to_wait(wq, &ewait.wait, TASK_UNINTERRUPTIBLE);
-	xa_unlock_irq(&mapping->i_pages);
 	schedule();
-	finish_wait(wq, &ewait.wait);
+	/*
+	 * Never return an ERR_PTR() from
+	 * __get_unlocked_mapping_entry(), just keep looping.
+	 */
+	return false;
+}
+
+static void *get_unlocked_mapping_entry(struct address_space *mapping,
+		pgoff_t index, void ***slotp)
+{
+	return __get_unlocked_mapping_entry(mapping, index, slotp, entry_wait);
 }
 
 static void unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
@@ -403,6 +393,19 @@ static struct page *dax_busy_page(void *entry)
 	return NULL;
 }
 
+static bool entry_wait_revalidate(void)
+{
+	rcu_read_unlock();
+	schedule();
+	rcu_read_lock();
+
+	/*
+	 * Tell __get_unlocked_mapping_entry() to take a break, we need
+	 * to revalidate page->mapping after dropping locks
+	 */
+	return true;
+}
+
 bool dax_lock_mapping_entry(struct page *page)
 {
 	pgoff_t index;
@@ -415,7 +418,7 @@ bool dax_lock_mapping_entry(struct page *page)
 	for (;;) {
 		mapping = READ_ONCE(page->mapping);
 
-		if (!mapping || !dax_mapping(mapping))
+		if (!dax_mapping(mapping))
 			break;
 
 		/*
@@ -438,15 +441,14 @@ bool dax_lock_mapping_entry(struct page *page)
 		}
 		index = page->index;
 
-		entry = __radix_tree_lookup(&mapping->i_pages, index,
-						NULL, &slot);
+		entry = __get_unlocked_mapping_entry(mapping, index, &slot,
+				entry_wait_revalidate);
 		if (!entry) {
 			xa_unlock_irq(&mapping->i_pages);
 			break;
-		} else if (slot_locked(mapping, slot)) {
-			rcu_read_unlock();
-			wait_entry_unlocked(mapping, index, &slot, entry);
-			rcu_read_lock();
+		} else if (IS_ERR(entry)) {
+			xa_unlock_irq(&mapping->i_pages);
+			WARN_ON_ONCE(PTR_ERR(entry) != -EAGAIN);
 			continue;
 		}
 		lock_slot(mapping, slot);
@@ -659,7 +661,7 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
 	 * guaranteed to either see new references or prevent new
 	 * references from being established.
 	 */
-	unmap_mapping_range(mapping, 0, 0, 0);
+	unmap_mapping_range(mapping, 0, 0, 1);
 
 	while (index < end && pagevec_lookup_entries(&pvec, mapping, index,
 				min(end - index, (pgoff_t)PAGEVEC_SIZE),
@@ -908,7 +910,7 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 				goto unlock_pmd;
 
 			flush_cache_page(vma, address, pfn);
-			pmd = pmdp_invalidate(vma, address, pmdp);
+			pmd = pmdp_huge_clear_flush(vma, address, pmdp);
 			pmd = pmd_wrprotect(pmd);
 			pmd = pmd_mkclean(pmd);
 			set_pmd_at(vma->vm_mm, address, pmdp, pmd);
@@ -1301,9 +1303,6 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 		lockdep_assert_held(&inode->i_rwsem);
 	}
 
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		flags |= IOMAP_NOWAIT;
-
 	while (iov_iter_count(iter)) {
 		ret = iomap_apply(inode, pos, iov_iter_count(iter), flags, ops,
 				iter, dax_iomap_actor);
@@ -1663,7 +1662,8 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 		}
 
 		trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
-		result = vmf_insert_pfn_pmd(vmf, pfn, write);
+		result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+					    write);
 		break;
 	case IOMAP_UNWRITTEN:
 	case IOMAP_HOLE:
@@ -1777,7 +1777,8 @@ static vm_fault_t dax_insert_pfn_mkwrite(struct vm_fault *vmf,
 		break;
 #ifdef CONFIG_FS_DAX_PMD
 	case PE_SIZE_PMD:
-		ret = vmf_insert_pfn_pmd(vmf, pfn, FAULT_FLAG_WRITE);
+		ret = vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
+			pfn, true);
 		break;
 #endif
 	default:

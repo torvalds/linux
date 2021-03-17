@@ -61,7 +61,6 @@ struct ib_client_data {
 };
 
 struct workqueue_struct *ib_comp_wq;
-struct workqueue_struct *ib_comp_unbound_wq;
 struct workqueue_struct *ib_wq;
 EXPORT_SYMBOL_GPL(ib_wq);
 
@@ -599,8 +598,8 @@ void ib_unregister_device(struct ib_device *device)
 	}
 	up_read(&lists_rwsem);
 
-	ib_device_unregister_sysfs(device);
 	ib_device_unregister_rdmacg(device);
+	ib_device_unregister_sysfs(device);
 
 	mutex_unlock(&device_mutex);
 
@@ -1167,19 +1166,10 @@ static int __init ib_core_init(void)
 		goto err;
 	}
 
-	ib_comp_unbound_wq =
-		alloc_workqueue("ib-comp-unb-wq",
-				WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM |
-				WQ_SYSFS, WQ_UNBOUND_MAX_ACTIVE);
-	if (!ib_comp_unbound_wq) {
-		ret = -ENOMEM;
-		goto err_comp;
-	}
-
 	ret = class_register(&ib_class);
 	if (ret) {
 		pr_warn("Couldn't create InfiniBand device class\n");
-		goto err_comp_unbound;
+		goto err_comp;
 	}
 
 	ret = rdma_nl_init();
@@ -1228,8 +1218,6 @@ err_ibnl:
 	rdma_nl_exit();
 err_sysfs:
 	class_unregister(&ib_class);
-err_comp_unbound:
-	destroy_workqueue(ib_comp_unbound_wq);
 err_comp:
 	destroy_workqueue(ib_comp_wq);
 err:
@@ -1248,7 +1236,6 @@ static void __exit ib_core_cleanup(void)
 	addr_cleanup();
 	rdma_nl_exit();
 	class_unregister(&ib_class);
-	destroy_workqueue(ib_comp_unbound_wq);
 	destroy_workqueue(ib_comp_wq);
 	/* Make sure that any pending umem accounting work is done. */
 	destroy_workqueue(ib_wq);

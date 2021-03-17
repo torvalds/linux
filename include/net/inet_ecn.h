@@ -4,7 +4,6 @@
 
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/if_vlan.h>
 
 #include <net/inet_sock.h>
 #include <net/dsfield.h>
@@ -143,7 +142,7 @@ static inline void ipv6_copy_dscp(unsigned int dscp, struct ipv6hdr *inner)
 
 static inline int INET_ECN_set_ce(struct sk_buff *skb)
 {
-	switch (skb_protocol(skb, true)) {
+	switch (skb->protocol) {
 	case cpu_to_be16(ETH_P_IP):
 		if (skb_network_header(skb) + sizeof(struct iphdr) <=
 		    skb_tail_pointer(skb))
@@ -210,16 +209,12 @@ static inline int IP_ECN_decapsulate(const struct iphdr *oiph,
 {
 	__u8 inner;
 
-	switch (skb_protocol(skb, true)) {
-	case htons(ETH_P_IP):
+	if (skb->protocol == htons(ETH_P_IP))
 		inner = ip_hdr(skb)->tos;
-		break;
-	case htons(ETH_P_IPV6):
+	else if (skb->protocol == htons(ETH_P_IPV6))
 		inner = ipv6_get_dsfield(ipv6_hdr(skb));
-		break;
-	default:
+	else
 		return 0;
-	}
 
 	return INET_ECN_decapsulate(skb, oiph->tos, inner);
 }
@@ -229,16 +224,12 @@ static inline int IP6_ECN_decapsulate(const struct ipv6hdr *oipv6h,
 {
 	__u8 inner;
 
-	switch (skb_protocol(skb, true)) {
-	case htons(ETH_P_IP):
+	if (skb->protocol == htons(ETH_P_IP))
 		inner = ip_hdr(skb)->tos;
-		break;
-	case htons(ETH_P_IPV6):
+	else if (skb->protocol == htons(ETH_P_IPV6))
 		inner = ipv6_get_dsfield(ipv6_hdr(skb));
-		break;
-	default:
+	else
 		return 0;
-	}
 
 	return INET_ECN_decapsulate(skb, ipv6_get_dsfield(oipv6h), inner);
 }

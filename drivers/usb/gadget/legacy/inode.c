@@ -1360,6 +1360,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 
 	req->buf = dev->rbuf;
 	req->context = NULL;
+	value = -EOPNOTSUPP;
 	switch (ctrl->bRequest) {
 
 	case USB_REQ_GET_DESCRIPTOR:
@@ -1782,7 +1783,7 @@ static ssize_t
 dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 {
 	struct dev_data		*dev = fd->private_data;
-	ssize_t			value, length = len;
+	ssize_t			value = len, length = len;
 	unsigned		total;
 	u32			tag;
 	char			*kbuf;
@@ -2039,9 +2040,6 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 	return 0;
 
 Enomem:
-	kfree(CHIP);
-	CHIP = NULL;
-
 	return -ENOMEM;
 }
 

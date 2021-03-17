@@ -102,7 +102,6 @@ static int cdns_pcie_host_init_root_port(struct cdns_pcie_rc *rc)
 {
 	struct cdns_pcie *pcie = &rc->pcie;
 	u32 value, ctrl;
-	u32 id;
 
 	/*
 	 * Set the root complex BAR configuration register:
@@ -122,12 +121,8 @@ static int cdns_pcie_host_init_root_port(struct cdns_pcie_rc *rc)
 	cdns_pcie_writel(pcie, CDNS_PCIE_LM_RC_BAR_CFG, value);
 
 	/* Set root port configuration space */
-	if (rc->vendor_id != 0xffff) {
-		id = CDNS_PCIE_LM_ID_VENDOR(rc->vendor_id) |
-			CDNS_PCIE_LM_ID_SUBSYS(rc->vendor_id);
-		cdns_pcie_writel(pcie, CDNS_PCIE_LM_ID, id);
-	}
-
+	if (rc->vendor_id != 0xffff)
+		cdns_pcie_rp_writew(pcie, PCI_VENDOR_ID, rc->vendor_id);
 	if (rc->device_id != 0xffff)
 		cdns_pcie_rp_writew(pcie, PCI_DEVICE_ID, rc->device_id);
 

@@ -359,26 +359,6 @@ static int hisi_lpc_acpi_xlat_io_res(struct acpi_device *adev,
 }
 
 /*
- * Released firmware describes the IO port max address as 0x3fff, which is
- * the max host bus address. Fixup to a proper range. This will probably
- * never be fixed in firmware.
- */
-static void hisi_lpc_acpi_fixup_child_resource(struct device *hostdev,
-					       struct resource *r)
-{
-	if (r->end != 0x3fff)
-		return;
-
-	if (r->start == 0xe4)
-		r->end = 0xe4 + 0x04 - 1;
-	else if (r->start == 0x2f8)
-		r->end = 0x2f8 + 0x08 - 1;
-	else
-		dev_warn(hostdev, "unrecognised resource %pR to fixup, ignoring\n",
-			 r);
-}
-
-/*
  * hisi_lpc_acpi_set_io_res - set the resources for a child
  * @child: the device node to be updated the I/O resource
  * @hostdev: the device node associated with host controller
@@ -439,11 +419,8 @@ static int hisi_lpc_acpi_set_io_res(struct device *child,
 		return -ENOMEM;
 	}
 	count = 0;
-	list_for_each_entry(rentry, &resource_list, node) {
-		resources[count] = *rentry->res;
-		hisi_lpc_acpi_fixup_child_resource(hostdev, &resources[count]);
-		count++;
-	}
+	list_for_each_entry(rentry, &resource_list, node)
+		resources[count++] = *rentry->res;
 
 	acpi_dev_free_resource_list(&resource_list);
 
@@ -478,17 +455,6 @@ struct hisi_lpc_acpi_cell {
 	void *pdata;
 	size_t pdata_size;
 };
-
-static void hisi_lpc_acpi_remove(struct device *hostdev)
-{
-	struct acpi_device *adev = ACPI_COMPANION(hostdev);
-	struct acpi_device *child;
-
-	device_for_each_child(hostdev, NULL, hisi_lpc_acpi_remove_subdev);
-
-	list_for_each_entry(child, &adev->children, node)
-		acpi_device_clear_enumerated(child);
-}
 
 /*
  * hisi_lpc_acpi_probe - probe children for ACPI FW
@@ -590,7 +556,8 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 	return 0;
 
 fail:
-	hisi_lpc_acpi_remove(hostdev);
+	device_for_each_child(hostdev, NULL,
+			      hisi_lpc_acpi_remove_subdev);
 	return ret;
 }
 
@@ -602,10 +569,6 @@ static const struct acpi_device_id hisi_lpc_acpi_match[] = {
 static int hisi_lpc_acpi_probe(struct device *dev)
 {
 	return -ENODEV;
-}
-
-static void hisi_lpc_acpi_remove(struct device *hostdev)
-{
 }
 #endif // CONFIG_ACPI
 
@@ -644,50 +607,30 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 	range->fwnode = dev->fwnode;
 	range->flags = LOGIC_PIO_INDIRECT;
 	range->size = PIO_INDIRECT_SIZE;
-	range->hostdata = lpcdev;
-	range->ops = &hisi_lpc_ops;
-	lpcdev->io_host = range;
 
 	ret = logic_pio_register_range(range);
 	if (ret) {
 		dev_err(dev, "register IO range failed (%d)!\n", ret);
 		return ret;
 	}
+	lpcdev->io_host = range;
 
 	/* register the LPC host PIO resources */
 	if (acpi_device)
 		ret = hisi_lpc_acpi_probe(dev);
 	else
 		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	if (ret) {
-		logic_pio_unregister_range(range);
+	if (ret)
 		return ret;
-	}
 
-	dev_set_drvdata(dev, lpcdev);
+	lpcdev->io_host->hostdata = lpcdev;
+	lpcdev->io_host->ops = &hisi_lpc_ops;
 
 	io_end = lpcdev->io_host->io_start + lpcdev->io_host->size;
 	dev_info(dev, "registered range [%pa - %pa]\n",
 		 &lpcdev->io_host->io_start, &io_end);
 
 	return ret;
-}
-
-static int hisi_lpc_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct acpi_device *acpi_device = ACPI_COMPANION(dev);
-	struct hisi_lpc_dev *lpcdev = dev_get_drvdata(dev);
-	struct logic_pio_hwaddr *range = lpcdev->io_host;
-
-	if (acpi_device)
-		hisi_lpc_acpi_remove(dev);
-	else
-		of_platform_depopulate(dev);
-
-	logic_pio_unregister_range(range);
-
-	return 0;
 }
 
 static const struct of_device_id hisi_lpc_of_match[] = {
@@ -703,6 +646,5 @@ static struct platform_driver hisi_lpc_driver = {
 		.acpi_match_table = ACPI_PTR(hisi_lpc_acpi_match),
 	},
 	.probe = hisi_lpc_probe,
-	.remove = hisi_lpc_remove,
 };
 builtin_platform_driver(hisi_lpc_driver);

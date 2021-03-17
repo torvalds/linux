@@ -127,16 +127,22 @@ struct aux_payloads {
 	struct vector payloads;
 };
 
-static bool dal_ddc_i2c_payloads_create(
-		struct dc_context *ctx,
-		struct i2c_payloads *payloads,
-		uint32_t count)
+static struct i2c_payloads *dal_ddc_i2c_payloads_create(struct dc_context *ctx, uint32_t count)
 {
+	struct i2c_payloads *payloads;
+
+	payloads = kzalloc(sizeof(struct i2c_payloads), GFP_KERNEL);
+
+	if (!payloads)
+		return NULL;
+
 	if (dal_vector_construct(
 		&payloads->payloads, ctx, count, sizeof(struct i2c_payload)))
-		return true;
+		return payloads;
 
-	return false;
+	kfree(payloads);
+	return NULL;
+
 }
 
 static struct i2c_payload *dal_ddc_i2c_payloads_get(struct i2c_payloads *p)
@@ -149,12 +155,14 @@ static uint32_t dal_ddc_i2c_payloads_get_count(struct i2c_payloads *p)
 	return p->payloads.count;
 }
 
-static void dal_ddc_i2c_payloads_destroy(struct i2c_payloads *p)
+static void dal_ddc_i2c_payloads_destroy(struct i2c_payloads **p)
 {
-	if (!p)
+	if (!p || !*p)
 		return;
+	dal_vector_destruct(&(*p)->payloads);
+	kfree(*p);
+	*p = NULL;
 
-	dal_vector_destruct(&p->payloads);
 }
 
 static struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_t count)
@@ -425,7 +433,6 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 	enum display_dongle_type *dongle = &sink_cap->dongle_type;
 	uint8_t type2_dongle_buf[DP_ADAPTOR_TYPE2_SIZE];
 	bool is_type2_dongle = false;
-	int retry_count = 2;
 	struct dp_hdmi_dongle_signature_data *dongle_signature;
 
 	/* Assume we have no valid DP passive dongle connected */
@@ -438,24 +445,13 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 		DP_HDMI_DONGLE_ADDRESS,
 		type2_dongle_buf,
 		sizeof(type2_dongle_buf))) {
-		/* Passive HDMI dongles can sometimes fail here without retrying*/
-		while (retry_count > 0) {
-			if (i2c_read(ddc,
-				DP_HDMI_DONGLE_ADDRESS,
-				type2_dongle_buf,
-				sizeof(type2_dongle_buf)))
-				break;
-			retry_count--;
-		}
-		if (retry_count == 0) {
-			*dongle = DISPLAY_DONGLE_DP_DVI_DONGLE;
-			sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
+		*dongle = DISPLAY_DONGLE_DP_DVI_DONGLE;
+		sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
 
-			CONN_DATA_DETECT(ddc->link, type2_dongle_buf, sizeof(type2_dongle_buf),
-					"DP-DVI passive dongle %dMhz: ",
-					DP_ADAPTOR_DVI_MAX_TMDS_CLK / 1000);
-			return;
-		}
+		CONN_DATA_DETECT(ddc->link, type2_dongle_buf, sizeof(type2_dongle_buf),
+				"DP-DVI passive dongle %dMhz: ",
+				DP_ADAPTOR_DVI_MAX_TMDS_CLK / 1000);
+		return;
 	}
 
 	/* Check if Type 2 dongle.*/
@@ -572,11 +568,7 @@ bool dal_ddc_service_query_ddc_data(
 
 	uint32_t payloads_num = write_payloads + read_payloads;
 
-
 	if (write_size > EDID_SEGMENT_SIZE || read_size > EDID_SEGMENT_SIZE)
-		return false;
-
-	if (!payloads_num)
 		return false;
 
 	/*TODO: len of payload data for i2c and aux is uint8!!!!,
@@ -609,25 +601,23 @@ bool dal_ddc_service_query_ddc_data(
 		dal_ddc_aux_payloads_destroy(&payloads);
 
 	} else {
-		struct i2c_command command = {0};
-		struct i2c_payloads payloads;
+		struct i2c_payloads *payloads =
+			dal_ddc_i2c_payloads_create(ddc->ctx, payloads_num);
 
-		if (!dal_ddc_i2c_payloads_create(ddc->ctx, &payloads, payloads_num))
-			return false;
-
-		command.payloads = dal_ddc_i2c_payloads_get(&payloads);
-		command.number_of_payloads = 0;
-		command.engine = DDC_I2C_COMMAND_ENGINE;
-		command.speed = ddc->ctx->dc->caps.i2c_speed_in_khz;
+		struct i2c_command command = {
+			.payloads = dal_ddc_i2c_payloads_get(payloads),
+			.number_of_payloads = 0,
+			.engine = DDC_I2C_COMMAND_ENGINE,
+			.speed = ddc->ctx->dc->caps.i2c_speed_in_khz };
 
 		dal_ddc_i2c_payloads_add(
-			&payloads, address, write_size, write_buf, true);
+			payloads, address, write_size, write_buf, true);
 
 		dal_ddc_i2c_payloads_add(
-			&payloads, address, read_size, read_buf, false);
+			payloads, address, read_size, read_buf, false);
 
 		command.number_of_payloads =
-			dal_ddc_i2c_payloads_get_count(&payloads);
+			dal_ddc_i2c_payloads_get_count(payloads);
 
 		ret = dm_helpers_submit_i2c(
 				ddc->ctx,

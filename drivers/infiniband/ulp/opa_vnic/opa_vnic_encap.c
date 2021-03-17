@@ -351,8 +351,7 @@ static uint32_t opa_vnic_get_dlid(struct opa_vnic_adapter *adapter,
 			if (unlikely(!dlid))
 				v_warn("Null dlid in MAC address\n");
 		} else if (def_port != OPA_VNIC_INVALID_PORT) {
-			if (def_port < OPA_VESW_MAX_NUM_DEF_PORT)
-				dlid = info->vesw.u_ucast_dlid[def_port];
+			dlid = info->vesw.u_ucast_dlid[def_port];
 		}
 	}
 

@@ -84,7 +84,7 @@ ac97_of_get_child_device(struct ac97_controller *ac97_ctrl, int idx,
 		if ((idx != of_property_read_u32(node, "reg", &reg)) ||
 		    !of_device_is_compatible(node, compat))
 			continue;
-		return node;
+		return of_node_get(node);
 	}
 
 	return NULL;
@@ -125,12 +125,17 @@ static int ac97_codec_add(struct ac97_controller *ac97_ctrl, int idx,
 						      vendor_id);
 
 	ret = device_add(&codec->dev);
-	if (ret) {
-		put_device(&codec->dev);
-		return ret;
-	}
+	if (ret)
+		goto err_free_codec;
 
 	return 0;
+err_free_codec:
+	of_node_put(codec->dev.of_node);
+	put_device(&codec->dev);
+	kfree(codec);
+	ac97_ctrl->codecs[idx] = NULL;
+
+	return ret;
 }
 
 unsigned int snd_ac97_bus_scan_one(struct ac97_controller *adrv,

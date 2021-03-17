@@ -257,7 +257,7 @@ static const struct mfd_cell da9062_devs[] = {
 		.name		= "da9062-watchdog",
 		.num_resources	= ARRAY_SIZE(da9062_wdt_resources),
 		.resources	= da9062_wdt_resources,
-		.of_compatible  = "dlg,da9062-watchdog",
+		.of_compatible  = "dlg,da9062-wdt",
 	},
 	{
 		.name		= "da9062-thermal",

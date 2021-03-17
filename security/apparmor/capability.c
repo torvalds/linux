@@ -110,13 +110,13 @@ static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
  * profile_capable - test if profile allows use of capability @cap
  * @profile: profile being enforced    (NOT NULL, NOT unconfined)
  * @cap: capability to test if allowed
- * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
+ * @audit: whether an audit record should be generated
  * @sa: audit data (MAY BE NULL indicating no auditing)
  *
  * Returns: 0 if allowed else -EPERM
  */
-static int profile_capable(struct aa_profile *profile, int cap,
-			   unsigned int opts, struct common_audit_data *sa)
+static int profile_capable(struct aa_profile *profile, int cap, int audit,
+			   struct common_audit_data *sa)
 {
 	int error;
 
@@ -126,7 +126,7 @@ static int profile_capable(struct aa_profile *profile, int cap,
 	else
 		error = -EPERM;
 
-	if (opts & CAP_OPT_NOAUDIT) {
+	if (audit == SECURITY_CAP_NOAUDIT) {
 		if (!COMPLAIN_MODE(profile))
 			return error;
 		/* audit the cap request in complain mode but note that it
@@ -142,13 +142,13 @@ static int profile_capable(struct aa_profile *profile, int cap,
  * aa_capable - test permission to use capability
  * @label: label being tested for capability (NOT NULL)
  * @cap: capability to be tested
- * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
+ * @audit: whether an audit record should be generated
  *
  * Look up capability in profile capability set.
  *
  * Returns: 0 on success, or else an error code.
  */
-int aa_capable(struct aa_label *label, int cap, unsigned int opts)
+int aa_capable(struct aa_label *label, int cap, int audit)
 {
 	struct aa_profile *profile;
 	int error = 0;
@@ -156,7 +156,7 @@ int aa_capable(struct aa_label *label, int cap, unsigned int opts)
 
 	sa.u.cap = cap;
 	error = fn_for_each_confined(label, profile,
-			profile_capable(profile, cap, opts, &sa));
+			profile_capable(profile, cap, audit, &sa));
 
 	return error;
 }

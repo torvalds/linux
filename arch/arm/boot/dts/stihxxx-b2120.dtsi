@@ -45,7 +45,7 @@
 			/* DAC */
 			format = "i2s";
 			mclk-fs = <256>;
-			frame-inversion;
+			frame-inversion = <1>;
 			cpu {
 				sound-dai = <&sti_uni_player2>;
 			};

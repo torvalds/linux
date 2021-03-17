@@ -57,14 +57,20 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
 	unsigned char buf[10];
 	int ret;
+	int i;
 
-	/*
-	 * Avoid reading CTRL2 register as it causes WD_VAL register
-	 * value to reset to 0 which means watchdog is stopped.
-	 */
-	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_CTRL3,
-			       (buf + PCF2127_REG_CTRL3),
-			       ARRAY_SIZE(buf) - PCF2127_REG_CTRL3);
+	for (i = 0; i <= PCF2127_REG_CTRL3; i++) {
+		ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL1 + i,
+				  (unsigned int *)(buf + i));
+		if (ret) {
+			dev_err(dev, "%s: read error\n", __func__);
+			return ret;
+		}
+	}
+
+	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_SC,
+			       (buf + PCF2127_REG_SC),
+			       ARRAY_SIZE(buf) - PCF2127_REG_SC);
 	if (ret) {
 		dev_err(dev, "%s: read error\n", __func__);
 		return ret;
@@ -85,12 +91,14 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	dev_dbg(dev,
-		"%s: raw data is cr3=%02x, sec=%02x, min=%02x, hr=%02x, "
+		"%s: raw data is cr1=%02x, cr2=%02x, cr3=%02x, "
+		"sec=%02x, min=%02x, hr=%02x, "
 		"mday=%02x, wday=%02x, mon=%02x, year=%02x\n",
-		__func__, buf[PCF2127_REG_CTRL3], buf[PCF2127_REG_SC],
-		buf[PCF2127_REG_MN], buf[PCF2127_REG_HR],
-		buf[PCF2127_REG_DM], buf[PCF2127_REG_DW],
-		buf[PCF2127_REG_MO], buf[PCF2127_REG_YR]);
+		__func__,
+		buf[0], buf[1], buf[2],
+		buf[3], buf[4], buf[5],
+		buf[6], buf[7], buf[8], buf[9]);
+
 
 	tm->tm_sec = bcd2bin(buf[PCF2127_REG_SC] & 0x7F);
 	tm->tm_min = bcd2bin(buf[PCF2127_REG_MN] & 0x7F);
@@ -295,9 +303,6 @@ static int pcf2127_i2c_gather_write(void *context,
 	memcpy(buf + 1, val, val_size);
 
 	ret = i2c_master_send(client, buf, val_size + 1);
-
-	kfree(buf);
-
 	if (ret != val_size + 1)
 		return ret < 0 ? ret : -EIO;
 

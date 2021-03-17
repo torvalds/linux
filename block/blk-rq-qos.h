@@ -80,19 +80,22 @@ static inline void rq_qos_add(struct request_queue *q, struct rq_qos *rqos)
 
 static inline void rq_qos_del(struct request_queue *q, struct rq_qos *rqos)
 {
-	struct rq_qos **cur;
-
-	for (cur = &q->rq_qos; *cur; cur = &(*cur)->next) {
-		if (*cur == rqos) {
-			*cur = rqos->next;
+	struct rq_qos *cur, *prev = NULL;
+	for (cur = q->rq_qos; cur; cur = cur->next) {
+		if (cur == rqos) {
+			if (prev)
+				prev->next = rqos->next;
+			else
+				q->rq_qos = cur;
 			break;
 		}
+		prev = cur;
 	}
 }
 
 bool rq_wait_inc_below(struct rq_wait *rq_wait, unsigned int limit);
-bool rq_depth_scale_up(struct rq_depth *rqd);
-bool rq_depth_scale_down(struct rq_depth *rqd, bool hard_throttle);
+void rq_depth_scale_up(struct rq_depth *rqd);
+void rq_depth_scale_down(struct rq_depth *rqd, bool hard_throttle);
 bool rq_depth_calc_max_depth(struct rq_depth *rqd);
 
 void rq_qos_cleanup(struct request_queue *, struct bio *);

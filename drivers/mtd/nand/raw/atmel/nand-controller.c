@@ -1694,7 +1694,7 @@ atmel_nand_controller_add_nand(struct atmel_nand_controller *nc,
 
 	nc->caps->ops->nand_init(nc, nand);
 
-	ret = nand_scan(chip, nand->numcs);
+	ret = nand_scan(mtd, nand->numcs);
 	if (ret) {
 		dev_err(nc->dev, "NAND scan failed: %d\n", ret);
 		return ret;
@@ -1826,7 +1826,7 @@ static int atmel_nand_controller_add_nands(struct atmel_nand_controller *nc)
 
 	ret = of_property_read_u32(np, "#size-cells", &val);
 	if (ret) {
-		dev_err(dev, "missing #size-cells property\n");
+		dev_err(dev, "missing #address-cells property\n");
 		return ret;
 	}
 
@@ -2061,11 +2061,8 @@ atmel_hsmc_nand_controller_legacy_init(struct atmel_hsmc_nand_controller *nc)
 	int ret;
 
 	nand_np = dev->of_node;
-	nfc_np = of_get_compatible_child(dev->of_node, "atmel,sama5d3-nfc");
-	if (!nfc_np) {
-		dev_err(dev, "Could not find device node for sama5d3-nfc\n");
-		return -ENODEV;
-	}
+	nfc_np = of_find_compatible_node(dev->of_node, NULL,
+					 "atmel,sama5d3-nfc");
 
 	nc->clk = of_clk_get(nfc_np, 0);
 	if (IS_ERR(nc->clk)) {
@@ -2475,19 +2472,15 @@ static int atmel_nand_controller_probe(struct platform_device *pdev)
 	}
 
 	if (caps->legacy_of_bindings) {
-		struct device_node *nfc_node;
 		u32 ale_offs = 21;
 
 		/*
 		 * If we are parsing legacy DT props and the DT contains a
 		 * valid NFC node, forward the request to the sama5 logic.
 		 */
-		nfc_node = of_get_compatible_child(pdev->dev.of_node,
-						   "atmel,sama5d3-nfc");
-		if (nfc_node) {
+		if (of_find_compatible_node(pdev->dev.of_node, NULL,
+					    "atmel,sama5d3-nfc"))
 			caps = &atmel_sama5_nand_caps;
-			of_node_put(nfc_node);
-		}
 
 		/*
 		 * Even if the compatible says we are dealing with an

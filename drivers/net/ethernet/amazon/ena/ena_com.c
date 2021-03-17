@@ -201,11 +201,6 @@ static inline void comp_ctxt_release(struct ena_com_admin_queue *queue,
 static struct ena_comp_ctx *get_comp_ctxt(struct ena_com_admin_queue *queue,
 					  u16 command_id, bool capture)
 {
-	if (unlikely(!queue->comp_ctx)) {
-		pr_err("Completion context is NULL\n");
-		return NULL;
-	}
-
 	if (unlikely(command_id >= queue->q_depth)) {
 		pr_err("command id is larger than the queue size. cmd_id: %u queue size %d\n",
 		       command_id, queue->q_depth);
@@ -845,24 +840,6 @@ static int ena_com_get_feature(struct ena_com_dev *ena_dev,
 				      feature_id,
 				      0,
 				      0);
-}
-
-static void ena_com_hash_key_fill_default_key(struct ena_com_dev *ena_dev)
-{
-	struct ena_admin_feature_rss_flow_hash_control *hash_key =
-		(ena_dev->rss).hash_key;
-
-	netdev_rss_key_fill(&hash_key->key, sizeof(hash_key->key));
-	/* The key is stored in the device in u32 array
-	 * as well as the API requires the key to be passed in this
-	 * format. Thus the size of our array should be divided by 4
-	 */
-	hash_key->keys_num = sizeof(hash_key->key) / sizeof(u32);
-}
-
-int ena_com_get_current_hash_function(struct ena_com_dev *ena_dev)
-{
-	return ena_dev->rss.hash_func;
 }
 
 static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
@@ -2031,7 +2008,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 	if (unlikely(ret))
 		return ret;
 
-	if (!(get_resp.u.flow_hash_func.supported_func & BIT(rss->hash_func))) {
+	if (get_resp.u.flow_hash_func.supported_func & (1 << rss->hash_func)) {
 		pr_err("Func hash %d isn't supported by device, abort\n",
 		       rss->hash_func);
 		return -EOPNOTSUPP;
@@ -2098,16 +2075,15 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 
 	switch (func) {
 	case ENA_ADMIN_TOEPLITZ:
-		if (key) {
-			if (key_len != sizeof(hash_key->key)) {
-				pr_err("key len (%hu) doesn't equal the supported size (%zu)\n",
-				       key_len, sizeof(hash_key->key));
-				return -EINVAL;
-			}
-			memcpy(hash_key->key, key, key_len);
-			rss->hash_init_val = init_val;
-			hash_key->keys_num = key_len >> 2;
+		if (key_len > sizeof(hash_key->key)) {
+			pr_err("key len (%hu) is bigger than the max supported (%zu)\n",
+			       key_len, sizeof(hash_key->key));
+			return -EINVAL;
 		}
+
+		memcpy(hash_key->key, key, key_len);
+		rss->hash_init_val = init_val;
+		hash_key->keys_num = key_len >> 2;
 		break;
 	case ENA_ADMIN_CRC32:
 		rss->hash_init_val = init_val;
@@ -2117,7 +2093,6 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 		return -EINVAL;
 	}
 
-	rss->hash_func = func;
 	rc = ena_com_set_hash_function(ena_dev);
 
 	/* Restore the old function */
@@ -2137,9 +2112,6 @@ int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
 		rss->hash_key;
 	int rc;
 
-	if (unlikely(!func))
-		return -EINVAL;
-
 	rc = ena_com_get_feature_ex(ena_dev, &get_resp,
 				    ENA_ADMIN_RSS_HASH_FUNCTION,
 				    rss->hash_key_dma_addr,
@@ -2147,12 +2119,9 @@ int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
 	if (unlikely(rc))
 		return rc;
 
-	/* ffs() returns 1 in case the lsb is set */
-	rss->hash_func = ffs(get_resp.u.flow_hash_func.selected_func);
-	if (rss->hash_func)
-		rss->hash_func--;
-
-	*func = rss->hash_func;
+	rss->hash_func = get_resp.u.flow_hash_func.selected_func;
+	if (func)
+		*func = rss->hash_func;
 
 	if (key)
 		memcpy(key, hash_key->key, (size_t)(hash_key->keys_num) << 2);
@@ -2437,8 +2406,6 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 indr_tbl_log_size)
 	rc = ena_com_hash_key_allocate(ena_dev);
 	if (unlikely(rc))
 		goto err_hash_key;
-
-	ena_com_hash_key_fill_default_key(ena_dev);
 
 	rc = ena_com_hash_ctrl_init(ena_dev);
 	if (unlikely(rc))

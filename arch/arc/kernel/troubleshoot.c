@@ -18,8 +18,6 @@
 #include <asm/arcregs.h>
 #include <asm/irqflags.h>
 
-#define ARC_PATH_MAX	256
-
 /*
  * Common routine to print scratch regs (r0-r12) or callee regs (r13-r25)
  *   -Prints 3 regs per line and a CR.
@@ -60,12 +58,11 @@ static void show_callee_regs(struct callee_regs *cregs)
 	print_reg_file(&(cregs->r13), 13);
 }
 
-static void print_task_path_n_nm(struct task_struct *tsk)
+static void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 {
 	char *path_nm = NULL;
 	struct mm_struct *mm;
 	struct file *exe_file;
-	char buf[ARC_PATH_MAX];
 
 	mm = get_task_mm(tsk);
 	if (!mm)
@@ -75,7 +72,7 @@ static void print_task_path_n_nm(struct task_struct *tsk)
 	mmput(mm);
 
 	if (exe_file) {
-		path_nm = file_path(exe_file, buf, ARC_PATH_MAX-1);
+		path_nm = file_path(exe_file, buf, 255);
 		fput(exe_file);
 	}
 
@@ -83,9 +80,10 @@ done:
 	pr_info("Path: %s\n", !IS_ERR(path_nm) ? path_nm : "?");
 }
 
-static void show_faulting_vma(unsigned long address)
+static void show_faulting_vma(unsigned long address, char *buf)
 {
 	struct vm_area_struct *vma;
+	char *nm = buf;
 	struct mm_struct *active_mm = current->active_mm;
 
 	/* can't use print_vma_addr() yet as it doesn't check for
@@ -98,11 +96,8 @@ static void show_faulting_vma(unsigned long address)
 	 * if the container VMA is not found
 	 */
 	if (vma && (vma->vm_start <= address)) {
-		char buf[ARC_PATH_MAX];
-		char *nm = "?";
-
 		if (vma->vm_file) {
-			nm = file_path(vma->vm_file, buf, ARC_PATH_MAX-1);
+			nm = file_path(vma->vm_file, buf, PAGE_SIZE - 1);
 			if (IS_ERR(nm))
 				nm = "?";
 		}
@@ -178,14 +173,13 @@ void show_regs(struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
 	struct callee_regs *cregs;
+	char *buf;
 
-	/*
-	 * generic code calls us with preemption disabled, but some calls
-	 * here could sleep, so re-enable to avoid lockdep splat
-	 */
-	preempt_enable();
+	buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!buf)
+		return;
 
-	print_task_path_n_nm(tsk);
+	print_task_path_n_nm(tsk, buf);
 	show_regs_print_info(KERN_INFO);
 
 	show_ecr_verbose(regs);
@@ -195,7 +189,7 @@ void show_regs(struct pt_regs *regs)
 		(void *)regs->blink, (void *)regs->ret);
 
 	if (user_mode(regs))
-		show_faulting_vma(regs->ret); /* faulting code, not data */
+		show_faulting_vma(regs->ret, buf); /* faulting code, not data */
 
 	pr_info("[STAT32]: 0x%08lx", regs->status32);
 
@@ -228,7 +222,7 @@ void show_regs(struct pt_regs *regs)
 	if (cregs)
 		show_callee_regs(cregs);
 
-	preempt_disable();
+	free_page((unsigned long)buf);
 }
 
 void show_kernel_fault_diag(const char *str, struct pt_regs *regs,

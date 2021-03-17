@@ -177,7 +177,6 @@ const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
 
 	return desc->name;
 }
-EXPORT_SYMBOL_GPL(pin_get_name);
 
 /**
  * pin_is_valid() - check if pin exists on controller
@@ -628,7 +627,7 @@ static int pinctrl_generic_group_name_to_selector(struct pinctrl_dev *pctldev,
 	while (selector < ngroups) {
 		const char *gname = ops->get_group_name(pctldev, selector);
 
-		if (gname && !strcmp(function, gname))
+		if (!strcmp(function, gname))
 			return selector;
 
 		selector++;
@@ -744,7 +743,7 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 	while (group_selector < ngroups) {
 		const char *gname = pctlops->get_group_name(pctldev,
 							    group_selector);
-		if (gname && !strcmp(gname, pin_group)) {
+		if (!strcmp(gname, pin_group)) {
 			dev_dbg(pctldev->dev,
 				"found group selector %u for %s\n",
 				group_selector,
@@ -2009,6 +2008,7 @@ static int pinctrl_claim_hogs(struct pinctrl_dev *pctldev)
 		return PTR_ERR(pctldev->p);
 	}
 
+	kref_get(&pctldev->p->users);
 	pctldev->hog_default =
 		pinctrl_lookup_state(pctldev->p, PINCTRL_STATE_DEFAULT);
 	if (IS_ERR(pctldev->hog_default)) {
@@ -2264,8 +2264,4 @@ static int __init pinctrl_init(void)
 }
 
 /* init early since many drivers really need to initialized pinmux early */
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-core_initcall_sync(pinctrl_init);
-#else
 core_initcall(pinctrl_init);
-#endif

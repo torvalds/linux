@@ -35,7 +35,7 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname)
 {
 	struct device *dev = &gpu->pdev->dev;
 	const struct firmware *fw;
-	struct device_node *np, *mem_np;
+	struct device_node *np;
 	struct resource r;
 	phys_addr_t mem_phys;
 	ssize_t mem_size;
@@ -49,13 +49,11 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname)
 	if (!np)
 		return -ENODEV;
 
-	mem_np = of_parse_phandle(np, "memory-region", 0);
-	of_node_put(np);
-	if (!mem_np)
+	np = of_parse_phandle(np, "memory-region", 0);
+	if (!np)
 		return -EINVAL;
 
-	ret = of_address_to_resource(mem_np, 0, &r);
-	of_node_put(mem_np);
+	ret = of_address_to_resource(np, 0, &r);
 	if (ret)
 		return ret;
 
@@ -1474,31 +1472,18 @@ static const struct adreno_gpu_funcs funcs = {
 static void check_speed_bin(struct device *dev)
 {
 	struct nvmem_cell *cell;
-	u32 val;
-
-	/*
-	 * If the OPP table specifies a opp-supported-hw property then we have
-	 * to set something with dev_pm_opp_set_supported_hw() or the table
-	 * doesn't get populated so pick an arbitrary value that should
-	 * ensure the default frequencies are selected but not conflict with any
-	 * actual bins
-	 */
-	val = 0x80;
+	u32 bin, val;
 
 	cell = nvmem_cell_get(dev, "speed_bin");
 
-	if (!IS_ERR(cell)) {
-		void *buf = nvmem_cell_read(cell, NULL);
+	/* If a nvmem cell isn't defined, nothing to do */
+	if (IS_ERR(cell))
+		return;
 
-		if (!IS_ERR(buf)) {
-			u8 bin = *((u8 *) buf);
+	bin = *((u32 *) nvmem_cell_read(cell, NULL));
+	nvmem_cell_put(cell);
 
-			val = (1 << bin);
-			kfree(buf);
-		}
-
-		nvmem_cell_put(cell);
-	}
+	val = (1 << bin);
 
 	dev_pm_opp_set_supported_hw(dev, &val, 1);
 }
@@ -1531,8 +1516,7 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 
 	check_speed_bin(&pdev->dev);
 
-	/* Restricting nr_rings to 1 to temporarily disable preemption */
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
+	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 4);
 	if (ret) {
 		a5xx_destroy(&(a5xx_gpu->base.base));
 		return ERR_PTR(ret);

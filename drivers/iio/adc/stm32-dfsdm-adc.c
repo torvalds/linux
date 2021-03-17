@@ -45,7 +45,7 @@ enum sd_converter_type {
 
 struct stm32_dfsdm_dev_data {
 	int type;
-	int (*init)(struct device *dev, struct iio_dev *indio_dev);
+	int (*init)(struct iio_dev *indio_dev);
 	unsigned int num_channels;
 	const struct regmap_config *regmap_cfg;
 };
@@ -923,8 +923,7 @@ static void stm32_dfsdm_dma_release(struct iio_dev *indio_dev)
 	}
 }
 
-static int stm32_dfsdm_dma_request(struct device *dev,
-				   struct iio_dev *indio_dev)
+static int stm32_dfsdm_dma_request(struct iio_dev *indio_dev)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
 	struct dma_slave_config config = {
@@ -934,13 +933,9 @@ static int stm32_dfsdm_dma_request(struct device *dev,
 	};
 	int ret;
 
-	adc->dma_chan = dma_request_chan(dev, "rx");
-	if (IS_ERR(adc->dma_chan)) {
-		int ret = PTR_ERR(adc->dma_chan);
-
-		adc->dma_chan = NULL;
-		return ret;
-	}
+	adc->dma_chan = dma_request_slave_channel(&indio_dev->dev, "rx");
+	if (!adc->dma_chan)
+		return -EINVAL;
 
 	adc->rx_buf = dma_alloc_coherent(adc->dma_chan->device->dev,
 					 DFSDM_DMA_BUFFER_SIZE,
@@ -986,11 +981,11 @@ static int stm32_dfsdm_adc_chan_init_one(struct iio_dev *indio_dev,
 	ch->info_mask_shared_by_all = BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
 
 	if (adc->dev_data->type == DFSDM_AUDIO) {
+		ch->scan_type.sign = 's';
 		ch->ext_info = dfsdm_adc_audio_ext_info;
 	} else {
-		ch->scan_type.shift = 8;
+		ch->scan_type.sign = 'u';
 	}
-	ch->scan_type.sign = 's';
 	ch->scan_type.realbits = 24;
 	ch->scan_type.storagebits = 32;
 
@@ -998,7 +993,7 @@ static int stm32_dfsdm_adc_chan_init_one(struct iio_dev *indio_dev,
 					  &adc->dfsdm->ch_list[ch->channel]);
 }
 
-static int stm32_dfsdm_audio_init(struct device *dev, struct iio_dev *indio_dev)
+static int stm32_dfsdm_audio_init(struct iio_dev *indio_dev)
 {
 	struct iio_chan_spec *ch;
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
@@ -1028,10 +1023,10 @@ static int stm32_dfsdm_audio_init(struct device *dev, struct iio_dev *indio_dev)
 	indio_dev->num_channels = 1;
 	indio_dev->channels = ch;
 
-	return stm32_dfsdm_dma_request(dev, indio_dev);
+	return stm32_dfsdm_dma_request(indio_dev);
 }
 
-static int stm32_dfsdm_adc_init(struct device *dev, struct iio_dev *indio_dev)
+static int stm32_dfsdm_adc_init(struct iio_dev *indio_dev)
 {
 	struct iio_chan_spec *ch;
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
@@ -1149,12 +1144,6 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	 * So IRQ associated to filter instance 0 is dedicated to the Filter 0.
 	 */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		if (irq != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get IRQ: %d\n", irq);
-		return irq;
-	}
-
 	ret = devm_request_irq(dev, irq, stm32_dfsdm_irq,
 			       0, pdev->name, adc);
 	if (ret < 0) {
@@ -1175,7 +1164,7 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 		adc->dfsdm->fl_list[adc->fl_id].sync_mode = val;
 
 	adc->dev_data = dev_data;
-	ret = dev_data->init(dev, iio);
+	ret = dev_data->init(iio);
 	if (ret < 0)
 		return ret;
 

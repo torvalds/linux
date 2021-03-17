@@ -118,12 +118,12 @@
 
 	ethernet@e4000 {
 		phy-handle = <&rgmii_phy1>;
-		phy-connection-type = "rgmii-id";
+		phy-connection-type = "rgmii-txid";
 	};
 
 	ethernet@e6000 {
 		phy-handle = <&rgmii_phy2>;
-		phy-connection-type = "rgmii-id";
+		phy-connection-type = "rgmii-txid";
 	};
 
 	ethernet@e8000 {

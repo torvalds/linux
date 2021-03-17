@@ -195,8 +195,7 @@ int ipu_dp_setup_channel(struct ipu_dp *dp,
 		ipu_dp_csc_init(flow, flow->foreground.in_cs, flow->out_cs,
 				DP_COM_CONF_CSC_DEF_BOTH);
 	} else {
-		if (flow->foreground.in_cs == IPUV3_COLORSPACE_UNKNOWN ||
-		    flow->foreground.in_cs == flow->out_cs)
+		if (flow->foreground.in_cs == flow->out_cs)
 			/*
 			 * foreground identical to output, apply color
 			 * conversion on background
@@ -262,8 +261,6 @@ void ipu_dp_disable_channel(struct ipu_dp *dp, bool sync)
 	struct ipu_dp_priv *priv = flow->priv;
 	u32 reg, csc;
 
-	dp->in_cs = IPUV3_COLORSPACE_UNKNOWN;
-
 	if (!dp->foreground)
 		return;
 
@@ -271,9 +268,8 @@ void ipu_dp_disable_channel(struct ipu_dp *dp, bool sync)
 
 	reg = readl(flow->base + DP_COM_CONF);
 	csc = reg & DP_COM_CONF_CSC_DEF_MASK;
-	reg &= ~DP_COM_CONF_CSC_DEF_MASK;
-	if (csc == DP_COM_CONF_CSC_DEF_BOTH || csc == DP_COM_CONF_CSC_DEF_BG)
-		reg |= DP_COM_CONF_CSC_DEF_BG;
+	if (csc == DP_COM_CONF_CSC_DEF_FG)
+		reg &= ~DP_COM_CONF_CSC_DEF_MASK;
 
 	reg &= ~DP_COM_CONF_FG_EN;
 	writel(reg, flow->base + DP_COM_CONF);
@@ -351,8 +347,6 @@ int ipu_dp_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 	mutex_init(&priv->mutex);
 
 	for (i = 0; i < IPUV3_NUM_FLOWS; i++) {
-		priv->flow[i].background.in_cs = IPUV3_COLORSPACE_UNKNOWN;
-		priv->flow[i].foreground.in_cs = IPUV3_COLORSPACE_UNKNOWN;
 		priv->flow[i].foreground.foreground = true;
 		priv->flow[i].base = priv->base + ipu_dp_flow_base[i];
 		priv->flow[i].priv = priv;

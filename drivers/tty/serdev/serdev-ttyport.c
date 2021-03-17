@@ -7,14 +7,8 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/poll.h>
-#include <linux/platform_device.h>
-#include <linux/module.h>
 
 #define SERPORT_ACTIVE		1
-
-static char *pdev_tty_port;
-module_param(pdev_tty_port, charp, 0644);
-MODULE_PARM_DESC(pdev_tty_port, "platform device tty port to claim");
 
 struct serport {
 	struct tty_port *port;
@@ -271,9 +265,9 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 					struct device *parent,
 					struct tty_driver *drv, int idx)
 {
+	const struct tty_port_client_operations *old_ops;
 	struct serdev_controller *ctrl;
 	struct serport *serport;
-	bool platform = false;
 	int ret;
 
 	if (!port || !drv || !parent)
@@ -290,31 +284,11 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 
 	ctrl->ops = &ctrl_ops;
 
+	old_ops = port->client_ops;
 	port->client_ops = &client_ops;
 	port->client_data = ctrl;
 
-	/* There is not always a way to bind specific platform devices because
-	 * they may be defined on platforms without DT or ACPI. When dealing
-	 * with a platform devices, do not allow direct binding unless it is
-	 * whitelisted by module parameter. If a platform device is otherwise
-	 * described by DT or ACPI it will still be bound and this check will
-	 * be ignored.
-	 */
-	if (parent->bus == &platform_bus_type) {
-		if (pdev_tty_port) {
-			unsigned long pdev_idx;
-			int tty_len = strlen(drv->name);
-
-			if (!strncmp(pdev_tty_port, drv->name, tty_len)) {
-				if (!kstrtoul(pdev_tty_port + tty_len, 10,
-					     &pdev_idx) && pdev_idx == idx) {
-					platform = true;
-				}
-			}
-		}
-	}
-
-	ret = serdev_controller_add_platform(ctrl, platform);
+	ret = serdev_controller_add(ctrl);
 	if (ret)
 		goto err_reset_data;
 
@@ -323,7 +297,7 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 
 err_reset_data:
 	port->client_data = NULL;
-	port->client_ops = &tty_port_default_client_ops;
+	port->client_ops = old_ops;
 	serdev_controller_put(ctrl);
 
 	return ERR_PTR(ret);
@@ -338,8 +312,8 @@ int serdev_tty_port_unregister(struct tty_port *port)
 		return -ENODEV;
 
 	serdev_controller_remove(ctrl);
+	port->client_ops = NULL;
 	port->client_data = NULL;
-	port->client_ops = &tty_port_default_client_ops;
 	serdev_controller_put(ctrl);
 
 	return 0;

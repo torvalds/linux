@@ -134,8 +134,6 @@ static int tegra124_cpufreq_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	of_node_put(np);
-
 	return 0;
 
 out_switch_to_pllx:

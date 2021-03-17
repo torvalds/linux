@@ -38,10 +38,12 @@
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/hrtimer.h>	/* For hrtimers */
 #include <linux/kernel.h>	/* For printk/panic/... */
+#include <linux/kref.h>		/* For data references */
 #include <linux/kthread.h>	/* For kthread_work */
 #include <linux/miscdevice.h>	/* For handling misc devices */
 #include <linux/module.h>	/* For module stuff/... */
 #include <linux/mutex.h>	/* For mutexes */
+#include <linux/reboot.h>	/* For reboot notifier */
 #include <linux/slab.h>		/* For memory functions */
 #include <linux/types.h>	/* For standard types (like size_t) */
 #include <linux/watchdog.h>	/* For watchdog specific items */
@@ -54,14 +56,14 @@
 
 /*
  * struct watchdog_core_data - watchdog core internal data
- * @dev:	The watchdog's internal device
+ * @kref:	Reference count.
  * @cdev:	The watchdog's Character device.
  * @wdd:	Pointer to watchdog device.
  * @lock:	Lock for watchdog core.
  * @status:	Watchdog core internal status bits.
  */
 struct watchdog_core_data {
-	struct device dev;
+	struct kref kref;
 	struct cdev cdev;
 	struct watchdog_device *wdd;
 	struct mutex lock;
@@ -264,7 +266,6 @@ static int watchdog_start(struct watchdog_device *wdd)
 	if (err == 0) {
 		set_bit(WDOG_ACTIVE, &wdd->status);
 		wd_data->last_keepalive = started_at;
-		wd_data->last_hw_keepalive = started_at;
 		watchdog_update_worker(wdd);
 	}
 
@@ -821,7 +822,7 @@ static int watchdog_open(struct inode *inode, struct file *file)
 	file->private_data = wd_data;
 
 	if (!hw_running)
-		get_device(&wd_data->dev);
+		kref_get(&wd_data->kref);
 
 	/* dev/watchdog is a virtual (and thus non-seekable) filesystem */
 	return nonseekable_open(inode, file);
@@ -833,11 +834,11 @@ out_clear:
 	return err;
 }
 
-static void watchdog_core_data_release(struct device *dev)
+static void watchdog_core_data_release(struct kref *kref)
 {
 	struct watchdog_core_data *wd_data;
 
-	wd_data = container_of(dev, struct watchdog_core_data, dev);
+	wd_data = container_of(kref, struct watchdog_core_data, kref);
 
 	kfree(wd_data);
 }
@@ -897,7 +898,7 @@ done:
 	 */
 	if (!running) {
 		module_put(wd_data->cdev.owner);
-		put_device(&wd_data->dev);
+		kref_put(&wd_data->kref, watchdog_core_data_release);
 	}
 	return 0;
 }
@@ -916,22 +917,17 @@ static struct miscdevice watchdog_miscdev = {
 	.fops		= &watchdog_fops,
 };
 
-static struct class watchdog_class = {
-	.name =		"watchdog",
-	.owner =	THIS_MODULE,
-	.dev_groups =	wdt_groups,
-};
-
 /*
  *	watchdog_cdev_register: register watchdog character device
  *	@wdd: watchdog device
+ *	@devno: character device number
  *
  *	Register a watchdog character device including handling the legacy
  *	/dev/watchdog node. /dev/watchdog is actually a miscdevice and
  *	thus we set it up like that.
  */
 
-static int watchdog_cdev_register(struct watchdog_device *wdd)
+static int watchdog_cdev_register(struct watchdog_device *wdd, dev_t devno)
 {
 	struct watchdog_core_data *wd_data;
 	int err;
@@ -939,24 +935,14 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	wd_data = kzalloc(sizeof(struct watchdog_core_data), GFP_KERNEL);
 	if (!wd_data)
 		return -ENOMEM;
+	kref_init(&wd_data->kref);
 	mutex_init(&wd_data->lock);
 
 	wd_data->wdd = wdd;
 	wdd->wd_data = wd_data;
 
-	if (IS_ERR_OR_NULL(watchdog_kworker)) {
-		kfree(wd_data);
+	if (IS_ERR_OR_NULL(watchdog_kworker))
 		return -ENODEV;
-	}
-
-	device_initialize(&wd_data->dev);
-	wd_data->dev.devt = MKDEV(MAJOR(watchdog_devt), wdd->id);
-	wd_data->dev.class = &watchdog_class;
-	wd_data->dev.parent = wdd->parent;
-	wd_data->dev.groups = wdd->groups;
-	wd_data->dev.release = watchdog_core_data_release;
-	dev_set_drvdata(&wd_data->dev, wdd);
-	dev_set_name(&wd_data->dev, "watchdog%d", wdd->id);
 
 	kthread_init_work(&wd_data->work, watchdog_ping_work);
 	hrtimer_init(&wd_data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -973,28 +959,27 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 				pr_err("%s: a legacy watchdog module is probably present.\n",
 					wdd->info->identity);
 			old_wd_data = NULL;
-			put_device(&wd_data->dev);
+			kfree(wd_data);
 			return err;
 		}
 	}
 
 	/* Fill in the data structures */
 	cdev_init(&wd_data->cdev, &watchdog_fops);
+	wd_data->cdev.owner = wdd->ops->owner;
 
 	/* Add the device */
-	err = cdev_device_add(&wd_data->cdev, &wd_data->dev);
+	err = cdev_add(&wd_data->cdev, devno, 1);
 	if (err) {
 		pr_err("watchdog%d unable to add device %d:%d\n",
 			wdd->id,  MAJOR(watchdog_devt), wdd->id);
 		if (wdd->id == 0) {
 			misc_deregister(&watchdog_miscdev);
 			old_wd_data = NULL;
-			put_device(&wd_data->dev);
+			kref_put(&wd_data->kref, watchdog_core_data_release);
 		}
 		return err;
 	}
-
-	wd_data->cdev.owner = wdd->ops->owner;
 
 	/* Record time of most recent heartbeat as 'just before now'. */
 	wd_data->last_hw_keepalive = ktime_sub(ktime_get(), 1);
@@ -1005,7 +990,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	 */
 	if (watchdog_hw_running(wdd)) {
 		__module_get(wdd->ops->owner);
-		get_device(&wd_data->dev);
+		kref_get(&wd_data->kref);
 		if (handle_boot_enabled)
 			hrtimer_start(&wd_data->timer, 0, HRTIMER_MODE_REL);
 		else
@@ -1028,15 +1013,10 @@ static void watchdog_cdev_unregister(struct watchdog_device *wdd)
 {
 	struct watchdog_core_data *wd_data = wdd->wd_data;
 
-	cdev_device_del(&wd_data->cdev, &wd_data->dev);
+	cdev_del(&wd_data->cdev);
 	if (wdd->id == 0) {
 		misc_deregister(&watchdog_miscdev);
 		old_wd_data = NULL;
-	}
-
-	if (watchdog_active(wdd) &&
-	    test_bit(WDOG_STOP_ON_UNREGISTER, &wdd->status)) {
-		watchdog_stop(wdd);
 	}
 
 	mutex_lock(&wd_data->lock);
@@ -1044,10 +1024,40 @@ static void watchdog_cdev_unregister(struct watchdog_device *wdd)
 	wdd->wd_data = NULL;
 	mutex_unlock(&wd_data->lock);
 
+	if (watchdog_active(wdd) &&
+	    test_bit(WDOG_STOP_ON_UNREGISTER, &wdd->status)) {
+		watchdog_stop(wdd);
+	}
+
 	hrtimer_cancel(&wd_data->timer);
 	kthread_cancel_work_sync(&wd_data->work);
 
-	put_device(&wd_data->dev);
+	kref_put(&wd_data->kref, watchdog_core_data_release);
+}
+
+static struct class watchdog_class = {
+	.name =		"watchdog",
+	.owner =	THIS_MODULE,
+	.dev_groups =	wdt_groups,
+};
+
+static int watchdog_reboot_notifier(struct notifier_block *nb,
+				    unsigned long code, void *data)
+{
+	struct watchdog_device *wdd;
+
+	wdd = container_of(nb, struct watchdog_device, reboot_nb);
+	if (code == SYS_DOWN || code == SYS_HALT) {
+		if (watchdog_active(wdd)) {
+			int ret;
+
+			ret = wdd->ops->stop(wdd);
+			if (ret)
+				return NOTIFY_BAD;
+		}
+	}
+
+	return NOTIFY_DONE;
 }
 
 /*
@@ -1061,15 +1071,41 @@ static void watchdog_cdev_unregister(struct watchdog_device *wdd)
 
 int watchdog_dev_register(struct watchdog_device *wdd)
 {
+	struct device *dev;
+	dev_t devno;
 	int ret;
 
-	ret = watchdog_cdev_register(wdd);
+	devno = MKDEV(MAJOR(watchdog_devt), wdd->id);
+
+	ret = watchdog_cdev_register(wdd, devno);
 	if (ret)
 		return ret;
 
-	ret = watchdog_register_pretimeout(wdd);
-	if (ret)
+	dev = device_create_with_groups(&watchdog_class, wdd->parent,
+					devno, wdd, wdd->groups,
+					"watchdog%d", wdd->id);
+	if (IS_ERR(dev)) {
 		watchdog_cdev_unregister(wdd);
+		return PTR_ERR(dev);
+	}
+
+	ret = watchdog_register_pretimeout(wdd);
+	if (ret) {
+		device_destroy(&watchdog_class, devno);
+		watchdog_cdev_unregister(wdd);
+		return ret;
+	}
+
+	if (test_bit(WDOG_STOP_ON_REBOOT, &wdd->status)) {
+		wdd->reboot_nb.notifier_call = watchdog_reboot_notifier;
+
+		ret = devm_register_reboot_notifier(dev, &wdd->reboot_nb);
+		if (ret) {
+			pr_err("watchdog%d: Cannot register reboot notifier (%d)\n",
+			       wdd->id, ret);
+			watchdog_dev_unregister(wdd);
+		}
+	}
 
 	return ret;
 }
@@ -1085,6 +1121,7 @@ int watchdog_dev_register(struct watchdog_device *wdd)
 void watchdog_dev_unregister(struct watchdog_device *wdd)
 {
 	watchdog_unregister_pretimeout(wdd);
+	device_destroy(&watchdog_class, wdd->wd_data->cdev.dev);
 	watchdog_cdev_unregister(wdd);
 }
 

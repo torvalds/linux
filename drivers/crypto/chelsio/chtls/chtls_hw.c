@@ -361,14 +361,10 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 optname)
 	kwr->sc_imm.cmd_more = cpu_to_be32(ULPTX_CMD_V(ULP_TX_SC_IMM));
 	kwr->sc_imm.len = cpu_to_be32(klen);
 
-	lock_sock(sk);
 	/* key info */
 	kctx = (struct _key_ctx *)(kwr + 1);
 	ret = chtls_key_info(csk, kctx, keylen, optname);
 	if (ret)
-		goto out_notcb;
-
-	if (unlikely(csk_flag(sk, CSK_ABORT_SHUTDOWN)))
 		goto out_notcb;
 
 	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->tlshws.txqid);
@@ -376,7 +372,6 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 optname)
 	csk->wr_unacked += DIV_ROUND_UP(len, 16);
 	enqueue_wr(csk, skb);
 	cxgb4_ofld_send(csk->egress_dev, skb);
-	skb = NULL;
 
 	chtls_set_scmd(csk);
 	/* Clear quiesce for Rx key */
@@ -404,10 +399,8 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 optname)
 		csk->tlshws.txkey = keyid;
 	}
 
-	release_sock(sk);
 	return ret;
 out_notcb:
-	release_sock(sk);
 	free_tls_keyid(sk);
 out_nokey:
 	kfree_skb(skb);

@@ -380,9 +380,6 @@ int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 			mutex_unlock(&vgasr_mutex);
 			return -EINVAL;
 		}
-		/* notify if GPU has been already bound */
-		if (ops->gpu_bound)
-			ops->gpu_bound(pdev, id);
 	}
 	mutex_unlock(&vgasr_mutex);
 

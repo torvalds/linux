@@ -268,8 +268,11 @@ static int rpm_get_suppliers(struct device *dev)
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
 		int retval;
 
-		if (!(link->flags & DL_FLAG_PM_RUNTIME) ||
-		    READ_ONCE(link->status) == DL_STATE_SUPPLIER_UNBIND)
+		if (!(link->flags & DL_FLAG_PM_RUNTIME))
+			continue;
+
+		if (READ_ONCE(link->status) == DL_STATE_SUPPLIER_UNBIND ||
+		    link->rpm_active)
 			continue;
 
 		retval = pm_runtime_get_sync(link->supplier);
@@ -278,7 +281,7 @@ static int rpm_get_suppliers(struct device *dev)
 			pm_runtime_put_noidle(link->supplier);
 			return retval;
 		}
-		refcount_inc(&link->rpm_active);
+		link->rpm_active = true;
 	}
 	return 0;
 }
@@ -287,13 +290,12 @@ static void rpm_put_suppliers(struct device *dev)
 {
 	struct device_link *link;
 
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
-		if (READ_ONCE(link->status) == DL_STATE_SUPPLIER_UNBIND)
-			continue;
-
-		while (refcount_dec_not_one(&link->rpm_active))
+	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
+		if (link->rpm_active &&
+		    READ_ONCE(link->status) != DL_STATE_SUPPLIER_UNBIND) {
 			pm_runtime_put(link->supplier);
-	}
+			link->rpm_active = false;
+		}
 }
 
 /**
@@ -304,22 +306,22 @@ static void rpm_put_suppliers(struct device *dev)
 static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 	__releases(&dev->power.lock) __acquires(&dev->power.lock)
 {
-	bool use_links = dev->power.links_count > 0;
-	bool get = false;
 	int retval, idx;
-	bool put;
+	bool use_links = dev->power.links_count > 0;
 
 	if (dev->power.irq_safe) {
 		spin_unlock(&dev->power.lock);
-	} else if (!use_links) {
-		spin_unlock_irq(&dev->power.lock);
 	} else {
-		get = dev->power.runtime_status == RPM_RESUMING;
-
 		spin_unlock_irq(&dev->power.lock);
 
-		/* Resume suppliers if necessary. */
-		if (get) {
+		/*
+		 * Resume suppliers if necessary.
+		 *
+		 * The device's runtime PM status cannot change until this
+		 * routine returns, so it is safe to read the status outside of
+		 * the lock.
+		 */
+		if (use_links && dev->power.runtime_status == RPM_RESUMING) {
 			idx = device_links_read_lock();
 
 			retval = rpm_get_suppliers(dev);
@@ -334,36 +336,24 @@ static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 
 	if (dev->power.irq_safe) {
 		spin_lock(&dev->power.lock);
-		return retval;
-	}
+	} else {
+		/*
+		 * If the device is suspending and the callback has returned
+		 * success, drop the usage counters of the suppliers that have
+		 * been reference counted on its resume.
+		 *
+		 * Do that if resume fails too.
+		 */
+		if (use_links
+		    && ((dev->power.runtime_status == RPM_SUSPENDING && !retval)
+		    || (dev->power.runtime_status == RPM_RESUMING && retval))) {
+			idx = device_links_read_lock();
 
-	spin_lock_irq(&dev->power.lock);
+ fail:
+			rpm_put_suppliers(dev);
 
-	if (!use_links)
-		return retval;
-
-	/*
-	 * If the device is suspending and the callback has returned success,
-	 * drop the usage counters of the suppliers that have been reference
-	 * counted on its resume.
-	 *
-	 * Do that if the resume fails too.
-	 */
-	put = dev->power.runtime_status == RPM_SUSPENDING && !retval;
-	if (put)
-		__update_runtime_status(dev, RPM_SUSPENDED);
-	else
-		put = get && retval;
-
-	if (put) {
-		spin_unlock_irq(&dev->power.lock);
-
-		idx = device_links_read_lock();
-
-fail:
-		rpm_put_suppliers(dev);
-
-		device_links_read_unlock(idx);
+			device_links_read_unlock(idx);
+		}
 
 		spin_lock_irq(&dev->power.lock);
 	}
@@ -1541,9 +1531,9 @@ void pm_runtime_remove(struct device *dev)
  *
  * Check links from this device to any consumers and if any of them have active
  * runtime PM references to the device, drop the usage counter of the device
- * (as many times as needed).
+ * (once per link).
  *
- * Links with the DL_FLAG_MANAGED flag unset are ignored.
+ * Links with the DL_FLAG_STATELESS flag set are ignored.
  *
  * Since the device is guaranteed to be runtime-active at the point this is
  * called, nothing else needs to be done here.
@@ -1560,11 +1550,13 @@ void pm_runtime_clean_up_links(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu(link, &dev->links.consumers, s_node) {
-		if (!(link->flags & DL_FLAG_MANAGED))
+		if (link->flags & DL_FLAG_STATELESS)
 			continue;
 
-		while (refcount_dec_not_one(&link->rpm_active))
+		if (link->rpm_active) {
 			pm_runtime_put_noidle(dev);
+			link->rpm_active = false;
+		}
 	}
 
 	device_links_read_unlock(idx);
@@ -1582,11 +1574,8 @@ void pm_runtime_get_suppliers(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->flags & DL_FLAG_PM_RUNTIME) {
-			link->supplier_preactivated = true;
-			refcount_inc(&link->rpm_active);
+		if (link->flags & DL_FLAG_PM_RUNTIME)
 			pm_runtime_get_sync(link->supplier);
-		}
 
 	device_links_read_unlock(idx);
 }
@@ -1603,11 +1592,8 @@ void pm_runtime_put_suppliers(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->supplier_preactivated) {
-			link->supplier_preactivated = false;
-			if (refcount_dec_not_one(&link->rpm_active))
-				pm_runtime_put(link->supplier);
-		}
+		if (link->flags & DL_FLAG_PM_RUNTIME)
+			pm_runtime_put(link->supplier);
 
 	device_links_read_unlock(idx);
 }
@@ -1621,6 +1607,8 @@ void pm_runtime_new_link(struct device *dev)
 
 void pm_runtime_drop_link(struct device *dev)
 {
+	rpm_put_suppliers(dev);
+
 	spin_lock_irq(&dev->power.lock);
 	WARN_ON(dev->power.links_count == 0);
 	dev->power.links_count--;

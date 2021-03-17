@@ -15,21 +15,6 @@
 #include <linux/vboxguest.h>
 #include "vmmdev.h"
 
-/*
- * The mainline kernel version (this version) of the vboxguest module
- * contained a bug where it defined VBGL_IOCTL_VMMDEV_REQUEST_BIG and
- * VBGL_IOCTL_LOG using _IOC(_IOC_READ | _IOC_WRITE, 'V', ...) instead
- * of _IO(V, ...) as the out of tree VirtualBox upstream version does.
- *
- * These _ALT definitions keep compatibility with the wrong defines the
- * mainline kernel version used for a while.
- * Note the VirtualBox userspace bits have always been built against
- * VirtualBox upstream's headers, so this is likely not necessary. But
- * we must never break our ABI so we keep these around to be 100% sure.
- */
-#define VBG_IOCTL_VMMDEV_REQUEST_BIG_ALT _IOC(_IOC_READ | _IOC_WRITE, 'V', 3, 0)
-#define VBG_IOCTL_LOG_ALT(s)             _IOC(_IOC_READ | _IOC_WRITE, 'V', 9, s)
-
 struct vbg_session;
 
 /** VBox guest memory balloon. */

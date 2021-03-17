@@ -51,7 +51,7 @@ static int tcf_skbedit_act(struct sk_buff *skb, const struct tc_action *a,
 	if (params->flags & SKBEDIT_F_INHERITDSFIELD) {
 		int wlen = skb_network_offset(skb);
 
-		switch (skb_protocol(skb, true)) {
+		switch (tc_skb_protocol(skb)) {
 		case htons(ETH_P_IP):
 			wlen += sizeof(struct iphdr);
 			if (!pskb_may_pull(skb, wlen))
@@ -107,7 +107,6 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	u16 *queue_mapping = NULL, *ptype = NULL;
 	bool exists = false;
 	int ret = 0, err;
-	u32 index;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -154,8 +153,8 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	}
 
 	parm = nla_data(tb[TCA_SKBEDIT_PARMS]);
-	index = parm->index;
-	err = tcf_idr_check_alloc(tn, &index, a, bind);
+
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -166,15 +165,15 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		if (exists)
 			tcf_idr_release(*a, bind);
 		else
-			tcf_idr_cleanup(tn, index);
+			tcf_idr_cleanup(tn, parm->index);
 		return -EINVAL;
 	}
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, index, est, a,
+		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_skbedit_ops, bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, index);
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
 		}
 
@@ -192,7 +191,8 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		tcf_idr_release(*a, bind);
+		if (ret == ACT_P_CREATED)
+			tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
 
@@ -316,7 +316,7 @@ static __net_init int skbedit_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
 
-	return tc_action_net_init(net, tn, &act_skbedit_ops);
+	return tc_action_net_init(tn, &act_skbedit_ops);
 }
 
 static void __net_exit skbedit_exit_net(struct list_head *net_list)

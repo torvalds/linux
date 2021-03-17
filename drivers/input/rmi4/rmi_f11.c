@@ -1230,7 +1230,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	}
 
 	rc = f11_write_control_regs(fn, &f11->sens_query,
-			   &f11->dev_controls, fn->fd.control_base_addr);
+			   &f11->dev_controls, fn->fd.query_base_addr);
 	if (rc)
 		dev_warn(&fn->dev, "Failed to write control registers\n");
 
@@ -1287,8 +1287,8 @@ static irqreturn_t rmi_f11_attention(int irq, void *ctx)
 			valid_bytes = f11->sensor.attn_size;
 		memcpy(f11->sensor.data_pkt, drvdata->attn_data.data,
 			valid_bytes);
-		drvdata->attn_data.data += valid_bytes;
-		drvdata->attn_data.size -= valid_bytes;
+		drvdata->attn_data.data += f11->sensor.attn_size;
+		drvdata->attn_data.size -= f11->sensor.attn_size;
 	} else {
 		error = rmi_read_block(rmi_dev,
 				data_base_addr, f11->sensor.data_pkt,

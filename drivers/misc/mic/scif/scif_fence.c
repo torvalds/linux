@@ -272,7 +272,7 @@ static int _scif_prog_signal(scif_epd_t epd, dma_addr_t dst, u64 val)
 dma_fail:
 	if (!x100)
 		dma_pool_free(ep->remote_dev->signal_pool, status,
-			      src - offsetof(struct scif_status, val));
+			      status->src_dma_addr);
 alloc_fail:
 	return err;
 }

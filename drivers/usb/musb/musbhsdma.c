@@ -10,7 +10,12 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include "musb_core.h"
-#include "musb_dma.h"
+
+#define MUSB_HSDMA_BASE		0x200
+#define MUSB_HSDMA_INTR		(MUSB_HSDMA_BASE + 0)
+#define MUSB_HSDMA_CONTROL		0x4
+#define MUSB_HSDMA_ADDRESS		0x8
+#define MUSB_HSDMA_COUNT		0xc
 
 #define MUSB_HSDMA_CHANNEL_OFFSET(_bchannel, _offset)		\
 		(MUSB_HSDMA_BASE + (_bchannel << 4) + _offset)
@@ -263,7 +268,7 @@ static int dma_channel_abort(struct dma_channel *channel)
 	return 0;
 }
 
-irqreturn_t dma_controller_irq(int irq, void *private_data)
+static irqreturn_t dma_controller_irq(int irq, void *private_data)
 {
 	struct musb_dma_controller *controller = private_data;
 	struct musb *musb = controller->private_data;
@@ -284,7 +289,7 @@ irqreturn_t dma_controller_irq(int irq, void *private_data)
 
 	spin_lock_irqsave(&musb->lock, flags);
 
-	int_hsdma = musb_clearb(mbase, MUSB_HSDMA_INTR);
+	int_hsdma = musb_readb(mbase, MUSB_HSDMA_INTR);
 
 	if (!int_hsdma) {
 		musb_dbg(musb, "spurious DMA irq");
@@ -341,10 +346,12 @@ irqreturn_t dma_controller_irq(int irq, void *private_data)
 				channel->status = MUSB_DMA_STATUS_FREE;
 
 				/* completed */
-				if (musb_channel->transmit &&
-					(!channel->desired_mode ||
-					(channel->actual_len %
-					    musb_channel->max_packet_sz))) {
+				if ((devctl & MUSB_DEVCTL_HM)
+					&& (musb_channel->transmit)
+					&& ((channel->desired_mode == 0)
+					    || (channel->actual_len &
+					    (musb_channel->max_packet_sz - 1)))
+				    ) {
 					u8  epnum  = musb_channel->epnum;
 					int offset = musb->io.ep_offset(epnum,
 								    MUSB_TXCSR);
@@ -356,14 +363,11 @@ irqreturn_t dma_controller_irq(int irq, void *private_data)
 					 */
 					musb_ep_select(mbase, epnum);
 					txcsr = musb_readw(mbase, offset);
-					if (channel->desired_mode == 1) {
-						txcsr &= ~(MUSB_TXCSR_DMAENAB
+					txcsr &= ~(MUSB_TXCSR_DMAENAB
 							| MUSB_TXCSR_AUTOSET);
-						musb_writew(mbase, offset, txcsr);
-						/* Send out the packet */
-						txcsr &= ~MUSB_TXCSR_DMAMODE;
-						txcsr |= MUSB_TXCSR_DMAENAB;
-					}
+					musb_writew(mbase, offset, txcsr);
+					/* Send out the packet */
+					txcsr &= ~MUSB_TXCSR_DMAMODE;
 					txcsr |=  MUSB_TXCSR_TXPKTRDY;
 					musb_writew(mbase, offset, txcsr);
 				}
@@ -378,7 +382,6 @@ done:
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return retval;
 }
-EXPORT_SYMBOL_GPL(dma_controller_irq);
 
 void musbhs_dma_controller_destroy(struct dma_controller *c)
 {
@@ -394,10 +397,18 @@ void musbhs_dma_controller_destroy(struct dma_controller *c)
 }
 EXPORT_SYMBOL_GPL(musbhs_dma_controller_destroy);
 
-static struct musb_dma_controller *
-dma_controller_alloc(struct musb *musb, void __iomem *base)
+struct dma_controller *musbhs_dma_controller_create(struct musb *musb,
+						    void __iomem *base)
 {
 	struct musb_dma_controller *controller;
+	struct device *dev = musb->controller;
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq = platform_get_irq_byname(pdev, "dma");
+
+	if (irq <= 0) {
+		dev_err(dev, "No DMA interrupt line!\n");
+		return NULL;
+	}
 
 	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
 	if (!controller)
@@ -411,28 +422,9 @@ dma_controller_alloc(struct musb *musb, void __iomem *base)
 	controller->controller.channel_release = dma_channel_release;
 	controller->controller.channel_program = dma_channel_program;
 	controller->controller.channel_abort = dma_channel_abort;
-	return controller;
-}
-
-struct dma_controller *
-musbhs_dma_controller_create(struct musb *musb, void __iomem *base)
-{
-	struct musb_dma_controller *controller;
-	struct device *dev = musb->controller;
-	struct platform_device *pdev = to_platform_device(dev);
-	int irq = platform_get_irq_byname(pdev, "dma");
-
-	if (irq <= 0) {
-		dev_err(dev, "No DMA interrupt line!\n");
-		return NULL;
-	}
-
-	controller = dma_controller_alloc(musb, base);
-	if (!controller)
-		return NULL;
 
 	if (request_irq(irq, dma_controller_irq, 0,
-			dev_name(musb->controller), controller)) {
+			dev_name(musb->controller), &controller->controller)) {
 		dev_err(dev, "request_irq %d failed!\n", irq);
 		musb_dma_controller_destroy(&controller->controller);
 
@@ -444,16 +436,3 @@ musbhs_dma_controller_create(struct musb *musb, void __iomem *base)
 	return &controller->controller;
 }
 EXPORT_SYMBOL_GPL(musbhs_dma_controller_create);
-
-struct dma_controller *
-musbhs_dma_controller_create_noirq(struct musb *musb, void __iomem *base)
-{
-	struct musb_dma_controller *controller;
-
-	controller = dma_controller_alloc(musb, base);
-	if (!controller)
-		return NULL;
-
-	return &controller->controller;
-}
-EXPORT_SYMBOL_GPL(musbhs_dma_controller_create_noirq);

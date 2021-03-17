@@ -274,14 +274,25 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 }
 
 #ifdef CONFIG_PPC_PSERIES
-static void handle_prrn_event(s32 scope)
+static s32 prrn_update_scope;
+
+static void prrn_work_fn(struct work_struct *work)
 {
 	/*
 	 * For PRRN, we must pass the negative of the scope value in
 	 * the RTAS event.
 	 */
-	pseries_devicetree_update(-scope);
+	pseries_devicetree_update(-prrn_update_scope);
 	numa_update_cpu_topology(false);
+}
+
+static DECLARE_WORK(prrn_work, prrn_work_fn);
+
+static void prrn_schedule_update(u32 scope)
+{
+	flush_work(&prrn_work);
+	prrn_update_scope = scope;
+	schedule_work(&prrn_work);
 }
 
 static void handle_rtas_event(const struct rtas_error_log *log)
@@ -292,7 +303,7 @@ static void handle_rtas_event(const struct rtas_error_log *log)
 	/* For PRRN Events the extended log length is used to denote
 	 * the scope for calling rtas update-nodes.
 	 */
-	handle_prrn_event(rtas_error_extended_log_length(log));
+	prrn_schedule_update(rtas_error_extended_log_length(log));
 }
 
 #else

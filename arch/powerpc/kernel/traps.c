@@ -399,7 +399,6 @@ void system_reset_exception(struct pt_regs *regs)
 	if (debugger(regs))
 		goto out;
 
-	kmsg_dump(KMSG_DUMP_OOPS);
 	/*
 	 * A system reset is a request to dump, so we always send
 	 * it through the crashdump code (if fadump or kdump are
@@ -430,11 +429,11 @@ out:
 #ifdef CONFIG_PPC_BOOK3S_64
 	BUG_ON(get_paca()->in_nmi == 0);
 	if (get_paca()->in_nmi > 1)
-		die("Unrecoverable nested System Reset", regs, SIGABRT);
+		nmi_panic(regs, "Unrecoverable nested System Reset");
 #endif
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
-		die("Unrecoverable System Reset", regs, SIGABRT);
+		nmi_panic(regs, "Unrecoverable System Reset");
 
 	if (!nested)
 		nmi_exit();
@@ -768,16 +767,11 @@ void machine_check_exception(struct pt_regs *regs)
 	if (check_io_access(regs))
 		goto bail;
 
-	if (!nested)
-		nmi_exit();
-
 	die("Machine check", regs, SIGBUS);
 
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
-		die("Unrecoverable Machine check", regs, SIGBUS);
-
-	return;
+		nmi_panic(regs, "Unrecoverable Machine check");
 
 bail:
 	if (!nested)
@@ -794,7 +788,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 {
 	unsigned int ra, rb, t, i, sel, instr, rc;
 	const void __user *addr;
-	u8 vbuf[16] __aligned(16), *vdst;
+	u8 vbuf[16], *vdst;
 	unsigned long ea, msr, msr_mask;
 	bool swap;
 
@@ -1546,8 +1540,8 @@ bail:
 
 void StackOverflow(struct pt_regs *regs)
 {
-	pr_crit("Kernel stack overflow in process %s[%d], r1=%lx\n",
-		current->comm, task_pid_nr(current), regs->gpr[1]);
+	printk(KERN_CRIT "Kernel stack overflow in process %p, r1=%lx\n",
+	       current, regs->gpr[1]);
 	debugger(regs);
 	show_regs(regs);
 	panic("kernel stack overflow");

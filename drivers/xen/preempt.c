@@ -31,15 +31,13 @@ EXPORT_SYMBOL_GPL(xen_in_preemptible_hcall);
 asmlinkage __visible void xen_maybe_preempt_hcall(void)
 {
 	if (unlikely(__this_cpu_read(xen_in_preemptible_hcall)
-		     && need_resched() && !preempt_count())) {
+		     && need_resched())) {
 		/*
 		 * Clear flag as we may be rescheduled on a different
 		 * cpu.
 		 */
 		__this_cpu_write(xen_in_preemptible_hcall, false);
-		local_irq_enable();
-		cond_resched();
-		local_irq_disable();
+		_cond_resched();
 		__this_cpu_write(xen_in_preemptible_hcall, true);
 	}
 }

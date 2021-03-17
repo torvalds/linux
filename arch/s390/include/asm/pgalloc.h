@@ -36,11 +36,11 @@ static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
-	if (mm_pmd_folded(mm))
+	if (mm->context.asce_limit <= _REGION3_SIZE)
 		return _SEGMENT_ENTRY_EMPTY;
-	if (mm_pud_folded(mm))
+	if (mm->context.asce_limit <= _REGION2_SIZE)
 		return _REGION3_ENTRY_EMPTY;
-	if (mm_p4d_folded(mm))
+	if (mm->context.asce_limit <= _REGION1_SIZE)
 		return _REGION2_ENTRY_EMPTY;
 	return _REGION1_ENTRY_EMPTY;
 }
@@ -56,12 +56,7 @@ static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long address)
 		crst_table_init(table, _REGION2_ENTRY_EMPTY);
 	return (p4d_t *) table;
 }
-
-static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
-{
-	if (!mm_p4d_folded(mm))
-		crst_table_free(mm, (unsigned long *) p4d);
-}
+#define p4d_free(mm, p4d) crst_table_free(mm, (unsigned long *) p4d)
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 {
@@ -70,12 +65,7 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 		crst_table_init(table, _REGION3_ENTRY_EMPTY);
 	return (pud_t *) table;
 }
-
-static inline void pud_free(struct mm_struct *mm, pud_t *pud)
-{
-	if (!mm_pud_folded(mm))
-		crst_table_free(mm, (unsigned long *) pud);
-}
+#define pud_free(mm, pud) crst_table_free(mm, (unsigned long *) pud)
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 {
@@ -93,8 +83,6 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
-	if (mm_pmd_folded(mm))
-		return;
 	pgtable_pmd_page_dtor(virt_to_page(pmd));
 	crst_table_free(mm, (unsigned long *) pmd);
 }

@@ -144,15 +144,11 @@ ENTRY(__kvm_handle_stub_hvc)
 
 1:	cmp	x0, #HVC_RESET_VECTORS
 	b.ne	1f
-
-	/*
-	 * Set the HVC_RESET_VECTORS return code before entering the common
-	 * path so that we do not clobber x0-x2 in case we are coming via
-	 * HVC_SOFT_RESTART.
-	 */
-	mov	x0, xzr
 reset:
-	/* Reset kvm back to the hyp stub. */
+	/*
+	 * Reset kvm back to the hyp stub. Do not clobber x0-x4 in
+	 * case we coming via HVC_SOFT_RESTART.
+	 */
 	mrs	x5, sctlr_el2
 	ldr	x6, =SCTLR_ELx_FLAGS
 	bic	x5, x5, x6		// Clear SCTL_M and etc
@@ -163,6 +159,7 @@ reset:
 	/* Install stub vectors */
 	adr_l	x5, __hyp_stub_vectors
 	msr	vbar_el2, x5
+	mov	x0, xzr
 	eret
 
 1:	/* Bad stub call */

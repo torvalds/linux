@@ -226,11 +226,11 @@ static int __peernet2id(struct net *net, struct net *peer)
 	return __peernet2id_alloc(net, peer, &no);
 }
 
-static void rtnl_net_notifyid(struct net *net, int cmd, int id, gfp_t gfp);
+static void rtnl_net_notifyid(struct net *net, int cmd, int id);
 /* This function returns the id of a peer netns. If no id is assigned, one will
  * be allocated and returned.
  */
-int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
+int peernet2id_alloc(struct net *net, struct net *peer)
 {
 	bool alloc = false, alive = false;
 	int id;
@@ -249,7 +249,7 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 	id = __peernet2id_alloc(net, peer, &alloc);
 	spin_unlock_bh(&net->nsid_lock);
 	if (alloc && id >= 0)
-		rtnl_net_notifyid(net, RTM_NEWNSID, id, gfp);
+		rtnl_net_notifyid(net, RTM_NEWNSID, id);
 	if (alive)
 		put_net(peer);
 	return id;
@@ -304,7 +304,6 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 
 	refcount_set(&net->count, 1);
 	refcount_set(&net->passive, 1);
-	get_random_bytes(&net->hash_mix, sizeof(u32));
 	net->dev_base_seq = 1;
 	net->user_ns = user_ns;
 	idr_init(&net->netns_ids);
@@ -495,8 +494,7 @@ static void unhash_nsid(struct net *net, struct net *last)
 			idr_remove(&tmp->netns_ids, id);
 		spin_unlock_bh(&tmp->nsid_lock);
 		if (id >= 0)
-			rtnl_net_notifyid(tmp, RTM_DELNSID, id,
-					  GFP_KERNEL);
+			rtnl_net_notifyid(tmp, RTM_DELNSID, id);
 		if (tmp == last)
 			break;
 	}
@@ -721,7 +719,7 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = alloc_netid(net, peer, nsid);
 	spin_unlock_bh(&net->nsid_lock);
 	if (err >= 0) {
-		rtnl_net_notifyid(net, RTM_NEWNSID, err, GFP_KERNEL);
+		rtnl_net_notifyid(net, RTM_NEWNSID, err);
 		err = 0;
 	} else if (err == -ENOSPC && nsid >= 0) {
 		err = -EEXIST;
@@ -863,12 +861,12 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static void rtnl_net_notifyid(struct net *net, int cmd, int id, gfp_t gfp)
+static void rtnl_net_notifyid(struct net *net, int cmd, int id)
 {
 	struct sk_buff *msg;
 	int err = -ENOMEM;
 
-	msg = nlmsg_new(rtnl_net_get_size(), gfp);
+	msg = nlmsg_new(rtnl_net_get_size(), GFP_KERNEL);
 	if (!msg)
 		goto out;
 
@@ -876,7 +874,7 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id, gfp_t gfp)
 	if (err < 0)
 		goto err_out;
 
-	rtnl_notify(msg, net, 0, RTNLGRP_NSID, NULL, gfp);
+	rtnl_notify(msg, net, 0, RTNLGRP_NSID, NULL, 0);
 	return;
 
 err_out:
@@ -913,8 +911,7 @@ static int __init net_ns_init(void)
 	init_net_initialized = true;
 	up_write(&pernet_ops_rwsem);
 
-	if (register_pernet_subsys(&net_ns_ops))
-		panic("Could not register network namespace subsystems");
+	register_pernet_subsys(&net_ns_ops);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL,
 		      RTNL_FLAG_DOIT_UNLOCKED);

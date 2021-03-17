@@ -44,8 +44,20 @@ struct alt_region {
  */
 static bool branch_insn_requires_update(struct alt_instr *alt, unsigned long pc)
 {
-	unsigned long replptr = (unsigned long)ALT_REPL_PTR(alt);
-	return !(pc >= replptr && pc <= (replptr + alt->alt_len));
+	unsigned long replptr;
+
+	if (kernel_text_address(pc))
+		return true;
+
+	replptr = (unsigned long)ALT_REPL_PTR(alt);
+	if (pc >= replptr && pc <= (replptr + alt->alt_len))
+		return false;
+
+	/*
+	 * Branching into *another* alternate sequence is doomed, and
+	 * we're not even trying to fix it up.
+	 */
+	BUG();
 }
 
 #define align_down(x, a)	((unsigned long)(x) & ~(((unsigned long)(a)) - 1))
@@ -133,7 +145,7 @@ static void clean_dcache_range_nopatch(u64 start, u64 end)
 	} while (cur += d_size, cur < end);
 }
 
-static void __nocfi __apply_alternatives(void *alt_region, bool is_module)
+static void __apply_alternatives(void *alt_region, bool is_module)
 {
 	struct alt_instr *alt;
 	struct alt_region *region = alt_region;

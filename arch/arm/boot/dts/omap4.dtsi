@@ -516,7 +516,7 @@
 			status = "disabled";
 		};
 
-		sgx_module: target-module@56000000 {
+		target-module@56000000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "gpu";
 			reg = <0x5601fc00 0x4>,

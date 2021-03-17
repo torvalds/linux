@@ -163,7 +163,7 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 		compatible = "amlogic,meson8b-clkc";
-		reg = <0x8000 0x4>, <0x4000 0x400>;
+		reg = <0x8000 0x4>, <0x4000 0x460>;
 	};
 
 	reset: reset-controller@4404 {
@@ -207,7 +207,9 @@
 				groups = "eth_tx_clk",
 					 "eth_tx_en",
 					 "eth_txd1_0",
+					 "eth_txd1_1",
 					 "eth_txd0_0",
+					 "eth_txd0_1",
 					 "eth_rx_clk",
 					 "eth_rx_dv",
 					 "eth_rxd1",
@@ -216,9 +218,7 @@
 					 "eth_mdc",
 					 "eth_ref_clk",
 					 "eth_txd2",
-					 "eth_txd3",
-					 "eth_rxd3",
-					 "eth_rxd2";
+					 "eth_txd3";
 				function = "ethernet";
 			};
 		};

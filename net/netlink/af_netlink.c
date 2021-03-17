@@ -1029,8 +1029,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	if (nlk->netlink_bind && groups) {
 		int group;
 
-		/* nl_groups is a u32, so cap the maximum groups we can bind */
-		for (group = 0; group < BITS_PER_TYPE(u32); group++) {
+		for (group = 0; group < nlk->ngroups; group++) {
 			if (!test_bit(group, &groups))
 				continue;
 			err = nlk->netlink_bind(net, group + 1);
@@ -1049,7 +1048,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			netlink_insert(sk, nladdr->nl_pid) :
 			netlink_autobind(sock);
 		if (err) {
-			netlink_undo_bind(BITS_PER_TYPE(u32), groups, sk);
+			netlink_undo_bind(nlk->ngroups, groups, sk);
 			goto unlock;
 		}
 	}
@@ -2411,7 +2410,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 							       in_skb->len))
 				WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_OFFS,
 						    (u8 *)extack->bad_attr -
-						    (u8 *)nlh));
+						    in_skb->data));
 		} else {
 			if (extack->cookie_len)
 				WARN_ON(nla_put(skb, NLMSGERR_ATTR_COOKIE,
@@ -2779,8 +2778,4 @@ panic:
 	panic("netlink_init: Cannot allocate nl_table\n");
 }
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-core_initcall_sync(netlink_proto_init);
-#else
 core_initcall(netlink_proto_init);
-#endif

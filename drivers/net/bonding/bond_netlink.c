@@ -451,10 +451,11 @@ static int bond_newlink(struct net *src_net, struct net_device *bond_dev,
 		return err;
 
 	err = register_netdevice(bond_dev);
+
+	netif_carrier_off(bond_dev);
 	if (!err) {
 		struct bonding *bond = netdev_priv(bond_dev);
 
-		netif_carrier_off(bond_dev);
 		bond_work_init_all(bond);
 	}
 
@@ -637,7 +638,8 @@ static int bond_fill_info(struct sk_buff *skb,
 				goto nla_put_failure;
 
 			if (nla_put(skb, IFLA_BOND_AD_ACTOR_SYSTEM,
-				    ETH_ALEN, &bond->params.ad_actor_system))
+				    sizeof(bond->params.ad_actor_system),
+				    &bond->params.ad_actor_system))
 				goto nla_put_failure;
 		}
 		if (!bond_3ad_get_active_agg_info(bond, &info)) {

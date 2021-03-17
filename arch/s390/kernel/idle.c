@@ -69,26 +69,18 @@ DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
 static ssize_t show_idle_time(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	unsigned long long now, idle_time, idle_enter, idle_exit, in_idle;
 	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
+	unsigned long long now, idle_time, idle_enter, idle_exit;
 	unsigned int seq;
 
 	do {
+		now = get_tod_clock();
 		seq = read_seqcount_begin(&idle->seqcount);
 		idle_time = READ_ONCE(idle->idle_time);
 		idle_enter = READ_ONCE(idle->clock_idle_enter);
 		idle_exit = READ_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
-	in_idle = 0;
-	now = get_tod_clock();
-	if (idle_enter) {
-		if (idle_exit) {
-			in_idle = idle_exit - idle_enter;
-		} else if (now > idle_enter) {
-			in_idle = now - idle_enter;
-		}
-	}
-	idle_time += in_idle;
+	idle_time += idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
 	return sprintf(buf, "%llu\n", idle_time >> 12);
 }
 DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
@@ -96,24 +88,17 @@ DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 u64 arch_cpu_idle_time(int cpu)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, cpu);
-	unsigned long long now, idle_enter, idle_exit, in_idle;
+	unsigned long long now, idle_enter, idle_exit;
 	unsigned int seq;
 
 	do {
+		now = get_tod_clock();
 		seq = read_seqcount_begin(&idle->seqcount);
 		idle_enter = READ_ONCE(idle->clock_idle_enter);
 		idle_exit = READ_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
-	in_idle = 0;
-	now = get_tod_clock();
-	if (idle_enter) {
-		if (idle_exit) {
-			in_idle = idle_exit - idle_enter;
-		} else if (now > idle_enter) {
-			in_idle = now - idle_enter;
-		}
-	}
-	return cputime_to_nsecs(in_idle);
+
+	return cputime_to_nsecs(idle_enter ? ((idle_exit ?: now) - idle_enter) : 0);
 }
 
 void arch_cpu_idle_enter(void)

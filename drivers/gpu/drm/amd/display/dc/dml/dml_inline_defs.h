@@ -27,7 +27,7 @@
 #define __DML_INLINE_DEFS_H__
 
 #include "dml_common_defs.h"
-#include "dcn_calc_math.h"
+#include "../calcs/dcn_calc_math.h"
 #include "dml_logger.h"
 
 static inline double dml_min(double a, double b)

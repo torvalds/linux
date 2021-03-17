@@ -10,7 +10,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/module.h>
 #include <linux/pm_runtime.h>
 
 #include <linux/mmc/host.h>
@@ -587,25 +586,11 @@ try_again:
 	/*
 	 * Inform the card of the voltage
 	 */
-#ifdef CONFIG_SDIO_KEEPALIVE
-	if (!(host->chip_alive)) {
-		if (!powered_resume) {
-			err = mmc_send_io_op_cond(host, ocr, &rocr);
-			if (err) {
-				pr_err("%s: mmc_send_io_op_cond() err=%d\n", __func__, err);
-				goto err;
-			}
-		}
-	} else {
-		rocr = 0xa0ffff00;
-	}
-#else
 	if (!powered_resume) {
 		err = mmc_send_io_op_cond(host, ocr, &rocr);
 		if (err)
 			goto err;
 	}
-#endif
 
 	/*
 	 * For SPI, enable CRC as appropriate.
@@ -675,19 +660,9 @@ try_again:
 	 * For native busses:  set card RCA and quit open drain mode.
 	 */
 	if (!powered_resume && !mmc_host_is_spi(host)) {
-#ifdef CONFIG_SDIO_KEEPALIVE
-		if (!(host->chip_alive)) {
-			err = mmc_send_relative_addr(host, &card->rca);
-			if (err)
-				goto remove;
-		} else {
-			card->rca = 1;
-		}
-#else
 		err = mmc_send_relative_addr(host, &card->rca);
 		if (err)
 			goto remove;
-#endif
 
 		/*
 		 * Update oldcard with the new RCA received from the SDIO
@@ -745,8 +720,9 @@ try_again:
 			/* Retry init sequence, but without R4_18V_PRESENT. */
 			retries = 0;
 			goto try_again;
+		} else {
+			goto remove;
 		}
-		return err;
 	}
 
 	/*
@@ -958,10 +934,6 @@ static int mmc_sdio_pre_suspend(struct mmc_host *host)
  */
 static int mmc_sdio_suspend(struct mmc_host *host)
 {
-	/* Prevent processing of SDIO IRQs in suspended state. */
-	mmc_card_set_suspended(host->card);
-	cancel_delayed_work_sync(&host->sdio_irq_work);
-
 	mmc_claim_host(host);
 
 	if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host))
@@ -1010,20 +982,13 @@ static int mmc_sdio_resume(struct mmc_host *host)
 		err = sdio_enable_4bit_bus(host->card);
 	}
 
-	if (err)
-		goto out;
-
-	/* Allow SDIO IRQs to be processed again. */
-	mmc_card_clr_suspended(host->card);
-
-	if (host->sdio_irqs) {
+	if (!err && host->sdio_irqs) {
 		if (!(host->caps2 & MMC_CAP2_SDIO_IRQ_NOTHREAD))
 			wake_up_process(host->sdio_irq_thread);
 		else if (host->caps & MMC_CAP_SDIO_IRQ)
 			host->ops->enable_sdio_irq(host, 1);
 	}
 
-out:
 	mmc_release_host(host);
 
 	host->pm_flags &= ~MMC_PM_KEEP_POWER;
@@ -1128,21 +1093,9 @@ int mmc_attach_sdio(struct mmc_host *host)
 
 	WARN_ON(!host->claimed);
 
-#ifdef CONFIG_SDIO_KEEPALIVE
-	if (!(host->chip_alive)) {
-		err = mmc_send_io_op_cond(host, 0, &ocr);
-		if (err) {
-			pr_err("%s mmc_send_io_op_cond err: %d\n", mmc_hostname(host), err);
-			return err;
-		}
-	} else {
-		ocr = 0x20ffff00;
-	}
-#else
 	err = mmc_send_io_op_cond(host, 0, &ocr);
 	if (err)
 		return err;
-#endif
 
 	mmc_attach_bus(host, &mmc_sdio_ops);
 	if (host->ocr_avail_sdio)
@@ -1213,11 +1166,6 @@ int mmc_attach_sdio(struct mmc_host *host)
 			pm_runtime_enable(&card->sdio_func[i]->dev);
 	}
 
-#ifdef CONFIG_SDIO_KEEPALIVE
-	if (host->card->sdio_func[1])
-		host->card->sdio_func[1]->card_alive = host->chip_alive;
-#endif
-
 	/*
 	 * First add the card to the driver model...
 	 */
@@ -1262,48 +1210,3 @@ err:
 	return err;
 }
 
-int sdio_reset_comm(struct mmc_card *card)
-{
-	struct mmc_host *host = card->host;
-	u32 ocr;
-	u32 rocr;
-	int err;
-
-#ifdef CONFIG_SDIO_KEEPALIVE
-	if (host->chip_alive)
-		host->chip_alive = 0;
-#endif
-
-	printk("%s():\n", __func__);
-	mmc_claim_host(host);
-
-	mmc_retune_disable(host);
-
-	mmc_power_cycle(host, host->card->ocr);
-	mmc_go_idle(host);
-
-	mmc_set_clock(host, host->f_min);
-
-	err = mmc_send_io_op_cond(host, 0, &ocr);
-	if (err)
-		goto err;
-
-	rocr = mmc_select_voltage(host, ocr);
-	if (!rocr) {
-		err = -EINVAL;
-		goto err;
-	}
-
-	err = mmc_sdio_init_card(host, rocr, card, 0);
-	if (err)
-		goto err;
-
-	mmc_release_host(host);
-	return 0;
-err:
-	printk("%s: Error resetting SDIO communications (%d)\n",
-	       mmc_hostname(host), err);
-	mmc_release_host(host);
-	return err;
-}
-EXPORT_SYMBOL(sdio_reset_comm);

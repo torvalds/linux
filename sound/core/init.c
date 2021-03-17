@@ -257,7 +257,6 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 #endif
 	init_waitqueue_head(&card->remove_sleep);
 
-	init_waitqueue_head(&card->offline_poll_wait);
 	device_initialize(&card->card_dev);
 	card->card_dev.parent = parent;
 	card->card_dev.class = sound_class;
@@ -408,7 +407,14 @@ int snd_card_disconnect(struct snd_card *card)
 	card->shutdown = 1;
 	spin_unlock(&card->files_lock);
 
-	/* replace file->f_op with special dummy operations */
+	/* phase 1: disable fops (user space) operations for ALSA API */
+	mutex_lock(&snd_card_mutex);
+	snd_cards[card->number] = NULL;
+	clear_bit(card->number, snd_cards_lock);
+	mutex_unlock(&snd_card_mutex);
+	
+	/* phase 2: replace file->f_op with special dummy operations */
+	
 	spin_lock(&card->files_lock);
 	list_for_each_entry(mfile, &card->files_list, list) {
 		/* it's critical part, use endless loop */
@@ -424,7 +430,7 @@ int snd_card_disconnect(struct snd_card *card)
 	}
 	spin_unlock(&card->files_lock);	
 
-	/* notify all connected devices about disconnection */
+	/* phase 3: notify all connected devices about disconnection */
 	/* at this point, they cannot respond to any calls except release() */
 
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
@@ -440,13 +446,6 @@ int snd_card_disconnect(struct snd_card *card)
 		device_del(&card->card_dev);
 		card->registered = false;
 	}
-
-	/* disable fops (user space) operations for ALSA API */
-	mutex_lock(&snd_card_mutex);
-	snd_cards[card->number] = NULL;
-	clear_bit(card->number, snd_cards_lock);
-	mutex_unlock(&snd_card_mutex);
-
 #ifdef CONFIG_PM
 	wake_up(&card->power_sleep);
 #endif
@@ -1000,25 +999,6 @@ int snd_card_file_remove(struct snd_card *card, struct file *file)
 	return 0;
 }
 EXPORT_SYMBOL(snd_card_file_remove);
-
-/**
- * snd_card_change_online_state - mark card's online/offline state
- * @card: Card to mark
- * @online: whether online of offline
- *
- * Mutes the DAI DAC.
- */
-void snd_card_change_online_state(struct snd_card *card, int online)
-{
-	snd_printd("snd card %s state change %d -> %d\n",
-		   card->shortname, !card->offline, online);
-	card->offline = !online;
-	/* make sure offline is updated prior to wake up */
-	wmb();
-	xchg(&card->offline_change, 1);
-	wake_up_interruptible(&card->offline_poll_wait);
-}
-EXPORT_SYMBOL_GPL(snd_card_change_online_state);
 
 #ifdef CONFIG_PM
 /**

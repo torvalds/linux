@@ -423,10 +423,6 @@ generic_secondary_common_init:
 	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 
-	/* Create a temp kernel stack for use before relocation is on.	*/
-	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
-
 	/* See if we need to call a cpu state restore handler */
 	LOAD_REG_ADDR(r23, cur_cpu_spec)
 	ld	r23,0(r23)
@@ -454,6 +450,10 @@ generic_secondary_common_init:
 
 	sync				/* order paca.run and cur_cpu_spec */
 	isync				/* In case code patching happened */
+
+	/* Create a temp kernel stack for use before relocation is on.	*/
+	ld	r1,PACAEMERGSP(r13)
+	subi	r1,r1,STACK_FRAME_OVERHEAD
 
 	b	__secondary_start
 #endif /* SMP */
@@ -906,7 +906,6 @@ p_toc:	.8byte	__toc_start + 0x8000 - 0b
 /*
  * This is where the main kernel code starts.
  */
-__REF
 start_here_multiplatform:
 	/* set up the TOC */
 	bl      relative_toc
@@ -950,8 +949,15 @@ start_here_multiplatform:
 	std	r0,0(r4)
 #endif
 
-	/* set up a stack pointer */
+	/* The following gets the stack set up with the regs */
+	/* pointing to the real addr of the kernel stack.  This is   */
+	/* all done to support the C function call below which sets  */
+	/* up the htab.  This is done because we have relocated the  */
+	/* kernel but are still running in real mode. */
+
 	LOAD_REG_ADDR(r3,init_thread_union)
+
+	/* set up a stack pointer */
 	LOAD_REG_IMMEDIATE(r1,THREAD_SIZE)
 	add	r1,r3,r1
 	li	r0,0
@@ -964,9 +970,7 @@ start_here_multiplatform:
 
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
-	LOAD_REG_ADDR(r12, DOTSYM(early_setup))
-	mtctr	r12
-	bctrl		/* also sets r13 and SPRG_PACA */
+	bl	early_setup		/* also sets r13 and SPRG_PACA */
 
 	LOAD_REG_ADDR(r3, start_here_common)
 	ld	r4,PACAKMSR(r13)
@@ -975,7 +979,6 @@ start_here_multiplatform:
 	RFI
 	b	.	/* prevent speculative execution */
 
-	.previous
 	/* This is where all platforms converge execution */
 
 start_here_common:

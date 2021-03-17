@@ -391,20 +391,12 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 		goto skip;
 
 	/*
-	 * If the bio is for read-ahead or background IO, bypass it or
-	 * not depends on the following situations,
-	 * - If the IO is for meta data, always cache it and no bypass
-	 * - If the IO is not meta data, check dc->cache_reada_policy,
-	 *      BCH_CACHE_READA_ALL: cache it and not bypass
-	 *      BCH_CACHE_READA_META_ONLY: not cache it and bypass
-	 * That is, read-ahead request for metadata always get cached
-	 * (eg, for gfs2 or xfs).
+	 * Flag for bypass if the IO is for read-ahead or background,
+	 * unless the read-ahead request is for metadata (eg, for gfs2).
 	 */
-	if ((bio->bi_opf & (REQ_RAHEAD|REQ_BACKGROUND))) {
-		if (!(bio->bi_opf & (REQ_META|REQ_PRIO)) &&
-		    (dc->cache_readahead_policy != BCH_CACHE_READA_ALL))
-			goto skip;
-	}
+	if (bio->bi_opf & (REQ_RAHEAD|REQ_BACKGROUND) &&
+	    !(bio->bi_opf & REQ_META))
+		goto skip;
 
 	if (bio->bi_iter.bi_sector & (c->sb.block_size - 1) ||
 	    bio_sectors(bio) & (c->sb.block_size - 1)) {
@@ -858,7 +850,7 @@ static void cached_dev_read_done_bh(struct closure *cl)
 
 	bch_mark_cache_accounting(s->iop.c, s->d,
 				  !s->cache_missed, s->iop.bypass);
-	trace_bcache_read(s->orig_bio, !s->cache_missed, s->iop.bypass);
+	trace_bcache_read(s->orig_bio, !s->cache_miss, s->iop.bypass);
 
 	if (s->iop.status)
 		continue_at_nobarrier(cl, cached_dev_read_error, bcache_wq);
@@ -885,7 +877,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	}
 
 	if (!(bio->bi_opf & REQ_RAHEAD) &&
-	    !(bio->bi_opf & (REQ_META|REQ_PRIO)) &&
+	    !(bio->bi_opf & REQ_META) &&
 	    s->iop.c->gc_stats.in_use < CUTOFF_CACHE_READA)
 		reada = min_t(sector_t, dc->readahead >> 9,
 			      get_capacity(bio->bi_disk) - bio_end_sector(bio));
@@ -1225,9 +1217,6 @@ static int cached_dev_ioctl(struct bcache_device *d, fmode_t mode,
 			    unsigned int cmd, unsigned long arg)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
-
-	if (dc->io_disable)
-		return -EIO;
 
 	return __blkdev_driver_ioctl(dc->bdev, mode, cmd, arg);
 }

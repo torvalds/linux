@@ -24,28 +24,8 @@
 #ifndef __DRM_PANEL_H__
 #define __DRM_PANEL_H__
 
-#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
-
-/* A hardware display blank change occurred */
-#define DRM_PANEL_EVENT_BLANK		0x01
-/* A hardware display blank early change occurred */
-#define DRM_PANEL_EARLY_EVENT_BLANK	0x02
-
-enum {
-	/* panel: power on */
-	DRM_PANEL_BLANK_UNBLANK,
-	/* panel: power off */
-	DRM_PANEL_BLANK_POWERDOWN,
-};
-
-struct drm_panel_notifier {
-	int refresh_rate;
-	void *data;
-	uint32_t id;
-};
 
 struct device_node;
 struct drm_connector;
@@ -54,7 +34,6 @@ struct drm_panel;
 struct display_timing;
 
 /**
- * @loader_protect: protect loader logo panel's power
  * struct drm_panel_funcs - perform operations on a given panel
  * @disable: disable panel (turn off back light, etc.)
  * @unprepare: turn off panel
@@ -89,7 +68,6 @@ struct display_timing;
  * the panel. This is the job of the .unprepare() function.
  */
 struct drm_panel_funcs {
-	int (*loader_protect)(struct drm_panel *panel, bool on);
 	int (*disable)(struct drm_panel *panel);
 	int (*unprepare)(struct drm_panel *panel);
 	int (*prepare)(struct drm_panel *panel);
@@ -115,22 +93,7 @@ struct drm_panel {
 	const struct drm_panel_funcs *funcs;
 
 	struct list_head list;
-
-	/**
-	 * @nh:
-	 *
-	 * panel notifier list head
-	 */
-	struct blocking_notifier_head nh;
 };
-
-static inline int drm_panel_loader_protect(struct drm_panel *panel, bool on)
-{
-	if (panel && panel->funcs && panel->funcs->loader_protect)
-		return panel->funcs->loader_protect(panel, on);
-
-	return -EINVAL;
-}
 
 /**
  * drm_disable_unprepare - power off a panel
@@ -230,13 +193,6 @@ void drm_panel_remove(struct drm_panel *panel);
 
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector);
 int drm_panel_detach(struct drm_panel *panel);
-
-int drm_panel_notifier_register(struct drm_panel *panel,
-	struct notifier_block *nb);
-int drm_panel_notifier_unregister(struct drm_panel *panel,
-	struct notifier_block *nb);
-int drm_panel_notifier_call_chain(struct drm_panel *panel,
-	unsigned long val, void *v);
 
 #if defined(CONFIG_OF) && defined(CONFIG_DRM_PANEL)
 struct drm_panel *of_drm_find_panel(const struct device_node *np);

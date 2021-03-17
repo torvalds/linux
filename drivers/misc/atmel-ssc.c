@@ -13,7 +13,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/atmel-ssc.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -23,7 +23,7 @@
 #include "../../sound/soc/atmel/atmel_ssc_dai.h"
 
 /* Serialize access to ssc_list and user count */
-static DEFINE_MUTEX(user_lock);
+static DEFINE_SPINLOCK(user_lock);
 static LIST_HEAD(ssc_list);
 
 struct ssc_device *ssc_request(unsigned int ssc_num)
@@ -31,7 +31,7 @@ struct ssc_device *ssc_request(unsigned int ssc_num)
 	int ssc_valid = 0;
 	struct ssc_device *ssc;
 
-	mutex_lock(&user_lock);
+	spin_lock(&user_lock);
 	list_for_each_entry(ssc, &ssc_list, list) {
 		if (ssc->pdev->dev.of_node) {
 			if (of_alias_get_id(ssc->pdev->dev.of_node, "ssc")
@@ -47,18 +47,18 @@ struct ssc_device *ssc_request(unsigned int ssc_num)
 	}
 
 	if (!ssc_valid) {
-		mutex_unlock(&user_lock);
+		spin_unlock(&user_lock);
 		pr_err("ssc: ssc%d platform device is missing\n", ssc_num);
 		return ERR_PTR(-ENODEV);
 	}
 
 	if (ssc->user) {
-		mutex_unlock(&user_lock);
+		spin_unlock(&user_lock);
 		dev_dbg(&ssc->pdev->dev, "module busy\n");
 		return ERR_PTR(-EBUSY);
 	}
 	ssc->user++;
-	mutex_unlock(&user_lock);
+	spin_unlock(&user_lock);
 
 	clk_prepare(ssc->clk);
 
@@ -70,14 +70,14 @@ void ssc_free(struct ssc_device *ssc)
 {
 	bool disable_clk = true;
 
-	mutex_lock(&user_lock);
+	spin_lock(&user_lock);
 	if (ssc->user)
 		ssc->user--;
 	else {
 		disable_clk = false;
 		dev_dbg(&ssc->pdev->dev, "device already free\n");
 	}
-	mutex_unlock(&user_lock);
+	spin_unlock(&user_lock);
 
 	if (disable_clk)
 		clk_unprepare(ssc->clk);
@@ -132,7 +132,7 @@ static const struct of_device_id atmel_ssc_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, atmel_ssc_dt_ids);
 #endif
 
-static inline const struct atmel_ssc_platform_data *
+static inline const struct atmel_ssc_platform_data * __init
 	atmel_ssc_get_driver_data(struct platform_device *pdev)
 {
 	if (pdev->dev.of_node) {
@@ -240,9 +240,9 @@ static int ssc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	mutex_lock(&user_lock);
+	spin_lock(&user_lock);
 	list_add_tail(&ssc->list, &ssc_list);
-	mutex_unlock(&user_lock);
+	spin_unlock(&user_lock);
 
 	platform_set_drvdata(pdev, ssc);
 
@@ -261,9 +261,9 @@ static int ssc_remove(struct platform_device *pdev)
 
 	ssc_sound_dai_remove(ssc);
 
-	mutex_lock(&user_lock);
+	spin_lock(&user_lock);
 	list_del(&ssc->list);
-	mutex_unlock(&user_lock);
+	spin_unlock(&user_lock);
 
 	return 0;
 }

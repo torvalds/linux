@@ -271,7 +271,7 @@ static int string_set_value(struct bt_ctf_field *field, const char *string)
 				if (i > 0)
 					strncpy(buffer, string, i);
 			}
-			memcpy(buffer + p, numstr, 4);
+			strncat(buffer + p, numstr, 4);
 			p += 3;
 		}
 	}

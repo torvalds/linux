@@ -252,7 +252,6 @@ pgoff_t page_cache_prev_hole(struct address_space *mapping,
 #define FGP_WRITE		0x00000008
 #define FGP_NOFS		0x00000010
 #define FGP_NOWAIT		0x00000020
-#define FGP_FOR_MMAP		0x00000040
 
 struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
 		int fgp_flags, gfp_t cache_gfp_mask);
@@ -399,7 +398,8 @@ extern int read_cache_pages(struct address_space *mapping,
 static inline struct page *read_mapping_page(struct address_space *mapping,
 				pgoff_t index, void *data)
 {
-	return read_cache_page(mapping, index, NULL, data);
+	filler_t *filler = (filler_t *)mapping->a_ops->readpage;
+	return read_cache_page(mapping, index, filler, data);
 }
 
 /*
@@ -461,9 +461,9 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
 	return pgoff;
 }
 
-extern void __sched __lock_page(struct page *page);
-extern int __sched __lock_page_killable(struct page *page);
-extern int __sched __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+extern void __lock_page(struct page *page);
+extern int __lock_page_killable(struct page *page);
+extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 				unsigned int flags);
 extern void unlock_page(struct page *page);
 
@@ -476,7 +476,7 @@ static inline int trylock_page(struct page *page)
 /*
  * lock_page may only be called if we have the page's inode pinned.
  */
-static inline __sched void lock_page(struct page *page)
+static inline void lock_page(struct page *page)
 {
 	might_sleep();
 	if (!trylock_page(page))
@@ -488,7 +488,7 @@ static inline __sched void lock_page(struct page *page)
  * signals.  It returns 0 if it locked the page and -EINTR if it was
  * killed while waiting.
  */
-static inline __sched int lock_page_killable(struct page *page)
+static inline int lock_page_killable(struct page *page)
 {
 	might_sleep();
 	if (!trylock_page(page))
@@ -503,9 +503,8 @@ static inline __sched int lock_page_killable(struct page *page)
  * Return value and mmap_sem implications depend on flags; see
  * __lock_page_or_retry().
  */
-static inline __sched int lock_page_or_retry(struct page *page,
-					     struct mm_struct *mm,
-					     unsigned int flags)
+static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
+				     unsigned int flags)
 {
 	might_sleep();
 	return trylock_page(page) || __lock_page_or_retry(page, mm, flags);
@@ -515,8 +514,8 @@ static inline __sched int lock_page_or_retry(struct page *page,
  * This is exported only for wait_on_page_locked/wait_on_page_writeback, etc.,
  * and should not be used directly.
  */
-extern void __sched wait_on_page_bit(struct page *page, int bit_nr);
-extern int __sched wait_on_page_bit_killable(struct page *page, int bit_nr);
+extern void wait_on_page_bit(struct page *page, int bit_nr);
+extern int wait_on_page_bit_killable(struct page *page, int bit_nr);
 
 /* 
  * Wait for a page to be unlocked.
@@ -525,13 +524,13 @@ extern int __sched wait_on_page_bit_killable(struct page *page, int bit_nr);
  * ie with increased "page->count" so that the page won't
  * go away during the wait..
  */
-static inline __sched void wait_on_page_locked(struct page *page)
+static inline void wait_on_page_locked(struct page *page)
 {
 	if (PageLocked(page))
 		wait_on_page_bit(compound_head(page), PG_locked);
 }
 
-static inline __sched int wait_on_page_locked_killable(struct page *page)
+static inline int wait_on_page_locked_killable(struct page *page)
 {
 	if (!PageLocked(page))
 		return 0;
@@ -541,7 +540,7 @@ static inline __sched int wait_on_page_locked_killable(struct page *page)
 /* 
  * Wait for a page to complete writeback
  */
-static inline __sched void wait_on_page_writeback(struct page *page)
+static inline void wait_on_page_writeback(struct page *page)
 {
 	if (PageWriteback(page))
 		wait_on_page_bit(page, PG_writeback);

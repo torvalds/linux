@@ -393,7 +393,7 @@ static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 		printk("%s""vendor_id: 0x%04x, device_id: 0x%04x\n", pfx,
 		       pcie->device_id.vendor_id, pcie->device_id.device_id);
 		p = pcie->device_id.class_code;
-		printk("%s""class_code: %02x%02x%02x\n", pfx, p[2], p[1], p[0]);
+		printk("%s""class_code: %02x%02x%02x\n", pfx, p[0], p[1], p[2]);
 	}
 	if (pcie->validation_bits & CPER_PCIE_VALID_SERIAL_NUMBER)
 		printk("%s""serial number: 0x%04x, 0x%04x\n", pfx,
@@ -402,21 +402,6 @@ static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 		printk(
 	"%s""bridge: secondary_status: 0x%04x, control: 0x%04x\n",
 	pfx, pcie->bridge.secondary_status, pcie->bridge.control);
-
-	/* Fatal errors call __ghes_panic() before AER handler prints this */
-	if ((pcie->validation_bits & CPER_PCIE_VALID_AER_INFO) &&
-	    (gdata->error_severity & CPER_SEV_FATAL)) {
-		struct aer_capability_regs *aer;
-
-		aer = (struct aer_capability_regs *)pcie->aer_info;
-		printk("%saer_uncor_status: 0x%08x, aer_uncor_mask: 0x%08x\n",
-		       pfx, aer->uncor_status, aer->uncor_mask);
-		printk("%saer_uncor_severity: 0x%08x\n",
-		       pfx, aer->uncor_severity);
-		printk("%sTLP Header: %08x %08x %08x %08x\n", pfx,
-		       aer->header_log.dw0, aer->header_log.dw1,
-		       aer->header_log.dw2, aer->header_log.dw3);
-	}
 }
 
 static void cper_print_tstamp(const char *pfx,
@@ -561,24 +546,19 @@ EXPORT_SYMBOL_GPL(cper_estatus_check_header);
 int cper_estatus_check(const struct acpi_hest_generic_status *estatus)
 {
 	struct acpi_hest_generic_data *gdata;
-	unsigned int data_len, record_size;
+	unsigned int data_len, gedata_len;
 	int rc;
 
 	rc = cper_estatus_check_header(estatus);
 	if (rc)
 		return rc;
-
 	data_len = estatus->data_length;
 
 	apei_estatus_for_each_section(estatus, gdata) {
-		if (sizeof(struct acpi_hest_generic_data) > data_len)
+		gedata_len = acpi_hest_get_error_length(gdata);
+		if (gedata_len > data_len - acpi_hest_get_size(gdata))
 			return -EINVAL;
-
-		record_size = acpi_hest_get_record_size(gdata);
-		if (record_size > data_len)
-			return -EINVAL;
-
-		data_len -= record_size;
+		data_len -= acpi_hest_get_record_size(gdata);
 	}
 	if (data_len)
 		return -EINVAL;

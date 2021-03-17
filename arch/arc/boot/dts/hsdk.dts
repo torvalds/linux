@@ -83,8 +83,6 @@
 
 	arcpct: pct {
 		compatible = "snps,archs-pct";
-		interrupt-parent = <&cpu_intc>;
-		interrupts = <20>;
 	};
 
 	/* TIMER0 with interrupt for clockevent */
@@ -175,9 +173,8 @@
 			reg = <0x8000 0x2000>;
 			interrupts = <10>;
 			interrupt-names = "macirq";
-			phy-mode = "rgmii-id";
+			phy-mode = "rgmii";
 			snps,pbl = <32>;
-			snps,multicast-filter-bins = <256>;
 			clocks = <&gmacclk>;
 			clock-names = "stmmaceth";
 			phy-handle = <&phy0>;
@@ -186,14 +183,11 @@
 			mac-address = [00 00 00 00 00 00]; /* Filled in by U-Boot */
 			dma-coherent;
 
-			tx-fifo-depth = <4096>;
-			rx-fifo-depth = <4096>;
-
 			mdio {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "snps,dwmac-mdio";
-				phy0: ethernet-phy@0 { /* Micrel KSZ9031 */
+				phy0: ethernet-phy@0 {
 					reg = <0>;
 					ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 					ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;

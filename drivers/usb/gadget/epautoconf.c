@@ -123,12 +123,6 @@ found_ep:
 	ep->desc = NULL;
 	ep->comp_desc = NULL;
 	ep->claimed = true;
-#ifdef CONFIG_ARCH_ROCKCHIP
-	ep->transfer_type = type;
-	if (type == USB_ENDPOINT_XFER_ISOC ||
-	    type == USB_ENDPOINT_XFER_INT)
-		ep->mult = usb_endpoint_maxp_mult(desc);
-#endif
 	return ep;
 }
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
@@ -211,46 +205,3 @@ void usb_ep_autoconfig_reset (struct usb_gadget *gadget)
 	gadget->out_epnum = 0;
 }
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig_reset);
-
-/**
- * usb_ep_autoconfig_by_name - Used to pick the endpoint by name. eg gsi-epin1
- * @gadget: The device to which the endpoint must belong.
- * @desc: Endpoint descriptor, with endpoint direction and transfer mode
- *	initialized.
- * @ep_name: EP name that is to be searched.
- *
- */
-struct usb_ep *usb_ep_autoconfig_by_name(
-			struct usb_gadget		*gadget,
-			struct usb_endpoint_descriptor	*desc,
-			const char			*ep_name
-)
-{
-	struct usb_ep	*ep;
-	bool ep_found = false;
-
-	if (!ep_name || !strlen(ep_name))
-		goto err;
-
-	list_for_each_entry(ep, &gadget->ep_list, ep_list)
-		if (strncmp(ep->name, ep_name, strlen(ep_name)) == 0 &&
-				!ep->driver_data) {
-			ep_found = true;
-			break;
-		}
-
-	if (ep_found) {
-		desc->bEndpointAddress &= USB_DIR_IN;
-		desc->bEndpointAddress |= ep->ep_num;
-		ep->address = desc->bEndpointAddress;
-		pr_debug("Allocating ep address:%x\n", ep->address);
-		ep->desc = NULL;
-		ep->comp_desc = NULL;
-		return ep;
-	}
-
-err:
-	pr_err("%s:error finding ep %s\n", __func__, ep_name);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(usb_ep_autoconfig_by_name);

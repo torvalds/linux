@@ -279,6 +279,9 @@ static void qeth_l3_clear_ip_htable(struct qeth_card *card, int recover)
 
 	QETH_CARD_TEXT(card, 4, "clearip");
 
+	if (recover && card->options.sniffer)
+		return;
+
 	spin_lock_bh(&card->ip_lock);
 
 	hash_for_each_safe(card->ip_htable, i, tmp, addr, hnode) {
@@ -661,8 +664,6 @@ static int qeth_l3_register_addr_entry(struct qeth_card *card,
 	int rc = 0;
 	int cnt = 3;
 
-	if (card->options.sniffer)
-		return 0;
 
 	if (addr->proto == QETH_PROT_IPV4) {
 		QETH_CARD_TEXT(card, 2, "setaddr4");
@@ -696,9 +697,6 @@ static int qeth_l3_deregister_addr_entry(struct qeth_card *card,
 						struct qeth_ipaddr *addr)
 {
 	int rc = 0;
-
-	if (card->options.sniffer)
-		return 0;
 
 	if (addr->proto == QETH_PROT_IPV4) {
 		QETH_CARD_TEXT(card, 2, "deladdr4");
@@ -2414,10 +2412,7 @@ static int __qeth_l3_open(struct net_device *dev)
 
 	if (qdio_stop_irq(card->data.ccwdev, 0) >= 0) {
 		napi_enable(&card->napi);
-		local_bh_disable();
 		napi_schedule(&card->napi);
-		/* kick-start the NAPI softirq: */
-		local_bh_enable();
 	} else
 		rc = -EIO;
 	return rc;
@@ -2517,7 +2512,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 {
 	int rc;
 
-	if (qeth_netdev_is_registered(card->dev))
+	if (card->dev->netdev_ops)
 		return 0;
 
 	if (card->info.type == QETH_CARD_TYPE_OSD ||
@@ -2589,14 +2584,12 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc;
 
-	hash_init(card->ip_htable);
-
 	if (gdev->dev.type == &qeth_generic_devtype) {
 		rc = qeth_l3_create_device_attributes(&gdev->dev);
 		if (rc)
 			return rc;
 	}
-
+	hash_init(card->ip_htable);
 	hash_init(card->ip_mc_htable);
 	card->options.layer2 = 0;
 	card->info.hwtrap = 0;
@@ -2616,9 +2609,7 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 	if (cgdev->state == CCWGROUP_ONLINE)
 		qeth_l3_set_offline(cgdev);
 
-	cancel_work_sync(&card->close_dev_work);
-	if (qeth_netdev_is_registered(card->dev))
-		unregister_netdev(card->dev);
+	unregister_netdev(card->dev);
 	qeth_l3_clear_ip_htable(card, 0);
 	qeth_l3_clear_ipato_list(card);
 }

@@ -139,10 +139,10 @@ void aq_ring_queue_stop(struct aq_ring_s *ring)
 bool aq_ring_tx_clean(struct aq_ring_s *self)
 {
 	struct device *dev = aq_nic_get_dev(self->aq_nic);
-	unsigned int budget;
+	unsigned int budget = AQ_CFG_TX_CLEAN_BUDGET;
 
-	for (budget = AQ_CFG_TX_CLEAN_BUDGET;
-	     budget && self->sw_head != self->hw_head; budget--) {
+	for (; self->sw_head != self->hw_head && budget--;
+		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
 
 		if (likely(buff->is_mapped)) {
@@ -162,40 +162,14 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 			}
 		}
 
-		if (unlikely(buff->is_eop)) {
-			++self->stats.rx.packets;
-			self->stats.tx.bytes += buff->skb->len;
-
+		if (unlikely(buff->is_eop))
 			dev_kfree_skb_any(buff->skb);
-		}
+
 		buff->pa = 0U;
 		buff->eop_index = 0xffffU;
-		self->sw_head = aq_ring_next_dx(self, self->sw_head);
 	}
 
 	return !!budget;
-}
-
-static void aq_rx_checksum(struct aq_ring_s *self,
-			   struct aq_ring_buff_s *buff,
-			   struct sk_buff *skb)
-{
-	if (!(self->aq_nic->ndev->features & NETIF_F_RXCSUM))
-		return;
-
-	if (unlikely(buff->is_cso_err)) {
-		++self->stats.rx.errors;
-		skb->ip_summed = CHECKSUM_NONE;
-		return;
-	}
-	if (buff->is_ip_cso) {
-		__skb_incr_checksum_unnecessary(skb);
-	} else {
-		skb->ip_summed = CHECKSUM_NONE;
-	}
-
-	if (buff->is_udp_cso || buff->is_tcp_cso)
-		__skb_incr_checksum_unnecessary(skb);
 }
 
 #define AQ_SKB_ALIGN SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
@@ -293,8 +267,18 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		}
 
 		skb->protocol = eth_type_trans(skb, ndev);
-
-		aq_rx_checksum(self, buff, skb);
+		if (unlikely(buff->is_cso_err)) {
+			++self->stats.rx.errors;
+			skb->ip_summed = CHECKSUM_NONE;
+		} else {
+			if (buff->is_ip_cso) {
+				__skb_incr_checksum_unnecessary(skb);
+				if (buff->is_udp_cso || buff->is_tcp_cso)
+					__skb_incr_checksum_unnecessary(skb);
+			} else {
+				skb->ip_summed = CHECKSUM_NONE;
+			}
+		}
 
 		skb_set_hash(skb, buff->rss_hash,
 			     buff->is_hash_l4 ? PKT_HASH_TYPE_L4 :

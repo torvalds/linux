@@ -185,7 +185,7 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"CNVI",                BIT(3)},
 	{"UFS0",                BIT(4)},
 	{"EMMC",                BIT(5)},
-	{"SPF",			BIT(6)},
+	{"Res_6",               BIT(6)},
 	{"SBR6",                BIT(7)},
 
 	{"SBR7",                BIT(0)},
@@ -333,8 +333,7 @@ static int pmc_core_ppfear_sts_show(struct seq_file *s, void *unused)
 	     index < PPFEAR_MAX_NUM_ENTRIES; index++, iter++)
 		pf_regs[index] = pmc_core_reg_read_byte(pmcdev, iter);
 
-	for (index = 0; map[index].name &&
-	     index < pmcdev->map->ppfear_buckets * 8; index++)
+	for (index = 0; map[index].name; index++)
 		pmc_core_display_map(s, index, pf_regs[index / 8], map);
 
 	return 0;
@@ -682,17 +681,13 @@ static int __init pmc_core_probe(void)
 	 * Sunrisepoint PCH regmap can't be used. Use Cannonlake PCH regmap
 	 * in this case.
 	 */
-	if (pmcdev->map == &spt_reg_map && !pci_dev_present(pmc_pci_ids))
+	if (!pci_dev_present(pmc_pci_ids))
 		pmcdev->map = &cnp_reg_map;
 
-	if (lpit_read_residency_count_address(&slp_s0_addr)) {
+	if (lpit_read_residency_count_address(&slp_s0_addr))
 		pmcdev->base_addr = PMC_BASE_ADDR_DEFAULT;
-
-		if (page_is_ram(PHYS_PFN(pmcdev->base_addr)))
-			return -ENODEV;
-	} else {
+	else
 		pmcdev->base_addr = slp_s0_addr - pmcdev->map->slp_s0_offset;
-	}
 
 	pmcdev->regbase = ioremap(pmcdev->base_addr,
 				  pmcdev->map->regmap_length);

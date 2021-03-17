@@ -43,7 +43,7 @@
 		backlight = <&backlight>;
 		power-supply = <&pp3300_disp>;
 
-		port {
+		ports {
 			panel_in_edp: endpoint {
 				remote-endpoint = <&edp_out_panel>;
 			};

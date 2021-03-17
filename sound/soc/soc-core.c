@@ -718,17 +718,7 @@ EXPORT_SYMBOL_GPL(snd_soc_resume);
 static const struct snd_soc_dai_ops null_dai_ops = {
 };
 
-/**
- * soc_find_component: find a component from component_list in ASoC core
- *
- * @of_node: of_node of the component to query.
- * @name: name of the component to query.
- *
- * function to find out if a component is already registered with ASoC core.
- *
- * Returns component handle for success, else NULL error.
- */
-struct snd_soc_component *soc_find_component(
+static struct snd_soc_component *soc_find_component(
 	const struct device_node *of_node, const char *name)
 {
 	struct snd_soc_component *component;
@@ -746,29 +736,6 @@ struct snd_soc_component *soc_find_component(
 
 	return NULL;
 }
-EXPORT_SYMBOL(soc_find_component);
-
-/**
- * soc_find_component_locked: soc_find_component with client lock acquired
- *
- * @of_node: of_node of the component to query.
- * @name: name of the component to query.
- *
- * function to find out if a component is already registered with ASoC core.
- *
- * Returns component handle for success, else NULL error.
- */
-struct snd_soc_component *soc_find_component_locked(
-	const struct device_node *of_node, const char *name)
-{
-	struct snd_soc_component *component = NULL;
-
-	mutex_lock(&client_mutex);
-	component = soc_find_component(of_node, name);
-	mutex_unlock(&client_mutex);
-	return component;
-}
-EXPORT_SYMBOL(soc_find_component_locked);
 
 /**
  * snd_soc_find_dai - Find a registered DAI
@@ -1953,25 +1920,7 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 			dai_link->platform_name = component->name;
 
 			/* convert non BE into BE */
-			if (!dai_link->no_pcm) {
-				dai_link->no_pcm = 1;
-
-				if (dai_link->dpcm_playback)
-					dev_warn(card->dev,
-						 "invalid configuration, dailink %s has flags no_pcm=0 and dpcm_playback=1\n",
-						 dai_link->name);
-				if (dai_link->dpcm_capture)
-					dev_warn(card->dev,
-						 "invalid configuration, dailink %s has flags no_pcm=0 and dpcm_capture=1\n",
-						 dai_link->name);
-
-				/* convert normal link into DPCM one */
-				if (!(dai_link->dpcm_playback ||
-				      dai_link->dpcm_capture)) {
-					dai_link->dpcm_playback = !dai_link->capture_only;
-					dai_link->dpcm_capture = !dai_link->playback_only;
-				}
-			}
+			dai_link->no_pcm = 1;
 
 			/* override any BE fixups */
 			dai_link->be_hw_params_fixup =
@@ -2177,7 +2126,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	card->instantiated = 1;
-	dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 	mutex_unlock(&card->mutex);
 	mutex_unlock(&client_mutex);
@@ -2188,8 +2136,7 @@ probe_aux_dev_err:
 	soc_remove_aux_devices(card);
 
 probe_dai_err:
-	if (ret != -ENODEV)
-		soc_remove_dai_links(card);
+	soc_remove_dai_links(card);
 
 card_probe_error:
 	if (card->remove)
@@ -2786,7 +2733,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
 	mutex_init(&card->dapm_mutex);
-	mutex_init(&card->dapm_power_mutex);
 
 	ret = snd_soc_instantiate_card(card);
 	if (ret != 0)
@@ -3325,17 +3271,6 @@ struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
 
-/**
- * snd_soc_card_change_online_state - Mark if soc card is online/offline
- *
- * @soc_card : soc_card to mark
- */
-void snd_soc_card_change_online_state(struct snd_soc_card *soc_card, int online)
-{
-	snd_card_change_online_state(soc_card->snd_card, online);
-}
-EXPORT_SYMBOL_GPL(snd_soc_card_change_online_state);
-
 /* Retrieve a card's name from device tree */
 int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 			       const char *propname)
@@ -3739,39 +3674,6 @@ int snd_soc_get_dai_id(struct device_node *ep)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_id);
-
-/**
- * snd_soc_info_multi_ext - external single mixer info callback
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information about a single external mixer control.
- * that accepts multiple input.
- *
- * Returns 0 for success.
- */
-int snd_soc_info_multi_ext(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	struct soc_multi_mixer_control *mc =
-		(struct soc_multi_mixer_control *)kcontrol->private_value;
-	int platform_max;
-
-	if (!mc->platform_max)
-		mc->platform_max = mc->max;
-	platform_max = mc->platform_max;
-
-	if (platform_max == 1 && !strnstr(kcontrol->id.name, " Volume", 30))
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	else
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-
-	uinfo->count = mc->count;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = platform_max;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_multi_ext);
 
 int snd_soc_get_dai_name(struct of_phandle_args *args,
 				const char **dai_name)

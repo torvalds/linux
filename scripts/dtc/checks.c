@@ -623,51 +623,11 @@ static void fixup_path_references(struct check *c, struct dt_info *dti,
 }
 ERROR(path_references, fixup_path_references, NULL, &duplicate_node_names);
 
-static void fixup_node_disabled(struct check *c, struct dt_info *dti,
-				    struct node *node)
-{
-	struct property *prop = get_property(node, "status");
-
-	if (prop) {
-		const char *status = prop->val.val;
-
-		if (strcmp(status, "ok") && strcmp(status, "okay"))
-			omit_node_if_unused(node);
-	}
-}
-CHECK(node_disabled, fixup_node_disabled, NULL);
-
-static void fixup_node_empty(struct check *c, struct dt_info *dti,
-				    struct node *node)
-{
-	if (!node->proplist && !node->children)
-		omit_node_if_unused(node);
-}
-CHECK(node_empty, fixup_node_empty, NULL);
-
 static void fixup_omit_unused_nodes(struct check *c, struct dt_info *dti,
 				    struct node *node)
 {
 	if (node->omit_if_unused && !node->is_referenced)
 		delete_node(node);
-
-	if (node->deleted) {
-		struct node *parent = node->parent;
-		struct node *child;
-		struct label *label;
-		struct property *prop;
-
-		for_each_label(parent->labels, label)
-			return;
-
-		for_each_property(parent, prop)
-			return;
-
-		for_each_child(parent, child)
-			return;
-
-		delete_node(parent);
-	}
 }
 ERROR(omit_unused_nodes, fixup_omit_unused_nodes, NULL, &phandle_references, &path_references);
 
@@ -1599,7 +1559,6 @@ static struct check *check_table[] = {
 
 	&explicit_phandles,
 	&phandle_references, &path_references,
-	&node_disabled, &node_empty,
 	&omit_unused_nodes,
 
 	&address_cells_is_cell, &size_cells_is_cell, &interrupt_cells_is_cell,

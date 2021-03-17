@@ -19,9 +19,6 @@ Optional properties:
 - interrupt-names: must be "mdio_done_error" when there is a share interrupt fed
   to this hardware block, or must be "mdio_done" for the first interrupt and
   "mdio_error" for the second when there are separate interrupts
-- clocks: A reference to the clock supplying the MDIO bus controller
-- clock-frequency: the MDIO bus clock that must be output by the MDIO bus
-  hardware, if absent, the default hardware values are used
 
 Child nodes of this MDIO bus controller node are standard Ethernet PHY device
 nodes as described in Documentation/devicetree/bindings/net/phy.txt

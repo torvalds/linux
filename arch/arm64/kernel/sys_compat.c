@@ -19,7 +19,6 @@
  */
 
 #include <linux/compat.h>
-#include <linux/cpufeature.h>
 #include <linux/personality.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
@@ -29,7 +28,6 @@
 
 #include <asm/cacheflush.h>
 #include <asm/system_misc.h>
-#include <asm/tlbflush.h>
 #include <asm/unistd.h>
 
 static long
@@ -42,15 +40,6 @@ __do_compat_cache_op(unsigned long start, unsigned long end)
 
 		if (fatal_signal_pending(current))
 			return 0;
-
-		if (cpus_have_const_cap(ARM64_WORKAROUND_1542419)) {
-			/*
-			 * The workaround requires an inner-shareable tlbi.
-			 * We pick the reserved-ASID to minimise the impact.
-			 */
-			__tlbi(aside1is, __TLBI_VADDR(0, 0));
-			dsb(ish);
-		}
 
 		ret = __flush_cache_user_range(start, start + chunk);
 		if (ret)
@@ -77,11 +66,12 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
 /*
  * Handle all unrecognised system calls.
  */
-long compat_arm_syscall(struct pt_regs *regs, int scno)
+long compat_arm_syscall(struct pt_regs *regs)
 {
 	siginfo_t info;
+	unsigned int no = regs->regs[7];
 
-	switch (scno) {
+	switch (no) {
 	/*
 	 * Flush a region from virtual address 'r0' to virtual address 'r1'
 	 * _exclusive_.  There is no alignment requirement on either address;
@@ -112,12 +102,12 @@ long compat_arm_syscall(struct pt_regs *regs, int scno)
 
 	default:
 		/*
-		 * Calls 0xf0xxx..0xf07ff are defined to return -ENOSYS
+		 * Calls 9f00xx..9f07ff are defined to return -ENOSYS
 		 * if not implemented, rather than raising SIGILL. This
 		 * way the calling program can gracefully determine whether
 		 * a feature is supported.
 		 */
-		if (scno < __ARM_NR_COMPAT_END)
+		if ((no & 0xffff) <= 0x7ff)
 			return -ENOSYS;
 		break;
 	}
@@ -129,6 +119,6 @@ long compat_arm_syscall(struct pt_regs *regs, int scno)
 	info.si_addr  = (void __user *)instruction_pointer(regs) -
 			 (compat_thumb_mode(regs) ? 2 : 4);
 
-	arm64_notify_die("Oops - bad compat syscall(2)", regs, &info, scno);
+	arm64_notify_die("Oops - bad compat syscall(2)", regs, &info, no);
 	return 0;
 }

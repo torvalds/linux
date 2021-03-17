@@ -443,13 +443,13 @@ static int is_pure_ops_struct(const_tree node)
 		if (node == fieldtype)
 			continue;
 
-		if (code == RECORD_TYPE || code == UNION_TYPE) {
-			if (!is_pure_ops_struct(fieldtype))
-				return 0;
-			continue;
-		}
-
 		if (!is_fptr(fieldtype))
+			return 0;
+
+		if (code != RECORD_TYPE && code != UNION_TYPE)
+			continue;
+
+		if (!is_pure_ops_struct(fieldtype))
 			return 0;
 	}
 

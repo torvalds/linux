@@ -47,6 +47,13 @@ static inline bool z_erofs_gather_if_stagingpage(struct list_head *page_pool,
 #define Z_EROFS_VLE_INLINE_PAGEVECS     3
 
 struct z_erofs_vle_work {
+	/* struct z_erofs_vle_work *left, *right; */
+
+#ifdef CONFIG_EROFS_FS_ZIP_MULTIREF
+	struct list_head list;
+
+	atomic_t refcount;
+#endif
 	struct mutex lock;
 
 	/* I: decompression offset in page */
@@ -100,8 +107,10 @@ static inline void z_erofs_vle_set_workgrp_fmt(
 	grp->flags = fmt | (grp->flags & ~Z_EROFS_VLE_WORKGRP_FMT_MASK);
 }
 
+#ifdef CONFIG_EROFS_FS_ZIP_MULTIREF
+#error multiref decompression is unimplemented yet
+#else
 
-/* definitions if multiref is disabled */
 #define z_erofs_vle_grab_primary_work(grp)	(&(grp)->work)
 #define z_erofs_vle_grab_work(grp, pageofs)	(&(grp)->work)
 #define z_erofs_vle_work_workgroup(wrk, primary)	\
@@ -109,6 +118,7 @@ static inline void z_erofs_vle_set_workgrp_fmt(
 		struct z_erofs_vle_workgroup, work) : \
 		({ BUG(); (void *)NULL; }))
 
+#endif
 
 #define Z_EROFS_WORKGROUP_SIZE       sizeof(struct z_erofs_vle_workgroup)
 
@@ -169,22 +179,22 @@ static inline void z_erofs_onlinepage_init(struct page *page)
 static inline void z_erofs_onlinepage_fixup(struct page *page,
 	uintptr_t index, bool down)
 {
-	union z_erofs_onlinepage_converter u = { .v = &page_private(page) };
-	int orig, orig_index, val;
-
+	unsigned long *p, o, v, id;
 repeat:
-	orig = atomic_read(u.o);
-	orig_index = orig >> Z_EROFS_ONLINEPAGE_INDEX_SHIFT;
-	if (orig_index) {
+	p = &page_private(page);
+	o = READ_ONCE(*p);
+
+	id = o >> Z_EROFS_ONLINEPAGE_INDEX_SHIFT;
+	if (id) {
 		if (!index)
 			return;
 
-		DBG_BUGON(orig_index != index);
+		BUG_ON(id != index);
 	}
 
-	val = (index << Z_EROFS_ONLINEPAGE_INDEX_SHIFT) |
-		((orig & Z_EROFS_ONLINEPAGE_COUNT_MASK) + (unsigned int)down);
-	if (atomic_cmpxchg(u.o, orig, val) != orig)
+	v = (index << Z_EROFS_ONLINEPAGE_INDEX_SHIFT) |
+		((o & Z_EROFS_ONLINEPAGE_COUNT_MASK) + (unsigned)down);
+	if (cmpxchg(p, o, v) != o)
 		goto repeat;
 }
 
@@ -218,7 +228,8 @@ extern int z_erofs_vle_plain_copy(struct page **compressed_pages,
 
 extern int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 	unsigned clusterpages, struct page **pages,
-	unsigned int outlen, unsigned short pageofs);
+	unsigned outlen, unsigned short pageofs,
+	void (*endio)(struct page *));
 
 extern int z_erofs_vle_unzip_vmap(struct page **compressed_pages,
 	unsigned clusterpages, void *vaddr, unsigned llen,

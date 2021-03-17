@@ -183,7 +183,7 @@ static __inline__ void iop_writeb(volatile struct mac_iop *iop, __u16 addr, __u8
 
 static __inline__ void iop_stop(volatile struct mac_iop *iop)
 {
-	iop->status_ctrl = IOP_AUTOINC;
+	iop->status_ctrl &= ~IOP_RUN;
 }
 
 static __inline__ void iop_start(volatile struct mac_iop *iop)
@@ -191,9 +191,14 @@ static __inline__ void iop_start(volatile struct mac_iop *iop)
 	iop->status_ctrl = IOP_RUN | IOP_AUTOINC;
 }
 
+static __inline__ void iop_bypass(volatile struct mac_iop *iop)
+{
+	iop->status_ctrl |= IOP_BYPASS;
+}
+
 static __inline__ void iop_interrupt(volatile struct mac_iop *iop)
 {
-	iop->status_ctrl = IOP_IRQ | IOP_RUN | IOP_AUTOINC;
+	iop->status_ctrl |= IOP_IRQ;
 }
 
 static int iop_alive(volatile struct mac_iop *iop)
@@ -239,6 +244,7 @@ void __init iop_preinit(void)
 		} else {
 			iop_base[IOP_NUM_SCC] = (struct mac_iop *) SCC_IOP_BASE_QUADRA;
 		}
+		iop_base[IOP_NUM_SCC]->status_ctrl = 0x87;
 		iop_scc_present = 1;
 	} else {
 		iop_base[IOP_NUM_SCC] = NULL;
@@ -250,7 +256,7 @@ void __init iop_preinit(void)
 		} else {
 			iop_base[IOP_NUM_ISM] = (struct mac_iop *) ISM_IOP_BASE_QUADRA;
 		}
-		iop_stop(iop_base[IOP_NUM_ISM]);
+		iop_base[IOP_NUM_ISM]->status_ctrl = 0;
 		iop_ism_present = 1;
 	} else {
 		iop_base[IOP_NUM_ISM] = NULL;
@@ -410,8 +416,7 @@ static void iop_handle_send(uint iop_num, uint chan)
 	msg->status = IOP_MSGSTATUS_UNUSED;
 	msg = msg->next;
 	iop_send_queue[iop_num][chan] = msg;
-	if (msg && iop_readb(iop, IOP_ADDR_SEND_STATE + chan) == IOP_MSG_IDLE)
-		iop_do_send(msg);
+	if (msg) iop_do_send(msg);
 }
 
 /*
@@ -485,10 +490,14 @@ int iop_send_message(uint iop_num, uint chan, void *privdata,
 
 	if (!(q = iop_send_queue[iop_num][chan])) {
 		iop_send_queue[iop_num][chan] = msg;
-		iop_do_send(msg);
 	} else {
 		while (q->next) q = q->next;
 		q->next = msg;
+	}
+
+	if (iop_readb(iop_base[iop_num],
+	    IOP_ADDR_SEND_STATE + chan) == IOP_MSG_IDLE) {
+		iop_do_send(msg);
 	}
 
 	return 0;

@@ -241,31 +241,10 @@ static void qcom_glink_channel_release(struct kref *ref)
 {
 	struct glink_channel *channel = container_of(ref, struct glink_channel,
 						     refcount);
-	struct glink_core_rx_intent *intent;
-	struct glink_core_rx_intent *tmp;
 	unsigned long flags;
-	int iid;
-
-	/* cancel pending rx_done work */
-	cancel_work_sync(&channel->intent_work);
 
 	spin_lock_irqsave(&channel->intent_lock, flags);
-	/* Free all non-reuse intents pending rx_done work */
-	list_for_each_entry_safe(intent, tmp, &channel->done_intents, node) {
-		if (!intent->reuse) {
-			kfree(intent->data);
-			kfree(intent);
-		}
-	}
-
-	idr_for_each_entry(&channel->liids, tmp, iid) {
-		kfree(tmp->data);
-		kfree(tmp);
-	}
 	idr_destroy(&channel->liids);
-
-	idr_for_each_entry(&channel->riids, tmp, iid)
-		kfree(tmp);
 	idr_destroy(&channel->riids);
 	spin_unlock_irqrestore(&channel->intent_lock, flags);
 
@@ -813,6 +792,9 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 		return -EAGAIN;
 	}
 
+	if (WARN(chunk_size % 4, "Incoming data must be word aligned\n"))
+		return -EINVAL;
+
 	rcid = le16_to_cpu(hdr.msg.param1);
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	channel = idr_find(&glink->rcids, rcid);
@@ -970,7 +952,7 @@ static int qcom_glink_rx_open_ack(struct qcom_glink *glink, unsigned int lcid)
 		return -EINVAL;
 	}
 
-	complete_all(&channel->open_ack);
+	complete(&channel->open_ack);
 
 	return 0;
 }
@@ -1115,11 +1097,12 @@ static int qcom_glink_create_remote(struct qcom_glink *glink,
 close_link:
 	/*
 	 * Send a close request to "undo" our open-ack. The close-ack will
-	 * release qcom_glink_send_open_req() reference and the last reference
-	 * will be relesed after receiving remote_close or transport unregister
-	 * by calling qcom_glink_native_remove().
+	 * release the last reference.
 	 */
 	qcom_glink_send_close_req(glink, channel);
+
+	/* Release qcom_glink_send_open_req() reference */
+	kref_put(&channel->refcount, qcom_glink_channel_release);
 
 	return ret;
 }
@@ -1178,7 +1161,7 @@ static int qcom_glink_announce_create(struct rpmsg_device *rpdev)
 	__be32 *val = defaults;
 	int size;
 
-	if (glink->intentless || !completion_done(&channel->open_ack))
+	if (glink->intentless)
 		return 0;
 
 	prop = of_find_property(np, "qcom,intents", NULL);
@@ -1413,7 +1396,7 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 	channel->rcid = ret;
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
 
-	complete_all(&channel->open_req);
+	complete(&channel->open_req);
 
 	if (create_device) {
 		rpdev = kzalloc(sizeof(*rpdev), GFP_KERNEL);
@@ -1435,13 +1418,15 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 
 		ret = rpmsg_register_device(rpdev);
 		if (ret)
-			goto rcid_remove;
+			goto free_rpdev;
 
 		channel->rpdev = rpdev;
 	}
 
 	return 0;
 
+free_rpdev:
+	kfree(rpdev);
 rcid_remove:
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	idr_remove(&glink->rcids, channel->rcid);
@@ -1562,18 +1547,6 @@ static void qcom_glink_work(struct work_struct *work)
 	}
 }
 
-static void qcom_glink_cancel_rx_work(struct qcom_glink *glink)
-{
-	struct glink_defer_cmd *dcmd;
-	struct glink_defer_cmd *tmp;
-
-	/* cancel any pending deferred rx_work */
-	cancel_work_sync(&glink->rx_work);
-
-	list_for_each_entry_safe(dcmd, tmp, &glink->rx_queue, node)
-		kfree(dcmd);
-}
-
 struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 					   unsigned long features,
 					   struct qcom_glink_pipe *rx,
@@ -1649,24 +1622,23 @@ void qcom_glink_native_remove(struct qcom_glink *glink)
 	struct glink_channel *channel;
 	int cid;
 	int ret;
+	unsigned long flags;
 
 	disable_irq(glink->irq);
-	qcom_glink_cancel_rx_work(glink);
+	cancel_work_sync(&glink->rx_work);
 
 	ret = device_for_each_child(glink->dev, NULL, qcom_glink_remove_device);
 	if (ret)
 		dev_warn(glink->dev, "Can't remove GLINK devices: %d\n", ret);
 
+	spin_lock_irqsave(&glink->idr_lock, flags);
 	/* Release any defunct local channels, waiting for close-ack */
 	idr_for_each_entry(&glink->lcids, channel, cid)
 		kref_put(&channel->refcount, qcom_glink_channel_release);
 
-	/* Release any defunct local channels, waiting for close-req */
-	idr_for_each_entry(&glink->rcids, channel, cid)
-		kref_put(&channel->refcount, qcom_glink_channel_release);
-
 	idr_destroy(&glink->lcids);
 	idr_destroy(&glink->rcids);
+	spin_unlock_irqrestore(&glink->idr_lock, flags);
 	mbox_free_channel(glink->mbox_chan);
 }
 EXPORT_SYMBOL_GPL(qcom_glink_native_remove);

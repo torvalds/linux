@@ -554,23 +554,8 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 	return DM_MAPIO_REMAPPED;
 }
 
-static void multipath_release_clone(struct request *clone,
-				    union map_info *map_context)
+static void multipath_release_clone(struct request *clone)
 {
-	if (unlikely(map_context)) {
-		/*
-		 * non-NULL map_context means caller is still map
-		 * method; must undo multipath_clone_and_map()
-		 */
-		struct dm_mpath_io *mpio = get_mpio(map_context);
-		struct pgpath *pgpath = mpio->pgpath;
-
-		if (pgpath && pgpath->pg->ps.type->end_io)
-			pgpath->pg->ps.type->end_io(&pgpath->pg->ps,
-						    &pgpath->path,
-						    mpio->nr_bytes);
-	}
-
 	blk_put_request(clone);
 }
 
@@ -586,11 +571,9 @@ static struct pgpath *__map_bio(struct multipath *m, struct bio *bio)
 
 	/* Do we need to select a new pgpath? */
 	pgpath = READ_ONCE(m->current_pgpath);
-	if (!pgpath || !test_bit(MPATHF_QUEUE_IO, &m->flags))
-		pgpath = choose_pgpath(m, bio->bi_iter.bi_size);
-
-	/* MPATHF_QUEUE_IO might have been cleared by choose_pgpath. */
 	queue_io = test_bit(MPATHF_QUEUE_IO, &m->flags);
+	if (!pgpath || !queue_io)
+		pgpath = choose_pgpath(m, bio->bi_iter.bi_size);
 
 	if ((pgpath && queue_io) ||
 	    (!pgpath && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))) {
@@ -611,10 +594,45 @@ static struct pgpath *__map_bio(struct multipath *m, struct bio *bio)
 	return pgpath;
 }
 
+static struct pgpath *__map_bio_fast(struct multipath *m, struct bio *bio)
+{
+	struct pgpath *pgpath;
+	unsigned long flags;
+
+	/* Do we need to select a new pgpath? */
+	/*
+	 * FIXME: currently only switching path if no path (due to failure, etc)
+	 * - which negates the point of using a path selector
+	 */
+	pgpath = READ_ONCE(m->current_pgpath);
+	if (!pgpath)
+		pgpath = choose_pgpath(m, bio->bi_iter.bi_size);
+
+	if (!pgpath) {
+		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
+			/* Queue for the daemon to resubmit */
+			spin_lock_irqsave(&m->lock, flags);
+			bio_list_add(&m->queued_bios, bio);
+			spin_unlock_irqrestore(&m->lock, flags);
+			queue_work(kmultipathd, &m->process_queued_bios);
+
+			return ERR_PTR(-EAGAIN);
+		}
+		return NULL;
+	}
+
+	return pgpath;
+}
+
 static int __multipath_map_bio(struct multipath *m, struct bio *bio,
 			       struct dm_mpath_io *mpio)
 {
-	struct pgpath *pgpath = __map_bio(m, bio);
+	struct pgpath *pgpath;
+
+	if (!m->hw_handler_name)
+		pgpath = __map_bio_fast(m, bio);
+	else
+		pgpath = __map_bio(m, bio);
 
 	if (IS_ERR(pgpath))
 		return DM_MAPIO_SUBMITTED;
@@ -874,7 +892,6 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 	if (attached_handler_name || m->hw_handler_name) {
 		INIT_DELAYED_WORK(&p->activate_path, activate_path_work);
 		r = setup_scsi_dh(p->path.dev->bdev, m, &attached_handler_name, &ti->error);
-		kfree(attached_handler_name);
 		if (r) {
 			dm_put_device(ti, p->path.dev);
 			goto bad;
@@ -889,6 +906,7 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 
 	return p;
  bad:
+	kfree(attached_handler_name);
 	free_pgpath(p);
 	return ERR_PTR(r);
 }
@@ -1868,7 +1886,7 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 	int r;
 
 	current_pgpath = READ_ONCE(m->current_pgpath);
-	if (!current_pgpath || !test_bit(MPATHF_QUEUE_IO, &m->flags))
+	if (!current_pgpath)
 		current_pgpath = choose_pgpath(m, 0);
 
 	if (current_pgpath) {

@@ -20,15 +20,13 @@ static void adv7511_calc_cts_n(unsigned int f_tmds, unsigned int fs,
 {
 	switch (fs) {
 	case 32000:
-	case 48000:
-	case 96000:
-	case 192000:
-		*n = fs * 128 / 1000;
+		*n = 4096;
 		break;
 	case 44100:
-	case 88200:
-	case 176400:
-		*n = fs * 128 / 900;
+		*n = 6272;
+		break;
+	case 48000:
+		*n = 6144;
 		break;
 	}
 

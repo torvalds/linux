@@ -154,8 +154,6 @@ struct hfi1_ib_stats {
 extern struct hfi1_ib_stats hfi1_stats;
 extern const struct pci_error_handlers hfi1_pci_err_handler;
 
-extern int num_driver_cntrs;
-
 /*
  * First-cut criterion for "device is active" is
  * two thousand dwords combined Tx, Rx traffic per
@@ -1093,8 +1091,6 @@ struct hfi1_devdata {
 
 	char *boardname; /* human readable board info */
 
-	u64 ctx0_seq_drop;
-
 	/* reset value */
 	u64 z_int_counter;
 	u64 z_rcv_limit;
@@ -1378,13 +1374,10 @@ struct mmu_rb_handler;
 
 /* Private data for file operations */
 struct hfi1_filedata {
-	struct srcu_struct pq_srcu;
 	struct hfi1_devdata *dd;
 	struct hfi1_ctxtdata *uctxt;
 	struct hfi1_user_sdma_comp_q *cq;
-	/* update side lock for SRCU */
-	spinlock_t pq_rcu_lock;
-	struct hfi1_user_sdma_pkt_q __rcu *pq;
+	struct hfi1_user_sdma_pkt_q *pq;
 	u16 subctxt;
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
@@ -1430,7 +1423,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
-int hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
+void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
 						 u16 ctxt);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
@@ -1802,20 +1795,13 @@ static inline struct hfi1_ibport *rcd_to_iport(struct hfi1_ctxtdata *rcd)
 	return &rcd->ppd->ibport_data;
 }
 
-/**
- * hfi1_may_ecn - Check whether FECN or BECN processing should be done
- * @pkt: the packet to be evaluated
- *
- * Check whether the FECN or BECN bits in the packet's header are
- * enabled, depending on packet type.
- *
- * This function only checks for FECN and BECN bits. Additional checks
- * are done in the slowpath (hfi1_process_ecn_slowpath()) in order to
- * ensure correct handling.
- */
-static inline bool hfi1_may_ecn(struct hfi1_packet *pkt)
+void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
+			       bool do_cnp);
+static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
+			       bool do_cnp)
 {
-	bool fecn, becn;
+	bool becn;
+	bool fecn;
 
 	if (pkt->etype == RHF_RCV_TYPE_BYPASS) {
 		fecn = hfi1_16B_get_fecn(pkt->hdr);
@@ -1824,18 +1810,10 @@ static inline bool hfi1_may_ecn(struct hfi1_packet *pkt)
 		fecn = ib_bth_get_fecn(pkt->ohdr);
 		becn = ib_bth_get_becn(pkt->ohdr);
 	}
-	return fecn || becn;
-}
-
-bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
-			       bool prescan);
-static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt)
-{
-	bool do_work;
-
-	do_work = hfi1_may_ecn(pkt);
-	if (unlikely(do_work))
-		return hfi1_process_ecn_slowpath(qp, pkt, false);
+	if (unlikely(fecn || becn)) {
+		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
+		return fecn;
+	}
 	return false;
 }
 

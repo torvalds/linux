@@ -158,8 +158,7 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	if (enable_ppgtt == 0 && INTEL_GEN(dev_priv) < 9)
 		return 0;
 
-	/* Full PPGTT is required by the Gen9 cmdparser */
-	if (enable_ppgtt == 1 && INTEL_GEN(dev_priv) != 9)
+	if (enable_ppgtt == 1)
 		return 1;
 
 	if (enable_ppgtt == 2 && has_full_ppgtt)
@@ -1059,7 +1058,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 	do {
 		vaddr[idx->pte] = pte_encode | iter->dma;
 
-		iter->dma += I915_GTT_PAGE_SIZE;
+		iter->dma += PAGE_SIZE;
 		if (iter->dma >= iter->max) {
 			iter->sg = __sg_next(iter->sg);
 			if (!iter->sg) {
@@ -1769,9 +1768,9 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *base, struct seq_file *m)
 			if (i == 4)
 				continue;
 
-			seq_printf(m, "\t\t(%03d, %04d) %08llx: ",
+			seq_printf(m, "\t\t(%03d, %04d) %08lx: ",
 				   pde, pte,
-				   (pde * GEN6_PTES + pte) * I915_GTT_PAGE_SIZE);
+				   (pde * GEN6_PTES + pte) * PAGE_SIZE);
 			for (i = 0; i < 4; i++) {
 				if (vaddr[pte + i] != scratch_pte)
 					seq_printf(m, " %08x", vaddr[pte + i]);
@@ -1911,7 +1910,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	do {
 		vaddr[act_pte] = pte_encode | GEN6_PTE_ADDR_ENCODE(iter.dma);
 
-		iter.dma += I915_GTT_PAGE_SIZE;
+		iter.dma += PAGE_SIZE;
 		if (iter.dma == iter.max) {
 			iter.sg = __sg_next(iter.sg);
 			if (!iter.sg)
@@ -2049,7 +2048,7 @@ static int pd_vma_bind(struct i915_vma *vma,
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vma->vm);
 	struct gen6_hw_ppgtt *ppgtt = vma->private;
-	u32 ggtt_offset = i915_ggtt_offset(vma) / I915_GTT_PAGE_SIZE;
+	u32 ggtt_offset = i915_ggtt_offset(vma) / PAGE_SIZE;
 	struct i915_page_table *pt;
 	unsigned int pde;
 
@@ -2129,7 +2128,6 @@ static struct i915_vma *pd_vma_create(struct gen6_hw_ppgtt *ppgtt, int size)
 int gen6_ppgtt_pin(struct i915_hw_ppgtt *base)
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(base);
-	int err;
 
 	/*
 	 * Workaround the limited maximum vma->pin_count and the aliasing_ppgtt
@@ -2145,17 +2143,9 @@ int gen6_ppgtt_pin(struct i915_hw_ppgtt *base)
 	 * allocator works in address space sizes, so it's multiplied by page
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
-	err = i915_vma_pin(ppgtt->vma,
-			   0, GEN6_PD_ALIGN,
-			   PIN_GLOBAL | PIN_HIGH);
-	if (err)
-		goto unpin;
-
-	return 0;
-
-unpin:
-	ppgtt->pin_count = 0;
-	return err;
+	return i915_vma_pin(ppgtt->vma,
+			    0, GEN6_PD_ALIGN,
+			    PIN_GLOBAL | PIN_HIGH);
 }
 
 void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base)
@@ -2184,7 +2174,7 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->base.vm.i915 = i915;
 	ppgtt->base.vm.dma = &i915->drm.pdev->dev;
 
-	ppgtt->base.vm.total = I915_PDES * GEN6_PTES * I915_GTT_PAGE_SIZE;
+	ppgtt->base.vm.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
 
 	i915_address_space_init(&ppgtt->base.vm, i915);
 
@@ -3041,7 +3031,7 @@ static unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
 		bdw_gmch_ctl = 1 << bdw_gmch_ctl;
 
 #ifdef CONFIG_X86_32
-	/* Limit 32b platforms to a 2GB GGTT: 4 << 20 / pte size * I915_GTT_PAGE_SIZE */
+	/* Limit 32b platforms to a 2GB GGTT: 4 << 20 / pte size * PAGE_SIZE */
 	if (bdw_gmch_ctl > 4)
 		bdw_gmch_ctl = 4;
 #endif
@@ -3739,9 +3729,9 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 			 * the entries so the sg list can be happily traversed.
 			 * The only thing we need are DMA addresses.
 			 */
-			sg_set_page(sg, NULL, I915_GTT_PAGE_SIZE, 0);
+			sg_set_page(sg, NULL, PAGE_SIZE, 0);
 			sg_dma_address(sg) = in[offset + src_idx];
-			sg_dma_len(sg) = I915_GTT_PAGE_SIZE;
+			sg_dma_len(sg) = PAGE_SIZE;
 			sg = sg_next(sg);
 			src_idx -= stride;
 		}
@@ -3754,7 +3744,7 @@ static noinline struct sg_table *
 intel_rotate_pages(struct intel_rotation_info *rot_info,
 		   struct drm_i915_gem_object *obj)
 {
-	const unsigned long n_pages = obj->base.size / I915_GTT_PAGE_SIZE;
+	const unsigned long n_pages = obj->base.size / PAGE_SIZE;
 	unsigned int size = intel_rotation_info_size(rot_info);
 	struct sgt_iter sgt_iter;
 	dma_addr_t dma_addr;

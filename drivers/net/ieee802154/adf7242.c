@@ -883,9 +883,7 @@ static int adf7242_rx(struct adf7242_local *lp)
 	int ret;
 	u8 lqi, len_u8, *data;
 
-	ret = adf7242_read_reg(lp, 0, &len_u8);
-	if (ret)
-		return ret;
+	adf7242_read_reg(lp, 0, &len_u8);
 
 	len = len_u8;
 
@@ -1270,10 +1268,6 @@ static int adf7242_probe(struct spi_device *spi)
 	INIT_DELAYED_WORK(&lp->work, adf7242_rx_cal_work);
 	lp->wqueue = alloc_ordered_workqueue(dev_name(&spi->dev),
 					     WQ_MEM_RECLAIM);
-	if (unlikely(!lp->wqueue)) {
-		ret = -ENOMEM;
-		goto err_alloc_wq;
-	}
 
 	ret = adf7242_hw_init(lp);
 	if (ret)
@@ -1304,8 +1298,6 @@ static int adf7242_probe(struct spi_device *spi)
 	return ret;
 
 err_hw_init:
-	destroy_workqueue(lp->wqueue);
-err_alloc_wq:
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_hw(lp->hw);
 

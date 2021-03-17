@@ -292,17 +292,17 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			i2c0_pins: i2c0-pins {
+			i2c0_pins: i2c0 {
 				pins = "PB6", "PB7";
 				function = "i2c0";
 			};
 
-			uart0_pb_pins: uart0-pb-pins {
+			uart0_pins_a: uart0@0 {
 				pins = "PB8", "PB9";
 				function = "uart0";
 			};
 
-			mmc0_pins: mmc0-pins {
+			mmc0_pins_a: mmc0@0 {
 				pins = "PF0", "PF1", "PF2", "PF3",
 				       "PF4", "PF5";
 				function = "mmc0";
@@ -310,7 +310,7 @@
 				bias-pull-up;
 			};
 
-			mmc1_pins: mmc1-pins {
+			mmc1_pins: mmc1 {
 				pins = "PG0", "PG1", "PG2", "PG3",
 				       "PG4", "PG5";
 				function = "mmc1";
@@ -318,7 +318,7 @@
 				bias-pull-up;
 			};
 
-			spi0_pins: spi0-pins {
+			spi0_pins: spi0 {
 				pins = "PC0", "PC1", "PC2", "PC3";
 				function = "spi0";
 			};
@@ -419,7 +419,7 @@
 		gic: interrupt-controller@1c81000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c81000 0x1000>,
-			      <0x01c82000 0x2000>,
+			      <0x01c82000 0x1000>,
 			      <0x01c84000 0x2000>,
 			      <0x01c86000 0x2000>;
 			interrupt-controller;

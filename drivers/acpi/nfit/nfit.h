@@ -34,14 +34,11 @@
 /* https://msdn.microsoft.com/library/windows/hardware/mt604741 */
 #define UUID_NFIT_DIMM_N_MSFT "1ee68b36-d4bd-4a1a-9a16-4f8e53d46e05"
 
-/* http://www.uefi.org/RFIC_LIST (see "Virtual NVDIMM 0x1901") */
-#define UUID_NFIT_DIMM_N_HYPERV "5746c5f2-a9a2-4264-ad0e-e4ddc9e09e80"
-
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
 		| ACPI_NFIT_MEM_NOT_ARMED | ACPI_NFIT_MEM_MAP_FAILED)
 
-#define NVDIMM_FAMILY_MAX NVDIMM_FAMILY_HYPERV
+#define NVDIMM_FAMILY_MAX NVDIMM_FAMILY_MSFT
 
 #define NVDIMM_STANDARD_CMDMASK \
 (1 << ND_CMD_SMART | 1 << ND_CMD_SMART_THRESHOLD | 1 << ND_CMD_DIMM_FLAGS \
@@ -78,7 +75,6 @@ enum nfit_uuids {
 	NFIT_DEV_DIMM_N_HPE1 = NVDIMM_FAMILY_HPE1,
 	NFIT_DEV_DIMM_N_HPE2 = NVDIMM_FAMILY_HPE2,
 	NFIT_DEV_DIMM_N_MSFT = NVDIMM_FAMILY_MSFT,
-	NFIT_DEV_DIMM_N_HYPERV = NVDIMM_FAMILY_HYPERV,
 	NFIT_SPA_VOLATILE,
 	NFIT_SPA_PM,
 	NFIT_SPA_DCR,
@@ -122,8 +118,10 @@ enum nfit_dimm_notifiers {
 };
 
 enum nfit_ars_state {
-	ARS_REQ_SHORT,
-	ARS_REQ_LONG,
+	ARS_REQ,
+	ARS_REQ_REDO,
+	ARS_DONE,
+	ARS_SHORT,
 	ARS_FAILED,
 };
 
@@ -185,13 +183,6 @@ struct nfit_mem {
 	bool has_lsw;
 };
 
-enum scrub_flags {
-	ARS_BUSY,
-	ARS_CANCEL,
-	ARS_VALID,
-	ARS_POLL,
-};
-
 struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
 	struct acpi_table_header acpi_header;
@@ -205,15 +196,16 @@ struct acpi_nfit_desc {
 	struct list_head idts;
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
+	u8 ars_start_flags;
 	struct nd_cmd_ars_status *ars_status;
-	struct nfit_spa *scrub_spa;
 	struct delayed_work dwork;
 	struct list_head list;
 	struct kernfs_node *scrub_count_state;
 	unsigned int max_ars;
 	unsigned int scrub_count;
 	unsigned int scrub_mode;
-	unsigned long scrub_flags;
+	unsigned int scrub_busy:1;
+	unsigned int cancel:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
 	unsigned long bus_nfit_cmd_force_en;
@@ -260,8 +252,7 @@ struct nfit_blk {
 
 extern struct list_head acpi_descs;
 extern struct mutex acpi_desc_lock;
-int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc,
-		enum nfit_ars_state req_type);
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, unsigned long flags);
 
 #ifdef CONFIG_X86_MCE
 void nfit_mce_register(void);

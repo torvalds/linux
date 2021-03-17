@@ -30,11 +30,6 @@
 #undef has_rel_mcount
 #undef tot_relsize
 #undef get_mcountsym
-#undef find_symtab
-#undef get_shnum
-#undef set_shnum
-#undef get_shstrndx
-#undef get_symindex
 #undef get_sym_str_and_relp
 #undef do_func
 #undef Elf_Addr
@@ -64,11 +59,6 @@
 # define __has_rel_mcount	__has64_rel_mcount
 # define has_rel_mcount		has64_rel_mcount
 # define tot_relsize		tot64_relsize
-# define find_symtab		find_symtab64
-# define get_shnum		get_shnum64
-# define set_shnum		set_shnum64
-# define get_shstrndx		get_shstrndx64
-# define get_symindex		get_symindex64
 # define get_sym_str_and_relp	get_sym_str_and_relp_64
 # define do_func		do64
 # define get_mcountsym		get_mcountsym_64
@@ -102,11 +92,6 @@
 # define __has_rel_mcount	__has32_rel_mcount
 # define has_rel_mcount		has32_rel_mcount
 # define tot_relsize		tot32_relsize
-# define find_symtab		find_symtab32
-# define get_shnum		get_shnum32
-# define set_shnum		set_shnum32
-# define get_shstrndx		get_shstrndx32
-# define get_symindex		get_symindex32
 # define get_sym_str_and_relp	get_sym_str_and_relp_32
 # define do_func		do32
 # define get_mcountsym		get_mcountsym_32
@@ -189,67 +174,6 @@ static int MIPS_is_fake_mcount(Elf_Rel const *rp)
 	return is_fake;
 }
 
-static unsigned int get_symindex(Elf_Sym const *sym, Elf32_Word const *symtab,
-				 Elf32_Word const *symtab_shndx)
-{
-	unsigned long offset;
-	int index;
-
-	if (sym->st_shndx != SHN_XINDEX)
-		return w2(sym->st_shndx);
-
-	offset = (unsigned long)sym - (unsigned long)symtab;
-	index = offset / sizeof(*sym);
-
-	return w(symtab_shndx[index]);
-}
-
-static unsigned int get_shnum(Elf_Ehdr const *ehdr, Elf_Shdr const *shdr0)
-{
-	if (shdr0 && !ehdr->e_shnum)
-		return w(shdr0->sh_size);
-
-	return w2(ehdr->e_shnum);
-}
-
-static void set_shnum(Elf_Ehdr *ehdr, Elf_Shdr *shdr0, unsigned int new_shnum)
-{
-	if (new_shnum >= SHN_LORESERVE) {
-		ehdr->e_shnum = 0;
-		shdr0->sh_size = w(new_shnum);
-	} else
-		ehdr->e_shnum = w2(new_shnum);
-}
-
-static int get_shstrndx(Elf_Ehdr const *ehdr, Elf_Shdr const *shdr0)
-{
-	if (ehdr->e_shstrndx != SHN_XINDEX)
-		return w2(ehdr->e_shstrndx);
-
-	return w(shdr0->sh_link);
-}
-
-static void find_symtab(Elf_Ehdr *const ehdr, Elf_Shdr const *shdr0,
-			unsigned const nhdr, Elf32_Word **symtab,
-			Elf32_Word **symtab_shndx)
-{
-	Elf_Shdr const *relhdr;
-	unsigned k;
-
-	*symtab = NULL;
-	*symtab_shndx = NULL;
-
-	for (relhdr = shdr0, k = nhdr; k; --k, ++relhdr) {
-		if (relhdr->sh_type == SHT_SYMTAB)
-			*symtab = (void *)ehdr + relhdr->sh_offset;
-		else if (relhdr->sh_type == SHT_SYMTAB_SHNDX)
-			*symtab_shndx = (void *)ehdr + relhdr->sh_offset;
-
-		if (*symtab && *symtab_shndx)
-			break;
-	}
-}
-
 /* Append the new shstrtab, Elf_Shdr[], __mcount_loc and its relocations. */
 static void append_func(Elf_Ehdr *const ehdr,
 			Elf_Shdr *const shstr,
@@ -265,12 +189,10 @@ static void append_func(Elf_Ehdr *const ehdr,
 	char const *mc_name = (sizeof(Elf_Rela) == rel_entsize)
 		? ".rela__mcount_loc"
 		:  ".rel__mcount_loc";
+	unsigned const old_shnum = w2(ehdr->e_shnum);
 	uint_t const old_shoff = _w(ehdr->e_shoff);
 	uint_t const old_shstr_sh_size   = _w(shstr->sh_size);
 	uint_t const old_shstr_sh_offset = _w(shstr->sh_offset);
-	Elf_Shdr *const shdr0 = (Elf_Shdr *)(old_shoff + (void *)ehdr);
-	unsigned int const old_shnum = get_shnum(ehdr, shdr0);
-	unsigned int const new_shnum = 2 + old_shnum; /* {.rel,}__mcount_loc */
 	uint_t t = 1 + strlen(mc_name) + _w(shstr->sh_size);
 	uint_t new_e_shoff;
 
@@ -279,8 +201,6 @@ static void append_func(Elf_Ehdr *const ehdr,
 	t += sb.st_size;
 	t += (_align & -t);  /* word-byte align */
 	new_e_shoff = t;
-
-	set_shnum(ehdr, shdr0, new_shnum);
 
 	/* body for new shstrtab */
 	ulseek(fd_map, sb.st_size, SEEK_SET);
@@ -326,6 +246,7 @@ static void append_func(Elf_Ehdr *const ehdr,
 	uwrite(fd_map, mrel0, (void *)mrelp - (void *)mrel0);
 
 	ehdr->e_shoff = _w(new_e_shoff);
+	ehdr->e_shnum = w2(2 + w2(ehdr->e_shnum));  /* {.rel,}__mcount_loc */
 	ulseek(fd_map, 0, SEEK_SET);
 	uwrite(fd_map, ehdr, sizeof(*ehdr));
 }
@@ -405,8 +326,7 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 		if (!mcountsym)
 			mcountsym = get_mcountsym(sym0, relp, str0);
 
-		if (mcountsym && mcountsym == Elf_r_sym(relp) &&
-				!is_fake_mcount(relp)) {
+		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
 			uint_t const addend =
 				_w(_w(relp->r_offset) - recval + mcount_adjust);
 			mrelp->r_offset = _w(offbase
@@ -498,8 +418,6 @@ static unsigned find_secsym_ndx(unsigned const txtndx,
 				char const *const txtname,
 				uint_t *const recvalp,
 				Elf_Shdr const *const symhdr,
-				Elf32_Word const *symtab,
-				Elf32_Word const *symtab_shndx,
 				Elf_Ehdr const *const ehdr)
 {
 	Elf_Sym const *const sym0 = (Elf_Sym const *)(_w(symhdr->sh_offset)
@@ -511,7 +429,7 @@ static unsigned find_secsym_ndx(unsigned const txtndx,
 	for (symp = sym0, t = nsym; t; --t, ++symp) {
 		unsigned int const st_bind = ELF_ST_BIND(symp->st_info);
 
-		if (txtndx == get_symindex(symp, symtab, symtab_shndx)
+		if (txtndx == w2(symp->st_shndx)
 			/* avoid STB_WEAK */
 		    && (STB_LOCAL == st_bind || STB_GLOBAL == st_bind)) {
 			/* function symbols on ARM have quirks, avoid them */
@@ -579,22 +497,20 @@ static unsigned tot_relsize(Elf_Shdr const *const shdr0,
 	return totrelsz;
 }
 
+
 /* Overall supervision for Elf32 ET_REL file. */
 static void
 do_func(Elf_Ehdr *const ehdr, char const *const fname, unsigned const reltype)
 {
 	Elf_Shdr *const shdr0 = (Elf_Shdr *)(_w(ehdr->e_shoff)
 		+ (void *)ehdr);
-	unsigned const nhdr = get_shnum(ehdr, shdr0);
-	Elf_Shdr *const shstr = &shdr0[get_shstrndx(ehdr, shdr0)];
+	unsigned const nhdr = w2(ehdr->e_shnum);
+	Elf_Shdr *const shstr = &shdr0[w2(ehdr->e_shstrndx)];
 	char const *const shstrtab = (char const *)(_w(shstr->sh_offset)
 		+ (void *)ehdr);
 
 	Elf_Shdr const *relhdr;
 	unsigned k;
-
-	Elf32_Word *symtab;
-	Elf32_Word *symtab_shndx;
 
 	/* Upper bound on space: assume all relevant relocs are for mcount. */
 	unsigned const totrelsz = tot_relsize(shdr0, nhdr, shstrtab, fname);
@@ -608,8 +524,6 @@ do_func(Elf_Ehdr *const ehdr, char const *const fname, unsigned const reltype)
 	unsigned rel_entsize = 0;
 	unsigned symsec_sh_link = 0;
 
-	find_symtab(ehdr, shdr0, nhdr, &symtab, &symtab_shndx);
-
 	for (relhdr = shdr0, k = nhdr; k; --k, ++relhdr) {
 		char const *const txtname = has_rel_mcount(relhdr, shdr0,
 			shstrtab, fname);
@@ -618,7 +532,6 @@ do_func(Elf_Ehdr *const ehdr, char const *const fname, unsigned const reltype)
 			unsigned const recsym = find_secsym_ndx(
 				w(relhdr->sh_info), txtname, &recval,
 				&shdr0[symsec_sh_link = w(relhdr->sh_link)],
-				symtab, symtab_shndx,
 				ehdr);
 
 			rel_entsize = _w(relhdr->sh_entsize);

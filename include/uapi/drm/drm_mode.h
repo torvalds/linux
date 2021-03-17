@@ -116,13 +116,6 @@ extern "C" {
 #define  DRM_MODE_FLAG_PIC_AR_256_135 \
 			(DRM_MODE_PICTURE_ASPECT_256_135<<19)
 
-#define  DRM_MODE_FLAG_SUPPORTS_RGB		(1<<27)
-
-#define  DRM_MODE_FLAG_SUPPORTS_YUV		(1<<28)
-#define  DRM_MODE_FLAG_VID_MODE_PANEL	(1<<29)
-#define  DRM_MODE_FLAG_CMD_MODE_PANEL	(1<<30)
-#define  DRM_MODE_FLAG_SEAMLESS			(1<<31)
-
 #define  DRM_MODE_FLAG_ALL	(DRM_MODE_FLAG_PHSYNC |		\
 				 DRM_MODE_FLAG_NHSYNC |		\
 				 DRM_MODE_FLAG_PVSYNC |		\
@@ -135,10 +128,6 @@ extern "C" {
 				 DRM_MODE_FLAG_HSKEW |		\
 				 DRM_MODE_FLAG_DBLCLK |		\
 				 DRM_MODE_FLAG_CLKDIV2 |	\
-				 DRM_MODE_FLAG_SUPPORTS_RGB |	\
-				 DRM_MODE_FLAG_SUPPORTS_YUV |	\
-				 DRM_MODE_FLAG_VID_MODE_PANEL |	\
-				 DRM_MODE_FLAG_CMD_MODE_PANEL |	\
 				 DRM_MODE_FLAG_3D_MASK)
 
 /* DPMS flags */
@@ -486,7 +475,6 @@ struct drm_mode_fb_cmd {
 
 #define DRM_MODE_FB_INTERLACED	(1<<0) /* for interlaced framebuffers */
 #define DRM_MODE_FB_MODIFIERS	(1<<1) /* enables ->modifer[] */
-#define DRM_MODE_FB_SECURE	(1<<2) /* for secure framebuffers */
 
 struct drm_mode_fb_cmd2 {
 	__u32 fb_id;
@@ -639,37 +627,6 @@ struct drm_color_lut {
 	__u16 green;
 	__u16 blue;
 	__u16 reserved;
-};
-
-enum supported_eotf_type {
-	TRADITIONAL_GAMMA_SDR = 0,
-	TRADITIONAL_GAMMA_HDR,
-	SMPTE_ST2084,
-	HLG,
-	FUTURE_EOTF
-};
-
-/* HDR Metadata Infoframe as per 861.G spec */
-struct hdr_metadata_infoframe {
-	__u8 eotf;
-	__u8 metadata_type;
-	struct {
-		__u16 x, y;
-		} display_primaries[3];
-	struct {
-		__u16 x, y;
-		} white_point;
-	__u16 max_display_mastering_luminance;
-	__u16 min_display_mastering_luminance;
-	__u16 max_cll;
-	__u16 max_fall;
-};
-
-struct hdr_output_metadata {
-	__u32 metadata_type;
-	union {
-		struct hdr_metadata_infoframe hdmi_metadata_type1;
-	};
 };
 
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01

@@ -801,7 +801,6 @@ static void cio2_vb2_return_all_buffers(struct cio2_queue *q,
 			atomic_dec(&q->bufs_queued);
 			vb2_buffer_done(&q->bufs[i]->vbb.vb2_buf,
 					state);
-			q->bufs[i] = NULL;
 		}
 	}
 }
@@ -1246,15 +1245,29 @@ static int cio2_subdev_get_fmt(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct cio2_queue *q = container_of(sd, struct cio2_queue, subdev);
+	struct v4l2_subdev_format format;
+	int ret;
 
-	mutex_lock(&q->subdev_lock);
-
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
-	else
-		fmt->format = q->subdev_fmt;
+		return 0;
+	}
 
-	mutex_unlock(&q->subdev_lock);
+	if (fmt->pad == CIO2_PAD_SINK) {
+		format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL,
+				       &format);
+
+		if (ret)
+			return ret;
+		/* update colorspace etc */
+		q->subdev_fmt.colorspace = format.format.colorspace;
+		q->subdev_fmt.ycbcr_enc = format.format.ycbcr_enc;
+		q->subdev_fmt.quantization = format.format.quantization;
+		q->subdev_fmt.xfer_func = format.format.xfer_func;
+	}
+
+	fmt->format = q->subdev_fmt;
 
 	return 0;
 }
@@ -1271,9 +1284,6 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct cio2_queue *q = container_of(sd, struct cio2_queue, subdev);
-	struct v4l2_mbus_framefmt *mbus;
-	u32 mbus_code = fmt->format.code;
-	unsigned int i;
 
 	/*
 	 * Only allow setting sink pad format;
@@ -1282,28 +1292,15 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->pad == CIO2_PAD_SOURCE)
 		return cio2_subdev_get_fmt(sd, cfg, fmt);
 
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		mbus = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
-	else
-		mbus = &q->subdev_fmt;
-
-	fmt->format.code = formats[0].mbus_code;
-
-	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		if (formats[i].mbus_code == fmt->format.code) {
-			fmt->format.code = mbus_code;
-			break;
-		}
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+	} else {
+		/* It's the sink, allow changing frame size */
+		q->subdev_fmt.width = fmt->format.width;
+		q->subdev_fmt.height = fmt->format.height;
+		q->subdev_fmt.code = fmt->format.code;
+		fmt->format = q->subdev_fmt;
 	}
-
-	fmt->format.width = min_t(u32, fmt->format.width, CIO2_IMAGE_MAX_WIDTH);
-	fmt->format.height = min_t(u32, fmt->format.height,
-				   CIO2_IMAGE_MAX_LENGTH);
-	fmt->format.field = V4L2_FIELD_NONE;
-
-	mutex_lock(&q->subdev_lock);
-	*mbus = fmt->format;
-	mutex_unlock(&q->subdev_lock);
 
 	return 0;
 }
@@ -1552,7 +1549,6 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 
 	/* Initialize miscellaneous variables */
 	mutex_init(&q->lock);
-	mutex_init(&q->subdev_lock);
 
 	/* Initialize formats to default values */
 	fmt = &q->subdev_fmt;
@@ -1670,7 +1666,6 @@ fail_vdev_media_entity:
 fail_subdev_media_entity:
 	cio2_fbpt_exit(q, &cio2->pci_dev->dev);
 fail_fbpt:
-	mutex_destroy(&q->subdev_lock);
 	mutex_destroy(&q->lock);
 
 	return r;
@@ -1684,7 +1679,6 @@ static void cio2_queue_exit(struct cio2_device *cio2, struct cio2_queue *q)
 	v4l2_device_unregister_subdev(&q->subdev);
 	media_entity_cleanup(&q->subdev.entity);
 	cio2_fbpt_exit(q, &cio2->pci_dev->dev);
-	mutex_destroy(&q->subdev_lock);
 	mutex_destroy(&q->lock);
 }
 
@@ -1852,12 +1846,12 @@ static void cio2_pci_remove(struct pci_dev *pci_dev)
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
 	unsigned int i;
 
-	media_device_unregister(&cio2->media_dev);
 	cio2_notifier_exit(cio2);
+	cio2_fbpt_exit_dummy(cio2);
 	for (i = 0; i < CIO2_QUEUES; i++)
 		cio2_queue_exit(cio2, &cio2->queue[i]);
-	cio2_fbpt_exit_dummy(cio2);
 	v4l2_device_unregister(&cio2->v4l2_dev);
+	media_device_unregister(&cio2->media_dev);
 	media_device_cleanup(&cio2->media_dev);
 	mutex_destroy(&cio2->lock);
 }

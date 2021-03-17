@@ -31,9 +31,6 @@ static struct kset *system_kset;
 
 #define to_drv_attr(_attr) container_of(_attr, struct driver_attribute, attr)
 
-#define DRIVER_ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store) \
-	struct driver_attribute driver_attr_##_name =		\
-		__ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store)
 
 static int __must_check bus_rescan_devices_helper(struct device *dev,
 						void *data);
@@ -187,14 +184,18 @@ static ssize_t unbind_store(struct device_driver *drv, const char *buf,
 
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver == drv) {
-		device_driver_detach(dev);
+		if (dev->parent && dev->bus->need_parent_lock)
+			device_lock(dev->parent);
+		device_release_driver(dev);
+		if (dev->parent && dev->bus->need_parent_lock)
+			device_unlock(dev->parent);
 		err = count;
 	}
 	put_device(dev);
 	bus_put(bus);
 	return err;
 }
-static DRIVER_ATTR_IGNORE_LOCKDEP(unbind, S_IWUSR, NULL, unbind_store);
+static DRIVER_ATTR_WO(unbind);
 
 /*
  * Manually attach a device to a driver.
@@ -210,7 +211,13 @@ static ssize_t bind_store(struct device_driver *drv, const char *buf,
 
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver == NULL && driver_match_device(drv, dev)) {
-		err = device_driver_attach(drv, dev);
+		if (dev->parent && bus->need_parent_lock)
+			device_lock(dev->parent);
+		device_lock(dev);
+		err = driver_probe_device(drv, dev);
+		device_unlock(dev);
+		if (dev->parent && bus->need_parent_lock)
+			device_unlock(dev->parent);
 
 		if (err > 0) {
 			/* success */
@@ -224,7 +231,7 @@ static ssize_t bind_store(struct device_driver *drv, const char *buf,
 	bus_put(bus);
 	return err;
 }
-static DRIVER_ATTR_IGNORE_LOCKDEP(bind, S_IWUSR, NULL, bind_store);
+static DRIVER_ATTR_WO(bind);
 
 static ssize_t show_drivers_autoprobe(struct bus_type *bus, char *buf)
 {
@@ -604,12 +611,21 @@ static void remove_probe_files(struct bus_type *bus)
 static ssize_t uevent_store(struct device_driver *drv, const char *buf,
 			    size_t count)
 {
-	int rc;
-
-	rc = kobject_synth_uevent(&drv->p->kobj, buf, count);
-	return rc ? rc : count;
+	kobject_synth_uevent(&drv->p->kobj, buf, count);
+	return count;
 }
 static DRIVER_ATTR_WO(uevent);
+
+static void driver_attach_async(void *_drv, async_cookie_t cookie)
+{
+	struct device_driver *drv = _drv;
+	int ret;
+
+	ret = driver_attach(drv);
+
+	pr_debug("bus: '%s': driver %s async attach completed: %d\n",
+		 drv->bus->name, drv->name, ret);
+}
 
 /**
  * bus_add_driver - Add a driver to the bus.
@@ -643,9 +659,15 @@ int bus_add_driver(struct device_driver *drv)
 
 	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
 	if (drv->bus->p->drivers_autoprobe) {
-		error = driver_attach(drv);
-		if (error)
-			goto out_unregister;
+		if (driver_allows_async_probing(drv)) {
+			pr_debug("bus: '%s': probing driver %s asynchronously\n",
+				drv->bus->name, drv->name);
+			async_schedule(driver_attach_async, drv);
+		} else {
+			error = driver_attach(drv);
+			if (error)
+				goto out_unregister;
+		}
 	}
 	module_add_driver(drv->owner, drv);
 
@@ -747,8 +769,13 @@ EXPORT_SYMBOL_GPL(bus_rescan_devices);
  */
 int device_reprobe(struct device *dev)
 {
-	if (dev->driver)
-		device_driver_detach(dev);
+	if (dev->driver) {
+		if (dev->parent && dev->bus->need_parent_lock)
+			device_lock(dev->parent);
+		device_release_driver(dev);
+		if (dev->parent && dev->bus->need_parent_lock)
+			device_unlock(dev->parent);
+	}
 	return bus_rescan_devices_helper(dev, NULL);
 }
 EXPORT_SYMBOL_GPL(device_reprobe);
@@ -801,10 +828,8 @@ static void klist_devices_put(struct klist_node *n)
 static ssize_t bus_uevent_store(struct bus_type *bus,
 				const char *buf, size_t count)
 {
-	int rc;
-
-	rc = kobject_synth_uevent(&bus->p->subsys.kobj, buf, count);
-	return rc ? rc : count;
+	kobject_synth_uevent(&bus->p->subsys.kobj, buf, count);
+	return count;
 }
 static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
 

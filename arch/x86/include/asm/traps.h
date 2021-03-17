@@ -40,7 +40,7 @@ asmlinkage void simd_coprocessor_error(void);
 asmlinkage void xen_divide_error(void);
 asmlinkage void xen_xennmi(void);
 asmlinkage void xen_xendebug(void);
-asmlinkage void xen_int3(void);
+asmlinkage void xen_xenint3(void);
 asmlinkage void xen_overflow(void);
 asmlinkage void xen_bounds(void);
 asmlinkage void xen_invalid_op(void);
@@ -104,9 +104,9 @@ extern int panic_on_unrecovered_nmi;
 
 void math_emulate(struct math_emu_info *);
 #ifndef CONFIG_X86_32
-asmlinkage void smp_thermal_interrupt(struct pt_regs *regs);
-asmlinkage void smp_threshold_interrupt(struct pt_regs *regs);
-asmlinkage void smp_deferred_error_interrupt(struct pt_regs *regs);
+asmlinkage void smp_thermal_interrupt(void);
+asmlinkage void smp_threshold_interrupt(void);
+asmlinkage void smp_deferred_error_interrupt(void);
 #endif
 
 extern void ist_enter(struct pt_regs *regs);

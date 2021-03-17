@@ -104,8 +104,6 @@ static void fast_csum(struct snmp_ctx *ctx, unsigned char offset)
 int snmp_version(void *context, size_t hdrlen, unsigned char tag,
 		 const void *data, size_t datalen)
 {
-	if (datalen != 1)
-		return -EINVAL;
 	if (*(unsigned char *)data > 1)
 		return -ENOTSUPP;
 	return 1;
@@ -115,11 +113,8 @@ int snmp_helper(void *context, size_t hdrlen, unsigned char tag,
 		const void *data, size_t datalen)
 {
 	struct snmp_ctx *ctx = (struct snmp_ctx *)context;
-	__be32 *pdata;
+	__be32 *pdata = (__be32 *)data;
 
-	if (datalen != 4)
-		return -EINVAL;
-	pdata = (__be32 *)data;
 	if (*pdata == ctx->from) {
 		pr_debug("%s: %pI4 to %pI4\n", __func__,
 			 (void *)&ctx->from, (void *)&ctx->to);

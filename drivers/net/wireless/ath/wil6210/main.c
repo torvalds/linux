@@ -223,7 +223,6 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	struct net_device *ndev = vif_to_ndev(vif);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	struct wil_sta_info *sta = &wil->sta[cid];
-	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
 	might_sleep();
 	wil_dbg_misc(wil, "disconnect_cid: CID %d, MID %d, status %d\n",
@@ -274,7 +273,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	memset(sta->tid_crypto_rx, 0, sizeof(sta->tid_crypto_rx));
 	memset(&sta->group_crypto_rx, 0, sizeof(sta->group_crypto_rx));
 	/* release vrings */
-	for (i = min_ring_id; i < ARRAY_SIZE(wil->ring_tx); i++) {
+	for (i = 0; i < ARRAY_SIZE(wil->ring_tx); i++) {
 		if (wil->ring2cid_tid[i][0] == cid)
 			wil_ring_fini_tx(wil, i);
 	}
@@ -605,10 +604,8 @@ int wil_priv_init(struct wil6210_priv *wil)
 		wil->sta[i].mid = U8_MAX;
 	}
 
-	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++)
 		spin_lock_init(&wil->ring_tx_data[i].lock);
-		wil->ring2cid_tid[i][0] = WIL6210_MAX_CID;
-	}
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->vif_mutex);
@@ -656,6 +653,8 @@ int wil_priv_init(struct wil6210_priv *wil)
 
 	/* edma configuration can be updated via debugfs before allocation */
 	wil->num_rx_status_rings = WIL_DEFAULT_NUM_RX_STATUS_RINGS;
+	wil->use_compressed_rx_status = true;
+	wil->use_rx_hw_reordering = true;
 	wil->tx_status_ring_order = WIL_TX_SRING_SIZE_ORDER_DEFAULT;
 
 	/* Rx status ring size should be bigger than the number of RX buffers
@@ -996,13 +995,10 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->hw_name);
 
-	if (wil->hw_version < HW_VER_TALYN) {
-		/* Clear MAC link up */
-		wil_s(wil, RGF_HP_CTRL, BIT(15));
-		wil_s(wil, RGF_USER_CLKS_CTL_SW_RST_MASK_0,
-		      BIT_HPAL_PERST_FROM_PAD);
-		wil_s(wil, RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
-	}
+	/* Clear MAC link up */
+	wil_s(wil, RGF_HP_CTRL, BIT(15));
+	wil_s(wil, RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_HPAL_PERST_FROM_PAD);
+	wil_s(wil, RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
 
 	wil_halt_cpu(wil);
 
@@ -1397,15 +1393,8 @@ static void wil_pre_fw_config(struct wil6210_priv *wil)
 	wil6210_clear_irq(wil);
 	/* CAF_ICR - clear and mask */
 	/* it is W1C, clear by writing back same value */
-	if (wil->hw_version < HW_VER_TALYN_MB) {
-		wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
-		wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
-	} else {
-		wil_s(wil,
-		      RGF_CAF_ICR_TALYN_MB + offsetof(struct RGF_ICR, ICR), 0);
-		wil_w(wil, RGF_CAF_ICR_TALYN_MB +
-		      offsetof(struct RGF_ICR, IMV), ~0);
-	}
+	wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
+	wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
 	/* clear PAL_UNIT_ICR (potential D0->D3 leftover)
 	 * In Talyn-MB host cannot access this register due to
 	 * access control, hence PAL_UNIT_ICR is cleared by the FW
@@ -1687,7 +1676,7 @@ int __wil_up(struct wil6210_priv *wil)
 		return rc;
 
 	/* Rx RING. After MAC and beacon */
-	rc = wil->txrx_ops.rx_init(wil, rx_ring_order);
+	rc = wil->txrx_ops.rx_init(wil, 1 << rx_ring_order);
 	if (rc)
 		return rc;
 
@@ -1814,14 +1803,11 @@ void wil_halp_vote(struct wil6210_priv *wil)
 
 	if (++wil->halp.ref_cnt == 1) {
 		reinit_completion(&wil->halp.comp);
-		/* mark to IRQ context to handle HALP ICR */
-		wil->halp.handle_icr = true;
 		wil6210_set_halp(wil);
 		rc = wait_for_completion_timeout(&wil->halp.comp, to_jiffies);
 		if (!rc) {
 			wil_err(wil, "HALP vote timed out\n");
 			/* Mask HALP as done in case the interrupt is raised */
-			wil->halp.handle_icr = false;
 			wil6210_mask_halp(wil);
 		} else {
 			wil_dbg_irq(wil,

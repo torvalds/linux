@@ -117,11 +117,12 @@ static int irq_build_affinity_masks(const struct irq_affinity *affd,
 	 */
 	if (numvecs <= nodes) {
 		for_each_node_mask(n, nodemsk) {
-			cpumask_or(masks + curvec, masks + curvec, node_to_cpumask[n]);
+			cpumask_copy(masks + curvec, node_to_cpumask[n]);
+			if (++done == numvecs)
+				break;
 			if (++curvec == last_affv)
 				curvec = affd->pre_vectors;
 		}
-		done = numvecs;
 		goto out;
 	}
 

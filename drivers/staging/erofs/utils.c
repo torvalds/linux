@@ -23,6 +23,9 @@ struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp)
 		list_del(&page->lru);
 	} else {
 		page = alloc_pages(gfp | __GFP_NOFAIL, 0);
+
+		BUG_ON(page == NULL);
+		BUG_ON(page->mapping != NULL);
 	}
 	return page;
 }
@@ -57,7 +60,7 @@ repeat:
 		/* decrease refcount added by erofs_workgroup_put */
 		if (unlikely(oldcount == 1))
 			atomic_long_dec(&erofs_global_shrink_cnt);
-		DBG_BUGON(index != grp->index);
+		BUG_ON(index != grp->index);
 	}
 	rcu_read_unlock();
 	return grp;
@@ -70,11 +73,8 @@ int erofs_register_workgroup(struct super_block *sb,
 	struct erofs_sb_info *sbi;
 	int err;
 
-	/* grp shouldn't be broken or used before */
-	if (unlikely(atomic_read(&grp->refcount) != 1)) {
-		DBG_BUGON(1);
-		return -EINVAL;
-	}
+	/* grp->refcount should not < 1 */
+	BUG_ON(!atomic_read(&grp->refcount));
 
 	err = radix_tree_preload(GFP_NOFS);
 	if (err)
@@ -87,21 +87,12 @@ int erofs_register_workgroup(struct super_block *sb,
 		grp = (void *)((unsigned long)grp |
 			1UL << RADIX_TREE_EXCEPTIONAL_SHIFT);
 
-	/*
-	 * Bump up reference count before making this workgroup
-	 * visible to other users in order to avoid potential UAF
-	 * without serialized by erofs_workstn_lock.
-	 */
-	__erofs_workgroup_get(grp);
-
 	err = radix_tree_insert(&sbi->workstn_tree,
-				grp->index, grp);
-	if (unlikely(err))
-		/*
-		 * it's safe to decrease since the workgroup isn't visible
-		 * and refcount >= 2 (cannot be freezed).
-		 */
-		__erofs_workgroup_put(grp);
+		grp->index, grp);
+
+	if (!err) {
+		__erofs_workgroup_get(grp);
+	}
 
 	erofs_workstn_unlock(sbi);
 	radix_tree_preload_end();
@@ -110,98 +101,18 @@ int erofs_register_workgroup(struct super_block *sb,
 
 extern void erofs_workgroup_free_rcu(struct erofs_workgroup *grp);
 
-static void  __erofs_workgroup_free(struct erofs_workgroup *grp)
-{
-	atomic_long_dec(&erofs_global_shrink_cnt);
-	erofs_workgroup_free_rcu(grp);
-}
-
 int erofs_workgroup_put(struct erofs_workgroup *grp)
 {
 	int count = atomic_dec_return(&grp->refcount);
 
 	if (count == 1)
 		atomic_long_inc(&erofs_global_shrink_cnt);
-	else if (!count)
-		__erofs_workgroup_free(grp);
+	else if (!count) {
+		atomic_long_dec(&erofs_global_shrink_cnt);
+		erofs_workgroup_free_rcu(grp);
+	}
 	return count;
 }
-
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-/* for cache-managed case, customized reclaim paths exist */
-static void erofs_workgroup_unfreeze_final(struct erofs_workgroup *grp)
-{
-	erofs_workgroup_unfreeze(grp, 0);
-	__erofs_workgroup_free(grp);
-}
-
-bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
-				    struct erofs_workgroup *grp,
-				    bool cleanup)
-{
-	void *entry;
-
-	/*
-	 * for managed cache enabled, the refcount of workgroups
-	 * themselves could be < 0 (freezed). So there is no guarantee
-	 * that all refcount > 0 if managed cache is enabled.
-	 */
-	if (!erofs_workgroup_try_to_freeze(grp, 1))
-		return false;
-
-	/*
-	 * note that all cached pages should be unlinked
-	 * before delete it from the radix tree.
-	 * Otherwise some cached pages of an orphan old workgroup
-	 * could be still linked after the new one is available.
-	 */
-	if (erofs_try_to_free_all_cached_pages(sbi, grp)) {
-		erofs_workgroup_unfreeze(grp, 1);
-		return false;
-	}
-
-	/*
-	 * it is impossible to fail after the workgroup is freezed,
-	 * however in order to avoid some race conditions, add a
-	 * DBG_BUGON to observe this in advance.
-	 */
-	entry = radix_tree_delete(&sbi->workstn_tree, grp->index);
-	DBG_BUGON((void *)((unsigned long)entry &
-			   ~RADIX_TREE_EXCEPTIONAL_ENTRY) != grp);
-
-	/*
-	 * if managed cache is enable, the last refcount
-	 * should indicate the related workstation.
-	 */
-	erofs_workgroup_unfreeze_final(grp);
-	return true;
-}
-
-#else
-/* for nocache case, no customized reclaim path at all */
-bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
-				    struct erofs_workgroup *grp,
-				    bool cleanup)
-{
-	int cnt = atomic_read(&grp->refcount);
-	void *entry;
-
-	DBG_BUGON(cnt <= 0);
-	DBG_BUGON(cleanup && cnt != 1);
-
-	if (cnt > 1)
-		return false;
-
-	entry = radix_tree_delete(&sbi->workstn_tree, grp->index);
-	DBG_BUGON((void *)((unsigned long)entry &
-			   ~RADIX_TREE_EXCEPTIONAL_ENTRY) != grp);
-
-	/* (rarely) could be grabbed again when freeing */
-	erofs_workgroup_put(grp);
-	return true;
-}
-
-#endif
 
 unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 				       unsigned long nr_shrink,
@@ -219,15 +130,43 @@ repeat:
 		batch, first_index, PAGEVEC_SIZE);
 
 	for (i = 0; i < found; ++i) {
+		int cnt;
 		struct erofs_workgroup *grp = (void *)
 			((unsigned long)batch[i] &
 				~RADIX_TREE_EXCEPTIONAL_ENTRY);
 
 		first_index = grp->index + 1;
 
-		/* try to shrink each valid workgroup */
-		if (!erofs_try_to_release_workgroup(sbi, grp, cleanup))
+		cnt = atomic_read(&grp->refcount);
+		BUG_ON(cnt <= 0);
+
+		if (cleanup)
+			BUG_ON(cnt != 1);
+
+#ifndef EROFS_FS_HAS_MANAGED_CACHE
+		else if (cnt > 1)
+#else
+		if (!erofs_workgroup_try_to_freeze(grp, 1))
+#endif
 			continue;
+
+		if (radix_tree_delete(&sbi->workstn_tree,
+			grp->index) != grp) {
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+skip:
+			erofs_workgroup_unfreeze(grp, 1);
+#endif
+			continue;
+		}
+
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+		if (erofs_try_to_free_all_cached_pages(sbi, grp))
+			goto skip;
+
+		erofs_workgroup_unfreeze(grp, 1);
+#endif
+		/* (rarely) grabbed again when freeing */
+		erofs_workgroup_put(grp);
 
 		++freed;
 		if (unlikely(!--nr_shrink))
@@ -309,7 +248,7 @@ unsigned long erofs_shrink_scan(struct shrinker *shrink,
 		sbi->shrinker_run_no = run_no;
 
 #ifdef CONFIG_EROFS_FS_ZIP
-		freed += erofs_shrink_workstation(sbi, nr - freed, false);
+		freed += erofs_shrink_workstation(sbi, nr, false);
 #endif
 
 		spin_lock(&erofs_sb_list_lock);

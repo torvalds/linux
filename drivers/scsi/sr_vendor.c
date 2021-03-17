@@ -66,6 +66,9 @@
 
 void sr_vendor_init(Scsi_CD *cd)
 {
+#ifndef CONFIG_BLK_DEV_SR_VENDOR
+	cd->vendor = VENDOR_SCSI3;
+#else
 	const char *vendor = cd->device->vendor;
 	const char *model = cd->device->model;
 	
@@ -97,6 +100,7 @@ void sr_vendor_init(Scsi_CD *cd)
 		cd->vendor = VENDOR_TOSHIBA;
 
 	}
+#endif
 }
 
 
@@ -110,8 +114,10 @@ int sr_set_blocklength(Scsi_CD *cd, int blocklength)
 	struct ccs_modesel_head *modesel;
 	int rc, density = 0;
 
+#ifdef CONFIG_BLK_DEV_SR_VENDOR
 	if (cd->vendor == VENDOR_TOSHIBA)
 		density = (blocklength > 2048) ? 0x81 : 0x83;
+#endif
 
 	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
 	if (!buffer)
@@ -199,6 +205,7 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 		}
 		break;
 
+#ifdef CONFIG_BLK_DEV_SR_VENDOR
 	case VENDOR_NEC:{
 			unsigned long min, sec, frame;
 			cgc.cmd[0] = 0xde;
@@ -291,6 +298,7 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 		sector = buffer[11] + (buffer[10] << 8) +
 		    (buffer[9] << 16) + (buffer[8] << 24);
 		break;
+#endif				/* CONFIG_BLK_DEV_SR_VENDOR */
 
 	default:
 		/* should not happen */

@@ -31,17 +31,13 @@ static const struct of_device_id brcmstb_machine_match[] = {
 
 bool soc_is_brcmstb(void)
 {
-	const struct of_device_id *match;
 	struct device_node *root;
 
 	root = of_find_node_by_path("/");
 	if (!root)
 		return false;
 
-	match = of_match_node(brcmstb_machine_match, root);
-	of_node_put(root);
-
-	return match != NULL;
+	return of_match_node(brcmstb_machine_match, root) != NULL;
 }
 
 u32 brcmstb_get_family_id(void)

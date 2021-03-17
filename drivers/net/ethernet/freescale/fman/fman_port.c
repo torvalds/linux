@@ -1756,7 +1756,6 @@ static int fman_port_probe(struct platform_device *of_dev)
 	struct fman_port *port;
 	struct fman *fman;
 	struct device_node *fm_node, *port_node;
-	struct platform_device *fm_pdev;
 	struct resource res;
 	struct resource *dev_res;
 	u32 val;
@@ -1781,14 +1780,8 @@ static int fman_port_probe(struct platform_device *of_dev)
 		goto return_err;
 	}
 
-	fm_pdev = of_find_device_by_node(fm_node);
+	fman = dev_get_drvdata(&of_find_device_by_node(fm_node)->dev);
 	of_node_put(fm_node);
-	if (!fm_pdev) {
-		err = -EINVAL;
-		goto return_err;
-	}
-
-	fman = dev_get_drvdata(&fm_pdev->dev);
 	if (!fman) {
 		err = -EINVAL;
 		goto return_err;

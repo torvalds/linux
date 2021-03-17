@@ -18,7 +18,6 @@
 #include "uvc.h"
 #include "uvc_queue.h"
 #include "uvc_video.h"
-#include "u_uvc.h"
 
 /* --------------------------------------------------------------------------
  * Video codecs
@@ -88,7 +87,6 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 		video->fid ^= UVC_STREAM_FID;
 
 		video->payload_size = 0;
-		req->zero = 1;
 	}
 
 	if (video->payload_size == video->max_payload_size ||
@@ -126,21 +124,6 @@ uvc_video_encode_isoc(struct usb_request *req, struct uvc_video *video,
 /* --------------------------------------------------------------------------
  * Request handling
  */
-
-static int uvcg_video_ep_queue(struct uvc_video *video, struct usb_request *req)
-{
-	int ret;
-
-	ret = usb_ep_queue(video->ep, req, GFP_ATOMIC);
-	if (ret < 0) {
-		printk(KERN_INFO "Failed to queue request (%d).\n", ret);
-		/* Isochronous endpoints can't be halted. */
-		if (video->ep->desc && usb_endpoint_xfer_bulk(video->ep->desc))
-			usb_ep_set_halt(video->ep);
-	}
-
-	return ret;
-}
 
 /*
  * I somehow feel that synchronisation won't be easy to achieve here. We have
@@ -206,13 +189,14 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 
 	video->encode(req, video, buf);
 
-	ret = uvcg_video_ep_queue(video, req);
-	spin_unlock_irqrestore(&video->queue.irqlock, flags);
-
-	if (ret < 0) {
+	if ((ret = usb_ep_queue(ep, req, GFP_ATOMIC)) < 0) {
+		printk(KERN_INFO "Failed to queue request (%d).\n", ret);
+		usb_ep_set_halt(ep);
+		spin_unlock_irqrestore(&video->queue.irqlock, flags);
 		uvcg_queue_cancel(queue, 0);
 		goto requeue;
 	}
+	spin_unlock_irqrestore(&video->queue.irqlock, flags);
 
 	return;
 
@@ -226,13 +210,8 @@ static int
 uvc_video_free_requests(struct uvc_video *video)
 {
 	unsigned int i;
-	struct uvc_device *uvc;
-	struct f_uvc_opts *opts;
 
-	uvc = container_of(video, struct uvc_device, video);
-	opts = fi_to_f_uvc_opts(uvc->func.fi);
-
-	for (i = 0; i < opts->uvc_num_request; ++i) {
+	for (i = 0; i < UVC_NUM_REQUESTS; ++i) {
 		if (video->req[i]) {
 			usb_ep_free_request(video->ep, video->req[i]);
 			video->req[i] = NULL;
@@ -255,24 +234,14 @@ uvc_video_alloc_requests(struct uvc_video *video)
 	unsigned int req_size;
 	unsigned int i;
 	int ret = -ENOMEM;
-	struct uvc_device *uvc;
-	struct f_uvc_opts *opts;
-
-	uvc = container_of(video, struct uvc_device, video);
-	opts = fi_to_f_uvc_opts(uvc->func.fi);
 
 	BUG_ON(video->req_size);
 
-	if (!usb_endpoint_xfer_bulk(video->ep->desc)) {
-		req_size = video->ep->maxpacket
-			 * max_t(unsigned int, video->ep->maxburst, 1)
-			 * (video->ep->mult);
-	} else {
-		req_size = video->ep->maxpacket
-			 * max_t(unsigned int, video->ep->maxburst, 1);
-	}
+	req_size = video->ep->maxpacket
+		 * max_t(unsigned int, video->ep->maxburst, 1)
+		 * (video->ep->mult);
 
-	for (i = 0; i < opts->uvc_num_request; ++i) {
+	for (i = 0; i < UVC_NUM_REQUESTS; ++i) {
 		video->req_buffer[i] = kmalloc(req_size, GFP_KERNEL);
 		if (video->req_buffer[i] == NULL)
 			goto error;
@@ -347,13 +316,15 @@ int uvcg_video_pump(struct uvc_video *video)
 		video->encode(req, video, buf);
 
 		/* Queue the USB request */
-		ret = uvcg_video_ep_queue(video, req);
-		spin_unlock_irqrestore(&queue->irqlock, flags);
-
+		ret = usb_ep_queue(video->ep, req, GFP_ATOMIC);
 		if (ret < 0) {
+			printk(KERN_INFO "Failed to queue request (%d)\n", ret);
+			usb_ep_set_halt(video->ep);
+			spin_unlock_irqrestore(&queue->irqlock, flags);
 			uvcg_queue_cancel(queue, 0);
 			break;
 		}
+		spin_unlock_irqrestore(&queue->irqlock, flags);
 	}
 
 	spin_lock_irqsave(&video->req_lock, flags);
@@ -369,8 +340,6 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 {
 	unsigned int i;
 	int ret;
-	struct uvc_device *uvc;
-	struct f_uvc_opts *opts;
 
 	if (video->ep == NULL) {
 		printk(KERN_INFO "Video enable failed, device is "
@@ -378,11 +347,8 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 		return -ENODEV;
 	}
 
-	uvc = container_of(video, struct uvc_device, video);
-	opts = fi_to_f_uvc_opts(uvc->func.fi);
-
 	if (!enable) {
-		for (i = 0; i < opts->uvc_num_request; ++i)
+		for (i = 0; i < UVC_NUM_REQUESTS; ++i)
 			if (video->req[i])
 				usb_ep_dequeue(video->ep, video->req[i]);
 

@@ -56,25 +56,6 @@ MODULE_PARM_DESC(drm_fbdev_overalloc,
 		 "Overallocation of the fbdev buffer (%) [default="
 		 __MODULE_STRING(CONFIG_DRM_FBDEV_OVERALLOC) "]");
 
-/*
- * In order to keep user-space compatibility, we want in certain use-cases
- * to keep leaking the fbdev physical address to the user-space program
- * handling the fbdev buffer.
- * This is a bad habit essentially kept into closed source opengl driver
- * that should really be moved into open-source upstream projects instead
- * of using legacy physical addresses in user space to communicate with
- * other out-of-tree kernel modules.
- *
- * This module_param *should* be removed as soon as possible and be
- * considered as a broken and legacy behaviour from a modern fbdev device.
- */
-#if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
-static bool drm_leak_fbdev_smem = false;
-module_param_unsafe(drm_leak_fbdev_smem, bool, 0600);
-MODULE_PARM_DESC(fbdev_emulation,
-		 "Allow unsafe leaking fbdev physical smem address [default=false]");
-#endif
-
 static LIST_HEAD(kernel_fb_helper_list);
 static DEFINE_MUTEX(kernel_fb_helper_lock);
 
@@ -219,9 +200,6 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 	mutex_lock(&fb_helper->lock);
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
-			continue;
-
 		ret = __drm_fb_helper_add_one_connector(fb_helper, connector);
 		if (ret)
 			goto fail;
@@ -1621,64 +1599,6 @@ static bool drm_fb_pixel_format_equal(const struct fb_var_screeninfo *var_1,
 	       var_1->transp.msb_right == var_2->transp.msb_right;
 }
 
-static void drm_fb_helper_fill_pixel_fmt(struct fb_var_screeninfo *var,
-					 u8 depth)
-{
-	switch (depth) {
-	case 8:
-		var->red.offset = 0;
-		var->green.offset = 0;
-		var->blue.offset = 0;
-		var->red.length = 8; /* 8bit DAC */
-		var->green.length = 8;
-		var->blue.length = 8;
-		var->transp.offset = 0;
-		var->transp.length = 0;
-		break;
-	case 15:
-		var->red.offset = 10;
-		var->green.offset = 5;
-		var->blue.offset = 0;
-		var->red.length = 5;
-		var->green.length = 5;
-		var->blue.length = 5;
-		var->transp.offset = 15;
-		var->transp.length = 1;
-		break;
-	case 16:
-		var->red.offset = 11;
-		var->green.offset = 5;
-		var->blue.offset = 0;
-		var->red.length = 5;
-		var->green.length = 6;
-		var->blue.length = 5;
-		var->transp.offset = 0;
-		break;
-	case 24:
-		var->red.offset = 16;
-		var->green.offset = 8;
-		var->blue.offset = 0;
-		var->red.length = 8;
-		var->green.length = 8;
-		var->blue.length = 8;
-		var->transp.offset = 0;
-		var->transp.length = 0;
-		break;
-	case 32:
-		var->red.offset = 16;
-		var->green.offset = 8;
-		var->blue.offset = 0;
-		var->red.length = 8;
-		var->green.length = 8;
-		var->blue.length = 8;
-		var->transp.offset = 24;
-		var->transp.length = 8;
-		break;
-	default:
-		break;
-	}
-}
-
 /**
  * drm_fb_helper_check_var - implementation for &fb_ops.fb_check_var
  * @var: screeninfo to check
@@ -1690,47 +1610,23 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
 
-	if (in_dbg_master())
+	if (var->pixclock != 0 || in_dbg_master())
 		return -EINVAL;
-
-	if (var->pixclock != 0) {
-		DRM_DEBUG("fbdev emulation doesn't support changing the pixel clock, value of pixclock is ignored\n");
-		var->pixclock = 0;
-	}
 
 	/*
 	 * Changes struct fb_var_screeninfo are currently not pushed back
 	 * to KMS, hence fail if different settings are requested.
 	 */
-	if (var->bits_per_pixel > fb->format->bpp[0] ||
+	if (var->bits_per_pixel != fb->format->cpp[0] * 8 ||
 	    var->xres > fb->width || var->yres > fb->height ||
 	    var->xres_virtual > fb->width || var->yres_virtual > fb->height) {
 		DRM_DEBUG("fb requested width/height/bpp can't fit in current fb "
 			  "request %dx%d-%d (virtual %dx%d) > %dx%d-%d\n",
 			  var->xres, var->yres, var->bits_per_pixel,
 			  var->xres_virtual, var->yres_virtual,
-			  fb->width, fb->height, fb->format->bpp[0]);
+			  fb->width, fb->height, fb->format->cpp[0] * 8);
 		return -EINVAL;
 	}
-
-	/*
-	 * Workaround for SDL 1.2, which is known to be setting all pixel format
-	 * fields values to zero in some cases. We treat this situation as a
-	 * kind of "use some reasonable autodetected values".
-	 */
-	if (!var->red.offset     && !var->green.offset    &&
-	    !var->blue.offset    && !var->transp.offset   &&
-	    !var->red.length     && !var->green.length    &&
-	    !var->blue.length    && !var->transp.length   &&
-	    !var->red.msb_right  && !var->green.msb_right &&
-	    !var->blue.msb_right && !var->transp.msb_right) {
-		drm_fb_helper_fill_pixel_fmt(var, fb->format->depth);
-	}
-
-	/*
-	 * Likewise, bits_per_pixel should be rounded up to a supported value.
-	 */
-	var->bits_per_pixel = fb->format->bpp[0];
 
 	/*
 	 * drm fbdev emulation doesn't support changing the pixel format at all,
@@ -2037,13 +1933,65 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 	info->pseudo_palette = fb_helper->pseudo_palette;
 	info->var.xres_virtual = fb->width;
 	info->var.yres_virtual = fb->height;
-	info->var.bits_per_pixel = fb->format->bpp[0];
+	info->var.bits_per_pixel = fb->format->cpp[0] * 8;
 	info->var.accel_flags = FB_ACCELF_TEXT;
 	info->var.xoffset = 0;
 	info->var.yoffset = 0;
 	info->var.activate = FB_ACTIVATE_NOW;
 
-	drm_fb_helper_fill_pixel_fmt(&info->var, fb->format->depth);
+	switch (fb->format->depth) {
+	case 8:
+		info->var.red.offset = 0;
+		info->var.green.offset = 0;
+		info->var.blue.offset = 0;
+		info->var.red.length = 8; /* 8bit DAC */
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 0;
+		break;
+	case 15:
+		info->var.red.offset = 10;
+		info->var.green.offset = 5;
+		info->var.blue.offset = 0;
+		info->var.red.length = 5;
+		info->var.green.length = 5;
+		info->var.blue.length = 5;
+		info->var.transp.offset = 15;
+		info->var.transp.length = 1;
+		break;
+	case 16:
+		info->var.red.offset = 11;
+		info->var.green.offset = 5;
+		info->var.blue.offset = 0;
+		info->var.red.length = 5;
+		info->var.green.length = 6;
+		info->var.blue.length = 5;
+		info->var.transp.offset = 0;
+		break;
+	case 24:
+		info->var.red.offset = 16;
+		info->var.green.offset = 8;
+		info->var.blue.offset = 0;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 0;
+		break;
+	case 32:
+		info->var.red.offset = 16;
+		info->var.green.offset = 8;
+		info->var.blue.offset = 0;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 24;
+		info->var.transp.length = 8;
+		break;
+	default:
+		break;
+	}
 
 	info->var.xres = fb_width;
 	info->var.yres = fb_height;
@@ -2882,7 +2830,7 @@ int drm_fb_helper_fbdev_setup(struct drm_device *dev,
 	return 0;
 
 err_drm_fb_helper_fini:
-	drm_fb_helper_fbdev_teardown(dev);
+	drm_fb_helper_fini(fb_helper);
 
 	return ret;
 }
@@ -2962,8 +2910,7 @@ static int drm_fbdev_fb_open(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 
-	/* No need to take a ref for fbcon because it unbinds on unregister */
-	if (user && !try_module_get(fb_helper->dev->driver->fops->owner))
+	if (!try_module_get(fb_helper->dev->driver->fops->owner))
 		return -ENODEV;
 
 	return 0;
@@ -2973,22 +2920,23 @@ static int drm_fbdev_fb_release(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 
-	if (user)
-		module_put(fb_helper->dev->driver->fops->owner);
+	module_put(fb_helper->dev->driver->fops->owner);
 
 	return 0;
 }
 
-static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
+/*
+ * fb_ops.fb_destroy is called by the last put_fb_info() call at the end of
+ * unregister_framebuffer() or fb_release().
+ */
+static void drm_fbdev_fb_destroy(struct fb_info *info)
 {
+	struct drm_fb_helper *fb_helper = info->par;
 	struct fb_info *fbi = fb_helper->fbdev;
 	struct fb_ops *fbops = NULL;
 	void *shadow = NULL;
 
-	if (!fb_helper->dev)
-		return;
-
-	if (fbi && fbi->fbdefio) {
+	if (fbi->fbdefio) {
 		fb_deferred_io_cleanup(fbi);
 		shadow = fbi->screen_buffer;
 		fbops = fbi->fbops;
@@ -3002,12 +2950,6 @@ static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 	}
 
 	drm_client_framebuffer_delete(fb_helper->buffer);
-}
-
-static void drm_fbdev_release(struct drm_fb_helper *fb_helper)
-{
-	drm_fbdev_cleanup(fb_helper);
-
 	/*
 	 * FIXME:
 	 * Remove conditional when all CMA drivers have been moved over to using
@@ -3017,15 +2959,6 @@ static void drm_fbdev_release(struct drm_fb_helper *fb_helper)
 		drm_client_release(&fb_helper->client);
 		kfree(fb_helper);
 	}
-}
-
-/*
- * fb_ops.fb_destroy is called by the last put_fb_info() call at the end of
- * unregister_framebuffer() or fb_release().
- */
-static void drm_fbdev_fb_destroy(struct fb_info *info)
-{
-	drm_fbdev_release(info->par);
 }
 
 static int drm_fbdev_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
@@ -3078,6 +3011,7 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	struct drm_framebuffer *fb;
 	struct fb_info *fbi;
 	u32 format;
+	int ret;
 
 	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d)\n",
 		      sizes->surface_width, sizes->surface_height,
@@ -3094,20 +3028,16 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	fb = buffer->fb;
 
 	fbi = drm_fb_helper_alloc_fbi(fb_helper);
-	if (IS_ERR(fbi))
-		return PTR_ERR(fbi);
+	if (IS_ERR(fbi)) {
+		ret = PTR_ERR(fbi);
+		goto err_free_buffer;
+	}
 
 	fbi->par = fb_helper;
 	fbi->fbops = &drm_fbdev_fb_ops;
 	fbi->screen_size = fb->height * fb->pitches[0];
 	fbi->fix.smem_len = fbi->screen_size;
 	fbi->screen_buffer = buffer->vaddr;
-	/* Shamelessly leak the physical address to user-space */
-#if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
-	if (drm_leak_fbdev_smem && fbi->fix.smem_start == 0)
-		fbi->fix.smem_start =
-			page_to_phys(virt_to_page(fbi->screen_buffer));
-#endif
 	strcpy(fbi->fix.id, "DRM emulated");
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
@@ -3126,7 +3056,8 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 		if (!fbops || !shadow) {
 			kfree(fbops);
 			vfree(shadow);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_fb_info_destroy;
 		}
 
 		*fbops = *fbi->fbops;
@@ -3138,6 +3069,13 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	}
 
 	return 0;
+
+err_fb_info_destroy:
+	drm_fb_helper_fini(fb_helper);
+err_free_buffer:
+	drm_client_framebuffer_delete(buffer);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_generic_probe);
 
@@ -3149,16 +3087,25 @@ static void drm_fbdev_client_unregister(struct drm_client_dev *client)
 {
 	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
 
-	if (fb_helper->fbdev)
-		/* drm_fbdev_fb_destroy() takes care of cleanup */
+	if (fb_helper->fbdev) {
 		drm_fb_helper_unregister_fbi(fb_helper);
-	else
-		drm_fbdev_release(fb_helper);
+		/* drm_fbdev_fb_destroy() takes care of cleanup */
+		return;
+	}
+
+	/* Did drm_fb_helper_fbdev_setup() run? */
+	if (fb_helper->dev)
+		drm_fb_helper_fini(fb_helper);
+
+	drm_client_release(client);
+	kfree(fb_helper);
 }
 
 static int drm_fbdev_client_restore(struct drm_client_dev *client)
 {
-	drm_fb_helper_lastclose(client->dev);
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+
+	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
 
 	return 0;
 }
@@ -3169,7 +3116,7 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 	struct drm_device *dev = client->dev;
 	int ret;
 
-	/* Setup is not retried if it has failed */
+	/* If drm_fb_helper_fbdev_setup() failed, we only try once */
 	if (!fb_helper->dev && fb_helper->funcs)
 		return 0;
 
@@ -3179,34 +3126,15 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 	if (!dev->mode_config.num_connector)
 		return 0;
 
-	drm_fb_helper_prepare(dev, fb_helper, &drm_fb_helper_generic_funcs);
-
-	ret = drm_fb_helper_init(dev, fb_helper, dev->mode_config.num_connector);
-	if (ret)
-		goto err;
-
-	ret = drm_fb_helper_single_add_all_connectors(fb_helper);
-	if (ret)
-		goto err_cleanup;
-
-	if (!drm_drv_uses_atomic_modeset(dev))
-		drm_helper_disable_unused_functions(dev);
-
-	ret = drm_fb_helper_initial_config(fb_helper, fb_helper->preferred_bpp);
-	if (ret)
-		goto err_cleanup;
+	ret = drm_fb_helper_fbdev_setup(dev, fb_helper, &drm_fb_helper_generic_funcs,
+					fb_helper->preferred_bpp, 0);
+	if (ret) {
+		fb_helper->dev = NULL;
+		fb_helper->fbdev = NULL;
+		return ret;
+	}
 
 	return 0;
-
-err_cleanup:
-	drm_fbdev_cleanup(fb_helper);
-err:
-	fb_helper->dev = NULL;
-	fb_helper->fbdev = NULL;
-
-	DRM_DEV_ERROR(dev->dev, "fbdev: Failed to setup generic emulation (ret=%d)\n", ret);
-
-	return ret;
 }
 
 static const struct drm_client_funcs drm_fbdev_client_funcs = {
@@ -3257,15 +3185,11 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 		return ret;
 	}
 
-	if (!preferred_bpp)
-		preferred_bpp = dev->mode_config.preferred_depth;
-	if (!preferred_bpp)
-		preferred_bpp = 32;
+	drm_client_add(&fb_helper->client);
+
 	fb_helper->preferred_bpp = preferred_bpp;
 
 	drm_fbdev_client_hotplug(&fb_helper->client);
-
-	drm_client_add(&fb_helper->client);
 
 	return 0;
 }

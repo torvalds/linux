@@ -142,21 +142,6 @@ extern "C" {
 #define DRM_FORMAT_NV42		fourcc_code('N', 'V', '4', '2') /* non-subsampled Cb:Cr plane */
 
 /*
- * 2 plane YCbCr 10bit
- * index 0 = Y plane, [9:0] Y
- * index 1 = Cr:Cb plane, [19:0] Cr:Cb little endian
- * or
- * index 1 = Cb:Cr plane, [19:0] Cb:Cr little endian
- */
-
-#define DRM_FORMAT_NV12_10	fourcc_code('N', 'A', '1', '2') /* 2x2 subsampled Cr:Cb plane */
-#define DRM_FORMAT_NV21_10	fourcc_code('N', 'A', '2', '1') /* 2x2 subsampled Cb:Cr plane */
-#define DRM_FORMAT_NV16_10	fourcc_code('N', 'A', '1', '6') /* 2x1 subsampled Cr:Cb plane */
-#define DRM_FORMAT_NV61_10	fourcc_code('N', 'A', '6', '1') /* 2x1 subsampled Cb:Cr plane */
-#define DRM_FORMAT_NV24_10	fourcc_code('N', 'A', '2', '4') /* non-subsampled Cr:Cb plane */
-#define DRM_FORMAT_NV42_10	fourcc_code('N', 'A', '4', '2') /* non-subsampled Cb:Cr plane */
-
-/*
  * 3 plane YCbCr
  * index 0: Y plane, [7:0] Y
  * index 1: Cb plane, [7:0] Cb
@@ -326,30 +311,6 @@ extern "C" {
  * Entire pixel data buffer is aligned with 4k(bytes).
  */
 #define DRM_FORMAT_MOD_QCOM_COMPRESSED	fourcc_mod_code(QCOM, 1)
-
-/*
- * QTI DX Format
- *
- * Refers to a DX variant of the base format.
- * Implementation may be platform and base-format specific.
- */
-#define DRM_FORMAT_MOD_QCOM_DX	fourcc_mod_code(QCOM, 0x2)
-
-/*
- * QTI Tight Format
- *
- * Refers to a tightly packed variant of the base format.
- * Implementation may be platform and base-format specific.
- */
-#define DRM_FORMAT_MOD_QCOM_TIGHT	fourcc_mod_code(QCOM, 0x4)
-
-/*
- * QTI Tile Format
- *
- * Refers to a tile variant of the base format.
- * Implementation may be platform and base-format specific.
- */
-#define DRM_FORMAT_MOD_QCOM_TILE	fourcc_mod_code(QCOM, 0x8)
 
 /* Vivante framebuffer modifiers */
 
@@ -557,18 +518,10 @@ extern "C" {
  * Indicates the superblock size(s) used for the AFBC buffer. The buffer
  * size (in pixels) must be aligned to a multiple of the superblock size.
  * Four lowest significant bits(LSBs) are reserved for block size.
- *
- * Where one superblock size is specified, it applies to all planes of the
- * buffer (e.g. 16x16, 32x8). When multiple superblock sizes are specified,
- * the first applies to the Luma plane and the second applies to the Chroma
- * plane(s). e.g. (32x8_64x4 means 32x8 Luma, with 64x4 Chroma).
- * Multiple superblock sizes are only valid for multi-plane YCbCr formats.
  */
 #define AFBC_FORMAT_MOD_BLOCK_SIZE_MASK      0xf
 #define AFBC_FORMAT_MOD_BLOCK_SIZE_16x16     (1ULL)
 #define AFBC_FORMAT_MOD_BLOCK_SIZE_32x8      (2ULL)
-#define AFBC_FORMAT_MOD_BLOCK_SIZE_64x4      (3ULL)
-#define AFBC_FORMAT_MOD_BLOCK_SIZE_32x8_64x4 (4ULL)
 
 /*
  * AFBC lossless colorspace transform
@@ -627,21 +580,6 @@ extern "C" {
  * can be reduced if a whole superblock is a single color.
  */
 #define AFBC_FORMAT_MOD_SC      (1ULL <<  9)
-
-/*
- * AFBC double-buffer
- *
- * Indicates that the buffer is allocated in a layout safe for front-buffer
- * rendering.
- */
-#define AFBC_FORMAT_MOD_DB      (1ULL << 10)
-
-/*
- * AFBC buffer content hints
- *
- * Indicates that the buffer includes per-superblock content hints.
- */
-#define AFBC_FORMAT_MOD_BCH     (1ULL << 11)
 
 #if defined(__cplusplus)
 }

@@ -22,9 +22,7 @@
  * License along with this program; if not,  see <http://www.gnu.org/licenses>
  */
 
-#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -1073,22 +1071,16 @@ int bpf_map__reuse_fd(struct bpf_map *map, int fd)
 		return -errno;
 
 	new_fd = open("/", O_RDONLY | O_CLOEXEC);
-	if (new_fd < 0) {
-		err = -errno;
+	if (new_fd < 0)
 		goto err_free_new_name;
-	}
 
 	new_fd = dup3(fd, new_fd, O_CLOEXEC);
-	if (new_fd < 0) {
-		err = -errno;
+	if (new_fd < 0)
 		goto err_close_new_fd;
-	}
 
 	err = zclose(map->fd);
-	if (err) {
-		err = -errno;
+	if (err)
 		goto err_close_new_fd;
-	}
 	free(map->name);
 
 	map->fd = new_fd;
@@ -1107,7 +1099,7 @@ err_close_new_fd:
 	close(new_fd);
 err_free_new_name:
 	free(new_name);
-	return err;
+	return -errno;
 }
 
 static int
@@ -2301,7 +2293,10 @@ int bpf_prog_load(const char *file, enum bpf_prog_type type,
 int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 			struct bpf_object **pobj, int *prog_fd)
 {
-	struct bpf_object_open_attr open_attr = {};
+	struct bpf_object_open_attr open_attr = {
+		.file		= attr->file,
+		.prog_type	= attr->prog_type,
+	};
 	struct bpf_program *prog, *first_prog = NULL;
 	enum bpf_attach_type expected_attach_type;
 	enum bpf_prog_type prog_type;
@@ -2313,9 +2308,6 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		return -EINVAL;
 	if (!attr->file)
 		return -EINVAL;
-
-	open_attr.file = attr->file;
-	open_attr.prog_type = attr->prog_type;
 
 	obj = bpf_object__open_xattr(&open_attr);
 	if (IS_ERR_OR_NULL(obj))

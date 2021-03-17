@@ -18,7 +18,6 @@
 #include <linux/compiler.h>
 #include <linux/kvm_host.h>
 
-#include <asm/kprobes.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
@@ -99,14 +98,12 @@ void sysreg_save_host_state_vhe(struct kvm_cpu_context *ctxt)
 {
 	__sysreg_save_common_state(ctxt);
 }
-NOKPROBE_SYMBOL(sysreg_save_host_state_vhe);
 
 void sysreg_save_guest_state_vhe(struct kvm_cpu_context *ctxt)
 {
 	__sysreg_save_common_state(ctxt);
 	__sysreg_save_el2_return_state(ctxt);
 }
-NOKPROBE_SYMBOL(sysreg_save_guest_state_vhe);
 
 static void __hyp_text __sysreg_restore_common_state(struct kvm_cpu_context *ctxt)
 {
@@ -174,14 +171,12 @@ void sysreg_restore_host_state_vhe(struct kvm_cpu_context *ctxt)
 {
 	__sysreg_restore_common_state(ctxt);
 }
-NOKPROBE_SYMBOL(sysreg_restore_host_state_vhe);
 
 void sysreg_restore_guest_state_vhe(struct kvm_cpu_context *ctxt)
 {
 	__sysreg_restore_common_state(ctxt);
 	__sysreg_restore_el2_return_state(ctxt);
 }
-NOKPROBE_SYMBOL(sysreg_restore_guest_state_vhe);
 
 void __hyp_text __sysreg32_save_state(struct kvm_vcpu *vcpu)
 {
@@ -292,15 +287,4 @@ void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu)
 	__sysreg_restore_user_state(host_ctxt);
 
 	vcpu->arch.sysregs_loaded_on_cpu = false;
-}
-
-void __hyp_text __kvm_enable_ssbs(void)
-{
-	u64 tmp;
-
-	asm volatile(
-	"mrs	%0, sctlr_el2\n"
-	"orr	%0, %0, %1\n"
-	"msr	sctlr_el2, %0"
-	: "=&r" (tmp) : "L" (SCTLR_ELx_DSSBS));
 }

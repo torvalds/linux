@@ -290,14 +290,15 @@ Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 170M/BT.601. The Y'CbCr quantization is limited range.
 
 
-.. _col-oprgb:
+.. _col-adobergb:
 
-Colorspace opRGB (V4L2_COLORSPACE_OPRGB)
+Colorspace Adobe RGB (V4L2_COLORSPACE_ADOBERGB)
 ===============================================
 
-The :ref:`oprgb` standard defines the colorspace used by computer
-graphics that use the opRGB colorspace. The default transfer function is
-``V4L2_XFER_FUNC_OPRGB``. The default Y'CbCr encoding is
+The :ref:`adobergb` standard defines the colorspace used by computer
+graphics that use the AdobeRGB colorspace. This is also known as the
+:ref:`oprgb` standard. The default transfer function is
+``V4L2_XFER_FUNC_ADOBERGB``. The default Y'CbCr encoding is
 ``V4L2_YCBCR_ENC_601``. The default Y'CbCr quantization is limited
 range.
 
@@ -311,7 +312,7 @@ The chromaticities of the primary colors and the white reference are:
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. flat-table:: opRGB Chromaticities
+.. flat-table:: Adobe RGB Chromaticities
     :header-rows:  1
     :stub-columns: 0
     :widths:       1 1 2
@@ -370,8 +371,9 @@ Colorspace BT.2020 (V4L2_COLORSPACE_BT2020)
 The :ref:`itu2020` standard defines the colorspace used by Ultra-high
 definition television (UHDTV). The default transfer function is
 ``V4L2_XFER_FUNC_709``. The default Y'CbCr encoding is
-``V4L2_YCBCR_ENC_BT2020``. The default Y'CbCr quantization is limited range.
-The chromaticities of the primary colors and the white reference are:
+``V4L2_YCBCR_ENC_BT2020``. The default R'G'B' quantization is limited
+range (!), and so is the default Y'CbCr quantization. The chromaticities
+of the primary colors and the white reference are:
 
 
 

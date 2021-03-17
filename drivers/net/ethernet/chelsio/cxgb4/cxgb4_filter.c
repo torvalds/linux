@@ -145,13 +145,13 @@ static int configure_filter_smac(struct adapter *adap, struct filter_entry *f)
 	int err;
 
 	/* do a set-tcb for smac-sel and CWR bit.. */
-	err = set_tcb_field(adap, f, f->tid, TCB_SMAC_SEL_W,
-			    TCB_SMAC_SEL_V(TCB_SMAC_SEL_M),
-			    TCB_SMAC_SEL_V(f->smt->idx), 1);
+	err = set_tcb_tflag(adap, f, f->tid, TF_CCTRL_CWR_S, 1, 1);
 	if (err)
 		goto smac_err;
 
-	err = set_tcb_tflag(adap, f, f->tid, TF_CCTRL_CWR_S, 1, 1);
+	err = set_tcb_field(adap, f, f->tid, TCB_SMAC_SEL_W,
+			    TCB_SMAC_SEL_V(TCB_SMAC_SEL_M),
+			    TCB_SMAC_SEL_V(f->smt->idx), 1);
 	if (!err)
 		return 0;
 
@@ -608,7 +608,6 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		      FW_FILTER_WR_DIRSTEERHASH_V(f->fs.dirsteerhash) |
 		      FW_FILTER_WR_LPBK_V(f->fs.action == FILTER_SWITCH) |
 		      FW_FILTER_WR_DMAC_V(f->fs.newdmac) |
-		      FW_FILTER_WR_SMAC_V(f->fs.newsmac) |
 		      FW_FILTER_WR_INSVLAN_V(f->fs.newvlan == VLAN_INSERT ||
 					     f->fs.newvlan == VLAN_REWRITE) |
 		      FW_FILTER_WR_RMVLAN_V(f->fs.newvlan == VLAN_REMOVE ||
@@ -626,8 +625,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		 FW_FILTER_WR_OVLAN_VLD_V(f->fs.val.ovlan_vld) |
 		 FW_FILTER_WR_IVLAN_VLDM_V(f->fs.mask.ivlan_vld) |
 		 FW_FILTER_WR_OVLAN_VLDM_V(f->fs.mask.ovlan_vld));
-	if (f->fs.newsmac)
-		fwr->smac_sel = f->smt->idx;
+	fwr->smac_sel = 0;
 	fwr->rx_chan_rx_rpl_iq =
 		htons(FW_FILTER_WR_RX_CHAN_V(0) |
 		      FW_FILTER_WR_RX_RPL_IQ_V(adapter->sge.fw_evtq.abs_id));
@@ -812,16 +810,16 @@ static bool is_addr_all_mask(u8 *ipmask, int family)
 		struct in_addr *addr;
 
 		addr = (struct in_addr *)ipmask;
-		if (addr->s_addr == htonl(0xffffffff))
+		if (addr->s_addr == 0xffffffff)
 			return true;
 	} else if (family == AF_INET6) {
 		struct in6_addr *addr6;
 
 		addr6 = (struct in6_addr *)ipmask;
-		if (addr6->s6_addr32[0] == htonl(0xffffffff) &&
-		    addr6->s6_addr32[1] == htonl(0xffffffff) &&
-		    addr6->s6_addr32[2] == htonl(0xffffffff) &&
-		    addr6->s6_addr32[3] == htonl(0xffffffff))
+		if (addr6->s6_addr32[0] == 0xffffffff &&
+		    addr6->s6_addr32[1] == 0xffffffff &&
+		    addr6->s6_addr32[2] == 0xffffffff &&
+		    addr6->s6_addr32[3] == 0xffffffff)
 			return true;
 	}
 	return false;
@@ -1021,8 +1019,11 @@ static void mk_act_open_req6(struct filter_entry *f, struct sk_buff *skb,
 			    TX_QUEUE_V(f->fs.nat_mode) |
 			    T5_OPT_2_VALID_F |
 			    RX_CHANNEL_F |
+			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
+					 (f->fs.dirsteer << 1)) |
 			    PACE_V((f->fs.maskhash) |
-				   ((f->fs.dirsteerhash) << 1)));
+				   ((f->fs.dirsteerhash) << 1)) |
+			    CCTRL_ECN_V(f->fs.action == FILTER_SWITCH));
 }
 
 static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
@@ -1058,8 +1059,11 @@ static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
 			    TX_QUEUE_V(f->fs.nat_mode) |
 			    T5_OPT_2_VALID_F |
 			    RX_CHANNEL_F |
+			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
+					 (f->fs.dirsteer << 1)) |
 			    PACE_V((f->fs.maskhash) |
-				   ((f->fs.dirsteerhash) << 1)));
+				   ((f->fs.dirsteerhash) << 1)) |
+			    CCTRL_ECN_V(f->fs.action == FILTER_SWITCH));
 }
 
 static int cxgb4_set_hash_filter(struct net_device *dev,
@@ -1587,16 +1591,13 @@ out:
 static int configure_filter_tcb(struct adapter *adap, unsigned int tid,
 				struct filter_entry *f)
 {
-	if (f->fs.hitcnts) {
+	if (f->fs.hitcnts)
 		set_tcb_field(adap, f, tid, TCB_TIMESTAMP_W,
-			      TCB_TIMESTAMP_V(TCB_TIMESTAMP_M),
-			      TCB_TIMESTAMP_V(0ULL),
-			      1);
-		set_tcb_field(adap, f, tid, TCB_RTT_TS_RECENT_AGE_W,
+			      TCB_TIMESTAMP_V(TCB_TIMESTAMP_M) |
 			      TCB_RTT_TS_RECENT_AGE_V(TCB_RTT_TS_RECENT_AGE_M),
+			      TCB_TIMESTAMP_V(0ULL) |
 			      TCB_RTT_TS_RECENT_AGE_V(0ULL),
 			      1);
-	}
 
 	if (f->fs.newdmac)
 		set_tcb_tflag(adap, f, tid, TF_CCTRL_ECE_S, 1,
@@ -1718,20 +1719,6 @@ void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 			}
 			return;
 		}
-		switch (f->fs.action) {
-		case FILTER_PASS:
-			if (f->fs.dirsteer)
-				set_tcb_tflag(adap, f, tid,
-					      TF_DIRECT_STEER_S, 1, 1);
-			break;
-		case FILTER_DROP:
-			set_tcb_tflag(adap, f, tid, TF_DROP_S, 1, 1);
-			break;
-		case FILTER_SWITCH:
-			set_tcb_tflag(adap, f, tid, TF_LPBK_S, 1, 1);
-			break;
-		}
-
 		break;
 
 	default:
@@ -1791,11 +1778,22 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 			if (ctx)
 				ctx->result = 0;
 		} else if (ret == FW_FILTER_WR_FLT_ADDED) {
-			f->pending = 0;  /* async setup completed */
-			f->valid = 1;
-			if (ctx) {
-				ctx->result = 0;
-				ctx->tid = idx;
+			int err = 0;
+
+			if (f->fs.newsmac)
+				err = configure_filter_smac(adap, f);
+
+			if (!err) {
+				f->pending = 0;  /* async setup completed */
+				f->valid = 1;
+				if (ctx) {
+					ctx->result = 0;
+					ctx->tid = idx;
+				}
+			} else {
+				clear_filter(adap, f);
+				if (ctx)
+					ctx->result = err;
 			}
 		} else {
 			/* Something went wrong.  Issue a warning about the

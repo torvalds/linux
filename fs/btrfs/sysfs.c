@@ -10,7 +10,6 @@
 #include <linux/kobject.h>
 #include <linux/bug.h>
 #include <linux/debugfs.h>
-#include <linux/sched/mm.h>
 
 #include "ctree.h"
 #include "disk-io.h"
@@ -767,9 +766,7 @@ int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,
 {
 	int error = 0;
 	struct btrfs_device *dev;
-	unsigned int nofs_flag;
 
-	nofs_flag = memalloc_nofs_save();
 	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
 		struct hd_struct *disk;
 		struct kobject *disk_kobj;
@@ -788,7 +785,6 @@ int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,
 		if (error)
 			break;
 	}
-	memalloc_nofs_restore(nofs_flag);
 
 	return error;
 }
@@ -815,12 +811,7 @@ int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs,
 	fs_devs->fsid_kobj.kset = btrfs_kset;
 	error = kobject_init_and_add(&fs_devs->fsid_kobj,
 				&btrfs_ktype, parent, "%pU", fs_devs->fsid);
-	if (error) {
-		kobject_put(&fs_devs->fsid_kobj);
-		return error;
-	}
-
-	return 0;
+	return error;
 }
 
 int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)

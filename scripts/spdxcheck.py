@@ -250,13 +250,12 @@ if __name__ == '__main__':
 
     try:
         if len(args.path) and args.path[0] == '-':
-            stdin = os.fdopen(sys.stdin.fileno(), 'rb')
-            parser.parse_lines(stdin, args.maxlines, '-')
+            parser.parse_lines(sys.stdin, args.maxlines, '-')
         else:
             if args.path:
                 for p in args.path:
                     if os.path.isfile(p):
-                        parser.parse_lines(open(p, 'rb'), args.maxlines, p)
+                        parser.parse_lines(open(p), args.maxlines, p)
                     elif os.path.isdir(p):
                         scan_git_subtree(repo.head.reference.commit.tree, p)
                     else:

@@ -557,8 +557,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 	}
 #endif
 	comedi_handle_events(dev, s);
-	if (s_ao)
-		comedi_handle_events(dev, s_ao);
+	comedi_handle_events(dev, s_ao);
 
 	return IRQ_RETVAL(handled);
 }

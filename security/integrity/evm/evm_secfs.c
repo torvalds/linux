@@ -237,14 +237,7 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	/*
-	 * xattr_list_mutex guards against races in evm_read_xattrs().
-	 * Entries are only added to the evm_config_xattrnames list
-	 * and never deleted. Therefore, the list is traversed
-	 * using list_for_each_entry_lockless() without holding
-	 * the mutex in evm_calc_hmac_or_hash(), evm_find_protected_xattrs()
-	 * and evm_protected_xattr().
-	 */
+	/* Guard against races in evm_read_xattrs */
 	mutex_lock(&xattr_list_mutex);
 	list_for_each_entry(tmp, &evm_config_xattrnames, list) {
 		if (strcmp(xattr->name, tmp->name) == 0) {

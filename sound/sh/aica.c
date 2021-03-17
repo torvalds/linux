@@ -117,10 +117,10 @@ static void spu_memset(u32 toi, u32 what, int length)
 }
 
 /* spu_memload - write to SPU address space */
-static void spu_memload(u32 toi, const void *from, int length)
+static void spu_memload(u32 toi, void *from, int length)
 {
 	unsigned long flags;
-	const u32 *froml = from;
+	u32 *froml = from;
 	u32 __iomem *to = (u32 __iomem *) (SPU_MEMORY_BASE + toi);
 	int i;
 	u32 val;
@@ -303,7 +303,7 @@ static void aica_period_elapsed(struct timer_list *t)
 {
 	struct snd_card_aica *dreamcastcard = from_timer(dreamcastcard,
 							      t, timer);
-	struct snd_pcm_substream *substream = dreamcastcard->substream;
+	struct snd_pcm_substream *substream = dreamcastcard->timer_substream;
 	/*timer function - so cannot sleep */
 	int play_period;
 	struct snd_pcm_runtime *runtime;
@@ -335,6 +335,13 @@ static void spu_begin_dma(struct snd_pcm_substream *substream)
 	dreamcastcard = substream->pcm->private_data;
 	/*get the queue to do the work */
 	schedule_work(&(dreamcastcard->spu_dma_work));
+	/* Timer may already be running */
+	if (unlikely(dreamcastcard->timer_substream)) {
+		mod_timer(&dreamcastcard->timer, jiffies + 4);
+		return;
+	}
+	timer_setup(&dreamcastcard->timer, aica_period_elapsed, 0);
+	dreamcastcard->timer_substream = substream;
 	mod_timer(&dreamcastcard->timer, jiffies + 4);
 }
 
@@ -372,8 +379,8 @@ static int snd_aicapcm_pcm_close(struct snd_pcm_substream
 {
 	struct snd_card_aica *dreamcastcard = substream->pcm->private_data;
 	flush_work(&(dreamcastcard->spu_dma_work));
-	del_timer(&dreamcastcard->timer);
-	dreamcastcard->substream = NULL;
+	if (dreamcastcard->timer_substream)
+		del_timer(&dreamcastcard->timer);
 	kfree(dreamcastcard->channel);
 	spu_disable();
 	return 0;
@@ -608,7 +615,6 @@ static int snd_aica_probe(struct platform_device *devptr)
 	       "Yamaha AICA Super Intelligent Sound Processor for SEGA Dreamcast");
 	/* Prepare to use the queue */
 	INIT_WORK(&(dreamcastcard->spu_dma_work), run_spu_dma);
-	timer_setup(&dreamcastcard->timer, aica_period_elapsed, 0);
 	/* Load the PCM 'chip' */
 	err = snd_aicapcmchip(dreamcastcard, 0);
 	if (unlikely(err < 0))

@@ -13,7 +13,6 @@
 #include <linux/fb.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
-#include <linux/thermal.h>
 
 /* Notes on locking:
  *
@@ -107,12 +106,6 @@ struct backlight_device {
 	struct list_head entry;
 
 	struct device dev;
-	/* Backlight cooling device */
-	struct thermal_cooling_device *cdev;
-	/* Thermally limited max brightness */
-	int thermal_brightness_limit;
-	/* User brightness request */
-	int usr_brightness_req;
 
 	/* Multiple framebuffers may share one backlight device */
 	bool fb_bl_on[FB_MAX];

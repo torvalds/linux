@@ -1940,7 +1940,7 @@ void _intel_vgpu_mm_release(struct kref *mm_ref)
  */
 void intel_vgpu_unpin_mm(struct intel_vgpu_mm *mm)
 {
-	atomic_dec_if_positive(&mm->pincount);
+	atomic_dec(&mm->pincount);
 }
 
 /**
@@ -2161,8 +2161,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	struct intel_gvt_gtt_pte_ops *ops = gvt->gtt.pte_ops;
 	unsigned long g_gtt_index = off >> info->gtt_entry_size_shift;
 	unsigned long gma, gfn;
-	struct intel_gvt_gtt_entry e = {.val64 = 0, .type = GTT_TYPE_GGTT_PTE};
-	struct intel_gvt_gtt_entry m = {.val64 = 0, .type = GTT_TYPE_GGTT_PTE};
+	struct intel_gvt_gtt_entry e, m;
 	dma_addr_t dma_addr;
 	int ret;
 
@@ -2238,8 +2237,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 
 	if (ops->test_present(&e)) {
 		gfn = ops->get_pfn(&e);
-		m.val64 = e.val64;
-		m.type = e.type;
+		m = e;
 
 		/* one PTE update may be issued in multiple writes and the
 		 * first write may not construct a valid gfn

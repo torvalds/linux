@@ -307,8 +307,6 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		      struct ip_tunnel_parm *p, __u32 fwmark);
 void ip_tunnel_setup(struct net_device *dev, unsigned int net_id);
 
-__be16 ip_tunnel_parse_protocol(const struct sk_buff *skb);
-
 struct ip_tunnel_encap_ops {
 	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
 	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
@@ -327,26 +325,6 @@ int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
 
 int ip_tunnel_encap_setup(struct ip_tunnel *t,
 			  struct ip_tunnel_encap *ipencap);
-
-static inline bool pskb_inet_may_pull(struct sk_buff *skb)
-{
-	int nhlen;
-
-	switch (skb->protocol) {
-#if IS_ENABLED(CONFIG_IPV6)
-	case htons(ETH_P_IPV6):
-		nhlen = sizeof(struct ipv6hdr);
-		break;
-#endif
-	case htons(ETH_P_IP):
-		nhlen = sizeof(struct iphdr);
-		break;
-	default:
-		nhlen = 0;
-	}
-
-	return pskb_network_may_pull(skb, nhlen);
-}
 
 static inline int ip_encap_hlen(struct ip_tunnel_encap *e)
 {
@@ -491,11 +469,9 @@ static inline void ip_tunnel_info_opts_set(struct ip_tunnel_info *info,
 					   const void *from, int len,
 					   __be16 flags)
 {
+	memcpy(ip_tunnel_info_opts(info), from, len);
 	info->options_len = len;
-	if (len > 0) {
-		memcpy(ip_tunnel_info_opts(info), from, len);
-		info->key.tun_flags |= flags;
-	}
+	info->key.tun_flags |= flags;
 }
 
 static inline struct ip_tunnel_info *lwt_tun_info(struct lwtunnel_state *lwtstate)
@@ -541,6 +517,7 @@ static inline void ip_tunnel_info_opts_set(struct ip_tunnel_info *info,
 					   __be16 flags)
 {
 	info->options_len = 0;
+	info->key.tun_flags |= flags;
 }
 
 #endif /* CONFIG_INET */

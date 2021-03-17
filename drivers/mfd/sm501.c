@@ -1145,9 +1145,6 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 	lookup = devm_kzalloc(&pdev->dev,
 			      sizeof(*lookup) + 3 * sizeof(struct gpiod_lookup),
 			      GFP_KERNEL);
-	if (!lookup)
-		return -ENOMEM;
-
 	lookup->dev_id = "i2c-gpio";
 	if (iic->pin_sda < 32)
 		lookup->table[0].chip_label = "SM501-LOW";
@@ -1429,14 +1426,8 @@ static int sm501_plat_probe(struct platform_device *dev)
 		goto err_claim;
 	}
 
-	ret = sm501_init_dev(sm);
-	if (ret)
-		goto err_unmap;
+	return sm501_init_dev(sm);
 
-	return 0;
-
- err_unmap:
-	iounmap(sm->regs);
  err_claim:
 	release_resource(sm->regs_claim);
 	kfree(sm->regs_claim);

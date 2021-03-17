@@ -8,7 +8,6 @@
 
 enum {
 	ICQ_EXITED		= 1 << 2,
-	ICQ_DESTROYED		= 1 << 3,
 };
 
 /*

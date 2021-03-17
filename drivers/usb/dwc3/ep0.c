@@ -283,33 +283,16 @@ void dwc3_ep0_out_start(struct dwc3 *dwc)
 
 static struct dwc3_ep *dwc3_wIndex_to_dep(struct dwc3 *dwc, __le16 wIndex_le)
 {
-	struct dwc3_ep		*dep = NULL;
+	struct dwc3_ep		*dep;
 	u32			windex = le16_to_cpu(wIndex_le);
-	u32			epnum, ep_index;
-	u8			num, direction;
+	u32			epnum;
 
-	epnum = windex & USB_ENDPOINT_NUMBER_MASK;
-	direction = windex & USB_ENDPOINT_DIR_MASK;
-	ep_index = 0;
+	epnum = (windex & USB_ENDPOINT_NUMBER_MASK) << 1;
+	if ((windex & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)
+		epnum |= 1;
 
-	for (num = 0; num < dwc->num_eps; num++) {
-		dep = dwc->eps[num];
-		if (!dep) {
-			dev_warn(dwc->dev, "dep is NULL, num %d, windex 0x%08x\n",
-				 num, windex);
-			return NULL;
-		}
-
-		if ((direction == USB_DIR_IN && dep->direction) ||
-		    (direction == USB_DIR_OUT && !dep->direction))
-			ep_index++;
-
-		if (ep_index == epnum + 1)
-			break;
-	}
-
-
-	if (dep && (dep->flags & DWC3_EP_ENABLED))
+	dep = dwc->eps[epnum];
+	if (dep->flags & DWC3_EP_ENABLED)
 		return dep;
 
 	return NULL;
@@ -398,7 +381,7 @@ static int dwc3_ep0_handle_u1(struct dwc3 *dwc, enum usb_device_state state,
 		return -EINVAL;
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-	if (set && !dwc->dis_u1u2_quirk)
+	if (set)
 		reg |= DWC3_DCTL_INITU1ENA;
 	else
 		reg &= ~DWC3_DCTL_INITU1ENA;
@@ -420,7 +403,7 @@ static int dwc3_ep0_handle_u2(struct dwc3 *dwc, enum usb_device_state state,
 		return -EINVAL;
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-	if (set && !dwc->dis_u1u2_quirk)
+	if (set)
 		reg |= DWC3_DCTL_INITU2ENA;
 	else
 		reg &= ~DWC3_DCTL_INITU2ENA;
@@ -643,12 +626,7 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 			 * nothing is pending from application.
 			 */
 			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-			if (dwc->dis_u1u2_quirk)
-				reg &= ~(DWC3_DCTL_ACCEPTU1ENA |
-					 DWC3_DCTL_ACCEPTU2ENA);
-			else
-				reg |= (DWC3_DCTL_ACCEPTU1ENA |
-					DWC3_DCTL_ACCEPTU2ENA);
+			reg |= (DWC3_DCTL_ACCEPTU1ENA | DWC3_DCTL_ACCEPTU2ENA);
 			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 		}
 		break;
@@ -957,16 +935,12 @@ static void dwc3_ep0_xfer_complete(struct dwc3 *dwc,
 static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 		struct dwc3_ep *dep, struct dwc3_request *req)
 {
-	unsigned int		trb_length = 0;
 	int			ret;
 
 	req->direction = !!dep->number;
 
 	if (req->request.length == 0) {
-		if (!req->direction)
-			trb_length = dep->endpoint.maxpacket;
-
-		dwc3_ep0_prepare_one_trb(dep, dwc->bounce_addr, trb_length,
+		dwc3_ep0_prepare_one_trb(dep, dwc->ep0_trb_addr, 0,
 				DWC3_TRBCTL_CONTROL_DATA, false);
 		ret = dwc3_ep0_start_trans(dep);
 	} else if (!IS_ALIGNED(req->request.length, dep->endpoint.maxpacket)
@@ -1013,12 +987,9 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 
 		req->trb = &dwc->ep0_trb[dep->trb_enqueue - 1];
 
-		if (!req->direction)
-			trb_length = dep->endpoint.maxpacket;
-
 		/* Now prepare one extra TRB to align transfer size */
 		dwc3_ep0_prepare_one_trb(dep, dwc->bounce_addr,
-					 trb_length, DWC3_TRBCTL_CONTROL_DATA,
+					 0, DWC3_TRBCTL_CONTROL_DATA,
 					 false);
 		ret = dwc3_ep0_start_trans(dep);
 	} else {
@@ -1139,9 +1110,6 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 void dwc3_ep0_interrupt(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
-	struct dwc3_ep	*dep = dwc->eps[event->endpoint_number];
-	u8		cmd;
-
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERCOMPLETE:
 		dwc3_ep0_xfer_complete(dwc, event);
@@ -1154,14 +1122,7 @@ void dwc3_ep0_interrupt(struct dwc3 *dwc,
 	case DWC3_DEPEVT_XFERINPROGRESS:
 	case DWC3_DEPEVT_RXTXFIFOEVT:
 	case DWC3_DEPEVT_STREAMEVT:
-		break;
 	case DWC3_DEPEVT_EPCMDCMPLT:
-		cmd = DEPEVT_PARAMETER_CMD(event->parameters);
-
-		if (cmd == DWC3_DEPCMD_ENDTRANSFER) {
-			dep->flags &= ~DWC3_EP_END_TRANSFER_PENDING;
-			dep->flags &= ~DWC3_EP_TRANSFER_STARTED;
-		}
 		break;
 	}
 }

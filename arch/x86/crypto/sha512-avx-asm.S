@@ -271,12 +271,11 @@ frame_size = frame_GPRSAVE + GPRSAVE_SIZE
 .endm
 
 ########################################################################
-# void sha512_transform_avx(sha512_state *state, const u8 *data, int blocks)
-# Purpose: Updates the SHA512 digest stored at "state" with the message
-# stored in "data".
-# The size of the message pointed to by "data" must be an integer multiple
-# of SHA512 message blocks.
-# "blocks" is the message length in SHA512 blocks
+# void sha512_transform_avx(void* D, const void* M, u64 L)
+# Purpose: Updates the SHA512 digest stored at D with the message stored in M.
+# The size of the message pointed to by M must be an integer multiple of SHA512
+# message blocks.
+# L is the message length in SHA512 blocks
 ########################################################################
 ENTRY(sha512_transform_avx)
 	cmp $0, msglen

@@ -12,7 +12,6 @@ struct psample_group {
 	u32 group_num;
 	u32 refcount;
 	u32 seq;
-	struct rcu_head rcu;
 };
 
 struct psample_group *psample_group_get(struct net *net, u32 group_num);

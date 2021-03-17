@@ -149,8 +149,7 @@ CMD_TARGETS = $(LIB_FILE)
 
 TARGETS = $(CMD_TARGETS)
 
-all: fixdep
-	$(Q)$(MAKE) all_cmd
+all: fixdep all_cmd
 
 all_cmd: $(CMD_TARGETS)
 

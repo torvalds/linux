@@ -1001,22 +1001,20 @@ static void sunxi_pinctrl_irq_handler(struct irq_desc *desc)
 	if (bank == pctl->desc->irq_banks)
 		return;
 
-	chained_irq_enter(chip, desc);
-
 	reg = sunxi_irq_status_reg_from_bank(pctl->desc, bank);
 	val = readl(pctl->membase + reg);
 
 	if (val) {
 		int irqoffset;
 
+		chained_irq_enter(chip, desc);
 		for_each_set_bit(irqoffset, &val, IRQ_PER_BANK) {
 			int pin_irq = irq_find_mapping(pctl->domain,
 						       bank * IRQ_PER_BANK + irqoffset);
 			generic_handle_irq(pin_irq);
 		}
+		chained_irq_exit(chip, desc);
 	}
-
-	chained_irq_exit(chip, desc);
 }
 
 static int sunxi_pinctrl_add_function(struct sunxi_pinctrl *pctl,
@@ -1044,7 +1042,6 @@ static int sunxi_pinctrl_add_function(struct sunxi_pinctrl *pctl,
 static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 {
 	struct sunxi_pinctrl *pctl = platform_get_drvdata(pdev);
-	void *ptr;
 	int i;
 
 	/*
@@ -1082,9 +1079,10 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * We suppose that we won't have any more functions than pins,
 	 * we'll reallocate that later anyway
 	 */
-	pctl->functions = kcalloc(pctl->ngroups,
-				  sizeof(*pctl->functions),
-				  GFP_KERNEL);
+	pctl->functions = devm_kcalloc(&pdev->dev,
+				       pctl->ngroups,
+				       sizeof(*pctl->functions),
+				       GFP_KERNEL);
 	if (!pctl->functions)
 		return -ENOMEM;
 
@@ -1111,15 +1109,13 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	}
 
 	/* And now allocated and fill the array for real */
-	ptr = krealloc(pctl->functions,
-		       pctl->nfunctions * sizeof(*pctl->functions),
-		       GFP_KERNEL);
-	if (!ptr) {
+	pctl->functions = krealloc(pctl->functions,
+				   pctl->nfunctions * sizeof(*pctl->functions),
+				   GFP_KERNEL);
+	if (!pctl->functions) {
 		kfree(pctl->functions);
-		pctl->functions = NULL;
 		return -ENOMEM;
 	}
-	pctl->functions = ptr;
 
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
@@ -1137,10 +1133,8 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 
 			func_item = sunxi_pinctrl_find_function_by_name(pctl,
 									func->name);
-			if (!func_item) {
-				kfree(pctl->functions);
+			if (!func_item)
 				return -EINVAL;
-			}
 
 			if (!func_item->groups) {
 				func_item->groups =
@@ -1148,10 +1142,8 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 						     func_item->ngroups,
 						     sizeof(*func_item->groups),
 						     GFP_KERNEL);
-				if (!func_item->groups) {
-					kfree(pctl->functions);
+				if (!func_item->groups)
 					return -ENOMEM;
-				}
 			}
 
 			func_grp = func_item->groups;

@@ -888,7 +888,6 @@ int v4l2_async_notifier_parse_fwnode_sensor_common(
 	} props[] = {
 		{ "flash-leds", led_props, ARRAY_SIZE(led_props) },
 		{ "lens-focus", NULL, 0 },
-		{ "ir-cut", NULL, 0 },
 	};
 	unsigned int i;
 

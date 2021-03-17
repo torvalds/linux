@@ -14,8 +14,6 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/hvm/start_info.h>
 
-#include "xen-ops.h"
-
 /*
  * PVH variables.
  *
@@ -77,12 +75,10 @@ static void __init init_pvh_bootparams(void)
 	 * Version 2.12 supports Xen entry point but we will use default x86/PC
 	 * environment (i.e. hardware_subarch 0).
 	 */
-	pvh_bootparams.hdr.version = (2 << 8) | 12;
+	pvh_bootparams.hdr.version = 0x212;
 	pvh_bootparams.hdr.type_of_loader = (9 << 4) | 0; /* Xen loader */
 
 	x86_init.acpi.get_root_pointer = pvh_get_root_pointer;
-
-	xen_efi_init(&pvh_bootparams);
 }
 
 /*
@@ -101,7 +97,6 @@ void __init xen_prepare_pvh(void)
 	}
 
 	xen_pvh = 1;
-	xen_domain_type = XEN_HVM_DOMAIN;
 	xen_start_flags = pvh_start_info.flags;
 
 	msr = cpuid_ebx(xen_cpuid_base() + 2);

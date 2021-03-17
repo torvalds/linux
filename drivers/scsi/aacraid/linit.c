@@ -413,16 +413,13 @@ static int aac_slave_configure(struct scsi_device *sdev)
 	if (chn < AAC_MAX_BUSES && tid < AAC_MAX_TARGETS && aac->sa_firmware) {
 		devtype = aac->hba_map[chn][tid].devtype;
 
-		if (devtype == AAC_DEVTYPE_NATIVE_RAW) {
+		if (devtype == AAC_DEVTYPE_NATIVE_RAW)
 			depth = aac->hba_map[chn][tid].qd_limit;
-			set_timeout = 1;
-			goto common_config;
-		}
-		if (devtype == AAC_DEVTYPE_ARC_RAW) {
+		else if (devtype == AAC_DEVTYPE_ARC_RAW)
 			set_qd_dev_type = true;
-			set_timeout = 1;
-			goto common_config;
-		}
+
+		set_timeout = 1;
+		goto common_config;
 	}
 
 	if (aac->jbod && (sdev->type == TYPE_DISK))
@@ -736,11 +733,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 		status = aac_hba_send(HBA_IU_TYPE_SCSI_TM_REQ, fib,
 				  (fib_callback) aac_hba_callback,
 				  (void *) cmd);
-		if (status != -EINPROGRESS) {
-			aac_fib_complete(fib);
-			aac_fib_free(fib);
-			return ret;
-		}
+
 		/* Wait up to 15 secs for completion */
 		for (count = 0; count < 15; ++count) {
 			if (cmd->SCp.sent_command) {
@@ -919,11 +912,11 @@ static int aac_eh_dev_reset(struct scsi_cmnd *cmd)
 
 	info = &aac->hba_map[bus][cid];
 
-	if (!(info->devtype == AAC_DEVTYPE_NATIVE_RAW &&
-	 !(info->reset_state > 0)))
+	if (info->devtype != AAC_DEVTYPE_NATIVE_RAW &&
+	    info->reset_state > 0)
 		return FAILED;
 
-	pr_err("%s: Host device reset request. SCSI hang ?\n",
+	pr_err("%s: Host adapter reset request. SCSI hang ?\n",
 	       AAC_DRIVERNAME);
 
 	fib = aac_fib_alloc(aac);
@@ -938,12 +931,7 @@ static int aac_eh_dev_reset(struct scsi_cmnd *cmd)
 	status = aac_hba_send(command, fib,
 			      (fib_callback) aac_tmf_callback,
 			      (void *) info);
-	if (status != -EINPROGRESS) {
-		info->reset_state = 0;
-		aac_fib_complete(fib);
-		aac_fib_free(fib);
-		return ret;
-	}
+
 	/* Wait up to 15 seconds for completion */
 	for (count = 0; count < 15; ++count) {
 		if (info->reset_state == 0) {
@@ -982,11 +970,11 @@ static int aac_eh_target_reset(struct scsi_cmnd *cmd)
 
 	info = &aac->hba_map[bus][cid];
 
-	if (!(info->devtype == AAC_DEVTYPE_NATIVE_RAW &&
-	 !(info->reset_state > 0)))
+	if (info->devtype != AAC_DEVTYPE_NATIVE_RAW &&
+	    info->reset_state > 0)
 		return FAILED;
 
-	pr_err("%s: Host target reset request. SCSI hang ?\n",
+	pr_err("%s: Host adapter reset request. SCSI hang ?\n",
 	       AAC_DRIVERNAME);
 
 	fib = aac_fib_alloc(aac);
@@ -1002,13 +990,6 @@ static int aac_eh_target_reset(struct scsi_cmnd *cmd)
 	status = aac_hba_send(command, fib,
 			      (fib_callback) aac_tmf_callback,
 			      (void *) info);
-
-	if (status != -EINPROGRESS) {
-		info->reset_state = 0;
-		aac_fib_complete(fib);
-		aac_fib_free(fib);
-		return ret;
-	}
 
 	/* Wait up to 15 seconds for completion */
 	for (count = 0; count < 15; ++count) {
@@ -1062,7 +1043,7 @@ static int aac_eh_bus_reset(struct scsi_cmnd* cmd)
 		}
 	}
 
-	pr_err("%s: Host bus reset request. SCSI hang ?\n", AAC_DRIVERNAME);
+	pr_err("%s: Host adapter reset request. SCSI hang ?\n", AAC_DRIVERNAME);
 
 	/*
 	 * Check the health of the controller
@@ -1620,7 +1601,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct Scsi_Host *shost;
 	struct aac_dev *aac;
 	struct list_head *insert = &aac_devices;
-	int error;
+	int error = -ENODEV;
 	int unique_id = 0;
 	u64 dmamask;
 	int mask_bits = 0;
@@ -1645,6 +1626,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	error = pci_enable_device(pdev);
 	if (error)
 		goto out;
+	error = -ENODEV;
 
 	if (!(aac_drivers[index].quirks & AAC_QUIRK_SRC)) {
 		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
@@ -1676,10 +1658,8 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	shost = scsi_host_alloc(&aac_driver_template, sizeof(struct aac_dev));
-	if (!shost) {
-		error = -ENOMEM;
+	if (!shost)
 		goto out_disable_pdev;
-	}
 
 	shost->irq = pdev->irq;
 	shost->unique_id = unique_id;
@@ -1704,11 +1684,8 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	aac->fibs = kcalloc(shost->can_queue + AAC_NUM_MGT_FIB,
 			    sizeof(struct fib),
 			    GFP_KERNEL);
-	if (!aac->fibs) {
-		error = -ENOMEM;
+	if (!aac->fibs)
 		goto out_free_host;
-	}
-
 	spin_lock_init(&aac->fib_lock);
 
 	mutex_init(&aac->ioctl_mutex);

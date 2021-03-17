@@ -12,10 +12,7 @@ following device-specific properties.
 Required properties:
 
 - compatible: should be one of the following:
-		"rockchip,rk3228-dw-hdmi"
 		"rockchip,rk3288-dw-hdmi"
-		"rockchip,rk3328-dw-hdmi"
-		"rockchip,rk3368-dw-hdmi"
 		"rockchip,rk3399-dw-hdmi"
 - reg: See dw_hdmi.txt.
 - reg-io-width: See dw_hdmi.txt. Shall be 4.
@@ -26,7 +23,6 @@ Required properties:
   corresponding to the video input of the controller. The port shall have two
   endpoints, numbered 0 and 1, connected respectively to the vopb and vopl.
 - rockchip,grf: Shall reference the GRF to mux vopl/vopb.
-- rockchip,phy-table: the parameter table of hdmi phy configuration.
 
 Optional properties
 
@@ -38,13 +34,6 @@ Optional properties
 - clock-names: May contain "cec" as defined in dw_hdmi.txt.
 - clock-names: May contain "grf", power for grf io.
 - clock-names: May contain "vpll", external clock for some hdmi phy.
-- phys: from general PHY binding: the phandle for the PHY device.
-- phy-names: Should be "hdmi" if phys references an external phy.
-- max-tmdsclk: hdmi max tmdsclk, if this property is not set, set max tmdsclk to 594M.
-- unsupported-yuv-input: If yuv input is not supported, set this property.
-- unsupported-deep-color: If deep color mode is not supported, set this property.
-- hdcp1x-enable: enable hdcp1.x, enable if defined, disable if not defined
-- scramble-low-rates: if defined enable scarmble when tmdsclk less than 340Mhz
 
 Example:
 
@@ -71,9 +60,4 @@ hdmi: hdmi@ff980000 {
 			};
 		};
 	};
-	rockchip,phy-table = <74250000 0x8009 0x0004 0x0272>,
-		<165000000 0x802b 0x0004 0x0209>,
-		<297000000 0x8039 0x0005 0x028d>,
-		<594000000 0x8039 0x0000 0x019d>,
-		<000000000 0x0000 0x0000 0x0000>;
 };

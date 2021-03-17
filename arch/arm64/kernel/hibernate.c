@@ -202,7 +202,6 @@ static int create_safe_exec_page(void *src_start, size_t length,
 				 gfp_t mask)
 {
 	int rc = 0;
-	pgd_t *trans_pgd;
 	pgd_t *pgdp;
 	pud_t *pudp;
 	pmd_t *pmdp;
@@ -215,15 +214,9 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	}
 
 	memcpy((void *)dst, src_start, length);
-	__flush_icache_range(dst, dst + length);
+	flush_icache_range(dst, dst + length);
 
-	trans_pgd = allocator(mask);
-	if (!trans_pgd) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	pgdp = pgd_offset_raw(trans_pgd, dst_addr);
+	pgdp = pgd_offset_raw(allocator(mask), dst_addr);
 	if (pgd_none(READ_ONCE(*pgdp))) {
 		pudp = allocator(mask);
 		if (!pudp) {
@@ -306,10 +299,8 @@ int swsusp_arch_suspend(void)
 		dcache_clean_range(__idmap_text_start, __idmap_text_end);
 
 		/* Clean kvm setup code to PoC? */
-		if (el2_reset_needed()) {
+		if (el2_reset_needed())
 			dcache_clean_range(__hyp_idmap_text_start, __hyp_idmap_text_end);
-			dcache_clean_range(__hyp_text_start, __hyp_text_end);
-		}
 
 		/* make the crash dump kernel image protected again */
 		crash_post_resume();

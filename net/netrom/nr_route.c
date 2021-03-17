@@ -211,7 +211,6 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 		/* refcount initialized at 1 */
 		spin_unlock_bh(&nr_node_list_lock);
 
-		nr_neigh_put(nr_neigh);
 		return 0;
 	}
 	nr_node_lock(nr_node);
@@ -954,7 +953,7 @@ const struct seq_operations nr_neigh_seqops = {
 /*
  *	Free all memory associated with the nodes and routes lists.
  */
-void nr_rt_free(void)
+void __exit nr_rt_free(void)
 {
 	struct nr_neigh *s = NULL;
 	struct nr_node  *t = NULL;

@@ -71,6 +71,7 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					struct sockaddr *sa, int salen,
 					int flags);
 static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt);
+static void svc_rdma_release_rqst(struct svc_rqst *);
 static void svc_rdma_detach(struct svc_xprt *xprt);
 static void svc_rdma_free(struct svc_xprt *xprt);
 static int svc_rdma_has_wspace(struct svc_xprt *xprt);
@@ -269,14 +270,9 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 	/* Save client advertised inbound read limit for use later in accept. */
 	newxprt->sc_ord = param->initiator_depth;
 
+	/* Set the local and remote addresses in the transport */
 	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
 	svc_xprt_set_remote(&newxprt->sc_xprt, sa, svc_addr_len(sa));
-	/* The remote port is arbitrary and not under the control of the
-	 * client ULP. Set it to a fixed value so that the DRC continues
-	 * to be effective after a reconnect.
-	 */
-	rpc_set_port((struct sockaddr *)&newxprt->sc_xprt.xpt_remote, 0);
-
 	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.src_addr;
 	svc_xprt_set_local(&newxprt->sc_xprt, sa, svc_addr_len(sa));
 
@@ -479,12 +475,13 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	/* Qualify the transport resource defaults with the
 	 * capabilities of this particular device */
-	/* Transport header, head iovec, tail iovec */
-	newxprt->sc_max_send_sges = 3;
-	/* Add one SGE per page list entry */
-	newxprt->sc_max_send_sges += (svcrdma_max_req_size / PAGE_SIZE) + 1;
-	if (newxprt->sc_max_send_sges > dev->attrs.max_send_sge)
-		newxprt->sc_max_send_sges = dev->attrs.max_send_sge;
+	newxprt->sc_max_send_sges = dev->attrs.max_send_sge;
+	/* transport hdr, head iovec, one page list entry, tail iovec */
+	if (newxprt->sc_max_send_sges < 4) {
+		pr_err("svcrdma: too few Send SGEs available (%d)\n",
+		       newxprt->sc_max_send_sges);
+		goto errout;
+	}
 	newxprt->sc_max_req_size = svcrdma_max_req_size;
 	newxprt->sc_max_requests = svcrdma_max_requests;
 	newxprt->sc_max_bc_requests = svcrdma_max_bc_requests;
@@ -613,6 +610,10 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	/* This call to put will destroy the transport */
 	svc_xprt_put(&newxprt->sc_xprt);
 	return NULL;
+}
+
+static void svc_rdma_release_rqst(struct svc_rqst *rqstp)
+{
 }
 
 /*

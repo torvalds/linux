@@ -1103,9 +1103,6 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 			break;
 		}
 
-		if (speed[i].klen)
-			crypto_ahash_setkey(tfm, tvmem[0], speed[i].klen);
-
 		pr_info("test%3u "
 			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
 			i, speed[i].blen, speed[i].plen, speed[i].blen / speed[i].plen);
@@ -1736,7 +1733,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("xts(aes)");
 		ret += tcrypt_test("ctr(aes)");
 		ret += tcrypt_test("rfc3686(ctr(aes))");
-		ret += tcrypt_test("cfb(aes)");
 		break;
 
 	case 11:
@@ -2063,10 +2059,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				speed_template_16_24_32);
 		test_cipher_speed("ctr(aes)", DECRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
-		test_cipher_speed("cfb(aes)", ENCRYPT, sec, NULL, 0,
-				speed_template_16_24_32);
-		test_cipher_speed("cfb(aes)", DECRYPT, sec, NULL, 0,
-				speed_template_16_24_32);
 		break;
 
 	case 201:
@@ -2288,17 +2280,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		test_mb_aead_speed("rfc7539esp(chacha20,poly1305)", DECRYPT,
 				   sec, NULL, 0, 16, 8, aead_speed_template_36,
 				   num_mb);
-		break;
-
-	case 219:
-		test_cipher_speed("adiantum(xchacha12,aes)", ENCRYPT, sec, NULL,
-				  0, speed_template_32);
-		test_cipher_speed("adiantum(xchacha12,aes)", DECRYPT, sec, NULL,
-				  0, speed_template_32);
-		test_cipher_speed("adiantum(xchacha20,aes)", ENCRYPT, sec, NULL,
-				  0, speed_template_32);
-		test_cipher_speed("adiantum(xchacha20,aes)", DECRYPT, sec, NULL,
-				  0, speed_template_32);
 		break;
 
 	case 300:

@@ -319,7 +319,7 @@ static unsigned int sysfs_cpuidle_read_file(const char *fname, char *buf,
 
 	snprintf(path, sizeof(path), PATH_TO_CPU "cpuidle/%s", fname);
 
-	return cpupower_read_sysfs(path, buf, buflen);
+	return sysfs_read_file(path, buf, buflen);
 }
 
 

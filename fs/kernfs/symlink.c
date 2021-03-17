@@ -54,7 +54,6 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	kernfs_put(kn);
 	return ERR_PTR(error);
 }
-EXPORT_SYMBOL_GPL(kernfs_create_link);
 
 static int kernfs_get_target_path(struct kernfs_node *parent,
 				  struct kernfs_node *target, char *path)
@@ -73,9 +72,6 @@ static int kernfs_get_target_path(struct kernfs_node *parent,
 		if (base == kn)
 			break;
 
-		if ((s - path) + 3 >= PATH_MAX)
-			return -ENAMETOOLONG;
-
 		strcpy(s, "../");
 		s += 3;
 		base = base->parent;
@@ -92,7 +88,7 @@ static int kernfs_get_target_path(struct kernfs_node *parent,
 	if (len < 2)
 		return -EINVAL;
 	len--;
-	if ((s - path) + len >= PATH_MAX)
+	if ((s - path) + len > PATH_MAX)
 		return -ENAMETOOLONG;
 
 	/* reverse fillup of target string from target to base */

@@ -476,47 +476,21 @@ static int msg_enable;
  */
 
 /**
- * ks_check_endian - Check whether endianness of the bus is correct
+ * ks_rdreg8 - read 8 bit register from device
  * @ks	  : The chip information
+ * @offset: The register address
  *
- * The KS8851-16MLL EESK pin allows selecting the endianness of the 16bit
- * bus. To maintain optimum performance, the bus endianness should be set
- * such that it matches the endianness of the CPU.
+ * Read a 8bit register from the chip, returning the result
  */
-
-static int ks_check_endian(struct ks_net *ks)
+static u8 ks_rdreg8(struct ks_net *ks, int offset)
 {
-	u16 cider;
-
-	/*
-	 * Read CIDER register first, however read it the "wrong" way around.
-	 * If the endian strap on the KS8851-16MLL in incorrect and the chip
-	 * is operating in different endianness than the CPU, then the meaning
-	 * of BE[3:0] byte-enable bits is also swapped such that:
-	 *    BE[3,2,1,0] becomes BE[1,0,3,2]
-	 *
-	 * Luckily for us, the byte-enable bits are the top four MSbits of
-	 * the address register and the CIDER register is at offset 0xc0.
-	 * Hence, by reading address 0xc0c0, which is not impacted by endian
-	 * swapping, we assert either BE[3:2] or BE[1:0] while reading the
-	 * CIDER register.
-	 *
-	 * If the bus configuration is correct, reading 0xc0c0 asserts
-	 * BE[3:2] and this read returns 0x0000, because to read register
-	 * with bottom two LSbits of address set to 0, BE[1:0] must be
-	 * asserted.
-	 *
-	 * If the bus configuration is NOT correct, reading 0xc0c0 asserts
-	 * BE[1:0] and this read returns non-zero 0x8872 value.
-	 */
-	iowrite16(BE3 | BE2 | KS_CIDER, ks->hw_addr_cmd);
-	cider = ioread16(ks->hw_addr);
-	if (!cider)
-		return 0;
-
-	netdev_err(ks->netdev, "incorrect EESK endian strap setting\n");
-
-	return -EINVAL;
+	u16 data;
+	u8 shift_bit = offset & 0x03;
+	u8 shift_data = (offset & 1) << 3;
+	ks->cmd_reg_cache = (u16) offset | (u16)(BE0 << shift_bit);
+	iowrite16(ks->cmd_reg_cache, ks->hw_addr_cmd);
+	data  = ioread16(ks->hw_addr);
+	return (u8)(data >> shift_data);
 }
 
 /**
@@ -532,6 +506,22 @@ static u16 ks_rdreg16(struct ks_net *ks, int offset)
 	ks->cmd_reg_cache = (u16)offset | ((BE1 | BE0) << (offset & 0x02));
 	iowrite16(ks->cmd_reg_cache, ks->hw_addr_cmd);
 	return ioread16(ks->hw_addr);
+}
+
+/**
+ * ks_wrreg8 - write 8bit register value to chip
+ * @ks: The chip information
+ * @offset: The register address
+ * @value: The value to write
+ *
+ */
+static void ks_wrreg8(struct ks_net *ks, int offset, u8 value)
+{
+	u8  shift_bit = (offset & 0x03);
+	u16 value_write = (u16)(value << ((offset & 1) << 3));
+	ks->cmd_reg_cache = (u16)offset | (BE0 << shift_bit);
+	iowrite16(ks->cmd_reg_cache, ks->hw_addr_cmd);
+	iowrite16(value_write, ks->hw_addr);
 }
 
 /**
@@ -653,7 +643,8 @@ static void ks_read_config(struct ks_net *ks)
 	u16 reg_data = 0;
 
 	/* Regardless of bus width, 8 bit read should always work.*/
-	reg_data = ks_rdreg16(ks, KS_CCR);
+	reg_data = ks_rdreg8(ks, KS_CCR) & 0x00FF;
+	reg_data |= ks_rdreg8(ks, KS_CCR+1) << 8;
 
 	/* addr/data bus are multiplexed */
 	ks->sharedbus = (reg_data & CCR_SHARED) == CCR_SHARED;
@@ -757,7 +748,7 @@ static inline void ks_read_qmu(struct ks_net *ks, u16 *buf, u32 len)
 
 	/* 1. set sudo DMA mode */
 	ks_wrreg16(ks, KS_RXFDPR, RXFDPR_RXFPAI);
-	ks_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr | RXQCR_SDA);
+	ks_wrreg8(ks, KS_RXQCR, (ks->rc_rxqcr | RXQCR_SDA) & 0xff);
 
 	/* 2. read prepend data */
 	/**
@@ -774,7 +765,7 @@ static inline void ks_read_qmu(struct ks_net *ks, u16 *buf, u32 len)
 	ks_inblk(ks, buf, ALIGN(len, 4));
 
 	/* 4. reset sudo DMA Mode */
-	ks_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
+	ks_wrreg8(ks, KS_RXQCR, ks->rc_rxqcr);
 }
 
 /**
@@ -876,17 +867,14 @@ static irqreturn_t ks_irq(int irq, void *pw)
 {
 	struct net_device *netdev = pw;
 	struct ks_net *ks = netdev_priv(netdev);
-	unsigned long flags;
 	u16 status;
 
-	spin_lock_irqsave(&ks->statelock, flags);
 	/*this should be the first in IRQ handler */
 	ks_save_cmd_reg(ks);
 
 	status = ks_rdreg16(ks, KS_ISR);
 	if (unlikely(!status)) {
 		ks_restore_cmd_reg(ks);
-		spin_unlock_irqrestore(&ks->statelock, flags);
 		return IRQ_NONE;
 	}
 
@@ -912,7 +900,6 @@ static irqreturn_t ks_irq(int irq, void *pw)
 		ks->netdev->stats.rx_over_errors++;
 	/* this should be the last in IRQ handler*/
 	ks_restore_cmd_reg(ks);
-	spin_unlock_irqrestore(&ks->statelock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -982,7 +969,6 @@ static int ks_net_stop(struct net_device *netdev)
 
 	/* shutdown RX/TX QMU */
 	ks_disable_qmu(ks);
-	ks_disable_int(ks);
 
 	/* set powermode to soft power down to save power */
 	ks_set_powermode(ks, PMECR_PM_SOFTDOWN);
@@ -1012,13 +998,13 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 	ks->txh.txw[1] = cpu_to_le16(len);
 
 	/* 1. set sudo-DMA mode */
-	ks_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr | RXQCR_SDA);
+	ks_wrreg8(ks, KS_RXQCR, (ks->rc_rxqcr | RXQCR_SDA) & 0xff);
 	/* 2. write status/lenth info */
 	ks_outblk(ks, ks->txh.txw, 4);
 	/* 3. write pkt data */
 	ks_outblk(ks, (u16 *)pdata, ALIGN(len, 4));
 	/* 4. reset sudo-DMA mode */
-	ks_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
+	ks_wrreg8(ks, KS_RXQCR, ks->rc_rxqcr);
 	/* 5. Enqueue Tx(move the pkt from TX buffer into TXQ) */
 	ks_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
 	/* 6. wait until TXQCR_METFE is auto-cleared */
@@ -1035,13 +1021,14 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
  * spin_lock_irqsave is required because tx and rx should be mutual exclusive.
  * So while tx is in-progress, prevent IRQ interrupt from happenning.
  */
-static netdev_tx_t ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-	netdev_tx_t retv = NETDEV_TX_OK;
+	int retv = NETDEV_TX_OK;
 	struct ks_net *ks = netdev_priv(netdev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&ks->statelock, flags);
+	disable_irq(netdev->irq);
+	ks_disable_int(ks);
+	spin_lock(&ks->statelock);
 
 	/* Extra space are required:
 	*  4 byte for alignment, 4 for status/length, 4 for CRC
@@ -1055,7 +1042,9 @@ static netdev_tx_t ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		dev_kfree_skb(skb);
 	} else
 		retv = NETDEV_TX_BUSY;
-	spin_unlock_irqrestore(&ks->statelock, flags);
+	spin_unlock(&ks->statelock);
+	ks_enable_int(ks);
+	enable_irq(netdev->irq);
 	return retv;
 }
 
@@ -1583,10 +1572,6 @@ static int ks8851_probe(struct platform_device *pdev)
 		err = PTR_ERR(ks->hw_addr_cmd);
 		goto err_free;
 	}
-
-	err = ks_check_endian(ks);
-	if (err)
-		goto err_free;
 
 	netdev->irq = platform_get_irq(pdev, 0);
 

@@ -90,12 +90,10 @@ const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 	const char *end = fqname + n;
 	const char *name = skipn_spaces(fqname, n);
 
-	*ns_name = NULL;
-	*ns_len = 0;
-
 	if (!name)
 		return NULL;
-
+	*ns_name = NULL;
+	*ns_len = 0;
 	if (name[0] == ':') {
 		char *split = strnchr(&name[1], end - &name[1], ':');
 		*ns_name = skipn_spaces(&name[1], end - &name[1]);

@@ -19,7 +19,6 @@ static struct version version;
 static struct option version_options[] = {
 	OPT_BOOLEAN(0, "build-options", &version.build_options,
 		    "display the build options"),
-	OPT_END(),
 };
 
 static const char * const version_usage[] = {

@@ -57,7 +57,7 @@ MODULE_PARM_DESC(swap_opt_cmd, "Swap the Option (\"Alt\") and Command (\"Flag\")
 struct apple_sc {
 	unsigned long quirks;
 	unsigned int fn_on;
-	unsigned int fn_found;
+	DECLARE_BITMAP(pressed_fn, KEY_CNT);
 	DECLARE_BITMAP(pressed_numlock, KEY_CNT);
 };
 
@@ -184,8 +184,6 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 {
 	struct apple_sc *asc = hid_get_drvdata(hid);
 	const struct apple_key_translation *trans, *table;
-	bool do_translate;
-	u16 code = 0;
 
 	if (usage->code == KEY_FN) {
 		asc->fn_on = !!value;
@@ -194,6 +192,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	}
 
 	if (fnmode) {
+		int do_translate;
+
 		if (hid->product >= USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI &&
 				hid->product <= USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS)
 			table = macbookair_fn_keys;
@@ -205,33 +205,25 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		trans = apple_find_translation (table, usage->code);
 
 		if (trans) {
-			if (test_bit(trans->from, input->key))
-				code = trans->from;
-			else if (test_bit(trans->to, input->key))
-				code = trans->to;
+			if (test_bit(usage->code, asc->pressed_fn))
+				do_translate = 1;
+			else if (trans->flags & APPLE_FLAG_FKEY)
+				do_translate = (fnmode == 2 && asc->fn_on) ||
+					(fnmode == 1 && !asc->fn_on);
+			else
+				do_translate = asc->fn_on;
 
-			if (!code) {
-				if (trans->flags & APPLE_FLAG_FKEY) {
-					switch (fnmode) {
-					case 1:
-						do_translate = !asc->fn_on;
-						break;
-					case 2:
-						do_translate = asc->fn_on;
-						break;
-					default:
-						/* should never happen */
-						do_translate = false;
-					}
-				} else {
-					do_translate = asc->fn_on;
-				}
+			if (do_translate) {
+				if (value)
+					set_bit(usage->code, asc->pressed_fn);
+				else
+					clear_bit(usage->code, asc->pressed_fn);
 
-				code = do_translate ? trans->to : trans->from;
+				input_event(input, usage->type, trans->to,
+						value);
+
+				return 1;
 			}
-
-			input_event(input, usage->type, code, value);
-			return 1;
 		}
 
 		if (asc->quirks & APPLE_NUMLOCK_EMULATION &&
@@ -343,15 +335,11 @@ static int apple_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	struct apple_sc *asc = hid_get_drvdata(hdev);
-
 	if (usage->hid == (HID_UP_CUSTOM | 0x0003) ||
-			usage->hid == (HID_UP_MSVENDOR | 0x0003) ||
-			usage->hid == (HID_UP_HPVENDOR2 | 0x0003)) {
+			usage->hid == (HID_UP_MSVENDOR | 0x0003)) {
 		/* The fn key on Apple USB keyboards */
 		set_bit(EV_REP, hi->input->evbit);
 		hid_map_usage_clear(hi, usage, bit, max, EV_KEY, KEY_FN);
-		asc->fn_found = true;
 		apple_setup_input(hi->input);
 		return 1;
 	}
@@ -373,19 +361,6 @@ static int apple_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 			hid_map_usage(hi, usage, bit, max, EV_KEY, BTN_2);
 		else if (usage->code == BTN_2)
 			hid_map_usage(hi, usage, bit, max, EV_KEY, BTN_1);
-	}
-
-	return 0;
-}
-
-static int apple_input_configured(struct hid_device *hdev,
-		struct hid_input *hidinput)
-{
-	struct apple_sc *asc = hid_get_drvdata(hdev);
-
-	if ((asc->quirks & APPLE_HAS_FN) && !asc->fn_found) {
-		hid_info(hdev, "Fn key not found (Apple Wireless Keyboard clone?), disabling Fn key handling\n");
-		asc->quirks = 0;
 	}
 
 	return 0;
@@ -605,7 +580,6 @@ static struct hid_driver apple_driver = {
 	.event = apple_event,
 	.input_mapping = apple_input_mapping,
 	.input_mapped = apple_input_mapped,
-	.input_configured = apple_input_configured,
 };
 module_hid_driver(apple_driver);
 

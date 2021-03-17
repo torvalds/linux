@@ -42,32 +42,15 @@
 
 /* PDM CTRL0 */
 #define PDM_PATH_MSK		(0xf << 27)
-#define PDM_MODE_MSK		BIT(31)
-#define PDM_MODE_RJ		0
-#define PDM_MODE_LJ		BIT(31)
 #define PDM_PATH3_EN		BIT(30)
 #define PDM_PATH2_EN		BIT(29)
 #define PDM_PATH1_EN		BIT(28)
 #define PDM_PATH0_EN		BIT(27)
 #define PDM_HWT_EN		BIT(26)
-#define PDM_SAMPLERATE_MSK	GENMASK(7, 5)
-#define PDM_SAMPLERATE(x)	((x) << 5)
 #define PDM_VDW_MSK		(0x1f << 0)
 #define PDM_VDW(X)		((X - 1) << 0)
 
-/* PDM CTRL1 */
-#define PDM_FD_NUMERATOR_SFT	16
-#define PDM_FD_NUMERATOR_MSK	GENMASK(31, 16)
-#define PDM_FD_DENOMINATOR_SFT	0
-#define PDM_FD_DENOMINATOR_MSK	GENMASK(15, 0)
-
 /* PDM CLK CTRL */
-#define PDM_PATH_SHIFT(x)	(8 + (x) * 2)
-#define PDM_PATH_MASK(x)	(0x3 << PDM_PATH_SHIFT(x))
-#define PDM_PATH(x, v)		((v) << PDM_PATH_SHIFT(x))
-#define PDM_CLK_FD_RATIO_MSK	BIT(6)
-#define PDM_CLK_FD_RATIO_40	(0X0 << 6)
-#define PDM_CLK_FD_RATIO_35	BIT(6)
 #define PDM_CLK_MSK		BIT(5)
 #define PDM_CLK_EN		BIT(5)
 #define PDM_CLK_DIS		(0x0 << 5)
@@ -80,7 +63,6 @@
 #define PDM_CLK_1280FS		(0x2 << 0)
 #define PDM_CLK_2560FS		(0x3 << 0)
 #define PDM_CLK_5120FS		(0x4 << 0)
-#define PDM_CIC_RATIO_MSK	(0x3 << 0)
 
 /* PDM HPF CTRL */
 #define PDM_HPF_LE		BIT(3)

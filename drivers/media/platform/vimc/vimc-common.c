@@ -207,6 +207,41 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 }
 EXPORT_SYMBOL_GPL(vimc_pix_map_by_pixelformat);
 
+int vimc_propagate_frame(struct media_pad *src, const void *frame)
+{
+	struct media_link *link;
+
+	if (!(src->flags & MEDIA_PAD_FL_SOURCE))
+		return -EINVAL;
+
+	/* Send this frame to all sink pads that are direct linked */
+	list_for_each_entry(link, &src->entity->links, list) {
+		if (link->source == src &&
+		    (link->flags & MEDIA_LNK_FL_ENABLED)) {
+			struct vimc_ent_device *ved = NULL;
+			struct media_entity *entity = link->sink->entity;
+
+			if (is_media_entity_v4l2_subdev(entity)) {
+				struct v4l2_subdev *sd =
+					container_of(entity, struct v4l2_subdev,
+						     entity);
+				ved = v4l2_get_subdevdata(sd);
+			} else if (is_media_entity_v4l2_video_device(entity)) {
+				struct video_device *vdev =
+					container_of(entity,
+						     struct video_device,
+						     entity);
+				ved = video_get_drvdata(vdev);
+			}
+			if (ved && ved->process_frame)
+				ved->process_frame(ved, link->sink, frame);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vimc_propagate_frame);
+
 /* Helper function to allocate and initialize pads */
 struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
 {
@@ -241,8 +276,6 @@ int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
 
 		/* Start the stream in the subdevice direct connected */
 		pad = media_entity_remote_pad(&ent->pads[i]);
-		if (!pad)
-			continue;
 
 		if (!is_media_entity_v4l2_subdev(pad->entity))
 			return -EINVAL;

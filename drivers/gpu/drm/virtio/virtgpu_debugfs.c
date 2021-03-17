@@ -28,30 +28,6 @@
 
 #include "virtgpu_drv.h"
 
-static void virtio_add_bool(struct seq_file *m, const char *name,
-				    bool value)
-{
-	seq_printf(m, "%-16s : %s\n", name, value ? "yes" : "no");
-}
-
-static void virtio_add_int(struct seq_file *m, const char *name,
-				   int value)
-{
-	seq_printf(m, "%-16s : %d\n", name, value);
-}
-
-static int virtio_gpu_features(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct virtio_gpu_device *vgdev = node->minor->dev->dev_private;
-
-	virtio_add_bool(m, "virgl", vgdev->has_virgl_3d);
-	virtio_add_bool(m, "edid", vgdev->has_edid);
-	virtio_add_int(m, "cap sets", vgdev->num_capsets);
-	virtio_add_int(m, "scanouts", vgdev->num_scanouts);
-	return 0;
-}
-
 static int
 virtio_gpu_debugfs_irq_info(struct seq_file *m, void *data)
 {
@@ -65,8 +41,7 @@ virtio_gpu_debugfs_irq_info(struct seq_file *m, void *data)
 }
 
 static struct drm_info_list virtio_gpu_debugfs_list[] = {
-	{ "virtio-gpu-features", virtio_gpu_features },
-	{ "virtio-gpu-irq-fence", virtio_gpu_debugfs_irq_info, 0, NULL },
+	{ "irq_fence", virtio_gpu_debugfs_irq_info, 0, NULL },
 };
 
 #define VIRTIO_GPU_DEBUGFS_ENTRIES ARRAY_SIZE(virtio_gpu_debugfs_list)

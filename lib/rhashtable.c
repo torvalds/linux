@@ -416,12 +416,8 @@ static void rht_deferred_worker(struct work_struct *work)
 	else if (tbl->nest)
 		err = rhashtable_rehash_alloc(ht, tbl, tbl->size);
 
-	if (!err || err == -EEXIST) {
-		int nerr;
-
-		nerr = rhashtable_rehash_table(ht);
-		err = err ?: nerr;
-	}
+	if (!err)
+		err = rhashtable_rehash_table(ht);
 
 	mutex_unlock(&ht->mutex);
 

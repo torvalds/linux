@@ -14,6 +14,8 @@
  * to a jmp to memcpy_erms which does the REP; MOVSB mem copy.
  */
 
+.weak memcpy
+
 /*
  * memcpy - Copy a memory block.
  *
@@ -26,9 +28,7 @@
  * rax original destination
  */
 ENTRY(__memcpy)
-.weak memcpy
-.p2align 4, 0x90
-memcpy:
+ENTRY(memcpy)
 	ALTERNATIVE_2 "jmp memcpy_orig", "", X86_FEATURE_REP_GOOD, \
 		      "jmp memcpy_erms", X86_FEATURE_ERMS
 
@@ -257,7 +257,6 @@ ENTRY(__memcpy_mcsafe)
 	/* Copy successful. Return zero */
 .L_done_memcpy_trap:
 	xorl %eax, %eax
-.L_done:
 	ret
 ENDPROC(__memcpy_mcsafe)
 EXPORT_SYMBOL_GPL(__memcpy_mcsafe)
@@ -274,7 +273,7 @@ EXPORT_SYMBOL_GPL(__memcpy_mcsafe)
 	addl	%edx, %ecx
 .E_trailing_bytes:
 	mov	%ecx, %eax
-	jmp	.L_done
+	ret
 
 	/*
 	 * For write fault handling, given the destination is unaligned,

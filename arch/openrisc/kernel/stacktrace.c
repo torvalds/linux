@@ -13,7 +13,6 @@
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
-#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 
 #include <asm/processor.h>
@@ -69,25 +68,12 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	unsigned long *sp = NULL;
 
-	if (!try_get_task_stack(tsk))
-		return;
-
 	if (tsk == current)
 		sp = (unsigned long *) &sp;
-	else {
-		unsigned long ksp;
-
-		/* Locate stack from kernel context */
-		ksp = task_thread_info(tsk)->ksp;
-		ksp += STACK_FRAME_OVERHEAD;	/* redzone */
-		ksp += sizeof(struct pt_regs);
-
-		sp = (unsigned long *) ksp;
-	}
+	else
+		sp = (unsigned long *) KSTK_ESP(tsk);
 
 	unwind_stack(trace, sp, save_stack_address_nosched);
-
-	put_task_stack(tsk);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 

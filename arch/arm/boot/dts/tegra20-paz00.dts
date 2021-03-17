@@ -524,10 +524,10 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		wakeup {
-			label = "Wakeup";
+		power {
+			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(J, 7) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_WAKEUP>;
+			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
 	};

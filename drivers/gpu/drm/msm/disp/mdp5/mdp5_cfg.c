@@ -635,7 +635,7 @@ fail:
 	if (cfg_handler)
 		mdp5_cfg_destroy(cfg_handler);
 
-	return ERR_PTR(ret);
+	return NULL;
 }
 
 static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev)

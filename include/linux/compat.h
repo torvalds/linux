@@ -103,9 +103,6 @@ typedef struct compat_sigaltstack {
 	compat_size_t			ss_size;
 } compat_stack_t;
 #endif
-#ifndef COMPAT_MINSIGSTKSZ
-#define COMPAT_MINSIGSTKSZ	MINSIGSTKSZ
-#endif
 
 #define compat_jiffies_to_clock_t(x)	\
 		(((unsigned long)(x) * COMPAT_USER_HZ) / HZ)
@@ -444,6 +441,8 @@ struct compat_sysctl_args;
 struct compat_kexec_segment;
 struct compat_mq_attr;
 struct compat_msgbuf;
+
+extern void compat_exit_robust_list(struct task_struct *curr);
 
 #define BITS_PER_COMPAT_LONG    (8*sizeof(compat_long_t))
 

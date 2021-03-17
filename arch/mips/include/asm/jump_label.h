@@ -21,15 +21,15 @@
 #endif
 
 #ifdef CONFIG_CPU_MICROMIPS
-#define B_INSN "b32"
+#define NOP_INSN "nop32"
 #else
-#define B_INSN "b"
+#define NOP_INSN "nop"
 #endif
 
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
-	asm_volatile_goto("1:\t" B_INSN " 2f\n\t"
-		"2:\tnop\n\t"
+	asm_volatile_goto("1:\t" NOP_INSN "\n\t"
+		"nop\n\t"
 		".pushsection __jump_table,  \"aw\"\n\t"
 		WORD_INSN " 1b, %l[l_yes], %0\n\t"
 		".popsection\n\t"

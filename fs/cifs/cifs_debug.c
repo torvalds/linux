@@ -210,11 +210,6 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		if (!server->rdma)
 			goto skip_rdma;
 
-		if (!server->smbd_conn) {
-			seq_printf(m, "\nSMBDirect transport not available");
-			goto skip_rdma;
-		}
-
 		seq_printf(m, "\nSMBDirect (in hex) protocol version: %x "
 			"transport status: %x",
 			server->smbd_conn->protocol,
@@ -388,9 +383,6 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 		atomic_set(&totBufAllocCount, 0);
 		atomic_set(&totSmBufAllocCount, 0);
 #endif /* CONFIG_CIFS_STATS2 */
-		atomic_set(&tcpSesReconnectCount, 0);
-		atomic_set(&tconInfoReconnectCount, 0);
-
 		spin_lock(&GlobalMid_Lock);
 		GlobalMaxActiveXid = 0;
 		GlobalCurrentXid = 0;

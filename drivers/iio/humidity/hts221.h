@@ -15,6 +15,8 @@
 
 #include <linux/iio/iio.h>
 
+#define HTS221_DATA_SIZE	2
+
 enum hts221_sensor_type {
 	HTS221_SENSOR_H,
 	HTS221_SENSOR_T,
@@ -38,11 +40,6 @@ struct hts221_hw {
 
 	bool enabled;
 	u8 odr;
-	/* Ensure natural alignment of timestamp */
-	struct {
-		__le16 channels[2];
-		s64 ts __aligned(8);
-	} scan;
 };
 
 extern const struct dev_pm_ops hts221_pm_ops;

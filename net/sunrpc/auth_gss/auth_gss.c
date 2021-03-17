@@ -1768,7 +1768,6 @@ priv_release_snd_buf(struct rpc_rqst *rqstp)
 	for (i=0; i < rqstp->rq_enc_pages_num; i++)
 		__free_page(rqstp->rq_enc_pages[i]);
 	kfree(rqstp->rq_enc_pages);
-	rqstp->rq_release_snd_buf = NULL;
 }
 
 static int
@@ -1776,9 +1775,6 @@ alloc_enc_pages(struct rpc_rqst *rqstp)
 {
 	struct xdr_buf *snd_buf = &rqstp->rq_snd_buf;
 	int first, last, i;
-
-	if (rqstp->rq_release_snd_buf)
-		rqstp->rq_release_snd_buf(rqstp);
 
 	if (snd_buf->page_len == 0) {
 		rqstp->rq_enc_pages_num = 0;

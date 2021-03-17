@@ -67,6 +67,4 @@ typedef pteval_t pgprot_t;
 
 #endif	/* STRICT_MM_TYPECHECKS */
 
-#define MAX_POSSIBLE_PHYSMEM_BITS	36
-
 #endif	/* _ASM_PGTABLE_3LEVEL_TYPES_H */

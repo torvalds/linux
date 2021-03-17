@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include "internal.h"
-#include <keys/request_key_auth-type.h>
+#include <keys/user-type.h>
 
 static int request_key_auth_preparse(struct key_preparsed_payload *);
 static void request_key_auth_free_preparse(struct key_preparsed_payload *);
@@ -27,7 +27,7 @@ static int request_key_auth_instantiate(struct key *,
 static void request_key_auth_describe(const struct key *, struct seq_file *);
 static void request_key_auth_revoke(struct key *);
 static void request_key_auth_destroy(struct key *);
-static long request_key_auth_read(const struct key *, char *, size_t);
+static long request_key_auth_read(const struct key *, char __user *, size_t);
 
 /*
  * The request-key authorisation key type definition.
@@ -69,10 +69,7 @@ static int request_key_auth_instantiate(struct key *key,
 static void request_key_auth_describe(const struct key *key,
 				      struct seq_file *m)
 {
-	struct request_key_auth *rka = get_request_key_auth(key);
-
-	if (!rka)
-		return;
+	struct request_key_auth *rka = key->payload.data[0];
 
 	seq_puts(m, "key:");
 	seq_puts(m, key->description);
@@ -85,14 +82,11 @@ static void request_key_auth_describe(const struct key *key,
  * - the key's semaphore is read-locked
  */
 static long request_key_auth_read(const struct key *key,
-				  char *buffer, size_t buflen)
+				  char __user *buffer, size_t buflen)
 {
-	struct request_key_auth *rka = get_request_key_auth(key);
+	struct request_key_auth *rka = key->payload.data[0];
 	size_t datalen;
 	long ret;
-
-	if (!rka)
-		return -EKEYREVOKED;
 
 	datalen = rka->callout_len;
 	ret = datalen;
@@ -102,7 +96,8 @@ static long request_key_auth_read(const struct key *key,
 		if (buflen > datalen)
 			buflen = datalen;
 
-		memcpy(buffer, rka->callout_info, buflen);
+		if (copy_to_user(buffer, rka->callout_info, buflen) != 0)
+			ret = -EFAULT;
 	}
 
 	return ret;
@@ -115,7 +110,7 @@ static long request_key_auth_read(const struct key *key,
  */
 static void request_key_auth_revoke(struct key *key)
 {
-	struct request_key_auth *rka = get_request_key_auth(key);
+	struct request_key_auth *rka = key->payload.data[0];
 
 	kenter("{%d}", key->serial);
 
@@ -142,7 +137,7 @@ static void free_request_key_auth(struct request_key_auth *rka)
  */
 static void request_key_auth_destroy(struct key *key)
 {
-	struct request_key_auth *rka = get_request_key_auth(key);
+	struct request_key_auth *rka = key->payload.data[0];
 
 	kenter("{%d}", key->serial);
 
@@ -153,9 +148,8 @@ static void request_key_auth_destroy(struct key *key)
  * Create an authorisation token for /sbin/request-key or whoever to gain
  * access to the caller's security data.
  */
-struct key *request_key_auth_new(struct key *target, const char *op,
-				 const void *callout_info, size_t callout_len,
-				 struct key *dest_keyring)
+struct key *request_key_auth_new(struct key *target, const void *callout_info,
+				 size_t callout_len, struct key *dest_keyring)
 {
 	struct request_key_auth *rka, *irka;
 	const struct cred *cred = current->cred;
@@ -173,7 +167,6 @@ struct key *request_key_auth_new(struct key *target, const char *op,
 	if (!rka->callout_info)
 		goto error_free_rka;
 	rka->callout_len = callout_len;
-	strlcpy(rka->op, op, sizeof(rka->op));
 
 	/* see if the calling process is already servicing the key request of
 	 * another process */
@@ -253,7 +246,7 @@ struct key *key_get_instantiation_authkey(key_serial_t target_id)
 	struct key *authkey;
 	key_ref_t authkey_ref;
 
-	ctx.index_key.desc_len = sprintf(description, "%x", target_id);
+	sprintf(description, "%x", target_id);
 
 	authkey_ref = search_process_keyrings(&ctx);
 

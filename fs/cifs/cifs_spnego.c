@@ -147,10 +147,8 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo)
 		sprintf(dp, ";sec=krb5");
 	else if (server->sec_mskerberos)
 		sprintf(dp, ";sec=mskrb5");
-	else {
-		cifs_dbg(VFS, "unknown or missing server auth type, use krb5\n");
-		sprintf(dp, ";sec=krb5");
-	}
+	else
+		goto out;
 
 	dp = description + strlen(description);
 	sprintf(dp, ";uid=0x%x",

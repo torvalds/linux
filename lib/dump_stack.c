@@ -106,12 +106,7 @@ retry:
 		was_locked = 1;
 	} else {
 		local_irq_restore(flags);
-		/*
-		 * Wait for the lock to release before jumping to
-		 * atomic_cmpxchg() in order to mitigate the thundering herd
-		 * problem.
-		 */
-		do { cpu_relax(); } while (atomic_read(&dump_lock) != -1);
+		cpu_relax();
 		goto retry;
 	}
 

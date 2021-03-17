@@ -306,9 +306,7 @@ static int ip6addrlbl_del(struct net *net,
 /* add default label */
 static int __net_init ip6addrlbl_net_init(struct net *net)
 {
-	struct ip6addrlbl_entry *p = NULL;
-	struct hlist_node *n;
-	int err;
+	int err = 0;
 	int i;
 
 	ADDRLABEL(KERN_DEBUG "%s\n", __func__);
@@ -317,20 +315,14 @@ static int __net_init ip6addrlbl_net_init(struct net *net)
 	INIT_HLIST_HEAD(&net->ipv6.ip6addrlbl_table.head);
 
 	for (i = 0; i < ARRAY_SIZE(ip6addrlbl_init_table); i++) {
-		err = ip6addrlbl_add(net,
-				     ip6addrlbl_init_table[i].prefix,
-				     ip6addrlbl_init_table[i].prefixlen,
-				     0,
-				     ip6addrlbl_init_table[i].label, 0);
-		if (err)
-			goto err_ip6addrlbl_add;
-	}
-	return 0;
-
-err_ip6addrlbl_add:
-	hlist_for_each_entry_safe(p, n, &net->ipv6.ip6addrlbl_table.head, list) {
-		hlist_del_rcu(&p->list);
-		kfree_rcu(p, rcu);
+		int ret = ip6addrlbl_add(net,
+					 ip6addrlbl_init_table[i].prefix,
+					 ip6addrlbl_init_table[i].prefixlen,
+					 0,
+					 ip6addrlbl_init_table[i].label, 0);
+		/* XXX: should we free all rules when we catch an error? */
+		if (ret && (!err || err != -ENOMEM))
+			err = ret;
 	}
 	return err;
 }

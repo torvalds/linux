@@ -95,9 +95,9 @@
 #define RESET_VD_RMEM			64
 #define RESET_AUDIN			65
 #define RESET_DBLK			66
-#define RESET_PIC_DC			67
-#define RESET_PSC			68
-#define RESET_NAND			69
+#define RESET_PIC_DC			66
+#define RESET_PSC			66
+#define RESET_NAND			66
 #define RESET_GE2D			70
 #define RESET_PARSER_REG		71
 #define RESET_PARSER_FETCH		72

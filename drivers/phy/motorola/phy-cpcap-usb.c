@@ -115,7 +115,7 @@ struct cpcap_usb_ints_state {
 enum cpcap_gpio_mode {
 	CPCAP_DM_DP,
 	CPCAP_MDM_RX_TX,
-	CPCAP_UNKNOWN_DISABLED,	/* Seems to disable USB lines */
+	CPCAP_UNKNOWN,
 	CPCAP_OTG_DM_DP,
 };
 
@@ -207,19 +207,6 @@ static int cpcap_phy_get_ints_state(struct cpcap_phy_ddata *ddata,
 static int cpcap_usb_set_uart_mode(struct cpcap_phy_ddata *ddata);
 static int cpcap_usb_set_usb_mode(struct cpcap_phy_ddata *ddata);
 
-static void cpcap_usb_try_musb_mailbox(struct cpcap_phy_ddata *ddata,
-				       enum musb_vbus_id_status status)
-{
-	int error;
-
-	error = musb_mailbox(status);
-	if (!error)
-		return;
-
-	dev_dbg(ddata->dev, "%s: musb_mailbox failed: %i\n",
-		__func__, error);
-}
-
 static void cpcap_usb_detect(struct work_struct *work)
 {
 	struct cpcap_phy_ddata *ddata;
@@ -239,7 +226,9 @@ static void cpcap_usb_detect(struct work_struct *work)
 		if (error)
 			goto out_err;
 
-		cpcap_usb_try_musb_mailbox(ddata, MUSB_ID_GROUND);
+		error = musb_mailbox(MUSB_ID_GROUND);
+		if (error)
+			goto out_err;
 
 		error = regmap_update_bits(ddata->reg, CPCAP_REG_USBC3,
 					   CPCAP_BIT_VBUSSTBY_EN,
@@ -266,7 +255,9 @@ static void cpcap_usb_detect(struct work_struct *work)
 			error = cpcap_usb_set_usb_mode(ddata);
 			if (error)
 				goto out_err;
-			cpcap_usb_try_musb_mailbox(ddata, MUSB_ID_GROUND);
+			error = musb_mailbox(MUSB_ID_GROUND);
+			if (error)
+				goto out_err;
 
 			return;
 		}
@@ -276,15 +267,19 @@ static void cpcap_usb_detect(struct work_struct *work)
 		error = cpcap_usb_set_usb_mode(ddata);
 		if (error)
 			goto out_err;
-		cpcap_usb_try_musb_mailbox(ddata, MUSB_VBUS_VALID);
+		error = musb_mailbox(MUSB_VBUS_VALID);
+		if (error)
+			goto out_err;
 
 		return;
 	}
 
-	cpcap_usb_try_musb_mailbox(ddata, MUSB_VBUS_OFF);
-
 	/* Default to debug UART mode */
 	error = cpcap_usb_set_uart_mode(ddata);
+	if (error)
+		goto out_err;
+
+	error = musb_mailbox(MUSB_VBUS_OFF);
 	if (error)
 		goto out_err;
 
@@ -379,8 +374,7 @@ static int cpcap_usb_set_uart_mode(struct cpcap_phy_ddata *ddata)
 {
 	int error;
 
-	/* Disable lines to prevent glitches from waking up mdm6600 */
-	error = cpcap_usb_gpio_set_mode(ddata, CPCAP_UNKNOWN_DISABLED);
+	error = cpcap_usb_gpio_set_mode(ddata, CPCAP_DM_DP);
 	if (error)
 		goto out_err;
 
@@ -407,11 +401,6 @@ static int cpcap_usb_set_uart_mode(struct cpcap_phy_ddata *ddata)
 	if (error)
 		goto out_err;
 
-	/* Enable UART mode */
-	error = cpcap_usb_gpio_set_mode(ddata, CPCAP_DM_DP);
-	if (error)
-		goto out_err;
-
 	return 0;
 
 out_err:
@@ -424,8 +413,7 @@ static int cpcap_usb_set_usb_mode(struct cpcap_phy_ddata *ddata)
 {
 	int error;
 
-	/* Disable lines to prevent glitches from waking up mdm6600 */
-	error = cpcap_usb_gpio_set_mode(ddata, CPCAP_UNKNOWN_DISABLED);
+	error = cpcap_usb_gpio_set_mode(ddata, CPCAP_OTG_DM_DP);
 	if (error)
 		return error;
 
@@ -462,11 +450,6 @@ static int cpcap_usb_set_usb_mode(struct cpcap_phy_ddata *ddata)
 	error = regmap_update_bits(ddata->reg, CPCAP_REG_USBC2,
 				   CPCAP_BIT_USBXCVREN,
 				   CPCAP_BIT_USBXCVREN);
-	if (error)
-		goto out_err;
-
-	/* Enable USB mode */
-	error = cpcap_usb_gpio_set_mode(ddata, CPCAP_OTG_DM_DP);
 	if (error)
 		goto out_err;
 
@@ -664,7 +647,9 @@ static int cpcap_usb_phy_remove(struct platform_device *pdev)
 	if (error)
 		dev_err(ddata->dev, "could not set UART mode\n");
 
-	cpcap_usb_try_musb_mailbox(ddata, MUSB_VBUS_OFF);
+	error = musb_mailbox(MUSB_VBUS_OFF);
+	if (error)
+		dev_err(ddata->dev, "could not set mailbox\n");
 
 	usb_remove_phy(&ddata->phy);
 	cancel_delayed_work_sync(&ddata->detect_work);

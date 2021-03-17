@@ -48,7 +48,6 @@
 #include <asm/kexec.h>
 #include <asm/fadump.h>
 #include <asm/asm-prototypes.h>
-#include <asm/debugfs.h>
 
 #include "pseries.h"
 
@@ -648,10 +647,7 @@ static int pseries_lpar_resize_hpt_commit(void *data)
 	return 0;
 }
 
-/*
- * Must be called in process context. The caller must hold the
- * cpus_lock.
- */
+/* Must be called in user context */
 static int pseries_lpar_resize_hpt(unsigned long shift)
 {
 	struct hpt_resize_state state = {
@@ -703,8 +699,7 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 
 	t1 = ktime_get();
 
-	rc = stop_machine_cpuslocked(pseries_lpar_resize_hpt_commit,
-				     &state, NULL);
+	rc = stop_machine(pseries_lpar_resize_hpt_commit, &state, NULL);
 
 	t2 = ktime_get();
 
@@ -833,7 +828,7 @@ EXPORT_SYMBOL(arch_free_page);
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_TRACEPOINTS
-#ifdef CONFIG_JUMP_LABEL
+#ifdef HAVE_JUMP_LABEL
 struct static_key hcall_tracepoint_key = STATIC_KEY_INIT;
 
 int hcall_tracepoint_regfunc(void)
@@ -1033,56 +1028,3 @@ static int __init reserve_vrma_context_id(void)
 	return 0;
 }
 machine_device_initcall(pseries, reserve_vrma_context_id);
-
-#ifdef CONFIG_DEBUG_FS
-/* debugfs file interface for vpa data */
-static ssize_t vpa_file_read(struct file *filp, char __user *buf, size_t len,
-			      loff_t *pos)
-{
-	int cpu = (long)filp->private_data;
-	struct lppaca *lppaca = &lppaca_of(cpu);
-
-	return simple_read_from_buffer(buf, len, pos, lppaca,
-				sizeof(struct lppaca));
-}
-
-static const struct file_operations vpa_fops = {
-	.open		= simple_open,
-	.read		= vpa_file_read,
-	.llseek		= default_llseek,
-};
-
-static int __init vpa_debugfs_init(void)
-{
-	char name[16];
-	long i;
-	struct dentry *vpa_dir;
-
-	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
-		return 0;
-
-	vpa_dir = debugfs_create_dir("vpa", powerpc_debugfs_root);
-	if (!vpa_dir) {
-		pr_warn("%s: can't create vpa root dir\n", __func__);
-		return -ENOMEM;
-	}
-
-	/* set up the per-cpu vpa file*/
-	for_each_possible_cpu(i) {
-		struct dentry *d;
-
-		sprintf(name, "cpu-%ld", i);
-
-		d = debugfs_create_file(name, 0400, vpa_dir, (void *)i,
-					&vpa_fops);
-		if (!d) {
-			pr_warn("%s: can't create per-cpu vpa file\n",
-					__func__);
-			return -ENOMEM;
-		}
-	}
-
-	return 0;
-}
-machine_arch_initcall(pseries, vpa_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */

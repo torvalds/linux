@@ -212,8 +212,6 @@ atomic64_set(atomic64_t *v, s64 i)
 	_atomic_spin_unlock_irqrestore(v, flags);
 }
 
-#define atomic64_set_release(v, i)	atomic64_set((v), (i))
-
 static __inline__ s64
 atomic64_read(const atomic64_t *v)
 {

@@ -156,15 +156,11 @@ static int mdio_sc_cfg_reg_write(struct hns_mdio_device *mdio_dev,
 {
 	u32 time_cnt;
 	u32 reg_value;
-	int ret;
 
 	regmap_write(mdio_dev->subctrl_vbase, cfg_reg, set_val);
 
 	for (time_cnt = MDIO_TIMEOUT; time_cnt; time_cnt--) {
-		ret = regmap_read(mdio_dev->subctrl_vbase, st_reg, &reg_value);
-		if (ret)
-			return ret;
-
+		regmap_read(mdio_dev->subctrl_vbase, st_reg, &reg_value);
 		reg_value &= st_msk;
 		if ((!!check_st) == (!!reg_value))
 			break;
@@ -325,7 +321,7 @@ static int hns_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 		}
 
 		hns_mdio_cmd_write(mdio_dev, is_c45,
-				   MDIO_C45_READ, phy_id, devad);
+				   MDIO_C45_WRITE_ADDR, phy_id, devad);
 	}
 
 	/* Step 5: waitting for MDIO_COMMAND_REG 's mdio_start==0,*/

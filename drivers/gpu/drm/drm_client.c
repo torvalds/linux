@@ -60,6 +60,7 @@ static void drm_client_close(struct drm_client_dev *client)
 
 	drm_file_free(client->file);
 }
+EXPORT_SYMBOL(drm_client_close);
 
 /**
  * drm_client_init - Initialise a DRM client
@@ -322,7 +323,7 @@ static int drm_client_buffer_addfb(struct drm_client_buffer *buffer,
 	int ret;
 
 	info = drm_format_info(format);
-	fb_req.bpp = info->bpp[0];
+	fb_req.bpp = info->cpp[0] * 8;
 	fb_req.depth = info->depth;
 	fb_req.width = width;
 	fb_req.height = height;

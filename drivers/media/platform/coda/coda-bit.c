@@ -991,15 +991,16 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		else
 			coda_write(dev, CODA_STD_H264,
 				   CODA_CMD_ENC_SEQ_COD_STD);
-		value = ((ctx->params.h264_disable_deblocking_filter_idc &
-			  CODA_264PARAM_DISABLEDEBLK_MASK) <<
-			 CODA_264PARAM_DISABLEDEBLK_OFFSET) |
-			((ctx->params.h264_slice_alpha_c0_offset_div2 &
-			  CODA_264PARAM_DEBLKFILTEROFFSETALPHA_MASK) <<
-			 CODA_264PARAM_DEBLKFILTEROFFSETALPHA_OFFSET) |
-			((ctx->params.h264_slice_beta_offset_div2 &
-			  CODA_264PARAM_DEBLKFILTEROFFSETBETA_MASK) <<
-			 CODA_264PARAM_DEBLKFILTEROFFSETBETA_OFFSET);
+		if (ctx->params.h264_deblk_enabled) {
+			value = ((ctx->params.h264_deblk_alpha &
+				  CODA_264PARAM_DEBLKFILTEROFFSETALPHA_MASK) <<
+				 CODA_264PARAM_DEBLKFILTEROFFSETALPHA_OFFSET) |
+				((ctx->params.h264_deblk_beta &
+				  CODA_264PARAM_DEBLKFILTEROFFSETBETA_MASK) <<
+				 CODA_264PARAM_DEBLKFILTEROFFSETBETA_OFFSET);
+		} else {
+			value = 1 << CODA_264PARAM_DISABLEDEBLK_OFFSET;
+		}
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_264_PARA);
 		break;
 	case V4L2_PIX_FMT_JPEG:
@@ -1728,7 +1729,6 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 		v4l2_err(&dev->v4l2_dev, "CODA_COMMAND_SEQ_INIT timeout\n");
 		return ret;
 	}
-	ctx->sequence_offset = ~0U;
 	ctx->initialized = 1;
 
 	/* Update kfifo out pointer from coda bitstream read pointer */
@@ -2000,9 +2000,6 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	/* Clear decode success flag */
 	coda_write(dev, 0, CODA_RET_DEC_PIC_SUCCESS);
 
-	/* Clear error return value */
-	coda_write(dev, 0, CODA_RET_DEC_PIC_ERR_MB);
-
 	trace_coda_dec_pic_run(ctx, meta);
 
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
@@ -2143,17 +2140,12 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		else if (ctx->display_idx < 0)
 			ctx->hold = true;
 	} else if (decoded_idx == -2) {
-		if (ctx->display_idx >= 0 &&
-		    ctx->display_idx < ctx->num_internal_frames)
-			ctx->sequence_offset++;
 		/* no frame was decoded, we still return remaining buffers */
 	} else if (decoded_idx < 0 || decoded_idx >= ctx->num_internal_frames) {
 		v4l2_err(&dev->v4l2_dev,
 			 "decoded frame index out of range: %d\n", decoded_idx);
 	} else {
-		val = coda_read(dev, CODA_RET_DEC_PIC_FRAME_NUM);
-		if (ctx->sequence_offset == -1)
-			ctx->sequence_offset = val;
+		val = coda_read(dev, CODA_RET_DEC_PIC_FRAME_NUM) - 1;
 		val -= ctx->sequence_offset;
 		spin_lock_irqsave(&ctx->buffer_meta_lock, flags);
 		if (!list_empty(&ctx->buffer_meta_list)) {
@@ -2309,6 +2301,7 @@ irqreturn_t coda_irq_handler(int irq, void *data)
 	if (ctx == NULL) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Instance released before the end of transaction\n");
+		mutex_unlock(&dev->coda_mutex);
 		return IRQ_HANDLED;
 	}
 

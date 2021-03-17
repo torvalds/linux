@@ -838,7 +838,7 @@ static struct usb_function *source_sink_alloc_func(
 
 	ss = kzalloc(sizeof(*ss), GFP_KERNEL);
 	if (!ss)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	ss_opts =  container_of(fi, struct f_ss_opts, func_inst);
 

@@ -9,7 +9,6 @@
 #include <linux/log2.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
-#include <linux/atomic.h>
 
 #include <asm/paravirt.h>
 #include <asm/qspinlock.h>
@@ -22,7 +21,6 @@
 
 static DEFINE_PER_CPU(int, lock_kicker_irq) = -1;
 static DEFINE_PER_CPU(char *, irq_name);
-static DEFINE_PER_CPU(atomic_t, xen_qlock_wait_nest);
 static bool xen_pvspin = true;
 
 static void xen_qlock_kick(int cpu)
@@ -42,24 +40,33 @@ static void xen_qlock_kick(int cpu)
 static void xen_qlock_wait(u8 *byte, u8 val)
 {
 	int irq = __this_cpu_read(lock_kicker_irq);
-	atomic_t *nest_cnt = this_cpu_ptr(&xen_qlock_wait_nest);
 
 	/* If kicker interrupts not initialized yet, just spin */
-	if (irq == -1 || in_nmi())
+	if (irq == -1)
 		return;
 
-	/* Detect reentry. */
-	atomic_inc(nest_cnt);
+	/* clear pending */
+	xen_clear_irq_pending(irq);
+	barrier();
 
-	/* If irq pending already and no nested call clear it. */
-	if (atomic_read(nest_cnt) == 1 && xen_test_irq_pending(irq)) {
-		xen_clear_irq_pending(irq);
-	} else if (READ_ONCE(*byte) == val) {
-		/* Block until irq becomes pending (or a spurious wakeup) */
-		xen_poll_irq(irq);
-	}
+	/*
+	 * We check the byte value after clearing pending IRQ to make sure
+	 * that we won't miss a wakeup event because of the clearing.
+	 *
+	 * The sync_clear_bit() call in xen_clear_irq_pending() is atomic.
+	 * So it is effectively a memory barrier for x86.
+	 */
+	if (READ_ONCE(*byte) != val)
+		return;
 
-	atomic_dec(nest_cnt);
+	/*
+	 * If an interrupt happens here, it will leave the wakeup irq
+	 * pending, which will cause xen_poll_irq() to return
+	 * immediately.
+	 */
+
+	/* Block until irq becomes pending (or perhaps a spurious wakeup) */
+	xen_poll_irq(irq);
 }
 
 static irqreturn_t dummy_handler(int irq, void *dev_id)
@@ -101,20 +108,10 @@ void xen_init_lock_cpu(int cpu)
 
 void xen_uninit_lock_cpu(int cpu)
 {
-	int irq;
-
 	if (!xen_pvspin)
 		return;
 
-	/*
-	 * When booting the kernel with 'mitigations=auto,nosmt', the secondary
-	 * CPUs are not activated, and lock_kicker_irq is not initialized.
-	 */
-	irq = per_cpu(lock_kicker_irq, cpu);
-	if (irq == -1)
-		return;
-
-	unbind_from_irqhandler(irq, NULL);
+	unbind_from_irqhandler(per_cpu(lock_kicker_irq, cpu), NULL);
 	per_cpu(lock_kicker_irq, cpu) = -1;
 	kfree(per_cpu(irq_name, cpu));
 	per_cpu(irq_name, cpu) = NULL;

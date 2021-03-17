@@ -138,7 +138,6 @@ bool nd_is_uuid_unique(struct device *dev, u8 *uuid)
 bool pmem_should_map_pages(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	struct nd_namespace_common *ndns = to_ndns(dev);
 	struct nd_namespace_io *nsio;
 
 	if (!IS_ENABLED(CONFIG_ZONE_DEVICE))
@@ -148,9 +147,6 @@ bool pmem_should_map_pages(struct device *dev)
 		return false;
 
 	if (is_nd_pfn(dev) || is_nd_btt(dev))
-		return false;
-
-	if (ndns->force_raw)
 		return false;
 
 	nsio = to_nd_namespace_io(dev);
@@ -1248,27 +1244,12 @@ static int namespace_update_uuid(struct nd_region *nd_region,
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
-		struct nd_label_ent *label_ent;
 		struct resource *res;
 
 		for_each_dpa_resource(ndd, res)
 			if (strcmp(res->name, old_label_id.id) == 0)
 				sprintf((void *) res->name, "%s",
 						new_label_id.id);
-
-		mutex_lock(&nd_mapping->lock);
-		list_for_each_entry(label_ent, &nd_mapping->labels, list) {
-			struct nd_namespace_label *nd_label = label_ent->label;
-			struct nd_label_id label_id;
-
-			if (!nd_label)
-				continue;
-			nd_label_gen_id(&label_id, nd_label->uuid,
-					__le32_to_cpu(nd_label->flags));
-			if (strcmp(old_label_id.id, label_id.id) == 0)
-				set_bit(ND_LABEL_REAP, &label_ent->flags);
-		}
-		mutex_unlock(&nd_mapping->lock);
 	}
 	kfree(*old_uuid);
  out:
@@ -1996,7 +1977,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 		nd_mapping = &nd_region->mapping[i];
 		label_ent = list_first_entry_or_null(&nd_mapping->labels,
 				typeof(*label_ent), list);
-		label0 = label_ent ? label_ent->label : NULL;
+		label0 = label_ent ? label_ent->label : 0;
 
 		if (!label0) {
 			WARN_ON(1);
@@ -2266,12 +2247,9 @@ static struct device *create_namespace_blk(struct nd_region *nd_region,
 	if (!nsblk->uuid)
 		goto blk_err;
 	memcpy(name, nd_label->name, NSLABEL_NAME_LEN);
-	if (name[0]) {
+	if (name[0])
 		nsblk->alt_name = kmemdup(name, NSLABEL_NAME_LEN,
 				GFP_KERNEL);
-		if (!nsblk->alt_name)
-			goto blk_err;
-	}
 	res = nsblk_add_resource(nd_region, ndd, nsblk,
 			__le64_to_cpu(nd_label->dpa));
 	if (!res)
@@ -2332,9 +2310,8 @@ static struct device **scan_labels(struct nd_region *nd_region)
 			continue;
 
 		/* skip labels that describe extents outside of the region */
-		if (__le64_to_cpu(nd_label->dpa) < nd_mapping->start ||
-		    __le64_to_cpu(nd_label->dpa) > map_end)
-				continue;
+		if (nd_label->dpa < nd_mapping->start || nd_label->dpa > map_end)
+			continue;
 
 		i = add_namespace_resource(nd_region, nd_label, devs, count);
 		if (i < 0)

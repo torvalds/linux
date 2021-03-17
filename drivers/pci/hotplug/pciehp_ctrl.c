@@ -117,10 +117,6 @@ static void remove_board(struct slot *p_slot)
 		 * removed from the slot/adapter.
 		 */
 		msleep(1000);
-
-		/* Ignore link or presence changes caused by power off */
-		atomic_and(~(PCI_EXP_SLTSTA_DLLSC | PCI_EXP_SLTSTA_PDC),
-			   &ctrl->pending_events);
 	}
 
 	/* turn off Green LED */
@@ -383,8 +379,7 @@ int pciehp_sysfs_enable_slot(struct slot *p_slot)
 		ctrl->request_result = -ENODEV;
 		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
 		wait_event(ctrl->requester,
-			   !atomic_read(&ctrl->pending_events) &&
-			   !ctrl->ist_running);
+			   !atomic_read(&ctrl->pending_events));
 		return ctrl->request_result;
 	case POWERON_STATE:
 		ctrl_info(ctrl, "Slot(%s): Already in powering on state\n",
@@ -417,8 +412,7 @@ int pciehp_sysfs_disable_slot(struct slot *p_slot)
 		mutex_unlock(&p_slot->lock);
 		pciehp_request(ctrl, DISABLE_SLOT);
 		wait_event(ctrl->requester,
-			   !atomic_read(&ctrl->pending_events) &&
-			   !ctrl->ist_running);
+			   !atomic_read(&ctrl->pending_events));
 		return ctrl->request_result;
 	case POWEROFF_STATE:
 		ctrl_info(ctrl, "Slot(%s): Already in powering off state\n",

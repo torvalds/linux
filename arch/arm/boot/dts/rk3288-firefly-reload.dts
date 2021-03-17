@@ -192,10 +192,7 @@
 &hdmi {
 	ddc-i2c-bus = <&i2c5>;
 	pinctrl-names = "default";
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&hdmi_ddc>;
-	pinctrl-1 = <&hdmi_gpio>;
-
+	pinctrl-0 = <&hdmi_cec_c0>;
 	status = "okay";
 };
 

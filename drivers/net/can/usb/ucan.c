@@ -796,7 +796,7 @@ resubmit:
 			  up);
 
 	usb_anchor_urb(urb, &up->rx_urbs);
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	ret = usb_submit_urb(urb, GFP_KERNEL);
 
 	if (ret < 0) {
 		netdev_err(up->netdev,
@@ -1575,7 +1575,10 @@ err_firmware_needs_update:
 /* disconnect the device */
 static void ucan_disconnect(struct usb_interface *intf)
 {
+	struct usb_device *udev;
 	struct ucan_priv *up = usb_get_intfdata(intf);
+
+	udev = interface_to_usbdev(intf);
 
 	usb_set_intfdata(intf, NULL);
 

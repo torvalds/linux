@@ -707,6 +707,7 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	struct hns_roce_hem_table *table;
 	dma_addr_t dma_handle;
 	__le64 *mtts;
+	u32 s = start_index * sizeof(u64);
 	u32 bt_page_size;
 	u32 i;
 
@@ -729,8 +730,7 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 		table = &hr_dev->mr_table.mtt_cqe_table;
 
 	mtts = hns_roce_table_find(hr_dev, table,
-				mtt->first_seg +
-				start_index / HNS_ROCE_MTT_ENTRY_PER_SEG,
+				mtt->first_seg + s / hr_dev->caps.mtt_entry_sz,
 				&dma_handle);
 	if (!mtts)
 		return -ENOMEM;
@@ -1017,14 +1017,14 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			goto err_umem;
 		}
 	} else {
-		u64 pbl_size = 1;
+		int pbl_size = 1;
 
 		bt_size = (1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT)) / 8;
 		for (i = 0; i < hr_dev->caps.pbl_hop_num; i++)
 			pbl_size *= bt_size;
 		if (n > pbl_size) {
 			dev_err(dev,
-			    " MR len %lld err. MR page num is limited to %lld!\n",
+			    " MR len %lld err. MR page num is limited to %d!\n",
 			    length, pbl_size);
 			ret = -EINVAL;
 			goto err_umem;

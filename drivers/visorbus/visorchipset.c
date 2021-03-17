@@ -1210,17 +1210,14 @@ static void setup_crash_devices_work_queue(struct work_struct *work)
 {
 	struct controlvm_message local_crash_bus_msg;
 	struct controlvm_message local_crash_dev_msg;
-	struct controlvm_message msg = {
-		.hdr.id = CONTROLVM_CHIPSET_INIT,
-		.cmd.init_chipset = {
-			.bus_count = 23,
-			.switch_count = 0,
-		},
-	};
+	struct controlvm_message msg;
 	u32 local_crash_msg_offset;
 	u16 local_crash_msg_count;
 
 	/* send init chipset msg */
+	msg.hdr.id = CONTROLVM_CHIPSET_INIT;
+	msg.cmd.init_chipset.bus_count = 23;
+	msg.cmd.init_chipset.switch_count = 0;
 	chipset_init(&msg);
 	/* get saved message count */
 	if (visorchannel_read(chipset_dev->controlvm_channel,

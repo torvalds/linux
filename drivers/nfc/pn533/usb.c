@@ -403,7 +403,7 @@ static int pn533_acr122_poweron_rdr(struct pn533_usb_phy *phy)
 		       cmd, sizeof(cmd), false);
 
 	rc = usb_bulk_msg(phy->udev, phy->out_urb->pipe, buffer, sizeof(cmd),
-			  &transferred, 5000);
+			  &transferred, 0);
 	kfree(buffer);
 	if (rc || (transferred != sizeof(cmd))) {
 		nfc_err(&phy->udev->dev,
@@ -559,25 +559,18 @@ static int pn533_usb_probe(struct usb_interface *interface,
 
 	rc = pn533_finalize_setup(priv);
 	if (rc)
-		goto err_deregister;
+		goto error;
 
 	usb_set_intfdata(interface, phy);
 
 	return 0;
 
-err_deregister:
-	pn533_unregister_device(phy->priv);
 error:
-	usb_kill_urb(phy->in_urb);
-	usb_kill_urb(phy->out_urb);
-	usb_kill_urb(phy->ack_urb);
-
 	usb_free_urb(phy->in_urb);
 	usb_free_urb(phy->out_urb);
 	usb_free_urb(phy->ack_urb);
 	usb_put_dev(phy->udev);
 	kfree(in_buf);
-	kfree(phy->ack_buffer);
 
 	return rc;
 }

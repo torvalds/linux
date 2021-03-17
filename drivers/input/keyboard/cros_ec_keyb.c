@@ -183,7 +183,6 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 					"changed: [r%d c%d]: byte %02x\n",
 					row, col, new_state);
 
-				input_event(idev, EV_MSC, MSC_SCAN, pos);
 				input_report_key(idev, keycodes[pos],
 						 new_state);
 			}
@@ -494,8 +493,7 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev)
 	for (i = 0; i < ARRAY_SIZE(cros_ec_keyb_bs); i++) {
 		const struct cros_ec_bs_map *map = &cros_ec_keyb_bs[i];
 
-		if ((map->ev_type == EV_KEY && (buttons & BIT(map->bit))) ||
-		    (map->ev_type == EV_SW && (switches & BIT(map->bit))))
+		if (buttons & BIT(map->bit))
 			input_set_capability(idev, map->ev_type, map->code);
 	}
 

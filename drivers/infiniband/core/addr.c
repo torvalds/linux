@@ -136,7 +136,7 @@ int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
 	if (ib_nl_is_good_ip_resp(nlh))
 		ib_nl_process_good_ip_rsep(nlh);
 
-	return 0;
+	return skb->len;
 }
 
 static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
@@ -408,15 +408,16 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	struct flowi6 fl6;
 	struct dst_entry *dst;
 	struct rt6_info *rt;
+	int ret;
 
 	memset(&fl6, 0, sizeof fl6);
 	fl6.daddr = dst_in->sin6_addr;
 	fl6.saddr = src_in->sin6_addr;
 	fl6.flowi6_oif = addr->bound_dev_if;
 
-	dst = ipv6_stub->ipv6_dst_lookup_flow(addr->net, NULL, &fl6, NULL);
-	if (IS_ERR(dst))
-		return PTR_ERR(dst);
+	ret = ipv6_stub->ipv6_dst_lookup(addr->net, NULL, &dst, &fl6);
+	if (ret < 0)
+		return ret;
 
 	rt = (struct rt6_info *)dst;
 	if (ipv6_addr_any(&src_in->sin6_addr)) {
@@ -571,12 +572,13 @@ static void process_one_req(struct work_struct *_work)
 	req->callback = NULL;
 
 	spin_lock_bh(&lock);
-	/*
-	 * Although the work will normally have been canceled by the workqueue,
-	 * it can still be requeued as long as it is on the req_list.
-	 */
-	cancel_delayed_work(&req->work);
 	if (!list_empty(&req->list)) {
+		/*
+		 * Although the work will normally have been canceled by the
+		 * workqueue, it can still be requeued as long as it is on the
+		 * req_list.
+		 */
+		cancel_delayed_work(&req->work);
 		list_del_init(&req->list);
 		kfree(req);
 	}
@@ -714,22 +716,22 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	struct rdma_dev_addr dev_addr;
 	struct resolve_cb_context ctx;
 	union {
+		struct sockaddr     _sockaddr;
 		struct sockaddr_in  _sockaddr_in;
 		struct sockaddr_in6 _sockaddr_in6;
 	} sgid_addr, dgid_addr;
 	int ret;
 
-	rdma_gid2ip((struct sockaddr *)&sgid_addr, sgid);
-	rdma_gid2ip((struct sockaddr *)&dgid_addr, dgid);
+	rdma_gid2ip(&sgid_addr._sockaddr, sgid);
+	rdma_gid2ip(&dgid_addr._sockaddr, dgid);
 
 	memset(&dev_addr, 0, sizeof(dev_addr));
 	dev_addr.bound_dev_if = ndev->ifindex;
 	dev_addr.net = &init_net;
 
 	init_completion(&ctx.comp);
-	ret = rdma_resolve_ip((struct sockaddr *)&sgid_addr,
-			      (struct sockaddr *)&dgid_addr, &dev_addr, 1000,
-			      resolve_cb, &ctx);
+	ret = rdma_resolve_ip(&sgid_addr._sockaddr, &dgid_addr._sockaddr,
+			      &dev_addr, 1000, resolve_cb, &ctx);
 	if (ret)
 		return ret;
 

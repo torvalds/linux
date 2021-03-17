@@ -65,7 +65,6 @@
 #define SDMA_DESCQ_CNT 2048
 #define SDMA_DESC_INTR 64
 #define INVALID_TAIL 0xffff
-#define SDMA_PAD max_t(size_t, MAX_16B_PADDING, sizeof(u32))
 
 static uint sdma_descq_cnt = SDMA_DESCQ_CNT;
 module_param(sdma_descq_cnt, uint, S_IRUGO);
@@ -411,7 +410,10 @@ static void sdma_flush(struct sdma_engine *sde)
 	sdma_flush_descq(sde);
 	spin_lock_irqsave(&sde->flushlist_lock, flags);
 	/* copy flush list */
-	list_splice_init(&sde->flushlist, &flushlist);
+	list_for_each_entry_safe(txp, txp_next, &sde->flushlist, list) {
+		list_del_init(&txp->list);
+		list_add_tail(&txp->list, &flushlist);
+	}
 	spin_unlock_irqrestore(&sde->flushlist_lock, flags);
 	/* flush from flush list */
 	list_for_each_entry_safe(txp, txp_next, &flushlist, list)
@@ -1281,7 +1283,7 @@ void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
 	struct sdma_engine *sde;
 
 	if (dd->sdma_pad_dma) {
-		dma_free_coherent(&dd->pcidev->dev, SDMA_PAD,
+		dma_free_coherent(&dd->pcidev->dev, 4,
 				  (void *)dd->sdma_pad_dma,
 				  dd->sdma_pad_phys);
 		dd->sdma_pad_dma = NULL;
@@ -1482,7 +1484,7 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 	/* Allocate memory for pad */
 	dd->sdma_pad_dma = dma_zalloc_coherent(
 		&dd->pcidev->dev,
-		SDMA_PAD,
+		sizeof(u32),
 		&dd->sdma_pad_phys,
 		GFP_KERNEL
 	);
@@ -1519,11 +1521,8 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 	}
 
 	ret = rhashtable_init(tmp_sdma_rht, &sdma_rht_params);
-	if (ret < 0) {
-		kfree(tmp_sdma_rht);
+	if (ret < 0)
 		goto bail;
-	}
-
 	dd->sdma_rht = tmp_sdma_rht;
 
 	dd_dev_info(dd, "SDMA num_sdma: %u\n", dd->num_sdma);
@@ -2427,7 +2426,7 @@ unlock_noconn:
 		wait->tx_count++;
 		wait->count += tx->num_desc;
 	}
-	queue_work_on(sde->cpu, system_highpri_wq, &sde->flush_worker);
+	schedule_work(&sde->flush_worker);
 	ret = -ECOMM;
 	goto unlock;
 nodesc:
@@ -2527,7 +2526,7 @@ unlock_noconn:
 		}
 	}
 	spin_unlock(&sde->flushlist_lock);
-	queue_work_on(sde->cpu, system_highpri_wq, &sde->flush_worker);
+	schedule_work(&sde->flush_worker);
 	ret = -ECOMM;
 	goto update_tail;
 nodesc:

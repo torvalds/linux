@@ -1421,7 +1421,6 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 {
 	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
 	struct nlattr *ieee[DCB_ATTR_IEEE_MAX + 1];
-	int prio;
 	int err;
 
 	if (!ops)
@@ -1469,13 +1468,6 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (ieee[DCB_ATTR_DCB_BUFFER] && ops->dcbnl_setbuffer) {
 		struct dcbnl_buffer *buffer =
 			nla_data(ieee[DCB_ATTR_DCB_BUFFER]);
-
-		for (prio = 0; prio < ARRAY_SIZE(buffer->prio2buffer); prio++) {
-			if (buffer->prio2buffer[prio] >= DCBX_MAX_BUFFERS) {
-				err = -EINVAL;
-				goto err;
-			}
-		}
 
 		err = ops->dcbnl_setbuffer(netdev, buffer);
 		if (err)
@@ -1756,8 +1748,6 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	fn = &reply_funcs[dcb->cmd];
 	if (!fn->cb)
 		return -EOPNOTSUPP;
-	if (fn->type == RTM_SETDCB && !netlink_capable(skb, CAP_NET_ADMIN))
-		return -EPERM;
 
 	if (!tb[DCB_ATTR_IFNAME])
 		return -EINVAL;

@@ -725,9 +725,7 @@ static int anx78xx_init_pdata(struct anx78xx *anx78xx)
 	/* 1.0V digital core power regulator  */
 	pdata->dvdd10 = devm_regulator_get(dev, "dvdd10");
 	if (IS_ERR(pdata->dvdd10)) {
-		if (PTR_ERR(pdata->dvdd10) != -EPROBE_DEFER)
-			DRM_ERROR("DVDD10 regulator not found\n");
-
+		DRM_ERROR("DVDD10 regulator not found\n");
 		return PTR_ERR(pdata->dvdd10);
 	}
 
@@ -1343,9 +1341,7 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 
 	err = anx78xx_init_pdata(anx78xx);
 	if (err) {
-		if (err != -EPROBE_DEFER)
-			DRM_ERROR("Failed to initialize pdata: %d\n", err);
-
+		DRM_ERROR("Failed to initialize pdata: %d\n", err);
 		return err;
 	}
 

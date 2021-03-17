@@ -32,12 +32,9 @@
  * not expect this type of fault. flush_cache_vmap is not exactly the right
  * place to put this, but it seems to work well enough.
  */
-static inline void flush_cache_vmap(unsigned long start, unsigned long end)
-{
-	asm volatile("ptesync" ::: "memory");
-}
+#define flush_cache_vmap(start, end)		do { asm volatile("ptesync" ::: "memory"); } while (0)
 #else
-static inline void flush_cache_vmap(unsigned long start, unsigned long end) { }
+#define flush_cache_vmap(start, end)		do { } while (0)
 #endif
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1

@@ -37,7 +37,7 @@ static struct stmmac_tc_entry *tc_find_entry(struct stmmac_priv *priv,
 		entry = &priv->tc_entries[i];
 		if (!entry->in_use && !first && free)
 			first = entry;
-		if ((entry->handle == loc) && !free && !entry->is_frag)
+		if (entry->handle == loc && !free)
 			dup = entry;
 	}
 
@@ -301,8 +301,6 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 	/* Queue 0 is not AVB capable */
 	if (queue <= 0 || queue >= tx_queues_count)
 		return -EINVAL;
-	if (!priv->dma_cap.av)
-		return -EOPNOTSUPP;
 	if (priv->speed != SPEED_100 && priv->speed != SPEED_1000)
 		return -EOPNOTSUPP;
 

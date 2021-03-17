@@ -98,7 +98,7 @@ void acpi_scan_table_handler(u32 event, void *table, void *context);
 extern struct list_head acpi_bus_id_list;
 
 struct acpi_device_bus_id {
-	const char *bus_id;
+	char bus_id[15];
 	unsigned int instance_no;
 	struct list_head node;
 };
@@ -188,8 +188,6 @@ int acpi_ec_ecdt_probe(void);
 int acpi_ec_dsdt_probe(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
-void acpi_ec_mark_gpe_for_wake(void);
-void acpi_ec_set_gpe_wake_mask(u8 action);
 void acpi_ec_dispatch_gpe(void);
 int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 			      acpi_handle handle, acpi_ec_query_func func,

@@ -261,28 +261,6 @@ void drm_minor_release(struct drm_minor *minor)
 	drm_dev_put(minor->dev);
 }
 
-struct drm_device *drm_device_get_by_name(const char *name)
-{
-	int i;
-
-	for (i = 0; i < 64; i++) {
-		struct drm_minor *minor;
-
-		minor = drm_minor_acquire(i + DRM_MINOR_PRIMARY);
-		if (IS_ERR(minor))
-			continue;
-		if (!minor->dev || !minor->dev->driver ||
-		    !minor->dev->driver->name)
-			continue;
-		if (!name)
-			return minor->dev;
-		if (!strcmp(name, minor->dev->driver->name))
-			return minor->dev;
-	}
-
-	return NULL;
-}
-
 /**
  * DOC: driver instance overview
  *
@@ -403,7 +381,11 @@ void drm_dev_unplug(struct drm_device *dev)
 	synchronize_srcu(&drm_unplug_srcu);
 
 	drm_dev_unregister(dev);
-	drm_dev_put(dev);
+
+	mutex_lock(&drm_global_mutex);
+	if (dev->open_count == 0)
+		drm_dev_put(dev);
+	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
 
@@ -521,7 +503,7 @@ int drm_dev_init(struct drm_device *dev,
 	}
 
 	kref_init(&dev->ref);
-	dev->dev = get_device(parent);
+	dev->dev = parent;
 	dev->driver = driver;
 
 	INIT_LIST_HEAD(&dev->filelist);
@@ -590,7 +572,6 @@ err_minors:
 	drm_minor_free(dev, DRM_MINOR_RENDER);
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
-	put_device(dev->dev);
 	mutex_destroy(&dev->master_mutex);
 	mutex_destroy(&dev->ctxlist_mutex);
 	mutex_destroy(&dev->clientlist_mutex);
@@ -625,8 +606,6 @@ void drm_dev_fini(struct drm_device *dev)
 
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
-
-	put_device(dev->dev);
 
 	mutex_destroy(&dev->master_mutex);
 	mutex_destroy(&dev->ctxlist_mutex);
@@ -1031,9 +1010,5 @@ error:
 	return ret;
 }
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-subsys_initcall(drm_core_init);
-#else
 module_init(drm_core_init);
-#endif
 module_exit(drm_core_exit);

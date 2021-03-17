@@ -67,8 +67,7 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 	unsigned i;
 	int r;
 
-	if (num_entries > (SIZE_MAX - sizeof(struct amdgpu_bo_list))
-				/ sizeof(struct amdgpu_bo_list_entry))
+	if (num_entries > SIZE_MAX / sizeof(struct amdgpu_bo_list_entry))
 		return -EINVAL;
 
 	size = sizeof(struct amdgpu_bo_list);
@@ -264,7 +263,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 
 	r = amdgpu_bo_create_list_entry_array(&args->in, &info);
 	if (r)
-		return r;
+		goto error_free;
 
 	switch (args->in.operation) {
 	case AMDGPU_BO_LIST_OP_CREATE:
@@ -277,7 +276,8 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 		r = idr_alloc(&fpriv->bo_list_handles, list, 1, 0, GFP_KERNEL);
 		mutex_unlock(&fpriv->bo_list_lock);
 		if (r < 0) {
-			goto error_put_list;
+			amdgpu_bo_list_put(list);
+			return r;
 		}
 
 		handle = r;
@@ -299,8 +299,9 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 		mutex_unlock(&fpriv->bo_list_lock);
 
 		if (IS_ERR(old)) {
+			amdgpu_bo_list_put(list);
 			r = PTR_ERR(old);
-			goto error_put_list;
+			goto error_free;
 		}
 
 		amdgpu_bo_list_put(old);
@@ -317,10 +318,8 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 
 	return 0;
 
-error_put_list:
-	amdgpu_bo_list_put(list);
-
 error_free:
-	kvfree(info);
+	if (info)
+		kvfree(info);
 	return r;
 }

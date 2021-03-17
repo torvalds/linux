@@ -371,7 +371,6 @@ static int tipc_conn_rcv_sub(struct tipc_topsrv *srv,
 	struct tipc_subscription *sub;
 
 	if (tipc_sub_read(s, filter) & TIPC_SUB_CANCEL) {
-		s->filter &= __constant_ntohl(~TIPC_SUB_CANCEL);
 		tipc_conn_delete_sub(con, s);
 		return 0;
 	}
@@ -405,17 +404,14 @@ static int tipc_conn_rcv_from_sock(struct tipc_conn *con)
 	ret = sock_recvmsg(con->sock, &msg, MSG_DONTWAIT);
 	if (ret == -EWOULDBLOCK)
 		return -EWOULDBLOCK;
-	if (ret == sizeof(s)) {
+	if (ret > 0) {
 		read_lock_bh(&sk->sk_callback_lock);
-		/* RACE: the connection can be closed in the meantime */
-		if (likely(connected(con)))
-			ret = tipc_conn_rcv_sub(srv, con, &s);
+		ret = tipc_conn_rcv_sub(srv, con, &s);
 		read_unlock_bh(&sk->sk_callback_lock);
-		if (!ret)
-			return 0;
 	}
+	if (ret < 0)
+		tipc_conn_close(con);
 
-	tipc_conn_close(con);
 	return ret;
 }
 
@@ -646,7 +642,7 @@ static void tipc_topsrv_work_stop(struct tipc_topsrv *s)
 	destroy_workqueue(s->send_wq);
 }
 
-static int tipc_topsrv_start(struct net *net)
+int tipc_topsrv_start(struct net *net)
 {
 	struct tipc_net *tn = tipc_net(net);
 	const char name[] = "topology_server";
@@ -661,7 +657,7 @@ static int tipc_topsrv_start(struct net *net)
 	srv->max_rcvbuf_size = sizeof(struct tipc_subscr);
 	INIT_WORK(&srv->awork, tipc_topsrv_accept);
 
-	strscpy(srv->name, name, sizeof(srv->name));
+	strncpy(srv->name, name, strlen(name) + 1);
 	tn->topsrv = srv;
 	atomic_set(&tn->subscription_count, 0);
 
@@ -671,22 +667,16 @@ static int tipc_topsrv_start(struct net *net)
 
 	ret = tipc_topsrv_work_start(srv);
 	if (ret < 0)
-		goto err_start;
+		return ret;
 
 	ret = tipc_topsrv_create_listener(srv);
 	if (ret < 0)
-		goto err_create;
+		tipc_topsrv_work_stop(srv);
 
-	return 0;
-
-err_create:
-	tipc_topsrv_work_stop(srv);
-err_start:
-	kfree(srv);
 	return ret;
 }
 
-static void tipc_topsrv_stop(struct net *net)
+void tipc_topsrv_stop(struct net *net)
 {
 	struct tipc_topsrv *srv = tipc_topsrv(net);
 	struct socket *lsock = srv->listener;
@@ -710,14 +700,4 @@ static void tipc_topsrv_stop(struct net *net)
 	tipc_topsrv_work_stop(srv);
 	idr_destroy(&srv->conn_idr);
 	kfree(srv);
-}
-
-int __net_init tipc_topsrv_init_net(struct net *net)
-{
-	return tipc_topsrv_start(net);
-}
-
-void __net_exit tipc_topsrv_exit_net(struct net *net)
-{
-	tipc_topsrv_stop(net);
 }

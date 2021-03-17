@@ -322,7 +322,7 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 					      u64 addr, u64 max_addr, u64 size)
 {
 	return split_nodes_size_interleave_uniform(ei, pi, addr, max_addr, size,
-			0, NULL, 0);
+			0, NULL, NUMA_NO_NODE);
 }
 
 int __init setup_emu2phys_nid(int *dfl_phys_nid)
@@ -400,17 +400,9 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 		n = simple_strtoul(emu_cmdline, &emu_cmdline, 0);
 		ret = -1;
 		for_each_node_mask(i, physnode_mask) {
-			/*
-			 * The reason we pass in blk[0] is due to
-			 * numa_remove_memblk_from() called by
-			 * emu_setup_memblk() will delete entry 0
-			 * and then move everything else up in the pi.blk
-			 * array. Therefore we should always be looking
-			 * at blk[0].
-			 */
 			ret = split_nodes_size_interleave_uniform(&ei, &pi,
-					pi.blk[0].start, pi.blk[0].end, 0,
-					n, &pi.blk[0], nid);
+					pi.blk[i].start, pi.blk[i].end, 0,
+					n, &pi.blk[i], nid);
 			if (ret < 0)
 				break;
 			if (ret < n) {

@@ -1,10 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0
-TEST_GEN_PROGS := signal signal_tm
+TEST_PROGS := signal signal_tm
+
+all: $(TEST_PROGS)
+
+$(TEST_PROGS): ../harness.c ../utils.c signal.S
 
 CFLAGS += -maltivec
-$(OUTPUT)/signal_tm: CFLAGS += -mhtm
+signal_tm: CFLAGS += -mhtm
 
 top_srcdir = ../../../../..
 include ../../lib.mk
 
-$(TEST_GEN_PROGS): ../harness.c ../utils.c signal.S
+clean:
+	rm -f $(TEST_PROGS) *.o

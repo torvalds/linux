@@ -21,7 +21,6 @@ config PINCTRL_BCM2835
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
-	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 
 config PINCTRL_IPROC_GPIO

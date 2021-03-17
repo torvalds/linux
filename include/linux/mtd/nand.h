@@ -324,8 +324,9 @@ static inline unsigned int nanddev_ntargets(const struct nand_device *nand)
  */
 static inline unsigned int nanddev_neraseblocks(const struct nand_device *nand)
 {
-	return nand->memorg.ntargets * nand->memorg.luns_per_target *
-	       nand->memorg.eraseblocks_per_lun;
+	return (u64)nand->memorg.luns_per_target *
+	       nand->memorg.eraseblocks_per_lun *
+	       nand->memorg.pages_per_eraseblock;
 }
 
 /**
@@ -568,7 +569,7 @@ static inline void nanddev_pos_next_eraseblock(struct nand_device *nand,
 }
 
 /**
- * nanddev_pos_next_page() - Move a position to the next page
+ * nanddev_pos_next_eraseblock() - Move a position to the next page
  * @nand: NAND device
  * @pos: the position to update
  *

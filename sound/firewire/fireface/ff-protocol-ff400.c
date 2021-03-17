@@ -30,7 +30,7 @@ static int ff400_get_clock(struct snd_ff *ff, unsigned int *rate,
 	int err;
 
 	err = snd_fw_transaction(ff->unit, TCODE_READ_QUADLET_REQUEST,
-				 FF400_CLOCK_CONFIG, &reg, sizeof(reg), 0);
+				 FF400_SYNC_STATUS, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return err;
 	data = le32_to_cpu(reg);
@@ -152,7 +152,7 @@ static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
 	if (reg == NULL)
 		return -ENOMEM;
 
-	if (!enable) {
+	if (enable) {
 		/*
 		 * Each quadlet is corresponding to data channels in a data
 		 * blocks in reverse order. Precisely, quadlets for available

@@ -371,11 +371,7 @@ static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
 
 #define ioremap_nocache	ioremap
 #define ioremap_uc	ioremap
-
-static inline void iounmap(void __iomem *addr)
-{
-	__iounmap(addr);
-}
+#define iounmap		__iounmap
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem

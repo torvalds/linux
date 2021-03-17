@@ -78,11 +78,10 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	if (i == 0) {
 		args[0] = regs->orig_a0;
 		args++;
+		i++;
 		n--;
-	} else {
-		i--;
 	}
-	memcpy(args, &regs->a1 + i, n * sizeof(args[0]));
+	memcpy(args, &regs->a1 + i * sizeof(regs->a1), n * sizeof(args[0]));
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
@@ -94,11 +93,10 @@ static inline void syscall_set_arguments(struct task_struct *task,
         if (i == 0) {
                 regs->orig_a0 = args[0];
                 args++;
+                i++;
                 n--;
-	} else {
-		i--;
-	}
-	memcpy(&regs->a1 + i, args, n * sizeof(regs->a1));
+        }
+	memcpy(&regs->a1 + i * sizeof(regs->a1), args, n * sizeof(regs->a0));
 }
 
 #endif	/* _ASM_RISCV_SYSCALL_H */

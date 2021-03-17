@@ -56,21 +56,17 @@
 /* level of occupied TX descriptors under which we wake up TX process */
 #define MACB_TX_WAKEUP_THRESH(bp)	(3 * (bp)->tx_ring_size / 4)
 
-#define MACB_RX_INT_FLAGS	(MACB_BIT(RCOMP) | MACB_BIT(ISR_ROVR))
+#define MACB_RX_INT_FLAGS	(MACB_BIT(RCOMP) | MACB_BIT(RXUBR)	\
+				 | MACB_BIT(ISR_ROVR))
 #define MACB_TX_ERR_FLAGS	(MACB_BIT(ISR_TUND)			\
 					| MACB_BIT(ISR_RLE)		\
 					| MACB_BIT(TXERR))
-#define MACB_TX_INT_FLAGS	(MACB_TX_ERR_FLAGS | MACB_BIT(TCOMP)	\
-					| MACB_BIT(TXUBR))
+#define MACB_TX_INT_FLAGS	(MACB_TX_ERR_FLAGS | MACB_BIT(TCOMP))
 
 /* Max length of transmit frame must be a multiple of 8 bytes */
 #define MACB_TX_LEN_ALIGN	8
 #define MACB_MAX_TX_LEN		((unsigned int)((1 << MACB_TX_FRMLEN_SIZE) - 1) & ~((unsigned int)(MACB_TX_LEN_ALIGN - 1)))
-/* Limit maximum TX length as per Cadence TSO errata. This is to avoid a
- * false amba_error in TX path from the DMA assuming there is not enough
- * space in the SRAM (16KB) even when there is.
- */
-#define GEM_MAX_TX_LEN		(unsigned int)(0x3FC0)
+#define GEM_MAX_TX_LEN		((unsigned int)((1 << GEM_TX_FRMLEN_SIZE) - 1) & ~((unsigned int)(MACB_TX_LEN_ALIGN - 1)))
 
 #define GEM_MTU_MIN_SIZE	ETH_MIN_MTU
 #define MACB_NETIF_LSO		NETIF_F_TSO
@@ -685,11 +681,6 @@ static void macb_set_addr(struct macb *bp, struct macb_dma_desc *desc, dma_addr_
 	if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
 		desc_64 = macb_64b_desc(bp, desc);
 		desc_64->addrh = upper_32_bits(addr);
-		/* The low bits of RX address contain the RX_USED bit, clearing
-		 * of which allows packet RX. Make sure the high bits are also
-		 * visible to HW at that point.
-		 */
-		dma_wmb();
 	}
 #endif
 	desc->addr = lower_32_bits(addr);
@@ -864,9 +855,7 @@ static void macb_tx_interrupt(struct macb_queue *queue)
 
 			/* First, update TX stats if needed */
 			if (skb) {
-				if (unlikely(skb_shinfo(skb)->tx_flags &
-					     SKBTX_HW_TSTAMP) &&
-				    gem_ptp_do_txstamp(queue, skb, desc) == 0) {
+				if (gem_ptp_do_txstamp(queue, skb, desc) == 0) {
 					/* skb now belongs to timestamp buffer
 					 * and will be removed later
 					 */
@@ -940,19 +929,14 @@ static void gem_rx_refill(struct macb_queue *queue)
 
 			if (entry == bp->rx_ring_size - 1)
 				paddr |= MACB_BIT(RX_WRAP);
-			desc->ctrl = 0;
-			/* Setting addr clears RX_USED and allows reception,
-			 * make sure ctrl is cleared first to avoid a race.
-			 */
-			dma_wmb();
 			macb_set_addr(bp, desc, paddr);
+			desc->ctrl = 0;
 
 			/* properly align Ethernet header */
 			skb_reserve(skb, NET_IP_ALIGN);
 		} else {
-			desc->ctrl = 0;
-			dma_wmb();
 			desc->addr &= ~MACB_BIT(RX_USED);
+			desc->ctrl = 0;
 		}
 	}
 
@@ -1006,14 +990,10 @@ static int gem_rx(struct macb_queue *queue, int budget)
 
 		rxused = (desc->addr & MACB_BIT(RX_USED)) ? true : false;
 		addr = macb_get_addr(bp, desc);
+		ctrl = desc->ctrl;
 
 		if (!rxused)
 			break;
-
-		/* Ensure ctrl is at least as up-to-date as rxused */
-		dma_rmb();
-
-		ctrl = desc->ctrl;
 
 		queue->rx_tail++;
 		count++;
@@ -1189,13 +1169,10 @@ static int macb_rx(struct macb_queue *queue, int budget)
 		/* Make hw descriptor updates visible to CPU */
 		rmb();
 
+		ctrl = desc->ctrl;
+
 		if (!(desc->addr & MACB_BIT(RX_USED)))
 			break;
-
-		/* Ensure ctrl is at least as up-to-date as addr */
-		dma_rmb();
-
-		ctrl = desc->ctrl;
 
 		if (ctrl & MACB_BIT(RX_SOF)) {
 			if (first_frag != -1)
@@ -1276,7 +1253,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 				queue_writel(queue, ISR, MACB_BIT(RCOMP));
 			napi_reschedule(napi);
 		} else {
-			queue_writel(queue, IER, bp->rx_intr_mask);
+			queue_writel(queue, IER, MACB_RX_INT_FLAGS);
 		}
 	}
 
@@ -1294,7 +1271,7 @@ static void macb_hresp_error_task(unsigned long data)
 	u32 ctrl;
 
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
-		queue_writel(queue, IDR, bp->rx_intr_mask |
+		queue_writel(queue, IDR, MACB_RX_INT_FLAGS |
 					 MACB_TX_INT_FLAGS |
 					 MACB_BIT(HRESP));
 	}
@@ -1324,7 +1301,7 @@ static void macb_hresp_error_task(unsigned long data)
 
 		/* Enable interrupts */
 		queue_writel(queue, IER,
-			     bp->rx_intr_mask |
+			     MACB_RX_INT_FLAGS |
 			     MACB_TX_INT_FLAGS |
 			     MACB_BIT(HRESP));
 	}
@@ -1334,21 +1311,6 @@ static void macb_hresp_error_task(unsigned long data)
 
 	netif_carrier_on(dev);
 	netif_tx_start_all_queues(dev);
-}
-
-static void macb_tx_restart(struct macb_queue *queue)
-{
-	unsigned int head = queue->tx_head;
-	unsigned int tail = queue->tx_tail;
-	struct macb *bp = queue->bp;
-
-	if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-		queue_writel(queue, ISR, MACB_BIT(TXUBR));
-
-	if (head == tail)
-		return;
-
-	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
 }
 
 static irqreturn_t macb_interrupt(int irq, void *dev_id)
@@ -1378,14 +1340,14 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			    (unsigned int)(queue - bp->queues),
 			    (unsigned long)status);
 
-		if (status & bp->rx_intr_mask) {
+		if (status & MACB_RX_INT_FLAGS) {
 			/* There's no point taking any more interrupts
 			 * until we have processed the buffers. The
 			 * scheduling call may fail if the poll routine
 			 * is already scheduled, so disable interrupts
 			 * now.
 			 */
-			queue_writel(queue, IDR, bp->rx_intr_mask);
+			queue_writel(queue, IDR, MACB_RX_INT_FLAGS);
 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
 				queue_writel(queue, ISR, MACB_BIT(RCOMP));
 
@@ -1408,9 +1370,6 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		if (status & MACB_BIT(TCOMP))
 			macb_tx_interrupt(queue);
 
-		if (status & MACB_BIT(TXUBR))
-			macb_tx_restart(queue);
-
 		/* Link change detection isn't possible with RMII, so we'll
 		 * add that if/when we get our hands on a full-blown MII PHY.
 		 */
@@ -1418,9 +1377,8 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		/* There is a hardware issue under heavy load where DMA can
 		 * stop, this causes endless "used buffer descriptor read"
 		 * interrupts but it can be cleared by re-enabling RX. See
-		 * the at91rm9200 manual, section 41.3.1 or the Zynq manual
-		 * section 16.7.4 for details. RXUBR is only enabled for
-		 * these two versions.
+		 * the at91 manual, section 41.3.1 or the Zynq manual
+		 * section 16.7.4 for details.
 		 */
 		if (status & MACB_BIT(RXUBR)) {
 			ctrl = macb_readl(bp, NCR);
@@ -1658,14 +1616,16 @@ static netdev_features_t macb_features_check(struct sk_buff *skb,
 
 	/* Validate LSO compatibility */
 
-	/* there is only one buffer or protocol is not UDP */
-	if (!skb_is_nonlinear(skb) || (ip_hdr(skb)->protocol != IPPROTO_UDP))
+	/* there is only one buffer */
+	if (!skb_is_nonlinear(skb))
 		return features;
 
 	/* length of header */
 	hdrlen = skb_transport_offset(skb);
+	if (ip_hdr(skb)->protocol == IPPROTO_TCP)
+		hdrlen += tcp_hdrlen(skb);
 
-	/* For UFO only:
+	/* For LSO:
 	 * When software supplies two or more payload buffers all payload buffers
 	 * apart from the last must be a multiple of 8 bytes in size.
 	 */
@@ -1704,8 +1664,7 @@ static inline int macb_clear_csum(struct sk_buff *skb)
 
 static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 {
-	bool cloned = skb_cloned(*skb) || skb_header_cloned(*skb) ||
-		      skb_is_nonlinear(*skb);
+	bool cloned = skb_cloned(*skb) || skb_header_cloned(*skb);
 	int padlen = ETH_ZLEN - (*skb)->len;
 	int headroom = skb_headroom(*skb);
 	int tailroom = skb_tailroom(*skb);
@@ -1726,7 +1685,7 @@ static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 			padlen = 0;
 		/* No room for FCS, need to reallocate skb. */
 		else
-			padlen = ETH_FCS_LEN;
+			padlen = ETH_FCS_LEN - tailroom;
 	} else {
 		/* Add room for FCS. */
 		padlen += ETH_FCS_LEN;
@@ -2269,7 +2228,7 @@ static void macb_init_hw(struct macb *bp)
 
 		/* Enable interrupts */
 		queue_writel(queue, IER,
-			     bp->rx_intr_mask |
+			     MACB_RX_INT_FLAGS |
 			     MACB_TX_INT_FLAGS |
 			     MACB_BIT(HRESP));
 	}
@@ -2424,11 +2383,11 @@ static int macb_open(struct net_device *dev)
 		return err;
 	}
 
-	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue)
-		napi_enable(&queue->napi);
-
 	bp->macbgem_ops.mog_init_rings(bp);
 	macb_init_hw(bp);
+
+	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue)
+		napi_enable(&queue->napi);
 
 	/* schedule a link state check */
 	phy_start(dev->phydev);
@@ -3328,21 +3287,15 @@ static int macb_clk_init(struct platform_device *pdev, struct clk **pclk,
 		*hclk = devm_clk_get(&pdev->dev, "hclk");
 	}
 
-	if (IS_ERR_OR_NULL(*pclk)) {
+	if (IS_ERR(*pclk)) {
 		err = PTR_ERR(*pclk);
-		if (!err)
-			err = -ENODEV;
-
-		dev_err(&pdev->dev, "failed to get macb_clk (%d)\n", err);
+		dev_err(&pdev->dev, "failed to get macb_clk (%u)\n", err);
 		return err;
 	}
 
-	if (IS_ERR_OR_NULL(*hclk)) {
+	if (IS_ERR(*hclk)) {
 		err = PTR_ERR(*hclk);
-		if (!err)
-			err = -ENODEV;
-
-		dev_err(&pdev->dev, "failed to get hclk (%d)\n", err);
+		dev_err(&pdev->dev, "failed to get hclk (%u)\n", err);
 		return err;
 	}
 
@@ -3356,25 +3309,25 @@ static int macb_clk_init(struct platform_device *pdev, struct clk **pclk,
 
 	err = clk_prepare_enable(*pclk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable pclk (%d)\n", err);
+		dev_err(&pdev->dev, "failed to enable pclk (%u)\n", err);
 		return err;
 	}
 
 	err = clk_prepare_enable(*hclk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable hclk (%d)\n", err);
+		dev_err(&pdev->dev, "failed to enable hclk (%u)\n", err);
 		goto err_disable_pclk;
 	}
 
 	err = clk_prepare_enable(*tx_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable tx_clk (%d)\n", err);
+		dev_err(&pdev->dev, "failed to enable tx_clk (%u)\n", err);
 		goto err_disable_hclk;
 	}
 
 	err = clk_prepare_enable(*rx_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable rx_clk (%d)\n", err);
+		dev_err(&pdev->dev, "failed to enable rx_clk (%u)\n", err);
 		goto err_disable_txclk;
 	}
 
@@ -3844,7 +3797,7 @@ static int at91ether_clk_init(struct platform_device *pdev, struct clk **pclk,
 
 	err = clk_prepare_enable(*pclk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable pclk (%d)\n", err);
+		dev_err(&pdev->dev, "failed to enable pclk (%u)\n", err);
 		return err;
 	}
 
@@ -3923,7 +3876,6 @@ static const struct macb_config sama5d4_config = {
 };
 
 static const struct macb_config emac_config = {
-	.caps = MACB_CAPS_NEEDS_RSTONUBR,
 	.clk_init = at91ether_clk_init,
 	.init = at91ether_init,
 };
@@ -3945,8 +3897,7 @@ static const struct macb_config zynqmp_config = {
 };
 
 static const struct macb_config zynq_config = {
-	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_NO_GIGABIT_HALF |
-		MACB_CAPS_NEEDS_RSTONUBR,
+	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_NO_GIGABIT_HALF,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
@@ -4061,7 +4012,7 @@ static int macb_probe(struct platform_device *pdev)
 	bp->wol = 0;
 	if (of_get_property(np, "magic-packet", NULL))
 		bp->wol |= MACB_WOL_HAS_MAGIC_PACKET;
-	device_set_wakeup_capable(&pdev->dev, bp->wol & MACB_WOL_HAS_MAGIC_PACKET);
+	device_init_wakeup(&pdev->dev, bp->wol & MACB_WOL_HAS_MAGIC_PACKET);
 
 	spin_lock_init(&bp->lock);
 
@@ -4100,10 +4051,6 @@ static int macb_probe(struct platform_device *pdev)
 			bp->tx_bd_rd_prefetch = (2 << (val - 1)) *
 						macb_dma_desc_get_size(bp);
 	}
-
-	bp->rx_intr_mask = MACB_RX_INT_FLAGS;
-	if (bp->caps & MACB_CAPS_NEEDS_RSTONUBR)
-		bp->rx_intr_mask |= MACB_BIT(RXUBR);
 
 	mac = of_get_mac_address(np);
 	if (mac) {
@@ -4197,7 +4144,6 @@ static int macb_remove(struct platform_device *pdev)
 		mdiobus_free(bp->mii_bus);
 
 		unregister_netdev(dev);
-		tasklet_kill(&bp->hresp_err_tasklet);
 		clk_disable_unprepare(bp->tx_clk);
 		clk_disable_unprepare(bp->hclk);
 		clk_disable_unprepare(bp->pclk);

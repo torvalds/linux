@@ -163,7 +163,10 @@ enum mlx5_dcbx_oper_mode {
 };
 
 enum mlx5_dct_atomic_mode {
-	MLX5_ATOMIC_MODE_DCT_CX         = 2,
+	MLX5_ATOMIC_MODE_DCT_OFF        = 20,
+	MLX5_ATOMIC_MODE_DCT_NONE       = 0 << MLX5_ATOMIC_MODE_DCT_OFF,
+	MLX5_ATOMIC_MODE_DCT_IB_COMP    = 1 << MLX5_ATOMIC_MODE_DCT_OFF,
+	MLX5_ATOMIC_MODE_DCT_CX         = 2 << MLX5_ATOMIC_MODE_DCT_OFF,
 };
 
 enum {
@@ -773,8 +776,6 @@ struct mlx5_pagefault {
 };
 
 struct mlx5_td {
-	/* protects tirs list changes while tirs refresh */
-	struct mutex     list_lock;
 	struct list_head tirs_list;
 	u32              tdn;
 };
@@ -902,7 +903,6 @@ struct mlx5_cmd_work_ent {
 	struct delayed_work	cb_timeout_work;
 	void		       *context;
 	int			idx;
-	struct completion	handling;
 	struct completion	done;
 	struct mlx5_cmd        *cmd;
 	struct work_struct	work;
@@ -1321,7 +1321,7 @@ enum {
 static inline const struct cpumask *
 mlx5_get_vector_affinity_hint(struct mlx5_core_dev *dev, int vector)
 {
-	return dev->priv.irq_info[vector + MLX5_EQ_VEC_COMP_BASE].mask;
+	return dev->priv.irq_info[vector].mask;
 }
 
 #endif /* MLX5_DRIVER_H */

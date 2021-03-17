@@ -120,8 +120,8 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 			fprintf(stderr, "Read error or end of file.\n");
 		return -1;
 	}
-	if (strlen(sym) >= KSYM_NAME_LEN) {
-		fprintf(stderr, "Symbol %s too long for kallsyms (%zu >= %d).\n"
+	if (strlen(sym) > KSYM_NAME_LEN) {
+		fprintf(stderr, "Symbol %s too long for kallsyms (%zu vs %d).\n"
 				"Please increase KSYM_NAME_LEN both in kernel and kallsyms.c\n",
 			sym, strlen(sym), KSYM_NAME_LEN);
 		return -1;
@@ -151,9 +151,6 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 		return -1;
 	/* exclude debugging symbols */
 	else if (stype == 'N' || stype == 'n')
-		return -1;
-	/* exclude s390 kasan local symbols */
-	else if (!strncmp(sym, ".LASANPC", 8))
 		return -1;
 
 	/* include the type field in the symbol name, so that it gets
@@ -491,8 +488,6 @@ static void build_initial_tok_table(void)
 				table[pos] = table[i];
 			learn_symbol(table[pos].sym, table[pos].len);
 			pos++;
-		} else {
-			free(table[i].sym);
 		}
 	}
 	table_cnt = pos;

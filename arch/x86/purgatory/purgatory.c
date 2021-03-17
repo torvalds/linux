@@ -70,9 +70,3 @@ void purgatory(void)
 	}
 	copy_backup_region();
 }
-
-/*
- * Defined in order to reuse memcpy() and memset() from
- * arch/x86/boot/compressed/string.c
- */
-void warn(const char *msg) {}

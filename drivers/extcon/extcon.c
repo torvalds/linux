@@ -33,9 +33,6 @@
 #include <linux/sysfs.h>
 
 #include "extcon.h"
-#ifdef CONFIG_ARCH_ROCKCHIP
-#include "../base/base.h"
-#endif
 
 #define SUPPORTED_CABLE_MAX	32
 
@@ -61,11 +58,6 @@ static const struct __extcon_info {
 		.type = EXTCON_TYPE_USB,
 		.id = EXTCON_USB_HOST,
 		.name = "USB-HOST",
-	},
-	[EXTCON_USB_VBUS_EN] = {
-		.type = EXTCON_TYPE_USB,
-		.id = EXTCON_USB_VBUS_EN,
-		.name = "USB_VBUS_EN",
 	},
 
 	/* Charging external connector */
@@ -494,21 +486,6 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(extcon_sync);
-
-int extcon_blocking_sync(struct extcon_dev *edev, unsigned int id, bool val)
-{
-	int index;
-
-	if (!edev)
-		return -EINVAL;
-
-	index = find_cable_index_by_id(edev, id);
-	if (index < 0)
-		return index;
-
-	return blocking_notifier_call_chain(&edev->bnh[index], val, edev);
-}
-EXPORT_SYMBOL(extcon_blocking_sync);
 
 /**
  * extcon_get_state() - Get the state of an external connector.
@@ -948,38 +925,6 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 }
 EXPORT_SYMBOL_GPL(extcon_register_notifier);
 
-int extcon_register_blocking_notifier(struct extcon_dev *edev, unsigned int id,
-			struct notifier_block *nb)
-{
-	int idx = -EINVAL;
-
-	if (!edev || !nb)
-		return -EINVAL;
-
-	idx = find_cable_index_by_id(edev, id);
-	if (idx < 0)
-		return idx;
-
-	return blocking_notifier_chain_register(&edev->bnh[idx], nb);
-}
-EXPORT_SYMBOL(extcon_register_blocking_notifier);
-
-int extcon_unregister_blocking_notifier(struct extcon_dev *edev,
-			unsigned int id, struct notifier_block *nb)
-{
-	int idx;
-
-	if (!edev || !nb)
-		return -EINVAL;
-
-	idx = find_cable_index_by_id(edev, id);
-	if (idx < 0)
-		return idx;
-
-	return blocking_notifier_chain_unregister(&edev->bnh[idx], nb);
-}
-EXPORT_SYMBOL(extcon_unregister_blocking_notifier);
-
 /**
  * extcon_unregister_notifier() - Unregister a notifier block from the extcon.
  * @edev:	the extcon device
@@ -1127,19 +1072,6 @@ void extcon_dev_free(struct extcon_dev *edev)
 	kfree(edev);
 }
 EXPORT_SYMBOL_GPL(extcon_dev_free);
-
-#ifdef CONFIG_ARCH_ROCKCHIP
-static const char *extcon_get_link_name(struct extcon_dev *edev)
-{
-	const char *dot = strchr(edev->name, '.');
-	const char *name = dot + 1;
-
-	if (!dot || !name || !(*name))
-		name = edev->name;
-
-	return name;
-}
-#endif
 
 /**
  * extcon_dev_register() - Register an new extcon device
@@ -1327,13 +1259,6 @@ int extcon_dev_register(struct extcon_dev *edev)
 		goto err_dev;
 	}
 
-	edev->bnh = devm_kzalloc(&edev->dev,
-			sizeof(*edev->bnh) * edev->max_supported, GFP_KERNEL);
-	if (!edev->bnh) {
-		ret = -ENOMEM;
-		goto err_dev;
-	}
-
 	for (index = 0; index < edev->max_supported; index++)
 		RAW_INIT_NOTIFIER_HEAD(&edev->nh[index]);
 
@@ -1345,18 +1270,6 @@ int extcon_dev_register(struct extcon_dev *edev)
 	mutex_lock(&extcon_dev_list_lock);
 	list_add(&edev->entry, &extcon_dev_list);
 	mutex_unlock(&extcon_dev_list_lock);
-
-#ifdef CONFIG_ARCH_ROCKCHIP
-	{
-		const char *name = extcon_get_link_name(edev);
-
-		ret = sysfs_create_link_nowarn(&edev->dev.class->p->subsys.kobj,
-					       &edev->dev.kobj, name);
-		if (ret)
-			dev_err(&edev->dev,
-				"failed to create extcon %s link\n", name);
-	}
-#endif
 
 	return 0;
 
@@ -1404,11 +1317,6 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 				dev_name(&edev->dev));
 		return;
 	}
-
-#ifdef CONFIG_ARCH_ROCKCHIP
-	sysfs_delete_link(&edev->dev.class->p->subsys.kobj,
-			  &edev->dev.kobj, extcon_get_link_name(edev));
-#endif
 
 	device_unregister(&edev->dev);
 
@@ -1513,7 +1421,6 @@ const char *extcon_get_edev_name(struct extcon_dev *edev)
 {
 	return !edev ? NULL : edev->name;
 }
-EXPORT_SYMBOL_GPL(extcon_get_edev_name);
 
 static int __init extcon_class_init(void)
 {

@@ -52,10 +52,8 @@ int arizona_clk32k_enable(struct arizona *arizona)
 			if (ret != 0)
 				goto err_ref;
 			ret = clk_prepare_enable(arizona->mclk[ARIZONA_MCLK1]);
-			if (ret != 0) {
-				pm_runtime_put_sync(arizona->dev);
-				goto err_ref;
-			}
+			if (ret != 0)
+				goto err_pm;
 			break;
 		case ARIZONA_32KZ_MCLK2:
 			ret = clk_prepare_enable(arizona->mclk[ARIZONA_MCLK2]);
@@ -69,6 +67,8 @@ int arizona_clk32k_enable(struct arizona *arizona)
 					 ARIZONA_CLK_32K_ENA);
 	}
 
+err_pm:
+	pm_runtime_put_sync(arizona->dev);
 err_ref:
 	if (ret != 0)
 		arizona->clk32k_ref--;
@@ -996,7 +996,7 @@ int arizona_dev_init(struct arizona *arizona)
 	unsigned int reg, val;
 	int (*apply_patch)(struct arizona *) = NULL;
 	const struct mfd_cell *subdevs = NULL;
-	int n_subdevs = 0, ret, i;
+	int n_subdevs, ret, i;
 
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);
@@ -1433,15 +1433,6 @@ err_irq:
 	arizona_irq_exit(arizona);
 err_pm:
 	pm_runtime_disable(arizona->dev);
-
-	switch (arizona->pdata.clk32k_src) {
-	case ARIZONA_32KZ_MCLK1:
-	case ARIZONA_32KZ_MCLK2:
-		arizona_clk32k_disable(arizona);
-		break;
-	default:
-		break;
-	}
 err_reset:
 	arizona_enable_reset(arizona);
 	regulator_disable(arizona->dcvdd);
@@ -1463,15 +1454,6 @@ int arizona_dev_exit(struct arizona *arizona)
 
 	regulator_disable(arizona->dcvdd);
 	regulator_put(arizona->dcvdd);
-
-	switch (arizona->pdata.clk32k_src) {
-	case ARIZONA_32KZ_MCLK1:
-	case ARIZONA_32KZ_MCLK2:
-		arizona_clk32k_disable(arizona);
-		break;
-	default:
-		break;
-	}
 
 	mfd_remove_devices(arizona->dev);
 	arizona_free_irq(arizona, ARIZONA_IRQ_UNDERCLOCKED, arizona);

@@ -168,7 +168,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x1550000 0x0 0x10000>,
-			      <0x0 0x40000000 0x0 0x20000000>;
+			      <0x0 0x40000000 0x0 0x40000000>;
 			reg-names = "QuadSPI", "QuadSPI-memory";
 			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "qspi_en", "qspi";
@@ -592,15 +592,6 @@
 			      <0x0 0x2d10030 0x0 0x4>;
 		};
 
-		mdio1: mdio@2d64000 {
-			compatible = "gianfar";
-			device_type = "mdio";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x0 0x2d64000 0x0 0x4000>,
-			      <0x0 0x2d50030 0x0 0x4>;
-		};
-
 		ptp_clock@2d10e00 {
 			compatible = "fsl,etsec-ptp";
 			reg = <0x0 0x2d10e00 0x0 0xb0>;
@@ -609,7 +600,7 @@
 			fsl,tmr-prsc    = <2>;
 			fsl,tmr-add     = <0xaaaaaaab>;
 			fsl,tmr-fiper1  = <999999995>;
-			fsl,tmr-fiper2  = <999999995>;
+			fsl,tmr-fiper2  = <99990>;
 			fsl,max-adj     = <499999999>;
 		};
 

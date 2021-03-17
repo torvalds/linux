@@ -1639,17 +1639,16 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
 {
 	int rc;
 	unsigned long remain;
-	ulong flags;
 
 	mutex_lock(&wil->wmi_mutex);
 
-	spin_lock_irqsave(&wil->wmi_ev_lock, flags);
+	spin_lock(&wil->wmi_ev_lock);
 	wil->reply_id = reply_id;
 	wil->reply_mid = mid;
 	wil->reply_buf = reply;
 	wil->reply_size = reply_size;
 	reinit_completion(&wil->wmi_call);
-	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
+	spin_unlock(&wil->wmi_ev_lock);
 
 	rc = __wmi_send(wil, cmdid, mid, buf, len);
 	if (rc)
@@ -1669,12 +1668,12 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
 	}
 
 out:
-	spin_lock_irqsave(&wil->wmi_ev_lock, flags);
+	spin_lock(&wil->wmi_ev_lock);
 	wil->reply_id = 0;
 	wil->reply_mid = U8_MAX;
 	wil->reply_buf = NULL;
 	wil->reply_size = 0;
-	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
+	spin_unlock(&wil->wmi_ev_lock);
 
 	mutex_unlock(&wil->wmi_mutex);
 
@@ -2802,7 +2801,7 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 
 		if (mid == MID_BROADCAST)
 			mid = 0;
-		if (mid >= ARRAY_SIZE(wil->vifs) || mid >= wil->max_vifs) {
+		if (mid >= wil->max_vifs) {
 			wil_dbg_wmi(wil, "invalid mid %d, event skipped\n",
 				    mid);
 			return;
@@ -2817,18 +2816,7 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 		/* check if someone waits for this event */
 		if (wil->reply_id && wil->reply_id == id &&
 		    wil->reply_mid == mid) {
-			if (wil->reply_buf) {
-				/* event received while wmi_call is waiting
-				 * with a buffer. Such event should be handled
-				 * in wmi_recv_cmd function. Handling the event
-				 * here means a previous wmi_call was timeout.
-				 * Drop the event and do not handle it.
-				 */
-				wil_err(wil,
-					"Old event (%d, %s) while wmi_call is waiting. Drop it and Continue waiting\n",
-					id, eventid2name(id));
-				return;
-			}
+			WARN_ON(wil->reply_buf);
 
 			wmi_evt_call_handler(vif, id, evt_data,
 					     len - sizeof(*wmi));
@@ -3119,9 +3107,8 @@ int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len)
 	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, vif->mid, cmd, total,
 		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
 	if (!rc && evt.evt.status != WMI_FW_STATUS_SUCCESS) {
-		wil_dbg_wmi(wil, "mgmt_tx failed with status %d\n",
-			    evt.evt.status);
-		rc = -EAGAIN;
+		wil_err(wil, "mgmt_tx failed with status %d\n", evt.evt.status);
+		rc = -EINVAL;
 	}
 
 	kfree(cmd);
@@ -3173,9 +3160,9 @@ int wmi_mgmt_tx_ext(struct wil6210_vif *vif, const u8 *buf, size_t len,
 	rc = wmi_call(wil, WMI_SW_TX_REQ_EXT_CMDID, vif->mid, cmd, total,
 		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
 	if (!rc && evt.evt.status != WMI_FW_STATUS_SUCCESS) {
-		wil_dbg_wmi(wil, "mgmt_tx_ext failed with status %d\n",
-			    evt.evt.status);
-		rc = -EAGAIN;
+		wil_err(wil, "mgmt_tx_ext failed with status %d\n",
+			evt.evt.status);
+		rc = -EINVAL;
 	}
 
 	kfree(cmd);

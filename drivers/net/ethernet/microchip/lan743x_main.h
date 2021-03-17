@@ -548,7 +548,6 @@ struct lan743x_adapter;
 /* SMSC acquired EFAR late 1990's, MCHP acquired SMSC 2012 */
 #define PCI_VENDOR_ID_SMSC		PCI_VENDOR_ID_EFAR
 #define PCI_DEVICE_ID_SMSC_LAN7430	(0x7430)
-#define PCI_DEVICE_ID_SMSC_LAN7431	(0x7431)
 
 #define PCI_CONFIG_LENGTH		(0x1000)
 
@@ -701,6 +700,9 @@ struct lan743x_adapter {
 	struct pci_dev		*pdev;
 	struct lan743x_csr      csr;
 	struct lan743x_intr     intr;
+
+	/* lock, used to prevent concurrent access to data port */
+	struct mutex		dp_lock;
 
 	struct lan743x_gpio	gpio;
 	struct lan743x_ptp	ptp;

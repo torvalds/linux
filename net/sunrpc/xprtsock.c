@@ -129,7 +129,7 @@ static struct ctl_table xs_tunables_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xprt_min_resvport_limit,
-		.extra2		= &xprt_max_resvport_limit
+		.extra2		= &xprt_max_resvport
 	},
 	{
 		.procname	= "max_resvport",
@@ -137,7 +137,7 @@ static struct ctl_table xs_tunables_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xprt_min_resvport_limit,
+		.extra1		= &xprt_min_resvport,
 		.extra2		= &xprt_max_resvport_limit
 	},
 	{
@@ -1611,9 +1611,6 @@ static void xs_tcp_state_change(struct sock *sk)
 			clear_bit(XPRT_SOCK_CONNECTING, &transport->sock_state);
 			xprt_clear_connecting(xprt);
 
-			xprt->stat.connect_count++;
-			xprt->stat.connect_time += (long)jiffies -
-						   xprt->stat.connect_start;
 			xprt_wake_pending_tasks(xprt, -EAGAIN);
 		}
 		spin_unlock(&xprt->transport_lock);
@@ -1776,17 +1773,11 @@ static void xs_udp_timer(struct rpc_xprt *xprt, struct rpc_task *task)
 	spin_unlock_bh(&xprt->transport_lock);
 }
 
-static int xs_get_random_port(void)
+static unsigned short xs_get_random_port(void)
 {
-	unsigned short min = xprt_min_resvport, max = xprt_max_resvport;
-	unsigned short range;
-	unsigned short rand;
-
-	if (max < min)
-		return -EADDRINUSE;
-	range = max - min + 1;
-	rand = (unsigned short) prandom_u32() % range;
-	return rand + min;
+	unsigned short range = xprt_max_resvport - xprt_min_resvport + 1;
+	unsigned short rand = (unsigned short) prandom_u32() % range;
+	return rand + xprt_min_resvport;
 }
 
 /**
@@ -1842,9 +1833,9 @@ static void xs_set_srcport(struct sock_xprt *transport, struct socket *sock)
 		transport->srcport = xs_sock_getport(sock);
 }
 
-static int xs_get_srcport(struct sock_xprt *transport)
+static unsigned short xs_get_srcport(struct sock_xprt *transport)
 {
-	int port = transport->srcport;
+	unsigned short port = transport->srcport;
 
 	if (port == 0 && transport->xprt.resvport)
 		port = xs_get_random_port();
@@ -1865,7 +1856,7 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 {
 	struct sockaddr_storage myaddr;
 	int err, nloop = 0;
-	int port = xs_get_srcport(transport);
+	unsigned short port = xs_get_srcport(transport);
 	unsigned short last;
 
 	/*
@@ -1883,8 +1874,8 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 	 * transport->xprt.resvport == 1) xs_get_srcport above will
 	 * ensure that port is non-zero and we will bind as needed.
 	 */
-	if (port <= 0)
-		return port;
+	if (port == 0)
+		return 0;
 
 	memcpy(&myaddr, &transport->srcaddr, transport->xprt.addrlen);
 	do {
@@ -2038,6 +2029,8 @@ static int xs_local_finish_connecting(struct rpc_xprt *xprt,
 	}
 
 	/* Tell the socket layer to start connecting... */
+	xprt->stat.connect_count++;
+	xprt->stat.connect_start = jiffies;
 	return kernel_connect(sock, xs_addr(xprt), xprt->addrlen, 0);
 }
 
@@ -2069,9 +2062,6 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
 	case 0:
 		dprintk("RPC:       xprt %p connected to %s\n",
 				xprt, xprt->address_strings[RPC_DISPLAY_ADDR]);
-		xprt->stat.connect_count++;
-		xprt->stat.connect_time += (long)jiffies -
-					   xprt->stat.connect_start;
 		xprt_set_connected(xprt);
 	case -ENOBUFS:
 		break;
@@ -2254,8 +2244,8 @@ static void xs_udp_setup_socket(struct work_struct *work)
 	trace_rpc_socket_connect(xprt, sock, 0);
 	status = 0;
 out:
-	xprt_clear_connecting(xprt);
 	xprt_unlock_connect(xprt, transport);
+	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
 }
 
@@ -2397,6 +2387,8 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	xs_set_memalloc(xprt);
 
 	/* Tell the socket layer to start connecting... */
+	xprt->stat.connect_count++;
+	xprt->stat.connect_start = jiffies;
 	set_bit(XPRT_SOCK_CONNECTING, &transport->sock_state);
 	ret = kernel_connect(sock, xs_addr(xprt), xprt->addrlen, O_NONBLOCK);
 	switch (ret) {
@@ -2488,8 +2480,8 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	}
 	status = -EAGAIN;
 out:
-	xprt_clear_connecting(xprt);
 	xprt_unlock_connect(xprt, transport);
+	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
 }
 
@@ -3241,7 +3233,6 @@ static struct xprt_class	xs_local_transport = {
 	.owner		= THIS_MODULE,
 	.ident		= XPRT_TRANSPORT_LOCAL,
 	.setup		= xs_setup_local,
-	.netid		= { "" },
 };
 
 static struct xprt_class	xs_udp_transport = {
@@ -3250,7 +3241,6 @@ static struct xprt_class	xs_udp_transport = {
 	.owner		= THIS_MODULE,
 	.ident		= XPRT_TRANSPORT_UDP,
 	.setup		= xs_setup_udp,
-	.netid		= { "udp", "udp6", "" },
 };
 
 static struct xprt_class	xs_tcp_transport = {
@@ -3259,7 +3249,6 @@ static struct xprt_class	xs_tcp_transport = {
 	.owner		= THIS_MODULE,
 	.ident		= XPRT_TRANSPORT_TCP,
 	.setup		= xs_setup_tcp,
-	.netid		= { "tcp", "tcp6", "" },
 };
 
 static struct xprt_class	xs_bc_tcp_transport = {
@@ -3268,7 +3257,6 @@ static struct xprt_class	xs_bc_tcp_transport = {
 	.owner		= THIS_MODULE,
 	.ident		= XPRT_TRANSPORT_BC_TCP,
 	.setup		= xs_setup_bc_tcp,
-	.netid		= { "" },
 };
 
 /**
@@ -3329,8 +3317,12 @@ static int param_set_uint_minmax(const char *val,
 
 static int param_set_portnr(const char *val, const struct kernel_param *kp)
 {
-	return param_set_uint_minmax(val, kp,
+	if (kp->arg == &xprt_min_resvport)
+		return param_set_uint_minmax(val, kp,
 			RPC_MIN_RESVPORT,
+			xprt_max_resvport);
+	return param_set_uint_minmax(val, kp,
+			xprt_min_resvport,
 			RPC_MAX_RESVPORT);
 }
 

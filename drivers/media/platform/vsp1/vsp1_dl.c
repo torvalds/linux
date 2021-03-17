@@ -431,8 +431,6 @@ vsp1_dl_cmd_pool_create(struct vsp1_device *vsp1, enum vsp1_extcmd_type type,
 	if (!pool)
 		return NULL;
 
-	pool->vsp1 = vsp1;
-
 	spin_lock_init(&pool->lock);
 	INIT_LIST_HEAD(&pool->free);
 
@@ -559,10 +557,8 @@ static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 
 	/* Get a default body for our list. */
 	dl->body0 = vsp1_dl_body_get(dlm->pool);
-	if (!dl->body0) {
-		kfree(dl);
+	if (!dl->body0)
 		return NULL;
-	}
 
 	header_offset = dl->body0->max_entries * sizeof(*dl->body0->entries);
 

@@ -30,8 +30,6 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/interval_tree_generic.h>
-#include <linux/nospec.h>
-#include <linux/kcov.h>
 
 #include "vhost.h"
 
@@ -360,9 +358,7 @@ static int vhost_worker(void *data)
 		llist_for_each_entry_safe(work, work_next, node, node) {
 			clear_bit(VHOST_WORK_QUEUED, &work->flags);
 			__set_current_state(TASK_RUNNING);
-			kcov_remote_start_common(dev->kcov_handle);
 			work->fn(work);
-			kcov_remote_stop();
 			if (need_resched())
 				schedule();
 		}
@@ -393,9 +389,9 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 		vq->indirect = kmalloc_array(UIO_MAXIOV,
 					     sizeof(*vq->indirect),
 					     GFP_KERNEL);
-		vq->log = kmalloc_array(dev->iov_limit, sizeof(*vq->log),
+		vq->log = kmalloc_array(UIO_MAXIOV, sizeof(*vq->log),
 					GFP_KERNEL);
-		vq->heads = kmalloc_array(dev->iov_limit, sizeof(*vq->heads),
+		vq->heads = kmalloc_array(UIO_MAXIOV, sizeof(*vq->heads),
 					  GFP_KERNEL);
 		if (!vq->indirect || !vq->log || !vq->heads)
 			goto err_nomem;
@@ -416,24 +412,8 @@ static void vhost_dev_free_iovecs(struct vhost_dev *dev)
 		vhost_vq_free_iovecs(dev->vqs[i]);
 }
 
-bool vhost_exceeds_weight(struct vhost_virtqueue *vq,
-			  int pkts, int total_len)
-{
-	struct vhost_dev *dev = vq->dev;
-
-	if ((dev->byte_weight && total_len >= dev->byte_weight) ||
-	    pkts >= dev->weight) {
-		vhost_poll_queue(&vq->poll);
-		return true;
-	}
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(vhost_exceeds_weight);
-
 void vhost_dev_init(struct vhost_dev *dev,
-		    struct vhost_virtqueue **vqs, int nvqs,
-		    int iov_limit, int weight, int byte_weight)
+		    struct vhost_virtqueue **vqs, int nvqs)
 {
 	struct vhost_virtqueue *vq;
 	int i;
@@ -446,9 +426,6 @@ void vhost_dev_init(struct vhost_dev *dev,
 	dev->iotlb = NULL;
 	dev->mm = NULL;
 	dev->worker = NULL;
-	dev->iov_limit = iov_limit;
-	dev->weight = weight;
-	dev->byte_weight = byte_weight;
 	init_llist_head(&dev->work_list);
 	init_waitqueue_head(&dev->wait);
 	INIT_LIST_HEAD(&dev->read_list);
@@ -525,7 +502,6 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
 
 	/* No owner, become one */
 	dev->mm = get_task_mm(current);
-	dev->kcov_handle = kcov_common_handle();
 	worker = kthread_create(vhost_worker, dev, "vhost-%d", current->pid);
 	if (IS_ERR(worker)) {
 		err = PTR_ERR(worker);
@@ -551,7 +527,6 @@ err_worker:
 	if (dev->mm)
 		mmput(dev->mm);
 	dev->mm = NULL;
-	dev->kcov_handle = 0;
 err_mm:
 	return err;
 }
@@ -663,7 +638,6 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 	if (dev->worker) {
 		kthread_stop(dev->worker);
 		dev->worker = NULL;
-		dev->kcov_handle = 0;
 	}
 	if (dev->mm)
 		mmput(dev->mm);
@@ -935,12 +909,8 @@ static int vhost_new_umem_range(struct vhost_umem *umem,
 				u64 start, u64 size, u64 end,
 				u64 userspace_addr, int perm)
 {
-	struct vhost_umem_node *tmp, *node;
+	struct vhost_umem_node *tmp, *node = kmalloc(sizeof(*node), GFP_ATOMIC);
 
-	if (!size)
-		return -EFAULT;
-
-	node = kmalloc(sizeof(*node), GFP_ATOMIC);
 	if (!node)
 		return -ENOMEM;
 
@@ -1063,10 +1033,8 @@ ssize_t vhost_chr_write_iter(struct vhost_dev *dev,
 	int type, ret;
 
 	ret = copy_from_iter(&type, sizeof(type), from);
-	if (ret != sizeof(type)) {
-		ret = -EINVAL;
+	if (ret != sizeof(type))
 		goto done;
-	}
 
 	switch (type) {
 	case VHOST_IOTLB_MSG:
@@ -1085,10 +1053,8 @@ ssize_t vhost_chr_write_iter(struct vhost_dev *dev,
 
 	iov_iter_advance(from, offset);
 	ret = copy_from_iter(&msg, sizeof(msg), from);
-	if (ret != sizeof(msg)) {
-		ret = -EINVAL;
+	if (ret != sizeof(msg))
 		goto done;
-	}
 	if (vhost_process_iotlb_msg(dev, &msg)) {
 		ret = -EFAULT;
 		goto done;
@@ -1431,7 +1397,6 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
 	if (idx >= d->nvqs)
 		return -ENOBUFS;
 
-	idx = array_index_nospec(idx, d->nvqs);
 	vq = d->vqs[idx];
 
 	mutex_lock(&vq->mutex);
@@ -1766,87 +1731,13 @@ static int log_write(void __user *log_base,
 	return r;
 }
 
-static int log_write_hva(struct vhost_virtqueue *vq, u64 hva, u64 len)
-{
-	struct vhost_umem *umem = vq->umem;
-	struct vhost_umem_node *u;
-	u64 start, end, l, min;
-	int r;
-	bool hit = false;
-
-	while (len) {
-		min = len;
-		/* More than one GPAs can be mapped into a single HVA. So
-		 * iterate all possible umems here to be safe.
-		 */
-		list_for_each_entry(u, &umem->umem_list, link) {
-			if (u->userspace_addr > hva - 1 + len ||
-			    u->userspace_addr - 1 + u->size < hva)
-				continue;
-			start = max(u->userspace_addr, hva);
-			end = min(u->userspace_addr - 1 + u->size,
-				  hva - 1 + len);
-			l = end - start + 1;
-			r = log_write(vq->log_base,
-				      u->start + start - u->userspace_addr,
-				      l);
-			if (r < 0)
-				return r;
-			hit = true;
-			min = min(l, min);
-		}
-
-		if (!hit)
-			return -EFAULT;
-
-		len -= min;
-		hva += min;
-	}
-
-	return 0;
-}
-
-static int log_used(struct vhost_virtqueue *vq, u64 used_offset, u64 len)
-{
-	struct iovec iov[64];
-	int i, ret;
-
-	if (!vq->iotlb)
-		return log_write(vq->log_base, vq->log_addr + used_offset, len);
-
-	ret = translate_desc(vq, (uintptr_t)vq->used + used_offset,
-			     len, iov, 64, VHOST_ACCESS_WO);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < ret; i++) {
-		ret = log_write_hva(vq,	(uintptr_t)iov[i].iov_base,
-				    iov[i].iov_len);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
-		    unsigned int log_num, u64 len, struct iovec *iov, int count)
+		    unsigned int log_num, u64 len)
 {
 	int i, r;
 
 	/* Make sure data written is seen before log. */
 	smp_wmb();
-
-	if (vq->iotlb) {
-		for (i = 0; i < count; i++) {
-			r = log_write_hva(vq, (uintptr_t)iov[i].iov_base,
-					  iov[i].iov_len);
-			if (r < 0)
-				return r;
-		}
-		return 0;
-	}
-
 	for (i = 0; i < log_num; ++i) {
 		u64 l = min(log[i].len, len);
 		r = log_write(vq->log_base, log[i].addr, l);
@@ -1876,8 +1767,9 @@ static int vhost_update_used_flags(struct vhost_virtqueue *vq)
 		smp_wmb();
 		/* Log used flag write. */
 		used = &vq->used->flags;
-		log_used(vq, (used - (void __user *)vq->used),
-			 sizeof vq->used->flags);
+		log_write(vq->log_base, vq->log_addr +
+			  (used - (void __user *)vq->used),
+			  sizeof vq->used->flags);
 		if (vq->log_ctx)
 			eventfd_signal(vq->log_ctx, 1);
 	}
@@ -1895,8 +1787,9 @@ static int vhost_update_avail_event(struct vhost_virtqueue *vq, u16 avail_event)
 		smp_wmb();
 		/* Log avail event write */
 		used = vhost_avail_event(vq);
-		log_used(vq, (used - (void __user *)vq->used),
-			 sizeof *vhost_avail_event(vq));
+		log_write(vq->log_base, vq->log_addr +
+			  (used - (void __user *)vq->used),
+			  sizeof *vhost_avail_event(vq));
 		if (vq->log_ctx)
 			eventfd_signal(vq->log_ctx, 1);
 	}
@@ -2079,7 +1972,7 @@ static int get_indirect(struct vhost_virtqueue *vq,
 		/* If this is an input descriptor, increment that count. */
 		if (access == VHOST_ACCESS_WO) {
 			*in_num += ret;
-			if (unlikely(log && ret)) {
+			if (unlikely(log)) {
 				log[*log_num].addr = vhost64_to_cpu(vq, desc.addr);
 				log[*log_num].len = vhost32_to_cpu(vq, desc.len);
 				++*log_num;
@@ -2222,7 +2115,7 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 			/* If this is an input descriptor,
 			 * increment that count. */
 			*in_num += ret;
-			if (unlikely(log && ret)) {
+			if (unlikely(log)) {
 				log[*log_num].addr = vhost64_to_cpu(vq, desc.addr);
 				log[*log_num].len = vhost32_to_cpu(vq, desc.len);
 				++*log_num;
@@ -2296,8 +2189,10 @@ static int __vhost_add_used_n(struct vhost_virtqueue *vq,
 		/* Make sure data is seen before log. */
 		smp_wmb();
 		/* Log used ring entry write. */
-		log_used(vq, ((void __user *)used - (void __user *)vq->used),
-			 count * sizeof *used);
+		log_write(vq->log_base,
+			  vq->log_addr +
+			   ((void __user *)used - (void __user *)vq->used),
+			  count * sizeof *used);
 	}
 	old = vq->last_used_idx;
 	new = (vq->last_used_idx += count);
@@ -2336,11 +2231,10 @@ int vhost_add_used_n(struct vhost_virtqueue *vq, struct vring_used_elem *heads,
 		return -EFAULT;
 	}
 	if (unlikely(vq->log_used)) {
-		/* Make sure used idx is seen before log. */
-		smp_wmb();
 		/* Log used index update. */
-		log_used(vq, offsetof(struct vring_used, idx),
-			 sizeof vq->used->idx);
+		log_write(vq->log_base,
+			  vq->log_addr + offsetof(struct vring_used, idx),
+			  sizeof vq->used->idx);
 		if (vq->log_ctx)
 			eventfd_signal(vq->log_ctx, 1);
 	}

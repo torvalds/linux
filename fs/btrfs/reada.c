@@ -442,8 +442,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		}
 		have_zone = 1;
 	}
-	if (!have_zone)
-		radix_tree_delete(&fs_info->reada_tree, index);
 	spin_unlock(&fs_info->reada_lock);
 	btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
 
@@ -722,19 +720,21 @@ static int reada_start_machine_dev(struct btrfs_device *dev)
 static void reada_start_machine_worker(struct btrfs_work *work)
 {
 	struct reada_machine_work *rmw;
+	struct btrfs_fs_info *fs_info;
 	int old_ioprio;
 
 	rmw = container_of(work, struct reada_machine_work, work);
+	fs_info = rmw->fs_info;
+
+	kfree(rmw);
 
 	old_ioprio = IOPRIO_PRIO_VALUE(task_nice_ioclass(current),
 				       task_nice_ioprio(current));
 	set_task_ioprio(current, BTRFS_IOPRIO_READA);
-	__reada_start_machine(rmw->fs_info);
+	__reada_start_machine(fs_info);
 	set_task_ioprio(current, old_ioprio);
 
-	atomic_dec(&rmw->fs_info->reada_works_cnt);
-
-	kfree(rmw);
+	atomic_dec(&fs_info->reada_works_cnt);
 }
 
 static void __reada_start_machine(struct btrfs_fs_info *fs_info)
@@ -745,7 +745,6 @@ static void __reada_start_machine(struct btrfs_fs_info *fs_info)
 	u64 total = 0;
 	int i;
 
-again:
 	do {
 		enqueued = 0;
 		mutex_lock(&fs_devices->device_list_mutex);
@@ -757,10 +756,6 @@ again:
 		mutex_unlock(&fs_devices->device_list_mutex);
 		total += enqueued;
 	} while (enqueued && total < 10000);
-	if (fs_devices->seed) {
-		fs_devices = fs_devices->seed;
-		goto again;
-	}
 
 	if (enqueued == 0)
 		return;

@@ -798,9 +798,7 @@ static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
 
 		if (page_offset > end_index)
 			break;
-		page = pagecache_get_page(mapping, page_offset,
-				 FGP_LOCK|FGP_ACCESSED|FGP_CREAT|FGP_NOWAIT,
-				 ra_gfp_mask);
+		page = find_or_create_page(mapping, page_offset, ra_gfp_mask);
 		if (!page)
 			break;
 		if (!PageUptodate(page))
@@ -1391,6 +1389,7 @@ int ubifs_update_time(struct inode *inode, struct timespec64 *time,
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	struct ubifs_budget_req req = { .dirtied_ino = 1,
 			.dirtied_ino_d = ALIGN(ui->data_len, 8) };
+	int iflags = I_DIRTY_TIME;
 	int err, release;
 
 	err = ubifs_budget_space(c, &req);
@@ -1405,8 +1404,11 @@ int ubifs_update_time(struct inode *inode, struct timespec64 *time,
 	if (flags & S_MTIME)
 		inode->i_mtime = *time;
 
+	if (!(inode->i_sb->s_flags & SB_LAZYTIME))
+		iflags |= I_DIRTY_SYNC;
+
 	release = ui->dirty;
-	__mark_inode_dirty(inode, I_DIRTY_SYNC);
+	__mark_inode_dirty(inode, iflags);
 	mutex_unlock(&ui->ui_mutex);
 	if (release)
 		ubifs_release_budget(c, &req);

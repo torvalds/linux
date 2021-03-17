@@ -262,10 +262,8 @@ static int vc5_mux_set_parent(struct clk_hw *hw, u8 index)
 
 		if (vc5->clk_mux_ins == VC5_MUX_IN_XIN)
 			src = VC5_PRIM_SRC_SHDN_EN_XTAL;
-		else if (vc5->clk_mux_ins == VC5_MUX_IN_CLKIN)
+		if (vc5->clk_mux_ins == VC5_MUX_IN_CLKIN)
 			src = VC5_PRIM_SRC_SHDN_EN_CLKIN;
-		else /* Invalid; should have been caught by vc5_probe() */
-			return -EINVAL;
 	}
 
 	return regmap_update_bits(vc5->regmap, VC5_PRIM_SRC_SHDN, mask, src);
@@ -703,7 +701,7 @@ static int vc5_probe(struct i2c_client *client,
 		     const struct i2c_device_id *id)
 {
 	struct vc5_driver_data *vc5;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	const char *parent_names[2];
 	unsigned int n, idx = 0;
 	int ret;

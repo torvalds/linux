@@ -11,7 +11,6 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <linux/stringhash.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/coresight.h>
@@ -19,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 
-#include "coresight-etm-perf.h"
 #include "coresight-priv.h"
 
 static DEFINE_MUTEX(coresight_mutex);
@@ -130,132 +128,41 @@ static int coresight_find_link_outport(struct coresight_device *csdev,
 	return -ENODEV;
 }
 
-static inline u32 coresight_read_claim_tags(void __iomem *base)
-{
-	return readl_relaxed(base + CORESIGHT_CLAIMCLR);
-}
-
-static inline bool coresight_is_claimed_self_hosted(void __iomem *base)
-{
-	return coresight_read_claim_tags(base) == CORESIGHT_CLAIM_SELF_HOSTED;
-}
-
-static inline bool coresight_is_claimed_any(void __iomem *base)
-{
-	return coresight_read_claim_tags(base) != 0;
-}
-
-static inline void coresight_set_claim_tags(void __iomem *base)
-{
-	writel_relaxed(CORESIGHT_CLAIM_SELF_HOSTED, base + CORESIGHT_CLAIMSET);
-	isb();
-}
-
-static inline void coresight_clear_claim_tags(void __iomem *base)
-{
-	writel_relaxed(CORESIGHT_CLAIM_SELF_HOSTED, base + CORESIGHT_CLAIMCLR);
-	isb();
-}
-
-/*
- * coresight_claim_device_unlocked : Claim the device for self-hosted usage
- * to prevent an external tool from touching this device. As per PSCI
- * standards, section "Preserving the execution context" => "Debug and Trace
- * save and Restore", DBGCLAIM[1] is reserved for Self-hosted debug/trace and
- * DBGCLAIM[0] is reserved for external tools.
- *
- * Called with CS_UNLOCKed for the component.
- * Returns : 0 on success
- */
-int coresight_claim_device_unlocked(void __iomem *base)
-{
-	if (coresight_is_claimed_any(base))
-		return -EBUSY;
-
-	coresight_set_claim_tags(base);
-	if (coresight_is_claimed_self_hosted(base))
-		return 0;
-	/* There was a race setting the tags, clean up and fail */
-	coresight_clear_claim_tags(base);
-	return -EBUSY;
-}
-
-int coresight_claim_device(void __iomem *base)
-{
-	int rc;
-
-	CS_UNLOCK(base);
-	rc = coresight_claim_device_unlocked(base);
-	CS_LOCK(base);
-
-	return rc;
-}
-
-/*
- * coresight_disclaim_device_unlocked : Clear the claim tags for the device.
- * Called with CS_UNLOCKed for the component.
- */
-void coresight_disclaim_device_unlocked(void __iomem *base)
-{
-
-	if (coresight_is_claimed_self_hosted(base))
-		coresight_clear_claim_tags(base);
-	else
-		/*
-		 * The external agent may have not honoured our claim
-		 * and has manipulated it. Or something else has seriously
-		 * gone wrong in our driver.
-		 */
-		WARN_ON_ONCE(1);
-}
-
-void coresight_disclaim_device(void __iomem *base)
-{
-	CS_UNLOCK(base);
-	coresight_disclaim_device_unlocked(base);
-	CS_LOCK(base);
-}
-
-static int coresight_enable_sink(struct coresight_device *csdev,
-				 u32 mode, void *data)
+static int coresight_enable_sink(struct coresight_device *csdev, u32 mode)
 {
 	int ret;
 
-	/*
-	 * We need to make sure the "new" session is compatible with the
-	 * existing "mode" of operation.
-	 */
-	if (!sink_ops(csdev)->enable)
-		return -EINVAL;
+	if (!csdev->enable) {
+		if (sink_ops(csdev)->enable) {
+			ret = sink_ops(csdev)->enable(csdev, mode);
+			if (ret)
+				return ret;
+		}
+		csdev->enable = true;
+	}
 
-	ret = sink_ops(csdev)->enable(csdev, mode, data);
-	if (ret)
-		return ret;
-	csdev->enable = true;
+	atomic_inc(csdev->refcnt);
 
 	return 0;
 }
 
 static void coresight_disable_sink(struct coresight_device *csdev)
 {
-	int ret;
-
-	if (!sink_ops(csdev)->disable)
-		return;
-
-	ret = sink_ops(csdev)->disable(csdev);
-	if (ret)
-		return;
-	csdev->enable = false;
+	if (atomic_dec_return(csdev->refcnt) == 0) {
+		if (sink_ops(csdev)->disable) {
+			sink_ops(csdev)->disable(csdev);
+			csdev->enable = false;
+		}
+	}
 }
 
 static int coresight_enable_link(struct coresight_device *csdev,
 				 struct coresight_device *parent,
 				 struct coresight_device *child)
 {
-	int ret = 0;
+	int ret;
 	int link_subtype;
-	int inport, outport;
+	int refport, inport, outport;
 
 	if (!parent || !child)
 		return -EINVAL;
@@ -264,17 +171,27 @@ static int coresight_enable_link(struct coresight_device *csdev,
 	outport = coresight_find_link_outport(csdev, child);
 	link_subtype = csdev->subtype.link_subtype;
 
-	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG && inport < 0)
-		return inport;
-	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT && outport < 0)
-		return outport;
+	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG)
+		refport = inport;
+	else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT)
+		refport = outport;
+	else
+		refport = 0;
 
-	if (link_ops(csdev)->enable)
-		ret = link_ops(csdev)->enable(csdev, inport, outport);
-	if (!ret)
-		csdev->enable = true;
+	if (refport < 0)
+		return refport;
 
-	return ret;
+	if (atomic_inc_return(&csdev->refcnt[refport]) == 1) {
+		if (link_ops(csdev)->enable) {
+			ret = link_ops(csdev)->enable(csdev, inport, outport);
+			if (ret)
+				return ret;
+		}
+	}
+
+	csdev->enable = true;
+
+	return 0;
 }
 
 static void coresight_disable_link(struct coresight_device *csdev,
@@ -283,7 +200,7 @@ static void coresight_disable_link(struct coresight_device *csdev,
 {
 	int i, nr_conns;
 	int link_subtype;
-	int inport, outport;
+	int refport, inport, outport;
 
 	if (!parent || !child)
 		return;
@@ -293,15 +210,20 @@ static void coresight_disable_link(struct coresight_device *csdev,
 	link_subtype = csdev->subtype.link_subtype;
 
 	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG) {
+		refport = inport;
 		nr_conns = csdev->nr_inport;
 	} else if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT) {
+		refport = outport;
 		nr_conns = csdev->nr_outport;
 	} else {
+		refport = 0;
 		nr_conns = 1;
 	}
 
-	if (link_ops(csdev)->disable)
-		link_ops(csdev)->disable(csdev, inport, outport);
+	if (atomic_dec_return(&csdev->refcnt[refport]) == 0) {
+		if (link_ops(csdev)->disable)
+			link_ops(csdev)->disable(csdev, inport, outport);
+	}
 
 	for (i = 0; i < nr_conns; i++)
 		if (atomic_read(&csdev->refcnt[i]) != 0)
@@ -352,21 +274,13 @@ static bool coresight_disable_source(struct coresight_device *csdev)
 	return !csdev->enable;
 }
 
-/*
- * coresight_disable_path_from : Disable components in the given path beyond
- * @nd in the list. If @nd is NULL, all the components, except the SOURCE are
- * disabled.
- */
-static void coresight_disable_path_from(struct list_head *path,
-					struct coresight_node *nd)
+void coresight_disable_path(struct list_head *path)
 {
 	u32 type;
+	struct coresight_node *nd;
 	struct coresight_device *csdev, *parent, *child;
 
-	if (!nd)
-		nd = list_first_entry(path, struct coresight_node, link);
-
-	list_for_each_entry_continue(nd, path, link) {
+	list_for_each_entry(nd, path, link) {
 		csdev = nd->csdev;
 		type = csdev->type;
 
@@ -386,12 +300,7 @@ static void coresight_disable_path_from(struct list_head *path,
 			coresight_disable_sink(csdev);
 			break;
 		case CORESIGHT_DEV_TYPE_SOURCE:
-			/*
-			 * We skip the first node in the path assuming that it
-			 * is the source. So we don't expect a source device in
-			 * the middle of a path.
-			 */
-			WARN_ON(1);
+			/* sources are disabled from either sysFS or Perf */
 			break;
 		case CORESIGHT_DEV_TYPE_LINK:
 			parent = list_prev_entry(nd, link)->csdev;
@@ -404,12 +313,7 @@ static void coresight_disable_path_from(struct list_head *path,
 	}
 }
 
-void coresight_disable_path(struct list_head *path)
-{
-	coresight_disable_path_from(path, NULL);
-}
-
-int coresight_enable_path(struct list_head *path, u32 mode, void *sink_data)
+int coresight_enable_path(struct list_head *path, u32 mode)
 {
 
 	int ret = 0;
@@ -434,15 +338,9 @@ int coresight_enable_path(struct list_head *path, u32 mode, void *sink_data)
 
 		switch (type) {
 		case CORESIGHT_DEV_TYPE_SINK:
-			ret = coresight_enable_sink(csdev, mode, sink_data);
-			/*
-			 * Sink is the first component turned on. If we
-			 * failed to enable the sink, there are no components
-			 * that need disabling. Disabling the path here
-			 * would mean we could disrupt an existing session.
-			 */
+			ret = coresight_enable_sink(csdev, mode);
 			if (ret)
-				goto out;
+				goto err;
 			break;
 		case CORESIGHT_DEV_TYPE_SOURCE:
 			/* sources are enabled from either sysFS or Perf */
@@ -462,7 +360,7 @@ int coresight_enable_path(struct list_head *path, u32 mode, void *sink_data)
 out:
 	return ret;
 err:
-	coresight_disable_path_from(path, nd);
+	coresight_disable_path(path);
 	goto out;
 }
 
@@ -523,47 +421,6 @@ struct coresight_device *coresight_get_enabled_sink(bool deactivate)
 
 	dev = bus_find_device(&coresight_bustype, NULL, &deactivate,
 			      coresight_enabled_sink);
-
-	return dev ? to_coresight_device(dev) : NULL;
-}
-
-static int coresight_sink_by_id(struct device *dev, void *data)
-{
-	struct coresight_device *csdev = to_coresight_device(dev);
-	unsigned long hash;
-
-	if (csdev->type == CORESIGHT_DEV_TYPE_SINK ||
-	     csdev->type == CORESIGHT_DEV_TYPE_LINKSINK) {
-
-		if (!csdev->ea)
-			return 0;
-		/*
-		 * See function etm_perf_add_symlink_sink() to know where
-		 * this comes from.
-		 */
-		hash = (unsigned long)csdev->ea->var;
-
-		if ((u32)hash == *(u32 *)data)
-			return 1;
-	}
-
-	return 0;
-}
-
-/**
- * coresight_get_sink_by_id - returns the sink that matches the id
- * @id: Id of the sink to match
- *
- * The name of a sink is unique, whether it is found on the AMBA bus or
- * otherwise.  As such the hash of that name can easily be used to identify
- * a sink.
- */
-struct coresight_device *coresight_get_sink_by_id(u32 id)
-{
-	struct device *dev = NULL;
-
-	dev = bus_find_device(&coresight_bustype, NULL, &id,
-			      coresight_sink_by_id);
 
 	return dev ? to_coresight_device(dev) : NULL;
 }
@@ -778,7 +635,7 @@ int coresight_enable(struct coresight_device *csdev)
 		goto out;
 	}
 
-	ret = coresight_enable_path(path, CS_MODE_SYSFS, NULL);
+	ret = coresight_enable_path(path, CS_MODE_SYSFS);
 	if (ret)
 		goto err_path;
 
@@ -958,6 +815,7 @@ static void coresight_device_release(struct device *dev)
 {
 	struct coresight_device *csdev = to_coresight_device(dev);
 
+	kfree(csdev->conns);
 	kfree(csdev->refcnt);
 	kfree(csdev);
 }
@@ -1148,7 +1006,7 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	csdev = kzalloc(sizeof(*csdev), GFP_KERNEL);
 	if (!csdev) {
 		ret = -ENOMEM;
-		goto err_out;
+		goto err_kzalloc_csdev;
 	}
 
 	if (desc->type == CORESIGHT_DEV_TYPE_LINK ||
@@ -1164,7 +1022,7 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	refcnts = kcalloc(nr_refcnts, sizeof(*refcnts), GFP_KERNEL);
 	if (!refcnts) {
 		ret = -ENOMEM;
-		goto err_free_csdev;
+		goto err_kzalloc_refcnts;
 	}
 
 	csdev->refcnt = refcnts;
@@ -1177,7 +1035,7 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 		conns = kcalloc(csdev->nr_outport, sizeof(*conns), GFP_KERNEL);
 		if (!conns) {
 			ret = -ENOMEM;
-			goto err_free_refcnts;
+			goto err_kzalloc_conns;
 		}
 
 		for (i = 0; i < csdev->nr_outport; i++) {
@@ -1204,27 +1062,7 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	ret = device_register(&csdev->dev);
 	if (ret) {
 		put_device(&csdev->dev);
-		/*
-		 * All resources are free'd explicitly via
-		 * coresight_device_release(), triggered from put_device().
-		 */
-		goto err_out;
-	}
-
-	if (csdev->type == CORESIGHT_DEV_TYPE_SINK ||
-	    csdev->type == CORESIGHT_DEV_TYPE_LINKSINK) {
-		ret = etm_perf_add_symlink_sink(csdev);
-
-		if (ret) {
-			device_unregister(&csdev->dev);
-			/*
-			 * As with the above, all resources are free'd
-			 * explicitly via coresight_device_release() triggered
-			 * from put_device(), which is in turn called from
-			 * function device_unregister().
-			 */
-			goto err_out;
-		}
+		goto err_kzalloc_csdev;
 	}
 
 	mutex_lock(&coresight_mutex);
@@ -1236,26 +1074,19 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 
 	return csdev;
 
-err_free_refcnts:
+err_kzalloc_conns:
 	kfree(refcnts);
-err_free_csdev:
+err_kzalloc_refcnts:
 	kfree(csdev);
-err_out:
+err_kzalloc_csdev:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(coresight_register);
 
 void coresight_unregister(struct coresight_device *csdev)
 {
-	etm_perf_del_symlink_sink(csdev);
 	/* Remove references of that device in the topology */
 	coresight_remove_conns(csdev);
 	device_unregister(&csdev->dev);
 }
 EXPORT_SYMBOL_GPL(coresight_unregister);
-
-bool coresight_loses_context_with_cpu(struct device *dev)
-{
-	return fwnode_property_present(dev_fwnode(dev),
-				       "arm,coresight-loses-context-with-cpu");
-}

@@ -233,7 +233,7 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		/* 3) Nominal HSync width (% of line period) - default 8 */
 #define CVT_HSYNC_PERCENTAGE	8
 		unsigned int hblank_percentage;
-		int vsyncandback_porch, __maybe_unused vback_porch, hblank;
+		int vsyncandback_porch, vback_porch, hblank;
 
 		/* estimated the horizontal period */
 		tmp1 = HV_FACTOR * 1000000  -
@@ -386,10 +386,9 @@ drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
 	int top_margin, bottom_margin;
 	int interlace;
 	unsigned int hfreq_est;
-	int vsync_plus_bp, __maybe_unused vback_porch;
-	unsigned int vtotal_lines, __maybe_unused vfieldrate_est;
-	unsigned int __maybe_unused hperiod;
-	unsigned int vfield_rate, __maybe_unused vframe_rate;
+	int vsync_plus_bp, vback_porch;
+	unsigned int vtotal_lines, vfieldrate_est, hperiod;
+	unsigned int vfield_rate, vframe_rate;
 	int left_margin, right_margin;
 	unsigned int total_active_pixels, ideal_duty_cycle;
 	unsigned int hblank, total_pixels, pixel_freq;
@@ -759,7 +758,7 @@ int drm_mode_hsync(const struct drm_display_mode *mode)
 	if (mode->hsync)
 		return mode->hsync;
 
-	if (mode->htotal <= 0)
+	if (mode->htotal < 0)
 		return 0;
 
 	calc_val = (mode->clock * 1000) / mode->htotal; /* hsync in Hz */
@@ -1754,7 +1753,6 @@ int drm_mode_convert_umode(struct drm_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(drm_mode_convert_umode);
 
 /**
  * drm_mode_is_420_only - if a given videomode can be only supported in YCBCR420

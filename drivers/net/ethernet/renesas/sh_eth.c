@@ -1588,10 +1588,6 @@ static void sh_eth_dev_exit(struct net_device *ndev)
 	sh_eth_get_stats(ndev);
 	mdp->cd->soft_reset(ndev);
 
-	/* Set the RMII mode again if required */
-	if (mdp->cd->rmiimode)
-		sh_eth_write(ndev, 0x1, RMIIMODE);
-
 	/* Set MAC address again */
 	update_mac_address(ndev);
 }
@@ -2184,28 +2180,24 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 	if (cd->tsu) {
 		add_tsu_reg(ARSTR);
 		add_tsu_reg(TSU_CTRST);
-		if (cd->dual_port) {
-			add_tsu_reg(TSU_FWEN0);
-			add_tsu_reg(TSU_FWEN1);
-			add_tsu_reg(TSU_FCM);
-			add_tsu_reg(TSU_BSYSL0);
-			add_tsu_reg(TSU_BSYSL1);
-			add_tsu_reg(TSU_PRISL0);
-			add_tsu_reg(TSU_PRISL1);
-			add_tsu_reg(TSU_FWSL0);
-			add_tsu_reg(TSU_FWSL1);
-		}
+		add_tsu_reg(TSU_FWEN0);
+		add_tsu_reg(TSU_FWEN1);
+		add_tsu_reg(TSU_FCM);
+		add_tsu_reg(TSU_BSYSL0);
+		add_tsu_reg(TSU_BSYSL1);
+		add_tsu_reg(TSU_PRISL0);
+		add_tsu_reg(TSU_PRISL1);
+		add_tsu_reg(TSU_FWSL0);
+		add_tsu_reg(TSU_FWSL1);
 		add_tsu_reg(TSU_FWSLC);
-		if (cd->dual_port) {
-			add_tsu_reg(TSU_QTAGM0);
-			add_tsu_reg(TSU_QTAGM1);
-			add_tsu_reg(TSU_FWSR);
-			add_tsu_reg(TSU_FWINMK);
-			add_tsu_reg(TSU_ADQT0);
-			add_tsu_reg(TSU_ADQT1);
-			add_tsu_reg(TSU_VTAG0);
-			add_tsu_reg(TSU_VTAG1);
-		}
+		add_tsu_reg(TSU_QTAGM0);
+		add_tsu_reg(TSU_QTAGM1);
+		add_tsu_reg(TSU_FWSR);
+		add_tsu_reg(TSU_FWINMK);
+		add_tsu_reg(TSU_ADQT0);
+		add_tsu_reg(TSU_ADQT1);
+		add_tsu_reg(TSU_VTAG0);
+		add_tsu_reg(TSU_VTAG1);
 		add_tsu_reg(TSU_ADSBSY);
 		add_tsu_reg(TSU_TEN);
 		add_tsu_reg(TSU_POST1);
@@ -2620,9 +2612,9 @@ static int sh_eth_close(struct net_device *ndev)
 	/* Free all the skbuffs in the Rx queue and the DMA buffer. */
 	sh_eth_ring_free(ndev);
 
-	mdp->is_opened = 0;
+	pm_runtime_put_sync(&mdp->pdev->dev);
 
-	pm_runtime_put(&mdp->pdev->dev);
+	mdp->is_opened = 0;
 
 	return 0;
 }
@@ -3133,16 +3125,12 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct sh_eth_plat_data *pdata;
 	const char *mac_addr;
-	int ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	ret = of_get_phy_mode(np);
-	if (ret < 0)
-		return NULL;
-	pdata->phy_interface = ret;
+	pdata->phy_interface = of_get_phy_mode(np);
 
 	mac_addr = of_get_mac_address(np);
 	if (mac_addr)

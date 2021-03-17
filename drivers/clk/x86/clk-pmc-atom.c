@@ -165,12 +165,12 @@ static const struct clk_ops plt_clk_ops = {
 };
 
 static struct clk_plt *plt_clk_register(struct platform_device *pdev, int id,
-					const struct pmc_clk_data *pmc_data,
+					void __iomem *base,
 					const char **parent_names,
 					int num_parents)
 {
 	struct clk_plt *pclk;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	int ret;
 
 	pclk = devm_kzalloc(&pdev->dev, sizeof(*pclk), GFP_KERNEL);
@@ -184,16 +184,8 @@ static struct clk_plt *plt_clk_register(struct platform_device *pdev, int id,
 	init.num_parents = num_parents;
 
 	pclk->hw.init = &init;
-	pclk->reg = pmc_data->base + PMC_CLK_CTL_OFFSET + id * PMC_CLK_CTL_SIZE;
+	pclk->reg = base + PMC_CLK_CTL_OFFSET + id * PMC_CLK_CTL_SIZE;
 	spin_lock_init(&pclk->lock);
-
-	/*
-	 * On some systems, the pmc_plt_clocks already enabled by the
-	 * firmware are being marked as critical to avoid them being
-	 * gated by the clock framework.
-	 */
-	if (pmc_data->critical && plt_clk_is_enabled(&pclk->hw))
-		init.flags |= CLK_IS_CRITICAL;
 
 	ret = devm_clk_hw_register(&pdev->dev, &pclk->hw);
 	if (ret) {
@@ -340,7 +332,7 @@ static int plt_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(parent_names);
 
 	for (i = 0; i < PMC_CLK_NUM; i++) {
-		data->clks[i] = plt_clk_register(pdev, i, pmc_data,
+		data->clks[i] = plt_clk_register(pdev, i, pmc_data->base,
 						 parent_names, data->nparents);
 		if (IS_ERR(data->clks[i])) {
 			err = PTR_ERR(data->clks[i]);

@@ -36,11 +36,6 @@ static bool nft_rbtree_interval_end(const struct nft_rbtree_elem *rbe)
 	       (*nft_set_ext_flags(&rbe->ext) & NFT_SET_ELEM_INTERVAL_END);
 }
 
-static bool nft_rbtree_interval_start(const struct nft_rbtree_elem *rbe)
-{
-	return !nft_rbtree_interval_end(rbe);
-}
-
 static bool nft_rbtree_equal(const struct nft_set *set, const void *this,
 			     const struct nft_rbtree_elem *interval)
 {
@@ -72,7 +67,7 @@ static bool __nft_rbtree_lookup(const struct net *net, const struct nft_set *set
 			if (interval &&
 			    nft_rbtree_equal(set, this, interval) &&
 			    nft_rbtree_interval_end(rbe) &&
-			    nft_rbtree_interval_start(interval))
+			    !nft_rbtree_interval_end(interval))
 				continue;
 			interval = rbe;
 		} else if (d > 0)
@@ -82,13 +77,8 @@ static bool __nft_rbtree_lookup(const struct net *net, const struct nft_set *set
 				parent = rcu_dereference_raw(parent->rb_left);
 				continue;
 			}
-			if (nft_rbtree_interval_end(rbe)) {
-				if (nft_set_is_anonymous(set))
-					return false;
-				parent = rcu_dereference_raw(parent->rb_left);
-				interval = NULL;
-				continue;
-			}
+			if (nft_rbtree_interval_end(rbe))
+				goto out;
 
 			*ext = &rbe->ext;
 			return true;
@@ -97,11 +87,11 @@ static bool __nft_rbtree_lookup(const struct net *net, const struct nft_set *set
 
 	if (set->flags & NFT_SET_INTERVAL && interval != NULL &&
 	    nft_set_elem_active(&interval->ext, genmask) &&
-	    nft_rbtree_interval_start(interval)) {
+	    !nft_rbtree_interval_end(interval)) {
 		*ext = &interval->ext;
 		return true;
 	}
-
+out:
 	return false;
 }
 
@@ -149,10 +139,8 @@ static bool __nft_rbtree_get(const struct net *net, const struct nft_set *set,
 		} else if (d > 0) {
 			parent = rcu_dereference_raw(parent->rb_right);
 		} else {
-			if (!nft_set_elem_active(&rbe->ext, genmask)) {
+			if (!nft_set_elem_active(&rbe->ext, genmask))
 				parent = rcu_dereference_raw(parent->rb_left);
-				continue;
-			}
 
 			if (!nft_set_ext_exists(&rbe->ext, NFT_SET_EXT_FLAGS) ||
 			    (*nft_set_ext_flags(&rbe->ext) & NFT_SET_ELEM_INTERVAL_END) ==
@@ -160,11 +148,7 @@ static bool __nft_rbtree_get(const struct net *net, const struct nft_set *set,
 				*elem = rbe;
 				return true;
 			}
-
-			if (nft_rbtree_interval_end(rbe))
-				interval = NULL;
-
-			parent = rcu_dereference_raw(parent->rb_left);
+			return false;
 		}
 	}
 
@@ -226,9 +210,9 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			p = &parent->rb_right;
 		else {
 			if (nft_rbtree_interval_end(rbe) &&
-			    nft_rbtree_interval_start(new)) {
+			    !nft_rbtree_interval_end(new)) {
 				p = &parent->rb_left;
-			} else if (nft_rbtree_interval_start(rbe) &&
+			} else if (!nft_rbtree_interval_end(rbe) &&
 				   nft_rbtree_interval_end(new)) {
 				p = &parent->rb_right;
 			} else if (nft_set_elem_active(&rbe->ext, genmask)) {
@@ -318,16 +302,17 @@ static void *nft_rbtree_deactivate(const struct net *net,
 		else if (d > 0)
 			parent = parent->rb_right;
 		else {
-			if (nft_rbtree_interval_end(rbe) &&
-			    nft_rbtree_interval_start(this)) {
+			if (!nft_set_elem_active(&rbe->ext, genmask)) {
 				parent = parent->rb_left;
 				continue;
-			} else if (nft_rbtree_interval_start(rbe) &&
+			}
+			if (nft_rbtree_interval_end(rbe) &&
+			    !nft_rbtree_interval_end(this)) {
+				parent = parent->rb_left;
+				continue;
+			} else if (!nft_rbtree_interval_end(rbe) &&
 				   nft_rbtree_interval_end(this)) {
 				parent = parent->rb_right;
-				continue;
-			} else if (!nft_set_elem_active(&rbe->ext, genmask)) {
-				parent = parent->rb_left;
 				continue;
 			}
 			nft_rbtree_flush(net, set, rbe);

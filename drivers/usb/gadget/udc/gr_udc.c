@@ -1980,12 +1980,9 @@ static int gr_ep_init(struct gr_udc *dev, int num, int is_in, u32 maxplimit)
 
 	if (num == 0) {
 		_req = gr_alloc_request(&ep->ep, GFP_ATOMIC);
-		if (!_req)
-			return -ENOMEM;
-
 		buf = devm_kzalloc(dev->dev, PAGE_SIZE, GFP_DMA | GFP_ATOMIC);
-		if (!buf) {
-			gr_free_request(&ep->ep, _req);
+		if (!_req || !buf) {
+			/* possible _req freed by gr_probe via gr_remove */
 			return -ENOMEM;
 		}
 
@@ -2183,6 +2180,8 @@ static int gr_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	spin_lock(&dev->lock);
+
 	/* Inside lock so that no gadget can use this udc until probe is done */
 	retval = usb_add_gadget_udc(dev->dev, &dev->gadget);
 	if (retval) {
@@ -2191,20 +2190,14 @@ static int gr_probe(struct platform_device *pdev)
 	}
 	dev->added = 1;
 
-	spin_lock(&dev->lock);
-
 	retval = gr_udc_init(dev);
-	if (retval) {
-		spin_unlock(&dev->lock);
+	if (retval)
 		goto out;
-	}
+
+	gr_dfs_create(dev);
 
 	/* Clear all interrupt enables that might be left on since last boot */
 	gr_disable_interrupts_and_pullup(dev);
-
-	spin_unlock(&dev->lock);
-
-	gr_dfs_create(dev);
 
 	retval = gr_request_irq(dev, dev->irq);
 	if (retval) {
@@ -2234,6 +2227,8 @@ static int gr_probe(struct platform_device *pdev)
 		dev_info(dev->dev, "regs: %p, irq %d\n", dev->regs, dev->irq);
 
 out:
+	spin_unlock(&dev->lock);
+
 	if (retval)
 		gr_remove(pdev);
 

@@ -76,7 +76,6 @@ struct mqueue_inode_info {
 
 	struct sigevent notify;
 	struct pid *notify_owner;
-	u32 notify_self_exec_id;
 	struct user_namespace *notify_user_ns;
 	struct user_struct *user;	/* user who created, for accounting */
 	struct sock *notify_sock;
@@ -390,9 +389,9 @@ static void mqueue_evict_inode(struct inode *inode)
 {
 	struct mqueue_inode_info *info;
 	struct user_struct *user;
+	unsigned long mq_bytes, mq_treesize;
 	struct ipc_namespace *ipc_ns;
-	struct msg_msg *msg, *nmsg;
-	LIST_HEAD(tmp_msg);
+	struct msg_msg *msg;
 
 	clear_inode(inode);
 
@@ -403,27 +402,20 @@ static void mqueue_evict_inode(struct inode *inode)
 	info = MQUEUE_I(inode);
 	spin_lock(&info->lock);
 	while ((msg = msg_get(info)) != NULL)
-		list_add_tail(&msg->m_list, &tmp_msg);
+		free_msg(msg);
 	kfree(info->node_cache);
 	spin_unlock(&info->lock);
 
-	list_for_each_entry_safe(msg, nmsg, &tmp_msg, m_list) {
-		list_del(&msg->m_list);
-		free_msg(msg);
-	}
+	/* Total amount of bytes accounted for the mqueue */
+	mq_treesize = info->attr.mq_maxmsg * sizeof(struct msg_msg) +
+		min_t(unsigned int, info->attr.mq_maxmsg, MQ_PRIO_MAX) *
+		sizeof(struct posix_msg_tree_node);
+
+	mq_bytes = mq_treesize + (info->attr.mq_maxmsg *
+				  info->attr.mq_msgsize);
 
 	user = info->user;
 	if (user) {
-		unsigned long mq_bytes, mq_treesize;
-
-		/* Total amount of bytes accounted for the mqueue */
-		mq_treesize = info->attr.mq_maxmsg * sizeof(struct msg_msg) +
-			min_t(unsigned int, info->attr.mq_maxmsg, MQ_PRIO_MAX) *
-			sizeof(struct posix_msg_tree_node);
-
-		mq_bytes = mq_treesize + (info->attr.mq_maxmsg *
-					  info->attr.mq_msgsize);
-
 		spin_lock(&mq_lock);
 		user->mq_bytes -= mq_bytes;
 		/*
@@ -663,44 +655,28 @@ static void __do_notify(struct mqueue_inode_info *info)
 	 * synchronously. */
 	if (info->notify_owner &&
 	    info->attr.mq_curmsgs == 1) {
+		struct siginfo sig_i;
 		switch (info->notify.sigev_notify) {
 		case SIGEV_NONE:
 			break;
-		case SIGEV_SIGNAL: {
-			struct siginfo sig_i;
-			struct task_struct *task;
-
-			/* do_mq_notify() accepts sigev_signo == 0, why?? */
-			if (!info->notify.sigev_signo)
-				break;
+		case SIGEV_SIGNAL:
+			/* sends signal */
 
 			clear_siginfo(&sig_i);
 			sig_i.si_signo = info->notify.sigev_signo;
 			sig_i.si_errno = 0;
 			sig_i.si_code = SI_MESGQ;
 			sig_i.si_value = info->notify.sigev_value;
-			rcu_read_lock();
 			/* map current pid/uid into info->owner's namespaces */
+			rcu_read_lock();
 			sig_i.si_pid = task_tgid_nr_ns(current,
 						ns_of_pid(info->notify_owner));
-			sig_i.si_uid = from_kuid_munged(info->notify_user_ns,
-						current_uid());
-			/*
-			 * We can't use kill_pid_info(), this signal should
-			 * bypass check_kill_permission(). It is from kernel
-			 * but si_fromuser() can't know this.
-			 * We do check the self_exec_id, to avoid sending
-			 * signals to programs that don't expect them.
-			 */
-			task = pid_task(info->notify_owner, PIDTYPE_TGID);
-			if (task && task->self_exec_id ==
-						info->notify_self_exec_id) {
-				do_send_sig_info(info->notify.sigev_signo,
-						&sig_i, task, PIDTYPE_TGID);
-			}
+			sig_i.si_uid = from_kuid_munged(info->notify_user_ns, current_uid());
 			rcu_read_unlock();
+
+			kill_pid_info(info->notify.sigev_signo,
+				      &sig_i, info->notify_owner);
 			break;
-		}
 		case SIGEV_THREAD:
 			set_cookie(info->notify_cookie, NOTIFY_WOKENUP);
 			netlink_sendskb(info->notify_sock, info->notify_cookie);
@@ -738,7 +714,7 @@ static void remove_notification(struct mqueue_inode_info *info)
 	info->notify_user_ns = NULL;
 }
 
-static int prepare_open(struct vfsmount *mnt, struct dentry *dentry, int oflag, int ro,
+static int prepare_open(struct dentry *dentry, int oflag, int ro,
 			umode_t mode, struct filename *name,
 			struct mq_attr *attr)
 {
@@ -752,7 +728,7 @@ static int prepare_open(struct vfsmount *mnt, struct dentry *dentry, int oflag, 
 		if (ro)
 			return ro;
 		audit_inode_parent_hidden(name, dentry->d_parent);
-		return vfs_mkobj2(mnt, dentry, mode & ~current_umask(),
+		return vfs_mkobj(dentry, mode & ~current_umask(),
 				  mqueue_create_attr, attr);
 	}
 	/* it already existed */
@@ -762,7 +738,7 @@ static int prepare_open(struct vfsmount *mnt, struct dentry *dentry, int oflag, 
 	if ((oflag & O_ACCMODE) == (O_RDWR | O_WRONLY))
 		return -EINVAL;
 	acc = oflag2acc[oflag & O_ACCMODE];
-	return inode_permission2(mnt, d_inode(dentry), acc);
+	return inode_permission(d_inode(dentry), acc);
 }
 
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
@@ -786,13 +762,13 @@ static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 
 	ro = mnt_want_write(mnt);	/* we'll drop it in any case */
 	inode_lock(d_inode(root));
-	path.dentry = lookup_one_len2(name->name, mnt, root, strlen(name->name));
+	path.dentry = lookup_one_len(name->name, root, strlen(name->name));
 	if (IS_ERR(path.dentry)) {
 		error = PTR_ERR(path.dentry);
 		goto out_putfd;
 	}
 	path.mnt = mntget(mnt);
-	error = prepare_open(path.mnt, path.dentry, oflag, ro, mode, name, attr);
+	error = prepare_open(path.dentry, oflag, ro, mode, name, attr);
 	if (!error) {
 		struct file *file = dentry_open(&path, oflag, current_cred());
 		if (!IS_ERR(file))
@@ -842,7 +818,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 	if (err)
 		goto out_name;
 	inode_lock_nested(d_inode(mnt->mnt_root), I_MUTEX_PARENT);
-	dentry = lookup_one_len2(name->name, mnt, mnt->mnt_root,
+	dentry = lookup_one_len(name->name, mnt->mnt_root,
 				strlen(name->name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
@@ -854,7 +830,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 		err = -ENOENT;
 	} else {
 		ihold(inode);
-		err = vfs_unlink2(mnt, d_inode(dentry->d_parent), dentry, NULL);
+		err = vfs_unlink(d_inode(dentry->d_parent), dentry, NULL);
 	}
 	dput(dentry);
 
@@ -1290,7 +1266,6 @@ retry:
 			info->notify.sigev_signo = notification->sigev_signo;
 			info->notify.sigev_value = notification->sigev_value;
 			info->notify.sigev_notify = SIGEV_SIGNAL;
-			info->notify_self_exec_id = current->self_exec_id;
 			break;
 		}
 

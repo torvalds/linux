@@ -36,8 +36,6 @@
 #include <drm/drmP.h>
 #include "drm_legacy.h"
 
-#include <linux/nospec.h>
-
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 						  struct drm_local_map *map)
 {
@@ -1321,10 +1319,7 @@ static int copy_one_buf(void *data, int count, struct drm_buf_entry *from)
 				 .size = from->buf_size,
 				 .low_mark = from->low_mark,
 				 .high_mark = from->high_mark};
-
-	if (copy_to_user(to, &v, offsetof(struct drm_buf_desc, flags)))
-		return -EFAULT;
-	return 0;
+	return copy_to_user(to, &v, offsetof(struct drm_buf_desc, flags));
 }
 
 int drm_legacy_infobufs(struct drm_device *dev, void *data,
@@ -1422,7 +1417,6 @@ int drm_legacy_freebufs(struct drm_device *dev, void *data,
 				  idx, dma->buf_count - 1);
 			return -EINVAL;
 		}
-		idx = array_index_nospec(idx, dma->buf_count);
 		buf = dma->buflist[idx];
 		if (buf->file_priv != file_priv) {
 			DRM_ERROR("Process %d freeing buffer not owned\n",

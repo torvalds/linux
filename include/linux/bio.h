@@ -22,8 +22,6 @@
 #include <linux/mempool.h>
 #include <linux/ioprio.h>
 #include <linux/bug.h>
-#include <linux/bio-crypt-ctx.h>
-#include <linux/android_kabi.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -259,7 +257,7 @@ static inline void bio_cnt_set(struct bio *bio, unsigned int count)
 {
 	if (count != 1) {
 		bio->bi_flags |= (1 << BIO_REFFED);
-		smp_mb();
+		smp_mb__before_atomic();
 	}
 	atomic_set(&bio->__bi_cnt, count);
 }
@@ -358,10 +356,6 @@ struct bio_integrity_payload {
 	struct work_struct	bip_work;	/* I/O completion */
 
 	struct bio_vec		*bip_vec;
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-
 	struct bio_vec		bip_inline_vecs[0];/* embedded bvec array */
 };
 
@@ -767,11 +761,6 @@ struct bio_set {
 	struct bio_list		rescue_list;
 	struct work_struct	rescue_work;
 	struct workqueue_struct	*rescue_workqueue;
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-	ANDROID_KABI_RESERVE(3);
-	ANDROID_KABI_RESERVE(4);
 };
 
 struct biovec_slab {

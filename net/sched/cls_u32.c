@@ -1315,17 +1315,12 @@ static int u32_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	return 0;
 }
 
-static void u32_bind_class(void *fh, u32 classid, unsigned long cl, void *q,
-			   unsigned long base)
+static void u32_bind_class(void *fh, u32 classid, unsigned long cl)
 {
 	struct tc_u_knode *n = fh;
 
-	if (n && n->res.classid == classid) {
-		if (cl)
-			__tcf_bind_filter(q, &n->res, base);
-		else
-			__tcf_unbind_filter(q, &n->res);
-	}
+	if (n && n->res.classid == classid)
+		n->res.class = cl;
 }
 
 static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,

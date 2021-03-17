@@ -5,27 +5,14 @@
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <linux/dma-buf.h>
 #include <linux/list.h>
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
-#include <linux/sched/signal.h>
 
 #include "ion.h"
 
-/*
- * We avoid atomic_long_t to minimize cache flushes at the cost of possible
- * race which would result in a small accounting inaccuracy that we can
- * tolerate.
- */
-static long nr_total_pages;
-
 static inline struct page *ion_page_pool_alloc_pages(struct ion_page_pool *pool)
 {
-	if (fatal_signal_pending(current))
-		return NULL;
 	return alloc_pages(pool->gfp_mask, pool->order);
 }
 
@@ -46,9 +33,8 @@ static void ion_page_pool_add(struct ion_page_pool *pool, struct page *page)
 		pool->low_count++;
 	}
 
-	nr_total_pages += 1 << pool->order;
-	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
-							1 << pool->order);
+	mod_node_page_state(page_pgdat(page), NR_INDIRECTLY_RECLAIMABLE_BYTES,
+			    (1 << (PAGE_SHIFT + pool->order)));
 	mutex_unlock(&pool->mutex);
 }
 
@@ -67,24 +53,9 @@ static struct page *ion_page_pool_remove(struct ion_page_pool *pool, bool high)
 	}
 
 	list_del(&page->lru);
-	nr_total_pages -= 1 << pool->order;
-	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
-							-(1 << pool->order));
+	mod_node_page_state(page_pgdat(page), NR_INDIRECTLY_RECLAIMABLE_BYTES,
+			    -(1 << (PAGE_SHIFT + pool->order)));
 	return page;
-}
-
-static void page_sync_for_device(struct device *dev, struct page *page,
-				 size_t size, enum dma_data_direction dir)
-{
-	struct scatterlist sg;
-
-	if (!dev || !page)
-		return;
-
-	sg_init_table(&sg, 1);
-	sg_set_page(&sg, page, size, 0);
-	sg_dma_address(&sg) = page_to_phys(page);
-	dma_sync_sg_for_device(dev, &sg, 1, dir);
 }
 
 struct page *ion_page_pool_alloc(struct ion_page_pool *pool)
@@ -100,12 +71,8 @@ struct page *ion_page_pool_alloc(struct ion_page_pool *pool)
 		page = ion_page_pool_remove(pool, false);
 	mutex_unlock(&pool->mutex);
 
-	if (!page) {
+	if (!page)
 		page = ion_page_pool_alloc_pages(pool);
-		page_sync_for_device(pool->dev, page,
-				     PAGE_SIZE << pool->order,
-				     DMA_BIDIRECTIONAL);
-	}
 
 	return page;
 }
@@ -125,14 +92,6 @@ static int ion_page_pool_total(struct ion_page_pool *pool, bool high)
 		count += pool->high_count;
 
 	return count << pool->order;
-}
-
-long ion_page_pool_nr_pages(void)
-{
-	/* Correct possible overflow caused by racing writes */
-	if (nr_total_pages < 0)
-		nr_total_pages = 0;
-	return nr_total_pages;
 }
 
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
@@ -169,33 +128,9 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 	return freed;
 }
 
-static const struct platform_device_info ion_dev_info = {
-	.name		= "ion-pool",
-	.id		= PLATFORM_DEVID_AUTO,
-	.dma_mask	= DMA_BIT_MASK(32),
-};
-
-static struct platform_device *platform_device_register_dma(const char *name)
-{
-	struct platform_device *pdev;
-	int ret;
-
-	pdev = platform_device_register_full(&ion_dev_info);
-	if (pdev) {
-		ret = of_dma_configure(&pdev->dev, NULL, true);
-		if (ret) {
-			platform_device_unregister(pdev);
-			pdev = NULL;
-		}
-	}
-
-	return pdev;
-}
-
 struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
 {
-	struct platform_device *pdev;
-	struct ion_page_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	struct ion_page_pool *pool = kmalloc(sizeof(*pool), GFP_KERNEL);
 
 	if (!pool)
 		return NULL;
@@ -208,20 +143,10 @@ struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
 	mutex_init(&pool->mutex);
 	plist_node_init(&pool->list, order);
 
-	pdev = platform_device_register_dma("ion_pool");
-	if (!IS_ERR(pdev))
-		pool->dev = &pdev->dev;
-
 	return pool;
 }
 
 void ion_page_pool_destroy(struct ion_page_pool *pool)
 {
-	if (pool->dev) {
-		struct platform_device *pdev = to_platform_device(pool->dev);
-
-		of_dma_deconfigure(&pdev->dev);
-		platform_device_unregister(pdev);
-	}
 	kfree(pool);
 }

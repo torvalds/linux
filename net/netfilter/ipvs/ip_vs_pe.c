@@ -67,8 +67,7 @@ int register_ip_vs_pe(struct ip_vs_pe *pe)
 	struct ip_vs_pe *tmp;
 
 	/* increase the module use count */
-	if (!ip_vs_use_count_inc())
-		return -ENOENT;
+	ip_vs_use_count_inc();
 
 	mutex_lock(&ip_vs_pe_mutex);
 	/* Make sure that the pe with this name doesn't exist

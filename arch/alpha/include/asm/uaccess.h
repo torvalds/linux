@@ -30,13 +30,11 @@
  * Address valid if:
  *  - "addr" doesn't have any high-bits set
  *  - AND "size" doesn't have any high-bits set
- *  - AND "addr+size-(size != 0)" doesn't have any high-bits set
+ *  - AND "addr+size" doesn't have any high-bits set
  *  - OR we are in kernel mode.
  */
-#define __access_ok(addr, size) ({				\
-	unsigned long __ao_a = (addr), __ao_b = (size);		\
-	unsigned long __ao_end = __ao_a + __ao_b - !!__ao_b;	\
-	(get_fs().seg & (__ao_a | __ao_b | __ao_end)) == 0; })
+#define __access_ok(addr, size) \
+	((get_fs().seg & (addr | size | (addr+size))) == 0)
 
 #define access_ok(type, addr, size)			\
 ({							\

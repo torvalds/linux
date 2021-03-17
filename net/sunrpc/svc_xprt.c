@@ -103,17 +103,8 @@ void svc_unreg_xprt_class(struct svc_xprt_class *xcl)
 }
 EXPORT_SYMBOL_GPL(svc_unreg_xprt_class);
 
-/**
- * svc_print_xprts - Format the transport list for printing
- * @buf: target buffer for formatted address
- * @maxlen: length of target buffer
- *
- * Fills in @buf with a string containing a list of transport names, each name
- * terminated with '\n'. If the buffer is too small, some entries may be
- * missing, but it is guaranteed that all lines in the output buffer are
- * complete.
- *
- * Returns positive length of the filled-in string.
+/*
+ * Format the transport list for printing
  */
 int svc_print_xprts(char *buf, int maxlen)
 {
@@ -126,9 +117,9 @@ int svc_print_xprts(char *buf, int maxlen)
 	list_for_each_entry(xcl, &svc_xprt_class_list, xcl_list) {
 		int slen;
 
-		slen = snprintf(tmpstr, sizeof(tmpstr), "%s %d\n",
-				xcl->xcl_name, xcl->xcl_max_payload);
-		if (slen >= sizeof(tmpstr) || len + slen >= maxlen)
+		sprintf(tmpstr, "%s %d\n", xcl->xcl_name, xcl->xcl_max_payload);
+		slen = strlen(tmpstr);
+		if (len + slen > maxlen)
 			break;
 		len += slen;
 		strcat(buf, tmpstr);
@@ -478,11 +469,10 @@ out:
  */
 void svc_reserve(struct svc_rqst *rqstp, int space)
 {
-	struct svc_xprt *xprt = rqstp->rq_xprt;
-
 	space += rqstp->rq_res.head[0].iov_len;
 
-	if (xprt && space < rqstp->rq_reserved) {
+	if (space < rqstp->rq_reserved) {
+		struct svc_xprt *xprt = rqstp->rq_xprt;
 		atomic_sub((rqstp->rq_reserved - space), &xprt->xpt_reserved);
 		rqstp->rq_reserved = space;
 
@@ -887,6 +877,9 @@ int svc_send(struct svc_rqst *rqstp)
 	if (!xprt)
 		goto out;
 
+	/* release the receive skb before sending the reply */
+	xprt->xpt_ops->xpo_release_rqst(rqstp);
+
 	/* calculate over-all length */
 	xb = &rqstp->rq_res;
 	xb->len = xb->head[0].iov_len +
@@ -996,7 +989,7 @@ static void call_xpt_users(struct svc_xprt *xprt)
 	spin_lock(&xprt->xpt_lock);
 	while (!list_empty(&xprt->xpt_users)) {
 		u = list_first_entry(&xprt->xpt_users, struct svc_xpt_user, list);
-		list_del_init(&u->list);
+		list_del(&u->list);
 		u->callback(u);
 	}
 	spin_unlock(&xprt->xpt_lock);

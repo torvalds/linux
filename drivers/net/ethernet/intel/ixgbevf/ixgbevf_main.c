@@ -2066,6 +2066,11 @@ static int ixgbevf_write_uc_addr_list(struct net_device *netdev)
 	struct ixgbe_hw *hw = &adapter->hw;
 	int count = 0;
 
+	if ((netdev_uc_count(netdev)) > 10) {
+		pr_err("Too many unicast filters - No Space\n");
+		return -ENOSPC;
+	}
+
 	if (!netdev_uc_empty(netdev)) {
 		struct netdev_hw_addr *ha;
 
@@ -3844,10 +3849,6 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 		skb_checksum_help(skb);
 		goto no_csum;
 	}
-
-	if (first->protocol == htons(ETH_P_IP))
-		type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
-
 	/* update TX checksum flag */
 	first->tx_flags |= IXGBE_TX_FLAGS_CSUM;
 	vlan_macip_lens = skb_checksum_start_offset(skb) -

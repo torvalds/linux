@@ -2281,6 +2281,8 @@ static int cxgb_up(struct adapter *adap)
 #if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);
 #endif
+	/* Initialize hash mac addr list*/
+	INIT_LIST_HEAD(&adap->mac_hlist);
 	return err;
 
  irq_err:
@@ -2302,7 +2304,6 @@ static void cxgb_down(struct adapter *adapter)
 
 	t4_sge_stop(adapter);
 	t4_free_sge_resources(adapter);
-
 	adapter->flags &= ~FULL_INIT_DONE;
 }
 
@@ -5451,7 +5452,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	whoami = t4_read_reg(adapter, PL_WHOAMI_A);
 	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
 	chip = t4_get_chip_type(adapter, CHELSIO_PCI_ID_VER(device_id));
-	if ((int)chip < 0) {
+	if (chip < 0) {
 		dev_err(&pdev->dev, "Device %d is not supported\n", device_id);
 		err = chip;
 		goto out_free_adapter;
@@ -5600,9 +5601,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		t4_write_reg(adapter, SGE_STAT_CFG_A, STATSOURCE_T5_V(7) |
 			     (is_t5(adapter->params.chip) ? STATMODE_V(0) :
 			      T6_STATMODE_V(0)));
-
-	/* Initialize hash mac addr list */
-	INIT_LIST_HEAD(&adapter->mac_hlist);
 
 	for_each_port(adapter, i) {
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
@@ -5878,7 +5876,6 @@ fw_attach_fail:
 static void remove_one(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
-	struct hash_mac_addr *entry, *tmp;
 
 	if (!adapter) {
 		pci_release_regions(pdev);
@@ -5926,12 +5923,6 @@ static void remove_one(struct pci_dev *pdev)
 		if (adapter->num_uld || adapter->num_ofld_uld)
 			t4_uld_mem_free(adapter);
 		free_some_resources(adapter);
-		list_for_each_entry_safe(entry, tmp, &adapter->mac_hlist,
-					 list) {
-			list_del(&entry->list);
-			kfree(entry);
-		}
-
 #if IS_ENABLED(CONFIG_IPV6)
 		t4_cleanup_clip_tbl(adapter);
 #endif
@@ -6019,23 +6010,14 @@ static int __init cxgb4_init_module(void)
 
 	ret = pci_register_driver(&cxgb4_driver);
 	if (ret < 0)
-		goto err_pci;
+		debugfs_remove(cxgb4_debugfs_root);
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (!inet6addr_registered) {
-		ret = register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
-		if (ret)
-			pci_unregister_driver(&cxgb4_driver);
-		else
-			inet6addr_registered = true;
+		register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+		inet6addr_registered = true;
 	}
 #endif
-
-	if (ret == 0)
-		return ret;
-
-err_pci:
-	debugfs_remove(cxgb4_debugfs_root);
 
 	return ret;
 }

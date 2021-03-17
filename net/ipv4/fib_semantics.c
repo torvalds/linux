@@ -831,7 +831,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
 			if (fl4.flowi4_scope < RT_SCOPE_LINK)
 				fl4.flowi4_scope = RT_SCOPE_LINK;
 
-			if (cfg->fc_table && cfg->fc_table != RT_TABLE_MAIN)
+			if (cfg->fc_table)
 				tbl = fib_get_table(net, cfg->fc_table);
 
 			if (tbl)
@@ -1421,8 +1421,8 @@ int fib_sync_down_addr(struct net_device *dev, __be32 local)
 	int ret = 0;
 	unsigned int hash = fib_laddr_hashfn(local);
 	struct hlist_head *head = &fib_info_laddrhash[hash];
-	int tb_id = l3mdev_fib_table(dev) ? : RT_TABLE_MAIN;
 	struct net *net = dev_net(dev);
+	int tb_id = l3mdev_fib_table(dev);
 	struct fib_info *fi;
 
 	if (!fib_info_laddrhash || local == 0)

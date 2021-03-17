@@ -95,6 +95,9 @@ static void dm_old_stop_queue(struct request_queue *q)
 
 static void dm_mq_stop_queue(struct request_queue *q)
 {
+	if (blk_mq_queue_stopped(q))
+		return;
+
 	blk_mq_quiesce_queue(q);
 }
 
@@ -216,7 +219,7 @@ static void dm_end_request(struct request *clone, blk_status_t error)
 	struct request *rq = tio->orig;
 
 	blk_rq_unprep_clone(clone);
-	tio->ti->type->release_clone_rq(clone, NULL);
+	tio->ti->type->release_clone_rq(clone);
 
 	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
@@ -267,7 +270,7 @@ static void dm_requeue_original_request(struct dm_rq_target_io *tio, bool delay_
 	rq_end_stats(md, rq);
 	if (tio->clone) {
 		blk_rq_unprep_clone(tio->clone);
-		tio->ti->type->release_clone_rq(tio->clone, NULL);
+		tio->ti->type->release_clone_rq(tio->clone);
 	}
 
 	if (!rq->q->mq_ops)
@@ -292,14 +295,11 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 	}
 
 	if (unlikely(error == BLK_STS_TARGET)) {
-		if (req_op(clone) == REQ_OP_DISCARD &&
-		    !clone->q->limits.max_discard_sectors)
-			disable_discard(tio->md);
-		else if (req_op(clone) == REQ_OP_WRITE_SAME &&
-			 !clone->q->limits.max_write_same_sectors)
+		if (req_op(clone) == REQ_OP_WRITE_SAME &&
+		    !clone->q->limits.max_write_same_sectors)
 			disable_write_same(tio->md);
-		else if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
-			 !clone->q->limits.max_write_zeroes_sectors)
+		if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
+		    !clone->q->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(tio->md);
 	}
 
@@ -492,7 +492,7 @@ check_again:
 	case DM_MAPIO_REMAPPED:
 		if (setup_clone(clone, rq, tio, GFP_ATOMIC)) {
 			/* -ENOMEM */
-			ti->type->release_clone_rq(clone, &tio->info);
+			ti->type->release_clone_rq(clone);
 			return DM_MAPIO_REQUEUE;
 		}
 
@@ -502,8 +502,7 @@ check_again:
 		ret = dm_dispatch_clone_request(clone, rq);
 		if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE) {
 			blk_rq_unprep_clone(clone);
-			blk_mq_cleanup_rq(clone);
-			tio->ti->type->release_clone_rq(clone, &tio->info);
+			tio->ti->type->release_clone_rq(clone);
 			tio->clone = NULL;
 			if (!rq->q->mq_ops)
 				r = DM_MAPIO_DELAY_REQUEUE;

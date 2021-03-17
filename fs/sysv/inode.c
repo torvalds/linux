@@ -275,7 +275,7 @@ static int __sysv_write_inode(struct inode *inode, int wait)
                 }
         }
 	brelse(bh);
-	return err;
+	return 0;
 }
 
 int sysv_write_inode(struct inode *inode, struct writeback_control *wbc)

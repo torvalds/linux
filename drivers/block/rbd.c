@@ -2097,7 +2097,7 @@ static int rbd_img_fill_nodata(struct rbd_img_request *img_req,
 			       u64 off, u64 len)
 {
 	struct ceph_file_extent ex = { off, len };
-	union rbd_img_fill_iter dummy = {};
+	union rbd_img_fill_iter dummy;
 	struct rbd_img_fill_ctx fctx = {
 		.pos_type = OBJ_REQUEST_NODATA,
 		.pos = &dummy,
@@ -2506,7 +2506,6 @@ again:
 		ret = rbd_obj_issue_copyup(obj_req, obj_req->xferred);
 		if (ret) {
 			obj_req->result = ret;
-			obj_req->xferred = 0;
 			return true;
 		}
 		return false;
@@ -3427,10 +3426,6 @@ static void cancel_tasks_sync(struct rbd_device *rbd_dev)
 	cancel_work_sync(&rbd_dev->unlock_work);
 }
 
-/*
- * header_rwsem must not be held to avoid a deadlock with
- * rbd_dev_refresh() when flushing notifies.
- */
 static void rbd_unregister_watch(struct rbd_device *rbd_dev)
 {
 	WARN_ON(waitqueue_active(&rbd_dev->lock_waitq));
@@ -4124,9 +4119,6 @@ static ssize_t rbd_config_info_show(struct device *dev,
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	return sprintf(buf, "%s\n", rbd_dev->config_info);
 }
 
@@ -4237,9 +4229,6 @@ static ssize_t rbd_image_refresh(struct device *dev,
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 	int ret;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	ret = rbd_dev_refresh(rbd_dev);
 	if (ret)
@@ -5729,10 +5718,9 @@ static int rbd_dev_header_name(struct rbd_device *rbd_dev)
 
 static void rbd_dev_image_release(struct rbd_device *rbd_dev)
 {
+	rbd_dev_unprobe(rbd_dev);
 	if (rbd_dev->opts)
 		rbd_unregister_watch(rbd_dev);
-
-	rbd_dev_unprobe(rbd_dev);
 	rbd_dev->image_format = 0;
 	kfree(rbd_dev->spec->image_id);
 	rbd_dev->spec->image_id = NULL;
@@ -5743,9 +5731,6 @@ static void rbd_dev_image_release(struct rbd_device *rbd_dev)
  * device.  If this image is the one being mapped (i.e., not a
  * parent), initiate a watch on its header object before using that
  * object to get detailed information about the rbd image.
- *
- * On success, returns with header_rwsem held for write if called
- * with @depth == 0.
  */
 static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 {
@@ -5778,12 +5763,9 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 		}
 	}
 
-	if (!depth)
-		down_write(&rbd_dev->header_rwsem);
-
 	ret = rbd_dev_header_info(rbd_dev);
 	if (ret)
-		goto err_out_probe;
+		goto err_out_watch;
 
 	/*
 	 * If this image is the one being mapped, we have pool name and
@@ -5829,11 +5811,10 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 	return 0;
 
 err_out_probe:
-	if (!depth)
-		up_write(&rbd_dev->header_rwsem);
+	rbd_dev_unprobe(rbd_dev);
+err_out_watch:
 	if (!depth)
 		rbd_unregister_watch(rbd_dev);
-	rbd_dev_unprobe(rbd_dev);
 err_out_format:
 	rbd_dev->image_format = 0;
 	kfree(rbd_dev->spec->image_id);
@@ -5851,9 +5832,6 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	struct rbd_spec *spec = NULL;
 	struct rbd_client *rbdc;
 	int rc;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
@@ -5893,9 +5871,12 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 		goto err_out_rbd_dev;
 	}
 
+	down_write(&rbd_dev->header_rwsem);
 	rc = rbd_dev_image_probe(rbd_dev, 0);
-	if (rc < 0)
+	if (rc < 0) {
+		up_write(&rbd_dev->header_rwsem);
 		goto err_out_rbd_dev;
+	}
 
 	/* If we are mapping a snapshot it must be marked read-only */
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
@@ -6001,11 +5982,9 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	struct list_head *tmp;
 	int dev_id;
 	char opt_buf[6];
+	bool already = false;
 	bool force = false;
 	int ret;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	dev_id = -1;
 	opt_buf[0] = '\0';
@@ -6036,13 +6015,13 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 		spin_lock_irq(&rbd_dev->lock);
 		if (rbd_dev->open_count && !force)
 			ret = -EBUSY;
-		else if (test_and_set_bit(RBD_DEV_FLAG_REMOVING,
-					  &rbd_dev->flags))
-			ret = -EINPROGRESS;
+		else
+			already = test_and_set_bit(RBD_DEV_FLAG_REMOVING,
+							&rbd_dev->flags);
 		spin_unlock_irq(&rbd_dev->lock);
 	}
 	spin_unlock(&rbd_dev_list_lock);
-	if (ret)
+	if (ret < 0 || already)
 		return ret;
 
 	if (force) {

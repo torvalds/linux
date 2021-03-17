@@ -221,8 +221,10 @@ int romfs_dev_read(struct super_block *sb, unsigned long pos,
 	size_t limit;
 
 	limit = romfs_maxsize(sb);
-	if (pos >= limit || buflen > limit - pos)
+	if (pos >= limit)
 		return -EIO;
+	if (buflen > limit - pos)
+		buflen = limit - pos;
 
 #ifdef CONFIG_ROMFS_ON_MTD
 	if (sb->s_mtd)

@@ -23,7 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
 #include "dm_services.h"
 #include "core_types.h"
 #include "resource.h"
@@ -1191,8 +1190,7 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction &&
-		!dpp_base->ctx->dc->debug.always_use_regamma
-		&& !plane_state->gamma_correction->is_identity
+		!plane_state->gamma_correction->is_identity
 			&& dce_use_lut(plane_state->format))
 		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
 
@@ -1891,7 +1889,7 @@ static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 			plane_state->format,
 			EXPANSION_MODE_ZERO,
 			plane_state->input_csc_color_matrix,
-			plane_state->color_space);
+			COLOR_SPACE_YCBCR601_LIMITED);
 
 	//set scale and bias registers
 	build_prescale_params(&bns_params, plane_state);
@@ -2122,15 +2120,6 @@ static void dcn10_blank_pixel_data(
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
 
-	/*
-	 * The way 420 is packed, 2 channels carry Y component, 1 channel
-	 * alternate between Cb and Cr, so both channels need the pixel
-	 * value for Y
-	 */
-	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		black_color.color_r_cr = black_color.color_g_y;
-
-
 	if (stream_res->tg->funcs->set_blank_color)
 		stream_res->tg->funcs->set_blank_color(
 				stream_res->tg,
@@ -2337,10 +2326,9 @@ static void dcn10_apply_ctx_for_surface(
 			}
 		}
 
-		if ((!pipe_ctx->plane_state ||
-		     pipe_ctx->stream_res.tg != old_pipe_ctx->stream_res.tg) &&
-		    old_pipe_ctx->plane_state &&
-		    old_pipe_ctx->stream_res.tg == tg) {
+		if (!pipe_ctx->plane_state &&
+			old_pipe_ctx->plane_state &&
+			old_pipe_ctx->stream_res.tg == tg) {
 
 			dc->hwss.plane_atomic_disconnect(dc, old_pipe_ctx);
 			removed_pipe[i] = true;

@@ -29,8 +29,7 @@
 
 struct uv_systab *uv_systab;
 
-static s64 __uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
-			u64 a4, u64 a5)
+s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
 {
 	struct uv_systab *tab = uv_systab;
 	s64 ret;
@@ -52,19 +51,6 @@ static s64 __uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 
 	return ret;
 }
-
-s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
-{
-	s64 ret;
-
-	if (down_interruptible(&__efi_uv_runtime_lock))
-		return BIOS_STATUS_ABORT;
-
-	ret = __uv_bios_call(which, a1, a2, a3, a4, a5);
-	up(&__efi_uv_runtime_lock);
-
-	return ret;
-}
 EXPORT_SYMBOL_GPL(uv_bios_call);
 
 s64 uv_bios_call_irqsave(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
@@ -73,14 +59,9 @@ s64 uv_bios_call_irqsave(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 	unsigned long bios_flags;
 	s64 ret;
 
-	if (down_interruptible(&__efi_uv_runtime_lock))
-		return BIOS_STATUS_ABORT;
-
 	local_irq_save(bios_flags);
-	ret = __uv_bios_call(which, a1, a2, a3, a4, a5);
+	ret = uv_bios_call(which, a1, a2, a3, a4, a5);
 	local_irq_restore(bios_flags);
-
-	up(&__efi_uv_runtime_lock);
 
 	return ret;
 }

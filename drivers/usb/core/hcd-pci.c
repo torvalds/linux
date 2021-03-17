@@ -216,18 +216,17 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		/* EHCI, OHCI */
 		hcd->rsrc_start = pci_resource_start(dev, 0);
 		hcd->rsrc_len = pci_resource_len(dev, 0);
-		if (!devm_request_mem_region(&dev->dev, hcd->rsrc_start,
-				hcd->rsrc_len, driver->description)) {
+		if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
+				driver->description)) {
 			dev_dbg(&dev->dev, "controller already in use\n");
 			retval = -EBUSY;
 			goto put_hcd;
 		}
-		hcd->regs = devm_ioremap_nocache(&dev->dev, hcd->rsrc_start,
-				hcd->rsrc_len);
+		hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
 		if (hcd->regs == NULL) {
 			dev_dbg(&dev->dev, "error mapping memory\n");
 			retval = -EFAULT;
-			goto put_hcd;
+			goto release_mem_region;
 		}
 
 	} else {
@@ -241,8 +240,8 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 			hcd->rsrc_start = pci_resource_start(dev, region);
 			hcd->rsrc_len = pci_resource_len(dev, region);
-			if (devm_request_region(&dev->dev, hcd->rsrc_start,
-					hcd->rsrc_len, driver->description))
+			if (request_region(hcd->rsrc_start, hcd->rsrc_len,
+					driver->description))
 				break;
 		}
 		if (region == PCI_ROM_RESOURCE) {
@@ -276,13 +275,20 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	if (retval != 0)
-		goto put_hcd;
+		goto unmap_registers;
 	device_wakeup_enable(hcd->self.controller);
 
 	if (pci_dev_run_wake(dev))
 		pm_runtime_put_noidle(&dev->dev);
 	return retval;
 
+unmap_registers:
+	if (driver->flags & HCD_MEMORY) {
+		iounmap(hcd->regs);
+release_mem_region:
+		release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	} else
+		release_region(hcd->rsrc_start, hcd->rsrc_len);
 put_hcd:
 	usb_put_hcd(hcd);
 disable_pci:
@@ -341,6 +347,14 @@ void usb_hcd_pci_remove(struct pci_dev *dev)
 		dev_set_drvdata(&dev->dev, NULL);
 		up_read(&companions_rwsem);
 	}
+
+	if (hcd->driver->flags & HCD_MEMORY) {
+		iounmap(hcd->regs);
+		release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	} else {
+		release_region(hcd->rsrc_start, hcd->rsrc_len);
+	}
+
 	usb_put_hcd(hcd);
 	pci_disable_device(dev);
 }

@@ -60,7 +60,6 @@ fman@400000 {
 		#size-cells = <0>;
 		compatible = "fsl,fman-memac-mdio", "fsl,fman-xmdio";
 		reg = <0xf3000 0x1000>;
-		fsl,erratum-a011043; /* must ignore read errors */
 
 		pcsphy7: ethernet-phy@0 {
 			reg = <0x0>;

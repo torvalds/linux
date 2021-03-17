@@ -97,11 +97,6 @@ struct qed_chain_u32 {
 	u32 cons_idx;
 };
 
-struct addr_tbl_entry {
-	void *virt_addr;
-	dma_addr_t dma_map;
-};
-
 struct qed_chain {
 	/* fastpath portion of the chain - required for commands such
 	 * as produce / consume.
@@ -112,11 +107,10 @@ struct qed_chain {
 
 	/* Fastpath portions of the PBL [if exists] */
 	struct {
-		/* Table for keeping the virtual and physical addresses of the
-		 * chain pages, respectively to the physical addresses
-		 * in the pbl table.
+		/* Table for keeping the virtual addresses of the chain pages,
+		 * respectively to the physical addresses in the pbl table.
 		 */
-		struct addr_tbl_entry *pp_addr_tbl;
+		void **pp_virt_addr_tbl;
 
 		union {
 			struct qed_chain_pbl_u16 u16;
@@ -207,34 +201,28 @@ static inline u32 qed_chain_get_cons_idx_u32(struct qed_chain *p_chain)
 
 static inline u16 qed_chain_get_elem_left(struct qed_chain *p_chain)
 {
-	u16 elem_per_page = p_chain->elem_per_page;
-	u32 prod = p_chain->u.chain16.prod_idx;
-	u32 cons = p_chain->u.chain16.cons_idx;
 	u16 used;
 
-	if (prod < cons)
-		prod += (u32)U16_MAX + 1;
-
-	used = (u16)(prod - cons);
+	used = (u16) (((u32)0x10000 +
+		       (u32)p_chain->u.chain16.prod_idx) -
+		      (u32)p_chain->u.chain16.cons_idx);
 	if (p_chain->mode == QED_CHAIN_MODE_NEXT_PTR)
-		used -= prod / elem_per_page - cons / elem_per_page;
+		used -= p_chain->u.chain16.prod_idx / p_chain->elem_per_page -
+		    p_chain->u.chain16.cons_idx / p_chain->elem_per_page;
 
 	return (u16)(p_chain->capacity - used);
 }
 
 static inline u32 qed_chain_get_elem_left_u32(struct qed_chain *p_chain)
 {
-	u16 elem_per_page = p_chain->elem_per_page;
-	u64 prod = p_chain->u.chain32.prod_idx;
-	u64 cons = p_chain->u.chain32.cons_idx;
 	u32 used;
 
-	if (prod < cons)
-		prod += (u64)U32_MAX + 1;
-
-	used = (u32)(prod - cons);
+	used = (u32) (((u64)0x100000000ULL +
+		       (u64)p_chain->u.chain32.prod_idx) -
+		      (u64)p_chain->u.chain32.cons_idx);
 	if (p_chain->mode == QED_CHAIN_MODE_NEXT_PTR)
-		used -= (u32)(prod / elem_per_page - cons / elem_per_page);
+		used -= p_chain->u.chain32.prod_idx / p_chain->elem_per_page -
+		    p_chain->u.chain32.cons_idx / p_chain->elem_per_page;
 
 	return p_chain->capacity - used;
 }
@@ -299,7 +287,7 @@ qed_chain_advance_page(struct qed_chain *p_chain,
 				*(u32 *)page_to_inc = 0;
 			page_index = *(u32 *)page_to_inc;
 		}
-		*p_next_elem = p_chain->pbl.pp_addr_tbl[page_index].virt_addr;
+		*p_next_elem = p_chain->pbl.pp_virt_addr_tbl[page_index];
 	}
 }
 
@@ -549,7 +537,7 @@ static inline void qed_chain_init_params(struct qed_chain *p_chain,
 
 	p_chain->pbl_sp.p_phys_table = 0;
 	p_chain->pbl_sp.p_virt_table = NULL;
-	p_chain->pbl.pp_addr_tbl = NULL;
+	p_chain->pbl.pp_virt_addr_tbl = NULL;
 }
 
 /**
@@ -587,11 +575,11 @@ static inline void qed_chain_init_mem(struct qed_chain *p_chain,
 static inline void qed_chain_init_pbl_mem(struct qed_chain *p_chain,
 					  void *p_virt_pbl,
 					  dma_addr_t p_phys_pbl,
-					  struct addr_tbl_entry *pp_addr_tbl)
+					  void **pp_virt_addr_tbl)
 {
 	p_chain->pbl_sp.p_phys_table = p_phys_pbl;
 	p_chain->pbl_sp.p_virt_table = p_virt_pbl;
-	p_chain->pbl.pp_addr_tbl = pp_addr_tbl;
+	p_chain->pbl.pp_virt_addr_tbl = pp_virt_addr_tbl;
 }
 
 /**
@@ -656,7 +644,7 @@ static inline void *qed_chain_get_last_elem(struct qed_chain *p_chain)
 		break;
 	case QED_CHAIN_MODE_PBL:
 		last_page_idx = p_chain->page_cnt - 1;
-		p_virt_addr = p_chain->pbl.pp_addr_tbl[last_page_idx].virt_addr;
+		p_virt_addr = p_chain->pbl.pp_virt_addr_tbl[last_page_idx];
 		break;
 	}
 	/* p_virt_addr points at this stage to the last page of the chain */
@@ -675,37 +663,6 @@ out:
 static inline void qed_chain_set_prod(struct qed_chain *p_chain,
 				      u32 prod_idx, void *p_prod_elem)
 {
-	if (p_chain->mode == QED_CHAIN_MODE_PBL) {
-		u32 cur_prod, page_mask, page_cnt, page_diff;
-
-		cur_prod = is_chain_u16(p_chain) ? p_chain->u.chain16.prod_idx :
-			   p_chain->u.chain32.prod_idx;
-
-		/* Assume that number of elements in a page is power of 2 */
-		page_mask = ~p_chain->elem_per_page_mask;
-
-		/* Use "cur_prod - 1" and "prod_idx - 1" since producer index
-		 * reaches the first element of next page before the page index
-		 * is incremented. See qed_chain_produce().
-		 * Index wrap around is not a problem because the difference
-		 * between current and given producer indices is always
-		 * positive and lower than the chain's capacity.
-		 */
-		page_diff = (((cur_prod - 1) & page_mask) -
-			     ((prod_idx - 1) & page_mask)) /
-			    p_chain->elem_per_page;
-
-		page_cnt = qed_chain_get_page_cnt(p_chain);
-		if (is_chain_u16(p_chain))
-			p_chain->pbl.c.u16.prod_page_idx =
-				(p_chain->pbl.c.u16.prod_page_idx -
-				 page_diff + page_cnt) % page_cnt;
-		else
-			p_chain->pbl.c.u32.prod_page_idx =
-				(p_chain->pbl.c.u32.prod_page_idx -
-				 page_diff + page_cnt) % page_cnt;
-	}
-
 	if (is_chain_u16(p_chain))
 		p_chain->u.chain16.prod_idx = (u16) prod_idx;
 	else
@@ -728,7 +685,7 @@ static inline void qed_chain_pbl_zero_mem(struct qed_chain *p_chain)
 	page_cnt = qed_chain_get_page_cnt(p_chain);
 
 	for (i = 0; i < page_cnt; i++)
-		memset(p_chain->pbl.pp_addr_tbl[i].virt_addr, 0,
+		memset(p_chain->pbl.pp_virt_addr_tbl[i], 0,
 		       QED_CHAIN_PAGE_SIZE);
 }
 

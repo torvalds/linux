@@ -99,7 +99,7 @@ static void perf_top__resize(struct perf_top *top)
 
 static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 {
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct symbol *sym;
 	struct annotation *notes;
 	struct map *map;
@@ -107,8 +107,6 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 
 	if (!he || !he->ms.sym)
 		return -1;
-
-	evsel = hists_to_evsel(he->hists);
 
 	sym = he->ms.sym;
 	map = he->ms.map;
@@ -226,15 +224,13 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 static void perf_top__show_details(struct perf_top *top)
 {
 	struct hist_entry *he = top->sym_filter_entry;
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
 
 	if (!he)
 		return;
-
-	evsel = hists_to_evsel(he->hists);
 
 	symbol = he->ms.sym;
 	notes = symbol__annotation(symbol);
@@ -651,9 +647,7 @@ repeat:
 	delay_msecs = top->delay_secs * MSEC_PER_SEC;
 	set_term_quiet_input(&save);
 	/* trash return*/
-	clearerr(stdin);
-	if (poll(&stdin_poll, 1, 0) > 0)
-		getc(stdin);
+	getc(stdin);
 
 	while (!done) {
 		perf_top__print_sym_table(top);
@@ -1497,9 +1491,8 @@ int cmd_top(int argc, const char **argv)
 	annotation_config__init();
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
-	status = symbol__init(NULL);
-	if (status < 0)
-		goto out_delete_evlist;
+	if (symbol__init(NULL) < 0)
+		return -1;
 
 	sort__setup_elide(stdout);
 

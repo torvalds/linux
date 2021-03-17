@@ -1,6 +1,6 @@
 /*
  * turbostat -- show CPU frequency and C-state residency
- * on modern Intel and AMD processors.
+ * on modern Intel turbo-capable processors.
  *
  * Copyright (c) 2013 Intel Corporation.
  * Len Brown <len.brown@intel.com>
@@ -71,8 +71,6 @@ unsigned int do_irtl_snb;
 unsigned int do_irtl_hsw;
 unsigned int units = 1000000;	/* MHz etc */
 unsigned int genuine_intel;
-unsigned int authentic_amd;
-unsigned int max_level, max_extended_level;
 unsigned int has_invariant_tsc;
 unsigned int do_nhm_platform_info;
 unsigned int no_MSR_MISC_PWR_MGMT;
@@ -298,10 +296,6 @@ int *irq_column_2_cpu;	/* /proc/interrupts column numbers */
 int *irqs_per_cpu;		/* indexed by cpu_num */
 
 void setup_all_buffers(void);
-
-char *sys_lpi_file;
-char *sys_lpi_file_sysfs = "/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us";
-char *sys_lpi_file_debugfs = "/sys/kernel/debug/pmc_core/slp_s0_residency_usec";
 
 int cpu_is_not_present(int cpu)
 {
@@ -1673,51 +1667,30 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 
 void get_apic_id(struct thread_data *t)
 {
-	unsigned int eax, ebx, ecx, edx;
+	unsigned int eax, ebx, ecx, edx, max_level;
 
-	if (DO_BIC(BIC_APIC)) {
-		eax = ebx = ecx = edx = 0;
-		__cpuid(1, eax, ebx, ecx, edx);
-
-		t->apic_id = (ebx >> 24) & 0xff;
-	}
-
-	if (!DO_BIC(BIC_X2APIC))
-		return;
-
-	if (authentic_amd) {
-		unsigned int topology_extensions;
-
-		if (max_extended_level < 0x8000001e)
-			return;
-
-		eax = ebx = ecx = edx = 0;
-		__cpuid(0x80000001, eax, ebx, ecx, edx);
-			topology_extensions = ecx & (1 << 22);
-
-		if (topology_extensions == 0)
-			return;
-
-		eax = ebx = ecx = edx = 0;
-		__cpuid(0x8000001e, eax, ebx, ecx, edx);
-
-		t->x2apic_id = eax;
-		return;
-	}
+	eax = ebx = ecx = edx = 0;
 
 	if (!genuine_intel)
 		return;
 
+	__cpuid(0, max_level, ebx, ecx, edx);
+
+	__cpuid(1, eax, ebx, ecx, edx);
+	t->apic_id = (ebx >> 24) & 0xf;
+
 	if (max_level < 0xb)
+		return;
+
+	if (!DO_BIC(BIC_X2APIC))
 		return;
 
 	ecx = 0;
 	__cpuid(0xb, eax, ebx, ecx, edx);
 	t->x2apic_id = edx;
 
-	if (debug && (t->apic_id != (t->x2apic_id & 0xff)))
-		fprintf(outf, "cpu%d: BIOS BUG: apic 0x%x x2apic 0x%x\n",
-				t->cpu_id, t->apic_id, t->x2apic_id);
+	if (debug && (t->apic_id != t->x2apic_id))
+		fprintf(outf, "cpu%d: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
 }
 
 /*
@@ -1980,12 +1953,11 @@ done:
 #define PCL_7S 11 /* PC7 Shrink */
 #define PCL__8 12 /* PC8 */
 #define PCL__9 13 /* PC9 */
-#define PCL_10 14 /* PC10 */
-#define PCLUNL 15 /* Unlimited */
+#define PCLUNL 14 /* Unlimited */
 
 int pkg_cstate_limit = PCLUKN;
 char *pkg_cstate_limit_strings[] = { "reserved", "unknown", "pc0", "pc1", "pc2",
-	"pc3", "pc4", "pc6", "pc6n", "pc6r", "pc7", "pc7s", "pc8", "pc9", "pc10", "unlimited"};
+	"pc3", "pc4", "pc6", "pc6n", "pc6r", "pc7", "pc7s", "pc8", "pc9", "unlimited"};
 
 int nhm_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCL__3, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int snb_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCL__7, PCL_7S, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
@@ -1993,7 +1965,7 @@ int hsw_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL__3, PCL__6, PCL__7, PCL_7S,
 int slv_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7};
 int amt_pkg_cstate_limits[16] = {PCLUNL, PCL__1, PCL__2, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int phi_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
-int glm_pkg_cstate_limits[16] = {PCLUNL, PCL__1, PCL__3, PCL__6, PCL__7, PCL_7S, PCL__8, PCL__9, PCL_10, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
+int bxt_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int skx_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 
 
@@ -2110,7 +2082,7 @@ int has_turbo_ratio_group_limits(int family, int model)
 	switch (model) {
 	case INTEL_FAM6_ATOM_GOLDMONT:
 	case INTEL_FAM6_SKYLAKE_X:
-	case INTEL_FAM6_ATOM_GOLDMONT_X:
+	case INTEL_FAM6_ATOM_DENVERTON:
 		return 1;
 	}
 	return 0;
@@ -2848,6 +2820,8 @@ int snapshot_gfx_mhz(void)
  *
  * record snapshot of
  * /sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us
+ *
+ * return 1 if config change requires a restart, else return 0
  */
 int snapshot_cpu_lpi_us(void)
 {
@@ -2867,14 +2841,17 @@ int snapshot_cpu_lpi_us(void)
 /*
  * snapshot_sys_lpi()
  *
- * record snapshot of sys_lpi_file
+ * record snapshot of
+ * /sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us
+ *
+ * return 1 if config change requires a restart, else return 0
  */
 int snapshot_sys_lpi_us(void)
 {
 	FILE *fp;
 	int retval;
 
-	fp = fopen_or_die(sys_lpi_file, "r");
+	fp = fopen_or_die("/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us", "r");
 
 	retval = fscanf(fp, "%lld", &cpuidle_cur_sys_lpi_us);
 	if (retval != 1)
@@ -3172,9 +3149,9 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		pkg_cstate_limits = skx_pkg_cstate_limits;
 		has_misc_feature_control = 1;
 		break;
-	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
+	case INTEL_FAM6_ATOM_SILVERMONT1:	/* BYT */
 		no_MSR_MISC_PWR_MGMT = 1;
-	case INTEL_FAM6_ATOM_SILVERMONT_X:	/* AVN */
+	case INTEL_FAM6_ATOM_SILVERMONT2:	/* AVN */
 		pkg_cstate_limits = slv_pkg_cstate_limits;
 		break;
 	case INTEL_FAM6_ATOM_AIRMONT:	/* AMT */
@@ -3186,9 +3163,9 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		pkg_cstate_limits = phi_pkg_cstate_limits;
 		break;
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
-	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
-	case INTEL_FAM6_ATOM_GOLDMONT_X:	/* DNV */
-		pkg_cstate_limits = glm_pkg_cstate_limits;
+	case INTEL_FAM6_ATOM_GEMINI_LAKE:
+	case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
+		pkg_cstate_limits = bxt_pkg_cstate_limits;
 		break;
 	default:
 		return 0;
@@ -3216,9 +3193,9 @@ int has_slv_msrs(unsigned int family, unsigned int model)
 		return 0;
 
 	switch (model) {
-	case INTEL_FAM6_ATOM_SILVERMONT:
-	case INTEL_FAM6_ATOM_SILVERMONT_MID:
-	case INTEL_FAM6_ATOM_AIRMONT_MID:
+	case INTEL_FAM6_ATOM_SILVERMONT1:
+	case INTEL_FAM6_ATOM_MERRIFIELD:
+	case INTEL_FAM6_ATOM_MOOREFIELD:
 		return 1;
 	}
 	return 0;
@@ -3230,7 +3207,7 @@ int is_dnv(unsigned int family, unsigned int model)
 		return 0;
 
 	switch (model) {
-	case INTEL_FAM6_ATOM_GOLDMONT_X:
+	case INTEL_FAM6_ATOM_DENVERTON:
 		return 1;
 	}
 	return 0;
@@ -3747,8 +3724,8 @@ double get_tdp(unsigned int model)
 			return ((msr >> 0) & RAPL_POWER_GRANULARITY) * rapl_power_units;
 
 	switch (model) {
-	case INTEL_FAM6_ATOM_SILVERMONT:
-	case INTEL_FAM6_ATOM_SILVERMONT_X:
+	case INTEL_FAM6_ATOM_SILVERMONT1:
+	case INTEL_FAM6_ATOM_SILVERMONT2:
 		return 30.0;
 	default:
 		return 135.0;
@@ -3814,7 +3791,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 		}
 		break;
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
-	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
+	case INTEL_FAM6_ATOM_GEMINI_LAKE:
 		do_rapl = RAPL_PKG | RAPL_PKG_POWER_INFO;
 		if (rapl_joules)
 			BIC_PRESENT(BIC_Pkg_J);
@@ -3873,8 +3850,8 @@ void rapl_probe(unsigned int family, unsigned int model)
 			BIC_PRESENT(BIC_RAMWatt);
 		}
 		break;
-	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
-	case INTEL_FAM6_ATOM_SILVERMONT_X:	/* AVN */
+	case INTEL_FAM6_ATOM_SILVERMONT1:	/* BYT */
+	case INTEL_FAM6_ATOM_SILVERMONT2:	/* AVN */
 		do_rapl = RAPL_PKG | RAPL_CORES;
 		if (rapl_joules) {
 			BIC_PRESENT(BIC_Pkg_J);
@@ -3884,7 +3861,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 			BIC_PRESENT(BIC_CorWatt);
 		}
 		break;
-	case INTEL_FAM6_ATOM_GOLDMONT_X:	/* DNV */
+	case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
 		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO | RAPL_CORES_ENERGY_STATUS;
 		BIC_PRESENT(BIC_PKG__);
 		BIC_PRESENT(BIC_RAM__);
@@ -3907,7 +3884,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 		return;
 
 	rapl_power_units = 1.0 / (1 << (msr & 0xF));
-	if (model == INTEL_FAM6_ATOM_SILVERMONT)
+	if (model == INTEL_FAM6_ATOM_SILVERMONT1)
 		rapl_energy_units = 1.0 * (1 << (msr >> 8 & 0x1F)) / 1000000;
 	else
 		rapl_energy_units = 1.0 / (1 << (msr >> 8 & 0x1F));
@@ -4164,8 +4141,8 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_CANNONLAKE_MOBILE:	/* CNL */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
-	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
-	case INTEL_FAM6_ATOM_GOLDMONT_X:	/* DNV */
+	case INTEL_FAM6_ATOM_GEMINI_LAKE:
+	case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
 		return 1;
 	}
 	return 0;
@@ -4197,7 +4174,7 @@ int has_hsw_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
 	case INTEL_FAM6_CANNONLAKE_MOBILE:	/* CNL */
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
-	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
+	case INTEL_FAM6_ATOM_GEMINI_LAKE:
 		return 1;
 	}
 	return 0;
@@ -4232,8 +4209,8 @@ int is_slm(unsigned int family, unsigned int model)
 	if (!genuine_intel)
 		return 0;
 	switch (model) {
-	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
-	case INTEL_FAM6_ATOM_SILVERMONT_X:	/* AVN */
+	case INTEL_FAM6_ATOM_SILVERMONT1:	/* BYT */
+	case INTEL_FAM6_ATOM_SILVERMONT2:	/* AVN */
 		return 1;
 	}
 	return 0;
@@ -4461,18 +4438,16 @@ void decode_c6_demotion_policy_msr(void)
 
 void process_cpuid()
 {
-	unsigned int eax, ebx, ecx, edx;
-	unsigned int fms, family, model, stepping, ecx_flags, edx_flags;
+	unsigned int eax, ebx, ecx, edx, max_level, max_extended_level;
+	unsigned int fms, family, model, stepping;
 	unsigned int has_turbo;
 
 	eax = ebx = ecx = edx = 0;
 
 	__cpuid(0, max_level, ebx, ecx, edx);
 
-	if (ebx == 0x756e6547 && ecx == 0x6c65746e && edx == 0x49656e69)
+	if (ebx == 0x756e6547 && edx == 0x49656e69 && ecx == 0x6c65746e)
 		genuine_intel = 1;
-	else if (ebx == 0x68747541 && ecx == 0x444d4163 && edx == 0x69746e65)
-		authentic_amd = 1;
 
 	if (!quiet)
 		fprintf(outf, "CPUID(0): %.4s%.4s%.4s ",
@@ -4486,8 +4461,25 @@ void process_cpuid()
 		family += (fms >> 20) & 0xff;
 	if (family >= 6)
 		model += ((fms >> 16) & 0xf) << 4;
-	ecx_flags = ecx;
-	edx_flags = edx;
+
+	if (!quiet) {
+		fprintf(outf, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
+			max_level, family, model, stepping, family, model, stepping);
+		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s %s\n",
+			ecx & (1 << 0) ? "SSE3" : "-",
+			ecx & (1 << 3) ? "MONITOR" : "-",
+			ecx & (1 << 6) ? "SMX" : "-",
+			ecx & (1 << 7) ? "EIST" : "-",
+			ecx & (1 << 8) ? "TM2" : "-",
+			edx & (1 << 4) ? "TSC" : "-",
+			edx & (1 << 5) ? "MSR" : "-",
+			edx & (1 << 22) ? "ACPI-TM" : "-",
+			edx & (1 << 28) ? "HT" : "-",
+			edx & (1 << 29) ? "TM" : "-");
+	}
+
+	if (!(edx & (1 << 5)))
+		errx(1, "CPUID: no MSR");
 
 	/*
 	 * check max extended function levels of CPUID.
@@ -4496,25 +4488,6 @@ void process_cpuid()
 	 */
 	ebx = ecx = edx = 0;
 	__cpuid(0x80000000, max_extended_level, ebx, ecx, edx);
-
-	if (!quiet) {
-		fprintf(outf, "0x%x CPUID levels; 0x%x xlevels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
-			max_level, max_extended_level, family, model, stepping, family, model, stepping);
-		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s %s\n",
-			ecx_flags & (1 << 0) ? "SSE3" : "-",
-			ecx_flags & (1 << 3) ? "MONITOR" : "-",
-			ecx_flags & (1 << 6) ? "SMX" : "-",
-			ecx_flags & (1 << 7) ? "EIST" : "-",
-			ecx_flags & (1 << 8) ? "TM2" : "-",
-			edx_flags & (1 << 4) ? "TSC" : "-",
-			edx_flags & (1 << 5) ? "MSR" : "-",
-			edx_flags & (1 << 22) ? "ACPI-TM" : "-",
-			edx_flags & (1 << 28) ? "HT" : "-",
-			edx_flags & (1 << 29) ? "TM" : "-");
-	}
-
-	if (!(edx_flags & (1 << 5)))
-		errx(1, "CPUID: no MSR");
 
 	if (max_extended_level >= 0x80000007) {
 
@@ -4608,11 +4581,11 @@ void process_cpuid()
 				case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
 					crystal_hz = 24000000;	/* 24.0 MHz */
 					break;
-				case INTEL_FAM6_ATOM_GOLDMONT_X:	/* DNV */
+				case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
 					crystal_hz = 25000000;	/* 25.0 MHz */
 					break;
 				case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
-				case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
+				case INTEL_FAM6_ATOM_GEMINI_LAKE:
 					crystal_hz = 19200000;	/* 19.2 MHz */
 					break;
 				default:
@@ -4742,16 +4715,10 @@ void process_cpuid()
 	else
 		BIC_NOT_PRESENT(BIC_CPU_LPI);
 
-	if (!access(sys_lpi_file_sysfs, R_OK)) {
-		sys_lpi_file = sys_lpi_file_sysfs;
+	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us", R_OK))
 		BIC_PRESENT(BIC_SYS_LPI);
-	} else if (!access(sys_lpi_file_debugfs, R_OK)) {
-		sys_lpi_file = sys_lpi_file_debugfs;
-		BIC_PRESENT(BIC_SYS_LPI);
-	} else {
-		sys_lpi_file_sysfs = NULL;
+	else
 		BIC_NOT_PRESENT(BIC_SYS_LPI);
-	}
 
 	if (!quiet)
 		decode_misc_feature_control();
@@ -4986,7 +4953,7 @@ int initialize_counters(int cpu_id)
 
 void allocate_output_buffer()
 {
-	output_buffer = calloc(1, (1 + topo.num_cpus) * 2048);
+	output_buffer = calloc(1, (1 + topo.num_cpus) * 1024);
 	outp = output_buffer;
 	if (outp == NULL)
 		err(-1, "calloc output buffer");
@@ -5087,9 +5054,6 @@ int fork_it(char **argv)
 		signal(SIGQUIT, SIG_IGN);
 		if (waitpid(child_pid, &status, 0) == -1)
 			err(status, "waitpid");
-
-		if (WIFEXITED(status))
-			status = WEXITSTATUS(status);
 	}
 	/*
 	 * n.b. fork_it() does not check for errors from for_all_cpus()
@@ -5149,9 +5113,9 @@ int add_counter(unsigned int msr_num, char *path, char *name,
 	}
 
 	msrp->msr_num = msr_num;
-	strncpy(msrp->name, name, NAME_BYTES - 1);
+	strncpy(msrp->name, name, NAME_BYTES);
 	if (path)
-		strncpy(msrp->path, path, PATH_BYTES - 1);
+		strncpy(msrp->path, path, PATH_BYTES);
 	msrp->width = width;
 	msrp->type = type;
 	msrp->format = format;

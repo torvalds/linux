@@ -82,10 +82,6 @@ static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.fb_create           = drm_gem_fb_create,
 };
 
-static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {
-	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
-};
-
 static irqreturn_t meson_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -250,7 +246,6 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	drm->mode_config.max_width = 3840;
 	drm->mode_config.max_height = 2160;
 	drm->mode_config.funcs = &meson_mode_config_funcs;
-	drm->mode_config.helper_private	= &meson_mode_config_helpers;
 
 	/* Hardware Initialization */
 
@@ -300,12 +295,10 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto uninstall_irq;
+		goto free_drm;
 
 	return 0;
 
-uninstall_irq:
-	drm_irq_uninstall(drm);
 free_drm:
 	drm_dev_put(drm);
 
@@ -319,11 +312,10 @@ static int meson_drv_bind(struct device *dev)
 
 static void meson_drv_unbind(struct device *dev)
 {
-	struct meson_drm *priv = dev_get_drvdata(dev);
-	struct drm_device *drm = priv->drm;
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct meson_drm *priv = drm->dev_private;
 
 	drm_dev_unregister(drm);
-	drm_irq_uninstall(drm);
 	drm_kms_helper_poll_fini(drm);
 	drm_fbdev_cma_fini(priv->fbdev);
 	drm_mode_config_cleanup(drm);
@@ -371,10 +363,8 @@ static int meson_probe_remote(struct platform_device *pdev,
 		remote_node = of_graph_get_remote_port_parent(ep);
 		if (!remote_node ||
 		    remote_node == parent || /* Ignore parent endpoint */
-		    !of_device_is_available(remote_node)) {
-			of_node_put(remote_node);
+		    !of_device_is_available(remote_node))
 			continue;
-		}
 
 		count += meson_probe_remote(pdev, match, remote, remote_node);
 
@@ -393,13 +383,10 @@ static int meson_drv_probe(struct platform_device *pdev)
 
 	for_each_endpoint_of_node(np, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote || !of_device_is_available(remote)) {
-			of_node_put(remote);
+		if (!remote || !of_device_is_available(remote))
 			continue;
-		}
 
 		count += meson_probe_remote(pdev, &match, np, remote);
-		of_node_put(remote);
 	}
 
 	if (count && !match)

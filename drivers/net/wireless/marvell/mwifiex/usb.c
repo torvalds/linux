@@ -298,19 +298,6 @@ static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size)
 	struct mwifiex_adapter *adapter = ctx->adapter;
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
 
-	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
-		if (card->rx_cmd_ep == ctx->ep) {
-			mwifiex_dbg(adapter, INFO, "%s: free rx_cmd skb\n",
-				    __func__);
-			dev_kfree_skb_any(ctx->skb);
-			ctx->skb = NULL;
-		}
-		mwifiex_dbg(adapter, ERROR,
-			    "%s: card removed/suspended, EP %d rx_cmd URB submit skipped\n",
-			    __func__, ctx->ep);
-		return -1;
-	}
-
 	if (card->rx_cmd_ep != ctx->ep) {
 		ctx->skb = dev_alloc_skb(size);
 		if (!ctx->skb) {
@@ -1355,8 +1342,7 @@ static void mwifiex_usb_cleanup_tx_aggr(struct mwifiex_adapter *adapter)
 				skb_dequeue(&port->tx_aggr.aggr_list)))
 				mwifiex_write_data_complete(adapter, skb_tmp,
 							    0, -1);
-		if (port->tx_aggr.timer_cnxt.hold_timer.function)
-			del_timer_sync(&port->tx_aggr.timer_cnxt.hold_timer);
+		del_timer_sync(&port->tx_aggr.timer_cnxt.hold_timer);
 		port->tx_aggr.timer_cnxt.is_hold_timer_set = false;
 		port->tx_aggr.timer_cnxt.hold_tmo_msecs = 0;
 	}

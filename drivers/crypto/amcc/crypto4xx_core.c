@@ -373,8 +373,12 @@ static u32 crypto4xx_build_sdr(struct crypto4xx_device *dev)
 		dma_alloc_coherent(dev->core_dev->device,
 			PPC4XX_SD_BUFFER_SIZE * PPC4XX_NUM_SD,
 			&dev->scatter_buffer_pa, GFP_ATOMIC);
-	if (!dev->scatter_buffer_va)
+	if (!dev->scatter_buffer_va) {
+		dma_free_coherent(dev->core_dev->device,
+				  sizeof(struct ce_sd) * PPC4XX_NUM_SD,
+				  dev->sdr, dev->sdr_pa);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < PPC4XX_NUM_SD; i++) {
 		dev->sdr[i].ptr = dev->scatter_buffer_pa +
@@ -708,23 +712,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	size_t offset_to_sr_ptr;
 	u32 gd_idx = 0;
 	int tmp;
-	bool is_busy, force_sd;
-
-	/*
-	 * There's a very subtile/disguised "bug" in the hardware that
-	 * gets indirectly mentioned in 18.1.3.5 Encryption/Decryption
-	 * of the hardware spec:
-	 * *drum roll* the AES/(T)DES OFB and CFB modes are listed as
-	 * operation modes for >>> "Block ciphers" <<<.
-	 *
-	 * To workaround this issue and stop the hardware from causing
-	 * "overran dst buffer" on crypttexts that are not a multiple
-	 * of 16 (AES_BLOCK_SIZE), we force the driver to use the
-	 * scatter buffers.
-	 */
-	force_sd = (req_sa->sa_command_1.bf.crypto_mode9_8 == CRYPTO_MODE_CFB
-		|| req_sa->sa_command_1.bf.crypto_mode9_8 == CRYPTO_MODE_OFB)
-		&& (datalen % AES_BLOCK_SIZE);
+	bool is_busy;
 
 	/* figure how many gd are needed */
 	tmp = sg_nents_for_len(src, assoclen + datalen);
@@ -742,7 +730,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	}
 
 	/* figure how many sd are needed */
-	if (sg_is_last(dst) && force_sd == false) {
+	if (sg_is_last(dst)) {
 		num_sd = 0;
 	} else {
 		if (datalen > PPC4XX_SD_BUFFER_SIZE) {
@@ -817,10 +805,9 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	pd->sa_len = sa_len;
 
 	pd_uinfo = &dev->pdr_uinfo[pd_entry];
+	pd_uinfo->async_req = req;
 	pd_uinfo->num_gd = num_gd;
 	pd_uinfo->num_sd = num_sd;
-	pd_uinfo->dest_va = dst;
-	pd_uinfo->async_req = req;
 
 	if (iv_len)
 		memcpy(pd_uinfo->sr_va->save_iv, iv, iv_len);
@@ -839,6 +826,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		/* get first gd we are going to use */
 		gd_idx = fst_gd;
 		pd_uinfo->first_gd = fst_gd;
+		pd_uinfo->num_gd = num_gd;
 		gd = crypto4xx_get_gdp(dev, &gd_dma, gd_idx);
 		pd->src = gd_dma;
 		/* enable gather */
@@ -875,14 +863,17 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		 * Indicate gather array is not used
 		 */
 		pd_uinfo->first_gd = 0xffffffff;
+		pd_uinfo->num_gd = 0;
 	}
-	if (!num_sd) {
+	if (sg_is_last(dst)) {
 		/*
 		 * we know application give us dst a whole piece of memory
 		 * no need to use scatter ring.
 		 */
 		pd_uinfo->using_sd = 0;
 		pd_uinfo->first_sd = 0xffffffff;
+		pd_uinfo->num_sd = 0;
+		pd_uinfo->dest_va = dst;
 		sa->sa_command_0.bf.scatter = 0;
 		pd->dest = (u32)dma_map_page(dev->core_dev->device,
 					     sg_page(dst), dst->offset,
@@ -896,7 +887,9 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		nbytes = datalen;
 		sa->sa_command_0.bf.scatter = 1;
 		pd_uinfo->using_sd = 1;
+		pd_uinfo->dest_va = dst;
 		pd_uinfo->first_sd = fst_sd;
+		pd_uinfo->num_sd = num_sd;
 		sd = crypto4xx_get_sdp(dev, &sd_dma, sd_idx);
 		pd->dest = sd_dma;
 		/* setup scatter descriptor */
@@ -926,7 +919,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	}
 
 	pd->pd_ctl.w = PD_CTL_HOST_READY |
-		((crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AHASH) ||
+		((crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AHASH) |
 		 (crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AEAD) ?
 			PD_CTL_HASH_FINAL : 0);
 	pd->pd_ctl_len.w = 0x00400000 | (assoclen + datalen);
@@ -1149,8 +1142,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.ivsize	= AES_IV_SIZE,
 		.setkey = crypto4xx_setkey_aes_cbc,
-		.encrypt = crypto4xx_encrypt_iv_block,
-		.decrypt = crypto4xx_decrypt_iv_block,
+		.encrypt = crypto4xx_encrypt_iv,
+		.decrypt = crypto4xx_decrypt_iv,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },
@@ -1169,8 +1162,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.ivsize	= AES_IV_SIZE,
 		.setkey	= crypto4xx_setkey_aes_cfb,
-		.encrypt = crypto4xx_encrypt_iv_stream,
-		.decrypt = crypto4xx_decrypt_iv_stream,
+		.encrypt = crypto4xx_encrypt_iv,
+		.decrypt = crypto4xx_decrypt_iv,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },
@@ -1182,7 +1175,7 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
 				CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = 1,
+			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
 			.cra_module = THIS_MODULE,
 		},
@@ -1202,7 +1195,7 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = 1,
+			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
 			.cra_module = THIS_MODULE,
 		},
@@ -1222,15 +1215,15 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = 1,
+			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
 			.cra_module = THIS_MODULE,
 		},
 		.min_keysize = AES_MIN_KEY_SIZE,
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.setkey	= crypto4xx_setkey_aes_ecb,
-		.encrypt = crypto4xx_encrypt_noiv_block,
-		.decrypt = crypto4xx_decrypt_noiv_block,
+		.encrypt = crypto4xx_encrypt_noiv,
+		.decrypt = crypto4xx_decrypt_noiv,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },
@@ -1241,7 +1234,7 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = 1,
+			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
 			.cra_module = THIS_MODULE,
 		},
@@ -1249,8 +1242,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.ivsize	= AES_IV_SIZE,
 		.setkey	= crypto4xx_setkey_aes_ofb,
-		.encrypt = crypto4xx_encrypt_iv_stream,
-		.decrypt = crypto4xx_decrypt_iv_stream,
+		.encrypt = crypto4xx_encrypt_iv,
+		.decrypt = crypto4xx_decrypt_iv,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },

@@ -28,11 +28,6 @@
 #include <linux/mount.h>
 #include "ubifs.h"
 
-/* Need to be kept consistent with checked flags in ioctl2ubifs() */
-#define UBIFS_SUPPORTED_IOCTL_FLAGS \
-	(FS_COMPR_FL | FS_SYNC_FL | FS_APPEND_FL | \
-	 FS_IMMUTABLE_FL | FS_DIRSYNC_FL)
-
 /**
  * ubifs_set_inode_flags - set VFS inode flags.
  * @inode: VFS inode to set flags for
@@ -132,8 +127,7 @@ static int setflags(struct inode *inode, int flags)
 		}
 	}
 
-	ui->flags &= ~ioctl2ubifs(UBIFS_SUPPORTED_IOCTL_FLAGS);
-	ui->flags |= ioctl2ubifs(flags);
+	ui->flags = ioctl2ubifs(flags);
 	ubifs_set_inode_flags(inode);
 	inode->i_ctime = current_time(inode);
 	release = ui->dirty;
@@ -175,9 +169,6 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (get_user(flags, (int __user *) arg))
 			return -EFAULT;
 
-		if (flags & ~UBIFS_SUPPORTED_IOCTL_FLAGS)
-			return -EOPNOTSUPP;
-
 		if (!S_ISDIR(inode->i_mode))
 			flags &= ~FS_DIRSYNC_FL;
 
@@ -194,7 +185,7 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 	}
 	case FS_IOC_SET_ENCRYPTION_POLICY: {
-#ifdef CONFIG_FS_ENCRYPTION
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
 		struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 		err = ubifs_enable_encryption(c);
@@ -207,30 +198,12 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #endif
 	}
 	case FS_IOC_GET_ENCRYPTION_POLICY: {
-#ifdef CONFIG_FS_ENCRYPTION
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
 		return fscrypt_ioctl_get_policy(file, (void __user *)arg);
 #else
 		return -EOPNOTSUPP;
 #endif
 	}
-
-	case FS_IOC_GET_ENCRYPTION_POLICY_EX:
-		return fscrypt_ioctl_get_policy_ex(file, (void __user *)arg);
-
-	case FS_IOC_ADD_ENCRYPTION_KEY:
-		return fscrypt_ioctl_add_key(file, (void __user *)arg);
-
-	case FS_IOC_REMOVE_ENCRYPTION_KEY:
-		return fscrypt_ioctl_remove_key(file, (void __user *)arg);
-
-	case FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS:
-		return fscrypt_ioctl_remove_key_all_users(file,
-							  (void __user *)arg);
-	case FS_IOC_GET_ENCRYPTION_KEY_STATUS:
-		return fscrypt_ioctl_get_key_status(file, (void __user *)arg);
-
-	case FS_IOC_GET_ENCRYPTION_NONCE:
-		return fscrypt_ioctl_get_nonce(file, (void __user *)arg);
 
 	default:
 		return -ENOTTY;
@@ -249,12 +222,6 @@ long ubifs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case FS_IOC_SET_ENCRYPTION_POLICY:
 	case FS_IOC_GET_ENCRYPTION_POLICY:
-	case FS_IOC_GET_ENCRYPTION_POLICY_EX:
-	case FS_IOC_ADD_ENCRYPTION_KEY:
-	case FS_IOC_REMOVE_ENCRYPTION_KEY:
-	case FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS:
-	case FS_IOC_GET_ENCRYPTION_KEY_STATUS:
-	case FS_IOC_GET_ENCRYPTION_NONCE:
 		break;
 	default:
 		return -ENOIOCTLCMD;

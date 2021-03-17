@@ -36,10 +36,7 @@ KBUILD_CFLAGS	+= $(call cc-option,-mno-unaligned-access)
 endif
 
 ifeq ($(CONFIG_FRAME_POINTER),y)
-KBUILD_CFLAGS	+=-fno-omit-frame-pointer
-ifeq ($(CONFIG_CC_IS_GCC),y)
-KBUILD_CFLAGS += -mapcs -mno-sched-prolog
-endif
+KBUILD_CFLAGS	+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
 endif
 
 ifeq ($(CONFIG_CPU_BIG_ENDIAN),y)
@@ -115,10 +112,6 @@ ifeq ($(CONFIG_ARM_UNWIND),y)
 CFLAGS_ABI	+=-funwind-tables
 endif
 
-ifeq ($(CONFIG_CC_IS_CLANG),y)
-CFLAGS_ABI	+= -meabi gnu
-endif
-
 # Accept old syntax despite ".syntax unified"
 AFLAGS_NOWARN	:=$(call as-option,-Wa$(comma)-mno-warn-deprecated,-Wa$(comma)-W)
 
@@ -157,11 +150,6 @@ textofs-$(CONFIG_ARCH_MSM8X60) := 0x00208000
 textofs-$(CONFIG_ARCH_MSM8960) := 0x00208000
 textofs-$(CONFIG_ARCH_MESON) := 0x00208000
 textofs-$(CONFIG_ARCH_AXXIA) := 0x00308000
-textofs-$(CONFIG_CPU_RK3308) := 0x00058000
-textofs-$(CONFIG_CPU_PX30) := 0x00208000
-ifeq ($(CONFIG_ROCKCHIP_THUNDER_BOOT),y)
-textofs-$(CONFIG_CPU_RV1126) := 0x00608000
-endif
 
 # Machine directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
@@ -215,9 +203,7 @@ machine-$(CONFIG_ARCH_PICOXCELL)	+= picoxcell
 machine-$(CONFIG_ARCH_PXA)		+= pxa
 machine-$(CONFIG_ARCH_QCOM)		+= qcom
 machine-$(CONFIG_ARCH_REALVIEW)		+= realview
-ifndef CONFIG_ARM_PSCI
 machine-$(CONFIG_ARCH_ROCKCHIP)		+= rockchip
-endif
 machine-$(CONFIG_ARCH_RPC)		+= rpc
 machine-$(CONFIG_ARCH_S3C24XX)		+= s3c24xx
 machine-$(CONFIG_ARCH_S3C64XX)		+= s3c64xx
@@ -339,7 +325,6 @@ archprepare:
 bzImage: zImage
 
 BOOT_TARGETS	= zImage Image xipImage bootpImage uImage
-BOOT_TARGETS	+= Image.gz Image.lz4
 INSTALL_TARGETS	= zinstall uinstall install
 
 PHONY += bzImage $(BOOT_TARGETS) $(INSTALL_TARGETS)
@@ -396,21 +381,3 @@ define archhelp
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
   echo  '  vdso_install  - Install unstripped vdso.so to $$(INSTALL_MOD_PATH)/vdso'
 endef
-
-kernel.img: zImage
-	$(Q)scripts/mkkrnlimg $(objtree)/arch/arm/boot/zImage $(objtree)/kernel.img >/dev/null
-	@echo '  Image:  kernel.img (with zImage) is ready'
-ifdef CONFIG_MODULES
-	$(Q)if [ "$(srctree)" = "$(objtree)" ]; then $(MAKE) modules; fi
-endif
-
-ifdef CONFIG_DRM
-LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
-LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
-endif
-
-%.img: %.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
-	$(Q)$(srctree)/scripts/mkimg --dtb $*.dtb
-
-CLEAN_DIRS += out
-CLEAN_FILES += boot.img kernel.img resource.img zboot.img

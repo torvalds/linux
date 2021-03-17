@@ -68,8 +68,6 @@ struct snd_pcm_ops {
 	int (*close)(struct snd_pcm_substream *substream);
 	int (*ioctl)(struct snd_pcm_substream * substream,
 		     unsigned int cmd, void *arg);
-	int (*compat_ioctl)(struct snd_pcm_substream *substream,
-		     unsigned int cmd, void *arg);
 	int (*hw_params)(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params);
 	int (*hw_free)(struct snd_pcm_substream *substream);
@@ -80,9 +78,6 @@ struct snd_pcm_ops {
 			struct timespec *system_ts, struct timespec *audio_ts,
 			struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
 			struct snd_pcm_audio_tstamp_report *audio_tstamp_report);
-	int (*delay_blk)(struct snd_pcm_substream *substream);
-	int (*wall_clock)(struct snd_pcm_substream *substream,
-			struct timespec *audio_ts);
 	int (*fill_silence)(struct snd_pcm_substream *substream, int channel,
 			    unsigned long pos, unsigned long bytes);
 	int (*copy_user)(struct snd_pcm_substream *substream, int channel,
@@ -94,7 +89,6 @@ struct snd_pcm_ops {
 			     unsigned long offset);
 	int (*mmap)(struct snd_pcm_substream *substream, struct vm_area_struct *vma);
 	int (*ack)(struct snd_pcm_substream *substream);
-	int (*restart)(struct snd_pcm_substream *substream);
 };
 
 /*
@@ -123,11 +117,6 @@ struct snd_pcm_ops {
 
 #define SNDRV_PCM_POS_XRUN		((snd_pcm_uframes_t)-1)
 
-#define SNDRV_DMA_MODE          (0)
-#define SNDRV_NON_DMA_MODE      (1 << 0)
-#define SNDRV_RENDER_STOPPED    (1 << 1)
-#define SNDRV_RENDER_RUNNING    (1 << 2)
-
 /* If you change this don't forget to change rates[] table in pcm_native.c */
 #define SNDRV_PCM_RATE_5512		(1<<0)		/* 5512Hz */
 #define SNDRV_PCM_RATE_8000		(1<<1)		/* 8000Hz */
@@ -142,8 +131,6 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_RATE_96000		(1<<10)		/* 96000Hz */
 #define SNDRV_PCM_RATE_176400		(1<<11)		/* 176400Hz */
 #define SNDRV_PCM_RATE_192000		(1<<12)		/* 192000Hz */
-#define SNDRV_PCM_RATE_352800		(1<<13)		/* 352800Hz */
-#define SNDRV_PCM_RATE_384000		(1<<14)		/* 384000Hz */
 
 #define SNDRV_PCM_RATE_CONTINUOUS	(1<<30)		/* continuous range */
 #define SNDRV_PCM_RATE_KNOT		(1<<31)		/* supports more non-continuos rates */
@@ -156,9 +143,6 @@ struct snd_pcm_ops {
 					 SNDRV_PCM_RATE_88200|SNDRV_PCM_RATE_96000)
 #define SNDRV_PCM_RATE_8000_192000	(SNDRV_PCM_RATE_8000_96000|SNDRV_PCM_RATE_176400|\
 					 SNDRV_PCM_RATE_192000)
-#define SNDRV_PCM_RATE_8000_384000	(SNDRV_PCM_RATE_8000_192000|\
-					 SNDRV_PCM_RATE_352800|\
-					 SNDRV_PCM_RATE_384000)
 #define _SNDRV_PCM_FMTBIT(fmt)		(1ULL << (__force int)SNDRV_PCM_FORMAT_##fmt)
 #define SNDRV_PCM_FMTBIT_S8		_SNDRV_PCM_FMTBIT(S8)
 #define SNDRV_PCM_FMTBIT_U8		_SNDRV_PCM_FMTBIT(U8)
@@ -395,7 +379,6 @@ struct snd_pcm_runtime {
 	unsigned int rate_num;
 	unsigned int rate_den;
 	unsigned int no_period_wakeup: 1;
-	unsigned int render_flag;
 
 	/* -- SW params -- */
 	int tstamp_mode;		/* mmap timestamp is updated */
@@ -476,7 +459,6 @@ struct snd_pcm_substream {
 	const struct snd_pcm_ops *ops;
 	/* -- runtime information -- */
 	struct snd_pcm_runtime *runtime;
-	spinlock_t runtime_lock;
         /* -- timer section -- */
 	struct snd_timer *timer;		/* timer */
 	unsigned timer_running: 1;	/* time is running */
@@ -512,7 +494,6 @@ struct snd_pcm_substream {
 #endif /* CONFIG_SND_VERBOSE_PROCFS */
 	/* misc flags */
 	unsigned int hw_opened: 1;
-	unsigned int hw_no_buffer: 1; /* substream may not have a buffer */
 };
 
 #define SUBSTREAM_BUSY(substream) ((substream)->ref_count > 0)
@@ -538,8 +519,6 @@ struct snd_pcm_str {
 #endif
 #endif
 	struct snd_kcontrol *chmap_kctl; /* channel-mapping controls */
-	struct snd_kcontrol *vol_kctl; /* volume controls */
-	struct snd_kcontrol *usr_kctl; /* user controls */
 	struct device dev;
 };
 
@@ -1459,100 +1438,6 @@ static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
 {
 	return 1ULL << (__force int) pcm_format;
 }
-
-/*
- * PCM Volume control API
- */
-/* array element of volume */
-struct snd_pcm_volume_elem {
-	int volume;
-};
-
-/* pp information; retrieved via snd_kcontrol_chip() */
-struct snd_pcm_volume {
-	struct snd_pcm *pcm;	/* assigned PCM instance */
-	int stream;		/* PLAYBACK or CAPTURE */
-	struct snd_kcontrol *kctl;
-	const struct snd_pcm_volume_elem *volume;
-	int max_length;
-	void *private_data;	/* optional: private data pointer */
-};
-
-int snd_pcm_add_volume_ctls(struct snd_pcm *pcm, int stream,
-			   const struct snd_pcm_volume_elem *volume,
-			   int max_length,
-			   unsigned long private_value,
-			   struct snd_pcm_volume **info_ret);
-
-/*
- * PCM User control API
- */
-/* array element of usr elem */
-struct snd_pcm_usr_elem {
-	int val[128];
-};
-
-/* pp information; retrieved via snd_kcontrol_chip() */
-struct snd_pcm_usr {
-	struct snd_pcm *pcm;	/* assigned PCM instance */
-	int stream;		/* PLAYBACK or CAPTURE */
-	struct snd_kcontrol *kctl;
-	const struct snd_pcm_usr_elem *usr;
-	int max_length;
-	void *private_data;	/* optional: private data pointer */
-};
-
-int snd_pcm_add_usr_ctls(struct snd_pcm *pcm, int stream,
-			 const struct snd_pcm_usr_elem *usr,
-			 int max_length, int max_control_str_len,
-			 unsigned long private_value,
-			 struct snd_pcm_usr **info_ret);
-
-#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
-/**
- * snd_pcm_vad_read - Read raw pcm data from vad buffer
- * @substream: PCM substream instance
- * @buf: dst buf
- * @frames: size in frame
- *
- * Result is read frames for success or errno for fail
- */
-snd_pcm_sframes_t snd_pcm_vad_read(struct snd_pcm_substream *substream,
-				   void __user *buf, snd_pcm_uframes_t frames);
-/**
- * snd_pcm_vad_avail - Get the available (readable) space for vad
- * @substream: PCM substream instance
- *
- * Result is between 0 ... (boundary - 1)
- */
-snd_pcm_uframes_t snd_pcm_vad_avail(struct snd_pcm_substream *substream);
-/**
- * snd_pcm_vad_attached - Check whether vad is attached to substream or not
- * @substream: PCM substream instance
- *
- * Result is true for attached or false for detached
- */
-bool snd_pcm_vad_attached(struct snd_pcm_substream *substream);
-/**
- * snd_pcm_vad_preprocess - Pre process vad data
- * @substream: PCM substream instance
- * @size: size in frame
- *
- * Result is zero for success or errno for fail
- */
-int snd_pcm_vad_preprocess(struct snd_pcm_substream *substream,
-			   void *buf, snd_pcm_uframes_t size);
-/**
- * snd_pcm_vad_memcpy - Copy vad data to dst
- * @substream: PCM substream instance
- * @buf: dst buf
- * @frames:  size in frame
- *
- * Result is copied frames for success or errno for fail
- */
-snd_pcm_sframes_t snd_pcm_vad_memcpy(struct snd_pcm_substream *substream,
-				     void *buf, snd_pcm_uframes_t frames);
-#endif
 
 /* printk helpers */
 #define pcm_err(pcm, fmt, args...) \

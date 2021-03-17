@@ -91,8 +91,8 @@ nvkm_memory_tags_get(struct nvkm_memory *memory, struct nvkm_device *device,
 	}
 
 	refcount_set(&tags->refcount, 1);
-	*ptags = memory->tags = tags;
 	mutex_unlock(&fb->subdev.mutex);
+	*ptags = tags;
 	return 0;
 }
 

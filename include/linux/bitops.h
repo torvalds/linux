@@ -50,7 +50,7 @@ static inline int get_bitmask_order(unsigned int count)
 
 static __always_inline unsigned long hweight_long(unsigned long w)
 {
-	return sizeof(w) == 4 ? hweight32(w) : hweight64((__u64)w);
+	return sizeof(w) == 4 ? hweight32(w) : hweight64(w);
 }
 
 /**
@@ -60,7 +60,7 @@ static __always_inline unsigned long hweight_long(unsigned long w)
  */
 static inline __u64 rol64(__u64 word, unsigned int shift)
 {
-	return (word << (shift & 63)) | (word >> ((-shift) & 63));
+	return (word << shift) | (word >> (64 - shift));
 }
 
 /**
@@ -70,7 +70,7 @@ static inline __u64 rol64(__u64 word, unsigned int shift)
  */
 static inline __u64 ror64(__u64 word, unsigned int shift)
 {
-	return (word >> (shift & 63)) | (word << ((-shift) & 63));
+	return (word >> shift) | (word << (64 - shift));
 }
 
 /**
@@ -80,7 +80,7 @@ static inline __u64 ror64(__u64 word, unsigned int shift)
  */
 static inline __u32 rol32(__u32 word, unsigned int shift)
 {
-	return (word << (shift & 31)) | (word >> ((-shift) & 31));
+	return (word << shift) | (word >> ((-shift) & 31));
 }
 
 /**
@@ -90,7 +90,7 @@ static inline __u32 rol32(__u32 word, unsigned int shift)
  */
 static inline __u32 ror32(__u32 word, unsigned int shift)
 {
-	return (word >> (shift & 31)) | (word << ((-shift) & 31));
+	return (word >> shift) | (word << (32 - shift));
 }
 
 /**
@@ -100,7 +100,7 @@ static inline __u32 ror32(__u32 word, unsigned int shift)
  */
 static inline __u16 rol16(__u16 word, unsigned int shift)
 {
-	return (word << (shift & 15)) | (word >> ((-shift) & 15));
+	return (word << shift) | (word >> (16 - shift));
 }
 
 /**
@@ -110,7 +110,7 @@ static inline __u16 rol16(__u16 word, unsigned int shift)
  */
 static inline __u16 ror16(__u16 word, unsigned int shift)
 {
-	return (word >> (shift & 15)) | (word << ((-shift) & 15));
+	return (word >> shift) | (word << (16 - shift));
 }
 
 /**
@@ -120,7 +120,7 @@ static inline __u16 ror16(__u16 word, unsigned int shift)
  */
 static inline __u8 rol8(__u8 word, unsigned int shift)
 {
-	return (word << (shift & 7)) | (word >> ((-shift) & 7));
+	return (word << shift) | (word >> (8 - shift));
 }
 
 /**
@@ -130,7 +130,7 @@ static inline __u8 rol8(__u8 word, unsigned int shift)
  */
 static inline __u8 ror8(__u8 word, unsigned int shift)
 {
-	return (word >> (shift & 7)) | (word << ((-shift) & 7));
+	return (word >> shift) | (word << (8 - shift));
 }
 
 /**
@@ -236,17 +236,17 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
 #ifdef __KERNEL__
 
 #ifndef set_mask_bits
-#define set_mask_bits(ptr, mask, bits)	\
+#define set_mask_bits(ptr, _mask, _bits)	\
 ({								\
-	const typeof(*(ptr)) mask__ = (mask), bits__ = (bits);	\
-	typeof(*(ptr)) old__, new__;				\
+	const typeof(*ptr) mask = (_mask), bits = (_bits);	\
+	typeof(*ptr) old, new;					\
 								\
 	do {							\
-		old__ = READ_ONCE(*(ptr));			\
-		new__ = (old__ & ~mask__) | bits__;		\
-	} while (cmpxchg(ptr, old__, new__) != old__);		\
+		old = READ_ONCE(*ptr);			\
+		new = (old & ~mask) | bits;			\
+	} while (cmpxchg(ptr, old, new) != old);		\
 								\
-	new__;							\
+	new;							\
 })
 #endif
 

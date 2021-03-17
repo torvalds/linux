@@ -493,10 +493,18 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
  */
 static int save_tm_user_regs(struct pt_regs *regs,
 			     struct mcontext __user *frame,
-			     struct mcontext __user *tm_frame, int sigret,
-			     unsigned long msr)
+			     struct mcontext __user *tm_frame, int sigret)
 {
+	unsigned long msr = regs->msr;
+
 	WARN_ON(tm_suspend_disabled);
+
+	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
+	 * just indicates to userland that we were doing a transaction, but we
+	 * don't want to return in transactional state.  This also ensures
+	 * that flush_fp_to_thread won't set TIF_RESTORE_TM again.
+	 */
+	regs->msr &= ~MSR_TS_MASK;
 
 	/* Save both sets of general registers */
 	if (save_general_regs(&current->thread.ckpt_regs, frame)
@@ -840,23 +848,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	/* If TM bits are set to the reserved value, it's an invalid context */
 	if (MSR_TM_RESV(msr_hi))
 		return 1;
-
-	/*
-	 * Disabling preemption, since it is unsafe to be preempted
-	 * with MSR[TS] set without recheckpointing.
-	 */
-	preempt_disable();
-
-	/*
-	 * CAUTION:
-	 * After regs->MSR[TS] being updated, make sure that get_user(),
-	 * put_user() or similar functions are *not* called. These
-	 * functions can generate page faults which will cause the process
-	 * to be de-scheduled with MSR[TS] set but without calling
-	 * tm_recheckpoint(). This can cause a bug.
-	 *
-	 * Pull in the MSR TM bits from the user context
-	 */
+	/* Pull in the MSR TM bits from the user context */
 	regs->msr = (regs->msr & ~MSR_TS_MASK) | (msr_hi & MSR_TS_MASK);
 	/* Now, recheckpoint.  This loads up all of the checkpointed (older)
 	 * registers, including FP and V[S]Rs.  After recheckpointing, the
@@ -880,8 +872,6 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		regs->msr |= MSR_VEC;
 	}
 #endif
-
-	preempt_enable();
 
 	return 0;
 }
@@ -908,10 +898,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	int sigret;
 	unsigned long tramp;
 	struct pt_regs *regs = tsk->thread.regs;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Save the thread's msr before get_tm_stackpointer() changes it */
-	unsigned long msr = regs->msr;
-#endif
 
 	BUG_ON(tsk != current);
 
@@ -944,13 +930,13 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	tm_frame = &rt_sf->uc_transact.uc_mcontext;
-	if (MSR_TM_ACTIVE(msr)) {
+	if (MSR_TM_ACTIVE(regs->msr)) {
 		if (__put_user((unsigned long)&rt_sf->uc_transact,
 			       &rt_sf->uc.uc_link) ||
 		    __put_user((unsigned long)tm_frame,
 			       &rt_sf->uc_transact.uc_regs))
 			goto badframe;
-		if (save_tm_user_regs(regs, frame, tm_frame, sigret, msr))
+		if (save_tm_user_regs(regs, frame, tm_frame, sigret))
 			goto badframe;
 	}
 	else
@@ -1198,9 +1184,6 @@ SYSCALL_DEFINE0(rt_sigreturn)
 			goto bad;
 
 		if (MSR_TM_ACTIVE(msr_hi<<32)) {
-			/* Trying to start TM on non TM system */
-			if (!cpu_has_feature(CPU_FTR_TM))
-				goto bad;
 			/* We only recheckpoint on return if we're
 			 * transaction.
 			 */
@@ -1361,10 +1344,6 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	int sigret;
 	unsigned long tramp;
 	struct pt_regs *regs = tsk->thread.regs;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Save the thread's msr before get_tm_stackpointer() changes it */
-	unsigned long msr = regs->msr;
-#endif
 
 	BUG_ON(tsk != current);
 
@@ -1398,9 +1377,9 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	tm_mctx = &frame->mctx_transact;
-	if (MSR_TM_ACTIVE(msr)) {
+	if (MSR_TM_ACTIVE(regs->msr)) {
 		if (save_tm_user_regs(regs, &frame->mctx, &frame->mctx_transact,
-				      sigret, msr))
+				      sigret))
 			goto badframe;
 	}
 	else

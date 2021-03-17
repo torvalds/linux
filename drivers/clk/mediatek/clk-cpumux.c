@@ -53,13 +53,13 @@ static const struct clk_ops clk_cpumux_ops = {
 	.set_parent = clk_cpumux_set_parent,
 };
 
-static struct clk *
+static struct clk __init *
 mtk_clk_register_cpumux(const struct mtk_composite *mux,
 			struct regmap *regmap)
 {
 	struct mtk_clk_cpumux *cpumux;
 	struct clk *clk;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 
 	cpumux = kzalloc(sizeof(*cpumux), GFP_KERNEL);
 	if (!cpumux)
@@ -84,9 +84,9 @@ mtk_clk_register_cpumux(const struct mtk_composite *mux,
 	return clk;
 }
 
-int mtk_clk_register_cpumuxes(struct device_node *node,
-			      const struct mtk_composite *clks, int num,
-			      struct clk_onecell_data *clk_data)
+int __init mtk_clk_register_cpumuxes(struct device_node *node,
+				     const struct mtk_composite *clks, int num,
+				     struct clk_onecell_data *clk_data)
 {
 	int i;
 	struct clk *clk;

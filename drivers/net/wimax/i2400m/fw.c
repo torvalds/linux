@@ -351,15 +351,13 @@ int i2400m_barker_db_init(const char *_options)
 			}
 			result = i2400m_barker_db_add(barker);
 			if (result < 0)
-				goto error_parse_add;
+				goto error_add;
 		}
 		kfree(options_orig);
 	}
 	return 0;
 
-error_parse_add:
 error_parse:
-	kfree(options_orig);
 error_add:
 	kfree(i2400m_barker_db);
 	return result;

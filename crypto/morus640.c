@@ -365,19 +365,18 @@ static void crypto_morus640_process_crypt(struct morus640_state *state,
 					  const struct morus640_ops *ops)
 {
 	struct skcipher_walk walk;
+	u8 *dst;
+	const u8 *src;
 
 	ops->skcipher_walk_init(&walk, req, false);
 
 	while (walk.nbytes) {
-		unsigned int nbytes = walk.nbytes;
+		src = walk.src.virt.addr;
+		dst = walk.dst.virt.addr;
 
-		if (nbytes < walk.total)
-			nbytes = round_down(nbytes, walk.stride);
+		ops->crypt_chunk(state, dst, src, walk.nbytes);
 
-		ops->crypt_chunk(state, walk.dst.virt.addr, walk.src.virt.addr,
-				 nbytes);
-
-		skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		skcipher_walk_done(&walk, 0);
 	}
 }
 
@@ -385,13 +384,21 @@ static void crypto_morus640_final(struct morus640_state *state,
 				  struct morus640_block *tag_xor,
 				  u64 assoclen, u64 cryptlen)
 {
+	u64 assocbits = assoclen * 8;
+	u64 cryptbits = cryptlen * 8;
+
+	u32 assocbits_lo = (u32)assocbits;
+	u32 assocbits_hi = (u32)(assocbits >> 32);
+	u32 cryptbits_lo = (u32)cryptbits;
+	u32 cryptbits_hi = (u32)(cryptbits >> 32);
+
 	struct morus640_block tmp;
 	unsigned int i;
 
-	tmp.words[0] = lower_32_bits(assoclen * 8);
-	tmp.words[1] = upper_32_bits(assoclen * 8);
-	tmp.words[2] = lower_32_bits(cryptlen * 8);
-	tmp.words[3] = upper_32_bits(cryptlen * 8);
+	tmp.words[0] = cpu_to_le32(assocbits_lo);
+	tmp.words[1] = cpu_to_le32(assocbits_hi);
+	tmp.words[2] = cpu_to_le32(cryptbits_lo);
+	tmp.words[3] = cpu_to_le32(cryptbits_hi);
 
 	for (i = 0; i < MORUS_BLOCK_WORDS; i++)
 		state->s[4].words[i] ^= state->s[0].words[i];

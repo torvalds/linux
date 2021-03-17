@@ -148,14 +148,14 @@ static struct hdac_hdmi_pcm *
 hdac_hdmi_get_pcm_from_cvt(struct hdac_hdmi_priv *hdmi,
 			   struct hdac_hdmi_cvt *cvt)
 {
-	struct hdac_hdmi_pcm *pcm;
+	struct hdac_hdmi_pcm *pcm = NULL;
 
 	list_for_each_entry(pcm, &hdmi->pcm_list, head) {
 		if (pcm->cvt == cvt)
-			return pcm;
+			break;
 	}
 
-	return NULL;
+	return pcm;
 }
 
 static void hdac_hdmi_jack_report(struct hdac_hdmi_pcm *pcm,
@@ -1410,12 +1410,6 @@ static int hdac_hdmi_create_dais(struct hdac_device *hdev,
 		if (ret)
 			return ret;
 
-		/* Filter out 44.1, 88.2 and 176.4Khz */
-		rates &= ~(SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_88200 |
-			   SNDRV_PCM_RATE_176400);
-		if (!rates)
-			return -EINVAL;
-
 		sprintf(dai_name, "intel-hdmi-hifi%d", i+1);
 		hdmi_dais[i].name = devm_kstrdup(&hdev->dev,
 					dai_name, GFP_KERNEL);
@@ -1835,17 +1829,6 @@ static int hdmi_codec_probe(struct snd_soc_component *component)
 	hdmi->card = dapm->card->snd_card;
 
 	/*
-	 * Setup a device_link between card device and HDMI codec device.
-	 * The card device is the consumer and the HDMI codec device is
-	 * the supplier. With this setting, we can make sure that the audio
-	 * domain in display power will be always turned on before operating
-	 * on the HDMI audio codec registers.
-	 * Let's use the flag DL_FLAG_AUTOREMOVE_CONSUMER. This can make
-	 * sure the device link is freed when the machine driver is removed.
-	 */
-	device_link_add(component->card->dev, &hdev->dev, DL_FLAG_RPM_ACTIVE |
-			DL_FLAG_AUTOREMOVE_CONSUMER);
-	/*
 	 * hdac_device core already sets the state to active and calls
 	 * get_noresume. So enable runtime and set the device to suspend.
 	 */
@@ -1860,12 +1843,6 @@ static void hdmi_codec_remove(struct snd_soc_component *component)
 {
 	struct hdac_hdmi_priv *hdmi = snd_soc_component_get_drvdata(component);
 	struct hdac_device *hdev = hdmi->hdev;
-	int ret;
-
-	ret = snd_hdac_acomp_register_notifier(hdev->bus, NULL);
-	if (ret < 0)
-		dev_err(&hdev->dev, "notifier unregister failed: err: %d\n",
-				ret);
 
 	pm_runtime_disable(&hdev->dev);
 }
@@ -2207,6 +2184,11 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 	 */
 	snd_hdac_codec_read(hdev, hdev->afg, 0,	AC_VERB_SET_POWER_STATE,
 							AC_PWRST_D3);
+	err = snd_hdac_display_power(bus, false);
+	if (err < 0) {
+		dev_err(dev, "Cannot turn on display power on i915\n");
+		return err;
+	}
 
 	hlink = snd_hdac_ext_bus_get_link(bus, dev_name(dev));
 	if (!hlink) {
@@ -2216,11 +2198,7 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 
 	snd_hdac_ext_bus_link_put(bus, hlink);
 
-	err = snd_hdac_display_power(bus, false);
-	if (err < 0)
-		dev_err(dev, "Cannot turn off display power on i915\n");
-
-	return err;
+	return 0;
 }
 
 static int hdac_hdmi_runtime_resume(struct device *dev)

@@ -37,7 +37,7 @@ static unsigned long clk_peri_cnt_clk_recalc_rate(struct clk_hw *hwclk,
 	if (socfpgaclk->fixed_div) {
 		div = socfpgaclk->fixed_div;
 	} else {
-		if (socfpgaclk->hw.reg)
+		if (!socfpgaclk->bypass_reg)
 			div = ((readl(socfpgaclk->hw.reg) & 0x7ff) + 1);
 	}
 
@@ -79,7 +79,7 @@ struct clk *s10_register_periph(const char *name, const char *parent_name,
 {
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
@@ -113,7 +113,7 @@ struct clk *s10_register_cnt_periph(const char *name, const char *parent_name,
 {
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))

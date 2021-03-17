@@ -243,8 +243,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	if (new_mtu < (ETH_MIN_MTU + IPOIB_ENCAP_LEN) ||
-	    new_mtu > IPOIB_UD_MTU(priv->max_ib_mtu))
+	if (new_mtu > IPOIB_UD_MTU(priv->max_ib_mtu))
 		return -EINVAL;
 
 	priv->admin_mtu = new_mtu;
@@ -1188,11 +1187,9 @@ static void ipoib_timeout(struct net_device *dev)
 
 	ipoib_warn(priv, "transmit timeout: latency %d msecs\n",
 		   jiffies_to_msecs(jiffies - dev_trans_start(dev)));
-	ipoib_warn(priv,
-		   "queue stopped %d, tx_head %u, tx_tail %u, global_tx_head %u, global_tx_tail %u\n",
-		   netif_queue_stopped(dev), priv->tx_head, priv->tx_tail,
-		   priv->global_tx_head, priv->global_tx_tail);
-
+	ipoib_warn(priv, "queue stopped %d, tx_head %u, tx_tail %u\n",
+		   netif_queue_stopped(dev),
+		   priv->tx_head, priv->tx_tail);
 	/* XXX reset QP, etc. */
 }
 
@@ -1707,7 +1704,7 @@ static int ipoib_dev_init_default(struct net_device *dev)
 		goto out_rx_ring_cleanup;
 	}
 
-	/* priv->tx_head, tx_tail and global_tx_tail/head are already 0 */
+	/* priv->tx_head, tx_tail & tx_outstanding are already 0 */
 
 	if (ipoib_transport_dev_init(dev, priv->ca)) {
 		pr_warn("%s: ipoib_transport_dev_init failed\n",
@@ -1883,8 +1880,6 @@ static int ipoib_parent_init(struct net_device *ndev)
 	       sizeof(union ib_gid));
 
 	SET_NETDEV_DEV(priv->dev, priv->ca->dev.parent);
-	priv->dev->dev_port = priv->port - 1;
-	/* Let's set this one too for backwards compatibility. */
 	priv->dev->dev_id = priv->port - 1;
 
 	return 0;
@@ -1894,6 +1889,12 @@ static void ipoib_child_init(struct net_device *ndev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(ndev);
 	struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
+
+	dev_hold(priv->parent);
+
+	down_write(&ppriv->vlan_rwsem);
+	list_add_tail(&priv->list, &ppriv->child_intfs);
+	up_write(&ppriv->vlan_rwsem);
 
 	priv->max_ib_mtu = ppriv->max_ib_mtu;
 	set_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags);
@@ -1937,17 +1938,6 @@ static int ipoib_ndo_init(struct net_device *ndev)
 	if (rc) {
 		pr_warn("%s: failed to initialize device: %s port %d (ret = %d)\n",
 			priv->ca->name, priv->dev->name, priv->port, rc);
-		return rc;
-	}
-
-	if (priv->parent) {
-		struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
-
-		dev_hold(priv->parent);
-
-		down_write(&ppriv->vlan_rwsem);
-		list_add_tail(&priv->list, &ppriv->child_intfs);
-		up_write(&ppriv->vlan_rwsem);
 	}
 
 	return 0;
@@ -1965,29 +1955,26 @@ static void ipoib_ndo_uninit(struct net_device *dev)
 	 */
 	WARN_ON(!list_empty(&priv->child_intfs));
 
-	if (priv->parent) {
-		struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
-
-		down_write(&ppriv->vlan_rwsem);
-		list_del(&priv->list);
-		up_write(&ppriv->vlan_rwsem);
-	}
-
 	ipoib_neigh_hash_uninit(dev);
 
 	ipoib_ib_dev_cleanup(dev);
 
 	/* no more works over the priv->wq */
 	if (priv->wq) {
-		/* See ipoib_mcast_carrier_on_task() */
-		WARN_ON(test_bit(IPOIB_FLAG_OPER_UP, &priv->flags));
 		flush_workqueue(priv->wq);
 		destroy_workqueue(priv->wq);
 		priv->wq = NULL;
 	}
 
-	if (priv->parent)
+	if (priv->parent) {
+		struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
+
+		down_write(&ppriv->vlan_rwsem);
+		list_del(&priv->list);
+		up_write(&ppriv->vlan_rwsem);
+
 		dev_put(priv->parent);
+	}
 }
 
 static int ipoib_set_vf_link_state(struct net_device *dev, int vf, int link_state)
@@ -2008,7 +1995,6 @@ static int ipoib_get_vf_config(struct net_device *dev, int vf,
 		return err;
 
 	ivf->vf = vf;
-	memcpy(ivf->mac, dev->dev_addr, dev->addr_len);
 
 	return 0;
 }

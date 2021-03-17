@@ -22,8 +22,8 @@ enum cpuid_leafs
 	CPUID_LNX_3,
 	CPUID_7_0_EBX,
 	CPUID_D_1_EAX,
-	CPUID_LNX_4,
-	CPUID_DUMMY,
+	CPUID_F_0_EDX,
+	CPUID_F_1_EDX,
 	CPUID_8000_0008_EBX,
 	CPUID_6_EAX,
 	CPUID_8000_000A_EDX,
@@ -140,12 +140,15 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 
 #define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
-#if defined(__clang__) && !defined(CONFIG_CC_HAS_ASM_GOTO)
+#if defined(__clang__) && !defined(CC_HAVE_ASM_GOTO)
 
 /*
  * Workaround for the sake of BPF compilation which utilizes kernel
  * headers, but clang does not support ASM GOTO and fails the build.
  */
+#ifndef __BPF_TRACING__
+#warning "Compiler lacks ASM_GOTO support. Add -D __BPF_TRACING__ to your compiler arguments"
+#endif
 
 #define static_cpu_has(bit)            boot_cpu_has(bit)
 

@@ -9,7 +9,6 @@
 #include <linux/types.h>
 #include <linux/bvec.h>
 #include <linux/ktime.h>
-#include <linux/android_kabi.h>
 
 struct bio_set;
 struct bio;
@@ -19,7 +18,6 @@ struct block_device;
 struct io_context;
 struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
-struct bio_crypt_ctx;
 
 /*
  * Block error status values.  See block/blk-core:blk_errors for the details.
@@ -184,14 +182,6 @@ struct bio {
 	struct blkcg_gq		*bi_blkg;
 	struct bio_issue	bi_issue;
 #endif
-
-#ifdef CONFIG_BLK_INLINE_ENCRYPTION
-	struct bio_crypt_ctx	*bi_crypt_context;
-#if IS_ENABLED(CONFIG_DM_DEFAULT_KEY)
-	bool			bi_skip_dm_default_key;
-#endif
-#endif
-
 	union {
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 		struct bio_integrity_payload *bi_integrity; /* data integrity */
@@ -212,11 +202,6 @@ struct bio {
 
 	struct bio_set		*bi_pool;
 
-	ktime_t bi_alloc_ts;			/* for mm_event */
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-
 	/*
 	 * We can inline a number of vecs at the end of the bio, to avoid
 	 * double allocations for a small number of bio_vecs. This member
@@ -235,15 +220,14 @@ struct bio {
 #define BIO_BOUNCED	3	/* bio is a bounce bio */
 #define BIO_USER_MAPPED 4	/* contains user pages */
 #define BIO_NULL_MAPPED 5	/* contains invalid user pages */
-#define BIO_WORKINGSET	6	/* contains userspace workingset pages */
-#define BIO_QUIET	7	/* Make BIO Quiet */
-#define BIO_CHAIN	8	/* chained bio, ->bi_remaining in effect */
-#define BIO_REFFED	9	/* bio has elevated ->bi_cnt */
-#define BIO_THROTTLED	10	/* This bio has already been subjected to
+#define BIO_QUIET	6	/* Make BIO Quiet */
+#define BIO_CHAIN	7	/* chained bio, ->bi_remaining in effect */
+#define BIO_REFFED	8	/* bio has elevated ->bi_cnt */
+#define BIO_THROTTLED	9	/* This bio has already been subjected to
 				 * throttling rules. Don't do it again. */
-#define BIO_TRACE_COMPLETION 11	/* bio_endio() should trace the final completion
+#define BIO_TRACE_COMPLETION 10	/* bio_endio() should trace the final completion
 				 * of this bio. */
-#define BIO_QUEUE_ENTERED 12	/* can use blk_queue_enter_live() */
+#define BIO_QUEUE_ENTERED 11	/* can use blk_queue_enter_live() */
 
 /* See BVEC_POOL_OFFSET below before adding new flags */
 

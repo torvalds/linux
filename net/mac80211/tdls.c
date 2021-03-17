@@ -1055,7 +1055,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 
 	/* disable bottom halves when entering the Tx path */
 	local_bh_disable();
-	__ieee80211_subif_start_xmit(skb, dev, flags, 0);
+	__ieee80211_subif_start_xmit(skb, dev, flags);
 	local_bh_enable();
 
 	return ret;
@@ -1991,27 +1991,4 @@ void ieee80211_tdls_chsw_work(struct work_struct *wk)
 		kfree_skb(skb);
 	}
 	rtnl_unlock();
-}
-
-void ieee80211_tdls_handle_disconnect(struct ieee80211_sub_if_data *sdata,
-				      const u8 *peer, u16 reason)
-{
-	struct ieee80211_sta *sta;
-
-	rcu_read_lock();
-	sta = ieee80211_find_sta(&sdata->vif, peer);
-	if (!sta || !sta->tdls) {
-		rcu_read_unlock();
-		return;
-	}
-	rcu_read_unlock();
-
-	tdls_dbg(sdata, "disconnected from TDLS peer %pM (Reason: %u=%s)\n",
-		 peer, reason,
-		 ieee80211_get_reason_code_string(reason));
-
-	ieee80211_tdls_oper_request(&sdata->vif, peer,
-				    NL80211_TDLS_TEARDOWN,
-				    WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE,
-				    GFP_ATOMIC);
 }

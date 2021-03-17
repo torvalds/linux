@@ -12,15 +12,13 @@
 
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/pm_runtime.h>
-#include <linux/mm.h>
+
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
-#include <linux/resource.h>
 
 #include "core.h"
 #include "card.h"
@@ -32,7 +30,6 @@
 #include "pwrseq.h"
 
 #define DEFAULT_CMD6_TIMEOUT_MS	500
-#define MIN_CACHE_EN_TIMEOUT_MS 1600
 
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
@@ -70,7 +67,6 @@ static const unsigned int taac_mant[] = {
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 static int mmc_decode_cid(struct mmc_card *card)
 {
 	u32 *resp = card->raw_cid;
@@ -122,7 +118,6 @@ static int mmc_decode_cid(struct mmc_card *card)
 
 	return 0;
 }
-#endif
 
 static void mmc_set_erase_size(struct mmc_card *card)
 {
@@ -304,7 +299,7 @@ static void mmc_manage_enhanced_area(struct mmc_card *card, u8 *ext_csd)
 	}
 }
 
-static void mmc_part_add(struct mmc_card *card, u64 size,
+static void mmc_part_add(struct mmc_card *card, unsigned int size,
 			 unsigned int part_cfg, char *name, int idx, bool ro,
 			 int area_type)
 {
@@ -320,7 +315,7 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 {
 	int idx;
 	u8 hc_erase_grp_sz, hc_wp_grp_sz;
-	u64 part_size;
+	unsigned int part_size;
 
 	/*
 	 * General purpose partition feature support --
@@ -350,7 +345,8 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 				(ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 1]
 				<< 8) +
 				ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3];
-			part_size *= (hc_erase_grp_sz * hc_wp_grp_sz);
+			part_size *= (size_t)(hc_erase_grp_sz *
+				hc_wp_grp_sz);
 			mmc_part_add(card, part_size << 19,
 				EXT_CSD_PART_CONFIG_ACC_GP0 + idx,
 				"gp%d", idx, false,
@@ -368,7 +364,7 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 {
 	int err = 0, idx;
-	u64 part_size;
+	unsigned int part_size;
 	struct device_node *np;
 	bool broken_hpi = false;
 
@@ -530,7 +526,8 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			card->cid.year += 16;
 
 		/* check whether the eMMC card supports BKOPS */
-		if (ext_csd[EXT_CSD_BKOPS_SUPPORT] & 0x1) {
+		if (!mmc_card_broken_hpi(card) &&
+		    ext_csd[EXT_CSD_BKOPS_SUPPORT] & 0x1) {
 			card->ext_csd.bkops = 1;
 			card->ext_csd.man_bkops_en =
 					(ext_csd[EXT_CSD_BKOPS_EN] &
@@ -659,72 +656,14 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-static void *mmc_tb_map_ecsd(phys_addr_t start, size_t len)
-{
-	int i;
-	void *vaddr;
-	pgprot_t pgprot = PAGE_KERNEL;
-	phys_addr_t phys;
-	int npages = PAGE_ALIGN(len) / PAGE_SIZE;
-	struct page **p = vmalloc(sizeof(struct page *) * npages);
-
-	if (!p)
-		return NULL;
-
-	phys = start;
-	for (i = 0; i < npages; i++) {
-		p[i] = phys_to_page(phys);
-		phys += PAGE_SIZE;
-	}
-
-	vaddr = vmap(p, npages, VM_MAP, pgprot);
-	vfree(p);
-
-	return vaddr;
-}
-#endif
-
 static int mmc_read_ext_csd(struct mmc_card *card)
 {
 	u8 *ext_csd;
 	int err;
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-	void *ecsd;
-	bool valid_ecsd = false;
-	struct device_node *mem;
-	struct resource reg;
-	struct device *dev = card->host->parent;
-#endif
+
 	if (!mmc_can_ext_csd(card))
 		return 0;
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-	mem = of_parse_phandle(dev->of_node, "memory-region-ecsd", 0);
-	if (mem) {
-		err = of_address_to_resource(mem, 0, &reg);
-		if (err < 0) {
-			dev_err(dev, "fail to get resource\n");
-			goto get_ecsd;
-		}
-
-		ecsd = mmc_tb_map_ecsd(reg.start, resource_size(&reg));
-		if (!ecsd)
-			goto get_ecsd;
-
-		if (readl(ecsd + SZ_512) == 0x55aa55aa) {
-			ext_csd = ecsd;
-			valid_ecsd = true;
-			goto decode;
-		} else {
-			dev_dbg(dev, "invalid ecsd tag!");
-		}
-	} else {
-		dev_info(dev, "not find \"memory-region\" property\n");
-	}
-
-get_ecsd:
-#endif
 	err = mmc_get_ext_csd(card, &ext_csd);
 	if (err) {
 		/* If the host or the card can't do the switch,
@@ -749,22 +688,12 @@ get_ecsd:
 
 		return err;
 	}
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-decode:
-#endif
+
 	err = mmc_decode_ext_csd(card, ext_csd);
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-	if (!valid_ecsd)
-		kfree(ext_csd);
-	else
-		vunmap(ecsd);
-#else
 	kfree(ext_csd);
-#endif
 	return err;
 }
 
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 {
 	u8 *bw_ext_csd;
@@ -837,7 +766,6 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 	kfree(bw_ext_csd);
 	return err;
 }
-#endif
 
 MMC_DEV_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
 	card->raw_cid[2], card->raw_cid[3]);
@@ -1104,12 +1032,11 @@ static int mmc_select_bus_width(struct mmc_card *card)
 		 * compare ext_csd previously read in 1 bit mode
 		 * against ext_csd at new bus width
 		 */
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 		if (!(host->caps & MMC_CAP_BUS_WIDTH_TEST))
 			err = mmc_compare_ext_csds(card, bus_width);
 		else
 			err = mmc_bus_test(card, bus_width);
-#endif
+
 		if (!err) {
 			err = bus_width;
 			break;
@@ -1282,12 +1209,12 @@ static int mmc_select_hs400(struct mmc_card *card)
 	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	mmc_set_bus_speed(card);
 
-	if (host->ops->hs400_complete)
-		host->ops->hs400_complete(host);
-
 	err = mmc_switch_status(card);
 	if (err)
 		goto out_err;
+
+	if (host->ops->hs400_complete)
+		host->ops->hs400_complete(host);
 
 	return 0;
 
@@ -1440,12 +1367,11 @@ static int mmc_select_hs400es(struct mmc_card *card)
 	}
 
 	mmc_set_timing(host, MMC_TIMING_MMC_HS);
-	/* Set clock immediately after changing timing */
-	mmc_set_clock(host, card->ext_csd.hs_max_dtr);
-
 	err = mmc_switch_status(card);
 	if (err)
 		goto out_err;
+
+	mmc_set_clock(host, card->ext_csd.hs_max_dtr);
 
 	/* Switch card to DDR with strobe bit */
 	val = EXT_CSD_DDR_BUS_WIDTH_8 | EXT_CSD_BUS_WIDTH_STROBE;
@@ -1640,9 +1566,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * respond.
 	 * mmc_go_idle is needed for eMMC that are asleep
 	 */
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	mmc_go_idle(host);
-#endif
 
 	/* The extra bit indicates that we support high capacity */
 	err = mmc_send_op_cond(host, ocr | (1 << 30), &rocr);
@@ -1685,9 +1609,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		card->ocr = ocr;
 		card->type = MMC_TYPE_MMC;
 		card->rca = 1;
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 		memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
-#endif
 	}
 
 	/*
@@ -1718,11 +1640,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_decode_csd(card);
 		if (err)
 			goto free_card;
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 		err = mmc_decode_cid(card);
 		if (err)
 			goto free_card;
-#endif
 	}
 
 	/*
@@ -1853,7 +1773,6 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Enable HPI feature (if supported)
 	 */
-#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	if (card->ext_csd.hpi) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				EXT_CSD_HPI_MGMT, 1,
@@ -1863,26 +1782,20 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		if (err) {
 			pr_warn("%s: Enabling HPI failed\n",
 				mmc_hostname(card->host));
-			card->ext_csd.hpi_en = 0;
 			err = 0;
-		} else {
+		} else
 			card->ext_csd.hpi_en = 1;
-		}
 	}
-#endif
-	/*
-	 * If cache size is higher than 0, this indicates the existence of cache
-	 * and it can be turned on. Note that some eMMCs from Micron has been
-	 * reported to need ~800 ms timeout, while enabling the cache after
-	 * sudden power failure tests. Let's extend the timeout to a minimum of
-	 * DEFAULT_CACHE_EN_TIMEOUT_MS and do it for all cards.
-	 */
-	if (card->ext_csd.cache_size > 0) {
-		unsigned int timeout_ms = MIN_CACHE_EN_TIMEOUT_MS;
 
-		timeout_ms = max(card->ext_csd.generic_cmd6_time, timeout_ms);
+	/*
+	 * If cache size is higher than 0, this indicates
+	 * the existence of cache and it can be turned on.
+	 */
+	if (!mmc_card_broken_hpi(card) &&
+	    card->ext_csd.cache_size > 0) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				EXT_CSD_CACHE_CTRL, 1, timeout_ms);
+				EXT_CSD_CACHE_CTRL, 1,
+				card->ext_csd.generic_cmd6_time);
 		if (err && err != -EBADMSG)
 			goto free_card;
 
@@ -1982,12 +1895,9 @@ static int mmc_sleep(struct mmc_host *host)
 	 * If the max_busy_timeout of the host is specified, validate it against
 	 * the sleep cmd timeout. A failure means we need to prevent the host
 	 * from doing hw busy detection, which is done by converting to a R1
-	 * response instead of a R1B. Note, some hosts requires R1B, which also
-	 * means they are on their own when it comes to deal with the busy
-	 * timeout.
+	 * response instead of a R1B.
 	 */
-	if (!(host->caps & MMC_CAP_NEED_RSP_BUSY) && host->max_busy_timeout &&
-	    (timeout_ms > host->max_busy_timeout)) {
+	if (host->max_busy_timeout && (timeout_ms > host->max_busy_timeout)) {
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	} else {
 		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
@@ -2145,29 +2055,14 @@ static int mmc_suspend(struct mmc_host *host)
 static int _mmc_resume(struct mmc_host *host)
 {
 	int err = 0;
-	int i;
 
 	mmc_claim_host(host);
 
 	if (!mmc_card_suspended(host->card))
 		goto out;
 
-	/*
-	 * Let's try to fallback the host->f_init
-	 * if failing to init mmc card after resume.
-	 */
-	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
-		if (host->f_init < max(freqs[i], host->f_min))
-			continue;
-		else
-			host->f_init = max(freqs[i], host->f_min);
-
-		mmc_power_up(host, host->card->ocr);
-		err = mmc_init_card(host, host->card->ocr, host->card);
-		if (!err)
-			break;
-	}
-
+	mmc_power_up(host, host->card->ocr);
+	err = mmc_init_card(host, host->card->ocr, host->card);
 	mmc_card_clr_suspended(host->card);
 
 out:

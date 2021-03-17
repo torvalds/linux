@@ -248,7 +248,10 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 	onkey->input->phys = onkey->phys;
 	onkey->input->dev.parent = &pdev->dev;
 
-	input_set_capability(onkey->input, EV_KEY, KEY_POWER);
+	if (onkey->key_power)
+		input_set_capability(onkey->input, EV_KEY, KEY_POWER);
+
+	input_set_capability(onkey->input, EV_KEY, KEY_SLEEP);
 
 	INIT_DELAYED_WORK(&onkey->work, da9063_poll_on);
 

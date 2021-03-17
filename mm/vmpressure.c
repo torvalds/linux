@@ -358,9 +358,6 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
  * "hierarchy" or "local").
  *
  * To be used as memcg event method.
- *
- * Return: 0 on success, -ENOMEM on memory failure or -EINVAL if @args could
- * not be parsed.
  */
 int vmpressure_register_event(struct mem_cgroup *memcg,
 			      struct eventfd_ctx *eventfd, const char *args)
@@ -368,7 +365,7 @@ int vmpressure_register_event(struct mem_cgroup *memcg,
 	struct vmpressure *vmpr = memcg_to_vmpressure(memcg);
 	struct vmpressure_event *ev;
 	enum vmpressure_modes mode = VMPRESSURE_NO_PASSTHROUGH;
-	enum vmpressure_levels level;
+	enum vmpressure_levels level = -1;
 	char *spec, *spec_orig;
 	char *token;
 	int ret = 0;
@@ -381,18 +378,20 @@ int vmpressure_register_event(struct mem_cgroup *memcg,
 
 	/* Find required level */
 	token = strsep(&spec, ",");
-	ret = match_string(vmpressure_str_levels, VMPRESSURE_NUM_LEVELS, token);
-	if (ret < 0)
+	level = match_string(vmpressure_str_levels, VMPRESSURE_NUM_LEVELS, token);
+	if (level < 0) {
+		ret = level;
 		goto out;
-	level = ret;
+	}
 
 	/* Find optional mode */
 	token = strsep(&spec, ",");
 	if (token) {
-		ret = match_string(vmpressure_str_modes, VMPRESSURE_NUM_MODES, token);
-		if (ret < 0)
+		mode = match_string(vmpressure_str_modes, VMPRESSURE_NUM_MODES, token);
+		if (mode < 0) {
+			ret = mode;
 			goto out;
-		mode = ret;
+		}
 	}
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
@@ -408,7 +407,6 @@ int vmpressure_register_event(struct mem_cgroup *memcg,
 	mutex_lock(&vmpr->events_lock);
 	list_add(&ev->node, &vmpr->events);
 	mutex_unlock(&vmpr->events_lock);
-	ret = 0;
 out:
 	kfree(spec_orig);
 	return ret;

@@ -54,12 +54,12 @@
 .popsection				;
 
 #define ELFNOTE(name, type, desc)		\
-	ELFNOTE_START(name, type, "a")		\
+	ELFNOTE_START(name, type, "")		\
 		desc			;	\
 	ELFNOTE_END
 
 #else	/* !__ASSEMBLER__ */
-#include <uapi/linux/elf.h>
+#include <linux/elf.h>
 /*
  * Use an anonymous structure which matches the shape of
  * Elf{32,64}_Nhdr, but includes the name and desc data.  The size and

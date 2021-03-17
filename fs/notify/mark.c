@@ -179,20 +179,17 @@ static void fsnotify_connector_destroy_workfn(struct work_struct *work)
 	}
 }
 
-static void *fsnotify_detach_connector_from_object(
-					struct fsnotify_mark_connector *conn,
-					unsigned int *type)
+static struct inode *fsnotify_detach_connector_from_object(
+					struct fsnotify_mark_connector *conn)
 {
 	struct inode *inode = NULL;
 
-	*type = conn->type;
 	if (conn->type == FSNOTIFY_OBJ_TYPE_DETACHED)
 		return NULL;
 
 	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE) {
 		inode = fsnotify_conn_inode(conn);
 		inode->i_fsnotify_mask = 0;
-		atomic_long_inc(&inode->i_sb->s_fsnotify_inode_refs);
 	} else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
 		fsnotify_conn_mount(conn)->mnt_fsnotify_mask = 0;
 	}
@@ -214,29 +211,10 @@ static void fsnotify_final_mark_destroy(struct fsnotify_mark *mark)
 	fsnotify_put_group(group);
 }
 
-/* Drop object reference originally held by a connector */
-static void fsnotify_drop_object(unsigned int type, void *objp)
-{
-	struct inode *inode;
-	struct super_block *sb;
-
-	if (!objp)
-		return;
-	/* Currently only inode references are passed to be dropped */
-	if (WARN_ON_ONCE(type != FSNOTIFY_OBJ_TYPE_INODE))
-		return;
-	inode = objp;
-	sb = inode->i_sb;
-	iput(inode);
-	if (atomic_long_dec_and_test(&sb->s_fsnotify_inode_refs))
-		wake_up_var(&sb->s_fsnotify_inode_refs);
-}
-
 void fsnotify_put_mark(struct fsnotify_mark *mark)
 {
 	struct fsnotify_mark_connector *conn;
-	void *objp = NULL;
-	unsigned int type = FSNOTIFY_OBJ_TYPE_DETACHED;
+	struct inode *inode = NULL;
 	bool free_conn = false;
 
 	/* Catch marks that were actually never attached to object */
@@ -256,7 +234,7 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	conn = mark->connector;
 	hlist_del_init_rcu(&mark->obj_list);
 	if (hlist_empty(&conn->list)) {
-		objp = fsnotify_detach_connector_from_object(conn, &type);
+		inode = fsnotify_detach_connector_from_object(conn);
 		free_conn = true;
 	} else {
 		__fsnotify_recalc_mask(conn);
@@ -264,7 +242,7 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	mark->connector = NULL;
 	spin_unlock(&conn->lock);
 
-	fsnotify_drop_object(type, objp);
+	iput(inode);
 
 	if (free_conn) {
 		spin_lock(&destroy_lock);
@@ -731,8 +709,7 @@ void fsnotify_destroy_marks(fsnotify_connp_t *connp)
 {
 	struct fsnotify_mark_connector *conn;
 	struct fsnotify_mark *mark, *old_mark = NULL;
-	void *objp;
-	unsigned int type;
+	struct inode *inode;
 
 	conn = fsnotify_grab_connector(connp);
 	if (!conn)
@@ -758,11 +735,11 @@ void fsnotify_destroy_marks(fsnotify_connp_t *connp)
 	 * mark references get dropped. It would lead to strange results such
 	 * as delaying inode deletion or blocking unmount.
 	 */
-	objp = fsnotify_detach_connector_from_object(conn, &type);
+	inode = fsnotify_detach_connector_from_object(conn);
 	spin_unlock(&conn->lock);
 	if (old_mark)
 		fsnotify_put_mark(old_mark);
-	fsnotify_drop_object(type, objp);
+	iput(inode);
 }
 
 /*

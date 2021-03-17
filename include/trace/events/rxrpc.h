@@ -76,7 +76,6 @@ enum rxrpc_client_trace {
 	rxrpc_client_chan_disconnect,
 	rxrpc_client_chan_pass,
 	rxrpc_client_chan_unstarted,
-	rxrpc_client_chan_wait_failed,
 	rxrpc_client_cleanup,
 	rxrpc_client_count,
 	rxrpc_client_discard,
@@ -276,7 +275,6 @@ enum rxrpc_tx_point {
 	EM(rxrpc_client_chan_disconnect,	"ChDisc") \
 	EM(rxrpc_client_chan_pass,		"ChPass") \
 	EM(rxrpc_client_chan_unstarted,		"ChUnst") \
-	EM(rxrpc_client_chan_wait_failed,	"ChWtFl") \
 	EM(rxrpc_client_cleanup,		"Clean ") \
 	EM(rxrpc_client_count,			"Count ") \
 	EM(rxrpc_client_discard,		"Discar") \
@@ -408,7 +406,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_cong_begin_retransmission,	" Retrans") \
 	EM(rxrpc_cong_cleared_nacks,		" Cleared") \
 	EM(rxrpc_cong_new_low_nack,		" NewLowN") \
-	EM(rxrpc_cong_no_change,		" -") \
+	EM(rxrpc_cong_no_change,		"") \
 	EM(rxrpc_cong_progress,			" Progres") \
 	EM(rxrpc_cong_retransmit_again,		" ReTxAgn") \
 	EM(rxrpc_cong_rtt_window_end,		" RttWinE") \
@@ -500,10 +498,10 @@ rxrpc_tx_points;
 #define E_(a, b)	{ a, b }
 
 TRACE_EVENT(rxrpc_local,
-	    TP_PROTO(unsigned int local_debug_id, enum rxrpc_local_trace op,
+	    TP_PROTO(struct rxrpc_local *local, enum rxrpc_local_trace op,
 		     int usage, const void *where),
 
-	    TP_ARGS(local_debug_id, op, usage, where),
+	    TP_ARGS(local, op, usage, where),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	local		)
@@ -513,7 +511,7 @@ TRACE_EVENT(rxrpc_local,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->local = local_debug_id;
+		    __entry->local = local->debug_id;
 		    __entry->op = op;
 		    __entry->usage = usage;
 		    __entry->where = where;
@@ -527,10 +525,10 @@ TRACE_EVENT(rxrpc_local,
 	    );
 
 TRACE_EVENT(rxrpc_peer,
-	    TP_PROTO(unsigned int peer_debug_id, enum rxrpc_peer_trace op,
+	    TP_PROTO(struct rxrpc_peer *peer, enum rxrpc_peer_trace op,
 		     int usage, const void *where),
 
-	    TP_ARGS(peer_debug_id, op, usage, where),
+	    TP_ARGS(peer, op, usage, where),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	peer		)
@@ -540,7 +538,7 @@ TRACE_EVENT(rxrpc_peer,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->peer = peer_debug_id;
+		    __entry->peer = peer->debug_id;
 		    __entry->op = op;
 		    __entry->usage = usage;
 		    __entry->where = where;
@@ -554,10 +552,10 @@ TRACE_EVENT(rxrpc_peer,
 	    );
 
 TRACE_EVENT(rxrpc_conn,
-	    TP_PROTO(unsigned int conn_debug_id, enum rxrpc_conn_trace op,
+	    TP_PROTO(struct rxrpc_connection *conn, enum rxrpc_conn_trace op,
 		     int usage, const void *where),
 
-	    TP_ARGS(conn_debug_id, op, usage, where),
+	    TP_ARGS(conn, op, usage, where),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	conn		)
@@ -567,7 +565,7 @@ TRACE_EVENT(rxrpc_conn,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->conn = conn_debug_id;
+		    __entry->conn = conn->debug_id;
 		    __entry->op = op;
 		    __entry->usage = usage;
 		    __entry->where = where;
@@ -1073,7 +1071,7 @@ TRACE_EVENT(rxrpc_recvmsg,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call ? call->debug_id : 0;
+		    __entry->call = call->debug_id;
 		    __entry->why = why;
 		    __entry->seq = seq;
 		    __entry->offset = offset;
@@ -1381,7 +1379,7 @@ TRACE_EVENT(rxrpc_rx_eproto,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call ? call->debug_id : 0;
+		    __entry->call = call->debug_id;
 		    __entry->serial = serial;
 		    __entry->why = why;
 			   ),
@@ -1547,41 +1545,6 @@ TRACE_EVENT(rxrpc_notify_socket,
 	    TP_printk("c=%08x r=%08x",
 		      __entry->debug_id,
 		      __entry->serial)
-	    );
-
-TRACE_EVENT(rxrpc_rx_discard_ack,
-	    TP_PROTO(unsigned int debug_id, rxrpc_serial_t serial,
-		     rxrpc_seq_t first_soft_ack, rxrpc_seq_t call_ackr_first,
-		     rxrpc_seq_t prev_pkt, rxrpc_seq_t call_ackr_prev),
-
-	    TP_ARGS(debug_id, serial, first_soft_ack, call_ackr_first,
-		    prev_pkt, call_ackr_prev),
-
-	    TP_STRUCT__entry(
-		    __field(unsigned int,	debug_id	)
-		    __field(rxrpc_serial_t,	serial		)
-		    __field(rxrpc_seq_t,	first_soft_ack)
-		    __field(rxrpc_seq_t,	call_ackr_first)
-		    __field(rxrpc_seq_t,	prev_pkt)
-		    __field(rxrpc_seq_t,	call_ackr_prev)
-			     ),
-
-	    TP_fast_assign(
-		    __entry->debug_id		= debug_id;
-		    __entry->serial		= serial;
-		    __entry->first_soft_ack	= first_soft_ack;
-		    __entry->call_ackr_first	= call_ackr_first;
-		    __entry->prev_pkt		= prev_pkt;
-		    __entry->call_ackr_prev	= call_ackr_prev;
-			   ),
-
-	    TP_printk("c=%08x r=%08x %08x<%08x %08x<%08x",
-		      __entry->debug_id,
-		      __entry->serial,
-		      __entry->first_soft_ack,
-		      __entry->call_ackr_first,
-		      __entry->prev_pkt,
-		      __entry->call_ackr_prev)
 	    );
 
 #endif /* _TRACE_RXRPC_H */

@@ -133,9 +133,6 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_pll *pll = to_clk_pll(hw);
 
-	if (!pll->div || !pll->mul)
-		return 0;
-
 	return (parent_rate / pll->div) * (pll->mul + 1);
 }
 
@@ -296,7 +293,7 @@ at91_clk_register_pll(struct regmap *regmap, const char *name,
 {
 	struct clk_pll *pll;
 	struct clk_hw *hw;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	int offset = PLL_REG(id);
 	unsigned int pllr;
 	int ret;

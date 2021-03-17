@@ -13,9 +13,9 @@ static bool _is_best_half_div(unsigned long rate, unsigned long now,
 			      unsigned long best, unsigned long flags)
 {
 	if (flags & CLK_DIVIDER_ROUND_CLOSEST)
-		return abs(rate - now) <= abs(rate - best);
+		return abs(rate - now) < abs(rate - best);
 
-	return now <= rate && now >= best;
+	return now <= rate && now > best;
 }
 
 static unsigned long clk_half_divider_recalc_rate(struct clk_hw *hw,
@@ -37,7 +37,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 {
 	unsigned int i, bestdiv = 0;
 	unsigned long parent_rate, best = 0, now, maxdiv;
-	bool is_bestdiv = false;
+	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
 		rate = 1;
@@ -50,7 +50,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 		if (bestdiv < 3)
 			bestdiv = 0;
 		else
-			bestdiv = DIV_ROUND_UP(bestdiv - 3, 2);
+			bestdiv = (bestdiv - 3) / 2;
 		bestdiv = bestdiv > maxdiv ? maxdiv : bestdiv;
 		return bestdiv;
 	}
@@ -62,20 +62,28 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	maxdiv = min(ULONG_MAX / rate, maxdiv);
 
 	for (i = 0; i <= maxdiv; i++) {
+		if (((u64)rate * (i * 2 + 3)) == ((u64)parent_rate_saved * 2)) {
+			/*
+			 * It's the most ideal case if the requested rate can be
+			 * divided from parent clock without needing to change
+			 * parent rate, so return the divider immediately.
+			 */
+			*best_parent_rate = parent_rate_saved;
+			return i;
+		}
 		parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
 						((u64)rate * (i * 2 + 3)) / 2);
 		now = DIV_ROUND_UP_ULL(((u64)parent_rate * 2),
 				       (i * 2 + 3));
 
 		if (_is_best_half_div(rate, now, best, flags)) {
-			is_bestdiv = true;
 			bestdiv = i;
 			best = now;
 			*best_parent_rate = parent_rate;
 		}
 	}
 
-	if (!is_bestdiv) {
+	if (!bestdiv) {
 		bestdiv = div_mask(width);
 		*best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw), 1);
 	}
@@ -105,7 +113,7 @@ static int clk_half_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 val;
 
 	value = DIV_ROUND_UP_ULL(((u64)parent_rate * 2), rate);
-	value = DIV_ROUND_UP(value - 3, 2);
+	value = (value - 3) / 2;
 	value =  min_t(unsigned int, value, div_mask(divider->width));
 
 	if (divider->lock)
@@ -152,13 +160,13 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 					  u8 num_parents, void __iomem *base,
 					  int muxdiv_offset, u8 mux_shift,
 					  u8 mux_width, u8 mux_flags,
-					  int div_offset, u8 div_shift,
-					  u8 div_width, u8 div_flags,
-					  int gate_offset, u8 gate_shift,
-					  u8 gate_flags, unsigned long flags,
+					  u8 div_shift, u8 div_width,
+					  u8 div_flags, int gate_offset,
+					  u8 gate_shift, u8 gate_flags,
+					  unsigned long flags,
 					  spinlock_t *lock)
 {
-	struct clk *clk = ERR_PTR(-ENOMEM);
+	struct clk *clk;
 	struct clk_mux *mux = NULL;
 	struct clk_gate *gate = NULL;
 	struct clk_divider *div = NULL;
@@ -197,10 +205,7 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 			goto err_div;
 
 		div->flags = div_flags;
-		if (div_offset)
-			div->reg = base + div_offset;
-		else
-			div->reg = base + muxdiv_offset;
+		div->reg = base + muxdiv_offset;
 		div->shift = div_shift;
 		div->width = div_width;
 		div->lock = lock;

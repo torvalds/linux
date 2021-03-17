@@ -52,7 +52,7 @@ static void *thread_fn(void *arg)
 {
 	struct thread_data *td = arg;
 	ssize_t ret;
-	int go = 0;
+	int go;
 
 	if (thread_init(td))
 		return NULL;

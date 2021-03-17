@@ -26,30 +26,6 @@
 #include <asm/kvm_mmu.h>
 #include <asm/mmu.h>
 
-.macro save_caller_saved_regs_vect
-	/* x0 and x1 were saved in the vector entry */
-	stp	x2, x3,   [sp, #-16]!
-	stp	x4, x5,   [sp, #-16]!
-	stp	x6, x7,   [sp, #-16]!
-	stp	x8, x9,   [sp, #-16]!
-	stp	x10, x11, [sp, #-16]!
-	stp	x12, x13, [sp, #-16]!
-	stp	x14, x15, [sp, #-16]!
-	stp	x16, x17, [sp, #-16]!
-.endm
-
-.macro restore_caller_saved_regs_vect
-	ldp	x16, x17, [sp], #16
-	ldp	x14, x15, [sp], #16
-	ldp	x12, x13, [sp], #16
-	ldp	x10, x11, [sp], #16
-	ldp	x8, x9,   [sp], #16
-	ldp	x6, x7,   [sp], #16
-	ldp	x4, x5,   [sp], #16
-	ldp	x2, x3,   [sp], #16
-	ldp	x0, x1,   [sp], #16
-.endm
-
 	.text
 	.pushsection	.hyp.text, "ax"
 
@@ -120,7 +96,6 @@ el1_sync:				// Guest trapped into EL2
 	do_el2_call
 
 	eret
-	sb
 
 el1_hvc_guest:
 	/*
@@ -171,7 +146,6 @@ wa_epilogue:
 	mov	x0, xzr
 	add	sp, sp, #16
 	eret
-	sb
 
 el1_trap:
 	get_vcpu_ptr	x1, x0
@@ -188,26 +162,29 @@ el1_error:
 	mov	x0, #ARM_EXCEPTION_EL1_SERROR
 	b	__guest_exit
 
-el2_sync:
-	save_caller_saved_regs_vect
-	stp     x29, x30, [sp, #-16]!
-	bl	kvm_unexpected_el2_exception
-	ldp     x29, x30, [sp], #16
-	restore_caller_saved_regs_vect
-
-	eret
-
 el2_error:
-	save_caller_saved_regs_vect
-	stp     x29, x30, [sp, #-16]!
+	ldp	x0, x1, [sp], #16
 
-	bl	kvm_unexpected_el2_exception
-
-	ldp     x29, x30, [sp], #16
-	restore_caller_saved_regs_vect
-
+	/*
+	 * Only two possibilities:
+	 * 1) Either we come from the exit path, having just unmasked
+	 *    PSTATE.A: change the return code to an EL2 fault, and
+	 *    carry on, as we're already in a sane state to handle it.
+	 * 2) Or we come from anywhere else, and that's a bug: we panic.
+	 *
+	 * For (1), x0 contains the original return code and x1 doesn't
+	 * contain anything meaningful at that stage. We can reuse them
+	 * as temp registers.
+	 * For (2), who cares?
+	 */
+	mrs	x0, elr_el2
+	adr	x1, abort_guest_exit_start
+	cmp	x0, x1
+	adr	x1, abort_guest_exit_end
+	ccmp	x0, x1, #4, ne
+	b.ne	__hyp_panic
+	mov	x0, #(1 << ARM_EXIT_WITH_SERROR_BIT)
 	eret
-	sb
 
 ENTRY(__hyp_do_panic)
 	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
@@ -216,7 +193,6 @@ ENTRY(__hyp_do_panic)
 	ldr	lr, =panic
 	msr	elr_el2, lr
 	eret
-	sb
 ENDPROC(__hyp_do_panic)
 
 ENTRY(__hyp_panic)
@@ -236,6 +212,7 @@ ENDPROC(\label)
 	invalid_vector	el2t_irq_invalid
 	invalid_vector	el2t_fiq_invalid
 	invalid_vector	el2t_error_invalid
+	invalid_vector	el2h_sync_invalid
 	invalid_vector	el2h_irq_invalid
 	invalid_vector	el2h_fiq_invalid
 	invalid_vector	el1_fiq_invalid
@@ -263,7 +240,7 @@ ENTRY(__kvm_hyp_vector)
 	invalid_vect	el2t_fiq_invalid	// FIQ EL2t
 	invalid_vect	el2t_error_invalid	// Error EL2t
 
-	valid_vect	el2_sync		// Synchronous EL2h
+	invalid_vect	el2h_sync_invalid	// Synchronous EL2h
 	invalid_vect	el2h_irq_invalid	// IRQ EL2h
 	invalid_vect	el2h_fiq_invalid	// FIQ EL2h
 	valid_vect	el2_error		// Error EL2h

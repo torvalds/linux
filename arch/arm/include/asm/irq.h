@@ -25,6 +25,7 @@
 #ifndef __ASSEMBLY__
 struct irqaction;
 struct pt_regs;
+extern void migrate_irqs(void);
 
 extern void asm_do_IRQ(unsigned int, struct pt_regs *);
 void handle_IRQ(unsigned int, struct pt_regs *);

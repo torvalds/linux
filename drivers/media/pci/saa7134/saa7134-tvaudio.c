@@ -693,8 +693,7 @@ int saa_dsp_writel(struct saa7134_dev *dev, int reg, u32 value)
 {
 	int err;
 
-	audio_dbg(2, "dsp write reg 0x%x = 0x%06x\n",
-		  (reg << 2) & 0xffffffff, value);
+	audio_dbg(2, "dsp write reg 0x%x = 0x%06x\n", reg << 2, value);
 	err = saa_dsp_wait_bit(dev,SAA7135_DSP_RWSTATE_WRR);
 	if (err < 0)
 		return err;

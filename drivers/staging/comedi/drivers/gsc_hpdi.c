@@ -623,11 +623,6 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 		    dma_alloc_coherent(&pcidev->dev, DMA_BUFFER_SIZE,
 				       &devpriv->dio_buffer_phys_addr[i],
 				       GFP_KERNEL);
-		if (!devpriv->dio_buffer[i]) {
-			dev_warn(dev->class_dev,
-				 "failed to allocate DMA buffer\n");
-			return -ENOMEM;
-		}
 	}
 	/* allocate dma descriptors */
 	devpriv->dma_desc = dma_alloc_coherent(&pcidev->dev,
@@ -635,11 +630,6 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 					       NUM_DMA_DESCRIPTORS,
 					       &devpriv->dma_desc_phys_addr,
 					       GFP_KERNEL);
-	if (!devpriv->dma_desc) {
-		dev_warn(dev->class_dev,
-			 "failed to allocate DMA descriptors\n");
-		return -ENOMEM;
-	}
 	if (devpriv->dma_desc_phys_addr & 0xf) {
 		dev_warn(dev->class_dev,
 			 " dma descriptors not quad-word aligned (bug)\n");

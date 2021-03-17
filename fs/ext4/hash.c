@@ -6,7 +6,6 @@
  */
 
 #include <linux/fs.h>
-#include <linux/unicode.h>
 #include <linux/compiler.h>
 #include <linux/bitops.h>
 #include "ext4.h"
@@ -197,8 +196,7 @@ static void str2hashbuf_unsigned(const char *msg, int len, __u32 *buf, int num)
  * represented, and whether or not the returned hash is 32 bits or 64
  * bits.  32 bit hashes will return 0 for the minor hash.
  */
-static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
-			    struct dx_hash_info *hinfo)
+int ext4fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 {
 	__u32	hash;
 	__u32	minor_hash = 0;
@@ -257,22 +255,6 @@ static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 		hash = buf[0];
 		minor_hash = buf[1];
 		break;
-	case DX_HASH_SIPHASH:
-	{
-		struct qstr qname = QSTR_INIT(name, len);
-		__u64	combined_hash;
-
-		if (fscrypt_has_encryption_key(dir)) {
-			combined_hash = fscrypt_fname_siphash(dir, &qname);
-		} else {
-			ext4_warning_inode(dir, "Siphash requires key");
-			return -1;
-		}
-
-		hash = (__u32)(combined_hash >> 32);
-		minor_hash = (__u32)combined_hash;
-		break;
-	}
 	default:
 		hinfo->hash = 0;
 		return -1;
@@ -283,34 +265,4 @@ static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 	hinfo->hash = hash;
 	hinfo->minor_hash = minor_hash;
 	return 0;
-}
-
-int ext4fs_dirhash(const struct inode *dir, const char *name, int len,
-		   struct dx_hash_info *hinfo)
-{
-#ifdef CONFIG_UNICODE
-	const struct unicode_map *um = dir->i_sb->s_encoding;
-	int r, dlen;
-	unsigned char *buff;
-	struct qstr qstr = {.name = name, .len = len };
-
-	if (len && needs_casefold(dir) && um) {
-		buff = kzalloc(sizeof(char) * PATH_MAX, GFP_KERNEL);
-		if (!buff)
-			return -ENOMEM;
-
-		dlen = utf8_casefold(um, &qstr, buff, PATH_MAX);
-		if (dlen < 0) {
-			kfree(buff);
-			goto opaque_seq;
-		}
-
-		r = __ext4fs_dirhash(dir, buff, dlen, hinfo);
-
-		kfree(buff);
-		return r;
-	}
-opaque_seq:
-#endif
-	return __ext4fs_dirhash(dir, name, len, hinfo);
 }

@@ -520,9 +520,8 @@ xfsaild(
 {
 	struct xfs_ail	*ailp = data;
 	long		tout = 0;	/* milliseconds */
-	unsigned int	noreclaim_flag;
 
-	noreclaim_flag = memalloc_noreclaim_save();
+	current->flags |= PF_MEMALLOC;
 	set_freezable();
 
 	while (1) {
@@ -532,33 +531,17 @@ xfsaild(
 			set_current_state(TASK_INTERRUPTIBLE);
 
 		/*
-		 * Check kthread_should_stop() after we set the task state to
-		 * guarantee that we either see the stop bit and exit or the
-		 * task state is reset to runnable such that it's not scheduled
-		 * out indefinitely and detects the stop bit at next iteration.
+		 * Check kthread_should_stop() after we set the task state
+		 * to guarantee that we either see the stop bit and exit or
+		 * the task state is reset to runnable such that it's not
+		 * scheduled out indefinitely and detects the stop bit at
+		 * next iteration.
+		 *
 		 * A memory barrier is included in above task state set to
 		 * serialize again kthread_stop().
 		 */
 		if (kthread_should_stop()) {
 			__set_current_state(TASK_RUNNING);
-
-			/*
-			 * The caller forces out the AIL before stopping the
-			 * thread in the common case, which means the delwri
-			 * queue is drained. In the shutdown case, the queue may
-			 * still hold relogged buffers that haven't been
-			 * submitted because they were pinned since added to the
-			 * queue.
-			 *
-			 * Log I/O error processing stales the underlying buffer
-			 * and clears the delwri state, expecting the buf to be
-			 * removed on the next submission attempt. That won't
-			 * happen if we're shutting down, so this is the last
-			 * opportunity to release such buffers from the queue.
-			 */
-			ASSERT(list_empty(&ailp->ail_buf_list) ||
-			       XFS_FORCED_SHUTDOWN(ailp->ail_mount));
-			xfs_buf_delwri_cancel(&ailp->ail_buf_list);
 			break;
 		}
 
@@ -593,7 +576,6 @@ xfsaild(
 		tout = xfsaild_push(ailp);
 	}
 
-	memalloc_noreclaim_restore(noreclaim_flag);
 	return 0;
 }
 

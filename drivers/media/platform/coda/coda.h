@@ -16,7 +16,6 @@
 #define __CODA_H__
 
 #include <linux/debugfs.h>
-#include <linux/idr.h>
 #include <linux/irqreturn.h>
 #include <linux/mutex.h>
 #include <linux/kfifo.h>
@@ -96,7 +95,7 @@ struct coda_dev {
 	struct workqueue_struct	*workqueue;
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct list_head	instances;
-	struct ida		ida;
+	unsigned long		instance_mask;
 	struct dentry		*debugfs_root;
 };
 
@@ -116,9 +115,9 @@ struct coda_params {
 	u8			h264_inter_qp;
 	u8			h264_min_qp;
 	u8			h264_max_qp;
-	u8			h264_disable_deblocking_filter_idc;
-	s8			h264_slice_alpha_c0_offset_div2;
-	s8			h264_slice_beta_offset_div2;
+	u8			h264_deblk_enabled;
+	u8			h264_deblk_alpha;
+	u8			h264_deblk_beta;
 	u8			h264_profile_idc;
 	u8			h264_level_idc;
 	u8			mpeg4_intra_qp;

@@ -2749,19 +2749,6 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
-		"alu32: mov u32 const",
-		.insns = {
-			BPF_MOV32_IMM(BPF_REG_7, 0),
-			BPF_ALU32_IMM(BPF_AND, BPF_REG_7, 1),
-			BPF_MOV32_REG(BPF_REG_0, BPF_REG_7),
-			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
-			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_7, 0),
-			BPF_EXIT_INSN(),
-		},
-		.result = ACCEPT,
-		.retval = 0,
-	},
-	{
 		"unpriv: partial copy of pointer",
 		.insns = {
 			BPF_MOV32_REG(BPF_REG_1, BPF_REG_10),
@@ -12524,25 +12511,6 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = ACCEPT,
 	},
-	{
-		"calls: ctx read at start of subprog",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 5),
-			BPF_JMP_REG(BPF_JSGT, BPF_REG_0, BPF_REG_0, 0),
-			BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
-			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),
-			BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
-			BPF_EXIT_INSN(),
-			BPF_LDX_MEM(BPF_B, BPF_REG_9, BPF_REG_1, 0),
-			BPF_MOV64_IMM(BPF_REG_0, 0),
-			BPF_EXIT_INSN(),
-		},
-		.prog_type = BPF_PROG_TYPE_SOCKET_FILTER,
-		.errstr_unpriv = "function calls to other bpf functions are allowed for root only",
-		.result_unpriv = REJECT,
-		.result = ACCEPT,
-	},
 };
 
 static int probe_filter_length(const struct bpf_insn *fp)
@@ -12778,7 +12746,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 
 	reject_from_alignment = fd_prog < 0 &&
 				(test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS) &&
-				strstr(bpf_vlog, "misaligned");
+				strstr(bpf_vlog, "Unknown alignment.");
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	if (reject_from_alignment) {
 		printf("FAIL\nFailed due to alignment despite having efficient unaligned access: '%s'!\n",

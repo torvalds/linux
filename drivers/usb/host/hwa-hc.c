@@ -159,7 +159,7 @@ out:
 	return result;
 
 error_set_cluster_id:
-	wusb_cluster_id_put(addr);
+	wusb_cluster_id_put(wusbhc->cluster_id);
 error_cluster_id_get:
 	goto out;
 
@@ -640,7 +640,7 @@ static int hwahc_security_create(struct hwahc *hwahc)
 	top = itr + itr_size;
 	result = __usb_get_extra_descriptor(usb_dev->rawdescriptors[index],
 			le16_to_cpu(usb_dev->actconfig->desc.wTotalLength),
-			USB_DT_SECURITY, (void **) &secd, sizeof(*secd));
+			USB_DT_SECURITY, (void **) &secd);
 	if (result == -1) {
 		dev_warn(dev, "BUG? WUSB host has no security descriptors\n");
 		return 0;

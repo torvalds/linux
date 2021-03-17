@@ -301,13 +301,8 @@ static int mdio_mux_iproc_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iproc_mdiomux_desc *md = platform_get_drvdata(pdev);
-	int rc;
 
-	rc = clk_prepare_enable(md->core_clk);
-	if (rc) {
-		dev_err(md->dev, "failed to enable core clk\n");
-		return rc;
-	}
+	clk_prepare_enable(md->core_clk);
 	mdio_mux_iproc_config(md);
 
 	return 0;

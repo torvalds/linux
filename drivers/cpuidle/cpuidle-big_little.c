@@ -167,7 +167,6 @@ static int __init bl_idle_init(void)
 {
 	int ret;
 	struct device_node *root = of_find_node_by_path("/");
-	const struct of_device_id *match_id;
 
 	if (!root)
 		return -ENODEV;
@@ -175,11 +174,7 @@ static int __init bl_idle_init(void)
 	/*
 	 * Initialize the driver just for a compliant set of machines
 	 */
-	match_id = of_match_node(compatible_machine_match, root);
-
-	of_node_put(root);
-
-	if (!match_id)
+	if (!of_match_node(compatible_machine_match, root))
 		return -ENODEV;
 
 	if (!mcpm_is_available())

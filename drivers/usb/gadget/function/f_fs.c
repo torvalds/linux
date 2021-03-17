@@ -66,7 +66,7 @@ struct ffs_function {
 	struct ffs_data			*ffs;
 
 	struct ffs_ep			*eps;
-	u8				eps_revmap[32];
+	u8				eps_revmap[16];
 	short				*interfaces_nums;
 
 	struct usb_function		function;
@@ -215,6 +215,7 @@ struct ffs_io_data {
 
 	struct mm_struct *mm;
 	struct work_struct work;
+	struct work_struct cancellation_work;
 
 	struct usb_ep *ep;
 	struct usb_request *req;
@@ -1008,7 +1009,6 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			 * condition with req->complete callback.
 			 */
 			usb_ep_dequeue(ep->ep, req);
-			wait_for_completion(&done);
 			interrupted = ep->status < 0;
 		}
 
@@ -1036,7 +1036,6 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 		ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
 		if (unlikely(ret)) {
-			io_data->req = NULL;
 			usb_ep_free_request(ep->ep, req);
 			goto error_lock;
 		}
@@ -1074,23 +1073,31 @@ ffs_epfile_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static void ffs_aio_cancel_worker(struct work_struct *work)
+{
+	struct ffs_io_data *io_data = container_of(work, struct ffs_io_data,
+						   cancellation_work);
+
+	ENTER();
+
+	usb_ep_dequeue(io_data->ep, io_data->req);
+}
+
 static int ffs_aio_cancel(struct kiocb *kiocb)
 {
 	struct ffs_io_data *io_data = kiocb->private;
-	struct ffs_epfile *epfile = kiocb->ki_filp->private_data;
-	unsigned long flags;
+	struct ffs_data *ffs = io_data->ffs;
 	int value;
 
 	ENTER();
 
-	spin_lock_irqsave(&epfile->ffs->eps_lock, flags);
-
-	if (likely(io_data && io_data->ep && io_data->req))
-		value = usb_ep_dequeue(io_data->ep, io_data->req);
-	else
+	if (likely(io_data && io_data->ep && io_data->req)) {
+		INIT_WORK(&io_data->cancellation_work, ffs_aio_cancel_worker);
+		queue_work(ffs->io_completion_wq, &io_data->cancellation_work);
+		value = -EINPROGRESS;
+	} else {
 		value = -EINVAL;
-
-	spin_unlock_irqrestore(&epfile->ffs->eps_lock, flags);
+	}
 
 	return value;
 }
@@ -1103,12 +1110,11 @@ static ssize_t ffs_epfile_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	ENTER();
 
 	if (!is_sync_kiocb(kiocb)) {
-		p = kzalloc(sizeof(io_data), GFP_KERNEL);
+		p = kmalloc(sizeof(io_data), GFP_KERNEL);
 		if (unlikely(!p))
 			return -ENOMEM;
 		p->aio = true;
 	} else {
-		memset(p, 0, sizeof(*p));
 		p->aio = false;
 	}
 
@@ -1140,12 +1146,11 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	ENTER();
 
 	if (!is_sync_kiocb(kiocb)) {
-		p = kzalloc(sizeof(io_data), GFP_KERNEL);
+		p = kmalloc(sizeof(io_data), GFP_KERNEL);
 		if (unlikely(!p))
 			return -ENOMEM;
 		p->aio = true;
 	} else {
-		memset(p, 0, sizeof(*p));
 		p->aio = false;
 	}
 
@@ -1243,11 +1248,10 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 	case FUNCTIONFS_ENDPOINT_DESC:
 	{
 		int desc_idx;
-		struct usb_endpoint_descriptor desc1, *desc;
+		struct usb_endpoint_descriptor *desc;
 
 		switch (epfile->ffs->gadget->speed) {
 		case USB_SPEED_SUPER:
-		case USB_SPEED_SUPER_PLUS:
 			desc_idx = 2;
 			break;
 		case USB_SPEED_HIGH:
@@ -1256,12 +1260,10 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 		default:
 			desc_idx = 0;
 		}
-
 		desc = epfile->ep->descs[desc_idx];
-		memcpy(&desc1, desc, desc->bLength);
 
 		spin_unlock_irq(&epfile->ffs->eps_lock);
-		ret = copy_to_user((void __user *)value, &desc1, desc1.bLength);
+		ret = copy_to_user((void __user *)value, desc, desc->bLength);
 		if (ret)
 			ret = -EFAULT;
 		return ret;
@@ -1740,10 +1742,6 @@ static void ffs_data_reset(struct ffs_data *ffs)
 	ffs->state = FFS_READ_DESCRIPTORS;
 	ffs->setup_state = FFS_NO_SETUP;
 	ffs->flags = 0;
-
-	ffs->ms_os_descs_ext_prop_count = 0;
-	ffs->ms_os_descs_ext_prop_name_len = 0;
-	ffs->ms_os_descs_ext_prop_data_len = 0;
 }
 
 
@@ -2712,7 +2710,7 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 	struct ffs_function *func = priv;
 	struct ffs_ep *ffs_ep;
 	unsigned ep_desc_id;
-	int idx, ep_num;
+	int idx;
 	static const char *speed_names[] = { "full", "high", "super" };
 
 	if (type != FFS_DESCRIPTOR)
@@ -2779,9 +2777,8 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 
 		ffs_ep->ep  = ep;
 		ffs_ep->req = req;
-		ep_num = ((ds->bEndpointAddress & USB_ENDPOINT_DIR_MASK) >> 3) |
-			 (ds->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-		func->eps_revmap[ep_num] = idx + 1;
+		func->eps_revmap[ds->bEndpointAddress &
+				 USB_ENDPOINT_NUMBER_MASK] = idx + 1;
 		/*
 		 * If we use virtual address mapping, we restore
 		 * original bEndpointAddress value.
@@ -3079,8 +3076,7 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	}
 
 	if (likely(super)) {
-		func->function.ss_descriptors = func->function.ssp_descriptors =
-			vla_ptr(vlabuf, d, ss_descs);
+		func->function.ss_descriptors = vla_ptr(vlabuf, d, ss_descs);
 		ss_len = ffs_do_descs(ffs->ss_descs_count,
 				vla_ptr(vlabuf, d, raw_descs) + fs_len + hs_len,
 				d_raw_descs__sz - fs_len - hs_len,
@@ -3309,10 +3305,7 @@ static void ffs_func_resume(struct usb_function *f)
 
 static int ffs_func_revmap_ep(struct ffs_function *func, u8 num)
 {
-	int ep_num = ((num & USB_ENDPOINT_DIR_MASK) >> 3) |
-		     (num & USB_ENDPOINT_NUMBER_MASK);
-
-	num = func->eps_revmap[ep_num];
+	num = func->eps_revmap[num & USB_ENDPOINT_NUMBER_MASK];
 	return num ? num : -EDOM;
 }
 
@@ -3493,7 +3486,6 @@ static void ffs_func_unbind(struct usb_configuration *c,
 	func->function.fs_descriptors = NULL;
 	func->function.hs_descriptors = NULL;
 	func->function.ss_descriptors = NULL;
-	func->function.ssp_descriptors = NULL;
 	func->interfaces_nums = NULL;
 
 	ffs_event_add(ffs, FUNCTIONFS_UNBIND);

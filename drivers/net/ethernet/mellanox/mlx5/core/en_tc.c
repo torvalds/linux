@@ -96,7 +96,6 @@ struct mlx5e_tc_flow_parse_attr {
 	struct ip_tunnel_info tun_info;
 	struct mlx5_flow_spec spec;
 	int num_mod_hdr_actions;
-	int max_mod_hdr_actions;
 	void *mod_hdr_actions;
 	int mirred_ifindex;
 };
@@ -992,13 +991,13 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 {
 	struct mlx5e_neigh *m_neigh = &nhe->m_neigh;
+	u64 bytes, packets, lastuse = 0;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5e_encap_entry *e;
 	struct mlx5_fc *counter;
 	struct neigh_table *tbl;
 	bool neigh_used = false;
 	struct neighbour *n;
-	u64 lastuse;
 
 	if (m_neigh->family == AF_INET)
 		tbl = &arp_tbl;
@@ -1015,7 +1014,7 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		list_for_each_entry(flow, &e->flows, encap) {
 			if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
 				counter = mlx5_flow_rule_counter(flow->rule[0]);
-				lastuse = mlx5_fc_query_lastuse(counter);
+				mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
 				if (time_after((unsigned long)lastuse, nhe->reported_lastuse)) {
 					neigh_used = true;
 					break;
@@ -1311,21 +1310,31 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 					 inner_headers);
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key =
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_dissector_key_eth_addrs *key =
 			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
+						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
 						  f->key);
-		struct flow_dissector_key_basic *mask =
+		struct flow_dissector_key_eth_addrs *mask =
 			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
+						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
 						  f->mask);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ethertype,
-			 ntohs(mask->n_proto));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
-			 ntohs(key->n_proto));
 
-		if (mask->n_proto)
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
+					     dmac_47_16),
+				mask->dst);
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
+					     dmac_47_16),
+				key->dst);
+
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
+					     smac_47_16),
+				mask->src);
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
+					     smac_47_16),
+				key->src);
+
+		if (!is_zero_ether_addr(mask->src) || !is_zero_ether_addr(mask->dst))
 			*match_level = MLX5_MATCH_L2;
 	}
 
@@ -1359,10 +1368,9 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 
 			*match_level = MLX5_MATCH_L2;
 		}
-	} else if (*match_level != MLX5_MATCH_NONE) {
+	} else {
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c, svlan_tag, 1);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c, cvlan_tag, 1);
-		*match_level = MLX5_MATCH_L2;
 	}
 
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CVLAN)) {
@@ -1400,31 +1408,21 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		}
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		struct flow_dissector_key_eth_addrs *key =
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_dissector_key_basic *key =
 			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
+						  FLOW_DISSECTOR_KEY_BASIC,
 						  f->key);
-		struct flow_dissector_key_eth_addrs *mask =
+		struct flow_dissector_key_basic *mask =
 			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
+						  FLOW_DISSECTOR_KEY_BASIC,
 						  f->mask);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ethertype,
+			 ntohs(mask->n_proto));
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
+			 ntohs(key->n_proto));
 
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
-					     dmac_47_16),
-				mask->dst);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
-					     dmac_47_16),
-				key->dst);
-
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
-					     smac_47_16),
-				mask->src);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
-					     smac_47_16),
-				key->src);
-
-		if (!is_zero_ether_addr(mask->src) || !is_zero_ether_addr(mask->dst))
+		if (mask->n_proto)
 			*match_level = MLX5_MATCH_L2;
 	}
 
@@ -1451,10 +1449,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 
 			/* the HW doesn't need L3 inline to match on frag=no */
 			if (!(key->flags & FLOW_DIS_IS_FRAGMENT))
-				*match_level = MLX5_MATCH_L2;
+				*match_level = MLX5_INLINE_MODE_L2;
 	/* ***  L2 attributes parsing up to here *** */
 			else
-				*match_level = MLX5_MATCH_L3;
+				*match_level = MLX5_INLINE_MODE_IP;
 		}
 	}
 
@@ -1743,9 +1741,9 @@ static struct mlx5_fields fields[] = {
 	OFFLOAD(UDP_DPORT, 2, udp.dest,   0),
 };
 
-/* On input attr->max_mod_hdr_actions tells how many HW actions can be parsed at
- * max from the SW pedit action. On success, attr->num_mod_hdr_actions
- * says how many HW actions were actually parsed.
+/* On input attr->num_mod_hdr_actions tells how many HW actions can be parsed at
+ * max from the SW pedit action. On success, it says how many HW actions were
+ * actually parsed.
  */
 static int offload_pedit_fields(struct pedit_headers *masks,
 				struct pedit_headers *vals,
@@ -1768,11 +1766,9 @@ static int offload_pedit_fields(struct pedit_headers *masks,
 	add_vals = &vals[TCA_PEDIT_KEY_EX_CMD_ADD];
 
 	action_size = MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto);
-	action = parse_attr->mod_hdr_actions +
-		 parse_attr->num_mod_hdr_actions * action_size;
-
-	max_actions = parse_attr->max_mod_hdr_actions;
-	nactions = parse_attr->num_mod_hdr_actions;
+	action = parse_attr->mod_hdr_actions;
+	max_actions = parse_attr->num_mod_hdr_actions;
+	nactions = 0;
 
 	for (i = 0; i < ARRAY_SIZE(fields); i++) {
 		f = &fields[i];
@@ -1877,7 +1873,7 @@ static int alloc_mod_hdr_actions(struct mlx5e_priv *priv,
 	if (!parse_attr->mod_hdr_actions)
 		return -ENOMEM;
 
-	parse_attr->max_mod_hdr_actions = max_actions;
+	parse_attr->num_mod_hdr_actions = max_actions;
 	return 0;
 }
 
@@ -1921,11 +1917,9 @@ static int parse_tc_pedit_action(struct mlx5e_priv *priv,
 			goto out_err;
 	}
 
-	if (!parse_attr->mod_hdr_actions) {
-		err = alloc_mod_hdr_actions(priv, a, namespace, parse_attr);
-		if (err)
-			goto out_err;
-	}
+	err = alloc_mod_hdr_actions(priv, a, namespace, parse_attr);
+	if (err)
+		goto out_err;
 
 	err = offload_pedit_fields(masks, vals, parse_attr);
 	if (err < 0)
@@ -2217,11 +2211,12 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 	struct mlx5e_rep_priv *uplink_rpriv;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	int ret;
 
-	dst = ipv6_stub->ipv6_dst_lookup_flow(dev_net(mirred_dev), NULL, fl6,
-					      NULL);
-	if (IS_ERR(dst))
-		return PTR_ERR(dst);
+	ret = ipv6_stub->ipv6_dst_lookup(dev_net(mirred_dev), NULL, &dst,
+					 fl6);
+	if (ret < 0)
+		return ret;
 
 	if (!(*out_ttl))
 		*out_ttl = ip6_dst_hoplimit(dst);
@@ -2427,7 +2422,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	int ipv6_encap_size = ETH_HLEN + sizeof(struct ipv6hdr) + VXLAN_HLEN;
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
-	struct net_device *out_dev = NULL;
+	struct net_device *out_dev;
 	struct neighbour *n = NULL;
 	struct flowi6 fl6 = {};
 	u8 nud_state, tos, ttl;

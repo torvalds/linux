@@ -245,6 +245,22 @@
 .Lend_\@:
 .endm
 
+/*
+ * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
+ * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
+ * is just clearing the MSB, which makes it an invalid stack address and is also
+ * a signal to the unwinder that it's a pt_regs pointer in disguise.
+ *
+ * NOTE: This macro must be used *after* SAVE_ALL because it corrupts the
+ * original rbp.
+ */
+.macro ENCODE_FRAME_POINTER
+#ifdef CONFIG_FRAME_POINTER
+	mov %esp, %ebp
+	andl $0x7fffffff, %ebp
+#endif
+.endm
+
 .macro RESTORE_INT_REGS
 	popl	%ebx
 	popl	%ecx
@@ -632,7 +648,6 @@ ENTRY(__switch_to_asm)
 	pushl	%ebx
 	pushl	%edi
 	pushl	%esi
-	pushfl
 
 	/* switch stack */
 	movl	%esp, TASK_threadsp(%eax)
@@ -655,7 +670,6 @@ ENTRY(__switch_to_asm)
 #endif
 
 	/* restore callee-saved registers */
-	popfl
 	popl	%esi
 	popl	%edi
 	popl	%ebx
@@ -1082,30 +1096,6 @@ ENTRY(irq_entries_start)
     .endr
 END(irq_entries_start)
 
-#ifdef CONFIG_X86_LOCAL_APIC
-	.align 8
-ENTRY(spurious_entries_start)
-    vector=FIRST_SYSTEM_VECTOR
-    .rept (NR_VECTORS - FIRST_SYSTEM_VECTOR)
-	pushl	$(~vector+0x80)			/* Note: always in signed byte range */
-    vector=vector+1
-	jmp	common_spurious
-	.align	8
-    .endr
-END(spurious_entries_start)
-
-common_spurious:
-	ASM_CLAC
-	addl	$-0x80, (%esp)			/* Adjust vector into the [-256, -1] range */
-	SAVE_ALL switch_stacks=1
-	ENCODE_FRAME_POINTER
-	TRACE_IRQS_OFF
-	movl	%esp, %eax
-	call	smp_spurious_interrupt
-	jmp	ret_from_intr
-ENDPROC(common_spurious)
-#endif
-
 /*
  * the CPU automatically disables interrupts when executing an IRQ vector,
  * so IRQ-flags tracing has to follow that:
@@ -1489,7 +1479,6 @@ ENTRY(int3)
 END(int3)
 
 ENTRY(general_protection)
-	ASM_CLAC
 	pushl	$do_general_protection
 	jmp	common_exception
 END(general_protection)

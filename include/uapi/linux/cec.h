@@ -152,13 +152,10 @@ static inline void cec_msg_set_reply_to(struct cec_msg *msg,
 #define CEC_TX_STATUS_LOW_DRIVE		(1 << 3)
 #define CEC_TX_STATUS_ERROR		(1 << 4)
 #define CEC_TX_STATUS_MAX_RETRIES	(1 << 5)
-#define CEC_TX_STATUS_ABORTED		(1 << 6)
-#define CEC_TX_STATUS_TIMEOUT		(1 << 7)
 
 #define CEC_RX_STATUS_OK		(1 << 0)
 #define CEC_RX_STATUS_TIMEOUT		(1 << 1)
 #define CEC_RX_STATUS_FEATURE_ABORT	(1 << 2)
-#define CEC_RX_STATUS_ABORTED		(1 << 3)
 
 static inline int cec_msg_status_is_ok(const struct cec_msg *msg)
 {
@@ -767,8 +764,8 @@ struct cec_event {
 #define CEC_MSG_SELECT_DIGITAL_SERVICE			0x93
 #define CEC_MSG_TUNER_DEVICE_STATUS			0x07
 /* Recording Flag Operand (rec_flag) */
-#define CEC_OP_REC_FLAG_NOT_USED			0
-#define CEC_OP_REC_FLAG_USED				1
+#define CEC_OP_REC_FLAG_USED				0
+#define CEC_OP_REC_FLAG_NOT_USED			1
 /* Tuner Display Info Operand (tuner_display_info) */
 #define CEC_OP_TUNER_DISPLAY_INFO_DIGITAL		0
 #define CEC_OP_TUNER_DISPLAY_INFO_NONE			1

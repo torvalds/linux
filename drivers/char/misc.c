@@ -289,8 +289,4 @@ fail_remove:
 		remove_proc_entry("misc", NULL);
 	return err;
 }
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-arch_initcall_sync(misc_init);
-#else
 subsys_initcall(misc_init);
-#endif

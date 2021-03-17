@@ -47,17 +47,10 @@ static const struct file_operations udl_driver_fops = {
 	.llseek = noop_llseek,
 };
 
-static void udl_driver_release(struct drm_device *dev)
-{
-	udl_fini(dev);
-	udl_modeset_cleanup(dev);
-	drm_dev_fini(dev);
-	kfree(dev);
-}
-
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
-	.release = udl_driver_release,
+	.load = udl_driver_load,
+	.unload = udl_driver_unload,
 
 	/* gem hooks */
 	.gem_free_object_unlocked = udl_gem_free_object,
@@ -80,56 +73,28 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
-static struct udl_device *udl_driver_create(struct usb_interface *interface)
-{
-	struct usb_device *udev = interface_to_usbdev(interface);
-	struct udl_device *udl;
-	int r;
-
-	udl = kzalloc(sizeof(*udl), GFP_KERNEL);
-	if (!udl)
-		return ERR_PTR(-ENOMEM);
-
-	r = drm_dev_init(&udl->drm, &driver, &interface->dev);
-	if (r) {
-		kfree(udl);
-		return ERR_PTR(r);
-	}
-
-	udl->udev = udev;
-	udl->drm.dev_private = udl;
-
-	r = udl_init(udl);
-	if (r) {
-		drm_dev_fini(&udl->drm);
-		kfree(udl);
-		return ERR_PTR(r);
-	}
-
-	usb_set_intfdata(interface, udl);
-	return udl;
-}
-
 static int udl_usb_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id)
 {
+	struct usb_device *udev = interface_to_usbdev(interface);
+	struct drm_device *dev;
 	int r;
-	struct udl_device *udl;
 
-	udl = udl_driver_create(interface);
-	if (IS_ERR(udl))
-		return PTR_ERR(udl);
+	dev = drm_dev_alloc(&driver, &interface->dev);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
-	r = drm_dev_register(&udl->drm, 0);
+	r = drm_dev_register(dev, (unsigned long)udev);
 	if (r)
 		goto err_free;
 
-	DRM_INFO("Initialized udl on minor %d\n", udl->drm.primary->index);
+	usb_set_intfdata(interface, dev);
+	DRM_INFO("Initialized udl on minor %d\n", dev->primary->index);
 
 	return 0;
 
 err_free:
-	drm_dev_put(&udl->drm);
+	drm_dev_unref(dev);
 	return r;
 }
 

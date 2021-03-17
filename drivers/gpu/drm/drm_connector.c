@@ -90,9 +90,6 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] = {
 	{ DRM_MODE_CONNECTOR_WRITEBACK, "Writeback" },
 };
 
-DRM_ENUM_NAME_FN(drm_get_connector_name, drm_connector_enum_list)
-EXPORT_SYMBOL(drm_get_connector_name);
-
 void drm_connector_ida_init(void)
 {
 	int i;
@@ -259,7 +256,9 @@ int drm_connector_init(struct drm_device *dev,
 
 	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL &&
 	    connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
-		drm_connector_attach_edid_property(connector);
+		drm_object_attach_property(&connector->base,
+					      config->edid_property,
+					      0);
 
 	drm_object_attach_property(&connector->base,
 				      config->dpms_property, 0);
@@ -290,24 +289,6 @@ out_put:
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_init);
-
-/**
- * drm_connector_attach_edid_property - attach edid property.
- * @connector: the connector
- *
- * Some connector types like DRM_MODE_CONNECTOR_VIRTUAL do not get a
- * edid property attached by default.  This function can be used to
- * explicitly enable the edid property in these cases.
- */
-void drm_connector_attach_edid_property(struct drm_connector *connector)
-{
-	struct drm_mode_config *config = &connector->dev->mode_config;
-
-	drm_object_attach_property(&connector->base,
-				   config->edid_property,
-				   0);
-}
-EXPORT_SYMBOL(drm_connector_attach_edid_property);
 
 /**
  * drm_connector_attach_encoder - attach a connector to an encoder
@@ -394,8 +375,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	/* The connector should have been removed from userspace long before
 	 * it is finally destroyed.
 	 */
-	if (WARN_ON(connector->registration_state ==
-		    DRM_CONNECTOR_REGISTERED))
+	if (WARN_ON(connector->registered))
 		drm_connector_unregister(connector);
 
 	if (connector->tile_group) {
@@ -452,7 +432,7 @@ int drm_connector_register(struct drm_connector *connector)
 		return 0;
 
 	mutex_lock(&connector->mutex);
-	if (connector->registration_state != DRM_CONNECTOR_INITIALIZING)
+	if (connector->registered)
 		goto unlock;
 
 	ret = drm_sysfs_connector_add(connector);
@@ -472,7 +452,7 @@ int drm_connector_register(struct drm_connector *connector)
 
 	drm_mode_object_register(connector->dev, &connector->base);
 
-	connector->registration_state = DRM_CONNECTOR_REGISTERED;
+	connector->registered = true;
 	goto unlock;
 
 err_debugfs:
@@ -494,7 +474,7 @@ EXPORT_SYMBOL(drm_connector_register);
 void drm_connector_unregister(struct drm_connector *connector)
 {
 	mutex_lock(&connector->mutex);
-	if (connector->registration_state != DRM_CONNECTOR_REGISTERED) {
+	if (!connector->registered) {
 		mutex_unlock(&connector->mutex);
 		return;
 	}
@@ -505,7 +485,7 @@ void drm_connector_unregister(struct drm_connector *connector)
 	drm_sysfs_connector_remove(connector);
 	drm_debugfs_connector_remove(connector);
 
-	connector->registration_state = DRM_CONNECTOR_UNREGISTERED;
+	connector->registered = false;
 	mutex_unlock(&connector->mutex);
 }
 EXPORT_SYMBOL(drm_connector_unregister);
@@ -825,55 +805,6 @@ static struct drm_prop_enum_list drm_cp_enum_list[] = {
 };
 DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
 
-static const struct drm_prop_enum_list hdmi_colorspaces[] = {
-	/* For Default case, driver will set the colorspace */
-	{ DRM_MODE_COLORIMETRY_DEFAULT, "Default" },
-	/* Standard Definition Colorimetry based on CEA 861 */
-	{ DRM_MODE_COLORIMETRY_SMPTE_170M_YCC, "SMPTE_170M_YCC" },
-	{ DRM_MODE_COLORIMETRY_BT709_YCC, "BT709_YCC" },
-	/* Standard Definition Colorimetry based on IEC 61966-2-4 */
-	{ DRM_MODE_COLORIMETRY_XVYCC_601, "XVYCC_601" },
-	/* High Definition Colorimetry based on IEC 61966-2-4 */
-	{ DRM_MODE_COLORIMETRY_XVYCC_709, "XVYCC_709" },
-	/* Colorimetry based on IEC 61966-2-1/Amendment 1 */
-	{ DRM_MODE_COLORIMETRY_SYCC_601, "SYCC_601" },
-	/* Colorimetry based on IEC 61966-2-5 [33] */
-	{ DRM_MODE_COLORIMETRY_OPYCC_601, "opYCC_601" },
-	/* Colorimetry based on IEC 61966-2-5 */
-	{ DRM_MODE_COLORIMETRY_OPRGB, "opRGB" },
-	/* Colorimetry based on ITU-R BT.2020 */
-	{ DRM_MODE_COLORIMETRY_BT2020_CYCC, "BT2020_CYCC" },
-	/* Colorimetry based on ITU-R BT.2020 */
-	{ DRM_MODE_COLORIMETRY_BT2020_RGB, "BT2020_RGB" },
-	/* Colorimetry based on ITU-R BT.2020 */
-	{ DRM_MODE_COLORIMETRY_BT2020_YCC, "BT2020_YCC" },
-	/* Added as part of Additional Colorimetry Extension in 861.G */
-	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65, "DCI-P3_RGB_D65" },
-	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER, "DCI-P3_RGB_Theater" },
-};
-
-static const struct drm_prop_enum_list dp_colorspaces[] = {
-	/* For Default case, driver will set the colorspace */
-	{ DRM_MODE_COLORIMETRY_DEFAULT, "Default" },
-	/* Standard Definition Colorimetry based on IEC 61966-2-4 */
-	{ DRM_MODE_COLORIMETRY_XVYCC_601, "XVYCC_601" },
-	/* High Definition Colorimetry based on IEC 61966-2-4 */
-	{ DRM_MODE_COLORIMETRY_XVYCC_709, "XVYCC_709" },
-	/* Colorimetry based on IEC 61966-2-5 */
-	{ DRM_MODE_COLORIMETRY_OPRGB, "opRGB" },
-	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65, "DCI-P3_RGB_D65" },
-	/* DP MSA Colorimetry */
-	{ DRM_MODE_DP_COLORIMETRY_BT601_YCC, "YCBCR_ITU_601" },
-	{ DRM_MODE_DP_COLORIMETRY_BT709_YCC, "YCBCR_ITU_709" },
-	{ DRM_MODE_DP_COLORIMETRY_SRGB, "sRGB" },
-	{ DRM_MODE_DP_COLORIMETRY_RGB_WIDE_GAMUT, "RGB Wide Gamut" },
-	{ DRM_MODE_DP_COLORIMETRY_SCRGB, "scRGB" },
-	/* Colorimetry based on ITU-R BT.2020 */
-	{ DRM_MODE_COLORIMETRY_BT2020_RGB, "BT2020_RGB" },
-	/* Colorimetry based on ITU-R BT.2020 */
-	{ DRM_MODE_COLORIMETRY_BT2020_YCC, "BT2020_YCC" },
-};
-
 /**
  * DOC: standard connector properties
  *
@@ -1067,12 +998,6 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.non_desktop_property = prop;
-
-	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB,
-				   "HDR_OUTPUT_METADATA", 0);
-	if (!prop)
-		return -ENOMEM;
-	dev->mode_config.hdr_output_metadata_property = prop;
 
 	return 0;
 }
@@ -1447,65 +1372,6 @@ int drm_mode_create_aspect_ratio_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
-
-/**
- * DOC: standard connector properties
- *
- * Colorspace:
- *     drm_mode_create_colorspace_property - create colorspace property
- *     This property helps select a suitable colorspace based on the sink
- *     capability. Modern sink devices support wider gamut like BT2020.
- *     This helps switch to BT2020 mode if the BT2020 encoded video stream
- *     is being played by the user, same for any other colorspace. Thereby
- *     giving a good visual experience to users.
- *
- *     The expectation from userspace is that it should parse the EDID
- *     and get supported colorspaces. Use this property and switch to the
- *     one supported. Sink supported colorspaces should be retrieved by
- *     userspace from EDID and driver will not explicitly expose them.
- *
- *     Basically the expectation from userspace is:
- *      - Set up CRTC DEGAMMA/CTM/GAMMA to convert to some sink
- *        colorspace
- *      - Set this new property to let the sink know what it
- *        converted the CRTC output to.
- *      - This property is just to inform sink what colorspace
- *        source is trying to drive.
- *
- * Called by a driver the first time it's needed, must be attached to desired
- * connectors.
- */
-int drm_mode_create_colorspace_property(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-
-	if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB) {
-		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
-						"Colorspace",
-						hdmi_colorspaces,
-						ARRAY_SIZE(hdmi_colorspaces));
-		if (!prop)
-			return -ENOMEM;
-	} else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
-		   connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
-		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
-						"Colorspace", dp_colorspaces,
-						ARRAY_SIZE(dp_colorspaces));
-
-		if (!prop)
-			return -ENOMEM;
-	} else {
-		DRM_DEBUG_KMS("Colorspace property not supported\n");
-		return 0;
-	}
-
-	connector->colorspace_property = prop;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_mode_create_colorspace_property);
 
 /**
  * drm_mode_create_content_type_property - create content type property

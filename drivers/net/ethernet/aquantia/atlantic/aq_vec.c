@@ -89,7 +89,6 @@ static int aq_vec_poll(struct napi_struct *napi, int budget)
 			}
 		}
 
-err_exit:
 		if (!was_tx_cleaned)
 			work_done = budget;
 
@@ -99,7 +98,7 @@ err_exit:
 					1U << self->aq_ring_param.vec_idx);
 		}
 	}
-
+err_exit:
 	return work_done;
 }
 
@@ -309,13 +308,15 @@ irqreturn_t aq_vec_isr_legacy(int irq, void *private)
 {
 	struct aq_vec_s *self = private;
 	u64 irq_mask = 0U;
-	int err;
+	irqreturn_t err = 0;
 
-	if (!self)
-		return IRQ_NONE;
+	if (!self) {
+		err = -EINVAL;
+		goto err_exit;
+	}
 	err = self->aq_hw_ops->hw_irq_read(self->aq_hw, &irq_mask);
 	if (err < 0)
-		return IRQ_NONE;
+		goto err_exit;
 
 	if (irq_mask) {
 		self->aq_hw_ops->hw_irq_disable(self->aq_hw,
@@ -323,10 +324,11 @@ irqreturn_t aq_vec_isr_legacy(int irq, void *private)
 		napi_schedule(&self->napi);
 	} else {
 		self->aq_hw_ops->hw_irq_enable(self->aq_hw, 1U);
-		return IRQ_NONE;
+		err = IRQ_NONE;
 	}
 
-	return IRQ_HANDLED;
+err_exit:
+	return err >= 0 ? IRQ_HANDLED : IRQ_NONE;
 }
 
 cpumask_t *aq_vec_get_affinity_mask(struct aq_vec_s *self)

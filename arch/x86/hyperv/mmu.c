@@ -37,14 +37,12 @@ static inline int fill_gva_list(u64 gva_list[], int offset,
 		 * Lower 12 bits encode the number of additional
 		 * pages to flush (in addition to the 'cur' page).
 		 */
-		if (diff >= HV_TLB_FLUSH_UNIT) {
+		if (diff >= HV_TLB_FLUSH_UNIT)
 			gva_list[gva_n] |= ~PAGE_MASK;
-			cur += HV_TLB_FLUSH_UNIT;
-		}  else if (diff) {
+		else if (diff)
 			gva_list[gva_n] |= (diff - 1) >> PAGE_SHIFT;
-			cur = end;
-		}
 
+		cur += HV_TLB_FLUSH_UNIT;
 		gva_n++;
 
 	} while (cur < end);
@@ -66,16 +64,10 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 	if (!hv_hypercall_pg)
 		goto do_native;
 
-	local_irq_save(flags);
-
-	/*
-	 * Only check the mask _after_ interrupt has been disabled to avoid the
-	 * mask changing under our feet.
-	 */
-	if (cpumask_empty(cpus)) {
-		local_irq_restore(flags);
+	if (cpumask_empty(cpus))
 		return;
-	}
+
+	local_irq_save(flags);
 
 	flush_pcpu = (struct hv_tlb_flush **)
 		     this_cpu_ptr(hyperv_pcpu_input_arg);

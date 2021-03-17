@@ -196,10 +196,8 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 		return dentry;
 
 	knparent = find_next_ancestor(kn, NULL);
-	if (WARN_ON(!knparent)) {
-		dput(dentry);
+	if (WARN_ON(!knparent))
 		return ERR_PTR(-EINVAL);
-	}
 
 	do {
 		struct dentry *dtmp;
@@ -208,10 +206,8 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 		if (kn == knparent)
 			return dentry;
 		kntmp = find_next_ancestor(kn, knparent);
-		if (WARN_ON(!kntmp)) {
-			dput(dentry);
+		if (WARN_ON(!kntmp))
 			return ERR_PTR(-EINVAL);
-		}
 		dtmp = lookup_one_len_unlocked(kntmp->name, dentry,
 					       strlen(kntmp->name));
 		dput(dentry);

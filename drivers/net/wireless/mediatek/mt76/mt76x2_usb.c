@@ -107,24 +107,16 @@ static int __maybe_unused mt76x2u_resume(struct usb_interface *intf)
 			       mt76u_mcu_complete_urb,
 			       &usb->mcu.cmpl);
 	if (err < 0)
-		goto err;
+		return err;
 
 	err = mt76u_submit_rx_buffers(&dev->mt76);
 	if (err < 0)
-		goto err;
+		return err;
 
 	tasklet_enable(&usb->rx_tasklet);
 	tasklet_enable(&usb->tx_tasklet);
 
-	err = mt76x2u_init_hardware(dev);
-	if (err < 0)
-		goto err;
-
-	return 0;
-
-err:
-	mt76x2u_cleanup(dev);
-	return err;
+	return mt76x2u_init_hardware(dev);
 }
 
 MODULE_DEVICE_TABLE(usb, mt76x2u_device_table);

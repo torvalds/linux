@@ -35,8 +35,8 @@
 				interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "int0", "int1";
-				clocks = <&l3_iclk_div>, <&mcan_clk>;
-				clock-names = "hclk", "cclk";
+				clocks = <&mcan_clk>, <&l3_iclk_div>;
+				clock-names = "cclk", "hclk";
 				bosch,mram-cfg = <0x0 0 0 32 0 0 1 1>;
 			};
 		};
@@ -80,9 +80,4 @@
 		ti,bit-shift = <27>;
 		reg = <0x3fc>;
 	};
-};
-
-&mmc3 {
-	/* dra76x is not affected by i887 */
-	max-frequency = <96000000>;
 };

@@ -193,7 +193,6 @@ static void input_repeat_key(struct timer_list *t)
 			input_value_sync
 		};
 
-		input_set_timestamp(dev, ktime_get());
 		input_pass_values(dev, vals, ARRAY_SIZE(vals));
 
 		if (dev->rep[REP_PERIOD])
@@ -401,13 +400,6 @@ static void input_handle_event(struct input_dev *dev,
 		if (dev->num_vals >= 2)
 			input_pass_values(dev, dev->vals, dev->num_vals);
 		dev->num_vals = 0;
-		/*
-		 * Reset the timestamp on flush so we won't end up
-		 * with a stale one. Note we only need to reset the
-		 * monolithic one as we use its presence when deciding
-		 * whether to generate a synthetic timestamp.
-		 */
-		dev->timestamp[INPUT_CLK_MONO] = ktime_set(0, 0);
 	} else if (dev->num_vals >= dev->max_vals - 2) {
 		dev->vals[dev->num_vals++] = input_value_sync;
 		input_pass_values(dev, dev->vals, dev->num_vals);
@@ -866,18 +858,16 @@ static int input_default_setkeycode(struct input_dev *dev,
 		}
 	}
 
-	if (*old_keycode <= KEY_MAX) {
-		__clear_bit(*old_keycode, dev->keybit);
-		for (i = 0; i < dev->keycodemax; i++) {
-			if (input_fetch_keycode(dev, i) == *old_keycode) {
-				__set_bit(*old_keycode, dev->keybit);
-				/* Setting the bit twice is useless, so break */
-				break;
-			}
+	__clear_bit(*old_keycode, dev->keybit);
+	__set_bit(ke->keycode, dev->keybit);
+
+	for (i = 0; i < dev->keycodemax; i++) {
+		if (input_fetch_keycode(dev, i) == *old_keycode) {
+			__set_bit(*old_keycode, dev->keybit);
+			break; /* Setting the bit twice is useless, so break */
 		}
 	}
 
-	__set_bit(ke->keycode, dev->keybit);
 	return 0;
 }
 
@@ -933,13 +923,9 @@ int input_set_keycode(struct input_dev *dev,
 	 * Simulate keyup event if keycode is not present
 	 * in the keymap anymore
 	 */
-	if (old_keycode > KEY_MAX) {
-		dev_warn(dev->dev.parent ?: &dev->dev,
-			 "%s: got too big old keycode %#x\n",
-			 __func__, old_keycode);
-	} else if (test_bit(EV_KEY, dev->evbit) &&
-		   !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
-		   __test_and_clear_bit(old_keycode, dev->key)) {
+	if (test_bit(EV_KEY, dev->evbit) &&
+	    !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
+	    __test_and_clear_bit(old_keycode, dev->key)) {
 		struct input_value vals[] =  {
 			{ EV_KEY, old_keycode, 0 },
 			input_value_sync
@@ -1911,46 +1897,6 @@ void input_free_device(struct input_dev *dev)
 	}
 }
 EXPORT_SYMBOL(input_free_device);
-
-/**
- * input_set_timestamp - set timestamp for input events
- * @dev: input device to set timestamp for
- * @timestamp: the time at which the event has occurred
- *   in CLOCK_MONOTONIC
- *
- * This function is intended to provide to the input system a more
- * accurate time of when an event actually occurred. The driver should
- * call this function as soon as a timestamp is acquired ensuring
- * clock conversions in input_set_timestamp are done correctly.
- *
- * The system entering suspend state between timestamp acquisition and
- * calling input_set_timestamp can result in inaccurate conversions.
- */
-void input_set_timestamp(struct input_dev *dev, ktime_t timestamp)
-{
-	dev->timestamp[INPUT_CLK_MONO] = timestamp;
-	dev->timestamp[INPUT_CLK_REAL] = ktime_mono_to_real(timestamp);
-	dev->timestamp[INPUT_CLK_BOOT] = ktime_mono_to_any(timestamp,
-							   TK_OFFS_BOOT);
-}
-EXPORT_SYMBOL(input_set_timestamp);
-
-/**
- * input_get_timestamp - get timestamp for input events
- * @dev: input device to get timestamp from
- *
- * A valid timestamp is a timestamp of non-zero value.
- */
-ktime_t *input_get_timestamp(struct input_dev *dev)
-{
-	const ktime_t invalid_timestamp = ktime_set(0, 0);
-
-	if (!ktime_compare(dev->timestamp[INPUT_CLK_MONO], invalid_timestamp))
-		input_set_timestamp(dev, ktime_get());
-
-	return dev->timestamp;
-}
-EXPORT_SYMBOL(input_get_timestamp);
 
 /**
  * input_set_capability - mark device as capable of a certain event

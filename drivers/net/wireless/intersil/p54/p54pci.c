@@ -332,12 +332,10 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct p54p_desc *desc;
 	dma_addr_t mapping;
 	u32 idx, i;
-	__le32 device_addr;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	idx = le32_to_cpu(ring_control->host_idx[1]);
 	i = idx % ARRAY_SIZE(ring_control->tx_data);
-	device_addr = ((struct p54_hdr *)skb->data)->req_id;
 
 	mapping = pci_map_single(priv->pdev, skb->data, skb->len,
 				 PCI_DMA_TODEVICE);
@@ -351,7 +349,7 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	desc = &ring_control->tx_data[i];
 	desc->host_addr = cpu_to_le32(mapping);
-	desc->device_addr = device_addr;
+	desc->device_addr = ((struct p54_hdr *)skb->data)->req_id;
 	desc->len = cpu_to_le16(skb->len);
 	desc->flags = 0;
 
@@ -556,7 +554,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot enable new PCI device\n");
-		goto err_put;
+		return err;
 	}
 
 	mem_addr = pci_resource_start(pdev, 0);
@@ -641,7 +639,6 @@ static int p54p_probe(struct pci_dev *pdev,
 	pci_release_regions(pdev);
  err_disable_dev:
 	pci_disable_device(pdev);
-err_put:
 	pci_dev_put(pdev);
 	return err;
 }

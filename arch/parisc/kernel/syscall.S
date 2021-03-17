@@ -48,7 +48,7 @@ registers).
 	 */
 #define KILL_INSN	break	0,0
 
-	.level          PA_ASM_LEVEL
+	.level          LEVEL
 
 	.text
 

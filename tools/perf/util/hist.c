@@ -1048,10 +1048,8 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 
 	err = sample__resolve_callchain(iter->sample, &callchain_cursor, &iter->parent,
 					iter->evsel, al, max_stack_depth);
-	if (err) {
-		map__put(alm);
+	if (err)
 		return err;
-	}
 
 	err = iter->ops->prepare_entry(iter, al);
 	if (err)
@@ -1508,7 +1506,7 @@ int hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 	return 0;
 }
 
-static int64_t hist_entry__sort(struct hist_entry *a, struct hist_entry *b)
+static int hist_entry__sort(struct hist_entry *a, struct hist_entry *b)
 {
 	struct hists *hists = a->hists;
 	struct perf_hpp_fmt *fmt;

@@ -18,6 +18,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
+/* FIXME: for gpio_get_value(), replace this by direct register read */
+#include <linux/gpio.h>
 #include <linux/module.h>
 
 #define MXS_SET		0x4
@@ -84,7 +86,7 @@ static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	port->both_edges &= ~pin_mask;
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
-		val = port->gc.get(&port->gc, d->hwirq);
+		val = gpio_get_value(port->gc.base + d->hwirq);
 		if (val)
 			edge = GPIO_INT_FALL_EDGE;
 		else

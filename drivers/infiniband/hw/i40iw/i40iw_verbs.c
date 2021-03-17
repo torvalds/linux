@@ -201,16 +201,38 @@ static int i40iw_dealloc_ucontext(struct ib_ucontext *context)
  */
 static int i40iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
-	struct i40iw_ucontext *ucontext = to_ucontext(context);
-	u64 dbaddr;
+	struct i40iw_ucontext *ucontext;
+	u64 db_addr_offset;
+	u64 push_offset;
 
-	if (vma->vm_pgoff || vma->vm_end - vma->vm_start != PAGE_SIZE)
-		return -EINVAL;
+	ucontext = to_ucontext(context);
+	if (ucontext->iwdev->sc_dev.is_pf) {
+		db_addr_offset = I40IW_DB_ADDR_OFFSET;
+		push_offset = I40IW_PUSH_OFFSET;
+		if (vma->vm_pgoff)
+			vma->vm_pgoff += I40IW_PF_FIRST_PUSH_PAGE_INDEX - 1;
+	} else {
+		db_addr_offset = I40IW_VF_DB_ADDR_OFFSET;
+		push_offset = I40IW_VF_PUSH_OFFSET;
+		if (vma->vm_pgoff)
+			vma->vm_pgoff += I40IW_VF_FIRST_PUSH_PAGE_INDEX - 1;
+	}
 
-	dbaddr = I40IW_DB_ADDR_OFFSET + pci_resource_start(ucontext->iwdev->ldev->pcidev, 0);
+	vma->vm_pgoff += db_addr_offset >> PAGE_SHIFT;
 
-	if (io_remap_pfn_range(vma, vma->vm_start, dbaddr >> PAGE_SHIFT, PAGE_SIZE,
-			       pgprot_noncached(vma->vm_page_prot)))
+	if (vma->vm_pgoff == (db_addr_offset >> PAGE_SHIFT)) {
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_private_data = ucontext;
+	} else {
+		if ((vma->vm_pgoff - (push_offset >> PAGE_SHIFT)) % 2)
+			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		else
+			vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	}
+
+	if (io_remap_pfn_range(vma, vma->vm_start,
+			       vma->vm_pgoff + (pci_resource_start(ucontext->iwdev->ldev->pcidev, 0) >> PAGE_SHIFT),
+			       PAGE_SIZE, vma->vm_page_prot))
 		return -EAGAIN;
 
 	return 0;
@@ -784,8 +806,6 @@ static int i40iw_query_qp(struct ib_qp *ibqp,
 	struct i40iw_qp *iwqp = to_iwqp(ibqp);
 	struct i40iw_sc_qp *qp = &iwqp->sc_qp;
 
-	attr->qp_state = iwqp->ibqp_state;
-	attr->cur_qp_state = attr->qp_state;
 	attr->qp_access_flags = 0;
 	attr->cap.max_send_wr = qp->qp_uk.sq_size;
 	attr->cap.max_recv_wr = qp->qp_uk.rq_size;

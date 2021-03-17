@@ -51,7 +51,7 @@ static int crypto_pcbc_encrypt_segment(struct skcipher_request *req,
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
-	u8 * const iv = walk->iv;
+	u8 *iv = walk->iv;
 
 	do {
 		crypto_xor(iv, src, bsize);
@@ -72,7 +72,7 @@ static int crypto_pcbc_encrypt_inplace(struct skcipher_request *req,
 	int bsize = crypto_cipher_blocksize(tfm);
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
-	u8 * const iv = walk->iv;
+	u8 *iv = walk->iv;
 	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE];
 
 	do {
@@ -83,6 +83,8 @@ static int crypto_pcbc_encrypt_inplace(struct skcipher_request *req,
 
 		src += bsize;
 	} while ((nbytes -= bsize) >= bsize);
+
+	memcpy(walk->iv, iv, bsize);
 
 	return nbytes;
 }
@@ -119,7 +121,7 @@ static int crypto_pcbc_decrypt_segment(struct skcipher_request *req,
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
-	u8 * const iv = walk->iv;
+	u8 *iv = walk->iv;
 
 	do {
 		crypto_cipher_decrypt_one(tfm, dst, src);
@@ -129,6 +131,8 @@ static int crypto_pcbc_decrypt_segment(struct skcipher_request *req,
 		src += bsize;
 		dst += bsize;
 	} while ((nbytes -= bsize) >= bsize);
+
+	memcpy(walk->iv, iv, bsize);
 
 	return nbytes;
 }
@@ -140,7 +144,7 @@ static int crypto_pcbc_decrypt_inplace(struct skcipher_request *req,
 	int bsize = crypto_cipher_blocksize(tfm);
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
-	u8 * const iv = walk->iv;
+	u8 *iv = walk->iv;
 	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE] __aligned(__alignof__(u32));
 
 	do {
@@ -151,6 +155,8 @@ static int crypto_pcbc_decrypt_inplace(struct skcipher_request *req,
 
 		src += bsize;
 	} while ((nbytes -= bsize) >= bsize);
+
+	memcpy(walk->iv, iv, bsize);
 
 	return nbytes;
 }
@@ -238,8 +244,9 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	spawn = skcipher_instance_ctx(inst);
 	err = crypto_init_spawn(spawn, alg, skcipher_crypto_instance(inst),
 				CRYPTO_ALG_TYPE_MASK);
+	crypto_mod_put(alg);
 	if (err)
-		goto err_put_alg;
+		goto err_free_inst;
 
 	err = crypto_inst_setname(skcipher_crypto_instance(inst), "pcbc", alg);
 	if (err)
@@ -268,15 +275,12 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	err = skcipher_register_instance(tmpl, inst);
 	if (err)
 		goto err_drop_spawn;
-	crypto_mod_put(alg);
 
 out:
 	return err;
 
 err_drop_spawn:
 	crypto_drop_spawn(spawn);
-err_put_alg:
-	crypto_mod_put(alg);
 err_free_inst:
 	kfree(inst);
 	goto out;

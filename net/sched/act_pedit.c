@@ -46,7 +46,7 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 	int err = -EINVAL;
 	int rem;
 
-	if (!nla)
+	if (!nla || !n)
 		return NULL;
 
 	keys_ex = kcalloc(n, sizeof(*k), GFP_KERNEL);
@@ -149,7 +149,6 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	struct tcf_pedit *p;
 	int ret = 0, err;
 	int ksize;
-	u32 index;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Pedit requires attributes to be passed");
@@ -169,10 +168,6 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	}
 
 	parm = nla_data(pattr);
-	if (!parm->nkeys) {
-		NL_SET_ERR_MSG_MOD(extack, "Pedit requires keys to be passed");
-		return -EINVAL;
-	}
 	ksize = parm->nkeys * sizeof(struct tc_pedit_key);
 	if (nla_len(pattr) < sizeof(*parm) + ksize) {
 		NL_SET_ERR_MSG_ATTR(extack, pattr, "Length of TCA_PEDIT_PARMS or TCA_PEDIT_PARMS_EX pedit attribute is invalid");
@@ -183,13 +178,18 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (IS_ERR(keys_ex))
 		return PTR_ERR(keys_ex);
 
-	index = parm->index;
-	err = tcf_idr_check_alloc(tn, &index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
 	if (!err) {
-		ret = tcf_idr_create(tn, index, est, a,
+		if (!parm->nkeys) {
+			tcf_idr_cleanup(tn, parm->index);
+			NL_SET_ERR_MSG_MOD(extack, "Pedit requires keys to be passed");
+			ret = -EINVAL;
+			goto out_free;
+		}
+		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_pedit_ops, bind, false);
 		if (ret) {
-			tcf_idr_cleanup(tn, index);
+			tcf_idr_cleanup(tn, parm->index);
 			goto out_free;
 		}
 		ret = ACT_P_CREATED;
@@ -201,8 +201,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 			goto out_release;
 		}
 	} else {
-		ret = err;
-		goto out_free;
+		return err;
 	}
 
 	p = to_pedit(*a);
@@ -486,7 +485,7 @@ static __net_init int pedit_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 
-	return tc_action_net_init(net, tn, &act_pedit_ops);
+	return tc_action_net_init(tn, &act_pedit_ops);
 }
 
 static void __net_exit pedit_exit_net(struct list_head *net_list)

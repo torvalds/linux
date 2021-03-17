@@ -554,39 +554,6 @@ bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
 	return __aa_label_next_not_in_set(&i, set, sub) == NULL;
 }
 
-/**
- * aa_label_is_unconfined_subset - test if @sub is a subset of @set
- * @set: label to test against
- * @sub: label to test if is subset of @set
- *
- * This checks for subset but taking into account unconfined. IF
- * @sub contains an unconfined profile that does not have a matching
- * unconfined in @set then this will not cause the test to fail.
- * Conversely we don't care about an unconfined in @set that is not in
- * @sub
- *
- * Returns: true if @sub is special_subset of @set
- *     else false
- */
-bool aa_label_is_unconfined_subset(struct aa_label *set, struct aa_label *sub)
-{
-	struct label_it i = { };
-	struct aa_profile *p;
-
-	AA_BUG(!set);
-	AA_BUG(!sub);
-
-	if (sub == set)
-		return true;
-
-	do {
-		p = __aa_label_next_not_in_set(&i, set, sub);
-		if (p && !profile_unconfined(p))
-			break;
-	} while (p);
-
-	return p == NULL;
-}
 
 
 /**
@@ -1495,13 +1462,11 @@ static inline bool use_label_hname(struct aa_ns *ns, struct aa_label *label,
 /* helper macro for snprint routines */
 #define update_for_len(total, len, size, str)	\
 do {					\
-	size_t ulen = len;		\
-					\
 	AA_BUG(len < 0);		\
-	total += ulen;			\
-	ulen = min(ulen, size);		\
-	size -= ulen;			\
-	str += ulen;			\
+	total += len;			\
+	len = min(len, size);		\
+	size -= len;			\
+	str += len;			\
 } while (0)
 
 /**
@@ -1568,13 +1533,13 @@ static const char *label_modename(struct aa_ns *ns, struct aa_label *label,
 
 	label_for_each(i, label, profile) {
 		if (aa_ns_visible(ns, profile->ns, flags & FLAG_VIEW_SUBNS)) {
-			count++;
-			if (profile == profile->ns->unconfined)
+			if (profile->mode == APPARMOR_UNCONFINED)
 				/* special case unconfined so stacks with
 				 * unconfined don't report as mixed. ie.
 				 * profile_foo//&:ns1:unconfined (mixed)
 				 */
 				continue;
+			count++;
 			if (mode == -1)
 				mode = profile->mode;
 			else if (mode != profile->mode)
@@ -1636,7 +1601,7 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 	struct aa_ns *prev_ns = NULL;
 	struct label_it i;
 	int count = 0, total = 0;
-	ssize_t len;
+	size_t len;
 
 	AA_BUG(!str && size != 0);
 	AA_BUG(!label);

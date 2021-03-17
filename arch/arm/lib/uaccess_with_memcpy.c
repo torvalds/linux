@@ -152,8 +152,7 @@ arm_copy_to_user(void __user *to, const void *from, unsigned long n)
 		n = __copy_to_user_std(to, from, n);
 		uaccess_restore(ua_flags);
 	} else {
-		n = __copy_to_user_memcpy(uaccess_mask_range_ptr(to, n),
-					  from, n);
+		n = __copy_to_user_memcpy(to, from, n);
 	}
 	return n;
 }

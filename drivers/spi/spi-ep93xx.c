@@ -246,19 +246,6 @@ static int ep93xx_spi_read_write(struct spi_master *master)
 	return -EINPROGRESS;
 }
 
-static enum dma_transfer_direction
-ep93xx_dma_data_to_trans_dir(enum dma_data_direction dir)
-{
-	switch (dir) {
-	case DMA_TO_DEVICE:
-		return DMA_MEM_TO_DEV;
-	case DMA_FROM_DEVICE:
-		return DMA_DEV_TO_MEM;
-	default:
-		return DMA_TRANS_NONE;
-	}
-}
-
 /**
  * ep93xx_spi_dma_prepare() - prepares a DMA transfer
  * @master: SPI master
@@ -270,7 +257,7 @@ ep93xx_dma_data_to_trans_dir(enum dma_data_direction dir)
  */
 static struct dma_async_tx_descriptor *
 ep93xx_spi_dma_prepare(struct spi_master *master,
-		       enum dma_data_direction dir)
+		       enum dma_transfer_direction dir)
 {
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
 	struct spi_transfer *xfer = master->cur_msg->state;
@@ -290,9 +277,9 @@ ep93xx_spi_dma_prepare(struct spi_master *master,
 		buswidth = DMA_SLAVE_BUSWIDTH_1_BYTE;
 
 	memset(&conf, 0, sizeof(conf));
-	conf.direction = ep93xx_dma_data_to_trans_dir(dir);
+	conf.direction = dir;
 
-	if (dir == DMA_FROM_DEVICE) {
+	if (dir == DMA_DEV_TO_MEM) {
 		chan = espi->dma_rx;
 		buf = xfer->rx_buf;
 		sgt = &espi->rx_sgt;
@@ -356,8 +343,7 @@ ep93xx_spi_dma_prepare(struct spi_master *master,
 	if (!nents)
 		return ERR_PTR(-ENOMEM);
 
-	txd = dmaengine_prep_slave_sg(chan, sgt->sgl, nents, conf.direction,
-				      DMA_CTRL_ACK);
+	txd = dmaengine_prep_slave_sg(chan, sgt->sgl, nents, dir, DMA_CTRL_ACK);
 	if (!txd) {
 		dma_unmap_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
 		return ERR_PTR(-ENOMEM);
@@ -374,13 +360,13 @@ ep93xx_spi_dma_prepare(struct spi_master *master,
  * unmapped.
  */
 static void ep93xx_spi_dma_finish(struct spi_master *master,
-				  enum dma_data_direction dir)
+				  enum dma_transfer_direction dir)
 {
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
 	struct dma_chan *chan;
 	struct sg_table *sgt;
 
-	if (dir == DMA_FROM_DEVICE) {
+	if (dir == DMA_DEV_TO_MEM) {
 		chan = espi->dma_rx;
 		sgt = &espi->rx_sgt;
 	} else {
@@ -395,8 +381,8 @@ static void ep93xx_spi_dma_callback(void *callback_param)
 {
 	struct spi_master *master = callback_param;
 
-	ep93xx_spi_dma_finish(master, DMA_TO_DEVICE);
-	ep93xx_spi_dma_finish(master, DMA_FROM_DEVICE);
+	ep93xx_spi_dma_finish(master, DMA_MEM_TO_DEV);
+	ep93xx_spi_dma_finish(master, DMA_DEV_TO_MEM);
 
 	spi_finalize_current_transfer(master);
 }
@@ -406,15 +392,15 @@ static int ep93xx_spi_dma_transfer(struct spi_master *master)
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
 	struct dma_async_tx_descriptor *rxd, *txd;
 
-	rxd = ep93xx_spi_dma_prepare(master, DMA_FROM_DEVICE);
+	rxd = ep93xx_spi_dma_prepare(master, DMA_DEV_TO_MEM);
 	if (IS_ERR(rxd)) {
 		dev_err(&master->dev, "DMA RX failed: %ld\n", PTR_ERR(rxd));
 		return PTR_ERR(rxd);
 	}
 
-	txd = ep93xx_spi_dma_prepare(master, DMA_TO_DEVICE);
+	txd = ep93xx_spi_dma_prepare(master, DMA_MEM_TO_DEV);
 	if (IS_ERR(txd)) {
-		ep93xx_spi_dma_finish(master, DMA_FROM_DEVICE);
+		ep93xx_spi_dma_finish(master, DMA_DEV_TO_MEM);
 		dev_err(&master->dev, "DMA TX failed: %ld\n", PTR_ERR(txd));
 		return PTR_ERR(txd);
 	}

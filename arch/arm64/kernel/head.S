@@ -37,7 +37,6 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/scs.h>
 #include <asm/smp.h>
 #include <asm/sysreg.h>
 #include <asm/thread_info.h>
@@ -113,8 +112,6 @@ pe_header:
 	 *  x23        stext() .. start_kernel()  physical misalignment/KASLR offset
 	 *  x28        __create_page_tables()     callee preserved temp register
 	 *  x19/x20    __primary_switch()         callee preserved temp registers
-	 *  x24        __primary_switch() .. relocate_kernel()
-	 *                                        current RELR displacement
 	 */
 ENTRY(stext)
 	bl	preserve_boot_args
@@ -420,10 +417,6 @@ __primary_switched:
 	stp	xzr, x30, [sp, #-16]!
 	mov	x29, sp
 
-#ifdef CONFIG_SHADOW_CALL_STACK
-	adr_l	x18, init_shadow_call_stack	// Set shadow call stack
-#endif
-
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
 	ldr_l	x4, kimage_vaddr		// Save the offset between
@@ -501,9 +494,10 @@ ENTRY(el2_setup)
 #endif
 
 	/* Hyp configuration. */
-	mov_q	x0, HCR_HOST_NVHE_FLAGS
+	mov	x0, #HCR_RW			// 64-bit EL1
 	cbz	x2, set_hcr
-	mov_q	x0, HCR_HOST_VHE_FLAGS
+	orr	x0, x0, #HCR_TGE		// Enable Host Extensions
+	orr	x0, x0, #HCR_E2H
 set_hcr:
 	msr	hcr_el2, x0
 	isb
@@ -529,7 +523,8 @@ set_hcr:
 	/* GICv3 system register access */
 	mrs	x0, id_aa64pfr0_el1
 	ubfx	x0, x0, #24, #4
-	cbz	x0, 3f
+	cmp	x0, #1
+	b.ne	3f
 
 	mrs_s	x0, SYS_ICC_SRE_EL2
 	orr	x0, x0, #ICC_SRE_EL2_SRE	// Set ICC_SRE_EL2.SRE==1
@@ -674,7 +669,7 @@ ENTRY(__boot_cpu_mode)
  * with MMU turned off.
  */
 ENTRY(__early_cpu_boot_status)
-	.quad 	0
+	.long 	0
 
 	.popsection
 
@@ -710,7 +705,6 @@ secondary_startup:
 	/*
 	 * Common entry point for secondary CPUs.
 	 */
-	bl	__cpu_secondary_check52bitva
 	bl	__cpu_setup			// initialise processor
 	bl	__enable_mmu
 	ldr	x8, =__secondary_switched
@@ -727,10 +721,6 @@ __secondary_switched:
 	mov	sp, x1
 	ldr	x2, [x0, #CPU_BOOT_TASK]
 	msr	sp_el0, x2
-#ifdef CONFIG_SHADOW_CALL_STACK
-	ldr	x18, [x2, #TSK_TI_SCS]		// set shadow call stack
-	str	xzr, [x2, #TSK_TI_SCS]		// limit visibility of saved SCS
-#endif
 	mov	x29, #0
 	mov	x30, #0
 	b	secondary_start_kernel
@@ -791,31 +781,6 @@ ENTRY(__enable_mmu)
 	ret
 ENDPROC(__enable_mmu)
 
-ENTRY(__cpu_secondary_check52bitva)
-#ifdef CONFIG_ARM64_52BIT_VA
-	ldr_l	x0, vabits_user
-	cmp	x0, #52
-	b.ne	2f
-
-	mrs_s	x0, SYS_ID_AA64MMFR2_EL1
-	and	x0, x0, #(0xf << ID_AA64MMFR2_LVA_SHIFT)
-	cbnz	x0, 2f
-
-	adr_l	x0, va52mismatch
-	mov	w1, #1
-	strb	w1, [x0]
-	dmb	sy
-	dc	ivac, x0	// Invalidate potentially stale cache line
-
-	update_early_cpu_boot_status CPU_STUCK_IN_KERNEL, x0, x1
-1:	wfe
-	wfi
-	b	1b
-
-#endif
-2:	ret
-ENDPROC(__cpu_secondary_check52bitva)
-
 __no_granule_support:
 	/* Indicate that this CPU can't boot and is stuck in the kernel */
 	update_early_cpu_boot_status CPU_STUCK_IN_KERNEL, x1, x2
@@ -841,93 +806,14 @@ __relocate_kernel:
 
 0:	cmp	x9, x10
 	b.hs	1f
-	ldp	x12, x13, [x9], #24
-	ldr	x14, [x9, #-8]
-	cmp	w13, #R_AARCH64_RELATIVE
+	ldp	x11, x12, [x9], #24
+	ldr	x13, [x9, #-8]
+	cmp	w12, #R_AARCH64_RELATIVE
 	b.ne	0b
-	add	x14, x14, x23			// relocate
-	str	x14, [x12, x23]
+	add	x13, x13, x23			// relocate
+	str	x13, [x11, x23]
 	b	0b
-
-1:
-#ifdef CONFIG_RELR
-	/*
-	 * Apply RELR relocations.
-	 *
-	 * RELR is a compressed format for storing relative relocations. The
-	 * encoded sequence of entries looks like:
-	 * [ AAAAAAAA BBBBBBB1 BBBBBBB1 ... AAAAAAAA BBBBBB1 ... ]
-	 *
-	 * i.e. start with an address, followed by any number of bitmaps. The
-	 * address entry encodes 1 relocation. The subsequent bitmap entries
-	 * encode up to 63 relocations each, at subsequent offsets following
-	 * the last address entry.
-	 *
-	 * The bitmap entries must have 1 in the least significant bit. The
-	 * assumption here is that an address cannot have 1 in lsb. Odd
-	 * addresses are not supported. Any odd addresses are stored in the RELA
-	 * section, which is handled above.
-	 *
-	 * Excluding the least significant bit in the bitmap, each non-zero
-	 * bit in the bitmap represents a relocation to be applied to
-	 * a corresponding machine word that follows the base address
-	 * word. The second least significant bit represents the machine
-	 * word immediately following the initial address, and each bit
-	 * that follows represents the next word, in linear order. As such,
-	 * a single bitmap can encode up to 63 relocations in a 64-bit object.
-	 *
-	 * In this implementation we store the address of the next RELR table
-	 * entry in x9, the address being relocated by the current address or
-	 * bitmap entry in x13 and the address being relocated by the current
-	 * bit in x14.
-	 *
-	 * Because addends are stored in place in the binary, RELR relocations
-	 * cannot be applied idempotently. We use x24 to keep track of the
-	 * currently applied displacement so that we can correctly relocate if
-	 * __relocate_kernel is called twice with non-zero displacements (i.e.
-	 * if there is both a physical misalignment and a KASLR displacement).
-	 */
-	ldr	w9, =__relr_offset		// offset to reloc table
-	ldr	w10, =__relr_size		// size of reloc table
-	add	x9, x9, x11			// __va(.relr)
-	add	x10, x9, x10			// __va(.relr) + sizeof(.relr)
-
-	sub	x15, x23, x24			// delta from previous offset
-	cbz	x15, 7f				// nothing to do if unchanged
-	mov	x24, x23			// save new offset
-
-2:	cmp	x9, x10
-	b.hs	7f
-	ldr	x11, [x9], #8
-	tbnz	x11, #0, 3f			// branch to handle bitmaps
-	add	x13, x11, x23
-	ldr	x12, [x13]			// relocate address entry
-	add	x12, x12, x15
-	str	x12, [x13], #8			// adjust to start of bitmap
-	b	2b
-
-3:	mov	x14, x13
-4:	lsr	x11, x11, #1
-	cbz	x11, 6f
-	tbz	x11, #0, 5f			// skip bit if not set
-	ldr	x12, [x14]			// relocate bit
-	add	x12, x12, x15
-	str	x12, [x14]
-
-5:	add	x14, x14, #8			// move to next bit's address
-	b	4b
-
-6:	/*
-	 * Move to the next bitmap's address. 8 is the word size, and 63 is the
-	 * number of significant bits in a bitmap entry.
-	 */
-	add	x13, x13, #(8 * 63)
-	b	2b
-
-7:
-#endif
-	ret
-
+1:	ret
 ENDPROC(__relocate_kernel)
 #endif
 
@@ -939,9 +825,6 @@ __primary_switch:
 
 	bl	__enable_mmu
 #ifdef CONFIG_RELOCATABLE
-#ifdef CONFIG_RELR
-	mov	x24, #0				// no RELR displacement yet
-#endif
 	bl	__relocate_kernel
 #ifdef CONFIG_RANDOMIZE_BASE
 	ldr	x8, =__primary_switched

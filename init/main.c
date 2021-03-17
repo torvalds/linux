@@ -105,6 +105,7 @@
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
+extern void fork_init(void);
 extern void radix_tree_init(void);
 
 /*
@@ -133,7 +134,6 @@ void (*__initdata late_time_init)(void);
 char __initdata boot_command_line[COMMAND_LINE_SIZE];
 /* Untouched saved command line (eg. for /proc) */
 char *saved_command_line;
-EXPORT_SYMBOL_GPL(saved_command_line);
 /* Command line for parameter parsing */
 static char *static_command_line;
 /* Command line for per-initcall parameter parsing */
@@ -507,31 +507,6 @@ static inline void initcall_debug_enable(void)
 }
 #endif
 
-/* Report memory auto-initialization states for this boot. */
-static void __init report_meminit(void)
-{
-	const char *stack;
-
-	if (IS_ENABLED(CONFIG_INIT_STACK_ALL_PATTERN))
-		stack = "all(pattern)";
-	else if (IS_ENABLED(CONFIG_INIT_STACK_ALL_ZERO))
-		stack = "all(zero)";
-	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL))
-		stack = "byref_all(zero)";
-	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF))
-		stack = "byref(zero)";
-	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_USER))
-		stack = "__user(zero)";
-	else
-		stack = "off";
-
-	pr_info("mem auto-init: stack:%s, heap alloc:%s, heap free:%s\n",
-		stack, want_init_on_alloc(GFP_KERNEL) ? "on" : "off",
-		want_init_on_free() ? "on" : "off");
-	if (want_init_on_free())
-		pr_info("mem auto-init: clearing system memory may take some time...\n");
-}
-
 /*
  * Set up kernel memory allocators
  */
@@ -542,7 +517,6 @@ static void __init mm_init(void)
 	 * bigger than MAX_ORDER unless SPARSEMEM.
 	 */
 	page_ext_init_flatmem();
-	report_meminit();
 	mem_init();
 	kmem_cache_init();
 	pgtable_init();
@@ -576,6 +550,13 @@ asmlinkage __visible void __init start_kernel(void)
 	page_address_init();
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
+	/*
+	 * Set up the the initial canary and entropy after arch
+	 * and after adding latent and command line entropy.
+	 */
+	add_latent_entropy();
+	add_device_randomness(command_line, strlen(command_line));
+	boot_init_stack_canary();
 	mm_init_cpumask(&init_mm);
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
@@ -586,25 +567,7 @@ asmlinkage __visible void __init start_kernel(void)
 	build_all_zonelists(NULL);
 	page_alloc_init();
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-	{
-		const char *s = boot_command_line;
-		const char *e = &boot_command_line[strlen(boot_command_line)];
-		int n =
-		    pr_notice("Kernel command line: %s\n", boot_command_line);
-		n -= strlen("Kernel command line: ");
-		s += n;
-		/* command line maybe too long to print one time */
-		while (n > 0 && s < e) {
-			n = pr_cont("%s\n", s);
-			s += n;
-		}
-	}
-#else
 	pr_notice("Kernel command line: %s\n", boot_command_line);
-#endif
-	/* parameters may set static keys */
-	jump_label_init();
 	parse_early_param();
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
@@ -613,6 +576,8 @@ asmlinkage __visible void __init start_kernel(void)
 	if (!IS_ERR_OR_NULL(after_dashes))
 		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
 			   NULL, set_init_arg);
+
+	jump_label_init();
 
 	/*
 	 * These use large bootmem allocations and must precede
@@ -676,21 +641,8 @@ asmlinkage __visible void __init start_kernel(void)
 	hrtimers_init();
 	softirq_init();
 	timekeeping_init();
-
-	/*
-	 * For best initial stack canary entropy, prepare it after:
-	 * - setup_arch() for any UEFI RNG entropy and boot cmdline access
-	 * - timekeeping_init() for ktime entropy used in rand_initialize()
-	 * - rand_initialize() to get any arch-specific entropy like RDRAND
-	 * - add_latent_entropy() to get any latent entropy
-	 * - adding command line entropy
-	 */
-	rand_initialize();
-	add_latent_entropy();
-	add_device_randomness(command_line, strlen(command_line));
-	boot_init_stack_canary();
-
 	time_init();
+	printk_safe_init();
 	perf_event_init();
 	profile_init();
 	call_function_init();
@@ -737,6 +689,7 @@ asmlinkage __visible void __init start_kernel(void)
 		initrd_start = 0;
 	}
 #endif
+	page_ext_init();
 	kmemleak_init();
 	debug_objects_mem_init();
 	setup_per_cpu_pageset();
@@ -784,8 +737,6 @@ asmlinkage __visible void __init start_kernel(void)
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
-
-	prevent_tail_call_optimization();
 }
 
 /* Call all constructor functions linked into the kernel. */
@@ -986,183 +937,6 @@ static char *initcall_level_names[] __initdata = {
 	"late",
 };
 
-#ifdef CONFIG_INITCALL_ASYNC
-extern initcall_entry_t __initcall0s_start[];
-extern initcall_entry_t __initcall1s_start[];
-extern initcall_entry_t __initcall2s_start[];
-extern initcall_entry_t __initcall3s_start[];
-extern initcall_entry_t __initcall4s_start[];
-extern initcall_entry_t __initcall5s_start[];
-extern initcall_entry_t __initcall6s_start[];
-extern initcall_entry_t __initcall7s_start[];
-
-static initcall_entry_t *initcall_sync_levels[] __initdata = {
-	__initcall0s_start,
-	__initcall1s_start,
-	__initcall2s_start,
-	__initcall3s_start,
-	__initcall4s_start,
-	__initcall5s_start,
-	__initcall6s_start,
-	__initcall7s_start,
-	__initcall_end,
-};
-
-struct initcall_work {
-	struct kthread_work work;
-	initcall_t call;
-};
-
-struct initcall_worker {
-	struct kthread_worker *worker;
-	bool queued;
-};
-
-static struct initcall_worker *initcall_workers;
-static int initcall_nr_workers;
-
-static int __init setup_initcall_nr_threads(char *str)
-{
-	get_option(&str, &initcall_nr_workers);
-
-	return 1;
-}
-__setup("initcall_nr_threads=", setup_initcall_nr_threads);
-
-static void __init initcall_work_func(struct kthread_work *work)
-{
-	struct initcall_work *iwork =
-		container_of(work, struct initcall_work, work);
-
-	do_one_initcall(iwork->call);
-}
-
-static void __init initcall_queue_work(struct initcall_worker *iworker,
-				       struct initcall_work *iwork)
-{
-	kthread_queue_work(iworker->worker, &iwork->work);
-	iworker->queued = true;
-}
-
-static void __init initcall_flush_worker(int level, bool sync)
-{
-	int i;
-	struct initcall_worker *iworker;
-
-	for (i = 0; i < initcall_nr_workers; i++) {
-		iworker = &initcall_workers[i];
-		if (iworker->queued) {
-			kthread_flush_worker(iworker->worker);
-			iworker->queued = false;
-		}
-	}
-}
-
-static int __init do_initcall_level_threaded(int level)
-{
-	initcall_entry_t *fn;
-	size_t i = 0, w = 0;
-	size_t n = initcall_levels[level + 1] - initcall_levels[level];
-	struct initcall_work *iwork, *iworks;
-	ktime_t start = 0, end;
-
-	if (!n)
-		return 0;
-
-	iworks = kmalloc_array(n, sizeof(*iworks), GFP_KERNEL);
-	if (!iworks)
-		return -ENOMEM;
-
-	if (initcall_debug)
-		start = ktime_get();
-
-	for (fn = initcall_levels[level]; fn < initcall_sync_levels[level];
-	     fn++, i++) {
-		iwork = &iworks[i];
-		iwork->call = initcall_from_entry(fn);
-		kthread_init_work(&iwork->work, initcall_work_func);
-		initcall_queue_work(&initcall_workers[w], iwork);
-		if (++w >= initcall_nr_workers)
-			w = 0;
-	}
-	if (initcall_sync_levels[level] > initcall_levels[level]) {
-		initcall_flush_worker(level, false);
-
-		if (initcall_debug) {
-			end = ktime_get();
-			printk(KERN_DEBUG "initcall level %s %lld usecs\n",
-			       initcall_level_names[level],
-			       ktime_us_delta(end, start));
-			start = end;
-		}
-	}
-
-	for (fn = initcall_sync_levels[level]; fn < initcall_levels[level + 1];
-	     fn++, i++) {
-		iwork = &iworks[i];
-		iwork->call = initcall_from_entry(fn);
-		kthread_init_work(&iwork->work, initcall_work_func);
-		initcall_queue_work(&initcall_workers[w], iwork);
-		if (++w >= initcall_nr_workers)
-			w = 0;
-	}
-	if (initcall_levels[level + 1] > initcall_sync_levels[level]) {
-		initcall_flush_worker(level, true);
-
-		if (initcall_debug) {
-			end = ktime_get();
-			printk(KERN_DEBUG "initcall level %s_sync %lld usecs\n",
-			       initcall_level_names[level],
-			       ktime_us_delta(end, start));
-		}
-	}
-
-	kfree(iworks);
-
-	return 0;
-}
-
-static void __init initcall_init_workers(void)
-{
-	int i;
-
-	if (initcall_nr_workers < 0)
-		initcall_nr_workers = num_online_cpus() * 2;
-
-	if (!initcall_nr_workers)
-		return;
-
-	initcall_workers =
-		kcalloc(initcall_nr_workers, sizeof(*initcall_workers),
-			GFP_KERNEL);
-	if (!initcall_workers)
-		initcall_nr_workers = 0;
-
-	for (i = 0; i < initcall_nr_workers; i++) {
-		struct kthread_worker *worker;
-
-		worker = kthread_create_worker(0, "init/%d", i);
-		if (IS_ERR(worker)) {
-			i--;
-			initcall_nr_workers = (i >= 0 ? i : 0);
-			break;
-		}
-		initcall_workers[i].worker = worker;
-	}
-}
-
-static void __init initcall_free_works(void)
-{
-	int i;
-
-	for (i = 0; i < initcall_nr_workers; i++)
-		if (initcall_workers[i].worker)
-			kthread_destroy_worker(initcall_workers[i].worker);
-
-	kfree(initcall_workers);
-}
-#endif /* CONFIG_INITCALL_ASYNC */
-
 static void __init do_initcall_level(int level)
 {
 	initcall_entry_t *fn;
@@ -1175,13 +949,6 @@ static void __init do_initcall_level(int level)
 		   NULL, &repair_env_string);
 
 	trace_initcall_level(initcall_level_names[level]);
-
-#ifdef CONFIG_INITCALL_ASYNC
-	if (initcall_nr_workers)
-		if (do_initcall_level_threaded(level) == 0)
-			return;
-#endif
-
 	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
 		do_one_initcall(initcall_from_entry(fn));
 }
@@ -1190,16 +957,8 @@ static void __init do_initcalls(void)
 {
 	int level;
 
-#ifdef CONFIG_INITCALL_ASYNC
-	initcall_init_workers();
-#endif
-
 	for (level = 0; level < ARRAY_SIZE(initcall_levels) - 1; level++)
 		do_initcall_level(level);
-
-#ifdef CONFIG_INITCALL_ASYNC
-	initcall_free_works();
-#endif
 }
 
 /*
@@ -1380,19 +1139,9 @@ static noinline void __init kernel_init_freeable(void)
 	smp_init();
 	sched_init_smp();
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-	kthread_run(defer_free_bootmem, NULL, "defer_mem");
-#endif
-
 	page_alloc_init_late();
-	/* Initialize page ext after all struct pages are initialized. */
-	page_ext_init();
 
 	do_basic_setup();
-
-#if IS_BUILTIN(CONFIG_INITRD_ASYNC)
-	async_synchronize_full();
-#endif
 
 	/* Open the /dev/console on the rootfs, this should never fail */
 	if (ksys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0)

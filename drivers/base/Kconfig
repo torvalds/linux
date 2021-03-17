@@ -171,11 +171,10 @@ config SOC_BUS
 
 source "drivers/base/regmap/Kconfig"
 
-source "drivers/base/memory_group_manager/Kconfig"
-
 config DMA_SHARED_BUFFER
 	bool
 	default n
+	select ANON_INODES
 	select IRQ_WORK
 	help
 	  This option enables the framework for buffer-sharing between
@@ -251,7 +250,7 @@ endchoice
 
 config CMA_ALIGNMENT
 	int "Maximum PAGE_SIZE order of alignment for contiguous buffers"
-	range 0 12
+	range 4 12
 	default 8
 	help
 	  DMA mapping framework by default aligns all buffers to the smallest

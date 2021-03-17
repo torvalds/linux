@@ -809,7 +809,7 @@ kvp_get_ip_info(int family, char *if_name, int op,
 	int sn_offset = 0;
 	int error = 0;
 	char *buffer;
-	struct hv_kvp_ipaddr_value *ip_buffer = NULL;
+	struct hv_kvp_ipaddr_value *ip_buffer;
 	char cidr_mask[5]; /* /xyz */
 	int weight;
 	int i;
@@ -1178,7 +1178,6 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	FILE *file;
 	char cmd[PATH_MAX];
 	char *mac_addr;
-	int str_len;
 
 	/*
 	 * Set the configuration for the specified interface with
@@ -1302,18 +1301,8 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 * invoke the external script to do its magic.
 	 */
 
-	str_len = snprintf(cmd, sizeof(cmd), KVP_SCRIPTS_PATH "%s %s",
-			   "hv_set_ifconfig", if_file);
-	/*
-	 * This is a little overcautious, but it's necessary to suppress some
-	 * false warnings from gcc 8.0.1.
-	 */
-	if (str_len <= 0 || (unsigned int)str_len >= sizeof(cmd)) {
-		syslog(LOG_ERR, "Cmd '%s' (len=%d) may be too long",
-		       cmd, str_len);
-		return HV_E_FAIL;
-	}
-
+	snprintf(cmd, sizeof(cmd), KVP_SCRIPTS_PATH "%s %s",
+		 "hv_set_ifconfig", if_file);
 	if (system(cmd)) {
 		syslog(LOG_ERR, "Failed to execute cmd '%s'; error: %d %s",
 				cmd, errno, strerror(errno));
@@ -1386,8 +1375,6 @@ int main(int argc, char *argv[])
 			daemonize = 0;
 			break;
 		case 'h':
-			print_usage(argv);
-			exit(0);
 		default:
 			print_usage(argv);
 			exit(EXIT_FAILURE);

@@ -19,9 +19,7 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/highmem.h>
-#include <linux/pci.h>
 
-#include <asm/e820/types.h>
 #include <asm/pgtable.h>
 
 /*
@@ -55,10 +53,10 @@ struct addr_marker {
 enum address_markers_idx {
 	USER_SPACE_NR = 0,
 	KERNEL_SPACE_NR,
-#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	LOW_KERNEL_NR,
+#if defined(CONFIG_MODIFY_LDT_SYSCALL) && defined(CONFIG_X86_5LEVEL)
 	LDT_NR,
 #endif
-	LOW_KERNEL_NR,
 	VMALLOC_START_NR,
 	VMEMMAP_START_NR,
 #ifdef CONFIG_KASAN
@@ -66,6 +64,9 @@ enum address_markers_idx {
 	KASAN_SHADOW_END_NR,
 #endif
 	CPU_ENTRY_AREA_NR,
+#if defined(CONFIG_MODIFY_LDT_SYSCALL) && !defined(CONFIG_X86_5LEVEL)
+	LDT_NR,
+#endif
 #ifdef CONFIG_X86_ESPFIX64
 	ESPFIX_START_NR,
 #endif
@@ -240,29 +241,6 @@ static unsigned long normalize_addr(unsigned long u)
 	return (signed long)(u << shift) >> shift;
 }
 
-static void note_wx(struct pg_state *st)
-{
-	unsigned long npages;
-
-	npages = (st->current_address - st->start_address) / PAGE_SIZE;
-
-#ifdef CONFIG_PCI_BIOS
-	/*
-	 * If PCI BIOS is enabled, the PCI BIOS area is forced to WX.
-	 * Inform about it, but avoid the warning.
-	 */
-	if (pcibios_enabled && st->start_address >= PAGE_OFFSET + BIOS_BEGIN &&
-	    st->current_address <= PAGE_OFFSET + BIOS_END) {
-		pr_warn_once("x86/mm: PCI BIOS W+X mapping %lu pages\n", npages);
-		return;
-	}
-#endif
-	/* Account the WX pages */
-	st->wx_pages += npages;
-	WARN_ONCE(1, "x86/mm: Found insecure W+X mapping at address %pS\n",
-		  (void *)st->start_address);
-}
-
 /*
  * This function gets called on a break in a continuous series
  * of PTE entries; the next one is different so we need to
@@ -298,8 +276,14 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 		unsigned long delta;
 		int width = sizeof(unsigned long) * 2;
 
-		if (st->check_wx && (eff & _PAGE_RW) && !(eff & _PAGE_NX))
-			note_wx(st);
+		if (st->check_wx && (eff & _PAGE_RW) && !(eff & _PAGE_NX)) {
+			WARN_ONCE(1,
+				  "x86/mm: Found insecure W+X mapping at address %p/%pS\n",
+				  (void *)st->start_address,
+				  (void *)st->start_address);
+			st->wx_pages += (st->current_address -
+					 st->start_address) / PAGE_SIZE;
+		}
 
 		/*
 		 * Now print the actual finished series
@@ -377,7 +361,7 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 
 /*
  * This is an optimization for KASAN=y case. Since all kasan page tables
- * eventually point to the kasan_early_shadow_page we could call note_page()
+ * eventually point to the kasan_zero_page we could call note_page()
  * right away without walking through lower level page tables. This saves
  * us dozens of seconds (minutes for 5-level config) while checking for
  * W+X mapping or reading kernel_page_tables debugfs file.
@@ -385,11 +369,10 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
 				void *pt)
 {
-	if (__pa(pt) == __pa(kasan_early_shadow_pmd) ||
-	    (pgtable_l5_enabled() &&
-			__pa(pt) == __pa(kasan_early_shadow_p4d)) ||
-	    __pa(pt) == __pa(kasan_early_shadow_pud)) {
-		pgprotval_t prot = pte_flags(kasan_early_shadow_pte[0]);
+	if (__pa(pt) == __pa(kasan_zero_pmd) ||
+	    (pgtable_l5_enabled() && __pa(pt) == __pa(kasan_zero_p4d)) ||
+	    __pa(pt) == __pa(kasan_zero_pud)) {
+		pgprotval_t prot = pte_flags(kasan_zero_pte[0]);
 		note_page(m, st, __pgprot(prot), 0, 5);
 		return true;
 	}
@@ -510,11 +493,11 @@ static inline bool is_hypervisor_range(int idx)
 {
 #ifdef CONFIG_X86_64
 	/*
-	 * A hole in the beginning of kernel address space reserved
-	 * for a hypervisor.
+	 * ffff800000000000 - ffff87ffffffffff is reserved for
+	 * the hypervisor.
 	 */
-	return	(idx >= pgd_index(GUARD_HOLE_BASE_ADDR)) &&
-		(idx <  pgd_index(GUARD_HOLE_END_ADDR));
+	return	(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
+		(idx <  pgd_index(__PAGE_OFFSET));
 #else
 	return false;
 #endif

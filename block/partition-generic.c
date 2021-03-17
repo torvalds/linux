@@ -249,10 +249,9 @@ struct device_type part_type = {
 	.uevent		= part_uevent,
 };
 
-static void delete_partition_work_fn(struct work_struct *work)
+static void delete_partition_rcu_cb(struct rcu_head *head)
 {
-	struct hd_struct *part = container_of(to_rcu_work(work), struct hd_struct,
-					rcu_work);
+	struct hd_struct *part = container_of(head, struct hd_struct, rcu_head);
 
 	part->start_sect = 0;
 	part->nr_sects = 0;
@@ -263,8 +262,7 @@ static void delete_partition_work_fn(struct work_struct *work)
 void __delete_partition(struct percpu_ref *ref)
 {
 	struct hd_struct *part = container_of(ref, struct hd_struct, ref);
-	INIT_RCU_WORK(&part->rcu_work, delete_partition_work_fn);
-	queue_rcu_work(system_wq, &part->rcu_work);
+	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
 }
 
 /*
@@ -289,13 +287,6 @@ void delete_partition(struct gendisk *disk, int partno)
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
 
-	/*
-	 * Remove gendisk pointer from idr so that it cannot be looked up
-	 * while RCU period before freeing gendisk is running to prevent
-	 * use-after-free issues. Note that the device number stays
-	 * "in-use" until we really free the gendisk.
-	 */
-	blk_invalidate_devt(part_devt(part));
 	hd_struct_kill(part);
 }
 

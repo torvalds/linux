@@ -381,12 +381,8 @@ static int kcm_parse_func_strparser(struct strparser *strp, struct sk_buff *skb)
 {
 	struct kcm_psock *psock = container_of(strp, struct kcm_psock, strp);
 	struct bpf_prog *prog = psock->bpf_prog;
-	int res;
 
-	preempt_disable();
-	res = BPF_PROG_RUN(prog, skb);
-	preempt_enable();
-	return res;
+	return (*prog->bpf_func)(skb, prog->insnsi);
 }
 
 static int kcm_read_sock_done(struct strparser *strp, int err)
@@ -2058,13 +2054,13 @@ static int __init kcm_init(void)
 	if (err)
 		goto fail;
 
-	err = register_pernet_device(&kcm_net_ops);
-	if (err)
-		goto net_ops_fail;
-
 	err = sock_register(&kcm_family_ops);
 	if (err)
 		goto sock_register_fail;
+
+	err = register_pernet_device(&kcm_net_ops);
+	if (err)
+		goto net_ops_fail;
 
 	err = kcm_proc_init();
 	if (err)
@@ -2073,12 +2069,12 @@ static int __init kcm_init(void)
 	return 0;
 
 proc_init_fail:
-	sock_unregister(PF_KCM);
-
-sock_register_fail:
 	unregister_pernet_device(&kcm_net_ops);
 
 net_ops_fail:
+	sock_unregister(PF_KCM);
+
+sock_register_fail:
 	proto_unregister(&kcm_proto);
 
 fail:
@@ -2094,8 +2090,8 @@ fail:
 static void __exit kcm_exit(void)
 {
 	kcm_proc_exit();
-	sock_unregister(PF_KCM);
 	unregister_pernet_device(&kcm_net_ops);
+	sock_unregister(PF_KCM);
 	proto_unregister(&kcm_proto);
 	destroy_workqueue(kcm_wq);
 

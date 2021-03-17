@@ -305,7 +305,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 			if (prv)
 				table->nents = ++table->orig_nents;
 
-			return -ENOMEM;
+ 			return -ENOMEM;
 		}
 
 		sg_init_table(sg, alloc_size);
@@ -506,7 +506,7 @@ struct scatterlist *sgl_alloc_order(unsigned long long length,
 		elem_len = min_t(u64, length, PAGE_SIZE << order);
 		page = alloc_pages(gfp, order);
 		if (!page) {
-			sgl_free_order(sgl, order);
+			sgl_free(sgl);
 			return NULL;
 		}
 
@@ -652,18 +652,17 @@ static bool sg_miter_get_next_page(struct sg_mapping_iter *miter)
 {
 	if (!miter->__remaining) {
 		struct scatterlist *sg;
+		unsigned long pgoffset;
 
 		if (!__sg_page_iter_next(&miter->piter))
 			return false;
 
 		sg = miter->piter.sg;
+		pgoffset = miter->piter.sg_pgoffset;
 
-		miter->__offset = miter->piter.sg_pgoffset ? 0 : sg->offset;
-		miter->piter.sg_pgoffset += miter->__offset >> PAGE_SHIFT;
-		miter->__offset &= PAGE_SIZE - 1;
+		miter->__offset = pgoffset ? 0 : sg->offset;
 		miter->__remaining = sg->offset + sg->length -
-				     (miter->piter.sg_pgoffset << PAGE_SHIFT) -
-				     miter->__offset;
+				(pgoffset << PAGE_SHIFT) - miter->__offset;
 		miter->__remaining = min_t(unsigned long, miter->__remaining,
 					   PAGE_SIZE - miter->__offset);
 	}

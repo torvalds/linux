@@ -222,8 +222,12 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 	return 0;
 }
 
-static void memcpy_prefault(memcpy_t fn, size_t size, void *src, void *dst)
+static u64 do_memcpy_cycles(const struct function *r, size_t size, void *src, void *dst)
 {
+	u64 cycle_start = 0ULL, cycle_end = 0ULL;
+	memcpy_t fn = r->fn.memcpy;
+	int i;
+
 	/* Make sure to always prefault zero pages even if MMAP_THRESH is crossed: */
 	memset(src, 0, size);
 
@@ -232,15 +236,6 @@ static void memcpy_prefault(memcpy_t fn, size_t size, void *src, void *dst)
 	 * to not measure page fault overhead:
 	 */
 	fn(dst, src, size);
-}
-
-static u64 do_memcpy_cycles(const struct function *r, size_t size, void *src, void *dst)
-{
-	u64 cycle_start = 0ULL, cycle_end = 0ULL;
-	memcpy_t fn = r->fn.memcpy;
-	int i;
-
-	memcpy_prefault(fn, size, src, dst);
 
 	cycle_start = get_cycles();
 	for (i = 0; i < nr_loops; ++i)
@@ -256,7 +251,11 @@ static double do_memcpy_gettimeofday(const struct function *r, size_t size, void
 	memcpy_t fn = r->fn.memcpy;
 	int i;
 
-	memcpy_prefault(fn, size, src, dst);
+	/*
+	 * We prefault the freshly allocated memory range here,
+	 * to not measure page fault overhead:
+	 */
+	fn(dst, src, size);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
 	for (i = 0; i < nr_loops; ++i)

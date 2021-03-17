@@ -30,9 +30,8 @@ enum ice_ctl_q {
 	ICE_CTL_Q_ADMIN,
 };
 
-/* Control Queue timeout settings - max delay 250ms */
-#define ICE_CTL_Q_SQ_CMD_TIMEOUT	2500  /* Count 2500 times */
-#define ICE_CTL_Q_SQ_CMD_USEC		100   /* Check every 100usec */
+/* Control Queue default settings */
+#define ICE_CTL_Q_SQ_CMD_TIMEOUT	250  /* msecs */
 
 struct ice_ctl_q_ring {
 	void *dma_head;			/* Virtual address to dma head */

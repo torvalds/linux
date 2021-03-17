@@ -259,7 +259,8 @@ static int efi_pstore_write(struct pstore_record *record)
 		efi_name[i] = name[i];
 
 	ret = efivar_entry_set_safe(efi_name, vendor, PSTORE_EFI_ATTRIBUTES,
-			      preemptible(), record->size, record->psi->buf);
+			      !pstore_cannot_block_path(record->reason),
+			      record->size, record->psi->buf);
 
 	if (record->reason == KMSG_DUMP_OOPS)
 		efivar_run_worker();
@@ -368,6 +369,7 @@ static __init int efivars_pstore_init(void)
 		return -ENOMEM;
 
 	efi_pstore_info.bufsize = 1024;
+	spin_lock_init(&efi_pstore_info.buf_lock);
 
 	if (pstore_register(&efi_pstore_info)) {
 		kfree(efi_pstore_info.buf);

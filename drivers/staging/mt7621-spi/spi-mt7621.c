@@ -429,7 +429,6 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	int status = 0;
 	struct clk *clk;
 	struct mt7621_spi_ops *ops;
-	int ret;
 
 	match = of_match_device(mt7621_spi_match, &pdev->dev);
 	if (!match)
@@ -455,7 +454,6 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	master = spi_alloc_master(&pdev->dev, sizeof(*rs));
 	if (master == NULL) {
 		dev_info(&pdev->dev, "master allocation failed\n");
-		clk_disable_unprepare(clk);
 		return -ENOMEM;
 	}
 
@@ -478,12 +476,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	rs->pending_write = 0;
 	dev_info(&pdev->dev, "sys_freq: %u\n", rs->sys_freq);
 
-	ret = device_reset(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "SPI reset failed!\n");
-		clk_disable_unprepare(clk);
-		return ret;
-	}
+	device_reset(&pdev->dev);
 
 	mt7621_spi_reset(rs, 0);
 

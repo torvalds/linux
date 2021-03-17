@@ -120,10 +120,10 @@ void __dump_mmp_msg(struct super_block *sb, struct mmp_struct *mmp,
 {
 	__ext4_warning(sb, function, line, "%s", msg);
 	__ext4_warning(sb, function, line,
-		       "MMP failure info: last update time: %llu, last update node: %.*s, last update device: %.*s",
-		       (unsigned long long)le64_to_cpu(mmp->mmp_time),
-		       (int)sizeof(mmp->mmp_nodename), mmp->mmp_nodename,
-		       (int)sizeof(mmp->mmp_bdevname), mmp->mmp_bdevname);
+		       "MMP failure info: last update time: %llu, last update "
+		       "node: %s, last update device: %s",
+		       (long long unsigned int) le64_to_cpu(mmp->mmp_time),
+		       mmp->mmp_nodename, mmp->mmp_bdevname);
 }
 
 /*
@@ -154,7 +154,6 @@ static int kmmpd(void *data)
 	mmp_check_interval = max(EXT4_MMP_CHECK_MULT * mmp_update_interval,
 				 EXT4_MMP_MIN_CHECK_INTERVAL);
 	mmp->mmp_check_interval = cpu_to_le16(mmp_check_interval);
-	BUILD_BUG_ON(sizeof(mmp->mmp_bdevname) < BDEVNAME_SIZE);
 	bdevname(bh->b_bdev, mmp->mmp_bdevname);
 
 	memcpy(mmp->mmp_nodename, init_utsname()->nodename,
@@ -376,8 +375,7 @@ skip:
 	/*
 	 * Start a kernel thread to update the MMP block periodically.
 	 */
-	EXT4_SB(sb)->s_mmp_tsk = kthread_run(kmmpd, mmpd_data, "kmmpd-%.*s",
-					     (int)sizeof(mmp->mmp_bdevname),
+	EXT4_SB(sb)->s_mmp_tsk = kthread_run(kmmpd, mmpd_data, "kmmpd-%s",
 					     bdevname(bh->b_bdev,
 						      mmp->mmp_bdevname));
 	if (IS_ERR(EXT4_SB(sb)->s_mmp_tsk)) {

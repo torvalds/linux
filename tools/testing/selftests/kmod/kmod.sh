@@ -505,23 +505,18 @@ function test_num()
 	fi
 }
 
-function get_test_data()
-{
-	test_num $1
-	local field_num=$(echo $1 | sed 's/^0*//')
-	echo $ALL_TESTS | awk '{print $'$field_num'}'
-}
-
 function get_test_count()
 {
-	TEST_DATA=$(get_test_data $1)
+	test_num $1
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
 	LAST_TWO=${TEST_DATA#*:*}
 	echo ${LAST_TWO%:*}
 }
 
 function get_test_enabled()
 {
-	TEST_DATA=$(get_test_data $1)
+	test_num $1
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
 	echo ${TEST_DATA#*:*:}
 }
 

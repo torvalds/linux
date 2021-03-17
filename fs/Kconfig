@@ -105,8 +105,6 @@ config MANDATORY_FILE_LOCKING
 
 source "fs/crypto/Kconfig"
 
-source "fs/verity/Kconfig"
-
 source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
@@ -114,7 +112,6 @@ source "fs/quota/Kconfig"
 source "fs/autofs/Kconfig"
 source "fs/fuse/Kconfig"
 source "fs/overlayfs/Kconfig"
-source "fs/incfs/Kconfig"
 
 menu "Caches"
 
@@ -237,7 +234,6 @@ source "fs/orangefs/Kconfig"
 source "fs/adfs/Kconfig"
 source "fs/affs/Kconfig"
 source "fs/ecryptfs/Kconfig"
-source "fs/sdcardfs/Kconfig"
 source "fs/hfs/Kconfig"
 source "fs/hfsplus/Kconfig"
 source "fs/befs/Kconfig"
@@ -317,6 +313,5 @@ endif # NETWORK_FILESYSTEMS
 
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
-source "fs/unicode/Kconfig"
 
 endmenu

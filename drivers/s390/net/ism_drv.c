@@ -141,13 +141,10 @@ static int register_ieq(struct ism_dev *ism)
 
 static int unregister_sba(struct ism_dev *ism)
 {
-	int ret;
-
 	if (!ism->sba)
 		return 0;
 
-	ret = ism_cmd_simple(ism, ISM_UNREG_SBA);
-	if (ret && ret != ISM_ERROR)
+	if (ism_cmd_simple(ism, ISM_UNREG_SBA))
 		return -EIO;
 
 	dma_free_coherent(&ism->pdev->dev, PAGE_SIZE,
@@ -161,13 +158,10 @@ static int unregister_sba(struct ism_dev *ism)
 
 static int unregister_ieq(struct ism_dev *ism)
 {
-	int ret;
-
 	if (!ism->ieq)
 		return 0;
 
-	ret = ism_cmd_simple(ism, ISM_UNREG_IEQ);
-	if (ret && ret != ISM_ERROR)
+	if (ism_cmd_simple(ism, ISM_UNREG_IEQ))
 		return -EIO;
 
 	dma_free_coherent(&ism->pdev->dev, PAGE_SIZE,
@@ -294,7 +288,7 @@ static int ism_unregister_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
 	cmd.request.dmb_tok = dmb->dmb_tok;
 
 	ret = ism_cmd(ism, &cmd);
-	if (ret && ret != ISM_ERROR)
+	if (ret)
 		goto out;
 
 	ism_free_dmb(ism, dmb);
@@ -421,9 +415,9 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 			break;
 
 		clear_bit_inv(bit, bv);
-		ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET] = 0;
 		barrier();
 		smcd_handle_irq(ism->smcd, bit + ISM_DMB_BIT_OFFSET);
+		ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET] = 0;
 	}
 
 	if (ism->sba->e) {

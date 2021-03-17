@@ -160,7 +160,7 @@ void __init cf_bootmem_alloc(void)
 	m68k_memory[0].addr = _rambase;
 	m68k_memory[0].size = _ramend - _rambase;
 
-	memblock_add_node(m68k_memory[0].addr, m68k_memory[0].size, 0);
+	memblock_add(m68k_memory[0].addr, m68k_memory[0].size);
 
 	/* compute total pages in system */
 	num_pages = PFN_DOWN(_ramend - _rambase);

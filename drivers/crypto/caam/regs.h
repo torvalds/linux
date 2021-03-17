@@ -70,22 +70,22 @@
 extern bool caam_little_end;
 extern bool caam_imx;
 
-#define caam_to_cpu(len)						\
-static inline u##len caam##len ## _to_cpu(u##len val)			\
-{									\
-	if (caam_little_end)						\
-		return le##len ## _to_cpu((__force __le##len)val);	\
-	else								\
-		return be##len ## _to_cpu((__force __be##len)val);	\
+#define caam_to_cpu(len)				\
+static inline u##len caam##len ## _to_cpu(u##len val)	\
+{							\
+	if (caam_little_end)				\
+		return le##len ## _to_cpu(val);		\
+	else						\
+		return be##len ## _to_cpu(val);		\
 }
 
-#define cpu_to_caam(len)					\
-static inline u##len cpu_to_caam##len(u##len val)		\
-{								\
-	if (caam_little_end)					\
-		return (__force u##len)cpu_to_le##len(val);	\
-	else							\
-		return (__force u##len)cpu_to_be##len(val);	\
+#define cpu_to_caam(len)				\
+static inline u##len cpu_to_caam##len(u##len val)	\
+{							\
+	if (caam_little_end)				\
+		return cpu_to_le##len(val);		\
+	else						\
+		return cpu_to_be##len(val);		\
 }
 
 caam_to_cpu(16)

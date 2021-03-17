@@ -115,14 +115,9 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
 		distance = of_read_number(matrix, 1);
 		matrix++;
 
-		if ((nodea == nodeb && distance != LOCAL_DISTANCE) ||
-		    (nodea != nodeb && distance <= LOCAL_DISTANCE)) {
-			pr_err("Invalid distance[node%d -> node%d] = %d\n",
-			       nodea, nodeb, distance);
-			return -EINVAL;
-		}
-
 		numa_set_distance(nodea, nodeb, distance);
+		pr_debug("distance[node%d -> node%d] = %d\n",
+			 nodea, nodeb, distance);
 
 		/* Set default distance of node B->A same as A->B */
 		if (nodeb > nodea)
@@ -168,8 +163,8 @@ int of_node_to_nid(struct device_node *device)
 		np = of_get_next_parent(np);
 	}
 	if (np && r)
-		pr_warn("Invalid \"numa-node-id\" property in node %pOFn\n",
-			np);
+		pr_warn("Invalid \"numa-node-id\" property in node %s\n",
+			np->name);
 	of_node_put(np);
 
 	/*

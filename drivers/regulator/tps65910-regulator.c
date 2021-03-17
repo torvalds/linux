@@ -1102,10 +1102,8 @@ static int tps65910_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmic);
 
 	/* Give control of all register to control port */
-	err = tps65910_reg_set_bits(pmic->mfd, TPS65910_DEVCTRL,
+	tps65910_reg_set_bits(pmic->mfd, TPS65910_DEVCTRL,
 				DEVCTRL_SR_CTL_I2C_SEL_MASK);
-	if (err < 0)
-		return err;
 
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65910:

@@ -39,7 +39,7 @@
 
 			trips {
 				cpu-crit {
-					temperature	= <90000>;
+					temperature	= <80000>;
 					hysteresis	= <0>;
 					type		= "critical";
 				};
@@ -476,7 +476,6 @@
 					     "dsi0_ddr2",
 					     "dsi0_ddr";
 
-			status = "disabled";
 		};
 
 		thermal: thermal@7e212000 {

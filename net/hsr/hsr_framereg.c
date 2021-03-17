@@ -124,18 +124,6 @@ int hsr_create_self_node(struct list_head *self_node_db,
 	return 0;
 }
 
-void hsr_del_node(struct list_head *self_node_db)
-{
-	struct hsr_node *node;
-
-	rcu_read_lock();
-	node = list_first_or_null_rcu(self_node_db, struct hsr_node, mac_list);
-	rcu_read_unlock();
-	if (node) {
-		list_del_rcu(&node->mac_list);
-		kfree(node);
-	}
-}
 
 /* Allocate an hsr_node and add it to node_db. 'addr' is the node's AddressA;
  * seq_out is used to initialize filtering of outgoing duplicate frames
@@ -466,9 +454,13 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 	struct hsr_port *port;
 	unsigned long tdiff;
 
+
+	rcu_read_lock();
 	node = find_node_by_AddrA(&hsr->node_db, addr);
-	if (!node)
-		return -ENOENT;
+	if (!node) {
+		rcu_read_unlock();
+		return -ENOENT;	/* No such entry */
+	}
 
 	ether_addr_copy(addr_b, node->MacAddressB);
 
@@ -502,6 +494,8 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 	} else {
 		*addr_b_ifindex = -1;
 	}
+
+	rcu_read_unlock();
 
 	return 0;
 }

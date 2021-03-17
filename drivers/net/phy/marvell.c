@@ -868,6 +868,8 @@ static int m88e1510_config_init(struct phy_device *phydev)
 
 	/* SGMII-to-Copper mode initialization */
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		u32 pause;
+
 		/* Select page 18 */
 		err = marvell_set_page(phydev, 18);
 		if (err < 0)
@@ -890,6 +892,16 @@ static int m88e1510_config_init(struct phy_device *phydev)
 		err = marvell_set_page(phydev, MII_MARVELL_COPPER_PAGE);
 		if (err < 0)
 			return err;
+
+		/* There appears to be a bug in the 88e1512 when used in
+		 * SGMII to copper mode, where the AN advertisement register
+		 * clears the pause bits each time a negotiation occurs.
+		 * This means we can never be truely sure what was advertised,
+		 * so disable Pause support.
+		 */
+		pause = SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+		phydev->supported &= ~pause;
+		phydev->advertising &= ~pause;
 	}
 
 	return m88e1318_config_init(phydev);
@@ -1049,39 +1061,6 @@ static int m88e1145_config_init(struct phy_device *phydev)
 		return err;
 
 	return 0;
-}
-
-/* The VOD can be out of specification on link up. Poke an
- * undocumented register, in an undocumented page, with a magic value
- * to fix this.
- */
-static int m88e6390_errata(struct phy_device *phydev)
-{
-	int err;
-
-	err = phy_write(phydev, MII_BMCR,
-			BMCR_ANENABLE | BMCR_SPEED1000 | BMCR_FULLDPLX);
-	if (err)
-		return err;
-
-	usleep_range(300, 400);
-
-	err = phy_write_paged(phydev, 0xf8, 0x08, 0x36);
-	if (err)
-		return err;
-
-	return genphy_soft_reset(phydev);
-}
-
-static int m88e6390_config_aneg(struct phy_device *phydev)
-{
-	int err;
-
-	err = m88e6390_errata(phydev);
-	if (err)
-		return err;
-
-	return m88e1510_config_aneg(phydev);
 }
 
 /**
@@ -1439,7 +1418,7 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 		 * before enabling it if !phy_interrupt_is_valid()
 		 */
 		if (!phy_interrupt_is_valid(phydev))
-			__phy_read(phydev, MII_M1011_IEVENT);
+			phy_read(phydev, MII_M1011_IEVENT);
 
 		/* Enable the WOL interrupt */
 		err = __phy_modify(phydev, MII_88E1318S_PHY_CSIER, 0,
@@ -1513,10 +1492,9 @@ static int marvell_get_sset_count(struct phy_device *phydev)
 
 static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 {
-	int count = marvell_get_sset_count(phydev);
 	int i;
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < ARRAY_SIZE(marvell_hw_stats); i++) {
 		strlcpy(data + i * ETH_GSTRING_LEN,
 			marvell_hw_stats[i].string, ETH_GSTRING_LEN);
 	}
@@ -1544,10 +1522,9 @@ static u64 marvell_get_stat(struct phy_device *phydev, int i)
 static void marvell_get_stats(struct phy_device *phydev,
 			      struct ethtool_stats *stats, u64 *data)
 {
-	int count = marvell_get_sset_count(phydev);
 	int i;
 
-	for (i = 0; i < count; i++)
+	for (i = 0; i < ARRAY_SIZE(marvell_hw_stats); i++)
 		data[i] = marvell_get_stat(phydev, i);
 }
 
@@ -2336,7 +2313,7 @@ static struct phy_driver marvell_drivers[] = {
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = m88e6390_probe,
 		.config_init = &marvell_config_init,
-		.config_aneg = &m88e6390_config_aneg,
+		.config_aneg = &m88e1510_config_aneg,
 		.read_status = &marvell_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,

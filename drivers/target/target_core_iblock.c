@@ -445,7 +445,7 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 				target_to_linux_sector(dev, cmd->t_task_lba),
 				target_to_linux_sector(dev,
 					sbc_get_write_same_sectors(cmd)),
-				GFP_KERNEL, BLKDEV_ZERO_NOUNMAP);
+				GFP_KERNEL, false);
 	if (ret)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
@@ -514,8 +514,8 @@ iblock_execute_write_same(struct se_cmd *cmd)
 		}
 
 		/* Always in 512 byte units for Linux/Block */
-		block_lba += sg->length >> SECTOR_SHIFT;
-		sectors -= sg->length >> SECTOR_SHIFT;
+		block_lba += sg->length >> IBLOCK_LBA_SHIFT;
+		sectors -= 1;
 	}
 
 	iblock_submit_bios(&list);
@@ -757,7 +757,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		}
 
 		/* Always in 512 byte units for Linux/Block */
-		block_lba += sg->length >> SECTOR_SHIFT;
+		block_lba += sg->length >> IBLOCK_LBA_SHIFT;
 		sg_num--;
 	}
 

@@ -34,6 +34,10 @@ Configure the kernel with::
         CONFIG_DEBUG_FS=y
         CONFIG_GCOV_KERNEL=y
 
+select the gcc's gcov format, default is autodetect based on gcc version::
+
+        CONFIG_GCOV_FORMAT_AUTODETECT=y
+
 and to get coverage data for the entire kernel::
 
         CONFIG_GCOV_PROFILE_ALL=y
@@ -163,20 +167,6 @@ b) gcov is run on the BUILD machine
 
       [user@build] cd /tmp/out
       [user@build] gcov -o /tmp/coverage/tmp/out/init main.c
-
-
-Note on compilers
------------------
-
-GCC and LLVM gcov tools are not necessarily compatible. Use gcov_ to work with
-GCC-generated .gcno and .gcda files, and use llvm-cov_ for Clang.
-
-.. _gcov: http://gcc.gnu.org/onlinedocs/gcc/Gcov.html
-.. _llvm-cov: https://llvm.org/docs/CommandGuide/llvm-cov.html
-
-Build differences between GCC and Clang gcov are handled by Kconfig. It
-automatically selects the appropriate gcov format depending on the detected
-toolchain.
 
 
 Troubleshooting

@@ -302,7 +302,6 @@ xfs_reflink_reserve_cow(
 	if (error)
 		return error;
 
-	xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
 	trace_xfs_reflink_cow_alloc(ip, &got);
 	return 0;
 }
@@ -1010,7 +1009,6 @@ xfs_reflink_remap_extent(
 	xfs_filblks_t		rlen;
 	xfs_filblks_t		unmap_len;
 	xfs_off_t		newlen;
-	int64_t			qres;
 	int			error;
 
 	unmap_len = irec->br_startoff + irec->br_blockcount - destoff;
@@ -1033,19 +1031,13 @@ xfs_reflink_remap_extent(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	/*
-	 * Reserve quota for this operation.  We don't know if the first unmap
-	 * in the dest file will cause a bmap btree split, so we always reserve
-	 * at least enough blocks for that split.  If the extent being mapped
-	 * in is written, we need to reserve quota for that too.
-	 */
-	qres = XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK);
-	if (real_extent)
-		qres += irec->br_blockcount;
-	error = xfs_trans_reserve_quota_nblks(tp, ip, qres, 0,
-			XFS_QMOPT_RES_REGBLKS);
-	if (error)
-		goto out_cancel;
+	/* If we're not just clearing space, then do we have enough quota? */
+	if (real_extent) {
+		error = xfs_trans_reserve_quota_nblks(tp, ip,
+				irec->br_blockcount, 0, XFS_QMOPT_RES_REGBLKS);
+		if (error)
+			goto out_cancel;
+	}
 
 	trace_xfs_reflink_remap(ip, irec->br_startoff,
 				irec->br_blockcount, irec->br_startblock);
@@ -1065,7 +1057,6 @@ xfs_reflink_remap_extent(
 		uirec.br_startblock = irec->br_startblock + rlen;
 		uirec.br_startoff = irec->br_startoff + rlen;
 		uirec.br_blockcount = unmap_len - rlen;
-		uirec.br_state = irec->br_state;
 		unmap_len = rlen;
 
 		/* If this isn't a real mapping, we're done. */
@@ -1376,19 +1367,9 @@ xfs_reflink_remap_prep(
 	if (ret)
 		goto out_unlock;
 
-	/*
-	 * If pos_out > EOF, we may have dirtied blocks between EOF and
-	 * pos_out. In that case, we need to extend the flush and unmap to cover
-	 * from EOF to the end of the copy length.
-	 */
-	if (pos_out > XFS_ISIZE(dest)) {
-		loff_t	flen = *len + (pos_out - XFS_ISIZE(dest));
-		ret = xfs_flush_unmap_range(dest, XFS_ISIZE(dest), flen);
-	} else {
-		ret = xfs_flush_unmap_range(dest, pos_out, *len);
-	}
-	if (ret)
-		goto out_unlock;
+	/* Zap any page cache for the destination file's range. */
+	truncate_inode_pages_range(&inode_out->i_data, pos_out,
+				   PAGE_ALIGN(pos_out + *len) - 1);
 
 	/* If we're altering the file contents... */
 	if (!is_dedupe) {

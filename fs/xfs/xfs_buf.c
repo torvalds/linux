@@ -37,32 +37,6 @@ static kmem_zone_t *xfs_buf_zone;
 #define xb_to_gfp(flags) \
 	((((flags) & XBF_READ_AHEAD) ? __GFP_NORETRY : GFP_NOFS) | __GFP_NOWARN)
 
-/*
- * Locking orders
- *
- * xfs_buf_ioacct_inc:
- * xfs_buf_ioacct_dec:
- *	b_sema (caller holds)
- *	  b_lock
- *
- * xfs_buf_stale:
- *	b_sema (caller holds)
- *	  b_lock
- *	    lru_lock
- *
- * xfs_buf_rele:
- *	b_lock
- *	  pag_buf_lock
- *	    lru_lock
- *
- * xfs_buftarg_wait_rele
- *	lru_lock
- *	  b_lock (trylock due to inversion)
- *
- * xfs_buftarg_isolate
- *	lru_lock
- *	  b_lock (trylock due to inversion)
- */
 
 static inline int
 xfs_buf_is_vmapped(
@@ -1032,18 +1006,8 @@ xfs_buf_rele(
 
 	ASSERT(atomic_read(&bp->b_hold) > 0);
 
-	/*
-	 * We grab the b_lock here first to serialise racing xfs_buf_rele()
-	 * calls. The pag_buf_lock being taken on the last reference only
-	 * serialises against racing lookups in xfs_buf_find(). IOWs, the second
-	 * to last reference we drop here is not serialised against the last
-	 * reference until we take bp->b_lock. Hence if we don't grab b_lock
-	 * first, the last "release" reference can win the race to the lock and
-	 * free the buffer before the second-to-last reference is processed,
-	 * leading to a use-after-free scenario.
-	 */
-	spin_lock(&bp->b_lock);
 	release = atomic_dec_and_lock(&bp->b_hold, &pag->pag_buf_lock);
+	spin_lock(&bp->b_lock);
 	if (!release) {
 		/*
 		 * Drop the in-flight state if the buffer is already on the LRU
@@ -1202,10 +1166,8 @@ xfs_buf_ioend(
 		bp->b_ops->verify_read(bp);
 	}
 
-	if (!bp->b_error) {
-		bp->b_flags &= ~XBF_WRITE_FAIL;
+	if (!bp->b_error)
 		bp->b_flags |= XBF_DONE;
-	}
 
 	if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
@@ -1265,7 +1227,7 @@ xfs_bwrite(
 
 	bp->b_flags |= XBF_WRITE;
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
-			 XBF_DONE);
+			 XBF_WRITE_FAIL | XBF_DONE);
 
 	error = xfs_buf_submit(bp);
 	if (error) {
@@ -1508,7 +1470,8 @@ __xfs_buf_submit(
 		xfs_buf_ioerror(bp, -EIO);
 		bp->b_flags &= ~XBF_DONE;
 		xfs_buf_stale(bp);
-		xfs_buf_ioend(bp);
+		if (bp->b_flags & XBF_ASYNC)
+			xfs_buf_ioend(bp);
 		return -EIO;
 	}
 
@@ -2002,7 +1965,7 @@ xfs_buf_delwri_submit_buffers(
 		 * synchronously. Otherwise, drop the buffer from the delwri
 		 * queue and submit async.
 		 */
-		bp->b_flags &= ~_XBF_DELWRI_Q;
+		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_WRITE_FAIL);
 		bp->b_flags |= XBF_WRITE;
 		if (wait_list) {
 			bp->b_flags &= ~XBF_ASYNC;
@@ -2026,13 +1989,6 @@ xfs_buf_delwri_submit_buffers(
  * is only safely useable for callers that can track I/O completion by higher
  * level means, e.g. AIL pushing as the @buffer_list is consumed in this
  * function.
- *
- * Note: this function will skip buffers it would block on, and in doing so
- * leaves them on @buffer_list so they can be retried on a later pass. As such,
- * it is up to the caller to ensure that the buffer list is fully submitted or
- * cancelled appropriately when they are finished with the list. Failure to
- * cancel or resubmit the list until it is empty will result in leaked buffers
- * at unmount time.
  */
 int
 xfs_buf_delwri_submit_nowait(

@@ -194,10 +194,11 @@ static void exynos_bus_exit(struct device *dev)
 	if (ret < 0)
 		dev_warn(dev, "failed to disable the devfreq-event devices\n");
 
-	dev_pm_opp_of_remove_table(dev);
-	clk_disable_unprepare(bus->clk);
 	if (bus->regulator)
 		regulator_disable(bus->regulator);
+
+	dev_pm_opp_of_remove_table(dev);
+	clk_disable_unprepare(bus->clk);
 }
 
 /*
@@ -385,7 +386,6 @@ static int exynos_bus_probe(struct platform_device *pdev)
 	struct exynos_bus *bus;
 	int ret, max_state;
 	unsigned long min_freq, max_freq;
-	bool passive = false;
 
 	if (!np) {
 		dev_err(dev, "failed to find devicetree node\n");
@@ -399,27 +399,27 @@ static int exynos_bus_probe(struct platform_device *pdev)
 	bus->dev = &pdev->dev;
 	platform_set_drvdata(pdev, bus);
 
+	/* Parse the device-tree to get the resource information */
+	ret = exynos_bus_parse_of(np, bus);
+	if (ret < 0)
+		return ret;
+
 	profile = devm_kzalloc(dev, sizeof(*profile), GFP_KERNEL);
-	if (!profile)
-		return -ENOMEM;
+	if (!profile) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	node = of_parse_phandle(dev->of_node, "devfreq", 0);
 	if (node) {
 		of_node_put(node);
-		passive = true;
+		goto passive;
 	} else {
 		ret = exynos_bus_parent_parse_of(np, bus);
-		if (ret < 0)
-			return ret;
 	}
 
-	/* Parse the device-tree to get the resource information */
-	ret = exynos_bus_parse_of(np, bus);
 	if (ret < 0)
-		goto err_reg;
-
-	if (passive)
-		goto passive;
+		goto err;
 
 	/* Initialize the struct profile and governor data for parent device */
 	profile->polling_ms = 50;
@@ -510,9 +510,6 @@ out:
 err:
 	dev_pm_opp_of_remove_table(dev);
 	clk_disable_unprepare(bus->clk);
-err_reg:
-	if (!passive)
-		regulator_disable(bus->regulator);
 
 	return ret;
 }

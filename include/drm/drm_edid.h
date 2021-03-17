@@ -25,7 +25,6 @@
 
 #include <linux/types.h>
 #include <linux/hdmi.h>
-#include <drm/drm_mode.h>
 
 struct drm_device;
 struct i2c_adapter;
@@ -222,46 +221,6 @@ struct detailed_timing {
 				    DRM_EDID_YCBCR420_DC_36 | \
 				    DRM_EDID_YCBCR420_DC_30)
 
-#define DRM_EDID_CLRMETRY_xvYCC_601   (1 << 0)
-#define DRM_EDID_CLRMETRY_xvYCC_709   (1 << 1)
-#define DRM_EDID_CLRMETRY_sYCC_601    (1 << 2)
-#define DRM_EDID_CLRMETRY_ADBYCC_601  (1 << 3)
-#define DRM_EDID_CLRMETRY_ADB_RGB     (1 << 4)
-#define DRM_EDID_CLRMETRY_BT2020_CYCC (1 << 5)
-#define DRM_EDID_CLRMETRY_BT2020_YCC  (1 << 6)
-#define DRM_EDID_CLRMETRY_BT2020_RGB  (1 << 7)
-#define DRM_EDID_CLRMETRY_DCI_P3      (1 << 15)
-
-/* HDMI 2.1 additional fields */
-#define DRM_EDID_MAX_FRL_RATE_MASK		0xf0
-#define DRM_EDID_FAPA_START_LOCATION		(1 << 0)
-#define DRM_EDID_ALLM				(1 << 1)
-#define DRM_EDID_FVA				(1 << 2)
-
-/* Deep Color specific */
-#define DRM_EDID_DC_30BIT_420			(1 << 0)
-#define DRM_EDID_DC_36BIT_420			(1 << 1)
-#define DRM_EDID_DC_48BIT_420			(1 << 2)
-
-/* VRR specific */
-#define DRM_EDID_CNMVRR				(1 << 3)
-#define DRM_EDID_CINEMA_VRR			(1 << 4)
-#define DRM_EDID_MDELTA				(1 << 5)
-#define DRM_EDID_VRR_MAX_UPPER_MASK		0xc0
-#define DRM_EDID_VRR_MAX_LOWER_MASK		0xff
-#define DRM_EDID_VRR_MIN_MASK			0x3f
-
-/* DSC specific */
-#define DRM_EDID_DSC_10BPC			(1 << 0)
-#define DRM_EDID_DSC_12BPC			(1 << 1)
-#define DRM_EDID_DSC_16BPC			(1 << 2)
-#define DRM_EDID_DSC_ALL_BPP			(1 << 3)
-#define DRM_EDID_DSC_NATIVE_420			(1 << 6)
-#define DRM_EDID_DSC_1P2			(1 << 7)
-#define DRM_EDID_DSC_MAX_FRL_RATE_MASK		0xf0
-#define DRM_EDID_DSC_MAX_SLICES			0xf
-#define DRM_EDID_DSC_TOTAL_CHUNK_KBYTES		0x3f
-
 /* ELD Header Block */
 #define DRM_ELD_HEADER_BLOCK_SIZE	4
 
@@ -320,11 +279,6 @@ struct detailed_timing {
 
 #define DRM_ELD_CEA_SAD(mnl, sad)	(20 + (mnl) + 3 * (sad))
 
-/* HDMI 2.0 */
-#define DRM_EDID_3D_INDEPENDENT_VIEW	(1 << 2)
-#define DRM_EDID_3D_DUAL_VIEW		(1 << 1)
-#define DRM_EDID_3D_OSD_DISPARITY	(1 << 0)
-
 struct edid {
 	u8 header[8];
 	/* Vendor & product info */
@@ -377,7 +331,6 @@ struct cea_sad {
 
 struct drm_encoder;
 struct drm_connector;
-struct drm_connector_state;
 struct drm_display_mode;
 
 int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads);
@@ -411,10 +364,6 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   enum hdmi_quantization_range rgb_quant_range,
 				   bool rgb_quant_range_selectable,
 				   bool is_hdmi2_sink);
-
-int
-drm_hdmi_infoframe_set_hdr_metadata(struct hdmi_drm_infoframe *frame,
-				    const struct drm_connector_state *conn_state);
 
 /**
  * drm_eld_mnl - Get ELD monitor name length in bytes.
@@ -517,7 +466,6 @@ struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
 				     struct i2c_adapter *adapter);
 struct edid *drm_edid_duplicate(const struct edid *edid);
 int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
-int drm_add_override_edid_modes(struct drm_connector *connector);
 
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
 enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);

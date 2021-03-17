@@ -10,7 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -32,7 +31,6 @@
 struct wm8974_priv {
 	unsigned int mclk;
 	unsigned int fs;
-	struct clk *mclk_in;
 };
 
 static const struct reg_default wm8974_reg_defaults[] = {
@@ -623,36 +621,6 @@ static int wm8974_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
-static int wm8974_startup(struct snd_pcm_substream *substream,
-			  struct snd_soc_dai *dai)
-{
-	struct snd_soc_component *component = dai->component;
-	struct wm8974_priv *priv = snd_soc_component_get_drvdata(component);
-	u16 power1 = snd_soc_component_read32(component, WM8974_POWER1);
-
-	clk_prepare_enable(priv->mclk_in);
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		power1 |= 0x10;
-		snd_soc_component_write(component, WM8974_POWER1, power1);
-	}
-
-	return 0;
-}
-
-static void wm8974_shutdown(struct snd_pcm_substream *substream,
-			    struct snd_soc_dai *dai)
-{
-	struct snd_soc_component *component = dai->component;
-	struct wm8974_priv *priv = snd_soc_component_get_drvdata(component);
-	u16 power1 = snd_soc_component_read32(component, WM8974_POWER1);
-
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		power1 &= ~0x10;
-		snd_soc_component_write(component, WM8974_POWER1, power1);
-	}
-	clk_disable_unprepare(priv->mclk_in);
-}
-
 #define WM8974_RATES (SNDRV_PCM_RATE_8000_48000)
 
 #define WM8974_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -665,8 +633,6 @@ static const struct snd_soc_dai_ops wm8974_ops = {
 	.set_clkdiv = wm8974_set_dai_clkdiv,
 	.set_pll = wm8974_set_dai_pll,
 	.set_sysclk = wm8974_set_dai_sysclk,
-	.startup = wm8974_startup,
-	.shutdown = wm8974_shutdown,
 };
 
 static struct snd_soc_dai_driver wm8974_dai = {
@@ -742,10 +708,6 @@ static int wm8974_i2c_probe(struct i2c_client *i2c,
 	regmap = devm_regmap_init_i2c(i2c, &wm8974_regmap);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-
-	priv->mclk_in = devm_clk_get(&i2c->dev, "mclk");
-	if (IS_ERR(priv->mclk_in))
-		return PTR_ERR(priv->mclk_in);
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 			&soc_component_dev_wm8974, &wm8974_dai, 1);

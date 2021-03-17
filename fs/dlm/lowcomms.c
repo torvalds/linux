@@ -1630,10 +1630,8 @@ static void clean_writequeues(void)
 
 static void work_stop(void)
 {
-	if (recv_workqueue)
-		destroy_workqueue(recv_workqueue);
-	if (send_workqueue)
-		destroy_workqueue(send_workqueue);
+	destroy_workqueue(recv_workqueue);
+	destroy_workqueue(send_workqueue);
 }
 
 static int work_start(void)
@@ -1693,17 +1691,13 @@ static void work_flush(void)
 	struct hlist_node *n;
 	struct connection *con;
 
-	if (recv_workqueue)
-		flush_workqueue(recv_workqueue);
-	if (send_workqueue)
-		flush_workqueue(send_workqueue);
+	flush_workqueue(recv_workqueue);
+	flush_workqueue(send_workqueue);
 	do {
 		ok = 1;
 		foreach_conn(stop_conn);
-		if (recv_workqueue)
-			flush_workqueue(recv_workqueue);
-		if (send_workqueue)
-			flush_workqueue(send_workqueue);
+		flush_workqueue(recv_workqueue);
+		flush_workqueue(send_workqueue);
 		for (i = 0; i < CONN_HASH_SIZE && ok; i++) {
 			hlist_for_each_entry_safe(con, n,
 						  &connection_hash[i], list) {

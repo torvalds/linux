@@ -159,9 +159,17 @@ static u8 write_macreg_hdl(struct _adapter *padapter, u8 *pbuf)
 
 static u8 read_bbreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
+	u32 val;
+	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj	*pcmd);
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	r8712_free_cmd_obj(pcmd);
+	if (pcmd->rsp && pcmd->rspsz > 0)
+		memcpy(pcmd->rsp, (u8 *)&val, pcmd->rspsz);
+	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
+	if (!pcmd_callback)
+		r8712_free_cmd_obj(pcmd);
+	else
+		pcmd_callback(padapter, pcmd);
 	return H2C_SUCCESS;
 }
 

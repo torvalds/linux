@@ -199,8 +199,8 @@ void __init omap2xxx_check_revision(void)
 
 	pr_info("%s", soc_name);
 	if ((omap_rev() >> 8) & 0x0f)
-		pr_cont("%s", soc_rev);
-	pr_cont("\n");
+		pr_info("%s", soc_rev);
+	pr_info("\n");
 }
 
 #define OMAP3_SHOW_FEATURE(feat)		\

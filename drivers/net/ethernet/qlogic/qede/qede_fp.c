@@ -1695,19 +1695,6 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 }
 
-u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
-		      struct net_device *sb_dev,
-		      select_queue_fallback_t fallback)
-{
-	struct qede_dev *edev = netdev_priv(dev);
-	int total_txq;
-
-	total_txq = QEDE_TSS_COUNT(edev) * edev->dev_info.num_tc;
-
-	return QEDE_TSS_COUNT(edev) ?
-		fallback(dev, skb, NULL) % total_txq :  0;
-}
-
 /* 8B udp header + 8B base tunnel header + 32B option length */
 #define QEDE_MAX_TUN_HDR_LEN 48
 
@@ -1747,11 +1734,6 @@ netdev_features_t qede_features_check(struct sk_buff *skb,
 			      ntohs(udp_hdr(skb)->dest) != gnv_port))
 				return features & ~(NETIF_F_CSUM_MASK |
 						    NETIF_F_GSO_MASK);
-		} else if (l4_proto == IPPROTO_IPIP) {
-			/* IPIP tunnels are unknown to the device or at least unsupported natively,
-			 * offloads for them can't be done trivially, so disable them for such skb.
-			 */
-			return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 		}
 	}
 

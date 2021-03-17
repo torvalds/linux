@@ -2263,30 +2263,19 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 
 static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
-	bool found = false;
-	struct perf_evsel *evsel, *tmp;
-	struct parse_events_error err = { .idx = 0, };
-	int ret = parse_events(evlist, "probe:vfs_getname*", &err);
+	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname");
 
-	if (ret)
+	if (IS_ERR(evsel))
 		return false;
 
-	evlist__for_each_entry_safe(evlist, evsel, tmp) {
-		if (!strstarts(perf_evsel__name(evsel), "probe:vfs_getname"))
-			continue;
-
-		if (perf_evsel__field(evsel, "pathname")) {
-			evsel->handler = trace__vfs_getname;
-			found = true;
-			continue;
-		}
-
-		list_del_init(&evsel->node);
-		evsel->evlist = NULL;
+	if (perf_evsel__field(evsel, "pathname") == NULL) {
 		perf_evsel__delete(evsel);
+		return false;
 	}
 
-	return found;
+	evsel->handler = trace__vfs_getname;
+	perf_evlist__add(evlist, evsel);
+	return true;
 }
 
 static struct perf_evsel *perf_evsel__new_pgfault(u64 config)

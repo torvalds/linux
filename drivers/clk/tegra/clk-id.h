@@ -233,7 +233,6 @@ enum clk_id {
 	tegra_clk_sdmmc4,
 	tegra_clk_sdmmc4_8,
 	tegra_clk_se,
-	tegra_clk_se_10,
 	tegra_clk_soc_therm,
 	tegra_clk_soc_therm_8,
 	tegra_clk_sor0,

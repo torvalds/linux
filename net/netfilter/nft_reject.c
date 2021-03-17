@@ -94,8 +94,7 @@ static u8 icmp_code_v4[NFT_REJECT_ICMPX_MAX + 1] = {
 
 int nft_reject_icmp_code(u8 code)
 {
-	if (WARN_ON_ONCE(code > NFT_REJECT_ICMPX_MAX))
-		return ICMP_NET_UNREACH;
+	BUG_ON(code > NFT_REJECT_ICMPX_MAX);
 
 	return icmp_code_v4[code];
 }
@@ -112,8 +111,7 @@ static u8 icmp_code_v6[NFT_REJECT_ICMPX_MAX + 1] = {
 
 int nft_reject_icmpv6_code(u8 code)
 {
-	if (WARN_ON_ONCE(code > NFT_REJECT_ICMPX_MAX))
-		return ICMPV6_NOROUTE;
+	BUG_ON(code > NFT_REJECT_ICMPX_MAX);
 
 	return icmp_code_v6[code];
 }

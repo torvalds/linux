@@ -911,8 +911,9 @@ static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	if (sym == NULL)
 		return 0;
 	src = symbol__hists(sym, evsel->evlist->nr_entries);
-	return (src) ?  __symbol__inc_addr_samples(sym, map, src, evsel->idx,
-						   addr, sample) : 0;
+	if (src == NULL)
+		return -ENOMEM;
+	return __symbol__inc_addr_samples(sym, map, src, evsel->idx, addr, sample);
 }
 
 static int symbol__account_cycles(u64 addr, u64 start,
@@ -1079,14 +1080,16 @@ static int disasm_line__parse(char *line, const char **namep, char **rawp)
 	*namep = strdup(name);
 
 	if (*namep == NULL)
-		goto out;
+		goto out_free_name;
 
 	(*rawp)[0] = tmp;
 	*rawp = ltrim(*rawp);
 
 	return 0;
 
-out:
+out_free_name:
+	free((void *)namep);
+	*namep = NULL;
 	return -1;
 }
 
@@ -1614,7 +1617,7 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 
 	build_id_path = strdup(filename);
 	if (!build_id_path)
-		return ENOMEM;
+		return -1;
 
 	/*
 	 * old style build-id cache has name of XX/XXXXXXX.. while
@@ -1859,7 +1862,6 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct annotation_options *options,
 		     struct arch **parch)
 {
-	struct annotation *notes = symbol__annotation(sym);
 	struct annotate_args args = {
 		.privsize	= privsize,
 		.evsel		= evsel,
@@ -1871,11 +1873,11 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 	int err;
 
 	if (!arch_name)
-		return errno;
+		return -1;
 
 	args.arch = arch = arch__find(arch_name);
 	if (arch == NULL)
-		return ENOTSUP;
+		return -ENOTSUP;
 
 	if (parch)
 		*parch = arch;
@@ -1890,7 +1892,6 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 
 	args.ms.map = map;
 	args.ms.sym = sym;
-	notes->start = map__rip_2objdump(map, sym->start);
 
 	return symbol__disassemble(sym, &args);
 }
@@ -2732,7 +2733,7 @@ int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *ev
 
 	notes->offsets = zalloc(size * sizeof(struct annotation_line *));
 	if (notes->offsets == NULL)
-		return ENOMEM;
+		return -1;
 
 	if (perf_evsel__is_group_event(evsel))
 		nr_pcnt = evsel->nr_members;
@@ -2744,6 +2745,8 @@ int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *ev
 	notes->options = options;
 
 	symbol__calc_percent(sym, evsel);
+
+	notes->start = map__rip_2objdump(map, sym->start);
 
 	annotation__set_offsets(notes, size);
 	annotation__mark_jump_targets(notes, sym);
@@ -2757,7 +2760,7 @@ int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *ev
 
 out_free_offsets:
 	zfree(&notes->offsets);
-	return err;
+	return -1;
 }
 
 #define ANNOTATION__CFG(n) \

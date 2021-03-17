@@ -89,22 +89,6 @@
 
 #include <linux/linkage.h>
 #include <linux/types.h>
-
-enum arm_smccc_conduit {
-	SMCCC_CONDUIT_NONE,
-	SMCCC_CONDUIT_SMC,
-	SMCCC_CONDUIT_HVC,
-};
-
-/**
- * arm_smccc_1_1_get_conduit()
- *
- * Returns the conduit to be used for SMCCCv1.1 or later.
- *
- * When SMCCCv1.1 is not present, returns SMCCC_CONDUIT_NONE.
- */
-enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void);
-
 /**
  * struct arm_smccc_res - Result from SMC/HVC call
  * @a0-a3 result values from registers 0 to 3
@@ -326,51 +310,6 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 #define SMCCC_RET_SUCCESS			0
 #define SMCCC_RET_NOT_SUPPORTED			-1
 #define SMCCC_RET_NOT_REQUIRED			-2
-
-/*
- * Like arm_smccc_1_1* but always returns SMCCC_RET_NOT_SUPPORTED.
- * Used when the SMCCC conduit is not defined. The empty asm statement
- * avoids compiler warnings about unused variables.
- */
-#define __fail_smccc_1_1(...)						\
-	do {								\
-		__declare_args(__count_args(__VA_ARGS__), __VA_ARGS__);	\
-		asm ("" __constraints(__count_args(__VA_ARGS__)));	\
-		if (___res)						\
-			___res->a0 = SMCCC_RET_NOT_SUPPORTED;		\
-	} while (0)
-
-/*
- * arm_smccc_1_1_invoke() - make an SMCCC v1.1 compliant call
- *
- * This is a variadic macro taking one to eight source arguments, and
- * an optional return structure.
- *
- * @a0-a7: arguments passed in registers 0 to 7
- * @res: result values from registers 0 to 3
- *
- * This macro will make either an HVC call or an SMC call depending on the
- * current SMCCC conduit. If no valid conduit is available then -1
- * (SMCCC_RET_NOT_SUPPORTED) is returned in @res.a0 (if supplied).
- *
- * The return value also provides the conduit that was used.
- */
-#define arm_smccc_1_1_invoke(...) ({					\
-		int method = arm_smccc_1_1_get_conduit();		\
-		switch (method) {					\
-		case SMCCC_CONDUIT_HVC:					\
-			arm_smccc_1_1_hvc(__VA_ARGS__);			\
-			break;						\
-		case SMCCC_CONDUIT_SMC:					\
-			arm_smccc_1_1_smc(__VA_ARGS__);			\
-			break;						\
-		default:						\
-			__fail_smccc_1_1(__VA_ARGS__);			\
-			method = SMCCC_CONDUIT_NONE;			\
-			break;						\
-		}							\
-		method;							\
-	})
 
 #endif /*__ASSEMBLY__*/
 #endif /*__LINUX_ARM_SMCCC_H*/

@@ -35,8 +35,6 @@ static int adt7316_i2c_read(void *client, u8 reg, u8 *data)
 		return ret;
 	}
 
-	*data = ret;
-
 	return 0;
 }
 

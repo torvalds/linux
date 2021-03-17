@@ -117,8 +117,7 @@ int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family)
 	dst = skb_dst(skb);
 	if (dst->xfrm)
 		dst = ((struct xfrm_dst *)dst)->route;
-	if (!dst_hold_safe(dst))
-		return -EHOSTUNREACH;
+	dst_hold(dst);
 
 	if (sk && !net_eq(net, sock_net(sk)))
 		sk = NULL;
@@ -1068,7 +1067,6 @@ static int __init nf_nat_init(void)
 	ret = register_pernet_subsys(&nat_net_ops);
 	if (ret < 0) {
 		nf_ct_extend_unregister(&nat_extend);
-		kvfree(nf_nat_bysource);
 		return ret;
 	}
 

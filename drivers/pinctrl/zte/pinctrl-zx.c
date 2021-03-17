@@ -411,7 +411,6 @@ int zx_pinctrl_init(struct platform_device *pdev,
 	}
 
 	zpctl->aux_base = of_iomap(np, 0);
-	of_node_put(np);
 	if (!zpctl->aux_base)
 		return -ENOMEM;
 

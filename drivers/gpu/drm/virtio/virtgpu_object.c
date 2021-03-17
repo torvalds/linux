@@ -23,45 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/moduleparam.h>
-
-#include <drm/ttm/ttm_execbuf_util.h>
-
 #include "virtgpu_drv.h"
-
-static int virtio_gpu_virglrenderer_workaround = 1;
-module_param_named(virglhack, virtio_gpu_virglrenderer_workaround, int, 0400);
-
-static int virtio_gpu_resource_id_get(struct virtio_gpu_device *vgdev,
-				       uint32_t *resid)
-{
-	if (virtio_gpu_virglrenderer_workaround) {
-		/*
-		 * Hack to avoid re-using resource IDs.
-		 *
-		 * virglrenderer versions up to (and including) 0.7.0
-		 * can't deal with that.  virglrenderer commit
-		 * "f91a9dd35715 Fix unlinking resources from hash
-		 * table." (Feb 2019) fixes the bug.
-		 */
-		static atomic_t seqno = ATOMIC_INIT(0);
-		int handle = atomic_inc_return(&seqno);
-		*resid = handle + 1;
-	} else {
-		int handle = ida_alloc(&vgdev->resource_ida, GFP_KERNEL);
-		if (handle < 0)
-			return handle;
-		*resid = handle + 1;
-	}
-	return 0;
-}
-
-static void virtio_gpu_resource_id_put(struct virtio_gpu_device *vgdev, uint32_t id)
-{
-	if (!virtio_gpu_virglrenderer_workaround) {
-		ida_free(&vgdev->resource_ida, id - 1);
-	}
-}
 
 static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
@@ -71,130 +33,88 @@ static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	bo = container_of(tbo, struct virtio_gpu_object, tbo);
 	vgdev = (struct virtio_gpu_device *)bo->gem_base.dev->dev_private;
 
-	if (bo->created)
+	if (bo->hw_res_handle)
 		virtio_gpu_cmd_unref_resource(vgdev, bo->hw_res_handle);
 	if (bo->pages)
 		virtio_gpu_object_free_sg_table(bo);
 	drm_gem_object_release(&bo->gem_base);
-	virtio_gpu_resource_id_put(vgdev, bo->hw_res_handle);
 	kfree(bo);
 }
 
-static void virtio_gpu_init_ttm_placement(struct virtio_gpu_object *vgbo)
+static void virtio_gpu_init_ttm_placement(struct virtio_gpu_object *vgbo,
+					  bool pinned)
 {
 	u32 c = 1;
+	u32 pflag = pinned ? TTM_PL_FLAG_NO_EVICT : 0;
 
 	vgbo->placement.placement = &vgbo->placement_code;
 	vgbo->placement.busy_placement = &vgbo->placement_code;
 	vgbo->placement_code.fpfn = 0;
 	vgbo->placement_code.lpfn = 0;
 	vgbo->placement_code.flags =
-		TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT |
-		TTM_PL_FLAG_NO_EVICT;
+		TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT | pflag;
 	vgbo->placement.num_placement = c;
 	vgbo->placement.num_busy_placement = c;
 
 }
 
 int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
-			     struct virtio_gpu_object_params *params,
-			     struct virtio_gpu_object **bo_ptr,
-			     struct virtio_gpu_fence *fence)
+			     unsigned long size, bool kernel, bool pinned,
+			     struct virtio_gpu_object **bo_ptr)
 {
 	struct virtio_gpu_object *bo;
+	enum ttm_bo_type type;
 	size_t acc_size;
 	int ret;
 
+	if (kernel)
+		type = ttm_bo_type_kernel;
+	else
+		type = ttm_bo_type_device;
 	*bo_ptr = NULL;
 
-	acc_size = ttm_bo_dma_acc_size(&vgdev->mman.bdev, params->size,
+	acc_size = ttm_bo_dma_acc_size(&vgdev->mman.bdev, size,
 				       sizeof(struct virtio_gpu_object));
 
 	bo = kzalloc(sizeof(struct virtio_gpu_object), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
-	ret = virtio_gpu_resource_id_get(vgdev, &bo->hw_res_handle);
-	if (ret < 0) {
-		kfree(bo);
-		return ret;
-	}
-	params->size = roundup(params->size, PAGE_SIZE);
-	ret = drm_gem_object_init(vgdev->ddev, &bo->gem_base, params->size);
+	size = roundup(size, PAGE_SIZE);
+	ret = drm_gem_object_init(vgdev->ddev, &bo->gem_base, size);
 	if (ret != 0) {
-		virtio_gpu_resource_id_put(vgdev, bo->hw_res_handle);
 		kfree(bo);
 		return ret;
 	}
-	bo->dumb = params->dumb;
+	bo->dumb = false;
+	virtio_gpu_init_ttm_placement(bo, pinned);
 
-	if (params->virgl) {
-		virtio_gpu_cmd_resource_create_3d(vgdev, bo, params, fence);
-	} else {
-		virtio_gpu_cmd_create_resource(vgdev, bo, params, fence);
-	}
-
-	virtio_gpu_init_ttm_placement(bo);
-	ret = ttm_bo_init(&vgdev->mman.bdev, &bo->tbo, params->size,
-			  ttm_bo_type_device, &bo->placement, 0,
-			  true, acc_size, NULL, NULL,
-			  &virtio_gpu_ttm_bo_destroy);
+	ret = ttm_bo_init(&vgdev->mman.bdev, &bo->tbo, size, type,
+			  &bo->placement, 0, !kernel, acc_size,
+			  NULL, NULL, &virtio_gpu_ttm_bo_destroy);
 	/* ttm_bo_init failure will call the destroy */
 	if (ret != 0)
 		return ret;
-
-	if (fence) {
-		struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
-		struct list_head validate_list;
-		struct ttm_validate_buffer mainbuf;
-		struct ww_acquire_ctx ticket;
-		unsigned long irq_flags;
-		bool signaled;
-
-		INIT_LIST_HEAD(&validate_list);
-		memset(&mainbuf, 0, sizeof(struct ttm_validate_buffer));
-
-		/* use a gem reference since unref list undoes them */
-		drm_gem_object_get(&bo->gem_base);
-		mainbuf.bo = &bo->tbo;
-		list_add(&mainbuf.head, &validate_list);
-
-		ret = virtio_gpu_object_list_validate(&ticket, &validate_list);
-		if (ret == 0) {
-			spin_lock_irqsave(&drv->lock, irq_flags);
-			signaled = virtio_fence_signaled(&fence->f);
-			if (!signaled)
-				/* virtio create command still in flight */
-				ttm_eu_fence_buffer_objects(&ticket, &validate_list,
-							    &fence->f);
-			spin_unlock_irqrestore(&drv->lock, irq_flags);
-			if (signaled)
-				/* virtio create command finished */
-				ttm_eu_backoff_reservation(&ticket, &validate_list);
-		}
-		virtio_gpu_unref_list(&validate_list);
-	}
 
 	*bo_ptr = bo;
 	return 0;
 }
 
-void virtio_gpu_object_kunmap(struct virtio_gpu_object *bo)
-{
-	bo->vmap = NULL;
-	ttm_bo_kunmap(&bo->kmap);
-}
-
-int virtio_gpu_object_kmap(struct virtio_gpu_object *bo)
+int virtio_gpu_object_kmap(struct virtio_gpu_object *bo, void **ptr)
 {
 	bool is_iomem;
 	int r;
 
-	WARN_ON(bo->vmap);
-
+	if (bo->vmap) {
+		if (ptr)
+			*ptr = bo->vmap;
+		return 0;
+	}
 	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
 	if (r)
 		return r;
 	bo->vmap = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
+	if (ptr)
+		*ptr = bo->vmap;
 	return 0;
 }
 

@@ -91,7 +91,7 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	 * MDIO bus driver and clock gated at this point.
 	 */
 	if (!netdev)
-		goto out;
+		return !phydev->suspended;
 
 	if (netdev->wol_enabled)
 		return false;
@@ -111,8 +111,7 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (device_may_wakeup(&netdev->dev))
 		return false;
 
-out:
-	return !phydev->suspended;
+	return true;
 }
 
 static int mdio_bus_phy_suspend(struct device *dev)
@@ -130,8 +129,6 @@ static int mdio_bus_phy_suspend(struct device *dev)
 	if (!mdio_bus_phy_may_suspend(phydev))
 		return 0;
 
-	phydev->suspended_by_mdio_bus = 1;
-
 	return phy_suspend(phydev);
 }
 
@@ -140,10 +137,8 @@ static int mdio_bus_phy_resume(struct device *dev)
 	struct phy_device *phydev = to_phy_device(dev);
 	int ret;
 
-	if (!phydev->suspended_by_mdio_bus)
+	if (!mdio_bus_phy_may_suspend(phydev))
 		goto no_resume;
-
-	phydev->suspended_by_mdio_bus = 0;
 
 	ret = phy_resume(phydev);
 	if (ret < 0)
@@ -169,8 +164,11 @@ static int mdio_bus_phy_restore(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	if (phydev->attached_dev && phydev->adjust_link)
-		phy_start_machine(phydev);
+	/* The PHY needs to renegotiate. */
+	phydev->link = 0;
+	phydev->state = PHY_UP;
+
+	phy_start_machine(phydev);
 
 	return 0;
 }
@@ -387,68 +385,10 @@ phy_has_fixups_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(phy_has_fixups);
 
-static ssize_t
-phy_registers_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct phy_device *phydev = to_phy_device(dev);
-	int index;
-
-	for (index = 0; index < 32; index++)
-		sprintf(buf, "%s%2d: 0x%x\n", buf, index,
-			phy_read(phydev, index));
-
-	return strlen(buf);
-}
-
-static ssize_t
-phy_registers_store(struct device *dev,
-		    struct device_attribute *attr,
-		    const char *buf, size_t count)
-{
-	struct phy_device *phydev = to_phy_device(dev);
-	int index = 0, val = 0;
-	char tmp[32];
-	char *data;
-
-	if (count >= sizeof(tmp))
-		goto out;
-
-	memset(tmp, 0, sizeof(tmp));
-	memcpy(tmp, buf, count);
-
-	data = tmp;
-	data = strstr(data, " ");
-	if (!data)
-		goto out;
-	*data = 0;
-	data++;
-
-	if (kstrtoint(tmp, 0, &index) || index >= 32)
-		goto out;
-
-	if (kstrtoint(data, 0, &val) || val > 0xffff)
-		goto out;
-
-	pr_info("Set Ethernet PHY register %d to 0x%x\n", (int)index, (int)val);
-
-	phy_write(phydev, index, val);
-
-	return count;
-
-out:
-	pr_err("wrong register value input\n");
-	pr_err("usage: <reg index> <value>\n");
-
-	return count;
-}
-
-static DEVICE_ATTR_RW(phy_registers);
-
 static struct attribute *phy_dev_attrs[] = {
 	&dev_attr_phy_id.attr,
 	&dev_attr_phy_interface.attr,
 	&dev_attr_phy_has_fixups.attr,
-	&dev_attr_phy_registers.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(phy_dev);
@@ -483,8 +423,8 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	mdiodev->device_free = phy_mdio_device_free;
 	mdiodev->device_remove = phy_mdio_device_remove;
 
-	dev->speed = SPEED_UNKNOWN;
-	dev->duplex = DUPLEX_UNKNOWN;
+	dev->speed = 0;
+	dev->duplex = -1;
 	dev->pause = 0;
 	dev->asym_pause = 0;
 	dev->link = 0;
@@ -664,10 +604,8 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 
 	/* Grab the bits from PHYIR2, and put them in the lower half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID2);
-	if (phy_reg < 0) {
-		/* returning -ENODEV doesn't stop bus scanning */
-		return (phy_reg == -EIO || phy_reg == -ENODEV) ? -ENODEV : -EIO;
-	}
+	if (phy_reg < 0)
+		return -EIO;
 
 	*phy_id |= (phy_reg & 0xffff);
 
@@ -821,9 +759,6 @@ int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
 		       phy_interface_t interface)
 {
 	int rc;
-
-	if (!dev)
-		return -EINVAL;
 
 	rc = phy_attach_direct(dev, phydev, phydev->dev_flags, interface);
 	if (rc)
@@ -1166,9 +1101,6 @@ struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 	struct device *d;
 	int rc;
 
-	if (!dev)
-		return ERR_PTR(-EINVAL);
-
 	/* Search the list of PHY devices on the mdio bus for the
 	 * PHY with the requested name
 	 */
@@ -1212,8 +1144,7 @@ void phy_detach(struct phy_device *phydev)
 
 	phy_led_triggers_unregister(phydev);
 
-	if (phydev->mdio.dev.driver)
-		module_put(phydev->mdio.dev.driver->owner);
+	module_put(phydev->mdio.dev.driver->owner);
 
 	/* If the device had no specific driver before (i.e. - it
 	 * was using the generic driver), we unbind the device
@@ -1575,15 +1506,10 @@ int genphy_update_link(struct phy_device *phydev)
 {
 	int status;
 
-	/* The link state is latched low so that momentary link
-	 * drops can be detected. Do not double-read the status
-	 * in polling mode to detect such short link drops.
-	 */
-	if (!phy_polling_mode(phydev)) {
-		status = phy_read(phydev, MII_BMSR);
-		if (status < 0)
-			return status;
-	}
+	/* Do a fake read */
+	status = phy_read(phydev, MII_BMSR);
+	if (status < 0)
+		return status;
 
 	/* Read link and autonegotiation status */
 	status = phy_read(phydev, MII_BMSR);
@@ -1722,7 +1648,7 @@ int genphy_soft_reset(struct phy_device *phydev)
 {
 	int ret;
 
-	ret = phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
+	ret = phy_write(phydev, MII_BMCR, BMCR_RESET);
 	if (ret < 0)
 		return ret;
 
@@ -1812,17 +1738,20 @@ EXPORT_SYMBOL(genphy_loopback);
 
 static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
 {
+	phydev->supported &= ~(PHY_1000BT_FEATURES | PHY_100BT_FEATURES |
+			       PHY_10BT_FEATURES);
+
 	switch (max_speed) {
-	case SPEED_10:
-		phydev->supported &= ~PHY_100BT_FEATURES;
-		/* fall through */
-	case SPEED_100:
-		phydev->supported &= ~PHY_1000BT_FEATURES;
-		break;
-	case SPEED_1000:
-		break;
 	default:
 		return -ENOTSUPP;
+	case SPEED_1000:
+		phydev->supported |= PHY_1000BT_FEATURES;
+		/* fall through */
+	case SPEED_100:
+		phydev->supported |= PHY_100BT_FEATURES;
+		/* fall through */
+	case SPEED_10:
+		phydev->supported |= PHY_10BT_FEATURES;
 	}
 
 	return 0;
@@ -2000,14 +1929,6 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 	new_driver->mdiodrv.driver.probe = phy_probe;
 	new_driver->mdiodrv.driver.remove = phy_remove;
 	new_driver->mdiodrv.driver.owner = owner;
-
-	/* The following works around an issue where the PHY driver doesn't bind
-	 * to the device, resulting in the genphy driver being used instead of
-	 * the dedicated driver. The root cause of the issue isn't known yet
-	 * and seems to be in the base driver core. Once this is fixed we may
-	 * remove this workaround.
-	 */
-	new_driver->mdiodrv.driver.probe_type = PROBE_FORCE_SYNCHRONOUS;
 
 	retval = driver_register(&new_driver->mdiodrv.driver);
 	if (retval) {

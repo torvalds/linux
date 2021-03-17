@@ -369,7 +369,7 @@ static void mt76x0_stop_hardware(struct mt76x0_dev *dev)
 	mt76x0_chip_onoff(dev, false, false);
 }
 
-int mt76x0_init_hardware(struct mt76x0_dev *dev, bool reset)
+int mt76x0_init_hardware(struct mt76x0_dev *dev)
 {
 	static const u16 beacon_offsets[16] = {
 		/* 512 byte per beacon */
@@ -382,7 +382,7 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev, bool reset)
 
 	dev->beacon_offsets = beacon_offsets;
 
-	mt76x0_chip_onoff(dev, true, reset);
+	mt76x0_chip_onoff(dev, true, true);
 
 	ret = mt76x0_wait_asic_ready(dev);
 	if (ret)
@@ -681,7 +681,6 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
-	ieee80211_hw_set(hw, MFP_CAPABLE);
 	hw->max_rates = 1;
 	hw->max_report_rates = 7;
 	hw->max_rate_tries = 1;

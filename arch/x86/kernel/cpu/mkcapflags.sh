@@ -4,8 +4,6 @@
 # Generate the x86_cap/bug_flags[] arrays from include/asm/cpufeatures.h
 #
 
-set -e
-
 IN=$1
 OUT=$2
 

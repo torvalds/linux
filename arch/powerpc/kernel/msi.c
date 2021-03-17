@@ -34,10 +34,5 @@ void arch_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct pci_controller *phb = pci_bus_to_host(dev->bus);
 
-	/*
-	 * We can be called even when arch_setup_msi_irqs() returns -ENOSYS,
-	 * so check the pointer again.
-	 */
-	if (phb->controller_ops.teardown_msi_irqs)
-		phb->controller_ops.teardown_msi_irqs(dev);
+	phb->controller_ops.teardown_msi_irqs(dev);
 }

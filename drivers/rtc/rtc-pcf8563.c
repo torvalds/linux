@@ -513,7 +513,7 @@ static const struct clk_ops pcf8563_clkout_ops = {
 	.set_rate = pcf8563_clkout_set_rate,
 };
 
-static __maybe_unused struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
+static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 {
 	struct i2c_client *client = pcf8563->client;
 	struct device_node *node = client->dev.of_node;
@@ -563,6 +563,7 @@ static int pcf8563_probe(struct i2c_client *client,
 	struct pcf8563 *pcf8563;
 	int err;
 	unsigned char buf;
+	unsigned char alm_pending;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -586,13 +587,13 @@ static int pcf8563_probe(struct i2c_client *client,
 		return err;
 	}
 
-	/* Clear flags and disable interrupts */
-	buf = 0;
-	err = pcf8563_write_block_data(client, PCF8563_REG_ST2, 1, &buf);
-	if (err < 0) {
-		dev_err(&client->dev, "%s: write error\n", __func__);
+	err = pcf8563_get_alarm_mode(client, NULL, &alm_pending);
+	if (err) {
+		dev_err(&client->dev, "%s: read error\n", __func__);
 		return err;
 	}
+	if (alm_pending)
+		pcf8563_set_alarm_mode(client, 0);
 
 	pcf8563->rtc = devm_rtc_device_register(&client->dev,
 				pcf8563_driver.driver.name,
@@ -604,7 +605,7 @@ static int pcf8563_probe(struct i2c_client *client,
 	if (client->irq > 0) {
 		err = devm_request_threaded_irq(&client->dev, client->irq,
 				NULL, pcf8563_irq,
-				IRQF_SHARED | IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+				IRQF_SHARED|IRQF_ONESHOT|IRQF_TRIGGER_FALLING,
 				pcf8563_driver.driver.name, client);
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ %d\n",
@@ -614,7 +615,7 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	}
 
-#if defined(CONFIG_COMMON_CLK) && !defined(CONFIG_ROCKCHIP_THUNDER_BOOT)
+#ifdef CONFIG_COMMON_CLK
 	/* register clk in common clk framework */
 	pcf8563_clkout_register_clk(pcf8563);
 #endif

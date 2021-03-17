@@ -156,7 +156,7 @@
 &i2c {
 	status = "okay";
 
-	rtc@32 {
+	rtc {
 		compatible = "ricoh,rs5c372a";
 		reg = <0x32>;
 	};

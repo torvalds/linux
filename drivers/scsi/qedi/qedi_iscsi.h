@@ -59,7 +59,6 @@ enum {
 	EP_STATE_OFLDCONN_FAILED        = 0x2000,
 	EP_STATE_CONNECT_FAILED         = 0x4000,
 	EP_STATE_DISCONN_TIMEDOUT       = 0x8000,
-	EP_STATE_OFLDCONN_NONE          = 0x10000,
 };
 
 struct qedi_conn;

@@ -158,10 +158,6 @@ static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 			return efi_status;
 		}
 	}
-
-	/* shrink the FDT back to its minimum size */
-	fdt_pack(fdt);
-
 	return EFI_SUCCESS;
 
 fdt_set_fail:
@@ -326,9 +322,6 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;
-
-		if (novamap())
-			return EFI_SUCCESS;
 
 		/* Install the new virtual address map */
 		svam = sys_table->runtime->set_virtual_address_map;

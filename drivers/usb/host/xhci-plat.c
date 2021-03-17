@@ -288,19 +288,6 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (device_property_read_bool(tmpdev, "quirk-broken-port-ped"))
 			xhci->quirks |= XHCI_BROKEN_PORT_PED;
 
-		if (device_property_read_bool(tmpdev, "xhci-slow-suspend"))
-			xhci->quirks |= XHCI_SLOW_SUSPEND;
-
-		if (device_property_read_bool(tmpdev, "xhci-trb-ent-quirk"))
-			xhci->quirks |= XHCI_TRB_ENT_QUIRK;
-
-		if (device_property_read_bool(tmpdev, "usb3-dis-autosuspend"))
-			xhci->quirks |= XHCI_DIS_AUTOSUSPEND;
-
-		if (device_property_read_bool(tmpdev,
-					      "xhci-warm-reset-on-suspend"))
-			xhci->quirks |= XHCI_WARM_RESET_ON_SUSPEND;
-
 		device_property_read_u32(tmpdev, "imod-interval-ns",
 					 &xhci->imod_interval);
 	}
@@ -316,15 +303,6 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (ret)
 			goto put_usb3_hcd;
 		hcd->skip_phy_initialization = 1;
-	}
-
-	xhci->shared_hcd->usb_phy = devm_usb_get_phy(sysdev,
-						     USB_PHY_TYPE_USB3);
-	if (IS_ERR(xhci->shared_hcd->usb_phy)) {
-		ret = PTR_ERR(xhci->shared_hcd->usb_phy);
-		if (ret == -EPROBE_DEFER)
-			goto put_usb3_hcd;
-		xhci->shared_hcd->usb_phy = NULL;
 	}
 
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
@@ -381,25 +359,21 @@ static int xhci_plat_remove(struct platform_device *dev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct clk *clk = xhci->clk;
 	struct clk *reg_clk = xhci->reg_clk;
-	struct usb_hcd *shared_hcd = xhci->shared_hcd;
 
-	pm_runtime_get_sync(&dev->dev);
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 
-	usb_remove_hcd(shared_hcd);
-	xhci->shared_hcd = NULL;
+	usb_remove_hcd(xhci->shared_hcd);
 	usb_phy_shutdown(hcd->usb_phy);
 
 	usb_remove_hcd(hcd);
-	usb_put_hcd(shared_hcd);
+	usb_put_hcd(xhci->shared_hcd);
 
 	clk_disable_unprepare(clk);
 	clk_disable_unprepare(reg_clk);
 	usb_put_hcd(hcd);
 
-	pm_runtime_disable(&dev->dev);
-	pm_runtime_put_noidle(&dev->dev);
 	pm_runtime_set_suspended(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 
 	return 0;
 }
@@ -467,7 +441,6 @@ MODULE_DEVICE_TABLE(acpi, usb_xhci_acpi_match);
 static struct platform_driver usb_xhci_driver = {
 	.probe	= xhci_plat_probe,
 	.remove	= xhci_plat_remove,
-	.shutdown = usb_hcd_platform_shutdown,
 	.driver	= {
 		.name = "xhci-hcd",
 		.pm = &xhci_plat_pm_ops,

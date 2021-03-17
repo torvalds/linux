@@ -407,6 +407,7 @@ static int fsl_spi_do_one_msg(struct spi_master *master,
 	}
 
 	m->status = status;
+	spi_finalize_current_message(master);
 
 	if (status || !cs_change) {
 		ndelay(nsecs);
@@ -414,7 +415,6 @@ static int fsl_spi_do_one_msg(struct spi_master *master,
 	}
 
 	fsl_spi_setup_transfer(spi, NULL);
-	spi_finalize_current_message(master);
 	return 0;
 }
 
@@ -832,9 +832,9 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	if (ret)
 		goto err;
 
-	irq = platform_get_irq(ofdev, 0);
-	if (irq < 0) {
-		ret = irq;
+	irq = irq_of_parse_and_map(np, 0);
+	if (!irq) {
+		ret = -EINVAL;
 		goto err;
 	}
 
@@ -847,6 +847,7 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	return 0;
 
 err:
+	irq_dispose_mapping(irq);
 	if (type == TYPE_FSL)
 		of_fsl_spi_free_chipselects(dev);
 	return ret;

@@ -89,7 +89,6 @@ struct tcpc_config {
 	enum typec_port_data data;
 	enum typec_role default_role;
 	bool try_role_hw;	/* try.{src,snk} implemented in hardware */
-	bool self_powered;	/* port belongs to a self powered device */
 
 	const struct typec_altmode_desc *alt_modes;
 };
@@ -121,10 +120,10 @@ struct tcpc_config {
  *		with partner.
  * @set_pd_rx:	Called to enable or disable reception of PD messages
  * @set_roles:	Called to set power and data roles
- * @start_toggling:
- *		Optional; if supported by hardware, called to start dual-role
- *		toggling or single-role connection detection. Toggling stops
- *		automatically if a connection is established.
+ * @start_drp_toggling:
+ *		Optional; if supported by hardware, called to start DRP
+ *		toggling. DRP toggling is stopped automatically if
+ *		a connection is established.
  * @try_role:	Optional; called to set a preferred role
  * @pd_transmit:Called to transmit PD message
  * @mux:	Pointer to multiplexer data
@@ -147,9 +146,8 @@ struct tcpc_dev {
 	int (*set_pd_rx)(struct tcpc_dev *dev, bool on);
 	int (*set_roles)(struct tcpc_dev *dev, bool attached,
 			 enum typec_role role, enum typec_data_role data);
-	int (*start_toggling)(struct tcpc_dev *dev,
-			      enum typec_port_type port_type,
-			      enum typec_cc_status cc);
+	int (*start_drp_toggling)(struct tcpc_dev *dev,
+				  enum typec_cc_status cc);
 	int (*try_role)(struct tcpc_dev *dev, int role);
 	int (*pd_transmit)(struct tcpc_dev *dev, enum tcpm_transmit_type type,
 			   const struct pd_message *msg);

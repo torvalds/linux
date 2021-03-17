@@ -249,8 +249,7 @@ static inline int ap_test_config(unsigned int *field, unsigned int nr)
 static inline int ap_test_config_card_id(unsigned int id)
 {
 	if (!ap_configuration)	/* QCI not supported */
-		/* only ids 0...3F may be probed */
-		return id < 0x40 ? 1 : 0;
+		return 1;
 	return ap_test_config(ap_configuration->apm, id);
 }
 
@@ -777,8 +776,6 @@ static int ap_device_probe(struct device *dev)
 		drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
 		if (!!devres != !!drvres)
 			return -ENODEV;
-		/* (re-)init queue's state machine */
-		ap_queue_reinit_state(to_ap_queue(dev));
 	}
 
 	/* Add queue/card to list of active queues/cards */
@@ -811,8 +808,6 @@ static int ap_device_remove(struct device *dev)
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	struct ap_driver *ap_drv = ap_dev->drv;
 
-	if (is_queue_dev(dev))
-		ap_queue_remove(to_ap_queue(dev));
 	if (ap_drv->remove)
 		ap_drv->remove(ap_dev);
 
@@ -1223,10 +1218,11 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 };
 
 /**
- * ap_select_domain(): Select an AP domain if possible and we haven't
- * already done so before.
+ * ap_select_domain(): Select an AP domain.
+ *
+ * Pick one of the 16 AP domains.
  */
-static void ap_select_domain(void)
+static int ap_select_domain(void)
 {
 	int count, max_count, best_domain;
 	struct ap_queue_status status;
@@ -1241,7 +1237,7 @@ static void ap_select_domain(void)
 	if (ap_domain_index >= 0) {
 		/* Domain has already been selected. */
 		spin_unlock_bh(&ap_domain_lock);
-		return;
+		return 0;
 	}
 	best_domain = -1;
 	max_count = 0;
@@ -1268,8 +1264,11 @@ static void ap_select_domain(void)
 	if (best_domain >= 0) {
 		ap_domain_index = best_domain;
 		AP_DBF(DBF_DEBUG, "new ap_domain_index=%d\n", ap_domain_index);
+		spin_unlock_bh(&ap_domain_lock);
+		return 0;
 	}
 	spin_unlock_bh(&ap_domain_lock);
+	return -ENODEV;
 }
 
 /*
@@ -1347,7 +1346,8 @@ static void ap_scan_bus(struct work_struct *unused)
 	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
 
 	ap_query_configuration(ap_configuration);
-	ap_select_domain();
+	if (ap_select_domain() != 0)
+		goto out;
 
 	for (id = 0; id < AP_DEVICES; id++) {
 		/* check if device is registered */
@@ -1445,6 +1445,10 @@ static void ap_scan_bus(struct work_struct *unused)
 			aq->ap_dev.device.parent = &ac->ap_dev.device;
 			dev_set_name(&aq->ap_dev.device,
 				     "%02x.%04x", id, dom);
+			/* Start with a device reset */
+			spin_lock_bh(&aq->lock);
+			ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
+			spin_unlock_bh(&aq->lock);
 			/* Register device */
 			rc = device_register(&aq->ap_dev.device);
 			if (rc) {
@@ -1463,11 +1467,12 @@ static void ap_scan_bus(struct work_struct *unused)
 		}
 	} /* end device loop */
 
-	if (ap_domain_index >= 0 && defdomdevs < 1)
+	if (defdomdevs < 1)
 		AP_DBF(DBF_INFO,
 		       "no queue device with default domain %d available\n",
 		       ap_domain_index);
 
+out:
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }
 

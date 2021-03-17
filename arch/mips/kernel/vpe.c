@@ -134,7 +134,7 @@ void release_vpe(struct vpe *v)
 {
 	list_del(&v->list);
 	if (v->load_addr)
-		release_progmem(v->load_addr);
+		release_progmem(v);
 	kfree(v);
 }
 

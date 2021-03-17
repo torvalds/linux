@@ -38,7 +38,6 @@ static const struct aspeed_wdt_config ast2500_config = {
 static const struct of_device_id aspeed_wdt_of_table[] = {
 	{ .compatible = "aspeed,ast2400-wdt", .data = &ast2400_config },
 	{ .compatible = "aspeed,ast2500-wdt", .data = &ast2500_config },
-	{ .compatible = "aspeed,ast2600-wdt", .data = &ast2500_config },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, aspeed_wdt_of_table);
@@ -207,6 +206,11 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
+	/*
+	 * The ast2400 wdt can run at PCLK, or 1MHz. The ast2500 only
+	 * runs at 1MHz. We chose to always run at 1MHz, as there's no
+	 * good reason to have a faster watchdog counter.
+	 */
 	wdt->wdd.info = &aspeed_wdt_info;
 	wdt->wdd.ops = &aspeed_wdt_ops;
 	wdt->wdd.max_hw_heartbeat_ms = WDT_MAX_TIMEOUT_MS;
@@ -222,16 +226,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 		return -EINVAL;
 	config = ofdid->data;
 
-	/*
-	 * On clock rates:
-	 *  - ast2400 wdt can run at PCLK, or 1MHz
-	 *  - ast2500 only runs at 1MHz, hard coding bit 4 to 1
-	 *  - ast2600 always runs at 1MHz
-	 *
-	 * Set the ast2400 to run at 1MHz as it simplifies the driver.
-	 */
-	if (of_device_is_compatible(np, "aspeed,ast2400-wdt"))
-		wdt->ctrl = WDT_CTRL_1MHZ_CLK;
+	wdt->ctrl = WDT_CTRL_1MHZ_CLK;
 
 	/*
 	 * Control reset on a per-device basis to ensure the
@@ -269,8 +264,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
 	}
 
-	if ((of_device_is_compatible(np, "aspeed,ast2500-wdt")) ||
-		(of_device_is_compatible(np, "aspeed,ast2600-wdt"))) {
+	if (of_device_is_compatible(np, "aspeed,ast2500-wdt")) {
 		u32 reg = readl(wdt->base + WDT_RESET_WIDTH);
 
 		reg &= config->ext_pulse_width_mask;

@@ -39,10 +39,6 @@
 #define R_AARCH64_ABS64	257
 #endif
 
-#define R_ARM_PC24		1
-#define R_ARM_THM_CALL		10
-#define R_ARM_CALL		28
-
 static int fd_map;	/* File descriptor for file being modified. */
 static int mmap_failed; /* Boolean flag. */
 static char gpfx;	/* prefix for global symbol name (sometimes '_') */
@@ -410,26 +406,13 @@ is_mcounted_section_name(char const *const txtname)
 		strcmp(".softirqentry.text", txtname) == 0 ||
 		strcmp(".kprobes.text", txtname) == 0 ||
 		strcmp(".cpuidle.text", txtname) == 0 ||
-		(strncmp(".text.",       txtname, 6) == 0 &&
-		 strcmp(".text..ftrace", txtname) != 0);
+		strcmp(".text.unlikely", txtname) == 0;
 }
 
 /* 32 bit and 64 bit are very similar */
 #include "recordmcount.h"
 #define RECORD_MCOUNT_64
 #include "recordmcount.h"
-
-static int arm_is_fake_mcount(Elf32_Rel const *rp)
-{
-	switch (ELF32_R_TYPE(w(rp->r_info))) {
-	case R_ARM_THM_CALL:
-	case R_ARM_CALL:
-	case R_ARM_PC24:
-		return 0;
-	}
-
-	return 1;
-}
 
 /* 64-bit EM_MIPS has weird ELF64_Rela.r_info.
  * http://techpubs.sgi.com/library/manuals/4000/007-4658-001/pdf/007-4658-001.pdf
@@ -532,7 +515,6 @@ do_file(char const *const fname)
 			 altmcount = "__gnu_mcount_nc";
 			 make_nop = make_nop_arm;
 			 rel_type_nop = R_ARM_NONE;
-			 is_fake_mcount32 = arm_is_fake_mcount;
 			 break;
 	case EM_AARCH64:
 			reltype = R_AARCH64_ABS64;

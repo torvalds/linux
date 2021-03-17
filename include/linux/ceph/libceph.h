@@ -81,13 +81,7 @@ struct ceph_options {
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
-
-/*
- * Handle the largest possible rbd object in one message.
- * There is no limit on the size of cephfs objects, but it has to obey
- * rsize and wsize mount options anyway.
- */
-#define CEPH_MSG_MAX_DATA_LEN	(32*1024*1024)
+#define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
 
 #define CEPH_AUTH_NAME_DEFAULT   "guest"
 
@@ -292,8 +286,6 @@ extern void ceph_destroy_client(struct ceph_client *client);
 extern int __ceph_open_session(struct ceph_client *client,
 			       unsigned long started);
 extern int ceph_open_session(struct ceph_client *client);
-int ceph_wait_for_latest_osdmap(struct ceph_client *client,
-				unsigned long timeout);
 
 /* pagevec.c */
 extern void ceph_release_page_vector(struct page **pages, int num_pages);

@@ -17,7 +17,6 @@
 #include <linux/semaphore.h>
 #include <linux/error-injection.h>
 #include <linux/crc32c.h>
-#include <linux/sched/mm.h>
 #include <asm/unaligned.h>
 #include "ctree.h"
 #include "disk-io.h"
@@ -408,9 +407,9 @@ static int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-int btrfs_verify_level_key(struct btrfs_fs_info *fs_info,
-			   struct extent_buffer *eb, int level,
-			   struct btrfs_key *first_key, u64 parent_transid)
+static int verify_level_key(struct btrfs_fs_info *fs_info,
+			    struct extent_buffer *eb, int level,
+			    struct btrfs_key *first_key, u64 parent_transid)
 {
 	int found_level;
 	struct btrfs_key found_key;
@@ -438,16 +437,6 @@ int btrfs_verify_level_key(struct btrfs_fs_info *fs_info,
 	 */
 	if (btrfs_header_generation(eb) > fs_info->last_trans_committed)
 		return 0;
-
-	/* We have @first_key, so this @eb must have at least one item */
-	if (btrfs_header_nritems(eb) == 0) {
-		btrfs_err(fs_info,
-		"invalid tree nritems, bytenr=%llu nritems=0 expect >0",
-			  eb->start);
-		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
-		return -EUCLEAN;
-	}
-
 	if (found_level)
 		btrfs_node_key_to_cpu(eb, &found_key, 0);
 	else
@@ -488,21 +477,30 @@ static int btree_read_extent_buffer_pages(struct btrfs_fs_info *fs_info,
 	int mirror_num = 0;
 	int failed_mirror = 0;
 
+	clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 	io_tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	while (1) {
-		clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 		ret = read_extent_buffer_pages(io_tree, eb, WAIT_COMPLETE,
 					       mirror_num);
 		if (!ret) {
 			if (verify_parent_transid(io_tree, eb,
 						   parent_transid, 0))
 				ret = -EIO;
-			else if (btrfs_verify_level_key(fs_info, eb, level,
-						first_key, parent_transid))
+			else if (verify_level_key(fs_info, eb, level,
+						  first_key, parent_transid))
 				ret = -EUCLEAN;
 			else
 				break;
 		}
+
+		/*
+		 * This buffer's crc is fine, but its contents are corrupted, so
+		 * there is no reason to read the other copies, they won't be
+		 * any less wrong.
+		 */
+		if (test_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags) ||
+		    ret == -EUCLEAN)
+			break;
 
 		num_copies = btrfs_num_copies(fs_info,
 					      eb->start, eb->len);
@@ -1005,18 +1003,13 @@ void readahead_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr)
 {
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = fs_info->btree_inode;
-	int ret;
 
 	buf = btrfs_find_create_tree_block(fs_info, bytenr);
 	if (IS_ERR(buf))
 		return;
-
-	ret = read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree, buf,
-			WAIT_NONE, 0);
-	if (ret < 0)
-		free_extent_buffer_stale(buf);
-	else
-		free_extent_buffer(buf);
+	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
+				 buf, WAIT_NONE, 0);
+	free_extent_buffer(buf);
 }
 
 int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
@@ -1036,12 +1029,12 @@ int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
 	ret = read_extent_buffer_pages(io_tree, buf, WAIT_PAGE_LOCK,
 				       mirror_num);
 	if (ret) {
-		free_extent_buffer_stale(buf);
+		free_extent_buffer(buf);
 		return ret;
 	}
 
 	if (test_bit(EXTENT_BUFFER_CORRUPT, &buf->bflags)) {
-		free_extent_buffer_stale(buf);
+		free_extent_buffer(buf);
 		return -EIO;
 	} else if (extent_buffer_uptodate(buf)) {
 		*eb = buf;
@@ -1095,7 +1088,7 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 	ret = btree_read_extent_buffer_pages(fs_info, buf, parent_transid,
 					     level, first_key);
 	if (ret) {
-		free_extent_buffer_stale(buf);
+		free_extent_buffer(buf);
 		return ERR_PTR(ret);
 	}
 	return buf;
@@ -1252,17 +1245,10 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *root;
 	struct btrfs_key key;
-	unsigned int nofs_flag;
 	int ret = 0;
 	uuid_le uuid = NULL_UUID_LE;
 
-	/*
-	 * We're holding a transaction handle, so use a NOFS memory allocation
-	 * context to avoid deadlock if reclaim happens.
-	 */
-	nofs_flag = memalloc_nofs_save();
 	root = btrfs_alloc_root(fs_info, GFP_KERNEL);
-	memalloc_nofs_restore(nofs_flag);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
@@ -1500,16 +1486,9 @@ int btrfs_init_fs_root(struct btrfs_root *root)
 	spin_lock_init(&root->ino_cache_lock);
 	init_waitqueue_head(&root->ino_cache_wait);
 
-	/*
-	 * Don't assign anonymous block device to roots that are not exposed to
-	 * userspace, the id pool is limited to 1M
-	 */
-	if (is_fstree(root->root_key.objectid) &&
-	    btrfs_root_refs(&root->root_item) > 0) {
-		ret = get_anon_bdev(&root->anon_dev);
-		if (ret)
-			goto fail;
-	}
+	ret = get_anon_bdev(&root->anon_dev);
+	if (ret)
+		goto fail;
 
 	mutex_lock(&root->objectid_mutex);
 	ret = btrfs_find_highest_objectid(root,
@@ -1677,8 +1656,8 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	bio->bi_status = end_io_wq->status;
 	bio->bi_private = end_io_wq->private;
 	bio->bi_end_io = end_io_wq->end_io;
-	bio_endio(bio);
 	kmem_cache_free(btrfs_end_io_wq_cache, end_io_wq);
+	bio_endio(bio);
 }
 
 static int cleaner_kthread(void *arg)
@@ -1686,8 +1665,9 @@ static int cleaner_kthread(void *arg)
 	struct btrfs_root *root = arg;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int again;
+	struct btrfs_trans_handle *trans;
 
-	while (1) {
+	do {
 		again = 0;
 
 		/* Make the cleaner go to sleep early. */
@@ -1736,16 +1716,42 @@ static int cleaner_kthread(void *arg)
 		 */
 		btrfs_delete_unused_bgs(fs_info);
 sleep:
-		if (kthread_should_park())
-			kthread_parkme();
-		if (kthread_should_stop())
-			return 0;
 		if (!again) {
 			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
+			if (!kthread_should_stop())
+				schedule();
 			__set_current_state(TASK_RUNNING);
 		}
+	} while (!kthread_should_stop());
+
+	/*
+	 * Transaction kthread is stopped before us and wakes us up.
+	 * However we might have started a new transaction and COWed some
+	 * tree blocks when deleting unused block groups for example. So
+	 * make sure we commit the transaction we started to have a clean
+	 * shutdown when evicting the btree inode - if it has dirty pages
+	 * when we do the final iput() on it, eviction will trigger a
+	 * writeback for it which will fail with null pointer dereferences
+	 * since work queues and other resources were already released and
+	 * destroyed by the time the iput/eviction/writeback is made.
+	 */
+	trans = btrfs_attach_transaction(root);
+	if (IS_ERR(trans)) {
+		if (PTR_ERR(trans) != -ENOENT)
+			btrfs_err(fs_info,
+				  "cleaner transaction attach returned %ld",
+				  PTR_ERR(trans));
+	} else {
+		int ret;
+
+		ret = btrfs_commit_transaction(trans);
+		if (ret)
+			btrfs_err(fs_info,
+				  "cleaner open transaction commit returned %d",
+				  ret);
 	}
+
+	return 0;
 }
 
 static int transaction_kthread(void *arg)
@@ -2048,7 +2054,7 @@ static void free_root_extent_buffers(struct btrfs_root *root)
 }
 
 /* helper to cleanup tree roots */
-static void free_root_pointers(struct btrfs_fs_info *info, bool free_chunk_root)
+static void free_root_pointers(struct btrfs_fs_info *info, int chunk_root)
 {
 	free_root_extent_buffers(info->tree_root);
 
@@ -2057,7 +2063,7 @@ static void free_root_pointers(struct btrfs_fs_info *info, bool free_chunk_root)
 	free_root_extent_buffers(info->csum_root);
 	free_root_extent_buffers(info->quota_root);
 	free_root_extent_buffers(info->uuid_root);
-	if (free_chunk_root)
+	if (chunk_root)
 		free_root_extent_buffers(info->chunk_root);
 	free_root_extent_buffers(info->free_space_root);
 }
@@ -2662,6 +2668,7 @@ int open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
 	spin_lock_init(&fs_info->defrag_inodes_lock);
+	spin_lock_init(&fs_info->tree_mod_seq_lock);
 	spin_lock_init(&fs_info->super_lock);
 	spin_lock_init(&fs_info->qgroup_op_lock);
 	spin_lock_init(&fs_info->buffer_lock);
@@ -3024,18 +3031,6 @@ retry_root_backup:
 	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
 
-	/*
-	 * If we have a uuid root and we're not being told to rescan we need to
-	 * check the generation here so we can set the
-	 * BTRFS_FS_UPDATE_UUID_TREE_GEN bit.  Otherwise we could commit the
-	 * transaction during a balance or the log replay without updating the
-	 * uuid generation, and then if we crash we would rescan the uuid tree,
-	 * even though it was perfectly fine.
-	 */
-	if (fs_info->uuid_root && !btrfs_test_opt(fs_info, RESCAN_UUID_TREE) &&
-	    fs_info->generation == btrfs_super_uuid_tree_generation(disk_super))
-		set_bit(BTRFS_FS_UPDATE_UUID_TREE_GEN, &fs_info->flags);
-
 	ret = btrfs_verify_dev_extents(fs_info);
 	if (ret) {
 		btrfs_err(fs_info,
@@ -3146,7 +3141,6 @@ retry_root_backup:
 	/* do not make disk changes in broken FS or nologreplay is given */
 	if (btrfs_super_log_root(disk_super) != 0 &&
 	    !btrfs_test_opt(fs_info, NOLOGREPLAY)) {
-		btrfs_info(fs_info, "start tree-log replay");
 		ret = btrfs_replay_log(fs_info, fs_devices);
 		if (ret) {
 			err = ret;
@@ -3182,7 +3176,6 @@ retry_root_backup:
 	if (IS_ERR(fs_info->fs_root)) {
 		err = PTR_ERR(fs_info->fs_root);
 		btrfs_warn(fs_info, "failed to read fs tree: %d", err);
-		fs_info->fs_root = NULL;
 		goto fail_qgroup;
 	}
 
@@ -3266,6 +3259,8 @@ retry_root_backup:
 			close_ctree(fs_info);
 			return ret;
 		}
+	} else {
+		set_bit(BTRFS_FS_UPDATE_UUID_TREE_GEN, &fs_info->flags);
 	}
 	set_bit(BTRFS_FS_OPEN, &fs_info->flags);
 
@@ -3302,7 +3297,7 @@ fail_block_groups:
 	btrfs_put_block_group_cache(fs_info);
 
 fail_tree_roots:
-	free_root_pointers(fs_info, true);
+	free_root_pointers(fs_info, 1);
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 
 fail_sb_buffer:
@@ -3330,7 +3325,7 @@ recovery_tree_root:
 	if (!btrfs_test_opt(fs_info, USEBACKUPROOT))
 		goto fail_tree_roots;
 
-	free_root_pointers(fs_info, false);
+	free_root_pointers(fs_info, 0);
 
 	/* don't use the log in recovery mode, it won't be valid */
 	btrfs_set_super_log_root(disk_super, 0);
@@ -3937,13 +3932,6 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 	int ret;
 
 	set_bit(BTRFS_FS_CLOSING_START, &fs_info->flags);
-	/*
-	 * We don't want the cleaner to start new transactions, add more delayed
-	 * iputs, etc. while we're closing. We can't use kthread_stop() yet
-	 * because that frees the task_struct, and the transaction kthread might
-	 * still try to wake up the cleaner.
-	 */
-	kthread_park(fs_info->cleaner_kthread);
 
 	/* wait for the qgroup rescan worker to stop */
 	btrfs_qgroup_wait_for_completion(fs_info, false);
@@ -3971,23 +3959,11 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 
 	if (!sb_rdonly(fs_info->sb)) {
 		/*
-		 * The cleaner kthread is stopped, so do one final pass over
-		 * unused block groups.
+		 * If the cleaner thread is stopped and there are
+		 * block groups queued for removal, the deletion will be
+		 * skipped when we quit the cleaner thread.
 		 */
 		btrfs_delete_unused_bgs(fs_info);
-
-		/*
-		 * There might be existing delayed inode workers still running
-		 * and holding an empty delayed inode item. We must wait for
-		 * them to complete first because they can create a transaction.
-		 * This happens when someone calls btrfs_balance_delayed_items()
-		 * and then a transaction commit runs the same delayed nodes
-		 * before any delayed worker has done something with the nodes.
-		 * We must wait for any worker here and not at transaction
-		 * commit time since that could cause a deadlock.
-		 * This is a very rare case.
-		 */
-		btrfs_flush_workqueue(fs_info->delayed_workers);
 
 		ret = btrfs_commit_super(fs_info);
 		if (ret)
@@ -4025,17 +4001,10 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	btrfs_stop_all_workers(fs_info);
 
-	clear_bit(BTRFS_FS_OPEN, &fs_info->flags);
-	free_root_pointers(fs_info, true);
-
-	/*
-	 * We must free the block groups after dropping the fs_roots as we could
-	 * have had an IO error and have left over tree log blocks that aren't
-	 * cleaned up until the fs roots are freed.  This makes the block group
-	 * accounting appear to be wrong because there's pending reserved bytes,
-	 * so make sure we do the block group cleanup afterwards.
-	 */
 	btrfs_free_block_groups(fs_info);
+
+	clear_bit(BTRFS_FS_OPEN, &fs_info->flags);
+	free_root_pointers(fs_info, 1);
 
 	iput(fs_info->btree_inode);
 
@@ -4216,14 +4185,6 @@ static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
 		spin_lock(&fs_info->ordered_root_lock);
 	}
 	spin_unlock(&fs_info->ordered_root_lock);
-
-	/*
-	 * We need this here because if we've been flipped read-only we won't
-	 * get sync() from the umount, so we need to make sure any ordered
-	 * extents that haven't had their dirty pages IO start writeout yet
-	 * actually get run and error out properly.
-	 */
-	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 }
 
 static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
@@ -4398,26 +4359,13 @@ static int btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
 	unpin = pinned_extents;
 again:
 	while (1) {
-		struct extent_state *cached_state = NULL;
-
-		/*
-		 * The btrfs_finish_extent_commit() may get the same range as
-		 * ours between find_first_extent_bit and clear_extent_dirty.
-		 * Hence, hold the unused_bg_unpin_mutex to avoid double unpin
-		 * the same extent range.
-		 */
-		mutex_lock(&fs_info->unused_bg_unpin_mutex);
 		ret = find_first_extent_bit(unpin, 0, &start, &end,
-					    EXTENT_DIRTY, &cached_state);
-		if (ret) {
-			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+					    EXTENT_DIRTY, NULL);
+		if (ret)
 			break;
-		}
 
-		clear_extent_dirty(unpin, start, end, &cached_state);
-		free_extent_state(cached_state);
+		clear_extent_dirty(unpin, start, end);
 		btrfs_error_unpin_extent_range(fs_info, start, end);
-		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		cond_resched();
 	}
 
@@ -4444,7 +4392,6 @@ static void btrfs_cleanup_bg_io(struct btrfs_block_group_cache *cache)
 		cache->io_ctl.inode = NULL;
 		iput(inode);
 	}
-	ASSERT(cache->io_ctl.pages == NULL);
 	btrfs_put_block_group(cache);
 }
 
@@ -4510,6 +4457,7 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 	wake_up(&fs_info->transaction_wait);
 
 	btrfs_destroy_delayed_inodes(fs_info);
+	btrfs_assert_delayed_root_empty(fs_info);
 
 	btrfs_destroy_marked_extents(fs_info, &cur_trans->dirty_pages,
 				     EXTENT_DIRTY);

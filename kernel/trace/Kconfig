@@ -105,6 +105,7 @@ config PREEMPTIRQ_TRACEPOINTS
 
 config TRACING
 	bool
+	select DEBUG_FS
 	select RING_BUFFER
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select TRACEPOINTS
@@ -475,7 +476,7 @@ config KPROBE_EVENTS
 config KPROBE_EVENTS_ON_NOTRACE
 	bool "Do NOT protect notrace function from kprobe events"
 	depends on KPROBE_EVENTS
-	depends on DYNAMIC_FTRACE
+	depends on KPROBES_ON_FTRACE
 	default n
 	help
 	  This is only for the developers who want to debug ftrace itself

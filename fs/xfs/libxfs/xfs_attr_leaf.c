@@ -243,7 +243,7 @@ xfs_attr3_leaf_verify(
 	struct xfs_mount		*mp = bp->b_target->bt_mount;
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
 	struct xfs_attr_leaf_entry	*entries;
-	uint32_t			end;	/* must be 32bit - see below */
+	uint16_t			end;
 	int				i;
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
@@ -293,11 +293,6 @@ xfs_attr3_leaf_verify(
 	/*
 	 * Quickly check the freemap information.  Attribute data has to be
 	 * aligned to 4-byte boundaries, and likewise for the free space.
-	 *
-	 * Note that for 64k block size filesystems, the freemap entries cannot
-	 * overflow as they are only be16 fields. However, when checking end
-	 * pointer of the freemap, we have to be careful to detect overflows and
-	 * so use uint32_t for those checks.
 	 */
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
 		if (ichdr.freemap[i].base > mp->m_attr_geo->blksize)
@@ -308,9 +303,7 @@ xfs_attr3_leaf_verify(
 			return __this_address;
 		if (ichdr.freemap[i].size & 0x3)
 			return __this_address;
-
-		/* be care of 16 bit overflows here */
-		end = (uint32_t)ichdr.freemap[i].base + ichdr.freemap[i].size;
+		end = ichdr.freemap[i].base + ichdr.freemap[i].size;
 		if (end < ichdr.freemap[i].base)
 			return __this_address;
 		if (end > mp->m_attr_geo->blksize)
@@ -551,8 +544,8 @@ xfs_attr_shortform_create(xfs_da_args_t *args)
 		ASSERT(ifp->if_flags & XFS_IFINLINE);
 	}
 	xfs_idata_realloc(dp, sizeof(*hdr), XFS_ATTR_FORK);
-	hdr = (struct xfs_attr_sf_hdr *)ifp->if_u1.if_data;
-	memset(hdr, 0, sizeof(*hdr));
+	hdr = (xfs_attr_sf_hdr_t *)ifp->if_u1.if_data;
+	hdr->count = 0;
 	hdr->totsize = cpu_to_be16(sizeof(*hdr));
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 }
@@ -935,10 +928,8 @@ xfs_attr_shortform_verify(
 		 * struct xfs_attr_sf_entry has a variable length.
 		 * Check the fixed-offset parts of the structure are
 		 * within the data buffer.
-		 * xfs_attr_sf_entry is defined with a 1-byte variable
-		 * array at the end, so we must subtract that off.
 		 */
-		if (((char *)sfep + sizeof(*sfep) - 1) >= endp)
+		if (((char *)sfep + sizeof(*sfep)) >= endp)
 			return __this_address;
 
 		/* Don't allow names with known bad length. */
@@ -1438,9 +1429,7 @@ xfs_attr3_leaf_add_work(
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
 		if (ichdr->freemap[i].base == tmp) {
 			ichdr->freemap[i].base += sizeof(xfs_attr_leaf_entry_t);
-			ichdr->freemap[i].size -=
-				min_t(uint16_t, ichdr->freemap[i].size,
-						sizeof(xfs_attr_leaf_entry_t));
+			ichdr->freemap[i].size -= sizeof(xfs_attr_leaf_entry_t);
 		}
 	}
 	ichdr->usedbytes += xfs_attr_leaf_entsize(leaf, args->index);

@@ -102,7 +102,6 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		skb_dst_force(skb);
 		if (!skb_dst(skb)) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
-			err = -EHOSTUNREACH;
 			goto error_nolock;
 		}
 
@@ -235,19 +234,17 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 		xfrm_state_hold(x);
 
 		if (skb_is_gso(skb)) {
-			if (skb->inner_protocol)
-				return xfrm_output_gso(net, sk, skb);
-
 			skb_shinfo(skb)->gso_type |= SKB_GSO_ESP;
-			goto out;
+
+			return xfrm_output2(net, sk, skb);
 		}
 
 		if (x->xso.dev && x->xso.dev->features & NETIF_F_HW_ESP_TX_CSUM)
 			goto out;
-	} else {
-		if (skb_is_gso(skb))
-			return xfrm_output_gso(net, sk, skb);
 	}
+
+	if (skb_is_gso(skb))
+		return xfrm_output_gso(net, sk, skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		err = skb_checksum_help(skb);
@@ -285,8 +282,7 @@ void xfrm_local_error(struct sk_buff *skb, int mtu)
 
 	if (skb->protocol == htons(ETH_P_IP))
 		proto = AF_INET;
-	else if (skb->protocol == htons(ETH_P_IPV6) &&
-		 skb->sk->sk_family == AF_INET6)
+	else if (skb->protocol == htons(ETH_P_IPV6))
 		proto = AF_INET6;
 	else
 		return;

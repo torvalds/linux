@@ -280,7 +280,7 @@ static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 	u32 value;
 
 	/* compute the number of MC clock cycles per tick */
-	tick = (unsigned long long)mc->tick * clk_get_rate(mc->clk);
+	tick = mc->tick * clk_get_rate(mc->clk);
 	do_div(tick, NSEC_PER_SEC);
 
 	value = readl(mc->regs + MC_EMEM_ARB_CFG);
@@ -664,13 +664,12 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		}
 
 		isr = tegra_mc_irq;
+	}
 
-		err = tegra_mc_setup_timings(mc);
-		if (err < 0) {
-			dev_err(&pdev->dev, "failed to setup timings: %d\n",
-				err);
-			return err;
-		}
+	err = tegra_mc_setup_timings(mc);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to setup timings: %d\n", err);
+		return err;
 	}
 
 	mc->irq = platform_get_irq(pdev, 0);

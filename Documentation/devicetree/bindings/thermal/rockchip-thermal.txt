@@ -3,16 +3,11 @@
 Required properties:
 - compatible : should be "rockchip,<name>-tsadc"
    "rockchip,rv1108-tsadc": found on RV1108 SoCs
-   "rockchip,rv1126-tsadc": found on RV1126 SoCs
-   "rockchip,px30-tsadc":   found on PX30 SoCs
-   "rockchip,rk1808-tsadc": found on RK1808 SoCs
    "rockchip,rk3228-tsadc": found on RK3228 SoCs
    "rockchip,rk3288-tsadc": found on RK3288 SoCs
-   "rockchip,rk3308-tsadc": found on RK3308 SoCs
    "rockchip,rk3328-tsadc": found on RK3328 SoCs
    "rockchip,rk3368-tsadc": found on RK3368 SoCs
    "rockchip,rk3399-tsadc": found on RK3399 SoCs
-   "rockchip,rk3568-tsadc": found on RK3568 SoCs
 - reg : physical base address of the controller and length of memory mapped
 	region.
 - interrupts : The interrupt number to the cpu. The interrupt specifier format
@@ -24,10 +19,10 @@ Required properties:
 	   See ../reset/reset.txt for details.
 - reset-names : Must include the name "tsadc-apb".
 - pinctrl-names : The pin control state names;
-- pinctrl-0 : The "gpio" pinctrl state, it will be set if tsadc via reset
-	      CRU when tshut.
-- pinctrl-1 : The "otpout" pinctrl state, it will be set if tsadc via set
-	      otpout_gpio when tshut.
+- pinctrl-0 : The "init" pinctrl state, it will be set before device probe.
+- pinctrl-1 : The "default" pinctrl state, it will be set after reset the
+	      TSADC controller.
+- pinctrl-2 : The "sleep" pinctrl state, it will be in for suspend.
 - #thermal-sensor-cells : Should be 1. See ./thermal.txt for a description.
 
 Optional properties:
@@ -46,9 +41,10 @@ tsadc: tsadc@ff280000 {
 	clock-names = "tsadc", "apb_pclk";
 	resets = <&cru SRST_TSADC>;
 	reset-names = "tsadc-apb";
-	pinctrl-names = "gpio", "otpout";
+	pinctrl-names = "init", "default", "sleep";
 	pinctrl-0 = <&otp_gpio>;
 	pinctrl-1 = <&otp_out>;
+	pinctrl-2 = <&otp_gpio>;
 	#thermal-sensor-cells = <1>;
 	rockchip,hw-tshut-temp = <95000>;
 	rockchip,hw-tshut-mode = <0>;

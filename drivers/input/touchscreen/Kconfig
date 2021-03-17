@@ -95,7 +95,6 @@ config TOUCHSCREEN_AD7879_SPI
 config TOUCHSCREEN_ADC
 	tristate "Generic ADC based resistive touchscreen"
 	depends on IIO
-	select IIO_BUFFER
 	select IIO_BUFFER_CB
 	help
 	  Say Y here if you want to use the generic ADC
@@ -200,15 +199,6 @@ config TOUCHSCREEN_CHIPONE_ICN8505
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called chipone_icn8505.
-
-config TOUCHSCREEN_CY8C40XX
-	tristate "cy8c40xx touchpad based on IIC"
-	depends on I2C || GPIOLIB
-	help
-	  Say Y here if you have a cy8c40xx capacitive touchpad.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cy8c_touchpad
 
 config TOUCHSCREEN_CY8CTMG110
 	tristate "cy8ctmg110 touchscreen"
@@ -400,60 +390,6 @@ config TOUCHSCREEN_GOODIX
 	  To compile this driver as a module, choose M here: the
 	  module will be called goodix.
 
-config TOUCHSCREEN_GSLX6801
-	tristate "gslx 6801"
-	help
-	  gslX6801 touchpad driver for pad
-
-config TOUCHSCREEN_GSLX680A
-        tristate "gslx 680a"
-        help
-          gslX680a touchpad driver for pad
-
-config TOUCHSCREEN_GSLX680_D708
-	tristate "gslX680 d708 touchpad driver for rk3126 pad"
-	help
-	  gslX680 d708 touchpad driver for RK3126 pad
-
-config TOUCHSCREEN_GSLX680_PAD
-	tristate "gslX680 touchpad driver for pad"
-	help
-	  gslX680 touchpad driver for pad
-
-config TOUCHSCREEN_GSLX680_VR
-	tristate "gslX680 touchpad driver for VR"
-	help
-	  gslX680 touchpad driver for VR
-
-config TOUCHSCREEN_GSLX680_FIREFLY
-	tristate "gslX680 touchpad driver for firefly-rk3288"
-	help
-	  gslX680 touchpad driver for firefly-rk3288
-
-config TOUCHSCREEN_GSL3673
-	tristate "gsl3673 touchpad driver for evb"
-	help
-	  gsl3673 touchpad driver for evb
-
-config TOUCHSCREEN_GSL3673_800X1280
-	tristate "gsl3673 touchpad driver for rk3326 board"
-	help
-	  gsl3673 touchpad driver for rk3326 board
-
-config TOUCHSCREEN_GSL3676
-	tristate "gsl3676 touchpad driver for rk3368a tablet board"
-	help
-	  gsl3676 touchpad driver for rk3368a tablet board
-
-config TOUCHSCREEN_GT9XX
-	tristate "Goodix gt9xx support for rockchip platform"
-	depends on I2C && ARCH_ROCKCHIP
-	help
-	  Say Y here if you have a touchscreen interface using the gt9xx
-	  on Rockchip platform, and your board-specific initialization
-	  code includes that in its table of IIC devices.
-	  If unsure, say N.
-
 config TOUCHSCREEN_HIDEEP
 	tristate "HiDeep Touch IC"
 	depends on I2C
@@ -464,18 +400,6 @@ config TOUCHSCREEN_HIDEEP
 
 	  To compile this driver as a module, choose M here : the
 	  module will be called hideep_ts.
-
-config TOUCHSCREEN_HYN_CST2XX
-	tristate "hyn based touchscreens"
-	depends on I2C
-	help
-	  Say Y here if you have a hyn based touchscreen
-	  controller.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hyn_ts.
 
 config TOUCHSCREEN_ILI210X
 	tristate "Ilitek ILI210X based touchscreen"
@@ -598,18 +522,6 @@ config TOUCHSCREEN_WACOM_I2C
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called wacom_i2c.
-
-config TOUCHSCREEN_WACOM_W9013
-	tristate "Wacom W9013 penabled serial touchscreen"
-	depends on I2C
-	help
-	  Say Y here if you have an Wacom W9013 penabled serial touchscreen
-	  connected to your system.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called wacom_w9013.
 
 config TOUCHSCREEN_LPC32XX
 	tristate "LPC32XX touchscreen controller"
@@ -1386,29 +1298,5 @@ config TOUCHSCREEN_ROHM_BU21023
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bu21023_ts.
-
-config TOUCHSCREEN_VTL_CT36X
-	tristate "VTL touchscreens support"
-
-config TOUCHSCREEN_GT1X
-	tristate "GT1X touchscreens support"
-
-config TOUCHSCREEN_FTS
-	bool "Focaltech Touchscreen"
-	depends on I2C
-	default n
-	help
-	  Say Y here if you have Focaltech touch panel.
-	  If unsure, say N.
-
-config TOUCHSCREEN_FT5436
-	bool "Focaltech Touchscreen FT5436"
-	depends on I2C
-	default n
-	help
-	  Say Y here if you have Focaltech touch panel.
-	  If unsure, say N.
-
-source "drivers/input/touchscreen/cyttsp5/Kconfig"
 
 endif

@@ -37,7 +37,7 @@ static int get_debugfs(char **path)
 	struct libmnt_table *tb;
 	struct libmnt_iter *itr = NULL;
 	struct libmnt_fs *fs;
-	int found = 0, ret;
+	int found = 0;
 
 	cxt = mnt_new_context();
 	if (!cxt)
@@ -58,11 +58,8 @@ static int get_debugfs(char **path)
 			break;
 		}
 	}
-	if (found) {
-		ret = asprintf(path, "%s/gpio", mnt_fs_get_target(fs));
-		if (ret < 0)
-			err(EXIT_FAILURE, "failed to format string");
-	}
+	if (found)
+		asprintf(path, "%s/gpio", mnt_fs_get_target(fs));
 
 	mnt_free_iter(itr);
 	mnt_free_context(cxt);

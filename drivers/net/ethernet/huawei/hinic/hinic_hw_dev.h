@@ -104,8 +104,8 @@ struct hinic_cmd_hw_ioctxt {
 
 	u8      rsvd2;
 	u8      rsvd3;
-	u8      ppf_idx;
 	u8      rsvd4;
+	u8      rsvd5;
 
 	u16     rq_depth;
 	u16     rx_buf_sz_idx;

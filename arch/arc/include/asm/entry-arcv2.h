@@ -17,33 +17,6 @@
 	;
 	; Now manually save: r12, sp, fp, gp, r25
 
-#ifdef CONFIG_ARC_IRQ_NO_AUTOSAVE
-.ifnc \called_from, exception
-	st.as	r9, [sp, -10]	; save r9 in it's final stack slot
-	sub	sp, sp, 12	; skip JLI, LDI, EI
-
-	PUSH	lp_count
-	PUSHAX	lp_start
-	PUSHAX	lp_end
-	PUSH	blink
-
-	PUSH	r11
-	PUSH	r10
-
-	sub	sp, sp, 4	; skip r9
-
-	PUSH	r8
-	PUSH	r7
-	PUSH	r6
-	PUSH	r5
-	PUSH	r4
-	PUSH	r3
-	PUSH	r2
-	PUSH	r1
-	PUSH	r0
-.endif
-#endif
-
 #ifdef CONFIG_ARC_HAS_ACCL_REGS
 	PUSH	r59
 	PUSH	r58
@@ -111,33 +84,6 @@
 #ifdef CONFIG_ARC_HAS_ACCL_REGS
 	POP	r58
 	POP	r59
-#endif
-
-#ifdef CONFIG_ARC_IRQ_NO_AUTOSAVE
-.ifnc \called_from, exception
-	POP	r0
-	POP	r1
-	POP	r2
-	POP	r3
-	POP	r4
-	POP	r5
-	POP	r6
-	POP	r7
-	POP	r8
-	POP	r9
-	POP	r10
-	POP	r11
-
-	POP	blink
-	POPAX	lp_end
-	POPAX	lp_start
-
-	POP	r9
-	mov	lp_count, r9
-
-	add	sp, sp, 12	; skip JLI, LDI, EI
-	ld.as	r9, [sp, -10]	; reload r9 which got clobbered
-.endif
 #endif
 
 .endm

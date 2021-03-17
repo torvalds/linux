@@ -41,7 +41,6 @@ int load_kallsyms(void)
 		syms[i].name = strdup(func);
 		i++;
 	}
-	fclose(f);
 	sym_cnt = i;
 	qsort(syms, sym_cnt, sizeof(struct ksym), ksym_cmp);
 	return 0;
@@ -51,10 +50,6 @@ struct ksym *ksym_search(long key)
 {
 	int start = 0, end = sym_cnt;
 	int result;
-
-	/* kallsyms not loaded. return NULL */
-	if (sym_cnt <= 0)
-		return NULL;
 
 	while (start < end) {
 		size_t mid = start + (end - start) / 2;

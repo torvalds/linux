@@ -87,11 +87,6 @@ static inline uint8_t elf_sym__type(const GElf_Sym *sym)
 	return GELF_ST_TYPE(sym->st_info);
 }
 
-static inline uint8_t elf_sym__visibility(const GElf_Sym *sym)
-{
-	return GELF_ST_VISIBILITY(sym->st_other);
-}
-
 #ifndef STT_GNU_IFUNC
 #define STT_GNU_IFUNC 10
 #endif
@@ -116,9 +111,7 @@ static inline int elf_sym__is_label(const GElf_Sym *sym)
 	return elf_sym__type(sym) == STT_NOTYPE &&
 		sym->st_name != 0 &&
 		sym->st_shndx != SHN_UNDEF &&
-		sym->st_shndx != SHN_ABS &&
-		elf_sym__visibility(sym) != STV_HIDDEN &&
-		elf_sym__visibility(sym) != STV_INTERNAL;
+		sym->st_shndx != SHN_ABS;
 }
 
 static bool elf_sym__filter(GElf_Sym *sym)
@@ -331,17 +324,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 			plt_entry_size = 16;
 			break;
 
-		case EM_SPARC:
-			plt_header_size = 48;
-			plt_entry_size = 12;
-			break;
-
-		case EM_SPARCV9:
-			plt_header_size = 128;
-			plt_entry_size = 32;
-			break;
-
-		default: /* FIXME: s390/alpha/mips/parisc/poperpc/sh/xtensa need to be checked */
+		default: /* FIXME: s390/alpha/mips/parisc/poperpc/sh/sparc/xtensa need to be checked */
 			plt_header_size = shdr_plt.sh_entsize;
 			plt_entry_size = shdr_plt.sh_entsize;
 			break;
@@ -1421,7 +1404,6 @@ struct kcore_copy_info {
 	u64 first_symbol;
 	u64 last_symbol;
 	u64 first_module;
-	u64 first_module_symbol;
 	u64 last_module_symbol;
 	size_t phnum;
 	struct list_head phdrs;
@@ -1498,8 +1480,6 @@ static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
 		return 0;
 
 	if (strchr(name, '[')) {
-		if (!kci->first_module_symbol || start < kci->first_module_symbol)
-			kci->first_module_symbol = start;
 		if (start > kci->last_module_symbol)
 			kci->last_module_symbol = start;
 		return 0;
@@ -1696,10 +1676,6 @@ static int kcore_copy__calc_maps(struct kcore_copy_info *kci, const char *dir,
 		kci->etext = round_up(kci->last_symbol, page_size);
 		kci->etext += page_size;
 	}
-
-	if (kci->first_module_symbol &&
-	    (!kci->first_module || kci->first_module_symbol < kci->first_module))
-		kci->first_module = kci->first_module_symbol;
 
 	kci->first_module = round_down(kci->first_module, page_size);
 

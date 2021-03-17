@@ -17,7 +17,6 @@
 #include <linux/completion.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
-#include <linux/numa.h>
 
 #define EDAC_DEVICE_NAME_LEN	31
 
@@ -671,6 +670,6 @@ struct mem_ctl_info {
 /*
  * Maximum number of memory controllers in the coherent fabric.
  */
-#define EDAC_MAX_MCS	2 * MAX_NUMNODES
+#define EDAC_MAX_MCS	16
 
 #endif

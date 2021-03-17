@@ -28,23 +28,6 @@
  * and don't forget to CC: the USB development list <linux-usb@vger.kernel.org>
  */
 
-/* Reported-by: Till Dörges <doerges@pre-sense.de> */
-UNUSUAL_DEV(0x054c, 0x087d, 0x0000, 0x9999,
-		"Sony",
-		"PSZ-HA*",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES),
-
-/*
- *  Initially Reported-by: Julian Groß <julian.g@posteo.de>
- *  Further reports David C. Partridge <david.partridge@perdrix.co.uk>
- */
-UNUSUAL_DEV(0x059f, 0x105f, 0x0000, 0x9999,
-		"LaCie",
-		"2Big Quadra USB3",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES | US_FL_NO_SAME),
-
 /*
  * Apricorn USB3 dongle sometimes returns "USBSUSBSUSBS" in response to SCSI
  * commands in UAS mode.  Observed with the 1.28 firmware; are there others?
@@ -52,12 +35,6 @@ UNUSUAL_DEV(0x059f, 0x105f, 0x0000, 0x9999,
 UNUSUAL_DEV(0x0984, 0x0301, 0x0128, 0x0128,
 		"Apricorn",
 		"",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
-
-UNUSUAL_DEV(0x0bc2, 0x2321, 0x0000, 0x9999,
-		"Seagate",
-		"Expansion HDD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_IGNORE_UAS),
 
@@ -96,32 +73,6 @@ UNUSUAL_DEV(0x152d, 0x0578, 0x0000, 0x9999,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_BROKEN_FUA),
 
-UNUSUAL_DEV(0x152d, 0x0583, 0x0000, 0x9999,
-		"JMicron",
-		"JMS583",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_BROKEN_FUA | US_FL_NO_REPORT_OPCODES),
-
-/* Reported-by: Thinh Nguyen <thinhn@synopsys.com> */
-UNUSUAL_DEV(0x154b, 0xf00b, 0x0000, 0x9999,
-		"PNY",
-		"Pro Elite SSD",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_ATA_1X),
-
-/* Reported-by: Thinh Nguyen <thinhn@synopsys.com> */
-UNUSUAL_DEV(0x154b, 0xf00d, 0x0000, 0x9999,
-		"PNY",
-		"Pro Elite SSD",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_ATA_1X),
-
-UNUSUAL_DEV(0x174c, 0x55aa, 0x0000, 0x9999,
-		"WINTOGO",
-		"CHIPFANCIER",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_BROKEN_FUA | US_FL_NO_REPORT_OPCODES),
-
 /* Reported-by: Hans de Goede <hdegoede@redhat.com> */
 UNUSUAL_DEV(0x2109, 0x0711, 0x0000, 0x9999,
 		"VIA",
@@ -136,15 +87,12 @@ UNUSUAL_DEV(0x2537, 0x1068, 0x0000, 0x9999,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_IGNORE_UAS),
 
-/*
- * Initially Reported-by: Takeo Nakayama <javhera@gmx.com>
- * UAS Ignore Reported by Steven Ellis <sellis@redhat.com>
- */
+/* Reported-by: Takeo Nakayama <javhera@gmx.com> */
 UNUSUAL_DEV(0x357d, 0x7788, 0x0000, 0x9999,
 		"JMicron",
 		"JMS566",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_REPORT_OPCODES | US_FL_IGNORE_UAS),
+		US_FL_NO_REPORT_OPCODES),
 
 /* Reported-by: Hans de Goede <hdegoede@redhat.com> */
 UNUSUAL_DEV(0x4971, 0x1012, 0x0000, 0x9999,

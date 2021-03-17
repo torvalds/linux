@@ -1197,8 +1197,8 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 	struct ena_napi *ena_napi = container_of(napi, struct ena_napi, napi);
 	struct ena_ring *tx_ring, *rx_ring;
 
-	int tx_work_done;
-	int rx_work_done = 0;
+	u32 tx_work_done;
+	u32 rx_work_done;
 	int tx_budget;
 	int napi_comp_call = 0;
 	int ret;
@@ -1215,11 +1215,7 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 	}
 
 	tx_work_done = ena_clean_tx_irq(tx_ring, tx_budget);
-	/* On netpoll the budget is zero and the handler should only clean the
-	 * tx completions.
-	 */
-	if (likely(budget))
-		rx_work_done = ena_clean_rx_irq(rx_ring, napi, budget);
+	rx_work_done = ena_clean_rx_irq(rx_ring, napi, budget);
 
 	/* If the device is about to reset or down, avoid unmask
 	 * the interrupt and return 0 so NAPI won't reschedule
@@ -1800,7 +1796,6 @@ err_setup_rx:
 err_setup_tx:
 	ena_free_io_irq(adapter);
 err_req_irq:
-	ena_del_napi(adapter);
 
 	return rc;
 }
@@ -2228,7 +2223,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev)
 
 	host_info->os_type = ENA_ADMIN_OS_LINUX;
 	host_info->kernel_ver = LINUX_VERSION_CODE;
-	strlcpy(host_info->kernel_ver_str, utsname()->version,
+	strncpy(host_info->kernel_ver_str, utsname()->version,
 		sizeof(host_info->kernel_ver_str) - 1);
 	host_info->os_dist = 0;
 	strncpy(host_info->os_dist_str, utsname()->release,
@@ -2433,9 +2428,16 @@ static int ena_device_init(struct ena_com_dev *ena_dev, struct pci_dev *pdev,
 		goto err_mmio_read_less;
 	}
 
-	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(dma_width));
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_width));
 	if (rc) {
-		dev_err(dev, "dma_set_mask_and_coherent failed %d\n", rc);
+		dev_err(dev, "pci_set_dma_mask failed 0x%x\n", rc);
+		goto err_mmio_read_less;
+	}
+
+	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(dma_width));
+	if (rc) {
+		dev_err(dev, "err_pci_set_consistent_dma_mask failed 0x%x\n",
+			rc);
 		goto err_mmio_read_less;
 	}
 
@@ -2593,6 +2595,11 @@ static int ena_restore_device(struct ena_adapter *adapter)
 		goto err_device_destroy;
 	}
 
+	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
+	/* Make sure we don't have a race with AENQ Links state handler */
+	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
+		netif_carrier_on(adapter->netdev);
+
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter,
 						      adapter->num_queues);
 	if (rc) {
@@ -2609,11 +2616,6 @@ static int ena_restore_device(struct ena_adapter *adapter)
 	}
 
 	set_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
-
-	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
-	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
-		netif_carrier_on(adapter->netdev);
-
 	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
 	dev_err(&pdev->dev, "Device reset completed successfully\n");
 
@@ -2625,8 +2627,8 @@ err_device_destroy:
 	ena_com_abort_admin_commands(ena_dev);
 	ena_com_wait_for_abort_completion(ena_dev);
 	ena_com_admin_destroy(ena_dev);
-	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_DRIVER_INVALID_STATE);
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
+	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_DRIVER_INVALID_STATE);
 err:
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
 	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
@@ -2640,14 +2642,16 @@ static void ena_fw_reset_device(struct work_struct *work)
 {
 	struct ena_adapter *adapter =
 		container_of(work, struct ena_adapter, reset_task);
+	struct pci_dev *pdev = adapter->pdev;
 
-	rtnl_lock();
-
-	if (likely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
-		ena_destroy_device(adapter, false);
-		ena_restore_device(adapter);
+	if (unlikely(!test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		dev_err(&pdev->dev,
+			"device reset schedule while reset bit is off\n");
+		return;
 	}
-
+	rtnl_lock();
+	ena_destroy_device(adapter, false);
+	ena_restore_device(adapter);
 	rtnl_unlock();
 }
 
@@ -2729,7 +2733,7 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 	}
 
 	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->tx_stats.missed_tx += missed_tx;
+	tx_ring->tx_stats.missed_tx = missed_tx;
 	u64_stats_update_end(&tx_ring->syncp);
 
 	return rc;
@@ -2838,8 +2842,8 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 	if (adapter->keep_alive_timeout == ENA_HW_HINTS_NO_TIMEOUT)
 		return;
 
-	keep_alive_expired = adapter->last_keep_alive_jiffies +
-			     adapter->keep_alive_timeout;
+	keep_alive_expired = round_jiffies(adapter->last_keep_alive_jiffies +
+					   adapter->keep_alive_timeout);
 	if (unlikely(time_is_before_jiffies(keep_alive_expired))) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Keep alive watchdog timeout.\n");
@@ -2941,7 +2945,7 @@ static void ena_timer_service(struct timer_list *t)
 	}
 
 	/* Reset the timer */
-	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
+	mod_timer(&adapter->timer_service, jiffies + HZ);
 }
 
 static int ena_calc_io_queue_num(struct pci_dev *pdev,
@@ -3176,12 +3180,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	}
 
-	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(ENA_MAX_PHYS_ADDR_SIZE_BITS));
-	if (rc) {
-		dev_err(&pdev->dev, "dma_set_mask_and_coherent failed %d\n", rc);
-		goto err_disable_device;
-	}
-
 	pci_set_master(pdev);
 
 	ena_dev = vzalloc(sizeof(*ena_dev));
@@ -3389,11 +3387,8 @@ static void ena_remove(struct pci_dev *pdev)
 		netdev->rx_cpu_rmap = NULL;
 	}
 #endif /* CONFIG_RFS_ACCEL */
-
-	/* Make sure timer and reset routine won't be called after
-	 * freeing device resources.
-	 */
 	del_timer_sync(&adapter->timer_service);
+
 	cancel_work_sync(&adapter->reset_task);
 
 	unregister_netdev(netdev);
@@ -3543,9 +3538,6 @@ static void ena_keep_alive_wd(void *adapter_data,
 	rx_drops = ((u64)desc->rx_drops_high << 32) | desc->rx_drops_low;
 
 	u64_stats_update_begin(&adapter->syncp);
-	/* These stats are accumulated by the device, so the counters indicate
-	 * all drops since last reset.
-	 */
 	adapter->dev_stats.rx_drops = rx_drops;
 	u64_stats_update_end(&adapter->syncp);
 }

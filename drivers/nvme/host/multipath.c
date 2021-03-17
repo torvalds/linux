@@ -11,7 +11,6 @@
  * more details.
  */
 
-#include <linux/backing-dev.h>
 #include <linux/moduleparam.h>
 #include <trace/events/block.h>
 #include "nvme.h"
@@ -21,34 +20,9 @@ module_param(multipath, bool, 0444);
 MODULE_PARM_DESC(multipath,
 	"turn on native support for multiple controllers per subsystem");
 
-void nvme_mpath_unfreeze(struct nvme_subsystem *subsys)
+inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
 {
-	struct nvme_ns_head *h;
-
-	lockdep_assert_held(&subsys->lock);
-	list_for_each_entry(h, &subsys->nsheads, entry)
-		if (h->disk)
-			blk_mq_unfreeze_queue(h->disk->queue);
-}
-
-void nvme_mpath_wait_freeze(struct nvme_subsystem *subsys)
-{
-	struct nvme_ns_head *h;
-
-	lockdep_assert_held(&subsys->lock);
-	list_for_each_entry(h, &subsys->nsheads, entry)
-		if (h->disk)
-			blk_mq_freeze_queue_wait(h->disk->queue);
-}
-
-void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
-{
-	struct nvme_ns_head *h;
-
-	lockdep_assert_held(&subsys->lock);
-	list_for_each_entry(h, &subsys->nsheads, entry)
-		if (h->disk)
-			blk_freeze_queue_start(h->disk->queue);
+	return multipath && ctrl->subsys && (ctrl->subsys->cmic & (1 << 3));
 }
 
 /*
@@ -73,11 +47,16 @@ void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
 	}
 }
 
-bool nvme_failover_req(struct request *req)
+void nvme_failover_req(struct request *req)
 {
 	struct nvme_ns *ns = req->q->queuedata;
 	u16 status = nvme_req(req)->status;
 	unsigned long flags;
+
+	spin_lock_irqsave(&ns->head->requeue_lock, flags);
+	blk_steal_bios(&ns->head->requeue_list, req);
+	spin_unlock_irqrestore(&ns->head->requeue_lock, flags);
+	blk_mq_end_request(req, 0);
 
 	switch (status & 0x7ff) {
 	case NVME_SC_ANA_TRANSITION:
@@ -98,25 +77,16 @@ bool nvme_failover_req(struct request *req)
 			queue_work(nvme_wq, &ns->ctrl->ana_work);
 		}
 		break;
-	case NVME_SC_HOST_PATH_ERROR:
-		/*
-		 * Temporary transport disruption in talking to the controller.
-		 * Try to send on a new path.
-		 */
-		nvme_mpath_clear_current_path(ns);
-		break;
 	default:
-		/* This was a non-ANA error so follow the normal error path. */
-		return false;
+		/*
+		 * Reset the controller for any non-ANA error as we don't know
+		 * what caused the error.
+		 */
+		nvme_reset_ctrl(ns->ctrl);
+		break;
 	}
 
-	spin_lock_irqsave(&ns->head->requeue_lock, flags);
-	blk_steal_bios(&ns->head->requeue_list, req);
-	spin_unlock_irqrestore(&ns->head->requeue_lock, flags);
-	blk_mq_end_request(req, 0);
-
 	kblockd_schedule_work(&ns->head->requeue_work);
-	return true;
 }
 
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
@@ -280,7 +250,6 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 	/* set to a default value for 512 until disk is validated */
 	blk_queue_logical_block_size(q, 512);
-	blk_set_stacking_limits(&q->limits);
 
 	/* we need to propagate up the VMC settings */
 	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
@@ -321,7 +290,6 @@ static void nvme_mpath_set_live(struct nvme_ns *ns)
 				 "failed to create id group.\n");
 	}
 
-	synchronize_srcu(&ns->head->srcu);
 	kblockd_schedule_work(&ns->head->requeue_work);
 }
 
@@ -373,12 +341,15 @@ static inline bool nvme_state_is_live(enum nvme_ana_state state)
 static void nvme_update_ns_ana_state(struct nvme_ana_group_desc *desc,
 		struct nvme_ns *ns)
 {
+	enum nvme_ana_state old;
+
 	mutex_lock(&ns->head->lock);
+	old = ns->ana_state;
 	ns->ana_grpid = le32_to_cpu(desc->grpid);
 	ns->ana_state = desc->state;
 	clear_bit(NVME_NS_ANA_PENDING, &ns->flags);
 
-	if (nvme_state_is_live(ns->ana_state))
+	if (nvme_state_is_live(ns->ana_state) && !nvme_state_is_live(old))
 		nvme_mpath_set_live(ns);
 	mutex_unlock(&ns->head->lock);
 }
@@ -400,18 +371,16 @@ static int nvme_update_ana_state(struct nvme_ctrl *ctrl,
 	if (!nr_nsids)
 		return 0;
 
-	down_read(&ctrl->namespaces_rwsem);
+	down_write(&ctrl->namespaces_rwsem);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
-		unsigned nsid = le32_to_cpu(desc->nsids[n]);
-
-		if (ns->head->ns_id < nsid)
+		if (ns->head->ns_id != le32_to_cpu(desc->nsids[n]))
 			continue;
-		if (ns->head->ns_id == nsid)
-			nvme_update_ns_ana_state(desc, ns);
+		nvme_update_ns_ana_state(desc, ns);
 		if (++n == nr_nsids)
 			break;
 	}
-	up_read(&ctrl->namespaces_rwsem);
+	up_write(&ctrl->namespaces_rwsem);
+	WARN_ON_ONCE(n < nr_nsids);
 	return 0;
 }
 
@@ -493,47 +462,31 @@ static ssize_t ana_state_show(struct device *dev, struct device_attribute *attr,
 }
 DEVICE_ATTR_RO(ana_state);
 
-static int nvme_lookup_ana_group_desc(struct nvme_ctrl *ctrl,
+static int nvme_set_ns_ana_state(struct nvme_ctrl *ctrl,
 		struct nvme_ana_group_desc *desc, void *data)
 {
-	struct nvme_ana_group_desc *dst = data;
+	struct nvme_ns *ns = data;
 
-	if (desc->grpid != dst->grpid)
-		return 0;
+	if (ns->ana_grpid == le32_to_cpu(desc->grpid)) {
+		nvme_update_ns_ana_state(desc, ns);
+		return -ENXIO; /* just break out of the loop */
+	}
 
-	*dst = *desc;
-	return -ENXIO; /* just break out of the loop */
+	return 0;
 }
 
 void nvme_mpath_add_disk(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
 	if (nvme_ctrl_use_ana(ns->ctrl)) {
-		struct nvme_ana_group_desc desc = {
-			.grpid = id->anagrpid,
-			.state = 0,
-		};
-
 		mutex_lock(&ns->ctrl->ana_lock);
 		ns->ana_grpid = le32_to_cpu(id->anagrpid);
-		nvme_parse_ana_log(ns->ctrl, &desc, nvme_lookup_ana_group_desc);
+		nvme_parse_ana_log(ns->ctrl, ns, nvme_set_ns_ana_state);
 		mutex_unlock(&ns->ctrl->ana_lock);
-		if (desc.state) {
-			/* found the group desc: update */
-			nvme_update_ns_ana_state(&desc, ns);
-		}
 	} else {
 		mutex_lock(&ns->head->lock);
 		ns->ana_state = NVME_ANA_OPTIMIZED; 
 		nvme_mpath_set_live(ns);
 		mutex_unlock(&ns->head->lock);
-	}
-
-	if (bdi_cap_stable_pages_required(ns->queue->backing_dev_info)) {
-		struct gendisk *disk = ns->head->disk;
-
-		if (disk)
-			disk->queue->backing_dev_info->capabilities |=
-					BDI_CAP_STABLE_WRITES;
 	}
 }
 
@@ -558,8 +511,7 @@ int nvme_mpath_init(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 {
 	int error;
 
-	/* check if multipath is enabled and we have the capability */
-	if (!multipath || !ctrl->subsys || !(ctrl->subsys->cmic & (1 << 3)))
+	if (!nvme_ctrl_use_ana(ctrl))
 		return 0;
 
 	ctrl->anacap = id->anacap;
@@ -571,7 +523,8 @@ int nvme_mpath_init(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	timer_setup(&ctrl->anatt_timer, nvme_anatt_timeout, 0);
 	ctrl->ana_log_size = sizeof(struct nvme_ana_rsp_hdr) +
 		ctrl->nanagrpid * sizeof(struct nvme_ana_group_desc);
-	ctrl->ana_log_size += ctrl->max_namespaces * sizeof(__le32);
+	if (!(ctrl->anacap & (1 << 6)))
+		ctrl->ana_log_size += ctrl->max_namespaces * sizeof(__le32);
 
 	if (ctrl->ana_log_size > ctrl->max_hw_sectors << SECTOR_SHIFT) {
 		dev_err(ctrl->device,
@@ -583,20 +536,18 @@ int nvme_mpath_init(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	}
 
 	INIT_WORK(&ctrl->ana_work, nvme_ana_work);
-	kfree(ctrl->ana_log_buf);
 	ctrl->ana_log_buf = kmalloc(ctrl->ana_log_size, GFP_KERNEL);
 	if (!ctrl->ana_log_buf) {
 		error = -ENOMEM;
 		goto out;
 	}
 
-	error = nvme_read_ana_log(ctrl, false);
+	error = nvme_read_ana_log(ctrl, true);
 	if (error)
 		goto out_free_ana_log_buf;
 	return 0;
 out_free_ana_log_buf:
 	kfree(ctrl->ana_log_buf);
-	ctrl->ana_log_buf = NULL;
 out:
 	return error;
 }
@@ -604,6 +555,5 @@ out:
 void nvme_mpath_uninit(struct nvme_ctrl *ctrl)
 {
 	kfree(ctrl->ana_log_buf);
-	ctrl->ana_log_buf = NULL;
 }
 

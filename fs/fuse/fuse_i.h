@@ -213,9 +213,6 @@ struct fuse_out {
 
 	/** Array of arguments */
 	struct fuse_arg args[2];
-
-	/* Path used for completing d_canonical_path */
-	struct path *canonical_path;
 };
 
 /** FUSE page descriptor */
@@ -238,9 +235,6 @@ struct fuse_args {
 		unsigned argvar:1;
 		unsigned numargs;
 		struct fuse_arg args[2];
-
-		/* Path used for completing d_canonical_path */
-		struct path *canonical_path;
 	} out;
 };
 
@@ -393,9 +387,6 @@ struct fuse_req {
 struct fuse_iqueue {
 	/** Connection established */
 	unsigned connected;
-
-	/** Lock protecting accesses to members of this structure */
-	spinlock_t lock;
 
 	/** Readers of the connection are waiting on this */
 	wait_queue_head_t waitq;
@@ -758,7 +749,7 @@ void fuse_sync_release(struct fuse_file *ff, int flags);
 /**
  * Send RELEASE or RELEASEDIR request
  */
-void fuse_release_common(struct file *file, bool isdir);
+void fuse_release_common(struct file *file, int opcode);
 
 /**
  * Send FSYNC or FSYNCDIR request
@@ -914,8 +905,6 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc);
  * Is file type valid?
  */
 int fuse_valid_type(int m);
-
-bool fuse_invalid_attr(struct fuse_attr *attr);
 
 /**
  * Is current process allowed to perform filesystem operation?

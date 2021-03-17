@@ -12,19 +12,6 @@
 #include "inode-map.h"
 #include "transaction.h"
 
-static void fail_caching_thread(struct btrfs_root *root)
-{
-	struct btrfs_fs_info *fs_info = root->fs_info;
-
-	btrfs_warn(fs_info, "failed to start inode caching task");
-	btrfs_clear_pending_and_info(fs_info, INODE_MAP_CACHE,
-				     "disabling inode map caching");
-	spin_lock(&root->ino_cache_lock);
-	root->ino_cache_state = BTRFS_CACHE_ERROR;
-	spin_unlock(&root->ino_cache_lock);
-	wake_up(&root->ino_cache_wait);
-}
-
 static int caching_kthread(void *data)
 {
 	struct btrfs_root *root = data;
@@ -41,10 +28,8 @@ static int caching_kthread(void *data)
 		return 0;
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		fail_caching_thread(root);
+	if (!path)
 		return -ENOMEM;
-	}
 
 	/* Since the commit root is read-only, we can safely skip locking. */
 	path->skip_locking = 1;
@@ -160,7 +145,6 @@ static void start_caching(struct btrfs_root *root)
 		spin_lock(&root->ino_cache_lock);
 		root->ino_cache_state = BTRFS_CACHE_FINISHED;
 		spin_unlock(&root->ino_cache_lock);
-		wake_up(&root->ino_cache_wait);
 		return;
 	}
 
@@ -179,8 +163,11 @@ static void start_caching(struct btrfs_root *root)
 
 	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu",
 			  root->root_key.objectid);
-	if (IS_ERR(tsk))
-		fail_caching_thread(root);
+	if (IS_ERR(tsk)) {
+		btrfs_warn(fs_info, "failed to start inode caching task");
+		btrfs_clear_pending_and_info(fs_info, INODE_MAP_CACHE,
+					     "disabling inode map caching");
+	}
 }
 
 int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
@@ -198,14 +185,11 @@ again:
 
 	wait_event(root->ino_cache_wait,
 		   root->ino_cache_state == BTRFS_CACHE_FINISHED ||
-		   root->ino_cache_state == BTRFS_CACHE_ERROR ||
 		   root->free_ino_ctl->free_space > 0);
 
 	if (root->ino_cache_state == BTRFS_CACHE_FINISHED &&
 	    root->free_ino_ctl->free_space == 0)
 		return -ENOSPC;
-	else if (root->ino_cache_state == BTRFS_CACHE_ERROR)
-		return btrfs_find_free_objectid(root, objectid);
 	else
 		goto again;
 }
@@ -499,13 +483,12 @@ again:
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, prealloc,
 					      prealloc, prealloc, &alloc_hint);
 	if (ret) {
-		btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc);
-		btrfs_delalloc_release_metadata(BTRFS_I(inode), prealloc, true);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc, true);
 		goto out_put;
 	}
 
 	ret = btrfs_write_out_ino_cache(root, trans, path, inode);
-	btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc);
+	btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc, false);
 out_put:
 	iput(inode);
 out_release:

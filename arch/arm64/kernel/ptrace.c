@@ -627,13 +627,6 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 	return 0;
 }
 
-static int fpr_active(struct task_struct *target, const struct user_regset *regset)
-{
-	if (!system_supports_fpsimd())
-		return -ENODEV;
-	return regset->n;
-}
-
 /*
  * TODO: update fp accessors for lazy context switching (sync/flush hwstate)
  */
@@ -656,9 +649,6 @@ static int fpr_get(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   void *kbuf, void __user *ubuf)
 {
-	if (!system_supports_fpsimd())
-		return -EINVAL;
-
 	if (target == current)
 		fpsimd_preserve_current_state();
 
@@ -697,9 +687,6 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 		   const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-
-	if (!system_supports_fpsimd())
-		return -EINVAL;
 
 	ret = __fpr_set(target, regset, pos, count, kbuf, ubuf, 0);
 	if (ret)
@@ -1003,7 +990,6 @@ static const struct user_regset aarch64_regsets[] = {
 		 */
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.active = fpr_active,
 		.get = fpr_get,
 		.set = fpr_set
 	},
@@ -1190,9 +1176,6 @@ static int compat_vfp_get(struct task_struct *target,
 	compat_ulong_t fpscr;
 	int ret, vregs_end_pos;
 
-	if (!system_supports_fpsimd())
-		return -EINVAL;
-
 	uregs = &target->thread.uw.fpsimd_state;
 
 	if (target == current)
@@ -1225,9 +1208,6 @@ static int compat_vfp_set(struct task_struct *target,
 	struct user_fpsimd_state *uregs;
 	compat_ulong_t fpscr;
 	int ret, vregs_end_pos;
-
-	if (!system_supports_fpsimd())
-		return -EINVAL;
 
 	uregs = &target->thread.uw.fpsimd_state;
 
@@ -1286,7 +1266,6 @@ static const struct user_regset aarch32_regsets[] = {
 		.n = VFP_STATE_SIZE / sizeof(compat_ulong_t),
 		.size = sizeof(compat_ulong_t),
 		.align = sizeof(compat_ulong_t),
-		.active = fpr_active,
 		.get = compat_vfp_get,
 		.set = compat_vfp_set
 	},
@@ -1647,23 +1626,12 @@ static void tracehook_report_syscall(struct pt_regs *regs,
 	saved_reg = regs->regs[regno];
 	regs->regs[regno] = dir;
 
-	if (dir == PTRACE_SYSCALL_ENTER) {
-		if (tracehook_report_syscall_entry(regs))
-			forget_syscall(regs);
-		regs->regs[regno] = saved_reg;
-	} else if (!test_thread_flag(TIF_SINGLESTEP)) {
+	if (dir == PTRACE_SYSCALL_EXIT)
 		tracehook_report_syscall_exit(regs, 0);
-		regs->regs[regno] = saved_reg;
-	} else {
-		regs->regs[regno] = saved_reg;
+	else if (tracehook_report_syscall_entry(regs))
+		forget_syscall(regs);
 
-		/*
-		 * Signal a pseudo-step exception since we are stepping but
-		 * tracer modifications to the registers may have rewound the
-		 * state machine.
-		 */
-		tracehook_report_syscall_exit(regs, 1);
-	}
+	regs->regs[regno] = saved_reg;
 }
 
 int syscall_trace_enter(struct pt_regs *regs)
@@ -1686,34 +1654,31 @@ int syscall_trace_enter(struct pt_regs *regs)
 
 void syscall_trace_exit(struct pt_regs *regs)
 {
-	unsigned long flags = READ_ONCE(current_thread_info()->flags);
-
 	audit_syscall_exit(regs);
 
-	if (flags & _TIF_SYSCALL_TRACEPOINT)
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_exit(regs, regs_return_value(regs));
 
-	if (flags & (_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP))
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);
 
 	rseq_syscall(regs);
 }
 
 /*
- * SPSR_ELx bits which are always architecturally RES0 per ARM DDI 0487D.a.
- * We permit userspace to set SSBS (AArch64 bit 12, AArch32 bit 23) which is
- * not described in ARM DDI 0487D.a.
- * We treat PAN and UAO as RES0 bits, as they are meaningless at EL0, and may
- * be allocated an EL0 meaning in future.
+ * SPSR_ELx bits which are always architecturally RES0 per ARM DDI 0487C.a
+ * We also take into account DIT (bit 24), which is not yet documented, and
+ * treat PAN and UAO as RES0 bits, as they are meaningless at EL0, and may be
+ * allocated an EL0 meaning in future.
  * Userspace cannot use these until they have an architectural meaning.
  * Note that this follows the SPSR_ELx format, not the AArch32 PSR format.
  * We also reserve IL for the kernel; SS is handled dynamically.
  */
 #define SPSR_EL1_AARCH64_RES0_BITS \
-	(GENMASK_ULL(63, 32) | GENMASK_ULL(27, 25) | GENMASK_ULL(23, 22) | \
-	 GENMASK_ULL(20, 13) | GENMASK_ULL(11, 10) | GENMASK_ULL(5, 5))
+	(GENMASK_ULL(63,32) | GENMASK_ULL(27, 25) | GENMASK_ULL(23, 22) | \
+	 GENMASK_ULL(20, 10) | GENMASK_ULL(5, 5))
 #define SPSR_EL1_AARCH32_RES0_BITS \
-	(GENMASK_ULL(63, 32) | GENMASK_ULL(22, 22) | GENMASK_ULL(20, 20))
+	(GENMASK_ULL(63,32) | GENMASK_ULL(23, 22) | GENMASK_ULL(20,20))
 
 static int valid_compat_regs(struct user_pt_regs *regs)
 {
@@ -1771,8 +1736,8 @@ static int valid_native_regs(struct user_pt_regs *regs)
  */
 int valid_user_regs(struct user_pt_regs *regs, struct task_struct *task)
 {
-	/* https://lore.kernel.org/lkml/20191118131525.GA4180@willie-the-truck */
-	user_regs_reset_single_step(regs, task);
+	if (!test_tsk_thread_flag(task, TIF_SINGLESTEP))
+		regs->pstate &= ~DBG_SPSR_SS;
 
 	if (is_compat_thread(task_thread_info(task)))
 		return valid_compat_regs(regs);

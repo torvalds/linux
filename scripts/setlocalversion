@@ -11,14 +11,12 @@
 #
 
 usage() {
-	echo "Usage: $0 [--save-scmversion] [srctree] [branch] [kmi-generation]" >&2
+	echo "Usage: $0 [--save-scmversion] [srctree]" >&2
 	exit 1
 }
 
 scm_only=false
 srctree=.
-android_release=
-kmi_generation=
 if test "$1" = "--save-scmversion"; then
 	scm_only=true
 	shift
@@ -26,24 +24,6 @@ fi
 if test $# -gt 0; then
 	srctree=$1
 	shift
-fi
-if test $# -gt 0; then
-	# Extract the Android release version. If there is no match, then return 255
-	# and clear the var $android_release
-	android_release=`echo "$1" | sed -e '/android[0-9]\{2,\}/!{q255}; \
-		s/^\(android[0-9]\{2,\}\)-.*/\1/'`
-	if test $? -ne 0; then
-		android_release=
-	fi
-	shift
-
-	if test $# -gt 0; then
-		kmi_generation=$1
-		[ $(expr $kmi_generation : '^[0-9]\+$') -eq 0 ] && usage
-		shift
-	else
-		usage
-	fi
 fi
 if test $# -gt 0 -o ! -d "$srctree"; then
 	usage
@@ -65,11 +45,7 @@ scm_version()
 
 	# Check for git and a git repo.
 	if test -z "$(git rev-parse --show-cdup 2>/dev/null)" &&
-	   head=$(git rev-parse --verify HEAD 2>/dev/null); then
-
-		if [ -n "$android_release" ] && [ -n "$kmi_generation" ]; then
-			printf '%s' "-$android_release-$kmi_generation"
-		fi
+	   head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
 
 		# If we are at a tagged commit (like "v2.6.30-rc6"), we ignore
 		# it, because this version is defined in the top level Makefile.
@@ -83,22 +59,11 @@ scm_version()
 			fi
 			# If we are past a tagged commit (like
 			# "v2.6.30-rc5-302-g72357d5"), we pretty print it.
-			#
-			# Ensure the abbreviated sha1 has exactly 12
-			# hex characters, to make the output
-			# independent of git version, local
-			# core.abbrev settings and/or total number of
-			# objects in the current repository - passing
-			# --abbrev=12 ensures a minimum of 12, and the
-			# awk substr() then picks the 'g' and first 12
-			# hex chars.
-			if atag="$(git describe --abbrev=12 2>/dev/null)"; then
-				echo "$atag" | awk -F- '{printf("-%05d-%s", $(NF-1),substr($(NF),0,13))}'
+			if atag="`git describe 2>/dev/null`"; then
+				echo "$atag" | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
 
-			# If we don't have a tag at all we print -g{commitish},
-			# again using exactly 12 hex chars.
+			# If we don't have a tag at all we print -g{commitish}.
 			else
-				head="$(echo $head | cut -c1-12)"
 				printf '%s%s' -g $head
 			fi
 		fi
@@ -108,16 +73,8 @@ scm_version()
 			printf -- '-svn%s' "`git svn find-rev $head`"
 		fi
 
-		# Check for uncommitted changes.
-		# First, with git-status, but --no-optional-locks is only
-		# supported in git >= 2.14, so fall back to git-diff-index if
-		# it fails. Note that git-diff-index does not refresh the
-		# index, so it may give misleading results. See
-		# git-update-index(1), git-diff-index(1), and git-status(1).
-		if {
-			git --no-optional-locks status -uno --porcelain 2>/dev/null ||
-			git diff-index --name-only HEAD
-		} | grep -qvE '^(.. )?scripts/package'; then
+		# Check for uncommitted changes
+		if git status -uno --porcelain | grep -qv '^.. scripts/package'; then
 			printf '%s' -dirty
 		fi
 

@@ -6,8 +6,6 @@
  * This file is released under the GPL.
  */
 
-#include "dm-bio-record.h"
-
 #include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/device-mapper.h>
@@ -188,19 +186,17 @@ struct dm_integrity_c {
 	__u8 sectors_per_block;
 
 	unsigned char mode;
+	int suspending;
 
 	int failed;
 
 	struct crypto_shash *internal_hash;
-
-	struct dm_target *ti;
 
 	/* these variables are locked with endio_wait.lock */
 	struct rb_root in_progress;
 	struct list_head wait_list;
 	wait_queue_head_t endio_wait;
 	struct workqueue_struct *wait_wq;
-	struct workqueue_struct *offload_wq;
 
 	unsigned char commit_seq;
 	commit_id_t commit_ids[N_COMMIT_IDS];
@@ -240,7 +236,6 @@ struct dm_integrity_c {
 
 	bool journal_uptodate;
 	bool just_formatted;
-	bool legacy_recalculate;
 
 	struct alg_spec internal_hash_alg;
 	struct alg_spec journal_crypt_alg;
@@ -279,7 +274,11 @@ struct dm_integrity_io {
 
 	struct completion *completion;
 
-	struct dm_bio_details bio_details;
+	struct gendisk *orig_bi_disk;
+	u8 orig_bi_partno;
+	bio_end_io_t *orig_bi_end_io;
+	struct bio_integrity_payload *orig_bi_integrity;
+	struct bvec_iter orig_bi_iter;
 };
 
 struct journal_completion {
@@ -344,14 +343,6 @@ static void dm_integrity_io_error(struct dm_integrity_c *ic, const char *msg, in
 static int dm_integrity_failed(struct dm_integrity_c *ic)
 {
 	return READ_ONCE(ic->failed);
-}
-
-static bool dm_integrity_disable_recalculate(struct dm_integrity_c *ic)
-{
-	if ((ic->internal_hash_alg.key || ic->journal_mac_alg.key) &&
-	    !ic->legacy_recalculate)
-		return true;
-	return false;
 }
 
 static commit_id_t dm_integrity_commit_id(struct dm_integrity_c *ic, unsigned i,
@@ -917,7 +908,7 @@ static void copy_from_journal(struct dm_integrity_c *ic, unsigned section, unsig
 static bool ranges_overlap(struct dm_integrity_range *range1, struct dm_integrity_range *range2)
 {
 	return range1->logical_sector < range2->logical_sector + range2->n_sectors &&
-	       range1->logical_sector + range1->n_sectors > range2->logical_sector;
+	       range2->logical_sector + range2->n_sectors > range2->logical_sector;
 }
 
 static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *new_range, bool check_waiting)
@@ -963,6 +954,8 @@ static void remove_range_unlocked(struct dm_integrity_c *ic, struct dm_integrity
 		struct dm_integrity_range *last_range =
 			list_first_entry(&ic->wait_list, struct dm_integrity_range, wait_entry);
 		struct task_struct *last_range_task;
+		if (!ranges_overlap(range, last_range))
+			break;
 		last_range_task = last_range->task;
 		list_del(&last_range->wait_entry);
 		if (!add_new_range(ic, last_range, false)) {
@@ -1162,52 +1155,12 @@ static int dm_integrity_rw_tag(struct dm_integrity_c *ic, unsigned char *tag, se
 	return 0;
 }
 
-struct flush_request {
-	struct dm_io_request io_req;
-	struct dm_io_region io_reg;
-	struct dm_integrity_c *ic;
-	struct completion comp;
-};
-
-static void flush_notify(unsigned long error, void *fr_)
-{
-	struct flush_request *fr = fr_;
-	if (unlikely(error != 0))
-		dm_integrity_io_error(fr->ic, "flusing disk cache", -EIO);
-	complete(&fr->comp);
-}
-
-static void dm_integrity_flush_buffers(struct dm_integrity_c *ic, bool flush_data)
+static void dm_integrity_flush_buffers(struct dm_integrity_c *ic)
 {
 	int r;
-
-	struct flush_request fr;
-
-	if (!ic->meta_dev)
-		flush_data = false;
-	if (flush_data) {
-		fr.io_req.bi_op = REQ_OP_WRITE,
-		fr.io_req.bi_op_flags = REQ_PREFLUSH | REQ_SYNC,
-		fr.io_req.mem.type = DM_IO_KMEM,
-		fr.io_req.mem.ptr.addr = NULL,
-		fr.io_req.notify.fn = flush_notify,
-		fr.io_req.notify.context = &fr;
-		fr.io_req.client = dm_bufio_get_dm_io_client(ic->bufio),
-		fr.io_reg.bdev = ic->dev->bdev,
-		fr.io_reg.sector = 0,
-		fr.io_reg.count = 0,
-		fr.ic = ic;
-		init_completion(&fr.comp);
-		r = dm_io(&fr.io_req, 1, &fr.io_reg, NULL);
-		BUG_ON(r);
-	}
-
 	r = dm_bufio_write_dirty_buffers(ic->bufio);
 	if (unlikely(r))
 		dm_integrity_io_error(ic, "writing tags", r);
-
-	if (flush_data)
-		wait_for_completion(&fr.comp);
 }
 
 static void sleep_on_endio_wait(struct dm_integrity_c *ic)
@@ -1285,7 +1238,7 @@ static void dec_in_flight(struct dm_integrity_io *dio)
 			dio->range.logical_sector += dio->range.n_sectors;
 			bio_advance(bio, dio->range.n_sectors << SECTOR_SHIFT);
 			INIT_WORK(&dio->work, integrity_bio_wait);
-			queue_work(ic->offload_wq, &dio->work);
+			queue_work(ic->wait_wq, &dio->work);
 			return;
 		}
 		do_endio_flush(ic, dio);
@@ -1296,9 +1249,14 @@ static void integrity_end_io(struct bio *bio)
 {
 	struct dm_integrity_io *dio = dm_per_bio_data(bio, sizeof(struct dm_integrity_io));
 
-	dm_bio_restore(&dio->bio_details, bio);
-	if (bio->bi_integrity)
+	bio->bi_iter = dio->orig_bi_iter;
+	bio->bi_disk = dio->orig_bi_disk;
+	bio->bi_partno = dio->orig_bi_partno;
+	if (dio->orig_bi_integrity) {
+		bio->bi_integrity = dio->orig_bi_integrity;
 		bio->bi_opf |= REQ_INTEGRITY;
+	}
+	bio->bi_end_io = dio->orig_bi_end_io;
 
 	if (dio->completion)
 		complete(dio->completion);
@@ -1378,7 +1336,7 @@ static void integrity_metadata(struct work_struct *w)
 		if (!checksums)
 			checksums = checksums_onstack;
 
-		__bio_for_each_segment(bv, bio, iter, dio->bio_details.bi_iter) {
+		__bio_for_each_segment(bv, bio, iter, dio->orig_bi_iter) {
 			unsigned pos;
 			char *mem, *checksums_ptr;
 
@@ -1399,8 +1357,8 @@ again:
 						checksums_ptr - checksums, !dio->write ? TAG_CMP : TAG_WRITE);
 			if (unlikely(r)) {
 				if (r > 0) {
-					DMERR_LIMIT("Checksum failed at sector 0x%llx",
-						    (unsigned long long)(sector - ((r + ic->tag_size - 1) / ic->tag_size)));
+					DMERR("Checksum failed at sector 0x%llx",
+					      (unsigned long long)(sector - ((r + ic->tag_size - 1) / ic->tag_size)));
 					r = -EILSEQ;
 					atomic64_inc(&ic->number_of_mismatches);
 				}
@@ -1422,7 +1380,7 @@ again:
 		if (likely(checksums != checksums_onstack))
 			kfree(checksums);
 	} else {
-		struct bio_integrity_payload *bip = dio->bio_details.bi_integrity;
+		struct bio_integrity_payload *bip = dio->orig_bi_integrity;
 
 		if (bip) {
 			struct bio_vec biv;
@@ -1592,8 +1550,8 @@ retry_kmap:
 
 					integrity_sector_checksum(ic, logical_sector, mem + bv.bv_offset, checksums_onstack);
 					if (unlikely(memcmp(checksums_onstack, journal_entry_tag(ic, je), ic->tag_size))) {
-						DMERR_LIMIT("Checksum failed when reading from journal, at sector 0x%llx",
-							    (unsigned long long)logical_sector);
+						DMERR("Checksum failed when reading from journal, at sector 0x%llx",
+						      (unsigned long long)logical_sector);
 					}
 				}
 #endif
@@ -1700,7 +1658,7 @@ static void dm_integrity_map_continue(struct dm_integrity_io *dio, bool from_map
 
 	if (need_sync_io && from_map) {
 		INIT_WORK(&dio->work, integrity_bio_wait);
-		queue_work(ic->offload_wq, &dio->work);
+		queue_work(ic->metadata_wq, &dio->work);
 		return;
 	}
 
@@ -1793,22 +1751,7 @@ offload_to_thread:
 			queue_work(ic->wait_wq, &dio->work);
 			return;
 		}
-		if (journal_read_pos != NOT_FOUND)
-			dio->range.n_sectors = ic->sectors_per_block;
 		wait_and_add_new_range(ic, &dio->range);
-		/*
-		 * wait_and_add_new_range drops the spinlock, so the journal
-		 * may have been changed arbitrarily. We need to recheck.
-		 * To simplify the code, we restrict I/O size to just one block.
-		 */
-		if (journal_read_pos != NOT_FOUND) {
-			sector_t next_sector;
-			unsigned new_pos = find_journal_node(ic, dio->range.logical_sector, &next_sector);
-			if (unlikely(new_pos != journal_read_pos)) {
-				remove_range_unlocked(ic, &dio->range);
-				goto retry;
-			}
-		}
 	}
 	spin_unlock_irq(&ic->endio_wait.lock);
 
@@ -1826,13 +1769,20 @@ offload_to_thread:
 	} else
 		dio->completion = NULL;
 
-	dm_bio_record(&dio->bio_details, bio);
+	dio->orig_bi_iter = bio->bi_iter;
+
+	dio->orig_bi_disk = bio->bi_disk;
+	dio->orig_bi_partno = bio->bi_partno;
 	bio_set_dev(bio, ic->dev->bdev);
+
+	dio->orig_bi_integrity = bio_integrity(bio);
 	bio->bi_integrity = NULL;
 	bio->bi_opf &= ~REQ_INTEGRITY;
-	bio->bi_end_io = integrity_end_io;
-	bio->bi_iter.bi_size = dio->range.n_sectors << SECTOR_SHIFT;
 
+	dio->orig_bi_end_io = bio->bi_end_io;
+	bio->bi_end_io = integrity_end_io;
+
+	bio->bi_iter.bi_size = dio->range.n_sectors << SECTOR_SHIFT;
 	generic_make_request(bio);
 
 	if (need_sync_io) {
@@ -1895,7 +1845,7 @@ static void integrity_commit(struct work_struct *w)
 	flushes = bio_list_get(&ic->flush_bio_list);
 	if (unlikely(ic->mode != 'J')) {
 		spin_unlock_irq(&ic->endio_wait.lock);
-		dm_integrity_flush_buffers(ic, true);
+		dm_integrity_flush_buffers(ic);
 		goto release_flush_bios;
 	}
 
@@ -2106,7 +2056,7 @@ skip_io:
 	complete_journal_op(&comp);
 	wait_for_completion_io(&comp.comp);
 
-	dm_integrity_flush_buffers(ic, true);
+	dm_integrity_flush_buffers(ic);
 }
 
 static void integrity_writer(struct work_struct *w)
@@ -2117,7 +2067,7 @@ static void integrity_writer(struct work_struct *w)
 	unsigned prev_free_sectors;
 
 	/* the following test is not needed, but it tests the replay code */
-	if (unlikely(dm_post_suspending(ic->ti)) && !ic->meta_dev)
+	if (READ_ONCE(ic->suspending) && !ic->meta_dev)
 		return;
 
 	spin_lock_irq(&ic->endio_wait.lock);
@@ -2148,7 +2098,7 @@ static void recalc_write_super(struct dm_integrity_c *ic)
 {
 	int r;
 
-	dm_integrity_flush_buffers(ic, false);
+	dm_integrity_flush_buffers(ic);
 	if (dm_integrity_failed(ic))
 		return;
 
@@ -2176,7 +2126,7 @@ static void integrity_recalc(struct work_struct *w)
 
 next_chunk:
 
-	if (unlikely(dm_post_suspending(ic->ti)))
+	if (unlikely(READ_ONCE(ic->suspending)))
 		goto unlock_ret;
 
 	range.logical_sector = le64_to_cpu(ic->sb->recalc_sector);
@@ -2448,6 +2398,8 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 
 	del_timer_sync(&ic->autocommit_timer);
 
+	WRITE_ONCE(ic->suspending, 1);
+
 	if (ic->recalc_wq)
 		drain_workqueue(ic->recalc_wq);
 
@@ -2458,8 +2410,10 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 		if (ic->meta_dev)
 			queue_work(ic->writer_wq, &ic->writer_work);
 		drain_workqueue(ic->writer_wq);
-		dm_integrity_flush_buffers(ic, true);
+		dm_integrity_flush_buffers(ic);
 	}
+
+	WRITE_ONCE(ic->suspending, 0);
 
 	BUG_ON(!RB_EMPTY_ROOT(&ic->in_progress));
 
@@ -2512,7 +2466,6 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 		arg_count += !!ic->internal_hash_alg.alg_string;
 		arg_count += !!ic->journal_crypt_alg.alg_string;
 		arg_count += !!ic->journal_mac_alg.alg_string;
-		arg_count += ic->legacy_recalculate;
 		DMEMIT("%s %llu %u %c %u", ic->dev->name, (unsigned long long)ic->start,
 		       ic->tag_size, ic->mode, arg_count);
 		if (ic->meta_dev)
@@ -2526,8 +2479,6 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 		DMEMIT(" buffer_sectors:%u", 1U << ic->log2_buffer_sectors);
 		DMEMIT(" journal_watermark:%u", (unsigned)watermark_percentage);
 		DMEMIT(" commit_time:%u", ic->autocommit_msec);
-		if (ic->legacy_recalculate)
-			DMEMIT(" legacy_recalculate");
 
 #define EMIT_ALG(a, n)							\
 		do {							\
@@ -2608,7 +2559,7 @@ static int calculate_device_limits(struct dm_integrity_c *ic)
 		if (last_sector < ic->start || last_sector >= ic->meta_device_sectors)
 			return -EINVAL;
 	} else {
-		__u64 meta_size = (ic->provided_data_sectors >> ic->sb->log2_sectors_per_block) * ic->tag_size;
+		__u64 meta_size = ic->provided_data_sectors * ic->tag_size;
 		meta_size = (meta_size + ((1U << (ic->log2_buffer_sectors + SECTOR_SHIFT)) - 1))
 				>> (ic->log2_buffer_sectors + SECTOR_SHIFT);
 		meta_size <<= ic->log2_buffer_sectors;
@@ -3130,7 +3081,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	unsigned extra_args;
 	struct dm_arg_set as;
 	static const struct dm_arg _args[] = {
-		{0, 12, "Invalid number of feature args"},
+		{0, 9, "Invalid number of feature args"},
 	};
 	unsigned journal_sectors, interleave_sectors, buffer_sectors, journal_watermark, sync_msec;
 	bool recalculate;
@@ -3152,7 +3103,6 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	ti->private = ic;
 	ti->per_io_data_size = sizeof(struct dm_integrity_io);
-	ic->ti = ti;
 
 	ic->in_progress = RB_ROOT;
 	INIT_LIST_HEAD(&ic->wait_list);
@@ -3224,7 +3174,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			journal_watermark = val;
 		else if (sscanf(opt_string, "commit_time:%u%c", &val, &dummy) == 1)
 			sync_msec = val;
-		else if (!strncmp(opt_string, "meta_device:", strlen("meta_device:"))) {
+		else if (!memcmp(opt_string, "meta_device:", strlen("meta_device:"))) {
 			if (ic->meta_dev) {
 				dm_put_device(ti, ic->meta_dev);
 				ic->meta_dev = NULL;
@@ -3243,25 +3193,23 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				goto bad;
 			}
 			ic->sectors_per_block = val >> SECTOR_SHIFT;
-		} else if (!strncmp(opt_string, "internal_hash:", strlen("internal_hash:"))) {
+		} else if (!memcmp(opt_string, "internal_hash:", strlen("internal_hash:"))) {
 			r = get_alg_and_key(opt_string, &ic->internal_hash_alg, &ti->error,
 					    "Invalid internal_hash argument");
 			if (r)
 				goto bad;
-		} else if (!strncmp(opt_string, "journal_crypt:", strlen("journal_crypt:"))) {
+		} else if (!memcmp(opt_string, "journal_crypt:", strlen("journal_crypt:"))) {
 			r = get_alg_and_key(opt_string, &ic->journal_crypt_alg, &ti->error,
 					    "Invalid journal_crypt argument");
 			if (r)
 				goto bad;
-		} else if (!strncmp(opt_string, "journal_mac:", strlen("journal_mac:"))) {
+		} else if (!memcmp(opt_string, "journal_mac:", strlen("journal_mac:"))) {
 			r = get_alg_and_key(opt_string, &ic->journal_mac_alg,  &ti->error,
 					    "Invalid journal_mac argument");
 			if (r)
 				goto bad;
 		} else if (!strcmp(opt_string, "recalculate")) {
 			recalculate = true;
-		} else if (!strcmp(opt_string, "legacy_recalculate")) {
-			ic->legacy_recalculate = true;
 		} else {
 			r = -EINVAL;
 			ti->error = "Invalid argument";
@@ -3344,14 +3292,6 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	 */
 	ic->wait_wq = alloc_workqueue("dm-integrity-wait", WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!ic->wait_wq) {
-		ti->error = "Cannot allocate workqueue";
-		r = -ENOMEM;
-		goto bad;
-	}
-
-	ic->offload_wq = alloc_workqueue("dm-integrity-offload", WQ_MEM_RECLAIM,
-					  METADATA_WORKQUEUE_MAX_ACTIVE);
-	if (!ic->offload_wq) {
 		ti->error = "Cannot allocate workqueue";
 		r = -ENOMEM;
 		goto bad;
@@ -3490,7 +3430,7 @@ try_smaller_buffer:
 	DEBUG_print("	journal_sections %u\n", (unsigned)le32_to_cpu(ic->sb->journal_sections));
 	DEBUG_print("	journal_entries %u\n", ic->journal_entries);
 	DEBUG_print("	log2_interleave_sectors %d\n", ic->sb->log2_interleave_sectors);
-	DEBUG_print("	data_device_sectors 0x%llx\n", (unsigned long long)ic->data_device_sectors);
+	DEBUG_print("	device_sectors 0x%llx\n", (unsigned long long)ic->device_sectors);
 	DEBUG_print("	initial_sectors 0x%x\n", ic->initial_sectors);
 	DEBUG_print("	metadata_run 0x%x\n", ic->metadata_run);
 	DEBUG_print("	log2_metadata_run %d\n", ic->log2_metadata_run);
@@ -3529,20 +3469,6 @@ try_smaller_buffer:
 			r = -ENOMEM;
 			goto bad;
 		}
-	} else {
-		if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING)) {
-			ti->error = "Recalculate can only be specified with internal_hash";
-			r = -EINVAL;
-			goto bad;
-		}
-	}
-
-	if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING) &&
-	    le64_to_cpu(ic->sb->recalc_sector) < ic->provided_data_sectors &&
-	    dm_integrity_disable_recalculate(ic)) {
-		ti->error = "Recalculating with HMAC is disabled for security reasons - if you really need it, use the argument \"legacy_recalculate\"";
-		r = -EOPNOTSUPP;
-		goto bad;
 	}
 
 	ic->bufio = dm_bufio_client_create(ic->meta_dev ? ic->meta_dev->bdev : ic->dev->bdev,
@@ -3607,8 +3533,6 @@ static void dm_integrity_dtr(struct dm_target *ti)
 		destroy_workqueue(ic->metadata_wq);
 	if (ic->wait_wq)
 		destroy_workqueue(ic->wait_wq);
-	if (ic->offload_wq)
-		destroy_workqueue(ic->offload_wq);
 	if (ic->commit_wq)
 		destroy_workqueue(ic->commit_wq);
 	if (ic->writer_wq)

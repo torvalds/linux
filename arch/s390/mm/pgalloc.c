@@ -72,20 +72,8 @@ static void __crst_table_upgrade(void *arg)
 {
 	struct mm_struct *mm = arg;
 
-	/* we must change all active ASCEs to avoid the creation of new TLBs */
-	if (current->active_mm == mm) {
-		S390_lowcore.user_asce = mm->context.asce;
-		if (current->thread.mm_segment == USER_DS) {
-			__ctl_load(S390_lowcore.user_asce, 1, 1);
-			/* Mark user-ASCE present in CR1 */
-			clear_cpu_flag(CIF_ASCE_PRIMARY);
-		}
-		if (current->thread.mm_segment == USER_DS_SACF) {
-			__ctl_load(S390_lowcore.user_asce, 7, 7);
-			/* enable_sacf_uaccess does all or nothing */
-			WARN_ON(!test_cpu_flag(CIF_ASCE_SECONDARY));
-		}
-	}
+	if (current->active_mm == mm)
+		set_user_asce(mm);
 	__tlb_flush_local();
 }
 
@@ -113,7 +101,6 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 			mm->context.asce_limit = _REGION1_SIZE;
 			mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				_ASCE_USER_BITS | _ASCE_TYPE_REGION2;
-			mm_inc_nr_puds(mm);
 		} else {
 			crst_table_init(table, _REGION1_ENTRY_EMPTY);
 			pgd_populate(mm, (pgd_t *) table, (p4d_t *) pgd);

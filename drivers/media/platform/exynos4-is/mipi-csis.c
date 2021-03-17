@@ -513,10 +513,8 @@ static int s5pcsis_s_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		s5pcsis_clear_counters(state);
 		ret = pm_runtime_get_sync(&state->pdev->dev);
-		if (ret && ret != 1) {
-			pm_runtime_put_noidle(&state->pdev->dev);
+		if (ret && ret != 1)
 			return ret;
-		}
 	}
 
 	mutex_lock(&state->lock);

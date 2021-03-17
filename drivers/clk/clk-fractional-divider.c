@@ -77,16 +77,13 @@ static long clk_fd_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long m, n;
 	u64 ret;
 
-	if (!rate)
+	if (!rate || rate >= *parent_rate)
 		return *parent_rate;
 
-	if (fd->approximation) {
+	if (fd->approximation)
 		fd->approximation(hw, rate, parent_rate, &m, &n);
-	} else {
-		if (rate >= *parent_rate)
-			return *parent_rate;
+	else
 		clk_fd_general_approximation(hw, rate, parent_rate, &m, &n);
-	}
 
 	ret = (u64)*parent_rate * m;
 	do_div(ret, n);
@@ -105,33 +102,6 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 	rational_best_approximation(rate, parent_rate,
 			GENMASK(fd->mwidth - 1, 0), GENMASK(fd->nwidth - 1, 0),
 			&m, &n);
-
-	/*
-	 * When compensation the fractional divider,
-	 * the [1:0] bits of the numerator register are omitted,
-	 * which will lead to a large deviation in the result.
-	 * Therefore, it is required that the numerator must
-	 * be greater than 4.
-	 *
-	 * Note that there are some exceptions here:
-	 * If there is an even frac div, we need to keep the original
-	 * numerator(<4) and denominator. Otherwise, it may cause the
-	 * issue that the duty ratio is not 50%.
-	 */
-	if (m < 4 && m != 0) {
-		if (n % 2 == 0)
-			val = 1;
-		else
-			val = DIV_ROUND_UP(4, m);
-
-		n *= val;
-		m *= val;
-		if (n > fd->nmask) {
-			pr_debug("%s n(%ld) is overflow, use mask value\n",
-				 __func__, n);
-			n = fd->nmask;
-		}
-	}
 
 	if (fd->lock)
 		spin_lock_irqsave(fd->lock, flags);
@@ -164,7 +134,7 @@ struct clk_hw *clk_hw_register_fractional_divider(struct device *dev,
 		u8 clk_divider_flags, spinlock_t *lock)
 {
 	struct clk_fractional_divider *fd;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	struct clk_hw *hw;
 	int ret;
 

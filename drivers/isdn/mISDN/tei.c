@@ -1180,7 +1180,8 @@ static int
 ctrl_teimanager(struct manager *mgr, void *arg)
 {
 	/* currently we only have one option */
-	unsigned int *val = (unsigned int *)arg;
+	int	*val = (int *)arg;
+	int	ret = 0;
 
 	switch (val[0]) {
 	case IMCLEAR_L2:
@@ -1196,9 +1197,9 @@ ctrl_teimanager(struct manager *mgr, void *arg)
 			test_and_clear_bit(OPTION_L1_HOLD, &mgr->options);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-	return 0;
+	return ret;
 }
 
 /* This function does create a L2 for fixed TEI in NT Mode */

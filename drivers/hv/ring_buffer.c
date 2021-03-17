@@ -164,25 +164,26 @@ hv_get_ringbuffer_availbytes(const struct hv_ring_buffer_info *rbi,
 }
 
 /* Get various debug metrics for the specified ring buffer. */
-int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
-				struct hv_ring_buffer_debug_info *debug_info)
+void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
+				 struct hv_ring_buffer_debug_info *debug_info)
 {
 	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
 
-	if (!ring_info->ring_buffer)
-		return -EINVAL;
+	if (ring_info->ring_buffer) {
+		hv_get_ringbuffer_availbytes(ring_info,
+					&bytes_avail_toread,
+					&bytes_avail_towrite);
 
-	hv_get_ringbuffer_availbytes(ring_info,
-				     &bytes_avail_toread,
-				     &bytes_avail_towrite);
-	debug_info->bytes_avail_toread = bytes_avail_toread;
-	debug_info->bytes_avail_towrite = bytes_avail_towrite;
-	debug_info->current_read_index = ring_info->ring_buffer->read_index;
-	debug_info->current_write_index = ring_info->ring_buffer->write_index;
-	debug_info->current_interrupt_mask
-		= ring_info->ring_buffer->interrupt_mask;
-	return 0;
+		debug_info->bytes_avail_toread = bytes_avail_toread;
+		debug_info->bytes_avail_towrite = bytes_avail_towrite;
+		debug_info->current_read_index =
+			ring_info->ring_buffer->read_index;
+		debug_info->current_write_index =
+			ring_info->ring_buffer->write_index;
+		debug_info->current_interrupt_mask =
+			ring_info->ring_buffer->interrupt_mask;
+	}
 }
 EXPORT_SYMBOL_GPL(hv_ringbuffer_get_debuginfo);
 

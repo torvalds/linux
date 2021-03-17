@@ -51,7 +51,6 @@
 	do {							\
 		uint32_t tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 		uint32_t loop = adev->usec_timeout;		\
-		ret = 0;					\
 		while ((tmp_ & (mask)) != (expected_value)) {	\
 			udelay(2);				\
 			tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \

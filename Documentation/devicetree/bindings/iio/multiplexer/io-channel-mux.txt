@@ -21,7 +21,7 @@ controller state. The mux controller state is described in
 
 Example:
 	mux: mux-controller {
-		compatible = "gpio-mux";
+		compatible = "mux-gpio";
 		#mux-control-cells = <0>;
 
 		mux-gpios = <&pioA 0 GPIO_ACTIVE_HIGH>,

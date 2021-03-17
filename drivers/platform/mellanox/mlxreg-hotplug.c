@@ -248,8 +248,7 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 			   struct mlxreg_core_item *item)
 {
 	struct mlxreg_core_data *data;
-	unsigned long asserted;
-	u32 regval, bit;
+	u32 asserted, regval, bit;
 	int ret;
 
 	/*
@@ -282,7 +281,7 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 	asserted = item->cache ^ regval;
 	item->cache = regval;
 
-	for_each_set_bit(bit, &asserted, 8) {
+	for_each_set_bit(bit, (unsigned long *)&asserted, 8) {
 		data = item->data + bit;
 		if (regval & BIT(bit)) {
 			if (item->inversed)
@@ -673,7 +672,6 @@ static int mlxreg_hotplug_remove(struct platform_device *pdev)
 
 	/* Clean interrupts setup. */
 	mlxreg_hotplug_unset_irq(priv);
-	devm_free_irq(&pdev->dev, priv->irq, priv);
 
 	return 0;
 }

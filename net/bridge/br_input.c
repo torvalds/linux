@@ -79,6 +79,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	struct net_bridge_fdb_entry *dst = NULL;
 	struct net_bridge_mdb_entry *mdst;
 	bool local_rcv, mcast_hit = false;
+	const unsigned char *dest;
 	struct net_bridge *br;
 	u16 vid = 0;
 
@@ -96,9 +97,10 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, false);
 
 	local_rcv = !!(br->dev->flags & IFF_PROMISC);
-	if (is_multicast_ether_addr(eth_hdr(skb)->h_dest)) {
+	dest = eth_hdr(skb)->h_dest;
+	if (is_multicast_ether_addr(dest)) {
 		/* by definition the broadcast is also a multicast address */
-		if (is_broadcast_ether_addr(eth_hdr(skb)->h_dest)) {
+		if (is_broadcast_ether_addr(dest)) {
 			pkt_type = BR_PKT_BROADCAST;
 			local_rcv = true;
 		} else {
@@ -148,7 +150,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		}
 		break;
 	case BR_PKT_UNICAST:
-		dst = br_fdb_find_rcu(br, eth_hdr(skb)->h_dest, vid);
+		dst = br_fdb_find_rcu(br, dest, vid);
 	default:
 		break;
 	}
@@ -193,10 +195,13 @@ static void __br_handle_local_finish(struct sk_buff *skb)
 /* note: already called with rcu_read_lock */
 static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
+
 	__br_handle_local_finish(skb);
 
-	/* return 1 to signal the okfn() was called so it's ok to use the skb */
-	return 1;
+	BR_INPUT_SKB_CB(skb)->brdev = p->br->dev;
+	br_pass_frame_up(skb);
+	return 0;
 }
 
 /*
@@ -273,18 +278,10 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 				goto forward;
 		}
 
-		/* The else clause should be hit when nf_hook():
-		 *   - returns < 0 (drop/error)
-		 *   - returns = 0 (stolen/nf_queue)
-		 * Thus return 1 from the okfn() to signal the skb is ok to pass
-		 */
-		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
-			    dev_net(skb->dev), NULL, skb, skb->dev, NULL,
-			    br_handle_local_finish) == 1) {
-			return RX_HANDLER_PASS;
-		} else {
-			return RX_HANDLER_CONSUMED;
-		}
+		/* Deliver packet to local host only */
+		NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, dev_net(skb->dev),
+			NULL, skb, skb->dev, NULL, br_handle_local_finish);
+		return RX_HANDLER_CONSUMED;
 	}
 
 forward:

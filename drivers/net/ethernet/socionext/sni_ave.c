@@ -194,7 +194,6 @@
 
 /* Parameter for ethernet frame */
 #define AVE_MAX_ETHFRAME	1518
-#define AVE_FRAME_HEADROOM	2
 
 /* Parameter for interrupt */
 #define AVE_INTM_COUNT		20
@@ -586,13 +585,12 @@ static int ave_rxdesc_prepare(struct net_device *ndev, int entry)
 
 	skb = priv->rx.desc[entry].skbs;
 	if (!skb) {
-		skb = netdev_alloc_skb(ndev, AVE_MAX_ETHFRAME);
+		skb = netdev_alloc_skb_ip_align(ndev,
+						AVE_MAX_ETHFRAME);
 		if (!skb) {
 			netdev_err(ndev, "can't allocate skb for Rx\n");
 			return -ENOMEM;
 		}
-		skb->data += AVE_FRAME_HEADROOM;
-		skb->tail += AVE_FRAME_HEADROOM;
 	}
 
 	/* set disable to cmdsts */
@@ -605,12 +603,12 @@ static int ave_rxdesc_prepare(struct net_device *ndev, int entry)
 	 * - Rx buffer begins with 2 byte headroom, and data will be put from
 	 *   (buffer + 2).
 	 * To satisfy this, specify the address to put back the buffer
-	 * pointer advanced by AVE_FRAME_HEADROOM, and expand the map size
-	 * by AVE_FRAME_HEADROOM.
+	 * pointer advanced by NET_IP_ALIGN by netdev_alloc_skb_ip_align(),
+	 * and expand the map size by NET_IP_ALIGN.
 	 */
 	ret = ave_dma_map(ndev, &priv->rx.desc[entry],
-			  skb->data - AVE_FRAME_HEADROOM,
-			  AVE_MAX_ETHFRAME + AVE_FRAME_HEADROOM,
+			  skb->data - NET_IP_ALIGN,
+			  AVE_MAX_ETHFRAME + NET_IP_ALIGN,
 			  DMA_FROM_DEVICE, &paddr);
 	if (ret) {
 		netdev_err(ndev, "can't map skb for Rx\n");
@@ -906,11 +904,11 @@ static void ave_rxfifo_reset(struct net_device *ndev)
 
 	/* assert reset */
 	writel(AVE_GRR_RXFFR, priv->base + AVE_GRR);
-	udelay(50);
+	usleep_range(40, 50);
 
 	/* negate reset */
 	writel(0, priv->base + AVE_GRR);
-	udelay(20);
+	usleep_range(10, 20);
 
 	/* negate interrupt status */
 	writel(AVE_GI_RXOVF, priv->base + AVE_GISR);
@@ -1196,7 +1194,7 @@ static int ave_init(struct net_device *ndev)
 	ret = regmap_update_bits(priv->regmap, SG_ETPINMODE,
 				 priv->pinmode_mask, priv->pinmode_val);
 	if (ret)
-		goto out_reset_assert;
+		return ret;
 
 	ave_global_reset(ndev);
 
@@ -1575,7 +1573,7 @@ static int ave_probe(struct platform_device *pdev)
 
 	np = dev->of_node;
 	phy_mode = of_get_phy_mode(np);
-	if ((int)phy_mode < 0) {
+	if (phy_mode < 0) {
 		dev_err(dev, "phy-mode not found\n");
 		return -EINVAL;
 	}

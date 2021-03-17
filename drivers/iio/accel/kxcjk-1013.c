@@ -134,12 +134,6 @@ enum kx_chipset {
 	KX_MAX_CHIPS /* this must be last */
 };
 
-enum kx_acpi_type {
-	ACPI_GENERIC,
-	ACPI_SMO8500,
-	ACPI_KIOX010A,
-};
-
 struct kxcjk1013_data {
 	struct i2c_client *client;
 	struct iio_trigger *dready_trig;
@@ -156,7 +150,7 @@ struct kxcjk1013_data {
 	bool motion_trigger_on;
 	int64_t timestamp;
 	enum kx_chipset chipset;
-	enum kx_acpi_type acpi_type;
+	bool is_smo8500_device;
 };
 
 enum kxcjk1013_axis {
@@ -283,32 +277,6 @@ static const struct {
 			      {19163, 1, 0},
 			      {38326, 0, 1} };
 
-#ifdef CONFIG_ACPI
-enum kiox010a_fn_index {
-	KIOX010A_SET_LAPTOP_MODE = 1,
-	KIOX010A_SET_TABLET_MODE = 2,
-};
-
-static int kiox010a_dsm(struct device *dev, int fn_index)
-{
-	acpi_handle handle = ACPI_HANDLE(dev);
-	guid_t kiox010a_dsm_guid;
-	union acpi_object *obj;
-
-	if (!handle)
-		return -ENODEV;
-
-	guid_parse("1f339696-d475-4e26-8cad-2e9f8e6d7a91", &kiox010a_dsm_guid);
-
-	obj = acpi_evaluate_dsm(handle, &kiox010a_dsm_guid, 1, fn_index, NULL);
-	if (!obj)
-		return -EIO;
-
-	ACPI_FREE(obj);
-	return 0;
-}
-#endif
-
 static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
 			      enum kxcjk1013_mode mode)
 {
@@ -385,13 +353,6 @@ static int kxcjk1013_set_range(struct kxcjk1013_data *data, int range_index)
 static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 {
 	int ret;
-
-#ifdef CONFIG_ACPI
-	if (data->acpi_type == ACPI_KIOX010A) {
-		/* Make sure the kbd and touchpad on 2-in-1s using 2 KXCJ91008-s work */
-		kiox010a_dsm(&data->client->dev, KIOX010A_SET_LAPTOP_MODE);
-	}
-#endif
 
 	ret = i2c_smbus_read_byte_data(data->client, KXCJK1013_REG_WHO_AM_I);
 	if (ret < 0) {
@@ -1280,7 +1241,7 @@ static irqreturn_t kxcjk1013_data_rdy_trig_poll(int irq, void *private)
 
 static const char *kxcjk1013_match_acpi_device(struct device *dev,
 					       enum kx_chipset *chipset,
-					       enum kx_acpi_type *acpi_type)
+					       bool *is_smo8500_device)
 {
 	const struct acpi_device_id *id;
 
@@ -1289,9 +1250,7 @@ static const char *kxcjk1013_match_acpi_device(struct device *dev,
 		return NULL;
 
 	if (strcmp(id->id, "SMO8500") == 0)
-		*acpi_type = ACPI_SMO8500;
-	else if (strcmp(id->id, "KIOX010A") == 0)
-		*acpi_type = ACPI_KIOX010A;
+		*is_smo8500_device = true;
 
 	*chipset = (enum kx_chipset)id->driver_data;
 
@@ -1327,7 +1286,7 @@ static int kxcjk1013_probe(struct i2c_client *client,
 	} else if (ACPI_HANDLE(&client->dev)) {
 		name = kxcjk1013_match_acpi_device(&client->dev,
 						   &data->chipset,
-						   &data->acpi_type);
+						   &data->is_smo8500_device);
 	} else
 		return -ENODEV;
 
@@ -1345,7 +1304,7 @@ static int kxcjk1013_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &kxcjk1013_info;
 
-	if (client->irq > 0 && data->acpi_type != ACPI_SMO8500) {
+	if (client->irq > 0 && !data->is_smo8500_device) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						kxcjk1013_data_rdy_trig_poll,
 						kxcjk1013_event_handler,
@@ -1478,8 +1437,6 @@ static int kxcjk1013_resume(struct device *dev)
 
 	mutex_lock(&data->mutex);
 	ret = kxcjk1013_set_mode(data, OPERATION);
-	if (ret == 0)
-		ret = kxcjk1013_set_range(data, data->range);
 	mutex_unlock(&data->mutex);
 
 	return ret;
@@ -1533,7 +1490,6 @@ static const struct acpi_device_id kx_acpi_match[] = {
 	{"KXCJ1008", KXCJ91008},
 	{"KXCJ9000", KXCJ91008},
 	{"KIOX000A", KXCJ91008},
-	{"KIOX010A", KXCJ91008}, /* KXCJ91008 inside the display of a 2-in-1 */
 	{"KXTJ1009", KXTJ21009},
 	{"SMO8500",  KXCJ91008},
 	{ },

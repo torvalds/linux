@@ -537,9 +537,9 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 	}
 
 	if (C_CRTSCTS(tty) && C_BAUD(tty) != B0)
-		newline.flow_control = GB_SERIAL_AUTO_RTSCTS_EN;
+		newline.flow_control |= GB_SERIAL_AUTO_RTSCTS_EN;
 	else
-		newline.flow_control = 0;
+		newline.flow_control &= ~GB_SERIAL_AUTO_RTSCTS_EN;
 
 	if (memcmp(&gb_tty->line_coding, &newline, sizeof(newline))) {
 		memcpy(&gb_tty->line_coding, &newline, sizeof(newline));

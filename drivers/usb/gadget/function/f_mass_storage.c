@@ -261,7 +261,7 @@ struct fsg_common;
 struct fsg_common {
 	struct usb_gadget	*gadget;
 	struct usb_composite_dev *cdev;
-	struct fsg_dev		*fsg;
+	struct fsg_dev		*fsg, *new_fsg;
 	wait_queue_head_t	io_wait;
 	wait_queue_head_t	fsg_wait;
 
@@ -290,7 +290,6 @@ struct fsg_common {
 	unsigned int		bulk_out_maxpacket;
 	enum fsg_state		state;		/* For exception handling */
 	unsigned int		exception_req_tag;
-	void			*exception_arg;
 
 	enum data_direction	data_dir;
 	u32			data_size;
@@ -392,8 +391,7 @@ static int fsg_set_halt(struct fsg_dev *fsg, struct usb_ep *ep)
 
 /* These routines may be called in process context or in_irq */
 
-static void __raise_exception(struct fsg_common *common, enum fsg_state new_state,
-			      void *arg)
+static void raise_exception(struct fsg_common *common, enum fsg_state new_state)
 {
 	unsigned long		flags;
 
@@ -406,7 +404,6 @@ static void __raise_exception(struct fsg_common *common, enum fsg_state new_stat
 	if (common->state <= new_state) {
 		common->exception_req_tag = common->ep0_req_tag;
 		common->state = new_state;
-		common->exception_arg = arg;
 		if (common->thread_task)
 			send_sig_info(SIGUSR1, SEND_SIG_FORCED,
 				      common->thread_task);
@@ -414,10 +411,6 @@ static void __raise_exception(struct fsg_common *common, enum fsg_state new_stat
 	spin_unlock_irqrestore(&common->lock, flags);
 }
 
-static void raise_exception(struct fsg_common *common, enum fsg_state new_state)
-{
-	__raise_exception(common, new_state, NULL);
-}
 
 /*-------------------------------------------------------------------------*/
 
@@ -2292,16 +2285,16 @@ reset:
 static int fsg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 {
 	struct fsg_dev *fsg = fsg_from_func(f);
-
-	__raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE, fsg);
+	fsg->common->new_fsg = fsg;
+	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
 	return USB_GADGET_DELAYED_STATUS;
 }
 
 static void fsg_disable(struct usb_function *f)
 {
 	struct fsg_dev *fsg = fsg_from_func(f);
-
-	__raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE, NULL);
+	fsg->common->new_fsg = NULL;
+	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
 }
 
 
@@ -2314,7 +2307,6 @@ static void handle_exception(struct fsg_common *common)
 	enum fsg_state		old_state;
 	struct fsg_lun		*curlun;
 	unsigned int		exception_req_tag;
-	struct fsg_dev		*new_fsg;
 
 	/*
 	 * Clear the existing signals.  Anything but SIGUSR1 is converted
@@ -2368,7 +2360,6 @@ static void handle_exception(struct fsg_common *common)
 	common->next_buffhd_to_fill = &common->buffhds[0];
 	common->next_buffhd_to_drain = &common->buffhds[0];
 	exception_req_tag = common->exception_req_tag;
-	new_fsg = common->exception_arg;
 	old_state = common->state;
 	common->state = FSG_STATE_NORMAL;
 
@@ -2422,8 +2413,8 @@ static void handle_exception(struct fsg_common *common)
 		break;
 
 	case FSG_STATE_CONFIG_CHANGE:
-		do_set_interface(common, new_fsg);
-		if (new_fsg)
+		do_set_interface(common, common->new_fsg);
+		if (common->new_fsg)
 			usb_composite_setup_continue(common->cdev);
 		break;
 
@@ -2998,7 +2989,8 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(fsg, "unbind\n");
 	if (fsg->common->fsg == fsg) {
-		__raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE, NULL);
+		fsg->common->new_fsg = NULL;
+		raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
 		/* FIXME: make interruptible or killable somehow? */
 		wait_event(common->fsg_wait, common->fsg != fsg);
 	}

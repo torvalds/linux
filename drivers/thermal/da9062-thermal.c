@@ -106,7 +106,7 @@ static void da9062_thermal_poll_on(struct work_struct *work)
 					   THERMAL_EVENT_UNSPECIFIED);
 
 		delay = msecs_to_jiffies(thermal->zone->passive_delay);
-		queue_delayed_work(system_freezable_wq, &thermal->work, delay);
+		schedule_delayed_work(&thermal->work, delay);
 		return;
 	}
 
@@ -125,7 +125,7 @@ static irqreturn_t da9062_thermal_irq_handler(int irq, void *data)
 	struct da9062_thermal *thermal = data;
 
 	disable_irq_nosync(thermal->irq);
-	queue_delayed_work(system_freezable_wq, &thermal->work, 0);
+	schedule_delayed_work(&thermal->work, 0);
 
 	return IRQ_HANDLED;
 }

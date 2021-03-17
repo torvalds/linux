@@ -278,22 +278,18 @@ static int tracing_stat_init(void)
 
 	d_tracing = tracing_init_dentry();
 	if (IS_ERR(d_tracing))
-		return -ENODEV;
+		return 0;
 
 	stat_dir = tracefs_create_dir("trace_stat", d_tracing);
-	if (!stat_dir) {
+	if (!stat_dir)
 		pr_warn("Could not create tracefs 'trace_stat' entry\n");
-		return -ENOMEM;
-	}
 	return 0;
 }
 
 static int init_stat_file(struct stat_session *session)
 {
-	int ret;
-
-	if (!stat_dir && (ret = tracing_stat_init()))
-		return ret;
+	if (!stat_dir && tracing_stat_init())
+		return -ENODEV;
 
 	session->file = tracefs_create_file(session->ts->name, 0644,
 					    stat_dir,
@@ -306,7 +302,7 @@ static int init_stat_file(struct stat_session *session)
 int register_stat_tracer(struct tracer_stat *trace)
 {
 	struct stat_session *session, *node;
-	int ret = -EINVAL;
+	int ret;
 
 	if (!trace)
 		return -EINVAL;
@@ -317,15 +313,17 @@ int register_stat_tracer(struct tracer_stat *trace)
 	/* Already registered? */
 	mutex_lock(&all_stat_sessions_mutex);
 	list_for_each_entry(node, &all_stat_sessions, session_list) {
-		if (node->ts == trace)
-			goto out;
+		if (node->ts == trace) {
+			mutex_unlock(&all_stat_sessions_mutex);
+			return -EINVAL;
+		}
 	}
+	mutex_unlock(&all_stat_sessions_mutex);
 
-	ret = -ENOMEM;
 	/* Init the session */
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
-		goto out;
+		return -ENOMEM;
 
 	session->ts = trace;
 	INIT_LIST_HEAD(&session->session_list);
@@ -334,16 +332,15 @@ int register_stat_tracer(struct tracer_stat *trace)
 	ret = init_stat_file(session);
 	if (ret) {
 		destroy_session(session);
-		goto out;
+		return ret;
 	}
 
-	ret = 0;
 	/* Register */
+	mutex_lock(&all_stat_sessions_mutex);
 	list_add_tail(&session->session_list, &all_stat_sessions);
- out:
 	mutex_unlock(&all_stat_sessions_mutex);
 
-	return ret;
+	return 0;
 }
 
 void unregister_stat_tracer(struct tracer_stat *trace)

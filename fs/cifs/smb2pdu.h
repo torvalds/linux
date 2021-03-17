@@ -84,8 +84,8 @@
 
 #define NUMBER_OF_SMB2_COMMANDS	0x0013
 
-/* 52 transform hdr + 64 hdr + 88 create rsp */
-#define MAX_SMB2_HDR_SIZE 204
+/* 4 len + 52 transform hdr + 64 hdr + 56 create rsp */
+#define MAX_SMB2_HDR_SIZE 0x00b0
 
 #define SMB2_PROTO_NUMBER cpu_to_le32(0x424d53fe)
 #define SMB2_TRANSFORM_PROTO_NUM cpu_to_le32(0x424d53fd)
@@ -257,20 +257,12 @@ struct smb2_neg_context {
 	/* Followed by array of data */
 } __packed;
 
-#define SMB311_LINUX_CLIENT_SALT_SIZE			32
+#define SMB311_SALT_SIZE			32
 /* Hash Algorithm Types */
 #define SMB2_PREAUTH_INTEGRITY_SHA512	cpu_to_le16(0x0001)
 #define SMB2_PREAUTH_HASH_SIZE 64
 
-/*
- * SaltLength that the server send can be zero, so the only three required
- * fields (all __le16) end up six bytes total, so the minimum context data len
- * in the response is six bytes which accounts for
- *
- *      HashAlgorithmCount, SaltLength, and 1 HashAlgorithm.
- */
-#define MIN_PREAUTH_CTXT_DATA_LEN 6
-
+#define MIN_PREAUTH_CTXT_DATA_LEN	(SMB311_SALT_SIZE + 6)
 struct smb2_preauth_neg_context {
 	__le16	ContextType; /* 1 */
 	__le16	DataLength;
@@ -278,7 +270,7 @@ struct smb2_preauth_neg_context {
 	__le16	HashAlgorithmCount; /* 1 */
 	__le16	SaltLength;
 	__le16	HashAlgorithms; /* HashAlgorithms[0] since only one defined */
-	__u8	Salt[SMB311_LINUX_CLIENT_SALT_SIZE];
+	__u8	Salt[SMB311_SALT_SIZE];
 } __packed;
 
 /* Encryption Algorithms Ciphers */
@@ -785,7 +777,6 @@ struct create_durable_handle_reconnect_v2 {
 	struct create_context ccontext;
 	__u8   Name[8];
 	struct durable_reconnect_context_v2 dcontext;
-	__u8   Pad[4];
 } __packed;
 
 /* See MS-SMB2 2.2.13.2.5 */
@@ -1217,7 +1208,7 @@ struct smb2_oplock_break {
 struct smb2_lease_break {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 44 */
-	__le16 Epoch;
+	__le16 Reserved;
 	__le32 Flags;
 	__u8   LeaseKey[16];
 	__le32 CurrentLeaseState;

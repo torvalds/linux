@@ -454,7 +454,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	struct tcp_request_sock *treq = tcp_rsk(req);
 	struct inet_connection_sock *newicsk;
 	struct tcp_sock *oldtp, *newtp;
-	u32 seq;
 
 	if (!newsk)
 		return NULL;
@@ -468,10 +467,8 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	/* Now setup tcp_sock */
 	newtp->pred_flags = 0;
 
-	seq = treq->rcv_isn + 1;
-	newtp->rcv_wup = seq;
-	newtp->copied_seq = seq;
-	WRITE_ONCE(newtp->rcv_nxt, seq);
+	newtp->rcv_wup = newtp->copied_seq =
+	newtp->rcv_nxt = treq->rcv_isn + 1;
 	newtp->segs_in = 1;
 
 	newtp->snd_sml = newtp->snd_una =

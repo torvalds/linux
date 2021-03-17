@@ -65,7 +65,8 @@ trans:
 
 		"3: ;"
 		: [res] "=r" (result), [texasr] "=r" (texasr)
-		: [sprn_texasr] "i"  (SPRN_TEXASR), [cptr1] "b" (&cptr[1])
+		: [fp_load] "r" (fp_load), [fp_load_ckpt] "r" (fp_load_ckpt),
+		[sprn_texasr] "i"  (SPRN_TEXASR), [cptr1] "r" (&cptr[1])
 		: "memory", "r0", "r1", "r3", "r4",
 		"r7", "r8", "r9", "r10", "r11"
 		);

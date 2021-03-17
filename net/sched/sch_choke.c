@@ -327,8 +327,7 @@ static void choke_reset(struct Qdisc *sch)
 
 	sch->q.qlen = 0;
 	sch->qstats.backlog = 0;
-	if (q->tab)
-		memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
+	memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
 	q->head = q->tail = 0;
 	red_restart(&q->vars);
 }
@@ -371,7 +370,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 
 	ctl = nla_data(tb[TCA_CHOKE_PARMS]);
 
-	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog, ctl->Scell_log))
+	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog))
 		return -EINVAL;
 
 	if (ctl->limit > CHOKE_MAX_QUEUE)

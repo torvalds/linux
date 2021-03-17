@@ -145,8 +145,7 @@ u32 msgdma_tx_completions(struct altera_tse_private *priv)
 			& 0xffff;
 
 	if (inuse) { /* Tx FIFO is not empty */
-		ready = max_t(int,
-			      priv->tx_prod - priv->tx_cons - inuse - 1, 0);
+		ready = priv->tx_prod - priv->tx_cons - inuse - 1;
 	} else {
 		/* Check for buffered last packet */
 		status = csrrd32(priv->tx_dma_csr, msgdma_csroffs(status));

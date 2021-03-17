@@ -105,7 +105,7 @@ static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 	return (ret == 2) ? 0 : -EIO;
 }
 
-#if IS_REACHABLE(CONFIG_HWMON)
+#if IS_ENABLED(CONFIG_HWMON)
 
 static const u32 amg88xx_temp_config[] = {
 	HWMON_T_INPUT,
@@ -510,12 +510,7 @@ static const struct v4l2_ioctl_ops video_i2c_ioctl_ops = {
 
 static void video_i2c_release(struct video_device *vdev)
 {
-	struct video_i2c_data *data = video_get_drvdata(vdev);
-
-	v4l2_device_unregister(&data->v4l2_dev);
-	mutex_destroy(&data->lock);
-	mutex_destroy(&data->queue_lock);
-	kfree(data);
+	kfree(video_get_drvdata(vdev));
 }
 
 static int video_i2c_probe(struct i2c_client *client,
@@ -613,6 +608,10 @@ static int video_i2c_remove(struct i2c_client *client)
 	struct video_i2c_data *data = i2c_get_clientdata(client);
 
 	video_unregister_device(&data->vdev);
+	v4l2_device_unregister(&data->v4l2_dev);
+
+	mutex_destroy(&data->lock);
+	mutex_destroy(&data->queue_lock);
 
 	return 0;
 }

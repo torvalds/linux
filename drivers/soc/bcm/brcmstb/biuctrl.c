@@ -56,7 +56,7 @@ static inline void cbc_writel(u32 val, int reg)
 	if (offset == -1)
 		return;
 
-	writel(val, cpubiuctrl_base + offset);
+	writel_relaxed(val,  cpubiuctrl_base + offset);
 }
 
 enum cpubiuctrl_regs {
@@ -246,9 +246,7 @@ static int __init brcmstb_biuctrl_init(void)
 	if (!np)
 		return 0;
 
-	ret = setup_hifcpubiuctrl_regs(np);
-	if (ret)
-		return ret;
+	setup_hifcpubiuctrl_regs(np);
 
 	ret = mcp_write_pairing_set();
 	if (ret) {

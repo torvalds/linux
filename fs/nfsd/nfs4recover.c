@@ -662,7 +662,7 @@ struct cld_net {
 struct cld_upcall {
 	struct list_head	 cu_list;
 	struct cld_net		*cu_net;
-	struct completion	 cu_done;
+	struct task_struct	*cu_task;
 	struct cld_msg		 cu_msg;
 };
 
@@ -671,18 +671,23 @@ __cld_pipe_upcall(struct rpc_pipe *pipe, struct cld_msg *cmsg)
 {
 	int ret;
 	struct rpc_pipe_msg msg;
-	struct cld_upcall *cup = container_of(cmsg, struct cld_upcall, cu_msg);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.data = cmsg;
 	msg.len = sizeof(*cmsg);
 
+	/*
+	 * Set task state before we queue the upcall. That prevents
+	 * wake_up_process in the downcall from racing with schedule.
+	 */
+	set_current_state(TASK_UNINTERRUPTIBLE);
 	ret = rpc_queue_upcall(pipe, &msg);
 	if (ret < 0) {
+		set_current_state(TASK_RUNNING);
 		goto out;
 	}
 
-	wait_for_completion(&cup->cu_done);
+	schedule();
 
 	if (msg.errno < 0)
 		ret = msg.errno;
@@ -749,7 +754,7 @@ cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	if (copy_from_user(&cup->cu_msg, src, mlen) != 0)
 		return -EFAULT;
 
-	complete(&cup->cu_done);
+	wake_up_process(cup->cu_task);
 	return mlen;
 }
 
@@ -764,7 +769,7 @@ cld_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	if (msg->errno >= 0)
 		return;
 
-	complete(&cup->cu_done);
+	wake_up_process(cup->cu_task);
 }
 
 static const struct rpc_pipe_ops cld_upcall_ops = {
@@ -895,7 +900,7 @@ restart_search:
 			goto restart_search;
 		}
 	}
-	init_completion(&new->cu_done);
+	new->cu_task = current;
 	new->cu_msg.cm_vers = CLD_UPCALL_VERSION;
 	put_unaligned(cn->cn_xid++, &new->cu_msg.cm_xid);
 	new->cu_net = cn;

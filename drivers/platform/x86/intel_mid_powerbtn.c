@@ -125,8 +125,8 @@ static const struct mid_pb_ddata mrfld_ddata = {
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (kernel_ulong_t)&ddata }
 
 static const struct x86_cpu_id mid_pb_cpu_ids[] = {
-	ICPU(INTEL_FAM6_ATOM_SALTWELL_MID,		mfld_ddata),
-	ICPU(INTEL_FAM6_ATOM_SILVERMONT_MID,	mrfld_ddata),
+	ICPU(INTEL_FAM6_ATOM_PENWELL,		mfld_ddata),
+	ICPU(INTEL_FAM6_ATOM_MERRIFIELD,	mrfld_ddata),
 	{}
 };
 
@@ -158,10 +158,9 @@ static int mid_pb_probe(struct platform_device *pdev)
 
 	input_set_capability(input, EV_KEY, KEY_POWER);
 
-	ddata = devm_kmemdup(&pdev->dev, (void *)id->driver_data,
-			     sizeof(*ddata), GFP_KERNEL);
+	ddata = (struct mid_pb_ddata *)id->driver_data;
 	if (!ddata)
-		return -ENOMEM;
+		return -ENODATA;
 
 	ddata->dev = &pdev->dev;
 	ddata->irq = irq;

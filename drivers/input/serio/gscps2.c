@@ -381,9 +381,9 @@ static int __init gscps2_probe(struct parisc_device *dev)
 		goto fail;
 #endif
 
-	pr_info("serio: %s port at 0x%08lx irq %d @ %s\n",
+	printk(KERN_INFO "serio: %s port at 0x%p irq %d @ %s\n",
 		ps2port->port->name,
-		hpa,
+		ps2port->addr,
 		ps2port->padev->irq,
 		ps2port->port->phys);
 

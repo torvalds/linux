@@ -1150,7 +1150,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 					      &drv_version);
 		if (rc) {
 			DP_NOTICE(cdev, "Failed sending drv version command\n");
-			goto err4;
+			return rc;
 		}
 	}
 
@@ -1158,8 +1158,6 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 
 	return 0;
 
-err4:
-	qed_ll2_dealloc_if(cdev);
 err3:
 	qed_hw_stop(cdev);
 err2:
@@ -1462,7 +1460,6 @@ static int qed_get_link_data(struct qed_hwfn *hwfn,
 }
 
 static void qed_fill_link(struct qed_hwfn *hwfn,
-			  struct qed_ptt *ptt,
 			  struct qed_link_output *if_link)
 {
 	struct qed_mcp_link_params params;
@@ -1543,7 +1540,7 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 
 	/* TODO - fill duplex properly */
 	if_link->duplex = DUPLEX_FULL;
-	qed_mcp_get_media_type(hwfn, ptt, &media_type);
+	qed_mcp_get_media_type(hwfn->cdev, &media_type);
 	if_link->port = qed_get_port_type(media_type);
 
 	if_link->autoneg = params.speed.autoneg;
@@ -1599,34 +1596,21 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 static void qed_get_current_link(struct qed_dev *cdev,
 				 struct qed_link_output *if_link)
 {
-	struct qed_hwfn *hwfn;
-	struct qed_ptt *ptt;
 	int i;
 
-	hwfn = &cdev->hwfns[0];
-	if (IS_PF(cdev)) {
-		ptt = qed_ptt_acquire(hwfn);
-		if (ptt) {
-			qed_fill_link(hwfn, ptt, if_link);
-			qed_ptt_release(hwfn, ptt);
-		} else {
-			DP_NOTICE(hwfn, "Failed to fill link; No PTT\n");
-		}
-	} else {
-		qed_fill_link(hwfn, NULL, if_link);
-	}
+	qed_fill_link(&cdev->hwfns[0], if_link);
 
 	for_each_hwfn(cdev, i)
 		qed_inform_vf_link_state(&cdev->hwfns[i]);
 }
 
-void qed_link_update(struct qed_hwfn *hwfn, struct qed_ptt *ptt)
+void qed_link_update(struct qed_hwfn *hwfn)
 {
 	void *cookie = hwfn->cdev->ops_cookie;
 	struct qed_common_cb_ops *op = hwfn->cdev->protocol_ops.common;
 	struct qed_link_output if_link;
 
-	qed_fill_link(hwfn, ptt, &if_link);
+	qed_fill_link(hwfn, &if_link);
 	qed_inform_vf_link_state(hwfn);
 
 	if (IS_LEAD_HWFN(hwfn) && cookie)
@@ -1650,9 +1634,9 @@ static int qed_drain(struct qed_dev *cdev)
 			return -EBUSY;
 		}
 		rc = qed_mcp_drain(hwfn, ptt);
-		qed_ptt_release(hwfn, ptt);
 		if (rc)
 			return rc;
+		qed_ptt_release(hwfn, ptt);
 	}
 
 	return 0;

@@ -415,32 +415,38 @@ static void bcm2835_dma_fill_cb_chain_with_sg(
 	}
 }
 
-static int bcm2835_dma_abort(struct bcm2835_chan *c)
+static int bcm2835_dma_abort(void __iomem *chan_base)
 {
-	void __iomem *chan_base = c->chan_base;
+	unsigned long cs;
 	long int timeout = 10000;
 
-	/*
-	 * A zero control block address means the channel is idle.
-	 * (The ACTIVE flag in the CS register is not a reliable indicator.)
-	 */
-	if (!readl(chan_base + BCM2835_DMA_ADDR))
+	cs = readl(chan_base + BCM2835_DMA_CS);
+	if (!(cs & BCM2835_DMA_ACTIVE))
 		return 0;
 
 	/* Write 0 to the active bit - Pause the DMA */
 	writel(0, chan_base + BCM2835_DMA_CS);
 
 	/* Wait for any current AXI transfer to complete */
-	while ((readl(chan_base + BCM2835_DMA_CS) &
-		BCM2835_DMA_WAITING_FOR_WRITES) && --timeout)
+	while ((cs & BCM2835_DMA_ISPAUSED) && --timeout) {
 		cpu_relax();
+		cs = readl(chan_base + BCM2835_DMA_CS);
+	}
 
-	/* Peripheral might be stuck and fail to signal AXI write responses */
+	/* We'll un-pause when we set of our next DMA */
 	if (!timeout)
-		dev_err(c->vc.chan.device->dev,
-			"failed to complete outstanding writes\n");
+		return -ETIMEDOUT;
 
-	writel(BCM2835_DMA_RESET, chan_base + BCM2835_DMA_CS);
+	if (!(cs & BCM2835_DMA_ACTIVE))
+		return 0;
+
+	/* Terminate the control block chain */
+	writel(0, chan_base + BCM2835_DMA_NEXTCB);
+
+	/* Abort the whole DMA */
+	writel(BCM2835_DMA_ABORT | BCM2835_DMA_ACTIVE,
+	       chan_base + BCM2835_DMA_CS);
+
 	return 0;
 }
 
@@ -479,15 +485,8 @@ static irqreturn_t bcm2835_dma_callback(int irq, void *data)
 
 	spin_lock_irqsave(&c->vc.lock, flags);
 
-	/*
-	 * Clear the INT flag to receive further interrupts. Keep the channel
-	 * active in case the descriptor is cyclic or in case the client has
-	 * already terminated the descriptor and issued a new one. (May happen
-	 * if this IRQ handler is threaded.) If the channel is finished, it
-	 * will remain idle despite the ACTIVE flag being set.
-	 */
-	writel(BCM2835_DMA_INT | BCM2835_DMA_ACTIVE,
-	       c->chan_base + BCM2835_DMA_CS);
+	/* Acknowledge interrupt */
+	writel(BCM2835_DMA_INT, c->chan_base + BCM2835_DMA_CS);
 
 	d = c->desc;
 
@@ -495,7 +494,11 @@ static irqreturn_t bcm2835_dma_callback(int irq, void *data)
 		if (d->cyclic) {
 			/* call the cyclic callback */
 			vchan_cyclic_callback(&d->vd);
-		} else if (!readl(c->chan_base + BCM2835_DMA_ADDR)) {
+
+			/* Keep the DMA engine running */
+			writel(BCM2835_DMA_ACTIVE,
+			       c->chan_base + BCM2835_DMA_CS);
+		} else {
 			vchan_cookie_complete(&c->desc->vd);
 			bcm2835_dma_start_desc(c);
 		}
@@ -793,6 +796,7 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
 	struct bcm2835_dmadev *d = to_bcm2835_dma_dev(c->vc.chan.device);
 	unsigned long flags;
+	int timeout = 10000;
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&c->vc.lock, flags);
@@ -802,11 +806,27 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 	list_del_init(&c->node);
 	spin_unlock(&d->lock);
 
-	/* stop DMA activity */
+	/*
+	 * Stop DMA activity: we assume the callback will not be called
+	 * after bcm_dma_abort() returns (even if it does, it will see
+	 * c->desc is NULL and exit.)
+	 */
 	if (c->desc) {
 		vchan_terminate_vdesc(&c->desc->vd);
 		c->desc = NULL;
-		bcm2835_dma_abort(c);
+		bcm2835_dma_abort(c->chan_base);
+
+		/* Wait for stopping */
+		while (--timeout) {
+			if (!(readl(c->chan_base + BCM2835_DMA_CS) &
+						BCM2835_DMA_ACTIVE))
+				break;
+
+			cpu_relax();
+		}
+
+		if (!timeout)
+			dev_err(d->ddev.dev, "DMA transfer could not be terminated\n");
 	}
 
 	vchan_get_all_descriptors(&c->vc, &head);
@@ -898,10 +918,8 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (rc) {
-		dev_err(&pdev->dev, "Unable to set DMA mask\n");
+	if (rc)
 		return rc;
-	}
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)

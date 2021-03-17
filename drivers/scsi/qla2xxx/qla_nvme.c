@@ -474,15 +474,21 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	int rval = -ENODEV;
 	srb_t *sp;
 	struct qla_qpair *qpair = hw_queue_handle;
-	struct nvme_private *priv = fd->private;
+	struct nvme_private *priv;
 	struct qla_nvme_rport *qla_rport = rport->private;
 
-	if (!priv) {
-		/* nvme association has been torn down */
+	if (!fd || !qpair) {
+		ql_log(ql_log_warn, NULL, 0x2134,
+		    "NO NVMe request or Queue Handle\n");
 		return rval;
 	}
 
+	priv = fd->private;
 	fcport = qla_rport->fcport;
+	if (!fcport) {
+		ql_log(ql_log_warn, NULL, 0x210e, "No fcport ptr\n");
+		return rval;
+	}
 
 	vha = fcport->vha;
 
@@ -511,7 +517,6 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	sp->name = "nvme_cmd";
 	sp->done = qla_nvme_sp_done;
 	sp->qpair = qpair;
-	sp->vha = vha;
 	nvme = &sp->u.iocb_cmd;
 	nvme->u.nvme.desc = fd;
 
@@ -559,7 +564,7 @@ static void qla_nvme_remoteport_delete(struct nvme_fc_remote_port *rport)
 		schedule_work(&fcport->free_work);
 	}
 
-	fcport->nvme_flag &= ~NVME_FLAG_DELETING;
+	fcport->nvme_flag &= ~(NVME_FLAG_REGISTERED | NVME_FLAG_DELETING);
 	ql_log(ql_log_info, fcport->vha, 0x2110,
 	    "remoteport_delete of %p completed.\n", fcport);
 }
@@ -602,7 +607,7 @@ void qla_nvme_abort(struct qla_hw_data *ha, struct srb *sp, int res)
 {
 	int rval;
 
-	if (ha->flags.fw_started) {
+	if (!test_bit(ABORT_ISP_ACTIVE, &sp->vha->dpc_flags)) {
 		rval = ha->isp_ops->abort_command(sp);
 		if (!rval && !qla_nvme_wait_on_command(sp))
 			ql_log(ql_log_warn, NULL, 0x2112,
@@ -655,6 +660,9 @@ void qla_nvme_delete(struct scsi_qla_host *vha)
 		    __func__, fcport);
 
 		nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
+		init_completion(&fcport->nvme_del_done);
+		nvme_fc_unregister_remoteport(fcport->nvme_remote_port);
+		wait_for_completion(&fcport->nvme_del_done);
 	}
 
 	if (vha->nvme_local_port) {
@@ -676,7 +684,7 @@ int qla_nvme_register_hba(struct scsi_qla_host *vha)
 	struct nvme_fc_port_template *tmpl;
 	struct qla_hw_data *ha;
 	struct nvme_fc_port_info pinfo;
-	int ret = -EINVAL;
+	int ret = EINVAL;
 
 	if (!IS_ENABLED(CONFIG_NVME_FC))
 		return ret;

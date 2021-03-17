@@ -10,6 +10,11 @@
 
 #include <arm_neon.h>
 
+static const uint8x16_t x0f = {
+	0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f,
+	0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f,
+};
+
 #ifdef CONFIG_ARM
 /*
  * AArch32 does not provide this intrinsic natively because it does not
@@ -36,7 +41,6 @@ void __raid6_2data_recov_neon(int bytes, uint8_t *p, uint8_t *q, uint8_t *dp,
 	uint8x16_t pm1 = vld1q_u8(pbmul + 16);
 	uint8x16_t qm0 = vld1q_u8(qmul);
 	uint8x16_t qm1 = vld1q_u8(qmul + 16);
-	uint8x16_t x0f = vdupq_n_u8(0x0f);
 
 	/*
 	 * while ( bytes-- ) {
@@ -83,7 +87,6 @@ void __raid6_datap_recov_neon(int bytes, uint8_t *p, uint8_t *q, uint8_t *dq,
 {
 	uint8x16_t qm0 = vld1q_u8(qmul);
 	uint8x16_t qm1 = vld1q_u8(qmul + 16);
-	uint8x16_t x0f = vdupq_n_u8(0x0f);
 
 	/*
 	 * while (bytes--) {

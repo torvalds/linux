@@ -154,12 +154,10 @@ static struct dst_entry *rxe_find_route6(struct net_device *ndev,
 	memcpy(&fl6.daddr, daddr, sizeof(*daddr));
 	fl6.flowi6_proto = IPPROTO_UDP;
 
-	ndst = ipv6_stub->ipv6_dst_lookup_flow(sock_net(recv_sockets.sk6->sk),
-					       recv_sockets.sk6->sk, &fl6,
-					       NULL);
-	if (unlikely(IS_ERR(ndst))) {
+	if (unlikely(ipv6_stub->ipv6_dst_lookup(sock_net(recv_sockets.sk6->sk),
+						recv_sockets.sk6->sk, &ndst, &fl6))) {
 		pr_err_ratelimited("no route to %pI6\n", daddr);
-		return NULL;
+		goto put;
 	}
 
 	if (unlikely(ndst->error)) {
@@ -535,9 +533,8 @@ struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 	if (unlikely(!skb))
 		goto out;
 
-	skb_reserve(skb, hdr_len + LL_RESERVED_SPACE(ndev));
+	skb_reserve(skb, hdr_len + LL_RESERVED_SPACE(rxe->ndev));
 
-	/* FIXME: hold reference to this netdev until life of this skb. */
 	skb->dev	= ndev;
 	if (av->network_type == RDMA_NETWORK_IPV4)
 		skb->protocol = htons(ETH_P_IP);

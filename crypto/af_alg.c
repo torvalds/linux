@@ -122,10 +122,8 @@ static void alg_do_release(const struct af_alg_type *type, void *private)
 
 int af_alg_release(struct socket *sock)
 {
-	if (sock->sk) {
+	if (sock->sk)
 		sock_put(sock->sk);
-		sock->sk = NULL;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(af_alg_release);
@@ -133,15 +131,19 @@ EXPORT_SYMBOL_GPL(af_alg_release);
 void af_alg_release_parent(struct sock *sk)
 {
 	struct alg_sock *ask = alg_sk(sk);
-	unsigned int nokey = atomic_read(&ask->nokey_refcnt);
+	unsigned int nokey = ask->nokey_refcnt;
+	bool last = nokey && !ask->refcnt;
 
 	sk = ask->parent;
 	ask = alg_sk(sk);
 
-	if (nokey)
-		atomic_dec(&ask->nokey_refcnt);
+	lock_sock(sk);
+	ask->nokey_refcnt -= nokey;
+	if (!last)
+		last = !--ask->refcnt;
+	release_sock(sk);
 
-	if (atomic_dec_and_test(&ask->refcnt))
+	if (last)
 		sock_put(sk);
 }
 EXPORT_SYMBOL_GPL(af_alg_release_parent);
@@ -151,7 +153,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	const u32 allowed = CRYPTO_ALG_KERN_DRIVER_ONLY;
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
-	struct sockaddr_alg_new *sa = (void *)uaddr;
+	struct sockaddr_alg *sa = (void *)uaddr;
 	const struct af_alg_type *type;
 	void *private;
 	int err;
@@ -159,11 +161,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (sock->state == SS_CONNECTED)
 		return -EINVAL;
 
-	BUILD_BUG_ON(offsetof(struct sockaddr_alg_new, salg_name) !=
-		     offsetof(struct sockaddr_alg, salg_name));
-	BUILD_BUG_ON(offsetof(struct sockaddr_alg, salg_name) != sizeof(*sa));
-
-	if (addr_len < sizeof(*sa) + 1)
+	if (addr_len < sizeof(*sa))
 		return -EINVAL;
 
 	/* If caller uses non-allowed flag, return error. */
@@ -171,7 +169,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EINVAL;
 
 	sa->salg_type[sizeof(sa->salg_type) - 1] = 0;
-	sa->salg_name[addr_len - sizeof(*sa) - 1] = 0;
+	sa->salg_name[sizeof(sa->salg_name) + addr_len - sizeof(*sa) - 1] = 0;
 
 	type = alg_get_type(sa->salg_type);
 	if (IS_ERR(type) && PTR_ERR(type) == -ENOENT) {
@@ -190,7 +188,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	err = -EBUSY;
 	lock_sock(sk);
-	if (atomic_read(&ask->refcnt))
+	if (ask->refcnt | ask->nokey_refcnt)
 		goto unlock;
 
 	swap(ask->type, type);
@@ -239,7 +237,7 @@ static int alg_setsockopt(struct socket *sock, int level, int optname,
 	int err = -EBUSY;
 
 	lock_sock(sk);
-	if (atomic_read(&ask->refcnt) != atomic_read(&ask->nokey_refcnt))
+	if (ask->refcnt)
 		goto unlock;
 
 	type = ask->type;
@@ -306,14 +304,12 @@ int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern)
 
 	sk2->sk_family = PF_ALG;
 
-	if (atomic_inc_return_relaxed(&ask->refcnt) == 1)
+	if (nokey || !ask->refcnt++)
 		sock_hold(sk);
-	if (nokey) {
-		atomic_inc(&ask->nokey_refcnt);
-		atomic_set(&alg_sk(sk2)->nokey_refcnt, 1);
-	}
+	ask->nokey_refcnt += nokey;
 	alg_sk(sk2)->parent = sk;
 	alg_sk(sk2)->type = type;
+	alg_sk(sk2)->nokey_refcnt = nokey;
 
 	newsock->ops = type->ops;
 	newsock->state = SS_CONNECTED;
@@ -1060,7 +1056,7 @@ void af_alg_async_cb(struct crypto_async_request *_req, int err)
 	af_alg_free_resources(areq);
 	sock_put(sk);
 
-	iocb->ki_complete(iocb, err ? err : (int)resultlen, 0);
+	iocb->ki_complete(iocb, err ? err : resultlen, 0);
 }
 EXPORT_SYMBOL_GPL(af_alg_async_cb);
 
@@ -1075,7 +1071,7 @@ __poll_t af_alg_poll(struct file *file, struct socket *sock,
 	struct af_alg_ctx *ctx = ask->private;
 	__poll_t mask;
 
-	sock_poll_wait(file, sock, wait);
+	sock_poll_wait(file, wait);
 	mask = 0;
 
 	if (!ctx->more || ctx->used)

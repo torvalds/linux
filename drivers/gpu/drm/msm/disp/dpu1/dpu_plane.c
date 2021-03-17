@@ -1254,7 +1254,7 @@ static int dpu_plane_sspp_atomic_update(struct drm_plane *plane,
 	const struct dpu_format *fmt;
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
-	int ret, min_scale;
+	struct drm_rect src, dst;
 
 	if (!plane) {
 		DPU_ERROR("invalid plane\n");
@@ -1293,29 +1293,21 @@ static int dpu_plane_sspp_atomic_update(struct drm_plane *plane,
 	pdpu->is_rt_pipe = (dpu_crtc_get_client_type(crtc) != NRT_CLIENT);
 	_dpu_plane_set_qos_ctrl(plane, false, DPU_PLANE_QOS_PANIC_CTRL);
 
-	min_scale = FRAC_16_16(1, pdpu->pipe_sblk->maxdwnscale);
-	ret = drm_atomic_helper_check_plane_state(state, crtc->state, min_scale,
-					  pdpu->pipe_sblk->maxupscale << 16,
-					  true, false);
-	if (ret) {
-		DPU_ERROR_PLANE(pdpu, "Check plane state failed (%d)\n", ret);
-		return ret;
-	}
+	src.x1 = state->src_x >> 16;
+	src.y1 = state->src_y >> 16;
+	src.x2 = src.x1 + (state->src_w >> 16);
+	src.y2 = src.y1 + (state->src_h >> 16);
 
-	DPU_DEBUG_PLANE(pdpu, "FB[%u] " DRM_RECT_FP_FMT "->crtc%u " DRM_RECT_FMT
-			", %4.4s ubwc %d\n", fb->base.id, DRM_RECT_FP_ARG(&state->src),
-			crtc->base.id, DRM_RECT_ARG(&state->dst),
-			(char *)&fmt->base.pixel_format, DPU_FORMAT_IS_UBWC(fmt));
+	dst = drm_plane_state_dest(state);
 
-	pdpu->pipe_cfg.src_rect = state->src;
+	DPU_DEBUG_PLANE(pdpu, "FB[%u] " DRM_RECT_FMT "->crtc%u " DRM_RECT_FMT
+			", %4.4s ubwc %d\n", fb->base.id, DRM_RECT_ARG(&src),
+			crtc->base.id, DRM_RECT_ARG(&dst),
+			(char *)&fmt->base.pixel_format,
+			DPU_FORMAT_IS_UBWC(fmt));
 
-	/* state->src is 16.16, src_rect is not */
-	pdpu->pipe_cfg.src_rect.x1 >>= 16;
-	pdpu->pipe_cfg.src_rect.x2 >>= 16;
-	pdpu->pipe_cfg.src_rect.y1 >>= 16;
-	pdpu->pipe_cfg.src_rect.y2 >>= 16;
-
-	pdpu->pipe_cfg.dst_rect = state->dst;
+	pdpu->pipe_cfg.src_rect = src;
+	pdpu->pipe_cfg.dst_rect = dst;
 
 	_dpu_plane_setup_scaler(pdpu, pstate, fmt, false);
 

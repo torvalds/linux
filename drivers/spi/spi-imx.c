@@ -1427,7 +1427,7 @@ static int spi_imx_transfer(struct spi_device *spi,
 
 	/* flush rxfifo before transfer */
 	while (spi_imx->devtype_data->rx_available(spi_imx))
-		readl(spi_imx->base + MXC_CSPIRXDATA);
+		spi_imx->rx(spi_imx);
 
 	if (spi_imx->slave_mode)
 		return spi_imx_pio_transfer_slave(spi, transfer);

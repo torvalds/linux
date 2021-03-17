@@ -87,13 +87,6 @@ static const struct dmi_system_id button_array_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Wacom MobileStudio Pro 16"),
 		},
 	},
-	{
-		.ident = "HP Spectre x2 (2015)",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "HP Spectre x2 Detachable"),
-		},
-	},
 	{ }
 };
 
@@ -380,7 +373,7 @@ wakeup:
 	 * the 5-button array, but still send notifies with power button
 	 * event code to this device object on power button actions.
 	 *
-	 * Report the power button press and release.
+	 * Report the power button press; catch and ignore the button release.
 	 */
 	if (!priv->array) {
 		if (event == 0xce) {
@@ -389,11 +382,8 @@ wakeup:
 			return;
 		}
 
-		if (event == 0xcf) {
-			input_report_key(priv->input_dev, KEY_POWER, 0);
-			input_sync(priv->input_dev);
+		if (event == 0xcf)
 			return;
-		}
 	}
 
 	/* 0xC0 is for HID events, other values are for 5 button array */
@@ -564,7 +554,7 @@ check_acpi_dev(acpi_handle handle, u32 lvl, void *context, void **rv)
 		return AE_OK;
 
 	if (acpi_match_device_ids(dev, ids) == 0)
-		if (!IS_ERR_OR_NULL(acpi_create_platform_device(dev, NULL)))
+		if (acpi_create_platform_device(dev, NULL))
 			dev_info(&dev->dev,
 				 "intel-hid: created platform device\n");
 

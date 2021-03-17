@@ -476,8 +476,10 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 	/* Set the encryption - we only support wep */
 	if (is_wep) {
 		if (sme->key) {
-			if (sme->key_idx >= NUM_WEPKEYS)
-				return -EINVAL;
+			if (sme->key_idx >= NUM_WEPKEYS) {
+				err = -EINVAL;
+				goto exit;
+			}
 
 			result = prism2_domibset_uint32(wlandev,
 				DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,

@@ -77,17 +77,12 @@ static int rwdt_init_timeout(struct watchdog_device *wdev)
 static int rwdt_start(struct watchdog_device *wdev)
 {
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
-	u8 val;
 
 	pm_runtime_get_sync(wdev->parent);
 
-	/* Stop the timer before we modify any register */
-	val = readb_relaxed(priv->base + RWTCSRA) & ~RWTCSRA_TME;
-	rwdt_write(priv, val, RWTCSRA);
-
-	rwdt_init_timeout(wdev);
-	rwdt_write(priv, priv->cks, RWTCSRA);
 	rwdt_write(priv, 0, RWTCSRB);
+	rwdt_write(priv, priv->cks, RWTCSRA);
+	rwdt_init_timeout(wdev);
 
 	while (readb_relaxed(priv->base + RWTCSRA) & RWTCSRA_WRFLG)
 		cpu_relax();
@@ -239,7 +234,6 @@ static int rwdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&priv->wdev, priv);
 	watchdog_set_nowayout(&priv->wdev, nowayout);
 	watchdog_set_restart_priority(&priv->wdev, 0);
-	watchdog_stop_on_unregister(&priv->wdev);
 
 	/* This overrides the default timeout only if DT configuration was found */
 	ret = watchdog_init_timeout(&priv->wdev, 0, &pdev->dev);

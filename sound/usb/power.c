@@ -31,8 +31,6 @@ snd_usb_find_power_domain(struct usb_host_interface *ctrl_iface,
 		struct uac3_power_domain_descriptor *pd_desc = p;
 		int i;
 
-		if (!snd_usb_validate_audio_desc(p, UAC_VERSION_3))
-			continue;
 		for (i = 0; i < pd_desc->bNrEntities; i++) {
 			if (pd_desc->baEntityID[i] == id) {
 				pd->pd_id = pd_desc->bPowerDomainID;

@@ -6,7 +6,6 @@
 
 struct bcma_soc {
 	struct bcma_bus bus;
-	struct device *dev;
 };
 
 int __init bcma_host_soc_register(struct bcma_soc *soc);

@@ -241,7 +241,7 @@ static void tls_write_space(struct sock *sk)
 	ctx->sk_write_space(sk);
 }
 
-void tls_ctx_free(struct tls_context *ctx)
+static void tls_ctx_free(struct tls_context *ctx)
 {
 	if (!ctx)
 		return;
@@ -290,8 +290,11 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 		tls_sw_free_resources_tx(sk);
 	}
 
-	if (ctx->rx_conf == TLS_SW)
+	if (ctx->rx_conf == TLS_SW) {
+		kfree(ctx->rx.rec_seq);
+		kfree(ctx->rx.iv);
 		tls_sw_free_resources_rx(sk);
+	}
 
 #ifdef CONFIG_TLS_DEVICE
 	if (ctx->rx_conf == TLS_HW)
@@ -301,8 +304,6 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 #else
 	{
 #endif
-		if (sk->sk_write_space == tls_write_space)
-			sk->sk_write_space = ctx->sk_write_space;
 		tls_ctx_free(ctx);
 		ctx = NULL;
 	}
@@ -549,14 +550,11 @@ static struct tls_context *create_ctx(struct sock *sk)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tls_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return NULL;
 
 	icsk->icsk_ulp_data = ctx;
-	ctx->setsockopt = sk->sk_prot->setsockopt;
-	ctx->getsockopt = sk->sk_prot->getsockopt;
-	ctx->sk_proto_close = sk->sk_prot->close;
 	return ctx;
 }
 
@@ -687,6 +685,9 @@ static int tls_init(struct sock *sk)
 		rc = -ENOMEM;
 		goto out;
 	}
+	ctx->setsockopt = sk->sk_prot->setsockopt;
+	ctx->getsockopt = sk->sk_prot->getsockopt;
+	ctx->sk_proto_close = sk->sk_prot->close;
 
 	/* Build IPv6 TLS whenever the address of tcpv6	_prot changes */
 	if (ip_ver == TLSV6 &&

@@ -688,68 +688,26 @@ static void disable_single_step(struct perf_event *bp)
 	arch_install_hw_breakpoint(bp);
 }
 
-/*
- * Arm32 hardware does not always report a watchpoint hit address that matches
- * one of the watchpoints set. It can also report an address "near" the
- * watchpoint if a single instruction access both watched and unwatched
- * addresses. There is no straight-forward way, short of disassembling the
- * offending instruction, to map that address back to the watchpoint. This
- * function computes the distance of the memory access from the watchpoint as a
- * heuristic for the likelyhood that a given access triggered the watchpoint.
- *
- * See this same function in the arm64 platform code, which has the same
- * problem.
- *
- * The function returns the distance of the address from the bytes watched by
- * the watchpoint. In case of an exact match, it returns 0.
- */
-static u32 get_distance_from_watchpoint(unsigned long addr, u32 val,
-					struct arch_hw_breakpoint_ctrl *ctrl)
-{
-	u32 wp_low, wp_high;
-	u32 lens, lene;
-
-	lens = __ffs(ctrl->len);
-	lene = __fls(ctrl->len);
-
-	wp_low = val + lens;
-	wp_high = val + lene;
-	if (addr < wp_low)
-		return wp_low - addr;
-	else if (addr > wp_high)
-		return addr - wp_high;
-	else
-		return 0;
-}
-
-static int watchpoint_fault_on_uaccess(struct pt_regs *regs,
-				       struct arch_hw_breakpoint *info)
-{
-	return !user_mode(regs) && info->ctrl.privilege == ARM_BREAKPOINT_USER;
-}
-
 static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 			       struct pt_regs *regs)
 {
-	int i, access, closest_match = 0;
-	u32 min_dist = -1, dist;
-	u32 val, ctrl_reg;
+	int i, access;
+	u32 val, ctrl_reg, alignment_mask;
 	struct perf_event *wp, **slots;
 	struct arch_hw_breakpoint *info;
 	struct arch_hw_breakpoint_ctrl ctrl;
 
 	slots = this_cpu_ptr(wp_on_reg);
 
-	/*
-	 * Find all watchpoints that match the reported address. If no exact
-	 * match is found. Attribute the hit to the closest watchpoint.
-	 */
-	rcu_read_lock();
 	for (i = 0; i < core_num_wrps; ++i) {
-		wp = slots[i];
-		if (wp == NULL)
-			continue;
+		rcu_read_lock();
 
+		wp = slots[i];
+
+		if (wp == NULL)
+			goto unlock;
+
+		info = counter_arch_bp(wp);
 		/*
 		 * The DFAR is an unknown value on debug architectures prior
 		 * to 7.1. Since we only allow a single watchpoint on these
@@ -758,69 +716,50 @@ static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 		 */
 		if (debug_arch < ARM_DEBUG_ARCH_V7_1) {
 			BUG_ON(i > 0);
-			info = counter_arch_bp(wp);
 			info->trigger = wp->attr.bp_addr;
 		} else {
+			if (info->ctrl.len == ARM_BREAKPOINT_LEN_8)
+				alignment_mask = 0x7;
+			else
+				alignment_mask = 0x3;
+
+			/* Check if the watchpoint value matches. */
+			val = read_wb_reg(ARM_BASE_WVR + i);
+			if (val != (addr & ~alignment_mask))
+				goto unlock;
+
+			/* Possible match, check the byte address select. */
+			ctrl_reg = read_wb_reg(ARM_BASE_WCR + i);
+			decode_ctrl_reg(ctrl_reg, &ctrl);
+			if (!((1 << (addr & alignment_mask)) & ctrl.len))
+				goto unlock;
+
 			/* Check that the access type matches. */
 			if (debug_exception_updates_fsr()) {
 				access = (fsr & ARM_FSR_ACCESS_MASK) ?
 					  HW_BREAKPOINT_W : HW_BREAKPOINT_R;
 				if (!(access & hw_breakpoint_type(wp)))
-					continue;
+					goto unlock;
 			}
-
-			val = read_wb_reg(ARM_BASE_WVR + i);
-			ctrl_reg = read_wb_reg(ARM_BASE_WCR + i);
-			decode_ctrl_reg(ctrl_reg, &ctrl);
-			dist = get_distance_from_watchpoint(addr, val, &ctrl);
-			if (dist < min_dist) {
-				min_dist = dist;
-				closest_match = i;
-			}
-			/* Is this an exact match? */
-			if (dist != 0)
-				continue;
 
 			/* We have a winner. */
-			info = counter_arch_bp(wp);
 			info->trigger = addr;
 		}
 
 		pr_debug("watchpoint fired: address = 0x%x\n", info->trigger);
-
-		/*
-		 * If we triggered a user watchpoint from a uaccess routine,
-		 * then handle the stepping ourselves since userspace really
-		 * can't help us with this.
-		 */
-		if (watchpoint_fault_on_uaccess(regs, info))
-			goto step;
-
 		perf_bp_event(wp, regs);
 
 		/*
-		 * Defer stepping to the overflow handler if one is installed.
-		 * Otherwise, insert a temporary mismatch breakpoint so that
-		 * we can single-step over the watchpoint trigger.
+		 * If no overflow handler is present, insert a temporary
+		 * mismatch breakpoint so we can single-step over the
+		 * watchpoint trigger.
 		 */
-		if (!is_default_overflow_handler(wp))
-			continue;
-step:
-		enable_single_step(wp, instruction_pointer(regs));
-	}
-
-	if (min_dist > 0 && min_dist != -1) {
-		/* No exact match found. */
-		wp = slots[closest_match];
-		info = counter_arch_bp(wp);
-		info->trigger = addr;
-		pr_debug("watchpoint fired: address = 0x%x\n", info->trigger);
-		perf_bp_event(wp, regs);
 		if (is_default_overflow_handler(wp))
 			enable_single_step(wp, instruction_pointer(regs));
-	}
 
-	rcu_read_unlock();
+unlock:
+		rcu_read_unlock();
+	}
 }
 
 static void watchpoint_single_step_handler(unsigned long pc)

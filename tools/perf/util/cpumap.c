@@ -134,12 +134,7 @@ struct cpu_map *cpu_map__new(const char *cpu_list)
 	if (!cpu_list)
 		return cpu_map__read_all_cpu_map();
 
-	/*
-	 * must handle the case of empty cpumap to cover
-	 * TOPOLOGY header for NUMA nodes with no CPU
-	 * ( e.g., because of CPU hotplug)
-	 */
-	if (!isdigit(*cpu_list) && *cpu_list != '\0')
+	if (!isdigit(*cpu_list))
 		goto out;
 
 	while (isdigit(*cpu_list)) {
@@ -186,10 +181,8 @@ struct cpu_map *cpu_map__new(const char *cpu_list)
 
 	if (nr_cpus > 0)
 		cpus = cpu_map__trim_new(nr_cpus, tmp_cpus);
-	else if (*cpu_list != '\0')
-		cpus = cpu_map__default_new();
 	else
-		cpus = cpu_map__dummy_new();
+		cpus = cpu_map__default_new();
 invalid:
 	free(tmp_cpus);
 out:
@@ -462,7 +455,7 @@ static void set_max_cpu_num(void)
 
 	/* get the highest possible cpu number for a sparse allocation */
 	ret = snprintf(path, PATH_MAX, "%s/devices/system/cpu/possible", mnt);
-	if (ret >= PATH_MAX) {
+	if (ret == PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		goto out;
 	}
@@ -473,7 +466,7 @@ static void set_max_cpu_num(void)
 
 	/* get the highest present cpu number for a sparse allocation */
 	ret = snprintf(path, PATH_MAX, "%s/devices/system/cpu/present", mnt);
-	if (ret >= PATH_MAX) {
+	if (ret == PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		goto out;
 	}
@@ -501,7 +494,7 @@ static void set_max_node_num(void)
 
 	/* get the highest possible cpu number for a sparse allocation */
 	ret = snprintf(path, PATH_MAX, "%s/devices/system/node/possible", mnt);
-	if (ret >= PATH_MAX) {
+	if (ret == PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		goto out;
 	}
@@ -586,7 +579,7 @@ int cpu__setup_cpunode_map(void)
 		return 0;
 
 	n = snprintf(path, PATH_MAX, "%s/devices/system/node", mnt);
-	if (n >= PATH_MAX) {
+	if (n == PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		return -1;
 	}
@@ -601,7 +594,7 @@ int cpu__setup_cpunode_map(void)
 			continue;
 
 		n = snprintf(buf, PATH_MAX, "%s/%s", path, dent1->d_name);
-		if (n >= PATH_MAX) {
+		if (n == PATH_MAX) {
 			pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 			continue;
 		}
@@ -701,10 +694,7 @@ size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
 	unsigned char *bitmap;
 	int last_cpu = cpu_map__cpu(map, map->nr - 1);
 
-	if (buf == NULL)
-		return 0;
-
-	bitmap = zalloc(last_cpu / 8 + 1);
+	bitmap = zalloc((last_cpu + 7) / 8);
 	if (bitmap == NULL) {
 		buf[0] = '\0';
 		return 0;

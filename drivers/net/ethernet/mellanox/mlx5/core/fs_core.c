@@ -432,7 +432,7 @@ static void del_sw_hw_rule(struct fs_node *node)
 
 	if ((fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
 	    --fte->dests_size) {
-		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
+		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST),
 		update_fte = true;
 	}
 out:
@@ -469,7 +469,6 @@ static void del_hw_fte(struct fs_node *node)
 			mlx5_core_warn(dev,
 				       "flow steering can't delete fte in index %d of flow group id %d\n",
 				       fte->index, fg->id);
-		node->active = 0;
 	}
 }
 
@@ -521,7 +520,7 @@ static void del_sw_flow_group(struct fs_node *node)
 
 	rhashtable_destroy(&fg->ftes_hash);
 	ida_destroy(&fg->fte_allocator);
-	if (ft->autogroup.active && fg->max_ftes == ft->autogroup.group_size)
+	if (ft->autogroup.active)
 		ft->autogroup.num_groups--;
 	err = rhltable_remove(&ft->fgs_hash,
 			      &fg->hash,
@@ -1066,8 +1065,6 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 
 	ft->autogroup.active = true;
 	ft->autogroup.required_groups = max_num_groups;
-	/* We save place for flow groups in addition to max types */
-	ft->autogroup.group_size = ft->max_fte / (max_num_groups + 1);
 
 	return ft;
 }
@@ -1273,7 +1270,8 @@ static struct mlx5_flow_group *alloc_auto_flow_group(struct mlx5_flow_table  *ft
 		return ERR_PTR(-ENOENT);
 
 	if (ft->autogroup.num_groups < ft->autogroup.required_groups)
-		group_size = ft->autogroup.group_size;
+		/* We save place for flow groups in addition to max types */
+		group_size = ft->max_fte / (ft->autogroup.required_groups + 1);
 
 	/*  ft->max_fte == ft->autogroup.max_types */
 	if (group_size == 0)
@@ -1300,8 +1298,7 @@ static struct mlx5_flow_group *alloc_auto_flow_group(struct mlx5_flow_table  *ft
 	if (IS_ERR(fg))
 		goto out;
 
-	if (group_size == ft->autogroup.group_size)
-		ft->autogroup.num_groups++;
+	ft->autogroup.num_groups++;
 
 out:
 	return fg;
@@ -1595,11 +1592,6 @@ lookup_fte_locked(struct mlx5_flow_group *g,
 	fte_tmp = rhashtable_lookup_fast(&g->ftes_hash, match_value,
 					 rhash_fte);
 	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
-		fte_tmp = NULL;
-		goto out;
-	}
-	if (!fte_tmp->node.active) {
-		tree_put_node(&fte_tmp->node);
 		fte_tmp = NULL;
 		goto out;
 	}
@@ -2228,7 +2220,7 @@ static struct mlx5_flow_root_namespace
 		cmds = mlx5_fs_cmd_get_default_ipsec_fpga_cmds(table_type);
 
 	/* Create the root namespace */
-	root_ns = kzalloc(sizeof(*root_ns), GFP_KERNEL);
+	root_ns = kvzalloc(sizeof(*root_ns), GFP_KERNEL);
 	if (!root_ns)
 		return NULL;
 
@@ -2371,7 +2363,6 @@ static void cleanup_egress_acls_root_ns(struct mlx5_core_dev *dev)
 		cleanup_root_ns(steering->esw_egress_root_ns[i]);
 
 	kfree(steering->esw_egress_root_ns);
-	steering->esw_egress_root_ns = NULL;
 }
 
 static void cleanup_ingress_acls_root_ns(struct mlx5_core_dev *dev)
@@ -2386,7 +2377,6 @@ static void cleanup_ingress_acls_root_ns(struct mlx5_core_dev *dev)
 		cleanup_root_ns(steering->esw_ingress_root_ns[i]);
 
 	kfree(steering->esw_ingress_root_ns);
-	steering->esw_ingress_root_ns = NULL;
 }
 
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
@@ -2515,7 +2505,6 @@ cleanup_root_ns:
 	for (i--; i >= 0; i--)
 		cleanup_root_ns(steering->esw_egress_root_ns[i]);
 	kfree(steering->esw_egress_root_ns);
-	steering->esw_egress_root_ns = NULL;
 	return err;
 }
 
@@ -2543,7 +2532,6 @@ cleanup_root_ns:
 	for (i--; i >= 0; i--)
 		cleanup_root_ns(steering->esw_ingress_root_ns[i]);
 	kfree(steering->esw_ingress_root_ns);
-	steering->esw_ingress_root_ns = NULL;
 	return err;
 }
 

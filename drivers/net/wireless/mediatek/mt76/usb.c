@@ -273,16 +273,10 @@ EXPORT_SYMBOL_GPL(mt76u_buf_alloc);
 void mt76u_buf_free(struct mt76u_buf *buf)
 {
 	struct urb *urb = buf->urb;
-	struct scatterlist *sg;
 	int i;
 
-	for (i = 0; i < urb->num_sgs; i++) {
-		sg = &urb->sg[i];
-		if (!sg)
-			continue;
-
-		skb_free_frag(sg_virt(sg));
-	}
+	for (i = 0; i < urb->num_sgs; i++)
+		skb_free_frag(sg_virt(&urb->sg[i]));
 	usb_free_urb(buf->urb);
 }
 EXPORT_SYMBOL_GPL(mt76u_buf_free);
@@ -484,8 +478,7 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 		nsgs = 1;
 	}
 
-	q->ndesc = MT_NUM_RX_ENTRIES;
-	for (i = 0; i < q->ndesc; i++) {
+	for (i = 0; i < MT_NUM_RX_ENTRIES; i++) {
 		err = mt76u_buf_alloc(dev, &q->entry[i].ubuf,
 				      nsgs, q->buf_size,
 				      SKB_WITH_OVERHEAD(q->buf_size),
@@ -493,6 +486,7 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 		if (err < 0)
 			return err;
 	}
+	q->ndesc = MT_NUM_RX_ENTRIES;
 
 	return mt76u_submit_rx_buffers(dev);
 }
@@ -802,9 +796,16 @@ int mt76u_alloc_queues(struct mt76_dev *dev)
 
 	err = mt76u_alloc_rx(dev);
 	if (err < 0)
-		return err;
+		goto err;
 
-	return mt76u_alloc_tx(dev);
+	err = mt76u_alloc_tx(dev);
+	if (err < 0)
+		goto err;
+
+	return 0;
+err:
+	mt76u_queues_deinit(dev);
+	return err;
 }
 EXPORT_SYMBOL_GPL(mt76u_alloc_queues);
 

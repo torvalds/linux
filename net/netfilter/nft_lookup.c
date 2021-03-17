@@ -76,6 +76,9 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	if (IS_ERR(set))
 		return PTR_ERR(set);
 
+	if (set->flags & NFT_SET_EVAL)
+		return -EOPNOTSUPP;
+
 	priv->sreg = nft_parse_register(tb[NFTA_LOOKUP_SREG]);
 	err = nft_validate_register_load(priv->sreg, set->klen);
 	if (err < 0)
@@ -118,29 +121,12 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static void nft_lookup_deactivate(const struct nft_ctx *ctx,
-				  const struct nft_expr *expr,
-				  enum nft_trans_phase phase)
-{
-	struct nft_lookup *priv = nft_expr_priv(expr);
-
-	nf_tables_deactivate_set(ctx, priv->set, &priv->binding, phase);
-}
-
-static void nft_lookup_activate(const struct nft_ctx *ctx,
-				const struct nft_expr *expr)
-{
-	struct nft_lookup *priv = nft_expr_priv(expr);
-
-	priv->set->use++;
-}
-
 static void nft_lookup_destroy(const struct nft_ctx *ctx,
 			       const struct nft_expr *expr)
 {
 	struct nft_lookup *priv = nft_expr_priv(expr);
 
-	nf_tables_destroy_set(ctx, priv->set);
+	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
 }
 
 static int nft_lookup_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -223,8 +209,6 @@ static const struct nft_expr_ops nft_lookup_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_lookup)),
 	.eval		= nft_lookup_eval,
 	.init		= nft_lookup_init,
-	.activate	= nft_lookup_activate,
-	.deactivate	= nft_lookup_deactivate,
 	.destroy	= nft_lookup_destroy,
 	.dump		= nft_lookup_dump,
 	.validate	= nft_lookup_validate,

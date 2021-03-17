@@ -6,7 +6,7 @@
 # published by the Free Software Foundation.
 #
 
-KBUILD_DEFCONFIG := nsim_hs_defconfig
+KBUILD_DEFCONFIG := nsim_700_defconfig
 
 cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
 cflags-$(CONFIG_ISA_ARCOMPACT)	+= -mA7
@@ -91,9 +91,14 @@ libs-y		+= arch/arc/lib/ $(LIBGCC)
 
 boot		:= arch/arc/boot
 
-boot_targets := uImage uImage.bin uImage.gz uImage.lzma
+#default target for make without any arguments.
+KBUILD_IMAGE	:= $(boot)/bootpImage
 
-PHONY += $(boot_targets)
+all:	bootpImage
+bootpImage: vmlinux
+
+boot_targets += uImage uImage.bin uImage.gz
+
 $(boot_targets): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 

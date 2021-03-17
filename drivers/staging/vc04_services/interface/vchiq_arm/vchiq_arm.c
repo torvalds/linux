@@ -1787,7 +1787,6 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 	struct vchiq_await_completion32 args32;
 	struct vchiq_completion_data32 completion32;
 	unsigned int *msgbufcount32;
-	unsigned int msgbufcount_native;
 	compat_uptr_t msgbuf32;
 	void *msgbuf;
 	void **msgbufptr;
@@ -1899,11 +1898,7 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 			 sizeof(completion32)))
 		return -EFAULT;
 
-	if (get_user(msgbufcount_native, &args->msgbufcount))
-		return -EFAULT;
-
-	if (!msgbufcount_native)
-		args32.msgbufcount--;
+	args32.msgbufcount--;
 
 	msgbufcount32 =
 		&((struct vchiq_await_completion32 __user *)arg)->msgbufcount;

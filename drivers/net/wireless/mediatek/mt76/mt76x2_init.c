@@ -581,10 +581,8 @@ int mt76x2_register_device(struct mt76x2_dev *dev)
 	mt76x2_dfs_init_detector(dev);
 
 	/* init led callbacks */
-	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		dev->mt76.led_cdev.brightness_set = mt76x2_led_set_brightness;
-		dev->mt76.led_cdev.blink_set = mt76x2_led_set_blink;
-	}
+	dev->mt76.led_cdev.brightness_set = mt76x2_led_set_brightness;
+	dev->mt76.led_cdev.blink_set = mt76x2_led_set_blink;
 
 	ret = mt76_register_device(&dev->mt76, true, mt76x2_rates,
 				   ARRAY_SIZE(mt76x2_rates));

@@ -83,7 +83,6 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 	local = kzalloc(sizeof(struct rxrpc_local), GFP_KERNEL);
 	if (local) {
 		atomic_set(&local->usage, 1);
-		atomic_set(&local->active_users, 1);
 		local->rxnet = rxnet;
 		INIT_LIST_HEAD(&local->link);
 		INIT_WORK(&local->processor, rxrpc_local_processor);
@@ -97,7 +96,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		memcpy(&local->srx, srx, sizeof(*srx));
 		local->srx.srx_service = 0;
-		trace_rxrpc_local(local->debug_id, rxrpc_local_new, 1, NULL);
+		trace_rxrpc_local(local, rxrpc_local_new, 1, NULL);
 	}
 
 	_leave(" = %p", local);
@@ -163,6 +162,15 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		/* we want to receive ICMPv6 errors */
 		opt = 1;
 		ret = kernel_setsockopt(local->socket, SOL_IPV6, IPV6_RECVERR,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
+
+		/* we want to set the don't fragment bit */
+		opt = IPV6_PMTUDISC_DO;
+		ret = kernel_setsockopt(local->socket, SOL_IPV6, IPV6_MTU_DISCOVER,
 					(char *) &opt, sizeof(opt));
 		if (ret < 0) {
 			_debug("setsockopt failed");
@@ -262,8 +270,11 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 		 * bind the transport socket may still fail if we're attempting
 		 * to use a local address that the dying object is still using.
 		 */
-		if (!rxrpc_use_local(local))
+		if (!rxrpc_get_local_maybe(local)) {
+			cursor = cursor->next;
+			list_del_init(&local->link);
 			break;
+		}
 
 		age = "old";
 		goto found;
@@ -277,10 +288,7 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 	if (ret < 0)
 		goto sock_error;
 
-	if (cursor != &rxnet->local_endpoints)
-		list_replace_init(cursor, &local->link);
-	else
-		list_add_tail(&local->link, cursor);
+	list_add_tail(&local->link, cursor);
 	age = "new";
 
 found:
@@ -296,8 +304,7 @@ nomem:
 	ret = -ENOMEM;
 sock_error:
 	mutex_unlock(&rxnet->local_mutex);
-	if (local)
-		call_rcu(&local->rcu, rxrpc_local_rcu);
+	kfree(local);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 
@@ -316,7 +323,7 @@ struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *local)
 	int n;
 
 	n = atomic_inc_return(&local->usage);
-	trace_rxrpc_local(local->debug_id, rxrpc_local_got, n, here);
+	trace_rxrpc_local(local, rxrpc_local_got, n, here);
 	return local;
 }
 
@@ -330,8 +337,7 @@ struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
 	if (local) {
 		int n = atomic_fetch_add_unless(&local->usage, 1, 0);
 		if (n > 0)
-			trace_rxrpc_local(local->debug_id, rxrpc_local_got,
-					  n + 1, here);
+			trace_rxrpc_local(local, rxrpc_local_got, n + 1, here);
 		else
 			local = NULL;
 	}
@@ -339,18 +345,24 @@ struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
 }
 
 /*
- * Queue a local endpoint and pass the caller's reference to the work item.
+ * Queue a local endpoint.
  */
 void rxrpc_queue_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
-	unsigned int debug_id = local->debug_id;
-	int n = atomic_read(&local->usage);
 
 	if (rxrpc_queue_work(&local->processor))
-		trace_rxrpc_local(debug_id, rxrpc_local_queued, n, here);
-	else
-		rxrpc_put_local(local);
+		trace_rxrpc_local(local, rxrpc_local_queued,
+				  atomic_read(&local->usage), here);
+}
+
+/*
+ * A local endpoint reached its end of life.
+ */
+static void __rxrpc_put_local(struct rxrpc_local *local)
+{
+	_enter("%d", local->debug_id);
+	rxrpc_queue_work(&local->processor);
 }
 
 /*
@@ -359,48 +371,14 @@ void rxrpc_queue_local(struct rxrpc_local *local)
 void rxrpc_put_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
-	unsigned int debug_id;
 	int n;
 
 	if (local) {
-		debug_id = local->debug_id;
-
 		n = atomic_dec_return(&local->usage);
-		trace_rxrpc_local(debug_id, rxrpc_local_put, n, here);
+		trace_rxrpc_local(local, rxrpc_local_put, n, here);
 
 		if (n == 0)
-			call_rcu(&local->rcu, rxrpc_local_rcu);
-	}
-}
-
-/*
- * Start using a local endpoint.
- */
-struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local)
-{
-	local = rxrpc_get_local_maybe(local);
-	if (!local)
-		return NULL;
-
-	if (!__rxrpc_use_local(local)) {
-		rxrpc_put_local(local);
-		return NULL;
-	}
-
-	return local;
-}
-
-/*
- * Cease using a local endpoint.  Once the number of active users reaches 0, we
- * start the closure of the transport in the work processor.
- */
-void rxrpc_unuse_local(struct rxrpc_local *local)
-{
-	if (local) {
-		if (__rxrpc_unuse_local(local)) {
-			rxrpc_get_local(local);
-			rxrpc_queue_local(local);
-		}
+			__rxrpc_put_local(local);
 	}
 }
 
@@ -418,14 +396,21 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 
 	_enter("%d", local->debug_id);
 
+	/* We can get a race between an incoming call packet queueing the
+	 * processor again and the work processor starting the destruction
+	 * process which will shut down the UDP socket.
+	 */
+	if (local->dead) {
+		_leave(" [already dead]");
+		return;
+	}
 	local->dead = true;
 
 	mutex_lock(&rxnet->local_mutex);
 	list_del_init(&local->link);
 	mutex_unlock(&rxnet->local_mutex);
 
-	rxrpc_clean_up_local_conns(local);
-	rxrpc_service_connection_reaper(&rxnet->service_conn_reaper);
+	ASSERT(RB_EMPTY_ROOT(&local->client_conns));
 	ASSERT(!local->service);
 
 	if (socket) {
@@ -440,11 +425,13 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	 */
 	rxrpc_purge_queue(&local->reject_queue);
 	rxrpc_purge_queue(&local->event_queue);
+
+	_debug("rcu local %d", local->debug_id);
+	call_rcu(&local->rcu, rxrpc_local_rcu);
 }
 
 /*
- * Process events on an endpoint.  The work item carries a ref which
- * we must release.
+ * Process events on an endpoint
  */
 static void rxrpc_local_processor(struct work_struct *work)
 {
@@ -452,15 +439,13 @@ static void rxrpc_local_processor(struct work_struct *work)
 		container_of(work, struct rxrpc_local, processor);
 	bool again;
 
-	trace_rxrpc_local(local->debug_id, rxrpc_local_processing,
+	trace_rxrpc_local(local, rxrpc_local_processing,
 			  atomic_read(&local->usage), NULL);
 
 	do {
 		again = false;
-		if (!__rxrpc_use_local(local)) {
-			rxrpc_local_destroyer(local);
-			break;
-		}
+		if (atomic_read(&local->usage) == 0)
+			return rxrpc_local_destroyer(local);
 
 		if (!skb_queue_empty(&local->reject_queue)) {
 			rxrpc_reject_packets(local);
@@ -471,11 +456,7 @@ static void rxrpc_local_processor(struct work_struct *work)
 			rxrpc_process_local_events(local);
 			again = true;
 		}
-
-		__rxrpc_unuse_local(local);
 	} while (again);
-
-	rxrpc_put_local(local);
 }
 
 /*

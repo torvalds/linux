@@ -538,7 +538,7 @@ static ssize_t sysfs_show(struct device *device, struct device_attribute *attr,
 		break;
 	case ATTR_KERNEL_HIB_SIMPLE_PAGE_TABLE_SIZE:
 		ret = scnprintf(buf, PAGE_SIZE, "%u\n",
-				gasket_page_table_num_simple_entries(
+				gasket_page_table_num_entries(
 					gasket_dev->page_table[0]));
 		break;
 	case ATTR_KERNEL_HIB_NUM_ACTIVE_PAGES:
@@ -577,6 +577,13 @@ static int apex_device_open_cb(struct gasket_dev *gasket_dev)
 static const struct pci_device_id apex_pci_ids[] = {
 	{ PCI_DEVICE(APEX_PCI_VENDOR_ID, APEX_PCI_DEVICE_ID) }, { 0 }
 };
+
+static void apex_pci_fixup_class(struct pci_dev *pdev)
+{
+	pdev->class = (PCI_CLASS_SYSTEM_OTHER << 8) | pdev->class;
+}
+DECLARE_PCI_FIXUP_CLASS_HEADER(APEX_PCI_VENDOR_ID, APEX_PCI_DEVICE_ID,
+			       PCI_CLASS_NOT_DEFINED, 8, apex_pci_fixup_class);
 
 static int apex_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)

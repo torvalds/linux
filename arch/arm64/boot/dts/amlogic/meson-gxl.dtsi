@@ -266,11 +266,6 @@
 	};
 };
 
-&hwrng {
-	clocks = <&clkc CLKID_RNG0>;
-	clock-names = "core";
-};
-
 &i2c_A {
 	clocks = <&clkc CLKID_I2C>;
 };
@@ -342,7 +337,7 @@
 			};
 		};
 
-		spi_pins: spi-pins {
+		spi_pins: spi {
 			mux {
 				groups = "spi_miso",
 					"spi_mosi",

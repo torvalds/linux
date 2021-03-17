@@ -88,6 +88,9 @@ struct smp_dev {
 	u8			local_rand[16];
 	bool			debug_key;
 
+	u8			min_key_size;
+	u8			max_key_size;
+
 	struct crypto_cipher	*tfm_aes;
 	struct crypto_shash	*tfm_cmac;
 	struct crypto_kpp	*tfm_ecdh;
@@ -717,7 +720,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 	if (rsp == NULL) {
 		req->io_capability = conn->hcon->io_capability;
 		req->oob_flag = oob_flag;
-		req->max_key_size = hdev->le_max_key_size;
+		req->max_key_size = SMP_DEV(hdev)->max_key_size;
 		req->init_key_dist = local_dist;
 		req->resp_key_dist = remote_dist;
 		req->auth_req = (authreq & AUTH_REQ_MASK(hdev));
@@ -728,7 +731,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 
 	rsp->io_capability = conn->hcon->io_capability;
 	rsp->oob_flag = oob_flag;
-	rsp->max_key_size = hdev->le_max_key_size;
+	rsp->max_key_size = SMP_DEV(hdev)->max_key_size;
 	rsp->init_key_dist = req->init_key_dist & remote_dist;
 	rsp->resp_key_dist = req->resp_key_dist & local_dist;
 	rsp->auth_req = (authreq & AUTH_REQ_MASK(hdev));
@@ -742,7 +745,7 @@ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 	struct hci_dev *hdev = conn->hcon->hdev;
 	struct smp_chan *smp = chan->data;
 
-	if (max_key_size > hdev->le_max_key_size ||
+	if (max_key_size > SMP_DEV(hdev)->max_key_size ||
 	    max_key_size < SMP_MIN_ENC_KEY_SIZE)
 		return SMP_ENC_KEY_SIZE;
 
@@ -2580,19 +2583,6 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 		goto distribute;
 	}
 
-	/* Drop IRK if peer is using identity address during pairing but is
-	 * providing different address as identity information.
-	 *
-	 * Microsoft Surface Precision Mouse is known to have this bug.
-	 */
-	if (hci_is_identity_address(&hcon->dst, hcon->dst_type) &&
-	    (bacmp(&info->bdaddr, &hcon->dst) ||
-	     info->addr_type != hcon->dst_type)) {
-		bt_dev_err(hcon->hdev,
-			   "ignoring IRK with invalid identity address");
-		goto distribute;
-	}
-
 	bacpy(&smp->id_addr, &info->bdaddr);
 	smp->id_addr_type = info->addr_type;
 
@@ -3274,6 +3264,8 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 	smp->tfm_aes = tfm_aes;
 	smp->tfm_cmac = tfm_cmac;
 	smp->tfm_ecdh = tfm_ecdh;
+	smp->min_key_size = SMP_MIN_ENC_KEY_SIZE;
+	smp->max_key_size = SMP_MAX_ENC_KEY_SIZE;
 
 create_chan:
 	chan = l2cap_chan_create();
@@ -3399,7 +3391,7 @@ static ssize_t le_min_key_size_read(struct file *file,
 	struct hci_dev *hdev = file->private_data;
 	char buf[4];
 
-	snprintf(buf, sizeof(buf), "%2u\n", hdev->le_min_key_size);
+	snprintf(buf, sizeof(buf), "%2u\n", SMP_DEV(hdev)->min_key_size);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
@@ -3420,11 +3412,11 @@ static ssize_t le_min_key_size_write(struct file *file,
 
 	sscanf(buf, "%hhu", &key_size);
 
-	if (key_size > hdev->le_max_key_size ||
+	if (key_size > SMP_DEV(hdev)->max_key_size ||
 	    key_size < SMP_MIN_ENC_KEY_SIZE)
 		return -EINVAL;
 
-	hdev->le_min_key_size = key_size;
+	SMP_DEV(hdev)->min_key_size = key_size;
 
 	return count;
 }
@@ -3443,7 +3435,7 @@ static ssize_t le_max_key_size_read(struct file *file,
 	struct hci_dev *hdev = file->private_data;
 	char buf[4];
 
-	snprintf(buf, sizeof(buf), "%2u\n", hdev->le_max_key_size);
+	snprintf(buf, sizeof(buf), "%2u\n", SMP_DEV(hdev)->max_key_size);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
@@ -3465,10 +3457,10 @@ static ssize_t le_max_key_size_write(struct file *file,
 	sscanf(buf, "%hhu", &key_size);
 
 	if (key_size > SMP_MAX_ENC_KEY_SIZE ||
-	    key_size < hdev->le_min_key_size)
+	    key_size < SMP_DEV(hdev)->min_key_size)
 		return -EINVAL;
 
-	hdev->le_max_key_size = key_size;
+	SMP_DEV(hdev)->max_key_size = key_size;
 
 	return count;
 }

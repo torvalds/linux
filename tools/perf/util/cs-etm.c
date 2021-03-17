@@ -87,26 +87,9 @@ struct cs_etm_queue {
 	struct cs_etm_packet *packet;
 };
 
-/* RB tree for quick conversion between traceID and metadata pointers */
-static struct intlist *traceid_list;
-
 static int cs_etm__update_queues(struct cs_etm_auxtrace *etm);
 static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 					   pid_t tid, u64 time_);
-
-int cs_etm__get_cpu(u8 trace_chan_id, int *cpu)
-{
-	struct int_node *inode;
-	u64 *metadata;
-
-	inode = intlist__find(traceid_list, trace_chan_id);
-	if (!inode)
-		return -EINVAL;
-
-	metadata = inode->priv;
-	*cpu = (int)metadata[CS_ETM_CPU];
-	return 0;
-}
 
 static void cs_etm__packet_dump(const char *pkt_string)
 {
@@ -247,7 +230,7 @@ static void cs_etm__free(struct perf_session *session)
 	cs_etm__free_events(session);
 	session->auxtrace = NULL;
 
-	/* First remove all traceID/metadata nodes for the RB tree */
+	/* First remove all traceID/CPU# nodes for the RB tree */
 	intlist__for_each_entry_safe(inode, tmp, traceid_list)
 		intlist__remove(traceid_list, inode);
 	/* Then the RB tree itself */
@@ -259,27 +242,6 @@ static void cs_etm__free(struct perf_session *session)
 	thread__zput(aux->unknown_thread);
 	zfree(&aux->metadata);
 	zfree(&aux);
-}
-
-static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address)
-{
-	struct machine *machine;
-
-	machine = etmq->etm->machine;
-
-	if (address >= etmq->etm->kernel_start) {
-		if (machine__is_host(machine))
-			return PERF_RECORD_MISC_KERNEL;
-		else
-			return PERF_RECORD_MISC_GUEST_KERNEL;
-	} else {
-		if (machine__is_host(machine))
-			return PERF_RECORD_MISC_USER;
-		else if (perf_guest)
-			return PERF_RECORD_MISC_GUEST_USER;
-		else
-			return PERF_RECORD_MISC_HYPERVISOR;
-	}
 }
 
 static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u64 address,
@@ -296,7 +258,10 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u64 address,
 		return -1;
 
 	machine = etmq->etm->machine;
-	cpumode = cs_etm__cpu_mode(etmq, address);
+	if (address >= etmq->etm->kernel_start)
+		cpumode = PERF_RECORD_MISC_KERNEL;
+	else
+		cpumode = PERF_RECORD_MISC_USER;
 
 	thread = etmq->thread;
 	if (!thread) {
@@ -688,7 +653,7 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	struct perf_sample sample = {.ip = 0,};
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
-	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr);
+	event->sample.header.misc = PERF_RECORD_MISC_USER;
 	event->sample.header.size = sizeof(struct perf_event_header);
 
 	sample.ip = addr;
@@ -700,7 +665,7 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	sample.cpu = etmq->packet->cpu;
 	sample.flags = 0;
 	sample.insn_len = 1;
-	sample.cpumode = event->sample.header.misc;
+	sample.cpumode = event->header.misc;
 
 	if (etm->synth_opts.last_branch) {
 		cs_etm__copy_last_branch_rb(etmq);
@@ -741,15 +706,12 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq)
 		u64			nr;
 		struct branch_entry	entries;
 	} dummy_bs;
-	u64 ip;
-
-	ip = cs_etm__last_executed_instr(etmq->prev_packet);
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
-	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip);
+	event->sample.header.misc = PERF_RECORD_MISC_USER;
 	event->sample.header.size = sizeof(struct perf_event_header);
 
-	sample.ip = ip;
+	sample.ip = cs_etm__last_executed_instr(etmq->prev_packet);
 	sample.pid = etmq->pid;
 	sample.tid = etmq->tid;
 	sample.addr = cs_etm__first_executed_instr(etmq->packet);
@@ -758,7 +720,7 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq)
 	sample.period = 1;
 	sample.cpu = etmq->packet->cpu;
 	sample.flags = 0;
-	sample.cpumode = event->sample.header.misc;
+	sample.cpumode = PERF_RECORD_MISC_USER;
 
 	/*
 	 * perf report cannot handle events without a branch stack
@@ -1022,7 +984,7 @@ static int cs_etm__flush(struct cs_etm_queue *etmq)
 	}
 
 swap_packet:
-	if (etm->sample_branches || etm->synth_opts.last_branch) {
+	if (etmq->etm->synth_opts.last_branch) {
 		/*
 		 * Swap PACKET with PREV_PACKET: PACKET becomes PREV_PACKET for
 		 * the next incoming packet.
@@ -1333,9 +1295,9 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 				    0xffffffff);
 
 	/*
-	 * Create an RB tree for traceID-metadata tuple.  Since the conversion
-	 * has to be made for each packet that gets decoded, optimizing access
-	 * in anything other than a sequential array is worth doing.
+	 * Create an RB tree for traceID-CPU# tuple. Since the conversion has
+	 * to be made for each packet that gets decoded, optimizing access in
+	 * anything other than a sequential array is worth doing.
 	 */
 	traceid_list = intlist__new(NULL);
 	if (!traceid_list) {
@@ -1401,8 +1363,8 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 			err = -EINVAL;
 			goto err_free_metadata;
 		}
-		/* All good, associate the traceID with the metadata pointer */
-		inode->priv = metadata[j];
+		/* All good, associate the traceID with the CPU# */
+		inode->priv = &metadata[j][CS_ETM_CPU];
 	}
 
 	/*

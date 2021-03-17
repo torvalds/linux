@@ -10,8 +10,7 @@
 
 static int sk_diag_dump_name(struct sock *sk, struct sk_buff *nlskb)
 {
-	/* might or might not have unix_table_lock */
-	struct unix_address *addr = smp_load_acquire(&unix_sk(sk)->addr);
+	struct unix_address *addr = unix_sk(sk)->addr;
 
 	if (!addr)
 		return 0;

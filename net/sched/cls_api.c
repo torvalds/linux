@@ -960,6 +960,7 @@ static int tcf_block_cb_call(struct tcf_block *block, enum tc_setup_type type,
 int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		 struct tcf_result *res, bool compat_mode)
 {
+	__be16 protocol = tc_skb_protocol(skb);
 #ifdef CONFIG_NET_CLS_ACT
 	const int max_reclassify_loop = 4;
 	const struct tcf_proto *orig_tp = tp;
@@ -969,7 +970,6 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 reclassify:
 #endif
 	for (; tp; tp = rcu_dereference_bh(tp->next)) {
-		__be16 protocol = skb_protocol(skb, false);
 		int err;
 
 		if (tp->protocol != protocol &&
@@ -1002,6 +1002,7 @@ reset:
 	}
 
 	tp = first_tp;
+	protocol = tc_skb_protocol(skb);
 	goto reclassify;
 #endif
 }
@@ -1325,9 +1326,6 @@ replay:
 			tcf_chain_tp_insert(chain, &chain_info, tp);
 		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_NEWTFILTER, false);
-		/* q pointer is NULL for shared blocks */
-		if (q)
-			q->flags &= ~TCQ_F_CAN_BYPASS;
 	} else {
 		if (tp_created)
 			tcf_proto_destroy(tp, NULL);
@@ -2038,10 +2036,8 @@ out:
 void tcf_exts_destroy(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (exts->actions) {
-		tcf_action_destroy(exts->actions, TCA_ACT_UNBIND);
-		kfree(exts->actions);
-	}
+	tcf_action_destroy(exts->actions, TCA_ACT_UNBIND);
+	kfree(exts->actions);
 	exts->nr_actions = 0;
 #endif
 }

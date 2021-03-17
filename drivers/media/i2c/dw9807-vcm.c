@@ -218,8 +218,7 @@ static int dw9807_probe(struct i2c_client *client)
 	return 0;
 
 err_cleanup:
-	v4l2_ctrl_handler_free(&dw9807_dev->ctrls_vcm);
-	media_entity_cleanup(&dw9807_dev->sd.entity);
+	dw9807_subdev_cleanup(dw9807_dev);
 
 	return rval;
 }

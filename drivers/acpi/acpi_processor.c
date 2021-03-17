@@ -282,13 +282,9 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	}
 
 	if (acpi_duplicate_processor_id(pr->acpi_id)) {
-		if (pr->acpi_id == 0xff)
-			dev_info_once(&device->dev,
-				"Entry not well-defined, consider updating BIOS\n");
-		else
-			dev_err(&device->dev,
-				"Failed to get unique processor _UID (0x%x)\n",
-				pr->acpi_id);
+		dev_err(&device->dev,
+			"Failed to get unique processor _UID (0x%x)\n",
+			pr->acpi_id);
 		return -ENODEV;
 	}
 
@@ -647,7 +643,7 @@ static acpi_status __init acpi_processor_ids_walk(acpi_handle handle,
 
 	status = acpi_get_type(handle, &acpi_type);
 	if (ACPI_FAILURE(status))
-		return status;
+		return false;
 
 	switch (acpi_type) {
 	case ACPI_TYPE_PROCESSOR:
@@ -667,12 +663,11 @@ static acpi_status __init acpi_processor_ids_walk(acpi_handle handle,
 	}
 
 	processor_validated_ids_update(uid);
-	return AE_OK;
+	return true;
 
 err:
-	/* Exit on error, but don't abort the namespace walk */
 	acpi_handle_info(handle, "Invalid processor object\n");
-	return AE_OK;
+	return false;
 
 }
 

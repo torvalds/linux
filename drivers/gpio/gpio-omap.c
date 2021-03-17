@@ -343,22 +343,6 @@ static void omap_clear_gpio_debounce(struct gpio_bank *bank, unsigned offset)
 	}
 }
 
-/*
- * Off mode wake-up capable GPIOs in bank(s) that are in the wakeup domain.
- * See TRM section for GPIO for "Wake-Up Generation" for the list of GPIOs
- * in wakeup domain. If bank->non_wakeup_gpios is not configured, assume none
- * are capable waking up the system from off mode.
- */
-static bool omap_gpio_is_off_wakeup_capable(struct gpio_bank *bank, u32 gpio_mask)
-{
-	u32 no_wake = bank->non_wakeup_gpios;
-
-	if (no_wake)
-		return !!(~no_wake & gpio_mask);
-
-	return false;
-}
-
 static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 						unsigned trigger)
 {
@@ -390,7 +374,13 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 	}
 
 	/* This part needs to be executed always for OMAP{34xx, 44xx} */
-	if (!bank->regs->irqctrl && !omap_gpio_is_off_wakeup_capable(bank, gpio)) {
+	if (!bank->regs->irqctrl) {
+		/* On omap24xx proceed only when valid GPIO bit is set */
+		if (bank->non_wakeup_gpios) {
+			if (!(bank->non_wakeup_gpios & gpio_bit))
+				goto exit;
+		}
+
 		/*
 		 * Log the edge gpio and manually trigger the IRQ
 		 * after resume if the input level changes
@@ -403,6 +393,7 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 			bank->enabled_non_wakeup_gpios &= ~gpio_bit;
 	}
 
+exit:
 	bank->level_mask =
 		readl_relaxed(bank->base + bank->regs->leveldetect0) |
 		readl_relaxed(bank->base + bank->regs->leveldetect1);
@@ -837,9 +828,9 @@ static void omap_gpio_irq_shutdown(struct irq_data *d)
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
 	bank->irq_usage &= ~(BIT(offset));
-	omap_set_gpio_triggering(bank, offset, IRQ_TYPE_NONE);
-	omap_clear_gpio_irqstatus(bank, offset);
 	omap_set_gpio_irqenable(bank, offset, 0);
+	omap_clear_gpio_irqstatus(bank, offset);
+	omap_set_gpio_triggering(bank, offset, IRQ_TYPE_NONE);
 	if (!LINE_USED(bank->mod_usage, offset))
 		omap_clear_gpio_debounce(bank, offset);
 	omap_disable_gpio_module(bank, offset);
@@ -881,8 +872,8 @@ static void omap_gpio_mask_irq(struct irq_data *d)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
-	omap_set_gpio_triggering(bank, offset, IRQ_TYPE_NONE);
 	omap_set_gpio_irqenable(bank, offset, 0);
+	omap_set_gpio_triggering(bank, offset, IRQ_TYPE_NONE);
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
 }
 
@@ -894,20 +885,17 @@ static void omap_gpio_unmask_irq(struct irq_data *d)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
-	omap_set_gpio_irqenable(bank, offset, 1);
-
-	/*
-	 * For level-triggered GPIOs, clearing must be done after the source
-	 * is cleared, thus after the handler has run. OMAP4 needs this done
-	 * after enabing the interrupt to clear the wakeup status.
-	 */
-	if (bank->regs->leveldetect0 && bank->regs->wkup_en &&
-	    trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-		omap_clear_gpio_irqstatus(bank, offset);
-
 	if (trigger)
 		omap_set_gpio_triggering(bank, offset, trigger);
 
+	/* For level-triggered GPIOs, the clearing must be done after
+	 * the HW source is cleared, thus after the handler has run */
+	if (bank->level_mask & BIT(offset)) {
+		omap_set_gpio_irqenable(bank, offset, 0);
+		omap_clear_gpio_irqstatus(bank, offset);
+	}
+
+	omap_set_gpio_irqenable(bank, offset, 1);
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
 }
 
@@ -1688,8 +1676,6 @@ static struct omap_gpio_reg_offs omap4_gpio_regs = {
 	.clr_dataout =		OMAP4_GPIO_CLEARDATAOUT,
 	.irqstatus =		OMAP4_GPIO_IRQSTATUS0,
 	.irqstatus2 =		OMAP4_GPIO_IRQSTATUS1,
-	.irqstatus_raw0 =	OMAP4_GPIO_IRQSTATUSRAW0,
-	.irqstatus_raw1 =	OMAP4_GPIO_IRQSTATUSRAW1,
 	.irqenable =		OMAP4_GPIO_IRQSTATUSSET0,
 	.irqenable2 =		OMAP4_GPIO_IRQSTATUSSET1,
 	.set_irqenable =	OMAP4_GPIO_IRQSTATUSSET0,

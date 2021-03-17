@@ -502,7 +502,7 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
 	struct list_head local_empty;
-	int pending = atomic_read(&rba->req_pending);
+	int pending = atomic_xchg(&rba->req_pending, 0);
 
 	IWL_DEBUG_RX(trans, "Pending allocation requests = %d\n", pending);
 
@@ -557,13 +557,11 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 			i++;
 		}
 
-		atomic_dec(&rba->req_pending);
 		pending--;
-
 		if (!pending) {
-			pending = atomic_read(&rba->req_pending);
+			pending = atomic_xchg(&rba->req_pending, 0);
 			IWL_DEBUG_RX(trans,
-				     "Got more pending allocation requests = %d\n",
+				     "Pending allocation requests = %d\n",
 				     pending);
 		}
 
@@ -575,15 +573,12 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 		spin_unlock(&rba->lock);
 
 		atomic_inc(&rba->req_ready);
-
 	}
 
 	spin_lock(&rba->lock);
 	/* return unused rbds to the allocator empty list */
 	list_splice_tail(&local_empty, &rba->rbd_empty);
 	spin_unlock(&rba->lock);
-
-	IWL_DEBUG_RX(trans, "%s, exit.\n", __func__);
 }
 
 /*
@@ -1149,14 +1144,6 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 	kfree(trans_pcie->rxq);
 }
 
-static void iwl_pcie_rx_move_to_allocator(struct iwl_rxq *rxq,
-					  struct iwl_rb_allocator *rba)
-{
-	spin_lock(&rba->lock);
-	list_splice_tail_init(&rxq->rx_used, &rba->rbd_empty);
-	spin_unlock(&rba->lock);
-}
-
 /*
  * iwl_pcie_rx_reuse_rbd - Recycle used RBDs
  *
@@ -1188,7 +1175,9 @@ static void iwl_pcie_rx_reuse_rbd(struct iwl_trans *trans,
 	if ((rxq->used_count % RX_CLAIM_REQ_ALLOC) == RX_POST_REQ_ALLOC) {
 		/* Move the 2 RBDs to the allocator ownership.
 		 Allocator has another 6 from pool for the request completion*/
-		iwl_pcie_rx_move_to_allocator(rxq, rba);
+		spin_lock(&rba->lock);
+		list_splice_tail_init(&rxq->rx_used, &rba->rbd_empty);
+		spin_unlock(&rba->lock);
 
 		atomic_inc(&rba->req_pending);
 		queue_work(rba->alloc_wq, &rba->rx_alloc);
@@ -1198,8 +1187,7 @@ static void iwl_pcie_rx_reuse_rbd(struct iwl_trans *trans,
 static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 				struct iwl_rxq *rxq,
 				struct iwl_rx_mem_buffer *rxb,
-				bool emergency,
-				int i)
+				bool emergency)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txq[trans_pcie->cmd_queue];
@@ -1224,9 +1212,6 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			._page_stolen = false,
 			.truesize = max_len,
 		};
-
-		if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
-			rxcb.status = rxq->cd[i].status;
 
 		pkt = rxb_addr(&rxcb);
 
@@ -1392,14 +1377,9 @@ out_err:
 static void iwl_pcie_rx_handle(struct iwl_trans *trans, int queue)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq;
+	struct iwl_rxq *rxq = &trans_pcie->rxq[queue];
 	u32 r, i, count = 0;
 	bool emergency = false;
-
-	if (WARN_ON_ONCE(!trans_pcie->rxq || !trans_pcie->rxq[queue].bd))
-		return;
-
-	rxq = &trans_pcie->rxq[queue];
 
 restart:
 	spin_lock(&rxq->lock);
@@ -1416,25 +1396,17 @@ restart:
 		IWL_DEBUG_RX(trans, "Q %d: HW = SW = %d\n", rxq->id, r);
 
 	while (i != r) {
-		struct iwl_rb_allocator *rba = &trans_pcie->rba;
 		struct iwl_rx_mem_buffer *rxb;
-		/* number of RBDs still waiting for page allocation */
-		u32 rb_pending_alloc =
-			atomic_read(&trans_pcie->rba.req_pending) *
-			RX_CLAIM_REQ_ALLOC;
 
-		if (unlikely(rb_pending_alloc >= rxq->queue_size / 2 &&
-			     !emergency)) {
-			iwl_pcie_rx_move_to_allocator(rxq, rba);
+		if (unlikely(rxq->used_count == rxq->queue_size / 2))
 			emergency = true;
-		}
 
 		rxb = iwl_pcie_get_rxb(trans, rxq, i);
 		if (!rxb)
 			goto out;
 
 		IWL_DEBUG_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
-		iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency, i);
+		iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency);
 
 		i = (i + 1) & (rxq->queue_size - 1);
 
@@ -1449,13 +1421,17 @@ restart:
 			iwl_pcie_rx_allocator_get(trans, rxq);
 
 		if (rxq->used_count % RX_CLAIM_REQ_ALLOC == 0 && !emergency) {
+			struct iwl_rb_allocator *rba = &trans_pcie->rba;
+
 			/* Add the remaining empty RBDs for allocator use */
-			iwl_pcie_rx_move_to_allocator(rxq, rba);
+			spin_lock(&rba->lock);
+			list_splice_tail_init(&rxq->rx_used, &rba->rbd_empty);
+			spin_unlock(&rba->lock);
 		} else if (emergency) {
 			count++;
 			if (count == 8) {
 				count = 0;
-				if (rb_pending_alloc < rxq->queue_size / 3)
+				if (rxq->used_count < rxq->queue_size / 3)
 					emergency = false;
 
 				rxq->read = i;
@@ -1782,26 +1758,26 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		goto out;
 	}
 
-	/* NIC fires this, but we don't use it, redundant with WAKEUP */
-	if (inta & CSR_INT_BIT_SCD) {
-		IWL_DEBUG_ISR(trans,
-			      "Scheduler finished to transmit the frame/frames.\n");
-		isr_stats->sch++;
-	}
-
-	/* Alive notification via Rx interrupt will do the real work */
-	if (inta & CSR_INT_BIT_ALIVE) {
-		IWL_DEBUG_ISR(trans, "Alive interrupt\n");
-		isr_stats->alive++;
-		if (trans->cfg->gen2) {
-			/*
-			 * We can restock, since firmware configured
-			 * the RFH
-			 */
-			iwl_pcie_rxmq_restock(trans, trans_pcie->rxq);
+	if (iwl_have_debug_level(IWL_DL_ISR)) {
+		/* NIC fires this, but we don't use it, redundant with WAKEUP */
+		if (inta & CSR_INT_BIT_SCD) {
+			IWL_DEBUG_ISR(trans,
+				      "Scheduler finished to transmit the frame/frames.\n");
+			isr_stats->sch++;
 		}
 
-		handled |= CSR_INT_BIT_ALIVE;
+		/* Alive notification via Rx interrupt will do the real work */
+		if (inta & CSR_INT_BIT_ALIVE) {
+			IWL_DEBUG_ISR(trans, "Alive interrupt\n");
+			isr_stats->alive++;
+			if (trans->cfg->gen2) {
+				/*
+				 * We can restock, since firmware configured
+				 * the RFH
+				 */
+				iwl_pcie_rxmq_restock(trans, trans_pcie->rxq);
+			}
+		}
 	}
 
 	/* Safely ignore these bits for debug checks below */
@@ -1920,9 +1896,6 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		iwl_enable_rfkill_int(trans);
-	/* Re-enable the ALIVE / Rx interrupt if it occurred */
-	else if (handled & (CSR_INT_BIT_ALIVE | CSR_INT_BIT_FH_RX))
-		iwl_enable_fw_load_int_ctx_info(trans);
 	spin_unlock(&trans_pcie->irq_lock);
 
 out:
@@ -2067,18 +2040,10 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (iwl_have_debug_level(IWL_DL_ISR)) {
-		IWL_DEBUG_ISR(trans,
-			      "ISR inta_fh 0x%08x, enabled (sw) 0x%08x (hw) 0x%08x\n",
-			      inta_fh, trans_pcie->fh_mask,
+	if (iwl_have_debug_level(IWL_DL_ISR))
+		IWL_DEBUG_ISR(trans, "ISR inta_fh 0x%08x, enabled 0x%08x\n",
+			      inta_fh,
 			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
-		if (inta_fh & ~trans_pcie->fh_mask)
-			IWL_DEBUG_ISR(trans,
-				      "We got a masked interrupt (0x%08x)\n",
-				      inta_fh & ~trans_pcie->fh_mask);
-	}
-
-	inta_fh &= trans_pcie->fh_mask;
 
 	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX) &&
 	    inta_fh & MSIX_FH_INT_CAUSES_Q0) {
@@ -2118,18 +2083,11 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	}
 
 	/* After checking FH register check HW register */
-	if (iwl_have_debug_level(IWL_DL_ISR)) {
+	if (iwl_have_debug_level(IWL_DL_ISR))
 		IWL_DEBUG_ISR(trans,
-			      "ISR inta_hw 0x%08x, enabled (sw) 0x%08x (hw) 0x%08x\n",
-			      inta_hw, trans_pcie->hw_mask,
+			      "ISR inta_hw 0x%08x, enabled 0x%08x\n",
+			      inta_hw,
 			      iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD));
-		if (inta_hw & ~trans_pcie->hw_mask)
-			IWL_DEBUG_ISR(trans,
-				      "We got a masked interrupt 0x%08x\n",
-				      inta_hw & ~trans_pcie->hw_mask);
-	}
-
-	inta_hw &= trans_pcie->hw_mask;
 
 	/* Alive notification via Rx interrupt will do the real work */
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_ALIVE) {

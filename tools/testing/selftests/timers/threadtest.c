@@ -163,7 +163,6 @@ int main(int argc, char **argv)
 	strftime(buf, 255, "%a, %d %b %Y %T %z", localtime(&start));
 	printf("%s\n", buf);
 	printf("Testing consistency with %i threads for %ld seconds: ", thread_count, runtime);
-	fflush(stdout);
 
 	/* spawn */
 	for (i = 0; i < thread_count; i++)

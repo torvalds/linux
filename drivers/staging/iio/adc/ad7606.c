@@ -26,12 +26,9 @@
 
 #include "ad7606.h"
 
-/*
- * Scales are computed as 5000/32768 and 10000/32768 respectively,
- * so that when applied to the raw values they provide mV values
- */
+/* Scales are computed as 2.5/2**16 and 5/2**16 respectively */
 static const unsigned int scale_avail[2][2] = {
-	{0, 152588}, {0, 305176}
+	{0, 38147}, {0, 76294}
 };
 
 static int ad7606_reset(struct ad7606_state *st)

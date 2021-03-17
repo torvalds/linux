@@ -275,15 +275,6 @@ struct drm_crtc_state {
 	struct drm_property_blob *gamma_lut;
 
 	/**
-	 * @cubic_lut:
-	 *
-	 * Cubic Lookup table for converting pixel data. See
-	 * drm_crtc_enable_color_mgmt(). The blob (if not NULL) is a 3D array
-	 * of &struct drm_color_lut.
-	 */
-	struct drm_property_blob *cubic_lut;
-
-	/**
 	 * @target_vblank:
 	 *
 	 * Target vertical blank period when a page flip
@@ -753,45 +744,8 @@ struct drm_crtc_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*set_crc_source)(struct drm_crtc *crtc, const char *source);
-	/**
-	 * @verify_crc_source:
-	 *
-	 * verifies the source of CRC checksums of frames before setting the
-	 * source for CRC and during crc open. Source parameter can be NULL
-	 * while disabling crc source.
-	 *
-	 * This callback is optional if the driver does not support any CRC
-	 * generation functionality.
-	 *
-	 * RETURNS:
-	 *
-	 * 0 on success or a negative error code on failure.
-	 */
-	int (*verify_crc_source)(struct drm_crtc *crtc, const char *source,
-				 size_t *values_cnt);
-	/**
-	 * @get_crc_sources:
-	 *
-	 * Driver callback for getting a list of all the available sources for
-	 * CRC generation. This callback depends upon verify_crc_source, So
-	 * verify_crc_source callback should be implemented before implementing
-	 * this. Driver can pass full list of available crc sources, this
-	 * callback does the verification on each crc-source before passing it
-	 * to userspace.
-	 *
-	 * This callback is optional if the driver does not support exporting of
-	 * possible CRC sources list.
-	 *
-	 * RETURNS:
-	 *
-	 * a constant character pointer to the list of all the available CRC
-	 * sources. On failure driver should return NULL. count should be
-	 * updated with number of sources in list. if zero we don't process any
-	 * source from the list.
-	 */
-	const char *const *(*get_crc_sources)(struct drm_crtc *crtc,
-					      size_t *count);
+	int (*set_crc_source)(struct drm_crtc *crtc, const char *source,
+			      size_t *values_cnt);
 
 	/**
 	 * @atomic_print_state:
@@ -852,54 +806,6 @@ struct drm_crtc_funcs {
 	 */
 	void (*disable_vblank)(struct drm_crtc *crtc);
 };
-
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-
-/**
- * struct vop_dump_info - vop dump plane info structure
- *
- * Store plane info used to write display data to /data/vop_buf/
- *
- */
-struct vop_dump_info {
-	/* @win_id: vop hard win index */
-	u8 win_id;
-	/* @area_id: vop hard area index inside win */
-	u8 area_id;
-	/* @AFBC_flag: indicate the buffer compress by gpu or not */
-	bool AFBC_flag;
-	/* @yuv_format: indicate yuv format or not */
-	bool yuv_format;
-	/* @pitches: the buffer pitch size */
-	u32 pitches;
-	/* @height: the buffer pitch height */
-	u32 height;
-	/* @pixel_format: the buffer format */
-	u32 pixel_format;
-	/* @offset: the buffer offset */
-	unsigned long offset;
-	/* @num_pages: the pages number */
-	unsigned long num_pages;
-	/* @pages: store the buffer all pages */
-	struct page **pages;
-};
-
-/**
- * struct vop_dump_list - store all buffer info per frame
- *
- * one frame maybe multiple buffer, all will be stored here.
- *
- */
-struct vop_dump_list {
-	struct list_head entry;
-	struct vop_dump_info dump_info;
-};
-
-enum vop_dump_status {
-	DUMP_DISABLE = 0,
-	DUMP_KEEP
-};
-#endif
 
 /**
  * struct drm_crtc - central CRTC control structure
@@ -1135,21 +1041,6 @@ struct drm_crtc {
 	 * The name of the CRTC's fence timeline.
 	 */
 	char timeline_name[32];
-
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	/**
-	 * @vop_dump_status the status of vop dump control
-	 * @vop_dump_list_head the list head of vop dump list
-	 * @vop_dump_list_init_flag init once
-	 * @vop_dump_times control the dump times
-	 * @frme_count the frame of dump buf
-	 */
-	enum vop_dump_status vop_dump_status;
-	struct list_head vop_dump_list_head;
-	bool vop_dump_list_init_flag;
-	int vop_dump_times;
-	int frame_count;
-#endif
 };
 
 /**

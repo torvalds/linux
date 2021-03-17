@@ -198,7 +198,7 @@ config DMI_SCAN_MACHINE_NON_EFI_FALLBACK
 
 config ISCSI_IBFT_FIND
 	bool "iSCSI Boot Firmware Table Attributes"
-	depends on X86 && ISCSI_IBFT
+	depends on X86 && ACPI
 	default n
 	help
 	  This option enables the kernel to find the region of memory
@@ -209,8 +209,7 @@ config ISCSI_IBFT_FIND
 config ISCSI_IBFT
 	tristate "iSCSI Boot Firmware Table Attributes module"
 	select ISCSI_BOOT_SYSFS
-	select ISCSI_IBFT_FIND if X86
-	depends on ACPI && SCSI && SCSI_LOWLEVEL
+	depends on ISCSI_IBFT_FIND && SCSI && SCSI_LOWLEVEL
 	default	n
 	help
 	  This option enables support for detection and exposing of iSCSI
@@ -268,13 +267,6 @@ config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 	  The feature can be enabled/disabled on the kernel command line.
 
 	  Say Y here to enable "download mode" by default.
-
-config ROCKCHIP_SIP
-	tristate "Rockchip SIP interface"
-	depends on HAVE_ARM_SMCCC && ARCH_ROCKCHIP
-	help
-	  Say Y here if you want to enable SIP callbacks for Rockchip platforms
-	  This option enables support for communicating with the ATF.
 
 config TI_SCI_PROTOCOL
 	tristate "TI System Control Interface (TISCI) Message Protocol"

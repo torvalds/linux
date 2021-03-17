@@ -36,7 +36,7 @@ enum siginfo_layout {
 	SIL_SYS,
 };
 
-enum siginfo_layout siginfo_layout(unsigned sig, int si_code);
+enum siginfo_layout siginfo_layout(int sig, int si_code);
 
 /*
  * Define some primitives to manipulate sigset_t.
@@ -272,9 +272,6 @@ extern void signal_setup_done(int failed, struct ksignal *ksig, int stepping);
 extern void exit_signals(struct task_struct *tsk);
 extern void kernel_sigaction(int, __sighandler_t);
 
-#define SIG_KTHREAD ((__force __sighandler_t)2)
-#define SIG_KTHREAD_KERNEL ((__force __sighandler_t)3)
-
 static inline void allow_signal(int sig)
 {
 	/*
@@ -282,17 +279,7 @@ static inline void allow_signal(int sig)
 	 * know it'll be handled, so that they don't get converted to
 	 * SIGKILL or just silently dropped.
 	 */
-	kernel_sigaction(sig, SIG_KTHREAD);
-}
-
-static inline void allow_kernel_signal(int sig)
-{
-	/*
-	 * Kernel threads handle their own signals. Let the signal code
-	 * know signals sent by the kernel will be handled, so that they
-	 * don't get silently dropped.
-	 */
-	kernel_sigaction(sig, SIG_KTHREAD_KERNEL);
+	kernel_sigaction(sig, (__force __sighandler_t)2);
 }
 
 static inline void disallow_signal(int sig)

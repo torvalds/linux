@@ -119,7 +119,7 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
 	if (!conn_info) {
 		rc = -EPROTO;
-		goto exit;
+		goto free_exit;
 	}
 
 	__skb_queue_head_init(&frags_q);

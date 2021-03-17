@@ -18,6 +18,11 @@ module_param_named(trypci, si_trypci, bool, 0);
 MODULE_PARM_DESC(trypci, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via pci");
 
+#define PCI_CLASS_SERIAL_IPMI		0x0c07
+#define PCI_CLASS_SERIAL_IPMI_SMIC	0x0c0700
+#define PCI_CLASS_SERIAL_IPMI_KCS	0x0c0701
+#define PCI_CLASS_SERIAL_IPMI_BT	0x0c0702
+
 #define PCI_DEVICE_ID_HP_MMC 0x121A
 
 static void ipmi_pci_cleanup(struct si_sm_io *io)
@@ -115,8 +120,6 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	}
 	io.addr_data = pci_resource_start(pdev, 0);
 
-	io.dev = &pdev->dev;
-
 	io.regspacing = ipmi_pci_probe_regspacing(&io);
 	io.regsize = DEFAULT_REGSIZE;
 	io.regshift = 0;
@@ -124,6 +127,8 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	io.irq = pdev->irq;
 	if (io.irq)
 		io.irq_setup = ipmi_std_irq_setup;
+
+	io.dev = &pdev->dev;
 
 	dev_info(&pdev->dev, "%pR regsize %d spacing %d irq %d\n",
 		&pdev->resource[0], io.regsize, io.regspacing, io.irq);

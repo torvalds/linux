@@ -261,7 +261,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 
 	if (copy_from_user(buf, buffer, count)) {
 		ret = -EFAULT;
-		goto out_free;
+		goto out;
 	}
 	buf[count] = '\0';
 	sym = strstrip(buf);
@@ -315,9 +315,8 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 		ret = count;
 	}
 out:
-	mutex_unlock(&fei_lock);
-out_free:
 	kfree(buf);
+	mutex_unlock(&fei_lock);
 	return ret;
 }
 

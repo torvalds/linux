@@ -150,7 +150,7 @@ z_erofs_pagevec_ctor_dequeue(struct z_erofs_pagevec_ctor *ctor,
 	erofs_vtptr_t t;
 
 	if (unlikely(ctor->index >= ctor->nr)) {
-		DBG_BUGON(!ctor->next);
+		BUG_ON(ctor->next == NULL);
 		z_erofs_pagevec_ctor_pagedown(ctor, true);
 	}
 

@@ -1,9 +1,7 @@
 Rockchip Electronics And Security Accelerator
 
 Required properties:
-- compatible: should be one of the following:
-	- "rockchip,rk3288-crypto": for rk3288
-	- "rockchip,px30-crypto": for px30
+- compatible: Should be "rockchip,rk3288-crypto"
 - reg: Base physical address of the engine and length of memory mapped
        region
 - interrupts: Interrupt number

@@ -25,12 +25,6 @@ static const char * const bch_cache_modes[] = {
 	NULL
 };
 
-static const char * const bch_reada_cache_policies[] = {
-	"all",
-	"meta-only",
-	NULL
-};
-
 /* Default is -1; we skip past it for stop_when_cache_set_failed */
 static const char * const bch_stop_on_failure_modes[] = {
 	"auto",
@@ -100,7 +94,6 @@ rw_attribute(congested_write_threshold_us);
 rw_attribute(sequential_cutoff);
 rw_attribute(data_csum);
 rw_attribute(cache_mode);
-rw_attribute(readahead_cache_policy);
 rw_attribute(stop_when_cache_set_failed);
 rw_attribute(writeback_metadata);
 rw_attribute(writeback_running);
@@ -167,11 +160,6 @@ SHOW(__bch_cached_dev)
 					       bch_cache_modes,
 					       BDEV_CACHE_MODE(&dc->sb));
 
-	if (attr == &sysfs_readahead_cache_policy)
-		return bch_snprint_string_list(buf, PAGE_SIZE,
-					      bch_reada_cache_policies,
-					      dc->cache_readahead_policy);
-
 	if (attr == &sysfs_stop_when_cache_set_failed)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
 					       bch_stop_on_failure_modes,
@@ -187,7 +175,7 @@ SHOW(__bch_cached_dev)
 	var_print(writeback_percent);
 	sysfs_hprint(writeback_rate,
 		     wb ? atomic_long_read(&dc->writeback_rate.rate) << 9 : 0);
-	sysfs_printf(io_errors,		"%i", atomic_read(&dc->io_errors));
+	sysfs_hprint(io_errors,		atomic_read(&dc->io_errors));
 	sysfs_printf(io_error_limit,	"%i", dc->error_limit);
 	sysfs_printf(io_disable,	"%i", dc->io_disable);
 	var_print(writeback_rate_update_seconds);
@@ -295,15 +283,8 @@ STORE(__cached_dev)
 	sysfs_strtoul_clamp(writeback_rate_update_seconds,
 			    dc->writeback_rate_update_seconds,
 			    1, WRITEBACK_RATE_UPDATE_SECS_MAX);
-	sysfs_strtoul_clamp(writeback_rate_i_term_inverse,
-			    dc->writeback_rate_i_term_inverse,
-			    1, UINT_MAX);
-	sysfs_strtoul_clamp(writeback_rate_p_term_inverse,
-			    dc->writeback_rate_p_term_inverse,
-			    1, UINT_MAX);
-	sysfs_strtoul_clamp(writeback_rate_minimum,
-			    dc->writeback_rate_minimum,
-			    1, UINT_MAX);
+	d_strtoul(writeback_rate_i_term_inverse);
+	d_strtoul_nonzero(writeback_rate_p_term_inverse);
 
 	sysfs_strtoul_clamp(io_error_limit, dc->error_limit, 0, INT_MAX);
 
@@ -313,9 +294,7 @@ STORE(__cached_dev)
 		dc->io_disable = v ? 1 : 0;
 	}
 
-	sysfs_strtoul_clamp(sequential_cutoff,
-			    dc->sequential_cutoff,
-			    0, UINT_MAX);
+	d_strtoi_h(sequential_cutoff);
 	d_strtoi_h(readahead);
 
 	if (attr == &sysfs_clear_stats)
@@ -334,15 +313,6 @@ STORE(__cached_dev)
 			SET_BDEV_CACHE_MODE(&dc->sb, v);
 			bch_write_bdev_super(dc, NULL);
 		}
-	}
-
-	if (attr == &sysfs_readahead_cache_policy) {
-		v = __sysfs_match_string(bch_reada_cache_policies, -1, buf);
-		if (v < 0)
-			return v;
-
-		if ((unsigned int) v != dc->cache_readahead_policy)
-			dc->cache_readahead_policy = v;
 	}
 
 	if (attr == &sysfs_stop_when_cache_set_failed) {
@@ -416,13 +386,8 @@ STORE(bch_cached_dev)
 	if (attr == &sysfs_writeback_running)
 		bch_writeback_queue(dc);
 
-	/*
-	 * Only set BCACHE_DEV_WB_RUNNING when cached device attached to
-	 * a cache set, otherwise it doesn't make sense.
-	 */
 	if (attr == &sysfs_writeback_percent)
-		if ((dc->disk.c != NULL) &&
-		    (!test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags)))
+		if (!test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
 			schedule_delayed_work(&dc->writeback_rate_update,
 				      dc->writeback_rate_update_seconds * HZ);
 
@@ -438,7 +403,6 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_data_csum,
 #endif
 	&sysfs_cache_mode,
-	&sysfs_readahead_cache_policy,
 	&sysfs_stop_when_cache_set_failed,
 	&sysfs_writeback_metadata,
 	&sysfs_writeback_running,
@@ -448,9 +412,8 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_writeback_rate_update_seconds,
 	&sysfs_writeback_rate_i_term_inverse,
 	&sysfs_writeback_rate_p_term_inverse,
-	&sysfs_writeback_rate_minimum,
 	&sysfs_writeback_rate_debug,
-	&sysfs_io_errors,
+	&sysfs_errors,
 	&sysfs_io_error_limit,
 	&sysfs_io_disable,
 	&sysfs_dirty_data,
@@ -801,17 +764,8 @@ STORE(__bch_cache_set)
 		c->error_limit = strtoul_or_return(buf);
 
 	/* See count_io_errors() for why 88 */
-	if (attr == &sysfs_io_error_halflife) {
-		unsigned long v = 0;
-		ssize_t ret;
-
-		ret = strtoul_safe_clamp(buf, v, 0, UINT_MAX);
-		if (!ret) {
-			c->error_decay = v / 88;
-			return size;
-		}
-		return ret;
-	}
+	if (attr == &sysfs_io_error_halflife)
+		c->error_decay = strtoul_or_return(buf) / 88;
 
 	if (attr == &sysfs_io_disable) {
 		v = strtoul_or_return(buf);

@@ -144,8 +144,7 @@ Description:
 		Access: Read
 		Valid values: "Unknown", "Good", "Overheat", "Dead",
 			      "Over voltage", "Unspecified failure", "Cold",
-			      "Watchdog timer expire", "Safety timer expire",
-			      "Over current", "Warm", "Cool", "Hot"
+			      "Watchdog timer expire", "Safety timer expire"
 
 What:		/sys/class/power_supply/<supply_name>/precharge_current
 Date:		June 2017

@@ -163,6 +163,7 @@ config CRYPTO_USER
 config CRYPTO_MANAGER_DISABLE_TESTS
 	bool "Disable run-time self tests"
 	default y
+	depends on CRYPTO_MANAGER2
 	help
 	  Disable run-time self tests that normally take place at
 	  algorithm registration.
@@ -255,17 +256,6 @@ config CRYPTO_GLUE_HELPER_X86
 
 config CRYPTO_ENGINE
 	tristate
-
-config CRYPTO_CURVE25519
-	tristate "Curve25519 algorithm"
-	select CRYPTO_KPP
-	select CRYPTO_LIB_CURVE25519_GENERIC
-
-config CRYPTO_CURVE25519_X86
-	tristate "x86_64 accelerated Curve25519 scalar multiplication library"
-	depends on X86 && 64BIT
-	select CRYPTO_LIB_CURVE25519_GENERIC
-	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
 
 comment "Authenticated Encryption with Associated Data"
 
@@ -505,34 +495,6 @@ config CRYPTO_KEYWRAP
 	  Support for key wrapping (NIST SP800-38F / RFC3394) without
 	  padding.
 
-config CRYPTO_NHPOLY1305
-	tristate
-	select CRYPTO_HASH
-	select CRYPTO_LIB_POLY1305_GENERIC
-
-config CRYPTO_ADIANTUM
-	tristate "Adiantum support"
-	select CRYPTO_CHACHA20
-	select CRYPTO_LIB_POLY1305_GENERIC
-	select CRYPTO_NHPOLY1305
-	help
-	  Adiantum is a tweakable, length-preserving encryption mode
-	  designed for fast and secure disk encryption, especially on
-	  CPUs without dedicated crypto instructions.  It encrypts
-	  each sector using the XChaCha12 stream cipher, two passes of
-	  an ε-almost-∆-universal hash function, and an invocation of
-	  the AES-256 block cipher on a single 16-byte block.  On CPUs
-	  without AES instructions, Adiantum is much faster than
-	  AES-XTS.
-
-	  Adiantum's security is provably reducible to that of its
-	  underlying stream and block ciphers, subject to a security
-	  bound.  Unlike XTS, Adiantum is a true wide-block encryption
-	  mode, so it actually provides an even stronger notion of
-	  security than XTS, subject to the security bound.
-
-	  If unsure, say N.
-
 comment "Hash modes"
 
 config CRYPTO_CMAC
@@ -648,30 +610,6 @@ config CRYPTO_CRC32_MIPS
 	  instructions, when available.
 
 
-config CRYPTO_BLAKE2S
-	tristate "BLAKE2s digest algorithm"
-	select CRYPTO_LIB_BLAKE2S_GENERIC
-	select CRYPTO_HASH
-	help
-	  Implementation of cryptographic hash function BLAKE2s
-	  optimized for 8-32bit platforms and can produce digests of any size
-	  between 1 to 32.  The keyed hash is also implemented.
-
-	  This module provides the following algorithms:
-
-	  - blake2s-128
-	  - blake2s-160
-	  - blake2s-224
-	  - blake2s-256
-
-	  See https://blake2.net for further information.
-
-config CRYPTO_BLAKE2S_X86
-	tristate "BLAKE2s digest algorithm (x86 accelerated version)"
-	depends on X86 && 64BIT
-	select CRYPTO_LIB_BLAKE2S_GENERIC
-	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
-
 config CRYPTO_CRCT10DIF
 	tristate "CRCT10DIF algorithm"
 	select CRYPTO_HASH
@@ -718,7 +656,6 @@ config CRYPTO_GHASH
 config CRYPTO_POLY1305
 	tristate "Poly1305 authenticator algorithm"
 	select CRYPTO_HASH
-	select CRYPTO_LIB_POLY1305_GENERIC
 	help
 	  Poly1305 authenticator algorithm, RFC7539.
 
@@ -729,8 +666,7 @@ config CRYPTO_POLY1305
 config CRYPTO_POLY1305_X86_64
 	tristate "Poly1305 authenticator algorithm (x86_64/SSE2/AVX2)"
 	depends on X86 && 64BIT
-	select CRYPTO_LIB_POLY1305_GENERIC
-	select CRYPTO_ARCH_HAVE_LIB_POLY1305
+	select CRYPTO_POLY1305
 	help
 	  Poly1305 authenticator algorithm, RFC7539.
 
@@ -738,11 +674,6 @@ config CRYPTO_POLY1305_X86_64
 	  It is used for the ChaCha20-Poly1305 AEAD, specified in RFC7539 for use
 	  in IETF protocols. This is the x86_64 assembler implementation using SIMD
 	  instructions.
-
-config CRYPTO_POLY1305_MIPS
-	tristate "Poly1305 authenticator algorithm (MIPS optimized)"
-	depends on CPU_MIPS32 || (CPU_MIPS64 && 64BIT)
-	select CRYPTO_ARCH_HAVE_LIB_POLY1305
 
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
@@ -1125,8 +1056,7 @@ config CRYPTO_AES_TI
 	  8 for decryption), this implementation only uses just two S-boxes of
 	  256 bytes each, and attempts to eliminate data dependent latencies by
 	  prefetching the entire table into the cache at the start of each
-	  block. Interrupts are also disabled to avoid races where cachelines
-	  are evicted when the CPU is interrupted to do something else.
+	  block.
 
 config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
@@ -1507,42 +1437,32 @@ config CRYPTO_SALSA20
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
 config CRYPTO_CHACHA20
-	tristate "ChaCha stream cipher algorithms"
-	select CRYPTO_LIB_CHACHA_GENERIC
+	tristate "ChaCha20 cipher algorithm"
 	select CRYPTO_BLKCIPHER
 	help
-	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms.
+	  ChaCha20 cipher algorithm, RFC7539.
 
 	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
 	  Bernstein and further specified in RFC7539 for use in IETF protocols.
-	  This is the portable C implementation of ChaCha20.  See also:
+	  This is the portable C implementation of ChaCha20.
+
+	  See also:
 	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
 
-	  XChaCha20 is the application of the XSalsa20 construction to ChaCha20
-	  rather than to Salsa20.  XChaCha20 extends ChaCha20's nonce length
-	  from 64 bits (or 96 bits using the RFC7539 convention) to 192 bits,
-	  while provably retaining ChaCha20's security.  See also:
-	  <https://cr.yp.to/snuffle/xsalsa-20081128.pdf>
-
-	  XChaCha12 is XChaCha20 reduced to 12 rounds, with correspondingly
-	  reduced security margin but increased performance.  It can be needed
-	  in some performance-sensitive scenarios.
-
 config CRYPTO_CHACHA20_X86_64
-	tristate "ChaCha stream cipher algorithms (x86_64/SSSE3/AVX2/AVX-512VL)"
+	tristate "ChaCha20 cipher algorithm (x86_64/SSSE3/AVX2)"
 	depends on X86 && 64BIT
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_LIB_CHACHA_GENERIC
-	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+	select CRYPTO_CHACHA20
 	help
-	  SSSE3, AVX2, and AVX-512VL optimized implementations of the ChaCha20,
-	  XChaCha20, and XChaCha12 stream ciphers.
+	  ChaCha20 cipher algorithm, RFC7539.
 
-config CRYPTO_CHACHA_MIPS
-	tristate "ChaCha stream cipher algorithms (MIPS 32r2 optimized)"
-	depends on CPU_MIPS32_R2
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
+	  Bernstein and further specified in RFC7539 for use in IETF protocols.
+	  This is the x86_64 assembler implementation using SIMD instructions.
+
+	  See also:
+	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
 
 config CRYPTO_SEED
 	tristate "SEED cipher algorithm"
@@ -1667,6 +1587,20 @@ config CRYPTO_SM4
 	  The input, output, and key of SMS4 are each 128 bits.
 
 	  See also: <https://eprint.iacr.org/2008/329.pdf>
+
+	  If unsure, say N.
+
+config CRYPTO_SPECK
+	tristate "Speck cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  Speck is a lightweight block cipher that is tuned for optimal
+	  performance in software (rather than hardware).
+
+	  Speck may not be as secure as AES, and should only be used on systems
+	  where AES is not fast enough.
+
+	  See also: <https://eprint.iacr.org/2013/404.pdf>
 
 	  If unsure, say N.
 
@@ -1944,7 +1878,6 @@ config CRYPTO_USER_API_AEAD
 config CRYPTO_HASH_INFO
 	bool
 
-source "lib/crypto/Kconfig"
 source "drivers/crypto/Kconfig"
 source crypto/asymmetric_keys/Kconfig
 source certs/Kconfig

@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0
 #
 # USB Gadget support on a system involves
 #    (a) a peripheral controller, and
@@ -216,12 +215,6 @@ config USB_F_PRINTER
 config USB_F_TCM
 	tristate
 
-config USB_F_ACC
-	tristate
-
-config USB_F_AUDIO_SRC
-	tristate
-
 # this first set of drivers all depend on bulk-capable hardware.
 
 config USB_CONFIGFS
@@ -235,14 +228,6 @@ config USB_CONFIGFS
 	  Associating functions with configurations is done by creating
 	  appropriate symbolic links.
 	  For more information see Documentation/usb/gadget_configfs.txt.
-
-config USB_CONFIGFS_UEVENT
-	bool "Uevent notification of Gadget state"
-	depends on USB_CONFIGFS
-	help
-	  Enable uevent notifications to userspace when the gadget
-	  state changes. The gadget can be in any of the following
-	  three states: "CONNECTED/DISCONNECTED/CONFIGURED"
 
 config USB_CONFIGFS_SERIAL
 	bool "Generic serial bulk in/out"
@@ -279,7 +264,6 @@ config USB_CONFIGFS_NCM
 	depends on NET
 	select USB_U_ETHER
 	select USB_F_NCM
-	select CRC32
 	help
 	  NCM is an advanced protocol for Ethernet encapsulation, allows
 	  grouping of several ethernet frames into one USB transfer and
@@ -329,7 +313,6 @@ config USB_CONFIGFS_EEM
 	depends on NET
 	select USB_U_ETHER
 	select USB_F_EEM
-	select CRC32
 	help
 	  CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
 	  and therefore can be supported by more hardware.  Technically ECM and
@@ -384,23 +367,6 @@ config USB_CONFIGFS_F_FS
 	  of composite gadgets such that some of the functions are
 	  implemented in kernel space (for instance Ethernet, serial or
 	  mass storage) and other are implemented in user space.
-
-config USB_CONFIGFS_F_ACC
-	bool "Accessory gadget"
-	depends on USB_CONFIGFS
-	depends on HID=y
-	select USB_F_ACC
-	help
-	  USB gadget Accessory support
-
-config USB_CONFIGFS_F_AUDIO_SRC
-	bool "Audio Source gadget"
-	depends on USB_CONFIGFS
-	depends on SND
-	select SND_PCM
-	select USB_F_AUDIO_SRC
-	help
-	  USB gadget Audio Source support
 
 config USB_CONFIGFS_F_UAC1
 	bool "Audio Class 1.0"
@@ -516,6 +482,34 @@ config USB_CONFIGFS_F_TCM
 	  Both protocols can work on USB2.0 and USB3.0.
 	  UAS utilizes the USB 3.0 feature called streams support.
 
+choice
+	tristate "USB Gadget precomposed configurations"
+	default USB_ETH
+	optional
+	help
+	  A Linux "Gadget Driver" talks to the USB Peripheral Controller
+	  driver through the abstract "gadget" API.  Some other operating
+	  systems call these "client" drivers, of which "class drivers"
+	  are a subset (implementing a USB device class specification).
+	  A gadget driver implements one or more USB functions using
+	  the peripheral hardware.
+
+	  Gadget drivers are hardware-neutral, or "platform independent",
+	  except that they sometimes must understand quirks or limitations
+	  of the particular controllers they work with.  For example, when
+	  a controller doesn't support alternate configurations or provide
+	  enough of the right types of endpoints, the gadget driver might
+	  not be able work with that controller, or might need to implement
+	  a less common variant of a device class protocol.
+
+	  The available choices each represent a single precomposed USB
+	  gadget configuration. In the device model, each option contains
+	  both the device instantiation as a child for a USB gadget
+	  controller, and the relevant drivers for each function declared
+	  by the device.
+
 source "drivers/usb/gadget/legacy/Kconfig"
+
+endchoice
 
 endif # USB_GADGET

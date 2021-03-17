@@ -6,7 +6,6 @@
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/mm.h>
 
 #include <asm/byteorder.h>
 #include <asm/word-at-a-time.h>
@@ -24,11 +23,17 @@
  * hit it), 'max' is the address space maximum (and we return
  * -EFAULT if we hit it).
  */
-static inline long do_strncpy_from_user(char *dst, const char __user *src,
-					unsigned long count, unsigned long max)
+static inline long do_strncpy_from_user(char *dst, const char __user *src, long count, unsigned long max)
 {
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
-	unsigned long res = 0;
+	long res = 0;
+
+	/*
+	 * Truncate 'max' to the user-specified limit, so that
+	 * we only have one limit we need to check in the loop
+	 */
+	if (max > count)
+		max = count;
 
 	if (IS_UNALIGNED(src, dst))
 		goto byte_at_a_time;
@@ -102,25 +107,17 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 		return 0;
 
 	max_addr = user_addr_max();
-	src_addr = (unsigned long)untagged_addr(src);
+	src_addr = (unsigned long)src;
 	if (likely(src_addr < max_addr)) {
 		unsigned long max = max_addr - src_addr;
 		long retval;
 
-		/*
-		 * Truncate 'max' to the user-specified limit, so that
-		 * we only have one limit we need to check in the loop
-		 */
-		if (max > count)
-			max = count;
-
 		kasan_check_write(dst, count);
 		check_object_size(dst, count, false);
-		if (user_access_begin(VERIFY_READ, src, max)) {
-			retval = do_strncpy_from_user(dst, src, count, max);
-			user_access_end();
-			return retval;
-		}
+		user_access_begin();
+		retval = do_strncpy_from_user(dst, src, count, max);
+		user_access_end();
+		return retval;
 	}
 	return -EFAULT;
 }

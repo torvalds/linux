@@ -78,13 +78,11 @@ struct cdn_dp_device {
 	struct platform_device *audio_pdev;
 	struct work_struct event_work;
 	struct edid *edid;
-	struct drm_dp_aux aux;
 
 	struct mutex lock;
 	bool connected;
 	bool active;
 	bool suspended;
-	bool use_fw_training;
 
 	const struct firmware *fw;	/* cdn dp firmware */
 	unsigned int fw_version;	/* cdn fw version */
@@ -107,7 +105,6 @@ struct cdn_dp_device {
 	u8 ports;
 	u8 lanes;
 	int active_port;
-	u8 train_set[4];
 
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	bool sink_has_audio;

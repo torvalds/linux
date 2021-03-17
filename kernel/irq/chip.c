@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/irqdomain.h>
-#include <linux/wakeup_reason.h>
 
 #include <trace/events/irq.h>
 
@@ -315,12 +314,6 @@ void irq_shutdown(struct irq_desc *desc)
 		}
 		irq_state_clr_started(desc);
 	}
-}
-
-
-void irq_shutdown_and_deactivate(struct irq_desc *desc)
-{
-	irq_shutdown(desc);
 	/*
 	 * This must be called even if the interrupt was never started up,
 	 * because the activation can happen before the interrupt is
@@ -508,22 +501,8 @@ static bool irq_may_run(struct irq_desc *desc)
 	 * If the interrupt is not in progress and is not an armed
 	 * wakeup interrupt, proceed.
 	 */
-	if (!irqd_has_set(&desc->irq_data, mask)) {
-#ifdef CONFIG_PM_SLEEP
-		if (unlikely(desc->no_suspend_depth &&
-			     irqd_is_wakeup_set(&desc->irq_data))) {
-			unsigned int irq = irq_desc_get_irq(desc);
-			const char *name = "(unnamed)";
-
-			if (desc->action && desc->action->name)
-				name = desc->action->name;
-
-			log_abnormal_wakeup_reason("misconfigured IRQ %u %s",
-						   irq, name);
-		}
-#endif
+	if (!irqd_has_set(&desc->irq_data, mask))
 		return true;
-	}
 
 	/*
 	 * If the interrupt is an armed wakeup source, mark it pending
@@ -876,11 +855,7 @@ void handle_percpu_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
-	/*
-	 * PER CPU interrupts are not serialized. Do not touch
-	 * desc->tot_count.
-	 */
-	__kstat_incr_irqs_this_cpu(desc);
+	kstat_incr_irqs_this_cpu(desc);
 
 	if (chip->irq_ack)
 		chip->irq_ack(&desc->irq_data);
@@ -909,11 +884,7 @@ void handle_percpu_devid_irq(struct irq_desc *desc)
 	unsigned int irq = irq_desc_get_irq(desc);
 	irqreturn_t res;
 
-	/*
-	 * PER CPU interrupts are not serialized. Do not touch
-	 * desc->tot_count.
-	 */
-	__kstat_incr_irqs_this_cpu(desc);
+	kstat_incr_irqs_this_cpu(desc);
 
 	if (chip->irq_ack)
 		chip->irq_ack(&desc->irq_data);
@@ -1255,50 +1226,6 @@ EXPORT_SYMBOL_GPL(handle_fasteoi_mask_irq);
 #endif /* CONFIG_IRQ_FASTEOI_HIERARCHY_HANDLERS */
 
 /**
- *	irq_chip_set_parent_state - set the state of a parent interrupt.
- *	@data: Pointer to interrupt specific data
- *	@which: State to be restored (one of IRQCHIP_STATE_*)
- *	@val: Value corresponding to @which
- *
- */
-int irq_chip_set_parent_state(struct irq_data *data,
-			      enum irqchip_irq_state which,
-			      bool val)
-{
-	data = data->parent_data;
-	if (!data)
-		return 0;
-
-	if (data->chip->irq_set_irqchip_state)
-		return data->chip->irq_set_irqchip_state(data, which, val);
-
-	return 0;
-}
-EXPORT_SYMBOL(irq_chip_set_parent_state);
-
-/**
- *	irq_chip_get_parent_state - get the state of a parent interrupt.
- *	@data: Pointer to interrupt specific data
- *	@which: one of IRQCHIP_STATE_* the caller wants to know
- *	@state: a pointer to a boolean where the state is to be stored
- *
- */
-int irq_chip_get_parent_state(struct irq_data *data,
-			      enum irqchip_irq_state which,
-			      bool *state)
-{
-	data = data->parent_data;
-	if (!data)
-		return 0;
-
-	if (data->chip->irq_get_irqchip_state)
-		return data->chip->irq_get_irqchip_state(data, which, state);
-
-	return 0;
-}
-EXPORT_SYMBOL(irq_chip_get_parent_state);
-
-/**
  * irq_chip_enable_parent - Enable the parent interrupt (defaults to unmask if
  * NULL)
  * @data:	Pointer to interrupt specific data
@@ -1424,7 +1351,6 @@ int irq_chip_retrigger_hierarchy(struct irq_data *data)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(irq_chip_retrigger_hierarchy);
 
 /**
  * irq_chip_set_vcpu_affinity_parent - Set vcpu affinity on the parent interrupt
@@ -1439,7 +1365,6 @@ int irq_chip_set_vcpu_affinity_parent(struct irq_data *data, void *vcpu_info)
 
 	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(irq_chip_set_vcpu_affinity_parent);
 
 /**
  * irq_chip_set_wake_parent - Set/reset wake-up on the parent interrupt
@@ -1451,16 +1376,11 @@ EXPORT_SYMBOL_GPL(irq_chip_set_vcpu_affinity_parent);
 int irq_chip_set_wake_parent(struct irq_data *data, unsigned int on)
 {
 	data = data->parent_data;
-
-	if (data->chip->flags & IRQCHIP_SKIP_SET_WAKE)
-		return 0;
-
 	if (data->chip->irq_set_wake)
 		return data->chip->irq_set_wake(data, on);
 
 	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(irq_chip_set_wake_parent);
 #endif
 
 /**

@@ -627,16 +627,13 @@ out_fixup:
 static int vmw_dma_masks(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int ret = 0;
 
-	ret = dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(64));
-	if (dev_priv->map_mode != vmw_dma_phys &&
+	if (intel_iommu_enabled &&
 	    (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask)) {
 		DRM_INFO("Restricting DMA addresses to 44 bits.\n");
-		return dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(44));
+		return dma_set_mask(dev->dev, DMA_BIT_MASK(44));
 	}
-
-	return ret;
+	return 0;
 }
 #else
 static int vmw_dma_masks(struct vmw_private *dev_priv)
@@ -788,9 +785,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	ret = vmw_dma_masks(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_err0;
-
-	dma_set_max_seg_size(dev->dev, min_t(unsigned int, U32_MAX & PAGE_MASK,
-					     SCATTERLIST_MAX_SEGMENT));
 
 	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		DRM_INFO("Max GMR ids is %u\n",
@@ -1294,13 +1288,7 @@ static int vmw_master_set(struct drm_device *dev,
 	}
 
 	dev_priv->active_master = vmaster;
-
-	/*
-	 * Inform a new master that the layout may have changed while
-	 * it was gone.
-	 */
-	if (!from_open)
-		drm_sysfs_hotplug_event(dev);
+	drm_sysfs_hotplug_event(dev);
 
 	return 0;
 }

@@ -285,7 +285,6 @@ struct uniphier_aio_chip {
 
 	struct uniphier_aio *aios;
 	int num_aios;
-	int num_wup_aios;
 	struct uniphier_aio_pll *plls;
 	int num_plls;
 

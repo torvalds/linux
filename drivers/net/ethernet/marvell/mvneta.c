@@ -385,8 +385,6 @@ struct mvneta_pcpu_stats {
 	struct	u64_stats_sync syncp;
 	u64	rx_packets;
 	u64	rx_bytes;
-	u64	rx_dropped;
-	u64	rx_errors;
 	u64	tx_packets;
 	u64	tx_bytes;
 };
@@ -408,6 +406,7 @@ struct mvneta_port {
 	struct mvneta_pcpu_stats __percpu	*stats;
 
 	int pkt_size;
+	unsigned int frag_size;
 	void __iomem *base;
 	struct mvneta_rx_queue *rxqs;
 	struct mvneta_tx_queue *txqs;
@@ -703,8 +702,6 @@ mvneta_get_stats64(struct net_device *dev,
 		struct mvneta_pcpu_stats *cpu_stats;
 		u64 rx_packets;
 		u64 rx_bytes;
-		u64 rx_dropped;
-		u64 rx_errors;
 		u64 tx_packets;
 		u64 tx_bytes;
 
@@ -713,19 +710,18 @@ mvneta_get_stats64(struct net_device *dev,
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
 			rx_packets = cpu_stats->rx_packets;
 			rx_bytes   = cpu_stats->rx_bytes;
-			rx_dropped = cpu_stats->rx_dropped;
-			rx_errors  = cpu_stats->rx_errors;
 			tx_packets = cpu_stats->tx_packets;
 			tx_bytes   = cpu_stats->tx_bytes;
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
 		stats->rx_packets += rx_packets;
 		stats->rx_bytes   += rx_bytes;
-		stats->rx_dropped += rx_dropped;
-		stats->rx_errors  += rx_errors;
 		stats->tx_packets += tx_packets;
 		stats->tx_bytes   += tx_bytes;
 	}
+
+	stats->rx_errors	= dev->stats.rx_errors;
+	stats->rx_dropped	= dev->stats.rx_dropped;
 
 	stats->tx_dropped	= dev->stats.tx_dropped;
 }
@@ -1703,13 +1699,7 @@ static u32 mvneta_txq_desc_csum(int l3_offs, int l3_proto,
 static void mvneta_rx_error(struct mvneta_port *pp,
 			    struct mvneta_rx_desc *rx_desc)
 {
-	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 	u32 status = rx_desc->status;
-
-	/* update per-cpu counter */
-	u64_stats_update_begin(&stats->syncp);
-	stats->rx_errors++;
-	u64_stats_update_end(&stats->syncp);
 
 	switch (status & MVNETA_RXD_ERR_CODE_MASK) {
 	case MVNETA_RXD_ERR_CRC:
@@ -1971,6 +1961,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			/* Check errors only for FIRST descriptor */
 			if (rx_status & MVNETA_RXD_ERR_SUMMARY) {
 				mvneta_rx_error(pp, rx_desc);
+				dev->stats.rx_errors++;
 				/* leave the descriptor untouched */
 				continue;
 			}
@@ -1981,17 +1972,11 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			skb_size = max(rx_copybreak, rx_header_size);
 			rxq->skb = netdev_alloc_skb_ip_align(dev, skb_size);
 			if (unlikely(!rxq->skb)) {
-				struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
-
 				netdev_err(dev,
 					   "Can't allocate skb on queue %d\n",
 					   rxq->id);
-
+				dev->stats.rx_dropped++;
 				rxq->skb_alloc_err++;
-
-				u64_stats_update_begin(&stats->syncp);
-				stats->rx_dropped++;
-				u64_stats_update_end(&stats->syncp);
 				continue;
 			}
 			copy_size = min(skb_size, rx_bytes);
@@ -2151,6 +2136,7 @@ err_drop_frame_ret_pool:
 			mvneta_bm_pool_put_bp(pp->bm_priv, bm_pool,
 					      rx_desc->buf_phys_addr);
 err_drop_frame:
+			dev->stats.rx_errors++;
 			mvneta_rx_error(pp, rx_desc);
 			/* leave the descriptor untouched */
 			continue;
@@ -2162,7 +2148,7 @@ err_drop_frame:
 			if (unlikely(!skb))
 				goto err_drop_frame_ret_pool;
 
-			dma_sync_single_range_for_cpu(&pp->bm_priv->pdev->dev,
+			dma_sync_single_range_for_cpu(dev->dev.parent,
 			                              rx_desc->buf_phys_addr,
 			                              MVNETA_MH_SIZE + NET_SKB_PAD,
 			                              rx_bytes,
@@ -2409,7 +2395,7 @@ error:
 }
 
 /* Main tx processing */
-static netdev_tx_t mvneta_tx(struct sk_buff *skb, struct net_device *dev)
+static int mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 	u16 txq_id = skb_get_queue_mapping(skb);
@@ -2801,10 +2787,11 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 	/* For the case where the last mvneta_poll did not process all
 	 * RX packets
 	 */
+	rx_queue = fls(((cause_rx_tx >> 8) & 0xff));
+
 	cause_rx_tx |= pp->neta_armada3700 ? pp->cause_rx_tx :
 		port->cause_rx_tx;
 
-	rx_queue = fls(((cause_rx_tx >> 8) & 0xff));
 	if (rx_queue) {
 		rx_queue = rx_queue - 1;
 		if (pp->bm_priv)
@@ -2918,9 +2905,7 @@ static void mvneta_rxq_hw_init(struct mvneta_port *pp,
 	if (!pp->bm_priv) {
 		/* Set Offset */
 		mvneta_rxq_offset_set(pp, rxq, 0);
-		mvneta_rxq_buf_size_set(pp, rxq, PAGE_SIZE < SZ_64K ?
-					PAGE_SIZE :
-					MVNETA_RX_BUF_SIZE(pp->pkt_size));
+		mvneta_rxq_buf_size_set(pp, rxq, pp->frag_size);
 		mvneta_rxq_bm_disable(pp, rxq);
 		mvneta_rxq_fill(pp, rxq, rxq->size);
 	} else {
@@ -3764,6 +3749,7 @@ static int mvneta_open(struct net_device *dev)
 	int ret;
 
 	pp->pkt_size = MVNETA_RX_PKT_SIZE(pp->dev->mtu);
+	pp->frag_size = PAGE_SIZE;
 
 	ret = mvneta_setup_rxqs(pp);
 	if (ret)
@@ -4625,7 +4611,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	err = register_netdev(dev);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register\n");
-		goto err_netdev;
+		goto err_free_stats;
 	}
 
 	netdev_info(dev, "Using %s mac address %pM\n", mac_from,
@@ -4636,12 +4622,14 @@ static int mvneta_probe(struct platform_device *pdev)
 	return 0;
 
 err_netdev:
+	unregister_netdev(dev);
 	if (pp->bm_priv) {
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short,
 				       1 << pp->id);
 		mvneta_bm_put(pp->bm_priv);
 	}
+err_free_stats:
 	free_percpu(pp->stats);
 err_free_ports:
 	free_percpu(pp->ports);

@@ -4,8 +4,4 @@ obj-y				:= extable.o tlb.o \
 
 obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o
 obj-$(CONFIG_HIGHMEM)           += highmem.o
-
-ifdef CONFIG_FUNCTION_TRACER
-CFLAGS_REMOVE_proc.o     = $(CC_FLAGS_FTRACE)
-endif
-CFLAGS_proc.o              += -fomit-frame-pointer
+CFLAGS_proc-n13.o		+= -fomit-frame-pointer

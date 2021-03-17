@@ -431,7 +431,7 @@ unmap_release:
 		kfree(desc);
 
 	END_USE(vq);
-	return -ENOMEM;
+	return -EIO;
 }
 
 /**
@@ -828,9 +828,6 @@ bool virtqueue_poll(struct virtqueue *_vq, unsigned last_used_idx)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	if (unlikely(vq->broken))
-		return false;
-
 	virtio_mb(vq->weak_barriers);
 	return (u16)last_used_idx != virtio16_to_cpu(_vq->vdev, vq->vring.used->idx);
 }
@@ -1089,8 +1086,6 @@ struct virtqueue *vring_create_virtqueue(
 					  GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO);
 		if (queue)
 			break;
-		if (!may_reduce_num)
-			return NULL;
 	}
 
 	if (!num)

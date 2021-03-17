@@ -929,8 +929,7 @@ static int __init wm97xx_init(void)
 
 static void __exit wm97xx_exit(void)
 {
-	if (IS_BUILTIN(CONFIG_AC97_BUS))
-		driver_unregister(&wm97xx_driver);
+	driver_unregister(&wm97xx_driver);
 	platform_driver_unregister(&wm97xx_mfd_driver);
 }
 

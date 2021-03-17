@@ -563,7 +563,7 @@ static int af9005_boot_packet(struct usb_device *udev, int type, u8 *reply,
 			      u8 *buf, int size)
 {
 	u16 checksum;
-	int act_len = 0, i, ret;
+	int act_len, i, ret;
 
 	memset(buf, 0, size);
 	buf[0] = (u8) (FW_BULKOUT_SIZE & 0xff);
@@ -985,9 +985,8 @@ static int af9005_identify_state(struct usb_device *udev,
 	else if (reply == 0x02)
 		*cold = 0;
 	else
-		ret = -EIO;
-	if (!ret)
-		deb_info("Identify state cold = %d\n", *cold);
+		return -EIO;
+	deb_info("Identify state cold = %d\n", *cold);
 
 err:
 	kfree(buf);

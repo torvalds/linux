@@ -44,13 +44,18 @@ volatile long the_var;
 #if defined (__x86_64__)
 extern void __test_function(volatile long *ptr);
 asm (
-	".pushsection .text;"
 	".globl __test_function\n"
-	".type __test_function, @function;"
 	"__test_function:\n"
 	"incq (%rdi)\n"
-	"ret\n"
-	".popsection\n");
+	"ret\n");
+#elif defined (__aarch64__)
+extern void __test_function(volatile long *ptr);
+asm (
+	".globl __test_function\n"
+	"__test_function:\n"
+	"str x30, [x0]\n"
+	"ret\n");
+
 #else
 static void __test_function(volatile long *ptr)
 {
@@ -286,25 +291,12 @@ int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused
 
 bool test__bp_signal_is_supported(void)
 {
-	/*
-	 * PowerPC and S390 do not support creation of instruction
-	 * breakpoints using the perf_event interface.
-	 *
-	 * ARM requires explicit rounding down of the instruction
-	 * pointer in Thumb mode, and then requires the single-step
-	 * to be handled explicitly in the overflow handler to avoid
-	 * stepping into the SIGIO handler and getting stuck on the
-	 * breakpointed instruction.
-	 *
-	 * Since arm64 has the same issue with arm for the single-step
-	 * handling, this case also gets suck on the breakpointed
-	 * instruction.
-	 *
-	 * Just disable the test for these architectures until these
-	 * issues are resolved.
-	 */
-#if defined(__powerpc__) || defined(__s390x__) || defined(__arm__) || \
-    defined(__aarch64__)
+/*
+ * The powerpc so far does not have support to even create
+ * instruction breakpoint using the perf event interface.
+ * Once it's there we can release this.
+ */
+#if defined(__powerpc__) || defined(__s390x__)
 	return false;
 #else
 	return true;

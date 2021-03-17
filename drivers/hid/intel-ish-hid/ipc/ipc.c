@@ -91,10 +91,7 @@ static bool check_generated_interrupt(struct ishtp_device *dev)
 			IPC_INT_FROM_ISH_TO_HOST_CHV_AB(pisr_val);
 	} else {
 		pisr_val = ish_reg_read(dev, IPC_REG_PISR_BXT);
-		interrupt_generated = !!pisr_val;
-		/* only busy-clear bit is RW, others are RO */
-		if (pisr_val)
-			ish_reg_write(dev, IPC_REG_PISR_BXT, pisr_val);
+		interrupt_generated = IPC_INT_FROM_ISH_TO_HOST_BXT(pisr_val);
 	}
 
 	return interrupt_generated;
@@ -846,10 +843,10 @@ int ish_hw_start(struct ishtp_device *dev)
 {
 	ish_set_host_rdy(dev);
 
-	set_host_ready(dev);
-
 	/* After that we can enable ISH DMA operation and wakeup ISHFW */
 	ish_wakeup(dev);
+
+	set_host_ready(dev);
 
 	/* wait for FW-initiated reset flow */
 	if (!dev->recvd_hw_ready)

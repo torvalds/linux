@@ -34,7 +34,6 @@
  * Data types shared between different Virtual HW blocks
  ******************************************************************************/
 
-#define MAX_AUDIOS 7
 #define MAX_PIPES 6
 
 struct gamma_curve {

@@ -49,7 +49,6 @@
 	compatible = "udoo,neofull", "fsl,imx6sx";
 
 	memory@80000000 {
-		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
 	};
 };

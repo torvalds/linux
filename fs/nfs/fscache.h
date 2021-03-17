@@ -66,11 +66,9 @@ struct nfs_fscache_key {
  * cache object.
  */
 struct nfs_fscache_inode_auxdata {
-	s64	mtime_sec;
-	s64	mtime_nsec;
-	s64	ctime_sec;
-	s64	ctime_nsec;
-	u64	change_attr;
+	struct timespec	mtime;
+	struct timespec	ctime;
+	u64		change_attr;
 };
 
 /*
@@ -188,7 +186,7 @@ static inline void nfs_fscache_wait_on_invalidate(struct inode *inode)
  */
 static inline const char *nfs_server_fscache_state(struct nfs_server *server)
 {
-	if (server->fscache)
+	if (server->fscache && (server->options & NFS_OPTION_FSCACHE))
 		return "yes";
 	return "no ";
 }

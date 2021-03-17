@@ -79,7 +79,7 @@
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
 #include <linux/acpi.h>
-#include <linux/pci.h>
+#include <linux/pci_ids.h>
 #include <linux/power_supply.h>
 #include <linux/thinkpad_acpi.h>
 #include <sound/core.h>
@@ -2597,7 +2597,7 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
  */
 static int hotkey_kthread(void *data)
 {
-	struct tp_nvram_state s[2] = { 0 };
+	struct tp_nvram_state s[2];
 	u32 poll_mask, event_mask;
 	unsigned int si, so;
 	unsigned long t;
@@ -3242,14 +3242,7 @@ static int hotkey_init_tablet_mode(void)
 
 		in_tablet_mode = hotkey_gmms_get_tablet_mode(res,
 							     &has_tablet_mode);
-		/*
-		 * The Yoga 11e series has 2 accelerometers described by a
-		 * BOSC0200 ACPI node. This setup relies on a Windows service
-		 * which calls special ACPI methods on this node to report
-		 * the laptop/tent/tablet mode to the EC. The bmc150 iio driver
-		 * does not support this, so skip the hotkey on these models.
-		 */
-		if (has_tablet_mode && !acpi_dev_present("BOSC0200", "1", -1))
+		if (has_tablet_mode)
 			tp_features.hotkey_tablet = TP_HOTKEY_TABLET_USES_GMMS;
 		type = "GMMS";
 	} else if (acpi_evalf(hkey_handle, &res, "MHKG", "qd")) {
@@ -4258,7 +4251,6 @@ static void hotkey_resume(void)
 		pr_err("error while attempting to reset the event firmware interface\n");
 
 	tpacpi_send_radiosw_update();
-	tpacpi_input_send_tabletsw();
 	hotkey_tablet_mode_notify_change();
 	hotkey_wakeup_reason_notify_change();
 	hotkey_wakeup_hotunplug_complete_notify_change();
@@ -4504,74 +4496,6 @@ static void bluetooth_exit(void)
 	bluetooth_shutdown();
 }
 
-static const struct dmi_system_id bt_fwbug_list[] __initconst = {
-	{
-		.ident = "ThinkPad E485",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "20KU"),
-		},
-	},
-	{
-		.ident = "ThinkPad E585",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "20KV"),
-		},
-	},
-	{
-		.ident = "ThinkPad A285 - 20MW",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "20MW"),
-		},
-	},
-	{
-		.ident = "ThinkPad A285 - 20MX",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "20MX"),
-		},
-	},
-	{
-		.ident = "ThinkPad A485 - 20MU",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "20MU"),
-		},
-	},
-	{
-		.ident = "ThinkPad A485 - 20MV",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_BOARD_NAME, "20MV"),
-		},
-	},
-	{}
-};
-
-static const struct pci_device_id fwbug_cards_ids[] __initconst = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x24F3) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x24FD) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2526) },
-	{}
-};
-
-
-static int __init have_bt_fwbug(void)
-{
-	/*
-	 * Some AMD based ThinkPads have a firmware bug that calling
-	 * "GBDC" will cause bluetooth on Intel wireless cards blocked
-	 */
-	if (dmi_check_system(bt_fwbug_list) && pci_dev_present(fwbug_cards_ids)) {
-		vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
-			FW_BUG "disable bluetooth subdriver for Intel cards\n");
-		return 1;
-	} else
-		return 0;
-}
-
 static int __init bluetooth_init(struct ibm_init_struct *iibm)
 {
 	int res;
@@ -4584,7 +4508,7 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 
 	/* bluetooth not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
 	   G4x, R30, R31, R40e, R50e, T20-22, X20-21 */
-	tp_features.bluetooth = !have_bt_fwbug() && hkey_handle &&
+	tp_features.bluetooth = hkey_handle &&
 	    acpi_evalf(hkey_handle, &status, "GBDC", "qd");
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
@@ -6887,10 +6811,8 @@ static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 	list_for_each_entry(child, &device->children, node) {
 		acpi_status status = acpi_evaluate_object(child->handle, "_BCL",
 							  NULL, &buffer);
-		if (ACPI_FAILURE(status)) {
-			buffer.length = ACPI_ALLOCATE_BUFFER;
+		if (ACPI_FAILURE(status))
 			continue;
-		}
 
 		obj = (union acpi_object *)buffer.pointer;
 		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
@@ -9697,7 +9619,6 @@ static const struct tpacpi_quirk battery_quirk_table[] __initconst = {
 	TPACPI_Q_LNV3('R', '0', 'B', true), /* Thinkpad 11e gen 3 */
 	TPACPI_Q_LNV3('R', '0', 'C', true), /* Thinkpad 13 */
 	TPACPI_Q_LNV3('R', '0', 'J', true), /* Thinkpad 13 gen 2 */
-	TPACPI_Q_LNV3('R', '0', 'K', true), /* Thinkpad 11e gen 4 celeron BIOS */
 };
 
 static int __init tpacpi_battery_init(struct ibm_init_struct *ibm)

@@ -109,8 +109,9 @@ struct hisi_reset_controller *hisi_reset_init(struct platform_device *pdev)
 		return NULL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rstc->membase = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(rstc->membase))
+	rstc->membase = devm_ioremap(&pdev->dev,
+				res->start, resource_size(res));
+	if (!rstc->membase)
 		return NULL;
 
 	spin_lock_init(&rstc->lock);

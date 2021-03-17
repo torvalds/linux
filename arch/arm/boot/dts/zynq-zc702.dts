@@ -174,17 +174,17 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <7>;
-			hwmon@34 {
+			hwmon@52 {
 				compatible = "ti,ucd9248";
-				reg = <0x34>;
+				reg = <52>;
 			};
-			hwmon@35 {
+			hwmon@53 {
 				compatible = "ti,ucd9248";
-				reg = <0x35>;
+				reg = <53>;
 			};
-			hwmon@36 {
+			hwmon@54 {
 				compatible = "ti,ucd9248";
-				reg = <0x36>;
+				reg = <54>;
 			};
 		};
 	};

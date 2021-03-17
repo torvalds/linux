@@ -28,14 +28,6 @@ static inline struct ethhdr *eth_hdr(const struct sk_buff *skb)
 	return (struct ethhdr *)skb_mac_header(skb);
 }
 
-/* Prefer this version in TX path, instead of
- * skb_reset_mac_header() + eth_hdr()
- */
-static inline struct ethhdr *skb_eth_hdr(const struct sk_buff *skb)
-{
-	return (struct ethhdr *)skb->data;
-}
-
 static inline struct ethhdr *inner_eth_hdr(const struct sk_buff *skb)
 {
 	return (struct ethhdr *)skb_inner_mac_header(skb);

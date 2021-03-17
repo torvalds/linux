@@ -26,11 +26,19 @@ static int devfreq_userspace_func(struct devfreq *df, unsigned long *freq)
 {
 	struct userspace_data *data = df->data;
 
-	if (data->valid)
-		*freq = data->user_frequency;
-	else
-		*freq = df->previous_freq; /* No user freq specified yet */
+	if (data->valid) {
+		unsigned long adjusted_freq = data->user_frequency;
 
+		if (df->max_freq && adjusted_freq > df->max_freq)
+			adjusted_freq = df->max_freq;
+
+		if (df->min_freq && adjusted_freq < df->min_freq)
+			adjusted_freq = df->min_freq;
+
+		*freq = adjusted_freq;
+	} else {
+		*freq = df->previous_freq; /* No user freq specified yet */
+	}
 	return 0;
 }
 
@@ -122,11 +130,9 @@ static int devfreq_userspace_handler(struct devfreq *devfreq,
 	switch (event) {
 	case DEVFREQ_GOV_START:
 		ret = userspace_init(devfreq);
-		devfreq->last_status.update = true;
 		break;
 	case DEVFREQ_GOV_STOP:
 		userspace_exit(devfreq);
-		devfreq->last_status.update = false;
 		break;
 	default:
 		break;

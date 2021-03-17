@@ -59,10 +59,10 @@
 
 	pmu {
 		compatible = "arm,armv8-pmuv3";
-		interrupts = <0 170 4>,
-			     <0 171 4>,
-			     <0 172 4>,
-			     <0 173 4>;
+		interrupts = <0 120 8>,
+			     <0 121 8>,
+			     <0 122 8>,
+			     <0 123 8>;
 		interrupt-affinity = <&cpu0>,
 				     <&cpu1>,
 				     <&cpu2>,
@@ -137,10 +137,6 @@
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC0_CLK>;
 			clock-names = "stmmaceth";
-			tx-fifo-depth = <16384>;
-			rx-fifo-depth = <16384>;
-			snps,multicast-filter-bins = <256>;
-			altr,sysmgr-syscon = <&sysmgr 0x44 0>;
 			status = "disabled";
 		};
 
@@ -154,10 +150,6 @@
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC1_CLK>;
 			clock-names = "stmmaceth";
-			tx-fifo-depth = <16384>;
-			rx-fifo-depth = <16384>;
-			snps,multicast-filter-bins = <256>;
-			altr,sysmgr-syscon = <&sysmgr 0x48 0>;
 			status = "disabled";
 		};
 
@@ -171,10 +163,6 @@
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC2_CLK>;
 			clock-names = "stmmaceth";
-			tx-fifo-depth = <16384>;
-			rx-fifo-depth = <16384>;
-			snps,multicast-filter-bins = <256>;
-			altr,sysmgr-syscon = <&sysmgr 0x4c 0>;
 			status = "disabled";
 		};
 
@@ -347,7 +335,7 @@
 
 		sysmgr: sysmgr@ffd12000 {
 			compatible = "altr,sys-mgr", "syscon";
-			reg = <0xffd12000 0x228>;
+			reg = <0xffd12000 0x1000>;
 		};
 
 		/* Local timer */

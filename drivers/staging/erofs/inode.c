@@ -53,9 +53,11 @@ static int read_inode(struct inode *inode, void *data)
 		i_gid_write(inode, le32_to_cpu(v2->i_gid));
 		set_nlink(inode, le32_to_cpu(v2->i_nlink));
 
-		/* extended inode has its own timestamp */
-		inode->i_ctime.tv_sec = le64_to_cpu(v2->i_ctime);
-		inode->i_ctime.tv_nsec = le32_to_cpu(v2->i_ctime_nsec);
+		/* ns timestamp */
+		inode->i_mtime.tv_sec = inode->i_ctime.tv_sec =
+			le64_to_cpu(v2->i_ctime);
+		inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec =
+			le32_to_cpu(v2->i_ctime_nsec);
 
 		inode->i_size = le64_to_cpu(v2->i_size);
 	} else if (__inode_version(advise) == EROFS_INODE_LAYOUT_V1) {
@@ -81,9 +83,11 @@ static int read_inode(struct inode *inode, void *data)
 		i_gid_write(inode, le16_to_cpu(v1->i_gid));
 		set_nlink(inode, le16_to_cpu(v1->i_nlink));
 
-		/* use build time for compact inodes */
-		inode->i_ctime.tv_sec = sbi->build_time;
-		inode->i_ctime.tv_nsec = sbi->build_time_nsec;
+		/* use build time to derive all file time */
+		inode->i_mtime.tv_sec = inode->i_ctime.tv_sec =
+			sbi->build_time;
+		inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec =
+			sbi->build_time_nsec;
 
 		inode->i_size = le32_to_cpu(v1->i_size);
 	} else {
@@ -92,11 +96,6 @@ static int read_inode(struct inode *inode, void *data)
 		DBG_BUGON(1);
 		return -EIO;
 	}
-
-	inode->i_mtime.tv_sec = inode->i_ctime.tv_sec;
-	inode->i_atime.tv_sec = inode->i_ctime.tv_sec;
-	inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec;
-	inode->i_atime.tv_nsec = inode->i_ctime.tv_nsec;
 
 	/* measure inode.i_blocks as the generic filesystem */
 	inode->i_blocks = ((inode->i_size - 1) >> 9) + 1;
@@ -133,13 +132,7 @@ static int fill_inline_data(struct inode *inode, void *data, unsigned m_pofs)
 			return -ENOMEM;
 
 		m_pofs += vi->inode_isize + vi->xattr_isize;
-
-		/* inline symlink data shouldn't across page boundary as well */
-		if (unlikely(m_pofs + inode->i_size > PAGE_SIZE)) {
-			DBG_BUGON(1);
-			kfree(lnk);
-			return -EIO;
-		}
+		BUG_ON(m_pofs + inode->i_size > PAGE_SIZE);
 
 		/* get in-page inline data */
 		memcpy(lnk, data + m_pofs, inode->i_size);
@@ -177,7 +170,7 @@ static int fill_inode(struct inode *inode, int isdir)
 		return PTR_ERR(page);
 	}
 
-	DBG_BUGON(!PageUptodate(page));
+	BUG_ON(!PageUptodate(page));
 	data = page_address(page);
 
 	err = read_inode(inode, data + ofs);
@@ -185,16 +178,16 @@ static int fill_inode(struct inode *inode, int isdir)
 		/* setup the new inode */
 		if (S_ISREG(inode->i_mode)) {
 #ifdef CONFIG_EROFS_FS_XATTR
-			inode->i_op = &erofs_generic_xattr_iops;
+			if (vi->xattr_isize)
+				inode->i_op = &erofs_generic_xattr_iops;
 #endif
 			inode->i_fop = &generic_ro_fops;
 		} else if (S_ISDIR(inode->i_mode)) {
 			inode->i_op =
 #ifdef CONFIG_EROFS_FS_XATTR
-				&erofs_dir_xattr_iops;
-#else
-				&erofs_dir_iops;
+				vi->xattr_isize ? &erofs_dir_xattr_iops :
 #endif
+				&erofs_dir_iops;
 			inode->i_fop = &erofs_dir_fops;
 		} else if (S_ISLNK(inode->i_mode)) {
 			/* by default, page_get_link is used for symlink */

@@ -1021,8 +1021,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 
 	return 0;
 fail:
-	if (mdp5_kms)
-		mdp5_destroy(pdev);
+	mdp5_destroy(pdev);
 	return ret;
 }
 

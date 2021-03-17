@@ -218,4 +218,5 @@ All other architectures should build just fine too - but they won't have
 the new syscalls yet.
 
 Architectures need to implement the new futex_atomic_cmpxchg_inatomic()
-inline function before writing up the syscalls.
+inline function before writing up the syscalls (that function returns
+-ENOSYS right now).

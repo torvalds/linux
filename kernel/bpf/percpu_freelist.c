@@ -28,8 +28,8 @@ void pcpu_freelist_destroy(struct pcpu_freelist *s)
 	free_percpu(s->freelist);
 }
 
-static inline void ___pcpu_freelist_push(struct pcpu_freelist_head *head,
-					 struct pcpu_freelist_node *node)
+static inline void __pcpu_freelist_push(struct pcpu_freelist_head *head,
+					struct pcpu_freelist_node *node)
 {
 	raw_spin_lock(&head->lock);
 	node->next = head->first;
@@ -37,22 +37,12 @@ static inline void ___pcpu_freelist_push(struct pcpu_freelist_head *head,
 	raw_spin_unlock(&head->lock);
 }
 
-void __pcpu_freelist_push(struct pcpu_freelist *s,
+void pcpu_freelist_push(struct pcpu_freelist *s,
 			struct pcpu_freelist_node *node)
 {
 	struct pcpu_freelist_head *head = this_cpu_ptr(s->freelist);
 
-	___pcpu_freelist_push(head, node);
-}
-
-void pcpu_freelist_push(struct pcpu_freelist *s,
-			struct pcpu_freelist_node *node)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__pcpu_freelist_push(s, node);
-	local_irq_restore(flags);
+	__pcpu_freelist_push(head, node);
 }
 
 void pcpu_freelist_populate(struct pcpu_freelist *s, void *buf, u32 elem_size,
@@ -73,7 +63,7 @@ void pcpu_freelist_populate(struct pcpu_freelist *s, void *buf, u32 elem_size,
 	for_each_possible_cpu(cpu) {
 again:
 		head = per_cpu_ptr(s->freelist, cpu);
-		___pcpu_freelist_push(head, buf);
+		__pcpu_freelist_push(head, buf);
 		i++;
 		buf += elem_size;
 		if (i == nr_elems)
@@ -84,12 +74,14 @@ again:
 	local_irq_restore(flags);
 }
 
-struct pcpu_freelist_node *__pcpu_freelist_pop(struct pcpu_freelist *s)
+struct pcpu_freelist_node *pcpu_freelist_pop(struct pcpu_freelist *s)
 {
 	struct pcpu_freelist_head *head;
 	struct pcpu_freelist_node *node;
+	unsigned long flags;
 	int orig_cpu, cpu;
 
+	local_irq_save(flags);
 	orig_cpu = cpu = raw_smp_processor_id();
 	while (1) {
 		head = per_cpu_ptr(s->freelist, cpu);
@@ -97,25 +89,16 @@ struct pcpu_freelist_node *__pcpu_freelist_pop(struct pcpu_freelist *s)
 		node = head->first;
 		if (node) {
 			head->first = node->next;
-			raw_spin_unlock(&head->lock);
+			raw_spin_unlock_irqrestore(&head->lock, flags);
 			return node;
 		}
 		raw_spin_unlock(&head->lock);
 		cpu = cpumask_next(cpu, cpu_possible_mask);
 		if (cpu >= nr_cpu_ids)
 			cpu = 0;
-		if (cpu == orig_cpu)
+		if (cpu == orig_cpu) {
+			local_irq_restore(flags);
 			return NULL;
+		}
 	}
-}
-
-struct pcpu_freelist_node *pcpu_freelist_pop(struct pcpu_freelist *s)
-{
-	struct pcpu_freelist_node *ret;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	ret = __pcpu_freelist_pop(s);
-	local_irq_restore(flags);
-	return ret;
 }

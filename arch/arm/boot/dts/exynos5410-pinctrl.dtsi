@@ -560,34 +560,6 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
-
-	usb3_1_oc: usb3-1-oc {
-		samsung,pins = "gpk2-4", "gpk2-5";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
-	};
-
-	usb3_1_vbusctrl: usb3-1-vbusctrl {
-		samsung,pins = "gpk2-6", "gpk2-7";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
-	};
-
-	usb3_0_oc: usb3-0-oc {
-		samsung,pins = "gpk3-0", "gpk3-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
-	};
-
-	usb3_0_vbusctrl: usb3-0-vbusctrl {
-		samsung,pins = "gpk3-2", "gpk3-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
-	};
 };
 
 &pinctrl_2 {

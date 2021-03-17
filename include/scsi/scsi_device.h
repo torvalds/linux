@@ -8,7 +8,6 @@
 #include <linux/blkdev.h>
 #include <scsi/scsi.h>
 #include <linux/atomic.h>
-#include <linux/android_kabi.h>
 
 struct device;
 struct request_queue;
@@ -200,10 +199,6 @@ struct scsi_device {
 	unsigned broken_fua:1;		/* Don't set FUA bit */
 	unsigned lun_in_cdb:1;		/* Store LUN bits in CDB[1] */
 	unsigned unmap_limit_for_ws:1;	/* Use the UNMAP limit for WRITE SAME */
-	unsigned rpm_autosuspend:1;	/* Enable runtime autosuspend at device
-					 * creation time */
-	/* If non-zero, use timeout (in jiffies) for all commands */
-	unsigned int timeout_override;
 
 	atomic_t disk_events_disable_depth; /* disable depth for disk events */
 
@@ -233,11 +228,6 @@ struct scsi_device {
 	enum scsi_device_state sdev_state;
 	struct task_struct	*quiesced_by;
 	unsigned long		sdev_data[0];
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-	ANDROID_KABI_RESERVE(3);
-	ANDROID_KABI_RESERVE(4);
 } __attribute__((aligned(sizeof(unsigned long))));
 
 #define	to_scsi_device(d)	\
@@ -465,8 +455,6 @@ extern void sdev_disable_disk_events(struct scsi_device *sdev);
 extern void sdev_enable_disk_events(struct scsi_device *sdev);
 extern int scsi_vpd_lun_id(struct scsi_device *, char *, size_t);
 extern int scsi_vpd_tpg_id(struct scsi_device *, int *);
-extern void scsi_set_cmd_timeout_override(struct scsi_device *sdev,
-					  unsigned int timeout);
 
 #ifdef CONFIG_PM
 extern int scsi_autopm_get_device(struct scsi_device *);

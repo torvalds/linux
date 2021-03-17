@@ -16,27 +16,21 @@
 unsigned int
 ioread8(void __iomem *addr)
 {
-	unsigned int ret;
-	mb();
-	ret = IO_CONCAT(__IO_PREFIX,ioread8)(addr);
+	unsigned int ret = IO_CONCAT(__IO_PREFIX,ioread8)(addr);
 	mb();
 	return ret;
 }
 
 unsigned int ioread16(void __iomem *addr)
 {
-	unsigned int ret;
-	mb();
-	ret = IO_CONCAT(__IO_PREFIX,ioread16)(addr);
+	unsigned int ret = IO_CONCAT(__IO_PREFIX,ioread16)(addr);
 	mb();
 	return ret;
 }
 
 unsigned int ioread32(void __iomem *addr)
 {
-	unsigned int ret;
-	mb();
-	ret = IO_CONCAT(__IO_PREFIX,ioread32)(addr);
+	unsigned int ret = IO_CONCAT(__IO_PREFIX,ioread32)(addr);
 	mb();
 	return ret;
 }
@@ -154,36 +148,28 @@ EXPORT_SYMBOL(__raw_writeq);
 
 u8 readb(const volatile void __iomem *addr)
 {
-	u8 ret;
-	mb();
-	ret = __raw_readb(addr);
+	u8 ret = __raw_readb(addr);
 	mb();
 	return ret;
 }
 
 u16 readw(const volatile void __iomem *addr)
 {
-	u16 ret;
-	mb();
-	ret = __raw_readw(addr);
+	u16 ret = __raw_readw(addr);
 	mb();
 	return ret;
 }
 
 u32 readl(const volatile void __iomem *addr)
 {
-	u32 ret;
-	mb();
-	ret = __raw_readl(addr);
+	u32 ret = __raw_readl(addr);
 	mb();
 	return ret;
 }
 
 u64 readq(const volatile void __iomem *addr)
 {
-	u64 ret;
-	mb();
-	ret = __raw_readq(addr);
+	u64 ret = __raw_readq(addr);
 	mb();
 	return ret;
 }
@@ -221,38 +207,6 @@ EXPORT_SYMBOL(writew);
 EXPORT_SYMBOL(writel);
 EXPORT_SYMBOL(writeq);
 
-/*
- * The _relaxed functions must be ordered w.r.t. each other, but they don't
- * have to be ordered w.r.t. other memory accesses.
- */
-u8 readb_relaxed(const volatile void __iomem *addr)
-{
-	mb();
-	return __raw_readb(addr);
-}
-
-u16 readw_relaxed(const volatile void __iomem *addr)
-{
-	mb();
-	return __raw_readw(addr);
-}
-
-u32 readl_relaxed(const volatile void __iomem *addr)
-{
-	mb();
-	return __raw_readl(addr);
-}
-
-u64 readq_relaxed(const volatile void __iomem *addr)
-{
-	mb();
-	return __raw_readq(addr);
-}
-
-EXPORT_SYMBOL(readb_relaxed);
-EXPORT_SYMBOL(readw_relaxed);
-EXPORT_SYMBOL(readl_relaxed);
-EXPORT_SYMBOL(readq_relaxed);
 
 /*
  * Read COUNT 8-bit bytes from port PORT into memory starting at SRC.

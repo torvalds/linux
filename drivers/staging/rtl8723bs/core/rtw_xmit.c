@@ -260,9 +260,7 @@ s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 		}
 	}
 
-	res = rtw_alloc_hwxmits(padapter);
-	if (res == _FAIL)
-		goto exit;
+	rtw_alloc_hwxmits(padapter);
 	rtw_init_hwxmits(pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
 
 	for (i = 0; i < 4; i++) {
@@ -2146,7 +2144,7 @@ exit:
 	return res;
 }
 
-s32 rtw_alloc_hwxmits(struct adapter *padapter)
+void rtw_alloc_hwxmits(struct adapter *padapter)
 {
 	struct hw_xmit *hwxmits;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -2157,8 +2155,10 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter)
 
 	pxmitpriv->hwxmits = rtw_zmalloc(sizeof(struct hw_xmit) * pxmitpriv->hwxmit_entry);
 
-	if (!pxmitpriv->hwxmits)
-		return _FAIL;
+	if (pxmitpriv->hwxmits == NULL) {
+		DBG_871X("alloc hwxmits fail!...\n");
+		return;
+	}
 
 	hwxmits = pxmitpriv->hwxmits;
 
@@ -2204,7 +2204,7 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter)
 
 	}
 
-	return _SUCCESS;
+
 }
 
 void rtw_free_hwxmits(struct adapter *padapter)

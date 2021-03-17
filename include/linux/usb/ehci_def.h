@@ -151,7 +151,7 @@ struct ehci_regs {
 #define PORT_OWNER	(1<<13)		/* true: companion hc owns this port */
 #define PORT_POWER	(1<<12)		/* true: has power (see PPC) */
 #define PORT_USB11(x) (((x)&(3<<10)) == (1<<10))	/* USB 1.1 device */
-#define PORT_LS_MASK	(3<<10)		/* Link status (SE0, K or J */
+/* 11:10 for detecting lowspeed devices (reset vs release ownership) */
 /* 9 reserved */
 #define PORT_LPM	(1<<9)		/* LPM transaction */
 #define PORT_RESET	(1<<8)		/* reset port */

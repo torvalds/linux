@@ -118,17 +118,19 @@ static int knav_queue_setup_irq(struct knav_range_info *range,
 			  struct knav_queue_inst *inst)
 {
 	unsigned queue = inst->id - range->queue_base;
+	unsigned long cpu_map;
 	int ret = 0, irq;
 
 	if (range->flags & RANGE_HAS_IRQ) {
 		irq = range->irqs[queue].irq;
+		cpu_map = range->irqs[queue].cpu_map;
 		ret = request_irq(irq, knav_queue_int_handler, 0,
 					inst->irq_name, inst);
 		if (ret)
 			return ret;
 		disable_irq(irq);
-		if (range->irqs[queue].cpu_mask) {
-			ret = irq_set_affinity_hint(irq, range->irqs[queue].cpu_mask);
+		if (cpu_map) {
+			ret = irq_set_affinity_hint(irq, to_cpumask(&cpu_map));
 			if (ret) {
 				dev_warn(range->kdev->dev,
 					 "Failed to set IRQ affinity\n");
@@ -1260,19 +1262,9 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 
 		range->num_irqs++;
 
-		if (IS_ENABLED(CONFIG_SMP) && oirq.args_count == 3) {
-			unsigned long mask;
-			int bit;
-
-			range->irqs[i].cpu_mask = devm_kzalloc(dev,
-							       cpumask_size(), GFP_KERNEL);
-			if (!range->irqs[i].cpu_mask)
-				return -ENOMEM;
-
-			mask = (oirq.args[2] & 0x0000ff00) >> 8;
-			for_each_set_bit(bit, &mask, BITS_PER_LONG)
-				cpumask_set_cpu(bit, range->irqs[i].cpu_mask);
-		}
+		if (IS_ENABLED(CONFIG_SMP) && oirq.args_count == 3)
+			range->irqs[i].cpu_map =
+				(oirq.args[2] & 0x0000ff00) >> 8;
 	}
 
 	range->num_irqs = min(range->num_irqs, range->num_queues);
@@ -1799,7 +1791,6 @@ static int knav_queue_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
 		dev_err(dev, "Failed to enable QMSS\n");
 		return ret;
 	}
@@ -1867,10 +1858,9 @@ static int knav_queue_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	regions = of_get_child_by_name(node, "descriptor-regions");
+	regions =  of_get_child_by_name(node, "descriptor-regions");
 	if (!regions) {
 		dev_err(dev, "descriptor-regions not specified\n");
-		ret = -ENODEV;
 		goto err;
 	}
 	ret = knav_queue_setup_regions(kdev, regions);

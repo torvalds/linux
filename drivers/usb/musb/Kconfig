@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0
 #
 # USB Dual Role (OTG-ready) Controller Drivers
 # for silicon based on Mentor Graphics INVENTRA designs
@@ -67,7 +66,7 @@ config USB_MUSB_SUNXI
 	depends on NOP_USB_XCEIV
 	depends on PHY_SUN4I_USB
 	depends on EXTCON
-	select GENERIC_PHY
+	depends on GENERIC_PHY
 	select SUNXI_SRAM
 
 config USB_MUSB_DAVINCI
@@ -116,13 +115,6 @@ config USB_MUSB_JZ4740
 	depends on USB_MUSB_GADGET
 	depends on USB_OTG_BLACKLIST_HUB
 
-config USB_MUSB_MEDIATEK
-	tristate "MediaTek platforms"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
-	depends on NOP_USB_XCEIV
-	depends on GENERIC_PHY
-	select USB_ROLE_SWITCH
-
 config USB_MUSB_AM335X_CHILD
 	tristate
 
@@ -149,7 +141,7 @@ config USB_UX500_DMA
 
 config USB_INVENTRA_DMA
 	bool 'Inventra'
-	depends on USB_MUSB_OMAP2PLUS || USB_MUSB_MEDIATEK
+	depends on USB_MUSB_OMAP2PLUS
 	help
 	  Enable DMA transfers using Mentor's engine.
 

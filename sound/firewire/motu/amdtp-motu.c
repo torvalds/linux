@@ -136,9 +136,7 @@ static void read_pcm_s32(struct amdtp_stream *s,
 		byte = (u8 *)buffer + p->pcm_byte_offset;
 
 		for (c = 0; c < channels; ++c) {
-			*dst = (byte[0] << 24) |
-			       (byte[1] << 16) |
-			       (byte[2] << 8);
+			*dst = (byte[0] << 24) | (byte[1] << 16) | byte[2];
 			byte += 3;
 			dst++;
 		}

@@ -163,13 +163,8 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 	preempt_enable();
 #endif
 
-	/*
-	 * Store unconditionally. If ret != 0 the extra store is the least
-	 * of the worries but GCC cannot figure out that __futex_atomic_op()
-	 * is either setting ret to -EFAULT or storing the old value in
-	 * oldval which results in a uninitialized warning at the call site.
-	 */
-	*oval = oldval;
+	if (!ret)
+		*oval = oldval;
 
 	return ret;
 }

@@ -1179,7 +1179,7 @@ static long vphn_get_associativity(unsigned long cpu,
 
 	switch (rc) {
 	case H_FUNCTION:
-		printk_once(KERN_INFO
+		printk(KERN_INFO
 			"VPHN is not supported. Disabling polling...\n");
 		stop_topology_update();
 		break;
@@ -1461,6 +1461,13 @@ static void reset_topology_timer(void)
 
 #ifdef CONFIG_SMP
 
+static void stage_topology_update(int core_id)
+{
+	cpumask_or(&cpu_associativity_changes_mask,
+		&cpu_associativity_changes_mask, cpu_sibling_mask(core_id));
+	reset_topology_timer();
+}
+
 static int dt_update_callback(struct notifier_block *nb,
 				unsigned long action, void *data)
 {
@@ -1473,7 +1480,7 @@ static int dt_update_callback(struct notifier_block *nb,
 		    !of_prop_cmp(update->prop->name, "ibm,associativity")) {
 			u32 core_id;
 			of_property_read_u32(update->dn, "reg", &core_id);
-			rc = dlpar_cpu_readd(core_id);
+			stage_topology_update(core_id);
 			rc = NOTIFY_OK;
 		}
 		break;
@@ -1494,9 +1501,6 @@ static struct notifier_block dt_update_nb = {
 int start_topology_update(void)
 {
 	int rc = 0;
-
-	if (!topology_updates_enabled)
-		return 0;
 
 	if (firmware_has_feature(FW_FEATURE_PRRN)) {
 		if (!prrn_enabled) {
@@ -1526,9 +1530,6 @@ int start_topology_update(void)
 int stop_topology_update(void)
 {
 	int rc = 0;
-
-	if (!topology_updates_enabled)
-		return 0;
 
 	if (prrn_enabled) {
 		prrn_enabled = 0;
@@ -1585,13 +1586,11 @@ static ssize_t topology_write(struct file *file, const char __user *buf,
 
 	kbuf[read_len] = '\0';
 
-	if (!strncmp(kbuf, "on", 2)) {
-		topology_updates_enabled = true;
+	if (!strncmp(kbuf, "on", 2))
 		start_topology_update();
-	} else if (!strncmp(kbuf, "off", 3)) {
+	else if (!strncmp(kbuf, "off", 3))
 		stop_topology_update();
-		topology_updates_enabled = false;
-	} else
+	else
 		return -EINVAL;
 
 	return count;
@@ -1606,7 +1605,9 @@ static const struct file_operations topology_ops = {
 
 static int topology_update_init(void)
 {
-	start_topology_update();
+	/* Do not poll for changes if disabled at boot */
+	if (topology_updates_enabled)
+		start_topology_update();
 
 	if (vphn_enabled)
 		topology_schedule_update();

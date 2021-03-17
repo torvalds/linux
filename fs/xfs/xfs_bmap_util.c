@@ -1080,7 +1080,7 @@ xfs_adjust_extent_unmap_boundaries(
 	return 0;
 }
 
-int
+static int
 xfs_flush_unmap_range(
 	struct xfs_inode	*ip,
 	xfs_off_t		offset,
@@ -1175,9 +1175,9 @@ xfs_free_file_space(
 	 * page could be mmap'd and iomap_zero_range doesn't do that for us.
 	 * Writeback of the eof page will do this, albeit clumsily.
 	 */
-	if (offset + len >= XFS_ISIZE(ip) && offset_in_page(offset + len) > 0) {
+	if (offset + len >= XFS_ISIZE(ip) && ((offset + len) & PAGE_MASK)) {
 		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-				round_down(offset + len, PAGE_SIZE), LLONG_MAX);
+				(offset + len) & ~PAGE_MASK, LLONG_MAX);
 	}
 
 	return error;
@@ -1244,7 +1244,11 @@ xfs_prepare_shift(
 	 * Writeback and invalidate cache for the remainder of the file as we're
 	 * about to shift down every extent from offset to EOF.
 	 */
-	error = xfs_flush_unmap_range(ip, offset, XFS_ISIZE(ip));
+	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping, offset, -1);
+	if (error)
+		return error;
+	error = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
+					offset >> PAGE_SHIFT, -1);
 	if (error)
 		return error;
 
@@ -1819,12 +1823,6 @@ xfs_swap_extents(
 	error = xfs_swap_extent_flush(tip);
 	if (error)
 		goto out_unlock;
-
-	if (xfs_inode_has_cow_data(tip)) {
-		error = xfs_reflink_cancel_cow_range(tip, 0, NULLFILEOFF, true);
-		if (error)
-			goto out_unlock;
-	}
 
 	/*
 	 * Extent "swapping" with rmap requires a permanent reservation and

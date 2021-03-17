@@ -8,7 +8,7 @@
 
 struct mm_struct;
 
-#define __PAGETABLE_PMD_FOLDED 1
+#define __PAGETABLE_PMD_FOLDED
 
 /*
  * Having the pmd type consist of a pud gets the size right, and allows

@@ -433,7 +433,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client, par->page_offset);
+	ret = ssd1307fb_write_cmd(par->client, 0x0);
 	if (ret < 0)
 		return ret;
 

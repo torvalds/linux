@@ -40,6 +40,7 @@ static int erofs_init_inode_cache(void)
 
 static void erofs_exit_inode_cache(void)
 {
+	BUG_ON(erofs_inode_cachep == NULL);
 	kmem_cache_destroy(erofs_inode_cachep);
 }
 
@@ -75,22 +76,6 @@ static void destroy_inode(struct inode *inode)
 	call_rcu(&inode->i_rcu, i_callback);
 }
 
-static bool check_layout_compatibility(struct super_block *sb,
-				       struct erofs_super_block *layout)
-{
-	const unsigned int requirements = le32_to_cpu(layout->requirements);
-
-	EROFS_SB(sb)->requirements = requirements;
-
-	/* check if current kernel meets all mandatory requirements */
-	if (requirements & (~EROFS_ALL_REQUIREMENTS)) {
-		errln("unidentified requirements %x, please upgrade kernel version",
-		      requirements & ~EROFS_ALL_REQUIREMENTS);
-		return false;
-	}
-	return true;
-}
-
 static int superblock_read(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
@@ -123,9 +108,6 @@ static int superblock_read(struct super_block *sb)
 			1 << blkszbits);
 		goto out;
 	}
-
-	if (!check_layout_compatibility(sb, layout))
-		goto out;
 
 	sbi->blocks = le32_to_cpu(layout->blocks);
 	sbi->meta_blkaddr = le32_to_cpu(layout->meta_blkaddr);
@@ -283,8 +265,8 @@ static int managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
 	int ret = 1;	/* 0 - busy */
 	struct address_space *const mapping = page->mapping;
 
-	DBG_BUGON(!PageLocked(page));
-	DBG_BUGON(mapping->a_ops != &managed_cache_aops);
+	BUG_ON(!PageLocked(page));
+	BUG_ON(mapping->a_ops != &managed_cache_aops);
 
 	if (PagePrivate(page))
 		ret = erofs_try_to_free_cached_page(mapping, page);
@@ -297,10 +279,10 @@ static void managed_cache_invalidatepage(struct page *page,
 {
 	const unsigned int stop = length + offset;
 
-	DBG_BUGON(!PageLocked(page));
+	BUG_ON(!PageLocked(page));
 
-	/* Check for potential overflow in debug mode */
-	DBG_BUGON(stop > PAGE_SIZE || stop < length);
+	/* Check for overflow */
+	BUG_ON(stop > PAGE_SIZE || stop < length);
 
 	if (offset == 0 && stop == PAGE_SIZE)
 		while (!managed_cache_releasepage(page, GFP_NOFS))
@@ -421,6 +403,12 @@ static int erofs_read_super(struct super_block *sb,
 	sbi->dev_name[PATH_MAX - 1] = '\0';
 
 	erofs_register_super(sb);
+
+	/*
+	 * We already have a positive dentry, which was instantiated
+	 * by d_make_root. Just need to d_rehash it.
+	 */
+	d_rehash(sb->s_root);
 
 	if (!silent)
 		infoln("mounted on %s with opts: %s.", dev_name,
@@ -637,7 +625,7 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 
 static int erofs_remount(struct super_block *sb, int *flags, char *data)
 {
-	DBG_BUGON(!sb_rdonly(sb));
+	BUG_ON(!sb_rdonly(sb));
 
 	*flags |= SB_RDONLY;
 	return 0;

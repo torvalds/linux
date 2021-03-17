@@ -29,7 +29,6 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/siphash.h>
 
 #include <linux/netfilter.h>
 #include <net/netlink.h>
@@ -488,9 +487,7 @@ nla_put_failure:
 
 static int ctnetlink_dump_id(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	__be32 id = (__force __be32)nf_ct_get_id(ct);
-
-	if (nla_put_be32(skb, CTA_ID, id))
+	if (nla_put_be32(skb, CTA_ID, htonl((unsigned long)ct)))
 		goto nla_put_failure;
 	return 0;
 
@@ -555,8 +552,10 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 		goto nla_put_failure;
 
 	if (ctnetlink_dump_status(skb, ct) < 0 ||
+	    ctnetlink_dump_timeout(skb, ct) < 0 ||
 	    ctnetlink_dump_acct(skb, ct, type) < 0 ||
 	    ctnetlink_dump_timestamp(skb, ct) < 0 ||
+	    ctnetlink_dump_protoinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_helpinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_mark(skb, ct) < 0 ||
 	    ctnetlink_dump_secctx(skb, ct) < 0 ||
@@ -566,11 +565,6 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	    ctnetlink_dump_master(skb, ct) < 0 ||
 	    ctnetlink_dump_ct_seq_adj(skb, ct) < 0 ||
 	    ctnetlink_dump_ct_synproxy(skb, ct) < 0)
-		goto nla_put_failure;
-
-	if (!test_bit(IPS_OFFLOAD_BIT, &ct->status) &&
-	    (ctnetlink_dump_timeout(skb, ct) < 0 ||
-	     ctnetlink_dump_protoinfo(skb, ct) < 0))
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -1129,8 +1123,6 @@ ctnetlink_parse_tuple(const struct nlattr * const cda[],
 	if (!tb[CTA_TUPLE_IP])
 		return -EINVAL;
 
-	if (l3num != NFPROTO_IPV4 && l3num != NFPROTO_IPV6)
-		return -EOPNOTSUPP;
 	tuple->src.l3num = l3num;
 
 	err = ctnetlink_parse_tuple_ip(tb[CTA_TUPLE_IP], tuple);
@@ -1283,9 +1275,8 @@ static int ctnetlink_del_conntrack(struct net *net, struct sock *ctnl,
 	}
 
 	if (cda[CTA_ID]) {
-		__be32 id = nla_get_be32(cda[CTA_ID]);
-
-		if (id != (__force __be32)nf_ct_get_id(ct)) {
+		u_int32_t id = ntohl(nla_get_be32(cda[CTA_ID]));
+		if (id != (u32)(unsigned long)ct) {
 			nf_ct_put(ct);
 			return -ENOENT;
 		}
@@ -2684,25 +2675,6 @@ nla_put_failure:
 
 static const union nf_inet_addr any_addr;
 
-static __be32 nf_expect_get_id(const struct nf_conntrack_expect *exp)
-{
-	static __read_mostly siphash_key_t exp_id_seed;
-	unsigned long a, b, c, d;
-
-	net_get_random_once(&exp_id_seed, sizeof(exp_id_seed));
-
-	a = (unsigned long)exp;
-	b = (unsigned long)exp->helper;
-	c = (unsigned long)exp->master;
-	d = (unsigned long)siphash(&exp->tuple, sizeof(exp->tuple), &exp_id_seed);
-
-#ifdef CONFIG_64BIT
-	return (__force __be32)siphash_4u64((u64)a, (u64)b, (u64)c, (u64)d, &exp_id_seed);
-#else
-	return (__force __be32)siphash_4u32((u32)a, (u32)b, (u32)c, (u32)d, &exp_id_seed);
-#endif
-}
-
 static int
 ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			  const struct nf_conntrack_expect *exp)
@@ -2750,7 +2722,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 	}
 #endif
 	if (nla_put_be32(skb, CTA_EXPECT_TIMEOUT, htonl(timeout)) ||
-	    nla_put_be32(skb, CTA_EXPECT_ID, nf_expect_get_id(exp)) ||
+	    nla_put_be32(skb, CTA_EXPECT_ID, htonl((unsigned long)exp)) ||
 	    nla_put_be32(skb, CTA_EXPECT_FLAGS, htonl(exp->flags)) ||
 	    nla_put_be32(skb, CTA_EXPECT_CLASS, htonl(exp->class)))
 		goto nla_put_failure;
@@ -3055,8 +3027,7 @@ static int ctnetlink_get_expect(struct net *net, struct sock *ctnl,
 
 	if (cda[CTA_EXPECT_ID]) {
 		__be32 id = nla_get_be32(cda[CTA_EXPECT_ID]);
-
-		if (id != nf_expect_get_id(exp)) {
+		if (ntohl(id) != (u32)(unsigned long)exp) {
 			nf_ct_expect_put(exp);
 			return -ENOENT;
 		}
@@ -3581,9 +3552,6 @@ static void __net_exit ctnetlink_net_exit_batch(struct list_head *net_exit_list)
 
 	list_for_each_entry(net, net_exit_list, exit_list)
 		ctnetlink_net_exit(net);
-
-	/* wait for other cpus until they are done with ctnl_notifiers */
-	synchronize_rcu();
 }
 
 static struct pernet_operations ctnetlink_net_ops = {

@@ -510,7 +510,7 @@ static int ov7740_set_ctrl(struct v4l2_ctrl *ctrl)
 	int ret;
 	u8 val = 0;
 
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (pm_runtime_get_if_in_use(&client->dev) <= 0)
 		return 0;
 
 	switch (ctrl->id) {
@@ -761,11 +761,7 @@ static int ov7740_try_fmt_internal(struct v4l2_subdev *sd,
 
 		fsize++;
 	}
-	if (i >= ARRAY_SIZE(ov7740_framesizes)) {
-		fsize = &ov7740_framesizes[0];
-		fmt->width = fsize->width;
-		fmt->height = fsize->height;
-	}
+
 	if (ret_frmsize != NULL)
 		*ret_frmsize = fsize;
 
@@ -1105,9 +1101,6 @@ static int ov7740_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-
 	ret = ov7740_detect(ov7740);
 	if (ret)
 		goto error_detect;
@@ -1130,6 +1123,8 @@ static int ov7740_probe(struct i2c_client *client,
 	if (ret)
 		goto error_async_register;
 
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
 	return 0;
@@ -1139,8 +1134,6 @@ error_async_register:
 error_init_controls:
 	ov7740_free_controls(ov7740);
 error_detect:
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
 	ov7740_set_power(ov7740, 0);
 	media_entity_cleanup(&ov7740->subdev.entity);
 

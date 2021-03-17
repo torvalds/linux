@@ -290,11 +290,12 @@ void nlmclnt_release_host(struct nlm_host *host)
 
 	WARN_ON_ONCE(host->h_server);
 
-	if (refcount_dec_and_mutex_lock(&host->h_count, &nlm_host_mutex)) {
+	if (refcount_dec_and_test(&host->h_count)) {
 		WARN_ON_ONCE(!list_empty(&host->h_lockowners));
 		WARN_ON_ONCE(!list_empty(&host->h_granted));
 		WARN_ON_ONCE(!list_empty(&host->h_reclaim));
 
+		mutex_lock(&nlm_host_mutex);
 		nlm_destroy_host_locked(host);
 		mutex_unlock(&nlm_host_mutex);
 	}
@@ -340,7 +341,7 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	};
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
-	dprintk("lockd: %s(host='%.*s', vers=%u, proto=%s)\n", __func__,
+	dprintk("lockd: %s(host='%*s', vers=%u, proto=%s)\n", __func__,
 			(int)hostname_len, hostname, rqstp->rq_vers,
 			(rqstp->rq_prot == IPPROTO_UDP ? "udp" : "tcp"));
 
@@ -432,7 +433,12 @@ nlm_bind_host(struct nlm_host *host)
 	 * RPC rebind is required
 	 */
 	if ((clnt = host->h_rpcclnt) != NULL) {
-		nlm_rebind_host(host);
+		if (time_after_eq(jiffies, host->h_nextrebind)) {
+			rpc_force_rebind(clnt);
+			host->h_nextrebind = jiffies + NLM_HOST_REBIND;
+			dprintk("lockd: next rebind in %lu jiffies\n",
+					host->h_nextrebind - jiffies);
+		}
 	} else {
 		unsigned long increment = nlmsvc_timeout;
 		struct rpc_timeout timeparms = {
@@ -480,20 +486,13 @@ nlm_bind_host(struct nlm_host *host)
 	return clnt;
 }
 
-/**
- * nlm_rebind_host - If needed, force a portmap lookup of the peer's lockd port
- * @host: NLM host handle for peer
- *
- * This is not needed when using a connection-oriented protocol, such as TCP.
- * The existing autobind mechanism is sufficient to force a rebind when
- * required, e.g. on connection state transitions.
+/*
+ * Force a portmap lookup of the remote lockd port
  */
 void
 nlm_rebind_host(struct nlm_host *host)
 {
-	if (host->h_proto != IPPROTO_UDP)
-		return;
-
+	dprintk("lockd: rebind host %s\n", host->h_name);
 	if (host->h_rpcclnt && time_after_eq(jiffies, host->h_nextrebind)) {
 		rpc_force_rebind(host->h_rpcclnt);
 		host->h_nextrebind = jiffies + NLM_HOST_REBIND;

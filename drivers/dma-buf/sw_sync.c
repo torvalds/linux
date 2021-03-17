@@ -16,8 +16,6 @@
 
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/miscdevice.h>
-#include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/sync_file.h>
@@ -143,14 +141,17 @@ static void timeline_fence_release(struct dma_fence *fence)
 {
 	struct sync_pt *pt = dma_fence_to_sync_pt(fence);
 	struct sync_timeline *parent = dma_fence_parent(fence);
-	unsigned long flags;
 
-	spin_lock_irqsave(fence->lock, flags);
 	if (!list_empty(&pt->link)) {
-		list_del(&pt->link);
-		rb_erase(&pt->node, &parent->pt_tree);
+		unsigned long flags;
+
+		spin_lock_irqsave(fence->lock, flags);
+		if (!list_empty(&pt->link)) {
+			list_del(&pt->link);
+			rb_erase(&pt->node, &parent->pt_tree);
+		}
+		spin_unlock_irqrestore(fence->lock, flags);
 	}
-	spin_unlock_irqrestore(fence->lock, flags);
 
 	sync_timeline_put(parent);
 	dma_fence_free(fence);
@@ -200,12 +201,9 @@ static const struct dma_fence_ops timeline_fence_ops = {
  * A sync implementation should call this any time one of it's fences
  * has signaled or has an error condition.
  */
-void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
+static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 {
 	struct sync_pt *pt, *next;
-
-	if (WARN_ON(!obj))
-		return;
 
 	trace_sync_timeline(obj);
 
@@ -233,7 +231,6 @@ void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 
 	spin_unlock_irq(&obj->lock);
 }
-EXPORT_SYMBOL(sync_timeline_signal);
 
 /**
  * sync_pt_create() - creates a sync pt
@@ -277,8 +274,7 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
 				p = &parent->rb_left;
 			} else {
 				if (dma_fence_get_rcu(&other->base)) {
-					sync_timeline_put(obj);
-					kfree(pt);
+					dma_fence_put(&pt->base);
 					pt = other;
 					goto unlock;
 				}
@@ -425,13 +421,3 @@ const struct file_operations sw_sync_debugfs_fops = {
 	.unlocked_ioctl = sw_sync_ioctl,
 	.compat_ioctl	= sw_sync_ioctl,
 };
-
-static struct miscdevice sw_sync_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
-	.name	= "sw_sync",
-	.fops	= &sw_sync_debugfs_fops,
-};
-
-module_misc_device(sw_sync_dev);
-
-MODULE_LICENSE("GPL v2");

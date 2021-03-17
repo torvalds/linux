@@ -1879,16 +1879,6 @@ int s390int_to_s390irq(struct kvm_s390_interrupt *s390int,
 	case KVM_S390_MCHK:
 		irq->u.mchk.mcic = s390int->parm64;
 		break;
-	case KVM_S390_INT_PFAULT_INIT:
-		irq->u.ext.ext_params = s390int->parm;
-		irq->u.ext.ext_params2 = s390int->parm64;
-		break;
-	case KVM_S390_RESTART:
-	case KVM_S390_INT_CLOCK_COMP:
-	case KVM_S390_INT_CPU_TIMER:
-		break;
-	default:
-		return -EINVAL;
 	}
 	return 0;
 }
@@ -2109,7 +2099,7 @@ static int flic_ais_mode_get_all(struct kvm *kvm, struct kvm_device_attr *attr)
 		return -EINVAL;
 
 	if (!test_kvm_facility(kvm, 72))
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 
 	mutex_lock(&fi->ais_lock);
 	ais.simm = fi->simm;
@@ -2412,7 +2402,7 @@ static int modify_ais_mode(struct kvm *kvm, struct kvm_device_attr *attr)
 	int ret = 0;
 
 	if (!test_kvm_facility(kvm, 72))
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 
 	if (copy_from_user(&req, (void __user *)attr->addr, sizeof(req)))
 		return -EFAULT;
@@ -2492,7 +2482,7 @@ static int flic_ais_mode_set_all(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_s390_ais_all ais;
 
 	if (!test_kvm_facility(kvm, 72))
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 
 	if (copy_from_user(&ais, (void __user *)attr->addr, sizeof(ais)))
 		return -EFAULT;

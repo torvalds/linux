@@ -147,7 +147,7 @@ static void slc_bump(struct slcan *sl)
 	u32 tmpid;
 	char *cmd = sl->rbuff;
 
-	memset(&cf, 0, sizeof(cf));
+	cf.can_id = 0;
 
 	switch (*cmd) {
 	case 'r':
@@ -185,6 +185,8 @@ static void slc_bump(struct slcan *sl)
 		cf.can_dlc -= '0';
 	else
 		return;
+
+	*(u64 *) (&cf.data) = 0; /* clear payload */
 
 	/* RTR frames may have a dlc > 0 but they never have any data bytes */
 	if (!(cf.can_id & CAN_RTR_FLAG)) {
@@ -341,16 +343,9 @@ static void slcan_transmit(struct work_struct *work)
  */
 static void slcan_write_wakeup(struct tty_struct *tty)
 {
-	struct slcan *sl;
-
-	rcu_read_lock();
-	sl = rcu_dereference(tty->disc_data);
-	if (!sl)
-		goto out;
+	struct slcan *sl = tty->disc_data;
 
 	schedule_work(&sl->tx_work);
-out:
-	rcu_read_unlock();
 }
 
 /* Send a can_frame to a TTY queue. */
@@ -618,11 +613,6 @@ err_free_chan:
 	sl->tty = NULL;
 	tty->disc_data = NULL;
 	clear_bit(SLF_INUSE, &sl->flags);
-	slc_free_netdev(sl->dev);
-	/* do not call free_netdev before rtnl_unlock */
-	rtnl_unlock();
-	free_netdev(sl->dev);
-	return err;
 
 err_exit:
 	rtnl_unlock();
@@ -648,11 +638,10 @@ static void slcan_close(struct tty_struct *tty)
 		return;
 
 	spin_lock_bh(&sl->lock);
-	rcu_assign_pointer(tty->disc_data, NULL);
+	tty->disc_data = NULL;
 	sl->tty = NULL;
 	spin_unlock_bh(&sl->lock);
 
-	synchronize_rcu();
 	flush_work(&sl->tx_work);
 
 	/* Flush network side */

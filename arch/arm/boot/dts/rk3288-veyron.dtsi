@@ -10,11 +10,7 @@
 #include "rk3288.dtsi"
 
 / {
-	/*
-	 * The default coreboot on veyron devices ignores memory@0 nodes
-	 * and would instead create another memory node.
-	 */
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};

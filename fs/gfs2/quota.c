@@ -1043,7 +1043,8 @@ int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 	u32 x;
 	int error = 0;
 
-	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON)
+	if (capable(CAP_SYS_RESOURCE) ||
+	    sdp->sd_args.ar_quota != GFS2_QUOTA_ON)
 		return 0;
 
 	error = gfs2_quota_hold(ip, uid, gid);

@@ -248,7 +248,7 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 	else
 		clk = clk_register_gpio_gate(&pdev->dev, node->name,
 				parent_names ?  parent_names[0] : NULL, gpiod,
-				CLK_SET_RATE_PARENT);
+				0);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 

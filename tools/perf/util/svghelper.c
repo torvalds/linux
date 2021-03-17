@@ -334,7 +334,7 @@ static char *cpu_model(void)
 	if (file) {
 		while (fgets(buf, 255, file)) {
 			if (strstr(buf, "model name")) {
-				strlcpy(cpu_m, &buf[13], 255);
+				strncpy(cpu_m, &buf[13], 255);
 				break;
 			}
 		}

@@ -43,8 +43,8 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 	struct nlattr *tb[TCA_SAMPLE_MAX + 1];
 	struct psample_group *psample_group;
-	u32 psample_group_num, rate, index;
 	struct tc_sample *parm;
+	u32 psample_group_num;
 	struct tcf_sample *s;
 	bool exists = false;
 	int ret, err;
@@ -59,8 +59,8 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_SAMPLE_PARMS]);
-	index = parm->index;
-	err = tcf_idr_check_alloc(tn, &index, a, bind);
+
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -68,10 +68,10 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		return 0;
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, index, est, a,
+		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_sample_ops, bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, index);
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
@@ -80,12 +80,6 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		return -EEXIST;
 	}
 
-	rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
-	if (!rate) {
-		NL_SET_ERR_MSG(extack, "invalid sample rate");
-		tcf_idr_release(*a, bind);
-		return -EINVAL;
-	}
 	psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
 	psample_group = psample_group_get(net, psample_group_num);
 	if (!psample_group) {
@@ -97,10 +91,9 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 
 	spin_lock_bh(&s->tcf_lock);
 	s->tcf_action = parm->action;
-	s->rate = rate;
+	s->rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
 	s->psample_group_num = psample_group_num;
-	rcu_swap_protected(s->psample_group, psample_group,
-			   lockdep_is_held(&s->tcf_lock));
+	RCU_INIT_POINTER(s->psample_group, psample_group);
 
 	if (tb[TCA_SAMPLE_TRUNC_SIZE]) {
 		s->truncate = true;
@@ -108,8 +101,6 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	}
 	spin_unlock_bh(&s->tcf_lock);
 
-	if (psample_group)
-		psample_group_put(psample_group);
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
@@ -134,7 +125,6 @@ static bool tcf_sample_dev_ok_push(struct net_device *dev)
 	case ARPHRD_TUNNEL6:
 	case ARPHRD_SIT:
 	case ARPHRD_IPGRE:
-	case ARPHRD_IP6GRE:
 	case ARPHRD_VOID:
 	case ARPHRD_NONE:
 		return false;
@@ -259,7 +249,7 @@ static __net_init int sample_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 
-	return tc_action_net_init(net, tn, &act_sample_ops);
+	return tc_action_net_init(tn, &act_sample_ops);
 }
 
 static void __net_exit sample_exit_net(struct list_head *net_list)

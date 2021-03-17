@@ -223,11 +223,7 @@ main(int ac, char **av)
 	PUT_16(E_PHNUM, np + 2);
 
 	/* write back */
-	i = lseek(fd, (long) 0, SEEK_SET);
-	if (i < 0) {
-		perror("lseek");
-		exit(1);
-	}
+	lseek(fd, (long) 0, SEEK_SET);
 	i = write(fd, buf, n);
 	if (i < 0) {
 		perror("write");

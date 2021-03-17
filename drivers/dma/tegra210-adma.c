@@ -22,6 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/of_irq.h>
+#include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
@@ -98,7 +99,6 @@ struct tegra_adma_chan_regs {
 	unsigned int src_addr;
 	unsigned int trg_addr;
 	unsigned int fifo_ctrl;
-	unsigned int cmd;
 	unsigned int tc;
 };
 
@@ -128,7 +128,6 @@ struct tegra_adma_chan {
 	enum dma_transfer_direction	sreq_dir;
 	unsigned int			sreq_index;
 	bool				sreq_reserved;
-	struct tegra_adma_chan_regs	ch_regs;
 
 	/* Transfer count and position info */
 	unsigned int			tx_buf_count;
@@ -142,7 +141,6 @@ struct tegra_adma {
 	struct dma_device		dma_dev;
 	struct device			*dev;
 	void __iomem			*base_addr;
-	struct clk			*ahub_clk;
 	unsigned int			nr_channels;
 	unsigned long			rx_requests_reserved;
 	unsigned long			tx_requests_reserved;
@@ -583,7 +581,6 @@ static int tegra_adma_alloc_chan_resources(struct dma_chan *dc)
 
 	ret = pm_runtime_get_sync(tdc2dev(tdc));
 	if (ret < 0) {
-		pm_runtime_put_noidle(tdc2dev(tdc));
 		free_irq(tdc->irq, tdc);
 		return ret;
 	}
@@ -638,66 +635,22 @@ static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
 static int tegra_adma_runtime_suspend(struct device *dev)
 {
 	struct tegra_adma *tdma = dev_get_drvdata(dev);
-	struct tegra_adma_chan_regs *ch_reg;
-	struct tegra_adma_chan *tdc;
-	int i;
 
 	tdma->global_cmd = tdma_read(tdma, ADMA_GLOBAL_CMD);
-	if (!tdma->global_cmd)
-		goto clk_disable;
 
-	for (i = 0; i < tdma->nr_channels; i++) {
-		tdc = &tdma->channels[i];
-		ch_reg = &tdc->ch_regs;
-		ch_reg->cmd = tdma_ch_read(tdc, ADMA_CH_CMD);
-		/* skip if channel is not active */
-		if (!ch_reg->cmd)
-			continue;
-		ch_reg->tc = tdma_ch_read(tdc, ADMA_CH_TC);
-		ch_reg->src_addr = tdma_ch_read(tdc, ADMA_CH_LOWER_SRC_ADDR);
-		ch_reg->trg_addr = tdma_ch_read(tdc, ADMA_CH_LOWER_TRG_ADDR);
-		ch_reg->ctrl = tdma_ch_read(tdc, ADMA_CH_CTRL);
-		ch_reg->fifo_ctrl = tdma_ch_read(tdc, ADMA_CH_FIFO_CTRL);
-		ch_reg->config = tdma_ch_read(tdc, ADMA_CH_CONFIG);
-	}
-
-clk_disable:
-	clk_disable_unprepare(tdma->ahub_clk);
-
-	return 0;
+	return pm_clk_suspend(dev);
 }
 
 static int tegra_adma_runtime_resume(struct device *dev)
 {
 	struct tegra_adma *tdma = dev_get_drvdata(dev);
-	struct tegra_adma_chan_regs *ch_reg;
-	struct tegra_adma_chan *tdc;
-	int ret, i;
+	int ret;
 
-	ret = clk_prepare_enable(tdma->ahub_clk);
-	if (ret) {
-		dev_err(dev, "ahub clk_enable failed: %d\n", ret);
+	ret = pm_clk_resume(dev);
+	if (ret)
 		return ret;
-	}
+
 	tdma_write(tdma, ADMA_GLOBAL_CMD, tdma->global_cmd);
-
-	if (!tdma->global_cmd)
-		return 0;
-
-	for (i = 0; i < tdma->nr_channels; i++) {
-		tdc = &tdma->channels[i];
-		ch_reg = &tdc->ch_regs;
-		/* skip if channel was not active earlier */
-		if (!ch_reg->cmd)
-			continue;
-		tdma_ch_write(tdc, ADMA_CH_TC, ch_reg->tc);
-		tdma_ch_write(tdc, ADMA_CH_LOWER_SRC_ADDR, ch_reg->src_addr);
-		tdma_ch_write(tdc, ADMA_CH_LOWER_TRG_ADDR, ch_reg->trg_addr);
-		tdma_ch_write(tdc, ADMA_CH_CTRL, ch_reg->ctrl);
-		tdma_ch_write(tdc, ADMA_CH_FIFO_CTRL, ch_reg->fifo_ctrl);
-		tdma_ch_write(tdc, ADMA_CH_CONFIG, ch_reg->config);
-		tdma_ch_write(tdc, ADMA_CH_CMD, ch_reg->cmd);
-	}
 
 	return 0;
 }
@@ -739,11 +692,23 @@ static int tegra_adma_probe(struct platform_device *pdev)
 	if (IS_ERR(tdma->base_addr))
 		return PTR_ERR(tdma->base_addr);
 
-	tdma->ahub_clk = devm_clk_get(&pdev->dev, "d_audio");
-	if (IS_ERR(tdma->ahub_clk)) {
-		dev_err(&pdev->dev, "Error: Missing ahub controller clock\n");
-		return PTR_ERR(tdma->ahub_clk);
-	}
+	ret = pm_clk_create(&pdev->dev);
+	if (ret)
+		return ret;
+
+	ret = of_pm_clk_add_clk(&pdev->dev, "d_audio");
+	if (ret)
+		goto clk_destroy;
+
+	pm_runtime_enable(&pdev->dev);
+
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0)
+		goto rpm_disable;
+
+	ret = tegra_adma_init(tdma);
+	if (ret)
+		goto rpm_put;
 
 	INIT_LIST_HEAD(&tdma->dma_dev.channels);
 	for (i = 0; i < tdma->nr_channels; i++) {
@@ -761,18 +726,6 @@ static int tegra_adma_probe(struct platform_device *pdev)
 		tdc->vc.desc_free = tegra_adma_desc_free;
 		tdc->tdma = tdma;
 	}
-
-	pm_runtime_enable(&pdev->dev);
-
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
-		goto rpm_disable;
-	}
-
-	ret = tegra_adma_init(tdma);
-	if (ret)
-		goto rpm_put;
 
 	dma_cap_set(DMA_SLAVE, tdma->dma_dev.cap_mask);
 	dma_cap_set(DMA_PRIVATE, tdma->dma_dev.cap_mask);
@@ -796,7 +749,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 	ret = dma_async_device_register(&tdma->dma_dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "ADMA registration failed: %d\n", ret);
-		goto rpm_put;
+		goto irq_dispose;
 	}
 
 	ret = of_dma_controller_register(pdev->dev.of_node,
@@ -815,13 +768,15 @@ static int tegra_adma_probe(struct platform_device *pdev)
 
 dma_remove:
 	dma_async_device_unregister(&tdma->dma_dev);
+irq_dispose:
+	while (--i >= 0)
+		irq_dispose_mapping(tdma->channels[i].irq);
 rpm_put:
 	pm_runtime_put_sync(&pdev->dev);
 rpm_disable:
 	pm_runtime_disable(&pdev->dev);
-irq_dispose:
-	while (--i >= 0)
-		irq_dispose_mapping(tdma->channels[i].irq);
+clk_destroy:
+	pm_clk_destroy(&pdev->dev);
 
 	return ret;
 }
@@ -831,7 +786,6 @@ static int tegra_adma_remove(struct platform_device *pdev)
 	struct tegra_adma *tdma = platform_get_drvdata(pdev);
 	int i;
 
-	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&tdma->dma_dev);
 
 	for (i = 0; i < tdma->nr_channels; ++i)
@@ -839,6 +793,7 @@ static int tegra_adma_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	pm_clk_destroy(&pdev->dev);
 
 	return 0;
 }

@@ -180,7 +180,7 @@
 				clocks = <&soc_clocks MMP2_CLK_GPIO>;
 				resets = <&soc_clocks MMP2_CLK_GPIO>;
 				interrupt-controller;
-				#interrupt-cells = <2>;
+				#interrupt-cells = <1>;
 				ranges;
 
 				gcb0: gpio@d4019000 {
@@ -220,15 +220,12 @@
 				status = "disabled";
 			};
 
-			twsi2: i2c@d4031000 {
+			twsi2: i2c@d4025000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4031000 0x1000>;
-				interrupt-parent = <&intcmux17>;
-				interrupts = <0>;
+				reg = <0xd4025000 0x1000>;
+				interrupts = <58>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI1>;
 				resets = <&soc_clocks MMP2_CLK_TWSI1>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 				status = "disabled";
 			};
 

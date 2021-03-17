@@ -251,9 +251,8 @@ static void spec_dst_fill(__be32 *spec_dst, struct sk_buff *skb)
  * If opt == NULL, then skb->data should point to IP header.
  */
 
-int __ip_options_compile(struct net *net,
-			 struct ip_options *opt, struct sk_buff *skb,
-			 __be32 *info)
+int ip_options_compile(struct net *net,
+		       struct ip_options *opt, struct sk_buff *skb)
 {
 	__be32 spec_dst = htonl(INADDR_ANY);
 	unsigned char *pp_ptr = NULL;
@@ -469,21 +468,10 @@ eol:
 		return 0;
 
 error:
-	if (info)
-		*info = htonl((pp_ptr-iph)<<24);
+	if (skb) {
+		icmp_send(skb, ICMP_PARAMETERPROB, 0, htonl((pp_ptr-iph)<<24));
+	}
 	return -EINVAL;
-}
-
-int ip_options_compile(struct net *net,
-		       struct ip_options *opt, struct sk_buff *skb)
-{
-	int ret;
-	__be32 info;
-
-	ret = __ip_options_compile(net, opt, skb, &info);
-	if (ret != 0 && skb)
-		icmp_send(skb, ICMP_PARAMETERPROB, 0, info);
-	return ret;
 }
 EXPORT_SYMBOL(ip_options_compile);
 
@@ -612,7 +600,7 @@ void ip_forward_options(struct sk_buff *skb)
 	}
 }
 
-int ip_options_rcv_srr(struct sk_buff *skb, struct net_device *dev)
+int ip_options_rcv_srr(struct sk_buff *skb)
 {
 	struct ip_options *opt = &(IPCB(skb)->opt);
 	int srrspace, srrptr;
@@ -647,7 +635,7 @@ int ip_options_rcv_srr(struct sk_buff *skb, struct net_device *dev)
 
 		orefdst = skb->_skb_refdst;
 		skb_dst_set(skb, NULL);
-		err = ip_route_input(skb, nexthop, iph->saddr, iph->tos, dev);
+		err = ip_route_input(skb, nexthop, iph->saddr, iph->tos, skb->dev);
 		rt2 = skb_rtable(skb);
 		if (err || (rt2->rt_type != RTN_UNICAST && rt2->rt_type != RTN_LOCAL)) {
 			skb_dst_drop(skb);

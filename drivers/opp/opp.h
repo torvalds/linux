@@ -136,9 +136,7 @@ enum opp_table_access {
  * @prop_name: A name to postfix to many DT properties, while parsing them.
  * @clk: Device's clock handle
  * @regulators: Supply regulators
- * @regulator_count: Number of power supply regulators. Its value can be -1
- * (uninitialized), 0 (no opp-microvolt property) or > 0 (has opp-microvolt
- * property).
+ * @regulator_count: Number of power supply regulators
  * @genpd_performance_state: Device's power domain support performance state.
  * @set_opp: Platform specific set_opp callback
  * @set_opp_data: Data to be passed to set_opp callback
@@ -174,7 +172,7 @@ struct opp_table {
 	const char *prop_name;
 	struct clk *clk;
 	struct regulator **regulators;
-	int regulator_count;
+	unsigned int regulator_count;
 	bool genpd_performance_state;
 
 	int (*set_opp)(struct dev_pm_set_opp_data *data);

@@ -5,8 +5,9 @@
 #include <bcm47xx_board.h>
 #include <bcm47xx.h>
 
-static void __init bcm47xx_workarounds_enable_usb_power(int usb_power)
+static void __init bcm47xx_workarounds_netgear_wnr3500l(void)
 {
+	const int usb_power = 12;
 	int err;
 
 	err = gpio_request_one(usb_power, GPIOF_OUT_INIT_HIGH, "usb_power");
@@ -22,10 +23,7 @@ void __init bcm47xx_workarounds(void)
 
 	switch (board) {
 	case BCM47XX_BOARD_NETGEAR_WNR3500L:
-		bcm47xx_workarounds_enable_usb_power(12);
-		break;
-	case BCM47XX_BOARD_NETGEAR_WNDR3400_V3:
-		bcm47xx_workarounds_enable_usb_power(21);
+		bcm47xx_workarounds_netgear_wnr3500l();
 		break;
 	default:
 		/* No workaround(s) needed */

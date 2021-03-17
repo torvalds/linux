@@ -34,14 +34,9 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 enum ice_aq_res_ids {
 	ICE_NVM_RES_ID = 1,
 	ICE_SPD_RES_ID,
-	ICE_CHANGE_LOCK_RES_ID,
-	ICE_GLOBAL_CFG_LOCK_RES_ID
+	ICE_GLOBAL_CFG_LOCK_RES_ID,
+	ICE_CHANGE_LOCK_RES_ID
 };
-
-/* FW update timeout definitions are in milliseconds */
-#define ICE_NVM_TIMEOUT			180000
-#define ICE_CHANGE_LOCK_TIMEOUT		1000
-#define ICE_GLOBAL_CFG_LOCK_TIMEOUT	3000
 
 enum ice_aq_res_access_type {
 	ICE_RES_READ = 1,
@@ -88,12 +83,12 @@ struct ice_link_status {
 	u64 phy_type_low;
 	u16 max_frame_size;
 	u16 link_speed;
-	u16 req_speeds;
 	u8 lse_ena;	/* Link Status Event notification */
 	u8 link_info;
 	u8 an_info;
 	u8 ext_info;
 	u8 pacing;
+	u8 req_speeds;
 	/* Refer to #define from module_type[ICE_MODULE_TYPE_TOTAL_BYTE] of
 	 * ice_aqc_get_phy_caps structure
 	 */
@@ -293,7 +288,6 @@ struct ice_hw {
 	u8 sw_entry_point_layer;
 
 	u8 evb_veb;		/* true for VEB, false for VEPA */
-	u8 reset_ongoing;	/* true if hw is in reset, false otherwise */
 	struct ice_bus_info bus;
 	struct ice_nvm_info nvm;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */

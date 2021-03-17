@@ -165,11 +165,6 @@ static void hci_uart_write_work(struct work_struct *work)
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
 
-	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags)) {
-		clear_bit(HCI_UART_SENDING, &hu->tx_state);
-		return;
-	}
-
 	/* REVISIT: should we cope with bad skbs or ->write() returning
 	 * and error value ?
 	 */
@@ -212,11 +207,11 @@ void hci_uart_init_work(struct work_struct *work)
 	err = hci_register_dev(hu->hdev);
 	if (err < 0) {
 		BT_ERR("Can't register HCI device");
-		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
-		hu->proto->close(hu);
 		hdev = hu->hdev;
 		hu->hdev = NULL;
 		hci_free_dev(hdev);
+		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
+		hu->proto->close(hu);
 		return;
 	}
 
@@ -296,28 +291,12 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		return -EUNATCH;
 	}
 
-	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
-		return -EUNATCH;
-
 	hu->proto->enqueue(hu, skb);
 	percpu_up_read(&hu->proto_lock);
 
 	hci_uart_tx_wakeup(hu);
 
 	return 0;
-}
-
-/* Check the underlying device or tty has flow control support */
-bool hci_uart_has_flow_control(struct hci_uart *hu)
-{
-	/* serdev nodes check if the needed operations are present */
-	if (hu->serdev)
-		return true;
-
-	if (hu->tty->driver->ops->tiocmget && hu->tty->driver->ops->tiocmset)
-		return true;
-
-	return false;
 }
 
 /* Flow control or un-flow control the device */
@@ -553,7 +532,6 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
 		percpu_up_write(&hu->proto_lock);
 
-		cancel_work_sync(&hu->init_ready);
 		cancel_work_sync(&hu->write_work);
 
 		if (hdev) {
@@ -638,7 +616,6 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 static int hci_uart_register_dev(struct hci_uart *hu)
 {
 	struct hci_dev *hdev;
-	int err;
 
 	BT_DBG("");
 
@@ -682,22 +659,11 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	else
 		hdev->dev_type = HCI_PRIMARY;
 
-	/* Only call open() for the protocol after hdev is fully initialized as
-	 * open() (or a timer/workqueue it starts) may attempt to reference it.
-	 */
-	err = hu->proto->open(hu);
-	if (err) {
-		hu->hdev = NULL;
-		hci_free_dev(hdev);
-		return err;
-	}
-
 	if (test_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags))
 		return 0;
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
-		hu->proto->close(hu);
 		hu->hdev = NULL;
 		hci_free_dev(hdev);
 		return -ENODEV;
@@ -717,14 +683,20 @@ static int hci_uart_set_proto(struct hci_uart *hu, int id)
 	if (!p)
 		return -EPROTONOSUPPORT;
 
+	err = p->open(hu);
+	if (err)
+		return err;
+
 	hu->proto = p;
+	set_bit(HCI_UART_PROTO_READY, &hu->flags);
 
 	err = hci_uart_register_dev(hu);
 	if (err) {
+		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
+		p->close(hu);
 		return err;
 	}
 
-	set_bit(HCI_UART_PROTO_READY, &hu->flags);
 	return 0;
 }
 

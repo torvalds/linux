@@ -36,7 +36,6 @@
 #include <linux/sysrq.h>
 #include <linux/nmi.h>
 #include <linux/context_tracking.h>
-#include <linux/signal.h>
 
 #include <linux/uaccess.h>
 #include <asm/page.h>
@@ -522,12 +521,7 @@ static void stack_unaligned(unsigned long sp)
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) sp, 0, current);
 }
 
-static const char uwfault32[] = KERN_INFO \
-	"%s[%d]: bad register window fault: SP %08lx (orig_sp %08lx) TPC %08lx O7 %08lx\n";
-static const char uwfault64[] = KERN_INFO \
-	"%s[%d]: bad register window fault: SP %016lx (orig_sp %016lx) TPC %08lx O7 %016lx\n";
-
-void fault_in_user_windows(struct pt_regs *regs)
+void fault_in_user_windows(void)
 {
 	struct thread_info *t = current_thread_info();
 	unsigned long window;
@@ -540,9 +534,9 @@ void fault_in_user_windows(struct pt_regs *regs)
 		do {
 			struct reg_window *rwin = &t->reg_window[window];
 			int winsize = sizeof(struct reg_window);
-			unsigned long sp, orig_sp;
+			unsigned long sp;
 
-			orig_sp = sp = t->rwbuf_stkptrs[window];
+			sp = t->rwbuf_stkptrs[window];
 
 			if (test_thread_64bit_stack(sp))
 				sp += STACK_BIAS;
@@ -553,16 +547,8 @@ void fault_in_user_windows(struct pt_regs *regs)
 				stack_unaligned(sp);
 
 			if (unlikely(copy_to_user((char __user *)sp,
-						  rwin, winsize))) {
-				if (show_unhandled_signals)
-					printk_ratelimited(is_compat_task() ?
-							   uwfault32 : uwfault64,
-							   current->comm, current->pid,
-							   sp, orig_sp,
-							   regs->tpc,
-							   regs->u_regs[UREG_I7]);
+						  rwin, winsize)))
 				goto barf;
-			}
 		} while (window--);
 	}
 	set_thread_wsaved(0);
@@ -570,7 +556,8 @@ void fault_in_user_windows(struct pt_regs *regs)
 
 barf:
 	set_thread_wsaved(window + 1);
-	force_sig(SIGSEGV, current);
+	user_exit();
+	do_exit(SIGILL);
 }
 
 asmlinkage long sparc_do_fork(unsigned long clone_flags,

@@ -359,11 +359,11 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	struct armada_37xx_dvfs *dvfs;
 	struct platform_device *pdev;
 	unsigned long freq;
-	unsigned int cur_frequency, base_frequency;
+	unsigned int cur_frequency;
 	struct regmap *nb_pm_base, *avs_base;
 	struct device *cpu_dev;
 	int load_lvl, ret;
-	struct clk *clk, *parent;
+	struct clk *clk;
 
 	nb_pm_base =
 		syscon_regmap_lookup_by_compatible("marvell,armada-3700-nb-pm");
@@ -399,22 +399,6 @@ static int __init armada37xx_cpufreq_driver_init(void)
 		return PTR_ERR(clk);
 	}
 
-	parent = clk_get_parent(clk);
-	if (IS_ERR(parent)) {
-		dev_err(cpu_dev, "Cannot get parent clock for CPU0\n");
-		clk_put(clk);
-		return PTR_ERR(parent);
-	}
-
-	/* Get parent CPU frequency */
-	base_frequency =  clk_get_rate(parent);
-
-	if (!base_frequency) {
-		dev_err(cpu_dev, "Failed to get parent clock rate for CPU\n");
-		clk_put(clk);
-		return -EINVAL;
-	}
-
 	/* Get nominal (current) CPU frequency */
 	cur_frequency = clk_get_rate(clk);
 	if (!cur_frequency) {
@@ -447,7 +431,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	for (load_lvl = ARMADA_37XX_DVFS_LOAD_0; load_lvl < LOAD_LEVEL_NR;
 	     load_lvl++) {
 		unsigned long u_volt = avs_map[dvfs->avs[load_lvl]] * 1000;
-		freq = base_frequency / dvfs->divider[load_lvl];
+		freq = cur_frequency / dvfs->divider[load_lvl];
 		ret = dev_pm_opp_add(cpu_dev, freq, u_volt);
 		if (ret)
 			goto remove_opp;
@@ -458,7 +442,6 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	/* Now that everything is setup, enable the DVFS at hardware level */
 	armada37xx_cpufreq_enable_dvfs(nb_pm_base);
 
-	memset(&pdata, 0, sizeof(pdata));
 	pdata.suspend = armada37xx_cpufreq_suspend;
 	pdata.resume = armada37xx_cpufreq_resume;
 
@@ -485,12 +468,6 @@ remove_opp:
 }
 /* late_initcall, to guarantee the driver is loaded after A37xx clock driver */
 late_initcall(armada37xx_cpufreq_driver_init);
-
-static const struct of_device_id __maybe_unused armada37xx_cpufreq_of_match[] = {
-	{ .compatible = "marvell,armada-3700-nb-pm" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, armada37xx_cpufreq_of_match);
 
 MODULE_AUTHOR("Gregory CLEMENT <gregory.clement@free-electrons.com>");
 MODULE_DESCRIPTION("Armada 37xx cpufreq driver");

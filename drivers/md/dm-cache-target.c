@@ -541,7 +541,7 @@ static void wake_migration_worker(struct cache *cache)
 
 static struct dm_bio_prison_cell_v2 *alloc_prison_cell(struct cache *cache)
 {
-	return dm_bio_prison_alloc_cell_v2(cache->prison, GFP_NOIO);
+	return dm_bio_prison_alloc_cell_v2(cache->prison, GFP_NOWAIT);
 }
 
 static void free_prison_cell(struct cache *cache, struct dm_bio_prison_cell_v2 *cell)
@@ -553,7 +553,9 @@ static struct dm_cache_migration *alloc_migration(struct cache *cache)
 {
 	struct dm_cache_migration *mg;
 
-	mg = mempool_alloc(&cache->migration_pool, GFP_NOIO);
+	mg = mempool_alloc(&cache->migration_pool, GFP_NOWAIT);
+	if (!mg)
+		return NULL;
 
 	memset(mg, 0, sizeof(*mg));
 
@@ -661,6 +663,10 @@ static bool bio_detain_shared(struct cache *cache, dm_oblock_t oblock, struct bi
 	struct dm_bio_prison_cell_v2 *cell_prealloc, *cell;
 
 	cell_prealloc = alloc_prison_cell(cache); /* FIXME: allow wait if calling from worker */
+	if (!cell_prealloc) {
+		defer_bio(cache, bio);
+		return false;
+	}
 
 	build_key(oblock, end, &key);
 	r = dm_cell_get_v2(cache->prison, &key, lock_level(bio), bio, cell_prealloc, &cell);
@@ -1486,6 +1492,11 @@ static int mg_lock_writes(struct dm_cache_migration *mg)
 	struct dm_bio_prison_cell_v2 *prealloc;
 
 	prealloc = alloc_prison_cell(cache);
+	if (!prealloc) {
+		DMERR_LIMIT("%s: alloc_prison_cell failed", cache_device_name(cache));
+		mg_complete(mg, false);
+		return -ENOMEM;
+	}
 
 	/*
 	 * Prevent writes to the block, but allow reads to continue.
@@ -1523,6 +1534,11 @@ static int mg_start(struct cache *cache, struct policy_work *op, struct bio *bio
 	}
 
 	mg = alloc_migration(cache);
+	if (!mg) {
+		policy_complete_background_work(cache->policy, op, false);
+		background_work_end(cache);
+		return -ENOMEM;
+	}
 
 	mg->op = op;
 	mg->overwrite_bio = bio;
@@ -1611,6 +1627,10 @@ static int invalidate_lock(struct dm_cache_migration *mg)
 	struct dm_bio_prison_cell_v2 *prealloc;
 
 	prealloc = alloc_prison_cell(cache);
+	if (!prealloc) {
+		invalidate_complete(mg, false);
+		return -ENOMEM;
+	}
 
 	build_key(mg->invalidate_oblock, oblock_succ(mg->invalidate_oblock), &key);
 	r = dm_cell_lock_v2(cache->prison, &key,
@@ -1648,6 +1668,10 @@ static int invalidate_start(struct cache *cache, dm_cblock_t cblock,
 		return -EPERM;
 
 	mg = alloc_migration(cache);
+	if (!mg) {
+		background_work_end(cache);
+		return -ENOMEM;
+	}
 
 	mg->overwrite_bio = bio;
 	mg->invalidate_cblock = cblock;
@@ -2859,8 +2883,8 @@ static void cache_postsuspend(struct dm_target *ti)
 	prevent_background_work(cache);
 	BUG_ON(atomic_read(&cache->nr_io_migrations));
 
-	cancel_delayed_work_sync(&cache->waker);
-	drain_workqueue(cache->wq);
+	cancel_delayed_work(&cache->waker);
+	flush_workqueue(cache->wq);
 	WARN_ON(cache->tracker.in_flight);
 
 	/*

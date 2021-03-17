@@ -274,24 +274,20 @@ static int assign_irq_vector_any_locked(struct irq_data *irqd)
 	const struct cpumask *affmsk = irq_data_get_affinity_mask(irqd);
 	int node = irq_data_get_node(irqd);
 
-	if (node != NUMA_NO_NODE) {
-		/* Try the intersection of @affmsk and node mask */
-		cpumask_and(vector_searchmask, cpumask_of_node(node), affmsk);
-		if (!assign_vector_locked(irqd, vector_searchmask))
-			return 0;
-	}
-
+	if (node == NUMA_NO_NODE)
+		goto all;
+	/* Try the intersection of @affmsk and node mask */
+	cpumask_and(vector_searchmask, cpumask_of_node(node), affmsk);
+	if (!assign_vector_locked(irqd, vector_searchmask))
+		return 0;
+	/* Try the node mask */
+	if (!assign_vector_locked(irqd, cpumask_of_node(node)))
+		return 0;
+all:
 	/* Try the full affinity mask */
 	cpumask_and(vector_searchmask, affmsk, cpu_online_mask);
 	if (!assign_vector_locked(irqd, vector_searchmask))
 		return 0;
-
-	if (node != NUMA_NO_NODE) {
-		/* Try the node mask */
-		if (!assign_vector_locked(irqd, cpumask_of_node(node)))
-			return 0;
-	}
-
 	/* Try the full online mask */
 	return assign_vector_locked(irqd, cpu_online_mask);
 }
@@ -317,13 +313,14 @@ assign_managed_vector(struct irq_data *irqd, const struct cpumask *dest)
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
 	int vector, cpu;
 
-	cpumask_and(vector_searchmask, dest, affmsk);
-
+	cpumask_and(vector_searchmask, vector_searchmask, affmsk);
+	cpu = cpumask_first(vector_searchmask);
+	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
 	/* set_affinity might call here for nothing */
 	if (apicd->vector && cpumask_test_cpu(apicd->cpu, vector_searchmask))
 		return 0;
-	vector = irq_matrix_alloc_managed(vector_matrix, vector_searchmask,
-					  &cpu);
+	vector = irq_matrix_alloc_managed(vector_matrix, cpu);
 	trace_vector_alloc_managed(irqd->irq, vector, vector);
 	if (vector < 0)
 		return vector;
@@ -346,7 +343,7 @@ static void clear_irq_vector(struct irq_data *irqd)
 	trace_vector_clear(irqd->irq, vector, apicd->cpu, apicd->prev_vector,
 			   apicd->prev_cpu);
 
-	per_cpu(vector_irq, apicd->cpu)[vector] = VECTOR_SHUTDOWN;
+	per_cpu(vector_irq, apicd->cpu)[vector] = VECTOR_UNUSED;
 	irq_matrix_free(vector_matrix, apicd->cpu, vector, managed);
 	apicd->vector = 0;
 
@@ -355,7 +352,7 @@ static void clear_irq_vector(struct irq_data *irqd)
 	if (!vector)
 		return;
 
-	per_cpu(vector_irq, apicd->prev_cpu)[vector] = VECTOR_SHUTDOWN;
+	per_cpu(vector_irq, apicd->prev_cpu)[vector] = VECTOR_UNUSED;
 	irq_matrix_free(vector_matrix, apicd->prev_cpu, vector, managed);
 	apicd->prev_vector = 0;
 	apicd->move_in_progress = 0;
@@ -404,17 +401,6 @@ static int activate_reserved(struct irq_data *irqd)
 		if (!irqd_can_reserve(irqd))
 			apicd->can_reserve = false;
 	}
-
-	/*
-	 * Check to ensure that the effective affinity mask is a subset
-	 * the user supplied affinity mask, and warn the user if it is not
-	 */
-	if (!cpumask_subset(irq_data_get_effective_affinity_mask(irqd),
-			    irq_data_get_affinity_mask(irqd))) {
-		pr_warn("irq %u: Affinity broken due to vector space exhaustion.\n",
-			irqd->irq);
-	}
-
 	return ret;
 }
 
@@ -452,10 +438,12 @@ static int x86_vector_activate(struct irq_domain *dom, struct irq_data *irqd,
 	trace_vector_activate(irqd->irq, apicd->is_managed,
 			      apicd->can_reserve, reserve);
 
-	raw_spin_lock_irqsave(&vector_lock, flags);
+	/* Nothing to do for fixed assigned vectors */
 	if (!apicd->can_reserve && !apicd->is_managed)
-		assign_irq_vector_any_locked(irqd);
-	else if (reserve || irqd_is_managed_and_shutdown(irqd))
+		return 0;
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	if (reserve || irqd_is_managed_and_shutdown(irqd))
 		vector_assign_managed_shutdown(irqd);
 	else if (apicd->is_managed)
 		ret = activate_managed(irqd);
@@ -560,10 +548,6 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irqd->chip_data = apicd;
 		irqd->hwirq = virq + i;
 		irqd_set_single_target(irqd);
-
-		/* Don't invoke affinity setter on deactivated interrupts */
-		irqd_set_affinity_on_activate(irqd);
-
 		/*
 		 * Legacy vectors are already assigned when the IOAPIC
 		 * takes them over. They stay on the same vector. This is
@@ -711,6 +695,7 @@ int __init arch_early_irq_init(void)
 	x86_vector_domain = irq_domain_create_tree(fn, &x86_vector_domain_ops,
 						   NULL);
 	BUG_ON(x86_vector_domain == NULL);
+	irq_domain_free_fwnode(fn);
 	irq_set_default_host(x86_vector_domain);
 
 	arch_init_msi_domain(x86_vector_domain);
@@ -776,10 +761,20 @@ void lapic_offline(void)
 static int apic_set_affinity(struct irq_data *irqd,
 			     const struct cpumask *dest, bool force)
 {
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
 	int err;
 
-	if (WARN_ON_ONCE(!irqd_is_activated(irqd)))
-		return -EIO;
+	/*
+	 * Core code can call here for inactive interrupts. For inactive
+	 * interrupts which use managed or reservation mode there is no
+	 * point in going through the vector assignment right now as the
+	 * activation will assign a vector which fits the destination
+	 * cpumask. Let the core code store the destination mask and be
+	 * done with it.
+	 */
+	if (!irqd_is_activated(irqd) &&
+	    (apicd->is_managed || apicd->can_reserve))
+		return IRQ_SET_MASK_OK;
 
 	raw_spin_lock(&vector_lock);
 	cpumask_and(vector_searchmask, dest, cpu_online_mask);

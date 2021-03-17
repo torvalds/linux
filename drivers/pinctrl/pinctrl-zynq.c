@@ -971,12 +971,15 @@ enum zynq_io_standards {
 	zynq_iostd_max
 };
 
-/*
- * PIN_CONFIG_IOSTANDARD: if the pin can select an IO standard, the argument to
+/**
+ * enum zynq_pin_config_param - possible pin configuration parameters
+ * @PIN_CONFIG_IOSTANDARD: if the pin can select an IO standard, the argument to
  *	this parameter (on a custom format) tells the driver which alternative
  *	IO standard to use.
  */
-#define PIN_CONFIG_IOSTANDARD		(PIN_CONFIG_END + 1)
+enum zynq_pin_config_param {
+	PIN_CONFIG_IOSTANDARD = PIN_CONFIG_END + 1,
+};
 
 static const struct pinconf_generic_params zynq_dt_params[] = {
 	{"io-standard", PIN_CONFIG_IOSTANDARD, zynq_iostd_lvcmos18},

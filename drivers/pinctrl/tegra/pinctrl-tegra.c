@@ -40,9 +40,7 @@ static inline u32 pmx_readl(struct tegra_pmx *pmx, u32 bank, u32 reg)
 
 static inline void pmx_writel(struct tegra_pmx *pmx, u32 val, u32 bank, u32 reg)
 {
-	writel_relaxed(val, pmx->regs[bank] + reg);
-	/* make sure pinmux register write completed */
-	pmx_readl(pmx, bank, reg);
+	writel(val, pmx->regs[bank] + reg);
 }
 
 static int tegra_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)

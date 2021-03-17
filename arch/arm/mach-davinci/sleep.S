@@ -37,7 +37,6 @@
 #define DEEPSLEEP_SLEEPENABLE_BIT	BIT(31)
 
 	.text
-	.arch	armv5te
 /*
  * Move DaVinci into deep sleep state
  *

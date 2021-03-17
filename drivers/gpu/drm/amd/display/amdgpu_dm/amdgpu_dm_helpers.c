@@ -248,8 +248,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		drm_dp_mst_reset_vcpi_slots(mst_mgr, mst_port);
 	}
 
-	/* It's OK for this to fail */
-	drm_dp_update_payload_part1(mst_mgr);
+	ret = drm_dp_update_payload_part1(mst_mgr);
 
 	/* mst_mgr->->payloads are VC payload notify MST branch using DPCD or
 	 * AUX message. The sequence is slot 1-63 allocated sequence for each
@@ -257,6 +256,9 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	 * sequence. copy DRM MST allocation to dc */
 
 	get_payload_table(aconnector, proposed_table);
+
+	if (ret)
+		return false;
 
 	return true;
 }
@@ -308,6 +310,7 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	struct amdgpu_dm_connector *aconnector;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
+	int ret;
 
 	aconnector = stream->sink->priv;
 
@@ -321,8 +324,10 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	if (!mst_mgr->mst_state)
 		return false;
 
-	/* It's OK for this to fail */
-	drm_dp_update_payload_part2(mst_mgr);
+	ret = drm_dp_update_payload_part2(mst_mgr);
+
+	if (ret)
+		return false;
 
 	if (!enable)
 		drm_dp_mst_deallocate_vcpi(mst_mgr, mst_port);

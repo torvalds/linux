@@ -221,7 +221,7 @@ int adreno_hw_init(struct msm_gpu *gpu)
 		ring->next = ring->start;
 
 		/* reset completed fence seqno: */
-		ring->memptrs->fence = ring->fctx->completed_fence;
+		ring->memptrs->fence = ring->seqno;
 		ring->memptrs->rptr = 0;
 	}
 
@@ -633,7 +633,8 @@ static int adreno_get_legacy_pwrlevels(struct device *dev)
 	struct device_node *child, *node;
 	int ret;
 
-	node = of_get_compatible_child(dev->of_node, "qcom,gpu-pwrlevels");
+	node = of_find_compatible_node(dev->of_node, NULL,
+		"qcom,gpu-pwrlevels");
 	if (!node) {
 		dev_err(dev, "Could not find the GPU powerlevels\n");
 		return -ENXIO;
@@ -653,8 +654,6 @@ static int adreno_get_legacy_pwrlevels(struct device *dev)
 		if (val != 27000000)
 			dev_pm_opp_add(dev, val, 0);
 	}
-
-	of_node_put(node);
 
 	return 0;
 }

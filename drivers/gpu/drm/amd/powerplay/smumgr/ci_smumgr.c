@@ -238,7 +238,7 @@ static void ci_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 	switch (dev_id) {
 	case 0x67BA:
-	case 0x67B1:
+	case 0x66B1:
 		smu_data->power_tune_defaults = &defaults_hawaii_pro;
 		break;
 	case 0x67B8:
@@ -2268,13 +2268,11 @@ static uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
 		case DRAM_LOG_BUFF_SIZE:
 			return offsetof(SMU7_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
-		break;
 	case SMU_Discrete_DpmTable:
 		switch (member) {
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU7_Discrete_DpmTable, LowSclkInterruptT);
 		}
-		break;
 	}
 	pr_debug("can't get the offset of type %x member %x\n", type, member);
 	return 0;
@@ -2931,29 +2929,6 @@ static int ci_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 	return 0;
 }
 
-static void ci_reset_smc(struct pp_hwmgr *hwmgr)
-{
-	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
-				  SMC_SYSCON_RESET_CNTL,
-				  rst_reg, 1);
-}
-
-
-static void ci_stop_smc_clock(struct pp_hwmgr *hwmgr)
-{
-	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
-				  SMC_SYSCON_CLOCK_CNTL_0,
-				  ck_disable, 1);
-}
-
-static int ci_stop_smc(struct pp_hwmgr *hwmgr)
-{
-	ci_reset_smc(hwmgr);
-	ci_stop_smc_clock(hwmgr);
-
-	return 0;
-}
-
 const struct pp_smumgr_func ci_smu_funcs = {
 	.smu_init = ci_smu_init,
 	.smu_fini = ci_smu_fini,
@@ -2977,5 +2952,4 @@ const struct pp_smumgr_func ci_smu_funcs = {
 	.is_dpm_running = ci_is_dpm_running,
 	.update_dpm_settings = ci_update_dpm_settings,
 	.update_smc_table = ci_update_smc_table,
-	.stop_smc = ci_stop_smc,
 };

@@ -444,8 +444,9 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_TEMP:
-			*val = 10;
-			return IIO_VAL_INT;
+			*val = 1; /* 0.01 */
+			*val2 = 100;
+			break;
 		case IIO_PH:
 			*val = 1; /* 0.001 */
 			*val2 = 1000;
@@ -476,7 +477,7 @@ static int atlas_write_raw(struct iio_dev *indio_dev,
 			   int val, int val2, long mask)
 {
 	struct atlas_data *data = iio_priv(indio_dev);
-	__be32 reg = cpu_to_be32(val / 10);
+	__be32 reg = cpu_to_be32(val);
 
 	if (val2 != 0 || val < 0 || val > 20000)
 		return -EINVAL;

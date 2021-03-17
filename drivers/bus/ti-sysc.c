@@ -91,9 +91,6 @@ struct sysc {
 	struct delayed_work idle_work;
 };
 
-static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
-				  bool is_child);
-
 void sysc_write(struct sysc *ddata, int offset, u32 value)
 {
 	writel_relaxed(value, ddata->module_va + offset);
@@ -217,13 +214,8 @@ static int sysc_get_clocks(struct sysc *ddata)
 	if (!ddata->clocks)
 		return -ENOMEM;
 
-	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
-		const char *name = ddata->clock_roles[i];
-
-		if (!name)
-			continue;
-
-		error = sysc_get_one_clock(ddata, name);
+	for (i = 0; i < ddata->nr_clocks; i++) {
+		error = sysc_get_one_clock(ddata, ddata->clock_roles[i]);
 		if (error && error != -ENOENT)
 			return error;
 	}
@@ -382,7 +374,6 @@ static int sysc_check_one_child(struct sysc *ddata,
 		dev_warn(ddata->dev, "really a child ti,hwmods property?");
 
 	sysc_check_quirk_stdout(ddata, np);
-	sysc_parse_dts_quirks(ddata, np, true);
 
 	return 0;
 }
@@ -888,10 +879,10 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 	SYSC_QUIRK("smartreflex", 0, -1, 0x38, -1, 0x00000000, 0xffffffff,
 		   SYSC_QUIRK_LEGACY_IDLE),
 	SYSC_QUIRK("timer", 0, 0, 0x10, 0x14, 0x00000015, 0xffffffff,
-		   0),
+		   SYSC_QUIRK_LEGACY_IDLE),
 	/* Some timers on omap4 and later */
 	SYSC_QUIRK("timer", 0, 0, 0x10, -1, 0x4fff1301, 0xffffffff,
-		   0),
+		   SYSC_QUIRK_LEGACY_IDLE),
 	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x00000052, 0xffffffff,
 		   SYSC_QUIRK_LEGACY_IDLE),
 	/* Uarts on omap4 and later */
@@ -1031,7 +1022,10 @@ static int sysc_init_sysc_mask(struct sysc *ddata)
 	if (error)
 		return 0;
 
-	ddata->cfg.sysc_val = val & ddata->cap->sysc_mask;
+	if (val)
+		ddata->cfg.sysc_val = val & ddata->cap->sysc_mask;
+	else
+		ddata->cfg.sysc_val = ddata->cap->sysc_mask;
 
 	return 0;
 }
@@ -1352,37 +1346,23 @@ static const struct sysc_dts_quirk sysc_dts_quirks[] = {
 	  .mask = SYSC_QUIRK_NO_RESET_ON_INIT, },
 };
 
-static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
-				  bool is_child)
-{
-	const struct property *prop;
-	int i, len;
-
-	for (i = 0; i < ARRAY_SIZE(sysc_dts_quirks); i++) {
-		const char *name = sysc_dts_quirks[i].name;
-
-		prop = of_get_property(np, name, &len);
-		if (!prop)
-			continue;
-
-		ddata->cfg.quirks |= sysc_dts_quirks[i].mask;
-		if (is_child) {
-			dev_warn(ddata->dev,
-				 "dts flag should be at module level for %s\n",
-				 name);
-		}
-	}
-}
-
 static int sysc_init_dts_quirks(struct sysc *ddata)
 {
 	struct device_node *np = ddata->dev->of_node;
-	int error;
+	const struct property *prop;
+	int i, len, error;
 	u32 val;
 
 	ddata->legacy_mode = of_get_property(np, "ti,hwmods", NULL);
 
-	sysc_parse_dts_quirks(ddata, np, false);
+	for (i = 0; i < ARRAY_SIZE(sysc_dts_quirks); i++) {
+		prop = of_get_property(np, sysc_dts_quirks[i].name, &len);
+		if (!prop)
+			continue;
+
+		ddata->cfg.quirks |= sysc_dts_quirks[i].mask;
+	}
+
 	error = of_property_read_u32(np, "ti,sysc-delay-us", &val);
 	if (!error) {
 		if (val > 255) {
@@ -1399,9 +1379,6 @@ static int sysc_init_dts_quirks(struct sysc *ddata)
 static void sysc_unprepare(struct sysc *ddata)
 {
 	int i;
-
-	if (!ddata->clocks)
-		return;
 
 	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
 		if (!IS_ERR_OR_NULL(ddata->clocks[i]))
@@ -1596,16 +1573,6 @@ static const struct sysc_regbits sysc_regbits_omap4_mcasp = {
 static const struct sysc_capabilities sysc_omap4_mcasp = {
 	.type = TI_SYSC_OMAP4_MCASP,
 	.regbits = &sysc_regbits_omap4_mcasp,
-	.mod_quirks = SYSC_QUIRK_OPT_CLKS_NEEDED,
-};
-
-/*
- * McASP found on dra7 and later
- */
-static const struct sysc_capabilities sysc_dra7_mcasp = {
-	.type = TI_SYSC_OMAP4_SIMPLE,
-	.regbits = &sysc_regbits_omap4_simple,
-	.mod_quirks = SYSC_QUIRK_OPT_CLKS_NEEDED,
 };
 
 /*
@@ -1721,7 +1688,7 @@ static int sysc_probe(struct platform_device *pdev)
 
 	error = sysc_init_dts_quirks(ddata);
 	if (error)
-		return error;
+		goto unprepare;
 
 	error = sysc_get_clocks(ddata);
 	if (error)
@@ -1729,27 +1696,27 @@ static int sysc_probe(struct platform_device *pdev)
 
 	error = sysc_map_and_check_registers(ddata);
 	if (error)
-		return error;
+		goto unprepare;
 
 	error = sysc_init_sysc_mask(ddata);
 	if (error)
-		return error;
+		goto unprepare;
 
 	error = sysc_init_idlemodes(ddata);
 	if (error)
-		return error;
+		goto unprepare;
 
 	error = sysc_init_syss_mask(ddata);
 	if (error)
-		return error;
+		goto unprepare;
 
 	error = sysc_init_pdata(ddata);
 	if (error)
-		return error;
+		goto unprepare;
 
 	error = sysc_init_resets(ddata);
 	if (error)
-		goto unprepare;
+		return error;
 
 	pm_runtime_enable(ddata->dev);
 	error = sysc_init_module(ddata);
@@ -1834,7 +1801,6 @@ static const struct of_device_id sysc_match[] = {
 	{ .compatible = "ti,sysc-omap3-sham", .data = &sysc_omap3_sham, },
 	{ .compatible = "ti,sysc-omap-aes", .data = &sysc_omap3_aes, },
 	{ .compatible = "ti,sysc-mcasp", .data = &sysc_omap4_mcasp, },
-	{ .compatible = "ti,sysc-dra7-mcasp", .data = &sysc_dra7_mcasp, },
 	{ .compatible = "ti,sysc-usb-host-fs",
 	  .data = &sysc_omap4_usb_host_fs, },
 	{ .compatible = "ti,sysc-dra7-mcan", .data = &sysc_dra7_mcan, },

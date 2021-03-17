@@ -299,7 +299,7 @@ bool has_ns_capability(struct task_struct *t,
 	int ret;
 
 	rcu_read_lock();
-	ret = security_capable(__task_cred(t), ns, cap, CAP_OPT_NONE);
+	ret = security_capable(__task_cred(t), ns, cap);
 	rcu_read_unlock();
 
 	return (ret == 0);
@@ -340,7 +340,7 @@ bool has_ns_capability_noaudit(struct task_struct *t,
 	int ret;
 
 	rcu_read_lock();
-	ret = security_capable(__task_cred(t), ns, cap, CAP_OPT_NOAUDIT);
+	ret = security_capable_noaudit(__task_cred(t), ns, cap);
 	rcu_read_unlock();
 
 	return (ret == 0);
@@ -363,9 +363,7 @@ bool has_capability_noaudit(struct task_struct *t, int cap)
 	return has_ns_capability_noaudit(t, &init_user_ns, cap);
 }
 
-static bool ns_capable_common(struct user_namespace *ns,
-			      int cap,
-			      unsigned int opts)
+static bool ns_capable_common(struct user_namespace *ns, int cap, bool audit)
 {
 	int capable;
 
@@ -374,7 +372,8 @@ static bool ns_capable_common(struct user_namespace *ns,
 		BUG();
 	}
 
-	capable = security_capable(current_cred(), ns, cap, opts);
+	capable = audit ? security_capable(current_cred(), ns, cap) :
+			  security_capable_noaudit(current_cred(), ns, cap);
 	if (capable == 0) {
 		current->flags |= PF_SUPERPRIV;
 		return true;
@@ -395,7 +394,7 @@ static bool ns_capable_common(struct user_namespace *ns,
  */
 bool ns_capable(struct user_namespace *ns, int cap)
 {
-	return ns_capable_common(ns, cap, CAP_OPT_NONE);
+	return ns_capable_common(ns, cap, true);
 }
 EXPORT_SYMBOL(ns_capable);
 
@@ -413,7 +412,7 @@ EXPORT_SYMBOL(ns_capable);
  */
 bool ns_capable_noaudit(struct user_namespace *ns, int cap)
 {
-	return ns_capable_common(ns, cap, CAP_OPT_NOAUDIT);
+	return ns_capable_common(ns, cap, false);
 }
 EXPORT_SYMBOL(ns_capable_noaudit);
 
@@ -449,11 +448,10 @@ EXPORT_SYMBOL(capable);
 bool file_ns_capable(const struct file *file, struct user_namespace *ns,
 		     int cap)
 {
-
 	if (WARN_ON_ONCE(!cap_valid(cap)))
 		return false;
 
-	if (security_capable(file->f_cred, ns, cap, CAP_OPT_NONE) == 0)
+	if (security_capable(file->f_cred, ns, cap) == 0)
 		return true;
 
 	return false;
@@ -502,12 +500,10 @@ bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns)
 {
 	int ret = 0;  /* An absent tracer adds no restrictions */
 	const struct cred *cred;
-
 	rcu_read_lock();
 	cred = rcu_dereference(tsk->ptracer_cred);
 	if (cred)
-		ret = security_capable(cred, ns, CAP_SYS_PTRACE,
-				       CAP_OPT_NOAUDIT);
+		ret = security_capable_noaudit(cred, ns, CAP_SYS_PTRACE);
 	rcu_read_unlock();
 	return (ret == 0);
 }

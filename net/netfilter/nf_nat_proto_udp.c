@@ -66,14 +66,15 @@ static bool udp_manip_pkt(struct sk_buff *skb,
 			  enum nf_nat_manip_type maniptype)
 {
 	struct udphdr *hdr;
+	bool do_csum;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
 
 	hdr = (struct udphdr *)(skb->data + hdroff);
-	__udp_manip_pkt(skb, l3proto, iphdroff, hdr, tuple, maniptype,
-			!!hdr->check);
+	do_csum = hdr->check || skb->ip_summed == CHECKSUM_PARTIAL;
 
+	__udp_manip_pkt(skb, l3proto, iphdroff, hdr, tuple, maniptype, do_csum);
 	return true;
 }
 

@@ -62,8 +62,6 @@ struct msm_gem_vma;
 #define MAX_BRIDGES    8
 #define MAX_CONNECTORS 8
 
-#define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
-
 struct msm_file_private {
 	rwlock_t queuelock;
 	struct list_head submitqueues;

@@ -277,13 +277,6 @@ int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn, ulong spr_va
 		vcpu->arch.pwrmgtcr0 = spr_val;
 		break;
 
-	case SPRN_BUCSR:
-		/*
-		 * If we are here, it means that we have already flushed the
-		 * branch predictor, so just return to guest.
-		 */
-		break;
-
 	/* extra exceptions */
 #ifdef CONFIG_SPE_POSSIBLE
 	case SPRN_IVOR32:

@@ -18,9 +18,6 @@ static struct msr __percpu *msrs;
 /* Per-node stuff */
 static struct ecc_settings **ecc_stngs;
 
-/* Device for the PCI component */
-static struct device *pci_ctl_dev;
-
 /*
  * Valid scrub rates for the K8 hardware memory scrubber. We map the scrubbing
  * bandwidth to a valid bit pattern. The 'set' operation finds the 'matching-
@@ -264,8 +261,6 @@ static int get_scrub_rate(struct mem_ctl_info *mci)
 
 		if (pvt->model == 0x60)
 			amd64_read_pci_cfg(pvt->F2, F15H_M60H_SCRCTRL, &scrubval);
-		else
-			amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
 		break;
 
 	case 0x17:
@@ -2205,24 +2200,6 @@ static struct amd64_family_type family_types[] = {
 			.dbam_to_cs		= f17_base_addr_to_cs_size,
 		}
 	},
-	[F17_M10H_CPUS] = {
-		.ctl_name = "F17h_M10h",
-		.f0_id = PCI_DEVICE_ID_AMD_17H_M10H_DF_F0,
-		.f6_id = PCI_DEVICE_ID_AMD_17H_M10H_DF_F6,
-		.ops = {
-			.early_channel_count	= f17_early_channel_count,
-			.dbam_to_cs		= f17_base_addr_to_cs_size,
-		}
-	},
-	[F17_M30H_CPUS] = {
-		.ctl_name = "F17h_M30h",
-		.f0_id = PCI_DEVICE_ID_AMD_17H_M30H_DF_F0,
-		.f6_id = PCI_DEVICE_ID_AMD_17H_M30H_DF_F6,
-		.ops = {
-			.early_channel_count	= f17_early_channel_count,
-			.dbam_to_cs		= f17_base_addr_to_cs_size,
-		}
-	},
 };
 
 /*
@@ -2515,6 +2492,13 @@ static void decode_umc_error(int node_id, struct mce *m)
 		goto log_error;
 	}
 
+	if (umc_normaddr_to_sysaddr(m->addr, pvt->mc_node_id, err.channel, &sys_addr)) {
+		err.err_code = ERR_NORM_ADDR;
+		goto log_error;
+	}
+
+	error_address_to_page_and_offset(sys_addr, &err);
+
 	if (!(m->status & MCI_STATUS_SYNDV)) {
 		err.err_code = ERR_SYND;
 		goto log_error;
@@ -2530,13 +2514,6 @@ static void decode_umc_error(int node_id, struct mce *m)
 	}
 
 	err.csrow = m->synd & 0x7;
-
-	if (umc_normaddr_to_sysaddr(m->addr, pvt->mc_node_id, err.channel, &sys_addr)) {
-		err.err_code = ERR_NORM_ADDR;
-		goto log_error;
-	}
-
-	error_address_to_page_and_offset(sys_addr, &err);
 
 log_error:
 	__log_ecc_error(mci, &err, ecc_type);
@@ -2566,9 +2543,6 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 			return -ENODEV;
 		}
 
-		if (!pci_ctl_dev)
-			pci_ctl_dev = &pvt->F0->dev;
-
 		edac_dbg(1, "F0: %s\n", pci_name(pvt->F0));
 		edac_dbg(1, "F3: %s\n", pci_name(pvt->F3));
 		edac_dbg(1, "F6: %s\n", pci_name(pvt->F6));
@@ -2592,9 +2566,6 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 		amd64_err("F2 not found: device 0x%x (broken BIOS?)\n", pci_id2);
 		return -ENODEV;
 	}
-
-	if (!pci_ctl_dev)
-		pci_ctl_dev = &pvt->F2->dev;
 
 	edac_dbg(1, "F1: %s\n", pci_name(pvt->F1));
 	edac_dbg(1, "F2: %s\n", pci_name(pvt->F2));
@@ -2883,7 +2854,6 @@ static int init_csrows(struct mem_ctl_info *mci)
 			dimm = csrow->channels[j]->dimm;
 			dimm->mtype = pvt->dram_type;
 			dimm->edac_mode = edac_mode;
-			dimm->grain = 64;
 		}
 	}
 
@@ -3122,15 +3092,12 @@ static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 static inline void
 f17h_determine_edac_ctl_cap(struct mem_ctl_info *mci, struct amd64_pvt *pvt)
 {
-	u8 i, ecc_en = 1, cpk_en = 1, dev_x4 = 1, dev_x16 = 1;
+	u8 i, ecc_en = 1, cpk_en = 1;
 
 	for (i = 0; i < NUM_UMCS; i++) {
 		if (pvt->umc[i].sdp_ctrl & UMC_SDP_INIT) {
 			ecc_en &= !!(pvt->umc[i].umc_cap_hi & UMC_ECC_ENABLED);
 			cpk_en &= !!(pvt->umc[i].umc_cap_hi & UMC_ECC_CHIPKILL_CAP);
-
-			dev_x4  &= !!(pvt->umc[i].dimm_cfg & BIT(6));
-			dev_x16 &= !!(pvt->umc[i].dimm_cfg & BIT(7));
 		}
 	}
 
@@ -3138,15 +3105,8 @@ f17h_determine_edac_ctl_cap(struct mem_ctl_info *mci, struct amd64_pvt *pvt)
 	if (ecc_en) {
 		mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
 
-		if (!cpk_en)
-			return;
-
-		if (dev_x4)
+		if (cpk_en)
 			mci->edac_ctl_cap |= EDAC_FLAG_S4ECD4ED;
-		else if (dev_x16)
-			mci->edac_ctl_cap |= EDAC_FLAG_S16ECD16ED;
-		else
-			mci->edac_ctl_cap |= EDAC_FLAG_S8ECD8ED;
 	}
 }
 
@@ -3228,15 +3188,6 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 		break;
 
 	case 0x17:
-		if (pvt->model >= 0x10 && pvt->model <= 0x2f) {
-			fam_type = &family_types[F17_M10H_CPUS];
-			pvt->ops = &family_types[F17_M10H_CPUS].ops;
-			break;
-		} else if (pvt->model >= 0x30 && pvt->model <= 0x3f) {
-			fam_type = &family_types[F17_M30H_CPUS];
-			pvt->ops = &family_types[F17_M30H_CPUS].ops;
-			break;
-		}
 		fam_type	= &family_types[F17_CPUS];
 		pvt->ops	= &family_types[F17_CPUS].ops;
 		break;
@@ -3450,10 +3401,21 @@ static void remove_one_instance(unsigned int nid)
 
 static void setup_pci_device(void)
 {
+	struct mem_ctl_info *mci;
+	struct amd64_pvt *pvt;
+
 	if (pci_ctl)
 		return;
 
-	pci_ctl = edac_pci_create_generic_ctl(pci_ctl_dev, EDAC_MOD_STR);
+	mci = edac_mc_find(0);
+	if (!mci)
+		return;
+
+	pvt = mci->pvt_info;
+	if (pvt->umc)
+		pci_ctl = edac_pci_create_generic_ctl(&pvt->F0->dev, EDAC_MOD_STR);
+	else
+		pci_ctl = edac_pci_create_generic_ctl(&pvt->F2->dev, EDAC_MOD_STR);
 	if (!pci_ctl) {
 		pr_warn("%s(): Unable to create PCI control\n", __func__);
 		pr_warn("%s(): PCI error report via EDAC not set\n", __func__);
@@ -3533,8 +3495,6 @@ static int __init amd64_edac_init(void)
 	return 0;
 
 err_pci:
-	pci_ctl_dev = NULL;
-
 	msrs_free(msrs);
 	msrs = NULL;
 
@@ -3565,8 +3525,6 @@ static void __exit amd64_edac_exit(void)
 
 	kfree(ecc_stngs);
 	ecc_stngs = NULL;
-
-	pci_ctl_dev = NULL;
 
 	msrs_free(msrs);
 	msrs = NULL;

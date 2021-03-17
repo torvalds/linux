@@ -25,7 +25,6 @@
 #include <linux/rwsem.h>
 #include <linux/interrupt.h>
 #include <linux/idr.h>
-#include <linux/android_kabi.h>
 
 #define MAX_TOPO_LEVEL		6
 
@@ -168,7 +167,6 @@ struct usb_hcd {
 	unsigned		tpl_support:1; /* OTG & EH TPL support */
 	unsigned		cant_recv_wakeups:1;
 			/* wakeup requests from downstream aren't received */
-	unsigned		rk3288_relinquish_port_quirk:1;
 
 	unsigned int		irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
@@ -218,11 +216,6 @@ struct usb_hcd {
 	 * input size of periodic table to an interrupt scheduler.
 	 * (ohci 32, uhci 1024, ehci 256/512/1024).
 	 */
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-	ANDROID_KABI_RESERVE(3);
-	ANDROID_KABI_RESERVE(4);
 
 	/* The HC driver's private data is stored at the end of
 	 * this structure.
@@ -414,22 +407,6 @@ struct hc_driver {
 	/* Call for power on/off the port if necessary */
 	int	(*port_power)(struct usb_hcd *hcd, int portnum, bool enable);
 
-	int (*sec_event_ring_setup)(struct usb_hcd *hcd, unsigned int intr_num);
-	int (*sec_event_ring_cleanup)(struct usb_hcd *hcd,
-			unsigned int intr_num);
-	phys_addr_t (*get_sec_event_ring_phys_addr)(struct usb_hcd *hcd,
-			unsigned int intr_num, dma_addr_t *dma);
-	phys_addr_t (*get_xfer_ring_phys_addr)(struct usb_hcd *hcd,
-			struct usb_device *udev, struct usb_host_endpoint *ep,
-			dma_addr_t *dma);
-	int (*get_core_id)(struct usb_hcd *hcd);
-	int (*stop_endpoint)(struct usb_hcd *hcd, struct usb_device *udev,
-			struct usb_host_endpoint *ep);
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-	ANDROID_KABI_RESERVE(3);
-	ANDROID_KABI_RESERVE(4);
 };
 
 static inline int hcd_giveback_urb_in_bh(struct usb_hcd *hcd)
@@ -468,17 +445,6 @@ extern int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 		struct usb_host_interface *old_alt,
 		struct usb_host_interface *new_alt);
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
-extern int usb_hcd_sec_event_ring_setup(struct usb_device *udev,
-	unsigned int intr_num);
-extern int usb_hcd_sec_event_ring_cleanup(struct usb_device *udev,
-	unsigned int intr_num);
-extern phys_addr_t usb_hcd_get_sec_event_ring_phys_addr(
-	struct usb_device *udev, unsigned int intr_num, dma_addr_t *dma);
-extern phys_addr_t usb_hcd_get_xfer_ring_phys_addr(
-	struct usb_device *udev, struct usb_host_endpoint *ep, dma_addr_t *dma);
-extern int usb_hcd_get_controller_id(struct usb_device *udev);
-extern int usb_hcd_stop_endpoint(struct usb_device *udev,
-	struct usb_host_endpoint *ep);
 
 struct usb_hcd *__usb_create_hcd(const struct hc_driver *driver,
 		struct device *sysdev, struct device *dev, const char *bus_name,
@@ -584,11 +550,6 @@ struct usb_tt {
 	spinlock_t		lock;
 	struct list_head	clear_list;	/* of usb_tt_clear */
 	struct work_struct	clear_work;
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-	ANDROID_KABI_RESERVE(3);
-	ANDROID_KABI_RESERVE(4);
 };
 
 struct usb_tt_clear {

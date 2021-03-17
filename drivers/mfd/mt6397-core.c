@@ -329,7 +329,8 @@ static int mt6397_probe(struct platform_device *pdev)
 
 	default:
 		dev_err(&pdev->dev, "unsupported chip: %d\n", id);
-		return -ENODEV;
+		ret = -ENODEV;
+		break;
 	}
 
 	if (ret) {

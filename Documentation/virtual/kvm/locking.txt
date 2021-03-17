@@ -15,6 +15,8 @@ The acquisition orders for mutexes are as follows:
 
 On x86, vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock.
 
+For spinlocks, kvm_lock is taken outside kvm->mmu_lock.
+
 Everything else is a leaf: no other lock is taken inside the critical
 sections.
 
@@ -167,7 +169,7 @@ which time it will be set using the Dirty tracking mechanism described above.
 ------------
 
 Name:		kvm_lock
-Type:		mutex
+Type:		spinlock_t
 Arch:		any
 Protects:	- vm_list
 

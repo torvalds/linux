@@ -26,7 +26,6 @@
 #include "tpm.h"
 
 #define ACPI_SIG_TPM2 "TPM2"
-#define TPM_CRB_MAX_RESOURCES 3
 
 static const guid_t crb_acpi_start_guid =
 	GUID_INIT(0x6BBF6CAB, 0x5463, 0x4714,
@@ -96,6 +95,7 @@ enum crb_status {
 struct crb_priv {
 	u32 sm;
 	const char *hid;
+	void __iomem *iobase;
 	struct crb_regs_head __iomem *regs_h;
 	struct crb_regs_tail __iomem *regs_t;
 	u8 __iomem *cmd;
@@ -287,29 +287,19 @@ static int crb_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 	unsigned int expected;
 
-	/* A sanity check that the upper layer wants to get at least the header
-	 * as that is the minimum size for any TPM response.
-	 */
-	if (count < TPM_HEADER_SIZE)
+	/* sanity check */
+	if (count < 6)
 		return -EIO;
 
-	/* If this bit is set, according to the spec, the TPM is in
-	 * unrecoverable condition.
-	 */
 	if (ioread32(&priv->regs_t->ctrl_sts) & CRB_CTRL_STS_ERROR)
 		return -EIO;
 
-	/* Read the first 8 bytes in order to get the length of the response.
-	 * We read exactly a quad word in order to make sure that the remaining
-	 * reads will be aligned.
-	 */
-	memcpy_fromio(buf, priv->rsp, 8);
-
-	expected = be32_to_cpup((__be32 *)&buf[2]);
-	if (expected > count || expected < TPM_HEADER_SIZE)
+	memcpy_fromio(buf, priv->rsp, 6);
+	expected = be32_to_cpup((__be32 *) &buf[2]);
+	if (expected > count || expected < 6)
 		return -EIO;
 
-	memcpy_fromio(&buf[8], &priv->rsp[8], expected - 8);
+	memcpy_fromio(&buf[6], &priv->rsp[6], expected - 6);
 
 	return expected;
 }
@@ -438,27 +428,21 @@ static const struct tpm_class_ops tpm_crb = {
 
 static int crb_check_resource(struct acpi_resource *ares, void *data)
 {
-	struct resource *iores_array = data;
+	struct resource *io_res = data;
 	struct resource_win win;
 	struct resource *res = &(win.res);
-	int i;
 
 	if (acpi_dev_resource_memory(ares, res) ||
 	    acpi_dev_resource_address_space(ares, &win)) {
-		for (i = 0; i < TPM_CRB_MAX_RESOURCES + 1; ++i) {
-			if (resource_type(iores_array + i) != IORESOURCE_MEM) {
-				iores_array[i] = *res;
-				iores_array[i].name = NULL;
-				break;
-			}
-		}
+		*io_res = *res;
+		io_res->name = NULL;
 	}
 
 	return 1;
 }
 
-static void __iomem *crb_map_res(struct device *dev, struct resource *iores,
-				 void __iomem **iobase_ptr, u64 start, u32 size)
+static void __iomem *crb_map_res(struct device *dev, struct crb_priv *priv,
+				 struct resource *io_res, u64 start, u32 size)
 {
 	struct resource new_res = {
 		.start	= start,
@@ -470,16 +454,10 @@ static void __iomem *crb_map_res(struct device *dev, struct resource *iores,
 	if (start != new_res.start)
 		return (void __iomem *) ERR_PTR(-EINVAL);
 
-	if (!iores)
+	if (!resource_contains(io_res, &new_res))
 		return devm_ioremap_resource(dev, &new_res);
 
-	if (!*iobase_ptr) {
-		*iobase_ptr = devm_ioremap_resource(dev, iores);
-		if (IS_ERR(*iobase_ptr))
-			return *iobase_ptr;
-	}
-
-	return *iobase_ptr + (new_res.start - iores->start);
+	return priv->iobase + (new_res.start - io_res->start);
 }
 
 /*
@@ -506,13 +484,9 @@ static u64 crb_fixup_cmd_size(struct device *dev, struct resource *io_res,
 static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		      struct acpi_table_tpm2 *buf)
 {
-	struct list_head acpi_resource_list;
-	struct resource iores_array[TPM_CRB_MAX_RESOURCES + 1] = { {0} };
-	void __iomem *iobase_array[TPM_CRB_MAX_RESOURCES] = {NULL};
+	struct list_head resources;
+	struct resource io_res;
 	struct device *dev = &device->dev;
-	struct resource *iores;
-	void __iomem **iobase_ptr;
-	int i;
 	u32 pa_high, pa_low;
 	u64 cmd_pa;
 	u32 cmd_size;
@@ -521,41 +495,21 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	u32 rsp_size;
 	int ret;
 
-	INIT_LIST_HEAD(&acpi_resource_list);
-	ret = acpi_dev_get_resources(device, &acpi_resource_list,
-				     crb_check_resource, iores_array);
+	INIT_LIST_HEAD(&resources);
+	ret = acpi_dev_get_resources(device, &resources, crb_check_resource,
+				     &io_res);
 	if (ret < 0)
 		return ret;
-	acpi_dev_free_resource_list(&acpi_resource_list);
+	acpi_dev_free_resource_list(&resources);
 
-	if (resource_type(iores_array) != IORESOURCE_MEM) {
+	if (resource_type(&io_res) != IORESOURCE_MEM) {
 		dev_err(dev, FW_BUG "TPM2 ACPI table does not define a memory resource\n");
 		return -EINVAL;
-	} else if (resource_type(iores_array + TPM_CRB_MAX_RESOURCES) ==
-		IORESOURCE_MEM) {
-		dev_warn(dev, "TPM2 ACPI table defines too many memory resources\n");
-		memset(iores_array + TPM_CRB_MAX_RESOURCES,
-		       0, sizeof(*iores_array));
-		iores_array[TPM_CRB_MAX_RESOURCES].flags = 0;
 	}
 
-	iores = NULL;
-	iobase_ptr = NULL;
-	for (i = 0; resource_type(iores_array + i) == IORESOURCE_MEM; ++i) {
-		if (buf->control_address >= iores_array[i].start &&
-		    buf->control_address + sizeof(struct crb_regs_tail) - 1 <=
-		    iores_array[i].end) {
-			iores = iores_array + i;
-			iobase_ptr = iobase_array + i;
-			break;
-		}
-	}
-
-	priv->regs_t = crb_map_res(dev, iores, iobase_ptr, buf->control_address,
-				   sizeof(struct crb_regs_tail));
-
-	if (IS_ERR(priv->regs_t))
-		return PTR_ERR(priv->regs_t);
+	priv->iobase = devm_ioremap_resource(dev, &io_res);
+	if (IS_ERR(priv->iobase))
+		return PTR_ERR(priv->iobase);
 
 	/* The ACPI IO region starts at the head area and continues to include
 	 * the control area, as one nice sane region except for some older
@@ -563,10 +517,9 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	 */
 	if ((priv->sm == ACPI_TPM2_COMMAND_BUFFER) ||
 	    (priv->sm == ACPI_TPM2_MEMORY_MAPPED)) {
-		if (iores &&
-		    buf->control_address == iores->start +
+		if (buf->control_address == io_res.start +
 		    sizeof(*priv->regs_h))
-			priv->regs_h = *iobase_ptr;
+			priv->regs_h = priv->iobase;
 		else
 			dev_warn(dev, FW_BUG "Bad ACPI memory layout");
 	}
@@ -574,6 +527,13 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	ret = __crb_request_locality(dev, priv, 0);
 	if (ret)
 		return ret;
+
+	priv->regs_t = crb_map_res(dev, priv, &io_res, buf->control_address,
+				   sizeof(struct crb_regs_tail));
+	if (IS_ERR(priv->regs_t)) {
+		ret = PTR_ERR(priv->regs_t);
+		goto out_relinquish_locality;
+	}
 
 	/*
 	 * PTT HW bug w/a: wake up the device to access
@@ -586,26 +546,13 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	pa_high = ioread32(&priv->regs_t->ctrl_cmd_pa_high);
 	pa_low  = ioread32(&priv->regs_t->ctrl_cmd_pa_low);
 	cmd_pa = ((u64)pa_high << 32) | pa_low;
-	cmd_size = ioread32(&priv->regs_t->ctrl_cmd_size);
-
-	iores = NULL;
-	iobase_ptr = NULL;
-	for (i = 0; iores_array[i].end; ++i) {
-		if (cmd_pa >= iores_array[i].start &&
-		    cmd_pa <= iores_array[i].end) {
-			iores = iores_array + i;
-			iobase_ptr = iobase_array + i;
-			break;
-		}
-	}
-
-	if (iores)
-		cmd_size = crb_fixup_cmd_size(dev, iores, cmd_pa, cmd_size);
+	cmd_size = crb_fixup_cmd_size(dev, &io_res, cmd_pa,
+				      ioread32(&priv->regs_t->ctrl_cmd_size));
 
 	dev_dbg(dev, "cmd_hi = %X cmd_low = %X cmd_size %X\n",
 		pa_high, pa_low, cmd_size);
 
-	priv->cmd = crb_map_res(dev, iores, iobase_ptr,	cmd_pa, cmd_size);
+	priv->cmd = crb_map_res(dev, priv, &io_res, cmd_pa, cmd_size);
 	if (IS_ERR(priv->cmd)) {
 		ret = PTR_ERR(priv->cmd);
 		goto out;
@@ -613,25 +560,11 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 
 	memcpy_fromio(&__rsp_pa, &priv->regs_t->ctrl_rsp_pa, 8);
 	rsp_pa = le64_to_cpu(__rsp_pa);
-	rsp_size = ioread32(&priv->regs_t->ctrl_rsp_size);
-
-	iores = NULL;
-	iobase_ptr = NULL;
-	for (i = 0; resource_type(iores_array + i) == IORESOURCE_MEM; ++i) {
-		if (rsp_pa >= iores_array[i].start &&
-		    rsp_pa <= iores_array[i].end) {
-			iores = iores_array + i;
-			iobase_ptr = iobase_array + i;
-			break;
-		}
-	}
-
-	if (iores)
-		rsp_size = crb_fixup_cmd_size(dev, iores, rsp_pa, rsp_size);
+	rsp_size = crb_fixup_cmd_size(dev, &io_res, rsp_pa,
+				      ioread32(&priv->regs_t->ctrl_rsp_size));
 
 	if (cmd_pa != rsp_pa) {
-		priv->rsp = crb_map_res(dev, iores, iobase_ptr,
-					rsp_pa, rsp_size);
+		priv->rsp = crb_map_res(dev, priv, &io_res, rsp_pa, rsp_size);
 		ret = PTR_ERR_OR_ZERO(priv->rsp);
 		goto out;
 	}

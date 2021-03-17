@@ -128,17 +128,8 @@ qedr_iw_issue_event(void *context,
 	if (params->cm_info) {
 		event.ird = params->cm_info->ird;
 		event.ord = params->cm_info->ord;
-		/* Only connect_request and reply have valid private data
-		 * the rest of the events this may be left overs from
-		 * connection establishment. CONNECT_REQUEST is issued via
-		 * qedr_iw_mpa_request
-		 */
-		if (event_type == IW_CM_EVENT_CONNECT_REPLY) {
-			event.private_data_len =
-				params->cm_info->private_data_len;
-			event.private_data =
-				(void *)params->cm_info->private_data;
-		}
+		event.private_data_len = params->cm_info->private_data_len;
+		event.private_data = (void *)params->cm_info->private_data;
 	}
 
 	if (ep->cm_id)
@@ -460,10 +451,10 @@ qedr_addr6_resolve(struct qedr_dev *dev,
 
 	if ((!dst) || dst->error) {
 		if (dst) {
+			dst_release(dst);
 			DP_ERR(dev,
 			       "ip6_route_output returned dst->error = %d\n",
 			       dst->error);
-			dst_release(dst);
 		}
 		return -EINVAL;
 	}
@@ -501,8 +492,6 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int i;
 
 	qp = idr_find(&dev->qpidr.idr, conn_param->qpn);
-	if (unlikely(!qp))
-		return -EINVAL;
 
 	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
 	raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
@@ -677,7 +666,6 @@ int qedr_iw_destroy_listen(struct iw_cm_id *cm_id)
 						    listener->qed_handle);
 
 	cm_id->rem_ref(cm_id);
-	kfree(listener);
 	return rc;
 }
 

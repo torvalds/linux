@@ -36,12 +36,10 @@
 #define __LINUX_REGULATOR_CONSUMER_H_
 
 #include <linux/err.h>
-#include <linux/suspend.h>
 
 struct device;
 struct notifier_block;
 struct regmap;
-struct regulator_dev;
 
 /*
  * Regulator operating modes.
@@ -283,14 +281,6 @@ int regulator_unregister_notifier(struct regulator *regulator,
 void devm_regulator_unregister_notifier(struct regulator *regulator,
 					struct notifier_block *nb);
 
-/* regulator suspend */
-int regulator_suspend_enable(struct regulator_dev *rdev,
-			     suspend_state_t state);
-int regulator_suspend_disable(struct regulator_dev *rdev,
-			      suspend_state_t state);
-int regulator_set_suspend_voltage(struct regulator *regulator, int min_uV,
-				  int max_uV, suspend_state_t state);
-
 /* driver data - core doesn't touch */
 void *regulator_get_drvdata(struct regulator *regulator);
 void regulator_set_drvdata(struct regulator *regulator, void *data);
@@ -518,7 +508,7 @@ static inline int regulator_get_error_flags(struct regulator *regulator,
 
 static inline int regulator_set_load(struct regulator *regulator, int load_uA)
 {
-	return 0;
+	return REGULATOR_MODE_NORMAL;
 }
 
 static inline int regulator_allow_bypass(struct regulator *regulator,

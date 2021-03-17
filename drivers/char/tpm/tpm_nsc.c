@@ -226,7 +226,7 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 	}
 	outb(NSC_COMMAND_EOC, priv->base + NSC_COMMAND);
 
-	return 0;
+	return count;
 }
 
 static void tpm_nsc_cancel(struct tpm_chip *chip)

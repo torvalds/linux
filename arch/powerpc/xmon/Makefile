@@ -1,20 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for xmon
 
-subdir-ccflags-$(CONFIG_PPC_WERROR) += -Werror
+subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 GCOV_PROFILE := n
 UBSAN_SANITIZE := n
 
 # Disable ftrace for the entire directory
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
-KBUILD_CFLAGS = $(subst $(CC_FLAGS_FTRACE),,$(ORIG_CFLAGS))
-
-ifdef CONFIG_CC_IS_CLANG
-# clang stores addresses on the stack causing the frame size to blow
-# out. See https://github.com/ClangBuiltLinux/linux/issues/252
-KBUILD_CFLAGS += -Wframe-larger-than=4096
-endif
+KBUILD_CFLAGS = $(subst -mno-sched-epilog,,$(subst $(CC_FLAGS_FTRACE),,$(ORIG_CFLAGS)))
 
 ccflags-$(CONFIG_PPC64) := $(NO_MINIMAL_TOC)
 

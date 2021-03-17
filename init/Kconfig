@@ -19,18 +19,9 @@ config GCC_VERSION
 config CC_IS_CLANG
 	def_bool $(success,$(CC) --version | head -n 1 | grep -q clang)
 
-config LD_IS_LLD
-	def_bool $(success,$(LD) -v | head -n 1 | grep -q LLD)
-
 config CLANG_VERSION
 	int
 	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
-
-config CC_HAS_ASM_GOTO
-	def_bool $(success,$(srctree)/scripts/gcc-goto.sh $(CC))
-
-config TOOLS_SUPPORT_RELR
-	def_bool $(success,env "CC=$(CC)" "LD=$(LD)" "NM=$(NM)" "OBJCOPY=$(OBJCOPY)" $(srctree)/scripts/tools-support-relr.sh)
 
 config CONSTRUCTORS
 	bool
@@ -335,20 +326,15 @@ config AUDIT
 	help
 	  Enable auditing infrastructure that can be used with another
 	  kernel subsystem, such as SELinux (which requires this for
-	  logging of avc messages output). Does not do system-call
-	  auditing without CONFIG_AUDITSYSCALL.
+	  logging of avc messages output).  System call auditing is included
+	  on architectures which support it.
 
 config HAVE_ARCH_AUDITSYSCALL
 	bool
 
 config AUDITSYSCALL
-	bool "Enable system-call auditing support"
+	def_bool y
 	depends on AUDIT && HAVE_ARCH_AUDITSYSCALL
-	default y if SECURITY_SELINUX
-	help
-	  Enable low-overhead system-call auditing infrastructure that
-	  can be used independently or with another kernel subsystem,
-	  such as SELinux.
 
 config AUDIT_WATCH
 	def_bool y
@@ -429,11 +415,6 @@ config IRQ_TIME_ACCOUNTING
 
 	  If in doubt, say N here.
 
-config HAVE_SCHED_AVG_IRQ
-	def_bool y
-	depends on IRQ_TIME_ACCOUNTING || PARAVIRT_TIME_ACCOUNTING
-	depends on SMP
-
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
 	depends on MULTIUSER
@@ -504,45 +485,6 @@ config TASK_IO_ACCOUNTING
 
 	  Say N if unsure.
 
-config PSI
-	bool "Pressure stall information tracking"
-	help
-	  Collect metrics that indicate how overcommitted the CPU, memory,
-	  and IO capacity are in the system.
-
-	  If you say Y here, the kernel will create /proc/pressure/ with the
-	  pressure statistics files cpu, memory, and io. These will indicate
-	  the share of walltime in which some or all tasks in the system are
-	  delayed due to contention of the respective resource.
-
-	  In kernels with cgroup support, cgroups (cgroup2 only) will
-	  have cpu.pressure, memory.pressure, and io.pressure files,
-	  which aggregate pressure stalls for the grouped tasks only.
-
-	  For more details see Documentation/accounting/psi.txt.
-
-	  Say N if unsure.
-
-config PSI_DEFAULT_DISABLED
-	bool "Require boot parameter to enable pressure stall information tracking"
-	default n
-	depends on PSI
-	help
-	  If set, pressure stall information tracking will be disabled
-	  per default but can be enabled through passing psi=1 on the
-	  kernel commandline during boot.
-
-	  This feature adds some code to the task wakeup and sleep
-	  paths of the scheduler. The overhead is too low to affect
-	  common scheduling-intense workloads in practice (such as
-	  webservers, memcache), but it does show up in artificial
-	  scheduler stress tests, such as hackbench.
-
-	  If you are paranoid and not sure what the kernel will be
-	  used for, say Y.
-
-	  Say N if unsure.
-
 endmenu # "CPU/Task time and stats accounting"
 
 config CPU_ISOLATION
@@ -583,19 +525,9 @@ config IKCONFIG_PROC
 	  This option enables access to the kernel configuration file
 	  through /proc/config.gz.
 
-config IKHEADERS
-	tristate "Enable kernel headers through /sys/kernel/kheaders.tar.xz"
-	depends on SYSFS
-	help
-	  This option enables access to the in-kernel headers that are generated during
-	  the build process. These can be used to build eBPF tracing programs,
-	  or similar programs.  If you build the headers as a module, a module called
-	  kheaders.ko is built which can be loaded on-demand to get access to headers.
-
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
-	range 12 25 if !H8300
-	range 12 19 if H8300
+	range 12 25
 	default 17
 	depends on PRINTK
 	help
@@ -680,59 +612,6 @@ config HAVE_UNSTABLE_SCHED_CLOCK
 
 config GENERIC_SCHED_CLOCK
 	bool
-
-menu "Scheduler features"
-
-config UCLAMP_TASK
-	bool "Enable utilization clamping for RT/FAIR tasks"
-	depends on CPU_FREQ_GOV_SCHEDUTIL
-	help
-	  This feature enables the scheduler to track the clamped utilization
-	  of each CPU based on RUNNABLE tasks scheduled on that CPU.
-
-	  With this option, the user can specify the min and max CPU
-	  utilization allowed for RUNNABLE tasks. The max utilization defines
-	  the maximum frequency a task should use while the min utilization
-	  defines the minimum frequency it should use.
-
-	  Both min and max utilization clamp values are hints to the scheduler,
-	  aiming at improving its frequency selection policy, but they do not
-	  enforce or grant any specific bandwidth for tasks.
-
-	  If in doubt, say N.
-
-config UCLAMP_BUCKETS_COUNT
-	int "Number of supported utilization clamp buckets"
-	range 5 20
-	default 5
-	depends on UCLAMP_TASK
-	help
-	  Defines the number of clamp buckets to use. The range of each bucket
-	  will be SCHED_CAPACITY_SCALE/UCLAMP_BUCKETS_COUNT. The higher the
-	  number of clamp buckets the finer their granularity and the higher
-	  the precision of clamping aggregation and tracking at run-time.
-
-	  For example, with the minimum configuration value we will have 5
-	  clamp buckets tracking 20% utilization each. A 25% boosted tasks will
-	  be refcounted in the [20..39]% bucket and will set the bucket clamp
-	  effective value to 25%.
-	  If a second 30% boosted task should be co-scheduled on the same CPU,
-	  that task will be refcounted in the same bucket of the first task and
-	  it will boost the bucket clamp effective value to 30%.
-	  The clamp effective value of a bucket is reset to its nominal value
-	  (20% in the example above) when there are no more tasks refcounted in
-	  that bucket.
-
-	  An additional boost/capping margin can be added to some tasks. In the
-	  example above the 25% task will be boosted to 30% until it exits the
-	  CPU. If that should be considered not acceptable on certain systems,
-	  it's always possible to reduce the margin by increasing the number of
-	  clamp buckets to trade off used memory for run-time tracking
-	  precision.
-
-	  If in doubt, use the default value.
-
-endmenu
 
 #
 # For architectures that want to enable the support for NUMA-affine scheduler
@@ -906,28 +785,6 @@ config RT_GROUP_SCHED
 	  See Documentation/scheduler/sched-rt-group.txt for more information.
 
 endif #CGROUP_SCHED
-
-config UCLAMP_TASK_GROUP
-	bool "Utilization clamping per group of tasks"
-	depends on CGROUP_SCHED
-	depends on UCLAMP_TASK
-	default n
-	help
-	  This feature enables the scheduler to track the clamped utilization
-	  of each CPU based on RUNNABLE tasks currently scheduled on that CPU.
-
-	  When this option is enabled, the user can specify a min and max
-	  CPU bandwidth which is allowed for each single task in a group.
-	  The max bandwidth allows to clamp the maximum frequency a task
-	  can use, while the min bandwidth allows to define a minimum
-	  frequency a task will always use.
-
-	  When task group based utilization clamping is enabled, an eventually
-	  specified task-specific clamp value is constrained by the cgroup
-	  specified clamp value. Both minimum and maximum task clamping cannot
-	  be bigger than the corresponding clamping defined at task group level.
-
-	  If in doubt, say N.
 
 config CGROUP_PIDS
 	bool "PIDs controller"
@@ -1134,30 +991,6 @@ config SCHED_AUTOGROUP
 	  desktop applications.  Task group autogeneration is currently based
 	  upon task session.
 
-config SCHED_TUNE
-	bool "Boosting for CFS tasks (EXPERIMENTAL)"
-	depends on !UCLAMP_TASK
-	depends on SMP
-	help
-	  This option enables support for task classification using a new
-	  cgroup controller, schedtune. Schedtune allows tasks to be given
-	  a boost value and marked as latency-sensitive or not. This option
-	  provides the "schedtune" controller.
-
-	  This new controller:
-	  1. allows only a two layers hierarchy, where the root defines the
-	     system-wide boost value and its direct childrens define each one a
-	     different "class of tasks" to be boosted with a different value
-	  2. supports up to 16 different task classes, each one which could be
-	     configured with a different boost value
-
-	  Latency-sensitive tasks are not subject to energy-aware wakeup
-	  task placement. The boost value assigned to tasks is used to
-	  influence task placement and CPU frequency selection (if
-	  utilization-driven frequency selection is in use).
-
-	  If unsure, say N.
-
 config SYSFS_DEPRECATED
 	bool "Enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
@@ -1227,29 +1060,7 @@ if BLK_DEV_INITRD
 
 source "usr/Kconfig"
 
-config INITRD_ASYNC
-	bool "Initrd async"
-	help
-	  Init ramdisk async, can reduce kernel init time.
-
-config ROCKCHIP_ONE_INITRD
-	bool "Detect only one initrd"
-	depends on ARCH_ROCKCHIP
-	default ARCH_ROCKCHIP
-	help
-	  RK bootloader does not put a correct size to cmdline.
-	  Directly return when we get a good initrd.
-
 endif
-
-config INITCALL_ASYNC
-	bool "Call initcall async"
-	depends on ROCKCHIP_THUNDER_BOOT
-	help
-	  Call same level initcall async in kthread.
-	  Kernel parameter "initcall_nr_threads" control how many threads.
-	  initcall_nr_threads default is 0, which disable intcall async.
-	  initcall_nr_threads=-1, auto selected the number of threads.
 
 choice
 	prompt "Compiler optimization level"
@@ -1286,7 +1097,6 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 	bool "Dead code and data elimination (EXPERIMENTAL)"
 	depends on HAVE_LD_DEAD_CODE_DATA_ELIMINATION
 	depends on EXPERT
-	depends on !(FUNCTION_TRACER && CC_IS_GCC && GCC_VERSION < 40800)
 	depends on $(cc-option,-ffunction-sections -fdata-sections)
 	depends on $(ld-option,--gc-sections)
 	help
@@ -1302,6 +1112,9 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 	  own risk.
 
 config SYSCTL
+	bool
+
+config ANON_INODES
 	bool
 
 config HAVE_UID16
@@ -1508,12 +1321,14 @@ config HAVE_FUTEX_CMPXCHG
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT
 	default y
+	select ANON_INODES
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for epoll family of system calls.
 
 config SIGNALFD
 	bool "Enable signalfd() system call" if EXPERT
+	select ANON_INODES
 	default y
 	help
 	  Enable the signalfd() system call that allows to receive signals
@@ -1523,6 +1338,7 @@ config SIGNALFD
 
 config TIMERFD
 	bool "Enable timerfd() system call" if EXPERT
+	select ANON_INODES
 	default y
 	help
 	  Enable the timerfd() system call that allows to receive timer
@@ -1532,6 +1348,7 @@ config TIMERFD
 
 config EVENTFD
 	bool "Enable eventfd() system call" if EXPERT
+	select ANON_INODES
 	default y
 	help
 	  Enable the eventfd() system call that allows to receive both
@@ -1633,6 +1450,7 @@ config KALLSYMS_BASE_RELATIVE
 # syscall, maps, verifier
 config BPF_SYSCALL
 	bool "Enable bpf() system call"
+	select ANON_INODES
 	select BPF
 	select IRQ_WORK
 	default n
@@ -1649,6 +1467,7 @@ config BPF_JIT_ALWAYS_ON
 
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"
+	select ANON_INODES
 	depends on MMU
 	help
 	  Enable the userfaultfd() system call that allows to intercept and
@@ -1715,6 +1534,7 @@ config PERF_EVENTS
 	bool "Kernel performance events and counters"
 	default y if PROFILING
 	depends on HAVE_PERF_EVENTS
+	select ANON_INODES
 	select IRQ_WORK
 	select SRCU
 	help
@@ -1764,16 +1584,10 @@ config VM_EVENT_COUNTERS
 	  on EXPERT systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
 
-config SLUB_SYSFS
-	bool "Enable SLUB sysfs interface"
-	depends on SLUB && SYSFS
-	default y
-
 config SLUB_DEBUG
 	default y
 	bool "Enable SLUB debugging support" if EXPERT
 	depends on SLUB && SYSFS
-	select SLUB_SYSFS
 	help
 	  SLUB has extensive debug support features. Disabling these can
 	  result in significant savings in code size. This also disables
@@ -2154,24 +1968,11 @@ config TRIM_UNUSED_KSYMS
 
 	  If unsure, or if you need to build out-of-tree modules, say N.
 
-config UNUSED_KSYMS_WHITELIST
-	string "Whitelist of symbols to keep in ksymtab"
-	depends on TRIM_UNUSED_KSYMS
-	help
-	  By default, all unused exported symbols will be un-exported from the
-	  build when TRIM_UNUSED_KSYMS is selected.
-
-	  UNUSED_KSYMS_WHITELIST allows to whitelist symbols that must be kept
-	  exported at all times, even in absence of in-tree users. The value to
-	  set here is the path to a text file containing the list of symbols,
-	  one per line. The path can be absolute, or relative to the kernel
-	  source tree.
-
 endif # MODULES
 
 config MODULES_TREE_LOOKUP
 	def_bool y
-	depends on PERF_EVENTS || TRACING || CFI_CLANG
+	depends on PERF_EVENTS || TRACING
 
 config INIT_ALL_POSSIBLE
 	bool
@@ -2213,5 +2014,3 @@ config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
 # <asm/syscall_wrapper.h>.
 config ARCH_HAS_SYSCALL_WRAPPER
 	def_bool n
-
-source "init/Kconfig.gki"

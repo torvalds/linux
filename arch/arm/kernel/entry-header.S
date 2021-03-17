@@ -6,7 +6,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/errno.h>
 #include <asm/thread_info.h>
-#include <asm/uaccess-asm.h>
 #include <asm/v7m.h>
 
 @ Bad Abort numbers
@@ -128,8 +127,7 @@
          */
 	.macro	v7m_exception_slow_exit ret_r0
 	cpsid	i
-	ldr	lr, =exc_ret
-	ldr	lr, [lr]
+	ldr	lr, =EXC_RET_THREADMODE_PROCESSSTACK
 
 	@ read original r12, sp, lr, pc and xPSR
 	add	r12, sp, #S_IP
@@ -218,7 +216,9 @@
 	blne	trace_hardirqs_off
 #endif
 	.endif
-	uaccess_exit tsk, r0, r1
+	ldr	r1, [sp, #SVC_ADDR_LIMIT]
+	uaccess_restore
+	str	r1, [tsk, #TI_ADDR_LIMIT]
 
 #ifndef CONFIG_THUMB2_KERNEL
 	@ ARM mode SVC restore
@@ -262,7 +262,9 @@
 	@ on the stack remains correct).
 	@
 	.macro  svc_exit_via_fiq
-	uaccess_exit tsk, r0, r1
+	ldr	r1, [sp, #SVC_ADDR_LIMIT]
+	uaccess_restore
+	str	r1, [tsk, #TI_ADDR_LIMIT]
 #ifndef CONFIG_THUMB2_KERNEL
 	@ ARM mode restore
 	mov	r0, sp

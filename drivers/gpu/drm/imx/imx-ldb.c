@@ -311,19 +311,18 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
-	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 	int mux, ret;
 
 	drm_panel_disable(imx_ldb_ch->panel);
 
-	if (imx_ldb_ch == &ldb->channel[0] || dual)
+	if (imx_ldb_ch == &ldb->channel[0])
 		ldb->ldb_ctrl &= ~LDB_CH0_MODE_EN_MASK;
-	if (imx_ldb_ch == &ldb->channel[1] || dual)
+	else if (imx_ldb_ch == &ldb->channel[1])
 		ldb->ldb_ctrl &= ~LDB_CH1_MODE_EN_MASK;
 
 	regmap_write(ldb->regmap, IOMUXC_GPR2, ldb->ldb_ctrl);
 
-	if (dual) {
+	if (ldb->ldb_ctrl & LDB_SPLIT_MODE_EN) {
 		clk_disable_unprepare(ldb->clk[0]);
 		clk_disable_unprepare(ldb->clk[1]);
 	}
@@ -652,10 +651,8 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		int bus_format;
 
 		ret = of_property_read_u32(child, "reg", &i);
-		if (ret || i < 0 || i > 1) {
-			ret = -EINVAL;
-			goto free_child;
-		}
+		if (ret || i < 0 || i > 1)
+			return -EINVAL;
 
 		if (!of_device_is_available(child))
 			continue;
@@ -668,6 +665,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		channel = &imx_ldb->channel[i];
 		channel->ldb = imx_ldb;
 		channel->chno = i;
+		channel->child = child;
 
 		/*
 		 * The output port is port@4 with an external 4-port mux or
@@ -677,13 +675,13 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 						  imx_ldb->lvds_mux ? 4 : 2, 0,
 						  &channel->panel, &channel->bridge);
 		if (ret && ret != -ENODEV)
-			goto free_child;
+			return ret;
 
 		/* panel ddc only if there is no bridge */
 		if (!channel->bridge) {
 			ret = imx_ldb_panel_ddc(dev, channel, child);
 			if (ret)
-				goto free_child;
+				return ret;
 		}
 
 		bus_format = of_get_bus_format(dev, child);
@@ -699,26 +697,18 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		if (bus_format < 0) {
 			dev_err(dev, "could not determine data mapping: %d\n",
 				bus_format);
-			ret = bus_format;
-			goto free_child;
+			return bus_format;
 		}
 		channel->bus_format = bus_format;
-		channel->child = child;
 
 		ret = imx_ldb_register(drm, channel);
-		if (ret) {
-			channel->child = NULL;
-			goto free_child;
-		}
+		if (ret)
+			return ret;
 	}
 
 	dev_set_drvdata(dev, imx_ldb);
 
 	return 0;
-
-free_child:
-	of_node_put(child);
-	return ret;
 }
 
 static void imx_ldb_unbind(struct device *dev, struct device *master,

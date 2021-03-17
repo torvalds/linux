@@ -373,7 +373,7 @@ struct clk *davinci_pll_clk_register(struct device *dev,
 	char pllout_name[MAX_NAME_SIZE];
 	char postdiv_name[MAX_NAME_SIZE];
 	char pllen_name[MAX_NAME_SIZE];
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	struct davinci_pll_clk *pllout;
 	struct davinci_pllen_clk *pllen;
 	struct clk *oscin_clk = NULL;
@@ -491,7 +491,7 @@ struct clk *davinci_pll_clk_register(struct device *dev,
 		parent_name = postdiv_name;
 	}
 
-	pllen = kzalloc(sizeof(*pllen), GFP_KERNEL);
+	pllen = kzalloc(sizeof(*pllout), GFP_KERNEL);
 	if (!pllen) {
 		ret = -ENOMEM;
 		goto err_unregister_postdiv;

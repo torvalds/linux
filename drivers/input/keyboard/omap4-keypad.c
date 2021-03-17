@@ -60,18 +60,8 @@
 
 /* OMAP4 values */
 #define OMAP4_VAL_IRQDISABLE		0x0
-
-/*
- * Errata i689: If a key is released for a time shorter than debounce time,
- * the keyboard will idle and never detect the key release. The workaround
- * is to use at least a 12ms debounce time. See omap5432 TRM chapter
- * "26.4.6.2 Keyboard Controller Timer" for more information.
- */
-#define OMAP4_KEYPAD_PTV_DIV_128        0x6
-#define OMAP4_KEYPAD_DEBOUNCINGTIME_MS(dbms, ptv)     \
-	((((dbms) * 1000) / ((1 << ((ptv) + 1)) * (1000000 / 32768))) - 1)
-#define OMAP4_VAL_DEBOUNCINGTIME_16MS					\
-	OMAP4_KEYPAD_DEBOUNCINGTIME_MS(16, OMAP4_KEYPAD_PTV_DIV_128)
+#define OMAP4_VAL_DEBOUNCINGTIME	0x7
+#define OMAP4_VAL_PVT			0x7
 
 enum {
 	KBD_REVISION_OMAP4 = 0,
@@ -126,8 +116,12 @@ static irqreturn_t omap4_keypad_irq_handler(int irq, void *dev_id)
 {
 	struct omap4_keypad *keypad_data = dev_id;
 
-	if (kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS))
+	if (kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS)) {
+		/* Disable interrupts */
+		kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
+				 OMAP4_VAL_IRQDISABLE);
 		return IRQ_WAKE_THREAD;
+	}
 
 	return IRQ_NONE;
 }
@@ -169,6 +163,11 @@ static irqreturn_t omap4_keypad_irq_thread_fn(int irq, void *dev_id)
 	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
 			 kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS));
 
+	/* enable interrupts */
+	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
+		OMAP4_DEF_IRQENABLE_EVENTEN |
+				OMAP4_DEF_IRQENABLE_LONGKEY);
+
 	return IRQ_HANDLED;
 }
 
@@ -182,9 +181,9 @@ static int omap4_keypad_open(struct input_dev *input)
 
 	kbd_writel(keypad_data, OMAP4_KBD_CTRL,
 			OMAP4_DEF_CTRL_NOSOFTMODE |
-			(OMAP4_KEYPAD_PTV_DIV_128 << OMAP4_DEF_CTRL_PTV_SHIFT));
+			(OMAP4_VAL_PVT << OMAP4_DEF_CTRL_PTV_SHIFT));
 	kbd_writel(keypad_data, OMAP4_KBD_DEBOUNCINGTIME,
-			OMAP4_VAL_DEBOUNCINGTIME_16MS);
+			OMAP4_VAL_DEBOUNCINGTIME);
 	/* clear pending interrupts */
 	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
 			 kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS));
@@ -199,25 +198,20 @@ static int omap4_keypad_open(struct input_dev *input)
 	return 0;
 }
 
-static void omap4_keypad_stop(struct omap4_keypad *keypad_data)
+static void omap4_keypad_close(struct input_dev *input)
 {
-	/* Disable interrupts and wake-up events */
+	struct omap4_keypad *keypad_data = input_get_drvdata(input);
+
+	disable_irq(keypad_data->irq);
+
+	/* Disable interrupts */
 	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
 			 OMAP4_VAL_IRQDISABLE);
-	kbd_writel(keypad_data, OMAP4_KBD_WAKEUPENABLE, 0);
 
 	/* clear pending interrupts */
 	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
 			 kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS));
-}
 
-static void omap4_keypad_close(struct input_dev *input)
-{
-	struct omap4_keypad *keypad_data;
-
-	keypad_data = input_get_drvdata(input);
-	disable_irq(keypad_data->irq);
-	omap4_keypad_stop(keypad_data);
 	enable_irq(keypad_data->irq);
 
 	pm_runtime_put_sync(input->dev.parent);
@@ -240,37 +234,13 @@ static int omap4_keypad_parse_dt(struct device *dev,
 	return 0;
 }
 
-static int omap4_keypad_check_revision(struct device *dev,
-				       struct omap4_keypad *keypad_data)
-{
-	unsigned int rev;
-
-	rev = __raw_readl(keypad_data->base + OMAP4_KBD_REVISION);
-	rev &= 0x03 << 30;
-	rev >>= 30;
-	switch (rev) {
-	case KBD_REVISION_OMAP4:
-		keypad_data->reg_offset = 0x00;
-		keypad_data->irqreg_offset = 0x00;
-		break;
-	case KBD_REVISION_OMAP5:
-		keypad_data->reg_offset = 0x10;
-		keypad_data->irqreg_offset = 0x0c;
-		break;
-	default:
-		dev_err(dev, "Keypad reports unsupported revision %d", rev);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int omap4_keypad_probe(struct platform_device *pdev)
 {
 	struct omap4_keypad *keypad_data;
 	struct input_dev *input_dev;
 	struct resource *res;
 	unsigned int max_keys;
+	int rev;
 	int irq;
 	int error;
 
@@ -281,8 +251,10 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
+	if (!irq) {
+		dev_err(&pdev->dev, "no keyboard irq assigned\n");
+		return -EINVAL;
+	}
 
 	keypad_data = kzalloc(sizeof(struct omap4_keypad), GFP_KERNEL);
 	if (!keypad_data) {
@@ -310,33 +282,41 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 		goto err_release_mem;
 	}
 
-	pm_runtime_enable(&pdev->dev);
 
 	/*
 	 * Enable clocks for the keypad module so that we can read
 	 * revision register.
 	 */
+	pm_runtime_enable(&pdev->dev);
 	error = pm_runtime_get_sync(&pdev->dev);
 	if (error) {
 		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
-		pm_runtime_put_noidle(&pdev->dev);
-	} else {
-		error = omap4_keypad_check_revision(&pdev->dev,
-						    keypad_data);
-		if (!error) {
-			/* Ensure device does not raise interrupts */
-			omap4_keypad_stop(keypad_data);
-		}
-		pm_runtime_put_sync(&pdev->dev);
+		goto err_unmap;
 	}
-	if (error)
-		goto err_pm_disable;
+	rev = __raw_readl(keypad_data->base + OMAP4_KBD_REVISION);
+	rev &= 0x03 << 30;
+	rev >>= 30;
+	switch (rev) {
+	case KBD_REVISION_OMAP4:
+		keypad_data->reg_offset = 0x00;
+		keypad_data->irqreg_offset = 0x00;
+		break;
+	case KBD_REVISION_OMAP5:
+		keypad_data->reg_offset = 0x10;
+		keypad_data->irqreg_offset = 0x0c;
+		break;
+	default:
+		dev_err(&pdev->dev,
+			"Keypad reports unsupported revision %d", rev);
+		error = -EINVAL;
+		goto err_pm_put_sync;
+	}
 
 	/* input device allocation */
 	keypad_data->input = input_dev = input_allocate_device();
 	if (!input_dev) {
 		error = -ENOMEM;
-		goto err_pm_disable;
+		goto err_pm_put_sync;
 	}
 
 	input_dev->name = pdev->name;
@@ -375,32 +355,35 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	}
 
 	error = request_threaded_irq(keypad_data->irq, omap4_keypad_irq_handler,
-				     omap4_keypad_irq_thread_fn, IRQF_ONESHOT,
+				     omap4_keypad_irq_thread_fn, 0,
 				     "omap4-keypad", keypad_data);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register interrupt\n");
 		goto err_free_keymap;
 	}
 
+	device_init_wakeup(&pdev->dev, true);
+	pm_runtime_put_sync(&pdev->dev);
+
 	error = input_register_device(keypad_data->input);
 	if (error < 0) {
 		dev_err(&pdev->dev, "failed to register input device\n");
-		goto err_free_irq;
+		goto err_pm_disable;
 	}
 
-	device_init_wakeup(&pdev->dev, true);
 	platform_set_drvdata(pdev, keypad_data);
-
 	return 0;
 
-err_free_irq:
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
 	free_irq(keypad_data->irq, keypad_data);
 err_free_keymap:
 	kfree(keypad_data->keymap);
 err_free_input:
 	input_free_device(input_dev);
-err_pm_disable:
-	pm_runtime_disable(&pdev->dev);
+err_pm_put_sync:
+	pm_runtime_put_sync(&pdev->dev);
+err_unmap:
 	iounmap(keypad_data->base);
 err_release_mem:
 	release_mem_region(res->start, resource_size(res));

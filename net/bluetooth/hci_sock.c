@@ -831,7 +831,7 @@ static int hci_sock_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
-	lock_sock(sk);
+	hdev = hci_pi(sk)->hdev;
 
 	switch (hci_pi(sk)->channel) {
 	case HCI_CHANNEL_MONITOR:
@@ -854,7 +854,6 @@ static int hci_sock_release(struct socket *sock)
 
 	bt_sock_unlink(&hci_sk_list, sk);
 
-	hdev = hci_pi(sk)->hdev;
 	if (hdev) {
 		if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
 			/* When releasing a user channel exclusive access,
@@ -880,7 +879,6 @@ static int hci_sock_release(struct socket *sock)
 	skb_queue_purge(&sk->sk_receive_queue);
 	skb_queue_purge(&sk->sk_write_queue);
 
-	release_sock(sk);
 	sock_put(sk);
 	return 0;
 }

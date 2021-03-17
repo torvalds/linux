@@ -218,12 +218,7 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
 				   bool pairwise, const u8 *mac_addr)
 {
-	int max_key_idx = 5;
-
-	if (wiphy_ext_feature_isset(&rdev->wiphy,
-				    NL80211_EXT_FEATURE_BEACON_PROTECTION))
-		max_key_idx = 7;
-	if (key_idx < 0 || key_idx > max_key_idx)
+	if (key_idx < 0 || key_idx > 5)
 		return -EINVAL;
 
 	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
@@ -542,7 +537,7 @@ __frame_add_frag(struct sk_buff *skb, struct page *page,
 	struct skb_shared_info *sh = skb_shinfo(skb);
 	int page_offset;
 
-	get_page(page);
+	page_ref_inc(page);
 	page_offset = ptr - page_address(page);
 	skb_add_rx_frag(skb, sh->nr_frags, page, page_offset, len, size);
 }
@@ -935,7 +930,6 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		}
 
 		cfg80211_process_rdev_events(rdev);
-		cfg80211_mlme_purge_registrations(dev->ieee80211_ptr);
 	}
 
 	err = rdev_change_virtual_intf(rdev, dev, ntype, params);
@@ -1015,7 +1009,7 @@ static u32 cfg80211_calculate_bitrate_ht(struct rate_info *rate)
 	return (bitrate + 50000) / 100000;
 }
 
-static u32 cfg80211_calculate_bitrate_dmg(struct rate_info *rate)
+static u32 cfg80211_calculate_bitrate_60g(struct rate_info *rate)
 {
 	static const u32 __mcs2bitrate[] = {
 		/* control PHY */
@@ -1060,40 +1054,6 @@ static u32 cfg80211_calculate_bitrate_dmg(struct rate_info *rate)
 		return 0;
 
 	return __mcs2bitrate[rate->mcs];
-}
-
-static u32 cfg80211_calculate_bitrate_edmg(struct rate_info *rate)
-{
-	static const u32 __mcs2bitrate[] = {
-		/* control PHY */
-		[0] =   275,
-		/* SC PHY */
-		[1] =  3850,
-		[2] =  7700,
-		[3] =  9625,
-		[4] = 11550,
-		[5] = 12512, /* 1251.25 mbps */
-		[6] = 13475,
-		[7] = 15400,
-		[8] = 19250,
-		[9] = 23100,
-		[10] = 25025,
-		[11] = 26950,
-		[12] = 30800,
-		[13] = 38500,
-		[14] = 46200,
-		[15] = 50050,
-		[16] = 53900,
-		[17] = 57750,
-		[18] = 69300,
-		[19] = 75075,
-		[20] = 80850,
-	};
-
-	if (WARN_ON_ONCE(rate->mcs >= ARRAY_SIZE(__mcs2bitrate)))
-		return 0;
-
-	return __mcs2bitrate[rate->mcs] * rate->n_bonded_ch;
 }
 
 static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
@@ -1259,17 +1219,15 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 	if (rate->he_dcm)
 		result /= 2;
 
-	return result / 10000;
+	return result;
 }
 
 u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
 	if (rate->flags & RATE_INFO_FLAGS_MCS)
 		return cfg80211_calculate_bitrate_ht(rate);
-	if (rate->flags & RATE_INFO_FLAGS_DMG)
-		return cfg80211_calculate_bitrate_dmg(rate);
-	if (rate->flags & RATE_INFO_FLAGS_EDMG)
-		return cfg80211_calculate_bitrate_edmg(rate);
+	if (rate->flags & RATE_INFO_FLAGS_60G)
+		return cfg80211_calculate_bitrate_60g(rate);
 	if (rate->flags & RATE_INFO_FLAGS_VHT_MCS)
 		return cfg80211_calculate_bitrate_vht(rate);
 	if (rate->flags & RATE_INFO_FLAGS_HE_MCS)
@@ -1460,8 +1418,6 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 							  ies[pos + ext],
 							  ext == 2))
 					pos = skip_ie(ies, ielen, pos);
-				else
-					break;
 			}
 		} else {
 			pos = skip_ie(ies, ielen, pos);
@@ -1712,7 +1668,7 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 	for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
 		num_interfaces += params->iftype_num[iftype];
 		if (params->iftype_num[iftype] > 0 &&
-		    !cfg80211_iftype_allowed(wiphy, iftype, 0, 1))
+		    !(wiphy->software_iftypes & BIT(iftype)))
 			used_iftypes |= BIT(iftype);
 	}
 
@@ -1734,7 +1690,7 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 			return -ENOMEM;
 
 		for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
-			if (cfg80211_iftype_allowed(wiphy, iftype, 0, 1))
+			if (wiphy->software_iftypes & BIT(iftype))
 				continue;
 			for (j = 0; j < c->n_limits; j++) {
 				all_iftypes |= limits[j].types;
@@ -1937,71 +1893,3 @@ EXPORT_SYMBOL(rfc1042_header);
 const unsigned char bridge_tunnel_header[] __aligned(2) =
 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 EXPORT_SYMBOL(bridge_tunnel_header);
-
-bool cfg80211_iftype_allowed(struct wiphy *wiphy, enum nl80211_iftype iftype,
-			     bool is_4addr, u8 check_swif)
-
-{
-	bool is_vlan = iftype == NL80211_IFTYPE_AP_VLAN;
-
-	switch (check_swif) {
-	case 0:
-		if (is_vlan && is_4addr)
-			return wiphy->flags & WIPHY_FLAG_4ADDR_AP;
-		return wiphy->interface_modes & BIT(iftype);
-	case 1:
-		if (!(wiphy->software_iftypes & BIT(iftype)) && is_vlan)
-			return wiphy->flags & WIPHY_FLAG_4ADDR_AP;
-		return wiphy->software_iftypes & BIT(iftype);
-	default:
-		break;
-	}
-
-	return false;
-}
-EXPORT_SYMBOL(cfg80211_iftype_allowed);
-
-/* Layer 2 Update frame (802.2 Type 1 LLC XID Update response) */
-struct iapp_layer2_update {
-	u8 da[ETH_ALEN];	/* broadcast */
-	u8 sa[ETH_ALEN];	/* STA addr */
-	__be16 len;		/* 6 */
-	u8 dsap;		/* 0 */
-	u8 ssap;		/* 0 */
-	u8 control;
-	u8 xid_info[3];
-} __packed;
-
-void cfg80211_send_layer2_update(struct net_device *dev, const u8 *addr)
-{
-	struct iapp_layer2_update *msg;
-	struct sk_buff *skb;
-
-	/* Send Level 2 Update Frame to update forwarding tables in layer 2
-	 * bridge devices */
-
-	skb = dev_alloc_skb(sizeof(*msg));
-	if (!skb)
-		return;
-	msg = skb_put(skb, sizeof(*msg));
-
-	/* 802.2 Type 1 Logical Link Control (LLC) Exchange Identifier (XID)
-	 * Update response frame; IEEE Std 802.2-1998, 5.4.1.2.1 */
-
-	eth_broadcast_addr(msg->da);
-	ether_addr_copy(msg->sa, addr);
-	msg->len = htons(6);
-	msg->dsap = 0;
-	msg->ssap = 0x01;	/* NULL LSAP, CR Bit: Response */
-	msg->control = 0xaf;	/* XID response lsb.1111F101.
-				 * F=0 (no poll command; unsolicited frame) */
-	msg->xid_info[0] = 0x81;	/* XID format identifier */
-	msg->xid_info[1] = 1;	/* LLC types/classes: Type 1 LLC */
-	msg->xid_info[2] = 0;	/* XID sender's receive window size (RW) */
-
-	skb->dev = dev;
-	skb->protocol = eth_type_trans(skb, dev);
-	memset(skb->cb, 0, sizeof(skb->cb));
-	netif_rx_ni(skb);
-}
-EXPORT_SYMBOL(cfg80211_send_layer2_update);

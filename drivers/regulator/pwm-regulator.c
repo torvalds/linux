@@ -285,7 +285,7 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 		return ret;
 	}
 
-	drvdata->state			= -ENOTRECOVERABLE;
+	drvdata->state			= -EINVAL;
 	drvdata->duty_cycle_table	= duty_cycle_table;
 	memcpy(&drvdata->ops, &pwm_regulator_voltage_table_ops,
 	       sizeof(drvdata->ops));
@@ -410,21 +410,7 @@ static struct platform_driver pwm_regulator_driver = {
 	.probe = pwm_regulator_probe,
 };
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-static int __init pwm_regulator_driver_init(void)
-{
-	return platform_driver_register(&pwm_regulator_driver);
-}
-subsys_initcall_sync(pwm_regulator_driver_init);
-
-static void __exit pwm_regulator_driver_exit(void)
-{
-	platform_driver_unregister(&pwm_regulator_driver);
-}
-module_exit(pwm_regulator_driver_exit);
-#else
 module_platform_driver(pwm_regulator_driver);
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lee Jones <lee.jones@linaro.org>");

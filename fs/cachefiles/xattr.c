@@ -135,8 +135,7 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 	struct dentry *dentry = object->dentry;
 	int ret;
 
-	if (!dentry)
-		return -ESTALE;
+	ASSERT(dentry);
 
 	_enter("%p,#%d", object, auxdata->len);
 

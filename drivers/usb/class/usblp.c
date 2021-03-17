@@ -274,25 +274,8 @@ static int usblp_ctrl_msg(struct usblp *usblp, int request, int type, int dir, i
 #define usblp_reset(usblp)\
 	usblp_ctrl_msg(usblp, USBLP_REQ_RESET, USB_TYPE_CLASS, USB_DIR_OUT, USB_RECIP_OTHER, 0, NULL, 0)
 
-static int usblp_hp_channel_change_request(struct usblp *usblp, int channel, u8 *new_channel)
-{
-	u8 *buf;
-	int ret;
-
-	buf = kzalloc(1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = usblp_ctrl_msg(usblp, USBLP_REQ_HP_CHANNEL_CHANGE_REQUEST,
-			USB_TYPE_VENDOR, USB_DIR_IN, USB_RECIP_INTERFACE,
-			channel, buf, 1);
-	if (ret == 0)
-		*new_channel = buf[0];
-
-	kfree(buf);
-
-	return ret;
-}
+#define usblp_hp_channel_change_request(usblp, channel, buffer) \
+	usblp_ctrl_msg(usblp, USBLP_REQ_HP_CHANNEL_CHANGE_REQUEST, USB_TYPE_VENDOR, USB_DIR_IN, USB_RECIP_INTERFACE, channel, buffer, 1)
 
 /*
  * See the description for usblp_select_alts() below for the usage
@@ -462,7 +445,6 @@ static void usblp_cleanup(struct usblp *usblp)
 	kfree(usblp->readbuf);
 	kfree(usblp->device_id_string);
 	kfree(usblp->statusbuf);
-	usb_put_intf(usblp->intf);
 	kfree(usblp);
 }
 
@@ -479,14 +461,11 @@ static int usblp_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&usblp_mutex);
 	usblp->used = 0;
-	if (usblp->present)
+	if (usblp->present) {
 		usblp_unlink_urbs(usblp);
-
-	usb_autopm_put_interface(usblp->intf);
-
-	if (!usblp->present)		/* finish cleanup from disconnect */
-		usblp_cleanup(usblp);	/* any URBs must be dead */
-
+		usb_autopm_put_interface(usblp->intf);
+	} else		/* finish cleanup from disconnect */
+		usblp_cleanup(usblp);
 	mutex_unlock(&usblp_mutex);
 	return 0;
 }
@@ -844,11 +823,6 @@ static ssize_t usblp_read(struct file *file, char __user *buffer, size_t len, lo
 	if (rv < 0)
 		return rv;
 
-	if (!usblp->present) {
-		count = -ENODEV;
-		goto done;
-	}
-
 	if ((avail = usblp->rstatus) < 0) {
 		printk(KERN_ERR "usblp%d: error %d reading from printer\n",
 		    usblp->minor, (int)avail);
@@ -1131,7 +1105,7 @@ static int usblp_probe(struct usb_interface *intf,
 	init_waitqueue_head(&usblp->wwait);
 	init_usb_anchor(&usblp->urbs);
 	usblp->ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
-	usblp->intf = usb_get_intf(intf);
+	usblp->intf = intf;
 
 	/* Malloc device ID string buffer to the largest expected length,
 	 * since we can re-query it on an ioctl and a dynamic string
@@ -1220,7 +1194,6 @@ abort:
 	kfree(usblp->readbuf);
 	kfree(usblp->statusbuf);
 	kfree(usblp->device_id_string);
-	usb_put_intf(usblp->intf);
 	kfree(usblp);
 abort_ret:
 	return retval;
@@ -1398,11 +1371,9 @@ static void usblp_disconnect(struct usb_interface *intf)
 
 	usblp_unlink_urbs(usblp);
 	mutex_unlock(&usblp->mut);
-	usb_poison_anchored_urbs(&usblp->urbs);
 
 	if (!usblp->used)
 		usblp_cleanup(usblp);
-
 	mutex_unlock(&usblp_mutex);
 }
 

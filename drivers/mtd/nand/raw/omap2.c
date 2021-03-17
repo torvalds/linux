@@ -1938,7 +1938,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 	case NAND_OMAP_PREFETCH_DMA:
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
-		info->dma = dma_request_chan(dev->parent, "rxtx");
+		info->dma = dma_request_chan(dev, "rxtx");
 
 		if (IS_ERR(info->dma)) {
 			dev_err(dev, "DMA engine request failed\n");
@@ -2254,7 +2254,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	/* scan NAND device connected to chip controller */
 	nand_chip->options |= info->devsize & NAND_BUSWIDTH_16;
 
-	err = nand_scan(nand_chip, 1);
+	err = nand_scan(mtd, 1);
 	if (err)
 		goto return_error;
 
@@ -2290,7 +2290,7 @@ static int omap_nand_remove(struct platform_device *pdev)
 	}
 	if (info->dma)
 		dma_release_channel(info->dma);
-	nand_release(nand_chip);
+	nand_release(mtd);
 	return 0;
 }
 

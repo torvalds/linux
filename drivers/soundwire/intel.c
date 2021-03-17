@@ -282,16 +282,6 @@ intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num, bool pcm)
 
 	if (pcm) {
 		count = intel_readw(shim, SDW_SHIM_PCMSYCHC(link_id, pdi_num));
-
-		/*
-		 * WORKAROUND: on all existing Intel controllers, pdi
-		 * number 2 reports channel count as 1 even though it
-		 * supports 8 channels. Performing hardcoding for pdi
-		 * number 2.
-		 */
-		if (pdi_num == 2)
-			count = 7;
-
 	} else {
 		count = intel_readw(shim, SDW_SHIM_PDMSCAP(link_id));
 		count = ((count & SDW_SHIM_PDMSCAP_CPSS) >>
@@ -352,10 +342,7 @@ intel_pdi_shim_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 	unsigned int link_id = sdw->instance;
 	int pdi_conf = 0;
 
-	/* the Bulk and PCM streams are not contiguous */
-	pdi->intel_alh_id = (link_id * 16) + pdi->num + 3;
-	if (pdi->num >= 2)
-		pdi->intel_alh_id += 2;
+	pdi->intel_alh_id = (link_id * 16) + pdi->num + 5;
 
 	/*
 	 * Program stream parameters to stream SHIM register
@@ -384,10 +371,7 @@ intel_pdi_alh_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 	unsigned int link_id = sdw->instance;
 	unsigned int conf;
 
-	/* the Bulk and PCM streams are not contiguous */
-	pdi->intel_alh_id = (link_id * 16) + pdi->num + 3;
-	if (pdi->num >= 2)
-		pdi->intel_alh_id += 2;
+	pdi->intel_alh_id = (link_id * 16) + pdi->num + 5;
 
 	/* Program Stream config ALH register */
 	conf = intel_readl(alh, SDW_ALH_STRMZCFG(pdi->intel_alh_id));
@@ -667,8 +651,8 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 				return -ENOMEM;
 			}
 
-			dais[i].capture.channels_min = 1;
-			dais[i].capture.channels_max = max_ch;
+			dais[i].playback.channels_min = 1;
+			dais[i].playback.channels_max = max_ch;
 			dais[i].capture.rates = SNDRV_PCM_RATE_48000;
 			dais[i].capture.formats = SNDRV_PCM_FMTBIT_S16_LE;
 		}

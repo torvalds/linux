@@ -158,8 +158,6 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 	cpu_dp->orig_ethtool_ops = NULL;
 }
 
-static struct lock_class_key dsa_master_addr_list_lock_key;
-
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
 	/* If we use a tagging format that doesn't have an ethertype
@@ -169,8 +167,6 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 	wmb();
 
 	dev->dsa_ptr = cpu_dp;
-	lockdep_set_class(&dev->addr_list_lock,
-			  &dsa_master_addr_list_lock_key);
 
 	return dsa_master_ethtool_setup(dev);
 }

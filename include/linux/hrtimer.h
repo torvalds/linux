@@ -15,14 +15,13 @@
 #ifndef _LINUX_HRTIMER_H
 #define _LINUX_HRTIMER_H
 
-#include <linux/hrtimer_defs.h>
 #include <linux/rbtree.h>
+#include <linux/ktime.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/percpu.h>
 #include <linux/timer.h>
 #include <linux/timerqueue.h>
-#include <linux/android_kabi.h>
 
 struct hrtimer_clock_base;
 struct hrtimer_cpu_base;
@@ -116,8 +115,6 @@ struct hrtimer {
 	u8				state;
 	u8				is_rel;
 	u8				is_soft;
-
-	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -304,11 +301,25 @@ struct clock_event_device;
 
 extern void hrtimer_interrupt(struct clock_event_device *dev);
 
+/*
+ * The resolution of the clocks. The resolution value is returned in
+ * the clock_getres() system call to give application programmers an
+ * idea of the (in)accuracy of timers. Timer values are rounded up to
+ * this resolution values.
+ */
+# define HIGH_RES_NSEC		1
+# define KTIME_HIGH_RES		(HIGH_RES_NSEC)
+# define MONOTONIC_RES_NSEC	HIGH_RES_NSEC
+# define KTIME_MONOTONIC_RES	KTIME_HIGH_RES
+
 extern void clock_was_set_delayed(void);
 
 extern unsigned int hrtimer_resolution;
 
 #else
+
+# define MONOTONIC_RES_NSEC	LOW_RES_NSEC
+# define KTIME_MONOTONIC_RES	KTIME_LOW_RES
 
 #define hrtimer_resolution	(unsigned int)LOW_RES_NSEC
 
@@ -419,18 +430,12 @@ extern u64 hrtimer_next_event_without(const struct hrtimer *exclude);
 
 extern bool hrtimer_active(const struct hrtimer *timer);
 
-/**
- * hrtimer_is_queued = check, whether the timer is on one of the queues
- * @timer:	Timer to check
- *
- * Returns: True if the timer is queued, false otherwise
- *
- * The function can be used lockless, but it gives only a current snapshot.
+/*
+ * Helper function to check, whether the timer is on one of the queues
  */
-static inline bool hrtimer_is_queued(struct hrtimer *timer)
+static inline int hrtimer_is_queued(struct hrtimer *timer)
 {
-	/* The READ_ONCE pairs with the update functions of timer->state */
-	return !!(READ_ONCE(timer->state) & HRTIMER_STATE_ENQUEUED);
+	return timer->state & HRTIMER_STATE_ENQUEUED;
 }
 
 /*

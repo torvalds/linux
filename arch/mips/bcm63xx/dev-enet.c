@@ -70,8 +70,6 @@ static struct platform_device bcm63xx_enet_shared_device = {
 
 static int shared_device_registered;
 
-static u64 enet_dmamask = DMA_BIT_MASK(32);
-
 static struct resource enet0_res[] = {
 	{
 		.start		= -1, /* filled at runtime */
@@ -101,8 +99,6 @@ static struct platform_device bcm63xx_enet0_device = {
 	.resource	= enet0_res,
 	.dev		= {
 		.platform_data = &enet0_pd,
-		.dma_mask = &enet_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -135,8 +131,6 @@ static struct platform_device bcm63xx_enet1_device = {
 	.resource	= enet1_res,
 	.dev		= {
 		.platform_data = &enet1_pd,
-		.dma_mask = &enet_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -163,8 +157,6 @@ static struct platform_device bcm63xx_enetsw_device = {
 	.resource	= enetsw_res,
 	.dev		= {
 		.platform_data = &enetsw_pd,
-		.dma_mask = &enet_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 

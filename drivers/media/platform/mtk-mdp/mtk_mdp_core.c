@@ -118,9 +118,7 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 	mutex_init(&mdp->vpulock);
 
 	/* Old dts had the components as child nodes */
-	node = of_get_next_child(dev->of_node, NULL);
-	if (node) {
-		of_node_put(node);
+	if (of_get_next_child(dev->of_node, NULL)) {
 		parent = dev->of_node;
 		dev_warn(dev, "device tree is out of date\n");
 	} else {

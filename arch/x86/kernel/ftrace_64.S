@@ -9,7 +9,6 @@
 #include <asm/export.h>
 #include <asm/nospec-branch.h>
 #include <asm/unwind_hints.h>
-#include <asm/frame.h>
 
 	.code64
 	.section .entry.text, "ax"
@@ -172,6 +171,9 @@ GLOBAL(ftrace_call)
 	restore_mcount_regs
 
 	/*
+	 * The copied trampoline must call ftrace_epilogue as it
+	 * still may need to call the function graph tracer.
+	 *
 	 * The code up to this label is copied into trampolines so
 	 * think twice before adding any new code or changing the
 	 * layout here.
@@ -183,10 +185,7 @@ GLOBAL(ftrace_graph_call)
 	jmp ftrace_stub
 #endif
 
-/*
- * This is weak to keep gas from relaxing the jumps.
- * It is also used to copy the retq for trampolines.
- */
+/* This is weak to keep gas from relaxing the jumps */
 WEAK(ftrace_stub)
 	retq
 ENDPROC(ftrace_caller)
@@ -222,8 +221,6 @@ GLOBAL(ftrace_regs_caller_op_ptr)
 	/* Stack - skipping return address and flags */
 	leaq MCOUNT_REG_SIZE+8*2(%rsp), %rcx
 	movq %rcx, RSP(%rsp)
-
-	ENCODE_FRAME_POINTER
 
 	/* regs go into 4th parameter */
 	leaq (%rsp), %rcx

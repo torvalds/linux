@@ -13,7 +13,6 @@
 #include <linux/cred.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
-#include <linux/fs_struct.h>
 #include <linux/workqueue.h>
 #include <linux/security.h>
 #include <linux/mount.h>
@@ -72,14 +71,6 @@ static int call_usermodehelper_exec_async(void *data)
 	spin_lock_irq(&current->sighand->siglock);
 	flush_signal_handlers(current, 1);
 	spin_unlock_irq(&current->sighand->siglock);
-
-	/*
-	 * Initial kernel threads share ther FS with init, in order to
-	 * get the init root directory. But we've now created a new
-	 * thread that is going to execve a user process and has its own
-	 * 'struct fs_struct'. Reset umask to the default.
-	 */
-	current->fs->umask = 0022;
 
 	/*
 	 * Our parent (unbound workqueue) runs with elevated scheduling
@@ -531,11 +522,6 @@ EXPORT_SYMBOL_GPL(fork_usermode_blob);
  * Runs a user-space application.  The application is started
  * asynchronously if wait is not set, and runs as a child of system workqueues.
  * (ie. it runs with full root capabilities and optimized affinity).
- *
- * Note: successful return value does not guarantee the helper was called at
- * all. You can't rely on sub_info->{init,cleanup} being called even for
- * UMH_WAIT_* wait modes as STATIC_USERMODEHELPER_PATH="" turns all helpers
- * into a successful no-op.
  */
 int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 {

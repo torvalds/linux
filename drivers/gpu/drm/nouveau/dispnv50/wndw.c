@@ -151,7 +151,7 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 	if (asyw->set.point) {
 		if (asyw->set.point = false, asyw->set.mask)
 			interlock[wndw->interlock.type] |= wndw->interlock.data;
-		interlock[NV50_DISP_INTERLOCK_WIMM] |= wndw->interlock.wimm;
+		interlock[NV50_DISP_INTERLOCK_WIMM] |= wndw->interlock.data;
 
 		wndw->immd->point(wndw, asyw);
 		wndw->immd->update(wndw, interlock);
@@ -405,8 +405,6 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 		asyw->clr.ntfy = armw->ntfy.handle != 0;
 		asyw->clr.sema = armw->sema.handle != 0;
 		asyw->clr.xlut = armw->xlut.handle != 0;
-		if (asyw->clr.xlut && asyw->visible)
-			asyw->set.xlut = asyw->xlut.handle != 0;
 		if (wndw->func->image_clr)
 			asyw->clr.image = armw->image.handle[0] != 0;
 	}

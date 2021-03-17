@@ -115,12 +115,12 @@ static void nf_ct_sack_block_adjust(struct sk_buff *skb,
 /* TCP SACK sequence number adjustment */
 static unsigned int nf_ct_sack_adjust(struct sk_buff *skb,
 				      unsigned int protoff,
+				      struct tcphdr *tcph,
 				      struct nf_conn *ct,
 				      enum ip_conntrack_info ctinfo)
 {
-	struct tcphdr *tcph = (void *)skb->data + protoff;
-	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
 	unsigned int dir, optoff, optend;
+	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
 
 	optoff = protoff + sizeof(struct tcphdr);
 	optend = protoff + tcph->doff * 4;
@@ -128,7 +128,6 @@ static unsigned int nf_ct_sack_adjust(struct sk_buff *skb,
 	if (!skb_make_writable(skb, optend))
 		return 0;
 
-	tcph = (void *)skb->data + protoff;
 	dir = CTINFO2DIR(ctinfo);
 
 	while (optoff < optend) {
@@ -208,7 +207,7 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 		 ntohl(newack));
 	tcph->ack_seq = newack;
 
-	res = nf_ct_sack_adjust(skb, protoff, ct, ctinfo);
+	res = nf_ct_sack_adjust(skb, protoff, tcph, ct, ctinfo);
 out:
 	spin_unlock_bh(&ct->lock);
 

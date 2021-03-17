@@ -95,7 +95,7 @@ int cg_read_strcmp(const char *cgroup, const char *control,
 
 	/* Handle the case of comparing against empty string */
 	if (!expected)
-		return -1;
+		size = 32;
 	else
 		size = strlen(expected) + 1;
 
@@ -181,7 +181,8 @@ int cg_find_unified_root(char *root, size_t len)
 		strtok(NULL, delim);
 		strtok(NULL, delim);
 
-		if (strcmp(type, "cgroup2") == 0) {
+		if (strcmp(fs, "cgroup") == 0 &&
+		    strcmp(type, "cgroup2") == 0) {
 			strncpy(root, mount, len);
 			return 0;
 		}

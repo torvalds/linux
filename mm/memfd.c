@@ -34,33 +34,31 @@ static void memfd_tag_pins(struct address_space *mapping)
 	void __rcu **slot;
 	pgoff_t start;
 	struct page *page;
-	unsigned int tagged = 0;
 
 	lru_add_drain();
 	start = 0;
+	rcu_read_lock();
 
-	xa_lock_irq(&mapping->i_pages);
 	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
-		page = radix_tree_deref_slot_protected(slot, &mapping->i_pages.xa_lock);
+		page = radix_tree_deref_slot(slot);
 		if (!page || radix_tree_exception(page)) {
 			if (radix_tree_deref_retry(page)) {
 				slot = radix_tree_iter_retry(&iter);
 				continue;
 			}
 		} else if (page_count(page) - page_mapcount(page) > 1) {
+			xa_lock_irq(&mapping->i_pages);
 			radix_tree_tag_set(&mapping->i_pages, iter.index,
 					   MEMFD_TAG_PINNED);
+			xa_unlock_irq(&mapping->i_pages);
 		}
 
-		if (++tagged % 1024)
-			continue;
-
-		slot = radix_tree_iter_resume(slot, &iter);
-		xa_unlock_irq(&mapping->i_pages);
-		cond_resched();
-		xa_lock_irq(&mapping->i_pages);
+		if (need_resched()) {
+			slot = radix_tree_iter_resume(slot, &iter);
+			cond_resched_rcu();
+		}
 	}
-	xa_unlock_irq(&mapping->i_pages);
+	rcu_read_unlock();
 }
 
 /*
@@ -152,8 +150,7 @@ static unsigned int *memfd_file_seals_ptr(struct file *file)
 #define F_ALL_SEALS (F_SEAL_SEAL | \
 		     F_SEAL_SHRINK | \
 		     F_SEAL_GROW | \
-		     F_SEAL_WRITE | \
-		     F_SEAL_FUTURE_WRITE)
+		     F_SEAL_WRITE)
 
 static int memfd_add_seals(struct file *file, unsigned int seals)
 {

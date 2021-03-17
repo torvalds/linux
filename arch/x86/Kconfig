@@ -18,7 +18,6 @@ config X86_32
 	select HAVE_GENERIC_DMA_COHERENT
 	select MODULES_USE_ELF_REL
 	select OLD_SIGACTION
-	select GENERIC_VDSO_32
 
 config X86_64
 	def_bool y
@@ -47,6 +46,7 @@ config X86
 	#
 	select ACPI_LEGACY_TABLES_LOOKUP	if ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT	if ACPI
+	select ANON_INODES
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
@@ -78,7 +78,6 @@ config X86
 	select ARCH_SUPPORTS_ACPI
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
-	select ARCH_SUPPORTS_LTO_CLANG		if X86_64
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
@@ -113,7 +112,6 @@ config X86
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select GENERIC_TIME_VSYSCALL
-	select GENERIC_GETTIMEOFDAY
 	select HARDLOCKUP_CHECK_TIMESTAMP	if X86_64
 	select HAVE_ACPI_APEI			if ACPI
 	select HAVE_ACPI_APEI_NMI		if ACPI
@@ -126,7 +124,7 @@ config X86
 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
 	select HAVE_ARCH_COMPAT_MMAP_BASES	if MMU && COMPAT
-	select HAVE_ARCH_PREL32_RELOCATIONS	if !LTO_CLANG
+	select HAVE_ARCH_PREL32_RELOCATIONS
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	select HAVE_ARCH_TRACEHOOK
@@ -187,12 +185,11 @@ config X86
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RELIABLE_STACKTRACE		if X86_64 && (UNWINDER_FRAME_POINTER || UNWINDER_ORC) && STACK_VALIDATION
 	select HAVE_STACKPROTECTOR		if CC_HAS_SANE_STACKPROTECTOR
-	select HAVE_STACK_VALIDATION		if X86_64 && !LTO_CLANG
+	select HAVE_STACK_VALIDATION		if X86_64
 	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
-	select HAVE_GENERIC_VDSO
 	select HOTPLUG_SMT			if SMP
 	select IRQ_FORCED_THREADING
 	select NEED_SG_DMA_LENGTH
@@ -443,6 +440,10 @@ config RETPOLINE
 	  kernel-to-user data leaks by avoiding speculative indirect
 	  branches. Requires a compiler with -mindirect-branch=thunk-extern
 	  support for full protection. The kernel may run slower.
+
+	  Without compiler support, at least indirect branches in assembler
+	  code are eliminated. Since this includes the syscall entry path,
+	  it is not entirely pointless.
 
 config INTEL_RDT
 	bool "Intel Resource Director Technology support"
@@ -1004,7 +1005,13 @@ config NR_CPUS
 	  to the kernel image.
 
 config SCHED_SMT
-	def_bool y if SMP
+	bool "SMT (Hyperthreading) scheduler support"
+	depends on SMP
+	---help---
+	  SMT scheduler support improves the CPU scheduler's decision making
+	  when dealing with Intel Pentium 4 chips with HyperThreading at a
+	  cost of slightly increased overhead in some places. If unsure say
+	  N here.
 
 config SCHED_MC
 	def_bool y
@@ -1906,51 +1913,6 @@ config X86_INTEL_MEMORY_PROTECTION_KEYS
 
 	  If unsure, say y.
 
-choice
-	prompt "TSX enable mode"
-	depends on CPU_SUP_INTEL
-	default X86_INTEL_TSX_MODE_OFF
-	help
-	  Intel's TSX (Transactional Synchronization Extensions) feature
-	  allows to optimize locking protocols through lock elision which
-	  can lead to a noticeable performance boost.
-
-	  On the other hand it has been shown that TSX can be exploited
-	  to form side channel attacks (e.g. TAA) and chances are there
-	  will be more of those attacks discovered in the future.
-
-	  Therefore TSX is not enabled by default (aka tsx=off). An admin
-	  might override this decision by tsx=on the command line parameter.
-	  Even with TSX enabled, the kernel will attempt to enable the best
-	  possible TAA mitigation setting depending on the microcode available
-	  for the particular machine.
-
-	  This option allows to set the default tsx mode between tsx=on, =off
-	  and =auto. See Documentation/admin-guide/kernel-parameters.txt for more
-	  details.
-
-	  Say off if not sure, auto if TSX is in use but it should be used on safe
-	  platforms or on if TSX is in use and the security aspect of tsx is not
-	  relevant.
-
-config X86_INTEL_TSX_MODE_OFF
-	bool "off"
-	help
-	  TSX is disabled if possible - equals to tsx=off command line parameter.
-
-config X86_INTEL_TSX_MODE_ON
-	bool "on"
-	help
-	  TSX is always enabled on TSX capable HW - equals the tsx=on command
-	  line parameter.
-
-config X86_INTEL_TSX_MODE_AUTO
-	bool "auto"
-	help
-	  TSX is enabled on TSX capable HW that is believed to be safe against
-	  side channel attacks- equals the tsx=auto command line parameter.
-endchoice
-
 config EFI
 	bool "EFI runtime service support"
 	depends on ACPI
@@ -2247,8 +2209,14 @@ config RANDOMIZE_MEMORY_PHYSICAL_PADDING
 	   If unsure, leave at the default value.
 
 config HOTPLUG_CPU
-	def_bool y
+	bool "Support for hot-pluggable CPUs"
 	depends on SMP
+	---help---
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+	  ( Note: power management support will enable this option
+	    automatically on SMP systems. )
+	  Say N if you want to disable CPU hotplug.
 
 config BOOTPARAM_HOTPLUG_CPU0
 	bool "Set default setting of cpu0_hotpluggable"
@@ -2774,7 +2742,8 @@ config OLPC
 
 config OLPC_XO1_PM
 	bool "OLPC XO-1 Power Management"
-	depends on OLPC && MFD_CS5535=y && PM_SLEEP
+	depends on OLPC && MFD_CS5535 && PM_SLEEP
+	select MFD_CORE
 	---help---
 	  Add support for poweroff and suspend of the OLPC XO-1 laptop.
 

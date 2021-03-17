@@ -561,8 +561,13 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	int			 root_block;
 	unsigned long		 mount_flags;
 	int			 res = 0;
+	char			*new_opts;
 	char			 volume[32];
 	char			*prefix = NULL;
+
+	new_opts = kstrdup(data, GFP_KERNEL);
+	if (data && !new_opts)
+		return -ENOMEM;
 
 	pr_debug("%s(flags=0x%x,opts=\"%s\")\n", __func__, *flags, data);
 
@@ -574,6 +579,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 			   &blocksize, &prefix, volume,
 			   &mount_flags)) {
 		kfree(prefix);
+		kfree(new_opts);
 		return -EINVAL;
 	}
 

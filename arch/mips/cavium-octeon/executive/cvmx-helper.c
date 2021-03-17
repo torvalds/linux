@@ -67,7 +67,7 @@ void (*cvmx_override_pko_queue_priority) (int pko_port,
 void (*cvmx_override_ipd_port_setup) (int ipd_port);
 
 /* Port count per interface */
-static int interface_port_count[9];
+static int interface_port_count[5];
 
 /**
  * Return the number of interfaces the chip has. Each interface
@@ -286,8 +286,7 @@ static cvmx_helper_interface_mode_t __cvmx_get_mode_cn7xxx(int interface)
 	case 3:
 		return CVMX_HELPER_INTERFACE_MODE_LOOP;
 	case 4:
-		/* TODO: Implement support for AGL (RGMII). */
-		return CVMX_HELPER_INTERFACE_MODE_DISABLED;
+		return CVMX_HELPER_INTERFACE_MODE_RGMII;
 	default:
 		return CVMX_HELPER_INTERFACE_MODE_DISABLED;
 	}

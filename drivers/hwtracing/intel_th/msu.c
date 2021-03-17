@@ -84,7 +84,6 @@ struct msc_iter {
  * @reg_base:		register window base address
  * @thdev:		intel_th_device pointer
  * @win_list:		list of windows in multiblock mode
- * @single_sgt:		single mode buffer
  * @nr_pages:		total number of pages allocated for this buffer
  * @single_sz:		amount of data in single mode
  * @single_wrap:	single mode wrap occurred
@@ -105,7 +104,6 @@ struct msc {
 	struct intel_th_device	*thdev;
 
 	struct list_head	win_list;
-	struct sg_table		single_sgt;
 	unsigned long		nr_pages;
 	unsigned long		single_sz;
 	unsigned int		single_wrap : 1;
@@ -491,7 +489,7 @@ static int msc_configure(struct msc *msc)
 	lockdep_assert_held(&msc->buf_mutex);
 
 	if (msc->mode > MSC_MODE_MULTI)
-		return -EINVAL;
+		return -ENOTSUPP;
 
 	if (msc->mode == MSC_MODE_MULTI)
 		msc_buffer_clear_hw_header(msc);
@@ -619,45 +617,22 @@ static void intel_th_msc_deactivate(struct intel_th_device *thdev)
  */
 static int msc_buffer_contig_alloc(struct msc *msc, unsigned long size)
 {
-	unsigned long nr_pages = size >> PAGE_SHIFT;
 	unsigned int order = get_order(size);
 	struct page *page;
-	int ret;
 
 	if (!size)
 		return 0;
 
-	ret = sg_alloc_table(&msc->single_sgt, 1, GFP_KERNEL);
-	if (ret)
-		goto err_out;
-
-	ret = -ENOMEM;
-	page = alloc_pages(GFP_KERNEL | __GFP_ZERO | GFP_DMA32, order);
+	page = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!page)
-		goto err_free_sgt;
+		return -ENOMEM;
 
 	split_page(page, order);
-	sg_set_buf(msc->single_sgt.sgl, page_address(page), size);
-
-	ret = dma_map_sg(msc_dev(msc)->parent->parent, msc->single_sgt.sgl, 1,
-			 DMA_FROM_DEVICE);
-	if (ret < 0)
-		goto err_free_pages;
-
-	msc->nr_pages = nr_pages;
+	msc->nr_pages = size >> PAGE_SHIFT;
 	msc->base = page_address(page);
-	msc->base_addr = sg_dma_address(msc->single_sgt.sgl);
+	msc->base_addr = page_to_phys(page);
 
 	return 0;
-
-err_free_pages:
-	__free_pages(page, order);
-
-err_free_sgt:
-	sg_free_table(&msc->single_sgt);
-
-err_out:
-	return ret;
 }
 
 /**
@@ -667,10 +642,6 @@ err_out:
 static void msc_buffer_contig_free(struct msc *msc)
 {
 	unsigned long off;
-
-	dma_unmap_sg(msc_dev(msc)->parent->parent, msc->single_sgt.sgl,
-		     1, DMA_FROM_DEVICE);
-	sg_free_table(&msc->single_sgt);
 
 	for (off = 0; off < msc->nr_pages << PAGE_SHIFT; off += PAGE_SIZE) {
 		struct page *page = virt_to_page(msc->base + off);
@@ -942,7 +913,7 @@ static int msc_buffer_alloc(struct msc *msc, unsigned long *nr_pages,
 	} else if (msc->mode == MSC_MODE_MULTI) {
 		ret = msc_buffer_multi_alloc(msc, nr_pages, nr_wins);
 	} else {
-		ret = -EINVAL;
+		ret = -ENOTSUPP;
 	}
 
 	if (!ret) {
@@ -1165,7 +1136,7 @@ static ssize_t intel_th_msc_read(struct file *file, char __user *buf,
 		if (ret >= 0)
 			*ppos = iter->offset;
 	} else {
-		ret = -EINVAL;
+		ret = -ENOTSUPP;
 	}
 
 put_count:
@@ -1452,8 +1423,7 @@ nr_pages_store(struct device *dev, struct device_attribute *attr,
 		if (!end)
 			break;
 
-		/* consume the number and the following comma, hence +1 */
-		len -= end - p + 1;
+		len -= end - p;
 		p = end + 1;
 	} while (len);
 

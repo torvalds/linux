@@ -90,7 +90,6 @@ struct fs {
 	const char * const	*mounts;
 	char			 path[PATH_MAX];
 	bool			 found;
-	bool			 checked;
 	long			 magic;
 };
 
@@ -112,37 +111,31 @@ static struct fs fs__entries[] = {
 		.name	= "sysfs",
 		.mounts	= sysfs__fs_known_mountpoints,
 		.magic	= SYSFS_MAGIC,
-		.checked = false,
 	},
 	[FS__PROCFS] = {
 		.name	= "proc",
 		.mounts	= procfs__known_mountpoints,
 		.magic	= PROC_SUPER_MAGIC,
-		.checked = false,
 	},
 	[FS__DEBUGFS] = {
 		.name	= "debugfs",
 		.mounts	= debugfs__known_mountpoints,
 		.magic	= DEBUGFS_MAGIC,
-		.checked = false,
 	},
 	[FS__TRACEFS] = {
 		.name	= "tracefs",
 		.mounts	= tracefs__known_mountpoints,
 		.magic	= TRACEFS_MAGIC,
-		.checked = false,
 	},
 	[FS__HUGETLBFS] = {
 		.name	= "hugetlbfs",
 		.mounts = hugetlbfs__known_mountpoints,
 		.magic	= HUGETLBFS_MAGIC,
-		.checked = false,
 	},
 	[FS__BPF_FS] = {
 		.name	= "bpf",
 		.mounts = bpf_fs__known_mountpoints,
 		.magic	= BPF_FS_MAGIC,
-		.checked = false,
 	},
 };
 
@@ -165,7 +158,6 @@ static bool fs__read_mounts(struct fs *fs)
 	}
 
 	fclose(fp);
-	fs->checked = true;
 	return fs->found = found;
 }
 
@@ -218,7 +210,6 @@ static bool fs__env_override(struct fs *fs)
 	size_t name_len = strlen(fs->name);
 	/* name + "_PATH" + '\0' */
 	char upper_name[name_len + 5 + 1];
-
 	memcpy(upper_name, fs->name, name_len);
 	mem_toupper(upper_name, name_len);
 	strcpy(&upper_name[name_len], "_PATH");
@@ -228,9 +219,7 @@ static bool fs__env_override(struct fs *fs)
 		return false;
 
 	fs->found = true;
-	fs->checked = true;
-	strncpy(fs->path, override_path, sizeof(fs->path) - 1);
-	fs->path[sizeof(fs->path) - 1] = '\0';
+	strncpy(fs->path, override_path, sizeof(fs->path));
 	return true;
 }
 
@@ -254,14 +243,6 @@ static const char *fs__mountpoint(int idx)
 
 	if (fs->found)
 		return (const char *)fs->path;
-
-	/* the mount point was already checked for the mount point
-	 * but and did not exist, so return NULL to avoid scanning again.
-	 * This makes the found and not found paths cost equivalent
-	 * in case of multiple calls.
-	 */
-	if (fs->checked)
-		return NULL;
 
 	return fs__get_mountpoint(fs);
 }

@@ -131,7 +131,7 @@ TRACE_EVENT(in_packet_without_header,
 		__entry->index = index;
 	),
 	TP_printk(
-		"%02u %04u %04x %04x %02d %03u %02u %03u %02u %01u %02u",
+		"%02u %04u %04x %04x %02d %03u %3u %3u %02u %01u %02u",
 		__entry->second,
 		__entry->cycle,
 		__entry->src,
@@ -169,7 +169,7 @@ TRACE_EVENT(out_packet_without_header,
 		__entry->dest = fw_parent_device(s->unit)->node_id;
 		__entry->payload_quadlets = payload_length / 4;
 		__entry->data_blocks = data_blocks,
-		__entry->data_block_counter = s->data_block_counter,
+		__entry->data_blocks = s->data_block_counter,
 		__entry->packet_index = s->packet_index;
 		__entry->irq = !!in_interrupt();
 		__entry->index = index;

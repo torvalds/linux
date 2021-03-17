@@ -248,14 +248,12 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *idev = pf->indio_dev;
 	struct at91_adc_state *st = iio_priv(idev);
-	struct iio_chan_spec const *chan;
 	int i, j = 0;
 
 	for (i = 0; i < idev->masklength; i++) {
 		if (!test_bit(i, idev->active_scan_mask))
 			continue;
-		chan = idev->channels + i;
-		st->buffer[j] = at91_adc_readl(st, AT91_ADC_CHAN(st, chan->channel));
+		st->buffer[j] = at91_adc_readl(st, AT91_ADC_CHAN(st, i));
 		j++;
 	}
 
@@ -281,8 +279,6 @@ static void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 		iio_trigger_poll(idev->trig);
 	} else {
 		st->last_value = at91_adc_readl(st, AT91_ADC_CHAN(st, st->chnb));
-		/* Needed to ACK the DRDY interruption */
-		at91_adc_readl(st, AT91_ADC_LCDR);
 		st->done = true;
 		wake_up_interruptible(&st->wq_data_avail);
 	}
@@ -704,29 +700,23 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 		ret = wait_event_interruptible_timeout(st->wq_data_avail,
 						       st->done,
 						       msecs_to_jiffies(1000));
+		if (ret == 0)
+			ret = -ETIMEDOUT;
+		if (ret < 0) {
+			mutex_unlock(&st->lock);
+			return ret;
+		}
 
-		/* Disable interrupts, regardless if adc conversion was
-		 * successful or not
-		 */
+		*val = st->last_value;
+
 		at91_adc_writel(st, AT91_ADC_CHDR,
 				AT91_ADC_CH(chan->channel));
 		at91_adc_writel(st, AT91_ADC_IDR, BIT(chan->channel));
 
-		if (ret > 0) {
-			/* a valid conversion took place */
-			*val = st->last_value;
-			st->last_value = 0;
-			st->done = false;
-			ret = IIO_VAL_INT;
-		} else if (ret == 0) {
-			/* conversion timeout */
-			dev_err(&idev->dev, "ADC Channel %d timeout.\n",
-				chan->channel);
-			ret = -ETIMEDOUT;
-		}
-
+		st->last_value = 0;
+		st->done = false;
 		mutex_unlock(&st->lock);
-		return ret;
+		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->vref_mv;

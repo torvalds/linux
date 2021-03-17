@@ -196,11 +196,6 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
 #ifdef CONFIG_HAVE_ARCH_PFN_VALID
 int pfn_valid(unsigned long pfn)
 {
-	phys_addr_t addr = __pfn_to_phys(pfn);
-
-	if (__phys_to_pfn(addr) != pfn)
-		return 0;
-
 	return memblock_is_map_memory(__pfn_to_phys(pfn));
 }
 EXPORT_SYMBOL(pfn_valid);
@@ -357,7 +352,7 @@ static inline void poison_init_mem(void *s, size_t count)
 		*p++ = 0xe7fddef0;
 }
 
-static inline void __init
+static inline void
 free_memmap(unsigned long start_pfn, unsigned long end_pfn)
 {
 	struct page *start_pg, *end_pg;
@@ -543,10 +538,10 @@ void __init mem_init(void)
 #ifdef CONFIG_MODULES
 			"    modules : 0x%08lx - 0x%08lx   (%4ld MB)\n"
 #endif
-			"      .text : 0x%px" " - 0x%px" "   (%4td kB)\n"
-			"      .init : 0x%px" " - 0x%px" "   (%4td kB)\n"
-			"      .data : 0x%px" " - 0x%px" "   (%4td kB)\n"
-			"       .bss : 0x%px" " - 0x%px" "   (%4td kB)\n",
+			"      .text : 0x%p" " - 0x%p" "   (%4td kB)\n"
+			"      .init : 0x%p" " - 0x%p" "   (%4td kB)\n"
+			"      .data : 0x%p" " - 0x%p" "   (%4td kB)\n"
+			"       .bss : 0x%p" " - 0x%p" "   (%4td kB)\n",
 
 			MLK(VECTORS_BASE, VECTORS_BASE + PAGE_SIZE),
 #ifdef CONFIG_HAVE_TCM
@@ -718,8 +713,7 @@ static void update_sections_early(struct section_perm perms[], int n)
 		if (t->flags & PF_KTHREAD)
 			continue;
 		for_each_thread(t, s)
-			if (s->mm)
-				set_section_perms(perms, n, true, s->mm);
+			set_section_perms(perms, n, true, s->mm);
 	}
 	set_section_perms(perms, n, true, current->active_mm);
 	set_section_perms(perms, n, true, &init_mm);

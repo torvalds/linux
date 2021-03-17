@@ -81,17 +81,12 @@ static void qed_vf_pf_req_end(struct qed_hwfn *p_hwfn, int req_status)
 	mutex_unlock(&(p_hwfn->vf_iov_info->mutex));
 }
 
-#define QED_VF_CHANNEL_USLEEP_ITERATIONS	90
-#define QED_VF_CHANNEL_USLEEP_DELAY		100
-#define QED_VF_CHANNEL_MSLEEP_ITERATIONS	10
-#define QED_VF_CHANNEL_MSLEEP_DELAY		25
-
 static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done, u32 resp_size)
 {
 	union vfpf_tlvs *p_req = p_hwfn->vf_iov_info->vf2pf_request;
 	struct ustorm_trigger_vf_zone trigger;
 	struct ustorm_vf_zone *zone_data;
-	int iter, rc = 0;
+	int rc = 0, time = 100;
 
 	zone_data = (struct ustorm_vf_zone *)PXP_VF_BAR0_START_USDM_ZONE_B;
 
@@ -131,19 +126,11 @@ static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done, u32 resp_size)
 	REG_WR(p_hwfn, (uintptr_t)&zone_data->trigger, *((u32 *)&trigger));
 
 	/* When PF would be done with the response, it would write back to the
-	 * `done' address from a coherent DMA zone. Poll until then.
+	 * `done' address. Poll until then.
 	 */
-
-	iter = QED_VF_CHANNEL_USLEEP_ITERATIONS;
-	while (!*done && iter--) {
-		udelay(QED_VF_CHANNEL_USLEEP_DELAY);
-		dma_rmb();
-	}
-
-	iter = QED_VF_CHANNEL_MSLEEP_ITERATIONS;
-	while (!*done && iter--) {
-		msleep(QED_VF_CHANNEL_MSLEEP_DELAY);
-		dma_rmb();
+	while ((!*done) && time) {
+		msleep(25);
+		time--;
 	}
 
 	if (!*done) {
@@ -274,7 +261,6 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 	struct pfvf_acquire_resp_tlv *resp = &p_iov->pf2vf_reply->acquire_resp;
 	struct pf_vf_pfdev_info *pfdev_info = &resp->pfdev_info;
 	struct vf_pf_resc_request *p_resc;
-	u8 retry_cnt = VF_ACQUIRE_THRESH;
 	bool resources_acquired = false;
 	struct vfpf_acquire_tlv *req;
 	int rc = 0, attempts = 0;
@@ -328,15 +314,6 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 
 		/* send acquire request */
 		rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
-
-		/* Re-try acquire in case of vf-pf hw channel timeout */
-		if (retry_cnt && rc == -EBUSY) {
-			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-				   "VF retrying to acquire due to VPC timeout\n");
-			retry_cnt--;
-			continue;
-		}
-
 		if (rc)
 			goto exit;
 
@@ -1711,7 +1688,7 @@ static void qed_handle_bulletin_change(struct qed_hwfn *hwfn)
 	ops->ports_update(cookie, vxlan_port, geneve_port);
 
 	/* Always update link configuration according to bulletin */
-	qed_link_update(hwfn, NULL);
+	qed_link_update(hwfn);
 }
 
 void qed_iov_vf_task(struct work_struct *work)

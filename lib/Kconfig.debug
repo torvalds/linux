@@ -17,17 +17,6 @@ config PRINTK_TIME
 	  The behavior is also controlled by the kernel command line
 	  parameter printk.time=1. See Documentation/admin-guide/kernel-parameters.rst
 
-config PRINTK_TIME_FROM_ARM_ARCH_TIMER
-	bool "Timing from ARM architected timer"
-	depends on PRINTK_TIME && ARM_ARCH_TIMER
-
-config PRINTK_PROCESS
-	bool "Show process information on printks"
-	depends on PRINTK
-	help
-	  Selecting this option causes process to be
-	  included in printk output. Or add printk.process=1 at boot-time.
-
 config CONSOLE_LOGLEVEL_DEFAULT
 	int "Default console loglevel (1-15)"
 	range 1 15
@@ -91,7 +80,7 @@ config DYNAMIC_DEBUG
 	bool "Enable dynamic printk() support"
 	default n
 	depends on PRINTK
-	depends on (DEBUG_FS || PROC_FS)
+	depends on DEBUG_FS
 	help
 
 	  Compiles debug level messages into the kernel, which would not
@@ -109,9 +98,8 @@ config DYNAMIC_DEBUG
 	  Usage:
 
 	  Dynamic debugging is controlled via the 'dynamic_debug/control' file,
-	  which is contained in the 'debugfs' filesystem or procfs.
-	  Thus, the debugfs or procfs filesystem must first be mounted before
-	  making use of this feature.
+	  which is contained in the 'debugfs' filesystem. Thus, the debugfs
+	  filesystem must first be mounted before making use of this feature.
 	  We refer the control file as: <debugfs>/dynamic_debug/control. This
 	  file contains a list of the debug statements that can be enabled. The
 	  format for each line of the file is:
@@ -234,6 +222,7 @@ config ENABLE_MUST_CHECK
 config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
+	default 3072 if KASAN_EXTRA
 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
 	default 1280 if (!64BIT && PARISC)
 	default 1024 if (!64BIT && !PARISC)
@@ -581,7 +570,7 @@ config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
 	int "Maximum kmemleak early log entries"
 	depends on DEBUG_KMEMLEAK
 	range 200 40000
-	default 16000
+	default 400
 	help
 	  Kmemleak must track all the memory allocations to avoid
 	  reporting false positives. Since memory may be allocated or
@@ -748,9 +737,9 @@ endmenu # "Memory Debugging"
 config ARCH_HAS_KCOV
 	bool
 	help
-	  An architecture should select this when it can successfully
-	  build and run with CONFIG_KCOV. This typically requires
-	  disabling instrumentation for some early boot code.
+	  KCOV does not have any arch-specific code, but currently it is enabled
+	  only for x86_64. KCOV requires testing on other archs, and most likely
+	  disabling of instrumentation for some early boot code.
 
 config CC_HAS_SANCOV_TRACE_PC
 	def_bool $(cc-option,-fsanitize-coverage=trace-pc)
@@ -1945,7 +1934,6 @@ config TEST_KMOD
 	depends on m
 	depends on BLOCK && (64BIT || LBDAF)	  # for XFS, BTRFS
 	depends on NETDEVICES && NET_CORE && INET # for TUN
-	depends on BLOCK
 	select TEST_LKM
 	select XFS_FS
 	select TUN
@@ -1974,24 +1962,6 @@ config TEST_DEBUG_VIRTUAL
 	  Test the kernel's ability to detect incorrect calls to
 	  virt_to_phys() done against the non-linear part of the
 	  kernel's virtual address map.
-
-	  If unsure, say N.
-
-config TEST_MEMINIT
-	tristate "Test heap/page initialization"
-	help
-	  Test if the kernel is zero-initializing heap and page allocations.
-	  This can be useful to test init_on_alloc and init_on_free features.
-
-	  If unsure, say N.
-
-config TEST_STACKINIT
-	tristate "Test level of stack variable initialization"
-	help
-	  Test if the kernel is zero-initializing stack variables and
-	  padding. Coverage is controlled by compiler flags,
-	  CONFIG_GCC_PLUGIN_STRUCTLEAK, CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF,
-	  or CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
 
 	  If unsure, say N.
 

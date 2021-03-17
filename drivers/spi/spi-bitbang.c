@@ -416,7 +416,7 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	if (ret)
 		spi_master_put(master);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(spi_bitbang_start);
 

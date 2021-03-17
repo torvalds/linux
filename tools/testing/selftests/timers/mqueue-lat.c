@@ -102,7 +102,6 @@ int main(int argc, char **argv)
 	int ret;
 
 	printf("Mqueue latency :                          ");
-	fflush(stdout);
 
 	ret = mqueue_lat_test();
 	if (ret < 0) {

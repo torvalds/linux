@@ -114,14 +114,6 @@ static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(GEN9_CLKGATE_DIS_0, I915_READ(GEN9_CLKGATE_DIS_0) |
 		   PWM1_GATING_DIS | PWM2_GATING_DIS);
-
-	/*
-	 * Lower the display internal timeout.
-	 * This is needed to avoid any hard hangs when DSI port PLL
-	 * is off and a MMIO access is attempted by any privilege
-	 * application, using batch buffers or any other means.
-	 */
-	I915_WRITE(RM_TIMEOUT, MMIO_TIMEOUT_US(950));
 }
 
 static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -2500,9 +2492,6 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 	uint32_t method1, method2;
 	int cpp;
 
-	if (mem_value == 0)
-		return U32_MAX;
-
 	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
@@ -2532,9 +2521,6 @@ static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 	uint32_t method1, method2;
 	int cpp;
 
-	if (mem_value == 0)
-		return U32_MAX;
-
 	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
@@ -2557,9 +2543,6 @@ static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 				   uint32_t mem_value)
 {
 	int cpp;
-
-	if (mem_value == 0)
-		return U32_MAX;
 
 	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
@@ -2959,8 +2942,8 @@ static void intel_print_wm_latency(struct drm_i915_private *dev_priv,
 		unsigned int latency = wm[level];
 
 		if (latency == 0) {
-			DRM_DEBUG_KMS("%s WM%d latency not provided\n",
-				      name, level);
+			DRM_ERROR("%s WM%d latency not provided\n",
+				  name, level);
 			continue;
 		}
 
@@ -3015,34 +2998,6 @@ static void snb_wm_latency_quirk(struct drm_i915_private *dev_priv)
 	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
 }
 
-static void snb_wm_lp3_irq_quirk(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * On some SNB machines (Thinkpad X220 Tablet at least)
-	 * LP3 usage can cause vblank interrupts to be lost.
-	 * The DEIIR bit will go high but it looks like the CPU
-	 * never gets interrupted.
-	 *
-	 * It's not clear whether other interrupt source could
-	 * be affected or if this is somehow limited to vblank
-	 * interrupts only. To play it safe we disable LP3
-	 * watermarks entirely.
-	 */
-	if (dev_priv->wm.pri_latency[3] == 0 &&
-	    dev_priv->wm.spr_latency[3] == 0 &&
-	    dev_priv->wm.cur_latency[3] == 0)
-		return;
-
-	dev_priv->wm.pri_latency[3] = 0;
-	dev_priv->wm.spr_latency[3] = 0;
-	dev_priv->wm.cur_latency[3] = 0;
-
-	DRM_DEBUG_KMS("LP3 watermarks disabled due to potential for lost interrupts\n");
-	intel_print_wm_latency(dev_priv, "Primary", dev_priv->wm.pri_latency);
-	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->wm.spr_latency);
-	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
-}
-
 static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
 	intel_read_wm_latency(dev_priv, dev_priv->wm.pri_latency);
@@ -3059,10 +3014,8 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->wm.spr_latency);
 	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
 
-	if (IS_GEN6(dev_priv)) {
+	if (IS_GEN6(dev_priv))
 		snb_wm_latency_quirk(dev_priv);
-		snb_wm_lp3_irq_quirk(dev_priv);
-	}
 }
 
 static void skl_setup_wm_latency(struct drm_i915_private *dev_priv)
@@ -8196,95 +8149,6 @@ static void intel_init_emon(struct drm_i915_private *dev_priv)
 	dev_priv->ips.corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
-static bool i915_rc6_ctx_corrupted(struct drm_i915_private *dev_priv)
-{
-	return !I915_READ(GEN8_RC6_CTX_INFO);
-}
-
-static void i915_rc6_ctx_wa_init(struct drm_i915_private *i915)
-{
-	if (!NEEDS_RC6_CTX_CORRUPTION_WA(i915))
-		return;
-
-	if (i915_rc6_ctx_corrupted(i915)) {
-		DRM_INFO("RC6 context corrupted, disabling runtime power management\n");
-		i915->gt_pm.rc6.ctx_corrupted = true;
-		intel_runtime_pm_get(i915);
-	}
-}
-
-static void i915_rc6_ctx_wa_cleanup(struct drm_i915_private *i915)
-{
-	if (i915->gt_pm.rc6.ctx_corrupted) {
-		intel_runtime_pm_put(i915);
-		i915->gt_pm.rc6.ctx_corrupted = false;
-	}
-}
-
-/**
- * i915_rc6_ctx_wa_suspend - system suspend sequence for the RC6 CTX WA
- * @i915: i915 device
- *
- * Perform any steps needed to clean up the RC6 CTX WA before system suspend.
- */
-void i915_rc6_ctx_wa_suspend(struct drm_i915_private *i915)
-{
-	if (i915->gt_pm.rc6.ctx_corrupted)
-		intel_runtime_pm_put(i915);
-}
-
-/**
- * i915_rc6_ctx_wa_resume - system resume sequence for the RC6 CTX WA
- * @i915: i915 device
- *
- * Perform any steps needed to re-init the RC6 CTX WA after system resume.
- */
-void i915_rc6_ctx_wa_resume(struct drm_i915_private *i915)
-{
-	if (!i915->gt_pm.rc6.ctx_corrupted)
-		return;
-
-	if (i915_rc6_ctx_corrupted(i915)) {
-		intel_runtime_pm_get(i915);
-		return;
-	}
-
-	DRM_INFO("RC6 context restored, re-enabling runtime power management\n");
-	i915->gt_pm.rc6.ctx_corrupted = false;
-}
-
-static void intel_disable_rc6(struct drm_i915_private *dev_priv);
-
-/**
- * i915_rc6_ctx_wa_check - check for a new RC6 CTX corruption
- * @i915: i915 device
- *
- * Check if an RC6 CTX corruption has happened since the last check and if so
- * disable RC6 and runtime power management.
- *
- * Return false if no context corruption has happened since the last call of
- * this function, true otherwise.
-*/
-bool i915_rc6_ctx_wa_check(struct drm_i915_private *i915)
-{
-	if (!NEEDS_RC6_CTX_CORRUPTION_WA(i915))
-		return false;
-
-	if (i915->gt_pm.rc6.ctx_corrupted)
-		return false;
-
-	if (!i915_rc6_ctx_corrupted(i915))
-		return false;
-
-	DRM_NOTE("RC6 context corruption, disabling runtime power management\n");
-
-	intel_disable_rc6(i915);
-	i915->gt_pm.rc6.ctx_corrupted = true;
-	intel_runtime_pm_get_noresume(i915);
-
-	return true;
-}
-
 void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
@@ -8299,8 +8163,6 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	}
 
 	mutex_lock(&dev_priv->pcu_lock);
-
-	i915_rc6_ctx_wa_init(dev_priv);
 
 	/* Initialize RPS limits (for userspace) */
 	if (IS_CHERRYVIEW(dev_priv))
@@ -8348,8 +8210,6 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv))
 		valleyview_cleanup_gt_powersave(dev_priv);
 
-	i915_rc6_ctx_wa_cleanup(dev_priv);
-
 	if (!HAS_RC6(dev_priv))
 		intel_runtime_pm_put(dev_priv);
 }
@@ -8394,7 +8254,7 @@ static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
 	i915->gt_pm.llc_pstate.enabled = false;
 }
 
-static void __intel_disable_rc6(struct drm_i915_private *dev_priv)
+static void intel_disable_rc6(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->pcu_lock);
 
@@ -8411,13 +8271,6 @@ static void __intel_disable_rc6(struct drm_i915_private *dev_priv)
 		gen6_disable_rc6(dev_priv);
 
 	dev_priv->gt_pm.rc6.enabled = false;
-}
-
-static void intel_disable_rc6(struct drm_i915_private *dev_priv)
-{
-	mutex_lock(&dev_priv->pcu_lock);
-	__intel_disable_rc6(dev_priv);
-	mutex_unlock(&dev_priv->pcu_lock);
 }
 
 static void intel_disable_rps(struct drm_i915_private *dev_priv)
@@ -8445,7 +8298,7 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->pcu_lock);
 
-	__intel_disable_rc6(dev_priv);
+	intel_disable_rc6(dev_priv);
 	intel_disable_rps(dev_priv);
 	if (HAS_LLC(dev_priv))
 		intel_disable_llc_pstate(dev_priv);
@@ -8470,9 +8323,6 @@ static void intel_enable_rc6(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev_priv->pcu_lock);
 
 	if (dev_priv->gt_pm.rc6.enabled)
-		return;
-
-	if (dev_priv->gt_pm.rc6.ctx_corrupted)
 		return;
 
 	if (IS_CHERRYVIEW(dev_priv))

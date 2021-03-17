@@ -90,8 +90,8 @@ end:
 	return map;
 }
 
-ssize_t uncore_event_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+ssize_t uncore_event_show(struct kobject *kobj,
+			  struct kobj_attribute *attr, char *buf)
 {
 	struct uncore_event_desc *event =
 		container_of(attr, struct uncore_event_desc, attr);
@@ -485,8 +485,10 @@ void uncore_pmu_event_start(struct perf_event *event, int flags)
 	local64_set(&event->hw.prev_count, uncore_read_counter(box, event));
 	uncore_enable_event(box, event);
 
-	if (box->n_active == 1)
+	if (box->n_active == 1) {
+		uncore_enable_box(box);
 		uncore_pmu_start_hrtimer(box);
+	}
 }
 
 void uncore_pmu_event_stop(struct perf_event *event, int flags)
@@ -510,8 +512,10 @@ void uncore_pmu_event_stop(struct perf_event *event, int flags)
 		WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 		hwc->state |= PERF_HES_STOPPED;
 
-		if (box->n_active == 0)
+		if (box->n_active == 0) {
+			uncore_disable_box(box);
 			uncore_pmu_cancel_hrtimer(box);
+		}
 	}
 
 	if ((flags & PERF_EF_UPDATE) && !(hwc->state & PERF_HES_UPTODATE)) {
@@ -736,7 +740,6 @@ static int uncore_pmu_event_init(struct perf_event *event)
 		/* fixed counters have event field hardcoded to zero */
 		hwc->config = 0ULL;
 	} else if (is_freerunning_event(event)) {
-		hwc->config = event->attr.config;
 		if (!check_valid_freerunning_event(box, event))
 			return -EINVAL;
 		event->hw.idx = UNCORE_PMC_IDX_FREERUNNING;
@@ -765,40 +768,6 @@ static int uncore_pmu_event_init(struct perf_event *event)
 	return ret;
 }
 
-static void uncore_pmu_enable(struct pmu *pmu)
-{
-	struct intel_uncore_pmu *uncore_pmu;
-	struct intel_uncore_box *box;
-
-	uncore_pmu = container_of(pmu, struct intel_uncore_pmu, pmu);
-	if (!uncore_pmu)
-		return;
-
-	box = uncore_pmu_to_box(uncore_pmu, smp_processor_id());
-	if (!box)
-		return;
-
-	if (uncore_pmu->type->ops->enable_box)
-		uncore_pmu->type->ops->enable_box(box);
-}
-
-static void uncore_pmu_disable(struct pmu *pmu)
-{
-	struct intel_uncore_pmu *uncore_pmu;
-	struct intel_uncore_box *box;
-
-	uncore_pmu = container_of(pmu, struct intel_uncore_pmu, pmu);
-	if (!uncore_pmu)
-		return;
-
-	box = uncore_pmu_to_box(uncore_pmu, smp_processor_id());
-	if (!box)
-		return;
-
-	if (uncore_pmu->type->ops->disable_box)
-		uncore_pmu->type->ops->disable_box(box);
-}
-
 static ssize_t uncore_get_attr_cpumask(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -824,8 +793,6 @@ static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
 		pmu->pmu = (struct pmu) {
 			.attr_groups	= pmu->type->attr_groups,
 			.task_ctx_nr	= perf_invalid_context,
-			.pmu_enable	= uncore_pmu_enable,
-			.pmu_disable	= uncore_pmu_disable,
 			.event_init	= uncore_pmu_event_init,
 			.add		= uncore_pmu_event_add,
 			.del		= uncore_pmu_event_del,

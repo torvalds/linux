@@ -55,83 +55,60 @@ static int target_xcopy_gen_naa_ieee(struct se_device *dev, unsigned char *buf)
 	return 0;
 }
 
-/**
- * target_xcopy_locate_se_dev_e4_iter - compare XCOPY NAA device identifiers
- *
- * @se_dev: device being considered for match
- * @dev_wwn: XCOPY requested NAA dev_wwn
- * @return: 1 on match, 0 on no-match
- */
+struct xcopy_dev_search_info {
+	const unsigned char *dev_wwn;
+	struct se_device *found_dev;
+};
+
 static int target_xcopy_locate_se_dev_e4_iter(struct se_device *se_dev,
-					      const unsigned char *dev_wwn)
+					      void *data)
 {
+	struct xcopy_dev_search_info *info = data;
 	unsigned char tmp_dev_wwn[XCOPY_NAA_IEEE_REGEX_LEN];
 	int rc;
 
-	if (!se_dev->dev_attrib.emulate_3pc) {
-		pr_debug("XCOPY: emulate_3pc disabled on se_dev %p\n", se_dev);
+	if (!se_dev->dev_attrib.emulate_3pc)
 		return 0;
-	}
 
 	memset(&tmp_dev_wwn[0], 0, XCOPY_NAA_IEEE_REGEX_LEN);
 	target_xcopy_gen_naa_ieee(se_dev, &tmp_dev_wwn[0]);
 
-	rc = memcmp(&tmp_dev_wwn[0], dev_wwn, XCOPY_NAA_IEEE_REGEX_LEN);
-	if (rc != 0) {
-		pr_debug("XCOPY: skip non-matching: %*ph\n",
-			 XCOPY_NAA_IEEE_REGEX_LEN, tmp_dev_wwn);
+	rc = memcmp(&tmp_dev_wwn[0], info->dev_wwn, XCOPY_NAA_IEEE_REGEX_LEN);
+	if (rc != 0)
 		return 0;
-	}
+
+	info->found_dev = se_dev;
 	pr_debug("XCOPY 0xe4: located se_dev: %p\n", se_dev);
 
+	rc = target_depend_item(&se_dev->dev_group.cg_item);
+	if (rc != 0) {
+		pr_err("configfs_depend_item attempt failed: %d for se_dev: %p\n",
+		       rc, se_dev);
+		return rc;
+	}
+
+	pr_debug("Called configfs_depend_item for se_dev: %p se_dev->se_dev_group: %p\n",
+		 se_dev, &se_dev->dev_group);
 	return 1;
 }
 
-static int target_xcopy_locate_se_dev_e4(struct se_session *sess,
-					const unsigned char *dev_wwn,
-					struct se_device **_found_dev,
-					struct percpu_ref **_found_lun_ref)
+static int target_xcopy_locate_se_dev_e4(const unsigned char *dev_wwn,
+					struct se_device **found_dev)
 {
-	struct se_dev_entry *deve;
-	struct se_node_acl *nacl;
-	struct se_lun *this_lun = NULL;
-	struct se_device *found_dev = NULL;
+	struct xcopy_dev_search_info info;
+	int ret;
 
-	/* cmd with NULL sess indicates no associated $FABRIC_MOD */
-	if (!sess)
-		goto err_out;
+	memset(&info, 0, sizeof(info));
+	info.dev_wwn = dev_wwn;
 
-	pr_debug("XCOPY 0xe4: searching for: %*ph\n",
-		 XCOPY_NAA_IEEE_REGEX_LEN, dev_wwn);
-
-	nacl = sess->se_node_acl;
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
-		struct se_device *this_dev;
-		int rc;
-
-		this_lun = rcu_dereference(deve->se_lun);
-		this_dev = rcu_dereference_raw(this_lun->lun_se_dev);
-
-		rc = target_xcopy_locate_se_dev_e4_iter(this_dev, dev_wwn);
-		if (rc) {
-			if (percpu_ref_tryget_live(&this_lun->lun_ref))
-				found_dev = this_dev;
-			break;
-		}
+	ret = target_for_each_device(target_xcopy_locate_se_dev_e4_iter, &info);
+	if (ret == 1) {
+		*found_dev = info.found_dev;
+		return 0;
+	} else {
+		pr_debug_ratelimited("Unable to locate 0xe4 descriptor for EXTENDED_COPY\n");
+		return -EINVAL;
 	}
-	rcu_read_unlock();
-	if (found_dev == NULL)
-		goto err_out;
-
-	pr_debug("lun_ref held for se_dev: %p se_dev->se_dev_group: %p\n",
-		 found_dev, &found_dev->dev_group);
-	*_found_dev = found_dev;
-	*_found_lun_ref = &this_lun->lun_ref;
-	return 0;
-err_out:
-	pr_debug_ratelimited("Unable to locate 0xe4 descriptor for EXTENDED_COPY\n");
-	return -EINVAL;
 }
 
 static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op *xop,
@@ -278,16 +255,12 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 
 	switch (xop->op_origin) {
 	case XCOL_SOURCE_RECV_OP:
-		rc = target_xcopy_locate_se_dev_e4(se_cmd->se_sess,
-						xop->dst_tid_wwn,
-						&xop->dst_dev,
-						&xop->remote_lun_ref);
+		rc = target_xcopy_locate_se_dev_e4(xop->dst_tid_wwn,
+						&xop->dst_dev);
 		break;
 	case XCOL_DEST_RECV_OP:
-		rc = target_xcopy_locate_se_dev_e4(se_cmd->se_sess,
-						xop->src_tid_wwn,
-						&xop->src_dev,
-						&xop->remote_lun_ref);
+		rc = target_xcopy_locate_se_dev_e4(xop->src_tid_wwn,
+						&xop->src_dev);
 		break;
 	default:
 		pr_err("XCOPY CSCD descriptor IDs not found in CSCD list - "
@@ -439,12 +412,18 @@ static int xcopy_pt_get_cmd_state(struct se_cmd *se_cmd)
 
 static void xcopy_pt_undepend_remotedev(struct xcopy_op *xop)
 {
-	if (xop->op_origin == XCOL_SOURCE_RECV_OP)
-		pr_debug("putting dst lun_ref for %p\n", xop->dst_dev);
-	else
-		pr_debug("putting src lun_ref for %p\n", xop->src_dev);
+	struct se_device *remote_dev;
 
-	percpu_ref_put(xop->remote_lun_ref);
+	if (xop->op_origin == XCOL_SOURCE_RECV_OP)
+		remote_dev = xop->dst_dev;
+	else
+		remote_dev = xop->src_dev;
+
+	pr_debug("Calling configfs_undepend_item for"
+		  " remote_dev: %p remote_dev->dev_group: %p\n",
+		  remote_dev, &remote_dev->dev_group.cg_item);
+
+	target_undepend_item(&remote_dev->dev_group.cg_item);
 }
 
 static void xcopy_pt_release_cmd(struct se_cmd *se_cmd)
@@ -501,8 +480,6 @@ static const struct target_core_fabric_ops xcopy_pt_tfo = {
 
 int target_xcopy_setup_pt(void)
 {
-	int ret;
-
 	xcopy_wq = alloc_workqueue("xcopy_wq", WQ_MEM_RECLAIM, 0);
 	if (!xcopy_wq) {
 		pr_err("Unable to allocate xcopy_wq\n");
@@ -520,9 +497,7 @@ int target_xcopy_setup_pt(void)
 	INIT_LIST_HEAD(&xcopy_pt_nacl.acl_list);
 	INIT_LIST_HEAD(&xcopy_pt_nacl.acl_sess_list);
 	memset(&xcopy_pt_sess, 0, sizeof(struct se_session));
-	ret = transport_init_session(&xcopy_pt_sess);
-	if (ret < 0)
-		return ret;
+	transport_init_session(&xcopy_pt_sess);
 
 	xcopy_pt_nacl.se_tpg = &xcopy_pt_tpg;
 	xcopy_pt_nacl.nacl_sess = &xcopy_pt_sess;

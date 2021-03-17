@@ -444,14 +444,9 @@ static void marvell_nfc_enable_int(struct marvell_nfc *nfc, u32 int_mask)
 	writel_relaxed(reg & ~int_mask, nfc->regs + NDCR);
 }
 
-static u32 marvell_nfc_clear_int(struct marvell_nfc *nfc, u32 int_mask)
+static void marvell_nfc_clear_int(struct marvell_nfc *nfc, u32 int_mask)
 {
-	u32 reg;
-
-	reg = readl_relaxed(nfc->regs + NDSR);
 	writel_relaxed(int_mask, nfc->regs + NDSR);
-
-	return reg & int_mask;
 }
 
 static void marvell_nfc_force_byte_access(struct nand_chip *chip,
@@ -618,7 +613,6 @@ static int marvell_nfc_wait_cmdd(struct nand_chip *chip)
 static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 {
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
-	u32 pending;
 	int ret;
 
 	/* Timeout is expressed in ms */
@@ -631,13 +625,8 @@ static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 	ret = wait_for_completion_timeout(&nfc->complete,
 					  msecs_to_jiffies(timeout_ms));
 	marvell_nfc_disable_int(nfc, NDCR_RDYM);
-	pending = marvell_nfc_clear_int(nfc, NDSR_RDY(0) | NDSR_RDY(1));
-
-	/*
-	 * In case the interrupt was not served in the required time frame,
-	 * check if the ISR was not served or if something went actually wrong.
-	 */
-	if (!ret && !pending) {
+	marvell_nfc_clear_int(nfc, NDSR_RDY(0) | NDSR_RDY(1));
+	if (!ret) {
 		dev_err(nfc->dev, "Timeout waiting for RB signal\n");
 		return -ETIMEDOUT;
 	}
@@ -697,7 +686,7 @@ static irqreturn_t marvell_nfc_isr(int irq, void *dev_id)
 
 	marvell_nfc_disable_int(nfc, st & NDCR_ALL_INT);
 
-	if (st & (NDSR_RDY(0) | NDSR_RDY(1)))
+	if (!(st & (NDSR_RDDREQ | NDSR_WRDREQ | NDSR_WRCMDREQ)))
 		complete(&nfc->complete);
 
 	return IRQ_HANDLED;
@@ -2551,7 +2540,7 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 
 	chip->options |= NAND_BUSWIDTH_AUTO;
 
-	ret = nand_scan(chip, marvell_nand->nsels);
+	ret = nand_scan(mtd, marvell_nand->nsels);
 	if (ret) {
 		dev_err(dev, "could not scan the nand chip\n");
 		return ret;
@@ -2564,23 +2553,13 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 		ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "failed to register mtd device: %d\n", ret);
-		nand_cleanup(chip);
+		nand_release(mtd);
 		return ret;
 	}
 
 	list_add_tail(&marvell_nand->node, &nfc->chips);
 
 	return 0;
-}
-
-static void marvell_nand_chips_cleanup(struct marvell_nfc *nfc)
-{
-	struct marvell_nand_chip *entry, *temp;
-
-	list_for_each_entry_safe(entry, temp, &nfc->chips, node) {
-		nand_release(&entry->chip);
-		list_del(&entry->node);
-	}
 }
 
 static int marvell_nand_chips_init(struct device *dev, struct marvell_nfc *nfc)
@@ -2617,16 +2596,21 @@ static int marvell_nand_chips_init(struct device *dev, struct marvell_nfc *nfc)
 		ret = marvell_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
 			of_node_put(nand_np);
-			goto cleanup_chips;
+			return ret;
 		}
 	}
 
 	return 0;
+}
 
-cleanup_chips:
-	marvell_nand_chips_cleanup(nfc);
+static void marvell_nand_chips_cleanup(struct marvell_nfc *nfc)
+{
+	struct marvell_nand_chip *entry, *temp;
 
-	return ret;
+	list_for_each_entry_safe(entry, temp, &nfc->chips, node) {
+		nand_release(nand_to_mtd(&entry->chip));
+		list_del(&entry->node);
+	}
 }
 
 static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
@@ -2715,23 +2699,24 @@ static int marvell_nfc_init(struct marvell_nfc *nfc)
 		struct regmap *sysctrl_base =
 			syscon_regmap_lookup_by_phandle(np,
 							"marvell,system-controller");
+		u32 reg;
 
 		if (IS_ERR(sysctrl_base))
 			return PTR_ERR(sysctrl_base);
 
-		regmap_write(sysctrl_base, GENCONF_SOC_DEVICE_MUX,
-			     GENCONF_SOC_DEVICE_MUX_NFC_EN |
-			     GENCONF_SOC_DEVICE_MUX_ECC_CLK_RST |
-			     GENCONF_SOC_DEVICE_MUX_ECC_CORE_RST |
-			     GENCONF_SOC_DEVICE_MUX_NFC_INT_EN);
+		reg = GENCONF_SOC_DEVICE_MUX_NFC_EN |
+		      GENCONF_SOC_DEVICE_MUX_ECC_CLK_RST |
+		      GENCONF_SOC_DEVICE_MUX_ECC_CORE_RST |
+		      GENCONF_SOC_DEVICE_MUX_NFC_INT_EN;
+		regmap_write(sysctrl_base, GENCONF_SOC_DEVICE_MUX, reg);
 
-		regmap_update_bits(sysctrl_base, GENCONF_CLK_GATING_CTRL,
-				   GENCONF_CLK_GATING_CTRL_ND_GATE,
-				   GENCONF_CLK_GATING_CTRL_ND_GATE);
+		regmap_read(sysctrl_base, GENCONF_CLK_GATING_CTRL, &reg);
+		reg |= GENCONF_CLK_GATING_CTRL_ND_GATE;
+		regmap_write(sysctrl_base, GENCONF_CLK_GATING_CTRL, reg);
 
-		regmap_update_bits(sysctrl_base, GENCONF_ND_CLK_CTRL,
-				   GENCONF_ND_CLK_CTRL_EN,
-				   GENCONF_ND_CLK_CTRL_EN);
+		regmap_read(sysctrl_base, GENCONF_ND_CLK_CTRL, &reg);
+		reg |= GENCONF_ND_CLK_CTRL_EN;
+		regmap_write(sysctrl_base, GENCONF_ND_CLK_CTRL, reg);
 	}
 
 	/* Configure the DMA if appropriate */

@@ -40,7 +40,8 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		u8 *ptr = msg->buf;
 
 		while (remaining) {
-			u8 cnt, retries, cmd;
+			u8 cnt = (remaining > 16) ? 16 : remaining;
+			u8 cmd;
 
 			if (msg->flags & I2C_M_RD)
 				cmd = 1;
@@ -50,19 +51,10 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (mcnt || remaining > 16)
 				cmd |= 4; /* MOT */
 
-			for (retries = 0, cnt = 0;
-			     retries < 32 && !cnt;
-			     retries++) {
-				cnt = min_t(u8, remaining, 16);
-				ret = aux->func->xfer(aux, true, cmd,
-						      msg->addr, ptr, &cnt);
-				if (ret < 0)
-					goto out;
-			}
-			if (!cnt) {
-				AUX_TRACE(aux, "no data after 32 retries");
-				ret = -EIO;
-				goto out;
+			ret = aux->func->xfer(aux, true, cmd, msg->addr, ptr, &cnt);
+			if (ret < 0) {
+				nvkm_i2c_aux_release(aux);
+				return ret;
 			}
 
 			ptr += cnt;
@@ -72,10 +64,8 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		msg++;
 	}
 
-	ret = num;
-out:
 	nvkm_i2c_aux_release(aux);
-	return ret;
+	return num;
 }
 
 static u32
@@ -115,15 +105,9 @@ nvkm_i2c_aux_acquire(struct nvkm_i2c_aux *aux)
 {
 	struct nvkm_i2c_pad *pad = aux->pad;
 	int ret;
-
 	AUX_TRACE(aux, "acquire");
 	mutex_lock(&aux->mutex);
-
-	if (aux->enabled)
-		ret = nvkm_i2c_pad_acquire(pad, NVKM_I2C_PAD_AUX);
-	else
-		ret = -EIO;
-
+	ret = nvkm_i2c_pad_acquire(pad, NVKM_I2C_PAD_AUX);
 	if (ret)
 		mutex_unlock(&aux->mutex);
 	return ret;
@@ -159,24 +143,6 @@ nvkm_i2c_aux_del(struct nvkm_i2c_aux **paux)
 		kfree(*paux);
 		*paux = NULL;
 	}
-}
-
-void
-nvkm_i2c_aux_init(struct nvkm_i2c_aux *aux)
-{
-	AUX_TRACE(aux, "init");
-	mutex_lock(&aux->mutex);
-	aux->enabled = true;
-	mutex_unlock(&aux->mutex);
-}
-
-void
-nvkm_i2c_aux_fini(struct nvkm_i2c_aux *aux)
-{
-	AUX_TRACE(aux, "fini");
-	mutex_lock(&aux->mutex);
-	aux->enabled = false;
-	mutex_unlock(&aux->mutex);
 }
 
 int

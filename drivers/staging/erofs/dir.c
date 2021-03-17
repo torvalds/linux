@@ -23,21 +23,6 @@ static const unsigned char erofs_filetype_table[EROFS_FT_MAX] = {
 	[EROFS_FT_SYMLINK]	= DT_LNK,
 };
 
-static void debug_one_dentry(unsigned char d_type, const char *de_name,
-			     unsigned int de_namelen)
-{
-#ifdef CONFIG_EROFS_FS_DEBUG
-	/* since the on-disk name could not have the trailing '\0' */
-	unsigned char dbg_namebuf[EROFS_NAME_LEN + 1];
-
-	memcpy(dbg_namebuf, de_name, de_namelen);
-	dbg_namebuf[de_namelen] = '\0';
-
-	debugln("found dirent %s de_len %u d_type %d", dbg_namebuf,
-		de_namelen, d_type);
-#endif
-}
-
 static int erofs_fill_dentries(struct dir_context *ctx,
 	void *dentry_blk, unsigned *ofs,
 	unsigned nameoff, unsigned maxsize)
@@ -48,10 +33,14 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 	de = dentry_blk + *ofs;
 	while (de < end) {
 		const char *de_name;
-		unsigned int de_namelen;
+		int de_namelen;
 		unsigned char d_type;
+#ifdef CONFIG_EROFS_FS_DEBUG
+		unsigned dbg_namelen;
+		unsigned char dbg_namebuf[EROFS_NAME_LEN];
+#endif
 
-		if (de->file_type < EROFS_FT_MAX)
+		if (unlikely(de->file_type < EROFS_FT_MAX))
 			d_type = erofs_filetype_table[de->file_type];
 		else
 			d_type = DT_UNKNOWN;
@@ -59,20 +48,23 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 		nameoff = le16_to_cpu(de->nameoff);
 		de_name = (char *)dentry_blk + nameoff;
 
-		/* the last dirent in the block? */
-		if (de + 1 >= end)
-			de_namelen = strnlen(de_name, maxsize - nameoff);
-		else
-			de_namelen = le16_to_cpu(de[1].nameoff) - nameoff;
+		de_namelen = unlikely(de + 1 >= end) ?
+			/* last directory entry */
+			strnlen(de_name, maxsize - nameoff) :
+			le16_to_cpu(de[1].nameoff) - nameoff;
 
-		/* a corrupted entry is found */
-		if (unlikely(nameoff + de_namelen > maxsize ||
-			     de_namelen > EROFS_NAME_LEN)) {
-			DBG_BUGON(1);
-			return -EIO;
-		}
+		/* the corrupted directory found */
+		BUG_ON(de_namelen < 0);
 
-		debug_one_dentry(d_type, de_name, de_namelen);
+#ifdef CONFIG_EROFS_FS_DEBUG
+		dbg_namelen = min(EROFS_NAME_LEN - 1, de_namelen);
+		memcpy(dbg_namebuf, de_name, dbg_namelen);
+		dbg_namebuf[dbg_namelen] = '\0';
+
+		debugln("%s, found de_name %s de_len %d d_type %d", __func__,
+			dbg_namebuf, de_namelen, d_type);
+#endif
+
 		if (!dir_emit(ctx, de_name, de_namelen,
 					le64_to_cpu(de->nid), d_type))
 			/* stoped by some reason */
@@ -100,15 +92,8 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 		unsigned nameoff, maxsize;
 
 		dentry_page = read_mapping_page(mapping, i, NULL);
-		if (dentry_page == ERR_PTR(-ENOMEM)) {
-			err = -ENOMEM;
-			break;
-		} else if (IS_ERR(dentry_page)) {
-			errln("fail to readdir of logical block %u of nid %llu",
-			      i, EROFS_V(dir)->nid);
-			err = PTR_ERR(dentry_page);
-			break;
-		}
+		if (IS_ERR(dentry_page))
+			continue;
 
 		lock_page(dentry_page);
 		de = (struct erofs_dirent *)kmap(dentry_page);

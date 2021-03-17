@@ -1383,7 +1383,6 @@ int __node_distance(int from, int to)
 	}
 	return numa_latency[from][to];
 }
-EXPORT_SYMBOL(__node_distance);
 
 static int __init find_best_numa_node_for_mlgroup(struct mdesc_mlgroup *grp)
 {

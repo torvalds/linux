@@ -74,11 +74,11 @@ static int component_devices_show(struct seq_file *s, void *data)
 	seq_printf(s, "%-40s %20s\n", "device name", "status");
 	seq_puts(s, "-------------------------------------------------------------\n");
 	for (i = 0; i < match->num; i++) {
-		struct component *component = match->compare[i].component;
+		struct device *d = (struct device *)match->compare[i].data;
 
-		seq_printf(s, "%-40s %20s\n",
-			   component ? dev_name(component->dev) : "(unknown)",
-			   component ? (component->bound ? "bound" : "not bound") : "not registered");
+		seq_printf(s, "%-40s %20s\n", dev_name(d),
+			   match->compare[i].component ?
+			   "registered" : "not registered");
 	}
 	mutex_unlock(&component_mutex);
 
@@ -235,8 +235,7 @@ static int try_to_bring_up_master(struct master *master,
 	ret = master->ops->bind(master->dev);
 	if (ret < 0) {
 		devres_release_group(master->dev, NULL);
-		if (ret != -EPROBE_DEFER)
-			dev_info(master->dev, "master bind failed: %d\n", ret);
+		dev_info(master->dev, "master bind failed: %d\n", ret);
 		return ret;
 	}
 
@@ -507,9 +506,8 @@ static int component_bind(struct component *component, struct master *master,
 		devres_release_group(component->dev, NULL);
 		devres_release_group(master->dev, NULL);
 
-		if (ret != -EPROBE_DEFER)
-			dev_err(master->dev, "failed to bind %s (ops %ps): %d\n",
-				dev_name(component->dev), component->ops, ret);
+		dev_err(master->dev, "failed to bind %s (ops %ps): %d\n",
+			dev_name(component->dev), component->ops, ret);
 	}
 
 	return ret;
@@ -538,9 +536,9 @@ int component_bind_all(struct device *master_dev, void *data)
 		}
 
 	if (ret != 0) {
-		for (; i > 0; i--)
-			if (!master->match->compare[i - 1].duplicate) {
-				c = master->match->compare[i - 1].component;
+		for (; i--; )
+			if (!master->match->compare[i].duplicate) {
+				c = master->match->compare[i].component;
 				component_unbind(c, master, data);
 			}
 	}

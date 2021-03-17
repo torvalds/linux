@@ -192,15 +192,9 @@ static inline int unix_may_send(struct sock *sk, struct sock *osk)
 	return unix_peer(osk) == NULL || unix_our_peer(sk, osk);
 }
 
-static inline int unix_recvq_full(const struct sock *sk)
+static inline int unix_recvq_full(struct sock const *sk)
 {
 	return skb_queue_len(&sk->sk_receive_queue) > sk->sk_max_ack_backlog;
-}
-
-static inline int unix_recvq_full_lockless(const struct sock *sk)
-{
-	return skb_queue_len_lockless(&sk->sk_receive_queue) >
-		READ_ONCE(sk->sk_max_ack_backlog);
 }
 
 struct sock *unix_peer_get(struct sock *s)
@@ -231,8 +225,6 @@ static inline void unix_release_addr(struct unix_address *addr)
 
 static int unix_mkname(struct sockaddr_un *sunaddr, int len, unsigned int *hashp)
 {
-	*hashp = 0;
-
 	if (len <= sizeof(short) || len > sizeof(*sunaddr))
 		return -EINVAL;
 	if (!sunaddr || sunaddr->sun_family != AF_UNIX)
@@ -655,9 +647,6 @@ static __poll_t unix_poll(struct file *, struct socket *, poll_table *);
 static __poll_t unix_dgram_poll(struct file *, struct socket *,
 				    poll_table *);
 static int unix_ioctl(struct socket *, unsigned int, unsigned long);
-#ifdef CONFIG_COMPAT
-static int unix_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
-#endif
 static int unix_shutdown(struct socket *, int);
 static int unix_stream_sendmsg(struct socket *, struct msghdr *, size_t);
 static int unix_stream_recvmsg(struct socket *, struct msghdr *, size_t, int);
@@ -699,9 +688,6 @@ static const struct proto_ops unix_stream_ops = {
 	.getname =	unix_getname,
 	.poll =		unix_poll,
 	.ioctl =	unix_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl =	unix_compat_ioctl,
-#endif
 	.listen =	unix_listen,
 	.shutdown =	unix_shutdown,
 	.setsockopt =	sock_no_setsockopt,
@@ -725,9 +711,6 @@ static const struct proto_ops unix_dgram_ops = {
 	.getname =	unix_getname,
 	.poll =		unix_dgram_poll,
 	.ioctl =	unix_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl =	unix_compat_ioctl,
-#endif
 	.listen =	sock_no_listen,
 	.shutdown =	unix_shutdown,
 	.setsockopt =	sock_no_setsockopt,
@@ -750,9 +733,6 @@ static const struct proto_ops unix_seqpacket_ops = {
 	.getname =	unix_getname,
 	.poll =		unix_dgram_poll,
 	.ioctl =	unix_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl =	unix_compat_ioctl,
-#endif
 	.listen =	unix_listen,
 	.shutdown =	unix_shutdown,
 	.setsockopt =	sock_no_setsockopt,
@@ -908,7 +888,7 @@ retry:
 	addr->hash ^= sk->sk_type;
 
 	__unix_remove_socket(sk);
-	smp_store_release(&u->addr, addr);
+	u->addr = addr;
 	__unix_insert_socket(&unix_socket_table[addr->hash], sk);
 	spin_unlock(&unix_table_lock);
 	err = 0;
@@ -1078,7 +1058,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	err = 0;
 	__unix_remove_socket(sk);
-	smp_store_release(&u->addr, addr);
+	u->addr = addr;
 	__unix_insert_socket(list, sk);
 
 out_unlock:
@@ -1349,29 +1329,15 @@ restart:
 	RCU_INIT_POINTER(newsk->sk_wq, &newu->peer_wq);
 	otheru = unix_sk(other);
 
-	/* copy address information from listening to new sock
-	 *
-	 * The contents of *(otheru->addr) and otheru->path
-	 * are seen fully set up here, since we have found
-	 * otheru in hash under unix_table_lock.  Insertion
-	 * into the hash chain we'd found it in had been done
-	 * in an earlier critical area protected by unix_table_lock,
-	 * the same one where we'd set *(otheru->addr) contents,
-	 * as well as otheru->path and otheru->addr itself.
-	 *
-	 * Using smp_store_release() here to set newu->addr
-	 * is enough to make those stores, as well as stores
-	 * to newu->path visible to anyone who gets newu->addr
-	 * by smp_load_acquire().  IOW, the same warranties
-	 * as for unix_sock instances bound in unix_bind() or
-	 * in unix_autobind().
-	 */
+	/* copy address information from listening to new sock*/
+	if (otheru->addr) {
+		refcount_inc(&otheru->addr->refcnt);
+		newu->addr = otheru->addr;
+	}
 	if (otheru->path.dentry) {
 		path_get(&otheru->path);
 		newu->path = otheru->path;
 	}
-	refcount_inc(&otheru->addr->refcnt);
-	smp_store_release(&newu->addr, otheru->addr);
 
 	/* Set credentials */
 	copy_peercred(sk, other);
@@ -1485,7 +1451,7 @@ out:
 static int unix_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
 {
 	struct sock *sk = sock->sk;
-	struct unix_address *addr;
+	struct unix_sock *u;
 	DECLARE_SOCKADDR(struct sockaddr_un *, sunaddr, uaddr);
 	int err = 0;
 
@@ -1500,15 +1466,19 @@ static int unix_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
 		sock_hold(sk);
 	}
 
-	addr = smp_load_acquire(&unix_sk(sk)->addr);
-	if (!addr) {
+	u = unix_sk(sk);
+	unix_state_lock(sk);
+	if (!u->addr) {
 		sunaddr->sun_family = AF_UNIX;
 		sunaddr->sun_path[0] = 0;
 		err = sizeof(short);
 	} else {
+		struct unix_address *addr = u->addr;
+
 		err = addr->len;
 		memcpy(sunaddr, addr->name, addr->len);
 	}
+	unix_state_unlock(sk);
 	sock_put(sk);
 out:
 	return err;
@@ -1794,8 +1764,7 @@ restart_locked:
 	 * - unix_peer(sk) == sk by time of get but disconnected before lock
 	 */
 	if (other != sk &&
-	    unlikely(unix_peer(other) != sk &&
-	    unix_recvq_full_lockless(other))) {
+	    unlikely(unix_peer(other) != sk && unix_recvq_full(other))) {
 		if (timeo) {
 			timeo = unix_wait_for_peer(other, timeo);
 
@@ -2102,11 +2071,11 @@ static int unix_seqpacket_recvmsg(struct socket *sock, struct msghdr *msg,
 
 static void unix_copy_addr(struct msghdr *msg, struct sock *sk)
 {
-	struct unix_address *addr = smp_load_acquire(&unix_sk(sk)->addr);
+	struct unix_sock *u = unix_sk(sk);
 
-	if (addr) {
-		msg->msg_namelen = addr->len;
-		memcpy(msg->msg_name, addr->name, addr->len);
+	if (u->addr) {
+		msg->msg_namelen = u->addr->len;
+		memcpy(msg->msg_name, u->addr->name, u->addr->len);
 	}
 }
 
@@ -2610,14 +2579,15 @@ static int unix_open_file(struct sock *sk)
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (!smp_load_acquire(&unix_sk(sk)->addr))
-		return -ENOENT;
-
+	unix_state_lock(sk);
 	path = unix_sk(sk)->path;
-	if (!path.dentry)
+	if (!path.dentry) {
+		unix_state_unlock(sk);
 		return -ENOENT;
+	}
 
 	path_get(&path);
+	unix_state_unlock(sk);
 
 	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0)
@@ -2665,19 +2635,12 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-#ifdef CONFIG_COMPAT
-static int unix_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
-{
-	return unix_ioctl(sock, cmd, (unsigned long)compat_ptr(arg));
-}
-#endif
-
 static __poll_t unix_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	__poll_t mask;
 
-	sock_poll_wait(file, sock, wait);
+	sock_poll_wait(file, wait);
 	mask = 0;
 
 	/* exceptional events? */
@@ -2689,7 +2652,7 @@ static __poll_t unix_poll(struct file *file, struct socket *sock, poll_table *wa
 		mask |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
 
 	/* readable? */
-	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
+	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* Connection-based need to check for termination and startup */
@@ -2714,11 +2677,11 @@ static __poll_t unix_dgram_poll(struct file *file, struct socket *sock,
 	unsigned int writable;
 	__poll_t mask;
 
-	sock_poll_wait(file, sock, wait);
+	sock_poll_wait(file, wait);
 	mask = 0;
 
 	/* exceptional events? */
-	if (sk->sk_err || !skb_queue_empty_lockless(&sk->sk_error_queue))
+	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
 		mask |= EPOLLERR |
 			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? EPOLLPRI : 0);
 
@@ -2728,7 +2691,7 @@ static __poll_t unix_dgram_poll(struct file *file, struct socket *sock,
 		mask |= EPOLLHUP;
 
 	/* readable? */
-	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
+	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* Connection-based need to check for termination and startup */
@@ -2865,7 +2828,7 @@ static int unix_seq_show(struct seq_file *seq, void *v)
 			(s->sk_state == TCP_ESTABLISHED ? SS_CONNECTING : SS_DISCONNECTING),
 			sock_i_ino(s));
 
-		if (u->addr) {	// under unix_table_lock here
+		if (u->addr) {
 			int i, len;
 			seq_putc(seq, ' ');
 

@@ -152,7 +152,6 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1150000>;
 				regulator-enable-ramp-delay = <125>;
-				regulator-always-on;
 			};
 
 			ldo8_reg: LDO8 {

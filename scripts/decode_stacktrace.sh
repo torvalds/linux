@@ -66,7 +66,7 @@ parse_symbol() {
 	if [[ "${cache[$module,$address]+isset}" == "isset" ]]; then
 		local code=${cache[$module,$address]}
 	else
-		local code=$(${CROSS_COMPILE}addr2line -i -e "$objfile" "$address")
+		local code=$(addr2line -i -e "$objfile" "$address")
 		cache[$module,$address]=$code
 	fi
 
@@ -77,8 +77,8 @@ parse_symbol() {
 		return
 	fi
 
-	# Strip out the base of the path on each line
-	code=$(while read -r line; do echo "${line#$basepath/}"; done <<< "$code")
+	# Strip out the base of the path
+	code=${code//$basepath/""}
 
 	# In the case of inlines, move everything to same line
 	code=${code//$'\n'/' '}

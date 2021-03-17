@@ -551,10 +551,8 @@ static int tegra30_i2s_resume(struct device *dev)
 	int ret;
 
 	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put(dev);
+	if (ret < 0)
 		return ret;
-	}
 	ret = regcache_sync(i2s->regmap);
 	pm_runtime_put(dev);
 

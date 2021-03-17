@@ -106,22 +106,14 @@ static int apci1032_cos_insn_config(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	struct apci1032_private *devpriv = dev->private;
-	unsigned int shift, oldmask, himask, lomask;
+	unsigned int shift, oldmask;
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIGITAL_TRIG:
 		if (data[1] != 0)
 			return -EINVAL;
 		shift = data[3];
-		if (shift < 32) {
-			oldmask = (1U << shift) - 1;
-			himask = data[4] << shift;
-			lomask = data[5] << shift;
-		} else {
-			oldmask = 0xffffffffu;
-			himask = 0;
-			lomask = 0;
-		}
+		oldmask = (1U << shift) - 1;
 		switch (data[2]) {
 		case COMEDI_DIGITAL_TRIG_DISABLE:
 			devpriv->ctrl = 0;
@@ -144,8 +136,8 @@ static int apci1032_cos_insn_config(struct comedi_device *dev,
 				devpriv->mode2 &= oldmask;
 			}
 			/* configure specified channels */
-			devpriv->mode1 |= himask;
-			devpriv->mode2 |= lomask;
+			devpriv->mode1 |= data[4] << shift;
+			devpriv->mode2 |= data[5] << shift;
 			break;
 		case COMEDI_DIGITAL_TRIG_ENABLE_LEVELS:
 			if (devpriv->ctrl != (APCI1032_CTRL_INT_ENA |
@@ -162,8 +154,8 @@ static int apci1032_cos_insn_config(struct comedi_device *dev,
 				devpriv->mode2 &= oldmask;
 			}
 			/* configure specified channels */
-			devpriv->mode1 |= himask;
-			devpriv->mode2 |= lomask;
+			devpriv->mode1 |= data[4] << shift;
+			devpriv->mode2 |= data[5] << shift;
 			break;
 		default:
 			return -EINVAL;

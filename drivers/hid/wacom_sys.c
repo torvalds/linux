@@ -91,7 +91,7 @@ static void wacom_wac_queue_flush(struct hid_device *hdev,
 }
 
 static int wacom_wac_pen_serial_enforce(struct hid_device *hdev,
-		struct hid_report *report, u8 *raw_data, int report_size)
+		struct hid_report *report, u8 *raw_data, int size)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
@@ -150,10 +150,9 @@ static int wacom_wac_pen_serial_enforce(struct hid_device *hdev,
 	}
 
 	if (flush)
-		wacom_wac_queue_flush(hdev, wacom_wac->pen_fifo);
+		wacom_wac_queue_flush(hdev, &wacom_wac->pen_fifo);
 	else if (insert)
-		wacom_wac_queue_insert(hdev, wacom_wac->pen_fifo,
-				       raw_data, report_size);
+		wacom_wac_queue_insert(hdev, &wacom_wac->pen_fifo, raw_data, size);
 
 	return insert && !flush;
 }
@@ -276,24 +275,17 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	wacom_hid_usage_quirk(hdev, field, usage);
 
 	switch (equivalent_usage) {
-	case WACOM_HID_WD_TOUCH_RING_SETTING:
-		wacom->generic_has_leds = true;
-		break;
 	case HID_DG_CONTACTMAX:
 		/* leave touch_max as is if predefined */
 		if (!features->touch_max) {
 			/* read manually */
-			n = hid_report_len(field->report);
-			data = hid_alloc_report_buf(field->report, GFP_KERNEL);
+			data = kzalloc(2, GFP_KERNEL);
 			if (!data)
 				break;
 			data[0] = field->report->id;
 			ret = wacom_get_report(hdev, HID_FEATURE_REPORT,
-					       data, n, WAC_CMD_RETRIES);
-			if (ret == n && features->type == HID_GENERIC) {
-				ret = hid_report_raw_event(hdev,
-					HID_FEATURE_REPORT, data, n, 0);
-			} else if (ret == 2 && features->type != HID_GENERIC) {
+						data, 2, WAC_CMD_RETRIES);
+			if (ret == 2) {
 				features->touch_max = data[1];
 			} else {
 				features->touch_max = 16;
@@ -1241,38 +1233,6 @@ static int wacom_devm_sysfs_create_group(struct wacom *wacom,
 					       group);
 }
 
-static void wacom_devm_kfifo_release(struct device *dev, void *res)
-{
-	struct kfifo_rec_ptr_2 *devres = res;
-
-	kfifo_free(devres);
-}
-
-static int wacom_devm_kfifo_alloc(struct wacom *wacom)
-{
-	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
-	struct kfifo_rec_ptr_2 *pen_fifo;
-	int error;
-
-	pen_fifo = devres_alloc(wacom_devm_kfifo_release,
-			      sizeof(struct kfifo_rec_ptr_2),
-			      GFP_KERNEL);
-
-	if (!pen_fifo)
-		return -ENOMEM;
-
-	error = kfifo_alloc(pen_fifo, WACOM_PKGLEN_MAX, GFP_KERNEL);
-	if (error) {
-		devres_free(pen_fifo);
-		return error;
-	}
-
-	devres_add(&wacom->hdev->dev, pen_fifo);
-	wacom_wac->pen_fifo = pen_fifo;
-
-	return 0;
-}
-
 enum led_brightness wacom_leds_brightness_get(struct wacom_led *led)
 {
 	struct wacom *wacom = led->wacom;
@@ -2182,7 +2142,7 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 {
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct wacom_features *features = &wacom_wac->features;
-	char name[WACOM_NAME_MAX - 20]; /* Leave some room for suffixes */
+	char name[WACOM_NAME_MAX];
 
 	/* Generic devices name unspecified */
 	if ((features->type == HID_GENERIC) && !strcmp("Wacom HID", features->name)) {
@@ -2729,7 +2689,7 @@ static int wacom_probe(struct hid_device *hdev,
 		goto fail;
 	}
 
-	error = wacom_devm_kfifo_alloc(wacom);
+	error = kfifo_alloc(&wacom_wac->pen_fifo, WACOM_PKGLEN_MAX, GFP_KERNEL);
 	if (error)
 		goto fail;
 
@@ -2795,6 +2755,8 @@ static void wacom_remove(struct hid_device *hdev)
 
 	if (wacom->wacom_wac.features.type != REMOTE)
 		wacom_release_resources(wacom);
+
+	kfifo_free(&wacom_wac->pen_fifo);
 
 	hid_set_drvdata(hdev, NULL);
 }

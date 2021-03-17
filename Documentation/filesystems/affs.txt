@@ -93,15 +93,13 @@ The Amiga protection flags RWEDRWEDHSPARWED are handled as follows:
 
   - R maps to r for user, group and others. On directories, R implies x.
 
-  - W maps to w.
+  - If both W and D are allowed, w will be set.
 
   - E maps to x.
 
-  - D is ignored.
+  - H and P are always retained and ignored under Linux.
 
-  - H, S and P are always retained and ignored under Linux.
-
-  - A is cleared when a file is written to.
+  - A is always reset when a file is written to.
 
 User id and group id will be used unless set[gu]id are given as mount
 options. Since most of the Amiga file systems are single user systems
@@ -113,13 +111,11 @@ Linux -> Amiga:
 
 The Linux rwxrwxrwx file mode is handled as follows:
 
-  - r permission will allow R for user, group and others.
+  - r permission will set R for user, group and others.
 
-  - w permission will allow W for user, group and others.
+  - w permission will set W and D for user, group and others.
 
-  - x permission of the user will allow E for plain files.
-
-  - D will be allowed for user, group and others.
+  - x permission of the user will set E for plain files.
 
   - All other flags (suid, sgid, ...) are ignored and will
     not be retained.

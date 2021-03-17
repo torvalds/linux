@@ -232,16 +232,6 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 
 		/* release the tag's ownership to the req cloned from */
 		spin_lock_irqsave(&fq->mq_flush_lock, flags);
-
-		if (!refcount_dec_and_test(&flush_rq->ref)) {
-			fq->rq_status = error;
-			spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
-			return;
-		}
-
-		if (fq->rq_status != BLK_STS_OK)
-			error = fq->rq_status;
-
 		hctx = blk_mq_map_queue(q, flush_rq->mq_ctx->cpu);
 		if (!q->elevator) {
 			blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
@@ -434,7 +424,7 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 	blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error);
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 
-	blk_mq_sched_restart(hctx);
+	blk_mq_run_hw_queue(hctx, true);
 }
 
 /**
@@ -576,12 +566,12 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 EXPORT_SYMBOL(blkdev_issue_flush);
 
 struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
-		int node, int cmd_size, gfp_t flags)
+		int node, int cmd_size)
 {
 	struct blk_flush_queue *fq;
 	int rq_sz = sizeof(struct request);
 
-	fq = kzalloc_node(sizeof(*fq), flags, node);
+	fq = kzalloc_node(sizeof(*fq), GFP_KERNEL, node);
 	if (!fq)
 		goto fail;
 
@@ -589,7 +579,7 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 		spin_lock_init(&fq->mq_flush_lock);
 
 	rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
-	fq->flush_rq = kzalloc_node(rq_sz, flags, node);
+	fq->flush_rq = kzalloc_node(rq_sz, GFP_KERNEL, node);
 	if (!fq->flush_rq)
 		goto fail_rq;
 

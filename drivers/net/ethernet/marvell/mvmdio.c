@@ -64,7 +64,7 @@
 
 struct orion_mdio_dev {
 	void __iomem *regs;
-	struct clk *clk[4];
+	struct clk *clk[3];
 	/*
 	 * If we have access to the error interrupt pin (which is
 	 * somewhat misnamed as it not only reflects internal errors
@@ -319,25 +319,11 @@ static int orion_mdio_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&dev->smi_busy_wait);
 
-	if (pdev->dev.of_node) {
-		for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
-			dev->clk[i] = of_clk_get(pdev->dev.of_node, i);
-			if (PTR_ERR(dev->clk[i]) == -EPROBE_DEFER) {
-				ret = -EPROBE_DEFER;
-				goto out_clk;
-			}
-			if (IS_ERR(dev->clk[i]))
-				break;
-			clk_prepare_enable(dev->clk[i]);
-		}
-	} else {
-		dev->clk[0] = clk_get(&pdev->dev, NULL);
-		if (PTR_ERR(dev->clk[0]) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto out_clk;
-		}
-		if (!IS_ERR(dev->clk[0]))
-			clk_prepare_enable(dev->clk[0]);
+	for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
+		dev->clk[i] = of_clk_get(pdev->dev.of_node, i);
+		if (IS_ERR(dev->clk[i]))
+			break;
+		clk_prepare_enable(dev->clk[i]);
 	}
 
 	dev->err_interrupt = platform_get_irq(pdev, 0);
@@ -376,7 +362,6 @@ out_mdio:
 	if (dev->err_interrupt > 0)
 		writel(0, dev->regs + MVMDIO_ERR_INT_MASK);
 
-out_clk:
 	for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
 		if (IS_ERR(dev->clk[i]))
 			break;

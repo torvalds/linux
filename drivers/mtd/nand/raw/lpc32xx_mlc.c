@@ -802,7 +802,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	 * SMALL block or LARGE block.
 	 */
 	nand_chip->dummy_controller.ops = &lpc32xx_nand_controller_ops;
-	res = nand_scan(nand_chip, 1);
+	res = nand_scan(mtd, 1);
 	if (res)
 		goto free_irq;
 
@@ -839,8 +839,9 @@ free_gpio:
 static int lpc32xx_nand_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
+	struct mtd_info *mtd = nand_to_mtd(&host->nand_chip);
 
-	nand_release(&host->nand_chip);
+	nand_release(mtd);
 	free_irq(host->irq, host);
 	if (use_dma)
 		dma_release_channel(host->dma_chan);

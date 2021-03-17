@@ -42,7 +42,6 @@ int arm_cpuidle_suspend(int index)
 
 	return cpu_ops[cpu]->cpu_suspend(index);
 }
-EXPORT_SYMBOL_GPL(arm_cpuidle_suspend);
 
 #ifdef CONFIG_ACPI
 

@@ -495,10 +495,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	 *
 	 * [INIT ACK back to where the INIT came from.]
 	 */
-	if (chunk->transport)
-		retval->transport =
-			sctp_assoc_lookup_paddr(asoc,
-						&chunk->transport->ipaddr);
+	retval->transport = chunk->transport;
 
 	retval->subh.init_hdr =
 		sctp_addto_chunk(retval, sizeof(initack), &initack);
@@ -645,10 +642,8 @@ struct sctp_chunk *sctp_make_cookie_ack(const struct sctp_association *asoc,
 	 *
 	 * [COOKIE ACK back to where the COOKIE ECHO came from.]
 	 */
-	if (retval && chunk && chunk->transport)
-		retval->transport =
-			sctp_assoc_lookup_paddr(asoc,
-						&chunk->transport->ipaddr);
+	if (retval && chunk)
+		retval->transport = chunk->transport;
 
 	return retval;
 }
@@ -871,11 +866,7 @@ struct sctp_chunk *sctp_make_shutdown(const struct sctp_association *asoc,
 	struct sctp_chunk *retval;
 	__u32 ctsn;
 
-	if (chunk && chunk->asoc)
-		ctsn = sctp_tsnmap_get_ctsn(&chunk->asoc->peer.tsn_map);
-	else
-		ctsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
-
+	ctsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
 	shut.cum_tsn_ack = htonl(ctsn);
 
 	retval = sctp_make_control(asoc, SCTP_CID_SHUTDOWN, 0,
@@ -2333,6 +2324,7 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 	union sctp_addr addr;
 	struct sctp_af *af;
 	int src_match = 0;
+	char *cookie;
 
 	/* We must include the address that the INIT packet came from.
 	 * This is the only address that matters for an INIT packet.
@@ -2436,6 +2428,14 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 	/* Peer Rwnd   : Current calculated value of the peer's rwnd.  */
 	asoc->peer.rwnd = asoc->peer.i.a_rwnd;
 
+	/* Copy cookie in case we need to resend COOKIE-ECHO. */
+	cookie = asoc->peer.cookie;
+	if (cookie) {
+		asoc->peer.cookie = kmemdup(cookie, asoc->peer.cookie_len, gfp);
+		if (!asoc->peer.cookie)
+			goto clean_up;
+	}
+
 	/* RFC 2960 7.2.1 The initial value of ssthresh MAY be arbitrarily
 	 * high (for example, implementations MAY use the size of the receiver
 	 * advertised window).
@@ -2461,9 +2461,6 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 	if (sctp_stream_init(&asoc->stream, asoc->c.sinit_num_ostreams,
 			     asoc->c.sinit_max_instreams, gfp))
 		goto clean_up;
-
-	/* Update frag_point when stream_interleave may get changed. */
-	sctp_assoc_update_frag_point(asoc);
 
 	if (!asoc->temp && sctp_assoc_set_id(asoc, gfp))
 		goto clean_up;
@@ -2604,11 +2601,7 @@ do_addr_param:
 	case SCTP_PARAM_STATE_COOKIE:
 		asoc->peer.cookie_len =
 			ntohs(param.p->length) - sizeof(struct sctp_paramhdr);
-		if (asoc->peer.cookie)
-			kfree(asoc->peer.cookie);
-		asoc->peer.cookie = kmemdup(param.cookie->body, asoc->peer.cookie_len, gfp);
-		if (!asoc->peer.cookie)
-			retval = 0;
+		asoc->peer.cookie = param.cookie->body;
 		break;
 
 	case SCTP_PARAM_HEARTBEAT_INFO:
@@ -2670,8 +2663,6 @@ do_addr_param:
 			goto fall_through;
 
 		/* Save peer's random parameter */
-		if (asoc->peer.peer_random)
-			kfree(asoc->peer.peer_random);
 		asoc->peer.peer_random = kmemdup(param.p,
 					    ntohs(param.p->length), gfp);
 		if (!asoc->peer.peer_random) {
@@ -2685,8 +2676,6 @@ do_addr_param:
 			goto fall_through;
 
 		/* Save peer's HMAC list */
-		if (asoc->peer.peer_hmacs)
-			kfree(asoc->peer.peer_hmacs);
 		asoc->peer.peer_hmacs = kmemdup(param.p,
 					    ntohs(param.p->length), gfp);
 		if (!asoc->peer.peer_hmacs) {
@@ -2702,8 +2691,6 @@ do_addr_param:
 		if (!ep->auth_enable)
 			goto fall_through;
 
-		if (asoc->peer.peer_chunks)
-			kfree(asoc->peer.peer_chunks);
 		asoc->peer.peer_chunks = kmemdup(param.p,
 					    ntohs(param.p->length), gfp);
 		if (!asoc->peer.peer_chunks)

@@ -104,7 +104,6 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	struct net_device *dev;
 	bool exists = false;
 	int ret, err;
-	u32 index;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Mirred requires attributes to be passed");
@@ -118,8 +117,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	}
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
-	index = parm->index;
-	err = tcf_idr_check_alloc(tn, &index, a, bind);
+
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -136,21 +135,21 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		if (exists)
 			tcf_idr_release(*a, bind);
 		else
-			tcf_idr_cleanup(tn, index);
+			tcf_idr_cleanup(tn, parm->index);
 		NL_SET_ERR_MSG_MOD(extack, "Unknown mirred option");
 		return -EINVAL;
 	}
 
 	if (!exists) {
 		if (!parm->ifindex) {
-			tcf_idr_cleanup(tn, index);
+			tcf_idr_cleanup(tn, parm->index);
 			NL_SET_ERR_MSG_MOD(extack, "Specified device does not exist");
 			return -EINVAL;
 		}
-		ret = tcf_idr_create(tn, index, est, a,
+		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_mirred_ops, bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, index);
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
@@ -159,9 +158,6 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		return -EEXIST;
 	}
 	m = to_mirred(*a);
-
-	if (ret == ACT_P_CREATED)
-		INIT_LIST_HEAD(&m->tcfm_list);
 
 	spin_lock_bh(&m->tcf_lock);
 	m->tcf_action = parm->action;
@@ -419,7 +415,7 @@ static __net_init int mirred_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
-	return tc_action_net_init(net, tn, &act_mirred_ops);
+	return tc_action_net_init(tn, &act_mirred_ops);
 }
 
 static void __net_exit mirred_exit_net(struct list_head *net_list)
@@ -445,11 +441,7 @@ static int __init mirred_init_module(void)
 		return err;
 
 	pr_info("Mirror/redirect action on\n");
-	err = tcf_register_action(&act_mirred_ops, &mirred_net_ops);
-	if (err)
-		unregister_netdevice_notifier(&mirred_device_notifier);
-
-	return err;
+	return tcf_register_action(&act_mirred_ops, &mirred_net_ops);
 }
 
 static void __exit mirred_cleanup_module(void)

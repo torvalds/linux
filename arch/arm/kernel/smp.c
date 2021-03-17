@@ -42,7 +42,6 @@
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/procinfo.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -76,10 +75,6 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 	IPI_IRQ_WORK,
 	IPI_COMPLETION,
-	/*
-	 * CPU_BACKTRACE is special and not included in NR_IPI
-	 * or tracable with trace_ipi_*
-	 */
 	IPI_CPU_BACKTRACE,
 	/*
 	 * SGI8-15 can be reserved by secure firmware, and thus may
@@ -107,40 +102,12 @@ static unsigned long get_arch_pgd(pgd_t *pgd)
 #endif
 }
 
-#if defined(CONFIG_BIG_LITTLE) && defined(CONFIG_HARDEN_BRANCH_PREDICTOR)
-static int secondary_biglittle_prepare(unsigned int cpu)
-{
-	if (!cpu_vtable[cpu])
-		cpu_vtable[cpu] = kzalloc(sizeof(*cpu_vtable[cpu]), GFP_KERNEL);
-
-	return cpu_vtable[cpu] ? 0 : -ENOMEM;
-}
-
-static void secondary_biglittle_init(void)
-{
-	init_proc_vtable(lookup_processor(read_cpuid_id())->proc);
-}
-#else
-static int secondary_biglittle_prepare(unsigned int cpu)
-{
-	return 0;
-}
-
-static void secondary_biglittle_init(void)
-{
-}
-#endif
-
 int __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
 
 	if (!smp_ops.smp_boot_secondary)
 		return -ENOSYS;
-
-	ret = secondary_biglittle_prepare(cpu);
-	if (ret)
-		return ret;
 
 	/*
 	 * We need to tell the secondary core where to find
@@ -258,7 +225,7 @@ int __cpu_disable(void)
 	/*
 	 * OK - migrate IRQs away from this CPU
 	 */
-	irq_migrate_all_off_this_cpu();
+	migrate_irqs();
 
 	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
@@ -392,8 +359,6 @@ asmlinkage void secondary_start_kernel(void)
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu;
 
-	secondary_biglittle_init();
-
 	/*
 	 * The identity mapping is uncached (strongly ordered), so
 	 * switch away from it before attempting any exclusive accesses.
@@ -516,14 +481,6 @@ void __init set_smp_cross_call(void (*fn)(const struct cpumask *, unsigned int))
 		__smp_cross_call = fn;
 }
 
-static void (*__smp_update_ipi_history_cb)(int cpu);
-
-void set_update_ipi_history_callback(void (*fn)(int))
-{
-	__smp_update_ipi_history_cb = fn;
-}
-EXPORT_SYMBOL_GPL(set_update_ipi_history_callback);
-
 static const char *ipi_types[NR_IPI] __tracepoint_string = {
 #define S(x,s)	[x] = s
 	S(IPI_WAKEUP, "CPU wakeup interrupts"),
@@ -616,10 +573,8 @@ static void ipi_cpu_stop(unsigned int cpu)
 	local_fiq_disable();
 	local_irq_disable();
 
-	while (1) {
+	while (1)
 		cpu_relax();
-		wfe();
-	}
 }
 
 static DEFINE_PER_CPU(struct completion *, cpu_completion);
@@ -716,8 +671,6 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 void smp_send_reschedule(int cpu)
 {
-	if (__smp_update_ipi_history_cb)
-		__smp_update_ipi_history_cb(cpu);
 	smp_cross_call(cpumask_of(cpu), IPI_RESCHEDULE);
 }
 
@@ -738,21 +691,6 @@ void smp_send_stop(void)
 
 	if (num_online_cpus() > 1)
 		pr_warn("SMP: failed to stop secondary CPUs\n");
-}
-
-/* In case panic() and panic() called at the same time on CPU1 and CPU2,
- * and CPU 1 calls panic_smp_self_stop() before crash_smp_send_stop()
- * CPU1 can't receive the ipi irqs from CPU2, CPU1 will be always online,
- * kdump fails. So split out the panic_smp_self_stop() and add
- * set_cpu_online(smp_processor_id(), false).
- */
-void panic_smp_self_stop(void)
-{
-	pr_debug("CPU %u will stop doing anything useful since another CPU has paniced\n",
-	         smp_processor_id());
-	set_cpu_online(smp_processor_id(), false);
-	while (1)
-		cpu_relax();
 }
 
 /*
@@ -817,7 +755,7 @@ core_initcall(register_cpufreq_notifier);
 
 static void raise_nmi(cpumask_t *mask)
 {
-	__smp_cross_call(mask, IPI_CPU_BACKTRACE);
+	smp_cross_call(mask, IPI_CPU_BACKTRACE);
 }
 
 void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)

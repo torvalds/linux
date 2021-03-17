@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/pm_runtime.h>
 
 #define DRIVER_NAME "memstick"
 
@@ -437,7 +436,6 @@ static void memstick_check(struct work_struct *work)
 	struct memstick_dev *card;
 
 	dev_dbg(&host->dev, "memstick_check started\n");
-	pm_runtime_get_noresume(host->dev.parent);
 	mutex_lock(&host->lock);
 	if (!host->card) {
 		if (memstick_power_on(host))
@@ -469,6 +467,7 @@ static void memstick_check(struct work_struct *work)
 			host->card = card;
 			if (device_register(&card->dev)) {
 				put_device(&card->dev);
+				kfree(host->card);
 				host->card = NULL;
 			}
 		} else
@@ -480,7 +479,6 @@ out_power_off:
 		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
 
 	mutex_unlock(&host->lock);
-	pm_runtime_put(host->dev.parent);
 	dev_dbg(&host->dev, "memstick_check finished\n");
 }
 
@@ -628,18 +626,13 @@ static int __init memstick_init(void)
 		return -ENOMEM;
 
 	rc = bus_register(&memstick_bus_type);
-	if (rc)
-		goto error_destroy_workqueue;
+	if (!rc)
+		rc = class_register(&memstick_host_class);
 
-	rc = class_register(&memstick_host_class);
-	if (rc)
-		goto error_bus_unregister;
+	if (!rc)
+		return 0;
 
-	return 0;
-
-error_bus_unregister:
 	bus_unregister(&memstick_bus_type);
-error_destroy_workqueue:
 	destroy_workqueue(workqueue);
 
 	return rc;

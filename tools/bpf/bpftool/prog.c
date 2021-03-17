@@ -109,14 +109,13 @@ static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 
 static int prog_fd_by_tag(unsigned char *tag)
 {
+	struct bpf_prog_info info = {};
+	__u32 len = sizeof(info);
 	unsigned int id = 0;
 	int err;
 	int fd;
 
 	while (true) {
-		struct bpf_prog_info info = {};
-		__u32 len = sizeof(info);
-
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
 			p_err("%s", strerror(errno));
@@ -381,9 +380,7 @@ static int do_show(int argc, char **argv)
 		if (fd < 0)
 			return -1;
 
-		err = show_prog(fd);
-		close(fd);
-		return err;
+		return show_prog(fd);
 	}
 
 	if (argc)
@@ -752,7 +749,6 @@ static int do_load(int argc, char **argv)
 			}
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "map")) {
-			void *new_map_replace;
 			char *endptr, *name;
 			int fd;
 
@@ -786,15 +782,12 @@ static int do_load(int argc, char **argv)
 			if (fd < 0)
 				goto err_free_reuse_maps;
 
-			new_map_replace = reallocarray(map_replace,
-						       old_map_fds + 1,
-						       sizeof(*map_replace));
-			if (!new_map_replace) {
+			map_replace = reallocarray(map_replace, old_map_fds + 1,
+						   sizeof(*map_replace));
+			if (!map_replace) {
 				p_err("mem alloc failed");
 				goto err_free_reuse_maps;
 			}
-			map_replace = new_map_replace;
-
 			map_replace[old_map_fds].idx = idx;
 			map_replace[old_map_fds].name = name;
 			map_replace[old_map_fds].fd = fd;

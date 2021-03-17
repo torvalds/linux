@@ -347,10 +347,8 @@ a = TMP_
 .endm
 
 ########################################################################
-## void sha256_transform_ssse3(struct sha256_state *state, const u8 *data,
-##			       int blocks);
-## arg 1 : pointer to state
-##	   (struct sha256_state is assumed to begin with u32 state[8])
+## void sha256_transform_ssse3(void *input_data, UINT32 digest[8], UINT64 num_blks)
+## arg 1 : pointer to digest
 ## arg 2 : pointer to input data
 ## arg 3 : Num blocks
 ########################################################################

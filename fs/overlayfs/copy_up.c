@@ -43,7 +43,7 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
 	ssize_t list_size, size, value_size = 0;
 	char *buf, *name, *value = NULL;
-	int error = 0;
+	int uninitialized_var(error);
 	size_t slen;
 
 	if (!(old->d_inode->i_opflags & IOP_XATTR) ||
@@ -501,24 +501,6 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 {
 	int err;
 
-	/*
-	 * Copy up data first and then xattrs. Writing data after
-	 * xattrs will remove security.capability xattr automatically.
-	 */
-	if (S_ISREG(c->stat.mode) && !c->metacopy) {
-		struct path upperpath, datapath;
-
-		ovl_path_upper(c->dentry, &upperpath);
-		if (WARN_ON(upperpath.dentry != NULL))
-			return -EIO;
-		upperpath.dentry = temp;
-
-		ovl_path_lowerdata(c->dentry, &datapath);
-		err = ovl_copy_up_data(&datapath, &upperpath, c->stat.size);
-		if (err)
-			return err;
-	}
-
 	err = ovl_copy_xattr(c->lowerpath.dentry, temp);
 	if (err)
 		return err;
@@ -532,6 +514,19 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	 */
 	if (c->origin) {
 		err = ovl_set_origin(c->dentry, c->lowerpath.dentry, temp);
+		if (err)
+			return err;
+	}
+
+	if (S_ISREG(c->stat.mode) && !c->metacopy) {
+		struct path upperpath, datapath;
+
+		ovl_path_upper(c->dentry, &upperpath);
+		BUG_ON(upperpath.dentry != NULL);
+		upperpath.dentry = temp;
+
+		ovl_path_lowerdata(c->dentry, &datapath);
+		err = ovl_copy_up_data(&datapath, &upperpath, c->stat.size);
 		if (err)
 			return err;
 	}
@@ -711,8 +706,6 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 {
 	struct path upperpath, datapath;
 	int err;
-	char *capability = NULL;
-	ssize_t uninitialized_var(cap_size);
 
 	ovl_path_upper(c->dentry, &upperpath);
 	if (WARN_ON(upperpath.dentry == NULL))
@@ -722,37 +715,15 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 	if (WARN_ON(datapath.dentry == NULL))
 		return -EIO;
 
-	if (c->stat.size) {
-		err = cap_size = ovl_getxattr(upperpath.dentry, XATTR_NAME_CAPS,
-					      &capability, 0);
-		if (err < 0 && err != -ENODATA)
-			goto out;
-	}
-
 	err = ovl_copy_up_data(&datapath, &upperpath, c->stat.size);
 	if (err)
-		goto out_free;
-
-	/*
-	 * Writing to upper file will clear security.capability xattr. We
-	 * don't want that to happen for normal copy-up operation.
-	 */
-	if (capability) {
-		err = ovl_do_setxattr(upperpath.dentry, XATTR_NAME_CAPS,
-				      capability, cap_size, 0);
-		if (err)
-			goto out_free;
-	}
-
+		return err;
 
 	err = vfs_removexattr(upperpath.dentry, OVL_XATTR_METACOPY);
 	if (err)
-		goto out_free;
+		return err;
 
 	ovl_set_upperdata(d_inode(c->dentry));
-out_free:
-	kfree(capability);
-out:
 	return err;
 }
 
@@ -858,7 +829,7 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags)
 		dput(parent);
 		dput(next);
 	}
-	ovl_revert_creds(old_cred);
+	revert_creds(old_cred);
 
 	return err;
 }
@@ -878,14 +849,14 @@ static bool ovl_open_need_copy_up(struct dentry *dentry, int flags)
 	return true;
 }
 
-int ovl_maybe_copy_up(struct dentry *dentry, int flags)
+int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
 {
 	int err = 0;
 
-	if (ovl_open_need_copy_up(dentry, flags)) {
+	if (ovl_open_need_copy_up(dentry, file_flags)) {
 		err = ovl_want_write(dentry);
 		if (!err) {
-			err = ovl_copy_up_flags(dentry, flags);
+			err = ovl_copy_up_flags(dentry, file_flags);
 			ovl_drop_write(dentry);
 		}
 	}

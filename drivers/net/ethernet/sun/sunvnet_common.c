@@ -1216,10 +1216,9 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 	return skb;
 }
 
-static netdev_tx_t
-vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb,
-		     struct vnet_port *(*vnet_tx_port)
-		     (struct sk_buff *, struct net_device *))
+static int vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb,
+				struct vnet_port *(*vnet_tx_port)
+				(struct sk_buff *, struct net_device *))
 {
 	struct net_device *dev = VNET_PORT_TO_NET_DEVICE(port);
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
@@ -1322,10 +1321,9 @@ out_dropped:
 	return NETDEV_TX_OK;
 }
 
-netdev_tx_t
-sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
-			  struct vnet_port *(*vnet_tx_port)
-			  (struct sk_buff *, struct net_device *))
+int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
+			      struct vnet_port *(*vnet_tx_port)
+			      (struct sk_buff *, struct net_device *))
 {
 	struct vnet_port *port = NULL;
 	struct vio_dring_state *dr;

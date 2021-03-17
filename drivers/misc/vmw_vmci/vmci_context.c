@@ -29,9 +29,6 @@
 #include "vmci_driver.h"
 #include "vmci_event.h"
 
-/* Use a wide upper bound for the maximum contexts. */
-#define VMCI_MAX_CONTEXTS 2000
-
 /*
  * List of current VMCI contexts.  Contexts can be added by
  * vmci_ctx_create() and removed via vmci_ctx_destroy().
@@ -128,22 +125,19 @@ struct vmci_ctx *vmci_ctx_create(u32 cid, u32 priv_flags,
 	/* Initialize host-specific VMCI context. */
 	init_waitqueue_head(&context->host_context.wait_queue);
 
-	context->queue_pair_array =
-		vmci_handle_arr_create(0, VMCI_MAX_GUEST_QP_COUNT);
+	context->queue_pair_array = vmci_handle_arr_create(0);
 	if (!context->queue_pair_array) {
 		error = -ENOMEM;
 		goto err_free_ctx;
 	}
 
-	context->doorbell_array =
-		vmci_handle_arr_create(0, VMCI_MAX_GUEST_DOORBELL_COUNT);
+	context->doorbell_array = vmci_handle_arr_create(0);
 	if (!context->doorbell_array) {
 		error = -ENOMEM;
 		goto err_free_qp_array;
 	}
 
-	context->pending_doorbell_array =
-		vmci_handle_arr_create(0, VMCI_MAX_GUEST_DOORBELL_COUNT);
+	context->pending_doorbell_array = vmci_handle_arr_create(0);
 	if (!context->pending_doorbell_array) {
 		error = -ENOMEM;
 		goto err_free_db_array;
@@ -218,7 +212,7 @@ static int ctx_fire_notification(u32 context_id, u32 priv_flags)
 	 * We create an array to hold the subscribers we find when
 	 * scanning through all contexts.
 	 */
-	subscriber_array = vmci_handle_arr_create(0, VMCI_MAX_CONTEXTS);
+	subscriber_array = vmci_handle_arr_create(0);
 	if (subscriber_array == NULL)
 		return VMCI_ERROR_NO_MEM;
 
@@ -637,26 +631,20 @@ int vmci_ctx_add_notification(u32 context_id, u32 remote_cid)
 
 	spin_lock(&context->lock);
 
-	if (context->n_notifiers < VMCI_MAX_CONTEXTS) {
-		list_for_each_entry(n, &context->notifier_list, node) {
-			if (vmci_handle_is_equal(n->handle, notifier->handle)) {
-				exists = true;
-				break;
-			}
+	list_for_each_entry(n, &context->notifier_list, node) {
+		if (vmci_handle_is_equal(n->handle, notifier->handle)) {
+			exists = true;
+			break;
 		}
+	}
 
-		if (exists) {
-			kfree(notifier);
-			result = VMCI_ERROR_ALREADY_EXISTS;
-		} else {
-			list_add_tail_rcu(&notifier->node,
-					  &context->notifier_list);
-			context->n_notifiers++;
-			result = VMCI_SUCCESS;
-		}
-	} else {
+	if (exists) {
 		kfree(notifier);
-		result = VMCI_ERROR_NO_MEM;
+		result = VMCI_ERROR_ALREADY_EXISTS;
+	} else {
+		list_add_tail_rcu(&notifier->node, &context->notifier_list);
+		context->n_notifiers++;
+		result = VMCI_SUCCESS;
 	}
 
 	spin_unlock(&context->lock);
@@ -741,7 +729,8 @@ static int vmci_ctx_get_chkpt_doorbells(struct vmci_ctx *context,
 					u32 *buf_size, void **pbuf)
 {
 	struct dbell_cpt_state *dbells;
-	u32 i, n_doorbells;
+	size_t n_doorbells;
+	int i;
 
 	n_doorbells = vmci_handle_arr_get_size(context->doorbell_array);
 	if (n_doorbells > 0) {
@@ -751,7 +740,7 @@ static int vmci_ctx_get_chkpt_doorbells(struct vmci_ctx *context,
 			return VMCI_ERROR_MORE_DATA;
 		}
 
-		dbells = kzalloc(data_size, GFP_ATOMIC);
+		dbells = kmalloc(data_size, GFP_ATOMIC);
 		if (!dbells)
 			return VMCI_ERROR_NO_MEM;
 
@@ -879,8 +868,7 @@ int vmci_ctx_rcv_notifications_get(u32 context_id,
 	spin_lock(&context->lock);
 
 	*db_handle_array = context->pending_doorbell_array;
-	context->pending_doorbell_array =
-		vmci_handle_arr_create(0, VMCI_MAX_GUEST_DOORBELL_COUNT);
+	context->pending_doorbell_array = vmci_handle_arr_create(0);
 	if (!context->pending_doorbell_array) {
 		context->pending_doorbell_array = *db_handle_array;
 		*db_handle_array = NULL;
@@ -962,11 +950,12 @@ int vmci_ctx_dbell_create(u32 context_id, struct vmci_handle handle)
 		return VMCI_ERROR_NOT_FOUND;
 
 	spin_lock(&context->lock);
-	if (!vmci_handle_arr_has_entry(context->doorbell_array, handle))
-		result = vmci_handle_arr_append_entry(&context->doorbell_array,
-						      handle);
-	else
+	if (!vmci_handle_arr_has_entry(context->doorbell_array, handle)) {
+		vmci_handle_arr_append_entry(&context->doorbell_array, handle);
+		result = VMCI_SUCCESS;
+	} else {
 		result = VMCI_ERROR_DUPLICATE_ENTRY;
+	}
 
 	spin_unlock(&context->lock);
 	vmci_ctx_put(context);
@@ -1102,16 +1091,15 @@ int vmci_ctx_notify_dbell(u32 src_cid,
 			if (!vmci_handle_arr_has_entry(
 					dst_context->pending_doorbell_array,
 					handle)) {
-				result = vmci_handle_arr_append_entry(
+				vmci_handle_arr_append_entry(
 					&dst_context->pending_doorbell_array,
 					handle);
-				if (result == VMCI_SUCCESS) {
-					ctx_signal_notify(dst_context);
-					wake_up(&dst_context->host_context.wait_queue);
-				}
-			} else {
-				result = VMCI_SUCCESS;
+
+				ctx_signal_notify(dst_context);
+				wake_up(&dst_context->host_context.wait_queue);
+
 			}
+			result = VMCI_SUCCESS;
 		}
 		spin_unlock(&dst_context->lock);
 	}
@@ -1138,11 +1126,13 @@ int vmci_ctx_qp_create(struct vmci_ctx *context, struct vmci_handle handle)
 	if (context == NULL || vmci_handle_is_invalid(handle))
 		return VMCI_ERROR_INVALID_ARGS;
 
-	if (!vmci_handle_arr_has_entry(context->queue_pair_array, handle))
-		result = vmci_handle_arr_append_entry(
-			&context->queue_pair_array, handle);
-	else
+	if (!vmci_handle_arr_has_entry(context->queue_pair_array, handle)) {
+		vmci_handle_arr_append_entry(&context->queue_pair_array,
+					     handle);
+		result = VMCI_SUCCESS;
+	} else {
 		result = VMCI_ERROR_DUPLICATE_ENTRY;
+	}
 
 	return result;
 }

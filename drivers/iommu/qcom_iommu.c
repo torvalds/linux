@@ -26,7 +26,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
-#include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
 #include <linux/kconfig.h>
@@ -43,6 +42,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#include "io-pgtable.h"
 #include "arm-smmu-regs.h"
 
 #define SMMU_INTR_SEL_NS     0x2000
@@ -333,19 +333,21 @@ static void qcom_iommu_domain_free(struct iommu_domain *domain)
 {
 	struct qcom_iommu_domain *qcom_domain = to_qcom_iommu_domain(domain);
 
+	if (WARN_ON(qcom_domain->iommu))    /* forgot to detach? */
+		return;
+
 	iommu_put_dma_cookie(domain);
 
-	if (qcom_domain->iommu) {
-		/*
-		 * NOTE: unmap can be called after client device is powered
-		 * off, for example, with GPUs or anything involving dma-buf.
-		 * So we cannot rely on the device_link.  Make sure the IOMMU
-		 * is on to avoid unclocked accesses in the TLB inv path:
-		 */
-		pm_runtime_get_sync(qcom_domain->iommu->dev);
-		free_io_pgtable_ops(qcom_domain->pgtbl_ops);
-		pm_runtime_put_sync(qcom_domain->iommu->dev);
-	}
+	/* NOTE: unmap can be called after client device is powered off,
+	 * for example, with GPUs or anything involving dma-buf.  So we
+	 * cannot rely on the device_link.  Make sure the IOMMU is on to
+	 * avoid unclocked accesses in the TLB inv path:
+	 */
+	pm_runtime_get_sync(qcom_domain->iommu->dev);
+
+	free_io_pgtable_ops(qcom_domain->pgtbl_ops);
+
+	pm_runtime_put_sync(qcom_domain->iommu->dev);
 
 	kfree(qcom_domain);
 }
@@ -390,7 +392,7 @@ static void qcom_iommu_detach_dev(struct iommu_domain *domain, struct device *de
 	struct qcom_iommu_domain *qcom_domain = to_qcom_iommu_domain(domain);
 	unsigned i;
 
-	if (WARN_ON(!qcom_domain->iommu))
+	if (!qcom_domain->iommu)
 		return;
 
 	pm_runtime_get_sync(qcom_iommu->dev);
@@ -403,6 +405,8 @@ static void qcom_iommu_detach_dev(struct iommu_domain *domain, struct device *de
 		ctx->domain = NULL;
 	}
 	pm_runtime_put_sync(qcom_iommu->dev);
+
+	qcom_domain->iommu = NULL;
 }
 
 static int qcom_iommu_map(struct iommu_domain *domain, unsigned long iova,
@@ -797,11 +801,8 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	qcom_iommu->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res) {
+	if (res)
 		qcom_iommu->local_base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(qcom_iommu->local_base))
-			return PTR_ERR(qcom_iommu->local_base);
-	}
 
 	qcom_iommu->iface_clk = devm_clk_get(dev, "iface");
 	if (IS_ERR(qcom_iommu->iface_clk)) {

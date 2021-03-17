@@ -288,16 +288,14 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type)
 void pblk_bio_free_pages(struct pblk *pblk, struct bio *bio, int off,
 			 int nr_pages)
 {
-	struct bio_vec *bv;
-	struct page *page;
-	int i, e, nbv = 0;
+	struct bio_vec bv;
+	int i;
 
-	for (i = 0; i < bio->bi_vcnt; i++) {
-		bv = &bio->bi_io_vec[i];
-		page = bv->bv_page;
-		for (e = 0; e < bv->bv_len; e += PBLK_EXPOSED_PAGE_SIZE, nbv++)
-			if (nbv >= off)
-				mempool_free(page++, &pblk->page_bio_pool);
+	WARN_ON(off + nr_pages != bio->bi_vcnt);
+
+	for (i = off; i < nr_pages + off; i++) {
+		bv = bio->bi_io_vec[i];
+		mempool_free(bv.bv_page, &pblk->page_bio_pool);
 	}
 }
 
@@ -893,8 +891,10 @@ static void pblk_setup_e_rq(struct pblk *pblk, struct nvm_rq *rqd,
 
 static int pblk_blk_erase_sync(struct pblk *pblk, struct ppa_addr ppa)
 {
-	struct nvm_rq rqd = {NULL};
-	int ret;
+	struct nvm_rq rqd;
+	int ret = 0;
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
 
 	pblk_setup_e_rq(pblk, &rqd, ppa);
 
@@ -902,6 +902,19 @@ static int pblk_blk_erase_sync(struct pblk *pblk, struct ppa_addr ppa)
 	 * with writes. Thus, there is no need to take the LUN semaphore.
 	 */
 	ret = pblk_submit_io_sync(pblk, &rqd);
+	if (ret) {
+		struct nvm_tgt_dev *dev = pblk->dev;
+		struct nvm_geo *geo = &dev->geo;
+
+		pblk_err(pblk, "could not sync erase line:%d,blk:%d\n",
+					pblk_ppa_to_line(ppa),
+					pblk_ppa_to_pos(geo, ppa));
+
+		rqd.error = ret;
+		goto out;
+	}
+
+out:
 	rqd.private = pblk;
 	__pblk_end_io_erase(pblk, &rqd);
 
@@ -1239,22 +1252,15 @@ int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line)
 
 	ret = pblk_line_alloc_bitmaps(pblk, line);
 	if (ret)
-		goto fail;
+		return ret;
 
 	if (!pblk_line_init_bb(pblk, line, 0)) {
-		ret = -EINTR;
-		goto fail;
+		list_add(&line->list, &l_mg->free_list);
+		return -EINTR;
 	}
 
 	pblk_rl_free_lines_dec(&pblk->rl, line, true);
 	return 0;
-
-fail:
-	spin_lock(&l_mg->free_lock);
-	list_add(&line->list, &l_mg->free_list);
-	spin_unlock(&l_mg->free_lock);
-
-	return ret;
 }
 
 void pblk_line_recov_close(struct pblk *pblk, struct pblk_line *line)
@@ -1533,14 +1539,13 @@ struct pblk_line *pblk_line_replace_data(struct pblk *pblk)
 	struct pblk_line *cur, *new = NULL;
 	unsigned int left_seblks;
 
+	cur = l_mg->data_line;
 	new = l_mg->data_next;
 	if (!new)
 		goto out;
-
-	spin_lock(&l_mg->free_lock);
-	cur = l_mg->data_line;
 	l_mg->data_line = new;
 
+	spin_lock(&l_mg->free_lock);
 	pblk_line_setup_metadata(new, l_mg, &pblk->lm);
 	spin_unlock(&l_mg->free_lock);
 
@@ -1773,17 +1778,6 @@ void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line)
 	wa->pad = cpu_to_le64(atomic64_read(&pblk->pad_wa));
 	wa->gc = cpu_to_le64(atomic64_read(&pblk->gc_wa));
 
-	if (le32_to_cpu(emeta_buf->header.identifier) != PBLK_MAGIC) {
-		emeta_buf->header.identifier = cpu_to_le32(PBLK_MAGIC);
-		memcpy(emeta_buf->header.uuid, pblk->instance_uuid, 16);
-		emeta_buf->header.id = cpu_to_le32(line->id);
-		emeta_buf->header.type = cpu_to_le16(line->type);
-		emeta_buf->header.version_major = EMETA_VERSION_MAJOR;
-		emeta_buf->header.version_minor = EMETA_VERSION_MINOR;
-		emeta_buf->header.crc = cpu_to_le32(
-			pblk_calc_meta_header_crc(pblk, &emeta_buf->header));
-	}
-
 	emeta_buf->nr_valid_lbas = cpu_to_le64(line->nr_valid_lbas);
 	emeta_buf->crc = cpu_to_le32(pblk_calc_emeta_crc(pblk, emeta_buf));
 
@@ -1801,6 +1795,8 @@ void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line)
 	spin_unlock(&l_mg->close_lock);
 
 	pblk_line_should_sync_meta(pblk);
+
+
 }
 
 static void pblk_save_lba_list(struct pblk *pblk, struct pblk_line *line)

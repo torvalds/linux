@@ -1081,19 +1081,18 @@ static void qm_mr_process_task(struct work_struct *work);
 static irqreturn_t portal_isr(int irq, void *ptr)
 {
 	struct qman_portal *p = ptr;
+
+	u32 clear = QM_DQAVAIL_MASK | p->irq_sources;
 	u32 is = qm_in(&p->p, QM_REG_ISR) & p->irq_sources;
-	u32 clear = 0;
 
 	if (unlikely(!is))
 		return IRQ_NONE;
 
 	/* DQRR-handling if it's interrupt-driven */
-	if (is & QM_PIRQ_DQRI) {
+	if (is & QM_PIRQ_DQRI)
 		__poll_portal_fast(p, QMAN_POLL_LIMIT);
-		clear = QM_DQAVAIL_MASK | QM_PIRQ_DQRI;
-	}
 	/* Handling of anything else that's interrupt-driven */
-	clear |= __poll_portal_slow(p, is) & QM_PIRQ_SLOW;
+	clear |= __poll_portal_slow(p, is);
 	qm_out(&p->p, QM_REG_ISR, clear);
 	return IRQ_HANDLED;
 }

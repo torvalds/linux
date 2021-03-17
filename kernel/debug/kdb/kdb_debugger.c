@@ -118,6 +118,13 @@ int kdb_stub(struct kgdb_state *ks)
 	kdb_bp_remove();
 	KDB_STATE_CLEAR(DOING_SS);
 	KDB_STATE_SET(PAGER);
+	/* zero out any offline cpu data */
+	for_each_present_cpu(i) {
+		if (!cpu_online(i)) {
+			kgdb_info[i].debuggerinfo = NULL;
+			kgdb_info[i].task = NULL;
+		}
+	}
 	if (ks->err_code == DIE_OOPS || reason == KDB_REASON_OOPS) {
 		ks->pass_exception = 1;
 		KDB_FLAG_SET(CATASTROPHIC);

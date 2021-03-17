@@ -53,6 +53,7 @@ static int register_dpio_irq_handlers(struct fsl_mc_device *dpio_dev, int cpu)
 	struct dpio_priv *priv;
 	int error;
 	struct fsl_mc_device_irq *irq;
+	cpumask_t mask;
 
 	priv = dev_get_drvdata(&dpio_dev->dev);
 
@@ -71,7 +72,9 @@ static int register_dpio_irq_handlers(struct fsl_mc_device *dpio_dev, int cpu)
 	}
 
 	/* set the affinity hint */
-	if (irq_set_affinity_hint(irq->msi_desc->irq, cpumask_of(cpu)))
+	cpumask_clear(&mask);
+	cpumask_set_cpu(cpu, &mask);
+	if (irq_set_affinity_hint(irq->msi_desc->irq, &mask))
 		dev_err(&dpio_dev->dev,
 			"irq_set_affinity failed irq %d cpu %d\n",
 			irq->msi_desc->irq, cpu);

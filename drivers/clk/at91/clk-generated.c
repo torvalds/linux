@@ -153,8 +153,6 @@ static int clk_generated_determine_rate(struct clk_hw *hw,
 			continue;
 
 		div = DIV_ROUND_CLOSEST(parent_rate, req->rate);
-		if (div > GENERATED_MAX_DIV + 1)
-			div = GENERATED_MAX_DIV + 1;
 
 		clk_generated_best_diff(req, parent, parent_rate, div,
 					&best_diff, &best_rate);
@@ -284,11 +282,11 @@ static void clk_generated_startup(struct clk_generated *gck)
 static struct clk_hw * __init
 at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 			    const char *name, const char **parent_names,
-			    u8 num_parents, u8 id, bool pll_audio,
+			    u8 num_parents, u8 id,
 			    const struct clk_range *range)
 {
 	struct clk_generated *gck;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	struct clk_hw *hw;
 	int ret;
 
@@ -308,7 +306,6 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 	gck->regmap = regmap;
 	gck->lock = lock;
 	gck->range = *range;
-	gck->audio_pll_allowed = pll_audio;
 
 	clk_generated_startup(gck);
 	hw = &gck->hw;
@@ -334,6 +331,7 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 	struct device_node *gcknp;
 	struct clk_range range = CLK_RANGE(0, 0);
 	struct regmap *regmap;
+	struct clk_generated *gck;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents == 0 || num_parents > GENERATED_SOURCE_MAX)
@@ -350,8 +348,6 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		return;
 
 	for_each_child_of_node(np, gcknp) {
-		bool pll_audio = false;
-
 		if (of_property_read_u32(gcknp, "reg", &id))
 			continue;
 
@@ -364,14 +360,24 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		of_at91_get_clk_range(gcknp, "atmel,clk-output-range",
 				      &range);
 
-		if (of_device_is_compatible(np, "atmel,sama5d2-clk-generated") &&
-		    (id == GCK_ID_I2S0 || id == GCK_ID_I2S1 ||
-		     id == GCK_ID_CLASSD))
-			pll_audio = true;
-
 		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock, name,
 						  parent_names, num_parents,
-						  id, pll_audio, &range);
+						  id, &range);
+
+		gck = to_clk_generated(hw);
+
+		if (of_device_is_compatible(np,
+					    "atmel,sama5d2-clk-generated")) {
+			if (gck->id == GCK_ID_SSC0 || gck->id == GCK_ID_SSC1 ||
+			    gck->id == GCK_ID_I2S0 || gck->id == GCK_ID_I2S1 ||
+			    gck->id == GCK_ID_CLASSD)
+				gck->audio_pll_allowed = true;
+			else
+				gck->audio_pll_allowed = false;
+		} else {
+			gck->audio_pll_allowed = false;
+		}
+
 		if (IS_ERR(hw))
 			continue;
 

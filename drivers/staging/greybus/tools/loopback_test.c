@@ -21,7 +21,6 @@
 #include <signal.h>
 
 #define MAX_NUM_DEVICES 10
-#define MAX_SYSFS_PREFIX 0x80
 #define MAX_SYSFS_PATH	0x200
 #define CSV_MAX_LINE	0x1000
 #define SYSFS_MAX_INT	0x20
@@ -70,7 +69,7 @@ struct loopback_results {
 };
 
 struct loopback_device {
-	char name[MAX_STR_LEN];
+	char name[MAX_SYSFS_PATH];
 	char sysfs_entry[MAX_SYSFS_PATH];
 	char debugfs_entry[MAX_SYSFS_PATH];
 	struct loopback_results results;
@@ -96,8 +95,8 @@ struct loopback_test {
 	int stop_all;
 	int poll_count;
 	char test_name[MAX_STR_LEN];
-	char sysfs_prefix[MAX_SYSFS_PREFIX];
-	char debugfs_prefix[MAX_SYSFS_PREFIX];
+	char sysfs_prefix[MAX_SYSFS_PATH];
+	char debugfs_prefix[MAX_SYSFS_PATH];
 	struct timespec poll_timeout;
 	struct loopback_device devices[MAX_NUM_DEVICES];
 	struct loopback_results aggregate_results;
@@ -646,7 +645,7 @@ baddir:
 static int open_poll_files(struct loopback_test *t)
 {
 	struct loopback_device *dev;
-	char buf[MAX_SYSFS_PATH + MAX_STR_LEN];
+	char buf[MAX_STR_LEN];
 	char dummy;
 	int fds_idx = 0;
 	int i;
@@ -664,7 +663,7 @@ static int open_poll_files(struct loopback_test *t)
 			goto err;
 		}
 		read(t->fds[fds_idx].fd, &dummy, 1);
-		t->fds[fds_idx].events = POLLERR | POLLPRI;
+		t->fds[fds_idx].events = EPOLLERR|EPOLLPRI;
 		t->fds[fds_idx].revents = 0;
 		fds_idx++;
 	}
@@ -757,7 +756,7 @@ static int wait_for_complete(struct loopback_test *t)
 		}
 
 		for (i = 0; i < t->poll_count; i++) {
-			if (t->fds[i].revents & POLLPRI) {
+			if (t->fds[i].revents & EPOLLPRI) {
 				/* Dummy read to clear the event */
 				read(t->fds[i].fd, &dummy, 1);
 				number_of_events++;
@@ -916,10 +915,10 @@ int main(int argc, char *argv[])
 			t.iteration_max = atoi(optarg);
 			break;
 		case 'S':
-			snprintf(t.sysfs_prefix, MAX_SYSFS_PREFIX, "%s", optarg);
+			snprintf(t.sysfs_prefix, MAX_SYSFS_PATH, "%s", optarg);
 			break;
 		case 'D':
-			snprintf(t.debugfs_prefix, MAX_SYSFS_PREFIX, "%s", optarg);
+			snprintf(t.debugfs_prefix, MAX_SYSFS_PATH, "%s", optarg);
 			break;
 		case 'm':
 			t.mask = atol(optarg);
@@ -970,10 +969,10 @@ int main(int argc, char *argv[])
 	}
 
 	if (!strcmp(t.sysfs_prefix, ""))
-		snprintf(t.sysfs_prefix, MAX_SYSFS_PREFIX, "%s", sysfs_prefix);
+		snprintf(t.sysfs_prefix, MAX_SYSFS_PATH, "%s", sysfs_prefix);
 
 	if (!strcmp(t.debugfs_prefix, ""))
-		snprintf(t.debugfs_prefix, MAX_SYSFS_PREFIX, "%s", debugfs_prefix);
+		snprintf(t.debugfs_prefix, MAX_SYSFS_PATH, "%s", debugfs_prefix);
 
 	ret = find_loopback_devices(&t);
 	if (ret)

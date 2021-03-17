@@ -841,8 +841,8 @@ static int hci_init4_req(struct hci_request *req, unsigned long opt)
 	if (hdev->le_features[0] & HCI_LE_DATA_LEN_EXT) {
 		struct hci_cp_le_write_def_data_len cp;
 
-		cp.tx_len = cpu_to_le16(hdev->le_max_tx_len);
-		cp.tx_time = cpu_to_le16(hdev->le_max_tx_time);
+		cp.tx_len = hdev->le_max_tx_len;
+		cp.tx_time = hdev->le_max_tx_time;
 		hci_req_add(req, HCI_OP_LE_WRITE_DEF_DATA_LEN, sizeof(cp), &cp);
 	}
 
@@ -3084,8 +3084,6 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_max_tx_time = 0x0148;
 	hdev->le_max_rx_len = 0x001b;
 	hdev->le_max_rx_time = 0x0148;
-	hdev->le_max_key_size = SMP_MAX_ENC_KEY_SIZE;
-	hdev->le_min_key_size = SMP_MIN_ENC_KEY_SIZE;
 	hdev->le_tx_def_phys = HCI_LE_SET_PHY_1M;
 	hdev->le_rx_def_phys = HCI_LE_SET_PHY_1M;
 
@@ -4274,9 +4272,6 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
 		return;
 	}
 
-	/* If we reach this point this event matches the last command sent */
-	hci_dev_clear_flag(hdev, HCI_CMD_PENDING);
-
 	/* If the command succeeded and there's still more commands in
 	 * this request the request is not yet complete.
 	 */
@@ -4330,14 +4325,7 @@ static void hci_rx_work(struct work_struct *work)
 			hci_send_to_sock(hdev, skb);
 		}
 
-		/* If the device has been opened in HCI_USER_CHANNEL,
-		 * the userspace has exclusive access to device.
-		 * When device is HCI_INIT, we still need to process
-		 * the data packets to the driver in order
-		 * to complete its setup().
-		 */
-		if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
-		    !test_bit(HCI_INIT, &hdev->flags)) {
+		if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
 			kfree_skb(skb);
 			continue;
 		}
@@ -4394,8 +4382,6 @@ static void hci_cmd_work(struct work_struct *work)
 
 		hdev->sent_cmd = skb_clone(skb, GFP_KERNEL);
 		if (hdev->sent_cmd) {
-			if (hci_req_status_pend(hdev))
-				hci_dev_set_flag(hdev, HCI_CMD_PENDING);
 			atomic_dec(&hdev->cmd_cnt);
 			hci_send_frame(hdev, skb);
 			if (test_bit(HCI_RESET, &hdev->flags))

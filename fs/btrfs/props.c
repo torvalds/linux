@@ -366,7 +366,11 @@ int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
 
 static int prop_compression_validate(const char *value, size_t len)
 {
-	if (btrfs_compress_is_valid_type(value, len))
+	if (!strncmp("lzo", value, len))
+		return 0;
+	else if (!strncmp("zlib", value, len))
+		return 0;
+	else if (!strncmp("zstd", value, len))
 		return 0;
 
 	return -EINVAL;
@@ -392,7 +396,7 @@ static int prop_compression_apply(struct inode *inode,
 		btrfs_set_fs_incompat(fs_info, COMPRESS_LZO);
 	} else if (!strncmp("zlib", value, 4)) {
 		type = BTRFS_COMPRESS_ZLIB;
-	} else if (!strncmp("zstd", value, 4)) {
+	} else if (!strncmp("zstd", value, len)) {
 		type = BTRFS_COMPRESS_ZSTD;
 		btrfs_set_fs_incompat(fs_info, COMPRESS_ZSTD);
 	} else {

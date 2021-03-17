@@ -1093,8 +1093,6 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 
 	em28xx_videodbg("%s\n", __func__);
 
-	dev->v4l2->field_count = 0;
-
 	/*
 	 * Make sure streaming is not already in progress for this type
 	 * of filehandle (e.g. video, vbi)
@@ -1473,9 +1471,9 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	if (!fmt) {
-		fmt = &format[0];
-		em28xx_videodbg("Fourcc format (%08x) invalid. Using default (%08x).\n",
-				f->fmt.pix.pixelformat, fmt->fourcc);
+		em28xx_videodbg("Fourcc format (%08x) invalid.\n",
+				f->fmt.pix.pixelformat);
+		return -EINVAL;
 	}
 
 	if (dev->board.is_em2800) {
@@ -1668,7 +1666,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 {
 	struct em28xx *dev = video_drvdata(file);
 	unsigned int       n;
-	int j;
 
 	n = i->index;
 	if (n >= MAX_EM28XX_INPUT)
@@ -1687,12 +1684,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	/* webcams do not have the STD API */
 	if (dev->is_webcam)
 		i->capabilities = 0;
-
-	/* Dynamically generates an audioset bitmask */
-	i->audioset = 0;
-	for (j = 0; j < MAX_EM28XX_INPUT; j++)
-		if (dev->amux_map[j] != EM28XX_AMUX_UNUSED)
-			i->audioset |= 1 << j;
 
 	return 0;
 }
@@ -1719,24 +1710,11 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int em28xx_fill_audio_input(struct em28xx *dev,
-				   const char *s,
-				   struct v4l2_audio *a,
-				   unsigned int index)
+static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
-	unsigned int idx = dev->amux_map[index];
+	struct em28xx *dev = video_drvdata(file);
 
-	/*
-	 * With msp3400, almost all mappings use the default (amux = 0).
-	 * The only one may use a different value is WinTV USB2, where it
-	 * can also be SCART1 input.
-	 * As it is very doubtful that we would see new boards with msp3400,
-	 * let's just reuse the existing switch.
-	 */
-	if (dev->has_msp34xx && idx != EM28XX_AMUX_UNUSED)
-		idx = EM28XX_AMUX_LINE_IN;
-
-	switch (idx) {
+	switch (a->index) {
 	case EM28XX_AMUX_VIDEO:
 		strcpy(a->name, "Television");
 		break;
@@ -1761,78 +1739,31 @@ static int em28xx_fill_audio_input(struct em28xx *dev,
 	case EM28XX_AMUX_PCM_OUT:
 		strcpy(a->name, "PCM");
 		break;
-	case EM28XX_AMUX_UNUSED:
 	default:
 		return -EINVAL;
 	}
-	a->index = index;
+
+	a->index = dev->ctl_ainput;
 	a->capability = V4L2_AUDCAP_STEREO;
 
-	em28xx_videodbg("%s: audio input index %d is '%s'\n",
-			s, a->index, a->name);
-
 	return 0;
-}
-
-static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
-{
-	struct em28xx *dev = video_drvdata(file);
-
-	if (a->index >= MAX_EM28XX_INPUT)
-		return -EINVAL;
-
-	return em28xx_fill_audio_input(dev, __func__, a, a->index);
-}
-
-static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
-{
-	struct em28xx *dev = video_drvdata(file);
-	int i;
-
-	for (i = 0; i < MAX_EM28XX_INPUT; i++)
-		if (dev->ctl_ainput == dev->amux_map[i])
-			return em28xx_fill_audio_input(dev, __func__, a, i);
-
-	/* Should never happen! */
-	return -EINVAL;
 }
 
 static int vidioc_s_audio(struct file *file, void *priv,
 			  const struct v4l2_audio *a)
 {
 	struct em28xx *dev = video_drvdata(file);
-	int idx, i;
 
 	if (a->index >= MAX_EM28XX_INPUT)
 		return -EINVAL;
-
-	idx = dev->amux_map[a->index];
-
-	if (idx == EM28XX_AMUX_UNUSED)
+	if (!INPUT(a->index)->type)
 		return -EINVAL;
 
-	dev->ctl_ainput = idx;
-
-	/*
-	 * FIXME: This is wrong, as different inputs at em28xx_cards
-	 * may have different audio outputs. So, the right thing
-	 * to do is to implement VIDIOC_G_AUDOUT/VIDIOC_S_AUDOUT.
-	 * With the current board definitions, this would work fine,
-	 * as, currently, all boards fit.
-	 */
-	for (i = 0; i < MAX_EM28XX_INPUT; i++)
-		if (idx == dev->amux_map[i])
-			break;
-	if (i == MAX_EM28XX_INPUT)
-		return -EINVAL;
-
-	dev->ctl_aoutput = INPUT(i)->aout;
+	dev->ctl_ainput = INPUT(a->index)->amux;
+	dev->ctl_aoutput = INPUT(a->index)->aout;
 
 	if (!dev->ctl_aoutput)
 		dev->ctl_aoutput = EM28XX_AOUT_MASTER;
-
-	em28xx_videodbg("%s: set audio input to %d\n", __func__,
-			dev->ctl_ainput);
 
 	return 0;
 }
@@ -2371,7 +2302,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_try_fmt_vbi_cap     = vidioc_g_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_enum_framesizes     = vidioc_enum_framesizes,
-	.vidioc_enumaudio           = vidioc_enumaudio,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
 

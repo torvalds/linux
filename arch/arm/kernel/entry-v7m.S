@@ -146,7 +146,3 @@ ENTRY(vector_table)
 	.rept	CONFIG_CPU_V7M_NUM_IRQ
 	.long	__irq_entry		@ External Interrupts
 	.endr
-	.align	2
-	.globl	exc_ret
-exc_ret:
-	.space	4

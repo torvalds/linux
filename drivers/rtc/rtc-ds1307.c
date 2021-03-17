@@ -749,8 +749,8 @@ static int rx8130_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	if (ret < 0)
 		return ret;
 
-	ctl[0] &= RX8130_REG_EXTENSION_WADA;
-	ctl[1] &= ~RX8130_REG_FLAG_AF;
+	ctl[0] &= ~RX8130_REG_EXTENSION_WADA;
+	ctl[1] |= RX8130_REG_FLAG_AF;
 	ctl[2] &= ~RX8130_REG_CONTROL0_AIE;
 
 	ret = regmap_bulk_write(ds1307->regmap, RX8130_REG_EXTENSION, ctl,
@@ -773,7 +773,8 @@ static int rx8130_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 	ctl[2] |= RX8130_REG_CONTROL0_AIE;
 
-	return regmap_write(ds1307->regmap, RX8130_REG_CONTROL0, ctl[2]);
+	return regmap_bulk_write(ds1307->regmap, RX8130_REG_EXTENSION, ctl,
+				 sizeof(ctl));
 }
 
 static int rx8130_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -1383,6 +1384,7 @@ static void ds1307_clks_register(struct ds1307 *ds1307)
 static const struct regmap_config regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = 0x9,
 };
 
 static int ds1307_probe(struct i2c_client *client,

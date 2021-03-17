@@ -37,14 +37,14 @@ struct snd_usb_audio {
 	struct usb_interface *pm_intf;
 	u32 usb_id;
 	struct mutex mutex;
-	unsigned int system_suspend;
+	unsigned int autosuspended:1;	
 	atomic_t active;
 	atomic_t shutdown;
 	atomic_t usage_count;
 	wait_queue_head_t shutdown_wait;
 	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
 	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
-	unsigned int setup_fmt_after_resume_quirk:1; /* setup the format to interface after resume */
+	
 	int num_interfaces;
 	int num_suspended_intf;
 	int sample_rate_read_error;
@@ -66,9 +66,6 @@ struct snd_usb_audio {
 					 */
 
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
-	struct mutex dev_lock;  /* to protect any race with disconnect */
-	int card_num;	/* cache pcm card number to use upon disconnect */
-	void (*disconnect_cb)(struct snd_usb_audio *chip); /* callback to cleanup on disconnect */
 };
 
 #define usb_audio_err(chip, fmt, args...) \
@@ -110,7 +107,6 @@ enum quirk_type {
 	QUIRK_AUDIO_EDIROL_UAXX,
 	QUIRK_AUDIO_ALIGN_TRANSFER,
 	QUIRK_AUDIO_STANDARD_MIXER,
-	QUIRK_SETUP_FMT_AFTER_RESUME,
 
 	QUIRK_TYPE_COUNT
 };

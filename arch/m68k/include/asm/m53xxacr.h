@@ -89,9 +89,9 @@
  * coherency though in all cases. And for copyback caches we will need
  * to push cached data as well.
  */
-#define CACHE_INIT        (CACHE_MODE + CACR_CINVA - CACR_EC)
-#define CACHE_INVALIDATE  (CACHE_MODE + CACR_CINVA)
-#define CACHE_INVALIDATED (CACHE_MODE + CACR_CINVA)
+#define CACHE_INIT	  CACR_CINVA
+#define CACHE_INVALIDATE  CACR_CINVA
+#define CACHE_INVALIDATED CACR_CINVA
 
 #define ACR0_MODE	((CONFIG_RAMBASE & 0xff000000) + \
 			 (0x000f0000) + \

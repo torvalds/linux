@@ -432,7 +432,6 @@ static int trie_delete_elem(struct bpf_map *map, void *_key)
 	}
 
 	if (!node || node->prefixlen != key->prefixlen ||
-	    node->prefixlen != matchlen ||
 	    (node->flags & LPM_TREE_NODE_FLAG_IM)) {
 		ret = -ENOENT;
 		goto out;
@@ -676,14 +675,9 @@ find_leftmost:
 	 * have exact two children, so this function will never return NULL.
 	 */
 	for (node = search_root; node;) {
-		if (node->flags & LPM_TREE_NODE_FLAG_IM) {
-			node = rcu_dereference(node->child[0]);
-		} else {
+		if (!(node->flags & LPM_TREE_NODE_FLAG_IM))
 			next_node = node;
-			node = rcu_dereference(node->child[0]);
-			if (!node)
-				node = rcu_dereference(next_node->child[1]);
-		}
+		node = rcu_dereference(node->child[0]);
 	}
 do_copy:
 	next_key->prefixlen = next_node->prefixlen;

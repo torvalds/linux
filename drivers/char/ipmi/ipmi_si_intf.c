@@ -221,9 +221,6 @@ struct smi_info {
 	 */
 	bool irq_enable_broken;
 
-	/* Is the driver in maintenance mode? */
-	bool in_maintenance_mode;
-
 	/*
 	 * Did we get an attention that we did not handle?
 	 */
@@ -1016,20 +1013,11 @@ static int ipmi_thread(void *data)
 		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 		busy_wait = ipmi_thread_busy_wait(smi_result, smi_info,
 						  &busy_until);
-		if (smi_result == SI_SM_CALL_WITHOUT_DELAY) {
+		if (smi_result == SI_SM_CALL_WITHOUT_DELAY)
 			; /* do nothing */
-		} else if (smi_result == SI_SM_CALL_WITH_DELAY && busy_wait) {
-			/*
-			 * In maintenance mode we run as fast as
-			 * possible to allow firmware updates to
-			 * complete as fast as possible, but normally
-			 * don't bang on the scheduler.
-			 */
-			if (smi_info->in_maintenance_mode)
-				schedule();
-			else
-				usleep_range(100, 200);
-		} else if (smi_result == SI_SM_IDLE) {
+		else if (smi_result == SI_SM_CALL_WITH_DELAY && busy_wait)
+			schedule();
+		else if (smi_result == SI_SM_IDLE) {
 			if (atomic_read(&smi_info->need_watch)) {
 				schedule_timeout_interruptible(100);
 			} else {
@@ -1037,9 +1025,8 @@ static int ipmi_thread(void *data)
 				__set_current_state(TASK_INTERRUPTIBLE);
 				schedule();
 			}
-		} else {
+		} else
 			schedule_timeout_interruptible(1);
-		}
 	}
 	return 0;
 }
@@ -1214,7 +1201,6 @@ static void set_maintenance_mode(void *send_info, bool enable)
 
 	if (!enable)
 		atomic_set(&smi_info->req_events, 0);
-	smi_info->in_maintenance_mode = enable;
 }
 
 static void shutdown_smi(void *send_info);
@@ -1876,18 +1862,6 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 	int rv = 0;
 	struct smi_info *new_smi, *dup;
 
-	/*
-	 * If the user gave us a hard-coded device at the same
-	 * address, they presumably want us to use it and not what is
-	 * in the firmware.
-	 */
-	if (io->addr_source != SI_HARDCODED &&
-	    ipmi_si_hardcode_match(io->addr_type, io->addr_data)) {
-		dev_info(io->dev,
-			 "Hard-coded device at this address already exists");
-		return -ENODEV;
-	}
-
 	if (!io->io_setup) {
 		if (io->addr_type == IPMI_IO_ADDR_SPACE) {
 			io->io_setup = ipmi_si_port_setup;
@@ -2111,16 +2085,11 @@ static int try_smi_init(struct smi_info *new_smi)
 	WARN_ON(new_smi->io.dev->init_name != NULL);
 
  out_err:
-	if (rv && new_smi->io.io_cleanup) {
-		new_smi->io.io_cleanup(&new_smi->io);
-		new_smi->io.io_cleanup = NULL;
-	}
-
 	kfree(init_name);
 	return rv;
 }
 
-static int __init init_ipmi_si(void)
+static int init_ipmi_si(void)
 {
 	struct smi_info *e;
 	enum ipmi_addr_src type = SI_INVALID;
@@ -2128,8 +2097,11 @@ static int __init init_ipmi_si(void)
 	if (initialized)
 		return 0;
 
-	ipmi_hardcode_init();
 	pr_info("IPMI System Interface driver.\n");
+
+	/* If the user gave us a device, they presumably want us to use it */
+	if (!ipmi_si_hardcode_find_bmc())
+		goto do_scan;
 
 	ipmi_si_platform_init();
 
@@ -2141,6 +2113,7 @@ static int __init init_ipmi_si(void)
 	   with multiple BMCs we assume that there will be several instances
 	   of a given type so if we succeed in registering a type then also
 	   try to register everything else of the same type */
+do_scan:
 	mutex_lock(&smi_infos_lock);
 	list_for_each_entry(e, &smi_infos, link) {
 		/* Try to register a device if it has an IRQ and we either
@@ -2326,8 +2299,6 @@ static void cleanup_ipmi_si(void)
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link)
 		cleanup_one_si(e);
 	mutex_unlock(&smi_infos_lock);
-
-	ipmi_si_hardcode_exit();
 }
 module_exit(cleanup_ipmi_si);
 

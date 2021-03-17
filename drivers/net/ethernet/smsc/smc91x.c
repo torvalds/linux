@@ -638,8 +638,7 @@ done:	if (!THROTTLE_TX_PKTS)
  * now, or set the card to generates an interrupt when ready
  * for the packet.
  */
-static netdev_tx_t
-smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct smc_local *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
@@ -2287,7 +2286,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 		ret = try_toggle_control_gpio(&pdev->dev, &lp->power_gpio,
 					      "power", 0, 0, 100);
 		if (ret)
-			goto out_free_netdev;
+			return ret;
 
 		/*
 		 * Optional reset GPIO configured? Minimum 100 ns reset needed
@@ -2296,7 +2295,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 		ret = try_toggle_control_gpio(&pdev->dev, &lp->reset_gpio,
 					      "reset", 0, 0, 100);
 		if (ret)
-			goto out_free_netdev;
+			return ret;
 
 		/*
 		 * Need to wait for optional EEPROM to load, max 750 us according

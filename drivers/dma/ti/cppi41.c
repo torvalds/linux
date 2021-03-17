@@ -585,22 +585,9 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 	enum dma_transfer_direction dir, unsigned long tx_flags, void *context)
 {
 	struct cppi41_channel *c = to_cpp41_chan(chan);
-	struct dma_async_tx_descriptor *txd = NULL;
-	struct cppi41_dd *cdd = c->cdd;
 	struct cppi41_desc *d;
 	struct scatterlist *sg;
 	unsigned int i;
-	int error;
-
-	error = pm_runtime_get(cdd->ddev.dev);
-	if (error < 0) {
-		pm_runtime_put_noidle(cdd->ddev.dev);
-
-		return NULL;
-	}
-
-	if (cdd->is_suspended)
-		goto err_out_not_ready;
 
 	d = c->desc;
 	for_each_sg(sgl, sg, sg_len, i) {
@@ -623,13 +610,7 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 		d++;
 	}
 
-	txd = &c->txd;
-
-err_out_not_ready:
-	pm_runtime_mark_last_busy(cdd->ddev.dev);
-	pm_runtime_put_autosuspend(cdd->ddev.dev);
-
-	return txd;
+	return &c->txd;
 }
 
 static void cppi41_compute_td_desc(struct cppi41_desc *d)
@@ -742,22 +723,8 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 
 	desc_phys = lower_32_bits(c->desc_phys);
 	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
-	if (!cdd->chan_busy[desc_num]) {
-		struct cppi41_channel *cc, *_ct;
-
-		/*
-		 * channels might still be in the pendling list if
-		 * cppi41_dma_issue_pending() is called after
-		 * cppi41_runtime_suspend() is called
-		 */
-		list_for_each_entry_safe(cc, _ct, &cdd->pending, node) {
-			if (cc != c)
-				continue;
-			list_del(&cc->node);
-			break;
-		}
+	if (!cdd->chan_busy[desc_num])
 		return 0;
-	}
 
 	ret = cppi41_tear_down_chan(c);
 	if (ret)

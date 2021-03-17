@@ -49,26 +49,8 @@ struct thread_info {
 	.addr_limit	= KERNEL_DS,		\
 }
 
-/*
- * A pointer to the struct thread_info for the currently executing thread is
- * held in register $28/$gp.
- *
- * We declare __current_thread_info as a global register variable rather than a
- * local register variable within current_thread_info() because clang doesn't
- * support explicit local register variables.
- *
- * When building the VDSO we take care not to declare the global register
- * variable because this causes GCC to not preserve the value of $28/$gp in
- * functions that change its value (which is common in the PIC VDSO when
- * accessing the GOT). Since the VDSO shouldn't be accessing
- * __current_thread_info anyway we declare it extern in order to cause a link
- * failure if it's referenced.
- */
-#ifdef __VDSO__
-extern struct thread_info *__current_thread_info;
-#else
+/* How to get the thread information struct from C.  */
 register struct thread_info *__current_thread_info __asm__("$28");
-#endif
 
 static inline struct thread_info *current_thread_info(void)
 {

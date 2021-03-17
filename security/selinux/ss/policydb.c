@@ -275,8 +275,6 @@ static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
 	return v;
 }
 
-static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap);
-
 /*
  * Initialize a policy database structure.
  */
@@ -324,10 +322,8 @@ static int policydb_init(struct policydb *p)
 out:
 	hashtab_destroy(p->filename_trans);
 	hashtab_destroy(p->range_tr);
-	for (i = 0; i < SYM_NUM; i++) {
-		hashtab_map(p->symtab[i].table, destroy_f[i], NULL);
+	for (i = 0; i < SYM_NUM; i++)
 		hashtab_destroy(p->symtab[i].table);
-	}
 	return rc;
 }
 
@@ -736,8 +732,7 @@ static int sens_destroy(void *key, void *datum, void *p)
 	kfree(key);
 	if (datum) {
 		levdatum = datum;
-		if (levdatum->level)
-			ebitmap_destroy(&levdatum->level->cat);
+		ebitmap_destroy(&levdatum->level->cat);
 		kfree(levdatum->level);
 	}
 	kfree(datum);
@@ -914,26 +909,13 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 		if (!c->context[0].user) {
 			pr_err("SELinux:  SID %s was never defined.\n",
 				c->u.name);
-			sidtab_destroy(s);
-			goto out;
-		}
-		if (c->sid[0] == SECSID_NULL || c->sid[0] > SECINITSID_NUM) {
-			pr_err("SELinux:  Initial SID %s out of range.\n",
-				c->u.name);
-			sidtab_destroy(s);
-			goto out;
-		}
-		rc = context_add_hash(p, &c->context[0]);
-		if (rc) {
-			sidtab_destroy(s);
 			goto out;
 		}
 
-		rc = sidtab_set_initial(s, c->sid[0], &c->context[0]);
+		rc = sidtab_insert(s, c->sid[0], &c->context[0]);
 		if (rc) {
 			pr_err("SELinux:  unable to load initial SID %s.\n",
 				c->u.name);
-			sidtab_destroy(s);
 			goto out;
 		}
 	}
@@ -1119,7 +1101,7 @@ static int str_read(char **strp, gfp_t flags, void *fp, u32 len)
 	if ((len == 0) || (len == (u32)-1))
 		return -EINVAL;
 
-	str = kmalloc(len + 1, flags | __GFP_NOWARN);
+	str = kmalloc(len + 1, flags);
 	if (!str)
 		return -ENOMEM;
 
@@ -2126,7 +2108,6 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 {
 	int i, j, rc;
 	u32 nel, len;
-	__be64 prefixbuf[1];
 	__le32 buf[3];
 	struct ocontext *l, *c;
 	u32 nodebuf[8];
@@ -2236,30 +2217,21 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 					goto out;
 				break;
 			}
-			case OCON_IBPKEY: {
-				u32 pkey_lo, pkey_hi;
-
-				rc = next_entry(prefixbuf, fp, sizeof(u64));
+			case OCON_IBPKEY:
+				rc = next_entry(nodebuf, fp, sizeof(u32) * 4);
 				if (rc)
 					goto out;
 
-				/* we need to have subnet_prefix in CPU order */
-				c->u.ibpkey.subnet_prefix = be64_to_cpu(prefixbuf[0]);
+				c->u.ibpkey.subnet_prefix = be64_to_cpu(*((__be64 *)nodebuf));
 
-				rc = next_entry(buf, fp, sizeof(u32) * 2);
-				if (rc)
-					goto out;
-
-				pkey_lo = le32_to_cpu(buf[0]);
-				pkey_hi = le32_to_cpu(buf[1]);
-
-				if (pkey_lo > U16_MAX || pkey_hi > U16_MAX) {
+				if (nodebuf[2] > 0xffff ||
+				    nodebuf[3] > 0xffff) {
 					rc = -EINVAL;
 					goto out;
 				}
 
-				c->u.ibpkey.low_pkey  = pkey_lo;
-				c->u.ibpkey.high_pkey = pkey_hi;
+				c->u.ibpkey.low_pkey = le32_to_cpu(nodebuf[2]);
+				c->u.ibpkey.high_pkey = le32_to_cpu(nodebuf[3]);
 
 				rc = context_read_and_validate(&c->context[0],
 							       p,
@@ -2267,10 +2239,7 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 				if (rc)
 					goto out;
 				break;
-			}
-			case OCON_IBENDPORT: {
-				u32 port;
-
+			case OCON_IBENDPORT:
 				rc = next_entry(buf, fp, sizeof(u32) * 2);
 				if (rc)
 					goto out;
@@ -2280,13 +2249,12 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 				if (rc)
 					goto out;
 
-				port = le32_to_cpu(buf[1]);
-				if (port > U8_MAX || port == 0) {
+				if (buf[1] > 0xff || buf[1] == 0) {
 					rc = -EINVAL;
 					goto out;
 				}
 
-				c->u.ibendport.port = port;
+				c->u.ibendport.port = le32_to_cpu(buf[1]);
 
 				rc = context_read_and_validate(&c->context[0],
 							       p,
@@ -2294,8 +2262,7 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 				if (rc)
 					goto out;
 				break;
-			} /* end case */
-			} /* end switch */
+			}
 		}
 	}
 	rc = 0;
@@ -2399,10 +2366,6 @@ int policydb_read(struct policydb *p, void *fp)
 	}
 	p->reject_unknown = !!(le32_to_cpu(buf[1]) & REJECT_UNKNOWN);
 	p->allow_unknown = !!(le32_to_cpu(buf[1]) & ALLOW_UNKNOWN);
-
-	if ((le32_to_cpu(buf[1]) & POLICYDB_CONFIG_ANDROID_NETLINK_ROUTE)) {
-		p->android_netlink_route = 1;
-	}
 
 	if (p->policyvers >= POLICYDB_VERSION_POLCAP) {
 		rc = ebitmap_read(&p->policycaps, fp);
@@ -3142,7 +3105,6 @@ static int ocontext_write(struct policydb *p, struct policydb_compat_info *info,
 {
 	unsigned int i, j, rc;
 	size_t nel, len;
-	__be64 prefixbuf[1];
 	__le32 buf[3];
 	u32 nodebuf[8];
 	struct ocontext *c;
@@ -3230,17 +3192,12 @@ static int ocontext_write(struct policydb *p, struct policydb_compat_info *info,
 					return rc;
 				break;
 			case OCON_IBPKEY:
-				/* subnet_prefix is in CPU order */
-				prefixbuf[0] = cpu_to_be64(c->u.ibpkey.subnet_prefix);
+				*((__be64 *)nodebuf) = cpu_to_be64(c->u.ibpkey.subnet_prefix);
 
-				rc = put_entry(prefixbuf, sizeof(u64), 1, fp);
-				if (rc)
-					return rc;
+				nodebuf[2] = cpu_to_le32(c->u.ibpkey.low_pkey);
+				nodebuf[3] = cpu_to_le32(c->u.ibpkey.high_pkey);
 
-				buf[0] = cpu_to_le32(c->u.ibpkey.low_pkey);
-				buf[1] = cpu_to_le32(c->u.ibpkey.high_pkey);
-
-				rc = put_entry(buf, sizeof(u32), 2, fp);
+				rc = put_entry(nodebuf, sizeof(u32), 4, fp);
 				if (rc)
 					return rc;
 				rc = context_write(p, &c->context[0], fp);

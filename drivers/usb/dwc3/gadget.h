@@ -65,23 +65,6 @@ static inline struct dwc3_request *next_request(struct list_head *list)
 }
 
 /**
- * dwc3_gadget_move_queued_request - move @req to the pending_list
- * @req: the request to be moved
- *
- * Caller should take care of locking. This function will move @req from its
- * current list to the endpoint's pending_list.
- */
-static inline void dwc3_gadget_move_queued_request(struct dwc3_request *req)
-{
-	struct dwc3_ep		*dep = req->dep;
-
-	if (req->trb)
-		req->trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
-	req->status = DWC3_REQUEST_STATUS_QUEUED;
-	list_move_tail(&req->list, &dep->pending_list);
-}
-
-/**
  * dwc3_gadget_move_started_request - move @req to the started_list
  * @req: the request to be moved
  *
@@ -92,23 +75,8 @@ static inline void dwc3_gadget_move_started_request(struct dwc3_request *req)
 {
 	struct dwc3_ep		*dep = req->dep;
 
-	req->status = DWC3_REQUEST_STATUS_STARTED;
+	req->started = true;
 	list_move_tail(&req->list, &dep->started_list);
-}
-
-/**
- * dwc3_gadget_move_cancelled_request - move @req to the cancelled_list
- * @req: the request to be moved
- *
- * Caller should take care of locking. This function will move @req from its
- * current list to the endpoint's cancelled_list.
- */
-static inline void dwc3_gadget_move_cancelled_request(struct dwc3_request *req)
-{
-	struct dwc3_ep		*dep = req->dep;
-
-	req->status = DWC3_REQUEST_STATUS_CANCELLED;
-	list_move_tail(&req->list, &dep->cancelled_list);
 }
 
 void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,

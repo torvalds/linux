@@ -370,15 +370,11 @@ autosuspend the interface's device.  When the usage counter is = 0
 then the interface is considered to be idle, and the kernel may
 autosuspend the device.
 
-Drivers must be careful to balance their overall changes to the usage
-counter.  Unbalanced "get"s will remain in effect when a driver is
-unbound from its interface, preventing the device from going into
-runtime suspend should the interface be bound to a driver again.  On
-the other hand, drivers are allowed to achieve this balance by calling
-the ``usb_autopm_*`` functions even after their ``disconnect`` routine
-has returned -- say from within a work-queue routine -- provided they
-retain an active reference to the interface (via ``usb_get_intf`` and
-``usb_put_intf``).
+Drivers need not be concerned about balancing changes to the usage
+counter; the USB core will undo any remaining "get"s when a driver
+is unbound from its interface.  As a corollary, drivers must not call
+any of the ``usb_autopm_*`` functions after their ``disconnect``
+routine has returned.
 
 Drivers using the async routines are responsible for their own
 synchronization and mutual exclusion.

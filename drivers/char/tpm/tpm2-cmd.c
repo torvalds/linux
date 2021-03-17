@@ -329,9 +329,7 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 			&buf.data[TPM_HEADER_SIZE];
 		recd = min_t(u32, be16_to_cpu(out->size), num_bytes);
 		if (tpm_buf_length(&buf) <
-		    TPM_HEADER_SIZE +
-		    offsetof(struct tpm2_get_random_out, buffer) +
-		    recd) {
+		    offsetof(struct tpm2_get_random_out, buffer) + recd) {
 			err = -EFAULT;
 			goto out;
 		}
@@ -938,10 +936,6 @@ static int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
 
 	chip->cc_attrs_tbl = devm_kcalloc(&chip->dev, 4, nr_commands,
 					  GFP_KERNEL);
-	if (!chip->cc_attrs_tbl) {
-		rc = -ENOMEM;
-		goto out;
-	}
 
 	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
 	if (rc)

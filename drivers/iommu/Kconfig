@@ -58,18 +58,6 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
 
 	  If unsure, say N here.
 
-config IOMMU_IO_PGTABLE_FAST
-	bool "Fast ARMv7/v8 Long Descriptor Format"
-	depends on ARM64_DMA_USE_IOMMU && IOMMU_DMA
-	help
-          Enable support for a subset of the ARM long descriptor pagetable
-	  format.  This allocator achieves fast performance by
-	  pre-allocating and pre-populating page table memory up front.
-	  only supports a 32 bit virtual address space.
-
-          This implementation is mainly optimized for use cases where the
-          buffers are small (<= 64K) since it only supports 4K page sizes.
-
 endmenu
 
 config IOMMU_DEBUGFS
@@ -266,11 +254,11 @@ config OMAP_IOMMU_DEBUG
 	  Say N unless you know you need this.
 
 config ROCKCHIP_IOMMU
-	tristate "Rockchip IOMMU Support"
+	bool "Rockchip IOMMU Support"
 	depends on ARM || ARM64
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select IOMMU_API
-	select ARM_DMA_USE_IOMMU if ARM
+	select ARM_DMA_USE_IOMMU
 	help
 	  Support for IOMMUs found on Rockchip rk32xx SOCs.
 	  These IOMMUs allow virtualization of the address space used by most
@@ -344,12 +332,11 @@ config SPAPR_TCE_IOMMU
 
 # ARM IOMMU support
 config ARM_SMMU
-	tristate "ARM Ltd. System MMU (SMMU) Support"
+	bool "ARM Ltd. System MMU (SMMU) Support"
 	depends on (ARM64 || ARM) && MMU
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU if ARM
-	select ARM64_DMA_USE_IOMMU if ARM64
 	help
 	  Support for implementations of the ARM System MMU architecture
 	  versions 1 and 2.

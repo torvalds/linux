@@ -311,7 +311,7 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 			BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC) |
 			BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 
-	sinfo->txrate.flags = RATE_INFO_FLAGS_DMG;
+	sinfo->txrate.flags = RATE_INFO_FLAGS_60G;
 	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
 	sinfo->rxrate.mcs = stats->last_mcs_rx;
 	sinfo->rx_bytes = stats->rx_bytes;
@@ -1131,12 +1131,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     params->wait);
 
 out:
-	/* when the sent packet was not acked by receiver(ACK=0), rc will
-	 * be -EAGAIN. In this case this function needs to return success,
-	 * the ACK=0 will be reflected in tx_status.
-	 */
 	tx_status = (rc == 0);
-	rc = (rc == -EAGAIN) ? 0 : rc;
 	cfg80211_mgmt_tx_status(wdev, cookie ? *cookie : 0, buf, len,
 				tx_status, GFP_KERNEL);
 
@@ -1425,12 +1420,6 @@ static int _wil_cfg80211_merge_extra_ies(const u8 *ies1, u16 ies1_len,
 	u8 *buf, *dpos;
 	const u8 *spos;
 
-	if (!ies1)
-		ies1_len = 0;
-
-	if (!ies2)
-		ies2_len = 0;
-
 	if (ies1_len == 0 && ies2_len == 0) {
 		*merged_ies = NULL;
 		*merged_len = 0;
@@ -1440,19 +1429,17 @@ static int _wil_cfg80211_merge_extra_ies(const u8 *ies1, u16 ies1_len,
 	buf = kmalloc(ies1_len + ies2_len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	if (ies1)
-		memcpy(buf, ies1, ies1_len);
+	memcpy(buf, ies1, ies1_len);
 	dpos = buf + ies1_len;
 	spos = ies2;
-	while (spos && (spos + 1 < ies2 + ies2_len)) {
+	while (spos + 1 < ies2 + ies2_len) {
 		/* IE tag at offset 0, length at offset 1 */
 		u16 ielen = 2 + spos[1];
 
 		if (spos + ielen > ies2 + ies2_len)
 			break;
 		if (spos[0] == WLAN_EID_VENDOR_SPECIFIC &&
-		    (!ies1 || !_wil_cfg80211_find_ie(ies1, ies1_len,
-						     spos, ielen))) {
+		    !_wil_cfg80211_find_ie(ies1, ies1_len, spos, ielen)) {
 			memcpy(dpos, spos, ielen);
 			dpos += ielen;
 		}

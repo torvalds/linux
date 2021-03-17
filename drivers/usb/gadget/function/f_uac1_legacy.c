@@ -336,9 +336,7 @@ static int f_audio_out_ep_complete(struct usb_ep *ep, struct usb_request *req)
 
 	/* Copy buffer is full, add it to the play_queue */
 	if (audio_buf_size - copy_buf->actual < req->actual) {
-		spin_lock_irq(&audio->lock);
 		list_add_tail(&copy_buf->list, &audio->play_queue);
-		spin_unlock_irq(&audio->lock);
 		schedule_work(&audio->playback_work);
 		copy_buf = f_audio_buffer_alloc(audio_buf_size);
 		if (IS_ERR(copy_buf))
@@ -670,11 +668,6 @@ static int f_audio_get_alt(struct usb_function *f, unsigned intf)
 
 static void f_audio_disable(struct usb_function *f)
 {
-	struct f_audio *audio = func_to_audio(f);
-	struct usb_ep *out_ep = audio->out_ep;
-
-	usb_ep_disable(out_ep);
-
 	return;
 }
 
@@ -975,7 +968,6 @@ static void f_audio_free(struct usb_function *f)
 
 	gaudio_cleanup(&audio->card);
 	opts = container_of(f->fi, struct f_uac1_legacy_opts, func_inst);
-	opts->bound = false;
 	kfree(audio);
 	mutex_lock(&opts->lock);
 	--opts->refcnt;

@@ -236,10 +236,8 @@ static irqreturn_t nxp_nci_i2c_irq_thread_fn(int irq, void *phy_id)
 
 	if (r == -EREMOTEIO) {
 		phy->hard_fault = r;
-		if (info->mode == NXP_NCI_MODE_FW)
-			nxp_nci_fw_recv_frame(phy->ndev, NULL);
-	}
-	if (r < 0) {
+		skb = NULL;
+	} else if (r < 0) {
 		nfc_err(&client->dev, "Read failed with error %d\n", r);
 		goto exit_irq_handled;
 	}

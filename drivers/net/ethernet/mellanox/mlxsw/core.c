@@ -81,7 +81,6 @@ struct mlxsw_core {
 	struct mlxsw_core_port *ports;
 	unsigned int max_ports;
 	bool reload_fail;
-	bool fw_flash_in_progress;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
 };
@@ -429,18 +428,13 @@ struct mlxsw_reg_trans {
 	struct rcu_head rcu;
 };
 
-#define MLXSW_EMAD_TIMEOUT_DURING_FW_FLASH_MS	3000
-#define MLXSW_EMAD_TIMEOUT_MS			200
+#define MLXSW_EMAD_TIMEOUT_MS 200
 
 static void mlxsw_emad_trans_timeout_schedule(struct mlxsw_reg_trans *trans)
 {
 	unsigned long timeout = msecs_to_jiffies(MLXSW_EMAD_TIMEOUT_MS);
 
-	if (trans->core->fw_flash_in_progress)
-		timeout = msecs_to_jiffies(MLXSW_EMAD_TIMEOUT_DURING_FW_FLASH_MS);
-
-	queue_delayed_work(trans->core->emad_wq, &trans->timeout_dw,
-			   timeout << trans->retries);
+	queue_delayed_work(trans->core->emad_wq, &trans->timeout_dw, timeout);
 }
 
 static int mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
@@ -488,9 +482,6 @@ static void mlxsw_emad_transmit_retry(struct mlxsw_core *mlxsw_core,
 		trans->retries++;
 		err = mlxsw_emad_transmit(trans->core, trans);
 		if (err == 0)
-			return;
-
-		if (!atomic_dec_and_test(&trans->active))
 			return;
 	} else {
 		err = -EIO;
@@ -572,7 +563,7 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
 		return 0;
 
-	emad_wq = alloc_workqueue("mlxsw_core_emad", 0, 0);
+	emad_wq = alloc_workqueue("mlxsw_core_emad", WQ_MEM_RECLAIM, 0);
 	if (!emad_wq)
 		return -ENOMEM;
 	mlxsw_core->emad_wq = emad_wq;
@@ -591,7 +582,7 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 	err = mlxsw_core_trap_register(mlxsw_core, &mlxsw_emad_rx_listener,
 				       mlxsw_core);
 	if (err)
-		goto err_trap_register;
+		return err;
 
 	err = mlxsw_core->driver->basic_trap_groups_set(mlxsw_core);
 	if (err)
@@ -603,7 +594,6 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 err_emad_trap_set:
 	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_emad_rx_listener,
 				   mlxsw_core);
-err_trap_register:
 	destroy_workqueue(mlxsw_core->emad_wq);
 	return err;
 }
@@ -953,8 +943,8 @@ static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink,
 					     mlxsw_core->bus,
 					     mlxsw_core->bus_priv, true,
 					     devlink);
-	mlxsw_core->reload_fail = !!err;
-
+	if (err)
+		mlxsw_core->reload_fail = true;
 	return err;
 }
 
@@ -1093,15 +1083,8 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 
-	if (mlxsw_core->reload_fail) {
-		if (!reload)
-			/* Only the parts that were not de-initialized in the
-			 * failed reload attempt need to be de-initialized.
-			 */
-			goto reload_fail_deinit;
-		else
-			return;
-	}
+	if (mlxsw_core->reload_fail)
+		goto reload_fail;
 
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
@@ -1115,14 +1098,9 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	if (!reload)
 		devlink_resources_unregister(devlink, NULL);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
-	if (!reload)
-		devlink_free(devlink);
-
-	return;
-
-reload_fail_deinit:
-	devlink_unregister(devlink);
-	devlink_resources_unregister(devlink, NULL);
+	if (reload)
+		return;
+reload_fail:
 	devlink_free(devlink);
 }
 EXPORT_SYMBOL(mlxsw_core_bus_device_unregister);
@@ -1390,7 +1368,7 @@ static int mlxsw_core_reg_access_emad(struct mlxsw_core *mlxsw_core,
 	err = mlxsw_emad_reg_access(mlxsw_core, reg, payload, type, trans,
 				    bulk_list, cb, cb_priv, tid);
 	if (err) {
-		kfree_rcu(trans, rcu);
+		kfree(trans);
 		return err;
 	}
 	return 0;
@@ -1611,13 +1589,11 @@ void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			break;
 		}
 	}
-	if (!found) {
-		rcu_read_unlock();
+	rcu_read_unlock();
+	if (!found)
 		goto drop;
-	}
 
 	rxl->func(skb, local_port, rxl_item->priv);
-	rcu_read_unlock();
 	return;
 
 drop:
@@ -1868,26 +1844,14 @@ int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_kvd_sizes_get);
 
-void mlxsw_core_fw_flash_start(struct mlxsw_core *mlxsw_core)
-{
-	mlxsw_core->fw_flash_in_progress = true;
-}
-EXPORT_SYMBOL(mlxsw_core_fw_flash_start);
-
-void mlxsw_core_fw_flash_end(struct mlxsw_core *mlxsw_core)
-{
-	mlxsw_core->fw_flash_in_progress = false;
-}
-EXPORT_SYMBOL(mlxsw_core_fw_flash_end);
-
 static int __init mlxsw_core_module_init(void)
 {
 	int err;
 
-	mlxsw_wq = alloc_workqueue(mlxsw_core_driver_name, 0, 0);
+	mlxsw_wq = alloc_workqueue(mlxsw_core_driver_name, WQ_MEM_RECLAIM, 0);
 	if (!mlxsw_wq)
 		return -ENOMEM;
-	mlxsw_owq = alloc_ordered_workqueue("%s_ordered", 0,
+	mlxsw_owq = alloc_ordered_workqueue("%s_ordered", WQ_MEM_RECLAIM,
 					    mlxsw_core_driver_name);
 	if (!mlxsw_owq) {
 		err = -ENOMEM;

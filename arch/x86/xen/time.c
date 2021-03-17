@@ -361,6 +361,8 @@ void xen_timer_resume(void)
 {
 	int cpu;
 
+	pvclock_resume();
+
 	if (xen_clockevent != &xen_vcpuop_clockevent)
 		return;
 
@@ -377,14 +379,11 @@ static const struct pv_time_ops xen_time_ops __initconst = {
 };
 
 static struct pvclock_vsyscall_time_info *xen_clock __read_mostly;
-static u64 xen_clock_value_saved;
 
 void xen_save_time_memory_area(void)
 {
 	struct vcpu_register_time_memory_area t;
 	int ret;
-
-	xen_clock_value_saved = xen_clocksource_read() - xen_sched_clock_offset;
 
 	if (!xen_clock)
 		return;
@@ -405,7 +404,7 @@ void xen_restore_time_memory_area(void)
 	int ret;
 
 	if (!xen_clock)
-		goto out;
+		return;
 
 	t.addr.v = &xen_clock->pvti;
 
@@ -422,11 +421,6 @@ void xen_restore_time_memory_area(void)
 	if (ret != 0)
 		pr_notice("Cannot restore secondary vcpu_time_info (err %d)",
 			  ret);
-
-out:
-	/* Need pvclock_resume() before using xen_clocksource_read(). */
-	pvclock_resume();
-	xen_sched_clock_offset = xen_clocksource_read() - xen_clock_value_saved;
 }
 
 static void xen_setup_vsyscall_time_info(void)

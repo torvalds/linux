@@ -921,11 +921,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
-
-	/* Clean up any SLI3 firmware default rpi's */
-	if (phba->sli_rev > LPFC_SLI_REV3)
-		goto skip_unreg_did;
-
+	/* Clean up any firmware default rpi's */
 	mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mb) {
 		lpfc_unreg_did(phba, 0xffff, LPFC_UNREG_ALL_DFLT_RPIS, mb);
@@ -937,7 +933,6 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 	}
 
- skip_unreg_did:
 	/* Setup myDID for link up if we are in pt2pt mode */
 	if (phba->pport->fc_flag & FC_PT2PT) {
 		mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -952,7 +947,6 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 		spin_lock_irq(shost->host_lock);
 		phba->pport->fc_flag &= ~(FC_PT2PT | FC_PT2PT_PLOGI);
-		phba->pport->rcv_flogi_cnt = 0;
 		spin_unlock_irq(shost->host_lock);
 	}
 	return 0;
@@ -1024,7 +1018,6 @@ lpfc_linkup(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
 	int i;
-	struct Scsi_Host  *shost = lpfc_shost_from_vport(phba->pport);
 
 	phba->link_state = LPFC_LINK_UP;
 
@@ -1038,13 +1031,6 @@ lpfc_linkup(struct lpfc_hba *phba)
 			lpfc_linkup_port(vports[i]);
 	lpfc_destroy_vport_work_array(phba, vports);
 
-	/* Clear the pport flogi counter in case the link down was
-	 * absorbed without an ACQE. No lock here - in worker thread
-	 * and discovery is synchronized.
-	 */
-	spin_lock_irq(shost->host_lock);
-	phba->pport->rcv_flogi_cnt = 0;
-	spin_unlock_irq(shost->host_lock);
 	return 0;
 }
 
@@ -2006,26 +1992,6 @@ int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *vport, uint16_t fcf_index)
 				"failover and change port state:x%x/x%x\n",
 				phba->pport->port_state, LPFC_VPORT_UNKNOWN);
 		phba->pport->port_state = LPFC_VPORT_UNKNOWN;
-
-		if (!phba->fcf.fcf_redisc_attempted) {
-			lpfc_unregister_fcf(phba);
-
-			rc = lpfc_sli4_redisc_fcf_table(phba);
-			if (!rc) {
-				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-						"3195 Rediscover FCF table\n");
-				phba->fcf.fcf_redisc_attempted = 1;
-				lpfc_sli4_clear_fcf_rr_bmask(phba);
-			} else {
-				lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
-						"3196 Rediscover FCF table "
-						"failed. Status:x%x\n", rc);
-			}
-		} else {
-			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
-					"3197 Already rediscover FCF table "
-					"attempted. No more retry\n");
-		}
 		goto stop_flogi_current_fcf;
 	} else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_ELS,
@@ -4227,7 +4193,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (new_state ==  NLP_STE_MAPPED_NODE ||
 	    new_state == NLP_STE_UNMAPPED_NODE) {
-		if (ndlp->nlp_fc4_type ||
+		if (ndlp->nlp_fc4_type & NLP_FC4_FCP ||
 		    ndlp->nlp_DID == Fabric_DID ||
 		    ndlp->nlp_DID == NameServer_DID ||
 		    ndlp->nlp_DID == FDMI_DID) {
@@ -4780,7 +4746,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				if (phba->sli_rev == LPFC_SLI_REV4 &&
 				    (!(vport->load_flag & FC_UNLOADING)) &&
 				    (bf_get(lpfc_sli_intf_if_type,
-				     &phba->sli4_hba.sli_intf) >=
+				     &phba->sli4_hba.sli_intf) ==
 				      LPFC_SLI_INTF_IF_TYPE_2) &&
 				    (kref_read(&ndlp->kref) > 0)) {
 					mbox->context1 = lpfc_nlp_get(ndlp);
@@ -4888,10 +4854,6 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 	struct lpfc_hba  *phba  = vport->phba;
 	LPFC_MBOXQ_t     *mbox;
 	int rc;
-
-	/* Unreg DID is an SLI3 operation. */
-	if (phba->sli_rev > LPFC_SLI_REV3)
-		return;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mbox) {
@@ -5231,13 +5193,8 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 			/* If we've already received a PLOGI from this NPort
 			 * we don't need to try to discover it again.
 			 */
-			if (ndlp->nlp_flag & NLP_RCV_PLOGI &&
-			    !(ndlp->nlp_type &
-			     (NLP_FCP_TARGET | NLP_NVME_TARGET)))
+			if (ndlp->nlp_flag & NLP_RCV_PLOGI)
 				return NULL;
-
-			ndlp->nlp_prev_state = ndlp->nlp_state;
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_NPR_2B_DISC;

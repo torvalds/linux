@@ -294,27 +294,6 @@ config DM_CRYPT
 
 	  If unsure, say N.
 
-config DM_DEFAULT_KEY
-	tristate "Default-key target support"
-	depends on BLK_DEV_DM
-	depends on BLK_INLINE_ENCRYPTION
-	# dm-default-key doesn't require -o inlinecrypt, but it does currently
-	# rely on the inline encryption hooks being built into the kernel.
-	depends on FS_ENCRYPTION_INLINE_CRYPT
-	help
-	  This device-mapper target allows you to create a device that
-	  assigns a default encryption key to bios that aren't for the
-	  contents of an encrypted file.
-
-	  This ensures that all blocks on-disk will be encrypted with
-	  some key, without the performance hit of file contents being
-	  encrypted twice when fscrypt (File-Based Encryption) is used.
-
-	  It is only appropriate to use dm-default-key when key
-	  configuration is tightly controlled, like it is in Android,
-	  such that all fscrypt keys are at least as hard to compromise
-	  as the default key.
-
 config DM_SNAPSHOT
        tristate "Snapshot target"
        depends on BLK_DEV_DM
@@ -500,15 +479,6 @@ config DM_VERITY
 
 	  If unsure, say N.
 
-config DM_VERITY_AVB
-	tristate "Support AVB specific verity error behavior"
-	depends on DM_VERITY
-	---help---
-	  Enables Android Verified Boot platform-specific error
-	  behavior. In particular, it will modify the vbmeta partition
-	  specified on the kernel command-line when non-transient error
-	  occurs (followed by a panic).
-
 config DM_VERITY_FEC
 	bool "Verity forward error correction support"
 	depends on DM_VERITY
@@ -586,52 +556,6 @@ config DM_ZONED
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-zoned.
-
-	  If unsure, say N.
-
-config DM_BOW
-	tristate "Backup block device"
-	depends on BLK_DEV_DM
-	select DM_BUFIO
-	---help---
-	  This device-mapper target takes a device and keeps a log of all
-	  changes using free blocks identified by issuing a trim command.
-	  This can then be restored by running a command line utility,
-	  or committed by simply replacing the target.
-
-	  If unsure, say N.
-
-config DM_ANDROID_VERITY_AT_MOST_ONCE_DEFAULT_ENABLED
-	bool "Verity will validate blocks at most once"
-   depends on DM_VERITY
-   ---help---
-	  Default enables at_most_once option for dm-verity
-
-	  Verify data blocks only the first time they are read from the
-	  data device, rather than every time.  This reduces the overhead
-	  of dm-verity so that it can be used on systems that are memory
-	  and/or CPU constrained.  However, it provides a reduced level
-	  of security because only offline tampering of the data device's
-	  content will be detected, not online tampering.
-
-	  Hash blocks are still verified each time they are read from the
-	  hash device, since verification of hash blocks is less performance
-	  critical than data blocks, and a hash block will not be verified
-	  any more after all the data blocks it covers have been verified anyway.
-
-	  If unsure, say N.
-
-config DM_USER
-	tristate "Block device in userspace"
-	depends on BLK_DEV_DM
-	default y
-	help
-	  This device-mapper target allows a userspace daemon to provide the
-	  contents of a block device.  See
-	  <file:Documentation/block/dm-user.rst> for more information.
-
-	  To compile this code as a module, choose M here: the module will be
-	  called dm-user.
 
 	  If unsure, say N.
 

@@ -258,7 +258,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 	if (!tcm->hotplug_active)
 		goto out; /* during init, suspend or shutdown */
 
-	sw = tb_switch_find_by_route(tb, ev->route);
+	sw = get_switch_at_route(tb->root_switch, ev->route);
 	if (!sw) {
 		tb_warn(tb,
 			"hotplug event from non existent switch %llx:%x (unplug: %d)\n",
@@ -269,14 +269,14 @@ static void tb_handle_hotplug(struct work_struct *work)
 		tb_warn(tb,
 			"hotplug event from non existent port %llx:%x (unplug: %d)\n",
 			ev->route, ev->port, ev->unplug);
-		goto put_sw;
+		goto out;
 	}
 	port = &sw->ports[ev->port];
 	if (tb_is_upstream_port(port)) {
 		tb_warn(tb,
 			"hotplug event for upstream port %llx:%x (unplug: %d)\n",
 			ev->route, ev->port, ev->unplug);
-		goto put_sw;
+		goto out;
 	}
 	if (ev->unplug) {
 		if (port->remote) {
@@ -306,9 +306,6 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_activate_pcie_devices(tb);
 		}
 	}
-
-put_sw:
-	tb_switch_put(sw);
 out:
 	mutex_unlock(&tb->lock);
 	kfree(ev);

@@ -452,14 +452,13 @@ static int apci1500_di_cfg_trig(struct comedi_device *dev,
 	struct apci1500_private *devpriv = dev->private;
 	unsigned int trig = data[1];
 	unsigned int shift = data[3];
-	unsigned int hi_mask;
-	unsigned int lo_mask;
-	unsigned int chan_mask;
-	unsigned int old_mask;
-	unsigned int pm;
-	unsigned int pt;
-	unsigned int pp;
-	unsigned int invalid_chan;
+	unsigned int hi_mask = data[4] << shift;
+	unsigned int lo_mask = data[5] << shift;
+	unsigned int chan_mask = hi_mask | lo_mask;
+	unsigned int old_mask = (1 << shift) - 1;
+	unsigned int pm = devpriv->pm[trig] & old_mask;
+	unsigned int pt = devpriv->pt[trig] & old_mask;
+	unsigned int pp = devpriv->pp[trig] & old_mask;
 
 	if (trig > 1) {
 		dev_dbg(dev->class_dev,
@@ -467,27 +466,10 @@ static int apci1500_di_cfg_trig(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	if (shift <= 16) {
-		hi_mask = data[4] << shift;
-		lo_mask = data[5] << shift;
-		old_mask = (1U << shift) - 1;
-		invalid_chan = (data[4] | data[5]) >> (16 - shift);
-	} else {
-		hi_mask = 0;
-		lo_mask = 0;
-		old_mask = 0xffff;
-		invalid_chan = data[4] | data[5];
-	}
-	chan_mask = hi_mask | lo_mask;
-
-	if (invalid_chan) {
+	if (chan_mask > 0xffff) {
 		dev_dbg(dev->class_dev, "invalid digital trigger channel\n");
 		return -EINVAL;
 	}
-
-	pm = devpriv->pm[trig] & old_mask;
-	pt = devpriv->pt[trig] & old_mask;
-	pp = devpriv->pp[trig] & old_mask;
 
 	switch (data[2]) {
 	case COMEDI_DIGITAL_TRIG_DISABLE:

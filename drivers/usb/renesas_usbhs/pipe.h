@@ -83,7 +83,6 @@ void usbhs_pipe_clear(struct usbhs_pipe *pipe);
 void usbhs_pipe_clear_without_sequence(struct usbhs_pipe *pipe,
 				       int needs_bfre, int bfre_enable);
 int usbhs_pipe_is_accessible(struct usbhs_pipe *pipe);
-bool usbhs_pipe_contains_transmittable_data(struct usbhs_pipe *pipe);
 void usbhs_pipe_enable(struct usbhs_pipe *pipe);
 void usbhs_pipe_disable(struct usbhs_pipe *pipe);
 void usbhs_pipe_stall(struct usbhs_pipe *pipe);

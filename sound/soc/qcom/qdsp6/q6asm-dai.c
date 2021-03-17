@@ -319,11 +319,10 @@ static int q6asm_dai_open(struct snd_pcm_substream *substream)
 	prtd->audio_client = q6asm_audio_client_alloc(dev,
 				(q6asm_cb)event_handler, prtd, stream_id,
 				LEGACY_PCM_MODE);
-	if (IS_ERR(prtd->audio_client)) {
+	if (!prtd->audio_client) {
 		pr_info("%s: Could not allocate memory\n", __func__);
-		ret = PTR_ERR(prtd->audio_client);
 		kfree(prtd);
-		return ret;
+		return -ENOMEM;
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)

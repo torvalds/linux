@@ -258,10 +258,11 @@ int ip_local_deliver(struct sk_buff *skb)
 		       ip_local_deliver_finish);
 }
 
-static inline bool ip_rcv_options(struct sk_buff *skb, struct net_device *dev)
+static inline bool ip_rcv_options(struct sk_buff *skb)
 {
 	struct ip_options *opt;
 	const struct iphdr *iph;
+	struct net_device *dev = skb->dev;
 
 	/* It looks as overkill, because not all
 	   IP options require packet mangling.
@@ -297,7 +298,7 @@ static inline bool ip_rcv_options(struct sk_buff *skb, struct net_device *dev)
 			}
 		}
 
-		if (ip_options_rcv_srr(skb, dev))
+		if (ip_options_rcv_srr(skb))
 			goto drop;
 	}
 
@@ -307,10 +308,11 @@ drop:
 }
 
 static int ip_rcv_finish_core(struct net *net, struct sock *sk,
-			      struct sk_buff *skb, struct net_device *dev)
+			      struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	int (*edemux)(struct sk_buff *skb);
+	struct net_device *dev = skb->dev;
 	struct rtable *rt;
 	int err;
 
@@ -353,7 +355,7 @@ static int ip_rcv_finish_core(struct net *net, struct sock *sk,
 	}
 #endif
 
-	if (iph->ihl > 5 && ip_rcv_options(skb, dev))
+	if (iph->ihl > 5 && ip_rcv_options(skb))
 		goto drop;
 
 	rt = skb_rtable(skb);
@@ -399,7 +401,6 @@ drop_error:
 
 static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dev;
 	int ret;
 
 	/* if ingress device is enslaved to an L3 master device pass the
@@ -409,7 +410,7 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (!skb)
 		return NET_RX_SUCCESS;
 
-	ret = ip_rcv_finish_core(net, sk, skb, dev);
+	ret = ip_rcv_finish_core(net, sk, skb);
 	if (ret != NET_RX_DROP)
 		ret = dst_input(skb);
 	return ret;
@@ -488,7 +489,6 @@ static struct sk_buff *ip_rcv_core(struct sk_buff *skb, struct net *net)
 		goto drop;
 	}
 
-	iph = ip_hdr(skb);
 	skb->transport_header = skb->network_header + iph->ihl*4;
 
 	/* Remove any debris in the socket control block */
@@ -549,17 +549,16 @@ static void ip_list_rcv_finish(struct net *net, struct sock *sk,
 
 	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
-		struct net_device *dev = skb->dev;
 		struct dst_entry *dst;
 
-		skb_list_del_init(skb);
+		list_del(&skb->list);
 		/* if ingress device is enslaved to an L3 master device pass the
 		 * skb to its handler for processing
 		 */
 		skb = l3mdev_ip_rcv(skb);
 		if (!skb)
 			continue;
-		if (ip_rcv_finish_core(net, sk, skb, dev) == NET_RX_DROP)
+		if (ip_rcv_finish_core(net, sk, skb) == NET_RX_DROP)
 			continue;
 
 		dst = skb_dst(skb);
@@ -599,7 +598,7 @@ void ip_list_rcv(struct list_head *head, struct packet_type *pt,
 		struct net_device *dev = skb->dev;
 		struct net *net = dev_net(dev);
 
-		skb_list_del_init(skb);
+		list_del(&skb->list);
 		skb = ip_rcv_core(skb, net);
 		if (skb == NULL)
 			continue;

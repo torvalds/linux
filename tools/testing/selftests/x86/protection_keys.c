@@ -24,7 +24,6 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <linux/futex.h>
-#include <time.h>
 #include <sys/time.h>
 #include <sys/syscall.h>
 #include <string.h>
@@ -613,10 +612,10 @@ int alloc_random_pkey(void)
 	int nr_alloced = 0;
 	int random_index;
 	memset(alloced_pkeys, 0, sizeof(alloced_pkeys));
-	srand((unsigned int)time(NULL));
 
 	/* allocate every possible key and make a note of which ones we got */
 	max_nr_pkey_allocs = NR_PKEYS;
+	max_nr_pkey_allocs = 1;
 	for (i = 0; i < max_nr_pkey_allocs; i++) {
 		int new_pkey = alloc_pkey();
 		if (new_pkey < 0)
@@ -1134,21 +1133,6 @@ void test_pkey_syscalls_bad_args(int *ptr, u16 pkey)
 	pkey_assert(err);
 }
 
-void become_child(void)
-{
-	pid_t forkret;
-
-	forkret = fork();
-	pkey_assert(forkret >= 0);
-	dprintf3("[%d] fork() ret: %d\n", getpid(), forkret);
-
-	if (!forkret) {
-		/* in the child */
-		return;
-	}
-	exit(0);
-}
-
 /* Assumes that all pkeys other than 'pkey' are unallocated */
 void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 {
@@ -1157,7 +1141,7 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 	int nr_allocated_pkeys = 0;
 	int i;
 
-	for (i = 0; i < NR_PKEYS*3; i++) {
+	for (i = 0; i < NR_PKEYS*2; i++) {
 		int new_pkey;
 		dprintf1("%s() alloc loop: %d\n", __func__, i);
 		new_pkey = alloc_pkey();
@@ -1168,25 +1152,19 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 		if ((new_pkey == -1) && (errno == ENOSPC)) {
 			dprintf2("%s() failed to allocate pkey after %d tries\n",
 				__func__, nr_allocated_pkeys);
-		} else {
-			/*
-			 * Ensure the number of successes never
-			 * exceeds the number of keys supported
-			 * in the hardware.
-			 */
-			pkey_assert(nr_allocated_pkeys < NR_PKEYS);
-			allocated_pkeys[nr_allocated_pkeys++] = new_pkey;
+			break;
 		}
-
-		/*
-		 * Make sure that allocation state is properly
-		 * preserved across fork().
-		 */
-		if (i == NR_PKEYS*2)
-			become_child();
+		pkey_assert(nr_allocated_pkeys < NR_PKEYS);
+		allocated_pkeys[nr_allocated_pkeys++] = new_pkey;
 	}
 
 	dprintf3("%s()::%d\n", __func__, __LINE__);
+
+	/*
+	 * ensure it did not reach the end of the loop without
+	 * failure:
+	 */
+	pkey_assert(i < NR_PKEYS*2);
 
 	/*
 	 * There are 16 pkeys supported in hardware.  Three are

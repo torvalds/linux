@@ -137,12 +137,8 @@ static int proc_getattr(const struct path *path, struct kstat *stat,
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct proc_dir_entry *de = PDE(inode);
-	if (de) {
-		nlink_t nlink = READ_ONCE(de->nlink);
-		if (nlink > 0) {
-			set_nlink(inode, nlink);
-		}
-	}
+	if (de && de->nlink)
+		set_nlink(inode, de->nlink);
 
 	generic_fillattr(inode, stat);
 	return 0;
@@ -260,7 +256,7 @@ struct dentry *proc_lookup_de(struct inode *dir, struct dentry *dentry,
 		inode = proc_get_inode(dir->i_sb, de);
 		if (!inode)
 			return ERR_PTR(-ENOMEM);
-		d_set_d_op(dentry, de->proc_dops);
+		d_set_d_op(dentry, &proc_misc_dentry_ops);
 		return d_splice_alias(inode, dentry);
 	}
 	read_unlock(&proc_subdir_lock);
@@ -341,16 +337,6 @@ static const struct file_operations proc_dir_operations = {
 	.iterate_shared		= proc_readdir,
 };
 
-static int proc_net_d_revalidate(struct dentry *dentry, unsigned int flags)
-{
-	return 0;
-}
-
-const struct dentry_operations proc_net_dentry_ops = {
-	.d_revalidate	= proc_net_d_revalidate,
-	.d_delete	= always_delete_dentry,
-};
-
 /*
  * proc directories can do almost nothing..
  */
@@ -375,7 +361,6 @@ struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
 		write_unlock(&proc_subdir_lock);
 		goto out_free_inum;
 	}
-	dir->nlink++;
 	write_unlock(&proc_subdir_lock);
 
 	return dp;
@@ -444,8 +429,6 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	INIT_LIST_HEAD(&ent->pde_openers);
 	proc_set_user(ent, (*parent)->uid, (*parent)->gid);
 
-	ent->proc_dops = &proc_misc_dentry_ops;
-
 out:
 	return ent;
 }
@@ -473,8 +456,8 @@ struct proc_dir_entry *proc_symlink(const char *name,
 }
 EXPORT_SYMBOL(proc_symlink);
 
-struct proc_dir_entry *_proc_mkdir(const char *name, umode_t mode,
-		struct proc_dir_entry *parent, void *data, bool force_lookup)
+struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, void *data)
 {
 	struct proc_dir_entry *ent;
 
@@ -486,19 +469,12 @@ struct proc_dir_entry *_proc_mkdir(const char *name, umode_t mode,
 		ent->data = data;
 		ent->proc_fops = &proc_dir_operations;
 		ent->proc_iops = &proc_dir_inode_operations;
-		if (force_lookup) {
-			pde_force_lookup(ent);
-		}
+		parent->nlink++;
 		ent = proc_register(parent, ent);
+		if (!ent)
+			parent->nlink--;
 	}
 	return ent;
-}
-EXPORT_SYMBOL_GPL(_proc_mkdir);
-
-struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
-		struct proc_dir_entry *parent, void *data)
-{
-	return _proc_mkdir(name, mode, parent, data, false);
 }
 EXPORT_SYMBOL_GPL(proc_mkdir_data);
 
@@ -526,7 +502,10 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
 		ent->data = NULL;
 		ent->proc_fops = NULL;
 		ent->proc_iops = NULL;
+		parent->nlink++;
 		ent = proc_register(parent, ent);
+		if (!ent)
+			parent->nlink--;
 	}
 	return ent;
 }
@@ -684,12 +663,8 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	len = strlen(fn);
 
 	de = pde_subdir_find(parent, fn, len);
-	if (de) {
+	if (de)
 		rb_erase(&de->subdir_node, &parent->subdir);
-		if (S_ISDIR(de->mode)) {
-			parent->nlink--;
-		}
-	}
 	write_unlock(&proc_subdir_lock);
 	if (!de) {
 		WARN(1, "name '%s'\n", name);
@@ -698,6 +673,9 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 
 	proc_entry_rundown(de);
 
+	if (S_ISDIR(de->mode))
+		parent->nlink--;
+	de->nlink = 0;
 	WARN(pde_subdir_first(de),
 	     "%s: removing non-empty directory '%s/%s', leaking at least '%s'\n",
 	     __func__, de->parent->name, de->name, pde_subdir_first(de)->name);
@@ -733,12 +711,13 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 			de = next;
 			continue;
 		}
-		next = de->parent;
-		if (S_ISDIR(de->mode))
-			next->nlink--;
 		write_unlock(&proc_subdir_lock);
 
 		proc_entry_rundown(de);
+		next = de->parent;
+		if (S_ISDIR(de->mode))
+			next->nlink--;
+		de->nlink = 0;
 		if (de == root)
 			break;
 		pde_put(de);

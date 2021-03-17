@@ -61,23 +61,8 @@ bool psci_tos_resident_on(int cpu)
 
 struct psci_operations psci_ops = {
 	.conduit = PSCI_CONDUIT_NONE,
-	.smccc_version = ARM_SMCCC_VERSION_1_0,
+	.smccc_version = SMCCC_VERSION_1_0,
 };
-
-enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void)
-{
-	if (psci_ops.smccc_version < ARM_SMCCC_VERSION_1_1)
-		return SMCCC_CONDUIT_NONE;
-
-	switch (psci_ops.conduit) {
-	case PSCI_CONDUIT_SMC:
-		return SMCCC_CONDUIT_SMC;
-	case PSCI_CONDUIT_HVC:
-		return SMCCC_CONDUIT_HVC;
-	default:
-		return SMCCC_CONDUIT_NONE;
-	}
-}
 
 typedef unsigned long (psci_fn)(unsigned long, unsigned long,
 				unsigned long, unsigned long);
@@ -537,8 +522,8 @@ static void __init psci_init_smccc(void)
 	if (feature != PSCI_RET_NOT_SUPPORTED) {
 		u32 ret;
 		ret = invoke_psci_fn(ARM_SMCCC_VERSION_FUNC_ID, 0, 0, 0);
-		if (ret >= ARM_SMCCC_VERSION_1_1) {
-			psci_ops.smccc_version = ret;
+		if (ret == ARM_SMCCC_VERSION_1_1) {
+			psci_ops.smccc_version = SMCCC_VERSION_1_1;
 			ver = ret;
 		}
 	}

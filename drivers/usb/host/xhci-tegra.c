@@ -578,13 +578,6 @@ static void tegra_xusb_mbox_handle(struct tegra_xusb *tegra,
 								     enable);
 			if (err < 0)
 				break;
-
-			/*
-			 * wait 500us for LFPS detector to be disabled before
-			 * sending ACK
-			 */
-			if (!enable)
-				usleep_range(500, 1000);
 		}
 
 		if (err < 0) {
@@ -1155,16 +1148,6 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 
 	tegra_xusb_ipfs_config(tegra, regs);
 
-	/*
-	 * The XUSB Falcon microcontroller can only address 40 bits, so set
-	 * the DMA mask accordingly.
-	 */
-	err = dma_set_mask_and_coherent(tegra->dev, DMA_BIT_MASK(40));
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to set DMA mask: %d\n", err);
-		goto put_rpm;
-	}
-
 	err = tegra_xusb_load_firmware(tegra);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to load firmware: %d\n", err);
@@ -1257,7 +1240,6 @@ static int tegra_xusb_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_put_hcd(xhci->shared_hcd);
-	xhci->shared_hcd = NULL;
 	usb_remove_hcd(tegra->hcd);
 	usb_put_hcd(tegra->hcd);
 

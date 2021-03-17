@@ -8,4 +8,3 @@ HD-Audio
    models
    controls
    dp-mst
-   realtek-pc-beep

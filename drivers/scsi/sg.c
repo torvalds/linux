@@ -694,10 +694,8 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	hp->flags = input_size;	/* structure abuse ... */
 	hp->pack_id = old_hdr.pack_id;
 	hp->usr_ptr = NULL;
-	if (__copy_from_user(cmnd, buf, cmd_size)) {
-		sg_remove_request(sfp, srp);
+	if (__copy_from_user(cmnd, buf, cmd_size))
 		return -EFAULT;
-	}
 	/*
 	 * SG_DXFER_TO_FROM_DEV is functionally equivalent to SG_DXFER_FROM_DEV,
 	 * but is is possible that the app intended SG_DXFER_TO_DEV, because there
@@ -810,10 +808,8 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 			"sg_common_write:  scsi opcode=0x%02x, cmd_size=%d\n",
 			(int) cmnd[0], (int) hp->cmd_len));
 
-	if (hp->dxfer_len >= SZ_256M) {
-		sg_remove_request(sfp, srp);
+	if (hp->dxfer_len >= SZ_256M)
 		return -EINVAL;
-	}
 
 	k = sg_start_req(srp, cmnd);
 	if (k) {
@@ -842,11 +838,7 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 	else
 		at_head = 1;
 
-	if (likely(!sdp->device->timeout_override))
-		srp->rq->timeout = timeout;
-	else
-		srp->rq->timeout = sdp->device->timeout_override;
-
+	srp->rq->timeout = timeout;
 	kref_get(&sfp->f_ref); /* sg_rq_end_io() does kref_put(). */
 	blk_execute_rq_nowait(sdp->device->request_queue, sdp->disk,
 			      srp->rq, at_head, sg_rq_end_io);

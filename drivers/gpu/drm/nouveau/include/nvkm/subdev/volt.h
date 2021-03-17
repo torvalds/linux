@@ -38,7 +38,6 @@ int nvkm_volt_set_id(struct nvkm_volt *, u8 id, u8 min_id, u8 temp,
 
 int nv40_volt_new(struct nvkm_device *, int, struct nvkm_volt **);
 int gf100_volt_new(struct nvkm_device *, int, struct nvkm_volt **);
-int gf117_volt_new(struct nvkm_device *, int, struct nvkm_volt **);
 int gk104_volt_new(struct nvkm_device *, int, struct nvkm_volt **);
 int gk20a_volt_new(struct nvkm_device *, int, struct nvkm_volt **);
 int gm20b_volt_new(struct nvkm_device *, int, struct nvkm_volt **);

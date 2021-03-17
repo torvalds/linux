@@ -256,7 +256,7 @@ static const struct amd_pingroup kerncz_groups[] = {
 	{
 		.name = "uart0",
 		.pins = uart0_pins,
-		.npins = 5,
+		.npins = 9,
 	},
 	{
 		.name = "uart1",

@@ -320,13 +320,7 @@ static void uniphier_i2c_hw_init(struct uniphier_i2c_priv *priv)
 
 	uniphier_i2c_reset(priv, true);
 
-	/*
-	 * Bit30-16: clock cycles of tLOW.
-	 *  Standard-mode: tLOW = 4.7 us, tHIGH = 4.0 us
-	 *  Fast-mode:     tLOW = 1.3 us, tHIGH = 0.6 us
-	 * "tLow/tHIGH = 5/4" meets both.
-	 */
-	writel((cyc * 5 / 9 << 16) | cyc, priv->membase + UNIPHIER_I2C_CLK);
+	writel((cyc / 2 << 16) | cyc, priv->membase + UNIPHIER_I2C_CLK);
 
 	uniphier_i2c_reset(priv, false);
 }

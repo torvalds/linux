@@ -181,7 +181,7 @@ static int mwifiex_sdio_resume(struct device *dev)
 
 	adapter = card->adapter;
 
-	if (!test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
+	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, WARN,
 			    "device already resumed\n");
 		return 0;
@@ -1985,8 +1985,6 @@ error:
 		kfree(card->mpa_rx.buf);
 		card->mpa_tx.buf_size = 0;
 		card->mpa_rx.buf_size = 0;
-		card->mpa_tx.buf = NULL;
-		card->mpa_rx.buf = NULL;
 	}
 
 	return ret;

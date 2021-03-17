@@ -17,7 +17,6 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/syscore_ops.h>
 #include <linux/gpio/driver.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -438,11 +437,8 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 
 	/* the controller clock is optional */
 	port->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(port->clk)) {
-		if (PTR_ERR(port->clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+	if (IS_ERR(port->clk))
 		port->clk = NULL;
-	}
 
 	err = clk_prepare_enable(port->clk);
 	if (err) {
@@ -554,38 +550,33 @@ static void mxc_gpio_restore_regs(struct mxc_gpio_port *port)
 	writel(port->gpio_saved_reg.dr, port->base + GPIO_DR);
 }
 
-static int mxc_gpio_syscore_suspend(void)
+static int __maybe_unused mxc_gpio_noirq_suspend(struct device *dev)
 {
-	struct mxc_gpio_port *port;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mxc_gpio_port *port = platform_get_drvdata(pdev);
 
-	/* walk through all ports */
-	list_for_each_entry(port, &mxc_gpio_ports, node) {
-		mxc_gpio_save_regs(port);
-		clk_disable_unprepare(port->clk);
-	}
+	mxc_gpio_save_regs(port);
+	clk_disable_unprepare(port->clk);
 
 	return 0;
 }
 
-static void mxc_gpio_syscore_resume(void)
+static int __maybe_unused mxc_gpio_noirq_resume(struct device *dev)
 {
-	struct mxc_gpio_port *port;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mxc_gpio_port *port = platform_get_drvdata(pdev);
 	int ret;
 
-	/* walk through all ports */
-	list_for_each_entry(port, &mxc_gpio_ports, node) {
-		ret = clk_prepare_enable(port->clk);
-		if (ret) {
-			pr_err("mxc: failed to enable gpio clock %d\n", ret);
-			return;
-		}
-		mxc_gpio_restore_regs(port);
-	}
+	ret = clk_prepare_enable(port->clk);
+	if (ret)
+		return ret;
+	mxc_gpio_restore_regs(port);
+
+	return 0;
 }
 
-static struct syscore_ops mxc_gpio_syscore_ops = {
-	.suspend = mxc_gpio_syscore_suspend,
-	.resume = mxc_gpio_syscore_resume,
+static const struct dev_pm_ops mxc_gpio_dev_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mxc_gpio_noirq_suspend, mxc_gpio_noirq_resume)
 };
 
 static struct platform_driver mxc_gpio_driver = {
@@ -593,6 +584,7 @@ static struct platform_driver mxc_gpio_driver = {
 		.name	= "gpio-mxc",
 		.of_match_table = mxc_gpio_dt_ids,
 		.suppress_bind_attrs = true,
+		.pm = &mxc_gpio_dev_pm_ops,
 	},
 	.probe		= mxc_gpio_probe,
 	.id_table	= mxc_gpio_devtype,
@@ -600,8 +592,6 @@ static struct platform_driver mxc_gpio_driver = {
 
 static int __init gpio_mxc_init(void)
 {
-	register_syscore_ops(&mxc_gpio_syscore_ops);
-
 	return platform_driver_register(&mxc_gpio_driver);
 }
 subsys_initcall(gpio_mxc_init);

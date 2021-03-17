@@ -216,12 +216,7 @@ struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 		refcount_set(&req->rsk_refcnt, 1);
 		tcp_sk(child)->tsoffset = tsoff;
 		sock_rps_save_rxhash(child, skb);
-		if (!inet_csk_reqsk_queue_add(sk, req, child)) {
-			bh_unlock_sock(child);
-			sock_put(child);
-			child = NULL;
-			reqsk_put(req);
-		}
+		inet_csk_reqsk_queue_add(sk, req, child);
 	} else {
 		reqsk_free(req);
 	}
@@ -296,7 +291,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	__u32 cookie = ntohl(th->ack_seq) - 1;
 	struct sock *ret = sk;
 	struct request_sock *req;
-	int full_space, mss;
+	int mss;
 	struct rtable *rt;
 	__u8 rcv_wscale;
 	struct flowi4 fl4;
@@ -391,13 +386,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 
 	/* Try to redo what tcp_v4_send_synack did. */
 	req->rsk_window_clamp = tp->window_clamp ? :dst_metric(&rt->dst, RTAX_WINDOW);
-	/* limit the window selection if the user enforce a smaller rx buffer */
-	full_space = tcp_full_space(sk);
-	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
-	    (req->rsk_window_clamp > full_space || req->rsk_window_clamp == 0))
-		req->rsk_window_clamp = full_space;
 
-	tcp_select_initial_window(sk, full_space, req->mss,
+	tcp_select_initial_window(sk, tcp_full_space(sk), req->mss,
 				  &req->rsk_rcv_wnd, &req->rsk_window_clamp,
 				  ireq->wscale_ok, &rcv_wscale,
 				  dst_metric(&rt->dst, RTAX_INITRWND));

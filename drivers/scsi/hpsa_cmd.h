@@ -517,7 +517,6 @@ struct ioaccel2_sg_element {
 	u8 reserved[3];
 	u8 chain_indicator;
 #define IOACCEL2_CHAIN 0x80
-#define IOACCEL2_LAST_SG 0x40
 };
 
 /*

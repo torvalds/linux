@@ -51,7 +51,7 @@ struct r9a06g032_clkdesc {
 			u16 sel, g1, r1, g2, r2;
 		} dual;
 	};
-};
+} __packed;
 
 #define I_GATE(_clk, _rst, _rdy, _midle, _scon, _mirack, _mistat) \
 	{ .gate = _clk, .reset = _rst, \
@@ -416,7 +416,7 @@ r9a06g032_register_gate(struct r9a06g032_priv *clocks,
 {
 	struct clk *clk;
 	struct r9a06g032_clk_gate *g;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 
 	g = kzalloc(sizeof(*g), GFP_KERNEL);
 	if (!g)
@@ -539,8 +539,7 @@ r9a06g032_div_round_rate(struct clk_hw *hw,
 	 * several uarts attached to this divider, and changing this impacts
 	 * everyone.
 	 */
-	if (clk->index == R9A06G032_DIV_UART ||
-	    clk->index == R9A06G032_DIV_P2_PG) {
+	if (clk->index == R9A06G032_DIV_UART) {
 		pr_devel("%s div uart hack!\n", __func__);
 		return clk_get_rate(hw->clk);
 	}
@@ -586,7 +585,7 @@ r9a06g032_register_div(struct r9a06g032_priv *clocks,
 {
 	struct r9a06g032_clk_div *div;
 	struct clk *clk;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	unsigned int i;
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
@@ -670,7 +669,7 @@ r9a06g032_register_bitsel(struct r9a06g032_priv *clocks,
 {
 	struct clk *clk;
 	struct r9a06g032_clk_bitsel *g;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	const char *names[2];
 
 	/* allocate the gate */
@@ -761,7 +760,7 @@ r9a06g032_register_dualgate(struct r9a06g032_priv *clocks,
 {
 	struct r9a06g032_clk_dualgate *g;
 	struct clk *clk;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 
 	/* allocate the gate */
 	g = kzalloc(sizeof(*g), GFP_KERNEL);

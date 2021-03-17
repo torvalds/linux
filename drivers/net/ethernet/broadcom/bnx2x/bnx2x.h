@@ -1282,7 +1282,6 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_TX_STOP,
 	BNX2X_SP_RTNL_GET_DRV_VERSION,
 	BNX2X_SP_RTNL_CHANGE_UDP_PORT,
-	BNX2X_SP_RTNL_UPDATE_SVID,
 };
 
 enum bnx2x_iov_flag {
@@ -2191,13 +2190,6 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 					 BP_VN(bp))
 #define PMF_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
 					 E1HVN_MAX)
-
-/* Following is the DMAE channel number allocation for the clients.
- *   MFW: OCBB/OCSD implementations use DMAE channels 14/15 respectively.
- *   Driver: 0-3 and 8-11 (for PF dmae operations)
- *           4 and 12 (for stats requests)
- */
-#define BNX2X_FW_DMAE_C                 13 /* Channel for FW DMAE operations */
 
 /* PCIE link and speed */
 #define PCICFG_LINK_WIDTH		0x1f00000

@@ -16,7 +16,6 @@
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -37,6 +36,8 @@
 #define arm_iommu_release_mapping(...)	do {} while (0)
 #define arm_iommu_detach_device(...)	do {} while (0)
 #endif
+
+#include "io-pgtable.h"
 
 #define IPMMU_CTX_MAX 8
 
@@ -500,9 +501,6 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 
 static void ipmmu_domain_destroy_context(struct ipmmu_vmsa_domain *domain)
 {
-	if (!domain->mmu)
-		return;
-
 	/*
 	 * Disable the context. Flush the TLB as required when modifying the
 	 * context registers.

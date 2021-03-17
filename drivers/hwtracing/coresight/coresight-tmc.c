@@ -8,12 +8,10 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -66,34 +64,6 @@ void tmc_disable_hw(struct tmc_drvdata *drvdata)
 	writel_relaxed(0x0, drvdata->base + TMC_CTL);
 }
 
-u32 tmc_get_memwidth_mask(struct tmc_drvdata *drvdata)
-{
-	u32 mask = 0;
-
-	/*
-	 * When moving RRP or an offset address forward, the new values must
-	 * be byte-address aligned to the width of the trace memory databus
-	 * _and_ to a frame boundary (16 byte), whichever is the biggest. For
-	 * example, for 32-bit, 64-bit and 128-bit wide trace memory, the four
-	 * LSBs must be 0s. For 256-bit wide trace memory, the five LSBs must
-	 * be 0s.
-	 */
-	switch (drvdata->memwidth) {
-	case TMC_MEM_INTF_WIDTH_32BITS:
-	/* fallthrough */
-	case TMC_MEM_INTF_WIDTH_64BITS:
-	/* fallthrough */
-	case TMC_MEM_INTF_WIDTH_128BITS:
-		mask = GENMASK(31, 4);
-		break;
-	case TMC_MEM_INTF_WIDTH_256BITS:
-		mask = GENMASK(31, 5);
-		break;
-	}
-
-	return mask;
-}
-
 static int tmc_read_prepare(struct tmc_drvdata *drvdata)
 {
 	int ret = 0;
@@ -111,7 +81,7 @@ static int tmc_read_prepare(struct tmc_drvdata *drvdata)
 	}
 
 	if (!ret)
-		dev_dbg(drvdata->dev, "TMC read start\n");
+		dev_info(drvdata->dev, "TMC read start\n");
 
 	return ret;
 }
@@ -133,7 +103,7 @@ static int tmc_read_unprepare(struct tmc_drvdata *drvdata)
 	}
 
 	if (!ret)
-		dev_dbg(drvdata->dev, "TMC read end\n");
+		dev_info(drvdata->dev, "TMC read end\n");
 
 	return ret;
 }
@@ -259,7 +229,6 @@ coresight_tmc_reg(ffcr, TMC_FFCR);
 coresight_tmc_reg(mode, TMC_MODE);
 coresight_tmc_reg(pscr, TMC_PSCR);
 coresight_tmc_reg(axictl, TMC_AXICTL);
-coresight_tmc_reg(authstatus, TMC_AUTHSTATUS);
 coresight_tmc_reg(devid, CORESIGHT_DEVID);
 coresight_tmc_reg64(rrp, TMC_RRP, TMC_RRPHI);
 coresight_tmc_reg64(rwp, TMC_RWP, TMC_RWPHI);
@@ -279,7 +248,6 @@ static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	&dev_attr_devid.attr,
 	&dev_attr_dba.attr,
 	&dev_attr_axictl.attr,
-	&dev_attr_authstatus.attr,
 	NULL,
 };
 
@@ -368,23 +336,11 @@ static inline bool tmc_etr_can_use_sg(struct tmc_drvdata *drvdata)
 				       "arm,scatter-gather");
 }
 
-static inline bool tmc_etr_has_non_secure_access(struct tmc_drvdata *drvdata)
-{
-	u32 auth = readl_relaxed(drvdata->base + TMC_AUTHSTATUS);
-
-	return (auth & TMC_AUTH_NSID_MASK) == 0x3;
-}
-
 /* Detect and initialise the capabilities of a TMC ETR */
 static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 			     u32 devid, void *dev_caps)
 {
-	int rc;
-
 	u32 dma_mask = 0;
-
-	if (!tmc_etr_has_non_secure_access(drvdata))
-		return -EACCES;
 
 	/* Set the unadvertised capabilities */
 	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
@@ -413,10 +369,7 @@ static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 		dma_mask = 40;
 	}
 
-	rc = dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(dma_mask));
-	if (rc)
-		dev_err(drvdata->dev, "Failed to setup DMA mask: %d\n", rc);
-	return rc;
+	return dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(dma_mask));
 }
 
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
@@ -462,8 +415,6 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
 	drvdata->config_type = BMVAL(devid, 6, 7);
 	drvdata->memwidth = tmc_get_memwidth(devid);
-	/* This device is not associated with a session */
-	drvdata->pid = -1;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		if (np)
@@ -475,6 +426,8 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	} else {
 		drvdata->size = readl_relaxed(drvdata->base + TMC_RSZ) * 4;
 	}
+
+	pm_runtime_put(&adev->dev);
 
 	desc.pdata = pdata;
 	desc.dev = dev;
@@ -493,8 +446,6 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = tmc_etr_setup_caps(drvdata, devid, id->data);
 		if (ret)
 			goto out;
-		idr_init(&drvdata->idr);
-		mutex_init(&drvdata->idr_mutex);
 		break;
 	case TMC_CONFIG_TYPE_ETF:
 		desc.type = CORESIGHT_DEV_TYPE_LINKSINK;
@@ -519,8 +470,6 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = misc_register(&drvdata->miscdev);
 	if (ret)
 		coresight_unregister(drvdata->csdev);
-	else
-		pm_runtime_put(&adev->dev);
 out:
 	return ret;
 }

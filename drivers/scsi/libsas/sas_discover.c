@@ -97,21 +97,12 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		else
 			dev->dev_type = SAS_SATA_DEV;
 		dev->tproto = SAS_PROTOCOL_SATA;
-	} else if (port->oob_mode == SAS_OOB_MODE) {
+	} else {
 		struct sas_identify_frame *id =
 			(struct sas_identify_frame *) dev->frame_rcvd;
 		dev->dev_type = id->dev_type;
 		dev->iproto = id->initiator_bits;
 		dev->tproto = id->target_bits;
-	} else {
-		/* If the oob mode is OOB_NOT_CONNECTED, the port is
-		 * disconnected due to race with PHY down. We cannot
-		 * continue to discover this port
-		 */
-		sas_put_device(dev);
-		pr_warn("Port %016llx is disconnected when discovering\n",
-			SAS_ADDR(port->attached_sas_addr));
-		return -ENODEV;
 	}
 
 	sas_init_dev(dev);

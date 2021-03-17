@@ -582,14 +582,6 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 					&replaced);
 		state->color_mgmt_changed |= replaced;
 		return ret;
-	} else if (property == config->cubic_lut_property) {
-		ret = drm_atomic_replace_property_blob_from_id(dev,
-					&state->cubic_lut,
-					val,
-					-1, sizeof(struct drm_color_lut),
-					&replaced);
-		state->color_mgmt_changed |= replaced;
-		return ret;
 	} else if (property == config->prop_out_fence_ptr) {
 		s32 __user *fence_ptr = u64_to_user_ptr(val);
 
@@ -646,8 +638,6 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		*val = (state->ctm) ? state->ctm->base.id : 0;
 	else if (property == config->gamma_lut_property)
 		*val = (state->gamma_lut) ? state->gamma_lut->base.id : 0;
-	else if (property == config->cubic_lut_property)
-		*val = (state->cubic_lut) ? state->cubic_lut->base.id : 0;
 	else if (property == config->prop_out_fence_ptr)
 		*val = 0;
 	else if (crtc->funcs->atomic_get_property)
@@ -910,8 +900,6 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->src_h = val;
 	} else if (property == plane->alpha_property) {
 		state->alpha = val;
-	} else if (property == plane->blend_mode_property) {
-		state->pixel_blend_mode = val;
 	} else if (property == plane->rotation_property) {
 		if (!is_power_of_2(val & DRM_MODE_ROTATE_MASK)) {
 			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] bad rotation bitmask: 0x%llx\n",
@@ -985,8 +973,6 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->src_h;
 	} else if (property == plane->alpha_property) {
 		*val = state->alpha;
-	} else if (property == plane->blend_mode_property) {
-		*val = state->pixel_blend_mode;
 	} else if (property == plane->rotation_property) {
 		*val = state->rotation;
 	} else if (property == plane->zpos_property) {
@@ -1364,8 +1350,6 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_mode_config *config = &dev->mode_config;
-	bool replaced = false;
-	int ret;
 
 	if (property == config->prop_crtc_id) {
 		struct drm_crtc *crtc = drm_crtc_find(dev, NULL, val);
@@ -1414,13 +1398,6 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 */
 		if (state->link_status != DRM_LINK_STATUS_GOOD)
 			state->link_status = val;
-	} else if (property == config->hdr_output_metadata_property) {
-		ret = drm_atomic_replace_property_blob_from_id(dev,
-				&state->hdr_output_metadata,
-				val,
-				sizeof(struct hdr_output_metadata), -1,
-				&replaced);
-		return ret;
 	} else if (property == config->aspect_ratio_property) {
 		state->picture_aspect_ratio = val;
 	} else if (property == config->content_type_property) {
@@ -1433,8 +1410,6 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 			return -EINVAL;
 		}
 		state->content_protection = val;
-	} else if (property == connector->colorspace_property) {
-		state->colorspace = val;
 	} else if (property == config->writeback_fb_id_property) {
 		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, NULL, val);
 		int ret = drm_atomic_set_writeback_fb_for_connector(state, fb);
@@ -1532,13 +1507,8 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->picture_aspect_ratio;
 	} else if (property == config->content_type_property) {
 		*val = state->content_type;
-	} else if (property == connector->colorspace_property) {
-		*val = state->colorspace;
 	} else if (property == connector->scaling_mode_property) {
 		*val = state->scaling_mode;
-	} else if (property == config->hdr_output_metadata_property) {
-		*val = state->hdr_output_metadata ?
-			state->hdr_output_metadata->base.id : 0;
 	} else if (property == connector->content_protection_property) {
 		*val = state->content_protection;
 	} else if (property == config->writeback_fb_id_property) {

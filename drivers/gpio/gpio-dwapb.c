@@ -51,9 +51,7 @@
 #define GPIO_EXT_PORTC		0x58
 #define GPIO_EXT_PORTD		0x5c
 
-#define DWAPB_DRIVER_NAME	"gpio-dwapb"
 #define DWAPB_MAX_PORTS		4
-
 #define GPIO_EXT_PORT_STRIDE	0x04 /* register stride 32 bits */
 #define GPIO_SWPORT_DR_STRIDE	0x0c /* register stride 3*32 bits */
 #define GPIO_SWPORT_DDR_STRIDE	0x0c /* register stride 3*32 bits */
@@ -402,7 +400,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		return;
 
 	err = irq_alloc_domain_generic_chips(gpio->domain, ngpio, 2,
-					     DWAPB_DRIVER_NAME, handle_level_irq,
+					     "gpio-dwapb", handle_level_irq,
 					     IRQ_NOREQUEST, 0,
 					     IRQ_GC_INIT_NESTED_LOCK);
 	if (err) {
@@ -459,7 +457,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		 */
 		err = devm_request_irq(gpio->dev, pp->irq[0],
 				       dwapb_irq_handler_mfd,
-				       IRQF_SHARED, DWAPB_DRIVER_NAME, gpio);
+				       IRQF_SHARED, "gpio-dwapb-mfd", gpio);
 		if (err) {
 			dev_err(gpio->dev, "error requesting IRQ\n");
 			irq_domain_remove(gpio->domain);
@@ -537,33 +535,26 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 		dwapb_configure_irqs(gpio, port, pp);
 
 	err = gpiochip_add_data(&port->gc, port);
-	if (err) {
+	if (err)
 		dev_err(gpio->dev, "failed to register gpiochip for port%d\n",
 			port->idx);
-		return err;
-	}
+	else
+		port->is_registered = true;
 
 	/* Add GPIO-signaled ACPI event support */
-	acpi_gpiochip_request_interrupts(&port->gc);
+	if (pp->has_irq)
+		acpi_gpiochip_request_interrupts(&port->gc);
 
-	port->is_registered = true;
-
-	return 0;
+	return err;
 }
 
 static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
 {
 	unsigned int m;
 
-	for (m = 0; m < gpio->nr_ports; ++m) {
-		struct dwapb_gpio_port *port = &gpio->ports[m];
-
-		if (!port->is_registered)
-			continue;
-
-		acpi_gpiochip_free_interrupts(&port->gc);
-		gpiochip_remove(&port->gc);
-	}
+	for (m = 0; m < gpio->nr_ports; ++m)
+		if (gpio->ports[m].is_registered)
+			gpiochip_remove(&gpio->ports[m].gc);
 }
 
 static struct dwapb_platform_data *
@@ -851,7 +842,7 @@ static SIMPLE_DEV_PM_OPS(dwapb_gpio_pm_ops, dwapb_gpio_suspend,
 
 static struct platform_driver dwapb_gpio_driver = {
 	.driver		= {
-		.name	= DWAPB_DRIVER_NAME,
+		.name	= "gpio-dwapb",
 		.pm	= &dwapb_gpio_pm_ops,
 		.of_match_table = of_match_ptr(dwapb_of_match),
 		.acpi_match_table = ACPI_PTR(dwapb_acpi_match),
@@ -865,4 +856,3 @@ module_platform_driver(dwapb_gpio_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jamie Iles");
 MODULE_DESCRIPTION("Synopsys DesignWare APB GPIO driver");
-MODULE_ALIAS("platform:" DWAPB_DRIVER_NAME);

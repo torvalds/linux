@@ -20,6 +20,8 @@
 #include <linux/jump_label.h>
 #include <asm/insn.h>
 
+#ifdef HAVE_JUMP_LABEL
+
 void arch_jump_label_transform(struct jump_entry *entry,
 			       enum jump_label_type type)
 {
@@ -47,3 +49,5 @@ void arch_jump_label_transform_static(struct jump_entry *entry,
 	 * NOP needs to be replaced by a branch.
 	 */
 }
+
+#endif	/* HAVE_JUMP_LABEL */

@@ -86,8 +86,7 @@ void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an);
 void ath_dynack_init(struct ath_hw *ah);
 void ath_dynack_sample_ack_ts(struct ath_hw *ah, struct sk_buff *skb, u32 ts);
 void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
-			     struct ath_tx_status *ts,
-			     struct ieee80211_sta *sta);
+			     struct ath_tx_status *ts);
 #else
 static inline void ath_dynack_init(struct ath_hw *ah) {}
 static inline void ath_dynack_node_init(struct ath_hw *ah,
@@ -98,8 +97,7 @@ static inline void ath_dynack_sample_ack_ts(struct ath_hw *ah,
 					    struct sk_buff *skb, u32 ts) {}
 static inline void ath_dynack_sample_tx_ts(struct ath_hw *ah,
 					   struct sk_buff *skb,
-					   struct ath_tx_status *ts,
-					   struct ieee80211_sta *sta) {}
+					   struct ath_tx_status *ts) {}
 #endif
 
 #endif /* DYNACK_H */

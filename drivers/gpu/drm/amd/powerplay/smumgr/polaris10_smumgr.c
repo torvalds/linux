@@ -1528,21 +1528,8 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 	efuse = efuse >> 24;
 
 	if (hwmgr->chip_id == CHIP_POLARIS10) {
-		if (hwmgr->is_kicker) {
-			min = 1200;
-			max = 2500;
-		} else {
-			min = 1000;
-			max = 2300;
-		}
-	} else if (hwmgr->chip_id == CHIP_POLARIS11) {
-		if (hwmgr->is_kicker) {
-			min = 900;
-			max = 2100;
-		} else {
-			min = 1100;
-			max = 2100;
-		}
+		min = 1000;
+		max = 2300;
 	} else {
 		min = 1100;
 		max = 2100;
@@ -1997,12 +1984,6 @@ int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
 
-	/* Apply avfs cks-off voltages to avoid the overshoot
-	 * when switching to the highest sclk frequency
-	 */
-	if (data->apply_avfs_cks_off_voltage)
-		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ApplyAvfsCksOffVoltage);
-
 	return 0;
 }
 
@@ -2037,10 +2018,6 @@ static int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 				PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
 	}
-
-	/* use hardware fan control */
-	if (hwmgr->thermal_controller.use_hw_fan_control)
-		return 0;
 
 	tmp64 = hwmgr->thermal_controller.advanceFanControlParameters.
 			usPWMMin * duty100;

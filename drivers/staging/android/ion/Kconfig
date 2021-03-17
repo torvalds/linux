@@ -1,5 +1,5 @@
 menuconfig ION
-	tristate "Ion Memory Manager"
+	bool "Ion Memory Manager"
 	depends on HAVE_MEMBLOCK && HAS_DMA && MMU
 	select GENERIC_ALLOCATOR
 	select DMA_SHARED_BUFFER
@@ -9,14 +9,6 @@ menuconfig ION
 	  from userspace that can be shared between drivers.
 	  If you're not using Android its probably safe to
 	  say N here.
-
-config ION_PROTECTED_HEAP
-	bool "Ion protected heap"
-	depends on ION
-	help
-	  Choose this option to enable the Ion protected heap. The protected
-	  heap is backed by pages from the gen pool allocator.
-	  If in doubt, say Y.
 
 config ION_SYSTEM_HEAP
 	bool "Ion system heap"

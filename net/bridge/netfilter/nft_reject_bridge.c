@@ -34,12 +34,6 @@ static void nft_reject_br_push_etherhdr(struct sk_buff *oldskb,
 	ether_addr_copy(eth->h_dest, eth_hdr(oldskb)->h_source);
 	eth->h_proto = eth_hdr(oldskb)->h_proto;
 	skb_pull(nskb, ETH_HLEN);
-
-	if (skb_vlan_tag_present(oldskb)) {
-		u16 vid = skb_vlan_tag_get(oldskb);
-
-		__vlan_hwaccel_put_tag(nskb, oldskb->vlan_proto, vid);
-	}
 }
 
 static int nft_bridge_iphdr_validate(struct sk_buff *skb)
@@ -235,7 +229,6 @@ static bool reject6_br_csum_ok(struct sk_buff *skb, int hook)
 	    pskb_trim_rcsum(skb, ntohs(ip6h->payload_len) + sizeof(*ip6h)))
 		return false;
 
-	ip6h = ipv6_hdr(skb);
 	thoff = ipv6_skip_exthdr(skb, ((u8*)(ip6h+1) - skb->data), &proto, &fo);
 	if (thoff < 0 || thoff >= skb->len || (fo & htons(~0x7)) != 0)
 		return false;

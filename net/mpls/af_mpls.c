@@ -618,15 +618,16 @@ static struct net_device *inet6_fib_lookup_dev(struct net *net,
 	struct net_device *dev;
 	struct dst_entry *dst;
 	struct flowi6 fl6;
+	int err;
 
 	if (!ipv6_stub)
 		return ERR_PTR(-EAFNOSUPPORT);
 
 	memset(&fl6, 0, sizeof(fl6));
 	memcpy(&fl6.daddr, addr, sizeof(struct in6_addr));
-	dst = ipv6_stub->ipv6_dst_lookup_flow(net, NULL, &fl6, NULL);
-	if (IS_ERR(dst))
-		return ERR_CAST(dst);
+	err = ipv6_stub->ipv6_dst_lookup(net, NULL, &dst, &fl6);
+	if (err)
+		return ERR_PTR(err);
 
 	dev = dst->dev;
 	dev_hold(dev);
@@ -1821,9 +1822,6 @@ static int rtm_to_route_config(struct sk_buff *skb,
 				goto errout;
 			break;
 		}
-		case RTA_GATEWAY:
-			NL_SET_ERR_MSG(extack, "MPLS does not support RTA_GATEWAY attribute");
-			goto errout;
 		case RTA_VIA:
 		{
 			if (nla_get_via(nla, &cfg->rc_via_alen,

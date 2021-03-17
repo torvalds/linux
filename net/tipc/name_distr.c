@@ -94,9 +94,8 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 		list_add_tail_rcu(&publ->binding_node, &nt->node_scope);
 		return NULL;
 	}
-	write_lock_bh(&nt->cluster_scope_lock);
-	list_add_tail(&publ->binding_node, &nt->cluster_scope);
-	write_unlock_bh(&nt->cluster_scope_lock);
+	list_add_tail_rcu(&publ->binding_node, &nt->cluster_scope);
+
 	skb = named_prepare_buf(net, PUBLICATION, ITEM_SIZE, 0);
 	if (!skb) {
 		pr_warn("Publication distribution failure\n");
@@ -113,13 +112,11 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
  */
 struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 {
-	struct name_table *nt = tipc_name_table(net);
 	struct sk_buff *buf;
 	struct distr_item *item;
 
-	write_lock_bh(&nt->cluster_scope_lock);
-	list_del(&publ->binding_node);
-	write_unlock_bh(&nt->cluster_scope_lock);
+	list_del_rcu(&publ->binding_node);
+
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
 
@@ -150,7 +147,7 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 			ITEM_SIZE) * ITEM_SIZE;
 	u32 msg_rem = msg_dsz;
 
-	list_for_each_entry(publ, pls, binding_node) {
+	list_for_each_entry_rcu(publ, pls, binding_node) {
 		/* Prepare next buffer: */
 		if (!skb) {
 			skb = named_prepare_buf(net, PUBLICATION, msg_rem,
@@ -192,10 +189,11 @@ void tipc_named_node_up(struct net *net, u32 dnode)
 
 	__skb_queue_head_init(&head);
 
-	read_lock_bh(&nt->cluster_scope_lock);
+	rcu_read_lock();
 	named_distribute(net, &head, dnode, &nt->cluster_scope);
+	rcu_read_unlock();
+
 	tipc_node_xmit(net, &head, dnode, 0);
-	read_unlock_bh(&nt->cluster_scope_lock);
 }
 
 /**
@@ -223,8 +221,7 @@ static void tipc_publ_purge(struct net *net, struct publication *publ, u32 addr)
 		       publ->key);
 	}
 
-	if (p)
-		kfree_rcu(p, rcu);
+	kfree_rcu(p, rcu);
 }
 
 /**

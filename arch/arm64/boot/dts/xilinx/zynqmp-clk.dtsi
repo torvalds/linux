@@ -58,13 +58,13 @@
 		clock-accuracy = <100>;
 	};
 
-	dpdma_clk: dpdma-clk {
+	dpdma_clk: dpdma_clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0x0>;
 		clock-frequency = <533000000>;
 	};
 
-	drm_clock: drm-clock {
+	drm_clock: drm_clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0x0>;
 		clock-frequency = <262750000>;

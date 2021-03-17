@@ -590,9 +590,6 @@ const char *perf_evsel__name(struct perf_evsel *evsel)
 {
 	char bf[128];
 
-	if (!evsel)
-		goto out_unknown;
-
 	if (evsel->name)
 		return evsel->name;
 
@@ -629,10 +626,7 @@ const char *perf_evsel__name(struct perf_evsel *evsel)
 
 	evsel->name = strdup(bf);
 
-	if (evsel->name)
-		return evsel->name;
-out_unknown:
-	return "unknown";
+	return evsel->name ?: "unknown";
 }
 
 const char *perf_evsel__group_name(struct perf_evsel *evsel)
@@ -958,6 +952,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		attr->sample_freq    = 0;
 		attr->sample_period  = 0;
 		attr->write_backward = 0;
+		attr->sample_id_all  = 0;
 	}
 
 	if (opts->no_samples)
@@ -1094,7 +1089,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		attr->exclude_user   = 1;
 	}
 
-	if (evsel->own_cpus || evsel->unit)
+	if (evsel->own_cpus)
 		evsel->attr.read_format |= PERF_FORMAT_ID;
 
 	/*
@@ -1280,7 +1275,6 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
 	assert(evsel->evlist == NULL);
-	perf_evsel__free_counts(evsel);
 	perf_evsel__free_fd(evsel);
 	perf_evsel__free_id(evsel);
 	perf_evsel__free_config_terms(evsel);
@@ -1290,9 +1284,6 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 	thread_map__put(evsel->threads);
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);
-	zfree(&evsel->pmu_name);
-	zfree(&evsel->per_pkg_mask);
-	zfree(&evsel->metric_events);
 	perf_evsel__object.fini(evsel);
 }
 

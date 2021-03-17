@@ -17,17 +17,14 @@
 #include <net/xfrm.h>
 #include <net/netfilter/nf_queue.h>
 
-int ip6_route_me_harder(struct net *net, struct sock *sk_partial, struct sk_buff *skb)
+int ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct sock *sk = sk_to_full_sk(sk_partial);
+	struct sock *sk = sk_to_full_sk(skb->sk);
 	unsigned int hh_len;
 	struct dst_entry *dst;
-	int strict = (ipv6_addr_type(&iph->daddr) &
-		      (IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL));
 	struct flowi6 fl6 = {
-		.flowi6_oif = sk && sk->sk_bound_dev_if ? sk->sk_bound_dev_if :
-			strict ? skb_dst(skb)->dev->ifindex : 0,
+		.flowi6_oif = sk ? sk->sk_bound_dev_if : 0,
 		.flowi6_mark = skb->mark,
 		.flowi6_uid = sock_net_uid(net, sk),
 		.daddr = iph->daddr,
@@ -81,7 +78,7 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr) ||
 		    skb->mark != rt_info->mark)
-			return ip6_route_me_harder(entry->state.net, entry->state.sk, skb);
+			return ip6_route_me_harder(entry->state.net, skb);
 	}
 	return 0;
 }

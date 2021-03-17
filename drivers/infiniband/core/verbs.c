@@ -1087,8 +1087,8 @@ struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
 }
 EXPORT_SYMBOL(ib_open_qp);
 
-static struct ib_qp *create_xrc_qp(struct ib_qp *qp,
-				   struct ib_qp_init_attr *qp_init_attr)
+static struct ib_qp *ib_create_xrc_qp(struct ib_qp *qp,
+		struct ib_qp_init_attr *qp_init_attr)
 {
 	struct ib_qp *real_qp = qp;
 
@@ -1103,10 +1103,10 @@ static struct ib_qp *create_xrc_qp(struct ib_qp *qp,
 
 	qp = __ib_open_qp(real_qp, qp_init_attr->event_handler,
 			  qp_init_attr->qp_context);
-	if (IS_ERR(qp))
-		return qp;
-
-	__ib_insert_xrcd_qp(qp_init_attr->xrcd, real_qp);
+	if (!IS_ERR(qp))
+		__ib_insert_xrcd_qp(qp_init_attr->xrcd, real_qp);
+	else
+		real_qp->device->destroy_qp(real_qp);
 	return qp;
 }
 
@@ -1137,8 +1137,10 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 		return qp;
 
 	ret = ib_create_qp_security(qp, device);
-	if (ret)
-		goto err;
+	if (ret) {
+		ib_destroy_qp(qp);
+		return ERR_PTR(ret);
+	}
 
 	qp->real_qp    = qp;
 	qp->qp_type    = qp_init_attr->qp_type;
@@ -1151,15 +1153,8 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 	INIT_LIST_HEAD(&qp->sig_mrs);
 	qp->port = 0;
 
-	if (qp_init_attr->qp_type == IB_QPT_XRC_TGT) {
-		struct ib_qp *xrc_qp = create_xrc_qp(qp, qp_init_attr);
-
-		if (IS_ERR(xrc_qp)) {
-			ret = PTR_ERR(xrc_qp);
-			goto err;
-		}
-		return xrc_qp;
-	}
+	if (qp_init_attr->qp_type == IB_QPT_XRC_TGT)
+		return ib_create_xrc_qp(qp, qp_init_attr);
 
 	qp->event_handler = qp_init_attr->event_handler;
 	qp->qp_context = qp_init_attr->qp_context;
@@ -1186,8 +1181,11 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 
 	if (qp_init_attr->cap.max_rdma_ctxs) {
 		ret = rdma_rw_init_mrs(qp, qp_init_attr);
-		if (ret)
-			goto err;
+		if (ret) {
+			pr_err("failed to init MR pool ret= %d\n", ret);
+			ib_destroy_qp(qp);
+			return ERR_PTR(ret);
+		}
 	}
 
 	/*
@@ -1200,11 +1198,6 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 				 device->attrs.max_sge_rd);
 
 	return qp;
-
-err:
-	ib_destroy_qp(qp);
-	return ERR_PTR(ret);
-
 }
 EXPORT_SYMBOL(ib_create_qp);
 
@@ -1617,7 +1610,7 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 		if (!(rdma_protocol_ib(qp->device,
 				       attr->alt_ah_attr.port_num) &&
 		      rdma_protocol_ib(qp->device, port))) {
-			ret = -EINVAL;
+			ret = EINVAL;
 			goto out;
 		}
 	}
@@ -1711,7 +1704,7 @@ int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width)
 
 	dev_put(netdev);
 
-	if (!rc && lksettings.base.speed != (u32)SPEED_UNKNOWN) {
+	if (!rc) {
 		netdev_speed = lksettings.base.speed;
 	} else {
 		netdev_speed = SPEED_1000;

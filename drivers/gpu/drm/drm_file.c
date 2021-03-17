@@ -46,8 +46,6 @@
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
 
-#define MAX_DRM_OPEN_COUNT		128
-
 /**
  * DOC: file operations
  *
@@ -264,18 +262,6 @@ void drm_file_free(struct drm_file *file)
 	kfree(file);
 }
 
-static void drm_close_helper(struct file *filp)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev = file_priv->minor->dev;
-
-	mutex_lock(&dev->filelist_mutex);
-	list_del(&file_priv->lhead);
-	mutex_unlock(&dev->filelist_mutex);
-
-	drm_file_free(file_priv);
-}
-
 static int drm_setup(struct drm_device * dev)
 {
 	int ret;
@@ -324,11 +310,6 @@ int drm_open(struct inode *inode, struct file *filp)
 	if (!dev->open_count++)
 		need_setup = 1;
 
-	if (dev->open_count >= MAX_DRM_OPEN_COUNT) {
-		retcode = -EPERM;
-		goto err_undo;
-	}
-
 	/* share address_space across all char-devs of a single device */
 	filp->f_mapping = dev->anon_inode->i_mapping;
 
@@ -337,10 +318,8 @@ int drm_open(struct inode *inode, struct file *filp)
 		goto err_undo;
 	if (need_setup) {
 		retcode = drm_setup(dev);
-		if (retcode) {
-			drm_close_helper(filp);
+		if (retcode)
 			goto err_undo;
-		}
 	}
 	return 0;
 
@@ -494,11 +473,17 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
-	drm_close_helper(filp);
+	mutex_lock(&dev->filelist_mutex);
+	list_del(&file_priv->lhead);
+	mutex_unlock(&dev->filelist_mutex);
 
-	if (!--dev->open_count)
+	drm_file_free(file_priv);
+
+	if (!--dev->open_count) {
 		drm_lastclose(dev);
-
+		if (drm_dev_is_unplugged(dev))
+			drm_put_dev(dev);
+	}
 	mutex_unlock(&drm_global_mutex);
 
 	drm_minor_release(minor);
@@ -584,7 +569,6 @@ put_back_event:
 				file_priv->event_space -= length;
 				list_add(&e->link, &file_priv->event_list);
 				spin_unlock_irq(&dev->event_lock);
-				wake_up_interruptible(&file_priv->event_wait);
 				break;
 			}
 

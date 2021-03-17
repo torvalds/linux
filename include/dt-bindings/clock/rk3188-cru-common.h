@@ -112,8 +112,6 @@
 #define PCLK_PERI		351
 #define PCLK_DDRUPCTL		352
 #define PCLK_PUBL		353
-#define PCLK_CIF0		354
-#define PCLK_CIF1		355
 
 /* hclk gates */
 #define HCLK_SDMMC		448
@@ -122,9 +120,9 @@
 #define HCLK_OTG0		451
 #define HCLK_EMAC		452
 #define HCLK_SPDIF		453
-#define HCLK_I2S0_2CH		454
-#define HCLK_I2S1_2CH		455
-#define HCLK_I2S_8CH		456
+#define HCLK_I2S0		454
+#define HCLK_I2S1		455
+#define HCLK_I2S2		456
 #define HCLK_OTG1		457
 #define HCLK_HSIC		458
 #define HCLK_HSADC		459
@@ -141,9 +139,8 @@
 #define HCLK_CIF1		470
 #define HCLK_VEPU		471
 #define HCLK_VDPU		472
-#define HCLK_HDMI               473
 
-#define CLK_NR_CLKS		(HCLK_HDMI + 1)
+#define CLK_NR_CLKS		(HCLK_VDPU + 1)
 
 /* soft-reset indices */
 #define SRST_MCORE		2

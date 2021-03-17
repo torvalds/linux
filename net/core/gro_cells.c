@@ -13,36 +13,22 @@ int gro_cells_receive(struct gro_cells *gcells, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct gro_cell *cell;
-	int res;
 
-	rcu_read_lock();
-	if (unlikely(!(dev->flags & IFF_UP)))
-		goto drop;
-
-	if (!gcells->cells || skb_cloned(skb) || netif_elide_gro(dev)) {
-		res = netif_rx(skb);
-		goto unlock;
-	}
+	if (!gcells->cells || skb_cloned(skb) || netif_elide_gro(dev))
+		return netif_rx(skb);
 
 	cell = this_cpu_ptr(gcells->cells);
 
 	if (skb_queue_len(&cell->napi_skbs) > netdev_max_backlog) {
-drop:
 		atomic_long_inc(&dev->rx_dropped);
 		kfree_skb(skb);
-		res = NET_RX_DROP;
-		goto unlock;
+		return NET_RX_DROP;
 	}
 
 	__skb_queue_tail(&cell->napi_skbs, skb);
 	if (skb_queue_len(&cell->napi_skbs) == 1)
 		napi_schedule(&cell->napi);
-
-	res = NET_RX_SUCCESS;
-
-unlock:
-	rcu_read_unlock();
-	return res;
+	return NET_RX_SUCCESS;
 }
 EXPORT_SYMBOL(gro_cells_receive);
 
@@ -98,7 +84,6 @@ void gro_cells_destroy(struct gro_cells *gcells)
 	for_each_possible_cpu(i) {
 		struct gro_cell *cell = per_cpu_ptr(gcells->cells, i);
 
-		napi_disable(&cell->napi);
 		netif_napi_del(&cell->napi);
 		__skb_queue_purge(&cell->napi_skbs);
 	}

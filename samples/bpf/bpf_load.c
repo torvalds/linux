@@ -55,25 +55,6 @@ static int populate_prog_array(const char *event, int prog_fd)
 	return 0;
 }
 
-static int write_kprobe_events(const char *val)
-{
-	int fd, ret, flags;
-
-	if (val == NULL)
-		return -1;
-	else if (val[0] == '\0')
-		flags = O_WRONLY | O_TRUNC;
-	else
-		flags = O_WRONLY | O_APPEND;
-
-	fd = open("/sys/kernel/debug/tracing/kprobe_events", flags);
-
-	ret = write(fd, val, strlen(val));
-	close(fd);
-
-	return ret;
-}
-
 static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 {
 	bool is_socket = strncmp(event, "socket", 6) == 0;
@@ -185,9 +166,10 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 
 #ifdef __x86_64__
 		if (strncmp(event, "sys_", 4) == 0) {
-			snprintf(buf, sizeof(buf), "%c:__x64_%s __x64_%s",
-				is_kprobe ? 'p' : 'r', event, event);
-			err = write_kprobe_events(buf);
+			snprintf(buf, sizeof(buf),
+				 "echo '%c:__x64_%s __x64_%s' >> /sys/kernel/debug/tracing/kprobe_events",
+				 is_kprobe ? 'p' : 'r', event, event);
+			err = system(buf);
 			if (err >= 0) {
 				need_normal_check = false;
 				event_prefix = "__x64_";
@@ -195,9 +177,10 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		}
 #endif
 		if (need_normal_check) {
-			snprintf(buf, sizeof(buf), "%c:%s %s",
-				is_kprobe ? 'p' : 'r', event, event);
-			err = write_kprobe_events(buf);
+			snprintf(buf, sizeof(buf),
+				 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
+				 is_kprobe ? 'p' : 'r', event, event);
+			err = system(buf);
 			if (err < 0) {
 				printf("failed to create kprobe '%s' error '%s'\n",
 				       event, strerror(errno));
@@ -537,7 +520,7 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		return 1;
 
 	/* clear all kprobes */
-	i = write_kprobe_events("");
+	i = system("echo \"\" > /sys/kernel/debug/tracing/kprobe_events");
 
 	/* scan over all elf sections to get license and map info */
 	for (i = 1; i < ehdr.e_shnum; i++) {
@@ -679,7 +662,7 @@ void read_trace_pipe(void)
 		static char buf[4096];
 		ssize_t sz;
 
-		sz = read(trace_fd, buf, sizeof(buf) - 1);
+		sz = read(trace_fd, buf, sizeof(buf));
 		if (sz > 0) {
 			buf[sz] = 0;
 			puts(buf);

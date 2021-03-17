@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
-
 #ifndef _VKMS_DRV_H_
 #define _VKMS_DRV_H_
 
@@ -62,6 +60,11 @@ int vkms_output_init(struct vkms_device *vkmsdev);
 struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev);
 
 /* Gem stuff */
+struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
+				       struct drm_file *file,
+				       u32 *handle,
+				       u64 size);
+
 int vkms_gem_fault(struct vm_fault *vmf);
 
 int vkms_dumb_create(struct drm_file *file, struct drm_device *dev,

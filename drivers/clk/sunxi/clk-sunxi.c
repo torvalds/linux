@@ -98,7 +98,7 @@ static void sun6i_a31_get_pll1_factors(struct factors_request *req)
 	 * Round down the frequency to the closest multiple of either
 	 * 6 or 16
 	 */
-	u32 round_freq_6 = rounddown(freq_mhz, 6);
+	u32 round_freq_6 = round_down(freq_mhz, 6);
 	u32 round_freq_16 = round_down(freq_mhz, 16);
 
 	if (round_freq_6 > round_freq_16)
@@ -1086,8 +1086,8 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 						 rate_hw, rate_ops,
 						 gate_hw, &clk_gate_ops,
 						 clkflags |
-						 (data->div[i].critical ?
-							CLK_IS_CRITICAL : 0));
+						 data->div[i].critical ?
+							CLK_IS_CRITICAL : 0);
 
 		WARN_ON(IS_ERR(clk_data->clks[i]));
 	}

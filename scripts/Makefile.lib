@@ -244,19 +244,6 @@ cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 # ---------------------------------------------------------------------------
 DTC ?= $(objtree)/scripts/dtc/dtc
 
-# Generation of symbols for Android
-ifeq ($(CONFIG_DTC_SYMBOLS),y)
-DTC_FLAGS += -@
-endif
-
-ifeq ($(CONFIG_DTC_OMIT_DISABLED),y)
-DTC_FLAGS += -Wnode_disabled
-endif
-
-ifeq ($(CONFIG_DTC_OMIT_EMPTY),y)
-DTC_FLAGS += -Wnode_empty
-endif
-
 # Disable noisy checks by default
 ifeq ($(findstring 1,$(KBUILD_ENABLE_EXTRA_GCC_CHECKS)),)
 DTC_FLAGS += -Wno-unit_address_vs_reg \
@@ -265,7 +252,6 @@ DTC_FLAGS += -Wno-unit_address_vs_reg \
 	-Wno-alias_paths \
 	-Wno-graph_child_address \
 	-Wno-graph_port \
-	-Wno-simple_bus_reg \
 	-Wno-unique_unit_address \
 	-Wno-pci_device_reg
 endif
@@ -348,13 +334,7 @@ cmd_lzo = (cat $(filter-out FORCE,$^) | \
 
 quiet_cmd_lz4 = LZ4     $@
 cmd_lz4 = (cat $(filter-out FORCE,$^) | \
-	lz4 -l -12 --favor-decSpeed stdin stdout && \
-	$(call size_append, $(filter-out FORCE,$^))) > $@ || \
-	(rm -f $@ ; false)
-
-quiet_cmd_lz4c = LZ4C    $@
-cmd_lz4c = (cat $(filter-out FORCE,$^) | \
-	lz4c -c1 stdin stdout && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	lz4c -l -c1 stdin stdout && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
 	(rm -f $@ ; false)
 
 # U-Boot mkimage

@@ -427,7 +427,7 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 	op_stack = kmalloc_array(nr_parens, sizeof(*op_stack), GFP_KERNEL);
 	if (!op_stack)
 		return ERR_PTR(-ENOMEM);
-	prog_stack = kcalloc(nr_preds, sizeof(*prog_stack), GFP_KERNEL);
+	prog_stack = kmalloc_array(nr_preds, sizeof(*prog_stack), GFP_KERNEL);
 	if (!prog_stack) {
 		parse_error(pe, -ENOMEM, 0);
 		goto out_free;
@@ -451,10 +451,8 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 
 		switch (*next) {
 		case '(':					/* #2 */
-			if (top - op_stack > nr_parens) {
-				ret = -EINVAL;
-				goto out_free;
-			}
+			if (top - op_stack > nr_parens)
+				return ERR_PTR(-EINVAL);
 			*(++top) = invert;
 			continue;
 		case '!':					/* #3 */
@@ -572,17 +570,11 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 		}
 	}
 
-	kfree(op_stack);
-	kfree(inverts);
 	return prog;
 out_free:
 	kfree(op_stack);
+	kfree(prog_stack);
 	kfree(inverts);
-	if (prog_stack) {
-		for (i = 0; prog_stack[i].pred; i++)
-			kfree(prog_stack[i].pred);
-		kfree(prog_stack);
-	}
 	return ERR_PTR(ret);
 }
 
@@ -1307,7 +1299,7 @@ static int parse_pred(const char *str, void *data,
 		/* go past the last quote */
 		i++;
 
-	} else if (isdigit(str[i]) || str[i] == '-') {
+	} else if (isdigit(str[i])) {
 
 		/* Make sure the field is not a string */
 		if (is_string_field(field)) {
@@ -1319,9 +1311,6 @@ static int parse_pred(const char *str, void *data,
 			parse_error(pe, FILT_ERR_ILLEGAL_FIELD_OP, pos + i);
 			goto err_free;
 		}
-
-		if (str[i] == '-')
-			i++;
 
 		/* We allow 0xDEADBEEF */
 		while (isalnum(str[i]))
@@ -1644,7 +1633,7 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 	parse_error(pe, FILT_ERR_BAD_SUBSYS_FILTER, 0);
 	return -EINVAL;
  fail_mem:
-	__free_filter(filter);
+	kfree(filter);
 	/* If any call succeeded, we still need to sync */
 	if (!fail)
 		tracepoint_synchronize_unregister();
@@ -1729,7 +1718,6 @@ static int create_filter(struct trace_event_call *call,
 	err = process_preds(call, filter_string, *filterp, pe);
 	if (err && set_str)
 		append_filter_err(pe, *filterp);
-	create_filter_finish(pe);
 
 	return err;
 }

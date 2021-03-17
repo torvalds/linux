@@ -46,7 +46,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mmc/sdio.h>
 #include <linux/scatterlist.h>
-#include <linux/sizes.h>
 #include <linux/spinlock.h>
 #include <linux/swiotlb.h>
 #include <linux/workqueue.h>
@@ -704,7 +703,7 @@ static bool __tmio_mmc_sdcard_irq(struct tmio_mmc_host *host, int ireg,
 	return false;
 }
 
-static bool __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
+static void __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 	struct tmio_mmc_data *pdata = host->pdata;
@@ -712,7 +711,7 @@ static bool __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 	unsigned int sdio_status;
 
 	if (!(pdata->flags & TMIO_MMC_SDIO_IRQ))
-		return false;
+		return;
 
 	status = sd_ctrl_read16(host, CTL_SDIO_STATUS);
 	ireg = status & TMIO_SDIO_MASK_ALL & ~host->sdio_irq_mask;
@@ -725,8 +724,6 @@ static bool __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 
 	if (mmc->caps & MMC_CAP_SDIO_IRQ && ireg & TMIO_SDIO_STAT_IOIRQ)
 		mmc_signal_sdio_irq(mmc);
-
-	return ireg;
 }
 
 irqreturn_t tmio_mmc_irq(int irq, void *devid)
@@ -745,10 +742,9 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 	if (__tmio_mmc_sdcard_irq(host, ireg, status))
 		return IRQ_HANDLED;
 
-	if (__tmio_mmc_sdio_irq(host))
-		return IRQ_HANDLED;
+	__tmio_mmc_sdio_irq(host);
 
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_irq);
 
@@ -778,10 +774,7 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 
 	/* Set transfer length / blocksize */
 	sd_ctrl_write16(host, CTL_SD_XFER_LEN, data->blksz);
-	if (host->mmc->max_blk_count >= SZ_64K)
-		sd_ctrl_write32(host, CTL_XFER_BLK_COUNT, data->blocks);
-	else
-		sd_ctrl_write16(host, CTL_XFER_BLK_COUNT, data->blocks);
+	sd_ctrl_write16(host, CTL_XFER_BLK_COUNT, data->blocks);
 
 	tmio_mmc_start_dma(host, data);
 
@@ -926,9 +919,8 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	if (mrq->cmd->error || (mrq->data && mrq->data->error))
 		tmio_mmc_abort_dma(host);
 
-	/* SCC error means retune, but executed command was still successful */
-	if (host->check_scc_error && host->check_scc_error(host))
-		mmc_retune_needed(host->mmc);
+	if (host->check_scc_error)
+		host->check_scc_error(host);
 
 	/* If SET_BLOCK_COUNT, continue with main command */
 	if (host->mrq && !mrq->cmd->error) {
@@ -1267,7 +1259,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 			return ret;
 	}
 
-	mmc->caps |= MMC_CAP_ERASE | MMC_CAP_4_BIT_DATA | pdata->capabilities;
+	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 |= pdata->capabilities2;
 	mmc->max_segs = pdata->max_segs ? : 32;
 	mmc->max_blk_size = 512;

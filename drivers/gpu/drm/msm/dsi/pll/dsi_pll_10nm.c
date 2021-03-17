@@ -17,7 +17,7 @@
  *                              |                |
  *                              |                |
  *                 +---------+  |  +----------+  |  +----+
- *  dsi0vco_clk ---| out_div |--o--| divl_3_0 |--o--| /8 |-- dsi0_phy_pll_out_byteclk
+ *  dsi0vco_clk ---| out_div |--o--| divl_3_0 |--o--| /8 |-- dsi0pllbyte
  *                 +---------+  |  +----------+  |  +----+
  *                              |                |
  *                              |                |         dsi0_pll_by_2_bit_clk
@@ -25,7 +25,7 @@
  *                              |                |  +----+  |  |\  dsi0_pclk_mux
  *                              |                |--| /2 |--o--| \   |
  *                              |                |  +----+     |  \  |  +---------+
- *                              |                --------------|  |--o--| div_7_4 |-- dsi0_phy_pll_out_dsiclk
+ *                              |                --------------|  |--o--| div_7_4 |-- dsi0pll
  *                              |------------------------------|  /     +---------+
  *                              |          +-----+             | /
  *                              -----------| /4? |--o----------|/
@@ -38,8 +38,6 @@
 #define DSI_BYTE_PLL_CLK		0
 #define DSI_PIXEL_PLL_CLK		1
 #define NUM_PROVIDED_CLKS		2
-
-#define VCO_REF_CLK_RATE		19200000
 
 struct dsi_pll_regs {
 	u32 pll_prop_gain_rate;
@@ -318,7 +316,7 @@ static int dsi_pll_10nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 	    parent_rate);
 
 	pll_10nm->vco_current_rate = rate;
-	pll_10nm->vco_ref_clk_rate = VCO_REF_CLK_RATE;
+	pll_10nm->vco_ref_clk_rate = parent_rate;
 
 	dsi_pll_setup_config(pll_10nm);
 
@@ -405,12 +403,6 @@ static int dsi_pll_10nm_vco_prepare(struct clk_hw *hw)
 	dsi_pll_enable_pll_bias(pll_10nm);
 	if (pll_10nm->slave)
 		dsi_pll_enable_pll_bias(pll_10nm->slave);
-
-	rc = dsi_pll_10nm_vco_set_rate(hw,pll_10nm->vco_current_rate, 0);
-	if (rc) {
-		pr_err("vco_set_rate failed, rc=%d\n", rc);
-		return rc;
-	}
 
 	/* Start PLL */
 	pll_write(pll_10nm->phy_cmn_mmio + REG_DSI_10nm_PHY_CMN_PLL_CNTRL,
@@ -554,7 +546,6 @@ static int dsi_pll_10nm_restore_state(struct msm_dsi_pll *pll)
 	struct pll_10nm_cached_state *cached = &pll_10nm->cached_state;
 	void __iomem *phy_base = pll_10nm->phy_cmn_mmio;
 	u32 val;
-	int ret;
 
 	val = pll_read(pll_10nm->mmio + REG_DSI_10nm_PHY_PLL_PLL_OUTDIV_RATE);
 	val &= ~0x3;
@@ -568,13 +559,6 @@ static int dsi_pll_10nm_restore_state(struct msm_dsi_pll *pll)
 	val &= ~0x3;
 	val |= cached->pll_mux;
 	pll_write(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG1, val);
-
-	ret = dsi_pll_10nm_vco_set_rate(&pll->clk_hw, pll_10nm->vco_current_rate, pll_10nm->vco_ref_clk_rate);
-	if (ret) {
-		DRM_DEV_ERROR(&pll_10nm->pdev->dev,
-			"restore vco rate failed. ret=%d\n", ret);
-		return ret;
-	}
 
 	DBG("DSI PLL%d", pll_10nm->id);
 
@@ -704,7 +688,7 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm)
 
 	hws[num++] = hw;
 
-	snprintf(clk_name, 32, "dsi%d_phy_pll_out_byteclk", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%dpllbyte", pll_10nm->id);
 	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_10nm->id);
 
 	/* DSI Byte clock = VCO_CLK / OUT_DIV / BIT_DIV / 8 */
@@ -753,7 +737,7 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm)
 
 	hws[num++] = hw;
 
-	snprintf(clk_name, 32, "dsi%d_phy_pll_out_dsiclk", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%dpll", pll_10nm->id);
 	snprintf(parent, 32, "dsi%d_pclk_mux", pll_10nm->id);
 
 	/* PIX CLK DIV : DIV_CTRL_7_4*/

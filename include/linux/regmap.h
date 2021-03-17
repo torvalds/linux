@@ -1094,12 +1094,6 @@ struct regmap_irq {
 #define REGMAP_IRQ_REG(_irq, _off, _mask)		\
 	[_irq] = { .reg_offset = (_off), .mask = (_mask) }
 
-#define REGMAP_IRQ_REG_LINE(_id, _reg_bits) \
-	[_id] = {				\
-		.mask = BIT((_id) % (_reg_bits)),	\
-		.reg_offset = (_id) / (_reg_bits),	\
-	}
-
 /**
  * struct regmap_irq_chip - Description of a generic regmap irq_chip.
  *
@@ -1151,7 +1145,6 @@ struct regmap_irq_chip {
 	unsigned int wake_base;
 	unsigned int type_base;
 	unsigned int irq_reg_stride;
-	unsigned int clear_ack;
 	bool mask_writeonly:1;
 	bool init_ack_masked:1;
 	bool mask_invert:1;

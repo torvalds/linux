@@ -164,10 +164,8 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 
 	cpu_groups = kcalloc(nb_available_cpus, sizeof(cpu_groups),
 			     GFP_KERNEL);
-	if (!cpu_groups) {
-		free_cpumask_var(tmp);
+	if (!cpu_groups)
 		return -ENOMEM;
-	}
 
 	cpumask_copy(tmp, cpu_online_mask);
 
@@ -176,7 +174,6 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 			topology_core_cpumask(cpumask_any(tmp));
 
 		if (!alloc_cpumask_var(&cpu_groups[num_groups], GFP_KERNEL)) {
-			free_cpumask_var(tmp);
 			free_cpu_groups(num_groups, &cpu_groups);
 			return -ENOMEM;
 		}
@@ -369,15 +366,15 @@ static int suspend_test_thread(void *arg)
 	for (;;) {
 		/* Needs to be set first to avoid missing a wakeup. */
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (kthread_should_park())
+		if (kthread_should_stop()) {
+			__set_current_state(TASK_RUNNING);
 			break;
+		}
 		schedule();
 	}
 
 	pr_info("CPU %d suspend test results: success %d, shallow states %d, errors %d\n",
 		cpu, nb_suspend, nb_shallow_sleep, nb_err);
-
-	kthread_parkme();
 
 	return nb_err;
 }
@@ -443,10 +440,8 @@ static int suspend_tests(void)
 
 
 	/* Stop and destroy all threads, get return status. */
-	for (i = 0; i < nb_threads; ++i) {
-		err += kthread_park(threads[i]);
+	for (i = 0; i < nb_threads; ++i)
 		err += kthread_stop(threads[i]);
-	}
  out:
 	cpuidle_resume_and_unlock();
 	kfree(threads);

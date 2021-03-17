@@ -33,7 +33,6 @@ struct memtrace_entry {
 	char name[16];
 };
 
-static DEFINE_MUTEX(memtrace_mutex);
 static u64 memtrace_size;
 
 static struct memtrace_entry *memtrace_array;
@@ -71,24 +70,6 @@ static int change_memblock_state(struct memory_block *mem, void *arg)
 	return 0;
 }
 
-static void memtrace_clear_range(unsigned long start_pfn,
-				 unsigned long nr_pages)
-{
-	unsigned long pfn;
-
-	/*
-	 * As pages are offline, we cannot trust the memmap anymore. As HIGHMEM
-	 * does not apply, avoid passing around "struct page" and use
-	 * clear_page() instead directly.
-	 */
-	for (pfn = start_pfn; pfn < start_pfn + nr_pages; pfn++) {
-		if (IS_ALIGNED(pfn, PAGES_PER_SECTION))
-			cond_resched();
-		clear_page(__va(PFN_PHYS(pfn)));
-	}
-}
-
-/* called with device_hotplug_lock held */
 static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
 {
 	u64 end_pfn = start_pfn + nr_pages - 1;
@@ -109,15 +90,17 @@ static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
 	walk_memory_range(start_pfn, end_pfn, (void *)MEM_OFFLINE,
 			  change_memblock_state);
 
+	lock_device_hotplug();
+	remove_memory(nid, start_pfn << PAGE_SHIFT, nr_pages << PAGE_SHIFT);
+	unlock_device_hotplug();
 
 	return true;
 }
 
 static u64 memtrace_alloc_node(u32 nid, u64 size)
 {
-	u64 start_pfn, end_pfn, nr_pages, pfn;
+	u64 start_pfn, end_pfn, nr_pages;
 	u64 base_pfn;
-	u64 bytes = memory_block_size_bytes();
 
 	if (!node_spanned_pages(nid))
 		return 0;
@@ -129,29 +112,10 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 	/* Trace memory needs to be aligned to the size */
 	end_pfn = round_down(end_pfn - nr_pages, nr_pages);
 
-	lock_device_hotplug();
 	for (base_pfn = end_pfn; base_pfn > start_pfn; base_pfn -= nr_pages) {
-		if (memtrace_offline_pages(nid, base_pfn, nr_pages) == true) {
-			/*
-			 * Clear the range while we still have a linear
-			 * mapping.
-			 */
-			memtrace_clear_range(base_pfn, nr_pages);
-			/*
-			 * Remove memory in memory block size chunks so that
-			 * iomem resources are always split to the same size and
-			 * we never try to remove memory that spans two iomem
-			 * resources.
-			 */
-			end_pfn = base_pfn + nr_pages;
-			for (pfn = base_pfn; pfn < end_pfn; pfn += bytes>> PAGE_SHIFT) {
-				__remove_memory(nid, pfn << PAGE_SHIFT, bytes);
-			}
-			unlock_device_hotplug();
+		if (memtrace_offline_pages(nid, base_pfn, nr_pages) == true)
 			return base_pfn << PAGE_SHIFT;
-		}
 	}
-	unlock_device_hotplug();
 
 	return 0;
 }
@@ -267,11 +231,9 @@ static int memtrace_online(void)
 		 * we need to online the memory ourselves.
 		 */
 		if (!memhp_auto_online) {
-			lock_device_hotplug();
 			walk_memory_range(PFN_DOWN(ent->start),
 					  PFN_UP(ent->start + ent->size - 1),
 					  NULL, online_mem_block);
-			unlock_device_hotplug();
 		}
 
 		/*
@@ -295,7 +257,6 @@ static int memtrace_online(void)
 
 static int memtrace_enable_set(void *data, u64 val)
 {
-	int rc = -EAGAIN;
 	u64 bytes;
 
 	/*
@@ -308,31 +269,25 @@ static int memtrace_enable_set(void *data, u64 val)
 		return -EINVAL;
 	}
 
-	mutex_lock(&memtrace_mutex);
-
 	/* Re-add/online previously removed/offlined memory */
 	if (memtrace_size) {
 		if (memtrace_online())
-			goto out_unlock;
+			return -EAGAIN;
 	}
 
-	if (!val) {
-		rc = 0;
-		goto out_unlock;
-	}
+	if (!val)
+		return 0;
 
 	/* Offline and remove memory */
 	if (memtrace_init_regions_runtime(val))
-		goto out_unlock;
+		return -EINVAL;
 
 	if (memtrace_init_debugfs())
-		goto out_unlock;
+		return -EINVAL;
 
 	memtrace_size = val;
-	rc = 0;
-out_unlock:
-	mutex_unlock(&memtrace_mutex);
-	return rc;
+
+	return 0;
 }
 
 static int memtrace_enable_get(void *data, u64 *val)

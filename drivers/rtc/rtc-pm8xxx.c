@@ -213,8 +213,7 @@ static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		}
 	}
 
-	secs = value[0] | (value[1] << 8) | (value[2] << 16) |
-	       ((unsigned long)value[3] << 24);
+	secs = value[0] | (value[1] << 8) | (value[2] << 16) | (value[3] << 24);
 
 	rtc_time_to_tm(secs, tm);
 
@@ -289,8 +288,7 @@ static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		return rc;
 	}
 
-	secs = value[0] | (value[1] << 8) | (value[2] << 16) |
-	       ((unsigned long)value[3] << 24);
+	secs = value[0] | (value[1] << 8) | (value[2] << 16) | (value[3] << 24);
 
 	rtc_time_to_tm(secs, &alarm->time);
 

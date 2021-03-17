@@ -637,12 +637,12 @@ static int mlxsw_sp_mr_vif_resolve(struct mlxsw_sp_mr_table *mr_table,
 	return 0;
 
 err_erif_unresolve:
-	list_for_each_entry_continue_reverse(erve, &mr_vif->route_evif_list,
-					     vif_node)
+	list_for_each_entry_from_reverse(erve, &mr_vif->route_evif_list,
+					 vif_node)
 		mlxsw_sp_mr_route_evif_unresolve(mr_table, erve);
 err_irif_unresolve:
-	list_for_each_entry_continue_reverse(irve, &mr_vif->route_ivif_list,
-					     vif_node)
+	list_for_each_entry_from_reverse(irve, &mr_vif->route_ivif_list,
+					 vif_node)
 		mlxsw_sp_mr_route_ivif_unresolve(mr_table, irve);
 	mr_vif->rif = NULL;
 	return err;

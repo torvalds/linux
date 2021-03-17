@@ -20,7 +20,6 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/vermagic.h>
-#include <linux/of.h>
 
 enum test_power_id {
 	TEST_AC,
@@ -198,19 +197,6 @@ static int __init test_power_init(void)
 {
 	int i;
 	int ret;
-	struct device_node *dev_node;
-
-	dev_node = of_find_node_by_name(NULL, "test-power");
-
-	if (!dev_node) {
-		pr_info("%s: could not find dev node\n", __func__);
-		return 0;
-	}
-	if (!of_device_is_available(dev_node)) {
-		pr_info("%s: test power disabled\n", __func__);
-		return 0;
-	}
-	of_node_put(dev_node);
 
 	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_supplies));
 	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_configs));
@@ -358,7 +344,6 @@ static int param_set_ac_online(const char *key, const struct kernel_param *kp)
 static int param_get_ac_online(char *buffer, const struct kernel_param *kp)
 {
 	strcpy(buffer, map_get_key(map_ac_online, ac_online, "unknown"));
-	strcat(buffer, "\n");
 	return strlen(buffer);
 }
 
@@ -372,7 +357,6 @@ static int param_set_usb_online(const char *key, const struct kernel_param *kp)
 static int param_get_usb_online(char *buffer, const struct kernel_param *kp)
 {
 	strcpy(buffer, map_get_key(map_ac_online, usb_online, "unknown"));
-	strcat(buffer, "\n");
 	return strlen(buffer);
 }
 
@@ -387,7 +371,6 @@ static int param_set_battery_status(const char *key,
 static int param_get_battery_status(char *buffer, const struct kernel_param *kp)
 {
 	strcpy(buffer, map_get_key(map_status, battery_status, "unknown"));
-	strcat(buffer, "\n");
 	return strlen(buffer);
 }
 
@@ -402,7 +385,6 @@ static int param_set_battery_health(const char *key,
 static int param_get_battery_health(char *buffer, const struct kernel_param *kp)
 {
 	strcpy(buffer, map_get_key(map_health, battery_health, "unknown"));
-	strcat(buffer, "\n");
 	return strlen(buffer);
 }
 
@@ -418,7 +400,6 @@ static int param_get_battery_present(char *buffer,
 					const struct kernel_param *kp)
 {
 	strcpy(buffer, map_get_key(map_present, battery_present, "unknown"));
-	strcat(buffer, "\n");
 	return strlen(buffer);
 }
 
@@ -436,7 +417,6 @@ static int param_get_battery_technology(char *buffer,
 {
 	strcpy(buffer,
 		map_get_key(map_technology, battery_technology, "unknown"));
-	strcat(buffer, "\n");
 	return strlen(buffer);
 }
 

@@ -541,11 +541,7 @@ static int __init digicolor_uart_init(void)
 	if (ret)
 		return ret;
 
-	ret = platform_driver_register(&digicolor_uart_platform);
-	if (ret)
-		uart_unregister_driver(&digicolor_uart);
-
-	return ret;
+	return platform_driver_register(&digicolor_uart_platform);
 }
 module_init(digicolor_uart_init);
 

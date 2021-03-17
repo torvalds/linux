@@ -1029,7 +1029,7 @@ qla2xxx_mqueuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd,
 		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x3078,
 		    "Start scsi failed rval=%d for cmd=%p.\n", rval, cmd);
 		if (rval == QLA_INTERFACE_ERROR)
-			goto qc24_free_sp_fail_command;
+			goto qc24_fail_command;
 		goto qc24_host_busy_free_sp;
 	}
 
@@ -1043,11 +1043,6 @@ qc24_host_busy:
 
 qc24_target_busy:
 	return SCSI_MLQUEUE_TARGET_BUSY;
-
-qc24_free_sp_fail_command:
-	sp->free(sp);
-	CMD_SP(cmd) = NULL;
-	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 
 qc24_fail_command:
 	cmd->scsi_done(cmd);
@@ -1749,7 +1744,6 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 				    !ha->flags.eeh_busy &&
 				    (!test_bit(ABORT_ISP_ACTIVE,
 					&vha->dpc_flags)) &&
-				    !qla2x00_isp_reg_stat(ha) &&
 				    (sp->type == SRB_SCSI_CMD)) {
 					/*
 					 * Don't abort commands in
@@ -1997,11 +1991,6 @@ skip_pio:
 	/* Determine queue resources */
 	ha->max_req_queues = ha->max_rsp_queues = 1;
 	ha->msix_count = QLA_BASE_VECTORS;
-
-	/* Check if FW supports MQ or not */
-	if (!(ha->fw_attributes & BIT_6))
-		goto mqiobase_exit;
-
 	if (!ql2xmqsupport || !ql2xnvmeenable ||
 	    (!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
 		goto mqiobase_exit;
@@ -2719,7 +2708,7 @@ static void qla2x00_iocb_work_fn(struct work_struct *work)
 		struct scsi_qla_host, iocb_work);
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
-	int i = 2;
+	int i = 20;
 	unsigned long flags;
 
 	if (test_bit(UNLOADING, &base_vha->dpc_flags))
@@ -3197,10 +3186,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    req->req_q_in, req->req_q_out, rsp->rsp_q_in, rsp->rsp_q_out);
 
 	ha->wq = alloc_workqueue("qla2xxx_wq", 0, 0);
-	if (unlikely(!ha->wq)) {
-		ret = -ENOMEM;
-		goto probe_failed;
-	}
 
 	if (ha->isp_ops->initialize_adapter(base_vha)) {
 		ql_log(ql_log_fatal, base_vha, 0x00d6,
@@ -3410,12 +3395,6 @@ skip_dpc:
 	return 0;
 
 probe_failed:
-	if (base_vha->gnl.l) {
-		dma_free_coherent(&ha->pdev->dev, base_vha->gnl.size,
-				base_vha->gnl.l, base_vha->gnl.ldma);
-		base_vha->gnl.l = NULL;
-	}
-
 	if (base_vha->timer_active)
 		qla2x00_stop_timer(base_vha);
 	base_vha->flags.online = 0;
@@ -3507,10 +3486,6 @@ qla2x00_shutdown(struct pci_dev *pdev)
 		qla2x00_try_to_stop_firmware(vha);
 	}
 
-	/* Disable timer */
-	if (vha->timer_active)
-		qla2x00_stop_timer(vha);
-
 	/* Turn adapter off line */
 	vha->flags.online = 0;
 
@@ -3547,8 +3522,6 @@ qla2x00_delete_all_vps(struct qla_hw_data *ha, scsi_qla_host_t *base_vha)
 
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 		mutex_unlock(&ha->vport_lock);
-
-		qla_nvme_delete(vha);
 
 		fc_vport_terminate(vha->fc_vport);
 		scsi_host_put(vha->host);
@@ -3651,20 +3624,13 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	if (!atomic_read(&pdev->enable_cnt)) {
 		dma_free_coherent(&ha->pdev->dev, base_vha->gnl.size,
 		    base_vha->gnl.l, base_vha->gnl.ldma);
-		base_vha->gnl.l = NULL;
+
 		scsi_host_put(base_vha->host);
 		kfree(ha);
 		pci_set_drvdata(pdev, NULL);
 		return;
 	}
 	qla2x00_wait_for_hba_ready(base_vha);
-
-	/*
-	 * if UNLOADING flag is already set, then continue unload,
-	 * where it was set first.
-	 */
-	if (test_and_set_bit(UNLOADING, &base_vha->dpc_flags))
-		return;
 
 	if (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha)) {
 		if (ha->flags.fw_started)
@@ -3683,12 +3649,19 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	qla2x00_wait_for_sess_deletion(base_vha);
 
+	/*
+	 * if UNLOAD flag is already set, then continue unload,
+	 * where it was set first.
+	 */
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return;
+
+	set_bit(UNLOADING, &base_vha->dpc_flags);
+
 	qla_nvme_delete(base_vha);
 
 	dma_free_coherent(&ha->pdev->dev,
 		base_vha->gnl.size, base_vha->gnl.l, base_vha->gnl.ldma);
-
-	base_vha->gnl.l = NULL;
 
 	vfree(base_vha->scan.l);
 
@@ -4606,6 +4579,7 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
+	spin_lock_init(&vha->gnl.fcports_lock);
 	init_waitqueue_head(&vha->fcport_waitQ);
 	init_waitqueue_head(&vha->vref_waitq);
 
@@ -4628,7 +4602,6 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 		    "Alloc failed for scan database.\n");
 		dma_free_coherent(&ha->pdev->dev, vha->gnl.size,
 		    vha->gnl.l, vha->gnl.ldma);
-		vha->gnl.l = NULL;
 		scsi_remove_host(vha->host);
 		return NULL;
 	}
@@ -4648,9 +4621,6 @@ qla2x00_alloc_work(struct scsi_qla_host *vha, enum qla_work_type type)
 {
 	struct qla_work_evt *e;
 	uint8_t bail;
-
-	if (test_bit(UNLOADING, &vha->dpc_flags))
-		return NULL;
 
 	QLA_VHA_MARK_BUSY(vha, bail);
 	if (bail)
@@ -4791,25 +4761,16 @@ qlafx00_post_aenfx_work(struct scsi_qla_host *vha,  uint32_t evtcode,
 	return qla2x00_post_work(vha, e);
 }
 
-void qla24xx_sched_upd_fcport(fc_port_t *fcport)
+int qla24xx_post_upd_fcport_work(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
-	unsigned long flags;
+	struct qla_work_evt *e;
 
-	if (IS_SW_RESV_ADDR(fcport->d_id))
-		return;
+	e = qla2x00_alloc_work(vha, QLA_EVT_UPD_FCPORT);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
 
-	spin_lock_irqsave(&fcport->vha->work_lock, flags);
-	if (fcport->disc_state == DSC_UPD_FCPORT) {
-		spin_unlock_irqrestore(&fcport->vha->work_lock, flags);
-		return;
-	}
-	fcport->jiffies_at_registration = jiffies;
-	fcport->sec_since_registration = 0;
-	fcport->next_disc_state = DSC_DELETED;
-	fcport->disc_state = DSC_UPD_FCPORT;
-	spin_unlock_irqrestore(&fcport->vha->work_lock, flags);
-
-	queue_work(system_unbound_wq, &fcport->reg_work);
+	e->u.fcport.fcport = fcport;
+	return qla2x00_post_work(vha, e);
 }
 
 static
@@ -4894,7 +4855,6 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	if (fcport) {
 		fcport->id_changed = 1;
 		fcport->scan_state = QLA_FCPORT_FOUND;
-		fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 		memcpy(fcport->node_name, e->u.new_sess.node_name, WWN_SIZE);
 
 		if (pla) {
@@ -5064,6 +5024,9 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			break;
 		case QLA_EVT_GPSC:
 			qla24xx_async_gpsc(vha, e->u.fcport.fcport);
+			break;
+		case QLA_EVT_UPD_FCPORT:
+			qla2x00_update_fcport(vha, e->u.fcport.fcport);
 			break;
 		case QLA_EVT_GNL:
 			qla24xx_async_gnl(vha, e->u.fcport.fcport);
@@ -5856,6 +5819,13 @@ qla2x00_disable_board_on_pci_error(struct work_struct *work)
 	struct pci_dev *pdev = ha->pdev;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
+	/*
+	 * if UNLOAD flag is already set, then continue unload,
+	 * where it was set first.
+	 */
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return;
+
 	ql_log(ql_log_warn, base_vha, 0x015b,
 	    "Disabling adapter.\n");
 
@@ -5866,14 +5836,9 @@ qla2x00_disable_board_on_pci_error(struct work_struct *work)
 		return;
 	}
 
-	/*
-	 * if UNLOADING flag is already set, then continue unload,
-	 * where it was set first.
-	 */
-	if (test_and_set_bit(UNLOADING, &base_vha->dpc_flags))
-		return;
-
 	qla2x00_wait_for_sess_deletion(base_vha);
+
+	set_bit(UNLOADING, &base_vha->dpc_flags);
 
 	qla2x00_delete_all_vps(ha, base_vha);
 
@@ -6076,28 +6041,12 @@ qla2x00_do_dpc(void *data)
 		if (test_and_clear_bit
 		    (ISP_ABORT_NEEDED, &base_vha->dpc_flags) &&
 		    !test_bit(UNLOADING, &base_vha->dpc_flags)) {
-			bool do_reset = true;
 
-			switch (ql2x_ini_mode) {
-			case QLA2XXX_INI_MODE_ENABLED:
-				break;
-			case QLA2XXX_INI_MODE_DISABLED:
-				if (!qla_tgt_mode_enabled(base_vha))
-					do_reset = false;
-				break;
-			case QLA2XXX_INI_MODE_DUAL:
-				if (!qla_dual_mode_enabled(base_vha))
-					do_reset = false;
-				break;
-			default:
-				break;
-			}
-
-			if (do_reset && !(test_and_set_bit(ABORT_ISP_ACTIVE,
+			ql_dbg(ql_dbg_dpc, base_vha, 0x4007,
+			    "ISP abort scheduled.\n");
+			if (!(test_and_set_bit(ABORT_ISP_ACTIVE,
 			    &base_vha->dpc_flags))) {
-				base_vha->flags.online = 1;
-				ql_dbg(ql_dbg_dpc, base_vha, 0x4007,
-				    "ISP abort scheduled.\n");
+
 				if (ha->isp_ops->abort_isp(base_vha)) {
 					/* failed. retry later */
 					set_bit(ISP_ABORT_NEEDED,
@@ -6105,9 +6054,10 @@ qla2x00_do_dpc(void *data)
 				}
 				clear_bit(ABORT_ISP_ACTIVE,
 						&base_vha->dpc_flags);
-				ql_dbg(ql_dbg_dpc, base_vha, 0x4008,
-				    "ISP abort end.\n");
 			}
+
+			ql_dbg(ql_dbg_dpc, base_vha, 0x4008,
+			    "ISP abort end.\n");
 		}
 
 		if (test_and_clear_bit(FCPORT_UPDATE_NEEDED,
@@ -6977,7 +6927,8 @@ qla2x00_module_init(void)
 	/* Initialize target kmem_cache and mem_pools */
 	ret = qlt_init();
 	if (ret < 0) {
-		goto destroy_cache;
+		kmem_cache_destroy(srb_cachep);
+		return ret;
 	} else if (ret > 0) {
 		/*
 		 * If initiator mode is explictly disabled by qlt_init(),
@@ -6998,10 +6949,11 @@ qla2x00_module_init(void)
 	qla2xxx_transport_template =
 	    fc_attach_transport(&qla2xxx_transport_functions);
 	if (!qla2xxx_transport_template) {
+		kmem_cache_destroy(srb_cachep);
 		ql_log(ql_log_fatal, NULL, 0x0002,
 		    "fc_attach_transport failed...Failing load!.\n");
-		ret = -ENODEV;
-		goto qlt_exit;
+		qlt_exit();
+		return -ENODEV;
 	}
 
 	apidev_major = register_chrdev(0, QLA2XXX_APIDEV, &apidev_fops);
@@ -7013,36 +6965,26 @@ qla2x00_module_init(void)
 	qla2xxx_transport_vport_template =
 	    fc_attach_transport(&qla2xxx_transport_vport_functions);
 	if (!qla2xxx_transport_vport_template) {
+		kmem_cache_destroy(srb_cachep);
+		qlt_exit();
+		fc_release_transport(qla2xxx_transport_template);
 		ql_log(ql_log_fatal, NULL, 0x0004,
 		    "fc_attach_transport vport failed...Failing load!.\n");
-		ret = -ENODEV;
-		goto unreg_chrdev;
+		return -ENODEV;
 	}
 	ql_log(ql_log_info, NULL, 0x0005,
 	    "QLogic Fibre Channel HBA Driver: %s.\n",
 	    qla2x00_version_str);
 	ret = pci_register_driver(&qla2xxx_pci_driver);
 	if (ret) {
+		kmem_cache_destroy(srb_cachep);
+		qlt_exit();
+		fc_release_transport(qla2xxx_transport_template);
+		fc_release_transport(qla2xxx_transport_vport_template);
 		ql_log(ql_log_fatal, NULL, 0x0006,
 		    "pci_register_driver failed...ret=%d Failing load!.\n",
 		    ret);
-		goto release_vport_transport;
 	}
-	return ret;
-
-release_vport_transport:
-	fc_release_transport(qla2xxx_transport_vport_template);
-
-unreg_chrdev:
-	if (apidev_major >= 0)
-		unregister_chrdev(apidev_major, QLA2XXX_APIDEV);
-	fc_release_transport(qla2xxx_transport_template);
-
-qlt_exit:
-	qlt_exit();
-
-destroy_cache:
-	kmem_cache_destroy(srb_cachep);
 	return ret;
 }
 

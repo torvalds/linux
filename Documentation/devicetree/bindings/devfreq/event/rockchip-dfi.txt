@@ -1,22 +1,8 @@
 
-* Rockchip DFI device
+* Rockchip rk3399 DFI device
 
 Required properties:
-- compatible: Should be one of the following.
-  - "rockchip,px30-dfi" - for PX30 SoCs.
-  - "rockchip,rk1808-dfi" - for RK1808 SoCs.
-  - "rockchip,rk3128-dfi" - for RK3128 SoCs.
-  - "rockchip,rk3288-dfi" - for RK3288 SoCs.
-  - "rockchip,rk3328-dfi" - for RK3328 SoCs.
-  - "rockchip,rk3368-dfi" - for RK3368 SoCs.
-  - "rockchip,rk3399-dfi" - for RK3399 SoCs.
-  - "rockchip,rk3568-dfi" - for RK3568 SoCs.
-  - "rockchip,rv1126-dfi" - for RV1126 SoCs.
-
-Required properties for RK3368:
-- rockchip,grf: phandle to the syscon managing the "general register files"
-
-Required properties for RK3399:
+- compatible: Must be "rockchip,rk3399-dfi".
 - reg: physical base address of each DFI and length of memory mapped region
 - rockchip,pmu: phandle to the syscon managing the "pmu general register files"
 - clocks: phandles for clock specified in "clock-names" property

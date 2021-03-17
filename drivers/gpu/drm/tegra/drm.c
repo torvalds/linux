@@ -242,7 +242,7 @@ static int tegra_drm_open(struct drm_device *drm, struct drm_file *filp)
 	if (!fpriv)
 		return -ENOMEM;
 
-	idr_init_base(&fpriv->contexts, 1);
+	idr_init(&fpriv->contexts);
 	mutex_init(&fpriv->lock);
 	filp->driver_priv = fpriv;
 

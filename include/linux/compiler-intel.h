@@ -5,7 +5,9 @@
 
 #ifdef __ECC
 
-/* Compiler specific definitions for Intel ECC compiler */
+/* Some compiler specific definitions are overwritten here
+ * for Intel ECC compiler
+ */
 
 #include <asm/intrinsics.h>
 

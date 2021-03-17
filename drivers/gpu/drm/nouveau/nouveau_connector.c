@@ -251,7 +251,7 @@ nouveau_conn_reset(struct drm_connector *connector)
 		return;
 
 	if (connector->state)
-		nouveau_conn_atomic_destroy_state(connector, connector->state);
+		__drm_atomic_helper_connector_destroy_state(connector->state);
 	__drm_atomic_helper_connector_reset(connector, &asyc->state);
 	asyc->dither.mode = DITHERING_MODE_AUTO;
 	asyc->dither.depth = DITHERING_DEPTH_AUTO;
@@ -551,10 +551,8 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 		pm_runtime_get_noresume(dev->dev);
 	} else {
 		ret = pm_runtime_get_sync(dev->dev);
-		if (ret < 0 && ret != -EACCES) {
-			pm_runtime_put_autosuspend(dev->dev);
+		if (ret < 0 && ret != -EACCES)
 			return conn_status;
-		}
 	}
 
 	nv_encoder = nouveau_connector_ddc_detect(connector);

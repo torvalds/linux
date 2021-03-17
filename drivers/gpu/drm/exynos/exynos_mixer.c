@@ -20,7 +20,6 @@
 #include "regs-vp.h"
 
 #include <linux/kernel.h>
-#include <linux/ktime.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
@@ -338,62 +337,15 @@ static void mixer_cfg_vp_blend(struct mixer_context *ctx)
 	mixer_reg_write(ctx, MXR_VIDEO_CFG, val);
 }
 
-static bool mixer_is_synced(struct mixer_context *ctx)
+static void mixer_vsync_set_update(struct mixer_context *ctx, bool enable)
 {
-	u32 base, shadow;
+	/* block update on vsync */
+	mixer_reg_writemask(ctx, MXR_STATUS, enable ?
+			MXR_STATUS_SYNC_ENABLE : 0, MXR_STATUS_SYNC_ENABLE);
 
-	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
-	    ctx->mxr_ver == MXR_VER_128_0_0_184)
-		return !(mixer_reg_read(ctx, MXR_CFG) &
-			 MXR_CFG_LAYER_UPDATE_COUNT_MASK);
-
-	if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags) &&
-	    vp_reg_read(ctx, VP_SHADOW_UPDATE))
-		return false;
-
-	base = mixer_reg_read(ctx, MXR_CFG);
-	shadow = mixer_reg_read(ctx, MXR_CFG_S);
-	if (base != shadow)
-		return false;
-
-	base = mixer_reg_read(ctx, MXR_GRAPHIC_BASE(0));
-	shadow = mixer_reg_read(ctx, MXR_GRAPHIC_BASE_S(0));
-	if (base != shadow)
-		return false;
-
-	base = mixer_reg_read(ctx, MXR_GRAPHIC_BASE(1));
-	shadow = mixer_reg_read(ctx, MXR_GRAPHIC_BASE_S(1));
-	if (base != shadow)
-		return false;
-
-	return true;
-}
-
-static int mixer_wait_for_sync(struct mixer_context *ctx)
-{
-	ktime_t timeout = ktime_add_us(ktime_get(), 100000);
-
-	while (!mixer_is_synced(ctx)) {
-		usleep_range(1000, 2000);
-		if (ktime_compare(ktime_get(), timeout) > 0)
-			return -ETIMEDOUT;
-	}
-	return 0;
-}
-
-static void mixer_disable_sync(struct mixer_context *ctx)
-{
-	mixer_reg_writemask(ctx, MXR_STATUS, 0, MXR_STATUS_SYNC_ENABLE);
-}
-
-static void mixer_enable_sync(struct mixer_context *ctx)
-{
-	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
-	    ctx->mxr_ver == MXR_VER_128_0_0_184)
-		mixer_reg_writemask(ctx, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
-	mixer_reg_writemask(ctx, MXR_STATUS, ~0, MXR_STATUS_SYNC_ENABLE);
 	if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags))
-		vp_reg_write(ctx, VP_SHADOW_UPDATE, VP_SHADOW_UPDATE_ENABLE);
+		vp_reg_write(ctx, VP_SHADOW_UPDATE, enable ?
+			VP_SHADOW_UPDATE_ENABLE : 0);
 }
 
 static void mixer_cfg_scan(struct mixer_context *ctx, int width, int height)
@@ -530,6 +482,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 
 	spin_lock_irqsave(&ctx->reg_slock, flags);
 
+	vp_reg_write(ctx, VP_SHADOW_UPDATE, 1);
 	/* interlace or progressive scan mode */
 	val = (test_bit(MXR_BIT_INTERLACE, &ctx->flags) ? ~0 : 0);
 	vp_reg_writemask(ctx, VP_MODE, val, VP_MODE_LINE_SKIP);
@@ -582,6 +535,11 @@ static void vp_video_buffer(struct mixer_context *ctx,
 
 	mixer_regs_dump(ctx);
 	vp_regs_dump(ctx);
+}
+
+static void mixer_layer_update(struct mixer_context *ctx)
+{
+	mixer_reg_writemask(ctx, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
 }
 
 static void mixer_graph_buffer(struct mixer_context *ctx,
@@ -660,6 +618,11 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	mixer_cfg_layer(ctx, win, priority, true);
 	mixer_cfg_gfx_blend(ctx, win, fb->format->has_alpha);
 
+	/* layer update mandatory for mixer 16.0.33.0 */
+	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
+		ctx->mxr_ver == MXR_VER_128_0_0_184)
+		mixer_layer_update(ctx);
+
 	spin_unlock_irqrestore(&ctx->reg_slock, flags);
 
 	mixer_regs_dump(ctx);
@@ -724,7 +687,7 @@ static void mixer_win_reset(struct mixer_context *ctx)
 static irqreturn_t mixer_irq_handler(int irq, void *arg)
 {
 	struct mixer_context *ctx = arg;
-	u32 val;
+	u32 val, base, shadow;
 
 	spin_lock(&ctx->reg_slock);
 
@@ -738,9 +701,26 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 		val &= ~MXR_INT_STATUS_VSYNC;
 
 		/* interlace scan need to check shadow register */
-		if (test_bit(MXR_BIT_INTERLACE, &ctx->flags)
-		    && !mixer_is_synced(ctx))
-			goto out;
+		if (test_bit(MXR_BIT_INTERLACE, &ctx->flags)) {
+			if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags) &&
+			    vp_reg_read(ctx, VP_SHADOW_UPDATE))
+				goto out;
+
+			base = mixer_reg_read(ctx, MXR_CFG);
+			shadow = mixer_reg_read(ctx, MXR_CFG_S);
+			if (base != shadow)
+				goto out;
+
+			base = mixer_reg_read(ctx, MXR_GRAPHIC_BASE(0));
+			shadow = mixer_reg_read(ctx, MXR_GRAPHIC_BASE_S(0));
+			if (base != shadow)
+				goto out;
+
+			base = mixer_reg_read(ctx, MXR_GRAPHIC_BASE(1));
+			shadow = mixer_reg_read(ctx, MXR_GRAPHIC_BASE_S(1));
+			if (base != shadow)
+				goto out;
+		}
 
 		drm_crtc_handle_vblank(&ctx->crtc->base);
 	}
@@ -915,14 +895,12 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 
 static void mixer_atomic_begin(struct exynos_drm_crtc *crtc)
 {
-	struct mixer_context *ctx = crtc->ctx;
+	struct mixer_context *mixer_ctx = crtc->ctx;
 
-	if (!test_bit(MXR_BIT_POWERED, &ctx->flags))
+	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
 
-	if (mixer_wait_for_sync(ctx))
-		dev_err(ctx->dev, "timeout waiting for VSYNC\n");
-	mixer_disable_sync(ctx);
+	mixer_vsync_set_update(mixer_ctx, false);
 }
 
 static void mixer_update_plane(struct exynos_drm_crtc *crtc,
@@ -964,7 +942,7 @@ static void mixer_atomic_flush(struct exynos_drm_crtc *crtc)
 	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
 
-	mixer_enable_sync(mixer_ctx);
+	mixer_vsync_set_update(mixer_ctx, true);
 	exynos_crtc_handle_event(crtc);
 }
 
@@ -979,7 +957,7 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 
 	exynos_drm_pipe_clk_enable(crtc, true);
 
-	mixer_disable_sync(ctx);
+	mixer_vsync_set_update(ctx, false);
 
 	mixer_reg_writemask(ctx, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
@@ -992,7 +970,7 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 
 	mixer_commit(ctx);
 
-	mixer_enable_sync(ctx);
+	mixer_vsync_set_update(ctx, true);
 
 	set_bit(MXR_BIT_POWERED, &ctx->flags);
 }

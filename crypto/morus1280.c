@@ -366,19 +366,18 @@ static void crypto_morus1280_process_crypt(struct morus1280_state *state,
 					   const struct morus1280_ops *ops)
 {
 	struct skcipher_walk walk;
+	u8 *dst;
+	const u8 *src;
 
 	ops->skcipher_walk_init(&walk, req, false);
 
 	while (walk.nbytes) {
-		unsigned int nbytes = walk.nbytes;
+		src = walk.src.virt.addr;
+		dst = walk.dst.virt.addr;
 
-		if (nbytes < walk.total)
-			nbytes = round_down(nbytes, walk.stride);
+		ops->crypt_chunk(state, dst, src, walk.nbytes);
 
-		ops->crypt_chunk(state, walk.dst.virt.addr, walk.src.virt.addr,
-				 nbytes);
-
-		skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		skcipher_walk_done(&walk, 0);
 	}
 }
 
@@ -386,11 +385,14 @@ static void crypto_morus1280_final(struct morus1280_state *state,
 				   struct morus1280_block *tag_xor,
 				   u64 assoclen, u64 cryptlen)
 {
+	u64 assocbits = assoclen * 8;
+	u64 cryptbits = cryptlen * 8;
+
 	struct morus1280_block tmp;
 	unsigned int i;
 
-	tmp.words[0] = assoclen * 8;
-	tmp.words[1] = cryptlen * 8;
+	tmp.words[0] = cpu_to_le64(assocbits);
+	tmp.words[1] = cpu_to_le64(cryptbits);
 	tmp.words[2] = 0;
 	tmp.words[3] = 0;
 

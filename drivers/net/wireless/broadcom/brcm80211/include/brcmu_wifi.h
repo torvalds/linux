@@ -29,8 +29,6 @@
 #define CH_UPPER_SB			0x01
 #define CH_LOWER_SB			0x02
 #define CH_EWA_VALID			0x04
-#define CH_70MHZ_APART			14
-#define CH_50MHZ_APART			10
 #define CH_30MHZ_APART			6
 #define CH_20MHZ_APART			4
 #define CH_10MHZ_APART			2

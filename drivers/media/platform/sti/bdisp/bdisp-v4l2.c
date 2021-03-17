@@ -651,7 +651,8 @@ static int bdisp_release(struct file *file)
 
 	dev_dbg(bdisp->dev, "%s\n", __func__);
 
-	mutex_lock(&bdisp->lock);
+	if (mutex_lock_interruptible(&bdisp->lock))
+		return -ERESTARTSYS;
 
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
@@ -1371,7 +1372,7 @@ static int bdisp_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to set PM\n");
-		goto err_pm;
+		goto err_dbg;
 	}
 
 	/* Filters */
@@ -1399,6 +1400,7 @@ err_filter:
 	bdisp_hw_free_filters(bdisp->dev);
 err_pm:
 	pm_runtime_put(dev);
+err_dbg:
 	bdisp_debugfs_remove(bdisp);
 err_v4l2:
 	v4l2_device_unregister(&bdisp->v4l2_dev);

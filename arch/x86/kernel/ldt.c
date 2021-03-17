@@ -199,6 +199,14 @@ static void sanity_check_ldt_mapping(struct mm_struct *mm)
 /*
  * If PTI is enabled, this maps the LDT into the kernelmode and
  * usermode tables for the given mm.
+ *
+ * There is no corresponding unmap function.  Even if the LDT is freed, we
+ * leave the PTEs around until the slot is reused or the mm is destroyed.
+ * This is harmless: the LDT is always in ordinary memory, and no one will
+ * access the freed slot.
+ *
+ * If we wanted to unmap freed LDTs, we'd also need to do a flush to make
+ * it useful, and the flush would slow down modify_ldt().
  */
 static int
 map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
@@ -206,7 +214,8 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 	unsigned long va;
 	bool is_vmalloc;
 	spinlock_t *ptl;
-	int i, nr_pages;
+	pgd_t *pgd;
+	int i;
 
 	if (!static_cpu_has(X86_FEATURE_PTI))
 		return 0;
@@ -220,11 +229,16 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 	/* Check if the current mappings are sane */
 	sanity_check_ldt_mapping(mm);
 
+	/*
+	 * Did we already have the top level entry allocated?  We can't
+	 * use pgd_none() for this because it doens't do anything on
+	 * 4-level page table kernels.
+	 */
+	pgd = pgd_offset(mm, LDT_BASE_ADDR);
+
 	is_vmalloc = is_vmalloc_addr(ldt->entries);
 
-	nr_pages = DIV_ROUND_UP(ldt->nr_entries * LDT_ENTRY_SIZE, PAGE_SIZE);
-
-	for (i = 0; i < nr_pages; i++) {
+	for (i = 0; i * PAGE_SIZE < ldt->nr_entries * LDT_ENTRY_SIZE; i++) {
 		unsigned long offset = i << PAGE_SHIFT;
 		const void *src = (char *)ldt->entries + offset;
 		unsigned long pfn;
@@ -258,37 +272,11 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 	/* Propagate LDT mapping to the user page-table */
 	map_ldt_struct_to_user(mm);
 
+	va = (unsigned long)ldt_slot_va(slot);
+	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
+
 	ldt->slot = slot;
 	return 0;
-}
-
-static void unmap_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt)
-{
-	unsigned long va;
-	int i, nr_pages;
-
-	if (!ldt)
-		return;
-
-	/* LDT map/unmap is only required for PTI */
-	if (!static_cpu_has(X86_FEATURE_PTI))
-		return;
-
-	nr_pages = DIV_ROUND_UP(ldt->nr_entries * LDT_ENTRY_SIZE, PAGE_SIZE);
-
-	for (i = 0; i < nr_pages; i++) {
-		unsigned long offset = i << PAGE_SHIFT;
-		spinlock_t *ptl;
-		pte_t *ptep;
-
-		va = (unsigned long)ldt_slot_va(ldt->slot) + offset;
-		ptep = get_locked_pte(mm, va, &ptl);
-		pte_clear(mm, va, ptep);
-		pte_unmap_unlock(ptep, ptl);
-	}
-
-	va = (unsigned long)ldt_slot_va(ldt->slot);
-	flush_tlb_mm_range(mm, va, va + nr_pages * PAGE_SIZE, 0);
 }
 
 #else /* !CONFIG_PAGE_TABLE_ISOLATION */
@@ -297,10 +285,6 @@ static int
 map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 {
 	return 0;
-}
-
-static void unmap_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt)
-{
 }
 #endif /* CONFIG_PAGE_TABLE_ISOLATION */
 
@@ -540,7 +524,6 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 	}
 
 	install_ldt(mm, new_ldt);
-	unmap_ldt_struct(mm, old_ldt);
 	free_ldt_struct(old_ldt);
 	error = 0;
 

@@ -50,12 +50,10 @@ struct safexcel_ahash_req {
 
 static inline u64 safexcel_queued_len(struct safexcel_ahash_req *req)
 {
-	u64 len, processed;
+	if (req->len[1] > req->processed[1])
+		return 0xffffffff - (req->len[0] - req->processed[0]);
 
-	len = (0xffffffff * req->len[1]) + req->len[0];
-	processed = (0xffffffff * req->processed[1]) + req->processed[0];
-
-	return len - processed;
+	return req->len[0] - req->processed[0];
 }
 
 static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
@@ -488,7 +486,7 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	struct safexcel_inv_result result = {};
 	int ring = ctx->base.ring;
 
-	memset(req, 0, EIP197_AHASH_REQ_SIZE);
+	memset(req, 0, sizeof(struct ahash_request));
 
 	/* create invalidation request */
 	init_completion(&result.completion);

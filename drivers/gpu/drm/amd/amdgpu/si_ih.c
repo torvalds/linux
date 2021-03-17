@@ -62,8 +62,7 @@ static int si_ih_irq_init(struct amdgpu_device *adev)
 	u64 wptr_off;
 
 	si_ih_disable_interrupts(adev);
-	/* set dummy read address to dummy page address */
-	WREG32(INTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
+	WREG32(INTERRUPT_CNTL2, adev->irq.ih.gpu_addr >> 8);
 	interrupt_cntl = RREG32(INTERRUPT_CNTL);
 	interrupt_cntl &= ~IH_DUMMY_RD_OVERRIDE;
 	interrupt_cntl &= ~IH_REQ_NONSNOOP_EN;

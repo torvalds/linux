@@ -96,8 +96,13 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 	/*
 	 * Must use NOIO because we don't want to recurse back into the
 	 * block or filesystem layers from page reclaim.
+	 *
+	 * Cannot support DAX and highmem, because our ->direct_access
+	 * routine for DAX must return memory that is always addressable.
+	 * If DAX was reworked to use pfns and kmap throughout, this
+	 * restriction might be able to be lifted.
 	 */
-	gfp_flags = GFP_NOIO | __GFP_ZERO | __GFP_HIGHMEM;
+	gfp_flags = GFP_NOIO | __GFP_ZERO;
 	page = alloc_page(gfp_flags);
 	if (!page)
 		return NULL;
@@ -391,14 +396,15 @@ static struct brd_device *brd_alloc(int i)
 	disk->first_minor	= i * max_part;
 	disk->fops		= &brd_fops;
 	disk->private_data	= brd;
+	disk->queue		= brd->brd_queue;
 	disk->flags		= GENHD_FL_EXT_DEVT;
 	sprintf(disk->disk_name, "ram%d", i);
 	set_capacity(disk, rd_size * 2);
-	brd->brd_queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
+	disk->queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
 
 	/* Tell the block layer that this is not a rotational device */
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, brd->brd_queue);
-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, brd->brd_queue);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
+	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, disk->queue);
 
 	return brd;
 
@@ -430,7 +436,6 @@ static struct brd_device *brd_init_one(int i, bool *new)
 
 	brd = brd_alloc(i);
 	if (brd) {
-		brd->brd_disk->queue = brd->brd_queue;
 		add_disk(brd->brd_disk);
 		list_add_tail(&brd->brd_list, &brd_devices);
 	}
@@ -463,25 +468,6 @@ static struct kobject *brd_probe(dev_t dev, int *part, void *data)
 	return kobj;
 }
 
-static inline void brd_check_and_reset_par(void)
-{
-	if (unlikely(!max_part))
-		max_part = 1;
-
-	/*
-	 * make sure 'max_part' can be divided exactly by (1U << MINORBITS),
-	 * otherwise, it is possiable to get same dev_t when adding partitions.
-	 */
-	if ((1U << MINORBITS) % max_part != 0)
-		max_part = 1UL << fls(max_part);
-
-	if (max_part > DISK_MAX_PARTS) {
-		pr_info("brd: max_part can't be larger than %d, reset max_part = %d.\n",
-			DISK_MAX_PARTS, DISK_MAX_PARTS);
-		max_part = DISK_MAX_PARTS;
-	}
-}
-
 static int __init brd_init(void)
 {
 	struct brd_device *brd, *next;
@@ -505,7 +491,8 @@ static int __init brd_init(void)
 	if (register_blkdev(RAMDISK_MAJOR, "ramdisk"))
 		return -EIO;
 
-	brd_check_and_reset_par();
+	if (unlikely(!max_part))
+		max_part = 1;
 
 	for (i = 0; i < rd_nr; i++) {
 		brd = brd_alloc(i);
@@ -516,14 +503,8 @@ static int __init brd_init(void)
 
 	/* point of no return */
 
-	list_for_each_entry(brd, &brd_devices, brd_list) {
-		/*
-		 * associate with queue just before adding disk for
-		 * avoiding to mess up failure path
-		 */
-		brd->brd_disk->queue = brd->brd_queue;
+	list_for_each_entry(brd, &brd_devices, brd_list)
 		add_disk(brd->brd_disk);
-	}
 
 	blk_register_region(MKDEV(RAMDISK_MAJOR, 0), 1UL << MINORBITS,
 				  THIS_MODULE, brd_probe, NULL, NULL);

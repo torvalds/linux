@@ -681,6 +681,24 @@ int machine__process_switch_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
+static void dso__adjust_kmod_long_name(struct dso *dso, const char *filename)
+{
+	const char *dup_filename;
+
+	if (!filename || !dso || !dso->long_name)
+		return;
+	if (dso->long_name[0] != '[')
+		return;
+	if (!strchr(filename, '/'))
+		return;
+
+	dup_filename = strdup(filename);
+	if (!dup_filename)
+		return;
+
+	dso__set_long_name(dso, dup_filename, true);
+}
+
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename)
 {
@@ -692,8 +710,15 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 		return NULL;
 
 	map = map_groups__find_by_name(&machine->kmaps, m.name);
-	if (map)
+	if (map) {
+		/*
+		 * If the map's dso is an offline module, give dso__load()
+		 * a chance to find the file path of that module by fixing
+		 * long_name.
+		 */
+		dso__adjust_kmod_long_name(map->dso, filename);
 		goto out;
+	}
 
 	dso = machine__findnew_module_dso(machine, &m, filename);
 	if (dso == NULL)
@@ -1270,7 +1295,6 @@ static int machine__set_modules_path(struct machine *machine)
 	return map_groups__set_modules_path_dir(&machine->kmaps, modules_path, 0);
 }
 int __weak arch__fix_module_text_start(u64 *start __maybe_unused,
-				u64 *size __maybe_unused,
 				const char *name __maybe_unused)
 {
 	return 0;
@@ -1282,7 +1306,7 @@ static int machine__create_module(void *arg, const char *name, u64 start,
 	struct machine *machine = arg;
 	struct map *map;
 
-	if (arch__fix_module_text_start(&start, &size, name) < 0)
+	if (arch__fix_module_text_start(&start, name) < 0)
 		return -1;
 
 	map = machine__findnew_module_map(machine, start, name);
@@ -1334,20 +1358,6 @@ static void machine__set_kernel_mmap(struct machine *machine,
 		machine->vmlinux_map->end = ~0ULL;
 }
 
-static void machine__update_kernel_mmap(struct machine *machine,
-				     u64 start, u64 end)
-{
-	struct map *map = machine__kernel_map(machine);
-
-	map__get(map);
-	map_groups__remove(&machine->kmaps, map);
-
-	machine__set_kernel_mmap(machine, start, end);
-
-	map_groups__insert(&machine->kmaps, map);
-	map__put(map);
-}
-
 int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
@@ -1380,11 +1390,17 @@ int machine__create_kernel_maps(struct machine *machine)
 			goto out_put;
 		}
 
-		/*
-		 * we have a real start address now, so re-order the kmaps
-		 * assume it's the last in the kmaps
-		 */
-		machine__update_kernel_mmap(machine, addr, ~0ULL);
+		/* we have a real start address now, so re-order the kmaps */
+		map = machine__kernel_map(machine);
+
+		map__get(map);
+		map_groups__remove(&machine->kmaps, map);
+
+		/* assume it's the last in the kmaps */
+		machine__set_kernel_mmap(machine, addr, ~0ULL);
+
+		map_groups__insert(&machine->kmaps, map);
+		map__put(map);
 	}
 
 	if (machine__create_extra_kernel_maps(machine, kernel))
@@ -1520,7 +1536,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (strstr(kernel->long_name, "vmlinux"))
 			dso__set_short_name(kernel, "[kernel.vmlinux]", false);
 
-		machine__update_kernel_mmap(machine, event->mmap.start,
+		machine__set_kernel_mmap(machine, event->mmap.start,
 					 event->mmap.start + event->mmap.len);
 
 		/*
@@ -1972,7 +1988,7 @@ static void save_iterations(struct iterations *iter,
 {
 	int i;
 
-	iter->nr_loop_iter++;
+	iter->nr_loop_iter = nr;
 	iter->cycles = 0;
 
 	for (i = 0; i < nr; i++)
@@ -2124,27 +2140,6 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 	return 0;
 }
 
-static int find_prev_cpumode(struct ip_callchain *chain, struct thread *thread,
-			     struct callchain_cursor *cursor,
-			     struct symbol **parent,
-			     struct addr_location *root_al,
-			     u8 *cpumode, int ent)
-{
-	int err = 0;
-
-	while (--ent >= 0) {
-		u64 ip = chain->ips[ent];
-
-		if (ip >= PERF_CONTEXT_MAX) {
-			err = add_callchain_ip(thread, cursor, parent,
-					       root_al, cpumode, ip,
-					       false, NULL, NULL, 0);
-			break;
-		}
-	}
-	return err;
-}
-
 static int thread__resolve_callchain_sample(struct thread *thread,
 					    struct callchain_cursor *cursor,
 					    struct perf_evsel *evsel,
@@ -2251,12 +2246,6 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	}
 
 check_calls:
-	if (chain && callchain_param.order != ORDER_CALLEE) {
-		err = find_prev_cpumode(chain, thread, cursor, parent, root_al,
-					&cpumode, chain->nr - first_call);
-		if (err)
-			return (err < 0) ? err : 0;
-	}
 	for (i = first_call, nr_entries = 0;
 	     i < chain_nr && nr_entries < max_stack; i++) {
 		u64 ip;
@@ -2271,15 +2260,9 @@ check_calls:
 			continue;
 #endif
 		ip = chain->ips[j];
+
 		if (ip < PERF_CONTEXT_MAX)
                        ++nr_entries;
-		else if (callchain_param.order != ORDER_CALLEE) {
-			err = find_prev_cpumode(chain, thread, cursor, parent,
-						root_al, &cpumode, j);
-			if (err)
-				return (err < 0) ? err : 0;
-			continue;
-		}
 
 		err = add_callchain_ip(thread, cursor, parent,
 				       root_al, &cpumode, ip,
@@ -2557,33 +2540,6 @@ int machine__get_kernel_start(struct machine *machine)
 			machine->kernel_start = map->start;
 	}
 	return err;
-}
-
-u8 machine__addr_cpumode(struct machine *machine, u8 cpumode, u64 addr)
-{
-	u8 addr_cpumode = cpumode;
-	bool kernel_ip;
-
-	if (!machine->single_address_space)
-		goto out;
-
-	kernel_ip = machine__kernel_ip(machine, addr);
-	switch (cpumode) {
-	case PERF_RECORD_MISC_KERNEL:
-	case PERF_RECORD_MISC_USER:
-		addr_cpumode = kernel_ip ? PERF_RECORD_MISC_KERNEL :
-					   PERF_RECORD_MISC_USER;
-		break;
-	case PERF_RECORD_MISC_GUEST_KERNEL:
-	case PERF_RECORD_MISC_GUEST_USER:
-		addr_cpumode = kernel_ip ? PERF_RECORD_MISC_GUEST_KERNEL :
-					   PERF_RECORD_MISC_GUEST_USER;
-		break;
-	default:
-		break;
-	}
-out:
-	return addr_cpumode;
 }
 
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename)

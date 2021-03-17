@@ -97,8 +97,8 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 		return rc;
 	}
 
-	dev_dbg(&mdio->dev, "registered phy %pOFn at address %i\n",
-		child, addr);
+	dev_dbg(&mdio->dev, "registered phy %s at address %i\n",
+		child->name, addr);
 	return 0;
 }
 
@@ -127,8 +127,8 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 		return rc;
 	}
 
-	dev_dbg(&mdio->dev, "registered mdio device %pOFn at address %i\n",
-		child, addr);
+	dev_dbg(&mdio->dev, "registered mdio device %s at address %i\n",
+		child->name, addr);
 	return 0;
 }
 
@@ -263,18 +263,12 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 				continue;
 
 			/* be noisy to encourage people to set reg property */
-			dev_info(&mdio->dev, "scan phy %pOFn at address %i\n",
-				 child, addr);
+			dev_info(&mdio->dev, "scan phy %s at address %i\n",
+				 child->name, addr);
 
 			if (of_mdiobus_child_is_phy(child)) {
-				/* -ENODEV is the return code that PHYLIB has
-				 * standardized on to indicate that bus
-				 * scanning should continue.
-				 */
 				rc = of_mdiobus_register_phy(mdio, child, addr);
-				if (!rc)
-					break;
-				if (rc != -ENODEV)
+				if (rc && rc != -ENODEV)
 					goto unregister;
 			}
 		}
@@ -376,7 +370,7 @@ struct phy_device *of_phy_get_and_connect(struct net_device *dev,
 	int ret;
 
 	iface = of_get_phy_mode(np);
-	if ((int)iface < 0)
+	if (iface < 0)
 		return NULL;
 	if (of_phy_is_fixed_link(np)) {
 		ret = of_phy_register_fixed_link(np);

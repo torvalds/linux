@@ -45,7 +45,39 @@
 #define __efi_call_virt(f, args...) \
 	__efi_call_virt_pointer(efi.systab->runtime, f, args)
 
-struct efi_runtime_work efi_rts_work;
+/* efi_runtime_service() function identifiers */
+enum efi_rts_ids {
+	GET_TIME,
+	SET_TIME,
+	GET_WAKEUP_TIME,
+	SET_WAKEUP_TIME,
+	GET_VARIABLE,
+	GET_NEXT_VARIABLE,
+	SET_VARIABLE,
+	QUERY_VARIABLE_INFO,
+	GET_NEXT_HIGH_MONO_COUNT,
+	UPDATE_CAPSULE,
+	QUERY_CAPSULE_CAPS,
+};
+
+/*
+ * efi_runtime_work:	Details of EFI Runtime Service work
+ * @arg<1-5>:		EFI Runtime Service function arguments
+ * @status:		Status of executing EFI Runtime Service
+ * @efi_rts_id:		EFI Runtime Service function identifier
+ * @efi_rts_comp:	Struct used for handling completions
+ */
+struct efi_runtime_work {
+	void *arg1;
+	void *arg2;
+	void *arg3;
+	void *arg4;
+	void *arg5;
+	efi_status_t status;
+	struct work_struct work;
+	enum efi_rts_ids efi_rts_id;
+	struct completion efi_rts_comp;
+};
 
 /*
  * efi_queue_work:	Queue efi_runtime_service() and wait until it's done
@@ -59,10 +91,11 @@ struct efi_runtime_work efi_rts_work;
  */
 #define efi_queue_work(_rts, _arg1, _arg2, _arg3, _arg4, _arg5)		\
 ({									\
+	struct efi_runtime_work efi_rts_work;				\
 	efi_rts_work.status = EFI_ABORTED;				\
 									\
 	init_completion(&efi_rts_work.efi_rts_comp);			\
-	INIT_WORK(&efi_rts_work.work, efi_call_rts);			\
+	INIT_WORK_ONSTACK(&efi_rts_work.work, efi_call_rts);		\
 	efi_rts_work.arg1 = _arg1;					\
 	efi_rts_work.arg2 = _arg2;					\
 	efi_rts_work.arg3 = _arg3;					\
@@ -140,13 +173,6 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
 static DEFINE_SEMAPHORE(efi_runtime_lock);
 
 /*
- * Expose the EFI runtime lock to the UV platform
- */
-#ifdef CONFIG_X86_UV
-extern struct semaphore __efi_uv_runtime_lock __alias(efi_runtime_lock);
-#endif
-
-/*
  * Calls the appropriate efi_runtime_service() with the appropriate
  * arguments.
  *
@@ -158,16 +184,18 @@ extern struct semaphore __efi_uv_runtime_lock __alias(efi_runtime_lock);
  */
 static void efi_call_rts(struct work_struct *work)
 {
+	struct efi_runtime_work *efi_rts_work;
 	void *arg1, *arg2, *arg3, *arg4, *arg5;
 	efi_status_t status = EFI_NOT_FOUND;
 
-	arg1 = efi_rts_work.arg1;
-	arg2 = efi_rts_work.arg2;
-	arg3 = efi_rts_work.arg3;
-	arg4 = efi_rts_work.arg4;
-	arg5 = efi_rts_work.arg5;
+	efi_rts_work = container_of(work, struct efi_runtime_work, work);
+	arg1 = efi_rts_work->arg1;
+	arg2 = efi_rts_work->arg2;
+	arg3 = efi_rts_work->arg3;
+	arg4 = efi_rts_work->arg4;
+	arg5 = efi_rts_work->arg5;
 
-	switch (efi_rts_work.efi_rts_id) {
+	switch (efi_rts_work->efi_rts_id) {
 	case GET_TIME:
 		status = efi_call_virt(get_time, (efi_time_t *)arg1,
 				       (efi_time_cap_t *)arg2);
@@ -225,8 +253,8 @@ static void efi_call_rts(struct work_struct *work)
 		 */
 		pr_err("Requested executing invalid EFI Runtime Service.\n");
 	}
-	efi_rts_work.status = status;
-	complete(&efi_rts_work.efi_rts_comp);
+	efi_rts_work->status = status;
+	complete(&efi_rts_work->efi_rts_comp);
 }
 
 static efi_status_t virt_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)

@@ -194,7 +194,6 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		return;
 	}
 
-	rcu_read_lock();
 	for (i = 0; i < count; i++) {
 		ipv4_addr = payload->tun_info[i].ipv4;
 		port = be32_to_cpu(payload->tun_info[i].egress_port);
@@ -210,7 +209,6 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		neigh_event_send(n, NULL);
 		neigh_release(n);
 	}
-	rcu_read_unlock();
 }
 
 static bool nfp_tun_is_netdev_to_offload(struct net_device *netdev)
@@ -406,10 +404,9 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
 
 	payload = nfp_flower_cmsg_get_data(skb);
 
-	rcu_read_lock();
 	netdev = nfp_app_repr_get(app, be32_to_cpu(payload->ingress_port));
 	if (!netdev)
-		goto fail_rcu_unlock;
+		goto route_fail_warning;
 
 	flow.daddr = payload->ipv4_addr;
 	flow.flowi4_proto = IPPROTO_UDP;
@@ -419,23 +416,21 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
 	rt = ip_route_output_key(dev_net(netdev), &flow);
 	err = PTR_ERR_OR_ZERO(rt);
 	if (err)
-		goto fail_rcu_unlock;
+		goto route_fail_warning;
 #else
-	goto fail_rcu_unlock;
+	goto route_fail_warning;
 #endif
 
 	/* Get the neighbour entry for the lookup */
 	n = dst_neigh_lookup(&rt->dst, &flow.daddr);
 	ip_rt_put(rt);
 	if (!n)
-		goto fail_rcu_unlock;
-	nfp_tun_write_neigh(n->dev, app, &flow, n, GFP_ATOMIC);
+		goto route_fail_warning;
+	nfp_tun_write_neigh(n->dev, app, &flow, n, GFP_KERNEL);
 	neigh_release(n);
-	rcu_read_unlock();
 	return;
 
-fail_rcu_unlock:
-	rcu_read_unlock();
+route_fail_warning:
 	nfp_flower_cmsg_warn(app, "Requested route not found.\n");
 }
 

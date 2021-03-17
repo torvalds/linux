@@ -318,8 +318,7 @@ int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle)
 
 	entry = container_of(resource, struct dbell_entry, resource);
 	if (entry->run_delayed) {
-		if (!schedule_work(&entry->work))
-			vmci_resource_put(resource);
+		schedule_work(&entry->work);
 	} else {
 		entry->notify_cb(entry->client_data);
 		vmci_resource_put(resource);
@@ -367,8 +366,7 @@ static void dbell_fire_entries(u32 notify_idx)
 		    atomic_read(&dbell->active) == 1) {
 			if (dbell->run_delayed) {
 				vmci_resource_get(&dbell->resource);
-				if (!schedule_work(&dbell->work))
-					vmci_resource_put(&dbell->resource);
+				schedule_work(&dbell->work);
 			} else {
 				dbell->notify_cb(dbell->client_data);
 			}

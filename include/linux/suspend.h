@@ -37,10 +37,8 @@ typedef int __bitwise suspend_state_t;
 #define PM_SUSPEND_TO_IDLE	((__force suspend_state_t) 1)
 #define PM_SUSPEND_STANDBY	((__force suspend_state_t) 2)
 #define PM_SUSPEND_MEM		((__force suspend_state_t) 3)
-#define PM_SUSPEND_MEM_LITE	((__force suspend_state_t) 4)
-#define PM_SUSPEND_MEM_ULTRA	((__force suspend_state_t) 5)
 #define PM_SUSPEND_MIN		PM_SUSPEND_TO_IDLE
-#define PM_SUSPEND_MAX		((__force suspend_state_t) 6)
+#define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
 
 enum suspend_stat_step {
 	SUSPEND_FREEZE = 1,
@@ -448,7 +446,6 @@ extern bool pm_get_wakeup_count(unsigned int *count, bool block);
 extern bool pm_save_wakeup_count(unsigned int count);
 extern void pm_wakep_autosleep_enabled(bool set);
 extern void pm_print_active_wakeup_sources(void);
-extern void pm_get_active_wakeup_sources(char *pending_sources, size_t max);
 
 extern void lock_system_sleep(void);
 extern void unlock_system_sleep(void);

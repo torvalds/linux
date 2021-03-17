@@ -55,7 +55,6 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	struct tc_csum *parm;
 	struct tcf_csum *p;
 	int ret = 0, err;
-	u32 index;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -67,13 +66,13 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	if (tb[TCA_CSUM_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_CSUM_PARMS]);
-	index = parm->index;
-	err = tcf_idr_check_alloc(tn, &index, a, bind);
+
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
 	if (!err) {
-		ret = tcf_idr_create(tn, index, est, a,
+		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_csum_ops, bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, index);
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
@@ -560,11 +559,8 @@ static int tcf_csum_act(struct sk_buff *skb, const struct tc_action *a,
 			struct tcf_result *res)
 {
 	struct tcf_csum *p = to_tcf_csum(a);
-	bool orig_vlan_tag_present = false;
-	unsigned int vlan_hdr_count = 0;
 	struct tcf_csum_params *params;
 	u32 update_flags;
-	__be16 protocol;
 	int action;
 
 	params = rcu_dereference_bh(p->params);
@@ -577,9 +573,7 @@ static int tcf_csum_act(struct sk_buff *skb, const struct tc_action *a,
 		goto drop;
 
 	update_flags = params->update_flags;
-	protocol = skb_protocol(skb, false);
-again:
-	switch (protocol) {
+	switch (tc_skb_protocol(skb)) {
 	case cpu_to_be16(ETH_P_IP):
 		if (!tcf_csum_ipv4(skb, update_flags))
 			goto drop;
@@ -588,35 +582,13 @@ again:
 		if (!tcf_csum_ipv6(skb, update_flags))
 			goto drop;
 		break;
-	case cpu_to_be16(ETH_P_8021AD): /* fall through */
-	case cpu_to_be16(ETH_P_8021Q):
-		if (skb_vlan_tag_present(skb) && !orig_vlan_tag_present) {
-			protocol = skb->protocol;
-			orig_vlan_tag_present = true;
-		} else {
-			struct vlan_hdr *vlan = (struct vlan_hdr *)skb->data;
-
-			protocol = vlan->h_vlan_encapsulated_proto;
-			skb_pull(skb, VLAN_HLEN);
-			skb_reset_network_header(skb);
-			vlan_hdr_count++;
-		}
-		goto again;
-	}
-
-out:
-	/* Restore the skb for the pulled VLAN tags */
-	while (vlan_hdr_count--) {
-		skb_push(skb, VLAN_HLEN);
-		skb_reset_network_header(skb);
 	}
 
 	return action;
 
 drop:
 	qstats_drop_inc(this_cpu_ptr(p->common.cpu_qstats));
-	action = TC_ACT_SHOT;
-	goto out;
+	return TC_ACT_SHOT;
 }
 
 static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
@@ -705,7 +677,7 @@ static __net_init int csum_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
 
-	return tc_action_net_init(net, tn, &act_csum_ops);
+	return tc_action_net_init(tn, &act_csum_ops);
 }
 
 static void __net_exit csum_exit_net(struct list_head *net_list)

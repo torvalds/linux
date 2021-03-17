@@ -167,7 +167,7 @@ struct qca_serdev {
 };
 
 static int qca_power_setup(struct hci_uart *hu, bool on);
-static void qca_power_shutdown(struct hci_uart *hu);
+static void qca_power_shutdown(struct hci_dev *hdev);
 
 static void __serial_clock_on(struct tty_struct *tty)
 {
@@ -450,9 +450,6 @@ static int qca_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p qca_open", hu);
 
-	if (!hci_uart_has_flow_control(hu))
-		return -EOPNOTSUPP;
-
 	qca = kzalloc(sizeof(struct qca_data), GFP_KERNEL);
 	if (!qca)
 		return -ENOMEM;
@@ -507,8 +504,6 @@ static int qca_open(struct hci_uart *hu)
 		qcadev = serdev_device_get_drvdata(hu->serdev);
 		if (qcadev->btsoc_type != QCA_WCN3990) {
 			gpiod_set_value_cansleep(qcadev->bt_en, 1);
-			/* Controller needs time to bootup. */
-			msleep(150);
 		} else {
 			hu->init_speed = qcadev->init_speed;
 			hu->oper_speed = qcadev->oper_speed;
@@ -614,7 +609,7 @@ static int qca_close(struct hci_uart *hu)
 	if (hu->serdev) {
 		qcadev = serdev_device_get_drvdata(hu->serdev);
 		if (qcadev->btsoc_type == QCA_WCN3990)
-			qca_power_shutdown(hu);
+			qca_power_shutdown(hu->hdev);
 		else
 			gpiod_set_value_cansleep(qcadev->bt_en, 0);
 
@@ -1237,15 +1232,12 @@ static const struct qca_vreg_data qca_soc_data = {
 	.num_vregs = 4,
 };
 
-static void qca_power_shutdown(struct hci_uart *hu)
+static void qca_power_shutdown(struct hci_dev *hdev)
 {
-	struct serdev_device *serdev = hu->serdev;
-	unsigned char cmd = QCA_WCN3990_POWEROFF_PULSE;
+	struct hci_uart *hu = hci_get_drvdata(hdev);
 
 	host_set_baudrate(hu, 2400);
-	hci_uart_set_flow_control(hu, true);
-	serdev_device_write_buf(serdev, &cmd, sizeof(cmd));
-	hci_uart_set_flow_control(hu, false);
+	qca_send_power_pulse(hdev, QCA_WCN3990_POWEROFF_PULSE);
 	qca_power_setup(hu, false);
 }
 
@@ -1421,7 +1413,7 @@ static void qca_serdev_remove(struct serdev_device *serdev)
 	struct qca_serdev *qcadev = serdev_device_get_drvdata(serdev);
 
 	if (qcadev->btsoc_type == QCA_WCN3990)
-		qca_power_shutdown(&qcadev->serdev_hu);
+		qca_power_shutdown(qcadev->serdev_hu.hdev);
 	else
 		clk_disable_unprepare(qcadev->susclk);
 

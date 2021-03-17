@@ -71,13 +71,10 @@ static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
 			   V3D_READ(v3d_hub_reg_defs[i].reg));
 	}
 
-	if (v3d->ver < 41) {
-		for (i = 0; i < ARRAY_SIZE(v3d_gca_reg_defs); i++) {
-			seq_printf(m, "%s (0x%04x): 0x%08x\n",
-				   v3d_gca_reg_defs[i].name,
-				   v3d_gca_reg_defs[i].reg,
-				   V3D_GCA_READ(v3d_gca_reg_defs[i].reg));
-		}
+	for (i = 0; i < ARRAY_SIZE(v3d_gca_reg_defs); i++) {
+		seq_printf(m, "%s (0x%04x): 0x%08x\n",
+			   v3d_gca_reg_defs[i].name, v3d_gca_reg_defs[i].reg,
+			   V3D_GCA_READ(v3d_gca_reg_defs[i].reg));
 	}
 
 	for (core = 0; core < v3d->cores; core++) {

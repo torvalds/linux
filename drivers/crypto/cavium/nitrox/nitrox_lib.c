@@ -146,19 +146,12 @@ static void destroy_crypto_dma_pool(struct nitrox_device *ndev)
 void *crypto_alloc_context(struct nitrox_device *ndev)
 {
 	struct ctx_hdr *ctx;
-	struct crypto_ctx_hdr *chdr;
 	void *vaddr;
 	dma_addr_t dma;
 
-	chdr = kmalloc(sizeof(*chdr), GFP_KERNEL);
-	if (!chdr)
-		return NULL;
-
 	vaddr = dma_pool_alloc(ndev->ctx_pool, (GFP_KERNEL | __GFP_ZERO), &dma);
-	if (!vaddr) {
-		kfree(chdr);
+	if (!vaddr)
 		return NULL;
-	}
 
 	/* fill meta data */
 	ctx = vaddr;
@@ -166,11 +159,7 @@ void *crypto_alloc_context(struct nitrox_device *ndev)
 	ctx->dma = dma;
 	ctx->ctx_dma = dma + sizeof(struct ctx_hdr);
 
-	chdr->pool = ndev->ctx_pool;
-	chdr->dma = dma;
-	chdr->vaddr = vaddr;
-
-	return chdr;
+	return ((u8 *)vaddr + sizeof(struct ctx_hdr));
 }
 
 /**
@@ -179,14 +168,13 @@ void *crypto_alloc_context(struct nitrox_device *ndev)
  */
 void crypto_free_context(void *ctx)
 {
-	struct crypto_ctx_hdr *ctxp;
+	struct ctx_hdr *ctxp;
 
 	if (!ctx)
 		return;
 
-	ctxp = ctx;
-	dma_pool_free(ctxp->pool, ctxp->vaddr, ctxp->dma);
-	kfree(ctxp);
+	ctxp = (struct ctx_hdr *)((u8 *)ctx - sizeof(struct ctx_hdr));
+	dma_pool_free(ctxp->pool, ctxp, ctxp->dma);
 }
 
 /**

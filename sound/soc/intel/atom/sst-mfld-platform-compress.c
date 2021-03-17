@@ -214,8 +214,8 @@ static int sst_platform_compr_pointer(struct snd_compr_stream *cstream,
 
 	stream  = cstream->runtime->private_data;
 	stream->compr_ops->tstamp(sst->dev, stream->id, tstamp);
-	div_u64_rem(tstamp->copied_total, (u32)cstream->runtime->buffer_size,
-				 &tstamp->byte_offset);
+	tstamp->byte_offset = tstamp->copied_total %
+				 (u32)cstream->runtime->buffer_size;
 	pr_debug("calc bytes offset/copied bytes as %d\n", tstamp->byte_offset);
 	return 0;
 }

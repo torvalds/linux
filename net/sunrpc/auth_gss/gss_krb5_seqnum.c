@@ -44,7 +44,7 @@ krb5_make_rc4_seq_num(struct krb5_ctx *kctx, int direction, s32 seqnum,
 		      unsigned char *cksum, unsigned char *buf)
 {
 	struct crypto_skcipher *cipher;
-	unsigned char *plain;
+	unsigned char plain[8];
 	s32 code;
 
 	dprintk("RPC:       %s:\n", __func__);
@@ -52,10 +52,6 @@ krb5_make_rc4_seq_num(struct krb5_ctx *kctx, int direction, s32 seqnum,
 				       CRYPTO_ALG_ASYNC);
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
-
-	plain = kmalloc(8, GFP_NOFS);
-	if (!plain)
-		return -ENOMEM;
 
 	plain[0] = (unsigned char) ((seqnum >> 24) & 0xff);
 	plain[1] = (unsigned char) ((seqnum >> 16) & 0xff);
@@ -73,7 +69,6 @@ krb5_make_rc4_seq_num(struct krb5_ctx *kctx, int direction, s32 seqnum,
 	code = krb5_encrypt(cipher, cksum, plain, buf, 8);
 out:
 	crypto_free_skcipher(cipher);
-	kfree(plain);
 	return code;
 }
 s32
@@ -83,16 +78,11 @@ krb5_make_seq_num(struct krb5_ctx *kctx,
 		u32 seqnum,
 		unsigned char *cksum, unsigned char *buf)
 {
-	unsigned char *plain;
-	s32 code;
+	unsigned char plain[8];
 
 	if (kctx->enctype == ENCTYPE_ARCFOUR_HMAC)
 		return krb5_make_rc4_seq_num(kctx, direction, seqnum,
 					     cksum, buf);
-
-	plain = kmalloc(8, GFP_NOFS);
-	if (!plain)
-		return -ENOMEM;
 
 	plain[0] = (unsigned char) (seqnum & 0xff);
 	plain[1] = (unsigned char) ((seqnum >> 8) & 0xff);
@@ -104,9 +94,7 @@ krb5_make_seq_num(struct krb5_ctx *kctx,
 	plain[6] = direction;
 	plain[7] = direction;
 
-	code = krb5_encrypt(key, cksum, plain, buf, 8);
-	kfree(plain);
-	return code;
+	return krb5_encrypt(key, cksum, plain, buf, 8);
 }
 
 static s32
@@ -114,7 +102,7 @@ krb5_get_rc4_seq_num(struct krb5_ctx *kctx, unsigned char *cksum,
 		     unsigned char *buf, int *direction, s32 *seqnum)
 {
 	struct crypto_skcipher *cipher;
-	unsigned char *plain;
+	unsigned char plain[8];
 	s32 code;
 
 	dprintk("RPC:       %s:\n", __func__);
@@ -127,28 +115,20 @@ krb5_get_rc4_seq_num(struct krb5_ctx *kctx, unsigned char *cksum,
 	if (code)
 		goto out;
 
-	plain = kmalloc(8, GFP_NOFS);
-	if (!plain) {
-		code = -ENOMEM;
-		goto out;
-	}
-
 	code = krb5_decrypt(cipher, cksum, buf, plain, 8);
 	if (code)
-		goto out_plain;
+		goto out;
 
 	if ((plain[4] != plain[5]) || (plain[4] != plain[6])
 				   || (plain[4] != plain[7])) {
 		code = (s32)KG_BAD_SEQ;
-		goto out_plain;
+		goto out;
 	}
 
 	*direction = plain[4];
 
 	*seqnum = ((plain[0] << 24) | (plain[1] << 16) |
 					(plain[2] << 8) | (plain[3]));
-out_plain:
-	kfree(plain);
 out:
 	crypto_free_skcipher(cipher);
 	return code;
@@ -161,33 +141,26 @@ krb5_get_seq_num(struct krb5_ctx *kctx,
 	       int *direction, u32 *seqnum)
 {
 	s32 code;
+	unsigned char plain[8];
 	struct crypto_skcipher *key = kctx->seq;
-	unsigned char *plain;
 
 	dprintk("RPC:       krb5_get_seq_num:\n");
 
 	if (kctx->enctype == ENCTYPE_ARCFOUR_HMAC)
 		return krb5_get_rc4_seq_num(kctx, cksum, buf,
 					    direction, seqnum);
-	plain = kmalloc(8, GFP_NOFS);
-	if (!plain)
-		return -ENOMEM;
 
 	if ((code = krb5_decrypt(key, cksum, buf, plain, 8)))
-		goto out;
+		return code;
 
 	if ((plain[4] != plain[5]) || (plain[4] != plain[6]) ||
-	    (plain[4] != plain[7])) {
-		code = (s32)KG_BAD_SEQ;
-		goto out;
-	}
+	    (plain[4] != plain[7]))
+		return (s32)KG_BAD_SEQ;
 
 	*direction = plain[4];
 
 	*seqnum = ((plain[0]) |
 		   (plain[1] << 8) | (plain[2] << 16) | (plain[3] << 24));
 
-out:
-	kfree(plain);
-	return code;
+	return 0;
 }

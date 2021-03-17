@@ -76,7 +76,6 @@ static void ps2_gpio_close(struct serio *serio)
 {
 	struct ps2_gpio_data *drvdata = serio->port_data;
 
-	flush_delayed_work(&drvdata->tx_work);
 	disable_irq(drvdata->irq);
 }
 

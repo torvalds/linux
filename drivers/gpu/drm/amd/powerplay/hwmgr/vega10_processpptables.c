@@ -32,7 +32,6 @@
 #include "vega10_pptable.h"
 
 #define NUM_DSPCLK_LEVELS 8
-#define VEGA10_ENGINECLOCK_HARDMAX 198000
 
 static void set_hw_cap(struct pp_hwmgr *hwmgr, bool enable,
 		enum phm_platform_caps cap)
@@ -259,26 +258,7 @@ static int init_over_drive_limits(
 		struct pp_hwmgr *hwmgr,
 		const ATOM_Vega10_POWERPLAYTABLE *powerplay_table)
 {
-	const ATOM_Vega10_GFXCLK_Dependency_Table *gfxclk_dep_table =
-			(const ATOM_Vega10_GFXCLK_Dependency_Table *)
-			(((unsigned long) powerplay_table) +
-			le16_to_cpu(powerplay_table->usGfxclkDependencyTableOffset));
-	bool is_acg_enabled = false;
-	ATOM_Vega10_GFXCLK_Dependency_Record_V2 *patom_record_v2;
-
-	if (gfxclk_dep_table->ucRevId == 1) {
-		patom_record_v2 =
-			(ATOM_Vega10_GFXCLK_Dependency_Record_V2 *)gfxclk_dep_table->entries;
-		is_acg_enabled =
-			(bool)patom_record_v2[gfxclk_dep_table->ucNumEntries-1].ucACGEnable;
-	}
-
-	if (powerplay_table->ulMaxODEngineClock > VEGA10_ENGINECLOCK_HARDMAX &&
-		!is_acg_enabled)
-		hwmgr->platform_descriptor.overdriveLimit.engineClock =
-			VEGA10_ENGINECLOCK_HARDMAX;
-	else
-		hwmgr->platform_descriptor.overdriveLimit.engineClock =
+	hwmgr->platform_descriptor.overdriveLimit.engineClock =
 			le32_to_cpu(powerplay_table->ulMaxODEngineClock);
 	hwmgr->platform_descriptor.overdriveLimit.memoryClock =
 			le32_to_cpu(powerplay_table->ulMaxODMemoryClock);

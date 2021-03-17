@@ -375,9 +375,9 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	/* nothing to check when disabling or disabled */
+	/* CRTC should be enabled */
 	if (!crtc_state->enable)
-		return 0;
+		return -EINVAL;
 
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:

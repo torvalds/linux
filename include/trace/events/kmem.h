@@ -315,53 +315,6 @@ TRACE_EVENT(mm_page_alloc_extfrag,
 		__entry->change_ownership)
 );
 
-/*
- * Required for uniquely and securely identifying mm in rss_stat tracepoint.
- */
-#ifndef __PTR_TO_HASHVAL
-static unsigned int __maybe_unused mm_ptr_to_hash(const void *ptr)
-{
-	int ret;
-	unsigned long hashval;
-
-	ret = ptr_to_hashval(ptr, &hashval);
-	if (ret)
-		return 0;
-
-	/* The hashed value is only 32-bit */
-	return (unsigned int)hashval;
-}
-#define __PTR_TO_HASHVAL
-#endif
-
-TRACE_EVENT(rss_stat,
-
-	TP_PROTO(struct mm_struct *mm,
-		int member,
-		long count),
-
-	TP_ARGS(mm, member, count),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, mm_id)
-		__field(unsigned int, curr)
-		__field(int, member)
-		__field(long, size)
-	),
-
-	TP_fast_assign(
-		__entry->mm_id = mm_ptr_to_hash(mm);
-		__entry->curr = !!(current->mm == mm);
-		__entry->member = member;
-		__entry->size = (count << PAGE_SHIFT);
-	),
-
-	TP_printk("mm_id=%u curr=%d member=%d size=%ldB",
-		__entry->mm_id,
-		__entry->curr,
-		__entry->member,
-		__entry->size)
-	);
 #endif /* _TRACE_KMEM_H */
 
 /* This part must be outside protection */

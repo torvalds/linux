@@ -638,10 +638,8 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_BINDTODEVICE:
-		if (optlen > IFNAMSIZ - 1)
-			optlen = IFNAMSIZ - 1;
-
-		memset(devname, 0, sizeof(devname));
+		if (optlen > IFNAMSIZ)
+			optlen = IFNAMSIZ;
 
 		if (copy_from_user(devname, optval, optlen)) {
 			res = -EFAULT;
@@ -655,22 +653,15 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		rtnl_lock();
-		dev = __dev_get_by_name(&init_net, devname);
+		dev = dev_get_by_name(&init_net, devname);
 		if (!dev) {
-			rtnl_unlock();
 			res = -ENODEV;
 			break;
 		}
 
 		ax25->ax25_dev = ax25_dev_ax25dev(dev);
-		if (!ax25->ax25_dev) {
-			rtnl_unlock();
-			res = -ENODEV;
-			break;
-		}
 		ax25_fillin_cb(ax25, ax25->ax25_dev);
-		rtnl_unlock();
+		dev_put(dev);
 		break;
 
 	default:
@@ -860,8 +851,6 @@ static int ax25_create(struct net *net, struct socket *sock, int protocol,
 		break;
 
 	case SOCK_RAW:
-		if (!capable(CAP_NET_RAW))
-			return -EPERM;
 		break;
 	default:
 		return -ESOCKTNOSUPPORT;
@@ -1190,10 +1179,7 @@ static int __must_check ax25_connect(struct socket *sock,
 	if (addr_len > sizeof(struct sockaddr_ax25) &&
 	    fsa->fsa_ax25.sax25_ndigis != 0) {
 		/* Valid number of digipeaters ? */
-		if (fsa->fsa_ax25.sax25_ndigis < 1 ||
-		    fsa->fsa_ax25.sax25_ndigis > AX25_MAX_DIGIS ||
-		    addr_len < sizeof(struct sockaddr_ax25) +
-		    sizeof(ax25_address) * fsa->fsa_ax25.sax25_ndigis) {
+		if (fsa->fsa_ax25.sax25_ndigis < 1 || fsa->fsa_ax25.sax25_ndigis > AX25_MAX_DIGIS) {
 			err = -EINVAL;
 			goto out_release;
 		}
@@ -1513,10 +1499,7 @@ static int ax25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 			struct full_sockaddr_ax25 *fsa = (struct full_sockaddr_ax25 *)usax;
 
 			/* Valid number of digipeaters ? */
-			if (usax->sax25_ndigis < 1 ||
-			    usax->sax25_ndigis > AX25_MAX_DIGIS ||
-			    addr_len < sizeof(struct sockaddr_ax25) +
-			    sizeof(ax25_address) * usax->sax25_ndigis) {
+			if (usax->sax25_ndigis < 1 || usax->sax25_ndigis > AX25_MAX_DIGIS) {
 				err = -EINVAL;
 				goto out;
 			}

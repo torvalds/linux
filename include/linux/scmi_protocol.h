@@ -91,8 +91,6 @@ struct scmi_clk_ops {
  *	to sustained performance level mapping
  * @freq_get: gets the frequency for a given device using sustained frequency
  *	to sustained performance level mapping
- * @est_power_get: gets the estimated power cost for a given performance domain
- *	at a given frequency
  */
 struct scmi_perf_ops {
 	int (*limits_set)(const struct scmi_handle *handle, u32 domain,
@@ -112,8 +110,6 @@ struct scmi_perf_ops {
 			unsigned long rate, bool poll);
 	int (*freq_get)(const struct scmi_handle *handle, u32 domain,
 			unsigned long *rate, bool poll);
-	int (*est_power_get)(const struct scmi_handle *handle, u32 domain,
-			     unsigned long *rate, unsigned long *power);
 };
 
 /**
@@ -228,7 +224,6 @@ enum scmi_std_protocol {
 struct scmi_device {
 	u32 id;
 	u8 protocol_id;
-	const char *name;
 	struct device dev;
 	struct scmi_handle *handle;
 };
@@ -236,13 +231,11 @@ struct scmi_device {
 #define to_scmi_dev(d) container_of(d, struct scmi_device, dev)
 
 struct scmi_device *
-scmi_device_create(struct device_node *np, struct device *parent, int protocol,
-		   const char *name);
+scmi_device_create(struct device_node *np, struct device *parent, int protocol);
 void scmi_device_destroy(struct scmi_device *scmi_dev);
 
 struct scmi_device_id {
 	u8 protocol_id;
-	const char *name;
 };
 
 struct scmi_driver {

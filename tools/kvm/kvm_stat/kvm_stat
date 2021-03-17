@@ -271,7 +271,6 @@ class ArchX86(Arch):
     def __init__(self, exit_reasons):
         self.sc_perf_evt_open = 298
         self.ioctl_numbers = IOCTL_NUMBERS
-        self.exit_reason_field = 'exit_reason'
         self.exit_reasons = exit_reasons
 
     def debugfs_is_child(self, field):
@@ -291,7 +290,6 @@ class ArchPPC(Arch):
         # numbers depend on the wordsize.
         char_ptr_size = ctypes.sizeof(ctypes.c_char_p)
         self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
-        self.exit_reason_field = 'exit_nr'
         self.exit_reasons = {}
 
     def debugfs_is_child(self, field):
@@ -303,7 +301,6 @@ class ArchA64(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 241
         self.ioctl_numbers = IOCTL_NUMBERS
-        self.exit_reason_field = 'esr_ec'
         self.exit_reasons = AARCH64_EXIT_REASONS
 
     def debugfs_is_child(self, field):
@@ -315,7 +312,6 @@ class ArchS390(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 331
         self.ioctl_numbers = IOCTL_NUMBERS
-        self.exit_reason_field = None
         self.exit_reasons = None
 
     def debugfs_is_child(self, field):
@@ -546,8 +542,8 @@ class TracepointProvider(Provider):
         """
         filters = {}
         filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
-        if ARCH.exit_reason_field and ARCH.exit_reasons:
-            filters['kvm_exit'] = (ARCH.exit_reason_field, ARCH.exit_reasons)
+        if ARCH.exit_reasons:
+            filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
         return filters
 
     def _get_available_fields(self):
@@ -579,12 +575,8 @@ class TracepointProvider(Provider):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self.fields = [field for field in self._get_available_fields()
-                       if self.is_field_wanted(fields_filter, field)]
-        # add parents for child fields - otherwise we won't see any output!
-        for field in self._fields:
-            parent = ARCH.tracepoint_is_child(field)
-            if (parent and parent not in self._fields):
-                self.fields.append(parent)
+                       if self.is_field_wanted(fields_filter, field) or
+                       ARCH.tracepoint_is_child(field)]
 
     @staticmethod
     def _get_online_cpus():
@@ -743,12 +735,8 @@ class DebugfsProvider(Provider):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self._fields = [field for field in self._get_available_fields()
-                        if self.is_field_wanted(fields_filter, field)]
-        # add parents for child fields - otherwise we won't see any output!
-        for field in self._fields:
-            parent = ARCH.debugfs_is_child(field)
-            if (parent and parent not in self._fields):
-                self.fields.append(parent)
+                        if self.is_field_wanted(fields_filter, field) or
+                        ARCH.debugfs_is_child(field)]
 
     @property
     def fields(self):

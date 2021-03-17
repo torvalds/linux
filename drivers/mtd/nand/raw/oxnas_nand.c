@@ -36,7 +36,6 @@ struct oxnas_nand_ctrl {
 	void __iomem *io_base;
 	struct clk *clk;
 	struct nand_chip *chips[OXNAS_NAND_MAX_CHIPS];
-	unsigned int nchips;
 };
 
 static uint8_t oxnas_nand_read_byte(struct mtd_info *mtd)
@@ -87,9 +86,9 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
 	struct resource *res;
+	int nchips = 0;
 	int count = 0;
 	int err = 0;
-	int i;
 
 	/* Allocate memory for the device structure (and zero it) */
 	oxnas = devm_kzalloc(&pdev->dev, sizeof(*oxnas),
@@ -124,7 +123,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 				    GFP_KERNEL);
 		if (!chip) {
 			err = -ENOMEM;
-			goto err_release_child;
+			goto err_clk_unprepare;
 		}
 
 		chip->controller = &oxnas->base;
@@ -143,20 +142,22 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 		chip->chip_delay = 30;
 
 		/* Scan to find existence of the device */
-		err = nand_scan(chip, 1);
+		err = nand_scan(mtd, 1);
 		if (err)
-			goto err_release_child;
+			goto err_clk_unprepare;
 
 		err = mtd_device_register(mtd, NULL, 0);
-		if (err)
-			goto err_cleanup_nand;
+		if (err) {
+			nand_release(mtd);
+			goto err_clk_unprepare;
+		}
 
-		oxnas->chips[oxnas->nchips] = chip;
-		++oxnas->nchips;
+		oxnas->chips[nchips] = chip;
+		++nchips;
 	}
 
 	/* Exit if no chips found */
-	if (!oxnas->nchips) {
+	if (!nchips) {
 		err = -ENODEV;
 		goto err_clk_unprepare;
 	}
@@ -164,17 +165,6 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, oxnas);
 
 	return 0;
-
-err_cleanup_nand:
-	nand_cleanup(chip);
-err_release_child:
-	of_node_put(nand_np);
-
-	for (i = 0; i < oxnas->nchips; i++) {
-		chip = oxnas->chips[i];
-		WARN_ON(mtd_device_unregister(nand_to_mtd(chip)));
-		nand_cleanup(chip);
-	}
 
 err_clk_unprepare:
 	clk_disable_unprepare(oxnas->clk);
@@ -184,13 +174,9 @@ err_clk_unprepare:
 static int oxnas_nand_remove(struct platform_device *pdev)
 {
 	struct oxnas_nand_ctrl *oxnas = platform_get_drvdata(pdev);
-	struct nand_chip *chip;
-	int i;
 
-	for (i = 0; i < oxnas->nchips; i++) {
-		chip = oxnas->chips[i];
-		nand_release(chip);
-	}
+	if (oxnas->chips[0])
+		nand_release(nand_to_mtd(oxnas->chips[0]));
 
 	clk_disable_unprepare(oxnas->clk);
 

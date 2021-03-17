@@ -161,9 +161,6 @@ static void mbigen_write_msg(struct msi_desc *desc, struct msi_msg *msg)
 	void __iomem *base = d->chip_data;
 	u32 val;
 
-	if (!msg->address_lo && !msg->address_hi)
-		return;
- 
 	base += get_mbigen_vec_reg(d->hwirq);
 	val = readl_relaxed(base);
 
@@ -231,16 +228,10 @@ static int mbigen_irq_domain_alloc(struct irq_domain *domain,
 	return 0;
 }
 
-static void mbigen_irq_domain_free(struct irq_domain *domain, unsigned int virq,
-				   unsigned int nr_irqs)
-{
-	platform_msi_domain_free(domain, virq, nr_irqs);
-}
-
 static const struct irq_domain_ops mbigen_domain_ops = {
 	.translate	= mbigen_domain_translate,
 	.alloc		= mbigen_irq_domain_alloc,
-	.free		= mbigen_irq_domain_free,
+	.free		= irq_domain_free_irqs_common,
 };
 
 static int mbigen_of_create_domain(struct platform_device *pdev,
@@ -387,7 +378,6 @@ static struct platform_driver mbigen_platform_driver = {
 		.name		= "Hisilicon MBIGEN-V2",
 		.of_match_table	= mbigen_of_match,
 		.acpi_match_table = ACPI_PTR(mbigen_acpi_match),
-		.suppress_bind_attrs = true,
 	},
 	.probe			= mbigen_device_probe,
 };

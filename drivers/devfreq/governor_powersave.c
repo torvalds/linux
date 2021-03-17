@@ -20,7 +20,7 @@ static int devfreq_powersave_func(struct devfreq *df,
 	 * target callback should be able to get ceiling value as
 	 * said in devfreq.h
 	 */
-	*freq = DEVFREQ_MIN_FREQ;
+	*freq = df->min_freq;
 	return 0;
 }
 
@@ -33,9 +33,6 @@ static int devfreq_powersave_handler(struct devfreq *devfreq,
 		mutex_lock(&devfreq->lock);
 		ret = update_devfreq(devfreq);
 		mutex_unlock(&devfreq->lock);
-		devfreq->last_status.update = true;
-	} else {
-		devfreq->last_status.update = false;
 	}
 
 	return ret;

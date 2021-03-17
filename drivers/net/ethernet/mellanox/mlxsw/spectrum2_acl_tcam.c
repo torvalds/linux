@@ -88,8 +88,8 @@ static int mlxsw_sp2_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 	 * to be written using PEFA register to all indexes for all regions.
 	 */
 	afa_block = mlxsw_afa_block_create(mlxsw_sp->afa);
-	if (IS_ERR(afa_block)) {
-		err = PTR_ERR(afa_block);
+	if (!afa_block) {
+		err = -ENOMEM;
 		goto err_afa_block;
 	}
 	err = mlxsw_afa_block_continue(afa_block);

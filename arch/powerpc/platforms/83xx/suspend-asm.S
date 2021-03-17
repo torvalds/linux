@@ -26,13 +26,13 @@
 #define SS_MSR		0x74
 #define SS_SDR1		0x78
 #define SS_LR		0x7c
-#define SS_SPRG		0x80 /* 8 SPRGs */
-#define SS_DBAT		0xa0 /* 8 DBATs */
-#define SS_IBAT		0xe0 /* 8 IBATs */
-#define SS_TB		0x120
-#define SS_CR		0x128
-#define SS_GPREG	0x12c /* r12-r31 */
-#define STATE_SAVE_SIZE 0x17c
+#define SS_SPRG		0x80 /* 4 SPRGs */
+#define SS_DBAT		0x90 /* 8 DBATs */
+#define SS_IBAT		0xd0 /* 8 IBATs */
+#define SS_TB		0x110
+#define SS_CR		0x118
+#define SS_GPREG	0x11c /* r12-r31 */
+#define STATE_SAVE_SIZE 0x16c
 
 	.section .data
 	.align	5
@@ -102,16 +102,6 @@ _GLOBAL(mpc83xx_enter_deep_sleep)
 	stw	r6, SS_SPRG+8(r3)
 	stw	r7, SS_SPRG+12(r3)
 	stw	r8, SS_SDR1(r3)
-
-	mfspr	r4, SPRN_SPRG4
-	mfspr	r5, SPRN_SPRG5
-	mfspr	r6, SPRN_SPRG6
-	mfspr	r7, SPRN_SPRG7
-
-	stw	r4, SS_SPRG+16(r3)
-	stw	r5, SS_SPRG+20(r3)
-	stw	r6, SS_SPRG+24(r3)
-	stw	r7, SS_SPRG+28(r3)
 
 	mfspr	r4, SPRN_DBAT0U
 	mfspr	r5, SPRN_DBAT0L
@@ -502,16 +492,6 @@ mpc83xx_deep_resume:
 	mtspr	SPRN_IBAT6L, r5
 	mtspr	SPRN_IBAT7U, r6
 	mtspr	SPRN_IBAT7L, r7
-
-	lwz	r4, SS_SPRG+16(r3)
-	lwz	r5, SS_SPRG+20(r3)
-	lwz	r6, SS_SPRG+24(r3)
-	lwz	r7, SS_SPRG+28(r3)
-
-	mtspr	SPRN_SPRG4, r4
-	mtspr	SPRN_SPRG5, r5
-	mtspr	SPRN_SPRG6, r6
-	mtspr	SPRN_SPRG7, r7
 
 	lwz	r4, SS_SPRG+0(r3)
 	lwz	r5, SS_SPRG+4(r3)

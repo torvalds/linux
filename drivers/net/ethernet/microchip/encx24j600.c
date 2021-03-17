@@ -1075,7 +1075,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	if (unlikely(ret)) {
 		netif_err(priv, probe, ndev, "Error %d initializing card encx24j600 card\n",
 			  ret);
-		goto out_stop;
+		goto out_free;
 	}
 
 	eidled = encx24j600_read_reg(priv, EIDLED);
@@ -1093,8 +1093,6 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 
 out_unregister:
 	unregister_netdev(priv->ndev);
-out_stop:
-	kthread_stop(priv->kworker_task);
 out_free:
 	free_netdev(ndev);
 
@@ -1107,7 +1105,6 @@ static int encx24j600_spi_remove(struct spi_device *spi)
 	struct encx24j600_priv *priv = dev_get_drvdata(&spi->dev);
 
 	unregister_netdev(priv->ndev);
-	kthread_stop(priv->kworker_task);
 
 	free_netdev(priv->ndev);
 

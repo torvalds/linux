@@ -236,30 +236,6 @@ ssize_t strscpy(char *dest, const char *src, size_t count)
 EXPORT_SYMBOL(strscpy);
 #endif
 
-/**
- * stpcpy - copy a string from src to dest returning a pointer to the new end
- *          of dest, including src's %NUL-terminator. May overrun dest.
- * @dest: pointer to end of string being copied into. Must be large enough
- *        to receive copy.
- * @src: pointer to the beginning of string being copied from. Must not overlap
- *       dest.
- *
- * stpcpy differs from strcpy in a key way: the return value is a pointer
- * to the new %NUL-terminating character in @dest. (For strcpy, the return
- * value is a pointer to the start of @dest). This interface is considered
- * unsafe as it doesn't perform bounds checking of the inputs. As such it's
- * not recommended for usage. Instead, its definition is provided in case
- * the compiler lowers other libcalls to stpcpy.
- */
-char *stpcpy(char *__restrict__ dest, const char *__restrict__ src);
-char *stpcpy(char *__restrict__ dest, const char *__restrict__ src)
-{
-	while ((*dest++ = *src++) != '\0')
-		/* nothing */;
-	return --dest;
-}
-EXPORT_SYMBOL(stpcpy);
-
 #ifndef __HAVE_ARCH_STRCAT
 /**
  * strcat - Append one %NUL-terminated string to another
@@ -887,26 +863,6 @@ __visible int memcmp(const void *cs, const void *ct, size_t count)
 	return res;
 }
 EXPORT_SYMBOL(memcmp);
-#endif
-
-#ifndef __HAVE_ARCH_BCMP
-/**
- * bcmp - returns 0 if and only if the buffers have identical contents.
- * @a: pointer to first buffer.
- * @b: pointer to second buffer.
- * @len: size of buffers.
- *
- * The sign or magnitude of a non-zero return value has no particular
- * meaning, and architectures may implement their own more efficient bcmp(). So
- * while this particular implementation is a simple (tail) call to memcmp, do
- * not rely on anything but whether the return value is zero or non-zero.
- */
-#undef bcmp
-int bcmp(const void *a, const void *b, size_t len)
-{
-	return memcmp(a, b, len);
-}
-EXPORT_SYMBOL(bcmp);
 #endif
 
 #ifndef __HAVE_ARCH_MEMSCAN

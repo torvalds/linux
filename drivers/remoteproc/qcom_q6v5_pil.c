@@ -1132,9 +1132,6 @@ static int q6v5_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
-	if (desc->need_mem_protection && !qcom_scm_is_available())
-		return -EPROBE_DEFER;
-
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_ops,
 			    desc->hexagon_mba_image, sizeof(*qproc));
 	if (!rproc) {
@@ -1268,26 +1265,16 @@ static const struct rproc_hexagon_res sdm845_mss = {
 
 static const struct rproc_hexagon_res msm8996_mss = {
 	.hexagon_mba_image = "mba.mbn",
-	.proxy_supply = (struct qcom_mss_reg_res[]) {
-		{
-			.supply = "pll",
-			.uA = 100000,
-		},
-		{}
-	},
 	.proxy_clk_names = (char*[]){
 			"xo",
 			"pnoc",
-			"qdss",
 			NULL
 	},
 	.active_clk_names = (char*[]){
 			"iface",
 			"bus",
 			"mem",
-			"gpll0_mss",
-			"snoc_axi",
-			"mnoc_axi",
+			"gpll0_mss_clk",
 			NULL
 	},
 	.need_mem_protection = true,

@@ -350,8 +350,8 @@
 	mdio: mdio@18003000 {
 		compatible = "brcm,iproc-mdio";
 		reg = <0x18003000 0x8>;
-		#size-cells = <0>;
-		#address-cells = <1>;
+		#size-cells = <1>;
+		#address-cells = <0>;
 	};
 
 	mdio-bus-mux {
@@ -445,7 +445,7 @@
 	};
 
 	spi@18029200 {
-		compatible = "brcm,spi-nsp-qspi", "brcm,spi-bcm-qspi";
+		compatible = "brcm,spi-bcm-qspi", "brcm,spi-nsp-qspi";
 		reg = <0x18029200 0x184>,
 		      <0x18029000 0x124>,
 		      <0x1811b408 0x004>,

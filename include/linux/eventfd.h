@@ -12,8 +12,6 @@
 #include <linux/fcntl.h>
 #include <linux/wait.h>
 #include <linux/err.h>
-#include <linux/percpu-defs.h>
-#include <linux/percpu.h>
 
 /*
  * CAREFUL: Check include/uapi/asm-generic/fcntl.h when defining
@@ -42,13 +40,6 @@ __u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n);
 int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_entry_t *wait,
 				  __u64 *cnt);
 
-DECLARE_PER_CPU(int, eventfd_wake_count);
-
-static inline bool eventfd_signal_count(void)
-{
-	return this_cpu_read(eventfd_wake_count);
-}
-
 #else /* CONFIG_EVENTFD */
 
 /*
@@ -75,11 +66,6 @@ static inline int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx,
 						wait_queue_entry_t *wait, __u64 *cnt)
 {
 	return -ENOSYS;
-}
-
-static inline bool eventfd_signal_count(void)
-{
-	return false;
 }
 
 #endif

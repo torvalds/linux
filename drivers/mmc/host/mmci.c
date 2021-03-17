@@ -895,18 +895,14 @@ static void
 mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	      unsigned int status)
 {
-	unsigned int status_err;
-
 	/* Make sure we have data to handle */
 	if (!data)
 		return;
 
 	/* First check for errors */
-	status_err = status & (host->variant->start_err |
-			       MCI_DATACRCFAIL | MCI_DATATIMEOUT |
-			       MCI_TXUNDERRUN | MCI_RXOVERRUN);
-
-	if (status_err) {
+	if (status & (MCI_DATACRCFAIL | MCI_DATATIMEOUT |
+		      host->variant->start_err |
+		      MCI_TXUNDERRUN | MCI_RXOVERRUN)) {
 		u32 remain, success;
 
 		/* Terminate the DMA transfer */
@@ -926,18 +922,18 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		success = data->blksz * data->blocks - remain;
 
 		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ, status 0x%08x at 0x%08x\n",
-			status_err, success);
-		if (status_err & MCI_DATACRCFAIL) {
+			status, success);
+		if (status & MCI_DATACRCFAIL) {
 			/* Last block was not successful */
 			success -= 1;
 			data->error = -EILSEQ;
-		} else if (status_err & MCI_DATATIMEOUT) {
+		} else if (status & MCI_DATATIMEOUT) {
 			data->error = -ETIMEDOUT;
-		} else if (status_err & MCI_STARTBITERR) {
+		} else if (status & MCI_STARTBITERR) {
 			data->error = -ECOMM;
-		} else if (status_err & MCI_TXUNDERRUN) {
+		} else if (status & MCI_TXUNDERRUN) {
 			data->error = -EIO;
-		} else if (status_err & MCI_RXOVERRUN) {
+		} else if (status & MCI_RXOVERRUN) {
 			if (success > host->variant->fifosize)
 				success -= host->variant->fifosize;
 			else
@@ -1299,10 +1295,9 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		}
 
 		/*
-		 * Busy detection has been handled by mmci_cmd_irq() above.
-		 * Clear the status bit to prevent polling in IRQ context.
+		 * Don't poll for busy completion in irq context.
 		 */
-		if (host->variant->busy_detect_flag)
+		if (host->variant->busy_detect && host->busy_status)
 			status &= ~host->variant->busy_detect_flag;
 
 		ret = 1;
@@ -1794,7 +1789,7 @@ static int mmci_probe(struct amba_device *dev,
 			goto clk_disable;
 	}
 
-	writel(MCI_IRQENABLE | variant->start_err, host->base + MMCIMASK0);
+	writel(MCI_IRQENABLE, host->base + MMCIMASK0);
 
 	amba_set_drvdata(dev, mmc);
 
@@ -1881,8 +1876,7 @@ static void mmci_restore(struct mmci_host *host)
 		writel(host->datactrl_reg, host->base + MMCIDATACTRL);
 		writel(host->pwr_reg, host->base + MMCIPOWER);
 	}
-	writel(MCI_IRQENABLE | host->variant->start_err,
-	       host->base + MMCIMASK0);
+	writel(MCI_IRQENABLE, host->base + MMCIMASK0);
 	mmci_reg_delay(host);
 
 	spin_unlock_irqrestore(&host->lock, flags);

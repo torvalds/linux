@@ -87,17 +87,13 @@ static struct thermal_hwmon_device *
 thermal_hwmon_lookup_by_type(const struct thermal_zone_device *tz)
 {
 	struct thermal_hwmon_device *hwmon;
-	char type[THERMAL_NAME_LENGTH];
 
 	mutex_lock(&thermal_hwmon_list_lock);
-	list_for_each_entry(hwmon, &thermal_hwmon_list, node) {
-		strcpy(type, tz->type);
-		strreplace(type, '-', '_');
-		if (!strcmp(hwmon->type, type)) {
+	list_for_each_entry(hwmon, &thermal_hwmon_list, node)
+		if (!strcmp(hwmon->type, tz->type)) {
 			mutex_unlock(&thermal_hwmon_list_lock);
 			return hwmon;
 		}
-	}
 	mutex_unlock(&thermal_hwmon_list_lock);
 
 	return NULL;

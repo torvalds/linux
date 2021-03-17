@@ -296,7 +296,7 @@ void drm_lease_destroy(struct drm_master *master)
 
 	if (master->lessor) {
 		/* Tell the master to check the lessee list */
-		drm_sysfs_lease_event(dev);
+		drm_sysfs_hotplug_event(dev);
 		drm_master_put(&master->lessor);
 	}
 
@@ -521,8 +521,7 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 
 	object_count = cl->object_count;
 
-	object_ids = memdup_user(u64_to_user_ptr(cl->object_ids),
-			array_size(object_count, sizeof(__u32)));
+	object_ids = memdup_user(u64_to_user_ptr(cl->object_ids), object_count * sizeof(__u32));
 	if (IS_ERR(object_ids))
 		return PTR_ERR(object_ids);
 
@@ -545,12 +544,10 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 	}
 
 	DRM_DEBUG_LEASE("Creating lease\n");
-	/* lessee will take the ownership of leases */
 	lessee = drm_lease_create(lessor, &leases);
 
 	if (IS_ERR(lessee)) {
 		ret = PTR_ERR(lessee);
-		idr_destroy(&leases);
 		goto out_leases;
 	}
 
@@ -585,6 +582,7 @@ out_lessee:
 
 out_leases:
 	put_unused_fd(fd);
+	idr_destroy(&leases);
 
 	DRM_DEBUG_LEASE("drm_mode_create_lease_ioctl failed: %d\n", ret);
 	return ret;

@@ -167,7 +167,7 @@ void kvmppc_copy_to_svcpu(struct kvm_vcpu *vcpu)
 	svcpu->gpr[11] = vcpu->arch.regs.gpr[11];
 	svcpu->gpr[12] = vcpu->arch.regs.gpr[12];
 	svcpu->gpr[13] = vcpu->arch.regs.gpr[13];
-	svcpu->cr  = vcpu->arch.regs.ccr;
+	svcpu->cr  = vcpu->arch.cr;
 	svcpu->xer = vcpu->arch.regs.xer;
 	svcpu->ctr = vcpu->arch.regs.ctr;
 	svcpu->lr  = vcpu->arch.regs.link;
@@ -249,7 +249,7 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs.gpr[11] = svcpu->gpr[11];
 	vcpu->arch.regs.gpr[12] = svcpu->gpr[12];
 	vcpu->arch.regs.gpr[13] = svcpu->gpr[13];
-	vcpu->arch.regs.ccr  = svcpu->cr;
+	vcpu->arch.cr  = svcpu->cr;
 	vcpu->arch.regs.xer = svcpu->xer;
 	vcpu->arch.regs.ctr = svcpu->ctr;
 	vcpu->arch.regs.link  = svcpu->lr;
@@ -1772,12 +1772,10 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_pr(struct kvm *kvm,
 
 	err = kvmppc_mmu_init(vcpu);
 	if (err < 0)
-		goto free_shared_page;
+		goto uninit_vcpu;
 
 	return vcpu;
 
-free_shared_page:
-	free_page((unsigned long)vcpu->arch.shared);
 uninit_vcpu:
 	kvm_vcpu_uninit(vcpu);
 free_shadow_vcpu:

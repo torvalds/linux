@@ -283,10 +283,8 @@ bfad_im_get_stats(struct Scsi_Host *shost)
 	rc = bfa_port_get_stats(BFA_FCPORT(&bfad->bfa),
 				fcstats, bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-	if (rc != BFA_STATUS_OK) {
-		kfree(fcstats);
+	if (rc != BFA_STATUS_OK)
 		return NULL;
-	}
 
 	wait_for_completion(&fcomp.comp);
 

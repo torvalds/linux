@@ -205,18 +205,18 @@ static int knav_range_setup_acc_irq(struct knav_range_info *range,
 {
 	struct knav_device *kdev = range->kdev;
 	struct knav_acc_channel *acc;
-	struct cpumask *cpu_mask;
+	unsigned long cpu_map;
 	int ret = 0, irq;
 	u32 old, new;
 
 	if (range->flags & RANGE_MULTI_QUEUE) {
 		acc = range->acc;
 		irq = range->irqs[0].irq;
-		cpu_mask = range->irqs[0].cpu_mask;
+		cpu_map = range->irqs[0].cpu_map;
 	} else {
 		acc = range->acc + queue;
 		irq = range->irqs[queue].irq;
-		cpu_mask = range->irqs[queue].cpu_mask;
+		cpu_map = range->irqs[queue].cpu_map;
 	}
 
 	old = acc->open_mask;
@@ -239,8 +239,8 @@ static int knav_range_setup_acc_irq(struct knav_range_info *range,
 			acc->name, acc->name);
 		ret = request_irq(irq, knav_acc_int_handler, 0, acc->name,
 				  range);
-		if (!ret && cpu_mask) {
-			ret = irq_set_affinity_hint(irq, cpu_mask);
+		if (!ret && cpu_map) {
+			ret = irq_set_affinity_hint(irq, to_cpumask(&cpu_map));
 			if (ret) {
 				dev_warn(range->kdev->dev,
 					 "Failed to set IRQ affinity\n");

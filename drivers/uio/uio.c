@@ -274,8 +274,6 @@ static struct class uio_class = {
 	.dev_groups = uio_groups,
 };
 
-bool uio_class_registered;
-
 /*
  * device functions
  */
@@ -413,10 +411,10 @@ static int uio_get_minor(struct uio_device *idev)
 	return retval;
 }
 
-static void uio_free_minor(unsigned long minor)
+static void uio_free_minor(struct uio_device *idev)
 {
 	mutex_lock(&minor_lock);
-	idr_remove(&uio_idr, minor);
+	idr_remove(&uio_idr, idev->minor);
 	mutex_unlock(&minor_lock);
 }
 
@@ -878,9 +876,6 @@ static int init_uio_class(void)
 		printk(KERN_ERR "class_register failed for uio\n");
 		goto err_class_register;
 	}
-
-	uio_class_registered = true;
-
 	return 0;
 
 err_class_register:
@@ -891,7 +886,6 @@ exit:
 
 static void release_uio_class(void)
 {
-	uio_class_registered = false;
 	class_unregister(&uio_class);
 	uio_major_cleanup();
 }
@@ -918,9 +912,6 @@ int __uio_register_device(struct module *owner,
 	struct uio_device *idev;
 	int ret = 0;
 
-	if (!uio_class_registered)
-		return -EPROBE_DEFER;
-
 	if (!parent || !info || !info->name || !info->version)
 		return -EINVAL;
 
@@ -938,12 +929,9 @@ int __uio_register_device(struct module *owner,
 	atomic_set(&idev->event, 0);
 
 	ret = uio_get_minor(idev);
-	if (ret) {
-		kfree(idev);
+	if (ret)
 		return ret;
-	}
 
-	device_initialize(&idev->dev);
 	idev->dev.devt = MKDEV(uio_major, idev->minor);
 	idev->dev.class = &uio_class;
 	idev->dev.parent = parent;
@@ -954,15 +942,13 @@ int __uio_register_device(struct module *owner,
 	if (ret)
 		goto err_device_create;
 
-	ret = device_add(&idev->dev);
+	ret = device_register(&idev->dev);
 	if (ret)
 		goto err_device_create;
 
 	ret = uio_dev_add_attributes(idev);
 	if (ret)
 		goto err_uio_dev_add_attributes;
-
-	info->uio_dev = idev;
 
 	if (info->irq && (info->irq != UIO_IRQ_CUSTOM)) {
 		/*
@@ -975,21 +961,19 @@ int __uio_register_device(struct module *owner,
 		 */
 		ret = request_irq(info->irq, uio_interrupt,
 				  info->irq_flags, info->name, idev);
-		if (ret) {
-			info->uio_dev = NULL;
+		if (ret)
 			goto err_request_irq;
-		}
 	}
 
+	info->uio_dev = idev;
 	return 0;
 
 err_request_irq:
 	uio_dev_del_attributes(idev);
 err_uio_dev_add_attributes:
-	device_del(&idev->dev);
+	device_unregister(&idev->dev);
 err_device_create:
-	uio_free_minor(idev->minor);
-	put_device(&idev->dev);
+	uio_free_minor(idev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__uio_register_device);
@@ -1002,13 +986,13 @@ EXPORT_SYMBOL_GPL(__uio_register_device);
 void uio_unregister_device(struct uio_info *info)
 {
 	struct uio_device *idev;
-	unsigned long minor;
 
 	if (!info || !info->uio_dev)
 		return;
 
 	idev = info->uio_dev;
-	minor = idev->minor;
+
+	uio_free_minor(idev);
 
 	mutex_lock(&idev->info_lock);
 	uio_dev_del_attributes(idev);
@@ -1020,8 +1004,6 @@ void uio_unregister_device(struct uio_info *info)
 	mutex_unlock(&idev->info_lock);
 
 	device_unregister(&idev->dev);
-
-	uio_free_minor(minor);
 
 	return;
 }

@@ -7,7 +7,6 @@
 #include <linux/list.h>
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
-#include <linux/sched/debug.h>
 
 #include <asm/current.h>
 #include <uapi/linux/wait.h>
@@ -1053,9 +1052,10 @@ do {										\
 	__ret;									\
 })
 
-#define __wait_event_lock_irq_timeout(wq_head, condition, lock, timeout, state)	\
+#define __wait_event_interruptible_lock_irq_timeout(wq_head, condition,		\
+						    lock, timeout)		\
 	___wait_event(wq_head, ___wait_cond_timeout(condition),			\
-		      state, 0, timeout,					\
+		      TASK_INTERRUPTIBLE, 0, timeout,				\
 		      spin_unlock_irq(&lock);					\
 		      __ret = schedule_timeout(__ret);				\
 		      spin_lock_irq(&lock));
@@ -1089,19 +1089,8 @@ do {										\
 ({										\
 	long __ret = timeout;							\
 	if (!___wait_cond_timeout(condition))					\
-		__ret = __wait_event_lock_irq_timeout(				\
-					wq_head, condition, lock, timeout,	\
-					TASK_INTERRUPTIBLE);			\
-	__ret;									\
-})
-
-#define wait_event_lock_irq_timeout(wq_head, condition, lock, timeout)		\
-({										\
-	long __ret = timeout;							\
-	if (!___wait_cond_timeout(condition))					\
-		__ret = __wait_event_lock_irq_timeout(				\
-					wq_head, condition, lock, timeout,	\
-					TASK_UNINTERRUPTIBLE);			\
+		__ret = __wait_event_interruptible_lock_irq_timeout(		\
+					wq_head, condition, lock, timeout);	\
 	__ret;									\
 })
 
@@ -1112,12 +1101,9 @@ void prepare_to_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *w
 void prepare_to_wait_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state);
 long prepare_to_wait_event(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state);
 void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry);
-long __sched wait_woken(struct wait_queue_entry *wq_entry, unsigned int mode,
-			long timeout);
-int __sched woken_wake_function(struct wait_queue_entry *wq_entry,
-				unsigned int mode, int sync, void *key);
-int __sched autoremove_wake_function(struct wait_queue_entry *wq_entry,
-				     unsigned int mode, int sync, void *key);
+long wait_woken(struct wait_queue_entry *wq_entry, unsigned mode, long timeout);
+int woken_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key);
+int autoremove_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key);
 
 #define DEFINE_WAIT_FUNC(name, function)					\
 	struct wait_queue_entry name = {					\

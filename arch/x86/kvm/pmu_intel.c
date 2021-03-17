@@ -87,14 +87,10 @@ static unsigned intel_find_arch_event(struct kvm_pmu *pmu,
 
 static unsigned intel_find_fixed_event(int idx)
 {
-	u32 event;
-	size_t size = ARRAY_SIZE(fixed_pmc_events);
-
-	if (idx >= size)
+	if (idx >= ARRAY_SIZE(fixed_pmc_events))
 		return PERF_COUNT_HW_MAX;
 
-	event = fixed_pmc_events[array_index_nospec(idx, size)];
-	return intel_arch_events[event].event_type;
+	return intel_arch_events[fixed_pmc_events[idx]].event_type;
 }
 
 /* check if a PMC is enabled by comparing it with globl_ctrl bits. */
@@ -130,25 +126,20 @@ static int intel_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 }
 
 static struct kvm_pmc *intel_msr_idx_to_pmc(struct kvm_vcpu *vcpu,
-					    unsigned idx, u64 *mask)
+					    unsigned idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fixed = idx & (1u << 30);
 	struct kvm_pmc *counters;
-	unsigned int num_counters;
 
 	idx &= ~(3u << 30);
-	if (fixed) {
-		counters = pmu->fixed_counters;
-		num_counters = pmu->nr_arch_fixed_counters;
-	} else {
-		counters = pmu->gp_counters;
-		num_counters = pmu->nr_arch_gp_counters;
-	}
-	if (idx >= num_counters)
+	if (!fixed && idx >= pmu->nr_arch_gp_counters)
 		return NULL;
-	*mask &= pmu->counter_bitmask[fixed ? KVM_PMC_FIXED : KVM_PMC_GP];
-	return &counters[array_index_nospec(idx, num_counters)];
+	if (fixed && idx >= pmu->nr_arch_fixed_counters)
+		return NULL;
+	counters = fixed ? pmu->fixed_counters : pmu->gp_counters;
+
+	return &counters[idx];
 }
 
 static bool intel_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
@@ -192,13 +183,9 @@ static int intel_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 		*data = pmu->global_ovf_ctrl;
 		return 0;
 	default:
-		if ((pmc = get_gp_pmc(pmu, msr, MSR_IA32_PERFCTR0))) {
-			u64 val = pmc_read_counter(pmc);
-			*data = val & pmu->counter_bitmask[KVM_PMC_GP];
-			return 0;
-		} else if ((pmc = get_fixed_pmc(pmu, msr))) {
-			u64 val = pmc_read_counter(pmc);
-			*data = val & pmu->counter_bitmask[KVM_PMC_FIXED];
+		if ((pmc = get_gp_pmc(pmu, msr, MSR_IA32_PERFCTR0)) ||
+		    (pmc = get_fixed_pmc(pmu, msr))) {
+			*data = pmc_read_counter(pmc);
 			return 0;
 		} else if ((pmc = get_gp_pmc(pmu, msr, MSR_P6_EVNTSEL0))) {
 			*data = pmc->eventsel;
@@ -248,14 +235,11 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		}
 		break;
 	default:
-		if ((pmc = get_gp_pmc(pmu, msr, MSR_IA32_PERFCTR0))) {
-			if (msr_info->host_initiated)
-				pmc->counter = data;
-			else
-				pmc->counter = (s32)data;
-			return 0;
-		} else if ((pmc = get_fixed_pmc(pmu, msr))) {
-			pmc->counter = data;
+		if ((pmc = get_gp_pmc(pmu, msr, MSR_IA32_PERFCTR0)) ||
+		    (pmc = get_fixed_pmc(pmu, msr))) {
+			if (!msr_info->host_initiated)
+				data = (s64)(s32)data;
+			pmc->counter += data - pmc_read_counter(pmc);
 			return 0;
 		} else if ((pmc = get_gp_pmc(pmu, msr, MSR_P6_EVNTSEL0))) {
 			if (data == pmc->eventsel)

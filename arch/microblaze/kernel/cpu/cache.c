@@ -92,8 +92,7 @@ static inline void __disable_dcache_nomsr(void)
 #define CACHE_LOOP_LIMITS(start, end, cache_line_length, cache_size)	\
 do {									\
 	int align = ~(cache_line_length - 1);				\
-	if (start <  UINT_MAX - cache_size)				\
-		end = min(start + cache_size, end);			\
+	end = min(start + cache_size, end);				\
 	start &= align;							\
 } while (0)
 

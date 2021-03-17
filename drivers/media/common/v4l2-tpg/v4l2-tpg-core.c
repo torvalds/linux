@@ -1738,7 +1738,7 @@ typedef struct { u16 __; u8 _; } __packed x24;
 		unsigned s;	\
 	\
 		for (s = 0; s < len; s++) {	\
-			u8 chr = font8x16[(u8)text[s] * 16 + line];	\
+			u8 chr = font8x16[text[s] * 16 + line];	\
 	\
 			if (hdiv == 2 && tpg->hflip) { \
 				pos[3] = (chr & (0x01 << 6) ? fg : bg);	\
@@ -1770,7 +1770,7 @@ typedef struct { u16 __; u8 _; } __packed x24;
 				pos[7] = (chr & (0x01 << 0) ? fg : bg);	\
 			} \
 	\
-			pos += (tpg->hflip ? -8 : 8) / (int)hdiv;	\
+			pos += (tpg->hflip ? -8 : 8) / hdiv;	\
 		}	\
 	}	\
 } while (0)

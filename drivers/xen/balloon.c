@@ -251,10 +251,25 @@ static void release_memory_resource(struct resource *resource)
 	kfree(resource);
 }
 
+/*
+ * Host memory not allocated to dom0. We can use this range for hotplug-based
+ * ballooning.
+ *
+ * It's a type-less resource. Setting IORESOURCE_MEM will make resource
+ * management algorithms (arch_remove_reservations()) look into guest e820,
+ * which we don't want.
+ */
+static struct resource hostmem_resource = {
+	.name   = "Host RAM",
+};
+
+void __attribute__((weak)) __init arch_xen_balloon_init(struct resource *res)
+{}
+
 static struct resource *additional_memory_resource(phys_addr_t size)
 {
-	struct resource *res;
-	int ret;
+	struct resource *res, *res_hostmem;
+	int ret = -ENOMEM;
 
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
@@ -263,13 +278,42 @@ static struct resource *additional_memory_resource(phys_addr_t size)
 	res->name = "System RAM";
 	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 
-	ret = allocate_resource(&iomem_resource, res,
-				size, 0, -1,
-				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
-	if (ret < 0) {
-		pr_err("Cannot allocate new System RAM resource\n");
-		kfree(res);
-		return NULL;
+	res_hostmem = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (res_hostmem) {
+		/* Try to grab a range from hostmem */
+		res_hostmem->name = "Host memory";
+		ret = allocate_resource(&hostmem_resource, res_hostmem,
+					size, 0, -1,
+					PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
+	}
+
+	if (!ret) {
+		/*
+		 * Insert this resource into iomem. Because hostmem_resource
+		 * tracks portion of guest e820 marked as UNUSABLE noone else
+		 * should try to use it.
+		 */
+		res->start = res_hostmem->start;
+		res->end = res_hostmem->end;
+		ret = insert_resource(&iomem_resource, res);
+		if (ret < 0) {
+			pr_err("Can't insert iomem_resource [%llx - %llx]\n",
+				res->start, res->end);
+			release_memory_resource(res_hostmem);
+			res_hostmem = NULL;
+			res->start = res->end = 0;
+		}
+	}
+
+	if (ret) {
+		ret = allocate_resource(&iomem_resource, res,
+					size, 0, -1,
+					PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
+		if (ret < 0) {
+			pr_err("Cannot allocate new System RAM resource\n");
+			kfree(res);
+			return NULL;
+		}
 	}
 
 #ifdef CONFIG_SPARSEMEM
@@ -281,6 +325,7 @@ static struct resource *additional_memory_resource(phys_addr_t size)
 			pr_err("New System RAM resource outside addressable RAM (%lu > %lu)\n",
 			       pfn, limit);
 			release_memory_resource(res);
+			release_memory_resource(res_hostmem);
 			return NULL;
 		}
 	}
@@ -350,10 +395,7 @@ static enum bp_state reserve_additional_memory(void)
 	 * callers drop the mutex before trying again.
 	 */
 	mutex_unlock(&balloon_mutex);
-	/* add_memory_resource() requires the device_hotplug lock */
-	lock_device_hotplug();
 	rc = add_memory_resource(nid, resource, memhp_auto_online);
-	unlock_device_hotplug();
 	mutex_lock(&balloon_mutex);
 
 	if (rc) {
@@ -395,8 +437,7 @@ static struct notifier_block xen_memory_nb = {
 #else
 static enum bp_state reserve_additional_memory(void)
 {
-	balloon_stats.target_pages = balloon_stats.current_pages +
-				     balloon_stats.target_unpopulated;
+	balloon_stats.target_pages = balloon_stats.current_pages;
 	return BP_ECANCELED;
 }
 #endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
@@ -531,15 +572,8 @@ static void balloon_process(struct work_struct *work)
 				state = reserve_additional_memory();
 		}
 
-		if (credit < 0) {
-			long n_pages;
-
-			n_pages = min(-credit, si_mem_available());
-			state = decrease_reservation(n_pages, GFP_BALLOON);
-			if (state == BP_DONE && n_pages != -credit &&
-			    n_pages < totalreserve_pages)
-				state = BP_EAGAIN;
-		}
+		if (credit < 0)
+			state = decrease_reservation(-credit, GFP_BALLOON);
 
 		state = update_schedule(state);
 
@@ -570,18 +604,13 @@ static int add_ballooned_pages(int nr_pages)
 	if (xen_hotplug_unpopulated) {
 		st = reserve_additional_memory();
 		if (st != BP_ECANCELED) {
-			int rc;
-
 			mutex_unlock(&balloon_mutex);
-			rc = wait_event_interruptible(balloon_wq,
+			wait_event(balloon_wq,
 				   !list_empty(&ballooned_pages));
 			mutex_lock(&balloon_mutex);
-			return rc ? -ENOMEM : 0;
+			return 0;
 		}
 	}
-
-	if (si_mem_available() < nr_pages)
-		return -ENOMEM;
 
 	st = decrease_reservation(nr_pages, GFP_USER);
 	if (st != BP_DONE)
@@ -634,12 +663,6 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
  out_undo:
 	mutex_unlock(&balloon_mutex);
 	free_xenballooned_pages(pgno, pages);
-	/*
-	 * NB: free_xenballooned_pages will only subtract pgno pages, but since
-	 * target_unpopulated is incremented with nr_pages at the start we need
-	 * to remove the remaining ones also, or accounting will be screwed.
-	 */
-	balloon_stats.target_unpopulated -= nr_pages - pgno;
 	return ret;
 }
 EXPORT_SYMBOL(alloc_xenballooned_pages);
@@ -718,12 +741,14 @@ static int __init balloon_init(void)
 	balloon_stats.schedule_delay = 1;
 	balloon_stats.max_schedule_delay = 32;
 	balloon_stats.retry_count = 1;
-	balloon_stats.max_retry_count = 4;
+	balloon_stats.max_retry_count = RETRY_UNLIMITED;
 
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
 	set_online_page_callback(&xen_online_page);
 	register_memory_notifier(&xen_memory_nb);
 	register_sysctl_table(xen_root);
+
+	arch_xen_balloon_init(&hostmem_resource);
 #endif
 
 #ifdef CONFIG_XEN_PV

@@ -836,9 +836,6 @@ static void __blk_release_queue(struct work_struct *work)
 
 	blk_free_queue_stats(q->stats);
 
-	if (q->mq_ops)
-		cancel_delayed_work_sync(&q->requeue_work);
-
 	blk_exit_rl(q, &q->root_rl);
 
 	if (q->queue_tags)
@@ -996,6 +993,8 @@ void blk_unregister_queue(struct gendisk *disk)
 	kobject_uevent(&q->kobj, KOBJ_REMOVE);
 	kobject_del(&q->kobj);
 	blk_trace_remove_sysfs(disk_to_dev(disk));
+
+	rq_qos_exit(q);
 
 	mutex_lock(&q->sysfs_lock);
 	if (q->request_fn || (q->mq_ops && q->elevator))

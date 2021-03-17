@@ -353,10 +353,7 @@ static int __init caam_rng_init(void)
 		goto free_rng_ctx;
 
 	dev_info(dev, "registering rng-caam\n");
-
-	err = hwrng_register(&caam_rng);
-	if (!err)
-		return err;
+	return hwrng_register(&caam_rng);
 
 free_rng_ctx:
 	kfree(rng_ctx);

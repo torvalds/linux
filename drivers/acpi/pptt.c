@@ -338,6 +338,9 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
 	return found;
 }
 
+/* total number of attributes checked by the properties code */
+#define PPTT_CHECKED_ATTRIBUTES 4
+
 /**
  * update_cache_properties() - Update cacheinfo for the given processor
  * @this_leaf: Kernel cache info structure being updated
@@ -354,15 +357,25 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
 				    struct acpi_pptt_processor *cpu_node)
 {
+	int valid_flags = 0;
+
 	this_leaf->fw_token = cpu_node;
-	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
+	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID) {
 		this_leaf->size = found_cache->size;
-	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID)
+		valid_flags++;
+	}
+	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID) {
 		this_leaf->coherency_line_size = found_cache->line_size;
-	if (found_cache->flags & ACPI_PPTT_NUMBER_OF_SETS_VALID)
+		valid_flags++;
+	}
+	if (found_cache->flags & ACPI_PPTT_NUMBER_OF_SETS_VALID) {
 		this_leaf->number_of_sets = found_cache->number_of_sets;
-	if (found_cache->flags & ACPI_PPTT_ASSOCIATIVITY_VALID)
+		valid_flags++;
+	}
+	if (found_cache->flags & ACPI_PPTT_ASSOCIATIVITY_VALID) {
 		this_leaf->ways_of_associativity = found_cache->associativity;
+		valid_flags++;
+	}
 	if (found_cache->flags & ACPI_PPTT_WRITE_POLICY_VALID) {
 		switch (found_cache->attributes & ACPI_PPTT_MASK_WRITE_POLICY) {
 		case ACPI_PPTT_CACHE_POLICY_WT:
@@ -389,17 +402,11 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 		}
 	}
 	/*
-	 * If cache type is NOCACHE, then the cache hasn't been specified
-	 * via other mechanisms.  Update the type if a cache type has been
-	 * provided.
-	 *
-	 * Note, we assume such caches are unified based on conventional system
-	 * design and known examples.  Significant work is required elsewhere to
-	 * fully support data/instruction only type caches which are only
-	 * specified in PPTT.
+	 * If the above flags are valid, and the cache type is NOCACHE
+	 * update the cache type as well.
 	 */
 	if (this_leaf->type == CACHE_TYPE_NOCACHE &&
-	    found_cache->flags & ACPI_PPTT_CACHE_TYPE_VALID)
+	    valid_flags == PPTT_CHECKED_ATTRIBUTES)
 		this_leaf->type = CACHE_TYPE_UNIFIED;
 }
 
@@ -510,44 +517,6 @@ static int find_acpi_cpu_topology_tag(unsigned int cpu, int level, int flag)
 }
 
 /**
- * check_acpi_cpu_flag() - Determine if CPU node has a flag set
- * @cpu: Kernel logical CPU number
- * @rev: The minimum PPTT revision defining the flag
- * @flag: The flag itself
- *
- * Check the node representing a CPU for a given flag.
- *
- * Return: -ENOENT if the PPTT doesn't exist, the CPU cannot be found or
- *	   the table revision isn't new enough.
- *	   1, any passed flag set
- *	   0, flag unset
- */
-static int check_acpi_cpu_flag(unsigned int cpu, int rev, u32 flag)
-{
-	struct acpi_table_header *table;
-	acpi_status status;
-	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
-	struct acpi_pptt_processor *cpu_node = NULL;
-	int ret = -ENOENT;
-
-	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
-	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, cpu topology may be inaccurate\n");
-		return ret;
-	}
-
-	if (table->revision >= rev)
-		cpu_node = acpi_find_processor_node(table, acpi_cpu_id);
-
-	if (cpu_node)
-		ret = (cpu_node->flags & flag) != 0;
-
-	acpi_put_table(table);
-
-	return ret;
-}
-
-/**
  * acpi_find_last_cache_level() - Determines the number of cache levels for a PE
  * @cpu: Kernel logical cpu number
  *
@@ -609,20 +578,6 @@ int cache_setup_acpi(unsigned int cpu)
 	acpi_put_table(table);
 
 	return status;
-}
-
-/**
- * acpi_pptt_cpu_is_thread() - Determine if CPU is a thread
- * @cpu: Kernel logical CPU number
- *
- * Return: 1, a thread
- *         0, not a thread
- *         -ENOENT ,if the PPTT doesn't exist, the CPU cannot be found or
- *         the table revision isn't new enough.
- */
-int acpi_pptt_cpu_is_thread(unsigned int cpu)
-{
-	return check_acpi_cpu_flag(cpu, 2, ACPI_PPTT_ACPI_PROCESSOR_IS_THREAD);
 }
 
 /**

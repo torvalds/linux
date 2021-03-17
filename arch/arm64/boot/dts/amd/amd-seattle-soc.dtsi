@@ -107,7 +107,7 @@
 			clock-names = "uartclk", "apb_pclk";
 		};
 
-		spi0: spi@e1020000 {
+		spi0: ssp@e1020000 {
 			status = "disabled";
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0 0xe1020000 0 0x1000>;
@@ -117,7 +117,7 @@
 			clock-names = "apb_pclk";
 		};
 
-		spi1: spi@e1030000 {
+		spi1: ssp@e1030000 {
 			status = "disabled";
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0 0xe1030000 0 0x1000>;

@@ -143,9 +143,7 @@ int tegra_display_hub_prepare(struct tegra_display_hub *hub)
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
 
-		/* Skip orphaned window group whose parent DC is disabled */
-		if (wgrp->parent)
-			tegra_windowgroup_enable(wgrp);
+		tegra_windowgroup_enable(wgrp);
 	}
 
 	return 0;
@@ -162,9 +160,7 @@ void tegra_display_hub_cleanup(struct tegra_display_hub *hub)
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
 
-		/* Skip orphaned window group whose parent DC is disabled */
-		if (wgrp->parent)
-			tegra_windowgroup_disable(wgrp);
+		tegra_windowgroup_disable(wgrp);
 	}
 }
 
@@ -382,15 +378,13 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
 					      struct drm_plane_state *old_state)
 {
+	struct tegra_dc *dc = to_tegra_dc(old_state->crtc);
 	struct tegra_plane *p = to_tegra_plane(plane);
-	struct tegra_dc *dc;
 	u32 value;
 
 	/* rien ne va plus */
 	if (!old_state || !old_state->crtc)
 		return;
-
-	dc = to_tegra_dc(old_state->crtc);
 
 	/*
 	 * XXX Legacy helpers seem to sometimes call ->atomic_disable() even

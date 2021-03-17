@@ -275,7 +275,7 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	ret = drm_crtc_helper_set_config(set, ctx);
 
@@ -299,7 +299,6 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 		adev->have_disp_power_ref = false;
 	}
 
-out:
 	/* drop the power reference we got coming in here */
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
@@ -626,13 +625,6 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 		drm_property_create_enum(adev->ddev, 0,
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
-
-	if (amdgpu_device_has_dc_support(adev)) {
-		adev->mode_info.max_bpc_property =
-			drm_property_create_range(adev->ddev, 0, "max bpc", 8, 16);
-		if (!adev->mode_info.max_bpc_property)
-			return -ENOMEM;
-	}
 
 	return 0;
 }

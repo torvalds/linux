@@ -675,7 +675,7 @@ static int m_can_handle_state_change(struct net_device *dev,
 	unsigned int ecr;
 
 	switch (new_state) {
-	case CAN_STATE_ERROR_WARNING:
+	case CAN_STATE_ERROR_ACTIVE:
 		/* error warning state */
 		priv->can.can_stats.error_warning++;
 		priv->can.state = CAN_STATE_ERROR_WARNING;
@@ -704,7 +704,7 @@ static int m_can_handle_state_change(struct net_device *dev,
 	__m_can_get_berr_counter(dev, &bec);
 
 	switch (new_state) {
-	case CAN_STATE_ERROR_WARNING:
+	case CAN_STATE_ERROR_ACTIVE:
 		/* error warning state */
 		cf->can_id |= CAN_ERR_CRTL;
 		cf->data[1] = (bec.txerr > bec.rxerr) ?
@@ -821,27 +821,6 @@ static int m_can_poll(struct napi_struct *napi, int quota)
 	irqstatus = priv->irqstatus | m_can_read(priv, M_CAN_IR);
 	if (!irqstatus)
 		goto end;
-
-	/* Errata workaround for issue "Needless activation of MRAF irq"
-	 * During frame reception while the MCAN is in Error Passive state
-	 * and the Receive Error Counter has the value MCAN_ECR.REC = 127,
-	 * it may happen that MCAN_IR.MRAF is set although there was no
-	 * Message RAM access failure.
-	 * If MCAN_IR.MRAF is enabled, an interrupt to the Host CPU is generated
-	 * The Message RAM Access Failure interrupt routine needs to check
-	 * whether MCAN_ECR.RP = ’1’ and MCAN_ECR.REC = 127.
-	 * In this case, reset MCAN_IR.MRAF. No further action is required.
-	 */
-	if ((priv->version <= 31) && (irqstatus & IR_MRAF) &&
-	    (m_can_read(priv, M_CAN_ECR) & ECR_RP)) {
-		struct can_berr_counter bec;
-
-		__m_can_get_berr_counter(dev, &bec);
-		if (bec.rxerr == 127) {
-			m_can_write(priv, M_CAN_IR, IR_MRAF);
-			irqstatus &= ~IR_MRAF;
-		}
-	}
 
 	psr = m_can_read(priv, M_CAN_PSR);
 	if (irqstatus & IR_ERR_STATE)
@@ -976,7 +955,7 @@ static const struct can_bittiming_const m_can_bittiming_const_31X = {
 	.name = KBUILD_MODNAME,
 	.tseg1_min = 2,		/* Time segment 1 = prop_seg + phase_seg1 */
 	.tseg1_max = 256,
-	.tseg2_min = 2,		/* Time segment 2 = phase_seg2 */
+	.tseg2_min = 1,		/* Time segment 2 = phase_seg2 */
 	.tseg2_max = 128,
 	.sjw_max = 128,
 	.brp_min = 1,

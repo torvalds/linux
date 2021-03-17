@@ -136,11 +136,20 @@ static int qxl_drm_freeze(struct drm_device *dev)
 {
 	struct pci_dev *pdev = dev->pdev;
 	struct qxl_device *qdev = dev->dev_private;
-	int ret;
+	struct drm_crtc *crtc;
 
-	ret = drm_mode_config_helper_suspend(dev);
-	if (ret)
-		return ret;
+	drm_kms_helper_poll_disable(dev);
+
+	console_lock();
+	qxl_fbdev_set_suspend(qdev, 1);
+	console_unlock();
+
+	/* unpin the front buffers */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		if (crtc->enabled)
+			(*crtc_funcs->disable)(crtc);
+	}
 
 	qxl_destroy_monitors_object(qdev);
 	qxl_surf_evict(qdev);
@@ -166,7 +175,14 @@ static int qxl_drm_resume(struct drm_device *dev, bool thaw)
 	}
 
 	qxl_create_monitors_object(qdev);
-	return drm_mode_config_helper_resume(dev);
+	drm_helper_resume_force_mode(dev);
+
+	console_lock();
+	qxl_fbdev_set_suspend(qdev, 0);
+	console_unlock();
+
+	drm_kms_helper_poll_enable(dev);
+	return 0;
 }
 
 static int qxl_pm_suspend(struct device *dev)

@@ -1,4 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
 
 #include "vkms_drv.h"
 #include <drm/drm_atomic_helper.h>
@@ -54,9 +60,6 @@ bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 	struct vkms_output *output = &vkmsdev->output;
 
 	*vblank_time = output->vblank_hrtimer.node.expires;
-
-	if (!in_vblank_irq)
-		*vblank_time -= output->period_ns;
 
 	return true;
 }

@@ -25,9 +25,6 @@
 #define DEVFREQ_GOV_SUSPEND			0x4
 #define DEVFREQ_GOV_RESUME			0x5
 
-#define DEVFREQ_MIN_FREQ			0
-#define DEVFREQ_MAX_FREQ			ULONG_MAX
-
 /**
  * struct devfreq_governor - Devfreq policy governor
  * @node:		list node - contains registered devfreq governors

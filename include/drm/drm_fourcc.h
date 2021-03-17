@@ -25,28 +25,6 @@
 #include <linux/types.h>
 #include <uapi/drm/drm_fourcc.h>
 
-/*
- * DRM formats are little endian.  Define host endian variants for the
- * most common formats here, to reduce the #ifdefs needed in drivers.
- *
- * Note that the DRM_FORMAT_BIG_ENDIAN flag should only be used in
- * case the format can't be specified otherwise, so we don't end up
- * with two values describing the same format.
- */
-#ifdef __BIG_ENDIAN
-# define DRM_FORMAT_HOST_XRGB1555     (DRM_FORMAT_XRGB1555         |	\
-				       DRM_FORMAT_BIG_ENDIAN)
-# define DRM_FORMAT_HOST_RGB565       (DRM_FORMAT_RGB565           |	\
-				       DRM_FORMAT_BIG_ENDIAN)
-# define DRM_FORMAT_HOST_XRGB8888     DRM_FORMAT_BGRX8888
-# define DRM_FORMAT_HOST_ARGB8888     DRM_FORMAT_BGRA8888
-#else
-# define DRM_FORMAT_HOST_XRGB1555     DRM_FORMAT_XRGB1555
-# define DRM_FORMAT_HOST_RGB565       DRM_FORMAT_RGB565
-# define DRM_FORMAT_HOST_XRGB8888     DRM_FORMAT_XRGB8888
-# define DRM_FORMAT_HOST_ARGB8888     DRM_FORMAT_ARGB8888
-#endif
-
 struct drm_device;
 struct drm_mode_fb_cmd2;
 
@@ -57,7 +35,7 @@ struct drm_mode_fb_cmd2;
  *	valid for a subset of RGB formats only. This is a legacy field, do not
  *	use in new code and set to 0 for new formats.
  * @num_planes: Number of color planes (1 to 3)
- * @bpp: Number of bits per pixel (per plane)
+ * @cpp: Number of bytes per pixel (per plane)
  * @hsub: Horizontal chroma subsampling factor
  * @vsub: Vertical chroma subsampling factor
  * @has_alpha: Does the format embeds an alpha component?
@@ -67,7 +45,7 @@ struct drm_format_info {
 	u32 format;
 	u8 depth;
 	u8 num_planes;
-	u8 bpp[3];
+	u8 cpp[3];
 	u8 hsub;
 	u8 vsub;
 	bool has_alpha;

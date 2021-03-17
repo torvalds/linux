@@ -34,7 +34,6 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/vmalloc.h>
 
 #include "rxe.h"
 #include "rxe_loc.h"
@@ -248,7 +247,7 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 			   &qp->sq.queue->ip);
 
 	if (err) {
-		vfree(qp->sq.queue->buf);
+		kvfree(qp->sq.queue->buf);
 		kfree(qp->sq.queue);
 		return err;
 	}
@@ -301,7 +300,7 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 				   qp->rq.queue->buf, qp->rq.queue->buf_size,
 				   &qp->rq.queue->ip);
 		if (err) {
-			vfree(qp->rq.queue->buf);
+			kvfree(qp->rq.queue->buf);
 			kfree(qp->rq.queue);
 			return err;
 		}
@@ -583,16 +582,15 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	int err;
 
 	if (mask & IB_QP_MAX_QP_RD_ATOMIC) {
-		int max_rd_atomic = attr->max_rd_atomic ?
-			roundup_pow_of_two(attr->max_rd_atomic) : 0;
+		int max_rd_atomic = __roundup_pow_of_two(attr->max_rd_atomic);
 
 		qp->attr.max_rd_atomic = max_rd_atomic;
 		atomic_set(&qp->req.rd_atomic, max_rd_atomic);
 	}
 
 	if (mask & IB_QP_MAX_DEST_RD_ATOMIC) {
-		int max_dest_rd_atomic = attr->max_dest_rd_atomic ?
-			roundup_pow_of_two(attr->max_dest_rd_atomic) : 0;
+		int max_dest_rd_atomic =
+			__roundup_pow_of_two(attr->max_dest_rd_atomic);
 
 		qp->attr.max_dest_rd_atomic = max_dest_rd_atomic;
 

@@ -24,22 +24,6 @@ struct sockaddr_alg {
 	__u8	salg_name[64];
 };
 
-/*
- * Linux v4.12 and later removed the 64-byte limit on salg_name[]; it's now an
- * arbitrary-length field.  We had to keep the original struct above for source
- * compatibility with existing userspace programs, though.  Use the new struct
- * below if support for very long algorithm names is needed.  To do this,
- * allocate 'sizeof(struct sockaddr_alg_new) + strlen(algname) + 1' bytes, and
- * copy algname (including the null terminator) into salg_name.
- */
-struct sockaddr_alg_new {
-	__u16	salg_family;
-	__u8	salg_type[14];
-	__u32	salg_feat;
-	__u32	salg_mask;
-	__u8	salg_name[];
-};
-
 struct af_alg_iv {
 	__u32	ivlen;
 	__u8	iv[0];

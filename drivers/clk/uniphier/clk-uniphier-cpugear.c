@@ -47,7 +47,7 @@ static int uniphier_clk_cpugear_set_parent(struct clk_hw *hw, u8 index)
 		return ret;
 
 	ret = regmap_write_bits(gear->regmap,
-				gear->regbase + UNIPHIER_CLK_CPUGEAR_UPD,
+				gear->regbase + UNIPHIER_CLK_CPUGEAR_SET,
 				UNIPHIER_CLK_CPUGEAR_UPD_BIT,
 				UNIPHIER_CLK_CPUGEAR_UPD_BIT);
 	if (ret)
@@ -88,7 +88,7 @@ struct clk_hw *uniphier_clk_register_cpugear(struct device *dev,
 				const struct uniphier_clk_cpugear_data *data)
 {
 	struct uniphier_clk_cpugear *gear;
-	struct clk_init_data init = {};
+	struct clk_init_data init;
 	int ret;
 
 	gear = devm_kzalloc(dev, sizeof(*gear), GFP_KERNEL);

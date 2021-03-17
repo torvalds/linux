@@ -1338,9 +1338,7 @@ static const struct snd_soc_dapm_route rt5640_dapm_routes[] = {
 	{ "I2S2", NULL, "I2S2 Filter ASRC", is_using_asrc },
 	{ "DMIC1", NULL, "DMIC1 ASRC", is_using_asrc },
 	{ "DMIC2", NULL, "DMIC2 ASRC", is_using_asrc },
-	{"IN1P", NULL, "MICBIAS1"},
-	{"IN2P", NULL, "MICBIAS1"},
-	{"IN3P", NULL, "MICBIAS1"},
+
 	{"IN1P", NULL, "LDO2"},
 	{"IN2P", NULL, "LDO2"},
 	{"IN3P", NULL, "LDO2"},
@@ -2436,13 +2434,6 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 static void rt5640_disable_jack_detect(struct snd_soc_component *component)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
-
-	/*
-	 * soc_remove_component() force-disables jack and thus rt5640->jack
-	 * could be NULL at the time of driver's module unloading.
-	 */
-	if (!rt5640->jack)
-		return;
 
 	disable_irq(rt5640->irq);
 	rt5640_cancel_work(rt5640);

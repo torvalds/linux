@@ -292,7 +292,7 @@ static int psxpad_spi_probe(struct spi_device *spi)
 	if (!pad)
 		return -ENOMEM;
 
-	pdev = devm_input_allocate_polled_device(&spi->dev);
+	pdev = input_allocate_polled_device();
 	if (!pdev) {
 		dev_err(&spi->dev, "failed to allocate input device\n");
 		return -ENOMEM;

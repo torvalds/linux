@@ -282,7 +282,6 @@
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
-		vqmmc-supply = <&vdd_1v8>;
 	};
 
 	clocks {
@@ -331,8 +330,7 @@
 			regulator-max-microvolt = <1320000>;
 			enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
 			regulator-ramp-delay = <80>;
-			regulator-enable-ramp-delay = <2000>;
-			regulator-settling-time-us = <160>;
+			regulator-enable-ramp-delay = <1000>;
 		};
 	};
 };

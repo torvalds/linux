@@ -146,10 +146,6 @@ void xen_unplug_emulated_devices(void)
 {
 	int r;
 
-	/* PVH guests don't have emulated devices. */
-	if (xen_pvh_domain())
-		return;
-
 	/* user explicitly requested no unplug */
 	if (xen_emul_unplug & XEN_UNPLUG_NEVER)
 		return;

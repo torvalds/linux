@@ -346,14 +346,6 @@ static int __init feat_enable_dscr(struct dt_cpu_feature *f)
 {
 	u64 lpcr;
 
-	/*
-	 * Linux relies on FSCR[DSCR] being clear, so that we can take the
-	 * facility unavailable interrupt and track the task's usage of DSCR.
-	 * See facility_unavailable_exception().
-	 * Clear the bit here so that feat_enable() doesn't set it.
-	 */
-	f->fscr_bit_nr = -1;
-
 	feat_enable(f);
 
 	lpcr = mfspr(SPRN_LPCR);
@@ -674,10 +666,8 @@ static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 		m = &dt_cpu_feature_match_table[i];
 		if (!strcmp(f->name, m->name)) {
 			known = true;
-			if (m->enable(f)) {
-				cur_cpu_spec->cpu_features |= m->cpu_ftr_bit_mask;
+			if (m->enable(f))
 				break;
-			}
 
 			pr_info("not enabling: %s (disabled or unsupported by kernel)\n",
 				f->name);
@@ -685,11 +675,16 @@ static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 		}
 	}
 
-	if (!known && (!enable_unknown || !feat_try_enable_unknown(f))) {
-		pr_info("not enabling: %s (unknown and unsupported by kernel)\n",
-			f->name);
-		return false;
+	if (!known && enable_unknown) {
+		if (!feat_try_enable_unknown(f)) {
+			pr_info("not enabling: %s (unknown and unsupported by kernel)\n",
+				f->name);
+			return false;
+		}
 	}
+
+	if (m->cpu_ftr_bit_mask)
+		cur_cpu_spec->cpu_features |= m->cpu_ftr_bit_mask;
 
 	if (known)
 		pr_debug("enabling: %s\n", f->name);
@@ -699,37 +694,9 @@ static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 	return true;
 }
 
-/*
- * Handle POWER9 broadcast tlbie invalidation issue using
- * cpu feature flag.
- */
-static __init void update_tlbie_feature_flag(unsigned long pvr)
-{
-	if (PVR_VER(pvr) == PVR_POWER9) {
-		/*
-		 * Set the tlbie feature flag for anything below
-		 * Nimbus DD 2.3 and Cumulus DD 1.3
-		 */
-		if ((pvr & 0xe000) == 0) {
-			/* Nimbus */
-			if ((pvr & 0xfff) < 0x203)
-				cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
-		} else if ((pvr & 0xc000) == 0) {
-			/* Cumulus */
-			if ((pvr & 0xfff) < 0x103)
-				cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
-		} else {
-			WARN_ONCE(1, "Unknown PVR");
-			cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
-		}
-
-		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_ERAT_BUG;
-	}
-}
-
 static __init void cpufeatures_cpu_quirks(void)
 {
-	unsigned long version = mfspr(SPRN_PVR);
+	int version = mfspr(SPRN_PVR);
 
 	/*
 	 * Not all quirks can be derived from the cpufeatures device tree.
@@ -748,10 +715,10 @@ static __init void cpufeatures_cpu_quirks(void)
 
 	if ((version & 0xffff0000) == 0x004e0000) {
 		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_BUG;
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TIDR;
 	}
 
-	update_tlbie_feature_flag(version);
 	/*
 	 * PKEY was not in the initial base or feature node
 	 * specification, but it should become optional in the next

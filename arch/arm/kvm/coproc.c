@@ -658,22 +658,13 @@ int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 static void reset_coproc_regs(struct kvm_vcpu *vcpu,
-			      const struct coproc_reg *table, size_t num,
-			      unsigned long *bmap)
+			      const struct coproc_reg *table, size_t num)
 {
 	unsigned long i;
 
 	for (i = 0; i < num; i++)
-		if (table[i].reset) {
-			int reg = table[i].reg;
-
+		if (table[i].reset)
 			table[i].reset(vcpu, &table[i]);
-			if (reg > 0 && reg < NR_CP15_REGS) {
-				set_bit(reg, bmap);
-				if (table[i].is_64bit)
-					set_bit(reg + 1, bmap);
-			}
-		}
 }
 
 static struct coproc_params decode_32bit_hsr(struct kvm_vcpu *vcpu)
@@ -1448,15 +1439,17 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 {
 	size_t num;
 	const struct coproc_reg *table;
-	DECLARE_BITMAP(bmap, NR_CP15_REGS) = { 0, };
+
+	/* Catch someone adding a register without putting in reset entry. */
+	memset(vcpu->arch.ctxt.cp15, 0x42, sizeof(vcpu->arch.ctxt.cp15));
 
 	/* Generic chip reset first (so target could override). */
-	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs), bmap);
+	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs));
 
 	table = get_target_table(vcpu->arch.target, &num);
-	reset_coproc_regs(vcpu, table, num, bmap);
+	reset_coproc_regs(vcpu, table, num);
 
 	for (num = 1; num < NR_CP15_REGS; num++)
-		WARN(!test_bit(num, bmap),
-		     "Didn't reset vcpu_cp15(vcpu, %zi)", num);
+		if (vcpu_cp15(vcpu, num) == 0x42424242)
+			panic("Didn't reset vcpu_cp15(vcpu, %zi)", num);
 }

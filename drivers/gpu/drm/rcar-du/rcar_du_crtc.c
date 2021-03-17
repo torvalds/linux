@@ -757,7 +757,8 @@ static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
 }
 
 static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
-				       const char *source_name)
+				       const char *source_name,
+				       size_t *values_cnt)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct drm_modeset_acquire_ctx ctx;
@@ -797,6 +798,8 @@ static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
+	*values_cnt = 1;
+
 	/* Perform an atomic commit to set the CRC source. */
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -834,7 +837,7 @@ unlock:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	return ret;
+	return 0;
 }
 
 static const struct drm_crtc_funcs crtc_funcs_gen2 = {

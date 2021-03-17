@@ -204,7 +204,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  */
 static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
-	switch_mm_irqs_off(prev, next, current);
+	switch_mm(prev, next, current);
 }
 
 /* We don't currently use enter_lazy_tlb() for anything */
@@ -215,6 +215,12 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 #ifdef CONFIG_PPC_BOOK3E_64
 	get_paca()->pgd = NULL;
 #endif
+}
+
+static inline int arch_dup_mmap(struct mm_struct *oldmm,
+				struct mm_struct *mm)
+{
+	return 0;
 }
 
 #ifndef CONFIG_PPC_BOOK3S_64
@@ -241,7 +247,6 @@ static inline void arch_bprm_mm_init(struct mm_struct *mm,
 #ifdef CONFIG_PPC_MEM_KEYS
 bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,
 			       bool execute, bool foreign);
-void arch_dup_pkeys(struct mm_struct *oldmm, struct mm_struct *mm);
 #else /* CONFIG_PPC_MEM_KEYS */
 static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 		bool write, bool execute, bool foreign)
@@ -254,7 +259,6 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 #define thread_pkey_regs_save(thread)
 #define thread_pkey_regs_restore(new_thread, old_thread)
 #define thread_pkey_regs_init(thread)
-#define arch_dup_pkeys(oldmm, mm)
 
 static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
 {
@@ -262,13 +266,6 @@ static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
 }
 
 #endif /* CONFIG_PPC_MEM_KEYS */
-
-static inline int arch_dup_mmap(struct mm_struct *oldmm,
-				struct mm_struct *mm)
-{
-	arch_dup_pkeys(oldmm, mm);
-	return 0;
-}
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_MMU_CONTEXT_H */

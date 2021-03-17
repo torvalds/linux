@@ -26,8 +26,6 @@ VERSION
 		__vdso_clock_gettime;
 		__vdso_gettimeofday;
 		__vdso_time;
-		__vdso_clock_getres;
-		__vdso_clock_gettime64;
 	};
 
 	LINUX_2.5 {

@@ -113,12 +113,8 @@ struct nd_percpu_lane {
 	spinlock_t lock;
 };
 
-enum nd_label_flags {
-	ND_LABEL_REAP,
-};
 struct nd_label_ent {
 	struct list_head list;
-	unsigned long flags;
 	struct nd_namespace_label *label;
 };
 
@@ -163,7 +159,6 @@ struct nd_region {
 	struct badblocks bb;
 	struct nd_interleave_set *nd_set;
 	struct nd_percpu_lane __percpu *lane;
-	int (*flush)(struct nd_region *nd_region, struct bio *bio);
 	struct nd_mapping mapping[0];
 };
 

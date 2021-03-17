@@ -261,19 +261,18 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 
 	pmd = pmd_offset(pud, address);
 	pmd_k = pmd_offset(pud_k, address);
-
-	if (pmd_present(*pmd) != pmd_present(*pmd_k))
-		set_pmd(pmd, *pmd_k);
-
 	if (!pmd_present(*pmd_k))
 		return NULL;
+
+	if (!pmd_present(*pmd))
+		set_pmd(pmd, *pmd_k);
 	else
-		BUG_ON(pmd_pfn(*pmd) != pmd_pfn(*pmd_k));
+		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
 
 	return pmd_k;
 }
 
-static void vmalloc_sync(void)
+void vmalloc_sync_all(void)
 {
 	unsigned long address;
 
@@ -281,33 +280,27 @@ static void vmalloc_sync(void)
 		return;
 
 	for (address = VMALLOC_START & PMD_MASK;
-	     address >= TASK_SIZE_MAX && address < VMALLOC_END;
+	     address >= TASK_SIZE_MAX && address < FIXADDR_TOP;
 	     address += PMD_SIZE) {
 		struct page *page;
 
 		spin_lock(&pgd_lock);
 		list_for_each_entry(page, &pgd_list, lru) {
 			spinlock_t *pgt_lock;
+			pmd_t *ret;
 
 			/* the pgt_lock only for Xen */
 			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
 
 			spin_lock(pgt_lock);
-			vmalloc_sync_one(page_address(page), address);
+			ret = vmalloc_sync_one(page_address(page), address);
 			spin_unlock(pgt_lock);
+
+			if (!ret)
+				break;
 		}
 		spin_unlock(&pgd_lock);
 	}
-}
-
-void vmalloc_sync_mappings(void)
-{
-	vmalloc_sync();
-}
-
-void vmalloc_sync_unmappings(void)
-{
-	vmalloc_sync();
 }
 
 /*
@@ -412,21 +405,9 @@ out:
 
 #else /* CONFIG_X86_64: */
 
-void vmalloc_sync_mappings(void)
+void vmalloc_sync_all(void)
 {
-	/*
-	 * 64-bit mappings might allocate new p4d/pud pages
-	 * that need to be propagated to all tasks' PGDs.
-	 */
 	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END);
-}
-
-void vmalloc_sync_unmappings(void)
-{
-	/*
-	 * Unmappings never allocate or free p4d/pud pages.
-	 * No work is required here.
-	 */
 }
 
 /*
@@ -445,6 +426,8 @@ static noinline int vmalloc_fault(unsigned long address)
 	/* Make sure we are in vmalloc area: */
 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
 		return -1;
+
+	WARN_ON_ONCE(in_nmi());
 
 	/*
 	 * Copy kernel mappings over when needed. This can also

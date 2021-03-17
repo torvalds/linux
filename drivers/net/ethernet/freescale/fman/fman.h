@@ -1,6 +1,5 @@
 /*
  * Copyright 2008-2015 Freescale Semiconductor Inc.
- * Copyright 2020 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -398,10 +397,6 @@ struct resource *fman_get_mem_region(struct fman *fman);
 u16 fman_get_max_frm(void);
 
 int fman_get_rx_extra_headroom(void);
-
-#ifdef CONFIG_DPAA_ERRATUM_A050385
-bool fman_has_errata_a050385(void);
-#endif
 
 struct fman *fman_bind(struct device *dev);
 

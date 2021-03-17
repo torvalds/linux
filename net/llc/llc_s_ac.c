@@ -58,10 +58,8 @@ int llc_sap_action_send_ui(struct llc_sap *sap, struct sk_buff *skb)
 			    ev->daddr.lsap, LLC_PDU_CMD);
 	llc_pdu_init_as_ui_cmd(skb);
 	rc = llc_mac_hdr_init(skb, ev->saddr.mac, ev->daddr.mac);
-	if (likely(!rc)) {
-		skb_get(skb);
+	if (likely(!rc))
 		rc = dev_queue_xmit(skb);
-	}
 	return rc;
 }
 
@@ -83,10 +81,8 @@ int llc_sap_action_send_xid_c(struct llc_sap *sap, struct sk_buff *skb)
 			    ev->daddr.lsap, LLC_PDU_CMD);
 	llc_pdu_init_as_xid_cmd(skb, LLC_XID_NULL_CLASS_2, 0);
 	rc = llc_mac_hdr_init(skb, ev->saddr.mac, ev->daddr.mac);
-	if (likely(!rc)) {
-		skb_get(skb);
+	if (likely(!rc))
 		rc = dev_queue_xmit(skb);
-	}
 	return rc;
 }
 
@@ -139,10 +135,8 @@ int llc_sap_action_send_test_c(struct llc_sap *sap, struct sk_buff *skb)
 			    ev->daddr.lsap, LLC_PDU_CMD);
 	llc_pdu_init_as_test_cmd(skb);
 	rc = llc_mac_hdr_init(skb, ev->saddr.mac, ev->daddr.mac);
-	if (likely(!rc)) {
-		skb_get(skb);
+	if (likely(!rc))
 		rc = dev_queue_xmit(skb);
-	}
 	return rc;
 }
 

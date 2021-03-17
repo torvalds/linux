@@ -910,10 +910,8 @@ static void envctrl_init_i2c_child(struct device_node *dp,
 			for (len = 0; len < PCF8584_MAX_CHANNELS; ++len) {
 				pchild->mon_type[len] = ENVCTRL_NOMON;
 			}
-			of_node_put(root_node);
 			return;
 		}
-		of_node_put(root_node);
 	}
 
 	/* Get the monitor channels. */

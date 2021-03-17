@@ -78,17 +78,18 @@ struct sh_cmt_info {
 	unsigned int channels_mask;
 
 	unsigned long width; /* 16 or 32 bit version of hardware block */
-	u32 overflow_bit;
-	u32 clear_bits;
+	unsigned long overflow_bit;
+	unsigned long clear_bits;
 
 	/* callbacks for CMSTR and CMCSR access */
-	u32 (*read_control)(void __iomem *base, unsigned long offs);
+	unsigned long (*read_control)(void __iomem *base, unsigned long offs);
 	void (*write_control)(void __iomem *base, unsigned long offs,
-			      u32 value);
+			      unsigned long value);
 
 	/* callbacks for CMCNT and CMCOR access */
-	u32 (*read_count)(void __iomem *base, unsigned long offs);
-	void (*write_count)(void __iomem *base, unsigned long offs, u32 value);
+	unsigned long (*read_count)(void __iomem *base, unsigned long offs);
+	void (*write_count)(void __iomem *base, unsigned long offs,
+			    unsigned long value);
 };
 
 struct sh_cmt_channel {
@@ -102,13 +103,13 @@ struct sh_cmt_channel {
 
 	unsigned int timer_bit;
 	unsigned long flags;
-	u32 match_value;
-	u32 next_match_value;
-	u32 max_match_value;
+	unsigned long match_value;
+	unsigned long next_match_value;
+	unsigned long max_match_value;
 	raw_spinlock_t lock;
 	struct clock_event_device ced;
 	struct clocksource cs;
-	u64 total_cycles;
+	unsigned long total_cycles;
 	bool cs_enabled;
 };
 
@@ -159,22 +160,24 @@ struct sh_cmt_device {
 #define SH_CMT32_CMCSR_CKS_RCLK1	(7 << 0)
 #define SH_CMT32_CMCSR_CKS_MASK		(7 << 0)
 
-static u32 sh_cmt_read16(void __iomem *base, unsigned long offs)
+static unsigned long sh_cmt_read16(void __iomem *base, unsigned long offs)
 {
 	return ioread16(base + (offs << 1));
 }
 
-static u32 sh_cmt_read32(void __iomem *base, unsigned long offs)
+static unsigned long sh_cmt_read32(void __iomem *base, unsigned long offs)
 {
 	return ioread32(base + (offs << 2));
 }
 
-static void sh_cmt_write16(void __iomem *base, unsigned long offs, u32 value)
+static void sh_cmt_write16(void __iomem *base, unsigned long offs,
+			   unsigned long value)
 {
 	iowrite16(value, base + (offs << 1));
 }
 
-static void sh_cmt_write32(void __iomem *base, unsigned long offs, u32 value)
+static void sh_cmt_write32(void __iomem *base, unsigned long offs,
+			   unsigned long value)
 {
 	iowrite32(value, base + (offs << 2));
 }
@@ -239,7 +242,7 @@ static const struct sh_cmt_info sh_cmt_info[] = {
 #define CMCNT 1 /* channel register */
 #define CMCOR 2 /* channel register */
 
-static inline u32 sh_cmt_read_cmstr(struct sh_cmt_channel *ch)
+static inline unsigned long sh_cmt_read_cmstr(struct sh_cmt_channel *ch)
 {
 	if (ch->iostart)
 		return ch->cmt->info->read_control(ch->iostart, 0);
@@ -247,7 +250,8 @@ static inline u32 sh_cmt_read_cmstr(struct sh_cmt_channel *ch)
 		return ch->cmt->info->read_control(ch->cmt->mapbase, 0);
 }
 
-static inline void sh_cmt_write_cmstr(struct sh_cmt_channel *ch, u32 value)
+static inline void sh_cmt_write_cmstr(struct sh_cmt_channel *ch,
+				      unsigned long value)
 {
 	if (ch->iostart)
 		ch->cmt->info->write_control(ch->iostart, 0, value);
@@ -255,35 +259,39 @@ static inline void sh_cmt_write_cmstr(struct sh_cmt_channel *ch, u32 value)
 		ch->cmt->info->write_control(ch->cmt->mapbase, 0, value);
 }
 
-static inline u32 sh_cmt_read_cmcsr(struct sh_cmt_channel *ch)
+static inline unsigned long sh_cmt_read_cmcsr(struct sh_cmt_channel *ch)
 {
 	return ch->cmt->info->read_control(ch->ioctrl, CMCSR);
 }
 
-static inline void sh_cmt_write_cmcsr(struct sh_cmt_channel *ch, u32 value)
+static inline void sh_cmt_write_cmcsr(struct sh_cmt_channel *ch,
+				      unsigned long value)
 {
 	ch->cmt->info->write_control(ch->ioctrl, CMCSR, value);
 }
 
-static inline u32 sh_cmt_read_cmcnt(struct sh_cmt_channel *ch)
+static inline unsigned long sh_cmt_read_cmcnt(struct sh_cmt_channel *ch)
 {
 	return ch->cmt->info->read_count(ch->ioctrl, CMCNT);
 }
 
-static inline void sh_cmt_write_cmcnt(struct sh_cmt_channel *ch, u32 value)
+static inline void sh_cmt_write_cmcnt(struct sh_cmt_channel *ch,
+				      unsigned long value)
 {
 	ch->cmt->info->write_count(ch->ioctrl, CMCNT, value);
 }
 
-static inline void sh_cmt_write_cmcor(struct sh_cmt_channel *ch, u32 value)
+static inline void sh_cmt_write_cmcor(struct sh_cmt_channel *ch,
+				      unsigned long value)
 {
 	ch->cmt->info->write_count(ch->ioctrl, CMCOR, value);
 }
 
-static u32 sh_cmt_get_counter(struct sh_cmt_channel *ch, u32 *has_wrapped)
+static unsigned long sh_cmt_get_counter(struct sh_cmt_channel *ch,
+					int *has_wrapped)
 {
-	u32 v1, v2, v3;
-	u32 o1, o2;
+	unsigned long v1, v2, v3;
+	int o1, o2;
 
 	o1 = sh_cmt_read_cmcsr(ch) & ch->cmt->info->overflow_bit;
 
@@ -303,8 +311,7 @@ static u32 sh_cmt_get_counter(struct sh_cmt_channel *ch, u32 *has_wrapped)
 
 static void sh_cmt_start_stop_ch(struct sh_cmt_channel *ch, int start)
 {
-	unsigned long flags;
-	u32 value;
+	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
 	raw_spin_lock_irqsave(&ch->cmt->lock, flags);
@@ -411,11 +418,11 @@ static void sh_cmt_disable(struct sh_cmt_channel *ch)
 static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 					      int absolute)
 {
-	u32 value = ch->next_match_value;
-	u32 new_match;
-	u32 delay = 0;
-	u32 now = 0;
-	u32 has_wrapped;
+	unsigned long new_match;
+	unsigned long value = ch->next_match_value;
+	unsigned long delay = 0;
+	unsigned long now = 0;
+	int has_wrapped;
 
 	now = sh_cmt_get_counter(ch, &has_wrapped);
 	ch->flags |= FLAG_REPROGRAM; /* force reprogram */
@@ -612,10 +619,9 @@ static struct sh_cmt_channel *cs_to_sh_cmt(struct clocksource *cs)
 static u64 sh_cmt_clocksource_read(struct clocksource *cs)
 {
 	struct sh_cmt_channel *ch = cs_to_sh_cmt(cs);
-	unsigned long flags;
-	u32 has_wrapped;
-	u64 value;
-	u32 raw;
+	unsigned long flags, raw;
+	unsigned long value;
+	int has_wrapped;
 
 	raw_spin_lock_irqsave(&ch->lock, flags);
 	value = ch->total_cycles;
@@ -688,7 +694,7 @@ static int sh_cmt_register_clocksource(struct sh_cmt_channel *ch,
 	cs->disable = sh_cmt_clocksource_disable;
 	cs->suspend = sh_cmt_clocksource_suspend;
 	cs->resume = sh_cmt_clocksource_resume;
-	cs->mask = CLOCKSOURCE_MASK(sizeof(u64) * 8);
+	cs->mask = CLOCKSOURCE_MASK(sizeof(unsigned long) * 8);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
 	dev_info(&ch->cmt->pdev->dev, "ch%u: used as clock source\n",

@@ -71,7 +71,6 @@
 
 extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
-extern struct workqueue_struct *ib_comp_unbound_wq;
 
 union ib_gid {
 	u8	raw[16];
@@ -291,8 +290,8 @@ struct ib_rss_caps {
 };
 
 enum ib_tm_cap_flags {
-	/*  Support tag matching with rendezvous offload for RC transport */
-	IB_TM_CAP_RNDV_RC = 1 << 0,
+	/*  Support tag matching on RC transport */
+	IB_TM_CAP_RC		    = 1 << 0,
 };
 
 struct ib_tm_caps {
@@ -310,7 +309,7 @@ struct ib_tm_caps {
 
 struct ib_cq_init_attr {
 	unsigned int	cqe;
-	u32		comp_vector;
+	int		comp_vector;
 	u32		flags;
 };
 
@@ -1147,7 +1146,7 @@ struct ib_qp_init_attr {
 	struct ib_qp_cap	cap;
 	enum ib_sig_type	sq_sig_type;
 	enum ib_qp_type		qp_type;
-	u32			create_flags;
+	enum ib_qp_create_flags	create_flags;
 
 	/*
 	 * Only needed for special QP types, or when using the RW API.
@@ -1279,27 +1278,21 @@ struct ib_qp_attr {
 };
 
 enum ib_wr_opcode {
-	/* These are shared with userspace */
-	IB_WR_RDMA_WRITE = IB_UVERBS_WR_RDMA_WRITE,
-	IB_WR_RDMA_WRITE_WITH_IMM = IB_UVERBS_WR_RDMA_WRITE_WITH_IMM,
-	IB_WR_SEND = IB_UVERBS_WR_SEND,
-	IB_WR_SEND_WITH_IMM = IB_UVERBS_WR_SEND_WITH_IMM,
-	IB_WR_RDMA_READ = IB_UVERBS_WR_RDMA_READ,
-	IB_WR_ATOMIC_CMP_AND_SWP = IB_UVERBS_WR_ATOMIC_CMP_AND_SWP,
-	IB_WR_ATOMIC_FETCH_AND_ADD = IB_UVERBS_WR_ATOMIC_FETCH_AND_ADD,
-	IB_WR_LSO = IB_UVERBS_WR_TSO,
-	IB_WR_SEND_WITH_INV = IB_UVERBS_WR_SEND_WITH_INV,
-	IB_WR_RDMA_READ_WITH_INV = IB_UVERBS_WR_RDMA_READ_WITH_INV,
-	IB_WR_LOCAL_INV = IB_UVERBS_WR_LOCAL_INV,
-	IB_WR_MASKED_ATOMIC_CMP_AND_SWP =
-		IB_UVERBS_WR_MASKED_ATOMIC_CMP_AND_SWP,
-	IB_WR_MASKED_ATOMIC_FETCH_AND_ADD =
-		IB_UVERBS_WR_MASKED_ATOMIC_FETCH_AND_ADD,
-
-	/* These are kernel only and can not be issued by userspace */
-	IB_WR_REG_MR = 0x20,
+	IB_WR_RDMA_WRITE,
+	IB_WR_RDMA_WRITE_WITH_IMM,
+	IB_WR_SEND,
+	IB_WR_SEND_WITH_IMM,
+	IB_WR_RDMA_READ,
+	IB_WR_ATOMIC_CMP_AND_SWP,
+	IB_WR_ATOMIC_FETCH_AND_ADD,
+	IB_WR_LSO,
+	IB_WR_SEND_WITH_INV,
+	IB_WR_RDMA_READ_WITH_INV,
+	IB_WR_LOCAL_INV,
+	IB_WR_REG_MR,
+	IB_WR_MASKED_ATOMIC_CMP_AND_SWP,
+	IB_WR_MASKED_ATOMIC_FETCH_AND_ADD,
 	IB_WR_REG_SIG_MR,
-
 	/* reserve values for low level drivers' internal use.
 	 * These values will not be used at all in the ib core layer.
 	 */
@@ -1577,10 +1570,9 @@ struct ib_ah {
 typedef void (*ib_comp_handler)(struct ib_cq *cq, void *cq_context);
 
 enum ib_poll_context {
-	IB_POLL_DIRECT,		   /* caller context, no hw completions */
-	IB_POLL_SOFTIRQ,	   /* poll from softirq context */
-	IB_POLL_WORKQUEUE,	   /* poll from workqueue */
-	IB_POLL_UNBOUND_WORKQUEUE, /* poll from unbound workqueue */
+	IB_POLL_DIRECT,		/* caller context, no hw completions */
+	IB_POLL_SOFTIRQ,	/* poll from softirq context */
+	IB_POLL_WORKQUEUE,	/* poll from workqueue */
 };
 
 struct ib_cq {
@@ -1597,7 +1589,6 @@ struct ib_cq {
 		struct irq_poll		iop;
 		struct work_struct	work;
 	};
-	struct workqueue_struct *comp_wq;
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
@@ -3862,9 +3853,6 @@ static inline int ib_check_mr_access(int flags)
 	 */
 	if (flags & (IB_ACCESS_REMOTE_ATOMIC | IB_ACCESS_REMOTE_WRITE) &&
 	    !(flags & IB_ACCESS_LOCAL_WRITE))
-		return -EINVAL;
-
-	if (flags & ~IB_ACCESS_SUPPORTED)
 		return -EINVAL;
 
 	return 0;

@@ -79,7 +79,8 @@ struct tb_switch_nvm {
  * @depth: Depth in the chain this switch is connected (ICM only)
  *
  * When the switch is being added or removed to the domain (other
- * switches) you need to have domain lock held.
+ * switches) you need to have domain lock held. For switch authorization
+ * internal switch_lock is enough.
  */
 struct tb_switch {
 	struct device dev;
@@ -397,6 +398,7 @@ void tb_switch_suspend(struct tb_switch *sw);
 int tb_switch_resume(struct tb_switch *sw);
 int tb_switch_reset(struct tb *tb, u64 route);
 void tb_sw_set_unplugged(struct tb_switch *sw);
+struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route);
 struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link,
 					       u8 depth);
 struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid);
