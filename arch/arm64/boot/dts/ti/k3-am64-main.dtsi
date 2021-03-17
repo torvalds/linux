@@ -491,4 +491,34 @@
 		ti,cpts-periodic-outputs = <6>;
 		ti,cpts-ext-ts-inputs = <8>;
 	};
+
+	usbss0: cdns-usb@f900000{
+		compatible = "ti,am64-usb";
+		reg = <0x00 0xf900000 0x00 0x100>;
+		power-domains = <&k3_pds 161 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 161 9>, <&k3_clks 161 1>;
+		clock-names = "ref", "lpm";
+		assigned-clocks = <&k3_clks 161 9>; /* USB2_REFCLK */
+		assigned-clock-parents = <&k3_clks 161 10>; /* HF0SC0 */
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		usb0: usb@f400000{
+			compatible = "cdns,usb3";
+			reg = <0x00 0xf400000 0x00 0x10000>,
+			      <0x00 0xf410000 0x00 0x10000>,
+			      <0x00 0xf420000 0x00 0x10000>;
+			reg-names = "otg",
+				    "xhci",
+				    "dev";
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>, /* irq.0 */
+				     <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>, /* irq.6 */
+				     <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>; /* otgirq */
+			interrupt-names = "host",
+					  "peripheral",
+					  "otg";
+			maximum-speed = "super-speed";
+			dr_mode = "otg";
+		};
+	};
 };
