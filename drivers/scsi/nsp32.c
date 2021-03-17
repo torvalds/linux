@@ -581,7 +581,6 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	int		status;
 	unsigned short	command	= 0;
 	unsigned int	msgout  = 0;
-	unsigned short	execph;
 	int		i;
 
 	nsp32_dbg(NSP32_DEBUG_AUTOSCSI, "in");
@@ -605,7 +604,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	/*
 	 * clear execph
 	 */
-	execph = nsp32_read2(base, SCSI_EXECUTE_PHASE);
+	nsp32_read2(base, SCSI_EXECUTE_PHASE);
 
 	/*
 	 * clear FIFO counter to set CDBs
@@ -1781,8 +1780,6 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 {
 	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	unsigned int base   = SCpnt->device->host->io_port;
-	//unsigned short command;
-	long new_sgtp;
 	int i;
 	
 	nsp32_dbg(NSP32_DEBUG_MSGOUTOCCUR,
@@ -1795,14 +1792,6 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 	if (data->msgout_len == 0) {
 		nsp32_build_nop(SCpnt);
 	}
-
-	/*
-	 * Set SGTP ADDR current entry for restarting AUTOSCSI, 
-	 * because SGTP is incremented next point.
-	 * There is few statement in the specification...
-	 */
- 	new_sgtp = data->cur_lunt->sglun_paddr + 
-		   (data->cur_lunt->cur_entry * sizeof(nsp32_sgtable));
 
 	/*
 	 * send messages
@@ -2220,16 +2209,11 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 {
 	nsp32_hw_data   *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	nsp32_target     *target     = data->cur_target;
-	nsp32_sync_table *synct;
 	unsigned char     get_period = data->msginbuf[3];
 	unsigned char     get_offset = data->msginbuf[4];
 	int               entry;
-	int               syncnum;
 
 	nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "enter");
-
-	synct   = data->synct;
-	syncnum = data->syncnum;
 
 	/*
 	 * If this inititor sent the SDTR message, then target responds SDTR,
@@ -2838,8 +2822,8 @@ static int nsp32_eh_abort(struct scsi_cmnd *SCpnt)
 static void nsp32_do_bus_reset(nsp32_hw_data *data)
 {
 	unsigned int   base = data->BaseAddress;
-	unsigned short intrdat;
 	int i;
+	unsigned short __maybe_unused intrdat;
 
 	nsp32_dbg(NSP32_DEBUG_BUSRESET, "in");
 
@@ -2909,7 +2893,8 @@ static int nsp32_getprom_param(nsp32_hw_data *data)
 {
 	int vendor = data->pci_devid->vendor;
 	int device = data->pci_devid->device;
-	int ret, val, i;
+	int ret, i;
+	int __maybe_unused val;
 
 	/*
 	 * EEPROM checking.
