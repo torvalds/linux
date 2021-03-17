@@ -30,7 +30,7 @@
 /*  structure and define */
 /*  */
 
-struct PHY_RX_AGC_INFO_T {
+struct phy_rx_agc_info_t {
 	#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
 		u8 gain:7, trsw:1;
 	#else
@@ -38,8 +38,8 @@ struct PHY_RX_AGC_INFO_T {
 	#endif
 };
 
-struct PHY_STATUS_RPT_8192CD_T {
-	struct PHY_RX_AGC_INFO_T path_agc[2];
+struct phy_status_rpt_8192cd_t {
+	struct phy_rx_agc_info_t path_agc[2];
 	u8 ch_corr[2];
 	u8 cck_sig_qual_ofdm_pwdb_all;
 	u8 cck_agc_rpt_ofdm_cfosho_a;
@@ -77,7 +77,7 @@ struct PHY_STATUS_RPT_8192CD_T {
 };
 
 
-struct PHY_STATUS_RPT_8812_T {
+struct phy_status_rpt_8812_t {
 	/* 2012.05.24 LukeLee: This structure should take big/little endian in consideration later..... */
 
 	/* DWORD 0 */
