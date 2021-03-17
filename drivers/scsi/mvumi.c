@@ -182,7 +182,7 @@ static void mvumi_release_mem_resource(struct mvumi_hba *mhba)
  * @mhba:		Adapter soft state
  * @scmd:		SCSI command from the mid-layer
  * @sgl_p:		SGL to be filled in
- * @sg_count		return the number of SG elements
+ * @sg_count:		return the number of SG elements
  *
  * If successful, this function returns 0. otherwise, it returns -1.
  */
@@ -1295,6 +1295,7 @@ static unsigned char mvumi_start(struct mvumi_hba *mhba)
  * mvumi_complete_cmd -	Completes a command
  * @mhba:			Adapter soft state
  * @cmd:			Command to be completed
+ * @ob_frame:			Command response
  */
 static void mvumi_complete_cmd(struct mvumi_hba *mhba, struct mvumi_cmd *cmd,
 					struct mvumi_rsp_frame *ob_frame)
@@ -2076,8 +2077,8 @@ error:
 
 /**
  * mvumi_queue_command -	Queue entry point
+ * @shost:			Scsi host to queue command on
  * @scmd:			SCSI command to be queued
- * @done:			Callback entry point
  */
 static int mvumi_queue_command(struct Scsi_Host *shost,
 					struct scsi_cmnd *scmd)
