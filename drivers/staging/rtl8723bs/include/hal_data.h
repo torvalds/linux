@@ -188,7 +188,7 @@ struct hal_com_data {
 
 	/* current WIFI_PHY values */
 	enum wireless_mode CurrentWirelessMode;
-	enum CHANNEL_WIDTH CurrentChannelBW;
+	enum channel_width CurrentChannelBW;
 	enum band_type CurrentBandType;	/* 0:2.4G, 1:5G */
 	enum band_type BandSet;
 	u8 CurrentChannel;

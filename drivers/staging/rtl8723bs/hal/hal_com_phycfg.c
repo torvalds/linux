@@ -1039,7 +1039,7 @@ u8 PHY_GetTxPowerIndexBase(
 	struct adapter *padapter,
 	u8 RFPath,
 	u8 Rate,
-	enum CHANNEL_WIDTH	BandWidth,
+	enum channel_width	BandWidth,
 	u8 Channel,
 	bool *bIn24G
 )
@@ -1556,7 +1556,7 @@ void PHY_SetTxPowerLevelByPath(struct adapter *Adapter, u8 channel, u8 path)
 void PHY_SetTxPowerIndexByRateArray(
 	struct adapter *padapter,
 	u8 RFPath,
-	enum CHANNEL_WIDTH BandWidth,
+	enum channel_width BandWidth,
 	u8 Channel,
 	u8 *Rates,
 	u8 RateArraySize
@@ -1610,7 +1610,7 @@ static s8 phy_GetChannelIndexOfTxPowerLimit(u8 Band, u8 Channel)
 	return channelIndex;
 }
 
-static s16 get_bandwidth_idx(const enum CHANNEL_WIDTH bandwidth)
+static s16 get_bandwidth_idx(const enum channel_width bandwidth)
 {
 	switch (bandwidth) {
 	case CHANNEL_WIDTH_20:
@@ -1673,7 +1673,7 @@ static s16 get_rate_sctn_idx(const u8 rate)
 }
 
 s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
-		      enum band_type band_type, enum CHANNEL_WIDTH bandwidth,
+		      enum band_type band_type, enum channel_width bandwidth,
 		      u8 rf_path, u8 data_rate, u8 channel)
 {
 	s16 idx_band       = -1;

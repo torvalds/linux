@@ -197,9 +197,9 @@ struct hal_ops {
 	u8 (*check_ips_status)(struct adapter *padapter);
 	s32		(*interrupt_handler)(struct adapter *padapter);
 	void    (*clear_interrupt)(struct adapter *padapter);
-	void (*set_bwmode_handler)(struct adapter *padapter, enum CHANNEL_WIDTH Bandwidth, u8 Offset);
+	void (*set_bwmode_handler)(struct adapter *padapter, enum channel_width Bandwidth, u8 Offset);
 	void (*set_channel_handler)(struct adapter *padapter, u8 channel);
-	void (*set_chnl_bw_handler)(struct adapter *padapter, u8 channel, enum CHANNEL_WIDTH Bandwidth, u8 Offset40, u8 Offset80);
+	void (*set_chnl_bw_handler)(struct adapter *padapter, u8 channel, enum channel_width Bandwidth, u8 Offset40, u8 Offset80);
 
 	void (*set_tx_power_level_handler)(struct adapter *padapter, u8 channel);
 	void (*get_tx_power_level_handler)(struct adapter *padapter, s32 *powerlevel);
@@ -373,7 +373,7 @@ void rtw_hal_write_rfreg(struct adapter *padapter, u32 eRFPath, u32 RegAddr, u32
 #define PHY_QueryMacReg PHY_QueryBBReg
 
 void rtw_hal_set_chan(struct adapter *padapter, u8 channel);
-void rtw_hal_set_chnl_bw(struct adapter *padapter, u8 channel, enum CHANNEL_WIDTH Bandwidth, u8 Offset40, u8 Offset80);
+void rtw_hal_set_chnl_bw(struct adapter *padapter, u8 channel, enum channel_width Bandwidth, u8 Offset40, u8 Offset80);
 void rtw_hal_dm_watchdog(struct adapter *padapter);
 void rtw_hal_dm_watchdog_in_lps(struct adapter *padapter);
 

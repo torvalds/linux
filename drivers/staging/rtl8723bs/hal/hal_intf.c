@@ -342,7 +342,7 @@ void rtw_hal_set_chan(struct adapter *padapter, u8 channel)
 }
 
 void rtw_hal_set_chnl_bw(struct adapter *padapter, u8 channel,
-			 enum CHANNEL_WIDTH Bandwidth, u8 Offset40, u8 Offset80)
+			 enum channel_width Bandwidth, u8 Offset40, u8 Offset80)
 {
 	if (padapter->HalFunc.set_chnl_bw_handler)
 		padapter->HalFunc.set_chnl_bw_handler(padapter, channel,

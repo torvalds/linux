@@ -55,7 +55,7 @@
  * Note:		For RF type 0222D
  *---------------------------------------------------------------------------*/
 void PHY_RF6052SetBandwidth8723B(
-	struct adapter *Adapter, enum CHANNEL_WIDTH Bandwidth
+	struct adapter *Adapter, enum channel_width Bandwidth
 ) /* 20M or 40M */
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);

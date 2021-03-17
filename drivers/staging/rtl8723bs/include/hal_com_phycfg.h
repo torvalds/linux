@@ -140,7 +140,7 @@ void
 PHY_SetTxPowerIndexByRateArray(
 struct adapter *padapter,
 u8 		RFPath,
-enum CHANNEL_WIDTH	BandWidth,
+enum channel_width	BandWidth,
 u8 		Channel,
 u8		*Rates,
 u8 		RateArraySize
@@ -172,13 +172,13 @@ PHY_GetTxPowerIndexBase(
 struct adapter *padapter,
 u8 		RFPath,
 u8 		Rate,
-enum CHANNEL_WIDTH	BandWidth,
+enum channel_width	BandWidth,
 u8 		Channel,
 	bool		*bIn24G
 	);
 
 s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 RegPwrTblSel,
-			enum band_type Band, enum CHANNEL_WIDTH Bandwidth,
+			enum band_type Band, enum channel_width Bandwidth,
 u8 		RfPath,
 u8 		DataRate,
 u8 		Channel
