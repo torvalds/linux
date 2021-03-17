@@ -861,8 +861,10 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 	/* Send initialization commands in LP mode */
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
 
-	/* Enable port in pre-enable phase itself because as per hw team
-	 * recommendation, port should be enabled befor plane & pipe */
+	/*
+	 * Enable port in pre-enable phase itself because as per hw team
+	 * recommendation, port should be enabled before plane & pipe
+	 */
 	if (is_cmd_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports)
 			intel_de_write(dev_priv,
