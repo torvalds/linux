@@ -59,7 +59,7 @@
  */
 
 /* Wrapper for VBT child device config */
-struct display_device_data {
+struct intel_bios_encoder_data {
 	struct child_device_config child;
 	struct dsc_compression_parameters_entry *dsc;
 	struct list_head node;
@@ -600,7 +600,7 @@ static void
 parse_sdvo_device_mapping(struct drm_i915_private *i915)
 {
 	struct sdvo_device_mapping *mapping;
-	const struct display_device_data *devdata;
+	const struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 	int count = 0;
 
@@ -1439,7 +1439,7 @@ parse_compression_parameters(struct drm_i915_private *i915,
 			     const struct bdb_header *bdb)
 {
 	const struct bdb_compression_parameters *params;
-	struct display_device_data *devdata;
+	struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 	u16 block_size;
 	int index;
@@ -1794,7 +1794,7 @@ static int parse_bdb_216_dp_max_link_rate(const int vbt_max_link_rate)
 }
 
 static void parse_ddi_port(struct drm_i915_private *i915,
-			   struct display_device_data *devdata)
+			   struct intel_bios_encoder_data *devdata)
 {
 	const struct child_device_config *child = &devdata->child;
 	struct ddi_vbt_port_info *info;
@@ -1932,7 +1932,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 
 static void parse_ddi_ports(struct drm_i915_private *i915)
 {
-	struct display_device_data *devdata;
+	struct intel_bios_encoder_data *devdata;
 
 	if (!HAS_DDI(i915) && !IS_CHERRYVIEW(i915))
 		return;
@@ -1949,7 +1949,7 @@ parse_general_definitions(struct drm_i915_private *i915,
 			  const struct bdb_header *bdb)
 {
 	const struct bdb_general_definitions *defs;
-	struct display_device_data *devdata;
+	struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 	int i, child_device_num;
 	u8 expected_size;
@@ -2087,7 +2087,7 @@ init_vbt_missing_defaults(struct drm_i915_private *i915)
 		return;
 
 	for_each_port_masked(port, ports) {
-		struct display_device_data *devdata;
+		struct intel_bios_encoder_data *devdata;
 		struct child_device_config *child;
 		enum phy phy = intel_port_to_phy(i915, port);
 
@@ -2326,7 +2326,7 @@ out:
  */
 void intel_bios_driver_remove(struct drm_i915_private *i915)
 {
-	struct display_device_data *devdata, *n;
+	struct intel_bios_encoder_data *devdata, *n;
 
 	list_for_each_entry_safe(devdata, n, &i915->vbt.display_devices, node) {
 		list_del(&devdata->node);
@@ -2357,7 +2357,7 @@ void intel_bios_driver_remove(struct drm_i915_private *i915)
  */
 bool intel_bios_is_tv_present(struct drm_i915_private *i915)
 {
-	const struct display_device_data *devdata;
+	const struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 
 	if (!i915->vbt.int_tv_support)
@@ -2400,7 +2400,7 @@ bool intel_bios_is_tv_present(struct drm_i915_private *i915)
  */
 bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
 {
-	const struct display_device_data *devdata;
+	const struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 
 	if (list_empty(&i915->vbt.display_devices))
@@ -2449,7 +2449,7 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
  */
 bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
 {
-	const struct display_device_data *devdata;
+	const struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 	static const struct {
 		u16 dp, hdmi;
@@ -2495,7 +2495,7 @@ bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
  */
 bool intel_bios_is_port_edp(struct drm_i915_private *i915, enum port port)
 {
-	const struct display_device_data *devdata;
+	const struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 	static const short port_mapping[] = {
 		[PORT_B] = DVO_PORT_DPB,
@@ -2558,7 +2558,7 @@ static bool child_dev_is_dp_dual_mode(const struct child_device_config *child,
 bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *i915,
 				     enum port port)
 {
-	const struct display_device_data *devdata;
+	const struct intel_bios_encoder_data *devdata;
 
 	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
 		if (child_dev_is_dp_dual_mode(&devdata->child, port))
@@ -2578,7 +2578,7 @@ bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *i915,
 bool intel_bios_is_dsi_present(struct drm_i915_private *i915,
 			       enum port *port)
 {
-	const struct display_device_data *devdata;
+	const struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 	u8 dvo_port;
 
@@ -2678,7 +2678,7 @@ bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			       int dsc_max_bpc)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	const struct display_device_data *devdata;
+	const struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
 
 	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
