@@ -15,7 +15,7 @@
 /*  */
 /*  <Roger_Notes> For RTL8723 WiFi/BT/GPS multi-function configuration. 2010.10.06. */
 /*  */
-enum RT_MULTI_FUNC {
+enum rt_multi_func {
 	RT_MULTI_FUNC_NONE	= 0x00,
 	RT_MULTI_FUNC_WIFI	= 0x01,
 	RT_MULTI_FUNC_BT		= 0x02,
@@ -24,18 +24,18 @@ enum RT_MULTI_FUNC {
 /*  */
 /*  <Roger_Notes> For RTL8723 WiFi PDn/GPIO polarity control configuration. 2010.10.08. */
 /*  */
-enum RT_POLARITY_CTL {
+enum rt_polarity_ctl {
 	RT_POLARITY_LOW_ACT	= 0,
 	RT_POLARITY_HIGH_ACT	= 1,
 };
 
 /*  For RTL8723 regulator mode. by tynli. 2011.01.14. */
-enum RT_REGULATOR_MODE {
+enum rt_regulator_mode {
 	RT_SWITCHING_REGULATOR	= 0,
 	RT_LDO_REGULATOR	= 1,
 };
 
-enum RT_AMPDU_BURST {
+enum rt_ampdu_burst {
 	RT_AMPDU_BURST_NONE	= 0,
 	RT_AMPDU_BURST_92D	= 1,
 	RT_AMPDU_BURST_88E	= 2,
@@ -177,9 +177,9 @@ struct dm_priv {
 
 struct hal_com_data {
 	struct hal_version VersionID;
-	enum RT_MULTI_FUNC MultiFunc; /*  For multi-function consideration. */
-	enum RT_POLARITY_CTL PolarityCtl; /*  For Wifi PDn Polarity control. */
-	enum RT_REGULATOR_MODE	RegulatorMode; /*  switching regulator or LDO */
+	enum rt_multi_func MultiFunc; /*  For multi-function consideration. */
+	enum rt_polarity_ctl PolarityCtl; /*  For Wifi PDn Polarity control. */
+	enum rt_regulator_mode	RegulatorMode; /*  switching regulator or LDO */
 
 	u16 FirmwareVersion;
 	u16 FirmwareVersionRev;
@@ -411,7 +411,7 @@ struct hal_com_data {
 	u8 RegIQKFWOffload;
 	struct submit_ctx	iqk_sctx;
 
-	enum RT_AMPDU_BURST	AMPDUBurstMode; /* 92C maybe not use, but for compile successfully */
+	enum rt_ampdu_burst	AMPDUBurstMode; /* 92C maybe not use, but for compile successfully */
 
 	u32 		sdio_himr;
 	u32 		sdio_hisr;
