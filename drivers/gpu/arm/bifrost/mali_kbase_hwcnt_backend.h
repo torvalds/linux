@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -41,10 +40,24 @@ struct kbase_hwcnt_dump_buffer;
 struct kbase_hwcnt_backend_info;
 
 /*
- * struct kbase_hwcnt_backend_info - Opaque pointer to a hardware counter
- *                                   backend, used to perform dumps.
+ * struct kbase_hwcnt_backend - Opaque pointer to a hardware counter
+ *                              backend, used to perform dumps.
  */
 struct kbase_hwcnt_backend;
+
+/*
+ * typedef kbase_hwcnt_backend_metadata_fn - Get the immutable hardware counter
+ *                                           metadata that describes the layout
+ *                                           of the counter data structures.
+ * @info:        Non-NULL pointer to backend info.
+ *
+ * Multiple calls to this function with the same info are guaranteed to return
+ * the same metadata object each time.
+ *
+ * Return: Non-NULL pointer to immutable hardware counter metadata.
+ */
+typedef const struct kbase_hwcnt_metadata *(*kbase_hwcnt_backend_metadata_fn)(
+	const struct kbase_hwcnt_backend_info *info);
 
 /**
  * typedef kbase_hwcnt_backend_init_fn - Initialise a counter backend.
@@ -171,9 +184,9 @@ typedef int (*kbase_hwcnt_backend_dump_wait_fn)(
  * @accumulate:  True if counters should be accumulated into dump_buffer, rather
  *               than copied.
  *
- * If the backend is not enabled, returns an error.
- * If a dump is in progress (i.e. dump_wait has not yet returned successfully)
- * then the resultant contents of the dump buffer will be undefined.
+ * The resultant contents of the dump buffer are only well defined if a prior
+ * call to dump_wait returned successfully, and a new dump has not yet been
+ * requested by a call to dump_request.
  *
  * Return: 0 on success, else error code.
  */
@@ -186,9 +199,10 @@ typedef int (*kbase_hwcnt_backend_dump_get_fn)(
 /**
  * struct kbase_hwcnt_backend_interface - Hardware counter backend virtual
  *                                        interface.
- * @metadata:           Immutable hardware counter metadata.
  * @info:               Immutable info used to initialise an instance of the
  *                      backend.
+ * @metadata:           Function ptr to get the immutable hardware counter
+ *                      metadata.
  * @init:               Function ptr to initialise an instance of the backend.
  * @term:               Function ptr to terminate an instance of the backend.
  * @timestamp_ns:       Function ptr to get the current backend timestamp.
@@ -203,8 +217,8 @@ typedef int (*kbase_hwcnt_backend_dump_get_fn)(
  *                      buffer.
  */
 struct kbase_hwcnt_backend_interface {
-	const struct kbase_hwcnt_metadata *metadata;
 	const struct kbase_hwcnt_backend_info *info;
+	kbase_hwcnt_backend_metadata_fn metadata;
 	kbase_hwcnt_backend_init_fn init;
 	kbase_hwcnt_backend_term_fn term;
 	kbase_hwcnt_backend_timestamp_ns_fn timestamp_ns;

@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2011-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,16 +17,14 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include "mali_kbase_vinstr.h"
 #include "mali_kbase_hwcnt_virtualizer.h"
 #include "mali_kbase_hwcnt_types.h"
-#include "mali_kbase_hwcnt_reader.h"
+#include <uapi/gpu/arm/bifrost/mali_kbase_hwcnt_reader.h>
 #include "mali_kbase_hwcnt_gpu.h"
-#include "mali_kbase_ioctl.h"
+#include <uapi/gpu/arm/bifrost/mali_kbase_ioctl.h>
 #include "mali_malisw.h"
 #include "mali_kbase_debug.h"
 
@@ -33,6 +32,7 @@
 #include <linux/fcntl.h>
 #include <linux/fs.h>
 #include <linux/hrtimer.h>
+#include <linux/log2.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
@@ -359,11 +359,7 @@ static enum hrtimer_restart kbasep_vinstr_dump_timer(struct hrtimer *timer)
 	 * cancelled, and the worker itself won't reschedule this timer if
 	 * suspend_count != 0.
 	 */
-#if KERNEL_VERSION(3, 16, 0) > LINUX_VERSION_CODE
-	queue_work(system_wq, &vctx->dump_work);
-#else
-	queue_work(system_highpri_wq, &vctx->dump_work);
-#endif
+	kbase_hwcnt_virtualizer_queue_work(vctx->hvirt, &vctx->dump_work);
 	return HRTIMER_NORESTART;
 }
 
@@ -389,7 +385,7 @@ static void kbasep_vinstr_client_destroy(struct kbase_vinstr_client *vcli)
  *                                 the vinstr context.
  * @vctx:     Non-NULL pointer to vinstr context.
  * @setup:    Non-NULL pointer to hardware counter ioctl setup structure.
- *            setup->buffer_count must not be 0.
+ *            setup->buffer_count must not be 0 and must be a power of 2.
  * @out_vcli: Non-NULL pointer to where created client will be stored on
  *            success.
  *
@@ -407,6 +403,7 @@ static int kbasep_vinstr_client_create(
 	WARN_ON(!vctx);
 	WARN_ON(!setup);
 	WARN_ON(setup->buffer_count == 0);
+	WARN_ON(!is_power_of_2(setup->buffer_count));
 
 	vcli = kzalloc(sizeof(*vcli), GFP_KERNEL);
 	if (!vcli)
@@ -565,11 +562,8 @@ void kbase_vinstr_resume(struct kbase_vinstr_context *vctx)
 			}
 
 			if (has_periodic_clients)
-#if KERNEL_VERSION(3, 16, 0) > LINUX_VERSION_CODE
-				queue_work(system_wq, &vctx->dump_work);
-#else
-				queue_work(system_highpri_wq, &vctx->dump_work);
-#endif
+				kbase_hwcnt_virtualizer_queue_work(
+					vctx->hvirt, &vctx->dump_work);
 		}
 	}
 
@@ -586,7 +580,8 @@ int kbase_vinstr_hwcnt_reader_setup(
 
 	if (!vctx || !setup ||
 	    (setup->buffer_count == 0) ||
-	    (setup->buffer_count > MAX_BUFFER_COUNT))
+	    (setup->buffer_count > MAX_BUFFER_COUNT) ||
+	    !is_power_of_2(setup->buffer_count))
 		return -EINVAL;
 
 	errcode = kbasep_vinstr_client_create(vctx, setup, &vcli);
@@ -719,7 +714,9 @@ static long kbasep_vinstr_hwcnt_reader_ioctl_get_buffer(
 	if (unlikely(copy_to_user(buffer, meta, min_size)))
 		return -EFAULT;
 
-	atomic_inc(&cli->meta_idx);
+	/* Compare exchange meta idx to protect against concurrent getters */
+	if (meta_idx != atomic_cmpxchg(&cli->meta_idx, meta_idx, meta_idx + 1))
+		return -EBUSY;
 
 	return 0;
 }
@@ -791,7 +788,13 @@ static long kbasep_vinstr_hwcnt_reader_ioctl_put_buffer(
 		goto out;
 	}
 
-	atomic_inc(&cli->read_idx);
+	/* Compare exchange read idx to protect against concurrent putters */
+	if (read_idx !=
+	    atomic_cmpxchg(&cli->read_idx, read_idx, read_idx + 1)) {
+		ret = -EPERM;
+		goto out;
+	}
+
 out:
 	if (unlikely(kbuf != stack_kbuf))
 		kfree(kbuf);
@@ -823,11 +826,8 @@ static long kbasep_vinstr_hwcnt_reader_ioctl_set_interval(
 	 * worker is already queued.
 	 */
 	if ((interval != 0) && (cli->vctx->suspend_count == 0))
-#if KERNEL_VERSION(3, 16, 0) > LINUX_VERSION_CODE
-		queue_work(system_wq, &cli->vctx->dump_work);
-#else
-		queue_work(system_highpri_wq, &cli->vctx->dump_work);
-#endif
+		kbase_hwcnt_virtualizer_queue_work(cli->vctx->hvirt,
+						   &cli->vctx->dump_work);
 
 	mutex_unlock(&cli->vctx->lock);
 
@@ -898,11 +898,12 @@ static long kbasep_vinstr_hwcnt_reader_ioctl_get_api_version(
 	struct kbase_vinstr_client *cli, unsigned long arg, size_t size)
 {
 	long ret = -EINVAL;
-	u8 clk_cnt = cli->vctx->metadata->clk_cnt;
 
 	if (size == sizeof(u32)) {
 		ret = put_user(HWCNT_READER_API, (u32 __user *)arg);
 	} else if (size == sizeof(struct kbase_hwcnt_reader_api_version)) {
+		u8 clk_cnt = cli->vctx->metadata->clk_cnt;
+		unsigned long bytes = 0;
 		struct kbase_hwcnt_reader_api_version api_version = {
 			.version = HWCNT_READER_API,
 			.features = KBASE_HWCNT_READER_API_VERSION_NO_FEATURE,
@@ -915,8 +916,16 @@ static long kbasep_vinstr_hwcnt_reader_ioctl_get_api_version(
 			api_version.features |=
 			    KBASE_HWCNT_READER_API_VERSION_FEATURE_CYCLES_SHADER_CORES;
 
-		ret = copy_to_user(
+		bytes = copy_to_user(
 			(void __user *)arg, &api_version, sizeof(api_version));
+
+		/* copy_to_user returns zero in case of success.
+		 * If it fails, it returns the number of bytes that could NOT be copied
+		 */
+		if (bytes == 0)
+			ret = 0;
+		else
+			ret = -EFAULT;
 	}
 	return ret;
 }
@@ -1042,7 +1051,16 @@ static int kbasep_vinstr_hwcnt_reader_mmap(
 		return -EINVAL;
 
 	vm_size = vma->vm_end - vma->vm_start;
-	size = cli->dump_bufs.buf_cnt * cli->vctx->metadata->dump_buf_bytes;
+
+	/* The mapping is allowed to span the entirety of the page allocation,
+	 * not just the chunk where the dump buffers are allocated.
+	 * This accommodates the corner case where the combined size of the
+	 * dump buffers is smaller than a single page.
+	 * This does not pose a security risk as the pages are zeroed on
+	 * allocation, and anything out of bounds of the dump buffers is never
+	 * written to.
+	 */
+	size = (1ull << cli->dump_bufs.page_order) * PAGE_SIZE;
 
 	if (vma->vm_pgoff > (size >> PAGE_SHIFT))
 		return -EINVAL;

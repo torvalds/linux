@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,8 +17,6 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include <linux/atomic.h>
@@ -26,7 +25,7 @@
 #include <mali_kbase.h>
 
 static const char *
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 kbase_fence_get_driver_name(struct fence *fence)
 #else
 kbase_fence_get_driver_name(struct dma_fence *fence)
@@ -36,7 +35,7 @@ kbase_fence_get_driver_name(struct dma_fence *fence)
 }
 
 static const char *
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 kbase_fence_get_timeline_name(struct fence *fence)
 #else
 kbase_fence_get_timeline_name(struct dma_fence *fence)
@@ -46,7 +45,7 @@ kbase_fence_get_timeline_name(struct dma_fence *fence)
 }
 
 static bool
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 kbase_fence_enable_signaling(struct fence *fence)
 #else
 kbase_fence_enable_signaling(struct dma_fence *fence)
@@ -56,7 +55,7 @@ kbase_fence_enable_signaling(struct dma_fence *fence)
 }
 
 static void
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 kbase_fence_fence_value_str(struct fence *fence, char *str, int size)
 #else
 kbase_fence_fence_value_str(struct dma_fence *fence, char *str, int size)
@@ -69,7 +68,7 @@ kbase_fence_fence_value_str(struct dma_fence *fence, char *str, int size)
 #endif
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 const struct fence_ops kbase_fence_ops = {
 	.wait = fence_default_wait,
 #else

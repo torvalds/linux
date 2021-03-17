@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -143,5 +142,51 @@ DEFINE_MALI_CSF_GRP_Q_EVENT(QUEUE_START);
 DEFINE_MALI_CSF_GRP_Q_EVENT(QUEUE_STOP);
 
 #undef DEFINE_MALI_CSF_GRP_Q_EVENT
+
+/*
+ * KCPU queue events
+ */
+DECLARE_EVENT_CLASS(mali_csf_kcpu_queue_template,
+	TP_PROTO(struct kbase_kcpu_command_queue *queue,
+		 u64 info_val1, u64 info_val2),
+	TP_ARGS(queue, info_val1, info_val2),
+	TP_STRUCT__entry(
+		__field(u64, info_val1)
+		__field(u64, info_val2)
+		__field(pid_t, kctx_tgid)
+		__field(u32, kctx_id)
+		__field(u8, id)
+	),
+	TP_fast_assign(
+		{
+			__entry->info_val1 = info_val1;
+			__entry->info_val2 = info_val2;
+			__entry->kctx_id = queue->kctx->id;
+			__entry->kctx_tgid = queue->kctx->tgid;
+			__entry->id = queue->id;
+		}
+
+	),
+	TP_printk("kctx=%d_%u id=%u info_val1=0x%llx info_val2=0x%llx",
+			__entry->kctx_tgid, __entry->kctx_id, __entry->id,
+			__entry->info_val1, __entry->info_val2)
+);
+
+#define DEFINE_MALI_CSF_KCPU_EVENT(name)  \
+	DEFINE_EVENT(mali_csf_kcpu_queue_template, mali_##name, \
+	TP_PROTO(struct kbase_kcpu_command_queue *queue, \
+		 u64 info_val1, u64 info_val2), \
+	TP_ARGS(queue, info_val1, info_val2))
+
+DEFINE_MALI_CSF_KCPU_EVENT(KCPU_QUEUE_NEW);
+DEFINE_MALI_CSF_KCPU_EVENT(KCPU_QUEUE_DESTROY);
+DEFINE_MALI_CSF_KCPU_EVENT(CQS_SET);
+DEFINE_MALI_CSF_KCPU_EVENT(CQS_WAIT_START);
+DEFINE_MALI_CSF_KCPU_EVENT(CQS_WAIT_END);
+DEFINE_MALI_CSF_KCPU_EVENT(FENCE_SIGNAL);
+DEFINE_MALI_CSF_KCPU_EVENT(FENCE_WAIT_START);
+DEFINE_MALI_CSF_KCPU_EVENT(FENCE_WAIT_END);
+
+#undef DEFINE_MALI_CSF_KCPU_EVENT
 
 #endif /* !defined(_KBASE_DEBUG_LINUX_KTRACE_CSF_H_) || defined(TRACE_HEADER_MULTI_READ) */

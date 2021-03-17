@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2014, 2016, 2018, 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2016, 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,8 +17,6 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 /*
@@ -26,6 +25,8 @@
 
 #ifndef _KBASE_INSTR_DEFS_H_
 #define _KBASE_INSTR_DEFS_H_
+
+#include "../../mali_kbase_hwcnt_gpu.h"
 
 /*
  * Instrumentation State Machine States
@@ -37,8 +38,6 @@ enum kbase_instr_state {
 	KBASE_INSTR_STATE_IDLE,
 	/* Hardware is currently dumping a frame. */
 	KBASE_INSTR_STATE_DUMPING,
-	/* We've requested a clean to occur on a workqueue */
-	KBASE_INSTR_STATE_REQUEST_CLEAN,
 	/* An error has occured during DUMPING (page fault). */
 	KBASE_INSTR_STATE_FAULT
 };
@@ -47,17 +46,11 @@ enum kbase_instr_state {
 struct kbase_instr_backend {
 	wait_queue_head_t wait;
 	int triggered;
-#ifdef CONFIG_MALI_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS
-	bool use_secondary_override;
+#ifdef CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS
+	enum kbase_hwcnt_physical_set override_counter_set;
 #endif
 
 	enum kbase_instr_state state;
-	struct workqueue_struct *cache_clean_wq;
-	struct work_struct  cache_clean_work;
-#if MALI_USE_CSF
-	struct tasklet_struct csf_hwc_irq_poll_tasklet;
-#endif
 };
 
 #endif /* _KBASE_INSTR_DEFS_H_ */
-

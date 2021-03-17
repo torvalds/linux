@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -97,6 +96,8 @@ struct kbase_csf_tiler_heap_chunk {
  * @gpu_va:          The GPU virtual address of the heap context structure that
  *                   was allocated for the firmware. This is also used to
  *                   uniquely identify the heap.
+ * @heap_id:         Unique id representing the heap, assigned during heap
+ *                   initialization.
  * @chunks_list:     Linked list of allocated chunks.
  */
 struct kbase_csf_tiler_heap {
@@ -107,6 +108,7 @@ struct kbase_csf_tiler_heap {
 	u32 max_chunks;
 	u16 target_in_flight;
 	u64 gpu_va;
+	u64 heap_id;
 	struct list_head chunks_list;
 };
 #endif /* !_KBASE_CSF_TILER_HEAP_DEF_H_ */

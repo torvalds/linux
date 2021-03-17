@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2013-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -31,10 +30,6 @@
 #include <linux/file.h>
 
 #ifdef CONFIG_DEBUG_FS
-
-#if (KERNEL_VERSION(4, 1, 0) > LINUX_VERSION_CODE)
-#define get_file_rcu(x) atomic_long_inc_not_zero(&(x)->f_count)
-#endif
 
 struct debug_mem_mapping {
 	struct list_head node;
@@ -179,6 +174,13 @@ static int debug_mem_zone_open(struct rb_root *rbtree,
 			/* Empty region - ignore */
 			continue;
 
+		if (reg->flags & KBASE_REG_PROTECTED) {
+			/* CPU access to protected memory is forbidden - so
+			 * skip this GPU virtual region.
+			 */
+			continue;
+		}
+
 		mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
 		if (!mapping) {
 			ret = -ENOMEM;
@@ -222,19 +224,19 @@ static int debug_mem_open(struct inode *i, struct file *file)
 	kbase_gpu_vm_lock(kctx);
 
 	ret = debug_mem_zone_open(&kctx->reg_rbtree_same, mem_data);
-	if (0 != ret) {
+	if (ret != 0) {
 		kbase_gpu_vm_unlock(kctx);
 		goto out;
 	}
 
 	ret = debug_mem_zone_open(&kctx->reg_rbtree_custom, mem_data);
-	if (0 != ret) {
+	if (ret != 0) {
 		kbase_gpu_vm_unlock(kctx);
 		goto out;
 	}
 
 	ret = debug_mem_zone_open(&kctx->reg_rbtree_exec, mem_data);
-	if (0 != ret) {
+	if (ret != 0) {
 		kbase_gpu_vm_unlock(kctx);
 		goto out;
 	}

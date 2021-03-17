@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -30,13 +29,13 @@
 #include "mali_kbase_config_defaults.h"
 #include "mali_kbase_csf_firmware.h"
 #include "mali_kbase_csf_timeout.h"
+#include "mali_kbase_reset_gpu.h"
 #include "backend/gpu/mali_kbase_pm_internal.h"
 
 /**
  * set_timeout - set a new global progress timeout.
  *
- * @kbdev:   Instance of a GPU platform device that implements a command
- *           stream front-end interface.
+ * @kbdev:   Instance of a GPU platform device that implements a CSF interface.
  * @timeout: the maximum number of GPU cycles without forward progress to allow
  *           to elapse before terminating a GPU command queue group.
  *
@@ -66,6 +65,9 @@ static int set_timeout(struct kbase_device *const kbdev, u64 const timeout)
  *
  * This function is called when the progress_timeout sysfs file is written to.
  * It checks the data written, and if valid updates the progress timeout value.
+ * The function also checks gpu reset status, if the gpu is in reset process,
+ * the function will return an error code (-EBUSY), and no change for timeout
+ * value.
  *
  * Return: @count if the function succeeded. An error code on failure.
  */
@@ -80,15 +82,21 @@ static ssize_t progress_timeout_store(struct device * const dev,
 	if (!kbdev)
 		return -ENODEV;
 
-	err = kstrtou64(buf, 0, &timeout);
+	err = kbase_reset_gpu_try_prevent(kbdev);
 	if (err) {
+		dev_warn(kbdev->dev,
+			 "Couldn't process progress_timeout write operation for GPU reset.\n");
+		return -EBUSY;
+	}
+
+	err = kstrtou64(buf, 0, &timeout);
+	if (err)
 		dev_err(kbdev->dev,
 			"Couldn't process progress_timeout write operation.\n"
 			"Use format <progress_timeout>\n");
-		return err;
-	}
+	else
+		err = set_timeout(kbdev, timeout);
 
-	err = set_timeout(kbdev, timeout);
 	if (!err) {
 		kbase_csf_scheduler_pm_active(kbdev);
 
@@ -99,6 +107,7 @@ static ssize_t progress_timeout_store(struct device * const dev,
 		kbase_csf_scheduler_pm_idle(kbdev);
 	}
 
+	kbase_reset_gpu_allow(kbdev);
 	if (err)
 		return err;
 

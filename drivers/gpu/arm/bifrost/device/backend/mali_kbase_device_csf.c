@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,18 +17,17 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include "../mali_kbase_device_internal.h"
 #include "../mali_kbase_device.h"
 
-#include <mali_kbase_config_defaults.h>
 #include <mali_kbase_hwaccess_backend.h>
+#include <mali_kbase_hwcnt_backend_csf_if_fw.h>
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_reset_gpu.h>
 #include <csf/mali_kbase_csf.h>
+#include <csf/ipa_control/mali_kbase_csf_ipa_control.h>
 
 #ifdef CONFIG_MALI_BIFROST_NO_MALI
 #include <mali_kbase_model_linux.h>
@@ -36,13 +35,12 @@
 
 #include <mali_kbase.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
-#include <backend/gpu/mali_kbase_js_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
+#include <backend/gpu/mali_kbase_js_internal.h>
 #include <backend/gpu/mali_kbase_clk_rate_trace_mgr.h>
 
 static void kbase_device_csf_firmware_term(struct kbase_device *kbdev)
 {
-	kbase_clk_rate_trace_manager_term(kbdev);
 	kbase_csf_firmware_term(kbdev);
 }
 
@@ -63,9 +61,6 @@ static int kbase_device_csf_firmware_init(struct kbase_device *kbdev)
 	 * a deferral action step from the late init stage for CSF.
 	 */
 	kbase_pm_context_idle(kbdev);
-
-	if (!err)
-		kbase_clk_rate_trace_manager_init(kbdev);
 
 	return err;
 }
@@ -106,6 +101,15 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 #endif /* !CONFIG_MALI_BIFROST_NO_MALI */
 #endif /* CONFIG_MALI_BIFROST_DEBUG */
 
+	kbase_ipa_control_init(kbdev);
+
+	/* Initialise the metrics subsystem, it couldn't be initialized earlier
+	 * due to dependency on kbase_ipa_control.
+	 */
+	err = kbasep_pm_metrics_init(kbdev);
+	if (err)
+		goto fail_pm_metrics_init;
+
 	/* Do the initialisation of devfreq.
 	 * Devfreq needs backend_timer_init() for completion of its
 	 * initialisation and it also needs to catch the first callback
@@ -124,10 +128,16 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 
 	init_waitqueue_head(&kbdev->hwaccess.backend.reset_wait);
 
+	/* kbase_pm_context_idle is called after the boot of firmware */
+
 	return 0;
 
 fail_update_l2_features:
+	kbase_backend_devfreq_term(kbdev);
 fail_devfreq_init:
+	kbasep_pm_metrics_term(kbdev);
+fail_pm_metrics_init:
+	kbase_ipa_control_term(kbdev);
 
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 #ifndef CONFIG_MALI_BIFROST_NO_MALI
@@ -137,6 +147,7 @@ fail_interrupt_test:
 
 	kbase_backend_timer_term(kbdev);
 fail_timer:
+	kbase_pm_context_idle(kbdev);
 	kbase_hwaccess_pm_halt(kbdev);
 fail_pm_powerup:
 	kbase_reset_gpu_term(kbdev);
@@ -153,9 +164,82 @@ fail_reset_gpu_init:
 static void kbase_backend_late_term(struct kbase_device *kbdev)
 {
 	kbase_backend_devfreq_term(kbdev);
+	kbasep_pm_metrics_term(kbdev);
+	kbase_ipa_control_term(kbdev);
 	kbase_hwaccess_pm_halt(kbdev);
 	kbase_reset_gpu_term(kbdev);
 	kbase_hwaccess_pm_term(kbdev);
+}
+
+/**
+ * kbase_device_hwcnt_backend_csf_if_init - Create hardware counter backend
+ *                                          firmware interface.
+ * @kbdev:	Device pointer
+ */
+static int kbase_device_hwcnt_backend_csf_if_init(struct kbase_device *kbdev)
+{
+	return kbase_hwcnt_backend_csf_if_fw_create(
+		kbdev, &kbdev->hwcnt_backend_csf_if_fw);
+}
+
+/**
+ * kbase_device_hwcnt_backend_csf_if_term - Terminate hardware counter backend
+ *                                          firmware interface.
+ * @kbdev:	Device pointer
+ */
+static void kbase_device_hwcnt_backend_csf_if_term(struct kbase_device *kbdev)
+{
+	kbase_hwcnt_backend_csf_if_fw_destroy(&kbdev->hwcnt_backend_csf_if_fw);
+}
+
+/**
+ * kbase_device_hwcnt_backend_csf_init - Create hardware counter backend.
+ * @kbdev:	Device pointer
+ */
+
+static int kbase_device_hwcnt_backend_csf_init(struct kbase_device *kbdev)
+{
+	return kbase_hwcnt_backend_csf_create(
+		&kbdev->hwcnt_backend_csf_if_fw,
+		KBASE_HWCNT_BACKEND_CSF_RING_BUFFER_COUNT,
+		&kbdev->hwcnt_gpu_iface);
+}
+
+/**
+ * kbase_device_hwcnt_backend_csf_term - Terminate hardware counter backend.
+ * @kbdev:	Device pointer
+ */
+static void kbase_device_hwcnt_backend_csf_term(struct kbase_device *kbdev)
+{
+	kbase_hwcnt_backend_csf_destroy(&kbdev->hwcnt_gpu_iface);
+}
+
+/**
+ * kbase_device_hwcnt_backend_csf_metadata_init - Initialize hardware counter
+ *                                                metadata.
+ * @kbdev:	Device pointer
+ */
+static int
+kbase_device_hwcnt_backend_csf_metadata_init(struct kbase_device *kbdev)
+{
+	/* For CSF GPUs, HWC metadata needs to query information from CSF
+	 * firmware, so the initialization of HWC metadata only can be called
+	 * after firmware initialized, but firmware initialization depends on
+	 * HWC backend initialization, so we need to separate HWC backend
+	 * metadata initialization from HWC backend initialization.
+	 */
+	return kbase_hwcnt_backend_csf_metadata_init(&kbdev->hwcnt_gpu_iface);
+}
+
+/**
+ * kbase_device_hwcnt_backend_csf_metadata_term - Terminate hardware counter
+ *                                                metadata.
+ * @kbdev:	Device pointer
+ */
+static void
+kbase_device_hwcnt_backend_csf_metadata_term(struct kbase_device *kbdev)
+{
+	kbase_hwcnt_backend_csf_metadata_term(&kbdev->hwcnt_gpu_iface);
 }
 
 static const struct kbase_device_init dev_init[] = {
@@ -178,6 +262,8 @@ static const struct kbase_device_init dev_init[] = {
 			"Populating max frequency failed"},
 	{kbase_device_misc_init, kbase_device_misc_term,
 			"Miscellaneous device initialization failed"},
+	{kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
+			"Priority control manager initialization failed"},
 	{kbase_ctx_sched_init, kbase_ctx_sched_term,
 			"Context scheduler initialization failed"},
 	{kbase_mem_init, kbase_mem_term,
@@ -195,20 +281,26 @@ static const struct kbase_device_init dev_init[] = {
 	{kbase_clk_rate_trace_manager_init,
 			kbase_clk_rate_trace_manager_term,
 			"Clock rate trace manager initialization failed"},
-	{kbase_device_hwcnt_backend_jm_init,
-			kbase_device_hwcnt_backend_jm_term,
+	{kbase_device_hwcnt_backend_csf_if_init,
+			kbase_device_hwcnt_backend_csf_if_term,
+			"GPU hwcnt backend CSF interface creation failed"},
+	{kbase_device_hwcnt_backend_csf_init,
+			kbase_device_hwcnt_backend_csf_term,
 			"GPU hwcnt backend creation failed"},
 	{kbase_device_hwcnt_context_init, kbase_device_hwcnt_context_term,
 			"GPU hwcnt context initialization failed"},
+	{kbase_backend_late_init, kbase_backend_late_term,
+			"Late backend initialization failed"},
+	{kbase_device_csf_firmware_init, kbase_device_csf_firmware_term,
+			"Firmware initialization failed"},
+	{kbase_device_hwcnt_backend_csf_metadata_init,
+			kbase_device_hwcnt_backend_csf_metadata_term,
+			"GPU hwcnt backend metadata creation failed"},
 	{kbase_device_hwcnt_virtualizer_init,
 			kbase_device_hwcnt_virtualizer_term,
 			"GPU hwcnt virtualizer initialization failed"},
 	{kbase_device_vinstr_init, kbase_device_vinstr_term,
 			"Virtual instrumentation initialization failed"},
-	{kbase_backend_late_init, kbase_backend_late_term,
-			"Late backend initialization failed"},
-	{kbase_device_csf_firmware_init, kbase_device_csf_firmware_term,
-			"Firmware initialization failed"},
 #ifdef MALI_KBASE_BUILD
 	{kbase_device_debugfs_init, kbase_device_debugfs_term,
 			"DebugFS initialization failed"},
@@ -224,12 +316,10 @@ static const struct kbase_device_init dev_init[] = {
 	 * paragraph that starts with "Word of warning", currently the
 	 * second-last paragraph.
 	 */
-	{kbase_sysfs_init, kbase_sysfs_term, "SysFS group creation failed"},
+	{kbase_sysfs_init, kbase_sysfs_term,
+			"SysFS group creation failed"},
 	{kbase_device_misc_register, kbase_device_misc_deregister,
 			"Misc device registration failed"},
-#ifdef CONFIG_MALI_BUSLOG
-	{buslog_init, buslog_term, "Bus log client registration failed"},
-#endif
 	{kbase_gpuprops_populate_user_buffer, kbase_gpuprops_free_user_buffer,
 			"GPU property population failed"},
 #endif
@@ -246,6 +336,7 @@ static void kbase_device_term_partial(struct kbase_device *kbdev,
 
 void kbase_device_term(struct kbase_device *kbdev)
 {
+	kbdev->csf.mali_file_inode = NULL;
 	kbase_device_term_partial(kbdev, ARRAY_SIZE(dev_init));
 	kbase_mem_halt(kbdev);
 }

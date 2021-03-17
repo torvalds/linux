@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2019,2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -64,7 +63,7 @@
 #ifndef _KBASE_KINSTR_JM_H_
 #define _KBASE_KINSTR_JM_H_
 
-#include "mali_kbase_kinstr_jm_reader.h"
+#include <uapi/gpu/arm/bifrost/mali_kbase_kinstr_jm_reader.h>
 
 #ifdef __KERNEL__
 #include <linux/version.h>
@@ -127,14 +126,7 @@ void kbasep_kinstr_jm_atom_state(
  * shouldn't be changed externally, but if you do, make sure you use
  * a static_key_inc()/static_key_dec() pair.
  */
-#if KERNEL_VERSION(4, 3, 0) <= LINUX_VERSION_CODE
 extern struct static_key_false basep_kinstr_jm_reader_static_key;
-#else
-/* Pre-4.3 kernels have a different API for static keys, but work
- * mostly the same with less type safety. */
-extern struct static_key basep_kinstr_jm_reader_static_key;
-#define static_branch_unlikely(key) static_key_false(key)
-#endif /* KERNEL_VERSION(4, 3, 0) <= LINUX_VERSION_CODE */
 
 /**
  * kbase_kinstr_jm_atom_state() - Signifies that an atom has changed state

@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2014,2018,2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2018, 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -86,6 +85,7 @@ DEFINE_MALI_ADD_EVENT(PM_CORES_AVAILABLE);
 DEFINE_MALI_ADD_EVENT(PM_CORES_AVAILABLE_TILER);
 DEFINE_MALI_ADD_EVENT(PM_CORES_CHANGE_AVAILABLE);
 DEFINE_MALI_ADD_EVENT(PM_CORES_CHANGE_AVAILABLE_TILER);
+DEFINE_MALI_ADD_EVENT(PM_CORES_CHANGE_AVAILABLE_L2);
 DEFINE_MALI_ADD_EVENT(PM_GPU_ON);
 DEFINE_MALI_ADD_EVENT(PM_GPU_OFF);
 DEFINE_MALI_ADD_EVENT(PM_SET_POLICY);
@@ -97,11 +97,17 @@ DEFINE_MALI_ADD_EVENT(PM_CONTEXT_IDLE);
 DEFINE_MALI_ADD_EVENT(PM_WAKE_WAITERS);
 DEFINE_MALI_ADD_EVENT(SCHED_RETAIN_CTX_NOLOCK);
 DEFINE_MALI_ADD_EVENT(SCHED_RELEASE_CTX);
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
 
+DEFINE_MALI_ADD_EVENT(ARB_GPU_LOST);
+DEFINE_MALI_ADD_EVENT(ARB_VM_STATE);
+DEFINE_MALI_ADD_EVENT(ARB_VM_EVT);
+
+#endif
 #if MALI_USE_CSF
-#include "mali_kbase_debug_linux_ktrace_csf.h"
+#include "backend/mali_kbase_debug_linux_ktrace_csf.h"
 #else
-#include "mali_kbase_debug_linux_ktrace_jm.h"
+#include "backend/mali_kbase_debug_linux_ktrace_jm.h"
 #endif
 
 #undef DEFINE_MALI_ADD_EVENT

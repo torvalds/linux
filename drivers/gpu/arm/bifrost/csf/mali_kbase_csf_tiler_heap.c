@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,9 +17,9 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
+
+#include <tl/mali_kbase_tracepoints.h>
 
 #include "mali_kbase_csf_tiler_heap.h"
 #include "mali_kbase_csf_tiler_heap_def.h"
@@ -337,6 +338,12 @@ static void delete_heap(struct kbase_csf_tiler_heap *heap)
 		heap->gpu_va);
 
 	list_del(&heap->link);
+
+	WARN_ON(heap->chunk_count);
+	KBASE_TLSTREAM_AUX_TILER_HEAP_STATS(kctx->kbdev, kctx->id,
+		heap->heap_id, 0, 0, heap->max_chunks, heap->chunk_size, 0,
+		heap->target_in_flight, 0);
+
 	kfree(heap);
 }
 
@@ -473,10 +480,19 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx,
 			list_first_entry(&heap->chunks_list,
 				struct kbase_csf_tiler_heap_chunk, link);
 
+		kctx->csf.tiler_heaps.nr_of_heaps++;
+		heap->heap_id = kctx->csf.tiler_heaps.nr_of_heaps;
 		list_add(&heap->link, &kctx->csf.tiler_heaps.list);
 
 		*heap_gpu_va = heap->gpu_va;
 		*first_chunk_va = first_chunk->gpu_va;
+
+		KBASE_TLSTREAM_AUX_TILER_HEAP_STATS(
+			kctx->kbdev, kctx->id, heap->heap_id,
+			PFN_UP(heap->chunk_size * heap->max_chunks),
+			PFN_UP(heap->chunk_size * heap->chunk_count),
+			heap->max_chunks, heap->chunk_size, heap->chunk_count,
+			heap->target_in_flight, 0);
 
 		dev_dbg(kctx->kbdev->dev, "Created tiler heap 0x%llX\n",
 			heap->gpu_va);
@@ -513,49 +529,53 @@ int kbase_csf_tiler_heap_term(struct kbase_context *const kctx,
  * on the settings provided by userspace when the heap was created and the
  * heap's statistics (like number of render passes in-flight).
  *
- * @heap:         Pointer to the tiler heap.
- * @nr_in_flight: Number of render passes that are in-flight, must not be zero.
- * @new_chunk_ptr: Where to store the GPU virtual address & size of the new
- *                 chunk allocated for the heap.
+ * @heap:               Pointer to the tiler heap.
+ * @nr_in_flight:       Number of render passes that are in-flight, must not be zero.
+ * @pending_frag_count: Number of render passes in-flight with completed vertex/tiler stage.
+ *                      The minimum value is zero but it must be less or equal to
+ *                      the total number of render passes in flight
+ * @new_chunk_ptr:      Where to store the GPU virtual address & size of the new
+ *                      chunk allocated for the heap.
  *
  * Return: 0 if a new chunk was allocated otherwise an appropriate negative
  *         error code.
  */
 static int alloc_new_chunk(struct kbase_csf_tiler_heap *heap,
-		u32 nr_in_flight, u64 *new_chunk_ptr)
+		u32 nr_in_flight, u32 pending_frag_count, u64 *new_chunk_ptr)
 {
 	int err = -ENOMEM;
 
 	lockdep_assert_held(&heap->kctx->csf.tiler_heaps.lock);
 
-	if (!nr_in_flight)
+	if (WARN_ON(!nr_in_flight) ||
+		WARN_ON(pending_frag_count > nr_in_flight))
 		return -EINVAL;
 
-	if ((nr_in_flight <= heap->target_in_flight) &&
-	    (heap->chunk_count < heap->max_chunks)) {
-		/* Not exceeded the target number of render passes yet so be
-		 * generous with memory.
-		 */
-		err = create_chunk(heap, false);
+	if (nr_in_flight <= heap->target_in_flight) {
+		if (heap->chunk_count < heap->max_chunks) {
+			/* Not exceeded the target number of render passes yet so be
+			 * generous with memory.
+			 */
+			err = create_chunk(heap, false);
 
-		if (likely(!err)) {
-			struct kbase_csf_tiler_heap_chunk *new_chunk =
-							get_last_chunk(heap);
-			if (!WARN_ON(!new_chunk)) {
-				*new_chunk_ptr =
-					encode_chunk_ptr(heap->chunk_size,
-							 new_chunk->gpu_va);
-				return 0;
+			if (likely(!err)) {
+				struct kbase_csf_tiler_heap_chunk *new_chunk =
+								get_last_chunk(heap);
+				if (!WARN_ON(!new_chunk)) {
+					*new_chunk_ptr =
+						encode_chunk_ptr(heap->chunk_size,
+								 new_chunk->gpu_va);
+					return 0;
+				}
 			}
+		} else if (pending_frag_count > 0) {
+			err = -EBUSY;
+		} else {
+			err = -ENOMEM;
 		}
-	}
-
-	/* A new chunk wasn't allocated this time, check if the allocation can
-	 * be retried later.
-	 */
-	if (nr_in_flight > 1) {
-		/* Can retry as there are some ongoing fragment
-		 * jobs which are expected to free up chunks.
+	} else {
+		/* Reached target number of render passes in flight.
+		 * Wait for some of them to finish
 		 */
 		err = -EBUSY;
 	}
@@ -564,7 +584,7 @@ static int alloc_new_chunk(struct kbase_csf_tiler_heap *heap,
 }
 
 int kbase_csf_tiler_heap_alloc_new_chunk(struct kbase_context *kctx,
-	u64 gpu_heap_va, u32 nr_in_flight, u64 *new_chunk_ptr)
+	u64 gpu_heap_va, u32 nr_in_flight, u32 pending_frag_count, u64 *new_chunk_ptr)
 {
 	struct kbase_csf_tiler_heap *heap;
 	int err = -EINVAL;
@@ -574,8 +594,15 @@ int kbase_csf_tiler_heap_alloc_new_chunk(struct kbase_context *kctx,
 	heap = find_tiler_heap(kctx, gpu_heap_va);
 
 	if (likely(heap)) {
-		err = alloc_new_chunk(heap, nr_in_flight,
+		err = alloc_new_chunk(heap, nr_in_flight, pending_frag_count,
 			new_chunk_ptr);
+
+		KBASE_TLSTREAM_AUX_TILER_HEAP_STATS(
+			kctx->kbdev, kctx->id, heap->heap_id,
+			PFN_UP(heap->chunk_size * heap->max_chunks),
+			PFN_UP(heap->chunk_size * heap->chunk_count),
+			heap->max_chunks, heap->chunk_size, heap->chunk_count,
+			heap->target_in_flight, nr_in_flight);
 	}
 
 	mutex_unlock(&kctx->csf.tiler_heaps.lock);

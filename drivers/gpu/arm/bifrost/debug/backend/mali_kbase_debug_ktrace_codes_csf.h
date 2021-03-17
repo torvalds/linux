@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -108,6 +107,46 @@ int dummy_array[] = {
 	/* info_val == group->run_State (for group the queue is bound to) */
 	KBASE_KTRACE_CODE_MAKE_CODE(QUEUE_START),
 	KBASE_KTRACE_CODE_MAKE_CODE(QUEUE_STOP),
+
+	/*
+	 * KCPU queue events
+	 */
+	/* KTrace info_val == KCPU queue fence context
+	 * KCPU extra_info_val == N/A.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(KCPU_QUEUE_NEW),
+	/* KTrace info_val == Number of pending commands in KCPU queue when
+	 * it is destroyed.
+	 * KCPU extra_info_val == Number of CQS wait operations present in
+	 * the KCPU queue when it is destroyed.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(KCPU_QUEUE_DESTROY),
+	/* KTrace info_val == CQS event memory address
+	 * KCPU extra_info_val == Upper 32 bits of event memory, i.e. contents
+	 * of error field.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(CQS_SET),
+	/* KTrace info_val == Number of CQS objects to be waited upon
+	 * KCPU extra_info_val == N/A.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(CQS_WAIT_START),
+	/* KTrace info_val == CQS event memory address
+	 * KCPU extra_info_val == 1 if CQS was signaled with an error and queue
+	 * inherited the error, otherwise 0.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(CQS_WAIT_END),
+	/* KTrace info_val == Fence context
+	 * KCPU extra_info_val == Fence seqno.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(FENCE_SIGNAL),
+	/* KTrace info_val == Fence context
+	 * KCPU extra_info_val == Fence seqno.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(FENCE_WAIT_START),
+	/* KTrace info_val == Fence context
+	 * KCPU extra_info_val == Fence seqno.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(FENCE_WAIT_END),
 
 #if 0 /* Dummy section to avoid breaking formatting */
 };

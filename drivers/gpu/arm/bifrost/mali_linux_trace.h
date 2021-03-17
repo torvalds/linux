@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2011-2016, 2018-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016, 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -31,7 +30,7 @@
 #if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 #define MALI_JOB_SLOTS_EVENT_CHANGED
 
-/**
+/*
  * mali_job_slots_event - Reports change of job slot status.
  * @gpu_id:   Kbase device id
  * @event_id: ORed together bitfields representing a type of event,
@@ -348,10 +347,7 @@ TRACE_EVENT(mali_jit_report,
 #endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
 #endif /* !MALI_USE_CSF */
 
-#if (KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE)
 TRACE_DEFINE_ENUM(KBASE_JIT_REPORT_ON_ALLOC_OR_FREE);
-#endif
-
 #if MALI_JIT_PRESSURE_LIMIT_BASE
 /* trace_mali_jit_report_pressure
  *
@@ -393,7 +389,6 @@ TRACE_EVENT(mali_jit_report_pressure,
 /* Enum of sysgraph message IDs */
 enum sysgraph_msg {
 	SGR_ARRIVE,
-	SGR_DEP_RES,
 	SGR_SUBMIT,
 	SGR_COMPLETE,
 	SGR_POST,
@@ -421,7 +416,7 @@ TRACE_EVENT(sysgraph,
 		__entry->message    = message;
 		__entry->atom_id    = atom_id;
 	),
-	TP_printk("msg=%u proc_id=%u, param1=%d\n", __entry->message,
+	TP_printk("msg=%u proc_id=%u, param1=%d", __entry->message,
 		 __entry->proc_id,  __entry->atom_id)
 );
 
@@ -447,7 +442,7 @@ TRACE_EVENT(sysgraph_gpu,
 		__entry->atom_id    = atom_id;
 		__entry->js         = js;
 	),
-	TP_printk("msg=%u proc_id=%u, param1=%d, param2=%d\n",
+	TP_printk("msg=%u proc_id=%u, param1=%d, param2=%d",
 		  __entry->message,  __entry->proc_id,
 		  __entry->atom_id, __entry->js)
 );
@@ -536,7 +531,7 @@ TRACE_EVENT(mali_jit_trim,
 	TP_printk("freed_pages=%zu", __entry->freed_pages)
 );
 
-#include "mali_kbase_debug_linux_ktrace.h"
+#include "debug/mali_kbase_debug_linux_ktrace.h"
 
 #endif /* _TRACE_MALI_H */
 

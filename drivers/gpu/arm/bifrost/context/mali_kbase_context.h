@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2017, 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,18 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
- *
- *//* SPDX-License-Identifier: GPL-2.0 */
-/*
- *
- * (C) COPYRIGHT 2011-2017, 2019 ARM Limited. All rights reserved.
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
  *
  */
 
@@ -117,25 +106,7 @@ static inline bool kbase_ctx_flag(struct kbase_context *kctx,
 static inline void kbase_ctx_flag_clear(struct kbase_context *kctx,
 					enum kbase_context_flags flag)
 {
-#if KERNEL_VERSION(4, 3, 0) > LINUX_VERSION_CODE
-	/*
-	 * Earlier kernel versions doesn't have atomic_andnot() or
-	 * atomic_and(). atomic_clear_mask() was only available on some
-	 * architectures and removed on arm in v3.13 on arm and arm64.
-	 *
-	 * Use a compare-exchange loop to clear the flag on pre 4.3 kernels,
-	 * when atomic_andnot() becomes available.
-	 */
-	int old, new;
-
-	do {
-		old = atomic_read(&kctx->flags);
-		new = old & ~flag;
-
-	} while (atomic_cmpxchg(&kctx->flags, old, new) != old);
-#else
 	atomic_andnot(flag, &kctx->flags);
-#endif
 }
 
 /**

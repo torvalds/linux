@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU license.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+#
+
+* Arm protected memory allocator for Mali GPU device drivers
+
+Required properties:
+
+- compatible: Must be "arm,protected-memory-allocator"
+
+The protected memory allocator manages allocation of physical pages of a
+reserved memory region of protected memory, therefore its device node shall
+reference a reserved memory region.
+
+In addition to that, the protected memory allocator shall be referenced
+by the GPU.
+
+A complete example configuration for the device tree:
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		mali_protected: mali_protected@c0000000 {
+			compatible = "mali-reserved";
+			reg = <0x0 0xc0000000 0x0 0x1000000>;
+		};
+	};
+
+	gpu_protected_memory_allocator: protected-memory-allocator {
+		compatible = "arm,protected-memory-allocator";
+		memory-region = <&mali_protected>;
+	};
+
+	gpu_fpga: gpu@0x6e000000 {
+		compatible = "arm,mali-midgard";
+		reg = <0x0 0x6e000000 0x0 0x200000>;
+		interrupts = <0 168 4>, <0 168 4>, <0 168 4>;
+		interrupt-names = "JOB", "MMU", "GPU";
+		clocks = <&scpi_dvfs 2>;
+		clock-names = "clk_mali";
+		protected-memory-allocator = <&gpu_protected_memory_allocator>;
+		operating-points = <
+			/* KHz uV */
+			50000 820000
+		>;
+	};
+
+The protected memory allocator is gpu_protected_memory_allocator.
+It references the mali_protected reserved memory region and, in turn,
+it is referenced by the GPU as protected-memory-allocator.

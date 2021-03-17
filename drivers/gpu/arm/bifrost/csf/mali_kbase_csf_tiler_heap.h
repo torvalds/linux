@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -97,11 +96,14 @@ int kbase_csf_tiler_heap_term(struct kbase_context *kctx, u64 gpu_heap_va);
  * It would return an appropriate error code if a new chunk couldn't be
  * allocated.
  *
- * @kctx: Pointer to the kbase context in which the tiler heap was initialized.
- * @gpu_heap_va:  GPU virtual address of the heap context.
- * @nr_in_flight: Number of render passes that are in-flight, must not be zero.
- * @new_chunk_ptr: Where to store the GPU virtual address & size of the new
- *                 chunk allocated for the heap.
+ * @kctx:               Pointer to the kbase context in which the tiler heap was initialized.
+ * @gpu_heap_va:        GPU virtual address of the heap context.
+ * @nr_in_flight:       Number of render passes that are in-flight, must not be zero.
+ * @pending_frag_count: Number of render passes in-flight with completed vertex/tiler stage.
+ *                      The minimum value is zero but it must be less or equal to
+ *                      the total number of render passes in flight
+ * @new_chunk_ptr:      Where to store the GPU virtual address & size of the new
+ *                      chunk allocated for the heap.
  *
  * Return: 0 if a new chunk was allocated otherwise an appropriate negative
  *         error code (like -EBUSY when a free chunk is expected to be
@@ -109,5 +111,5 @@ int kbase_csf_tiler_heap_term(struct kbase_context *kctx, u64 gpu_heap_va);
  *         invalid value was passed for one of the argument).
  */
 int kbase_csf_tiler_heap_alloc_new_chunk(struct kbase_context *kctx,
-	u64 gpu_heap_va, u32 nr_in_flight, u64 *new_chunk_ptr);
+	u64 gpu_heap_va, u32 nr_in_flight, u32 pending_frag_count, u64 *new_chunk_ptr);
 #endif

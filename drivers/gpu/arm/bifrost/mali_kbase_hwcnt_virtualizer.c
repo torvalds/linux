@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,17 +17,12 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include "mali_kbase_hwcnt_virtualizer.h"
 #include "mali_kbase_hwcnt_accumulator.h"
 #include "mali_kbase_hwcnt_context.h"
 #include "mali_kbase_hwcnt_types.h"
-#include "mali_malisw.h"
-#include "mali_kbase_debug.h"
-#include "mali_kbase_linux.h"
 
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -87,7 +83,6 @@ const struct kbase_hwcnt_metadata *kbase_hwcnt_virtualizer_metadata(
 
 	return hvirt->metadata;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_virtualizer_metadata);
 
 /**
  * kbasep_hwcnt_virtualizer_client_free - Free a virtualizer client's memory.
@@ -496,7 +491,6 @@ int kbase_hwcnt_virtualizer_client_set_counters(
 
 	return errcode;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_virtualizer_client_set_counters);
 
 /**
  * kbasep_hwcnt_virtualizer_client_dump - Perform a dump of the client's
@@ -686,7 +680,6 @@ int kbase_hwcnt_virtualizer_client_dump(
 
 	return errcode;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_virtualizer_client_dump);
 
 int kbase_hwcnt_virtualizer_client_create(
 	struct kbase_hwcnt_virtualizer *hvirt,
@@ -719,7 +712,6 @@ int kbase_hwcnt_virtualizer_client_create(
 	*out_hvcli = hvcli;
 	return 0;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_virtualizer_client_create);
 
 void kbase_hwcnt_virtualizer_client_destroy(
 	struct kbase_hwcnt_virtualizer_client *hvcli)
@@ -735,7 +727,6 @@ void kbase_hwcnt_virtualizer_client_destroy(
 
 	kbasep_hwcnt_virtualizer_client_free(hvcli);
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_virtualizer_client_destroy);
 
 int kbase_hwcnt_virtualizer_init(
 	struct kbase_hwcnt_context *hctx,
@@ -766,7 +757,6 @@ int kbase_hwcnt_virtualizer_init(
 	*out_hvirt = virt;
 	return 0;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_virtualizer_init);
 
 void kbase_hwcnt_virtualizer_term(
 	struct kbase_hwcnt_virtualizer *hvirt)
@@ -787,4 +777,12 @@ void kbase_hwcnt_virtualizer_term(
 
 	kfree(hvirt);
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_virtualizer_term);
+
+bool kbase_hwcnt_virtualizer_queue_work(struct kbase_hwcnt_virtualizer *hvirt,
+					struct work_struct *work)
+{
+	if (WARN_ON(!hvirt) || WARN_ON(!work))
+		return false;
+
+	return kbase_hwcnt_context_queue_work(hvirt->hctx, work);
+}

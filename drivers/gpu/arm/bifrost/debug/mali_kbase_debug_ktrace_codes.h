@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2011-2015,2018-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015, 2018-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -115,6 +114,7 @@ int dummy_array[] = {
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_CORES_CHANGE_DESIRED_TILER),
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_CORES_CHANGE_AVAILABLE),
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_CORES_CHANGE_AVAILABLE_TILER),
+	KBASE_KTRACE_CODE_MAKE_CODE(PM_CORES_CHANGE_AVAILABLE_L2),
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_CORES_AVAILABLE),
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_CORES_AVAILABLE_TILER),
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_DESIRED_REACHED),
@@ -145,7 +145,14 @@ int dummy_array[] = {
 	KBASE_KTRACE_CODE_MAKE_CODE(SCHED_RETAIN_CTX_NOLOCK),
 	/* info_val == kctx->refcount */
 	KBASE_KTRACE_CODE_MAKE_CODE(SCHED_RELEASE_CTX),
-
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
+	/*
+	 * Arbitration events
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(ARB_GPU_LOST),
+	KBASE_KTRACE_CODE_MAKE_CODE(ARB_VM_STATE),
+	KBASE_KTRACE_CODE_MAKE_CODE(ARB_VM_EVT),
+#endif
 
 #if MALI_USE_CSF
 #include "debug/backend/mali_kbase_debug_ktrace_codes_csf.h"

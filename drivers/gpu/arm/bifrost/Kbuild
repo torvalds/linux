@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 #
-# (C) COPYRIGHT 2012-2020 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
 # Foundation, and any use by you of this program is subject to the terms
-# of such GNU licence.
+# of such GNU license.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,16 +16,14 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# SPDX-License-Identifier: GPL-2.0
-#
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "g2p0-01eac0"
+MALI_RELEASE_NAME ?= '"g6p0-01eac0"'
 
 # Paths required for build
 
-# make $(src) as absolute path if it isn't already, by prefixing $(srctree)
+# make $(src) as absolute path if it is not already, by prefixing $(srctree)
 src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
 KBASE_PATH = $(src)
 KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
@@ -32,11 +31,8 @@ UMP_PATH = $(src)/../../../base
 
 # Set up defaults if not defined by build system
 MALI_CUSTOMER_RELEASE ?= 1
-MALI_USE_CSF ?= 0
 MALI_UNIT_TEST ?= 0
-MALI_KERNEL_TEST_API ?= 0
 MALI_COVERAGE ?= 0
-MALI_JIT_PRESSURE_LIMIT_BASE ?= 1
 CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
 # Experimental features (corresponding -D definition should be appended to
 # DEFINES below, e.g. for MALI_EXPERIMENTAL_FEATURE,
@@ -46,6 +42,20 @@ CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
 # MALI_EXPERIMENTAL_FEATURE ?= 0
 MALI_INCREMENTAL_RENDERING ?= 0
 
+ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
+MALI_JIT_PRESSURE_LIMIT_BASE = 0
+MALI_USE_CSF = 1
+else
+MALI_JIT_PRESSURE_LIMIT_BASE ?= 1
+MALI_USE_CSF ?= 0
+endif
+
+ifneq ($(CONFIG_MALI_KUTF), n)
+MALI_KERNEL_TEST_API ?= 1
+else
+MALI_KERNEL_TEST_API ?= 0
+endif
+
 # Set up our defines, which will be passed to gcc
 DEFINES = \
 	-DMALI_CUSTOMER_RELEASE=$(MALI_CUSTOMER_RELEASE) \
@@ -53,7 +63,7 @@ DEFINES = \
 	-DMALI_KERNEL_TEST_API=$(MALI_KERNEL_TEST_API) \
 	-DMALI_UNIT_TEST=$(MALI_UNIT_TEST) \
 	-DMALI_COVERAGE=$(MALI_COVERAGE) \
-	-DMALI_RELEASE_NAME=\"$(MALI_RELEASE_NAME)\" \
+	-DMALI_RELEASE_NAME=$(MALI_RELEASE_NAME) \
 	-DMALI_JIT_PRESSURE_LIMIT_BASE=$(MALI_JIT_PRESSURE_LIMIT_BASE) \
 	-DMALI_INCREMENTAL_RENDERING=$(MALI_INCREMENTAL_RENDERING)
 
@@ -90,7 +100,6 @@ SRC := \
 	mali_kbase_config.c \
 	mali_kbase_vinstr.c \
 	mali_kbase_hwcnt.c \
-	mali_kbase_hwcnt_backend_jm.c \
 	mali_kbase_hwcnt_gpu.c \
 	mali_kbase_hwcnt_legacy.c \
 	mali_kbase_hwcnt_types.c \
@@ -104,7 +113,6 @@ SRC := \
 	mali_kbase_mem_profile_debugfs.c \
 	mmu/mali_kbase_mmu.c \
 	mmu/mali_kbase_mmu_hw_direct.c \
-	mmu/mali_kbase_mmu_mode_lpae.c \
 	mmu/mali_kbase_mmu_mode_aarch64.c \
 	mali_kbase_disjoint_events.c \
 	mali_kbase_debug_mem_view.c \
@@ -115,6 +123,7 @@ SRC := \
 	mali_kbase_strings.c \
 	mali_kbase_as_fault_debugfs.c \
 	mali_kbase_regs_history_debugfs.c \
+	mali_kbase_dvfs_debugfs.c \
 	mali_power_gpu_frequency_trace.c \
 	mali_kbase_trace_gpu_mem.c \
 	thirdparty/mali_kbase_mmap.c \
@@ -126,6 +135,8 @@ SRC := \
 
 ifeq ($(MALI_USE_CSF),1)
 	SRC += \
+		mali_kbase_hwcnt_backend_csf.c \
+		mali_kbase_hwcnt_backend_csf_if_fw.c \
 		debug/backend/mali_kbase_debug_ktrace_csf.c \
 		device/backend/mali_kbase_device_csf.c \
 		device/backend/mali_kbase_device_hw_csf.c \
@@ -135,6 +146,7 @@ ifeq ($(MALI_USE_CSF),1)
 		context/backend/mali_kbase_context_csf.c
 else
 	SRC += \
+		mali_kbase_hwcnt_backend_jm.c \
 		mali_kbase_dummy_job_wa.c \
 		mali_kbase_debug_job_fault.c \
 		mali_kbase_event.c \
@@ -156,9 +168,6 @@ ifeq ($(CONFIG_MALI_CINSTR_GWT),y)
 	SRC += mali_kbase_gwt.c
 endif
 
-ifeq ($(MALI_UNIT_TEST),1)
-	SRC += tl/mali_kbase_timeline_test.c
-endif
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 	SRC += mali_kbase_regs_dump_debugfs.c

@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,15 +17,10 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
-
-
 /**
- * @file mali_kbase_pm.c
- * Base kernel power management APIs
+ * DOC: Base kernel power management APIs
  */
 
 #include <mali_kbase.h>
@@ -191,7 +187,8 @@ void kbase_pm_driver_suspend(struct kbase_device *kbdev)
 
 #if !MALI_USE_CSF
 	/* Suspend job scheduler and associated components, so that it releases all
-	 * the PM active count references */
+	 * the PM active count references
+	 */
 	kbasep_js_suspend(kbdev);
 #else
 	kbase_csf_scheduler_pm_suspend(kbdev);
@@ -259,9 +256,15 @@ void kbase_pm_driver_resume(struct kbase_device *kbdev, bool arb_gpu_start)
 	kbase_pm_context_idle(kbdev);
 
 	/* Re-enable GPU hardware counters */
+#if MALI_USE_CSF
+	kbase_csf_scheduler_spin_lock(kbdev, &flags);
+	kbase_hwcnt_context_enable(kbdev->hwcnt_gpu_ctx);
+	kbase_csf_scheduler_spin_unlock(kbdev, flags);
+#else
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	kbase_hwcnt_context_enable(kbdev->hwcnt_gpu_ctx);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+#endif
 
 	/* Resume vinstr */
 	kbase_vinstr_resume(kbdev->vinstr_ctx);

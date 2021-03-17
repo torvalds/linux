@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
-
 
 #ifndef _KBASE_H_
 #define _KBASE_H_
@@ -38,7 +35,7 @@
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#if (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE)
 #include <linux/sched/mm.h>
 #endif
 #include <linux/slab.h>
@@ -48,7 +45,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
-#include "mali_base_kernel.h"
+#include <uapi/gpu/arm/bifrost/mali_base_kernel.h>
 #include <mali_kbase_linux.h>
 
 /*
@@ -67,7 +64,7 @@
 #include "mali_kbase_gpu_memory_debugfs.h"
 #include "mali_kbase_mem_profile_debugfs.h"
 #include "mali_kbase_gpuprops.h"
-#include "mali_kbase_ioctl.h"
+#include <uapi/gpu/arm/bifrost/mali_kbase_ioctl.h>
 #if !MALI_USE_CSF
 #include "mali_kbase_debug_job_fault.h"
 #include "mali_kbase_jd_debugfs.h"
@@ -93,11 +90,11 @@
 #endif
 
 #if MALI_USE_CSF
-/* Physical memory group ID for command stream frontend user I/O.
+/* Physical memory group ID for CSF user I/O.
  */
 #define KBASE_MEM_GROUP_CSF_IO BASE_MEM_GROUP_DEFAULT
 
-/* Physical memory group ID for command stream frontend firmware.
+/* Physical memory group ID for CSF firmware.
  */
 #define KBASE_MEM_GROUP_CSF_FW BASE_MEM_GROUP_DEFAULT
 #endif
@@ -155,9 +152,9 @@ void kbase_release_device(struct kbase_device *kbdev);
  * the flag @ref KBASE_REG_TILER_ALIGN_TOP (check the flags of the kbase
  * region):
  * - alignment offset is set to the difference between the kbase region
- * extent (converted from the original value in pages to bytes) and the kbase
+ * extension (converted from the original value in pages to bytes) and the kbase
  * region initial_commit (also converted from the original value in pages to
- * bytes); alignment mask is set to the kbase region extent in bytes and
+ * bytes); alignment mask is set to the kbase region extension in bytes and
  * decremented by 1.
  *
  * Return: if successful, address of the unmapped area aligned as required;
@@ -216,10 +213,6 @@ void registers_unmap(struct kbase_device *kbdev);
 
 int kbase_device_coherency_init(struct kbase_device *kbdev);
 
-#ifdef CONFIG_MALI_BUSLOG
-int buslog_init(struct kbase_device *kbdev);
-void buslog_term(struct kbase_device *kbdev);
-#endif
 
 #if !MALI_USE_CSF
 int kbase_jd_init(struct kbase_context *kctx);
@@ -413,13 +406,15 @@ void kbasep_as_do_poke(struct work_struct *work);
 
 /**
  * Check whether a system suspend is in progress, or has already been suspended
+ * @kbdev: The kbase device structure for the device
  *
  * The caller should ensure that either kbdev->pm.active_count_lock is held, or
  * a dmb was executed recently (to ensure the value is most
  * up-to-date). However, without a lock the value could change afterwards.
  *
- * @return false if a suspend is not in progress
- * @return !=false otherwise
+ * Return:
+ * * false if a suspend is not in progress
+ * * !=false otherwise
  */
 static inline bool kbase_pm_is_suspending(struct kbase_device *kbdev)
 {
@@ -456,7 +451,11 @@ static inline bool kbase_pm_is_gpu_lost(struct kbase_device *kbdev)
 static inline void kbase_pm_set_gpu_lost(struct kbase_device *kbdev,
 	bool gpu_lost)
 {
-	atomic_set(&kbdev->pm.gpu_lost, (gpu_lost ? 1 : 0));
+	const int new_val = (gpu_lost ? 1 : 0);
+	const int cur_val = atomic_xchg(&kbdev->pm.gpu_lost, new_val);
+
+	if (new_val != cur_val)
+		KBASE_KTRACE_ADD(kbdev, ARB_GPU_LOST, NULL, new_val);
 }
 #endif
 
@@ -496,6 +495,8 @@ void kbase_pm_metrics_stop(struct kbase_device *kbdev);
 /**
  * Return the atom's ID, as was originally supplied by userspace in
  * base_jd_atom::atom_number
+ * @kctx:  KBase context pointer
+ * @katom: Atome for which to return ID
  */
 static inline int kbase_jd_atom_id(struct kbase_context *kctx, struct kbase_jd_atom *katom)
 {
@@ -547,7 +548,7 @@ static inline struct kbase_jd_atom *kbase_jd_atom_from_id(
  * The disjoint event counter is also incremented immediately whenever a job is soft stopped
  * and during context creation.
  *
- * @param kbdev The kbase device
+ * @kbdev: The kbase device
  *
  * Return: 0 on success and non-zero value on failure.
  */
@@ -557,7 +558,7 @@ void kbase_disjoint_init(struct kbase_device *kbdev);
  * Increase the count of disjoint events
  * called when a disjoint event has happened
  *
- * @param kbdev The kbase device
+ * @kbdev: The kbase device
  */
 void kbase_disjoint_event(struct kbase_device *kbdev);
 
@@ -567,14 +568,14 @@ void kbase_disjoint_event(struct kbase_device *kbdev);
  * This should be called when something happens which could be disjoint if the GPU
  * is in a disjoint state. The state refcount keeps track of this.
  *
- * @param kbdev The kbase device
+ * @kbdev: The kbase device
  */
 void kbase_disjoint_event_potential(struct kbase_device *kbdev);
 
 /**
  * Returns the count of disjoint events
  *
- * @param kbdev The kbase device
+ * @kbdev: The kbase device
  * @return the count of disjoint events
  */
 u32 kbase_disjoint_event_get(struct kbase_device *kbdev);
@@ -586,7 +587,7 @@ u32 kbase_disjoint_event_get(struct kbase_device *kbdev);
  * eventually after the disjoint state has completed @ref kbase_disjoint_state_down
  * should be called
  *
- * @param kbdev The kbase device
+ * @kbdev: The kbase device
  */
 void kbase_disjoint_state_up(struct kbase_device *kbdev);
 
@@ -597,9 +598,33 @@ void kbase_disjoint_state_up(struct kbase_device *kbdev);
  *
  * Called after @ref kbase_disjoint_state_up once the disjoint state is over
  *
- * @param kbdev The kbase device
+ * @kbdev: The kbase device
  */
 void kbase_disjoint_state_down(struct kbase_device *kbdev);
+
+/**
+ * kbase_device_pcm_dev_init() - Initialize the priority control manager device
+ *
+ * @kbdev: Pointer to the structure for the kbase device
+ *
+ * Pointer to the priority control manager device is retrieved from the device
+ * tree and a reference is taken on the module implementing the callbacks for
+ * priority control manager operations.
+ *
+ * Return: 0 if successful, or an error code on failure
+ */
+int kbase_device_pcm_dev_init(struct kbase_device *const kbdev);
+
+/**
+ * kbase_device_pcm_dev_term() - Performs priority control manager device
+ *                               deinitialization.
+ *
+ * @kbdev: Pointer to the structure for the kbase device
+ *
+ * Reference is released on the module implementing the callbacks for priority
+ * control manager operations.
+ */
+void kbase_device_pcm_dev_term(struct kbase_device *const kbdev);
 
 /**
  * If a job is soft stopped and the number of contexts is >= this value

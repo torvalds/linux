@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2012-2016, 2018-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016, 2018-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
-
 
 /*
  * "Coarse Demand" power management policy
@@ -61,6 +58,9 @@ const struct kbase_pm_policy kbase_pm_coarse_demand_policy_ops = {
 	coarse_demand_shaders_needed,		/* shaders_needed */
 	coarse_demand_get_core_active,		/* get_core_active */
 	KBASE_PM_POLICY_ID_COARSE_DEMAND,	/* id */
+#if MALI_USE_CSF
+	COARSE_ON_DEMAND_PM_SCHED_FLAGS,	/* pm_sched_flags */
+#endif
 };
 
 KBASE_EXPORT_TEST_API(kbase_pm_coarse_demand_policy_ops);

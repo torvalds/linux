@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * (C) COPYRIGHT 2014, 2016, 2019-2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -118,7 +117,7 @@ void kbase_io_history_add(struct kbase_io_history *h,
 void kbase_io_history_dump(struct kbase_device *kbdev)
 {
 	struct kbase_io_history *const h = &kbdev->io_history;
-	u16 i;
+	size_t i;
 	size_t iters;
 	unsigned long flags;
 
@@ -136,7 +135,7 @@ void kbase_io_history_dump(struct kbase_device *kbdev)
 			&h->buf[(h->count - iters + i) % h->size];
 		char const access = (io->addr & 1) ? 'w' : 'r';
 
-		dev_err(kbdev->dev, "%6i: %c: reg 0x%016lx val %08x\n", i,
+		dev_err(kbdev->dev, "%6zu: %c: reg 0x%016lx val %08x\n", i,
 			access, (unsigned long)(io->addr & ~0x1), io->value);
 	}
 
@@ -180,7 +179,7 @@ DEFINE_SIMPLE_ATTRIBUTE(regs_history_size_fops,
 static int regs_history_show(struct seq_file *sfile, void *data)
 {
 	struct kbase_io_history *const h = sfile->private;
-	u16 i;
+	size_t i;
 	size_t iters;
 	unsigned long flags;
 
@@ -199,8 +198,8 @@ static int regs_history_show(struct seq_file *sfile, void *data)
 			&h->buf[(h->count - iters + i) % h->size];
 		char const access = (io->addr & 1) ? 'w' : 'r';
 
-		seq_printf(sfile, "%6i: %c: reg 0x%016lx val %08x\n", i, access,
-				(unsigned long)(io->addr & ~0x1), io->value);
+		seq_printf(sfile, "%6zu: %c: reg 0x%016lx val %08x\n", i,
+			   access, (unsigned long)(io->addr & ~0x1), io->value);
 	}
 
 	spin_unlock_irqrestore(&h->lock, flags);

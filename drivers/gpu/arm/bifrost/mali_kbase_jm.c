@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,10 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
 
 /*
  * HW access job manager common APIs
@@ -47,7 +45,7 @@ static bool kbase_jm_next_job(struct kbase_device *kbdev, int js,
 
 	kctx = kbdev->hwaccess.active_kctx[js];
 	dev_dbg(kbdev->dev,
-		"Trying to run the next %d jobs in kctx %p (s:%d)\n",
+		"Trying to run the next %d jobs in kctx %pK (s:%d)\n",
 		nr_jobs_to_submit, (void *)kctx, js);
 
 	if (!kctx)
@@ -110,7 +108,6 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev)
 		up(&js_devdata->schedule_sem);
 	}
 }
-#endif /* !MALI_USE_CSF */
 
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
@@ -120,20 +117,19 @@ void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 
 	for (js = 0; js < BASE_JM_MAX_NR_SLOTS; js++) {
 		if (kbdev->hwaccess.active_kctx[js] == kctx) {
-			dev_dbg(kbdev->dev, "Marking kctx %p as inactive (s:%d)\n",
+			dev_dbg(kbdev->dev, "Marking kctx %pK as inactive (s:%d)\n",
 					(void *)kctx, js);
 			kbdev->hwaccess.active_kctx[js] = NULL;
 		}
 	}
 }
 
-#if !MALI_USE_CSF
 struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom)
 {
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	dev_dbg(kbdev->dev, "Atom %p is returning with event code 0x%x\n",
+	dev_dbg(kbdev->dev, "Atom %pK is returning with event code 0x%x\n",
 		(void *)katom, katom->event_code);
 
 	if (katom->event_code != BASE_JD_EVENT_STOPPED &&

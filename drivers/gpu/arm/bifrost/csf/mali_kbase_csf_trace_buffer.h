@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2018-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -76,12 +75,15 @@ void kbase_csf_firmware_trace_buffers_term(struct kbase_device *kbdev);
  *
  * Return: 0 if successful, negative error code on failure.
  *
- * @kbdev: Kbase device structure
- * @entry: Pointer to the section
- * @size:  Size (in bytes) of the section
+ * @kbdev:     Kbase device structure
+ * @entry:     Pointer to the section
+ * @size:      Size (in bytes) of the section
+ * @updatable: Indicates whether config items can be updated with FIRMWARE_CONFIG_UPDATE
  */
 int kbase_csf_firmware_parse_trace_buffer_entry(struct kbase_device *kbdev,
-		const u32 *entry, unsigned int size);
+						const u32 *entry,
+						unsigned int size,
+						bool updatable);
 
 /**
  * kbase_csf_firmware_reload_trace_buffers_data -
@@ -134,9 +136,12 @@ unsigned int kbase_csf_firmware_trace_buffer_get_trace_enable_bits_count(
  * @trace_buffer: Trace buffer handle
  * @bit:          Bit to update
  * @value:        New value for the given bit
+ *
+ * Return: 0 if successful, negative error code on failure.
  */
-void kbase_csf_firmware_trace_buffer_update_trace_enable_bit(
-	struct firmware_trace_buffer *trace_buffer, unsigned int bit, bool value);
+int kbase_csf_firmware_trace_buffer_update_trace_enable_bit(
+	struct firmware_trace_buffer *trace_buffer, unsigned int bit,
+	bool value);
 
 /**
  * kbase_csf_firmware_trace_buffer_is_empty - Empty trace buffer predicate

@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -90,6 +89,59 @@ static int set_attr_from_string(
 	return err;
 }
 
+int kbase_debugfs_string_validator(char *const buf)
+{
+	size_t index;
+	int err = 0;
+	char *ptr = buf;
+
+	for (index = 0; *ptr; ++index) {
+		unsigned long test_number;
+		size_t len;
+
+		/* Drop leading spaces */
+		while (*ptr == ' ')
+			ptr++;
+
+		/* Strings passed into the validator will be NULL terminated
+		 * by nature, so here strcspn only needs to delimit by
+		 * newlines, spaces and NULL terminator (delimited natively).
+		 */
+		len = strcspn(ptr, "\n ");
+		if (len == 0) {
+			/* No more values (allow this) */
+			break;
+		}
+
+		/* Substitute a nul terminator for a space character to make
+		 * the substring valid for kstrtoul, and then replace it back.
+		 */
+		if (ptr[len] == ' ') {
+			ptr[len] = '\0';
+			err = kstrtoul(ptr, 0, &test_number);
+			ptr[len] = ' ';
+
+			/* len should only be incremented if there is a valid
+			 * number to follow - otherwise this will skip over
+			 * the NULL terminator in cases with no ending newline
+			 */
+			len++;
+		} else {
+			/* This would occur at the last element before a space
+			 * or a NULL terminator.
+			 */
+			err = kstrtoul(ptr, 0, &test_number);
+		}
+
+		if (err)
+			break;
+		/* Skip the substring (including any premature nul terminator)
+		 */
+		ptr += len;
+	}
+	return err;
+}
+
 int kbase_debugfs_helper_set_attr_from_string(
 	const char *const buf, void *const array, size_t const nelems,
 	kbase_debugfs_helper_set_attr_fn const set_attr_fn)
@@ -99,6 +151,13 @@ int kbase_debugfs_helper_set_attr_from_string(
 
 	if (!wbuf)
 		return -ENOMEM;
+
+	/* validate string before actually writing values */
+	err = kbase_debugfs_string_validator(wbuf);
+	if (err) {
+		kfree(wbuf);
+		return err;
+	}
 
 	err = set_attr_from_string(wbuf, array, nelems,
 		set_attr_fn);
@@ -154,6 +213,14 @@ int kbase_debugfs_helper_seq_write(struct file *const file,
 	}
 
 	buf[count] = '\0';
+
+	/* validate string before actually writing values */
+	err = kbase_debugfs_string_validator(buf);
+	if (err) {
+		kfree(buf);
+		return err;
+	}
+
 	err = set_attr_from_string(buf,
 		array, nelems, set_attr_fn);
 	kfree(buf);

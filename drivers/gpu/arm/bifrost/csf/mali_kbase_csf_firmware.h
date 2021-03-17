@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2018-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,15 +17,13 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #ifndef _KBASE_CSF_FIRMWARE_H_
 #define _KBASE_CSF_FIRMWARE_H_
 
 #include "device/mali_kbase_device.h"
-#include "mali_gpu_csf_registers.h"
+#include <uapi/gpu/arm/bifrost/csf/mali_gpu_csf_registers.h>
 
 /*
  * PAGE_KERNEL_RO was only defined on 32bit ARM in 4.19 in:
@@ -71,13 +70,16 @@
 /* All implementations of the host interface with major version 0 must comply
  * with these restrictions:
  */
-/* GLB_GROUP_NUM: At least 3 command stream groups, but no more than 31 */
+/* GLB_GROUP_NUM: At least 3 CSGs, but no more than 31 */
 #define MIN_SUPPORTED_CSGS 3
 #define MAX_SUPPORTED_CSGS 31
-/* GROUP_STREAM_NUM: At least 8 command streams per CSG, but no more than 32 */
+/* GROUP_STREAM_NUM: At least 8 CSs per CSG, but no more than 32 */
 #define MIN_SUPPORTED_STREAMS_PER_GROUP 8
-/* Maximum command streams per csg. */
+/* Maximum CSs per csg. */
 #define MAX_SUPPORTED_STREAMS_PER_GROUP 32
+
+/* Waiting timeout for status change acknowledgment, in milliseconds */
+#define CSF_FIRMWARE_TIMEOUT_MS (800) /* Relaxed to 800ms from 100ms */
 
 struct kbase_device;
 
@@ -111,16 +113,15 @@ struct kbase_csf_trace_buffers {
 };
 
 /**
- * struct kbase_csf_cmd_stream_info - Command stream interface provided by the
- *                                    firmware.
+ * struct kbase_csf_cmd_stream_info - CSI provided by the firmware.
  *
  * @kbdev: Address of the instance of a GPU platform device that implements
  *         this interface.
- * @features: Bit field of command stream features (e.g. which types of jobs
+ * @features: Bit field of CS features (e.g. which types of jobs
  *            are supported). Bits 7:0 specify the number of work registers(-1).
  *            Bits 11:8 specify the number of scoreboard entries(-1).
- * @input: Address of command stream interface input page.
- * @output: Address of command stream interface output page.
+ * @input: Address of CSI input page.
+ * @output: Address of CSI output page.
  */
 struct kbase_csf_cmd_stream_info {
 	struct kbase_device *kbdev;
@@ -130,9 +131,9 @@ struct kbase_csf_cmd_stream_info {
 };
 
 /**
- * kbase_csf_firmware_cs_input() - Set a word in a command stream's input page
+ * kbase_csf_firmware_cs_input() - Set a word in a CS's input page
  *
- * @info: Command stream interface provided by the firmware.
+ * @info: CSI provided by the firmware.
  * @offset: Offset of the word to be written, in bytes.
  * @value: Value to be written.
  */
@@ -140,22 +141,20 @@ void kbase_csf_firmware_cs_input(
 	const struct kbase_csf_cmd_stream_info *info, u32 offset, u32 value);
 
 /**
- * kbase_csf_firmware_cs_input_read() - Read a word in a command stream's input
- *                                      page
+ * kbase_csf_firmware_cs_input_read() - Read a word in a CS's input page
  *
- * Return: Value of the word read from the command stream's input page.
+ * Return: Value of the word read from the CS's input page.
  *
- * @info: Command stream interface provided by the firmware.
+ * @info: CSI provided by the firmware.
  * @offset: Offset of the word to be read, in bytes.
  */
 u32 kbase_csf_firmware_cs_input_read(
 	const struct kbase_csf_cmd_stream_info *const info, const u32 offset);
 
 /**
- * kbase_csf_firmware_cs_input_mask() - Set part of a word in a command stream's
- *                                      input page
+ * kbase_csf_firmware_cs_input_mask() - Set part of a word in a CS's input page
  *
- * @info: Command stream interface provided by the firmware.
+ * @info: CSI provided by the firmware.
  * @offset: Offset of the word to be modified, in bytes.
  * @value: Value to be written.
  * @mask: Bitmask with the bits to be modified set.
@@ -165,19 +164,18 @@ void kbase_csf_firmware_cs_input_mask(
 	u32 value, u32 mask);
 
 /**
- * kbase_csf_firmware_cs_output() - Read a word in a command stream's output
- *                                  page
+ * kbase_csf_firmware_cs_output() - Read a word in a CS's output page
  *
- * Return: Value of the word read from the command stream's output page.
+ * Return: Value of the word read from the CS's output page.
  *
- * @info: Command stream interface provided by the firmware.
+ * @info: CSI provided by the firmware.
  * @offset: Offset of the word to be read, in bytes.
  */
 u32 kbase_csf_firmware_cs_output(
 	const struct kbase_csf_cmd_stream_info *info, u32 offset);
 /**
- * struct kbase_csf_cmd_stream_group_info - Command stream group interface
- *                                          provided by the firmware.
+ * struct kbase_csf_cmd_stream_group_info - CSG interface provided by the
+ *                                          firmware.
  *
  * @kbdev: Address of the instance of a GPU platform device that implements
  *         this interface.
@@ -185,14 +183,13 @@ u32 kbase_csf_firmware_cs_output(
  *            be ignored.
  * @input: Address of global interface input page.
  * @output: Address of global interface output page.
- * @suspend_size: Size in bytes for normal suspend buffer for the command
- *                stream group.
+ * @suspend_size: Size in bytes for normal suspend buffer for the CSG
  * @protm_suspend_size: Size in bytes for protected mode suspend buffer
- *                      for the command stream group.
- * @stream_num: Number of command streams in the command stream group.
+ *                      for the CSG.
+ * @stream_num: Number of CSs in the CSG.
  * @stream_stride: Stride in bytes in JASID0 virtual address between
- *                 command stream capability structures.
- * @streams: Address of an array of command stream capability structures.
+ *                 CS capability structures.
+ * @streams: Address of an array of CS capability structures.
  */
 struct kbase_csf_cmd_stream_group_info {
 	struct kbase_device *kbdev;
@@ -207,10 +204,9 @@ struct kbase_csf_cmd_stream_group_info {
 };
 
 /**
- * kbase_csf_firmware_csg_input() - Set a word in a command stream group's
- *                                  input page
+ * kbase_csf_firmware_csg_input() - Set a word in a CSG's input page
  *
- * @info: Command stream group interface provided by the firmware.
+ * @info: CSG interface provided by the firmware.
  * @offset: Offset of the word to be written, in bytes.
  * @value: Value to be written.
  */
@@ -219,22 +215,21 @@ void kbase_csf_firmware_csg_input(
 	u32 value);
 
 /**
- * kbase_csf_firmware_csg_input_read() - Read a word in a command stream group's
- *                                       input page
+ * kbase_csf_firmware_csg_input_read() - Read a word in a CSG's input page
  *
- * Return: Value of the word read from the command stream group's input page.
+ * Return: Value of the word read from the CSG's input page.
  *
- * @info: Command stream group interface provided by the firmware.
+ * @info: CSG interface provided by the firmware.
  * @offset: Offset of the word to be read, in bytes.
  */
 u32 kbase_csf_firmware_csg_input_read(
 	const struct kbase_csf_cmd_stream_group_info *info, u32 offset);
 
 /**
- * kbase_csf_firmware_csg_input_mask() - Set part of a word in a command stream
- *                                       group's input page
+ * kbase_csf_firmware_csg_input_mask() - Set part of a word in a CSG's
+ *                                       input page
  *
- * @info: Command stream group interface provided by the firmware.
+ * @info: CSG interface provided by the firmware.
  * @offset: Offset of the word to be modified, in bytes.
  * @value: Value to be written.
  * @mask: Bitmask with the bits to be modified set.
@@ -244,19 +239,18 @@ void kbase_csf_firmware_csg_input_mask(
 	u32 value, u32 mask);
 
 /**
- * kbase_csf_firmware_csg_output()- Read a word in a command stream group's
- *                                  output page
+ * kbase_csf_firmware_csg_output()- Read a word in a CSG's output page
  *
- * Return: Value of the word read from the command stream group's output page.
+ * Return: Value of the word read from the CSG's output page.
  *
- * @info: Command stream group interface provided by the firmware.
+ * @info: CSG interface provided by the firmware.
  * @offset: Offset of the word to be read, in bytes.
  */
 u32 kbase_csf_firmware_csg_output(
 	const struct kbase_csf_cmd_stream_group_info *info, u32 offset);
 
 /**
- * struct kbase_csf_global_iface - Global command stream front-end interface
+ * struct kbase_csf_global_iface - Global CSF interface
  *                                 provided by the firmware.
  *
  * @kbdev: Address of the instance of a GPU platform device that implements
@@ -268,11 +262,12 @@ u32 kbase_csf_firmware_csg_output(
  *            be suspended). Reserved bits should be 0, and should be ignored.
  * @input: Address of global interface input page.
  * @output: Address of global interface output page.
- * @group_num: Number of command stream groups supported.
+ * @group_num: Number of CSGs supported.
  * @group_stride: Stride in bytes in JASID0 virtual address between
- *                command stream group capability structures.
+ *                CSG capability structures.
  * @prfcnt_size: Performance counters size.
- * @groups: Address of an array of command stream group capability structures.
+ * @instr_features: Instrumentation features.
+ * @groups: Address of an array of CSG capability structures.
  */
 struct kbase_csf_global_iface {
 	struct kbase_device *kbdev;
@@ -283,13 +278,14 @@ struct kbase_csf_global_iface {
 	u32 group_num;
 	u32 group_stride;
 	u32 prfcnt_size;
+	u32 instr_features;
 	struct kbase_csf_cmd_stream_group_info *groups;
 };
 
 /**
  * kbase_csf_firmware_global_input() - Set a word in the global input page
  *
- * @iface: Command stream front-end interface provided by the firmware.
+ * @iface: CSF interface provided by the firmware.
  * @offset: Offset of the word to be written, in bytes.
  * @value: Value to be written.
  */
@@ -300,7 +296,7 @@ void kbase_csf_firmware_global_input(
  * kbase_csf_firmware_global_input_mask() - Set part of a word in the global
  *                                          input page
  *
- * @iface: Command stream front-end interface provided by the firmware.
+ * @iface: CSF interface provided by the firmware.
  * @offset: Offset of the word to be modified, in bytes.
  * @value: Value to be written.
  * @mask: Bitmask with the bits to be modified set.
@@ -314,7 +310,7 @@ void kbase_csf_firmware_global_input_mask(
  *
  * Return: Value of the word read from the global input page.
  *
- * @info: Command stream group interface provided by the firmware.
+ * @info: CSG interface provided by the firmware.
  * @offset: Offset of the word to be read, in bytes.
  */
 u32 kbase_csf_firmware_global_input_read(
@@ -325,7 +321,7 @@ u32 kbase_csf_firmware_global_input_read(
  *
  * Return: Value of the word read from the global output page.
  *
- * @iface: Command stream front-end interface provided by the firmware.
+ * @iface: CSF interface provided by the firmware.
  * @offset: Offset of the word to be read, in bytes.
  */
 u32 kbase_csf_firmware_global_output(
@@ -403,20 +399,28 @@ void kbase_csf_firmware_term(struct kbase_device *kbdev);
 /**
  * kbase_csf_firmware_ping - Send the ping request to firmware.
  *
- * The function sends the ping request to firmware to confirm it is alive.
+ * The function sends the ping request to firmware.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ */
+void kbase_csf_firmware_ping(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_firmware_ping_wait - Send the ping request to firmware and waits.
+ *
+ * The function sends the ping request to firmware and waits to confirm it is
+ * alive.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
  * Return: 0 on success, or negative on failure.
  */
-int kbase_csf_firmware_ping(struct kbase_device *kbdev);
+int kbase_csf_firmware_ping_wait(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_firmware_set_timeout - Set a hardware endpoint progress timeout.
  *
- * @kbdev:   Instance of a GPU platform device that implements a command
- *           stream front-end interface.
+ * @kbdev:   Instance of a GPU platform device that implements a CSF interface.
  * @timeout: The maximum number of GPU cycles that is allowed to elapse
  *           without forward progress before the driver terminates a GPU
  *           command queue group.
@@ -433,8 +437,7 @@ int kbase_csf_firmware_set_timeout(struct kbase_device *kbdev, u64 timeout);
  *                                  enter protected mode and wait for its
  *                                  completion.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_enter_protected_mode(struct kbase_device *kbdev);
 
@@ -454,16 +457,14 @@ static inline bool kbase_csf_firmware_mcu_halted(struct kbase_device *kbdev)
  *                                       into a known internal state for warm
  *                                       boot later.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_firmware_trigger_mcu_halt(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_firmware_enable_mcu - Send the command to enable MCU
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 static inline void kbase_csf_firmware_enable_mcu(struct kbase_device *kbdev)
 {
@@ -477,8 +478,7 @@ static inline void kbase_csf_firmware_enable_mcu(struct kbase_device *kbdev)
 /**
  * kbase_csf_firmware_disable_mcu - Send the command to disable MCU
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 static inline void kbase_csf_firmware_disable_mcu(struct kbase_device *kbdev)
 {
@@ -489,8 +489,7 @@ static inline void kbase_csf_firmware_disable_mcu(struct kbase_device *kbdev)
  * kbase_csf_firmware_disable_mcu_wait - Wait for the MCU to reach disabled
  *                                       status.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_firmware_disable_mcu_wait(struct kbase_device *kbdev);
 
@@ -499,8 +498,7 @@ void kbase_csf_firmware_disable_mcu_wait(struct kbase_device *kbdev);
  *                                 cold boot case firmware image would be
  *                                 reloaded from filesystem into memory.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_firmware_trigger_reload(struct kbase_device *kbdev);
 
@@ -508,8 +506,7 @@ void kbase_csf_firmware_trigger_reload(struct kbase_device *kbdev);
  * kbase_csf_firmware_reload_completed - The reboot of MCU firmware has
  *                                       completed.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_firmware_reload_completed(struct kbase_device *kbdev);
 
@@ -517,10 +514,11 @@ void kbase_csf_firmware_reload_completed(struct kbase_device *kbdev);
  * kbase_csf_firmware_global_reinit - Send the Global configuration requests
  *                                    after the reboot of MCU firmware.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ * @core_mask: Mask of the enabled shader cores.
  */
-void kbase_csf_firmware_global_reinit(struct kbase_device *kbdev);
+void kbase_csf_firmware_global_reinit(struct kbase_device *kbdev,
+				      u64 core_mask);
 
 /**
  * kbase_csf_firmware_global_reinit_complete - Check the Global configuration
@@ -529,45 +527,69 @@ void kbase_csf_firmware_global_reinit(struct kbase_device *kbdev);
  *
  * Return: true if the Global configuration requests completed otherwise false.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 bool kbase_csf_firmware_global_reinit_complete(struct kbase_device *kbdev);
 
 /**
+ * kbase_csf_firmware_update_core_attr - Send the Global configuration request
+ *                                       to update the requested core attribute
+ *                                       changes.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ * @update_core_pwroff_timer: If true, signal the firmware needs to update
+ *                            the MCU power-off timer value.
+ * @update_core_mask:         If true, need to do the core_mask update with
+ *                            the supplied core_mask value.
+ * @core_mask:                New core mask value if update_core_mask is true,
+ *                            otherwise unused.
+ */
+void kbase_csf_firmware_update_core_attr(struct kbase_device *kbdev,
+		bool update_core_pwroff_timer, bool update_core_mask, u64 core_mask);
+
+/**
+ * kbase_csf_firmware_core_attr_updated - Check the Global configuration
+ *                  request has completed or not, that was sent to update
+ *                  the core attributes.
+ *
+ * Return: true if the Global configuration request to update the core
+ *         attributes has completed, otherwise false.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ */
+bool kbase_csf_firmware_core_attr_updated(struct kbase_device *kbdev);
+
+/**
  * Request the global control block of CSF interface capabilities
  *
- * Return: Total number of command streams, summed across all groups.
+ * Return: Total number of CSs, summed across all groups.
  *
  * @kbdev:                 Kbase device.
  * @group_data:            Pointer where to store all the group data
  *                         (sequentially).
  * @max_group_num:         The maximum number of groups to be read.
  *                         Can be 0, in which case group_data is unused.
- * @stream_data:           Pointer where to store all the stream data
+ * @stream_data:           Pointer where to store all the CS data
  *                         (sequentially).
- * @max_total_stream_num:  The maximum number of streams to be read.
+ * @max_total_stream_num:  The maximum number of CSs to be read.
  *                         Can be 0, in which case stream_data is unused.
  * @glb_version:           Where to store the global interface version.
- *                         Bits 31:16 hold the major version number and
- *                         15:0 hold the minor version number.
- *                         A higher minor version is backwards-compatible
- *                         with a lower minor version for the same major
- *                         version.
  * @features:              Where to store a bit mask of features (e.g.
  *                         whether certain types of job can be suspended).
- * @group_num:             Where to store the number of command stream groups
+ * @group_num:             Where to store the number of CSGs
  *                         supported.
  * @prfcnt_size:           Where to store the size of CSF performance counters,
  *                         in bytes. Bits 31:16 hold the size of firmware
  *                         performance counter data and 15:0 hold the size of
  *                         hardware performance counter data.
+ * @instr_features:        Instrumentation features. Bits 7:4 hold the max size
+ *                         of events. Bits 3:0 hold the offset update rate.
  */
-u32 kbase_csf_firmware_get_glb_iface(struct kbase_device *kbdev,
-	struct basep_cs_group_control *group_data, u32 max_group_num,
-	struct basep_cs_stream_control *stream_data, u32 max_total_stream_num,
-	u32 *glb_version, u32 *features, u32 *group_num, u32 *prfcnt_size);
-
+u32 kbase_csf_firmware_get_glb_iface(
+	struct kbase_device *kbdev, struct basep_cs_group_control *group_data,
+	u32 max_group_num, struct basep_cs_stream_control *stream_data,
+	u32 max_total_stream_num, u32 *glb_version, u32 *features,
+	u32 *group_num, u32 *prfcnt_size, u32 *instr_features);
 
 /**
  * Get CSF firmware header timeline metadata content
@@ -660,4 +682,125 @@ static inline long kbase_csf_timeout_in_jiffies(const unsigned int msecs)
 #endif
 }
 
+/**
+ * kbase_csf_firmware_enable_gpu_idle_timer() - Activate the idle hysteresis
+ *                                              monitoring operation
+ *
+ * Program the firmware interface with its configured hysteresis count value
+ * and enable the firmware to act on it. The Caller is
+ * assumed to hold the kbdev->csf.scheduler.interrupt_lock.
+ *
+ * @kbdev: Kbase device structure
+ */
+void kbase_csf_firmware_enable_gpu_idle_timer(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_firmware_disable_gpu_idle_timer() - Disable the idle time
+ *                                             hysteresis monitoring operation
+ *
+ * Program the firmware interface to disable the idle hysteresis timer. The
+ * Caller is assumed to hold the kbdev->csf.scheduler.interrupt_lock.
+ *
+ * @kbdev: Kbase device structure
+ */
+void kbase_csf_firmware_disable_gpu_idle_timer(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_firmware_get_gpu_idle_hysteresis_time - Get the firmware GPU idle
+ *                                               detection hysteresis duration
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Return: the internally recorded hysteresis (nominal) value.
+ */
+u32 kbase_csf_firmware_get_gpu_idle_hysteresis_time(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_firmware_set_gpu_idle_hysteresis_time - Set the firmware GPU idle
+ *                                               detection hysteresis duration
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ * @dur:     The duration value (unit: milliseconds) for the configuring
+ *           hysteresis field for GPU idle detection
+ *
+ * The supplied value will be recorded internally without any change. But the
+ * actual field value will be subject to hysteresis source frequency scaling
+ * and maximum value limiting. The default source will be SYSTEM_TIMESTAMP
+ * counter. But in case the platform is not able to supply it, the GPU
+ * CYCLE_COUNTER source will be used as an alternative. Bit-31 on the
+ * returned value is the source configuration flag, and it is set to '1'
+ * when CYCLE_COUNTER alternative source is used.
+ *
+ * Return: the actual internally configured hysteresis field value.
+ */
+u32 kbase_csf_firmware_set_gpu_idle_hysteresis_time(struct kbase_device *kbdev, u32 dur);
+
+/**
+ * kbase_csf_firmware_get_mcu_core_pwroff_time - Get the MCU core power-off
+ *                                               time value
+ *
+ * @kbdev:   Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Return: the internally recorded MCU core power-off (nominal) value. The unit
+ *         of the value is in micro-seconds.
+ */
+u32 kbase_csf_firmware_get_mcu_core_pwroff_time(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_firmware_set_mcu_core_pwroff_time - Set the MCU core power-off
+ *                                               time value
+ *
+ * @kbdev:   Instance of a GPU platform device that implements a CSF interface.
+ * @dur:     The duration value (unit: micro-seconds) for configuring MCU
+ *           core power-off timer, when the shader cores' power
+ *           transitions are delegated to the MCU (normal operational
+ *           mode)
+ *
+ * The supplied value will be recorded internally without any change. But the
+ * actual field value will be subject to core power-off timer source frequency
+ * scaling and maximum value limiting. The default source will be
+ * SYSTEM_TIMESTAMP counter. But in case the platform is not able to supply it,
+ * the GPU CYCLE_COUNTER source will be used as an alternative. Bit-31 on the
+ * returned value is the source configuration flag, and it is set to '1'
+ * when CYCLE_COUNTER alternative source is used.
+ *
+ * The configured MCU core power-off timer will only have effect when the host
+ * driver has delegated the shader cores' power management to MCU.
+ *
+ * Return: the actual internal core power-off timer value in register defined
+ *         format.
+ */
+u32 kbase_csf_firmware_set_mcu_core_pwroff_time(struct kbase_device *kbdev, u32 dur);
+
+/**
+ * kbase_csf_interface_version - Helper function to build the full firmware
+ *                               interface version in a format compatible with
+ *                               with GLB_VERSION register
+ *
+ * @major:     major version of csf interface
+ * @minor:     minor version of csf interface
+ * @patch:     patch version of csf interface
+ *
+ * Return: firmware interface version
+ */
+static inline u32 kbase_csf_interface_version(u32 major, u32 minor, u32 patch)
+{
+	return ((major << GLB_VERSION_MAJOR_SHIFT) |
+		(minor << GLB_VERSION_MINOR_SHIFT) |
+		(patch << GLB_VERSION_PATCH_SHIFT));
+}
+
+/**
+ * kbase_csf_trigger_firmware_config_update - Send a firmware config update.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Any changes done to firmware configuration entry or tracebuffer entry
+ * requires a GPU silent reset to reflect the configuration changes
+ * requested, but if Firmware.header.entry.bit(30) is set then we can request a
+ * FIRMWARE_CONFIG_UPDATE rather than doing a silent reset.
+ *
+ * Return: 0 if success, or negative error code on failure.
+ */
+int kbase_csf_trigger_firmware_config_update(struct kbase_device *kbdev);
 #endif

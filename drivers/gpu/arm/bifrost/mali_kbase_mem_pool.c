@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2015-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -154,19 +153,11 @@ static void kbase_mem_pool_spill(struct kbase_mem_pool *next_pool,
 struct page *kbase_mem_alloc_page(struct kbase_mem_pool *pool)
 {
 	struct page *p;
-	gfp_t gfp;
+	gfp_t gfp = GFP_HIGHUSER | __GFP_ZERO;
 	struct kbase_device *const kbdev = pool->kbdev;
 	struct device *const dev = kbdev->dev;
 	dma_addr_t dma_addr;
 	int i;
-
-#if defined(CONFIG_ARM) && !defined(CONFIG_HAVE_DMA_ATTRS) && \
-	LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
-	/* DMA cache sync fails for HIGHMEM before 3.5 on ARM */
-	gfp = GFP_USER | __GFP_ZERO;
-#else
-	gfp = GFP_HIGHUSER | __GFP_ZERO;
-#endif
 
 	/* don't warn on higher order failures */
 	if (pool->order)
@@ -318,7 +309,7 @@ void kbase_mem_pool_set_max_size(struct kbase_mem_pool *pool, size_t max_size)
 
 	kbase_mem_pool_unlock(pool);
 }
-
+KBASE_EXPORT_TEST_API(kbase_mem_pool_set_max_size);
 
 static unsigned long kbase_mem_pool_reclaim_count_objects(struct shrinker *s,
 		struct shrink_control *sc)
@@ -364,17 +355,6 @@ static unsigned long kbase_mem_pool_reclaim_scan_objects(struct shrinker *s,
 	return freed;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
-static int kbase_mem_pool_reclaim_shrink(struct shrinker *s,
-		struct shrink_control *sc)
-{
-	if (sc->nr_to_scan == 0)
-		return kbase_mem_pool_reclaim_count_objects(s, sc);
-
-	return kbase_mem_pool_reclaim_scan_objects(s, sc);
-}
-#endif
-
 int kbase_mem_pool_init(struct kbase_mem_pool *pool,
 		const struct kbase_mem_pool_config *config,
 		unsigned int order,
@@ -398,19 +378,13 @@ int kbase_mem_pool_init(struct kbase_mem_pool *pool,
 	spin_lock_init(&pool->pool_lock);
 	INIT_LIST_HEAD(&pool->page_list);
 
-	/* Register shrinker */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
-	pool->reclaim.shrink = kbase_mem_pool_reclaim_shrink;
-#else
 	pool->reclaim.count_objects = kbase_mem_pool_reclaim_count_objects;
 	pool->reclaim.scan_objects = kbase_mem_pool_reclaim_scan_objects;
-#endif
 	pool->reclaim.seeks = DEFAULT_SEEKS;
 	/* Kernel versions prior to 3.1 :
-	 * struct shrinker does not define batch */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0)
+	 * struct shrinker does not define batch
+	 */
 	pool->reclaim.batch = 0;
-#endif
 	register_shrinker(&pool->reclaim);
 
 	pool_dbg(pool, "initialized\n");
@@ -830,8 +804,8 @@ void kbase_mem_pool_free_pages_locked(struct kbase_mem_pool *pool,
 		nr_to_pool = kbase_mem_pool_capacity(pool);
 		nr_to_pool = min(nr_pages, nr_to_pool);
 
-		kbase_mem_pool_add_array_locked(pool, nr_pages, pages, false,
-				dirty);
+		kbase_mem_pool_add_array_locked(pool, nr_to_pool, pages, false,
+						dirty);
 
 		i += nr_to_pool;
 	}

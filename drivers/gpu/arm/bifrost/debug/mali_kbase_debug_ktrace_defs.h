@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -78,12 +77,18 @@ typedef u8 kbase_ktrace_code_t;
  */
 
 /*
- * struct kbase_ktrace_backend - backend specific part of a trace message
- *
- * At the very least, this must contain a kbase_ktrace_code_t 'code' member and
- * a kbase_ktrace_flag_t 'flags' member
+ * union kbase_ktrace_backend - backend specific part of a trace message.
+ * At the very least, this must contain a kbase_ktrace_code_t 'code' member
+ * and a kbase_ktrace_flag_t 'flags' inside a "gpu" sub-struct. Should a
+ * backend need several sub structs in its union to optimize the data storage
+ * for different message types, then it can use a "common initial sequence" to
+ * allow 'flags' and 'code' to pack optimally without corrupting them.
+ * Different backends need not share common initial sequences between them, they
+ * only need to ensure they have gpu.flags and gpu.code members, it
+ * is up to the backend then how to order these.
  */
-struct kbase_ktrace_backend;
+union kbase_ktrace_backend;
+
 #endif /* KBASE_KTRACE_TARGET_RBUF */
 
 #if MALI_USE_CSF
@@ -145,9 +150,9 @@ enum kbase_ktrace_code {
  * @kctx_id:   Unique identifier of the &kbase_context associated with the
  *             message. Only valid if @kctx_tgid != 0.
  * @info_val:  value specific to the type of event being traced. Refer to the
- *             specific code in enum kbase_ktrace_code
+ *             specific code in enum kbase_ktrace_code.
  * @backend:   backend-specific trace information. All backends must implement
- *             a minimum common set of members
+ *             a minimum common set of members.
  */
 struct kbase_ktrace_msg {
 	struct timespec64 timestamp;
@@ -156,8 +161,7 @@ struct kbase_ktrace_msg {
 	pid_t kctx_tgid;
 	u32 kctx_id;
 	u64 info_val;
-
-	struct kbase_ktrace_backend backend;
+	union kbase_ktrace_backend backend;
 };
 
 struct kbase_ktrace {

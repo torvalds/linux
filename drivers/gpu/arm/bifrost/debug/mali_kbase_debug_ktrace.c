@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,9 +17,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
+
 #include <mali_kbase.h>
 #include "debug/mali_kbase_debug_ktrace_internal.h"
 
@@ -93,7 +93,8 @@ static void kbasep_ktrace_format_msg(struct kbase_ktrace_msg *trace_msg,
 			(int)trace_msg->timestamp.tv_sec,
 			(int)(trace_msg->timestamp.tv_nsec / 1000),
 			trace_msg->thread_id, trace_msg->cpu,
-			kbasep_ktrace_code_string[trace_msg->backend.code]), 0);
+			kbasep_ktrace_code_string[trace_msg->backend.gpu.code]),
+			0);
 
 	/* kctx part: */
 	if (trace_msg->kctx_tgid) {
@@ -171,8 +172,8 @@ void kbasep_ktrace_msg_init(struct kbase_ktrace *ktrace,
 		trace_msg->kctx_id = 0;
 	}
 	trace_msg->info_val = info_val;
-	trace_msg->backend.code = code;
-	trace_msg->backend.flags = flags;
+	trace_msg->backend.gpu.code = code;
+	trace_msg->backend.gpu.flags = flags;
 }
 
 void kbasep_ktrace_add(struct kbase_device *kbdev, enum kbase_ktrace_code code,
@@ -189,7 +190,7 @@ void kbasep_ktrace_add(struct kbase_device *kbdev, enum kbase_ktrace_code code,
 	/* Reserve and update indices */
 	trace_msg = kbasep_ktrace_reserve(&kbdev->ktrace);
 
-	/* Fill the common part of the message (including backend.flags) */
+	/* Fill the common part of the message (including backend.gpu.flags) */
 	kbasep_ktrace_msg_init(&kbdev->ktrace, trace_msg, code, kctx, flags,
 			info_val);
 

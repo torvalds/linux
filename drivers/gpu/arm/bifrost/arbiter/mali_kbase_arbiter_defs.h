@@ -1,28 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
- *
- *//* SPDX-License-Identifier: GPL-2.0 */
-
-/*
- *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -37,7 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  *
  */
 
@@ -66,7 +44,8 @@
  * @vm_resume_work:  Work item for vm_arb_wq to resume current work on GPU
  * @vm_arb_starting: Work queue resume in progress
  * @vm_arb_stopping: Work queue suspend in progress
- * @vm_arb_users_waiting: Count of users waiting for GPU
+ * @interrupts_installed: Flag set when interrupts are installed
+ * @vm_request_timer: Timer to monitor GPU request
  */
 struct kbase_arbiter_vm_state {
 	struct kbase_device *kbdev;
@@ -78,7 +57,8 @@ struct kbase_arbiter_vm_state {
 	struct work_struct vm_resume_work;
 	bool vm_arb_starting;
 	bool vm_arb_stopping;
-	int vm_arb_users_waiting;
+	bool interrupts_installed;
+	struct hrtimer vm_request_timer;
 };
 
 /**
@@ -86,10 +66,12 @@ struct kbase_arbiter_vm_state {
  *                               allocated from the probe method of Mali driver
  * @arb_if:                 Pointer to the arbiter interface device
  * @arb_dev:                Pointer to the arbiter device
+ * @arb_freq:               GPU clock frequency retrieved from arbiter.
  */
 struct kbase_arbiter_device {
 	struct arbiter_if_dev *arb_if;
 	struct device *arb_dev;
+	struct kbase_arbiter_freq arb_freq;
 };
 
 #endif /* _MALI_KBASE_ARBITER_DEFS_H_ */

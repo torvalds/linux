@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2012-2017, 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,23 +17,23 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include <mali_kbase.h>
 
 #ifdef CONFIG_DEBUG_FS
 
-/** Show callback for the @c mem_profile debugfs file.
+/**
+ * Show callback for the @c mem_profile debugfs file.
  *
  * This function is called to get the contents of the @c mem_profile debugfs
  * file. This is a report of current memory usage and distribution in userspace.
  *
- * @param sfile The debugfs entry
- * @param data Data associated with the entry
+ * @sfile: The debugfs entry
+ * @data:  Data associated with the entry
  *
- * @return 0 if it successfully prints data in debugfs entry file, non-zero otherwise
+ * Return: 0 if it successfully prints data in debugfs entry file, non-zero
+ * otherwise
  */
 static int kbasep_mem_profile_seq_show(struct seq_file *sfile, void *data)
 {

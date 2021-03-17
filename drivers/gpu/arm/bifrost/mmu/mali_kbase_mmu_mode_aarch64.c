@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2010-2014, 2016-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2014, 2016-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -48,25 +47,7 @@
  */
 static inline void page_table_entry_set(u64 *pte, u64 phy)
 {
-#if KERNEL_VERSION(3, 18, 13) <= LINUX_VERSION_CODE
 	WRITE_ONCE(*pte, phy);
-#else
-#ifdef CONFIG_64BIT
-	barrier();
-	*pte = phy;
-	barrier();
-#elif defined(CONFIG_ARM)
-	barrier();
-	asm volatile("ldrd r0, [%1]\n\t"
-		     "strd r0, %0\n\t"
-		     : "=m" (*pte)
-		     : "r" (&phy)
-		     : "r0", "r1");
-	barrier();
-#else
-#error "64-bit atomic write must be implemented for your architecture"
-#endif
-#endif
 }
 
 static void mmu_update(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,

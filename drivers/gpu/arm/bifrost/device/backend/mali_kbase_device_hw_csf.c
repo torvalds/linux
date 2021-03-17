@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -72,7 +70,8 @@ static bool kbase_gpu_fault_interrupt(struct kbase_device *kbdev)
 			kbase_report_gpu_fault(kbdev, status, as_nr, as_valid);
 
 			dev_err(kbdev->dev, "GPU bus fault triggering gpu-reset ...\n");
-			if (kbase_prepare_to_reset_gpu(kbdev))
+			if (kbase_prepare_to_reset_gpu(
+				    kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
 				kbase_reset_gpu(kbdev);
 		} else {
 			/* Handle Bus fault */
@@ -108,11 +107,26 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 		kbase_csf_scheduler_spin_lock(kbdev, &flags);
-		if (!WARN_ON(!kbase_csf_scheduler_protected_mode_in_use(kbdev)))
+		if (!WARN_ON(!kbase_csf_scheduler_protected_mode_in_use(
+			    kbdev))) {
+			struct base_gpu_queue_group_error const
+				err_payload = { .error_type =
+							BASE_GPU_QUEUE_GROUP_ERROR_FATAL,
+						.payload = {
+							.fatal_group = {
+								.status =
+									GPU_EXCEPTION_TYPE_SW_FAULT_0,
+							} } };
+
 			scheduler->active_protm_grp->faulted = true;
+			kbase_csf_add_group_fatal_error(
+				scheduler->active_protm_grp, &err_payload);
+			kbase_event_wakeup(scheduler->active_protm_grp->kctx);
+		}
 		kbase_csf_scheduler_spin_unlock(kbdev, flags);
 
-		if (kbase_prepare_to_reset_gpu(kbdev))
+		if (kbase_prepare_to_reset_gpu(
+			    kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
 			kbase_reset_gpu(kbdev);
 	}
 

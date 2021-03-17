@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -49,15 +48,6 @@ struct mali_sync_pt {
 	int order;
 	int result;
 };
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-/* For backwards compatibility with kernels before 3.17. After 3.17
- * sync_pt_parent is included in the kernel. */
-static inline struct sync_timeline *sync_pt_parent(struct sync_pt *pt)
-{
-	return pt->parent;
-}
-#endif
 
 static struct mali_sync_timeline *to_mali_sync_timeline(
 						struct sync_timeline *timeline)
@@ -196,6 +186,7 @@ int kbase_sync_fence_stream_create(const char *name, int *const out_fd)
 	return 0;
 }
 
+#if !MALI_USE_CSF
 /* Allocates a sync point within the timeline.
  *
  * The timeline must be the one allocated by kbase_sync_timeline_alloc
@@ -225,10 +216,6 @@ int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int tl_fd)
 	struct sync_timeline *tl;
 	struct sync_pt *pt;
 	struct sync_fence *fence;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
-	struct files_struct *files;
-	struct fdtable *fdt;
-#endif
 	int fd;
 	struct file *tl_file;
 
@@ -259,29 +246,11 @@ int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int tl_fd)
 	/* from here the fence owns the sync_pt */
 
 	/* create a fd representing the fence */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)
 	fd = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
 		sync_fence_put(fence);
 		goto out;
 	}
-#else
-	fd = get_unused_fd();
-	if (fd < 0) {
-		sync_fence_put(fence);
-		goto out;
-	}
-
-	files = current->files;
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
-	__set_close_on_exec(fd, fdt);
-#else
-	FD_SET(fd, fdt->close_on_exec);
-#endif
-	spin_unlock(&files->file_lock);
-#endif  /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0) */
 
 	/* bind fence to the new fd */
 	sync_fence_install(fence, fd);
@@ -289,7 +258,8 @@ int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int tl_fd)
 	katom->fence = sync_fence_fdget(fd);
 	if (katom->fence == NULL) {
 		/* The only way the fence can be NULL is if userspace closed it
-		 * for us, so we don't need to clear it up */
+		 * for us, so we don't need to clear it up
+		 */
 		fd = -EINVAL;
 		goto out;
 	}
@@ -305,6 +275,7 @@ int kbase_sync_fence_in_from_fd(struct kbase_jd_atom *katom, int fd)
 	katom->fence = sync_fence_fdget(fd);
 	return katom->fence ? 0 : -ENOENT;
 }
+#endif /* !MALI_USE_CSF */
 
 int kbase_sync_fence_validate(int fd)
 {
@@ -318,6 +289,7 @@ int kbase_sync_fence_validate(int fd)
 	return 0;
 }
 
+#if !MALI_USE_CSF
 /* Returns true if the specified timeline is allocated by Mali */
 static int kbase_sync_timeline_is_ours(struct sync_timeline *timeline)
 {
@@ -376,22 +348,14 @@ kbase_sync_fence_out_trigger(struct kbase_jd_atom *katom, int result)
 	if (!katom->fence)
 		return BASE_JD_EVENT_JOB_CANCELLED;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-	if (!list_is_singular(&katom->fence->pt_list_head)) {
-#else
 	if (katom->fence->num_fences != 1) {
-#endif
 		/* Not exactly one item in the list - so it didn't (directly)
-		 * come from us */
+		 * come from us
+		 */
 		return BASE_JD_EVENT_JOB_CANCELLED;
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-	pt = list_first_entry(&katom->fence->pt_list_head,
-			      struct sync_pt, pt_list);
-#else
 	pt = container_of(katom->fence->cbs[0].sync_pt, struct sync_pt, base);
-#endif
 	timeline = sync_pt_parent(pt);
 
 	if (!kbase_sync_timeline_is_ours(timeline)) {
@@ -413,11 +377,7 @@ static inline int kbase_fence_get_status(struct sync_fence *fence)
 	if (!fence)
 		return -ENOENT;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-	return fence->status;
-#else
 	return atomic_read(&fence->status);
-#endif
 }
 
 static void kbase_fence_wait_callback(struct sync_fence *fence,
@@ -461,7 +421,8 @@ int kbase_sync_fence_in_wait(struct kbase_jd_atom *katom)
 	if (ret < 0) {
 		katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
 		/* We should cause the dependent jobs in the bag to be failed,
-		 * to do this we schedule the work queue to complete this job */
+		 * to do this we schedule the work queue to complete this job
+		 */
 		INIT_WORK(&katom->work, kbase_sync_fence_wait_worker);
 		queue_work(katom->kctx->jctx.job_done_wq, &katom->work);
 	}
@@ -473,7 +434,8 @@ void kbase_sync_fence_in_cancel_wait(struct kbase_jd_atom *katom)
 {
 	if (sync_fence_cancel_async(katom->fence, &katom->sync_waiter) != 0) {
 		/* The wait wasn't cancelled - leave the cleanup for
-		 * kbase_fence_wait_callback */
+		 * kbase_fence_wait_callback
+		 */
 		return;
 	}
 
@@ -540,3 +502,4 @@ void kbase_sync_fence_in_dump(struct kbase_jd_atom *katom)
 		sync_fence_wait(katom->fence, 1);
 }
 #endif
+#endif /* !MALI_USE_CSF */

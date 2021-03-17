@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,18 +17,15 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 /**
- * Base kernel MMU management specific for CSF GPU.
+ * DOC: Base kernel MMU management specific for CSF GPU.
  */
 
 #include <mali_kbase.h>
 #include <gpu/mali_kbase_gpu_fault.h>
 #include <mali_kbase_ctx_sched.h>
-#include <mali_kbase_hwaccess_jm.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase_as_fault_debugfs.h>
 #include "../mali_kbase_mmu_internal.h"
@@ -70,17 +68,36 @@ void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut,
 static void submit_work_pagefault(struct kbase_device *kbdev, u32 as_nr,
 		struct kbase_fault *fault)
 {
+	unsigned long flags;
 	struct kbase_as *const as = &kbdev->as[as_nr];
+	struct kbase_context *kctx;
 
-	as->pf_data = (struct kbase_fault) {
-		.status = fault->status,
-		.addr = fault->addr,
-	};
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kctx = kbase_ctx_sched_as_to_ctx_nolock(kbdev, as_nr);
 
-	if (kbase_ctx_sched_as_to_ctx_refcount(kbdev, as_nr)) {
-		WARN_ON(!queue_work(as->pf_wq, &as->work_pagefault));
-		atomic_inc(&kbdev->faults_pending);
+	if (kctx) {
+		kbase_ctx_sched_retain_ctx_refcount(kctx);
+
+		as->pf_data = (struct kbase_fault) {
+			.status = fault->status,
+			.addr = fault->addr,
+		};
+
+		/*
+		 * A page fault work item could already be pending for the
+		 * context's address space, when the page fault occurs for
+		 * MCU's address space.
+		 */
+		if (!queue_work(as->pf_wq, &as->work_pagefault))
+			kbase_ctx_sched_release_ctx(kctx);
+		else {
+			dev_dbg(kbdev->dev,
+				"Page fault is already pending for as %u\n",
+				as_nr);
+			atomic_inc(&kbdev->faults_pending);
+		}
 	}
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
 void kbase_mmu_report_mcu_as_fault_and_reset(struct kbase_device *kbdev,
@@ -107,11 +124,11 @@ void kbase_mmu_report_mcu_as_fault_and_reset(struct kbase_device *kbdev,
 
 	/* Report MMU fault for all address spaces (except MCU_AS_NR) */
 	for (as_no = 1; as_no < kbdev->nr_hw_address_spaces; as_no++)
-		if (kbase_ctx_sched_as_to_ctx(kbdev, as_no))
-			submit_work_pagefault(kbdev, as_no, fault);
+		submit_work_pagefault(kbdev, as_no, fault);
 
 	/* GPU reset is required to recover */
-	if (kbase_prepare_to_reset_gpu(kbdev))
+	if (kbase_prepare_to_reset_gpu(kbdev,
+				       RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
 		kbase_reset_gpu(kbdev);
 }
 KBASE_EXPORT_TEST_API(kbase_mmu_report_mcu_as_fault_and_reset);
@@ -172,7 +189,7 @@ void kbase_gpu_report_bus_fault_and_kill(struct kbase_context *kctx,
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
-/**
+/*
  * The caller must ensure it's retained the ctx to prevent it from being
  * scheduled out whilst it's being worked on.
  */
@@ -483,18 +500,25 @@ static void submit_work_gpufault(struct kbase_device *kbdev, u32 status,
 {
 	unsigned long flags;
 	struct kbase_as *const as = &kbdev->as[as_nr];
+	struct kbase_context *kctx;
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	as->gf_data = (struct kbase_fault) {
+	kctx = kbase_ctx_sched_as_to_ctx_nolock(kbdev, as_nr);
+
+	if (kctx) {
+		kbase_ctx_sched_retain_ctx_refcount(kctx);
+
+		as->gf_data = (struct kbase_fault) {
 			.status = status,
 			.addr = address,
-	};
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+		};
 
-	if (kbase_ctx_sched_as_to_ctx_refcount(kbdev, as_nr)) {
-		WARN_ON(!queue_work(as->pf_wq, &as->work_gpufault));
-		atomic_inc(&kbdev->faults_pending);
+		if (WARN_ON(!queue_work(as->pf_wq, &as->work_gpufault)))
+			kbase_ctx_sched_release_ctx(kctx);
+		else
+			atomic_inc(&kbdev->faults_pending);
 	}
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
 void kbase_mmu_gpu_fault_interrupt(struct kbase_device *kbdev, u32 status,

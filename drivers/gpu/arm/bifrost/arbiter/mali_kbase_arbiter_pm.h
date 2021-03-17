@@ -1,28 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
- *
- *//* SPDX-License-Identifier: GPL-2.0 */
-
-/*
- *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -37,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -116,9 +93,17 @@ void kbase_arbiter_pm_early_term(struct kbase_device *kbdev);
  * kbase_arbiter_pm_release_interrupts() - Release the GPU interrupts
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
- * Releases interrupts if needed (GPU is available) otherwise does nothing
+ * Releases interrupts and set the interrupt flag to false
  */
 void kbase_arbiter_pm_release_interrupts(struct kbase_device *kbdev);
+
+/**
+ * kbase_arbiter_pm_install_interrupts() - Install the GPU interrupts
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Install interrupts and set the interrupt_install flag to true.
+ */
+int kbase_arbiter_pm_install_interrupts(struct kbase_device *kbdev);
 
 /**
  * kbase_arbiter_pm_vm_event() - Dispatch VM event to the state machine
@@ -155,5 +140,43 @@ int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
  * It will update the VM state and forward the stop event to the driver.
  */
 void kbase_arbiter_pm_vm_stopped(struct kbase_device *kbdev);
+
+/**
+ * kbase_arbiter_set_max_config() - Set the max config data in kbase device.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer).
+ * @max_l2_slices: The maximum number of L2 slices.
+ * @max_core_mask: The largest core mask.
+ *
+ * This function handles a stop event for the VM.
+ * It will update the VM state and forward the stop event to the driver.
+ */
+void kbase_arbiter_set_max_config(struct kbase_device *kbdev,
+				  uint32_t max_l2_slices,
+				  uint32_t max_core_mask);
+
+/**
+ * kbase_arbiter_pm_gpu_assigned() - Determine if this VM has access to the GPU
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Return: 0 if the VM does not have access, 1 if it does, and a negative number
+ * if an error occurred
+ */
+int kbase_arbiter_pm_gpu_assigned(struct kbase_device *kbdev);
+
+extern struct kbase_clk_rate_trace_op_conf arb_clk_rate_trace_ops;
+
+/**
+ * struct kbase_arbiter_freq - Holding the GPU clock frequency data retrieved
+ * from arbiter
+ * @arb_freq:                 GPU clock frequency value
+ * @arb_freq_lock:            Mutex protecting access to arbfreq value
+ */
+struct kbase_arbiter_freq {
+	uint32_t arb_freq;
+	struct mutex arb_freq_lock;
+};
+
+void kbase_arbiter_pm_update_gpu_freq(struct kbase_arbiter_freq *arb_freq,
+		uint32_t freq);
 
 #endif /*_MALI_KBASE_ARBITER_PM_H_ */

@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2012-2017, 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,24 +17,23 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include <mali_kbase.h>
 #include <device/mali_kbase_device.h>
 
 #ifdef CONFIG_DEBUG_FS
-/** Show callback for the @c gpu_memory debugfs file.
+/**
+ * kbasep_gpu_memory_seq_show - Show callback for the @c gpu_memory debugfs file
+ * @sfile: The debugfs entry
+ * @data: Data associated with the entry
  *
  * This function is called to get the contents of the @c gpu_memory debugfs
  * file. This is a report of current gpu memory usage.
  *
- * @param sfile The debugfs entry
- * @param data Data associated with the entry
- *
- * @return 0 if successfully prints data in debugfs entry file
- *         -1 if it encountered an error
+ * Return:
+ * * 0 if successfully prints data in debugfs entry file
+ * * -1 if it encountered an error
  */
 
 static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
@@ -54,8 +54,9 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 		mutex_lock(&kbdev->kctx_list_lock);
 		list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
 			/* output the memory usage and cap for each kctx
-			* opened on this device */
-			seq_printf(sfile, "  %s-0x%p %10u\n",
+			* opened on this device
+			*/
+			seq_printf(sfile, "  %s-0x%pK %10u\n",
 				"kctx",
 				kctx,
 				atomic_read(&(kctx->used_pages)));

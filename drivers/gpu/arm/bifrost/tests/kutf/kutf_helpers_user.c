@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -42,7 +41,8 @@ static const char *get_val_type_name(enum kutf_helper_valtype valtype)
 	 * a) "<0 comparison on unsigned type" warning - if we did both upper
 	 *    and lower bound check
 	 * b) incorrect range checking if it was a signed type - if we did
-	 *    upper bound check only */
+	 *    upper bound check only
+	 */
 	unsigned int type_idx = (unsigned int)valtype;
 
 	if (type_idx >= (unsigned int)KUTF_HELPER_VALTYPE_COUNT)
@@ -54,7 +54,8 @@ static const char *get_val_type_name(enum kutf_helper_valtype valtype)
 /* Check up to str_len chars of val_str to see if it's a valid value name:
  *
  * - Has between 1 and KUTF_HELPER_MAX_VAL_NAME_LEN characters before the \0 terminator
- * - And, each char is in the character set [A-Z0-9_] */
+ * - And, each char is in the character set [A-Z0-9_]
+ */
 static int validate_val_name(const char *val_str, int str_len)
 {
 	int i = 0;
@@ -87,7 +88,8 @@ static int validate_val_name(const char *val_str, int str_len)
  * e.g. "str"
  *
  * That is, before any '\\', '\n' or '"' characters. This is so we don't have
- * to escape the string */
+ * to escape the string
+ */
 static int find_quoted_string_valid_len(const char *str)
 {
 	char *ptr;
@@ -207,7 +209,8 @@ int kutf_helper_send_named_str(struct kutf_context *context,
 	str_buf_sz = val_name_len + start_delim_len + val_str_len + end_delim_len + 1;
 
 	/* Using kmalloc() here instead of mempool since we know we need to free
-	 * before we return */
+	 * before we return
+	 */
 	str_buf = kmalloc(str_buf_sz, GFP_KERNEL);
 	if (!str_buf) {
 		errmsg = kutf_dsprintf(&context->fixture_pool,
@@ -218,7 +221,8 @@ int kutf_helper_send_named_str(struct kutf_context *context,
 	copy_ptr = str_buf;
 
 	/* Manually copy each string component instead of snprintf because
-	 * val_str may need to end early, and less error path handling */
+	 * val_str may need to end early, and less error path handling
+	 */
 
 	/* name */
 	memcpy(copy_ptr, val_name, val_name_len);
@@ -331,7 +335,8 @@ int kutf_helper_receive_named_val(
 		/* possibly a number value - strtoull will parse it */
 		err = kstrtoull(recv_str, 0, &u64val);
 		/* unlike userspace can't get an end ptr, but if kstrtoull()
-		 * reads characters after the number it'll report -EINVAL */
+		 * reads characters after the number it'll report -EINVAL
+		 */
 		if (!err) {
 			int len_remain = strnlen(recv_str, recv_sz);
 
@@ -399,7 +404,8 @@ int kutf_helper_receive_check_val(
 		goto out_fail_and_fixup;
 	}
 
-	if (strcmp(named_val->val_name, expect_val_name) != 0) {
+	if (named_val->val_name != NULL &&
+			strcmp(named_val->val_name, expect_val_name) != 0) {
 		const char *msg = kutf_dsprintf(&context->fixture_pool,
 				"Expecting to receive value named '%s' but got '%s'",
 				expect_val_name, named_val->val_name);

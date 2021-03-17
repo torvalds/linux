@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,12 +17,11 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include "../mali_kbase_device_internal.h"
 #include "../mali_kbase_device.h"
+#include "../mali_kbase_hwaccess_instr.h"
 
 #include <mali_kbase_config_defaults.h>
 #include <mali_kbase_hwaccess_backend.h>
@@ -96,9 +95,6 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 	if (err)
 		goto fail_devfreq_init;
 
-	/* Idle the GPU and/or cores, if the policy wants it to */
-	kbase_pm_context_idle(kbdev);
-
 	/* Update gpuprops with L2_FEATURES if applicable */
 	err = kbase_gpuprops_update_l2_features(kbdev);
 	if (err)
@@ -106,9 +102,13 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 
 	init_waitqueue_head(&kbdev->hwaccess.backend.reset_wait);
 
+	/* Idle the GPU and/or cores, if the policy wants it to */
+	kbase_pm_context_idle(kbdev);
+
 	return 0;
 
 fail_update_l2_features:
+	kbase_backend_devfreq_term(kbdev);
 fail_devfreq_init:
 	kbase_job_slot_term(kbdev);
 fail_job_slot:
@@ -121,6 +121,7 @@ fail_interrupt_test:
 
 	kbase_backend_timer_term(kbdev);
 fail_timer:
+	kbase_pm_context_idle(kbdev);
 	kbase_hwaccess_pm_halt(kbdev);
 fail_pm_powerup:
 	kbase_reset_gpu_term(kbdev);
@@ -145,6 +146,16 @@ static void kbase_backend_late_term(struct kbase_device *kbdev)
 	kbase_hwaccess_pm_term(kbdev);
 }
 
+static int kbase_device_hwcnt_backend_jm_init(struct kbase_device *kbdev)
+{
+	return kbase_hwcnt_backend_jm_create(kbdev, &kbdev->hwcnt_gpu_iface);
+}
+
+static void kbase_device_hwcnt_backend_jm_term(struct kbase_device *kbdev)
+{
+	kbase_hwcnt_backend_jm_destroy(&kbdev->hwcnt_gpu_iface);
+}
+
 static const struct kbase_device_init dev_init[] = {
 #ifdef CONFIG_MALI_BIFROST_NO_MALI
 	{kbase_gpu_device_create, kbase_gpu_device_destroy,
@@ -165,6 +176,8 @@ static const struct kbase_device_init dev_init[] = {
 			"Populating max frequency failed"},
 	{kbase_device_misc_init, kbase_device_misc_term,
 			"Miscellaneous device initialization failed"},
+	{kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
+			"Priority control manager initialization failed"},
 	{kbase_ctx_sched_init, kbase_ctx_sched_term,
 			"Context scheduler initialization failed"},
 	{kbase_mem_init, kbase_mem_term,
@@ -182,6 +195,8 @@ static const struct kbase_device_init dev_init[] = {
 	{kbase_clk_rate_trace_manager_init,
 			kbase_clk_rate_trace_manager_term,
 			"Clock rate trace manager initialization failed"},
+	{kbase_instr_backend_init, kbase_instr_backend_term,
+			"Instrumentation backend initialization failed"},
 	{kbase_device_hwcnt_backend_jm_init,
 			kbase_device_hwcnt_backend_jm_term,
 			"GPU hwcnt backend creation failed"},
@@ -214,9 +229,6 @@ static const struct kbase_device_init dev_init[] = {
 	{kbase_sysfs_init, kbase_sysfs_term, "SysFS group creation failed"},
 	{kbase_device_misc_register, kbase_device_misc_deregister,
 			"Misc device registration failed"},
-#ifdef CONFIG_MALI_BUSLOG
-	{buslog_init, buslog_term, "Bus log client registration failed"},
-#endif
 	{kbase_gpuprops_populate_user_buffer, kbase_gpuprops_free_user_buffer,
 			"GPU property population failed"},
 #endif
@@ -253,7 +265,8 @@ int kbase_device_init(struct kbase_device *kbdev)
 	for (i = 0; i < ARRAY_SIZE(dev_init); i++) {
 		err = dev_init[i].init(kbdev);
 		if (err) {
-			dev_err(kbdev->dev, "%s error = %d\n",
+			if (err != -EPROBE_DEFER)
+				dev_err(kbdev->dev, "%s error = %d\n",
 						dev_init[i].err_mes, err);
 			kbase_device_term_partial(kbdev, i);
 			break;

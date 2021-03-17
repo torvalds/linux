@@ -1,28 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
- *
- *//* SPDX-License-Identifier: GPL-2.0 */
-
-/*
- *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,7 +17,6 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- *
  */
 
 /**
@@ -50,7 +28,7 @@
 #define _MALI_KBASE_ARBITER_INTERFACE_H_
 
 /**
- * @brief Mali arbiter interface version
+ *  Mali arbiter interface version
  *
  * This specifies the current version of the configuration interface. Whenever
  * the arbiter interface changes, so that integration effort is required, the
@@ -61,8 +39,15 @@
  * 1 - Added the Mali arbiter configuration interface.
  * 2 - Strip out reference code from header
  * 3 - Removed DVFS utilization interface (DVFS moved to arbiter side)
+ * 4 - Added max_config support
+ * 5 - Added GPU clock frequency reporting support from arbiter
  */
-#define MALI_KBASE_ARBITER_INTERFACE_VERSION 3
+#define MALI_KBASE_ARBITER_INTERFACE_VERSION 5
+
+/**
+ * NO_FREQ is used in case platform doesn't support reporting frequency
+ */
+#define NO_FREQ 0
 
 struct arbiter_if_dev;
 
@@ -108,6 +93,27 @@ struct arbiter_if_arb_vm_ops {
 	 * If successful, will respond with a vm_arb_gpu_stopped message.
 	 */
 	void (*arb_vm_gpu_lost)(struct device *dev);
+
+	/**
+	 * arb_vm_max_config() - Send max config info to the VM
+	 * @dev: The arbif kernel module device.
+	 * @max_l2_slices: The maximum number of L2 slices.
+	 * @max_core_mask: The largest core mask.
+	 *
+	 * Informs KBase the maximum resources that can be allocated to the
+	 * partition in use.
+	 */
+	void (*arb_vm_max_config)(struct device *dev, uint32_t max_l2_slices,
+				  uint32_t max_core_mask);
+
+	/**
+	 * arb_vm_update_freq() - GPU clock frequency has been updated
+	 * @dev: The arbif kernel module device.
+	 * @freq: GPU clock frequency value reported from arbiter
+	 *
+	 * Informs KBase that the GPU clock frequency has been updated.
+	 */
+	void (*arb_vm_update_freq)(struct device *dev, uint32_t freq);
 };
 
 /**
@@ -135,6 +141,13 @@ struct arbiter_if_vm_arb_ops {
 	 * @arbif_dev: The arbiter interface we are unregistering from.
 	 */
 	void (*vm_arb_unregister_dev)(struct arbiter_if_dev *arbif_dev);
+
+	/**
+	 * vm_arb_gpu_get_max_config() - Request the max config from the
+	 * Arbiter.
+	 * @arbif_dev: The arbiter interface we want to issue the request.
+	 */
+	void (*vm_arb_get_max_config)(struct arbiter_if_dev *arbif_dev);
 
 	/**
 	 * vm_arb_gpu_request() - Ask the arbiter interface for GPU access.

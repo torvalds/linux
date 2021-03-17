@@ -18,6 +18,10 @@ obj-$(CONFIG_MODULES)	+= module.o
 endif
 obj-$(CONFIG_SYS_HYPERVISOR) += hypervisor.o
 obj-$(CONFIG_REGMAP)	+= regmap/
+
+obj-$(CONFIG_MALI_MEMORY_GROUP_MANAGER)	+= arm/memory_group_manager/
+obj-$(CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR)	+= arm/protected_memory_allocator/
+
 obj-$(CONFIG_SOC_BUS) += soc.o
 obj-$(CONFIG_PINCTRL) += pinctrl.o
 obj-$(CONFIG_DEV_COREDUMP) += devcoredump.o

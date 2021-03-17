@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # (C) COPYRIGHT 2018-2020 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
 # Foundation, and any use by you of this program is subject to the terms
-# of such GNU licence.
+# of such GNU license.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,11 +16,9 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# SPDX-License-Identifier: GPL-2.0
-#
 #
 
-mali_kbase-y += \
+bifrost_kbase-y += \
 	csf/mali_kbase_csf_firmware_cfg.o \
 	csf/mali_kbase_csf_trace_buffer.o \
 	csf/mali_kbase_csf.o \
@@ -33,8 +32,11 @@ mali_kbase-y += \
 	csf/mali_kbase_csf_csg_debugfs.o \
 	csf/mali_kbase_csf_kcpu_debugfs.o \
 	csf/mali_kbase_csf_protected_memory.o \
-	csf/mali_kbase_csf_tiler_heap_debugfs.o
+	csf/mali_kbase_csf_tiler_heap_debugfs.o \
+	csf/mali_kbase_csf_cpu_queue_debugfs.o
 
-mali_kbase-$(CONFIG_MALI_REAL_HW) += csf/mali_kbase_csf_firmware.o
+bifrost_kbase-$(CONFIG_MALI_REAL_HW) += csf/mali_kbase_csf_firmware.o
 
-mali_kbase-$(CONFIG_MALI_BIFROST_NO_MALI) += csf/mali_kbase_csf_firmware_no_mali.o
+bifrost_kbase-$(CONFIG_MALI_BIFROST_NO_MALI) += csf/mali_kbase_csf_firmware_no_mali.o
+
+include $(src)/csf/ipa_control/Kbuild

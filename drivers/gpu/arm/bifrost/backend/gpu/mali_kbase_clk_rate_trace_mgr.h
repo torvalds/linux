@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,17 +17,15 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #ifndef _KBASE_CLK_RATE_TRACE_MGR_
 #define _KBASE_CLK_RATE_TRACE_MGR_
 
-/** The index of top clock domain in kbase_clk_rate_trace_manager:clks. */
+/* The index of top clock domain in kbase_clk_rate_trace_manager:clks. */
 #define KBASE_CLOCK_DOMAIN_TOP (0)
 
-/** The index of shader-cores clock domain in
+/* The index of shader-cores clock domain in
  * kbase_clk_rate_trace_manager:clks.
  */
 #define KBASE_CLOCK_DOMAIN_SHADER_CORES (1)
@@ -139,7 +138,7 @@ static inline void kbase_clk_rate_trace_manager_unsubscribe(
  *                                             rate listeners.
  *
  * @clk_rtm:     Clock rate manager instance.
- * @clk_index:   Clock index.
+ * @clock_index:   Clock index.
  * @new_rate:    New clock frequency(Hz)
  *
  * kbase_clk_rate_trace_manager:lock must be locked.

@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU license.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+#
+
+* Arm priority control manager for Mali GPU device drivers
+
+Required properties:
+
+- compatible: Must be "arm,priority-control-manager"
+
+An example node:
+
+        gpu_priority_control_manager: priority-control-manager {
+                compatible = "arm,priority-control-manager";
+        };
+
+It must be referenced by the GPU as well, see priority-control-manager:
+
+	gpu: gpu@0x6e000000 {
+		compatible = "arm,mali-midgard";
+		reg = <0x0 0x6e000000 0x0 0x200000>;
+		interrupts = <0 168 4>, <0 168 4>, <0 168 4>;
+		interrupt-names = "JOB", "MMU", "GPU";
+		clocks = <&scpi_dvfs 2>;
+		clock-names = "clk_mali";
+		system-coherency = <31>;
+		priority-control-manager = <&gpu_priority_control_manager>;
+		operating-points = <
+			/* KHz uV */
+			50000 820000
+		>;
+	};

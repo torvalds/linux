@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2015-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -116,7 +115,7 @@ int kbase_timeline_init(struct kbase_timeline **timeline,
 	if (!timeline || !timeline_flags)
 		return -EINVAL;
 
-	result = kzalloc(sizeof(*result), GFP_KERNEL);
+	result = vzalloc(sizeof(*result));
 	if (!result)
 		return -ENOMEM;
 
@@ -127,6 +126,10 @@ int kbase_timeline_init(struct kbase_timeline **timeline,
 	for (i = 0; i < TL_STREAM_TYPE_COUNT; i++)
 		kbase_tlstream_init(&result->streams[i], i,
 			&result->event_queue);
+
+	/* Initialize the kctx list */
+	mutex_init(&result->tl_kctx_list_lock);
+	INIT_LIST_HEAD(&result->tl_kctx_list);
 
 	/* Initialize autoflush timer. */
 	atomic_set(&result->autoflush_timer_active, 0);
@@ -154,10 +157,12 @@ void kbase_timeline_term(struct kbase_timeline *timeline)
 	kbase_csf_tl_reader_term(&timeline->csf_tl_reader);
 #endif
 
+	WARN_ON(!list_empty(&timeline->tl_kctx_list));
+
 	for (i = (enum tl_stream_type)0; i < TL_STREAM_TYPE_COUNT; i++)
 		kbase_tlstream_term(&timeline->streams[i]);
 
-	kfree(timeline);
+	vfree(timeline);
 }
 
 #ifdef CONFIG_MALI_BIFROST_DEVFREQ
@@ -172,11 +177,7 @@ static void kbase_tlstream_current_devfreq_target(struct kbase_device *kbdev)
 		unsigned long cur_freq = 0;
 
 		mutex_lock(&devfreq->lock);
-#if KERNEL_VERSION(4, 3, 0) > LINUX_VERSION_CODE
-		cur_freq = kbdev->current_nominal_freq;
-#else
 		cur_freq = devfreq->last_status.current_frequency;
-#endif
 		KBASE_TLSTREAM_AUX_DEVFREQ_TARGET(kbdev, (u64)cur_freq);
 		mutex_unlock(&devfreq->lock);
 	}
@@ -185,7 +186,7 @@ static void kbase_tlstream_current_devfreq_target(struct kbase_device *kbdev)
 
 int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 {
-	int ret;
+	int ret = 0;
 	u32 timeline_flags = TLSTREAM_ENABLED | flags;
 	struct kbase_timeline *timeline = kbdev->timeline;
 
@@ -261,19 +262,30 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 		ret = -EBUSY;
 	}
 
+	if (ret >= 0)
+		timeline->last_acquire_time = ktime_get();
+
 	return ret;
 }
 
-void kbase_timeline_streams_flush(struct kbase_timeline *timeline)
+int kbase_timeline_streams_flush(struct kbase_timeline *timeline)
 {
 	enum tl_stream_type stype;
-
+	bool has_bytes = false;
+	size_t nbytes = 0;
 #if MALI_USE_CSF
-	kbase_csf_tl_reader_flush_buffer(&timeline->csf_tl_reader);
+	int ret = kbase_csf_tl_reader_flush_buffer(&timeline->csf_tl_reader);
+
+	if (ret > 0)
+		has_bytes = true;
 #endif
 
-	for (stype = 0; stype < TL_STREAM_TYPE_COUNT; stype++)
-		kbase_tlstream_flush_stream(&timeline->streams[stype]);
+	for (stype = 0; stype < TL_STREAM_TYPE_COUNT; stype++) {
+		nbytes = kbase_tlstream_flush_stream(&timeline->streams[stype]);
+		if (nbytes > 0)
+			has_bytes = true;
+	}
+	return has_bytes ? 0 : -EIO;
 }
 
 void kbase_timeline_streams_body_reset(struct kbase_timeline *timeline)
@@ -286,6 +298,74 @@ void kbase_timeline_streams_body_reset(struct kbase_timeline *timeline)
 	kbase_tlstream_reset(
 			&timeline->streams[TL_STREAM_TYPE_CSFFW]);
 #endif
+}
+
+void kbase_timeline_pre_kbase_context_destroy(struct kbase_context *kctx)
+{
+	struct kbase_device *const kbdev = kctx->kbdev;
+	struct kbase_timeline *timeline = kbdev->timeline;
+
+	/* Remove the context from the list to ensure we don't try and
+	 * summarize a context that is being destroyed.
+	 *
+	 * It's unsafe to try and summarize a context being destroyed as the
+	 * locks we might normally attempt to acquire, and the data structures
+	 * we would normally attempt to traverse could already be destroyed.
+	 *
+	 * In the case where the tlstream is acquired between this pre destroy
+	 * call and the post destroy call, we will get a context destroy
+	 * tracepoint without the corresponding context create tracepoint,
+	 * but this will not affect the correctness of the object model.
+	 */
+	mutex_lock(&timeline->tl_kctx_list_lock);
+	list_del_init(&kctx->tl_kctx_list_node);
+	mutex_unlock(&timeline->tl_kctx_list_lock);
+}
+
+void kbase_timeline_post_kbase_context_create(struct kbase_context *kctx)
+{
+	struct kbase_device *const kbdev = kctx->kbdev;
+	struct kbase_timeline *timeline = kbdev->timeline;
+
+	/* On context create, add the context to the list to ensure it is
+	 * summarized when timeline is acquired
+	 */
+	mutex_lock(&timeline->tl_kctx_list_lock);
+
+	list_add(&kctx->tl_kctx_list_node, &timeline->tl_kctx_list);
+
+	/* Fire the tracepoints with the lock held to ensure the tracepoints
+	 * are either fired before or after the summarization,
+	 * never in parallel with it. If fired in parallel, we could get
+	 * duplicate creation tracepoints.
+	 */
+#if MALI_USE_CSF
+	KBASE_TLSTREAM_TL_KBASE_NEW_CTX(
+		kbdev, kctx->id, kbdev->gpu_props.props.raw_props.gpu_id);
+#endif
+	/* Trace with the AOM tracepoint even in CSF for dumping */
+	KBASE_TLSTREAM_TL_NEW_CTX(kbdev, kctx, kctx->id, 0);
+
+	mutex_unlock(&timeline->tl_kctx_list_lock);
+}
+
+void kbase_timeline_post_kbase_context_destroy(struct kbase_context *kctx)
+{
+	struct kbase_device *const kbdev = kctx->kbdev;
+
+	/* Trace with the AOM tracepoint even in CSF for dumping */
+	KBASE_TLSTREAM_TL_DEL_CTX(kbdev, kctx);
+#if MALI_USE_CSF
+	KBASE_TLSTREAM_TL_KBASE_DEL_CTX(kbdev, kctx->id);
+#endif
+
+	/* Flush the timeline stream, so the user can see the termination
+	 * tracepoints being fired.
+	 * The "if" statement below is for optimization. It is safe to call
+	 * kbase_timeline_streams_flush when timeline is disabled.
+	 */
+	if (atomic_read(&kbdev->timeline_flags) != 0)
+		kbase_timeline_streams_flush(kbdev->timeline);
 }
 
 #if MALI_UNIT_TEST

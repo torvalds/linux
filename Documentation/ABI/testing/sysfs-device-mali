@@ -1,0 +1,284 @@
+/*
+ *
+ * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation) and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * A copy of the licence is included with the program) and can also be obtained
+ * from Free Software Foundation) Inc.) 51 Franklin Street) Fifth Floor)
+ * Boston) MA  02110-1301) USA.
+ *
+ */
+
+What:		/sys/class/misc/mali%u/device/core_mask
+Description:
+		This attribute is used to restrict number of shader core
+		available, is useful for debugging purposes. Reading
+		this attribute provides us mask of cores available.
+		Writing to it will set the current core mask.
+
+What:		/sys/class/misc/mali%u/device/debug_command
+Description:
+		This attribute is used to issue debug commands that supported
+		by the driver. On reading it provides the list of debug commands
+		that are supported, and writing back one of those commands will
+		enable that debug option.
+
+What:		/sys/class/misc/mali%u/device/dvfs_period
+Description:
+		This is used to set the DVFS sampling period to be used by the
+		driver, On reading it provides the current DVFS sampling period,
+		on writing a value we set the DVFS sampling period.
+
+What:		/sys/class/misc/mali%u/device/dummy_job_wa_info
+Description:
+		This attribute is available only with platform device that
+                supports a Job Manager based GPU that requires a GPU workaround
+		to execute the dummy fragment job on all shader cores to
+		workaround a hang issue.
+
+		Its a readonly attribute and on reading gives details on the
+		options used with the dummy workaround.
+
+What:		/sys/class/misc/mali%u/device/gpuinfo
+Description:
+		This attribute provides description of the present Mali GPU.
+		Its a read only attribute provides details like GPU family, the
+		number of cores, the hardware version and the raw product id.
+
+What:		/sys/class/misc/mali%u/device/idle_hysteresis_time
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. This attribute is
+		used to set the duration value in milliseconds for the
+		configuring hysteresis field for determining GPU idle detection.
+
+What:		/sys/class/misc/mali%u/device/js_ctx_scheduling_mode
+Description:
+		This attribute is available only with platform device that
+		supports a Job Manager based GPU. This attribute is used to set
+		context scheduling priority for a job slot.
+
+		On Reading it provides the currently set job slot context
+		priority.
+
+		Writing 0 to this attribute sets it to the mode were
+		higher priority atoms will be scheduled first, regardless of
+		the context they belong to. Newly-runnable higher priority atoms
+		can preempt lower priority atoms currently running on the GPU,
+		even if they belong to a different context.
+
+		Writing 1 to this attribute set it to the mode were the
+		highest-priority atom will be chosen from each context in turn
+		using a round-robin algorithm, so priority only has an effect
+		within the context an atom belongs to. Newly-runnable higher
+		priority atoms can preempt the lower priority atoms currently
+		running on the GPU, but only if they belong to the same context.
+
+What:		/sys/class/misc/mali%u/device/js_scheduling_period
+Description:
+		This attribute is available only with platform device that
+                supports a Job Manager based GPU. Used to set the job scheduler
+		tick period in nano-seconds. The Job Scheduler determines the
+		jobs that are run on the GPU, and for how long, Job Scheduler
+		makes decisions at a regular time interval determined by value
+		in js_scheduling_period.
+
+What:		/sys/class/misc/mali%u/device/js_softstop_always
+Description:
+		This attribute is available only with platform device that
+                supports a Job Manager based GPU. Soft-stops are disabled when
+		only a single context is present, this attribute is used to
+		enable soft-stop when only a single context is present can be
+		used for debug and unit-testing purposes.
+
+What:		/sys/class/misc/mali%u/device/js_timeouts
+Description:
+		This attribute is available only with platform device that
+                supports a Job Manager based GPU. It used to set the soft stop
+		and hard stop times for the job scheduler.
+
+		Writing value 0 causes no change, or -1 to restore the
+		default timeout.
+
+		The format used to set js_timeouts is
+		"<soft_stop_ms> <soft_stop_ms_cl> <hard_stop_ms_ss>
+		<hard_stop_ms_cl> <hard_stop_ms_dumping> <reset_ms_ss>
+		<reset_ms_cl> <reset_ms_dumping>"
+
+
+What:		/sys/class/misc/mali%u/device/lp_mem_pool_max_size
+Description:
+		This attribute is used to set the maximum number of large pages
+		memory pools that the driver can contain. Large pages are of
+		size 2MB. On read it displays all the max size of all memory
+		pools and can be used to modify each individual pools as well.
+
+What:		/sys/class/misc/mali%u/device/lp_mem_pool_size
+Description:
+		This attribute is used to set the number of large memory pages
+		which should be	populated, changing this value may cause
+		existing pages to be removed from the pool, or new pages to be
+		created and then added to the pool. On read it will provide
+		pool size for all available pools and we can modify individual
+		pool.
+
+What:		/sys/class/misc/mali%u/device/mem_pool_max_size
+Description:
+		This attribute is used to set the maximum number of small pages
+		for memory pools that the driver can contain. Here small pages
+		are of size 4KB. On read it will display the max size for all
+		available pools and allows us to set max size of
+		individual pools.
+
+What:		/sys/class/misc/mali%u/device/mem_pool_size
+Description:
+		This attribute is used to set the number of small memory pages
+		which should be populated, changing this value may cause
+		existing pages to be removed from the pool, or new pages to
+		be created and then added to the pool. On read it will provide
+		pool size for all available pools and we can modify individual
+		pool.
+
+What:		/sys/class/misc/mali%u/device/device/mempool/ctx_default_max_size
+Description:
+		This attribute is used to set maximum memory pool size for
+		all the memory pool so that the maximum amount of free memory
+		that each pool can hold is identical.
+
+What:		/sys/class/misc/mali%u/device/device/mempool/lp_max_size
+Description:
+		This attribute is used to set the maximum number of large pages
+		for all memory pools that the driver can contain.
+		Large pages are of size 2MB.
+
+What:		/sys/class/misc/mali%u/device/device/mempool/max_size
+Description:
+		This attribute is used to set the maximum number of small pages
+		for all the memory pools that the driver can contain.
+		Here small pages are of size 4KB.
+
+What:		/sys/class/misc/mali%u/device/pm_poweroff
+Description:
+		This attribute contains the current values, represented as the
+		following space-separated integers:
+		• PM_GPU_POWEROFF_TICK_NS.
+		• PM_POWEROFF_TICK_SHADER.
+		• PM_POWEROFF_TICK_GPU.
+
+		Example:
+		echo 100000 4 4 > /sys/class/misc/mali0/device/pm_poweroff
+
+		Sets the following new values: 100,000ns tick, four ticks
+		for shader power down, and four ticks for GPU power down.
+
+What:		/sys/class/misc/mali%u/device/power_policy
+Description:
+		This attribute is used to find the current power policy been
+		used, reading will list the power policies available and
+		enclosed in square bracket is the current one been selected.
+
+		Example:
+		cat /sys/class/misc/mali0/device/power_policy
+		[demand] coarse_demand always_on
+
+		To switch to a different policy at runtime write the valid entry
+		name back to the attribute.
+
+		Example:
+		echo "coarse_demand" > /sys/class/misc/mali0/device/power_policy
+
+What:		/sys/class/misc/mali%u/device/progress_timeout
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. This attribute
+		is used to set the progress timeout value and read the current
+		progress timeout value.
+
+		Progress timeout value is the maximum number of GPU cycles
+		without forward progress to allow to elapse before terminating a
+		GPU command queue group.
+
+What:		/sys/class/misc/mali%u/device/reset_timeout
+Description:
+		This attribute is used to set the number of milliseconds to
+		wait for the soft stop to complete for the GPU jobs before
+		proceeding with the GPU reset.
+
+What:		/sys/class/misc/mali%u/device/soft_job_timeout
+Description:
+		This attribute is available only with platform device that
+                supports a Job Manager based GPU. It used to set the timeout
+		value for waiting for any soft event to complete.
+
+What:		/sys/class/misc/mali%u/device/scheduling/serialize_jobs
+Description:
+		This attribute is available only with platform device that
+                supports a Job Manager based GPU.
+
+		Various options available under this are:
+		• none - for disabling serialization.
+		• intra-slot - Serialize atoms within a slot, only one
+				atom per job slot.
+		• inter-slot - Serialize atoms between slots, only one
+				job slot running at any time.
+		• full - it a combination of both inter and intra slot,
+				so only one atom and one job slot running
+				at any time.
+		• full-reset - full serialization and Reset the GPU after
+				each atom completion
+
+		These options are useful for debugging and investigating
+		failures and gpu hangs to narrow down atoms that could cause
+		troubles.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Compute iterator count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only attribute
+		which indicates the maximum number of Compute iterators
+		supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/CSHWIF count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only
+		attribute which indicates the maximum number of	CSHWIFs
+		supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Fragment iterator count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only
+		attribute which indicates the maximum number of
+		Fragment iterators supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Scoreboard set count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only
+		attribute which indicates the maximum number of
+		Scoreboard set supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Tiler iterator count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only
+		attribute which indicates the maximum number of	Tiler iterators
+		supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Log verbosity/*
+Description:
+		This attribute is available only with mali platform
+                device-driver that supports a CSF GPU.
+
+		Used to enable firmware logs, logging levels valid values
+		are indicated using 'min and 'max' attribute values
+		values that are read-only.
+
+		Log level can be set using the 'cur' read, write attribute,
+		we can use a valid log level value from min and max range values
+		and set a valid desired log level for firmware logs.

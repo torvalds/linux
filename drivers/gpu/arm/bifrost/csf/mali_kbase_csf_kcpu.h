@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2018-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -48,9 +47,9 @@ struct kbase_kcpu_command_import_info {
  * struct kbase_kcpu_command_fence_info - Structure which holds information
  *		about the fence object enqueued in the kcpu command queue
  *
- * @fence_cb:
- * @fence:
- * @kcpu_queue:
+ * @fence_cb:   Fence callback
+ * @fence:      Fence
+ * @kcpu_queue: kcpu command queue
  */
 struct kbase_kcpu_command_fence_info {
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
@@ -70,13 +69,10 @@ struct kbase_kcpu_command_fence_info {
  * @objs:	Array of structures which define CQS objects to be used by
  *		the kcpu command.
  * @nr_objs:	Number of CQS objects in the array.
- * @propagate_flags:  Bit-pattern for the CQSs in the array that are set
- *		      to propagate queue error-state to the flagged CQSs.
  */
 struct kbase_kcpu_command_cqs_set_info {
 	struct base_cqs_set *objs;
 	unsigned int nr_objs;
-	u32 propagate_flags;
 };
 
 /**
@@ -93,7 +89,37 @@ struct kbase_kcpu_command_cqs_set_info {
  *			queue's error-state.
  */
 struct kbase_kcpu_command_cqs_wait_info {
-	struct base_cqs_wait *objs;
+	struct base_cqs_wait_info *objs;
+	unsigned long *signaled;
+	unsigned int nr_objs;
+	u32 inherit_err_flags;
+};
+
+/**
+ * struct kbase_kcpu_command_cqs_set_operation_info - Structure which holds information
+ *				about CQS objects for the kcpu CQS timeline set command
+ *
+ * @objs:	Array of structures which define CQS timeline objects to be used by
+ *		the kcpu command.
+ * @nr_objs:	Number of CQS objects in the array.
+ */
+struct kbase_kcpu_command_cqs_set_operation_info {
+	struct base_cqs_set_operation_info *objs;
+	unsigned int nr_objs;
+};
+
+/**
+ * struct kbase_kcpu_command_cqs_wait_operation_info - Structure which holds information
+ *				about CQS objects for the kcpu CQS timeline wait command
+ *
+ * @objs:	Array of structures which define CQS timeline objects to be used by
+ *		the kcpu command.
+ * @signaled:	Bit array used to report the status of the CQS wait objects.
+ *              1 is signaled, 0 otherwise.
+ * @nr_objs:	Number of CQS objects in the array.
+ */
+struct kbase_kcpu_command_cqs_wait_operation_info {
+	struct base_cqs_wait_operation_info *objs;
 	unsigned long *signaled;
 	unsigned int nr_objs;
 	u32 inherit_err_flags;
@@ -103,7 +129,7 @@ struct kbase_kcpu_command_cqs_wait_info {
  * struct kbase_kcpu_command_jit_alloc_info - Structure which holds information
  *				needed for the kcpu command for jit allocations
  *
- * @node	Used to keep track of all JIT free/alloc commands in submission
+ * @node:	Used to keep track of all JIT free/alloc commands in submission
  *		order. This must be located in the front of this struct to
  *		match that of kbase_kcpu_command_jit_free_info.
  * @info:	Array of objects of the struct base_jit_alloc_info type which
@@ -145,12 +171,14 @@ struct kbase_kcpu_command_jit_free_info {
  *		the user buffer.
  * @nr_pages:	number of pages.
  * @offset:	offset into the pages
+ * @cpu_alloc:	Reference to physical pages of suspend buffer allocation.
  */
 struct kbase_suspend_copy_buffer {
 	size_t size;
 	struct page **pages;
 	int nr_pages;
 	size_t offset;
+	struct kbase_mem_phy_alloc *cpu_alloc;
 };
 
 /**
@@ -159,12 +187,20 @@ struct kbase_suspend_copy_buffer {
  *
  * @sus_buf:		Pointer to the structure which contains details of the
  *			user buffer and its kernel pinned pages.
- * @group_handle:	Handle to the mapping of command stream group.
+ * @group_handle:	Handle to the mapping of CSG.
  */
 struct kbase_kcpu_command_group_suspend_info {
 	struct kbase_suspend_copy_buffer *sus_buf;
 	u8 group_handle;
 };
+
+#if MALI_UNIT_TEST
+struct kbase_kcpu_command_sample_time_info {
+	u64 page_addr;
+	u64 page_offset;
+	struct page **page;
+};
+#endif /* MALI_UNIT_TEST */
 
 /**
  * struct kbase_cpu_command - Command which is to be part of the kernel
@@ -175,6 +211,14 @@ struct kbase_kcpu_command_group_suspend_info {
  *		indicates that it has been enqueued earlier.
  * @info:	Structure which holds information about the command
  *		dependent on the command type.
+ * @info.fence:            Fence
+ * @info.cqs_wait:         CQS wait
+ * @info.cqs_set:          CQS set
+ * @info.import:           import
+ * @info.jit_alloc:        jit allocation
+ * @info.jit_free:         jit deallocation
+ * @info.suspend_buf_copy: suspend buffer copy
+ * @info.sample_time:      sample time
  */
 struct kbase_kcpu_command {
 	enum base_kcpu_command_type type;
@@ -183,10 +227,15 @@ struct kbase_kcpu_command {
 		struct kbase_kcpu_command_fence_info fence;
 		struct kbase_kcpu_command_cqs_wait_info cqs_wait;
 		struct kbase_kcpu_command_cqs_set_info cqs_set;
+		struct kbase_kcpu_command_cqs_wait_operation_info cqs_wait_operation;
+		struct kbase_kcpu_command_cqs_set_operation_info cqs_set_operation;
 		struct kbase_kcpu_command_import_info import;
 		struct kbase_kcpu_command_jit_alloc_info jit_alloc;
 		struct kbase_kcpu_command_jit_free_info jit_free;
 		struct kbase_kcpu_command_group_suspend_info suspend_buf_copy;
+#if MALI_UNIT_TEST
+		struct kbase_kcpu_command_sample_time_info sample_time;
+#endif /* MALI_UNIT_TEST */
 	} info;
 };
 
@@ -201,6 +250,7 @@ struct kbase_kcpu_command {
  *				commands enqueued into a kcpu command queue;
  *				part of kernel API for processing workqueues
  * @start_offset:		Index of the command to be executed next
+ * @id:				KCPU command queue ID.
  * @num_pending_cmds:		The number of commands enqueued but not yet
  *				executed or pending
  * @cqs_wait_count:		Tracks the number of CQS wait commands enqueued
@@ -233,6 +283,7 @@ struct kbase_kcpu_command_queue {
 	struct kbase_kcpu_command commands[KBASEP_KCPU_QUEUE_SIZE];
 	struct work_struct work;
 	u8 start_offset;
+	u8 id;
 	u16 num_pending_cmds;
 	u32 cqs_wait_count;
 	u64 fence_context;

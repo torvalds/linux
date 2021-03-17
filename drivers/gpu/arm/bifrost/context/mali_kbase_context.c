@@ -6,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,8 +17,6 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 /*
@@ -28,10 +26,8 @@
 #include <mali_kbase.h>
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <mali_kbase_mem_linux.h>
-#include <mali_kbase_dma_fence.h>
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_mem_pool_group.h>
-#include <tl/mali_kbase_tracepoints.h>
 #include <tl/mali_kbase_timeline.h>
 #include <mmu/mali_kbase_mmu.h>
 #include <context/mali_kbase_context_internal.h>
@@ -170,20 +166,47 @@ int kbase_context_common_init(struct kbase_context *kctx)
 	mutex_init(&kctx->legacy_hwcnt_lock);
 
 	mutex_lock(&kctx->kbdev->kctx_list_lock);
-	list_add(&kctx->kctx_list_link, &kctx->kbdev->kctx_list);
 
 	err = kbase_insert_kctx_to_process(kctx);
 	if (err)
 		dev_err(kctx->kbdev->dev,
 		"(err:%d) failed to insert kctx to kbase_process\n", err);
 
-	KBASE_TLSTREAM_TL_KBASE_NEW_CTX(kctx->kbdev, kctx->id,
-		kctx->kbdev->gpu_props.props.raw_props.gpu_id);
-	KBASE_TLSTREAM_TL_NEW_CTX(kctx->kbdev, kctx, kctx->id,
-			(u32)(kctx->tgid));
 	mutex_unlock(&kctx->kbdev->kctx_list_lock);
 
 	return err;
+}
+
+int kbase_context_add_to_dev_list(struct kbase_context *kctx)
+{
+	if (WARN_ON(!kctx))
+		return -EINVAL;
+
+	if (WARN_ON(!kctx->kbdev))
+		return -EINVAL;
+
+	mutex_lock(&kctx->kbdev->kctx_list_lock);
+	list_add(&kctx->kctx_list_link, &kctx->kbdev->kctx_list);
+	mutex_unlock(&kctx->kbdev->kctx_list_lock);
+
+	kbase_timeline_post_kbase_context_create(kctx);
+
+	return 0;
+}
+
+void kbase_context_remove_from_dev_list(struct kbase_context *kctx)
+{
+	if (WARN_ON(!kctx))
+		return;
+
+	if (WARN_ON(!kctx->kbdev))
+		return;
+
+	kbase_timeline_pre_kbase_context_destroy(kctx);
+
+	mutex_lock(&kctx->kbdev->kctx_list_lock);
+	list_del_init(&kctx->kctx_list_link);
+	mutex_unlock(&kctx->kbdev->kctx_list_lock);
 }
 
 /**
@@ -238,24 +261,9 @@ void kbase_context_common_term(struct kbase_context *kctx)
 
 	mutex_lock(&kctx->kbdev->kctx_list_lock);
 	kbase_remove_kctx_from_process(kctx);
-
-	KBASE_TLSTREAM_TL_KBASE_DEL_CTX(kctx->kbdev, kctx->id);
-
-	KBASE_TLSTREAM_TL_DEL_CTX(kctx->kbdev, kctx);
-	list_del(&kctx->kctx_list_link);
 	mutex_unlock(&kctx->kbdev->kctx_list_lock);
 
 	KBASE_KTRACE_ADD(kctx->kbdev, CORE_CTX_DESTROY, kctx, 0u);
-
-	/* Flush the timeline stream, so the user can see the termination
-	 * tracepoints being fired.
-	 * The "if" statement below is for optimization. It is safe to call
-	 * kbase_timeline_streams_flush when timeline is disabled.
-	 */
-	if (atomic_read(&kctx->kbdev->timeline_flags) != 0)
-		kbase_timeline_streams_flush(kctx->kbdev->timeline);
-
-	vfree(kctx);
 }
 
 int kbase_context_mem_pool_group_init(struct kbase_context *kctx)
@@ -273,11 +281,9 @@ void kbase_context_mem_pool_group_term(struct kbase_context *kctx)
 
 int kbase_context_mmu_init(struct kbase_context *kctx)
 {
-	kbase_mmu_init(kctx->kbdev,
-		&kctx->mmu, kctx,
+	return kbase_mmu_init(
+		kctx->kbdev, &kctx->mmu, kctx,
 		base_context_mmu_group_id_get(kctx->create_flags));
-
-	return 0;
 }
 
 void kbase_context_mmu_term(struct kbase_context *kctx)

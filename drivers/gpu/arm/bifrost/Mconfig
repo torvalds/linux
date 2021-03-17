@@ -1,17 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0
 #
-# (C) COPYRIGHT 2012-2020 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
 # Foundation, and any use by you of this program is subject to the terms
-# of such GNU licence.
+# of such GNU license.
 #
-# A copy of the licence is included with the program, and can also be obtained
-# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-# Boston, MA  02110-1301, USA.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
 #
 #
-
 
 menuconfig MALI_BIFROST
 	bool "Mali Midgard series support"
@@ -21,6 +26,13 @@ menuconfig MALI_BIFROST
 
 	  To compile this driver as a module, choose M here:
 	  this will generate a single module, called mali_kbase.
+
+config MALI_CSF_SUPPORT
+	bool "Mali CSF based GPU support"
+	depends on MALI_BIFROST
+	default n
+	help
+	  Enables support for CSF based GPUs.
 
 config MALI_BIFROST_GATOR_SUPPORT
 	bool "Enable Streamline tracing support"
@@ -272,6 +284,9 @@ config MALI_GEM5_BUILD
 # Instrumentation options.
 
 # config MALI_JOB_DUMP exists in the Kernel Kconfig but is configured using CINSTR_JOB_DUMP in Mconfig.
+# config MALI_PRFCNT_SET_PRIMARY exists in the Kernel Kconfig but is configured using CINSTR_PRIMARY_HWC in Mconfig.
 # config MALI_BIFROST_PRFCNT_SET_SECONDARY exists in the Kernel Kconfig but is configured using CINSTR_SECONDARY_HWC in Mconfig.
+# config MALI_PRFCNT_SET_TERTIARY exists in the Kernel Kconfig but is configured using CINSTR_TERTIARY_HWC in Mconfig.
+# config MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS exists in the Kernel Kconfig but is configured using CINSTR_HWC_SET_SELECT_VIA_DEBUG_FS in Mconfig.
 
 source "kernel/drivers/gpu/arm/midgard/tests/Mconfig"

@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2012-2016, 2018-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016, 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,14 +17,10 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 /**
- * @file mali_kbase_sync.h
- *
- * This file contains our internal "API" for explicit fences.
+ * DOC: This file contains our internal "API" for explicit fences.
  * It hides the implementation details of the actual explicit fence mechanism
  * used (Android fences or sync file with DMA fences).
  */
@@ -31,6 +28,7 @@
 #ifndef MALI_KBASE_SYNC_H
 #define MALI_KBASE_SYNC_H
 
+#include <linux/fdtable.h>
 #include <linux/syscalls.h>
 #ifdef CONFIG_SYNC
 #include <sync.h>
@@ -165,7 +163,9 @@ void kbase_sync_fence_out_remove(struct kbase_jd_atom *katom);
  */
 static inline void kbase_sync_fence_close_fd(int fd)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
+#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+	close_fd(fd);
+#elif KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE
 	ksys_close(fd);
 #else
 	sys_close(fd);

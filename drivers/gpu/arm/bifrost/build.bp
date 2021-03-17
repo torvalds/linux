@@ -1,15 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2017-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA 02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  */
 
@@ -135,8 +141,11 @@ bob_kernel_module {
     cinstr_secondary_hwc: {
         kbuild_options: ["CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY=y"],
     },
-    cinstr_secondary_hwc_via_debug_fs: {
-        kbuild_options: ["CONFIG_MALI_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS=y"],
+    cinstr_tertiary_hwc: {
+        kbuild_options: ["CONFIG_MALI_PRFCNT_SET_TERTIARY=y"],
+    },
+    cinstr_hwc_set_select_via_debug_fs: {
+        kbuild_options: ["CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS=y"],
     },
     mali_2mb_alloc: {
         kbuild_options: ["CONFIG_MALI_2MB_ALLOC=y"],
@@ -158,14 +167,20 @@ bob_kernel_module {
             "jm/*.h",
             "tl/backend/*_jm.c",
             "mmu/backend/*_jm.c",
+            "ipa/backend/*_jm.c",
+            "ipa/backend/*_jm.h",
         ],
     },
     gpu_has_csf: {
+        kbuild_options: ["CONFIG_MALI_CSF_SUPPORT=y"],
         srcs: [
             "context/backend/*_csf.c",
             "csf/*.c",
             "csf/*.h",
             "csf/Kbuild",
+            "csf/ipa_control/*.c",
+            "csf/ipa_control/*.h",
+            "csf/ipa_control/Kbuild",
             "debug/backend/*_csf.c",
             "debug/backend/*_csf.h",
             "device/backend/*_csf.c",
@@ -173,6 +188,8 @@ bob_kernel_module {
             "gpu/backend/*_csf.h",
             "tl/backend/*_csf.c",
             "mmu/backend/*_csf.c",
+            "ipa/backend/*_csf.c",
+            "ipa/backend/*_csf.h",
         ],
     },
     mali_arbiter_support: {

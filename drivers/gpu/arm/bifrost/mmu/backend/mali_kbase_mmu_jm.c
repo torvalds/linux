@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,12 +17,10 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 /**
- * Base kernel MMU management specific for Job Manager GPU.
+ * DOC: Base kernel MMU management specific for Job Manager GPU.
  */
 
 #include <mali_kbase.h>
@@ -97,7 +96,7 @@ void kbase_gpu_report_bus_fault_and_kill(struct kbase_context *kctx,
 				 KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED);
 }
 
-/**
+/*
  * The caller must ensure it's retained the ctx to prevent it from being
  * scheduled out whilst it's being worked on.
  */
@@ -144,6 +143,7 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 		kctx->pid);
 
 	/* hardware counters dump fault handling */
+	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 	if ((kbdev->hwcnt.kctx) && (kbdev->hwcnt.kctx->as_nr == as_no) &&
 			(kbdev->hwcnt.backend.state ==
 						KBASE_INSTR_STATE_DUMPING)) {
@@ -152,6 +152,7 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 					kbdev->hwcnt.addr_bytes)))
 			kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_FAULT;
 	}
+	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 
 	/* Stop the kctx from submitting more jobs and cause it to be scheduled
 	 * out/rescheduled - this will occur on releasing the context's refcount
@@ -200,10 +201,12 @@ static void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 		struct kbase_context *kctx, struct kbase_as *as,
 		struct kbase_fault *fault)
 {
+	unsigned long flags;
+
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	dev_dbg(kbdev->dev,
-		"Entering %s kctx %p, as %p\n",
+		"Entering %s kctx %pK, as %pK\n",
 		__func__, (void *)kctx, (void *)as);
 
 	if (!kctx) {
@@ -237,11 +240,13 @@ static void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 		 * hw counters dumping in progress, signal the
 		 * other thread that it failed
 		 */
+  		spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 		if ((kbdev->hwcnt.kctx == kctx) &&
 		    (kbdev->hwcnt.backend.state ==
 					KBASE_INSTR_STATE_DUMPING))
 			kbdev->hwcnt.backend.state =
 						KBASE_INSTR_STATE_FAULT;
+  		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 
 		/*
 		 * Stop the kctx from submitting more jobs and cause it
@@ -250,14 +255,10 @@ static void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 		 */
 		kbasep_js_clear_submit_allowed(js_devdata, kctx);
 
-		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_AARCH64_MMU))
-			dev_warn(kbdev->dev,
-					"Bus error in AS%d at VA=0x%016llx, IPA=0x%016llx\n",
-					as->number, fault->addr,
-					fault->extra_addr);
-		else
-			dev_warn(kbdev->dev, "Bus error in AS%d at 0x%016llx\n",
-					as->number, fault->addr);
+		dev_warn(kbdev->dev,
+				"Bus error in AS%d at VA=0x%016llx, IPA=0x%016llx\n",
+				as->number, fault->addr,
+				fault->extra_addr);
 
 		/*
 		 * We need to switch to UNMAPPED mode - but we do this in a
@@ -271,7 +272,7 @@ static void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 	}
 
 	dev_dbg(kbdev->dev,
-		"Leaving %s kctx %p, as %p\n",
+		"Leaving %s kctx %pK, as %pK\n",
 		__func__, (void *)kctx, (void *)as);
 }
 
@@ -370,14 +371,11 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 		/* record the fault status */
 		fault->status = kbase_reg_read(kbdev, MMU_AS_REG(as_no,
 				AS_FAULTSTATUS));
-
-		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_AARCH64_MMU)) {
-			fault->extra_addr = kbase_reg_read(kbdev,
-					MMU_AS_REG(as_no, AS_FAULTEXTRA_HI));
-			fault->extra_addr <<= 32;
-			fault->extra_addr |= kbase_reg_read(kbdev,
-					MMU_AS_REG(as_no, AS_FAULTEXTRA_LO));
-		}
+		fault->extra_addr = kbase_reg_read(kbdev,
+				MMU_AS_REG(as_no, AS_FAULTEXTRA_HI));
+		fault->extra_addr <<= 32;
+		fault->extra_addr |= kbase_reg_read(kbdev,
+				MMU_AS_REG(as_no, AS_FAULTEXTRA_LO));
 
 		if (kbase_as_has_bus_fault(as, fault)) {
 			/* Mark bus fault as handled.
@@ -418,7 +416,7 @@ int kbase_mmu_switch_to_ir(struct kbase_context *const kctx,
 	struct kbase_va_region *const reg)
 {
 	dev_dbg(kctx->kbdev->dev,
-		"Switching to incremental rendering for region %p\n",
+		"Switching to incremental rendering for region %pK\n",
 		(void *)reg);
 	return kbase_job_slot_softstop_start_rp(kctx, reg);
 }

@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -60,7 +59,7 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 	/* Lock the context list, to ensure no changes to the list are made
 	 * while we're summarizing the contexts and their contents.
 	 */
-	mutex_lock(&kbdev->kctx_list_lock);
+	mutex_lock(&timeline->tl_kctx_list_lock);
 
 	/* Hold the scheduler lock while we emit the current state
 	 * We also need to continue holding the lock until after the first body
@@ -90,7 +89,7 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 	mutex_unlock(&kbdev->csf.scheduler.lock);
 
 	/* For each context in the device... */
-	list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
+	list_for_each_entry(kctx, &timeline->tl_kctx_list, tl_kctx_list_node) {
 		size_t i;
 		struct kbase_tlstream *body =
 			&timeline->streams[TL_STREAM_TYPE_OBJ];
@@ -160,9 +159,9 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 		 * this iteration of the loop, so will start to correctly update
 		 * the object model state.
 		 */
-	};
+	}
 
-	mutex_unlock(&kbdev->kctx_list_lock);
+	mutex_unlock(&timeline->tl_kctx_list_lock);
 
 	/* Static object are placed into summary packet that needs to be
 	 * transmitted first. Flush all streams to make it available to

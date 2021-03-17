@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,13 +17,10 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 /**
- * @file mali_kbase_mmu.c
- * Base kernel MMU management.
+ * DOC: Base kernel MMU management.
  */
 
 #include <linux/kernel.h>
@@ -37,8 +35,6 @@
 #include <mali_kbase_defs.h>
 #include <mali_kbase_hw.h>
 #include <mmu/mali_kbase_mmu_hw.h>
-#include <mali_kbase_hwaccess_jm.h>
-#include <mali_kbase_hwaccess_time.h>
 #include <mali_kbase_mem.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mmu/mali_kbase_mmu.h>
@@ -84,21 +80,20 @@ static void kbase_mmu_flush_invalidate_no_ctx(struct kbase_device *kbdev,
 		u64 vpfn, size_t nr, bool sync, int as_nr);
 
 /**
- * kbase_mmu_sync_pgd - sync page directory to memory
+ * kbase_mmu_sync_pgd() - sync page directory to memory when needed.
  * @kbdev:	Device pointer.
  * @handle:	Address of DMA region.
  * @size:       Size of the region to sync.
  *
  * This should be called after each page directory update.
  */
-
 static void kbase_mmu_sync_pgd(struct kbase_device *kbdev,
 		dma_addr_t handle, size_t size)
 {
-	/* If page table is not coherent then ensure the gpu can read
+	/* In non-coherent system, ensure the GPU can read
 	 * the pages from memory
 	 */
-	if (kbdev->system_coherency != COHERENCY_ACE)
+	if (kbdev->system_coherency == COHERENCY_NONE)
 		dma_sync_single_for_device(kbdev->dev, handle, size,
 				DMA_TO_DEVICE);
 }
@@ -119,7 +114,7 @@ static int kbase_mmu_update_pages_no_flush(struct kbase_context *kctx, u64 vpfn,
 /**
  * reg_grow_calc_extra_pages() - Calculate the number of backed pages to add to
  *                               a region on a GPU page fault
- *
+ * @kbdev:         KBase device
  * @reg:           The region that will be backed with more pages
  * @fault_rel_pfn: PFN of the fault relative to the start of the region
  *
@@ -135,20 +130,21 @@ static int kbase_mmu_update_pages_no_flush(struct kbase_context *kctx, u64 vpfn,
 static size_t reg_grow_calc_extra_pages(struct kbase_device *kbdev,
 		struct kbase_va_region *reg, size_t fault_rel_pfn)
 {
-	size_t multiple = reg->extent;
+	size_t multiple = reg->extension;
 	size_t reg_current_size = kbase_reg_current_backed_size(reg);
 	size_t minimum_extra = fault_rel_pfn - reg_current_size + 1;
 	size_t remainder;
 
 	if (!multiple) {
-		dev_warn(kbdev->dev,
-			"VA Region 0x%llx extent was 0, allocator needs to set this properly for KBASE_REG_PF_GROW\n",
+		dev_warn(
+			kbdev->dev,
+			"VA Region 0x%llx extension was 0, allocator needs to set this properly for KBASE_REG_PF_GROW\n",
 			((unsigned long long)reg->start_pfn) << PAGE_SHIFT);
 		return minimum_extra;
 	}
 
 	/* Calculate the remainder to subtract from minimum_extra to make it
-	 * the desired (rounded down) multiple of the extent.
+	 * the desired (rounded down) multiple of the extension.
 	 * Depending on reg's flags, the base used for calculating multiples is
 	 * different
 	 */
@@ -565,7 +561,7 @@ void kbase_mmu_page_fault_worker(struct work_struct *data)
 
 	kbdev = container_of(faulting_as, struct kbase_device, as[as_no]);
 	dev_dbg(kbdev->dev,
-		"Entering %s %p, fault_pfn %lld, as_no %d\n",
+		"Entering %s %pK, fault_pfn %lld, as_no %d\n",
 		__func__, (void *)data, fault_pfn, as_no);
 
 	/* Grab the context that was already refcounted in kbase_mmu_interrupt()
@@ -638,21 +634,13 @@ void kbase_mmu_page_fault_worker(struct work_struct *data)
 		goto fault_done;
 
 	case AS_FAULTSTATUS_EXCEPTION_CODE_ADDRESS_SIZE_FAULT:
-		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_AARCH64_MMU))
-			kbase_mmu_report_fault_and_kill(kctx, faulting_as,
-					"Address size fault", fault);
-		else
-			kbase_mmu_report_fault_and_kill(kctx, faulting_as,
-					"Unknown fault code", fault);
+		kbase_mmu_report_fault_and_kill(kctx, faulting_as,
+				"Address size fault", fault);
 		goto fault_done;
 
 	case AS_FAULTSTATUS_EXCEPTION_CODE_MEMORY_ATTRIBUTES_FAULT:
-		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_AARCH64_MMU))
-			kbase_mmu_report_fault_and_kill(kctx, faulting_as,
-					"Memory attributes fault", fault);
-		else
-			kbase_mmu_report_fault_and_kill(kctx, faulting_as,
-					"Unknown fault code", fault);
+		kbase_mmu_report_fault_and_kill(kctx, faulting_as,
+				"Memory attributes fault", fault);
 		goto fault_done;
 
 	default:
@@ -717,6 +705,10 @@ page_fault_retry:
 				"Don't need memory can't be grown", fault);
 		goto fault_done;
 	}
+
+	if (AS_FAULTSTATUS_ACCESS_TYPE_GET(fault_status) ==
+		AS_FAULTSTATUS_ACCESS_TYPE_READ)
+		dev_warn(kbdev->dev, "Grow on pagefault while reading");
 
 	/* find the size we need to grow it by
 	 * we know the result fit in a size_t due to
@@ -852,7 +844,7 @@ page_fault_retry:
 
 			if (kbase_mmu_switch_to_ir(kctx, region) >= 0) {
 				dev_dbg(kctx->kbdev->dev,
-					"Get region %p for IR\n",
+					"Get region %pK for IR\n",
 					(void *)region);
 				kbase_va_region_alloc_get(kctx, region);
 			}
@@ -980,7 +972,7 @@ fault_done:
 	release_ctx(kbdev, kctx);
 
 	atomic_dec(&kbdev->faults_pending);
-	dev_dbg(kbdev->dev, "Leaving page_fault_worker %p\n", (void *)data);
+	dev_dbg(kbdev->dev, "Leaving page_fault_worker %pK\n", (void *)data);
 }
 
 static phys_addr_t kbase_mmu_alloc_pgd(struct kbase_device *kbdev,
@@ -1557,7 +1549,7 @@ static void kbase_mmu_flush_invalidate_noretain(struct kbase_context *kctx,
 		 */
 		dev_err(kbdev->dev, "Flush for GPU page table update did not complete. Issuing GPU soft-reset to recover\n");
 
-		if (kbase_prepare_to_reset_gpu_locked(kbdev))
+		if (kbase_prepare_to_reset_gpu_locked(kbdev, RESET_FLAGS_NONE))
 			kbase_reset_gpu_locked(kbdev);
 	}
 }
@@ -1570,10 +1562,29 @@ static void kbase_mmu_flush_invalidate_as(struct kbase_device *kbdev,
 {
 	int err;
 	u32 op;
+	bool gpu_powered;
+	unsigned long flags;
+
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	gpu_powered = kbdev->pm.backend.gpu_powered;
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+	/* GPU is off so there's no need to perform flush/invalidate.
+	 * But even if GPU is not actually powered down, after gpu_powered flag
+	 * was set to false, it is still safe to skip the flush/invalidate.
+	 * The TLB invalidation will anyways be performed due to AS_COMMAND_UPDATE
+	 * which is sent when address spaces are restored after gpu_powered flag
+	 * is set to true. Flushing of L2 cache is certainly not required as L2
+	 * cache is definitely off if gpu_powered is false.
+	 */
+	if (!gpu_powered)
+		return;
 
 	if (kbase_pm_context_active_handle_suspend(kbdev,
 				KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE)) {
-		/* GPU is off so there's no need to perform flush/invalidate */
+		/* GPU has just been powered off due to system suspend.
+		 * So again, no need to perform flush/invalidate.
+		 */
 		return;
 	}
 
@@ -1592,9 +1603,10 @@ static void kbase_mmu_flush_invalidate_as(struct kbase_device *kbdev,
 		/* Flush failed to complete, assume the GPU has hung and
 		 * perform a reset to recover
 		 */
-		dev_err(kbdev->dev, "Flush for GPU page table update did not complete. Issueing GPU soft-reset to recover\n");
+		dev_err(kbdev->dev, "Flush for GPU page table update did not complete. Issuing GPU soft-reset to recover\n");
 
-		if (kbase_prepare_to_reset_gpu(kbdev))
+		if (kbase_prepare_to_reset_gpu(
+			    kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
 			kbase_reset_gpu(kbdev);
 	}
 
@@ -1627,10 +1639,10 @@ static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
 	kbdev = kctx->kbdev;
 #if !MALI_USE_CSF
 	mutex_lock(&kbdev->js_data.queue_mutex);
-#endif /* !MALI_USE_CSF */
 	ctx_is_in_runpool = kbase_ctx_sched_inc_refcount(kctx);
-#if !MALI_USE_CSF
 	mutex_unlock(&kbdev->js_data.queue_mutex);
+#else
+	ctx_is_in_runpool = kbase_ctx_sched_inc_refcount_if_as_valid(kctx);
 #endif /* !MALI_USE_CSF */
 
 	if (ctx_is_in_runpool) {
@@ -1673,6 +1685,7 @@ void kbase_mmu_disable(struct kbase_context *kctx)
 	KBASE_DEBUG_ASSERT(kctx->as_nr != KBASEP_AS_NR_INVALID);
 
 	lockdep_assert_held(&kctx->kbdev->hwaccess_lock);
+	lockdep_assert_held(&kctx->kbdev->mmu_hw_mutex);
 
 	/*
 	 * The address space is being disabled, drain all knowledge of it out

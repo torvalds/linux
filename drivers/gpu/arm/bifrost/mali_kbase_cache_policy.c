@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2012-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
-
 
 /*
  * Cache Policy API.
@@ -58,10 +55,11 @@ void kbase_sync_single_for_device(struct kbase_device *kbdev, dma_addr_t handle,
 {
 	dma_sync_single_for_device(kbdev->dev, handle, size, dir);
 }
-
+KBASE_EXPORT_TEST_API(kbase_sync_single_for_device);
 
 void kbase_sync_single_for_cpu(struct kbase_device *kbdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir)
 {
 	dma_sync_single_for_cpu(kbdev->dev, handle, size, dir);
 }
+KBASE_EXPORT_TEST_API(kbase_sync_single_for_cpu);

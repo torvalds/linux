@@ -1,24 +1,4 @@
 /*
- *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
- *
- *//*
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
@@ -209,7 +189,8 @@ check_current:
 			return -ENOMEM;
 		if (gap_start <= high_limit && gap_end - gap_start >= length) {
 			/* We found a suitable gap. Clip it with the original
-			 * high_limit. */
+			 * high_limit.
+			 */
 			if (gap_end > info->high_limit)
 				gap_end = info->high_limit;
 
@@ -270,6 +251,26 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 	bool is_same_4gb_page = false;
 	unsigned long ret;
 
+	/* the 'nolock' form is used here:
+	 * - the base_pfn of the SAME_VA zone does not change
+	 * - in normal use, va_size_pages is constant once the first allocation
+	 *   begins
+	 *
+	 * However, in abnormal use this function could be processing whilst
+	 * another new zone is being setup in a different thread (e.g. to
+	 * borrow part of the SAME_VA zone). In the worst case, this path may
+	 * witness a higher SAME_VA end_pfn than the code setting up the new
+	 * zone.
+	 *
+	 * This is safe because once we reach the main allocation functions,
+	 * we'll see the updated SAME_VA end_pfn and will determine that there
+	 * is no free region at the address found originally by too large a
+	 * same_va_end_addr here, and will fail the allocation gracefully.
+	 */
+	struct kbase_reg_zone *zone =
+		kbase_ctx_reg_zone_get_nolock(kctx, KBASE_REG_ZONE_SAME_VA);
+	u64 same_va_end_addr = kbase_reg_zone_end_pfn(zone) << PAGE_SHIFT;
+
 	/* err on fixed address */
 	if ((flags & MAP_FIXED) || addr)
 		return -EINVAL;
@@ -280,9 +281,8 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 		return -ENOMEM;
 
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
-
-		high_limit = min_t(unsigned long, mm->mmap_base,
-				(kctx->same_va_end << PAGE_SHIFT));
+		high_limit =
+			min_t(unsigned long, mm->mmap_base, same_va_end_addr);
 
 		/* If there's enough (> 33 bits) of GPU VA space, align
 		 * to 2MB boundaries.
@@ -319,18 +319,22 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 				}
 #if !MALI_USE_CSF
 			} else if (reg->flags & KBASE_REG_TILER_ALIGN_TOP) {
-				unsigned long extent_bytes =
-				     (unsigned long)(reg->extent << PAGE_SHIFT);
+				unsigned long extension_bytes =
+					(unsigned long)(reg->extension
+							<< PAGE_SHIFT);
 				/* kbase_check_alloc_sizes() already satisfies
 				 * these checks, but they're here to avoid
 				 * maintenance hazards due to the assumptions
-				 * involved */
-				WARN_ON(reg->extent > (ULONG_MAX >> PAGE_SHIFT));
+				 * involved
+				 */
+				WARN_ON(reg->extension >
+					(ULONG_MAX >> PAGE_SHIFT));
 				WARN_ON(reg->initial_commit > (ULONG_MAX >> PAGE_SHIFT));
-				WARN_ON(!is_power_of_2(extent_bytes));
-				align_mask = extent_bytes - 1;
+				WARN_ON(!is_power_of_2(extension_bytes));
+				align_mask = extension_bytes - 1;
 				align_offset =
-				      extent_bytes - (reg->initial_commit << PAGE_SHIFT);
+					extension_bytes -
+					(reg->initial_commit << PAGE_SHIFT);
 #endif /* !MALI_USE_CSF */
 			} else if (reg->flags & KBASE_REG_GPU_VA_SAME_4GB_PAGE) {
 				is_same_4gb_page = true;
@@ -354,11 +358,10 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 			is_same_4gb_page);
 
 	if (IS_ERR_VALUE(ret) && high_limit == mm->mmap_base &&
-			high_limit < (kctx->same_va_end << PAGE_SHIFT)) {
+	    high_limit < same_va_end_addr) {
 		/* Retry above mmap_base */
 		info.low_limit = mm->mmap_base;
-		info.high_limit = min_t(u64, TASK_SIZE,
-					(kctx->same_va_end << PAGE_SHIFT));
+		info.high_limit = min_t(u64, TASK_SIZE, same_va_end_addr);
 
 		ret = kbase_unmapped_area_topdown(&info, is_shader_code,
 				is_same_4gb_page);

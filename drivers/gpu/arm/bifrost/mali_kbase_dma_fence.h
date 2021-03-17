@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  * (C) COPYRIGHT 2010-2016, 2020 ARM Limited. All rights reserved.
@@ -5,7 +6,7 @@
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -44,7 +43,7 @@ struct kbase_context;
  * reservation objects.
  */
 struct kbase_dma_fence_resv_info {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+#if (KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE)
 	struct reservation_object **resv_objs;
 #else
 	struct dma_resv **resv_objs;
@@ -63,7 +62,7 @@ struct kbase_dma_fence_resv_info {
  * reservation_objects. At the same time keeps track of which objects require
  * exclusive access in dma_fence_excl_bitmap.
  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+#if (KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE)
 void kbase_dma_fence_add_reservation(struct reservation_object *resv,
 				     struct kbase_dma_fence_resv_info *info,
 				     bool exclusive);

@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,14 +17,9 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
-
-
 /**
- * @file mali_kbase_pm.h
  * Power management API definitions
  */
 
@@ -66,12 +62,12 @@ int kbase_pm_powerup(struct kbase_device *kbdev, unsigned int flags);
 
 /**
  * Halt the power management framework.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
  * Should ensure that no new interrupts are generated,
  * but allow any currently running interrupt handlers to complete successfully.
  * The GPU is forced off by the time this function returns, regardless of
  * whether or not the active power policy asks for the GPU to be powered off.
- *
- * @param kbdev     The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_pm_halt(struct kbase_device *kbdev);
 
@@ -161,6 +157,7 @@ void kbase_pm_context_idle(struct kbase_device *kbdev);
 /**
  * Suspend the GPU and prevent any further register accesses to it from Kernel
  * threads.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
  * This is called in response to an OS suspend event, and calls into the various
  * kbase components to complete the suspend.
@@ -168,21 +165,18 @@ void kbase_pm_context_idle(struct kbase_device *kbdev);
  * @note the mechanisms used here rely on all user-space threads being frozen
  * by the OS before we suspend. Otherwise, an IOCTL could occur that powers up
  * the GPU e.g. via atom submission.
- *
- * @param kbdev     The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_pm_suspend(struct kbase_device *kbdev);
 
 /**
  * Resume the GPU, allow register accesses to it, and resume running atoms on
  * the GPU.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
  * This is called in response to an OS resume event, and calls into the various
  * kbase components to complete the resume.
  *
  * Also called when using VM arbiter, when GPU access has been granted.
- *
- * @param kbdev     The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_pm_resume(struct kbase_device *kbdev);
 
@@ -199,8 +193,7 @@ void kbase_pm_vsync_callback(int buffer_updated, void *data);
 
 /**
  * kbase_pm_driver_suspend() - Put GPU and driver in suspend state
- * @param kbdev     The kbase device structure for the device
- *                  (must be a valid pointer)
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
  * Suspend the GPU and prevent any further register accesses to it from Kernel
  * threads.
@@ -219,8 +212,8 @@ void kbase_pm_driver_suspend(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_driver_resume() - Put GPU and driver in resume
- * @param kbdev     The kbase device structure for the device
- *                  (must be a valid pointer)
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ * @arb_gpu_start: Arbiter has notified we can use GPU
  *
  * Resume the GPU, allow register accesses to it, and resume running atoms on
  * the GPU.

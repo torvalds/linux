@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2014, 2016, 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2014, 2016, 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,10 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
 
 /*
  * Job manager common APIs
@@ -76,6 +74,7 @@ void kbase_jm_try_kick(struct kbase_device *kbdev, u32 js_mask);
 void kbase_jm_try_kick_all(struct kbase_device *kbdev);
 #endif /* !MALI_USE_CSF */
 
+#if !MALI_USE_CSF
 /**
  * kbase_jm_idle_ctx() - Mark a context as idle.
  * @kbdev:	Device pointer
@@ -91,7 +90,6 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev);
  */
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
-#if !MALI_USE_CSF
 /**
  * kbase_jm_return_atom_to_js() - Return an atom to the job scheduler that has
  *				  been soft-stopped or will fail due to a

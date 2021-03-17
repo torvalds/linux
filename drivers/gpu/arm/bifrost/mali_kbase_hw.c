@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
- * (C) COPYRIGHT 2012-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
-
 
 /*
  * Run-time work-arounds helpers
@@ -78,20 +75,6 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 	case GPU_ID2_PRODUCT_LODX:
 		features = base_hw_features_tODx;
 		break;
-	case GPU_ID2_PRODUCT_TGRX:
-		features = base_hw_features_tGRx;
-		break;
-	case GPU_ID2_PRODUCT_TVAX:
-		features = base_hw_features_tVAx;
-		break;
-	case GPU_ID2_PRODUCT_TTUX:
-		/* Fallthrough */
-	case GPU_ID2_PRODUCT_LTUX:
-		features = base_hw_features_tTUx;
-		break;
-	case GPU_ID2_PRODUCT_TE2X:
-		features = base_hw_features_tE2x;
-		break;
 	default:
 		features = base_hw_features_generic;
 		break;
@@ -143,109 +126,91 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(
 	};
 
 	static const struct base_hw_product base_hw_products[] = {
-		{GPU_ID2_PRODUCT_TMIX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 1),
-		   base_hw_issues_tMIx_r0p0_05dev0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 2), base_hw_issues_tMIx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tMIx_r0p1},
-		  {U32_MAX /* sentinel value */, NULL} } },
+		{ GPU_ID2_PRODUCT_TMIX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 1),
+		      base_hw_issues_tMIx_r0p0_05dev0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 2), base_hw_issues_tMIx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tMIx_r0p1 },
+		    { U32_MAX /* sentinel value */, NULL } } },
 
-		{GPU_ID2_PRODUCT_THEX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tHEx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 1), base_hw_issues_tHEx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tHEx_r0p1},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 1), base_hw_issues_tHEx_r0p1},
-		  {GPU_ID2_VERSION_MAKE(0, 2, 0), base_hw_issues_tHEx_r0p2},
-		  {GPU_ID2_VERSION_MAKE(0, 3, 0), base_hw_issues_tHEx_r0p3},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_THEX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tHEx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 1), base_hw_issues_tHEx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tHEx_r0p1 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 1), base_hw_issues_tHEx_r0p1 },
+		    { GPU_ID2_VERSION_MAKE(0, 2, 0), base_hw_issues_tHEx_r0p2 },
+		    { GPU_ID2_VERSION_MAKE(0, 3, 0), base_hw_issues_tHEx_r0p3 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TSIX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tSIx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 1), base_hw_issues_tSIx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tSIx_r0p1},
-		  {GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tSIx_r1p0},
-		  {GPU_ID2_VERSION_MAKE(1, 1, 0), base_hw_issues_tSIx_r1p1},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TSIX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tSIx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 1), base_hw_issues_tSIx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tSIx_r0p1 },
+		    { GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tSIx_r1p0 },
+		    { GPU_ID2_VERSION_MAKE(1, 1, 0), base_hw_issues_tSIx_r1p1 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TDVX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tDVx_r0p0},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TDVX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tDVx_r0p0 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TNOX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tNOx_r0p0},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TNOX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tNOx_r0p0 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TGOX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tGOx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tGOx_r1p0},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TGOX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tGOx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tGOx_r1p0 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TTRX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tTRx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tTRx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tTRx_r0p1},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 1), base_hw_issues_tTRx_r0p1},
-		  {GPU_ID2_VERSION_MAKE(0, 2, 0), base_hw_issues_tTRx_r0p2},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TTRX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tTRx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tTRx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tTRx_r0p1 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 1), base_hw_issues_tTRx_r0p1 },
+		    { GPU_ID2_VERSION_MAKE(0, 2, 0), base_hw_issues_tTRx_r0p2 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TNAX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tNAx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tNAx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 4), base_hw_issues_tNAx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 5), base_hw_issues_tNAx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tNAx_r0p1},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 1), base_hw_issues_tNAx_r0p1},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TNAX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tNAx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tNAx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 4), base_hw_issues_tNAx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 5), base_hw_issues_tNAx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tNAx_r0p1 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 1), base_hw_issues_tNAx_r0p1 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_LBEX,
-		 {{GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_lBEx_r1p0},
-		  {GPU_ID2_VERSION_MAKE(1, 1, 0), base_hw_issues_lBEx_r1p1},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_LBEX,
+		  { { GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_lBEx_r1p0 },
+		    { GPU_ID2_VERSION_MAKE(1, 1, 0), base_hw_issues_lBEx_r1p1 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TBEX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tBEx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tBEx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tBEx_r0p1},
-		  {GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tBEx_r1p0},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TBEX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tBEx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tBEx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tBEx_r0p1 },
+		    { GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tBEx_r1p0 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TBAX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tBAx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tBAx_r0p0},
-		  {GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tBAx_r1p0},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TBAX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tBAx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 1), base_hw_issues_tBAx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 2), base_hw_issues_tBAx_r0p0 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TDUX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tDUx_r0p0},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TDUX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tDUx_r0p0 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_TODX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tODx_r0p0},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_TODX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tODx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 4), base_hw_issues_tODx_r0p0 },
+		    { GPU_ID2_VERSION_MAKE(0, 0, 5), base_hw_issues_tODx_r0p0 },
+		    { U32_MAX, NULL } } },
 
-		{GPU_ID2_PRODUCT_LODX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tODx_r0p0},
-		  {U32_MAX, NULL} } },
-
-		{GPU_ID2_PRODUCT_TGRX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tGRx_r0p0},
-		  {U32_MAX, NULL} } },
-
-		{GPU_ID2_PRODUCT_TVAX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tVAx_r0p0},
-		  {U32_MAX, NULL} } },
-
-		{GPU_ID2_PRODUCT_TTUX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tTUx_r0p0},
-		  {U32_MAX, NULL} } },
-
-		{GPU_ID2_PRODUCT_LTUX,
-		 {{GPU_ID2_VERSION_MAKE(3, 0, 0), base_hw_issues_tTUx_r0p0},
-		  {U32_MAX, NULL} } },
-
-		{GPU_ID2_PRODUCT_TE2X,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tE2x_r0p0},
-		  {U32_MAX, NULL} } },
+		{ GPU_ID2_PRODUCT_LODX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tODx_r0p0 },
+		    { U32_MAX, NULL } } },
 	};
 
 	u32 gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
@@ -278,8 +243,8 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(
 			}
 
 			/* Check whether this is a candidate for most recent
-				known version not later than the actual
-				version. */
+			 * known version not later than the actual version.
+			 */
 			if ((version > product->map[v].version) &&
 				(product->map[v].version >= fallback_version)) {
 #if MALI_CUSTOMER_RELEASE
@@ -296,7 +261,8 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(
 
 		if ((issues == NULL) && (fallback_issues != NULL)) {
 			/* Fall back to the issue set of the most recent known
-				version not later than the actual version. */
+			 * version not later than the actual version.
+			 */
 			issues = fallback_issues;
 
 #if MALI_CUSTOMER_RELEASE
@@ -349,7 +315,8 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 
 #if !MALI_CUSTOMER_RELEASE
 		/* The GPU ID might have been replaced with the last
-			known version of the same GPU. */
+		 * known version of the same GPU.
+		 */
 		gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
 #endif
 	} else {
@@ -392,19 +359,6 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 		case GPU_ID2_PRODUCT_TODX:
 		case GPU_ID2_PRODUCT_LODX:
 			issues = base_hw_issues_model_tODx;
-			break;
-		case GPU_ID2_PRODUCT_TGRX:
-			issues = base_hw_issues_model_tGRx;
-			break;
-		case GPU_ID2_PRODUCT_TVAX:
-			issues = base_hw_issues_model_tVAx;
-			break;
-		case GPU_ID2_PRODUCT_TTUX:
-		case GPU_ID2_PRODUCT_LTUX:
-			issues = base_hw_issues_model_tTUx;
-			break;
-		case GPU_ID2_PRODUCT_TE2X:
-			issues = base_hw_issues_model_tE2x;
 			break;
 		default:
 			dev_err(kbdev->dev,

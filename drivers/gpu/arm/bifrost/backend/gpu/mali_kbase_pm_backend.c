@@ -1,11 +1,12 @@
- /*
+// SPDX-License-Identifier: GPL-2.0
+/*
  *
- * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,10 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
 
 /*
  * GPU backend implementation of base kernel power management APIs
@@ -156,15 +154,25 @@ int kbase_hwaccess_pm_init(struct kbase_device *kbdev)
 #endif /* CONFIG_MALI_BIFROST_DEBUG */
 	init_waitqueue_head(&kbdev->pm.backend.gpu_in_desired_state_wait);
 
+#if !MALI_USE_CSF
 	/* Initialise the metrics subsystem */
 	ret = kbasep_pm_metrics_init(kbdev);
 	if (ret)
 		return ret;
+#else
+	mutex_init(&kbdev->pm.backend.policy_change_lock);
+	kbdev->pm.backend.policy_change_clamp_state_to_off = false;
+	/* Due to dependency on kbase_ipa_control, the metrics subsystem can't
+	 * be initialized here.
+	 */
+	CSTD_UNUSED(ret);
+#endif
 
 	init_waitqueue_head(&kbdev->pm.backend.reset_done_wait);
 	kbdev->pm.backend.reset_done = false;
 
 	init_waitqueue_head(&kbdev->pm.zero_active_count_wait);
+	init_waitqueue_head(&kbdev->pm.resume_wait);
 	kbdev->pm.active_count = 0;
 
 	spin_lock_init(&kbdev->pm.backend.gpu_cycle_counter_requests_lock);
@@ -221,7 +229,9 @@ pm_state_machine_fail:
 	kbase_pm_policy_term(kbdev);
 	kbase_pm_ca_term(kbdev);
 workq_fail:
+#if !MALI_USE_CSF
 	kbasep_pm_metrics_term(kbdev);
+#endif
 	return -EINVAL;
 }
 
@@ -230,7 +240,8 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, bool is_resume)
 	lockdep_assert_held(&kbdev->pm.lock);
 
 	/* Turn clocks and interrupts on - no-op if we haven't done a previous
-	 * kbase_pm_clock_off() */
+	 * kbase_pm_clock_off()
+	 */
 	kbase_pm_clock_on(kbdev, is_resume);
 
 	if (!is_resume) {
@@ -248,7 +259,8 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, bool is_resume)
 	kbase_pm_update_cores_state(kbdev);
 
 	/* NOTE: We don't wait to reach the desired state, since running atoms
-	 * will wait for that state to be reached anyway */
+	 * will wait for that state to be reached anyway
+	 */
 }
 
 static void kbase_pm_gpu_poweroff_wait_wq(struct work_struct *data)
@@ -486,7 +498,15 @@ static void kbase_pm_hwcnt_disable_worker(struct work_struct *data)
 		/* PM state was updated while we were doing the disable,
 		 * so we need to undo the disable we just performed.
 		 */
+#if MALI_USE_CSF
+		unsigned long lock_flags;
+
+		kbase_csf_scheduler_spin_lock(kbdev, &lock_flags);
+#endif
 		kbase_hwcnt_context_enable(kbdev->hwcnt_gpu_ctx);
+#if MALI_USE_CSF
+		kbase_csf_scheduler_spin_unlock(kbdev, lock_flags);
+#endif
 	}
 
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
@@ -562,20 +582,35 @@ int kbase_hwaccess_pm_powerup(struct kbase_device *kbdev,
 	KBASE_DEBUG_ASSERT(!kbase_pm_is_suspending(kbdev));
 
 	/* Power up the GPU, don't enable IRQs as we are not ready to receive
-	 * them. */
+	 * them
+	 */
 	ret = kbase_pm_init_hw(kbdev, flags);
 	if (ret) {
 		kbase_pm_unlock(kbdev);
 		return ret;
 	}
-
+#if MALI_USE_CSF
+	kbdev->pm.debug_core_mask =
+		kbdev->gpu_props.props.raw_props.shader_present;
+	spin_lock_irqsave(&kbdev->hwaccess_lock, irq_flags);
+	/* Set the initial value for 'shaders_avail'. It would be later
+	 * modified only from the MCU state machine, when the shader core
+	 * allocation enable mask request has completed. So its value would
+	 * indicate the mask of cores that are currently being used by FW for
+	 * the allocation of endpoints requested by CSGs.
+	 */
+	kbdev->pm.backend.shaders_avail = kbase_pm_ca_get_core_mask(kbdev);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, irq_flags);
+#else
 	kbdev->pm.debug_core_mask_all = kbdev->pm.debug_core_mask[0] =
 			kbdev->pm.debug_core_mask[1] =
 			kbdev->pm.debug_core_mask[2] =
 			kbdev->gpu_props.props.raw_props.shader_present;
+#endif
 
 	/* Pretend the GPU is active to prevent a power policy turning the GPU
-	 * cores off */
+	 * cores off
+	 */
 	kbdev->pm.active_count = 1;
 
 	spin_lock_irqsave(&kbdev->pm.backend.gpu_cycle_counter_requests_lock,
@@ -587,7 +622,8 @@ int kbase_hwaccess_pm_powerup(struct kbase_device *kbdev,
 								irq_flags);
 
 	/* We are ready to receive IRQ's now as power policy is set up, so
-	 * enable them now. */
+	 * enable them now.
+	 */
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 	kbdev->pm.backend.driver_ready_for_irqs = true;
 #endif
@@ -620,6 +656,8 @@ void kbase_hwaccess_pm_halt(struct kbase_device *kbdev)
 	mutex_lock(&kbdev->pm.lock);
 	kbase_pm_do_poweroff(kbdev);
 	mutex_unlock(&kbdev->pm.lock);
+
+	kbase_pm_wait_for_poweroff_complete(kbdev);
 }
 
 KBASE_EXPORT_TEST_API(kbase_hwaccess_pm_halt);
@@ -634,10 +672,15 @@ void kbase_hwaccess_pm_term(struct kbase_device *kbdev)
 
 	if (kbdev->pm.backend.hwcnt_disabled) {
 		unsigned long flags;
-
+#if MALI_USE_CSF
+		kbase_csf_scheduler_spin_lock(kbdev, &flags);
+		kbase_hwcnt_context_enable(kbdev->hwcnt_gpu_ctx);
+		kbase_csf_scheduler_spin_unlock(kbdev, flags);
+#else
 		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 		kbase_hwcnt_context_enable(kbdev->hwcnt_gpu_ctx);
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+#endif
 	}
 
 	/* Free any resources the policy allocated */
@@ -645,8 +688,16 @@ void kbase_hwaccess_pm_term(struct kbase_device *kbdev)
 	kbase_pm_policy_term(kbdev);
 	kbase_pm_ca_term(kbdev);
 
+#if !MALI_USE_CSF
 	/* Shut down the metrics subsystem */
 	kbasep_pm_metrics_term(kbdev);
+#else
+	if (WARN_ON(mutex_is_locked(&kbdev->pm.backend.policy_change_lock))) {
+		mutex_lock(&kbdev->pm.backend.policy_change_lock);
+		mutex_unlock(&kbdev->pm.backend.policy_change_lock);
+	}
+	mutex_destroy(&kbdev->pm.backend.policy_change_lock);
+#endif
 
 	destroy_workqueue(kbdev->pm.backend.gpu_poweroff_wait_wq);
 }
@@ -665,6 +716,17 @@ void kbase_pm_power_changed(struct kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
+#if MALI_USE_CSF
+void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev, u64 new_core_mask)
+{
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+	lockdep_assert_held(&kbdev->pm.lock);
+
+	kbdev->pm.debug_core_mask = new_core_mask;
+	kbase_pm_update_dynamic_cores_onoff(kbdev);
+}
+KBASE_EXPORT_TEST_API(kbase_pm_set_debug_core_mask);
+#else
 void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev,
 		u64 new_core_mask_js0, u64 new_core_mask_js1,
 		u64 new_core_mask_js2)
@@ -685,6 +747,7 @@ void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev,
 
 	kbase_pm_update_dynamic_cores_onoff(kbdev);
 }
+#endif /* MALI_USE_CSF */
 
 void kbase_hwaccess_pm_gpu_active(struct kbase_device *kbdev)
 {
@@ -700,7 +763,8 @@ void kbase_hwaccess_pm_suspend(struct kbase_device *kbdev)
 {
 	/* Force power off the GPU and all cores (regardless of policy), only
 	 * after the PM active count reaches zero (otherwise, we risk turning it
-	 * off prematurely) */
+	 * off prematurely)
+	 */
 	kbase_pm_lock(kbdev);
 
 	kbase_pm_do_poweroff(kbdev);
@@ -735,6 +799,7 @@ void kbase_hwaccess_pm_resume(struct kbase_device *kbdev)
 	kbase_backend_timer_resume(kbdev);
 #endif /* !MALI_USE_CSF */
 
+	wake_up_all(&kbdev->pm.resume_wait);
 	kbase_pm_unlock(kbdev);
 }
 
@@ -744,6 +809,9 @@ void kbase_pm_handle_gpu_lost(struct kbase_device *kbdev)
 	unsigned long flags;
 	ktime_t end_timestamp = ktime_get();
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
+
+	if (!kbdev->arb.arb_if)
+		return;
 
 	mutex_lock(&kbdev->pm.lock);
 	mutex_lock(&arb_vm_state->vm_state_lock);

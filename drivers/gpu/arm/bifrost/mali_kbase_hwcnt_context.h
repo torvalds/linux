@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -28,6 +27,7 @@
 #define _KBASE_HWCNT_CONTEXT_H_
 
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 struct kbase_hwcnt_backend_interface;
 struct kbase_hwcnt_context;
@@ -66,7 +66,7 @@ const struct kbase_hwcnt_metadata *kbase_hwcnt_context_metadata(
 
 /**
  * kbase_hwcnt_context_disable() - Increment the disable count of the context.
- * @hctx: Pointer to the hardware counter context.
+ * @hctx: Non-NULL pointer to the hardware counter context.
  *
  * If a call to this function increments the disable count from 0 to 1, and
  * an accumulator has been acquired, then a counter dump will be performed
@@ -84,7 +84,7 @@ void kbase_hwcnt_context_disable(struct kbase_hwcnt_context *hctx);
  * kbase_hwcnt_context_disable_atomic() - Increment the disable count of the
  *                                        context if possible in an atomic
  *                                        context.
- * @hctx: Pointer to the hardware counter context.
+ * @hctx: Non-NULL pointer to the hardware counter context.
  *
  * This function will only succeed if hardware counters are effectively already
  * disabled, i.e. there is no accumulator, the disable count is already
@@ -99,7 +99,7 @@ bool kbase_hwcnt_context_disable_atomic(struct kbase_hwcnt_context *hctx);
 
 /**
  * kbase_hwcnt_context_enable() - Decrement the disable count of the context.
- * @hctx: Pointer to the hardware counter context.
+ * @hctx: Non-NULL pointer to the hardware counter context.
  *
  * If a call to this function decrements the disable count from 1 to 0, and
  * an accumulator has been acquired, then counters will be re-enabled via the
@@ -115,5 +115,37 @@ bool kbase_hwcnt_context_disable_atomic(struct kbase_hwcnt_context *hctx);
  * kbase_hwcnt_context_init() must be held before calling this function.
  */
 void kbase_hwcnt_context_enable(struct kbase_hwcnt_context *hctx);
+
+/**
+ * kbase_hwcnt_context_queue_work() - Queue hardware counter related async
+ *                                    work on a workqueue specialized for
+ *                                    hardware counters.
+ * @hctx: Non-NULL pointer to the hardware counter context.
+ * @work: Non-NULL pointer to work to queue.
+ *
+ * Return: false if work was already on a queue, true otherwise.
+ *
+ * Performance counter related work is high priority, short running, and
+ * generally CPU locality is unimportant. There is no standard workqueue that
+ * can service this flavor of work.
+ *
+ * Rather than have each user of counters define their own workqueue, we have
+ * a centralized one in here that anybody using this hardware counter API
+ * should use.
+ *
+ * Before the context is destroyed, all work submitted must have been completed.
+ * Given that the work enqueued via this function is likely to be hardware
+ * counter related and will therefore use the context object, this is likely
+ * to be behavior that will occur naturally.
+ *
+ * Historical note: prior to this centralized workqueue, the system_highpri_wq
+ * was used. This was generally fine, except when a particularly long running,
+ * higher priority thread ended up scheduled on the enqueuing CPU core. Given
+ * that hardware counters requires tight integration with power management,
+ * this meant progress through the power management states could be stalled
+ * for however long that higher priority thread took.
+ */
+bool kbase_hwcnt_context_queue_work(struct kbase_hwcnt_context *hctx,
+				    struct work_struct *work);
 
 #endif /* _KBASE_HWCNT_CONTEXT_H_ */

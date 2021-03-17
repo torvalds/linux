@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2014, 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -44,4 +43,20 @@ void kbase_devfreq_force_freq(struct kbase_device *kbdev, unsigned long freq);
 void kbase_devfreq_enqueue_work(struct kbase_device *kbdev,
 				enum kbase_devfreq_work_type work_type);
 
+/**
+ * kbase_devfreq_opp_translate - Translate nominal OPP frequency from devicetree
+ *                               into real frequency & voltage pair, along with
+ *                               core mask
+ * @kbdev:     Device pointer
+ * @freq:      Nominal frequency
+ * @core_mask: Pointer to u64 to store core mask to
+ * @freqs:     Pointer to array of frequencies
+ * @volts:     Pointer to array of voltages
+ *
+ * This function will only perform translation if an operating-points-v2-mali
+ * table is present in devicetree. If one is not present then it will return an
+ * untranslated frequency (and corresponding voltage) and all cores enabled.
+ */
+void kbase_devfreq_opp_translate(struct kbase_device *kbdev, unsigned long freq,
+	u64 *core_mask, unsigned long *freqs, unsigned long *volts);
 #endif /* _BASE_DEVFREQ_H_ */

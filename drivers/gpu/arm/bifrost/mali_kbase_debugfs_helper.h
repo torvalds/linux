@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -57,6 +56,29 @@ typedef void (*kbase_debugfs_helper_set_attr_fn)(
 int kbase_debugfs_helper_set_attr_from_string(
 	const char *buf, void *array, size_t nelems,
 	kbase_debugfs_helper_set_attr_fn set_attr_fn);
+
+/**
+ * kbase_debugfs_string_validator - Validate a string to be written to a
+ *                                  debugfs file for any incorrect formats
+ *                                  or wrong values.
+ *
+ * This function is to be used before any writes to debugfs values are done
+ * such that any strings with erroneous values (such as octal 09 or
+ * hexadecimal 0xGH are fully ignored) - without this validation, any correct
+ * values before the first incorrect one will still be entered into the
+ * debugfs file. This essentially iterates the values through kstrtoul to see
+ * if it is valid.
+ *
+ * It is largely similar to set_attr_from_string to iterate through the values
+ * of the input string. This function also requires the input string to be
+ * writable.
+ *
+ * @buf: Null-terminated string to validate.
+ *
+ * Return: 0 with no error, else -22 (the invalid return value of kstrtoul) if
+ *         any value in the string was wrong or with an incorrect format.
+ */
+int kbase_debugfs_string_validator(char *const buf);
 
 /**
  * typedef kbase_debugfs_helper_get_attr_fn - Type of function to get an

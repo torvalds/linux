@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2014, 2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2017, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -264,9 +263,10 @@ struct kutf_suite {
 	struct list_head               test_list;
 };
 
-/* ============================================================================
-	Application functions
-============================================================================ */
+/** ===========================================================================
+ * Application functions
+ * ============================================================================
+ */
 
 /**
  * kutf_create_application() - Create an in kernel test application.
@@ -284,9 +284,10 @@ struct kutf_application *kutf_create_application(const char *name);
  */
 void kutf_destroy_application(struct kutf_application *app);
 
-/* ============================================================================
-	Suite functions
-============================================================================ */
+/**============================================================================
+ * Suite functions
+ * ============================================================================
+ */
 
 /**
  * kutf_create_suite() - Create a kernel test suite.
@@ -416,10 +417,10 @@ void kutf_add_test_with_filters_and_data(
 		unsigned int filters,
 		union kutf_callback_data test_data);
 
-
-/* ============================================================================
-	Test functions
-============================================================================ */
+/** ===========================================================================
+ * Test functions
+ * ============================================================================
+ */
 /**
  * kutf_test_log_result_external() - Log a result which has been created
  *                                   externally into a in a standard form

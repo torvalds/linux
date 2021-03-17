@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015, 2017, 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,29 +17,10 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
- *//* SPDX-License-Identifier: GPL-2.0 */
-/*
- *
- * (C) COPYRIGHT 2011-2015, 2017, 2019-2020 ARM Limited. All rights reserved.
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
- *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
- *
  */
 
-
-
 /**
- * @file mali_kbase_gpuprops.h
- * Base kernel property query APIs
+ * DOC: Base kernel property query APIs
  */
 
 #ifndef _KBASE_GPUPROPS_H_
@@ -64,11 +46,10 @@ struct kbase_device;
 	(((u32)(value) >> (u32)(offset)) & (u32)((1ULL << (u32)(size)) - 1))
 
 /**
- * @brief Set up Kbase GPU properties.
+ * kbase_gpuprops_set - Set up Kbase GPU properties.
+ * @kbdev: The struct kbase_device structure for the device
  *
  * Set up Kbase GPU properties with information from the GPU registers
- *
- * @param kbdev		The struct kbase_device structure for the device
  */
 void kbase_gpuprops_set(struct kbase_device *kbdev);
 
@@ -89,6 +70,8 @@ int kbase_gpuprops_set_features(struct kbase_device *kbdev);
  * @kbdev:   Device pointer
  *
  * This function updates l2_features and the log2 cache size.
+ * The function expects GPU to be powered up and value of pm.active_count
+ * to be 1.
  *
  * Return: Zero on success, Linux error code for failure
  */
@@ -131,5 +114,39 @@ int kbase_device_populate_max_freq(struct kbase_device *kbdev);
  */
 void kbase_gpuprops_update_core_props_gpu_id(
 	struct base_gpu_props * const gpu_props);
+
+/**
+ * kbase_gpuprops_set_max_config - Set the max config information
+ * @kbdev:       Device pointer
+ * @max_config:  Maximum configuration data to be updated
+ *
+ * This function sets max_config in the kbase_gpu_props.
+ */
+void kbase_gpuprops_set_max_config(struct kbase_device *kbdev,
+	const struct max_config_props *max_config);
+
+/**
+ * kbase_gpuprops_get_curr_config_props - Get the current allocated resources
+ * @kbdev: The &struct kbase_device structure for the device
+ * @curr_config: The &struct curr_config_props structure to receive the result
+ *
+ * Fill the &struct curr_config_props structure with values from the GPU
+ * configuration registers.
+ *
+ * Return: Zero on success, Linux error code on failure
+ */
+int kbase_gpuprops_get_curr_config_props(struct kbase_device *kbdev,
+	struct curr_config_props * const curr_config);
+
+/**
+ * kbase_gpuprops_req_curr_config_update - Request Current Config Update
+ * @kbdev: The &struct kbase_device structure for the device
+ *
+ * Requests the current configuration to be updated next time the
+ * kbase_gpuprops_get_curr_config_props() is called.
+ *
+ * Return: Zero on success, Linux error code on failure
+ */
+int kbase_gpuprops_req_curr_config_update(struct kbase_device *kbdev);
 
 #endif				/* _KBASE_GPUPROPS_H_ */

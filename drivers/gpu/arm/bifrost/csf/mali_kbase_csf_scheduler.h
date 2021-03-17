@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -31,11 +30,10 @@
  *
  * @queue: Pointer to the GPU command queue to be started.
  *
- * This function would enable the start of a command stream interface, within a
- * command stream group, to which the @queue was bound.
- * If the command stream group is already scheduled and resident, the command
- * stream interface will be started right away, otherwise once the group is
- * made resident.
+ * This function would enable the start of a CSI, within a
+ * CSG, to which the @queue was bound.
+ * If the CSG is already scheduled and resident, the CSI will be started
+ * right away, otherwise once the group is made resident.
  *
  * Return: 0 on success, or negative on failure.
  */
@@ -47,8 +45,7 @@ int kbase_csf_scheduler_queue_start(struct kbase_queue *queue);
  *
  * @queue: Pointer to the GPU command queue to be stopped.
  *
- * This function would stop the command stream interface, within a command
- * stream group, to which the @queue was bound.
+ * This function would stop the CSI, within a CSG, to which @queue was bound.
  *
  * Return: 0 on success, or negative on failure.
  */
@@ -69,7 +66,7 @@ void kbase_csf_scheduler_group_protm_enter(struct kbase_queue_group *group);
 
 /**
  * kbase_csf_scheduler_group_get_slot() - Checks if a queue group is
- *                           programmed on a firmware Command Stream Group slot
+ *                           programmed on a firmware CSG slot
  *                           and returns the slot number.
  *
  * @group: The command queue group.
@@ -84,7 +81,7 @@ int kbase_csf_scheduler_group_get_slot(struct kbase_queue_group *group);
 
 /**
  * kbase_csf_scheduler_group_get_slot_locked() - Checks if a queue group is
- *                           programmed on a firmware Command Stream Group slot
+ *                           programmed on a firmware CSG slot
  *                           and returns the slot number.
  *
  * @group: The command queue group.
@@ -112,7 +109,7 @@ bool kbase_csf_scheduler_group_events_enabled(struct kbase_device *kbdev,
 
 /**
  * kbase_csf_scheduler_get_group_on_slot()- Gets the queue group that has been
- *                          programmed to a firmware Command Stream Group slot.
+ *                          programmed to a firmware CSG slot.
  *
  * @kbdev: The GPU device.
  * @slot:  The slot for which to get the queue group.
@@ -128,7 +125,7 @@ struct kbase_queue_group *kbase_csf_scheduler_get_group_on_slot(
  * kbase_csf_scheduler_group_deschedule() - Deschedule a GPU command queue
  *                                          group from the firmware.
  *
- * @group: Pointer to the queue group to be scheduled.
+ * @group: Pointer to the queue group to be descheduled.
  *
  * This function would disable the scheduling of GPU command queue group on
  * firmware.
@@ -166,10 +163,9 @@ int kbase_csf_scheduler_context_init(struct kbase_context *kctx);
 /**
  * kbase_csf_scheduler_init - Initialize the CSF scheduler
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
- * The scheduler does the arbitration for the command stream group slots
+ * The scheduler does the arbitration for the CSG slots
  * provided by the firmware between the GPU command queue groups created
  * by the Clients.
  *
@@ -178,7 +174,7 @@ int kbase_csf_scheduler_context_init(struct kbase_context *kctx);
 int kbase_csf_scheduler_init(struct kbase_device *kbdev);
 
 /**
- * kbase_csf_scheduler_context_init() - Terminate the context-specific part
+ * kbase_csf_scheduler_context_term() - Terminate the context-specific part
  *                                      for CSF scheduler.
  *
  * @kctx: Pointer to kbase context that is being terminated.
@@ -190,8 +186,7 @@ void kbase_csf_scheduler_context_term(struct kbase_context *kctx);
 /**
  * kbase_csf_scheduler_term - Terminate the CSF scheduler.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
  * This should be called when unload of firmware is done on device
  * termination.
@@ -202,8 +197,7 @@ void kbase_csf_scheduler_term(struct kbase_device *kbdev);
  * kbase_csf_scheduler_reset - Reset the state of all active GPU command
  *                             queue groups.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
  * This function will first iterate through all the active/scheduled GPU
  * command queue groups and suspend them (to avoid losing work for groups
@@ -223,8 +217,7 @@ void kbase_csf_scheduler_reset(struct kbase_device *kbdev);
 /**
  * kbase_csf_scheduler_enable_tick_timer - Enable the scheduler tick timer.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
  * This function will restart the scheduler tick so that regular scheduling can
  * be resumed without any explicit trigger (like kicking of GPU queues).
@@ -251,8 +244,7 @@ int kbase_csf_scheduler_group_copy_suspend_buf(struct kbase_queue_group *group,
 /**
  * kbase_csf_scheduler_lock - Acquire the global Scheduler lock.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
  * This function will take the global scheduler lock, in order to serialize
  * against the Scheduler actions, for access to CS IO pages.
@@ -265,8 +257,7 @@ static inline void kbase_csf_scheduler_lock(struct kbase_device *kbdev)
 /**
  * kbase_csf_scheduler_unlock - Release the global Scheduler lock.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 static inline void kbase_csf_scheduler_unlock(struct kbase_device *kbdev)
 {
@@ -276,8 +267,7 @@ static inline void kbase_csf_scheduler_unlock(struct kbase_device *kbdev)
 /**
  * kbase_csf_scheduler_spin_lock - Acquire Scheduler interrupt spinlock.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  * @flags: Pointer to the memory location that would store the previous
  *         interrupt state.
  *
@@ -293,8 +283,7 @@ static inline void kbase_csf_scheduler_spin_lock(struct kbase_device *kbdev,
 /**
  * kbase_csf_scheduler_spin_unlock - Release Scheduler interrupt spinlock.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  * @flags: Previously stored interrupt state when Scheduler interrupt
  *         spinlock was acquired.
  */
@@ -308,8 +297,7 @@ static inline void kbase_csf_scheduler_spin_unlock(struct kbase_device *kbdev,
  * kbase_csf_scheduler_spin_lock_assert_held - Assert if the Scheduler
  *                                          interrupt spinlock is held.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 static inline void
 kbase_csf_scheduler_spin_lock_assert_held(struct kbase_device *kbdev)
@@ -342,8 +330,7 @@ void kbase_csf_scheduler_timer_set_enabled(struct kbase_device *kbdev,
  *
  * Note: This function is only effective if the scheduling timer is disabled.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_scheduler_kick(struct kbase_device *kbdev);
 
@@ -367,8 +354,7 @@ static inline bool kbase_csf_scheduler_protected_mode_in_use(
  * Note: This function will increase the scheduler's internal pm_active_count
  * value, ensuring that both GPU and MCU are powered for access.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_scheduler_pm_active(struct kbase_device *kbdev);
 
@@ -378,16 +364,14 @@ void kbase_csf_scheduler_pm_active(struct kbase_device *kbdev);
  * Note: This function will decrease the scheduler's internal pm_active_count
  * value. On reaching 0, the MCU and GPU could be powered off.
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_scheduler_pm_idle(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_scheduler_pm_resume - Reactivate the scheduler on system resume
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
  * This function will make the scheduler resume the scheduling of queue groups
  * and take the power managemenet reference, if there are any runnable groups.
@@ -397,12 +381,69 @@ void kbase_csf_scheduler_pm_resume(struct kbase_device *kbdev);
 /**
  * kbase_csf_scheduler_pm_suspend - Idle the scheduler on system suspend
  *
- * @kbdev: Instance of a GPU platform device that implements a command
- *         stream front-end interface.
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
  * This function will make the scheduler suspend all the running queue groups
  * and drop its power managemenet reference.
  */
 void kbase_csf_scheduler_pm_suspend(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_all_csgs_idle() - Check if the scheduler internal
+ * runtime used slots are all tagged as idle command queue groups.
+ *
+ * @kbdev: Pointer to the device
+ *
+ * Return: true if all the used slots are tagged as idle CSGs.
+ */
+static inline bool kbase_csf_scheduler_all_csgs_idle(struct kbase_device *kbdev)
+{
+	lockdep_assert_held(&kbdev->csf.scheduler.interrupt_lock);
+	return bitmap_equal(kbdev->csf.scheduler.csg_slots_idle_mask,
+			    kbdev->csf.scheduler.csg_inuse_bitmap,
+			    kbdev->csf.global_iface.group_num);
+}
+
+/**
+ * kbase_csf_scheduler_advance_tick_nolock() - Advance the scheduling tick
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function advances the scheduling tick by enqueing the tick work item for
+ * immediate execution, but only if the tick hrtimer is active. If the timer
+ * is inactive then the tick work item is already in flight.
+ * The caller must hold the interrupt lock.
+ */
+static inline void
+kbase_csf_scheduler_advance_tick_nolock(struct kbase_device *kbdev)
+{
+	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
+
+	lockdep_assert_held(&scheduler->interrupt_lock);
+
+	if (scheduler->tick_timer_active) {
+		scheduler->tick_timer_active = false;
+		queue_work(scheduler->wq, &scheduler->tick_work);
+	}
+}
+
+/**
+ * kbase_csf_scheduler_advance_tick() - Advance the scheduling tick
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function advances the scheduling tick by enqueing the tick work item for
+ * immediate execution, but only if the tick hrtimer is active. If the timer
+ * is inactive then the tick work item is already in flight.
+ */
+static inline void kbase_csf_scheduler_advance_tick(struct kbase_device *kbdev)
+{
+	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
+	unsigned long flags;
+
+	spin_lock_irqsave(&scheduler->interrupt_lock, flags);
+	kbase_csf_scheduler_advance_tick_nolock(kbdev);
+	spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
+}
 
 #endif /* _KBASE_CSF_SCHEDULER_H_ */
