@@ -266,10 +266,6 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 
 	iph = ip_hdr(skb);
 	thoff = iph->ihl * 4;
-	if (skb_try_make_writable(skb, thoff + hdrsize))
-		return NF_DROP;
-
-	iph = ip_hdr(skb);
 	if (nf_flow_state_check(flow, iph->protocol, skb, thoff))
 		return NF_ACCEPT;
 
@@ -280,6 +276,10 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
+	if (skb_try_make_writable(skb, thoff + hdrsize))
+		return NF_DROP;
+
+	iph = ip_hdr(skb);
 	if (nf_flow_nat_ip(flow, skb, thoff, dir, iph) < 0)
 		return NF_DROP;
 
