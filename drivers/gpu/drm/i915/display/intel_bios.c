@@ -2087,8 +2087,8 @@ init_vbt_missing_defaults(struct drm_i915_private *i915)
 		return;
 
 	for_each_port_masked(port, ports) {
-		struct ddi_vbt_port_info *info =
-			&i915->vbt.ddi_port_info[port];
+		struct display_device_data *devdata;
+		struct child_device_config *child;
 		enum phy phy = intel_port_to_phy(i915, port);
 
 		/*
@@ -2098,11 +2098,38 @@ init_vbt_missing_defaults(struct drm_i915_private *i915)
 		if (intel_phy_is_tc(i915, phy))
 			continue;
 
-		info->supports_dvi = (port != PORT_A && port != PORT_E);
-		info->supports_hdmi = info->supports_dvi;
-		info->supports_dp = (port != PORT_E);
-		info->supports_edp = (port == PORT_A);
+		/* Create fake child device config */
+		devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
+		if (!devdata)
+			break;
+
+		child = &devdata->child;
+
+		if (port == PORT_F)
+			child->dvo_port = DVO_PORT_HDMIF;
+		else if (port == PORT_E)
+			child->dvo_port = DVO_PORT_HDMIE;
+		else
+			child->dvo_port = DVO_PORT_HDMIA + port;
+
+		if (port != PORT_A && port != PORT_E)
+			child->device_type |= DEVICE_TYPE_TMDS_DVI_SIGNALING;
+
+		if (port != PORT_E)
+			child->device_type |= DEVICE_TYPE_DISPLAYPORT_OUTPUT;
+
+		if (port == PORT_A)
+			child->device_type |= DEVICE_TYPE_INTERNAL_CONNECTOR;
+
+		list_add_tail(&devdata->node, &i915->vbt.display_devices);
+
+		drm_dbg_kms(&i915->drm,
+			    "Generating default VBT child device with type 0x04%x on port %c\n",
+			    child->device_type, port_name(port));
 	}
+
+	/* Bypass some minimum baseline VBT version checks */
+	i915->vbt.version = 155;
 }
 
 static const struct bdb_header *get_bdb_header(const struct vbt_header *vbt)
@@ -2279,16 +2306,16 @@ void intel_bios_init(struct drm_i915_private *i915)
 	/* Depends on child device list */
 	parse_compression_parameters(i915, bdb);
 
-	/* Further processing on pre-parsed data */
-	parse_sdvo_device_mapping(i915);
-	parse_ddi_ports(i915);
-
 out:
 	if (!vbt) {
 		drm_info(&i915->drm,
 			 "Failed to find VBIOS tables (VBT)\n");
 		init_vbt_missing_defaults(i915);
 	}
+
+	/* Further processing on pre-parsed or generated child device data */
+	parse_sdvo_device_mapping(i915);
+	parse_ddi_ports(i915);
 
 	kfree(oprom_vbt);
 }
