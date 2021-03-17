@@ -651,6 +651,7 @@ out:
 static void maybe_delete_incomplete_file(struct file *f,
 					 struct data_file *df)
 {
+	struct backing_file_context *bfc;
 	struct mount_info *mi = df->df_mount_info;
 	char *file_id_str = NULL;
 	struct dentry *incomplete_file_dentry = NULL;
@@ -659,6 +660,22 @@ static void maybe_delete_incomplete_file(struct file *f,
 
 	if (atomic_read(&df->df_data_blocks_written) < df->df_data_block_count)
 		goto out;
+
+	/* Truncate file to remove any preallocated space */
+	bfc = df->df_backing_file_context;
+	if (bfc) {
+		struct file *f = bfc->bc_file;
+
+		if (f) {
+			loff_t size = i_size_read(file_inode(f));
+
+			error = vfs_truncate(&f->f_path, size);
+			if (error)
+				/* No useful action on failure */
+				pr_warn("incfs: Failed to truncate complete file: %d\n",
+					error);
+		}
+	}
 
 	/* This is best effort - there is no useful action to take on failure */
 	file_id_str = file_id_to_str(df->df_id);
