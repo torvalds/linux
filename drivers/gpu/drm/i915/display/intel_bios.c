@@ -1505,6 +1505,9 @@ static enum port get_port_by_ddc_pin(struct drm_i915_private *i915, u8 ddc_pin)
 	const struct ddi_vbt_port_info *info;
 	enum port port;
 
+	if (!ddc_pin)
+		return PORT_NONE;
+
 	for_each_port(port) {
 		info = &i915->vbt.ddi_port_info[port];
 
@@ -1520,9 +1523,6 @@ static void sanitize_ddc_pin(struct drm_i915_private *i915,
 {
 	struct ddi_vbt_port_info *info = &i915->vbt.ddi_port_info[port];
 	enum port p;
-
-	if (!info->alternate_ddc_pin)
-		return;
 
 	p = get_port_by_ddc_pin(i915, info->alternate_ddc_pin);
 	if (p == PORT_NONE)
@@ -1555,6 +1555,9 @@ static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
 	const struct ddi_vbt_port_info *info;
 	enum port port;
 
+	if (!aux_ch)
+		return PORT_NONE;
+
 	for_each_port(port) {
 		info = &i915->vbt.ddi_port_info[port];
 
@@ -1570,9 +1573,6 @@ static void sanitize_aux_ch(struct drm_i915_private *i915,
 {
 	struct ddi_vbt_port_info *info = &i915->vbt.ddi_port_info[port];
 	enum port p;
-
-	if (!info->alternate_aux_channel)
-		return;
 
 	p = get_port_by_aux_ch(i915, info->alternate_aux_channel);
 	if (p == PORT_NONE)
