@@ -23,6 +23,12 @@
 /* Global discovery table size */
 #define UNCORE_DISCOVERY_GLOBAL_MAP_SIZE	0x20
 
+#define UNCORE_DISCOVERY_PCI_DOMAIN(data)	((data >> 28) & 0x7)
+#define UNCORE_DISCOVERY_PCI_BUS(data)		((data >> 20) & 0xff)
+#define UNCORE_DISCOVERY_PCI_DEVFN(data)	((data >> 12) & 0xff)
+#define UNCORE_DISCOVERY_PCI_BOX_CTRL(data)	(data & 0xfff)
+
+
 #define uncore_discovery_invalid_unit(unit)			\
 	(!unit.table1 || !unit.ctl || !unit.table3 ||	\
 	 unit.table1 == -1ULL || unit.ctl == -1ULL ||	\
@@ -121,3 +127,4 @@ struct intel_uncore_discovery_type {
 bool intel_uncore_has_discovery_tables(void);
 void intel_uncore_clear_discovery_tables(void);
 void intel_uncore_generic_uncore_cpu_init(void);
+int intel_uncore_generic_uncore_pci_init(void);

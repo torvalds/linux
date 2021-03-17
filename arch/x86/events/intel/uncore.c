@@ -1032,10 +1032,37 @@ static int uncore_pci_get_dev_die_info(struct pci_dev *pdev, int *die)
 	return 0;
 }
 
+static struct intel_uncore_pmu *
+uncore_pci_find_dev_pmu_from_types(struct pci_dev *pdev)
+{
+	struct intel_uncore_type **types = uncore_pci_uncores;
+	struct intel_uncore_type *type;
+	u64 box_ctl;
+	int i, die;
+
+	for (; *types; types++) {
+		type = *types;
+		for (die = 0; die < __uncore_max_dies; die++) {
+			for (i = 0; i < type->num_boxes; i++) {
+				if (!type->box_ctls[die])
+					continue;
+				box_ctl = type->box_ctls[die] + type->pci_offsets[i];
+				if (pdev->devfn == UNCORE_DISCOVERY_PCI_DEVFN(box_ctl) &&
+				    pdev->bus->number == UNCORE_DISCOVERY_PCI_BUS(box_ctl) &&
+				    pci_domain_nr(pdev->bus) == UNCORE_DISCOVERY_PCI_DOMAIN(box_ctl))
+					return &type->pmus[i];
+			}
+		}
+	}
+
+	return NULL;
+}
+
 /*
  * Find the PMU of a PCI device.
  * @pdev: The PCI device.
  * @ids: The ID table of the available PCI devices with a PMU.
+ *       If NULL, search the whole uncore_pci_uncores.
  */
 static struct intel_uncore_pmu *
 uncore_pci_find_dev_pmu(struct pci_dev *pdev, const struct pci_device_id *ids)
@@ -1044,6 +1071,9 @@ uncore_pci_find_dev_pmu(struct pci_dev *pdev, const struct pci_device_id *ids)
 	struct intel_uncore_type *type;
 	kernel_ulong_t data;
 	unsigned int devfn;
+
+	if (!ids)
+		return uncore_pci_find_dev_pmu_from_types(pdev);
 
 	while (ids && ids->vendor) {
 		if ((ids->vendor == pdev->vendor) &&
@@ -1283,6 +1313,48 @@ static void uncore_pci_sub_driver_init(void)
 		uncore_pci_sub_driver = NULL;
 }
 
+static int uncore_pci_bus_notify(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	return uncore_bus_notify(nb, action, data, NULL);
+}
+
+static struct notifier_block uncore_pci_notifier = {
+	.notifier_call = uncore_pci_bus_notify,
+};
+
+
+static void uncore_pci_pmus_register(void)
+{
+	struct intel_uncore_type **types = uncore_pci_uncores;
+	struct intel_uncore_type *type;
+	struct intel_uncore_pmu *pmu;
+	struct pci_dev *pdev;
+	u64 box_ctl;
+	int i, die;
+
+	for (; *types; types++) {
+		type = *types;
+		for (die = 0; die < __uncore_max_dies; die++) {
+			for (i = 0; i < type->num_boxes; i++) {
+				if (!type->box_ctls[die])
+					continue;
+				box_ctl = type->box_ctls[die] + type->pci_offsets[i];
+				pdev = pci_get_domain_bus_and_slot(UNCORE_DISCOVERY_PCI_DOMAIN(box_ctl),
+								   UNCORE_DISCOVERY_PCI_BUS(box_ctl),
+								   UNCORE_DISCOVERY_PCI_DEVFN(box_ctl));
+				if (!pdev)
+					continue;
+				pmu = &type->pmus[i];
+
+				uncore_pci_pmu_register(pdev, type, pmu, die);
+			}
+		}
+	}
+
+	bus_register_notifier(&pci_bus_type, &uncore_pci_notifier);
+}
+
 static int __init uncore_pci_init(void)
 {
 	size_t size;
@@ -1299,12 +1371,15 @@ static int __init uncore_pci_init(void)
 	if (ret)
 		goto errtype;
 
-	uncore_pci_driver->probe = uncore_pci_probe;
-	uncore_pci_driver->remove = uncore_pci_remove;
+	if (uncore_pci_driver) {
+		uncore_pci_driver->probe = uncore_pci_probe;
+		uncore_pci_driver->remove = uncore_pci_remove;
 
-	ret = pci_register_driver(uncore_pci_driver);
-	if (ret)
-		goto errtype;
+		ret = pci_register_driver(uncore_pci_driver);
+		if (ret)
+			goto errtype;
+	} else
+		uncore_pci_pmus_register();
 
 	if (uncore_pci_sub_driver)
 		uncore_pci_sub_driver_init();
@@ -1328,7 +1403,10 @@ static void uncore_pci_exit(void)
 		pcidrv_registered = false;
 		if (uncore_pci_sub_driver)
 			bus_unregister_notifier(&pci_bus_type, &uncore_pci_sub_notifier);
-		pci_unregister_driver(uncore_pci_driver);
+		if (uncore_pci_driver)
+			pci_unregister_driver(uncore_pci_driver);
+		else
+			bus_unregister_notifier(&pci_bus_type, &uncore_pci_notifier);
 		uncore_types_exit(uncore_pci_uncores);
 		kfree(uncore_extra_pci_dev);
 		uncore_free_pcibus_map();
@@ -1676,6 +1754,7 @@ static const struct intel_uncore_init_fun snr_uncore_init __initconst = {
 
 static const struct intel_uncore_init_fun generic_uncore_init __initconst = {
 	.cpu_init = intel_uncore_generic_uncore_cpu_init,
+	.pci_init = intel_uncore_generic_uncore_pci_init,
 };
 
 static const struct x86_cpu_id intel_uncore_match[] __initconst = {

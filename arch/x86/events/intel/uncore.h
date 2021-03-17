@@ -58,6 +58,7 @@ struct intel_uncore_type {
 	unsigned fixed_ctr;
 	unsigned fixed_ctl;
 	unsigned box_ctl;
+	u64 *box_ctls;	/* Unit ctrl addr of the first box of each die */
 	union {
 		unsigned msr_offset;
 		unsigned mmio_offset;
@@ -66,7 +67,10 @@ struct intel_uncore_type {
 	unsigned num_shared_regs:8;
 	unsigned single_fixed:1;
 	unsigned pair_ctr_ctl:1;
-	unsigned *msr_offsets;
+	union {
+		unsigned *msr_offsets;
+		unsigned *pci_offsets;
+	};
 	unsigned *box_ids;
 	struct event_constraint unconstrainted;
 	struct event_constraint *constraints;

@@ -377,6 +377,71 @@ static struct intel_uncore_ops generic_uncore_msr_ops = {
 	.read_counter		= uncore_msr_read_counter,
 };
 
+static void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	int box_ctl = uncore_pci_box_ctl(box);
+
+	__set_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags);
+	pci_write_config_dword(pdev, box_ctl, GENERIC_PMON_BOX_CTL_INT);
+}
+
+static void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	int box_ctl = uncore_pci_box_ctl(box);
+
+	pci_write_config_dword(pdev, box_ctl, GENERIC_PMON_BOX_CTL_FRZ);
+}
+
+static void intel_generic_uncore_pci_enable_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	int box_ctl = uncore_pci_box_ctl(box);
+
+	pci_write_config_dword(pdev, box_ctl, 0);
+}
+
+static void intel_generic_uncore_pci_enable_event(struct intel_uncore_box *box,
+					    struct perf_event *event)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	struct hw_perf_event *hwc = &event->hw;
+
+	pci_write_config_dword(pdev, hwc->config_base, hwc->config);
+}
+
+static void intel_generic_uncore_pci_disable_event(struct intel_uncore_box *box,
+					     struct perf_event *event)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	struct hw_perf_event *hwc = &event->hw;
+
+	pci_write_config_dword(pdev, hwc->config_base, 0);
+}
+
+static u64 intel_generic_uncore_pci_read_counter(struct intel_uncore_box *box,
+					   struct perf_event *event)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	struct hw_perf_event *hwc = &event->hw;
+	u64 count = 0;
+
+	pci_read_config_dword(pdev, hwc->event_base, (u32 *)&count);
+	pci_read_config_dword(pdev, hwc->event_base + 4, (u32 *)&count + 1);
+
+	return count;
+}
+
+static struct intel_uncore_ops generic_uncore_pci_ops = {
+	.init_box	= intel_generic_uncore_pci_init_box,
+	.disable_box	= intel_generic_uncore_pci_disable_box,
+	.enable_box	= intel_generic_uncore_pci_enable_box,
+	.disable_event	= intel_generic_uncore_pci_disable_event,
+	.enable_event	= intel_generic_uncore_pci_enable_event,
+	.read_counter	= intel_generic_uncore_pci_read_counter,
+};
+
 static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 				      struct intel_uncore_type *uncore,
 				      struct intel_uncore_discovery_type *type)
@@ -394,6 +459,14 @@ static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 		uncore->event_ctl = (unsigned int)type->box_ctrl + type->ctl_offset;
 		uncore->box_ctl = (unsigned int)type->box_ctrl;
 		uncore->msr_offsets = type->box_offset;
+		break;
+	case UNCORE_ACCESS_PCI:
+		uncore->ops = &generic_uncore_pci_ops;
+		uncore->perf_ctr = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl) + type->ctr_offset;
+		uncore->event_ctl = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl) + type->ctl_offset;
+		uncore->box_ctl = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl);
+		uncore->box_ctls = type->box_ctrl_die;
+		uncore->pci_offsets = type->box_offset;
 		break;
 	default:
 		return false;
@@ -441,4 +514,11 @@ intel_uncore_generic_init_uncores(enum uncore_access_type type_id)
 void intel_uncore_generic_uncore_cpu_init(void)
 {
 	uncore_msr_uncores = intel_uncore_generic_init_uncores(UNCORE_ACCESS_MSR);
+}
+
+int intel_uncore_generic_uncore_pci_init(void)
+{
+	uncore_pci_uncores = intel_uncore_generic_init_uncores(UNCORE_ACCESS_PCI);
+
+	return 0;
 }
