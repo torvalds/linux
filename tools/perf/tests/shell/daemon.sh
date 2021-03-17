@@ -98,21 +98,6 @@ check_line_other()
 	fi
 }
 
-daemon_start()
-{
-	local config=$1
-	local session=$2
-
-	perf daemon start --config ${config}
-
-	# wait for the session to ping
-	local state="FAIL"
-	while [ "${state}" != "OK" ]; do
-		state=`perf daemon ping --config ${config} --session ${session} | awk '{ print $1 }'`
-		sleep 0.05
-	done
-}
-
 daemon_exit()
 {
 	local config=$1
@@ -120,11 +105,32 @@ daemon_exit()
 	local line=`perf daemon --config ${config} -x: | head -1`
 	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
 
+	# Reset trap handler.
+	trap - SIGINT SIGTERM
+
 	# stop daemon
 	perf daemon stop --config ${config}
 
 	# ... and wait for the pid to go away
 	tail --pid=${pid} -f /dev/null
+}
+
+daemon_start()
+{
+	local config=$1
+	local session=$2
+
+	perf daemon start --config ${config}
+
+	# Clean up daemon if interrupted.
+	trap "echo 'FAILED: Signal caught'; daemon_exit ${config}; exit 1" SIGINT SIGTERM
+
+	# wait for the session to ping
+	local state="FAIL"
+	while [ "${state}" != "OK" ]; do
+		state=`perf daemon ping --config ${config} --session ${session} | awk '{ print $1 }'`
+		sleep 0.05
+	done
 }
 
 test_list()
