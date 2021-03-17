@@ -33,6 +33,7 @@
 #include <linux/types.h>
 
 struct drm_i915_private;
+struct intel_bios_encoder_data;
 struct intel_crtc_state;
 struct intel_encoder;
 enum port;

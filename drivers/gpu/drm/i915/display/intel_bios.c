@@ -1513,7 +1513,7 @@ static enum port get_port_by_ddc_pin(struct drm_i915_private *i915, u8 ddc_pin)
 	for_each_port(port) {
 		info = &i915->vbt.ddi_port_info[port];
 
-		if (info->child && ddc_pin == info->alternate_ddc_pin)
+		if (info->devdata && ddc_pin == info->alternate_ddc_pin)
 			return port;
 	}
 
@@ -1563,7 +1563,7 @@ static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
 	for_each_port(port) {
 		info = &i915->vbt.ddi_port_info[port];
 
-		if (info->child && aux_ch == info->alternate_aux_channel)
+		if (info->devdata && aux_ch == info->alternate_aux_channel)
 			return port;
 	}
 
@@ -1862,7 +1862,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 
 	info = &i915->vbt.ddi_port_info[port];
 
-	if (info->child) {
+	if (info->devdata) {
 		drm_dbg_kms(&i915->drm,
 			    "More than one child device for port %c in VBT, using the first.\n",
 			    port_name(port));
@@ -1976,7 +1976,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 			    port_name(port), info->dp_max_link_rate);
 	}
 
-	info->child = child;
+	info->devdata = devdata;
 }
 
 static void parse_ddi_ports(struct drm_i915_private *i915)
@@ -2517,7 +2517,7 @@ bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
 		const struct ddi_vbt_port_info *port_info =
 			&i915->vbt.ddi_port_info[port];
 
-		return port_info->child;
+		return port_info->devdata;
 	}
 
 	/* FIXME maybe deal with port A as well? */
@@ -2764,13 +2764,13 @@ bool
 intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 				enum port port)
 {
-	const struct child_device_config *child =
-		i915->vbt.ddi_port_info[port].child;
+	const struct intel_bios_encoder_data *devdata =
+		i915->vbt.ddi_port_info[port].devdata;
 
 	if (drm_WARN_ON_ONCE(&i915->drm, !IS_GEN9_LP(i915)))
 		return false;
 
-	return child && child->hpd_invert;
+	return devdata && devdata->child.hpd_invert;
 }
 
 /**
@@ -2784,10 +2784,10 @@ bool
 intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
 			     enum port port)
 {
-	const struct child_device_config *child =
-		i915->vbt.ddi_port_info[port].child;
+	const struct intel_bios_encoder_data *devdata =
+		i915->vbt.ddi_port_info[port].devdata;
 
-	return HAS_LSPCON(i915) && child && child->lspcon;
+	return HAS_LSPCON(i915) && devdata && devdata->child.lspcon;
 }
 
 /**
@@ -2801,10 +2801,10 @@ bool
 intel_bios_is_lane_reversal_needed(const struct drm_i915_private *i915,
 				   enum port port)
 {
-	const struct child_device_config *child =
-		i915->vbt.ddi_port_info[port].child;
+	const struct intel_bios_encoder_data *devdata =
+		i915->vbt.ddi_port_info[port].devdata;
 
-	return child && child->lane_reversal;
+	return devdata && devdata->child.lane_reversal;
 }
 
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,

@@ -582,7 +582,7 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 
 struct ddi_vbt_port_info {
 	/* Non-NULL if port present. */
-	const struct child_device_config *child;
+	const struct intel_bios_encoder_data *devdata;
 
 	int max_tmds_clock;
 
