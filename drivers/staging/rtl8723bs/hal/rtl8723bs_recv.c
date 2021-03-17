@@ -349,7 +349,7 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 						RT_TRACE(_module_rtl871x_recv_c_, _drv_dump_, ("%s: rtw_recv_entry(precvframe) != _SUCCESS\n", __func__));
 					}
 				} else if (pattrib->pkt_rpt_type == C2H_PACKET) {
-					struct C2H_EVT_HDR	C2hEvent;
+					struct c2h_evt_hdr_t	C2hEvent;
 
 					u16 len_c2h = pattrib->pkt_len;
 					u8 *pbuf_c2h = precvframe->u.hdr.rx_data;
