@@ -70,7 +70,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 static void __deactivate_traps(struct kvm_vcpu *vcpu)
 {
 	extern char __kvm_hyp_host_vector[];
-	u64 mdcr_el2;
+	u64 mdcr_el2, cptr;
 
 	___deactivate_traps(vcpu);
 
@@ -101,7 +101,12 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 
 	write_sysreg(mdcr_el2, mdcr_el2);
 	write_sysreg(this_cpu_ptr(&kvm_init_params)->hcr_el2, hcr_el2);
-	write_sysreg(CPTR_EL2_DEFAULT, cptr_el2);
+
+	cptr = CPTR_EL2_DEFAULT;
+	if (vcpu_has_sve(vcpu) && (vcpu->arch.flags & KVM_ARM64_FP_ENABLED))
+		cptr |= CPTR_EL2_TZ;
+
+	write_sysreg(cptr, cptr_el2);
 	write_sysreg(__kvm_hyp_host_vector, vbar_el2);
 }
 
