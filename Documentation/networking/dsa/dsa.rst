@@ -464,6 +464,7 @@ For each devlink device, every physical port (i.e. user ports, CPU ports, DSA
 links or unused ports) is exposed as a devlink port.
 
 DSA drivers can make use of the following devlink features:
+
 - Regions: debugging feature which allows user space to dump driver-defined
   areas of hardware information in a low-level, binary format. Both global
   regions as well as per-port regions are supported. It is possible to export
