@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=========================
+==========================
 CIFSD - SMB3 Kernel Server
-=========================
+==========================
 
 CIFSD is a linux kernel server which implements SMB3 protocol in kernel space
 for sharing files over network.
