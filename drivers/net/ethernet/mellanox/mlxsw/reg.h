@@ -2088,6 +2088,41 @@ static inline void mlxsw_reg_spvc_pack(char *payload, u8 local_port, bool et1,
 	mlxsw_reg_spvc_et0_set(payload, et0);
 }
 
+/* SPEVET - Switch Port Egress VLAN EtherType
+ * ------------------------------------------
+ * The switch port egress VLAN EtherType configures which EtherType to push at
+ * egress for packets incoming through a local port for which 'SPVID.egr_et_set'
+ * is set.
+ */
+#define MLXSW_REG_SPEVET_ID 0x202A
+#define MLXSW_REG_SPEVET_LEN 0x08
+
+MLXSW_REG_DEFINE(spevet, MLXSW_REG_SPEVET_ID, MLXSW_REG_SPEVET_LEN);
+
+/* reg_spevet_local_port
+ * Egress Local port number.
+ * Not supported to CPU port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spevet, local_port, 0x00, 16, 8);
+
+/* reg_spevet_et_vlan
+ * Egress EtherType VLAN to push when SPVID.egr_et_set field set for the packet:
+ * 0: ether_type0 - (default)
+ * 1: ether_type1
+ * 2: ether_type2
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spevet, et_vlan, 0x04, 16, 2);
+
+static inline void mlxsw_reg_spevet_pack(char *payload, u8 local_port,
+					 u8 et_vlan)
+{
+	MLXSW_REG_ZERO(spevet, payload);
+	mlxsw_reg_spevet_local_port_set(payload, local_port);
+	mlxsw_reg_spevet_et_vlan_set(payload, et_vlan);
+}
+
 /* CWTP - Congetion WRED ECN TClass Profile
  * ----------------------------------------
  * Configures the profiles for queues of egress port and traffic class
@@ -12026,6 +12061,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(sfmr),
 	MLXSW_REG(spvmlr),
 	MLXSW_REG(spvc),
+	MLXSW_REG(spevet),
 	MLXSW_REG(cwtp),
 	MLXSW_REG(cwtpm),
 	MLXSW_REG(pgcr),
