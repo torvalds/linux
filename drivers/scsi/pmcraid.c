@@ -4063,7 +4063,7 @@ static struct device_attribute pmcraid_driver_version_attr = {
 };
 
 /**
- * pmcraid_show_io_adapter_id - Display driver assigned adapter id
+ * pmcraid_show_adapter_id - Display driver assigned adapter id
  * @dev: class device struct
  * @attr: unused
  * @buf: buffer
