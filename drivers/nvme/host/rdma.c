@@ -314,6 +314,7 @@ static int nvme_rdma_init_request(struct blk_mq_tag_set *set,
 			NVME_RDMA_DATA_SGL_SIZE;
 
 	req->queue = queue;
+	nvme_req(rq)->cmd = req->sqe.data;
 
 	return 0;
 }
@@ -2038,7 +2039,7 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request *rq = bd->rq;
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
 	struct nvme_rdma_qe *sqe = &req->sqe;
-	struct nvme_command *c = sqe->data;
+	struct nvme_command *c = nvme_req(rq)->cmd;
 	struct ib_device *dev;
 	bool queue_ready = test_bit(NVME_RDMA_Q_LIVE, &queue->flags);
 	blk_status_t ret;
@@ -2061,7 +2062,7 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	ib_dma_sync_single_for_cpu(dev, sqe->dma,
 			sizeof(struct nvme_command), DMA_TO_DEVICE);
 
-	ret = nvme_setup_cmd(ns, rq, c);
+	ret = nvme_setup_cmd(ns, rq);
 	if (ret)
 		goto unmap_qe;
 

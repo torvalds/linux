@@ -575,6 +575,9 @@ EXPORT_SYMBOL_NS_GPL(nvme_put_ns, NVME_TARGET_PASSTHRU);
 
 static inline void nvme_clear_nvme_request(struct request *req)
 {
+	struct nvme_command *cmd = nvme_req(req)->cmd;
+
+	memset(cmd, 0, sizeof(*cmd));
 	nvme_req(req)->retries = 0;
 	nvme_req(req)->flags = 0;
 	req->rq_flags |= RQF_DONTPREP;
@@ -593,9 +596,12 @@ static inline void nvme_init_request(struct request *req,
 	else /* no queuedata implies admin queue */
 		req->timeout = NVME_ADMIN_TIMEOUT;
 
+	/* passthru commands should let the driver set the SGL flags */
+	cmd->common.flags &= ~NVME_CMD_SGL_ALL;
+
 	req->cmd_flags |= REQ_FAILFAST_DRIVER;
 	nvme_clear_nvme_request(req);
-	nvme_req(req)->cmd = cmd;
+	memcpy(nvme_req(req)->cmd, cmd, sizeof(*cmd));
 }
 
 struct request *nvme_alloc_request(struct request_queue *q,
@@ -722,14 +728,6 @@ static void nvme_assign_write_stream(struct nvme_ctrl *ctrl,
 
 	if (streamid < ARRAY_SIZE(req->q->write_hints))
 		req->q->write_hints[streamid] += blk_rq_bytes(req) >> 9;
-}
-
-static inline void nvme_setup_passthrough(struct request *req,
-		struct nvme_command *cmd)
-{
-	memcpy(cmd, nvme_req(req)->cmd, sizeof(*cmd));
-	/* passthru commands should let the driver set the SGL flags */
-	cmd->common.flags &= ~NVME_CMD_SGL_ALL;
 }
 
 static inline void nvme_setup_flush(struct nvme_ns *ns,
@@ -886,19 +884,18 @@ void nvme_cleanup_cmd(struct request *req)
 }
 EXPORT_SYMBOL_GPL(nvme_cleanup_cmd);
 
-blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
-		struct nvme_command *cmd)
+blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 {
+	struct nvme_command *cmd = nvme_req(req)->cmd;
 	blk_status_t ret = BLK_STS_OK;
 
 	if (!(req->rq_flags & RQF_DONTPREP))
 		nvme_clear_nvme_request(req);
 
-	memset(cmd, 0, sizeof(*cmd));
 	switch (req_op(req)) {
 	case REQ_OP_DRV_IN:
 	case REQ_OP_DRV_OUT:
-		nvme_setup_passthrough(req, cmd);
+		/* these are setup prior to execution in nvme_init_request() */
 		break;
 	case REQ_OP_FLUSH:
 		nvme_setup_flush(ns, cmd);

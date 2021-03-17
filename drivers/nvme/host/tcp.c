@@ -417,6 +417,7 @@ static int nvme_tcp_init_request(struct blk_mq_tag_set *set,
 {
 	struct nvme_tcp_ctrl *ctrl = set->driver_data;
 	struct nvme_tcp_request *req = blk_mq_rq_to_pdu(rq);
+	struct nvme_tcp_cmd_pdu *pdu;
 	int queue_idx = (set == &ctrl->tag_set) ? hctx_idx + 1 : 0;
 	struct nvme_tcp_queue *queue = &ctrl->queues[queue_idx];
 	u8 hdgst = nvme_tcp_hdgst_len(queue);
@@ -427,8 +428,10 @@ static int nvme_tcp_init_request(struct blk_mq_tag_set *set,
 	if (!req->pdu)
 		return -ENOMEM;
 
+	pdu = req->pdu;
 	req->queue = queue;
 	nvme_req(rq)->ctrl = &ctrl->ctrl;
+	nvme_req(rq)->cmd = &pdu->cmd;
 
 	return 0;
 }
@@ -2259,7 +2262,7 @@ static blk_status_t nvme_tcp_setup_cmd_pdu(struct nvme_ns *ns,
 	u8 hdgst = nvme_tcp_hdgst_len(queue), ddgst = 0;
 	blk_status_t ret;
 
-	ret = nvme_setup_cmd(ns, rq, &pdu->cmd);
+	ret = nvme_setup_cmd(ns, rq);
 	if (ret)
 		return ret;
 

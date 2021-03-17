@@ -430,6 +430,7 @@ static int nvme_init_request(struct blk_mq_tag_set *set, struct request *req,
 	iod->nvmeq = nvmeq;
 
 	nvme_req(req)->ctrl = &dev->ctrl;
+	nvme_req(req)->cmd = &iod->cmd;
 	return 0;
 }
 
@@ -932,7 +933,7 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (unlikely(!test_bit(NVMEQ_ENABLED, &nvmeq->flags)))
 		return BLK_STS_IOERR;
 
-	ret = nvme_setup_cmd(ns, req, cmnd);
+	ret = nvme_setup_cmd(ns, req);
 	if (ret)
 		return ret;
 
