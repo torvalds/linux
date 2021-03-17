@@ -1795,6 +1795,59 @@ static int parse_bdb_216_dp_max_link_rate(const int vbt_max_link_rate)
 	}
 }
 
+static void sanitize_device_type(struct intel_bios_encoder_data *devdata,
+				 enum port port)
+{
+	struct drm_i915_private *i915 = devdata->i915;
+	bool is_hdmi;
+
+	if (port != PORT_A || INTEL_GEN(i915) >= 12)
+		return;
+
+	if (!(devdata->child.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING))
+		return;
+
+	is_hdmi = !(devdata->child.device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT);
+
+	drm_dbg_kms(&i915->drm, "VBT claims port A supports DVI%s, ignoring\n",
+		    is_hdmi ? "/HDMI" : "");
+
+	devdata->child.device_type &= ~DEVICE_TYPE_TMDS_DVI_SIGNALING;
+	devdata->child.device_type |= DEVICE_TYPE_NOT_HDMI_OUTPUT;
+}
+
+static bool
+intel_bios_encoder_supports_crt(const struct intel_bios_encoder_data *devdata)
+{
+	return devdata->child.device_type & DEVICE_TYPE_ANALOG_OUTPUT;
+}
+
+static bool
+intel_bios_encoder_supports_dvi(const struct intel_bios_encoder_data *devdata)
+{
+	return devdata->child.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
+}
+
+static bool
+intel_bios_encoder_supports_hdmi(const struct intel_bios_encoder_data *devdata)
+{
+	return intel_bios_encoder_supports_dvi(devdata) &&
+		(devdata->child.device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT) == 0;
+}
+
+static bool
+intel_bios_encoder_supports_dp(const struct intel_bios_encoder_data *devdata)
+{
+	return devdata->child.device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
+}
+
+static bool
+intel_bios_encoder_supports_edp(const struct intel_bios_encoder_data *devdata)
+{
+	return intel_bios_encoder_supports_dp(devdata) &&
+		devdata->child.device_type & DEVICE_TYPE_INTERNAL_CONNECTOR;
+}
+
 static void parse_ddi_port(struct drm_i915_private *i915,
 			   struct intel_bios_encoder_data *devdata)
 {
@@ -1816,19 +1869,13 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 		return;
 	}
 
-	is_dvi = child->device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
-	is_dp = child->device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
-	is_crt = child->device_type & DEVICE_TYPE_ANALOG_OUTPUT;
-	is_hdmi = is_dvi && (child->device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT) == 0;
-	is_edp = is_dp && (child->device_type & DEVICE_TYPE_INTERNAL_CONNECTOR);
+	sanitize_device_type(devdata, port);
 
-	if (port == PORT_A && is_dvi && INTEL_GEN(i915) < 12) {
-		drm_dbg_kms(&i915->drm,
-			    "VBT claims port A supports DVI%s, ignoring\n",
-			    is_hdmi ? "/HDMI" : "");
-		is_dvi = false;
-		is_hdmi = false;
-	}
+	is_dvi = intel_bios_encoder_supports_dvi(devdata);
+	is_dp = intel_bios_encoder_supports_dp(devdata);
+	is_crt = intel_bios_encoder_supports_crt(devdata);
+	is_hdmi = intel_bios_encoder_supports_hdmi(devdata);
+	is_edp = intel_bios_encoder_supports_edp(devdata);
 
 	info->supports_dvi = is_dvi;
 	info->supports_hdmi = is_hdmi;
