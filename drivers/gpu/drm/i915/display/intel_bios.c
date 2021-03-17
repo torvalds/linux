@@ -1524,6 +1524,7 @@ static void sanitize_ddc_pin(struct drm_i915_private *i915,
 			     enum port port)
 {
 	struct ddi_vbt_port_info *info = &i915->vbt.ddi_port_info[port];
+	struct child_device_config *child;
 	enum port p;
 
 	p = get_port_by_ddc_pin(i915, info->alternate_ddc_pin);
@@ -1546,9 +1547,11 @@ static void sanitize_ddc_pin(struct drm_i915_private *i915,
 	 * port A and port E with the same AUX ch and we must pick port E :(
 	 */
 	info = &i915->vbt.ddi_port_info[p];
+	child = &info->devdata->child;
 
-	info->supports_dvi = false;
-	info->supports_hdmi = false;
+	child->device_type &= ~DEVICE_TYPE_TMDS_DVI_SIGNALING;
+	child->device_type |= DEVICE_TYPE_NOT_HDMI_OUTPUT;
+
 	info->alternate_ddc_pin = 0;
 }
 
@@ -1574,6 +1577,7 @@ static void sanitize_aux_ch(struct drm_i915_private *i915,
 			    enum port port)
 {
 	struct ddi_vbt_port_info *info = &i915->vbt.ddi_port_info[port];
+	struct child_device_config *child;
 	enum port p;
 
 	p = get_port_by_aux_ch(i915, info->alternate_aux_channel);
@@ -1596,8 +1600,9 @@ static void sanitize_aux_ch(struct drm_i915_private *i915,
 	 * port A and port E with the same AUX ch and we must pick port E :(
 	 */
 	info = &i915->vbt.ddi_port_info[p];
+	child = &info->devdata->child;
 
-	info->supports_dp = false;
+	child->device_type &= ~DEVICE_TYPE_DISPLAYPORT_OUTPUT;
 	info->alternate_aux_channel = 0;
 }
 
@@ -1822,20 +1827,20 @@ intel_bios_encoder_supports_crt(const struct intel_bios_encoder_data *devdata)
 	return devdata->child.device_type & DEVICE_TYPE_ANALOG_OUTPUT;
 }
 
-static bool
+bool
 intel_bios_encoder_supports_dvi(const struct intel_bios_encoder_data *devdata)
 {
 	return devdata->child.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
 }
 
-static bool
+bool
 intel_bios_encoder_supports_hdmi(const struct intel_bios_encoder_data *devdata)
 {
 	return intel_bios_encoder_supports_dvi(devdata) &&
 		(devdata->child.device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT) == 0;
 }
 
-static bool
+bool
 intel_bios_encoder_supports_dp(const struct intel_bios_encoder_data *devdata)
 {
 	return devdata->child.device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
@@ -1876,11 +1881,6 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	is_crt = intel_bios_encoder_supports_crt(devdata);
 	is_hdmi = intel_bios_encoder_supports_hdmi(devdata);
 	is_edp = intel_bios_encoder_supports_edp(devdata);
-
-	info->supports_dvi = is_dvi;
-	info->supports_hdmi = is_hdmi;
-	info->supports_dp = is_dp;
-	info->supports_edp = is_edp;
 
 	if (i915->vbt.version >= 195)
 		info->supports_typec_usb = child->dp_usb_type_c;
@@ -2557,8 +2557,13 @@ bool intel_bios_is_port_edp(struct drm_i915_private *i915, enum port port)
 		[PORT_F] = DVO_PORT_DPF,
 	};
 
-	if (HAS_DDI(i915))
-		return i915->vbt.ddi_port_info[port].supports_edp;
+	if (HAS_DDI(i915)) {
+		const struct intel_bios_encoder_data *devdata;
+
+		devdata = intel_bios_encoder_data_lookup(i915, port);
+
+		return devdata && intel_bios_encoder_supports_edp(devdata);
+	}
 
 	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
 		child = &devdata->child;
@@ -2930,21 +2935,6 @@ int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder)
 	return i915->vbt.ddi_port_info[encoder->port].alternate_ddc_pin;
 }
 
-bool intel_bios_port_supports_dvi(struct drm_i915_private *i915, enum port port)
-{
-	return i915->vbt.ddi_port_info[port].supports_dvi;
-}
-
-bool intel_bios_port_supports_hdmi(struct drm_i915_private *i915, enum port port)
-{
-	return i915->vbt.ddi_port_info[port].supports_hdmi;
-}
-
-bool intel_bios_port_supports_dp(struct drm_i915_private *i915, enum port port)
-{
-	return i915->vbt.ddi_port_info[port].supports_dp;
-}
-
 bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915,
 					enum port port)
 {
@@ -2954,4 +2944,10 @@ bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915,
 bool intel_bios_port_supports_tbt(struct drm_i915_private *i915, enum port port)
 {
 	return i915->vbt.ddi_port_info[port].supports_tbt;
+}
+
+const struct intel_bios_encoder_data *
+intel_bios_encoder_data_lookup(struct drm_i915_private *i915, enum port port)
+{
+	return i915->vbt.ddi_port_info[port].devdata;
 }

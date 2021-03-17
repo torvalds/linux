@@ -582,7 +582,7 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 
 struct ddi_vbt_port_info {
 	/* Non-NULL if port present. */
-	const struct intel_bios_encoder_data *devdata;
+	struct intel_bios_encoder_data *devdata;
 
 	int max_tmds_clock;
 
@@ -590,10 +590,6 @@ struct ddi_vbt_port_info {
 	u8 hdmi_level_shift;
 	u8 hdmi_level_shift_set:1;
 
-	u8 supports_dvi:1;
-	u8 supports_hdmi:1;
-	u8 supports_dp:1;
-	u8 supports_edp:1;
 	u8 supports_typec_usb:1;
 	u8 supports_tbt:1;
 

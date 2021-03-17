@@ -4426,6 +4426,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *encoder;
+	const struct intel_bios_encoder_data *devdata;
 	bool init_hdmi, init_dp;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 
@@ -4441,9 +4442,17 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		return;
 	}
 
-	init_hdmi = intel_bios_port_supports_dvi(dev_priv, port) ||
-		intel_bios_port_supports_hdmi(dev_priv, port);
-	init_dp = intel_bios_port_supports_dp(dev_priv, port);
+	devdata = intel_bios_encoder_data_lookup(dev_priv, port);
+	if (!devdata) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "VBT says port %c is not present\n",
+			    port_name(port));
+		return;
+	}
+
+	init_hdmi = intel_bios_encoder_supports_dvi(devdata) ||
+		intel_bios_encoder_supports_hdmi(devdata);
+	init_dp = intel_bios_encoder_supports_dp(devdata);
 
 	if (intel_bios_is_lspcon_present(dev_priv, port)) {
 		/*

@@ -254,10 +254,14 @@ int intel_bios_dp_boost_level(struct intel_encoder *encoder);
 int intel_bios_hdmi_boost_level(struct intel_encoder *encoder);
 int intel_bios_dp_max_link_rate(struct intel_encoder *encoder);
 int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder);
-bool intel_bios_port_supports_dvi(struct drm_i915_private *i915, enum port port);
-bool intel_bios_port_supports_hdmi(struct drm_i915_private *i915, enum port port);
-bool intel_bios_port_supports_dp(struct drm_i915_private *i915, enum port port);
 bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915, enum port port);
 bool intel_bios_port_supports_tbt(struct drm_i915_private *i915, enum port port);
+
+const struct intel_bios_encoder_data *
+intel_bios_encoder_data_lookup(struct drm_i915_private *i915, enum port port);
+
+bool intel_bios_encoder_supports_dvi(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_hdmi(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_dp(const struct intel_bios_encoder_data *devdata);
 
 #endif /* _INTEL_BIOS_H_ */
