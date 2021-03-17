@@ -3758,17 +3758,15 @@ static int macb_clk_init(struct platform_device *pdev, struct clk **pclk,
 		*hclk = devm_clk_get(&pdev->dev, "hclk");
 	}
 
-	if (IS_ERR_OR_NULL(*pclk)) {
-		err = IS_ERR(*pclk) ? PTR_ERR(*pclk) : -ENODEV;
-		dev_err(&pdev->dev, "failed to get macb_clk (%d)\n", err);
-		return err;
-	}
+	if (IS_ERR_OR_NULL(*pclk))
+		return dev_err_probe(&pdev->dev,
+				     IS_ERR(*pclk) ? PTR_ERR(*pclk) : -ENODEV,
+				     "failed to get pclk\n");
 
-	if (IS_ERR_OR_NULL(*hclk)) {
-		err = IS_ERR(*hclk) ? PTR_ERR(*hclk) : -ENODEV;
-		dev_err(&pdev->dev, "failed to get hclk (%d)\n", err);
-		return err;
-	}
+	if (IS_ERR_OR_NULL(*hclk))
+		return dev_err_probe(&pdev->dev,
+				     IS_ERR(*hclk) ? PTR_ERR(*hclk) : -ENODEV,
+				     "failed to get hclk\n");
 
 	*tx_clk = devm_clk_get_optional(&pdev->dev, "tx_clk");
 	if (IS_ERR(*tx_clk))
