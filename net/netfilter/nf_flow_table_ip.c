@@ -246,8 +246,6 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 	if (nf_flow_state_check(flow, iph->protocol, skb, thoff))
 		return NF_ACCEPT;
 
-	flow_offload_refresh(flow_table, flow);
-
 	if (!dst_check(&rt->dst, 0)) {
 		flow_offload_teardown(flow);
 		return NF_ACCEPT;
@@ -255,6 +253,8 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 
 	if (skb_try_make_writable(skb, thoff + hdrsize))
 		return NF_DROP;
+
+	flow_offload_refresh(flow_table, flow);
 
 	iph = ip_hdr(skb);
 	nf_flow_nat_ip(flow, skb, thoff, dir, iph);
@@ -466,8 +466,6 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 				sizeof(*ip6h)))
 		return NF_ACCEPT;
 
-	flow_offload_refresh(flow_table, flow);
-
 	if (!dst_check(&rt->dst, 0)) {
 		flow_offload_teardown(flow);
 		return NF_ACCEPT;
@@ -475,6 +473,8 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 
 	if (skb_try_make_writable(skb, sizeof(*ip6h) + hdrsize))
 		return NF_DROP;
+
+	flow_offload_refresh(flow_table, flow);
 
 	ip6h = ipv6_hdr(skb);
 	nf_flow_nat_ipv6(flow, skb, dir, ip6h);
