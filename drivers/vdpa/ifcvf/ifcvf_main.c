@@ -14,7 +14,6 @@
 #include <linux/sysfs.h>
 #include "ifcvf_base.h"
 
-#define VERSION_STRING  "0.1"
 #define DRIVER_AUTHOR   "Intel Corporation"
 #define IFCVF_DRIVER_NAME       "ifcvf"
 
@@ -502,4 +501,3 @@ static struct pci_driver ifcvf_driver = {
 module_pci_driver(ifcvf_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(VERSION_STRING);
