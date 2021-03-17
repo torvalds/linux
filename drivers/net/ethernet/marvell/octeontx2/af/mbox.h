@@ -1141,6 +1141,7 @@ struct npc_install_flow_req {
 	u64 features;
 	u16 entry;
 	u16 channel;
+	u16 chan_mask;
 	u8 intf;
 	u8 set_cntr; /* If counter is available set counter for this entry ? */
 	u8 default_rule;

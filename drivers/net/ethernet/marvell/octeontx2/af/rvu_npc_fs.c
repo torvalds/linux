@@ -903,9 +903,11 @@ static void npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct npc_install_flow_req *req, u16 target)
 {
 	struct nix_rx_action action;
+	u64 chan_mask;
 
-	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0,
-			 ~0ULL, 0, NIX_INTF_RX);
+	chan_mask = req->chan_mask ? req->chan_mask : ~0ULL;
+	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, chan_mask, 0,
+			 NIX_INTF_RX);
 
 	*(u64 *)&action = 0x00;
 	action.pf_func = target;
@@ -1136,6 +1138,10 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	/* msg received from PF/VF */
 	else
 		target = req->hdr.pcifunc;
+
+	/* ignore chan_mask in case pf func is not AF, revisit later */
+	if (!is_pffunc_af(req->hdr.pcifunc))
+		req->chan_mask = 0xFFF;
 
 	if (npc_check_unsupported_flows(rvu, req->features, req->intf))
 		return -EOPNOTSUPP;
