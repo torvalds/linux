@@ -60,6 +60,8 @@
 
 /* Wrapper for VBT child device config */
 struct intel_bios_encoder_data {
+	struct drm_i915_private *i915;
+
 	struct child_device_config child;
 	struct dsc_compression_parameters_entry *dsc;
 	struct list_head node;
@@ -2026,6 +2028,8 @@ parse_general_definitions(struct drm_i915_private *i915,
 		if (!devdata)
 			break;
 
+		devdata->i915 = i915;
+
 		/*
 		 * Copy as much as we know (sizeof) and is available
 		 * (child_dev_size) of the child device config. Accessing the
@@ -2103,6 +2107,7 @@ init_vbt_missing_defaults(struct drm_i915_private *i915)
 		if (!devdata)
 			break;
 
+		devdata->i915 = i915;
 		child = &devdata->child;
 
 		if (port == PORT_F)
