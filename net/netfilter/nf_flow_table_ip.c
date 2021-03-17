@@ -96,8 +96,6 @@ static int nf_flow_snat_ip(const struct flow_offload *flow, struct sk_buff *skb,
 		new_addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_v4.s_addr;
 		iph->daddr = new_addr;
 		break;
-	default:
-		return -1;
 	}
 	csum_replace4(&iph->check, addr, new_addr);
 
@@ -121,8 +119,6 @@ static int nf_flow_dnat_ip(const struct flow_offload *flow, struct sk_buff *skb,
 		new_addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_v4.s_addr;
 		iph->saddr = new_addr;
 		break;
-	default:
-		return -1;
 	}
 	csum_replace4(&iph->check, addr, new_addr);
 
@@ -371,8 +367,6 @@ static int nf_flow_snat_ipv6(const struct flow_offload *flow,
 		new_addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_v6;
 		ip6h->daddr = new_addr;
 		break;
-	default:
-		return -1;
 	}
 
 	return nf_flow_nat_ipv6_l4proto(skb, ip6h, thoff, &addr, &new_addr);
@@ -396,8 +390,6 @@ static int nf_flow_dnat_ipv6(const struct flow_offload *flow,
 		new_addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_v6;
 		ip6h->saddr = new_addr;
 		break;
-	default:
-		return -1;
 	}
 
 	return nf_flow_nat_ipv6_l4proto(skb, ip6h, thoff, &addr, &new_addr);

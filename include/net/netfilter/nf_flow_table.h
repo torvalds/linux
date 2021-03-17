@@ -86,8 +86,8 @@ static inline bool nf_flowtable_hw_offload(struct nf_flowtable *flowtable)
 enum flow_offload_tuple_dir {
 	FLOW_OFFLOAD_DIR_ORIGINAL = IP_CT_DIR_ORIGINAL,
 	FLOW_OFFLOAD_DIR_REPLY = IP_CT_DIR_REPLY,
-	FLOW_OFFLOAD_DIR_MAX = IP_CT_DIR_MAX
 };
+#define FLOW_OFFLOAD_DIR_MAX	IP_CT_DIR_MAX
 
 struct flow_offload_tuple {
 	union {
