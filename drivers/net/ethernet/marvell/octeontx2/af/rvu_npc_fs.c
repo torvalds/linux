@@ -998,33 +998,21 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 	if (is_npc_intf_tx(req->intf))
 		goto find_rule;
 
-	if (def_ucast_rule)
+	if (req->default_rule) {
+		entry_index = npc_get_nixlf_mcam_index(mcam, target, nixlf,
+						       NIXLF_UCAST_ENTRY);
+		enable = is_mcam_entry_enabled(rvu, mcam, blkaddr, entry_index);
+	}
+
+	/* update mcam entry with default unicast rule attributes */
+	if (def_ucast_rule && (msg_from_vf || (req->default_rule && req->append))) {
 		missing_features = (def_ucast_rule->features ^ features) &
 					def_ucast_rule->features;
-
-	if (req->default_rule && req->append) {
-		/* add to default rule */
 		if (missing_features)
 			npc_update_flow(rvu, entry, missing_features,
 					&def_ucast_rule->packet,
 					&def_ucast_rule->mask,
 					&dummy, req->intf);
-		enable = rvu_npc_write_default_rule(rvu, blkaddr,
-						    nixlf, target,
-						    pfvf->nix_rx_intf, entry,
-						    &entry_index);
-		installed_features = req->features | missing_features;
-	} else if (req->default_rule && !req->append) {
-		/* overwrite default rule */
-		enable = rvu_npc_write_default_rule(rvu, blkaddr,
-						    nixlf, target,
-						    pfvf->nix_rx_intf, entry,
-						    &entry_index);
-	} else if (msg_from_vf) {
-		/* normal rule - include default rule also to it for VF */
-		npc_update_flow(rvu, entry, missing_features,
-				&def_ucast_rule->packet, &def_ucast_rule->mask,
-				&dummy, req->intf);
 		installed_features = req->features | missing_features;
 	}
 
@@ -1036,12 +1024,9 @@ find_rule:
 			return -ENOMEM;
 		new = true;
 	}
-	/* no counter for default rule */
-	if (req->default_rule)
-		goto update_rule;
 
 	/* allocate new counter if rule has no counter */
-	if (req->set_cntr && !rule->has_cntr)
+	if (!req->default_rule && req->set_cntr && !rule->has_cntr)
 		rvu_mcam_add_counter_to_rule(rvu, owner, rule, rsp);
 
 	/* if user wants to delete an existing counter for a rule then
@@ -1051,7 +1036,14 @@ find_rule:
 		rvu_mcam_remove_counter_from_rule(rvu, owner, rule);
 
 	write_req.hdr.pcifunc = owner;
-	write_req.entry = req->entry;
+
+	/* AF owns the default rules so change the owner just to relax
+	 * the checks in rvu_mbox_handler_npc_mcam_write_entry
+	 */
+	if (req->default_rule)
+		write_req.hdr.pcifunc = 0;
+
+	write_req.entry = entry_index;
 	write_req.intf = req->intf;
 	write_req.enable_entry = (u8)enable;
 	/* if counter is available then clear and use it */
@@ -1069,7 +1061,7 @@ find_rule:
 			kfree(rule);
 		return err;
 	}
-update_rule:
+	/* update rule */
 	memcpy(&rule->packet, &dummy.packet, sizeof(rule->packet));
 	memcpy(&rule->mask, &dummy.mask, sizeof(rule->mask));
 	rule->entry = entry_index;
@@ -1278,6 +1270,7 @@ static int npc_update_dmac_value(struct rvu *rvu, int npcblkaddr,
 
 	write_req.hdr.pcifunc = rule->owner;
 	write_req.entry = rule->entry;
+	write_req.intf = pfvf->nix_rx_intf;
 
 	mutex_unlock(&mcam->lock);
 	err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &write_req, &rsp);

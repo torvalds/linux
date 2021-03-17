@@ -548,6 +548,12 @@ static inline int is_afvf(u16 pcifunc)
 	return !(pcifunc & ~RVU_PFVF_FUNC_MASK);
 }
 
+/* check if PF_FUNC is AF */
+static inline bool is_pffunc_af(u16 pcifunc)
+{
+	return !pcifunc;
+}
+
 static inline bool is_rvu_fwdata_valid(struct rvu *rvu)
 {
 	return (rvu->fwdata->header_magic == RVU_FWDATA_HEADER_MAGIC) &&
@@ -665,9 +671,6 @@ int rvu_npc_get_tx_nibble_cfg(struct rvu *rvu, u64 nibble_ena);
 int npc_mcam_verify_channel(struct rvu *rvu, u16 pcifunc, u8 intf, u16 channel);
 int npc_flow_steering_init(struct rvu *rvu, int blkaddr);
 const char *npc_get_field_name(u8 hdr);
-bool rvu_npc_write_default_rule(struct rvu *rvu, int blkaddr, int nixlf,
-				u16 pcifunc, u8 intf, struct mcam_entry *entry,
-				int *entry_index);
 int npc_get_bank(struct npc_mcam *mcam, int index);
 void npc_mcam_enable_flows(struct rvu *rvu, u16 target);
 void npc_mcam_disable_flows(struct rvu *rvu, u16 target);
@@ -678,6 +681,11 @@ void npc_read_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 			 u8 *intf, u8 *ena);
 bool is_mac_feature_supported(struct rvu *rvu, int pf, int feature);
 u32  rvu_cgx_get_fifolen(struct rvu *rvu);
+
+int npc_get_nixlf_mcam_index(struct npc_mcam *mcam, u16 pcifunc, int nixlf,
+			     int type);
+bool is_mcam_entry_enabled(struct rvu *rvu, struct npc_mcam *mcam, int blkaddr,
+			   int index);
 
 /* CPT APIs */
 int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int lf, int slot);

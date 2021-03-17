@@ -2145,7 +2145,7 @@ static int rvu_dbg_npc_mcam_show_rules(struct seq_file *s, void *unused)
 		seq_printf(s, "\tmcam entry: %d\n", iter->entry);
 
 		rvu_dbg_npc_mcam_show_flows(s, iter);
-		if (iter->intf == NIX_INTF_RX) {
+		if (is_npc_intf_rx(iter->intf)) {
 			target = iter->rx_action.pf_func;
 			pf = (target >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
 			seq_printf(s, "\tForward to: PF%d ", pf);
