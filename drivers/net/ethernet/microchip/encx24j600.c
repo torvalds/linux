@@ -222,7 +222,6 @@ static int encx24j600_wait_for_autoneg(struct encx24j600_priv *priv)
 	unsigned long timeout = jiffies + msecs_to_jiffies(2000);
 	u16 phstat1;
 	u16 estat;
-	int ret = 0;
 
 	phstat1 = encx24j600_read_phy(priv, PHSTAT1);
 	while ((phstat1 & ANDONE) == 0) {
@@ -258,7 +257,7 @@ static int encx24j600_wait_for_autoneg(struct encx24j600_priv *priv)
 		encx24j600_write_reg(priv, MACLCON, 0x370f);
 	}
 
-	return ret;
+	return 0;
 }
 
 /* Access the PHY to determine link status */
