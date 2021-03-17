@@ -84,7 +84,7 @@ union Keytype {
 };
 
 
-struct RT_PMKID_LIST {
+struct rt_pmkid_list {
 	u8 				bUsed;
 	u8 				Bssid[6];
 	u8 				PMKID[16];
@@ -163,7 +163,7 @@ struct security_priv {
 	u32 btkip_countermeasure_time;
 
 	/*  For WPA2 Pre-Authentication. */
-	struct RT_PMKID_LIST		PMKIDList[NUM_PMKID_CACHE];	/*  Renamed from PreAuthKey[NUM_PRE_AUTH_KEY]. Annie, 2006-10-13. */
+	struct rt_pmkid_list		PMKIDList[NUM_PMKID_CACHE];	/*  Renamed from PreAuthKey[NUM_PRE_AUTH_KEY]. Annie, 2006-10-13. */
 	u8 		PMKIDIndex;
 
 	u8 bWepDefaultKeyIdxSet;

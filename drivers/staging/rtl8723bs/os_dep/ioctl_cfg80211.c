@@ -2346,7 +2346,7 @@ static int cfg80211_rtw_flush_pmksa(struct wiphy *wiphy,
 
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 
-	memset(&psecuritypriv->PMKIDList[0], 0x00, sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
+	memset(&psecuritypriv->PMKIDList[0], 0x00, sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 	psecuritypriv->PMKIDIndex = 0;
 
 	return 0;
