@@ -23,6 +23,7 @@
 #include <sys/eventfd.h>
 #include <asm/unistd.h>
 #include <linux/perf_event.h>
+#include "../kselftest.h"
 
 #define MB			(1024 * 1024)
 #define RESCTRL_PATH		"/sys/fs/resctrl"
@@ -68,7 +69,6 @@ struct resctrl_val_param {
 #define CAT_STR			"cat"
 
 extern pid_t bm_pid, ppid;
-extern int tests_run;
 
 extern char llc_occup_path[1024];
 extern bool is_amd;

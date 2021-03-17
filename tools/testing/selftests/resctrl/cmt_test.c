@@ -39,36 +39,33 @@ static int cmt_setup(int num, ...)
 	return 0;
 }
 
-static void show_cache_info(unsigned long sum_llc_occu_resc, int no_of_bits,
-			    unsigned long span)
+static int show_cache_info(unsigned long sum_llc_occu_resc, int no_of_bits,
+			   unsigned long span)
 {
 	unsigned long avg_llc_occu_resc = 0;
 	float diff_percent;
 	long avg_diff = 0;
-	bool res;
+	int ret;
 
 	avg_llc_occu_resc = sum_llc_occu_resc / (NUM_OF_RUNS - 1);
 	avg_diff = (long)abs(span - avg_llc_occu_resc);
 
 	diff_percent = (((float)span - avg_llc_occu_resc) / span) * 100;
 
-	if ((abs((int)diff_percent) <= MAX_DIFF_PERCENT) ||
-	    (abs(avg_diff) <= MAX_DIFF))
-		res = true;
-	else
-		res = false;
+	ret = (abs((int)diff_percent) > MAX_DIFF_PERCENT) &&
+	      (abs(avg_diff) > MAX_DIFF);
 
-	printf("%sok CMT: diff within %d, %d\%%\n", res ? "" : "not",
-	       MAX_DIFF, (int)MAX_DIFF_PERCENT);
+	ksft_print_msg("%s cache miss diff within %d, %d\%%\n",
+		       ret ? "Fail:" : "Pass:", MAX_DIFF, (int)MAX_DIFF_PERCENT);
 
-	printf("# diff: %ld\n", avg_diff);
-	printf("# percent diff=%d\n", abs((int)diff_percent));
-	printf("# Results are displayed in (Bytes)\n");
-	printf("# Number of bits: %d\n", no_of_bits);
-	printf("# Avg_llc_occu_resc: %lu\n", avg_llc_occu_resc);
-	printf("# llc_occu_exp (span): %lu\n", span);
+	ksft_print_msg("Diff: %ld\n", avg_diff);
+	ksft_print_msg("Percent diff=%d\n", abs((int)diff_percent));
+	ksft_print_msg("Results are displayed in (Bytes)\n");
+	ksft_print_msg("Number of bits: %d\n", no_of_bits);
+	ksft_print_msg("Avg_llc_occu_resc: %lu\n", avg_llc_occu_resc);
+	ksft_print_msg("llc_occu_exp (span): %lu\n", span);
 
-	tests_run++;
+	return ret;
 }
 
 static int check_results(struct resctrl_val_param *param, int no_of_bits)
@@ -78,7 +75,7 @@ static int check_results(struct resctrl_val_param *param, int no_of_bits)
 	int runs = 0;
 	FILE *fp;
 
-	printf("# checking for pass/fail\n");
+	ksft_print_msg("Checking for pass/fail\n");
 	fp = fopen(param->filename, "r");
 	if (!fp) {
 		perror("# Error in opening file\n");
@@ -101,9 +98,8 @@ static int check_results(struct resctrl_val_param *param, int no_of_bits)
 		runs++;
 	}
 	fclose(fp);
-	show_cache_info(sum_llc_occu_resc, no_of_bits, param->span);
 
-	return 0;
+	return show_cache_info(sum_llc_occu_resc, no_of_bits, param->span);
 }
 
 void cmt_test_cleanup(void)
@@ -134,13 +130,13 @@ int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	ret = get_cache_size(cpu_no, "L3", &cache_size);
 	if (ret)
 		return ret;
-	printf("cache size :%lu\n", cache_size);
+	ksft_print_msg("Cache size :%lu\n", cache_size);
 
 	count_of_bits = count_bits(long_mask);
 
 	if (n < 1 || n > count_of_bits) {
-		printf("Invalid input value for numbr_of_bits n!\n");
-		printf("Please Enter value in range 1 to %d\n", count_of_bits);
+		ksft_print_msg("Invalid input value for numbr_of_bits n!\n");
+		ksft_print_msg("Please enter value in range 1 to %d\n", count_of_bits);
 		return -1;
 	}
 

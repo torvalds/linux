@@ -449,7 +449,7 @@ void ctrlc_handler(int signum, siginfo_t *info, void *ptr)
 	kill(bm_pid, SIGKILL);
 	umount_resctrlfs();
 	tests_cleanup();
-	printf("Ending\n\n");
+	ksft_print_msg("Ending\n\n");
 
 	exit(EXIT_SUCCESS);
 }
@@ -645,7 +645,7 @@ int resctrl_val(char **benchmark_cmd, struct resctrl_val_param *param)
 		PARENT_EXIT("Child is done");
 	}
 
-	printf("# benchmark PID: %d\n", bm_pid);
+	ksft_print_msg("Benchmark PID: %d\n", bm_pid);
 
 	/*
 	 * Register CTRL-C handler for parent, as it has to kill benchmark

@@ -14,13 +14,13 @@
 #define MAX_DIFF		300
 #define NUM_OF_RUNS		5
 
-static void
+static int
 show_bw_info(unsigned long *bw_imc, unsigned long *bw_resc, int span)
 {
 	unsigned long avg_bw_imc = 0, avg_bw_resc = 0;
 	unsigned long sum_bw_imc = 0, sum_bw_resc = 0;
 	long avg_diff = 0;
-	int runs;
+	int runs, ret;
 
 	/*
 	 * Discard the first value which is inaccurate due to monitoring setup
@@ -35,13 +35,15 @@ show_bw_info(unsigned long *bw_imc, unsigned long *bw_resc, int span)
 	avg_bw_resc = sum_bw_resc / 4;
 	avg_diff = avg_bw_resc - avg_bw_imc;
 
-	printf("%sok MBM: diff within %d%%\n",
-	       labs(avg_diff) > MAX_DIFF ? "not " : "", MAX_DIFF);
-	tests_run++;
-	printf("# avg_diff: %lu\n", labs(avg_diff));
-	printf("# Span (MB): %d\n", span);
-	printf("# avg_bw_imc: %lu\n", avg_bw_imc);
-	printf("# avg_bw_resc: %lu\n", avg_bw_resc);
+	ret = labs(avg_diff) > MAX_DIFF;
+	ksft_print_msg("%s MBM: diff within %d%%\n",
+		       ret ? "Fail:" : "Pass:", MAX_DIFF);
+	ksft_print_msg("avg_diff: %lu\n", labs(avg_diff));
+	ksft_print_msg("Span (MB): %d\n", span);
+	ksft_print_msg("avg_bw_imc: %lu\n", avg_bw_imc);
+	ksft_print_msg("avg_bw_resc: %lu\n", avg_bw_resc);
+
+	return ret;
 }
 
 static int check_results(int span)
@@ -49,10 +51,10 @@ static int check_results(int span)
 	unsigned long bw_imc[NUM_OF_RUNS], bw_resc[NUM_OF_RUNS];
 	char temp[1024], *token_array[8];
 	char output[] = RESULT_FILE_NAME;
-	int runs;
+	int runs, ret;
 	FILE *fp;
 
-	printf("# Checking for pass/fail\n");
+	ksft_print_msg("Checking for pass/fail\n");
 
 	fp = fopen(output, "r");
 	if (!fp) {
@@ -76,11 +78,11 @@ static int check_results(int span)
 		runs++;
 	}
 
-	show_bw_info(bw_imc, bw_resc, span);
+	ret = show_bw_info(bw_imc, bw_resc, span);
 
 	fclose(fp);
 
-	return 0;
+	return ret;
 }
 
 static int mbm_setup(int num, ...)

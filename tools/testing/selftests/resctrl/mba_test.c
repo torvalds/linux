@@ -56,7 +56,7 @@ static void show_mba_info(unsigned long *bw_imc, unsigned long *bw_resc)
 	int allocation, runs;
 	bool failed = false;
 
-	printf("# Results are displayed in (MB)\n");
+	ksft_print_msg("Results are displayed in (MB)\n");
 	/* Memory bandwidth from 100% down to 10% */
 	for (allocation = 0; allocation < ALLOCATION_MAX / ALLOCATION_STEP;
 	     allocation++) {
@@ -78,21 +78,21 @@ static void show_mba_info(unsigned long *bw_imc, unsigned long *bw_resc)
 		avg_bw_resc = sum_bw_resc / (NUM_OF_RUNS - 1);
 		avg_diff = labs((long)(avg_bw_resc - avg_bw_imc));
 
-		printf("%sok MBA schemata percentage %u smaller than %d %%\n",
-		       avg_diff > MAX_DIFF ? "not " : "",
-		       ALLOCATION_MAX - ALLOCATION_STEP * allocation,
-		       MAX_DIFF);
-		tests_run++;
-		printf("# avg_diff: %lu\n", avg_diff);
-		printf("# avg_bw_imc: %lu\n", avg_bw_imc);
-		printf("# avg_bw_resc: %lu\n", avg_bw_resc);
+		ksft_print_msg("%s MBA schemata percentage %u smaller than %d %%\n",
+			       avg_diff > MAX_DIFF ? "Fail:" : "Pass:",
+			       ALLOCATION_MAX - ALLOCATION_STEP * allocation,
+			       MAX_DIFF);
+		ksft_print_msg("avg_diff: %lu\n", avg_diff);
+		ksft_print_msg("avg_bw_imc: %lu\n", avg_bw_imc);
+		ksft_print_msg("avg_bw_resc: %lu\n", avg_bw_resc);
 		if (avg_diff > MAX_DIFF)
 			failed = true;
 	}
 
-	printf("%sok schemata change using MBA%s\n", failed ? "not " : "",
-	       failed ? " # at least one test failed" : "");
-	tests_run++;
+	ksft_print_msg("%s schemata change using MBA\n",
+		       failed ? "Fail:" : "Pass:");
+	if (failed)
+		ksft_print_msg("At least one test failed");
 }
 
 static int check_results(void)

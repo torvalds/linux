@@ -10,8 +10,6 @@
  */
 #include "resctrl.h"
 
-int tests_run;
-
 static int find_resctrl_mount(char *buffer)
 {
 	FILE *mounts;
@@ -68,22 +66,16 @@ int remount_resctrlfs(bool mum_resctrlfs)
 	if (ret)
 		strcpy(mountpoint, RESCTRL_PATH);
 
-	if (!ret && mum_resctrlfs && umount(mountpoint)) {
-		printf("not ok unmounting \"%s\"\n", mountpoint);
-		perror("# umount");
-		tests_run++;
-	}
+	if (!ret && mum_resctrlfs && umount(mountpoint))
+		ksft_print_msg("Fail: unmounting \"%s\"\n", mountpoint);
 
 	if (!ret && !mum_resctrlfs)
 		return 0;
 
+	ksft_print_msg("Mounting resctrl to \"%s\"\n", RESCTRL_PATH);
 	ret = mount("resctrl", RESCTRL_PATH, "resctrl", 0, NULL);
-	printf("%sok mounting resctrl to \"%s\"\n", ret ? "not " : "",
-	       RESCTRL_PATH);
 	if (ret)
 		perror("# mount");
-
-	tests_run++;
 
 	return ret;
 }
@@ -477,12 +469,9 @@ int write_bm_pid_to_resctrl(pid_t bm_pid, char *ctrlgrp, char *mongrp,
 	}
 
 out:
-	printf("%sok writing benchmark parameters to resctrl FS\n",
-	       ret ? "not " : "");
+	ksft_print_msg("Writing benchmark parameters to resctrl FS\n");
 	if (ret)
 		perror("# writing to resctrlfs");
-
-	tests_run++;
 
 	return ret;
 }
@@ -511,7 +500,7 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 		return -ENOENT;
 
 	if (!schemata) {
-		printf("# Skipping empty schemata update\n");
+		ksft_print_msg("Skipping empty schemata update\n");
 
 		return -1;
 	}
@@ -552,10 +541,9 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 	fclose(fp);
 
 out:
-	printf("%sok Write schema \"%s\" to resctrl FS%s%s\n",
-	       ret ? "not " : "", schema, ret ? " # " : "",
-	       ret ? reason : "");
-	tests_run++;
+	ksft_print_msg("Write schema \"%s\" to resctrl FS%s%s\n",
+		       schema, ret ? " # " : "",
+		       ret ? reason : "");
 
 	return ret;
 }
@@ -579,18 +567,17 @@ bool check_resctrlfs_support(void)
 
 	fclose(inf);
 
-	printf("%sok kernel supports resctrl filesystem\n", ret ? "" : "not ");
-	tests_run++;
+	ksft_print_msg("%s kernel supports resctrl filesystem\n",
+		       ret ? "Pass:" : "Fail:");
 
 	dp = opendir(RESCTRL_PATH);
-	printf("%sok resctrl mountpoint \"%s\" exists\n",
-	       dp ? "" : "not ", RESCTRL_PATH);
+	ksft_print_msg("%s resctrl mountpoint \"%s\" exists\n",
+		       dp ? "Pass:" : "Fail:", RESCTRL_PATH);
 	if (dp)
 		closedir(dp);
-	tests_run++;
 
-	printf("# resctrl filesystem %s mounted\n",
-	       find_resctrl_mount(NULL) ? "not" : "is");
+	ksft_print_msg("resctrl filesystem %s mounted\n",
+		       find_resctrl_mount(NULL) ? "not" : "is");
 
 	return ret;
 }
@@ -672,9 +659,9 @@ int filter_dmesg(void)
 
 	while (fgets(line, 1024, fp)) {
 		if (strstr(line, "intel_rdt:"))
-			printf("# dmesg: %s", line);
+			ksft_print_msg("dmesg: %s", line);
 		if (strstr(line, "resctrl:"))
-			printf("# dmesg: %s", line);
+			ksft_print_msg("dmesg: %s", line);
 	}
 	fclose(fp);
 	waitpid(pid, NULL, 0);
