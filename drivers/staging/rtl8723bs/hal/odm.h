@@ -1111,7 +1111,7 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	/*  */
 	struct fat_t DM_FatTable;
 	struct dig_t DM_DigTable;
-	struct PS_T DM_PSTable;
+	struct ps_t DM_PSTable;
 	struct dynamic_primary_CCA DM_PriCCA;
 	struct rxhp_t dM_RXHP_Table;
 	struct ra_t DM_RA_Table;

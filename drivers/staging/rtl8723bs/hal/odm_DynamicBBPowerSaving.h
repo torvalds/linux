@@ -8,7 +8,7 @@
 #ifndef	__ODMDYNAMICBBPOWERSAVING_H__
 #define    __ODMDYNAMICBBPOWERSAVING_H__
 
-struct PS_T { /* _Dynamic_Power_Saving_ */
+struct ps_t { /* _Dynamic_Power_Saving_ */
 	u8 PreCCAState;
 	u8 CurCCAState;
 
