@@ -863,8 +863,8 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
 
 	/* Lookup destination nodes */
 	tipc_nlist_init(&dsts, tipc_own_addr(net));
-	tipc_nametbl_lookup_dst_nodes(net, seq->type, seq->lower,
-				      seq->upper, &dsts);
+	tipc_nametbl_lookup_mcast_nodes(net, seq->type, seq->lower,
+					seq->upper, &dsts);
 	if (!dsts.local && !dsts.remote)
 		return -EHOSTUNREACH;
 
@@ -1032,8 +1032,9 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 
 		/* Look for a non-congested destination member, if any */
 		while (1) {
-			if (!tipc_nametbl_lookup(net, type, inst, scope, &dsts,
-						 &dstcnt, exclude, false))
+			if (!tipc_nametbl_lookup_group(net, type, inst, scope,
+						       &dsts, &dstcnt, exclude,
+						       false))
 				return -EHOSTUNREACH;
 			tipc_dest_pop(&dsts, &node, &port);
 			cong = tipc_group_cong(tsk->group, node, port, blks,
@@ -1179,8 +1180,8 @@ static int tipc_send_group_mcast(struct socket *sock, struct msghdr *m,
 	scope = msg_lookup_scope(hdr);
 	exclude = tipc_group_exclude(grp);
 
-	if (!tipc_nametbl_lookup(net, type, inst, scope, &dsts,
-				 &dstcnt, exclude, true))
+	if (!tipc_nametbl_lookup_group(net, type, inst, scope, &dsts,
+				       &dstcnt, exclude, true))
 		return -EHOSTUNREACH;
 
 	if (dstcnt == 1) {
@@ -1254,8 +1255,8 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 		}
 
 		/* Create destination port list: */
-		tipc_nametbl_mc_lookup(net, type, lower, upper,
-				       scope, exact, &dports);
+		tipc_nametbl_lookup_mcast_sockets(net, type, lower, upper,
+						  scope, exact, &dports);
 
 		/* Clone message per destination */
 		while (tipc_dest_pop(&dports, NULL, &portid)) {
@@ -1485,7 +1486,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 		type = dest->addr.name.name.type;
 		inst = dest->addr.name.name.instance;
 		dnode = dest->addr.name.domain;
-		dport = tipc_nametbl_translate(net, type, inst, &dnode);
+		dport = tipc_nametbl_lookup_anycast(net, type, inst, &dnode);
 		if (unlikely(!dport && !dnode))
 			return -EHOSTUNREACH;
 	} else if (dest->addrtype == TIPC_SOCKET_ADDR) {

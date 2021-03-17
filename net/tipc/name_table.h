@@ -111,16 +111,19 @@ struct name_table {
 
 int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
-u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *node);
-void tipc_nametbl_mc_lookup(struct net *net, u32 type, u32 lower, u32 upper,
-			    u32 scope, bool exact, struct list_head *dports);
+u32 tipc_nametbl_lookup_anycast(struct net *net, u32 type, u32 instance,
+				u32 *node);
+void tipc_nametbl_lookup_mcast_sockets(struct net *net, u32 type, u32 lower,
+				       u32 upper, u32 scope, bool exact,
+				   struct list_head *dports);
+void tipc_nametbl_lookup_mcast_nodes(struct net *net, u32 type, u32 lower,
+				     u32 upper, struct tipc_nlist *nodes);
+bool tipc_nametbl_lookup_group(struct net *net, u32 type, u32 instance,
+			       u32 domain, struct list_head *dsts,
+			       int *dstcnt, u32 exclude,
+			       bool all);
 void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 			      u32 type, u32 domain);
-void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
-				   u32 upper, struct tipc_nlist *nodes);
-bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
-			 struct list_head *dsts, int *dstcnt, u32 exclude,
-			 bool all);
 struct publication *tipc_nametbl_publish(struct net *net, struct tipc_uaddr *ua,
 					 struct tipc_socket_addr *sk, u32 key);
 void tipc_nametbl_withdraw(struct net *net, struct tipc_uaddr *ua,

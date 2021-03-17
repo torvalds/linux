@@ -544,24 +544,26 @@ exit:
 }
 
 /**
- * tipc_nametbl_translate - perform service instance to socket translation
+ * tipc_nametbl_lookup_anycast - perform service instance to socket translation
  * @net: network namespace
  * @type: message type
  * @instance: message instance
  * @dnode: the search domain used during translation
  *
+ * On entry, 'dnode' is the search domain used during the lookup
+ *
  * On exit:
- * - if translation is deferred to another node, leave 'dnode' unchanged and
- * return 0
- * - if translation is attempted and succeeds, set 'dnode' to the publishing
- * node and return the published (non-zero) port number
- * - if translation is attempted and fails, set 'dnode' to 0 and return 0
+ * - if lookup is deferred to another node, leave 'dnode' unchanged and return 0
+ * - if lookup is attempted and succeeds, set 'dnode' to the publishing node and
+ *   return the published (non-zero) port number
+ * - if lookup is attempted and fails, set 'dnode' to 0 and return 0
  *
  * Note that for legacy users (node configured with Z.C.N address format) the
  * 'closest-first' lookup algorithm must be maintained, i.e., if dnode is 0
  * we must look in the local binding list first
  */
-u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dnode)
+u32 tipc_nametbl_lookup_anycast(struct net *net, u32 type,
+				u32 instance, u32 *dnode)
 {
 	struct tipc_net *tn = tipc_net(net);
 	bool legacy = tn->legacy_addr_format;
@@ -617,9 +619,15 @@ exit:
 	return port;
 }
 
-bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 scope,
-			 struct list_head *dsts, int *dstcnt, u32 exclude,
-			 bool all)
+/* tipc_nametbl_lookup_group(): lookup destinaton(s) in a communication group
+ * Returns a list of one (== group anycast) or more (== group multicast)
+ * destination socket/node pairs matching the given address.
+ * The requester may or may not want to exclude himself from the list.
+ */
+bool tipc_nametbl_lookup_group(struct net *net, u32 type, u32 instance,
+			       u32 scope, struct list_head *dsts,
+			       int *dstcnt, u32 exclude,
+			       bool mcast)
 {
 	u32 self = tipc_own_addr(net);
 	struct service_range *sr;
@@ -646,7 +654,7 @@ bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 scope,
 			continue;
 		tipc_dest_push(dsts, p->sk.node, p->sk.ref);
 		(*dstcnt)++;
-		if (all)
+		if (mcast)
 			continue;
 		list_move_tail(&p->all_publ, &sr->all_publ);
 		break;
@@ -658,8 +666,14 @@ exit:
 	return !list_empty(dsts);
 }
 
-void tipc_nametbl_mc_lookup(struct net *net, u32 type, u32 lower, u32 upper,
-			    u32 scope, bool exact, struct list_head *dports)
+/* tipc_nametbl_lookup_mcast_sockets(): look up node local destinaton sockets
+ *                                      matching the given address
+ * Used on nodes which have received a multicast/broadcast message
+ * Returns a list of local sockets
+ */
+void tipc_nametbl_lookup_mcast_sockets(struct net *net, u32 type, u32 lower,
+				       u32 upper, u32 scope, bool exact,
+				       struct list_head *dports)
 {
 	struct service_range *sr;
 	struct tipc_service *sc;
@@ -682,12 +696,13 @@ exit:
 	rcu_read_unlock();
 }
 
-/* tipc_nametbl_lookup_dst_nodes - find broadcast destination nodes
- * - Creates list of nodes that overlap the given multicast address
- * - Determines if any node local destinations overlap
+/* tipc_nametbl_lookup_mcast_nodes(): look up all destination nodes matching
+ *                                    the given address. Used in sending node.
+ * Used on nodes which are sending out a multicast/broadcast message
+ * Returns a list of nodes, including own node if applicable
  */
-void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
-				   u32 upper, struct tipc_nlist *nodes)
+void tipc_nametbl_lookup_mcast_nodes(struct net *net, u32 type, u32 lower,
+				     u32 upper, struct tipc_nlist *nodes)
 {
 	struct service_range *sr;
 	struct tipc_service *sc;

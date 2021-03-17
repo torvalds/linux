@@ -723,8 +723,8 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	if (msg_reroute_cnt(msg))
 		return false;
 	dnode = tipc_scope2node(net, msg_lookup_scope(msg));
-	dport = tipc_nametbl_translate(net, msg_nametype(msg),
-				       msg_nameinst(msg), &dnode);
+	dport = tipc_nametbl_lookup_anycast(net, msg_nametype(msg),
+					    msg_nameinst(msg), &dnode);
 	if (!dport)
 		return false;
 	msg_incr_reroute_cnt(msg);
