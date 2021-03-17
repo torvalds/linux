@@ -3,6 +3,8 @@
  * Copyright © 2020 Intel Corporation
  */
 #include "intel_atomic.h"
+#include "intel_ddi.h"
+#include "intel_ddi_buf_trans.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 
@@ -548,6 +550,142 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
 
 train_done:
 	drm_dbg_kms(&dev_priv->drm, "FDI train done.\n");
+}
+
+/* Starting with Haswell, different DDI ports can work in FDI mode for
+ * connection to the PCH-located connectors. For this, it is necessary to train
+ * both the DDI port and PCH receiver for the desired DDI buffer settings.
+ *
+ * The recommended port to work in FDI mode is DDI E, which we use here. Also,
+ * please note that when FDI mode is active on DDI E, it shares 2 lines with
+ * DDI A (which is used for eDP)
+ */
+void hsw_fdi_link_train(struct intel_encoder *encoder,
+			const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 temp, i, rx_ctl_val;
+	int n_entries;
+
+	intel_ddi_get_buf_trans_fdi(dev_priv, &n_entries);
+
+	intel_prepare_dp_ddi_buffers(encoder, crtc_state);
+
+	/* Set the FDI_RX_MISC pwrdn lanes and the 2 workarounds listed at the
+	 * mode set "sequence for CRT port" document:
+	 * - TP1 to TP2 time with the default value
+	 * - FDI delay to 90h
+	 *
+	 * WaFDIAutoLinkSetTimingOverrride:hsw
+	 */
+	intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A),
+		       FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2) | FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
+
+	/* Enable the PCH Receiver FDI PLL */
+	rx_ctl_val = dev_priv->fdi_rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
+		     FDI_RX_PLL_ENABLE |
+		     FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
+	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), rx_ctl_val);
+	intel_de_posting_read(dev_priv, FDI_RX_CTL(PIPE_A));
+	udelay(220);
+
+	/* Switch from Rawclk to PCDclk */
+	rx_ctl_val |= FDI_PCDCLK;
+	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), rx_ctl_val);
+
+	/* Configure Port Clock Select */
+	drm_WARN_ON(&dev_priv->drm, crtc_state->shared_dpll->info->id != DPLL_ID_SPLL);
+	intel_ddi_enable_clock(encoder, crtc_state);
+
+	/* Start the training iterating through available voltages and emphasis,
+	 * testing each value twice. */
+	for (i = 0; i < n_entries * 2; i++) {
+		/* Configure DP_TP_CTL with auto-training */
+		intel_de_write(dev_priv, DP_TP_CTL(PORT_E),
+			       DP_TP_CTL_FDI_AUTOTRAIN |
+			       DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+			       DP_TP_CTL_LINK_TRAIN_PAT1 |
+			       DP_TP_CTL_ENABLE);
+
+		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage.
+		 * DDI E does not support port reversal, the functionality is
+		 * achieved on the PCH side in FDI_RX_CTL, so no need to set the
+		 * port reversal bit */
+		intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E),
+			       DDI_BUF_CTL_ENABLE | ((crtc_state->fdi_lanes - 1) << 1) | DDI_BUF_TRANS_SELECT(i / 2));
+		intel_de_posting_read(dev_priv, DDI_BUF_CTL(PORT_E));
+
+		udelay(600);
+
+		/* Program PCH FDI Receiver TU */
+		intel_de_write(dev_priv, FDI_RX_TUSIZE1(PIPE_A), TU_SIZE(64));
+
+		/* Enable PCH FDI Receiver with auto-training */
+		rx_ctl_val |= FDI_RX_ENABLE | FDI_LINK_TRAIN_AUTO;
+		intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), rx_ctl_val);
+		intel_de_posting_read(dev_priv, FDI_RX_CTL(PIPE_A));
+
+		/* Wait for FDI receiver lane calibration */
+		udelay(30);
+
+		/* Unset FDI_RX_MISC pwrdn lanes */
+		temp = intel_de_read(dev_priv, FDI_RX_MISC(PIPE_A));
+		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
+		intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A), temp);
+		intel_de_posting_read(dev_priv, FDI_RX_MISC(PIPE_A));
+
+		/* Wait for FDI auto training time */
+		udelay(5);
+
+		temp = intel_de_read(dev_priv, DP_TP_STATUS(PORT_E));
+		if (temp & DP_TP_STATUS_AUTOTRAIN_DONE) {
+			drm_dbg_kms(&dev_priv->drm,
+				    "FDI link training done on step %d\n", i);
+			break;
+		}
+
+		/*
+		 * Leave things enabled even if we failed to train FDI.
+		 * Results in less fireworks from the state checker.
+		 */
+		if (i == n_entries * 2 - 1) {
+			drm_err(&dev_priv->drm, "FDI link training failed!\n");
+			break;
+		}
+
+		rx_ctl_val &= ~FDI_RX_ENABLE;
+		intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), rx_ctl_val);
+		intel_de_posting_read(dev_priv, FDI_RX_CTL(PIPE_A));
+
+		temp = intel_de_read(dev_priv, DDI_BUF_CTL(PORT_E));
+		temp &= ~DDI_BUF_CTL_ENABLE;
+		intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E), temp);
+		intel_de_posting_read(dev_priv, DDI_BUF_CTL(PORT_E));
+
+		/* Disable DP_TP_CTL and FDI_RX_CTL and retry */
+		temp = intel_de_read(dev_priv, DP_TP_CTL(PORT_E));
+		temp &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
+		temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
+		intel_de_write(dev_priv, DP_TP_CTL(PORT_E), temp);
+		intel_de_posting_read(dev_priv, DP_TP_CTL(PORT_E));
+
+		intel_wait_ddi_buf_idle(dev_priv, PORT_E);
+
+		/* Reset FDI_RX_MISC pwrdn lanes */
+		temp = intel_de_read(dev_priv, FDI_RX_MISC(PIPE_A));
+		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
+		temp |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
+		intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A), temp);
+		intel_de_posting_read(dev_priv, FDI_RX_MISC(PIPE_A));
+	}
+
+	/* Enable normal pixel sending for FDI */
+	intel_de_write(dev_priv, DP_TP_CTL(PORT_E),
+		       DP_TP_CTL_FDI_AUTOTRAIN |
+		       DP_TP_CTL_LINK_TRAIN_NORMAL |
+		       DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+		       DP_TP_CTL_ENABLE);
 }
 
 void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state)

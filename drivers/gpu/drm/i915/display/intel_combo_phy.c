@@ -187,10 +187,16 @@ static bool has_phy_misc(struct drm_i915_private *i915, enum phy phy)
 	 * Some platforms only expect PHY_MISC to be programmed for PHY-A and
 	 * PHY-B and may not even have instances of the register for the
 	 * other combo PHY's.
+	 *
+	 * ADL-S technically has three instances of PHY_MISC, but only requires
+	 * that we program it for PHY A.
 	 */
-	if (IS_JSL_EHL(i915) ||
-	    IS_ROCKETLAKE(i915) ||
-	    IS_DG1(i915))
+
+	if (IS_ALDERLAKE_S(i915))
+		return phy == PHY_A;
+	else if (IS_JSL_EHL(i915) ||
+		 IS_ROCKETLAKE(i915) ||
+		 IS_DG1(i915))
 		return phy < PHY_C;
 
 	return true;
@@ -246,14 +252,21 @@ static bool phy_is_master(struct drm_i915_private *dev_priv, enum phy phy)
 	 * RKL,DG1:
 	 *   A(master) -> B(slave)
 	 *   C(master) -> D(slave)
+	 * ADL-S:
+	 *   A(master) -> B(slave), C(slave)
+	 *   D(master) -> E(slave)
 	 *
 	 * We must set the IREFGEN bit for any PHY acting as a master
 	 * to another PHY.
 	 */
-	if ((IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) && phy == PHY_C)
+	if (phy == PHY_A)
 		return true;
+	else if (IS_ALDERLAKE_S(dev_priv))
+		return phy == PHY_D;
+	else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+		return phy == PHY_C;
 
-	return phy == PHY_A;
+	return false;
 }
 
 static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,

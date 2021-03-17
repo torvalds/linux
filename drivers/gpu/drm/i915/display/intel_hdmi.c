@@ -2233,6 +2233,16 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 	return MODE_OK;
 }
 
+static int intel_hdmi_port_clock(int clock, int bpc)
+{
+	/*
+	 * Need to adjust the port link by:
+	 *  1.5x for 12bpc
+	 *  1.25x for 10bpc
+	 */
+	return clock * bpc / 8;
+}
+
 static enum drm_mode_status
 intel_hdmi_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
@@ -2264,17 +2274,18 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 		clock /= 2;
 
 	/* check if we can do 8bpc */
-	status = hdmi_port_clock_valid(hdmi, clock, true, has_hdmi_sink);
+	status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 8),
+				       true, has_hdmi_sink);
 
 	if (has_hdmi_sink) {
 		/* if we can't do 8bpc we may still be able to do 12bpc */
 		if (status != MODE_OK && !HAS_GMCH(dev_priv))
-			status = hdmi_port_clock_valid(hdmi, clock * 3 / 2,
+			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 12),
 						       true, has_hdmi_sink);
 
 		/* if we can't do 8,12bpc we may still be able to do 10bpc */
 		if (status != MODE_OK && INTEL_GEN(dev_priv) >= 11)
-			status = hdmi_port_clock_valid(hdmi, clock * 5 / 4,
+			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
 						       true, has_hdmi_sink);
 	}
 	if (status != MODE_OK)
@@ -2380,16 +2391,6 @@ intel_hdmi_ycbcr420_config(struct intel_crtc_state *crtc_state,
 	crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
 
 	return intel_pch_panel_fitting(crtc_state, conn_state);
-}
-
-static int intel_hdmi_port_clock(int clock, int bpc)
-{
-	/*
-	 * Need to adjust the port link by:
-	 *  1.5x for 12bpc
-	 *  1.25x for 10bpc
-	 */
-	return clock * bpc / 8;
 }
 
 static int intel_hdmi_compute_bpc(struct intel_encoder *encoder,
@@ -3137,9 +3138,43 @@ static u8 rkl_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 	return GMBUS_PIN_1_BXT + phy;
 }
 
+static u8 gen9bc_tgp_port_to_ddc_pin(struct drm_i915_private *i915, enum port port)
+{
+	enum phy phy = intel_port_to_phy(i915, port);
+
+	drm_WARN_ON(&i915->drm, port == PORT_A);
+
+	/*
+	 * Pin mapping for GEN9 BC depends on which PCH is present.  With TGP,
+	 * final two outputs use type-c pins, even though they're actually
+	 * combo outputs.  With CMP, the traditional DDI A-D pins are used for
+	 * all outputs.
+	 */
+	if (INTEL_PCH_TYPE(i915) >= PCH_TGP && phy >= PHY_C)
+		return GMBUS_PIN_9_TC1_ICP + phy - PHY_C;
+
+	return GMBUS_PIN_1_BXT + phy;
+}
+
 static u8 dg1_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 {
 	return intel_port_to_phy(dev_priv, port) + 1;
+}
+
+static u8 adls_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
+{
+	enum phy phy = intel_port_to_phy(dev_priv, port);
+
+	WARN_ON(port == PORT_B || port == PORT_C);
+
+	/*
+	 * Pin mapping for ADL-S requires TC pins for all combo phy outputs
+	 * except first combo output.
+	 */
+	if (phy == PHY_A)
+		return GMBUS_PIN_1_BXT;
+
+	return GMBUS_PIN_9_TC1_ICP + phy - PHY_B;
 }
 
 static u8 g4x_port_to_ddc_pin(struct drm_i915_private *dev_priv,
@@ -3179,10 +3214,14 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 		return ddc_pin;
 	}
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+	if (HAS_PCH_ADP(dev_priv))
+		ddc_pin = adls_port_to_ddc_pin(dev_priv, port);
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
 		ddc_pin = dg1_port_to_ddc_pin(dev_priv, port);
 	else if (IS_ROCKETLAKE(dev_priv))
 		ddc_pin = rkl_port_to_ddc_pin(dev_priv, port);
+	else if (IS_GEN9_BC(dev_priv) && HAS_PCH_TGP(dev_priv))
+		ddc_pin = gen9bc_tgp_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_MCC(dev_priv))
 		ddc_pin = mcc_port_to_ddc_pin(dev_priv, port);
 	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)

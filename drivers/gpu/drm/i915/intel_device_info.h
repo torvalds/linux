@@ -84,6 +84,7 @@ enum intel_platform {
 	INTEL_TIGERLAKE,
 	INTEL_ROCKETLAKE,
 	INTEL_DG1,
+	INTEL_ALDERLAKE_S,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -116,7 +117,6 @@ enum intel_ppgtt_type {
 	func(has_64bit_reloc); \
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
-	func(has_fpga_dbg); \
 	func(has_global_mocs); \
 	func(has_gt_uc); \
 	func(has_l3_dpf); \
@@ -143,6 +143,7 @@ enum intel_ppgtt_type {
 	func(has_dsb); \
 	func(has_dsc); \
 	func(has_fbc); \
+	func(has_fpga_dbg); \
 	func(has_gmch); \
 	func(has_hdcp); \
 	func(has_hotplug); \

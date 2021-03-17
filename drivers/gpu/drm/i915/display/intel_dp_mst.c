@@ -39,6 +39,7 @@
 #include "intel_dp_mst.h"
 #include "intel_dpio_phy.h"
 #include "intel_hdcp.h"
+#include "skl_scaler.h"
 
 static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 					    struct intel_crtc_state *crtc_state,
@@ -590,7 +591,7 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
 	struct intel_digital_port *dig_port = intel_mst->primary;
 
-	intel_ddi_get_config(&dig_port->base, pipe_config);
+	dig_port->base.get_config(&dig_port->base, pipe_config);
 }
 
 static bool intel_dp_mst_initial_fastset_check(struct intel_encoder *encoder,

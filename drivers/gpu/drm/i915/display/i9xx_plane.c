@@ -770,10 +770,6 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	int num_formats;
 	int ret, zpos;
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		return skl_universal_plane_create(dev_priv, pipe,
-						  PLANE_PRIMARY);
-
 	plane = intel_plane_alloc();
 	if (IS_ERR(plane))
 		return plane;
@@ -922,5 +918,124 @@ fail:
 	intel_plane_free(plane);
 
 	return ERR_PTR(ret);
+}
+
+static int i9xx_format_to_fourcc(int format)
+{
+	switch (format) {
+	case DISPPLANE_8BPP:
+		return DRM_FORMAT_C8;
+	case DISPPLANE_BGRA555:
+		return DRM_FORMAT_ARGB1555;
+	case DISPPLANE_BGRX555:
+		return DRM_FORMAT_XRGB1555;
+	case DISPPLANE_BGRX565:
+		return DRM_FORMAT_RGB565;
+	default:
+	case DISPPLANE_BGRX888:
+		return DRM_FORMAT_XRGB8888;
+	case DISPPLANE_RGBX888:
+		return DRM_FORMAT_XBGR8888;
+	case DISPPLANE_BGRA888:
+		return DRM_FORMAT_ARGB8888;
+	case DISPPLANE_RGBA888:
+		return DRM_FORMAT_ABGR8888;
+	case DISPPLANE_BGRX101010:
+		return DRM_FORMAT_XRGB2101010;
+	case DISPPLANE_RGBX101010:
+		return DRM_FORMAT_XBGR2101010;
+	case DISPPLANE_BGRA101010:
+		return DRM_FORMAT_ARGB2101010;
+	case DISPPLANE_RGBA101010:
+		return DRM_FORMAT_ABGR2101010;
+	case DISPPLANE_RGBX161616:
+		return DRM_FORMAT_XBGR16161616F;
+	}
+}
+
+void
+i9xx_get_initial_plane_config(struct intel_crtc *crtc,
+			      struct intel_initial_plane_config *plane_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	enum pipe pipe;
+	u32 val, base, offset;
+	int fourcc, pixel_format;
+	unsigned int aligned_height;
+	struct drm_framebuffer *fb;
+	struct intel_framebuffer *intel_fb;
+
+	if (!plane->get_hw_state(plane, &pipe))
+		return;
+
+	drm_WARN_ON(dev, pipe != crtc->pipe);
+
+	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
+	if (!intel_fb) {
+		drm_dbg_kms(&dev_priv->drm, "failed to alloc fb\n");
+		return;
+	}
+
+	fb = &intel_fb->base;
+
+	fb->dev = dev;
+
+	val = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
+
+	if (INTEL_GEN(dev_priv) >= 4) {
+		if (val & DISPPLANE_TILED) {
+			plane_config->tiling = I915_TILING_X;
+			fb->modifier = I915_FORMAT_MOD_X_TILED;
+		}
+
+		if (val & DISPPLANE_ROTATE_180)
+			plane_config->rotation = DRM_MODE_ROTATE_180;
+	}
+
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B &&
+	    val & DISPPLANE_MIRROR)
+		plane_config->rotation |= DRM_MODE_REFLECT_X;
+
+	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
+	fourcc = i9xx_format_to_fourcc(pixel_format);
+	fb->format = drm_format_info(fourcc);
+
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+		offset = intel_de_read(dev_priv, DSPOFFSET(i9xx_plane));
+		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & 0xfffff000;
+	} else if (INTEL_GEN(dev_priv) >= 4) {
+		if (plane_config->tiling)
+			offset = intel_de_read(dev_priv,
+					       DSPTILEOFF(i9xx_plane));
+		else
+			offset = intel_de_read(dev_priv,
+					       DSPLINOFF(i9xx_plane));
+		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & 0xfffff000;
+	} else {
+		base = intel_de_read(dev_priv, DSPADDR(i9xx_plane));
+	}
+	plane_config->base = base;
+
+	val = intel_de_read(dev_priv, PIPESRC(pipe));
+	fb->width = ((val >> 16) & 0xfff) + 1;
+	fb->height = ((val >> 0) & 0xfff) + 1;
+
+	val = intel_de_read(dev_priv, DSPSTRIDE(i9xx_plane));
+	fb->pitches[0] = val & 0xffffffc0;
+
+	aligned_height = intel_fb_align_height(fb, 0, fb->height);
+
+	plane_config->size = fb->pitches[0] * aligned_height;
+
+	drm_dbg_kms(&dev_priv->drm,
+		    "%s/%s with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		    crtc->base.name, plane->base.name, fb->width, fb->height,
+		    fb->format->cpp[0] * 8, base, fb->pitches[0],
+		    plane_config->size);
+
+	plane_config->fb = intel_fb;
 }
 

@@ -1630,16 +1630,36 @@ static const u8 rkl_pch_tgp_ddc_pin_map[] = {
 	[RKL_DDC_BUS_DDI_E] = GMBUS_PIN_10_TC2_ICP,
 };
 
+static const u8 adls_ddc_pin_map[] = {
+	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
+	[ADLS_DDC_BUS_PORT_TC1] = GMBUS_PIN_9_TC1_ICP,
+	[ADLS_DDC_BUS_PORT_TC2] = GMBUS_PIN_10_TC2_ICP,
+	[ADLS_DDC_BUS_PORT_TC3] = GMBUS_PIN_11_TC3_ICP,
+	[ADLS_DDC_BUS_PORT_TC4] = GMBUS_PIN_12_TC4_ICP,
+};
+
+static const u8 gen9bc_tgp_ddc_pin_map[] = {
+	[DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
+	[DDC_BUS_DDI_C] = GMBUS_PIN_9_TC1_ICP,
+	[DDC_BUS_DDI_D] = GMBUS_PIN_10_TC2_ICP,
+};
+
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
 	const u8 *ddc_pin_map;
 	int n_entries;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1) {
+	if (HAS_PCH_ADP(dev_priv)) {
+		ddc_pin_map = adls_ddc_pin_map;
+		n_entries = ARRAY_SIZE(adls_ddc_pin_map);
+	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1) {
 		return vbt_pin;
 	} else if (IS_ROCKETLAKE(dev_priv) && INTEL_PCH_TYPE(dev_priv) == PCH_TGP) {
 		ddc_pin_map = rkl_pch_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(rkl_pch_tgp_ddc_pin_map);
+	} else if (HAS_PCH_TGP(dev_priv) && IS_GEN9_BC(dev_priv)) {
+		ddc_pin_map = gen9bc_tgp_ddc_pin_map;
+		n_entries = ARRAY_SIZE(gen9bc_tgp_ddc_pin_map);
 	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP) {
 		ddc_pin_map = icp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(icp_ddc_pin_map);
@@ -1708,8 +1728,26 @@ static enum port dvo_port_to_port(struct drm_i915_private *dev_priv,
 		[PORT_TC1] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
 		[PORT_TC2] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
 	};
+	/*
+	 * Alderlake S ports used in the driver are PORT_A, PORT_D, PORT_E,
+	 * PORT_F and PORT_G, we need to map that to correct VBT sections.
+	 */
+	static const int adls_port_mapping[][3] = {
+		[PORT_A] = { DVO_PORT_HDMIA, DVO_PORT_DPA, -1 },
+		[PORT_B] = { -1 },
+		[PORT_C] = { -1 },
+		[PORT_TC1] = { DVO_PORT_HDMIB, DVO_PORT_DPB, -1 },
+		[PORT_TC2] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
+		[PORT_TC3] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
+		[PORT_TC4] = { DVO_PORT_HDMIE, DVO_PORT_DPE, -1 },
+	};
 
-	if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+	if (IS_ALDERLAKE_S(dev_priv))
+		return __dvo_port_to_port(ARRAY_SIZE(adls_port_mapping),
+					  ARRAY_SIZE(adls_port_mapping[0]),
+					  adls_port_mapping,
+					  dvo_port);
+	else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
 		return __dvo_port_to_port(ARRAY_SIZE(rkl_port_mapping),
 					  ARRAY_SIZE(rkl_port_mapping[0]),
 					  rkl_port_mapping,
@@ -1719,6 +1757,44 @@ static enum port dvo_port_to_port(struct drm_i915_private *dev_priv,
 					  ARRAY_SIZE(port_mapping[0]),
 					  port_mapping,
 					  dvo_port);
+}
+
+static int parse_bdb_230_dp_max_link_rate(const int vbt_max_link_rate)
+{
+	switch (vbt_max_link_rate) {
+	default:
+	case BDB_230_VBT_DP_MAX_LINK_RATE_DEF:
+		return 0;
+	case BDB_230_VBT_DP_MAX_LINK_RATE_UHBR20:
+		return 2000000;
+	case BDB_230_VBT_DP_MAX_LINK_RATE_UHBR13P5:
+		return 1350000;
+	case BDB_230_VBT_DP_MAX_LINK_RATE_UHBR10:
+		return 1000000;
+	case BDB_230_VBT_DP_MAX_LINK_RATE_HBR3:
+		return 810000;
+	case BDB_230_VBT_DP_MAX_LINK_RATE_HBR2:
+		return 540000;
+	case BDB_230_VBT_DP_MAX_LINK_RATE_HBR:
+		return 270000;
+	case BDB_230_VBT_DP_MAX_LINK_RATE_LBR:
+		return 162000;
+	}
+}
+
+static int parse_bdb_216_dp_max_link_rate(const int vbt_max_link_rate)
+{
+	switch (vbt_max_link_rate) {
+	default:
+	case BDB_216_VBT_DP_MAX_LINK_RATE_HBR3:
+		return 810000;
+	case BDB_216_VBT_DP_MAX_LINK_RATE_HBR2:
+		return 540000;
+	case BDB_216_VBT_DP_MAX_LINK_RATE_HBR:
+		return 270000;
+	case BDB_216_VBT_DP_MAX_LINK_RATE_LBR:
+		return 162000;
+	}
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv,
@@ -1800,7 +1876,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 		/* The VBT HDMI level shift values match the table we have. */
 		u8 hdmi_level_shift = child->hdmi_level_shifter_value;
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT HDMI level shift for port %c: %d\n",
+			    "Port %c VBT HDMI level shift: %d\n",
 			    port_name(port),
 			    hdmi_level_shift);
 		info->hdmi_level_shift = hdmi_level_shift;
@@ -1827,7 +1903,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 
 		if (max_tmds_clock)
 			drm_dbg_kms(&dev_priv->drm,
-				    "VBT HDMI max TMDS clock for port %c: %d kHz\n",
+				    "Port %c VBT HDMI max TMDS clock: %d kHz\n",
 				    port_name(port), max_tmds_clock);
 		info->max_tmds_clock = max_tmds_clock;
 	}
@@ -1836,33 +1912,23 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 	if (bdb_version >= 196 && child->iboost) {
 		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT (e)DP boost level for port %c: %d\n",
+			    "Port %c VBT (e)DP boost level: %d\n",
 			    port_name(port), info->dp_boost_level);
 		info->hdmi_boost_level = translate_iboost(child->hdmi_iboost_level);
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT HDMI boost level for port %c: %d\n",
+			    "Port %c VBT HDMI boost level: %d\n",
 			    port_name(port), info->hdmi_boost_level);
 	}
 
 	/* DP max link rate for CNL+ */
 	if (bdb_version >= 216) {
-		switch (child->dp_max_link_rate) {
-		default:
-		case VBT_DP_MAX_LINK_RATE_HBR3:
-			info->dp_max_link_rate = 810000;
-			break;
-		case VBT_DP_MAX_LINK_RATE_HBR2:
-			info->dp_max_link_rate = 540000;
-			break;
-		case VBT_DP_MAX_LINK_RATE_HBR:
-			info->dp_max_link_rate = 270000;
-			break;
-		case VBT_DP_MAX_LINK_RATE_LBR:
-			info->dp_max_link_rate = 162000;
-			break;
-		}
+		if (bdb_version >= 230)
+			info->dp_max_link_rate = parse_bdb_230_dp_max_link_rate(child->dp_max_link_rate);
+		else
+			info->dp_max_link_rate = parse_bdb_216_dp_max_link_rate(child->dp_max_link_rate);
+
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT DP max link rate for port %c: %d\n",
+			    "Port %c VBT DP max link rate: %d\n",
 			    port_name(port), info->dp_max_link_rate);
 	}
 
@@ -2098,7 +2164,7 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 
 static struct vbt_header *oprom_get_vbt(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	void __iomem *p = NULL, *oprom;
 	struct vbt_header *vbt;
 	u16 vbt_size;
@@ -2645,6 +2711,23 @@ intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
 	return HAS_LSPCON(i915) && child && child->lspcon;
 }
 
+/**
+ * intel_bios_is_lane_reversal_needed - if lane reversal needed on port
+ * @i915:       i915 device instance
+ * @port:       port to check
+ *
+ * Return true if port requires lane reversal
+ */
+bool
+intel_bios_is_lane_reversal_needed(const struct drm_i915_private *i915,
+				   enum port port)
+{
+	const struct child_device_config *child =
+		i915->vbt.ddi_port_info[port].child;
+
+	return child && child->lane_reversal;
+}
+
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 				   enum port port)
 {
@@ -2661,27 +2744,44 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 		return aux_ch;
 	}
 
+	/*
+	 * RKL/DG1 VBT uses PHY based mapping. Combo PHYs A,B,C,D
+	 * map to DDI A,B,TC1,TC2 respectively.
+	 *
+	 * ADL-S VBT uses PHY based mapping. Combo PHYs A,B,C,D,E
+	 * map to DDI A,TC1,TC2,TC3,TC4 respectively.
+	 */
 	switch (info->alternate_aux_channel) {
 	case DP_AUX_A:
 		aux_ch = AUX_CH_A;
 		break;
 	case DP_AUX_B:
-		aux_ch = AUX_CH_B;
+		if (IS_ALDERLAKE_S(dev_priv))
+			aux_ch = AUX_CH_USBC1;
+		else
+			aux_ch = AUX_CH_B;
 		break;
 	case DP_AUX_C:
-		/*
-		 * RKL/DG1 VBT uses PHY based mapping. Combo PHYs A,B,C,D
-		 * map to DDI A,B,TC1,TC2 respectively.
-		 */
-		aux_ch = (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) ?
-			AUX_CH_USBC1 : AUX_CH_C;
+		if (IS_ALDERLAKE_S(dev_priv))
+			aux_ch = AUX_CH_USBC2;
+		else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+			aux_ch = AUX_CH_USBC1;
+		else
+			aux_ch = AUX_CH_C;
 		break;
 	case DP_AUX_D:
-		aux_ch = (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) ?
-			AUX_CH_USBC2 : AUX_CH_D;
+		if (IS_ALDERLAKE_S(dev_priv))
+			aux_ch = AUX_CH_USBC3;
+		else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+			aux_ch = AUX_CH_USBC2;
+		else
+			aux_ch = AUX_CH_D;
 		break;
 	case DP_AUX_E:
-		aux_ch = AUX_CH_E;
+		if (IS_ALDERLAKE_S(dev_priv))
+			aux_ch = AUX_CH_USBC4;
+		else
+			aux_ch = AUX_CH_E;
 		break;
 	case DP_AUX_F:
 		aux_ch = AUX_CH_F;

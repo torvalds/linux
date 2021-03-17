@@ -54,8 +54,8 @@ struct drm_printer;
 	param(int, enable_dc, -1, 0400) \
 	param(int, enable_fbc, -1, 0600) \
 	param(int, enable_psr, -1, 0600) \
-	param(bool, psr_safest_params, false, 0600) \
-	param(bool, enable_psr2_sel_fetch, false, 0600) \
+	param(bool, psr_safest_params, false, 0400) \
+	param(bool, enable_psr2_sel_fetch, false, 0400) \
 	param(int, disable_power_well, -1, 0400) \
 	param(int, enable_ips, 1, 0600) \
 	param(int, invert_brightness, 0, 0600) \

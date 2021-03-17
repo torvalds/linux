@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_dpll.h"
 #include "intel_pps.h"
 
 static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,

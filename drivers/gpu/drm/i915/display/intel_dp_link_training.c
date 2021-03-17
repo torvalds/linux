@@ -26,12 +26,13 @@
 #include "intel_dp_link_training.h"
 
 static void
-intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])
+intel_dp_dump_link_status(struct drm_device *drm,
+			  const u8 link_status[DP_LINK_STATUS_SIZE])
 {
-
-	DRM_DEBUG_KMS("ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x",
-		      link_status[0], link_status[1], link_status[2],
-		      link_status[3], link_status[4], link_status[5]);
+	drm_dbg_kms(drm,
+		    "ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x\n",
+		    link_status[0], link_status[1], link_status[2],
+		    link_status[3], link_status[4], link_status[5]);
 }
 
 static void intel_dp_reset_lttpr_count(struct intel_dp *intel_dp)
@@ -642,7 +643,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 		/* Make sure clock is still ok */
 		if (!drm_dp_clock_recovery_ok(link_status,
 					      crtc_state->lane_count)) {
-			intel_dp_dump_link_status(link_status);
+			intel_dp_dump_link_status(&i915->drm, link_status);
 			drm_dbg_kms(&i915->drm,
 				    "Clock recovery check failed, cannot "
 				    "continue channel equalization\n");
@@ -669,7 +670,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 
 	/* Try 5 times, else fail and try at lower BW */
 	if (tries == 5) {
-		intel_dp_dump_link_status(link_status);
+		intel_dp_dump_link_status(&i915->drm, link_status);
 		drm_dbg_kms(&i915->drm,
 			    "Channel equalization failed 5 times\n");
 	}
@@ -731,7 +732,7 @@ intel_dp_link_train_phy(struct intel_dp *intel_dp,
 
 out:
 	drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
-		    "[CONNECTOR:%d:%s] Link Training %s at link rate = %d, lane count = %d, at %s",
+		    "[CONNECTOR:%d:%s] Link Training %s at link rate = %d, lane count = %d, at %s\n",
 		    intel_connector->base.base.id,
 		    intel_connector->base.name,
 		    ret ? "passed" : "failed",

@@ -209,8 +209,7 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 
 	if (HAS_PCH_DG1(dev_priv))
 		hpd->pch_hpd = hpd_sde_dg1;
-	else if (HAS_PCH_TGP(dev_priv) || HAS_PCH_JSP(dev_priv) ||
-		 HAS_PCH_ICP(dev_priv) || HAS_PCH_MCC(dev_priv))
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		hpd->pch_hpd = hpd_icp;
 	else if (HAS_PCH_CNP(dev_priv) || HAS_PCH_SPT(dev_priv))
 		hpd->pch_hpd = hpd_spt;
@@ -795,7 +794,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	int position, vtotal;
 
 	if (!crtc->active)
-		return -1;
+		return 0;
 
 	vblank = &crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
 	mode = &vblank->hwmode;
@@ -2095,10 +2094,19 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 		ivb_err_int_handler(dev_priv);
 
 	if (de_iir & DE_EDP_PSR_INT_HSW) {
-		u32 psr_iir = intel_uncore_read(&dev_priv->uncore, EDP_PSR_IIR);
+		struct intel_encoder *encoder;
 
-		intel_psr_irq_handler(dev_priv, psr_iir);
-		intel_uncore_write(&dev_priv->uncore, EDP_PSR_IIR, psr_iir);
+		for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
+			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+			u32 psr_iir = intel_uncore_read(&dev_priv->uncore,
+							EDP_PSR_IIR);
+
+			intel_psr_irq_handler(intel_dp, psr_iir);
+			intel_uncore_write(&dev_priv->uncore,
+					   EDP_PSR_IIR, psr_iir);
+			break;
+		}
 	}
 
 	if (de_iir & DE_AUX_CHANNEL_A_IVB)
@@ -2290,7 +2298,7 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 
 static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 {
-	if (IS_ROCKETLAKE(dev_priv))
+	if (HAS_D12_PLANE_MINIMIZATION(dev_priv))
 		return RKL_DE_PIPE_IRQ_FAULT_ERRORS;
 	else if (INTEL_GEN(dev_priv) >= 11)
 		return GEN11_DE_PIPE_IRQ_FAULT_ERRORS;
@@ -2311,21 +2319,30 @@ gen8_de_misc_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 	}
 
 	if (iir & GEN8_DE_EDP_PSR) {
+		struct intel_encoder *encoder;
 		u32 psr_iir;
 		i915_reg_t iir_reg;
 
-		if (INTEL_GEN(dev_priv) >= 12)
-			iir_reg = TRANS_PSR_IIR(dev_priv->psr.transcoder);
-		else
-			iir_reg = EDP_PSR_IIR;
+		for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
+			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		psr_iir = intel_uncore_read(&dev_priv->uncore, iir_reg);
-		intel_uncore_write(&dev_priv->uncore, iir_reg, psr_iir);
+			if (INTEL_GEN(dev_priv) >= 12)
+				iir_reg = TRANS_PSR_IIR(intel_dp->psr.transcoder);
+			else
+				iir_reg = EDP_PSR_IIR;
 
-		if (psr_iir)
-			found = true;
+			psr_iir = intel_uncore_read(&dev_priv->uncore, iir_reg);
+			intel_uncore_write(&dev_priv->uncore, iir_reg, psr_iir);
 
-		intel_psr_irq_handler(dev_priv, psr_iir);
+			if (psr_iir)
+				found = true;
+
+			intel_psr_irq_handler(intel_dp, psr_iir);
+
+			/* prior GEN12 only have one EDP PSR */
+			if (INTEL_GEN(dev_priv) < 12)
+				break;
+		}
 	}
 
 	if (!found)
@@ -3023,6 +3040,24 @@ static void valleyview_irq_reset(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
+static void cnp_display_clock_wa(struct drm_i915_private *dev_priv)
+{
+	struct intel_uncore *uncore = &dev_priv->uncore;
+
+	/*
+	 * Wa_14010685332:cnp/cmp,tgp,adp
+	 * TODO: Clarify which platforms this applies to
+	 * TODO: Figure out if this workaround can be applied in the s0ix suspend/resume handlers as
+	 * on earlier platforms and whether the workaround is also needed for runtime suspend/resume
+	 */
+	if (INTEL_PCH_TYPE(dev_priv) == PCH_CNP ||
+	    (INTEL_PCH_TYPE(dev_priv) >= PCH_TGP && INTEL_PCH_TYPE(dev_priv) < PCH_DG1)) {
+		intel_uncore_rmw(uncore, SOUTH_CHICKEN1, SBCLK_RUN_REFCLK_DIS,
+				 SBCLK_RUN_REFCLK_DIS);
+		intel_uncore_rmw(uncore, SOUTH_CHICKEN1, SBCLK_RUN_REFCLK_DIS, 0);
+	}
+}
+
 static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
@@ -3046,6 +3081,8 @@ static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 
 	if (HAS_PCH_SPLIT(dev_priv))
 		ibx_irq_reset(dev_priv);
+
+	cnp_display_clock_wa(dev_priv);
 }
 
 static void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
@@ -3087,15 +3124,7 @@ static void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		GEN3_IRQ_RESET(uncore, SDE);
 
-	/* Wa_14010685332:cnp/cmp,tgp,adp */
-	if (INTEL_PCH_TYPE(dev_priv) == PCH_CNP ||
-	    (INTEL_PCH_TYPE(dev_priv) >= PCH_TGP &&
-	     INTEL_PCH_TYPE(dev_priv) < PCH_DG1)) {
-		intel_uncore_rmw(uncore, SOUTH_CHICKEN1,
-				 SBCLK_RUN_REFCLK_DIS, SBCLK_RUN_REFCLK_DIS);
-		intel_uncore_rmw(uncore, SOUTH_CHICKEN1,
-				 SBCLK_RUN_REFCLK_DIS, 0);
-	}
+	cnp_display_clock_wa(dev_priv);
 }
 
 static void gen11_irq_reset(struct drm_i915_private *dev_priv)
@@ -3747,9 +3776,19 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	}
 }
 
+static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
+{
+	struct intel_uncore *uncore = &dev_priv->uncore;
+	u32 mask = SDE_GMBUS_ICP;
+
+	GEN3_IRQ_INIT(uncore, SDE, ~mask, 0xffffffff);
+}
+
 static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	if (HAS_PCH_SPLIT(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+		icp_irq_postinstall(dev_priv);
+	else if (HAS_PCH_SPLIT(dev_priv))
 		ibx_irq_postinstall(dev_priv);
 
 	gen8_gt_irq_postinstall(&dev_priv->gt);
@@ -3758,13 +3797,6 @@ static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 	gen8_master_intr_enable(dev_priv->uncore.regs);
 }
 
-static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
-{
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	u32 mask = SDE_GMBUS_ICP;
-
-	GEN3_IRQ_INIT(uncore, SDE, ~mask, 0xffffffff);
-}
 
 static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 {
@@ -4287,6 +4319,8 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
 		else if (IS_GEN9_LP(dev_priv))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
+		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+			dev_priv->display.hpd_irq_setup = icp_hpd_irq_setup;
 		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
 		else
@@ -4392,7 +4426,7 @@ static void intel_irq_postinstall(struct drm_i915_private *dev_priv)
  */
 int intel_irq_install(struct drm_i915_private *dev_priv)
 {
-	int irq = dev_priv->drm.pdev->irq;
+	int irq = to_pci_dev(dev_priv->drm.dev)->irq;
 	int ret;
 
 	/*
@@ -4427,7 +4461,7 @@ int intel_irq_install(struct drm_i915_private *dev_priv)
  */
 void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 {
-	int irq = dev_priv->drm.pdev->irq;
+	int irq = to_pci_dev(dev_priv->drm.dev)->irq;
 
 	/*
 	 * FIXME we can get called twice during driver probe
@@ -4487,5 +4521,5 @@ bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 
 void intel_synchronize_irq(struct drm_i915_private *i915)
 {
-	synchronize_irq(i915->drm.pdev->irq);
+	synchronize_irq(to_pci_dev(i915->drm.dev)->irq);
 }

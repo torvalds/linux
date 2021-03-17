@@ -38,6 +38,7 @@
 #include "display/intel_display_types.h"
 #include "display/intel_fbc.h"
 #include "display/intel_sprite.h"
+#include "display/skl_universal_plane.h"
 
 #include "gt/intel_llc.h"
 
@@ -3875,6 +3876,7 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum plane_id plane_id;
+	int max_level = INT_MAX;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
@@ -3891,20 +3893,31 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 		int level;
 
 		/* Skip this plane if it's not enabled */
-		if (!wm->wm[0].plane_en)
+		if (!wm->wm[0].enable)
 			continue;
 
 		/* Find the highest enabled wm level for this plane */
 		for (level = ilk_wm_max_level(dev_priv);
-		     !wm->wm[level].plane_en; --level)
+		     !wm->wm[level].enable; --level)
 		     { }
 
+		/* Highest common enabled wm level for all planes */
+		max_level = min(level, max_level);
+	}
+
+	/* No enabled planes? */
+	if (max_level == INT_MAX)
+		return true;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		const struct skl_plane_wm *wm =
+			&crtc_state->wm.skl.optimal.planes[plane_id];
+
 		/*
-		 * If any of the planes on this pipe don't enable wm levels that
-		 * incur memory latencies higher than sagv_block_time_us we
-		 * can't enable SAGV.
+		 * All enabled planes must have enabled a common wm level that
+		 * can tolerate memory latencies higher than sagv_block_time_us
 		 */
-		if (!wm->wm[level].can_sagv)
+		if (wm->wm[0].enable && !wm->wm[max_level].can_sagv)
 			return false;
 	}
 
@@ -3920,12 +3933,10 @@ static bool tgl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 		return true;
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
-		const struct skl_ddb_entry *plane_alloc =
-			&crtc_state->wm.skl.plane_ddb_y[plane_id];
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
-		if (skl_ddb_entry_size(plane_alloc) < wm->sagv_wm0.min_ddb_alloc)
+		if (wm->wm[0].enable && !wm->sagv.wm0.enable)
 			return false;
 	}
 
@@ -4746,18 +4757,59 @@ icl_get_total_relative_data_rate(struct intel_atomic_state *state,
 	return total_data_rate;
 }
 
-static const struct skl_wm_level *
-skl_plane_wm_level(const struct intel_crtc_state *crtc_state,
+const struct skl_wm_level *
+skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 		   enum plane_id plane_id,
 		   int level)
 {
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
 	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 
 	if (level == 0 && pipe_wm->use_sagv_wm)
-		return &wm->sagv_wm0;
+		return &wm->sagv.wm0;
 
 	return &wm->wm[level];
+}
+
+const struct skl_wm_level *
+skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
+		   enum plane_id plane_id)
+{
+	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
+
+	if (pipe_wm->use_sagv_wm)
+		return &wm->sagv.trans_wm;
+
+	return &wm->trans_wm;
+}
+
+/*
+ * We only disable the watermarks for each plane if
+ * they exceed the ddb allocation of said plane. This
+ * is done so that we don't end up touching cursor
+ * watermarks needlessly when some other plane reduces
+ * our max possible watermark level.
+ *
+ * Bspec has this to say about the PLANE_WM enable bit:
+ * "All the watermarks at this level for all enabled
+ *  planes must be enabled before the level will be used."
+ * So this is actually safe to do.
+ */
+static void
+skl_check_wm_level(struct skl_wm_level *wm, u64 total)
+{
+	if (wm->min_ddb_alloc > total)
+		memset(wm, 0, sizeof(*wm));
+}
+
+static void
+skl_check_nv12_wm_level(struct skl_wm_level *wm, struct skl_wm_level *uv_wm,
+			u64 total, u64 uv_total)
+{
+	if (wm->min_ddb_alloc > total ||
+	    uv_wm->min_ddb_alloc > uv_total) {
+		memset(wm, 0, sizeof(*wm));
+		memset(uv_wm, 0, sizeof(*uv_wm));
+	}
 }
 
 static int
@@ -4927,45 +4979,33 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 			struct skl_plane_wm *wm =
 				&crtc_state->wm.skl.optimal.planes[plane_id];
 
-			/*
-			 * We only disable the watermarks for each plane if
-			 * they exceed the ddb allocation of said plane. This
-			 * is done so that we don't end up touching cursor
-			 * watermarks needlessly when some other plane reduces
-			 * our max possible watermark level.
-			 *
-			 * Bspec has this to say about the PLANE_WM enable bit:
-			 * "All the watermarks at this level for all enabled
-			 *  planes must be enabled before the level will be used."
-			 * So this is actually safe to do.
-			 */
-			if (wm->wm[level].min_ddb_alloc > total[plane_id] ||
-			    wm->uv_wm[level].min_ddb_alloc > uv_total[plane_id])
-				memset(&wm->wm[level], 0, sizeof(wm->wm[level]));
+			skl_check_nv12_wm_level(&wm->wm[level], &wm->uv_wm[level],
+						total[plane_id], uv_total[plane_id]);
 
 			/*
 			 * Wa_1408961008:icl, ehl
 			 * Underruns with WM1+ disabled
 			 */
 			if (IS_GEN(dev_priv, 11) &&
-			    level == 1 && wm->wm[0].plane_en) {
-				wm->wm[level].plane_res_b = wm->wm[0].plane_res_b;
-				wm->wm[level].plane_res_l = wm->wm[0].plane_res_l;
+			    level == 1 && wm->wm[0].enable) {
+				wm->wm[level].blocks = wm->wm[0].blocks;
+				wm->wm[level].lines = wm->wm[0].lines;
 				wm->wm[level].ignore_lines = wm->wm[0].ignore_lines;
 			}
 		}
 	}
 
 	/*
-	 * Go back and disable the transition watermark if it turns out we
-	 * don't have enough DDB blocks for it.
+	 * Go back and disable the transition and SAGV watermarks
+	 * if it turns out we don't have enough DDB blocks for them.
 	 */
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
-		if (wm->trans_wm.plane_res_b >= total[plane_id])
-			memset(&wm->trans_wm, 0, sizeof(wm->trans_wm));
+		skl_check_wm_level(&wm->trans_wm, total[plane_id]);
+		skl_check_wm_level(&wm->sagv.wm0, total[plane_id]);
+		skl_check_wm_level(&wm->sagv.trans_wm, total[plane_id]);
 	}
 
 	return 0;
@@ -5170,7 +5210,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	uint_fixed_16_16_t method1, method2;
 	uint_fixed_16_16_t selected_result;
-	u32 res_blocks, res_lines, min_ddb_alloc = 0;
+	u32 blocks, lines, min_ddb_alloc = 0;
 
 	if (latency == 0) {
 		/* reject it */
@@ -5216,24 +5256,22 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 		}
 	}
 
-	res_blocks = fixed16_to_u32_round_up(selected_result) + 1;
-	res_lines = div_round_up_fixed16(selected_result,
-					 wp->plane_blocks_per_line);
+	blocks = fixed16_to_u32_round_up(selected_result) + 1;
+	lines = div_round_up_fixed16(selected_result,
+				     wp->plane_blocks_per_line);
 
 	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) {
 		/* Display WA #1125: skl,bxt,kbl */
 		if (level == 0 && wp->rc_surface)
-			res_blocks +=
-				fixed16_to_u32_round_up(wp->y_tile_minimum);
+			blocks += fixed16_to_u32_round_up(wp->y_tile_minimum);
 
 		/* Display WA #1126: skl,bxt,kbl */
 		if (level >= 1 && level <= 7) {
 			if (wp->y_tiled) {
-				res_blocks +=
-				    fixed16_to_u32_round_up(wp->y_tile_minimum);
-				res_lines += wp->y_min_scanlines;
+				blocks += fixed16_to_u32_round_up(wp->y_tile_minimum);
+				lines += wp->y_min_scanlines;
 			} else {
-				res_blocks++;
+				blocks++;
 			}
 
 			/*
@@ -5242,8 +5280,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 			 * Assumption in DDB algorithm optimization for special
 			 * cases. Also covers Display WA #1125 for RC.
 			 */
-			if (result_prev->plane_res_b > res_blocks)
-				res_blocks = result_prev->plane_res_b;
+			if (result_prev->blocks > blocks)
+				blocks = result_prev->blocks;
 		}
 	}
 
@@ -5251,40 +5289,39 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 		if (wp->y_tiled) {
 			int extra_lines;
 
-			if (res_lines % wp->y_min_scanlines == 0)
+			if (lines % wp->y_min_scanlines == 0)
 				extra_lines = wp->y_min_scanlines;
 			else
 				extra_lines = wp->y_min_scanlines * 2 -
-					res_lines % wp->y_min_scanlines;
+					lines % wp->y_min_scanlines;
 
-			min_ddb_alloc = mul_round_up_u32_fixed16(res_lines + extra_lines,
+			min_ddb_alloc = mul_round_up_u32_fixed16(lines + extra_lines,
 								 wp->plane_blocks_per_line);
 		} else {
-			min_ddb_alloc = res_blocks +
-				DIV_ROUND_UP(res_blocks, 10);
+			min_ddb_alloc = blocks + DIV_ROUND_UP(blocks, 10);
 		}
 	}
 
 	if (!skl_wm_has_lines(dev_priv, level))
-		res_lines = 0;
+		lines = 0;
 
-	if (res_lines > 31) {
+	if (lines > 31) {
 		/* reject it */
 		result->min_ddb_alloc = U16_MAX;
 		return;
 	}
 
 	/*
-	 * If res_lines is valid, assume we can use this watermark level
+	 * If lines is valid, assume we can use this watermark level
 	 * for now.  We'll come back and disable it after we calculate the
 	 * DDB allocation if it turns out we don't actually have enough
 	 * blocks to satisfy it.
 	 */
-	result->plane_res_b = res_blocks;
-	result->plane_res_l = res_lines;
+	result->blocks = blocks;
+	result->lines = lines;
 	/* Bspec says: value >= plane ddb allocation -> invalid, hence the +1 here */
-	result->min_ddb_alloc = max(min_ddb_alloc, res_blocks) + 1;
-	result->plane_en = true;
+	result->min_ddb_alloc = max(min_ddb_alloc, blocks) + 1;
+	result->enable = true;
 
 	if (INTEL_GEN(dev_priv) < 12)
 		result->can_sagv = latency >= dev_priv->sagv_block_time_us;
@@ -5315,7 +5352,7 @@ static void tgl_compute_sagv_wm(const struct intel_crtc_state *crtc_state,
 				struct skl_plane_wm *plane_wm)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct skl_wm_level *sagv_wm = &plane_wm->sagv_wm0;
+	struct skl_wm_level *sagv_wm = &plane_wm->sagv.wm0;
 	struct skl_wm_level *levels = plane_wm->wm;
 	unsigned int latency = dev_priv->wm.skl_latency[0] + dev_priv->sagv_block_time_us;
 
@@ -5324,14 +5361,13 @@ static void tgl_compute_sagv_wm(const struct intel_crtc_state *crtc_state,
 			     sagv_wm);
 }
 
-static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
-				      const struct skl_wm_params *wp,
-				      struct skl_plane_wm *wm)
+static void skl_compute_transition_wm(struct drm_i915_private *dev_priv,
+				      struct skl_wm_level *trans_wm,
+				      const struct skl_wm_level *wm0,
+				      const struct skl_wm_params *wp)
 {
-	struct drm_device *dev = crtc_state->uapi.crtc->dev;
-	const struct drm_i915_private *dev_priv = to_i915(dev);
 	u16 trans_min, trans_amount, trans_y_tile_min;
-	u16 wm0_sel_res_b, trans_offset_b, res_blocks;
+	u16 wm0_blocks, trans_offset, blocks;
 
 	/* Transition WM don't make any sense if ipc is disabled */
 	if (!dev_priv->ipc_enabled)
@@ -5355,36 +5391,37 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 	else
 		trans_amount = 10; /* This is configurable amount */
 
-	trans_offset_b = trans_min + trans_amount;
+	trans_offset = trans_min + trans_amount;
 
 	/*
 	 * The spec asks for Selected Result Blocks for wm0 (the real value),
 	 * not Result Blocks (the integer value). Pay attention to the capital
-	 * letters. The value wm_l0->plane_res_b is actually Result Blocks, but
+	 * letters. The value wm_l0->blocks is actually Result Blocks, but
 	 * since Result Blocks is the ceiling of Selected Result Blocks plus 1,
 	 * and since we later will have to get the ceiling of the sum in the
 	 * transition watermarks calculation, we can just pretend Selected
 	 * Result Blocks is Result Blocks minus 1 and it should work for the
 	 * current platforms.
 	 */
-	wm0_sel_res_b = wm->wm[0].plane_res_b - 1;
+	wm0_blocks = wm0->blocks - 1;
 
 	if (wp->y_tiled) {
 		trans_y_tile_min =
 			(u16)mul_round_up_u32_fixed16(2, wp->y_tile_minimum);
-		res_blocks = max(wm0_sel_res_b, trans_y_tile_min) +
-				trans_offset_b;
+		blocks = max(wm0_blocks, trans_y_tile_min) + trans_offset;
 	} else {
-		res_blocks = wm0_sel_res_b + trans_offset_b;
+		blocks = wm0_blocks + trans_offset;
 	}
+	blocks++;
 
 	/*
 	 * Just assume we can enable the transition watermark.  After
 	 * computing the DDB we'll come back and disable it if that
 	 * assumption turns out to be false.
 	 */
-	wm->trans_wm.plane_res_b = res_blocks + 1;
-	wm->trans_wm.plane_en = true;
+	trans_wm->blocks = blocks;
+	trans_wm->min_ddb_alloc = max_t(u16, wm0->min_ddb_alloc, blocks + 1);
+	trans_wm->enable = true;
 }
 
 static int skl_build_plane_wm_single(struct intel_crtc_state *crtc_state,
@@ -5404,10 +5441,15 @@ static int skl_build_plane_wm_single(struct intel_crtc_state *crtc_state,
 
 	skl_compute_wm_levels(crtc_state, &wm_params, wm->wm);
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	skl_compute_transition_wm(dev_priv, &wm->trans_wm,
+				  &wm->wm[0], &wm_params);
+
+	if (INTEL_GEN(dev_priv) >= 12) {
 		tgl_compute_sagv_wm(crtc_state, &wm_params, wm);
 
-	skl_compute_transition_wm(crtc_state, &wm_params, wm);
+		skl_compute_transition_wm(dev_priv, &wm->sagv.trans_wm,
+					  &wm->sagv.wm0, &wm_params);
+	}
 
 	return 0;
 }
@@ -5554,12 +5596,12 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 {
 	u32 val = 0;
 
-	if (level->plane_en)
+	if (level->enable)
 		val |= PLANE_WM_EN;
 	if (level->ignore_lines)
 		val |= PLANE_WM_IGNORE_LINES;
-	val |= level->plane_res_b;
-	val |= level->plane_res_l << PLANE_WM_LINES_SHIFT;
+	val |= level->blocks;
+	val |= level->lines << PLANE_WM_LINES_SHIFT;
 
 	intel_de_write_fw(dev_priv, reg, val);
 }
@@ -5571,23 +5613,19 @@ void skl_write_plane_wm(struct intel_plane *plane,
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	const struct skl_plane_wm *wm =
-		&crtc_state->wm.skl.optimal.planes[plane_id];
+	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
+	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 	const struct skl_ddb_entry *ddb_y =
 		&crtc_state->wm.skl.plane_ddb_y[plane_id];
 	const struct skl_ddb_entry *ddb_uv =
 		&crtc_state->wm.skl.plane_ddb_uv[plane_id];
 
-	for (level = 0; level <= max_level; level++) {
-		const struct skl_wm_level *wm_level;
-
-		wm_level = skl_plane_wm_level(crtc_state, plane_id, level);
-
+	for (level = 0; level <= max_level; level++)
 		skl_write_wm_level(dev_priv, PLANE_WM(pipe, plane_id, level),
-				   wm_level);
-	}
+				   skl_plane_wm_level(pipe_wm, plane_id, level));
+
 	skl_write_wm_level(dev_priv, PLANE_WM_TRANS(pipe, plane_id),
-			   &wm->trans_wm);
+			   skl_plane_trans_wm(pipe_wm, plane_id));
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		skl_ddb_entry_write(dev_priv,
@@ -5611,20 +5649,16 @@ void skl_write_cursor_wm(struct intel_plane *plane,
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	const struct skl_plane_wm *wm =
-		&crtc_state->wm.skl.optimal.planes[plane_id];
+	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
 	const struct skl_ddb_entry *ddb =
 		&crtc_state->wm.skl.plane_ddb_y[plane_id];
 
-	for (level = 0; level <= max_level; level++) {
-		const struct skl_wm_level *wm_level;
-
-		wm_level = skl_plane_wm_level(crtc_state, plane_id, level);
-
+	for (level = 0; level <= max_level; level++)
 		skl_write_wm_level(dev_priv, CUR_WM(pipe, level),
-				   wm_level);
-	}
-	skl_write_wm_level(dev_priv, CUR_WM_TRANS(pipe), &wm->trans_wm);
+				   skl_plane_wm_level(pipe_wm, plane_id, level));
+
+	skl_write_wm_level(dev_priv, CUR_WM_TRANS(pipe),
+			   skl_plane_trans_wm(pipe_wm, plane_id));
 
 	skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe), ddb);
 }
@@ -5632,10 +5666,10 @@ void skl_write_cursor_wm(struct intel_plane *plane,
 bool skl_wm_level_equals(const struct skl_wm_level *l1,
 			 const struct skl_wm_level *l2)
 {
-	return l1->plane_en == l2->plane_en &&
+	return l1->enable == l2->enable &&
 		l1->ignore_lines == l2->ignore_lines &&
-		l1->plane_res_l == l2->plane_res_l &&
-		l1->plane_res_b == l2->plane_res_b;
+		l1->lines == l2->lines &&
+		l1->blocks == l2->blocks;
 }
 
 static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
@@ -5654,7 +5688,9 @@ static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
 			return false;
 	}
 
-	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm);
+	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm) &&
+		skl_wm_level_equals(&wm1->sagv.wm0, &wm2->sagv.wm0) &&
+		skl_wm_level_equals(&wm1->sagv.trans_wm, &wm2->sagv.trans_wm);
 }
 
 static bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
@@ -5884,83 +5920,112 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				continue;
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm"
-				    " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm\n",
+				    "[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
+				    " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm\n",
 				    plane->base.base.id, plane->base.name,
-				    enast(old_wm->wm[0].plane_en), enast(old_wm->wm[1].plane_en),
-				    enast(old_wm->wm[2].plane_en), enast(old_wm->wm[3].plane_en),
-				    enast(old_wm->wm[4].plane_en), enast(old_wm->wm[5].plane_en),
-				    enast(old_wm->wm[6].plane_en), enast(old_wm->wm[7].plane_en),
-				    enast(old_wm->trans_wm.plane_en),
-				    enast(old_wm->sagv_wm0.plane_en),
-				    enast(new_wm->wm[0].plane_en), enast(new_wm->wm[1].plane_en),
-				    enast(new_wm->wm[2].plane_en), enast(new_wm->wm[3].plane_en),
-				    enast(new_wm->wm[4].plane_en), enast(new_wm->wm[5].plane_en),
-				    enast(new_wm->wm[6].plane_en), enast(new_wm->wm[7].plane_en),
-				    enast(new_wm->trans_wm.plane_en),
-				    enast(new_wm->sagv_wm0.plane_en));
+				    enast(old_wm->wm[0].enable), enast(old_wm->wm[1].enable),
+				    enast(old_wm->wm[2].enable), enast(old_wm->wm[3].enable),
+				    enast(old_wm->wm[4].enable), enast(old_wm->wm[5].enable),
+				    enast(old_wm->wm[6].enable), enast(old_wm->wm[7].enable),
+				    enast(old_wm->trans_wm.enable),
+				    enast(old_wm->sagv.wm0.enable),
+				    enast(old_wm->sagv.trans_wm.enable),
+				    enast(new_wm->wm[0].enable), enast(new_wm->wm[1].enable),
+				    enast(new_wm->wm[2].enable), enast(new_wm->wm[3].enable),
+				    enast(new_wm->wm[4].enable), enast(new_wm->wm[5].enable),
+				    enast(new_wm->wm[6].enable), enast(new_wm->wm[7].enable),
+				    enast(new_wm->trans_wm.enable),
+				    enast(new_wm->sagv.wm0.enable),
+				    enast(new_wm->sagv.trans_wm.enable));
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d"
-				      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d\n",
+				    "[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d"
+				      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d\n",
 				    plane->base.base.id, plane->base.name,
-				    enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].plane_res_l,
-				    enast(old_wm->wm[1].ignore_lines), old_wm->wm[1].plane_res_l,
-				    enast(old_wm->wm[2].ignore_lines), old_wm->wm[2].plane_res_l,
-				    enast(old_wm->wm[3].ignore_lines), old_wm->wm[3].plane_res_l,
-				    enast(old_wm->wm[4].ignore_lines), old_wm->wm[4].plane_res_l,
-				    enast(old_wm->wm[5].ignore_lines), old_wm->wm[5].plane_res_l,
-				    enast(old_wm->wm[6].ignore_lines), old_wm->wm[6].plane_res_l,
-				    enast(old_wm->wm[7].ignore_lines), old_wm->wm[7].plane_res_l,
-				    enast(old_wm->trans_wm.ignore_lines), old_wm->trans_wm.plane_res_l,
-				    enast(old_wm->sagv_wm0.ignore_lines), old_wm->sagv_wm0.plane_res_l,
-
-				    enast(new_wm->wm[0].ignore_lines), new_wm->wm[0].plane_res_l,
-				    enast(new_wm->wm[1].ignore_lines), new_wm->wm[1].plane_res_l,
-				    enast(new_wm->wm[2].ignore_lines), new_wm->wm[2].plane_res_l,
-				    enast(new_wm->wm[3].ignore_lines), new_wm->wm[3].plane_res_l,
-				    enast(new_wm->wm[4].ignore_lines), new_wm->wm[4].plane_res_l,
-				    enast(new_wm->wm[5].ignore_lines), new_wm->wm[5].plane_res_l,
-				    enast(new_wm->wm[6].ignore_lines), new_wm->wm[6].plane_res_l,
-				    enast(new_wm->wm[7].ignore_lines), new_wm->wm[7].plane_res_l,
-				    enast(new_wm->trans_wm.ignore_lines), new_wm->trans_wm.plane_res_l,
-				    enast(new_wm->sagv_wm0.ignore_lines), new_wm->sagv_wm0.plane_res_l);
+				    enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].lines,
+				    enast(old_wm->wm[1].ignore_lines), old_wm->wm[1].lines,
+				    enast(old_wm->wm[2].ignore_lines), old_wm->wm[2].lines,
+				    enast(old_wm->wm[3].ignore_lines), old_wm->wm[3].lines,
+				    enast(old_wm->wm[4].ignore_lines), old_wm->wm[4].lines,
+				    enast(old_wm->wm[5].ignore_lines), old_wm->wm[5].lines,
+				    enast(old_wm->wm[6].ignore_lines), old_wm->wm[6].lines,
+				    enast(old_wm->wm[7].ignore_lines), old_wm->wm[7].lines,
+				    enast(old_wm->trans_wm.ignore_lines), old_wm->trans_wm.lines,
+				    enast(old_wm->sagv.wm0.ignore_lines), old_wm->sagv.wm0.lines,
+				    enast(old_wm->sagv.trans_wm.ignore_lines), old_wm->sagv.trans_wm.lines,
+				    enast(new_wm->wm[0].ignore_lines), new_wm->wm[0].lines,
+				    enast(new_wm->wm[1].ignore_lines), new_wm->wm[1].lines,
+				    enast(new_wm->wm[2].ignore_lines), new_wm->wm[2].lines,
+				    enast(new_wm->wm[3].ignore_lines), new_wm->wm[3].lines,
+				    enast(new_wm->wm[4].ignore_lines), new_wm->wm[4].lines,
+				    enast(new_wm->wm[5].ignore_lines), new_wm->wm[5].lines,
+				    enast(new_wm->wm[6].ignore_lines), new_wm->wm[6].lines,
+				    enast(new_wm->wm[7].ignore_lines), new_wm->wm[7].lines,
+				    enast(new_wm->trans_wm.ignore_lines), new_wm->trans_wm.lines,
+				    enast(new_wm->sagv.wm0.ignore_lines), new_wm->sagv.wm0.lines,
+				    enast(new_wm->sagv.trans_wm.ignore_lines), new_wm->sagv.trans_wm.lines);
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
-				    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				    "[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+				    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
 				    plane->base.base.id, plane->base.name,
-				    old_wm->wm[0].plane_res_b, old_wm->wm[1].plane_res_b,
-				    old_wm->wm[2].plane_res_b, old_wm->wm[3].plane_res_b,
-				    old_wm->wm[4].plane_res_b, old_wm->wm[5].plane_res_b,
-				    old_wm->wm[6].plane_res_b, old_wm->wm[7].plane_res_b,
-				    old_wm->trans_wm.plane_res_b,
-				    old_wm->sagv_wm0.plane_res_b,
-				    new_wm->wm[0].plane_res_b, new_wm->wm[1].plane_res_b,
-				    new_wm->wm[2].plane_res_b, new_wm->wm[3].plane_res_b,
-				    new_wm->wm[4].plane_res_b, new_wm->wm[5].plane_res_b,
-				    new_wm->wm[6].plane_res_b, new_wm->wm[7].plane_res_b,
-				    new_wm->trans_wm.plane_res_b,
-				    new_wm->sagv_wm0.plane_res_b);
+				    old_wm->wm[0].blocks, old_wm->wm[1].blocks,
+				    old_wm->wm[2].blocks, old_wm->wm[3].blocks,
+				    old_wm->wm[4].blocks, old_wm->wm[5].blocks,
+				    old_wm->wm[6].blocks, old_wm->wm[7].blocks,
+				    old_wm->trans_wm.blocks,
+				    old_wm->sagv.wm0.blocks,
+				    old_wm->sagv.trans_wm.blocks,
+				    new_wm->wm[0].blocks, new_wm->wm[1].blocks,
+				    new_wm->wm[2].blocks, new_wm->wm[3].blocks,
+				    new_wm->wm[4].blocks, new_wm->wm[5].blocks,
+				    new_wm->wm[6].blocks, new_wm->wm[7].blocks,
+				    new_wm->trans_wm.blocks,
+				    new_wm->sagv.wm0.blocks,
+				    new_wm->sagv.trans_wm.blocks);
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "[PLANE:%d:%s] min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
-				    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				    "[PLANE:%d:%s] min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+				    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
 				    plane->base.base.id, plane->base.name,
 				    old_wm->wm[0].min_ddb_alloc, old_wm->wm[1].min_ddb_alloc,
 				    old_wm->wm[2].min_ddb_alloc, old_wm->wm[3].min_ddb_alloc,
 				    old_wm->wm[4].min_ddb_alloc, old_wm->wm[5].min_ddb_alloc,
 				    old_wm->wm[6].min_ddb_alloc, old_wm->wm[7].min_ddb_alloc,
 				    old_wm->trans_wm.min_ddb_alloc,
-				    old_wm->sagv_wm0.min_ddb_alloc,
+				    old_wm->sagv.wm0.min_ddb_alloc,
+				    old_wm->sagv.trans_wm.min_ddb_alloc,
 				    new_wm->wm[0].min_ddb_alloc, new_wm->wm[1].min_ddb_alloc,
 				    new_wm->wm[2].min_ddb_alloc, new_wm->wm[3].min_ddb_alloc,
 				    new_wm->wm[4].min_ddb_alloc, new_wm->wm[5].min_ddb_alloc,
 				    new_wm->wm[6].min_ddb_alloc, new_wm->wm[7].min_ddb_alloc,
 				    new_wm->trans_wm.min_ddb_alloc,
-				    new_wm->sagv_wm0.min_ddb_alloc);
+				    new_wm->sagv.wm0.min_ddb_alloc,
+				    new_wm->sagv.trans_wm.min_ddb_alloc);
 		}
 	}
+}
+
+static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
+					 const struct skl_pipe_wm *old_pipe_wm,
+					 const struct skl_pipe_wm *new_pipe_wm)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	int level, max_level = ilk_wm_max_level(i915);
+
+	for (level = 0; level <= max_level; level++) {
+		/*
+		 * We don't check uv_wm as the hardware doesn't actually
+		 * use it. It only gets used for calculating the required
+		 * ddb allocation.
+		 */
+		if (!skl_wm_level_equals(skl_plane_wm_level(old_pipe_wm, level, plane->id),
+					 skl_plane_wm_level(new_pipe_wm, level, plane->id)))
+			return false;
+	}
+
+	return skl_wm_level_equals(skl_plane_trans_wm(old_pipe_wm, plane->id),
+				   skl_plane_trans_wm(new_pipe_wm, plane->id));
 }
 
 /*
@@ -6008,9 +6073,9 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 		 * with the software state.
 		 */
 		if (!drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi) &&
-		    skl_plane_wm_equals(dev_priv,
-					&old_crtc_state->wm.skl.optimal.planes[plane_id],
-					&new_crtc_state->wm.skl.optimal.planes[plane_id]))
+		    skl_plane_selected_wm_equals(plane,
+						 &old_crtc_state->wm.skl.optimal,
+						 &new_crtc_state->wm.skl.optimal))
 			continue;
 
 		plane_state = intel_atomic_get_plane_state(state, plane);
@@ -6141,10 +6206,10 @@ static void ilk_optimize_watermarks(struct intel_atomic_state *state,
 
 static void skl_wm_level_from_reg_val(u32 val, struct skl_wm_level *level)
 {
-	level->plane_en = val & PLANE_WM_EN;
+	level->enable = val & PLANE_WM_EN;
 	level->ignore_lines = val & PLANE_WM_IGNORE_LINES;
-	level->plane_res_b = val & PLANE_WM_BLOCKS_MASK;
-	level->plane_res_l = (val >> PLANE_WM_LINES_SHIFT) &
+	level->blocks = val & PLANE_WM_BLOCKS_MASK;
+	level->lines = (val >> PLANE_WM_LINES_SHIFT) &
 		PLANE_WM_LINES_MASK;
 }
 
@@ -6171,19 +6236,18 @@ void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 			skl_wm_level_from_reg_val(val, &wm->wm[level]);
 		}
 
-		if (INTEL_GEN(dev_priv) >= 12)
-			wm->sagv_wm0 = wm->wm[0];
-
 		if (plane_id != PLANE_CURSOR)
 			val = intel_uncore_read(&dev_priv->uncore, PLANE_WM_TRANS(pipe, plane_id));
 		else
 			val = intel_uncore_read(&dev_priv->uncore, CUR_WM_TRANS(pipe));
 
 		skl_wm_level_from_reg_val(val, &wm->trans_wm);
-	}
 
-	if (!crtc->active)
-		return;
+		if (INTEL_GEN(dev_priv) >= 12) {
+			wm->sagv.wm0 = wm->wm[0];
+			wm->sagv.trans_wm = wm->trans_wm;
+		}
+	}
 }
 
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
@@ -7072,7 +7136,7 @@ static void gen12lp_init_clock_gating(struct drm_i915_private *dev_priv)
 			   ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
 
 	/* Wa_1409825376:tgl (pre-prod)*/
-	if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B1))
+	if (IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_B1))
 		intel_uncore_write(&dev_priv->uncore, GEN9_CLKGATE_DIS_3, intel_uncore_read(&dev_priv->uncore, GEN9_CLKGATE_DIS_3) |
 			   TGL_VRH_GATING_DIS);
 
@@ -7245,11 +7309,16 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 	intel_uncore_write(&dev_priv->uncore, CHICKEN_PAR1_1,
 		   intel_uncore_read(&dev_priv->uncore, CHICKEN_PAR1_1) | DPA_MASK_VBLANK_SRD);
 
-	/* WaPsrDPRSUnmaskVBlankInSRD:bdw */
 	for_each_pipe(dev_priv, pipe) {
+		/* WaPsrDPRSUnmaskVBlankInSRD:bdw */
 		intel_uncore_write(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
 			   intel_uncore_read(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe)) |
 			   BDW_DPRS_MASK_VBLANK_SRD);
+
+		/* Undocumented but fixes async flip + VT-d corruption */
+		if (intel_vtd_active())
+			intel_uncore_rmw(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
+					 HSW_PRI_STRETCH_MAX_MASK, HSW_PRI_STRETCH_MAX_X1);
 	}
 
 	/* WaVSRefCountFullforceMissDisable:bdw */
@@ -7285,10 +7354,19 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
+	enum pipe pipe;
+
 	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
 	intel_uncore_write(&dev_priv->uncore, CHICKEN_PIPESL_1(PIPE_A),
 		   intel_uncore_read(&dev_priv->uncore, CHICKEN_PIPESL_1(PIPE_A)) |
 		   HSW_FBCQ_DIS);
+
+	for_each_pipe(dev_priv, pipe) {
+		/* Undocumented but fixes async flip + VT-d corruption */
+		if (intel_vtd_active())
+			intel_uncore_rmw(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
+					 HSW_PRI_STRETCH_MAX_MASK, HSW_PRI_STRETCH_MAX_X1);
+	}
 
 	/* This is required by WaCatErrorRejectionIssue:hsw */
 	intel_uncore_write(&dev_priv->uncore, GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,

@@ -37,6 +37,7 @@
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
@@ -219,6 +220,16 @@ struct intel_encoder {
 	 * encoders have been disabled and suspended.
 	 */
 	void (*shutdown)(struct intel_encoder *encoder);
+	/*
+	 * Enable/disable the clock to the port.
+	 */
+	void (*enable_clock)(struct intel_encoder *encoder,
+			     const struct intel_crtc_state *crtc_state);
+	void (*disable_clock)(struct intel_encoder *encoder);
+	/*
+	 * Returns whether the port clock is enabled or not.
+	 */
+	bool (*is_clock_enabled)(struct intel_encoder *encoder);
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
@@ -714,9 +725,9 @@ struct intel_pipe_wm {
 
 struct skl_wm_level {
 	u16 min_ddb_alloc;
-	u16 plane_res_b;
-	u8 plane_res_l;
-	bool plane_en;
+	u16 blocks;
+	u8 lines;
+	bool enable;
 	bool ignore_lines;
 	bool can_sagv;
 };
@@ -725,7 +736,10 @@ struct skl_plane_wm {
 	struct skl_wm_level wm[8];
 	struct skl_wm_level uv_wm[8];
 	struct skl_wm_level trans_wm;
-	struct skl_wm_level sagv_wm0;
+	struct {
+		struct skl_wm_level wm0;
+		struct skl_wm_level trans_wm;
+	} sagv;
 	bool is_planar;
 };
 
@@ -1159,6 +1173,13 @@ struct intel_crtc_state {
 		u8 pipeline_full;
 		u16 flipline, vmin, vmax;
 	} vrr;
+
+	/* Stream Splitter for eDP MSO */
+	struct {
+		bool enable;
+		u8 link_count;
+		u8 pixel_overlap;
+	} splitter;
 };
 
 enum intel_pipe_crc_source {
@@ -1414,6 +1435,44 @@ struct intel_pps {
 	struct edp_power_seq pps_delays;
 };
 
+struct intel_psr {
+	/* Mutex for PSR state of the transcoder */
+	struct mutex lock;
+
+#define I915_PSR_DEBUG_MODE_MASK	0x0f
+#define I915_PSR_DEBUG_DEFAULT		0x00
+#define I915_PSR_DEBUG_DISABLE		0x01
+#define I915_PSR_DEBUG_ENABLE		0x02
+#define I915_PSR_DEBUG_FORCE_PSR1	0x03
+#define I915_PSR_DEBUG_ENABLE_SEL_FETCH	0x4
+#define I915_PSR_DEBUG_IRQ		0x10
+
+	u32 debug;
+	bool sink_support;
+	bool source_support;
+	bool enabled;
+	enum pipe pipe;
+	enum transcoder transcoder;
+	bool active;
+	struct work_struct work;
+	unsigned int busy_frontbuffer_bits;
+	bool sink_psr2_support;
+	bool link_standby;
+	bool colorimetry_support;
+	bool psr2_enabled;
+	bool psr2_sel_fetch_enabled;
+	u8 sink_sync_latency;
+	ktime_t last_entry_attempt;
+	ktime_t last_exit;
+	bool sink_not_reliable;
+	bool irq_aux_error;
+	u16 su_x_granularity;
+	bool dc3co_enabled;
+	u32 dc3co_exit_delay;
+	struct delayed_work dc3co_work;
+	struct drm_dp_vsc_sdp vsc;
+};
+
 struct intel_dp {
 	i915_reg_t output_reg;
 	u32 DP;
@@ -1448,6 +1507,8 @@ struct intel_dp {
 	int max_link_lane_count;
 	/* Max rate for the current link */
 	int max_link_rate;
+	int mso_link_count;
+	int mso_pixel_overlap;
 	/* sink or branch descriptor */
 	struct drm_dp_desc desc;
 	struct drm_dp_aux aux;
@@ -1516,6 +1577,8 @@ struct intel_dp {
 	bool hobl_active;
 
 	struct intel_dp_pcon_frl frl;
+
+	struct intel_psr psr;
 };
 
 enum lspcon_vendor {
@@ -1752,6 +1815,17 @@ dp_to_i915(struct intel_dp *intel_dp)
 	return to_i915(dp_to_dig_port(intel_dp)->base.base.dev);
 }
 
+#define CAN_PSR(intel_dp) ((intel_dp)->psr.sink_support && \
+			   (intel_dp)->psr.source_support)
+
+static inline bool intel_encoder_can_psr(struct intel_encoder *encoder)
+{
+	if (!intel_encoder_is_dp(encoder))
+		return false;
+
+	return CAN_PSR(enc_to_intel_dp(encoder));
+}
+
 static inline struct intel_digital_port *
 hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 {
@@ -1891,6 +1965,41 @@ static inline u32 intel_fdi_link_freq(struct drm_i915_private *dev_priv,
 		return pipe_config->port_clock; /* SPLL */
 	else
 		return dev_priv->fdi_pll_freq;
+}
+
+static inline bool is_ccs_modifier(u64 modifier)
+{
+	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
+	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
+	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS ||
+	       modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
+	       modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
+}
+
+static inline bool is_ccs_plane(const struct drm_framebuffer *fb, int plane)
+{
+	if (!is_ccs_modifier(fb->modifier))
+		return false;
+
+	return plane >= fb->format->num_planes / 2;
+}
+
+static inline bool is_gen12_ccs_modifier(u64 modifier)
+{
+	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
+	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
+	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
+}
+
+static inline bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane)
+{
+	return is_gen12_ccs_modifier(fb->modifier) && is_ccs_plane(fb, plane);
+}
+
+static inline bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane)
+{
+	return fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC &&
+	       plane == 2;
 }
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

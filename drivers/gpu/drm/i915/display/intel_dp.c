@@ -50,6 +50,7 @@
 #include "intel_dp_aux.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
+#include "intel_dpll.h"
 #include "intel_dpio_phy.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hdcp.h"
@@ -788,10 +789,10 @@ intel_dp_mode_valid(struct drm_connector *connector,
 		return MODE_H_ILLEGAL;
 
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
-		if (mode->hdisplay > fixed_mode->hdisplay)
+		if (mode->hdisplay != fixed_mode->hdisplay)
 			return MODE_PANEL;
 
-		if (mode->vdisplay > fixed_mode->vdisplay)
+		if (mode->vdisplay != fixed_mode->vdisplay)
 			return MODE_PANEL;
 
 		target_clock = fixed_mode->clock;
@@ -1663,12 +1664,10 @@ void intel_dp_compute_psr_vsc_sdp(struct intel_dp *intel_dp,
 				  const struct drm_connector_state *conn_state,
 				  struct drm_dp_vsc_sdp *vsc)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-
 	vsc->sdp_type = DP_SDP_VSC;
 
-	if (dev_priv->psr.psr2_enabled) {
-		if (dev_priv->psr.colorimetry_support &&
+	if (intel_dp->psr.psr2_enabled) {
+		if (intel_dp->psr.colorimetry_support &&
 		    intel_dp_needs_vsc_sdp(crtc_state, conn_state)) {
 			/* [PSR2, +Colorimetry] */
 			intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
@@ -1724,6 +1723,7 @@ intel_dp_drrs_compute_config(struct intel_dp *intel_dp,
 {
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	int pixel_clock;
 
 	if (pipe_config->vrr.enable)
 		return;
@@ -1742,10 +1742,18 @@ intel_dp_drrs_compute_config(struct intel_dp *intel_dp,
 		return;
 
 	pipe_config->has_drrs = true;
-	intel_link_compute_m_n(output_bpp, pipe_config->lane_count,
-			       intel_connector->panel.downclock_mode->clock,
+
+	pixel_clock = intel_connector->panel.downclock_mode->clock;
+	if (pipe_config->splitter.enable)
+		pixel_clock /= pipe_config->splitter.link_count;
+
+	intel_link_compute_m_n(output_bpp, pipe_config->lane_count, pixel_clock,
 			       pipe_config->port_clock, &pipe_config->dp_m2_n2,
 			       constant_n, pipe_config->fec_enable);
+
+	/* FIXME: abstract this better */
+	if (pipe_config->splitter.enable)
+		pipe_config->dp_m2_n2.gmch_m *= pipe_config->splitter.link_count;
 }
 
 int
@@ -1820,12 +1828,36 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		output_bpp = intel_dp_output_bpp(pipe_config->output_format,
 						 pipe_config->pipe_bpp);
 
+	if (intel_dp->mso_link_count) {
+		int n = intel_dp->mso_link_count;
+		int overlap = intel_dp->mso_pixel_overlap;
+
+		pipe_config->splitter.enable = true;
+		pipe_config->splitter.link_count = n;
+		pipe_config->splitter.pixel_overlap = overlap;
+
+		drm_dbg_kms(&dev_priv->drm, "MSO link count %d, pixel overlap %d\n",
+			    n, overlap);
+
+		adjusted_mode->crtc_hdisplay = adjusted_mode->crtc_hdisplay / n + overlap;
+		adjusted_mode->crtc_hblank_start = adjusted_mode->crtc_hblank_start / n + overlap;
+		adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_hblank_end / n + overlap;
+		adjusted_mode->crtc_hsync_start = adjusted_mode->crtc_hsync_start / n + overlap;
+		adjusted_mode->crtc_hsync_end = adjusted_mode->crtc_hsync_end / n + overlap;
+		adjusted_mode->crtc_htotal = adjusted_mode->crtc_htotal / n + overlap;
+		adjusted_mode->crtc_clock /= n;
+	}
+
 	intel_link_compute_m_n(output_bpp,
 			       pipe_config->lane_count,
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n,
 			       constant_n, pipe_config->fec_enable);
+
+	/* FIXME: abstract this better */
+	if (pipe_config->splitter.enable)
+		pipe_config->dp_m_n.gmch_m *= pipe_config->splitter.link_count;
 
 	if (!HAS_DDI(dev_priv))
 		intel_dp_set_clock(encoder, pipe_config);
@@ -2359,7 +2391,7 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 		return false;
 	}
 
-	if (CAN_PSR(i915) && intel_dp_is_edp(intel_dp)) {
+	if (CAN_PSR(intel_dp)) {
 		drm_dbg_kms(&i915->drm, "Forcing full modeset to compute PSR state\n");
 		crtc_state->uapi.mode_changed = true;
 		return false;
@@ -2650,7 +2682,7 @@ void intel_dp_check_frl_training(struct intel_dp *intel_dp)
 	if (intel_dp_pcon_start_frl_training(intel_dp) < 0) {
 		int ret, mode;
 
-		drm_dbg(&dev_priv->drm, "Couldnt set FRL mode, continuing with TMDS mode\n");
+		drm_dbg(&dev_priv->drm, "Couldn't set FRL mode, continuing with TMDS mode\n");
 		ret = drm_dp_pcon_reset_frl_config(&intel_dp->aux);
 		mode = drm_dp_pcon_hdmi_link_mode(&intel_dp->aux, NULL);
 
@@ -3517,6 +3549,64 @@ static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
 	}
 }
 
+static void intel_edp_mso_mode_fixup(struct intel_connector *connector,
+				     struct drm_display_mode *mode)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	int n = intel_dp->mso_link_count;
+	int overlap = intel_dp->mso_pixel_overlap;
+
+	if (!mode || !n)
+		return;
+
+	mode->hdisplay = (mode->hdisplay - overlap) * n;
+	mode->hsync_start = (mode->hsync_start - overlap) * n;
+	mode->hsync_end = (mode->hsync_end - overlap) * n;
+	mode->htotal = (mode->htotal - overlap) * n;
+	mode->clock *= n;
+
+	drm_mode_set_name(mode);
+
+	drm_dbg_kms(&i915->drm,
+		    "[CONNECTOR:%d:%s] using generated MSO mode: ",
+		    connector->base.base.id, connector->base.name);
+	drm_mode_debug_printmodeline(mode);
+}
+
+static void intel_edp_mso_init(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 mso;
+
+	if (intel_dp->edp_dpcd[0] < DP_EDP_14)
+		return;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_EDP_MSO_LINK_CAPABILITIES, &mso) != 1) {
+		drm_err(&i915->drm, "Failed to read MSO cap\n");
+		return;
+	}
+
+	/* Valid configurations are SST or MSO 2x1, 2x2, 4x1 */
+	mso &= DP_EDP_MSO_NUMBER_OF_LINKS_MASK;
+	if (mso % 2 || mso > drm_dp_max_lane_count(intel_dp->dpcd)) {
+		drm_err(&i915->drm, "Invalid MSO link count cap %u\n", mso);
+		mso = 0;
+	}
+
+	if (mso) {
+		drm_dbg_kms(&i915->drm, "Sink MSO %ux%u configuration\n",
+			    mso, drm_dp_max_lane_count(intel_dp->dpcd) / mso);
+		if (!HAS_MSO(i915)) {
+			drm_err(&i915->drm, "No source MSO support, disabling\n");
+			mso = 0;
+		}
+	}
+
+	intel_dp->mso_link_count = mso;
+	intel_dp->mso_pixel_overlap = 0; /* FIXME: read from DisplayID v2.0 */
+}
+
 static bool
 intel_edp_init_dpcd(struct intel_dp *intel_dp)
 {
@@ -3599,6 +3689,8 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	 * available (such as HDR backlight controls)
 	 */
 	intel_edp_init_source_oui(intel_dp, true);
+
+	intel_edp_mso_init(intel_dp);
 
 	return true;
 }
@@ -5548,19 +5640,18 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct edid *edid;
+	int num_modes = 0;
 
 	edid = intel_connector->detect_edid;
 	if (edid) {
-		int ret = intel_connector_update_modes(connector, edid);
+		num_modes = intel_connector_update_modes(connector, edid);
 
 		if (intel_vrr_is_capable(connector))
 			drm_connector_set_vrr_capable_property(connector,
 							       true);
-		if (ret)
-			return ret;
 	}
 
-	/* if eDP has no EDID, fall back to fixed mode */
+	/* Also add fixed mode, which may or may not be present in EDID */
 	if (intel_dp_is_edp(intel_attached_dp(intel_connector)) &&
 	    intel_connector->panel.fixed_mode) {
 		struct drm_display_mode *mode;
@@ -5569,9 +5660,12 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 					  intel_connector->panel.fixed_mode);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);
-			return 1;
+			num_modes++;
 		}
 	}
+
+	if (num_modes)
+		return num_modes;
 
 	if (!edid) {
 		struct intel_dp *intel_dp = intel_attached_dp(intel_connector);
@@ -5582,11 +5676,11 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 					      intel_dp->downstream_ports);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);
-			return 1;
+			num_modes++;
 		}
 	}
 
-	return 0;
+	return num_modes;
 }
 
 static int
@@ -6459,6 +6553,10 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (fixed_mode)
 		downclock_mode = intel_dp_drrs_init(intel_connector, fixed_mode);
 
+	/* multiply the mode clock and horizontal timings for MSO */
+	intel_edp_mso_mode_fixup(intel_connector, fixed_mode);
+	intel_edp_mso_mode_fixup(intel_connector, downclock_mode);
+
 	/* fallback to VBT if available for eDP */
 	if (!fixed_mode)
 		fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
@@ -6640,6 +6738,8 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 
 	intel_dp->frl.is_trained = false;
 	intel_dp->frl.trained_rate_gbps = 0;
+
+	intel_psr_init(intel_dp);
 
 	return true;
 
