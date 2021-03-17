@@ -907,6 +907,8 @@ struct dc_plane_state {
 
 	union surface_update_flags update_flags;
 	bool flip_int_enabled;
+	bool skip_manual_trigger;
+
 	/* private to DC core */
 	struct dc_plane_status status;
 	struct dc_context *ctx;

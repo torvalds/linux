@@ -2833,7 +2833,8 @@ static void commit_planes_for_stream(struct dc *dc,
 
 		if (pipe_ctx->bottom_pipe || pipe_ctx->next_odm_pipe ||
 				!pipe_ctx->stream || pipe_ctx->stream != stream ||
-				!pipe_ctx->plane_state->update_flags.bits.addr_update)
+				!pipe_ctx->plane_state->update_flags.bits.addr_update ||
+				pipe_ctx->plane_state->skip_manual_trigger)
 			continue;
 
 		if (pipe_ctx->stream_res.tg->funcs->program_manual_trigger)
