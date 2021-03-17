@@ -44,7 +44,7 @@
 		compatible = "shared-dma-pool";
 		inactive;
 		reusable;
-		size = <0x0 (8 * 0x00100000)>;
+		reg = <0x0 0x10000000 0x0 0x00800000>;
 		linux,cma-default;
 	};
 
