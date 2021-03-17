@@ -420,6 +420,11 @@ struct nix_tx_action {
 #define TX_VTAG1_LID_MASK		GENMASK_ULL(42, 40)
 #define TX_VTAG1_RELPTR_MASK		GENMASK_ULL(39, 32)
 
+/* NPC MCAM reserved entry index per nixlf */
+#define NIXLF_UCAST_ENTRY	0
+#define NIXLF_BCAST_ENTRY	1
+#define NIXLF_PROMISC_ENTRY	2
+
 struct npc_mcam_kex {
 	/* MKEX Profle Header */
 	u64 mkex_sign; /* "mcam-kex-profile" (8 bytes/ASCII characters) */
