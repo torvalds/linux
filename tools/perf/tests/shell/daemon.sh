@@ -127,9 +127,16 @@ daemon_start()
 
 	# wait for the session to ping
 	local state="FAIL"
+	local retries=0
 	while [ "${state}" != "OK" ]; do
 		state=`perf daemon ping --config ${config} --session ${session} | awk '{ print $1 }'`
 		sleep 0.05
+		retries=$((${retries} +1))
+		if [ ${retries} -ge 600 ]; then
+			echo "FAILED: Timeout waiting for daemon to ping"
+			daemon_exit ${config}
+			exit 1
+		fi
 	done
 }
 
