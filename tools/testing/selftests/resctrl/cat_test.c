@@ -130,7 +130,10 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 	/* Get max number of bits from default-cabm mask */
 	count_of_bits = count_bits(long_mask);
 
-	if (n < 1 || n > count_of_bits - 1) {
+	if (!n)
+		n = count_of_bits / 2;
+
+	if (n > count_of_bits - 1) {
 		ksft_print_msg("Invalid input value for no_of_bits n!\n");
 		ksft_print_msg("Please enter value in range 1 to %d\n",
 			       count_of_bits - 1);
