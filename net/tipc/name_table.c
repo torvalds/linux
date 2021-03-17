@@ -621,31 +621,31 @@ exit:
  * destination socket/node pairs matching the given address.
  * The requester may or may not want to exclude himself from the list.
  */
-bool tipc_nametbl_lookup_group(struct net *net, u32 type, u32 instance,
-			       u32 scope, struct list_head *dsts,
-			       int *dstcnt, u32 exclude,
-			       bool mcast)
+bool tipc_nametbl_lookup_group(struct net *net, struct tipc_uaddr *ua,
+			       struct list_head *dsts, int *dstcnt,
+			       u32 exclude, bool mcast)
 {
 	u32 self = tipc_own_addr(net);
+	u32 inst = ua->sa.instance;
 	struct service_range *sr;
 	struct tipc_service *sc;
 	struct publication *p;
 
 	*dstcnt = 0;
 	rcu_read_lock();
-	sc = tipc_service_find(net, type);
+	sc = tipc_service_find(net, ua->sa.type);
 	if (unlikely(!sc))
 		goto exit;
 
 	spin_lock_bh(&sc->lock);
 
 	/* Todo: a full search i.e. service_range_foreach_match() instead? */
-	sr = service_range_match_first(sc->ranges.rb_node, instance, instance);
+	sr = service_range_match_first(sc->ranges.rb_node, inst, inst);
 	if (!sr)
 		goto no_match;
 
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
-		if (p->scope != scope)
+		if (p->scope != ua->scope)
 			continue;
 		if (p->sk.ref == exclude && p->sk.node == self)
 			continue;

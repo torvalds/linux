@@ -116,10 +116,9 @@ void tipc_nametbl_lookup_mcast_sockets(struct net *net, struct tipc_uaddr *ua,
 				       bool exact, struct list_head *dports);
 void tipc_nametbl_lookup_mcast_nodes(struct net *net, struct tipc_uaddr *ua,
 				     struct tipc_nlist *nodes);
-bool tipc_nametbl_lookup_group(struct net *net, u32 type, u32 instance,
-			       u32 domain, struct list_head *dsts,
-			       int *dstcnt, u32 exclude,
-			       bool all);
+bool tipc_nametbl_lookup_group(struct net *net, struct tipc_uaddr *ua,
+			       struct list_head *dsts, int *dstcnt,
+			       u32 exclude, bool mcast);
 void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 			      u32 type, u32 domain);
 struct publication *tipc_nametbl_publish(struct net *net, struct tipc_uaddr *ua,
