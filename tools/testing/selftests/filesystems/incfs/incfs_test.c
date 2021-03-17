@@ -2,6 +2,8 @@
 /*
  * Copyright 2018 Google LLC
  */
+#define _GNU_SOURCE
+
 #include <alloca.h>
 #include <dirent.h>
 #include <errno.h>
@@ -4116,6 +4118,46 @@ out:
 	return result;
 }
 
+static int truncate_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int cmd_fd = -1;
+	struct test_file file = {
+		  .name = "file",
+		  .size = INCFS_DATA_FILE_BLOCK_SIZE,
+	};
+	char *backing_file = NULL;
+	int fd = -1;
+	struct stat st;
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size, NULL),
+		  0);
+	TEST(backing_file = concat_file_name(backing_dir, file.name),
+	     backing_file);
+	TEST(fd = open(backing_file, O_RDWR | O_CLOEXEC), fd != -1);
+	TESTEQUAL(stat(backing_file, &st), 0);
+	TESTCOND(st.st_blocks < 128);
+	TESTEQUAL(fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, 1 << 24), 0);
+	TESTEQUAL(stat(backing_file, &st), 0);
+	TESTCOND(st.st_blocks > 32768);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTEQUAL(stat(backing_file, &st), 0);
+	TESTCOND(st.st_blocks < 128);
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	free(backing_file);
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -4233,6 +4275,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(verity_test),
 		MAKE_TEST(enable_verity_test),
 		MAKE_TEST(mmap_test),
+		MAKE_TEST(truncate_test),
 	};
 #undef MAKE_TEST
 
