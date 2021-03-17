@@ -192,6 +192,9 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 {
 	int i;
 
+	if (priv->plat->ptp_clk_freq_config)
+		priv->plat->ptp_clk_freq_config(priv);
+
 	for (i = 0; i < priv->dma_cap.pps_out_num; i++) {
 		if (i >= STMMAC_PPS_MAX)
 			break;

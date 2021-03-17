@@ -12,8 +12,18 @@
 #define INTEL_MGBE_ADHOC_ADDR	0x15
 #define INTEL_MGBE_XPCS_ADDR	0x16
 
+/* Selection for PTP Clock Freq belongs to PSE & PCH GbE */
+#define PSE_PTP_CLK_FREQ_MASK		(GMAC_GPO0 | GMAC_GPO3)
+#define PSE_PTP_CLK_FREQ_19_2MHZ	(GMAC_GPO0)
+#define PSE_PTP_CLK_FREQ_200MHZ		(GMAC_GPO0 | GMAC_GPO3)
+#define PSE_PTP_CLK_FREQ_256MHZ		(0)
+#define PCH_PTP_CLK_FREQ_MASK		(GMAC_GPO0)
+#define PCH_PTP_CLK_FREQ_19_2MHZ	(GMAC_GPO0)
+#define PCH_PTP_CLK_FREQ_200MHZ		(0)
+
 struct intel_priv_data {
 	int mdio_adhoc_addr;	/* mdio address for serdes & etc */
+	bool is_pse;
 };
 
 /* This struct is used to associate PCI Function of MAC controller on a board,
@@ -204,6 +214,32 @@ static void intel_serdes_powerdown(struct net_device *ndev, void *intel_data)
 	}
 }
 
+/* Program PTP Clock Frequency for different variant of
+ * Intel mGBE that has slightly different GPO mapping
+ */
+static void intel_mgbe_ptp_clk_freq_config(void *npriv)
+{
+	struct stmmac_priv *priv = (struct stmmac_priv *)npriv;
+	struct intel_priv_data *intel_priv;
+	u32 gpio_value;
+
+	intel_priv = (struct intel_priv_data *)priv->plat->bsp_priv;
+
+	gpio_value = readl(priv->ioaddr + GMAC_GPIO_STATUS);
+
+	if (intel_priv->is_pse) {
+		/* For PSE GbE, use 200MHz */
+		gpio_value &= ~PSE_PTP_CLK_FREQ_MASK;
+		gpio_value |= PSE_PTP_CLK_FREQ_200MHZ;
+	} else {
+		/* For PCH GbE, use 200MHz */
+		gpio_value &= ~PCH_PTP_CLK_FREQ_MASK;
+		gpio_value |= PCH_PTP_CLK_FREQ_200MHZ;
+	}
+
+	writel(gpio_value, priv->ioaddr + GMAC_GPIO_STATUS);
+}
+
 static void common_default_data(struct plat_stmmacenet_data *plat)
 {
 	plat->clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
@@ -322,6 +358,8 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 		return ret;
 	}
 
+	plat->ptp_clk_freq_config = intel_mgbe_ptp_clk_freq_config;
+
 	/* Set default value for multicast hash bins */
 	plat->multicast_filter_bins = HASH_TABLE_SIZE;
 
@@ -391,8 +429,12 @@ static struct stmmac_pci_info ehl_rgmii1g_info = {
 static int ehl_pse0_common_data(struct pci_dev *pdev,
 				struct plat_stmmacenet_data *plat)
 {
+	struct intel_priv_data *intel_priv = plat->bsp_priv;
+
+	intel_priv->is_pse = true;
 	plat->bus_id = 2;
 	plat->addr64 = 32;
+
 	return ehl_common_data(pdev, plat);
 }
 
@@ -423,8 +465,12 @@ static struct stmmac_pci_info ehl_pse0_sgmii1g_info = {
 static int ehl_pse1_common_data(struct pci_dev *pdev,
 				struct plat_stmmacenet_data *plat)
 {
+	struct intel_priv_data *intel_priv = plat->bsp_priv;
+
+	intel_priv->is_pse = true;
 	plat->bus_id = 3;
 	plat->addr64 = 32;
+
 	return ehl_common_data(pdev, plat);
 }
 
