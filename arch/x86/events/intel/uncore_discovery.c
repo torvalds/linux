@@ -442,6 +442,90 @@ static struct intel_uncore_ops generic_uncore_pci_ops = {
 	.read_counter	= intel_generic_uncore_pci_read_counter,
 };
 
+#define UNCORE_GENERIC_MMIO_SIZE		0x4000
+
+static unsigned int generic_uncore_mmio_box_ctl(struct intel_uncore_box *box)
+{
+	struct intel_uncore_type *type = box->pmu->type;
+
+	if (!type->box_ctls || !type->box_ctls[box->dieid] || !type->mmio_offsets)
+		return 0;
+
+	return type->box_ctls[box->dieid] + type->mmio_offsets[box->pmu->pmu_idx];
+}
+
+static void intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box)
+{
+	unsigned int box_ctl = generic_uncore_mmio_box_ctl(box);
+	struct intel_uncore_type *type = box->pmu->type;
+	resource_size_t addr;
+
+	if (!box_ctl) {
+		pr_warn("Uncore type %d box %d: Invalid box control address.\n",
+			type->type_id, type->box_ids[box->pmu->pmu_idx]);
+		return;
+	}
+
+	addr = box_ctl;
+	box->io_addr = ioremap(addr, UNCORE_GENERIC_MMIO_SIZE);
+	if (!box->io_addr) {
+		pr_warn("Uncore type %d box %d: ioremap error for 0x%llx.\n",
+			type->type_id, type->box_ids[box->pmu->pmu_idx],
+			(unsigned long long)addr);
+		return;
+	}
+
+	writel(GENERIC_PMON_BOX_CTL_INT, box->io_addr);
+}
+
+static void intel_generic_uncore_mmio_disable_box(struct intel_uncore_box *box)
+{
+	if (!box->io_addr)
+		return;
+
+	writel(GENERIC_PMON_BOX_CTL_FRZ, box->io_addr);
+}
+
+static void intel_generic_uncore_mmio_enable_box(struct intel_uncore_box *box)
+{
+	if (!box->io_addr)
+		return;
+
+	writel(0, box->io_addr);
+}
+
+static void intel_generic_uncore_mmio_enable_event(struct intel_uncore_box *box,
+					     struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (!box->io_addr)
+		return;
+
+	writel(hwc->config, box->io_addr + hwc->config_base);
+}
+
+static void intel_generic_uncore_mmio_disable_event(struct intel_uncore_box *box,
+					      struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (!box->io_addr)
+		return;
+
+	writel(0, box->io_addr + hwc->config_base);
+}
+
+static struct intel_uncore_ops generic_uncore_mmio_ops = {
+	.init_box	= intel_generic_uncore_mmio_init_box,
+	.exit_box	= uncore_mmio_exit_box,
+	.disable_box	= intel_generic_uncore_mmio_disable_box,
+	.enable_box	= intel_generic_uncore_mmio_enable_box,
+	.disable_event	= intel_generic_uncore_mmio_disable_event,
+	.enable_event	= intel_generic_uncore_mmio_enable_event,
+	.read_counter	= uncore_mmio_read_counter,
+};
+
 static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 				      struct intel_uncore_type *uncore,
 				      struct intel_uncore_discovery_type *type)
@@ -467,6 +551,15 @@ static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 		uncore->box_ctl = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl);
 		uncore->box_ctls = type->box_ctrl_die;
 		uncore->pci_offsets = type->box_offset;
+		break;
+	case UNCORE_ACCESS_MMIO:
+		uncore->ops = &generic_uncore_mmio_ops;
+		uncore->perf_ctr = (unsigned int)type->ctr_offset;
+		uncore->event_ctl = (unsigned int)type->ctl_offset;
+		uncore->box_ctl = (unsigned int)type->box_ctrl;
+		uncore->box_ctls = type->box_ctrl_die;
+		uncore->mmio_offsets = type->box_offset;
+		uncore->mmio_map_size = UNCORE_GENERIC_MMIO_SIZE;
 		break;
 	default:
 		return false;
@@ -521,4 +614,9 @@ int intel_uncore_generic_uncore_pci_init(void)
 	uncore_pci_uncores = intel_uncore_generic_init_uncores(UNCORE_ACCESS_PCI);
 
 	return 0;
+}
+
+void intel_uncore_generic_uncore_mmio_init(void)
+{
+	uncore_mmio_uncores = intel_uncore_generic_init_uncores(UNCORE_ACCESS_MMIO);
 }

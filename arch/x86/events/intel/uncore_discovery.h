@@ -128,3 +128,4 @@ bool intel_uncore_has_discovery_tables(void);
 void intel_uncore_clear_discovery_tables(void);
 void intel_uncore_generic_uncore_cpu_init(void);
 int intel_uncore_generic_uncore_pci_init(void);
+void intel_uncore_generic_uncore_mmio_init(void);

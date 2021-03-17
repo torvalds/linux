@@ -70,6 +70,7 @@ struct intel_uncore_type {
 	union {
 		unsigned *msr_offsets;
 		unsigned *pci_offsets;
+		unsigned *mmio_offsets;
 	};
 	unsigned *box_ids;
 	struct event_constraint unconstrainted;
