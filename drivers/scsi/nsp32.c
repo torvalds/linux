@@ -876,7 +876,7 @@ static int nsp32_setup_sg_table(struct scsi_cmnd *SCpnt)
 
 			if (le32_to_cpu(sgt[i].len) > 0x10000) {
 				nsp32_msg(KERN_ERR,
-					"can't transfer over 64KB at a time, size=0x%lx", le32_to_cpu(sgt[i].len));
+					"can't transfer over 64KB at a time, size=0x%x", le32_to_cpu(sgt[i].len));
 				return FALSE;
 			}
 			nsp32_dbg(NSP32_DEBUG_SGLIST,
@@ -2716,7 +2716,7 @@ static int nsp32_detect(struct pci_dev *pdev)
 	res = request_region(host->io_port, host->n_io_port, "nsp32");
 	if (res == NULL) {
 		nsp32_msg(KERN_ERR, 
-			  "I/O region 0x%lx+0x%lx is already used",
+			  "I/O region 0x%x+0x%x is already used",
 			  data->BaseAddress, data->NumAddress);
 		goto free_irq;
         }
@@ -3264,7 +3264,8 @@ static int nsp32_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 
-	nsp32_msg(KERN_INFO, "pci-suspend: pdev=0x%p, state=%ld, slot=%s, host=0x%p", pdev, state, pci_name(pdev), host);
+	nsp32_msg(KERN_INFO, "pci-suspend: pdev=0x%p, state.event=%x, slot=%s, host=0x%p",
+		  pdev, state.event, pci_name(pdev), host);
 
 	pci_save_state     (pdev);
 	pci_disable_device (pdev);
