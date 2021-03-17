@@ -366,16 +366,18 @@ exit:
 
 /**
  * tipc_service_remove_publ - remove a publication from a service
- * @sr: service_range to remove publication from
- * @node: target node
+ * @r: service_range to remove publication from
+ * @sk: address publishing socket
  * @key: target publication key
  */
-static struct publication *tipc_service_remove_publ(struct service_range *sr,
-						    u32 node, u32 key)
+static struct publication *tipc_service_remove_publ(struct service_range *r,
+						    struct tipc_socket_addr *sk,
+						    u32 key)
 {
 	struct publication *p;
+	u32 node = sk->node;
 
-	list_for_each_entry(p, &sr->all_publ, all_publ) {
+	list_for_each_entry(p, &r->all_publ, all_publ) {
 		if (p->key != key || (node && node != p->sk.node))
 			continue;
 		list_del(&p->all_publ);
@@ -493,16 +495,20 @@ struct publication *tipc_nametbl_insert_publ(struct net *net,
 	return NULL;
 }
 
-struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
-					     u32 lower, u32 upper,
-					     u32 node, u32 key)
+struct publication *tipc_nametbl_remove_publ(struct net *net,
+					     struct tipc_uaddr *ua,
+					     struct tipc_socket_addr *sk,
+					     u32 key)
 {
-	struct tipc_service *sc = tipc_service_find(net, type);
 	struct tipc_subscription *sub, *tmp;
-	struct service_range *sr = NULL;
 	struct publication *p = NULL;
+	struct service_range *sr;
+	struct tipc_service *sc;
+	u32 upper = ua->sr.upper;
+	u32 lower = ua->sr.lower;
 	bool last;
 
+	sc = tipc_service_find(net, ua->sr.type);
 	if (!sc)
 		return NULL;
 
@@ -510,7 +516,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 	sr = tipc_service_find_range(sc, lower, upper);
 	if (!sr)
 		goto exit;
-	p = tipc_service_remove_publ(sr, node, key);
+	p = tipc_service_remove_publ(sr, sk, key);
 	if (!p)
 		goto exit;
 
@@ -518,7 +524,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 	last = list_empty(&sr->all_publ);
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
 		tipc_sub_report_overlap(sub, lower, upper, TIPC_WITHDRAWN,
-					p->sk.ref, node, p->scope, last);
+					sk->ref, sk->node, ua->scope, last);
 	}
 
 	/* Remove service range item if this was its last publication */
@@ -768,24 +774,22 @@ exit:
 /**
  * tipc_nametbl_withdraw - withdraw a service binding
  * @net: network namespace
- * @type: service type
- * @lower: service range lower bound
- * @upper: service range upper bound
+ * @ua: service address/range being unbound
+ * @sk: address of the socket being unbound from
  * @key: target publication key
  */
-int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower,
-			  u32 upper, u32 key)
+void tipc_nametbl_withdraw(struct net *net, struct tipc_uaddr *ua,
+			   struct tipc_socket_addr *sk, u32 key)
 {
 	struct name_table *nt = tipc_name_table(net);
 	struct tipc_net *tn = tipc_net(net);
-	u32 self = tipc_own_addr(net);
 	struct sk_buff *skb = NULL;
 	struct publication *p;
 	u32 rc_dests;
 
 	spin_lock_bh(&tn->nametbl_lock);
 
-	p = tipc_nametbl_remove_publ(net, type, lower, upper, self, key);
+	p = tipc_nametbl_remove_publ(net, ua, sk, key);
 	if (p) {
 		nt->local_publ_count--;
 		skb = tipc_named_withdraw(net, p);
@@ -793,16 +797,13 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower,
 		kfree_rcu(p, rcu);
 	} else {
 		pr_err("Failed to remove local publication {%u,%u,%u}/%u\n",
-		       type, lower, upper, key);
+		       ua->sr.type, ua->sr.lower, ua->sr.upper, key);
 	}
 	rc_dests = nt->rc_dests;
 	spin_unlock_bh(&tn->nametbl_lock);
 
-	if (skb) {
+	if (skb)
 		tipc_node_broadcast(net, skb, rc_dests);
-		return 1;
-	}
-	return 0;
 }
 
 /**
@@ -900,7 +901,7 @@ static void tipc_service_delete(struct net *net, struct tipc_service *sc)
 	spin_lock_bh(&sc->lock);
 	rbtree_postorder_for_each_entry_safe(sr, tmpr, &sc->ranges, tree_node) {
 		list_for_each_entry_safe(p, tmp, &sr->all_publ, all_publ) {
-			tipc_service_remove_publ(sr, p->sk.node, p->key);
+			tipc_service_remove_publ(sr, &p->sk, p->key);
 			kfree_rcu(p, rcu);
 		}
 		rb_erase_augmented(&sr->tree_node, &sc->ranges, &sr_callbacks);

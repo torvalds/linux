@@ -434,8 +434,7 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	}
 	if (flags & TIPC_NOTIFY_LINK_DOWN) {
 		tipc_mon_peer_down(net, n->addr, bearer_id);
-		tipc_nametbl_withdraw(net, TIPC_LINK_STATE, n->addr,
-				      n->addr, n->link_id);
+		tipc_nametbl_withdraw(net, &ua, &sk, n->link_id);
 	}
 }
 

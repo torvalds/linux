@@ -244,17 +244,19 @@ static void tipc_publ_purge(struct net *net, struct publication *p, u32 addr)
 {
 	struct tipc_net *tn = tipc_net(net);
 	struct publication *_p;
+	struct tipc_uaddr ua;
 
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, p->scope, p->sr.type,
+		   p->sr.lower, p->sr.upper);
 	spin_lock_bh(&tn->nametbl_lock);
-	_p = tipc_nametbl_remove_publ(net, p->sr.type, p->sr.lower,
-				      p->sr.upper, p->sk.node, p->key);
+	_p = tipc_nametbl_remove_publ(net, &ua, &p->sk, p->key);
 	if (_p)
 		tipc_node_unsubscribe(net, &_p->binding_node, addr);
 	spin_unlock_bh(&tn->nametbl_lock);
 
 	if (_p != p) {
 		pr_err("Unable to remove publication from failed node\n"
-		       " (type=%u, lower=%u, node=0x%x, port=%u, key=%u)\n",
+		       " (type=%u, lower=%u, node=%u, port=%u, key=%u)\n",
 		       p->sr.type, p->sr.lower, p->sk.node, p->sk.ref, p->key);
 	}
 
@@ -309,8 +311,7 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 			return true;
 		}
 	} else if (dtype == WITHDRAWAL) {
-		p = tipc_nametbl_remove_publ(net, ua.sr.type, ua.sr.lower,
-					     ua.sr.upper, node, key);
+		p = tipc_nametbl_remove_publ(net, &ua, &sk, key);
 		if (p) {
 			tipc_node_unsubscribe(net, &p->binding_node, node);
 			kfree_rcu(p, rcu);
