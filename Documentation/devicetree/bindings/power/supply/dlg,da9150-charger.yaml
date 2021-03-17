@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/power/supply/dlg,da9150-charger.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Dialog Semiconductor DA9150 Charger Power Supply bindings
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: dlg,da9150-charger
+
+  io-channels:
+    items:
+      - description: ADC channel for current
+      - description: ADC channel for bus voltage
+      - description: ADC channel for junction temperature
+      - description: ADC channel for battery voltage
+
+  io-channel-names:
+    items:
+      - const: CHAN_IBUS
+      - const: CHAN_VBUS
+      - const: CHAN_TJUNC
+      - const: CHAN_VBAT
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    pmic {
+      charger {
+        compatible = "dlg,da9150-charger";
+        io-channels = <&gpadc 0>,
+                      <&gpadc 2>,
+                      <&gpadc 8>,
+                      <&gpadc 5>;
+        io-channel-names = "CHAN_IBUS",
+                           "CHAN_VBUS",
+                           "CHAN_TJUNC",
+                           "CHAN_VBAT";
+      };
+    };
