@@ -721,7 +721,7 @@ static void asd_dump_lseq_state(struct asd_ha_struct *asd_ha, int lseq)
 }
 
 /**
- * ads_dump_seq_state -- dump CSEQ and LSEQ states
+ * asd_dump_seq_state -- dump CSEQ and LSEQ states
  * @asd_ha: pointer to host adapter structure
  * @lseq_mask: mask of LSEQs of interest
  */
