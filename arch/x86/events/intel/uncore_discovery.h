@@ -28,6 +28,23 @@
 	 unit.table1 == -1ULL || unit.ctl == -1ULL ||	\
 	 unit.table3 == -1ULL)
 
+#define GENERIC_PMON_CTL_EV_SEL_MASK	0x000000ff
+#define GENERIC_PMON_CTL_UMASK_MASK	0x0000ff00
+#define GENERIC_PMON_CTL_EDGE_DET	(1 << 18)
+#define GENERIC_PMON_CTL_INVERT		(1 << 23)
+#define GENERIC_PMON_CTL_TRESH_MASK	0xff000000
+#define GENERIC_PMON_RAW_EVENT_MASK	(GENERIC_PMON_CTL_EV_SEL_MASK | \
+					 GENERIC_PMON_CTL_UMASK_MASK | \
+					 GENERIC_PMON_CTL_EDGE_DET | \
+					 GENERIC_PMON_CTL_INVERT | \
+					 GENERIC_PMON_CTL_TRESH_MASK)
+
+#define GENERIC_PMON_BOX_CTL_FRZ	(1 << 0)
+#define GENERIC_PMON_BOX_CTL_RST_CTRL	(1 << 8)
+#define GENERIC_PMON_BOX_CTL_RST_CTRS	(1 << 9)
+#define GENERIC_PMON_BOX_CTL_INT	(GENERIC_PMON_BOX_CTL_RST_CTRL | \
+					 GENERIC_PMON_BOX_CTL_RST_CTRS)
+
 enum uncore_access_type {
 	UNCORE_ACCESS_MSR	= 0,
 	UNCORE_ACCESS_MMIO,
@@ -103,3 +120,4 @@ struct intel_uncore_discovery_type {
 
 bool intel_uncore_has_discovery_tables(void);
 void intel_uncore_clear_discovery_tables(void);
+void intel_uncore_generic_uncore_cpu_init(void);

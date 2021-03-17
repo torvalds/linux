@@ -316,3 +316,129 @@ void intel_uncore_clear_discovery_tables(void)
 		kfree(type);
 	}
 }
+
+DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
+DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
+DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
+DEFINE_UNCORE_FORMAT_ATTR(inv, inv, "config:23");
+DEFINE_UNCORE_FORMAT_ATTR(thresh, thresh, "config:24-31");
+
+static struct attribute *generic_uncore_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh.attr,
+	NULL,
+};
+
+static const struct attribute_group generic_uncore_format_group = {
+	.name = "format",
+	.attrs = generic_uncore_formats_attr,
+};
+
+static void intel_generic_uncore_msr_init_box(struct intel_uncore_box *box)
+{
+	wrmsrl(uncore_msr_box_ctl(box), GENERIC_PMON_BOX_CTL_INT);
+}
+
+static void intel_generic_uncore_msr_disable_box(struct intel_uncore_box *box)
+{
+	wrmsrl(uncore_msr_box_ctl(box), GENERIC_PMON_BOX_CTL_FRZ);
+}
+
+static void intel_generic_uncore_msr_enable_box(struct intel_uncore_box *box)
+{
+	wrmsrl(uncore_msr_box_ctl(box), 0);
+}
+
+static void intel_generic_uncore_msr_enable_event(struct intel_uncore_box *box,
+					    struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	wrmsrl(hwc->config_base, hwc->config);
+}
+
+static void intel_generic_uncore_msr_disable_event(struct intel_uncore_box *box,
+					     struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	wrmsrl(hwc->config_base, 0);
+}
+
+static struct intel_uncore_ops generic_uncore_msr_ops = {
+	.init_box		= intel_generic_uncore_msr_init_box,
+	.disable_box		= intel_generic_uncore_msr_disable_box,
+	.enable_box		= intel_generic_uncore_msr_enable_box,
+	.disable_event		= intel_generic_uncore_msr_disable_event,
+	.enable_event		= intel_generic_uncore_msr_enable_event,
+	.read_counter		= uncore_msr_read_counter,
+};
+
+static bool uncore_update_uncore_type(enum uncore_access_type type_id,
+				      struct intel_uncore_type *uncore,
+				      struct intel_uncore_discovery_type *type)
+{
+	uncore->type_id = type->type;
+	uncore->num_boxes = type->num_boxes;
+	uncore->num_counters = type->num_counters;
+	uncore->perf_ctr_bits = type->counter_width;
+	uncore->box_ids = type->ids;
+
+	switch (type_id) {
+	case UNCORE_ACCESS_MSR:
+		uncore->ops = &generic_uncore_msr_ops;
+		uncore->perf_ctr = (unsigned int)type->box_ctrl + type->ctr_offset;
+		uncore->event_ctl = (unsigned int)type->box_ctrl + type->ctl_offset;
+		uncore->box_ctl = (unsigned int)type->box_ctrl;
+		uncore->msr_offsets = type->box_offset;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+static struct intel_uncore_type **
+intel_uncore_generic_init_uncores(enum uncore_access_type type_id)
+{
+	struct intel_uncore_discovery_type *type;
+	struct intel_uncore_type **uncores;
+	struct intel_uncore_type *uncore;
+	struct rb_node *node;
+	int i = 0;
+
+	uncores = kcalloc(num_discovered_types[type_id] + 1,
+			  sizeof(struct intel_uncore_type *), GFP_KERNEL);
+	if (!uncores)
+		return empty_uncore;
+
+	for (node = rb_first(&discovery_tables); node; node = rb_next(node)) {
+		type = rb_entry(node, struct intel_uncore_discovery_type, node);
+		if (type->access_type != type_id)
+			continue;
+
+		uncore = kzalloc(sizeof(struct intel_uncore_type), GFP_KERNEL);
+		if (!uncore)
+			break;
+
+		uncore->event_mask = GENERIC_PMON_RAW_EVENT_MASK;
+		uncore->format_group = &generic_uncore_format_group;
+
+		if (!uncore_update_uncore_type(type_id, uncore, type)) {
+			kfree(uncore);
+			continue;
+		}
+		uncores[i++] = uncore;
+	}
+
+	return uncores;
+}
+
+void intel_uncore_generic_uncore_cpu_init(void)
+{
+	uncore_msr_uncores = intel_uncore_generic_init_uncores(UNCORE_ACCESS_MSR);
+}

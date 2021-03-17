@@ -10,7 +10,7 @@ static bool uncore_no_discover;
 module_param(uncore_no_discover, bool, 0);
 MODULE_PARM_DESC(uncore_no_discover, "Don't enable the Intel uncore PerfMon discovery mechanism "
 				     "(default: enable the discovery mechanism).");
-static struct intel_uncore_type *empty_uncore[] = { NULL, };
+struct intel_uncore_type *empty_uncore[] = { NULL, };
 struct intel_uncore_type **uncore_msr_uncores = empty_uncore;
 struct intel_uncore_type **uncore_pci_uncores = empty_uncore;
 struct intel_uncore_type **uncore_mmio_uncores = empty_uncore;
@@ -834,6 +834,34 @@ static const struct attribute_group uncore_pmu_attr_group = {
 	.attrs = uncore_pmu_attrs,
 };
 
+static void uncore_get_pmu_name(struct intel_uncore_pmu *pmu)
+{
+	struct intel_uncore_type *type = pmu->type;
+
+	/*
+	 * No uncore block name in discovery table.
+	 * Use uncore_type_&typeid_&boxid as name.
+	 */
+	if (!type->name) {
+		if (type->num_boxes == 1)
+			sprintf(pmu->name, "uncore_type_%u", type->type_id);
+		else {
+			sprintf(pmu->name, "uncore_type_%u_%d",
+				type->type_id, type->box_ids[pmu->pmu_idx]);
+		}
+		return;
+	}
+
+	if (type->num_boxes == 1) {
+		if (strlen(type->name) > 0)
+			sprintf(pmu->name, "uncore_%s", type->name);
+		else
+			sprintf(pmu->name, "uncore");
+	} else
+		sprintf(pmu->name, "uncore_%s_%d", type->name, pmu->pmu_idx);
+
+}
+
 static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
 {
 	int ret;
@@ -860,15 +888,7 @@ static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
 		pmu->pmu.attr_update = pmu->type->attr_update;
 	}
 
-	if (pmu->type->num_boxes == 1) {
-		if (strlen(pmu->type->name) > 0)
-			sprintf(pmu->name, "uncore_%s", pmu->type->name);
-		else
-			sprintf(pmu->name, "uncore");
-	} else {
-		sprintf(pmu->name, "uncore_%s_%d", pmu->type->name,
-			pmu->pmu_idx);
-	}
+	uncore_get_pmu_name(pmu);
 
 	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
 	if (!ret)
@@ -908,6 +928,10 @@ static void uncore_type_exit(struct intel_uncore_type *type)
 		}
 		kfree(type->pmus);
 		type->pmus = NULL;
+	}
+	if (type->box_ids) {
+		kfree(type->box_ids);
+		type->box_ids = NULL;
 	}
 	kfree(type->events_group);
 	type->events_group = NULL;
@@ -1643,6 +1667,7 @@ static const struct intel_uncore_init_fun snr_uncore_init __initconst = {
 };
 
 static const struct intel_uncore_init_fun generic_uncore_init __initconst = {
+	.cpu_init = intel_uncore_generic_uncore_cpu_init,
 };
 
 static const struct x86_cpu_id intel_uncore_match[] __initconst = {
