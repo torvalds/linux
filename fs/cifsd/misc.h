@@ -25,7 +25,7 @@ void ksmbd_conv_path_to_unix(char *path);
 void ksmbd_strip_last_slash(char *path);
 void ksmbd_conv_path_to_windows(char *path);
 
-char *extract_sharename(char *treename);
+char *ksmbd_extract_sharename(char *treename);
 
 char *convert_to_unix_name(struct ksmbd_share_config *share, char *name);
 

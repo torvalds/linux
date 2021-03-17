@@ -210,12 +210,12 @@ void ksmbd_conv_path_to_windows(char *path)
 }
 
 /**
- * extract_sharename() - get share name from tree connect request
+ * ksmbd_extract_sharename() - get share name from tree connect request
  * @treename:	buffer containing tree name and share name
  *
  * Return:      share name on success, otherwise error
  */
-char *extract_sharename(char *treename)
+char *ksmbd_extract_sharename(char *treename)
 {
 	char *name = treename;
 	char *dst;

@@ -69,7 +69,7 @@ char *smb_strndup_from_utf16(const char *src, const int maxlen,
 		const struct nls_table *codepage);
 extern int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
 		const struct nls_table *cp, int mapchars);
-extern char *extract_sharename(char *treename);
+extern char *ksmbd_extract_sharename(char *treename);
 #endif
 
 wchar_t cifs_toupper(wchar_t in);
