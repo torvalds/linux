@@ -546,66 +546,64 @@ exit:
 /**
  * tipc_nametbl_lookup_anycast - perform service instance to socket translation
  * @net: network namespace
- * @type: message type
- * @instance: message instance
- * @dnode: the search domain used during translation
+ * @ua: service address to look up
+ * @sk: address to socket we want to find
  *
- * On entry, 'dnode' is the search domain used during the lookup
- *
+ * On entry, a non-zero 'sk->node' indicates the node where we want lookup to be
+ * performed, which may not be this one.
  * On exit:
- * - if lookup is deferred to another node, leave 'dnode' unchanged and return 0
- * - if lookup is attempted and succeeds, set 'dnode' to the publishing node and
- *   return the published (non-zero) port number
- * - if lookup is attempted and fails, set 'dnode' to 0 and return 0
+ * - If lookup is deferred to another node, leave 'sk->node' unchanged and
+ *   return 'true'.
+ * - If lookup is successful, set the 'sk->node' and 'sk->ref' (== portid) which
+ *   represent the bound socket and return 'true'.
+ * - If lookup fails, return 'false'
  *
  * Note that for legacy users (node configured with Z.C.N address format) the
- * 'closest-first' lookup algorithm must be maintained, i.e., if dnode is 0
+ * 'closest-first' lookup algorithm must be maintained, i.e., if sk.node is 0
  * we must look in the local binding list first
  */
-u32 tipc_nametbl_lookup_anycast(struct net *net, u32 type,
-				u32 instance, u32 *dnode)
+bool tipc_nametbl_lookup_anycast(struct net *net,
+				 struct tipc_uaddr *ua,
+				 struct tipc_socket_addr *sk)
 {
 	struct tipc_net *tn = tipc_net(net);
 	bool legacy = tn->legacy_addr_format;
 	u32 self = tipc_own_addr(net);
-	struct service_range *sr;
+	u32 inst = ua->sa.instance;
+	struct service_range *r;
 	struct tipc_service *sc;
-	struct list_head *list;
 	struct publication *p;
-	u32 port = 0;
-	u32 node = 0;
+	struct list_head *l;
+	bool res = false;
 
-	if (!tipc_in_scope(legacy, *dnode, self))
-		return 0;
+	if (!tipc_in_scope(legacy, sk->node, self))
+		return true;
 
 	rcu_read_lock();
-	sc = tipc_service_find(net, type);
+	sc = tipc_service_find(net, ua->sr.type);
 	if (unlikely(!sc))
 		goto exit;
 
 	spin_lock_bh(&sc->lock);
-	service_range_foreach_match(sr, sc, instance, instance) {
+	service_range_foreach_match(r, sc, inst, inst) {
 		/* Select lookup algo: local, closest-first or round-robin */
-		if (*dnode == self) {
-			list = &sr->local_publ;
-			if (list_empty(list))
+		if (sk->node == self) {
+			l = &r->local_publ;
+			if (list_empty(l))
 				continue;
-			p = list_first_entry(list, struct publication,
-					     local_publ);
-			list_move_tail(&p->local_publ, &sr->local_publ);
-		} else if (legacy && !*dnode && !list_empty(&sr->local_publ)) {
-			list = &sr->local_publ;
-			p = list_first_entry(list, struct publication,
-					     local_publ);
-			list_move_tail(&p->local_publ, &sr->local_publ);
+			p = list_first_entry(l, struct publication, local_publ);
+			list_move_tail(&p->local_publ, &r->local_publ);
+		} else if (legacy && !sk->node && !list_empty(&r->local_publ)) {
+			l = &r->local_publ;
+			p = list_first_entry(l, struct publication, local_publ);
+			list_move_tail(&p->local_publ, &r->local_publ);
 		} else {
-			list = &sr->all_publ;
-			p = list_first_entry(list, struct publication,
-					     all_publ);
-			list_move_tail(&p->all_publ, &sr->all_publ);
+			l = &r->all_publ;
+			p = list_first_entry(l, struct publication, all_publ);
+			list_move_tail(&p->all_publ, &r->all_publ);
 		}
-		port = p->sk.ref;
-		node = p->sk.node;
+		*sk = p->sk;
+		res = true;
 		/* Todo: as for legacy, pick the first matching range only, a
 		 * "true" round-robin will be performed as needed.
 		 */
@@ -615,8 +613,7 @@ u32 tipc_nametbl_lookup_anycast(struct net *net, u32 type,
 
 exit:
 	rcu_read_unlock();
-	*dnode = node;
-	return port;
+	return res;
 }
 
 /* tipc_nametbl_lookup_group(): lookup destinaton(s) in a communication group
