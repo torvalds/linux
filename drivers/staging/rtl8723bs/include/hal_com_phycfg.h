@@ -178,7 +178,7 @@ u8 		Channel,
 	);
 
 s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 RegPwrTblSel,
-			enum BAND_TYPE Band, enum CHANNEL_WIDTH Bandwidth,
+			enum band_type Band, enum CHANNEL_WIDTH Bandwidth,
 u8 		RfPath,
 u8 		DataRate,
 u8 		Channel

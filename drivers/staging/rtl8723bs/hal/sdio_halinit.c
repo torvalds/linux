@@ -751,9 +751,9 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	/*  Joseph Note: Keep RfRegChnlVal for later use. */
 	/*  */
 	pHalData->RfRegChnlVal[0] =
-		PHY_QueryRFReg(padapter, (enum RF_PATH)0, RF_CHNLBW, bRFRegOffsetMask);
+		PHY_QueryRFReg(padapter, (enum rf_path)0, RF_CHNLBW, bRFRegOffsetMask);
 	pHalData->RfRegChnlVal[1] =
-		PHY_QueryRFReg(padapter, (enum RF_PATH)1, RF_CHNLBW, bRFRegOffsetMask);
+		PHY_QueryRFReg(padapter, (enum rf_path)1, RF_CHNLBW, bRFRegOffsetMask);
 
 
 	/* if (!pHalData->bMACFuncEnable) { */

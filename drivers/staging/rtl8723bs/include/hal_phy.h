@@ -42,14 +42,14 @@
 
 
 /*--------------------------Define Parameters-------------------------------*/
-enum BAND_TYPE {
+enum band_type {
 	BAND_ON_2_4G = 0,
 	BAND_ON_5G,
 	BAND_ON_BOTH,
 	BANDMAX
 };
 
-enum RF_TYPE {
+enum rf_type {
 	RF_TYPE_MIN = 0,	/*  0 */
 	RF_8225 = 1,		/*  1 11b/g RF for verification only */
 	RF_8256 = 2,		/*  2 11b/g/n */
@@ -59,7 +59,7 @@ enum RF_TYPE {
 	RF_TYPE_MAX
 };
 
-enum RF_PATH {
+enum rf_path {
 	RF_PATH_A = 0,
 	RF_PATH_B,
 	RF_PATH_C,
@@ -74,7 +74,7 @@ enum RF_PATH {
 #define	RF_PATH_MAX_92C_88E		2
 #define	RF_PATH_MAX_90_8812		4	/* Max RF number 90 support */
 
-enum ANTENNA_PATH {
+enum antenna_path {
        ANTENNA_NONE	= 0,
 	ANTENNA_D	= 1,
 	ANTENNA_C	= 2,
@@ -93,7 +93,7 @@ enum ANTENNA_PATH {
 	ANTENNA_ABCD	= 15
 };
 
-enum RF_CONTENT {
+enum rf_content {
 	radioa_txt = 0x1000,
 	radiob_txt = 0x1001,
 	radioc_txt = 0x1002,
@@ -108,7 +108,7 @@ enum BaseBand_Config_Type {
 	BaseBand_Config_PHY_REG_PG
 };
 
-enum HW_BLOCK {
+enum hw_block {
 	HW_BLOCK_MAC = 0,
 	HW_BLOCK_PHY0 = 1,
 	HW_BLOCK_PHY1 = 2,
@@ -116,7 +116,7 @@ enum HW_BLOCK {
 	HW_BLOCK_MAXIMUM = 4, /*  Never use this */
 };
 
-enum WIRELESS_MODE {
+enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
 	WIRELESS_MODE_A = 0x01,
 	WIRELESS_MODE_B = 0x02,
@@ -146,7 +146,7 @@ struct SwChnlCmd {
 	u32 			msDelay;
 };
 
-struct R_ANTENNA_SELECT_OFDM {
+struct r_antenna_select_ofdm {
 #ifdef __LITTLE_ENDIAN
 	u32 		r_tx_antenna:4;
 	u32 		r_ant_l:4;

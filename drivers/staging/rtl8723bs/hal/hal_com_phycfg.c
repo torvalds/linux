@@ -1673,7 +1673,7 @@ static s16 get_rate_sctn_idx(const u8 rate)
 }
 
 s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
-		      enum BAND_TYPE band_type, enum CHANNEL_WIDTH bandwidth,
+		      enum band_type band_type, enum CHANNEL_WIDTH bandwidth,
 		      u8 rf_path, u8 data_rate, u8 channel)
 {
 	s16 idx_band       = -1;

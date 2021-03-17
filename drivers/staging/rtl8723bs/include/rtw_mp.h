@@ -89,7 +89,7 @@ struct mpt_context {
 	/*  The RfPath of IO operation is depend of MptActType. */
 	u32 		MptRfPath;
 
-	enum WIRELESS_MODE		MptWirelessModeToSw;	/*  Wireless mode to switch. */
+	enum wireless_mode		MptWirelessModeToSw;	/*  Wireless mode to switch. */
 	u8 	MptChannelToSw;		/*  Channel to switch. */
 	u8 	MptInitGainToSet;	/*  Initial gain to set. */
 	u32 		MptBandWidth;		/*  bandwidth to switch. */

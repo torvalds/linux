@@ -108,7 +108,7 @@ void PHY_SetBBReg_8723B(
 /*  */
 
 static u32 phy_RFSerialRead_8723B(
-	struct adapter *Adapter, enum RF_PATH eRFPath, u32 Offset
+	struct adapter *Adapter, enum rf_path eRFPath, u32 Offset
 )
 {
 	u32 retValue = 0;
@@ -202,7 +202,7 @@ static u32 phy_RFSerialRead_8723B(
  */
 static void phy_RFSerialWrite_8723B(
 	struct adapter *Adapter,
-	enum RF_PATH eRFPath,
+	enum rf_path eRFPath,
 	u32 Offset,
 	u32 Data
 )

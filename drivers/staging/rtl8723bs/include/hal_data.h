@@ -187,10 +187,10 @@ struct hal_com_data {
 	u16 FirmwareSignature;
 
 	/* current WIFI_PHY values */
-	enum WIRELESS_MODE CurrentWirelessMode;
+	enum wireless_mode CurrentWirelessMode;
 	enum CHANNEL_WIDTH CurrentChannelBW;
-	enum BAND_TYPE CurrentBandType;	/* 0:2.4G, 1:5G */
-	enum BAND_TYPE BandSet;
+	enum band_type CurrentBandType;	/* 0:2.4G, 1:5G */
+	enum band_type BandSet;
 	u8 CurrentChannel;
 	u8 CurrentCenterFrequencyIndex1;
 	u8 nCur40MhzPrimeSC;/*  Control channel sub-carrier */
