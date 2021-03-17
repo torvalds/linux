@@ -323,7 +323,19 @@ static u32 ifcvf_vdpa_get_generation(struct vdpa_device *vdpa_dev)
 
 static u32 ifcvf_vdpa_get_device_id(struct vdpa_device *vdpa_dev)
 {
-	return VIRTIO_ID_NET;
+	struct ifcvf_adapter *adapter = vdpa_to_adapter(vdpa_dev);
+	struct pci_dev *pdev = adapter->pdev;
+	u32 ret = -ENODEV;
+
+	if (pdev->device < 0x1000 || pdev->device > 0x107f)
+		return ret;
+
+	if (pdev->device < 0x1040)
+		ret =  pdev->subsystem_device;
+	else
+		ret =  pdev->device - 0x1040;
+
+	return ret;
 }
 
 static u32 ifcvf_vdpa_get_vendor_id(struct vdpa_device *vdpa_dev)
