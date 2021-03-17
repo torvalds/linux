@@ -441,12 +441,9 @@ static void dwxgmac2_get_hw_feature(void __iomem *ioaddr,
 	dma_cap->frpsel = (hw_cap & XGMAC_HWFEAT_FRPSEL) >> 3;
 }
 
-static void dwxgmac2_rx_watchdog(void __iomem *ioaddr, u32 riwt, u32 nchan)
+static void dwxgmac2_rx_watchdog(void __iomem *ioaddr, u32 riwt, u32 queue)
 {
-	u32 i;
-
-	for (i = 0; i < nchan; i++)
-		writel(riwt & XGMAC_RWT, ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(i));
+	writel(riwt & XGMAC_RWT, ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(queue));
 }
 
 static void dwxgmac2_set_rx_ring_len(void __iomem *ioaddr, u32 len, u32 chan)

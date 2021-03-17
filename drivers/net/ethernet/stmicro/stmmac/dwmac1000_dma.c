@@ -255,7 +255,7 @@ static void dwmac1000_get_hw_feature(void __iomem *ioaddr,
 }
 
 static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt,
-				  u32 number_chan)
+				  u32 queue)
 {
 	writel(riwt, ioaddr + DMA_RX_WATCHDOG);
 }

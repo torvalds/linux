@@ -147,9 +147,9 @@ struct stmmac_flow_entry {
 
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
-	u32 tx_coal_frames;
-	u32 tx_coal_timer;
-	u32 rx_coal_frames;
+	u32 tx_coal_frames[MTL_MAX_TX_QUEUES];
+	u32 tx_coal_timer[MTL_MAX_TX_QUEUES];
+	u32 rx_coal_frames[MTL_MAX_TX_QUEUES];
 
 	int tx_coalesce;
 	int hwts_tx_en;
@@ -160,7 +160,7 @@ struct stmmac_priv {
 
 	unsigned int dma_buf_sz;
 	unsigned int rx_copybreak;
-	u32 rx_riwt;
+	u32 rx_riwt[MTL_MAX_TX_QUEUES];
 	int hwts_rx_en;
 
 	void __iomem *ioaddr;
