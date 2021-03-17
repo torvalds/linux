@@ -842,6 +842,14 @@ MLXSW_ITEM32(reg, spvid, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, spvid, sub_port, 0x00, 8, 8);
 
+/* reg_spvid_egr_et_set
+ * When VLAN is pushed at ingress (for untagged packets or for
+ * QinQ push mode) then the EtherType is decided at the egress port.
+ * Reserved when Spectrum-1.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvid, egr_et_set, 0x04, 24, 1);
+
 /* reg_spvid_et_vlan
  * EtherType used for when VLAN is pushed at ingress (for untagged
  * packets or for QinQ push mode).
@@ -849,6 +857,7 @@ MLXSW_ITEM32(reg, spvid, sub_port, 0x00, 8, 8);
  * 1: ether_type1
  * 2: ether_type2 - Reserved when Spectrum-1, supported by Spectrum-2
  * Ethertype IDs are configured by SVER.
+ * Reserved when egr_et_set = 1.
  * Access: RW
  */
 MLXSW_ITEM32(reg, spvid, et_vlan, 0x04, 16, 2);
