@@ -85,13 +85,13 @@ int main(int argc, char **argv)
 			cqm_test = false;
 			cat_test = false;
 			while (token) {
-				if (!strcmp(token, "mbm")) {
+				if (!strncmp(token, MBM_STR, sizeof(MBM_STR))) {
 					mbm_test = true;
-				} else if (!strcmp(token, "mba")) {
+				} else if (!strncmp(token, MBA_STR, sizeof(MBA_STR))) {
 					mba_test = true;
-				} else if (!strcmp(token, "cqm")) {
+				} else if (!strncmp(token, CQM_STR, sizeof(CQM_STR))) {
 					cqm_test = true;
-				} else if (!strcmp(token, "cat")) {
+				} else if (!strncmp(token, CAT_STR, sizeof(CAT_STR))) {
 					cat_test = true;
 				} else {
 					printf("invalid argument\n");
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 	if (!is_amd && mbm_test) {
 		printf("# Starting MBM BW change ...\n");
 		if (!has_ben)
-			sprintf(benchmark_cmd[5], "%s", "mba");
+			sprintf(benchmark_cmd[5], "%s", MBA_STR);
 		res = mbm_bw_change(span, cpu_no, bw_report, benchmark_cmd);
 		printf("%sok MBM: bw change\n", res ? "not " : "");
 		mbm_test_cleanup();
@@ -181,7 +181,7 @@ int main(int argc, char **argv)
 	if (cqm_test) {
 		printf("# Starting CQM test ...\n");
 		if (!has_ben)
-			sprintf(benchmark_cmd[5], "%s", "cqm");
+			sprintf(benchmark_cmd[5], "%s", CQM_STR);
 		res = cqm_resctrl_val(cpu_no, no_of_bits, benchmark_cmd);
 		printf("%sok CQM: test\n", res ? "not " : "");
 		cqm_test_cleanup();
