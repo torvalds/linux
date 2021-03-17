@@ -2082,6 +2082,9 @@ init_vbt_missing_defaults(struct drm_i915_private *i915)
 {
 	enum port port;
 
+	if (!HAS_DDI(i915) && !IS_CHERRYVIEW(i915))
+		return;
+
 	for_each_port(port) {
 		struct ddi_vbt_port_info *info =
 			&i915->vbt.ddi_port_info[port];
