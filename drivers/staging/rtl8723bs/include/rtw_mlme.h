@@ -230,9 +230,9 @@ struct wifidirect_info {
 	struct group_id_info 	groupid_info;	/* 	Store the group id information when doing the group negotiation handshake. */
 	struct scan_limit_info 	rx_invitereq_info;	/* 	Used for get the limit scan channel from the Invitation procedure */
 	struct scan_limit_info 	p2p_info;		/* 	Used for get the limit scan channel from the P2P negotiation handshake */
-	enum P2P_ROLE			role;
-	enum P2P_STATE			pre_p2p_state;
-	enum P2P_STATE			p2p_state;
+	enum p2p_role			role;
+	enum p2p_state			pre_p2p_state;
+	enum p2p_state			p2p_state;
 	u8 				device_addr[ETH_ALEN];	/* 	The device address should be the mac address of this device. */
 	u8 				interface_addr[ETH_ALEN];
 	u8 				social_chan[4];
@@ -275,7 +275,7 @@ struct wifidirect_info {
 														/* 	In this case, the driver can issue the tdls setup request frame */
 														/* 	even the current security is weak security. */
 
-	enum	P2P_WPSINFO		ui_got_wps_info;			/* 	This field will store the WPS value (PIN value or PBC) that UI had got from the user. */
+	enum	p2p_wpsinfo		ui_got_wps_info;			/* 	This field will store the WPS value (PIN value or PBC) that UI had got from the user. */
 	u16 					supported_wps_cm;			/* 	This field describes the WPS config method which this driver supported. */
 														/* 	The value should be the combination of config method defined in page104 of WPS v2.0 spec. */
 	u8 				external_uuid;				/*  UUID flag */

@@ -43,14 +43,14 @@
 /*  This test verifies the WLAN NIC can update the NAV through sending the CTS with large duration. */
 #define	WiFiNavUpperUs				30000	/*  30 ms */
 
-enum WIFI_FRAME_TYPE {
+enum wifi_frame_type {
 	WIFI_MGT_TYPE  =	(0),
 	WIFI_CTRL_TYPE =	(BIT(2)),
 	WIFI_DATA_TYPE =	(BIT(3)),
 	WIFI_QOS_DATA_TYPE	= (BIT(7)|BIT(3)),	/*  QoS Data */
 };
 
-enum WIFI_FRAME_SUBTYPE {
+enum wifi_frame_subtype {
 
     /*  below is for mgt frame */
     WIFI_ASSOCREQ       = (0 | WIFI_MGT_TYPE),
@@ -88,7 +88,7 @@ enum WIFI_FRAME_SUBTYPE {
     WIFI_QOS_DATA_NULL	= (BIT(6) | WIFI_QOS_DATA_TYPE),
 };
 
-enum WIFI_REG_DOMAIN {
+enum wifi_reg_domain {
 	DOMAIN_FCC		= 1,
 	DOMAIN_IC		= 2,
 	DOMAIN_ETSI		= 3,
@@ -751,14 +751,14 @@ struct ADDBA_request {
 #define	WPS_CM_SW_DISPLAY_PIN				0x2008
 #define	WPS_CM_LCD_DISPLAY_PIN				0x4008
 
-enum P2P_ROLE {
+enum p2p_role {
 	P2P_ROLE_DISABLE = 0,
 	P2P_ROLE_DEVICE = 1,
 	P2P_ROLE_CLIENT = 2,
 	P2P_ROLE_GO = 3
 };
 
-enum P2P_STATE {
+enum p2p_state {
 	P2P_STATE_NONE = 0,							/* 	P2P disable */
 	P2P_STATE_IDLE = 1,								/* 	P2P had enabled and do nothing */
 	P2P_STATE_LISTEN = 2,							/* 	In pure listen state */
@@ -784,7 +784,7 @@ enum P2P_STATE {
 	P2P_STATE_TX_INFOR_NOREADY = 22,			/*  sending p2p negotiation response with information is not available */
 };
 
-enum P2P_WPSINFO {
+enum p2p_wpsinfo {
 	P2P_NO_WPSINFO						= 0,
 	P2P_GOT_WPSINFO_PEER_DISPLAY_PIN	= 1,
 	P2P_GOT_WPSINFO_SELF_DISPLAY_PIN	= 2,
@@ -793,7 +793,7 @@ enum P2P_WPSINFO {
 
 #define	P2P_PRIVATE_IOCTL_SET_LEN		64
 
-enum P2P_PROTO_WK_ID {
+enum p2p_proto_wk_id {
 	P2P_FIND_PHASE_WK = 0,
 	P2P_RESTORE_STATE_WK = 1,
 	P2P_PRE_TX_PROVDISC_PROCESS_WK = 2,
