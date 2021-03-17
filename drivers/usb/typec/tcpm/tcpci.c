@@ -16,6 +16,7 @@
 #include <linux/usb/tcpci.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
+#include <trace/hooks/typec.h>
 
 #define	PD_RETRY_COUNT_DEFAULT			3
 #define	PD_RETRY_COUNT_3_0_OR_HIGHER		2
@@ -179,8 +180,11 @@ static int tcpci_start_toggling(struct tcpc_dev *tcpc,
 
 	/* Handle vendor drp toggling */
 	if (tcpci->data->start_drp_toggling) {
+		int override_toggling = 0;
+		trace_android_vh_typec_tcpci_override_toggling(tcpci, tcpci->data,
+							       &override_toggling);
 		ret = tcpci->data->start_drp_toggling(tcpci, tcpci->data, cc);
-		if (ret < 0)
+		if (ret < 0 || override_toggling)
 			return ret;
 	}
 
