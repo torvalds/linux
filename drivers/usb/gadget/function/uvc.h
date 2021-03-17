@@ -138,6 +138,7 @@ struct uvc_device {
 	/* Events */
 	unsigned int event_length;
 	unsigned int event_setup_out : 1;
+	unsigned int event_suspend : 1;
 };
 
 static inline struct uvc_device *to_uvc(struct usb_function *f)
