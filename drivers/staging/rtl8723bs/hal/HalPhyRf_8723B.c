@@ -186,7 +186,7 @@ void DoIQK_8723B(
  *---------------------------------------------------------------------------*/
 void ODM_TxPwrTrackSetPwr_8723B(
 	struct DM_ODM_T *pDM_Odm,
-	enum PWRTRACK_METHOD Method,
+	enum pwrtrack_method Method,
 	u8 RFPath,
 	u8 ChannelMappedIndex
 )
@@ -409,7 +409,7 @@ static void GetDeltaSwingTable_8723B(
 }
 
 
-void ConfigureTxpowerTrack_8723B(struct TXPWRTRACK_CFG *pConfig)
+void ConfigureTxpowerTrack_8723B(struct txpwrtrack_cfg *pConfig)
 {
 	pConfig->SwingTableSize_CCK = CCK_TABLE_SIZE;
 	pConfig->SwingTableSize_OFDM = OFDM_TABLE_SIZE;
