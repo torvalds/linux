@@ -1395,7 +1395,6 @@ int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func, u32 poll_cnt)
 	u32 op_gen_command = 0;
 	u32 comp_addr = BAR_CSTRORM_INTMEM +
 			CSTORM_FINAL_CLEANUP_COMPLETE_OFFSET(clnup_func);
-	int ret = 0;
 
 	if (REG_RD(bp, comp_addr)) {
 		BNX2X_ERR("Cleanup complete was not 0 before sending\n");
@@ -1420,7 +1419,7 @@ int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func, u32 poll_cnt)
 	/* Zero completion for next FLR */
 	REG_WR(bp, comp_addr, 0);
 
-	return ret;
+	return 0;
 }
 
 u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
