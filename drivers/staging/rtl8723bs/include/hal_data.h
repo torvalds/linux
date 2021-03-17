@@ -176,7 +176,7 @@ struct dm_priv {
 
 
 struct hal_com_data {
-	struct HAL_VERSION VersionID;
+	struct hal_version VersionID;
 	enum RT_MULTI_FUNC MultiFunc; /*  For multi-function consideration. */
 	enum RT_POLARITY_CTL PolarityCtl; /*  For Wifi PDn Polarity control. */
 	enum RT_REGULATOR_MODE	RegulatorMode; /*  switching regulator or LDO */

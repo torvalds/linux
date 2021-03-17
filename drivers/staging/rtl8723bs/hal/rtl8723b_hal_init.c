@@ -1872,10 +1872,10 @@ static bool Hal_EfusePgPacketWrite_BT(
 	return true;
 }
 
-static struct HAL_VERSION ReadChipVersion8723B(struct adapter *padapter)
+static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 {
 	u32 value32;
-	struct HAL_VERSION ChipVersion;
+	struct hal_version ChipVersion;
 	struct hal_com_data *pHalData;
 
 /* YJ, TODO, move read chip type here */

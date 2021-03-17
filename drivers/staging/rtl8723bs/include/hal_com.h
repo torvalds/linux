@@ -193,7 +193,7 @@ enum firmware_source {
 u8 rtw_hal_data_init(struct adapter *padapter);
 void rtw_hal_data_deinit(struct adapter *padapter);
 
-void dump_chip_info(struct HAL_VERSION	ChipVersion);
+void dump_chip_info(struct hal_version	ChipVersion);
 
 u8 /* return the final channel plan decision */
 hal_com_config_channel_plan(

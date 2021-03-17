@@ -38,7 +38,7 @@ void rtw_hal_data_deinit(struct adapter *padapter)
 }
 
 
-void dump_chip_info(struct HAL_VERSION	ChipVersion)
+void dump_chip_info(struct hal_version	ChipVersion)
 {
 	char buf[128];
 	size_t cnt = 0;
