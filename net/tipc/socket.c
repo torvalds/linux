@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2001-2007, 2012-2019, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2013, Wind River Systems
- * Copyright (c) 2020, Red Hat Inc
+ * Copyright (c) 2020-2021, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2923,30 +2923,30 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 			    struct tipc_service_range const *seq)
 {
 	struct net *net = sock_net(&tsk->sk);
-	struct publication *publ;
+	struct publication *p;
 	struct publication *safe;
 	int rc = -EINVAL;
 
 	if (scope != TIPC_NODE_SCOPE)
 		scope = TIPC_CLUSTER_SCOPE;
 
-	list_for_each_entry_safe(publ, safe, &tsk->publications, binding_sock) {
+	list_for_each_entry_safe(p, safe, &tsk->publications, binding_sock) {
 		if (seq) {
-			if (publ->scope != scope)
+			if (p->scope != scope)
 				continue;
-			if (publ->type != seq->type)
+			if (p->sr.type != seq->type)
 				continue;
-			if (publ->lower != seq->lower)
+			if (p->sr.lower != seq->lower)
 				continue;
-			if (publ->upper != seq->upper)
+			if (p->sr.upper != seq->upper)
 				break;
-			tipc_nametbl_withdraw(net, publ->type, publ->lower,
-					      publ->upper, publ->key);
+			tipc_nametbl_withdraw(net, p->sr.type, p->sr.lower,
+					      p->sr.upper, p->key);
 			rc = 0;
 			break;
 		}
-		tipc_nametbl_withdraw(net, publ->type, publ->lower,
-				      publ->upper, publ->key);
+		tipc_nametbl_withdraw(net, p->sr.type, p->sr.lower,
+				      p->sr.upper, p->key);
 		rc = 0;
 	}
 	if (list_empty(&tsk->publications))
@@ -3711,11 +3711,11 @@ static int __tipc_nl_add_sk_publ(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, TIPC_NLA_PUBL_KEY, publ->key))
 		goto attr_msg_cancel;
-	if (nla_put_u32(skb, TIPC_NLA_PUBL_TYPE, publ->type))
+	if (nla_put_u32(skb, TIPC_NLA_PUBL_TYPE, publ->sr.type))
 		goto attr_msg_cancel;
-	if (nla_put_u32(skb, TIPC_NLA_PUBL_LOWER, publ->lower))
+	if (nla_put_u32(skb, TIPC_NLA_PUBL_LOWER, publ->sr.lower))
 		goto attr_msg_cancel;
-	if (nla_put_u32(skb, TIPC_NLA_PUBL_UPPER, publ->upper))
+	if (nla_put_u32(skb, TIPC_NLA_PUBL_UPPER, publ->sr.upper))
 		goto attr_msg_cancel;
 
 	nla_nest_end(skb, attrs);
@@ -3863,9 +3863,9 @@ bool tipc_sk_filtering(struct sock *sk)
 		p = list_first_entry_or_null(&tsk->publications,
 					     struct publication, binding_sock);
 		if (p) {
-			type = p->type;
-			lower = p->lower;
-			upper = p->upper;
+			type = p->sr.type;
+			lower = p->sr.lower;
+			upper = p->sr.upper;
 		}
 	}
 
@@ -3964,9 +3964,9 @@ int tipc_sk_dump(struct sock *sk, u16 dqueues, char *buf)
 	if (tsk->published) {
 		p = list_first_entry_or_null(&tsk->publications,
 					     struct publication, binding_sock);
-		i += scnprintf(buf + i, sz - i, " %u", (p) ? p->type : 0);
-		i += scnprintf(buf + i, sz - i, " %u", (p) ? p->lower : 0);
-		i += scnprintf(buf + i, sz - i, " %u", (p) ? p->upper : 0);
+		i += scnprintf(buf + i, sz - i, " %u", (p) ? p->sr.type : 0);
+		i += scnprintf(buf + i, sz - i, " %u", (p) ? p->sr.lower : 0);
+		i += scnprintf(buf + i, sz - i, " %u", (p) ? p->sr.upper : 0);
 	}
 	i += scnprintf(buf + i, sz - i, " | %u", tsk->snd_win);
 	i += scnprintf(buf + i, sz - i, " %u", tsk->rcv_win);

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2000-2006, 2014-2018, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2014, Wind River Systems
- * Copyright (c) 2020, Red Hat Inc
+ * Copyright (c) 2020-2021, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -234,24 +234,24 @@ static struct publication *tipc_publ_create(u32 type, u32 lower, u32 upper,
 					    u32 scope, u32 node, u32 port,
 					    u32 key)
 {
-	struct publication *publ = kzalloc(sizeof(*publ), GFP_ATOMIC);
+	struct publication *p = kzalloc(sizeof(*p), GFP_ATOMIC);
 
-	if (!publ)
+	if (!p)
 		return NULL;
 
-	publ->type = type;
-	publ->lower = lower;
-	publ->upper = upper;
-	publ->scope = scope;
-	publ->node = node;
-	publ->port = port;
-	publ->key = key;
-	INIT_LIST_HEAD(&publ->binding_sock);
-	INIT_LIST_HEAD(&publ->binding_node);
-	INIT_LIST_HEAD(&publ->local_publ);
-	INIT_LIST_HEAD(&publ->all_publ);
-	INIT_LIST_HEAD(&publ->list);
-	return publ;
+	p->sr.type = type;
+	p->sr.lower = lower;
+	p->sr.upper = upper;
+	p->scope = scope;
+	p->sk.node = node;
+	p->sk.ref = port;
+	p->key = key;
+	INIT_LIST_HEAD(&p->binding_sock);
+	INIT_LIST_HEAD(&p->binding_node);
+	INIT_LIST_HEAD(&p->local_publ);
+	INIT_LIST_HEAD(&p->all_publ);
+	INIT_LIST_HEAD(&p->list);
+	return p;
 }
 
 /**
@@ -347,7 +347,7 @@ static struct publication *tipc_service_insert_publ(struct net *net,
 
 	/* Return if the publication already exists */
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
-		if (p->key == key && (!p->node || p->node == node))
+		if (p->key == key && (!p->sk.node || p->sk.node == node))
 			return NULL;
 	}
 
@@ -363,8 +363,8 @@ static struct publication *tipc_service_insert_publ(struct net *net,
 
 	/* Any subscriptions waiting for notification?  */
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
-		tipc_sub_report_overlap(sub, p->lower, p->upper, TIPC_PUBLISHED,
-					p->port, p->node, p->scope, first);
+		tipc_sub_report_overlap(sub, p->sr.lower, p->sr.upper, TIPC_PUBLISHED,
+					p->sk.ref, p->sk.node, p->scope, first);
 	}
 	return p;
 err:
@@ -384,7 +384,7 @@ static struct publication *tipc_service_remove_publ(struct service_range *sr,
 	struct publication *p;
 
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
-		if (p->key != key || (node && node != p->node))
+		if (p->key != key || (node && node != p->sk.node))
 			continue;
 		list_del(&p->all_publ);
 		list_del(&p->local_publ);
@@ -452,8 +452,8 @@ static void tipc_service_subscribe(struct tipc_service *service,
 	/* Sort the publications before reporting */
 	list_sort(NULL, &publ_list, tipc_publ_sort);
 	list_for_each_entry_safe(p, tmp, &publ_list, list) {
-		tipc_sub_report_overlap(sub, p->lower, p->upper,
-					TIPC_PUBLISHED, p->port, p->node,
+		tipc_sub_report_overlap(sub, p->sr.lower, p->sr.upper,
+					TIPC_PUBLISHED, p->sk.ref, p->sk.node,
 					p->scope, true);
 		list_del_init(&p->list);
 	}
@@ -525,7 +525,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 	last = list_empty(&sr->all_publ);
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
 		tipc_sub_report_overlap(sub, lower, upper, TIPC_WITHDRAWN,
-					p->port, node, p->scope, last);
+					p->sk.ref, node, p->scope, last);
 	}
 
 	/* Remove service range item if this was its last publication */
@@ -603,8 +603,8 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dnode)
 					     all_publ);
 			list_move_tail(&p->all_publ, &sr->all_publ);
 		}
-		port = p->port;
-		node = p->node;
+		port = p->sk.ref;
+		node = p->sk.node;
 		/* Todo: as for legacy, pick the first matching range only, a
 		 * "true" round-robin will be performed as needed.
 		 */
@@ -643,9 +643,9 @@ bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 scope,
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
 		if (p->scope != scope)
 			continue;
-		if (p->port == exclude && p->node == self)
+		if (p->sk.ref == exclude && p->sk.node == self)
 			continue;
-		tipc_dest_push(dsts, p->node, p->port);
+		tipc_dest_push(dsts, p->sk.node, p->sk.ref);
 		(*dstcnt)++;
 		if (all)
 			continue;
@@ -675,7 +675,7 @@ void tipc_nametbl_mc_lookup(struct net *net, u32 type, u32 lower, u32 upper,
 	service_range_foreach_match(sr, sc, lower, upper) {
 		list_for_each_entry(p, &sr->local_publ, local_publ) {
 			if (p->scope == scope || (!exact && p->scope < scope))
-				tipc_dest_push(dports, 0, p->port);
+				tipc_dest_push(dports, 0, p->sk.ref);
 		}
 	}
 	spin_unlock_bh(&sc->lock);
@@ -702,7 +702,7 @@ void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
 	spin_lock_bh(&sc->lock);
 	service_range_foreach_match(sr, sc, lower, upper) {
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
-			tipc_nlist_add(nodes, p->node);
+			tipc_nlist_add(nodes, p->sk.node);
 		}
 	}
 	spin_unlock_bh(&sc->lock);
@@ -731,7 +731,7 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
 			if (p->scope != scope)
 				continue;
-			tipc_group_add_member(grp, p->node, p->port, p->lower);
+			tipc_group_add_member(grp, p->sk.node, p->sk.ref, p->sr.lower);
 		}
 	}
 	spin_unlock_bh(&sc->lock);
@@ -909,7 +909,7 @@ static void tipc_service_delete(struct net *net, struct tipc_service *sc)
 	spin_lock_bh(&sc->lock);
 	rbtree_postorder_for_each_entry_safe(sr, tmpr, &sc->ranges, tree_node) {
 		list_for_each_entry_safe(p, tmp, &sr->all_publ, all_publ) {
-			tipc_service_remove_publ(sr, p->node, p->key);
+			tipc_service_remove_publ(sr, p->sk.node, p->key);
 			kfree_rcu(p, rcu);
 		}
 		rb_erase_augmented(&sr->tree_node, &sc->ranges, &sr_callbacks);
@@ -993,9 +993,9 @@ static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,
 			goto publ_msg_full;
 		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_SCOPE, p->scope))
 			goto publ_msg_full;
-		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_NODE, p->node))
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_NODE, p->sk.node))
 			goto publ_msg_full;
-		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_REF, p->port))
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_REF, p->sk.ref))
 			goto publ_msg_full;
 		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_KEY, p->key))
 			goto publ_msg_full;
