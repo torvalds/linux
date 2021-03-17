@@ -49,7 +49,7 @@ struct mp_tx {
 #define MP_MAX_LINES_BYTES	256
 
 typedef void (*MPT_WORK_ITEM_HANDLER)(void *Adapter);
-struct MPT_CONTEXT {
+struct mpt_context {
 	/*  Indicate if we have started Mass Production Test. */
 	bool			bMassProdTest;
 
@@ -257,12 +257,12 @@ struct mp_priv {
 	bool bSetRxBssid;
 	bool bTxBufCkFail;
 
-	struct MPT_CONTEXT MptCtx;
+	struct mpt_context MptCtx;
 
 	u8 *TXradomBuffer;
 };
 
-struct IOCMD_STRUCT {
+struct iocmd_struct {
 	u8 cmdclass;
 	u16 value;
 	u8 index;
@@ -286,7 +286,7 @@ struct bb_reg_param {
 #define BB_REG_BASE_ADDR		0x800
 
 /* MP variables */
-enum MP_MODE {
+enum mp_mode {
 	MP_OFF,
 	MP_ON,
 	MP_ERR,
@@ -303,7 +303,7 @@ enum MP_MODE {
 extern u8 mpdatarate[NumRates];
 
 /* MP set force data rate base on the definition. */
-enum MPT_RATE_INDEX {
+enum mpt_rate_index {
 	/* CCK rate. */
 	MPT_RATE_1M = 0,	/* 0 */
 	MPT_RATE_2M,
@@ -363,13 +363,13 @@ enum MPT_RATE_INDEX {
 
 #define MAX_TX_PWR_INDEX_N_MODE 64	/*  0x3F */
 
-enum POWER_MODE {
+enum power_mode {
 	POWER_LOW = 0,
 	POWER_NORMAL
 };
 
 /*  The following enumeration is used to define the value of Reg0xD00[30:28] or JaguarReg0x914[18:16]. */
-enum OFDM_TX_MODE {
+enum ofdm_tx_mode {
 	OFDM_ALL_OFF		= 0,
 	OFDM_ContinuousTx	= 1,
 	OFDM_SingleCarrier	= 2,
@@ -391,14 +391,14 @@ enum OFDM_TX_MODE {
 #define Mac_HT_FasleAlarm		0x90000000
 #define Mac_DropPacket			0xA0000000
 
-enum ENCRY_CTRL_STATE {
+enum encry_ctrl_state {
 	HW_CONTROL,		/* hw encryption& decryption */
 	SW_CONTROL,		/* sw encryption& decryption */
 	HW_ENCRY_SW_DECRY,	/* hw encryption & sw decryption */
 	SW_ENCRY_HW_DECRY	/* sw encryption & hw decryption */
 };
 
-enum MPT_TXPWR_DEF {
+enum mpt_txpwr_def {
 	MPT_CCK,
 	MPT_OFDM, /*  L and HT OFDM */
 	MPT_VHT_OFDM
