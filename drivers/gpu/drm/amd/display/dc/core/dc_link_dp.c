@@ -3447,6 +3447,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 	bool is_lttpr_present = false;
 	const uint32_t post_oui_delay = 30; // 30ms
+	bool vbios_lttpr_enable = false;
+	bool vbios_lttpr_interop = false;
+	struct dc_bios *bios = link->dc->ctx->dc_bios;
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(lttpr_dpcd_data, '\0', sizeof(lttpr_dpcd_data));
@@ -3494,13 +3497,45 @@ static bool retrieve_link_cap(struct dc_link *link)
 		return false;
 	}
 
-	if (link->dc->caps.extended_aux_timeout_support &&
-			link->dc->config.allow_lttpr_non_transparent_mode) {
+	/* Query BIOS to determine if LTTPR functionality is forced on by system */
+	if (bios->funcs->get_lttpr_caps) {
+		enum bp_result bp_query_result;
+		uint8_t is_vbios_lttpr_enable = 0;
+
+		bp_query_result = bios->funcs->get_lttpr_caps(bios, &is_vbios_lttpr_enable);
+		vbios_lttpr_enable = (bp_query_result == BP_RESULT_OK) && !!is_vbios_lttpr_enable;
+	}
+
+	if (bios->funcs->get_lttpr_interop) {
+		enum bp_result bp_query_result;
+		uint8_t is_vbios_interop_enabled = 0;
+
+		bp_query_result = bios->funcs->get_lttpr_interop(bios, &is_vbios_interop_enabled);
+		vbios_lttpr_interop = (bp_query_result == BP_RESULT_OK) && !!is_vbios_interop_enabled;
+	}
+
+	/*
+	 * Logic to determine LTTPR mode
+	 */
+	link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+	if (vbios_lttpr_enable && vbios_lttpr_interop)
+		link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+	else if (!vbios_lttpr_enable && vbios_lttpr_interop) {
+		if (link->dc->config.allow_lttpr_non_transparent_mode)
+			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+		else
+			link->lttpr_mode = LTTPR_MODE_TRANSPARENT;
+	} else if (!vbios_lttpr_enable && !vbios_lttpr_interop) {
+		if (!link->dc->config.allow_lttpr_non_transparent_mode
+			|| !link->dc->caps.extended_aux_timeout_support)
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+		else
+			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+	}
+
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT || link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
 		/* By reading LTTPR capability, RX assumes that we will enable
-		 * LTTPR non transparent if LTTPR is present.
-		 * Therefore, only query LTTPR capability when both LTTPR
-		 * extended aux timeout and
-		 * non transparent mode is supported by hardware
+		 * LTTPR extended aux timeout if LTTPR is present.
 		 */
 		status = core_link_read_dpcd(
 				link,
@@ -3539,10 +3574,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 		if (is_lttpr_present)
 			CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
 	}
-
-	/* decide lttpr non transparent mode */
-	/*This is a temporary placeholder for LTTPR logic. More comprehensive logic will be added in a future change*/
-	link->lttpr_mode = is_lttpr_present ? LTTPR_MODE_NON_TRANSPARENT : LTTPR_MODE_NON_LTTPR;
 
 	if (!is_lttpr_present)
 		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
