@@ -12,7 +12,7 @@
 #define		CFO_TH_XTAL_LOW			10		/*  kHz */
 #define		CFO_TH_ATC			80		/*  kHz */
 
-struct CFO_TRACKING {
+struct cfo_tracking {
 	bool bATCStatus;
 	bool largeCFOHit;
 	bool bAdjust;

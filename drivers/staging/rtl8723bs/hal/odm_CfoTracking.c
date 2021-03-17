@@ -10,7 +10,7 @@
 static void odm_SetCrystalCap(void *pDM_VOID, u8 CrystalCap)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct CFO_TRACKING *pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	if (pCfoTrack->CrystalCap == CrystalCap)
 		return;
@@ -50,7 +50,7 @@ static u8 odm_GetDefaultCrytaltalCap(void *pDM_VOID)
 static void odm_SetATCStatus(void *pDM_VOID, bool ATCStatus)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct CFO_TRACKING *pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	if (pCfoTrack->bATCStatus == ATCStatus)
 		return;
@@ -80,7 +80,7 @@ static bool odm_GetATCStatus(void *pDM_VOID)
 void ODM_CfoTrackingReset(void *pDM_VOID)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct CFO_TRACKING *pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	pCfoTrack->DefXCap = odm_GetDefaultCrytaltalCap(pDM_Odm);
 	pCfoTrack->bAdjust = true;
@@ -92,7 +92,7 @@ void ODM_CfoTrackingReset(void *pDM_VOID)
 void ODM_CfoTrackingInit(void *pDM_VOID)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct CFO_TRACKING *pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	pCfoTrack->DefXCap =
 		pCfoTrack->CrystalCap = odm_GetDefaultCrytaltalCap(pDM_Odm);
@@ -119,7 +119,7 @@ void ODM_CfoTrackingInit(void *pDM_VOID)
 void ODM_CfoTracking(void *pDM_VOID)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct CFO_TRACKING *pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 	int CFO_kHz_A, CFO_kHz_B, CFO_ave = 0;
 	int CFO_ave_diff;
 	int CrystalCap = (int)pCfoTrack->CrystalCap;
@@ -299,7 +299,7 @@ void ODM_ParsingCFO(void *pDM_VOID, void *pPktinfo_VOID, s8 *pcfotail)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
 	struct odm_packet_info *pPktinfo = pPktinfo_VOID;
-	struct CFO_TRACKING *pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 	u8 i;
 
 	if (!(pDM_Odm->SupportAbility & ODM_BB_CFO_TRACKING))

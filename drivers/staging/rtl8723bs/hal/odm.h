@@ -1119,7 +1119,7 @@ struct DM_ODM_T { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	struct false_ALARM_STATISTICS FlaseAlmCntBuddyAdapter;
 	struct SWAT_T DM_SWAT_Table;
 	bool RSSI_test;
-	struct CFO_TRACKING DM_CfoTrack;
+	struct cfo_tracking DM_CfoTrack;
 
 	struct edca_t DM_EDCA_Table;
 	u32 WMMEDCA_BE;
