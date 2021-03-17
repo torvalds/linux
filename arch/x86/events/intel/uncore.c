@@ -1203,7 +1203,8 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 }
 
 static int uncore_bus_notify(struct notifier_block *nb,
-			     unsigned long action, void *data)
+			     unsigned long action, void *data,
+			     const struct pci_device_id *ids)
 {
 	struct device *dev = data;
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -1214,7 +1215,7 @@ static int uncore_bus_notify(struct notifier_block *nb,
 	if (action != BUS_NOTIFY_DEL_DEVICE)
 		return NOTIFY_DONE;
 
-	pmu = uncore_pci_find_dev_pmu(pdev, uncore_pci_sub_driver->id_table);
+	pmu = uncore_pci_find_dev_pmu(pdev, ids);
 	if (!pmu)
 		return NOTIFY_DONE;
 
@@ -1226,8 +1227,15 @@ static int uncore_bus_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block uncore_notifier = {
-	.notifier_call = uncore_bus_notify,
+static int uncore_pci_sub_bus_notify(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	return uncore_bus_notify(nb, action, data,
+				 uncore_pci_sub_driver->id_table);
+}
+
+static struct notifier_block uncore_pci_sub_notifier = {
+	.notifier_call = uncore_pci_sub_bus_notify,
 };
 
 static void uncore_pci_sub_driver_init(void)
@@ -1268,7 +1276,7 @@ static void uncore_pci_sub_driver_init(void)
 		ids++;
 	}
 
-	if (notify && bus_register_notifier(&pci_bus_type, &uncore_notifier))
+	if (notify && bus_register_notifier(&pci_bus_type, &uncore_pci_sub_notifier))
 		notify = false;
 
 	if (!notify)
@@ -1319,7 +1327,7 @@ static void uncore_pci_exit(void)
 	if (pcidrv_registered) {
 		pcidrv_registered = false;
 		if (uncore_pci_sub_driver)
-			bus_unregister_notifier(&pci_bus_type, &uncore_notifier);
+			bus_unregister_notifier(&pci_bus_type, &uncore_pci_sub_notifier);
 		pci_unregister_driver(uncore_pci_driver);
 		uncore_types_exit(uncore_pci_uncores);
 		kfree(uncore_extra_pci_dev);
