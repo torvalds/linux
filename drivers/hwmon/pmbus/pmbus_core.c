@@ -2568,6 +2568,7 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	struct pmbus_data *data;
 	size_t groups_num = 0;
 	int ret;
+	char *name;
 
 	if (!info)
 		return -ENODEV;
@@ -2617,10 +2618,15 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 		return -ENODEV;
 	}
 
+	name = devm_kstrdup(dev, client->name, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+	strreplace(name, '-', '_');
+
 	data->groups[0] = &data->group;
 	memcpy(data->groups + 1, info->groups, sizeof(void *) * groups_num);
 	data->hwmon_dev = devm_hwmon_device_register_with_groups(dev,
-					client->name, data, data->groups);
+					name, data, data->groups);
 	if (IS_ERR(data->hwmon_dev)) {
 		dev_err(dev, "Failed to register hwmon device\n");
 		return PTR_ERR(data->hwmon_dev);
