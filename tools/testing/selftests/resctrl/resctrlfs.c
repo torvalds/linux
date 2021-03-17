@@ -570,6 +570,9 @@ bool check_resctrlfs_support(void)
 	ksft_print_msg("%s kernel supports resctrl filesystem\n",
 		       ret ? "Pass:" : "Fail:");
 
+	if (!ret)
+		return ret;
+
 	dp = opendir(RESCTRL_PATH);
 	ksft_print_msg("%s resctrl mountpoint \"%s\" exists\n",
 		       dp ? "Pass:" : "Fail:", RESCTRL_PATH);
