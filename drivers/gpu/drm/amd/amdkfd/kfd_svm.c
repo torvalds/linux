@@ -861,6 +861,60 @@ svm_range_add_child(struct svm_range *prange, struct mm_struct *mm,
 	list_add_tail(&pchild->child_list, &prange->child_list);
 }
 
+/**
+ * svm_range_split_by_granularity - collect ranges within granularity boundary
+ *
+ * @p: the process with svms list
+ * @mm: mm structure
+ * @addr: the vm fault address in pages, to split the prange
+ * @parent: parent range if prange is from child list
+ * @prange: prange to split
+ *
+ * Trims @prange to be a single aligned block of prange->granularity if
+ * possible. The head and tail are added to the child_list in @parent.
+ *
+ * Context: caller must hold mmap_read_lock and prange->lock
+ *
+ * Return:
+ * 0 - OK, otherwise error code
+ */
+int
+svm_range_split_by_granularity(struct kfd_process *p, struct mm_struct *mm,
+			       unsigned long addr, struct svm_range *parent,
+			       struct svm_range *prange)
+{
+	struct svm_range *head, *tail;
+	unsigned long start, last, size;
+	int r;
+
+	/* Align splited range start and size to granularity size, then a single
+	 * PTE will be used for whole range, this reduces the number of PTE
+	 * updated and the L1 TLB space used for translation.
+	 */
+	size = 1UL << prange->granularity;
+	start = ALIGN_DOWN(addr, size);
+	last = ALIGN(addr + 1, size) - 1;
+
+	pr_debug("svms 0x%p split [0x%lx 0x%lx] to [0x%lx 0x%lx] size 0x%lx\n",
+		 prange->svms, prange->start, prange->last, start, last, size);
+
+	if (start > prange->start) {
+		r = svm_range_split(prange, start, prange->last, &head);
+		if (r)
+			return r;
+		svm_range_add_child(parent, mm, head, SVM_OP_ADD_RANGE);
+	}
+
+	if (last < prange->last) {
+		r = svm_range_split(prange, prange->start, last, &tail);
+		if (r)
+			return r;
+		svm_range_add_child(parent, mm, tail, SVM_OP_ADD_RANGE);
+	}
+
+	return 0;
+}
+
 static uint64_t
 svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange)
 {
@@ -1685,7 +1739,7 @@ static void svm_range_deferred_list_work(struct work_struct *work)
 	pr_debug("exit svms 0x%p\n", svms);
 }
 
-static void
+void
 svm_range_add_list_work(struct svm_range_list *svms, struct svm_range *prange,
 			struct mm_struct *mm, enum svm_work_list_ops op)
 {
@@ -1708,7 +1762,7 @@ svm_range_add_list_work(struct svm_range_list *svms, struct svm_range *prange,
 	spin_unlock(&svms->deferred_list_lock);
 }
 
-static void schedule_deferred_list_work(struct svm_range_list *svms)
+void schedule_deferred_list_work(struct svm_range_list *svms)
 {
 	spin_lock(&svms->deferred_list_lock);
 	if (!list_empty(&svms->deferred_range_list))
@@ -1798,12 +1852,19 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 /**
  * svm_range_cpu_invalidate_pagetables - interval notifier callback
  *
- * MMU range unmap notifier to remove svm ranges
+ * If event is MMU_NOTIFY_UNMAP, this is from CPU unmap range, otherwise, it
+ * is from migration, or CPU page invalidation callback.
  *
- * If GPU vm fault retry is not enabled, evict the svm range, then restore
- * work will update GPU mapping.
- * If GPU vm fault retry is enabled, unmap the svm range from GPU, vm fault
- * will update GPU mapping.
+ * For unmap event, unmap range from GPUs, remove prange from svms in a delayed
+ * work thread, and split prange if only part of prange is unmapped.
+ *
+ * For invalidation event, if GPU retry fault is not enabled, evict the queues,
+ * then schedule svm_range_restore_work to update GPU mapping and resume queues.
+ * If GPU retry fault is enabled, unmap the svm range from GPU, retry fault will
+ * update GPU mapping to recover.
+ *
+ * Context: mmap lock, notifier_invalidate_start lock are held
+ *          for invalidate event, prange lock is held if this is from migration
  */
 static bool
 svm_range_cpu_invalidate_pagetables(struct mmu_interval_notifier *mni,
@@ -1844,6 +1905,49 @@ svm_range_cpu_invalidate_pagetables(struct mmu_interval_notifier *mni,
 	svm_range_unlock(prange);
 
 	return true;
+}
+
+/**
+ * svm_range_from_addr - find svm range from fault address
+ * @svms: svm range list header
+ * @addr: address to search range interval tree, in pages
+ * @parent: parent range if range is on child list
+ *
+ * Context: The caller must hold svms->lock
+ *
+ * Return: the svm_range found or NULL
+ */
+struct svm_range *
+svm_range_from_addr(struct svm_range_list *svms, unsigned long addr,
+		    struct svm_range **parent)
+{
+	struct interval_tree_node *node;
+	struct svm_range *prange;
+	struct svm_range *pchild;
+
+	node = interval_tree_iter_first(&svms->objects, addr, addr);
+	if (!node)
+		return NULL;
+
+	prange = container_of(node, struct svm_range, it_node);
+	pr_debug("address 0x%lx prange [0x%lx 0x%lx] node [0x%lx 0x%lx]\n",
+		 addr, prange->start, prange->last, node->start, node->last);
+
+	if (addr >= prange->start && addr <= prange->last) {
+		if (parent)
+			*parent = prange;
+		return prange;
+	}
+	list_for_each_entry(pchild, &prange->child_list, child_list)
+		if (addr >= pchild->start && addr <= pchild->last) {
+			pr_debug("found address 0x%lx pchild [0x%lx 0x%lx]\n",
+				 addr, pchild->start, pchild->last);
+			if (parent)
+				*parent = prange;
+			return pchild;
+		}
+
+	return NULL;
 }
 
 void svm_range_list_fini(struct kfd_process *p)
@@ -2108,10 +2212,13 @@ svm_range_trigger_migration(struct mm_struct *mm, struct svm_range *prange,
 	if (best_loc) {
 		pr_debug("migrate from ram to vram\n");
 		r = svm_migrate_ram_to_vram(prange, best_loc);
-
-		if (!r)
-			*migrated = true;
+	} else {
+		pr_debug("migrate from vram to ram\n");
+		r = svm_migrate_vram_to_ram(prange, current->mm);
 	}
+
+	if (!r)
+		*migrated = true;
 
 	return r;
 }
