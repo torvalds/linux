@@ -337,6 +337,7 @@ static bool tipc_service_insert_publ(struct net *net,
 	u32 node = p->sk.node;
 	bool first = false;
 	bool res = false;
+	u32 key = p->key;
 
 	spin_lock_bh(&sc->lock);
 	sr = tipc_service_create_range(sc, p);
@@ -347,8 +348,12 @@ static bool tipc_service_insert_publ(struct net *net,
 
 	/* Return if the publication already exists */
 	list_for_each_entry(_p, &sr->all_publ, all_publ) {
-		if (_p->key == p->key && (!_p->sk.node || _p->sk.node == node))
+		if (_p->key == key && (!_p->sk.node || _p->sk.node == node)) {
+			pr_debug("Failed to bind duplicate %u,%u,%u/%u:%u/%u\n",
+				 p->sr.type, p->sr.lower, p->sr.upper,
+				 node, p->sk.ref, key);
 			goto exit;
+		}
 	}
 
 	if (in_own_node(net, p->sk.node))
@@ -475,17 +480,11 @@ struct publication *tipc_nametbl_insert_publ(struct net *net,
 {
 	struct tipc_service *sc;
 	struct publication *p;
-	u32 type = ua->sr.type;
 
 	p = tipc_publ_create(ua, sk, key);
 	if (!p)
 		return NULL;
 
-	if (ua->sr.lower > ua->sr.upper) {
-		pr_debug("Failed to bind illegal {%u,%u,%u} from node %u\n",
-			 type, ua->sr.lower, ua->sr.upper, sk->node);
-		return NULL;
-	}
 	sc = tipc_service_find(net, ua);
 	if (!sc)
 		sc = tipc_service_create(net, ua);
@@ -508,15 +507,15 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 
 	sc = tipc_service_find(net, ua);
 	if (!sc)
-		return NULL;
+		goto exit;
 
 	spin_lock_bh(&sc->lock);
 	sr = tipc_service_find_range(sc, ua);
 	if (!sr)
-		goto exit;
+		goto unlock;
 	p = tipc_service_remove_publ(sr, sk, key);
 	if (!p)
-		goto exit;
+		goto unlock;
 
 	/* Notify any waiting subscriptions */
 	last = list_empty(&sr->all_publ);
@@ -535,8 +534,14 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 		hlist_del_init_rcu(&sc->service_list);
 		kfree_rcu(sc, rcu);
 	}
-exit:
+unlock:
 	spin_unlock_bh(&sc->lock);
+exit:
+	if (!p) {
+		pr_err("Failed to remove unknown binding: %u,%u,%u/%u:%u/%u\n",
+		       ua->sr.type, ua->sr.lower, ua->sr.upper,
+		       sk->node, sk->ref, key);
+	}
 	return p;
 }
 
@@ -805,9 +810,6 @@ void tipc_nametbl_withdraw(struct net *net, struct tipc_uaddr *ua,
 		skb = tipc_named_withdraw(net, p);
 		list_del_init(&p->binding_sock);
 		kfree_rcu(p, rcu);
-	} else {
-		pr_err("Failed to remove local publication {%u,%u,%u}/%u\n",
-		       ua->sr.type, ua->sr.lower, ua->sr.upper, key);
 	}
 	rc_dests = nt->rc_dests;
 	spin_unlock_bh(&tn->nametbl_lock);
