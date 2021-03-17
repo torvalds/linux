@@ -10,17 +10,28 @@
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci_ids.h>
 #include <linux/platform_device.h>
+#include <linux/types.h>
 
 #define GEN	0x00
 #define GIO	0x04
 #define GLV	0x08
+#define GTPE	0x0c
+#define GTNE	0x10
+#define GGPE	0x14
+#define GSMI	0x18
+#define GTS	0x1c
+
+#define CORE_BANK_OFFSET	0x00
+#define RESUME_BANK_OFFSET	0x20
 
 struct sch_gpio {
 	struct gpio_chip chip;
+	struct irq_chip irqchip;
 	spinlock_t lock;
 	unsigned short iobase;
 	unsigned short resume_base;
@@ -29,11 +40,11 @@ struct sch_gpio {
 static unsigned int sch_gpio_offset(struct sch_gpio *sch, unsigned int gpio,
 				unsigned int reg)
 {
-	unsigned int base = 0;
+	unsigned int base = CORE_BANK_OFFSET;
 
 	if (gpio >= sch->resume_base) {
 		gpio -= sch->resume_base;
-		base += 0x20;
+		base = RESUME_BANK_OFFSET;
 	}
 
 	return base + reg + gpio / 8;
@@ -79,10 +90,11 @@ static void sch_gpio_reg_set(struct sch_gpio *sch, unsigned int gpio, unsigned i
 static int sch_gpio_direction_in(struct gpio_chip *gc, unsigned int gpio_num)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
+	unsigned long flags;
 
-	spin_lock(&sch->lock);
+	spin_lock_irqsave(&sch->lock, flags);
 	sch_gpio_reg_set(sch, gpio_num, GIO, 1);
-	spin_unlock(&sch->lock);
+	spin_unlock_irqrestore(&sch->lock, flags);
 	return 0;
 }
 
@@ -96,20 +108,22 @@ static int sch_gpio_get(struct gpio_chip *gc, unsigned int gpio_num)
 static void sch_gpio_set(struct gpio_chip *gc, unsigned int gpio_num, int val)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
+	unsigned long flags;
 
-	spin_lock(&sch->lock);
+	spin_lock_irqsave(&sch->lock, flags);
 	sch_gpio_reg_set(sch, gpio_num, GLV, val);
-	spin_unlock(&sch->lock);
+	spin_unlock_irqrestore(&sch->lock, flags);
 }
 
 static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned int gpio_num,
 				  int val)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
+	unsigned long flags;
 
-	spin_lock(&sch->lock);
+	spin_lock_irqsave(&sch->lock, flags);
 	sch_gpio_reg_set(sch, gpio_num, GIO, 0);
-	spin_unlock(&sch->lock);
+	spin_unlock_irqrestore(&sch->lock, flags);
 
 	/*
 	 * according to the datasheet, writing to the level register has no
@@ -144,8 +158,80 @@ static const struct gpio_chip sch_gpio_chip = {
 	.get_direction		= sch_gpio_get_direction,
 };
 
+static int sch_irq_type(struct irq_data *d, unsigned int type)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sch_gpio *sch = gpiochip_get_data(gc);
+	irq_hw_number_t gpio_num = irqd_to_hwirq(d);
+	unsigned long flags;
+	int rising, falling;
+
+	switch (type & IRQ_TYPE_SENSE_MASK) {
+	case IRQ_TYPE_EDGE_RISING:
+		rising = 1;
+		falling = 0;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		rising = 0;
+		falling = 1;
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		rising = 1;
+		falling = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&sch->lock, flags);
+
+	sch_gpio_reg_set(sch, gpio_num, GTPE, rising);
+	sch_gpio_reg_set(sch, gpio_num, GTNE, falling);
+
+	irq_set_handler_locked(d, handle_edge_irq);
+
+	spin_unlock_irqrestore(&sch->lock, flags);
+
+	return 0;
+}
+
+static void sch_irq_ack(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sch_gpio *sch = gpiochip_get_data(gc);
+	irq_hw_number_t gpio_num = irqd_to_hwirq(d);
+	unsigned long flags;
+
+	spin_lock_irqsave(&sch->lock, flags);
+	sch_gpio_reg_set(sch, gpio_num, GTS, 1);
+	spin_unlock_irqrestore(&sch->lock, flags);
+}
+
+static void sch_irq_mask_unmask(struct irq_data *d, int val)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sch_gpio *sch = gpiochip_get_data(gc);
+	irq_hw_number_t gpio_num = irqd_to_hwirq(d);
+	unsigned long flags;
+
+	spin_lock_irqsave(&sch->lock, flags);
+	sch_gpio_reg_set(sch, gpio_num, GGPE, val);
+	spin_unlock_irqrestore(&sch->lock, flags);
+}
+
+static void sch_irq_mask(struct irq_data *d)
+{
+	sch_irq_mask_unmask(d, 0);
+}
+
+static void sch_irq_unmask(struct irq_data *d)
+{
+	sch_irq_mask_unmask(d, 1);
+}
+
 static int sch_gpio_probe(struct platform_device *pdev)
 {
+	struct gpio_irq_chip *girq;
 	struct sch_gpio *sch;
 	struct resource *res;
 
@@ -206,6 +292,20 @@ static int sch_gpio_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, sch);
+
+	sch->irqchip.name = "sch_gpio";
+	sch->irqchip.irq_ack = sch_irq_ack;
+	sch->irqchip.irq_mask = sch_irq_mask;
+	sch->irqchip.irq_unmask = sch_irq_unmask;
+	sch->irqchip.irq_set_type = sch_irq_type;
+
+	girq = &sch->chip.irq;
+	girq->chip = &sch->irqchip;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->parent_handler = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_bad_irq;
 
 	return devm_gpiochip_add_data(&pdev->dev, &sch->chip, sch);
 }
