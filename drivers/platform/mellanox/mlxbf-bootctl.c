@@ -208,7 +208,7 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 	 * 0011 = version 1, 0111 = version 2, 1111 = version 3). Upper 4 bits
 	 * are a thermometer code indicating key programming has completed for
 	 * key n (same encodings as the start bits). This allows for detection
-	 * of an interruption in the progamming process which has left the key
+	 * of an interruption in the programming process which has left the key
 	 * partially programmed (and thus invalid). The process is to burn the
 	 * eFuse for the new key start bit, burn the key eFuses, then burn the
 	 * eFuse for the new key complete bit.
