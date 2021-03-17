@@ -60,6 +60,12 @@ static void run_mbm_test(bool has_ben, char **benchmark_cmd, int span,
 	int res;
 
 	ksft_print_msg("Starting MBM BW change ...\n");
+
+	if (!validate_resctrl_feature_request(MBM_STR)) {
+		ksft_test_result_skip("Hardware does not support MBM or MBM is disabled\n");
+		return;
+	}
+
 	if (!has_ben)
 		sprintf(benchmark_cmd[5], "%s", MBA_STR);
 	res = mbm_bw_change(span, cpu_no, bw_report, benchmark_cmd);
@@ -73,6 +79,12 @@ static void run_mba_test(bool has_ben, char **benchmark_cmd, int span,
 	int res;
 
 	ksft_print_msg("Starting MBA Schemata change ...\n");
+
+	if (!validate_resctrl_feature_request(MBA_STR)) {
+		ksft_test_result_skip("Hardware does not support MBA or MBA is disabled\n");
+		return;
+	}
+
 	if (!has_ben)
 		sprintf(benchmark_cmd[1], "%d", span);
 	res = mba_schemata_change(cpu_no, bw_report, benchmark_cmd);
@@ -85,6 +97,11 @@ static void run_cmt_test(bool has_ben, char **benchmark_cmd, int cpu_no)
 	int res;
 
 	ksft_print_msg("Starting CMT test ...\n");
+	if (!validate_resctrl_feature_request(CMT_STR)) {
+		ksft_test_result_skip("Hardware does not support CMT or CMT is disabled\n");
+		return;
+	}
+
 	if (!has_ben)
 		sprintf(benchmark_cmd[5], "%s", CMT_STR);
 	res = cmt_resctrl_val(cpu_no, 5, benchmark_cmd);
@@ -97,6 +114,12 @@ static void run_cat_test(int cpu_no, int no_of_bits)
 	int res;
 
 	ksft_print_msg("Starting CAT test ...\n");
+
+	if (!validate_resctrl_feature_request(CAT_STR)) {
+		ksft_test_result_skip("Hardware does not support CAT or CAT is disabled\n");
+		return;
+	}
+
 	res = cat_perf_miss_val(cpu_no, no_of_bits, "L3");
 	ksft_test_result(!res, "CAT: test\n");
 	cat_test_cleanup();
