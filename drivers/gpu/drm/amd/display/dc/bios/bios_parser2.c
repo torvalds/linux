@@ -916,7 +916,7 @@ static enum bp_result bios_parser_get_soc_bb_info(
 	return result;
 }
 
-static enum bp_result get_lttpr_caps_v4_1(
+static enum bp_result get_disp_caps_v4_1(
 	struct bios_parser *bp,
 	uint8_t *dce_caps)
 {
@@ -935,12 +935,12 @@ static enum bp_result get_lttpr_caps_v4_1(
 	if (!disp_cntl_tbl)
 		return BP_RESULT_BADBIOSTABLE;
 
-	*dce_caps = !!(disp_cntl_tbl->display_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
+	*dce_caps = disp_cntl_tbl->display_caps;
 
 	return result;
 }
 
-static enum bp_result get_lttpr_caps_v4_2(
+static enum bp_result get_disp_caps_v4_2(
 	struct bios_parser *bp,
 	uint8_t *dce_caps)
 {
@@ -959,12 +959,12 @@ static enum bp_result get_lttpr_caps_v4_2(
 	if (!disp_cntl_tbl)
 		return BP_RESULT_BADBIOSTABLE;
 
-	*dce_caps = !!(disp_cntl_tbl->display_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
+	*dce_caps = disp_cntl_tbl->display_caps;
 
 	return result;
 }
 
-static enum bp_result get_lttpr_caps_v4_3(
+static enum bp_result get_disp_caps_v4_3(
 	struct bios_parser *bp,
 	uint8_t *dce_caps)
 {
@@ -983,12 +983,12 @@ static enum bp_result get_lttpr_caps_v4_3(
 	if (!disp_cntl_tbl)
 		return BP_RESULT_BADBIOSTABLE;
 
-	*dce_caps = !!(disp_cntl_tbl->display_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
+	*dce_caps = disp_cntl_tbl->display_caps;
 
 	return result;
 }
 
-static enum bp_result get_lttpr_caps_v4_4(
+static enum bp_result get_disp_caps_v4_4(
 	struct bios_parser *bp,
 	uint8_t *dce_caps)
 {
@@ -1007,7 +1007,52 @@ static enum bp_result get_lttpr_caps_v4_4(
 	if (!disp_cntl_tbl)
 		return BP_RESULT_BADBIOSTABLE;
 
-	*dce_caps = !!(disp_cntl_tbl->display_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
+	*dce_caps = disp_cntl_tbl->display_caps;
+
+	return result;
+}
+
+static enum bp_result bios_parser_get_lttpr_interop(
+	struct dc_bios *dcb,
+	uint8_t *dce_caps)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	enum bp_result result = BP_RESULT_UNSUPPORTED;
+	struct atom_common_table_header *header;
+	struct atom_data_revision tbl_revision;
+
+	if (!DATA_TABLES(dce_info))
+		return BP_RESULT_UNSUPPORTED;
+
+	header = GET_IMAGE(struct atom_common_table_header,
+						DATA_TABLES(dce_info));
+	get_atom_data_table_revision(header, &tbl_revision);
+	switch (tbl_revision.major) {
+	case 4:
+		switch (tbl_revision.minor) {
+		case 1:
+			result = get_disp_caps_v4_1(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_VBIOS_LTTPR_TRANSPARENT_ENABLE);
+			break;
+		case 2:
+			result = get_disp_caps_v4_2(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_VBIOS_LTTPR_TRANSPARENT_ENABLE);
+			break;
+		case 3:
+			result = get_disp_caps_v4_3(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_VBIOS_LTTPR_TRANSPARENT_ENABLE);
+			break;
+		case 4:
+			result = get_disp_caps_v4_4(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_VBIOS_LTTPR_TRANSPARENT_ENABLE);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
 
 	return result;
 }
@@ -1031,16 +1076,20 @@ static enum bp_result bios_parser_get_lttpr_caps(
 	case 4:
 		switch (tbl_revision.minor) {
 		case 1:
-			result = get_lttpr_caps_v4_1(bp, dce_caps);
+			result = get_disp_caps_v4_1(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
 			break;
 		case 2:
-			result = get_lttpr_caps_v4_2(bp, dce_caps);
+			result = get_disp_caps_v4_2(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
 			break;
 		case 3:
-			result = get_lttpr_caps_v4_3(bp, dce_caps);
+			result = get_disp_caps_v4_3(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
 			break;
 		case 4:
-			result = get_lttpr_caps_v4_4(bp, dce_caps);
+			result = get_disp_caps_v4_4(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
 			break;
 		default:
 			break;
@@ -2670,6 +2719,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.get_disp_connector_caps_info = bios_parser_get_disp_connector_caps_info,
 
 	.get_lttpr_caps = bios_parser_get_lttpr_caps,
+
+	.get_lttpr_interop = bios_parser_get_lttpr_interop,
 };
 
 static bool bios_parser2_construct(

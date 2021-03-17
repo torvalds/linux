@@ -153,6 +153,9 @@ struct dc_vbios_funcs {
 	enum bp_result (*get_lttpr_caps)(
 			struct dc_bios *dcb,
 			uint8_t *dce_caps);
+	enum bp_result (*get_lttpr_interop)(
+			struct dc_bios *dcb,
+			uint8_t *dce_caps);
 };
 
 struct bios_registers {
