@@ -249,25 +249,30 @@ static struct publication *tipc_publ_create(struct tipc_uaddr *ua,
 
 /**
  * tipc_service_create - create a service structure for the specified 'type'
- * @type: service type
- * @hd: name_table services list
+ * @net: network namespace
+ * @ua: address representing the service to be bound
  *
  * Allocates a single range structure and sets it to all 0's.
  */
-static struct tipc_service *tipc_service_create(u32 type, struct hlist_head *hd)
+static struct tipc_service *tipc_service_create(struct net *net,
+						struct tipc_uaddr *ua)
 {
-	struct tipc_service *service = kzalloc(sizeof(*service), GFP_ATOMIC);
+	struct name_table *nt = tipc_name_table(net);
+	struct tipc_service *service;
+	struct hlist_head *hd;
 
+	service = kzalloc(sizeof(*service), GFP_ATOMIC);
 	if (!service) {
 		pr_warn("Service creation failed, no memory\n");
 		return NULL;
 	}
 
 	spin_lock_init(&service->lock);
-	service->type = type;
+	service->type = ua->sr.type;
 	service->ranges = RB_ROOT;
 	INIT_HLIST_NODE(&service->service_list);
 	INIT_LIST_HEAD(&service->subscriptions);
+	hd = &nt->services[hash(ua->sr.type)];
 	hlist_add_head_rcu(&service->service_list, hd);
 	return service;
 }
@@ -455,15 +460,16 @@ static void tipc_service_subscribe(struct tipc_service *service,
 	}
 }
 
-static struct tipc_service *tipc_service_find(struct net *net, u32 type)
+static struct tipc_service *tipc_service_find(struct net *net,
+					      struct tipc_uaddr *ua)
 {
 	struct name_table *nt = tipc_name_table(net);
 	struct hlist_head *service_head;
 	struct tipc_service *service;
 
-	service_head = &nt->services[hash(type)];
+	service_head = &nt->services[hash(ua->sr.type)];
 	hlist_for_each_entry_rcu(service, service_head, service_list) {
-		if (service->type == type)
+		if (service->type == ua->sr.type)
 			return service;
 	}
 	return NULL;
@@ -474,7 +480,6 @@ struct publication *tipc_nametbl_insert_publ(struct net *net,
 					     struct tipc_socket_addr *sk,
 					     u32 key)
 {
-	struct name_table *nt = tipc_name_table(net);
 	struct tipc_service *sc;
 	struct publication *p;
 	u32 type = ua->sr.type;
@@ -488,9 +493,9 @@ struct publication *tipc_nametbl_insert_publ(struct net *net,
 			 type, ua->sr.lower, ua->sr.upper, sk->node);
 		return NULL;
 	}
-	sc = tipc_service_find(net, type);
+	sc = tipc_service_find(net, ua);
 	if (!sc)
-		sc = tipc_service_create(type, &nt->services[hash(type)]);
+		sc = tipc_service_create(net, ua);
 	if (sc && tipc_service_insert_publ(net, sc, p))
 		return p;
 	kfree(p);
@@ -510,7 +515,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 	u32 lower = ua->sr.lower;
 	bool last;
 
-	sc = tipc_service_find(net, ua->sr.type);
+	sc = tipc_service_find(net, ua);
 	if (!sc)
 		return NULL;
 
@@ -582,7 +587,7 @@ bool tipc_nametbl_lookup_anycast(struct net *net,
 		return true;
 
 	rcu_read_lock();
-	sc = tipc_service_find(net, ua->sr.type);
+	sc = tipc_service_find(net, ua);
 	if (unlikely(!sc))
 		goto exit;
 
@@ -635,7 +640,7 @@ bool tipc_nametbl_lookup_group(struct net *net, struct tipc_uaddr *ua,
 
 	*dstcnt = 0;
 	rcu_read_lock();
-	sc = tipc_service_find(net, ua->sa.type);
+	sc = tipc_service_find(net, ua);
 	if (unlikely(!sc))
 		goto exit;
 
@@ -679,7 +684,7 @@ void tipc_nametbl_lookup_mcast_sockets(struct net *net, struct tipc_uaddr *ua,
 	u32 scope = ua->scope;
 
 	rcu_read_lock();
-	sc = tipc_service_find(net, ua->sr.type);
+	sc = tipc_service_find(net, ua);
 	if (!sc)
 		goto exit;
 
@@ -708,7 +713,7 @@ void tipc_nametbl_lookup_mcast_nodes(struct net *net, struct tipc_uaddr *ua,
 	struct publication *p;
 
 	rcu_read_lock();
-	sc = tipc_service_find(net, ua->sr.type);
+	sc = tipc_service_find(net, ua);
 	if (!sc)
 		goto exit;
 
@@ -726,7 +731,7 @@ exit:
 /* tipc_nametbl_build_group - build list of communication group members
  */
 void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
-			      u32 type, u32 scope)
+			      struct tipc_uaddr *ua)
 {
 	struct service_range *sr;
 	struct tipc_service *sc;
@@ -734,7 +739,7 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 	struct rb_node *n;
 
 	rcu_read_lock();
-	sc = tipc_service_find(net, type);
+	sc = tipc_service_find(net, ua);
 	if (!sc)
 		goto exit;
 
@@ -742,9 +747,10 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 	for (n = rb_first(&sc->ranges); n; n = rb_next(n)) {
 		sr = container_of(n, struct service_range, tree_node);
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
-			if (p->scope != scope)
+			if (p->scope != ua->scope)
 				continue;
-			tipc_group_add_member(grp, p->sk.node, p->sk.ref, p->sr.lower);
+			tipc_group_add_member(grp, p->sk.node, p->sk.ref,
+					      p->sr.lower);
 		}
 	}
 	spin_unlock_bh(&sc->lock);
@@ -826,17 +832,18 @@ void tipc_nametbl_withdraw(struct net *net, struct tipc_uaddr *ua,
  */
 bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 {
-	struct name_table *nt = tipc_name_table(sub->net);
 	struct tipc_net *tn = tipc_net(sub->net);
 	struct tipc_subscr *s = &sub->evt.s;
 	u32 type = tipc_sub_read(s, seq.type);
 	struct tipc_service *sc;
+	struct tipc_uaddr ua;
 	bool res = true;
 
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type, 0, 0);
 	spin_lock_bh(&tn->nametbl_lock);
-	sc = tipc_service_find(sub->net, type);
+	sc = tipc_service_find(sub->net, &ua);
 	if (!sc)
-		sc = tipc_service_create(type, &nt->services[hash(type)]);
+		sc = tipc_service_create(sub->net, &ua);
 	if (sc) {
 		spin_lock_bh(&sc->lock);
 		tipc_service_subscribe(sc, sub);
@@ -861,9 +868,11 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 	struct tipc_subscr *s = &sub->evt.s;
 	u32 type = tipc_sub_read(s, seq.type);
 	struct tipc_service *sc;
+	struct tipc_uaddr ua;
 
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type, 0, 0);
 	spin_lock_bh(&tn->nametbl_lock);
-	sc = tipc_service_find(sub->net, type);
+	sc = tipc_service_find(sub->net, &ua);
 	if (!sc)
 		goto exit;
 
@@ -1052,6 +1061,7 @@ static int tipc_nl_service_list(struct net *net, struct tipc_nl_msg *msg,
 	struct tipc_net *tn = tipc_net(net);
 	struct tipc_service *service = NULL;
 	struct hlist_head *head;
+	struct tipc_uaddr ua;
 	int err;
 	int i;
 
@@ -1065,7 +1075,9 @@ static int tipc_nl_service_list(struct net *net, struct tipc_nl_msg *msg,
 
 		if (*last_type ||
 		    (!i && *last_key && (*last_lower == *last_key))) {
-			service = tipc_service_find(net, *last_type);
+			tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE,
+				   *last_type, *last_lower, *last_lower);
+			service = tipc_service_find(net, &ua);
 			if (!service)
 				return -EPIPE;
 		} else {
