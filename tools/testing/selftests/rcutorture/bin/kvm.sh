@@ -550,20 +550,7 @@ END {
 	if (ncpus != 0)
 		dump(first, i, batchnum);
 }' >> $T/script
-
-cat << '___EOF___' >> $T/script
-echo | tee -a $TORTURE_RESDIR/log
-echo | tee -a $TORTURE_RESDIR/log
-echo " --- `date` Test summary:" | tee -a $TORTURE_RESDIR/log
-___EOF___
-cat << ___EOF___ >> $T/script
-echo Results directory: $resdir/$ds | tee -a $resdir/$ds/log
-kcsan-collapse.sh $resdir/$ds | tee -a $resdir/$ds/log
-kvm-recheck.sh $resdir/$ds > $T/kvm-recheck.sh.out 2>&1
-___EOF___
-echo 'ret=$?' >> $T/script
-echo "cat $T/kvm-recheck.sh.out | tee -a $resdir/$ds/log" >> $T/script
-echo 'exit $ret' >> $T/script
+echo kvm-end-run-stats.sh "$resdir/$ds" "$starttime" >> $T/script
 
 # Extract the tests and their batches from the script.
 egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
@@ -627,7 +614,6 @@ else
 	cp $T/batches $resdir/$ds/batches
 	cp $T/scenarios $resdir/$ds/scenarios
 	echo '#' cpus=$cpus >> $resdir/$ds/batches
-	echo " --- Done at `date` (`get_starttime_duration $starttime`) exitcode $ret" | tee -a $resdir/$ds/log
 	exit $ret
 fi
 
