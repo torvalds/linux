@@ -34,8 +34,15 @@ interface. The CPU port is the switch port connected to an Ethernet MAC chip.
 The corresponding linux Ethernet interface is called the master interface.
 All other corresponding linux interfaces are called slave interfaces.
 
-The slave interfaces depend on the master interface. They can only brought up,
-when the master interface is up.
+The slave interfaces depend on the master interface being up in order for them
+to send or receive traffic. Prior to kernel v5.12, the state of the master
+interface had to be managed explicitly by the user. Starting with kernel v5.12,
+the behavior is as follows:
+
+- when a DSA slave interface is brought up, the master interface is
+  automatically brought up.
+- when the master interface is brought down, all DSA slave interfaces are
+  automatically brought down.
 
 In this documentation the following Ethernet interfaces are used:
 
@@ -86,7 +93,8 @@ without using a VLAN based configuration.
     ip addr add 192.0.2.5/30 dev lan2
     ip addr add 192.0.2.9/30 dev lan3
 
-    # The master interface needs to be brought up before the slave ports.
+    # For kernels earlier than v5.12, the master interface needs to be
+    # brought up manually before the slave ports.
     ip link set eth0 up
 
     # bring up the slave interfaces
@@ -97,7 +105,8 @@ without using a VLAN based configuration.
 *bridge*
   .. code-block:: sh
 
-    # The master interface needs to be brought up before the slave ports.
+    # For kernels earlier than v5.12, the master interface needs to be
+    # brought up manually before the slave ports.
     ip link set eth0 up
 
     # bring up the slave interfaces
@@ -122,7 +131,8 @@ without using a VLAN based configuration.
 *gateway*
   .. code-block:: sh
 
-    # The master interface needs to be brought up before the slave ports.
+    # For kernels earlier than v5.12, the master interface needs to be
+    # brought up manually before the slave ports.
     ip link set eth0 up
 
     # bring up the slave interfaces
@@ -165,7 +175,8 @@ configuration.
     ip link add link eth0 name eth0.2 type vlan id 2
     ip link add link eth0 name eth0.3 type vlan id 3
 
-    # The master interface needs to be brought up before the slave ports.
+    # For kernels earlier than v5.12, the master interface needs to be
+    # brought up manually before the slave ports.
     ip link set eth0 up
     ip link set eth0.1 up
     ip link set eth0.2 up
@@ -207,7 +218,8 @@ configuration.
     # tag traffic on CPU port
     ip link add link eth0 name eth0.1 type vlan id 1
 
-    # The master interface needs to be brought up before the slave ports.
+    # For kernels earlier than v5.12, the master interface needs to be
+    # brought up manually before the slave ports.
     ip link set eth0 up
     ip link set eth0.1 up
 
@@ -246,7 +258,8 @@ configuration.
     ip link add link eth0 name eth0.1 type vlan id 1
     ip link add link eth0 name eth0.2 type vlan id 2
 
-    # The master interface needs to be brought up before the slave ports.
+    # For kernels earlier than v5.12, the master interface needs to be
+    # brought up manually before the slave ports.
     ip link set eth0 up
     ip link set eth0.1 up
     ip link set eth0.2 up
