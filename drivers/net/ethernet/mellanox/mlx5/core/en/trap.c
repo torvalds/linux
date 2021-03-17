@@ -84,7 +84,7 @@ static int mlx5e_alloc_trap_rq(struct mlx5e_priv *priv, struct mlx5e_rq_param *r
 	if (err)
 		goto err_free_frags;
 
-	rq->mkey_be = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
+	rq->mkey_be = cpu_to_be32(mdev->mlx5e_res.hw_objs.mkey.key);
 
 	mlx5e_rq_set_trap_handlers(rq, params);
 
@@ -213,7 +213,7 @@ static int mlx5e_create_trap_direct_rq_tir(struct mlx5_core_dev *mdev, struct ml
 		return -ENOMEM;
 
 	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-	MLX5_SET(tirc, tirc, transport_domain, mdev->mlx5e_res.td.tdn);
+	MLX5_SET(tirc, tirc, transport_domain, mdev->mlx5e_res.hw_objs.td.tdn);
 	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_NONE);
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_DIRECT);
 	MLX5_SET(tirc, tirc, inline_rqn, rqn);
@@ -266,7 +266,7 @@ static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 	t->tstamp   = &priv->tstamp;
 	t->pdev     = mlx5_core_dma_dev(priv->mdev);
 	t->netdev   = priv->netdev;
-	t->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
+	t->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey.key);
 	t->stats    = &priv->trap_stats.ch;
 
 	netif_napi_add(netdev, &t->napi, mlx5e_trap_napi_poll, 64);

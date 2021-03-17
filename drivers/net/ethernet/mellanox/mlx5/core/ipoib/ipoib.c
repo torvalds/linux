@@ -708,7 +708,7 @@ static void mlx5_rdma_netdev_free(struct net_device *netdev)
 
 static bool mlx5_is_sub_interface(struct mlx5_core_dev *mdev)
 {
-	return mdev->mlx5e_res.pdn != 0;
+	return mdev->mlx5e_res.hw_objs.pdn != 0;
 }
 
 static const struct mlx5e_profile *mlx5_get_profile(struct mlx5_core_dev *mdev)

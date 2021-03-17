@@ -271,7 +271,8 @@ struct mlx5_eswitch {
 	/* Protects eswitch mode change that occurs via one or more
 	 * user commands, i.e. sriov state change, devlink commands.
 	 */
-	struct mutex mode_lock;
+	struct rw_semaphore mode_lock;
+	atomic64_t user_count;
 
 	struct {
 		bool            enabled;
@@ -761,6 +762,14 @@ struct mlx5_esw_event_info {
 
 int mlx5_esw_event_notifier_register(struct mlx5_eswitch *esw, struct notifier_block *n);
 void mlx5_esw_event_notifier_unregister(struct mlx5_eswitch *esw, struct notifier_block *n);
+
+bool mlx5_esw_hold(struct mlx5_core_dev *dev);
+void mlx5_esw_release(struct mlx5_core_dev *dev);
+void mlx5_esw_get(struct mlx5_core_dev *dev);
+void mlx5_esw_put(struct mlx5_core_dev *dev);
+int mlx5_esw_try_lock(struct mlx5_eswitch *esw);
+void mlx5_esw_unlock(struct mlx5_eswitch *esw);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
@@ -780,6 +789,13 @@ static inline struct mlx5_flow_handle *
 esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline unsigned int
+mlx5_esw_vport_to_devlink_port_index(const struct mlx5_core_dev *dev,
+				     u16 vport_num)
+{
+	return vport_num;
 }
 #endif /* CONFIG_MLX5_ESWITCH */
 

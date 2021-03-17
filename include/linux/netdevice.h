@@ -4175,7 +4175,7 @@ static inline bool netif_oper_up(const struct net_device *dev)
  *
  * Check if device has not been removed from system.
  */
-static inline bool netif_device_present(struct net_device *dev)
+static inline bool netif_device_present(const struct net_device *dev)
 {
 	return test_bit(__LINK_STATE_PRESENT, &dev->state);
 }

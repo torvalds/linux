@@ -435,6 +435,7 @@ static void esw_destroy_legacy_fdb_table(struct mlx5_eswitch *esw)
 	esw->fdb_table.legacy.addr_grp = NULL;
 	esw->fdb_table.legacy.allmulti_grp = NULL;
 	esw->fdb_table.legacy.promisc_grp = NULL;
+	atomic64_set(&esw->user_count, 0);
 }
 
 static int esw_create_legacy_table(struct mlx5_eswitch *esw)
@@ -442,6 +443,7 @@ static int esw_create_legacy_table(struct mlx5_eswitch *esw)
 	int err;
 
 	memset(&esw->fdb_table.legacy, 0, sizeof(struct legacy_fdb));
+	atomic64_set(&esw->user_count, 0);
 
 	err = esw_create_legacy_vepa_table(esw);
 	if (err)
@@ -1720,7 +1722,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 	if (!ESW_ALLOWED(esw))
 		return 0;
 
-	mutex_lock(&esw->mode_lock);
+	down_write(&esw->mode_lock);
 	if (esw->mode == MLX5_ESWITCH_NONE) {
 		ret = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_LEGACY, num_vfs);
 	} else {
@@ -1732,7 +1734,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 		if (!ret)
 			esw->esw_funcs.num_vfs = num_vfs;
 	}
-	mutex_unlock(&esw->mode_lock);
+	up_write(&esw->mode_lock);
 	return ret;
 }
 
@@ -1780,10 +1782,10 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw, bool clear_vf)
 	if (!ESW_ALLOWED(esw))
 		return;
 
-	mutex_lock(&esw->mode_lock);
+	down_write(&esw->mode_lock);
 	mlx5_eswitch_disable_locked(esw, clear_vf);
 	esw->esw_funcs.num_vfs = 0;
-	mutex_unlock(&esw->mode_lock);
+	up_write(&esw->mode_lock);
 }
 
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
@@ -1840,7 +1842,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	ida_init(&esw->offloads.vport_metadata_ida);
 	xa_init_flags(&esw->offloads.vhca_map, XA_FLAGS_ALLOC);
 	mutex_init(&esw->state_lock);
-	mutex_init(&esw->mode_lock);
+	init_rwsem(&esw->mode_lock);
 
 	mlx5_esw_for_all_vports(esw, i, vport) {
 		vport->vport = mlx5_eswitch_index_to_vport_num(esw, i);
@@ -1876,7 +1878,6 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	esw_offloads_cleanup_reps(esw);
-	mutex_destroy(&esw->mode_lock);
 	mutex_destroy(&esw->state_lock);
 	WARN_ON(!xa_empty(&esw->offloads.vhca_map));
 	xa_destroy(&esw->offloads.vhca_map);
@@ -2040,6 +2041,10 @@ int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
 		vport = 0;
 	}
 	mutex_lock(&esw->state_lock);
+	if (esw->mode != MLX5_ESWITCH_LEGACY) {
+		err = -EOPNOTSUPP;
+		goto unlock;
+	}
 
 	err = mlx5_modify_vport_admin_state(esw->dev, opmod, vport, other_vport, link_state);
 	if (err) {
@@ -2111,7 +2116,7 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				u16 vport, u16 vlan, u8 qos)
 {
 	u8 set_flags = 0;
-	int err;
+	int err = 0;
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
@@ -2120,9 +2125,18 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 		set_flags = SET_VLAN_STRIP | SET_VLAN_INSERT;
 
 	mutex_lock(&esw->state_lock);
-	err = __mlx5_eswitch_set_vport_vlan(esw, vport, vlan, qos, set_flags);
-	mutex_unlock(&esw->state_lock);
+	if (esw->mode != MLX5_ESWITCH_LEGACY) {
+		if (!vlan)
+			goto unlock; /* compatibility with libvirt */
 
+		err = -EOPNOTSUPP;
+		goto unlock;
+	}
+
+	err = __mlx5_eswitch_set_vport_vlan(esw, vport, vlan, qos, set_flags);
+
+unlock:
+	mutex_unlock(&esw->state_lock);
 	return err;
 }
 
@@ -2139,6 +2153,10 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 		return PTR_ERR(evport);
 
 	mutex_lock(&esw->state_lock);
+	if (esw->mode != MLX5_ESWITCH_LEGACY) {
+		err = -EOPNOTSUPP;
+		goto unlock;
+	}
 	pschk = evport->info.spoofchk;
 	evport->info.spoofchk = spoofchk;
 	if (pschk && !is_valid_ether_addr(evport->info.mac))
@@ -2149,8 +2167,9 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 		err = esw_acl_ingress_lgcy_setup(esw, evport);
 	if (err)
 		evport->info.spoofchk = pschk;
-	mutex_unlock(&esw->state_lock);
 
+unlock:
+	mutex_unlock(&esw->state_lock);
 	return err;
 }
 
@@ -2271,6 +2290,7 @@ int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 				 u16 vport, bool setting)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
+	int err = 0;
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
@@ -2278,12 +2298,17 @@ int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 		return PTR_ERR(evport);
 
 	mutex_lock(&esw->state_lock);
+	if (esw->mode != MLX5_ESWITCH_LEGACY) {
+		err = -EOPNOTSUPP;
+		goto unlock;
+	}
 	evport->info.trusted = setting;
 	if (evport->enabled)
 		esw_vport_change_handle_locked(evport);
-	mutex_unlock(&esw->state_lock);
 
-	return 0;
+unlock:
+	mutex_unlock(&esw->state_lock);
+	return err;
 }
 
 static u32 calculate_vports_min_rate_divider(struct mlx5_eswitch *esw)
@@ -2557,4 +2582,95 @@ int mlx5_esw_event_notifier_register(struct mlx5_eswitch *esw, struct notifier_b
 void mlx5_esw_event_notifier_unregister(struct mlx5_eswitch *esw, struct notifier_block *nb)
 {
 	blocking_notifier_chain_unregister(&esw->n_head, nb);
+}
+
+/**
+ * mlx5_esw_hold() - Try to take a read lock on esw mode lock.
+ * @mdev: mlx5 core device.
+ *
+ * Should be called by esw resources callers.
+ *
+ * Return: true on success or false.
+ */
+bool mlx5_esw_hold(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+
+	/* e.g. VF doesn't have eswitch so nothing to do */
+	if (!ESW_ALLOWED(esw))
+		return true;
+
+	if (down_read_trylock(&esw->mode_lock) != 0)
+		return true;
+
+	return false;
+}
+
+/**
+ * mlx5_esw_release() - Release a read lock on esw mode lock.
+ * @mdev: mlx5 core device.
+ */
+void mlx5_esw_release(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+
+	if (ESW_ALLOWED(esw))
+		up_read(&esw->mode_lock);
+}
+
+/**
+ * mlx5_esw_get() - Increase esw user count.
+ * @mdev: mlx5 core device.
+ */
+void mlx5_esw_get(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+
+	if (ESW_ALLOWED(esw))
+		atomic64_inc(&esw->user_count);
+}
+
+/**
+ * mlx5_esw_put() - Decrease esw user count.
+ * @mdev: mlx5 core device.
+ */
+void mlx5_esw_put(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+
+	if (ESW_ALLOWED(esw))
+		atomic64_dec_if_positive(&esw->user_count);
+}
+
+/**
+ * mlx5_esw_try_lock() - Take a write lock on esw mode lock.
+ * @esw: eswitch device.
+ *
+ * Should be called by esw mode change routine.
+ *
+ * Return:
+ * * 0       - esw mode if successfully locked and refcount is 0.
+ * * -EBUSY  - refcount is not 0.
+ * * -EINVAL - In the middle of switching mode or lock is already held.
+ */
+int mlx5_esw_try_lock(struct mlx5_eswitch *esw)
+{
+	if (down_write_trylock(&esw->mode_lock) == 0)
+		return -EINVAL;
+
+	if (atomic64_read(&esw->user_count) > 0) {
+		up_write(&esw->mode_lock);
+		return -EBUSY;
+	}
+
+	return esw->mode;
+}
+
+/**
+ * mlx5_esw_unlock() - Release write lock on esw mode lock
+ * @esw: eswitch device.
+ */
+void mlx5_esw_unlock(struct mlx5_eswitch *esw)
+{
+	up_write(&esw->mode_lock);
 }

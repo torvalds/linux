@@ -4323,6 +4323,11 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow *flow;
 	int err = 0;
 
+	if (!mlx5_esw_hold(priv->mdev))
+		return -EAGAIN;
+
+	mlx5_esw_get(priv->mdev);
+
 	rcu_read_lock();
 	flow = rhashtable_lookup(tc_ht, &f->cookie, tc_ht_params);
 	if (flow) {
@@ -4360,11 +4365,14 @@ rcu_unlock:
 	if (err)
 		goto err_free;
 
+	mlx5_esw_release(priv->mdev);
 	return 0;
 
 err_free:
 	mlx5e_flow_put(priv, flow);
 out:
+	mlx5_esw_put(priv->mdev);
+	mlx5_esw_release(priv->mdev);
 	return err;
 }
 
@@ -4404,6 +4412,7 @@ int mlx5e_delete_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	trace_mlx5e_delete_flower(f);
 	mlx5e_flow_put(priv, flow);
 
+	mlx5_esw_put(priv->mdev);
 	return 0;
 
 errout:
@@ -4892,8 +4901,16 @@ static int mlx5e_setup_tc_cls_flower(struct mlx5e_priv *priv,
 int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 			    void *cb_priv)
 {
-	unsigned long flags = MLX5_TC_FLAG(INGRESS) | MLX5_TC_FLAG(NIC_OFFLOAD);
+	unsigned long flags = MLX5_TC_FLAG(INGRESS);
 	struct mlx5e_priv *priv = cb_priv;
+
+	if (!priv->netdev || !netif_device_present(priv->netdev))
+		return -EOPNOTSUPP;
+
+	if (mlx5e_is_uplink_rep(priv))
+		flags |= MLX5_TC_FLAG(ESW_OFFLOAD);
+	else
+		flags |= MLX5_TC_FLAG(NIC_OFFLOAD);
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:

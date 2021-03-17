@@ -169,6 +169,9 @@ static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 	unsigned long flags = MLX5_TC_FLAG(INGRESS) | MLX5_TC_FLAG(ESW_OFFLOAD);
 	struct mlx5e_priv *priv = cb_priv;
 
+	if (!priv->netdev || !netif_device_present(priv->netdev))
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return mlx5e_rep_setup_tc_cls_flower(priv, type_data, flags);
@@ -320,6 +323,9 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(indr_priv->rpriv->netdev);
 	int err = 0;
+
+	if (!netif_device_present(indr_priv->rpriv->netdev))
+		return -EOPNOTSUPP;
 
 	switch (flower->command) {
 	case FLOW_CLS_REPLACE:
