@@ -679,7 +679,7 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	if (chip->swnode) {
 		status = device_add_software_node(&proxy->dev, chip->swnode);
 		if (status) {
-			dev_err(&ctlr->dev, "failed to add softwade node to '%s': %d\n",
+			dev_err(&ctlr->dev, "failed to add software node to '%s': %d\n",
 				chip->modalias, status);
 			goto err_dev_put;
 		}
