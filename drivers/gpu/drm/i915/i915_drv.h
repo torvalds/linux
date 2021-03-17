@@ -613,6 +613,9 @@ enum psr_lines_to_wait {
 };
 
 struct intel_vbt_data {
+	/* bdb version */
+	u16 version;
+
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 

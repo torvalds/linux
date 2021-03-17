@@ -597,7 +597,7 @@ child_device_ptr(const struct bdb_general_definitions *defs, int i)
 }
 
 static void
-parse_sdvo_device_mapping(struct drm_i915_private *i915, u8 bdb_version)
+parse_sdvo_device_mapping(struct drm_i915_private *i915)
 {
 	struct sdvo_device_mapping *mapping;
 	const struct display_device_data *devdata;
@@ -1798,8 +1798,7 @@ static int parse_bdb_216_dp_max_link_rate(const int vbt_max_link_rate)
 }
 
 static void parse_ddi_port(struct drm_i915_private *i915,
-			   struct display_device_data *devdata,
-			   u8 bdb_version)
+			   struct display_device_data *devdata)
 {
 	const struct child_device_config *child = &devdata->child;
 	struct ddi_vbt_port_info *info;
@@ -1838,10 +1837,10 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	info->supports_dp = is_dp;
 	info->supports_edp = is_edp;
 
-	if (bdb_version >= 195)
+	if (i915->vbt.version >= 195)
 		info->supports_typec_usb = child->dp_usb_type_c;
 
-	if (bdb_version >= 209)
+	if (i915->vbt.version >= 209)
 		info->supports_tbt = child->tbt;
 
 	drm_dbg_kms(&i915->drm,
@@ -1872,7 +1871,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 		sanitize_aux_ch(i915, port);
 	}
 
-	if (bdb_version >= 158) {
+	if (i915->vbt.version >= 158) {
 		/* The VBT HDMI level shift values match the table we have. */
 		u8 hdmi_level_shift = child->hdmi_level_shifter_value;
 		drm_dbg_kms(&i915->drm,
@@ -1883,7 +1882,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 		info->hdmi_level_shift_set = true;
 	}
 
-	if (bdb_version >= 204) {
+	if (i915->vbt.version >= 204) {
 		int max_tmds_clock;
 
 		switch (child->hdmi_max_data_rate) {
@@ -1909,7 +1908,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	}
 
 	/* Parse the I_boost config for SKL and above */
-	if (bdb_version >= 196 && child->iboost) {
+	if (i915->vbt.version >= 196 && child->iboost) {
 		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
 		drm_dbg_kms(&i915->drm,
 			    "Port %c VBT (e)DP boost level: %d\n",
@@ -1921,8 +1920,8 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	}
 
 	/* DP max link rate for CNL+ */
-	if (bdb_version >= 216) {
-		if (bdb_version >= 230)
+	if (i915->vbt.version >= 216) {
+		if (i915->vbt.version >= 230)
 			info->dp_max_link_rate = parse_bdb_230_dp_max_link_rate(child->dp_max_link_rate);
 		else
 			info->dp_max_link_rate = parse_bdb_216_dp_max_link_rate(child->dp_max_link_rate);
@@ -1935,18 +1934,18 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	info->child = child;
 }
 
-static void parse_ddi_ports(struct drm_i915_private *i915, u8 bdb_version)
+static void parse_ddi_ports(struct drm_i915_private *i915)
 {
 	struct display_device_data *devdata;
 
 	if (!HAS_DDI(i915) && !IS_CHERRYVIEW(i915))
 		return;
 
-	if (bdb_version < 155)
+	if (i915->vbt.version < 155)
 		return;
 
 	list_for_each_entry(devdata, &i915->vbt.display_devices, node)
-		parse_ddi_port(i915, devdata, bdb_version);
+		parse_ddi_port(i915, devdata);
 }
 
 static void
@@ -2257,6 +2256,7 @@ void intel_bios_init(struct drm_i915_private *i915)
 	}
 
 	bdb = get_bdb_header(vbt);
+	i915->vbt.version = bdb->version;
 
 	drm_dbg_kms(&i915->drm,
 		    "VBT signature \"%.*s\", BDB version %d\n",
@@ -2280,8 +2280,8 @@ void intel_bios_init(struct drm_i915_private *i915)
 	parse_compression_parameters(i915, bdb);
 
 	/* Further processing on pre-parsed data */
-	parse_sdvo_device_mapping(i915, bdb->version);
-	parse_ddi_ports(i915, bdb->version);
+	parse_sdvo_device_mapping(i915);
+	parse_ddi_ports(i915);
 
 out:
 	if (!vbt) {
