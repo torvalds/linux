@@ -197,7 +197,7 @@ static void sci_remote_node_context_setup_to_destroy(
 	wake_up(&ihost->eventq);
 }
 
-/**
+/*
  * This method just calls the user callback function and then resets the
  * callback.
  */
