@@ -817,7 +817,7 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
-	enum NDIS_802_11_NETWORK_INFRASTRUCTURE networkType;
+	enum ndis_802_11_network_infrastructure networkType;
 	int ret = 0;
 
 	if (_FAIL == rtw_pwr_wakeup(padapter)) {
@@ -1103,7 +1103,7 @@ static int rtw_wx_set_wap(struct net_device *dev,
 	u8 *dst_bssid, *src_bssid;
 	struct __queue	*queue	= &(pmlmepriv->scanned_queue);
 	struct	wlan_network	*pnetwork = NULL;
-	enum NDIS_802_11_AUTHENTICATION_MODE	authmode;
+	enum ndis_802_11_authentication_mode	authmode;
 
 	rtw_ps_deny(padapter, PS_DENY_JOIN);
 	if (_FAIL == rtw_pwr_wakeup(padapter)) {
@@ -1469,7 +1469,7 @@ static int rtw_wx_set_essid(struct net_device *dev,
 	struct __queue *queue = &pmlmepriv->scanned_queue;
 	struct list_head *phead;
 	struct wlan_network *pnetwork = NULL;
-	enum NDIS_802_11_AUTHENTICATION_MODE authmode;
+	enum ndis_802_11_authentication_mode authmode;
 	struct ndis_802_11_ssid ndis_ssid;
 	u8 *dst_ssid, *src_ssid;
 
@@ -1807,7 +1807,7 @@ static int rtw_wx_set_enc(struct net_device *dev,
 	u32 key, ret = 0;
 	u32 keyindex_provided;
 	struct ndis_802_11_wep	 wep;
-	enum NDIS_802_11_AUTHENTICATION_MODE authmode;
+	enum ndis_802_11_authentication_mode authmode;
 
 	struct iw_point *erq = &(wrqu->encoding);
 	struct adapter *padapter = rtw_netdev_priv(dev);

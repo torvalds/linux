@@ -24,7 +24,7 @@ struct ndis_802_11_ssid {
 	u8  Ssid[32];
 };
 
-enum NDIS_802_11_NETWORK_TYPE {
+enum ndis_802_11_network_type {
 	Ndis802_11FH,
 	Ndis802_11DS,
 	Ndis802_11OFDM5,
@@ -51,7 +51,7 @@ struct ndis_802_11_conf {
 	struct ndis_802_11_conf_fh    FHConfig;
 };
 
-enum NDIS_802_11_NETWORK_INFRASTRUCTURE {
+enum ndis_802_11_network_infrastructure {
 	Ndis802_11IBSS,
 	Ndis802_11Infrastructure,
 	Ndis802_11AutoUnknown,
@@ -74,13 +74,13 @@ struct ndis_80211_var_ie {
 /* Length is the 4 bytes multiples of the sum of
  * sizeof (NDIS_802_11_MAC_ADDRESS) + 2 +
  * sizeof (struct ndis_802_11_ssid) + sizeof (u32) +
- * sizeof (long) + sizeof (enum NDIS_802_11_NETWORK_TYPE) +
+ * sizeof (long) + sizeof (enum ndis_802_11_network_type) +
  * sizeof (struct ndis_802_11_conf) + sizeof (NDIS_802_11_RATES_EX) + IELength
  *
  * Except for IELength, all other fields are fixed length. Therefore, we can
  * define a macro to present the partial sum.
  */
-enum NDIS_802_11_AUTHENTICATION_MODE {
+enum ndis_802_11_authentication_mode {
 	Ndis802_11AuthModeOpen,
 	Ndis802_11AuthModeShared,
 	Ndis802_11AuthModeAutoSwitch,
@@ -91,7 +91,7 @@ enum NDIS_802_11_AUTHENTICATION_MODE {
 	Ndis802_11AuthModeMax   /*  Not a real mode, defined as upper bound */
 };
 
-enum NDIS_802_11_WEP_STATUS {
+enum ndis_802_11_wep_status {
 	Ndis802_11WEPEnabled,
 	Ndis802_11Encryption1Enabled = Ndis802_11WEPEnabled,
 	Ndis802_11WEPDisabled,
@@ -127,7 +127,7 @@ struct ndis_801_11_ai_resfi {
 	u16 AssociationId;
 };
 
-struct NDIS_802_11_ASSOCIATION_INFORMATION {
+struct ndis_802_11_association_information {
 	u32                   Length;
 	u16                  AvailableRequestFixedIEs;
 	struct ndis_802_11_ai_reqfi    RequestFixedIEs;
@@ -139,13 +139,13 @@ struct NDIS_802_11_ASSOCIATION_INFORMATION {
 	u32                   OffsetResponseIEs;
 };
 
-enum NDIS_802_11_RELOAD_DEFAULTS {
+enum ndis_802_11_reload_defaults {
 	Ndis802_11ReloadWEPKeys
 };
 
 
 /*  Key mapping keys require a BSSID */
-struct NDIS_802_11_KEY {
+struct ndis_802_11_key {
 	u32           Length;             /*  Length of this structure */
 	u32           KeyIndex;
 	u32           KeyLength;          /*  length of key in bytes */
@@ -154,7 +154,7 @@ struct NDIS_802_11_KEY {
 	u8           KeyMaterial[32];     /*  variable length depending on above field */
 };
 
-struct NDIS_802_11_REMOVE_KEY {
+struct ndis_802_11_remove_key {
 	u32                   Length;        /*  Length of this structure */
 	u32                   KeyIndex;
 	NDIS_802_11_MAC_ADDRESS BSSID;
@@ -211,9 +211,9 @@ struct wlan_bssid_ex {
 	struct ndis_802_11_ssid  Ssid;
 	u32  Privacy;
 	long  Rssi;/* in dBM, raw data , get from PHY) */
-	enum NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
+	enum ndis_802_11_network_type  NetworkTypeInUse;
 	struct ndis_802_11_conf  Configuration;
-	enum NDIS_802_11_NETWORK_INFRASTRUCTURE  InfrastructureMode;
+	enum ndis_802_11_network_infrastructure  InfrastructureMode;
 	NDIS_802_11_RATES_EX  SupportedRates;
 	struct wlan_phy_info PhyInfo;
 	u32  IELength;
@@ -236,13 +236,13 @@ struct	wlan_network {
 	struct wlan_bcn_info	BcnInfo;
 };
 
-enum VRTL_CARRIER_SENSE {
+enum vrtl_carrier_sense {
 	DISABLE_VCS,
 	ENABLE_VCS,
 	AUTO_VCS
 };
 
-enum VCS_TYPE {
+enum vcs_type {
 	NONE_VCS,
 	RTS_CTS,
 	CTS_TO_SELF
@@ -254,7 +254,7 @@ enum VCS_TYPE {
 #define PWR_UAPSD 3
 #define PWR_VOIP 4
 
-enum UAPSD_MAX_SP {
+enum uapsd_max_sp {
 	NO_LIMIT,
 	TWO_MSDU,
 	FOUR_MSDU,
