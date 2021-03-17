@@ -832,7 +832,7 @@ static __poll_t tipc_poll(struct file *file, struct socket *sock,
 /**
  * tipc_sendmcast - send multicast message
  * @sock: socket structure
- * @seq: destination address
+ * @ua: destination address struct
  * @msg: message to send
  * @dlen: length of data to send
  * @timeout: timeout to wait for wakeup
@@ -840,7 +840,7 @@ static __poll_t tipc_poll(struct file *file, struct socket *sock,
  * Called from function tipc_sendmsg(), which has done all sanity checks
  * Return: the number of bytes sent on success, or errno
  */
-static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
+static int tipc_sendmcast(struct  socket *sock, struct tipc_uaddr *ua,
 			  struct msghdr *msg, size_t dlen, long timeout)
 {
 	struct sock *sk = sock->sk;
@@ -848,7 +848,6 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct net *net = sock_net(sk);
 	int mtu = tipc_bcast_get_mtu(net);
-	struct tipc_mc_method *method = &tsk->mc_method;
 	struct sk_buff_head pkts;
 	struct tipc_nlist dsts;
 	int rc;
@@ -863,8 +862,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
 
 	/* Lookup destination nodes */
 	tipc_nlist_init(&dsts, tipc_own_addr(net));
-	tipc_nametbl_lookup_mcast_nodes(net, seq->type, seq->lower,
-					seq->upper, &dsts);
+	tipc_nametbl_lookup_mcast_nodes(net, ua, &dsts);
 	if (!dsts.local && !dsts.remote)
 		return -EHOSTUNREACH;
 
@@ -874,9 +872,9 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
 	msg_set_lookup_scope(hdr, TIPC_CLUSTER_SCOPE);
 	msg_set_destport(hdr, 0);
 	msg_set_destnode(hdr, 0);
-	msg_set_nametype(hdr, seq->type);
-	msg_set_namelower(hdr, seq->lower);
-	msg_set_nameupper(hdr, seq->upper);
+	msg_set_nametype(hdr, ua->sr.type);
+	msg_set_namelower(hdr, ua->sr.lower);
+	msg_set_nameupper(hdr, ua->sr.upper);
 
 	/* Build message as chain of buffers */
 	__skb_queue_head_init(&pkts);
@@ -886,7 +884,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
 	if (unlikely(rc == dlen)) {
 		trace_tipc_sk_sendmcast(sk, skb_peek(&pkts),
 					TIPC_DUMP_SK_SNDQ, " ");
-		rc = tipc_mcast_xmit(net, &pkts, method, &dsts,
+		rc = tipc_mcast_xmit(net, &pkts, &tsk->mc_method, &dsts,
 				     &tsk->cong_link_cnt);
 	}
 
@@ -1479,7 +1477,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 
 	/* Determine destination */
 	if (atype == TIPC_SERVICE_RANGE) {
-		return tipc_sendmcast(sock, &ua->sr, m, dlen, timeout);
+		return tipc_sendmcast(sock, ua, m, dlen, timeout);
 	} else if (atype == TIPC_SERVICE_ADDR) {
 		skaddr.node = ua->lookup_node;
 		ua->scope = tipc_node2scope(skaddr.node);

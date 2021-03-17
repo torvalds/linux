@@ -698,20 +698,20 @@ exit:
  * Used on nodes which are sending out a multicast/broadcast message
  * Returns a list of nodes, including own node if applicable
  */
-void tipc_nametbl_lookup_mcast_nodes(struct net *net, u32 type, u32 lower,
-				     u32 upper, struct tipc_nlist *nodes)
+void tipc_nametbl_lookup_mcast_nodes(struct net *net, struct tipc_uaddr *ua,
+				     struct tipc_nlist *nodes)
 {
 	struct service_range *sr;
 	struct tipc_service *sc;
 	struct publication *p;
 
 	rcu_read_lock();
-	sc = tipc_service_find(net, type);
+	sc = tipc_service_find(net, ua->sr.type);
 	if (!sc)
 		goto exit;
 
 	spin_lock_bh(&sc->lock);
-	service_range_foreach_match(sr, sc, lower, upper) {
+	service_range_foreach_match(sr, sc, ua->sr.lower, ua->sr.upper) {
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
 			tipc_nlist_add(nodes, p->sk.node);
 		}
