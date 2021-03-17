@@ -72,6 +72,7 @@ Documentation for filesystem implementations.
    befs
    bfs
    btrfs
+   cifs/cifsd
    cifs/cifsroot
    ceph
    coda
