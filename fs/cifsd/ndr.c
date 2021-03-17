@@ -325,7 +325,7 @@ int ndr_decode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 
 	ndr_read_bytes(n, acl->desc, 10);
 	if (strncmp(acl->desc, "posix_acl", 9)) {
-		ksmbd_err("Invalid acl desciption : %s\n", acl->desc);
+		ksmbd_err("Invalid acl description : %s\n", acl->desc);
 		return -EINVAL;
 	}
 
