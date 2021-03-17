@@ -34,19 +34,17 @@ static int nf_flow_state_check(struct flow_offload *flow, int proto,
 	return 0;
 }
 
-static int nf_flow_nat_ip_tcp(struct sk_buff *skb, unsigned int thoff,
-			      __be32 addr, __be32 new_addr)
+static void nf_flow_nat_ip_tcp(struct sk_buff *skb, unsigned int thoff,
+			       __be32 addr, __be32 new_addr)
 {
 	struct tcphdr *tcph;
 
 	tcph = (void *)(skb_network_header(skb) + thoff);
 	inet_proto_csum_replace4(&tcph->check, skb, addr, new_addr, true);
-
-	return 0;
 }
 
-static int nf_flow_nat_ip_udp(struct sk_buff *skb, unsigned int thoff,
-			      __be32 addr, __be32 new_addr)
+static void nf_flow_nat_ip_udp(struct sk_buff *skb, unsigned int thoff,
+			       __be32 addr, __be32 new_addr)
 {
 	struct udphdr *udph;
 
@@ -57,31 +55,25 @@ static int nf_flow_nat_ip_udp(struct sk_buff *skb, unsigned int thoff,
 		if (!udph->check)
 			udph->check = CSUM_MANGLED_0;
 	}
-
-	return 0;
 }
 
-static int nf_flow_nat_ip_l4proto(struct sk_buff *skb, struct iphdr *iph,
-				  unsigned int thoff, __be32 addr,
-				  __be32 new_addr)
+static void nf_flow_nat_ip_l4proto(struct sk_buff *skb, struct iphdr *iph,
+				   unsigned int thoff, __be32 addr,
+				   __be32 new_addr)
 {
 	switch (iph->protocol) {
 	case IPPROTO_TCP:
-		if (nf_flow_nat_ip_tcp(skb, thoff, addr, new_addr) < 0)
-			return NF_DROP;
+		nf_flow_nat_ip_tcp(skb, thoff, addr, new_addr);
 		break;
 	case IPPROTO_UDP:
-		if (nf_flow_nat_ip_udp(skb, thoff, addr, new_addr) < 0)
-			return NF_DROP;
+		nf_flow_nat_ip_udp(skb, thoff, addr, new_addr);
 		break;
 	}
-
-	return 0;
 }
 
-static int nf_flow_snat_ip(const struct flow_offload *flow, struct sk_buff *skb,
-			   struct iphdr *iph, unsigned int thoff,
-			   enum flow_offload_tuple_dir dir)
+static void nf_flow_snat_ip(const struct flow_offload *flow,
+			    struct sk_buff *skb, struct iphdr *iph,
+			    unsigned int thoff, enum flow_offload_tuple_dir dir)
 {
 	__be32 addr, new_addr;
 
@@ -99,12 +91,12 @@ static int nf_flow_snat_ip(const struct flow_offload *flow, struct sk_buff *skb,
 	}
 	csum_replace4(&iph->check, addr, new_addr);
 
-	return nf_flow_nat_ip_l4proto(skb, iph, thoff, addr, new_addr);
+	nf_flow_nat_ip_l4proto(skb, iph, thoff, addr, new_addr);
 }
 
-static int nf_flow_dnat_ip(const struct flow_offload *flow, struct sk_buff *skb,
-			   struct iphdr *iph, unsigned int thoff,
-			   enum flow_offload_tuple_dir dir)
+static void nf_flow_dnat_ip(const struct flow_offload *flow,
+			    struct sk_buff *skb, struct iphdr *iph,
+			    unsigned int thoff, enum flow_offload_tuple_dir dir)
 {
 	__be32 addr, new_addr;
 
@@ -122,24 +114,21 @@ static int nf_flow_dnat_ip(const struct flow_offload *flow, struct sk_buff *skb,
 	}
 	csum_replace4(&iph->check, addr, new_addr);
 
-	return nf_flow_nat_ip_l4proto(skb, iph, thoff, addr, new_addr);
+	nf_flow_nat_ip_l4proto(skb, iph, thoff, addr, new_addr);
 }
 
-static int nf_flow_nat_ip(const struct flow_offload *flow, struct sk_buff *skb,
+static void nf_flow_nat_ip(const struct flow_offload *flow, struct sk_buff *skb,
 			  unsigned int thoff, enum flow_offload_tuple_dir dir,
 			  struct iphdr *iph)
 {
-	if (test_bit(NF_FLOW_SNAT, &flow->flags) &&
-	    (nf_flow_snat_port(flow, skb, thoff, iph->protocol, dir) < 0 ||
-	     nf_flow_snat_ip(flow, skb, iph, thoff, dir) < 0))
-		return -1;
-
-	if (test_bit(NF_FLOW_DNAT, &flow->flags) &&
-	    (nf_flow_dnat_port(flow, skb, thoff, iph->protocol, dir) < 0 ||
-	     nf_flow_dnat_ip(flow, skb, iph, thoff, dir) < 0))
-		return -1;
-
-	return 0;
+	if (test_bit(NF_FLOW_SNAT, &flow->flags)) {
+		nf_flow_snat_port(flow, skb, thoff, iph->protocol, dir);
+		nf_flow_snat_ip(flow, skb, iph, thoff, dir);
+	}
+	if (test_bit(NF_FLOW_DNAT, &flow->flags)) {
+		nf_flow_dnat_port(flow, skb, thoff, iph->protocol, dir);
+		nf_flow_dnat_ip(flow, skb, iph, thoff, dir);
+	}
 }
 
 static bool ip_has_options(unsigned int thoff)
@@ -276,8 +265,7 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 		return NF_DROP;
 
 	iph = ip_hdr(skb);
-	if (nf_flow_nat_ip(flow, skb, thoff, dir, iph) < 0)
-		return NF_DROP;
+	nf_flow_nat_ip(flow, skb, thoff, dir, iph);
 
 	ip_decrease_ttl(iph);
 	skb->tstamp = 0;
@@ -301,22 +289,21 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(nf_flow_offload_ip_hook);
 
-static int nf_flow_nat_ipv6_tcp(struct sk_buff *skb, unsigned int thoff,
-				struct in6_addr *addr,
-				struct in6_addr *new_addr)
+static void nf_flow_nat_ipv6_tcp(struct sk_buff *skb, unsigned int thoff,
+				 struct in6_addr *addr,
+				 struct in6_addr *new_addr,
+				 struct ipv6hdr *ip6h)
 {
 	struct tcphdr *tcph;
 
 	tcph = (void *)(skb_network_header(skb) + thoff);
 	inet_proto_csum_replace16(&tcph->check, skb, addr->s6_addr32,
 				  new_addr->s6_addr32, true);
-
-	return 0;
 }
 
-static int nf_flow_nat_ipv6_udp(struct sk_buff *skb, unsigned int thoff,
-				struct in6_addr *addr,
-				struct in6_addr *new_addr)
+static void nf_flow_nat_ipv6_udp(struct sk_buff *skb, unsigned int thoff,
+				 struct in6_addr *addr,
+				 struct in6_addr *new_addr)
 {
 	struct udphdr *udph;
 
@@ -327,32 +314,26 @@ static int nf_flow_nat_ipv6_udp(struct sk_buff *skb, unsigned int thoff,
 		if (!udph->check)
 			udph->check = CSUM_MANGLED_0;
 	}
-
-	return 0;
 }
 
-static int nf_flow_nat_ipv6_l4proto(struct sk_buff *skb, struct ipv6hdr *ip6h,
-				    unsigned int thoff, struct in6_addr *addr,
-				    struct in6_addr *new_addr)
+static void nf_flow_nat_ipv6_l4proto(struct sk_buff *skb, struct ipv6hdr *ip6h,
+				     unsigned int thoff, struct in6_addr *addr,
+				     struct in6_addr *new_addr)
 {
 	switch (ip6h->nexthdr) {
 	case IPPROTO_TCP:
-		if (nf_flow_nat_ipv6_tcp(skb, thoff, addr, new_addr) < 0)
-			return NF_DROP;
+		nf_flow_nat_ipv6_tcp(skb, thoff, addr, new_addr, ip6h);
 		break;
 	case IPPROTO_UDP:
-		if (nf_flow_nat_ipv6_udp(skb, thoff, addr, new_addr) < 0)
-			return NF_DROP;
+		nf_flow_nat_ipv6_udp(skb, thoff, addr, new_addr);
 		break;
 	}
-
-	return 0;
 }
 
-static int nf_flow_snat_ipv6(const struct flow_offload *flow,
-			     struct sk_buff *skb, struct ipv6hdr *ip6h,
-			     unsigned int thoff,
-			     enum flow_offload_tuple_dir dir)
+static void nf_flow_snat_ipv6(const struct flow_offload *flow,
+			      struct sk_buff *skb, struct ipv6hdr *ip6h,
+			      unsigned int thoff,
+			      enum flow_offload_tuple_dir dir)
 {
 	struct in6_addr addr, new_addr;
 
@@ -369,13 +350,13 @@ static int nf_flow_snat_ipv6(const struct flow_offload *flow,
 		break;
 	}
 
-	return nf_flow_nat_ipv6_l4proto(skb, ip6h, thoff, &addr, &new_addr);
+	nf_flow_nat_ipv6_l4proto(skb, ip6h, thoff, &addr, &new_addr);
 }
 
-static int nf_flow_dnat_ipv6(const struct flow_offload *flow,
-			     struct sk_buff *skb, struct ipv6hdr *ip6h,
-			     unsigned int thoff,
-			     enum flow_offload_tuple_dir dir)
+static void nf_flow_dnat_ipv6(const struct flow_offload *flow,
+			      struct sk_buff *skb, struct ipv6hdr *ip6h,
+			      unsigned int thoff,
+			      enum flow_offload_tuple_dir dir)
 {
 	struct in6_addr addr, new_addr;
 
@@ -392,27 +373,24 @@ static int nf_flow_dnat_ipv6(const struct flow_offload *flow,
 		break;
 	}
 
-	return nf_flow_nat_ipv6_l4proto(skb, ip6h, thoff, &addr, &new_addr);
+	nf_flow_nat_ipv6_l4proto(skb, ip6h, thoff, &addr, &new_addr);
 }
 
-static int nf_flow_nat_ipv6(const struct flow_offload *flow,
-			    struct sk_buff *skb,
-			    enum flow_offload_tuple_dir dir,
-			    struct ipv6hdr *ip6h)
+static void nf_flow_nat_ipv6(const struct flow_offload *flow,
+			     struct sk_buff *skb,
+			     enum flow_offload_tuple_dir dir,
+			     struct ipv6hdr *ip6h)
 {
 	unsigned int thoff = sizeof(*ip6h);
 
-	if (test_bit(NF_FLOW_SNAT, &flow->flags) &&
-	    (nf_flow_snat_port(flow, skb, thoff, ip6h->nexthdr, dir) < 0 ||
-	     nf_flow_snat_ipv6(flow, skb, ip6h, thoff, dir) < 0))
-		return -1;
-
-	if (test_bit(NF_FLOW_DNAT, &flow->flags) &&
-	    (nf_flow_dnat_port(flow, skb, thoff, ip6h->nexthdr, dir) < 0 ||
-	     nf_flow_dnat_ipv6(flow, skb, ip6h, thoff, dir) < 0))
-		return -1;
-
-	return 0;
+	if (test_bit(NF_FLOW_SNAT, &flow->flags)) {
+		nf_flow_snat_port(flow, skb, thoff, ip6h->nexthdr, dir);
+		nf_flow_snat_ipv6(flow, skb, ip6h, thoff, dir);
+	}
+	if (test_bit(NF_FLOW_DNAT, &flow->flags)) {
+		nf_flow_dnat_port(flow, skb, thoff, ip6h->nexthdr, dir);
+		nf_flow_dnat_ipv6(flow, skb, ip6h, thoff, dir);
+	}
 }
 
 static int nf_flow_tuple_ipv6(struct sk_buff *skb, const struct net_device *dev,
@@ -507,8 +485,7 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 		return NF_DROP;
 
 	ip6h = ipv6_hdr(skb);
-	if (nf_flow_nat_ipv6(flow, skb, dir, ip6h) < 0)
-		return NF_DROP;
+	nf_flow_nat_ipv6(flow, skb, dir, ip6h);
 
 	ip6h->hop_limit--;
 	skb->tstamp = 0;
