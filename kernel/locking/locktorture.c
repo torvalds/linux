@@ -374,15 +374,27 @@ static struct lock_torture_ops mutex_lock_ops = {
  */
 static DEFINE_WD_CLASS(torture_ww_class);
 static struct ww_mutex torture_ww_mutex_0, torture_ww_mutex_1, torture_ww_mutex_2;
+static struct ww_acquire_ctx *ww_acquire_ctxs;
 
 static void torture_ww_mutex_init(void)
 {
 	ww_mutex_init(&torture_ww_mutex_0, &torture_ww_class);
 	ww_mutex_init(&torture_ww_mutex_1, &torture_ww_class);
 	ww_mutex_init(&torture_ww_mutex_2, &torture_ww_class);
+
+	ww_acquire_ctxs = kmalloc_array(cxt.nrealwriters_stress,
+					sizeof(*ww_acquire_ctxs),
+					GFP_KERNEL);
+	if (!ww_acquire_ctxs)
+		VERBOSE_TOROUT_STRING("ww_acquire_ctx: Out of memory");
 }
 
-static int torture_ww_mutex_lock(int tid __maybe_unused)
+static void torture_ww_mutex_exit(void)
+{
+	kfree(ww_acquire_ctxs);
+}
+
+static int torture_ww_mutex_lock(int tid)
 __acquires(torture_ww_mutex_0)
 __acquires(torture_ww_mutex_1)
 __acquires(torture_ww_mutex_2)
@@ -392,7 +404,7 @@ __acquires(torture_ww_mutex_2)
 		struct list_head link;
 		struct ww_mutex *lock;
 	} locks[3], *ll, *ln;
-	struct ww_acquire_ctx ctx;
+	struct ww_acquire_ctx *ctx = &ww_acquire_ctxs[tid];
 
 	locks[0].lock = &torture_ww_mutex_0;
 	list_add(&locks[0].link, &list);
@@ -403,12 +415,12 @@ __acquires(torture_ww_mutex_2)
 	locks[2].lock = &torture_ww_mutex_2;
 	list_add(&locks[2].link, &list);
 
-	ww_acquire_init(&ctx, &torture_ww_class);
+	ww_acquire_init(ctx, &torture_ww_class);
 
 	list_for_each_entry(ll, &list, link) {
 		int err;
 
-		err = ww_mutex_lock(ll->lock, &ctx);
+		err = ww_mutex_lock(ll->lock, ctx);
 		if (!err)
 			continue;
 
@@ -419,26 +431,29 @@ __acquires(torture_ww_mutex_2)
 		if (err != -EDEADLK)
 			return err;
 
-		ww_mutex_lock_slow(ll->lock, &ctx);
+		ww_mutex_lock_slow(ll->lock, ctx);
 		list_move(&ll->link, &list);
 	}
 
-	ww_acquire_fini(&ctx);
 	return 0;
 }
 
-static void torture_ww_mutex_unlock(int tid __maybe_unused)
+static void torture_ww_mutex_unlock(int tid)
 __releases(torture_ww_mutex_0)
 __releases(torture_ww_mutex_1)
 __releases(torture_ww_mutex_2)
 {
+	struct ww_acquire_ctx *ctx = &ww_acquire_ctxs[tid];
+
 	ww_mutex_unlock(&torture_ww_mutex_0);
 	ww_mutex_unlock(&torture_ww_mutex_1);
 	ww_mutex_unlock(&torture_ww_mutex_2);
+	ww_acquire_fini(ctx);
 }
 
 static struct lock_torture_ops ww_mutex_lock_ops = {
 	.init		= torture_ww_mutex_init,
+	.exit		= torture_ww_mutex_exit,
 	.writelock	= torture_ww_mutex_lock,
 	.write_delay	= torture_mutex_delay,
 	.task_boost     = torture_boost_dummy,
@@ -924,15 +939,15 @@ static int __init lock_torture_init(void)
 		goto unwind;
 	}
 
-	if (cxt.cur_ops->init) {
-		cxt.cur_ops->init();
-		cxt.init_called = true;
-	}
-
 	if (nwriters_stress >= 0)
 		cxt.nrealwriters_stress = nwriters_stress;
 	else
 		cxt.nrealwriters_stress = 2 * num_online_cpus();
+
+	if (cxt.cur_ops->init) {
+		cxt.cur_ops->init();
+		cxt.init_called = true;
+	}
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	if (str_has_prefix(torture_type, "mutex"))
