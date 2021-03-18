@@ -1204,8 +1204,6 @@ static int rtw_wx_set_mlme(struct net_device *dev,
 	if (mlme == NULL)
 		return -1;
 
-	DBG_871X("%s\n", __func__);
-
 	reason = mlme->reason_code;
 
 	DBG_871X("%s, cmd =%d, reason =%d\n", __func__, mlme->cmd, reason);
@@ -1504,7 +1502,6 @@ static int rtw_wx_set_essid(struct net_device *dev,
 	}
 
 	authmode = padapter->securitypriv.ndisauthtype;
-	DBG_871X("=>%s\n", __func__);
 	if (wrqu->essid.flags && wrqu->essid.length) {
 		len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length : IW_ESSID_MAX_SIZE;
 
@@ -3347,8 +3344,6 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	struct security_priv *psecuritypriv = &(padapter->securitypriv);
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
-	DBG_871X("%s\n", __func__);
-
 	param->u.crypt.err = 0;
 	param->u.crypt.alg[IEEE_CRYPT_ALG_NAME_LEN - 1] = '\0';
 
@@ -3643,8 +3638,6 @@ static void rtw_hostapd_sta_flush(struct net_device *dev)
 	/* struct sta_info *psta = NULL; */
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	/* struct sta_priv *pstapriv = &padapter->stapriv; */
-
-	DBG_871X("%s\n", __func__);
 
 	flush_all_cam_entry(padapter);	/* clear CAM */
 
@@ -4099,8 +4092,6 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	struct ieee_param *param;
 	int ret = 0;
 	struct adapter *padapter = rtw_netdev_priv(dev);
-
-	/* DBG_871X("%s\n", __func__); */
 
 	/*
 	* this function is expect to call in master mode, which allows no power saving
