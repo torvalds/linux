@@ -2159,7 +2159,7 @@ static cpumask_var_t			*doms_cur;
 /* Number of sched domains in 'doms_cur': */
 static int				ndoms_cur;
 
-/* Attribues of custom domains in 'doms_cur' */
+/* Attributes of custom domains in 'doms_cur' */
 static struct sched_domain_attr		*dattr_cur;
 
 /*

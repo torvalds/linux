@@ -245,7 +245,7 @@ static void dl_change_utilization(struct task_struct *p, u64 new_bw)
 		p->dl.dl_non_contending = 0;
 		/*
 		 * If the timer handler is currently running and the
-		 * timer cannot be cancelled, inactive_task_timer()
+		 * timer cannot be canceled, inactive_task_timer()
 		 * will see that dl_not_contending is not set, and
 		 * will not touch the rq's active utilization,
 		 * so we are still safe.
@@ -267,7 +267,7 @@ static void dl_change_utilization(struct task_struct *p, u64 new_bw)
  * fires.
  *
  * If the task wakes up again before the inactive timer fires,
- * the timer is cancelled, whereas if the task wakes up after the
+ * the timer is canceled, whereas if the task wakes up after the
  * inactive timer fired (and running_bw has been decreased) the
  * task's utilization has to be added to running_bw again.
  * A flag in the deadline scheduling entity (dl_non_contending)
@@ -385,7 +385,7 @@ static void task_contending(struct sched_dl_entity *dl_se, int flags)
 		dl_se->dl_non_contending = 0;
 		/*
 		 * If the timer handler is currently running and the
-		 * timer cannot be cancelled, inactive_task_timer()
+		 * timer cannot be canceled, inactive_task_timer()
 		 * will see that dl_not_contending is not set, and
 		 * will not touch the rq's active utilization,
 		 * so we are still safe.
@@ -1206,7 +1206,7 @@ extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
  * Since rq->dl.running_bw and rq->dl.this_bw contain utilizations
  * multiplied by 2^BW_SHIFT, the result has to be shifted right by
  * BW_SHIFT.
- * Since rq->dl.bw_ratio contains 1 / Umax multipled by 2^RATIO_SHIFT,
+ * Since rq->dl.bw_ratio contains 1 / Umax multiplied by 2^RATIO_SHIFT,
  * dl_bw is multiped by rq->dl.bw_ratio and shifted right by RATIO_SHIFT.
  * Since delta is a 64 bit variable, to have an overflow its value
  * should be larger than 2^(64 - 20 - 8), which is more than 64 seconds.
@@ -1737,7 +1737,7 @@ static void migrate_task_rq_dl(struct task_struct *p, int new_cpu __maybe_unused
 		p->dl.dl_non_contending = 0;
 		/*
 		 * If the timer handler is currently running and the
-		 * timer cannot be cancelled, inactive_task_timer()
+		 * timer cannot be canceled, inactive_task_timer()
 		 * will see that dl_not_contending is not set, and
 		 * will not touch the rq's active utilization,
 		 * so we are still safe.
@@ -2745,7 +2745,7 @@ void __getparam_dl(struct task_struct *p, struct sched_attr *attr)
 
 /*
  * Default limits for DL period; on the top end we guard against small util
- * tasks still getting rediculous long effective runtimes, on the bottom end we
+ * tasks still getting ridiculously long effective runtimes, on the bottom end we
  * guard against timer DoS.
  */
 unsigned int sysctl_sched_dl_period_max = 1 << 22; /* ~4 seconds */

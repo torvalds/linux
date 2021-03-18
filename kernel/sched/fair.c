@@ -1125,7 +1125,7 @@ static unsigned int task_nr_scan_windows(struct task_struct *p)
 	return rss / nr_scan_pages;
 }
 
-/* For sanitys sake, never scan more PTEs than MAX_SCAN_WINDOW MB/sec. */
+/* For sanity's sake, never scan more PTEs than MAX_SCAN_WINDOW MB/sec. */
 #define MAX_SCAN_WINDOW 2560
 
 static unsigned int task_scan_min(struct task_struct *p)
@@ -2577,7 +2577,7 @@ no_join:
 }
 
 /*
- * Get rid of NUMA staticstics associated with a task (either current or dead).
+ * Get rid of NUMA statistics associated with a task (either current or dead).
  * If @final is set, the task is dead and has reached refcount zero, so we can
  * safely free all relevant data structures. Otherwise, there might be
  * concurrent reads from places like load balancing and procfs, and we should
@@ -3952,7 +3952,7 @@ static inline void util_est_dequeue(struct cfs_rq *cfs_rq,
  *
  *     abs(x) < y := (unsigned)(x + y - 1) < (2 * y - 1)
  *
- * NOTE: this only works when value + maring < INT_MAX.
+ * NOTE: this only works when value + margin < INT_MAX.
  */
 static inline bool within_margin(int value, int margin)
 {
@@ -4256,7 +4256,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	/*
 	 * When bandwidth control is enabled, cfs might have been removed
 	 * because of a parent been throttled but cfs->nr_running > 1. Try to
-	 * add it unconditionnally.
+	 * add it unconditionally.
 	 */
 	if (cfs_rq->nr_running == 1 || cfs_bandwidth_used())
 		list_add_leaf_cfs_rq(cfs_rq);
@@ -5311,7 +5311,7 @@ static void destroy_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
  * bits doesn't do much.
  */
 
-/* cpu online calback */
+/* cpu online callback */
 static void __maybe_unused update_runtime_enabled(struct rq *rq)
 {
 	struct task_group *tg;
@@ -6963,7 +6963,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 
 	/*
 	 * This is possible from callers such as attach_tasks(), in which we
-	 * unconditionally check_prempt_curr() after an enqueue (which may have
+	 * unconditionally check_preempt_curr() after an enqueue (which may have
 	 * lead to a throttle).  This both saves work and prevents false
 	 * next-buddy nomination below.
 	 */
@@ -7595,7 +7595,7 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 		return 0;
 	}
 
-	/* Record that we found atleast one task that could run on dst_cpu */
+	/* Record that we found at least one task that could run on dst_cpu */
 	env->flags &= ~LBF_ALL_PINNED;
 
 	if (task_running(env->src_rq, p)) {
@@ -9690,7 +9690,7 @@ more_balance:
 		 * load to given_cpu. In rare situations, this may cause
 		 * conflicts (balance_cpu and given_cpu/ilb_cpu deciding
 		 * _independently_ and at _same_ time to move some load to
-		 * given_cpu) causing exceess load to be moved to given_cpu.
+		 * given_cpu) causing excess load to be moved to given_cpu.
 		 * This however should not happen so much in practice and
 		 * moreover subsequent load balance cycles should correct the
 		 * excess load moved.
@@ -9834,7 +9834,7 @@ out_one_pinned:
 	/*
 	 * newidle_balance() disregards balance intervals, so we could
 	 * repeatedly reach this code, which would lead to balance_interval
-	 * skyrocketting in a short amount of time. Skip the balance_interval
+	 * skyrocketing in a short amount of time. Skip the balance_interval
 	 * increase logic to avoid that.
 	 */
 	if (env.idle == CPU_NEWLY_IDLE)

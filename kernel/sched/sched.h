@@ -1155,7 +1155,7 @@ static inline u64 __rq_clock_broken(struct rq *rq)
  *
  *	if (rq-clock_update_flags >= RQCF_UPDATED)
  *
- * to check if %RQCF_UPADTED is set. It'll never be shifted more than
+ * to check if %RQCF_UPDATED is set. It'll never be shifted more than
  * one position though, because the next rq_unpin_lock() will shift it
  * back.
  */
@@ -1214,7 +1214,7 @@ static inline void rq_clock_skip_update(struct rq *rq)
 
 /*
  * See rt task throttling, which is the only time a skip
- * request is cancelled.
+ * request is canceled.
  */
 static inline void rq_clock_cancel_skipupdate(struct rq *rq)
 {
@@ -1861,7 +1861,7 @@ struct sched_class {
 
 	/*
 	 * The switched_from() call is allowed to drop rq->lock, therefore we
-	 * cannot assume the switched_from/switched_to pair is serliazed by
+	 * cannot assume the switched_from/switched_to pair is serialized by
 	 * rq->lock. They are however serialized by p->pi_lock.
 	 */
 	void (*switched_from)(struct rq *this_rq, struct task_struct *task);
@@ -2452,7 +2452,7 @@ DECLARE_PER_CPU(struct irqtime, cpu_irqtime);
 
 /*
  * Returns the irqtime minus the softirq time computed by ksoftirqd.
- * Otherwise ksoftirqd's sum_exec_runtime is substracted its own runtime
+ * Otherwise ksoftirqd's sum_exec_runtime is subtracted its own runtime
  * and never move forward.
  */
 static inline u64 irq_time_read(int cpu)
