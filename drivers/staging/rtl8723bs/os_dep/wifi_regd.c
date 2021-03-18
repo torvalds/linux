@@ -150,7 +150,5 @@ void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct rtw_regulatory *reg = NULL;
 
-	DBG_8192C("%s\n", __func__);
-
 	_rtw_reg_notifier_apply(wiphy, request, reg);
 }
