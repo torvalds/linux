@@ -1353,7 +1353,8 @@ const char * const vmstat_text[] = {
 	"swap_ra_hit",
 #endif
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-	"speculative_pgfault"
+	"speculative_pgfault",
+	"speculative_pgfault_file"
 #endif
 #endif /* CONFIG_VM_EVENT_COUNTERS || CONFIG_MEMCG */
 };
