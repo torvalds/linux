@@ -1383,9 +1383,13 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 
 	tc = netdev_txq_to_tc(dev, index);
 	if (tc < 0) {
-		ret = -EINVAL;
-		goto err_rtnl_unlock;
+		rtnl_unlock();
+		return -EINVAL;
 	}
+
+	/* Make sure the subordinate device can't be freed */
+	get_device(&dev->dev);
+	rtnl_unlock();
 
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_maps[XPS_CPUS]);
@@ -1417,8 +1421,7 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	}
 out_no_maps:
 	rcu_read_unlock();
-
-	rtnl_unlock();
+	put_device(&dev->dev);
 
 	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
 	bitmap_free(mask);
@@ -1426,8 +1429,7 @@ out_no_maps:
 
 err_rcu_unlock:
 	rcu_read_unlock();
-err_rtnl_unlock:
-	rtnl_unlock();
+	put_device(&dev->dev);
 	return ret;
 }
 
@@ -1486,10 +1488,9 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 		return restart_syscall();
 
 	tc = netdev_txq_to_tc(dev, index);
-	if (tc < 0) {
-		ret = -EINVAL;
-		goto err_rtnl_unlock;
-	}
+	rtnl_unlock();
+	if (tc < 0)
+		return -EINVAL;
 
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_maps[XPS_RXQS]);
@@ -1522,8 +1523,6 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 out_no_maps:
 	rcu_read_unlock();
 
-	rtnl_unlock();
-
 	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
 	bitmap_free(mask);
 
@@ -1531,8 +1530,6 @@ out_no_maps:
 
 err_rcu_unlock:
 	rcu_read_unlock();
-err_rtnl_unlock:
-	rtnl_unlock();
 	return ret;
 }
 
