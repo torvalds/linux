@@ -92,7 +92,7 @@ struct rvt_ibport {
 	/*
 	 * The pkey table is allocated and maintained by the driver. Drivers
 	 * need to have access to this before registering with rdmav. However
-	 * rdmavt will need access to it so drivers need to proviee this during
+	 * rdmavt will need access to it so drivers need to provide this during
 	 * the attach port API call.
 	 */
 	u16 *pkey_table;
@@ -230,7 +230,7 @@ struct rvt_driver_provided {
 	void (*do_send)(struct rvt_qp *qp);
 
 	/*
-	 * Returns a pointer to the undelying hardware's PCI device. This is
+	 * Returns a pointer to the underlying hardware's PCI device. This is
 	 * used to display information as to what hardware is being referenced
 	 * in an output message
 	 */
@@ -257,7 +257,7 @@ struct rvt_driver_provided {
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 	/*
-	 * Inform the driver the particular qp in quesiton has been reset so
+	 * Inform the driver the particular qp in question has been reset so
 	 * that it can clean up anything it needs to.
 	 */
 	void (*notify_qp_reset)(struct rvt_qp *qp);
@@ -281,7 +281,7 @@ struct rvt_driver_provided {
 	void (*stop_send_queue)(struct rvt_qp *qp);
 
 	/*
-	 * Have the drivr drain any in progress operations
+	 * Have the driver drain any in progress operations
 	 */
 	void (*quiesce_qp)(struct rvt_qp *qp);
 
