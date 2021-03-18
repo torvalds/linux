@@ -384,7 +384,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 
 static int
 initiate_cifs_search(const unsigned int xid, struct file *file,
-		     char *full_path)
+		     const char *full_path)
 {
 	__u16 search_flags;
 	int rc = 0;
@@ -704,7 +704,7 @@ static int cifs_save_resume_key(const char *current_entry,
  */
 static int
 find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
-		struct file *file, char *full_path,
+		struct file *file, const char *full_path,
 		char **current_entry, int *num_to_ret)
 {
 	__u16 search_flags;

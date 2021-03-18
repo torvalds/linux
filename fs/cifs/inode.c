@@ -1408,7 +1408,7 @@ out:
 
 int
 cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
-		   char *full_path, __u32 dosattr)
+		   const char *full_path, __u32 dosattr)
 {
 	bool set_time = false;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -2522,7 +2522,7 @@ void cifs_setsize(struct inode *inode, loff_t offset)
 
 static int
 cifs_set_file_size(struct inode *inode, struct iattr *attrs,
-		   unsigned int xid, char *full_path)
+		   unsigned int xid, const char *full_path)
 {
 	int rc;
 	struct cifsFileInfo *open_file;

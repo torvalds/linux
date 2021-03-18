@@ -53,7 +53,7 @@ enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT,
 	XATTR_CIFS_NTSD, XATTR_CIFS_NTSD_FULL };
 
 static int cifs_attrib_set(unsigned int xid, struct cifs_tcon *pTcon,
-			   struct inode *inode, char *full_path,
+			   struct inode *inode, const char *full_path,
 			   const void *value, size_t size)
 {
 	ssize_t rc = -EOPNOTSUPP;
@@ -77,7 +77,7 @@ static int cifs_attrib_set(unsigned int xid, struct cifs_tcon *pTcon,
 }
 
 static int cifs_creation_time_set(unsigned int xid, struct cifs_tcon *pTcon,
-				  struct inode *inode, char *full_path,
+				  struct inode *inode, const char *full_path,
 				  const void *value, size_t size)
 {
 	ssize_t rc = -EOPNOTSUPP;

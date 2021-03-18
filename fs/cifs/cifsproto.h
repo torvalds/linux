@@ -184,7 +184,7 @@ extern struct cifsFileInfo *cifs_new_fileinfo(struct cifs_fid *fid,
 					      struct file *file,
 					      struct tcon_link *tlink,
 					      __u32 oplock);
-extern int cifs_posix_open(char *full_path, struct inode **inode,
+extern int cifs_posix_open(const char *full_path, struct inode **inode,
 			   struct super_block *sb, int mode,
 			   unsigned int f_flags, __u32 *oplock, __u16 *netfid,
 			   unsigned int xid);
@@ -207,7 +207,7 @@ extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, unsigned int xid);
 extern int cifs_set_file_info(struct inode *inode, struct iattr *attrs,
-			      unsigned int xid, char *full_path, __u32 dosattr);
+			      unsigned int xid, const char *full_path, __u32 dosattr);
 extern int cifs_rename_pending_delete(const char *full_path,
 				      struct dentry *dentry,
 				      const unsigned int xid);
