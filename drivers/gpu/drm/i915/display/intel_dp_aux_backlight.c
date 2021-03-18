@@ -646,7 +646,6 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 			break;
 		case INTEL_BACKLIGHT_DISPLAY_DDI:
 			try_intel_interface = true;
-			try_vesa_interface = true;
 			break;
 		default:
 			return -ENODEV;
