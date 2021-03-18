@@ -182,7 +182,6 @@ void rtw_ps_processor(struct adapter *padapter)
 		goto exit;
 
 	if ((pwrpriv->rf_pwrstate == rf_on) && ((pwrpriv->pwr_state_check_cnts%4) == 0)) {
-		DBG_871X("==>%s\n", __func__);
 		pwrpriv->change_rfpwrstate = rf_off;
 		{
 			ips_enter(padapter);
@@ -568,8 +567,6 @@ void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
 	struct mlme_priv *pmlmepriv = &(Adapter->mlmepriv);
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(Adapter);
 
-	DBG_871X("%s.....\n", __func__);
-
 	if (Adapter->bSurpriseRemoved) {
 		DBG_871X(FUNC_ADPT_FMT ": bSurpriseRemoved =%d Skip!\n",
 			FUNC_ADPT_ARG(Adapter), Adapter->bSurpriseRemoved);
@@ -714,8 +711,6 @@ static void cpwm_event_callback(struct work_struct *work)
 	struct dvobj_priv *dvobj = pwrctl_to_dvobj(pwrpriv);
 	struct adapter *adapter = dvobj->if1;
 	struct reportpwrstate_parm report;
-
-	/* DBG_871X("%s\n", __func__); */
 
 	report.state = PS_STATE_S2;
 	cpwm_int_hdl(adapter, &report);
