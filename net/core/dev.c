@@ -2523,33 +2523,28 @@ static void reset_xps_maps(struct net_device *dev,
 	kfree_rcu(dev_maps, rcu);
 }
 
-static void clean_xps_maps(struct net_device *dev, const unsigned long *mask,
+static void clean_xps_maps(struct net_device *dev,
 			   struct xps_dev_maps *dev_maps, u16 offset, u16 count,
 			   bool is_rxqs_map)
 {
-	unsigned int nr_ids = dev_maps->nr_ids;
 	bool active = false;
 	int i, j;
 
-	for (j = -1; j = netif_attrmask_next(j, mask, nr_ids), j < nr_ids;)
-		active |= remove_xps_queue_cpu(dev, dev_maps, j, offset,
-					       count);
+	for (j = 0; j < dev_maps->nr_ids; j++)
+		active |= remove_xps_queue_cpu(dev, dev_maps, j, offset, count);
 	if (!active)
 		reset_xps_maps(dev, dev_maps, is_rxqs_map);
 
 	if (!is_rxqs_map) {
-		for (i = offset + (count - 1); count--; i--) {
+		for (i = offset + (count - 1); count--; i--)
 			netdev_queue_numa_node_write(
-				netdev_get_tx_queue(dev, i),
-				NUMA_NO_NODE);
-		}
+				netdev_get_tx_queue(dev, i), NUMA_NO_NODE);
 	}
 }
 
 static void netif_reset_xps_queues(struct net_device *dev, u16 offset,
 				   u16 count)
 {
-	const unsigned long *possible_mask = NULL;
 	struct xps_dev_maps *dev_maps;
 
 	if (!static_key_false(&xps_needed))
@@ -2561,17 +2556,14 @@ static void netif_reset_xps_queues(struct net_device *dev, u16 offset,
 	if (static_key_false(&xps_rxqs_needed)) {
 		dev_maps = xmap_dereference(dev->xps_rxqs_map);
 		if (dev_maps)
-			clean_xps_maps(dev, possible_mask, dev_maps, offset,
-				       count, true);
+			clean_xps_maps(dev, dev_maps, offset, count, true);
 	}
 
 	dev_maps = xmap_dereference(dev->xps_cpus_map);
 	if (!dev_maps)
 		goto out_no_maps;
 
-	if (num_possible_cpus() > 1)
-		possible_mask = cpumask_bits(cpu_possible_mask);
-	clean_xps_maps(dev, possible_mask, dev_maps, offset, count, false);
+	clean_xps_maps(dev, dev_maps, offset, count, false);
 
 out_no_maps:
 	mutex_unlock(&xps_map_mutex);
@@ -2627,8 +2619,8 @@ static struct xps_map *expand_xps_map(struct xps_map *map, int attr_index,
 int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 			  u16 index, bool is_rxqs_map)
 {
-	const unsigned long *online_mask = NULL, *possible_mask = NULL;
 	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL;
+	const unsigned long *online_mask = NULL;
 	bool active = false, copy = false;
 	int i, j, tci, numa_node_id = -2;
 	int maps_sz, num_tc = 1, tc = 0;
@@ -2656,10 +2648,8 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 		nr_ids = dev->num_rx_queues;
 	} else {
 		maps_sz = XPS_CPU_DEV_MAPS_SIZE(num_tc);
-		if (num_possible_cpus() > 1) {
+		if (num_possible_cpus() > 1)
 			online_mask = cpumask_bits(cpu_online_mask);
-			possible_mask = cpumask_bits(cpu_possible_mask);
-		}
 		dev_maps = xmap_dereference(dev->xps_cpus_map);
 		nr_ids = nr_cpu_ids;
 	}
@@ -2710,8 +2700,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 			static_key_slow_inc_cpuslocked(&xps_rxqs_needed);
 	}
 
-	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
-	     j < nr_ids;) {
+	for (j = 0; j < nr_ids; j++) {
 		/* copy maps belonging to foreign traffic classes */
 		for (i = tc, tci = j * num_tc; copy && i--; tci++) {
 			/* fill in the new device map from the old device map */
@@ -2766,8 +2755,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 	if (!dev_maps)
 		goto out_no_old_maps;
 
-	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
-	     j < dev_maps->nr_ids;) {
+	for (j = 0; j < dev_maps->nr_ids; j++) {
 		for (i = num_tc, tci = j * dev_maps->num_tc; i--; tci++) {
 			map = xmap_dereference(dev_maps->attr_map[tci]);
 			if (!map)
@@ -2801,8 +2789,7 @@ out_no_new_maps:
 		goto out_no_maps;
 
 	/* removes tx-queue from unused CPUs/rx-queues */
-	for (j = -1; j = netif_attrmask_next(j, possible_mask, dev_maps->nr_ids),
-	     j < dev_maps->nr_ids;) {
+	for (j = 0; j < dev_maps->nr_ids; j++) {
 		for (i = tc, tci = j * dev_maps->num_tc; i--; tci++)
 			active |= remove_xps_queue(dev_maps, tci, index);
 		if (!netif_attr_test_mask(j, mask, dev_maps->nr_ids) ||
@@ -2822,8 +2809,7 @@ out_no_maps:
 	return 0;
 error:
 	/* remove any maps that we added */
-	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
-	     j < nr_ids;) {
+	for (j = 0; j < nr_ids; j++) {
 		for (i = num_tc, tci = j * num_tc; i--; tci++) {
 			new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
 			map = copy ?

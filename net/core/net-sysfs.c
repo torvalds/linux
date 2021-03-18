@@ -1400,7 +1400,7 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	if (!dev_maps || tc >= dev_maps->num_tc)
 		goto out_no_maps;
 
-	for (j = -1; j = netif_attrmask_next(j, NULL, nr_ids), j < nr_ids;) {
+	for (j = 0; j < nr_ids; j++) {
 		int i, tci = j * dev_maps->num_tc + tc;
 		struct xps_map *map;
 
@@ -1504,7 +1504,7 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 	if (!dev_maps || tc >= dev_maps->num_tc)
 		goto out_no_maps;
 
-	for (j = -1; j = netif_attrmask_next(j, NULL, nr_ids), j < nr_ids;) {
+	for (j = 0; j < nr_ids; j++) {
 		int i, tci = j * dev_maps->num_tc + tc;
 		struct xps_map *map;
 
