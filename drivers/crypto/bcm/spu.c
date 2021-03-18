@@ -457,7 +457,7 @@ u16 spum_hash_pad_len(enum hash_alg hash_alg, enum hash_mode hash_mode,
  * @cipher_mode:	Algo type
  * @data_size:		Length of plaintext (bytes)
  *
- * @Return: Length of padding, in bytes
+ * Return: Length of padding, in bytes
  */
 u32 spum_gcm_ccm_pad_len(enum spu_cipher_mode cipher_mode,
 			 unsigned int data_size)
@@ -510,10 +510,10 @@ u32 spum_assoc_resp_len(enum spu_cipher_mode cipher_mode,
 }
 
 /**
- * spu_aead_ivlen() - Calculate the length of the AEAD IV to be included
+ * spum_aead_ivlen() - Calculate the length of the AEAD IV to be included
  * in a SPU request after the AAD and before the payload.
  * @cipher_mode:  cipher mode
- * @iv_ctr_len:   initialization vector length in bytes
+ * @iv_len:   initialization vector length in bytes
  *
  * In Linux ~4.2 and later, the assoc_data sg includes the IV. So no need
  * to include the IV as a separate field in the SPU request msg.
@@ -543,9 +543,9 @@ enum hash_type spum_hash_type(u32 src_sent)
 /**
  * spum_digest_size() - Determine the size of a hash digest to expect the SPU to
  * return.
- * alg_digest_size: Number of bytes in the final digest for the given algo
- * alg:             The hash algorithm
- * htype:           Type of hash operation (init, update, full, etc)
+ * @alg_digest_size: Number of bytes in the final digest for the given algo
+ * @alg:             The hash algorithm
+ * @htype:           Type of hash operation (init, update, full, etc)
  *
  * When doing incremental hashing for an algorithm with a truncated hash
  * (e.g., SHA224), the SPU returns the full digest so that it can be fed back as
@@ -580,7 +580,7 @@ u32 spum_digest_size(u32 alg_digest_size, enum hash_alg alg,
  * @aead_parms:   Parameters related to AEAD operation
  * @data_size:    Length of data to be encrypted or authenticated. If AEAD, does
  *		  not include length of AAD.
-
+ *
  * Return: the length of the SPU header in bytes. 0 if an error occurs.
  */
 u32 spum_create_request(u8 *spu_hdr,
@@ -911,7 +911,7 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
  * setkey() time in spu_cipher_req_init().
  * @spu_hdr:         Start of the request message header (MH field)
  * @spu_req_hdr_len: Length in bytes of the SPU request header
- * @isInbound:       0 encrypt, 1 decrypt
+ * @is_inbound:      0 encrypt, 1 decrypt
  * @cipher_parms:    Parameters describing cipher operation to be performed
  * @data_size:       Length of the data in the BD field
  *
