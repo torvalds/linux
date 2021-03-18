@@ -177,7 +177,7 @@ int ocelot_mrp_del(struct ocelot *ocelot, int port,
 			goto out;
 	}
 
-	ocelot_mrp_del_mac(ocelot, ocelot_port);
+	ocelot_mrp_del_mac(ocelot, ocelot->ports[port]);
 out:
 	return 0;
 }
@@ -251,7 +251,7 @@ int ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
 			goto out;
 	}
 
-	ocelot_mrp_del_mac(ocelot, ocelot_port);
+	ocelot_mrp_del_mac(ocelot, ocelot->ports[port]);
 out:
 	return 0;
 }
