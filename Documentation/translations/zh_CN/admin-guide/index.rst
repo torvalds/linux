@@ -39,11 +39,11 @@ Todolist:
    security-bugs
    bug-hunting
    bug-bisect
+   tainted-kernels
 
 Todolist:
 
    reporting-bugs
-   tainted-kernels
    ramoops
    dynamic-debug-howto
    init
