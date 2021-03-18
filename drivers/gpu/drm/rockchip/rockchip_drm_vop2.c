@@ -4285,26 +4285,18 @@ static void vop2_parse_alpha(struct vop2_alpha_config *alpha_config,
 	alpha->dst_alpha_ctrl.bits.factor_mode = ALPHA_SRC_INVERSE;
 }
 
-static int vop2_get_mixer_number(int nr_layers)
-{
-	if (nr_layers <= 1)
-		return nr_layers;
-	else
-		return nr_layers - 1;
-}
-
 static int vop2_find_start_mixer_id_for_vp(struct vop2 *vop2, uint8_t port_id)
 {
 	struct vop2_video_port *vp;
-	int mixer_id = 0;
+	int used_layer = 0;
 	int i;
 
 	for (i = 0; i < port_id; i++) {
 		vp = &vop2->vps[i];
-		mixer_id += vop2_get_mixer_number(hweight32(vp->win_mask));
+		used_layer += hweight32(vp->win_mask);
 	}
 
-	return mixer_id ? (mixer_id + 1) : 0;
+	return used_layer;
 }
 
 /*
