@@ -318,6 +318,7 @@ struct otx2_nic {
 #define OTX2_FLAG_RX_PAUSE_ENABLED		BIT_ULL(9)
 #define OTX2_FLAG_TX_PAUSE_ENABLED		BIT_ULL(10)
 #define OTX2_FLAG_TC_FLOWER_SUPPORT		BIT_ULL(11)
+#define OTX2_FLAG_TC_MATCHALL_EGRESS_ENABLED	BIT_ULL(12)
 	u64			flags;
 
 	struct otx2_qset	qset;
