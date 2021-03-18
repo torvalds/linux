@@ -72,8 +72,7 @@ static void iommu_debugfs_del(struct iommu_table *tbl)
 
 	sprintf(name, "%08lx", tbl->it_index);
 	liobn_entry = debugfs_lookup(name, iommu_debugfs_dir);
-	if (liobn_entry)
-		debugfs_remove(liobn_entry);
+	debugfs_remove(liobn_entry);
 }
 #else
 static void iommu_debugfs_add(struct iommu_table *tbl){}
