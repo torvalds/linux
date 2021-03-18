@@ -448,8 +448,10 @@ int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent)
 		root = dtpm;
 	}
 
-	if (dtpm->ops && !dtpm->ops->update_power_uw(dtpm))
+	if (dtpm->ops && !dtpm->ops->update_power_uw(dtpm)) {
 		__dtpm_add_power(dtpm);
+		dtpm->power_limit = dtpm->power_max;
+	}
 
 	pr_info("Registered dtpm node '%s' / %llu-%llu uW, \n",
 		dtpm->zone.name, dtpm->power_min, dtpm->power_max);
