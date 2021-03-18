@@ -198,8 +198,6 @@ struct adapter *padapter
 {
 	u8 path, base;
 
-	/* DBG_871X("===>%s\n", __func__); */
-
 	for (path = ODM_RF_PATH_A; path <= ODM_RF_PATH_B; ++path) {
 		base = PHY_GetTxPowerByRate(padapter, BAND_ON_2_4G, path, RF_1TX, MGN_11M);
 		phy_SetTxPowerByRateBase(padapter, BAND_ON_2_4G, path, CCK, RF_1TX, base);
@@ -261,8 +259,6 @@ struct adapter *padapter
 		phy_SetTxPowerByRateBase(padapter, BAND_ON_5G, path, VHT_3SSMCS0_3SSMCS9, RF_3TX, base);
 		/* DBG_871X("Power index base of 5G path %d 3Tx VHT3SS = > 0x%x\n", path, base); */
 	}
-
-	/* DBG_871X("<===%s\n", __func__); */
 }
 
 u8 PHY_GetRateSectionIndexOfTxPowerByRate(
