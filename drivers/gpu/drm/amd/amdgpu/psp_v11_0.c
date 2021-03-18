@@ -598,7 +598,7 @@ static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
 }
 
 /*
- * save and restore proces
+ * save and restore process
  */
 static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 {
