@@ -974,9 +974,6 @@ static int  ips_netdrv_open(struct adapter *padapter)
 
 	padapter->net_closed = false;
 
-	DBG_871X("===> %s.........\n", __func__);
-
-
 	padapter->bDriverStopped = false;
 	padapter->bCardDisableWOHSM = false;
 	/* padapter->bup = true; */
@@ -1027,8 +1024,6 @@ void rtw_ips_pwr_down(struct adapter *padapter)
 
 void rtw_ips_dev_unload(struct adapter *padapter)
 {
-	DBG_871X("====> %s...\n", __func__);
-
 
 	if (!padapter->bSurpriseRemoved)
 		rtw_hal_deinit(padapter);
@@ -1124,7 +1119,6 @@ void rtw_dev_unload(struct adapter *padapter)
 	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+%s\n", __func__));
 
 	if (padapter->bup) {
-		DBG_871X("===> %s\n", __func__);
 
 		padapter->bDriverStopped = true;
 		if (padapter->xmitpriv.ack_tx)
@@ -1174,7 +1168,6 @@ void rtw_dev_unload(struct adapter *padapter)
 
 		padapter->bup = false;
 
-		DBG_871X("<=== %s\n", __func__);
 	} else {
 		RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("%s: bup ==false\n", __func__));
 		DBG_871X("%s: bup ==false\n", __func__);
