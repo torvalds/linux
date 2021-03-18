@@ -1364,9 +1364,9 @@ static const struct attribute_group dql_group = {
 static ssize_t xps_cpus_show(struct netdev_queue *queue,
 			     char *buf)
 {
-	int j, len, ret, num_tc = 1, tc = 0;
 	struct net_device *dev = queue->dev;
 	struct xps_dev_maps *dev_maps;
+	int j, len, ret, tc = 0;
 	unsigned long *mask;
 	unsigned int index;
 
@@ -1378,22 +1378,13 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (dev->num_tc) {
-		/* Do not allow XPS on subordinate device directly */
-		num_tc = dev->num_tc;
-		if (num_tc < 0) {
-			ret = -EINVAL;
-			goto err_rtnl_unlock;
-		}
+	/* If queue belongs to subordinate dev use its map */
+	dev = netdev_get_tx_queue(dev, index)->sb_dev ? : dev;
 
-		/* If queue belongs to subordinate dev use its map */
-		dev = netdev_get_tx_queue(dev, index)->sb_dev ? : dev;
-
-		tc = netdev_txq_to_tc(dev, index);
-		if (tc < 0) {
-			ret = -EINVAL;
-			goto err_rtnl_unlock;
-		}
+	tc = netdev_txq_to_tc(dev, index);
+	if (tc < 0) {
+		ret = -EINVAL;
+		goto err_rtnl_unlock;
 	}
 
 	mask = bitmap_zalloc(nr_cpu_ids, GFP_KERNEL);
@@ -1404,12 +1395,12 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_cpus_map);
-	if (!dev_maps)
+	if (!dev_maps || tc >= dev_maps->num_tc)
 		goto out_no_maps;
 
 	for (j = -1; j = netif_attrmask_next(j, NULL, nr_cpu_ids),
 	     j < nr_cpu_ids;) {
-		int i, tci = j * num_tc + tc;
+		int i, tci = j * dev_maps->num_tc + tc;
 		struct xps_map *map;
 
 		map = rcu_dereference(dev_maps->attr_map[tci]);
@@ -1480,9 +1471,9 @@ static struct netdev_queue_attribute xps_cpus_attribute __ro_after_init
 
 static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 {
-	int j, len, ret, num_tc = 1, tc = 0;
 	struct net_device *dev = queue->dev;
 	struct xps_dev_maps *dev_maps;
+	int j, len, ret, tc = 0;
 	unsigned long *mask;
 	unsigned int index;
 
@@ -1491,14 +1482,12 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (dev->num_tc) {
-		num_tc = dev->num_tc;
-		tc = netdev_txq_to_tc(dev, index);
-		if (tc < 0) {
-			ret = -EINVAL;
-			goto err_rtnl_unlock;
-		}
+	tc = netdev_txq_to_tc(dev, index);
+	if (tc < 0) {
+		ret = -EINVAL;
+		goto err_rtnl_unlock;
 	}
+
 	mask = bitmap_zalloc(dev->num_rx_queues, GFP_KERNEL);
 	if (!mask) {
 		ret = -ENOMEM;
@@ -1507,12 +1496,12 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_rxqs_map);
-	if (!dev_maps)
+	if (!dev_maps || tc >= dev_maps->num_tc)
 		goto out_no_maps;
 
 	for (j = -1; j = netif_attrmask_next(j, NULL, dev->num_rx_queues),
 	     j < dev->num_rx_queues;) {
-		int i, tci = j * num_tc + tc;
+		int i, tci = j * dev_maps->num_tc + tc;
 		struct xps_map *map;
 
 		map = rcu_dereference(dev_maps->attr_map[tci]);

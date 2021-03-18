@@ -771,9 +771,15 @@ struct xps_map {
 
 /*
  * This structure holds all XPS maps for device.  Maps are indexed by CPU.
+ *
+ * We keep track of the number of traffic classes used when the struct is
+ * allocated, in num_tc. This will be used to navigate the maps, to ensure we're
+ * not crossing its upper bound, as the original dev->num_tc can be updated in
+ * the meantime.
  */
 struct xps_dev_maps {
 	struct rcu_head rcu;
+	s16 num_tc;
 	struct xps_map __rcu *attr_map[]; /* Either CPUs map or RXQs map */
 };
 
