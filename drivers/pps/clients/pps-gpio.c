@@ -119,12 +119,12 @@ static int pps_gpio_setup(struct platform_device *pdev)
 	data->echo_pin = devm_gpiod_get_optional(&pdev->dev,
 			"echo",
 			GPIOD_OUT_LOW);
-	if (data->echo_pin) {
-		if (IS_ERR(data->echo_pin)) {
-			dev_err(&pdev->dev, "failed to request ECHO GPIO\n");
-			return PTR_ERR(data->echo_pin);
-		}
+	if (IS_ERR(data->echo_pin)) {
+		dev_err(&pdev->dev, "failed to request ECHO GPIO\n");
+		return PTR_ERR(data->echo_pin);
+	}
 
+	if (data->echo_pin) {
 		ret = of_property_read_u32(np,
 			"echo-active-ms",
 			&value);
