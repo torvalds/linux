@@ -4968,7 +4968,7 @@ smb2_next_header(char *buf)
 static int
 smb2_make_node(unsigned int xid, struct inode *inode,
 	       struct dentry *dentry, struct cifs_tcon *tcon,
-	       char *full_path, umode_t mode, dev_t dev)
+	       const char *full_path, umode_t mode, dev_t dev)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	int rc = -EPERM;

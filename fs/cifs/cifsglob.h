@@ -495,7 +495,7 @@ struct smb_version_operations {
 			 struct inode *inode,
 			 struct dentry *dentry,
 			 struct cifs_tcon *tcon,
-			 char *full_path,
+			 const char *full_path,
 			 umode_t mode,
 			 dev_t device_number);
 	/* version specific fiemap implementation */
