@@ -574,7 +574,7 @@ static const char * const pdata_quirks_init_nodes[] = {
 	"prm",
 };
 
-void __init
+static void __init
 pdata_quirks_init_clocks(const struct of_device_id *omap_dt_match_table)
 {
 	struct device_node *np;
