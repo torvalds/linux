@@ -195,7 +195,7 @@ int main(int argc, char *argv[], char *envp[])
 		addr = mmap((void *)encl.encl_base + seg->offset, seg->size,
 			    seg->prot, MAP_SHARED | MAP_FIXED, encl.fd, 0);
 		if (addr == MAP_FAILED) {
-			fprintf(stderr, "mmap() failed, errno=%d.\n", errno);
+			perror("mmap() segment failed");
 			exit(KSFT_FAIL);
 		}
 	}
