@@ -1106,8 +1106,6 @@ void odm_RefreshRateAdaptiveMaskCE(struct dm_odm_t *pDM_Odm)
 		return;
 	}
 
-	/* printk("==> %s\n", __func__); */
-
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		PSTA_INFO_T pstat = pDM_Odm->pODM_StaInfo[i];
 
