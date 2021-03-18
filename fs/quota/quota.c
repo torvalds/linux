@@ -472,6 +472,7 @@ static int quota_getstatev(struct super_block *sb, int type,
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
 	fqs->qs_bwarnlimit = state.s_state[type].spc_warnlimit;
 	fqs->qs_iwarnlimit = state.s_state[type].ino_warnlimit;
+	fqs->qs_rtbwarnlimit = state.s_state[type].rt_spc_warnlimit;
 
 	/* Inodes may be allocated even if inactive; copy out if present */
 	if (state.s_state[USRQUOTA].ino) {
