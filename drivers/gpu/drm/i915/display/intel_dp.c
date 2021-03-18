@@ -3310,8 +3310,7 @@ static u32 snb_cpu_edp_signal_levels(u8 train_set)
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return EDP_LINK_TRAIN_800_1200MV_0DB_SNB_B;
 	default:
-		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
-			      "0x%x\n", signal_levels);
+		MISSING_CASE(signal_levels);
 		return EDP_LINK_TRAIN_400_600MV_0DB_SNB_B;
 	}
 }
@@ -3362,8 +3361,7 @@ static u32 ivb_cpu_edp_signal_levels(u8 train_set)
 		return EDP_LINK_TRAIN_800MV_3_5DB_IVB;
 
 	default:
-		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
-			      "0x%x\n", signal_levels);
+		MISSING_CASE(signal_levels);
 		return EDP_LINK_TRAIN_500MV_0DB_IVB;
 	}
 }
