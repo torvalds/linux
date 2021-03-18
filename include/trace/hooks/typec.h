@@ -17,6 +17,9 @@ DECLARE_HOOK(android_vh_typec_tcpci_override_toggling,
 	TP_PROTO(struct tcpci *tcpci, struct tcpci_data *data, int *override_toggling),
 	TP_ARGS(tcpci, data, override_toggling));
 
+DECLARE_HOOK(android_vh_typec_tcpci_check_contaminant,
+	TP_PROTO(struct tcpci *tcpci, struct tcpci_data *data, int *ret),
+	TP_ARGS(tcpci, data, ret));
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
