@@ -90,28 +90,30 @@ struct io_tlb_mem {
 	phys_addr_t end;
 	unsigned long nslabs;
 	unsigned long used;
-	unsigned int *list;
 	unsigned int index;
-	phys_addr_t *orig_addr;
-	size_t *alloc_size;
 	spinlock_t lock;
 	struct dentry *debugfs;
 	bool late_alloc;
+	struct io_tlb_slot {
+		phys_addr_t orig_addr;
+		size_t alloc_size;
+		unsigned int list;
+	} slots[];
 };
-extern struct io_tlb_mem io_tlb_default_mem;
+extern struct io_tlb_mem *io_tlb_default_mem;
 
 static inline bool is_swiotlb_buffer(phys_addr_t paddr)
 {
-	struct io_tlb_mem *mem = &io_tlb_default_mem;
+	struct io_tlb_mem *mem = io_tlb_default_mem;
 
-	return paddr >= mem->start && paddr < mem->end;
+	return mem && paddr >= mem->start && paddr < mem->end;
 }
 
 void __init swiotlb_exit(void);
 unsigned int swiotlb_max_segment(void);
 size_t swiotlb_max_mapping_size(struct device *dev);
 bool is_swiotlb_active(void);
-void __init swiotlb_adjust_size(unsigned long new_size);
+void __init swiotlb_adjust_size(unsigned long size);
 #else
 #define swiotlb_force SWIOTLB_NO_FORCE
 static inline bool is_swiotlb_buffer(phys_addr_t paddr)
@@ -135,7 +137,7 @@ static inline bool is_swiotlb_active(void)
 	return false;
 }
 
-static inline void swiotlb_adjust_size(unsigned long new_size)
+static inline void swiotlb_adjust_size(unsigned long size)
 {
 }
 #endif /* CONFIG_SWIOTLB */

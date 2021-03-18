@@ -158,17 +158,14 @@ static const char *xen_swiotlb_error(enum xen_swiotlb_err err)
 int __ref xen_swiotlb_init(void)
 {
 	enum xen_swiotlb_err m_ret = XEN_SWIOTLB_UNKNOWN;
-	unsigned long nslabs, bytes, order;
-	unsigned int repeat = 3;
+	unsigned long bytes = swiotlb_size_or_default();
+	unsigned long nslabs = bytes >> IO_TLB_SHIFT;
+	unsigned int order, repeat = 3;
 	int rc = -ENOMEM;
 	char *start;
 
-	nslabs = swiotlb_nr_tbl();
-	if (!nslabs)
-		nslabs = DEFAULT_NSLABS;
 retry:
 	m_ret = XEN_SWIOTLB_ENOMEM;
-	bytes = nslabs << IO_TLB_SHIFT;
 	order = get_order(bytes);
 
 	/*
@@ -221,19 +218,16 @@ error:
 #ifdef CONFIG_X86
 void __init xen_swiotlb_init_early(void)
 {
-	unsigned long nslabs, bytes;
+	unsigned long bytes = swiotlb_size_or_default();
+	unsigned long nslabs = bytes >> IO_TLB_SHIFT;
 	unsigned int repeat = 3;
 	char *start;
 	int rc;
 
-	nslabs = swiotlb_nr_tbl();
-	if (!nslabs)
-		nslabs = DEFAULT_NSLABS;
 retry:
 	/*
 	 * Get IO TLB memory from any location.
 	 */
-	bytes = nslabs << IO_TLB_SHIFT;
 	start = memblock_alloc(PAGE_ALIGN(bytes), PAGE_SIZE);
 	if (!start)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
@@ -248,8 +242,8 @@ retry:
 		if (repeat--) {
 			/* Min is 2MB */
 			nslabs = max(1024UL, (nslabs >> 1));
-			pr_info("Lowering to %luMB\n",
-				(nslabs << IO_TLB_SHIFT) >> 20);
+			bytes = nslabs << IO_TLB_SHIFT;
+			pr_info("Lowering to %luMB\n", bytes >> 20);
 			goto retry;
 		}
 		panic("%s (rc:%d)", xen_swiotlb_error(XEN_SWIOTLB_EFIXUP), rc);
@@ -548,7 +542,7 @@ xen_swiotlb_sync_sg_for_device(struct device *dev, struct scatterlist *sgl,
 static int
 xen_swiotlb_dma_supported(struct device *hwdev, u64 mask)
 {
-	return xen_phys_to_dma(hwdev, io_tlb_default_mem.end - 1) <= mask;
+	return xen_phys_to_dma(hwdev, io_tlb_default_mem->end - 1) <= mask;
 }
 
 const struct dma_map_ops xen_swiotlb_dma_ops = {
