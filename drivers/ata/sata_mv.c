@@ -1917,7 +1917,7 @@ static void mv_bmdma_start(struct ata_queued_cmd *qc)
 }
 
 /**
- *	mv_bmdma_stop - Stop BMDMA transfer
+ *	mv_bmdma_stop_ap - Stop BMDMA transfer
  *	@ap: port to stop
  *
  *	Clears the ATA_DMA_START flag in the bmdma control register
