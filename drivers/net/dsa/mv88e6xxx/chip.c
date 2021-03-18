@@ -2740,15 +2740,20 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 			return err;
 	}
 
-	/* Port Association Vector: when learning source addresses
-	 * of packets, add the address to the address database using
-	 * a port bitmap that has only the bit for this port set and
-	 * the other bits clear.
+	/* Port Association Vector: disable automatic address learning
+	 * on all user ports since they start out in standalone
+	 * mode. When joining a bridge, learning will be configured to
+	 * match the bridge port settings. Enable learning on all
+	 * DSA/CPU ports. NOTE: FROM_CPU frames always bypass the
+	 * learning process.
+	 *
+	 * Disable HoldAt1, IntOnAgeOut, LockedPort, IgnoreWrongData,
+	 * and RefreshLocked. I.e. setup standard automatic learning.
 	 */
-	reg = 1 << port;
-	/* Disable learning for CPU port */
-	if (dsa_is_cpu_port(ds, port))
+	if (dsa_is_user_port(ds, port))
 		reg = 0;
+	else
+		reg = 1 << port;
 
 	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ASSOC_VECTOR,
 				   reg);
@@ -5604,7 +5609,7 @@ static int mv88e6xxx_port_pre_bridge_flags(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	const struct mv88e6xxx_ops *ops;
 
-	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD))
+	if (flags.mask & ~(BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD))
 		return -EINVAL;
 
 	ops = chip->info->ops;
@@ -5623,9 +5628,22 @@ static int mv88e6xxx_port_bridge_flags(struct dsa_switch *ds, int port,
 				       struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
+	bool do_fast_age = false;
 	int err = -EOPNOTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
+
+	if (flags.mask & BR_LEARNING) {
+		bool learning = !!(flags.val & BR_LEARNING);
+		u16 pav = learning ? (1 << port) : 0;
+
+		err = mv88e6xxx_port_set_assoc_vector(chip, port, pav);
+		if (err)
+			goto out;
+
+		if (!learning)
+			do_fast_age = true;
+	}
 
 	if (flags.mask & BR_FLOOD) {
 		bool unicast = !!(flags.val & BR_FLOOD);
@@ -5647,6 +5665,9 @@ static int mv88e6xxx_port_bridge_flags(struct dsa_switch *ds, int port,
 
 out:
 	mv88e6xxx_reg_unlock(chip);
+
+	if (do_fast_age)
+		mv88e6xxx_port_fast_age(ds, port);
 
 	return err;
 }
