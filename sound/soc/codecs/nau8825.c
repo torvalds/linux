@@ -2111,7 +2111,7 @@ static int nau8825_set_pll(struct snd_soc_component *component, int pll_id, int 
 
 static int nau8825_mclk_prepare(struct nau8825 *nau8825, unsigned int freq)
 {
-	int ret = 0;
+	int ret;
 
 	nau8825->mclk = devm_clk_get(nau8825->dev, "mclk");
 	if (IS_ERR(nau8825->mclk)) {
