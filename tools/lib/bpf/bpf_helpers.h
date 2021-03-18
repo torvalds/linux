@@ -40,8 +40,22 @@
 #define __weak __attribute__((weak))
 #endif
 
+/* When utilizing vmlinux.h with BPF CO-RE, user BPF programs can't include
+ * any system-level headers (such as stddef.h, linux/version.h, etc), and
+ * commonly-used macros like NULL and KERNEL_VERSION aren't available through
+ * vmlinux.h. This just adds unnecessary hurdles and forces users to re-define
+ * them on their own. So as a convenience, provide such definitions here.
+ */
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
+#ifndef KERNEL_VERSION
+#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + ((c) > 255 ? 255 : (c))
+#endif
+
 /*
- * Helper macro to manipulate data structures
+ * Helper macros to manipulate data structures
  */
 #ifndef offsetof
 #define offsetof(TYPE, MEMBER)	((unsigned long)&((TYPE *)0)->MEMBER)
