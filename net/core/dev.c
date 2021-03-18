@@ -2784,13 +2784,16 @@ out_no_new_maps:
 
 	/* removes tx-queue from unused CPUs/rx-queues */
 	for (j = 0; j < dev_maps->nr_ids; j++) {
-		for (i = tc, tci = j * dev_maps->num_tc; i--; tci++)
+		tci = j * dev_maps->num_tc;
+
+		for (i = 0; i < dev_maps->num_tc; i++, tci++) {
+			if (i == tc &&
+			    netif_attr_test_mask(j, mask, dev_maps->nr_ids) &&
+			    netif_attr_test_online(j, online_mask, dev_maps->nr_ids))
+				continue;
+
 			active |= remove_xps_queue(dev_maps, tci, index);
-		if (!netif_attr_test_mask(j, mask, dev_maps->nr_ids) ||
-		    !netif_attr_test_online(j, online_mask, dev_maps->nr_ids))
-			active |= remove_xps_queue(dev_maps, tci, index);
-		for (i = dev_maps->num_tc - tc, tci++; --i; tci++)
-			active |= remove_xps_queue(dev_maps, tci, index);
+		}
 	}
 
 	/* free map if not active */
