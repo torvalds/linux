@@ -2460,7 +2460,7 @@ static DEFINE_MUTEX(xps_map_mutex);
 	rcu_dereference_protected((P), lockdep_is_held(&xps_map_mutex))
 
 static bool remove_xps_queue(struct xps_dev_maps *dev_maps,
-			     int tci, u16 index)
+			     struct xps_dev_maps *old_maps, int tci, u16 index)
 {
 	struct xps_map *map = NULL;
 	int pos;
@@ -2479,6 +2479,8 @@ static bool remove_xps_queue(struct xps_dev_maps *dev_maps,
 			break;
 		}
 
+		if (old_maps)
+			RCU_INIT_POINTER(old_maps->attr_map[tci], NULL);
 		RCU_INIT_POINTER(dev_maps->attr_map[tci], NULL);
 		kfree_rcu(map, rcu);
 		return false;
@@ -2499,7 +2501,7 @@ static bool remove_xps_queue_cpu(struct net_device *dev,
 		int i, j;
 
 		for (i = count, j = offset; i--; j++) {
-			if (!remove_xps_queue(dev_maps, tci, j))
+			if (!remove_xps_queue(dev_maps, NULL, tci, j))
 				break;
 		}
 
@@ -2631,7 +2633,7 @@ static void xps_copy_dev_maps(struct xps_dev_maps *dev_maps,
 int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 			  u16 index, enum xps_map_type type)
 {
-	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL;
+	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL, *old_dev_maps = NULL;
 	const unsigned long *online_mask = NULL;
 	bool active = false, copy = false;
 	int i, j, tci, numa_node_id = -2;
@@ -2766,7 +2768,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 		}
 	}
 
-	kfree_rcu(dev_maps, rcu);
+	old_dev_maps = dev_maps;
 
 out_no_old_maps:
 	dev_maps = new_dev_maps;
@@ -2792,9 +2794,14 @@ out_no_new_maps:
 			    netif_attr_test_online(j, online_mask, dev_maps->nr_ids))
 				continue;
 
-			active |= remove_xps_queue(dev_maps, tci, index);
+			active |= remove_xps_queue(dev_maps,
+						   copy ? old_dev_maps : NULL,
+						   tci, index);
 		}
 	}
+
+	if (old_dev_maps)
+		kfree_rcu(old_dev_maps, rcu);
 
 	/* free map if not active */
 	if (!active)
