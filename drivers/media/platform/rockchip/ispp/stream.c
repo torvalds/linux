@@ -2600,13 +2600,14 @@ static void nr_work_event(struct rkispp_device *dev,
 			}
 			rkispp_update_regs(dev, RKISPP_NR, RKISPP_ORB_MAX_FEATURE);
 		}
+
+		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
+
 		val = readl(base + RKISPP_SHARP_CORE_CTRL);
 		if (!(val & SW_SHP_EN) && !is_fec_en && !stream->streaming)
 			writel(val | SW_SHP_DMA_DIS, base + RKISPP_SHARP_CORE_CTRL);
 		else if (val & SW_SHP_EN)
 			writel(val & ~SW_SHP_DMA_DIS, base + RKISPP_SHARP_CORE_CTRL);
-
-		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
 			 "NR start seq:%d | Y_SHD rd:0x%x wr:0x%x\n",
