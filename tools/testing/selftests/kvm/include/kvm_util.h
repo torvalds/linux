@@ -16,6 +16,7 @@
 
 #include "sparsebit.h"
 
+#define KVM_DEV_PATH "/dev/kvm"
 #define KVM_MAX_VCPUS 512
 
 /*
