@@ -126,12 +126,7 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv =
 			to_i915(dig_port->base.base.dev);
-	u32 precharge, timeout;
-
-	if (IS_SANDYBRIDGE(dev_priv))
-		precharge = 3;
-	else
-		precharge = 5;
+	u32 timeout;
 
 	/* Max timeout value on G4x-BDW: 1.6ms */
 	if (IS_BROADWELL(dev_priv))
@@ -146,7 +141,7 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 	       timeout |
 	       DP_AUX_CH_CTL_RECEIVE_ERROR |
 	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-	       (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+	       (3 << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT);
 }
 
