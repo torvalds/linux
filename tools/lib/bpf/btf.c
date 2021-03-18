@@ -1629,6 +1629,54 @@ static int btf_commit_type(struct btf *btf, int data_sz)
 	return btf->start_id + btf->nr_types - 1;
 }
 
+struct btf_pipe {
+	const struct btf *src;
+	struct btf *dst;
+};
+
+static int btf_rewrite_str(__u32 *str_off, void *ctx)
+{
+	struct btf_pipe *p = ctx;
+	int off;
+
+	if (!*str_off) /* nothing to do for empty strings */
+		return 0;
+
+	off = btf__add_str(p->dst, btf__str_by_offset(p->src, *str_off));
+	if (off < 0)
+		return off;
+
+	*str_off = off;
+	return 0;
+}
+
+int btf__add_type(struct btf *btf, const struct btf *src_btf, const struct btf_type *src_type)
+{
+	struct btf_pipe p = { .src = src_btf, .dst = btf };
+	struct btf_type *t;
+	int sz, err;
+
+	sz = btf_type_size(src_type);
+	if (sz < 0)
+		return sz;
+
+	/* deconstruct BTF, if necessary, and invalidate raw_data */
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	memcpy(t, src_type, sz);
+
+	err = btf_type_visit_str_offs(t, btf_rewrite_str, &p);
+	if (err)
+		return err;
+
+	return btf_commit_type(btf, sz);
+}
+
 /*
  * Append new BTF_KIND_INT type with:
  *   - *name* - non-empty, non-NULL type name;
