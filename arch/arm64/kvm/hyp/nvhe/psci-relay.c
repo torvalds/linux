@@ -22,8 +22,6 @@ void __noreturn __host_enter(struct kvm_cpu_context *host_ctxt);
 struct kvm_host_psci_config __ro_after_init kvm_host_psci_config;
 s64 __ro_after_init hyp_physvirt_offset;
 
-#define __hyp_pa(x) ((phys_addr_t)((x)) + hyp_physvirt_offset)
-
 #define INVALID_CPU_ID	UINT_MAX
 
 struct psci_boot_args {
