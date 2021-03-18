@@ -135,26 +135,8 @@
 			};
 
 			partition@10000 {
-				reg = <0x010000 0x0f0000>;
+				reg = <0x010000 0x1d0000>;
 				label = "failsafe bootloader";
-				read-only;
-			};
-
-			partition@100000 {
-				reg = <0x100000 0x040000>;
-				label = "failsafe DP firmware";
-				read-only;
-			};
-
-			partition@140000 {
-				reg = <0x140000 0x0a0000>;
-				label = "failsafe trusted firmware";
-				read-only;
-			};
-
-			partition@1e0000 {
-				reg = <0x1e0000 0x020000>;
-				label = "reserved";
 				read-only;
 			};
 
