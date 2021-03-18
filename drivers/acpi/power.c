@@ -1005,18 +1005,9 @@ void acpi_turn_off_unused_power_resources(void)
 	mutex_lock(&power_resource_list_lock);
 
 	list_for_each_entry_reverse(resource, &acpi_power_resource_list, list_node) {
-		int result, state;
-
 		mutex_lock(&resource->resource_lock);
 
-		result = acpi_power_get_state(resource->device.handle, &state);
-		if (result) {
-			mutex_unlock(&resource->resource_lock);
-			continue;
-		}
-
-		if (state == ACPI_POWER_RESOURCE_STATE_ON
-		    && !resource->ref_count) {
+		if (!resource->ref_count) {
 			dev_info(&resource->device.dev, "Turning OFF\n");
 			__acpi_power_off(resource);
 		}
