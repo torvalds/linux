@@ -585,7 +585,7 @@ Buffer Flags
 
       - ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF``
       - 0x00000200
-      - Only valid if :c:type:`struct v4l2_requestbuffers` flag ``V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF`` is
+      - Only valid if struct :c:type:`v4l2_requestbuffers` flag ``V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF`` is
 	set. It is typically used with stateless decoders where multiple
 	output buffers each decode to a slice of the decoded frame.
 	Applications can set this flag when queueing the output buffer
