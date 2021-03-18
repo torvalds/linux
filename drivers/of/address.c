@@ -857,6 +857,9 @@ static int __of_address_to_resource(struct device_node *dev,
 
 /**
  * of_address_to_resource - Translate device tree address and return as resource
+ * @dev:	Caller's Device Node
+ * @index:	Index into the array
+ * @r:		Pointer to resource array
  *
  * Note that if your address is a PIO address, the conversion will fail if
  * the physical address can't be internally converted to an IO token with
