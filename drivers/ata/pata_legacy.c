@@ -588,7 +588,7 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	opt82c465mv_qc_issue		-	command issue
+ *	opti82c46x_qc_issue		-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -923,7 +923,7 @@ static __init int probe_chip_type(struct legacy_probe *probe)
 
 /**
  *	legacy_init_one		-	attach a legacy interface
- *	@pl: probe record
+ *	@probe: probe record
  *
  *	Register an ISA bus IDE interface. Such interfaces are PIO and we
  *	assume do not support IRQ sharing.
@@ -1009,8 +1009,8 @@ fail:
 /**
  *	legacy_check_special_cases	-	ATA special cases
  *	@p: PCI device to check
- *	@master: set this if we find an ATA master
- *	@master: set this if we find an ATA secondary
+ *	@primary: set this if we find an ATA master
+ *	@secondary: set this if we find an ATA secondary
  *
  *	A small number of vendors implemented early PCI ATA interfaces
  *	on bridge logic without the ATA interface being PCI visible.
