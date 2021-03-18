@@ -51,10 +51,8 @@ static ssize_t ttyname_store(struct device *dev,
 
 	if (size) {
 		ttyname = kmemdup_nul(buf, size, GFP_KERNEL);
-		if (!ttyname) {
-			ret = -ENOMEM;
-			goto out_unlock;
-		}
+		if (!ttyname)
+			return -ENOMEM;
 	} else {
 		ttyname = NULL;
 	}
@@ -69,7 +67,6 @@ static ssize_t ttyname_store(struct device *dev,
 
 	trigger_data->ttyname = ttyname;
 
-out_unlock:
 	mutex_unlock(&trigger_data->mutex);
 
 	if (ttyname && !running)
@@ -125,12 +122,12 @@ static void ledtrig_tty_work(struct work_struct *work)
 
 	if (icount.rx != trigger_data->rx ||
 	    icount.tx != trigger_data->tx) {
-		led_set_brightness(trigger_data->led_cdev, LED_ON);
+		led_set_brightness_sync(trigger_data->led_cdev, LED_ON);
 
 		trigger_data->rx = icount.rx;
 		trigger_data->tx = icount.tx;
 	} else {
-		led_set_brightness(trigger_data->led_cdev, LED_OFF);
+		led_set_brightness_sync(trigger_data->led_cdev, LED_OFF);
 	}
 
 out:
