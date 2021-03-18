@@ -421,8 +421,8 @@ static int lapbeth_device_event(struct notifier_block *this,
 		if (lapbeth_get_x25_dev(dev) == NULL)
 			lapbeth_new_device(dev);
 		break;
-	case NETDEV_DOWN:	
-		/* ethernet device closed -> close LAPB interface */
+	case NETDEV_GOING_DOWN:
+		/* ethernet device closes -> close LAPB interface */
 		lapbeth = lapbeth_get_x25_dev(dev);
 		if (lapbeth) 
 			dev_close(lapbeth->axdev);
