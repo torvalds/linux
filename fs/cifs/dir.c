@@ -78,7 +78,7 @@ cifs_build_path_to_root(struct smb3_fs_context *ctx, struct cifs_sb_info *cifs_s
 }
 
 /* Note: caller must free return buffer */
-char *
+const char *
 build_path_from_dentry(struct dentry *direntry)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
@@ -233,7 +233,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	int desired_access;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_tcon *tcon = tlink_tcon(tlink);
-	char *full_path = NULL;
+	const char *full_path = NULL;
 	FILE_ALL_INFO *buf = NULL;
 	struct inode *newinode = NULL;
 	int disposition;
@@ -619,7 +619,7 @@ int cifs_mknod(struct user_namespace *mnt_userns, struct inode *inode,
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
-	char *full_path = NULL;
+	const char *full_path = NULL;
 
 	if (!old_valid_dev(device_number))
 		return -EINVAL;
@@ -660,7 +660,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
 	struct inode *newInode = NULL;
-	char *full_path = NULL;
+	const char *full_path = NULL;
 
 	xid = get_xid();
 

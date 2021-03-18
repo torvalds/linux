@@ -942,7 +942,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	char *tmp_buf = NULL;
 	char *end_of_smb;
 	unsigned int max_len;
-	char *full_path = NULL;
+	const char *full_path = NULL;
 
 	xid = get_xid();
 

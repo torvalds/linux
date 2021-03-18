@@ -42,7 +42,7 @@ static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct dentry *dentry = filep->f_path.dentry;
-	unsigned char *path;
+	const unsigned char *path;
 	__le16 *utf16_path = NULL, root_path;
 	int rc = 0;
 
