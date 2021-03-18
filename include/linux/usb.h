@@ -841,7 +841,7 @@ extern int usb_free_streams(struct usb_interface *interface,
 
 /* used these for multi-interface device registration */
 extern int usb_driver_claim_interface(struct usb_driver *driver,
-			struct usb_interface *iface, void *priv);
+			struct usb_interface *iface, void *data);
 
 /**
  * usb_interface_claimed - returns true iff an interface is claimed
