@@ -241,6 +241,7 @@ i915-y += \
 	display/dvo_sil164.o \
 	display/dvo_tfp410.o \
 	display/g4x_dp.o \
+	display/g4x_hdmi.o \
 	display/icl_dsi.o \
 	display/intel_crt.o \
 	display/intel_ddi.o \
