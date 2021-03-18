@@ -2979,9 +2979,11 @@ L:	linux-audit@redhat.com (moderated for non-subscribers)
 S:	Supported
 W:	https://github.com/linux-audit
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/audit.git
+F:	include/asm-generic/audit_*.h
 F:	include/linux/audit.h
 F:	include/uapi/linux/audit.h
 F:	kernel/audit*
+F:	lib/*audit.c
 
 AUXILIARY DISPLAY DRIVERS
 M:	Miguel Ojeda <ojeda@kernel.org>
