@@ -246,7 +246,7 @@ static ssize_t wb_on_store(struct device *dev, struct device_attribute *attr,
 	}
 
 	pm_runtime_get_sync(hba->dev);
-	res = ufshcd_wb_ctrl(hba, wb_enable);
+	res = ufshcd_wb_toggle(hba, wb_enable);
 	pm_runtime_put_sync(hba->dev);
 out:
 	up(&hba->host_sem);
