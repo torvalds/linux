@@ -3,6 +3,11 @@
 #ifndef _NET_IPV6_GRO_H
 #define _NET_IPV6_GRO_H
 
+#include <linux/indirect_call_wrapper.h>
+
+struct list_head;
+struct sk_buff;
+
 INDIRECT_CALLABLE_DECLARE(struct sk_buff *ipv6_gro_receive(struct list_head *,
 							   struct sk_buff *));
 INDIRECT_CALLABLE_DECLARE(int ipv6_gro_complete(struct sk_buff *, int));
