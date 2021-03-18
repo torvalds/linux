@@ -180,7 +180,7 @@ struct amdgpu_mgpu_info mgpu_info = {
 };
 int amdgpu_ras_enable = -1;
 uint amdgpu_ras_mask = 0xffffffff;
-int amdgpu_bad_page_threshold = 100;
+int amdgpu_bad_page_threshold = -1;
 struct amdgpu_watchdog_timer amdgpu_watchdog_timer = {
 	.timeout_fatal_disable = false,
 	.period = 0x23, /* default to max. timeout = 1 << 0x23 cycles */
@@ -854,7 +854,7 @@ module_param_named(reset_method, amdgpu_reset_method, int, 0444);
  * faulty pages by ECC exceed threshold value and leave it for user's further
  * check.
  */
-MODULE_PARM_DESC(bad_page_threshold, "Bad page threshold(-1 = auto, 0 = disable bad page retirement, 100 = default value");
+MODULE_PARM_DESC(bad_page_threshold, "Bad page threshold(-1 = auto(default value), 0 = disable bad page retirement)");
 module_param_named(bad_page_threshold, amdgpu_bad_page_threshold, int, 0444);
 
 MODULE_PARM_DESC(num_kcq, "number of kernel compute queue user want to setup (8 if set to greater than 8 or less than 0, only affect gfx 8+)");

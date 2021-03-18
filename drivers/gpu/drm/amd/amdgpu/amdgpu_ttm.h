@@ -48,8 +48,6 @@ struct amdgpu_vram_mgr {
 	spinlock_t lock;
 	struct list_head reservations_pending;
 	struct list_head reserved_pages;
-	struct list_head backup_pages;
-	uint32_t num_backup_pages;
 	atomic64_t usage;
 	atomic64_t vis_usage;
 };
@@ -124,8 +122,6 @@ uint64_t amdgpu_vram_mgr_usage(struct ttm_resource_manager *man);
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_resource_manager *man);
 int amdgpu_vram_mgr_reserve_range(struct ttm_resource_manager *man,
 				  uint64_t start, uint64_t size);
-int amdgpu_vram_mgr_reserve_backup_pages(struct ttm_resource_manager *man,
-					 uint32_t num_pages);
 int amdgpu_vram_mgr_query_page_status(struct ttm_resource_manager *man,
 				      uint64_t start);
 
