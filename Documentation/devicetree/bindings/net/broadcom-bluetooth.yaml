@@ -18,6 +18,7 @@ properties:
       - brcm,bcm20702a1
       - brcm,bcm4329-bt
       - brcm,bcm4330-bt
+      - brcm,bcm4334-bt
       - brcm,bcm43438-bt
       - brcm,bcm4345c5
       - brcm,bcm43540-bt
