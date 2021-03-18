@@ -119,7 +119,23 @@
 		.offset = qup_offset,                   \
 	}
 
+#define TLMM_NORTH_SPARE_OFFSET 0x1B3000
+#define TLMM_NORTH_SPARE1_OFFSET 0x1B4000
 
+#define SPARE_REG(sparereg, spare_offset)               \
+	{                                               \
+		.spare_reg = tlmm_##sparereg,            \
+		.offset = spare_offset,                 \
+	}
+
+enum blair_tlmm_spare {
+	tlmm_west_spare,
+	tlmm_west_spare1,
+	tlmm_north_spare,
+	tlmm_north_spare1,
+	tlmm_south_spare,
+	tlmm_south_spare1,
+};
 
 static const struct pinctrl_pin_desc blair_pins[] = {
 	PINCTRL_PIN(0, "GPIO_0"),
@@ -1313,6 +1329,15 @@ static const struct msm_function blair_functions[] = {
 	FUNCTION(USB_PHY),
 };
 
+static const struct msm_spare_tlmm blair_spare_regs[] = {
+	SPARE_REG(west_spare, 0),
+	SPARE_REG(west_spare1, 0),
+	SPARE_REG(north_spare, TLMM_NORTH_SPARE_OFFSET),
+	SPARE_REG(north_spare1, TLMM_NORTH_SPARE1_OFFSET),
+	SPARE_REG(south_spare, 0),
+	SPARE_REG(south_spare1, 0),
+};
+
 /* Every pin is maintained as a single group, and missing or non-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
@@ -1653,6 +1678,8 @@ static const struct msm_pinctrl_soc_data blair_pinctrl = {
 	.ngpios = 157,
 	.wakeirq_map = blair_mpm_map,
 	.nwakeirq_map = ARRAY_SIZE(blair_mpm_map),
+	.spare_regs = blair_spare_regs,
+	.nspare_regs = ARRAY_SIZE(blair_spare_regs),
 };
 
 static int blair_pinctrl_probe(struct platform_device *pdev)
