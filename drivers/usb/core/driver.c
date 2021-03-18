@@ -526,10 +526,6 @@ static int usb_unbind_interface(struct device *dev)
  * No device driver should directly modify internal usb_interface or
  * usb_device structure members.
  *
- * Few drivers should need to use this routine, since the most natural
- * way to bind to an interface is to return the private data from
- * the driver's probe() method.
- *
  * Callers must own the device lock, so driver probe() entries don't need
  * extra locking, but other call contexts may need to explicitly claim that
  * lock.
