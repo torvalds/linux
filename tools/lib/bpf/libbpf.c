@@ -4867,8 +4867,8 @@ static int load_module_btfs(struct bpf_object *obj)
 			goto err_out;
 		}
 
-		err = btf_ensure_mem((void **)&obj->btf_modules, &obj->btf_module_cap,
-				     sizeof(*obj->btf_modules), obj->btf_module_cnt + 1);
+		err = libbpf_ensure_mem((void **)&obj->btf_modules, &obj->btf_module_cap,
+				        sizeof(*obj->btf_modules), obj->btf_module_cnt + 1);
 		if (err)
 			goto err_out;
 

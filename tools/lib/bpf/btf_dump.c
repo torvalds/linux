@@ -166,11 +166,11 @@ static int btf_dump_resize(struct btf_dump *d)
 	if (last_id <= d->last_id)
 		return 0;
 
-	if (btf_ensure_mem((void **)&d->type_states, &d->type_states_cap,
-			   sizeof(*d->type_states), last_id + 1))
+	if (libbpf_ensure_mem((void **)&d->type_states, &d->type_states_cap,
+			      sizeof(*d->type_states), last_id + 1))
 		return -ENOMEM;
-	if (btf_ensure_mem((void **)&d->cached_names, &d->cached_names_cap,
-			   sizeof(*d->cached_names), last_id + 1))
+	if (libbpf_ensure_mem((void **)&d->cached_names, &d->cached_names_cap,
+			      sizeof(*d->cached_names), last_id + 1))
 		return -ENOMEM;
 
 	if (d->last_id == 0) {

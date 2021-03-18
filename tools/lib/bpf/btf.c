@@ -142,8 +142,8 @@ static inline __u64 ptr_to_u64(const void *ptr)
  * On success, memory pointer to the beginning of unused memory is returned.
  * On error, NULL is returned.
  */
-void *btf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
-		  size_t cur_cnt, size_t max_cnt, size_t add_cnt)
+void *libbpf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
+		     size_t cur_cnt, size_t max_cnt, size_t add_cnt)
 {
 	size_t new_cnt;
 	void *new_data;
@@ -179,14 +179,14 @@ void *btf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
 /* Ensure given dynamically allocated memory region has enough allocated space
  * to accommodate *need_cnt* elements of size *elem_sz* bytes each
  */
-int btf_ensure_mem(void **data, size_t *cap_cnt, size_t elem_sz, size_t need_cnt)
+int libbpf_ensure_mem(void **data, size_t *cap_cnt, size_t elem_sz, size_t need_cnt)
 {
 	void *p;
 
 	if (need_cnt <= *cap_cnt)
 		return 0;
 
-	p = btf_add_mem(data, cap_cnt, elem_sz, *cap_cnt, SIZE_MAX, need_cnt - *cap_cnt);
+	p = libbpf_add_mem(data, cap_cnt, elem_sz, *cap_cnt, SIZE_MAX, need_cnt - *cap_cnt);
 	if (!p)
 		return -ENOMEM;
 
@@ -197,8 +197,8 @@ static int btf_add_type_idx_entry(struct btf *btf, __u32 type_off)
 {
 	__u32 *p;
 
-	p = btf_add_mem((void **)&btf->type_offs, &btf->type_offs_cap, sizeof(__u32),
-			btf->nr_types, BTF_MAX_NR_TYPES, 1);
+	p = libbpf_add_mem((void **)&btf->type_offs, &btf->type_offs_cap, sizeof(__u32),
+			   btf->nr_types, BTF_MAX_NR_TYPES, 1);
 	if (!p)
 		return -ENOMEM;
 
@@ -1586,8 +1586,8 @@ err_out:
 
 static void *btf_add_str_mem(struct btf *btf, size_t add_sz)
 {
-	return btf_add_mem(&btf->strs_data, &btf->strs_data_cap, 1,
-			   btf->hdr->str_len, BTF_MAX_STR_OFFSET, add_sz);
+	return libbpf_add_mem(&btf->strs_data, &btf->strs_data_cap, 1,
+			      btf->hdr->str_len, BTF_MAX_STR_OFFSET, add_sz);
 }
 
 /* Find an offset in BTF string section that corresponds to a given string *s*.
@@ -1683,8 +1683,8 @@ int btf__add_str(struct btf *btf, const char *s)
 
 static void *btf_add_type_mem(struct btf *btf, size_t add_sz)
 {
-	return btf_add_mem(&btf->types_data, &btf->types_data_cap, 1,
-			   btf->hdr->type_len, UINT_MAX, add_sz);
+	return libbpf_add_mem(&btf->types_data, &btf->types_data_cap, 1,
+			      btf->hdr->type_len, UINT_MAX, add_sz);
 }
 
 static __u32 btf_type_info(int kind, int vlen, int kflag)
@@ -3208,7 +3208,7 @@ static int strs_dedup_remap_str_off(__u32 *str_off_ptr, void *ctx)
 	len = strlen(s) + 1;
 
 	new_off = d->strs_len;
-	p = btf_add_mem(&d->strs_data, &d->strs_cap, 1, new_off, BTF_MAX_STR_OFFSET, len);
+	p = libbpf_add_mem(&d->strs_data, &d->strs_cap, 1, new_off, BTF_MAX_STR_OFFSET, len);
 	if (!p)
 		return -ENOMEM;
 
@@ -3264,7 +3264,7 @@ static int btf_dedup_strings(struct btf_dedup *d)
 	}
 
 	if (!d->btf->base_btf) {
-		s = btf_add_mem(&d->strs_data, &d->strs_cap, 1, d->strs_len, BTF_MAX_STR_OFFSET, 1);
+		s = libbpf_add_mem(&d->strs_data, &d->strs_cap, 1, d->strs_len, BTF_MAX_STR_OFFSET, 1);
 		if (!s)
 			return -ENOMEM;
 		/* initial empty string */
