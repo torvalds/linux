@@ -2764,6 +2764,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 					continue;
 			}
 
+			RCU_INIT_POINTER(dev_maps->attr_map[tci], NULL);
 			kfree_rcu(map, rcu);
 		}
 	}
