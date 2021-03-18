@@ -628,7 +628,7 @@ int amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 	return psp_xgmi_terminate(&adev->psp);
 }
 
-int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
+static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 {
 	int r;
 	struct ras_ih_if ih_info = {
@@ -642,7 +642,7 @@ int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 	    adev->gmc.xgmi.num_physical_nodes == 0)
 		return 0;
 
-	amdgpu_xgmi_reset_ras_error_count(adev);
+	adev->gmc.xgmi.ras_funcs->reset_ras_error_count(adev);
 
 	if (!adev->gmc.xgmi.ras_if) {
 		adev->gmc.xgmi.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
@@ -664,7 +664,7 @@ int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 	return r;
 }
 
-void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
+static void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
 {
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL) &&
 			adev->gmc.xgmi.ras_if) {
@@ -691,7 +691,7 @@ static void pcs_clear_status(struct amdgpu_device *adev, uint32_t pcs_status_reg
 	WREG32_PCIE(pcs_status_reg, 0);
 }
 
-void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
+static void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
 {
 	uint32_t i;
 
@@ -751,8 +751,8 @@ static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
 	return 0;
 }
 
-int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
-				      void *ras_error_status)
+static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
+					     void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	int i;
@@ -801,10 +801,17 @@ int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		break;
 	}
 
-	amdgpu_xgmi_reset_ras_error_count(adev);
+	adev->gmc.xgmi.ras_funcs->reset_ras_error_count(adev);
 
 	err_data->ue_count += ue_cnt;
 	err_data->ce_count += ce_cnt;
 
 	return 0;
 }
+
+const struct amdgpu_xgmi_ras_funcs xgmi_ras_funcs = {
+	.ras_late_init = amdgpu_xgmi_ras_late_init,
+	.ras_fini = amdgpu_xgmi_ras_fini,
+	.query_ras_error_count = amdgpu_xgmi_query_ras_error_count,
+	.reset_ras_error_count = amdgpu_xgmi_reset_ras_error_count,
+};

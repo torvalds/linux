@@ -809,7 +809,9 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 			adev->nbio.ras_funcs->query_ras_error_count(adev, &err_data);
 		break;
 	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
-		amdgpu_xgmi_query_ras_error_count(adev, &err_data);
+		if (adev->gmc.xgmi.ras_funcs &&
+		    adev->gmc.xgmi.ras_funcs->query_ras_error_count)
+			adev->gmc.xgmi.ras_funcs->query_ras_error_count(adev, &err_data);
 		break;
 	default:
 		break;

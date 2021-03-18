@@ -403,14 +403,26 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 			return r;
 	}
 
-	return amdgpu_xgmi_ras_late_init(adev);
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		adev->gmc.xgmi.ras_funcs = &xgmi_ras_funcs;
+
+	if (adev->gmc.xgmi.ras_funcs &&
+	    adev->gmc.xgmi.ras_funcs->ras_late_init) {
+		r = adev->gmc.xgmi.ras_funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	return 0;
 }
 
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 {
 	amdgpu_umc_ras_fini(adev);
 	amdgpu_mmhub_ras_fini(adev);
-	amdgpu_xgmi_ras_fini(adev);
+	if (adev->gmc.xgmi.ras_funcs &&
+	    adev->gmc.xgmi.ras_funcs->ras_fini)
+		adev->gmc.xgmi.ras_funcs->ras_fini(adev);
 }
 
 	/*

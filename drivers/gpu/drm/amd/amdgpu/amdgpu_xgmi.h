@@ -50,6 +50,7 @@ struct amdgpu_pcs_ras_field {
 	uint32_t pcs_err_shift;
 };
 
+extern const struct amdgpu_xgmi_ras_funcs xgmi_ras_funcs;
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev);
 void amdgpu_put_xgmi_hive(struct amdgpu_hive_info *hive);
 int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev);
@@ -58,14 +59,8 @@ int amdgpu_xgmi_remove_device(struct amdgpu_device *adev);
 int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate);
 int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev,
 		struct amdgpu_device *peer_adev);
-int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev);
-void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev);
 uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 					   uint64_t addr);
-int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
-				      void *ras_error_status);
-void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev);
-
 static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
 		struct amdgpu_device *bo_adev)
 {
