@@ -14,10 +14,12 @@ static int __counter_set_mode(struct rdma_port_counter *port_counter,
 			      enum rdma_nl_counter_mode new_mode,
 			      enum rdma_nl_counter_mask new_mask)
 {
-	if (new_mode == RDMA_COUNTER_MODE_AUTO && port_counter->num_counters)
-		if (new_mask & ~ALL_AUTO_MODE_MASKS ||
-		    port_counter->mode.mode != RDMA_COUNTER_MODE_NONE)
+	if (new_mode == RDMA_COUNTER_MODE_AUTO) {
+		if (new_mask & (~ALL_AUTO_MODE_MASKS))
 			return -EINVAL;
+		if (port_counter->num_counters)
+			return -EBUSY;
+	}
 
 	port_counter->mode.mode = new_mode;
 	port_counter->mode.mask = new_mask;
@@ -32,14 +34,17 @@ static int __counter_set_mode(struct rdma_port_counter *port_counter,
  * @mask: Mask to configure
  * @extack: Message to the user
  *
- * Return 0 on success.
+ * Return 0 on success. If counter mode wasn't changed then it is considered
+ * as success as well.
+ * Return -EBUSY when changing to auto mode while there are bounded counters.
+ *
  */
 int rdma_counter_set_auto_mode(struct ib_device *dev, u32 port,
 			       enum rdma_nl_counter_mask mask,
 			       struct netlink_ext_ack *extack)
 {
-	enum rdma_nl_counter_mode mode = RDMA_COUNTER_MODE_AUTO;
 	struct rdma_port_counter *port_counter;
+	enum rdma_nl_counter_mode mode;
 	int ret;
 
 	port_counter = &dev->port_data[port].port_counter;
@@ -47,25 +52,26 @@ int rdma_counter_set_auto_mode(struct ib_device *dev, u32 port,
 		return -EOPNOTSUPP;
 
 	mutex_lock(&port_counter->lock);
-	if (mask) {
-		ret = __counter_set_mode(port_counter, mode, mask);
-		if (ret)
-			NL_SET_ERR_MSG(
-				extack,
-				"Turning on auto mode is not allowed when there is bound QP");
+	if (mask)
+		mode = RDMA_COUNTER_MODE_AUTO;
+	else
+		mode = (port_counter->num_counters) ? RDMA_COUNTER_MODE_MANUAL :
+						      RDMA_COUNTER_MODE_NONE;
+
+	if (port_counter->mode.mode == mode &&
+	    port_counter->mode.mask == mask) {
+		ret = 0;
 		goto out;
 	}
 
-	if (port_counter->mode.mode != RDMA_COUNTER_MODE_AUTO) {
-		ret = -EINVAL;
-		goto out;
-	}
+	ret = __counter_set_mode(port_counter, mode, mask);
 
-	mode = (port_counter->num_counters) ? RDMA_COUNTER_MODE_MANUAL :
-						    RDMA_COUNTER_MODE_NONE;
-	ret = __counter_set_mode(port_counter, mode, 0);
 out:
 	mutex_unlock(&port_counter->lock);
+	if (ret == -EBUSY)
+		NL_SET_ERR_MSG(
+			extack,
+			"Modifying auto mode is not allowed when there is a bound QP");
 	return ret;
 }
 
