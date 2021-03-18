@@ -2489,19 +2489,15 @@ static int mv88e6xxx_setup_message_port(struct mv88e6xxx_chip *chip, int port)
 
 static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 {
-	struct dsa_switch *ds = chip->ds;
-	bool flood;
 	int err;
 
-	/* Upstream ports flood frames with unknown unicast or multicast DA */
-	flood = dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port);
 	if (chip->info->ops->port_set_ucast_flood) {
-		err = chip->info->ops->port_set_ucast_flood(chip, port, flood);
+		err = chip->info->ops->port_set_ucast_flood(chip, port, true);
 		if (err)
 			return err;
 	}
 	if (chip->info->ops->port_set_mcast_flood) {
-		err = chip->info->ops->port_set_mcast_flood(chip, port, flood);
+		err = chip->info->ops->port_set_mcast_flood(chip, port, true);
 		if (err)
 			return err;
 	}
