@@ -89,6 +89,21 @@ void *rvu_cgx_pdata(u8 cgx_id, struct rvu *rvu)
 	return rvu->cgx_idmap[cgx_id];
 }
 
+/* Return first enabled CGX instance if none are enabled then return NULL */
+void *rvu_first_cgx_pdata(struct rvu *rvu)
+{
+	int first_enabled_cgx = 0;
+	void *cgxd = NULL;
+
+	for (; first_enabled_cgx < rvu->cgx_cnt_max; first_enabled_cgx++) {
+		cgxd = rvu_cgx_pdata(first_enabled_cgx, rvu);
+		if (cgxd)
+			break;
+	}
+
+	return cgxd;
+}
+
 /* Based on P2X connectivity find mapped NIX block for a PF */
 static void rvu_map_cgx_nix_block(struct rvu *rvu, int pf,
 				  int cgx_id, int lmac_id)
@@ -711,10 +726,9 @@ int rvu_mbox_handler_cgx_features_get(struct rvu *rvu,
 u32 rvu_cgx_get_fifolen(struct rvu *rvu)
 {
 	struct mac_ops *mac_ops;
-	int rvu_def_cgx_id = 0;
 	u32 fifo_len;
 
-	mac_ops = get_mac_ops(rvu_cgx_pdata(rvu_def_cgx_id, rvu));
+	mac_ops = get_mac_ops(rvu_first_cgx_pdata(rvu));
 	fifo_len = mac_ops ? mac_ops->fifo_len : 0;
 
 	return fifo_len;
