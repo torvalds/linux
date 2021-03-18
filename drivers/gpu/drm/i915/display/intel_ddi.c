@@ -4017,8 +4017,17 @@ static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 	kfree(dig_port);
 }
 
+static void intel_ddi_encoder_reset(struct drm_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(encoder));
+
+	intel_dp->reset_link_params = true;
+
+	intel_pps_encoder_reset(intel_dp);
+}
+
 static const struct drm_encoder_funcs intel_ddi_funcs = {
-	.reset = intel_dp_encoder_reset,
+	.reset = intel_ddi_encoder_reset,
 	.destroy = intel_ddi_encoder_destroy,
 };
 

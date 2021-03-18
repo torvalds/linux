@@ -5736,13 +5736,12 @@ static enum pipe vlv_active_pipe(struct intel_dp *intel_dp)
 	return INVALID_PIPE;
 }
 
-void intel_dp_encoder_reset(struct drm_encoder *encoder)
+static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(encoder));
 
-	if (!HAS_DDI(dev_priv))
-		intel_dp->DP = intel_de_read(dev_priv, intel_dp->output_reg);
+	intel_dp->DP = intel_de_read(dev_priv, intel_dp->output_reg);
 
 	intel_dp->reset_link_params = true;
 
