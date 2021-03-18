@@ -357,10 +357,20 @@ static struct lock_torture_ops mutex_lock_ops = {
 };
 
 #include <linux/ww_mutex.h>
+/*
+ * The torture ww_mutexes should belong to the same lock class as
+ * torture_ww_class to avoid lockdep problem. The ww_mutex_init()
+ * function is called for initialization to ensure that.
+ */
 static DEFINE_WD_CLASS(torture_ww_class);
-static DEFINE_WW_MUTEX(torture_ww_mutex_0, &torture_ww_class);
-static DEFINE_WW_MUTEX(torture_ww_mutex_1, &torture_ww_class);
-static DEFINE_WW_MUTEX(torture_ww_mutex_2, &torture_ww_class);
+static struct ww_mutex torture_ww_mutex_0, torture_ww_mutex_1, torture_ww_mutex_2;
+
+static void torture_ww_mutex_init(void)
+{
+	ww_mutex_init(&torture_ww_mutex_0, &torture_ww_class);
+	ww_mutex_init(&torture_ww_mutex_1, &torture_ww_class);
+	ww_mutex_init(&torture_ww_mutex_2, &torture_ww_class);
+}
 
 static int torture_ww_mutex_lock(void)
 __acquires(torture_ww_mutex_0)
@@ -418,6 +428,7 @@ __releases(torture_ww_mutex_2)
 }
 
 static struct lock_torture_ops ww_mutex_lock_ops = {
+	.init		= torture_ww_mutex_init,
 	.writelock	= torture_ww_mutex_lock,
 	.write_delay	= torture_mutex_delay,
 	.task_boost     = torture_boost_dummy,
