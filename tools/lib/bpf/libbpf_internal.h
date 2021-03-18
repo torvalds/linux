@@ -20,6 +20,26 @@
 
 #include "libbpf.h"
 
+#ifndef EM_BPF
+#define EM_BPF 247
+#endif
+
+#ifndef R_BPF_64_64
+#define R_BPF_64_64 1
+#endif
+#ifndef R_BPF_64_32
+#define R_BPF_64_32 10
+#endif
+
+#ifndef SHT_LLVM_ADDRSIG
+#define SHT_LLVM_ADDRSIG 0x6FFF4C03
+#endif
+
+/* if libelf is old and doesn't support mmap(), fall back to read() */
+#ifndef ELF_C_READ_MMAP
+#define ELF_C_READ_MMAP ELF_C_READ
+#endif
+
 #define BTF_INFO_ENC(kind, kind_flag, vlen) \
 	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
 #define BTF_TYPE_ENC(name, info, size_or_type) (name), (info), (size_or_type)

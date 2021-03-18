@@ -355,4 +355,8 @@ LIBBPF_0.4.0 {
 	global:
 		btf__add_float;
 		btf__add_type;
+		bpf_linker__add_file;
+		bpf_linker__finalize;
+		bpf_linker__free;
+		bpf_linker__new;
 } LIBBPF_0.3.0;

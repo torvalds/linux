@@ -760,6 +760,19 @@ enum libbpf_tristate {
 	TRI_MODULE = 2,
 };
 
+struct bpf_linker_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+};
+#define bpf_linker_opts__last_field sz
+
+struct bpf_linker;
+
+LIBBPF_API struct bpf_linker *bpf_linker__new(const char *filename, struct bpf_linker_opts *opts);
+LIBBPF_API int bpf_linker__add_file(struct bpf_linker *linker, const char *filename);
+LIBBPF_API int bpf_linker__finalize(struct bpf_linker *linker);
+LIBBPF_API void bpf_linker__free(struct bpf_linker *linker);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
