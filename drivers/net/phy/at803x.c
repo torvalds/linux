@@ -751,36 +751,6 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 	}
 }
 
-static int at803x_aneg_done(struct phy_device *phydev)
-{
-	int ccr;
-
-	int aneg_done = genphy_aneg_done(phydev);
-	if (aneg_done != BMSR_ANEGCOMPLETE)
-		return aneg_done;
-
-	/*
-	 * in SGMII mode, if copper side autoneg is successful,
-	 * also check SGMII side autoneg result
-	 */
-	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
-	if ((ccr & AT803X_MODE_CFG_MASK) != AT803X_MODE_CFG_SGMII)
-		return aneg_done;
-
-	/* switch to SGMII/fiber page */
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
-
-	/* check if the SGMII link is OK. */
-	if (!(phy_read(phydev, AT803X_PSSR) & AT803X_PSSR_MR_AN_COMPLETE)) {
-		phydev_warn(phydev, "803x_aneg_done: SGMII link is not ok\n");
-		aneg_done = 0;
-	}
-	/* switch back to copper page */
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
-
-	return aneg_done;
-}
-
 static int at803x_read_status(struct phy_device *phydev)
 {
 	int ss, err, old_link = phydev->link;
@@ -1198,7 +1168,6 @@ static struct phy_driver at803x_driver[] = {
 	.resume			= at803x_resume,
 	/* PHY_GBIT_FEATURES */
 	.read_status		= at803x_read_status,
-	.aneg_done		= at803x_aneg_done,
 	.config_intr		= &at803x_config_intr,
 	.handle_interrupt	= at803x_handle_interrupt,
 	.get_tunable		= at803x_get_tunable,
