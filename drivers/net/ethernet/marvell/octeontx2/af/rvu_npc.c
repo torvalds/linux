@@ -2806,3 +2806,42 @@ read_entry:
 out:
 	return rc;
 }
+
+int rvu_mbox_handler_npc_mcam_entry_stats(struct rvu *rvu,
+					  struct npc_mcam_get_stats_req *req,
+					  struct npc_mcam_get_stats_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 index, cntr;
+	int blkaddr;
+	u64 regval;
+	u32 bank;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+
+	index = req->entry & (mcam->banksize - 1);
+	bank = npc_get_bank(mcam, req->entry);
+
+	/* read MCAM entry STAT_ACT register */
+	regval = rvu_read64(rvu, blkaddr, NPC_AF_MCAMEX_BANKX_STAT_ACT(index, bank));
+
+	if (!(regval & BIT_ULL(9))) {
+		rsp->stat_ena = 0;
+		mutex_unlock(&mcam->lock);
+		return 0;
+	}
+
+	cntr = regval & 0x1FF;
+
+	rsp->stat_ena = 1;
+	rsp->stat = rvu_read64(rvu, blkaddr, NPC_AF_MATCH_STATX(cntr));
+	rsp->stat &= BIT_ULL(48) - 1;
+
+	mutex_unlock(&mcam->lock);
+
+	return 0;
+}

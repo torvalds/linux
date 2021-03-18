@@ -29,6 +29,8 @@ static const char * const npc_flow_names[] = {
 	[NPC_IPPROTO_TCP] = "ip proto tcp",
 	[NPC_IPPROTO_UDP] = "ip proto udp",
 	[NPC_IPPROTO_SCTP] = "ip proto sctp",
+	[NPC_IPPROTO_ICMP] = "ip proto icmp",
+	[NPC_IPPROTO_ICMP6] = "ip proto icmp6",
 	[NPC_IPPROTO_AH] = "ip proto AH",
 	[NPC_IPPROTO_ESP] = "ip proto ESP",
 	[NPC_SPORT_TCP]	= "tcp source port",
@@ -427,6 +429,7 @@ do {									       \
 	 * packet header fields below.
 	 * Example: Source IP is 4 bytes and starts at 12th byte of IP header
 	 */
+	NPC_SCAN_HDR(NPC_TOS, NPC_LID_LC, NPC_LT_LC_IP, 1, 1);
 	NPC_SCAN_HDR(NPC_SIP_IPV4, NPC_LID_LC, NPC_LT_LC_IP, 12, 4);
 	NPC_SCAN_HDR(NPC_DIP_IPV4, NPC_LID_LC, NPC_LT_LC_IP, 16, 4);
 	NPC_SCAN_HDR(NPC_SIP_IPV6, NPC_LID_LC, NPC_LT_LC_IP6, 8, 16);
@@ -477,9 +480,12 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 				     BIT_ULL(NPC_IPPROTO_SCTP);
 	}
 
-	/* for AH, check if corresponding layer type is present in the key */
-	if (npc_check_field(rvu, blkaddr, NPC_LD, intf))
+	/* for AH/ICMP/ICMPv6/, check if corresponding layer type is present in the key */
+	if (npc_check_field(rvu, blkaddr, NPC_LD, intf)) {
 		*features |= BIT_ULL(NPC_IPPROTO_AH);
+		*features |= BIT_ULL(NPC_IPPROTO_ICMP);
+		*features |= BIT_ULL(NPC_IPPROTO_ICMP6);
+	}
 
 	/* for ESP, check if corresponding layer type is present in the key */
 	if (npc_check_field(rvu, blkaddr, NPC_LE, intf))
@@ -769,6 +775,12 @@ static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
 	if (features & BIT_ULL(NPC_IPPROTO_SCTP))
 		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_SCTP,
 				 0, ~0ULL, 0, intf);
+	if (features & BIT_ULL(NPC_IPPROTO_ICMP))
+		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_ICMP,
+				 0, ~0ULL, 0, intf);
+	if (features & BIT_ULL(NPC_IPPROTO_ICMP6))
+		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_ICMP6,
+				 0, ~0ULL, 0, intf);
 
 	if (features & BIT_ULL(NPC_OUTER_VID))
 		npc_update_entry(rvu, NPC_LB, entry,
@@ -798,6 +810,7 @@ do {									      \
 	NPC_WRITE_FLOW(NPC_SMAC, smac, smac_val, 0, smac_mask, 0);
 	NPC_WRITE_FLOW(NPC_ETYPE, etype, ntohs(pkt->etype), 0,
 		       ntohs(mask->etype), 0);
+	NPC_WRITE_FLOW(NPC_TOS, tos, pkt->tos, 0, mask->tos, 0);
 	NPC_WRITE_FLOW(NPC_SIP_IPV4, ip4src, ntohl(pkt->ip4src), 0,
 		       ntohl(mask->ip4src), 0);
 	NPC_WRITE_FLOW(NPC_DIP_IPV4, ip4dst, ntohl(pkt->ip4dst), 0,
