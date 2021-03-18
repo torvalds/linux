@@ -3894,8 +3894,6 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 		dev->port[i].roce.last_port_state = IB_PORT_DOWN;
 	}
 
-	mlx5_ib_internal_fill_odp_caps(dev);
-
 	err = mlx5_ib_init_multiport_master(dev);
 	if (err)
 		return err;

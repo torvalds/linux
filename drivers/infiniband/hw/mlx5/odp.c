@@ -317,7 +317,7 @@ const struct mmu_interval_notifier_ops mlx5_mn_ops = {
 	.invalidate = mlx5_ib_invalidate_range,
 };
 
-void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
+static void internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 {
 	struct ib_odp_caps *caps = &dev->odp_caps;
 
@@ -1638,6 +1638,8 @@ static const struct ib_device_ops mlx5_ib_dev_odp_ops = {
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *dev)
 {
 	int ret = 0;
+
+	internal_fill_odp_caps(dev);
 
 	if (!(dev->odp_caps.general_caps & IB_ODP_SUPPORT))
 		return ret;
