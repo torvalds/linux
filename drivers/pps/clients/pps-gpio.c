@@ -110,28 +110,31 @@ static int pps_gpio_setup(struct device *dev)
 		return dev_err_probe(dev, PTR_ERR(data->gpio_pin),
 				     "failed to request PPS GPIO\n");
 
+	data->assert_falling_edge =
+		device_property_read_bool(dev, "assert-falling-edge");
+
 	data->echo_pin = devm_gpiod_get_optional(dev, "echo", GPIOD_OUT_LOW);
 	if (IS_ERR(data->echo_pin))
 		return dev_err_probe(dev, PTR_ERR(data->echo_pin),
 				     "failed to request ECHO GPIO\n");
 
-	if (data->echo_pin) {
-		ret = device_property_read_u32(dev, "echo-active-ms", &value);
-		if (ret) {
-			dev_err(dev, "failed to get echo-active-ms from FW\n");
-			return ret;
-		}
-		data->echo_active_ms = value;
-		/* sanity check on echo_active_ms */
-		if (!data->echo_active_ms || data->echo_active_ms > 999) {
-			dev_err(dev, "echo-active-ms: %u - bad value from FW\n",
-				data->echo_active_ms);
-			return -EINVAL;
-		}
+	if (!data->echo_pin)
+		return 0;
+
+	ret = device_property_read_u32(dev, "echo-active-ms", &value);
+	if (ret) {
+		dev_err(dev, "failed to get echo-active-ms from FW\n");
+		return ret;
 	}
 
-	data->assert_falling_edge =
-		device_property_read_bool(dev, "assert-falling-edge");
+	/* sanity check on echo_active_ms */
+	if (!value || value > 999) {
+		dev_err(dev, "echo-active-ms: %u - bad value from FW\n", value);
+		return -EINVAL;
+	}
+
+	data->echo_active_ms = value;
+
 	return 0;
 }
 
