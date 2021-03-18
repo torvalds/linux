@@ -138,11 +138,12 @@ still cause this situation.
       - Identifies the control, set by the application.
     * - __u32
       - ``size``
-      - The total size in bytes of the payload of this control. This is
-	normally 0, but for pointer controls this should be set to the
-	size of the memory containing the payload, or that will receive
-	the payload. If :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` finds that this value is
-	less than is required to store the payload result, then it is set
+      - The total size in bytes of the payload of this control.
+    * - :cspan:`2` The ``size`` field is normally 0, but for pointer
+	controls this should be set to the size of the memory that contains
+	the payload or that will receive the payload.
+	If :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` finds that this value
+	is less than is required to store the payload result, then it is set
 	to a value large enough to store the payload result and ``ENOSPC`` is
 	returned.
 
@@ -247,29 +248,18 @@ still cause this situation.
     * - union {
       - (anonymous)
     * - __u32
-      - ``ctrl_class``
-      - The control class to which all controls belong, see
-	:ref:`ctrl-class`. Drivers that use a kernel framework for
-	handling controls will also accept a value of 0 here, meaning that
-	the controls can belong to any control class. Whether drivers
-	support this can be tested by setting ``ctrl_class`` to 0 and
-	calling :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` with a ``count`` of 0. If that
-	succeeds, then the driver supports this feature.
-    * - __u32
       - ``which``
       - Which value of the control to get/set/try.
-	``V4L2_CTRL_WHICH_CUR_VAL`` will return the current value of the
-	control, ``V4L2_CTRL_WHICH_DEF_VAL`` will return the default
+    * - :cspan:`2` ``V4L2_CTRL_WHICH_CUR_VAL`` will return the current value of
+	the control, ``V4L2_CTRL_WHICH_DEF_VAL`` will return the default
 	value of the control and ``V4L2_CTRL_WHICH_REQUEST_VAL`` indicates that
 	these controls have to be retrieved from a request or tried/set for
 	a request. In the latter case the ``request_fd`` field contains the
 	file descriptor of the request that should be used. If the device
 	does not support requests, then ``EACCES`` will be returned.
 
-	.. note::
-
-	   When using ``V4L2_CTRL_WHICH_DEF_VAL`` be aware that you can only
-	   get the default value of the control, you cannot set or try it.
+	When using ``V4L2_CTRL_WHICH_DEF_VAL`` be aware that you can only
+	get the default value of the control, you cannot set or try it.
 
 	For backwards compatibility you can also use a control class here
 	(see :ref:`ctrl-class`). In that case all controls have to
@@ -277,9 +267,12 @@ still cause this situation.
 	just use ``V4L2_CTRL_WHICH_CUR_VAL``. There are some very old
 	drivers that do not yet support ``V4L2_CTRL_WHICH_CUR_VAL`` and
 	that require a control class here. You can test for such drivers
-	by setting ctrl_class to ``V4L2_CTRL_WHICH_CUR_VAL`` and calling
-	VIDIOC_TRY_EXT_CTRLS with a count of 0. If that fails, then the
-	driver does not support ``V4L2_CTRL_WHICH_CUR_VAL``.
+	by setting ``which`` to ``V4L2_CTRL_WHICH_CUR_VAL`` and calling
+	:ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` with a count of 0.
+	If that fails, then the driver does not support ``V4L2_CTRL_WHICH_CUR_VAL``.
+    * - __u32
+      - ``ctrl_class``
+      - Deprecated name kept for backwards compatibility. Use ``which`` instead.
     * - }
       -
     * - __u32
@@ -287,7 +280,8 @@ still cause this situation.
       - The number of controls in the controls array. May also be zero.
     * - __u32
       - ``error_idx``
-      - Set by the driver in case of an error. If the error is associated
+      - Index of the failing control. Set by the driver in case of an error.
+    * - :cspan:`2` If the error is associated
 	with a particular control, then ``error_idx`` is set to the index
 	of that control. If the error is not related to a specific
 	control, or the validation step failed (see below), then
