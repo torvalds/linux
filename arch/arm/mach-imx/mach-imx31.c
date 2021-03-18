@@ -14,6 +14,5 @@ static const char * const imx31_dt_board_compat[] __initconst = {
 DT_MACHINE_START(IMX31_DT, "Freescale i.MX31 (Device Tree Support)")
 	.map_io		= mx31_map_io,
 	.init_early	= imx31_init_early,
-	.init_irq	= mx31_init_irq,
 	.dt_compat	= imx31_dt_board_compat,
 MACHINE_END
