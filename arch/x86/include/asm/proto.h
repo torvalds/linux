@@ -25,6 +25,7 @@ void __end_SYSENTER_singlestep_region(void);
 void entry_SYSENTER_compat(void);
 void __end_entry_SYSENTER_compat(void);
 void entry_SYSCALL_compat(void);
+void entry_SYSCALL_compat_safe_stack(void);
 void entry_INT80_compat(void);
 #ifdef CONFIG_XEN_PV
 void xen_entry_INT80_compat(void);

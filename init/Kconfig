@@ -20,10 +20,10 @@ config CC_VERSION_TEXT
 	    When the compiler is updated, Kconfig will be invoked.
 
 	  - Ensure full rebuild when the compiler is updated
-	    include/linux/kconfig.h contains this option in the comment line so
-	    fixdep adds include/config/cc/version/text.h into the auto-generated
-	    dependency. When the compiler is updated, syncconfig will touch it
-	    and then every file will be rebuilt.
+	    include/linux/compiler-version.h contains this option in the comment
+	    line so fixdep adds include/config/cc/version/text.h into the
+	    auto-generated dependency. When the compiler is updated, syncconfig
+	    will touch it and then every file will be rebuilt.
 
 config CC_IS_GCC
 	def_bool $(success,test "$(cc-name)" = GCC)
@@ -119,8 +119,7 @@ config INIT_ENV_ARG_LIMIT
 
 config COMPILE_TEST
 	bool "Compile also drivers which will not load"
-	depends on !UML && !S390
-	default n
+	depends on HAS_IOMEM
 	help
 	  Some drivers can be compiled on a different platform than they are
 	  intended to be run on. Despite they cannot be loaded there (or even

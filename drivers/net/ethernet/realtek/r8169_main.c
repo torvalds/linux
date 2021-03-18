@@ -767,7 +767,7 @@ static void r8168fp_adjust_ocp_cmd(struct rtl8169_private *tp, u32 *cmd, int typ
 	if (type == ERIAR_OOB &&
 	    (tp->mac_version == RTL_GIGA_MAC_VER_52 ||
 	     tp->mac_version == RTL_GIGA_MAC_VER_53))
-		*cmd |= 0x7f0 << 18;
+		*cmd |= 0xf70 << 18;
 }
 
 DECLARE_RTL_COND(rtl_eriar_cond)
