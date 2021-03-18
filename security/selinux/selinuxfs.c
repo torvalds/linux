@@ -651,14 +651,13 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	length = sel_make_policy_nodes(fsi, newpolicy);
 	if (length) {
 		selinux_policy_cancel(fsi->state, newpolicy);
-		goto out1;
+		goto out;
 	}
 
 	selinux_policy_commit(fsi->state, newpolicy);
 
 	length = count;
 
-out1:
 	audit_log(audit_context(), GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
 		"auid=%u ses=%u lsm=selinux res=1",
 		from_kuid(&init_user_ns, audit_get_loginuid(current)),
