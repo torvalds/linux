@@ -684,7 +684,11 @@ static void fuse_copy_finish(struct fuse_copy_state *cs)
 			flush_dcache_page(cs->pg);
 			set_page_dirty_lock(cs->pg);
 		}
-		put_page(cs->pg);
+		/*
+		 * The page could be GUP page(see iov_iter_get_pages in
+		 * fuse_copy_fill) so use put_user_page to release it.
+		 */
+		put_user_page(cs->pg);
 	}
 	cs->pg = NULL;
 }
