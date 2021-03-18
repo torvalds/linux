@@ -7910,22 +7910,17 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 
 		ret = 0;
 		io_sq_thread_park(sqd);
+		list_add(&ctx->sqd_list, &sqd->ctx_list);
+		io_sqd_update_thread_idle(sqd);
 		/* don't attach to a dying SQPOLL thread, would be racy */
-		if (attached && !sqd->thread) {
+		if (attached && !sqd->thread)
 			ret = -ENXIO;
-		} else {
-			list_add(&ctx->sqd_list, &sqd->ctx_list);
-			io_sqd_update_thread_idle(sqd);
-		}
 		io_sq_thread_unpark(sqd);
 
-		if (ret < 0) {
-			io_put_sq_data(sqd);
-			ctx->sq_data = NULL;
-			return ret;
-		} else if (attached) {
+		if (ret < 0)
+			goto err;
+		if (attached)
 			return 0;
-		}
 
 		if (p->flags & IORING_SETUP_SQ_AFF) {
 			int cpu = p->sq_thread_cpu;
