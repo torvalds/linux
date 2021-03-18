@@ -19,13 +19,12 @@ struct intel_encoder;
 
 const struct dpll *vlv_get_dpll(struct drm_i915_private *i915);
 enum pipe vlv_active_pipe(struct intel_dp *intel_dp);
-void intel_dp_set_clock(struct intel_encoder *encoder,
-			struct intel_crtc_state *pipe_config);
-bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
-			   i915_reg_t dp_reg, enum port port,
-			   enum pipe *pipe);
-bool intel_dp_init(struct drm_i915_private *dev_priv,
-		   i915_reg_t output_reg,
-		   enum port port);
+void g4x_dp_set_clock(struct intel_encoder *encoder,
+		      struct intel_crtc_state *pipe_config);
+bool g4x_dp_port_enabled(struct drm_i915_private *dev_priv,
+			 i915_reg_t dp_reg, enum port port,
+			 enum pipe *pipe);
+bool g4x_dp_init(struct drm_i915_private *dev_priv,
+		 i915_reg_t output_reg, enum port port);
 
 #endif

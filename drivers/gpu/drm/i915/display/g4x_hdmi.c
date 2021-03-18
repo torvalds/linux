@@ -528,8 +528,8 @@ intel_hdmi_hotplug(struct intel_encoder *encoder,
 	return state;
 }
 
-void intel_hdmi_init(struct drm_i915_private *dev_priv,
-		     i915_reg_t hdmi_reg, enum port port)
+void g4x_hdmi_init(struct drm_i915_private *dev_priv,
+		   i915_reg_t hdmi_reg, enum port port)
 {
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *intel_encoder;

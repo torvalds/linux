@@ -66,8 +66,8 @@ const struct dpll *vlv_get_dpll(struct drm_i915_private *i915)
 	return IS_CHERRYVIEW(i915) ? &chv_dpll[0].dpll : &vlv_dpll[0].dpll;
 }
 
-void intel_dp_set_clock(struct intel_encoder *encoder,
-			struct intel_crtc_state *pipe_config)
+void g4x_dp_set_clock(struct intel_encoder *encoder,
+		      struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct dp_link_dpll *divisor = NULL;
@@ -286,9 +286,9 @@ static bool cpt_dp_port_selected(struct drm_i915_private *dev_priv,
 	return false;
 }
 
-bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
-			   i915_reg_t dp_reg, enum port port,
-			   enum pipe *pipe)
+bool g4x_dp_port_enabled(struct drm_i915_private *dev_priv,
+			 i915_reg_t dp_reg, enum port port,
+			 enum pipe *pipe)
 {
 	bool ret;
 	u32 val;
@@ -323,8 +323,8 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	if (!wakeref)
 		return false;
 
-	ret = intel_dp_port_enabled(dev_priv, intel_dp->output_reg,
-				    encoder->port, pipe);
+	ret = g4x_dp_port_enabled(dev_priv, intel_dp->output_reg,
+				  encoder->port, pipe);
 
 	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
@@ -1270,8 +1270,8 @@ enum pipe vlv_active_pipe(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	enum pipe pipe;
 
-	if (intel_dp_port_enabled(dev_priv, intel_dp->output_reg,
-				  encoder->port, &pipe))
+	if (g4x_dp_port_enabled(dev_priv, intel_dp->output_reg,
+				encoder->port, &pipe))
 		return pipe;
 
 	return INVALID_PIPE;
@@ -1301,9 +1301,8 @@ static const struct drm_encoder_funcs intel_dp_enc_funcs = {
 	.destroy = intel_dp_encoder_destroy,
 };
 
-bool intel_dp_init(struct drm_i915_private *dev_priv,
-		   i915_reg_t output_reg,
-		   enum port port)
+bool g4x_dp_init(struct drm_i915_private *dev_priv,
+		 i915_reg_t output_reg, enum port port)
 {
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *intel_encoder;
