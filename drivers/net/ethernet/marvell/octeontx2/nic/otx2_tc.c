@@ -16,12 +16,20 @@
 
 #include "otx2_common.h"
 
+struct otx2_tc_flow_stats {
+	u64 bytes;
+	u64 pkts;
+	u64 used;
+};
+
 struct otx2_tc_flow {
 	struct rhash_head		node;
 	unsigned long			cookie;
 	u16				entry;
 	unsigned int			bitpos;
 	struct rcu_head			rcu;
+	struct otx2_tc_flow_stats	stats;
+	spinlock_t			lock; /* lock for stats */
 };
 
 static int otx2_tc_parse_actions(struct otx2_nic *nic,
@@ -403,6 +411,66 @@ out:
 	return rc;
 }
 
+static int otx2_tc_get_flow_stats(struct otx2_nic *nic,
+				  struct flow_cls_offload *tc_flow_cmd)
+{
+	struct otx2_tc_info *tc_info = &nic->tc_info;
+	struct npc_mcam_get_stats_req *req;
+	struct npc_mcam_get_stats_rsp *rsp;
+	struct otx2_tc_flow_stats *stats;
+	struct otx2_tc_flow *flow_node;
+	int err;
+
+	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
+					   &tc_flow_cmd->cookie,
+					   tc_info->flow_ht_params);
+	if (!flow_node) {
+		netdev_info(nic->netdev, "tc flow not found for cookie %lx",
+			    tc_flow_cmd->cookie);
+		return -EINVAL;
+	}
+
+	mutex_lock(&nic->mbox.lock);
+
+	req = otx2_mbox_alloc_msg_npc_mcam_entry_stats(&nic->mbox);
+	if (!req) {
+		mutex_unlock(&nic->mbox.lock);
+		return -ENOMEM;
+	}
+
+	req->entry = flow_node->entry;
+
+	err = otx2_sync_mbox_msg(&nic->mbox);
+	if (err) {
+		netdev_err(nic->netdev, "Failed to get stats for MCAM flow entry %d\n",
+			   req->entry);
+		mutex_unlock(&nic->mbox.lock);
+		return -EFAULT;
+	}
+
+	rsp = (struct npc_mcam_get_stats_rsp *)otx2_mbox_get_rsp
+		(&nic->mbox.mbox, 0, &req->hdr);
+	if (IS_ERR(rsp)) {
+		mutex_unlock(&nic->mbox.lock);
+		return PTR_ERR(rsp);
+	}
+
+	mutex_unlock(&nic->mbox.lock);
+
+	if (!rsp->stat_ena)
+		return -EINVAL;
+
+	stats = &flow_node->stats;
+
+	spin_lock(&flow_node->lock);
+	flow_stats_update(&tc_flow_cmd->stats, 0x0, rsp->stat - stats->pkts, 0x0, 0x0,
+			  FLOW_ACTION_HW_STATS_IMMEDIATE);
+	stats->pkts = rsp->stat;
+	spin_unlock(&flow_node->lock);
+
+	return 0;
+}
+
 static int otx2_setup_tc_cls_flower(struct otx2_nic *nic,
 				    struct flow_cls_offload *cls_flower)
 {
@@ -412,7 +480,7 @@ static int otx2_setup_tc_cls_flower(struct otx2_nic *nic,
 	case FLOW_CLS_DESTROY:
 		return otx2_tc_del_flow(nic, cls_flower);
 	case FLOW_CLS_STATS:
-		return -EOPNOTSUPP;
+		return otx2_tc_get_flow_stats(nic, cls_flower);
 	default:
 		return -EOPNOTSUPP;
 	}
