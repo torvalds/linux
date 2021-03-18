@@ -1309,6 +1309,27 @@ int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 				    0x0001);
 }
 
+/* Offset 0x0B: Port Association Vector */
+
+int mv88e6xxx_port_set_assoc_vector(struct mv88e6xxx_chip *chip, int port,
+				    u16 pav)
+{
+	u16 reg, mask;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_ASSOC_VECTOR,
+				  &reg);
+	if (err)
+		return err;
+
+	mask = mv88e6xxx_port_mask(chip);
+	reg &= ~mask;
+	reg |= pav & mask;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ASSOC_VECTOR,
+				    reg);
+}
+
 /* Offset 0x0C: Port ATU Control */
 
 int mv88e6xxx_port_disable_learn_limit(struct mv88e6xxx_chip *chip, int port)

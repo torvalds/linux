@@ -233,19 +233,7 @@ extern const struct phylink_mac_ops dsa_port_phylink_mac_ops;
 static inline bool dsa_port_offloads_bridge_port(struct dsa_port *dp,
 						 struct net_device *dev)
 {
-	/* Switchdev offloading can be configured on: */
-
-	if (dev == dp->slave)
-		/* DSA ports directly connected to a bridge, and event
-		 * was emitted for the ports themselves.
-		 */
-		return true;
-
-	if (dp->lag_dev == dev)
-		/* DSA ports connected to a bridge via a LAG */
-		return true;
-
-	return false;
+	return dsa_port_to_bridge_port(dp) == dev;
 }
 
 static inline bool dsa_port_offloads_bridge(struct dsa_port *dp,
