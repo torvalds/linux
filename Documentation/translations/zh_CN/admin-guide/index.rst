@@ -32,6 +32,11 @@ Todolist:
 
 下面的一组文档，针对的是试图跟踪问题和bug的用户。
 
+.. toctree::
+   :maxdepth: 1
+
+   reporting-issues
+
 Todolist:
 
    reporting-bugs
