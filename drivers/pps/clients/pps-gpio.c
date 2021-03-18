@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/pps_kernel.h>
-#include <linux/pps-gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/list.h>
 #include <linux/of_device.h>
@@ -164,7 +163,6 @@ static int pps_gpio_probe(struct platform_device *pdev)
 	struct pps_gpio_device_data *data;
 	int ret;
 	int pps_default_params;
-	const struct pps_gpio_platform_data *pdata = pdev->dev.platform_data;
 
 	/* allocate space for device info */
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -173,18 +171,9 @@ static int pps_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	/* GPIO setup */
-	if (pdata) {
-		data->gpio_pin = pdata->gpio_pin;
-		data->echo_pin = pdata->echo_pin;
-
-		data->assert_falling_edge = pdata->assert_falling_edge;
-		data->capture_clear = pdata->capture_clear;
-		data->echo_active_ms = pdata->echo_active_ms;
-	} else {
-		ret = pps_gpio_setup(pdev);
-		if (ret)
-			return -EINVAL;
-	}
+	ret = pps_gpio_setup(pdev);
+	if (ret)
+		return -EINVAL;
 
 	/* IRQ setup */
 	ret = gpiod_to_irq(data->gpio_pin);
