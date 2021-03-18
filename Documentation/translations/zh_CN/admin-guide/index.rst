@@ -36,13 +36,13 @@ Todolist:
    :maxdepth: 1
 
    reporting-issues
+   bug-bisect
 
 Todolist:
 
    reporting-bugs
    security-bugs
    bug-hunting
-   bug-bisect
    tainted-kernels
    ramoops
    dynamic-debug-howto
