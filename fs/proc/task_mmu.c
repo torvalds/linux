@@ -159,7 +159,7 @@ static void seq_print_vma_name(struct seq_file *m, struct vm_area_struct *vma)
 		write_len = strnlen(kaddr + page_offset, len);
 		seq_write(m, kaddr + page_offset, write_len);
 		kunmap(page);
-		put_page(page);
+		put_user_page(page);
 
 		/* if strnlen hit a null terminator then we're done */
 		if (write_len != len)
