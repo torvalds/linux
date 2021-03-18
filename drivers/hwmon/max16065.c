@@ -454,7 +454,7 @@ static struct attribute *max16065_max_attributes[] = {
 static umode_t max16065_basic_is_visible(struct kobject *kobj,
 					 struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct max16065_data *data = dev_get_drvdata(dev);
 	int index = n / 4;
 
@@ -466,7 +466,7 @@ static umode_t max16065_basic_is_visible(struct kobject *kobj,
 static umode_t max16065_secondary_is_visible(struct kobject *kobj,
 					     struct attribute *a, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct max16065_data *data = dev_get_drvdata(dev);
 
 	if (index >= data->num_adc)
