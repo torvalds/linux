@@ -36,7 +36,12 @@ static u16 bcm_sf2_reg_rgmii_cntrl(struct bcm_sf2_priv *priv, int port)
 {
 	switch (priv->type) {
 	case BCM4908_DEVICE_ID:
-		/* TODO */
+		switch (port) {
+		case 7:
+			return REG_RGMII_11_CNTRL;
+		default:
+			break;
+		}
 		break;
 	default:
 		switch (port) {
@@ -1223,9 +1228,7 @@ static const u16 bcm_sf2_4908_reg_offsets[] = {
 	[REG_PHY_REVISION]	= 0x14,
 	[REG_SPHY_CNTRL]	= 0x24,
 	[REG_CROSSBAR]		= 0xc8,
-	[REG_RGMII_0_CNTRL]	= 0xe0,
-	[REG_RGMII_1_CNTRL]	= 0xec,
-	[REG_RGMII_2_CNTRL]	= 0xf8,
+	[REG_RGMII_11_CNTRL]	= 0x014c,
 	[REG_LED_0_CNTRL]	= 0x40,
 	[REG_LED_1_CNTRL]	= 0x4c,
 	[REG_LED_2_CNTRL]	= 0x58,
