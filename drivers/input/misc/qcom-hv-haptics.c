@@ -79,7 +79,9 @@
 #define DRV_WF_SEL_MASK				GENMASK(1, 0)
 
 #define HAP_CFG_AUTO_SHUTDOWN_CFG_REG		0x4A
+
 #define HAP_CFG_TRIG_PRIORITY_REG		0x4B
+#define SWR_IGNORE_BIT				BIT(4)
 
 #define HAP_CFG_SPMI_PLAY_REG			0x4C
 #define PLAY_EN_BIT				BIT(7)
@@ -3900,6 +3902,34 @@ static int swr_slave_reg_enable(struct regulator_dev *rdev)
 		dev_err(chip->dev, "Failed to enable SWR_PAT, rc=%d\n",
 				rc);
 		return rc;
+	}
+
+	/*
+	 * If haptics has already been in SWR mode when enabling the SWR
+	 * slave, it means that the haptics module was stuck in prevous
+	 * SWR play. Then toggle HAPTICS_EN to reset haptics module and
+	 * ignore SWR mode until next SWR slave enable request is coming.
+	 */
+	if (is_swr_play_enabled(chip)) {
+		rc = haptics_masked_write(chip, chip->cfg_addr_base,
+				HAP_CFG_TRIG_PRIORITY_REG,
+				SWR_IGNORE_BIT, SWR_IGNORE_BIT);
+		if (rc < 0) {
+			dev_err(chip->dev, "Failed to enable SWR_IGNORE, rc=%d\n", rc);
+			return rc;
+		}
+
+		rc = haptics_toggle_module_enable(chip);
+		if (rc < 0)
+			return rc;
+	} else {
+		rc = haptics_masked_write(chip, chip->cfg_addr_base,
+				HAP_CFG_TRIG_PRIORITY_REG,
+				SWR_IGNORE_BIT, 0);
+		if (rc < 0) {
+			dev_err(chip->dev, "Failed to disable SWR_IGNORE, rc=%d\n", rc);
+			return rc;
+		}
 	}
 
 	chip->swr_slave_enabled = true;
