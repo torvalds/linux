@@ -13,3 +13,15 @@ Description:
 		AUDIT_FEATURE_LOGINUID_IMMUTABLE is enabled.  It cannot be
 		unset if AUDIT_FEATURE_ONLY_UNSET_LOGINUID is enabled.
 
+
+What:		Audit Login Session ID
+Date:		2008-03-13
+KernelVersion:	2.6.25-rc7 1e0bd7550ea9 ("[PATCH] export sessionid alongside the loginuid in procfs")
+Contact:	linux-audit@redhat.com
+Format:		%u
+Users:		audit and login applications
+Description:
+		The /proc/$pid/sessionid pseudofile is read to get the
+		audit login session ID of process $pid.  It is set
+		automatically, serially assigned with each new login.
+
