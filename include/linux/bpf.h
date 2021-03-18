@@ -56,7 +56,7 @@ struct bpf_iter_seq_info {
 	u32 seq_priv_size;
 };
 
-/* map is generic key/value storage optionally accesible by eBPF programs */
+/* map is generic key/value storage optionally accessible by eBPF programs */
 struct bpf_map_ops {
 	/* funcs callable from userspace (via syscall) */
 	int (*map_alloc_check)(union bpf_attr *attr);
