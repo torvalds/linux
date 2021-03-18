@@ -482,7 +482,7 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 	if (pk)
 		pk->pkru = init_pkru_value;
 	/*
-	 * Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
+	 * Setting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
 	 * cpuid bit to be set.  We need to ensure that we
 	 * update that bit in this CPU's "cpu_info".
 	 */
@@ -1404,7 +1404,7 @@ static void detect_null_seg_behavior(struct cpuinfo_x86 *c)
 	 * where GS is unused by the prev and next threads.
 	 *
 	 * Since neither vendor documents this anywhere that I can see,
-	 * detect it directly instead of hardcoding the choice by
+	 * detect it directly instead of hard-coding the choice by
 	 * vendor.
 	 *
 	 * I've designated AMD's behavior as the "bug" because it's

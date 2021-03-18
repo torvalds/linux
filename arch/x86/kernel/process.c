@@ -451,7 +451,7 @@ void speculative_store_bypass_ht_init(void)
 	 * First HT sibling to come up on the core.  Link shared state of
 	 * the first HT sibling to itself. The siblings on the same core
 	 * which come up later will see the shared state pointer and link
-	 * themself to the state of this CPU.
+	 * themselves to the state of this CPU.
 	 */
 	st->shared_state = st;
 }

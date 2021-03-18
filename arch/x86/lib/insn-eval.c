@@ -232,7 +232,7 @@ static int resolve_default_seg(struct insn *insn, struct pt_regs *regs, int off)
  * resolve_seg_reg() - obtain segment register index
  * @insn:	Instruction with operands
  * @regs:	Register values as seen when entering kernel mode
- * @regoff:	Operand offset, in pt_regs, used to deterimine segment register
+ * @regoff:	Operand offset, in pt_regs, used to determine segment register
  *
  * Determine the segment register associated with the operands and, if
  * applicable, prefixes and the instruction pointed by @insn.
@@ -517,7 +517,7 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
  * @insn:	Instruction containing ModRM byte
  * @regs:	Register values as seen when entering kernel mode
  * @offs1:	Offset of the first operand register
- * @offs2:	Offset of the second opeand register, if applicable
+ * @offs2:	Offset of the second operand register, if applicable
  *
  * Obtain the offset, in pt_regs, of the registers indicated by the ModRM byte
  * in @insn. This function is to be used with 16-bit address encodings. The
@@ -576,7 +576,7 @@ static int get_reg_offset_16(struct insn *insn, struct pt_regs *regs,
 	 * If ModRM.mod is 0 and ModRM.rm is 110b, then we use displacement-
 	 * only addressing. This means that no registers are involved in
 	 * computing the effective address. Thus, ensure that the first
-	 * register offset is invalild. The second register offset is already
+	 * register offset is invalid. The second register offset is already
 	 * invalid under the aforementioned conditions.
 	 */
 	if ((X86_MODRM_MOD(insn->modrm.value) == 0) &&

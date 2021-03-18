@@ -24,7 +24,7 @@ struct p4_event_bind {
 	unsigned int escr_msr[2];		/* ESCR MSR for this event */
 	unsigned int escr_emask;		/* valid ESCR EventMask bits */
 	unsigned int shared;			/* event is shared across threads */
-	char cntr[2][P4_CNTR_LIMIT];		/* counter index (offset), -1 on abscence */
+	char cntr[2][P4_CNTR_LIMIT];		/* counter index (offset), -1 on absence */
 };
 
 struct p4_pebs_bind {
@@ -45,7 +45,7 @@ struct p4_pebs_bind {
  * it's needed for mapping P4_PEBS_CONFIG_METRIC_MASK bits of
  * event configuration to find out which values are to be
  * written into MSR_IA32_PEBS_ENABLE and MSR_P4_PEBS_MATRIX_VERT
- * resgisters
+ * registers
  */
 static struct p4_pebs_bind p4_pebs_bind_map[] = {
 	P4_GEN_PEBS_BIND(1stl_cache_load_miss_retired,	0x0000001, 0x0000001),

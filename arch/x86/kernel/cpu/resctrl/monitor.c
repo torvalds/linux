@@ -387,7 +387,7 @@ void mon_event_count(void *info)
  * adjust the bandwidth percentage values via the IA32_MBA_THRTL_MSRs so
  * that:
  *
- *   current bandwdith(cur_bw) < user specified bandwidth(user_bw)
+ *   current bandwidth(cur_bw) < user specified bandwidth(user_bw)
  *
  * This uses the MBM counters to measure the bandwidth and MBA throttle
  * MSRs to control the bandwidth for a particular rdtgrp. It builds on the

@@ -17,7 +17,7 @@
 #define IOMMU_PC_DEVID_MATCH_REG		0x20
 #define IOMMU_PC_COUNTER_REPORT_REG		0x28
 
-/* maximun specified bank/counters */
+/* maximum specified bank/counters */
 #define PC_MAX_SPEC_BNKS			64
 #define PC_MAX_SPEC_CNTRS			16
 

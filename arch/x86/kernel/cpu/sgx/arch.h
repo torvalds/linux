@@ -271,7 +271,7 @@ struct sgx_pcmd {
  * @header1:		constant byte string
  * @vendor:		must be either 0x0000 or 0x8086
  * @date:		YYYYMMDD in BCD
- * @header2:		costant byte string
+ * @header2:		constant byte string
  * @swdefined:		software defined value
  */
 struct sgx_sigstruct_header {

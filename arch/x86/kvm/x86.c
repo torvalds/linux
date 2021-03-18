@@ -156,9 +156,9 @@ module_param(tsc_tolerance_ppm, uint, S_IRUGO | S_IWUSR);
 
 /*
  * lapic timer advance (tscdeadline mode only) in nanoseconds.  '-1' enables
- * adaptive tuning starting from default advancment of 1000ns.  '0' disables
+ * adaptive tuning starting from default advancement of 1000ns.  '0' disables
  * advancement entirely.  Any other value is used as-is and disables adaptive
- * tuning, i.e. allows priveleged userspace to set an exact advancement time.
+ * tuning, i.e. allows privileged userspace to set an exact advancement time.
  */
 static int __read_mostly lapic_timer_advance_ns = -1;
 module_param(lapic_timer_advance_ns, int, S_IRUGO | S_IWUSR);
@@ -1373,7 +1373,7 @@ static u64 kvm_get_arch_capabilities(void)
 	/*
 	 * If nx_huge_pages is enabled, KVM's shadow paging will ensure that
 	 * the nested hypervisor runs with NX huge pages.  If it is not,
-	 * L1 is anyway vulnerable to ITLB_MULTIHIT explots from other
+	 * L1 is anyway vulnerable to ITLB_MULTIHIT exploits from other
 	 * L1 guests, so it need not worry about its own (L2) guests.
 	 */
 	data |= ARCH_CAP_PSCHANGE_MC_NO;

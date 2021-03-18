@@ -253,7 +253,7 @@ static bool xfeature_enabled(enum xfeature xfeature)
 static void __init setup_xstate_features(void)
 {
 	u32 eax, ebx, ecx, edx, i;
-	/* start at the beginnning of the "extended state" */
+	/* start at the beginning of the "extended state" */
 	unsigned int last_good_offset = offsetof(struct xregs_state,
 						 extended_state_area);
 	/*

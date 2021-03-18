@@ -527,7 +527,7 @@ struct thread_struct {
 	struct io_bitmap	*io_bitmap;
 
 	/*
-	 * IOPL. Priviledge level dependent I/O permission which is
+	 * IOPL. Privilege level dependent I/O permission which is
 	 * emulated via the I/O bitmap to prevent user space from disabling
 	 * interrupts.
 	 */

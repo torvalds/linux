@@ -2082,7 +2082,7 @@ void sev_es_prepare_guest_switch(struct vcpu_svm *svm, unsigned int cpu)
 	hostsa = (struct vmcb_save_area *)(page_address(sd->save_area) + 0x400);
 	hostsa->xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
 
-	/* PKRU is restored on VMEXIT, save the curent host value */
+	/* PKRU is restored on VMEXIT, save the current host value */
 	hostsa->pkru = read_pkru();
 
 	/* MSR_IA32_XSS is restored on VMEXIT, save the currnet host value */

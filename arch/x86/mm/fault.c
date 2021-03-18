@@ -1523,7 +1523,7 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 	 *
 	 * In case the fault hit a RCU idle region the conditional entry
 	 * code reenabled RCU to avoid subsequent wreckage which helps
-	 * debugability.
+	 * debuggability.
 	 */
 	state = irqentry_enter(regs);
 

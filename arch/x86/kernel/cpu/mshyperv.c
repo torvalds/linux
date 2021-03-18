@@ -197,7 +197,7 @@ static unsigned char hv_get_nmi_reason(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 /*
  * Prior to WS2016 Debug-VM sends NMIs to all CPUs which makes
- * it dificult to process CHANNELMSG_UNLOAD in case of crash. Handle
+ * it difficult to process CHANNELMSG_UNLOAD in case of crash. Handle
  * unknown NMI on the first CPU which gets it.
  */
 static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
@@ -428,7 +428,7 @@ static void __init ms_hyperv_init_platform(void)
 
 	/*
 	 * Hyper-V doesn't provide irq remapping for IO-APIC. To enable x2apic,
-	 * set x2apic destination mode to physcial mode when x2apic is available
+	 * set x2apic destination mode to physical mode when x2apic is available
 	 * and Hyper-V IOMMU driver makes sure cpus assigned with IO-APIC irqs
 	 * have 8-bit APIC id.
 	 */

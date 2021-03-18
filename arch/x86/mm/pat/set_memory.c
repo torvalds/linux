@@ -680,7 +680,7 @@ pmd_t *lookup_pmd_address(unsigned long address)
  * end up in this kind of memory, for instance.
  *
  * This could be optimized, but it is only intended to be
- * used at inititalization time, and keeping it
+ * used at initialization time, and keeping it
  * unoptimized should increase the testing coverage for
  * the more obscure platforms.
  */

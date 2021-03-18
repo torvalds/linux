@@ -59,7 +59,7 @@ struct kvm_mmu_page {
 #ifdef CONFIG_X86_64
 	bool tdp_mmu_page;
 
-	/* Used for freeing the page asyncronously if it is a TDP MMU page. */
+	/* Used for freeing the page asynchronously if it is a TDP MMU page. */
 	struct rcu_head rcu_head;
 #endif
 };

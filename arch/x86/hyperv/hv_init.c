@@ -162,7 +162,7 @@ EXPORT_SYMBOL_GPL(hyperv_stop_tsc_emulation);
 static inline bool hv_reenlightenment_available(void)
 {
 	/*
-	 * Check for required features and priviliges to make TSC frequency
+	 * Check for required features and privileges to make TSC frequency
 	 * change notifications work.
 	 */
 	return ms_hyperv.features & HV_ACCESS_FREQUENCY_MSRS &&
@@ -292,7 +292,7 @@ static int hv_suspend(void)
 
 	/*
 	 * Reset the hypercall page as it is going to be invalidated
-	 * accross hibernation. Setting hv_hypercall_pg to NULL ensures
+	 * across hibernation. Setting hv_hypercall_pg to NULL ensures
 	 * that any subsequent hypercall operation fails safely instead of
 	 * crashing due to an access of an invalid page. The hypercall page
 	 * pointer is restored on resume.

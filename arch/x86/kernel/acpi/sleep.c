@@ -41,7 +41,7 @@ unsigned long acpi_get_wakeup_address(void)
  * x86_acpi_enter_sleep_state - enter sleep state
  * @state: Sleep state to enter.
  *
- * Wrapper around acpi_enter_sleep_state() to be called by assmebly.
+ * Wrapper around acpi_enter_sleep_state() to be called by assembly.
  */
 asmlinkage acpi_status __visible x86_acpi_enter_sleep_state(u8 state)
 {

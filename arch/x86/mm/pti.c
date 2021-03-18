@@ -361,7 +361,7 @@ pti_clone_pgtable(unsigned long start, unsigned long end,
 			 * global, so set it as global in both copies.  Note:
 			 * the X86_FEATURE_PGE check is not _required_ because
 			 * the CPU ignores _PAGE_GLOBAL when PGE is not
-			 * supported.  The check keeps consistentency with
+			 * supported.  The check keeps consistency with
 			 * code that only set this bit when supported.
 			 */
 			if (boot_cpu_has(X86_FEATURE_PGE))
@@ -512,7 +512,7 @@ static void pti_clone_entry_text(void)
 static inline bool pti_kernel_image_global_ok(void)
 {
 	/*
-	 * Systems with PCIDs get litlle benefit from global
+	 * Systems with PCIDs get little benefit from global
 	 * kernel text and are not worth the downsides.
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_PCID))

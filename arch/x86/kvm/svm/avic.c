@@ -838,7 +838,7 @@ int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 		 * Here, we setup with legacy mode in the following cases:
 		 * 1. When cannot target interrupt to a specific vcpu.
 		 * 2. Unsetting posted interrupt.
-		 * 3. APIC virtialization is disabled for the vcpu.
+		 * 3. APIC virtualization is disabled for the vcpu.
 		 * 4. IRQ has incompatible delivery mode (SMI, INIT, etc)
 		 */
 		if (!get_pi_vcpu_info(kvm, e, &vcpu_info, &svm) && set &&

@@ -1198,7 +1198,7 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 		/*
 		 * The LBR logs any address in the IP, even if the IP just
 		 * faulted. This means userspace can control the from address.
-		 * Ensure we don't blindy read any address by validating it is
+		 * Ensure we don't blindly read any address by validating it is
 		 * a known text address.
 		 */
 		if (kernel_text_address(from)) {

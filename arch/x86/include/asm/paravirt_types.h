@@ -371,7 +371,7 @@ int paravirt_disable_iospace(void);
  * on the stack.  All caller-save registers (eax,edx,ecx) are expected
  * to be modified (either clobbered or used for return values).
  * X86_64, on the other hand, already specifies a register-based calling
- * conventions, returning at %rax, with parameteres going on %rdi, %rsi,
+ * conventions, returning at %rax, with parameters going on %rdi, %rsi,
  * %rdx, and %rcx. Note that for this reason, x86_64 does not need any
  * special handling for dealing with 4 arguments, unlike i386.
  * However, x86_64 also have to clobber all caller saved registers, which

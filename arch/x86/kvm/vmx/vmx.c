@@ -1529,7 +1529,7 @@ static int vmx_rtit_ctl_check(struct kvm_vcpu *vcpu, u64 data)
 
 	/*
 	 * MTCFreq, CycThresh and PSBFreq encodings check, any MSR write that
-	 * utilize encodings marked reserved will casue a #GP fault.
+	 * utilize encodings marked reserved will cause a #GP fault.
 	 */
 	value = intel_pt_validate_cap(vmx->pt_desc.caps, PT_CAP_mtc_periods);
 	if (intel_pt_validate_cap(vmx->pt_desc.caps, PT_CAP_mtc) &&
@@ -2761,7 +2761,7 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	/*
-	 * Update real mode segment cache. It may be not up-to-date if sement
+	 * Update real mode segment cache. It may be not up-to-date if segment
 	 * register was written while vcpu was in a guest mode.
 	 */
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_ES], VCPU_SREG_ES);
@@ -7252,7 +7252,7 @@ static void update_intel_pt_cfg(struct kvm_vcpu *vcpu)
 	if (intel_pt_validate_cap(vmx->pt_desc.caps, PT_CAP_topa_output))
 		vmx->pt_desc.ctl_bitmask &= ~RTIT_CTL_TOPA;
 
-	/* If CPUID.(EAX=14H,ECX=0):ECX[3]=1 FabircEn can be set */
+	/* If CPUID.(EAX=14H,ECX=0):ECX[3]=1 FabricEn can be set */
 	if (intel_pt_validate_cap(vmx->pt_desc.caps, PT_CAP_output_subsys))
 		vmx->pt_desc.ctl_bitmask &= ~RTIT_CTL_FABRIC_EN;
 

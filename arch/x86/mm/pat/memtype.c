@@ -695,7 +695,7 @@ int memtype_free(u64 start, u64 end)
 
 
 /**
- * lookup_memtype - Looksup the memory type for a physical address
+ * lookup_memtype - Looks up the memory type for a physical address
  * @paddr: physical address of which memory type needs to be looked up
  *
  * Only to be called when PAT is enabled

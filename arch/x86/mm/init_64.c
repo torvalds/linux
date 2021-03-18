@@ -172,7 +172,7 @@ static void sync_global_pgds_l4(unsigned long start, unsigned long end)
 
 		/*
 		 * With folded p4d, pgd_none() is always false, we need to
-		 * handle synchonization on p4d level.
+		 * handle synchronization on p4d level.
 		 */
 		MAYBE_BUILD_BUG_ON(pgd_none(*pgd_ref));
 		p4d_ref = p4d_offset(pgd_ref, addr);
@@ -986,7 +986,7 @@ remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
 		if (PAGE_ALIGNED(addr) && PAGE_ALIGNED(next)) {
 			/*
 			 * Do not free direct mapping pages since they were
-			 * freed when offlining, or simplely not in use.
+			 * freed when offlining, or simply not in use.
 			 */
 			if (!direct)
 				free_pagetable(pte_page(*pte), 0);
@@ -1004,7 +1004,7 @@ remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
 			 *
 			 * If we are not removing the whole page, it means
 			 * other page structs in this page are being used and
-			 * we canot remove them. So fill the unused page_structs
+			 * we cannot remove them. So fill the unused page_structs
 			 * with 0xFD, and remove the page when it is wholly
 			 * filled with 0xFD.
 			 */
