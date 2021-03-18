@@ -101,6 +101,9 @@ Other Functions
 .. kernel-doc:: fs/xattr.c
    :export:
 
+.. kernel-doc:: fs/namespace.c
+   :export:
+
 The proc filesystem
 ===================
 
