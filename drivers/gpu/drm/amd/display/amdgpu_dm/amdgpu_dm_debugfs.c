@@ -2901,6 +2901,10 @@ static int mst_topo_show(struct seq_file *m, void *unused)
 
 		aconnector = to_amdgpu_dm_connector(connector);
 
+		/* Ensure we're only dumping the topology of a root mst node */
+		if (!aconnector->mst_mgr.mst_state)
+			continue;
+
 		seq_printf(m, "\nMST topology for connector %d\n", aconnector->connector_id);
 		drm_dp_mst_dump_topology(m, &aconnector->mst_mgr);
 	}
