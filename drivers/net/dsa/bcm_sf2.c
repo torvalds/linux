@@ -32,6 +32,31 @@
 #include "b53/b53_priv.h"
 #include "b53/b53_regs.h"
 
+static u16 bcm_sf2_reg_rgmii_cntrl(struct bcm_sf2_priv *priv, int port)
+{
+	switch (priv->type) {
+	case BCM4908_DEVICE_ID:
+		/* TODO */
+		break;
+	default:
+		switch (port) {
+		case 0:
+			return REG_RGMII_0_CNTRL;
+		case 1:
+			return REG_RGMII_1_CNTRL;
+		case 2:
+			return REG_RGMII_2_CNTRL;
+		default:
+			break;
+		}
+	}
+
+	WARN_ONCE(1, "Unsupported port %d\n", port);
+
+	/* RO fallback reg */
+	return REG_SWITCH_STATUS;
+}
+
 /* Return the number of active ports, not counting the IMP (CPU) port */
 static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
 {
@@ -688,6 +713,7 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	u32 id_mode_dis = 0, port_mode;
+	u32 reg_rgmii_ctrl;
 	u32 reg;
 
 	if (port == core_readl(priv, CORE_IMP0_PRT_ID))
@@ -711,10 +737,12 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 		return;
 	}
 
+	reg_rgmii_ctrl = bcm_sf2_reg_rgmii_cntrl(priv, port);
+
 	/* Clear id_mode_dis bit, and the existing port mode, let
 	 * RGMII_MODE_EN bet set by mac_link_{up,down}
 	 */
-	reg = reg_readl(priv, REG_RGMII_CNTRL_P(port));
+	reg = reg_readl(priv, reg_rgmii_ctrl);
 	reg &= ~ID_MODE_DIS;
 	reg &= ~(PORT_MODE_MASK << PORT_MODE_SHIFT);
 
@@ -722,13 +750,14 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 	if (id_mode_dis)
 		reg |= ID_MODE_DIS;
 
-	reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
+	reg_writel(priv, reg, reg_rgmii_ctrl);
 }
 
 static void bcm_sf2_sw_mac_link_set(struct dsa_switch *ds, int port,
 				    phy_interface_t interface, bool link)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	u32 reg_rgmii_ctrl;
 	u32 reg;
 
 	if (!phy_interface_mode_is_rgmii(interface) &&
@@ -736,13 +765,15 @@ static void bcm_sf2_sw_mac_link_set(struct dsa_switch *ds, int port,
 	    interface != PHY_INTERFACE_MODE_REVMII)
 		return;
 
+	reg_rgmii_ctrl = bcm_sf2_reg_rgmii_cntrl(priv, port);
+
 	/* If the link is down, just disable the interface to conserve power */
-	reg = reg_readl(priv, REG_RGMII_CNTRL_P(port));
+	reg = reg_readl(priv, reg_rgmii_ctrl);
 	if (link)
 		reg |= RGMII_MODE_EN;
 	else
 		reg &= ~RGMII_MODE_EN;
-	reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
+	reg_writel(priv, reg, reg_rgmii_ctrl);
 }
 
 static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
@@ -776,11 +807,15 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->dev->ports[port].eee;
-	u32 reg, offset;
 
 	bcm_sf2_sw_mac_link_set(ds, port, interface, true);
 
 	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
+		u32 reg_rgmii_ctrl;
+		u32 reg, offset;
+
+		reg_rgmii_ctrl = bcm_sf2_reg_rgmii_cntrl(priv, port);
+
 		if (priv->type == BCM4908_DEVICE_ID ||
 		    priv->type == BCM7445_DEVICE_ID)
 			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
@@ -791,7 +826,7 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 		    interface == PHY_INTERFACE_MODE_RGMII_TXID ||
 		    interface == PHY_INTERFACE_MODE_MII ||
 		    interface == PHY_INTERFACE_MODE_REVMII) {
-			reg = reg_readl(priv, REG_RGMII_CNTRL_P(port));
+			reg = reg_readl(priv, reg_rgmii_ctrl);
 			reg &= ~(RX_PAUSE_EN | TX_PAUSE_EN);
 
 			if (tx_pause)
@@ -799,7 +834,7 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 			if (rx_pause)
 				reg |= RX_PAUSE_EN;
 
-			reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
+			reg_writel(priv, reg, reg_rgmii_ctrl);
 		}
 
 		reg = SW_OVERRIDE | LINK_STS;
