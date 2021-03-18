@@ -981,6 +981,10 @@ _bpftool()
             ;;
         gen)
             case $command in
+                object)
+                    _filedir
+                    return 0
+                    ;;
                 skeleton)
                     case $prev in
                         $command)
@@ -995,7 +999,7 @@ _bpftool()
                     ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'skeleton help' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'object skeleton help' -- "$cur" ) )
                     ;;
             esac
             ;;

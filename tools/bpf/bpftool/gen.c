@@ -614,6 +614,47 @@ out:
 	return err;
 }
 
+static int do_object(int argc, char **argv)
+{
+	struct bpf_linker *linker;
+	const char *output_file, *file;
+	int err = 0;
+
+	if (!REQ_ARGS(2)) {
+		usage();
+		return -1;
+	}
+
+	output_file = GET_ARG();
+
+	linker = bpf_linker__new(output_file, NULL);
+	if (!linker) {
+		p_err("failed to create BPF linker instance");
+		return -1;
+	}
+
+	while (argc) {
+		file = GET_ARG();
+
+		err = bpf_linker__add_file(linker, file);
+		if (err) {
+			p_err("failed to link '%s': %s (%d)", file, strerror(err), err);
+			goto out;
+		}
+	}
+
+	err = bpf_linker__finalize(linker);
+	if (err) {
+		p_err("failed to finalize ELF file: %s (%d)", strerror(err), err);
+		goto out;
+	}
+
+	err = 0;
+out:
+	bpf_linker__free(linker);
+	return err;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -622,7 +663,8 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %1$s %2$s skeleton FILE [name OBJECT_NAME]\n"
+		"Usage: %1$s %2$s object OUTPUT_FILE INPUT_FILE [INPUT_FILE...]\n"
+		"       %1$s %2$s skeleton FILE [name OBJECT_NAME]\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_OPTIONS "\n"
@@ -633,6 +675,7 @@ static int do_help(int argc, char **argv)
 }
 
 static const struct cmd cmds[] = {
+	{ "object",	do_object },
 	{ "skeleton",	do_skeleton },
 	{ "help",	do_help },
 	{ 0 }
