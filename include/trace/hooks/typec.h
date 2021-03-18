@@ -20,6 +20,18 @@ DECLARE_HOOK(android_vh_typec_tcpci_override_toggling,
 DECLARE_HOOK(android_vh_typec_tcpci_check_contaminant,
 	TP_PROTO(struct tcpci *tcpci, struct tcpci_data *data, int *ret),
 	TP_ARGS(tcpci, data, ret));
+
+/*
+ * This hook is for addressing hardware anomalies where TCPC_POWER_STATUS_VBUS_PRES bit can return 0
+ * even before falling below sSinkDisconnect threshold.
+ * Handler has to set bypass to override the value that would otherwise be returned by this
+ * function.
+ * Handler can set vbus or clear vbus to indicate vbus present or absent
+ */
+DECLARE_HOOK(android_vh_typec_tcpci_get_vbus,
+	TP_PROTO(struct tcpci *tcpci, struct tcpci_data *data, int *vbus, int *bypass),
+	TP_ARGS(tcpci, data, vbus, bypass));
+
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
