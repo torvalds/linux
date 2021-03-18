@@ -3345,7 +3345,7 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 }
 
 /**
- * i40e_create_tx_ctx Build the Tx context descriptor
+ * i40e_create_tx_ctx - Build the Tx context descriptor
  * @tx_ring:  ring to create the descriptor on
  * @cd_type_cmd_tso_mss: Quad Word 1
  * @cd_tunneling: Quad Word 0 - bits 0-31

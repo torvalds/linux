@@ -692,7 +692,7 @@ static bool fm10k_mbx_tx_complete(struct fm10k_mbx_info *mbx)
 }
 
 /**
- *  fm10k_mbx_deqeueue_rx - Dequeues the message from the head in the Rx FIFO
+ *  fm10k_mbx_dequeue_rx - Dequeues the message from the head in the Rx FIFO
  *  @hw: pointer to hardware structure
  *  @mbx: pointer to mailbox
  *

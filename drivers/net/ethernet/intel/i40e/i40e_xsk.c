@@ -628,7 +628,7 @@ void i40e_xsk_clean_rx_ring(struct i40e_ring *rx_ring)
 }
 
 /**
- * i40e_xsk_clean_xdp_ring - Clean the XDP Tx ring on shutdown
+ * i40e_xsk_clean_tx_ring - Clean the XDP Tx ring on shutdown
  * @tx_ring: XDP Tx ring
  **/
 void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring)

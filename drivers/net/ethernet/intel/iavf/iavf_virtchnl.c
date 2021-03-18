@@ -1006,7 +1006,7 @@ iavf_set_adapter_link_speed_from_vpe(struct iavf_adapter *adapter,
 }
 
 /**
- * iavf_enable_channel
+ * iavf_enable_channels
  * @adapter: adapter structure
  *
  * Request that the PF enable channels as specified by
@@ -1047,7 +1047,7 @@ void iavf_enable_channels(struct iavf_adapter *adapter)
 }
 
 /**
- * iavf_disable_channel
+ * iavf_disable_channels
  * @adapter: adapter structure
  *
  * Request that the PF disable channels that are configured

@@ -225,7 +225,7 @@ static s32 ixgbe_get_parent_bus_info(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_check_from_parent - Determine whether PCIe info should come from parent
+ * ixgbe_pcie_from_parent - Determine whether PCIe info should come from parent
  * @hw: hw specific details
  *
  * This function is used by probe to determine whether a device's PCI-Express
@@ -6156,7 +6156,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_eee_capable - helper function to determine EEE support on X550
+ * ixgbe_set_eee_capable - helper function to determine EEE support on X550
  * @adapter: board private structure
  */
 static void ixgbe_set_eee_capable(struct ixgbe_adapter *adapter)

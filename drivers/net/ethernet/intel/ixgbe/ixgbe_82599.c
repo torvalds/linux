@@ -1351,7 +1351,7 @@ static u32 ixgbe_atr_compute_sig_hash_82599(union ixgbe_atr_hash_dword input,
 }
 
 /**
- *  ixgbe_atr_add_signature_filter_82599 - Adds a signature hash filter
+ *  ixgbe_fdir_add_signature_filter_82599 - Adds a signature hash filter
  *  @hw: pointer to hardware structure
  *  @input: unique input dword
  *  @common: compressed common input dword

@@ -1248,7 +1248,7 @@ static s32 ixgbe_get_bus_info_X550em(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_fw_recovery_mode - Check FW NVM recovery mode
+ * ixgbe_fw_recovery_mode_X550 - Check FW NVM recovery mode
  * @hw: pointer t hardware structure
  *
  * Returns true if in FW NVM recovery mode.
