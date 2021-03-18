@@ -1364,7 +1364,7 @@ static const struct attribute_group dql_group = {
 static ssize_t xps_cpus_show(struct netdev_queue *queue,
 			     char *buf)
 {
-	int cpu, len, ret, num_tc = 1, tc = 0;
+	int j, len, ret, num_tc = 1, tc = 0;
 	struct net_device *dev = queue->dev;
 	struct xps_dev_maps *dev_maps;
 	unsigned long *mask;
@@ -1404,23 +1404,26 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_cpus_map);
-	if (dev_maps) {
-		for_each_possible_cpu(cpu) {
-			int i, tci = cpu * num_tc + tc;
-			struct xps_map *map;
+	if (!dev_maps)
+		goto out_no_maps;
 
-			map = rcu_dereference(dev_maps->attr_map[tci]);
-			if (!map)
-				continue;
+	for (j = -1; j = netif_attrmask_next(j, NULL, nr_cpu_ids),
+	     j < nr_cpu_ids;) {
+		int i, tci = j * num_tc + tc;
+		struct xps_map *map;
 
-			for (i = map->len; i--;) {
-				if (map->queues[i] == index) {
-					set_bit(cpu, mask);
-					break;
-				}
+		map = rcu_dereference(dev_maps->attr_map[tci]);
+		if (!map)
+			continue;
+
+		for (i = map->len; i--;) {
+			if (map->queues[i] == index) {
+				set_bit(j, mask);
+				break;
 			}
 		}
 	}
+out_no_maps:
 	rcu_read_unlock();
 
 	rtnl_unlock();
