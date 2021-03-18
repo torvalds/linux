@@ -2503,11 +2503,9 @@ cpt_set_link_train(struct intel_dp *intel_dp,
 	case DP_TRAINING_PATTERN_2:
 		*DP |= DP_LINK_TRAIN_PAT_2_CPT;
 		break;
-	case DP_TRAINING_PATTERN_3:
-		drm_dbg_kms(&dev_priv->drm,
-			    "TPS3 not supported, using TPS2 instead\n");
-		*DP |= DP_LINK_TRAIN_PAT_2_CPT;
-		break;
+	default:
+		MISSING_CASE(intel_dp_training_pattern_symbol(dp_train_pat));
+		return;
 	}
 
 	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
@@ -2808,11 +2806,9 @@ g4x_set_link_train(struct intel_dp *intel_dp,
 	case DP_TRAINING_PATTERN_2:
 		*DP |= DP_LINK_TRAIN_PAT_2;
 		break;
-	case DP_TRAINING_PATTERN_3:
-		drm_dbg_kms(&dev_priv->drm,
-			    "TPS3 not supported, using TPS2 instead\n");
-		*DP |= DP_LINK_TRAIN_PAT_2;
-		break;
+	default:
+		MISSING_CASE(intel_dp_training_pattern_symbol(dp_train_pat));
+		return;
 	}
 
 	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
