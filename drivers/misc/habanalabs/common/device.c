@@ -368,11 +368,19 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cq_wq;
 	}
 
+	hdev->sob_reset_wq = alloc_workqueue("hl-sob-reset", WQ_UNBOUND, 0);
+	if (!hdev->sob_reset_wq) {
+		dev_err(hdev->dev,
+			"Failed to allocate SOB reset workqueue\n");
+		rc = -ENOMEM;
+		goto free_eq_wq;
+	}
+
 	hdev->hl_chip_info = kzalloc(sizeof(struct hwmon_chip_info),
 					GFP_KERNEL);
 	if (!hdev->hl_chip_info) {
 		rc = -ENOMEM;
-		goto free_eq_wq;
+		goto free_sob_reset_wq;
 	}
 
 	hdev->idle_busy_ts_arr = kmalloc_array(HL_IDLE_BUSY_TS_ARR_SIZE,
@@ -418,6 +426,8 @@ free_idle_busy_ts_arr:
 	kfree(hdev->idle_busy_ts_arr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
+free_sob_reset_wq:
+	destroy_workqueue(hdev->sob_reset_wq);
 free_eq_wq:
 	destroy_workqueue(hdev->eq_wq);
 free_cq_wq:
@@ -454,6 +464,7 @@ static void device_early_fini(struct hl_device *hdev)
 	kfree(hdev->idle_busy_ts_arr);
 	kfree(hdev->hl_chip_info);
 
+	destroy_workqueue(hdev->sob_reset_wq);
 	destroy_workqueue(hdev->eq_wq);
 	destroy_workqueue(hdev->device_reset_work.wq);
 

@@ -84,6 +84,38 @@ int hl_gen_sob_mask(u16 sob_base, u8 sob_mask, u8 *mask)
 	return 0;
 }
 
+static void sob_reset_work(struct work_struct *work)
+{
+	struct hl_cs_compl *hl_cs_cmpl =
+		container_of(work, struct hl_cs_compl, sob_reset_work);
+	struct hl_device *hdev = hl_cs_cmpl->hdev;
+
+	/*
+	 * A signal CS can get completion while the corresponding wait
+	 * for signal CS is on its way to the PQ. The wait for signal CS
+	 * will get stuck if the signal CS incremented the SOB to its
+	 * max value and there are no pending (submitted) waits on this
+	 * SOB.
+	 * We do the following to void this situation:
+	 * 1. The wait for signal CS must get a ref for the signal CS as
+	 *    soon as possible in cs_ioctl_signal_wait() and put it
+	 *    before being submitted to the PQ but after it incremented
+	 *    the SOB refcnt in init_signal_wait_cs().
+	 * 2. Signal/Wait for signal CS will decrement the SOB refcnt
+	 *    here.
+	 * These two measures guarantee that the wait for signal CS will
+	 * reset the SOB upon completion rather than the signal CS and
+	 * hence the above scenario is avoided.
+	 */
+	kref_put(&hl_cs_cmpl->hw_sob->kref, hl_sob_reset);
+
+	if (hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)
+		hdev->asic_funcs->reset_sob_group(hdev,
+				hl_cs_cmpl->sob_group);
+
+	kfree(hl_cs_cmpl);
+}
+
 static void hl_fence_release(struct kref *kref)
 {
 	struct hl_fence *fence =
@@ -109,28 +141,9 @@ static void hl_fence_release(struct kref *kref)
 			hl_cs_cmpl->hw_sob->sob_id,
 			hl_cs_cmpl->sob_val);
 
-		/*
-		 * A signal CS can get completion while the corresponding wait
-		 * for signal CS is on its way to the PQ. The wait for signal CS
-		 * will get stuck if the signal CS incremented the SOB to its
-		 * max value and there are no pending (submitted) waits on this
-		 * SOB.
-		 * We do the following to void this situation:
-		 * 1. The wait for signal CS must get a ref for the signal CS as
-		 *    soon as possible in cs_ioctl_signal_wait() and put it
-		 *    before being submitted to the PQ but after it incremented
-		 *    the SOB refcnt in init_signal_wait_cs().
-		 * 2. Signal/Wait for signal CS will decrement the SOB refcnt
-		 *    here.
-		 * These two measures guarantee that the wait for signal CS will
-		 * reset the SOB upon completion rather than the signal CS and
-		 * hence the above scenario is avoided.
-		 */
-		kref_put(&hl_cs_cmpl->hw_sob->kref, hl_sob_reset);
+		queue_work(hdev->sob_reset_wq, &hl_cs_cmpl->sob_reset_work);
 
-		if (hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)
-			hdev->asic_funcs->reset_sob_group(hdev,
-					hl_cs_cmpl->sob_group);
+		return;
 	}
 
 free:
@@ -670,9 +683,23 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 		goto free_cs;
 	}
 
+	cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
+			sizeof(*cs->jobs_in_queue_cnt), GFP_ATOMIC);
+	if (!cs->jobs_in_queue_cnt)
+		cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
+				sizeof(*cs->jobs_in_queue_cnt), GFP_KERNEL);
+
+	if (!cs->jobs_in_queue_cnt) {
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
+		rc = -ENOMEM;
+		goto free_cs_cmpl;
+	}
+
 	cs_cmpl->hdev = hdev;
 	cs_cmpl->type = cs->type;
 	spin_lock_init(&cs_cmpl->lock);
+	INIT_WORK(&cs_cmpl->sob_reset_work, sob_reset_work);
 	cs->fence = &cs_cmpl->base_fence;
 
 	spin_lock(&ctx->cs_lock);
@@ -702,19 +729,6 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 		goto free_fence;
 	}
 
-	cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
-			sizeof(*cs->jobs_in_queue_cnt), GFP_ATOMIC);
-	if (!cs->jobs_in_queue_cnt)
-		cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
-				sizeof(*cs->jobs_in_queue_cnt), GFP_KERNEL);
-
-	if (!cs->jobs_in_queue_cnt) {
-		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
-		atomic64_inc(&cntr->out_of_mem_drop_cnt);
-		rc = -ENOMEM;
-		goto free_fence;
-	}
-
 	/* init hl_fence */
 	hl_fence_init(&cs_cmpl->base_fence, cs_cmpl->cs_seq);
 
@@ -737,6 +751,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 
 free_fence:
 	spin_unlock(&ctx->cs_lock);
+	kfree(cs->jobs_in_queue_cnt);
+free_cs_cmpl:
 	kfree(cs_cmpl);
 free_cs:
 	kfree(cs);
@@ -758,6 +774,8 @@ void hl_cs_rollback_all(struct hl_device *hdev)
 {
 	int i;
 	struct hl_cs *cs, *tmp;
+
+	flush_workqueue(hdev->sob_reset_wq);
 
 	/* flush all completions before iterating over the CS mirror list in
 	 * order to avoid a race with the release functions

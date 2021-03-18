@@ -528,6 +528,7 @@ struct hl_fence {
 
 /**
  * struct hl_cs_compl - command submission completion object.
+ * @sob_reset_work: workqueue object to run SOB reset flow.
  * @base_fence: hl fence object.
  * @lock: spinlock to protect fence.
  * @hdev: habanalabs device structure.
@@ -538,6 +539,7 @@ struct hl_fence {
  * @sob_group: the SOB group that is used in this collective wait CS.
  */
 struct hl_cs_compl {
+	struct work_struct	sob_reset_work;
 	struct hl_fence		base_fence;
 	spinlock_t		lock;
 	struct hl_device	*hdev;
@@ -1905,6 +1907,7 @@ struct hl_mmu_funcs {
  * @cq_wq: work queues of completion queues for executing work in process
  *         context.
  * @eq_wq: work queue of event queue for executing work in process context.
+ * @sob_reset_wq: work queue for sob reset executions.
  * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
  * @cs_mirror_list: CS mirror list for TDR.
@@ -2022,6 +2025,7 @@ struct hl_device {
 	struct hl_user_interrupt	common_user_interrupt;
 	struct workqueue_struct		**cq_wq;
 	struct workqueue_struct		*eq_wq;
+	struct workqueue_struct		*sob_reset_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
 	struct list_head		cs_mirror_list;
