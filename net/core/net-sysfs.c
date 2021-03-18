@@ -1388,7 +1388,7 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	}
 
 	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_cpus_map);
+	dev_maps = rcu_dereference(dev->xps_maps[XPS_CPUS]);
 	nr_ids = dev_maps ? dev_maps->nr_ids : nr_cpu_ids;
 
 	mask = bitmap_zalloc(nr_ids, GFP_KERNEL);
@@ -1492,7 +1492,7 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 	}
 
 	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_rxqs_map);
+	dev_maps = rcu_dereference(dev->xps_maps[XPS_RXQS]);
 	nr_ids = dev_maps ? dev_maps->nr_ids : dev->num_rx_queues;
 
 	mask = bitmap_zalloc(nr_ids, GFP_KERNEL);
@@ -1566,7 +1566,7 @@ static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
 	}
 
 	cpus_read_lock();
-	err = __netif_set_xps_queue(dev, mask, index, true);
+	err = __netif_set_xps_queue(dev, mask, index, XPS_RXQS);
 	cpus_read_unlock();
 
 	rtnl_unlock();

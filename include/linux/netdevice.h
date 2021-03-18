@@ -754,6 +754,13 @@ struct rx_queue_attribute {
 			 const char *buf, size_t len);
 };
 
+/* XPS map type and offset of the xps map within net_device->xps_maps[]. */
+enum xps_map_type {
+	XPS_CPUS = 0,
+	XPS_RXQS,
+	XPS_MAPS_MAX,
+};
+
 #ifdef CONFIG_XPS
 /*
  * This structure holds an XPS map which can be of variable length.  The
@@ -1773,8 +1780,7 @@ enum netdev_ml_priv_type {
  *	@tx_queue_len:		Max frames per queue allowed
  *	@tx_global_lock: 	XXX: need comments on this one
  *	@xdp_bulkq:		XDP device bulk queue
- *	@xps_cpus_map:		all CPUs map for XPS device
- *	@xps_rxqs_map:		all RXQs map for XPS device
+ *	@xps_maps:		all CPUs/RXQs maps for XPS device
  *
  *	@xps_maps:	XXX: need comments on this one
  *	@miniq_egress:		clsact qdisc specific data for
@@ -2070,8 +2076,7 @@ struct net_device {
 	struct xdp_dev_bulk_queue __percpu *xdp_bulkq;
 
 #ifdef CONFIG_XPS
-	struct xps_dev_maps __rcu *xps_cpus_map;
-	struct xps_dev_maps __rcu *xps_rxqs_map;
+	struct xps_dev_maps __rcu *xps_maps[XPS_MAPS_MAX];
 #endif
 #ifdef CONFIG_NET_CLS_ACT
 	struct mini_Qdisc __rcu	*miniq_egress;
@@ -3701,7 +3706,7 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 int netif_set_xps_queue(struct net_device *dev, const struct cpumask *mask,
 			u16 index);
 int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
-			  u16 index, bool is_rxqs_map);
+			  u16 index, enum xps_map_type type);
 
 /**
  *	netif_attr_test_mask - Test a CPU or Rx queue set in a mask
@@ -3796,7 +3801,7 @@ static inline int netif_set_xps_queue(struct net_device *dev,
 
 static inline int __netif_set_xps_queue(struct net_device *dev,
 					const unsigned long *mask,
-					u16 index, bool is_rxqs_map)
+					u16 index, enum xps_map_type type)
 {
 	return 0;
 }
