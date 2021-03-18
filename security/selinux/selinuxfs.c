@@ -616,7 +616,7 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 
 {
 	struct selinux_fs_info *fsi = file_inode(file)->i_sb->s_fs_info;
-	struct selinux_policy *newpolicy;
+	struct selinux_load_state load_state;
 	ssize_t length;
 	void *data = NULL;
 
@@ -642,19 +642,19 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	if (copy_from_user(data, buf, count) != 0)
 		goto out;
 
-	length = security_load_policy(fsi->state, data, count, &newpolicy);
+	length = security_load_policy(fsi->state, data, count, &load_state);
 	if (length) {
 		pr_warn_ratelimited("SELinux: failed to load policy\n");
 		goto out;
 	}
 
-	length = sel_make_policy_nodes(fsi, newpolicy);
+	length = sel_make_policy_nodes(fsi, load_state.policy);
 	if (length) {
-		selinux_policy_cancel(fsi->state, newpolicy);
+		selinux_policy_cancel(fsi->state, &load_state);
 		goto out;
 	}
 
-	selinux_policy_commit(fsi->state, newpolicy);
+	selinux_policy_commit(fsi->state, &load_state);
 
 	length = count;
 
