@@ -12,14 +12,14 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/pps_kernel.h>
 #include <linux/gpio/consumer.h>
 #include <linux/list.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/property.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 
@@ -102,7 +102,6 @@ static void pps_gpio_echo_timer_callback(struct timer_list *t)
 static int pps_gpio_setup(struct platform_device *pdev)
 {
 	struct pps_gpio_device_data *data = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
 	int ret;
 	u32 value;
 
@@ -121,26 +120,24 @@ static int pps_gpio_setup(struct platform_device *pdev)
 				     "failed to request ECHO GPIO\n");
 
 	if (data->echo_pin) {
-		ret = of_property_read_u32(np,
-			"echo-active-ms",
-			&value);
+		ret = device_property_read_u32(&pdev->dev, "echo-active-ms", &value);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"failed to get echo-active-ms from OF\n");
+				"failed to get echo-active-ms from FW\n");
 			return ret;
 		}
 		data->echo_active_ms = value;
 		/* sanity check on echo_active_ms */
 		if (!data->echo_active_ms || data->echo_active_ms > 999) {
 			dev_err(&pdev->dev,
-				"echo-active-ms: %u - bad value from OF\n",
+				"echo-active-ms: %u - bad value from FW\n",
 				data->echo_active_ms);
 			return -EINVAL;
 		}
 	}
 
-	if (of_property_read_bool(np, "assert-falling-edge"))
-		data->assert_falling_edge = true;
+	data->assert_falling_edge =
+		device_property_read_bool(&pdev->dev, "assert-falling-edge");
 	return 0;
 }
 
