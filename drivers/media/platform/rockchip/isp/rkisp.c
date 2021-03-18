@@ -2332,6 +2332,9 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		else
 			dev->csi_dev.filt_state[CSI_F_VS]--;
 		if (IS_HDR_RDBK(dev->hdr.op_mode)) {
+			/* read 3d lut at isp readback */
+			if (!dev->hw_dev->is_single)
+				rkisp_write(dev, ISP_3DLUT_UPDATE, 0, true);
 			rkisp_stats_rdbk_enable(&dev->stats_vdev, true);
 			goto vs_skip;
 		}

@@ -491,7 +491,7 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	u32 val, cur_frame_id, tmp, rd_mode;
 	bool is_feature_on = hw->is_feature_on;
 	u64 iq_feature = hw->iq_feature;
-	bool is_upd = false;
+	bool is_upd = false, is_3dlut_upd = false;
 
 	if (dev->isp_ver == ISP_V21)
 		dma2frm = 0;
@@ -574,11 +574,19 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	if (IS_HDR_RDBK(dev->csi_dev.rd_mode))
 		rkisp_params_cfgsram(params_vdev);
 
+	/* read 3d lut at frame end */
+	if (hw->is_single && is_upd &&
+	    rkisp_read_reg_cache(dev, ISP_3DLUT_UPDATE) & 0x1) {
+		rkisp_write(dev, ISP_3DLUT_UPDATE, 0, true);
+		is_3dlut_upd = true;
+	}
 	if (is_upd) {
 		val = rkisp_read(dev, ISP_CTRL, false);
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp_write(dev, ISP_CTRL, val, true);
 	}
+	if (is_3dlut_upd)
+		rkisp_write(dev, ISP_3DLUT_UPDATE, 1, true);
 
 	memset(csi->filt_state, 0, sizeof(csi->filt_state));
 	csi->filt_state[CSI_F_VS] = dma2frm;
