@@ -1366,9 +1366,9 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 {
 	struct net_device *dev = queue->dev;
 	struct xps_dev_maps *dev_maps;
+	unsigned int index, nr_ids;
 	int j, len, ret, tc = 0;
 	unsigned long *mask;
-	unsigned int index;
 
 	if (!netif_is_multiqueue(dev))
 		return -ENOENT;
@@ -1387,19 +1387,20 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 		goto err_rtnl_unlock;
 	}
 
-	mask = bitmap_zalloc(nr_cpu_ids, GFP_KERNEL);
-	if (!mask) {
-		ret = -ENOMEM;
-		goto err_rtnl_unlock;
-	}
-
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_cpus_map);
+	nr_ids = dev_maps ? dev_maps->nr_ids : nr_cpu_ids;
+
+	mask = bitmap_zalloc(nr_ids, GFP_KERNEL);
+	if (!mask) {
+		ret = -ENOMEM;
+		goto err_rcu_unlock;
+	}
+
 	if (!dev_maps || tc >= dev_maps->num_tc)
 		goto out_no_maps;
 
-	for (j = -1; j = netif_attrmask_next(j, NULL, nr_cpu_ids),
-	     j < nr_cpu_ids;) {
+	for (j = -1; j = netif_attrmask_next(j, NULL, nr_ids), j < nr_ids;) {
 		int i, tci = j * dev_maps->num_tc + tc;
 		struct xps_map *map;
 
@@ -1419,10 +1420,12 @@ out_no_maps:
 
 	rtnl_unlock();
 
-	len = bitmap_print_to_pagebuf(false, buf, mask, nr_cpu_ids);
+	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
 	bitmap_free(mask);
 	return len < PAGE_SIZE ? len : -EINVAL;
 
+err_rcu_unlock:
+	rcu_read_unlock();
 err_rtnl_unlock:
 	rtnl_unlock();
 	return ret;
@@ -1473,9 +1476,9 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 {
 	struct net_device *dev = queue->dev;
 	struct xps_dev_maps *dev_maps;
+	unsigned int index, nr_ids;
 	int j, len, ret, tc = 0;
 	unsigned long *mask;
-	unsigned int index;
 
 	index = get_netdev_queue_index(queue);
 
@@ -1488,19 +1491,20 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 		goto err_rtnl_unlock;
 	}
 
-	mask = bitmap_zalloc(dev->num_rx_queues, GFP_KERNEL);
-	if (!mask) {
-		ret = -ENOMEM;
-		goto err_rtnl_unlock;
-	}
-
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_rxqs_map);
+	nr_ids = dev_maps ? dev_maps->nr_ids : dev->num_rx_queues;
+
+	mask = bitmap_zalloc(nr_ids, GFP_KERNEL);
+	if (!mask) {
+		ret = -ENOMEM;
+		goto err_rcu_unlock;
+	}
+
 	if (!dev_maps || tc >= dev_maps->num_tc)
 		goto out_no_maps;
 
-	for (j = -1; j = netif_attrmask_next(j, NULL, dev->num_rx_queues),
-	     j < dev->num_rx_queues;) {
+	for (j = -1; j = netif_attrmask_next(j, NULL, nr_ids), j < nr_ids;) {
 		int i, tci = j * dev_maps->num_tc + tc;
 		struct xps_map *map;
 
@@ -1520,11 +1524,13 @@ out_no_maps:
 
 	rtnl_unlock();
 
-	len = bitmap_print_to_pagebuf(false, buf, mask, dev->num_rx_queues);
+	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
 	bitmap_free(mask);
 
 	return len < PAGE_SIZE ? len : -EINVAL;
 
+err_rcu_unlock:
+	rcu_read_unlock();
 err_rtnl_unlock:
 	rtnl_unlock();
 	return ret;
