@@ -40,13 +40,13 @@ Todolist:
    bug-hunting
    bug-bisect
    tainted-kernels
+   init
 
 Todolist:
 
    reporting-bugs
    ramoops
    dynamic-debug-howto
-   init
    kdump/index
    perf/index
 
