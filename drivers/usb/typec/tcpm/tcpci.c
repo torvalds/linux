@@ -461,7 +461,11 @@ static int tcpci_get_vbus(struct tcpc_dev *tcpc)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	unsigned int reg;
-	int ret;
+	int ret, vbus, bypass = 0;
+
+	trace_android_rvh_typec_tcpci_get_vbus(tcpci, tcpci->data, &vbus, &bypass);
+	if (bypass)
+		return vbus;
 
 	ret = regmap_read(tcpci->regmap, TCPC_POWER_STATUS, &reg);
 	if (ret < 0)
