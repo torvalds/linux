@@ -23,7 +23,10 @@ struct mlx5_esw_bridge_offloads {
 
 	struct mlx5_flow_table *ingress_ft;
 	struct mlx5_flow_group *ingress_vlan_fg;
+	struct mlx5_flow_group *ingress_filter_fg;
 	struct mlx5_flow_group *ingress_mac_fg;
+
+	struct mlx5_flow_table *skip_ft;
 };
 
 struct mlx5_esw_bridge_offloads *mlx5_esw_bridge_init(struct mlx5_eswitch *esw);
