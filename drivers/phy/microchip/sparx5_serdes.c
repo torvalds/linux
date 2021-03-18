@@ -2470,7 +2470,7 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 	priv->coreclock = clock;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iomem = devm_ioremap(priv->dev, iores->start, iores->end - iores->start + 1);
+	iomem = devm_ioremap(priv->dev, iores->start, resource_size(iores));
 	if (IS_ERR(iomem)) {
 		dev_err(priv->dev, "Unable to get serdes registers: %s\n",
 			iores->name);
