@@ -401,8 +401,7 @@
 			status = "okay";
 
 			wifi@1 {
-				/* Actually BRCM4330 */
-				compatible = "brcm,bcm4329-fmac";
+				compatible = "brcm,bcm4330-fmac", "brcm,bcm4329-fmac";
 				reg = <1>;
 				/* GPIO216 WL_HOST_WAKE */
 				interrupt-parent = <&gpio6>;
@@ -436,6 +435,7 @@
 			status = "okay";
 
 			bluetooth {
+				/* BCM4330B1 actually */
 				compatible = "brcm,bcm4330-bt";
 				/* GPIO222 rail BT_VREG_EN to BT_REG_ON */
 				shutdown-gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
