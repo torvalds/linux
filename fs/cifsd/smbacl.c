@@ -520,7 +520,7 @@ static void parse_dacl(struct smb_acl *pdacl, char *end_of_acl,
 			fattr->cf_gid;
 		acl_state.groups->aces[acl_state.groups->n++].perms.allow =
 			(mode & 0070) >> 3;
-		default_acl_state.group.allow = mode & 0070 >> 3;
+		default_acl_state.group.allow = (mode & 0070) >> 3;
 		default_acl_state.groups->aces[default_acl_state.groups->n].gid =
 			fattr->cf_gid;
 		default_acl_state.groups->aces[default_acl_state.groups->n++].perms.allow =
