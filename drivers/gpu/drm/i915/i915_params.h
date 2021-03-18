@@ -97,4 +97,3 @@ void i915_params_copy(struct i915_params *dest, const struct i915_params *src);
 void i915_params_free(struct i915_params *params);
 
 #endif
-
