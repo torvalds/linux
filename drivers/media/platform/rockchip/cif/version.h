@@ -59,6 +59,7 @@
  *7. register cif sd itf when pipeline completed
  *v0.1.10
  *1. rv1126/rk356x support bt656/bt1120 multi channels function
+ *2. add dynamic cropping function
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION

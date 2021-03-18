@@ -377,7 +377,8 @@ struct rkcif_extend_info {
  * @vbq_lock: lock to protect buf_queue
  * @buf_queue: queued buffer list
  * @dummy_buf: dummy space to store dropped data
- *
+ * @crop_enable: crop status when stream off
+ * @crop_dyn_en: crop status when streaming
  * rkcif use shadowsock registers, so it need two buffer at a time
  * @curr_buf: the buffer used for current frame
  * @next_buf: the buffer used for next frame
@@ -390,6 +391,7 @@ struct rkcif_stream {
 	enum rkcif_state		state;
 	bool				stopping;
 	bool				crop_enable;
+	bool				crop_dyn_en;
 	bool				is_compact;
 	wait_queue_head_t		wq_stopped;
 	unsigned int			frame_idx;
