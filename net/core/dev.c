@@ -2460,7 +2460,7 @@ static DEFINE_MUTEX(xps_map_mutex);
 	rcu_dereference_protected((P), lockdep_is_held(&xps_map_mutex))
 
 static bool remove_xps_queue(struct xps_dev_maps *dev_maps,
-			     int tci, u16 index)
+			     struct xps_dev_maps *old_maps, int tci, u16 index)
 {
 	struct xps_map *map = NULL;
 	int pos;
@@ -2479,6 +2479,8 @@ static bool remove_xps_queue(struct xps_dev_maps *dev_maps,
 			break;
 		}
 
+		if (old_maps)
+			RCU_INIT_POINTER(old_maps->attr_map[tci], NULL);
 		RCU_INIT_POINTER(dev_maps->attr_map[tci], NULL);
 		kfree_rcu(map, rcu);
 		return false;
@@ -2491,7 +2493,7 @@ static bool remove_xps_queue_cpu(struct net_device *dev,
 				 struct xps_dev_maps *dev_maps,
 				 int cpu, u16 offset, u16 count)
 {
-	int num_tc = dev->num_tc ? : 1;
+	int num_tc = dev_maps->num_tc;
 	bool active = false;
 	int tci;
 
@@ -2499,7 +2501,7 @@ static bool remove_xps_queue_cpu(struct net_device *dev,
 		int i, j;
 
 		for (i = count, j = offset; i--; j++) {
-			if (!remove_xps_queue(dev_maps, tci, j))
+			if (!remove_xps_queue(dev_maps, NULL, tci, j))
 				break;
 		}
 
@@ -2511,74 +2513,54 @@ static bool remove_xps_queue_cpu(struct net_device *dev,
 
 static void reset_xps_maps(struct net_device *dev,
 			   struct xps_dev_maps *dev_maps,
-			   bool is_rxqs_map)
+			   enum xps_map_type type)
 {
-	if (is_rxqs_map) {
-		static_key_slow_dec_cpuslocked(&xps_rxqs_needed);
-		RCU_INIT_POINTER(dev->xps_rxqs_map, NULL);
-	} else {
-		RCU_INIT_POINTER(dev->xps_cpus_map, NULL);
-	}
 	static_key_slow_dec_cpuslocked(&xps_needed);
+	if (type == XPS_RXQS)
+		static_key_slow_dec_cpuslocked(&xps_rxqs_needed);
+
+	RCU_INIT_POINTER(dev->xps_maps[type], NULL);
+
 	kfree_rcu(dev_maps, rcu);
 }
 
-static void clean_xps_maps(struct net_device *dev, const unsigned long *mask,
-			   struct xps_dev_maps *dev_maps, unsigned int nr_ids,
-			   u16 offset, u16 count, bool is_rxqs_map)
+static void clean_xps_maps(struct net_device *dev, enum xps_map_type type,
+			   u16 offset, u16 count)
 {
+	struct xps_dev_maps *dev_maps;
 	bool active = false;
 	int i, j;
 
-	for (j = -1; j = netif_attrmask_next(j, mask, nr_ids),
-	     j < nr_ids;)
-		active |= remove_xps_queue_cpu(dev, dev_maps, j, offset,
-					       count);
-	if (!active)
-		reset_xps_maps(dev, dev_maps, is_rxqs_map);
+	dev_maps = xmap_dereference(dev->xps_maps[type]);
+	if (!dev_maps)
+		return;
 
-	if (!is_rxqs_map) {
-		for (i = offset + (count - 1); count--; i--) {
+	for (j = 0; j < dev_maps->nr_ids; j++)
+		active |= remove_xps_queue_cpu(dev, dev_maps, j, offset, count);
+	if (!active)
+		reset_xps_maps(dev, dev_maps, type);
+
+	if (type == XPS_CPUS) {
+		for (i = offset + (count - 1); count--; i--)
 			netdev_queue_numa_node_write(
-				netdev_get_tx_queue(dev, i),
-				NUMA_NO_NODE);
-		}
+				netdev_get_tx_queue(dev, i), NUMA_NO_NODE);
 	}
 }
 
 static void netif_reset_xps_queues(struct net_device *dev, u16 offset,
 				   u16 count)
 {
-	const unsigned long *possible_mask = NULL;
-	struct xps_dev_maps *dev_maps;
-	unsigned int nr_ids;
-
 	if (!static_key_false(&xps_needed))
 		return;
 
 	cpus_read_lock();
 	mutex_lock(&xps_map_mutex);
 
-	if (static_key_false(&xps_rxqs_needed)) {
-		dev_maps = xmap_dereference(dev->xps_rxqs_map);
-		if (dev_maps) {
-			nr_ids = dev->num_rx_queues;
-			clean_xps_maps(dev, possible_mask, dev_maps, nr_ids,
-				       offset, count, true);
-		}
-	}
+	if (static_key_false(&xps_rxqs_needed))
+		clean_xps_maps(dev, XPS_RXQS, offset, count);
 
-	dev_maps = xmap_dereference(dev->xps_cpus_map);
-	if (!dev_maps)
-		goto out_no_maps;
+	clean_xps_maps(dev, XPS_CPUS, offset, count);
 
-	if (num_possible_cpus() > 1)
-		possible_mask = cpumask_bits(cpu_possible_mask);
-	nr_ids = nr_cpu_ids;
-	clean_xps_maps(dev, possible_mask, dev_maps, nr_ids, offset, count,
-		       false);
-
-out_no_maps:
 	mutex_unlock(&xps_map_mutex);
 	cpus_read_unlock();
 }
@@ -2628,16 +2610,35 @@ static struct xps_map *expand_xps_map(struct xps_map *map, int attr_index,
 	return new_map;
 }
 
+/* Copy xps maps at a given index */
+static void xps_copy_dev_maps(struct xps_dev_maps *dev_maps,
+			      struct xps_dev_maps *new_dev_maps, int index,
+			      int tc, bool skip_tc)
+{
+	int i, tci = index * dev_maps->num_tc;
+	struct xps_map *map;
+
+	/* copy maps belonging to foreign traffic classes */
+	for (i = 0; i < dev_maps->num_tc; i++, tci++) {
+		if (i == tc && skip_tc)
+			continue;
+
+		/* fill in the new device map from the old device map */
+		map = xmap_dereference(dev_maps->attr_map[tci]);
+		RCU_INIT_POINTER(new_dev_maps->attr_map[tci], map);
+	}
+}
+
 /* Must be called under cpus_read_lock */
 int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
-			  u16 index, bool is_rxqs_map)
+			  u16 index, enum xps_map_type type)
 {
-	const unsigned long *online_mask = NULL, *possible_mask = NULL;
-	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL;
+	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL, *old_dev_maps = NULL;
+	const unsigned long *online_mask = NULL;
+	bool active = false, copy = false;
 	int i, j, tci, numa_node_id = -2;
 	int maps_sz, num_tc = 1, tc = 0;
 	struct xps_map *map, *new_map;
-	bool active = false;
 	unsigned int nr_ids;
 
 	if (dev->num_tc) {
@@ -2655,38 +2656,48 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 	}
 
 	mutex_lock(&xps_map_mutex);
-	if (is_rxqs_map) {
+
+	dev_maps = xmap_dereference(dev->xps_maps[type]);
+	if (type == XPS_RXQS) {
 		maps_sz = XPS_RXQ_DEV_MAPS_SIZE(num_tc, dev->num_rx_queues);
-		dev_maps = xmap_dereference(dev->xps_rxqs_map);
 		nr_ids = dev->num_rx_queues;
 	} else {
 		maps_sz = XPS_CPU_DEV_MAPS_SIZE(num_tc);
-		if (num_possible_cpus() > 1) {
+		if (num_possible_cpus() > 1)
 			online_mask = cpumask_bits(cpu_online_mask);
-			possible_mask = cpumask_bits(cpu_possible_mask);
-		}
-		dev_maps = xmap_dereference(dev->xps_cpus_map);
 		nr_ids = nr_cpu_ids;
 	}
 
 	if (maps_sz < L1_CACHE_BYTES)
 		maps_sz = L1_CACHE_BYTES;
 
+	/* The old dev_maps could be larger or smaller than the one we're
+	 * setting up now, as dev->num_tc or nr_ids could have been updated in
+	 * between. We could try to be smart, but let's be safe instead and only
+	 * copy foreign traffic classes if the two map sizes match.
+	 */
+	if (dev_maps &&
+	    dev_maps->num_tc == num_tc && dev_maps->nr_ids == nr_ids)
+		copy = true;
+
 	/* allocate memory for queue storage */
 	for (j = -1; j = netif_attrmask_next_and(j, online_mask, mask, nr_ids),
 	     j < nr_ids;) {
-		if (!new_dev_maps)
-			new_dev_maps = kzalloc(maps_sz, GFP_KERNEL);
 		if (!new_dev_maps) {
-			mutex_unlock(&xps_map_mutex);
-			return -ENOMEM;
+			new_dev_maps = kzalloc(maps_sz, GFP_KERNEL);
+			if (!new_dev_maps) {
+				mutex_unlock(&xps_map_mutex);
+				return -ENOMEM;
+			}
+
+			new_dev_maps->nr_ids = nr_ids;
+			new_dev_maps->num_tc = num_tc;
 		}
 
 		tci = j * num_tc + tc;
-		map = dev_maps ? xmap_dereference(dev_maps->attr_map[tci]) :
-				 NULL;
+		map = copy ? xmap_dereference(dev_maps->attr_map[tci]) : NULL;
 
-		map = expand_xps_map(map, j, index, is_rxqs_map);
+		map = expand_xps_map(map, j, index, type == XPS_RXQS);
 		if (!map)
 			goto error;
 
@@ -2699,28 +2710,20 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 	if (!dev_maps) {
 		/* Increment static keys at most once per type */
 		static_key_slow_inc_cpuslocked(&xps_needed);
-		if (is_rxqs_map)
+		if (type == XPS_RXQS)
 			static_key_slow_inc_cpuslocked(&xps_rxqs_needed);
 	}
 
-	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
-	     j < nr_ids;) {
-		/* copy maps belonging to foreign traffic classes */
-		for (i = tc, tci = j * num_tc; dev_maps && i--; tci++) {
-			/* fill in the new device map from the old device map */
-			map = xmap_dereference(dev_maps->attr_map[tci]);
-			RCU_INIT_POINTER(new_dev_maps->attr_map[tci], map);
-		}
+	for (j = 0; j < nr_ids; j++) {
+		bool skip_tc = false;
 
-		/* We need to explicitly update tci as prevous loop
-		 * could break out early if dev_maps is NULL.
-		 */
 		tci = j * num_tc + tc;
-
 		if (netif_attr_test_mask(j, mask, nr_ids) &&
 		    netif_attr_test_online(j, online_mask, nr_ids)) {
 			/* add tx-queue to CPU/rx-queue maps */
 			int pos = 0;
+
+			skip_tc = true;
 
 			map = xmap_dereference(new_dev_maps->attr_map[tci]);
 			while ((pos < map->len) && (map->queues[pos] != index))
@@ -2729,78 +2732,81 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 			if (pos == map->len)
 				map->queues[map->len++] = index;
 #ifdef CONFIG_NUMA
-			if (!is_rxqs_map) {
+			if (type == XPS_CPUS) {
 				if (numa_node_id == -2)
 					numa_node_id = cpu_to_node(j);
 				else if (numa_node_id != cpu_to_node(j))
 					numa_node_id = -1;
 			}
 #endif
-		} else if (dev_maps) {
-			/* fill in the new device map from the old device map */
-			map = xmap_dereference(dev_maps->attr_map[tci]);
-			RCU_INIT_POINTER(new_dev_maps->attr_map[tci], map);
 		}
 
-		/* copy maps belonging to foreign traffic classes */
-		for (i = num_tc - tc, tci++; dev_maps && --i; tci++) {
-			/* fill in the new device map from the old device map */
-			map = xmap_dereference(dev_maps->attr_map[tci]);
-			RCU_INIT_POINTER(new_dev_maps->attr_map[tci], map);
-		}
+		if (copy)
+			xps_copy_dev_maps(dev_maps, new_dev_maps, j, tc,
+					  skip_tc);
 	}
 
-	if (is_rxqs_map)
-		rcu_assign_pointer(dev->xps_rxqs_map, new_dev_maps);
-	else
-		rcu_assign_pointer(dev->xps_cpus_map, new_dev_maps);
+	rcu_assign_pointer(dev->xps_maps[type], new_dev_maps);
 
 	/* Cleanup old maps */
 	if (!dev_maps)
 		goto out_no_old_maps;
 
-	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
-	     j < nr_ids;) {
-		for (i = num_tc, tci = j * num_tc; i--; tci++) {
-			new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
+	for (j = 0; j < dev_maps->nr_ids; j++) {
+		for (i = num_tc, tci = j * dev_maps->num_tc; i--; tci++) {
 			map = xmap_dereference(dev_maps->attr_map[tci]);
-			if (map && map != new_map)
-				kfree_rcu(map, rcu);
+			if (!map)
+				continue;
+
+			if (copy) {
+				new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
+				if (map == new_map)
+					continue;
+			}
+
+			RCU_INIT_POINTER(dev_maps->attr_map[tci], NULL);
+			kfree_rcu(map, rcu);
 		}
 	}
 
-	kfree_rcu(dev_maps, rcu);
+	old_dev_maps = dev_maps;
 
 out_no_old_maps:
 	dev_maps = new_dev_maps;
 	active = true;
 
 out_no_new_maps:
-	if (!is_rxqs_map) {
+	if (type == XPS_CPUS)
 		/* update Tx queue numa node */
 		netdev_queue_numa_node_write(netdev_get_tx_queue(dev, index),
 					     (numa_node_id >= 0) ?
 					     numa_node_id : NUMA_NO_NODE);
-	}
 
 	if (!dev_maps)
 		goto out_no_maps;
 
 	/* removes tx-queue from unused CPUs/rx-queues */
-	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
-	     j < nr_ids;) {
-		for (i = tc, tci = j * num_tc; i--; tci++)
-			active |= remove_xps_queue(dev_maps, tci, index);
-		if (!netif_attr_test_mask(j, mask, nr_ids) ||
-		    !netif_attr_test_online(j, online_mask, nr_ids))
-			active |= remove_xps_queue(dev_maps, tci, index);
-		for (i = num_tc - tc, tci++; --i; tci++)
-			active |= remove_xps_queue(dev_maps, tci, index);
+	for (j = 0; j < dev_maps->nr_ids; j++) {
+		tci = j * dev_maps->num_tc;
+
+		for (i = 0; i < dev_maps->num_tc; i++, tci++) {
+			if (i == tc &&
+			    netif_attr_test_mask(j, mask, dev_maps->nr_ids) &&
+			    netif_attr_test_online(j, online_mask, dev_maps->nr_ids))
+				continue;
+
+			active |= remove_xps_queue(dev_maps,
+						   copy ? old_dev_maps : NULL,
+						   tci, index);
+		}
 	}
+
+	if (old_dev_maps)
+		kfree_rcu(old_dev_maps, rcu);
 
 	/* free map if not active */
 	if (!active)
-		reset_xps_maps(dev, dev_maps, is_rxqs_map);
+		reset_xps_maps(dev, dev_maps, type);
 
 out_no_maps:
 	mutex_unlock(&xps_map_mutex);
@@ -2808,11 +2814,10 @@ out_no_maps:
 	return 0;
 error:
 	/* remove any maps that we added */
-	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
-	     j < nr_ids;) {
+	for (j = 0; j < nr_ids; j++) {
 		for (i = num_tc, tci = j * num_tc; i--; tci++) {
 			new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
-			map = dev_maps ?
+			map = copy ?
 			      xmap_dereference(dev_maps->attr_map[tci]) :
 			      NULL;
 			if (new_map && new_map != map)
@@ -2833,7 +2838,7 @@ int netif_set_xps_queue(struct net_device *dev, const struct cpumask *mask,
 	int ret;
 
 	cpus_read_lock();
-	ret =  __netif_set_xps_queue(dev, cpumask_bits(mask), index, false);
+	ret =  __netif_set_xps_queue(dev, cpumask_bits(mask), index, XPS_CPUS);
 	cpus_read_unlock();
 
 	return ret;
@@ -3944,13 +3949,15 @@ sch_handle_egress(struct sk_buff *skb, int *ret, struct net_device *dev)
 static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
 			       struct xps_dev_maps *dev_maps, unsigned int tci)
 {
+	int tc = netdev_get_prio_tc_map(dev, skb->priority);
 	struct xps_map *map;
 	int queue_index = -1;
 
-	if (dev->num_tc) {
-		tci *= dev->num_tc;
-		tci += netdev_get_prio_tc_map(dev, skb->priority);
-	}
+	if (tc >= dev_maps->num_tc || tci >= dev_maps->nr_ids)
+		return queue_index;
+
+	tci *= dev_maps->num_tc;
+	tci += tc;
 
 	map = rcu_dereference(dev_maps->attr_map[tci]);
 	if (map) {
@@ -3981,18 +3988,18 @@ static int get_xps_queue(struct net_device *dev, struct net_device *sb_dev,
 	if (!static_key_false(&xps_rxqs_needed))
 		goto get_cpus_map;
 
-	dev_maps = rcu_dereference(sb_dev->xps_rxqs_map);
+	dev_maps = rcu_dereference(sb_dev->xps_maps[XPS_RXQS]);
 	if (dev_maps) {
 		int tci = sk_rx_queue_get(sk);
 
-		if (tci >= 0 && tci < dev->num_rx_queues)
+		if (tci >= 0)
 			queue_index = __get_xps_queue_idx(dev, skb, dev_maps,
 							  tci);
 	}
 
 get_cpus_map:
 	if (queue_index < 0) {
-		dev_maps = rcu_dereference(sb_dev->xps_cpus_map);
+		dev_maps = rcu_dereference(sb_dev->xps_maps[XPS_CPUS]);
 		if (dev_maps) {
 			unsigned int tci = skb->sender_cpu - 1;
 
