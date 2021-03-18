@@ -638,8 +638,8 @@ static void __smb2_oplock_break_noti(struct work_struct *wk)
 	if (allocate_oplock_break_buf(work)) {
 		ksmbd_err("smb2_allocate_rsp_buf failed! ");
 		atomic_dec(&conn->r_count);
-		ksmbd_free_work_struct(work);
 		ksmbd_fd_put(work, fp);
+		ksmbd_free_work_struct(work);
 		return;
 	}
 
