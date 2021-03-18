@@ -561,10 +561,6 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 	int ret = 0;
 	struct smu_context *smu = &adev->smu;
 
-	/* skip reset on vangogh for now */
-	if (adev->asic_type == CHIP_VANGOGH)
-		return 0;
-
 	switch (nv_asic_reset_method(adev)) {
 	case AMD_RESET_METHOD_PCI:
 		dev_info(adev->dev, "PCI reset\n");
