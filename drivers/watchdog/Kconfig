@@ -1849,10 +1849,6 @@ config 8xxx_WDT
 
 	  For BookE processors (MPC85xx) use the BOOKE_WDT driver instead.
 
-config MV64X60_WDT
-	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
-	depends on MV64X60 || COMPILE_TEST
-
 config PIKA_WDT
 	tristate "PIKA FPGA Watchdog"
 	depends on WARP || (PPC64 && COMPILE_TEST)
