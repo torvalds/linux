@@ -982,7 +982,16 @@ _bpftool()
         gen)
             case $command in
                 skeleton)
-                    _filedir
+                    case $prev in
+                        $command)
+                            _filedir
+                            return 0
+                            ;;
+                        *)
+                            _bpftool_once_attr 'name'
+                            return 0
+                            ;;
+                    esac
                     ;;
                 *)
                     [[ $prev == $object ]] && \

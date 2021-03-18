@@ -273,7 +273,7 @@ static int do_skeleton(int argc, char **argv)
 	char header_guard[MAX_OBJ_NAME_LEN + sizeof("__SKEL_H__")];
 	size_t i, map_cnt = 0, prog_cnt = 0, file_sz, mmap_sz;
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts);
-	char obj_name[MAX_OBJ_NAME_LEN], *obj_data;
+	char obj_name[MAX_OBJ_NAME_LEN] = "", *obj_data;
 	struct bpf_object *obj = NULL;
 	const char *file, *ident;
 	struct bpf_program *prog;
@@ -287,6 +287,28 @@ static int do_skeleton(int argc, char **argv)
 		return -1;
 	}
 	file = GET_ARG();
+
+	while (argc) {
+		if (!REQ_ARGS(2))
+			return -1;
+
+		if (is_prefix(*argv, "name")) {
+			NEXT_ARG();
+
+			if (obj_name[0] != '\0') {
+				p_err("object name already specified");
+				return -1;
+			}
+
+			strncpy(obj_name, *argv, MAX_OBJ_NAME_LEN - 1);
+			obj_name[MAX_OBJ_NAME_LEN - 1] = '\0';
+		} else {
+			p_err("unknown arg %s", *argv);
+			return -1;
+		}
+
+		NEXT_ARG();
+	}
 
 	if (argc) {
 		p_err("extra unknown arguments");
@@ -310,7 +332,8 @@ static int do_skeleton(int argc, char **argv)
 		p_err("failed to mmap() %s: %s", file, strerror(errno));
 		goto out;
 	}
-	get_obj_name(obj_name, file);
+	if (obj_name[0] == '\0')
+		get_obj_name(obj_name, file);
 	opts.object_name = obj_name;
 	obj = bpf_object__open_mem(obj_data, file_sz, &opts);
 	if (IS_ERR(obj)) {
@@ -599,7 +622,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %1$s %2$s skeleton FILE\n"
+		"Usage: %1$s %2$s skeleton FILE [name OBJECT_NAME]\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_OPTIONS "\n"

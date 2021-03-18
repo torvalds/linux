@@ -19,7 +19,7 @@ SYNOPSIS
 GEN COMMANDS
 =============
 
-|	**bpftool** **gen skeleton** *FILE*
+|	**bpftool** **gen skeleton** *FILE* [**name** *OBJECT_NAME*]
 |	**bpftool** **gen help**
 
 DESCRIPTION
@@ -75,10 +75,13 @@ DESCRIPTION
 		  specific maps, programs, etc.
 
 		  As part of skeleton, few custom functions are generated.
-		  Each of them is prefixed with object name, derived from
-		  object file name. I.e., if BPF object file name is
-		  **example.o**, BPF object name will be **example**. The
-		  following custom functions are provided in such case:
+		  Each of them is prefixed with object name. Object name can
+		  either be derived from object file name, i.e., if BPF object
+		  file name is **example.o**, BPF object name will be
+		  **example**. Object name can be also specified explicitly
+		  through **name** *OBJECT_NAME* parameter. The following
+		  custom functions are provided (assuming **example** as
+		  the object name):
 
 		  - **example__open** and **example__open_opts**.
 		    These functions are used to instantiate skeleton. It
