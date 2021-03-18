@@ -37,11 +37,6 @@ void intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state);
 int intel_dp_min_bpp(enum intel_output_format output_format);
-bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
-			   i915_reg_t dp_reg, enum port port,
-			   enum pipe *pipe);
-bool intel_dp_init(struct drm_i915_private *dev_priv, i915_reg_t output_reg,
-		   enum port port);
 bool intel_dp_init_connector(struct intel_digital_port *dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
@@ -131,7 +126,6 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 				    struct intel_crtc_state *crtc_state);
 void intel_dp_sync_state(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *crtc_state);
-const struct dpll *vlv_get_dpll(struct drm_i915_private *i915);
 
 void intel_dp_check_frl_training(struct intel_dp *intel_dp);
 void intel_dp_pcon_dsc_configure(struct intel_dp *intel_dp,

@@ -240,6 +240,7 @@ i915-y += \
 	display/dvo_ns2501.o \
 	display/dvo_sil164.o \
 	display/dvo_tfp410.o \
+	display/g4x_dp.o \
 	display/icl_dsi.o \
 	display/intel_crt.o \
 	display/intel_ddi.o \

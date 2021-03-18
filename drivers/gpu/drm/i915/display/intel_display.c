@@ -66,6 +66,7 @@
 
 #include "gt/intel_rps.h"
 
+#include "g4x_dp.h"
 #include "i915_drv.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"
