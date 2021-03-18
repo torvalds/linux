@@ -120,14 +120,6 @@ extern u32 		GLBtcDbgType[];
 		DbgPrint printstr;\
 }
 
-#define BTC_PRINT_F(dbgtype, dbgflag, printstr)\
-{\
-	if (GLBtcDbgType[dbgtype] & dbgflag) {\
-		DbgPrint("%s(): ", __func__);\
-		DbgPrint printstr;\
-	} \
-}
-
 #define BTC_PRINT_ADDR(dbgtype, dbgflag, printstr, _Ptr)\
 {\
 	if (GLBtcDbgType[dbgtype] & dbgflag) {\
