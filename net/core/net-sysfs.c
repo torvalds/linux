@@ -1361,44 +1361,27 @@ static const struct attribute_group dql_group = {
 #endif /* CONFIG_BQL */
 
 #ifdef CONFIG_XPS
-static ssize_t xps_cpus_show(struct netdev_queue *queue,
-			     char *buf)
+static ssize_t xps_queue_show(struct net_device *dev, unsigned int index,
+			      int tc, char *buf, enum xps_map_type type)
 {
-	struct net_device *dev = queue->dev;
 	struct xps_dev_maps *dev_maps;
-	unsigned int index, nr_ids;
-	int j, len, ret, tc = 0;
 	unsigned long *mask;
-
-	if (!netif_is_multiqueue(dev))
-		return -ENOENT;
-
-	index = get_netdev_queue_index(queue);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	/* If queue belongs to subordinate dev use its map */
-	dev = netdev_get_tx_queue(dev, index)->sb_dev ? : dev;
-
-	tc = netdev_txq_to_tc(dev, index);
-	if (tc < 0) {
-		rtnl_unlock();
-		return -EINVAL;
-	}
-
-	/* Make sure the subordinate device can't be freed */
-	get_device(&dev->dev);
-	rtnl_unlock();
+	unsigned int nr_ids;
+	int j, len;
 
 	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_maps[XPS_CPUS]);
-	nr_ids = dev_maps ? dev_maps->nr_ids : nr_cpu_ids;
+	dev_maps = rcu_dereference(dev->xps_maps[type]);
+
+	/* Default to nr_cpu_ids/dev->num_rx_queues and do not just return 0
+	 * when dev_maps hasn't been allocated yet, to be backward compatible.
+	 */
+	nr_ids = dev_maps ? dev_maps->nr_ids :
+		 (type == XPS_CPUS ? nr_cpu_ids : dev->num_rx_queues);
 
 	mask = bitmap_zalloc(nr_ids, GFP_KERNEL);
 	if (!mask) {
-		ret = -ENOMEM;
-		goto err_rcu_unlock;
+		rcu_read_unlock();
+		return -ENOMEM;
 	}
 
 	if (!dev_maps || tc >= dev_maps->num_tc)
@@ -1421,16 +1404,44 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	}
 out_no_maps:
 	rcu_read_unlock();
-	put_device(&dev->dev);
 
 	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
 	bitmap_free(mask);
-	return len < PAGE_SIZE ? len : -EINVAL;
 
-err_rcu_unlock:
-	rcu_read_unlock();
+	return len < PAGE_SIZE ? len : -EINVAL;
+}
+
+static ssize_t xps_cpus_show(struct netdev_queue *queue, char *buf)
+{
+	struct net_device *dev = queue->dev;
+	unsigned int index;
+	int len, tc;
+
+	if (!netif_is_multiqueue(dev))
+		return -ENOENT;
+
+	index = get_netdev_queue_index(queue);
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	/* If queue belongs to subordinate dev use its map */
+	dev = netdev_get_tx_queue(dev, index)->sb_dev ? : dev;
+
+	tc = netdev_txq_to_tc(dev, index);
+	if (tc < 0) {
+		rtnl_unlock();
+		return -EINVAL;
+	}
+
+	/* Make sure the subordinate device can't be freed */
+	get_device(&dev->dev);
+	rtnl_unlock();
+
+	len = xps_queue_show(dev, index, tc, buf, XPS_CPUS);
+
 	put_device(&dev->dev);
-	return ret;
+	return len;
 }
 
 static ssize_t xps_cpus_store(struct netdev_queue *queue,
@@ -1477,10 +1488,8 @@ static struct netdev_queue_attribute xps_cpus_attribute __ro_after_init
 static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 {
 	struct net_device *dev = queue->dev;
-	struct xps_dev_maps *dev_maps;
-	unsigned int index, nr_ids;
-	int j, len, ret, tc = 0;
-	unsigned long *mask;
+	unsigned int index;
+	int tc;
 
 	index = get_netdev_queue_index(queue);
 
@@ -1492,45 +1501,7 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 	if (tc < 0)
 		return -EINVAL;
 
-	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_maps[XPS_RXQS]);
-	nr_ids = dev_maps ? dev_maps->nr_ids : dev->num_rx_queues;
-
-	mask = bitmap_zalloc(nr_ids, GFP_KERNEL);
-	if (!mask) {
-		ret = -ENOMEM;
-		goto err_rcu_unlock;
-	}
-
-	if (!dev_maps || tc >= dev_maps->num_tc)
-		goto out_no_maps;
-
-	for (j = 0; j < nr_ids; j++) {
-		int i, tci = j * dev_maps->num_tc + tc;
-		struct xps_map *map;
-
-		map = rcu_dereference(dev_maps->attr_map[tci]);
-		if (!map)
-			continue;
-
-		for (i = map->len; i--;) {
-			if (map->queues[i] == index) {
-				set_bit(j, mask);
-				break;
-			}
-		}
-	}
-out_no_maps:
-	rcu_read_unlock();
-
-	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
-	bitmap_free(mask);
-
-	return len < PAGE_SIZE ? len : -EINVAL;
-
-err_rcu_unlock:
-	rcu_read_unlock();
-	return ret;
+	return xps_queue_show(dev, index, tc, buf, XPS_RXQS);
 }
 
 static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
