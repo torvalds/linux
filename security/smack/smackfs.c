@@ -380,7 +380,7 @@ static int smk_parse_rule(const char *data, struct smack_parsed_rule *rule,
  * @data: string to be parsed, null terminated
  * @rule: Will be filled with Smack parsed rule
  * @import: if non-zero, import labels
- * @tokens: numer of substrings expected in data
+ * @tokens: number of substrings expected in data
  *
  * Returns number of processed bytes on success, -ERRNO on failure.
  */
