@@ -39,7 +39,7 @@ import subprocess
 
 allowed_warnings = set([
     "vfs.c:1259", # fs/incfs/vfs.c:1259:10: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
-    "pseudo_files.c:715", # fs/incfs/pseudo_files.c:715:10: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+    "pseudo_files.c:655", # fs/incfs/pseudo_files.c:655:10: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
     "km_apphint.c:230", # drivers/staging/imgtec/rogue/km_apphint.c:230:48: warning: division 'sizeof (void *) / sizeof (void)' does not compute the number of array elements [-Wsizeof-pointer-div]
     "file.c:3010", # fs/f2fs/file.c:3010:12: warning: 'f2fs_ioctl_check_project' defined but not used
     "configfs.c:1488", # drivers/usb/gadget/configfs.c:1488:12: warning: 'configfs_composite_setup' defined but not used
@@ -51,7 +51,7 @@ allowed_warnings = set([
     "ks8851.c:421", # drivers/net/ethernet/micrel/ks8851.c:421:20: warning: 'rxb[0]' may be used uninitialized in this function
     "compat_binfmt_elf.c:58", # fs/compat_binfmt_elf.c:58:13: warning: 'cputime_to_compat_timeval' defined but not used
     "memcontrol.c:5337", # mm/memcontrol.c:5337:12: warning: initialization from incompatible pointer type
-    "atags_to_fdt.c:99", # arch/arm/boot/compressed/atags_to_fdt.c:99:1: warning: the frame size of 1032 bytes is larger than 1024 bytes
+    "atags_to_fdt.c:101", # arch/arm/boot/compressed/atags_to_fdt.c:101:1: warning: the frame size of 2056 bytes is larger than 1280 bytes [-Wframe-larger-than=]
     "drm_edid.c:3506", # drivers/gpu/drm/drm_edid.c:3506:13: warning: 'cea_db_is_hdmi_forum_vsdb' defined but not used
     # W=1
     "bounds.c:15", # kernel/bounds.c:15:6: warning: no previous prototype for ‘foo’
