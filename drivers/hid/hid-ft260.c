@@ -512,7 +512,8 @@ static int ft260_i2c_write_read(struct ft260_device *dev, struct i2c_msg *msgs)
 	struct hid_device *hdev = dev->hdev;
 
 	if (msgs[0].len > 2) {
-		hid_err(hdev, "%s: unsupported wr len: %d\n", __func__, len);
+		hid_err(hdev, "%s: unsupported wr len: %d\n", __func__,
+			msgs[0].len);
 		return -EOPNOTSUPP;
 	}
 
