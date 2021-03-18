@@ -595,7 +595,82 @@ int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
 		ctrl &= ~EEST;
 
 	writel(ctrl, ioaddr + MTL_EST_CONTROL);
+
+	/* Configure EST interrupt */
+	if (cfg->enable)
+		ctrl = (IECGCE | IEHS | IEHF | IEBE | IECC);
+	else
+		ctrl = 0;
+
+	writel(ctrl, ioaddr + MTL_EST_INT_EN);
+
 	return 0;
+}
+
+void dwmac5_est_irq_status(void __iomem *ioaddr, struct net_device *dev,
+			  u32 txqcnt)
+{
+	u32 status, value, feqn, hbfq, hbfs, btrl;
+	u32 txqcnt_mask = (1 << txqcnt) - 1;
+
+	status = readl(ioaddr + MTL_EST_STATUS);
+
+	value = (CGCE | HLBS | HLBF | BTRE | SWLC);
+
+	/* Return if there is no error */
+	if (!(status & value))
+		return;
+
+	if (status & CGCE) {
+		/* Clear Interrupt */
+		writel(CGCE, ioaddr + MTL_EST_STATUS);
+	}
+
+	if (status & HLBS) {
+		value = readl(ioaddr + MTL_EST_SCH_ERR);
+		value &= txqcnt_mask;
+
+		/* Clear Interrupt */
+		writel(value, ioaddr + MTL_EST_SCH_ERR);
+
+		/* Collecting info to shows all the queues that has HLBS
+		 * issue. The only way to clear this is to clear the
+		 * statistic
+		 */
+		if (net_ratelimit())
+			netdev_err(dev, "EST: HLB(sched) Queue 0x%x\n", value);
+	}
+
+	if (status & HLBF) {
+		value = readl(ioaddr + MTL_EST_FRM_SZ_ERR);
+		feqn = value & txqcnt_mask;
+
+		value = readl(ioaddr + MTL_EST_FRM_SZ_CAP);
+		hbfq = (value & SZ_CAP_HBFQ_MASK(txqcnt)) >> SZ_CAP_HBFQ_SHIFT;
+		hbfs = value & SZ_CAP_HBFS_MASK;
+
+		/* Clear Interrupt */
+		writel(feqn, ioaddr + MTL_EST_FRM_SZ_ERR);
+
+		if (net_ratelimit())
+			netdev_err(dev, "EST: HLB(size) Queue %u Size %u\n",
+				   hbfq, hbfs);
+	}
+
+	if (status & BTRE) {
+		btrl = (status & BTRL) >> BTRL_SHIFT;
+
+		if (net_ratelimit())
+			netdev_info(dev, "EST: BTR Error Loop Count %u\n",
+				    btrl);
+
+		writel(BTRE, ioaddr + MTL_EST_STATUS);
+	}
+
+	if (status & SWLC) {
+		writel(SWLC, ioaddr + MTL_EST_STATUS);
+		netdev_info(dev, "EST: SWOL has been switched\n");
+	}
 }
 
 void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,

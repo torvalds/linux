@@ -4314,6 +4314,9 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 	if (stmmac_safety_feat_interrupt(priv))
 		return IRQ_HANDLED;
 
+	if (priv->dma_cap.estsel)
+		stmmac_est_irq_status(priv, priv->ioaddr, priv->dev, tx_cnt);
+
 	/* To handle GMAC own interrupts */
 	if ((priv->plat->has_gmac) || xmac) {
 		int status = stmmac_host_irq_status(priv, priv->hw, &priv->xstats);
