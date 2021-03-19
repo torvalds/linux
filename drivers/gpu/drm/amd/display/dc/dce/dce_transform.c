@@ -794,7 +794,7 @@ static void program_bit_depth_reduction(
 	enum dcp_out_trunc_round_mode trunc_mode;
 	bool spatial_dither_enable;
 
-	ASSERT(depth < COLOR_DEPTH_121212); /* Invalid clamp bit depth */
+	ASSERT(depth <= COLOR_DEPTH_121212); /* Invalid clamp bit depth */
 
 	spatial_dither_enable = bit_depth_params->flags.SPATIAL_DITHER_ENABLED;
 	/* Default to 12 bit truncation without rounding */
@@ -854,7 +854,7 @@ static void dce60_program_bit_depth_reduction(
 	enum dcp_out_trunc_round_mode trunc_mode;
 	bool spatial_dither_enable;
 
-	ASSERT(depth < COLOR_DEPTH_121212); /* Invalid clamp bit depth */
+	ASSERT(depth <= COLOR_DEPTH_121212); /* Invalid clamp bit depth */
 
 	spatial_dither_enable = bit_depth_params->flags.SPATIAL_DITHER_ENABLED;
 	/* Default to 12 bit truncation without rounding */
