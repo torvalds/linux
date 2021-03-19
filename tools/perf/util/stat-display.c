@@ -439,6 +439,12 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 		if (counter->cgrp)
 			os.nfields++;
 	}
+
+	if (!config->no_csv_summary && config->csv_output &&
+	    config->summary && !config->interval) {
+		fprintf(config->output, "%16s%s", "summary", config->csv_sep);
+	}
+
 	if (run == 0 || ena == 0 || counter->counts->scaled == -1) {
 		if (config->metric_only) {
 			pm(config, &os, NULL, "", "", 0);

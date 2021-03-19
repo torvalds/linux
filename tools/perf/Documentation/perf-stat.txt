@@ -482,6 +482,15 @@ convenient for post processing.
 --summary::
 Print summary for interval mode (-I).
 
+--no-csv-summary::
+Don't print 'summary' at the first column for CVS summary output.
+This option must be used with -x and --summary.
+
+This option can be enabled in perf config by setting the variable
+'stat.no-csv-summary'.
+
+$ perf config stat.no-csv-summary=true
+
 EXAMPLES
 --------
 
