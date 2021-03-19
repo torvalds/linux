@@ -34,6 +34,8 @@ Optional properties for dp-controller:
 		please refer to the SoC specific binding document:
 		* Documentation/devicetree/bindings/display/exynos/exynos_dp.txt
 		* Documentation/devicetree/bindings/display/rockchip/analogix_dp-rockchip.txt
+	-support-psr:
+		Enable Source's PSR capability.
 
 [1]: Documentation/devicetree/bindings/media/video-interfaces.txt
 -------------------------------------------------------------------------------

@@ -163,6 +163,9 @@ static bool analogix_dp_detect_sink_psr(struct analogix_dp_device *dp)
 	unsigned char psr_version;
 	int ret;
 
+	if (!device_property_read_bool(dp->dev, "support-psr"))
+		return 0;
+
 	ret = drm_dp_dpcd_readb(&dp->aux, DP_PSR_SUPPORT, &psr_version);
 	if (ret != 1) {
 		dev_err(dp->dev, "failed to get PSR version, disable it\n");
