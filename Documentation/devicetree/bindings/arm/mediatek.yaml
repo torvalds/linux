@@ -118,6 +118,10 @@ properties:
           - enum:
               - mediatek,mt8183-evb
           - const: mediatek,mt8183
+      - items:
+          - enum:
+              - mediatek,mt8195-evb
+          - const: mediatek,mt8195
       - description: Google Krane (Lenovo IdeaPad Duet, 10e,...)
         items:
           - enum:
