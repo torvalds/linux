@@ -100,6 +100,26 @@ unsigned long copy_ckfpr_from_user(struct task_struct *task, void __user *from);
 		unsafe_put_user(__t->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET], \
 				&buf[i], label);\
 } while (0)
+
+#define unsafe_copy_ckfpr_from_user(task, from, label)	do {		\
+	struct task_struct *__t = task;					\
+	u64 __user *buf = (u64 __user *)from;				\
+	int i;								\
+									\
+	for (i = 0; i < ELF_NFPREG - 1 ; i++)				\
+		unsafe_get_user(__t->thread.TS_CKFPR(i), &buf[i], label);\
+	unsafe_get_user(__t->thread.ckfp_state.fpscr, &buf[i], failed);	\
+} while (0)
+
+#define unsafe_copy_ckvsx_from_user(task, from, label)	do {		\
+	struct task_struct *__t = task;					\
+	u64 __user *buf = (u64 __user *)from;				\
+	int i;								\
+									\
+	for (i = 0; i < ELF_NVSRHALFREG ; i++)				\
+		unsafe_get_user(__t->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET], \
+				&buf[i], label);			\
+} while (0)
 #endif
 #elif defined(CONFIG_PPC_FPU_REGS)
 
