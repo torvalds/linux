@@ -434,6 +434,33 @@ struct snd_sof_dai *snd_sof_find_dai(struct snd_soc_component *scomp,
 }
 
 /*
+ * Helper to get SSP MCLK from a pcm_runtime.
+ * Return 0 if not exist.
+ */
+int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_component *component =
+		snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
+	struct snd_sof_dai *dai =
+		snd_sof_find_dai(component, (char *)rtd->dai_link->name);
+
+	/* use the tplg configured mclk if existed */
+	if (!dai || !dai->dai_config)
+		return 0;
+
+	switch (dai->dai_config->type) {
+	case SOF_DAI_INTEL_SSP:
+		return dai->dai_config->ssp.mclk_rate;
+	default:
+		/* not yet implemented for platforms other than the above */
+		dev_err(rtd->dev, "mclk for dai_config->type %d not supported yet!\n",
+			dai->dai_config->type);
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(sof_dai_get_mclk);
+
+/*
  * SOF Driver enumeration.
  */
 int sof_machine_check(struct snd_sof_dev *sdev)
