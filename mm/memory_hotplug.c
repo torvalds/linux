@@ -1504,7 +1504,6 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 			 !IS_ALIGNED(start_pfn | nr_pages, PAGES_PER_SECTION)))
 		return -EINVAL;
 
-	lru_cache_disable();
 	mem_hotplug_begin();
 
 	/*
@@ -1563,6 +1562,7 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 			}
 
 			cond_resched();
+			lru_add_drain_all();
 
 			ret = scan_movable_pages(pfn, end_pfn, &pfn);
 			if (!ret) {
@@ -1647,8 +1647,6 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 	memory_notify(MEM_OFFLINE, &arg);
 	remove_pfn_range_from_zone(zone, start_pfn, nr_pages);
 	mem_hotplug_done();
-	lru_cache_enable();
-
 	return 0;
 
 failed_removal_isolated:
@@ -1661,7 +1659,6 @@ failed_removal:
 		 reason);
 	/* pushback to free area */
 	mem_hotplug_done();
-	lru_cache_enable();
 	return ret;
 }
 

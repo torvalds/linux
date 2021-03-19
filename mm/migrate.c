@@ -1697,7 +1697,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 	int start, i;
 	int err = 0, err1;
 
-	lru_cache_disable();
+	lru_add_drain_all();
 
 	for (i = start = 0; i < nr_pages; i++) {
 		const void __user *p;
@@ -1766,7 +1766,6 @@ out_flush:
 	if (err >= 0)
 		err = err1;
 out:
-	lru_cache_enable();
 	return err;
 }
 
