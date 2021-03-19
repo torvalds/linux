@@ -373,8 +373,8 @@ static bool blk_mq_tagset_count_completed_rqs(struct request *rq,
 }
 
 /**
- * blk_mq_tagset_wait_completed_request - wait until all completed req's
- * complete funtion is run
+ * blk_mq_tagset_wait_completed_request - Wait until all scheduled request
+ * completions have finished.
  * @tagset:	Tag set to drain completed request
  *
  * Note: This function has to be run after all IO queues are shutdown
