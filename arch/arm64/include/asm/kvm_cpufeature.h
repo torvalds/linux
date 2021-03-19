@@ -19,4 +19,6 @@
 #define DEFINE_KVM_HYP_CPU_FTR_REG(name) BUILD_BUG()
 #endif
 
+DECLARE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_ctrel0);
+
 #endif
