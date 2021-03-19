@@ -442,6 +442,7 @@ struct io_ring_ctx {
 	struct llist_head		rsrc_put_llist;
 	struct list_head		rsrc_ref_list;
 	spinlock_t			rsrc_ref_lock;
+	struct fixed_rsrc_ref_node	*rsrc_backup_node;
 
 	struct io_restriction		restrictions;
 
@@ -7041,12 +7042,36 @@ static void io_sqe_rsrc_kill_node(struct io_ring_ctx *ctx, struct fixed_rsrc_dat
 		percpu_ref_kill(&ref_node->refs);
 }
 
+static int io_rsrc_refnode_prealloc(struct io_ring_ctx *ctx)
+{
+	if (ctx->rsrc_backup_node)
+		return 0;
+	ctx->rsrc_backup_node = alloc_fixed_rsrc_ref_node(ctx);
+	return ctx->rsrc_backup_node ? 0 : -ENOMEM;
+}
+
+static struct fixed_rsrc_ref_node *
+io_rsrc_refnode_get(struct io_ring_ctx *ctx,
+		    struct fixed_rsrc_data *rsrc_data,
+		    void (*rsrc_put)(struct io_ring_ctx *ctx,
+		                     struct io_rsrc_put *prsrc))
+{
+	struct fixed_rsrc_ref_node *node = ctx->rsrc_backup_node;
+
+	WARN_ON_ONCE(!node);
+
+	ctx->rsrc_backup_node = NULL;
+	node->rsrc_data = rsrc_data;
+	node->rsrc_put = rsrc_put;
+	return node;
+}
+
 static int io_rsrc_ref_quiesce(struct fixed_rsrc_data *data,
 			       struct io_ring_ctx *ctx,
 			       void (*rsrc_put)(struct io_ring_ctx *ctx,
 			                        struct io_rsrc_put *prsrc))
 {
-	struct fixed_rsrc_ref_node *backup_node;
+	struct fixed_rsrc_ref_node *node;
 	int ret;
 
 	if (data->quiesce)
@@ -7054,13 +7079,9 @@ static int io_rsrc_ref_quiesce(struct fixed_rsrc_data *data,
 
 	data->quiesce = true;
 	do {
-		ret = -ENOMEM;
-		backup_node = alloc_fixed_rsrc_ref_node(ctx);
-		if (!backup_node)
+		ret = io_rsrc_refnode_prealloc(ctx);
+		if (ret)
 			break;
-		backup_node->rsrc_data = data;
-		backup_node->rsrc_put = rsrc_put;
-
 		io_sqe_rsrc_kill_node(ctx, data);
 		percpu_ref_kill(&data->refs);
 		flush_delayed_work(&ctx->rsrc_put_work);
@@ -7070,17 +7091,16 @@ static int io_rsrc_ref_quiesce(struct fixed_rsrc_data *data,
 			break;
 
 		percpu_ref_resurrect(&data->refs);
-		io_sqe_rsrc_set_node(ctx, data, backup_node);
-		backup_node = NULL;
+		node = io_rsrc_refnode_get(ctx, data, rsrc_put);
+		io_sqe_rsrc_set_node(ctx, data, node);
 		reinit_completion(&data->done);
+
 		mutex_unlock(&ctx->uring_lock);
 		ret = io_run_task_work_sig();
 		mutex_lock(&ctx->uring_lock);
 	} while (ret >= 0);
 	data->quiesce = false;
 
-	if (backup_node)
-		destroy_fixed_rsrc_ref_node(backup_node);
 	return ret;
 }
 
@@ -7731,11 +7751,9 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		return -EOVERFLOW;
 	if (done > ctx->nr_user_files)
 		return -EINVAL;
-
-	ref_node = alloc_fixed_rsrc_ref_node(ctx);
-	if (!ref_node)
-		return -ENOMEM;
-	init_fixed_file_ref_node(ctx, ref_node);
+	err = io_rsrc_refnode_prealloc(ctx);
+	if (err)
+		return err;
 
 	fds = u64_to_user_ptr(up->data);
 	for (done = 0; done < nr_args; done++) {
@@ -7789,10 +7807,9 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 
 	if (needs_switch) {
 		percpu_ref_kill(&data->node->refs);
+		ref_node = io_rsrc_refnode_get(ctx, data, io_ring_file_put);
 		io_sqe_rsrc_set_node(ctx, data, ref_node);
-	} else
-		destroy_fixed_rsrc_ref_node(ref_node);
-
+	}
 	return done ? done : err;
 }
 
@@ -8467,6 +8484,9 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 	io_eventfd_unregister(ctx);
 	io_destroy_buffers(ctx);
+
+	if (ctx->rsrc_backup_node)
+		destroy_fixed_rsrc_ref_node(ctx->rsrc_backup_node);
 
 #if defined(CONFIG_UNIX)
 	if (ctx->ring_sock) {
