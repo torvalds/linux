@@ -641,6 +641,12 @@ static void mhi_pci_remove(struct pci_dev *pdev)
 	mhi_unregister_controller(mhi_cntrl);
 }
 
+static void mhi_pci_shutdown(struct pci_dev *pdev)
+{
+	mhi_pci_remove(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+}
+
 static void mhi_pci_reset_prepare(struct pci_dev *pdev)
 {
 	struct mhi_pci_device *mhi_pdev = pci_get_drvdata(pdev);
@@ -857,6 +863,7 @@ static struct pci_driver mhi_pci_driver = {
 	.id_table	= mhi_pci_id_table,
 	.probe		= mhi_pci_probe,
 	.remove		= mhi_pci_remove,
+	.shutdown	= mhi_pci_shutdown,
 	.err_handler	= &mhi_pci_err_handler,
 	.driver.pm	= &mhi_pci_pm_ops
 };
