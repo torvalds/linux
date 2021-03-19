@@ -1624,6 +1624,7 @@ mtk_get_tag_protocol(struct dsa_switch *ds, int port,
 	}
 }
 
+#ifdef CONFIG_GPIOLIB
 static inline u32
 mt7530_gpio_to_bit(unsigned int offset)
 {
@@ -1726,6 +1727,7 @@ mt7530_setup_gpio(struct mt7530_priv *priv)
 
 	return devm_gpiochip_add_data(dev, gc, priv);
 }
+#endif /* CONFIG_GPIOLIB */
 
 static int
 mt7530_setup(struct dsa_switch *ds)
@@ -1868,11 +1870,13 @@ mt7530_setup(struct dsa_switch *ds)
 		}
 	}
 
+#ifdef CONFIG_GPIOLIB
 	if (of_property_read_bool(priv->dev->of_node, "gpio-controller")) {
 		ret = mt7530_setup_gpio(priv);
 		if (ret)
 			return ret;
 	}
+#endif /* CONFIG_GPIOLIB */
 
 	mt7530_setup_port5(ds, interface);
 

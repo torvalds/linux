@@ -271,12 +271,12 @@ static int iwl_pnvm_get_from_efi(struct iwl_trans *trans,
 	err = efivar_entry_get(pnvm_efivar, NULL, &package_size, package);
 	if (err) {
 		IWL_DEBUG_FW(trans,
-			     "PNVM UEFI variable not found %d (len %zd)\n",
+			     "PNVM UEFI variable not found %d (len %lu)\n",
 			     err, package_size);
 		goto out;
 	}
 
-	IWL_DEBUG_FW(trans, "Read PNVM fro UEFI with size %zd\n", package_size);
+	IWL_DEBUG_FW(trans, "Read PNVM fro UEFI with size %lu\n", package_size);
 
 	*data = kmemdup(package->data, *len, GFP_KERNEL);
 	if (!*data)

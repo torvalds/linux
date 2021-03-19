@@ -706,7 +706,7 @@ tlb_fixup_done:
 	wr	%g0, ASI_P, %asi
 	mov	1, %g1
 	sllx	%g1, THREAD_SHIFT, %g1
-	sub	%g1, (STACKFRAME_SZ + STACK_BIAS), %g1
+	sub	%g1, (STACKFRAME_SZ + STACK_BIAS + TRACEREG_SZ), %g1
 	add	%g6, %g1, %sp
 
 	/* Set per-cpu pointer initially to zero, this makes

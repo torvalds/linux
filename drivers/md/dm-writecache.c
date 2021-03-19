@@ -1892,10 +1892,10 @@ restart:
 			list_add(&g->lru, &wbl.list);
 			wbl.size++;
 			g->write_in_progress = true;
-			g->wc_list_contiguous = BIO_MAX_PAGES;
+			g->wc_list_contiguous = BIO_MAX_VECS;
 			f = g;
 			e->wc_list_contiguous++;
-			if (unlikely(e->wc_list_contiguous == BIO_MAX_PAGES)) {
+			if (unlikely(e->wc_list_contiguous == BIO_MAX_VECS)) {
 				if (unlikely(wc->writeback_all)) {
 					next_node = rb_next(&f->rb_node);
 					if (likely(next_node))
