@@ -1586,12 +1586,10 @@ DECLARE_RTL_COND(rtl_counters_cond)
 
 static void rtl8169_do_counters(struct rtl8169_private *tp, u32 counter_cmd)
 {
-	dma_addr_t paddr = tp->counters_phys_addr;
-	u32 cmd;
+	u32 cmd = lower_32_bits(tp->counters_phys_addr);
 
-	RTL_W32(tp, CounterAddrHigh, (u64)paddr >> 32);
+	RTL_W32(tp, CounterAddrHigh, upper_32_bits(tp->counters_phys_addr));
 	rtl_pci_commit(tp);
-	cmd = (u64)paddr & DMA_BIT_MASK(32);
 	RTL_W32(tp, CounterAddrLow, cmd);
 	RTL_W32(tp, CounterAddrLow, cmd | counter_cmd);
 
