@@ -337,6 +337,7 @@ int create_temp_file(void)
 	/* Create a file in the tmpfs filesystem */
 	fd = mkstemp(&filename[0]);
 	if (fd == -1) {
+		perror(filename);
 		ksft_print_msg("FAIL: Unable to open temporary file\n");
 		return 0;
 	}
