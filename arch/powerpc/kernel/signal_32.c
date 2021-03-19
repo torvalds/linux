@@ -1352,7 +1352,6 @@ SYSCALL_DEFINE0(sigreturn)
 	struct sigcontext __user *sc;
 	struct sigcontext sigctx;
 	struct mcontext __user *sr;
-	void __user *addr;
 	sigset_t set;
 	struct mcontext __user *mcp;
 	struct mcontext __user *tm_mcp = NULL;
@@ -1363,7 +1362,6 @@ SYSCALL_DEFINE0(sigreturn)
 
 	sf = (struct sigframe __user *)(regs->gpr[1] + __SIGNAL_FRAMESIZE);
 	sc = &sf->sctx;
-	addr = sc;
 	if (copy_from_user(&sigctx, sc, sizeof(sigctx)))
 		goto badframe;
 
@@ -1392,16 +1390,19 @@ SYSCALL_DEFINE0(sigreturn)
 			goto badframe;
 	} else {
 		sr = (struct mcontext __user *)from_user_ptr(sigctx.regs);
-		addr = sr;
-		if (restore_user_regs(regs, sr, 1))
-			goto badframe;
+		if (restore_user_regs(regs, sr, 1)) {
+			signal_fault(current, regs, "sys_sigreturn", sr);
+
+			force_sig(SIGSEGV);
+			return 0;
+		}
 	}
 
 	set_thread_flag(TIF_RESTOREALL);
 	return 0;
 
 badframe:
-	signal_fault(current, regs, "sys_sigreturn", addr);
+	signal_fault(current, regs, "sys_sigreturn", sc);
 
 	force_sig(SIGSEGV);
 	return 0;
