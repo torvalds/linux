@@ -83,12 +83,7 @@
  * implementation that makes things simple for little endian only)
  */
 #define unsafe_put_sigset_t	unsafe_put_compat_sigset
-
-static inline int get_sigset_t(sigset_t *set,
-			       const compat_sigset_t __user *uset)
-{
-	return get_compat_sigset(set, uset);
-}
+#define unsafe_get_sigset_t	unsafe_get_compat_sigset
 
 #define to_user_ptr(p)		ptr_to_compat(p)
 #define from_user_ptr(p)	compat_ptr(p)
@@ -144,10 +139,7 @@ failed:
 	unsafe_copy_to_user(__us, __s, sizeof(*__us), label);		\
 } while (0)
 
-static inline int get_sigset_t(sigset_t *set, const sigset_t __user *uset)
-{
-	return __get_user_sigset(set, uset);
-}
+#define unsafe_get_sigset_t	unsafe_get_user_sigset
 
 #define to_user_ptr(p)		((unsigned long)(p))
 #define from_user_ptr(p)	((void __user *)(p))
@@ -982,25 +974,31 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 	sigset_t set;
 	struct mcontext __user *mcp;
 
-	if (get_sigset_t(&set, &ucp->uc_sigmask))
+	if (user_read_access_begin(ucp, sizeof(*ucp)))
 		return -EFAULT;
+
+	unsafe_get_sigset_t(&set, &ucp->uc_sigmask, failed);
 #ifdef CONFIG_PPC64
 	{
 		u32 cmcp;
 
-		if (__get_user(cmcp, &ucp->uc_regs))
-			return -EFAULT;
+		unsafe_get_user(cmcp, &ucp->uc_regs, failed);
 		mcp = (struct mcontext __user *)(u64)cmcp;
 	}
 #else
-	if (__get_user(mcp, &ucp->uc_regs))
-		return -EFAULT;
+	unsafe_get_user(mcp, &ucp->uc_regs, failed);
 #endif
+	user_read_access_end();
+
 	set_current_blocked(&set);
 	if (restore_user_regs(regs, mcp, sig))
 		return -EFAULT;
 
 	return 0;
+
+failed:
+	user_read_access_end();
+	return -EFAULT;
 }
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -1014,11 +1012,15 @@ static int do_setcontext_tm(struct ucontext __user *ucp,
 	u32 cmcp;
 	u32 tm_cmcp;
 
-	if (get_sigset_t(&set, &ucp->uc_sigmask))
+	if (user_read_access_begin(ucp, sizeof(*ucp)))
 		return -EFAULT;
 
-	if (__get_user(cmcp, &ucp->uc_regs) ||
-	    __get_user(tm_cmcp, &tm_ucp->uc_regs))
+	unsafe_get_sigset_t(&set, &ucp->uc_sigmask, failed);
+	unsafe_get_user(cmcp, &ucp->uc_regs, failed);
+
+	user_read_access_end();
+
+	if (__get_user(tm_cmcp, &tm_ucp->uc_regs))
 		return -EFAULT;
 	mcp = (struct mcontext __user *)(u64)cmcp;
 	tm_mcp = (struct mcontext __user *)(u64)tm_cmcp;
@@ -1029,6 +1031,10 @@ static int do_setcontext_tm(struct ucontext __user *ucp,
 		return -EFAULT;
 
 	return 0;
+
+failed:
+	user_read_access_end();
+	return -EFAULT;
 }
 #endif
 
