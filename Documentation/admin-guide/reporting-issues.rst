@@ -145,7 +145,7 @@ After these preparations you'll now enter the main part:
    running.
 
  * Reproduce the issue with the kernel you just installed. If it doesn't show
-   up there, head over to the instructions for issues only happening with
+   up there, scroll down to the instructions for issues only happening with
    stable and longterm kernels.
 
  * Optimize your notes: try to find and write the most straightforward way to
@@ -901,7 +901,7 @@ Reproduce issue with the fresh kernel
 -------------------------------------
 
     *Reproduce the issue with the kernel you just installed. If it doesn't show
-    up there, head over to the instructions for issues only happening with
+    up there, scroll down to the instructions for issues only happening with
     stable and longterm kernels.*
 
 Check if the issue occurs with the fresh Linux kernel version you just
@@ -1292,7 +1292,7 @@ you never have heard of yet; or you might be asked to apply a patch to the
 Linux kernel sources to test if it helps. In some cases it will be fine sending
 a reply asking for instructions how to do that. But before going that route try
 to find the answer own your own by searching the internet; alternatively
-consider asking in other places for advice. For example ask a fried or post
+consider asking in other places for advice. For example ask a friend or post
 about it to a chatroom or forum you normally hang out.
 
 **Be patient**: If you are really lucky you might get a reply to your report
