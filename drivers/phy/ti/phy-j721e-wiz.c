@@ -947,27 +947,24 @@ static int wiz_probe(struct platform_device *pdev)
 		goto err_get_sync;
 	}
 
-	serdes_pdev = of_platform_device_create(child_node, NULL, dev);
-	if (!serdes_pdev) {
-		dev_WARN(dev, "Unable to create SERDES platform device\n");
-		ret = -ENOMEM;
-		goto err_pdev_create;
-	}
-	wiz->serdes_pdev = serdes_pdev;
-
 	ret = wiz_init(wiz);
 	if (ret) {
 		dev_err(dev, "WIZ initialization failed\n");
 		goto err_wiz_init;
 	}
 
+	serdes_pdev = of_platform_device_create(child_node, NULL, dev);
+	if (!serdes_pdev) {
+		dev_WARN(dev, "Unable to create SERDES platform device\n");
+		ret = -ENOMEM;
+		goto err_wiz_init;
+	}
+	wiz->serdes_pdev = serdes_pdev;
+
 	of_node_put(child_node);
 	return 0;
 
 err_wiz_init:
-	of_platform_device_destroy(&serdes_pdev->dev, NULL);
-
-err_pdev_create:
 	wiz_clock_cleanup(wiz, node);
 
 err_get_sync:
