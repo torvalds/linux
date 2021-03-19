@@ -492,6 +492,8 @@ static long restore_user_regs(struct pt_regs *regs,
 	int i;
 #endif
 
+	if (!access_ok(sr, sizeof(*sr)))
+		return 1;
 	/*
 	 * restore general registers but not including MSR or SOFTE. Also
 	 * take care of keeping r2 (TLS) intact if not a signal
@@ -963,12 +965,9 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 		if (__get_user(cmcp, &ucp->uc_regs))
 			return -EFAULT;
 		mcp = (struct mcontext __user *)(u64)cmcp;
-		/* no need to check access_ok(mcp), since mcp < 4GB */
 	}
 #else
 	if (__get_user(mcp, &ucp->uc_regs))
-		return -EFAULT;
-	if (!access_ok(mcp, sizeof(*mcp)))
 		return -EFAULT;
 #endif
 	set_current_blocked(&set);
@@ -1362,8 +1361,7 @@ SYSCALL_DEFINE0(sigreturn)
 	} else {
 		sr = (struct mcontext __user *)from_user_ptr(sigctx.regs);
 		addr = sr;
-		if (!access_ok(sr, sizeof(*sr))
-		    || restore_user_regs(regs, sr, 1))
+		if (restore_user_regs(regs, sr, 1))
 			goto badframe;
 	}
 
