@@ -1495,7 +1495,8 @@ Fails if any VCPU has already been created.
 
 Define which vcpu is the Bootstrap Processor (BSP).  Values are the same
 as the vcpu id in KVM_CREATE_VCPU.  If this ioctl is not called, the default
-is vcpu 0.
+is vcpu 0. This ioctl has to be called before vcpu creation,
+otherwise it will return EBUSY error.
 
 
 4.42 KVM_GET_XSAVE
