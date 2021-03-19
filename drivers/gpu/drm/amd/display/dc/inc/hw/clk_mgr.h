@@ -262,6 +262,9 @@ struct clk_mgr_funcs {
 
 	/* Get current memclk states from PMFW, update relevant structures */
 	void (*get_memclk_states_from_smu)(struct clk_mgr *clk_mgr);
+
+	/* Get SMU present */
+	bool (*is_smu_present)(struct clk_mgr *clk_mgr);
 };
 
 struct clk_mgr {

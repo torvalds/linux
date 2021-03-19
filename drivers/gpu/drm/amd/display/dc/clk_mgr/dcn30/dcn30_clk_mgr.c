@@ -432,6 +432,12 @@ static void dcn3_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 			clk_mgr->base.ctx->dc, clk_mgr_base->bw_params);
 }
 
+static bool dcn3_is_smu_prsent(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	return clk_mgr->smu_present;
+}
+
 static bool dcn3_are_clock_states_equal(struct dc_clocks *a,
 					struct dc_clocks *b)
 {
@@ -494,6 +500,7 @@ static struct clk_mgr_funcs dcn3_funcs = {
 		.are_clock_states_equal = dcn3_are_clock_states_equal,
 		.enable_pme_wa = dcn3_enable_pme_wa,
 		.notify_link_rate_change = dcn30_notify_link_rate_change,
+		.is_smu_present = dcn3_is_smu_prsent
 };
 
 static void dcn3_init_clocks_fpga(struct clk_mgr *clk_mgr)

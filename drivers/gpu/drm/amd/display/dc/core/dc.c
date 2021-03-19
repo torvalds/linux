@@ -3257,6 +3257,10 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 	if (dc->debug.disable_idle_power_optimizations)
 		return;
 
+	if (dc->clk_mgr->funcs->is_smu_present)
+		if (!dc->clk_mgr->funcs->is_smu_present(dc->clk_mgr))
+			return;
+
 	if (allow == dc->idle_optimizations_allowed)
 		return;
 
