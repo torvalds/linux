@@ -104,8 +104,23 @@ process won't feel wasted in the end:
    issue, or a really severe problem: those are 'issues of high priority' that
    need special handling in some steps that are about to follow.
 
+ * Make sure it's not the kernel's surroundings that are causing the issue
+   you face.
+
+ * Create a fresh backup and put system repair and restore tools at hand.
+
+ * Ensure your system does not enhance its kernels by building additional
+   kernel modules on-the-fly, which solutions like DKMS might be doing locally
+   without your knowledge.
+
  * Check if your kernel was 'tainted' when the issue occurred, as the event
    that made the kernel set this flag might be causing the issue you face.
+
+ * Write down coarsely how to reproduce the issue. If you deal with multiple
+   issues at once, create separate notes for each of them and make sure they
+   work independently on a freshly booted system. That's needed, as each issue
+   needs to get reported to the kernel developers separately, unless they are
+   strongly entangled.
 
  * Locate the driver or kernel subsystem that seems to be causing the issue.
    Find out how and where its developers expect reports. Note: most of the
@@ -117,21 +132,6 @@ process won't feel wasted in the end:
    something with your favorite internet search engine or in the Linux Kernel
    Mailing List (LKML) archives. If you find anything, join the discussion
    instead of sending a new report.
-
- * Create a fresh backup and put system repair and restore tools at hand.
-
- * Ensure your system does not enhance its kernels by building additional
-   kernel modules on-the-fly, which solutions like DKMS might be doing locally
-   without your knowledge.
-
- * Make sure it's not the kernel's surroundings that are causing the issue
-   you face.
-
- * Write down coarsely how to reproduce the issue. If you deal with multiple
-   issues at once, create separate notes for each of them and make sure they
-   work independently on a freshly booted system. That's needed, as each issue
-   needs to get reported to the kernel developers separately, unless they are
-   strongly entangled.
 
 After these preparations you'll now enter the main part:
 
@@ -367,6 +367,75 @@ fatal error where the kernel stop itself) with a 'Oops' (a recoverable error),
 as the kernel remains running after the latter.
 
 
+Ensure a healthy environment
+----------------------------
+
+    *Make sure it's not the kernel's surroundings that are causing the issue
+    you face.*
+
+Problems that look a lot like a kernel issue are sometimes caused by build or
+runtime environment. It's hard to rule out that problem completely, but you
+should minimize it:
+
+ * Use proven tools when building your kernel, as bugs in the compiler or the
+   binutils can cause the resulting kernel to misbehave.
+
+ * Ensure your computer components run within their design specifications;
+   that's especially important for the main processor, the main memory, and the
+   motherboard. Therefore, stop undervolting or overclocking when facing a
+   potential kernel issue.
+
+ * Try to make sure it's not faulty hardware that is causing your issue. Bad
+   main memory for example can result in a multitude of issues that will
+   manifest itself in problems looking like kernel issues.
+
+ * If you're dealing with a filesystem issue, you might want to check the file
+   system in question with ``fsck``, as it might be damaged in a way that leads
+   to unexpected kernel behavior.
+
+ * When dealing with a regression, make sure it's not something else that
+   changed in parallel to updating the kernel. The problem for example might be
+   caused by other software that was updated at the same time. It can also
+   happen that a hardware component coincidentally just broke when you rebooted
+   into a new kernel for the first time. Updating the systems BIOS or changing
+   something in the BIOS Setup can also lead to problems that on look a lot
+   like a kernel regression.
+
+
+Prepare for emergencies
+-----------------------
+
+    *Create a fresh backup and put system repair and restore tools at hand.*
+
+Reminder, you are dealing with computers, which sometimes do unexpected things,
+especially if you fiddle with crucial parts like the kernel of its operating
+system. That's what you are about to do in this process. Thus, make sure to
+create a fresh backup; also ensure you have all tools at hand to repair or
+reinstall the operating system as well as everything you need to restore the
+backup.
+
+
+Make sure your kernel doesn't get enhanced
+------------------------------------------
+
+    *Ensure your system does not enhance its kernels by building additional
+    kernel modules on-the-fly, which solutions like DKMS might be doing locally
+    without your knowledge.*
+
+The risk your issue report gets ignored or rejected dramatically increases if
+your kernel gets enhanced in any way. That's why you should remove or disable
+mechanisms like akmods and DKMS: those build add-on kernel modules
+automatically, for example when you install a new Linux kernel or boot it for
+the first time. Also remove any modules they might have installed. Then reboot
+before proceeding.
+
+Note, you might not be aware that your system is using one of these solutions:
+they often get set up silently when you install Nvidia's proprietary graphics
+driver, VirtualBox, or other software that requires a some support from a
+module not part of the Linux kernel. That why your might need to uninstall the
+packages with such software to get rid of any 3rd party kernel module.
+
+
 Check 'taint' flag
 ------------------
 
@@ -433,6 +502,33 @@ three things:
     unrelated area reboot and temporarily block the module from being loaded
     by specifying ``foo.blacklist=1`` as kernel parameter (replace 'foo' with
     the name of the module in question).
+
+
+Document how to reproduce issue
+-------------------------------
+
+    *Write down coarsely how to reproduce the issue. If you deal with multiple
+    issues at once, create separate notes for each of them and make sure they
+    work independently on a freshly booted system. That's needed, as each issue
+    needs to get reported to the kernel developers separately, unless they are
+    strongly entangled.*
+
+If you deal with multiple issues at once, you'll have to report each of them
+separately, as they might be handled by different developers. Describing
+various issues in one report also makes it quite difficult for others to tear
+it apart. Hence, only combine issues in one report if they are very strongly
+entangled.
+
+Additionally, during the reporting process you will have to test if the issue
+happens with other kernel versions. Therefore, it will make your work easier if
+you know exactly how to reproduce an issue quickly on a freshly booted system.
+
+Note: it's often fruitless to report issues that only happened once, as they
+might be caused by a bit flip due to cosmic radiation. That's why you should
+try to rule that out by reproducing the issue before going further. Feel free
+to ignore this advice if you are experienced enough to tell a one-time error
+due to faulty hardware apart from a kernel issue that rarely happens and thus
+is hard to reproduce.
 
 
 Locate kernel area that causes the issue
@@ -670,102 +766,6 @@ important even when a fix is prepared or in its final stages already, as
 developers might look for people that can provide additional information or
 test a proposed fix. Jump to the section 'Duties after the report went out' for
 details on how to get properly involved.
-
-
-Prepare for emergencies
------------------------
-
-    *Create a fresh backup and put system repair and restore tools at hand.*
-
-Reminder, you are dealing with computers, which sometimes do unexpected things,
-especially if you fiddle with crucial parts like the kernel of its operating
-system. That's what you are about to do in this process. Thus, make sure to
-create a fresh backup; also ensure you have all tools at hand to repair or
-reinstall the operating system as well as everything you need to restore the
-backup.
-
-
-Make sure your kernel doesn't get enhanced
-------------------------------------------
-
-    *Ensure your system does not enhance its kernels by building additional
-    kernel modules on-the-fly, which solutions like DKMS might be doing locally
-    without your knowledge.*
-
-The risk your issue report gets ignored or rejected dramatically increases if
-your kernel gets enhanced in any way. That's why you should remove or disable
-mechanisms like akmods and DKMS: those build add-on kernel modules
-automatically, for example when you install a new Linux kernel or boot it for
-the first time. Also remove any modules they might have installed. Then reboot
-before proceeding.
-
-Note, you might not be aware that your system is using one of these solutions:
-they often get set up silently when you install Nvidia's proprietary graphics
-driver, VirtualBox, or other software that requires a some support from a
-module not part of the Linux kernel. That why your might need to uninstall the
-packages with such software to get rid of any 3rd party kernel module.
-
-
-Ensure a healthy environment
-----------------------------
-
-    *Make sure it's not the kernel's surroundings that are causing the issue
-    you face.*
-
-Problems that look a lot like a kernel issue are sometimes caused by build or
-runtime environment. It's hard to rule out that problem completely, but you
-should minimize it:
-
- * Use proven tools when building your kernel, as bugs in the compiler or the
-   binutils can cause the resulting kernel to misbehave.
-
- * Ensure your computer components run within their design specifications;
-   that's especially important for the main processor, the main memory, and the
-   motherboard. Therefore, stop undervolting or overclocking when facing a
-   potential kernel issue.
-
- * Try to make sure it's not faulty hardware that is causing your issue. Bad
-   main memory for example can result in a multitude of issues that will
-   manifest itself in problems looking like kernel issues.
-
- * If you're dealing with a filesystem issue, you might want to check the file
-   system in question with ``fsck``, as it might be damaged in a way that leads
-   to unexpected kernel behavior.
-
- * When dealing with a regression, make sure it's not something else that
-   changed in parallel to updating the kernel. The problem for example might be
-   caused by other software that was updated at the same time. It can also
-   happen that a hardware component coincidentally just broke when you rebooted
-   into a new kernel for the first time. Updating the systems BIOS or changing
-   something in the BIOS Setup can also lead to problems that on look a lot
-   like a kernel regression.
-
-
-Document how to reproduce issue
--------------------------------
-
-    *Write down coarsely how to reproduce the issue. If you deal with multiple
-    issues at once, create separate notes for each of them and make sure they
-    work independently on a freshly booted system. That's needed, as each issue
-    needs to get reported to the kernel developers separately, unless they are
-    strongly entangled.*
-
-If you deal with multiple issues at once, you'll have to report each of them
-separately, as they might be handled by different developers. Describing
-various issues in one report also makes it quite difficult for others to tear
-it apart. Hence, only combine issues in one report if they are very strongly
-entangled.
-
-Additionally, during the reporting process you will have to test if the issue
-happens with other kernel versions. Therefore, it will make your work easier if
-you know exactly how to reproduce an issue quickly on a freshly booted system.
-
-Note: it's often fruitless to report issues that only happened once, as they
-might be caused by a bit flip due to cosmic radiation. That's why you should
-try to rule that out by reproducing the issue before going further. Feel free
-to ignore this advice if you are experienced enough to tell a one-time error
-due to faulty hardware apart from a kernel issue that rarely happens and thus
-is hard to reproduce.
 
 
 Install a fresh kernel for testing
