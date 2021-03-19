@@ -253,11 +253,6 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 		.size		= 0x0140,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_AP_HEADER] = {
-		.offset		= 0x05e8,
-		.size		= 0x0000,
-		.canary_count	= 0,
-	},
 	[IPA_MEM_MODEM_PROC_CTX] = {
 		.offset		= 0x05f0,
 		.size		= 0x0200,
@@ -281,11 +276,6 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 	[IPA_MEM_STATS_TETHERING] = {
 		.offset		= 0x0ab0,
 		.size		= 0x0140,
-		.canary_count	= 0,
-	},
-	[IPA_MEM_STATS_DROP] = {
-		.offset		= 0x0bf0,
-		.size		= 0,
 		.canary_count	= 0,
 	},
 	[IPA_MEM_MODEM] = {
