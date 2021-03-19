@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/soc/qcom/qcom,memshare.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Qualcomm QMI Shared Memory Service
+
+description: |
+  This driver provides a QMI service that allows remote processors (like modem)
+  to request additional memory. It is used for applications like GPS in modem.
+
+maintainers:
+  - Nikita Travkin <nikitos.tr@gmail.com>
+
+properties:
+  compatible:
+    const: qcom,memshare
+
+  qcom,legacy-client:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to a memshare client node used for legacy requests.
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "^.*@[0-9]+$":
+    type: object
+
+    properties:
+      reg:
+        description: Proc-ID for clients in this node.
+
+      qcom,qrtr-node:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: Node from which the requests are expected.
+
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 0
+
+    patternProperties:
+      "^.*@[0-9]+$":
+        type: object
+
+        properties:
+          reg:
+            description: ID of this client.
+
+          memory-region:
+            $ref: /schemas/types.yaml#/definitions/phandle
+            description: |
+              Reserved memory region that should be used for allocation.
+
+        required:
+          - reg
+
+    required:
+      - reg
+      - qcom,qrtr-node
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/soc/qcom,memshare.h>
+
+    reserved-memory {
+
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      gps_mem: gps@93c00000 {
+        reg = <0x0 0x93c00000 0x0 0x200000>;
+        no-map;
+      };
+    };
+
+    memshare {
+      compatible = "qcom,memshare";
+      qcom,legacy-client = <&memshare_gps>;
+
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      mpss@0 {
+        reg = <MEMSHARE_PROC_MPSS_V01>;
+        qcom,qrtr-node = <0>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        memshare_gps: gps@0 {
+          reg = <0>;
+          memory-region = <&gps_mem>;
+        };
+      };
+    };
+
+...
