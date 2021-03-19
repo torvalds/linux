@@ -143,6 +143,7 @@ Hardware Monitoring Kernel Drivers
    npcm750-pwm-fan
    nsa320
    ntc_thermistor
+   nzxt-kraken2
    occ
    pc87360
    pc87427
