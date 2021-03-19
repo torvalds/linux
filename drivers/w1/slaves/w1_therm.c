@@ -63,8 +63,8 @@ static u16 bulk_read_device_counter; /* =0 as per C standard */
 #define EEPROM_CMD_READ     "restore"	/* cmd for read eeprom sysfs */
 #define BULK_TRIGGER_CMD    "trigger"	/* cmd to trigger a bulk read */
 
-#define MIN_TEMP	-55	/* min temperature that can be mesured */
-#define MAX_TEMP	125	/* max temperature that can be mesured */
+#define MIN_TEMP	-55	/* min temperature that can be measured */
+#define MAX_TEMP	125	/* max temperature that can be measured */
 
 /* Allowed values for sysfs conv_time attribute */
 #define CONV_TIME_DEFAULT 0
