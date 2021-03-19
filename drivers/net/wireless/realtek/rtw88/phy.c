@@ -316,7 +316,8 @@ rtw_phy_dig_check_damping(struct rtw_dm_info *dm_info)
 	return damping;
 }
 
-static void rtw_phy_dig_get_boundary(struct rtw_dm_info *dm_info,
+static void rtw_phy_dig_get_boundary(struct rtw_dev *rtwdev,
+				     struct rtw_dm_info *dm_info,
 				     u8 *upper, u8 *lower, bool linked)
 {
 	u8 dig_max, dig_min, dig_mid;
@@ -325,8 +326,7 @@ static void rtw_phy_dig_get_boundary(struct rtw_dm_info *dm_info,
 	if (linked) {
 		dig_max = DIG_PERF_MAX;
 		dig_mid = DIG_PERF_MID;
-		/* 22B=0x1c, 22C=0x20 */
-		dig_min = 0x1c;
+		dig_min = rtwdev->chip->dig_min;
 		min_rssi = max_t(u8, dm_info->min_rssi, dig_min);
 	} else {
 		dig_max = DIG_CVRG_MAX;
@@ -437,7 +437,8 @@ static void rtw_phy_dig(struct rtw_dev *rtwdev)
 	 * the peers connected with us, meanwhile make sure the igi value does
 	 * not beyond the hardware limitation
 	 */
-	rtw_phy_dig_get_boundary(dm_info, &upper_bound, &lower_bound, linked);
+	rtw_phy_dig_get_boundary(rtwdev, dm_info, &upper_bound, &lower_bound,
+				 linked);
 	cur_igi = clamp_t(u8, cur_igi, lower_bound, upper_bound);
 
 	/* record current igi value and false alarm statistics for further
