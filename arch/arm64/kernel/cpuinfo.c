@@ -353,7 +353,7 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	 * with the CLIDR_EL1 fields to avoid triggering false warnings
 	 * when there is a mismatch across the CPUs. Keep track of the
 	 * effective value of the CTR_EL0 in our internal records for
-	 * acurate sanity check and feature enablement.
+	 * accurate sanity check and feature enablement.
 	 */
 	info->reg_ctr = read_cpuid_effective_cachetype();
 	info->reg_dczid = read_cpuid(DCZID_EL0);
