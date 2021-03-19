@@ -8520,7 +8520,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
 	if (cc->alloc_contig && cc->mode == MIGRATE_ASYNC)
 		max_tries = 1;
 
-	lru_add_drain_all();
+	migrate_prep();
 
 	while (pfn < end || !list_empty(&cc->migratepages)) {
 		if (fatal_signal_pending(current)) {

@@ -753,11 +753,6 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
 }
 
 /*
- * lru_add_drain_all() usually needs to be called before we start compiling
- * a list of pages to be migrated using isolate_lru_page(). Note that pages
- * may be moved off the LRU after we have drained them. Those pages will
- * fail to migrate like other pages that may be busy.
- *
  * Doesn't need any cpu hotplug locking because we do rely on per-cpu
  * kworkers being shut down before our page_alloc_cpu_dead callback is
  * executed on the offlined cpu.
