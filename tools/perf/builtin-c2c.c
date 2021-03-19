@@ -2050,7 +2050,7 @@ static int hpp_list__parse(struct perf_hpp_list *hpp_list,
 	perf_hpp__setup_output_field(hpp_list);
 
 	/*
-	 * We dont need other sorting keys other than those
+	 * We don't need other sorting keys other than those
 	 * we already specified. It also really slows down
 	 * the processing a lot with big number of output
 	 * fields, so switching this off for c2c.
