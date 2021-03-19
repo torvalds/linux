@@ -374,13 +374,6 @@ find_next:
 		} else {
 			hist_entry__tty_annotate(he, evsel, ann);
 			nd = rb_next(nd);
-			/*
-			 * Since we have a hist_entry per IP for the same
-			 * symbol, free he->ms.sym->src to signal we already
-			 * processed this symbol.
-			 */
-			zfree(&notes->src->cycles_hist);
-			zfree(&notes->src);
 		}
 	}
 }
@@ -623,14 +616,22 @@ int cmd_annotate(int argc, const char **argv)
 
 	setup_browser(true);
 
-	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack) {
+	/*
+	 * Events of different processes may correspond to the same
+	 * symbol, we do not care about the processes in annotate,
+	 * set sort order to avoid repeated output.
+	 */
+	sort_order = "dso,symbol";
+
+	/*
+	 * Set SORT_MODE__BRANCH so that annotate display IPC/Cycle
+	 * if branch info is in perf data in TUI mode.
+	 */
+	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack)
 		sort__mode = SORT_MODE__BRANCH;
-		if (setup_sorting(annotate.session->evlist) < 0)
-			usage_with_options(annotate_usage, options);
-	} else {
-		if (setup_sorting(NULL) < 0)
-			usage_with_options(annotate_usage, options);
-	}
+
+	if (setup_sorting(NULL) < 0)
+		usage_with_options(annotate_usage, options);
 
 	ret = __cmd_annotate(&annotate);
 
