@@ -1477,7 +1477,8 @@ static void ionic_tx_timeout_work(struct work_struct *ws)
 {
 	struct ionic_lif *lif = container_of(ws, struct ionic_lif, tx_timeout_work);
 
-	netdev_info(lif->netdev, "Tx Timeout recovery\n");
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return;
 
 	/* if we were stopped before this scheduled job was launched,
 	 * don't bother the queues as they are already stopped.
@@ -1493,6 +1494,7 @@ static void ionic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
+	netdev_info(lif->netdev, "Tx Timeout triggered - txq %d\n", txqueue);
 	schedule_work(&lif->tx_timeout_work);
 }
 
@@ -1833,6 +1835,9 @@ err_out:
 static int ionic_start_queues(struct ionic_lif *lif)
 {
 	int err;
+
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return -EBUSY;
 
 	if (test_and_set_bit(IONIC_LIF_F_UP, lif->state))
 		return 0;
