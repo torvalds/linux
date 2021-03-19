@@ -829,8 +829,8 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qdsp6");
 	wcss->reg_base = devm_ioremap(&pdev->dev, res->start,
 				      resource_size(res));
-	if (IS_ERR(wcss->reg_base))
-		return PTR_ERR(wcss->reg_base);
+	if (!wcss->reg_base)
+		return -ENOMEM;
 
 	if (wcss->version == WCSS_IPQ8074) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rmb");
