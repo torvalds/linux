@@ -129,6 +129,11 @@ properties:
         items:
           - const: google,damu
           - const: mediatek,mt8183
+      - description: Google Juniper (Acer Chromebook Spin 311)
+        items:
+          - const: google,juniper-sku16
+          - const: google,juniper
+          - const: mediatek,mt8183
 
 additionalProperties: true
 
