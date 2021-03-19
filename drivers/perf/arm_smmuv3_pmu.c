@@ -560,7 +560,7 @@ static ssize_t smmu_pmu_identifier_attr_show(struct device *dev,
 {
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(dev_get_drvdata(dev));
 
-	return snprintf(page, PAGE_SIZE, "0x%08x\n", smmu_pmu->iidr);
+	return sysfs_emit(page, "0x%08x\n", smmu_pmu->iidr);
 }
 
 static umode_t smmu_pmu_identifier_attr_visible(struct kobject *kobj,
