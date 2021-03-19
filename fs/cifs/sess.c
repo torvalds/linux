@@ -224,6 +224,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	vol.noautotune = ses->server->noautotune;
 	vol.sockopt_tcp_nodelay = ses->server->tcp_nodelay;
 	vol.echo_interval = ses->server->echo_interval / HZ;
+	vol.max_credits = ses->server->max_credits;
 
 	/*
 	 * This will be used for encoding/decoding user/domain/pw

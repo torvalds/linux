@@ -1291,7 +1291,6 @@ static void rkisp1_params_config_parameter(struct rkisp1_params *params)
 	memset(hst.hist_weight, 0x01, sizeof(hst.hist_weight));
 	rkisp1_hst_config(params, &hst);
 	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_HIST_PROP,
-			      ~RKISP1_CIF_ISP_HIST_PROP_MODE_MASK |
 			      rkisp1_hst_params_default_config.mode);
 
 	/* set the  range */

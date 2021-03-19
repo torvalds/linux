@@ -649,6 +649,7 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 	if (!lookup->desc) {
 		const struct acpi_resource_gpio *agpio = &ares->data.gpio;
 		bool gpioint = agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
+		struct gpio_desc *desc;
 		int pin_index;
 
 		if (lookup->info.quirks & ACPI_GPIO_QUIRK_ONLY_GPIOIO && gpioint)
@@ -661,8 +662,12 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 		if (pin_index >= agpio->pin_table_length)
 			return 1;
 
-		lookup->desc = acpi_get_gpiod(agpio->resource_source.string_ptr,
+		if (lookup->info.quirks & ACPI_GPIO_QUIRK_ABSOLUTE_NUMBER)
+			desc = gpio_to_desc(agpio->pin_table[pin_index]);
+		else
+			desc = acpi_get_gpiod(agpio->resource_source.string_ptr,
 					      agpio->pin_table[pin_index]);
+		lookup->desc = desc;
 		lookup->info.pin_config = agpio->pin_config;
 		lookup->info.gpioint = gpioint;
 
@@ -911,8 +916,9 @@ struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
 }
 
 /**
- * acpi_dev_gpio_irq_get() - Find GpioInt and translate it to Linux IRQ number
+ * acpi_dev_gpio_irq_get_by() - Find GpioInt and translate it to Linux IRQ number
  * @adev: pointer to a ACPI device to get IRQ from
+ * @name: optional name of GpioInt resource
  * @index: index of GpioInt resource (starting from %0)
  *
  * If the device has one or more GpioInt resources, this function can be
@@ -922,9 +928,12 @@ struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
  * The function is idempotent, though each time it runs it will configure GPIO
  * pin direction according to the flags in GpioInt resource.
  *
+ * The function takes optional @name parameter. If the resource has a property
+ * name, then only those will be taken into account.
+ *
  * Return: Linux IRQ number (> %0) on success, negative errno on failure.
  */
-int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
+int acpi_dev_gpio_irq_get_by(struct acpi_device *adev, const char *name, int index)
 {
 	int idx, i;
 	unsigned int irq_flags;
@@ -934,7 +943,7 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 		struct acpi_gpio_info info;
 		struct gpio_desc *desc;
 
-		desc = acpi_get_gpiod_by_index(adev, NULL, i, &info);
+		desc = acpi_get_gpiod_by_index(adev, name, i, &info);
 
 		/* Ignore -EPROBE_DEFER, it only matters if idx matches */
 		if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
@@ -971,7 +980,7 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 	}
 	return -ENOENT;
 }
-EXPORT_SYMBOL_GPL(acpi_dev_gpio_irq_get);
+EXPORT_SYMBOL_GPL(acpi_dev_gpio_irq_get_by);
 
 static acpi_status
 acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
