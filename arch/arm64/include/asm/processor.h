@@ -151,10 +151,12 @@ struct thread_struct {
 	struct ptrauth_keys_kernel	keys_kernel;
 #endif
 #ifdef CONFIG_ARM64_MTE
-	u64			sctlr_tcf0;
 	u64			gcr_user_excl;
 #endif
+	u64			sctlr_user;
 };
+
+#define SCTLR_USER_MASK SCTLR_EL1_TCF0_MASK
 
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
@@ -246,6 +248,8 @@ struct task_struct;
 extern void release_thread(struct task_struct *);
 
 unsigned long get_wchan(struct task_struct *p);
+
+void set_task_sctlr_el1(u64 sctlr);
 
 /* Thread switching */
 extern struct task_struct *cpu_switch_to(struct task_struct *prev,
