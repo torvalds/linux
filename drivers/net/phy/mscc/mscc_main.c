@@ -1737,6 +1737,7 @@ static int vsc8584_config_init(struct phy_device *phydev)
 			ret = vsc8584_config_host_serdes(phydev);
 			if (ret)
 				goto err;
+			vsc85xx_coma_mode_release(phydev);
 			break;
 		default:
 			ret = -EINVAL;
