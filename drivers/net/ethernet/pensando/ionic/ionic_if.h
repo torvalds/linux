@@ -320,7 +320,7 @@ struct ionic_lif_identify_comp {
 /**
  * enum ionic_lif_capability - LIF capabilities
  * @IONIC_LIF_CAP_ETH:     LIF supports Ethernet
- * @IONIC_LIF_CAP_RDMA:    LIF support RDMA
+ * @IONIC_LIF_CAP_RDMA:    LIF supports RDMA
  */
 enum ionic_lif_capability {
 	IONIC_LIF_CAP_ETH        = BIT(0),
@@ -404,7 +404,7 @@ union ionic_lif_config {
  *     @max_ucast_filters:  Number of perfect unicast addresses supported
  *     @max_mcast_filters:  Number of perfect multicast addresses supported
  *     @min_frame_size:     Minimum size of frames to be sent
- *     @max_frame_size:     Maximim size of frames to be sent
+ *     @max_frame_size:     Maximum size of frames to be sent
  *     @config:             LIF config struct with features, mtu, mac, q counts
  *
  * @rdma:                RDMA identify structure
@@ -692,7 +692,7 @@ enum ionic_txq_desc_opcode {
  *                      checksums are also updated.
  *
  *                   IONIC_TXQ_DESC_OPCODE_TSO:
- *                      Device preforms TCP segmentation offload
+ *                      Device performs TCP segmentation offload
  *                      (TSO).  @hdr_len is the number of bytes
  *                      to the end of TCP header (the offset to
  *                      the TCP payload).  @mss is the desired
@@ -982,13 +982,13 @@ struct ionic_rxq_comp {
 };
 
 enum ionic_pkt_type {
-	IONIC_PKT_TYPE_NON_IP     = 0x000,
-	IONIC_PKT_TYPE_IPV4       = 0x001,
-	IONIC_PKT_TYPE_IPV4_TCP   = 0x003,
-	IONIC_PKT_TYPE_IPV4_UDP   = 0x005,
-	IONIC_PKT_TYPE_IPV6       = 0x008,
-	IONIC_PKT_TYPE_IPV6_TCP   = 0x018,
-	IONIC_PKT_TYPE_IPV6_UDP   = 0x028,
+	IONIC_PKT_TYPE_NON_IP		= 0x00,
+	IONIC_PKT_TYPE_IPV4		= 0x01,
+	IONIC_PKT_TYPE_IPV4_TCP		= 0x03,
+	IONIC_PKT_TYPE_IPV4_UDP		= 0x05,
+	IONIC_PKT_TYPE_IPV6		= 0x08,
+	IONIC_PKT_TYPE_IPV6_TCP		= 0x18,
+	IONIC_PKT_TYPE_IPV6_UDP		= 0x28,
 	/* below types are only used if encap offloads are enabled on lif */
 	IONIC_PKT_TYPE_ENCAP_NON_IP	= 0x40,
 	IONIC_PKT_TYPE_ENCAP_IPV4	= 0x41,
@@ -1111,6 +1111,8 @@ enum ionic_xcvr_pid {
 	IONIC_XCVR_PID_QSFP_100G_CWDM4  = 69,
 	IONIC_XCVR_PID_QSFP_100G_PSM4   = 70,
 	IONIC_XCVR_PID_SFP_25GBASE_ACC  = 71,
+	IONIC_XCVR_PID_SFP_10GBASE_T    = 72,
+	IONIC_XCVR_PID_SFP_1000BASE_T   = 73,
 };
 
 /**
@@ -1331,7 +1333,7 @@ enum ionic_stats_ctl_cmd {
  * @IONIC_PORT_ATTR_STATE:      Port state attribute
  * @IONIC_PORT_ATTR_SPEED:      Port speed attribute
  * @IONIC_PORT_ATTR_MTU:        Port MTU attribute
- * @IONIC_PORT_ATTR_AUTONEG:    Port autonegotation attribute
+ * @IONIC_PORT_ATTR_AUTONEG:    Port autonegotiation attribute
  * @IONIC_PORT_ATTR_FEC:        Port FEC attribute
  * @IONIC_PORT_ATTR_PAUSE:      Port pause attribute
  * @IONIC_PORT_ATTR_LOOPBACK:   Port loopback attribute
@@ -1951,8 +1953,8 @@ enum ionic_qos_sched_type {
  * @pfc_cos:		Priority-Flow Control class of service
  * @dwrr_weight:	QoS class scheduling weight
  * @strict_rlmt:	Rate limit for strict priority scheduling
- * @rw_dot1q_pcp:	Rewrite dot1q pcp to this value	(valid iff F_RW_DOT1Q_PCP)
- * @rw_ip_dscp:		Rewrite ip dscp to this value	(valid iff F_RW_IP_DSCP)
+ * @rw_dot1q_pcp:	Rewrite dot1q pcp to value (valid iff F_RW_DOT1Q_PCP)
+ * @rw_ip_dscp:		Rewrite ip dscp to value (valid iff F_RW_IP_DSCP)
  * @dot1q_pcp:		Dot1q pcp value
  * @ndscp:		Number of valid dscp values in the ip_dscp field
  * @ip_dscp:		IP dscp values

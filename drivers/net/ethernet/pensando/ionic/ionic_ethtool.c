@@ -29,10 +29,8 @@ static void ionic_get_stats_strings(struct ionic_lif *lif, u8 *buf)
 static void ionic_get_stats(struct net_device *netdev,
 			    struct ethtool_stats *stats, u64 *buf)
 {
-	struct ionic_lif *lif;
+	struct ionic_lif *lif = netdev_priv(netdev);
 	u32 i;
-
-	lif = netdev_priv(netdev);
 
 	memset(buf, 0, stats->n_stats * sizeof(*buf));
 	for (i = 0; i < ionic_num_stats_grps; i++)
@@ -209,6 +207,14 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     10000baseER_Full);
 		break;
+	case IONIC_XCVR_PID_SFP_10GBASE_T:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     10000baseT_Full);
+		break;
+	case IONIC_XCVR_PID_SFP_1000BASE_T:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     1000baseT_Full);
+		break;
 	case IONIC_XCVR_PID_UNKNOWN:
 		/* This means there's no module plugged in */
 		break;
@@ -264,11 +270,9 @@ static int ionic_set_link_ksettings(struct net_device *netdev,
 				    const struct ethtool_link_ksettings *ks)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
+	struct ionic_dev *idev = &lif->ionic->idev;
 	struct ionic *ionic = lif->ionic;
-	struct ionic_dev *idev;
 	int err = 0;
-
-	idev = &lif->ionic->idev;
 
 	/* set autoneg */
 	if (ks->base.autoneg != idev->port_info->config.an_enable) {

@@ -187,10 +187,17 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 
 static void ionic_adminq_flush(struct ionic_lif *lif)
 {
-	struct ionic_queue *q = &lif->adminqcq->q;
 	struct ionic_desc_info *desc_info;
+	unsigned long irqflags;
+	struct ionic_queue *q;
 
-	spin_lock(&lif->adminq_lock);
+	spin_lock_irqsave(&lif->adminq_lock, irqflags);
+	if (!lif->adminqcq) {
+		spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
+		return;
+	}
+
+	q = &lif->adminqcq->q;
 
 	while (q->tail_idx != q->head_idx) {
 		desc_info = &q->info[q->tail_idx];
@@ -199,7 +206,7 @@ static void ionic_adminq_flush(struct ionic_lif *lif)
 		desc_info->cb_arg = NULL;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 	}
-	spin_unlock(&lif->adminq_lock);
+	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
 }
 
 static int ionic_adminq_check_err(struct ionic_lif *lif,
@@ -252,15 +259,18 @@ static void ionic_adminq_cb(struct ionic_queue *q,
 static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 {
 	struct ionic_desc_info *desc_info;
+	unsigned long irqflags;
 	struct ionic_queue *q;
 	int err = 0;
 
-	if (!lif->adminqcq)
+	spin_lock_irqsave(&lif->adminq_lock, irqflags);
+	if (!lif->adminqcq) {
+		spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
 		return -EIO;
+	}
 
 	q = &lif->adminqcq->q;
 
-	spin_lock(&lif->adminq_lock);
 	if (!ionic_q_has_space(q, 1)) {
 		err = -ENOSPC;
 		goto err_out;
@@ -280,7 +290,7 @@ static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	ionic_q_post(q, true, ionic_adminq_cb, ctx);
 
 err_out:
-	spin_unlock(&lif->adminq_lock);
+	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
 
 	return err;
 }

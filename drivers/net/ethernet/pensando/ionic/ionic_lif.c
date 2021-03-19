@@ -120,23 +120,34 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	if (!test_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state))
 		return;
 
+	/* Don't put carrier back up if we're in a broken state */
+	if (test_bit(IONIC_LIF_F_BROKEN, lif->state)) {
+		clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
+		return;
+	}
+
 	link_status = le16_to_cpu(lif->info->status.link_status);
 	link_up = link_status == IONIC_PORT_OPER_STATUS_UP;
 
 	if (link_up) {
-		if (lif->netdev->flags & IFF_UP && netif_running(lif->netdev)) {
+		int err = 0;
+
+		if (netdev->flags & IFF_UP && netif_running(netdev)) {
 			mutex_lock(&lif->queue_lock);
-			ionic_start_queues(lif);
+			err = ionic_start_queues(lif);
+			if (err) {
+				netdev_err(lif->netdev,
+					   "Failed to start queues: %d\n", err);
+				set_bit(IONIC_LIF_F_BROKEN, lif->state);
+				netif_carrier_off(lif->netdev);
+			}
 			mutex_unlock(&lif->queue_lock);
 		}
 
-		if (!netif_carrier_ok(netdev)) {
-			u32 link_speed;
-
+		if (!err && !netif_carrier_ok(netdev)) {
 			ionic_port_identify(lif->ionic);
-			link_speed = le32_to_cpu(lif->info->status.link_speed);
 			netdev_info(netdev, "Link up - %d Gbps\n",
-				    link_speed / 1000);
+				    le32_to_cpu(lif->info->status.link_speed) / 1000);
 			netif_carrier_on(netdev);
 		}
 	} else {
@@ -145,7 +156,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 			netif_carrier_off(netdev);
 		}
 
-		if (lif->netdev->flags & IFF_UP && netif_running(lif->netdev)) {
+		if (netdev->flags & IFF_UP && netif_running(netdev)) {
 			mutex_lock(&lif->queue_lock);
 			ionic_stop_queues(lif);
 			mutex_unlock(&lif->queue_lock);
@@ -382,6 +393,8 @@ static void ionic_qcq_free(struct ionic_lif *lif, struct ionic_qcq *qcq)
 static void ionic_qcqs_free(struct ionic_lif *lif)
 {
 	struct device *dev = lif->ionic->dev;
+	struct ionic_qcq *adminqcq;
+	unsigned long irqflags;
 
 	if (lif->notifyqcq) {
 		ionic_qcq_free(lif, lif->notifyqcq);
@@ -390,9 +403,14 @@ static void ionic_qcqs_free(struct ionic_lif *lif)
 	}
 
 	if (lif->adminqcq) {
-		ionic_qcq_free(lif, lif->adminqcq);
-		devm_kfree(dev, lif->adminqcq);
+		spin_lock_irqsave(&lif->adminq_lock, irqflags);
+		adminqcq = READ_ONCE(lif->adminqcq);
 		lif->adminqcq = NULL;
+		spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
+		if (adminqcq) {
+			ionic_qcq_free(lif, adminqcq);
+			devm_kfree(dev, adminqcq);
+		}
 	}
 
 	if (lif->rxqcqs) {
@@ -718,10 +736,8 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	unsigned int intr_index;
 	int err;
 
-	if (qcq->flags & IONIC_QCQ_F_INTR)
-		intr_index = qcq->intr.index;
-	else
-		intr_index = lif->rxqcqs[q->index]->intr.index;
+	intr_index = qcq->intr.index;
+
 	ctx.cmd.q_init.intr_index = cpu_to_le16(intr_index);
 
 	dev_dbg(dev, "txq_init.pid %d\n", ctx.cmd.q_init.pid);
@@ -839,7 +855,7 @@ static bool ionic_notifyq_service(struct ionic_cq *cq,
 
 	switch (le16_to_cpu(comp->event.ecode)) {
 	case IONIC_EVENT_LINK_CHANGE:
-		ionic_link_status_check_request(lif, false);
+		ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
 		break;
 	case IONIC_EVENT_RESET:
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
@@ -877,6 +893,7 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	struct ionic_intr_info *intr = napi_to_cq(napi)->bound_intr;
 	struct ionic_lif *lif = napi_to_cq(napi)->lif;
 	struct ionic_dev *idev = &lif->ionic->idev;
+	unsigned long irqflags;
 	unsigned int flags = 0;
 	int n_work = 0;
 	int a_work = 0;
@@ -886,14 +903,16 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 		n_work = ionic_cq_service(&lif->notifyqcq->cq, budget,
 					  ionic_notifyq_service, NULL, NULL);
 
+	spin_lock_irqsave(&lif->adminq_lock, irqflags);
 	if (lif->adminqcq && lif->adminqcq->flags & IONIC_QCQ_F_INITED)
 		a_work = ionic_cq_service(&lif->adminqcq->cq, budget,
 					  ionic_adminq_service, NULL, NULL);
+	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
 
 	work_done = max(n_work, a_work);
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		flags |= IONIC_INTR_CRED_UNMASK;
-		lif->adminqcq->cq.bound_intr->rearm_count++;
+		intr->rearm_count++;
 	}
 
 	if (work_done || flags) {
@@ -1443,7 +1462,7 @@ static int ionic_start_queues_reconfig(struct ionic_lif *lif)
 	 */
 	err = ionic_txrx_init(lif);
 	mutex_unlock(&lif->queue_lock);
-	ionic_link_status_check_request(lif, true);
+	ionic_link_status_check_request(lif, CAN_SLEEP);
 	netif_device_attach(lif->netdev);
 
 	return err;
@@ -1482,7 +1501,8 @@ static void ionic_tx_timeout_work(struct work_struct *ws)
 {
 	struct ionic_lif *lif = container_of(ws, struct ionic_lif, tx_timeout_work);
 
-	netdev_info(lif->netdev, "Tx Timeout recovery\n");
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return;
 
 	/* if we were stopped before this scheduled job was launched,
 	 * don't bother the queues as they are already stopped.
@@ -1498,6 +1518,7 @@ static void ionic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
+	netdev_info(lif->netdev, "Tx Timeout triggered - txq %d\n", txqueue);
 	schedule_work(&lif->tx_timeout_work);
 }
 
@@ -1839,6 +1860,12 @@ static int ionic_start_queues(struct ionic_lif *lif)
 {
 	int err;
 
+	if (test_bit(IONIC_LIF_F_BROKEN, lif->state))
+		return -EIO;
+
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return -EBUSY;
+
 	if (test_and_set_bit(IONIC_LIF_F_UP, lif->state))
 		return 0;
 
@@ -1857,13 +1884,17 @@ static int ionic_open(struct net_device *netdev)
 	struct ionic_lif *lif = netdev_priv(netdev);
 	int err;
 
+	/* If recovering from a broken state, clear the bit and we'll try again */
+	if (test_and_clear_bit(IONIC_LIF_F_BROKEN, lif->state))
+		netdev_info(netdev, "clearing broken state\n");
+
 	err = ionic_txrx_alloc(lif);
 	if (err)
 		return err;
 
 	err = ionic_txrx_init(lif);
 	if (err)
-		goto err_out;
+		goto err_txrx_free;
 
 	err = netif_set_real_num_tx_queues(netdev, lif->nxqs);
 	if (err)
@@ -1884,7 +1915,7 @@ static int ionic_open(struct net_device *netdev)
 
 err_txrx_deinit:
 	ionic_txrx_deinit(lif);
-err_out:
+err_txrx_free:
 	ionic_txrx_free(lif);
 	return err;
 }
@@ -2356,7 +2387,7 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 	swap(lif->nxqs, qparam->nxqs);
 
 err_out_reinit_unlock:
-	/* re-init the queues, but don't loose an error code */
+	/* re-init the queues, but don't lose an error code */
 	if (err)
 		ionic_start_queues_reconfig(lif);
 	else
@@ -2605,7 +2636,7 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	}
 
 	clear_bit(IONIC_LIF_F_FW_RESET, lif->state);
-	ionic_link_status_check_request(lif, true);
+	ionic_link_status_check_request(lif, CAN_SLEEP);
 	netif_device_attach(lif->netdev);
 	dev_info(ionic->dev, "FW Up: LIFs restarted\n");
 
@@ -2976,7 +3007,7 @@ int ionic_lif_register(struct ionic_lif *lif)
 		return err;
 	}
 
-	ionic_link_status_check_request(lif, true);
+	ionic_link_status_check_request(lif, CAN_SLEEP);
 	lif->registered = true;
 	ionic_lif_set_netdev_info(lif);
 
