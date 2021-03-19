@@ -1171,6 +1171,7 @@
   irq_work_queue
   irq_work_queue_on
   irq_work_sync
+  is_dma_buf_file
   is_vmalloc_addr
   jiffies
   jiffies_to_msecs
