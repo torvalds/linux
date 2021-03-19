@@ -728,7 +728,8 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 					     r8712_find_network(&pmlmepriv->
 					     scanned_queue,
 					     cur_network->network.MacAddress);
-					pcur_wlan->fixed = false;
+					if (pcur_wlan)
+						pcur_wlan->fixed = false;
 
 					pcur_sta = r8712_get_stainfo(pstapriv,
 					     cur_network->network.MacAddress);
