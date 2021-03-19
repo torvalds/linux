@@ -11,6 +11,18 @@
 #include "ipa_endpoint.h"
 #include "ipa_mem.h"
 
+/* QSB configuration for the SDM845 SoC. */
+static const struct ipa_qsb_data ipa_qsb_data[] = {
+	[IPA_QSB_MASTER_DDR] = {
+		.max_writes	= 8,
+		.max_reads	= 8,
+	},
+	[IPA_QSB_MASTER_PCIE] = {
+		.max_writes	= 4,
+		.max_reads	= 12,
+	},
+};
+
 /* Endpoint configuration for the SDM845 SoC. */
 static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 	[IPA_ENDPOINT_AP_COMMAND_TX] = {
@@ -293,11 +305,6 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 		.size		= 0x0140,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_AP_HEADER] = {
-		.offset		= 0x07c8,
-		.size		= 0x0000,
-		.canary_count	= 0,
-	},
 	[IPA_MEM_MODEM_PROC_CTX] = {
 		.offset		= 0x07d0,
 		.size		= 0x0200,
@@ -320,7 +327,7 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 	},
 };
 
-static struct ipa_mem_data ipa_mem_data = {
+static const struct ipa_mem_data ipa_mem_data = {
 	.local_count	= ARRAY_SIZE(ipa_mem_local_data),
 	.local		= ipa_mem_local_data,
 	.imem_addr	= 0x146bd000,
@@ -330,7 +337,7 @@ static struct ipa_mem_data ipa_mem_data = {
 };
 
 /* Interconnect bandwidths are in 1000 byte/second units */
-static struct ipa_interconnect_data ipa_interconnect_data[] = {
+static const struct ipa_interconnect_data ipa_interconnect_data[] = {
 	{
 		.name			= "memory",
 		.peak_bandwidth		= 600000,	/* 600 MBps */
@@ -349,7 +356,7 @@ static struct ipa_interconnect_data ipa_interconnect_data[] = {
 	},
 };
 
-static struct ipa_clock_data ipa_clock_data = {
+static const struct ipa_clock_data ipa_clock_data = {
 	.core_clock_rate	= 75 * 1000 * 1000,	/* Hz */
 	.interconnect_count	= ARRAY_SIZE(ipa_interconnect_data),
 	.interconnect_data	= ipa_interconnect_data,
@@ -358,6 +365,8 @@ static struct ipa_clock_data ipa_clock_data = {
 /* Configuration data for the SDM845 SoC. */
 const struct ipa_data ipa_data_sdm845 = {
 	.version	= IPA_VERSION_3_5_1,
+	.qsb_count	= ARRAY_SIZE(ipa_qsb_data),
+	.qsb_data	= ipa_qsb_data,
 	.endpoint_count	= ARRAY_SIZE(ipa_gsi_endpoint_data),
 	.endpoint_data	= ipa_gsi_endpoint_data,
 	.resource_data	= &ipa_resource_data,
