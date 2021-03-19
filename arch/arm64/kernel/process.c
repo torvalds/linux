@@ -578,6 +578,7 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	uao_thread_switch(next);
 	ssbs_thread_switch(next);
 	erratum_1418040_thread_switch(prev, next);
+	ptrauth_thread_switch_user(next);
 	/*
 	 *  vendor hook is needed before the dsb(),
 	 *  because MPAM is related to cache maintenance.
