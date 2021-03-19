@@ -257,3 +257,120 @@ int __init sgx_vepc_init(void)
 
 	return misc_register(&sgx_vepc_dev);
 }
+
+/**
+ * sgx_virt_ecreate() - Run ECREATE on behalf of guest
+ * @pageinfo:	Pointer to PAGEINFO structure
+ * @secs:	Userspace pointer to SECS page
+ * @trapnr:	trap number injected to guest in case of ECREATE error
+ *
+ * Run ECREATE on behalf of guest after KVM traps ECREATE for the purpose
+ * of enforcing policies of guest's enclaves, and return the trap number
+ * which should be injected to guest in case of any ECREATE error.
+ *
+ * Return:
+ * -  0:	ECREATE was successful.
+ * - <0:	on error.
+ */
+int sgx_virt_ecreate(struct sgx_pageinfo *pageinfo, void __user *secs,
+		     int *trapnr)
+{
+	int ret;
+
+	/*
+	 * @secs is an untrusted, userspace-provided address.  It comes from
+	 * KVM and is assumed to be a valid pointer which points somewhere in
+	 * userspace.  This can fault and call SGX or other fault handlers when
+	 * userspace mapping @secs doesn't exist.
+	 *
+	 * Add a WARN() to make sure @secs is already valid userspace pointer
+	 * from caller (KVM), who should already have handled invalid pointer
+	 * case (for instance, made by malicious guest).  All other checks,
+	 * such as alignment of @secs, are deferred to ENCLS itself.
+	 */
+	if (WARN_ON_ONCE(!access_ok(secs, PAGE_SIZE)))
+		return -EINVAL;
+
+	__uaccess_begin();
+	ret = __ecreate(pageinfo, (void *)secs);
+	__uaccess_end();
+
+	if (encls_faulted(ret)) {
+		*trapnr = ENCLS_TRAPNR(ret);
+		return -EFAULT;
+	}
+
+	/* ECREATE doesn't return an error code, it faults or succeeds. */
+	WARN_ON_ONCE(ret);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sgx_virt_ecreate);
+
+static int __sgx_virt_einit(void __user *sigstruct, void __user *token,
+			    void __user *secs)
+{
+	int ret;
+
+	/*
+	 * Make sure all userspace pointers from caller (KVM) are valid.
+	 * All other checks deferred to ENCLS itself.  Also see comment
+	 * for @secs in sgx_virt_ecreate().
+	 */
+#define SGX_EINITTOKEN_SIZE	304
+	if (WARN_ON_ONCE(!access_ok(sigstruct, sizeof(struct sgx_sigstruct)) ||
+			 !access_ok(token, SGX_EINITTOKEN_SIZE) ||
+			 !access_ok(secs, PAGE_SIZE)))
+		return -EINVAL;
+
+	__uaccess_begin();
+	ret = __einit((void *)sigstruct, (void *)token, (void *)secs);
+	__uaccess_end();
+
+	return ret;
+}
+
+/**
+ * sgx_virt_einit() - Run EINIT on behalf of guest
+ * @sigstruct:		Userspace pointer to SIGSTRUCT structure
+ * @token:		Userspace pointer to EINITTOKEN structure
+ * @secs:		Userspace pointer to SECS page
+ * @lepubkeyhash:	Pointer to guest's *virtual* SGX_LEPUBKEYHASH MSR values
+ * @trapnr:		trap number injected to guest in case of EINIT error
+ *
+ * Run EINIT on behalf of guest after KVM traps EINIT. If SGX_LC is available
+ * in host, SGX driver may rewrite the hardware values at wish, therefore KVM
+ * needs to update hardware values to guest's virtual MSR values in order to
+ * ensure EINIT is executed with expected hardware values.
+ *
+ * Return:
+ * -  0:	EINIT was successful.
+ * - <0:	on error.
+ */
+int sgx_virt_einit(void __user *sigstruct, void __user *token,
+		   void __user *secs, u64 *lepubkeyhash, int *trapnr)
+{
+	int ret;
+
+	if (!cpu_feature_enabled(X86_FEATURE_SGX_LC)) {
+		ret = __sgx_virt_einit(sigstruct, token, secs);
+	} else {
+		preempt_disable();
+
+		sgx_update_lepubkeyhash(lepubkeyhash);
+
+		ret = __sgx_virt_einit(sigstruct, token, secs);
+		preempt_enable();
+	}
+
+	/* Propagate up the error from the WARN_ON_ONCE in __sgx_virt_einit() */
+	if (ret == -EINVAL)
+		return ret;
+
+	if (encls_faulted(ret)) {
+		*trapnr = ENCLS_TRAPNR(ret);
+		return -EFAULT;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sgx_virt_einit);
