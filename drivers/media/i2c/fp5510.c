@@ -13,7 +13,7 @@
 #include <linux/version.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include "rk_vcm_head.h"
+#include <linux/rk_vcm_head.h>
 #include <linux/gpio/consumer.h>
 
 #define DRIVER_VERSION	KERNEL_VERSION(0, 0x01, 0x0)

@@ -28,7 +28,7 @@
 #include <linux/version.h>
 #include <linux/rk-camera-module.h>
 #include <linux/completion.h>
-#include "rk_vcm_head.h"
+#include <linux/rk_vcm_head.h>
 
 #define DRIVER_VERSION	KERNEL_VERSION(0, 0x01, 0x00)
 
