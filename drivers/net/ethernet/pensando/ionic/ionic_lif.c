@@ -715,10 +715,8 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	unsigned int intr_index;
 	int err;
 
-	if (qcq->flags & IONIC_QCQ_F_INTR)
-		intr_index = qcq->intr.index;
-	else
-		intr_index = lif->rxqcqs[q->index]->intr.index;
+	intr_index = qcq->intr.index;
+
 	ctx.cmd.q_init.intr_index = cpu_to_le16(intr_index);
 
 	dev_dbg(dev, "txq_init.pid %d\n", ctx.cmd.q_init.pid);
