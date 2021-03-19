@@ -1851,7 +1851,7 @@ rrs_checked:
 			vlan = le16_to_cpu(vlan);
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
 		}
-		netif_receive_skb(skb);
+		napi_gro_receive(&adapter->napi, skb);
 
 		(*work_done)++;
 		count++;
