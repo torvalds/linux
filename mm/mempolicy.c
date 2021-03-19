@@ -1127,7 +1127,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 	int err = 0;
 	nodemask_t tmp;
 
-	migrate_prep();
+	lru_cache_disable();
 
 	mmap_read_lock(mm);
 
@@ -1212,7 +1212,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 	}
 	mmap_read_unlock(mm);
 
-	migrate_finish();
+	lru_cache_enable();
 	if (err < 0)
 		return err;
 	return busy;
@@ -1328,7 +1328,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 
 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
 
-		migrate_prep();
+		lru_cache_disable();
 	}
 	{
 		NODEMASK_SCRATCH(scratch);
@@ -1377,7 +1377,7 @@ up_out:
 mpol_out:
 	mpol_put(new);
 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-		migrate_finish();
+		lru_cache_enable();
 	return err;
 }
 
