@@ -432,9 +432,9 @@ do {											\
 	size_t _len = (l);								\
 	int _i;										\
 											\
-	for (_i = 0; _i < (_len & ~(sizeof(long) - 1)); _i += sizeof(long))		\
-		unsafe_get_user(*(long *)(_dst + _i), (long __user *)(_src + _i), e);	\
-	if (IS_ENABLED(CONFIG_PPC64) && (_len & 4)) {					\
+	for (_i = 0; _i < (_len & ~(sizeof(u64) - 1)); _i += sizeof(u64))		\
+		unsafe_get_user(*(u64 *)(_dst + _i), (u64 __user *)(_src + _i), e);	\
+	if (_len & 4) {									\
 		unsafe_get_user(*(u32 *)(_dst + _i), (u32 __user *)(_src + _i), e);	\
 		_i += 4;								\
 	}										\
