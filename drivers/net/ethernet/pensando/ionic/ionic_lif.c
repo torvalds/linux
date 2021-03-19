@@ -888,7 +888,7 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	work_done = max(n_work, a_work);
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		flags |= IONIC_INTR_CRED_UNMASK;
-		lif->adminqcq->cq.bound_intr->rearm_count++;
+		intr->rearm_count++;
 	}
 
 	if (work_done || flags) {
