@@ -47,7 +47,7 @@ static void atl1c_down(struct atl1c_adapter *adapter);
 static int atl1c_reset_mac(struct atl1c_hw *hw);
 static void atl1c_reset_dma_ring(struct atl1c_adapter *adapter);
 static int atl1c_configure(struct atl1c_adapter *adapter);
-static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter);
+static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, bool napi_mode);
 
 
 static const u32 atl1c_default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
@@ -470,7 +470,7 @@ static void atl1c_set_rxbufsize(struct atl1c_adapter *adapter,
 	adapter->rx_buffer_len = mtu > AT_RX_BUF_SIZE ?
 		roundup(mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN, 8) : AT_RX_BUF_SIZE;
 
-	head_size = SKB_DATA_ALIGN(adapter->rx_buffer_len + NET_SKB_PAD) +
+	head_size = SKB_DATA_ALIGN(adapter->rx_buffer_len + NET_SKB_PAD + NET_IP_ALIGN) +
 		    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	adapter->rx_frag_size = roundup_pow_of_two(head_size);
 }
@@ -1434,7 +1434,7 @@ static int atl1c_configure(struct atl1c_adapter *adapter)
 	atl1c_set_multi(netdev);
 	atl1c_restore_vlan(adapter);
 
-	num = atl1c_alloc_rx_buffer(adapter);
+	num = atl1c_alloc_rx_buffer(adapter, false);
 	if (unlikely(num == 0))
 		return -ENOMEM;
 
@@ -1650,14 +1650,20 @@ static inline void atl1c_rx_checksum(struct atl1c_adapter *adapter,
 	skb_checksum_none_assert(skb);
 }
 
-static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
+static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter,
+				       bool napi_mode)
 {
 	struct sk_buff *skb;
 	struct page *page;
 
-	if (adapter->rx_frag_size > PAGE_SIZE)
-		return netdev_alloc_skb(adapter->netdev,
-					adapter->rx_buffer_len);
+	if (adapter->rx_frag_size > PAGE_SIZE) {
+		if (likely(napi_mode))
+			return napi_alloc_skb(&adapter->napi,
+					      adapter->rx_buffer_len);
+		else
+			return netdev_alloc_skb_ip_align(adapter->netdev,
+							 adapter->rx_buffer_len);
+	}
 
 	page = adapter->rx_page;
 	if (!page) {
@@ -1670,7 +1676,7 @@ static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
 	skb = build_skb(page_address(page) + adapter->rx_page_offset,
 			adapter->rx_frag_size);
 	if (likely(skb)) {
-		skb_reserve(skb, NET_SKB_PAD);
+		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
 		adapter->rx_page_offset += adapter->rx_frag_size;
 		if (adapter->rx_page_offset >= PAGE_SIZE)
 			adapter->rx_page = NULL;
@@ -1680,7 +1686,7 @@ static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
 	return skb;
 }
 
-static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter)
+static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, bool napi_mode)
 {
 	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring;
 	struct pci_dev *pdev = adapter->pdev;
@@ -1701,7 +1707,7 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter)
 	while (next_info->flags & ATL1C_BUFFER_FREE) {
 		rfd_desc = ATL1C_RFD_DESC(rfd_ring, rfd_next_to_use);
 
-		skb = atl1c_alloc_skb(adapter);
+		skb = atl1c_alloc_skb(adapter, napi_mode);
 		if (unlikely(!skb)) {
 			if (netif_msg_rx_err(adapter))
 				dev_warn(&pdev->dev, "alloc rx buffer failed\n");
@@ -1857,7 +1863,7 @@ rrs_checked:
 		count++;
 	}
 	if (count)
-		atl1c_alloc_rx_buffer(adapter);
+		atl1c_alloc_rx_buffer(adapter, true);
 }
 
 /**
