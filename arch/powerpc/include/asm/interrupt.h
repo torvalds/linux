@@ -410,7 +410,6 @@ DECLARE_INTERRUPT_HANDLER(altivec_assist_exception);
 DECLARE_INTERRUPT_HANDLER(CacheLockingException);
 DECLARE_INTERRUPT_HANDLER(SPEFloatingPointException);
 DECLARE_INTERRUPT_HANDLER(SPEFloatingPointRoundException);
-DECLARE_INTERRUPT_HANDLER(unrecoverable_exception);
 DECLARE_INTERRUPT_HANDLER(WatchdogException);
 DECLARE_INTERRUPT_HANDLER(kernel_bad_stack);
 
@@ -436,6 +435,8 @@ DECLARE_INTERRUPT_HANDLER_NMI(machine_check_early);
 DECLARE_INTERRUPT_HANDLER_NMI(hmi_exception_realmode);
 
 DECLARE_INTERRUPT_HANDLER_ASYNC(TAUException);
+
+void unrecoverable_exception(struct pt_regs *regs);
 
 void replay_system_reset(void);
 void replay_soft_interrupts(void);

@@ -592,6 +592,9 @@ static int bcm4908_enet_poll(struct napi_struct *napi, int weight)
 		bcm4908_enet_intrs_on(enet);
 	}
 
+	/* Hardware could disable ring if it run out of descriptors */
+	bcm4908_enet_dma_rx_ring_enable(enet, &enet->rx_ring);
+
 	return handled;
 }
 
