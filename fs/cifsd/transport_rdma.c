@@ -1165,6 +1165,7 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 				sg, SMB_DIRECT_MAX_SEND_SGES-1, DMA_TO_DEVICE);
 		if (sg_cnt <= 0) {
 			ksmbd_err("failed to map buffer\n");
+			ret = -ENOMEM;
 			goto err;
 		} else if (sg_cnt + msg->num_sge > SMB_DIRECT_MAX_SEND_SGES-1) {
 			ksmbd_err("buffer not fitted into sges\n");
