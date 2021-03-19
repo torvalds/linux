@@ -1696,10 +1696,9 @@ got_req:
 	return state->reqs[state->free_reqs];
 }
 
-static inline void io_put_file(struct io_kiocb *req, struct file *file,
-			  bool fixed)
+static inline void io_put_file(struct file *file)
 {
-	if (!fixed)
+	if (file)
 		fput(file);
 }
 
@@ -1707,8 +1706,8 @@ static void io_dismantle_req(struct io_kiocb *req)
 {
 	unsigned int flags = req->flags;
 
-	if (req->file)
-		io_put_file(req, req->file, (flags & REQ_F_FIXED_FILE));
+	if (!(flags & REQ_F_FIXED_FILE))
+		io_put_file(req->file);
 	if (flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED |
 		     REQ_F_INFLIGHT)) {
 		io_clean_op(req);
@@ -3648,7 +3647,8 @@ static int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 	if (sp->len)
 		ret = do_tee(in, out, sp->len, flags);
 
-	io_put_file(req, in, (sp->flags & SPLICE_F_FD_IN_FIXED));
+	if (!(sp->flags & SPLICE_F_FD_IN_FIXED))
+		io_put_file(in);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 
 	if (ret != sp->len)
@@ -3684,7 +3684,8 @@ static int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 	if (sp->len)
 		ret = do_splice(in, poff_in, out, poff_out, sp->len, flags);
 
-	io_put_file(req, in, (sp->flags & SPLICE_F_FD_IN_FIXED));
+	if (!(sp->flags & SPLICE_F_FD_IN_FIXED))
+		io_put_file(in);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 
 	if (ret != sp->len)
@@ -5989,8 +5990,8 @@ static void io_clean_op(struct io_kiocb *req)
 			}
 		case IORING_OP_SPLICE:
 		case IORING_OP_TEE:
-			io_put_file(req, req->splice.file_in,
-				    (req->splice.flags & SPLICE_F_FD_IN_FIXED));
+			if (!(req->splice.flags & SPLICE_F_FD_IN_FIXED))
+				io_put_file(req->splice.file_in);
 			break;
 		case IORING_OP_OPENAT:
 		case IORING_OP_OPENAT2:
