@@ -208,18 +208,20 @@ static int __cpuidle_cooling_register(struct device_node *np,
 
 	cdev = thermal_of_cooling_device_register(np, name, idle_cdev,
 						  &cpuidle_cooling_ops);
-	kfree(name);
-
 	if (IS_ERR(cdev)) {
 		ret = PTR_ERR(cdev);
-		goto out_unregister;
+		goto out_kfree_name;
 	}
 
 	pr_debug("%s: Idle injection set with idle duration=%u, latency=%u\n",
 		 name, idle_duration_us, latency_us);
 
+	kfree(name);
+
 	return 0;
 
+out_kfree_name:
+	kfree(name);
 out_unregister:
 	idle_inject_unregister(ii_dev);
 out_kfree:
