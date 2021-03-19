@@ -1911,13 +1911,17 @@ static void tctx_task_work(struct callback_head *cb)
 		cond_resched();
 }
 
-static int io_task_work_add(struct task_struct *tsk, struct io_kiocb *req,
-			    enum task_work_notify_mode notify)
+static int io_req_task_work_add(struct io_kiocb *req)
 {
+	struct task_struct *tsk = req->task;
 	struct io_uring_task *tctx = tsk->io_uring;
+	enum task_work_notify_mode notify;
 	struct io_wq_work_node *node, *prev;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
+
+	if (unlikely(tsk->flags & PF_EXITING))
+		return -ESRCH;
 
 	WARN_ON_ONCE(!tctx);
 
@@ -1930,14 +1934,23 @@ static int io_task_work_add(struct task_struct *tsk, struct io_kiocb *req,
 	    test_and_set_bit(0, &tctx->task_state))
 		return 0;
 
-	if (!task_work_add(tsk, &tctx->task_work, notify))
+	/*
+	 * SQPOLL kernel thread doesn't need notification, just a wakeup. For
+	 * all other cases, use TWA_SIGNAL unconditionally to ensure we're
+	 * processing task_work. There's no reliable way to tell if TWA_RESUME
+	 * will do the job.
+	 */
+	notify = (req->ctx->flags & IORING_SETUP_SQPOLL) ? TWA_NONE : TWA_SIGNAL;
+
+	if (!task_work_add(tsk, &tctx->task_work, notify)) {
+		wake_up_process(tsk);
 		return 0;
+	}
 
 	/*
 	 * Slow path - we failed, find and delete work. if the work is not
 	 * in the list, it got run and we're fine.
 	 */
-	ret = 0;
 	spin_lock_irqsave(&tctx->task_lock, flags);
 	wq_list_for_each(node, prev, &tctx->task_list) {
 		if (&req->io_task_work.node == node) {
@@ -1948,33 +1961,6 @@ static int io_task_work_add(struct task_struct *tsk, struct io_kiocb *req,
 	}
 	spin_unlock_irqrestore(&tctx->task_lock, flags);
 	clear_bit(0, &tctx->task_state);
-	return ret;
-}
-
-static int io_req_task_work_add(struct io_kiocb *req)
-{
-	struct task_struct *tsk = req->task;
-	struct io_ring_ctx *ctx = req->ctx;
-	enum task_work_notify_mode notify;
-	int ret;
-
-	if (tsk->flags & PF_EXITING)
-		return -ESRCH;
-
-	/*
-	 * SQPOLL kernel thread doesn't need notification, just a wakeup. For
-	 * all other cases, use TWA_SIGNAL unconditionally to ensure we're
-	 * processing task_work. There's no reliable way to tell if TWA_RESUME
-	 * will do the job.
-	 */
-	notify = TWA_NONE;
-	if (!(ctx->flags & IORING_SETUP_SQPOLL))
-		notify = TWA_SIGNAL;
-
-	ret = io_task_work_add(tsk, req, notify);
-	if (!ret)
-		wake_up_process(tsk);
-
 	return ret;
 }
 
