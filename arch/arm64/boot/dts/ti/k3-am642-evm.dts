@@ -310,6 +310,11 @@
 	};
 };
 
+/* mcu_gpio0 is reserved for mcu firmware usage */
+&mcu_gpio0 {
+	status = "reserved";
+};
+
 &mcu_i2c0 {
 	status = "disabled";
 };
