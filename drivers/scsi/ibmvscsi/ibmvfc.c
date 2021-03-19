@@ -2403,41 +2403,58 @@ static int ibmvfc_wait_for_ops(struct ibmvfc_host *vhost, void *device,
 {
 	struct ibmvfc_event *evt;
 	DECLARE_COMPLETION_ONSTACK(comp);
-	int wait, i;
+	int wait, i, q_index, q_size;
 	unsigned long flags;
 	signed long timeout = IBMVFC_ABORT_WAIT_TIMEOUT * HZ;
+	struct ibmvfc_queue *queues;
 
 	ENTER;
+	if (vhost->mq_enabled && vhost->using_channels) {
+		queues = vhost->scsi_scrqs.scrqs;
+		q_size = vhost->scsi_scrqs.active_queues;
+	} else {
+		queues = &vhost->crq;
+		q_size = 1;
+	}
+
 	do {
 		wait = 0;
-		spin_lock_irqsave(&vhost->crq.l_lock, flags);
-		for (i = 0; i < vhost->crq.evt_pool.size; i++) {
-			evt = &vhost->crq.evt_pool.events[i];
-			if (!ibmvfc_event_is_free(evt)) {
-				if (match(evt, device)) {
-					evt->eh_comp = &comp;
-					wait++;
+		spin_lock_irqsave(vhost->host->host_lock, flags);
+		for (q_index = 0; q_index < q_size; q_index++) {
+			spin_lock(&queues[q_index].l_lock);
+			for (i = 0; i < queues[q_index].evt_pool.size; i++) {
+				evt = &queues[q_index].evt_pool.events[i];
+				if (!ibmvfc_event_is_free(evt)) {
+					if (match(evt, device)) {
+						evt->eh_comp = &comp;
+						wait++;
+					}
 				}
 			}
+			spin_unlock(&queues[q_index].l_lock);
 		}
-		spin_unlock_irqrestore(&vhost->crq.l_lock, flags);
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
 
 		if (wait) {
 			timeout = wait_for_completion_timeout(&comp, timeout);
 
 			if (!timeout) {
 				wait = 0;
-				spin_lock_irqsave(&vhost->crq.l_lock, flags);
-				for (i = 0; i < vhost->crq.evt_pool.size; i++) {
-					evt = &vhost->crq.evt_pool.events[i];
-					if (!ibmvfc_event_is_free(evt)) {
-						if (match(evt, device)) {
-							evt->eh_comp = NULL;
-							wait++;
+				spin_lock_irqsave(vhost->host->host_lock, flags);
+				for (q_index = 0; q_index < q_size; q_index++) {
+					spin_lock(&queues[q_index].l_lock);
+					for (i = 0; i < queues[q_index].evt_pool.size; i++) {
+						evt = &queues[q_index].evt_pool.events[i];
+						if (!ibmvfc_event_is_free(evt)) {
+							if (match(evt, device)) {
+								evt->eh_comp = NULL;
+								wait++;
+							}
 						}
 					}
+					spin_unlock(&queues[q_index].l_lock);
 				}
-				spin_unlock_irqrestore(&vhost->crq.l_lock, flags);
+				spin_unlock_irqrestore(vhost->host->host_lock, flags);
 				if (wait)
 					dev_err(vhost->dev, "Timed out waiting for aborted commands\n");
 				LEAVE;
