@@ -1383,7 +1383,7 @@ static void nfsd4_init_copy_res(struct nfsd4_copy *copy, bool sync)
 static ssize_t _nfsd_copy_file_range(struct nfsd4_copy *copy)
 {
 	ssize_t bytes_copied = 0;
-	size_t bytes_total = copy->cp_count;
+	u64 bytes_total = copy->cp_count;
 	u64 src_pos = copy->cp_src_pos;
 	u64 dst_pos = copy->cp_dst_pos;
 
