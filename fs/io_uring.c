@@ -1705,27 +1705,31 @@ static inline void io_put_file(struct io_kiocb *req, struct file *file,
 
 static void io_dismantle_req(struct io_kiocb *req)
 {
-	if (req->flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED))
-		io_clean_op(req);
-	if (req->async_data)
-		kfree(req->async_data);
+	unsigned int flags = req->flags;
+
 	if (req->file)
-		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
+		io_put_file(req, req->file, (flags & REQ_F_FIXED_FILE));
+	if (flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED |
+		     REQ_F_INFLIGHT)) {
+		io_clean_op(req);
+
+		if (req->flags & REQ_F_INFLIGHT) {
+			struct io_ring_ctx *ctx = req->ctx;
+			unsigned long flags;
+
+			spin_lock_irqsave(&ctx->inflight_lock, flags);
+			list_del(&req->inflight_entry);
+			spin_unlock_irqrestore(&ctx->inflight_lock, flags);
+			req->flags &= ~REQ_F_INFLIGHT;
+		}
+	}
 	if (req->fixed_rsrc_refs)
 		percpu_ref_put(req->fixed_rsrc_refs);
+	if (req->async_data)
+		kfree(req->async_data);
 	if (req->work.creds) {
 		put_cred(req->work.creds);
 		req->work.creds = NULL;
-	}
-
-	if (req->flags & REQ_F_INFLIGHT) {
-		struct io_ring_ctx *ctx = req->ctx;
-		unsigned long flags;
-
-		spin_lock_irqsave(&ctx->inflight_lock, flags);
-		list_del(&req->inflight_entry);
-		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
-		req->flags &= ~REQ_F_INFLIGHT;
 	}
 }
 
