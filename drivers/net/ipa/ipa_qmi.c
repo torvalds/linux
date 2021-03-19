@@ -378,7 +378,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 	/* None of the stats fields are valid (IPA v4.0 and above) */
 
 	if (ipa->version != IPA_VERSION_3_5_1) {
-		mem = &ipa->mem[IPA_MEM_STATS_QUOTA];
+		mem = &ipa->mem[IPA_MEM_STATS_QUOTA_MODEM];
 		if (mem->size) {
 			req.hw_stats_quota_base_addr_valid = 1;
 			req.hw_stats_quota_base_addr =

@@ -268,7 +268,7 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 		.size		= 0x0050,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_STATS_QUOTA] = {
+	[IPA_MEM_STATS_QUOTA_MODEM] = {
 		.offset		= 0x0a50,
 		.size		= 0x0060,
 		.canary_count	= 2,
