@@ -1627,11 +1627,12 @@ static void io_req_complete_failed(struct io_kiocb *req, long res)
 	io_req_complete_post(req, res, 0);
 }
 
+/* Returns true IFF there are requests in the cache */
 static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *state = &ctx->submit_state;
 	struct io_comp_state *cs = &state->comp;
-	struct io_kiocb *req = NULL;
+	int nr;
 
 	/*
 	 * If we have more than a batch's worth of requests in our IRQ side
@@ -1645,16 +1646,19 @@ static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 		spin_unlock_irq(&ctx->completion_lock);
 	}
 
+	nr = state->free_reqs;
 	while (!list_empty(&cs->free_list)) {
-		req = list_first_entry(&cs->free_list, struct io_kiocb,
-					compl.list);
+		struct io_kiocb *req = list_first_entry(&cs->free_list,
+						struct io_kiocb, compl.list);
+
 		list_del(&req->compl.list);
-		state->reqs[state->free_reqs++] = req;
-		if (state->free_reqs == ARRAY_SIZE(state->reqs))
+		state->reqs[nr++] = req;
+		if (nr == ARRAY_SIZE(state->reqs))
 			break;
 	}
 
-	return req != NULL;
+	state->free_reqs = nr;
+	return nr != 0;
 }
 
 static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
