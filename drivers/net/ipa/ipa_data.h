@@ -49,6 +49,22 @@
 #define IPA_RESOURCE_GROUP_SRC_MAX	5
 #define IPA_RESOURCE_GROUP_DST_MAX	5
 
+/** enum ipa_qsb_master_id - array index for IPA QSB configuration data */
+enum ipa_qsb_master_id {
+	IPA_QSB_MASTER_DDR,
+	IPA_QSB_MASTER_PCIE,
+};
+
+/**
+ * struct ipa_qsb_data - Qualcomm System Bus configuration data
+ * @max_writes:	Maximum outstanding write requests for this master
+ * @max_reads:	Maximum outstanding read requests for this master
+ */
+struct ipa_qsb_data {
+	u8 max_writes;
+	u8 max_reads;
+};
+
 /**
  * struct gsi_channel_data - GSI channel configuration data
  * @tre_count:		number of TREs in the channel ring
@@ -285,14 +301,18 @@ struct ipa_clock_data {
 /**
  * struct ipa_data - combined IPA/GSI configuration data
  * @version:		IPA hardware version
- * @endpoint_count:	number of entries in endpoint_data array
+ * @qsb_count:		number of entries in the qsb_data array
+ * @qsb_data:		Qualcomm System Bus configuration data
+ * @endpoint_count:	number of entries in the endpoint_data array
  * @endpoint_data:	IPA endpoint/GSI channel data
  * @resource_data:	IPA resource configuration data
- * @mem_count:		number of entries in mem_data array
+ * @mem_count:		number of entries in the mem_data array
  * @mem_data:		IPA-local shared memory region data
  */
 struct ipa_data {
 	enum ipa_version version;
+	u32 qsb_count;		/* # entries in qsb_data[] */
+	const struct ipa_qsb_data *qsb_data;
 	u32 endpoint_count;	/* # entries in endpoint_data[] */
 	const struct ipa_gsi_endpoint_data *endpoint_data;
 	const struct ipa_resource_data *resource_data;

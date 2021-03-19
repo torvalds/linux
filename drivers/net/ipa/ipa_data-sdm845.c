@@ -11,6 +11,18 @@
 #include "ipa_endpoint.h"
 #include "ipa_mem.h"
 
+/* QSB configuration for the SDM845 SoC. */
+static const struct ipa_qsb_data ipa_qsb_data[] = {
+	[IPA_QSB_MASTER_DDR] = {
+		.max_writes	= 8,
+		.max_reads	= 8,
+	},
+	[IPA_QSB_MASTER_PCIE] = {
+		.max_writes	= 4,
+		.max_reads	= 12,
+	},
+};
+
 /* Endpoint configuration for the SDM845 SoC. */
 static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 	[IPA_ENDPOINT_AP_COMMAND_TX] = {
@@ -353,6 +365,8 @@ static const struct ipa_clock_data ipa_clock_data = {
 /* Configuration data for the SDM845 SoC. */
 const struct ipa_data ipa_data_sdm845 = {
 	.version	= IPA_VERSION_3_5_1,
+	.qsb_count	= ARRAY_SIZE(ipa_qsb_data),
+	.qsb_data	= ipa_qsb_data,
 	.endpoint_count	= ARRAY_SIZE(ipa_gsi_endpoint_data),
 	.endpoint_data	= ipa_gsi_endpoint_data,
 	.resource_data	= &ipa_resource_data,
