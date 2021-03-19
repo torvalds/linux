@@ -16,6 +16,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/sof.h>
 #include <sound/rt5682.h>
 #include <sound/soc-acpi.h>
 #include "../../codecs/rt1015.h"
@@ -268,10 +269,21 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		clk_id = RT5682_PLL1_S_MCLK;
-		if (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ)
+
+		/* get the tplg configured mclk. */
+		clk_freq = sof_dai_get_mclk(rtd);
+
+		/* mclk from the quirk is the first choice */
+		if (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ) {
+			if (clk_freq != 24000000)
+				dev_warn(rtd->dev, "configure wrong mclk in tplg, please use 24MHz.\n");
 			clk_freq = 24000000;
-		else
+		} else if (clk_freq == 0) {
+			/* use default mclk if not specified correct in topology */
 			clk_freq = 19200000;
+		} else if (clk_freq < 0) {
+			return clk_freq;
+		}
 	} else {
 		clk_id = RT5682_PLL1_S_BCLK1;
 		clk_freq = params_rate(params) * 50;
