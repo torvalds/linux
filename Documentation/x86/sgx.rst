@@ -234,3 +234,19 @@ As a result, when this happpens, user should stop running any new
 SGX workloads, (or just any new workloads), and migrate all valuable
 workloads. Although a machine reboot can recover all EPC memory, the bug
 should be reported to Linux developers.
+
+
+Virtual EPC
+===========
+
+The implementation has also a virtual EPC driver to support SGX enclaves
+in guests. Unlike the SGX driver, an EPC page allocated by the virtual
+EPC driver doesn't have a specific enclave associated with it. This is
+because KVM doesn't track how a guest uses EPC pages.
+
+As a result, the SGX core page reclaimer doesn't support reclaiming EPC
+pages allocated to KVM guests through the virtual EPC driver. If the
+user wants to deploy SGX applications both on the host and in guests
+on the same machine, the user should reserve enough EPC (by taking out
+total virtual EPC size of all SGX VMs from the physical EPC size) for
+host SGX applications so they can run with acceptable performance.
