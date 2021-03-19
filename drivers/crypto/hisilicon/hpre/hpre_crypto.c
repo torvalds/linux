@@ -546,7 +546,6 @@ static int hpre_send(struct hpre_ctx *ctx, struct hpre_sqe *msg)
 	return ret;
 }
 
-#ifdef CONFIG_CRYPTO_DH
 static int hpre_dh_compute_value(struct kpp_request *req)
 {
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
@@ -719,7 +718,6 @@ static void hpre_dh_exit_tfm(struct crypto_kpp *tfm)
 
 	hpre_dh_clear_ctx(ctx, true);
 }
-#endif
 
 static void hpre_rsa_drop_leading_zeros(const char **ptr, size_t *len)
 {
@@ -1893,7 +1891,6 @@ static struct akcipher_alg rsa = {
 	},
 };
 
-#ifdef CONFIG_CRYPTO_DH
 static struct kpp_alg dh = {
 	.set_secret = hpre_dh_set_secret,
 	.generate_public_key = hpre_dh_compute_value,
@@ -1910,7 +1907,6 @@ static struct kpp_alg dh = {
 		.cra_module = THIS_MODULE,
 	},
 };
-#endif
 
 static struct kpp_alg ecdh_nist_p192 = {
 	.set_secret = hpre_ecdh_set_secret,
@@ -1995,13 +1991,12 @@ int hpre_algs_register(struct hisi_qm *qm)
 	ret = crypto_register_akcipher(&rsa);
 	if (ret)
 		return ret;
-#ifdef CONFIG_CRYPTO_DH
+
 	ret = crypto_register_kpp(&dh);
 	if (ret) {
 		crypto_unregister_akcipher(&rsa);
 		return ret;
 	}
-#endif
 
 	if (qm->ver >= QM_HW_V3) {
 		ret = hpre_register_ecdh();
@@ -2016,9 +2011,7 @@ int hpre_algs_register(struct hisi_qm *qm)
 	return 0;
 
 reg_err:
-#ifdef CONFIG_CRYPTO_DH
 	crypto_unregister_kpp(&dh);
-#endif
 	crypto_unregister_akcipher(&rsa);
 	return ret;
 }
@@ -2030,8 +2023,6 @@ void hpre_algs_unregister(struct hisi_qm *qm)
 		hpre_unregister_ecdh();
 	}
 
-#ifdef CONFIG_CRYPTO_DH
 	crypto_unregister_kpp(&dh);
-#endif
 	crypto_unregister_akcipher(&rsa);
 }
