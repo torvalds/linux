@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * Transmit and frame generation functions.
  */
@@ -1388,8 +1388,17 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 	ieee80211_set_skb_enqueue_time(skb);
 
 	spin_lock_bh(&fq->lock);
-	fq_tin_enqueue(fq, tin, flow_idx, skb,
-		       fq_skb_free_func);
+	/*
+	 * For management frames, don't really apply codel etc.,
+	 * we don't want to apply any shaping or anything we just
+	 * want to simplify the driver API by having them on the
+	 * txqi.
+	 */
+	if (unlikely(txqi->txq.tid == IEEE80211_NUM_TIDS))
+		__skb_queue_tail(&txqi->frags, skb);
+	else
+		fq_tin_enqueue(fq, tin, flow_idx, skb,
+			       fq_skb_free_func);
 	spin_unlock_bh(&fq->lock);
 }
 
@@ -3833,6 +3842,9 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 		return true;
 
 	if (!txq->sta)
+		return true;
+
+	if (unlikely(txq->tid == IEEE80211_NUM_TIDS))
 		return true;
 
 	sta = container_of(txq->sta, struct sta_info, sta);
