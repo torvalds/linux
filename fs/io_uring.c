@@ -8846,10 +8846,7 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 	}
 }
 
-/*
- * Note that this task has used io_uring. We use it for cancelation purposes.
- */
-static int io_uring_add_task_file(struct io_ring_ctx *ctx)
+static int __io_uring_add_task_file(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	struct io_tctx_node *node;
@@ -8861,30 +8858,38 @@ static int io_uring_add_task_file(struct io_ring_ctx *ctx)
 			return ret;
 		tctx = current->io_uring;
 	}
-	if (tctx->last != ctx) {
-		void *old = xa_load(&tctx->xa, (unsigned long)ctx);
+	if (!xa_load(&tctx->xa, (unsigned long)ctx)) {
+		node = kmalloc(sizeof(*node), GFP_KERNEL);
+		if (!node)
+			return -ENOMEM;
+		node->ctx = ctx;
+		node->task = current;
 
-		if (!old) {
-			node = kmalloc(sizeof(*node), GFP_KERNEL);
-			if (!node)
-				return -ENOMEM;
-			node->ctx = ctx;
-			node->task = current;
-
-			ret = xa_err(xa_store(&tctx->xa, (unsigned long)ctx,
-						node, GFP_KERNEL));
-			if (ret) {
-				kfree(node);
-				return ret;
-			}
-
-			mutex_lock(&ctx->uring_lock);
-			list_add(&node->ctx_node, &ctx->tctx_list);
-			mutex_unlock(&ctx->uring_lock);
+		ret = xa_err(xa_store(&tctx->xa, (unsigned long)ctx,
+					node, GFP_KERNEL));
+		if (ret) {
+			kfree(node);
+			return ret;
 		}
-		tctx->last = ctx;
+
+		mutex_lock(&ctx->uring_lock);
+		list_add(&node->ctx_node, &ctx->tctx_list);
+		mutex_unlock(&ctx->uring_lock);
 	}
+	tctx->last = ctx;
 	return 0;
+}
+
+/*
+ * Note that this task has used io_uring. We use it for cancelation purposes.
+ */
+static inline int io_uring_add_task_file(struct io_ring_ctx *ctx)
+{
+	struct io_uring_task *tctx = current->io_uring;
+
+	if (likely(tctx && tctx->last == ctx))
+		return 0;
+	return __io_uring_add_task_file(ctx);
 }
 
 /*
