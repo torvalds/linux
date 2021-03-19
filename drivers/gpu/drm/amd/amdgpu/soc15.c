@@ -76,7 +76,6 @@
 #include "smuio_v13_0.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
-#include "amdgpu_smu.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
 #include <uapi/linux/kfd_ioctl.h>
