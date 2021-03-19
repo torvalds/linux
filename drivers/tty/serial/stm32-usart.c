@@ -1536,8 +1536,6 @@ static int __maybe_unused stm32_usart_serial_suspend(struct device *dev)
 
 	if (device_may_wakeup(dev) || device_wakeup_path(dev))
 		stm32_usart_serial_en_wakeup(port, true);
-	else
-		stm32_usart_serial_en_wakeup(port, false);
 
 	/*
 	 * When "no_console_suspend" is enabled, keep the pinctrl default state
