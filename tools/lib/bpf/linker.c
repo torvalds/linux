@@ -1313,6 +1313,9 @@ static int linker_fixup_btf(struct src_obj *obj)
 	struct src_sec *sec;
 	int i, j, n, m;
 
+	if (!obj->btf)
+		return 0;
+
 	n = btf__get_nr_types(obj->btf);
 	for (i = 1; i <= n; i++) {
 		struct btf_var_secinfo *vi;
