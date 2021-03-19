@@ -189,7 +189,7 @@ VFAT MOUNT OPTIONS
 **discard**
 	If set, issues discard/TRIM commands to the block
 	device when blocks are freed. This is useful for SSD devices
-	and sparse/thinly-provisoned LUNs.
+	and sparse/thinly-provisioned LUNs.
 
 **nfs=stale_rw|nostale_ro**
 	Enable this only if you want to export the FAT filesystem
