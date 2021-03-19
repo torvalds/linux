@@ -3,6 +3,8 @@
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
  */
 
+#include <linux/bitfield.h>
+#include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -10,6 +12,77 @@
 #include <dt-bindings/memory/tegra20-mc.h>
 
 #include "mc.h"
+
+#define MC_STAT_CONTROL				0x90
+#define MC_STAT_EMC_CLOCK_LIMIT			0xa0
+#define MC_STAT_EMC_CLOCKS			0xa4
+#define MC_STAT_EMC_CONTROL_0			0xa8
+#define MC_STAT_EMC_CONTROL_1			0xac
+#define MC_STAT_EMC_COUNT_0			0xb8
+#define MC_STAT_EMC_COUNT_1			0xbc
+
+#define MC_STAT_CONTROL_CLIENT_ID		GENMASK(13,  8)
+#define MC_STAT_CONTROL_EVENT			GENMASK(23, 16)
+#define MC_STAT_CONTROL_PRI_EVENT		GENMASK(25, 24)
+#define MC_STAT_CONTROL_FILTER_CLIENT_ENABLE	GENMASK(26, 26)
+#define MC_STAT_CONTROL_FILTER_PRI		GENMASK(29, 28)
+
+#define MC_STAT_CONTROL_PRI_EVENT_HP		0
+#define MC_STAT_CONTROL_PRI_EVENT_TM		1
+#define MC_STAT_CONTROL_PRI_EVENT_BW		2
+
+#define MC_STAT_CONTROL_FILTER_PRI_DISABLE	0
+#define MC_STAT_CONTROL_FILTER_PRI_NO		1
+#define MC_STAT_CONTROL_FILTER_PRI_YES		2
+
+#define MC_STAT_CONTROL_EVENT_QUALIFIED		0
+#define MC_STAT_CONTROL_EVENT_ANY_READ		1
+#define MC_STAT_CONTROL_EVENT_ANY_WRITE		2
+#define MC_STAT_CONTROL_EVENT_RD_WR_CHANGE	3
+#define MC_STAT_CONTROL_EVENT_SUCCESSIVE	4
+#define MC_STAT_CONTROL_EVENT_ARB_BANK_AA	5
+#define MC_STAT_CONTROL_EVENT_ARB_BANK_BB	6
+#define MC_STAT_CONTROL_EVENT_PAGE_MISS		7
+#define MC_STAT_CONTROL_EVENT_AUTO_PRECHARGE	8
+
+#define EMC_GATHER_RST				(0 << 8)
+#define EMC_GATHER_CLEAR			(1 << 8)
+#define EMC_GATHER_DISABLE			(2 << 8)
+#define EMC_GATHER_ENABLE			(3 << 8)
+
+#define MC_STAT_SAMPLE_TIME_USEC		16000
+
+/* we store collected statistics as a fixed point values */
+#define MC_FX_FRAC_SCALE			100
+
+struct tegra20_mc_stat_gather {
+	unsigned int pri_filter;
+	unsigned int pri_event;
+	unsigned int result;
+	unsigned int client;
+	unsigned int event;
+	bool client_enb;
+};
+
+struct tegra20_mc_stat {
+	struct tegra20_mc_stat_gather gather0;
+	struct tegra20_mc_stat_gather gather1;
+	unsigned int sample_time_usec;
+	const struct tegra_mc *mc;
+};
+
+struct tegra20_mc_client_stat {
+	unsigned int events;
+	unsigned int arb_high_prio;
+	unsigned int arb_timeout;
+	unsigned int arb_bandwidth;
+	unsigned int rd_wr_change;
+	unsigned int successive;
+	unsigned int page_miss;
+	unsigned int auto_precharge;
+	unsigned int arb_bank_aa;
+	unsigned int arb_bank_bb;
+};
 
 static const struct tegra_mc_client tegra20_mc_clients[] = {
 	{
@@ -356,6 +429,258 @@ static const struct tegra_mc_icc_ops tegra20_mc_icc_ops = {
 	.set = tegra20_mc_icc_set,
 };
 
+static u32 tegra20_mc_stat_gather_control(const struct tegra20_mc_stat_gather *g)
+{
+	u32 control;
+
+	control  = FIELD_PREP(MC_STAT_CONTROL_EVENT, g->event);
+	control |= FIELD_PREP(MC_STAT_CONTROL_CLIENT_ID, g->client);
+	control |= FIELD_PREP(MC_STAT_CONTROL_PRI_EVENT, g->pri_event);
+	control |= FIELD_PREP(MC_STAT_CONTROL_FILTER_PRI, g->pri_filter);
+	control |= FIELD_PREP(MC_STAT_CONTROL_FILTER_CLIENT_ENABLE, g->client_enb);
+
+	return control;
+}
+
+static void tegra20_mc_stat_gather(struct tegra20_mc_stat *stat)
+{
+	u32 clocks, count0, count1, control_0, control_1;
+	const struct tegra_mc *mc = stat->mc;
+
+	control_0 = tegra20_mc_stat_gather_control(&stat->gather0);
+	control_1 = tegra20_mc_stat_gather_control(&stat->gather1);
+
+	/*
+	 * Reset statistic gathers state, select bandwidth mode for the
+	 * statistics collection mode and set clocks counter saturation
+	 * limit to maximum.
+	 */
+	mc_writel(mc, 0x00000000, MC_STAT_CONTROL);
+	mc_writel(mc,  control_0, MC_STAT_EMC_CONTROL_0);
+	mc_writel(mc,  control_1, MC_STAT_EMC_CONTROL_1);
+	mc_writel(mc, 0xffffffff, MC_STAT_EMC_CLOCK_LIMIT);
+
+	mc_writel(mc, EMC_GATHER_ENABLE, MC_STAT_CONTROL);
+	fsleep(stat->sample_time_usec);
+	mc_writel(mc, EMC_GATHER_DISABLE, MC_STAT_CONTROL);
+
+	count0 = mc_readl(mc, MC_STAT_EMC_COUNT_0);
+	count1 = mc_readl(mc, MC_STAT_EMC_COUNT_1);
+	clocks = mc_readl(mc, MC_STAT_EMC_CLOCKS);
+	clocks = max(clocks / 100 / MC_FX_FRAC_SCALE, 1u);
+
+	stat->gather0.result = DIV_ROUND_UP(count0, clocks);
+	stat->gather1.result = DIV_ROUND_UP(count1, clocks);
+}
+
+static void tegra20_mc_stat_events(const struct tegra_mc *mc,
+				   const struct tegra_mc_client *client0,
+				   const struct tegra_mc_client *client1,
+				   unsigned int pri_filter,
+				   unsigned int pri_event,
+				   unsigned int event,
+				   unsigned int *result0,
+				   unsigned int *result1)
+{
+	struct tegra20_mc_stat stat = {};
+
+	stat.gather0.client = client0 ? client0->id : 0;
+	stat.gather0.pri_filter = pri_filter;
+	stat.gather0.client_enb = !!client0;
+	stat.gather0.pri_event = pri_event;
+	stat.gather0.event = event;
+
+	stat.gather1.client = client1 ? client1->id : 0;
+	stat.gather1.pri_filter = pri_filter;
+	stat.gather1.client_enb = !!client1;
+	stat.gather1.pri_event = pri_event;
+	stat.gather1.event = event;
+
+	stat.sample_time_usec = MC_STAT_SAMPLE_TIME_USEC;
+	stat.mc = mc;
+
+	tegra20_mc_stat_gather(&stat);
+
+	*result0 = stat.gather0.result;
+	*result1 = stat.gather1.result;
+}
+
+static void tegra20_mc_collect_stats(const struct tegra_mc *mc,
+				     struct tegra20_mc_client_stat *stats)
+{
+	const struct tegra_mc_client *client0, *client1;
+	unsigned int i;
+
+	/* collect memory controller utilization percent for each client */
+	for (i = 0; i < mc->soc->num_clients; i += 2) {
+		client0 = &mc->soc->clients[i];
+		client1 = &mc->soc->clients[i + 1];
+
+		if (i + 1 == mc->soc->num_clients)
+			client1 = NULL;
+
+		tegra20_mc_stat_events(mc, client0, client1,
+				       MC_STAT_CONTROL_FILTER_PRI_DISABLE,
+				       MC_STAT_CONTROL_PRI_EVENT_HP,
+				       MC_STAT_CONTROL_EVENT_QUALIFIED,
+				       &stats[i + 0].events,
+				       &stats[i + 1].events);
+	}
+
+	/* collect more info from active clients */
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		unsigned int clienta, clientb = mc->soc->num_clients;
+
+		for (client0 = NULL; i < mc->soc->num_clients; i++) {
+			if (stats[i].events) {
+				client0 = &mc->soc->clients[i];
+				clienta = i++;
+				break;
+			}
+		}
+
+		for (client1 = NULL; i < mc->soc->num_clients; i++) {
+			if (stats[i].events) {
+				client1 = &mc->soc->clients[i];
+				clientb = i;
+				break;
+			}
+		}
+
+		if (!client0 && !client1)
+			break;
+
+		tegra20_mc_stat_events(mc, client0, client1,
+				       MC_STAT_CONTROL_FILTER_PRI_YES,
+				       MC_STAT_CONTROL_PRI_EVENT_HP,
+				       MC_STAT_CONTROL_EVENT_QUALIFIED,
+				       &stats[clienta].arb_high_prio,
+				       &stats[clientb].arb_high_prio);
+
+		tegra20_mc_stat_events(mc, client0, client1,
+				       MC_STAT_CONTROL_FILTER_PRI_YES,
+				       MC_STAT_CONTROL_PRI_EVENT_TM,
+				       MC_STAT_CONTROL_EVENT_QUALIFIED,
+				       &stats[clienta].arb_timeout,
+				       &stats[clientb].arb_timeout);
+
+		tegra20_mc_stat_events(mc, client0, client1,
+				       MC_STAT_CONTROL_FILTER_PRI_YES,
+				       MC_STAT_CONTROL_PRI_EVENT_BW,
+				       MC_STAT_CONTROL_EVENT_QUALIFIED,
+				       &stats[clienta].arb_bandwidth,
+				       &stats[clientb].arb_bandwidth);
+
+		tegra20_mc_stat_events(mc, client0, client1,
+				       MC_STAT_CONTROL_FILTER_PRI_DISABLE,
+				       MC_STAT_CONTROL_PRI_EVENT_HP,
+				       MC_STAT_CONTROL_EVENT_RD_WR_CHANGE,
+				       &stats[clienta].rd_wr_change,
+				       &stats[clientb].rd_wr_change);
+
+		tegra20_mc_stat_events(mc, client0, client1,
+				       MC_STAT_CONTROL_FILTER_PRI_DISABLE,
+				       MC_STAT_CONTROL_PRI_EVENT_HP,
+				       MC_STAT_CONTROL_EVENT_SUCCESSIVE,
+				       &stats[clienta].successive,
+				       &stats[clientb].successive);
+
+		tegra20_mc_stat_events(mc, client0, client1,
+				       MC_STAT_CONTROL_FILTER_PRI_DISABLE,
+				       MC_STAT_CONTROL_PRI_EVENT_HP,
+				       MC_STAT_CONTROL_EVENT_PAGE_MISS,
+				       &stats[clienta].page_miss,
+				       &stats[clientb].page_miss);
+	}
+}
+
+static void tegra20_mc_printf_percents(struct seq_file *s,
+				       const char *fmt,
+				       unsigned int percents_fx)
+{
+	char percents_str[8];
+
+	snprintf(percents_str, ARRAY_SIZE(percents_str), "%3u.%02u%%",
+		 percents_fx / MC_FX_FRAC_SCALE, percents_fx % MC_FX_FRAC_SCALE);
+
+	seq_printf(s, fmt, percents_str);
+}
+
+static int tegra20_mc_stats_show(struct seq_file *s, void *unused)
+{
+	const struct tegra_mc *mc = dev_get_drvdata(s->private);
+	struct tegra20_mc_client_stat *stats;
+	unsigned int i;
+
+	stats = kcalloc(mc->soc->num_clients + 1, sizeof(*stats), GFP_KERNEL);
+	if (!stats)
+		return -ENOMEM;
+
+	tegra20_mc_collect_stats(mc, stats);
+
+	seq_puts(s, "Memory client   Events   Timeout   High priority   Bandwidth ARB   RW change   Successive   Page miss\n");
+	seq_puts(s, "-----------------------------------------------------------------------------------------------------\n");
+
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		seq_printf(s, "%-14s  ", mc->soc->clients[i].name);
+
+		/* An event is generated when client performs R/W request. */
+		tegra20_mc_printf_percents(s,  "%-9s", stats[i].events);
+
+		/*
+		 * An event is generated based on the timeout (TM) signal
+		 * accompanying a request for arbitration.
+		 */
+		tegra20_mc_printf_percents(s, "%-10s", stats[i].arb_timeout);
+
+		/*
+		 * An event is generated based on the high-priority (HP) signal
+		 * accompanying a request for arbitration.
+		 */
+		tegra20_mc_printf_percents(s, "%-16s", stats[i].arb_high_prio);
+
+		/*
+		 * An event is generated based on the bandwidth (BW) signal
+		 * accompanying a request for arbitration.
+		 */
+		tegra20_mc_printf_percents(s, "%-16s", stats[i].arb_bandwidth);
+
+		/*
+		 * An event is generated when the memory controller switches
+		 * between making a read request to making a write request.
+		 */
+		tegra20_mc_printf_percents(s, "%-12s", stats[i].rd_wr_change);
+
+		/*
+		 * An even generated when the chosen client has wins arbitration
+		 * when it was also the winner at the previous request.  If a
+		 * client makes N requests in a row that are honored, SUCCESSIVE
+		 * will be counted (N-1) times.  Large values for this event
+		 * imply that if we were patient enough, all of those requests
+		 * could have been coalesced.
+		 */
+		tegra20_mc_printf_percents(s, "%-13s", stats[i].successive);
+
+		/*
+		 * An event is generated when the memory controller detects a
+		 * page miss for the current request.
+		 */
+		tegra20_mc_printf_percents(s, "%-12s\n", stats[i].page_miss);
+	}
+
+	kfree(stats);
+
+	return 0;
+}
+
+static int tegra20_mc_init(struct tegra_mc *mc)
+{
+	debugfs_create_devm_seqfile(mc->dev, "stats", mc->debugfs.root,
+				    tegra20_mc_stats_show);
+
+	return 0;
+}
+
 const struct tegra_mc_soc tegra20_mc_soc = {
 	.clients = tegra20_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra20_mc_clients),
@@ -367,4 +692,5 @@ const struct tegra_mc_soc tegra20_mc_soc = {
 	.resets = tegra20_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra20_mc_resets),
 	.icc_ops = &tegra20_mc_icc_ops,
+	.init = tegra20_mc_init,
 };
