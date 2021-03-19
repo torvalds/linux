@@ -12,6 +12,7 @@
 #include <nvhe/early_alloc.h>
 #include <nvhe/gfp.h>
 #include <nvhe/memory.h>
+#include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
 #include <nvhe/trap_handler.h>
 
@@ -154,6 +155,10 @@ void __noreturn __pkvm_init_finalise(void)
 	nr_pages = hyp_s1_pgtable_pages();
 	reserved_pages = hyp_early_alloc_nr_used_pages();
 	ret = hyp_pool_init(&hpool, pfn, nr_pages, reserved_pages);
+	if (ret)
+		goto out;
+
+	ret = kvm_host_prepare_stage2(host_s2_mem_pgt_base, host_s2_dev_pgt_base);
 	if (ret)
 		goto out;
 

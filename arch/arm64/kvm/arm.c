@@ -1894,12 +1894,22 @@ out_err:
 	return err;
 }
 
+void _kvm_host_prot_finalize(void *discard)
+{
+	WARN_ON(kvm_call_hyp_nvhe(__pkvm_prot_finalize));
+}
+
 static int finalize_hyp_mode(void)
 {
 	if (!is_protected_kvm_enabled())
 		return 0;
 
+	/*
+	 * Flip the static key upfront as that may no longer be possible
+	 * once the host stage 2 is installed.
+	 */
 	static_branch_enable(&kvm_protected_mode_initialized);
+	on_each_cpu(_kvm_host_prot_finalize, NULL, 1);
 
 	return 0;
 }
