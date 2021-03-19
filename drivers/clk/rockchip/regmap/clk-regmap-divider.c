@@ -47,6 +47,20 @@ clk_regmap_divider_round_rate(struct clk_hw *hw, unsigned long rate,
 				  CLK_DIVIDER_ROUND_CLOSEST);
 }
 
+static int div_round_closest(unsigned long parent_rate, unsigned long rate)
+{
+	int up, down;
+	unsigned long up_rate, down_rate;
+
+	up = DIV_ROUND_UP_ULL((u64)parent_rate, rate);
+	down = parent_rate / rate;
+
+	up_rate = DIV_ROUND_UP_ULL((u64)parent_rate, up);
+	down_rate = DIV_ROUND_UP_ULL((u64)parent_rate, down);
+
+	return (rate - up_rate) <= (down_rate - rate) ? up : down;
+}
+
 static int
 clk_regmap_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 			    unsigned long parent_rate)
@@ -54,14 +68,13 @@ clk_regmap_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_regmap_divider *divider = to_clk_regmap_divider(hw);
 	u32 val, div;
 
-	div = divider_get_val(rate, parent_rate, NULL, divider->width,
-			      CLK_DIVIDER_ROUND_CLOSEST);
+	div = div_round_closest(parent_rate, rate);
 
 	dev_dbg(divider->dev, "%s: parent_rate=%ld, div=%d, rate=%ld\n",
 		clk_hw_get_name(hw), parent_rate, div, rate);
 
 	val = div_mask(divider->width) << (divider->shift + 16);
-	val |= div << divider->shift;
+	val |= (div - 1) << divider->shift;
 
 	return regmap_write(divider->regmap, divider->reg, val);
 }
