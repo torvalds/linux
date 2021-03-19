@@ -4977,7 +4977,9 @@ static void io_init_poll_iocb(struct io_poll_iocb *poll, __poll_t events,
 	poll->head = NULL;
 	poll->done = false;
 	poll->canceled = false;
-	poll->events = events;
+#define IO_POLL_UNMASK	(EPOLLERR|EPOLLHUP|EPOLLNVAL|EPOLLRDHUP)
+	/* mask in events that we always want/need */
+	poll->events = events | IO_POLL_UNMASK;
 	INIT_LIST_HEAD(&poll->wait.entry);
 	init_waitqueue_func_entry(&poll->wait, wake_func);
 }
@@ -5339,8 +5341,7 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 #ifdef __BIG_ENDIAN
 	events = swahw32(events);
 #endif
-	poll->events = demangle_poll(events) | EPOLLERR | EPOLLHUP |
-		       (events & EPOLLEXCLUSIVE);
+	poll->events = demangle_poll(events) | (events & EPOLLEXCLUSIVE);
 	return 0;
 }
 
