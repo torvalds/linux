@@ -24,16 +24,6 @@
 #ifndef __GFX_V9_4_H__
 #define __GFX_V9_4_H__
 
-void gfx_v9_4_clear_ras_edc_counter(struct amdgpu_device *adev);
-
-int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
-				   void *ras_error_status);
-
-int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev,
-				     void *inject_if);
-
-void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev);
-
-void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev);
+extern const struct amdgpu_gfx_ras_funcs gfx_v9_4_ras_funcs;
 
 #endif /* __GFX_V9_4_H__ */

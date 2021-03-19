@@ -792,11 +792,13 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 		}
 		break;
 	case AMDGPU_RAS_BLOCK__GFX:
-		if (adev->gfx.funcs->query_ras_error_count)
-			adev->gfx.funcs->query_ras_error_count(adev, &err_data);
+		if (adev->gfx.ras_funcs &&
+		    adev->gfx.ras_funcs->query_ras_error_count)
+			adev->gfx.ras_funcs->query_ras_error_count(adev, &err_data);
 
-		if (adev->gfx.funcs->query_ras_error_status)
-			adev->gfx.funcs->query_ras_error_status(adev);
+		if (adev->gfx.ras_funcs &&
+		    adev->gfx.ras_funcs->query_ras_error_status)
+			adev->gfx.ras_funcs->query_ras_error_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__MMHUB:
 		if (adev->mmhub.ras_funcs &&
@@ -852,11 +854,13 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 
 	switch (block) {
 	case AMDGPU_RAS_BLOCK__GFX:
-		if (adev->gfx.funcs->reset_ras_error_count)
-			adev->gfx.funcs->reset_ras_error_count(adev);
+		if (adev->gfx.ras_funcs &&
+		    adev->gfx.ras_funcs->reset_ras_error_count)
+			adev->gfx.ras_funcs->reset_ras_error_count(adev);
 
-		if (adev->gfx.funcs->reset_ras_error_status)
-			adev->gfx.funcs->reset_ras_error_status(adev);
+		if (adev->gfx.ras_funcs &&
+		    adev->gfx.ras_funcs->reset_ras_error_status)
+			adev->gfx.ras_funcs->reset_ras_error_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__MMHUB:
 		if (adev->mmhub.ras_funcs &&
@@ -926,8 +930,9 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 
 	switch (info->head.block) {
 	case AMDGPU_RAS_BLOCK__GFX:
-		if (adev->gfx.funcs->ras_error_inject)
-			ret = adev->gfx.funcs->ras_error_inject(adev, info);
+		if (adev->gfx.ras_funcs &&
+		    adev->gfx.ras_funcs->ras_error_inject)
+			ret = adev->gfx.ras_funcs->ras_error_inject(adev, info);
 		else
 			ret = -EINVAL;
 		break;
@@ -1514,8 +1519,9 @@ static void amdgpu_ras_error_status_query(struct amdgpu_device *adev,
 	 */
 	switch (info->head.block) {
 	case AMDGPU_RAS_BLOCK__GFX:
-		if (adev->gfx.funcs->query_ras_error_status)
-			adev->gfx.funcs->query_ras_error_status(adev);
+		if (adev->gfx.ras_funcs &&
+		    adev->gfx.ras_funcs->query_ras_error_status)
+			adev->gfx.ras_funcs->query_ras_error_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__MMHUB:
 		if (adev->mmhub.ras_funcs &&
