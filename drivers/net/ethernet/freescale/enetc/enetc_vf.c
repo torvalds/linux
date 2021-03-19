@@ -223,6 +223,7 @@ static void enetc_vf_remove(struct pci_dev *pdev)
 	enetc_free_msix(priv);
 
 	enetc_free_si_resources(priv);
+	enetc_teardown_cbdr(&si->cbd_ring);
 
 	free_netdev(si->ndev);
 
