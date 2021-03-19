@@ -575,7 +575,7 @@ void chip_allow_sleep(struct wilc *wilc)
 		to_host_from_fw_bit = WILC_SPI_FW_TO_HOST_BIT;
 	}
 
-	while (trials--) {
+	while (--trials) {
 		ret = hif_func->hif_read_reg(wilc, to_host_from_fw_reg, &reg);
 		if (ret)
 			return;
