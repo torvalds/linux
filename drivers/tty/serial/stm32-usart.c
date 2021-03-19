@@ -924,7 +924,7 @@ static void stm32_usart_set_termios(struct uart_port *port,
 	}
 
 	/* Configure wake up from low power on start bit detection */
-	if (stm32_port->wakeirq > 0) {
+	if (stm32_port->wakeup_src) {
 		cr3 &= ~USART_CR3_WUS_MASK;
 		cr3 |= USART_CR3_WUS_START_BIT;
 	}
@@ -1044,11 +1044,8 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 	if (ret)
 		return ret;
 
-	if (stm32port->info->cfg.has_wakeup) {
-		stm32port->wakeirq = platform_get_irq_optional(pdev, 1);
-		if (stm32port->wakeirq <= 0 && stm32port->wakeirq != -ENXIO)
-			return stm32port->wakeirq ? : -ENODEV;
-	}
+	stm32port->wakeup_src = stm32port->info->cfg.has_wakeup &&
+		of_property_read_bool(pdev->dev.of_node, "wakeup-source");
 
 	stm32port->fifoen = stm32port->info->cfg.has_fifo;
 
@@ -1283,17 +1280,11 @@ static int stm32_usart_serial_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (stm32port->wakeirq > 0) {
-		ret = device_init_wakeup(&pdev->dev, true);
-		if (ret)
-			goto err_uninit;
-
-		ret = dev_pm_set_dedicated_wake_irq(&pdev->dev,
-						    stm32port->wakeirq);
+	if (stm32port->wakeup_src) {
+		device_set_wakeup_capable(&pdev->dev, true);
+		ret = dev_pm_set_wake_irq(&pdev->dev, stm32port->port.irq);
 		if (ret)
 			goto err_nowup;
-
-		device_set_wakeup_enable(&pdev->dev, false);
 	}
 
 	ret = stm32_usart_of_dma_rx_probe(stm32port, pdev);
@@ -1343,14 +1334,13 @@ err_port:
 				  TX_BUF_L, stm32port->tx_buf,
 				  stm32port->tx_dma_buf);
 
-	if (stm32port->wakeirq > 0)
+	if (stm32port->wakeup_src)
 		dev_pm_clear_wake_irq(&pdev->dev);
 
 err_nowup:
-	if (stm32port->wakeirq > 0)
-		device_init_wakeup(&pdev->dev, false);
+	if (stm32port->wakeup_src)
+		device_set_wakeup_capable(&pdev->dev, false);
 
-err_uninit:
 	stm32_usart_deinit_port(stm32port);
 
 	return ret;
@@ -1396,7 +1386,7 @@ static int stm32_usart_serial_remove(struct platform_device *pdev)
 				  TX_BUF_L, stm32_port->tx_buf,
 				  stm32_port->tx_dma_buf);
 
-	if (stm32_port->wakeirq > 0) {
+	if (stm32_port->wakeup_src) {
 		dev_pm_clear_wake_irq(&pdev->dev);
 		device_init_wakeup(&pdev->dev, false);
 	}
@@ -1512,7 +1502,7 @@ static void __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 
-	if (stm32_port->wakeirq <= 0)
+	if (!stm32_port->wakeup_src)
 		return;
 
 	/*
