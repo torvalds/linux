@@ -400,6 +400,8 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	     (!early || c->opts.read_only)))
 		return -EROFS;
 
+	bch_info(c, "going read-write");
+
 	ret = bch2_fs_mark_dirty(c);
 	if (ret)
 		goto err;
