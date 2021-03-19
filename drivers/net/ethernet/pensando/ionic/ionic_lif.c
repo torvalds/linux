@@ -120,17 +120,31 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	if (!test_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state))
 		return;
 
+	/* Don't put carrier back up if we're in a broken state */
+	if (test_bit(IONIC_LIF_F_BROKEN, lif->state)) {
+		clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
+		return;
+	}
+
 	link_status = le16_to_cpu(lif->info->status.link_status);
 	link_up = link_status == IONIC_PORT_OPER_STATUS_UP;
 
 	if (link_up) {
+		int err = 0;
+
 		if (netdev->flags & IFF_UP && netif_running(netdev)) {
 			mutex_lock(&lif->queue_lock);
-			ionic_start_queues(lif);
+			err = ionic_start_queues(lif);
+			if (err) {
+				netdev_err(lif->netdev,
+					   "Failed to start queues: %d\n", err);
+				set_bit(IONIC_LIF_F_BROKEN, lif->state);
+				netif_carrier_off(lif->netdev);
+			}
 			mutex_unlock(&lif->queue_lock);
 		}
 
-		if (!netif_carrier_ok(netdev)) {
+		if (!err && !netif_carrier_ok(netdev)) {
 			ionic_port_identify(lif->ionic);
 			netdev_info(netdev, "Link up - %d Gbps\n",
 				    le32_to_cpu(lif->info->status.link_speed) / 1000);
@@ -1836,6 +1850,9 @@ static int ionic_start_queues(struct ionic_lif *lif)
 {
 	int err;
 
+	if (test_bit(IONIC_LIF_F_BROKEN, lif->state))
+		return -EIO;
+
 	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 		return -EBUSY;
 
@@ -1856,6 +1873,10 @@ static int ionic_open(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	int err;
+
+	/* If recovering from a broken state, clear the bit and we'll try again */
+	if (test_and_clear_bit(IONIC_LIF_F_BROKEN, lif->state))
+		netdev_info(netdev, "clearing broken state\n");
 
 	err = ionic_txrx_alloc(lif);
 	if (err)
