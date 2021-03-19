@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 /*  Copyright(c) 2016-20 Intel Corporation. */
 
+#include <linux/file.h>
 #include <linux/freezer.h>
 #include <linux/highmem.h>
 #include <linux/kthread.h>
+#include <linux/miscdevice.h>
 #include <linux/pagemap.h>
 #include <linux/ratelimit.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
+#include <asm/sgx.h>
 #include "driver.h"
 #include "encl.h"
 #include "encls.h"
@@ -743,6 +746,51 @@ void sgx_update_lepubkeyhash(u64 *lepubkeyhash)
 		wrmsrl(MSR_IA32_SGXLEPUBKEYHASH0 + i, lepubkeyhash[i]);
 }
 
+const struct file_operations sgx_provision_fops = {
+	.owner			= THIS_MODULE,
+};
+
+static struct miscdevice sgx_dev_provision = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "sgx_provision",
+	.nodename = "sgx_provision",
+	.fops = &sgx_provision_fops,
+};
+
+/**
+ * sgx_set_attribute() - Update allowed attributes given file descriptor
+ * @allowed_attributes:		Pointer to allowed enclave attributes
+ * @attribute_fd:		File descriptor for specific attribute
+ *
+ * Append enclave attribute indicated by file descriptor to allowed
+ * attributes. Currently only SGX_ATTR_PROVISIONKEY indicated by
+ * /dev/sgx_provision is supported.
+ *
+ * Return:
+ * -0:		SGX_ATTR_PROVISIONKEY is appended to allowed_attributes
+ * -EINVAL:	Invalid, or not supported file descriptor
+ */
+int sgx_set_attribute(unsigned long *allowed_attributes,
+		      unsigned int attribute_fd)
+{
+	struct file *file;
+
+	file = fget(attribute_fd);
+	if (!file)
+		return -EINVAL;
+
+	if (file->f_op != &sgx_provision_fops) {
+		fput(file);
+		return -EINVAL;
+	}
+
+	*allowed_attributes |= SGX_ATTR_PROVISIONKEY;
+
+	fput(file);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sgx_set_attribute);
+
 static int __init sgx_init(void)
 {
 	int ret;
@@ -759,6 +807,10 @@ static int __init sgx_init(void)
 		goto err_page_cache;
 	}
 
+	ret = misc_register(&sgx_dev_provision);
+	if (ret)
+		goto err_kthread;
+
 	/*
 	 * Always try to initialize the native *and* KVM drivers.
 	 * The KVM driver is less picky than the native one and
@@ -770,9 +822,12 @@ static int __init sgx_init(void)
 	ret = sgx_drv_init();
 
 	if (sgx_vepc_init() && ret)
-		goto err_kthread;
+		goto err_provision;
 
 	return 0;
+
+err_provision:
+	misc_deregister(&sgx_dev_provision);
 
 err_kthread:
 	kthread_stop(ksgxd_tsk);
