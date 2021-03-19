@@ -245,7 +245,7 @@ static inline bool trap_norestart(struct pt_regs *regs)
 	return regs->trap & 0x10;
 }
 
-static inline void set_trap_norestart(struct pt_regs *regs)
+static __always_inline void set_trap_norestart(struct pt_regs *regs)
 {
 	regs->trap |= 0x10;
 }
