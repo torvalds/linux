@@ -220,6 +220,9 @@ static void cros_typec_remove_partner(struct cros_typec_data *typec,
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 
+	if (!port->partner)
+		return;
+
 	cros_typec_unregister_altmodes(typec, port_num, true);
 
 	cros_typec_usb_disconnect_state(port);
@@ -234,6 +237,9 @@ static void cros_typec_remove_cable(struct cros_typec_data *typec,
 				    int port_num)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
+
+	if (!port->cable)
+		return;
 
 	cros_typec_unregister_altmodes(typec, port_num, false);
 
@@ -253,11 +259,8 @@ static void cros_unregister_ports(struct cros_typec_data *typec)
 		if (!typec->ports[i])
 			continue;
 
-		if (typec->ports[i]->partner)
-			cros_typec_remove_partner(typec, i);
-
-		if (typec->ports[i]->cable)
-			cros_typec_remove_cable(typec, i);
+		cros_typec_remove_partner(typec, i);
+		cros_typec_remove_cable(typec, i);
 
 		usb_role_switch_put(typec->ports[i]->role_sw);
 		typec_switch_put(typec->ports[i]->ori_sw);
@@ -647,11 +650,8 @@ static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 				 "Failed to register partner on port: %d\n",
 				 port_num);
 	} else {
-		if (typec->ports[port_num]->partner)
-			cros_typec_remove_partner(typec, port_num);
-
-		if (typec->ports[port_num]->cable)
-			cros_typec_remove_cable(typec, port_num);
+		cros_typec_remove_partner(typec, port_num);
+		cros_typec_remove_cable(typec, port_num);
 	}
 }
 
