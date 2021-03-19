@@ -183,15 +183,13 @@ void init_shadow_spine(struct shadow_spine *s, struct dm_btree_info *info)
 	s->count = 0;
 }
 
-int exit_shadow_spine(struct shadow_spine *s)
+void exit_shadow_spine(struct shadow_spine *s)
 {
-	int r = 0, i;
+	int i;
 
 	for (i = 0; i < s->count; i++) {
 		unlock_block(s->info, s->nodes[i]);
 	}
-
-	return r;
 }
 
 int shadow_step(struct shadow_spine *s, dm_block_t b,
