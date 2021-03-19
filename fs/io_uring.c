@@ -2166,7 +2166,7 @@ static void io_submit_flush_completions(struct io_comp_state *cs,
  * Drop reference to request, return next in chain (if there is one) if this
  * was the last reference to this request.
  */
-static struct io_kiocb *io_put_req_find_next(struct io_kiocb *req)
+static inline struct io_kiocb *io_put_req_find_next(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt = NULL;
 
@@ -2177,7 +2177,7 @@ static struct io_kiocb *io_put_req_find_next(struct io_kiocb *req)
 	return nxt;
 }
 
-static void io_put_req(struct io_kiocb *req)
+static inline void io_put_req(struct io_kiocb *req)
 {
 	if (req_ref_put_and_test(req))
 		io_free_req(req);
