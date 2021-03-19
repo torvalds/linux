@@ -14,8 +14,7 @@ mlx5_esw_get_port_parent_id(struct mlx5_core_dev *dev, struct netdev_phys_item_i
 	memcpy(ppid->id, &parent_id, sizeof(parent_id));
 }
 
-static bool
-mlx5_esw_devlink_port_supported(const struct mlx5_eswitch *esw, u16 vport_num)
+static bool mlx5_esw_devlink_port_supported(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	return vport_num == MLX5_VPORT_UPLINK ||
 	       (mlx5_core_is_ecpf(esw->dev) && vport_num == MLX5_VPORT_PF) ||

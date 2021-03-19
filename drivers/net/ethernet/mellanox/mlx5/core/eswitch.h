@@ -176,6 +176,7 @@ struct mlx5_vport {
 	u16 vport;
 	bool                    enabled;
 	enum mlx5_eswitch_vport_event enabled_events;
+	int index;
 	struct devlink_port *dl_port;
 };
 
@@ -228,7 +229,7 @@ struct mlx5_esw_offload {
 
 	struct mlx5_flow_table *ft_offloads;
 	struct mlx5_flow_group *vport_rx_group;
-	struct mlx5_eswitch_rep *vport_reps;
+	struct xarray vport_reps;
 	struct list_head peer_flows;
 	struct mutex peer_mutex;
 	struct mutex encap_tbl_lock; /* protects encap_tbl */
@@ -278,7 +279,7 @@ struct mlx5_eswitch {
 	struct esw_mc_addr mc_promisc;
 	/* end of legacy */
 	struct workqueue_struct *work_queue;
-	struct mlx5_vport       *vports;
+	struct xarray vports;
 	u32 flags;
 	int                     total_vports;
 	int                     enabled_vports;
@@ -545,100 +546,9 @@ static inline u16 mlx5_eswitch_first_host_vport_num(struct mlx5_core_dev *dev)
 		MLX5_VPORT_PF : MLX5_VPORT_FIRST_VF;
 }
 
-#define MLX5_VPORT_PF_PLACEHOLDER		(1u)
-#define MLX5_VPORT_UPLINK_PLACEHOLDER		(1u)
-#define MLX5_VPORT_ECPF_PLACEHOLDER(mdev)	(mlx5_ecpf_vport_exists(mdev))
-
-#define MLX5_SPECIAL_VPORTS(mdev) (MLX5_VPORT_PF_PLACEHOLDER +		\
-				   MLX5_VPORT_UPLINK_PLACEHOLDER +	\
-				   MLX5_VPORT_ECPF_PLACEHOLDER(mdev))
-
-static inline int mlx5_esw_sf_start_idx(const struct mlx5_eswitch *esw)
-{
-	/* PF and VF vports indices start from 0 to max_vfs */
-	return MLX5_VPORT_PF_PLACEHOLDER + mlx5_core_max_vfs(esw->dev);
-}
-
-static inline int mlx5_esw_sf_end_idx(const struct mlx5_eswitch *esw)
-{
-	return mlx5_esw_sf_start_idx(esw) + mlx5_sf_max_functions(esw->dev);
-}
-
-static inline int
-mlx5_esw_sf_vport_num_to_index(const struct mlx5_eswitch *esw, u16 vport_num)
-{
-	return vport_num - mlx5_sf_start_function_id(esw->dev) +
-	       MLX5_VPORT_PF_PLACEHOLDER + mlx5_core_max_vfs(esw->dev);
-}
-
-static inline u16
-mlx5_esw_sf_vport_index_to_num(const struct mlx5_eswitch *esw, int idx)
-{
-	return mlx5_sf_start_function_id(esw->dev) + idx -
-	       (MLX5_VPORT_PF_PLACEHOLDER + mlx5_core_max_vfs(esw->dev));
-}
-
-static inline bool
-mlx5_esw_is_sf_vport(const struct mlx5_eswitch *esw, u16 vport_num)
-{
-	return mlx5_sf_supported(esw->dev) &&
-	       vport_num >= mlx5_sf_start_function_id(esw->dev) &&
-	       (vport_num < (mlx5_sf_start_function_id(esw->dev) +
-			     mlx5_sf_max_functions(esw->dev)));
-}
-
 static inline bool mlx5_eswitch_is_funcs_handler(const struct mlx5_core_dev *dev)
 {
 	return mlx5_core_is_ecpf_esw_manager(dev);
-}
-
-static inline int mlx5_eswitch_uplink_idx(struct mlx5_eswitch *esw)
-{
-	/* Uplink always locate at the last element of the array.*/
-	return esw->total_vports - 1;
-}
-
-static inline int mlx5_eswitch_ecpf_idx(struct mlx5_eswitch *esw)
-{
-	return esw->total_vports - 2;
-}
-
-static inline int mlx5_eswitch_vport_num_to_index(struct mlx5_eswitch *esw,
-						  u16 vport_num)
-{
-	if (vport_num == MLX5_VPORT_ECPF) {
-		if (!mlx5_ecpf_vport_exists(esw->dev))
-			esw_warn(esw->dev, "ECPF vport doesn't exist!\n");
-		return mlx5_eswitch_ecpf_idx(esw);
-	}
-
-	if (vport_num == MLX5_VPORT_UPLINK)
-		return mlx5_eswitch_uplink_idx(esw);
-
-	if (mlx5_esw_is_sf_vport(esw, vport_num))
-		return mlx5_esw_sf_vport_num_to_index(esw, vport_num);
-
-	/* PF and VF vports start from 0 to max_vfs */
-	return vport_num;
-}
-
-static inline u16 mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
-						  int index)
-{
-	if (index == mlx5_eswitch_ecpf_idx(esw) &&
-	    mlx5_ecpf_vport_exists(esw->dev))
-		return MLX5_VPORT_ECPF;
-
-	if (index == mlx5_eswitch_uplink_idx(esw))
-		return MLX5_VPORT_UPLINK;
-
-	/* SF vports indices are after VFs and before ECPF */
-	if (mlx5_sf_supported(esw->dev) &&
-	    index > mlx5_core_max_vfs(esw->dev))
-		return mlx5_esw_sf_vport_index_to_num(esw, index);
-
-	/* PF and VF vports start from 0 to max_vfs */
-	return index;
 }
 
 static inline unsigned int
@@ -657,82 +567,42 @@ mlx5_esw_devlink_port_index_to_vport_num(unsigned int dl_port_index)
 /* TODO: This mlx5e_tc function shouldn't be called by eswitch */
 void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 
-/* The vport getter/iterator are only valid after esw->total_vports
- * and vport->vport are initialized in mlx5_eswitch_init.
+/* Each mark identifies eswitch vport type.
+ * MLX5_ESW_VPT_HOST_FN is used to identify both PF and VF ports using
+ * a single mark.
+ * MLX5_ESW_VPT_VF identifies a SRIOV VF vport.
+ * MLX5_ESW_VPT_SF identifies SF vport.
  */
-#define mlx5_esw_for_all_vports(esw, i, vport)		\
-	for ((i) = MLX5_VPORT_PF;			\
-	     (vport) = &(esw)->vports[i],		\
-	     (i) < (esw)->total_vports; (i)++)
+#define MLX5_ESW_VPT_HOST_FN XA_MARK_0
+#define MLX5_ESW_VPT_VF XA_MARK_1
+#define MLX5_ESW_VPT_SF XA_MARK_2
 
-#define mlx5_esw_for_all_vports_reverse(esw, i, vport)	\
-	for ((i) = (esw)->total_vports - 1;		\
-	     (vport) = &(esw)->vports[i],		\
-	     (i) >= MLX5_VPORT_PF; (i)--)
-
-#define mlx5_esw_for_each_vf_vport(esw, i, vport, nvfs)	\
-	for ((i) = MLX5_VPORT_FIRST_VF;			\
-	     (vport) = &(esw)->vports[(i)],		\
-	     (i) <= (nvfs); (i)++)
-
-#define mlx5_esw_for_each_vf_vport_reverse(esw, i, vport, nvfs)	\
-	for ((i) = (nvfs);					\
-	     (vport) = &(esw)->vports[(i)],			\
-	     (i) >= MLX5_VPORT_FIRST_VF; (i)--)
-
-/* The rep getter/iterator are only valid after esw->total_vports
- * and vport->vport are initialized in mlx5_eswitch_init.
+/* The vport iterator is valid only after vport are initialized in mlx5_eswitch_init.
+ * Borrowed the idea from xa_for_each_marked() but with support for desired last element.
  */
-#define mlx5_esw_for_all_reps(esw, i, rep)			\
-	for ((i) = MLX5_VPORT_PF;				\
-	     (rep) = &(esw)->offloads.vport_reps[i],		\
-	     (i) < (esw)->total_vports; (i)++)
 
-#define mlx5_esw_for_each_vf_rep(esw, i, rep, nvfs)		\
-	for ((i) = MLX5_VPORT_FIRST_VF;				\
-	     (rep) = &(esw)->offloads.vport_reps[i],		\
-	     (i) <= (nvfs); (i)++)
+#define mlx5_esw_for_each_vport(esw, index, vport) \
+	xa_for_each(&((esw)->vports), index, vport)
 
-#define mlx5_esw_for_each_vf_rep_reverse(esw, i, rep, nvfs)	\
-	for ((i) = (nvfs);					\
-	     (rep) = &(esw)->offloads.vport_reps[i],		\
-	     (i) >= MLX5_VPORT_FIRST_VF; (i)--)
+#define mlx5_esw_for_each_entry_marked(xa, index, entry, last, filter)	\
+	for (index = 0, entry = xa_find(xa, &index, last, filter); \
+	     entry; entry = xa_find_after(xa, &index, last, filter))
 
-#define mlx5_esw_for_each_vf_vport_num(esw, vport, nvfs)	\
-	for ((vport) = MLX5_VPORT_FIRST_VF; (vport) <= (nvfs); (vport)++)
+#define mlx5_esw_for_each_vport_marked(esw, index, vport, last, filter)	\
+	mlx5_esw_for_each_entry_marked(&((esw)->vports), index, vport, last, filter)
 
-#define mlx5_esw_for_each_vf_vport_num_reverse(esw, vport, nvfs)	\
-	for ((vport) = (nvfs); (vport) >= MLX5_VPORT_FIRST_VF; (vport)--)
+#define mlx5_esw_for_each_vf_vport(esw, index, vport, last)	\
+	mlx5_esw_for_each_vport_marked(esw, index, vport, last, MLX5_ESW_VPT_VF)
 
-/* Includes host PF (vport 0) if it's not esw manager. */
-#define mlx5_esw_for_each_host_func_rep(esw, i, rep, nvfs)	\
-	for ((i) = (esw)->first_host_vport;			\
-	     (rep) = &(esw)->offloads.vport_reps[i],		\
-	     (i) <= (nvfs); (i)++)
-
-#define mlx5_esw_for_each_host_func_rep_reverse(esw, i, rep, nvfs)	\
-	for ((i) = (nvfs);						\
-	     (rep) = &(esw)->offloads.vport_reps[i],			\
-	     (i) >= (esw)->first_host_vport; (i)--)
-
-#define mlx5_esw_for_each_host_func_vport(esw, vport, nvfs)	\
-	for ((vport) = (esw)->first_host_vport;			\
-	     (vport) <= (nvfs); (vport)++)
-
-#define mlx5_esw_for_each_host_func_vport_reverse(esw, vport, nvfs)	\
-	for ((vport) = (nvfs);						\
-	     (vport) >= (esw)->first_host_vport; (vport)--)
-
-#define mlx5_esw_for_each_sf_rep(esw, i, rep)		\
-	for ((i) = mlx5_esw_sf_start_idx(esw);		\
-	     (rep) = &(esw)->offloads.vport_reps[(i)],	\
-	     (i) < mlx5_esw_sf_end_idx(esw); (i++))
+#define mlx5_esw_for_each_host_func_vport(esw, index, vport, last)	\
+	mlx5_esw_for_each_vport_marked(esw, index, vport, last, MLX5_ESW_VPT_HOST_FN)
 
 struct mlx5_eswitch *mlx5_devlink_eswitch_get(struct devlink *devlink);
 struct mlx5_vport *__must_check
 mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num);
 
-bool mlx5_eswitch_is_vf_vport(const struct mlx5_eswitch *esw, u16 vport_num);
+bool mlx5_eswitch_is_vf_vport(struct mlx5_eswitch *esw, u16 vport_num);
+bool mlx5_esw_is_sf_vport(struct mlx5_eswitch *esw, u16 vport_num);
 
 int mlx5_esw_funcs_changed_handler(struct notifier_block *nb, unsigned long type, void *data);
 
