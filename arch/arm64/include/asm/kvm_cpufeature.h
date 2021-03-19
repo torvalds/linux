@@ -20,5 +20,7 @@
 #endif
 
 DECLARE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_ctrel0);
+DECLARE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_id_aa64mmfr0_el1);
+DECLARE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_id_aa64mmfr1_el1);
 
 #endif
