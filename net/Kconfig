@@ -245,6 +245,14 @@ source "net/l3mdev/Kconfig"
 source "net/qrtr/Kconfig"
 source "net/ncsi/Kconfig"
 
+config PCPU_DEV_REFCNT
+	bool "Use percpu variables to maintain network device refcount"
+	depends on SMP
+	default y
+	help
+	  network device refcount are using per cpu variables if this option is set.
+	  This can be forced to N to detect underflows (with a performance drop).
+
 config RPS
 	bool
 	depends on SMP && SYSFS

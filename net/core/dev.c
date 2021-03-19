@@ -10312,11 +10312,15 @@ EXPORT_SYMBOL(register_netdev);
 
 int netdev_refcnt_read(const struct net_device *dev)
 {
+#ifdef CONFIG_PCPU_DEV_REFCNT
 	int i, refcnt = 0;
 
 	for_each_possible_cpu(i)
 		refcnt += *per_cpu_ptr(dev->pcpu_refcnt, i);
 	return refcnt;
+#else
+	return refcount_read(&dev->dev_refcnt);
+#endif
 }
 EXPORT_SYMBOL(netdev_refcnt_read);
 
@@ -10674,9 +10678,11 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	dev = PTR_ALIGN(p, NETDEV_ALIGN);
 	dev->padded = (char *)dev - (char *)p;
 
+#ifdef CONFIG_PCPU_DEV_REFCNT
 	dev->pcpu_refcnt = alloc_percpu(int);
 	if (!dev->pcpu_refcnt)
 		goto free_dev;
+#endif
 
 	if (dev_addr_init(dev))
 		goto free_pcpu;
@@ -10740,8 +10746,10 @@ free_all:
 	return NULL;
 
 free_pcpu:
+#ifdef CONFIG_PCPU_DEV_REFCNT
 	free_percpu(dev->pcpu_refcnt);
 free_dev:
+#endif
 	netdev_freemem(dev);
 	return NULL;
 }
@@ -10783,8 +10791,10 @@ void free_netdev(struct net_device *dev)
 	list_for_each_entry_safe(p, n, &dev->napi_list, dev_list)
 		netif_napi_del(p);
 
+#ifdef CONFIG_PCPU_DEV_REFCNT
 	free_percpu(dev->pcpu_refcnt);
 	dev->pcpu_refcnt = NULL;
+#endif
 	free_percpu(dev->xdp_bulkq);
 	dev->xdp_bulkq = NULL;
 
