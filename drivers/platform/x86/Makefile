@@ -24,6 +24,9 @@ obj-$(CONFIG_ACER_WMI)		+= acer-wmi.o
 # AMD
 obj-$(CONFIG_AMD_PMC)		+= amd-pmc.o
 
+# Advantech
+obj-$(CONFIG_ADV_SWBUTTON)	+= adv_swbutton.o
+
 # Apple
 obj-$(CONFIG_APPLE_GMUX)	+= apple-gmux.o
 

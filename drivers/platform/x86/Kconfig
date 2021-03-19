@@ -193,6 +193,17 @@ config AMD_PMC
 	  If you choose to compile this driver as a module the module will be
 	  called amd-pmc.
 
+config ADV_SWBUTTON
+	tristate "Advantech ACPI Software Button Driver"
+	depends on ACPI && INPUT
+	help
+	  Say Y here to enable support for Advantech software defined
+	  button feature. More information can be found at
+	  <http://www.advantech.com.tw/products/>
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called adv_swbutton.
+
 config APPLE_GMUX
 	tristate "Apple Gmux Driver"
 	depends on ACPI && PCI
