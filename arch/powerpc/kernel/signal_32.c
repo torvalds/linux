@@ -607,8 +607,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	 * TFHAR is restored from the checkpointed NIP; TEXASR and TFIAR
 	 * were set by the signal delivery.
 	 */
-	err = restore_general_regs(regs, tm_sr);
-	err |= restore_general_regs(&current->thread.ckpt_regs, sr);
+	err = restore_general_regs(&current->thread.ckpt_regs, sr);
 
 	err |= __get_user(current->thread.tm_tfhar, &sr->mc_gregs[PT_NIP]);
 
@@ -624,9 +623,6 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	if (msr & MSR_VEC) {
 		/* restore altivec registers from the stack */
 		if (__copy_from_user(&current->thread.ckvr_state, &sr->mc_vregs,
-				     sizeof(sr->mc_vregs)) ||
-		    __copy_from_user(&current->thread.vr_state,
-				     &tm_sr->mc_vregs,
 				     sizeof(sr->mc_vregs)))
 			return 1;
 		current->thread.used_vr = true;
@@ -639,9 +635,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 
 	/* Always get VRSAVE back */
 	if (__get_user(current->thread.ckvrsave,
-		       (u32 __user *)&sr->mc_vregs[32]) ||
-	    __get_user(current->thread.vrsave,
-		       (u32 __user *)&tm_sr->mc_vregs[32]))
+		       (u32 __user *)&sr->mc_vregs[32]))
 		return 1;
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		mtspr(SPRN_VRSAVE, current->thread.ckvrsave);
@@ -649,8 +643,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 
 	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
 
-	if (copy_fpr_from_user(current, &sr->mc_fregs) ||
-	    copy_ckfpr_from_user(current, &tm_sr->mc_fregs))
+	if (copy_fpr_from_user(current, &sr->mc_fregs))
 		return 1;
 
 #ifdef CONFIG_VSX
@@ -660,8 +653,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		 * Restore altivec registers from the stack to a local
 		 * buffer, then write this out to the thread_struct
 		 */
-		if (copy_vsx_from_user(current, &tm_sr->mc_vsregs) ||
-		    copy_ckvsx_from_user(current, &sr->mc_vsregs))
+		if (copy_ckvsx_from_user(current, &sr->mc_vsregs))
 			return 1;
 		current->thread.used_vsr = true;
 	} else if (current->thread.used_vsr)
@@ -689,6 +681,39 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		       + ELF_NEVRREG))
 		return 1;
 #endif /* CONFIG_SPE */
+
+	err = restore_general_regs(regs, tm_sr);
+	if (err)
+		return 1;
+
+#ifdef CONFIG_ALTIVEC
+	/* restore altivec registers from the stack */
+	if (msr & MSR_VEC)
+		if (__copy_from_user(&current->thread.vr_state,
+				     &tm_sr->mc_vregs,
+				     sizeof(sr->mc_vregs)))
+			return 1;
+
+	/* Always get VRSAVE back */
+	if (__get_user(current->thread.vrsave,
+		       (u32 __user *)&tm_sr->mc_vregs[32]))
+		return 1;
+#endif /* CONFIG_ALTIVEC */
+
+	if (copy_ckfpr_from_user(current, &tm_sr->mc_fregs))
+		return 1;
+
+#ifdef CONFIG_VSX
+	if (msr & MSR_VSX) {
+		/*
+		 * Restore altivec registers from the stack to a local
+		 * buffer, then write this out to the thread_struct
+		 */
+		if (copy_vsx_from_user(current, &tm_sr->mc_vsregs))
+			return 1;
+		current->thread.used_vsr = true;
+	}
+#endif /* CONFIG_VSX */
 
 	/* Get the top half of the MSR from the user context */
 	if (__get_user(msr_hi, &tm_sr->mc_gregs[PT_MSR]))
