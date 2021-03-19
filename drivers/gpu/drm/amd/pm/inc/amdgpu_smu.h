@@ -1271,16 +1271,6 @@ int smu_get_fan_speed_percent(void *handle, u32 *speed);
 int smu_set_fan_speed_percent(void *handle, u32 speed);
 int smu_get_fan_speed_rpm(void *handle, uint32_t *speed);
 
-int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk);
-
-int smu_get_clock_by_type_with_latency(struct smu_context *smu,
-				       enum smu_clk_type clk_type,
-				       struct pp_clock_levels_with_latency *clocks);
-
-int smu_display_clock_voltage_request(struct smu_context *smu,
-				      struct pp_display_clock_request *clock_req);
-int smu_display_disable_memory_clock_switch(struct smu_context *smu, bool disable_memory_clock_switch);
-
 int smu_set_xgmi_pstate(void *handle,
 			uint32_t pstate);
 
@@ -1315,14 +1305,8 @@ int smu_sys_set_pp_table(void *handle, const char *buf, size_t size);
 int smu_get_power_num_states(void *handle, struct pp_states_info *state_info);
 enum amd_pm_state_type smu_get_current_power_state(void *handle);
 int smu_write_watermarks_table(struct smu_context *smu);
-int smu_set_watermarks_for_clock_ranges(
-		struct smu_context *smu,
-		struct pp_smu_wm_range_sets *clock_ranges);
 
 /* smu to display interface */
-extern int smu_display_configuration_change(struct smu_context *smu, const
-					    struct amd_pp_display_configuration
-					    *display_config);
 extern int smu_dpm_set_power_gate(void *handle, uint32_t block_type, bool gate);
 extern int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
@@ -1342,7 +1326,6 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
 enum amd_dpm_forced_level smu_get_performance_level(void *handle);
 int smu_force_performance_level(void *handle, enum amd_dpm_forced_level level);
-int smu_set_display_count(struct smu_context *smu, uint32_t count);
 int smu_set_ac_dc(struct smu_context *smu);
 int smu_sys_get_pp_feature_mask(void *handle, char *buf);
 int smu_sys_set_pp_feature_mask(void *handle, uint64_t new_mask);
@@ -1352,16 +1335,6 @@ int smu_set_mp1_state(void *handle,
 int smu_set_df_cstate(void *handle,
 		      enum pp_df_cstate state);
 int smu_allow_xgmi_power_down(struct smu_context *smu, bool en);
-
-int smu_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
-					 struct pp_smu_nv_clock_table *max_clocks);
-
-int smu_get_uclk_dpm_states(struct smu_context *smu,
-			    unsigned int *clock_values_in_khz,
-			    unsigned int *num_states);
-
-int smu_get_dpm_clock_table(struct smu_context *smu,
-			    struct dpm_clocks *clock_table);
 
 int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 

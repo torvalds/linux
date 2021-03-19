@@ -1519,9 +1519,10 @@ static int smu_resume(void *handle)
 	return 0;
 }
 
-int smu_display_configuration_change(struct smu_context *smu,
+int smu_display_configuration_change(void *handle,
 				     const struct amd_pp_display_configuration *display_config)
 {
+	struct smu_context *smu = handle;
 	int index = 0;
 	int num_of_active_display = 0;
 
@@ -1816,8 +1817,9 @@ int smu_force_performance_level(void *handle, enum amd_dpm_forced_level level)
 	return ret;
 }
 
-int smu_set_display_count(struct smu_context *smu, uint32_t count)
+int smu_set_display_count(void *handle, uint32_t count)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -1984,9 +1986,10 @@ int smu_write_watermarks_table(struct smu_context *smu)
 	return ret;
 }
 
-int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
-		struct pp_smu_wm_range_sets *clock_ranges)
+int smu_set_watermarks_for_clock_ranges(void *handle,
+					struct pp_smu_wm_range_sets *clock_ranges)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2519,8 +2522,9 @@ int smu_get_fan_speed_rpm(void *handle, uint32_t *speed)
 	return ret;
 }
 
-int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk)
+int smu_set_deep_sleep_dcefclk(void *handle, uint32_t clk)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2535,10 +2539,12 @@ int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk)
 	return ret;
 }
 
-int smu_get_clock_by_type_with_latency(struct smu_context *smu,
-				       enum smu_clk_type clk_type,
+int smu_get_clock_by_type_with_latency(void *handle,
+				       enum amd_pp_clock_type type,
 				       struct pp_clock_levels_with_latency *clocks)
 {
+	struct smu_context *smu = handle;
+	enum smu_clk_type clk_type;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2546,17 +2552,38 @@ int smu_get_clock_by_type_with_latency(struct smu_context *smu,
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_clock_by_type_with_latency)
+	if (smu->ppt_funcs->get_clock_by_type_with_latency) {
+		switch (type) {
+		case amd_pp_sys_clock:
+			clk_type = SMU_GFXCLK;
+			break;
+		case amd_pp_mem_clock:
+			clk_type = SMU_MCLK;
+			break;
+		case amd_pp_dcef_clock:
+			clk_type = SMU_DCEFCLK;
+			break;
+		case amd_pp_disp_clock:
+			clk_type = SMU_DISPCLK;
+			break;
+		default:
+			dev_err(smu->adev->dev, "Invalid clock type!\n");
+			mutex_unlock(&smu->mutex);
+			return -EINVAL;
+		}
+
 		ret = smu->ppt_funcs->get_clock_by_type_with_latency(smu, clk_type, clocks);
+	}
 
 	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
 
-int smu_display_clock_voltage_request(struct smu_context *smu,
+int smu_display_clock_voltage_request(void *handle,
 				      struct pp_display_clock_request *clock_req)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2573,8 +2600,10 @@ int smu_display_clock_voltage_request(struct smu_context *smu,
 }
 
 
-int smu_display_disable_memory_clock_switch(struct smu_context *smu, bool disable_memory_clock_switch)
+int smu_display_disable_memory_clock_switch(void *handle,
+					    bool disable_memory_clock_switch)
 {
+	struct smu_context *smu = handle;
 	int ret = -EINVAL;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2833,9 +2862,10 @@ int smu_mode2_reset(void *handle)
 	return ret;
 }
 
-int smu_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
+int smu_get_max_sustainable_clocks_by_dc(void *handle,
 					 struct pp_smu_nv_clock_table *max_clocks)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2851,10 +2881,11 @@ int smu_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
 	return ret;
 }
 
-int smu_get_uclk_dpm_states(struct smu_context *smu,
+int smu_get_uclk_dpm_states(void *handle,
 			    unsigned int *clock_values_in_khz,
 			    unsigned int *num_states)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2888,9 +2919,10 @@ enum amd_pm_state_type smu_get_current_power_state(void *handle)
 	return pm_state;
 }
 
-int smu_get_dpm_clock_table(struct smu_context *smu,
+int smu_get_dpm_clock_table(void *handle,
 			    struct dpm_clocks *clock_table)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -3007,4 +3039,14 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_power_profile_mode  = smu_get_power_profile_mode,
 	.force_clock_level       = smu_force_ppclk_levels,
 	.print_clock_levels      = smu_print_ppclk_levels,
+	.get_uclk_dpm_states     = smu_get_uclk_dpm_states,
+	.get_dpm_clock_table     = smu_get_dpm_clock_table,
+	.display_configuration_change        = smu_display_configuration_change,
+	.get_clock_by_type_with_latency      = smu_get_clock_by_type_with_latency,
+	.display_clock_voltage_request       = smu_display_clock_voltage_request,
+	.set_active_display_count            = smu_set_display_count,
+	.set_min_deep_sleep_dcefclk          = smu_set_deep_sleep_dcefclk,
+	.set_watermarks_for_clock_ranges     = smu_set_watermarks_for_clock_ranges,
+	.display_disable_memory_clock_switch = smu_display_disable_memory_clock_switch,
+	.get_max_sustainable_clocks_by_dc    = smu_get_max_sustainable_clocks_by_dc,
 };
