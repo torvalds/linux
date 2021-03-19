@@ -110,7 +110,7 @@ static ssize_t ddr_perf_identifier_show(struct device *dev,
 {
 	struct ddr_pmu *pmu = dev_get_drvdata(dev);
 
-	return sprintf(page, "%s\n", pmu->devtype_data->identifier);
+	return sysfs_emit(page, "%s\n", pmu->devtype_data->identifier);
 }
 
 static umode_t ddr_perf_identifier_attr_visible(struct kobject *kobj,
@@ -219,7 +219,7 @@ ddr_pmu_event_show(struct device *dev, struct device_attribute *attr,
 	struct perf_pmu_events_attr *pmu_attr;
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
-	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+	return sysfs_emit(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
 #define IMX8_DDR_PMU_EVENT_ATTR(_name, _id)				\
