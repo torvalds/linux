@@ -994,6 +994,9 @@ static int fsl_sai_check_version(struct device *dev)
 	return 0;
 }
 
+static int fsl_sai_runtime_suspend(struct device *dev);
+static int fsl_sai_runtime_resume(struct device *dev);
+
 static int fsl_sai_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1026,24 +1029,21 @@ static int fsl_sai_probe(struct platform_device *pdev)
 			ARRAY_SIZE(fsl_sai_reg_defaults_ofs8);
 	}
 
-	sai->regmap = devm_regmap_init_mmio_clk(&pdev->dev,
-			"bus", base, &fsl_sai_regmap_config);
-
-	/* Compatible with old DTB cases */
-	if (IS_ERR(sai->regmap) && PTR_ERR(sai->regmap) != -EPROBE_DEFER)
-		sai->regmap = devm_regmap_init_mmio_clk(&pdev->dev,
-				"sai", base, &fsl_sai_regmap_config);
+	sai->regmap = devm_regmap_init_mmio(&pdev->dev, base, &fsl_sai_regmap_config);
 	if (IS_ERR(sai->regmap)) {
 		dev_err(&pdev->dev, "regmap init failed\n");
 		return PTR_ERR(sai->regmap);
 	}
 
-	/* No error out for old DTB cases but only mark the clock NULL */
 	sai->bus_clk = devm_clk_get(&pdev->dev, "bus");
+	/* Compatible with old DTB cases */
+	if (IS_ERR(sai->bus_clk) && PTR_ERR(sai->bus_clk) != -EPROBE_DEFER)
+		sai->bus_clk = devm_clk_get(&pdev->dev, "sai");
 	if (IS_ERR(sai->bus_clk)) {
 		dev_err(&pdev->dev, "failed to get bus clock: %ld\n",
 				PTR_ERR(sai->bus_clk));
-		sai->bus_clk = NULL;
+		/* -EPROBE_DEFER */
+		return PTR_ERR(sai->bus_clk);
 	}
 
 	for (i = 1; i < FSL_SAI_MCLK_MAX; i++) {
@@ -1124,6 +1124,18 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	sai->dma_params_tx.maxburst = FSL_SAI_MAXBURST_TX;
 
 	platform_set_drvdata(pdev, sai);
+	pm_runtime_enable(&pdev->dev);
+	if (!pm_runtime_enabled(&pdev->dev)) {
+		ret = fsl_sai_runtime_resume(&pdev->dev);
+		if (ret)
+			goto err_pm_disable;
+	}
+
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(&pdev->dev);
+		goto err_pm_get_sync;
+	}
 
 	/* Get sai version */
 	ret = fsl_sai_check_version(&pdev->dev);
@@ -1137,26 +1149,30 @@ static int fsl_sai_probe(struct platform_device *pdev)
 				   FSL_SAI_MCTL_MCLK_EN, FSL_SAI_MCTL_MCLK_EN);
 	}
 
-	pm_runtime_enable(&pdev->dev);
-	regcache_cache_only(sai->regmap, true);
+	ret = pm_runtime_put_sync(&pdev->dev);
+	if (ret < 0)
+		goto err_pm_get_sync;
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &fsl_component,
 					      &sai->cpu_dai_drv, 1);
 	if (ret)
-		goto err_pm_disable;
+		goto err_pm_get_sync;
 
 	if (sai->soc_data->use_imx_pcm) {
 		ret = imx_pcm_dma_init(pdev, IMX_SAI_DMABUF_SIZE);
 		if (ret)
-			goto err_pm_disable;
+			goto err_pm_get_sync;
 	} else {
 		ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 		if (ret)
-			goto err_pm_disable;
+			goto err_pm_get_sync;
 	}
 
 	return ret;
 
+err_pm_get_sync:
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		fsl_sai_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 
@@ -1166,6 +1182,8 @@ err_pm_disable:
 static int fsl_sai_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		fsl_sai_runtime_suspend(&pdev->dev);
 
 	return 0;
 }
@@ -1226,7 +1244,6 @@ static const struct of_device_id fsl_sai_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_sai_ids);
 
-#ifdef CONFIG_PM
 static int fsl_sai_runtime_suspend(struct device *dev)
 {
 	struct fsl_sai *sai = dev_get_drvdata(dev);
@@ -1299,7 +1316,6 @@ disable_bus_clk:
 
 	return ret;
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops fsl_sai_pm_ops = {
 	SET_RUNTIME_PM_OPS(fsl_sai_runtime_suspend,
