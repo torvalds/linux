@@ -1362,6 +1362,12 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 	u16 crc, reg;
 	int ret;
 
+	ret = vsc8584_pll5g_reset(phydev);
+	if (ret < 0) {
+		dev_err(dev, "failed LCPLL reset, ret: %d\n", ret);
+		return ret;
+	}
+
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
 
 	/* all writes below are broadcasted to all PHYs in the same package */
