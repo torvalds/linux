@@ -543,8 +543,8 @@ static void hinic_get_drvinfo(struct net_device *netdev,
 	struct hinic_hwif *hwif = hwdev->hwif;
 	int err;
 
-	strlcpy(info->driver, HINIC_DRV_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, pci_name(hwif->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, HINIC_DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(hwif->pdev), sizeof(info->bus_info));
 
 	err = hinic_get_mgmt_version(nic_dev, mgmt_ver);
 	if (err)
