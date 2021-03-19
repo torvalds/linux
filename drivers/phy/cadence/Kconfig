@@ -25,6 +25,7 @@ config PHY_CADENCE_DPHY
 config PHY_CADENCE_SIERRA
 	tristate "Cadence Sierra PHY Driver"
 	depends on OF && HAS_IOMEM && RESET_CONTROLLER
+	depends on COMMON_CLK
 	select GENERIC_PHY
 	help
 	  Enable this to support the Cadence Sierra PHY driver
