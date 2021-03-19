@@ -1911,7 +1911,8 @@ static int hdcp2_authenticate_and_encrypt(struct intel_connector *connector)
 		}
 	}
 
-	ret = hdcp2_enable_stream_encryption(connector);
+	if (!ret)
+		ret = hdcp2_enable_stream_encryption(connector);
 
 	return ret;
 }
