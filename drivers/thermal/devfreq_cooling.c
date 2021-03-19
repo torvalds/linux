@@ -402,7 +402,7 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 	if (err < 0)
 		goto free_table;
 
-	cdev = ERR_PTR(-ENOMEM);
+	err = -ENOMEM;
 	name = kasprintf(GFP_KERNEL, "devfreq-%s", dev_name(dev));
 	if (!name)
 		goto remove_qos_req;
