@@ -454,9 +454,16 @@ static void hpre_alg_cb(struct hisi_qp *qp, void *resp)
 	req->cb(ctx, resp);
 }
 
+static void hpre_stop_qp_and_put(struct hisi_qp *qp)
+{
+	hisi_qm_stop_qp(qp);
+	hisi_qm_free_qps(&qp, 1);
+}
+
 static int hpre_ctx_init(struct hpre_ctx *ctx, u8 type)
 {
 	struct hisi_qp *qp;
+	int ret;
 
 	qp = hpre_get_qp_and_start(type);
 	if (IS_ERR(qp))
@@ -465,7 +472,11 @@ static int hpre_ctx_init(struct hpre_ctx *ctx, u8 type)
 	qp->qp_ctx = ctx;
 	qp->req_cb = hpre_alg_cb;
 
-	return hpre_ctx_set(ctx, qp, QM_Q_DEPTH);
+	ret = hpre_ctx_set(ctx, qp, QM_Q_DEPTH);
+	if (ret)
+		hpre_stop_qp_and_put(qp);
+
+	return ret;
 }
 
 static int hpre_msg_request_set(struct hpre_ctx *ctx, void *req, bool is_rsa)
