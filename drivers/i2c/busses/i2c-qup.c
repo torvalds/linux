@@ -1797,12 +1797,12 @@ nodma:
 		goto fail;
 
 	ret = devm_request_irq(qup->dev, qup->irq, qup_i2c_interrupt,
-			       IRQF_TRIGGER_HIGH, "i2c_qup", qup);
+			       IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN,
+			       "i2c_qup", qup);
 	if (ret) {
 		dev_err(qup->dev, "Request %d IRQ failed\n", qup->irq);
 		goto fail;
 	}
-	disable_irq(qup->irq);
 
 	hw_ver = readl(qup->base + QUP_HW_VERSION);
 	dev_dbg(qup->dev, "Revision %x\n", hw_ver);
