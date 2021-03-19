@@ -708,12 +708,6 @@ static int sec_cipher_pbuf_map(struct sec_ctx *ctx, struct sec_req *req,
 	}
 
 	c_req->c_in_dma = qp_ctx->res[req_id].pbuf_dma;
-
-	if (!c_req->c_in_dma) {
-		dev_err(dev, "fail to set pbuffer address!\n");
-		return -ENOMEM;
-	}
-
 	c_req->c_out_dma = c_req->c_in_dma;
 
 	return 0;

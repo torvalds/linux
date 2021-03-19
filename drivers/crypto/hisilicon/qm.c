@@ -2681,7 +2681,7 @@ static int __hisi_qm_start(struct hisi_qm *qm)
 {
 	int ret;
 
-	WARN_ON(!qm->qdma.dma);
+	WARN_ON(!qm->qdma.va);
 
 	if (qm->fun_type == QM_HW_PF) {
 		ret = qm_dev_mem_reset(qm);

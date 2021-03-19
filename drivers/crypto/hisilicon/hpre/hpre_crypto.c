@@ -298,8 +298,6 @@ static void hpre_hw_data_clr_all(struct hpre_ctx *ctx,
 	dma_addr_t tmp;
 
 	tmp = le64_to_cpu(sqe->in);
-	if (unlikely(!tmp))
-		return;
 
 	if (src) {
 		if (req->src)
@@ -309,8 +307,6 @@ static void hpre_hw_data_clr_all(struct hpre_ctx *ctx,
 	}
 
 	tmp = le64_to_cpu(sqe->out);
-	if (unlikely(!tmp))
-		return;
 
 	if (req->dst) {
 		if (dst)
@@ -1358,15 +1354,11 @@ static void hpre_ecdh_hw_data_clr_all(struct hpre_ctx *ctx,
 	dma_addr_t dma;
 
 	dma = le64_to_cpu(sqe->in);
-	if (unlikely(!dma))
-		return;
 
 	if (src && req->src)
 		dma_free_coherent(dev, ctx->key_sz << 2, req->src, dma);
 
 	dma = le64_to_cpu(sqe->out);
-	if (unlikely(!dma))
-		return;
 
 	if (req->dst)
 		dma_free_coherent(dev, ctx->key_sz << 1, req->dst, dma);
@@ -1657,15 +1649,11 @@ static void hpre_curve25519_hw_data_clr_all(struct hpre_ctx *ctx,
 	dma_addr_t dma;
 
 	dma = le64_to_cpu(sqe->in);
-	if (unlikely(!dma))
-		return;
 
 	if (src && req->src)
 		dma_free_coherent(dev, ctx->key_sz, req->src, dma);
 
 	dma = le64_to_cpu(sqe->out);
-	if (unlikely(!dma))
-		return;
 
 	if (req->dst)
 		dma_free_coherent(dev, ctx->key_sz, req->dst, dma);
