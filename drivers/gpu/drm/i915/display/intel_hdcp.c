@@ -1721,6 +1721,7 @@ static int hdcp2_enable_stream_encryption(struct intel_connector *connector)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct hdcp_port_data *data = &dig_port->hdcp_port_data;
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum transcoder cpu_transcoder = hdcp->cpu_transcoder;
 	enum port port = dig_port->base.port;
@@ -1730,7 +1731,8 @@ static int hdcp2_enable_stream_encryption(struct intel_connector *connector)
 			    LINK_ENCRYPTION_STATUS)) {
 		drm_err(&dev_priv->drm, "[%s:%d] HDCP 2.2 Link is not encrypted\n",
 			connector->base.name, connector->base.base.id);
-		return -EPERM;
+		ret = -EPERM;
+		goto link_recover;
 	}
 
 	if (hdcp->shim->stream_2_2_encryption) {
@@ -1743,6 +1745,15 @@ static int hdcp2_enable_stream_encryption(struct intel_connector *connector)
 		drm_dbg_kms(&dev_priv->drm, "HDCP 2.2 transcoder: %s stream encrypted\n",
 			    transcoder_name(hdcp->stream_transcoder));
 	}
+
+	return 0;
+
+link_recover:
+	if (hdcp2_deauthenticate_port(connector) < 0)
+		drm_dbg_kms(&dev_priv->drm, "Port deauth failed.\n");
+
+	dig_port->hdcp_auth_status = false;
+	data->k = 0;
 
 	return ret;
 }
