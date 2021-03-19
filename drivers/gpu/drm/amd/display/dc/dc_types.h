@@ -687,7 +687,8 @@ enum dc_psr_state {
 	PSR_STATE5,
 	PSR_STATE5a,
 	PSR_STATE5b,
-	PSR_STATE5c
+	PSR_STATE5c,
+	PSR_STATE_INVALID = 0xFF
 };
 
 struct psr_config {

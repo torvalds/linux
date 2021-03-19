@@ -80,19 +80,26 @@ static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 static void dmub_psr_get_state(struct dmub_psr *dmub, enum dc_psr_state *state)
 {
 	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
-	uint32_t raw_state;
+	uint32_t raw_state = 0;
+	uint32_t retry_count = 0;
 	enum dmub_status status;
 
-	// Send gpint command and wait for ack
-	status = dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_PSR_STATE, 0, 30);
+	do {
+		// Send gpint command and wait for ack
+		status = dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_PSR_STATE, 0, 30);
 
-	if (status == DMUB_STATUS_OK) {
-		// GPINT was executed, get response
-		dmub_srv_get_gpint_response(srv, &raw_state);
-		*state = convert_psr_state(raw_state);
-	} else
-		// Return invalid state when GPINT times out
-		*state = 0xFF;
+		if (status == DMUB_STATUS_OK) {
+			// GPINT was executed, get response
+			dmub_srv_get_gpint_response(srv, &raw_state);
+			*state = convert_psr_state(raw_state);
+		} else
+			// Return invalid state when GPINT times out
+			*state = PSR_STATE_INVALID;
+
+		// Assert if max retry hit
+		if (retry_count >= 1000)
+			ASSERT(0);
+	} while (++retry_count <= 1000 && *state == PSR_STATE_INVALID);
 }
 
 /*
