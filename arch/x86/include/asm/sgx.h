@@ -2,14 +2,19 @@
 /**
  * Copyright(c) 2016-20 Intel Corporation.
  *
- * Contains data structures defined by the SGX architecture.  Data structures
- * defined by the Linux software stack should not be placed here.
+ * Intel Software Guard Extensions (SGX) support.
  */
-#ifndef _ASM_X86_SGX_ARCH_H
-#define _ASM_X86_SGX_ARCH_H
+#ifndef _ASM_X86_SGX_H
+#define _ASM_X86_SGX_H
 
 #include <linux/bits.h>
 #include <linux/types.h>
+
+/*
+ * This file contains both data structures defined by SGX architecture and Linux
+ * defined software data structures and functions.  The two should not be mixed
+ * together for better readibility.  The architectural definitions come first.
+ */
 
 /* The SGX specific CPUID function. */
 #define SGX_CPUID		0x12
@@ -337,4 +342,9 @@ struct sgx_sigstruct {
 
 #define SGX_LAUNCH_TOKEN_SIZE 304
 
-#endif /* _ASM_X86_SGX_ARCH_H */
+/*
+ * Do not put any hardware-defined SGX structure representations below this
+ * comment!
+ */
+
+#endif /* _ASM_X86_SGX_H */
