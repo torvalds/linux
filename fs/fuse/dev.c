@@ -2233,11 +2233,8 @@ static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
 	int oldfd;
 	struct fuse_dev *fud = NULL;
 
-	if (_IOC_TYPE(cmd) != FUSE_DEV_IOC_MAGIC)
-		return -ENOTTY;
-
-	switch (_IOC_NR(cmd)) {
-	case _IOC_NR(FUSE_DEV_IOC_CLONE):
+	switch (cmd) {
+	case FUSE_DEV_IOC_CLONE:
 		res = -EFAULT;
 		if (!get_user(oldfd, (__u32 __user *)arg)) {
 			struct file *old = fget(oldfd);
