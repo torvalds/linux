@@ -88,4 +88,6 @@ void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit);
 
 void dc_dsc_policy_set_enable_dsc_when_not_needed(bool enable);
 
+uint32_t dc_dsc_stream_bandwidth_in_kbps(uint32_t pix_clk_100hz, uint32_t bpp_x16);
+
 #endif

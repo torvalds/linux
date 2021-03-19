@@ -3498,17 +3498,17 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 	}
 }
 
-uint32_t dc_dsc_stream_bandwidth_in_kbps(uint32_t pix_clk_100hz, uint32_t bpp_x16);
-
 uint32_t dc_bandwidth_in_kbps_from_timing(
 	const struct dc_crtc_timing *timing)
 {
 	uint32_t bits_per_channel = 0;
 	uint32_t kbps;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (timing->flags.DSC) {
 		return dc_dsc_stream_bandwidth_in_kbps(timing->pix_clk_100hz, timing->dsc_cfg.bits_per_pixel);
 	}
+#endif
 
 	switch (timing->display_color_depth) {
 	case COLOR_DEPTH_666:
