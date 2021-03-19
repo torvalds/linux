@@ -278,22 +278,13 @@ int mte_switch_mode(int mte_option, unsigned long incl_mask)
 	return 0;
 }
 
-#define ID_AA64PFR1_MTE_SHIFT		8
-#define ID_AA64PFR1_MTE			2
-
 int mte_default_setup(void)
 {
-	unsigned long hwcaps = getauxval(AT_HWCAP);
+	unsigned long hwcaps2 = getauxval(AT_HWCAP2);
 	unsigned long en = 0;
 	int ret;
 
-	if (!(hwcaps & HWCAP_CPUID)) {
-		ksft_print_msg("FAIL: CPUID registers unavailable\n");
-		return KSFT_FAIL;
-	}
-	/* Read ID_AA64PFR1_EL1 register */
-	asm volatile("mrs %0, id_aa64pfr1_el1" : "=r"(hwcaps) : : "memory");
-	if (((hwcaps >> ID_AA64PFR1_MTE_SHIFT) & MT_TAG_MASK) != ID_AA64PFR1_MTE) {
+	if (!(hwcaps2 & HWCAP2_MTE)) {
 		ksft_print_msg("FAIL: MTE features unavailable\n");
 		return KSFT_SKIP;
 	}
