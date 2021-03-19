@@ -2298,7 +2298,7 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	struct adv76xx_state *state = to_state(sd);
 	const struct adv76xx_chip_info *info = state->info;
 	unsigned int spa_loc;
-	u16 pa;
+	u16 pa, parent_pa;
 	int err;
 	int i;
 
@@ -2332,7 +2332,7 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		return -E2BIG;
 	}
 	pa = v4l2_get_edid_phys_addr(edid->edid, edid->blocks * 128, &spa_loc);
-	err = v4l2_phys_addr_validate(pa, &pa, NULL);
+	err = v4l2_phys_addr_validate(pa, &parent_pa, NULL);
 	if (err)
 		return err;
 
@@ -2348,25 +2348,25 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	 * Return an error if no location of the source physical address
 	 * was found.
 	 */
-	if (spa_loc == 0)
+	if (edid->blocks > 1 && spa_loc == 0)
 		return -EINVAL;
 
 	switch (edid->pad) {
 	case ADV76XX_PAD_HDMI_PORT_A:
-		state->spa_port_a[0] = edid->edid[spa_loc];
-		state->spa_port_a[1] = edid->edid[spa_loc + 1];
+		state->spa_port_a[0] = pa >> 8;
+		state->spa_port_a[1] = pa & 0xff;
 		break;
 	case ADV7604_PAD_HDMI_PORT_B:
-		rep_write(sd, 0x70, edid->edid[spa_loc]);
-		rep_write(sd, 0x71, edid->edid[spa_loc + 1]);
+		rep_write(sd, 0x70, pa >> 8);
+		rep_write(sd, 0x71, pa & 0xff);
 		break;
 	case ADV7604_PAD_HDMI_PORT_C:
-		rep_write(sd, 0x72, edid->edid[spa_loc]);
-		rep_write(sd, 0x73, edid->edid[spa_loc + 1]);
+		rep_write(sd, 0x72, pa >> 8);
+		rep_write(sd, 0x73, pa & 0xff);
 		break;
 	case ADV7604_PAD_HDMI_PORT_D:
-		rep_write(sd, 0x74, edid->edid[spa_loc]);
-		rep_write(sd, 0x75, edid->edid[spa_loc + 1]);
+		rep_write(sd, 0x74, pa >> 8);
+		rep_write(sd, 0x75, pa & 0xff);
 		break;
 	default:
 		return -EINVAL;
@@ -2381,8 +2381,10 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		rep_write_clr_set(sd, 0x71, 0x01, (spa_loc & 0x100) >> 8);
 	}
 
-	edid->edid[spa_loc] = state->spa_port_a[0];
-	edid->edid[spa_loc + 1] = state->spa_port_a[1];
+	if (spa_loc) {
+		edid->edid[spa_loc] = state->spa_port_a[0];
+		edid->edid[spa_loc + 1] = state->spa_port_a[1];
+	}
 
 	memcpy(state->edid.edid, edid->edid, 128 * edid->blocks);
 	state->edid.blocks = edid->blocks;
@@ -2409,7 +2411,7 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		v4l2_err(sd, "error enabling edid (0x%x)\n", state->edid.present);
 		return -EIO;
 	}
-	cec_s_phys_addr(state->cec_adap, pa, false);
+	cec_s_phys_addr(state->cec_adap, parent_pa, false);
 
 	/* enable hotplug after 100 ms */
 	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 10);
