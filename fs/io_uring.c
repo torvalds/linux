@@ -1032,7 +1032,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_rsrc_update *ip,
 				 unsigned nr_args);
-static void __io_clean_op(struct io_kiocb *req);
+static void io_clean_op(struct io_kiocb *req);
 static struct file *io_file_get(struct io_submit_state *state,
 				struct io_kiocb *req, int fd, bool fixed);
 static void __io_queue_sqe(struct io_kiocb *req);
@@ -1062,12 +1062,6 @@ EXPORT_SYMBOL(io_uring_get_socket);
 
 #define io_for_each_link(pos, head) \
 	for (pos = (head); pos; pos = pos->link)
-
-static inline void io_clean_op(struct io_kiocb *req)
-{
-	if (req->flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED))
-		__io_clean_op(req);
-}
 
 static inline void io_set_resource_node(struct io_kiocb *req)
 {
@@ -1544,7 +1538,9 @@ static void __io_cqring_fill_event(struct io_kiocb *req, long res,
 			set_bit(0, &ctx->cq_check_overflow);
 			ctx->rings->sq_flags |= IORING_SQ_CQ_OVERFLOW;
 		}
-		io_clean_op(req);
+		if (req->flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED))
+			io_clean_op(req);
+
 		req->result = res;
 		req->compl.cflags = cflags;
 		req_ref_get(req);
@@ -1600,7 +1596,8 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 static void io_req_complete_state(struct io_kiocb *req, long res,
 				  unsigned int cflags)
 {
-	io_clean_op(req);
+	if (req->flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED))
+		io_clean_op(req);
 	req->result = res;
 	req->compl.cflags = cflags;
 	req->flags |= REQ_F_COMPLETE_INLINE;
@@ -1708,8 +1705,8 @@ static inline void io_put_file(struct io_kiocb *req, struct file *file,
 
 static void io_dismantle_req(struct io_kiocb *req)
 {
-	io_clean_op(req);
-
+	if (req->flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED))
+		io_clean_op(req);
 	if (req->async_data)
 		kfree(req->async_data);
 	if (req->file)
@@ -5949,7 +5946,7 @@ static int io_req_defer(struct io_kiocb *req)
 	return -EIOCBQUEUED;
 }
 
-static void __io_clean_op(struct io_kiocb *req)
+static void io_clean_op(struct io_kiocb *req)
 {
 	if (req->flags & REQ_F_BUFFER_SELECTED) {
 		switch (req->opcode) {
