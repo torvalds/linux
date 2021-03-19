@@ -300,7 +300,7 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 	},
 };
 
-static struct ipa_mem_data ipa_mem_data = {
+static const struct ipa_mem_data ipa_mem_data = {
 	.local_count	= ARRAY_SIZE(ipa_mem_local_data),
 	.local		= ipa_mem_local_data,
 	.imem_addr	= 0x146a8000,
@@ -310,7 +310,7 @@ static struct ipa_mem_data ipa_mem_data = {
 };
 
 /* Interconnect bandwidths are in 1000 byte/second units */
-static struct ipa_interconnect_data ipa_interconnect_data[] = {
+static const struct ipa_interconnect_data ipa_interconnect_data[] = {
 	{
 		.name			= "memory",
 		.peak_bandwidth		= 465000,	/* 465 MBps */
@@ -329,7 +329,7 @@ static struct ipa_interconnect_data ipa_interconnect_data[] = {
 	},
 };
 
-static struct ipa_clock_data ipa_clock_data = {
+static const struct ipa_clock_data ipa_clock_data = {
 	.core_clock_rate	= 100 * 1000 * 1000,	/* Hz */
 	.interconnect_count	= ARRAY_SIZE(ipa_interconnect_data),
 	.interconnect_data	= ipa_interconnect_data,
