@@ -1628,6 +1628,15 @@ static void io_req_complete_failed(struct io_kiocb *req, long res)
 	io_req_complete_post(req, res, 0);
 }
 
+static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
+					struct io_comp_state *cs)
+{
+	spin_lock_irq(&ctx->completion_lock);
+	list_splice_init(&cs->locked_free_list, &cs->free_list);
+	cs->locked_free_nr = 0;
+	spin_unlock_irq(&ctx->completion_lock);
+}
+
 /* Returns true IFF there are requests in the cache */
 static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 {
@@ -1640,12 +1649,8 @@ static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 	 * locked cache, grab the lock and move them over to our submission
 	 * side cache.
 	 */
-	if (READ_ONCE(cs->locked_free_nr) > IO_COMPL_BATCH) {
-		spin_lock_irq(&ctx->completion_lock);
-		list_splice_init(&cs->locked_free_list, &cs->free_list);
-		cs->locked_free_nr = 0;
-		spin_unlock_irq(&ctx->completion_lock);
-	}
+	if (READ_ONCE(cs->locked_free_nr) > IO_COMPL_BATCH)
+		io_flush_cached_locked_reqs(ctx, cs);
 
 	nr = state->free_reqs;
 	while (!list_empty(&cs->free_list)) {
@@ -8446,13 +8451,8 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 		submit_state->free_reqs = 0;
 	}
 
-	spin_lock_irq(&ctx->completion_lock);
-	list_splice_init(&cs->locked_free_list, &cs->free_list);
-	cs->locked_free_nr = 0;
-	spin_unlock_irq(&ctx->completion_lock);
-
+	io_flush_cached_locked_reqs(ctx, cs);
 	io_req_cache_free(&cs->free_list, NULL);
-
 	mutex_unlock(&ctx->uring_lock);
 }
 
