@@ -326,43 +326,38 @@ static ssize_t arm_ccn_pmu_event_show(struct device *dev,
 	struct arm_ccn *ccn = pmu_to_arm_ccn(dev_get_drvdata(dev));
 	struct arm_ccn_pmu_event *event = container_of(attr,
 			struct arm_ccn_pmu_event, attr);
-	ssize_t res;
+	int res;
 
-	res = scnprintf(buf, PAGE_SIZE, "type=0x%x", event->type);
+	res = sysfs_emit(buf, "type=0x%x", event->type);
 	if (event->event)
-		res += scnprintf(buf + res, PAGE_SIZE - res, ",event=0x%x",
-				event->event);
+		res += sysfs_emit_at(buf, res, ",event=0x%x", event->event);
 	if (event->def)
-		res += scnprintf(buf + res, PAGE_SIZE - res, ",%s",
-				event->def);
+		res += sysfs_emit_at(buf, res, ",%s", event->def);
 	if (event->mask)
-		res += scnprintf(buf + res, PAGE_SIZE - res, ",mask=0x%x",
-				event->mask);
+		res += sysfs_emit_at(buf, res, ",mask=0x%x", event->mask);
 
 	/* Arguments required by an event */
 	switch (event->type) {
 	case CCN_TYPE_CYCLES:
 		break;
 	case CCN_TYPE_XP:
-		res += scnprintf(buf + res, PAGE_SIZE - res,
-				",xp=?,vc=?");
+		res += sysfs_emit_at(buf, res, ",xp=?,vc=?");
 		if (event->event == CCN_EVENT_WATCHPOINT)
-			res += scnprintf(buf + res, PAGE_SIZE - res,
+			res += sysfs_emit_at(buf, res,
 					",port=?,dir=?,cmp_l=?,cmp_h=?,mask=?");
 		else
-			res += scnprintf(buf + res, PAGE_SIZE - res,
-					",bus=?");
+			res += sysfs_emit_at(buf, res, ",bus=?");
 
 		break;
 	case CCN_TYPE_MN:
-		res += scnprintf(buf + res, PAGE_SIZE - res, ",node=%d", ccn->mn_id);
+		res += sysfs_emit_at(buf, res, ",node=%d", ccn->mn_id);
 		break;
 	default:
-		res += scnprintf(buf + res, PAGE_SIZE - res, ",node=?");
+		res += sysfs_emit_at(buf, res, ",node=?");
 		break;
 	}
 
-	res += scnprintf(buf + res, PAGE_SIZE - res, "\n");
+	res += sysfs_emit_at(buf, res, "\n");
 
 	return res;
 }
