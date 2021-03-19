@@ -382,11 +382,6 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 
 			kfree(src->enabled_types);
 			src->enabled_types = NULL;
-			if (src->data) {
-				kfree(src->data);
-				kfree(src);
-				adev->irq.client[i].sources[j] = NULL;
-			}
 		}
 		kfree(adev->irq.client[i].sources);
 		adev->irq.client[i].sources = NULL;
