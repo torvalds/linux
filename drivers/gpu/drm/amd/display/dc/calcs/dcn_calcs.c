@@ -236,6 +236,7 @@ static enum dcn_bw_defs tl_pixel_format_to_bw_defs(enum surface_pixel_format for
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
 		return dcn_bw_rgb_sub_32;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		return dcn_bw_rgb_sub_64;
@@ -375,6 +376,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 		input->src.viewport_height_c   = input->src.viewport_height / 2;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		input->src.source_format = dm_444_64;
