@@ -106,7 +106,9 @@ struct nfsdfs_client {
 
 struct nfsdfs_client *get_nfsdfs_client(struct inode *);
 struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
-		struct nfsdfs_client *ncl, u32 id, const struct tree_descr *);
+				 struct nfsdfs_client *ncl, u32 id,
+				 const struct tree_descr *,
+				 struct dentry **fdentries);
 void nfsd_client_rmdir(struct dentry *dentry);
 
 

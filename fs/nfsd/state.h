@@ -371,6 +371,10 @@ struct nfs4_client {
 
 	/* debugging info directory under nfsd/clients/ : */
 	struct dentry		*cl_nfsd_dentry;
+	/* 'info' file within that directory. Ref is not counted,
+	 * but will remain valid iff cl_nfsd_dentry != NULL
+	 */
+	struct dentry		*cl_nfsd_info_dentry;
 
 	/* for nfs41 callbacks */
 	/* We currently support a single back channel with a single slot */

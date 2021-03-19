@@ -43,6 +43,7 @@
 #include <linux/sunrpc/addr.h>
 #include <linux/jhash.h>
 #include <linux/string_helpers.h>
+#include <linux/fsnotify.h>
 #include "xdr4.h"
 #include "xdr4cb.h"
 #include "vfs.h"
@@ -2352,6 +2353,10 @@ static int client_info_show(struct seq_file *m, void *v)
 	memcpy(&clid, &clp->cl_clientid, sizeof(clid));
 	seq_printf(m, "clientid: 0x%llx\n", clid);
 	seq_printf(m, "address: \"%pISpc\"\n", (struct sockaddr *)&clp->cl_addr);
+	if (test_bit(NFSD4_CLIENT_CONFIRMED, &clp->cl_flags))
+		seq_puts(m, "status: confirmed\n");
+	else
+		seq_puts(m, "status: unconfirmed\n");
 	seq_printf(m, "name: ");
 	seq_quote_mem(m, clp->cl_name.data, clp->cl_name.len);
 	seq_printf(m, "\nminor version: %d\n", clp->cl_minorversion);
@@ -2702,6 +2707,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 	int ret;
 	struct net *net = SVC_NET(rqstp);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct dentry *dentries[ARRAY_SIZE(client_files)];
 
 	clp = alloc_client(name);
 	if (clp == NULL)
@@ -2721,9 +2727,11 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 	memcpy(&clp->cl_addr, sa, sizeof(struct sockaddr_storage));
 	clp->cl_cb_session = NULL;
 	clp->net = net;
-	clp->cl_nfsd_dentry = nfsd_client_mkdir(nn, &clp->cl_nfsdfs,
-			clp->cl_clientid.cl_id - nn->clientid_base,
-			client_files);
+	clp->cl_nfsd_dentry = nfsd_client_mkdir(
+		nn, &clp->cl_nfsdfs,
+		clp->cl_clientid.cl_id - nn->clientid_base,
+		client_files, dentries);
+	clp->cl_nfsd_info_dentry = dentries[0];
 	if (!clp->cl_nfsd_dentry) {
 		free_client(clp);
 		return NULL;
@@ -2798,7 +2806,10 @@ move_to_confirmed(struct nfs4_client *clp)
 	list_move(&clp->cl_idhash, &nn->conf_id_hashtbl[idhashval]);
 	rb_erase(&clp->cl_namenode, &nn->unconf_name_tree);
 	add_clp_to_name_tree(clp, &nn->conf_name_tree);
-	set_bit(NFSD4_CLIENT_CONFIRMED, &clp->cl_flags);
+	if (!test_and_set_bit(NFSD4_CLIENT_CONFIRMED, &clp->cl_flags) &&
+	    clp->cl_nfsd_dentry &&
+	    clp->cl_nfsd_info_dentry)
+		fsnotify_dentry(clp->cl_nfsd_info_dentry, FS_MODIFY);
 	renew_client_locked(clp);
 }
 

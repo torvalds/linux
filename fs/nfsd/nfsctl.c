@@ -1266,7 +1266,8 @@ static void nfsdfs_remove_files(struct dentry *root)
 /* XXX: cut'n'paste from simple_fill_super; figure out if we could share
  * code instead. */
 static  int nfsdfs_create_files(struct dentry *root,
-					const struct tree_descr *files)
+				const struct tree_descr *files,
+				struct dentry **fdentries)
 {
 	struct inode *dir = d_inode(root);
 	struct inode *inode;
@@ -1275,8 +1276,6 @@ static  int nfsdfs_create_files(struct dentry *root,
 
 	inode_lock(dir);
 	for (i = 0; files->name && files->name[0]; i++, files++) {
-		if (!files->name)
-			continue;
 		dentry = d_alloc_name(root, files->name);
 		if (!dentry)
 			goto out;
@@ -1290,6 +1289,8 @@ static  int nfsdfs_create_files(struct dentry *root,
 		inode->i_private = __get_nfsdfs_client(dir);
 		d_add(dentry, inode);
 		fsnotify_create(dir, dentry);
+		if (fdentries)
+			fdentries[i] = dentry;
 	}
 	inode_unlock(dir);
 	return 0;
@@ -1301,8 +1302,9 @@ out:
 
 /* on success, returns positive number unique to that client. */
 struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
-		struct nfsdfs_client *ncl, u32 id,
-		const struct tree_descr *files)
+				 struct nfsdfs_client *ncl, u32 id,
+				 const struct tree_descr *files,
+				 struct dentry **fdentries)
 {
 	struct dentry *dentry;
 	char name[11];
@@ -1313,7 +1315,7 @@ struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
 	dentry = nfsd_mkdir(nn->nfsd_client_dir, ncl, name);
 	if (IS_ERR(dentry)) /* XXX: tossing errors? */
 		return NULL;
-	ret = nfsdfs_create_files(dentry, files);
+	ret = nfsdfs_create_files(dentry, files, fdentries);
 	if (ret) {
 		nfsd_client_rmdir(dentry);
 		return NULL;
