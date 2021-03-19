@@ -740,6 +740,12 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 
 	return 0;
 }
+#else
+static long restore_tm_user_regs(struct pt_regs *regs, struct mcontext __user *sr,
+				 struct mcontext __user *tm_sr)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_PPC64
@@ -1317,10 +1323,9 @@ SYSCALL_DEFINE0(sigreturn)
 	struct mcontext __user *sr;
 	void __user *addr;
 	sigset_t set;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	struct mcontext __user *mcp, *tm_mcp;
-	unsigned long msr_hi;
-#endif
+	struct mcontext __user *mcp;
+	struct mcontext __user *tm_mcp = NULL;
+	unsigned long long msr_hi = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
@@ -1343,19 +1348,18 @@ SYSCALL_DEFINE0(sigreturn)
 #endif
 	set_current_blocked(&set);
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	mcp = (struct mcontext __user *)&sf->mctx;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	tm_mcp = (struct mcontext __user *)&sf->mctx_transact;
 	if (__get_user(msr_hi, &tm_mcp->mc_gregs[PT_MSR]))
 		goto badframe;
+#endif
 	if (MSR_TM_ACTIVE(msr_hi<<32)) {
 		if (!cpu_has_feature(CPU_FTR_TM))
 			goto badframe;
 		if (restore_tm_user_regs(regs, mcp, tm_mcp))
 			goto badframe;
-	} else
-#endif
-	{
+	} else {
 		sr = (struct mcontext __user *)from_user_ptr(sigctx.regs);
 		addr = sr;
 		if (!access_ok(sr, sizeof(*sr))
