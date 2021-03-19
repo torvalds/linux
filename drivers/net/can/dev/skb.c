@@ -153,7 +153,8 @@ EXPORT_SYMBOL_GPL(can_get_echo_skb);
  *
  * The function is typically called when TX failed.
  */
-void can_free_echo_skb(struct net_device *dev, unsigned int idx)
+void can_free_echo_skb(struct net_device *dev, unsigned int idx,
+		       unsigned int *frame_len_ptr)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
@@ -164,7 +165,13 @@ void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 	}
 
 	if (priv->echo_skb[idx]) {
-		dev_kfree_skb_any(priv->echo_skb[idx]);
+		struct sk_buff *skb = priv->echo_skb[idx];
+		struct can_skb_priv *can_skb_priv = can_skb_prv(skb);
+
+		if (frame_len_ptr)
+			*frame_len_ptr = can_skb_priv->frame_len;
+
+		dev_kfree_skb_any(skb);
 		priv->echo_skb[idx] = NULL;
 	}
 }

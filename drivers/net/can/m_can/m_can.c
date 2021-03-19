@@ -425,7 +425,7 @@ static void m_can_clean(struct net_device *net)
 			putidx = ((m_can_read(cdev, M_CAN_TXFQS) &
 				   TXFQS_TFQPI_MASK) >> TXFQS_TFQPI_SHIFT);
 
-		can_free_echo_skb(cdev->net, putidx);
+		can_free_echo_skb(cdev->net, putidx, NULL);
 		cdev->tx_skb = NULL;
 	}
 }
