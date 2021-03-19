@@ -94,7 +94,7 @@ static inline int get_sigset_t(sigset_t *set,
 #define from_user_ptr(p)	compat_ptr(p)
 
 static __always_inline int
-save_general_regs_unsafe(struct pt_regs *regs, struct mcontext __user *frame)
+__unsafe_save_general_regs(struct pt_regs *regs, struct mcontext __user *frame)
 {
 	elf_greg_t64 *gregs = (elf_greg_t64 *)regs;
 	int val, i;
@@ -151,7 +151,7 @@ static inline int get_sigset_t(sigset_t *set, const sigset_t __user *uset)
 #define from_user_ptr(p)	((void __user *)(p))
 
 static __always_inline int
-save_general_regs_unsafe(struct pt_regs *regs, struct mcontext __user *frame)
+__unsafe_save_general_regs(struct pt_regs *regs, struct mcontext __user *frame)
 {
 	WARN_ON(!FULL_REGS(regs));
 	unsafe_copy_to_user(&frame->mc_gregs, regs, GP_REGS_SIZE, failed);
@@ -177,7 +177,7 @@ static inline int restore_general_regs(struct pt_regs *regs,
 #endif
 
 #define unsafe_save_general_regs(regs, frame, label) do {	\
-	if (save_general_regs_unsafe(regs, frame))	\
+	if (__unsafe_save_general_regs(regs, frame))		\
 		goto label;					\
 } while (0)
 
@@ -260,8 +260,8 @@ static void prepare_save_user_regs(int ctx_has_vsx_region)
 #endif
 }
 
-static int save_user_regs_unsafe(struct pt_regs *regs, struct mcontext __user *frame,
-				 struct mcontext __user *tm_frame, int ctx_has_vsx_region)
+static int __unsafe_save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
+				   struct mcontext __user *tm_frame, int ctx_has_vsx_region)
 {
 	unsigned long msr = regs->msr;
 
@@ -338,7 +338,7 @@ failed:
 }
 
 #define unsafe_save_user_regs(regs, frame, tm_frame, has_vsx, label) do { \
-	if (save_user_regs_unsafe(regs, frame, tm_frame, has_vsx))	\
+	if (__unsafe_save_user_regs(regs, frame, tm_frame, has_vsx))	\
 		goto label;						\
 } while (0)
 
@@ -350,7 +350,7 @@ failed:
  * We also save the transactional registers to a second ucontext in the
  * frame.
  *
- * See save_user_regs_unsafe() and signal_64.c:setup_tm_sigcontexts().
+ * See __unsafe_save_user_regs() and signal_64.c:setup_tm_sigcontexts().
  */
 static void prepare_save_tm_user_regs(void)
 {
@@ -441,7 +441,7 @@ static int save_tm_user_regs_unsafe(struct pt_regs *regs, struct mcontext __user
 #endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 	/* SPE regs are not checkpointed with TM, so this section is
-	 * simply the same as in save_user_regs_unsafe().
+	 * simply the same as in __unsafe_save_user_regs().
 	 */
 	if (current->thread.used_spe) {
 		unsafe_copy_to_user(&frame->mc_vregs, current->thread.evr,
