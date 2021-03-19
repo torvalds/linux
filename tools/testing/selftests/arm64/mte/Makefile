@@ -23,6 +23,9 @@ TEST_GEN_PROGS := $(PROGS)
 
 # Get Kernel headers installed and use them.
 KSFT_KHDR_INSTALL := 1
+else
+    $(warning compiler "$(CC)" does not support the ARMv8.5 MTE extension.)
+    $(warning test program "mte" will not be created.)
 endif
 
 # Include KSFT lib.mk.
