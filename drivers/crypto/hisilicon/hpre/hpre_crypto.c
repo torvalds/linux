@@ -1993,25 +1993,24 @@ int hpre_algs_register(struct hisi_qm *qm)
 		return ret;
 
 	ret = crypto_register_kpp(&dh);
-	if (ret) {
-		crypto_unregister_akcipher(&rsa);
-		return ret;
-	}
+	if (ret)
+		goto unreg_rsa;
 
 	if (qm->ver >= QM_HW_V3) {
 		ret = hpre_register_ecdh();
 		if (ret)
-			goto reg_err;
+			goto unreg_dh;
 		ret = crypto_register_kpp(&curve25519_alg);
-		if (ret) {
-			hpre_unregister_ecdh();
-			goto reg_err;
-		}
+		if (ret)
+			goto unreg_ecdh;
 	}
 	return 0;
 
-reg_err:
+unreg_ecdh:
+	hpre_unregister_ecdh();
+unreg_dh:
 	crypto_unregister_kpp(&dh);
+unreg_rsa:
 	crypto_unregister_akcipher(&rsa);
 	return ret;
 }
