@@ -13,6 +13,7 @@
 #define IIO_MAX_NAME_LENGTH 64
 
 #define FORMAT_SCAN_ELEMENTS_DIR "%s/buffer%d"
+#define FORMAT_EVENTS_DIR "%s/events"
 #define FORMAT_TYPE_FILE "%s_type"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
