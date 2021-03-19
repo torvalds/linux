@@ -184,7 +184,7 @@ examples:
     };
   - |
     #include <dt-bindings/phy/phy.h>
-    #include <dt-bindings/phy/phy-cadence-torrent.h>
+    #include <dt-bindings/phy/phy-cadence.h>
 
     bus {
         #address-cells = <2>;
