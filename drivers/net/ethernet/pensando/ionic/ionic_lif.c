@@ -393,6 +393,8 @@ static void ionic_qcq_free(struct ionic_lif *lif, struct ionic_qcq *qcq)
 static void ionic_qcqs_free(struct ionic_lif *lif)
 {
 	struct device *dev = lif->ionic->dev;
+	struct ionic_qcq *adminqcq;
+	unsigned long irqflags;
 
 	if (lif->notifyqcq) {
 		ionic_qcq_free(lif, lif->notifyqcq);
@@ -401,9 +403,14 @@ static void ionic_qcqs_free(struct ionic_lif *lif)
 	}
 
 	if (lif->adminqcq) {
-		ionic_qcq_free(lif, lif->adminqcq);
-		devm_kfree(dev, lif->adminqcq);
+		spin_lock_irqsave(&lif->adminq_lock, irqflags);
+		adminqcq = READ_ONCE(lif->adminqcq);
 		lif->adminqcq = NULL;
+		spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
+		if (adminqcq) {
+			ionic_qcq_free(lif, adminqcq);
+			devm_kfree(dev, adminqcq);
+		}
 	}
 
 	if (lif->rxqcqs) {
@@ -886,6 +893,7 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	struct ionic_intr_info *intr = napi_to_cq(napi)->bound_intr;
 	struct ionic_lif *lif = napi_to_cq(napi)->lif;
 	struct ionic_dev *idev = &lif->ionic->idev;
+	unsigned long irqflags;
 	unsigned int flags = 0;
 	int n_work = 0;
 	int a_work = 0;
@@ -895,9 +903,11 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 		n_work = ionic_cq_service(&lif->notifyqcq->cq, budget,
 					  ionic_notifyq_service, NULL, NULL);
 
+	spin_lock_irqsave(&lif->adminq_lock, irqflags);
 	if (lif->adminqcq && lif->adminqcq->flags & IONIC_QCQ_F_INITED)
 		a_work = ionic_cq_service(&lif->adminqcq->cq, budget,
 					  ionic_adminq_service, NULL, NULL);
+	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
 
 	work_done = max(n_work, a_work);
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
