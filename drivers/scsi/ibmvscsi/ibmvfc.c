@@ -2372,6 +2372,24 @@ static int ibmvfc_match_lun(struct ibmvfc_event *evt, void *device)
 }
 
 /**
+ * ibmvfc_event_is_free - Check if event is free or not
+ * @evt:	ibmvfc event struct
+ *
+ * Returns:
+ *	true / false
+ **/
+static bool ibmvfc_event_is_free(struct ibmvfc_event *evt)
+{
+	struct ibmvfc_event *loop_evt;
+
+	list_for_each_entry(loop_evt, &evt->queue->free, queue_list)
+		if (loop_evt == evt)
+			return true;
+
+	return false;
+}
+
+/**
  * ibmvfc_wait_for_ops - Wait for ops to complete
  * @vhost:	ibmvfc host struct
  * @device:	device to match (starget or sdev)
@@ -2385,7 +2403,7 @@ static int ibmvfc_wait_for_ops(struct ibmvfc_host *vhost, void *device,
 {
 	struct ibmvfc_event *evt;
 	DECLARE_COMPLETION_ONSTACK(comp);
-	int wait;
+	int wait, i;
 	unsigned long flags;
 	signed long timeout = IBMVFC_ABORT_WAIT_TIMEOUT * HZ;
 
@@ -2393,10 +2411,13 @@ static int ibmvfc_wait_for_ops(struct ibmvfc_host *vhost, void *device,
 	do {
 		wait = 0;
 		spin_lock_irqsave(&vhost->crq.l_lock, flags);
-		list_for_each_entry(evt, &vhost->crq.sent, queue_list) {
-			if (match(evt, device)) {
-				evt->eh_comp = &comp;
-				wait++;
+		for (i = 0; i < vhost->crq.evt_pool.size; i++) {
+			evt = &vhost->crq.evt_pool.events[i];
+			if (!ibmvfc_event_is_free(evt)) {
+				if (match(evt, device)) {
+					evt->eh_comp = &comp;
+					wait++;
+				}
 			}
 		}
 		spin_unlock_irqrestore(&vhost->crq.l_lock, flags);
@@ -2407,10 +2428,13 @@ static int ibmvfc_wait_for_ops(struct ibmvfc_host *vhost, void *device,
 			if (!timeout) {
 				wait = 0;
 				spin_lock_irqsave(&vhost->crq.l_lock, flags);
-				list_for_each_entry(evt, &vhost->crq.sent, queue_list) {
-					if (match(evt, device)) {
-						evt->eh_comp = NULL;
-						wait++;
+				for (i = 0; i < vhost->crq.evt_pool.size; i++) {
+					evt = &vhost->crq.evt_pool.events[i];
+					if (!ibmvfc_event_is_free(evt)) {
+						if (match(evt, device)) {
+							evt->eh_comp = NULL;
+							wait++;
+						}
 					}
 				}
 				spin_unlock_irqrestore(&vhost->crq.l_lock, flags);
