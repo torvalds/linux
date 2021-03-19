@@ -566,7 +566,7 @@ retry:
 	if (state != LM_ST_UNLOCKED) {
 		if (glops->go_xmote_bh) {
 			spin_unlock(&gl->gl_lockref.lock);
-			rv = glops->go_xmote_bh(gl, gh);
+			rv = glops->go_xmote_bh(gl);
 			spin_lock(&gl->gl_lockref.lock);
 			if (rv) {
 				do_error(gl, rv);
