@@ -98,16 +98,16 @@ static void calculate_bandwidth(
 	int32_t num_cursor_lines;
 
 	int32_t i, j, k;
-	struct bw_fixed yclk[3];
-	struct bw_fixed sclk[8];
+	struct bw_fixed *yclk;
+	struct bw_fixed *sclk;
 	bool d0_underlay_enable;
 	bool d1_underlay_enable;
 	bool fbc_enabled;
 	bool lpt_enabled;
 	enum bw_defines sclk_message;
 	enum bw_defines yclk_message;
-	enum bw_defines tiling_mode[maximum_number_of_surfaces];
-	enum bw_defines surface_type[maximum_number_of_surfaces];
+	enum bw_defines *tiling_mode;
+	enum bw_defines *surface_type;
 	enum bw_defines voltage;
 	enum bw_defines pipe_check;
 	enum bw_defines hsr_check;
@@ -121,6 +121,22 @@ static void calculate_bandwidth(
 	int32_t number_of_displays_enabled = 0;
 	int32_t number_of_displays_enabled_with_margin = 0;
 	int32_t number_of_aligned_displays_with_no_margin = 0;
+
+	yclk = kcalloc(3, sizeof(*yclk), GFP_KERNEL);
+	if (!yclk)
+		return;
+
+	sclk = kcalloc(8, sizeof(*sclk), GFP_KERNEL);
+	if (!sclk)
+		goto free_yclk;
+
+	tiling_mode = kcalloc(maximum_number_of_surfaces, sizeof(*tiling_mode), GFP_KERNEL);
+	if (!tiling_mode)
+		goto free_sclk;
+
+	surface_type = kcalloc(maximum_number_of_surfaces, sizeof(*surface_type), GFP_KERNEL);
+	if (!surface_type)
+		goto free_tiling_mode;
 
 	yclk[low] = vbios->low_yclk;
 	yclk[mid] = vbios->mid_yclk;
@@ -2013,6 +2029,14 @@ static void calculate_bandwidth(
 			}
 		}
 	}
+
+	kfree(surface_type);
+free_tiling_mode:
+	kfree(tiling_mode);
+free_yclk:
+	kfree(yclk);
+free_sclk:
+	kfree(sclk);
 }
 
 /*******************************************************************************
