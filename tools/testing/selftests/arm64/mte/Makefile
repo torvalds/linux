@@ -32,5 +32,5 @@ endif
 include ../../lib.mk
 
 ifeq ($(mte_cc_support),1)
-$(TEST_GEN_PROGS): mte_common_util.c mte_common_util.h mte_helper.S
+$(TEST_GEN_PROGS): mte_common_util.c mte_helper.S
 endif
