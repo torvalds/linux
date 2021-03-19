@@ -295,7 +295,7 @@ static inline unsigned long red_calc_qavg_from_idle_time(const struct red_parms 
 	int  shift;
 
 	/*
-	 * The problem: ideally, average length queue recalcultion should
+	 * The problem: ideally, average length queue recalculation should
 	 * be done over constant clock intervals. This is too expensive, so
 	 * that the calculation is driven by outgoing packets.
 	 * When the queue is idle we have to model this clock by hand.
