@@ -139,7 +139,7 @@ bool vli_is_zero(const u64 *vli, unsigned int ndigits)
 }
 EXPORT_SYMBOL(vli_is_zero);
 
-/* Returns nonzero if bit bit of vli is set. */
+/* Returns nonzero if bit of vli is set. */
 static u64 vli_test_bit(const u64 *vli, unsigned int bit)
 {
 	return (vli[bit / 64] & ((u64)1 << (bit % 64)));
