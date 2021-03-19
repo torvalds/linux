@@ -7,6 +7,10 @@
  * V0.0X01.0X03 add enum_frame_interval function.
  * V0.0X01.0X04 add quick stream on/off
  * V0.0X01.0X05 add function g_mbus_config
+ * V0.0X01.0X06
+ * 1. fix g_mbus_config lane config issues.
+ * 2. and add debug info
+ * 3. add r1a version support
  */
 
 #include <linux/clk.h>
@@ -36,7 +40,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -277,7 +281,7 @@ static const struct ov8858_id_name ov8858_lens_info[] = {
 /*
  * Xclk 24Mhz
  */
-static const struct regval ov8858_global_regs_r1a[] = {
+static const struct regval ov8858_global_regs_r1a_2lane[] = {
 	//@@5.1.1.1 Initialization (Global Setting)
 	//; Slave_ID=0x6c;
 	//{0x0103 ,0x01 }, software reset
@@ -548,6 +552,484 @@ static const struct regval ov8858_global_regs_r1a[] = {
 	{0x4826, 0x40},
 	{0x4808, 0x25},
 	//{0x0100, 0x01},
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ * max_framerate 30fps
+ * mipi_datarate per lane 720Mbps
+ */
+static const struct regval ov8858_1632x1224_regs_r1a_2lane[] = {
+	{0x0100, 0x00},
+	{0x030e, 0x00}, // pll2_rdiv
+	{0x030f, 0x09}, // pll2_divsp
+	{0x0312, 0x01}, // pll2_pre_div0, pll2_r_divdac
+	{0x3015, 0x01}, //
+	{0x3501, 0x4d}, // exposure M
+	{0x3502, 0x40}, // exposure L
+	//{0x3508, 0x04}, // gain H
+	{0x3706, 0x35},
+	{0x370a, 0x00},
+	{0x370b, 0xb5},
+	{0x3778, 0x1b},
+	{0x3808, 0x06}, // x output size H
+	{0x3809, 0x60}, // x output size L
+	{0x380a, 0x04}, // y output size H
+	{0x380b, 0xc8}, // y output size L
+	{0x380c, 0x07}, // HTS H
+	{0x380d, 0x88}, // HTS L
+	{0x380e, 0x04}, // VTS H
+	{0x380f, 0xdc}, // VTS L
+	{0x3814, 0x03}, // x odd inc
+	{0x3821, 0x67}, // mirror on, bin on
+	{0x382a, 0x03}, // y odd inc
+	{0x3830, 0x08},
+	{0x3836, 0x02},
+	{0x3f0a, 0x80},
+	{0x4001, 0x10}, // total 128 black column
+	{0x4022, 0x04}, // Anchor left end H
+	{0x4023, 0xb9}, // Anchor left end L
+	{0x4024, 0x05}, // Anchor right start H
+	{0x4025, 0x2a}, // Anchor right start L
+	{0x4026, 0x05}, // Anchor right end H
+	{0x4027, 0x2b}, // Anchor right end L
+	{0x402b, 0x04}, // top black line number
+	{0x402e, 0x08}, // bottom black line start
+	{0x4500, 0x38},
+	{0x4600, 0x00},
+	{0x4601, 0xcb},
+	{0x382d, 0x7f},
+
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ * max_framerate 15fps
+ * mipi_datarate per lane 720Mbps
+ */
+static const struct regval ov8858_3264x2448_regs_r1a_2lane[] = {
+	{0x0100, 0x00},
+
+	{0x030e, 0x02}, // pll2_rdiv
+	{0x030f, 0x04}, // pll2_divsp
+	{0x0312, 0x03}, // pll2_pre_div0, pll2_r_divdac
+	{0x3015, 0x00},
+	{0x3501, 0x9a},
+	{0x3502, 0x20},
+	//{0x3508, 0x02},
+	{0x3706, 0x6a},
+	{0x370a, 0x01},
+	{0x370b, 0x6a},
+	{0x3778, 0x32},
+	{0x3808, 0x0c}, // x output size H
+	{0x3809, 0xc0}, // x output size L
+	{0x380a, 0x09}, // y output size H
+	{0x380b, 0x90}, // y output size L
+	{0x380c, 0x07}, // HTS H
+	{0x380d, 0x94}, // HTS L
+	{0x380e, 0x09}, // VTS H
+	{0x380f, 0xaa}, // VTS L
+	{0x3814, 0x01}, // x odd inc
+	{0x3821, 0x46}, // mirror on, bin off
+	{0x382a, 0x01}, // y odd inc
+	{0x3830, 0x06},
+	{0x3836, 0x01},
+	{0x3f0a, 0x00},
+	{0x4001, 0x00}, // total 256 black column
+	{0x4022, 0x0b}, // Anchor left end H
+	{0x4023, 0xc3}, // Anchor left end L
+	{0x4024, 0x0c}, // Anchor right start H
+	{0x4025, 0x36}, // Anchor right start L
+	{0x4026, 0x0c}, // Anchor right end H
+	{0x4027, 0x37}, // Anchor right end L
+	{0x402b, 0x08}, // top black line number
+	{0x402e, 0x0c}, // bottom black line start
+	{0x4500, 0x58},
+	{0x4600, 0x01},
+	{0x4601, 0x97},
+	{0x382d, 0xff},
+
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ */
+static const struct regval ov8858_global_regs_r1a_4lane[] = {
+	// MIPI=720Mbps, SysClk=72Mhz,Dac Clock=360Mhz.
+	{0x0103, 0x01}, //software reset
+	{0x0100, 0x00}, //software standby
+	{0x0100, 0x00}, //
+	{0x0100, 0x00}, //
+	{0x0100, 0x00}, //
+	{0x0302, 0x1e}, //pll1_multi
+	{0x0303, 0x00}, //pll1_divm
+	{0x0304, 0x03}, //pll1_div_mipi
+	{0x030e, 0x00}, //pll2_rdiv
+	{0x030f, 0x09}, //pll2_divsp
+	{0x0312, 0x01}, //pll2_pre_div0, pll2_r_divdac
+	{0x031e, 0x0c}, //pll1_no_lat
+	{0x3600, 0x00},
+	{0x3601, 0x00},
+	{0x3602, 0x00},
+	{0x3603, 0x00},
+	{0x3604, 0x22},
+	{0x3605, 0x30},
+	{0x3606, 0x00},
+	{0x3607, 0x20},
+	{0x3608, 0x11},
+	{0x3609, 0x28},
+	{0x360a, 0x00},
+	{0x360b, 0x06},
+	{0x360c, 0xdc},
+	{0x360d, 0x40},
+	{0x360e, 0x0c},
+	{0x360f, 0x20},
+	{0x3610, 0x07},
+	{0x3611, 0x20},
+	{0x3612, 0x88},
+	{0x3613, 0x80},
+	{0x3614, 0x58},
+	{0x3615, 0x00},
+	{0x3616, 0x4a},
+	{0x3617, 0xb0},
+	{0x3618, 0x56},
+	{0x3619, 0x70},
+	{0x361a, 0x99},
+	{0x361b, 0x00},
+	{0x361c, 0x07},
+	{0x361d, 0x00},
+	{0x361e, 0x00},
+	{0x361f, 0x00},
+	{0x3638, 0xff},
+	{0x3633, 0x0c},
+	{0x3634, 0x0c},
+	{0x3635, 0x0c},
+	{0x3636, 0x0c},
+	{0x3645, 0x13},
+	{0x3646, 0x83},
+	{0x364a, 0x07},
+	{0x3015, 0x01}, //
+	{0x3018, 0x72}, //MIPI 4 lane
+	{0x3020, 0x93}, //Clock switch output normal, pclk_div =/1
+	{0x3022, 0x01}, //pd_mipi enable when rst_sync
+	{0x3031, 0x0a}, //MIPI 10-bit mode
+	{0x3034, 0x00},
+	{0x3106, 0x01}, //sclk_div, sclk_pre_div
+	{0x3305, 0xf1},
+	{0x3308, 0x00},
+	{0x3309, 0x28},
+	{0x330a, 0x00},
+	{0x330b, 0x20},
+	{0x330c, 0x00},
+	{0x330d, 0x00},
+	{0x330e, 0x00},
+	{0x330f, 0x40},
+	{0x3307, 0x04},
+	{0x3500, 0x00}, //exposure H
+	{0x3501, 0x4d}, //exposure M
+	{0x3502, 0x40}, //exposure L
+	{0x3503, 0x00}, //gain delay 1 frame, exposure delay 1 frame, real gain
+	{0x3505, 0x80}, //gain option
+	{0x3508, 0x04}, //gain H
+	{0x3509, 0x00}, //gain L
+	{0x350c, 0x00}, //short gain H
+	{0x350d, 0x80}, //short gain L
+	{0x3510, 0x00}, //short exposure H
+	{0x3511, 0x02}, //short exposure M
+	{0x3512, 0x00}, //short exposure L
+	{0x3700, 0x18},
+	{0x3701, 0x0c},
+	{0x3702, 0x28},
+	{0x3703, 0x19},
+	{0x3704, 0x14},
+	{0x3705, 0x00},
+	{0x3706, 0x35},
+	{0x3707, 0x04},
+	{0x3708, 0x24},
+	{0x3709, 0x33},
+	{0x370a, 0x00},
+	{0x370b, 0xb5},
+	{0x370c, 0x04},
+	{0x3718, 0x12},
+	{0x3719, 0x31},
+	{0x3712, 0x42},
+	{0x3714, 0x24},
+	{0x371e, 0x19},
+	{0x371f, 0x40},
+	{0x3720, 0x05},
+	{0x3721, 0x05},
+	{0x3724, 0x06},
+	{0x3725, 0x01},
+	{0x3726, 0x06},
+	{0x3728, 0x05},
+	{0x3729, 0x02},
+	{0x372a, 0x03},
+	{0x372b, 0x53},
+	{0x372c, 0xa3},
+	{0x372d, 0x53},
+	{0x372e, 0x06},
+	{0x372f, 0x10},
+	{0x3730, 0x01},
+	{0x3731, 0x06},
+	{0x3732, 0x14},
+	{0x3733, 0x10},
+	{0x3734, 0x40},
+	{0x3736, 0x20},
+	{0x373a, 0x05},
+	{0x373b, 0x06},
+	{0x373c, 0x0a},
+	{0x373e, 0x03},
+	{0x3755, 0x10},
+	{0x3758, 0x00},
+	{0x3759, 0x4c},
+	{0x375a, 0x06},
+	{0x375b, 0x13},
+	{0x375c, 0x20},
+	{0x375d, 0x02},
+	{0x375e, 0x00},
+	{0x375f, 0x14},
+	{0x3768, 0x22},
+	{0x3769, 0x44},
+	{0x376a, 0x44},
+	{0x3761, 0x00},
+	{0x3762, 0x00},
+	{0x3763, 0x00},
+	{0x3766, 0xff},
+	{0x376b, 0x00},
+	{0x3772, 0x23},
+	{0x3773, 0x02},
+	{0x3774, 0x16},
+	{0x3775, 0x12},
+	{0x3776, 0x04},
+	{0x3777, 0x00},
+	{0x3778, 0x1b},
+	{0x37a0, 0x44},
+	{0x37a1, 0x3d},
+	{0x37a2, 0x3d},
+	{0x37a3, 0x00},
+	{0x37a4, 0x00},
+	{0x37a5, 0x00},
+	{0x37a6, 0x00},
+	{0x37a7, 0x44},
+	{0x37a8, 0x4c},
+	{0x37a9, 0x4c},
+	{0x3760, 0x00},
+	{0x376f, 0x01},
+	{0x37aa, 0x44},
+	{0x37ab, 0x2e},
+	{0x37ac, 0x2e},
+	{0x37ad, 0x33},
+	{0x37ae, 0x0d},
+	{0x37af, 0x0d},
+	{0x37b0, 0x00},
+	{0x37b1, 0x00},
+	{0x37b2, 0x00},
+	{0x37b3, 0x42},
+	{0x37b4, 0x42},
+	{0x37b5, 0x33},
+	{0x37b6, 0x00},
+	{0x37b7, 0x00},
+	{0x37b8, 0x00},
+	{0x37b9, 0xff},
+	{0x3800, 0x00}, //x start H
+	{0x3801, 0x0c}, //x start L
+	{0x3802, 0x00}, //y start H
+	{0x3803, 0x0c}, //y start L
+	{0x3804, 0x0c}, //x end H
+	{0x3805, 0xd3}, //x end L
+	{0x3806, 0x09}, //y end H
+	{0x3807, 0xa3}, //y end L
+	{0x3808, 0x06}, //x output size H
+	{0x3809, 0x60}, //x output size L
+	{0x380a, 0x04}, //y output size H
+	{0x380b, 0xc8}, //y output size L
+	{0x380c, 0x07}, //03}, //HTS H
+	{0x380d, 0x88}, //c4}, //HTS L
+	{0x380e, 0x04}, //VTS H
+	{0x380f, 0xdc}, //VTS L
+	{0x3810, 0x00}, //ISP x win H
+	{0x3811, 0x04}, //ISP x win L
+	{0x3813, 0x02}, //ISP y win L
+	{0x3814, 0x03}, //x odd inc
+	{0x3815, 0x01}, //x even inc
+	{0x3820, 0x00}, //vflip off
+	{0x3821, 0x67}, //mirror on, bin on
+	{0x382a, 0x03}, //y odd inc
+	{0x382b, 0x01}, //y even inc
+	{0x3830, 0x08},
+	{0x3836, 0x02},
+	{0x3837, 0x18},
+	{0x3841, 0xff}, //window auto size enable
+	{0x3846, 0x48},
+	{0x3d85, 0x14}, //OTP power up load data enable, setting disable
+	{0x3f08, 0x08},
+	{0x3f0a, 0x80},
+	{0x4000, 0xf1}, //out_range/format/gain/exp_chg_trig, median filter enable
+	{0x4001, 0x10}, //total 128 black column
+	{0x4005, 0x10}, //BLC target L
+	{0x4002, 0x27}, //value used to limit BLC offset
+	{0x4009, 0x81}, //final BLC offset limitation enable
+	{0x400b, 0x0c}, //DCBLC on, DCBLC manual mode on
+	{0x401b, 0x00}, //zero line R coefficient
+	{0x401d, 0x00}, //zoro line T coefficient
+	{0x4020, 0x00}, //Anchor left start H
+	{0x4021, 0x04}, //Anchor left start L
+	{0x4022, 0x04}, //Anchor left end H
+	{0x4023, 0xb9}, //Anchor left end L
+	{0x4024, 0x05}, //Anchor right start H
+	{0x4025, 0x2a}, //Anchor right start L
+	{0x4026, 0x05}, //Anchor right end H
+	{0x4027, 0x2b}, //Anchor right end L
+	{0x4028, 0x00}, //top zero line start
+	{0x4029, 0x02}, //top zero line number
+	{0x402a, 0x04}, //top black line start
+	{0x402b, 0x04}, //top black line number
+	{0x402c, 0x02}, //bottom zero line start
+	{0x402d, 0x02}, //bottom zoro line number
+	{0x402e, 0x08}, //bottom black line start
+	{0x402f, 0x02}, //bottom black line number
+	{0x401f, 0x00}, //interpolation x & y disable, Anchor one disable
+	{0x4034, 0x3f},
+	{0x403d, 0x04}, //md_precision_en
+	{0x4300, 0xff}, //clip max H
+	{0x4301, 0x00}, //clip min H
+	{0x4302, 0x0f}, //clip min L, clip max L
+	{0x4316, 0x00},
+	{0x4500, 0x38},
+	{0x4503, 0x18},
+	{0x4600, 0x00},
+	{0x4601, 0xcb},
+	{0x481f, 0x32}, //clk prepare min
+	{0x4837, 0x16}, //global timing
+	{0x4850, 0x10}, //lane 1 = 1, lane 0 = 0
+	{0x4851, 0x32}, //lane 3 = 3, lane 2 = 2
+	{0x4b00, 0x2a},
+	{0x4b0d, 0x00},
+	{0x4d00, 0x04}, //temperature sensor
+	{0x4d01, 0x18},
+	{0x4d02, 0xc3},
+	{0x4d03, 0xff},
+	{0x4d04, 0xff},
+	{0x4d05, 0xff}, //temperature sensor
+	{0x5000, 0x7e}, //slave/master AWB gain/statistics enable, BPC/WPC on
+	{0x5001, 0x01}, //BLC on
+	{0x5002, 0x08}, //H scale off, WBMATCH off, OTP_DPC off
+	{0x5003, 0x20}, //; DPC_DBC buffer control enable, WB
+	{0x5046, 0x12},
+	{0x5901, 0x00}, //H skip off, V skip off
+	{0x5e00, 0x00}, //test pattern off
+	{0x5e01, 0x41}, //window cut enable
+	{0x382d, 0x7f},
+	{0x4825, 0x3a}, //lpx_p_min
+	{0x4826, 0x40}, //hs_prepare_min
+	{0x4808, 0x25}, //wake up
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ * max_framerate 30fps
+ * mipi_datarate per lane 720Mbps
+ */
+static const struct regval ov8858_3264x2448_regs_r1a_4lane[] = {
+	{0x0100, 0x00},
+	{0x030f, 0x04}, //pll2_divsp
+	{0x3501, 0x9a}, //exposure M
+	{0x3502, 0x20}, //exposure L
+	//{0x3508, 0x02}, //gain H
+	{0x3700, 0x30},
+	{0x3701, 0x18},
+	{0x3702, 0x50},
+	{0x3703, 0x32},
+	{0x3704, 0x28},
+	{0x3706, 0x6a},
+	{0x3707, 0x08},
+	{0x3708, 0x48},
+	{0x3709, 0x66},
+	{0x370a, 0x01},
+	{0x370b, 0x6a},
+	{0x370c, 0x07},
+	{0x3718, 0x14},
+	{0x3712, 0x44},
+	{0x371e, 0x31},
+	{0x371f, 0x7f},
+	{0x3720, 0x0a},
+	{0x3721, 0x0a},
+	{0x3724, 0x0c},
+	{0x3725, 0x02},
+	{0x3726, 0x0c},
+	{0x3728, 0x0a},
+	{0x3729, 0x03},
+	{0x372a, 0x06},
+	{0x372b, 0xa6},
+	{0x372c, 0xa6},
+	{0x372d, 0xa6},
+	{0x372e, 0x0c},
+	{0x372f, 0x20},
+	{0x3730, 0x02},
+	{0x3731, 0x0c},
+	{0x3732, 0x28},
+	{0x3736, 0x30},
+	{0x373a, 0x0a},
+	{0x373b, 0x0b},
+	{0x373c, 0x14},
+	{0x373e, 0x06},
+	{0x375a, 0x0c},
+	{0x375b, 0x26},
+	{0x375d, 0x04},
+	{0x375f, 0x28},
+	{0x3772, 0x46},
+	{0x3773, 0x04},
+	{0x3774, 0x2c},
+	{0x3775, 0x13},
+	{0x3776, 0x08},
+	{0x3778, 0x16},
+	{0x37a0, 0x88},
+	{0x37a1, 0x7a},
+	{0x37a2, 0x7a},
+	{0x37a7, 0x88},
+	{0x37a8, 0x98},
+	{0x37a9, 0x98},
+	{0x37aa, 0x88},
+	{0x37ab, 0x5c},
+	{0x37ac, 0x5c},
+	{0x37ad, 0x55},
+	{0x37ae, 0x19},
+	{0x37af, 0x19},
+	{0x37b3, 0x84},
+	{0x37b4, 0x84},
+	{0x37b5, 0x66},
+	{0x3808, 0x0c}, //x output size H
+	{0x3809, 0xc0}, //x output size L
+	{0x380a, 0x09}, //y output size H
+	{0x380b, 0x90}, //y output size L
+	{0x380c, 0x07}, //HTS H
+	{0x380d, 0x94}, //HTS L
+	{0x380e, 0x09}, //VTS H
+	{0x380f, 0xaa}, //VTS L
+	{0x3814, 0x01}, //x odd inc
+	{0x3821, 0x46}, //mirror on, bin off
+	{0x382a, 0x01}, //y odd inc
+	{0x3830, 0x06},
+	{0x3836, 0x01},
+	{0x3f08, 0x08},
+	{0x3f0a, 0x00},
+	{0x4001, 0x00}, //total 256 black column
+	{0x4022, 0x0b}, //Anchor left end H
+	{0x4023, 0xc3}, //Anchor left end L
+	{0x4024, 0x0c}, //Anchor right start H
+	{0x4025, 0x36}, //Anchor right start L
+	{0x4026, 0x0c}, //Anchor right end H
+	{0x4027, 0x37}, //Anchor right end L
+	{0x402b, 0x08}, //top black line number
+	{0x402e, 0x0c}, //bottom black line start
+	{0x4500, 0x58},
+	{0x4600, 0x01},
+	{0x4601, 0x97},
+	{0x382d, 0xff},
 	{REG_NULL, 0x00},
 };
 
@@ -882,7 +1364,7 @@ static const struct regval ov8858_global_regs_r2a_2lane[] = {
  * max_framerate 30fps
  * mipi_datarate per lane 720Mbps
  */
-static const struct regval ov8858_1632x1224_regs_2lane[] = {
+static const struct regval ov8858_1632x1224_regs_r2a_2lane[] = {
 	// MIPI=720Mbps, SysClk=144Mhz,Dac Clock=360Mhz.
 	//
 	// MIPI=720Mbps, SysClk=144Mhz,Dac Clock=360Mhz.
@@ -931,7 +1413,7 @@ static const struct regval ov8858_1632x1224_regs_2lane[] = {
  * max_framerate 15fps
  * mipi_datarate per lane 720Mbps
  */
-static const struct regval ov8858_3264x2448_regs_2lane[] = {
+static const struct regval ov8858_3264x2448_regs_r2a_2lane[] = {
 	{0x0100, 0x00},
 	{0x3501, 0x9a},// exposure M
 	{0x3502, 0x20},// exposure L
@@ -1295,7 +1777,7 @@ static const struct regval ov8858_global_regs_r2a_4lane[] = {
  * max_framerate 30fps
  * mipi_datarate per lane 720Mbps
  */
-static const struct regval ov8858_3264x2448_regs_4lane[] = {
+static const struct regval ov8858_3264x2448_regs_r2a_4lane[] = {
 	{0x0100, 0x00},
 	{0x3501, 0x9a}, // exposure M
 	{0x3502, 0x20}, // exposure L
@@ -1328,7 +1810,7 @@ static const struct regval ov8858_3264x2448_regs_4lane[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct ov8858_mode supported_modes_2lane[] = {
+static const struct ov8858_mode supported_modes_r1a_2lane[] = {
 	{
 		.width = 3264,
 		.height = 2448,
@@ -1339,7 +1821,7 @@ static const struct ov8858_mode supported_modes_2lane[] = {
 		.exp_def = 0x09a0,
 		.hts_def = 0x0794 * 2,
 		.vts_def = 0x09aa,
-		.reg_list = ov8858_3264x2448_regs_2lane,
+		.reg_list = ov8858_3264x2448_regs_r1a_2lane,
 	},
 	{
 		.width = 1632,
@@ -1351,11 +1833,11 @@ static const struct ov8858_mode supported_modes_2lane[] = {
 		.exp_def = 0x04d0,
 		.hts_def = 0x0788,
 		.vts_def = 0x04dc,
-		.reg_list = ov8858_1632x1224_regs_2lane,
+		.reg_list = ov8858_1632x1224_regs_r1a_2lane,
 	},
 };
 
-static const struct ov8858_mode supported_modes_4lane[] = {
+static const struct ov8858_mode supported_modes_r1a_4lane[] = {
 	{
 		.width = 3264,
 		.height = 2448,
@@ -1366,7 +1848,49 @@ static const struct ov8858_mode supported_modes_4lane[] = {
 		.exp_def = 0x09a0,
 		.hts_def = 0x0794 * 2,
 		.vts_def = 0x09aa,
-		.reg_list = ov8858_3264x2448_regs_4lane,
+		.reg_list = ov8858_3264x2448_regs_r1a_4lane,
+	},
+};
+
+static const struct ov8858_mode supported_modes_r2a_2lane[] = {
+	{
+		.width = 3264,
+		.height = 2448,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 150000,
+		},
+		.exp_def = 0x09a0,
+		.hts_def = 0x0794 * 2,
+		.vts_def = 0x09aa,
+		.reg_list = ov8858_3264x2448_regs_r2a_2lane,
+	},
+	{
+		.width = 1632,
+		.height = 1224,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x04d0,
+		.hts_def = 0x0788,
+		.vts_def = 0x04dc,
+		.reg_list = ov8858_1632x1224_regs_r2a_2lane,
+	},
+};
+
+static const struct ov8858_mode supported_modes_r2a_4lane[] = {
+	{
+		.width = 3264,
+		.height = 2448,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x09a0,
+		.hts_def = 0x0794 * 2,
+		.vts_def = 0x09aa,
+		.reg_list = ov8858_3264x2448_regs_r2a_4lane,
 	},
 };
 
@@ -2115,6 +2639,12 @@ static int ov8858_s_stream(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = ov8858->client;
 	int ret = 0;
 
+	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+				ov8858->cur_mode->width,
+				ov8858->cur_mode->height,
+		DIV_ROUND_CLOSEST(ov8858->cur_mode->max_fps.denominator,
+				  ov8858->cur_mode->max_fps.numerator));
+
 	mutex_lock(&ov8858->mutex);
 	on = !!on;
 	if (on == ov8858->streaming)
@@ -2333,14 +2863,25 @@ static int ov8858_enum_frame_interval(struct v4l2_subdev *sd,
 static int ov8858_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *config)
 {
-	u32 val = 0;
+	struct ov8858  *sensor = to_ov8858 (sd);
+	struct device *dev = &sensor->client->dev;
 
-	val = 1 << (OV8858_LANES - 1) |
-	      V4L2_MBUS_CSI2_CHANNEL_0 |
-	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	config->type = V4L2_MBUS_CSI2;
-	config->flags = val;
+	dev_info(dev, "%s(%d) enter!\n", __func__, __LINE__);
 
+	if (2 == sensor->lane_num) {
+		config->type = V4L2_MBUS_CSI2;
+		config->flags = V4L2_MBUS_CSI2_2_LANE |
+				V4L2_MBUS_CSI2_CHANNEL_0 |
+				V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	} else if (4 == sensor->lane_num) {
+		config->type = V4L2_MBUS_CSI2;
+		config->flags = V4L2_MBUS_CSI2_4_LANE |
+				V4L2_MBUS_CSI2_CHANNEL_0 |
+				V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	} else {
+		dev_err(&sensor->client->dev,
+			"unsupported lane_num(%d)\n", sensor->lane_num);
+	}
 	return 0;
 }
 
@@ -2821,15 +3362,32 @@ static int ov8858_check_sensor_id(struct ov8858 *ov8858,
 	if (id == OV8858_R2A) {
 		if (4 == ov8858->lane_num) {
 			ov8858_global_regs = ov8858_global_regs_r2a_4lane;
+			ov8858->cur_mode = &supported_modes_r2a_4lane[0];
+			supported_modes = supported_modes_r2a_4lane;
+			ov8858->cfg_num = ARRAY_SIZE(supported_modes_r2a_4lane);
 		} else {
 			ov8858_global_regs = ov8858_global_regs_r2a_2lane;
+			ov8858->cur_mode = &supported_modes_r2a_2lane[0];
+			supported_modes = supported_modes_r2a_2lane;
+			ov8858->cfg_num = ARRAY_SIZE(supported_modes_r2a_2lane);
 		}
 
 		ov8858->is_r2a = true;
 	} else {
-		ov8858_global_regs = ov8858_global_regs_r1a;
+		if (4 == ov8858->lane_num) {
+			ov8858_global_regs = ov8858_global_regs_r1a_4lane;
+			ov8858->cur_mode = &supported_modes_r1a_4lane[0];
+			supported_modes = supported_modes_r1a_4lane;
+			ov8858->cfg_num = ARRAY_SIZE(supported_modes_r1a_4lane);
+		} else {
+			ov8858_global_regs = ov8858_global_regs_r1a_2lane;
+			ov8858->cur_mode = &supported_modes_r1a_2lane[0];
+			supported_modes = supported_modes_r1a_2lane;
+			ov8858->cfg_num = ARRAY_SIZE(supported_modes_r1a_2lane);
+
+		}
 		ov8858->is_r2a = false;
-		dev_warn(dev, "R1A may not work well current!\n");
+		dev_info(dev, "R1A work ok now!\n");
 	}
 
 	return 0;
@@ -2868,18 +3426,18 @@ static int ov8858_parse_of(struct ov8858 *ov8858)
 
 	ov8858->lane_num = rval;
 	if (4 == ov8858->lane_num) {
-		ov8858->cur_mode = &supported_modes_4lane[0];
-		supported_modes = supported_modes_4lane;
-		ov8858->cfg_num = ARRAY_SIZE(supported_modes_4lane);
+		ov8858->cur_mode = &supported_modes_r2a_4lane[0];
+		supported_modes = supported_modes_r2a_4lane;
+		ov8858->cfg_num = ARRAY_SIZE(supported_modes_r2a_4lane);
 
 		/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 		ov8858->pixel_rate = MIPI_FREQ * 2U * ov8858->lane_num / 10U;
 		dev_info(dev, "lane_num(%d)  pixel_rate(%u)\n",
 				 ov8858->lane_num, ov8858->pixel_rate);
 	} else {
-		ov8858->cur_mode = &supported_modes_2lane[0];
-		supported_modes = supported_modes_2lane;
-		ov8858->cfg_num = ARRAY_SIZE(supported_modes_2lane);
+		ov8858->cur_mode = &supported_modes_r2a_2lane[0];
+		supported_modes = supported_modes_r2a_2lane;
+		ov8858->cfg_num = ARRAY_SIZE(supported_modes_r2a_2lane);
 
 		/*pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 		ov8858->pixel_rate = MIPI_FREQ * 2U * (ov8858->lane_num) / 10U;
