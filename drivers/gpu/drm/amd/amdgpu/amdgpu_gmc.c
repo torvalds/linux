@@ -30,6 +30,9 @@
 #include "amdgpu_gmc.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
+#include "mmhub_v1_0.h"
+#include "mmhub_v9_4.h"
+#include "mmhub_v1_7.h"
 
 /**
  * amdgpu_gmc_pdb0_alloc - allocate vram for pdb0
@@ -398,8 +401,25 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 			return r;
 	}
 
-	if (adev->mmhub.funcs && adev->mmhub.funcs->ras_late_init) {
-		r = adev->mmhub.funcs->ras_late_init(adev);
+	/* initialize mmhub ras funcs */
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		adev->mmhub.ras_funcs = &mmhub_v1_0_ras_funcs;
+		break;
+	case CHIP_ARCTURUS:
+		adev->mmhub.ras_funcs = &mmhub_v9_4_ras_funcs;
+		break;
+	case CHIP_ALDEBARAN:
+		adev->mmhub.ras_funcs = &mmhub_v1_7_ras_funcs;
+		break;
+	default:
+		/* mmhub ras is not available */
+		break;
+	}
+
+	if (adev->mmhub.ras_funcs &&
+	    adev->mmhub.ras_funcs->ras_late_init) {
+		r = adev->mmhub.ras_funcs->ras_late_init(adev);
 		if (r)
 			return r;
 	}
@@ -423,7 +443,9 @@ void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 	    adev->umc.ras_funcs->ras_fini)
 		adev->umc.ras_funcs->ras_fini(adev);
 
-	amdgpu_mmhub_ras_fini(adev);
+	if (adev->mmhub.ras_funcs &&
+	    adev->mmhub.ras_funcs->ras_fini)
+		amdgpu_mmhub_ras_fini(adev);
 
 	if (adev->gmc.xgmi.ras_funcs &&
 	    adev->gmc.xgmi.ras_funcs->ras_fini)
