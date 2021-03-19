@@ -2112,6 +2112,7 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 			      struct io_submit_state *state)
 {
 	io_queue_next(req);
+	io_dismantle_req(req);
 
 	if (req->task != rb->task) {
 		if (rb->task)
@@ -2122,7 +2123,6 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 	rb->task_refs++;
 	rb->ctx_refs++;
 
-	io_dismantle_req(req);
 	if (state->free_reqs != ARRAY_SIZE(state->reqs))
 		state->reqs[state->free_reqs++] = req;
 	else
