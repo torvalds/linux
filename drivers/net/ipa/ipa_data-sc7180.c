@@ -206,7 +206,7 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 	[IPA_MEM_UC_INFO] = {
 		.offset		= 0x0080,
 		.size		= 0x0200,
-		.canary_count	= 2,
+		.canary_count	= 0,
 	},
 	[IPA_MEM_V4_FILTER_HASHED] = {
 		.offset		= 0x0288,
