@@ -9183,31 +9183,31 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		size_t, argsz)
 {
 	struct io_ring_ctx *ctx;
-	long ret = -EBADF;
 	int submitted = 0;
 	struct fd f;
+	long ret;
 
 	io_run_task_work();
 
-	if (flags & ~(IORING_ENTER_GETEVENTS | IORING_ENTER_SQ_WAKEUP |
-			IORING_ENTER_SQ_WAIT | IORING_ENTER_EXT_ARG))
+	if (unlikely(flags & ~(IORING_ENTER_GETEVENTS | IORING_ENTER_SQ_WAKEUP |
+			       IORING_ENTER_SQ_WAIT | IORING_ENTER_EXT_ARG)))
 		return -EINVAL;
 
 	f = fdget(fd);
-	if (!f.file)
+	if (unlikely(!f.file))
 		return -EBADF;
 
 	ret = -EOPNOTSUPP;
-	if (f.file->f_op != &io_uring_fops)
+	if (unlikely(f.file->f_op != &io_uring_fops))
 		goto out_fput;
 
 	ret = -ENXIO;
 	ctx = f.file->private_data;
-	if (!percpu_ref_tryget(&ctx->refs))
+	if (unlikely(!percpu_ref_tryget(&ctx->refs)))
 		goto out_fput;
 
 	ret = -EBADFD;
-	if (ctx->flags & IORING_SETUP_R_DISABLED)
+	if (unlikely(ctx->flags & IORING_SETUP_R_DISABLED))
 		goto out;
 
 	/*
