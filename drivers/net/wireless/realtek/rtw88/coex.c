@@ -787,7 +787,6 @@ static void rtw_coex_update_wl_ch_info(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_coex_dm *coex_dm = &rtwdev->coex.dm;
-	struct rtw_efuse *efuse = &rtwdev->efuse;
 	u8 link = 0;
 	u8 center_chan = 0;
 	u8 bw;
@@ -798,7 +797,7 @@ static void rtw_coex_update_wl_ch_info(struct rtw_dev *rtwdev, u8 type)
 	if (type != COEX_MEDIA_DISCONNECT)
 		center_chan = rtwdev->hal.current_channel;
 
-	if (center_chan == 0 || (efuse->share_ant && center_chan <= 14)) {
+	if (center_chan == 0) {
 		link = 0;
 		center_chan = 0;
 		bw = 0;
@@ -2325,8 +2324,11 @@ static void rtw_coex_action_wl_linkscan(struct rtw_dev *rtwdev)
 	if (efuse->share_ant) { /* Shared-Ant */
 		if (coex_stat->bt_a2dp_exist) {
 			slot_type = TDMA_4SLOT;
-			table_case = 9;
 			tdma_case = 11;
+			if (coex_stat->wl_gl_busy)
+				table_case = 26;
+			else
+				table_case = 9;
 		} else {
 			table_case = 9;
 			tdma_case = 7;
