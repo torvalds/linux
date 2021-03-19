@@ -181,10 +181,17 @@ void *mte_allocate_file_memory(size_t size, int mem_type, int mapping, bool tags
 	}
 	/* Initialize the file for mappable size */
 	lseek(fd, 0, SEEK_SET);
-	for (index = INIT_BUFFER_SIZE; index < size; index += INIT_BUFFER_SIZE)
-		write(fd, buffer, INIT_BUFFER_SIZE);
+	for (index = INIT_BUFFER_SIZE; index < size; index += INIT_BUFFER_SIZE) {
+		if (write(fd, buffer, INIT_BUFFER_SIZE) != INIT_BUFFER_SIZE) {
+			perror("initialising buffer");
+			return NULL;
+		}
+	}
 	index -= INIT_BUFFER_SIZE;
-	write(fd, buffer, size - index);
+	if (write(fd, buffer, size - index) != size - index) {
+		perror("initialising buffer");
+		return NULL;
+	}
 	return __mte_allocate_memory_range(size, mem_type, mapping, 0, 0, tags, fd);
 }
 
@@ -202,9 +209,15 @@ void *mte_allocate_file_memory_tag_range(size_t size, int mem_type, int mapping,
 	/* Initialize the file for mappable size */
 	lseek(fd, 0, SEEK_SET);
 	for (index = INIT_BUFFER_SIZE; index < map_size; index += INIT_BUFFER_SIZE)
-		write(fd, buffer, INIT_BUFFER_SIZE);
+		if (write(fd, buffer, INIT_BUFFER_SIZE) != INIT_BUFFER_SIZE) {
+			perror("initialising buffer");
+			return NULL;
+		}
 	index -= INIT_BUFFER_SIZE;
-	write(fd, buffer, map_size - index);
+	if (write(fd, buffer, map_size - index) != map_size - index) {
+		perror("initialising buffer");
+		return NULL;
+	}
 	return __mte_allocate_memory_range(size, mem_type, mapping, range_before,
 					   range_after, true, fd);
 }
