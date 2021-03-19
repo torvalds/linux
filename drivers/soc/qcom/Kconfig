@@ -62,6 +62,14 @@ config QCOM_MDT_LOADER
 	tristate
 	select QCOM_SCM
 
+config QCOM_MEMSHARE_QMI_SERVICE
+       select QCOM_QMI_HELPERS
+       tristate "Qualcomm QMI Shared Memory Service (MEMSHARE)"
+       help
+	  This service provides additional memory regions on request from
+	  remote processors. On some platforms it is used for GPS by
+	  the location service in the modem subsystem.
+
 config QCOM_OCMEM
 	tristate "Qualcomm On Chip Memory (OCMEM) driver"
 	depends on ARCH_QCOM
