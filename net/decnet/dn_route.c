@@ -84,8 +84,7 @@
 #include <net/dn_neigh.h>
 #include <net/dn_fib.h>
 
-struct dn_rt_hash_bucket
-{
+struct dn_rt_hash_bucket {
 	struct dn_route __rcu *chain;
 	spinlock_t lock;
 };
@@ -359,7 +358,8 @@ static void dn_run_flush(struct timer_list *unused)
 	for (i = 0; i < dn_rt_hash_mask; i++) {
 		spin_lock_bh(&dn_rt_hash_table[i].lock);
 
-		if ((rt = xchg((struct dn_route **)&dn_rt_hash_table[i].chain, NULL)) == NULL)
+		rt = xchg((struct dn_route **)&dn_rt_hash_table[i].chain, NULL);
+		if (!rt)
 			goto nothing_to_declare;
 
 		for(; rt; rt = next) {
@@ -425,7 +425,8 @@ static int dn_return_short(struct sk_buff *skb)
 	/* Add back headers */
 	skb_push(skb, skb->data - skb_network_header(skb));
 
-	if ((skb = skb_unshare(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_unshare(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	cb = DN_SKB_CB(skb);
@@ -461,7 +462,8 @@ static int dn_return_long(struct sk_buff *skb)
 	/* Add back all headers */
 	skb_push(skb, skb->data - skb_network_header(skb));
 
-	if ((skb = skb_unshare(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_unshare(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	cb = DN_SKB_CB(skb);
@@ -505,7 +507,8 @@ static int dn_route_rx_packet(struct net *net, struct sock *sk, struct sk_buff *
 	struct dn_skb_cb *cb;
 	int err;
 
-	if ((err = dn_route_input(skb)) == 0)
+	err = dn_route_input(skb);
+	if (err == 0)
 		return dst_input(skb);
 
 	cb = DN_SKB_CB(skb);
@@ -629,7 +632,8 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 	if (dn == NULL)
 		goto dump_it;
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
 		goto out;
 
 	if (!pskb_may_pull(skb, 3))
@@ -1324,7 +1328,8 @@ static int dn_route_input_slow(struct sk_buff *skb)
 
 	dev_hold(in_dev);
 
-	if ((dn_db = rcu_dereference(in_dev->dn_ptr)) == NULL)
+	dn_db = rcu_dereference(in_dev->dn_ptr);
+	if (!dn_db)
 		goto out;
 
 	/* Zero source addresses are not allowed */
