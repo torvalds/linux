@@ -3266,8 +3266,8 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			fx_iocb.req_xfrcnt =
 			    cpu_to_le16(fxio->u.fxiocb.req_len);
 			put_unaligned_le64(fxio->u.fxiocb.req_dma_handle,
-					   &fx_iocb.dseg_rq.address);
-			fx_iocb.dseg_rq.length =
+					   &fx_iocb.dseg_rq[0].address);
+			fx_iocb.dseg_rq[0].length =
 			    cpu_to_le32(fxio->u.fxiocb.req_len);
 		}
 
@@ -3276,8 +3276,8 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			fx_iocb.rsp_xfrcnt =
 			    cpu_to_le16(fxio->u.fxiocb.rsp_len);
 			put_unaligned_le64(fxio->u.fxiocb.rsp_dma_handle,
-					   &fx_iocb.dseg_rsp.address);
-			fx_iocb.dseg_rsp.length =
+					   &fx_iocb.dseg_rsp[0].address);
+			fx_iocb.dseg_rsp[0].length =
 			    cpu_to_le32(fxio->u.fxiocb.rsp_len);
 		}
 
@@ -3314,7 +3314,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			    cpu_to_le16(bsg_job->request_payload.sg_cnt);
 			tot_dsds =
 			    bsg_job->request_payload.sg_cnt;
-			cur_dsd = &fx_iocb.dseg_rq;
+			cur_dsd = &fx_iocb.dseg_rq[0];
 			avail_dsds = 1;
 			for_each_sg(bsg_job->request_payload.sg_list, sg,
 			    tot_dsds, index) {
@@ -3369,7 +3369,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			fx_iocb.rsp_dsdcnt =
 			   cpu_to_le16(bsg_job->reply_payload.sg_cnt);
 			tot_dsds = bsg_job->reply_payload.sg_cnt;
-			cur_dsd = &fx_iocb.dseg_rsp;
+			cur_dsd = &fx_iocb.dseg_rsp[0];
 			avail_dsds = 1;
 
 			for_each_sg(bsg_job->reply_payload.sg_list, sg,
