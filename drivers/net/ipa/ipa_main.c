@@ -249,53 +249,35 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 	iowrite32(val, ipa->reg_virt + IPA_REG_COMP_CFG_OFFSET);
 }
 
-/* Configure DDR and PCIe max read/write QSB values */
-static void ipa_hardware_config_qsb(struct ipa *ipa)
+/* Configure DDR and (possibly) PCIe max read/write QSB values */
+static void
+ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 {
-	enum ipa_version version = ipa->version;
-	u32 max0;
-	u32 max1;
+	const struct ipa_qsb_data *data0;
+	const struct ipa_qsb_data *data1;
 	u32 val;
 
-	/* QMB_0 represents DDR; QMB_1 represents PCIe */
-	val = u32_encode_bits(8, GEN_QMB_0_MAX_WRITES_FMASK);
-	switch (version) {
-	case IPA_VERSION_4_2:
-		max1 = 0;		/* PCIe not present */
-		break;
-	case IPA_VERSION_4_5:
-		max1 = 8;
-		break;
-	default:
-		max1 = 4;
-		break;
-	}
-	val |= u32_encode_bits(max1, GEN_QMB_1_MAX_WRITES_FMASK);
+	/* assert(data->qsb_count > 0); */
+	/* assert(data->qsb_count < 3); */
+
+	/* QMB 0 represents DDR; QMB 1 (if present) represents PCIe */
+	data0 = &data->qsb_data[IPA_QSB_MASTER_DDR];
+	if (data->qsb_count > 1)
+		data1 = &data->qsb_data[IPA_QSB_MASTER_PCIE];
+
+	/* Max outstanding write accesses for QSB masters */
+	val = u32_encode_bits(data0->max_writes, GEN_QMB_0_MAX_WRITES_FMASK);
+	if (data->qsb_count > 1)
+		val |= u32_encode_bits(data1->max_writes,
+				       GEN_QMB_1_MAX_WRITES_FMASK);
 	iowrite32(val, ipa->reg_virt + IPA_REG_QSB_MAX_WRITES_OFFSET);
 
-	max1 = 12;
-	switch (version) {
-	case IPA_VERSION_3_5_1:
-		max0 = 8;
-		break;
-	case IPA_VERSION_4_0:
-	case IPA_VERSION_4_1:
-		max0 = 12;
-		break;
-	case IPA_VERSION_4_2:
-		max0 = 12;
-		max1 = 0;		/* PCIe not present */
-		break;
-	case IPA_VERSION_4_5:
-		max0 = 0;		/* No limit (hardware maximum) */
-		break;
-	}
-	val = u32_encode_bits(max0, GEN_QMB_0_MAX_READS_FMASK);
-	val |= u32_encode_bits(max1, GEN_QMB_1_MAX_READS_FMASK);
-	if (version != IPA_VERSION_3_5_1) {
-		/* GEN_QMB_0_MAX_READS_BEATS is 0 */
-		/* GEN_QMB_1_MAX_READS_BEATS is 0 */
-	}
+	/* Max outstanding read accesses for QSB masters */
+	val = u32_encode_bits(data0->max_reads, GEN_QMB_0_MAX_READS_FMASK);
+	/* GEN_QMB_0_MAX_READS_BEATS is 0 (IPA v4.0 and above) */
+	if (data->qsb_count > 1)
+		val |= u32_encode_bits(data1->max_reads,
+				       GEN_QMB_1_MAX_READS_FMASK);
 	iowrite32(val, ipa->reg_virt + IPA_REG_QSB_MAX_READS_OFFSET);
 }
 
@@ -385,8 +367,9 @@ static void ipa_hardware_dcd_deconfig(struct ipa *ipa)
 /**
  * ipa_hardware_config() - Primitive hardware initialization
  * @ipa:	IPA pointer
+ * @data:	IPA configuration data
  */
-static void ipa_hardware_config(struct ipa *ipa)
+static void ipa_hardware_config(struct ipa *ipa, const struct ipa_data *data)
 {
 	enum ipa_version version = ipa->version;
 	u32 granularity;
@@ -414,7 +397,7 @@ static void ipa_hardware_config(struct ipa *ipa)
 	ipa_hardware_config_comp(ipa);
 
 	/* Configure system bus limits */
-	ipa_hardware_config_qsb(ipa);
+	ipa_hardware_config_qsb(ipa, data);
 
 	if (version < IPA_VERSION_4_5) {
 		/* Configure aggregation timer granularity */
@@ -610,7 +593,7 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 	 */
 	ipa_clock_get(ipa);
 
-	ipa_hardware_config(ipa);
+	ipa_hardware_config(ipa, data);
 
 	ret = ipa_endpoint_config(ipa);
 	if (ret)
