@@ -1972,7 +1972,7 @@ int bch2_trans_iter_free(struct btree_trans *trans,
 	if (IS_ERR_OR_NULL(iter))
 		return 0;
 
-	trans->iters_touched &= ~(1ULL << iter->idx);
+	set_btree_iter_dontneed(trans, iter);
 
 	return bch2_trans_iter_put(trans, iter);
 }
@@ -2133,7 +2133,7 @@ struct btree_iter *__bch2_trans_copy_iter(struct btree_trans *trans,
 	 * We don't need to preserve this iter since it's cheap to copy it
 	 * again - this will cause trans_iter_put() to free it right away:
 	 */
-	trans->iters_touched &= ~(1ULL << iter->idx);
+	set_btree_iter_dontneed(trans, iter);
 
 	return iter;
 }

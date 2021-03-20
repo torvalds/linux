@@ -300,6 +300,11 @@ static inline bool btree_iter_keep(struct btree_trans *trans, struct btree_iter 
 		(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT);
 }
 
+static inline void set_btree_iter_dontneed(struct btree_trans *trans, struct btree_iter *iter)
+{
+	trans->iters_touched &= ~(1ULL << iter->idx);
+}
+
 #define TRANS_RESET_NOTRAVERSE		(1 << 0)
 
 void bch2_trans_reset(struct btree_trans *, unsigned);

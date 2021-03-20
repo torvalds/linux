@@ -172,23 +172,21 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 				   ck->key.pos, BTREE_ITER_SLOTS);
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
-	if (ret) {
-		bch2_trans_iter_put(trans, iter);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	if (!bch2_btree_node_relock(ck_iter, 0)) {
-		bch2_trans_iter_put(trans, iter);
 		trace_transaction_restart_ip(trans->ip, _THIS_IP_);
-		return -EINTR;
+		ret = -EINTR;
+		goto err;
 	}
 
 	if (k.k->u64s > ck->u64s) {
 		new_u64s = roundup_pow_of_two(k.k->u64s);
 		new_k = kmalloc(new_u64s * sizeof(u64), GFP_NOFS);
 		if (!new_k) {
-			bch2_trans_iter_put(trans, iter);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err;
 		}
 	}
 
@@ -204,9 +202,10 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	bch2_btree_node_unlock_write(ck_iter->l[0].b, ck_iter);
 
 	/* We're not likely to need this iterator again: */
-	bch2_trans_iter_free(trans, iter);
-
-	return 0;
+	set_btree_iter_dontneed(trans, iter);
+err:
+	bch2_trans_iter_put(trans, iter);
+	return ret;
 }
 
 static int bkey_cached_check_fn(struct six_lock *lock, void *p)
