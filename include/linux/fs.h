@@ -1692,6 +1692,26 @@ static inline kgid_t mapped_fsgid(struct user_namespace *mnt_userns)
 	return kgid_from_mnt(mnt_userns, current_fsgid());
 }
 
+/**
+ * fsuidgid_has_mapping() - check whether caller's fsuid/fsgid is mapped
+ * @sb: the superblock we want a mapping in
+ * @mnt_userns: user namespace of the relevant mount
+ *
+ * Check whether the caller's fsuid and fsgid have a valid mapping in the
+ * s_user_ns of the superblock @sb. If the caller is on an idmapped mount map
+ * the caller's fsuid and fsgid according to the @mnt_userns first.
+ *
+ * Return: true if fsuid and fsgid is mapped, false if not.
+ */
+static inline bool fsuidgid_has_mapping(struct super_block *sb,
+					struct user_namespace *mnt_userns)
+{
+	struct user_namespace *s_user_ns = sb->s_user_ns;
+
+	return kuid_has_mapping(s_user_ns, mapped_fsuid(mnt_userns)) &&
+	       kgid_has_mapping(s_user_ns, mapped_fsgid(mnt_userns));
+}
+
 extern struct timespec64 current_time(struct inode *inode);
 
 /*
