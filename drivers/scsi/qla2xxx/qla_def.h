@@ -1527,7 +1527,7 @@ struct init_sf_cb {
 	 * BIT_12 = Remote Write Optimization (1 - Enabled, 0 - Disabled)
 	 * BIT 11-0 = Reserved
 	 */
-	uint16_t flags;
+	__le16	flags;
 	uint8_t	reserved1[32];
 	uint16_t discard_OHRB_timeout_value;
 	uint16_t remote_write_opt_queue_num;
