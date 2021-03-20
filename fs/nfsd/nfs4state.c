@@ -4945,31 +4945,6 @@ static struct file_lock *nfs4_alloc_init_lease(struct nfs4_delegation *dp,
 	return fl;
 }
 
-static int nfsd4_check_conflicting_opens(struct nfs4_client *clp,
-						struct nfs4_file *fp)
-{
-	struct nfs4_clnt_odstate *co;
-	struct file *f = fp->fi_deleg_file->nf_file;
-	struct inode *ino = locks_inode(f);
-	int writes = atomic_read(&ino->i_writecount);
-
-	if (fp->fi_fds[O_WRONLY])
-		writes--;
-	if (fp->fi_fds[O_RDWR])
-		writes--;
-	if (writes > 0)
-		return -EAGAIN;
-	spin_lock(&fp->fi_lock);
-	list_for_each_entry(co, &fp->fi_clnt_odstate, co_perfile) {
-		if (co->co_client != clp) {
-			spin_unlock(&fp->fi_lock);
-			return -EAGAIN;
-		}
-	}
-	spin_unlock(&fp->fi_lock);
-	return 0;
-}
-
 static struct nfs4_delegation *
 nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 		    struct nfs4_file *fp, struct nfs4_clnt_odstate *odstate)
@@ -4989,12 +4964,9 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 
 	nf = find_readable_file(fp);
 	if (!nf) {
-		/*
-		 * We probably could attempt another open and get a read
-		 * delegation, but for now, don't bother until the
-		 * client actually sends us one.
-		 */
-		return ERR_PTR(-EAGAIN);
+		/* We should always have a readable file here */
+		WARN_ON_ONCE(1);
+		return ERR_PTR(-EBADF);
 	}
 	spin_lock(&state_lock);
 	spin_lock(&fp->fi_lock);
@@ -5024,17 +4996,9 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 	if (!fl)
 		goto out_clnt_odstate;
 
-	status = nfsd4_check_conflicting_opens(clp, fp);
-	if (status) {
-		locks_free_lock(fl);
-		goto out_clnt_odstate;
-	}
 	status = vfs_setlease(fp->fi_deleg_file->nf_file, fl->fl_type, &fl, NULL);
 	if (fl)
 		locks_free_lock(fl);
-	if (status)
-		goto out_clnt_odstate;
-	status = nfsd4_check_conflicting_opens(clp, fp);
 	if (status)
 		goto out_clnt_odstate;
 
@@ -5117,6 +5081,17 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open,
 			if (locks_in_grace(clp->net))
 				goto out_no_deleg;
 			if (!cb_up || !(oo->oo_flags & NFS4_OO_CONFIRMED))
+				goto out_no_deleg;
+			/*
+			 * Also, if the file was opened for write or
+			 * create, there's a good chance the client's
+			 * about to write to it, resulting in an
+			 * immediate recall (since we don't support
+			 * write delegations):
+			 */
+			if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
+				goto out_no_deleg;
+			if (open->op_create == NFS4_OPEN_CREATE)
 				goto out_no_deleg;
 			break;
 		default:
