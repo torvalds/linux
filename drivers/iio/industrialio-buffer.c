@@ -260,7 +260,7 @@ static ssize_t iio_show_scan_index(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	return sprintf(buf, "%u\n", to_iio_dev_attr(attr)->c->scan_index);
+	return sysfs_emit(buf, "%u\n", to_iio_dev_attr(attr)->c->scan_index);
 }
 
 static ssize_t iio_show_fixed_type(struct device *dev,
@@ -278,15 +278,15 @@ static ssize_t iio_show_fixed_type(struct device *dev,
 #endif
 	}
 	if (this_attr->c->scan_type.repeat > 1)
-		return sprintf(buf, "%s:%c%d/%dX%d>>%u\n",
+		return sysfs_emit(buf, "%s:%c%d/%dX%d>>%u\n",
 		       iio_endian_prefix[type],
 		       this_attr->c->scan_type.sign,
 		       this_attr->c->scan_type.realbits,
 		       this_attr->c->scan_type.storagebits,
 		       this_attr->c->scan_type.repeat,
 		       this_attr->c->scan_type.shift);
-		else
-			return sprintf(buf, "%s:%c%d/%d>>%u\n",
+	else
+		return sysfs_emit(buf, "%s:%c%d/%d>>%u\n",
 		       iio_endian_prefix[type],
 		       this_attr->c->scan_type.sign,
 		       this_attr->c->scan_type.realbits,
@@ -305,7 +305,7 @@ static ssize_t iio_scan_el_show(struct device *dev,
 	ret = !!test_bit(to_iio_dev_attr(attr)->address,
 		       buffer->scan_mask);
 
-	return sprintf(buf, "%d\n", ret);
+	return sysfs_emit(buf, "%d\n", ret);
 }
 
 /* Note NULL used as error indicator as it doesn't make sense. */
@@ -449,7 +449,7 @@ static ssize_t iio_scan_el_ts_show(struct device *dev,
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
-	return sprintf(buf, "%d\n", buffer->scan_timestamp);
+	return sysfs_emit(buf, "%d\n", buffer->scan_timestamp);
 }
 
 static ssize_t iio_scan_el_ts_store(struct device *dev,
@@ -541,7 +541,7 @@ static ssize_t iio_buffer_read_length(struct device *dev,
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
-	return sprintf(buf, "%d\n", buffer->length);
+	return sysfs_emit(buf, "%d\n", buffer->length);
 }
 
 static ssize_t iio_buffer_write_length(struct device *dev,
@@ -583,7 +583,7 @@ static ssize_t iio_buffer_show_enable(struct device *dev,
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
-	return sprintf(buf, "%d\n", iio_buffer_is_active(buffer));
+	return sysfs_emit(buf, "%d\n", iio_buffer_is_active(buffer));
 }
 
 static unsigned int iio_storage_bytes_for_si(struct iio_dev *indio_dev,
@@ -1227,7 +1227,7 @@ static ssize_t iio_buffer_show_watermark(struct device *dev,
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
-	return sprintf(buf, "%u\n", buffer->watermark);
+	return sysfs_emit(buf, "%u\n", buffer->watermark);
 }
 
 static ssize_t iio_buffer_store_watermark(struct device *dev,
@@ -1271,7 +1271,7 @@ static ssize_t iio_dma_show_data_available(struct device *dev,
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
-	return sprintf(buf, "%zu\n", iio_buffer_data_available(buffer));
+	return sysfs_emit(buf, "%zu\n", iio_buffer_data_available(buffer));
 }
 
 static DEVICE_ATTR(length, S_IRUGO | S_IWUSR, iio_buffer_read_length,

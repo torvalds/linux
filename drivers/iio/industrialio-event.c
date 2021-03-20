@@ -297,7 +297,7 @@ static ssize_t iio_ev_state_show(struct device *dev,
 	if (val < 0)
 		return val;
 	else
-		return sprintf(buf, "%d\n", val);
+		return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t iio_ev_value_show(struct device *dev,

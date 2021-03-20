@@ -234,7 +234,7 @@ ssize_t iio_read_const_attr(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
 {
-	return sprintf(buf, "%s\n", to_iio_const_attr(attr)->string);
+	return sysfs_emit(buf, "%s\n", to_iio_const_attr(attr)->string);
 }
 EXPORT_SYMBOL(iio_read_const_attr);
 
@@ -529,7 +529,7 @@ ssize_t iio_enum_read(struct iio_dev *indio_dev,
 	else if (i >= e->num_items || !e->items[i])
 		return -EINVAL;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", e->items[i]);
+	return sysfs_emit(buf, "%s\n", e->items[i]);
 }
 EXPORT_SYMBOL_GPL(iio_enum_read);
 
@@ -580,10 +580,10 @@ ssize_t iio_show_mount_matrix(struct iio_dev *indio_dev, uintptr_t priv,
 	if (!mtx)
 		mtx = &iio_mount_idmatrix;
 
-	return snprintf(buf, PAGE_SIZE, "%s, %s, %s; %s, %s, %s; %s, %s, %s\n",
-			mtx->rotation[0], mtx->rotation[1], mtx->rotation[2],
-			mtx->rotation[3], mtx->rotation[4], mtx->rotation[5],
-			mtx->rotation[6], mtx->rotation[7], mtx->rotation[8]);
+	return sysfs_emit(buf, "%s, %s, %s; %s, %s, %s; %s, %s, %s\n",
+			  mtx->rotation[0], mtx->rotation[1], mtx->rotation[2],
+			  mtx->rotation[3], mtx->rotation[4], mtx->rotation[5],
+			  mtx->rotation[6], mtx->rotation[7], mtx->rotation[8]);
 }
 EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
 
@@ -1369,7 +1369,7 @@ static ssize_t iio_show_dev_name(struct device *dev,
 				 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	return snprintf(buf, PAGE_SIZE, "%s\n", indio_dev->name);
+	return sysfs_emit(buf, "%s\n", indio_dev->name);
 }
 
 static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
@@ -1379,7 +1379,7 @@ static ssize_t iio_show_dev_label(struct device *dev,
 				 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	return snprintf(buf, PAGE_SIZE, "%s\n", indio_dev->label);
+	return sysfs_emit(buf, "%s\n", indio_dev->label);
 }
 
 static DEVICE_ATTR(label, S_IRUGO, iio_show_dev_label, NULL);

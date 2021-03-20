@@ -50,7 +50,7 @@ static ssize_t iio_trigger_read_name(struct device *dev,
 				     char *buf)
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
-	return sprintf(buf, "%s\n", trig->name);
+	return sysfs_emit(buf, "%s\n", trig->name);
 }
 
 static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
@@ -375,7 +375,7 @@ static ssize_t iio_trigger_read_current(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	if (indio_dev->trig)
-		return sprintf(buf, "%s\n", indio_dev->trig->name);
+		return sysfs_emit(buf, "%s\n", indio_dev->trig->name);
 	return 0;
 }
 
