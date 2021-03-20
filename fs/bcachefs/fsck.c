@@ -1485,11 +1485,12 @@ int bch2_fsck_walk_inodes_only(struct bch_fs *c)
 		     BCH_INODE_I_SECTORS_DIRTY|
 		     BCH_INODE_UNLINKED)) {
 			ret = check_inode(&trans, NULL, iter, inode, NULL);
-			BUG_ON(ret == -EINTR);
 			if (ret)
 				break;
 		}
 	}
+	bch2_trans_iter_put(&trans, iter);
+
 	BUG_ON(ret == -EINTR);
 
 	return bch2_trans_exit(&trans) ?: ret;

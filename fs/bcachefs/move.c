@@ -195,6 +195,7 @@ nomatch:
 		goto next;
 	}
 out:
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&_insert, c);
 	bch2_bkey_buf_exit(&_new, c);
@@ -641,6 +642,8 @@ next_nondata:
 		bch2_trans_cond_resched(&trans);
 	}
 out:
+
+	bch2_trans_iter_put(&trans, iter);
 	ret = bch2_trans_exit(&trans) ?: ret;
 	bch2_bkey_buf_exit(&sk, c);
 

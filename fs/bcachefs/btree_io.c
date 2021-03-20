@@ -1208,6 +1208,7 @@ retry:
 	if (ret)
 		goto err;
 out:
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&k, c);
 	bio_put(&wbio->wbio.bio);

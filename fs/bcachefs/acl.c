@@ -241,12 +241,12 @@ retry:
 	}
 
 	xattr = bkey_s_c_to_xattr(bch2_btree_iter_peek_slot(iter));
-
 	acl = bch2_acl_from_disk(xattr_val(xattr.v),
 			le16_to_cpu(xattr.v->x_val_len));
 
 	if (!IS_ERR(acl))
 		set_cached_acl(&inode->v, type, acl);
+	bch2_trans_iter_put(&trans, iter);
 out:
 	bch2_trans_exit(&trans);
 	return acl;
@@ -313,7 +313,7 @@ retry:
 	if (type == ACL_TYPE_ACCESS) {
 		ret = posix_acl_update_mode(idmap, &inode->v, &mode, &acl);
 		if (ret)
-			goto err;
+			goto btree_err;
 	}
 
 	hash_info = bch2_hash_info_init(c, &inode_u);
@@ -330,6 +330,8 @@ retry:
 				  &inode->ei_journal_seq,
 				  BTREE_INSERT_NOUNLOCK);
 btree_err:
+	bch2_trans_iter_put(&trans, inode_iter);
+
 	if (ret == -EINTR)
 		goto retry;
 	if (unlikely(ret))
@@ -356,21 +358,22 @@ int bch2_acl_chmod(struct btree_trans *trans,
 	struct bkey_s_c_xattr xattr;
 	struct bkey_i_xattr *new;
 	struct posix_acl *acl;
-	int ret = 0;
+	int ret;
 
 	iter = bch2_hash_lookup(trans, bch2_xattr_hash_desc,
 			&hash_info, inode->bi_inum,
 			&X_SEARCH(KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS, "", 0),
 			BTREE_ITER_INTENT);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter) != -ENOENT ? PTR_ERR(iter) : 0;
+	ret = PTR_ERR_OR_ZERO(iter);
+	if (ret)
+		return ret == -ENOENT ? 0 : ret;
 
 	xattr = bkey_s_c_to_xattr(bch2_btree_iter_peek_slot(iter));
-
 	acl = bch2_acl_from_disk(xattr_val(xattr.v),
 			le16_to_cpu(xattr.v->x_val_len));
-	if (IS_ERR_OR_NULL(acl))
-		return PTR_ERR(acl);
+	ret = PTR_ERR_OR_ZERO(acl);
+	if (ret || !acl)
+		goto err;
 
 	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
 	if (ret)
@@ -387,6 +390,7 @@ int bch2_acl_chmod(struct btree_trans *trans,
 	*new_acl = acl;
 	acl = NULL;
 err:
+	bch2_trans_iter_put(trans, iter);
 	kfree(acl);
 	return ret;
 }

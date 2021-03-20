@@ -414,6 +414,8 @@ int bch2_fpunch(struct bch_fs *c, u64 inum, u64 start, u64 end,
 
 	ret = bch2_fpunch_at(&trans, iter, POS(inum, end),
 			     journal_seq, i_sectors_delta);
+
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 
 	if (ret == -EINTR)
@@ -460,6 +462,7 @@ int bch2_write_index_default(struct bch_write_op *op)
 			bch2_keylist_pop_front(keys);
 	} while (!bch2_keylist_empty(keys));
 
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
 
@@ -1659,6 +1662,7 @@ retry:
 		goto err;
 out:
 	bch2_rbio_done(rbio);
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
 	return;
@@ -2259,7 +2263,7 @@ retry:
 		k = bch2_btree_iter_peek_slot(iter);
 		ret = bkey_err(k);
 		if (ret)
-			goto err;
+			break;
 
 		offset_into_extent = iter->pos.offset -
 			bkey_start_offset(k.k);
@@ -2270,7 +2274,7 @@ retry:
 		ret = bch2_read_indirect_extent(&trans, &data_btree,
 					&offset_into_extent, &sk);
 		if (ret)
-			goto err;
+			break;
 
 		k = bkey_i_to_s_c(sk.k);
 
@@ -2295,12 +2299,8 @@ retry:
 		ret = __bch2_read_extent(&trans, rbio, bvec_iter, iter->pos,
 					 data_btree, k,
 					 offset_into_extent, failed, flags);
-		switch (ret) {
-		case READ_RETRY:
-			goto retry;
-		case READ_ERR:
-			goto err;
-		};
+		if (ret)
+			break;
 
 		if (flags & BCH_READ_LAST_FRAGMENT)
 			break;
@@ -2308,19 +2308,19 @@ retry:
 		swap(bvec_iter.bi_size, bytes);
 		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
 	}
-out:
-	bch2_trans_exit(&trans);
-	bch2_bkey_buf_exit(&sk, c);
-	return;
-err:
-	if (ret == -EINTR)
+	bch2_trans_iter_put(&trans, iter);
+
+	if (ret == -EINTR || ret == READ_RETRY || ret == READ_RETRY_AVOID)
 		goto retry;
 
-	bch_err_inum_ratelimited(c, inode,
-				 "read error %i from btree lookup", ret);
-	rbio->bio.bi_status = BLK_STS_IOERR;
-	bch2_rbio_done(rbio);
-	goto out;
+	if (ret) {
+		bch_err_inum_ratelimited(c, inode,
+					 "read error %i from btree lookup", ret);
+		rbio->bio.bi_status = BLK_STS_IOERR;
+		bch2_rbio_done(rbio);
+	}
+	bch2_trans_exit(&trans);
+	bch2_bkey_buf_exit(&sk, c);
 }
 
 void bch2_fs_io_exit(struct bch_fs *c)

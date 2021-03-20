@@ -385,7 +385,6 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags)
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_alloc, POS_MIN,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
@@ -405,6 +404,7 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags)
 		}
 	}
 err:
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 	return ret;
 }
@@ -926,7 +926,6 @@ static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
-
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_alloc,
 				   POS(ca->dev_idx, 0),
 				   BTREE_ITER_CACHED|
@@ -942,6 +941,7 @@ static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 				(!fifo_empty(&ca->free_inc)
 				 ? BTREE_INSERT_NOWAIT : 0));
 
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 
 	/* If we used NOWAIT, don't return the error: */

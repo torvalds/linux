@@ -242,6 +242,8 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 		if (!i->size)
 			break;
 	}
+	bch2_trans_iter_put(&trans, iter);
+
 	bch2_trans_exit(&trans);
 
 	return err < 0 ? err : i->ret;
@@ -294,6 +296,8 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 		if (!i->size)
 			break;
 	}
+	bch2_trans_iter_put(&trans, iter);
+
 	bch2_trans_exit(&trans);
 
 	return err < 0 ? err : i->ret;

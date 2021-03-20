@@ -687,6 +687,8 @@ bool bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size,
 			break;
 		}
 	}
+	bch2_trans_iter_put(&trans, iter);
+
 	bch2_trans_exit(&trans);
 
 	return ret;

@@ -9,6 +9,7 @@
 #include "btree_locking.h"
 #include "btree_update.h"
 #include "debug.h"
+#include "error.h"
 #include "extents.h"
 #include "journal.h"
 #include "trace.h"
@@ -2116,6 +2117,7 @@ struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *trans,
 	for (i = 0; i < ARRAY_SIZE(iter->l); i++)
 		iter->l[i].b		= NULL;
 	iter->l[iter->level].b		= BTREE_ITER_NO_NODE_INIT;
+	iter->ip_allocated = _RET_IP_;
 
 	return iter;
 }
@@ -2224,6 +2226,8 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 		       (void *) &trans->fs_usage_deltas->memset_start);
 	}
 
+	bch2_trans_cond_resched(trans);
+
 	if (!(flags & TRANS_RESET_NOTRAVERSE))
 		bch2_btree_iter_traverse_all(trans);
 }
@@ -2290,6 +2294,19 @@ int bch2_trans_exit(struct btree_trans *trans)
 	bch2_trans_unlock(trans);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
+	if (trans->iters_live) {
+		struct btree_iter *iter;
+
+		bch_err(c, "btree iterators leaked!");
+		trans_for_each_iter(trans, iter)
+			if (btree_iter_live(trans, iter))
+				printk(KERN_ERR "  btree %s allocated at %pS\n",
+				       bch2_btree_ids[iter->btree_id],
+				       (void *) iter->ip_allocated);
+		/* Be noisy about this: */
+		bch2_fatal_error(c);
+	}
+
 	mutex_lock(&trans->c->btree_trans_lock);
 	list_del(&trans->list);
 	mutex_unlock(&trans->c->btree_trans_lock);

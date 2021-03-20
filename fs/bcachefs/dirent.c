@@ -321,6 +321,7 @@ u64 bch2_dirent_lookup(struct bch_fs *c, u64 dir_inum,
 
 	k = bch2_btree_iter_peek_slot(iter);
 	inum = le64_to_cpu(bkey_s_c_to_dirent(k).v->d_inum);
+	bch2_trans_iter_put(&trans, iter);
 out:
 	bch2_trans_exit(&trans);
 	return inum;
@@ -379,6 +380,8 @@ int bch2_readdir(struct bch_fs *c, u64 inum, struct dir_context *ctx)
 			break;
 		ctx->pos = dirent.k->p.offset + 1;
 	}
+	bch2_trans_iter_put(&trans, iter);
+
 	ret = bch2_trans_exit(&trans) ?: ret;
 
 	return ret;

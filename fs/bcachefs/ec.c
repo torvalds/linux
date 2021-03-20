@@ -873,6 +873,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 		if (ret)
 			break;
 	}
+	bch2_trans_iter_put(&trans, iter);
 
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
@@ -1663,12 +1664,13 @@ int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
-
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_stripes, POS(0, U64_MAX), 0);
 
 	k = bch2_btree_iter_prev(iter);
 	if (!IS_ERR_OR_NULL(k.k))
 		idx = k.k->p.offset + 1;
+
+	bch2_trans_iter_put(&trans, iter);
 	ret = bch2_trans_exit(&trans);
 	if (ret)
 		return ret;

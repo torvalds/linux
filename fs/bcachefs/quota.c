@@ -372,6 +372,7 @@ static int bch2_quota_init_type(struct bch_fs *c, enum quota_types type)
 		if (ret)
 			break;
 	}
+	bch2_trans_iter_put(&trans, iter);
 
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -449,6 +450,8 @@ int bch2_fs_quota_read(struct bch_fs *c)
 					KEY_TYPE_QUOTA_NOCHECK);
 		}
 	}
+	bch2_trans_iter_put(&trans, iter);
+
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
@@ -739,7 +742,9 @@ static int bch2_set_quota_trans(struct btree_trans *trans,
 	if (qdq->d_fieldmask & QC_INO_HARD)
 		new_quota->v.c[Q_INO].hardlimit = cpu_to_le64(qdq->d_ino_hardlimit);
 
-	return bch2_trans_update(trans, iter, &new_quota->k_i, 0);
+	ret = bch2_trans_update(trans, iter, &new_quota->k_i, 0);
+	bch2_trans_iter_put(trans, iter);
+	return ret;
 }
 
 static int bch2_set_quota(struct super_block *sb, struct kqid qid,

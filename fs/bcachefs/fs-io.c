@@ -866,7 +866,6 @@ void bch2_readahead(struct readahead_control *ractl)
 	BUG_ON(ret);
 
 	bch2_trans_init(&trans, c, 0, 0);
-
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents, POS_MIN,
 				   BTREE_ITER_SLOTS);
 
@@ -895,6 +894,7 @@ void bch2_readahead(struct readahead_control *ractl)
 
 	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
 
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 	kfree(readpages_iter.pages);
 }
@@ -918,6 +918,7 @@ static void __bchfs_readpage(struct bch_fs *c, struct bch_read_bio *rbio,
 
 	bchfs_read(&trans, iter, rbio, inum, NULL);
 
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 }
 
@@ -2155,6 +2156,7 @@ static inline int range_has_data(struct bch_fs *c,
 			break;
 		}
 	}
+	bch2_trans_iter_put(&trans, iter);
 
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -2325,6 +2327,7 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 	bch2_trans_init(&trans, c, 0, 0);
 	iter = bch2_inode_peek(&trans, &inode_u, inode->v.i_ino, 0);
 	ret = PTR_ERR_OR_ZERO(iter);
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 
 	if (ret)
@@ -2459,13 +2462,10 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 	struct btree_iter *src, *dst, *del;
 	loff_t shift, new_size;
 	u64 src_start;
-	int ret;
+	int ret = 0;
 
 	if ((offset | len) & (block_bytes(c) - 1))
 		return -EINVAL;
-
-	bch2_bkey_buf_init(&copy);
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 256);
 
 	/*
 	 * We need i_mutex to keep the page cache consistent with the extents
@@ -2522,13 +2522,15 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 			goto err;
 	}
 
+	bch2_bkey_buf_init(&copy);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 256);
 	src = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 			POS(inode->v.i_ino, src_start >> 9),
 			BTREE_ITER_INTENT);
 	dst = bch2_trans_copy_iter(&trans, src);
 	del = bch2_trans_copy_iter(&trans, src);
 
-	while (1) {
+	while (ret == 0 || ret == -EINTR) {
 		struct disk_reservation disk_res =
 			bch2_disk_reservation_init(c, 0);
 		struct bkey_i delete;
@@ -2542,7 +2544,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 			? bch2_btree_iter_peek_prev(src)
 			: bch2_btree_iter_peek(src);
 		if ((ret = bkey_err(k)))
-			goto bkey_err;
+			continue;
 
 		if (!k.k || k.k->p.inode != inode->v.i_ino)
 			break;
@@ -2562,7 +2564,7 @@ reassemble:
 
 		ret = bch2_extent_atomic_end(dst, copy.k, &atomic_end);
 		if (ret)
-			goto bkey_err;
+			continue;
 
 		if (bkey_cmp(atomic_end, copy.k->k.p)) {
 			if (insert) {
@@ -2605,18 +2607,18 @@ reassemble:
 					  &inode->ei_journal_seq,
 					  BTREE_INSERT_NOFAIL);
 		bch2_disk_reservation_put(c, &disk_res);
-bkey_err:
+
 		if (!ret)
 			bch2_btree_iter_set_pos(src, next_pos);
-
-		if (ret == -EINTR)
-			ret = 0;
-		if (ret)
-			goto err;
-
-		bch2_trans_cond_resched(&trans);
 	}
-	bch2_trans_unlock(&trans);
+	bch2_trans_iter_put(&trans, del);
+	bch2_trans_iter_put(&trans, dst);
+	bch2_trans_iter_put(&trans, src);
+	bch2_trans_exit(&trans);
+	bch2_bkey_buf_exit(&copy, c);
+
+	if (ret)
+		goto err;
 
 	if (!insert) {
 		i_size_write(&inode->v, new_size);
@@ -2626,8 +2628,6 @@ bkey_err:
 		mutex_unlock(&inode->ei_update_lock);
 	}
 err:
-	bch2_trans_exit(&trans);
-	bch2_bkey_buf_exit(&copy, c);
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	inode_unlock(&inode->v);
 	return ret;
@@ -2682,7 +2682,7 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	end_pos = POS(inode->v.i_ino, block_end >> 9);
 
-	while (bkey_cmp(iter->pos, end_pos) < 0) {
+	while (!ret && bkey_cmp(iter->pos, end_pos) < 0) {
 		s64 i_sectors_delta = 0;
 		struct disk_reservation disk_res = { 0 };
 		struct quota_res quota_res = { 0 };
@@ -2746,9 +2746,11 @@ bkey_err:
 		bch2_disk_reservation_put(c, &disk_res);
 		if (ret == -EINTR)
 			ret = 0;
-		if (ret)
-			goto err;
 	}
+	bch2_trans_iter_put(&trans, iter);
+
+	if (ret)
+		goto err;
 
 	/*
 	 * Do we need to extend the file?
@@ -2770,6 +2772,7 @@ bkey_err:
 			ret = PTR_ERR_OR_ZERO(inode_iter);
 		} while (ret == -EINTR);
 
+		bch2_trans_iter_put(&trans, inode_iter);
 		bch2_trans_unlock(&trans);
 
 		if (ret)
@@ -3015,6 +3018,7 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 		} else if (k.k->p.offset >> 9 > isize)
 			break;
 	}
+	bch2_trans_iter_put(&trans, iter);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
@@ -3118,6 +3122,7 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 			offset = max(offset, bkey_start_offset(k.k) << 9);
 		}
 	}
+	bch2_trans_iter_put(&trans, iter);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)

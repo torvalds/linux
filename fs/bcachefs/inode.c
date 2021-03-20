@@ -620,6 +620,7 @@ retry:
 
 	ret = bch2_trans_commit(&trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL);
+	bch2_trans_iter_put(&trans, iter);
 err:
 	if (ret == -EINTR)
 		goto retry;

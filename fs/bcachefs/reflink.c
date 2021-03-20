@@ -223,20 +223,18 @@ s64 bch2_remap_range(struct bch_fs *c,
 	dst_iter = bch2_trans_get_iter(&trans, BTREE_ID_extents, dst_start,
 				       BTREE_ITER_INTENT);
 
-	while (1) {
+	while (ret == 0 || ret == -EINTR) {
 		bch2_trans_begin(&trans);
-
-		trans.mem_top = 0;
 
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;
-			goto err;
+			break;
 		}
 
 		src_k = get_next_src(src_iter, src_end);
 		ret = bkey_err(src_k);
 		if (ret)
-			goto btree_err;
+			continue;
 
 		src_done = bpos_min(src_iter->pos, src_end).offset -
 			src_start.offset;
@@ -245,8 +243,6 @@ s64 bch2_remap_range(struct bch_fs *c,
 		if (bkey_cmp(dst_iter->pos, dst_want) < 0) {
 			ret = bch2_fpunch_at(&trans, dst_iter, dst_want,
 					     journal_seq, i_sectors_delta);
-			if (ret)
-				goto btree_err;
 			continue;
 		}
 
@@ -265,7 +261,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			ret = bch2_make_extent_indirect(&trans, src_iter,
 						new_src.k);
 			if (ret)
-				goto btree_err;
+				continue;
 
 			BUG_ON(src_k.k->type != KEY_TYPE_reflink_p);
 		}
@@ -294,20 +290,16 @@ s64 bch2_remap_range(struct bch_fs *c,
 					 NULL, journal_seq,
 					 new_i_size, i_sectors_delta);
 		if (ret)
-			goto btree_err;
+			continue;
 
 		dst_done = dst_iter->pos.offset - dst_start.offset;
 		src_want = POS(src_start.inode, src_start.offset + dst_done);
 		bch2_btree_iter_set_pos(src_iter, src_want);
-btree_err:
-		if (ret == -EINTR)
-			ret = 0;
-		if (ret)
-			goto err;
 	}
+	bch2_trans_iter_put(&trans, dst_iter);
+	bch2_trans_iter_put(&trans, src_iter);
 
-	BUG_ON(bkey_cmp(dst_iter->pos, dst_end));
-err:
+	BUG_ON(!ret && bkey_cmp(dst_iter->pos, dst_end));
 	BUG_ON(bkey_cmp(dst_iter->pos, dst_end) > 0);
 
 	dst_done = dst_iter->pos.offset - dst_start.offset;
@@ -329,6 +321,8 @@ err:
 			ret2  = bch2_inode_write(&trans, inode_iter, &inode_u) ?:
 				bch2_trans_commit(&trans, NULL, journal_seq, 0);
 		}
+
+		bch2_trans_iter_put(&trans, inode_iter);
 	} while (ret2 == -EINTR);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
