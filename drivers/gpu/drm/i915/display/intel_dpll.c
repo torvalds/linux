@@ -847,7 +847,7 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 		break;
 	}
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
 
 	if (crtc_state->sdvo_tv_clock)
@@ -861,7 +861,7 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 	dpll |= DPLL_VCO_ENABLE;
 	crtc_state->dpll_hw_state.dpll = dpll;
 
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (DISPLAY_VER(dev_priv) >= 4) {
 		u32 dpll_md = (crtc_state->pixel_multiplier - 1)
 			<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
 		crtc_state->dpll_hw_state.dpll_md = dpll_md;
@@ -926,7 +926,7 @@ static int hsw_crtc_compute_clock(struct intel_crtc *crtc,
 		to_intel_atomic_state(crtc_state->uapi.state);
 
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) ||
-	    INTEL_GEN(dev_priv) >= 11) {
+	    DISPLAY_VER(dev_priv) >= 11) {
 		struct intel_encoder *encoder =
 			intel_get_crtc_new_encoder(state, crtc_state);
 
@@ -1346,7 +1346,7 @@ static int i8xx_crtc_compute_clock(struct intel_crtc *crtc,
 void
 intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 9 || HAS_DDI(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 9 || HAS_DDI(dev_priv))
 		dev_priv->display.crtc_compute_clock = hsw_crtc_compute_clock;
 	else if (HAS_PCH_SPLIT(dev_priv))
 		dev_priv->display.crtc_compute_clock = ilk_crtc_compute_clock;
@@ -1358,7 +1358,7 @@ intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv)
 		dev_priv->display.crtc_compute_clock = g4x_crtc_compute_clock;
 	else if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.crtc_compute_clock = pnv_crtc_compute_clock;
-	else if (!IS_GEN(dev_priv, 2))
+	else if (!IS_DISPLAY_VER(dev_priv, 2))
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 	else
 		dev_priv->display.crtc_compute_clock = i8xx_crtc_compute_clock;
@@ -1398,7 +1398,7 @@ void i9xx_enable_pll(struct intel_crtc *crtc,
 	intel_de_posting_read(dev_priv, reg);
 	udelay(150);
 
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (DISPLAY_VER(dev_priv) >= 4) {
 		intel_de_write(dev_priv, DPLL_MD(crtc->pipe),
 			       crtc_state->dpll_hw_state.dpll_md);
 	} else {

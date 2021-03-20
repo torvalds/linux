@@ -338,7 +338,7 @@ static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 cntl = 0;
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		return cntl;
 
 	if (crtc_state->gamma_enable)
@@ -347,7 +347,7 @@ static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->csc_enable)
 		cntl |= MCURSOR_PIPE_CSC_ENABLE;
 
-	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
+	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
 		cntl |= MCURSOR_PIPE_SELECT(crtc->pipe);
 
 	return cntl;
@@ -527,7 +527,7 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	 * the CURCNTR write arms the update.
 	 */
 
-	if (INTEL_GEN(dev_priv) >= 9)
+	if (DISPLAY_VER(dev_priv) >= 9)
 		skl_write_cursor_wm(plane, crtc_state);
 
 	if (!intel_crtc_needs_modeset(crtc_state))
@@ -583,7 +583,7 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 
 	ret = val & MCURSOR_MODE;
 
-	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		*pipe = plane->pipe;
 	else
 		*pipe = (val & MCURSOR_PIPE_SELECT_MASK) >>
@@ -783,7 +783,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	if (ret)
 		goto fail;
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		drm_plane_create_rotation_property(&cursor->base,
 						   DRM_MODE_ROTATE_0,
 						   DRM_MODE_ROTATE_0 |
@@ -792,7 +792,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	zpos = RUNTIME_INFO(dev_priv)->num_sprites[pipe] + 1;
 	drm_plane_create_zpos_immutable_property(&cursor->base, zpos);
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		drm_plane_enable_fb_damage_clips(&cursor->base);
 
 	drm_plane_helper_add(&cursor->base, &intel_plane_helper_funcs);

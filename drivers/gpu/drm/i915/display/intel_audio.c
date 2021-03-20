@@ -248,7 +248,7 @@ static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_sta
 			break;
 	}
 
-	if (INTEL_GEN(dev_priv) < 12 && adjusted_mode->crtc_clock > 148500)
+	if (DISPLAY_VER(dev_priv) < 12 && adjusted_mode->crtc_clock > 148500)
 		i = ARRAY_SIZE(hdmi_audio_clock);
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
@@ -586,14 +586,14 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 	unsigned int hblank_early_prog, samples_room;
 	unsigned int val;
 
-	if (INTEL_GEN(i915) < 11)
+	if (DISPLAY_VER(i915) < 11)
 		return;
 
 	val = intel_de_read(i915, AUD_CONFIG_BE);
 
-	if (INTEL_GEN(i915) == 11)
+	if (IS_DISPLAY_VER(i915, 11))
 		val |= HBLANK_EARLY_ENABLE_ICL(pipe);
-	else if (INTEL_GEN(i915) >= 12)
+	else if (DISPLAY_VER(i915) >= 12)
 		val |= HBLANK_EARLY_ENABLE_TGL(pipe);
 
 	if (crtc_state->dsc.compression_enable &&
@@ -933,7 +933,7 @@ void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
-	} else if (IS_HASWELL(dev_priv) || INTEL_GEN(dev_priv) >= 8) {
+	} else if (IS_HASWELL(dev_priv) || DISPLAY_VER(dev_priv) >= 8) {
 		dev_priv->display.audio_codec_enable = hsw_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = hsw_audio_codec_disable;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
@@ -1010,7 +1010,7 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 	ret = intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
 
 	if (dev_priv->audio_power_refcount++ == 0) {
-		if (INTEL_GEN(dev_priv) >= 9) {
+		if (DISPLAY_VER(dev_priv) >= 9) {
 			intel_de_write(dev_priv, AUD_FREQ_CNTRL,
 				       dev_priv->audio_freq_cntrl);
 			drm_dbg_kms(&dev_priv->drm,
@@ -1022,7 +1022,7 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 		if (IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, true);
 
-		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 			intel_de_write(dev_priv, AUD_PIN_BUF_CTL,
 				       (intel_de_read(dev_priv, AUD_PIN_BUF_CTL) | AUD_PIN_BUF_ENABLE));
 	}
@@ -1050,7 +1050,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	unsigned long cookie;
 	u32 tmp;
 
-	if (INTEL_GEN(dev_priv) < 9)
+	if (DISPLAY_VER(dev_priv) < 9)
 		return;
 
 	cookie = i915_audio_component_get_power(kdev);
@@ -1296,7 +1296,7 @@ static void i915_audio_component_init(struct drm_i915_private *dev_priv)
 		return;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 9) {
+	if (DISPLAY_VER(dev_priv) >= 9) {
 		dev_priv->audio_freq_cntrl = intel_de_read(dev_priv,
 							   AUD_FREQ_CNTRL);
 		drm_dbg_kms(&dev_priv->drm,

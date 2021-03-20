@@ -275,13 +275,13 @@ static u8 icl_nv12_y_plane_mask(struct drm_i915_private *i915)
 bool icl_is_nv12_y_plane(struct drm_i915_private *dev_priv,
 			 enum plane_id plane_id)
 {
-	return INTEL_GEN(dev_priv) >= 11 &&
+	return DISPLAY_VER(dev_priv) >= 11 &&
 		icl_nv12_y_plane_mask(dev_priv) & BIT(plane_id);
 }
 
 bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id)
 {
-	return INTEL_GEN(dev_priv) >= 11 &&
+	return DISPLAY_VER(dev_priv) >= 11 &&
 		icl_hdr_plane_mask() & BIT(plane_id);
 }
 
@@ -294,7 +294,7 @@ skl_plane_ratio(const struct intel_crtc_state *crtc_state,
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 
 	if (fb->format->cpp[0] == 8) {
-		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+		if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
 			*num = 10;
 			*den = 8;
 		} else {
@@ -317,7 +317,7 @@ static int skl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	skl_plane_ratio(crtc_state, plane_state, &num, &den);
 
 	/* two pixels per clock on glk+ */
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		den *= 2;
 
 	return DIV_ROUND_UP(pixel_rate * num, den);
@@ -810,7 +810,7 @@ static u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	u32 plane_ctl = 0;
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		return plane_ctl;
 
 	if (crtc_state->gamma_enable)
@@ -834,7 +834,7 @@ static u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 	plane_ctl = PLANE_CTL_ENABLE;
 
-	if (INTEL_GEN(dev_priv) < 10 && !IS_GEMINILAKE(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) < 10 && !IS_GEMINILAKE(dev_priv)) {
 		plane_ctl |= skl_plane_ctl_alpha(plane_state);
 		plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 
@@ -849,7 +849,7 @@ static u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
 	plane_ctl |= skl_plane_ctl_rotate(rotation & DRM_MODE_ROTATE_MASK);
 
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 10)
 		plane_ctl |= cnl_plane_ctl_flip(rotation &
 						DRM_MODE_REFLECT_MASK);
 
@@ -866,7 +866,7 @@ static u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	u32 plane_color_ctl = 0;
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		return plane_color_ctl;
 
 	if (crtc_state->gamma_enable)
@@ -941,7 +941,7 @@ skl_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
 
 	if (is_ccs_modifier(fb->modifier))
 		return main_to_ccs_plane(fb, main_plane);
-	else if (INTEL_GEN(i915) < 11 &&
+	else if (DISPLAY_VER(i915) < 11 &&
 		 intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
 		return 1;
 	else
@@ -976,7 +976,7 @@ skl_program_plane(struct intel_plane *plane,
 
 	plane_ctl |= skl_plane_ctl_crtc(crtc_state);
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		plane_color_ctl = plane_state->color_ctl |
 			glk_plane_color_ctl_crtc(crtc_state);
 
@@ -999,7 +999,7 @@ skl_program_plane(struct intel_plane *plane,
 	if (aux_plane) {
 		aux_dist = plane_state->color_plane[aux_plane].offset - surf_addr;
 
-		if (INTEL_GEN(dev_priv) < 12)
+		if (DISPLAY_VER(dev_priv) < 12)
 			aux_dist |= skl_plane_stride(plane_state, aux_plane);
 	}
 
@@ -1017,7 +1017,7 @@ skl_program_plane(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, PLANE_CUS_CTL(pipe, plane_id),
 				  plane_state->cus_ctl);
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		intel_de_write_fw(dev_priv, PLANE_COLOR_CTL(pipe, plane_id),
 				  plane_color_ctl);
 
@@ -1038,7 +1038,7 @@ skl_program_plane(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_OFFSET(pipe, plane_id),
 			  (y << 16) | x);
 
-	if (INTEL_GEN(dev_priv) < 11)
+	if (DISPLAY_VER(dev_priv) < 11)
 		intel_de_write_fw(dev_priv, PLANE_AUX_OFFSET(pipe, plane_id),
 				  (plane_state->color_plane[1].y << 16) | plane_state->color_plane[1].x);
 
@@ -1154,7 +1154,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		 */
 		switch (fb->format->format) {
 		case DRM_FORMAT_RGB565:
-			if (INTEL_GEN(dev_priv) >= 11)
+			if (DISPLAY_VER(dev_priv) >= 11)
 				break;
 			fallthrough;
 		case DRM_FORMAT_C8:
@@ -1262,7 +1262,7 @@ static int skl_plane_max_scale(struct drm_i915_private *dev_priv,
 	 * the best case.
 	 * FIXME need to properly check this later.
 	 */
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv) ||
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv) ||
 	    !intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
 		return 0x30000 - 1;
 	else
@@ -1631,7 +1631,7 @@ static bool skl_fb_scalable(const struct drm_framebuffer *fb)
 	case DRM_FORMAT_ARGB16161616F:
 	case DRM_FORMAT_XBGR16161616F:
 	case DRM_FORMAT_ABGR16161616F:
-		return INTEL_GEN(to_i915(fb->dev)) >= 11;
+		return DISPLAY_VER(to_i915(fb->dev)) >= 11;
 	default:
 		return true;
 	}
@@ -1687,7 +1687,7 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 
 	plane_state->ctl = skl_plane_ctl(crtc_state, plane_state);
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		plane_state->color_ctl = glk_plane_color_ctl(crtc_state,
 							     plane_state);
 
@@ -1719,7 +1719,7 @@ static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return false;
 
-	if (IS_GEN(dev_priv, 9) && !IS_GEMINILAKE(dev_priv) && pipe == PIPE_C)
+	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_GEMINILAKE(dev_priv) && pipe == PIPE_C)
 		return false;
 
 	if (plane_id != PLANE_PRIMARY && plane_id != PLANE_SPRITE0)
@@ -1776,7 +1776,7 @@ static bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 	if (plane_id == PLANE_CURSOR)
 		return false;
 
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 10)
 		return true;
 
 	if (IS_GEMINILAKE(dev_priv))
@@ -2009,11 +2009,11 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (DISPLAY_VER(dev_priv) >= 11) {
 		plane->min_width = icl_plane_min_width;
 		plane->max_width = icl_plane_max_width;
 		plane->max_height = icl_plane_max_height;
-	} else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+	} else if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
 		plane->max_width = glk_plane_max_width;
 		plane->max_height = skl_plane_max_height;
 	} else {
@@ -2029,16 +2029,17 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->min_cdclk = skl_plane_min_cdclk;
 
 	if (plane_id == PLANE_PRIMARY) {
-		plane->need_async_flip_disable_wa = IS_GEN_RANGE(dev_priv, 9, 10);
+		plane->need_async_flip_disable_wa = IS_DISPLAY_RANGE(dev_priv,
+								     9, 10);
 		plane->async_flip = skl_plane_async_flip;
 		plane->enable_flip_done = skl_plane_enable_flip_done;
 		plane->disable_flip_done = skl_plane_disable_flip_done;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		formats = icl_get_plane_formats(dev_priv, pipe,
 						plane_id, &num_formats);
-	else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	else if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		formats = glk_get_plane_formats(dev_priv, pipe,
 						plane_id, &num_formats);
 	else
@@ -2046,7 +2047,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 						plane_id, &num_formats);
 
 	plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		modifiers = gen12_get_plane_modifiers(dev_priv, plane_id);
 		plane_funcs = &gen12_plane_funcs;
 	} else {
@@ -2075,7 +2076,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
 		DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270;
 
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 10)
 		supported_rotations |= DRM_MODE_REFLECT_X;
 
 	drm_plane_create_rotation_property(&plane->base,
@@ -2084,7 +2085,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 
 	supported_csc = BIT(DRM_COLOR_YCBCR_BT601) | BIT(DRM_COLOR_YCBCR_BT709);
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		supported_csc |= BIT(DRM_COLOR_YCBCR_BT2020);
 
 	drm_plane_create_color_properties(&plane->base,
@@ -2102,10 +2103,10 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 
 	drm_plane_create_zpos_immutable_property(&plane->base, plane_id);
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		drm_plane_enable_fb_damage_clips(&plane->base);
 
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 10)
 		drm_plane_create_scaling_filter_property(&plane->base,
 						BIT(DRM_SCALING_FILTER_DEFAULT) |
 						BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR));
@@ -2159,12 +2160,12 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 	val = intel_de_read(dev_priv, PLANE_CTL(pipe, plane_id));
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		pixel_format = val & ICL_PLANE_CTL_FORMAT_MASK;
 	else
 		pixel_format = val & PLANE_CTL_FORMAT_MASK;
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
 		alpha = intel_de_read(dev_priv,
 				      PLANE_COLOR_CTL(pipe, plane_id));
 		alpha &= PLANE_COLOR_ALPHA_MASK;
@@ -2188,7 +2189,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	case PLANE_CTL_TILED_Y:
 		plane_config->tiling = I915_TILING_Y;
 		if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
-			fb->modifier = INTEL_GEN(dev_priv) >= 12 ?
+			fb->modifier = DISPLAY_VER(dev_priv) >= 12 ?
 				I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS :
 				I915_FORMAT_MOD_Y_TILED_CCS;
 		else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
@@ -2226,7 +2227,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 		break;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 10 &&
+	if (DISPLAY_VER(dev_priv) >= 10 &&
 	    val & PLANE_CTL_FLIP_HORIZONTAL)
 		plane_config->rotation |= DRM_MODE_REFLECT_X;
 

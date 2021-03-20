@@ -1355,13 +1355,13 @@ int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	int n_entries;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		if (intel_phy_is_combo(dev_priv, phy))
 			tgl_get_combo_buf_trans_hdmi(encoder, crtc_state, &n_entries);
 		else
 			tgl_get_dkl_buf_trans_hdmi(encoder, crtc_state, &n_entries);
 		*default_entry = n_entries - 1;
-	} else if (INTEL_GEN(dev_priv) == 11) {
+	} else if (IS_DISPLAY_VER(dev_priv, 11)) {
 		if (intel_phy_is_combo(dev_priv, phy))
 			icl_get_combo_buf_trans_hdmi(encoder, crtc_state, &n_entries);
 		else

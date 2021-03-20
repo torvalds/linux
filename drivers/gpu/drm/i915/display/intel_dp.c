@@ -214,8 +214,8 @@ bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &intel_dig_port->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	return INTEL_GEN(dev_priv) >= 12 ||
-		(INTEL_GEN(dev_priv) == 11 &&
+	return DISPLAY_VER(dev_priv) >= 12 ||
+		(IS_DISPLAY_VER(dev_priv, 11) &&
 		 encoder->port != PORT_A);
 }
 
@@ -292,10 +292,10 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 	drm_WARN_ON(&dev_priv->drm,
 		    intel_dp->source_rates || intel_dp->num_source_rates);
 
-	if (INTEL_GEN(dev_priv) >= 10) {
+	if (DISPLAY_VER(dev_priv) >= 10) {
 		source_rates = cnl_rates;
 		size = ARRAY_SIZE(cnl_rates);
-		if (IS_GEN(dev_priv, 10))
+		if (IS_DISPLAY_VER(dev_priv, 10))
 			max_rate = cnl_max_source_rate(intel_dp);
 		else if (IS_JSL_EHL(dev_priv))
 			max_rate = ehl_max_source_rate(intel_dp);
@@ -483,7 +483,7 @@ u32 intel_dp_mode_to_fec_clock(u32 mode_clock)
 static int
 small_joiner_ram_size_bits(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11)
+	if (DISPLAY_VER(i915) >= 11)
 		return 7680 * 8;
 	else
 		return 6144 * 8;
@@ -776,7 +776,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	 * Output bpp is stored in 6.4 format so right shift by 4 to get the
 	 * integer value since we support only integer values of bpp.
 	 */
-	if ((INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) &&
+	if ((DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) &&
 	    drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd)) {
 		if (intel_dp_is_edp(intel_dp)) {
 			dsc_max_output_bpp =
@@ -913,10 +913,10 @@ static bool intel_dp_source_supports_fec(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
 	/* On TGL, FEC is supported on all Pipes */
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		return true;
 
-	if (IS_GEN(dev_priv, 11) && pipe_config->cpu_transcoder != TRANSCODER_A)
+	if (IS_DISPLAY_VER(dev_priv, 11) && pipe_config->cpu_transcoder != TRANSCODER_A)
 		return true;
 
 	return false;
@@ -1235,7 +1235,7 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		return -EINVAL;
 
 	/* Max DSC Input BPC for ICL is 10 and for TGL+ is 12 */
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		dsc_max_bpc = min_t(u8, 12, conn_state->max_requested_bpc);
 	else
 		dsc_max_bpc = min_t(u8, 10,
@@ -1474,7 +1474,7 @@ static bool intel_dp_port_has_audio(struct drm_i915_private *dev_priv,
 {
 	if (IS_G4X(dev_priv))
 		return false;
-	if (INTEL_GEN(dev_priv) < 12 && port == PORT_A)
+	if (DISPLAY_VER(dev_priv) < 12 && port == PORT_A)
 		return false;
 
 	return true;
@@ -2523,7 +2523,7 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	intel_dp_set_common_rates(intel_dp);
 
 	/* Read the eDP DSC DPCD registers */
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		intel_dp_get_dsc_sink_cap(intel_dp);
 
 	/*
@@ -3702,7 +3702,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 			to_intel_crtc_state(crtc->base.state);
 
 		/* retrain on the MST master transcoder */
-		if (INTEL_GEN(dev_priv) >= 12 &&
+		if (DISPLAY_VER(dev_priv) >= 12 &&
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
 		    !intel_dp_mst_is_master_trans(crtc_state))
 			continue;
@@ -3806,7 +3806,7 @@ static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 			to_intel_crtc_state(crtc->base.state);
 
 		/* test on the MST master transcoder */
-		if (INTEL_GEN(dev_priv) >= 12 &&
+		if (DISPLAY_VER(dev_priv) >= 12 &&
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
 		    !intel_dp_mst_is_master_trans(crtc_state))
 			continue;
@@ -4137,7 +4137,7 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 								 DP_DS_HDMI_BT709_RGB_YCBCR_CONV |
 								 DP_DS_HDMI_BT2020_RGB_YCBCR_CONV);
 
-	if (INTEL_GEN(i915) >= 11) {
+	if (DISPLAY_VER(i915) >= 11) {
 		/* Let PCON convert from RGB->YCbCr if possible */
 		if (is_branch && rgb_to_ycbcr && ycbcr_444_to_420) {
 			intel_dp->dfp.rgb_to_ycbcr = true;
@@ -4255,7 +4255,7 @@ intel_dp_detect(struct drm_connector *connector,
 	}
 
 	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		intel_dp_get_dsc_sink_cap(intel_dp);
 
 	intel_dp_configure_mst(intel_dp);
@@ -4601,7 +4601,7 @@ static int intel_dp_connector_atomic_check(struct drm_connector *conn,
 	 * We don't enable port sync on BDW due to missing w/as and
 	 * due to not having adjusted the modeset sequence appropriately.
 	 */
-	if (INTEL_GEN(dev_priv) < 9)
+	if (DISPLAY_VER(dev_priv) < 9)
 		return 0;
 
 	if (!intel_connector_needs_modeset(state, conn))
@@ -4684,10 +4684,10 @@ bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 	 * eDP not supported on g4x. so bail out early just
 	 * for a bit extra safety in case the VBT is bonkers.
 	 */
-	if (INTEL_GEN(dev_priv) < 5)
+	if (DISPLAY_VER(dev_priv) < 5)
 		return false;
 
-	if (INTEL_GEN(dev_priv) < 9 && port == PORT_A)
+	if (DISPLAY_VER(dev_priv) < 9 && port == PORT_A)
 		return true;
 
 	return intel_bios_is_port_edp(dev_priv, port);
@@ -4708,7 +4708,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	intel_attach_broadcast_rgb_property(connector);
 	if (HAS_GMCH(dev_priv))
 		drm_connector_attach_max_bpc_property(connector, 6, 10);
-	else if (INTEL_GEN(dev_priv) >= 5)
+	else if (DISPLAY_VER(dev_priv) >= 5)
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
 	/* Register HDMI colorspace for case of lspcon */
@@ -4719,7 +4719,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		intel_attach_dp_colorspace_property(connector);
 	}
 
-	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 11)
+	if (IS_GEMINILAKE(dev_priv) || DISPLAY_VER(dev_priv) >= 11)
 		drm_object_attach_property(&connector->base,
 					   connector->dev->mode_config.hdr_output_metadata_property,
 					   0);
@@ -4800,7 +4800,7 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 8 && !IS_CHERRYVIEW(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) >= 8 && !IS_CHERRYVIEW(dev_priv)) {
 		switch (index) {
 		case DRRS_HIGH_RR:
 			intel_dp_set_m_n(crtc_state, M1_N1);
@@ -4813,7 +4813,7 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 			drm_err(&dev_priv->drm,
 				"Unsupported refreshrate type\n");
 		}
-	} else if (INTEL_GEN(dev_priv) > 6) {
+	} else if (DISPLAY_VER(dev_priv) > 6) {
 		i915_reg_t reg = PIPECONF(crtc_state->cpu_transcoder);
 		u32 val;
 
@@ -5141,7 +5141,7 @@ intel_dp_drrs_init(struct intel_connector *connector,
 	INIT_DELAYED_WORK(&dev_priv->drrs.work, intel_edp_drrs_downclock_work);
 	mutex_init(&dev_priv->drrs.mutex);
 
-	if (INTEL_GEN(dev_priv) <= 6) {
+	if (DISPLAY_VER(dev_priv) <= 6) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "DRRS supported for Gen7 and above\n");
 		return NULL;

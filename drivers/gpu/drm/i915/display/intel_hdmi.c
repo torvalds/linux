@@ -181,7 +181,7 @@ static int hsw_dip_data_size(struct drm_i915_private *dev_priv,
 	case DP_SDP_PPS:
 		return VIDEO_DIP_PPS_DATA_SIZE;
 	case HDMI_PACKET_TYPE_GAMUT_METADATA:
-		if (INTEL_GEN(dev_priv) >= 11)
+		if (DISPLAY_VER(dev_priv) >= 11)
 			return VIDEO_DIP_GMP_DATA_SIZE;
 		else
 			return VIDEO_DIP_DATA_SIZE;
@@ -564,7 +564,7 @@ static u32 hsw_infoframes_enabled(struct intel_encoder *encoder,
 		VIDEO_DIP_ENABLE_GCP_HSW | VIDEO_DIP_ENABLE_VS_HSW |
 		VIDEO_DIP_ENABLE_GMP_HSW | VIDEO_DIP_ENABLE_SPD_HSW);
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		mask |= VIDEO_DIP_ENABLE_DRM_GLK;
 
 	return val & mask;
@@ -820,7 +820,7 @@ intel_hdmi_compute_drm_infoframe(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int ret;
 
-	if (!(INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)))
+	if (!(DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)))
 		return true;
 
 	if (!crtc_state->has_infoframe)
@@ -1775,11 +1775,11 @@ static int intel_hdmi_source_max_tmds_clock(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int max_tmds_clock, vbt_max_tmds_clock;
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		max_tmds_clock = 594000;
-	else if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv))
+	else if (DISPLAY_VER(dev_priv) >= 8 || IS_HASWELL(dev_priv))
 		max_tmds_clock = 300000;
-	else if (INTEL_GEN(dev_priv) >= 5)
+	else if (DISPLAY_VER(dev_priv) >= 5)
 		max_tmds_clock = 225000;
 	else
 		max_tmds_clock = 165000;
@@ -1902,7 +1902,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 						       true, has_hdmi_sink);
 
 		/* if we can't do 8,12bpc we may still be able to do 10bpc */
-		if (status != MODE_OK && INTEL_GEN(dev_priv) >= 11)
+		if (status != MODE_OK && DISPLAY_VER(dev_priv) >= 11)
 			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
 						       true, has_hdmi_sink);
 	}
@@ -1965,7 +1965,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 	if (HAS_GMCH(dev_priv))
 		return false;
 
-	if (bpc == 10 && INTEL_GEN(dev_priv) < 11)
+	if (bpc == 10 && DISPLAY_VER(dev_priv) < 11)
 		return false;
 
 	/*
@@ -1977,7 +1977,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 
 	/* Display Wa_1405510057:icl,ehl */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
-	    bpc == 10 && IS_GEN(dev_priv, 11) &&
+	    bpc == 10 && IS_DISPLAY_VER(dev_priv, 11) &&
 	    (adjusted_mode->crtc_hblank_end -
 	     adjusted_mode->crtc_hblank_start) % 8 == 2)
 		return false;
@@ -2164,7 +2164,7 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->lane_count = 4;
 
-	if (scdc->scrambling.supported && (INTEL_GEN(dev_priv) >= 10 ||
+	if (scdc->scrambling.supported && (DISPLAY_VER(dev_priv) >= 10 ||
 					   IS_GEMINILAKE(dev_priv))) {
 		if (scdc->scrambling.low_rates)
 			pipe_config->hdmi_scrambling = true;
@@ -2323,7 +2323,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
-	if (INTEL_GEN(dev_priv) >= 11 &&
+	if (DISPLAY_VER(dev_priv) >= 11 &&
 	    !intel_digital_port_connected(encoder))
 		goto out;
 
@@ -2460,7 +2460,7 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_attach_hdmi_colorspace_property(connector);
 	drm_connector_attach_content_type_property(connector);
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		drm_object_attach_property(&connector->base,
 			connector->dev->mode_config.hdr_output_metadata_property, 0);
 
@@ -2793,7 +2793,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 		    "Adding HDMI connector on [ENCODER:%d:%s]\n",
 		    intel_encoder->base.base.id, intel_encoder->base.name);
 
-	if (INTEL_GEN(dev_priv) < 12 && drm_WARN_ON(dev, port == PORT_A))
+	if (DISPLAY_VER(dev_priv) < 12 && drm_WARN_ON(dev, port == PORT_A))
 		return;
 
 	if (drm_WARN(dev, dig_port->max_lanes < 4,
@@ -2815,7 +2815,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 	connector->doublescan_allowed = 0;
 	connector->stereo_allowed = 1;
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		connector->ycbcr_420_allowed = true;
 
 	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;

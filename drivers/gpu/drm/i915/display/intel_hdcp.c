@@ -333,7 +333,7 @@ static
 u32 intel_hdcp_get_repeater_ctl(struct drm_i915_private *dev_priv,
 				enum transcoder cpu_transcoder, enum port port)
 {
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		switch (cpu_transcoder) {
 		case TRANSCODER_A:
 			return HDCP_TRANSA_REP_PRESENT |
@@ -1104,7 +1104,7 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
 {
 	return INTEL_INFO(dev_priv)->display.has_hdcp &&
-			(INTEL_GEN(dev_priv) >= 12 || port < PORT_E);
+			(DISPLAY_VER(dev_priv) >= 12 || port < PORT_E);
 }
 
 static int
@@ -2166,7 +2166,7 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum port port = dig_port->base.port;
 
-	if (INTEL_GEN(dev_priv) < 12)
+	if (DISPLAY_VER(dev_priv) < 12)
 		data->fw_ddi = intel_get_mei_fw_ddi_index(port);
 	else
 		/*
@@ -2205,7 +2205,7 @@ static bool is_hdcp2_supported(struct drm_i915_private *dev_priv)
 	if (!IS_ENABLED(CONFIG_INTEL_MEI_HDCP))
 		return false;
 
-	return (INTEL_GEN(dev_priv) >= 10 ||
+	return (DISPLAY_VER(dev_priv) >= 10 ||
 		IS_GEMINILAKE(dev_priv) ||
 		IS_KABYLAKE(dev_priv) ||
 		IS_COFFEELAKE(dev_priv) ||
@@ -2317,7 +2317,7 @@ int intel_hdcp_enable(struct intel_connector *connector,
 		hdcp->stream_transcoder = INVALID_TRANSCODER;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		dig_port->hdcp_port_data.fw_tc = intel_get_mei_fw_tc(hdcp->cpu_transcoder);
 
 	/*

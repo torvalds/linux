@@ -544,7 +544,7 @@ parse_sdvo_panel_data(struct drm_i915_private *i915,
 static int intel_bios_ssc_frequency(struct drm_i915_private *i915,
 				    bool alternate)
 {
-	switch (INTEL_GEN(i915)) {
+	switch (DISPLAY_VER(i915)) {
 	case 2:
 		return alternate ? 66667 : 48000;
 	case 3:
@@ -610,7 +610,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *i915)
 	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
 	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
-	if (!IS_GEN_RANGE(i915, 3, 7)) {
+	if (!IS_DISPLAY_RANGE(i915, 3, 7)) {
 		drm_dbg_kms(&i915->drm, "Skipping SDVO device mapping\n");
 		return;
 	}
@@ -684,7 +684,7 @@ parse_driver_features(struct drm_i915_private *i915,
 	if (!driver)
 		return;
 
-	if (INTEL_GEN(i915) >= 5) {
+	if (DISPLAY_VER(i915) >= 5) {
 		/*
 		 * Note that we consider BDB_DRIVER_FEATURE_INT_SDVO_LVDS
 		 * to mean "eDP". The VBT spec doesn't agree with that
@@ -918,7 +918,7 @@ parse_psr(struct drm_i915_private *i915, const struct bdb_header *bdb)
 	 */
 	if (bdb->version >= 205 &&
 	    (IS_GEN9_BC(i915) || IS_GEMINILAKE(i915) ||
-	     INTEL_GEN(i915) >= 10)) {
+	     DISPLAY_VER(i915) >= 10)) {
 		switch (psr_table->tp1_wakeup_time) {
 		case 0:
 			i915->vbt.psr.tp1_wakeup_time_us = 500;
@@ -1806,7 +1806,7 @@ static void sanitize_device_type(struct intel_bios_encoder_data *devdata,
 	struct drm_i915_private *i915 = devdata->i915;
 	bool is_hdmi;
 
-	if (port != PORT_A || INTEL_GEN(i915) >= 12)
+	if (port != PORT_A || DISPLAY_VER(i915) >= 12)
 		return;
 
 	if (!(devdata->child.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING))
@@ -2647,8 +2647,8 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *i915,
 		dvo_port = child->dvo_port;
 
 		if (dvo_port == DVO_PORT_MIPIA ||
-		    (dvo_port == DVO_PORT_MIPIB && INTEL_GEN(i915) >= 11) ||
-		    (dvo_port == DVO_PORT_MIPIC && INTEL_GEN(i915) < 11)) {
+		    (dvo_port == DVO_PORT_MIPIB && DISPLAY_VER(i915) >= 11) ||
+		    (dvo_port == DVO_PORT_MIPIC && DISPLAY_VER(i915) < 11)) {
 			if (port)
 				*port = dvo_port - DVO_PORT_MIPIA;
 			return true;

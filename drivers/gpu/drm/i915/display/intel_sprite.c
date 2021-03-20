@@ -1392,7 +1392,7 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 	int ret;
 
 	if (g4x_fb_scalable(plane_state->hw.fb)) {
-		if (INTEL_GEN(dev_priv) < 7) {
+		if (DISPLAY_VER(dev_priv) < 7) {
 			min_scale = 1;
 			max_scale = 16 << 16;
 		} else if (IS_IVYBRIDGE(dev_priv)) {
@@ -1421,7 +1421,7 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	if (INTEL_GEN(dev_priv) >= 7)
+	if (DISPLAY_VER(dev_priv) >= 7)
 		plane_state->ctl = ivb_sprite_ctl(crtc_state, plane_state);
 	else
 		plane_state->ctl = g4x_sprite_ctl(crtc_state, plane_state);
@@ -1482,7 +1482,7 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 
 static bool has_dst_key_in_primary_plane(struct drm_i915_private *dev_priv)
 {
-	return INTEL_GEN(dev_priv) >= 9;
+	return DISPLAY_VER(dev_priv) >= 9;
 }
 
 static void intel_plane_set_ckey(struct intel_plane_state *plane_state,
@@ -1506,7 +1506,7 @@ static void intel_plane_set_ckey(struct intel_plane_state *plane_state,
 	 * On SKL+ we want dst key enabled on
 	 * the primary and not on the sprite.
 	 */
-	if (INTEL_GEN(dev_priv) >= 9 && plane->id != PLANE_PRIMARY &&
+	if (DISPLAY_VER(dev_priv) >= 9 && plane->id != PLANE_PRIMARY &&
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
 		key->flags = 0;
 }
@@ -1545,7 +1545,7 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 	 * Also multiple planes can't do destination keying on the same
 	 * pipe simultaneously.
 	 */
-	if (INTEL_GEN(dev_priv) >= 9 &&
+	if (DISPLAY_VER(dev_priv) >= 9 &&
 	    to_intel_plane(plane)->id >= PLANE_SPRITE1 &&
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
 		return -EINVAL;
@@ -1810,7 +1810,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		modifiers = i9xx_plane_format_modifiers;
 
 		plane_funcs = &vlv_sprite_funcs;
-	} else if (INTEL_GEN(dev_priv) >= 7) {
+	} else if (DISPLAY_VER(dev_priv) >= 7) {
 		plane->update_plane = ivb_update_plane;
 		plane->disable_plane = ivb_disable_plane;
 		plane->get_hw_state = ivb_plane_get_hw_state;
