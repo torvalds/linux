@@ -1496,7 +1496,7 @@ void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
 	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
 }
 
-static inline bool bch2_btree_iter_advance_pos(struct btree_iter *iter)
+inline bool bch2_btree_iter_advance_pos(struct btree_iter *iter)
 {
 	struct bpos pos = iter->k.p;
 	bool ret = bkey_cmp(pos, POS_MAX) != 0;
@@ -1507,7 +1507,7 @@ static inline bool bch2_btree_iter_advance_pos(struct btree_iter *iter)
 	return ret;
 }
 
-static inline bool bch2_btree_iter_rewind_pos(struct btree_iter *iter)
+inline bool bch2_btree_iter_rewind_pos(struct btree_iter *iter)
 {
 	struct bpos pos = bkey_start_pos(&iter->k);
 	bool ret = bkey_cmp(pos, POS_MIN) != 0;

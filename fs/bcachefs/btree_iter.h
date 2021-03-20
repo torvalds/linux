@@ -175,6 +175,8 @@ struct bkey_s_c bch2_btree_iter_prev_slot(struct btree_iter *);
 
 struct bkey_s_c bch2_btree_iter_peek_cached(struct btree_iter *);
 
+bool bch2_btree_iter_advance_pos(struct btree_iter *);
+bool bch2_btree_iter_rewind_pos(struct btree_iter *);
 void bch2_btree_iter_set_pos(struct btree_iter *, struct bpos);
 
 /* Sort order for locking btree iterators: */

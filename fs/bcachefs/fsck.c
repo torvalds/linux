@@ -319,7 +319,7 @@ static int hash_check_key(struct btree_trans *trans,
 			bch_err(c, "hash_redo_key err %i", ret);
 			return ret;
 		}
-		return 1;
+		return -EINTR;
 	}
 
 	ret = hash_check_duplicates(trans, desc, h, k_iter, k);
@@ -413,18 +413,10 @@ err_redo:
 	goto err;
 }
 
-static int bch2_inode_truncate(struct bch_fs *c, u64 inode_nr, u64 new_size)
-{
-	return bch2_btree_delete_range(c, BTREE_ID_extents,
-			POS(inode_nr, round_up(new_size, block_bytes(c)) >> 9),
-			POS(inode_nr + 1, 0), NULL);
-}
-
-static int bch2_fix_overlapping_extent(struct btree_trans *trans,
-				       struct btree_iter *iter,
+static int fix_overlapping_extent(struct btree_trans *trans,
 				       struct bkey_s_c k, struct bpos cut_at)
 {
-	struct btree_iter *u_iter;
+	struct btree_iter *iter;
 	struct bkey_i *u;
 	int ret;
 
@@ -436,22 +428,24 @@ static int bch2_fix_overlapping_extent(struct btree_trans *trans,
 	bkey_reassemble(u, k);
 	bch2_cut_front(cut_at, u);
 
-	u_iter = bch2_trans_copy_iter(trans, iter);
 
 	/*
-	 * We don't want to go through the
-	 * extent_handle_overwrites path:
+	 * We don't want to go through the extent_handle_overwrites path:
+	 *
+	 * XXX: this is going to screw up disk accounting, extent triggers
+	 * assume things about extent overwrites - we should be running the
+	 * triggers manually here
 	 */
-	u_iter->flags &= ~BTREE_ITER_IS_EXTENTS;
-	bch2_btree_iter_set_pos(u_iter, u->k.p);
+	iter = bch2_trans_get_iter(trans, BTREE_ID_extents, u->k.p,
+				   BTREE_ITER_INTENT|BTREE_ITER_NOT_EXTENTS);
 
-	/*
-	 * XXX: this is going to leave disk space
-	 * accounting slightly wrong
-	 */
-	ret = bch2_trans_update(trans, u_iter, u, 0);
-	bch2_trans_iter_put(trans, u_iter);
-	return ret;
+	BUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
+	bch2_trans_update(trans, iter, u, BTREE_TRIGGER_NORUN);
+	bch2_trans_iter_put(trans, iter);
+
+	return bch2_trans_commit(trans, NULL, NULL,
+				 BTREE_INSERT_NOFAIL|
+				 BTREE_INSERT_LAZY_RW);
 }
 
 /*
@@ -466,7 +460,7 @@ static int check_extents(struct bch_fs *c)
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_buf prev;
-	u64 i_sectors;
+	u64 i_sectors = 0;
 	int ret = 0;
 
 	bch2_bkey_buf_init(&prev);
@@ -479,97 +473,86 @@ static int check_extents(struct bch_fs *c)
 				   POS(BCACHEFS_ROOT_INO, 0),
 				   BTREE_ITER_INTENT);
 retry:
-	for_each_btree_key_continue(iter, 0, k, ret) {
-		/*
-		 * due to retry errors we might see the same extent twice:
-		 */
-		if (bkey_cmp(prev.k->k.p, k.k->p) &&
-		    bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       !(ret = bkey_err(k))) {
+		if (w.have_inode &&
+		    w.cur_inum != k.k->p.inode &&
+		    !(w.inode.bi_flags & BCH_INODE_I_SECTORS_DIRTY) &&
+		    fsck_err_on(w.inode.bi_sectors != i_sectors, c,
+				"inode %llu has incorrect i_sectors: got %llu, should be %llu",
+				w.inode.bi_inum,
+				w.inode.bi_sectors, i_sectors)) {
+			struct btree_iter *inode_iter =
+				bch2_trans_get_iter(&trans, BTREE_ID_inodes,
+						    POS(0, w.cur_inum),
+						    BTREE_ITER_INTENT);
+
+			w.inode.bi_sectors = i_sectors;
+
+			ret = __bch2_trans_do(&trans, NULL, NULL,
+					      BTREE_INSERT_NOFAIL|
+					      BTREE_INSERT_LAZY_RW,
+					      bch2_inode_write(&trans, inode_iter, &w.inode));
+			bch2_trans_iter_put(&trans, inode_iter);
+			if (ret)
+				break;
+		}
+
+		if (bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
 			char buf1[200];
 			char buf2[200];
 
 			bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(prev.k));
 			bch2_bkey_val_to_text(&PBUF(buf2), c, k);
 
-			if (fsck_err(c, "overlapping extents:\n%s\n%s", buf1, buf2)) {
-				ret = __bch2_trans_do(&trans, NULL, NULL,
-						      BTREE_INSERT_NOFAIL|
-						      BTREE_INSERT_LAZY_RW,
-						bch2_fix_overlapping_extent(&trans,
-								iter, k, prev.k->k.p));
-				if (ret)
-					goto err;
-			}
+			if (fsck_err(c, "overlapping extents:\n%s\n%s", buf1, buf2))
+				return fix_overlapping_extent(&trans, k, prev.k->k.p) ?: -EINTR;
 		}
-		bch2_bkey_buf_reassemble(&prev, c, k);
 
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
 
+		if (w.first_this_inode)
+			i_sectors = 0;
+
 		if (fsck_err_on(!w.have_inode, c,
-			"extent type %u for missing inode %llu",
-			k.k->type, k.k->p.inode) ||
+				"extent type %u for missing inode %llu",
+				k.k->type, k.k->p.inode) ||
 		    fsck_err_on(w.have_inode &&
-			!S_ISREG(w.inode.bi_mode) && !S_ISLNK(w.inode.bi_mode), c,
-			"extent type %u for non regular file, inode %llu mode %o",
-			k.k->type, k.k->p.inode, w.inode.bi_mode)) {
-			bch2_trans_unlock(&trans);
-
-			ret = bch2_inode_truncate(c, k.k->p.inode, 0);
-			if (ret)
-				goto err;
-			continue;
-		}
-
-		if (fsck_err_on(w.first_this_inode &&
-			w.have_inode &&
-			!(w.inode.bi_flags & BCH_INODE_I_SECTORS_DIRTY) &&
-			w.inode.bi_sectors !=
-			(i_sectors = bch2_count_inode_sectors(&trans, w.cur_inum)),
-			c, "inode %llu has incorrect i_sectors: got %llu, should be %llu",
-			w.inode.bi_inum,
-			w.inode.bi_sectors, i_sectors)) {
-			struct bkey_inode_buf p;
-
-			w.inode.bi_sectors = i_sectors;
-
-			bch2_trans_unlock(&trans);
-
-			bch2_inode_pack(c, &p, &w.inode);
-
-			ret = bch2_btree_insert(c, BTREE_ID_inodes,
-						&p.inode.k_i, NULL, NULL,
-						BTREE_INSERT_NOFAIL|
-						BTREE_INSERT_LAZY_RW);
-			if (ret) {
-				bch_err(c, "error in fsck: error %i updating inode", ret);
-				goto err;
-			}
-
-			/* revalidate iterator: */
-			k = bch2_btree_iter_peek(iter);
+				!S_ISREG(w.inode.bi_mode) && !S_ISLNK(w.inode.bi_mode), c,
+				"extent type %u for non regular file, inode %llu mode %o",
+				k.k->type, k.k->p.inode, w.inode.bi_mode)) {
+			bch2_fs_lazy_rw(c);
+			return bch2_btree_delete_range_trans(&trans, BTREE_ID_extents,
+						       POS(k.k->p.inode, 0),
+						       POS(k.k->p.inode, U64_MAX),
+						       NULL) ?: -EINTR;
 		}
 
 		if (fsck_err_on(w.have_inode &&
-			!(w.inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-			k.k->type != KEY_TYPE_reservation &&
-			k.k->p.offset > round_up(w.inode.bi_size, block_bytes(c)) >> 9, c,
-			"extent type %u offset %llu past end of inode %llu, i_size %llu",
-			k.k->type, k.k->p.offset, k.k->p.inode, w.inode.bi_size)) {
-			bch2_trans_unlock(&trans);
-
-			ret = bch2_inode_truncate(c, k.k->p.inode,
-						  w.inode.bi_size);
-			if (ret)
-				goto err;
-			continue;
+				!(w.inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
+				k.k->type != KEY_TYPE_reservation &&
+				k.k->p.offset > round_up(w.inode.bi_size, block_bytes(c)) >> 9, c,
+				"extent type %u offset %llu past end of inode %llu, i_size %llu",
+				k.k->type, k.k->p.offset, k.k->p.inode, w.inode.bi_size)) {
+			bch2_fs_lazy_rw(c);
+			return bch2_btree_delete_range_trans(&trans, BTREE_ID_extents,
+					POS(k.k->p.inode, round_up(w.inode.bi_size, block_bytes(c)) >> 9),
+					POS(k.k->p.inode, U64_MAX),
+					NULL) ?: -EINTR;
 		}
+
+		if (bkey_extent_is_allocation(k.k))
+			i_sectors += k.k->size;
+		bch2_bkey_buf_reassemble(&prev, c, k);
+
+		bch2_btree_iter_advance_pos(iter);
 	}
-err:
 fsck_err:
 	if (ret == -EINTR)
 		goto retry;
+	bch2_trans_iter_put(&trans, iter);
 	bch2_bkey_buf_exit(&prev, c);
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -599,7 +582,8 @@ static int check_dirents(struct bch_fs *c)
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_dirents,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
 retry:
-	for_each_btree_key_continue(iter, 0, k, ret) {
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       !(ret = bkey_err(k))) {
 		struct bkey_s_c_dirent d;
 		struct bch_inode_unpacked target;
 		bool have_target;
@@ -718,6 +702,8 @@ retry:
 				goto err;
 
 		}
+
+		bch2_btree_iter_advance_pos(iter);
 	}
 
 	hash_stop_chain(&trans, &h);
@@ -726,6 +712,8 @@ fsck_err:
 	if (ret == -EINTR)
 		goto retry;
 
+	bch2_trans_iter_put(&trans, h.chain);
+	bch2_trans_iter_put(&trans, iter);
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
@@ -751,7 +739,8 @@ static int check_xattrs(struct bch_fs *c)
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_xattrs,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
 retry:
-	for_each_btree_key_continue(iter, 0, k, ret) {
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       !(ret = bkey_err(k))) {
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
@@ -761,7 +750,7 @@ retry:
 				k.k->p.inode)) {
 			ret = bch2_btree_delete_at(&trans, iter, 0);
 			if (ret)
-				goto err;
+				break;
 			continue;
 		}
 
@@ -771,12 +760,16 @@ retry:
 		ret = hash_check_key(&trans, bch2_xattr_hash_desc,
 				     &h, iter, k);
 		if (ret)
-			goto fsck_err;
+			break;
+
+		bch2_btree_iter_advance_pos(iter);
 	}
-err:
 fsck_err:
 	if (ret == -EINTR)
 		goto retry;
+
+	bch2_trans_iter_put(&trans, h.chain);
+	bch2_trans_iter_put(&trans, iter);
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
@@ -1127,6 +1120,8 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 
 		bch2_trans_cond_resched(&trans);
 	}
+	bch2_trans_iter_put(&trans, iter);
+
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
 		bch_err(c, "error in fsck: btree error %i while walking dirents", ret);
@@ -1279,8 +1274,10 @@ static int check_inode(struct btree_trans *trans,
 		 * XXX: need to truncate partial blocks too here - or ideally
 		 * just switch units to bytes and that issue goes away
 		 */
-
-		ret = bch2_inode_truncate(c, u.bi_inum, u.bi_size);
+		ret = bch2_btree_delete_range_trans(trans, BTREE_ID_extents,
+				POS(u.bi_inum, round_up(u.bi_size, block_bytes(c)) >> 9),
+				POS(u.bi_inum, U64_MAX),
+				NULL);
 		if (ret) {
 			bch_err(c, "error in fsck: error %i truncating inode", ret);
 			return ret;
@@ -1392,10 +1389,11 @@ peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 		if (nlinks_pos == iter->pos.offset)
 			genradix_iter_advance(&nlinks_iter, links);
 
-		bch2_btree_iter_next(iter);
+		bch2_btree_iter_advance_pos(iter);
 		bch2_trans_cond_resched(&trans);
 	}
 fsck_err:
+	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 
 	if (ret2)
