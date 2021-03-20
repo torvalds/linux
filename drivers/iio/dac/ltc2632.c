@@ -135,8 +135,8 @@ static ssize_t ltc2632_read_dac_powerdown(struct iio_dev *indio_dev,
 {
 	struct ltc2632_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n",
-		       !!(st->powerdown_cache_mask & (1 << chan->channel)));
+	return sysfs_emit(buf, "%d\n",
+			  !!(st->powerdown_cache_mask & (1 << chan->channel)));
 }
 
 static ssize_t ltc2632_write_dac_powerdown(struct iio_dev *indio_dev,
