@@ -580,28 +580,42 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 /* Valid only for TX (IPA consumer) endpoints */
 #define IPA_REG_ENDP_INIT_SEQ_N_OFFSET(txep) \
 					(0x0000083c + 0x0070 * (txep))
-#define HPS_SEQ_TYPE_FMASK			GENMASK(3, 0)
-#define DPS_SEQ_TYPE_FMASK			GENMASK(7, 4)
-#define HPS_REP_SEQ_TYPE_FMASK			GENMASK(11, 8)
-#define DPS_REP_SEQ_TYPE_FMASK			GENMASK(15, 12)
+#define SEQ_TYPE_FMASK				GENMASK(7, 0)
+#define SEQ_REP_TYPE_FMASK			GENMASK(15, 8)
 
 /**
- * enum ipa_seq_type - HPS and DPS sequencer type fields in ENDP_INIT_SEQ_N
- * @IPA_SEQ_DMA_ONLY:		only DMA is performed
- * @IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP:
- *	second packet processing pass + no decipher + microcontroller
- * @IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP:
- *	packet processing + no decipher + no uCP + HPS REP DMA parser
- * @IPA_SEQ_INVALID:		invalid sequencer type
+ * enum ipa_seq_type - HPS and DPS sequencer type
  *
- * The values defined here are broken into 4-bit nibbles that are written
- * into fields of the ENDP_INIT_SEQ registers.
+ * The low-order byte of the sequencer type register defines the number of
+ * passes a packet takes through the IPA pipeline.  The last pass through can
+ * optionally skip the microprocessor.  Deciphering is optional for all types;
+ * if enabled, an additional mask (two bits) is added to the type value.
+ *
+ * Note: not all combinations of ipa_seq_type and ipa_seq_rep_type are
+ * supported (or meaningful).
  */
+#define IPA_SEQ_DECIPHER			0x11
 enum ipa_seq_type {
-	IPA_SEQ_DMA_ONLY			= 0x0000,
-	IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP	= 0x0004,
-	IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP	= 0x0806,
-	IPA_SEQ_INVALID				= 0xffff,
+	IPA_SEQ_DMA				= 0x00,
+	IPA_SEQ_1_PASS				= 0x02,
+	IPA_SEQ_2_PASS_SKIP_LAST_UC		= 0x04,
+	IPA_SEQ_1_PASS_SKIP_LAST_UC		= 0x06,
+	IPA_SEQ_2_PASS				= 0x0a,
+	IPA_SEQ_3_PASS_SKIP_LAST_UC		= 0x0c,
+	IPA_SEQ_INVALID				= 0x0c,
+};
+
+/**
+ * enum ipa_seq_rep_type - replicated packet sequencer type
+ *
+ * This goes in the second byte of the endpoint sequencer type register.
+ *
+ * Note: not all combinations of ipa_seq_type and ipa_seq_rep_type are
+ * supported (or meaningful).
+ */
+enum ipa_seq_rep_type {
+	IPA_SEQ_REP_DMA_PARSER			= 0x08,
+	IPA_SEQ_REP_INVALID			= 0x0c,
 };
 
 #define IPA_REG_ENDP_STATUS_N_OFFSET(ep) \

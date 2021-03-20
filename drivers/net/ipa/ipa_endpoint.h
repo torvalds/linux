@@ -47,6 +47,7 @@ enum ipa_endpoint_name {
 struct ipa_endpoint {
 	struct ipa *ipa;
 	enum ipa_seq_type seq_type;
+	enum ipa_seq_rep_type seq_rep_type;
 	enum gsi_ee_id ee_id;
 	u32 channel_id;
 	u32 endpoint_id;

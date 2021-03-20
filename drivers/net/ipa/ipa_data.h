@@ -154,7 +154,8 @@ struct ipa_endpoint_config_data {
 /**
  * struct ipa_endpoint_data - IPA endpoint configuration data
  * @filter_support:	whether endpoint supports filtering
- * @seq_type:		hardware sequencer type used for endpoint
+ * @seq_type:		primary packet processing sequencer type
+ * @seq_rep_type:	sequencer type for replication processing
  * @config:		hardware configuration (see above)
  *
  * Not all endpoints support the IPA filtering capability.  A filter table
@@ -170,8 +171,9 @@ struct ipa_endpoint_config_data {
  */
 struct ipa_endpoint_data {
 	bool filter_support;
-	/* The next two are specified only for AP endpoints */
+	/* The next three are specified only for AP endpoints */
 	enum ipa_seq_type seq_type;
+	enum ipa_seq_rep_type seq_rep_type;
 	struct ipa_endpoint_config_data config;
 };
 

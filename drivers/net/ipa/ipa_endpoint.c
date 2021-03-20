@@ -884,18 +884,16 @@ static void ipa_endpoint_init_rsrc_grp(struct ipa_endpoint *endpoint)
 static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 {
 	u32 offset = IPA_REG_ENDP_INIT_SEQ_N_OFFSET(endpoint->endpoint_id);
-	u32 seq_type = endpoint->seq_type;
 	u32 val = 0;
 
 	if (!endpoint->toward_ipa)
 		return;		/* Register not valid for RX endpoints */
 
-	/* Sequencer type is made up of four nibbles */
-	val |= u32_encode_bits(seq_type & 0xf, HPS_SEQ_TYPE_FMASK);
-	val |= u32_encode_bits((seq_type >> 4) & 0xf, DPS_SEQ_TYPE_FMASK);
-	/* The second two apply to replicated packets */
-	val |= u32_encode_bits((seq_type >> 8) & 0xf, HPS_REP_SEQ_TYPE_FMASK);
-	val |= u32_encode_bits((seq_type >> 12) & 0xf, DPS_REP_SEQ_TYPE_FMASK);
+	/* Low-order byte configures primary packet processing */
+	val |= u32_encode_bits(endpoint->seq_type, SEQ_TYPE_FMASK);
+
+	/* Second byte configures replicated packet processing */
+	val |= u32_encode_bits(endpoint->seq_rep_type, SEQ_REP_TYPE_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -1767,6 +1765,7 @@ static void ipa_endpoint_init_one(struct ipa *ipa, enum ipa_endpoint_name name,
 	endpoint->ipa = ipa;
 	endpoint->ee_id = data->ee_id;
 	endpoint->seq_type = data->endpoint.seq_type;
+	endpoint->seq_rep_type = data->endpoint.seq_rep_type;
 	endpoint->channel_id = data->channel_id;
 	endpoint->endpoint_id = data->endpoint_id;
 	endpoint->toward_ipa = data->toward_ipa;
