@@ -93,6 +93,8 @@
 #define QM_DB_PRIORITY_SHIFT_V1		48
 #define QM_DOORBELL_SQ_CQ_BASE_V2	0x1000
 #define QM_DOORBELL_EQ_AEQ_BASE_V2	0x2000
+#define QM_CAPBILITY			0x100158
+#define QM_QP_NUN_MASK			GENMASK(10, 0)
 #define QM_DB_CMD_SHIFT_V2		12
 #define QM_DB_RAND_SHIFT_V2		16
 #define QM_DB_INDEX_SHIFT_V2		32
@@ -4119,6 +4121,17 @@ void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_alg_unregister);
 
+static void qm_get_qp_num(struct hisi_qm *qm)
+{
+	if (qm->ver == QM_HW_V1)
+		qm->ctrl_qp_num = QM_QNUM_V1;
+	else if (qm->ver == QM_HW_V2)
+		qm->ctrl_qp_num = QM_QNUM_V2;
+	else
+		qm->ctrl_qp_num = readl(qm->io_base + QM_CAPBILITY) &
+					QM_QP_NUN_MASK;
+}
+
 static int hisi_qm_pci_init(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
@@ -4145,6 +4158,9 @@ static int hisi_qm_pci_init(struct hisi_qm *qm)
 		ret = -EIO;
 		goto err_release_mem_regions;
 	}
+
+	if (qm->fun_type == QM_HW_PF)
+		qm_get_qp_num(qm);
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret < 0)

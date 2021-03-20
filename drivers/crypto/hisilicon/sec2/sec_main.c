@@ -19,7 +19,6 @@
 
 #define SEC_VF_NUM			63
 #define SEC_QUEUE_NUM_V1		4096
-#define SEC_QUEUE_NUM_V2		1024
 #define SEC_PF_PCI_DEVICE_ID		0xa255
 #define SEC_VF_PCI_DEVICE_ID		0xa256
 
@@ -783,11 +782,6 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 {
 	struct hisi_qm *qm = &sec->qm;
 	int ret;
-
-	if (qm->ver == QM_HW_V1)
-		qm->ctrl_qp_num = SEC_QUEUE_NUM_V1;
-	else
-		qm->ctrl_qp_num = SEC_QUEUE_NUM_V2;
 
 	qm->err_ini = &sec_err_ini;
 

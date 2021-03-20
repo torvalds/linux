@@ -18,7 +18,6 @@
 #define PCI_DEVICE_ID_ZIP_VF		0xa251
 
 #define HZIP_QUEUE_NUM_V1		4096
-#define HZIP_QUEUE_NUM_V2		1024
 
 #define HZIP_CLOCK_GATE_CTRL		0x301004
 #define COMP0_ENABLE			BIT(0)
@@ -746,12 +745,6 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 
 	hisi_zip->ctrl = ctrl;
 	ctrl->hisi_zip = hisi_zip;
-
-	if (qm->ver == QM_HW_V1)
-		qm->ctrl_qp_num = HZIP_QUEUE_NUM_V1;
-	else
-		qm->ctrl_qp_num = HZIP_QUEUE_NUM_V2;
-
 	qm->err_ini = &hisi_zip_err_ini;
 
 	hisi_zip_set_user_domain_and_cache(qm);

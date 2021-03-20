@@ -13,7 +13,6 @@
 #include <linux/uacce.h>
 #include "hpre.h"
 
-#define HPRE_QUEUE_NUM_V2		1024
 #define HPRE_QM_ABNML_INT_MASK		0x100004
 #define HPRE_CTRL_CNT_CLR_CE_BIT	BIT(0)
 #define HPRE_COMM_CNT_CLR_CE		0x0
@@ -898,8 +897,6 @@ static int hpre_pf_probe_init(struct hpre *hpre)
 {
 	struct hisi_qm *qm = &hpre->qm;
 	int ret;
-
-	qm->ctrl_qp_num = HPRE_QUEUE_NUM_V2;
 
 	ret = hpre_set_user_domain_and_cache(qm);
 	if (ret)
