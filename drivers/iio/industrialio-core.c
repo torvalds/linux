@@ -504,7 +504,7 @@ ssize_t iio_enum_available_read(struct iio_dev *indio_dev,
 	for (i = 0; i < e->num_items; ++i) {
 		if (!e->items[i])
 			continue;
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%s ", e->items[i]);
+		len += sysfs_emit_at(buf, len, "%s ", e->items[i]);
 	}
 
 	/* replace last space with a newline */
