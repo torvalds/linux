@@ -1956,6 +1956,7 @@ int bch2_trans_iter_put(struct btree_trans *trans,
 		return 0;
 
 	BUG_ON(trans->iters + iter->idx != iter);
+	BUG_ON(!btree_iter_live(trans, iter));
 
 	ret = btree_iter_err(iter);
 

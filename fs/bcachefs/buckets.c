@@ -1500,6 +1500,10 @@ static struct btree_iter *trans_get_update(struct btree_trans *trans,
 		       bkey_cmp(pos, i->k->k.p) < 0
 		     : !bkey_cmp(pos, i->iter->pos))) {
 			*k = bkey_i_to_s_c(i->k);
+
+			/* ugly hack.. */
+			BUG_ON(btree_iter_live(trans, i->iter));
+			trans->iters_live |= 1ULL << i->iter->idx;
 			return i->iter;
 		}
 
