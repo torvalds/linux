@@ -102,8 +102,6 @@ static inline int check_conn_state(struct ksmbd_work *work)
 	return 0;
 }
 
-/* @FIXME what a mess... god help. */
-
 #define TCP_HANDLER_CONTINUE	0
 #define TCP_HANDLER_ABORT	1
 

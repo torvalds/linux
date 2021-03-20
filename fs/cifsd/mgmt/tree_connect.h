@@ -8,7 +8,7 @@
 
 #include <linux/hashtable.h>
 
-#include "../ksmbd_server.h" /* FIXME */
+#include "../ksmbd_server.h"
 
 struct ksmbd_share_config;
 struct ksmbd_user;

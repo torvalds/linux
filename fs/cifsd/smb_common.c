@@ -8,7 +8,6 @@
 #include "server.h"
 #include "misc.h"
 #include "smbstatus.h"
-/* @FIXME */
 #include "connection.h"
 #include "ksmbd_work.h"
 #include "mgmt/user_session.h"

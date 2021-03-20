@@ -8,7 +8,6 @@
 #include "user_config.h"
 #include "../buffer_pool.h"
 #include "../transport_ipc.h"
-#include "../ksmbd_server.h" /* FIXME */
 
 struct ksmbd_user *ksmbd_login_user(const char *account)
 {

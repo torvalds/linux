@@ -14,7 +14,6 @@
 #include "../transport_ipc.h"
 #include "../connection.h"
 #include "../buffer_pool.h"
-#include "../ksmbd_server.h" /* FIXME */
 #include "../vfs_cache.h"
 
 static struct ksmbd_ida *session_ida;

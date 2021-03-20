@@ -8,18 +8,14 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-/* @FIXME */
 #include "glob.h"
 #include "vfs_cache.h"
 #include "buffer_pool.h"
-
 #include "oplock.h"
 #include "vfs.h"
 #include "connection.h"
 #include "mgmt/tree_connect.h"
 #include "mgmt/user_session.h"
-
-/* @FIXME */
 #include "smb_common.h"
 
 #define S_DEL_PENDING			1

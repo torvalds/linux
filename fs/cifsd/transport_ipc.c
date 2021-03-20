@@ -28,9 +28,6 @@
 #include "connection.h"
 #include "transport_tcp.h"
 
-/* @FIXME fix this code */
-extern int get_protocol_idx(char *str);
-
 #define IPC_WAIT_TIMEOUT	(2 * HZ)
 
 #define IPC_MSG_HASH_BITS	3

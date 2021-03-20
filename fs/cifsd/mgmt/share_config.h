@@ -10,8 +10,6 @@
 #include <linux/hashtable.h>
 #include <linux/path.h>
 
-#include "../glob.h"  /* FIXME */
-
 struct ksmbd_share_config {
 	char			*name;
 	char			*path;
