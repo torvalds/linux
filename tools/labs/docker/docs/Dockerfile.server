@@ -1,0 +1,24 @@
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update
+RUN apt-get install -y apt-utils
+RUN apt-get install -y sudo
+RUN apt-get install -y python3
+# append new packages here, to minimize docker rebuild time
+
+RUN rm -rf /var/lib/apt/lists/*
+
+RUN useradd -ms /bin/bash ubuntu && adduser ubuntu sudo && echo -n 'ubuntu:ubuntu' | chpasswd
+
+# Enable passwordless sudo for users under the "sudo" group
+RUN sed -i.bkp -e \
+      's/%sudo\s\+ALL=(ALL\(:ALL\)\?)\s\+ALL/%sudo ALL=NOPASSWD:ALL/g' \
+      /etc/sudoers
+
+USER ubuntu
+WORKDIR /home/ubuntu/
+
+ENV PATH ${PATH}:/home/ubuntu/.local
+
+CMD cd /linux/Documentation/output/teaching && python3 -m http.server

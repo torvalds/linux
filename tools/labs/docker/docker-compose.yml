@@ -10,6 +10,14 @@ services:
       # workaround for binfmt_misc support in containers
       - SPHINX_DITAA_CMD=jexec
       - SPHINX_DITAA_ARG=/usr/bin/ditaa
+  docs-server:
+    build:
+      context: .
+      dockerfile: ./docs/Dockerfile.server
+    volumes:
+      - ../../../:/linux
+    ports:
+    - 8000:8000
   kernel-build:
     privileged: true
     tty: true
