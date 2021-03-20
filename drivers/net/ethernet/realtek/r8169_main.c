@@ -1901,6 +1901,15 @@ static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 	return ret;
 }
 
+static void rtl8169_get_ringparam(struct net_device *dev,
+				  struct ethtool_ringparam *data)
+{
+	data->rx_max_pending = NUM_RX_DESC;
+	data->rx_pending = NUM_RX_DESC;
+	data->tx_max_pending = NUM_TX_DESC;
+	data->tx_pending = NUM_TX_DESC;
+}
+
 static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -1921,6 +1930,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.set_eee		= rtl8169_set_eee,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
+	.get_ringparam		= rtl8169_get_ringparam,
 };
 
 static void rtl_enable_eee(struct rtl8169_private *tp)
