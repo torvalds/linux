@@ -274,10 +274,16 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 
 	/* Max outstanding read accesses for QSB masters */
 	val = u32_encode_bits(data0->max_reads, GEN_QMB_0_MAX_READS_FMASK);
-	/* GEN_QMB_0_MAX_READS_BEATS is 0 (IPA v4.0 and above) */
-	if (data->qsb_count > 1)
+	if (ipa->version >= IPA_VERSION_4_0)
+		val |= u32_encode_bits(data0->max_reads_beats,
+				       GEN_QMB_0_MAX_READS_BEATS_FMASK);
+	if (data->qsb_count > 1) {
 		val |= u32_encode_bits(data1->max_reads,
 				       GEN_QMB_1_MAX_READS_FMASK);
+		if (ipa->version >= IPA_VERSION_4_0)
+			val |= u32_encode_bits(data1->max_reads_beats,
+					       GEN_QMB_1_MAX_READS_BEATS_FMASK);
+	}
 	iowrite32(val, ipa->reg_virt + IPA_REG_QSB_MAX_READS_OFFSET);
 }
 

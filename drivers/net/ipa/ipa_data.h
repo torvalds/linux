@@ -59,10 +59,12 @@ enum ipa_qsb_master_id {
  * struct ipa_qsb_data - Qualcomm System Bus configuration data
  * @max_writes:	Maximum outstanding write requests for this master
  * @max_reads:	Maximum outstanding read requests for this master
+ * @max_reads_beats: Max outstanding read bytes in 8-byte "beats" (if non-zero)
  */
 struct ipa_qsb_data {
 	u8 max_writes;
 	u8 max_reads;
+	u8 max_reads_beats;		/* Not present for IPA v3.5.1 */
 };
 
 /**

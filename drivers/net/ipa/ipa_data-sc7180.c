@@ -14,6 +14,7 @@ static const struct ipa_qsb_data ipa_qsb_data[] = {
 	[IPA_QSB_MASTER_DDR] = {
 		.max_writes	= 8,
 		.max_reads	= 12,
+		/* no outstanding read byte (beat) limit */
 	},
 };
 
