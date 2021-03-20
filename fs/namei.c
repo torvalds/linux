@@ -2830,8 +2830,8 @@ static inline int may_create(struct user_namespace *mnt_userns,
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
 	s_user_ns = dir->i_sb->s_user_ns;
-	if (!kuid_has_mapping(s_user_ns, fsuid_into_mnt(mnt_userns)) ||
-	    !kgid_has_mapping(s_user_ns, fsgid_into_mnt(mnt_userns)))
+	if (!kuid_has_mapping(s_user_ns, mapped_fsuid(mnt_userns)) ||
+	    !kgid_has_mapping(s_user_ns, mapped_fsgid(mnt_userns)))
 		return -EOVERFLOW;
 	return inode_permission(mnt_userns, dir, MAY_WRITE | MAY_EXEC);
 }
@@ -3040,8 +3040,8 @@ static int may_o_create(struct user_namespace *mnt_userns,
 		return error;
 
 	s_user_ns = dir->dentry->d_sb->s_user_ns;
-	if (!kuid_has_mapping(s_user_ns, fsuid_into_mnt(mnt_userns)) ||
-	    !kgid_has_mapping(s_user_ns, fsgid_into_mnt(mnt_userns)))
+	if (!kuid_has_mapping(s_user_ns, mapped_fsuid(mnt_userns)) ||
+	    !kgid_has_mapping(s_user_ns, mapped_fsgid(mnt_userns)))
 		return -EOVERFLOW;
 
 	error = inode_permission(mnt_userns, dir->dentry->d_inode,
