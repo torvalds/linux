@@ -1,6 +1,7 @@
 version: '3'
 services:
   docs-build:
+    tty: true
     build:
       context: .
       dockerfile: ./docs/Dockerfile

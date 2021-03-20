@@ -33,7 +33,8 @@ copy: $(YOCTO_IMAGE)
 
 docker-docs:
 	cd docker && docker-compose build docs-build
-	cd docker && UID=$(shell id -u) GID=$(shell id -g) docker-compose run docs-build bash -c "cd /linux/tools/labs && make docs"
+	cd docker && docker-compose up -d docs-build
+	cd docker && docker-compose exec -u ubuntu docs-build bash -c "cd /linux/tools/labs && make docs"
 
 docker-docs-server:
 	cd docker && docker-compose build docs-server
