@@ -1078,7 +1078,7 @@ static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 
 	dvscntr = DVS_ENABLE;
 
-	if (IS_GEN(dev_priv, 6))
+	if (IS_SANDYBRIDGE(dev_priv))
 		dvscntr |= DVS_TRICKLE_FEED_DISABLE;
 
 	switch (fb->format->format) {
@@ -1838,7 +1838,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->min_cdclk = g4x_sprite_min_cdclk;
 
 		modifiers = i9xx_plane_format_modifiers;
-		if (IS_GEN(dev_priv, 6)) {
+		if (IS_SANDYBRIDGE(dev_priv)) {
 			formats = snb_plane_formats;
 			num_formats = ARRAY_SIZE(snb_plane_formats);
 

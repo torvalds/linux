@@ -778,7 +778,7 @@ void intel_pps_on_unlocked(struct intel_dp *intel_dp)
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 	pp = ilk_get_pp_control(intel_dp);
-	if (IS_GEN(dev_priv, 5)) {
+	if (IS_IRONLAKE(dev_priv)) {
 		/* ILK workaround: disable reset around power sequence */
 		pp &= ~PANEL_POWER_RESET;
 		intel_de_write(dev_priv, pp_ctrl_reg, pp);
@@ -786,7 +786,7 @@ void intel_pps_on_unlocked(struct intel_dp *intel_dp)
 	}
 
 	pp |= PANEL_POWER_ON;
-	if (!IS_GEN(dev_priv, 5))
+	if (!IS_IRONLAKE(dev_priv))
 		pp |= PANEL_POWER_RESET;
 
 	intel_de_write(dev_priv, pp_ctrl_reg, pp);
@@ -795,7 +795,7 @@ void intel_pps_on_unlocked(struct intel_dp *intel_dp)
 	wait_panel_on(intel_dp);
 	intel_dp->pps.last_power_on = jiffies;
 
-	if (IS_GEN(dev_priv, 5)) {
+	if (IS_IRONLAKE(dev_priv)) {
 		pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 		intel_de_write(dev_priv, pp_ctrl_reg, pp);
 		intel_de_posting_read(dev_priv, pp_ctrl_reg);

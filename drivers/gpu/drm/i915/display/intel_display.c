@@ -361,7 +361,7 @@ static void assert_fdi_tx_pll_enabled(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	/* ILK FDI PLL is always enabled */
-	if (IS_GEN(dev_priv, 5))
+	if (IS_IRONLAKE(dev_priv))
 		return;
 
 	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
@@ -7441,7 +7441,7 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	 * plane, not only sprite plane.
 	 */
 	if (plane->id != PLANE_CURSOR &&
-	    (IS_GEN_RANGE(dev_priv, 5, 6) ||
+	    (IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv) ||
 	     IS_IVYBRIDGE(dev_priv)) &&
 	    (turn_on || (!needs_scaling(old_plane_state) &&
 			 needs_scaling(plane_state))))
@@ -11606,7 +11606,7 @@ static bool ilk_has_edp_a(struct drm_i915_private *dev_priv)
 	if ((intel_de_read(dev_priv, DP_A) & DP_DETECTED) == 0)
 		return false;
 
-	if (IS_GEN(dev_priv, 5) && (intel_de_read(dev_priv, FUSE_STRAP) & ILK_eDP_A_DISABLE))
+	if (IS_IRONLAKE(dev_priv) && (intel_de_read(dev_priv, FUSE_STRAP) & ILK_eDP_A_DISABLE))
 		return false;
 
 	return true;
@@ -12418,12 +12418,12 @@ fail:
 
 static void intel_update_fdi_pll_freq(struct drm_i915_private *dev_priv)
 {
-	if (IS_GEN(dev_priv, 5)) {
+	if (IS_IRONLAKE(dev_priv)) {
 		u32 fdi_pll_clk =
 			intel_de_read(dev_priv, FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK;
 
 		dev_priv->fdi_pll_freq = (fdi_pll_clk + 2) * 10000;
-	} else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv)) {
+	} else if (IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv)) {
 		dev_priv->fdi_pll_freq = 270000;
 	} else {
 		return;
@@ -13068,7 +13068,7 @@ static bool has_bogus_dpll_config(const struct intel_crtc_state *crtc_state)
 	 * without several WARNs, but for now let's take the easy
 	 * road.
 	 */
-	return IS_GEN(dev_priv, 6) &&
+	return IS_SANDYBRIDGE(dev_priv) &&
 		crtc_state->hw.active &&
 		crtc_state->shared_dpll &&
 		crtc_state->port_clock == 0;

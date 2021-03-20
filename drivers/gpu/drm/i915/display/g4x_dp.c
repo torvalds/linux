@@ -234,7 +234,7 @@ static void ilk_edp_pll_on(struct intel_dp *intel_dp,
 	 * 1. Wait for the start of vertical blank on the enabled pipe going to FDI
 	 * 2. Program DP PLL enable
 	 */
-	if (IS_GEN(dev_priv, 5))
+	if (IS_IRONLAKE(dev_priv))
 		intel_wait_for_vblank_if_active(dev_priv, !crtc->pipe);
 
 	intel_dp->DP |= DP_PLL_ENABLE;
@@ -1368,7 +1368,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 		dig_port->dp.set_signal_levels = vlv_set_signal_levels;
 	else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
 		dig_port->dp.set_signal_levels = ivb_cpu_edp_set_signal_levels;
-	else if (IS_GEN(dev_priv, 6) && port == PORT_A)
+	else if (IS_SANDYBRIDGE(dev_priv) && port == PORT_A)
 		dig_port->dp.set_signal_levels = snb_cpu_edp_set_signal_levels;
 	else
 		dig_port->dp.set_signal_levels = g4x_set_signal_levels;

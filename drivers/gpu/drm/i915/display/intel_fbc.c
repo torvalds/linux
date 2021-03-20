@@ -255,16 +255,16 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 
 	if (params->fence_id >= 0) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN;
-		if (IS_GEN(dev_priv, 5))
+		if (IS_IRONLAKE(dev_priv))
 			dpfc_ctl |= params->fence_id;
-		if (IS_GEN(dev_priv, 6)) {
+		if (IS_SANDYBRIDGE(dev_priv)) {
 			intel_de_write(dev_priv, SNB_DPFC_CTL_SA,
 				       SNB_CPU_FENCE_ENABLE | params->fence_id);
 			intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
 				       params->fence_y_offset);
 		}
 	} else {
-		if (IS_GEN(dev_priv, 6)) {
+		if (IS_SANDYBRIDGE(dev_priv)) {
 			intel_de_write(dev_priv, SNB_DPFC_CTL_SA, 0);
 			intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET, 0);
 		}

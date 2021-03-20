@@ -360,7 +360,7 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 		to_i915(plane_state->uapi.plane->dev);
 	u32 cntl = 0;
 
-	if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+	if (IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		cntl |= MCURSOR_TRICKLE_FEED_DISABLE;
 
 	switch (drm_rect_width(&plane_state->uapi.dst)) {

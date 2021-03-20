@@ -2916,9 +2916,9 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = hsw_get_cdclk;
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->display.get_cdclk = vlv_get_cdclk;
-	else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+	else if (IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		dev_priv->display.get_cdclk = fixed_400mhz_get_cdclk;
-	else if (IS_GEN(dev_priv, 5))
+	else if (IS_IRONLAKE(dev_priv))
 		dev_priv->display.get_cdclk = fixed_450mhz_get_cdclk;
 	else if (IS_GM45(dev_priv))
 		dev_priv->display.get_cdclk = gm45_get_cdclk;

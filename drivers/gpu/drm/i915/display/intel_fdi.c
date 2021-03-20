@@ -373,7 +373,7 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	temp = intel_de_read(dev_priv, reg);
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_2;
-	if (IS_GEN(dev_priv, 6)) {
+	if (IS_SANDYBRIDGE(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
 		/* SNB-B */
 		temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
@@ -810,9 +810,9 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 void
 intel_fdi_init_hook(struct drm_i915_private *dev_priv)
 {
-	if (IS_GEN(dev_priv, 5)) {
+	if (IS_IRONLAKE(dev_priv)) {
 		dev_priv->display.fdi_link_train = ilk_fdi_link_train;
-	} else if (IS_GEN(dev_priv, 6)) {
+	} else if (IS_SANDYBRIDGE(dev_priv)) {
 		dev_priv->display.fdi_link_train = gen6_fdi_link_train;
 	} else if (IS_IVYBRIDGE(dev_priv)) {
 		/* FIXME: detect B0+ stepping and use auto training */

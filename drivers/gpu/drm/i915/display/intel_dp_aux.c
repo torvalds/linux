@@ -128,7 +128,7 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 			to_i915(dig_port->base.base.dev);
 	u32 precharge, timeout;
 
-	if (IS_GEN(dev_priv, 6))
+	if (IS_SANDYBRIDGE(dev_priv))
 		precharge = 3;
 	else
 		precharge = 5;

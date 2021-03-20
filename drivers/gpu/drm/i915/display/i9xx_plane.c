@@ -161,8 +161,8 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 	dspcntr = DISPLAY_PLANE_ENABLE;
 
-	if (IS_G4X(dev_priv) || IS_GEN(dev_priv, 5) ||
-	    IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+	if (IS_G4X(dev_priv) || IS_IRONLAKE(dev_priv) ||
+	    IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	switch (fb->format->format) {

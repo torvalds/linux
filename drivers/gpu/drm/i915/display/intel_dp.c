@@ -4119,7 +4119,7 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 	 * ILK doesn't seem capable of DP YCbCr output. The
 	 * displayed image is severly corrupted. SNB+ is fine.
 	 */
-	if (IS_GEN(i915, 5))
+	if (IS_IRONLAKE(i915))
 		return;
 
 	is_branch = drm_dp_is_branch(intel_dp->dpcd);

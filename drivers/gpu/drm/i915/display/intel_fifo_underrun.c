@@ -269,7 +269,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 
 	if (HAS_GMCH(dev_priv))
 		i9xx_set_fifo_underrun_reporting(dev, pipe, enable, old);
-	else if (IS_GEN_RANGE(dev_priv, 5, 6))
+	else if (IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv))
 		ilk_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN(dev_priv, 7))
 		ivb_set_fifo_underrun_reporting(dev, pipe, enable, old);
