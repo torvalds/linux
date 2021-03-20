@@ -207,6 +207,7 @@ struct hisi_qm {
 	u32 qp_num;
 	u32 qp_in_used;
 	u32 ctrl_qp_num;
+	u32 max_qp_num;
 	u32 vfs_num;
 	struct list_head list;
 	struct hisi_qm_list *qm_list;
@@ -245,6 +246,9 @@ struct hisi_qm {
 	const char *algs;
 	bool use_sva;
 	bool is_frozen;
+
+	/* doorbell isolation enable */
+	bool use_db_isolation;
 	resource_size_t phys_base;
 	resource_size_t phys_size;
 	struct uacce_device *uacce;

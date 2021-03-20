@@ -93,8 +93,11 @@
 #define QM_DB_PRIORITY_SHIFT_V1		48
 #define QM_DOORBELL_SQ_CQ_BASE_V2	0x1000
 #define QM_DOORBELL_EQ_AEQ_BASE_V2	0x2000
+#define QM_QUE_ISO_CFG_V		0x0030
+#define QM_QUE_ISO_EN			0x100154
 #define QM_CAPBILITY			0x100158
 #define QM_QP_NUN_MASK			GENMASK(10, 0)
+#define QM_QP_MAX_NUM_SHIFT		11
 #define QM_DB_CMD_SHIFT_V2		12
 #define QM_DB_RAND_SHIFT_V2		16
 #define QM_DB_INDEX_SHIFT_V2		32
@@ -876,6 +879,26 @@ static int qm_get_vft_v2(struct hisi_qm *qm, u32 *base, u32 *number)
 	return 0;
 }
 
+static int qm_get_vf_qp_num(struct hisi_qm *qm, u32 fun_num)
+{
+	u32 remain_q_num, vfq_num;
+	u32 num_vfs = qm->vfs_num;
+
+	vfq_num = (qm->ctrl_qp_num - qm->qp_num) / num_vfs;
+	if (vfq_num >= qm->max_qp_num)
+		return qm->max_qp_num;
+
+	remain_q_num = (qm->ctrl_qp_num - qm->qp_num) % num_vfs;
+	if (vfq_num + remain_q_num <= qm->max_qp_num)
+		return fun_num == num_vfs ? vfq_num + remain_q_num : vfq_num;
+
+	/*
+	 * if vfq_num + remain_q_num > max_qp_num, the last VFs,
+	 * each with one more queue.
+	 */
+	return fun_num + remain_q_num > num_vfs ? vfq_num + 1 : vfq_num;
+}
+
 static struct hisi_qm *file_to_qm(struct debugfs_file *file)
 {
 	struct qm_debug *debug = file->debug;
@@ -939,25 +962,16 @@ static u32 current_qm_read(struct debugfs_file *file)
 static int current_qm_write(struct debugfs_file *file, u32 val)
 {
 	struct hisi_qm *qm = file_to_qm(file);
-	u32 vfq_num;
 	u32 tmp;
 
 	if (val > qm->vfs_num)
 		return -EINVAL;
 
 	/* According PF or VF Dev ID to calculation curr_qm_qp_num and store */
-	if (!val) {
+	if (!val)
 		qm->debug.curr_qm_qp_num = qm->qp_num;
-	} else {
-		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / qm->vfs_num;
-
-		if (val == qm->vfs_num)
-			qm->debug.curr_qm_qp_num =
-				qm->ctrl_qp_num - qm->qp_num -
-				(qm->vfs_num - 1) * vfq_num;
-		else
-			qm->debug.curr_qm_qp_num = vfq_num;
-	}
+	else
+		qm->debug.curr_qm_qp_num = qm_get_vf_qp_num(qm, val);
 
 	writel(val, qm->io_base + QM_DFX_MB_CNT_VF);
 	writel(val, qm->io_base + QM_DFX_DB_CNT_VF);
@@ -3236,30 +3250,46 @@ EXPORT_SYMBOL_GPL(hisi_qm_alloc_qps_node);
 
 static int qm_vf_q_assign(struct hisi_qm *qm, u32 num_vfs)
 {
-	u32 remain_q_num, q_num, i, j;
+	u32 remain_q_num, vfs_q_num, act_q_num, q_num, i, j;
+	u32 max_qp_num = qm->max_qp_num;
 	u32 q_base = qm->qp_num;
 	int ret;
 
 	if (!num_vfs)
 		return -EINVAL;
 
-	remain_q_num = qm->ctrl_qp_num - qm->qp_num;
+	vfs_q_num = qm->ctrl_qp_num - qm->qp_num;
 
-	/* If remain queues not enough, return error. */
-	if (qm->ctrl_qp_num < qm->qp_num || remain_q_num < num_vfs)
+	/* If vfs_q_num is less than num_vfs, return error. */
+	if (vfs_q_num < num_vfs)
 		return -EINVAL;
 
-	q_num = remain_q_num / num_vfs;
-	for (i = 1; i <= num_vfs; i++) {
-		if (i == num_vfs)
-			q_num += remain_q_num % num_vfs;
-		ret = hisi_qm_set_vft(qm, i, q_base, q_num);
+	q_num = vfs_q_num / num_vfs;
+	remain_q_num = vfs_q_num % num_vfs;
+
+	for (i = num_vfs; i > 0; i--) {
+		/*
+		 * if q_num + remain_q_num > max_qp_num in last vf, divide the
+		 * remaining queues equally.
+		 */
+		if (i == num_vfs && q_num + remain_q_num <= max_qp_num) {
+			act_q_num = q_num + remain_q_num;
+			remain_q_num = 0;
+		} else if (remain_q_num > 0) {
+			act_q_num = q_num + 1;
+			remain_q_num--;
+		} else {
+			act_q_num = q_num;
+		}
+
+		act_q_num = min_t(int, act_q_num, max_qp_num);
+		ret = hisi_qm_set_vft(qm, i, q_base, act_q_num);
 		if (ret) {
-			for (j = i; j > 0; j--)
+			for (j = num_vfs; j > i; j--)
 				hisi_qm_set_vft(qm, j, 0, 0);
 			return ret;
 		}
-		q_base += q_num;
+		q_base += act_q_num;
 	}
 
 	return 0;
@@ -4180,7 +4210,7 @@ void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_alg_unregister);
 
-static void qm_get_qp_num(struct hisi_qm *qm)
+static int qm_get_qp_num(struct hisi_qm *qm)
 {
 	if (qm->ver == QM_HW_V1)
 		qm->ctrl_qp_num = QM_QNUM_V1;
@@ -4189,6 +4219,21 @@ static void qm_get_qp_num(struct hisi_qm *qm)
 	else
 		qm->ctrl_qp_num = readl(qm->io_base + QM_CAPBILITY) &
 					QM_QP_NUN_MASK;
+
+	if (qm->use_db_isolation)
+		qm->max_qp_num = (readl(qm->io_base + QM_CAPBILITY) >>
+				  QM_QP_MAX_NUM_SHIFT) & QM_QP_NUN_MASK;
+	else
+		qm->max_qp_num = qm->ctrl_qp_num;
+
+	/* check if qp number is valid */
+	if (qm->qp_num > qm->max_qp_num) {
+		dev_err(&qm->pdev->dev, "qp num(%u) is more than max qp num(%u)!\n",
+			qm->qp_num, qm->max_qp_num);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int hisi_qm_pci_init(struct hisi_qm *qm)
@@ -4218,8 +4263,11 @@ static int hisi_qm_pci_init(struct hisi_qm *qm)
 		goto err_release_mem_regions;
 	}
 
-	if (qm->fun_type == QM_HW_PF)
-		qm_get_qp_num(qm);
+	if (qm->fun_type == QM_HW_PF) {
+		ret = qm_get_qp_num(qm);
+		if (ret)
+			goto err_iounmap;
+	}
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret < 0)
