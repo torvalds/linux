@@ -26,7 +26,6 @@ enum {
 };
 
 enum hpre_ctrl_dbgfs_file {
-	HPRE_CURRENT_QM,
 	HPRE_CLEAR_ENABLE,
 	HPRE_CLUSTER_CTRL,
 	HPRE_DEBUG_FILE_NUM,

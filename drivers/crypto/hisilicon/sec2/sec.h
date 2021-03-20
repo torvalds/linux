@@ -147,7 +147,6 @@ enum sec_endian {
 };
 
 enum sec_debug_file_index {
-	SEC_CURRENT_QM,
 	SEC_CLEAR_ENABLE,
 	SEC_DEBUG_FILE_NUM,
 };

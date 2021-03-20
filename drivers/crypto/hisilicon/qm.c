@@ -166,6 +166,14 @@
 #define ACC_AM_ROB_ECC_INT_STS		0x300104
 #define ACC_ROB_ECC_ERR_MULTPL		BIT(1)
 
+#define QM_DFX_MB_CNT_VF		0x104010
+#define QM_DFX_DB_CNT_VF		0x104020
+#define QM_DFX_SQE_CNT_VF_SQN		0x104030
+#define QM_DFX_CQE_CNT_VF_CQN		0x104040
+#define QM_DFX_QN_SHIFT			16
+#define CURRENT_FUN_MASK		GENMASK(5, 0)
+#define CURRENT_Q_MASK			GENMASK(31, 16)
+
 #define POLL_PERIOD			10
 #define POLL_TIMEOUT			1000
 #define WAIT_PERIOD_US_MAX		200
@@ -352,6 +360,7 @@ static struct qm_dfx_item qm_dfx_files[] = {
 };
 
 static const char * const qm_debug_file_name[] = {
+	[CURRENT_QM]   = "current_qm",
 	[CURRENT_Q]    = "current_q",
 	[CLEAR_ENABLE] = "clear_enable",
 };
@@ -920,6 +929,50 @@ static int clear_enable_write(struct debugfs_file *file, u32 rd_clr_ctrl)
 	return 0;
 }
 
+static u32 current_qm_read(struct debugfs_file *file)
+{
+	struct hisi_qm *qm = file_to_qm(file);
+
+	return readl(qm->io_base + QM_DFX_MB_CNT_VF);
+}
+
+static int current_qm_write(struct debugfs_file *file, u32 val)
+{
+	struct hisi_qm *qm = file_to_qm(file);
+	u32 vfq_num;
+	u32 tmp;
+
+	if (val > qm->vfs_num)
+		return -EINVAL;
+
+	/* According PF or VF Dev ID to calculation curr_qm_qp_num and store */
+	if (!val) {
+		qm->debug.curr_qm_qp_num = qm->qp_num;
+	} else {
+		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / qm->vfs_num;
+
+		if (val == qm->vfs_num)
+			qm->debug.curr_qm_qp_num =
+				qm->ctrl_qp_num - qm->qp_num -
+				(qm->vfs_num - 1) * vfq_num;
+		else
+			qm->debug.curr_qm_qp_num = vfq_num;
+	}
+
+	writel(val, qm->io_base + QM_DFX_MB_CNT_VF);
+	writel(val, qm->io_base + QM_DFX_DB_CNT_VF);
+
+	tmp = val |
+	      (readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) & CURRENT_Q_MASK);
+	writel(tmp, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
+
+	tmp = val |
+	      (readl(qm->io_base + QM_DFX_CQE_CNT_VF_CQN) & CURRENT_Q_MASK);
+	writel(tmp, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
+
+	return 0;
+}
+
 static ssize_t qm_debug_read(struct file *filp, char __user *buf,
 			     size_t count, loff_t *pos)
 {
@@ -931,6 +984,9 @@ static ssize_t qm_debug_read(struct file *filp, char __user *buf,
 
 	mutex_lock(&file->lock);
 	switch (index) {
+	case CURRENT_QM:
+		val = current_qm_read(file);
+		break;
 	case CURRENT_Q:
 		val = current_q_read(file);
 		break;
@@ -973,27 +1029,24 @@ static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
 
 	mutex_lock(&file->lock);
 	switch (index) {
+	case CURRENT_QM:
+		ret = current_qm_write(file, val);
+		break;
 	case CURRENT_Q:
 		ret = current_q_write(file, val);
-		if (ret)
-			goto err_input;
 		break;
 	case CLEAR_ENABLE:
 		ret = clear_enable_write(file, val);
-		if (ret)
-			goto err_input;
 		break;
 	default:
 		ret = -EINVAL;
-		goto err_input;
 	}
 	mutex_unlock(&file->lock);
 
-	return count;
+	if (ret)
+		return ret;
 
-err_input:
-	mutex_unlock(&file->lock);
-	return ret;
+	return count;
 }
 
 static const struct file_operations qm_debug_fops = {
@@ -1531,12 +1584,12 @@ static const struct file_operations qm_cmd_fops = {
 	.write = qm_cmd_write,
 };
 
-static void qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
+static void qm_create_debugfs_file(struct hisi_qm *qm, struct dentry *dir,
+				   enum qm_debug_file index)
 {
-	struct dentry *qm_d = qm->debug.qm_d;
 	struct debugfs_file *file = qm->debug.files + index;
 
-	debugfs_create_file(qm_debug_file_name[index], 0600, qm_d, file,
+	debugfs_create_file(qm_debug_file_name[index], 0600, dir, file,
 			    &qm_debug_fops);
 
 	file->index = index;
@@ -2932,9 +2985,11 @@ void hisi_qm_debug_init(struct hisi_qm *qm)
 	qm->debug.qm_d = qm_d;
 
 	/* only show this in PF */
-	if (qm->fun_type == QM_HW_PF)
+	if (qm->fun_type == QM_HW_PF) {
+		qm_create_debugfs_file(qm, qm->debug.debug_root, CURRENT_QM);
 		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
-			qm_create_debugfs_file(qm, i);
+			qm_create_debugfs_file(qm, qm_d, i);
+	}
 
 	debugfs_create_file("regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
 
@@ -2961,6 +3016,10 @@ void hisi_qm_debug_regs_clear(struct hisi_qm *qm)
 {
 	struct qm_dfx_registers *regs;
 	int i;
+
+	/* clear current_qm */
+	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
+	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
 
 	/* clear current_q */
 	writel(0x0, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);

@@ -118,7 +118,6 @@ static struct hisi_qm_list hpre_devices = {
 };
 
 static const char * const hpre_debug_file_name[] = {
-	[HPRE_CURRENT_QM]   = "current_qm",
 	[HPRE_CLEAR_ENABLE] = "rdclr_en",
 	[HPRE_CLUSTER_CTRL] = "cluster_ctrl",
 };
@@ -407,10 +406,6 @@ static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 	unsigned long offset;
 	int i;
 
-	/* clear current_qm */
-	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
-
 	/* clear clusterX/cluster_ctrl */
 	for (i = 0; i < clusters_num; i++) {
 		offset = HPRE_CLSTR_BASE + i * HPRE_CLSTR_ADDR_INTRVL;
@@ -460,49 +455,6 @@ static inline struct hisi_qm *hpre_file_to_qm(struct hpre_debugfs_file *file)
 	struct hpre *hpre = container_of(file->debug, struct hpre, debug);
 
 	return &hpre->qm;
-}
-
-static u32 hpre_current_qm_read(struct hpre_debugfs_file *file)
-{
-	struct hisi_qm *qm = hpre_file_to_qm(file);
-
-	return readl(qm->io_base + QM_DFX_MB_CNT_VF);
-}
-
-static int hpre_current_qm_write(struct hpre_debugfs_file *file, u32 val)
-{
-	struct hisi_qm *qm = hpre_file_to_qm(file);
-	u32 num_vfs = qm->vfs_num;
-	u32 vfq_num, tmp;
-
-	if (val > num_vfs)
-		return -EINVAL;
-
-	/* According PF or VF Dev ID to calculation curr_qm_qp_num and store */
-	if (val == 0) {
-		qm->debug.curr_qm_qp_num = qm->qp_num;
-	} else {
-		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / num_vfs;
-		if (val == num_vfs) {
-			qm->debug.curr_qm_qp_num =
-			qm->ctrl_qp_num - qm->qp_num - (num_vfs - 1) * vfq_num;
-		} else {
-			qm->debug.curr_qm_qp_num = vfq_num;
-		}
-	}
-
-	writel(val, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(val, qm->io_base + QM_DFX_DB_CNT_VF);
-
-	tmp = val |
-	      (readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) & CURRENT_Q_MASK);
-	writel(tmp, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
-
-	tmp = val |
-	      (readl(qm->io_base + QM_DFX_CQE_CNT_VF_CQN) & CURRENT_Q_MASK);
-	writel(tmp, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
-
-	return  0;
 }
 
 static u32 hpre_clear_enable_read(struct hpre_debugfs_file *file)
@@ -560,9 +512,6 @@ static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
 
 	spin_lock_irq(&file->lock);
 	switch (file->type) {
-	case HPRE_CURRENT_QM:
-		val = hpre_current_qm_read(file);
-		break;
 	case HPRE_CLEAR_ENABLE:
 		val = hpre_clear_enable_read(file);
 		break;
@@ -603,11 +552,6 @@ static ssize_t hpre_ctrl_debug_write(struct file *filp, const char __user *buf,
 
 	spin_lock_irq(&file->lock);
 	switch (file->type) {
-	case HPRE_CURRENT_QM:
-		ret = hpre_current_qm_write(file, val);
-		if (ret)
-			goto err_input;
-		break;
 	case HPRE_CLEAR_ENABLE:
 		ret = hpre_clear_enable_write(file, val);
 		if (ret)
@@ -745,11 +689,6 @@ static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 static int hpre_ctrl_debug_init(struct hisi_qm *qm)
 {
 	int ret;
-
-	ret = hpre_create_debugfs_file(qm, NULL, HPRE_CURRENT_QM,
-				       HPRE_CURRENT_QM);
-	if (ret)
-		return ret;
 
 	ret = hpre_create_debugfs_file(qm, NULL, HPRE_CLEAR_ENABLE,
 				       HPRE_CLEAR_ENABLE);

@@ -151,7 +151,6 @@ static const struct sec_hw_error sec_hw_errors[] = {
 };
 
 static const char * const sec_dbg_file_name[] = {
-	[SEC_CURRENT_QM] = "current_qm",
 	[SEC_CLEAR_ENABLE] = "clear_enable",
 };
 
@@ -400,10 +399,6 @@ static void sec_debug_regs_clear(struct hisi_qm *qm)
 {
 	int i;
 
-	/* clear current_qm */
-	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
-
 	/* clear sec dfx regs */
 	writel(0x1, qm->io_base + SEC_CTRL_CNT_CLR_CE);
 	for (i = 0; i < ARRAY_SIZE(sec_dfx_regs); i++)
@@ -464,50 +459,6 @@ static void sec_hw_error_disable(struct hisi_qm *qm)
 	writel(val, qm->io_base + SEC_CONTROL_REG);
 }
 
-static u32 sec_current_qm_read(struct sec_debug_file *file)
-{
-	struct hisi_qm *qm = file->qm;
-
-	return readl(qm->io_base + QM_DFX_MB_CNT_VF);
-}
-
-static int sec_current_qm_write(struct sec_debug_file *file, u32 val)
-{
-	struct hisi_qm *qm = file->qm;
-	u32 vfq_num;
-	u32 tmp;
-
-	if (val > qm->vfs_num)
-		return -EINVAL;
-
-	/* According PF or VF Dev ID to calculation curr_qm_qp_num and store */
-	if (!val) {
-		qm->debug.curr_qm_qp_num = qm->qp_num;
-	} else {
-		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / qm->vfs_num;
-
-		if (val == qm->vfs_num)
-			qm->debug.curr_qm_qp_num =
-				qm->ctrl_qp_num - qm->qp_num -
-				(qm->vfs_num - 1) * vfq_num;
-		else
-			qm->debug.curr_qm_qp_num = vfq_num;
-	}
-
-	writel(val, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(val, qm->io_base + QM_DFX_DB_CNT_VF);
-
-	tmp = val |
-	      (readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) & CURRENT_Q_MASK);
-	writel(tmp, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
-
-	tmp = val |
-	      (readl(qm->io_base + QM_DFX_CQE_CNT_VF_CQN) & CURRENT_Q_MASK);
-	writel(tmp, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
-
-	return 0;
-}
-
 static u32 sec_clear_enable_read(struct sec_debug_file *file)
 {
 	struct hisi_qm *qm = file->qm;
@@ -542,9 +493,6 @@ static ssize_t sec_debug_read(struct file *filp, char __user *buf,
 	spin_lock_irq(&file->lock);
 
 	switch (file->index) {
-	case SEC_CURRENT_QM:
-		val = sec_current_qm_read(file);
-		break;
 	case SEC_CLEAR_ENABLE:
 		val = sec_clear_enable_read(file);
 		break;
@@ -585,11 +533,6 @@ static ssize_t sec_debug_write(struct file *filp, const char __user *buf,
 	spin_lock_irq(&file->lock);
 
 	switch (file->index) {
-	case SEC_CURRENT_QM:
-		ret = sec_current_qm_write(file, val);
-		if (ret)
-			goto err_input;
-		break;
 	case SEC_CLEAR_ENABLE:
 		ret = sec_clear_enable_write(file, val);
 		if (ret)
@@ -674,7 +617,7 @@ static int sec_debug_init(struct hisi_qm *qm)
 	int i;
 
 	if (qm->pdev->device == SEC_PF_PCI_DEVICE_ID) {
-		for (i = SEC_CURRENT_QM; i < SEC_DEBUG_FILE_NUM; i++) {
+		for (i = SEC_CLEAR_ENABLE; i < SEC_DEBUG_FILE_NUM; i++) {
 			spin_lock_init(&sec->debug.files[i].lock);
 			sec->debug.files[i].index = i;
 			sec->debug.files[i].qm = qm;
