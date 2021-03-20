@@ -49,7 +49,7 @@ struct dev_iommu;
 /**
  * struct subsys_interface - interfaces to device functions
  * @name:       name of the device function
- * @subsys:     subsytem of the devices to attach to
+ * @subsys:     subsystem of the devices to attach to
  * @node:       the list of functions registered at the subsystem
  * @add_dev:    device hookup to device function handler
  * @remove_dev: device hookup to device function handler
