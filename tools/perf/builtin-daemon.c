@@ -908,7 +908,9 @@ static void daemon_session__kill(struct daemon_session *session,
 			daemon_session__signal(session, SIGKILL);
 			break;
 		default:
-			break;
+			pr_err("failed to wait for session %s\n",
+			       session->name);
+			return;
 		}
 		how++;
 
@@ -961,7 +963,8 @@ static void daemon__kill(struct daemon *daemon)
 			daemon__signal(daemon, SIGKILL);
 			break;
 		default:
-			break;
+			pr_err("failed to wait for sessions\n");
+			return;
 		}
 		how++;
 
