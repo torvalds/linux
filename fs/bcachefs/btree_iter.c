@@ -18,6 +18,9 @@
 #include <linux/prefetch.h>
 
 static void btree_iter_set_search_pos(struct btree_iter *, struct bpos);
+static struct btree_iter *btree_iter_child_alloc(struct btree_iter *, unsigned long);
+static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *);
+static void btree_iter_copy(struct btree_iter *, struct btree_iter *);
 
 static inline struct bpos bkey_successor(struct btree_iter *iter, struct bpos p)
 {
@@ -1967,9 +1970,39 @@ static inline void bch2_btree_iter_init(struct btree_trans *trans,
 
 /* new transactional stuff: */
 
+static void btree_iter_child_free(struct btree_iter *iter)
+{
+	struct btree_iter *child = btree_iter_child(iter);
+
+	if (child) {
+		bch2_trans_iter_free(iter->trans, child);
+		iter->child_idx = U8_MAX;
+	}
+}
+
+static struct btree_iter *btree_iter_child_alloc(struct btree_iter *iter,
+						 unsigned long ip)
+{
+	struct btree_trans *trans = iter->trans;
+	struct btree_iter *child = btree_iter_child(iter);
+
+	if (!child) {
+		child = btree_trans_iter_alloc(trans);
+		child->ip_allocated	= ip;
+		iter->child_idx		= child->idx;
+
+		trans->iters_live	|= 1ULL << child->idx;
+		trans->iters_touched	|= 1ULL << child->idx;
+	}
+
+	return child;
+}
+
 static inline void __bch2_trans_iter_free(struct btree_trans *trans,
 					  unsigned idx)
 {
+	btree_iter_child_free(&trans->iters[idx]);
+
 	__bch2_btree_iter_unlock(&trans->iters[idx]);
 	trans->iters_linked		&= ~(1ULL << idx);
 	trans->iters_live		&= ~(1ULL << idx);
@@ -2037,6 +2070,7 @@ static void btree_trans_iter_alloc_fail(struct btree_trans *trans)
 
 static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 {
+	struct btree_iter *iter;
 	unsigned idx;
 
 	if (unlikely(trans->iters_linked ==
@@ -2044,21 +2078,28 @@ static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 		btree_trans_iter_alloc_fail(trans);
 
 	idx = __ffs64(~trans->iters_linked);
+	iter = &trans->iters[idx];
 
+	iter->trans		= trans;
+	iter->idx		= idx;
+	iter->child_idx		= U8_MAX;
+	iter->flags		= 0;
+	iter->nodes_locked	= 0;
+	iter->nodes_intent_locked = 0;
 	trans->iters_linked	|= 1ULL << idx;
-	trans->iters[idx].idx	 = idx;
-	trans->iters[idx].flags	 = 0;
-	return &trans->iters[idx];
+	return iter;
 }
 
-static inline void btree_iter_copy(struct btree_iter *dst,
-				   struct btree_iter *src)
+static void btree_iter_copy(struct btree_iter *dst, struct btree_iter *src)
 {
-	unsigned i, idx = dst->idx;
+	unsigned i, offset = offsetof(struct btree_iter, flags);
 
-	*dst = *src;
-	dst->idx = idx;
-	dst->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
+	__bch2_btree_iter_unlock(dst);
+	btree_iter_child_free(dst);
+
+	memcpy((void *) dst + offset,
+	       (void *) src + offset,
+	       sizeof(struct btree_iter) - offset);
 
 	for (i = 0; i < BTREE_MAX_DEPTH; i++)
 		if (btree_node_locked(dst, i))
@@ -2365,6 +2406,13 @@ int bch2_trans_exit(struct btree_trans *trans)
 	bch2_trans_unlock(trans);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
+	if (trans->iters_live) {
+		struct btree_iter *iter;
+
+		trans_for_each_iter(trans, iter)
+			btree_iter_child_free(iter);
+	}
+
 	if (trans->iters_live) {
 		struct btree_iter *iter;
 

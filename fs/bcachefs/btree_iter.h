@@ -181,6 +181,12 @@ static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos 
 	iter->should_be_locked = false;
 }
 
+static inline struct btree_iter *btree_iter_child(struct btree_iter *iter)
+{
+	return iter->child_idx == U8_MAX ? NULL
+		: iter->trans->iters + iter->child_idx;
+}
+
 /* Sort order for locking btree iterators: */
 static inline int btree_iter_lock_cmp(const struct btree_iter *l,
 				      const struct btree_iter *r)

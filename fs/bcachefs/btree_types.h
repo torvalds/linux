@@ -241,15 +241,20 @@ enum btree_iter_uptodate {
  */
 struct btree_iter {
 	struct btree_trans	*trans;
-	struct bpos		pos;
-	/* what we're searching for/what the iterator actually points to: */
-	struct bpos		real_pos;
-	struct bpos		pos_after_commit;
+	unsigned long		ip_allocated;
+
+	u8			idx;
+	u8			child_idx;
+
+	/* btree_iter_copy starts here: */
+	u16			flags;
+
 	/* When we're filtering by snapshot, the snapshot ID we're looking for: */
 	unsigned		snapshot;
 
-	u16			flags;
-	u8			idx;
+	struct bpos		pos;
+	struct bpos		real_pos;
+	struct bpos		pos_after_commit;
 
 	enum btree_id		btree_id:4;
 	enum btree_iter_uptodate uptodate:3;
@@ -276,7 +281,6 @@ struct btree_iter {
 	 * bch2_btree_iter_next_slot() can correctly advance pos.
 	 */
 	struct bkey		k;
-	unsigned long		ip_allocated;
 };
 
 static inline enum btree_iter_type
