@@ -97,12 +97,16 @@ struct gsi_channel_data {
 
 /**
  * struct ipa_endpoint_tx_data - configuration data for TX endpoints
+ * @seq_type:		primary packet processing sequencer type
+ * @seq_rep_type:	sequencer type for replication processing
  * @status_endpoint:	endpoint to which status elements are sent
  *
  * The @status_endpoint is only valid if the endpoint's @status_enable
  * flag is set.
  */
 struct ipa_endpoint_tx_data {
+	enum ipa_seq_type seq_type;
+	enum ipa_seq_rep_type seq_rep_type;
 	enum ipa_endpoint_name status_endpoint;
 };
 
@@ -154,8 +158,6 @@ struct ipa_endpoint_config_data {
 /**
  * struct ipa_endpoint_data - IPA endpoint configuration data
  * @filter_support:	whether endpoint supports filtering
- * @seq_type:		primary packet processing sequencer type
- * @seq_rep_type:	sequencer type for replication processing
  * @config:		hardware configuration (see above)
  *
  * Not all endpoints support the IPA filtering capability.  A filter table
@@ -165,15 +167,10 @@ struct ipa_endpoint_config_data {
  * in the system, and indicate whether they support filtering.
  *
  * The remaining endpoint configuration data applies only to AP endpoints.
- * The IPA hardware is implemented by sequencers, and the AP must program
- * the type(s) of these sequencers at initialization time.  The remaining
- * endpoint configuration data is defined above.
  */
 struct ipa_endpoint_data {
 	bool filter_support;
-	/* The next three are specified only for AP endpoints */
-	enum ipa_seq_type seq_type;
-	enum ipa_seq_rep_type seq_rep_type;
+	/* Everything else is specified only for AP endpoints */
 	struct ipa_endpoint_config_data config;
 };
 

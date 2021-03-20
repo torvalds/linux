@@ -602,7 +602,6 @@ enum ipa_seq_type {
 	IPA_SEQ_1_PASS_SKIP_LAST_UC		= 0x06,
 	IPA_SEQ_2_PASS				= 0x0a,
 	IPA_SEQ_3_PASS_SKIP_LAST_UC		= 0x0c,
-	IPA_SEQ_INVALID				= 0x0c,
 };
 
 /**
@@ -615,7 +614,6 @@ enum ipa_seq_type {
  */
 enum ipa_seq_rep_type {
 	IPA_SEQ_REP_DMA_PARSER			= 0x08,
-	IPA_SEQ_REP_INVALID			= 0x0c,
 };
 
 #define IPA_REG_ENDP_STATUS_N_OFFSET(ep) \
