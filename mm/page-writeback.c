@@ -566,8 +566,8 @@ static void wb_domain_writeout_inc(struct wb_domain *dom,
 				   struct fprop_local_percpu *completions,
 				   unsigned int max_prop_frac)
 {
-	__fprop_inc_percpu_max(&dom->completions, completions,
-			       max_prop_frac);
+	__fprop_add_percpu_max(&dom->completions, completions,
+			       max_prop_frac, 1);
 	/* First event after period switching was turned off? */
 	if (unlikely(!dom->period_time)) {
 		/*
