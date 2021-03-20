@@ -1582,7 +1582,7 @@ static void tcm_qla2xxx_update_sess(struct fc_port *sess, port_id_t s_id,
 /*
  * Calls into tcm_qla2xxx used by qla2xxx LLD I/O path.
  */
-static struct qla_tgt_func_tmpl tcm_qla2xxx_template = {
+static const struct qla_tgt_func_tmpl tcm_qla2xxx_template = {
 	.find_cmd_by_tag	= tcm_qla2xxx_find_cmd_by_tag,
 	.handle_cmd		= tcm_qla2xxx_handle_cmd,
 	.handle_data		= tcm_qla2xxx_handle_data,

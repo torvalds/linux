@@ -3815,7 +3815,7 @@ struct qlt_hw_data {
 	__le32 __iomem *atio_q_in;
 	__le32 __iomem *atio_q_out;
 
-	struct qla_tgt_func_tmpl *tgt_ops;
+	const struct qla_tgt_func_tmpl *tgt_ops;
 	struct qla_tgt_vp_map *tgt_vp_map;
 
 	int saved_set;
