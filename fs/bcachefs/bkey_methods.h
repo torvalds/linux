@@ -26,7 +26,6 @@ struct bkey_ops {
 	/* Returns reason for being invalid if invalid, else NULL: */
 	const char *	(*key_invalid)(const struct bch_fs *,
 				       struct bkey_s_c);
-	void		(*key_debugcheck)(struct bch_fs *, struct bkey_s_c);
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
 	void		(*swab)(struct bkey_s);

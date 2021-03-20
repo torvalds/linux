@@ -368,7 +368,6 @@ int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 /* KEY_TYPE_btree_ptr: */
 
 const char *bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c);
-void bch2_btree_ptr_debugcheck(struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 
@@ -379,14 +378,12 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 
 #define bch2_bkey_ops_btree_ptr (struct bkey_ops) {		\
 	.key_invalid	= bch2_btree_ptr_invalid,		\
-	.key_debugcheck	= bch2_btree_ptr_debugcheck,		\
 	.val_to_text	= bch2_btree_ptr_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 }
 
 #define bch2_bkey_ops_btree_ptr_v2 (struct bkey_ops) {		\
 	.key_invalid	= bch2_btree_ptr_invalid,		\
-	.key_debugcheck	= bch2_btree_ptr_debugcheck,		\
 	.val_to_text	= bch2_btree_ptr_v2_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.compat		= bch2_btree_ptr_v2_compat,		\
@@ -395,14 +392,12 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 /* KEY_TYPE_extent: */
 
 const char *bch2_extent_invalid(const struct bch_fs *, struct bkey_s_c);
-void bch2_extent_debugcheck(struct bch_fs *, struct bkey_s_c);
 void bch2_extent_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 enum merge_result bch2_extent_merge(struct bch_fs *,
 				    struct bkey_s, struct bkey_s);
 
 #define bch2_bkey_ops_extent (struct bkey_ops) {		\
 	.key_invalid	= bch2_extent_invalid,			\
-	.key_debugcheck	= bch2_extent_debugcheck,		\
 	.val_to_text	= bch2_extent_to_text,			\
 	.swab		= bch2_ptr_swab,			\
 	.key_normalize	= bch2_extent_normalize,		\

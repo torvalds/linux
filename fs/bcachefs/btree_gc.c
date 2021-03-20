@@ -389,8 +389,6 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
 	bkey_init(&prev.k->k);
 
 	while ((k = bch2_btree_node_iter_peek_unpack(&iter, b, &unpacked)).k) {
-		bch2_bkey_debugcheck(c, b, k);
-
 		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, false,
 				       &k, max_stale, initial);
 		if (ret)
@@ -491,8 +489,6 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 	bkey_init(&prev.k->k);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		bch2_bkey_debugcheck(c, b, k);
-
 		BUG_ON(bkey_cmp(k.k->p, b->data->min_key) < 0);
 		BUG_ON(bkey_cmp(k.k->p, b->data->max_key) > 0);
 

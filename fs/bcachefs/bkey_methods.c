@@ -149,7 +149,6 @@ const char *bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k)
 
 void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
 {
-	const struct bkey_ops *ops = &bch2_bkey_ops[k.k->type];
 	const char *invalid;
 
 	BUG_ON(!k.k->u64s);
@@ -161,11 +160,7 @@ void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
 
 		bch2_bkey_val_to_text(&PBUF(buf), c, k);
 		bch2_fs_inconsistent(c, "invalid bkey %s: %s", buf, invalid);
-		return;
 	}
-
-	if (ops->key_debugcheck)
-		ops->key_debugcheck(c, k);
 }
 
 void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)

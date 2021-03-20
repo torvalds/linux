@@ -163,46 +163,6 @@ const char *bch2_btree_ptr_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return bch2_bkey_ptrs_invalid(c, k);
 }
 
-void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct bkey_s_c k)
-{
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
-	const char *err;
-	char buf[160];
-	struct bucket_mark mark;
-	struct bch_dev *ca;
-
-	if (!test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
-		return;
-
-	if (!percpu_down_read_trylock(&c->mark_lock))
-		return;
-
-	bkey_for_each_ptr(ptrs, ptr) {
-		ca = bch_dev_bkey_exists(c, ptr->dev);
-
-		mark = ptr_bucket_mark(ca, ptr);
-
-		err = "stale";
-		if (gen_after(mark.gen, ptr->gen))
-			goto err;
-
-		err = "inconsistent";
-		if (mark.data_type != BCH_DATA_btree ||
-		    mark.dirty_sectors < c->opts.btree_node_size)
-			goto err;
-	}
-out:
-	percpu_up_read(&c->mark_lock);
-	return;
-err:
-	bch2_fs_inconsistent(c, "%s btree pointer %s: bucket %zi gen %i mark %08x",
-		err, (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
-		PTR_BUCKET_NR(ca, ptr),
-		mark.gen, (unsigned) mark.v.counter);
-	goto out;
-}
-
 void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 			    struct bkey_s_c k)
 {
@@ -244,49 +204,6 @@ void bch2_btree_ptr_v2_compat(enum btree_id btree_id, unsigned version,
 const char *bch2_extent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
 	return bch2_bkey_ptrs_invalid(c, k);
-}
-
-void bch2_extent_debugcheck(struct bch_fs *c, struct bkey_s_c k)
-{
-	struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-	char buf[160];
-
-	if (!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags) ||
-	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
-		return;
-
-	if (!percpu_down_read_trylock(&c->mark_lock))
-		return;
-
-	extent_for_each_ptr_decode(e, p, entry) {
-		struct bch_dev *ca	= bch_dev_bkey_exists(c, p.ptr.dev);
-		struct bucket_mark mark = ptr_bucket_mark(ca, &p.ptr);
-		unsigned stale		= gen_after(mark.gen, p.ptr.gen);
-		unsigned disk_sectors	= ptr_disk_sectors(p);
-		unsigned mark_sectors	= p.ptr.cached
-			? mark.cached_sectors
-			: mark.dirty_sectors;
-
-		bch2_fs_inconsistent_on(stale && !p.ptr.cached, c,
-			"stale dirty pointer (ptr gen %u bucket %u",
-			p.ptr.gen, mark.gen);
-
-		bch2_fs_inconsistent_on(stale > 96, c,
-			"key too stale: %i", stale);
-
-		bch2_fs_inconsistent_on(!stale &&
-			(mark.data_type != BCH_DATA_user ||
-			 mark_sectors < disk_sectors), c,
-			"extent pointer not marked: %s:\n"
-			"type %u sectors %u < %u",
-			(bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf),
-			mark.data_type,
-			mark_sectors, disk_sectors);
-	}
-
-	percpu_up_read(&c->mark_lock);
 }
 
 void bch2_extent_to_text(struct printbuf *out, struct bch_fs *c,
