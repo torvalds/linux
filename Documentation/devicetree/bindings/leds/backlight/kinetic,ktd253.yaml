@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/leds/backlight/kinetic,ktd253.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Kinetic Technologies KTD253 one-wire backlight
+title: Kinetic Technologies KTD253 and KTD259 one-wire backlight
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 description: |
-  The Kinetic Technologies KTD253 is a white LED backlight that is
+  The Kinetic Technologies KTD253 and KTD259 are white LED backlights
   controlled by a single GPIO line. If you just turn on the backlight
   it goes to maximum backlight then you can set the level of backlight
   using pulses on the enable wire. This is sometimes referred to as
@@ -21,7 +21,10 @@ allOf:
 
 properties:
   compatible:
-    const: kinetic,ktd253
+    items:
+      - enum:
+          - kinetic,ktd253
+          - kinetic,ktd259
 
   enable-gpios:
     description: GPIO to use to enable/disable and dim the backlight.
