@@ -492,15 +492,19 @@ static void bch2_btree_iter_verify_cached(struct btree_iter *iter)
 static void bch2_btree_iter_verify_level(struct btree_iter *iter,
 					 unsigned level)
 {
-	struct btree_iter_level *l = &iter->l[level];
-	struct btree_node_iter tmp = l->iter;
-	bool locked = btree_node_locked(iter, level);
+	struct btree_iter_level *l;
+	struct btree_node_iter tmp;
+	bool locked;
 	struct bkey_packed *p, *k;
 	char buf1[100], buf2[100], buf3[100];
 	const char *msg;
 
 	if (!bch2_debug_check_iterators)
 		return;
+
+	l	= &iter->l[level];
+	tmp	= l->iter;
+	locked	= btree_node_locked(iter, level);
 
 	if (btree_iter_type(iter) == BTREE_ITER_CACHED) {
 		if (!level)
