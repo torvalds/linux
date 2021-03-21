@@ -92,7 +92,7 @@ struct lapb_cb {
 	unsigned short		n2, n2count;
 	unsigned short		t1, t2;
 	struct timer_list	t1timer, t2timer;
-	bool			t1timer_stop, t2timer_stop;
+	bool			t1timer_running, t2timer_running;
 
 	/* Internal control information */
 	struct sk_buff_head	write_queue;
