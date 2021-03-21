@@ -6873,7 +6873,7 @@ static int io_run_task_work_sig(void)
 		return 1;
 	if (!signal_pending(current))
 		return 0;
-	if (test_tsk_thread_flag(current, TIF_NOTIFY_SIGNAL))
+	if (test_thread_flag(TIF_NOTIFY_SIGNAL))
 		return -ERESTARTSYS;
 	return -EINTR;
 }
