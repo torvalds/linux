@@ -53,7 +53,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
 		if (!bch2_bkey_has_device(k, dev_idx)) {
-			bch2_btree_iter_next(iter);
+			bch2_btree_iter_advance(iter);
 			continue;
 		}
 

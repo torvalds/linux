@@ -842,13 +842,13 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 		struct bch_extent_ptr *ptr, *ec_ptr = NULL;
 
 		if (extent_has_stripe_ptr(k, s->key.k.p.offset)) {
-			bch2_btree_iter_next(iter);
+			bch2_btree_iter_advance(iter);
 			continue;
 		}
 
 		block = bkey_matches_stripe(&s->key.v, k);
 		if (block < 0) {
-			bch2_btree_iter_next(iter);
+			bch2_btree_iter_advance(iter);
 			continue;
 		}
 

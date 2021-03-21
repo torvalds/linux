@@ -356,7 +356,7 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 		if (err)
 			break;
 
-		bch2_btree_iter_next(iter);
+		bch2_btree_iter_advance(iter);
 		i->from = iter->pos;
 
 		err = flush_buf(i);

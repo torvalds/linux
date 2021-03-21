@@ -547,7 +547,7 @@ retry:
 			i_sectors += k.k->size;
 		bch2_bkey_buf_reassemble(&prev, c, k);
 
-		bch2_btree_iter_advance_pos(iter);
+		bch2_btree_iter_advance(iter);
 	}
 fsck_err:
 	if (ret == -EINTR)
@@ -703,7 +703,7 @@ retry:
 
 		}
 
-		bch2_btree_iter_advance_pos(iter);
+		bch2_btree_iter_advance(iter);
 	}
 
 	hash_stop_chain(&trans, &h);
@@ -762,7 +762,7 @@ retry:
 		if (ret)
 			break;
 
-		bch2_btree_iter_advance_pos(iter);
+		bch2_btree_iter_advance(iter);
 	}
 fsck_err:
 	if (ret == -EINTR)
@@ -1389,7 +1389,7 @@ peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 		if (nlinks_pos == iter->pos.offset)
 			genradix_iter_advance(&nlinks_iter, links);
 
-		bch2_btree_iter_advance_pos(iter);
+		bch2_btree_iter_advance(iter);
 		bch2_trans_cond_resched(&trans);
 	}
 fsck_err:

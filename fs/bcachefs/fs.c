@@ -914,7 +914,7 @@ retry:
 
 		if (!bkey_extent_is_data(k.k) &&
 		    k.k->type != KEY_TYPE_reservation) {
-			bch2_btree_iter_next(iter);
+			bch2_btree_iter_advance(iter);
 			continue;
 		}
 

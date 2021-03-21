@@ -1501,7 +1501,7 @@ void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
 	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
 }
 
-inline bool bch2_btree_iter_advance_pos(struct btree_iter *iter)
+inline bool bch2_btree_iter_advance(struct btree_iter *iter)
 {
 	struct bpos pos = iter->k.p;
 	bool ret = bkey_cmp(pos, POS_MAX) != 0;
@@ -1512,7 +1512,7 @@ inline bool bch2_btree_iter_advance_pos(struct btree_iter *iter)
 	return ret;
 }
 
-inline bool bch2_btree_iter_rewind_pos(struct btree_iter *iter)
+inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 {
 	struct bpos pos = bkey_start_pos(&iter->k);
 	bool ret = bkey_cmp(pos, POS_MIN) != 0;
@@ -1637,7 +1637,7 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
  */
 struct bkey_s_c bch2_btree_iter_next(struct btree_iter *iter)
 {
-	if (!bch2_btree_iter_advance_pos(iter))
+	if (!bch2_btree_iter_advance(iter))
 		return bkey_s_c_null;
 
 	return bch2_btree_iter_peek(iter);
@@ -1691,7 +1691,7 @@ struct bkey_s_c bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
 		k = __bch2_btree_iter_peek_with_updates(iter);
 
 		if (k.k && bkey_deleted(k.k)) {
-			if (!bch2_btree_iter_advance_pos(iter))
+			if (!bch2_btree_iter_advance(iter))
 				return bkey_s_c_null;
 			continue;
 		}
@@ -1716,7 +1716,7 @@ struct bkey_s_c bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
 
 struct bkey_s_c bch2_btree_iter_next_with_updates(struct btree_iter *iter)
 {
-	if (!bch2_btree_iter_advance_pos(iter))
+	if (!bch2_btree_iter_advance(iter))
 		return bkey_s_c_null;
 
 	return bch2_btree_iter_peek_with_updates(iter);
@@ -1793,7 +1793,7 @@ no_key:
  */
 struct bkey_s_c bch2_btree_iter_prev(struct btree_iter *iter)
 {
-	if (!bch2_btree_iter_rewind_pos(iter))
+	if (!bch2_btree_iter_rewind(iter))
 		return bkey_s_c_null;
 
 	return bch2_btree_iter_peek_prev(iter);
@@ -1885,7 +1885,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 
 struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *iter)
 {
-	if (!bch2_btree_iter_advance_pos(iter))
+	if (!bch2_btree_iter_advance(iter))
 		return bkey_s_c_null;
 
 	return bch2_btree_iter_peek_slot(iter);
@@ -1893,7 +1893,7 @@ struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *iter)
 
 struct bkey_s_c bch2_btree_iter_prev_slot(struct btree_iter *iter)
 {
-	if (!bch2_btree_iter_rewind_pos(iter))
+	if (!bch2_btree_iter_rewind(iter))
 		return bkey_s_c_null;
 
 	return bch2_btree_iter_peek_slot(iter);

@@ -638,7 +638,7 @@ next:
 		atomic64_add(k.k->size * bch2_bkey_nr_ptrs_allocated(k),
 			     &stats->sectors_seen);
 next_nondata:
-		bch2_btree_iter_next(iter);
+		bch2_btree_iter_advance(iter);
 		bch2_trans_cond_resched(&trans);
 	}
 out:
