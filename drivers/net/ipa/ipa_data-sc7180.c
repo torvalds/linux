@@ -14,6 +14,7 @@ static const struct ipa_qsb_data ipa_qsb_data[] = {
 	[IPA_QSB_MASTER_DDR] = {
 		.max_writes	= 8,
 		.max_reads	= 12,
+		/* no outstanding read byte (beat) limit */
 	},
 };
 
@@ -30,11 +31,13 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			.tlv_count	= 20,
 		},
 		.endpoint = {
-			.seq_type	= IPA_SEQ_DMA_ONLY,
 			.config = {
 				.resource_group	= 0,
 				.dma_mode	= true,
 				.dma_endpoint	= IPA_ENDPOINT_AP_LAN_RX,
+				.tx = {
+					.seq_type = IPA_SEQ_DMA,
+				},
 			},
 		},
 	},
@@ -49,7 +52,6 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			.tlv_count	= 6,
 		},
 		.endpoint = {
-			.seq_type	= IPA_SEQ_INVALID,
 			.config = {
 				.resource_group	= 0,
 				.aggregation	= true,
@@ -72,14 +74,14 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		},
 		.endpoint = {
 			.filter_support	= true,
-			.seq_type	=
-				IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP,
 			.config = {
 				.resource_group	= 0,
 				.checksum	= true,
 				.qmap		= true,
 				.status_enable	= true,
 				.tx = {
+					.seq_type = IPA_SEQ_1_PASS_SKIP_LAST_UC,
+					.seq_rep_type = IPA_SEQ_REP_DMA_PARSER,
 					.status_endpoint =
 						IPA_ENDPOINT_MODEM_AP_RX,
 				},
@@ -97,7 +99,6 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			.tlv_count	= 6,
 		},
 		.endpoint = {
-			.seq_type	= IPA_SEQ_INVALID,
 			.config = {
 				.resource_group	= 0,
 				.checksum	= true,

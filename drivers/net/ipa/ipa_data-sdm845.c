@@ -36,11 +36,13 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			.tlv_count	= 20,
 		},
 		.endpoint = {
-			.seq_type	= IPA_SEQ_DMA_ONLY,
 			.config = {
 				.resource_group	= 1,
 				.dma_mode	= true,
 				.dma_endpoint	= IPA_ENDPOINT_AP_LAN_RX,
+				.tx = {
+					.seq_type = IPA_SEQ_DMA,
+				},
 			},
 		},
 	},
@@ -55,7 +57,6 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			.tlv_count	= 8,
 		},
 		.endpoint = {
-			.seq_type	= IPA_SEQ_INVALID,
 			.config = {
 				.resource_group	= 1,
 				.aggregation	= true,
@@ -78,14 +79,13 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		},
 		.endpoint = {
 			.filter_support	= true,
-			.seq_type	=
-				IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
 			.config = {
 				.resource_group	= 1,
 				.checksum	= true,
 				.qmap		= true,
 				.status_enable	= true,
 				.tx = {
+					.seq_type = IPA_SEQ_2_PASS_SKIP_LAST_UC,
 					.status_endpoint =
 						IPA_ENDPOINT_MODEM_AP_RX,
 				},
@@ -103,7 +103,6 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			.tlv_count	= 8,
 		},
 		.endpoint = {
-			.seq_type	= IPA_SEQ_INVALID,
 			.config = {
 				.resource_group	= 1,
 				.checksum	= true,

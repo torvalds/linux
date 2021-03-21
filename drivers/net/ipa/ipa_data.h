@@ -18,8 +18,9 @@
  * Boot-time configuration data is used to define the configuration of the
  * IPA and GSI resources to use for a given platform.  This data is supplied
  * via the Device Tree match table, associated with a particular compatible
- * string.  The data defines information about resources, endpoints, and
- * channels.
+ * string.  The data defines information about how resources, endpoints and
+ * channels, memory, clocking and so on are allocated and used for the
+ * platform.
  *
  * Resources are data structures used internally by the IPA hardware.  The
  * configuration data defines the number (or limits of the number) of various
@@ -59,10 +60,12 @@ enum ipa_qsb_master_id {
  * struct ipa_qsb_data - Qualcomm System Bus configuration data
  * @max_writes:	Maximum outstanding write requests for this master
  * @max_reads:	Maximum outstanding read requests for this master
+ * @max_reads_beats: Max outstanding read bytes in 8-byte "beats" (if non-zero)
  */
 struct ipa_qsb_data {
 	u8 max_writes;
 	u8 max_reads;
+	u8 max_reads_beats;		/* Not present for IPA v3.5.1 */
 };
 
 /**
@@ -73,10 +76,10 @@ struct ipa_qsb_data {
  *
  * A GSI channel is a unidirectional means of transferring data to or
  * from (and through) the IPA.  A GSI channel has a ring buffer made
- * up of "transfer elements" (TREs) that specify individual data transfers
- * or IPA immediate commands.  TREs are filled by the AP, and control
- * is passed to IPA hardware by writing the last written element
- * into a doorbell register.
+ * up of "transfer ring elements" (TREs) that specify individual data
+ * transfers or IPA immediate commands.  TREs are filled by the AP,
+ * and control is passed to IPA hardware by writing the last written
+ * element into a doorbell register.
  *
  * When data transfer commands have completed the GSI generates an
  * event (a structure of data) and optionally signals the AP with
@@ -95,12 +98,16 @@ struct gsi_channel_data {
 
 /**
  * struct ipa_endpoint_tx_data - configuration data for TX endpoints
+ * @seq_type:		primary packet processing sequencer type
+ * @seq_rep_type:	sequencer type for replication processing
  * @status_endpoint:	endpoint to which status elements are sent
  *
  * The @status_endpoint is only valid if the endpoint's @status_enable
  * flag is set.
  */
 struct ipa_endpoint_tx_data {
+	enum ipa_seq_type seq_type;
+	enum ipa_seq_rep_type seq_rep_type;
 	enum ipa_endpoint_name status_endpoint;
 };
 
@@ -152,7 +159,6 @@ struct ipa_endpoint_config_data {
 /**
  * struct ipa_endpoint_data - IPA endpoint configuration data
  * @filter_support:	whether endpoint supports filtering
- * @seq_type:		hardware sequencer type used for endpoint
  * @config:		hardware configuration (see above)
  *
  * Not all endpoints support the IPA filtering capability.  A filter table
@@ -162,14 +168,10 @@ struct ipa_endpoint_config_data {
  * in the system, and indicate whether they support filtering.
  *
  * The remaining endpoint configuration data applies only to AP endpoints.
- * The IPA hardware is implemented by sequencers, and the AP must program
- * the type(s) of these sequencers at initialization time.  The remaining
- * endpoint configuration data is defined above.
  */
 struct ipa_endpoint_data {
 	bool filter_support;
-	/* The next two are specified only for AP endpoints */
-	enum ipa_seq_type seq_type;
+	/* Everything else is specified only for AP endpoints */
 	struct ipa_endpoint_config_data config;
 };
 
@@ -263,7 +265,7 @@ struct ipa_resource_data {
  * @imem_addr:		physical address of IPA region within IMEM
  * @imem_size:		size in bytes of IPA IMEM region
  * @smem_id:		item identifier for IPA region within SMEM memory
- * @imem_size:		size in bytes of the IPA SMEM region
+ * @smem_size:		size in bytes of the IPA SMEM region
  */
 struct ipa_mem_data {
 	u32 local_count;
@@ -306,14 +308,14 @@ struct ipa_clock_data {
  * @endpoint_count:	number of entries in the endpoint_data array
  * @endpoint_data:	IPA endpoint/GSI channel data
  * @resource_data:	IPA resource configuration data
- * @mem_count:		number of entries in the mem_data array
- * @mem_data:		IPA-local shared memory region data
+ * @mem_data:		IPA memory region data
+ * @clock_data:		IPA clock and interconnect data
  */
 struct ipa_data {
 	enum ipa_version version;
-	u32 qsb_count;		/* # entries in qsb_data[] */
+	u32 qsb_count;		/* number of entries in qsb_data[] */
 	const struct ipa_qsb_data *qsb_data;
-	u32 endpoint_count;	/* # entries in endpoint_data[] */
+	u32 endpoint_count;	/* number of entries in endpoint_data[] */
 	const struct ipa_gsi_endpoint_data *endpoint_data;
 	const struct ipa_resource_data *resource_data;
 	const struct ipa_mem_data *mem_data;
