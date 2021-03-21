@@ -1346,9 +1346,6 @@ struct btree *bch2_btree_iter_peek_node(struct btree_iter *iter)
 	EBUG_ON(btree_iter_type(iter) != BTREE_ITER_NODES);
 	bch2_btree_iter_verify(iter);
 
-	if (iter->uptodate == BTREE_ITER_UPTODATE)
-		return iter->l[iter->level].b;
-
 	ret = bch2_btree_iter_traverse(iter);
 	if (ret)
 		return NULL;
@@ -1360,7 +1357,6 @@ struct btree *bch2_btree_iter_peek_node(struct btree_iter *iter)
 	BUG_ON(bkey_cmp(b->key.k.p, iter->pos) < 0);
 
 	iter->pos = iter->real_pos = b->key.k.p;
-	iter->uptodate = BTREE_ITER_UPTODATE;
 
 	bch2_btree_iter_verify(iter);
 
@@ -1417,7 +1413,6 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	}
 
 	iter->pos = iter->real_pos = b->key.k.p;
-	iter->uptodate = BTREE_ITER_UPTODATE;
 
 	bch2_btree_iter_verify(iter);
 
@@ -1531,34 +1526,6 @@ static inline bool btree_iter_set_pos_to_prev_leaf(struct btree_iter *iter)
 }
 
 /**
- * btree_iter_peek_uptodate - given an iterator that is uptodate, return the key
- * it currently points to
- */
-static inline struct bkey_s_c btree_iter_peek_uptodate(struct btree_iter *iter)
-{
-	struct btree_iter_level *l = &iter->l[0];
-	struct bkey_s_c ret = { .k = &iter->k };
-
-	if (!bkey_deleted(&iter->k)) {
-		struct bkey_packed *_k =
-			__bch2_btree_node_iter_peek_all(&l->iter, l->b);
-
-		ret.v = bkeyp_val(&l->b->format, _k);
-
-		if (bch2_debug_check_iterators) {
-			struct bkey k = bkey_unpack_key(l->b, _k);
-
-			BUG_ON(memcmp(&k, &iter->k, sizeof(k)));
-		}
-
-		if (bch2_debug_check_bkeys)
-			bch2_bkey_debugcheck(iter->trans->c, l->b, ret);
-	}
-
-	return ret;
-}
-
-/**
  * bch2_btree_iter_peek: returns first key greater than or equal to iterator's
  * current position
  */
@@ -1573,10 +1540,6 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 	bch2_btree_iter_verify_entry_exit(iter);
 
 	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
-
-	if (iter->uptodate == BTREE_ITER_UPTODATE &&
-	    !bkey_deleted(&iter->k))
-		return btree_iter_peek_uptodate(iter);
 
 	while (1) {
 		ret = bch2_btree_iter_traverse(iter);
@@ -1599,8 +1562,6 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		iter->pos = bkey_start_pos(k.k);
 
 	iter->real_pos = k.k->p;
-
-	iter->uptodate = BTREE_ITER_UPTODATE;
 
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
@@ -1686,7 +1647,6 @@ struct bkey_s_c bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
 	if (bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
 		iter->pos = bkey_start_pos(k.k);
 
-	iter->uptodate = BTREE_ITER_UPTODATE;
 	return k;
 }
 
@@ -1713,10 +1673,6 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 	bch2_btree_iter_verify_entry_exit(iter);
 
 	btree_iter_set_search_pos(iter, iter->pos);
-
-	if (iter->uptodate == BTREE_ITER_UPTODATE &&
-	    !bkey_deleted(&iter->k))
-		return btree_iter_peek_uptodate(iter);
 
 	while (1) {
 		ret = bch2_btree_iter_traverse(iter);
@@ -1747,7 +1703,6 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 	if (bkey_cmp(k.k->p, iter->pos) < 0)
 		iter->pos = k.k->p;
 	iter->real_pos = k.k->p;
-	iter->uptodate = BTREE_ITER_UPTODATE;
 out:
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
@@ -1812,8 +1767,6 @@ __bch2_btree_iter_peek_slot_extents(struct btree_iter *iter)
 
 	EBUG_ON(!iter->k.size);
 
-	iter->uptodate = BTREE_ITER_UPTODATE;
-
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
 
@@ -1831,9 +1784,6 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 	bch2_btree_iter_verify_entry_exit(iter);
 
 	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
-
-	if (iter->uptodate == BTREE_ITER_UPTODATE)
-		return btree_iter_peek_uptodate(iter);
 
 	if (iter->flags & BTREE_ITER_IS_EXTENTS)
 		return __bch2_btree_iter_peek_slot_extents(iter);
@@ -1853,7 +1803,6 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		k = (struct bkey_s_c) { &iter->k, NULL };
 	}
 
-	iter->uptodate = BTREE_ITER_UPTODATE;
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
 	return k;
