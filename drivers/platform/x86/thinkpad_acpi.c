@@ -10210,8 +10210,13 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 		return err;
 
 	if (profile == PLATFORM_PROFILE_BALANCED) {
-		/* To get back to balanced mode we just issue a reset command */
-		err = dytc_command(DYTC_CMD_RESET, &output);
+		/*
+		 * To get back to balanced mode we need to issue a reset command.
+		 * Note we still need to disable CQL mode before hand and re-enable
+		 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
+		 * stuck at 0 for aprox. 30 minutes.
+		 */
+		err = dytc_cql_command(DYTC_CMD_RESET, &output);
 		if (err)
 			goto unlock;
 	} else {
