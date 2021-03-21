@@ -71,6 +71,10 @@ module_param(probe_all, int, 0);
 MODULE_PARM_DESC(probe_all,
 		 "Set to probe tertiary+ ISA port ranges even if PCI");
 
+static int probe_mask = ~0;
+module_param(probe_mask, int, 0);
+MODULE_PARM_DESC(probe_mask, "Probe mask for legacy ISA PATA ports");
+
 static int autospeed;
 module_param(autospeed, int, 0);
 MODULE_PARM_DESC(autospeed, "Chip present that snoops speed changes");
@@ -199,6 +203,8 @@ static int legacy_probe_add(unsigned long port, unsigned int irq,
 			free = lp;
 		/* Matching port, or the correct slot for ordering */
 		if (lp->port == port || legacy_port[i] == port) {
+			if (!(probe_mask & 1 << i))
+				return -1;
 			free = lp;
 			break;
 		}

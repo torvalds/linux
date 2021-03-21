@@ -3651,6 +3651,17 @@
 			Set to non-zero to probe tertiary and further ISA
 			port ranges on PCI systems.  Disabled by default.
 
+	pata_legacy.probe_mask=	[HW,LIBATA]
+			Format: <int>
+			Probe mask for legacy ISA PATA ports.  Depending on
+			platform configuration and the use of other driver
+			options up to 6 legacy ports are supported: 0x1f0,
+			0x170, 0x1e8, 0x168, 0x1e0, 0x160, however probing
+			of individual ports can be disabled by setting the
+			corresponding bits in the mask to 1.  Bit 0 is for
+			the first port in the list above (0x1f0), and so on.
+			By default all supported ports are probed.
+
 	pata_legacy.qdi=	[HW,LIBATA]
 			Format: <int>
 			Set to non-zero to probe QDI controllers.  By default
