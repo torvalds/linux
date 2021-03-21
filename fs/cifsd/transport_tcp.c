@@ -173,7 +173,7 @@ static unsigned short ksmbd_tcp_get_port(const struct sockaddr *sa)
 
 /**
  * ksmbd_tcp_new_connection() - create a new tcp session on mount
- * @sock:	socket associated with new connection
+ * @client_sk:	socket associated with new connection
  *
  * whenever a new connection is requested, create a conn thread
  * (session thread) to handle new incoming smb requests from the connection
@@ -252,7 +252,8 @@ static int ksmbd_kthread_fn(void *p)
 }
 
 /**
- * ksmbd_create_ksmbd_kthread() - start forker thread
+ * ksmbd_tcp_run_kthread() - start forker thread
+ * @iface: pointer to struct interface
  *
  * start forker thread(ksmbd/0) at module init time to listen
  * on port 445 for new SMB connection requests. It creates per connection

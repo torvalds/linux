@@ -88,8 +88,7 @@ struct channel *lookup_chann_list(struct ksmbd_session *sess)
 
 /**
  * smb2_get_ksmbd_tcon() - get tree connection information for a tree id
- * @sess:	session containing tree list
- * @tid:	match tree connection with tree id
+ * @work:	smb work
  *
  * Return:      matching tree connection on success, otherwise error
  */
@@ -209,6 +208,7 @@ uint16_t get_smb2_cmd_val(struct ksmbd_work *work)
 /**
  * set_smb2_rsp_status() - set error response code on smb2 header
  * @work:	smb work containing response buffer
+ * @err:	error response code
  */
 void set_smb2_rsp_status(struct ksmbd_work *work, __le32 err)
 {
@@ -633,9 +633,10 @@ static void destroy_previous_session(struct ksmbd_user *user, uint64_t id)
 
 /**
  * smb2_get_name() - get filename string from on the wire smb format
+ * @share:	ksmbd_share_config pointer
  * @src:	source buffer
  * @maxlen:	maxlen of source string
- * @work:	smb work containing smb request buffer
+ * @nls_table:	nls_table pointer
  *
  * Return:      matching converted filename on success, otherwise error ptr
  */
@@ -747,6 +748,7 @@ static __le32 smb2_get_reparse_tag_special_file(umode_t mode)
 /**
  * smb2_get_dos_mode() - get file mode in dos format from unix mode
  * @stat:	kstat containing file mode
+ * @attribute:	attribute flags
  *
  * Return:      converted dos mode
  */
@@ -1797,7 +1799,6 @@ out_err1:
  * @file_present:	is file already present
  * @access:		file access flags
  * @disposition:	file disposition flags
- * @work:	smb work containing smb request buffer
  *
  * Return:      file open flags
  */
@@ -4112,12 +4113,6 @@ static void get_internal_info_pipe(struct smb2_query_info_rsp *rsp,
 	inc_rfc1001_len(rsp, sizeof(struct smb2_file_internal_info));
 }
 
-/**
- * smb2_info_file_pipe() - handler for smb2 query info on IPC pipe
- * @work:	smb work containing query info command buffer
- *
- * Return:	0 on success, otherwise error
- */
 static int smb2_get_info_file_pipe(struct ksmbd_session *sess,
 	struct smb2_query_info_req *req, struct smb2_query_info_rsp *rsp)
 {
@@ -4157,10 +4152,10 @@ static int smb2_get_info_file_pipe(struct ksmbd_session *sess,
 /**
  * smb2_get_ea() - handler for smb2 get extended attribute command
  * @work:	smb work containing query info command buffer
- * @path:	path of file/dir to query info command
- * @rq:		get extended attribute request
- * @resp:	response buffer pointer
- * @resp_org:	base response buffer pointer in case of chained response
+ * @fp:		ksmbd_file pointer
+ * @req:	get extended attribute request
+ * @rsp:	response buffer pointer
+ * @rsp_org:	base response buffer pointer in case of chained response
  *
  * Return:	0 on success, otherwise error
  */
@@ -4761,12 +4756,6 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 	return 0;
 }
 
-/**
- * smb2_get_info_file() - handler for smb2 query info command
- * @work:	smb work containing query info request buffer
- *
- * Return:	0 on success, otherwise error
- */
 static int smb2_get_info_file(struct ksmbd_work *work,
 			      struct smb2_query_info_req *req,
 			      struct smb2_query_info_rsp *rsp,
@@ -4901,13 +4890,6 @@ static int smb2_get_info_file(struct ksmbd_work *work,
 	return rc;
 }
 
-/**
- * smb2_get_info_filesystem() - handler for smb2 query info command
- * @work:	smb work containing query info request buffer
- *
- * Return:	0 on success, otherwise error
- * TODO: need to implement STATUS_INFO_LENGTH_MISMATCH error handling
- */
 static int smb2_get_info_filesystem(struct ksmbd_work *work,
 				    struct smb2_query_info_req *req,
 				    struct smb2_query_info_rsp *rsp,
@@ -5416,14 +5398,6 @@ int smb2_echo(struct ksmbd_work *work)
 	return 0;
 }
 
-/**
- * smb2_rename() - handler for rename using smb2 setinfo command
- * @work:	smb work containing set info command buffer
- * @filp:	file pointer of source file
- * @old_fid:	file id of source file
- *
- * Return:	0 on success, otherwise error
- */
 static int smb2_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 		       struct smb2_file_rename_info *file_info,
 		       struct nls_table *local_nls)
@@ -5544,14 +5518,6 @@ out:
 	return rc;
 }
 
-/**
- * smb2_create_link() - handler for creating hardlink using smb2
- *		set info command
- * @work:	smb work containing set info command buffer
- * @filp:	file pointer of source file
- *
- * Return:	0 on success, otherwise error
- */
 static int smb2_create_link(struct ksmbd_work *work,
 			    struct ksmbd_share_config *share,
 			    struct smb2_file_link_info *file_info,
@@ -5914,6 +5880,9 @@ static int set_file_mode_info(struct ksmbd_file *fp,
 /**
  * smb2_set_info_file() - handler for smb2 set info command
  * @work:	smb work containing set info command buffer
+ * @fp:		ksmbd_file pointer
+ * @info_class:	smb2 set info class
+ * @share:	ksmbd_share_config pointer
  *
  * Return:	0 on success, otherwise error
  * TODO: need to implement an error handling for STATUS_INFO_LENGTH_MISMATCH
@@ -8057,7 +8026,7 @@ int smb2_oplock_break(struct ksmbd_work *work)
 
 /**
  * smb2_notify() - handler for smb2 notify request
- * @ksmbd_work:   smb work containing notify command buffer
+ * @work:   smb work containing notify command buffer
  *
  * Return:      0
  */
@@ -8081,7 +8050,8 @@ int smb2_notify(struct ksmbd_work *work)
 
 /**
  * smb2_is_sign_req() - handler for checking packet signing status
- * @work:smb work containing notify command buffer
+ * @work:	smb work containing notify command buffer
+ * @command:	SMB2 command id
  *
  * Return:	true if packed is signed, false otherwise
  */

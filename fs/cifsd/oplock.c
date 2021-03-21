@@ -21,11 +21,10 @@ static LIST_HEAD(lease_table_list);
 static DEFINE_RWLOCK(lease_list_lock);
 
 /**
- * get_new_opinfo() - allocate a new opinfo object for oplock info
- * @conn:	connection instance
+ * alloc_opinfo() - allocate a new opinfo object for oplock info
+ * @work:	smb work
  * @id:		fid of open file
  * @Tid:	tree id of connection
- * @lctx:	lease context information
  *
  * Return:      allocated opinfo object on success, otherwise NULL
  */
@@ -462,14 +461,6 @@ static void grant_none_oplock(struct oplock_info *opinfo_new,
 	}
 }
 
-/**
- * find_opinfo() - find lease object for given client guid and lease key
- * @head:	oplock list(read,write or none) head
- * @guid1:	client guid of matching lease owner
- * @key1:	lease key of matching lease owner
- *
- * Return:      oplock(lease) object on success, otherwise NULL
- */
 static inline int compare_guid_key(struct oplock_info *opinfo,
 		const char *guid1, const char *key1)
 {
@@ -610,9 +601,9 @@ static inline int allocate_oplock_break_buf(struct ksmbd_work *work)
 }
 
 /**
- * smb2_oplock_break_noti() - send smb2 oplock break cmd from conn
+ * __smb2_oplock_break_noti() - send smb2 oplock break cmd from conn
  * to client
- * @work:     smb work object
+ * @wk:     smb work object
  *
  * There are two ways this function can be called. 1- while file open we break
  * from exclusive/batch lock to levelII oplock and 2- while file write/truncate
@@ -686,10 +677,9 @@ static void __smb2_oplock_break_noti(struct work_struct *wk)
 }
 
 /**
- * smb2_oplock_break() - send smb2 exclusive/batch to level2 oplock
+ * smb2_oplock_break_noti() - send smb2 exclusive/batch to level2 oplock
  *		break command from server to client
  * @opinfo:		oplock info object
- * @ack_required	if requiring ack
  *
  * Return:      0 on success, otherwise error
  */
@@ -734,7 +724,7 @@ static int smb2_oplock_break_noti(struct oplock_info *opinfo)
 /**
  * __smb2_lease_break_noti() - send lease break command from server
  * to client
- * @work:     smb work object
+ * @wk:     smb work object
  */
 static void __smb2_lease_break_noti(struct work_struct *wk)
 {
@@ -790,10 +780,9 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
 }
 
 /**
- * smb2_break_lease() - break lease when a new client request
+ * smb2_lease_break_noti() - break lease when a new client request
  *			write lease
  * @opinfo:		conains lease state information
- * @ack_required:	if requring ack
  *
  * Return:	0 on success, otherwise error
  */
@@ -1085,12 +1074,13 @@ static void set_oplock_level(struct oplock_info *opinfo, int level,
 
 /**
  * smb_grant_oplock() - handle oplock/lease request on file open
- * @fp:		ksmbd file pointer
- * @oplock:	granted oplock type
- * @id:		fid of open file
- * @Tid:	Tree id of connection
- * @lctx:	lease context information on file open
- * @attr_only:	attribute only file open type
+ * @work:		smb work
+ * @req_op_level:	oplock level
+ * @pid:		id of open file
+ * @fp:			ksmbd file pointer
+ * @tid:		Tree id of connection
+ * @lctx:		lease context information on file open
+ * @share_ret:		share mode
  *
  * Return:      0 on success, otherwise error
  */
@@ -1222,10 +1212,10 @@ err_out:
 }
 
 /**
- * smb_break_write_oplock() - break batch/exclusive oplock to level2
+ * smb_break_all_write_oplock() - break batch/exclusive oplock to level2
  * @work:	smb work
  * @fp:		ksmbd file pointer
- * @openfile:	open file object
+ * @is_trunc:	truncate on open
  */
 static void smb_break_all_write_oplock(struct ksmbd_work *work,
 	struct ksmbd_file *fp, int is_trunc)
@@ -1250,7 +1240,7 @@ static void smb_break_all_write_oplock(struct ksmbd_work *work,
 /**
  * smb_break_all_levII_oplock() - send level2 oplock or read lease break command
  *	from server to client
- * @conn:	connection instance
+ * @work:	smb work
  * @fp:		ksmbd file pointer
  * @is_trunc:	truncate on open
  */
@@ -1351,7 +1341,7 @@ __u8 smb2_map_lease_to_oplock(__le32 lease_state)
 /**
  * create_lease_buf() - create lease context for open cmd response
  * @rbuf:	buffer to create lease context response
- * @lreq:	buffer to stored parsed lease state information
+ * @lease:	buffer to stored parsed lease state information
  */
 void create_lease_buf(u8 *rbuf, struct lease *lease)
 {
@@ -1378,7 +1368,6 @@ void create_lease_buf(u8 *rbuf, struct lease *lease)
 /**
  * parse_lease_state() - parse lease context containted in file open request
  * @open_req:	buffer containing smb2 file open(create) request
- * @lreq:	buffer to stored parsed lease state information
  *
  * Return:  oplock state, -ENOENT if create lease context not found
  */
@@ -1426,7 +1415,7 @@ struct lease_ctx_info *parse_lease_state(void *open_req)
 /**
  * smb2_find_context_vals() - find a particular context info in open request
  * @open_req:	buffer containing smb2 file open(create) request
- * @str:	context name to search for
+ * @tag:	context name to search for
  *
  * Return:      pointer to requested context, NULL if @str context not found
  */
@@ -1458,7 +1447,7 @@ struct create_context *smb2_find_context_vals(void *open_req, const char *tag)
 }
 
 /**
- * create_durable_buf() - create durable handle context
+ * create_durable_rsp__buf() - create durable handle context
  * @cc:	buffer to create durable context response
  */
 void create_durable_rsp_buf(char *cc)
@@ -1481,8 +1470,9 @@ void create_durable_rsp_buf(char *cc)
 }
 
 /**
- * create_durable_buf() - create durable handle v2 context
+ * create_durable_v2_rsp_buf() - create durable handle v2 context
  * @cc:	buffer to create durable context response
+ * @fp: ksmbd file pointer
  */
 void create_durable_v2_rsp_buf(char *cc, struct ksmbd_file *fp)
 {
@@ -1508,8 +1498,9 @@ void create_durable_v2_rsp_buf(char *cc, struct ksmbd_file *fp)
 }
 
 /**
- * create_mxac_buf() - create query maximal access context
- * @cc:	buffer to create maximal access context response
+ * create_mxac_rsp_buf() - create query maximal access context
+ * @cc:			buffer to create maximal access context response
+ * @maximal_access:	maximal access
  */
 void create_mxac_rsp_buf(char *cc, int maximal_access)
 {
@@ -1533,10 +1524,6 @@ void create_mxac_rsp_buf(char *cc, int maximal_access)
 	buf->MaximalAccess = cpu_to_le32(maximal_access);
 }
 
-/**
- * create_mxac_buf() - create query maximal access context
- * @cc:	buffer to create query disk on id context response
- */
 void create_disk_id_rsp_buf(char *cc, __u64 file_id, __u64 vol_id)
 {
 	struct create_disk_id_rsp *buf;
@@ -1560,8 +1547,9 @@ void create_disk_id_rsp_buf(char *cc, __u64 file_id, __u64 vol_id)
 }
 
 /**
- * create_posix_buf() - create posix extension context
+ * create_posix_rsp_buf() - create posix extension context
  * @cc:	buffer to create posix on posix response
+ * @fp: ksmbd file pointer
  */
 void create_posix_rsp_buf(char *cc, struct ksmbd_file *fp)
 {
