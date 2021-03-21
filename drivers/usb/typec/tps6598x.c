@@ -62,7 +62,6 @@ enum {
 struct tps6598x_rx_identity_reg {
 	u8 status;
 	struct usb_pd_identity identity;
-	u32 vdo[3];
 } __packed;
 
 /* Standard Task return codes */

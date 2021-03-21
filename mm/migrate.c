@@ -57,32 +57,6 @@
 
 #include "internal.h"
 
-/*
- * migrate_prep() needs to be called before we start compiling a list of pages
- * to be migrated using isolate_lru_page(). If scheduling work on other CPUs is
- * undesirable, use migrate_prep_local()
- */
-int migrate_prep(void)
-{
-	/*
-	 * Clear the LRU lists so pages can be isolated.
-	 * Note that pages may be moved off the LRU after we have
-	 * drained them. Those pages will fail to migrate like other
-	 * pages that may be busy.
-	 */
-	lru_add_drain_all();
-
-	return 0;
-}
-
-/* Do the necessary work of migrate_prep but not if it involves other CPUs */
-int migrate_prep_local(void)
-{
-	lru_add_drain();
-
-	return 0;
-}
-
 int isolate_movable_page(struct page *page, isolate_mode_t mode)
 {
 	struct address_space *mapping;
@@ -1723,7 +1697,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 	int start, i;
 	int err = 0, err1;
 
-	migrate_prep();
+	lru_cache_disable();
 
 	for (i = start = 0; i < nr_pages; i++) {
 		const void __user *p;
@@ -1792,6 +1766,7 @@ out_flush:
 	if (err >= 0)
 		err = err1;
 out:
+	lru_cache_enable();
 	return err;
 }
 

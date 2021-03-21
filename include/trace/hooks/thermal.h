@@ -11,8 +11,8 @@
 #include <trace/hooks/vendor_hooks.h>
 
 DECLARE_HOOK(android_vh_enable_thermal_genl_check,
-	TP_PROTO(int event, int *enable_thermal_genl),
-	TP_ARGS(event, enable_thermal_genl));
+	TP_PROTO(int event, int tz_id, int *enable_thermal_genl),
+	TP_ARGS(event, tz_id, enable_thermal_genl));
 
 #endif /* _TRACE_HOOK_THERMAL_H */
 /* This part must be outside protection */

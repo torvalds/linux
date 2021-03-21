@@ -399,6 +399,7 @@
   __dev_kfree_skb_any
   devm_add_action
   devm_backlight_device_register
+  devm_blk_ksm_init
   devm_clk_bulk_get
   devm_clk_bulk_get_all
   devm_clk_get
@@ -1170,6 +1171,7 @@
   irq_work_queue
   irq_work_queue_on
   irq_work_sync
+  is_dma_buf_file
   is_vmalloc_addr
   jiffies
   jiffies_to_msecs
@@ -1921,8 +1923,10 @@
   rproc_add_subdev
   rproc_alloc
   rproc_boot
+  rproc_coredump_add_custom_segment
   rproc_coredump_add_segment
   rproc_coredump_set_elf_info
+  rproc_coredump_using_sections
   rproc_del
   rproc_free
   rproc_get_by_child
@@ -2662,5 +2666,15 @@
   xa_find_after
   xa_load
   xa_store
+  xhci_alloc_command
+  xhci_alloc_erst
+  xhci_free_command
+  xhci_free_erst
+  xhci_get_endpoint_index
+  xhci_queue_stop_endpoint
+  xhci_ring_alloc
+  xhci_ring_cmd_db
+  xhci_ring_free
+  xhci_trb_virt_to_dma
   zone_watermark_ok
   zone_watermark_ok_safe
