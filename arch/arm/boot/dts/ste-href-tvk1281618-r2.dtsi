@@ -63,6 +63,14 @@
 					     <19 IRQ_TYPE_EDGE_RISING>;
 			};
 		};
+		i2c@80110000 {
+			synaptics@4b {
+				rmi4-f11@11 {
+					/* This is a landscape display */
+					touchscreen-swapped-x-y;
+				};
+			};
+		};
 		mcde@a0350000 {
 			status = "okay";
 

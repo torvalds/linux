@@ -139,13 +139,12 @@
 				interrupt-parent = <&gpio2>;
 				interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
 
-				rmi-f01@1 {
+				rmi4-f01@1 {
 					reg = <0x1>;
 					syna,nosleep = <1>;
 				};
-				rmi-f11@11 {
+				rmi4-f11@11 {
 					reg = <0x11>;
-					touchscreen-inverted-x;
 					syna,sensor-type = <1>;
 				};
 			};
