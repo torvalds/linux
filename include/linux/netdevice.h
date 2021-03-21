@@ -3447,6 +3447,24 @@ netif_xmit_frozen_or_drv_stopped(const struct netdev_queue *dev_queue)
 }
 
 /**
+ *	netdev_queue_set_dql_min_limit - set dql minimum limit
+ *	@dev_queue: pointer to transmit queue
+ *	@min_limit: dql minimum limit
+ *
+ * Forces xmit_more() to return true until the minimum threshold
+ * defined by @min_limit is reached (or until the tx queue is
+ * empty). Warning: to be use with care, misuse will impact the
+ * latency.
+ */
+static inline void netdev_queue_set_dql_min_limit(struct netdev_queue *dev_queue,
+						  unsigned int min_limit)
+{
+#ifdef CONFIG_BQL
+	dev_queue->dql.min_limit = min_limit;
+#endif
+}
+
+/**
  *	netdev_txq_bql_enqueue_prefetchw - prefetch bql data for write
  *	@dev_queue: pointer to transmit queue
  *
