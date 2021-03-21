@@ -815,23 +815,23 @@ static inline struct bkey_s_c __btree_iter_unpack(struct btree_iter *iter,
 }
 
 /* peek_all() doesn't skip deleted keys */
-static inline struct bkey_s_c __btree_iter_peek_all(struct btree_iter *iter,
-						    struct btree_iter_level *l,
-						    struct bkey *u)
+static inline struct bkey_s_c btree_iter_level_peek_all(struct btree_iter *iter,
+							struct btree_iter_level *l,
+							struct bkey *u)
 {
 	return __btree_iter_unpack(iter, l, u,
 			bch2_btree_node_iter_peek_all(&l->iter, l->b));
 }
 
-static inline struct bkey_s_c __btree_iter_peek(struct btree_iter *iter,
-						struct btree_iter_level *l)
+static inline struct bkey_s_c btree_iter_level_peek(struct btree_iter *iter,
+						    struct btree_iter_level *l)
 {
 	return __btree_iter_unpack(iter, l, &iter->k,
 			bch2_btree_node_iter_peek(&l->iter, l->b));
 }
 
-static inline struct bkey_s_c __btree_iter_prev(struct btree_iter *iter,
-						struct btree_iter_level *l)
+static inline struct bkey_s_c btree_iter_level_prev(struct btree_iter *iter,
+						    struct btree_iter_level *l)
 {
 	return __btree_iter_unpack(iter, l, &iter->k,
 			bch2_btree_node_iter_prev(&l->iter, l->b));
@@ -1546,7 +1546,7 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		if (unlikely(ret))
 			return bkey_s_c_err(ret);
 
-		k = __btree_iter_peek(iter, l);
+		k = btree_iter_level_peek(iter, l);
 		if (likely(k.k))
 			break;
 
@@ -1600,7 +1600,7 @@ static struct bkey_s_c __btree_trans_updates_peek(struct btree_iter *iter)
 static struct bkey_s_c __bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
 {
 	struct btree_iter_level *l = &iter->l[0];
-	struct bkey_s_c k = __btree_iter_peek(iter, l);
+	struct bkey_s_c k = btree_iter_level_peek(iter, l);
 	struct bkey_s_c u = __btree_trans_updates_peek(iter);
 
 	if (k.k && (!u.k || bkey_cmp(k.k->p, u.k->p) < 0))
@@ -1681,12 +1681,12 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 			goto no_key;
 		}
 
-		k = __btree_iter_peek(iter, l);
+		k = btree_iter_level_peek(iter, l);
 		if (!k.k ||
 		    ((iter->flags & BTREE_ITER_IS_EXTENTS)
 		     ? bkey_cmp(bkey_start_pos(k.k), iter->pos) >= 0
 		     : bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0))
-			k = __btree_iter_prev(iter, l);
+			k = btree_iter_level_prev(iter, l);
 
 		if (likely(k.k))
 			break;
@@ -1709,7 +1709,7 @@ out:
 	return k;
 no_key:
 	/*
-	 * __btree_iter_peek() may have set iter->k to a key we didn't want, and
+	 * btree_iter_level_peek() may have set iter->k to a key we didn't want, and
 	 * then we errored going to the previous leaf - make sure it's
 	 * consistent with iter->pos:
 	 */
@@ -1792,7 +1792,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 	if (unlikely(ret))
 		return bkey_s_c_err(ret);
 
-	k = __btree_iter_peek_all(iter, l, &iter->k);
+	k = btree_iter_level_peek_all(iter, l, &iter->k);
 
 	EBUG_ON(k.k && bkey_deleted(k.k) && bkey_cmp(k.k->p, iter->pos) == 0);
 
