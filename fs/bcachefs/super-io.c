@@ -369,6 +369,7 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.uuid		= src->uuid;
 	c->sb.user_uuid		= src->user_uuid;
 	c->sb.version		= le16_to_cpu(src->version);
+	c->sb.version_min	= le16_to_cpu(src->version_min);
 	c->sb.nr_devices	= src->nr_devices;
 	c->sb.clean		= BCH_SB_CLEAN(src);
 	c->sb.encryption_type	= BCH_SB_ENCRYPTION_TYPE(src);

@@ -592,6 +592,7 @@ struct bch_fs {
 		__uuid_t	user_uuid;
 
 		u16		version;
+		u16		version_min;
 		u16		encoded_extent_max;
 
 		u8		nr_devices;

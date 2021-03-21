@@ -560,6 +560,26 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 		     BTREE_ERR_FATAL, c, ca, b, i,
 		     "unsupported bset version");
 
+	if (btree_err_on(version < c->sb.version_min,
+			 BTREE_ERR_FIXABLE, c, NULL, b, i,
+			 "bset version %u older than superblock version_min %u",
+			 version, c->sb.version_min)) {
+		mutex_lock(&c->sb_lock);
+		c->disk_sb.sb->version_min = cpu_to_le16(version);
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+	}
+
+	if (btree_err_on(version > c->sb.version,
+			 BTREE_ERR_FIXABLE, c, NULL, b, i,
+			 "bset version %u newer than superblock version %u",
+			 version, c->sb.version)) {
+		mutex_lock(&c->sb_lock);
+		c->disk_sb.sb->version = cpu_to_le16(version);
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+	}
+
 	if (btree_err_on(b->written + sectors > c->opts.btree_node_size,
 			 BTREE_ERR_FIXABLE, c, ca, b, i,
 			 "bset past end of btree node")) {
