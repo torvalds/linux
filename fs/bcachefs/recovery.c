@@ -991,11 +991,17 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
+	if (!c->sb.clean &&
+	    !(c->sb.features & (1ULL << BCH_FEATURE_extents_above_btree_updates))) {
+		bch_err(c, "filesystem needs recovery from older version; run fsck from older bcachefs-tools to fix");
+		ret = -EINVAL;
+		goto err;
+	}
+
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_alloc_v2))) {
 		bch_info(c, "alloc_v2 feature bit not set, fsck required");
 		c->opts.fsck = true;
 		c->opts.fix_errors = FSCK_OPT_YES;
-		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_alloc_v2;
 	}
 
 	if (!c->replicas.entries ||
@@ -1059,13 +1065,6 @@ use_clean:
 
 		}
 		blacklist_seq = journal_seq = le64_to_cpu(clean->journal_seq) + 1;
-	}
-
-	if (!c->sb.clean &&
-	    !(c->sb.features & (1ULL << BCH_FEATURE_extents_above_btree_updates))) {
-		bch_err(c, "filesystem needs recovery from older version; run fsck from older bcachefs-tools to fix");
-		ret = -EINVAL;
-		goto err;
 	}
 
 	if (c->opts.reconstruct_alloc) {
@@ -1228,9 +1227,6 @@ use_clean:
 
 	mutex_lock(&c->sb_lock);
 	if (c->opts.version_upgrade) {
-		if (c->sb.version < bcachefs_metadata_version_new_versioning)
-			c->disk_sb.sb->version_min =
-				le16_to_cpu(bcachefs_metadata_version_min);
 		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
 		c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALL;
 		write_sb = true;
@@ -1288,19 +1284,17 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch_notice(c, "initializing new filesystem");
 
 	mutex_lock(&c->sb_lock);
-	for_each_online_member(ca, c, i)
-		bch2_mark_dev_superblock(c, ca, 0);
-	mutex_unlock(&c->sb_lock);
-
-	mutex_lock(&c->sb_lock);
-	c->disk_sb.sb->version = c->disk_sb.sb->version_min =
-		le16_to_cpu(bcachefs_metadata_version_current);
-	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_atomic_nlink;
-	c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALL;
 	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_extents_above_btree_updates_done;
 	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_bformat_overflow_done;
 
-	bch2_write_super(c);
+	if (c->opts.version_upgrade) {
+		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
+		c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALL;
+		bch2_write_super(c);
+	}
+
+	for_each_online_member(ca, c, i)
+		bch2_mark_dev_superblock(c, ca, 0);
 	mutex_unlock(&c->sb_lock);
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);

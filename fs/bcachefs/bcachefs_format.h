@@ -1380,6 +1380,7 @@ LE64_BITMASK(BCH_SB_METADATA_TARGET,	struct bch_sb, flags[3], 16, 28);
 	((1ULL << BCH_FEATURE_new_extent_overwrite)|	\
 	 (1ULL << BCH_FEATURE_extents_above_btree_updates)|\
 	 (1ULL << BCH_FEATURE_btree_updates_journalled)|\
+	 (1ULL << BCH_FEATURE_alloc_v2)|\
 	 (1ULL << BCH_FEATURE_extents_across_btree_nodes))
 
 #define BCH_SB_FEATURES_ALL				\
@@ -1387,8 +1388,7 @@ LE64_BITMASK(BCH_SB_METADATA_TARGET,	struct bch_sb, flags[3], 16, 28);
 	 (1ULL << BCH_FEATURE_new_siphash)|		\
 	 (1ULL << BCH_FEATURE_btree_ptr_v2)|		\
 	 (1ULL << BCH_FEATURE_new_varint)|		\
-	 (1ULL << BCH_FEATURE_journal_no_flush)|	\
-	 (1ULL << BCH_FEATURE_alloc_v2))
+	 (1ULL << BCH_FEATURE_journal_no_flush))
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,

@@ -114,25 +114,6 @@ static void bch2_alloc_unpack_v1(struct bkey_alloc_unpacked *out,
 #undef  x
 }
 
-static void bch2_alloc_pack_v1(struct bkey_alloc_buf *dst,
-			       const struct bkey_alloc_unpacked src)
-{
-	struct bkey_i_alloc *a = bkey_alloc_init(&dst->k);
-	void *d = a->v.data;
-	unsigned bytes, idx = 0;
-
-	a->k.p		= POS(src.dev, src.bucket);
-	a->v.fields	= 0;
-	a->v.gen	= src.gen;
-
-#define x(_name, _bits)	alloc_field_v1_put(a, &d, idx++, src._name);
-	BCH_ALLOC_FIELDS_V1()
-#undef  x
-	bytes = (void *) d - (void *) &a->v;
-	set_bkey_val_bytes(&a->k, bytes);
-	memset_u64s_tail(&a->v, 0, bytes);
-}
-
 static int bch2_alloc_unpack_v2(struct bkey_alloc_unpacked *out,
 				struct bkey_s_c k)
 {
@@ -225,10 +206,7 @@ void bch2_alloc_pack(struct bch_fs *c,
 		     struct bkey_alloc_buf *dst,
 		     const struct bkey_alloc_unpacked src)
 {
-	if (c->sb.features & (1ULL << BCH_FEATURE_alloc_v2))
-		bch2_alloc_pack_v2(dst, src);
-	else
-		bch2_alloc_pack_v1(dst, src);
+	bch2_alloc_pack_v2(dst, src);
 }
 
 static unsigned bch_alloc_val_u64s(const struct bch_alloc *a)
