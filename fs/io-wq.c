@@ -386,13 +386,16 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 	return NULL;
 }
 
-static void io_flush_signals(void)
+static bool io_flush_signals(void)
 {
 	if (unlikely(test_tsk_thread_flag(current, TIF_NOTIFY_SIGNAL))) {
+		__set_current_state(TASK_RUNNING);
 		if (current->task_works)
 			task_work_run();
 		clear_tsk_thread_flag(current, TIF_NOTIFY_SIGNAL);
+		return true;
 	}
+	return false;
 }
 
 static void io_assign_current_work(struct io_worker *worker,
@@ -499,7 +502,8 @@ loop:
 		}
 		__io_worker_idle(wqe, worker);
 		raw_spin_unlock_irq(&wqe->lock);
-		io_flush_signals();
+		if (io_flush_signals())
+			continue;
 		ret = schedule_timeout(WORKER_IDLE_TIMEOUT);
 		if (try_to_freeze() || ret)
 			continue;
