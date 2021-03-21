@@ -506,15 +506,17 @@ static int __init sysman_init(void)
 	}
 
 	ret = init_bios_attr_set_interface();
-	if (ret || !wmi_priv.bios_attr_wdev) {
-		pr_debug("failed to initialize set interface\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = init_bios_attr_pass_interface();
-	if (ret || !wmi_priv.password_attr_wdev) {
-		pr_debug("failed to initialize pass interface\n");
+	if (ret)
 		goto err_exit_bios_attr_set_interface;
+
+	if (!wmi_priv.bios_attr_wdev || !wmi_priv.password_attr_wdev) {
+		pr_debug("failed to find set or pass interface\n");
+		ret = -ENODEV;
+		goto err_exit_bios_attr_pass_interface;
 	}
 
 	ret = class_register(&firmware_attributes_class);
