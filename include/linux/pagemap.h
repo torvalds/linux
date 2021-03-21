@@ -981,6 +981,15 @@ static inline unsigned int readahead_count(struct readahead_control *rac)
 	return rac->_nr_pages;
 }
 
+/**
+ * readahead_batch_length - The number of bytes in the current batch.
+ * @rac: The readahead request.
+ */
+static inline loff_t readahead_batch_length(struct readahead_control *rac)
+{
+	return rac->_batch_count * PAGE_SIZE;
+}
+
 static inline unsigned long dir_pages(struct inode *inode)
 {
 	return (unsigned long)(inode->i_size + PAGE_SIZE - 1) >>

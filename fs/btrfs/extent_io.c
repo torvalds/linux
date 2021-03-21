@@ -4650,10 +4650,8 @@ void extent_readahead(struct readahead_control *rac)
 	int nr;
 
 	while ((nr = readahead_page_batch(rac, pagepool))) {
-		u64 contig_start = page_offset(pagepool[0]);
-		u64 contig_end = page_offset(pagepool[nr - 1]) + PAGE_SIZE - 1;
-
-		ASSERT(contig_start + nr * PAGE_SIZE - 1 == contig_end);
+		u64 contig_start = readahead_pos(rac);
+		u64 contig_end = contig_start + readahead_batch_length(rac) - 1;
 
 		contiguous_readpages(pagepool, nr, contig_start, contig_end,
 				&em_cached, &bio, &bio_flags, &prev_em_start);
