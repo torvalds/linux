@@ -407,6 +407,17 @@ static inline pgoff_t folio_index(struct folio *folio)
 }
 
 /**
+ * folio_next_index - Get the index of the next folio.
+ * @folio: The current folio.
+ *
+ * Return: The index of the folio which follows this folio in the file.
+ */
+static inline pgoff_t folio_next_index(struct folio *folio)
+{
+	return folio->index + folio_nr_pages(folio);
+}
+
+/**
  * folio_file_page - The page for a particular index.
  * @folio: The folio which contains this index.
  * @index: The index we want to look up.
