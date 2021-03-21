@@ -796,42 +796,42 @@ parse_stream_formation(u8 *buf, unsigned int len,
 	return 0;
 }
 
-static int
-fill_stream_formations(struct snd_bebob *bebob, enum avc_bridgeco_plug_dir dir,
-		       unsigned short pid)
+static int fill_stream_formations(struct snd_bebob *bebob, u8 addr[AVC_BRIDGECO_ADDR_BYTES],
+				  enum avc_bridgeco_plug_dir plug_dir, unsigned int plug_id,
+				  struct snd_bebob_stream_formation *formations)
 {
+	enum avc_bridgeco_plug_type plug_type;
 	u8 *buf;
-	struct snd_bebob_stream_formation *formations;
 	unsigned int len, eid;
-	u8 addr[AVC_BRIDGECO_ADDR_BYTES];
 	int err;
+
+	avc_bridgeco_fill_unit_addr(addr, plug_dir, AVC_BRIDGECO_PLUG_UNIT_ISOC, plug_id);
+
+	err = avc_bridgeco_get_plug_type(bebob->unit, addr, &plug_type);
+	if (err < 0) {
+		dev_err(&bebob->unit->device,
+			"Fail to get type for isoc %d plug 0: %d\n", plug_dir, err);
+		return err;
+	} else if (plug_type != AVC_BRIDGECO_PLUG_TYPE_ISOC)
+		return -ENXIO;
 
 	buf = kmalloc(FORMAT_MAXIMUM_LENGTH, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	if (dir == AVC_BRIDGECO_PLUG_DIR_IN)
-		formations = bebob->rx_stream_formations;
-	else
-		formations = bebob->tx_stream_formations;
+	for (eid = 0; eid < SND_BEBOB_STRM_FMT_ENTRIES; ++eid) {
+		avc_bridgeco_fill_unit_addr(addr, plug_dir, AVC_BRIDGECO_PLUG_UNIT_ISOC, plug_id);
 
-	for (eid = 0; eid < SND_BEBOB_STRM_FMT_ENTRIES; eid++) {
 		len = FORMAT_MAXIMUM_LENGTH;
-		avc_bridgeco_fill_unit_addr(addr, dir,
-					    AVC_BRIDGECO_PLUG_UNIT_ISOC, pid);
-		err = avc_bridgeco_get_plug_strm_fmt(bebob->unit, addr, buf,
-						     &len, eid);
-		/* No entries remained. */
+		err = avc_bridgeco_get_plug_strm_fmt(bebob->unit, addr, buf, &len, eid);
+		// No entries remained.
 		if (err == -EINVAL && eid > 0) {
 			err = 0;
 			break;
 		} else if (err < 0) {
 			dev_err(&bebob->unit->device,
-			"fail to get stream format %d for isoc %s plug %d:%d\n",
-				eid,
-				(dir == AVC_BRIDGECO_PLUG_DIR_IN) ? "in" :
-								    "out",
-				pid, err);
+				"fail to get stream format %d for isoc %d plug %d:%d\n",
+				eid, plug_dir, plug_id, err);
 			break;
 		}
 
@@ -908,33 +908,13 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob)
 		goto end;
 	}
 
-	avc_bridgeco_fill_unit_addr(addr, AVC_BRIDGECO_PLUG_DIR_IN,
-				    AVC_BRIDGECO_PLUG_UNIT_ISOC, 0);
-	err = avc_bridgeco_get_plug_type(bebob->unit, addr, &type);
-	if (err < 0) {
-		dev_err(&bebob->unit->device,
-			"fail to get type for isoc in plug 0: %d\n", err);
-		goto end;
-	} else if (type != AVC_BRIDGECO_PLUG_TYPE_ISOC) {
-		err = -ENOSYS;
-		goto end;
-	}
-	err = fill_stream_formations(bebob, AVC_BRIDGECO_PLUG_DIR_IN, 0);
+	err = fill_stream_formations(bebob, addr, AVC_BRIDGECO_PLUG_DIR_IN, 0,
+				     bebob->rx_stream_formations);
 	if (err < 0)
 		goto end;
 
-	avc_bridgeco_fill_unit_addr(addr, AVC_BRIDGECO_PLUG_DIR_OUT,
-				    AVC_BRIDGECO_PLUG_UNIT_ISOC, 0);
-	err = avc_bridgeco_get_plug_type(bebob->unit, addr, &type);
-	if (err < 0) {
-		dev_err(&bebob->unit->device,
-			"fail to get type for isoc out plug 0: %d\n", err);
-		goto end;
-	} else if (type != AVC_BRIDGECO_PLUG_TYPE_ISOC) {
-		err = -ENOSYS;
-		goto end;
-	}
-	err = fill_stream_formations(bebob, AVC_BRIDGECO_PLUG_DIR_OUT, 0);
+	err = fill_stream_formations(bebob, addr, AVC_BRIDGECO_PLUG_DIR_OUT, 0,
+				     bebob->tx_stream_formations);
 	if (err < 0)
 		goto end;
 
