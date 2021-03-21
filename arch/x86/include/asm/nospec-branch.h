@@ -33,7 +33,7 @@
 
 /*
  * Google experimented with loop-unrolling and this turned out to be
- * the optimal version — two calls, each with their own speculation
+ * the optimal version - two calls, each with their own speculation
  * trap should their return address end up getting used, in a loop.
  */
 #define __FILL_RETURN_BUFFER(reg, nr, sp)	\

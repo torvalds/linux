@@ -30,10 +30,10 @@
  *          the boot start info structure.
  * - `cr0`: bit 0 (PE) must be set. All the other writeable bits are cleared.
  * - `cr4`: all bits are cleared.
- * - `cs `: must be a 32-bit read/execute code segment with a base of ‘0’
- *          and a limit of ‘0xFFFFFFFF’. The selector value is unspecified.
+ * - `cs `: must be a 32-bit read/execute code segment with a base of `0`
+ *          and a limit of `0xFFFFFFFF`. The selector value is unspecified.
  * - `ds`, `es`: must be a 32-bit read/write data segment with a base of
- *               ‘0’ and a limit of ‘0xFFFFFFFF’. The selector values are all
+ *               `0` and a limit of `0xFFFFFFFF`. The selector values are all
  *               unspecified.
  * - `tr`: must be a 32-bit TSS (active) with a base of '0' and a limit
  *         of '0x67'.
