@@ -60,6 +60,6 @@ clean::
 	for i in $(shell find skels -name Makefile | xargs --no-run-if-empty dirname); do $(MAKE) -C $$i clean; done
 
 clean_skels:
-	rm -rf skels
+	rm -rfi skels
 
 .PHONY: skels build copy docs docker-docs docker-kernel stop-docker-kernel clean clean_skels
