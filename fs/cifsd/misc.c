@@ -22,20 +22,22 @@
  * TODO : implement consideration about DOS_DOT, DOS_QM and DOS_STAR
  *
  * @string:	string to compare with a pattern
+ * @len:	string length
  * @pattern:	pattern string which might include wildcard '*' and '?'
  *
  * Return:	0 if pattern matched with the string, otherwise non zero value
  */
-int match_pattern(const char *str, const char *pattern)
+int match_pattern(const char *str, size_t len, const char *pattern)
 {
 	const char *s = str;
 	const char *p = pattern;
 	bool star = false;
 
-	while (*s) {
+	while (*s && len) {
 		switch (*p) {
 		case '?':
 			s++;
+			len--;
 			p++;
 			break;
 		case '*':
@@ -48,6 +50,7 @@ int match_pattern(const char *str, const char *pattern)
 		default:
 			if (tolower(*s) == tolower(*p)) {
 				s++;
+				len--;
 				p++;
 			} else {
 				if (!star)

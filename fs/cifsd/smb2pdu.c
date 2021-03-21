@@ -3837,7 +3837,7 @@ static int __query_dir(struct dir_context *ctx,
 		return 0;
 	if (ksmbd_share_veto_filename(priv->work->tcon->share_conf, name))
 		return 0;
-	if (!match_pattern(name, priv->search_pattern))
+	if (!match_pattern(name, namlen, priv->search_pattern))
 		return 0;
 
 	d_info->name		= name;

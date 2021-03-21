@@ -11,7 +11,7 @@ struct nls_table;
 struct kstat;
 struct ksmbd_file;
 
-int match_pattern(const char *str, const char *pattern);
+int match_pattern(const char *str, size_t len, const char *pattern);
 
 int ksmbd_validate_filename(char *filename);
 
