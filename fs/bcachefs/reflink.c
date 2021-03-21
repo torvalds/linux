@@ -181,18 +181,19 @@ err:
 
 static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 {
-	struct bkey_s_c k = bch2_btree_iter_peek(iter);
+	struct bkey_s_c k;
 	int ret;
 
 	for_each_btree_key_continue(iter, 0, k, ret) {
 		if (bkey_cmp(iter->pos, end) >= 0)
-			return bkey_s_c_null;
+			break;
 
 		if (bkey_extent_is_data(k.k))
-			break;
+			return k;
 	}
 
-	return k;
+	bch2_btree_iter_set_pos(iter, end);
+	return bkey_s_c_null;
 }
 
 s64 bch2_remap_range(struct bch_fs *c,
@@ -205,8 +206,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 	struct bkey_s_c src_k;
 	struct bkey_buf new_dst, new_src;
 	struct bpos dst_end = dst_start, src_end = src_start;
-	struct bpos dst_want, src_want;
-	u64 src_done, dst_done;
+	struct bpos src_want;
+	u64 dst_done;
 	int ret = 0, ret2 = 0;
 
 	if (!percpu_ref_tryget(&c->writes))
@@ -226,7 +227,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 	dst_iter = bch2_trans_get_iter(&trans, BTREE_ID_extents, dst_start,
 				       BTREE_ITER_INTENT);
 
-	while (ret == 0 || ret == -EINTR) {
+	while ((ret == 0 || ret == -EINTR) &&
+	       bkey_cmp(dst_iter->pos, dst_end) < 0) {
 		struct disk_reservation disk_res = { 0 };
 
 		bch2_trans_begin(&trans);
@@ -236,32 +238,29 @@ s64 bch2_remap_range(struct bch_fs *c,
 			break;
 		}
 
+		dst_done = dst_iter->pos.offset - dst_start.offset;
+		src_want = POS(src_start.inode, src_start.offset + dst_done);
+		bch2_btree_iter_set_pos(src_iter, src_want);
+
 		src_k = get_next_src(src_iter, src_end);
 		ret = bkey_err(src_k);
 		if (ret)
 			continue;
 
-		src_done = bpos_min(src_iter->pos, src_end).offset -
-			src_start.offset;
-		dst_want = POS(dst_start.inode, dst_start.offset + src_done);
-
-		if (bkey_cmp(dst_iter->pos, dst_want) < 0) {
-			ret = bch2_fpunch_at(&trans, dst_iter, dst_want,
-					     journal_seq, i_sectors_delta);
+		if (bkey_cmp(src_want, src_iter->pos) < 0) {
+			ret = bch2_fpunch_at(&trans, dst_iter,
+					bpos_min(dst_end,
+						 POS(dst_iter->pos.inode, dst_iter->pos.offset +
+						     src_iter->pos.offset - src_want.offset)),
+						 journal_seq, i_sectors_delta);
 			continue;
 		}
-
-		BUG_ON(bkey_cmp(dst_iter->pos, dst_want));
-
-		if (!bkey_cmp(dst_iter->pos, dst_end))
-			break;
 
 		if (src_k.k->type != KEY_TYPE_reflink_p) {
 			bch2_bkey_buf_reassemble(&new_src, c, src_k);
 			src_k = bkey_i_to_s_c(new_src.k);
 
-			bch2_cut_front(src_iter->pos,	new_src.k);
-			bch2_cut_back(src_end,		new_src.k);
+			bch2_btree_iter_set_pos(src_iter, bkey_start_pos(src_k.k));
 
 			ret = bch2_make_extent_indirect(&trans, src_iter,
 						new_src.k);
@@ -278,7 +277,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 				bkey_reflink_p_init(new_dst.k);
 
 			u64 offset = le64_to_cpu(src_p.v->idx) +
-				(src_iter->pos.offset -
+				(src_want.offset -
 				 bkey_start_offset(src_k.k));
 
 			dst_p->v.idx = cpu_to_le64(offset);
@@ -288,20 +287,13 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 		new_dst.k->k.p = dst_iter->pos;
 		bch2_key_resize(&new_dst.k->k,
-				min(src_k.k->p.offset - src_iter->pos.offset,
+				min(src_k.k->p.offset - src_want.offset,
 				    dst_end.offset - dst_iter->pos.offset));
-
 		ret = bch2_extent_update(&trans, dst_iter, new_dst.k,
 					 &disk_res, journal_seq,
 					 new_i_size, i_sectors_delta,
 					 true);
 		bch2_disk_reservation_put(c, &disk_res);
-		if (ret)
-			continue;
-
-		dst_done = dst_iter->pos.offset - dst_start.offset;
-		src_want = POS(src_start.inode, src_start.offset + dst_done);
-		bch2_btree_iter_set_pos(src_iter, src_want);
 	}
 	bch2_trans_iter_put(&trans, dst_iter);
 	bch2_trans_iter_put(&trans, src_iter);
