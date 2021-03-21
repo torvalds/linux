@@ -419,7 +419,7 @@ static int tcpci_get_vbus(struct tcpc_dev *tcpc)
 	unsigned int reg;
 	int ret, vbus, bypass = 0;
 
-	trace_android_vh_typec_tcpci_get_vbus(tcpci, tcpci->data, &vbus, &bypass);
+	trace_android_rvh_typec_tcpci_get_vbus(tcpci, tcpci->data, &vbus, &bypass);
 	if (bypass)
 		return vbus;
 
@@ -435,7 +435,7 @@ static int tcpci_check_contaminant(struct tcpc_dev *tcpc)
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	int ret = 0;
 
-	trace_android_vh_typec_tcpci_check_contaminant(tcpci, tcpci->data, &ret);
+	trace_android_rvh_typec_tcpci_chk_contaminant(tcpci, tcpci->data, &ret);
 	return ret;
 }
 
