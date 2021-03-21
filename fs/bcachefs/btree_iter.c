@@ -1234,9 +1234,9 @@ static inline bool btree_iter_good_node(struct btree_iter *iter,
 	    !bch2_btree_node_relock(iter, l))
 		return false;
 
-	if (check_pos <= 0 && btree_iter_pos_before_node(iter, iter->l[l].b))
+	if (check_pos < 0 && btree_iter_pos_before_node(iter, iter->l[l].b))
 		return false;
-	if (check_pos >= 0 && btree_iter_pos_after_node(iter, iter->l[l].b))
+	if (check_pos > 0 && btree_iter_pos_after_node(iter, iter->l[l].b))
 		return false;
 	return true;
 }
@@ -1287,23 +1287,7 @@ static int btree_iter_traverse_one(struct btree_iter *iter,
 	if (unlikely(iter->level >= BTREE_MAX_DEPTH))
 		return 0;
 
-	/*
-	 * XXX: correctly using BTREE_ITER_UPTODATE should make using check_pos
-	 * here unnecessary
-	 */
 	iter->level = btree_iter_up_until_good_node(iter, 0);
-
-	/*
-	 * If we've got a btree node locked (i.e. we aren't about to relock the
-	 * root) - advance its node iterator if necessary:
-	 *
-	 * XXX correctly using BTREE_ITER_UPTODATE should make this unnecessary
-	 */
-	if (is_btree_node(iter, iter->level)) {
-		BUG_ON(!btree_iter_pos_in_node(iter, iter->l[iter->level].b));
-
-		btree_iter_advance_to_pos(iter, &iter->l[iter->level], -1);
-	}
 
 	/*
 	 * Note: iter->nodes[iter->level] may be temporarily NULL here - that
