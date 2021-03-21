@@ -508,100 +508,87 @@ static int __init sysman_init(void)
 	ret = init_bios_attr_set_interface();
 	if (ret || !wmi_priv.bios_attr_wdev) {
 		pr_debug("failed to initialize set interface\n");
-		goto fail_set_interface;
+		return ret;
 	}
 
 	ret = init_bios_attr_pass_interface();
 	if (ret || !wmi_priv.password_attr_wdev) {
 		pr_debug("failed to initialize pass interface\n");
-		goto fail_pass_interface;
+		goto err_exit_bios_attr_set_interface;
 	}
 
 	ret = class_register(&firmware_attributes_class);
 	if (ret)
-		goto fail_class;
+		goto err_exit_bios_attr_pass_interface;
 
 	wmi_priv.class_dev = device_create(&firmware_attributes_class, NULL, MKDEV(0, 0),
 				  NULL, "%s", DRIVER_NAME);
 	if (IS_ERR(wmi_priv.class_dev)) {
 		ret = PTR_ERR(wmi_priv.class_dev);
-		goto fail_classdev;
+		goto err_unregister_class;
 	}
 
 	wmi_priv.main_dir_kset = kset_create_and_add("attributes", NULL,
 						     &wmi_priv.class_dev->kobj);
 	if (!wmi_priv.main_dir_kset) {
 		ret = -ENOMEM;
-		goto fail_main_kset;
+		goto err_destroy_classdev;
 	}
 
 	wmi_priv.authentication_dir_kset = kset_create_and_add("authentication", NULL,
 								&wmi_priv.class_dev->kobj);
 	if (!wmi_priv.authentication_dir_kset) {
 		ret = -ENOMEM;
-		goto fail_authentication_kset;
+		goto err_release_attributes_data;
 	}
 
 	ret = create_attributes_level_sysfs_files();
 	if (ret) {
 		pr_debug("could not create reset BIOS attribute\n");
-		goto fail_reset_bios;
+		goto err_release_attributes_data;
 	}
 
 	ret = init_bios_attributes(ENUM, DELL_WMI_BIOS_ENUMERATION_ATTRIBUTE_GUID);
 	if (ret) {
 		pr_debug("failed to populate enumeration type attributes\n");
-		goto fail_create_group;
+		goto err_release_attributes_data;
 	}
 
 	ret = init_bios_attributes(INT, DELL_WMI_BIOS_INTEGER_ATTRIBUTE_GUID);
 	if (ret) {
 		pr_debug("failed to populate integer type attributes\n");
-		goto fail_create_group;
+		goto err_release_attributes_data;
 	}
 
 	ret = init_bios_attributes(STR, DELL_WMI_BIOS_STRING_ATTRIBUTE_GUID);
 	if (ret) {
 		pr_debug("failed to populate string type attributes\n");
-		goto fail_create_group;
+		goto err_release_attributes_data;
 	}
 
 	ret = init_bios_attributes(PO, DELL_WMI_BIOS_PASSOBJ_ATTRIBUTE_GUID);
 	if (ret) {
 		pr_debug("failed to populate pass object type attributes\n");
-		goto fail_create_group;
+		goto err_release_attributes_data;
 	}
 
 	return 0;
 
-fail_create_group:
+err_release_attributes_data:
 	release_attributes_data();
 
-fail_reset_bios:
-	if (wmi_priv.authentication_dir_kset) {
-		kset_unregister(wmi_priv.authentication_dir_kset);
-		wmi_priv.authentication_dir_kset = NULL;
-	}
-
-fail_authentication_kset:
-	if (wmi_priv.main_dir_kset) {
-		kset_unregister(wmi_priv.main_dir_kset);
-		wmi_priv.main_dir_kset = NULL;
-	}
-
-fail_main_kset:
+err_destroy_classdev:
 	device_destroy(&firmware_attributes_class, MKDEV(0, 0));
 
-fail_classdev:
+err_unregister_class:
 	class_unregister(&firmware_attributes_class);
 
-fail_class:
+err_exit_bios_attr_pass_interface:
 	exit_bios_attr_pass_interface();
 
-fail_pass_interface:
+err_exit_bios_attr_set_interface:
 	exit_bios_attr_set_interface();
 
-fail_set_interface:
 	return ret;
 }
 
