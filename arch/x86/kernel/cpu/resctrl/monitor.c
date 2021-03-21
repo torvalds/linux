@@ -397,7 +397,7 @@ void mon_event_count(void *info)
  * timer. Having 1s interval makes the calculation of bandwidth simpler.
  *
  * Although MBA's goal is to restrict the bandwidth to a maximum, there may
- * be a need to increase the bandwidth to avoid uncecessarily restricting
+ * be a need to increase the bandwidth to avoid unnecessarily restricting
  * the L2 <-> L3 traffic.
  *
  * Since MBA controls the L2 external bandwidth where as MBM measures the
@@ -480,7 +480,7 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 
 	/*
 	 * Delta values are updated dynamically package wise for each
-	 * rdtgrp everytime the throttle MSR changes value.
+	 * rdtgrp every time the throttle MSR changes value.
 	 *
 	 * This is because (1)the increase in bandwidth is not perfectly
 	 * linear and only "approximately" linear even when the hardware

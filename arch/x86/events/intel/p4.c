@@ -1313,7 +1313,7 @@ static __initconst const struct x86_pmu p4_pmu = {
 	.get_event_constraints	= x86_get_event_constraints,
 	/*
 	 * IF HT disabled we may need to use all
-	 * ARCH_P4_MAX_CCCR counters simulaneously
+	 * ARCH_P4_MAX_CCCR counters simultaneously
 	 * though leave it restricted at moment assuming
 	 * HT is on
 	 */

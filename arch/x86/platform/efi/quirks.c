@@ -441,7 +441,7 @@ void __init efi_free_boot_services(void)
 		 * 1.4.4 with SGX enabled booting Linux via Fedora 24's
 		 * grub2-efi on a hard disk.  (And no, I don't know why
 		 * this happened, but Linux should still try to boot rather
-		 * panicing early.)
+		 * panicking early.)
 		 */
 		rm_size = real_mode_size_needed();
 		if (rm_size && (start + rm_size) < (1<<20) && size >= rm_size) {

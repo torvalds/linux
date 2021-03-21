@@ -204,7 +204,7 @@ static void native_stop_other_cpus(int wait)
 		}
 		/*
 		 * Don't wait longer than 10 ms if the caller didn't
-		 * reqeust it. If wait is true, the machine hangs here if
+		 * request it. If wait is true, the machine hangs here if
 		 * one or more CPUs do not reach shutdown state.
 		 */
 		timeout = USEC_PER_MSEC * 10;

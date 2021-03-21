@@ -2776,7 +2776,7 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	 * processing loop coming after that the function, otherwise
 	 * phony regular samples may be generated in the sampling buffer
 	 * not marked with the EXACT tag. Another possibility is to have
-	 * one PEBS event and at least one non-PEBS event whic hoverflows
+	 * one PEBS event and at least one non-PEBS event which overflows
 	 * while PEBS has armed. In this case, bit 62 of GLOBAL_STATUS will
 	 * not be set, yet the overflow status bit for the PEBS counter will
 	 * be on Skylake.
