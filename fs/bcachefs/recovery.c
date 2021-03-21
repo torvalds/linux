@@ -1201,7 +1201,8 @@ use_clean:
 		bch_verbose(c, "quotas done");
 	}
 
-	if (!(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_EXTENTS_ABOVE_BTREE_UPDATES_DONE))) {
+	if (!(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_EXTENTS_ABOVE_BTREE_UPDATES_DONE)) ||
+	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_BFORMAT_OVERFLOW_DONE))) {
 		struct bch_move_stats stats = { 0 };
 
 		bch_verbose(c, "scanning for old btree nodes");
@@ -1287,6 +1288,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_atomic_nlink;
 	c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALL;
 	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_EXTENTS_ABOVE_BTREE_UPDATES_DONE;
+	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_BFORMAT_OVERFLOW_DONE;
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);

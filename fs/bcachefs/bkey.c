@@ -554,7 +554,12 @@ void bch2_bkey_format_add_pos(struct bkey_format_state *s, struct bpos p)
 static void set_format_field(struct bkey_format *f, enum bch_bkey_fields i,
 			     unsigned bits, u64 offset)
 {
-	offset = bits == 64 ? 0 : min(offset, U64_MAX - ((1ULL << bits) - 1));
+	unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
+	u64 unpacked_max = ~((~0ULL << 1) << (unpacked_bits - 1));
+
+	bits = min(bits, unpacked_bits);
+
+	offset = bits == unpacked_bits ? 0 : min(offset, unpacked_max - ((1ULL << bits) - 1));
 
 	f->bits_per_field[i]	= bits;
 	f->field_offset[i]	= cpu_to_le64(offset);
