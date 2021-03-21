@@ -190,7 +190,7 @@
   color: #bbbbbb;
   box-sizing: content-box;
   line-height: 1;
-  position: absolute;
+  /* position: absolute; */
   bottom: -35px;
   left: 0;
   transition: bottom 0.15s linear;
