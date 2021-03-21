@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 
+#include <linux/hrtimer.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -36,7 +37,7 @@ struct gpio_button_data {
 
 	unsigned short *code;
 
-	struct timer_list release_timer;
+	struct hrtimer release_timer;
 	unsigned int release_delay;	/* in msecs, for IRQ-only buttons */
 
 	struct delayed_work work;
@@ -146,7 +147,7 @@ static void gpio_keys_disable_button(struct gpio_button_data *bdata)
 		if (bdata->gpiod)
 			cancel_delayed_work_sync(&bdata->work);
 		else
-			del_timer_sync(&bdata->release_timer);
+			hrtimer_cancel(&bdata->release_timer);
 
 		bdata->disabled = true;
 	}
@@ -415,19 +416,20 @@ static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void gpio_keys_irq_timer(struct timer_list *t)
+static enum hrtimer_restart gpio_keys_irq_timer(struct hrtimer *t)
 {
-	struct gpio_button_data *bdata = from_timer(bdata, t, release_timer);
+	struct gpio_button_data *bdata = container_of(t,
+						      struct gpio_button_data,
+						      release_timer);
 	struct input_dev *input = bdata->input;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bdata->lock, flags);
 	if (bdata->key_pressed) {
 		input_event(input, EV_KEY, *bdata->code, 0);
 		input_sync(input);
 		bdata->key_pressed = false;
 	}
-	spin_unlock_irqrestore(&bdata->lock, flags);
+
+	return HRTIMER_NORESTART;
 }
 
 static irqreturn_t gpio_keys_irq_isr(int irq, void *dev_id)
@@ -457,8 +459,9 @@ static irqreturn_t gpio_keys_irq_isr(int irq, void *dev_id)
 	}
 
 	if (bdata->release_delay)
-		mod_timer(&bdata->release_timer,
-			jiffies + msecs_to_jiffies(bdata->release_delay));
+		hrtimer_start(&bdata->release_timer,
+			      ms_to_ktime(bdata->release_delay),
+			      HRTIMER_MODE_REL_HARD);
 out:
 	spin_unlock_irqrestore(&bdata->lock, flags);
 	return IRQ_HANDLED;
@@ -471,7 +474,7 @@ static void gpio_keys_quiesce_key(void *data)
 	if (bdata->gpiod)
 		cancel_delayed_work_sync(&bdata->work);
 	else
-		del_timer_sync(&bdata->release_timer);
+		hrtimer_cancel(&bdata->release_timer);
 }
 
 static int gpio_keys_setup_key(struct platform_device *pdev,
@@ -595,7 +598,9 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		}
 
 		bdata->release_delay = button->debounce_interval;
-		timer_setup(&bdata->release_timer, gpio_keys_irq_timer, 0);
+		hrtimer_init(&bdata->release_timer,
+			     CLOCK_REALTIME, HRTIMER_MODE_REL_HARD);
+		bdata->release_timer.function = gpio_keys_irq_timer;
 
 		isr = gpio_keys_irq_isr;
 		irqflags = 0;
