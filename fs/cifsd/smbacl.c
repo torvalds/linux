@@ -389,7 +389,8 @@ static void parse_dacl(struct smb_acl *pdacl, char *end_of_acl,
 		return;
 
 	/* validate that we do not go past end of acl */
-	if (end_of_acl < (char *)pdacl + le16_to_cpu(pdacl->size)) {
+	if (end_of_acl <= (char *)pdacl ||
+	    end_of_acl < (char *)pdacl + le16_to_cpu(pdacl->size)) {
 		ksmbd_err("ACL too small to parse DACL\n");
 		return;
 	}
@@ -783,7 +784,7 @@ int parse_sec_desc(struct smb_ntsd *pntsd, int acl_len,
 	struct smb_acl *dacl_ptr; /* no need for SACL ptr */
 	char *end_of_acl = ((char *)pntsd) + acl_len;
 	__u32 dacloffset;
-	int total_ace_size = 0, pntsd_type;
+	int pntsd_type;
 
 	if (pntsd == NULL)
 		return -EIO;
@@ -800,16 +801,7 @@ int parse_sec_desc(struct smb_ntsd *pntsd, int acl_len,
 		 le32_to_cpu(pntsd->gsidoffset),
 		 le32_to_cpu(pntsd->sacloffset), dacloffset);
 
-	if (dacloffset) {
-		if (end_of_acl <= (char *)dacl_ptr ||
-		    end_of_acl < (char *)dacl_ptr + le16_to_cpu(dacl_ptr->size))
-			return -EIO;
-		total_ace_size =
-			le16_to_cpu(dacl_ptr->size) - sizeof(struct smb_acl);
-	}
-
 	pntsd_type = le16_to_cpu(pntsd->type);
-
 	if (!(pntsd_type & DACL_PRESENT)) {
 		ksmbd_debug(SMB, "DACL_PRESENT in DACL type is not set\n");
 		return rc;

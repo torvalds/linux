@@ -3283,10 +3283,6 @@ reconnected:
 	}
 
 	if (posix_ctxt) {
-		struct create_context *posix_ccontext;
-
-		posix_ccontext = (struct create_context *)(rsp->Buffer +
-				le32_to_cpu(rsp->CreateContextsLength));
 		contxt_cnt++;
 		create_posix_rsp_buf(rsp->Buffer +
 				le32_to_cpu(rsp->CreateContextsLength),
