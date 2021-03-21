@@ -279,7 +279,7 @@ static const struct r9a06g032_clkdesc r9a06g032_clocks[] = {
 	/*
 	 * These are not hardware clocks, but are needed to handle the special
 	 * case where we have a 'selector bit' that doesn't just change the
-	 * parent for a clock, but also the gate it's suposed to use.
+	 * parent for a clock, but also the gate it's supposed to use.
 	 */
 	{
 		.index = R9A06G032_UART_GROUP_012,
@@ -311,7 +311,7 @@ static const struct r9a06g032_clkdesc r9a06g032_clocks[] = {
 
 struct r9a06g032_priv {
 	struct clk_onecell_data data;
-	spinlock_t lock; /* protects concurent access to gates */
+	spinlock_t lock; /* protects concurrent access to gates */
 	void __iomem *reg;
 };
 
