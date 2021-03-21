@@ -844,6 +844,49 @@ static int fill_stream_formations(struct snd_bebob *bebob, u8 addr[AVC_BRIDGECO_
 	return err;
 }
 
+static int detect_midi_ports(struct snd_bebob *bebob,
+			     const struct snd_bebob_stream_formation *formats,
+			     u8 addr[AVC_BRIDGECO_ADDR_BYTES], enum avc_bridgeco_plug_dir plug_dir,
+			     unsigned int plug_count, unsigned int *midi_ports)
+{
+	int i;
+	int err = 0;
+
+	*midi_ports = 0;
+
+	/// Detect the number of available MIDI ports when packet has MIDI conformant data channel.
+	for (i = 0; i < SND_BEBOB_STRM_FMT_ENTRIES; ++i) {
+		if (formats[i].midi > 0)
+			break;
+	}
+	if (i >= SND_BEBOB_STRM_FMT_ENTRIES)
+		return 0;
+
+	for (i = 0; i < plug_count; ++i) {
+		enum avc_bridgeco_plug_type plug_type;
+		unsigned int ch_count;
+
+		avc_bridgeco_fill_unit_addr(addr, plug_dir, AVC_BRIDGECO_PLUG_UNIT_EXT, i);
+
+		err = avc_bridgeco_get_plug_type(bebob->unit, addr, &plug_type);
+		if (err < 0) {
+			dev_err(&bebob->unit->device,
+				"fail to get type for external %d plug %d: %d\n",
+				plug_dir, i, err);
+			break;
+		} else if (plug_type != AVC_BRIDGECO_PLUG_TYPE_MIDI) {
+			continue;
+		}
+
+		err = avc_bridgeco_get_plug_ch_count(bebob->unit, addr, &ch_count);
+		if (err < 0)
+			break;
+		*midi_ports += ch_count;
+	}
+
+	return err;
+}
+
 static int
 seek_msu_sync_input_plug(struct snd_bebob *bebob)
 {
@@ -886,8 +929,6 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob)
 {
 	const struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 plugs[AVC_PLUG_INFO_BUF_BYTES], addr[AVC_BRIDGECO_ADDR_BYTES];
-	enum avc_bridgeco_plug_type type;
-	unsigned int i;
 	int err;
 
 	/* the number of plugs for isoc in/out, ext in/out  */
@@ -918,37 +959,15 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob)
 	if (err < 0)
 		goto end;
 
-	/* count external input plugs for MIDI */
-	bebob->midi_input_ports = 0;
-	for (i = 0; i < plugs[2]; i++) {
-		avc_bridgeco_fill_unit_addr(addr, AVC_BRIDGECO_PLUG_DIR_IN,
-					    AVC_BRIDGECO_PLUG_UNIT_EXT, i);
-		err = avc_bridgeco_get_plug_type(bebob->unit, addr, &type);
-		if (err < 0) {
-			dev_err(&bebob->unit->device,
-			"fail to get type for external in plug %d: %d\n",
-				i, err);
-			goto end;
-		} else if (type == AVC_BRIDGECO_PLUG_TYPE_MIDI) {
-			bebob->midi_input_ports++;
-		}
-	}
+	err = detect_midi_ports(bebob, bebob->rx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_IN,
+				plugs[2], &bebob->midi_input_ports);
+	if (err < 0)
+		goto end;
 
-	/* count external output plugs for MIDI */
-	bebob->midi_output_ports = 0;
-	for (i = 0; i < plugs[3]; i++) {
-		avc_bridgeco_fill_unit_addr(addr, AVC_BRIDGECO_PLUG_DIR_OUT,
-					    AVC_BRIDGECO_PLUG_UNIT_EXT, i);
-		err = avc_bridgeco_get_plug_type(bebob->unit, addr, &type);
-		if (err < 0) {
-			dev_err(&bebob->unit->device,
-			"fail to get type for external out plug %d: %d\n",
-				i, err);
-			goto end;
-		} else if (type == AVC_BRIDGECO_PLUG_TYPE_MIDI) {
-			bebob->midi_output_ports++;
-		}
-	}
+	err = detect_midi_ports(bebob, bebob->tx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_OUT,
+				plugs[3], &bebob->midi_output_ports);
+	if (err < 0)
+		goto end;
 
 	/* for check source of clock later */
 	if (!clk_spec)
