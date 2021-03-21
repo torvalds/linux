@@ -225,12 +225,6 @@ static int create_attributes_level_sysfs_files(void)
 	return ret;
 }
 
-static void release_reset_bios_data(void)
-{
-	sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
-	sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &pending_reboot.attr);
-}
-
 static ssize_t wmi_sysman_attr_show(struct kobject *kobj, struct attribute *attr,
 				    char *buf)
 {
@@ -373,8 +367,6 @@ static void destroy_attribute_objs(struct kset *kset)
  */
 static void release_attributes_data(void)
 {
-	release_reset_bios_data();
-
 	mutex_lock(&wmi_priv.mutex);
 	exit_enum_attributes();
 	exit_int_attributes();
@@ -386,12 +378,13 @@ static void release_attributes_data(void)
 		wmi_priv.authentication_dir_kset = NULL;
 	}
 	if (wmi_priv.main_dir_kset) {
+		sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
+		sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &pending_reboot.attr);
 		destroy_attribute_objs(wmi_priv.main_dir_kset);
 		kset_unregister(wmi_priv.main_dir_kset);
 		wmi_priv.main_dir_kset = NULL;
 	}
 	mutex_unlock(&wmi_priv.mutex);
-
 }
 
 /**
