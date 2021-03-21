@@ -210,19 +210,17 @@ static struct kobj_attribute pending_reboot = __ATTR_RO(pending_reboot);
  */
 static int create_attributes_level_sysfs_files(void)
 {
-	int ret = sysfs_create_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
+	int ret;
 
-	if (ret) {
-		pr_debug("could not create reset_bios file\n");
+	ret = sysfs_create_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
+	if (ret)
 		return ret;
-	}
 
 	ret = sysfs_create_file(&wmi_priv.main_dir_kset->kobj, &pending_reboot.attr);
-	if (ret) {
-		pr_debug("could not create changing_pending_reboot file\n");
-		sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
-	}
-	return ret;
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static ssize_t wmi_sysman_attr_show(struct kobject *kobj, struct attribute *attr,
