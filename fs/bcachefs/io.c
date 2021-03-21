@@ -224,9 +224,10 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 			(bkey_extent_is_allocation(&new->k) -
 			 bkey_extent_is_allocation(old.k));
 
-		*disk_sectors_delta += sectors *
-			(int) (bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(new)) -
-			       bch2_bkey_nr_ptrs_fully_allocated(old));
+		*disk_sectors_delta += sectors * bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(new));
+		*disk_sectors_delta -= new->k.p.snapshot == old.k->p.snapshot
+			? sectors * bch2_bkey_nr_ptrs_fully_allocated(old)
+			: 0;
 
 		if (!*should_check_enospc &&
 		    (new_replicas > bch2_bkey_replicas(c, old) ||
