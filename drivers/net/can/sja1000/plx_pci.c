@@ -25,18 +25,6 @@
 MODULE_AUTHOR("Pavel Cheblakov <P.B.Cheblakov@inp.nsk.su>");
 MODULE_DESCRIPTION("Socket-CAN driver for PLX90xx PCI-bridge cards with "
 		   "the SJA1000 chips");
-MODULE_SUPPORTED_DEVICE("Adlink PCI-7841/cPCI-7841, "
-			"Adlink PCI-7841/cPCI-7841 SE, "
-			"Marathon CAN-bus-PCI, "
-			"Marathon CAN-bus-PCIe, "
-			"TEWS TECHNOLOGIES TPMC810, "
-			"esd CAN-PCI/CPCI/PCI104/200, "
-			"esd CAN-PCI/PMC/266, "
-			"esd CAN-PCIe/2000, "
-			"Connect Tech Inc. CANpro/104-Plus Opto (CRG001), "
-			"IXXAT PC-I 04/PCI, "
-			"ELCUS CAN-200-PCI, "
-			"ASEM DUAL CAN-RAW")
 MODULE_LICENSE("GPL v2");
 
 #define PLX_PCI_MAX_CHAN 2
