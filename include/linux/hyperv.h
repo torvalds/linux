@@ -284,7 +284,7 @@ struct vmbus_channel_offer {
 
 		/*
 		 * Pipes:
-		 * The following sructure is an integrated pipe protocol, which
+		 * The following structure is an integrated pipe protocol, which
 		 * is implemented on top of standard user-defined data. Pipe
 		 * clients have MAX_PIPE_USER_DEFINED_BYTES left for their own
 		 * use.
@@ -883,11 +883,11 @@ struct vmbus_channel {
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support
 	 * a scalable communication infrastructure with the host.
-	 * The support for sub-channels is implemented as an extention
+	 * The support for sub-channels is implemented as an extension
 	 * to the current infrastructure.
 	 * The initial offer is considered the primary channel and this
 	 * offer message will indicate if the host supports sub-channels.
-	 * The guest is free to ask for sub-channels to be offerred and can
+	 * The guest is free to ask for sub-channels to be offered and can
 	 * open these sub-channels as a normal "primary" channel. However,
 	 * all sub-channels will have the same type and instance guids as the
 	 * primary channel. Requests sent on a given channel will result in a
@@ -951,7 +951,7 @@ struct vmbus_channel {
 	 * Clearly, these optimizations improve throughput at the expense of
 	 * latency. Furthermore, since the channel is shared for both
 	 * control and data messages, control messages currently suffer
-	 * unnecessary latency adversley impacting performance and boot
+	 * unnecessary latency adversely impacting performance and boot
 	 * time. To fix this issue, permit tagging the channel as being
 	 * in "low latency" mode. In this mode, we will bypass the monitor
 	 * mechanism.
