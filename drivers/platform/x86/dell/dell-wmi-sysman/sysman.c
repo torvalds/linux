@@ -388,6 +388,7 @@ static void release_attributes_data(void)
 	if (wmi_priv.main_dir_kset) {
 		destroy_attribute_objs(wmi_priv.main_dir_kset);
 		kset_unregister(wmi_priv.main_dir_kset);
+		wmi_priv.main_dir_kset = NULL;
 	}
 	mutex_unlock(&wmi_priv.mutex);
 
