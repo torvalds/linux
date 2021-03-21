@@ -104,6 +104,12 @@ enum z_erofs_collectmode {
 	 * |_______PRIMARY_FOLLOWED_______|________PRIMARY_HOOKED___________|
 	 */
 	COLLECT_PRIMARY_HOOKED,
+	/*
+	 * a weak form of COLLECT_PRIMARY_FOLLOWED, the difference is that it
+	 * could be dispatched into bypass queue later due to uptodated managed
+	 * pages. All related online pages cannot be reused for inplace I/O (or
+	 * pagevec) since it can be directly decoded without I/O submission.
+	 */
 	COLLECT_PRIMARY_FOLLOWED_NOINPLACE,
 	/*
 	 * The current collection has been linked with the owned chain, and
@@ -186,21 +192,25 @@ static void preload_compressed_pages(struct z_erofs_collector *clt,
 
 		if (page) {
 			t = tag_compressed_page_justfound(page);
-		} else if (type == DELAYEDALLOC) {
-			t = tagptr_init(compressed_page_t, PAGE_UNALLOCATED);
-		} else if (type == TRYALLOC) {
-			newpage = erofs_allocpage(pagepool, gfp);
-			if (!newpage)
-				goto dontalloc;
-
-			set_page_private(newpage, Z_EROFS_PREALLOCATED_PAGE);
-			t = tag_compressed_page_justfound(newpage);
-		} else {	/* DONTALLOC */
-dontalloc:
-			if (standalone)
-				clt->compressedpages = pages;
+		} else {
+			/* I/O is needed, no possible to decompress directly */
 			standalone = false;
-			continue;
+			switch (type) {
+			case DELAYEDALLOC:
+				t = tagptr_init(compressed_page_t,
+						PAGE_UNALLOCATED);
+				break;
+			case TRYALLOC:
+				newpage = erofs_allocpage(pagepool, gfp);
+				if (!newpage)
+					continue;
+				set_page_private(newpage,
+						 Z_EROFS_PREALLOCATED_PAGE);
+				t = tag_compressed_page_justfound(newpage);
+				break;
+			default:        /* DONTALLOC */
+				continue;
+			}
 		}
 
 		if (!cmpxchg_relaxed(pages, NULL, tagptr_cast_ptr(t)))
@@ -214,7 +224,11 @@ dontalloc:
 		}
 	}
 
-	if (standalone)		/* downgrade to PRIMARY_FOLLOWED_NOINPLACE */
+	/*
+	 * don't do inplace I/O if all compressed pages are available in
+	 * managed cache since it can be moved to the bypass queue instead.
+	 */
+	if (standalone)
 		clt->mode = COLLECT_PRIMARY_FOLLOWED_NOINPLACE;
 }
 
