@@ -826,15 +826,21 @@ static inline struct bkey_s_c btree_iter_level_peek_all(struct btree_iter *iter,
 static inline struct bkey_s_c btree_iter_level_peek(struct btree_iter *iter,
 						    struct btree_iter_level *l)
 {
-	return __btree_iter_unpack(iter, l, &iter->k,
+	struct bkey_s_c k = __btree_iter_unpack(iter, l, &iter->k,
 			bch2_btree_node_iter_peek(&l->iter, l->b));
+
+	iter->real_pos = k.k ? k.k->p : l->b->key.k.p;
+	return k;
 }
 
 static inline struct bkey_s_c btree_iter_level_prev(struct btree_iter *iter,
 						    struct btree_iter_level *l)
 {
-	return __btree_iter_unpack(iter, l, &iter->k,
+	struct bkey_s_c k = __btree_iter_unpack(iter, l, &iter->k,
 			bch2_btree_node_iter_prev(&l->iter, l->b));
+
+	iter->real_pos = k.k ? k.k->p : l->b->data->min_key;
+	return k;
 }
 
 static inline bool btree_iter_advance_to_pos(struct btree_iter *iter,
@@ -1531,7 +1537,6 @@ static inline bool btree_iter_set_pos_to_prev_leaf(struct btree_iter *iter)
  */
 struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 {
-	struct btree_iter_level *l = &iter->l[0];
 	struct bkey_s_c k;
 	int ret;
 
@@ -1546,7 +1551,7 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		if (unlikely(ret))
 			return bkey_s_c_err(ret);
 
-		k = btree_iter_level_peek(iter, l);
+		k = btree_iter_level_peek(iter, &iter->l[0]);
 		if (likely(k.k))
 			break;
 
@@ -1560,8 +1565,6 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 	 */
 	if (bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
 		iter->pos = bkey_start_pos(k.k);
-
-	iter->real_pos = k.k->p;
 
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
@@ -1619,6 +1622,9 @@ struct bkey_s_c bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
 
 	EBUG_ON(btree_iter_type(iter) != BTREE_ITER_KEYS);
 	bch2_btree_iter_verify(iter);
+	bch2_btree_iter_verify_entry_exit(iter);
+
+	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
 
 	while (1) {
 		ret = bch2_btree_iter_traverse(iter);
@@ -1647,6 +1653,8 @@ struct bkey_s_c bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
 	if (bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
 		iter->pos = bkey_start_pos(k.k);
 
+	bch2_btree_iter_verify_entry_exit(iter);
+	bch2_btree_iter_verify(iter);
 	return k;
 }
 
@@ -1702,7 +1710,6 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 	/* Extents can straddle iter->pos: */
 	if (bkey_cmp(k.k->p, iter->pos) < 0)
 		iter->pos = k.k->p;
-	iter->real_pos = k.k->p;
 out:
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
