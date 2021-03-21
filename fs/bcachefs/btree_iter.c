@@ -16,6 +16,8 @@
 
 #include <linux/prefetch.h>
 
+static void btree_iter_set_search_pos(struct btree_iter *, struct bpos);
+
 static inline bool is_btree_node(struct btree_iter *iter, unsigned l)
 {
 	return l < BTREE_MAX_DEPTH &&
@@ -1144,11 +1146,6 @@ err:
 	return ret;
 }
 
-static void btree_iter_up(struct btree_iter *iter)
-{
-	btree_node_unlock(iter, iter->level++);
-}
-
 static int btree_iter_traverse_one(struct btree_iter *, unsigned long);
 
 static int __btree_iter_traverse_all(struct btree_trans *trans, int ret)
@@ -1400,11 +1397,11 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 
 	bch2_trans_cond_resched(iter->trans);
 
-	btree_iter_up(iter);
+	btree_node_unlock(iter, iter->level);
+	iter->l[iter->level].b = BTREE_ITER_NO_NODE_UP;
+	iter->level++;
 
-	if (!bch2_btree_node_relock(iter, iter->level))
-		btree_iter_set_dirty(iter, BTREE_ITER_NEED_RELOCK);
-
+	btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
 	ret = bch2_btree_iter_traverse(iter);
 	if (ret)
 		return NULL;
@@ -1419,20 +1416,15 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 		 * Haven't gotten to the end of the parent node: go back down to
 		 * the next child node
 		 */
+		btree_iter_set_search_pos(iter, bkey_successor(iter->pos));
 
-		/*
-		 * We don't really want to be unlocking here except we can't
-		 * directly tell btree_iter_traverse() "traverse to this level"
-		 * except by setting iter->level, so we have to unlock so we
-		 * don't screw up our lock invariants:
-		 */
-		if (btree_node_read_locked(iter, iter->level))
-			btree_node_unlock(iter, iter->level);
+		/* Unlock to avoid screwing up our lock invariants: */
+		btree_node_unlock(iter, iter->level);
 
-		iter->pos = iter->real_pos = bkey_successor(iter->pos);
-		iter->level	= iter->min_depth;
-
+		iter->level = iter->min_depth;
 		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
+		bch2_btree_iter_verify(iter);
+
 		ret = bch2_btree_iter_traverse(iter);
 		if (ret)
 			return NULL;
