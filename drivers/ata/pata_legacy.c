@@ -63,7 +63,62 @@
 
 static int all;
 module_param(all, int, 0444);
-MODULE_PARM_DESC(all, "Grab all legacy port devices, even if PCI(0=off, 1=on)");
+MODULE_PARM_DESC(all,
+		 "Set to probe unclaimed pri/sec ISA port ranges even if PCI");
+
+static int probe_all;
+module_param(probe_all, int, 0);
+MODULE_PARM_DESC(probe_all,
+		 "Set to probe tertiary+ ISA port ranges even if PCI");
+
+static int autospeed;
+module_param(autospeed, int, 0);
+MODULE_PARM_DESC(autospeed, "Chip present that snoops speed changes");
+
+static int pio_mask = ATA_PIO4;
+module_param(pio_mask, int, 0);
+MODULE_PARM_DESC(pio_mask, "PIO range for autospeed devices");
+
+static int iordy_mask = 0xFFFFFFFF;
+module_param(iordy_mask, int, 0);
+MODULE_PARM_DESC(iordy_mask, "Use IORDY if available");
+
+static int ht6560a;
+module_param(ht6560a, int, 0);
+MODULE_PARM_DESC(ht6560a, "HT 6560A on primary 1, second 2, both 3");
+
+static int ht6560b;
+module_param(ht6560b, int, 0);
+MODULE_PARM_DESC(ht6560b, "HT 6560B on primary 1, secondary 2, both 3");
+
+static int opti82c611a;
+module_param(opti82c611a, int, 0);
+MODULE_PARM_DESC(opti82c611a,
+		 "Opti 82c611A on primary 1, secondary 2, both 3");
+
+static int opti82c46x;
+module_param(opti82c46x, int, 0);
+MODULE_PARM_DESC(opti82c46x,
+		 "Opti 82c465MV on primary 1, secondary 2, both 3");
+
+#ifdef CONFIG_PATA_QDI_MODULE
+static int qdi = 1;
+#else
+static int qdi;
+#endif
+module_param(qdi, int, 0);
+MODULE_PARM_DESC(qdi, "Set to probe QDI controllers");
+
+#ifdef CONFIG_PATA_WINBOND_VLB_MODULE
+static int winbond = 1;
+#else
+static int winbond;
+#endif
+module_param(winbond, int, 0);
+MODULE_PARM_DESC(winbond,
+		 "Set to probe Winbond controllers, "
+		 "give I/O port if non standard");
+
 
 enum controller {
 	BIOS = 0,
@@ -116,30 +171,6 @@ static struct legacy_data legacy_data[NR_HOST];
 static struct ata_host *legacy_host[NR_HOST];
 static int nr_legacy_host;
 
-
-static int probe_all;		/* Set to check all ISA port ranges */
-static int ht6560a;		/* HT 6560A on primary 1, second 2, both 3 */
-static int ht6560b;		/* HT 6560A on primary 1, second 2, both 3 */
-static int opti82c611a;		/* Opti82c611A on primary 1, sec 2, both 3 */
-static int opti82c46x;		/* Opti 82c465MV present(pri/sec autodetect) */
-static int autospeed;		/* Chip present which snoops speed changes */
-static int pio_mask = ATA_PIO4;	/* PIO range for autospeed devices */
-static int iordy_mask = 0xFFFFFFFF;	/* Use iordy if available */
-
-/* Set to probe QDI controllers */
-#ifdef CONFIG_PATA_QDI_MODULE
-static int qdi = 1;
-#else
-static int qdi;
-#endif
-
-#ifdef CONFIG_PATA_WINBOND_VLB_MODULE
-static int winbond = 1;		/* Set to probe Winbond controllers,
-					give I/O port if non standard */
-#else
-static int winbond;		/* Set to probe Winbond controllers,
-					give I/O port if non standard */
-#endif
 
 /**
  *	legacy_probe_add	-	Add interface to probe list
@@ -1249,17 +1280,6 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("pata_qdi");
 MODULE_ALIAS("pata_winbond");
-
-module_param(probe_all, int, 0);
-module_param(autospeed, int, 0);
-module_param(ht6560a, int, 0);
-module_param(ht6560b, int, 0);
-module_param(opti82c611a, int, 0);
-module_param(opti82c46x, int, 0);
-module_param(qdi, int, 0);
-module_param(winbond, int, 0);
-module_param(pio_mask, int, 0);
-module_param(iordy_mask, int, 0);
 
 module_init(legacy_init);
 module_exit(legacy_exit);
