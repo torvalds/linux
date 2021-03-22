@@ -209,6 +209,11 @@
 #define RT1015_PLL_K_MASK			(RT1015_PLL_K_MAX)
 #define RT1015_PLL_K_SFT			0
 
+/* 0x0020 */
+#define RT1015_EN_BCLK_DET_MASK			(0x1 << 15)
+#define RT1015_EN_BCLK_DET				(0x1 << 15)
+#define RT1015_DIS_BCLK_DET				(0x0 << 15)
+
 /* 0x007a */
 #define RT1015_ID_MASK				0xff
 #define RT1015_ID_VERA				0x0
@@ -373,6 +378,11 @@
 /* 0x0328 */
 #define RT1015_PWR_SWR				(0x1 << 12)
 #define RT1015_PWR_SWR_BIT			12
+
+/* 0x0519 */
+#define RT1015_EN_CLA_D_DC_DET_MASK	(0x1 << 12)
+#define RT1015_EN_CLA_D_DC_DET		(0x1 << 12)
+#define RT1015_DIS_CLA_D_DC_DET		(0x0 << 12)
 
 /* 0x1300 */
 #define RT1015_PWR_CLSD				(0x1 << 12)

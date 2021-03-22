@@ -669,8 +669,23 @@ static int rt1015_amp_drv_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
+	unsigned int ret, ret2;
 
 	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		ret = snd_soc_component_read(component, RT1015_CLK_DET);
+		ret2 = snd_soc_component_read(component, RT1015_SPK_DC_DETECT1);
+		if (!((ret >> 15) & 0x1)) {
+			snd_soc_component_update_bits(component, RT1015_CLK_DET,
+				RT1015_EN_BCLK_DET_MASK, RT1015_EN_BCLK_DET);
+			dev_dbg(component->dev, "BCLK Detection Enabled.\n");
+		}
+		if (!((ret2 >> 12) & 0x1)) {
+			snd_soc_component_update_bits(component, RT1015_SPK_DC_DETECT1,
+				RT1015_EN_CLA_D_DC_DET_MASK, RT1015_EN_CLA_D_DC_DET);
+			dev_dbg(component->dev, "Class-D DC Detection Enabled.\n");
+		}
+		break;
 	case SND_SOC_DAPM_POST_PMU:
 		if (rt1015->hw_config == RT1015_HW_28)
 			schedule_delayed_work(&rt1015->flush_work, msecs_to_jiffies(10));
@@ -690,7 +705,8 @@ static const struct snd_soc_dapm_widget rt1015_dapm_widgets[] = {
 		r1015_dac_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUT_DRV_E("Amp Drv", SND_SOC_NOPM, 0, 0, NULL, 0,
-			rt1015_amp_drv_event, SND_SOC_DAPM_POST_PMU),
+			rt1015_amp_drv_event, SND_SOC_DAPM_PRE_PMU |
+			SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPO"),
 };
 
