@@ -294,35 +294,6 @@ enum ODM_Ability_E { /* tag_Dynamic_ODM_Support_Ability_Type */
 };
 
 /*  */
-/*  2011/20/20 MH For MP driver RT_WLAN_STA =  STA_INFO_T */
-/*  Please declare below ODM relative info in your STA info structure. */
-/*  */
-struct odm_sta_info_t {
-	/*  Driver Write */
-	bool bUsed;				/*  record the sta status link or not? */
-	/* u8 WirelessMode;		 */
-	u8 IOTPeer;			/*  Enum value.	HT_IOT_PEER_E */
-
-	/*  ODM Write */
-	/* 1 PHY_STATUS_INFO */
-	u8 RSSI_Path[4];		/*  */
-	u8 RSSI_Ave;
-	u8 RXEVM[4];
-	u8 RXSNR[4];
-
-	/*  ODM Write */
-	/* 1 TX_INFO (may changed by IC) */
-	/* TX_INFO_T		pTxInfo;		Define in IC folder. Move lower layer. */
-
-	/*  */
-	/* 	Please use compile flag to disabe the strcutrue for other IC except 88E. */
-	/* 	Move To lower layer. */
-	/*  */
-	/*  ODM Write Wilson will handle this part(said by Luke.Lee) */
-	/* TX_RPT_T		pTxRpt;			Define in IC folder. Move lower layer. */
-};
-
-/*  */
 /*  2011/10/20 MH Define Common info enum for all team. */
 /*  */
 enum odm_cmninfo_e {
@@ -638,38 +609,6 @@ enum odm_cca_path_e { /* tag_CCA_Path */
 	ODM_CCA_2R			= 0,
 	ODM_CCA_1R_A		= 1,
 	ODM_CCA_1R_B		= 2,
-};
-
-struct odm_ra_info_t { /* _ODM_RA_Info_ */
-	u8 RateID;
-	u32 RateMask;
-	u32 RAUseRate;
-	u8 RateSGI;
-	u8 RssiStaRA;
-	u8 PreRssiStaRA;
-	u8 SGIEnable;
-	u8 DecisionRate;
-	u8 PreRate;
-	u8 HighestRate;
-	u8 LowestRate;
-	u32 NscUp;
-	u32 NscDown;
-	u16 RTY[5];
-	u32 TOTAL;
-	u16 DROP;
-	u8 Active;
-	u16 RptTime;
-	u8 RAWaitingCounter;
-	u8 RAPendingCounter;
-	u8 PTActive;  /*  on or off */
-	u8 PTTryState;  /*  0 trying state, 1 for decision state */
-	u8 PTStage;  /*  0~6 */
-	u8 PTStopCount; /* Stop PT counter */
-	u8 PTPreRate;  /*  if rate change do PT */
-	u8 PTPreRssi; /*  if RSSI change 5% do PT */
-	u8 PTModeSS;  /*  decide whitch rate should do PT */
-	u8 RAstage;  /*  StageRA, decide how many times RA will be done between PT */
-	u8 PTSmoothFactor;
 };
 
 struct iqk_matrix_regs_setting { /* _IQK_MATRIX_REGS_SETTING */
