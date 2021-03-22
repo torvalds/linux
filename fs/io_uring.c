@@ -464,7 +464,6 @@ struct io_uring_task {
 	struct io_wq		*io_wq;
 	struct percpu_counter	inflight;
 	atomic_t		in_idle;
-	bool			sqpoll;
 
 	spinlock_t		task_lock;
 	struct io_wq_work_list	task_list;
