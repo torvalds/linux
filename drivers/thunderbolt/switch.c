@@ -1099,6 +1099,49 @@ int tb_port_wait_for_link_width(struct tb_port *port, int width,
 	return -ETIMEDOUT;
 }
 
+static int tb_port_do_update_credits(struct tb_port *port)
+{
+	u32 nfc_credits;
+	int ret;
+
+	ret = tb_port_read(port, &nfc_credits, TB_CFG_PORT, ADP_CS_4, 1);
+	if (ret)
+		return ret;
+
+	if (nfc_credits != port->config.nfc_credits) {
+		u32 total;
+
+		total = (nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
+			ADP_CS_4_TOTAL_BUFFERS_SHIFT;
+
+		tb_port_dbg(port, "total credits changed %u -> %u\n",
+			    port->total_credits, total);
+
+		port->config.nfc_credits = nfc_credits;
+		port->total_credits = total;
+	}
+
+	return 0;
+}
+
+/**
+ * tb_port_update_credits() - Re-read port total credits
+ * @port: Port to update
+ *
+ * After the link is bonded (or bonding was disabled) the port total
+ * credits may change, so this function needs to be called to re-read
+ * the credits. Updates also the second lane adapter.
+ */
+int tb_port_update_credits(struct tb_port *port)
+{
+	int ret;
+
+	ret = tb_port_do_update_credits(port);
+	if (ret)
+		return ret;
+	return tb_port_do_update_credits(port->dual_link_port);
+}
+
 static int tb_port_start_lane_initialization(struct tb_port *port)
 {
 	int ret;
@@ -2494,6 +2537,8 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 		return ret;
 	}
 
+	tb_port_update_credits(down);
+	tb_port_update_credits(up);
 	tb_switch_update_link_attributes(sw);
 
 	tb_sw_dbg(sw, "lane bonding enabled\n");
@@ -2531,7 +2576,10 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 	if (tb_port_wait_for_link_width(down, 1, 100) == -ETIMEDOUT)
 		tb_sw_warn(sw, "timeout disabling lane bonding\n");
 
+	tb_port_update_credits(down);
+	tb_port_update_credits(up);
 	tb_switch_update_link_attributes(sw);
+
 	tb_sw_dbg(sw, "lane bonding disabled\n");
 }
 
