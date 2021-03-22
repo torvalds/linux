@@ -18,8 +18,11 @@ void arch_perf_parse_sample_weight(struct perf_sample *data,
 	weight.full = *array;
 	if (type & PERF_SAMPLE_WEIGHT)
 		data->weight = weight.full;
-	else
+	else {
 		data->weight = weight.var1_dw;
+		data->ins_lat = weight.var2_w;
+		data->p_stage_cyc = weight.var3_w;
+	}
 }
 
 void arch_perf_synthesize_sample_weight(const struct perf_sample *data,
@@ -27,6 +30,17 @@ void arch_perf_synthesize_sample_weight(const struct perf_sample *data,
 {
 	*array = data->weight;
 
-	if (type & PERF_SAMPLE_WEIGHT_STRUCT)
+	if (type & PERF_SAMPLE_WEIGHT_STRUCT) {
 		*array &= 0xffffffff;
+		*array |= ((u64)data->ins_lat << 32);
+	}
+}
+
+const char *arch_perf_header_entry(const char *se_header)
+{
+	if (!strcmp(se_header, "Local INSTR Latency"))
+		return "Finish Cyc";
+	else if (!strcmp(se_header, "Pipeline Stage Cycle"))
+		return "Dispatch Cyc";
+	return se_header;
 }

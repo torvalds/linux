@@ -75,6 +75,7 @@ enum hist_column {
 	HISTC_MEM_BLOCKED,
 	HISTC_LOCAL_INS_LAT,
 	HISTC_GLOBAL_INS_LAT,
+	HISTC_P_STAGE_CYC,
 	HISTC_NR_COLS, /* Last entry */
 };
 
