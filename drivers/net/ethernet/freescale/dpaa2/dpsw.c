@@ -1327,3 +1327,30 @@ int dpsw_set_egress_flood(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 	return mc_send_command(mc_io, &cmd);
 }
+
+/**
+ * dpsw_if_set_learning_mode() - Configure the learning mode on an interface.
+ * If this API is used, it will take precedence over the FDB configuration.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	InterfaceID
+ * @mode:	Learning mode
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_set_learning_mode(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			      u16 if_id, enum dpsw_learning_mode mode)
+{
+	struct dpsw_cmd_if_set_learning_mode *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_LEARNING_MODE,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if_set_learning_mode *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+	dpsw_set_field(cmd_params->mode, LEARNING_MODE, mode);
+
+	return mc_send_command(mc_io, &cmd);
+}

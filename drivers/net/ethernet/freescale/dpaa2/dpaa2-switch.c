@@ -110,6 +110,63 @@ static u16 dpaa2_switch_port_set_fdb(struct ethsw_port_priv *port_priv,
 	return 0;
 }
 
+static void dpaa2_switch_fdb_get_flood_cfg(struct ethsw_core *ethsw, u16 fdb_id,
+					   enum dpsw_flood_type type,
+					   struct dpsw_egress_flood_cfg *cfg)
+{
+	int i = 0, j;
+
+	memset(cfg, 0, sizeof(*cfg));
+
+	/* Add all the DPAA2 switch ports found in the same bridging domain to
+	 * the egress flooding domain
+	 */
+	for (j = 0; j < ethsw->sw_attr.num_ifs; j++) {
+		if (!ethsw->ports[j])
+			continue;
+		if (ethsw->ports[j]->fdb->fdb_id != fdb_id)
+			continue;
+
+		if (type == DPSW_BROADCAST && ethsw->ports[j]->bcast_flood)
+			cfg->if_id[i++] = ethsw->ports[j]->idx;
+		else if (type == DPSW_FLOODING && ethsw->ports[j]->ucast_flood)
+			cfg->if_id[i++] = ethsw->ports[j]->idx;
+	}
+
+	/* Add the CTRL interface to the egress flooding domain */
+	cfg->if_id[i++] = ethsw->sw_attr.num_ifs;
+
+	cfg->fdb_id = fdb_id;
+	cfg->flood_type = type;
+	cfg->num_ifs = i;
+}
+
+static int dpaa2_switch_fdb_set_egress_flood(struct ethsw_core *ethsw, u16 fdb_id)
+{
+	struct dpsw_egress_flood_cfg flood_cfg;
+	int err;
+
+	/* Setup broadcast flooding domain */
+	dpaa2_switch_fdb_get_flood_cfg(ethsw, fdb_id, DPSW_BROADCAST, &flood_cfg);
+	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				    &flood_cfg);
+	if (err) {
+		dev_err(ethsw->dev, "dpsw_set_egress_flood() = %d\n", err);
+		return err;
+	}
+
+	/* Setup unknown flooding domain */
+	dpaa2_switch_fdb_get_flood_cfg(ethsw, fdb_id, DPSW_FLOODING, &flood_cfg);
+	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				    &flood_cfg);
+	if (err) {
+		dev_err(ethsw->dev, "dpsw_set_egress_flood() = %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
 static void *dpaa2_iova_to_virt(struct iommu_domain *domain,
 				dma_addr_t iova_addr)
 {
@@ -1184,6 +1241,88 @@ static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
 	return dpaa2_switch_port_set_stp_state(port_priv, state);
 }
 
+static int dpaa2_switch_port_set_learning(struct ethsw_port_priv *port_priv, bool enable)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	enum dpsw_learning_mode learn_mode;
+	int err;
+
+	if (enable)
+		learn_mode = DPSW_LEARNING_MODE_HW;
+	else
+		learn_mode = DPSW_LEARNING_MODE_DIS;
+
+	err = dpsw_if_set_learning_mode(ethsw->mc_io, 0, ethsw->dpsw_handle,
+					port_priv->idx, learn_mode);
+	if (err)
+		netdev_err(port_priv->netdev, "dpsw_if_set_learning_mode err %d\n", err);
+
+	if (!enable)
+		dpaa2_switch_port_fast_age(port_priv);
+
+	return err;
+}
+
+static int dpaa2_switch_port_flood(struct ethsw_port_priv *port_priv,
+				   struct switchdev_brport_flags flags)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+
+	if (flags.mask & BR_BCAST_FLOOD)
+		port_priv->bcast_flood = !!(flags.val & BR_BCAST_FLOOD);
+
+	if (flags.mask & BR_FLOOD)
+		port_priv->ucast_flood = !!(flags.val & BR_FLOOD);
+
+	return dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
+}
+
+static int dpaa2_switch_port_pre_bridge_flags(struct net_device *netdev,
+					      struct switchdev_brport_flags flags,
+					      struct netlink_ext_ack *extack)
+{
+	if (flags.mask & ~(BR_LEARNING | BR_BCAST_FLOOD | BR_FLOOD |
+			   BR_MCAST_FLOOD))
+		return -EINVAL;
+
+	if (flags.mask & (BR_FLOOD | BR_MCAST_FLOOD)) {
+		bool multicast = !!(flags.val & BR_MCAST_FLOOD);
+		bool unicast = !!(flags.val & BR_FLOOD);
+
+		if (unicast != multicast) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot configure multicast flooding independently of unicast");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int dpaa2_switch_port_bridge_flags(struct net_device *netdev,
+					  struct switchdev_brport_flags flags,
+					  struct netlink_ext_ack *extack)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	int err;
+
+	if (flags.mask & BR_LEARNING) {
+		bool learn_ena = !!(flags.val & BR_LEARNING);
+
+		err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
+		if (err)
+			return err;
+	}
+
+	if (flags.mask & (BR_BCAST_FLOOD | BR_FLOOD | BR_MCAST_FLOOD)) {
+		err = dpaa2_switch_port_flood(port_priv, flags);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 				      const struct switchdev_attr *attr,
 				      struct netlink_ext_ack *extack)
@@ -1201,6 +1340,12 @@ static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 					   "The DPAA2 switch does not support VLAN-unaware operation");
 			return -EOPNOTSUPP;
 		}
+		break;
+	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
+		err = dpaa2_switch_port_pre_bridge_flags(netdev, attr->u.brport_flags, extack);
+		break;
+	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
+		err = dpaa2_switch_port_bridge_flags(netdev, attr->u.brport_flags, extack);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -1442,48 +1587,6 @@ static int dpaa2_switch_port_attr_set_event(struct net_device *netdev,
 	return notifier_from_errno(err);
 }
 
-static int dpaa2_switch_fdb_set_egress_flood(struct ethsw_core *ethsw, u16 fdb_id)
-{
-	struct dpsw_egress_flood_cfg flood_cfg;
-	int i = 0, j;
-	int err;
-
-	/* Add all the DPAA2 switch ports found in the same bridging domain to
-	 * the egress flooding domain
-	 */
-	for (j = 0; j < ethsw->sw_attr.num_ifs; j++)
-		if (ethsw->ports[j] && ethsw->ports[j]->fdb->fdb_id == fdb_id)
-			flood_cfg.if_id[i++] = ethsw->ports[j]->idx;
-
-	/* Add the CTRL interface to the egress flooding domain */
-	flood_cfg.if_id[i++] = ethsw->sw_attr.num_ifs;
-
-	/* Use the FDB of the first dpaa2 switch port added to the bridge */
-	flood_cfg.fdb_id = fdb_id;
-
-	/* Setup broadcast flooding domain */
-	flood_cfg.flood_type = DPSW_BROADCAST;
-	flood_cfg.num_ifs = i;
-	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				    &flood_cfg);
-	if (err) {
-		dev_err(ethsw->dev, "dpsw_set_egress_flood() = %d\n", err);
-		return err;
-	}
-
-	/* Setup unknown flooding domain */
-	flood_cfg.flood_type = DPSW_FLOODING;
-	flood_cfg.num_ifs = i;
-	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				    &flood_cfg);
-	if (err) {
-		dev_err(ethsw->dev, "dpsw_set_egress_flood() = %d\n", err);
-		return err;
-	}
-
-	return 0;
-}
-
 static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 					 struct net_device *upper_dev)
 {
@@ -1492,6 +1595,7 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 	struct ethsw_port_priv *other_port_priv;
 	struct net_device *other_dev;
 	struct list_head *iter;
+	bool learn_ena;
 	int err;
 
 	netdev_for_each_lower_dev(upper_dev, other_dev, iter) {
@@ -1512,6 +1616,10 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 		return err;
 
 	dpaa2_switch_port_set_fdb(port_priv, upper_dev);
+
+	/* Inherit the initial bridge port learning state */
+	learn_ena = br_port_flag_is_set(netdev, BR_LEARNING);
+	err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
 
 	/* Setup the egress flood policy (broadcast, unknown unicast) */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
@@ -1570,6 +1678,13 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 	if (err)
 		netdev_err(netdev, "Unable to restore RX VLANs to the new FDB, err (%d)\n", err);
 
+	/* Reset the flooding state to denote that this port can send any
+	 * packet in standalone mode. With this, we are also ensuring that any
+	 * later bridge join will have the flooding flag on.
+	 */
+	port_priv->bcast_flood = true;
+	port_priv->ucast_flood = true;
+
 	/* Setup the egress flood policy (broadcast, unknown unicast).
 	 * When the port is not under a bridge, only the CTRL interface is part
 	 * of the flooding domain besides the actual port
@@ -1580,6 +1695,11 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 
 	/* Recreate the egress flood domain of the FDB that we just left */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, old_fdb->fdb_id);
+	if (err)
+		return err;
+
+	/* No HW learning when not under a bridge */
+	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		return err;
 
@@ -1884,6 +2004,9 @@ static void dpaa2_switch_rx(struct dpaa2_switch_fq *fq,
 
 	skb->dev = netdev;
 	skb->protocol = eth_type_trans(skb, skb->dev);
+
+	/* Setup the offload_fwd_mark only if the port is under a bridge */
+	skb->offload_fwd_mark = !!(port_priv->fdb->bridge_dev);
 
 	netif_receive_skb(skb);
 
@@ -2650,6 +2773,9 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 
 	port_netdev->needed_headroom = DPAA2_SWITCH_NEEDED_HEADROOM;
 
+	port_priv->bcast_flood = true;
+	port_priv->ucast_flood = true;
+
 	/* Set MTU limits */
 	port_netdev->min_mtu = ETH_MIN_MTU;
 	port_netdev->max_mtu = ETHSW_MAX_FRAME_LENGTH;
@@ -2669,6 +2795,10 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 		goto err_port_probe;
 
 	err = dpaa2_switch_port_set_mac_addr(port_priv);
+	if (err)
+		goto err_port_probe;
+
+	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		goto err_port_probe;
 

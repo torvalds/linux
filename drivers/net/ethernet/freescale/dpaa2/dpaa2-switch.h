@@ -105,13 +105,14 @@ struct ethsw_port_priv {
 	struct ethsw_core	*ethsw_data;
 	u8			link_state;
 	u8			stp_state;
-	bool			flood;
 
 	u8			vlans[VLAN_VID_MASK + 1];
 	u16			pvid;
 	u16			tx_qdid;
 
 	struct dpaa2_switch_fdb	*fdb;
+	bool			bcast_flood;
+	bool			ucast_flood;
 };
 
 /* Switch data */
