@@ -799,6 +799,15 @@
 			};
 		};
 
+		timer@1c20c00 {
+			compatible = "allwinner,sun50i-a64-timer",
+				     "allwinner,sun8i-a23-timer";
+			reg = <0x01c20c00 0xa0>;
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&osc24M>;
+		};
+
 		wdt0: watchdog@1c20ca0 {
 			compatible = "allwinner,sun50i-a64-wdt",
 				     "allwinner,sun6i-a31-wdt";
