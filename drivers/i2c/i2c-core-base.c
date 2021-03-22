@@ -539,6 +539,13 @@ static int i2c_device_probe(struct device *dev)
 	if (status)
 		goto err_clear_wakeup_irq;
 
+	client->devres_group_id = devres_open_group(&client->dev, NULL,
+						    GFP_KERNEL);
+	if (!client->devres_group_id) {
+		status = -ENOMEM;
+		goto err_detach_pm_domain;
+	}
+
 	/*
 	 * When there are no more users of probe(),
 	 * rename probe_new to probe.
@@ -551,11 +558,21 @@ static int i2c_device_probe(struct device *dev)
 	else
 		status = -EINVAL;
 
+	/*
+	 * Note that we are not closing the devres group opened above so
+	 * even resources that were attached to the device after probe is
+	 * run are released when i2c_device_remove() is executed. This is
+	 * needed as some drivers would allocate additional resources,
+	 * for example when updating firmware.
+	 */
+
 	if (status)
-		goto err_detach_pm_domain;
+		goto err_release_driver_resources;
 
 	return 0;
 
+err_release_driver_resources:
+	devres_release_group(&client->dev, client->devres_group_id);
 err_detach_pm_domain:
 	dev_pm_domain_detach(&client->dev, true);
 err_clear_wakeup_irq:
@@ -583,6 +600,8 @@ static int i2c_device_remove(struct device *dev)
 		if (status)
 			dev_warn(dev, "remove failed (%pe), will be ignored\n", ERR_PTR(status));
 	}
+
+	devres_release_group(&client->dev, client->devres_group_id);
 
 	dev_pm_domain_detach(&client->dev, true);
 

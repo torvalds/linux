@@ -309,6 +309,8 @@ struct i2c_driver {
  *	userspace_devices list
  * @slave_cb: Callback when I2C slave mode of an adapter is used. The adapter
  *	calls it to pass on slave events to the slave driver.
+ * @devres_group_id: id of the devres group that will be created for resources
+ *	acquired when probing this device.
  *
  * An i2c_client identifies a single device (i.e. chip) connected to an
  * i2c bus. The behaviour exposed to Linux is defined by the driver
@@ -337,6 +339,7 @@ struct i2c_client {
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/
 #endif
+	void *devres_group_id;		/* ID of probe devres group	*/
 };
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
 
