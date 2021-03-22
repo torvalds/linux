@@ -583,7 +583,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
 
 		if (!channel->ldb)
-			break;
+			continue;
 
 		ret = imx_ldb_register(drm, channel);
 		if (ret)
