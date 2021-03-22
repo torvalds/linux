@@ -647,6 +647,8 @@ dmub_srv_send_gpint_command(struct dmub_srv *dmub,
 	dmub->hw_funcs.set_gpint(dmub, reg);
 
 	for (i = 0; i < timeout_us; ++i) {
+		udelay(1);
+
 		if (dmub->hw_funcs.is_gpint_acked(dmub, reg))
 			return DMUB_STATUS_OK;
 	}
