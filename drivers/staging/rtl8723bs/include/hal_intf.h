@@ -288,14 +288,6 @@ enum wowlan_subcode {
 	WOWLAN_AP_DISABLE		= 13
 };
 
-struct wowlan_ioctl_param {
-	unsigned int subcode;
-	unsigned int subcode_value;
-	unsigned int wakeup_reason;
-	unsigned int len;
-	unsigned char pattern[0];
-};
-
 #define Rx_Pairwisekey			0x01
 #define Rx_GTK					0x02
 #define Rx_DisAssoc				0x04
