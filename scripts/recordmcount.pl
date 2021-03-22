@@ -642,3 +642,5 @@ if ($#converts >= 0) {
 `$rm $mcount_o $mcount_s`;
 
 exit(0);
+
+# vim: softtabstop=4
