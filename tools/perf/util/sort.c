@@ -25,6 +25,7 @@
 #include <traceevent/event-parse.h>
 #include "mem-events.h"
 #include "annotate.h"
+#include "event.h"
 #include "time-utils.h"
 #include "cgroup.h"
 #include "machine.h"
@@ -45,6 +46,7 @@ const char	*field_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
+const char	*dynamic_headers[] = {"local_ins_lat"};
 
 /*
  * Replaces all occurrences of a char used with the:
@@ -1816,6 +1818,16 @@ struct sort_dimension {
 	int			taken;
 };
 
+const char * __weak arch_perf_header_entry(const char *se_header)
+{
+	return se_header;
+}
+
+static void sort_dimension_add_dynamic_header(struct sort_dimension *sd)
+{
+	sd->entry->se_header = arch_perf_header_entry(sd->entry->se_header);
+}
+
 #define DIM(d, n, func) [d] = { .name = n, .entry = &(func) }
 
 static struct sort_dimension common_sort_dimensions[] = {
@@ -2739,13 +2751,18 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			struct evlist *evlist,
 			int level)
 {
-	unsigned int i;
+	unsigned int i, j;
 
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
 
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
+
+		for (j = 0; j < ARRAY_SIZE(dynamic_headers); j++) {
+			if (!strcmp(dynamic_headers[j], sd->name))
+				sort_dimension_add_dynamic_header(sd);
+		}
 
 		if (sd->entry == &sort_parent) {
 			int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
