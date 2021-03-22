@@ -1002,9 +1002,9 @@ Current IOREG MAP
 	/* 		 8192C (TXPAUSE) transmission pause	(Offset 0x522, 8 bits) */
 	/*  */
 /*  Note: */
-/* 	The the bits of stoping AC(VO/VI/BE/BK) queue in datasheet RTL8192S/RTL8192C are wrong, */
-/* 	the correct arragement is VO - Bit0, VI - Bit1, BE - Bit2, and BK - Bit3. */
-/* 	8723 and 88E may be not correct either in the eralier version. Confirmed with DD Tim. */
+/* 	The  bits of stopping AC(VO/VI/BE/BK) queue in datasheet RTL8192S/RTL8192C are wrong, */
+/* 	the correct arrangement is VO - Bit0, VI - Bit1, BE - Bit2, and BK - Bit3. */
+/* 	8723 and 88E may be not correct either in the earlier version. Confirmed with DD Tim. */
 /*  By Bruce, 2011-09-22. */
 #define StopBecon		BIT6
 #define StopHigh			BIT5
