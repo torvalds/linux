@@ -529,7 +529,6 @@ struct vmw_private {
 	struct vmw_overlay *overlay_priv;
 	struct drm_property *hotplug_mode_update_property;
 	struct drm_property *implicit_placement_property;
-	struct mutex global_kms_state_mutex;
 	spinlock_t cursor_lock;
 	struct drm_atomic_state *suspend_state;
 
@@ -592,7 +591,6 @@ struct vmw_private {
 	bool refuse_hibernation;
 	bool suspend_locked;
 
-	struct mutex release_mutex;
 	atomic_t num_fifo_resources;
 
 	/*
