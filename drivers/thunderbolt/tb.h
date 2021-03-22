@@ -213,6 +213,8 @@ struct tb_switch {
  * @list: Used to link ports to DP resources list
  * @total_credits: Total number of buffers available for this port
  * @ctl_credits: Buffers reserved for control path
+ * @dma_credits: Number of credits allocated for DMA tunneling for all
+ *		 DMA paths through this port.
  *
  * In USB4 terminology this structure represents an adapter (protocol or
  * lane adapter).
@@ -236,6 +238,7 @@ struct tb_port {
 	struct list_head list;
 	unsigned int total_credits;
 	unsigned int ctl_credits;
+	unsigned int dma_credits;
 };
 
 /**
@@ -940,6 +943,17 @@ void tb_path_deactivate(struct tb_path *path);
 bool tb_path_is_invalid(struct tb_path *path);
 bool tb_path_port_on_path(const struct tb_path *path,
 			  const struct tb_port *port);
+
+/**
+ * tb_path_for_each_hop() - Iterate over each hop on path
+ * @path: Path whose hops to iterate
+ * @hop: Hop used as iterator
+ *
+ * Iterates over each hop on path.
+ */
+#define tb_path_for_each_hop(path, hop)					\
+	for ((hop) = &(path)->hops[0];					\
+	     (hop) <= &(path)->hops[(path)->path_length - 1]; (hop)++)
 
 int tb_drom_read(struct tb_switch *sw);
 int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid);
