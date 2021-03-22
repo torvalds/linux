@@ -144,7 +144,8 @@ static void dsa_port_change_brport_flags(struct dsa_port *dp,
 	}
 }
 
-int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
+int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
+			 struct netlink_ext_ack *extack)
 {
 	struct dsa_notifier_bridge_info info = {
 		.tree_index = dp->ds->dst->index,
@@ -241,7 +242,8 @@ int dsa_port_lag_change(struct dsa_port *dp,
 }
 
 int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag,
-		      struct netdev_lag_upper_info *uinfo)
+		      struct netdev_lag_upper_info *uinfo,
+		      struct netlink_ext_ack *extack)
 {
 	struct dsa_notifier_lag_info info = {
 		.sw_index = dp->ds->index,
@@ -263,7 +265,7 @@ int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag,
 	if (!bridge_dev || !netif_is_bridge_master(bridge_dev))
 		return 0;
 
-	err = dsa_port_bridge_join(dp, bridge_dev);
+	err = dsa_port_bridge_join(dp, bridge_dev, extack);
 	if (err)
 		goto err_bridge_join;
 

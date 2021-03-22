@@ -1976,11 +1976,14 @@ static int dsa_slave_changeupper(struct net_device *dev,
 				 struct netdev_notifier_changeupper_info *info)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct netlink_ext_ack *extack;
 	int err = NOTIFY_DONE;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
 
 	if (netif_is_bridge_master(info->upper_dev)) {
 		if (info->linking) {
-			err = dsa_port_bridge_join(dp, info->upper_dev);
+			err = dsa_port_bridge_join(dp, info->upper_dev, extack);
 			if (!err)
 				dsa_bridge_mtu_normalization(dp);
 			err = notifier_from_errno(err);
@@ -1991,7 +1994,7 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	} else if (netif_is_lag_master(info->upper_dev)) {
 		if (info->linking) {
 			err = dsa_port_lag_join(dp, info->upper_dev,
-						info->upper_info);
+						info->upper_info, extack);
 			if (err == -EOPNOTSUPP) {
 				NL_SET_ERR_MSG_MOD(info->info.extack,
 						   "Offloading not supported");
