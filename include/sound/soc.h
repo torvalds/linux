@@ -1280,12 +1280,12 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 
 	/* set platform name for each dailink */
 	for_each_card_prelinks(card, i, dai_link) {
+		if (!dai_link->platforms)
+			return -EINVAL;
+
 		name = devm_kstrdup(card->dev, platform_name, GFP_KERNEL);
 		if (!name)
 			return -ENOMEM;
-
-		if (!dai_link->platforms)
-			return -EINVAL;
 
 		/* only single platform is supported for now */
 		dai_link->platforms->name = name;
