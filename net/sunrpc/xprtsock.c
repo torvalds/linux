@@ -558,6 +558,10 @@ xs_read_stream_call(struct sock_xprt *transport, struct msghdr *msg, int flags)
 	struct rpc_rqst *req;
 	ssize_t ret;
 
+	/* Is this transport associated with the backchannel? */
+	if (!xprt->bc_serv)
+		return -ESHUTDOWN;
+
 	/* Look up and lock the request corresponding to the given XID */
 	req = xprt_lookup_bc_request(xprt, transport->recv.xid);
 	if (!req) {
