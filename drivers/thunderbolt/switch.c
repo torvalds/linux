@@ -991,8 +991,11 @@ static int tb_port_set_link_width(struct tb_port *port, unsigned int width)
  * tb_port_lane_bonding_enable() - Enable bonding on port
  * @port: port to enable
  *
- * Enable bonding by setting the link width of the port and the
- * other port in case of dual link port.
+ * Enable bonding by setting the link width of the port and the other
+ * port in case of dual link port. Does not wait for the link to
+ * actually reach the bonded state so caller needs to call
+ * tb_port_wait_for_link_width() before enabling any paths through the
+ * link to make sure the link is in expected state.
  *
  * Return: %0 in case of success and negative errno in case of error
  */
@@ -1041,6 +1044,36 @@ void tb_port_lane_bonding_disable(struct tb_port *port)
 
 	tb_port_set_link_width(port->dual_link_port, 1);
 	tb_port_set_link_width(port, 1);
+}
+
+/**
+ * tb_port_wait_for_link_width() - Wait until link reaches specific width
+ * @port: Port to wait for
+ * @width: Expected link width (%1 or %2)
+ * @timeout_msec: Timeout in ms how long to wait
+ *
+ * Should be used after both ends of the link have been bonded (or
+ * bonding has been disabled) to wait until the link actually reaches
+ * the expected state. Returns %-ETIMEDOUT if the @width was not reached
+ * within the given timeout, %0 if it did.
+ */
+int tb_port_wait_for_link_width(struct tb_port *port, int width,
+				int timeout_msec)
+{
+	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
+	int ret;
+
+	do {
+		ret = tb_port_get_link_width(port);
+		if (ret < 0)
+			return ret;
+		else if (ret == width)
+			return 0;
+
+		usleep_range(1000, 2000);
+	} while (ktime_before(ktime_get(), timeout));
+
+	return -ETIMEDOUT;
 }
 
 static int tb_port_start_lane_initialization(struct tb_port *port)
@@ -2432,6 +2465,12 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 		return ret;
 	}
 
+	ret = tb_port_wait_for_link_width(down, 2, 100);
+	if (ret) {
+		tb_port_warn(down, "timeout enabling lane bonding\n");
+		return ret;
+	}
+
 	tb_switch_update_link_attributes(sw);
 
 	tb_sw_dbg(sw, "lane bonding enabled\n");
@@ -2461,6 +2500,13 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 
 	tb_port_lane_bonding_disable(up);
 	tb_port_lane_bonding_disable(down);
+
+	/*
+	 * It is fine if we get other errors as the router might have
+	 * been unplugged.
+	 */
+	if (tb_port_wait_for_link_width(down, 1, 100) == -ETIMEDOUT)
+		tb_sw_warn(sw, "timeout disabling lane bonding\n");
 
 	tb_switch_update_link_attributes(sw);
 	tb_sw_dbg(sw, "lane bonding disabled\n");
