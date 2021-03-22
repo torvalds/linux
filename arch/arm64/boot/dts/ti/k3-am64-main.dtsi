@@ -608,4 +608,10 @@
 			power-domains = <&k3_pds 75 TI_SCI_PD_EXCLUSIVE>;
 		};
 	};
+
+	hwspinlock: spinlock@2a000000 {
+		compatible = "ti,am64-hwspinlock";
+		reg = <0x00 0x2a000000 0x00 0x1000>;
+		#hwlock-cells = <1>;
+	};
 };
