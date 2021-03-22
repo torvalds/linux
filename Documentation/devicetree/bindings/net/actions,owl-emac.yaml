@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/actions,owl-emac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Actions Semi Owl SoCs Ethernet MAC Controller
+
+maintainers:
+  - Cristian Ciocaltea <cristian.ciocaltea@gmail.com>
+
+description: |
+  This Ethernet MAC is used on the Owl family of SoCs from Actions Semi.
+  It provides the RMII and SMII interfaces and is compliant with the
+  IEEE 802.3 CSMA/CD standard, supporting both half-duplex and full-duplex
+  operation modes at 10/100 Mb/s data transfer rates.
+
+allOf:
+  - $ref: "ethernet-controller.yaml#"
+
+properties:
+  compatible:
+    oneOf:
+      - const: actions,owl-emac
+      - items:
+          - enum:
+              - actions,s500-emac
+          - const: actions,owl-emac
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 2
+    maxItems: 2
+
+  clock-names:
+    additionalItems: false
+    items:
+      - const: eth
+      - const: rmii
+
+  resets:
+    maxItems: 1
+
+  actions,ethcfg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the device containing custom config.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - phy-mode
+  - phy-handle
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/actions,s500-cmu.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/reset/actions,s500-reset.h>
+
+    ethernet@b0310000 {
+        compatible = "actions,s500-emac", "actions,owl-emac";
+        reg = <0xb0310000 0x10000>;
+        interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cmu 59 /*CLK_ETHERNET*/>, <&cmu CLK_RMII_REF>;
+        clock-names = "eth", "rmii";
+        resets = <&cmu RESET_ETHERNET>;
+        phy-mode = "rmii";
+        phy-handle = <&eth_phy>;
+
+        mdio {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            eth_phy: ethernet-phy@3 {
+                reg = <0x3>;
+                interrupt-parent = <&sirq>;
+                interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+            };
+        };
+    };
