@@ -548,9 +548,21 @@ enum HCLGE_FD_META_DATA {
 	MAX_META_DATA,
 };
 
+enum HCLGE_FD_KEY_OPT {
+	KEY_OPT_U8,
+	KEY_OPT_LE16,
+	KEY_OPT_LE32,
+	KEY_OPT_MAC,
+	KEY_OPT_IP,
+	KEY_OPT_VNI,
+};
+
 struct key_info {
 	u8 key_type;
 	u8 key_length; /* use bit as unit */
+	enum HCLGE_FD_KEY_OPT key_opt;
+	int offset;
+	int moffset;
 };
 
 #define MAX_KEY_LENGTH	400
