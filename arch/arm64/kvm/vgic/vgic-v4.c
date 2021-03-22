@@ -404,6 +404,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	struct vgic_its *its;
 	struct vgic_irq *irq;
 	struct its_vlpi_map map;
+	unsigned long flags;
 	int ret;
 
 	if (!vgic_supports_direct_msis(kvm))
@@ -448,6 +449,24 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	irq->hw		= true;
 	irq->host_irq	= virq;
 	atomic_inc(&map.vpe->vlpi_count);
+
+	/* Transfer pending state */
+	raw_spin_lock_irqsave(&irq->irq_lock, flags);
+	if (irq->pending_latch) {
+		ret = irq_set_irqchip_state(irq->host_irq,
+					    IRQCHIP_STATE_PENDING,
+					    irq->pending_latch);
+		WARN_RATELIMIT(ret, "IRQ %d", irq->host_irq);
+
+		/*
+		 * Clear pending_latch and communicate this state
+		 * change via vgic_queue_irq_unlock.
+		 */
+		irq->pending_latch = false;
+		vgic_queue_irq_unlock(kvm, irq, flags);
+	} else {
+		raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
+	}
 
 out:
 	mutex_unlock(&its->its_lock);
