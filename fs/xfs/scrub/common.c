@@ -402,22 +402,22 @@ int
 xchk_ag_read_headers(
 	struct xfs_scrub	*sc,
 	xfs_agnumber_t		agno,
-	struct xfs_buf		**agi,
-	struct xfs_buf		**agf,
-	struct xfs_buf		**agfl)
+	struct xchk_ag		*sa)
 {
 	struct xfs_mount	*mp = sc->mp;
 	int			error;
 
-	error = xfs_ialloc_read_agi(mp, sc->tp, agno, agi);
+	sa->agno = agno;
+
+	error = xfs_ialloc_read_agi(mp, sc->tp, agno, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
 		goto out;
 
-	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, agf);
+	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, &sa->agf_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		goto out;
 
-	error = xfs_alloc_read_agfl(mp, sc->tp, agno, agfl);
+	error = xfs_alloc_read_agfl(mp, sc->tp, agno, &sa->agfl_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
 		goto out;
 	error = 0;
@@ -547,9 +547,7 @@ xchk_ag_init(
 {
 	int			error;
 
-	sa->agno = agno;
-	error = xchk_ag_read_headers(sc, agno, &sa->agi_bp,
-			&sa->agf_bp, &sa->agfl_bp);
+	error = xchk_ag_read_headers(sc, agno, sa);
 	if (error)
 		return error;
 

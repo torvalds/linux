@@ -120,8 +120,7 @@ int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
 		struct xchk_ag *sa);
 void xchk_perag_get(struct xfs_mount *mp, struct xchk_ag *sa);
 int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno,
-		struct xfs_buf **agi, struct xfs_buf **agf,
-		struct xfs_buf **agfl);
+		struct xchk_ag *sa);
 void xchk_ag_btcur_free(struct xchk_ag *sa);
 int xchk_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
