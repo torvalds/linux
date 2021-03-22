@@ -249,17 +249,31 @@ int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag,
 		.lag = lag,
 		.info = uinfo,
 	};
+	struct net_device *bridge_dev;
 	int err;
 
 	dsa_lag_map(dp->ds->dst, lag);
 	dp->lag_dev = lag;
 
 	err = dsa_port_notify(dp, DSA_NOTIFIER_LAG_JOIN, &info);
-	if (err) {
-		dp->lag_dev = NULL;
-		dsa_lag_unmap(dp->ds->dst, lag);
-	}
+	if (err)
+		goto err_lag_join;
 
+	bridge_dev = netdev_master_upper_dev_get(lag);
+	if (!bridge_dev || !netif_is_bridge_master(bridge_dev))
+		return 0;
+
+	err = dsa_port_bridge_join(dp, bridge_dev);
+	if (err)
+		goto err_bridge_join;
+
+	return 0;
+
+err_bridge_join:
+	dsa_port_notify(dp, DSA_NOTIFIER_LAG_LEAVE, &info);
+err_lag_join:
+	dp->lag_dev = NULL;
+	dsa_lag_unmap(dp->ds->dst, lag);
 	return err;
 }
 
