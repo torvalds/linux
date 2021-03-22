@@ -10,11 +10,6 @@
 #include <rtw_debug.h>
 #include <asm/unaligned.h>
 
-extern unsigned char RTW_WPA_OUI[];
-extern unsigned char WMM_OUI[];
-extern unsigned char WPS_OUI[];
-extern unsigned char P2P_OUI[];
-
 void init_mlme_ap_info(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
