@@ -1618,7 +1618,8 @@ int bch2_gc_thread_start(struct bch_fs *c)
 {
 	struct task_struct *p;
 
-	BUG_ON(c->gc_thread);
+	if (c->gc_thread)
+		return 0;
 
 	p = kthread_create(bch2_gc_thread, c, "bch-gc/%s", c->name);
 	if (IS_ERR(p)) {

@@ -1373,6 +1373,7 @@ enum bch_sb_feature {
 enum bch_sb_compat {
 	BCH_COMPAT_FEAT_ALLOC_INFO	= 0,
 	BCH_COMPAT_FEAT_ALLOC_METADATA	= 1,
+	BCH_COMPAT_FEAT_EXTENTS_ABOVE_BTREE_UPDATES_DONE = 2,
 };
 
 /* options: */

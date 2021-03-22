@@ -845,6 +845,25 @@ static enum data_cmd rewrite_old_nodes_pred(struct bch_fs *c, void *arg,
 	return DATA_SKIP;
 }
 
+int bch2_scan_old_btree_nodes(struct bch_fs *c, struct bch_move_stats *stats)
+{
+	int ret;
+
+	ret = bch2_move_btree(c,
+			      0,		POS_MIN,
+			      BTREE_ID_NR,	POS_MAX,
+			      rewrite_old_nodes_pred, c, stats);
+	if (!ret) {
+		mutex_lock(&c->sb_lock);
+		c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_EXTENTS_ABOVE_BTREE_UPDATES_DONE;
+		c->disk_sb.sb->version_min = c->disk_sb.sb->version;
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+	}
+
+	return ret;
+}
+
 int bch2_data_job(struct bch_fs *c,
 		  struct bch_move_stats *stats,
 		  struct bch_ioctl_data op)
@@ -894,17 +913,7 @@ int bch2_data_job(struct bch_fs *c,
 		ret = bch2_replicas_gc2(c) ?: ret;
 		break;
 	case BCH_DATA_OP_REWRITE_OLD_NODES:
-		ret = bch2_move_btree(c,
-				      op.start_btree,	op.start_pos,
-				      op.end_btree,	op.end_pos,
-				      rewrite_old_nodes_pred, &op, stats) ?: ret;
-
-		if (!ret) {
-			mutex_lock(&c->sb_lock);
-			c->disk_sb.sb->version_min = c->disk_sb.sb->version;
-			bch2_write_super(c);
-			mutex_unlock(&c->sb_lock);
-		}
+		ret = bch2_scan_old_btree_nodes(c, stats);
 		break;
 	default:
 		ret = -EINVAL;

@@ -52,6 +52,8 @@ typedef enum data_cmd (*move_pred_fn)(struct bch_fs *, void *,
 				struct bkey_s_c,
 				struct bch_io_opts *, struct data_opts *);
 
+int bch2_scan_old_btree_nodes(struct bch_fs *, struct bch_move_stats *);
+
 int bch2_move_data(struct bch_fs *,
 		   enum btree_id, struct bpos,
 		   enum btree_id, struct bpos,
