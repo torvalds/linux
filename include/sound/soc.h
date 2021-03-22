@@ -1280,6 +1280,10 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 
 	/* set platform name for each dailink */
 	for_each_card_prelinks(card, i, dai_link) {
+		/* only single platform is supported for now */
+		if (dai_link->num_platforms != 1)
+			return -EINVAL;
+
 		if (!dai_link->platforms)
 			return -EINVAL;
 
