@@ -436,21 +436,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define ACT_CAT_VENDOR				0x7F/* 127 */
 
 /**
- * struct rtw_ieee80211_bar - HT Block Ack Request
- *
- * This structure refers to "HT BlockAckReq" as
- * described in 802.11n draft section 7.2.1.7.1
- */
-struct rtw_ieee80211_bar {
-	__le16 frame_control;
-	__le16 duration;
-	unsigned char ra[6];
-	unsigned char ta[6];
-	__le16 control;
-	__le16 start_seq_num;
-} __attribute__((packed));
-
-/**
  * struct rtw_ieee80211_ht_cap - HT additional information
  *
  * This structure refers to "HT information element" as
