@@ -2847,6 +2847,8 @@ enum mlxsw_sp_nexthop_action {
 	MLXSW_SP_NEXTHOP_ACTION_FORWARD,
 	/* Nexthop discards packets */
 	MLXSW_SP_NEXTHOP_ACTION_DISCARD,
+	/* Nexthop traps packets */
+	MLXSW_SP_NEXTHOP_ACTION_TRAP,
 };
 
 struct mlxsw_sp_nexthop_key {
@@ -3418,11 +3420,23 @@ static int __mlxsw_sp_nexthop_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY,
 			    true, MLXSW_REG_RATR_TYPE_ETHERNET,
 			    adj_index, rif_index);
-	if (nh->action == MLXSW_SP_NEXTHOP_ACTION_DISCARD)
+	switch (nh->action) {
+	case MLXSW_SP_NEXTHOP_ACTION_FORWARD:
+		mlxsw_reg_ratr_eth_entry_pack(ratr_pl, neigh_entry->ha);
+		break;
+	case MLXSW_SP_NEXTHOP_ACTION_DISCARD:
 		mlxsw_reg_ratr_trap_action_set(ratr_pl,
 					       MLXSW_REG_RATR_TRAP_ACTION_DISCARD_ERRORS);
-	else
-		mlxsw_reg_ratr_eth_entry_pack(ratr_pl, neigh_entry->ha);
+		break;
+	case MLXSW_SP_NEXTHOP_ACTION_TRAP:
+		mlxsw_reg_ratr_trap_action_set(ratr_pl,
+					       MLXSW_REG_RATR_TRAP_ACTION_TRAP);
+		mlxsw_reg_ratr_trap_id_set(ratr_pl, MLXSW_TRAP_ID_RTR_EGRESS0);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
 	if (nh->counter_valid)
 		mlxsw_reg_ratr_counter_pack(ratr_pl, nh->counter_index, true);
 	else
@@ -3495,16 +3509,18 @@ mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
 		if (nh->update || reallocate) {
 			int err = 0;
 
-			switch (nh->type) {
-			case MLXSW_SP_NEXTHOP_TYPE_ETH:
-				err = mlxsw_sp_nexthop_update
-					    (mlxsw_sp, adj_index, nh);
-				break;
-			case MLXSW_SP_NEXTHOP_TYPE_IPIP:
-				err = mlxsw_sp_nexthop_ipip_update
-					    (mlxsw_sp, adj_index, nh);
-				break;
-			}
+			/* When action is discard or trap, the nexthop must be
+			 * programmed as an Ethernet nexthop.
+			 */
+			if (nh->type == MLXSW_SP_NEXTHOP_TYPE_ETH ||
+			    nh->action == MLXSW_SP_NEXTHOP_ACTION_DISCARD ||
+			    nh->action == MLXSW_SP_NEXTHOP_ACTION_TRAP)
+				err = mlxsw_sp_nexthop_update(mlxsw_sp,
+							      adj_index, nh);
+			else
+				err = mlxsw_sp_nexthop_ipip_update(mlxsw_sp,
+								   adj_index,
+								   nh);
 			if (err)
 				return err;
 			nh->update = 0;
