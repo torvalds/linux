@@ -377,8 +377,6 @@ struct mpp_task {
 };
 
 struct mpp_taskqueue {
-	/* lock for trigger work */
-	struct mutex work_lock;
 	/* work for taskqueue */
 	struct work_struct work;
 

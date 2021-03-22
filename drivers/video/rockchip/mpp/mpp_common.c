@@ -184,15 +184,11 @@ mpp_taskqueue_pop_running(struct mpp_taskqueue *queue,
 	return 0;
 }
 
-static int
+static void
 mpp_taskqueue_trigger_work(struct mpp_taskqueue *queue,
 			   struct workqueue_struct *workq)
 {
-	mutex_lock(&queue->work_lock);
 	queue_work(workq, &queue->work);
-	mutex_unlock(&queue->work_lock);
-
-	return 0;
 }
 
 int mpp_power_on(struct mpp_dev *mpp)
@@ -783,7 +779,6 @@ err_put_pdev:
 int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 		       struct mpp_service *srv)
 {
-	mutex_init(&queue->work_lock);
 	mutex_init(&queue->pending_lock);
 	mutex_init(&queue->running_lock);
 	mutex_init(&queue->mmu_lock);
