@@ -169,8 +169,22 @@ void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 		pr_buf(out, "POS_MIN");
 	else if (!bkey_cmp(pos, POS_MAX))
 		pr_buf(out, "POS_MAX");
-	else
-		pr_buf(out, "%llu:%llu", pos.inode, pos.offset);
+	else {
+		if (pos.inode == U64_MAX)
+			pr_buf(out, "U64_MAX");
+		else
+			pr_buf(out, "%llu", pos.inode);
+		pr_buf(out, ":");
+		if (pos.offset == U64_MAX)
+			pr_buf(out, "U64_MAX");
+		else
+			pr_buf(out, "%llu", pos.offset);
+		pr_buf(out, ":");
+		if (pos.snapshot == U32_MAX)
+			pr_buf(out, "U32_MAX");
+		else
+			pr_buf(out, "%u", pos.snapshot);
+	}
 }
 
 void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
@@ -185,8 +199,7 @@ void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
 
 		bch2_bpos_to_text(out, k->p);
 
-		pr_buf(out, " snap %u len %u ver %llu",
-		       k->p.snapshot, k->size, k->version.lo);
+		pr_buf(out, " len %u ver %llu", k->size, k->version.lo);
 	} else {
 		pr_buf(out, "(null)");
 	}
