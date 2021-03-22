@@ -6384,13 +6384,9 @@ static void hclge_clear_fd_rules_in_list(struct hclge_dev *hdev,
 	spin_unlock_bh(&hdev->fd_rule_lock);
 }
 
-static void hclge_del_all_fd_entries(struct hnae3_handle *handle,
-				     bool clear_list)
+static void hclge_del_all_fd_entries(struct hclge_dev *hdev)
 {
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
-
-	hclge_clear_fd_rules_in_list(hdev, clear_list);
+	hclge_clear_fd_rules_in_list(hdev, true);
 }
 
 static int hclge_restore_fd_entries(struct hnae3_handle *handle)
@@ -11427,6 +11423,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_misc_affinity_teardown(hdev);
 	hclge_state_uninit(hdev);
 	hclge_uninit_mac_table(hdev);
+	hclge_del_all_fd_entries(hdev);
 
 	if (mac->phydev)
 		mdiobus_unregister(mac->mdio_bus);
@@ -12250,7 +12247,6 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_link_mode = hclge_get_link_mode,
 	.add_fd_entry = hclge_add_fd_entry,
 	.del_fd_entry = hclge_del_fd_entry,
-	.del_all_fd_entries = hclge_del_all_fd_entries,
 	.get_fd_rule_cnt = hclge_get_fd_rule_cnt,
 	.get_fd_rule_info = hclge_get_fd_rule_info,
 	.get_fd_all_rules = hclge_get_all_rules,
