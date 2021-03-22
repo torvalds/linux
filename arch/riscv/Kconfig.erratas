@@ -9,4 +9,14 @@ config RISCV_ERRATA_ALTERNATIVE
 	  code patching is performed once in the boot stages. It means
 	  that the overhead from this mechanism is just taken once.
 
+config ERRATA_SIFIVE
+	bool "SiFive errata"
+	depends on RISCV_ERRATA_ALTERNATIVE
+	help
+	  All SiFive errata Kconfig depend on this Kconfig. Disabling
+	  this Kconfig will disable all SiFive errata. Please say "Y"
+	  here if your platform uses SiFive CPU cores.
+
+	  Otherwise, please say "N" here to avoid unnecessary overhead.
+
 endmenu

@@ -42,6 +42,11 @@ static void __init init_alternative(void)
 	riscv_fill_cpu_mfr_info();
 
 	switch (cpu_mfr_info.vendor_id) {
+#ifdef CONFIG_ERRATA_SIFIVE
+	case SIFIVE_VENDOR_ID:
+		vendor_patch_func = sifive_errata_patch_func;
+		break;
+#endif
 	default:
 		vendor_patch_func = NULL;
 	}
