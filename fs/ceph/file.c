@@ -1037,16 +1037,6 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	dout("ceph_aio_complete_req %p rc %d bytes %u\n",
 	     inode, rc, osd_data->bvec_pos.iter.bi_size);
 
-	/* r_start_latency == 0 means the request was not submitted */
-	if (req->r_start_latency) {
-		if (aio_req->write)
-			ceph_update_write_metrics(metric, req->r_start_latency,
-						  req->r_end_latency, rc);
-		else
-			ceph_update_read_metrics(metric, req->r_start_latency,
-						 req->r_end_latency, rc);
-	}
-
 	if (rc == -EOLDSNAPC) {
 		struct ceph_aio_work *aio_work;
 		BUG_ON(!aio_req->write);
@@ -1087,6 +1077,16 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 			iov_iter_advance(&i, rc);
 			iov_iter_zero(zlen, &i);
 		}
+	}
+
+	/* r_start_latency == 0 means the request was not submitted */
+	if (req->r_start_latency) {
+		if (aio_req->write)
+			ceph_update_write_metrics(metric, req->r_start_latency,
+						  req->r_end_latency, rc);
+		else
+			ceph_update_read_metrics(metric, req->r_start_latency,
+						 req->r_end_latency, rc);
 	}
 
 	put_bvecs(osd_data->bvec_pos.bvecs, osd_data->num_bvecs,
