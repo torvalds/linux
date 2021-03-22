@@ -5230,7 +5230,7 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
  * mpt3sas_free_enclosure_list - release memory
  * @ioc: per adapter object
  *
- * Free memory allocated during encloure add.
+ * Free memory allocated during enclosure add.
  */
 void
 mpt3sas_free_enclosure_list(struct MPT3SAS_ADAPTER *ioc)
