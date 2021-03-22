@@ -12,11 +12,18 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - allwinner,sun4i-a10-timer
-      - allwinner,sun8i-a23-timer
-      - allwinner,sun8i-v3s-timer
-      - allwinner,suniv-f1c100s-timer
+    oneOf:
+      - enum:
+          - allwinner,sun4i-a10-timer
+          - allwinner,sun8i-a23-timer
+          - allwinner,sun8i-v3s-timer
+          - allwinner,suniv-f1c100s-timer
+      - items:
+          - enum:
+              - allwinner,sun50i-a64-timer
+              - allwinner,sun50i-h6-timer
+              - allwinner,sun50i-h616-timer
+          - const: allwinner,sun8i-a23-timer
 
   reg:
     maxItems: 1
