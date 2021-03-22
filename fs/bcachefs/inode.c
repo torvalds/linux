@@ -542,12 +542,12 @@ found_slot:
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter *iter = NULL;
 	struct bkey_i_inode_generation delete;
 	struct bpos start = POS(inode_nr, 0);
 	struct bpos end = POS(inode_nr + 1, 0);
+	struct bch_inode_unpacked inode_u;
 	struct bkey_s_c k;
-	u64 bi_generation;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
@@ -571,8 +571,6 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 retry:
 	bch2_trans_begin(&trans);
 
-	bi_generation = 0;
-
 	if (cached) {
 		iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS(0, inode_nr),
 					   BTREE_ITER_CACHED|BTREE_ITER_INTENT);
@@ -587,41 +585,26 @@ retry:
 	if (ret)
 		goto err;
 
-	bch2_fs_inconsistent_on(k.k->type != KEY_TYPE_inode, trans.c,
-				"inode %llu not found when deleting",
-				inode_nr);
-
-	switch (k.k->type) {
-	case KEY_TYPE_inode: {
-		struct bch_inode_unpacked inode_u;
-
-		if (!bch2_inode_unpack(bkey_s_c_to_inode(k), &inode_u))
-			bi_generation = inode_u.bi_generation + 1;
-		break;
-	}
-	case KEY_TYPE_inode_generation: {
-		struct bkey_s_c_inode_generation g =
-			bkey_s_c_to_inode_generation(k);
-		bi_generation = le32_to_cpu(g.v->bi_generation);
-		break;
-	}
+	if (k.k->type != KEY_TYPE_inode) {
+		bch2_fs_inconsistent(trans.c,
+				     "inode %llu not found when deleting",
+				     inode_nr);
+		ret = -EIO;
+		goto err;
 	}
 
-	if (!bi_generation) {
-		bkey_init(&delete.k);
-		delete.k.p.offset = inode_nr;
-	} else {
-		bkey_inode_generation_init(&delete.k_i);
-		delete.k.p.offset = inode_nr;
-		delete.v.bi_generation = cpu_to_le32(bi_generation);
-	}
+	bch2_inode_unpack(bkey_s_c_to_inode(k), &inode_u);
+
+	bkey_inode_generation_init(&delete.k_i);
+	delete.k.p = iter->pos;
+	delete.v.bi_generation = cpu_to_le32(inode_u.bi_generation + 1);
 
 	bch2_trans_update(&trans, iter, &delete.k_i, 0);
 
 	ret = bch2_trans_commit(&trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL);
-	bch2_trans_iter_put(&trans, iter);
 err:
+	bch2_trans_iter_put(&trans, iter);
 	if (ret == -EINTR)
 		goto retry;
 
