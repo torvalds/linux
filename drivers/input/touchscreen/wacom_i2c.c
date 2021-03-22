@@ -195,8 +195,7 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	input_set_drvdata(input, wac_i2c);
 
 	error = request_threaded_irq(client->irq, NULL, wacom_i2c_irq,
-				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				     "wacom_i2c", wac_i2c);
+				     IRQF_ONESHOT, "wacom_i2c", wac_i2c);
 	if (error) {
 		dev_err(&client->dev,
 			"Failed to enable IRQ, error: %d\n", error);
