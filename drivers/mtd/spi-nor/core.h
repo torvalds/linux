@@ -471,6 +471,10 @@ int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
 			     const struct sfdp_parameter_header *bfpt_header,
 			     const struct sfdp_bfpt *bfpt);
 
+void spi_nor_init_default_locking_ops(struct spi_nor *nor);
+void spi_nor_try_unlock_all(struct spi_nor *nor);
+void spi_nor_register_locking_ops(struct spi_nor *nor);
+
 static struct spi_nor __maybe_unused *mtd_to_spi_nor(struct mtd_info *mtd)
 {
 	return mtd->priv;
