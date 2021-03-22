@@ -4297,6 +4297,29 @@ mlxsw_sp_nexthop_obj_single_validate(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp_nexthop_obj_group_entry_validate(struct mlxsw_sp *mlxsw_sp,
+					  const struct nh_notifier_single_info *nh,
+					  struct netlink_ext_ack *extack)
+{
+	int err;
+
+	err = mlxsw_sp_nexthop_obj_single_validate(mlxsw_sp, nh, extack);
+	if (err)
+		return err;
+
+	/* Device only nexthops with an IPIP device are programmed as
+	 * encapsulating adjacency entries.
+	 */
+	if (!nh->gw_family && !nh->is_reject &&
+	    !mlxsw_sp_netdev_ipip_type(mlxsw_sp, nh->dev, NULL)) {
+		NL_SET_ERR_MSG_MOD(extack, "Nexthop group entry does not have a gateway");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
 mlxsw_sp_nexthop_obj_group_validate(struct mlxsw_sp *mlxsw_sp,
 				    const struct nh_notifier_grp_info *nh_grp,
 				    struct netlink_ext_ack *extack)
@@ -4313,19 +4336,10 @@ mlxsw_sp_nexthop_obj_group_validate(struct mlxsw_sp *mlxsw_sp,
 		int err;
 
 		nh = &nh_grp->nh_entries[i].nh;
-		err = mlxsw_sp_nexthop_obj_single_validate(mlxsw_sp, nh,
-							   extack);
+		err = mlxsw_sp_nexthop_obj_group_entry_validate(mlxsw_sp, nh,
+								extack);
 		if (err)
 			return err;
-
-		/* Device only nexthops with an IPIP device are programmed as
-		 * encapsulating adjacency entries.
-		 */
-		if (!nh->gw_family && !nh->is_reject &&
-		    !mlxsw_sp_netdev_ipip_type(mlxsw_sp, nh->dev, NULL)) {
-			NL_SET_ERR_MSG_MOD(extack, "Nexthop group entry does not have a gateway");
-			return -EINVAL;
-		}
 	}
 
 	return 0;
