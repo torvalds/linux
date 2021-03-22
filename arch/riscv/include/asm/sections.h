@@ -11,5 +11,6 @@ extern char _start[];
 extern char _start_kernel[];
 extern char __init_data_begin[], __init_data_end[];
 extern char __init_text_begin[], __init_text_end[];
+extern char __alt_start[], __alt_end[];
 
 #endif /* __ASM_SECTIONS_H */

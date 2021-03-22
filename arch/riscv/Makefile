@@ -87,6 +87,7 @@ KBUILD_IMAGE	:= $(boot)/Image.gz
 head-y := arch/riscv/kernel/head.o
 
 core-y += arch/riscv/
+core-$(CONFIG_RISCV_ERRATA_ALTERNATIVE) += arch/riscv/errata/
 
 libs-y += arch/riscv/lib/
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a

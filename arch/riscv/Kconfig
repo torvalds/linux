@@ -207,6 +207,7 @@ config LOCKDEP_SUPPORT
 	def_bool y
 
 source "arch/riscv/Kconfig.socs"
+source "arch/riscv/Kconfig.erratas"
 
 menu "Platform type"
 

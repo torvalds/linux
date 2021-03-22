@@ -90,6 +90,13 @@ SECTIONS
 	}
 
 	__init_data_end = .;
+
+	. = ALIGN(8);
+	.alternative : {
+		__alt_start = .;
+		*(.alternative)
+		__alt_end = .;
+	}
 	__init_end = .;
 
 	/* Start of data section */

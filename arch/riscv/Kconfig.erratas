@@ -1,0 +1,12 @@
+menu "CPU errata selection"
+
+config RISCV_ERRATA_ALTERNATIVE
+	bool "RISC-V alternative scheme"
+	default y
+	help
+	  This Kconfig allows the kernel to automatically patch the
+	  errata required by the execution platform at run time. The
+	  code patching is performed once in the boot stages. It means
+	  that the overhead from this mechanism is just taken once.
+
+endmenu
