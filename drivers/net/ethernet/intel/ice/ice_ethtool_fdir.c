@@ -1679,6 +1679,10 @@ int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 		input->flex_offset = userdata.flex_offset;
 	}
 
+	input->cnt_ena = ICE_FXD_FLTR_QW0_STAT_ENA_PKTS;
+	input->fdid_prio = ICE_FXD_FLTR_QW1_FDID_PRI_THREE;
+	input->comp_report = ICE_FXD_FLTR_QW0_COMP_REPORT_SW_FAIL;
+
 	/* input struct is added to the HW filter list */
 	ice_fdir_update_list_entry(pf, input, fsp->location);
 
