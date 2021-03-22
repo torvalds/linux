@@ -143,6 +143,7 @@ xfs_buf_item_size(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	int			i;
+	int			bytes;
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	if (bip->bli_flags & XFS_BLI_STALE) {
@@ -174,7 +175,7 @@ xfs_buf_item_size(
 	}
 
 	/*
-	 * the vector count is based on the number of buffer vectors we have
+	 * The vector count is based on the number of buffer vectors we have
 	 * dirty bits in. This will only be greater than one when we have a
 	 * compound buffer with more than one segment dirty. Hence for compound
 	 * buffers we need to track which segment the dirty bits correspond to,
@@ -182,10 +183,18 @@ xfs_buf_item_size(
 	 * count for the extra buf log format structure that will need to be
 	 * written.
 	 */
+	bytes = 0;
 	for (i = 0; i < bip->bli_format_count; i++) {
 		xfs_buf_item_size_segment(bip, &bip->bli_formats[i],
-					  nvecs, nbytes);
+					  nvecs, &bytes);
 	}
+
+	/*
+	 * Round up the buffer size required to minimise the number of memory
+	 * allocations that need to be done as this item grows when relogged by
+	 * repeated modifications.
+	 */
+	*nbytes = round_up(bytes, 512);
 	trace_xfs_buf_item_size(bip);
 }
 
