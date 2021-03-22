@@ -76,51 +76,6 @@ struct phy_status_rpt_8192cd_t {
 #endif
 };
 
-
-struct phy_status_rpt_8812_t {
-	/* 2012.05.24 LukeLee: This structure should take big/little endian in consideration later..... */
-
-	/* DWORD 0 */
-	u8 gain_trsw[2];
-#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
-	u16 chl_num:10;
-	u16 sub_chnl:4;
-	u16 r_RFMOD:2;
-#else	/*  _BIG_ENDIAN_ */
-	u16 r_RFMOD:2;
-	u16 sub_chnl:4;
-	u16 chl_num:10;
-#endif
-
-	/* DWORD 1 */
-	u8 pwdb_all;
-	u8 cfosho[4];	/*  DW 1 byte 1 DW 2 byte 0 */
-
-	/* DWORD 2 */
-	s8 cfotail[4]; /*  DW 2 byte 1 DW 3 byte 0 */
-
-	/* DWORD 3 */
-	s8 rxevm[2]; /*  DW 3 byte 1 DW 3 byte 2 */
-	s8 rxsnr[2]; /*  DW 3 byte 3 DW 4 byte 0 */
-
-	/* DWORD 4 */
-	u8 PCTS_MSK_RPT[2];
-	u8 pdsnr[2]; /*  DW 4 byte 3 DW 5 Byte 0 */
-
-	/* DWORD 5 */
-	u8 csi_current[2];
-	u8 rx_gain_c;
-
-	/* DWORD 6 */
-	u8 rx_gain_d;
-	s8 sigevm;
-	u8 resvd_0;
-	u8 antidx_anta:3;
-	u8 antidx_antb:3;
-	u8 resvd_1:2;
-};
-
-
 void ODM_PhyStatusQuery(
 	struct dm_odm_t *pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
