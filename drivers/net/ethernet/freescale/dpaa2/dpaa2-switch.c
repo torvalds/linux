@@ -110,28 +110,41 @@ static u16 dpaa2_switch_port_set_fdb(struct ethsw_port_priv *port_priv,
 	return 0;
 }
 
-static int dpaa2_switch_fdb_set_egress_flood(struct ethsw_core *ethsw, u16 fdb_id)
+static void dpaa2_switch_fdb_get_flood_cfg(struct ethsw_core *ethsw, u16 fdb_id,
+					   enum dpsw_flood_type type,
+					   struct dpsw_egress_flood_cfg *cfg)
 {
-	struct dpsw_egress_flood_cfg flood_cfg;
 	int i = 0, j;
-	int err;
+
+	memset(cfg, 0, sizeof(*cfg));
 
 	/* Add all the DPAA2 switch ports found in the same bridging domain to
 	 * the egress flooding domain
 	 */
-	for (j = 0; j < ethsw->sw_attr.num_ifs; j++)
-		if (ethsw->ports[j] && ethsw->ports[j]->fdb->fdb_id == fdb_id)
-			flood_cfg.if_id[i++] = ethsw->ports[j]->idx;
+	for (j = 0; j < ethsw->sw_attr.num_ifs; j++) {
+		if (!ethsw->ports[j])
+			continue;
+		if (ethsw->ports[j]->fdb->fdb_id != fdb_id)
+			continue;
+
+		cfg->if_id[i++] = ethsw->ports[j]->idx;
+	}
 
 	/* Add the CTRL interface to the egress flooding domain */
-	flood_cfg.if_id[i++] = ethsw->sw_attr.num_ifs;
+	cfg->if_id[i++] = ethsw->sw_attr.num_ifs;
 
-	/* Use the FDB of the first dpaa2 switch port added to the bridge */
-	flood_cfg.fdb_id = fdb_id;
+	cfg->fdb_id = fdb_id;
+	cfg->flood_type = type;
+	cfg->num_ifs = i;
+}
+
+static int dpaa2_switch_fdb_set_egress_flood(struct ethsw_core *ethsw, u16 fdb_id)
+{
+	struct dpsw_egress_flood_cfg flood_cfg;
+	int err;
 
 	/* Setup broadcast flooding domain */
-	flood_cfg.flood_type = DPSW_BROADCAST;
-	flood_cfg.num_ifs = i;
+	dpaa2_switch_fdb_get_flood_cfg(ethsw, fdb_id, DPSW_BROADCAST, &flood_cfg);
 	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				    &flood_cfg);
 	if (err) {
@@ -140,8 +153,7 @@ static int dpaa2_switch_fdb_set_egress_flood(struct ethsw_core *ethsw, u16 fdb_i
 	}
 
 	/* Setup unknown flooding domain */
-	flood_cfg.flood_type = DPSW_FLOODING;
-	flood_cfg.num_ifs = i;
+	dpaa2_switch_fdb_get_flood_cfg(ethsw, fdb_id, DPSW_FLOODING, &flood_cfg);
 	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				    &flood_cfg);
 	if (err) {
