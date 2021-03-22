@@ -2445,8 +2445,13 @@ static void kiocb_end_write(struct io_kiocb *req)
 #ifdef CONFIG_BLOCK
 static bool io_resubmit_prep(struct io_kiocb *req)
 {
-	/* either already prepared or successfully done */
-	return req->async_data || !io_req_prep_async(req);
+	struct io_async_rw *rw = req->async_data;
+
+	if (!rw)
+		return !io_req_prep_async(req);
+	/* may have left rw->iter inconsistent on -EIOCBQUEUED */
+	iov_iter_revert(&rw->iter, req->result - iov_iter_count(&rw->iter));
+	return true;
 }
 
 static bool io_rw_should_reissue(struct io_kiocb *req)
@@ -2505,14 +2510,8 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
 
 #ifdef CONFIG_BLOCK
-	/* Rewind iter, if we have one. iopoll path resubmits as usual */
 	if (res == -EAGAIN && io_rw_should_reissue(req)) {
-		struct io_async_rw *rw = req->async_data;
-
-		if (rw)
-			iov_iter_revert(&rw->iter,
-					req->result - iov_iter_count(&rw->iter));
-		else if (!io_resubmit_prep(req))
+		if (!io_resubmit_prep(req))
 			req->flags |= REQ_F_DONT_REISSUE;
 	}
 #endif
