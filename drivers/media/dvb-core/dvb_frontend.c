@@ -481,6 +481,10 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache, tmp;
 
+	if (fepriv->max_drift)
+		dev_warn_once(fe->dvb->device,
+			      "Frontend requested software zigzag, but didn't set the frequency step size\n");
+
 	/* if we've got no parameters, just keep idling */
 	if (fepriv->state & FESTATE_IDLE) {
 		fepriv->delay = 3 * HZ;
