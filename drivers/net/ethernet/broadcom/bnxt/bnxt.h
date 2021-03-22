@@ -671,6 +671,10 @@ struct nqe_cn {
 #define HWRM_MIN_TIMEOUT		25
 #define HWRM_MAX_TIMEOUT		40
 
+#define HWRM_WAIT_MUST_ABORT(bp, req)					\
+	(le16_to_cpu((req)->req_type) != HWRM_VER_GET &&		\
+	 !bnxt_is_fw_healthy(bp))
+
 #define HWRM_TOTAL_TIMEOUT(n)	(((n) <= HWRM_SHORT_TIMEOUT_COUNTER) ?	\
 	((n) * HWRM_SHORT_MIN_TIMEOUT) :				\
 	(HWRM_SHORT_TIMEOUT_COUNTER * HWRM_SHORT_MIN_TIMEOUT +		\
@@ -1560,6 +1564,7 @@ struct bnxt_fw_reporter_ctx {
 #define BNXT_FW_STATUS_HEALTH_MSK	0xffff
 #define BNXT_FW_STATUS_HEALTHY		0x8000
 #define BNXT_FW_STATUS_SHUTDOWN		0x100000
+#define BNXT_FW_STATUS_RECOVERING	0x400000
 
 #define BNXT_FW_IS_HEALTHY(sts)		(((sts) & BNXT_FW_STATUS_HEALTH_MSK) ==\
 					 BNXT_FW_STATUS_HEALTHY)
@@ -1569,6 +1574,9 @@ struct bnxt_fw_reporter_ctx {
 
 #define BNXT_FW_IS_ERR(sts)		(((sts) & BNXT_FW_STATUS_HEALTH_MSK) > \
 					 BNXT_FW_STATUS_HEALTHY)
+
+#define BNXT_FW_IS_RECOVERING(sts)	(BNXT_FW_IS_ERR(sts) &&		       \
+					 ((sts) & BNXT_FW_STATUS_RECOVERING))
 
 #define BNXT_FW_RETRY			5
 #define BNXT_FW_IF_RETRY		10
@@ -2228,6 +2236,7 @@ int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
 int bnxt_hwrm_alloc_wol_fltr(struct bnxt *bp);
 int bnxt_hwrm_free_wol_fltr(struct bnxt *bp);
 int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all);
+bool bnxt_is_fw_healthy(struct bnxt *bp);
 int bnxt_hwrm_fw_set_time(struct bnxt *);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);

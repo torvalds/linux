@@ -4470,7 +4470,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	writel(1, bp->bar0 + doorbell_offset);
 
 	if (!pci_is_enabled(bp->pdev))
-		return 0;
+		return -ENODEV;
 
 	if (!timeout)
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
@@ -4500,12 +4500,15 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
 				return -EBUSY;
 			/* on first few passes, just barely sleep */
-			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
+			if (i < HWRM_SHORT_TIMEOUT_COUNTER) {
 				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
 					     HWRM_SHORT_MAX_TIMEOUT);
-			else
+			} else {
+				if (HWRM_WAIT_MUST_ABORT(bp, req))
+					break;
 				usleep_range(HWRM_MIN_TIMEOUT,
 					     HWRM_MAX_TIMEOUT);
+			}
 		}
 
 		if (bp->hwrm_intr_seq_id != (u16)~seq_id) {
@@ -4530,15 +4533,19 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			if (len)
 				break;
 			/* on first few passes, just barely sleep */
-			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
+			if (i < HWRM_SHORT_TIMEOUT_COUNTER) {
 				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
 					     HWRM_SHORT_MAX_TIMEOUT);
-			else
+			} else {
+				if (HWRM_WAIT_MUST_ABORT(bp, req))
+					goto timeout_abort;
 				usleep_range(HWRM_MIN_TIMEOUT,
 					     HWRM_MAX_TIMEOUT);
+			}
 		}
 
 		if (i >= tmo_count) {
+timeout_abort:
 			if (!silent)
 				netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
 					   HWRM_TOTAL_TIMEOUT(i),
@@ -7540,12 +7547,41 @@ static void __bnxt_map_fw_health_reg(struct bnxt *bp, u32 reg)
 					 BNXT_FW_HEALTH_WIN_MAP_OFF);
 }
 
+bool bnxt_is_fw_healthy(struct bnxt *bp)
+{
+	if (bp->fw_health && bp->fw_health->status_reliable) {
+		u32 fw_status;
+
+		fw_status = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+		if (fw_status && !BNXT_FW_IS_HEALTHY(fw_status))
+			return false;
+	}
+
+	return true;
+}
+
+static void bnxt_inv_fw_health_reg(struct bnxt *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 reg_type;
+
+	if (!fw_health || !fw_health->status_reliable)
+		return;
+
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(fw_health->regs[BNXT_FW_HEALTH_REG]);
+	if (reg_type == BNXT_FW_HEALTH_REG_TYPE_GRC)
+		fw_health->status_reliable = false;
+}
+
 static void bnxt_try_map_fw_health_reg(struct bnxt *bp)
 {
 	void __iomem *hs;
 	u32 status_loc;
 	u32 reg_type;
 	u32 sig;
+
+	if (bp->fw_health)
+		bp->fw_health->status_reliable = false;
 
 	__bnxt_map_fw_health_reg(bp, HCOMM_STATUS_STRUCT_LOC);
 	hs = bp->bar0 + BNXT_FW_HEALTH_WIN_OFF(HCOMM_STATUS_STRUCT_LOC);
@@ -7558,11 +7594,9 @@ static void bnxt_try_map_fw_health_reg(struct bnxt *bp)
 					     BNXT_FW_HEALTH_WIN_BASE +
 					     BNXT_GRC_REG_CHIP_NUM);
 		}
-		if (!BNXT_CHIP_P5(bp)) {
-			if (bp->fw_health)
-				bp->fw_health->status_reliable = false;
+		if (!BNXT_CHIP_P5(bp))
 			return;
-		}
+
 		status_loc = BNXT_GRC_REG_STATUS_P5 |
 			     BNXT_FW_HEALTH_REG_TYPE_BAR0;
 	} else {
@@ -7592,6 +7626,7 @@ static int bnxt_map_fw_health_regs(struct bnxt *bp)
 	u32 reg_base = 0xffffffff;
 	int i;
 
+	bp->fw_health->status_reliable = false;
 	/* Only pre-map the monitoring GRC registers using window 3 */
 	for (i = 0; i < 4; i++) {
 		u32 reg = fw_health->regs[i];
@@ -7604,6 +7639,7 @@ static int bnxt_map_fw_health_regs(struct bnxt *bp)
 			return -ERANGE;
 		fw_health->mapped_regs[i] = BNXT_FW_HEALTH_WIN_OFF(reg);
 	}
+	bp->fw_health->status_reliable = true;
 	if (reg_base == 0xffffffff)
 		return 0;
 
@@ -9494,9 +9530,10 @@ static int bnxt_try_recover_fw(struct bnxt *bp)
 
 		mutex_lock(&bp->hwrm_cmd_lock);
 		do {
-			rc = __bnxt_hwrm_ver_get(bp, true);
 			sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
-			if (!sts || !BNXT_FW_IS_BOOTING(sts))
+			rc = __bnxt_hwrm_ver_get(bp, true);
+			if (!sts || (!BNXT_FW_IS_BOOTING(sts) &&
+				     !BNXT_FW_IS_RECOVERING(sts)))
 				break;
 			retry++;
 		} while (rc == -EBUSY && retry < BNXT_FW_RETRY);
@@ -9556,13 +9593,17 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 	if (rc)
 		return rc;
 
-	if (!up)
+	if (!up) {
+		bnxt_inv_fw_health_reg(bp);
 		return 0;
+	}
 
 	if (flags & FUNC_DRV_IF_CHANGE_RESP_FLAGS_RESC_CHANGE)
 		resc_reinit = true;
 	if (flags & FUNC_DRV_IF_CHANGE_RESP_FLAGS_HOT_FW_RESET_DONE)
 		fw_reset = true;
+	else if (bp->fw_health && !bp->fw_health->status_reliable)
+		bnxt_try_map_fw_health_reg(bp);
 
 	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state) && !fw_reset) {
 		netdev_err(bp->dev, "RESET_DONE not set during FW reset.\n");
@@ -9571,6 +9612,7 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 	}
 	if (resc_reinit || fw_reset) {
 		if (fw_reset) {
+			set_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
 			if (!test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 				bnxt_ulp_stop(bp);
 			bnxt_free_ctx_mem(bp);
@@ -9579,21 +9621,25 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 			bnxt_dcb_free(bp);
 			rc = bnxt_fw_init_one(bp);
 			if (rc) {
+				clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
 				set_bit(BNXT_STATE_ABORT_ERR, &bp->state);
 				return rc;
 			}
 			bnxt_clear_int_mode(bp);
 			rc = bnxt_init_int_mode(bp);
 			if (rc) {
+				clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
 				netdev_err(bp->dev, "init int mode failed\n");
 				return rc;
 			}
-			set_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
 		}
 		if (BNXT_NEW_RM(bp)) {
 			struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 
 			rc = bnxt_hwrm_func_resc_qcaps(bp, true);
+			if (rc)
+				netdev_err(bp->dev, "resc_qcaps failed\n");
+
 			hw_resc->resv_cp_rings = 0;
 			hw_resc->resv_stat_ctxs = 0;
 			hw_resc->resv_irqs = 0;
@@ -9607,7 +9653,7 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 			}
 		}
 	}
-	return 0;
+	return rc;
 }
 
 static int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
@@ -11640,7 +11686,7 @@ static void bnxt_reset_all(struct bnxt *bp)
 		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
 		req.flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;
 		rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-		if (rc)
+		if (rc != -ENODEV)
 			netdev_warn(bp->dev, "Unable to reset FW rc=%d\n", rc);
 	}
 	bp->fw_reset_timestamp = jiffies;
@@ -11723,28 +11769,20 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
 		return;
 	case BNXT_FW_RESET_STATE_ENABLE_DEV:
-		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
-			u32 val;
+		bnxt_inv_fw_health_reg(bp);
+		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) &&
+		    !bp->fw_reset_min_dsecs) {
+			u16 val;
 
-			if (!bp->fw_reset_min_dsecs) {
-				u16 val;
-
-				pci_read_config_word(bp->pdev, PCI_SUBSYSTEM_ID,
-						     &val);
-				if (val == 0xffff) {
-					if (bnxt_fw_reset_timeout(bp)) {
-						netdev_err(bp->dev, "Firmware reset aborted, PCI config space invalid\n");
-						goto fw_reset_abort;
-					}
-					bnxt_queue_fw_reset_work(bp, HZ / 1000);
-					return;
+			pci_read_config_word(bp->pdev, PCI_SUBSYSTEM_ID, &val);
+			if (val == 0xffff) {
+				if (bnxt_fw_reset_timeout(bp)) {
+					netdev_err(bp->dev, "Firmware reset aborted, PCI config space invalid\n");
+					goto fw_reset_abort;
 				}
+				bnxt_queue_fw_reset_work(bp, HZ / 1000);
+				return;
 			}
-			val = bnxt_fw_health_readl(bp,
-						   BNXT_FW_RESET_INPROG_REG);
-			if (val)
-				netdev_warn(bp->dev, "FW reset inprog %x after min wait time.\n",
-					    val);
 		}
 		clear_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
 		if (pci_enable_device(bp->pdev)) {
