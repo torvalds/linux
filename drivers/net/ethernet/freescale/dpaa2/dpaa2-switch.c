@@ -110,6 +110,48 @@ static u16 dpaa2_switch_port_set_fdb(struct ethsw_port_priv *port_priv,
 	return 0;
 }
 
+static int dpaa2_switch_fdb_set_egress_flood(struct ethsw_core *ethsw, u16 fdb_id)
+{
+	struct dpsw_egress_flood_cfg flood_cfg;
+	int i = 0, j;
+	int err;
+
+	/* Add all the DPAA2 switch ports found in the same bridging domain to
+	 * the egress flooding domain
+	 */
+	for (j = 0; j < ethsw->sw_attr.num_ifs; j++)
+		if (ethsw->ports[j] && ethsw->ports[j]->fdb->fdb_id == fdb_id)
+			flood_cfg.if_id[i++] = ethsw->ports[j]->idx;
+
+	/* Add the CTRL interface to the egress flooding domain */
+	flood_cfg.if_id[i++] = ethsw->sw_attr.num_ifs;
+
+	/* Use the FDB of the first dpaa2 switch port added to the bridge */
+	flood_cfg.fdb_id = fdb_id;
+
+	/* Setup broadcast flooding domain */
+	flood_cfg.flood_type = DPSW_BROADCAST;
+	flood_cfg.num_ifs = i;
+	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				    &flood_cfg);
+	if (err) {
+		dev_err(ethsw->dev, "dpsw_set_egress_flood() = %d\n", err);
+		return err;
+	}
+
+	/* Setup unknown flooding domain */
+	flood_cfg.flood_type = DPSW_FLOODING;
+	flood_cfg.num_ifs = i;
+	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				    &flood_cfg);
+	if (err) {
+		dev_err(ethsw->dev, "dpsw_set_egress_flood() = %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
 static void *dpaa2_iova_to_virt(struct iommu_domain *domain,
 				dma_addr_t iova_addr)
 {
@@ -1440,48 +1482,6 @@ static int dpaa2_switch_port_attr_set_event(struct net_device *netdev,
 					     dpaa2_switch_port_dev_check,
 					     dpaa2_switch_port_attr_set);
 	return notifier_from_errno(err);
-}
-
-static int dpaa2_switch_fdb_set_egress_flood(struct ethsw_core *ethsw, u16 fdb_id)
-{
-	struct dpsw_egress_flood_cfg flood_cfg;
-	int i = 0, j;
-	int err;
-
-	/* Add all the DPAA2 switch ports found in the same bridging domain to
-	 * the egress flooding domain
-	 */
-	for (j = 0; j < ethsw->sw_attr.num_ifs; j++)
-		if (ethsw->ports[j] && ethsw->ports[j]->fdb->fdb_id == fdb_id)
-			flood_cfg.if_id[i++] = ethsw->ports[j]->idx;
-
-	/* Add the CTRL interface to the egress flooding domain */
-	flood_cfg.if_id[i++] = ethsw->sw_attr.num_ifs;
-
-	/* Use the FDB of the first dpaa2 switch port added to the bridge */
-	flood_cfg.fdb_id = fdb_id;
-
-	/* Setup broadcast flooding domain */
-	flood_cfg.flood_type = DPSW_BROADCAST;
-	flood_cfg.num_ifs = i;
-	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				    &flood_cfg);
-	if (err) {
-		dev_err(ethsw->dev, "dpsw_set_egress_flood() = %d\n", err);
-		return err;
-	}
-
-	/* Setup unknown flooding domain */
-	flood_cfg.flood_type = DPSW_FLOODING;
-	flood_cfg.num_ifs = i;
-	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				    &flood_cfg);
-	if (err) {
-		dev_err(ethsw->dev, "dpsw_set_egress_flood() = %d\n", err);
-		return err;
-	}
-
-	return 0;
 }
 
 static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
