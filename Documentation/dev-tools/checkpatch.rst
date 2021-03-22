@@ -280,42 +280,11 @@ API usage
     However this is not always the case (See signal.h).
     This message type is emitted only for includes from arch/.
 
-  **ARRAY_SIZE**
-    The ARRAY_SIZE(foo) macro should be preferred over
-    sizeof(foo)/sizeof(foo[0]) for finding number of elements in an
-    array.
-
-    The macro is defined in include/linux/kernel.h::
-
-      #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
   **AVOID_BUG**
     BUG() or BUG_ON() should be avoided totally.
     Use WARN() and WARN_ON() instead, and handle the "impossible"
     error condition as gracefully as possible.
     See: https://www.kernel.org/doc/html/latest/process/deprecated.html#bug-and-bug-on
-
-  **AVOID_EXTERNS**
-    Function prototypes don't need to be declared extern in .h
-    files.  It's assumed by the compiler and is unnecessary.
-
-  **AVOID_L_PREFIX**
-    Local symbol names that are prefixed with `.L` should be avoided,
-    as this has special meaning for the assembler; a symbol entry will
-    not be emitted into the symbol table.  This can prevent `objtool`
-    from generating correct unwind info.
-
-    Symbols with STB_LOCAL binding may still be used, and `.L` prefixed
-    local symbol names are still generally usable within a function,
-    but `.L` prefixed local symbol names should not be used to denote
-    the beginning or end of code regions via
-    `SYM_CODE_START_LOCAL`/`SYM_CODE_END`
-
-  **BIT_MACRO**
-    Defines like: 1 << <digit> could be BIT(digit).
-    The BIT() macro is defined in include/linux/bitops.h::
-
-      #define BIT(nr)         (1UL << (nr))
 
   **CONSIDER_KSTRTO**
     The simple_strtol(), simple_strtoll(), simple_strtoul(), and
@@ -324,6 +293,25 @@ API usage
     kstrtoll(), kstrtoul(), and kstrtoull() functions tend to be the
     correct replacements.
     See: https://www.kernel.org/doc/html/latest/process/deprecated.html#simple-strtol-simple-strtoll-simple-strtoul-simple-strtoull
+
+  **LOCKDEP**
+    The lockdep_no_validate class was added as a temporary measure to
+    prevent warnings on conversion of device->sem to device->mutex.
+    It should not be used for any other purpose.
+    See: https://lore.kernel.org/lkml/1268959062.9440.467.camel@laptop/
+
+  **MALFORMED_INCLUDE**
+    The #include statement has a malformed path.  This has happened
+    because the author has included a double slash "//" in the pathname
+    accidentally.
+
+  **USE_LOCKDEP**
+    lockdep_assert_held() annotations should be preferred over
+    assertions based on spin_is_locked()
+    See: https://www.kernel.org/doc/html/latest/locking/lockdep-design.html#annotations
+
+  **UAPI_INCLUDE**
+    No #include statements in include/uapi should use a uapi/ path.
 
 
 Comment style
@@ -351,7 +339,6 @@ Comment style
     C99 style single line comments (//) should not be used.
     Prefer the block comment style instead.
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#commenting
-
 
 
 Commit message
@@ -397,6 +384,35 @@ Commit message
     source patch.
     See: https://www.kernel.org/doc/html/latest/process/submitting-patches.html#sign-your-work-the-developer-s-certificate-of-origin
 
+  **DIFF_IN_COMMIT_MSG**
+    Avoid having diff content in commit message.
+    This causes problems when one tries to apply a file containing both
+    the changelog and the diff because patch(1) tries to apply the diff
+    which it found in the changelog.
+    See: https://lore.kernel.org/lkml/20150611134006.9df79a893e3636019ad2759e@linux-foundation.org/
+
+  **GERRIT_CHANGE_ID**
+    To be picked up by gerrit, the footer of the commit message might
+    have a Change-Id like::
+
+      Change-Id: Ic8aaa0728a43936cd4c6e1ed590e01ba8f0fbf5b
+      Signed-off-by: A. U. Thor <author@example.com>
+
+    The Change-Id line must be removed before submitting.
+
+  **GIT_COMMIT_ID**
+    The proper way to reference a commit id is:
+    commit <12+ chars of sha1> ("<title line>")
+
+    An example may be::
+
+      Commit e21d2170f36602ae2708 ("video: remove unnecessary
+      platform_set_drvdata()") removed the unnecessary
+      platform_set_drvdata(), but left the variable "dev" unused,
+      delete it.
+
+    See: https://www.kernel.org/doc/html/latest/process/submitting-patches.html#describe-your-changes
+
 
 Comparison style
 ----------------
@@ -426,6 +442,147 @@ Comparison style
     side of the test should be avoided.
 
 
+Macros, Attributes and Symbols
+------------------------------
+
+  **ARRAY_SIZE**
+    The ARRAY_SIZE(foo) macro should be preferred over
+    sizeof(foo)/sizeof(foo[0]) for finding number of elements in an
+    array.
+
+    The macro is defined in include/linux/kernel.h::
+
+      #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+  **AVOID_EXTERNS**
+    Function prototypes don't need to be declared extern in .h
+    files.  It's assumed by the compiler and is unnecessary.
+
+  **AVOID_L_PREFIX**
+    Local symbol names that are prefixed with `.L` should be avoided,
+    as this has special meaning for the assembler; a symbol entry will
+    not be emitted into the symbol table.  This can prevent `objtool`
+    from generating correct unwind info.
+
+    Symbols with STB_LOCAL binding may still be used, and `.L` prefixed
+    local symbol names are still generally usable within a function,
+    but `.L` prefixed local symbol names should not be used to denote
+    the beginning or end of code regions via
+    `SYM_CODE_START_LOCAL`/`SYM_CODE_END`
+
+  **BIT_MACRO**
+    Defines like: 1 << <digit> could be BIT(digit).
+    The BIT() macro is defined in include/linux/bitops.h::
+
+      #define BIT(nr)         (1UL << (nr))
+
+  **CONST_READ_MOSTLY**
+    When a variable is tagged with the __read_mostly annotation, it is a
+    signal to the compiler that accesses to the variable will be mostly
+    reads and rarely(but NOT never) a write.
+
+    const __read_mostly does not make any sense as const data is already
+    read-only.  The __read_mostly annotation thus should be removed.
+
+  **DATE_TIME**
+    It is generally desirable that building the same source code with
+    the same set of tools is reproducible, i.e. the output is always
+    exactly the same.
+
+    The kernel does *not* use the ``__DATE__`` and ``__TIME__`` macros,
+    and enables warnings if they are used as they can lead to
+    non-deterministic builds.
+    See: https://www.kernel.org/doc/html/latest/kbuild/reproducible-builds.html#timestamps
+
+  **DEFINE_ARCH_HAS**
+    The ARCH_HAS_xyz and ARCH_HAVE_xyz patterns are wrong.
+
+    For big conceptual features use Kconfig symbols instead.  And for
+    smaller things where we have compatibility fallback functions but
+    want architectures able to override them with optimized ones, we
+    should either use weak functions (appropriate for some cases), or
+    the symbol that protects them should be the same symbol we use.
+    See: https://lore.kernel.org/lkml/CA+55aFycQ9XJvEOsiM3txHL5bjUc8CeKWJNR_H+MiicaddB42Q@mail.gmail.com/
+
+  **INIT_ATTRIBUTE**
+    Const init definitions should use __initconst instead of
+    __initdata.
+
+    Similarly init definitions without const require a separate
+    use of const.
+
+  **INLINE_LOCATION**
+    The inline keyword should sit between storage class and type.
+
+    For example, the following segment::
+
+      inline static int example_function(void)
+      {
+              ...
+      }
+
+    should be::
+
+      static inline int example_function(void)
+      {
+              ...
+      }
+
+  **MULTISTATEMENT_MACRO_USE_DO_WHILE**
+    Macros with multiple statements should be enclosed in a
+    do - while block.  Same should also be the case for macros
+    starting with `if` to avoid logic defects::
+
+      #define macrofun(a, b, c)                 \
+        do {                                    \
+                if (a == 5)                     \
+                        do_this(b, c);          \
+        } while (0)
+
+    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#macros-enums-and-rtl
+
+  **WEAK_DECLARATION**
+    Using weak declarations like __attribute__((weak)) or __weak
+    can have unintended link defects.  Avoid using them.
+
+
+Functions and Variables
+-----------------------
+
+  **CAMELCASE**
+    Avoid CamelCase Identifiers.
+    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#naming
+
+  **FUNCTION_WITHOUT_ARGS**
+    Function declarations without arguments like::
+
+      int foo()
+
+    should be::
+
+      int foo(void)
+
+  **GLOBAL_INITIALISERS**
+    Global variables should not be initialized explicitly to
+    0 (or NULL, false, etc.).  Your compiler (or rather your
+    loader, which is responsible for zeroing out the relevant
+    sections) automatically does it for you.
+
+  **INITIALISED_STATIC**
+    Static variables should not be initialized explicitly to zero.
+    Your compiler (or rather your loader) automatically does
+    it for you.
+
+  **RETURN_PARENTHESES**
+    return is not a function and as such doesn't need parentheses::
+
+      return (bar);
+
+    can simply be::
+
+      return bar;
+
+
 Spacing and Brackets
 --------------------
 
@@ -439,7 +596,7 @@ Spacing and Brackets
     and put the closing brace first::
 
       if (x is true) {
-        we do y
+              we do y
       }
 
     This applies for all non-functional blocks.
@@ -448,7 +605,7 @@ Spacing and Brackets
 
       int function(int x)
       {
-        body of function
+              body of function
       }
 
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#placing-braces-and-spaces
@@ -485,14 +642,59 @@ Spacing and Brackets
 
       printk(KERN_INFO "bar");
 
+  **ELSE_AFTER_BRACE**
+    `else {` should follow the closing block `}` on the same line.
+    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#placing-braces-and-spaces
+
   **LINE_SPACING**
     Vertical space is wasted given the limited number of lines an
     editor window can display when multiple blank lines are used.
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#spaces
 
+  **OPEN_BRACE**
+    The opening brace should be following the function definitions on the
+    next line.  For any non-functional block it should be on the same line
+    as the last construct.
+    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#placing-braces-and-spaces
+
+  **POINTER_LOCATION**
+    When using pointer data or a function that returns a pointer type,
+    the preferred use of * is adjacent to the data name or function name
+    and not adjacent to the type name.
+    Examples::
+
+      char *linux_banner;
+      unsigned long long memparse(char *ptr, char **retptr);
+      char *match_strdup(substring_t *s);
+
+    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#spaces
+
   **SPACING**
     Whitespace style used in the kernel sources is described in kernel docs.
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#spaces
+
+  **SWITCH_CASE_INDENT_LEVEL**
+    switch should be at the same indent as case.
+    Example::
+
+      switch (suffix) {
+      case 'G':
+      case 'g':
+              mem <<= 30;
+              break;
+      case 'M':
+      case 'm':
+              mem <<= 20;
+              break;
+      case 'K':
+      case 'k':
+              mem <<= 10;
+              /* fall through */
+      default:
+              break;
+      }
+
+    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#indentation
 
   **TRAILING_WHITESPACE**
     Trailing whitespace should always be removed.
@@ -500,14 +702,54 @@ Spacing and Brackets
     distractions when editing files.
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#spaces
 
+  **WHILE_AFTER_BRACE**
+    while should follow the closing bracket on the same line::
+
+      do {
+              ...
+      } while(something);
+
+    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#placing-braces-and-spaces
+
 
 Others
 ------
 
-  **CAMELCASE**
-    Avoid CamelCase Identifiers.
-    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#naming
-
   **CONFIG_DESCRIPTION**
     Kconfig symbols should have a help text which fully describes
     it.
+
+  **CORRUPTED_PATCH**
+    The patch seems to be corrupted or lines are wrapped.
+    Please regenerate the patch file before sending it to the maintainer.
+
+  **DOS_LINE_ENDINGS**
+    For DOS-formatted patches, there are extra ^M symbols at the end of
+    the line.  These should be removed.
+
+  **EXECUTE_PERMISSIONS**
+    There is no reason for source files to be executable.  The executable
+    bit can be removed safely.
+
+  **NON_OCTAL_PERMISSIONS**
+    Permission bits should use 4 digit octal permissions (like 0700 or 0444).
+    Avoid using any other base like decimal.
+
+  **NOT_UNIFIED_DIFF**
+    The patch file does not appear to be in unified-diff format.  Please
+    regenerate the patch file before sending it to the maintainer.
+
+  **PRINTF_0XDECIMAL**
+    Prefixing 0x with decimal output is defective and should be corrected.
+
+  **TRAILING_STATEMENTS**
+    Trailing statements (for example after any conditional) should be
+    on the next line.
+    Like::
+
+      if (x == y) break;
+
+    should be::
+
+      if (x == y)
+              break;
