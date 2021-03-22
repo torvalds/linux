@@ -1082,6 +1082,22 @@ out:
 	return ret;
 }
 
+static int hellcreek_devlink_info_get(struct dsa_switch *ds,
+				      struct devlink_info_req *req,
+				      struct netlink_ext_ack *extack)
+{
+	struct hellcreek *hellcreek = ds->priv;
+	int ret;
+
+	ret = devlink_info_driver_name_put(req, "hellcreek");
+	if (ret)
+		return ret;
+
+	return devlink_info_version_fixed_put(req,
+					      DEVLINK_INFO_VERSION_GENERIC_ASIC_ID,
+					      hellcreek->pdata->name);
+}
+
 static u64 hellcreek_devlink_vlan_table_get(void *priv)
 {
 	struct hellcreek *hellcreek = priv;
@@ -1732,6 +1748,7 @@ static int hellcreek_port_setup_tc(struct dsa_switch *ds, int port,
 }
 
 static const struct dsa_switch_ops hellcreek_ds_ops = {
+	.devlink_info_get      = hellcreek_devlink_info_get,
 	.get_ethtool_stats     = hellcreek_get_ethtool_stats,
 	.get_sset_count	       = hellcreek_get_sset_count,
 	.get_strings	       = hellcreek_get_strings,
@@ -1909,6 +1926,7 @@ static int hellcreek_remove(struct platform_device *pdev)
 }
 
 static const struct hellcreek_platform_data de1soc_r1_pdata = {
+	.name		 = "r4c30",
 	.num_ports	 = 4,
 	.is_100_mbits	 = 1,
 	.qbv_support	 = 1,
