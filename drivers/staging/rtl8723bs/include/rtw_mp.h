@@ -259,23 +259,6 @@ struct mp_priv {
 	u8 *TXradomBuffer;
 };
 
-struct iocmd_struct {
-	u8 cmdclass;
-	u16 value;
-	u8 index;
-};
-
-struct rf_reg_param {
-	u32 path;
-	u32 offset;
-	u32 value;
-};
-
-struct bb_reg_param {
-	u32 offset;
-	u32 value;
-};
-
 #define LOWER	true
 #define RAISE	false
 
