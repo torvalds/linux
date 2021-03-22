@@ -2979,9 +2979,9 @@ struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
 	return list_next_entry(nh, router_list_node);
 }
 
-bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh)
+bool mlxsw_sp_nexthop_is_forward(const struct mlxsw_sp_nexthop *nh)
 {
-	return nh->offloaded;
+	return nh->offloaded && !nh->discard;
 }
 
 unsigned char *mlxsw_sp_nexthop_ha(struct mlxsw_sp_nexthop *nh)
@@ -3034,11 +3034,6 @@ bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh)
 			return true;
 	}
 	return false;
-}
-
-bool mlxsw_sp_nexthop_is_discard(const struct mlxsw_sp_nexthop *nh)
-{
-	return nh->discard;
 }
 
 static const struct rhashtable_params mlxsw_sp_nexthop_group_vr_ht_params = {
