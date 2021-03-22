@@ -1020,11 +1020,7 @@ grow_buffers(struct block_device *bdev, sector_t block, int size, gfp_t gfp)
 	pgoff_t index;
 	int sizebits;
 
-	sizebits = -1;
-	do {
-		sizebits++;
-	} while ((size << sizebits) < PAGE_SIZE);
-
+	sizebits = PAGE_SHIFT - __ffs(size);
 	index = block >> sizebits;
 
 	/*
