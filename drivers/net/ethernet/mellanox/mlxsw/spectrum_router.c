@@ -3491,6 +3491,20 @@ static int mlxsw_sp_nexthop_ipip_update(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static int mlxsw_sp_nexthop_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
+				   struct mlxsw_sp_nexthop *nh)
+{
+	/* When action is discard or trap, the nexthop must be
+	 * programmed as an Ethernet nexthop.
+	 */
+	if (nh->type == MLXSW_SP_NEXTHOP_TYPE_ETH ||
+	    nh->action == MLXSW_SP_NEXTHOP_ACTION_DISCARD ||
+	    nh->action == MLXSW_SP_NEXTHOP_ACTION_TRAP)
+		return mlxsw_sp_nexthop_eth_update(mlxsw_sp, adj_index, nh);
+	else
+		return mlxsw_sp_nexthop_ipip_update(mlxsw_sp, adj_index, nh);
+}
+
 static int
 mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_nexthop_group_info *nhgi,
@@ -3511,19 +3525,7 @@ mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
 		if (nh->update || reallocate) {
 			int err = 0;
 
-			/* When action is discard or trap, the nexthop must be
-			 * programmed as an Ethernet nexthop.
-			 */
-			if (nh->type == MLXSW_SP_NEXTHOP_TYPE_ETH ||
-			    nh->action == MLXSW_SP_NEXTHOP_ACTION_DISCARD ||
-			    nh->action == MLXSW_SP_NEXTHOP_ACTION_TRAP)
-				err = mlxsw_sp_nexthop_eth_update(mlxsw_sp,
-								  adj_index,
-								  nh);
-			else
-				err = mlxsw_sp_nexthop_ipip_update(mlxsw_sp,
-								   adj_index,
-								   nh);
+			err = mlxsw_sp_nexthop_update(mlxsw_sp, adj_index, nh);
 			if (err)
 				return err;
 			nh->update = 0;
