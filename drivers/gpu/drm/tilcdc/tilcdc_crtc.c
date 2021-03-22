@@ -203,7 +203,7 @@ static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
-	unsigned long clk_rate, real_rate, real_pclk_rate, pclk_rate;
+	unsigned long clk_rate, real_pclk_rate, pclk_rate;
 	unsigned int clkdiv;
 	int ret;
 
@@ -239,12 +239,12 @@ static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
 		 * 5% is an arbitrary value - LCDs are usually quite tolerant
 		 * about pixel clock rates.
 		 */
-		real_rate = clkdiv * pclk_rate;
+		real_pclk_rate = clk_rate / clkdiv;
 
-		if (tilcdc_pclk_diff(clk_rate, real_rate) > 5) {
+		if (tilcdc_pclk_diff(pclk_rate, real_pclk_rate) > 5) {
 			dev_warn(dev->dev,
-				 "effective pixel clock rate (%luHz) differs from the calculated rate (%luHz)\n",
-				 clk_rate, real_rate);
+				 "effective pixel clock rate (%luHz) differs from the requested rate (%luHz)\n",
+				 real_pclk_rate, pclk_rate);
 		}
 	}
 
