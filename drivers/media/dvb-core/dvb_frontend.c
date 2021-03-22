@@ -1821,7 +1821,7 @@ static void prepare_tuning_algo_parameters(struct dvb_frontend *fe)
 		case SYS_DTMB:
 			fepriv->min_delay = HZ / 20;
 			fepriv->step_size = dvb_frontend_get_stepsize(fe) * 2;
-			fepriv->max_drift = (dvb_frontend_get_stepsize(fe) * 2) + 1;
+			fepriv->max_drift = fepriv->step_size + 1;
 			break;
 		default:
 			/*
