@@ -32,7 +32,6 @@
 #define IQS5XX_NUM_RETRIES	10
 #define IQS5XX_NUM_CONTACTS	5
 #define IQS5XX_WR_BYTES_MAX	2
-#define IQS5XX_XY_RES_MAX	0xFFFE
 
 #define IQS5XX_PROD_NUM_IQS550	40
 #define IQS5XX_PROD_NUM_IQS572	58
@@ -504,10 +503,6 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 		input->open = iqs5xx_open;
 		input->close = iqs5xx_close;
 
-		input_set_capability(input, EV_ABS, ABS_MT_POSITION_X);
-		input_set_capability(input, EV_ABS, ABS_MT_POSITION_Y);
-		input_set_capability(input, EV_ABS, ABS_MT_PRESSURE);
-
 		input_set_drvdata(input, iqs5xx);
 		iqs5xx->input = input;
 	}
@@ -520,26 +515,29 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 	if (error)
 		return error;
 
-	input_abs_set_max(iqs5xx->input, ABS_MT_POSITION_X, max_x);
-	input_abs_set_max(iqs5xx->input, ABS_MT_POSITION_Y, max_y);
+	input_set_abs_params(iqs5xx->input, ABS_MT_POSITION_X, 0, max_x, 0, 0);
+	input_set_abs_params(iqs5xx->input, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
+	input_set_abs_params(iqs5xx->input, ABS_MT_PRESSURE, 0, U16_MAX, 0, 0);
 
 	touchscreen_parse_properties(iqs5xx->input, true, prop);
 
-	if (prop->max_x > IQS5XX_XY_RES_MAX) {
-		dev_err(&client->dev, "Invalid maximum x-coordinate: %u > %u\n",
-			prop->max_x, IQS5XX_XY_RES_MAX);
+	/*
+	 * The device reserves 0xFFFF for coordinates that correspond to slots
+	 * which are not in a state of touch.
+	 */
+	if (prop->max_x >= U16_MAX || prop->max_y >= U16_MAX) {
+		dev_err(&client->dev, "Invalid touchscreen size: %u*%u\n",
+			prop->max_x, prop->max_y);
 		return -EINVAL;
-	} else if (prop->max_x != max_x) {
+	}
+
+	if (prop->max_x != max_x) {
 		error = iqs5xx_write_word(client, IQS5XX_X_RES, prop->max_x);
 		if (error)
 			return error;
 	}
 
-	if (prop->max_y > IQS5XX_XY_RES_MAX) {
-		dev_err(&client->dev, "Invalid maximum y-coordinate: %u > %u\n",
-			prop->max_y, IQS5XX_XY_RES_MAX);
-		return -EINVAL;
-	} else if (prop->max_y != max_y) {
+	if (prop->max_y != max_y) {
 		error = iqs5xx_write_word(client, IQS5XX_Y_RES, prop->max_y);
 		if (error)
 			return error;
