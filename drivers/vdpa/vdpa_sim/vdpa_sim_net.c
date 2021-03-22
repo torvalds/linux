@@ -110,8 +110,7 @@ out:
 
 static void vdpasim_net_get_config(struct vdpasim *vdpasim, void *config)
 {
-	struct virtio_net_config *net_config =
-		(struct virtio_net_config *)config;
+	struct virtio_net_config *net_config = config;
 
 	net_config->mtu = cpu_to_vdpasim16(vdpasim, 1500);
 	net_config->status = cpu_to_vdpasim16(vdpasim, VIRTIO_NET_S_LINK_UP);
@@ -147,7 +146,7 @@ static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
 	if (IS_ERR(simdev))
 		return PTR_ERR(simdev);
 
-	ret = _vdpa_register_device(&simdev->vdpa);
+	ret = _vdpa_register_device(&simdev->vdpa, VDPASIM_NET_VQ_NUM);
 	if (ret)
 		goto reg_err;
 

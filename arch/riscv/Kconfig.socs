@@ -31,6 +31,8 @@ config SOC_CANAAN
 	select SIFIVE_PLIC
 	select ARCH_HAS_RESET_CONTROLLER
 	select PINCTRL
+	select COMMON_CLK
+	select COMMON_CLK_K210
 	help
 	  This enables support for Canaan Kendryte K210 SoC platform hardware.
 
