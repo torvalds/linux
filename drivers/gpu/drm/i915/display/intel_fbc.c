@@ -653,7 +653,7 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	unsigned int effective_w, effective_h, max_w, max_h;
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) >= 10) {
 		max_w = 5120;
 		max_h = 4096;
 	} else if (DISPLAY_VER(dev_priv) >= 8 || IS_HASWELL(dev_priv)) {
@@ -1036,7 +1036,7 @@ bool intel_fbc_pre_update(struct intel_atomic_state *state,
 		 * if at least one frame has already passed.
 		 */
 		if (fbc->activated &&
-		    (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)))
+		    DISPLAY_VER(dev_priv) >= 10)
 			need_vblank_wait = true;
 		fbc->activated = false;
 	}

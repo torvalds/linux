@@ -3660,7 +3660,7 @@ static bool skl_needs_memory_bw_wa(struct drm_i915_private *dev_priv)
 static bool
 intel_has_sagv(struct drm_i915_private *dev_priv)
 {
-	return (IS_GEN9_BC(dev_priv) || DISPLAY_VER(dev_priv) >= 10) &&
+	return (IS_GEN9_BC(dev_priv) || DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) &&
 		dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED;
 }
 
@@ -5030,7 +5030,7 @@ skl_wm_method1(const struct drm_i915_private *dev_priv, u32 pixel_rate,
 	wm_intermediate_val = latency * pixel_rate * cpp;
 	ret = div_fixed16(wm_intermediate_val, 1000 * dbuf_block_size);
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		ret = add_fixed16_u32(ret, 1);
 
 	return ret;
@@ -5144,7 +5144,7 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 					   wp->y_min_scanlines,
 					   wp->dbuf_block_size);
 
-		if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		if (DISPLAY_VER(dev_priv) >= 10)
 			interm_pbpl++;
 
 		wp->plane_blocks_per_line = div_fixed16(interm_pbpl,
@@ -5153,8 +5153,7 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line,
 					   wp->dbuf_block_size);
 
-		if (!wp->x_tiled ||
-		    DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		if (!wp->x_tiled || DISPLAY_VER(dev_priv) >= 10)
 			interm_pbpl++;
 
 		wp->plane_blocks_per_line = u32_to_fixed16(interm_pbpl);
@@ -5193,7 +5192,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 
 static bool skl_wm_has_lines(struct drm_i915_private *dev_priv, int level)
 {
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		return true;
 
 	/* The number of lines are ignored for the level 0 watermark. */
@@ -5246,8 +5245,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1)) {
 			selected_result = method2;
 		} else if (latency >= wp->linetime_us) {
-			if (IS_DISPLAY_VER(dev_priv, 9) &&
-			    !IS_GEMINILAKE(dev_priv))
+			if (IS_DISPLAY_VER(dev_priv, 9))
 				selected_result = min_fixed16(method1, method2);
 			else
 				selected_result = method2;
@@ -5386,7 +5384,7 @@ static void skl_compute_transition_wm(struct drm_i915_private *dev_priv,
 		trans_min = 14;
 
 	/* Display WA #1140: glk,cnl */
-	if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+	if (IS_DISPLAY_VER(dev_priv, 10))
 		trans_amount = 0;
 	else
 		trans_amount = 10; /* This is configurable amount */

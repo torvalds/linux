@@ -524,7 +524,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	val = psr_compute_idle_frames(intel_dp) << EDP_PSR2_IDLE_FRAME_SHIFT;
 
 	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		val |= EDP_Y_COORDINATE_ENABLE;
 
 	val |= EDP_PSR2_FRAME_BEFORE_SU(intel_dp->psr.sink_sync_latency + 1);
@@ -765,7 +765,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		psr_max_h = 5120;
 		psr_max_v = 3200;
 		max_bpp = 30;
-	} else if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+	} else if (DISPLAY_VER(dev_priv) >= 10) {
 		psr_max_h = 4096;
 		psr_max_v = 2304;
 		max_bpp = 24;
@@ -909,8 +909,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_psr_setup_aux(intel_dp);
 
-	if (intel_dp->psr.psr2_enabled && (IS_DISPLAY_VER(dev_priv, 9) &&
-					   !IS_GEMINILAKE(dev_priv))) {
+	if (intel_dp->psr.psr2_enabled && IS_DISPLAY_VER(dev_priv, 9)) {
 		i915_reg_t reg = CHICKEN_TRANS(cpu_transcoder);
 		u32 chicken = intel_de_read(dev_priv, reg);
 

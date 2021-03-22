@@ -1397,7 +1397,7 @@ static void bxt_de_pll_readout(struct drm_i915_private *dev_priv,
 	 * CNL+ have the ratio directly in the PLL enable register, gen9lp had
 	 * it in a separate PLL control register.
 	 */
-	if (DISPLAY_VER(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv))
 		ratio = val & CNL_CDCLK_PLL_RATIO_MASK;
 	else
 		ratio = intel_de_read(dev_priv, BXT_DE_PLL_CTL) & BXT_DE_PLL_RATIO_MASK;
@@ -1433,7 +1433,7 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_1_5:
 		drm_WARN(&dev_priv->drm,
-			 IS_GEMINILAKE(dev_priv) || DISPLAY_VER(dev_priv) >= 10,
+			 DISPLAY_VER(dev_priv) >= 10,
 			 "Unsupported divider\n");
 		div = 3;
 		break;
@@ -1441,7 +1441,8 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 		div = 4;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_4:
-		drm_WARN(&dev_priv->drm, DISPLAY_VER(dev_priv) >= 10,
+		drm_WARN(&dev_priv->drm,
+			 DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv),
 			 "Unsupported divider\n");
 		div = 8;
 		break;
@@ -1558,7 +1559,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	int ret;
 
 	/* Inform power controller of upcoming frequency change. */
-	if (DISPLAY_VER(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv))
 		ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 					SKL_CDCLK_PREPARE_FOR_CHANGE,
 					SKL_CDCLK_READY_FOR_CHANGE,
@@ -1591,7 +1592,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		break;
 	case 3:
 		drm_WARN(&dev_priv->drm,
-			 IS_GEMINILAKE(dev_priv) || DISPLAY_VER(dev_priv) >= 10,
+			 DISPLAY_VER(dev_priv) >= 10,
 			 "Unsupported divider\n");
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1_5;
 		break;
@@ -1599,13 +1600,14 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
 		break;
 	case 8:
-		drm_WARN(&dev_priv->drm, DISPLAY_VER(dev_priv) >= 10,
+		drm_WARN(&dev_priv->drm,
+			 DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv),
 			 "Unsupported divider\n");
 		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
 		break;
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 10) {
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) {
 		if (dev_priv->cdclk.hw.vco != 0 &&
 		    dev_priv->cdclk.hw.vco != vco)
 			cnl_cdclk_pll_disable(dev_priv);
@@ -1636,7 +1638,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	if (pipe != INVALID_PIPE)
 		intel_wait_for_vblank(dev_priv, pipe);
 
-	if (DISPLAY_VER(dev_priv) >= 10) {
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) {
 		ret = sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 					      cdclk_config->voltage_level);
 	} else {
@@ -1661,7 +1663,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 
 	intel_update_cdclk(dev_priv);
 
-	if (DISPLAY_VER(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv))
 		/*
 		 * Can't read out the voltage level :(
 		 * Let's just assume everything is as expected.
@@ -1998,7 +2000,7 @@ static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	int pixel_rate = crtc_state->pixel_rate;
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		return DIV_ROUND_UP(pixel_rate, 2);
 	else if (IS_DISPLAY_VER(dev_priv, 9) ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
@@ -2048,7 +2050,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	    crtc_state->has_audio &&
 	    crtc_state->port_clock >= 540000 &&
 	    crtc_state->lane_count == 4) {
-		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
+		if (IS_DISPLAY_VER(dev_priv, 10)) {
 			/* Display WA #1145: glk,cnl */
 			min_cdclk = max(316800, min_cdclk);
 		} else if (IS_DISPLAY_VER(dev_priv, 9) || IS_BROADWELL(dev_priv)) {
@@ -2588,7 +2590,7 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 {
 	int max_cdclk_freq = dev_priv->max_cdclk_freq;
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		return 2 * max_cdclk_freq;
 	else if (IS_DISPLAY_VER(dev_priv, 9) ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))

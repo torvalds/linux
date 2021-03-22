@@ -4537,7 +4537,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		max_dc = 3;
 	else if (DISPLAY_VER(dev_priv) >= 12)
 		max_dc = 4;
-	else if (DISPLAY_VER(dev_priv) >= 10 || IS_GEN9_BC(dev_priv))
+	else if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv) || IS_GEN9_BC(dev_priv))
 		max_dc = 2;
 	else if (IS_GEN9_LP(dev_priv))
 		max_dc = 1;

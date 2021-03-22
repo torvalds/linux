@@ -564,7 +564,7 @@ static u32 hsw_infoframes_enabled(struct intel_encoder *encoder,
 		VIDEO_DIP_ENABLE_GCP_HSW | VIDEO_DIP_ENABLE_VS_HSW |
 		VIDEO_DIP_ENABLE_GMP_HSW | VIDEO_DIP_ENABLE_SPD_HSW);
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		mask |= VIDEO_DIP_ENABLE_DRM_GLK;
 
 	return val & mask;
@@ -820,7 +820,7 @@ intel_hdmi_compute_drm_infoframe(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int ret;
 
-	if (!(DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)))
+	if (DISPLAY_VER(dev_priv) < 10)
 		return true;
 
 	if (!crtc_state->has_infoframe)
@@ -1775,7 +1775,7 @@ static int intel_hdmi_source_max_tmds_clock(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int max_tmds_clock, vbt_max_tmds_clock;
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		max_tmds_clock = 594000;
 	else if (DISPLAY_VER(dev_priv) >= 8 || IS_HASWELL(dev_priv))
 		max_tmds_clock = 300000;
@@ -2164,8 +2164,7 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->lane_count = 4;
 
-	if (scdc->scrambling.supported && (DISPLAY_VER(dev_priv) >= 10 ||
-					   IS_GEMINILAKE(dev_priv))) {
+	if (scdc->scrambling.supported && DISPLAY_VER(dev_priv) >= 10) {
 		if (scdc->scrambling.low_rates)
 			pipe_config->hdmi_scrambling = true;
 
@@ -2460,7 +2459,7 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_attach_hdmi_colorspace_property(connector);
 	drm_connector_attach_content_type_property(connector);
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		drm_object_attach_property(&connector->base,
 			connector->dev->mode_config.hdr_output_metadata_property, 0);
 
@@ -2815,7 +2814,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 	connector->doublescan_allowed = 0;
 	connector->stereo_allowed = 1;
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		connector->ycbcr_420_allowed = true;
 
 	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;

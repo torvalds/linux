@@ -3259,7 +3259,7 @@ static bool needs_nv12_wa(const struct intel_crtc_state *crtc_state)
 		return false;
 
 	/* WA Display #0827: Gen9:all */
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_GEMINILAKE(dev_priv))
+	if (IS_DISPLAY_VER(dev_priv, 9))
 		return true;
 
 	return false;
@@ -3989,7 +3989,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	crtc->active = true;
 
 	/* Display WA #1180: WaDisableScalarClockGating: glk, cnl */
-	psl_clkgate_wa = (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
+	psl_clkgate_wa = IS_DISPLAY_VER(dev_priv, 10) &&
 		new_crtc_state->pch_pfit.enabled;
 	if (psl_clkgate_wa)
 		glk_pipe_scaler_clock_gating_wa(dev_priv, pipe, true);
@@ -13338,8 +13338,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * use plane->min_cdclk() :(
 			 */
 			if (plane_state->uapi.visible && plane->min_cdclk) {
-				if (crtc_state->double_wide ||
-				    DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+				if (crtc_state->double_wide || DISPLAY_VER(dev_priv) >= 10)
 					crtc_state->min_cdclk[plane->id] =
 						DIV_ROUND_UP(crtc_state->pixel_rate, 2);
 				else
@@ -13430,7 +13429,7 @@ static void intel_early_display_was(struct drm_i915_private *dev_priv)
 	 * Display WA #1185 WaDisableDARBFClkGating:cnl,glk,icl,ehl,tgl
 	 * Also known as Wa_14010480278.
 	 */
-	if (IS_DISPLAY_RANGE(dev_priv, 10, 12) || IS_GEMINILAKE(dev_priv))
+	if (IS_DISPLAY_RANGE(dev_priv, 10, 12))
 		intel_de_write(dev_priv, GEN9_CLKGATE_DIS_0,
 			       intel_de_read(dev_priv, GEN9_CLKGATE_DIS_0) | DARBF_GATING_DIS);
 

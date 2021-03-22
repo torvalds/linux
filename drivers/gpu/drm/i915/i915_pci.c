@@ -723,6 +723,7 @@ static const struct intel_device_info bxt_info = {
 static const struct intel_device_info glk_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_GEMINILAKE),
+	.display.version = 10,
 	.ddb_size = 1024,
 	GLK_COLORS,
 };

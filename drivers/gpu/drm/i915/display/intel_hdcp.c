@@ -2206,7 +2206,6 @@ static bool is_hdcp2_supported(struct drm_i915_private *dev_priv)
 		return false;
 
 	return (DISPLAY_VER(dev_priv) >= 10 ||
-		IS_GEMINILAKE(dev_priv) ||
 		IS_KABYLAKE(dev_priv) ||
 		IS_COFFEELAKE(dev_priv) ||
 		IS_COMETLAKE(dev_priv));

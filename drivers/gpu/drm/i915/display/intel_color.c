@@ -737,7 +737,7 @@ static void ivb_load_lut_ext_max(const struct intel_crtc_state *crtc_state)
 	 * ToDo: Extend the ABI to be able to program values
 	 * from 3.0 to 7.0
 	 */
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) >= 10) {
 		intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 0),
 				    1 << 16);
 		intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 1),
@@ -1711,7 +1711,7 @@ int intel_color_get_gamma_bit_precision(const struct intel_crtc_state *crtc_stat
 	} else {
 		if (DISPLAY_VER(dev_priv) >= 11)
 			return icl_gamma_precision(crtc_state);
-		else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		else if (IS_DISPLAY_VER(dev_priv, 10))
 			return glk_gamma_precision(crtc_state);
 		else if (IS_IRONLAKE(dev_priv))
 			return ilk_gamma_precision(crtc_state);
@@ -2119,7 +2119,7 @@ void intel_color_init(struct intel_crtc *crtc)
 	} else {
 		if (DISPLAY_VER(dev_priv) >= 11)
 			dev_priv->display.color_check = icl_color_check;
-		else if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		else if (DISPLAY_VER(dev_priv) >= 10)
 			dev_priv->display.color_check = glk_color_check;
 		else if (DISPLAY_VER(dev_priv) >= 7)
 			dev_priv->display.color_check = ivb_color_check;
@@ -2136,7 +2136,7 @@ void intel_color_init(struct intel_crtc *crtc)
 		if (DISPLAY_VER(dev_priv) >= 11) {
 			dev_priv->display.load_luts = icl_load_luts;
 			dev_priv->display.read_luts = icl_read_luts;
-		} else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
+		} else if (IS_DISPLAY_VER(dev_priv, 10)) {
 			dev_priv->display.load_luts = glk_load_luts;
 			dev_priv->display.read_luts = glk_read_luts;
 		} else if (DISPLAY_VER(dev_priv) >= 8) {

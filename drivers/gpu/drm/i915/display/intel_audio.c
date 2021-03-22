@@ -1022,7 +1022,7 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 		if (IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, true);
 
-		if (DISPLAY_VER(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		if (DISPLAY_VER(dev_priv) >= 10)
 			intel_de_write(dev_priv, AUD_PIN_BUF_CTL,
 				       (intel_de_read(dev_priv, AUD_PIN_BUF_CTL) | AUD_PIN_BUF_ENABLE));
 	}

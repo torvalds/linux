@@ -917,8 +917,7 @@ parse_psr(struct drm_i915_private *i915, const struct bdb_header *bdb)
 	 * Old decimal value is wake up time in multiples of 100 us.
 	 */
 	if (bdb->version >= 205 &&
-	    (IS_GEN9_BC(i915) || IS_GEMINILAKE(i915) ||
-	     DISPLAY_VER(i915) >= 10)) {
+	    (IS_GEN9_BC(i915) || DISPLAY_VER(i915) >= 10)) {
 		switch (psr_table->tp1_wakeup_time) {
 		case 0:
 			i915->vbt.psr.tp1_wakeup_time_us = 500;
