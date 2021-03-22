@@ -719,7 +719,9 @@ static int felix_bridge_join(struct dsa_switch *ds, int port,
 {
 	struct ocelot *ocelot = ds->priv;
 
-	return ocelot_port_bridge_join(ocelot, port, br);
+	ocelot_port_bridge_join(ocelot, port, br);
+
+	return 0;
 }
 
 static void felix_bridge_leave(struct dsa_switch *ds, int port,

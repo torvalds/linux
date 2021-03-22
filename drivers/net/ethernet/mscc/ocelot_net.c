@@ -1117,47 +1117,126 @@ static int ocelot_port_obj_del(struct net_device *dev,
 	return ret;
 }
 
+static void ocelot_inherit_brport_flags(struct ocelot *ocelot, int port,
+					struct net_device *brport_dev)
+{
+	struct switchdev_brport_flags flags = {0};
+	int flag;
+
+	flags.mask = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
+
+	for_each_set_bit(flag, &flags.mask, 32)
+		if (br_port_flag_is_set(brport_dev, BIT(flag)))
+			flags.val |= BIT(flag);
+
+	ocelot_port_bridge_flags(ocelot, port, flags);
+}
+
+static void ocelot_clear_brport_flags(struct ocelot *ocelot, int port)
+{
+	struct switchdev_brport_flags flags;
+
+	flags.mask = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
+	flags.val = flags.mask & ~BR_LEARNING;
+
+	ocelot_port_bridge_flags(ocelot, port, flags);
+}
+
+static int ocelot_switchdev_sync(struct ocelot *ocelot, int port,
+				 struct net_device *brport_dev,
+				 struct net_device *bridge_dev,
+				 struct netlink_ext_ack *extack)
+{
+	clock_t ageing_time;
+	u8 stp_state;
+	int err;
+
+	ocelot_inherit_brport_flags(ocelot, port, brport_dev);
+
+	stp_state = br_port_get_stp_state(brport_dev);
+	ocelot_bridge_stp_state_set(ocelot, port, stp_state);
+
+	err = ocelot_port_vlan_filtering(ocelot, port,
+					 br_vlan_enabled(bridge_dev));
+	if (err)
+		return err;
+
+	ageing_time = br_get_ageing_time(bridge_dev);
+	ocelot_port_attr_ageing_set(ocelot, port, ageing_time);
+
+	err = br_mdb_replay(bridge_dev, brport_dev,
+			    &ocelot_switchdev_blocking_nb, extack);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = br_fdb_replay(bridge_dev, brport_dev, &ocelot_switchdev_nb);
+	if (err)
+		return err;
+
+	err = br_vlan_replay(bridge_dev, brport_dev,
+			     &ocelot_switchdev_blocking_nb, extack);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	return 0;
+}
+
+static int ocelot_switchdev_unsync(struct ocelot *ocelot, int port)
+{
+	int err;
+
+	err = ocelot_port_vlan_filtering(ocelot, port, false);
+	if (err)
+		return err;
+
+	ocelot_clear_brport_flags(ocelot, port);
+
+	ocelot_bridge_stp_state_set(ocelot, port, BR_STATE_FORWARDING);
+
+	return 0;
+}
+
 static int ocelot_netdevice_bridge_join(struct net_device *dev,
+					struct net_device *brport_dev,
 					struct net_device *bridge,
 					struct netlink_ext_ack *extack)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
-	struct switchdev_brport_flags flags;
 	int port = priv->chip_port;
 	int err;
 
-	flags.mask = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
-	flags.val = flags.mask;
+	ocelot_port_bridge_join(ocelot, port, bridge);
 
-	err = ocelot_port_bridge_join(ocelot, port, bridge);
+	err = ocelot_switchdev_sync(ocelot, port, brport_dev, bridge, extack);
 	if (err)
-		return err;
-
-	ocelot_port_bridge_flags(ocelot, port, flags);
+		goto err_switchdev_sync;
 
 	return 0;
+
+err_switchdev_sync:
+	ocelot_port_bridge_leave(ocelot, port, bridge);
+	return err;
 }
 
 static int ocelot_netdevice_bridge_leave(struct net_device *dev,
+					 struct net_device *brport_dev,
 					 struct net_device *bridge)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
-	struct switchdev_brport_flags flags;
 	int port = priv->chip_port;
 	int err;
 
-	flags.mask = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
-	flags.val = flags.mask & ~BR_LEARNING;
+	err = ocelot_switchdev_unsync(ocelot, port);
+	if (err)
+		return err;
 
-	err = ocelot_port_bridge_leave(ocelot, port, bridge);
+	ocelot_port_bridge_leave(ocelot, port, bridge);
 
-	ocelot_port_bridge_flags(ocelot, port, flags);
-
-	return err;
+	return 0;
 }
 
 static int ocelot_netdevice_lag_join(struct net_device *dev,
@@ -1182,7 +1261,7 @@ static int ocelot_netdevice_lag_join(struct net_device *dev,
 	if (!bridge_dev || !netif_is_bridge_master(bridge_dev))
 		return 0;
 
-	err = ocelot_netdevice_bridge_join(dev, bridge_dev, extack);
+	err = ocelot_netdevice_bridge_join(dev, bond, bridge_dev, extack);
 	if (err)
 		goto err_bridge_join;
 
@@ -1208,7 +1287,7 @@ static int ocelot_netdevice_lag_leave(struct net_device *dev,
 	if (!bridge_dev || !netif_is_bridge_master(bridge_dev))
 		return 0;
 
-	return ocelot_netdevice_bridge_leave(dev, bridge_dev);
+	return ocelot_netdevice_bridge_leave(dev, bond, bridge_dev);
 }
 
 static int ocelot_netdevice_changeupper(struct net_device *dev,
@@ -1221,10 +1300,12 @@ static int ocelot_netdevice_changeupper(struct net_device *dev,
 
 	if (netif_is_bridge_master(info->upper_dev)) {
 		if (info->linking)
-			err = ocelot_netdevice_bridge_join(dev, info->upper_dev,
+			err = ocelot_netdevice_bridge_join(dev, dev,
+							   info->upper_dev,
 							   extack);
 		else
-			err = ocelot_netdevice_bridge_leave(dev, info->upper_dev);
+			err = ocelot_netdevice_bridge_leave(dev, dev,
+							    info->upper_dev);
 	}
 	if (netif_is_lag_master(info->upper_dev)) {
 		if (info->linking)
