@@ -177,7 +177,12 @@ struct bkey_s_c bch2_btree_iter_peek_cached(struct btree_iter *);
 
 bool bch2_btree_iter_advance(struct btree_iter *);
 bool bch2_btree_iter_rewind(struct btree_iter *);
-void bch2_btree_iter_set_pos(struct btree_iter *, struct bpos);
+
+static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
+{
+	bkey_init(&iter->k);
+	iter->k.p = iter->pos = new_pos;
+}
 
 /* Sort order for locking btree iterators: */
 static inline int btree_iter_lock_cmp(const struct btree_iter *l,

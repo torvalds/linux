@@ -1470,14 +1470,6 @@ out:
 	bch2_btree_iter_verify(iter);
 }
 
-void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
-{
-	bkey_init(&iter->k);
-	iter->k.p = iter->pos = new_pos;
-
-	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
-}
-
 inline bool bch2_btree_iter_advance(struct btree_iter *iter)
 {
 	struct bpos pos = iter->k.p;
@@ -1994,6 +1986,7 @@ alloc_iter:
 		__bch2_btree_iter_upgrade_nounlock(iter, 1);
 
 	bch2_btree_iter_set_pos(iter, pos);
+	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
 
 	return iter;
 }
