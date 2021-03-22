@@ -508,7 +508,7 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		case DRM_FORMAT_XRGB8888:
 			xrgb8888_supported = true;
 			break;
-		};
+		}
 
 		fmt_buf_size = drm_format_info_min_pitch(info, 0, drm->mode_config.max_width) *
 			       drm->mode_config.max_height;

@@ -124,7 +124,7 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 			default:
 				WARN_ON_ONCE(1);
 				return len;
-			};
+			}
 
 			*block |= pix << pixshift;
 		}

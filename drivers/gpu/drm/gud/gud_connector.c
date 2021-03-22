@@ -183,7 +183,7 @@ static int gud_connector_detect(struct drm_connector *connector,
 	default:
 		ret = connector_status_unknown;
 		break;
-	};
+	}
 
 	if (status & GUD_CONNECTOR_STATUS_CHANGED)
 		connector->epoch_counter += 1;
@@ -655,7 +655,7 @@ static int gud_connector_create(struct gud_device *gdrm, unsigned int index,
 	default: /* future types */
 		connector_type = DRM_MODE_CONNECTOR_USB;
 		break;
-	};
+	}
 
 	drm_connector_helper_add(connector, &gud_connector_helper_funcs);
 	ret = drm_connector_init(drm, connector, &gud_connector_funcs, connector_type);
