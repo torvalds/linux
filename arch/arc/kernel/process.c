@@ -50,14 +50,14 @@ SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
 	int ret;
 
 	/*
-	 * This is only for old cores lacking LLOCK/SCOND, which by defintion
+	 * This is only for old cores lacking LLOCK/SCOND, which by definition
 	 * can't possibly be SMP. Thus doesn't need to be SMP safe.
 	 * And this also helps reduce the overhead for serializing in
 	 * the UP case
 	 */
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_SMP));
 
-	/* Z indicates to userspace if operation succeded */
+	/* Z indicates to userspace if operation succeeded */
 	regs->status32 &= ~STATUS_Z_MASK;
 
 	ret = access_ok(uaddr, sizeof(*uaddr));
@@ -107,7 +107,7 @@ fail:
 
 void arch_cpu_idle(void)
 {
-	/* Re-enable interrupts <= default irq priority before commiting SLEEP */
+	/* Re-enable interrupts <= default irq priority before committing SLEEP */
 	const unsigned int arg = 0x10 | ARCV2_IRQ_DEF_PRIO;
 
 	__asm__ __volatile__(
@@ -120,7 +120,7 @@ void arch_cpu_idle(void)
 
 void arch_cpu_idle(void)
 {
-	/* sleep, but enable both set E1/E2 (levels of interrutps) before committing */
+	/* sleep, but enable both set E1/E2 (levels of interrupts) before committing */
 	__asm__ __volatile__("sleep 0x3	\n");
 }
 
