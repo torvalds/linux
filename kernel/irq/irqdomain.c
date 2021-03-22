@@ -62,7 +62,7 @@ EXPORT_SYMBOL_GPL(irqchip_fwnode_ops);
  * @name:	Optional user provided domain name
  * @pa:		Optional user-provided physical address
  *
- * Allocate a struct irqchip_fwid, and return a poiner to the embedded
+ * Allocate a struct irqchip_fwid, and return a pointer to the embedded
  * fwnode_handle (or NULL on failure).
  *
  * Note: The types IRQCHIP_FWNODE_NAMED and IRQCHIP_FWNODE_NAMED_ID are
@@ -665,7 +665,7 @@ unsigned int irq_create_mapping_affinity(struct irq_domain *domain,
 
 	pr_debug("irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
 
-	/* Look for default domain if nececssary */
+	/* Look for default domain if necessary */
 	if (domain == NULL)
 		domain = irq_default_domain;
 	if (domain == NULL) {
@@ -906,7 +906,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 {
 	struct irq_data *data;
 
-	/* Look for default domain if nececssary */
+	/* Look for default domain if necessary */
 	if (domain == NULL)
 		domain = irq_default_domain;
 	if (domain == NULL)
@@ -1436,7 +1436,7 @@ int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
  * The whole process to setup an IRQ has been split into two steps.
  * The first step, __irq_domain_alloc_irqs(), is to allocate IRQ
  * descriptor and required hardware resources. The second step,
- * irq_domain_activate_irq(), is to program hardwares with preallocated
+ * irq_domain_activate_irq(), is to program the hardware with preallocated
  * resources. In this way, it's easier to rollback when failing to
  * allocate resources.
  */
