@@ -1953,6 +1953,7 @@
   sched_clock
   sched_feat_keys
   sched_feat_names
+  sched_setattr
   sched_set_fifo
   sched_set_fifo_low
   sched_set_normal
