@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Generic DT helper functions for touchscreen devices
+ *  Generic helper functions for touchscreens and other two-dimensional
+ *  pointing devices
  *
  *  Copyright (c) 2014 Sebastian Reichel <sre@kernel.org>
  */
@@ -37,7 +38,7 @@ static void touchscreen_set_params(struct input_dev *dev,
 
 	if (!test_bit(axis, dev->absbit)) {
 		dev_warn(&dev->dev,
-			 "DT specifies parameters but the axis %lu is not set up\n",
+			 "Parameters are specified but the axis %lu is not set up\n",
 			 axis);
 		return;
 	}
@@ -49,7 +50,7 @@ static void touchscreen_set_params(struct input_dev *dev,
 }
 
 /**
- * touchscreen_parse_properties - parse common touchscreen DT properties
+ * touchscreen_parse_properties - parse common touchscreen properties
  * @input: input device that should be parsed
  * @multitouch: specifies whether parsed properties should be applied to
  *	single-touch or multi-touch axes
@@ -57,9 +58,9 @@ static void touchscreen_set_params(struct input_dev *dev,
  *	axis swap and invert info for use with touchscreen_report_x_y();
  *	or %NULL
  *
- * This function parses common DT properties for touchscreens and setups the
+ * This function parses common properties for touchscreens and sets up the
  * input device accordingly. The function keeps previously set up default
- * values if no value is specified via DT.
+ * values if no value is specified.
  */
 void touchscreen_parse_properties(struct input_dev *input, bool multitouch,
 				  struct touchscreen_properties *prop)
@@ -203,4 +204,4 @@ void touchscreen_report_pos(struct input_dev *input,
 EXPORT_SYMBOL(touchscreen_report_pos);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Device-tree helpers functions for touchscreen devices");
+MODULE_DESCRIPTION("Helper functions for touchscreens and other devices");
