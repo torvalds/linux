@@ -44,3 +44,10 @@ const char *arch_perf_header_entry(const char *se_header)
 		return "Dispatch Cyc";
 	return se_header;
 }
+
+int arch_support_sort_key(const char *sort_key)
+{
+	if (!strcmp(sort_key, "p_stage_cyc"))
+		return 1;
+	return 0;
+}

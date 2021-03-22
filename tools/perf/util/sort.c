@@ -47,6 +47,7 @@ regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 const char	*dynamic_headers[] = {"local_ins_lat", "p_stage_cyc"};
+const char	*arch_specific_sort_keys[] = {"p_stage_cyc"};
 
 /*
  * Replaces all occurrences of a char used with the:
@@ -1837,6 +1838,11 @@ struct sort_dimension {
 	int			taken;
 };
 
+int __weak arch_support_sort_key(const char *sort_key __maybe_unused)
+{
+	return 0;
+}
+
 const char * __weak arch_perf_header_entry(const char *se_header)
 {
 	return se_header;
@@ -2772,6 +2778,19 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			int level)
 {
 	unsigned int i, j;
+
+	/*
+	 * Check to see if there are any arch specific
+	 * sort dimensions not applicable for the current
+	 * architecture. If so, Skip that sort key since
+	 * we don't want to display it in the output fields.
+	 */
+	for (j = 0; j < ARRAY_SIZE(arch_specific_sort_keys); j++) {
+		if (!strcmp(arch_specific_sort_keys[j], tok) &&
+				!arch_support_sort_key(tok)) {
+			return 0;
+		}
+	}
 
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
