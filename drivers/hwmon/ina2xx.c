@@ -385,7 +385,7 @@ static ssize_t ina226_alert_show(struct device *dev,
 		val = ina226_reg_to_alert(data, attr->index, regval);
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", val);
+	ret = sysfs_emit(buf, "%d\n", val);
 abort:
 	mutex_unlock(&data->config_lock);
 	return ret;

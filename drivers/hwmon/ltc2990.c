@@ -147,7 +147,7 @@ static ssize_t ltc2990_value_show(struct device *dev,
 	if (unlikely(ret < 0))
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static umode_t ltc2990_attrs_visible(struct kobject *kobj,

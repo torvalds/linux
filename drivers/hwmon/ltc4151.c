@@ -128,7 +128,7 @@ static ssize_t ltc4151_value_show(struct device *dev,
 		return PTR_ERR(data);
 
 	value = ltc4151_get_value(data, attr->index);
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 /*

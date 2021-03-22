@@ -943,7 +943,7 @@ static ssize_t pmbus_show_boolean(struct device *dev,
 	val = pmbus_get_boolean(client, boolean, attr->index);
 	if (val < 0)
 		return val;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t pmbus_show_sensor(struct device *dev,
@@ -959,7 +959,7 @@ static ssize_t pmbus_show_sensor(struct device *dev,
 	if (sensor->data < 0)
 		ret = sensor->data;
 	else
-		ret = snprintf(buf, PAGE_SIZE, "%lld\n", pmbus_reg2data(data, sensor));
+		ret = sysfs_emit(buf, "%lld\n", pmbus_reg2data(data, sensor));
 	mutex_unlock(&data->update_lock);
 	return ret;
 }
@@ -995,7 +995,7 @@ static ssize_t pmbus_show_label(struct device *dev,
 {
 	struct pmbus_label *label = to_pmbus_label(da);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", label->label);
+	return sysfs_emit(buf, "%s\n", label->label);
 }
 
 static int pmbus_add_attribute(struct pmbus_data *data, struct attribute *attr)
@@ -2035,7 +2035,7 @@ static ssize_t pmbus_show_samples(struct device *dev,
 	if (val < 0)
 		return val;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t pmbus_set_samples(struct device *dev,

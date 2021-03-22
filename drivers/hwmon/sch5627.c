@@ -195,7 +195,7 @@ static int reg_to_rpm(u16 reg)
 static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
 	char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", DEVNAME);
+	return sysfs_emit(buf, "%s\n", DEVNAME);
 }
 
 static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
@@ -209,7 +209,7 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
 		return PTR_ERR(data);
 
 	val = reg_to_temp(data->temp[attr->index]);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t temp_fault_show(struct device *dev,
@@ -221,7 +221,7 @@ static ssize_t temp_fault_show(struct device *dev,
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", data->temp[attr->index] == 0);
+	return sysfs_emit(buf, "%d\n", data->temp[attr->index] == 0);
 }
 
 static ssize_t temp_max_show(struct device *dev,
@@ -232,7 +232,7 @@ static ssize_t temp_max_show(struct device *dev,
 	int val;
 
 	val = reg_to_temp_limit(data->temp_max[attr->index]);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t temp_crit_show(struct device *dev,
@@ -243,7 +243,7 @@ static ssize_t temp_crit_show(struct device *dev,
 	int val;
 
 	val = reg_to_temp_limit(data->temp_crit[attr->index]);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t fan_show(struct device *dev, struct device_attribute *devattr,
@@ -260,7 +260,7 @@ static ssize_t fan_show(struct device *dev, struct device_attribute *devattr,
 	if (val < 0)
 		return val;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t fan_fault_show(struct device *dev,
@@ -272,8 +272,8 @@ static ssize_t fan_fault_show(struct device *dev,
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			data->fan[attr->index] == 0xffff);
+	return sysfs_emit(buf, "%d\n",
+			  data->fan[attr->index] == 0xffff);
 }
 
 static ssize_t fan_min_show(struct device *dev,
@@ -285,7 +285,7 @@ static ssize_t fan_min_show(struct device *dev,
 	if (val < 0)
 		return val;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t in_show(struct device *dev, struct device_attribute *devattr,
@@ -301,7 +301,7 @@ static ssize_t in_show(struct device *dev, struct device_attribute *devattr,
 	val = DIV_ROUND_CLOSEST(
 		data->in[attr->index] * SCH5627_REG_IN_FACTOR[attr->index],
 		10000);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t in_label_show(struct device *dev,
@@ -309,8 +309,8 @@ static ssize_t in_label_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			SCH5627_IN_LABELS[attr->index]);
+	return sysfs_emit(buf, "%s\n",
+			  SCH5627_IN_LABELS[attr->index]);
 }
 
 static DEVICE_ATTR_RO(name);
