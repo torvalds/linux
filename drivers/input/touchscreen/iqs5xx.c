@@ -832,7 +832,7 @@ static int iqs5xx_fw_file_parse(struct i2c_client *client,
 static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 {
 	struct iqs5xx_private *iqs5xx = i2c_get_clientdata(client);
-	int error, error_bl = 0;
+	int error, error_init = 0;
 	u8 *pmap;
 
 	if (iqs5xx->dev_id_info.bl_status == IQS5XX_BL_STATUS_NONE)
@@ -875,21 +875,14 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 	error = iqs5xx_bl_verify(client, IQS5XX_CSTM,
 				 pmap + IQS5XX_CHKSM_LEN + IQS5XX_APP_LEN,
 				 IQS5XX_CSTM_LEN);
-	if (error)
-		goto err_reset;
-
-	error = iqs5xx_bl_cmd(client, IQS5XX_BL_CMD_EXEC, 0);
 
 err_reset:
-	if (error) {
-		iqs5xx_reset(client);
-		usleep_range(10000, 10100);
-	}
+	iqs5xx_reset(client);
+	usleep_range(15000, 15100);
 
-	error_bl = error;
-	error = iqs5xx_dev_init(client);
-	if (!error && !iqs5xx->dev_id_info.bl_status)
-		error = -EINVAL;
+	error_init = iqs5xx_dev_init(client);
+	if (!iqs5xx->dev_id_info.bl_status)
+		error_init = error_init ? : -EINVAL;
 
 	enable_irq(client->irq);
 
@@ -898,10 +891,7 @@ err_reset:
 err_kfree:
 	kfree(pmap);
 
-	if (error_bl)
-		return error_bl;
-
-	return error;
+	return error ? : error_init;
 }
 
 static ssize_t fw_file_store(struct device *dev,
