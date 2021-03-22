@@ -282,6 +282,19 @@ xfs_dfork_attr_shortform_size(
 	return be16_to_cpu(atp->hdr.totsize);
 }
 
+struct xfs_ifork *
+xfs_ifork_alloc(
+	enum xfs_dinode_fmt	format,
+	xfs_extnum_t		nextents)
+{
+	struct xfs_ifork	*ifp;
+
+	ifp = kmem_cache_zalloc(xfs_ifork_zone, GFP_NOFS | __GFP_NOFAIL);
+	ifp->if_format = format;
+	ifp->if_nextents = nextents;
+	return ifp;
+}
+
 int
 xfs_iformat_attr_fork(
 	struct xfs_inode	*ip,
@@ -293,11 +306,8 @@ xfs_iformat_attr_fork(
 	 * Initialize the extent count early, as the per-format routines may
 	 * depend on it.
 	 */
-	ip->i_afp = kmem_cache_zalloc(xfs_ifork_zone, GFP_NOFS | __GFP_NOFAIL);
-	ip->i_afp->if_format = dip->di_aformat;
-	if (unlikely(ip->i_afp->if_format == 0)) /* pre IRIX 6.2 file system */
-		ip->i_afp->if_format = XFS_DINODE_FMT_EXTENTS;
-	ip->i_afp->if_nextents = be16_to_cpu(dip->di_anextents);
+	ip->i_afp = xfs_ifork_alloc(dip->di_aformat,
+				be16_to_cpu(dip->di_anextents));
 
 	switch (ip->i_afp->if_format) {
 	case XFS_DINODE_FMT_LOCAL:

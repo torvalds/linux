@@ -126,6 +126,37 @@ xfs_cleanup_inode(
 	xfs_remove(XFS_I(dir), &teardown, XFS_I(inode));
 }
 
+/*
+ * Check to see if we are likely to need an extended attribute to be added to
+ * the inode we are about to allocate. This allows the attribute fork to be
+ * created during the inode allocation, reducing the number of transactions we
+ * need to do in this fast path.
+ *
+ * The security checks are optimistic, but not guaranteed. The two LSMs that
+ * require xattrs to be added here (selinux and smack) are also the only two
+ * LSMs that add a sb->s_security structure to the superblock. Hence if security
+ * is enabled and sb->s_security is set, we have a pretty good idea that we are
+ * going to be asked to add a security xattr immediately after allocating the
+ * xfs inode and instantiating the VFS inode.
+ */
+static inline bool
+xfs_create_need_xattr(
+	struct inode	*dir,
+	struct posix_acl *default_acl,
+	struct posix_acl *acl)
+{
+	if (acl)
+		return true;
+	if (default_acl)
+		return true;
+#if IS_ENABLED(CONFIG_SECURITY)
+	if (dir->i_sb->s_security)
+		return true;
+#endif
+	return false;
+}
+
+
 STATIC int
 xfs_generic_create(
 	struct user_namespace	*mnt_userns,
@@ -163,7 +194,8 @@ xfs_generic_create(
 
 	if (!tmpfile) {
 		error = xfs_create(mnt_userns, XFS_I(dir), &name, mode, rdev,
-				   &ip);
+				xfs_create_need_xattr(dir, default_acl, acl),
+				&ip);
 	} else {
 		error = xfs_create_tmpfile(mnt_userns, XFS_I(dir), mode, &ip);
 	}

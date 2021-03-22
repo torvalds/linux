@@ -788,7 +788,7 @@ xfs_qm_qino_alloc(
 
 	if (need_alloc) {
 		error = xfs_dir_ialloc(&init_user_ns, &tp, NULL, S_IFREG, 1, 0,
-				       0, ipp);
+				       0, false, ipp);
 		if (error) {
 			xfs_trans_cancel(tp);
 			return error;

@@ -774,6 +774,7 @@ xfs_init_new_inode(
 	xfs_nlink_t		nlink,
 	dev_t			rdev,
 	prid_t			prid,
+	bool			init_xattrs,
 	struct xfs_inode	**ipp)
 {
 	struct inode		*dir = pip ? VFS_I(pip) : NULL;
@@ -878,6 +879,20 @@ xfs_init_new_inode(
 	}
 
 	/*
+	 * If we need to create attributes immediately after allocating the
+	 * inode, initialise an empty attribute fork right now. We use the
+	 * default fork offset for attributes here as we don't know exactly what
+	 * size or how many attributes we might be adding. We can do this
+	 * safely here because we know the data fork is completely empty and
+	 * this saves us from needing to run a separate transaction to set the
+	 * fork offset in the immediate future.
+	 */
+	if (init_xattrs) {
+		ip->i_d.di_forkoff = xfs_default_attroffset(ip) >> 3;
+		ip->i_afp = xfs_ifork_alloc(XFS_DINODE_FMT_EXTENTS, 0);
+	}
+
+	/*
 	 * Log the new values stuffed into the inode.
 	 */
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
@@ -910,6 +925,7 @@ xfs_dir_ialloc(
 	xfs_nlink_t		nlink,
 	dev_t			rdev,
 	prid_t			prid,
+	bool			init_xattrs,
 	struct xfs_inode	**ipp)
 {
 	struct xfs_buf		*agibp;
@@ -937,7 +953,7 @@ xfs_dir_ialloc(
 	ASSERT(ino != NULLFSINO);
 
 	return xfs_init_new_inode(mnt_userns, *tpp, dp, ino, mode, nlink, rdev,
-				  prid, ipp);
+				  prid, init_xattrs, ipp);
 }
 
 /*
@@ -982,6 +998,7 @@ xfs_create(
 	struct xfs_name		*name,
 	umode_t			mode,
 	dev_t			rdev,
+	bool			init_xattrs,
 	xfs_inode_t		**ipp)
 {
 	int			is_dir = S_ISDIR(mode);
@@ -1053,7 +1070,7 @@ xfs_create(
 	 * pointing to itself.
 	 */
 	error = xfs_dir_ialloc(mnt_userns, &tp, dp, mode, is_dir ? 2 : 1, rdev,
-			       prid, &ip);
+			       prid, init_xattrs, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -1173,7 +1190,8 @@ xfs_create_tmpfile(
 	if (error)
 		goto out_release_dquots;
 
-	error = xfs_dir_ialloc(mnt_userns, &tp, dp, mode, 0, 0, prid, &ip);
+	error = xfs_dir_ialloc(mnt_userns, &tp, dp, mode, 0, 0, prid,
+				false, &ip);
 	if (error)
 		goto out_trans_cancel;
 

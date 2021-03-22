@@ -1027,7 +1027,9 @@ xfs_bmap_add_attrfork_local(
 	return -EFSCORRUPTED;
 }
 
-/* Set an inode attr fork off based on the format */
+/*
+ * Set an inode attr fork offset based on the format of the data fork.
+ */
 int
 xfs_bmap_set_attrforkoff(
 	struct xfs_inode	*ip,
@@ -1092,10 +1094,7 @@ xfs_bmap_add_attrfork(
 		goto trans_cancel;
 	ASSERT(ip->i_afp == NULL);
 
-	ip->i_afp = kmem_cache_zalloc(xfs_ifork_zone,
-				      GFP_KERNEL | __GFP_NOFAIL);
-
-	ip->i_afp->if_format = XFS_DINODE_FMT_EXTENTS;
+	ip->i_afp = xfs_ifork_alloc(XFS_DINODE_FMT_EXTENTS, 0);
 	ip->i_afp->if_flags = XFS_IFEXTENTS;
 	logflags = 0;
 	switch (ip->i_df.if_format) {
