@@ -517,7 +517,7 @@ retry_op:
 			goto out;
 		sc.flags |= XCHK_TRY_HARDER;
 		goto retry_op;
-	} else if (error)
+	} else if (error || (sm->sm_flags & XFS_SCRUB_OFLAG_INCOMPLETE))
 		goto out_teardown;
 
 	xchk_update_health(&sc);
