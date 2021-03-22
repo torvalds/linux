@@ -1336,7 +1336,7 @@ made_compressed_probe:
 	dev_dbg(&intf->dev, "interfaces are valid\n");
 
 	acm = kzalloc(sizeof(struct acm), GFP_KERNEL);
-	if (acm == NULL)
+	if (!acm)
 		return -ENOMEM;
 
 	tty_port_init(&acm->port);
@@ -1429,7 +1429,7 @@ made_compressed_probe:
 		struct acm_wb *snd = &(acm->wb[i]);
 
 		snd->urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (snd->urb == NULL)
+		if (!snd->urb)
 			goto err_free_write_urbs;
 
 		if (usb_endpoint_xfer_int(epwrite))
