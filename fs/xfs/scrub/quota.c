@@ -85,7 +85,7 @@ xchk_quota_item(
 	int			error = 0;
 
 	if (xchk_should_terminate(sc, &error))
-		return error;
+		return -ECANCELED;
 
 	/*
 	 * Except for the root dquot, the actual dquot we got must either have
@@ -162,7 +162,7 @@ xchk_quota_item(
 
 out:
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		return -EFSCORRUPTED;
+		return -ECANCELED;
 
 	return 0;
 }
@@ -238,6 +238,8 @@ xchk_quota(
 	error = xfs_qm_dqiterate(mp, dqtype, xchk_quota_item, &sqi);
 	sc->ilock_flags = XFS_ILOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
+	if (error == -ECANCELED)
+		error = 0;
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK,
 			sqi.last_id * qi->qi_dqperchunk, &error))
 		goto out;
