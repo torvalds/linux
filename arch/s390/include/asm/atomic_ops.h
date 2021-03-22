@@ -14,7 +14,7 @@ static inline int __atomic_read(const atomic_t *v)
 
 	asm volatile(
 		"	l	%0,%1\n"
-		: "=d" (c) : "Q" (v->counter));
+		: "=d" (c) : "R" (v->counter));
 	return c;
 }
 
@@ -22,7 +22,7 @@ static inline void __atomic_set(atomic_t *v, int i)
 {
 	asm volatile(
 		"	st	%1,%0\n"
-		: "=Q" (v->counter) : "d" (i));
+		: "=R" (v->counter) : "d" (i));
 }
 
 static inline s64 __atomic64_read(const atomic64_t *v)
@@ -31,7 +31,7 @@ static inline s64 __atomic64_read(const atomic64_t *v)
 
 	asm volatile(
 		"	lg	%0,%1\n"
-		: "=d" (c) : "Q" (v->counter));
+		: "=d" (c) : "T" (v->counter));
 	return c;
 }
 
@@ -39,7 +39,7 @@ static inline void __atomic64_set(atomic64_t *v, s64 i)
 {
 	asm volatile(
 		"	stg	%1,%0\n"
-		: "=Q" (v->counter) : "d" (i));
+		: "=T" (v->counter) : "d" (i));
 }
 
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
@@ -52,7 +52,7 @@ static inline op_type op_name(op_type val, op_type *ptr)		\
 	asm volatile(							\
 		op_string "	%[old],%[val],%[ptr]\n"			\
 		op_barrier						\
-		: [old] "=d" (old), [ptr] "+Q" (*ptr)			\
+		: [old] "=d" (old), [ptr] "+S" (*ptr)			\
 		: [val] "d" (val) : "cc", "memory");			\
 	return old;							\
 }									\
@@ -80,7 +80,7 @@ static __always_inline void op_name(op_type val, op_type *ptr)		\
 	asm volatile(							\
 		op_string "	%[ptr],%[val]\n"			\
 		op_barrier						\
-		: [ptr] "+Q" (*ptr) : [val] "i" (val) : "cc", "memory");\
+		: [ptr] "+S" (*ptr) : [val] "i" (val) : "cc", "memory");\
 }
 
 #define __ATOMIC_CONST_OPS(op_name, op_type, op_string)			\
@@ -131,7 +131,7 @@ static inline long op_name(long val, long *ptr)				\
 		op_string "	%[new],%[val]\n"			\
 		"	csg	%[old],%[new],%[ptr]\n"			\
 		"	jl	0b"					\
-		: [old] "=d" (old), [new] "=&d" (new), [ptr] "+Q" (*ptr)\
+		: [old] "=d" (old), [new] "=&d" (new), [ptr] "+S" (*ptr)\
 		: [val] "d" (val), "0" (*ptr) : "cc", "memory");	\
 	return old;							\
 }
