@@ -77,12 +77,20 @@ struct mtk_spi_compatible {
 	const u32 max_fifo_size;
 	bool must_rx;
 };
+
 static const struct mtk_spi_compatible mt2712_compat = {
 	.max_fifo_size = 512,
 };
+static const struct mtk_spi_compatible mt8195_compat = {
+	.max_fifo_size = 128,
+	.must_rx = true,
+};
+
 static const struct of_device_id mtk_spi_slave_of_match[] = {
 	{ .compatible = "mediatek,mt2712-spi-slave",
 	  .data = (void *)&mt2712_compat,},
+	{ .compatible = "mediatek,mt8195-spi-slave",
+	  .data = (void *)&mt8195_compat,},
 	{}
 };
 MODULE_DEVICE_TABLE(of, mtk_spi_slave_of_match);
