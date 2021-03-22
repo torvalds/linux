@@ -37,6 +37,7 @@
 #include "amdgpu_gmc.h"
 #include "amdgpu_xgmi.h"
 #include "amdgpu_dma_buf.h"
+#include "amdgpu_res_cursor.h"
 #include "kfd_svm.h"
 
 /**
@@ -1606,7 +1607,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
  * @last: last mapped entry
  * @flags: flags for the entries
  * @offset: offset into nodes and pages_addr
- * @nodes: array of drm_mm_nodes with the MC addresses
+ * @res: ttm_resource to map
  * @pages_addr: DMA addresses to use for mapping
  * @fence: optional resulting fence
  *
@@ -1621,13 +1622,13 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				bool unlocked, struct dma_resv *resv,
 				uint64_t start, uint64_t last,
 				uint64_t flags, uint64_t offset,
-				struct drm_mm_node *nodes,
+				struct ttm_resource *res,
 				dma_addr_t *pages_addr,
 				struct dma_fence **fence)
 {
 	struct amdgpu_vm_update_params params;
+	struct amdgpu_res_cursor cursor;
 	enum amdgpu_sync_mode sync_mode;
-	uint64_t pfn;
 	int r;
 
 	memset(&params, 0, sizeof(params));
@@ -1644,14 +1645,6 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		sync_mode = AMDGPU_SYNC_EQ_OWNER;
 	else
 		sync_mode = AMDGPU_SYNC_EXPLICIT;
-
-	pfn = offset >> PAGE_SHIFT;
-	if (nodes) {
-		while (pfn >= nodes->size) {
-			pfn -= nodes->size;
-			++nodes;
-		}
-	}
 
 	amdgpu_vm_eviction_lock(vm);
 	if (vm->evicting) {
@@ -1671,23 +1664,17 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_unlock;
 
-	do {
+	amdgpu_res_first(res, offset, (last - start + 1) * AMDGPU_GPU_PAGE_SIZE,
+			 &cursor);
+	while (cursor.remaining) {
 		uint64_t tmp, num_entries, addr;
 
-
-		num_entries = last - start + 1;
-		if (nodes) {
-			addr = nodes->start << PAGE_SHIFT;
-			num_entries = min((nodes->size - pfn) *
-				AMDGPU_GPU_PAGES_IN_CPU_PAGE, num_entries);
-		} else {
-			addr = 0;
-		}
-
+		num_entries = cursor.size >> AMDGPU_GPU_PAGE_SHIFT;
 		if (pages_addr) {
 			bool contiguous = true;
 
 			if (num_entries > AMDGPU_GPU_PAGES_IN_CPU_PAGE) {
+				uint64_t pfn = cursor.start >> PAGE_SHIFT;
 				uint64_t count;
 
 				contiguous = pages_addr[pfn + 1] ==
@@ -1707,16 +1694,18 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 			}
 
 			if (!contiguous) {
-				addr = pfn << PAGE_SHIFT;
+				addr = cursor.start;
 				params.pages_addr = pages_addr;
 			} else {
-				addr = pages_addr[pfn];
+				addr = pages_addr[cursor.start >> PAGE_SHIFT];
 				params.pages_addr = NULL;
 			}
 
 		} else if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT)) {
-			addr += bo_adev->vm_manager.vram_base_offset;
-			addr += pfn << PAGE_SHIFT;
+			addr = bo_adev->vm_manager.vram_base_offset +
+				cursor.start;
+		} else {
+			addr = 0;
 		}
 
 		tmp = start + num_entries;
@@ -1724,14 +1713,9 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		if (r)
 			goto error_unlock;
 
-		pfn += num_entries / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
-		if (nodes && nodes->size == pfn) {
-			pfn = 0;
-			++nodes;
-		}
+		amdgpu_res_next(&cursor, num_entries * AMDGPU_GPU_PAGE_SIZE);
 		start = tmp;
-
-	} while (unlikely(start != last + 1));
+	};
 
 	r = vm->update_funcs->commit(&params, fence);
 
@@ -1760,7 +1744,6 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 	struct amdgpu_bo_va_mapping *mapping;
 	dma_addr_t *pages_addr = NULL;
 	struct ttm_resource *mem;
-	struct drm_mm_node *nodes;
 	struct dma_fence **last_update;
 	struct dma_resv *resv;
 	uint64_t flags;
@@ -1769,7 +1752,6 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 
 	if (clear || !bo) {
 		mem = NULL;
-		nodes = NULL;
 		resv = vm->root.base.bo->tbo.base.resv;
 	} else {
 		struct drm_gem_object *obj = &bo->tbo.base;
@@ -1784,7 +1766,6 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 				bo = gem_to_amdgpu_bo(gobj);
 		}
 		mem = &bo->tbo.mem;
-		nodes = mem->mm_node;
 		if (mem->mem_type == TTM_PL_TT)
 			pages_addr = bo->tbo.ttm->dma_address;
 	}
@@ -1833,7 +1814,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		r = amdgpu_vm_bo_update_mapping(adev, bo_adev, vm, false, false,
 						resv, mapping->start,
 						mapping->last, update_flags,
-						mapping->offset, nodes,
+						mapping->offset, mem,
 						pages_addr, last_update);
 		if (r)
 			return r;
