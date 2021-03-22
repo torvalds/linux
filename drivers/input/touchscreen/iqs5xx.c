@@ -8,7 +8,7 @@
  * made available by the vendor. Firmware files may be pushed to the device's
  * nonvolatile memory by writing the filename to the 'fw_file' sysfs control.
  *
- * Link to PC-based configuration tool and data sheet: http://www.azoteq.com/
+ * Link to PC-based configuration tool and datasheet: https://www.azoteq.com/
  */
 
 #include <linux/bits.h>
