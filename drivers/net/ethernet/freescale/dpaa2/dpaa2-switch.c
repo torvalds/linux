@@ -1238,6 +1238,56 @@ static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
 	return dpaa2_switch_port_set_stp_state(port_priv, state);
 }
 
+static int dpaa2_switch_port_set_learning(struct ethsw_port_priv *port_priv, bool enable)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	enum dpsw_learning_mode learn_mode;
+	int err;
+
+	if (enable)
+		learn_mode = DPSW_LEARNING_MODE_HW;
+	else
+		learn_mode = DPSW_LEARNING_MODE_DIS;
+
+	err = dpsw_if_set_learning_mode(ethsw->mc_io, 0, ethsw->dpsw_handle,
+					port_priv->idx, learn_mode);
+	if (err)
+		netdev_err(port_priv->netdev, "dpsw_if_set_learning_mode err %d\n", err);
+
+	if (!enable)
+		dpaa2_switch_port_fast_age(port_priv);
+
+	return err;
+}
+
+static int dpaa2_switch_port_pre_bridge_flags(struct net_device *netdev,
+					      struct switchdev_brport_flags flags,
+					      struct netlink_ext_ack *extack)
+{
+	if (flags.mask & ~(BR_LEARNING))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int dpaa2_switch_port_bridge_flags(struct net_device *netdev,
+					  struct switchdev_brport_flags flags,
+					  struct netlink_ext_ack *extack)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	int err;
+
+	if (flags.mask & BR_LEARNING) {
+		bool learn_ena = !!(flags.val & BR_LEARNING);
+
+		err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 				      const struct switchdev_attr *attr,
 				      struct netlink_ext_ack *extack)
@@ -1255,6 +1305,12 @@ static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 					   "The DPAA2 switch does not support VLAN-unaware operation");
 			return -EOPNOTSUPP;
 		}
+		break;
+	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
+		err = dpaa2_switch_port_pre_bridge_flags(netdev, attr->u.brport_flags, extack);
+		break;
+	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
+		err = dpaa2_switch_port_bridge_flags(netdev, attr->u.brport_flags, extack);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -1504,6 +1560,7 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 	struct ethsw_port_priv *other_port_priv;
 	struct net_device *other_dev;
 	struct list_head *iter;
+	bool learn_ena;
 	int err;
 
 	netdev_for_each_lower_dev(upper_dev, other_dev, iter) {
@@ -1524,6 +1581,10 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 		return err;
 
 	dpaa2_switch_port_set_fdb(port_priv, upper_dev);
+
+	/* Inherit the initial bridge port learning state */
+	learn_ena = br_port_flag_is_set(netdev, BR_LEARNING);
+	err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
 
 	/* Setup the egress flood policy (broadcast, unknown unicast) */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
@@ -1592,6 +1653,11 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 
 	/* Recreate the egress flood domain of the FDB that we just left */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, old_fdb->fdb_id);
+	if (err)
+		return err;
+
+	/* No HW learning when not under a bridge */
+	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		return err;
 
@@ -2681,6 +2747,10 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 		goto err_port_probe;
 
 	err = dpaa2_switch_port_set_mac_addr(port_priv);
+	if (err)
+		goto err_port_probe;
+
+	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		goto err_port_probe;
 

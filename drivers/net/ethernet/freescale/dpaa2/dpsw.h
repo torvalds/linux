@@ -532,11 +532,11 @@ int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			      u16 fdb_id, const struct dpsw_fdb_multicast_cfg *cfg);
 
 /**
- * enum dpsw_fdb_learning_mode - Auto-learning modes
- * @DPSW_FDB_LEARNING_MODE_DIS: Disable Auto-learning
- * @DPSW_FDB_LEARNING_MODE_HW: Enable HW auto-Learning
- * @DPSW_FDB_LEARNING_MODE_NON_SECURE: Enable None secure learning by CPU
- * @DPSW_FDB_LEARNING_MODE_SECURE: Enable secure learning by CPU
+ * enum dpsw_learning_mode - Auto-learning modes
+ * @DPSW_LEARNING_MODE_DIS: Disable Auto-learning
+ * @DPSW_LEARNING_MODE_HW: Enable HW auto-Learning
+ * @DPSW_LEARNING_MODE_NON_SECURE: Enable None secure learning by CPU
+ * @DPSW_LEARNING_MODE_SECURE: Enable secure learning by CPU
  *
  *	NONE - SECURE LEARNING
  *	SMAC found	DMAC found	CTLU Action
@@ -561,11 +561,11 @@ int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  *	-		-		Forward frame to
  *						1.  Control interface
  */
-enum dpsw_fdb_learning_mode {
-	DPSW_FDB_LEARNING_MODE_DIS = 0,
-	DPSW_FDB_LEARNING_MODE_HW = 1,
-	DPSW_FDB_LEARNING_MODE_NON_SECURE = 2,
-	DPSW_FDB_LEARNING_MODE_SECURE = 3
+enum dpsw_learning_mode {
+	DPSW_LEARNING_MODE_DIS = 0,
+	DPSW_LEARNING_MODE_HW = 1,
+	DPSW_LEARNING_MODE_NON_SECURE = 2,
+	DPSW_LEARNING_MODE_SECURE = 3
 };
 
 /**
@@ -579,7 +579,7 @@ enum dpsw_fdb_learning_mode {
 struct dpsw_fdb_attr {
 	u16 max_fdb_entries;
 	u16 fdb_ageing_time;
-	enum dpsw_fdb_learning_mode learning_mode;
+	enum dpsw_learning_mode learning_mode;
 	u16 num_fdb_mc_groups;
 	u16 max_fdb_mc_groups;
 };
@@ -624,5 +624,8 @@ struct dpsw_egress_flood_cfg {
 
 int dpsw_set_egress_flood(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			  const struct dpsw_egress_flood_cfg *cfg);
+
+int dpsw_if_set_learning_mode(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			      u16 if_id, enum dpsw_learning_mode mode);
 
 #endif /* __FSL_DPSW_H */

@@ -83,6 +83,7 @@
 #define DPSW_CMDID_CTRL_IF_SET_QUEUE        DPSW_CMD_ID(0x0A6)
 
 #define DPSW_CMDID_SET_EGRESS_FLOOD         DPSW_CMD_ID(0x0AC)
+#define DPSW_CMDID_IF_SET_LEARNING_MODE     DPSW_CMD_ID(0x0AD)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPSW_MASK(field)        \
@@ -446,6 +447,15 @@ struct dpsw_cmd_set_egress_flood {
 	u8 flood_type;
 	u8 pad[5];
 	__le64 if_id;
+};
+
+#define DPSW_LEARNING_MODE_SHIFT	0
+#define DPSW_LEARNING_MODE_SIZE		4
+
+struct dpsw_cmd_if_set_learning_mode {
+	__le16 if_id;
+	/* only the first 4 bits from LSB */
+	u8 mode;
 };
 #pragma pack(pop)
 #endif /* __FSL_DPSW_CMD_H */
