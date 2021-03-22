@@ -1337,7 +1337,7 @@ made_compressed_probe:
 
 	acm = kzalloc(sizeof(struct acm), GFP_KERNEL);
 	if (acm == NULL)
-		goto alloc_fail;
+		return -ENOMEM;
 
 	tty_port_init(&acm->port);
 	acm->port.ops = &acm_port_ops;
@@ -1354,7 +1354,7 @@ made_compressed_probe:
 
 	minor = acm_alloc_minor(acm);
 	if (minor < 0)
-		goto alloc_fail1;
+		goto err_put_port;
 
 	acm->minor = minor;
 	acm->dev = usb_dev;
@@ -1385,15 +1385,15 @@ made_compressed_probe:
 
 	buf = usb_alloc_coherent(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);
 	if (!buf)
-		goto alloc_fail1;
+		goto err_put_port;
 	acm->ctrl_buffer = buf;
 
 	if (acm_write_buffers_alloc(acm) < 0)
-		goto alloc_fail2;
+		goto err_free_ctrl_buffer;
 
 	acm->ctrlurb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!acm->ctrlurb)
-		goto alloc_fail3;
+		goto err_free_write_buffers;
 
 	for (i = 0; i < num_rx_buf; i++) {
 		struct acm_rb *rb = &(acm->read_buffers[i]);
@@ -1402,13 +1402,13 @@ made_compressed_probe:
 		rb->base = usb_alloc_coherent(acm->dev, readsize, GFP_KERNEL,
 								&rb->dma);
 		if (!rb->base)
-			goto alloc_fail4;
+			goto err_free_read_urbs;
 		rb->index = i;
 		rb->instance = acm;
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
-			goto alloc_fail4;
+			goto err_free_read_urbs;
 
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_dma = rb->dma;
@@ -1430,7 +1430,7 @@ made_compressed_probe:
 
 		snd->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (snd->urb == NULL)
-			goto alloc_fail5;
+			goto err_free_write_urbs;
 
 		if (usb_endpoint_xfer_int(epwrite))
 			usb_fill_int_urb(snd->urb, usb_dev, acm->out,
@@ -1448,7 +1448,7 @@ made_compressed_probe:
 
 	i = device_create_file(&intf->dev, &dev_attr_bmCapabilities);
 	if (i < 0)
-		goto alloc_fail5;
+		goto err_free_write_urbs;
 
 	if (h.usb_cdc_country_functional_desc) { /* export the country data */
 		struct usb_cdc_country_functional_desc * cfd =
@@ -1505,7 +1505,7 @@ skip_countries:
 			&control_interface->dev);
 	if (IS_ERR(tty_dev)) {
 		rv = PTR_ERR(tty_dev);
-		goto alloc_fail6;
+		goto err_release_data_interface;
 	}
 
 	if (quirks & CLEAR_HALT_CONDITIONS) {
@@ -1514,7 +1514,8 @@ skip_countries:
 	}
 
 	return 0;
-alloc_fail6:
+
+err_release_data_interface:
 	if (!acm->combined_interfaces) {
 		/* Clear driver data so that disconnect() returns early. */
 		usb_set_intfdata(data_interface, NULL);
@@ -1527,21 +1528,21 @@ alloc_fail6:
 				&dev_attr_iCountryCodeRelDate);
 	}
 	device_remove_file(&acm->control->dev, &dev_attr_bmCapabilities);
-alloc_fail5:
+err_free_write_urbs:
 	for (i = 0; i < ACM_NW; i++)
 		usb_free_urb(acm->wb[i].urb);
-alloc_fail4:
+err_free_read_urbs:
 	for (i = 0; i < num_rx_buf; i++)
 		usb_free_urb(acm->read_urbs[i]);
 	acm_read_buffers_free(acm);
 	usb_free_urb(acm->ctrlurb);
-alloc_fail3:
+err_free_write_buffers:
 	acm_write_buffers_free(acm);
-alloc_fail2:
+err_free_ctrl_buffer:
 	usb_free_coherent(usb_dev, ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
-alloc_fail1:
+err_put_port:
 	tty_port_put(&acm->port);
-alloc_fail:
+
 	return rv;
 }
 
