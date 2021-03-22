@@ -17,19 +17,12 @@
 
 static inline int atomic_read(const atomic_t *v)
 {
-	int c;
-
-	asm volatile(
-		"	l	%0,%1\n"
-		: "=d" (c) : "Q" (v->counter));
-	return c;
+	return __atomic_read(v);
 }
 
 static inline void atomic_set(atomic_t *v, int i)
 {
-	asm volatile(
-		"	st	%1,%0\n"
-		: "=Q" (v->counter) : "d" (i));
+	__atomic_set(v, i);
 }
 
 static inline int atomic_add_return(int i, atomic_t *v)
@@ -78,19 +71,12 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 
 static inline s64 atomic64_read(const atomic64_t *v)
 {
-	s64 c;
-
-	asm volatile(
-		"	lg	%0,%1\n"
-		: "=d" (c) : "Q" (v->counter));
-	return c;
+	return __atomic64_read(v);
 }
 
 static inline void atomic64_set(atomic64_t *v, s64 i)
 {
-	asm volatile(
-		"	stg	%1,%0\n"
-		: "=Q" (v->counter) : "d" (i));
+	__atomic64_set(v, i);
 }
 
 static inline s64 atomic64_add_return(s64 i, atomic64_t *v)

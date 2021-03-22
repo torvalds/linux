@@ -8,6 +8,40 @@
 #ifndef __ARCH_S390_ATOMIC_OPS__
 #define __ARCH_S390_ATOMIC_OPS__
 
+static inline int __atomic_read(const atomic_t *v)
+{
+	int c;
+
+	asm volatile(
+		"	l	%0,%1\n"
+		: "=d" (c) : "Q" (v->counter));
+	return c;
+}
+
+static inline void __atomic_set(atomic_t *v, int i)
+{
+	asm volatile(
+		"	st	%1,%0\n"
+		: "=Q" (v->counter) : "d" (i));
+}
+
+static inline s64 __atomic64_read(const atomic64_t *v)
+{
+	s64 c;
+
+	asm volatile(
+		"	lg	%0,%1\n"
+		: "=d" (c) : "Q" (v->counter));
+	return c;
+}
+
+static inline void __atomic64_set(atomic64_t *v, s64 i)
+{
+	asm volatile(
+		"	stg	%1,%0\n"
+		: "=Q" (v->counter) : "d" (i));
+}
+
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
 
 #define __ATOMIC_OP(op_name, op_type, op_string, op_barrier)		\
