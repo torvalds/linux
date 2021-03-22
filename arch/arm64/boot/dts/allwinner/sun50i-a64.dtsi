@@ -799,6 +799,14 @@
 			};
 		};
 
+		wdt0: watchdog@1c20ca0 {
+			compatible = "allwinner,sun50i-a64-wdt",
+				     "allwinner,sun6i-a31-wdt";
+			reg = <0x01c20ca0 0x20>;
+			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&osc24M>;
+		};
+
 		spdif: spdif@1c21000 {
 			#sound-dai-cells = <0>;
 			compatible = "allwinner,sun50i-a64-spdif",
@@ -1324,14 +1332,6 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
-		};
-
-		wdt0: watchdog@1c20ca0 {
-			compatible = "allwinner,sun50i-a64-wdt",
-				     "allwinner,sun6i-a31-wdt";
-			reg = <0x01c20ca0 0x20>;
-			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&osc24M>;
 		};
 	};
 };
