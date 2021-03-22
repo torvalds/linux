@@ -4549,7 +4549,7 @@ static int qlge_probe(struct pci_dev *pdev,
 	struct net_device *ndev = NULL;
 	struct devlink *devlink;
 	static int cards_found;
-	int err = 0;
+	int err;
 
 	devlink = devlink_alloc(&qlge_devlink_ops, sizeof(struct qlge_adapter));
 	if (!devlink)
@@ -4560,8 +4560,10 @@ static int qlge_probe(struct pci_dev *pdev,
 	ndev = alloc_etherdev_mq(sizeof(struct qlge_netdev_priv),
 				 min(MAX_CPUS,
 				     netif_get_num_default_rss_queues()));
-	if (!ndev)
+	if (!ndev) {
+		err = -ENOMEM;
 		goto devlink_free;
+	}
 
 	ndev_priv = netdev_priv(ndev);
 	ndev_priv->qdev = qdev;
