@@ -1027,8 +1027,8 @@ static int cros_typec_get_cmd_version(struct cros_typec_data *typec)
 	else
 		typec->pd_ctrl_ver = 0;
 
-	dev_dbg(typec->dev, "PD Control has version mask 0x%hhx\n",
-		typec->pd_ctrl_ver);
+	dev_dbg(typec->dev, "PD Control has version mask 0x%02x\n",
+		typec->pd_ctrl_ver & 0xff);
 
 	return 0;
 }
