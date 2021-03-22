@@ -2005,6 +2005,9 @@ static void dpaa2_switch_rx(struct dpaa2_switch_fq *fq,
 	skb->dev = netdev;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
+	/* Setup the offload_fwd_mark only if the port is under a bridge */
+	skb->offload_fwd_mark = !!(port_priv->fdb->bridge_dev);
+
 	netif_receive_skb(skb);
 
 	return;
