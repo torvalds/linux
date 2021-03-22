@@ -4143,14 +4143,6 @@ static void hns3_uninit_phy(struct net_device *netdev)
 		h->ae_algo->ops->mac_disconnect_phy(h);
 }
 
-static void hns3_del_all_fd_rules(struct net_device *netdev, bool clear_list)
-{
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-
-	if (h->ae_algo->ops->del_all_fd_entries)
-		h->ae_algo->ops->del_all_fd_entries(h, clear_list);
-}
-
 static int hns3_client_start(struct hnae3_handle *handle)
 {
 	if (!handle->ae_algo->ops->client_start)
@@ -4336,8 +4328,6 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	hns3_free_rx_cpu_rmap(netdev);
 
 	hns3_nic_uninit_irq(priv);
-
-	hns3_del_all_fd_rules(netdev, true);
 
 	hns3_clear_all_ring(handle, true);
 
