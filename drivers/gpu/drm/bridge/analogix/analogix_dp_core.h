@@ -71,6 +71,8 @@ enum pattern_set {
 	TRAINING_PTN1,
 	TRAINING_PTN2,
 	TRAINING_PTN3,
+	TEST_PATTREN_80BIT,
+	TEST_PATTREN_HBR2,
 	DP_NONE
 };
 
@@ -155,6 +157,14 @@ struct link_train {
 	enum link_training_state lt_state;
 };
 
+struct analogix_dp_compliance {
+	struct drm_dp_phy_test_params phytest;
+	int test_link_rate;
+	u8 test_lane_count;
+	unsigned long test_type;
+	bool test_active;
+};
+
 struct analogix_dp_device {
 	struct drm_encoder	*encoder;
 	struct device		*dev;
@@ -183,6 +193,7 @@ struct analogix_dp_device {
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	struct analogix_dp_plat_data *plat_data;
 	struct extcon_dev *extcon;
+	struct analogix_dp_compliance compliance;
 };
 
 /* analogix_dp_reg.c */
@@ -252,5 +263,7 @@ void analogix_dp_audio_enable(struct analogix_dp_device *dp);
 void analogix_dp_audio_disable(struct analogix_dp_device *dp);
 void analogix_dp_init(struct analogix_dp_device *dp);
 void analogix_dp_irq_handler(struct analogix_dp_device *dp);
+void analogix_dp_phy_test(struct analogix_dp_device *dp);
+void analogix_dp_check_device_service_irq(struct analogix_dp_device *dp);
 
 #endif /* _ANALOGIX_DP_CORE_H */
