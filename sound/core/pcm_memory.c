@@ -214,7 +214,9 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 }
 
 #else /* !CONFIG_SND_VERBOSE_PROCFS */
-#define preallocate_info_init(s)
+static inline void preallocate_info_init(struct snd_pcm_substream *substream)
+{
+}
 #endif /* CONFIG_SND_VERBOSE_PROCFS */
 
 /*
