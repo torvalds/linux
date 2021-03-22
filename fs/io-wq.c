@@ -147,23 +147,20 @@ static void io_worker_release(struct io_worker *worker)
 		complete(&worker->ref_done);
 }
 
+static inline struct io_wqe_acct *io_get_acct(struct io_wqe *wqe, bool bound)
+{
+	return &wqe->acct[bound ? IO_WQ_ACCT_BOUND : IO_WQ_ACCT_UNBOUND];
+}
+
 static inline struct io_wqe_acct *io_work_get_acct(struct io_wqe *wqe,
 						   struct io_wq_work *work)
 {
-	if (work->flags & IO_WQ_WORK_UNBOUND)
-		return &wqe->acct[IO_WQ_ACCT_UNBOUND];
-
-	return &wqe->acct[IO_WQ_ACCT_BOUND];
+	return io_get_acct(wqe, !(work->flags & IO_WQ_WORK_UNBOUND));
 }
 
 static inline struct io_wqe_acct *io_wqe_get_acct(struct io_worker *worker)
 {
-	struct io_wqe *wqe = worker->wqe;
-
-	if (worker->flags & IO_WORKER_F_BOUND)
-		return &wqe->acct[IO_WQ_ACCT_BOUND];
-
-	return &wqe->acct[IO_WQ_ACCT_UNBOUND];
+	return io_get_acct(worker->wqe, worker->flags & IO_WORKER_F_BOUND);
 }
 
 static void io_worker_exit(struct io_worker *worker)
