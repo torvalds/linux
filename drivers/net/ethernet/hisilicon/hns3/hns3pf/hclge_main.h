@@ -223,6 +223,8 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_LINK_UPDATING,
 	HCLGE_STATE_PROMISC_CHANGED,
 	HCLGE_STATE_RST_FAIL,
+	HCLGE_STATE_FD_TBL_CHANGED,
+	HCLGE_STATE_FD_CLEAR_ALL,
 	HCLGE_STATE_MAX
 };
 
@@ -592,6 +594,13 @@ enum HCLGE_FD_ACTION {
 	HCLGE_FD_ACTION_SELECT_TC,
 };
 
+enum HCLGE_FD_NODE_STATE {
+	HCLGE_FD_TO_ADD,
+	HCLGE_FD_TO_DEL,
+	HCLGE_FD_ACTIVE,
+	HCLGE_FD_DELETED,
+};
+
 struct hclge_fd_key_cfg {
 	u8 key_sel;
 	u8 inner_sipv6_word_en;
@@ -647,6 +656,7 @@ struct hclge_fd_rule {
 	u16 vf_id;
 	u16 location;
 	enum HCLGE_FD_ACTIVE_RULE_TYPE rule_type;
+	enum HCLGE_FD_NODE_STATE state;
 	u8 action;
 };
 
