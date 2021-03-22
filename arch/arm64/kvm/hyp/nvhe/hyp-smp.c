@@ -5,16 +5,8 @@
  */
 
 #include <asm/kvm_asm.h>
-#include <asm/kvm_cpufeature.h>
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
-
-/*
- * Copies of the host's CPU features registers holding sanitized values.
- */
-DEFINE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_ctrel0);
-DEFINE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_id_aa64mmfr0_el1);
-DEFINE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_id_aa64mmfr1_el1);
 
 /*
  * nVHE copy of data structures tracking available CPU cores.
