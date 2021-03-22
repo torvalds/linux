@@ -129,7 +129,7 @@ static void dpaa2_switch_fdb_get_flood_cfg(struct ethsw_core *ethsw, u16 fdb_id,
 
 		if (type == DPSW_BROADCAST && ethsw->ports[j]->bcast_flood)
 			cfg->if_id[i++] = ethsw->ports[j]->idx;
-		else if (type == DPSW_FLOODING)
+		else if (type == DPSW_FLOODING && ethsw->ports[j]->ucast_flood)
 			cfg->if_id[i++] = ethsw->ports[j]->idx;
 	}
 
@@ -1271,6 +1271,9 @@ static int dpaa2_switch_port_flood(struct ethsw_port_priv *port_priv,
 	if (flags.mask & BR_BCAST_FLOOD)
 		port_priv->bcast_flood = !!(flags.val & BR_BCAST_FLOOD);
 
+	if (flags.mask & BR_FLOOD)
+		port_priv->ucast_flood = !!(flags.val & BR_FLOOD);
+
 	return dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
 }
 
@@ -1278,8 +1281,20 @@ static int dpaa2_switch_port_pre_bridge_flags(struct net_device *netdev,
 					      struct switchdev_brport_flags flags,
 					      struct netlink_ext_ack *extack)
 {
-	if (flags.mask & ~(BR_LEARNING | BR_BCAST_FLOOD))
+	if (flags.mask & ~(BR_LEARNING | BR_BCAST_FLOOD | BR_FLOOD |
+			   BR_MCAST_FLOOD))
 		return -EINVAL;
+
+	if (flags.mask & (BR_FLOOD | BR_MCAST_FLOOD)) {
+		bool multicast = !!(flags.val & BR_MCAST_FLOOD);
+		bool unicast = !!(flags.val & BR_FLOOD);
+
+		if (unicast != multicast) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot configure multicast flooding independently of unicast");
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
@@ -1299,7 +1314,7 @@ static int dpaa2_switch_port_bridge_flags(struct net_device *netdev,
 			return err;
 	}
 
-	if (flags.mask & BR_BCAST_FLOOD) {
+	if (flags.mask & (BR_BCAST_FLOOD | BR_FLOOD | BR_MCAST_FLOOD)) {
 		err = dpaa2_switch_port_flood(port_priv, flags);
 		if (err)
 			return err;
@@ -1668,6 +1683,7 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 	 * later bridge join will have the flooding flag on.
 	 */
 	port_priv->bcast_flood = true;
+	port_priv->ucast_flood = true;
 
 	/* Setup the egress flood policy (broadcast, unknown unicast).
 	 * When the port is not under a bridge, only the CTRL interface is part
@@ -2755,6 +2771,7 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	port_netdev->needed_headroom = DPAA2_SWITCH_NEEDED_HEADROOM;
 
 	port_priv->bcast_flood = true;
+	port_priv->ucast_flood = true;
 
 	/* Set MTU limits */
 	port_netdev->min_mtu = ETH_MIN_MTU;
