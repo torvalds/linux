@@ -11769,28 +11769,19 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		return;
 	case BNXT_FW_RESET_STATE_ENABLE_DEV:
 		bnxt_inv_fw_health_reg(bp);
-		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
-			u32 val;
+		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) &&
+		    !bp->fw_reset_min_dsecs) {
+			u16 val;
 
-			if (!bp->fw_reset_min_dsecs) {
-				u16 val;
-
-				pci_read_config_word(bp->pdev, PCI_SUBSYSTEM_ID,
-						     &val);
-				if (val == 0xffff) {
-					if (bnxt_fw_reset_timeout(bp)) {
-						netdev_err(bp->dev, "Firmware reset aborted, PCI config space invalid\n");
-						goto fw_reset_abort;
-					}
-					bnxt_queue_fw_reset_work(bp, HZ / 1000);
-					return;
+			pci_read_config_word(bp->pdev, PCI_SUBSYSTEM_ID, &val);
+			if (val == 0xffff) {
+				if (bnxt_fw_reset_timeout(bp)) {
+					netdev_err(bp->dev, "Firmware reset aborted, PCI config space invalid\n");
+					goto fw_reset_abort;
 				}
+				bnxt_queue_fw_reset_work(bp, HZ / 1000);
+				return;
 			}
-			val = bnxt_fw_health_readl(bp,
-						   BNXT_FW_RESET_INPROG_REG);
-			if (val)
-				netdev_warn(bp->dev, "FW reset inprog %x after min wait time.\n",
-					    val);
 		}
 		clear_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
 		if (pci_enable_device(bp->pdev)) {
