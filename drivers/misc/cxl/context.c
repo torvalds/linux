@@ -52,7 +52,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 		 * can always access it when dereferenced from IDR. For the same
 		 * reason, the segment table is only destroyed after the context is
 		 * removed from the IDR.  Access to this in the IOCTL is protected by
-		 * Linux filesytem symantics (can't IOCTL until open is complete).
+		 * Linux filesystem semantics (can't IOCTL until open is complete).
 		 */
 		i = cxl_alloc_sst(ctx);
 		if (i)
