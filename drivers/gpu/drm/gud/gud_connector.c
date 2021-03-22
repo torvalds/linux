@@ -707,7 +707,7 @@ int gud_get_connectors(struct gud_device *gdrm)
 		return -ENOMEM;
 
 	ret = gud_usb_get(gdrm, GUD_REQ_GET_CONNECTORS, 0,
-			  descs, GUD_CONNECTORS_MAX_NUM * sizeof(descs));
+			  descs, GUD_CONNECTORS_MAX_NUM * sizeof(*descs));
 	if (ret < 0)
 		goto free;
 	if (!ret || ret % sizeof(*descs)) {
