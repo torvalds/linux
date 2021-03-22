@@ -819,9 +819,15 @@ void cdns3_gadget_giveback(struct cdns3_endpoint *priv_ep,
 					priv_ep->dir);
 
 	if ((priv_req->flags & REQUEST_UNALIGNED) &&
-	    priv_ep->dir == USB_DIR_OUT && !request->status)
+	    priv_ep->dir == USB_DIR_OUT && !request->status) {
+		/* Make DMA buffer CPU accessible */
+		dma_sync_single_for_cpu(priv_dev->sysdev,
+			priv_req->aligned_buf->dma,
+			priv_req->aligned_buf->size,
+			priv_req->aligned_buf->dir);
 		memcpy(request->buf, priv_req->aligned_buf->buf,
 		       request->length);
+	}
 
 	priv_req->flags &= ~(REQUEST_PENDING | REQUEST_UNALIGNED);
 	/* All TRBs have finished, clear the counter */
@@ -883,8 +889,8 @@ static void cdns3_free_aligned_request_buf(struct work_struct *work)
 			 * interrupts.
 			 */
 			spin_unlock_irqrestore(&priv_dev->lock, flags);
-			dma_free_coherent(priv_dev->sysdev, buf->size,
-					  buf->buf, buf->dma);
+			dma_free_noncoherent(priv_dev->sysdev, buf->size,
+					  buf->buf, buf->dma, buf->dir);
 			kfree(buf);
 			spin_lock_irqsave(&priv_dev->lock, flags);
 		}
@@ -911,10 +917,13 @@ static int cdns3_prepare_aligned_request_buf(struct cdns3_request *priv_req)
 			return -ENOMEM;
 
 		buf->size = priv_req->request.length;
+		buf->dir = usb_endpoint_dir_in(priv_ep->endpoint.desc) ?
+			DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
-		buf->buf = dma_alloc_coherent(priv_dev->sysdev,
+		buf->buf = dma_alloc_noncoherent(priv_dev->sysdev,
 					      buf->size,
 					      &buf->dma,
+					      buf->dir,
 					      GFP_ATOMIC);
 		if (!buf->buf) {
 			kfree(buf);
@@ -936,9 +945,16 @@ static int cdns3_prepare_aligned_request_buf(struct cdns3_request *priv_req)
 	}
 
 	if (priv_ep->dir == USB_DIR_IN) {
+		/* Make DMA buffer CPU accessible */
+		dma_sync_single_for_cpu(priv_dev->sysdev,
+			buf->dma, buf->size, buf->dir);
 		memcpy(buf->buf, priv_req->request.buf,
 		       priv_req->request.length);
 	}
+
+	/* Transfer DMA buffer ownership back to device */
+	dma_sync_single_for_device(priv_dev->sysdev,
+			buf->dma, buf->size, buf->dir);
 
 	priv_req->flags |= REQUEST_UNALIGNED;
 	trace_cdns3_prepare_aligned_request(priv_req);
@@ -3088,9 +3104,10 @@ static void cdns3_gadget_exit(struct cdns *cdns)
 		struct cdns3_aligned_buf *buf;
 
 		buf = cdns3_next_align_buf(&priv_dev->aligned_buf_list);
-		dma_free_coherent(priv_dev->sysdev, buf->size,
+		dma_free_noncoherent(priv_dev->sysdev, buf->size,
 				  buf->buf,
-				  buf->dma);
+				  buf->dma,
+				  buf->dir);
 
 		list_del(&buf->list);
 		kfree(buf);
