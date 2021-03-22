@@ -1049,6 +1049,7 @@ struct hl_asic_funcs {
 	int (*hw_block_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			u32 block_id, u32 block_size);
 	void (*enable_events_from_fw)(struct hl_device *hdev);
+	void (*get_msi_info)(u32 *table);
 };
 
 
@@ -2372,6 +2373,9 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr);
 int hl_fw_send_heartbeat(struct hl_device *hdev);
 int hl_fw_cpucp_info_get(struct hl_device *hdev,
+			u32 cpu_security_boot_status_reg,
+			u32 boot_err0_reg);
+int hl_fw_cpucp_handshake(struct hl_device *hdev,
 			u32 cpu_security_boot_status_reg,
 			u32 boot_err0_reg);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);

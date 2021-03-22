@@ -302,6 +302,27 @@ enum pq_init_status {
  * CPUCP_PACKET_POWER_GET
  *       Fetch the present power consumption of the device (Current * Voltage).
  *
+ * CPUCP_PACKET_NIC_PFC_SET -
+ *       Enable/Disable the NIC PFC feature. The packet's arguments specify the
+ *       NIC port, relevant lanes to configure and one bit indication for
+ *       enable/disable.
+ *
+ * CPUCP_PACKET_NIC_FAULT_GET -
+ *       Fetch the current indication for local/remote faults from the NIC MAC.
+ *       The result is 32-bit value of the relevant register.
+ *
+ * CPUCP_PACKET_NIC_LPBK_SET -
+ *       Enable/Disable the MAC loopback feature. The packet's arguments specify
+ *       the NIC port, relevant lanes to configure and one bit indication for
+ *       enable/disable.
+ *
+ * CPUCP_PACKET_NIC_MAC_INIT -
+ *       Configure the NIC MAC channels. The packet's arguments specify the
+ *       NIC port and the speed.
+ *
+ * CPUCP_PACKET_MSI_INFO_SET -
+ *       set the index number for each supported msi type going from
+ *       host to device
  */
 
 enum cpucp_packet_id {
@@ -337,6 +358,11 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_PLL_INFO_GET,		/* internal */
 	CPUCP_PACKET_NIC_STATUS,		/* internal */
 	CPUCP_PACKET_POWER_GET,			/* internal */
+	CPUCP_PACKET_NIC_PFC_SET,		/* internal */
+	CPUCP_PACKET_NIC_FAULT_GET,		/* internal */
+	CPUCP_PACKET_NIC_LPBK_SET,		/* internal */
+	CPUCP_PACKET_NIC_MAC_CFG,		/* internal */
+	CPUCP_PACKET_MSI_INFO_SET,		/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -408,6 +434,12 @@ struct cpucp_unmask_irq_arr_packet {
 	__le32 irqs[0];
 };
 
+struct cpucp_array_data_packet {
+	struct cpucp_packet cpucp_pkt;
+	__le32 length;
+	__le32 data[0];
+};
+
 enum cpucp_packet_rc {
 	cpucp_packet_success,
 	cpucp_packet_invalid,
@@ -477,6 +509,22 @@ enum cpucp_pll_type_attributes {
 };
 
 /*
+ * MSI type enumeration table for all ASICs and future SW versions.
+ * For future ASIC-LKD compatibility, we can only add new enumerations.
+ * at the end of the table (before CPUCP_NUM_OF_MSI_TYPES).
+ * Changing the order of entries or removing entries is not allowed.
+ */
+enum cpucp_msi_type {
+	CPUCP_EVENT_QUEUE_MSI_TYPE,
+	CPUCP_NIC_PORT1_MSI_TYPE,
+	CPUCP_NIC_PORT3_MSI_TYPE,
+	CPUCP_NIC_PORT5_MSI_TYPE,
+	CPUCP_NIC_PORT7_MSI_TYPE,
+	CPUCP_NIC_PORT9_MSI_TYPE,
+	CPUCP_NUM_OF_MSI_TYPES
+};
+
+/*
  * PLL enumeration table used for all ASICs and future SW versions.
  * For future ASIC-LKD compatibility, we can only add new enumerations.
  * at the end of the table.
@@ -492,23 +540,16 @@ enum pll_index {
 	TPC_PLL = 6,
 	IF_PLL = 7,
 	SRAM_PLL = 8,
-	NS_DCORE_PLL = 9,
-	MESH_DCORE_PLL = 10,
-	HBM_PLL = 11,
-	TPC_DCORE_PLL = 12,
-	VIDEO_DCORE_PLL = 13,
-	SRAM_DCORE_PLL = 14,
-	NIC_PHY_DCORE_PLL = 15,
-	MSS_DCORE_PLL = 16,
-	DMA_DCORE_PLL = 17,
-	SIF_PLL = 18,
-	DDR_PLL = 19,
-	VID_PLL = 20,
-	BANK_PLL = 21,
-	MMU_PLL = 22,
-	IC_PLL = 23,
-	MC_PLL = 24,
-	EMMC_PLL = 25,
+	NS_PLL = 9,
+	HBM_PLL = 10,
+	MSS_PLL = 11,
+	DDR_PLL = 12,
+	VID_PLL = 13,
+	BANK_PLL = 14,
+	MMU_PLL = 15,
+	IC_PLL = 16,
+	MC_PLL = 17,
+	EMMC_PLL = 18,
 	PLL_MAX
 };
 

@@ -422,6 +422,73 @@ out:
 	return rc;
 }
 
+static int hl_fw_send_msi_info_msg(struct hl_device *hdev)
+{
+	struct cpucp_array_data_packet *pkt;
+	size_t total_pkt_size, data_size;
+	u64 result;
+	int rc;
+
+	/* skip sending this info for unsupported ASICs */
+	if (!hdev->asic_funcs->get_msi_info)
+		return 0;
+
+	data_size = CPUCP_NUM_OF_MSI_TYPES * sizeof(u32);
+	total_pkt_size = sizeof(struct cpucp_array_data_packet) + data_size;
+
+	/* data should be aligned to 8 bytes in order to CPU-CP to copy it */
+	total_pkt_size = (total_pkt_size + 0x7) & ~0x7;
+
+	/* total_pkt_size is casted to u16 later on */
+	if (total_pkt_size > USHRT_MAX) {
+		dev_err(hdev->dev, "CPUCP array data is too big\n");
+		return -EINVAL;
+	}
+
+	pkt = kzalloc(total_pkt_size, GFP_KERNEL);
+	if (!pkt)
+		return -ENOMEM;
+
+	pkt->length = cpu_to_le32(CPUCP_NUM_OF_MSI_TYPES);
+
+	hdev->asic_funcs->get_msi_info((u32 *)&pkt->data);
+
+	pkt->cpucp_pkt.ctl = cpu_to_le32(CPUCP_PACKET_MSI_INFO_SET <<
+						CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *)pkt,
+						total_pkt_size, 0, &result);
+
+	/*
+	 * in case packet result is invalid it means that FW does not support
+	 * this feature and will use default/hard coded MSI values. no reason
+	 * to stop the boot
+	 */
+	if (rc && result == cpucp_packet_invalid)
+		rc = 0;
+
+	if (rc)
+		dev_err(hdev->dev, "failed to send CPUCP array data\n");
+
+	kfree(pkt);
+
+	return rc;
+}
+
+int hl_fw_cpucp_handshake(struct hl_device *hdev,
+			u32 cpu_security_boot_status_reg,
+			u32 boot_err0_reg)
+{
+	int rc;
+
+	rc = hl_fw_cpucp_info_get(hdev, cpu_security_boot_status_reg,
+					boot_err0_reg);
+	if (rc)
+		return rc;
+
+	return hl_fw_send_msi_info_msg(hdev);
+}
+
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 {
 	struct cpucp_packet pkt = {};
