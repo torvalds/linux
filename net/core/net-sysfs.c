@@ -1378,7 +1378,7 @@ static ssize_t xps_queue_show(struct net_device *dev, unsigned int index,
 	nr_ids = dev_maps ? dev_maps->nr_ids :
 		 (type == XPS_CPUS ? nr_cpu_ids : dev->num_rx_queues);
 
-	mask = bitmap_zalloc(nr_ids, GFP_KERNEL);
+	mask = bitmap_zalloc(nr_ids, GFP_NOWAIT);
 	if (!mask) {
 		rcu_read_unlock();
 		return -ENOMEM;
