@@ -802,7 +802,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	u16 version;
 	int length;
 
-	/* UDP has verifed checksum */
+	/* UDP has verified checksum */
 
 	/* UDP always verifies the packet length. */
 	__skb_pull(skb, sizeof(struct udphdr));
