@@ -127,7 +127,10 @@ static void dpaa2_switch_fdb_get_flood_cfg(struct ethsw_core *ethsw, u16 fdb_id,
 		if (ethsw->ports[j]->fdb->fdb_id != fdb_id)
 			continue;
 
-		cfg->if_id[i++] = ethsw->ports[j]->idx;
+		if (type == DPSW_BROADCAST && ethsw->ports[j]->bcast_flood)
+			cfg->if_id[i++] = ethsw->ports[j]->idx;
+		else if (type == DPSW_FLOODING)
+			cfg->if_id[i++] = ethsw->ports[j]->idx;
 	}
 
 	/* Add the CTRL interface to the egress flooding domain */
@@ -1260,11 +1263,22 @@ static int dpaa2_switch_port_set_learning(struct ethsw_port_priv *port_priv, boo
 	return err;
 }
 
+static int dpaa2_switch_port_flood(struct ethsw_port_priv *port_priv,
+				   struct switchdev_brport_flags flags)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+
+	if (flags.mask & BR_BCAST_FLOOD)
+		port_priv->bcast_flood = !!(flags.val & BR_BCAST_FLOOD);
+
+	return dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
+}
+
 static int dpaa2_switch_port_pre_bridge_flags(struct net_device *netdev,
 					      struct switchdev_brport_flags flags,
 					      struct netlink_ext_ack *extack)
 {
-	if (flags.mask & ~(BR_LEARNING))
+	if (flags.mask & ~(BR_LEARNING | BR_BCAST_FLOOD))
 		return -EINVAL;
 
 	return 0;
@@ -1281,6 +1295,12 @@ static int dpaa2_switch_port_bridge_flags(struct net_device *netdev,
 		bool learn_ena = !!(flags.val & BR_LEARNING);
 
 		err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
+		if (err)
+			return err;
+	}
+
+	if (flags.mask & BR_BCAST_FLOOD) {
+		err = dpaa2_switch_port_flood(port_priv, flags);
 		if (err)
 			return err;
 	}
@@ -1642,6 +1662,12 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 	err = vlan_for_each(netdev, dpaa2_switch_port_restore_rxvlan, netdev);
 	if (err)
 		netdev_err(netdev, "Unable to restore RX VLANs to the new FDB, err (%d)\n", err);
+
+	/* Reset the flooding state to denote that this port can send any
+	 * packet in standalone mode. With this, we are also ensuring that any
+	 * later bridge join will have the flooding flag on.
+	 */
+	port_priv->bcast_flood = true;
 
 	/* Setup the egress flood policy (broadcast, unknown unicast).
 	 * When the port is not under a bridge, only the CTRL interface is part
@@ -2727,6 +2753,8 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	port_netdev->ethtool_ops = &dpaa2_switch_port_ethtool_ops;
 
 	port_netdev->needed_headroom = DPAA2_SWITCH_NEEDED_HEADROOM;
+
+	port_priv->bcast_flood = true;
 
 	/* Set MTU limits */
 	port_netdev->min_mtu = ETH_MIN_MTU;
