@@ -34,8 +34,8 @@ allOf:
   - if:
       properties:
         compatible:
-          items:
-            const: allwinner,sun4i-a10-timer
+          enum:
+            - allwinner,sun4i-a10-timer
 
     then:
       properties:
@@ -46,8 +46,8 @@ allOf:
   - if:
       properties:
         compatible:
-          items:
-            const: allwinner,sun8i-a23-timer
+          enum:
+            - allwinner,sun8i-a23-timer
 
     then:
       properties:
@@ -58,20 +58,9 @@ allOf:
   - if:
       properties:
         compatible:
-          items:
-            const: allwinner,sun8i-v3s-timer
-
-    then:
-      properties:
-        interrupts:
-          minItems: 3
-          maxItems: 3
-
-  - if:
-      properties:
-        compatible:
-          items:
-            const: allwinner,suniv-f1c100s-timer
+          enum:
+            - allwinner,sun8i-v3s-timer
+            - allwinner,suniv-f1c100s-timer
 
     then:
       properties:
