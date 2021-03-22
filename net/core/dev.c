@@ -2451,10 +2451,8 @@ int netdev_txq_to_tc(struct net_device *dev, unsigned int txq)
 EXPORT_SYMBOL(netdev_txq_to_tc);
 
 #ifdef CONFIG_XPS
-struct static_key xps_needed __read_mostly;
-EXPORT_SYMBOL(xps_needed);
-struct static_key xps_rxqs_needed __read_mostly;
-EXPORT_SYMBOL(xps_rxqs_needed);
+static struct static_key xps_needed __read_mostly;
+static struct static_key xps_rxqs_needed __read_mostly;
 static DEFINE_MUTEX(xps_map_mutex);
 #define xmap_dereference(P)		\
 	rcu_dereference_protected((P), lockdep_is_held(&xps_map_mutex))
