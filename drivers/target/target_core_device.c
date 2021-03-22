@@ -1035,7 +1035,7 @@ int core_dev_setup_virtual_lun0(void)
 {
 	struct se_hba *hba;
 	struct se_device *dev;
-	char buf[] = "rd_pages=8,rd_nullio=1";
+	char buf[] = "rd_pages=8,rd_nullio=1,rd_dummy=1";
 	int ret;
 
 	hba = core_alloc_hba("rd_mcp", 0, HBA_FLAGS_INTERNAL_USE);
