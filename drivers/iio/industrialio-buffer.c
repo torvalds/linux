@@ -1442,7 +1442,7 @@ static long iio_device_buffer_getfd(struct iio_dev *indio_dev, unsigned long arg
 		goto error_free_ib;
 	}
 
-	return fd;
+	return 0;
 
 error_free_ib:
 	kfree(ib);
