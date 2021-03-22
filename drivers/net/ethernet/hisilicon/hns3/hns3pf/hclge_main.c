@@ -5665,8 +5665,7 @@ static int hclge_fd_check_tcpip6_tuple(struct ethtool_tcpip6_spec *spec,
 	if (!spec || !unused_tuple)
 		return -EINVAL;
 
-	*unused_tuple |= BIT(INNER_SRC_MAC) | BIT(INNER_DST_MAC) |
-		BIT(INNER_IP_TOS);
+	*unused_tuple |= BIT(INNER_SRC_MAC) | BIT(INNER_DST_MAC);
 
 	/* check whether src/dst ip address used */
 	if (ipv6_addr_any((struct in6_addr *)spec->ip6src))
@@ -5681,8 +5680,8 @@ static int hclge_fd_check_tcpip6_tuple(struct ethtool_tcpip6_spec *spec,
 	if (!spec->pdst)
 		*unused_tuple |= BIT(INNER_DST_PORT);
 
-	if (spec->tclass)
-		return -EOPNOTSUPP;
+	if (!spec->tclass)
+		*unused_tuple |= BIT(INNER_IP_TOS);
 
 	return 0;
 }
@@ -5694,7 +5693,7 @@ static int hclge_fd_check_ip6_tuple(struct ethtool_usrip6_spec *spec,
 		return -EINVAL;
 
 	*unused_tuple |= BIT(INNER_SRC_MAC) | BIT(INNER_DST_MAC) |
-		BIT(INNER_IP_TOS) | BIT(INNER_SRC_PORT) | BIT(INNER_DST_PORT);
+			BIT(INNER_SRC_PORT) | BIT(INNER_DST_PORT);
 
 	/* check whether src/dst ip address used */
 	if (ipv6_addr_any((struct in6_addr *)spec->ip6src))
@@ -5706,8 +5705,8 @@ static int hclge_fd_check_ip6_tuple(struct ethtool_usrip6_spec *spec,
 	if (!spec->l4_proto)
 		*unused_tuple |= BIT(INNER_IP_PROTO);
 
-	if (spec->tclass)
-		return -EOPNOTSUPP;
+	if (!spec->tclass)
+		*unused_tuple |= BIT(INNER_IP_TOS);
 
 	if (spec->l4_4_bytes)
 		return -EOPNOTSUPP;
@@ -5993,6 +5992,9 @@ static void hclge_fd_get_tcpip6_tuple(struct hclge_dev *hdev,
 	rule->tuples.ether_proto = ETH_P_IPV6;
 	rule->tuples_mask.ether_proto = 0xFFFF;
 
+	rule->tuples.ip_tos = fs->h_u.tcp_ip6_spec.tclass;
+	rule->tuples_mask.ip_tos = fs->m_u.tcp_ip6_spec.tclass;
+
 	rule->tuples.ip_proto = ip_proto;
 	rule->tuples_mask.ip_proto = 0xFF;
 }
@@ -6013,6 +6015,9 @@ static void hclge_fd_get_ip6_tuple(struct hclge_dev *hdev,
 
 	rule->tuples.ip_proto = fs->h_u.usr_ip6_spec.l4_proto;
 	rule->tuples_mask.ip_proto = fs->m_u.usr_ip6_spec.l4_proto;
+
+	rule->tuples.ip_tos = fs->h_u.tcp_ip6_spec.tclass;
+	rule->tuples_mask.ip_tos = fs->m_u.tcp_ip6_spec.tclass;
 
 	rule->tuples.ether_proto = ETH_P_IPV6;
 	rule->tuples_mask.ether_proto = 0xFFFF;
@@ -6423,6 +6428,10 @@ static void hclge_fd_get_tcpip6_info(struct hclge_fd_rule *rule,
 		cpu_to_be32_array(spec_mask->ip6dst, rule->tuples_mask.dst_ip,
 				  IPV6_SIZE);
 
+	spec->tclass = rule->tuples.ip_tos;
+	spec_mask->tclass = rule->unused_tuple & BIT(INNER_IP_TOS) ?
+			0 : rule->tuples_mask.ip_tos;
+
 	spec->psrc = cpu_to_be16(rule->tuples.src_port);
 	spec_mask->psrc = rule->unused_tuple & BIT(INNER_SRC_PORT) ?
 			0 : cpu_to_be16(rule->tuples_mask.src_port);
@@ -6449,6 +6458,10 @@ static void hclge_fd_get_ip6_info(struct hclge_fd_rule *rule,
 	else
 		cpu_to_be32_array(spec_mask->ip6dst,
 				  rule->tuples_mask.dst_ip, IPV6_SIZE);
+
+	spec->tclass = rule->tuples.ip_tos;
+	spec_mask->tclass = rule->unused_tuple & BIT(INNER_IP_TOS) ?
+			0 : rule->tuples_mask.ip_tos;
 
 	spec->l4_proto = rule->tuples.ip_proto;
 	spec_mask->l4_proto = rule->unused_tuple & BIT(INNER_IP_PROTO) ?
