@@ -108,21 +108,21 @@ struct ceph_client_metric {
 	struct percpu_counter i_caps_hit;
 	struct percpu_counter i_caps_mis;
 
-	spinlock_t read_latency_lock;
+	spinlock_t read_metric_lock;
 	u64 total_reads;
 	ktime_t read_latency_sum;
 	ktime_t read_latency_sq_sum;
 	ktime_t read_latency_min;
 	ktime_t read_latency_max;
 
-	spinlock_t write_latency_lock;
+	spinlock_t write_metric_lock;
 	u64 total_writes;
 	ktime_t write_latency_sum;
 	ktime_t write_latency_sq_sum;
 	ktime_t write_latency_min;
 	ktime_t write_latency_max;
 
-	spinlock_t metadata_latency_lock;
+	spinlock_t metadata_metric_lock;
 	u64 total_metadatas;
 	ktime_t metadata_latency_sum;
 	ktime_t metadata_latency_sq_sum;
@@ -162,13 +162,13 @@ static inline void ceph_update_cap_mis(struct ceph_client_metric *m)
 	percpu_counter_inc(&m->i_caps_mis);
 }
 
-extern void ceph_update_read_latency(struct ceph_client_metric *m,
+extern void ceph_update_read_metrics(struct ceph_client_metric *m,
 				     ktime_t r_start, ktime_t r_end,
 				     int rc);
-extern void ceph_update_write_latency(struct ceph_client_metric *m,
+extern void ceph_update_write_metrics(struct ceph_client_metric *m,
 				      ktime_t r_start, ktime_t r_end,
 				      int rc);
-extern void ceph_update_metadata_latency(struct ceph_client_metric *m,
+extern void ceph_update_metadata_metrics(struct ceph_client_metric *m,
 				         ktime_t r_start, ktime_t r_end,
 					 int rc);
 #endif /* _FS_CEPH_MDS_METRIC_H */

@@ -895,7 +895,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 		if (!ret)
 			ret = ceph_osdc_wait_request(osdc, req);
 
-		ceph_update_read_latency(&fsc->mdsc->metric,
+		ceph_update_read_metrics(&fsc->mdsc->metric,
 					 req->r_start_latency,
 					 req->r_end_latency,
 					 ret);
@@ -1040,10 +1040,10 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	/* r_start_latency == 0 means the request was not submitted */
 	if (req->r_start_latency) {
 		if (aio_req->write)
-			ceph_update_write_latency(metric, req->r_start_latency,
+			ceph_update_write_metrics(metric, req->r_start_latency,
 						  req->r_end_latency, rc);
 		else
-			ceph_update_read_latency(metric, req->r_start_latency,
+			ceph_update_read_metrics(metric, req->r_start_latency,
 						 req->r_end_latency, rc);
 	}
 
@@ -1293,10 +1293,10 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
 
 		if (write)
-			ceph_update_write_latency(metric, req->r_start_latency,
+			ceph_update_write_metrics(metric, req->r_start_latency,
 						  req->r_end_latency, ret);
 		else
-			ceph_update_read_latency(metric, req->r_start_latency,
+			ceph_update_read_metrics(metric, req->r_start_latency,
 						 req->r_end_latency, ret);
 
 		size = i_size_read(inode);
@@ -1470,7 +1470,7 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 		if (!ret)
 			ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
 
-		ceph_update_write_latency(&fsc->mdsc->metric, req->r_start_latency,
+		ceph_update_write_metrics(&fsc->mdsc->metric, req->r_start_latency,
 					  req->r_end_latency, ret);
 out:
 		ceph_osdc_put_request(req);
