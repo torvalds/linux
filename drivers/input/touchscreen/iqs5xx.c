@@ -36,9 +36,6 @@
 #define IQS5XX_PROD_NUM_IQS550	40
 #define IQS5XX_PROD_NUM_IQS572	58
 #define IQS5XX_PROD_NUM_IQS525	52
-#define IQS5XX_PROJ_NUM_A000	0
-#define IQS5XX_PROJ_NUM_B000	15
-#define IQS5XX_MAJOR_VER_MIN	2
 
 #define IQS5XX_SHOW_RESET	BIT(7)
 #define IQS5XX_ACK_RESET	BIT(7)
@@ -87,7 +84,6 @@
 #define IQS5XX_BL_CMD_CRC	0x03
 #define IQS5XX_BL_BLK_LEN_MAX	64
 #define IQS5XX_BL_ID		0x0200
-#define IQS5XX_BL_STATUS_AVAIL	0xA5
 #define IQS5XX_BL_STATUS_NONE	0xEE
 #define IQS5XX_BL_CRC_PASS	0x00
 #define IQS5XX_BL_CRC_FAIL	0x01
@@ -573,7 +569,7 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	 * the missing zero is prepended).
 	 */
 	buf[0] = 0;
-	dev_id_info = (struct iqs5xx_dev_id_info *)&buf[(buf[1] > 0) ? 0 : 1];
+	dev_id_info = (struct iqs5xx_dev_id_info *)&buf[buf[1] ? 0 : 1];
 
 	switch (be16_to_cpu(dev_id_info->prod_num)) {
 	case IQS5XX_PROD_NUM_IQS550:
@@ -586,34 +582,14 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	switch (be16_to_cpu(dev_id_info->proj_num)) {
-	case IQS5XX_PROJ_NUM_A000:
-		dev_err(&client->dev, "Unsupported project number: %u\n",
-			be16_to_cpu(dev_id_info->proj_num));
+	/*
+	 * With the product number recognized yet shifted by one byte, open the
+	 * bootloader and wait for user space to convert the A000 device into a
+	 * B000 device via new firmware.
+	 */
+	if (buf[1]) {
+		dev_err(&client->dev, "Opening bootloader for A000 device\n");
 		return iqs5xx_bl_open(client);
-	case IQS5XX_PROJ_NUM_B000:
-		break;
-	default:
-		dev_err(&client->dev, "Unrecognized project number: %u\n",
-			be16_to_cpu(dev_id_info->proj_num));
-		return -EINVAL;
-	}
-
-	if (dev_id_info->major_ver < IQS5XX_MAJOR_VER_MIN) {
-		dev_err(&client->dev, "Unsupported major version: %u\n",
-			dev_id_info->major_ver);
-		return iqs5xx_bl_open(client);
-	}
-
-	switch (dev_id_info->bl_status) {
-	case IQS5XX_BL_STATUS_AVAIL:
-	case IQS5XX_BL_STATUS_NONE:
-		break;
-	default:
-		dev_err(&client->dev,
-			"Unrecognized bootloader status: 0x%02X\n",
-			dev_id_info->bl_status);
-		return -EINVAL;
 	}
 
 	error = iqs5xx_read_burst(client, IQS5XX_EXP_FILE,
