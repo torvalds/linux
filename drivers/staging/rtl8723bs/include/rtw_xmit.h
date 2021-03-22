@@ -346,11 +346,6 @@ struct	hw_txqueue	{
 	signed int	ac_tag;
 };
 
-struct agg_pkt_info {
-	u16 offset;
-	u16 pkt_len;
-};
-
 enum cmdbuf_type {
 	CMDBUF_BEACON = 0x00,
 	CMDBUF_RSVD,
