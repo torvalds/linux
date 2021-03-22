@@ -9611,6 +9611,7 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 	}
 	if (resc_reinit || fw_reset) {
 		if (fw_reset) {
+			set_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
 			if (!test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 				bnxt_ulp_stop(bp);
 			bnxt_free_ctx_mem(bp);
@@ -9619,16 +9620,17 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 			bnxt_dcb_free(bp);
 			rc = bnxt_fw_init_one(bp);
 			if (rc) {
+				clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
 				set_bit(BNXT_STATE_ABORT_ERR, &bp->state);
 				return rc;
 			}
 			bnxt_clear_int_mode(bp);
 			rc = bnxt_init_int_mode(bp);
 			if (rc) {
+				clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
 				netdev_err(bp->dev, "init int mode failed\n");
 				return rc;
 			}
-			set_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
 		}
 		if (BNXT_NEW_RM(bp)) {
 			struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
