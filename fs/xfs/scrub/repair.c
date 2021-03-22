@@ -207,7 +207,11 @@ xrep_calc_ag_resblks(
 
 	/* Now grab the block counters from the AGF. */
 	error = xfs_alloc_read_agf(mp, NULL, sm->sm_agno, 0, &bp);
-	if (!error) {
+	if (error) {
+		aglen = xfs_ag_block_count(mp, sm->sm_agno);
+		freelen = aglen;
+		usedlen = aglen;
+	} else {
 		struct xfs_agf	*agf = bp->b_addr;
 
 		aglen = be32_to_cpu(agf->agf_length);
