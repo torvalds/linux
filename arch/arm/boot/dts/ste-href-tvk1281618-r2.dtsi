@@ -65,7 +65,25 @@
 		};
 		i2c@80110000 {
 			synaptics@4b {
+				/* Synaptics RMI4 TM1217 touchscreen */
+				compatible = "syna,rmi4-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x4b>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&synaptics_tvk_mode>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
+
+				rmi4-f01@1 {
+					reg = <0x1>;
+					syna,nosleep = <1>;
+				};
 				rmi4-f11@11 {
+					reg = <0x11>;
+					syna,sensor-type = <1>;
 					/* This is a landscape display */
 					touchscreen-swapped-x-y;
 				};
@@ -80,6 +98,17 @@
 					reg = <0>;
 					vdd1-supply = <&ab8500_ldo_aux1_reg>;
 					reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+				};
+			};
+		};
+		pinctrl {
+			synaptics {
+				synaptics_tvk_mode: synaptics_tvk {
+					/* Touchscreen uses GPIO 84 */
+					tvk_cfg1 {
+						pins = "GPIO84_C2";
+						ste,config = <&gpio_in_pu>;
+					};
 				};
 			};
 		};
