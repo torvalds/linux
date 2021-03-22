@@ -107,7 +107,6 @@
 #include "amdgpu_gfxhub.h"
 #include "amdgpu_df.h"
 #include "amdgpu_smuio.h"
-#include "amdgpu_hdp.h"
 
 #define MAX_GPU_INSTANCE		16
 
