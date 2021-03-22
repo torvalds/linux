@@ -706,7 +706,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	} else if (prerequeue_top_waiter == waiter) {
 		/*
 		 * The waiter was the top waiter on the lock, but is
-		 * no longer the top prority waiter. Replace waiter in
+		 * no longer the top priority waiter. Replace waiter in
 		 * the owner tasks pi waiters tree with the new top
 		 * (highest priority) waiter and adjust the priority
 		 * of the owner.
@@ -1194,7 +1194,7 @@ static void rt_mutex_handle_deadlock(int res, int detect_deadlock,
 		return;
 
 	/*
-	 * Yell lowdly and stop the task right here.
+	 * Yell loudly and stop the task right here.
 	 */
 	rt_mutex_print_deadlock(w);
 	while (1) {

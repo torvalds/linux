@@ -819,7 +819,7 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		 *    we try to get it. The new owner may be a spinnable
 		 *    writer.
 		 *
-		 * To take advantage of two scenarios listed agove, the RT
+		 * To take advantage of two scenarios listed above, the RT
 		 * task is made to retry one more time to see if it can
 		 * acquire the lock or continue spinning on the new owning
 		 * writer. Of course, if the time lag is long enough or the

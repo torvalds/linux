@@ -155,7 +155,7 @@ extern void lockdep_set_selftest_task(struct task_struct *task);
 extern void lockdep_init_task(struct task_struct *task);
 
 /*
- * Split the recrursion counter in two to readily detect 'off' vs recursion.
+ * Split the recursion counter in two to readily detect 'off' vs recursion.
  */
 #define LOCKDEP_RECURSION_BITS	16
 #define LOCKDEP_OFF		(1U << LOCKDEP_RECURSION_BITS)

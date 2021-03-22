@@ -92,7 +92,7 @@ static inline unsigned long __owner_flags(unsigned long owner)
 }
 
 /*
- * Trylock variant that retuns the owning task on failure.
+ * Trylock variant that returns the owning task on failure.
  */
 static inline struct task_struct *__mutex_trylock_or_owner(struct mutex *lock)
 {
@@ -207,7 +207,7 @@ __mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 
 /*
  * Give up ownership to a specific task, when @task = NULL, this is equivalent
- * to a regular unlock. Sets PICKUP on a handoff, clears HANDOF, preserves
+ * to a regular unlock. Sets PICKUP on a handoff, clears HANDOFF, preserves
  * WAITERS. Provides RELEASE semantics like a regular unlock, the
  * __mutex_trylock() provides a matching ACQUIRE semantics for the handoff.
  */
