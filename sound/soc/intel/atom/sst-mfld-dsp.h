@@ -256,7 +256,7 @@ struct snd_sst_tstamp {
 	u32 channel_peak[8];
 } __packed;
 
-/* Stream type params struture for Alloc stream */
+/* Stream type params structure for Alloc stream */
 struct snd_sst_str_type {
 	u8 codec_type;		/* Codec type */
 	u8 str_type;		/* 1 = voice 2 = music */
