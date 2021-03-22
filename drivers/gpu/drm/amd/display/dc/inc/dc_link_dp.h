@@ -52,6 +52,10 @@ bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing);
 
+bool decide_edp_link_settings(struct dc_link *link,
+		struct dc_link_settings *link_setting,
+		uint32_t req_bw);
+
 void decide_link_settings(
 	struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting);
