@@ -5784,6 +5784,8 @@ static void ibmvfc_free_mem(struct ibmvfc_host *vhost)
 			  vhost->disc_buf_dma);
 	dma_free_coherent(vhost->dev, sizeof(*vhost->login_buf),
 			  vhost->login_buf, vhost->login_buf_dma);
+	dma_free_coherent(vhost->dev, sizeof(*vhost->channel_setup_buf),
+			  vhost->channel_setup_buf, vhost->channel_setup_dma);
 	dma_pool_destroy(vhost->sg_pool);
 	ibmvfc_free_queue(vhost, async_q);
 	LEAVE;

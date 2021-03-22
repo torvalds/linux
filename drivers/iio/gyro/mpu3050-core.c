@@ -551,6 +551,8 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 					       MPU3050_FIFO_R,
 					       &fifo_values[offset],
 					       toread);
+			if (ret)
+				goto out_trigger_unlock;
 
 			dev_dbg(mpu3050->dev,
 				"%04x %04x %04x %04x %04x\n",

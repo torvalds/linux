@@ -15,7 +15,10 @@
 struct hid_humidity_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info humidity_attr;
-	s32 humidity_data;
+	struct {
+		s32 humidity_data;
+		u64 timestamp __aligned(8);
+	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
 	int scale_precision;
@@ -125,9 +128,8 @@ static int humidity_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct hid_humidity_state *humid_st = iio_priv(indio_dev);
 
 	if (atomic_read(&humid_st->common_attributes.data_ready))
-		iio_push_to_buffers_with_timestamp(indio_dev,
-					&humid_st->humidity_data,
-					iio_get_time_ns(indio_dev));
+		iio_push_to_buffers_with_timestamp(indio_dev, &humid_st->scan,
+						   iio_get_time_ns(indio_dev));
 
 	return 0;
 }
@@ -142,7 +144,7 @@ static int humidity_capture_sample(struct hid_sensor_hub_device *hsdev,
 
 	switch (usage_id) {
 	case HID_USAGE_SENSOR_ATMOSPHERIC_HUMIDITY:
-		humid_st->humidity_data = *(s32 *)raw_data;
+		humid_st->scan.humidity_data = *(s32 *)raw_data;
 
 		return 0;
 	default:

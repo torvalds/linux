@@ -50,7 +50,6 @@ MODULE_PARM_DESC(sol_compat,
 MODULE_AUTHOR("Eric Brower <ebrower@usa.net>");
 MODULE_DESCRIPTION("7-Segment Display driver for Sun Microsystems CP1400/1500");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("d7s");
 
 struct d7s {
 	void __iomem	*regs;

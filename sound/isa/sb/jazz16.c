@@ -28,9 +28,6 @@
 #define PFX "jazz16: "
 
 MODULE_DESCRIPTION("Media Vision Jazz16");
-MODULE_SUPPORTED_DEVICE("{{Media Vision ??? },"
-		"{RTL,RTL3000}}");
-
 MODULE_AUTHOR("Krzysztof Helt <krzysztof.h1@wp.pl>");
 MODULE_LICENSE("GPL");
 

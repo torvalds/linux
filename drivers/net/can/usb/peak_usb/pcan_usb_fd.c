@@ -16,9 +16,6 @@
 #include "pcan_usb_core.h"
 #include "pcan_usb_pro.h"
 
-MODULE_SUPPORTED_DEVICE("PEAK-System PCAN-USB FD adapter");
-MODULE_SUPPORTED_DEVICE("PEAK-System PCAN-USB Pro FD adapter");
-
 #define PCAN_USBPROFD_CHANNEL_COUNT	2
 #define PCAN_USBFD_CHANNEL_COUNT	1
 

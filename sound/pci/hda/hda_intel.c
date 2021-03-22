@@ -208,40 +208,6 @@ MODULE_PARM_DESC(snoop, "Enable/disable snooping");
 
 
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
-			 "{Intel, ICH6M},"
-			 "{Intel, ICH7},"
-			 "{Intel, ESB2},"
-			 "{Intel, ICH8},"
-			 "{Intel, ICH9},"
-			 "{Intel, ICH10},"
-			 "{Intel, PCH},"
-			 "{Intel, CPT},"
-			 "{Intel, PPT},"
-			 "{Intel, LPT},"
-			 "{Intel, LPT_LP},"
-			 "{Intel, WPT_LP},"
-			 "{Intel, SPT},"
-			 "{Intel, SPT_LP},"
-			 "{Intel, HPT},"
-			 "{Intel, PBG},"
-			 "{Intel, SCH},"
-			 "{ATI, SB450},"
-			 "{ATI, SB600},"
-			 "{ATI, RS600},"
-			 "{ATI, RS690},"
-			 "{ATI, RS780},"
-			 "{ATI, R600},"
-			 "{ATI, RV630},"
-			 "{ATI, RV610},"
-			 "{ATI, RV670},"
-			 "{ATI, RV635},"
-			 "{ATI, RV620},"
-			 "{ATI, RV770},"
-			 "{VIA, VT8251},"
-			 "{VIA, VT8237A},"
-			 "{SiS, SIS966},"
-			 "{ULI, M5461}}");
 MODULE_DESCRIPTION("Intel HDA driver");
 
 #if defined(CONFIG_PM) && defined(CONFIG_VGA_SWITCHEROO)

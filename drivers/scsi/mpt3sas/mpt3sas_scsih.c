@@ -413,7 +413,7 @@ mpt3sas_get_port_by_id(struct MPT3SAS_ADAPTER *ioc,
 	 * And add this object to port_table_list.
 	 */
 	if (!ioc->multipath_on_hba) {
-		port = kzalloc(sizeof(struct hba_port), GFP_KERNEL);
+		port = kzalloc(sizeof(struct hba_port), GFP_ATOMIC);
 		if (!port)
 			return NULL;
 

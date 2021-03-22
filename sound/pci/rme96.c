@@ -31,11 +31,6 @@ MODULE_AUTHOR("Anders Torger <torger@ludd.luth.se>");
 MODULE_DESCRIPTION("RME Digi96, Digi96/8, Digi96/8 PRO, Digi96/8 PST, "
 		   "Digi96/8 PAD");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{RME,Digi96},"
-		"{RME,Digi96/8},"
-		"{RME,Digi96/8 PRO},"
-		"{RME,Digi96/8 PST},"
-		"{RME,Digi96/8 PAD}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
