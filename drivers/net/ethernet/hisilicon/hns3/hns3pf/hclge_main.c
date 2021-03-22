@@ -5935,6 +5935,122 @@ static int hclge_fd_update_rule_list(struct hclge_dev *hdev,
 	return 0;
 }
 
+static void hclge_fd_get_tcpip4_tuple(struct hclge_dev *hdev,
+				      struct ethtool_rx_flow_spec *fs,
+				      struct hclge_fd_rule *rule, u8 ip_proto)
+{
+	rule->tuples.src_ip[IPV4_INDEX] =
+			be32_to_cpu(fs->h_u.tcp_ip4_spec.ip4src);
+	rule->tuples_mask.src_ip[IPV4_INDEX] =
+			be32_to_cpu(fs->m_u.tcp_ip4_spec.ip4src);
+
+	rule->tuples.dst_ip[IPV4_INDEX] =
+			be32_to_cpu(fs->h_u.tcp_ip4_spec.ip4dst);
+	rule->tuples_mask.dst_ip[IPV4_INDEX] =
+			be32_to_cpu(fs->m_u.tcp_ip4_spec.ip4dst);
+
+	rule->tuples.src_port = be16_to_cpu(fs->h_u.tcp_ip4_spec.psrc);
+	rule->tuples_mask.src_port = be16_to_cpu(fs->m_u.tcp_ip4_spec.psrc);
+
+	rule->tuples.dst_port = be16_to_cpu(fs->h_u.tcp_ip4_spec.pdst);
+	rule->tuples_mask.dst_port = be16_to_cpu(fs->m_u.tcp_ip4_spec.pdst);
+
+	rule->tuples.ip_tos = fs->h_u.tcp_ip4_spec.tos;
+	rule->tuples_mask.ip_tos = fs->m_u.tcp_ip4_spec.tos;
+
+	rule->tuples.ether_proto = ETH_P_IP;
+	rule->tuples_mask.ether_proto = 0xFFFF;
+
+	rule->tuples.ip_proto = ip_proto;
+	rule->tuples_mask.ip_proto = 0xFF;
+}
+
+static void hclge_fd_get_ip4_tuple(struct hclge_dev *hdev,
+				   struct ethtool_rx_flow_spec *fs,
+				   struct hclge_fd_rule *rule)
+{
+	rule->tuples.src_ip[IPV4_INDEX] =
+			be32_to_cpu(fs->h_u.usr_ip4_spec.ip4src);
+	rule->tuples_mask.src_ip[IPV4_INDEX] =
+			be32_to_cpu(fs->m_u.usr_ip4_spec.ip4src);
+
+	rule->tuples.dst_ip[IPV4_INDEX] =
+			be32_to_cpu(fs->h_u.usr_ip4_spec.ip4dst);
+	rule->tuples_mask.dst_ip[IPV4_INDEX] =
+			be32_to_cpu(fs->m_u.usr_ip4_spec.ip4dst);
+
+	rule->tuples.ip_tos = fs->h_u.usr_ip4_spec.tos;
+	rule->tuples_mask.ip_tos = fs->m_u.usr_ip4_spec.tos;
+
+	rule->tuples.ip_proto = fs->h_u.usr_ip4_spec.proto;
+	rule->tuples_mask.ip_proto = fs->m_u.usr_ip4_spec.proto;
+
+	rule->tuples.ether_proto = ETH_P_IP;
+	rule->tuples_mask.ether_proto = 0xFFFF;
+}
+
+static void hclge_fd_get_tcpip6_tuple(struct hclge_dev *hdev,
+				      struct ethtool_rx_flow_spec *fs,
+				      struct hclge_fd_rule *rule, u8 ip_proto)
+{
+	be32_to_cpu_array(rule->tuples.src_ip, fs->h_u.tcp_ip6_spec.ip6src,
+			  IPV6_SIZE);
+	be32_to_cpu_array(rule->tuples_mask.src_ip, fs->m_u.tcp_ip6_spec.ip6src,
+			  IPV6_SIZE);
+
+	be32_to_cpu_array(rule->tuples.dst_ip, fs->h_u.tcp_ip6_spec.ip6dst,
+			  IPV6_SIZE);
+	be32_to_cpu_array(rule->tuples_mask.dst_ip, fs->m_u.tcp_ip6_spec.ip6dst,
+			  IPV6_SIZE);
+
+	rule->tuples.src_port = be16_to_cpu(fs->h_u.tcp_ip6_spec.psrc);
+	rule->tuples_mask.src_port = be16_to_cpu(fs->m_u.tcp_ip6_spec.psrc);
+
+	rule->tuples.dst_port = be16_to_cpu(fs->h_u.tcp_ip6_spec.pdst);
+	rule->tuples_mask.dst_port = be16_to_cpu(fs->m_u.tcp_ip6_spec.pdst);
+
+	rule->tuples.ether_proto = ETH_P_IPV6;
+	rule->tuples_mask.ether_proto = 0xFFFF;
+
+	rule->tuples.ip_proto = ip_proto;
+	rule->tuples_mask.ip_proto = 0xFF;
+}
+
+static void hclge_fd_get_ip6_tuple(struct hclge_dev *hdev,
+				   struct ethtool_rx_flow_spec *fs,
+				   struct hclge_fd_rule *rule)
+{
+	be32_to_cpu_array(rule->tuples.src_ip, fs->h_u.usr_ip6_spec.ip6src,
+			  IPV6_SIZE);
+	be32_to_cpu_array(rule->tuples_mask.src_ip, fs->m_u.usr_ip6_spec.ip6src,
+			  IPV6_SIZE);
+
+	be32_to_cpu_array(rule->tuples.dst_ip, fs->h_u.usr_ip6_spec.ip6dst,
+			  IPV6_SIZE);
+	be32_to_cpu_array(rule->tuples_mask.dst_ip, fs->m_u.usr_ip6_spec.ip6dst,
+			  IPV6_SIZE);
+
+	rule->tuples.ip_proto = fs->h_u.usr_ip6_spec.l4_proto;
+	rule->tuples_mask.ip_proto = fs->m_u.usr_ip6_spec.l4_proto;
+
+	rule->tuples.ether_proto = ETH_P_IPV6;
+	rule->tuples_mask.ether_proto = 0xFFFF;
+}
+
+static void hclge_fd_get_ether_tuple(struct hclge_dev *hdev,
+				     struct ethtool_rx_flow_spec *fs,
+				     struct hclge_fd_rule *rule)
+{
+	ether_addr_copy(rule->tuples.src_mac, fs->h_u.ether_spec.h_source);
+	ether_addr_copy(rule->tuples_mask.src_mac, fs->m_u.ether_spec.h_source);
+
+	ether_addr_copy(rule->tuples.dst_mac, fs->h_u.ether_spec.h_dest);
+	ether_addr_copy(rule->tuples_mask.dst_mac, fs->m_u.ether_spec.h_dest);
+
+	rule->tuples.ether_proto = be16_to_cpu(fs->h_u.ether_spec.h_proto);
+	rule->tuples_mask.ether_proto = be16_to_cpu(fs->m_u.ether_spec.h_proto);
+}
+
 static int hclge_fd_get_tuple(struct hclge_dev *hdev,
 			      struct ethtool_rx_flow_spec *fs,
 			      struct hclge_fd_rule *rule)
@@ -5943,136 +6059,34 @@ static int hclge_fd_get_tuple(struct hclge_dev *hdev,
 
 	switch (flow_type) {
 	case SCTP_V4_FLOW:
+		hclge_fd_get_tcpip4_tuple(hdev, fs, rule, IPPROTO_SCTP);
+		break;
 	case TCP_V4_FLOW:
+		hclge_fd_get_tcpip4_tuple(hdev, fs, rule, IPPROTO_TCP);
+		break;
 	case UDP_V4_FLOW:
-		rule->tuples.src_ip[IPV4_INDEX] =
-				be32_to_cpu(fs->h_u.tcp_ip4_spec.ip4src);
-		rule->tuples_mask.src_ip[IPV4_INDEX] =
-				be32_to_cpu(fs->m_u.tcp_ip4_spec.ip4src);
-
-		rule->tuples.dst_ip[IPV4_INDEX] =
-				be32_to_cpu(fs->h_u.tcp_ip4_spec.ip4dst);
-		rule->tuples_mask.dst_ip[IPV4_INDEX] =
-				be32_to_cpu(fs->m_u.tcp_ip4_spec.ip4dst);
-
-		rule->tuples.src_port = be16_to_cpu(fs->h_u.tcp_ip4_spec.psrc);
-		rule->tuples_mask.src_port =
-				be16_to_cpu(fs->m_u.tcp_ip4_spec.psrc);
-
-		rule->tuples.dst_port = be16_to_cpu(fs->h_u.tcp_ip4_spec.pdst);
-		rule->tuples_mask.dst_port =
-				be16_to_cpu(fs->m_u.tcp_ip4_spec.pdst);
-
-		rule->tuples.ip_tos = fs->h_u.tcp_ip4_spec.tos;
-		rule->tuples_mask.ip_tos = fs->m_u.tcp_ip4_spec.tos;
-
-		rule->tuples.ether_proto = ETH_P_IP;
-		rule->tuples_mask.ether_proto = 0xFFFF;
-
+		hclge_fd_get_tcpip4_tuple(hdev, fs, rule, IPPROTO_UDP);
 		break;
 	case IP_USER_FLOW:
-		rule->tuples.src_ip[IPV4_INDEX] =
-				be32_to_cpu(fs->h_u.usr_ip4_spec.ip4src);
-		rule->tuples_mask.src_ip[IPV4_INDEX] =
-				be32_to_cpu(fs->m_u.usr_ip4_spec.ip4src);
-
-		rule->tuples.dst_ip[IPV4_INDEX] =
-				be32_to_cpu(fs->h_u.usr_ip4_spec.ip4dst);
-		rule->tuples_mask.dst_ip[IPV4_INDEX] =
-				be32_to_cpu(fs->m_u.usr_ip4_spec.ip4dst);
-
-		rule->tuples.ip_tos = fs->h_u.usr_ip4_spec.tos;
-		rule->tuples_mask.ip_tos = fs->m_u.usr_ip4_spec.tos;
-
-		rule->tuples.ip_proto = fs->h_u.usr_ip4_spec.proto;
-		rule->tuples_mask.ip_proto = fs->m_u.usr_ip4_spec.proto;
-
-		rule->tuples.ether_proto = ETH_P_IP;
-		rule->tuples_mask.ether_proto = 0xFFFF;
-
+		hclge_fd_get_ip4_tuple(hdev, fs, rule);
 		break;
 	case SCTP_V6_FLOW:
+		hclge_fd_get_tcpip6_tuple(hdev, fs, rule, IPPROTO_SCTP);
+		break;
 	case TCP_V6_FLOW:
+		hclge_fd_get_tcpip6_tuple(hdev, fs, rule, IPPROTO_TCP);
+		break;
 	case UDP_V6_FLOW:
-		be32_to_cpu_array(rule->tuples.src_ip,
-				  fs->h_u.tcp_ip6_spec.ip6src, IPV6_SIZE);
-		be32_to_cpu_array(rule->tuples_mask.src_ip,
-				  fs->m_u.tcp_ip6_spec.ip6src, IPV6_SIZE);
-
-		be32_to_cpu_array(rule->tuples.dst_ip,
-				  fs->h_u.tcp_ip6_spec.ip6dst, IPV6_SIZE);
-		be32_to_cpu_array(rule->tuples_mask.dst_ip,
-				  fs->m_u.tcp_ip6_spec.ip6dst, IPV6_SIZE);
-
-		rule->tuples.src_port = be16_to_cpu(fs->h_u.tcp_ip6_spec.psrc);
-		rule->tuples_mask.src_port =
-				be16_to_cpu(fs->m_u.tcp_ip6_spec.psrc);
-
-		rule->tuples.dst_port = be16_to_cpu(fs->h_u.tcp_ip6_spec.pdst);
-		rule->tuples_mask.dst_port =
-				be16_to_cpu(fs->m_u.tcp_ip6_spec.pdst);
-
-		rule->tuples.ether_proto = ETH_P_IPV6;
-		rule->tuples_mask.ether_proto = 0xFFFF;
-
+		hclge_fd_get_tcpip6_tuple(hdev, fs, rule, IPPROTO_UDP);
 		break;
 	case IPV6_USER_FLOW:
-		be32_to_cpu_array(rule->tuples.src_ip,
-				  fs->h_u.usr_ip6_spec.ip6src, IPV6_SIZE);
-		be32_to_cpu_array(rule->tuples_mask.src_ip,
-				  fs->m_u.usr_ip6_spec.ip6src, IPV6_SIZE);
-
-		be32_to_cpu_array(rule->tuples.dst_ip,
-				  fs->h_u.usr_ip6_spec.ip6dst, IPV6_SIZE);
-		be32_to_cpu_array(rule->tuples_mask.dst_ip,
-				  fs->m_u.usr_ip6_spec.ip6dst, IPV6_SIZE);
-
-		rule->tuples.ip_proto = fs->h_u.usr_ip6_spec.l4_proto;
-		rule->tuples_mask.ip_proto = fs->m_u.usr_ip6_spec.l4_proto;
-
-		rule->tuples.ether_proto = ETH_P_IPV6;
-		rule->tuples_mask.ether_proto = 0xFFFF;
-
+		hclge_fd_get_ip6_tuple(hdev, fs, rule);
 		break;
 	case ETHER_FLOW:
-		ether_addr_copy(rule->tuples.src_mac,
-				fs->h_u.ether_spec.h_source);
-		ether_addr_copy(rule->tuples_mask.src_mac,
-				fs->m_u.ether_spec.h_source);
-
-		ether_addr_copy(rule->tuples.dst_mac,
-				fs->h_u.ether_spec.h_dest);
-		ether_addr_copy(rule->tuples_mask.dst_mac,
-				fs->m_u.ether_spec.h_dest);
-
-		rule->tuples.ether_proto =
-				be16_to_cpu(fs->h_u.ether_spec.h_proto);
-		rule->tuples_mask.ether_proto =
-				be16_to_cpu(fs->m_u.ether_spec.h_proto);
-
+		hclge_fd_get_ether_tuple(hdev, fs, rule);
 		break;
 	default:
 		return -EOPNOTSUPP;
-	}
-
-	switch (flow_type) {
-	case SCTP_V4_FLOW:
-	case SCTP_V6_FLOW:
-		rule->tuples.ip_proto = IPPROTO_SCTP;
-		rule->tuples_mask.ip_proto = 0xFF;
-		break;
-	case TCP_V4_FLOW:
-	case TCP_V6_FLOW:
-		rule->tuples.ip_proto = IPPROTO_TCP;
-		rule->tuples_mask.ip_proto = 0xFF;
-		break;
-	case UDP_V4_FLOW:
-	case UDP_V6_FLOW:
-		rule->tuples.ip_proto = IPPROTO_UDP;
-		rule->tuples_mask.ip_proto = 0xFF;
-		break;
-	default:
-		break;
 	}
 
 	if (fs->flow_type & FLOW_EXT) {
