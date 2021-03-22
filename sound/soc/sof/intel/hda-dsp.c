@@ -892,6 +892,12 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
 }
 
+int hda_dsp_shutdown(struct snd_sof_dev *sdev)
+{
+	sdev->system_suspend_target = SOF_SUSPEND_S3;
+	return snd_sof_suspend(sdev->dev);
+}
+
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)

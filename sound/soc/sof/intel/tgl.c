@@ -25,7 +25,7 @@ const struct snd_sof_dsp_ops sof_tgl_ops = {
 	/* probe/remove/shutdown */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,
-	.shutdown	= hda_dsp_remove,
+	.shutdown	= hda_dsp_shutdown,
 
 	/* Register IO */
 	.write		= sof_io_write,
