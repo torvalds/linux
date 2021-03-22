@@ -63,6 +63,7 @@
 #define IQS5XX_SYS_CFG1		0x058F
 #define IQS5XX_X_RES		0x066E
 #define IQS5XX_Y_RES		0x0670
+#define IQS5XX_EXP_FILE		0x0677
 #define IQS5XX_CHKSM		0x83C0
 #define IQS5XX_APP		0x8400
 #define IQS5XX_CSTM		0xBE00
@@ -86,21 +87,11 @@
 #define IQS5XX_BL_CMD_CRC	0x03
 #define IQS5XX_BL_BLK_LEN_MAX	64
 #define IQS5XX_BL_ID		0x0200
-#define IQS5XX_BL_STATUS_RESET	0x00
 #define IQS5XX_BL_STATUS_AVAIL	0xA5
 #define IQS5XX_BL_STATUS_NONE	0xEE
 #define IQS5XX_BL_CRC_PASS	0x00
 #define IQS5XX_BL_CRC_FAIL	0x01
 #define IQS5XX_BL_ATTEMPTS	3
-
-struct iqs5xx_private {
-	struct i2c_client *client;
-	struct input_dev *input;
-	struct gpio_desc *reset_gpio;
-	struct touchscreen_properties prop;
-	struct mutex lock;
-	u8 bl_status;
-};
 
 struct iqs5xx_dev_id_info {
 	__be16 prod_num;
@@ -132,6 +123,16 @@ struct iqs5xx_status {
 	__be16 rel_y;
 	struct iqs5xx_touch_data touch_data[IQS5XX_NUM_CONTACTS];
 } __packed;
+
+struct iqs5xx_private {
+	struct i2c_client *client;
+	struct input_dev *input;
+	struct gpio_desc *reset_gpio;
+	struct touchscreen_properties prop;
+	struct mutex lock;
+	struct iqs5xx_dev_id_info dev_id_info;
+	u8 exp_file[2];
+};
 
 static int iqs5xx_read_burst(struct i2c_client *client,
 			     u16 reg, void *val, u16 len)
@@ -445,7 +446,7 @@ static int iqs5xx_set_state(struct i2c_client *client, u8 state)
 	struct iqs5xx_private *iqs5xx = i2c_get_clientdata(client);
 	int error1, error2;
 
-	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_RESET)
+	if (!iqs5xx->dev_id_info.bl_status)
 		return 0;
 
 	mutex_lock(&iqs5xx->lock);
@@ -615,6 +616,11 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 		return -EINVAL;
 	}
 
+	error = iqs5xx_read_burst(client, IQS5XX_EXP_FILE,
+				  iqs5xx->exp_file, sizeof(iqs5xx->exp_file));
+	if (error)
+		return error;
+
 	error = iqs5xx_axis_init(client);
 	if (error)
 		return error;
@@ -638,7 +644,7 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	if (error)
 		return error;
 
-	iqs5xx->bl_status = dev_id_info->bl_status;
+	iqs5xx->dev_id_info = *dev_id_info;
 
 	/*
 	 * The following delay allows ATI to complete before the open and close
@@ -664,7 +670,7 @@ static irqreturn_t iqs5xx_irq(int irq, void *data)
 	 * RDY output during bootloader mode. If the device operates outside of
 	 * bootloader mode, the input device is guaranteed to be allocated.
 	 */
-	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_RESET)
+	if (!iqs5xx->dev_id_info.bl_status)
 		return IRQ_NONE;
 
 	error = iqs5xx_read_burst(client, IQS5XX_SYS_INFO0,
@@ -853,7 +859,7 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 	int error, error_bl = 0;
 	u8 *pmap;
 
-	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_NONE)
+	if (iqs5xx->dev_id_info.bl_status == IQS5XX_BL_STATUS_NONE)
 		return -EPERM;
 
 	pmap = kzalloc(IQS5XX_PMAP_LEN, GFP_KERNEL);
@@ -873,7 +879,7 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 	 */
 	disable_irq(client->irq);
 
-	iqs5xx->bl_status = IQS5XX_BL_STATUS_RESET;
+	iqs5xx->dev_id_info.bl_status = 0;
 
 	error = iqs5xx_bl_cmd(client, IQS5XX_BL_CMD_VER, 0);
 	if (error) {
@@ -906,7 +912,7 @@ err_reset:
 
 	error_bl = error;
 	error = iqs5xx_dev_init(client);
-	if (!error && iqs5xx->bl_status == IQS5XX_BL_STATUS_RESET)
+	if (!error && !iqs5xx->dev_id_info.bl_status)
 		error = -EINVAL;
 
 	enable_irq(client->irq);
@@ -966,10 +972,28 @@ static ssize_t fw_file_store(struct device *dev,
 	return count;
 }
 
+static ssize_t fw_info_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct iqs5xx_private *iqs5xx = dev_get_drvdata(dev);
+
+	if (!iqs5xx->dev_id_info.bl_status)
+		return -ENODATA;
+
+	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u.%u:%u.%u\n",
+			 be16_to_cpu(iqs5xx->dev_id_info.prod_num),
+			 be16_to_cpu(iqs5xx->dev_id_info.proj_num),
+			 iqs5xx->dev_id_info.major_ver,
+			 iqs5xx->dev_id_info.minor_ver,
+			 iqs5xx->exp_file[0], iqs5xx->exp_file[1]);
+}
+
 static DEVICE_ATTR_WO(fw_file);
+static DEVICE_ATTR_RO(fw_info);
 
 static struct attribute *iqs5xx_attrs[] = {
 	&dev_attr_fw_file.attr,
+	&dev_attr_fw_info.attr,
 	NULL,
 };
 
