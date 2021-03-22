@@ -614,4 +614,62 @@
 		reg = <0x00 0x2a000000 0x00 0x1000>;
 		#hwlock-cells = <1>;
 	};
+
+	mailbox0_cluster2: mailbox@29020000 {
+		compatible = "ti,am64-mailbox";
+		reg = <0x00 0x29020000 0x00 0x200>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <1>;
+		ti,mbox-num-users = <4>;
+		ti,mbox-num-fifos = <16>;
+	};
+
+	mailbox0_cluster3: mailbox@29030000 {
+		compatible = "ti,am64-mailbox";
+		reg = <0x00 0x29030000 0x00 0x200>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <1>;
+		ti,mbox-num-users = <4>;
+		ti,mbox-num-fifos = <16>;
+	};
+
+	mailbox0_cluster4: mailbox@29040000 {
+		compatible = "ti,am64-mailbox";
+		reg = <0x00 0x29040000 0x00 0x200>;
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <1>;
+		ti,mbox-num-users = <4>;
+		ti,mbox-num-fifos = <16>;
+	};
+
+	mailbox0_cluster5: mailbox@29050000 {
+		compatible = "ti,am64-mailbox";
+		reg = <0x00 0x29050000 0x00 0x200>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <1>;
+		ti,mbox-num-users = <4>;
+		ti,mbox-num-fifos = <16>;
+	};
+
+	mailbox0_cluster6: mailbox@29060000 {
+		compatible = "ti,am64-mailbox";
+		reg = <0x00 0x29060000 0x00 0x200>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <1>;
+		ti,mbox-num-users = <4>;
+		ti,mbox-num-fifos = <16>;
+	};
+
+	mailbox0_cluster7: mailbox@29070000 {
+		compatible = "ti,am64-mailbox";
+		reg = <0x00 0x29070000 0x00 0x200>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <1>;
+		ti,mbox-num-users = <4>;
+		ti,mbox-num-fifos = <16>;
+	};
 };
