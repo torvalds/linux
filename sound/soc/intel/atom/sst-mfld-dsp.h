@@ -358,7 +358,7 @@ struct snd_wma_params {
 	u8 reserved;	/* reserved */
 } __packed;
 
-/* Codec params struture */
+/* Codec params structure */
 union  snd_sst_codec_params {
 	struct snd_pcm_params pcm_params;
 	struct snd_mp3_params mp3_params;
