@@ -29,10 +29,28 @@ static bool errata_cip_453_check_func(unsigned long  arch_id, unsigned long impi
 	return true;
 }
 
+static bool errata_cip_1200_check_func(unsigned long  arch_id, unsigned long impid)
+{
+	/*
+	 * Affected cores:
+	 * Architecture ID: 0x8000000000000007 or 0x1
+	 * Implement ID: mimpid[23:0] <= 0x200630 and mimpid != 0x01200626
+	 */
+	if (arch_id != 0x8000000000000007 && arch_id != 0x1)
+		return false;
+	if ((impid & 0xffffff) > 0x200630 || impid == 0x1200626)
+		return false;
+	return true;
+}
+
 static struct errata_info_t errata_list[ERRATA_SIFIVE_NUMBER] = {
 	{
 		.name = "cip-453",
 		.check_func = errata_cip_453_check_func
+	},
+	{
+		.name = "cip-1200",
+		.check_func = errata_cip_1200_check_func
 	},
 };
 
