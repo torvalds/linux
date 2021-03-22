@@ -2487,12 +2487,14 @@ static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 
 	if (req->rw.kiocb.ki_flags & IOCB_WRITE)
 		kiocb_end_write(req);
-	if ((res == -EAGAIN || res == -EOPNOTSUPP) && io_rw_should_reissue(req)) {
-		req->flags |= REQ_F_REISSUE;
-		return;
-	}
-	if (res != req->result)
+	if (res != req->result) {
+		if ((res == -EAGAIN || res == -EOPNOTSUPP) &&
+		    io_rw_should_reissue(req)) {
+			req->flags |= REQ_F_REISSUE;
+			return;
+		}
 		req_set_fail_links(req);
+	}
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		cflags = io_put_rw_kbuf(req);
 	__io_req_complete(req, issue_flags, res, cflags);
@@ -2509,19 +2511,20 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
 
-#ifdef CONFIG_BLOCK
-	if (res == -EAGAIN && io_rw_should_reissue(req)) {
-		if (!io_resubmit_prep(req))
-			req->flags |= REQ_F_DONT_REISSUE;
-	}
-#endif
-
 	if (kiocb->ki_flags & IOCB_WRITE)
 		kiocb_end_write(req);
+	if (unlikely(res != req->result)) {
+		bool fail = true;
 
-	if (res != -EAGAIN && res != req->result) {
-		req->flags |= REQ_F_DONT_REISSUE;
-		req_set_fail_links(req);
+#ifdef CONFIG_BLOCK
+		if (res == -EAGAIN && io_rw_should_reissue(req) &&
+		    io_resubmit_prep(req))
+			fail = false;
+#endif
+		if (fail) {
+			req_set_fail_links(req);
+			req->flags |= REQ_F_DONT_REISSUE;
+		}
 	}
 
 	WRITE_ONCE(req->result, res);
