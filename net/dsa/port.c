@@ -170,10 +170,44 @@ static void dsa_port_clear_brport_flags(struct dsa_port *dp)
 static int dsa_port_switchdev_sync(struct dsa_port *dp,
 				   struct netlink_ext_ack *extack)
 {
+	struct net_device *brport_dev = dsa_port_to_bridge_port(dp);
+	struct net_device *br = dp->bridge_dev;
 	int err;
 
 	err = dsa_port_inherit_brport_flags(dp, extack);
 	if (err)
+		return err;
+
+	err = dsa_port_set_state(dp, br_port_get_stp_state(brport_dev));
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = dsa_port_vlan_filtering(dp, br_vlan_enabled(br), extack);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = dsa_port_mrouter(dp->cpu_dp, br_multicast_router(br), extack);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = dsa_port_ageing_time(dp, br_get_ageing_time(br));
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = br_mdb_replay(br, brport_dev,
+			    &dsa_slave_switchdev_blocking_notifier,
+			    extack);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = br_fdb_replay(br, brport_dev, &dsa_slave_switchdev_notifier);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	err = br_vlan_replay(br, brport_dev,
+			     &dsa_slave_switchdev_blocking_notifier,
+			     extack);
+	if (err && err != -EOPNOTSUPP)
 		return err;
 
 	return 0;
@@ -198,6 +232,18 @@ static void dsa_port_switchdev_unsync(struct dsa_port *dp)
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
 	 */
 	dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
+
+	/* VLAN filtering is handled by dsa_switch_bridge_leave */
+
+	/* Some drivers treat the notification for having a local multicast
+	 * router by allowing multicast to be flooded to the CPU, so we should
+	 * allow this in standalone mode too.
+	 */
+	dsa_port_mrouter(dp->cpu_dp, true, NULL);
+
+	/* Ageing time may be global to the switch chip, so don't change it
+	 * here because we have no good reason (or value) to change it to.
+	 */
 }
 
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
