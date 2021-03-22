@@ -6200,7 +6200,7 @@ int smb2_read(struct ksmbd_work *work)
 		work->aux_payload_buf = ksmbd_alloc_response(length);
 	}
 	if (!work->aux_payload_buf) {
-		err = nbytes;
+		err = -ENOMEM;
 		goto out;
 	}
 
