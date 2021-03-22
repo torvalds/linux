@@ -7,6 +7,7 @@
  * Author: Jisheng Zhang <jszhang@kernel.org>
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
@@ -92,6 +93,16 @@ static void dwcmshc_adma_write_desc(struct sdhci_host *host, void **desc,
 	addr += tmplen;
 	len -= tmplen;
 	sdhci_adma_write_desc(host, desc, addr, len, cmd);
+}
+
+static unsigned int dwcmshc_get_max_clock(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+
+	if (pltfm_host->clk)
+		return sdhci_pltfm_clk_get_max_clock(host);
+	else
+		return pltfm_host->clock;
 }
 
 static void dwcmshc_check_auto_cmd23(struct mmc_host *mmc,
@@ -248,7 +259,7 @@ static const struct sdhci_ops sdhci_dwcmshc_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
 	.set_uhs_signaling	= dwcmshc_set_uhs_signaling,
-	.get_max_clock		= sdhci_pltfm_clk_get_max_clock,
+	.get_max_clock		= dwcmshc_get_max_clock,
 	.reset			= sdhci_reset,
 	.adma_write_desc	= dwcmshc_adma_write_desc,
 };
@@ -323,8 +334,16 @@ static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, sdhci_dwcmshc_dt_ids);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id sdhci_dwcmshc_acpi_ids[] = {
+	{ .id = "MLNXBF30" },
+	{}
+};
+#endif
+
 static int dwcmshc_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
 	struct dwcmshc_priv *priv;
@@ -347,7 +366,7 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	/*
 	 * extra adma table cnt for cross 128M boundary handling.
 	 */
-	extra = DIV_ROUND_UP_ULL(dma_get_required_mask(&pdev->dev), SZ_128M);
+	extra = DIV_ROUND_UP_ULL(dma_get_required_mask(dev), SZ_128M);
 	if (extra > SDHCI_MAX_SEGS)
 		extra = SDHCI_MAX_SEGS;
 	host->adma_table_cnt += extra;
@@ -355,19 +374,21 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	priv = sdhci_pltfm_priv(pltfm_host);
 
-	pltfm_host->clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(pltfm_host->clk)) {
-		err = PTR_ERR(pltfm_host->clk);
-		dev_err(&pdev->dev, "failed to get core clk: %d\n", err);
-		goto free_pltfm;
-	}
-	err = clk_prepare_enable(pltfm_host->clk);
-	if (err)
-		goto free_pltfm;
+	if (dev->of_node) {
+		pltfm_host->clk = devm_clk_get(dev, "core");
+		if (IS_ERR(pltfm_host->clk)) {
+			err = PTR_ERR(pltfm_host->clk);
+			dev_err(dev, "failed to get core clk: %d\n", err);
+			goto free_pltfm;
+		}
+		err = clk_prepare_enable(pltfm_host->clk);
+		if (err)
+			goto free_pltfm;
 
-	priv->bus_clk = devm_clk_get(&pdev->dev, "bus");
-	if (!IS_ERR(priv->bus_clk))
-		clk_prepare_enable(priv->bus_clk);
+		priv->bus_clk = devm_clk_get(dev, "bus");
+		if (!IS_ERR(priv->bus_clk))
+			clk_prepare_enable(priv->bus_clk);
+	}
 
 	err = mmc_of_parse(host->mmc);
 	if (err)
@@ -489,6 +510,7 @@ static struct platform_driver sdhci_dwcmshc_driver = {
 		.name	= "sdhci-dwcmshc",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_dwcmshc_dt_ids,
+		.acpi_match_table = ACPI_PTR(sdhci_dwcmshc_acpi_ids),
 		.pm = &dwcmshc_pmops,
 	},
 	.probe	= dwcmshc_probe,
