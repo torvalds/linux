@@ -59,12 +59,18 @@ static inline bool
 xfs_buf_item_straddle(
 	struct xfs_buf		*bp,
 	uint			offset,
-	int			next_bit,
-	int			last_bit)
+	int			first_bit,
+	int			nbits)
 {
-	return xfs_buf_offset(bp, offset + (next_bit << XFS_BLF_SHIFT)) !=
-		(xfs_buf_offset(bp, offset + (last_bit << XFS_BLF_SHIFT)) +
-		 XFS_BLF_CHUNK);
+	void			*first, *last;
+
+	first = xfs_buf_offset(bp, offset + (first_bit << XFS_BLF_SHIFT));
+	last = xfs_buf_offset(bp,
+			offset + ((first_bit + nbits) << XFS_BLF_SHIFT));
+
+	if (last - first != nbits * XFS_BLF_CHUNK)
+		return true;
+	return false;
 }
 
 /*
@@ -86,20 +92,51 @@ xfs_buf_item_size_segment(
 	int				*nbytes)
 {
 	struct xfs_buf			*bp = bip->bli_buf;
+	int				first_bit;
+	int				nbits;
 	int				next_bit;
 	int				last_bit;
 
-	last_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
-	if (last_bit == -1)
+	first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
+	if (first_bit == -1)
 		return;
 
-	/*
-	 * initial count for a dirty buffer is 2 vectors - the format structure
-	 * and the first dirty region.
-	 */
-	*nvecs += 2;
-	*nbytes += xfs_buf_log_format_size(blfp) + XFS_BLF_CHUNK;
+	(*nvecs)++;
+	*nbytes += xfs_buf_log_format_size(blfp);
 
+	do {
+		nbits = xfs_contig_bits(blfp->blf_data_map,
+					blfp->blf_map_size, first_bit);
+		ASSERT(nbits > 0);
+
+		/*
+		 * Straddling a page is rare because we don't log contiguous
+		 * chunks of unmapped buffers anywhere.
+		 */
+		if (nbits > 1 &&
+		    xfs_buf_item_straddle(bp, offset, first_bit, nbits))
+			goto slow_scan;
+
+		(*nvecs)++;
+		*nbytes += nbits * XFS_BLF_CHUNK;
+
+		/*
+		 * This takes the bit number to start looking from and
+		 * returns the next set bit from there.  It returns -1
+		 * if there are no more bits set or the start bit is
+		 * beyond the end of the bitmap.
+		 */
+		first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
+					(uint)first_bit + nbits + 1);
+	} while (first_bit != -1);
+
+	return;
+
+slow_scan:
+	/* Count the first bit we jumped out of the above loop from */
+	(*nvecs)++;
+	*nbytes += XFS_BLF_CHUNK;
+	last_bit = first_bit;
 	while (last_bit != -1) {
 		/*
 		 * This takes the bit number to start looking from and
@@ -117,11 +154,14 @@ xfs_buf_item_size_segment(
 		if (next_bit == -1) {
 			break;
 		} else if (next_bit != last_bit + 1 ||
-		           xfs_buf_item_straddle(bp, offset, next_bit, last_bit)) {
+		           xfs_buf_item_straddle(bp, offset, first_bit, nbits)) {
 			last_bit = next_bit;
+			first_bit = next_bit;
 			(*nvecs)++;
+			nbits = 1;
 		} else {
 			last_bit++;
+			nbits++;
 		}
 		*nbytes += XFS_BLF_CHUNK;
 	}
@@ -277,6 +317,38 @@ xfs_buf_item_format_segment(
 	/*
 	 * Fill in an iovec for each set of contiguous chunks.
 	 */
+	do {
+		ASSERT(first_bit >= 0);
+		nbits = xfs_contig_bits(blfp->blf_data_map,
+					blfp->blf_map_size, first_bit);
+		ASSERT(nbits > 0);
+
+		/*
+		 * Straddling a page is rare because we don't log contiguous
+		 * chunks of unmapped buffers anywhere.
+		 */
+		if (nbits > 1 &&
+		    xfs_buf_item_straddle(bp, offset, first_bit, nbits))
+			goto slow_scan;
+
+		xfs_buf_item_copy_iovec(lv, vecp, bp, offset,
+					first_bit, nbits);
+		blfp->blf_size++;
+
+		/*
+		 * This takes the bit number to start looking from and
+		 * returns the next set bit from there.  It returns -1
+		 * if there are no more bits set or the start bit is
+		 * beyond the end of the bitmap.
+		 */
+		first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
+					(uint)first_bit + nbits + 1);
+	} while (first_bit != -1);
+
+	return;
+
+slow_scan:
+	ASSERT(bp->b_addr == NULL);
 	last_bit = first_bit;
 	nbits = 1;
 	for (;;) {
@@ -301,7 +373,7 @@ xfs_buf_item_format_segment(
 			blfp->blf_size++;
 			break;
 		} else if (next_bit != last_bit + 1 ||
-		           xfs_buf_item_straddle(bp, offset, next_bit, last_bit)) {
+		           xfs_buf_item_straddle(bp, offset, first_bit, nbits)) {
 			xfs_buf_item_copy_iovec(lv, vecp, bp, offset,
 						first_bit, nbits);
 			blfp->blf_size++;
