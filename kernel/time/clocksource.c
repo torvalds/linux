@@ -38,7 +38,7 @@
  * calculated mult and shift factors. This guarantees that no 64bit
  * overflow happens when the input value of the conversion is
  * multiplied with the calculated mult factor. Larger ranges may
- * reduce the conversion accuracy by chosing smaller mult and shift
+ * reduce the conversion accuracy by choosing smaller mult and shift
  * factors.
  */
 void
@@ -518,7 +518,7 @@ static void clocksource_suspend_select(bool fallback)
  * the suspend time when resuming system.
  *
  * This function is called late in the suspend process from timekeeping_suspend(),
- * that means processes are freezed, non-boot cpus and interrupts are disabled
+ * that means processes are frozen, non-boot cpus and interrupts are disabled
  * now. It is therefore possible to start the suspend timer without taking the
  * clocksource mutex.
  */

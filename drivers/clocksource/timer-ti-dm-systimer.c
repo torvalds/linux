@@ -589,7 +589,7 @@ static int __init dmtimer_clockevent_init(struct device_node *np)
 		"always-on " : "", t->rate, np->parent);
 
 	clockevents_config_and_register(dev, t->rate,
-					3, /* Timer internal resynch latency */
+					3, /* Timer internal resync latency */
 					0xffffffff);
 
 	if (of_machine_is_compatible("ti,am33xx") ||
