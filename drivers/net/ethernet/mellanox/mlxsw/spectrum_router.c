@@ -3566,7 +3566,7 @@ struct mlxsw_sp_adj_grp_size_range {
 
 /* Ordered by range start value */
 static const struct mlxsw_sp_adj_grp_size_range
-mlxsw_sp_adj_grp_size_ranges[] = {
+mlxsw_sp1_adj_grp_size_ranges[] = {
 	{ .start = 1, .end = 64 },
 	{ .start = 512, .end = 512 },
 	{ .start = 1024, .end = 1024 },
@@ -3574,14 +3574,26 @@ mlxsw_sp_adj_grp_size_ranges[] = {
 	{ .start = 4096, .end = 4096 },
 };
 
-static void mlxsw_sp_adj_grp_size_round_up(u16 *p_adj_grp_size)
+/* Ordered by range start value */
+static const struct mlxsw_sp_adj_grp_size_range
+mlxsw_sp2_adj_grp_size_ranges[] = {
+	{ .start = 1, .end = 128 },
+	{ .start = 256, .end = 256 },
+	{ .start = 512, .end = 512 },
+	{ .start = 1024, .end = 1024 },
+	{ .start = 2048, .end = 2048 },
+	{ .start = 4096, .end = 4096 },
+};
+
+static void mlxsw_sp_adj_grp_size_round_up(const struct mlxsw_sp *mlxsw_sp,
+					   u16 *p_adj_grp_size)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_adj_grp_size_ranges); i++) {
+	for (i = 0; i < mlxsw_sp->router->adj_grp_size_ranges_count; i++) {
 		const struct mlxsw_sp_adj_grp_size_range *size_range;
 
-		size_range = &mlxsw_sp_adj_grp_size_ranges[i];
+		size_range = &mlxsw_sp->router->adj_grp_size_ranges[i];
 
 		if (*p_adj_grp_size >= size_range->start &&
 		    *p_adj_grp_size <= size_range->end)
@@ -3594,16 +3606,16 @@ static void mlxsw_sp_adj_grp_size_round_up(u16 *p_adj_grp_size)
 	}
 }
 
-static void mlxsw_sp_adj_grp_size_round_down(u16 *p_adj_grp_size,
+static void mlxsw_sp_adj_grp_size_round_down(const struct mlxsw_sp *mlxsw_sp,
+					     u16 *p_adj_grp_size,
 					     unsigned int alloc_size)
 {
-	size_t arr_size = ARRAY_SIZE(mlxsw_sp_adj_grp_size_ranges);
 	int i;
 
-	for (i = arr_size - 1; i >= 0; i--) {
+	for (i = mlxsw_sp->router->adj_grp_size_ranges_count - 1; i >= 0; i--) {
 		const struct mlxsw_sp_adj_grp_size_range *size_range;
 
-		size_range = &mlxsw_sp_adj_grp_size_ranges[i];
+		size_range = &mlxsw_sp->router->adj_grp_size_ranges[i];
 
 		if (alloc_size >= size_range->end) {
 			*p_adj_grp_size = size_range->end;
@@ -3621,7 +3633,7 @@ static int mlxsw_sp_fix_adj_grp_size(struct mlxsw_sp *mlxsw_sp,
 	/* Round up the requested group size to the next size supported
 	 * by the device and make sure the request can be satisfied.
 	 */
-	mlxsw_sp_adj_grp_size_round_up(p_adj_grp_size);
+	mlxsw_sp_adj_grp_size_round_up(mlxsw_sp, p_adj_grp_size);
 	err = mlxsw_sp_kvdl_alloc_count_query(mlxsw_sp,
 					      MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
 					      *p_adj_grp_size, &alloc_size);
@@ -3631,7 +3643,7 @@ static int mlxsw_sp_fix_adj_grp_size(struct mlxsw_sp *mlxsw_sp,
 	 * entries than requested. Try to use as much of them as
 	 * possible.
 	 */
-	mlxsw_sp_adj_grp_size_round_down(p_adj_grp_size, alloc_size);
+	mlxsw_sp_adj_grp_size_round_down(mlxsw_sp, p_adj_grp_size, alloc_size);
 
 	return 0;
 }
@@ -9376,7 +9388,11 @@ static void mlxsw_sp_lb_rif_fini(struct mlxsw_sp *mlxsw_sp)
 
 static int mlxsw_sp1_router_init(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t size_ranges_count = ARRAY_SIZE(mlxsw_sp1_adj_grp_size_ranges);
+
 	mlxsw_sp->router->rif_ops_arr = mlxsw_sp1_rif_ops_arr;
+	mlxsw_sp->router->adj_grp_size_ranges = mlxsw_sp1_adj_grp_size_ranges;
+	mlxsw_sp->router->adj_grp_size_ranges_count = size_ranges_count;
 
 	return 0;
 }
@@ -9387,7 +9403,11 @@ const struct mlxsw_sp_router_ops mlxsw_sp1_router_ops = {
 
 static int mlxsw_sp2_router_init(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t size_ranges_count = ARRAY_SIZE(mlxsw_sp2_adj_grp_size_ranges);
+
 	mlxsw_sp->router->rif_ops_arr = mlxsw_sp2_rif_ops_arr;
+	mlxsw_sp->router->adj_grp_size_ranges = mlxsw_sp2_adj_grp_size_ranges;
+	mlxsw_sp->router->adj_grp_size_ranges_count = size_ranges_count;
 
 	return 0;
 }
