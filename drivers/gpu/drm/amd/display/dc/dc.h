@@ -293,7 +293,6 @@ struct dc_config {
 	bool gpu_vm_support;
 	bool disable_disp_pll_sharing;
 	bool fbc_support;
-	bool optimize_edp_link_rate;
 	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
 	bool power_down_display_on_boot;
@@ -541,6 +540,7 @@ struct dc_debug_options {
 
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
+	bool optimize_edp_link_rate; /* eDP ILR */
 };
 
 struct dc_debug_data {
