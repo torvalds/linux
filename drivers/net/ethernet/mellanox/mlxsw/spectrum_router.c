@@ -3408,8 +3408,9 @@ err_mass_update_vr:
 	return err;
 }
 
-static int __mlxsw_sp_nexthop_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
-				     struct mlxsw_sp_nexthop *nh)
+static int __mlxsw_sp_nexthop_eth_update(struct mlxsw_sp *mlxsw_sp,
+					 u32 adj_index,
+					 struct mlxsw_sp_nexthop *nh)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry = nh->neigh_entry;
 	char ratr_pl[MLXSW_REG_RATR_LEN];
@@ -3445,15 +3446,16 @@ static int __mlxsw_sp_nexthop_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
 }
 
-int mlxsw_sp_nexthop_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
-			    struct mlxsw_sp_nexthop *nh)
+int mlxsw_sp_nexthop_eth_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
+				struct mlxsw_sp_nexthop *nh)
 {
 	int i;
 
 	for (i = 0; i < nh->num_adj_entries; i++) {
 		int err;
 
-		err = __mlxsw_sp_nexthop_update(mlxsw_sp, adj_index + i, nh);
+		err = __mlxsw_sp_nexthop_eth_update(mlxsw_sp, adj_index + i,
+						    nh);
 		if (err)
 			return err;
 	}
@@ -3515,8 +3517,9 @@ mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
 			if (nh->type == MLXSW_SP_NEXTHOP_TYPE_ETH ||
 			    nh->action == MLXSW_SP_NEXTHOP_ACTION_DISCARD ||
 			    nh->action == MLXSW_SP_NEXTHOP_ACTION_TRAP)
-				err = mlxsw_sp_nexthop_update(mlxsw_sp,
-							      adj_index, nh);
+				err = mlxsw_sp_nexthop_eth_update(mlxsw_sp,
+								  adj_index,
+								  nh);
 			else
 				err = mlxsw_sp_nexthop_ipip_update(mlxsw_sp,
 								   adj_index,
