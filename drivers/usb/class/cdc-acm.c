@@ -1486,8 +1486,6 @@ skip_countries:
 	acm->nb_index = 0;
 	acm->nb_size = 0;
 
-	dev_info(&intf->dev, "ttyACM%d: USB ACM device\n", minor);
-
 	acm->line.dwDTERate = cpu_to_le32(9600);
 	acm->line.bDataBits = 8;
 	acm_set_line(acm, &acm->line);
@@ -1509,6 +1507,8 @@ skip_countries:
 		usb_clear_halt(usb_dev, acm->in);
 		usb_clear_halt(usb_dev, acm->out);
 	}
+
+	dev_info(&intf->dev, "ttyACM%d: USB ACM device\n", minor);
 
 	return 0;
 
