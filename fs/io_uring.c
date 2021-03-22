@@ -2431,11 +2431,11 @@ static void kiocb_end_write(struct io_kiocb *req)
 	 * thread.
 	 */
 	if (req->flags & REQ_F_ISREG) {
-		struct inode *inode = file_inode(req->file);
+		struct super_block *sb = file_inode(req->file)->i_sb;
 
-		__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
+		__sb_writers_acquired(sb, SB_FREEZE_WRITE);
+		sb_end_write(sb);
 	}
-	file_end_write(req->file);
 }
 
 #ifdef CONFIG_BLOCK
