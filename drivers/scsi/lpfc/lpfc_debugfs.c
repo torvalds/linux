@@ -5154,7 +5154,7 @@ error_out:
  * This routine is to get the available extent information.
  *
  * Returns:
- * overall lenth of the data read into the internal buffer.
+ * overall length of the data read into the internal buffer.
  **/
 static int
 lpfc_idiag_extacc_avail_get(struct lpfc_hba *phba, char *pbuffer, int len)
@@ -5205,7 +5205,7 @@ lpfc_idiag_extacc_avail_get(struct lpfc_hba *phba, char *pbuffer, int len)
  * This routine is to get the allocated extent information.
  *
  * Returns:
- * overall lenth of the data read into the internal buffer.
+ * overall length of the data read into the internal buffer.
  **/
 static int
 lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
@@ -5277,7 +5277,7 @@ lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
  * This routine is to get the driver extent information.
  *
  * Returns:
- * overall lenth of the data read into the internal buffer.
+ * overall length of the data read into the internal buffer.
  **/
 static int
 lpfc_idiag_extacc_drivr_get(struct lpfc_hba *phba, char *pbuffer, int len)
