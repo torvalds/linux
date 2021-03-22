@@ -87,10 +87,10 @@ enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_MAX,
 };
 
-struct mlxsw_sp_rif_ops;
+struct mlxsw_sp_router_ops;
 
-extern const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[];
-extern const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[];
+extern const struct mlxsw_sp_router_ops mlxsw_sp1_router_ops;
+extern const struct mlxsw_sp_router_ops mlxsw_sp2_router_ops;
 
 struct mlxsw_sp_switchdev_ops;
 
@@ -180,7 +180,6 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_acl_rulei_ops *acl_rulei_ops;
 	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
-	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_sb_vals *sb_vals;
 	const struct mlxsw_sp_sb_ops *sb_ops;
 	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
@@ -189,6 +188,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_policer_core_ops *policer_core_ops;
 	const struct mlxsw_sp_trap_ops *trap_ops;
 	const struct mlxsw_sp_mall_ops *mall_ops;
+	const struct mlxsw_sp_router_ops *router_ops;
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;

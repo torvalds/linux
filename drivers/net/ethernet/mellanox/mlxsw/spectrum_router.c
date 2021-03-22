@@ -113,6 +113,10 @@ struct mlxsw_sp_rif_ops {
 	void (*fdb_del)(struct mlxsw_sp_rif *rif, const char *mac);
 };
 
+struct mlxsw_sp_router_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp);
+};
+
 static struct mlxsw_sp_rif *
 mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 			 const struct net_device *dev);
@@ -7712,7 +7716,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	int i, err;
 
 	type = mlxsw_sp_dev_rif_type(mlxsw_sp, params->dev);
-	ops = mlxsw_sp->rif_ops_arr[type];
+	ops = mlxsw_sp->router->rif_ops_arr[type];
 
 	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN, extack);
 	if (IS_ERR(vr))
@@ -8910,7 +8914,7 @@ static const struct mlxsw_sp_rif_ops mlxsw_sp1_rif_ipip_lb_ops = {
 	.deconfigure		= mlxsw_sp1_rif_ipip_lb_deconfigure,
 };
 
-const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[] = {
+static const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[] = {
 	[MLXSW_SP_RIF_TYPE_SUBPORT]	= &mlxsw_sp_rif_subport_ops,
 	[MLXSW_SP_RIF_TYPE_VLAN]	= &mlxsw_sp_rif_vlan_emu_ops,
 	[MLXSW_SP_RIF_TYPE_FID]		= &mlxsw_sp_rif_fid_ops,
@@ -9095,7 +9099,7 @@ static const struct mlxsw_sp_rif_ops mlxsw_sp2_rif_ipip_lb_ops = {
 	.deconfigure		= mlxsw_sp2_rif_ipip_lb_deconfigure,
 };
 
-const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[] = {
+static const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[] = {
 	[MLXSW_SP_RIF_TYPE_SUBPORT]	= &mlxsw_sp_rif_subport_ops,
 	[MLXSW_SP_RIF_TYPE_VLAN]	= &mlxsw_sp_rif_vlan_emu_ops,
 	[MLXSW_SP_RIF_TYPE_FID]		= &mlxsw_sp_rif_fid_ops,
@@ -9347,6 +9351,28 @@ static void mlxsw_sp_lb_rif_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_router_ul_rif_put(mlxsw_sp, mlxsw_sp->router->lb_rif_index);
 }
 
+static int mlxsw_sp1_router_init(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp->router->rif_ops_arr = mlxsw_sp1_rif_ops_arr;
+
+	return 0;
+}
+
+const struct mlxsw_sp_router_ops mlxsw_sp1_router_ops = {
+	.init = mlxsw_sp1_router_init,
+};
+
+static int mlxsw_sp2_router_init(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp->router->rif_ops_arr = mlxsw_sp2_rif_ops_arr;
+
+	return 0;
+}
+
+const struct mlxsw_sp_router_ops mlxsw_sp2_router_ops = {
+	.init = mlxsw_sp2_router_init,
+};
+
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack)
 {
@@ -9359,6 +9385,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	mutex_init(&router->lock);
 	mlxsw_sp->router = router;
 	router->mlxsw_sp = mlxsw_sp;
+
+	err = mlxsw_sp->router_ops->init(mlxsw_sp);
+	if (err)
+		goto err_router_ops_init;
 
 	err = mlxsw_sp_router_xm_init(mlxsw_sp);
 	if (err)
@@ -9500,6 +9530,7 @@ err_router_init:
 err_ll_op_ctx_init:
 	mlxsw_sp_router_xm_fini(mlxsw_sp);
 err_xm_init:
+err_router_ops_init:
 	mutex_destroy(&mlxsw_sp->router->lock);
 	kfree(mlxsw_sp->router);
 	return err;
