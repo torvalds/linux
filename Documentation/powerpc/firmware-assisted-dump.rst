@@ -171,7 +171,7 @@ that were present in CMA region::
                                            (meta area)    |
                                                           |
                                                           |
-                      Metadata: This area holds a metadata struture whose
+                      Metadata: This area holds a metadata structure whose
                       address is registered with f/w and retrieved in the
                       second kernel after crash, on platforms that support
                       tags (OPAL). Having such structure with info needed
