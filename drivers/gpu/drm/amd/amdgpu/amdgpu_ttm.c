@@ -1503,7 +1503,7 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 				memcpy(buf, &value, bytes);
 			}
 		} else {
-			bytes = cursor.size & 0x3ull;
+			bytes = cursor.size & ~0x3ULL;
 			amdgpu_device_vram_access(adev, cursor.start,
 						  (uint32_t *)buf, bytes,
 						  write);
