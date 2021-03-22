@@ -639,6 +639,19 @@ int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time)
 	return 0;
 }
 
+clock_t br_get_ageing_time(struct net_device *br_dev)
+{
+	struct net_bridge *br;
+
+	if (!netif_is_bridge_master(br_dev))
+		return 0;
+
+	br = netdev_priv(br_dev);
+
+	return jiffies_to_clock_t(br->ageing_time);
+}
+EXPORT_SYMBOL_GPL(br_get_ageing_time);
+
 /* called under bridge lock */
 void __br_set_topology_change(struct net_bridge *br, unsigned char val)
 {
