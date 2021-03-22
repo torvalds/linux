@@ -1766,7 +1766,6 @@ static bool io_kill_linked_timeout(struct io_kiocb *req)
 	__must_hold(&req->ctx->completion_lock)
 {
 	struct io_kiocb *link = req->link;
-	bool cancelled = false;
 
 	/*
 	 * Can happen if a linked timeout fired and link had been like
@@ -1782,11 +1781,10 @@ static bool io_kill_linked_timeout(struct io_kiocb *req)
 		if (ret != -1) {
 			io_cqring_fill_event(link, -ECANCELED);
 			io_put_req_deferred(link, 1);
-			cancelled = true;
+			return true;
 		}
 	}
-	req->flags &= ~REQ_F_LINK_TIMEOUT;
-	return cancelled;
+	return false;
 }
 
 static void io_fail_links(struct io_kiocb *req)
