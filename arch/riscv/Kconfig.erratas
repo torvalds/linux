@@ -19,4 +19,15 @@ config ERRATA_SIFIVE
 
 	  Otherwise, please say "N" here to avoid unnecessary overhead.
 
+config ERRATA_SIFIVE_CIP_453
+	bool "Apply SiFive errata CIP-453"
+	depends on ERRATA_SIFIVE
+	default y
+	help
+	  This will apply the SiFive CIP-453 errata to add sign extension
+	  to the $badaddr when exception type is instruction page fault
+	  and instruction access fault.
+
+	  If you don't know what to do here, say "Y".
+
 endmenu

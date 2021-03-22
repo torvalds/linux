@@ -5,8 +5,27 @@
 #ifndef ASM_ERRATA_LIST_H
 #define ASM_ERRATA_LIST_H
 
+#include <asm/alternative.h>
+#include <asm/vendorid_list.h>
+
 #ifdef CONFIG_ERRATA_SIFIVE
-#define	ERRATA_SIFIVE_NUMBER 0
+#define	ERRATA_SIFIVE_CIP_453 0
+#define	ERRATA_SIFIVE_NUMBER 1
 #endif
+
+#ifdef __ASSEMBLY__
+
+#define ALT_INSN_FAULT(x)						\
+ALTERNATIVE(__stringify(RISCV_PTR do_trap_insn_fault),			\
+	    __stringify(RISCV_PTR sifive_cip_453_insn_fault_trp),	\
+	    SIFIVE_VENDOR_ID, ERRATA_SIFIVE_CIP_453,			\
+	    CONFIG_ERRATA_SIFIVE_CIP_453)
+
+#define ALT_PAGE_FAULT(x)						\
+ALTERNATIVE(__stringify(RISCV_PTR do_page_fault),			\
+	    __stringify(RISCV_PTR sifive_cip_453_page_fault_trp),	\
+	    SIFIVE_VENDOR_ID, ERRATA_SIFIVE_CIP_453,			\
+	    CONFIG_ERRATA_SIFIVE_CIP_453)
+#endif /* __ASSEMBLY__ */
 
 #endif

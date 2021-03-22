@@ -16,6 +16,26 @@ struct errata_info_t {
 	bool (*check_func)(unsigned long  arch_id, unsigned long impid);
 };
 
+static bool errata_cip_453_check_func(unsigned long  arch_id, unsigned long impid)
+{
+	/*
+	 * Affected cores:
+	 * Architecture ID: 0x8000000000000007
+	 * Implement ID: 0x20181004 <= impid <= 0x20191105
+	 */
+	if (arch_id != 0x8000000000000007 ||
+	    (impid < 0x20181004 || impid > 0x20191105))
+		return false;
+	return true;
+}
+
+static struct errata_info_t errata_list[ERRATA_SIFIVE_NUMBER] = {
+	{
+		.name = "cip-453",
+		.check_func = errata_cip_453_check_func
+	},
+};
+
 static u32 __init sifive_errata_probe(unsigned long archid, unsigned long impid)
 {
 	int idx;
