@@ -143,6 +143,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	}
 
 	memset(&cgctx, 0, sizeof(struct codegen_context));
+	memcpy(cgctx.b2p, b2p, sizeof(cgctx.b2p));
 
 	/* Make sure that the stack is quadword aligned. */
 	cgctx.stack_size = round_up(fp->aux->stack_depth, 16);
@@ -167,6 +168,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 		}
 	}
 
+	bpf_jit_realloc_regs(&cgctx);
 	/*
 	 * Pretend to build prologue, given the features we've seen.  This will
 	 * update ctgtx.idx as it pretends to output instructions, then we can

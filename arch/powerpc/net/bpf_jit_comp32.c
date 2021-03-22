@@ -37,7 +37,7 @@
 #define TMP_REG	(MAX_BPF_JIT_REG + 0)
 
 /* BPF to ppc register mappings */
-static const int b2p[] = {
+const int b2p[MAX_BPF_JIT_REG + 1] = {
 	/* function return value */
 	[BPF_REG_0] = 12,
 	/* function arguments */
@@ -60,7 +60,7 @@ static const int b2p[] = {
 
 static int bpf_to_ppc(struct codegen_context *ctx, int reg)
 {
-	return b2p[reg];
+	return ctx->b2p[reg];
 }
 
 /* PPC NVR range -- update this if we ever use NVRs below r17 */
@@ -75,6 +75,32 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 	WARN(true, "BPF JIT is asking about unknown registers, will crash the stack");
 	/* Use the hole we have left for alignment */
 	return BPF_PPC_STACKFRAME(ctx) - 4;
+}
+
+void bpf_jit_realloc_regs(struct codegen_context *ctx)
+{
+	if (ctx->seen & SEEN_FUNC)
+		return;
+
+	while (ctx->seen & SEEN_NVREG_MASK &&
+	      (ctx->seen & SEEN_VREG_MASK) != SEEN_VREG_MASK) {
+		int old = 32 - fls(ctx->seen & (SEEN_NVREG_MASK & 0xaaaaaaab));
+		int new = 32 - fls(~ctx->seen & (SEEN_VREG_MASK & 0xaaaaaaaa));
+		int i;
+
+		for (i = BPF_REG_0; i <= TMP_REG; i++) {
+			if (ctx->b2p[i] != old)
+				continue;
+			ctx->b2p[i] = new;
+			bpf_set_seen_register(ctx, new);
+			bpf_clear_seen_register(ctx, old);
+			if (i != TMP_REG) {
+				bpf_set_seen_register(ctx, new - 1);
+				bpf_clear_seen_register(ctx, old - 1);
+			}
+			break;
+		}
+	}
 }
 
 void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)

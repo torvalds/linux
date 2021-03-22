@@ -64,6 +64,10 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 	BUG();
 }
 
+void bpf_jit_realloc_regs(struct codegen_context *ctx)
+{
+}
+
 void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 {
 	int i;

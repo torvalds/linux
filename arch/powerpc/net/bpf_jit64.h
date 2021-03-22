@@ -39,7 +39,7 @@
 #define TMP_REG_2	(MAX_BPF_JIT_REG + 1)
 
 /* BPF to ppc register mappings */
-static const int b2p[] = {
+const int b2p[MAX_BPF_JIT_REG + 2] = {
 	/* function return value */
 	[BPF_REG_0] = 8,
 	/* function arguments */
