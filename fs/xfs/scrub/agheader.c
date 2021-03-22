@@ -477,16 +477,13 @@ xchk_agf_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGF_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_agf_xref_freeblks(sc);
@@ -660,16 +657,13 @@ xchk_agfl_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGFL_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
@@ -813,16 +807,13 @@ xchk_agi_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGI_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);

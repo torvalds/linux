@@ -452,7 +452,7 @@ xchk_ag_btcur_free(
 }
 
 /* Initialize all the btree cursors for an AG. */
-int
+void
 xchk_ag_btcur_init(
 	struct xfs_scrub	*sc,
 	struct xchk_ag		*sa)
@@ -502,8 +502,6 @@ xchk_ag_btcur_init(
 		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
 				sa->agf_bp, agno);
 	}
-
-	return 0;
 }
 
 /* Release the AG header context and btree cursors. */
@@ -551,7 +549,8 @@ xchk_ag_init(
 	if (error)
 		return error;
 
-	return xchk_ag_btcur_init(sc, sa);
+	xchk_ag_btcur_init(sc, sa);
+	return 0;
 }
 
 /*
