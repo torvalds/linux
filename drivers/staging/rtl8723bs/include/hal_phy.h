@@ -146,30 +146,6 @@ struct SwChnlCmd {
 	u32 			msDelay;
 };
 
-struct r_antenna_select_ofdm {
-#ifdef __LITTLE_ENDIAN
-	u32 		r_tx_antenna:4;
-	u32 		r_ant_l:4;
-	u32 		r_ant_non_ht:4;
-	u32 		r_ant_ht1:4;
-	u32 		r_ant_ht2:4;
-	u32 		r_ant_ht_s1:4;
-	u32 		r_ant_non_ht_s1:4;
-	u32 		OFDM_TXSC:2;
-	u32 		Reserved:2;
-#else
-	u32 		Reserved:2;
-	u32 		OFDM_TXSC:2;
-	u32 		r_ant_non_ht_s1:4;
-	u32 		r_ant_ht_s1:4;
-	u32 		r_ant_ht2:4;
-	u32 		r_ant_ht1:4;
-	u32 		r_ant_non_ht:4;
-	u32 		r_ant_l:4;
-	u32 		r_tx_antenna:4;
-#endif
-};
-
 /*--------------------------Exported Function prototype---------------------*/
 
 #endif /* __HAL_COMMON_H__ */
