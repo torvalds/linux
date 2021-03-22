@@ -1847,7 +1847,7 @@ out_free:
 
 STATIC int
 xfs_ioc_scrub_metadata(
-	struct xfs_inode		*ip,
+	struct file			*file,
 	void				__user *arg)
 {
 	struct xfs_scrub_metadata	scrub;
@@ -1859,7 +1859,7 @@ xfs_ioc_scrub_metadata(
 	if (copy_from_user(&scrub, arg, sizeof(scrub)))
 		return -EFAULT;
 
-	error = xfs_scrub_metadata(ip, &scrub);
+	error = xfs_scrub_metadata(file, &scrub);
 	if (error)
 		return error;
 
@@ -2158,7 +2158,7 @@ xfs_file_ioctl(
 		return xfs_ioc_getfsmap(ip, arg);
 
 	case XFS_IOC_SCRUB_METADATA:
-		return xfs_ioc_scrub_metadata(ip, arg);
+		return xfs_ioc_scrub_metadata(filp, arg);
 
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:

@@ -149,9 +149,10 @@ xchk_probe(
 STATIC int
 xchk_teardown(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip_in,
 	int			error)
 {
+	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
+
 	xchk_ag_free(sc, &sc->sa);
 	if (sc->tp) {
 		if (error == 0 && (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
@@ -168,7 +169,8 @@ xchk_teardown(
 			xfs_irele(sc->ip);
 		sc->ip = NULL;
 	}
-	sb_end_write(sc->mp->m_super);
+	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+		mnt_drop_write_file(sc->file);
 	if (sc->flags & XCHK_REAPING_DISABLED)
 		xchk_start_reaping(sc);
 	if (sc->flags & XCHK_HAS_QUOTAOFFLOCK) {
@@ -456,18 +458,21 @@ static inline void xchk_postmortem(struct xfs_scrub *sc)
 /* Dispatch metadata scrubbing. */
 int
 xfs_scrub_metadata(
-	struct xfs_inode		*ip,
+	struct file			*file,
 	struct xfs_scrub_metadata	*sm)
 {
 	struct xfs_scrub		sc = {
-		.mp			= ip->i_mount,
+		.file			= file,
 		.sm			= sm,
 		.sa			= {
 			.agno		= NULLAGNUMBER,
 		},
 	};
+	struct xfs_inode		*ip = XFS_I(file_inode(file));
 	struct xfs_mount		*mp = ip->i_mount;
 	int				error = 0;
+
+	sc.mp = mp;
 
 	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
 		(sizeof(struct xchk_meta_ops) * XFS_SCRUB_TYPE_NR));
@@ -492,12 +497,14 @@ xfs_scrub_metadata(
 	sc.sick_mask = xchk_health_mask_for_scrub_type(sm->sm_type);
 retry_op:
 	/*
-	 * If freeze runs concurrently with a scrub, the freeze can be delayed
-	 * indefinitely as we walk the filesystem and iterate over metadata
-	 * buffers.  Freeze quiesces the log (which waits for the buffer LRU to
-	 * be emptied) and that won't happen while checking is running.
+	 * When repairs are allowed, prevent freezing or readonly remount while
+	 * scrub is running with a real transaction.
 	 */
-	sb_start_write(mp->m_super);
+	if (sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) {
+		error = mnt_want_write_file(sc.file);
+		if (error)
+			goto out;
+	}
 
 	/* Set up for the operation. */
 	error = sc.ops->setup(&sc, ip);
@@ -512,7 +519,7 @@ retry_op:
 		 * Tear down everything we hold, then set up again with
 		 * preparation for worst-case scenarios.
 		 */
-		error = xchk_teardown(&sc, ip, 0);
+		error = xchk_teardown(&sc, 0);
 		if (error)
 			goto out;
 		sc.flags |= XCHK_TRY_HARDER;
@@ -553,7 +560,7 @@ retry_op:
 			 * get all the resources it needs; either way, we go
 			 * back to the beginning and call the scrub function.
 			 */
-			error = xchk_teardown(&sc, ip, 0);
+			error = xchk_teardown(&sc, 0);
 			if (error) {
 				xrep_failure(mp);
 				goto out;
@@ -565,7 +572,7 @@ retry_op:
 out_nofix:
 	xchk_postmortem(&sc);
 out_teardown:
-	error = xchk_teardown(&sc, ip, error);
+	error = xchk_teardown(&sc, error);
 out:
 	trace_xchk_done(ip, sm, error);
 	if (error == -EFSCORRUPTED || error == -EFSBADCRC) {
