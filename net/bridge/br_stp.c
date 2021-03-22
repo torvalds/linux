@@ -64,6 +64,20 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 	}
 }
 
+u8 br_port_get_stp_state(const struct net_device *dev)
+{
+	struct net_bridge_port *p;
+
+	ASSERT_RTNL();
+
+	p = br_port_get_rtnl(dev);
+	if (!p)
+		return BR_STATE_DISABLED;
+
+	return p->state;
+}
+EXPORT_SYMBOL_GPL(br_port_get_stp_state);
+
 /* called under bridge lock */
 struct net_bridge_port *br_get_port(struct net_bridge *br, u16 port_no)
 {

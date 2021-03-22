@@ -136,6 +136,7 @@ struct net_device *br_fdb_find_port(const struct net_device *br_dev,
 				    __u16 vid);
 void br_fdb_clear_offload(const struct net_device *dev, u16 vid);
 bool br_port_flag_is_set(const struct net_device *dev, unsigned long flag);
+u8 br_port_get_stp_state(const struct net_device *dev);
 #else
 static inline struct net_device *
 br_fdb_find_port(const struct net_device *br_dev,
@@ -153,6 +154,11 @@ static inline bool
 br_port_flag_is_set(const struct net_device *dev, unsigned long flag)
 {
 	return false;
+}
+
+static inline u8 br_port_get_stp_state(const struct net_device *dev)
+{
+	return BR_STATE_DISABLED;
 }
 #endif
 
