@@ -127,38 +127,12 @@ struct ndis_801_11_ai_resfi {
 	u16 AssociationId;
 };
 
-struct ndis_802_11_association_information {
-	u32                   Length;
-	u16                  AvailableRequestFixedIEs;
-	struct ndis_802_11_ai_reqfi    RequestFixedIEs;
-	u32                   RequestIELength;
-	u32                   OffsetRequestIEs;
-	u16                  AvailableResponseFixedIEs;
-	struct ndis_801_11_ai_resfi    ResponseFixedIEs;
-	u32                   ResponseIELength;
-	u32                   OffsetResponseIEs;
-};
-
 enum ndis_802_11_reload_defaults {
 	Ndis802_11ReloadWEPKeys
 };
 
 
 /*  Key mapping keys require a BSSID */
-struct ndis_802_11_key {
-	u32           Length;             /*  Length of this structure */
-	u32           KeyIndex;
-	u32           KeyLength;          /*  length of key in bytes */
-	NDIS_802_11_MAC_ADDRESS BSSID;
-	unsigned long long KeyRSC;
-	u8           KeyMaterial[32];     /*  variable length depending on above field */
-};
-
-struct ndis_802_11_remove_key {
-	u32                   Length;        /*  Length of this structure */
-	u32                   KeyIndex;
-	NDIS_802_11_MAC_ADDRESS BSSID;
-};
 
 struct ndis_802_11_wep {
 	u32 Length;        /*  Length of this structure */
