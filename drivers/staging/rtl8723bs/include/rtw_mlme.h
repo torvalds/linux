@@ -202,16 +202,6 @@ struct scan_limit_info {
 	u8 			operation_ch[2];				/* 	Store the operation channel of invitation request frame */
 };
 
-struct cfg80211_wifidirect_info {
-	struct timer_list					remain_on_ch_timer;
-	u8 				restore_channel;
-	struct ieee80211_channel	remain_on_ch_channel;
-	enum nl80211_channel_type	remain_on_ch_type;
-	u64						remain_on_ch_cookie;
-	bool is_ro_ch;
-	unsigned long last_ro_ch_time; /* this will be updated at the beginning and end of ro_ch */
-};
-
 struct wifidirect_info {
 	struct adapter				*padapter;
 	struct timer_list					find_phase_timer;
@@ -290,34 +280,6 @@ struct tdls_ss_record {	/* signal strength record */
 	u8 macaddr[ETH_ALEN];
 	u8 rx_pwd_ba11;
 	u8 is_tdls_sta;	/*  true: direct link sta, false: else */
-};
-
-struct tdls_info {
-	u8 			ap_prohibited;
-	u8 			link_established;
-	u8 			sta_cnt;
-	u8 			sta_maximum;	/*  1:tdls sta is equal (NUM_STA-1), reach max direct link number; 0: else; */
-	struct tdls_ss_record	ss_record;
-	u8 			ch_sensing;
-	u8 			cur_channel;
-	u8 			candidate_ch;
-	u8 			collect_pkt_num[MAX_CHANNEL_NUM];
-	spinlock_t				cmd_lock;
-	spinlock_t				hdl_lock;
-	u8 			watchdog_count;
-	u8 			dev_discovered;		/* WFD_TDLS: for sigma test */
-	u8 			tdls_enable;
-	u8 			external_setup;	/*  true: setup is handled by wpa_supplicant */
-};
-
-struct tdls_txmgmt {
-	u8 peer[ETH_ALEN];
-	u8 action_code;
-	u8 dialog_token;
-	u16 status_code;
-	u8 *buf;
-	size_t len;
-	u8 external_support;
 };
 
 /* used for mlme_priv.roam_flags */
