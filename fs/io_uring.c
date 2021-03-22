@@ -1199,6 +1199,8 @@ static void io_prep_async_work(struct io_kiocb *req)
 	if (!req->work.creds)
 		req->work.creds = get_current_cred();
 
+	req->work.list.next = NULL;
+	req->work.flags = 0;
 	if (req->flags & REQ_F_FORCE_ASYNC)
 		req->work.flags |= IO_WQ_WORK_CONCURRENT;
 
@@ -1208,6 +1210,18 @@ static void io_prep_async_work(struct io_kiocb *req)
 	} else if (!req->file || !S_ISBLK(file_inode(req->file)->i_mode)) {
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
+	}
+
+	switch (req->opcode) {
+	case IORING_OP_SPLICE:
+	case IORING_OP_TEE:
+		/*
+		 * Splice operation will be punted aync, and here need to
+		 * modify io_wq_work.flags, so initialize io_wq_work firstly.
+		 */
+		if (!S_ISREG(file_inode(req->splice.file_in)->i_mode))
+			req->work.flags |= IO_WQ_WORK_UNBOUND;
+		break;
 	}
 }
 
@@ -3593,15 +3607,6 @@ static int __io_splice_prep(struct io_kiocb *req,
 	if (!sp->file_in)
 		return -EBADF;
 	req->flags |= REQ_F_NEED_CLEANUP;
-
-	if (!S_ISREG(file_inode(sp->file_in)->i_mode)) {
-		/*
-		 * Splice operation will be punted aync, and here need to
-		 * modify io_wq_work.flags, so initialize io_wq_work firstly.
-		 */
-		req->work.flags |= IO_WQ_WORK_UNBOUND;
-	}
-
 	return 0;
 }
 
@@ -6389,9 +6394,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	atomic_set(&req->refs, 2);
 	req->task = current;
 	req->result = 0;
-	req->work.list.next = NULL;
 	req->work.creds = NULL;
-	req->work.flags = 0;
 
 	/* enforce forwards compatibility on users */
 	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS)) {
