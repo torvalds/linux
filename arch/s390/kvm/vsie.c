@@ -1001,7 +1001,7 @@ static u64 vsie_get_register(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
 static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
-	unsigned long pei_dest, pei_src, src, dest, mask;
+	unsigned long pei_dest, pei_src, src, dest, mask, prefix;
 	u64 *pei_block = &vsie_page->scb_o->mcic;
 	int edat, rc_dest, rc_src;
 	union ctlreg0 cr0;
@@ -1009,9 +1009,12 @@ static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	cr0.val = vcpu->arch.sie_block->gcr[0];
 	edat = cr0.edat && test_kvm_facility(vcpu->kvm, 8);
 	mask = _kvm_s390_logical_to_effective(&scb_s->gpsw, PAGE_MASK);
+	prefix = scb_s->prefix << GUEST_PREFIX_SHIFT;
 
 	dest = vsie_get_register(vcpu, vsie_page, scb_s->ipb >> 20) & mask;
+	dest = _kvm_s390_real_to_abs(prefix, dest) + scb_s->mso;
 	src = vsie_get_register(vcpu, vsie_page, scb_s->ipb >> 16) & mask;
+	src = _kvm_s390_real_to_abs(prefix, src) + scb_s->mso;
 
 	rc_dest = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, dest, &pei_dest);
 	rc_src = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, src, &pei_src);
