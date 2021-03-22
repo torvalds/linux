@@ -140,8 +140,16 @@ void hns_roce_cleanup_uar_table(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_xrcd_alloc(struct hns_roce_dev *hr_dev, u32 *xrcdn)
 {
-	return hns_roce_bitmap_alloc(&hr_dev->xrcd_bitmap,
-				     (unsigned long *)xrcdn);
+	unsigned long obj;
+	int ret;
+
+	ret = hns_roce_bitmap_alloc(&hr_dev->xrcd_bitmap, &obj);
+	if (ret)
+		return ret;
+
+	*xrcdn = obj;
+
+	return 0;
 }
 
 static void hns_roce_xrcd_free(struct hns_roce_dev *hr_dev,
