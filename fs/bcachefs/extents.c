@@ -157,7 +157,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 
 const char *bch2_btree_ptr_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
-	if (bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX)
+	if (bkey_val_u64s(k.k) > BCH_REPLICAS_MAX)
 		return "value too big";
 
 	return bch2_bkey_ptrs_invalid(c, k);
@@ -167,6 +167,22 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 			    struct bkey_s_c k)
 {
 	bch2_bkey_ptrs_to_text(out, c, k);
+}
+
+const char *bch2_btree_ptr_v2_invalid(const struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
+
+	if (bkey_val_bytes(k.k) <= sizeof(*bp.v))
+		return "value too small";
+
+	if (bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX)
+		return "value too big";
+
+	if (bp.v->min_key.snapshot)
+		return "invalid min_key.snapshot";
+
+	return bch2_bkey_ptrs_invalid(c, k);
 }
 
 void bch2_btree_ptr_v2_to_text(struct printbuf *out, struct bch_fs *c,

@@ -371,6 +371,7 @@ const char *bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 
+const char *bch2_btree_ptr_v2_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_v2_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
@@ -383,7 +384,7 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 }
 
 #define bch2_bkey_ops_btree_ptr_v2 (struct bkey_ops) {		\
-	.key_invalid	= bch2_btree_ptr_invalid,		\
+	.key_invalid	= bch2_btree_ptr_v2_invalid,		\
 	.val_to_text	= bch2_btree_ptr_v2_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.compat		= bch2_btree_ptr_v2_compat,		\
