@@ -4699,8 +4699,6 @@ static int mlxsw_sp_nexthop_obj_event(struct notifier_block *nb,
 
 	mutex_lock(&router->lock);
 
-	ASSERT_RTNL();
-
 	switch (event) {
 	case NEXTHOP_EVENT_REPLACE:
 		err = mlxsw_sp_nexthop_obj_new(router->mlxsw_sp, info);
