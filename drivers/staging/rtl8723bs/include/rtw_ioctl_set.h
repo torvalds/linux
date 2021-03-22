@@ -10,12 +10,6 @@
 
 typedef u8 NDIS_802_11_PMKID_VALUE[16];
 
-struct BSSIDInfo {
-	NDIS_802_11_MAC_ADDRESS  BSSID;
-	NDIS_802_11_PMKID_VALUE  PMKID;
-};
-
-
 u8 rtw_set_802_11_authentication_mode(struct adapter *pdapter, enum ndis_802_11_authentication_mode authmode);
 u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid);
 u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep);
