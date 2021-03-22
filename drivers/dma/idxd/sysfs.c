@@ -1259,8 +1259,14 @@ static ssize_t op_cap_show(struct device *dev,
 {
 	struct idxd_device *idxd =
 		container_of(dev, struct idxd_device, conf_dev);
+	int i, rc = 0;
 
-	return sprintf(buf, "%#llx\n", idxd->hw.opcap.bits[0]);
+	for (i = 0; i < 4; i++)
+		rc += sysfs_emit_at(buf, rc, "%#llx ", idxd->hw.opcap.bits[i]);
+
+	rc--;
+	rc += sysfs_emit_at(buf, rc, "\n");
+	return rc;
 }
 static DEVICE_ATTR_RO(op_cap);
 
