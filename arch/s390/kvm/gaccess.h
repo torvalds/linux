@@ -18,6 +18,23 @@
 
 /**
  * kvm_s390_real_to_abs - convert guest real address to guest absolute address
+ * @prefix - guest prefix
+ * @gra - guest real address
+ *
+ * Returns the guest absolute address that corresponds to the passed guest real
+ * address @gra of by applying the given prefix.
+ */
+static inline unsigned long _kvm_s390_real_to_abs(u32 prefix, unsigned long gra)
+{
+	if (gra < 2 * PAGE_SIZE)
+		gra += prefix;
+	else if (gra >= prefix && gra < prefix + 2 * PAGE_SIZE)
+		gra -= prefix;
+	return gra;
+}
+
+/**
+ * kvm_s390_real_to_abs - convert guest real address to guest absolute address
  * @vcpu - guest virtual cpu
  * @gra - guest real address
  *
@@ -27,13 +44,7 @@
 static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
 						 unsigned long gra)
 {
-	unsigned long prefix  = kvm_s390_get_prefix(vcpu);
-
-	if (gra < 2 * PAGE_SIZE)
-		gra += prefix;
-	else if (gra >= prefix && gra < prefix + 2 * PAGE_SIZE)
-		gra -= prefix;
-	return gra;
+	return _kvm_s390_real_to_abs(kvm_s390_get_prefix(vcpu), gra);
 }
 
 /**
