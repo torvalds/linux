@@ -291,8 +291,6 @@ static const int trigger_level_64[4] = { 1, 16, 32, 56 };
 static const int trigger_level_16[4] = { 1, 4, 8, 14 };
 static const int trigger_level_1[4] = { 1, 1, 1, 1 };
 
-#ifdef CONFIG_DEBUG_FS
-
 #define PCH_REGS_BUFSIZE	1024
 
 
@@ -352,7 +350,6 @@ static const struct file_operations port_regs_ops = {
 	.read		= port_show_regs,
 	.llseek		= default_llseek,
 };
-#endif	/* CONFIG_DEBUG_FS */
 
 static const struct dmi_system_id pch_uart_dmi_table[] = {
 	{
