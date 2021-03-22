@@ -108,18 +108,18 @@ static inline bool is_nearbranch(int offset)
 #define COND_LT		(CR0_LT | COND_CMP_TRUE)
 #define COND_LE		(CR0_GT | COND_CMP_FALSE)
 
-#define SEEN_FUNC	0x1000 /* might call external helpers */
-#define SEEN_STACK	0x2000 /* uses BPF stack */
-#define SEEN_TAILCALL	0x4000 /* uses tail calls */
+#define SEEN_FUNC	0x20000000 /* might call external helpers */
+#define SEEN_STACK	0x40000000 /* uses BPF stack */
+#define SEEN_TAILCALL	0x80000000 /* uses tail calls */
 
 struct codegen_context {
 	/*
 	 * This is used to track register usage as well
 	 * as calls to external helpers.
 	 * - register usage is tracked with corresponding
-	 *   bits (r3-r10 and r27-r31)
+	 *   bits (r3-r31)
 	 * - rest of the bits can be used to track other
-	 *   things -- for now, we use bits 16 to 23
+	 *   things -- for now, we use bits 0 to 2
 	 *   encoded in SEEN_* macros above
 	 */
 	unsigned int seen;
