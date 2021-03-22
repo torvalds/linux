@@ -796,6 +796,7 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 		if (!fragment->target) {
 			of_node_put(fragment->overlay);
 			ret = -EINVAL;
+			of_node_put(node);
 			goto err_free_fragments;
 		}
 
