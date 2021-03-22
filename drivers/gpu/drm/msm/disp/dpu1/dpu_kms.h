@@ -256,7 +256,7 @@ void dpu_kms_encoder_enable(struct drm_encoder *encoder);
 
 /**
  * dpu_kms_get_clk_rate() - get the clock rate
- * @dpu_kms:  poiner to dpu_kms structure
+ * @dpu_kms:  pointer to dpu_kms structure
  * @clock_name: clock name to get the rate
  *
  * Return: current clock rate
