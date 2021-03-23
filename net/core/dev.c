@@ -10322,6 +10322,8 @@ int netdev_refcnt_read(const struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_refcnt_read);
 
+int netdev_unregister_timeout_secs __read_mostly = 10;
+
 #define WAIT_REFS_MIN_MSECS 1
 #define WAIT_REFS_MAX_MSECS 250
 /**
@@ -10383,7 +10385,9 @@ static void netdev_wait_allrefs(struct net_device *dev)
 
 		refcnt = netdev_refcnt_read(dev);
 
-		if (refcnt != 1 && time_after(jiffies, warning_time + 10 * HZ)) {
+		if (refcnt &&
+		    time_after(jiffies, warning_time +
+			       netdev_unregister_timeout_secs * HZ)) {
 			pr_emerg("unregister_netdevice: waiting for %s to become free. Usage count = %d\n",
 				 dev->name, refcnt);
 			warning_time = jiffies;
