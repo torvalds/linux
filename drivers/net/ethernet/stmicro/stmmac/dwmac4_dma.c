@@ -412,6 +412,8 @@ static void dwmac4_get_hw_feature(void __iomem *ioaddr,
 
 	/* IEEE 1588-2002 */
 	dma_cap->time_stamp = 0;
+	/* Number of Auxiliary Snapshot Inputs */
+	dma_cap->aux_snapshot_n = (hw_cap & GMAC_HW_FEAT_AUXSNAPNUM) >> 28;
 
 	/* MAC HW feature3 */
 	hw_cap = readl(ioaddr + GMAC_HW_FEATURE3);

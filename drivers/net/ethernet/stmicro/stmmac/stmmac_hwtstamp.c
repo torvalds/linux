@@ -153,6 +153,16 @@ static void get_systime(void __iomem *ioaddr, u64 *systime)
 		*systime = ns;
 }
 
+static void get_ptptime(void __iomem *ptpaddr, u64 *ptp_time)
+{
+	u64 ns;
+
+	ns = readl(ptpaddr + PTP_ATNR);
+	ns += readl(ptpaddr + PTP_ATSR) * NSEC_PER_SEC;
+
+	*ptp_time = ns;
+}
+
 const struct stmmac_hwtimestamp stmmac_ptp = {
 	.config_hw_tstamping = config_hw_tstamping,
 	.init_systime = init_systime,
@@ -160,4 +170,5 @@ const struct stmmac_hwtimestamp stmmac_ptp = {
 	.config_addend = config_addend,
 	.adjust_systime = adjust_systime,
 	.get_systime = get_systime,
+	.get_ptptime = get_ptptime,
 };

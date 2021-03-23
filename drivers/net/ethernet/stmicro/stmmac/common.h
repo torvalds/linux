@@ -388,6 +388,8 @@ struct dma_features {
 	unsigned int estsel;
 	unsigned int fpesel;
 	unsigned int tbssel;
+	/* Numbers of Auxiliary Snapshot Inputs */
+	unsigned int aux_snapshot_n;
 };
 
 /* RX Buffer size must be multiple of 4/8/16 bytes */

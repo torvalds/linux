@@ -50,6 +50,7 @@
 #define GMAC_L4_ADDR(reg)		(0x904 + (reg) * 0x30)
 #define GMAC_L3_ADDR0(reg)		(0x910 + (reg) * 0x30)
 #define GMAC_L3_ADDR1(reg)		(0x914 + (reg) * 0x30)
+#define GMAC_TIMESTAMP_STATUS		0x00000b20
 
 /* RX Queues Routing */
 #define GMAC_RXQCTRL_AVCPQ_MASK		GENMASK(2, 0)
@@ -144,6 +145,7 @@
 #define GMAC_INT_PCS_PHYIS		BIT(3)
 #define GMAC_INT_PMT_EN			BIT(4)
 #define GMAC_INT_LPI_EN			BIT(5)
+#define GMAC_INT_TSIE			BIT(12)
 
 #define	GMAC_PCS_IRQ_DEFAULT	(GMAC_INT_RGSMIIS | GMAC_INT_PCS_LINK |	\
 				 GMAC_INT_PCS_ANE)
@@ -260,6 +262,7 @@ enum power_event {
 #define GMAC_HW_RXFIFOSIZE		GENMASK(4, 0)
 
 /* MAC HW features2 bitmap */
+#define GMAC_HW_FEAT_AUXSNAPNUM		GENMASK(30, 28)
 #define GMAC_HW_FEAT_PPSOUTNUM		GENMASK(26, 24)
 #define GMAC_HW_FEAT_TXCHCNT		GENMASK(21, 18)
 #define GMAC_HW_FEAT_RXCHCNT		GENMASK(15, 12)
@@ -304,6 +307,11 @@ enum power_event {
 #define GMAC_L4DP0			GENMASK(31, 16)
 #define GMAC_L4DP0_SHIFT		16
 #define GMAC_L4SP0			GENMASK(15, 0)
+
+/* MAC Timestamp Status */
+#define GMAC_TIMESTAMP_AUXTSTRIG	BIT(2)
+#define GMAC_TIMESTAMP_ATSNS_MASK	GENMASK(29, 25)
+#define GMAC_TIMESTAMP_ATSNS_SHIFT	25
 
 /*  MTL registers */
 #define MTL_OPERATION_MODE		0x00000c00

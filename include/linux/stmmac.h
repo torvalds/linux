@@ -186,6 +186,8 @@ struct plat_stmmacenet_data {
 	void (*exit)(struct platform_device *pdev, void *priv);
 	struct mac_device_info *(*setup)(void *priv);
 	int (*clks_config)(void *priv, bool enabled);
+	int (*crosststamp)(ktime_t *device, struct system_counterval_t *system,
+			   void *ctx);
 	void *bsp_priv;
 	struct clk *stmmac_clk;
 	struct clk *pclk;
@@ -206,5 +208,7 @@ struct plat_stmmacenet_data {
 	u8 vlan_fail_q;
 	unsigned int eee_usecs_rate;
 	struct pci_dev *pdev;
+	bool has_crossts;
+	int int_snapshot_num;
 };
 #endif

@@ -8,6 +8,7 @@
 #include "dwmac-intel.h"
 #include "dwmac4.h"
 #include "stmmac.h"
+#include "stmmac_ptp.h"
 
 #define INTEL_MGBE_ADHOC_ADDR	0x15
 #define INTEL_MGBE_XPCS_ADDR	0x16
@@ -240,6 +241,108 @@ static void intel_mgbe_ptp_clk_freq_config(void *npriv)
 	writel(gpio_value, priv->ioaddr + GMAC_GPIO_STATUS);
 }
 
+static void get_arttime(struct mii_bus *mii, int intel_adhoc_addr,
+			u64 *art_time)
+{
+	u64 ns;
+
+	ns = mdiobus_read(mii, intel_adhoc_addr, PMC_ART_VALUE3);
+	ns <<= GMAC4_ART_TIME_SHIFT;
+	ns |= mdiobus_read(mii, intel_adhoc_addr, PMC_ART_VALUE2);
+	ns <<= GMAC4_ART_TIME_SHIFT;
+	ns |= mdiobus_read(mii, intel_adhoc_addr, PMC_ART_VALUE1);
+	ns <<= GMAC4_ART_TIME_SHIFT;
+	ns |= mdiobus_read(mii, intel_adhoc_addr, PMC_ART_VALUE0);
+
+	*art_time = ns;
+}
+
+static int intel_crosststamp(ktime_t *device,
+			     struct system_counterval_t *system,
+			     void *ctx)
+{
+	struct intel_priv_data *intel_priv;
+
+	struct stmmac_priv *priv = (struct stmmac_priv *)ctx;
+	void __iomem *ptpaddr = priv->ptpaddr;
+	void __iomem *ioaddr = priv->hw->pcsr;
+	unsigned long flags;
+	u64 art_time = 0;
+	u64 ptp_time = 0;
+	u32 num_snapshot;
+	u32 gpio_value;
+	u32 acr_value;
+	int ret;
+	u32 v;
+	int i;
+
+	if (!boot_cpu_has(X86_FEATURE_ART))
+		return -EOPNOTSUPP;
+
+	intel_priv = priv->plat->bsp_priv;
+
+	/* Enable Internal snapshot trigger */
+	acr_value = readl(ptpaddr + PTP_ACR);
+	acr_value &= ~PTP_ACR_MASK;
+	switch (priv->plat->int_snapshot_num) {
+	case AUX_SNAPSHOT0:
+		acr_value |= PTP_ACR_ATSEN0;
+		break;
+	case AUX_SNAPSHOT1:
+		acr_value |= PTP_ACR_ATSEN1;
+		break;
+	case AUX_SNAPSHOT2:
+		acr_value |= PTP_ACR_ATSEN2;
+		break;
+	case AUX_SNAPSHOT3:
+		acr_value |= PTP_ACR_ATSEN3;
+		break;
+	default:
+		return -EINVAL;
+	}
+	writel(acr_value, ptpaddr + PTP_ACR);
+
+	/* Clear FIFO */
+	acr_value = readl(ptpaddr + PTP_ACR);
+	acr_value |= PTP_ACR_ATSFC;
+	writel(acr_value, ptpaddr + PTP_ACR);
+
+	/* Trigger Internal snapshot signal
+	 * Create a rising edge by just toggle the GPO1 to low
+	 * and back to high.
+	 */
+	gpio_value = readl(ioaddr + GMAC_GPIO_STATUS);
+	gpio_value &= ~GMAC_GPO1;
+	writel(gpio_value, ioaddr + GMAC_GPIO_STATUS);
+	gpio_value |= GMAC_GPO1;
+	writel(gpio_value, ioaddr + GMAC_GPIO_STATUS);
+
+	/* Poll for time sync operation done */
+	ret = readl_poll_timeout(priv->ioaddr + GMAC_INT_STATUS, v,
+				 (v & GMAC_INT_TSIE), 100, 10000);
+
+	if (ret == -ETIMEDOUT) {
+		pr_err("%s: Wait for time sync operation timeout\n", __func__);
+		return ret;
+	}
+
+	num_snapshot = (readl(ioaddr + GMAC_TIMESTAMP_STATUS) &
+			GMAC_TIMESTAMP_ATSNS_MASK) >>
+			GMAC_TIMESTAMP_ATSNS_SHIFT;
+
+	/* Repeat until the timestamps are from the FIFO last segment */
+	for (i = 0; i < num_snapshot; i++) {
+		spin_lock_irqsave(&priv->ptp_lock, flags);
+		stmmac_get_ptptime(priv, ptpaddr, &ptp_time);
+		*device = ns_to_ktime(ptp_time);
+		spin_unlock_irqrestore(&priv->ptp_lock, flags);
+		get_arttime(priv->mii, intel_priv->mdio_adhoc_addr, &art_time);
+		*system = convert_art_to_tsc(art_time);
+	}
+
+	return 0;
+}
+
 static void common_default_data(struct plat_stmmacenet_data *plat)
 {
 	plat->clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
@@ -383,6 +486,11 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	/* Ensure mdio bus scan skips intel serdes and pcs-xpcs */
 	plat->mdio_bus_data->phy_mask = 1 << INTEL_MGBE_ADHOC_ADDR;
 	plat->mdio_bus_data->phy_mask |= 1 << INTEL_MGBE_XPCS_ADDR;
+
+	plat->int_snapshot_num = AUX_SNAPSHOT1;
+
+	plat->has_crossts = true;
+	plat->crosststamp = intel_crosststamp;
 
 	return 0;
 }

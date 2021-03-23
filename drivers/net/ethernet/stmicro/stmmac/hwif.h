@@ -508,6 +508,7 @@ struct stmmac_hwtimestamp {
 	int (*adjust_systime) (void __iomem *ioaddr, u32 sec, u32 nsec,
 			       int add_sub, int gmac4);
 	void (*get_systime) (void __iomem *ioaddr, u64 *systime);
+	void (*get_ptptime)(void __iomem *ioaddr, u64 *ptp_time);
 };
 
 #define stmmac_config_hw_tstamping(__priv, __args...) \
@@ -522,6 +523,8 @@ struct stmmac_hwtimestamp {
 	stmmac_do_callback(__priv, ptp, adjust_systime, __args)
 #define stmmac_get_systime(__priv, __args...) \
 	stmmac_do_void_callback(__priv, ptp, get_systime, __args)
+#define stmmac_get_ptptime(__priv, __args...) \
+	stmmac_do_void_callback(__priv, ptp, get_ptptime, __args)
 
 /* Helpers to manage the descriptors for chain and ring modes */
 struct stmmac_mode_ops {

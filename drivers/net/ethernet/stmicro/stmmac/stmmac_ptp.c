@@ -9,6 +9,7 @@
 *******************************************************************************/
 #include "stmmac.h"
 #include "stmmac_ptp.h"
+#include "dwmac4.h"
 
 /**
  * stmmac_adjust_freq
@@ -165,6 +166,36 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 	return ret;
 }
 
+/**
+ * stmmac_get_syncdevicetime
+ * @device: current device time
+ * @system: system counter value read synchronously with device time
+ * @ctx: context provided by timekeeping code
+ * Description: Read device and system clock simultaneously and return the
+ * corrected clock values in ns.
+ **/
+static int stmmac_get_syncdevicetime(ktime_t *device,
+				     struct system_counterval_t *system,
+				     void *ctx)
+{
+	struct stmmac_priv *priv = (struct stmmac_priv *)ctx;
+
+	if (priv->plat->crosststamp)
+		return priv->plat->crosststamp(device, system, ctx);
+	else
+		return -EOPNOTSUPP;
+}
+
+static int stmmac_getcrosststamp(struct ptp_clock_info *ptp,
+				 struct system_device_crosststamp *xtstamp)
+{
+	struct stmmac_priv *priv =
+		container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+
+	return get_device_system_crosststamp(stmmac_get_syncdevicetime,
+					     priv, NULL, xtstamp);
+}
+
 /* structure describing a PTP hardware clock */
 static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.owner = THIS_MODULE,
@@ -180,6 +211,7 @@ static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.gettime64 = stmmac_get_time,
 	.settime64 = stmmac_set_time,
 	.enable = stmmac_enable,
+	.getcrosststamp = stmmac_getcrosststamp,
 };
 
 /**
