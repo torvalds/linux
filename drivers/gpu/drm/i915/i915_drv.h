@@ -554,12 +554,14 @@ struct i915_gem_mm {
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;
 
+#ifdef CONFIG_MMU_NOTIFIER
 	/**
 	 * Workqueue to fault in userptr pages, flushed by the execbuf
 	 * when required but otherwise left to userspace to try again
 	 * on EAGAIN.
 	 */
 	struct workqueue_struct *userptr_wq;
+#endif
 
 	/* shrinker accounting, also useful for userland debugging */
 	u64 shrink_memory;

@@ -15,6 +15,8 @@
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
 
+#if defined(CONFIG_MMU_NOTIFIER)
+
 struct i915_mm_struct {
 	struct mm_struct *mm;
 	struct drm_i915_private *i915;
@@ -24,7 +26,6 @@ struct i915_mm_struct {
 	struct rcu_work work;
 };
 
-#if defined(CONFIG_MMU_NOTIFIER)
 #include <linux/interval_tree.h>
 
 struct i915_mmu_notifier {
@@ -217,14 +218,10 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 }
 
 static int
-i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
-				    unsigned flags)
+i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj)
 {
 	struct i915_mmu_notifier *mn;
 	struct i915_mmu_object *mo;
-
-	if (flags & I915_USERPTR_UNSYNCHRONIZED)
-		return -ENODEV;
 
 	if (GEM_WARN_ON(!obj->userptr.mm))
 		return -EINVAL;
@@ -258,32 +255,6 @@ i915_mmu_notifier_free(struct i915_mmu_notifier *mn,
 	kfree(mn);
 }
 
-#else
-
-static void
-__i915_gem_userptr_set_active(struct drm_i915_gem_object *obj, bool value)
-{
-}
-
-static void
-i915_gem_userptr_release__mmu_notifier(struct drm_i915_gem_object *obj)
-{
-}
-
-static int
-i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
-				    unsigned flags)
-{
-	return -ENODEV;
-}
-
-static void
-i915_mmu_notifier_free(struct i915_mmu_notifier *mn,
-		       struct mm_struct *mm)
-{
-}
-
-#endif
 
 static struct i915_mm_struct *
 __i915_mm_struct_find(struct drm_i915_private *i915, struct mm_struct *real)
@@ -725,6 +696,8 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 	.release = i915_gem_userptr_release,
 };
 
+#endif
+
 /*
  * Creates a new mm object that wraps some normal memory from the process
  * context - user memory.
@@ -765,12 +738,12 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		       void *data,
 		       struct drm_file *file)
 {
-	static struct lock_class_key lock_class;
+	static struct lock_class_key __maybe_unused lock_class;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_userptr *args = data;
-	struct drm_i915_gem_object *obj;
-	int ret;
-	u32 handle;
+	struct drm_i915_gem_object __maybe_unused *obj;
+	int __maybe_unused ret;
+	u32 __maybe_unused handle;
 
 	if (!HAS_LLC(dev_priv) && !HAS_SNOOP(dev_priv)) {
 		/* We cannot support coherent userptr objects on hw without
@@ -809,6 +782,9 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	if (!access_ok((char __user *)(unsigned long)args->user_ptr, args->user_size))
 		return -EFAULT;
 
+	if (args->flags & I915_USERPTR_UNSYNCHRONIZED)
+		return -ENODEV;
+
 	if (args->flags & I915_USERPTR_READ_ONLY) {
 		/*
 		 * On almost all of the older hw, we cannot tell the GPU that
@@ -818,6 +794,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 			return -ENODEV;
 	}
 
+#ifdef CONFIG_MMU_NOTIFIER
 	obj = i915_gem_object_alloc();
 	if (obj == NULL)
 		return -ENOMEM;
@@ -839,7 +816,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	 */
 	ret = i915_gem_userptr_init__mm_struct(obj);
 	if (ret == 0)
-		ret = i915_gem_userptr_init__mmu_notifier(obj, args->flags);
+		ret = i915_gem_userptr_init__mmu_notifier(obj);
 	if (ret == 0)
 		ret = drm_gem_handle_create(file, &obj->base, &handle);
 
@@ -850,10 +827,14 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 
 	args->handle = handle;
 	return 0;
+#else
+	return -ENODEV;
+#endif
 }
 
 int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 {
+#ifdef CONFIG_MMU_NOTIFIER
 	spin_lock_init(&dev_priv->mm_lock);
 	hash_init(dev_priv->mm_structs);
 
@@ -863,11 +844,14 @@ int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 				0);
 	if (!dev_priv->mm.userptr_wq)
 		return -ENOMEM;
+#endif
 
 	return 0;
 }
 
 void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv)
 {
+#ifdef CONFIG_MMU_NOTIFIER
 	destroy_workqueue(dev_priv->mm.userptr_wq);
+#endif
 }

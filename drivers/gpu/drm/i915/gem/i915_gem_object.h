@@ -551,7 +551,11 @@ void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 static inline bool
 i915_gem_object_is_userptr(struct drm_i915_gem_object *obj)
 {
+#ifdef CONFIG_MMU_NOTIFIER
 	return obj->userptr.mm;
+#else
+	return false;
+#endif
 }
 
 static inline void
