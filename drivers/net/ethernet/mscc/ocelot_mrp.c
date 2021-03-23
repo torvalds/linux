@@ -154,7 +154,6 @@ int ocelot_mrp_del(struct ocelot *ocelot, int port,
 		   const struct switchdev_obj_mrp *mrp)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	int i;
 
 	if (!ocelot_port)
 		return -EOPNOTSUPP;
@@ -162,23 +161,8 @@ int ocelot_mrp_del(struct ocelot *ocelot, int port,
 	if (ocelot_port->mrp_ring_id != mrp->ring_id)
 		return 0;
 
-	ocelot_mrp_del_vcap(ocelot, port);
-	ocelot_mrp_del_vcap(ocelot, port + ocelot->num_phys_ports);
-
 	ocelot_port->mrp_ring_id = 0;
 
-	for (i = 0; i < ocelot->num_phys_ports; ++i) {
-		ocelot_port = ocelot->ports[i];
-
-		if (!ocelot_port)
-			continue;
-
-		if (ocelot_port->mrp_ring_id != 0)
-			goto out;
-	}
-
-	ocelot_mrp_del_mac(ocelot, ocelot->ports[port]);
-out:
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_mrp_del);
