@@ -62,7 +62,7 @@ static void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 					      sample_int, port_bo, port_bo >> 8,
 					      t_data->hstart,
 					      t_data->hstop,
-					      (SDW_BLK_GRP_CNT_1 * ch), 0x0);
+					      SDW_BLK_PKG_PER_PORT, 0x0);
 
 			sdw_fill_port_params(&p_rt->port_params,
 					     p_rt->num, bps,
@@ -95,7 +95,7 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 	struct sdw_bus *bus = m_rt->bus;
 	struct sdw_bus_params *b_params = &bus->params;
 	int sample_int, hstart = 0;
-	unsigned int rate, bps, ch, no_ch;
+	unsigned int rate, bps, ch;
 
 	rate = m_rt->stream->params.rate;
 	bps = m_rt->stream->params.bps;
@@ -110,12 +110,11 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 	t_data.hstart = hstart;
 
 	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
-		no_ch = sdw_ch_mask_to_ch(p_rt->ch_mask);
 
 		sdw_fill_xport_params(&p_rt->transport_params, p_rt->num,
 				      false, SDW_BLK_GRP_CNT_1, sample_int,
 				      port_bo, port_bo >> 8, hstart, hstop,
-				      (SDW_BLK_GRP_CNT_1 * no_ch), 0x0);
+				      SDW_BLK_PKG_PER_PORT, 0x0);
 
 		sdw_fill_port_params(&p_rt->port_params,
 				     p_rt->num, bps,
