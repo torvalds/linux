@@ -27,7 +27,7 @@
 
 struct ms_hyperv_info {
 	u32 features;
-	u32 features_b;
+	u32 priv_high;
 	u32 misc_features;
 	u32 hints;
 	u32 nested_features;
@@ -179,6 +179,7 @@ bool hv_is_hibernation_supported(void);
 enum hv_isolation_type hv_get_isolation_type(void);
 bool hv_is_isolation_supported(void);
 void hyperv_cleanup(void);
+bool hv_query_ext_cap(u64 cap_query);
 #else /* CONFIG_HYPERV */
 static inline bool hv_is_hyperv_initialized(void) { return false; }
 static inline bool hv_is_hibernation_supported(void) { return false; }
