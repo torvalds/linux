@@ -217,7 +217,32 @@ static int tegra_bpmp_i2c_msg_xfer(struct tegra_bpmp_i2c *i2c,
 	else
 		err = tegra_bpmp_transfer(i2c->bpmp, &msg);
 
-	return err;
+	if (err < 0) {
+		dev_err(i2c->dev, "failed to transfer message: %d\n", err);
+		return err;
+	}
+
+	if (msg.rx.ret != 0) {
+		if (msg.rx.ret == -BPMP_EAGAIN) {
+			dev_dbg(i2c->dev, "arbitration lost\n");
+			return -EAGAIN;
+		}
+
+		if (msg.rx.ret == -BPMP_ETIMEDOUT) {
+			dev_dbg(i2c->dev, "timeout\n");
+			return -ETIMEDOUT;
+		}
+
+		if (msg.rx.ret == -BPMP_ENXIO) {
+			dev_dbg(i2c->dev, "NAK\n");
+			return -ENXIO;
+		}
+
+		dev_err(i2c->dev, "transaction failed: %d\n", msg.rx.ret);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int tegra_bpmp_i2c_xfer_common(struct i2c_adapter *adapter,
