@@ -548,6 +548,12 @@ void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
 void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 					      enum fb_op_origin origin);
 
+static inline bool
+i915_gem_object_is_userptr(struct drm_i915_gem_object *obj)
+{
+	return obj->userptr.mm;
+}
+
 static inline void
 i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
 				  enum fb_op_origin origin)

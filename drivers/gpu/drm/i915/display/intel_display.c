@@ -11905,7 +11905,7 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
-	if (obj->userptr.mm) {
+	if (i915_gem_object_is_userptr(obj)) {
 		drm_dbg(&i915->drm,
 			"attempting to use a userptr for a framebuffer, denied\n");
 		return -EINVAL;

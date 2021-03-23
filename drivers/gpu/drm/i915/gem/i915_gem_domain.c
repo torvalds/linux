@@ -335,7 +335,14 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	 * not allowed to be changed by userspace.
 	 */
 	if (i915_gem_object_is_proxy(obj)) {
-		ret = -ENXIO;
+		/*
+		 * Silently allow cached for userptr; the vulkan driver
+		 * sets all objects to cached
+		 */
+		if (!i915_gem_object_is_userptr(obj) ||
+		    args->caching != I915_CACHING_CACHED)
+			ret = -ENXIO;
+
 		goto out;
 	}
 
@@ -532,7 +539,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	 * tracking for that backing storage. The proxy object is always
 	 * considered to be outside of any cache domain.
 	 */
-	if (i915_gem_object_is_proxy(obj)) {
+	if (i915_gem_object_is_proxy(obj) &&
+	    !i915_gem_object_is_userptr(obj)) {
 		err = -ENXIO;
 		goto out;
 	}
