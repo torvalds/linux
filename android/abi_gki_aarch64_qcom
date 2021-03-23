@@ -2241,6 +2241,7 @@
   sysfs_create_group
   sysfs_create_groups
   sysfs_create_link
+  sysfs_emit
   __sysfs_match_string
   sysfs_notify
   sysfs_remove_bin_file
