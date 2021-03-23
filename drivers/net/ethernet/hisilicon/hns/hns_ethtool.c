@@ -480,7 +480,7 @@ static int __lb_run_test(struct net_device *ndev,
 #define NIC_LB_TEST_NO_MEM_ERR 1
 #define NIC_LB_TEST_TX_CNT_ERR 2
 #define NIC_LB_TEST_RX_CNT_ERR 3
-#define NIC_LB_TEST_RX_PKG_ERR 4
+
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
 	int i, j, lc, good_cnt, ret_val = 0;
