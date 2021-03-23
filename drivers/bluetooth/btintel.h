@@ -149,7 +149,7 @@ int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable);
 void btintel_hw_error(struct hci_dev *hdev, u8 code);
 
 void btintel_version_info(struct hci_dev *hdev, struct intel_version *ver);
-void btintel_version_info_tlv(struct hci_dev *hdev, struct intel_version_tlv *version);
+int btintel_version_info_tlv(struct hci_dev *hdev, struct intel_version_tlv *version);
 int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type, u32 plen,
 			const void *param);
 int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name);
@@ -216,9 +216,10 @@ static inline void btintel_version_info(struct hci_dev *hdev,
 {
 }
 
-static inline void btintel_version_info_tlv(struct hci_dev *hdev,
-					    struct intel_version_tlv *version)
+static inline int btintel_version_info_tlv(struct hci_dev *hdev,
+					   struct intel_version_tlv *version)
 {
+	return -EOPNOTSUPP;
 }
 
 static inline int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type,
