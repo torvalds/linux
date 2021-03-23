@@ -68,6 +68,12 @@ static char async_probe_drv_names[ASYNC_DRV_NAMES_MAX_LEN];
  */
 static bool defer_all_probes;
 
+static void __device_set_deferred_probe_reason(const struct device *dev, char *reason)
+{
+	kfree(dev->p->deferred_probe_reason);
+	dev->p->deferred_probe_reason = reason;
+}
+
 /*
  * deferred_probe_work_func() - Retry probing devices in the active list.
  */
@@ -96,8 +102,7 @@ static void deferred_probe_work_func(struct work_struct *work)
 
 		get_device(dev);
 
-		kfree(dev->p->deferred_probe_reason);
-		dev->p->deferred_probe_reason = NULL;
+		__device_set_deferred_probe_reason(dev, NULL);
 
 		/*
 		 * Drop the mutex while probing each device; the probe path may
@@ -142,8 +147,7 @@ void driver_deferred_probe_del(struct device *dev)
 	if (!list_empty(&dev->p->deferred_probe)) {
 		dev_dbg(dev, "Removed from deferred list\n");
 		list_del_init(&dev->p->deferred_probe);
-		kfree(dev->p->deferred_probe_reason);
-		dev->p->deferred_probe_reason = NULL;
+		__device_set_deferred_probe_reason(dev, NULL);
 	}
 	mutex_unlock(&deferred_probe_mutex);
 }
@@ -222,11 +226,12 @@ void device_unblock_probing(void)
 void device_set_deferred_probe_reason(const struct device *dev, struct va_format *vaf)
 {
 	const char *drv = dev_driver_string(dev);
+	char *reason;
 
 	mutex_lock(&deferred_probe_mutex);
 
-	kfree(dev->p->deferred_probe_reason);
-	dev->p->deferred_probe_reason = kasprintf(GFP_KERNEL, "%s: %pV", drv, vaf);
+	reason = kasprintf(GFP_KERNEL, "%s: %pV", drv, vaf);
+	__device_set_deferred_probe_reason(dev, reason);
 
 	mutex_unlock(&deferred_probe_mutex);
 }
