@@ -493,6 +493,7 @@ err_domain_del:
 	device_del(&tb->dev);
 err_ctl_stop:
 	tb_ctl_stop(tb->ctl);
+	mutex_unlock(&tb->lock);
 
 	return ret;
 }
