@@ -224,7 +224,7 @@ i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
 	struct i915_mmu_object *mo;
 
 	if (flags & I915_USERPTR_UNSYNCHRONIZED)
-		return capable(CAP_SYS_ADMIN) ? 0 : -EPERM;
+		return -ENODEV;
 
 	if (GEM_WARN_ON(!obj->userptr.mm))
 		return -EINVAL;
@@ -274,13 +274,7 @@ static int
 i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
 				    unsigned flags)
 {
-	if ((flags & I915_USERPTR_UNSYNCHRONIZED) == 0)
-		return -ENODEV;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	return 0;
+	return -ENODEV;
 }
 
 static void
