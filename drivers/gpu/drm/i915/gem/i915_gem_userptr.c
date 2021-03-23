@@ -700,6 +700,24 @@ i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 	return i915_gem_userptr_init__mmu_notifier(obj, 0);
 }
 
+static int
+i915_gem_userptr_pwrite(struct drm_i915_gem_object *obj,
+			const struct drm_i915_gem_pwrite *args)
+{
+	drm_dbg(obj->base.dev, "pwrite to userptr no longer allowed\n");
+
+	return -EINVAL;
+}
+
+static int
+i915_gem_userptr_pread(struct drm_i915_gem_object *obj,
+		       const struct drm_i915_gem_pread *args)
+{
+	drm_dbg(obj->base.dev, "pread from userptr no longer allowed\n");
+
+	return -EINVAL;
+}
+
 static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 	.name = "i915_gem_object_userptr",
 	.flags = I915_GEM_OBJECT_IS_SHRINKABLE |
@@ -708,6 +726,8 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 	.get_pages = i915_gem_userptr_get_pages,
 	.put_pages = i915_gem_userptr_put_pages,
 	.dmabuf_export = i915_gem_userptr_dmabuf_export,
+	.pwrite = i915_gem_userptr_pwrite,
+	.pread = i915_gem_userptr_pread,
 	.release = i915_gem_userptr_release,
 };
 
