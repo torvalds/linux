@@ -32,12 +32,7 @@ u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 #define REG_EFUSE_CTRL		0x0030
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 
-bool
-Efuse_Read1ByteFromFakeContent(
-	struct adapter *padapter,
-	u16 	Offset,
-	u8 *Value);
-bool
+static bool
 Efuse_Read1ByteFromFakeContent(
 	struct adapter *padapter,
 	u16 	Offset,
@@ -53,12 +48,7 @@ Efuse_Read1ByteFromFakeContent(
 	return true;
 }
 
-bool
-Efuse_Write1ByteToFakeContent(
-	struct adapter *padapter,
-	u16 	Offset,
-	u8 Value);
-bool
+static bool
 Efuse_Write1ByteToFakeContent(
 	struct adapter *padapter,
 	u16 	Offset,
