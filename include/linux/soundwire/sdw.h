@@ -125,6 +125,12 @@ enum sdw_dpn_grouping {
 	SDW_BLK_GRP_CNT_4 = 3,
 };
 
+/* block packing mode enum */
+enum sdw_dpn_pkg_mode {
+	SDW_BLK_PKG_PER_PORT = 0,
+	SDW_BLK_PKG_PER_CHANNEL = 1
+};
+
 /**
  * enum sdw_stream_type: data stream type
  *
