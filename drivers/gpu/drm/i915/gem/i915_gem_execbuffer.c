@@ -50,11 +50,12 @@ enum {
 #define DBG_FORCE_RELOC 0 /* choose one of the above! */
 };
 
-#define __EXEC_OBJECT_HAS_PIN		BIT(31)
-#define __EXEC_OBJECT_HAS_FENCE		BIT(30)
-#define __EXEC_OBJECT_NEEDS_MAP		BIT(29)
-#define __EXEC_OBJECT_NEEDS_BIAS	BIT(28)
-#define __EXEC_OBJECT_INTERNAL_FLAGS	(~0u << 28) /* all of the above */
+/* __EXEC_OBJECT_NO_RESERVE is BIT(31), defined in i915_vma.h */
+#define __EXEC_OBJECT_HAS_PIN		BIT(30)
+#define __EXEC_OBJECT_HAS_FENCE		BIT(29)
+#define __EXEC_OBJECT_NEEDS_MAP		BIT(28)
+#define __EXEC_OBJECT_NEEDS_BIAS	BIT(27)
+#define __EXEC_OBJECT_INTERNAL_FLAGS	(~0u << 27) /* all of the above + */
 #define __EXEC_OBJECT_RESERVED (__EXEC_OBJECT_HAS_PIN | __EXEC_OBJECT_HAS_FENCE)
 
 #define __EXEC_HAS_RELOC	BIT(31)
@@ -933,6 +934,12 @@ static int eb_validate_vmas(struct i915_execbuffer *eb)
 				if (err)
 					return err;
 			}
+		}
+
+		if (!(ev->flags & EXEC_OBJECT_WRITE)) {
+			err = dma_resv_reserve_shared(vma->resv, 1);
+			if (err)
+				return err;
 		}
 
 		GEM_BUG_ON(drm_mm_node_allocated(&vma->node) &&
@@ -2202,7 +2209,8 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		}
 
 		if (err == 0)
-			err = i915_vma_move_to_active(vma, eb->request, flags);
+			err = i915_vma_move_to_active(vma, eb->request,
+						      flags | __EXEC_OBJECT_NO_RESERVE);
 	}
 
 	if (unlikely(err))
@@ -2451,6 +2459,10 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 		goto err_commit;
 
 	err = dma_resv_reserve_shared(pw->batch->resv, 1);
+	if (err)
+		goto err_commit;
+
+	err = dma_resv_reserve_shared(shadow->resv, 1);
 	if (err)
 		goto err_commit;
 
