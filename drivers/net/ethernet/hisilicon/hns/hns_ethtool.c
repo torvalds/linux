@@ -17,7 +17,6 @@
 #define HNS_PHY_CSC_REG		16	/* Copper Specific Control Register */
 #define HNS_PHY_CSS_REG		17	/* Copper Specific Status Register */
 #define HNS_LED_FC_REG		16	/* LED Function Control Reg. */
-#define HNS_LED_PC_REG		17	/* LED Polarity Control Reg. */
 
 #define HNS_LED_FORCE_ON	9
 #define HNS_LED_FORCE_OFF	8
