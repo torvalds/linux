@@ -420,7 +420,13 @@ static ssize_t uv_is_prot_virt_guest(struct kobject *kobj,
 static ssize_t uv_is_prot_virt_host(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *page)
 {
-	return scnprintf(page, PAGE_SIZE, "%d\n", prot_virt_host);
+	int val = 0;
+
+#if IS_ENABLED(CONFIG_KVM)
+	val = prot_virt_host;
+#endif
+
+	return scnprintf(page, PAGE_SIZE, "%d\n", val);
 }
 
 static struct kobj_attribute uv_prot_virt_guest =
