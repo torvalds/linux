@@ -662,10 +662,13 @@ int ipa_table_init(struct ipa *ipa)
 		return -ENOMEM;
 
 	/* We put the "zero rule" at the base of our table area.  The IPA
-	 * hardware requires rules to be aligned on a 128-byte boundary.
-	 * Make sure the allocation satisfies this constraint.
+	 * hardware requires route and filter table rules to be aligned
+	 * on a 128-byte boundary.  As long as the alignment constraint
+	 * is a power of 2, we can check alignment using just the bottom
+	 * 32 bits for a DMA address of any size.
 	 */
-	if (addr % IPA_TABLE_ALIGN) {
+	BUILD_BUG_ON(!is_power_of_2(IPA_TABLE_ALIGN));
+	if (lower_32_bits(addr) % IPA_TABLE_ALIGN) {
 		dev_err(dev, "table address %pad not %u-byte aligned\n",
 			&addr, IPA_TABLE_ALIGN);
 		dma_free_coherent(dev, size, virt, addr);
