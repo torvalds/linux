@@ -451,9 +451,8 @@ static void tegra20_mc_stat_gather(struct tegra20_mc_stat *stat)
 	control_1 = tegra20_mc_stat_gather_control(&stat->gather1);
 
 	/*
-	 * Reset statistic gathers state, select bandwidth mode for the
-	 * statistics collection mode and set clocks counter saturation
-	 * limit to maximum.
+	 * Reset statistic gathers state, select statistics collection mode
+	 * and set clocks counter saturation limit to maximum.
 	 */
 	mc_writel(mc, 0x00000000, MC_STAT_CONTROL);
 	mc_writel(mc,  control_0, MC_STAT_EMC_CONTROL_0);
