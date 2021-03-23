@@ -1069,7 +1069,7 @@ int perf_pmu__format_type(struct list_head *formats, const char *name)
 
 /*
  * Sets value based on the format definition (format parameter)
- * and unformated value (value parameter).
+ * and unformatted value (value parameter).
  */
 static void pmu_format_value(unsigned long *format, __u64 value, __u64 *v,
 			     bool zero)
@@ -1408,7 +1408,7 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	}
 
 	/*
-	 * if no unit or scale foundin aliases, then
+	 * if no unit or scale found in aliases, then
 	 * set defaults as for evsel
 	 * unit cannot left to NULL
 	 */

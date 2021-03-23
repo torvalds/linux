@@ -20,7 +20,7 @@
 
 #if defined(__s390x__)
 /* Return true if kvm module is available and loaded. Test this
- * and retun success when trace point kvm_s390_create_vm
+ * and return success when trace point kvm_s390_create_vm
  * exists. Otherwise this test always fails.
  */
 static bool kvm_s390_create_vm_valid(void)

@@ -1069,7 +1069,7 @@ static void callchain__lbr_callstack_printf(struct perf_sample *sample)
 		 * in "to" register.
 		 * For example, there is a call stack
 		 * "A"->"B"->"C"->"D".
-		 * The LBR registers will recorde like
+		 * The LBR registers will be recorded like
 		 * "C"->"D", "B"->"C", "A"->"B".
 		 * So only the first "to" register and all "from"
 		 * registers are needed to construct the whole stack.
@@ -1584,7 +1584,7 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		return tool->event_update(tool, event, &session->evlist);
 	case PERF_RECORD_HEADER_EVENT_TYPE:
 		/*
-		 * Depreceated, but we need to handle it for sake
+		 * Deprecated, but we need to handle it for sake
 		 * of old data files create in pipe mode.
 		 */
 		return 0;

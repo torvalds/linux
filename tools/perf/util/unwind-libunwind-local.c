@@ -82,7 +82,7 @@ UNW_OBJ(dwarf_find_debug_frame) (int found, unw_dyn_info_t *di_debug,
 #define DW_EH_PE_funcrel	0x40	/* start-of-procedure-relative */
 #define DW_EH_PE_aligned	0x50	/* aligned pointer */
 
-/* Flags intentionaly not handled, since they're not needed:
+/* Flags intentionally not handled, since they're not needed:
  * #define DW_EH_PE_indirect      0x80
  * #define DW_EH_PE_uleb128       0x01
  * #define DW_EH_PE_udata2        0x02

@@ -3569,7 +3569,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	/*
 	 * Since this thread will not be kept in any rbtree not in a
 	 * list, initialize its list node so that at thread__put() the
-	 * current thread lifetime assuption is kept and we don't segfault
+	 * current thread lifetime assumption is kept and we don't segfault
 	 * at list_del_init().
 	 */
 	INIT_LIST_HEAD(&pt->unknown_thread->node);

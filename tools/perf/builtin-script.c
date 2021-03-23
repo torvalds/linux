@@ -2486,7 +2486,7 @@ static int perf_script__fopen_per_event_dump(struct perf_script *script)
 		/*
 		 * Already setup? I.e. we may be called twice in cases like
 		 * Intel PT, one for the intel_pt// and dummy events, then
-		 * for the evsels syntheized from the auxtrace info.
+		 * for the evsels synthesized from the auxtrace info.
 		 *
 		 * Ses perf_script__process_auxtrace_info.
 		 */
@@ -3083,7 +3083,7 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
  *
  * Fixme: All existing "xxx-record" are all in good formats "-e event ",
  * which is covered well now. And new parsing code should be added to
- * cover the future complexing formats like event groups etc.
+ * cover the future complex formats like event groups etc.
  */
 static int check_ev_match(char *dir_name, char *scriptname,
 			struct perf_session *session)

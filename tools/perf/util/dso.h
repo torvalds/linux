@@ -216,7 +216,7 @@ struct dso {
 
 /* dso__for_each_symbol - iterate over the symbols of given type
  *
- * @dso: the 'struct dso *' in which symbols itereated
+ * @dso: the 'struct dso *' in which symbols are iterated
  * @pos: the 'struct symbol *' to use as a loop cursor
  * @n: the 'struct rb_node *' to use as a temporary storage
  */

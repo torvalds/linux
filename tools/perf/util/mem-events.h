@@ -81,7 +81,7 @@ struct c2c_stats {
 	u32	rmt_dram;            /* count of loads miss to remote DRAM */
 	u32	blk_data;            /* count of loads blocked by data */
 	u32	blk_addr;            /* count of loads blocked by address conflict */
-	u32	nomap;               /* count of load/stores with no phys adrs */
+	u32	nomap;               /* count of load/stores with no phys addrs */
 	u32	noparse;             /* count of unparsable data sources */
 };
 

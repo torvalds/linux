@@ -186,7 +186,7 @@ static int __compute_metric(const char *name, struct value *vals,
 		*ratio2 = compute_single(&metric_events, evlist, &st, name2);
 
 out:
-	/* ... clenup. */
+	/* ... cleanup. */
 	metricgroup__rblist_exit(&metric_events);
 	runtime_stat__exit(&st);
 	evlist__free_stats(evlist);

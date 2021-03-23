@@ -12,7 +12,8 @@
 
 struct perf_session;
 
-/* Versionning header in case things need tro change in the future.  That way
+/*
+ * Versioning header in case things need to change in the future.  That way
  * decoding of old snapshot is still possible.
  */
 enum {
@@ -77,7 +78,7 @@ enum {
 
 /*
  * ETMv3 exception encoding number:
- * See Embedded Trace Macrocell spcification (ARM IHI 0014Q)
+ * See Embedded Trace Macrocell specification (ARM IHI 0014Q)
  * table 7-12 Encoding of Exception[3:0] for non-ARMv7-M processors.
  */
 enum {

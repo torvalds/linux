@@ -843,9 +843,9 @@ split_bpf_config_terms(struct list_head *evt_head_config,
 	struct parse_events_term *term, *temp;
 
 	/*
-	 * Currectly, all possible user config term
+	 * Currently, all possible user config term
 	 * belong to bpf object. parse_events__is_hardcoded_term()
-	 * happends to be a good flag.
+	 * happens to be a good flag.
 	 *
 	 * See parse_events_config_bpf() and
 	 * config_term_tracepoint().
@@ -895,7 +895,7 @@ int parse_events_load_bpf(struct parse_events_state *parse_state,
 
 	/*
 	 * Caller doesn't know anything about obj_head_config,
-	 * so combine them together again before returnning.
+	 * so combine them together again before returning.
 	 */
 	if (head_config)
 		list_splice_tail(&obj_head_config, head_config);
@@ -1182,10 +1182,10 @@ do {									   \
 	}
 
 	/*
-	 * Check term availbility after basic checking so
+	 * Check term availability after basic checking so
 	 * PARSE_EVENTS__TERM_TYPE_USER can be found and filtered.
 	 *
-	 * If check availbility at the entry of this function,
+	 * If check availability at the entry of this function,
 	 * user will see "'<sysfs term>' is not usable in 'perf stat'"
 	 * if an invalid config term is provided for legacy events
 	 * (for example, instructions/badterm/...), which is confusing.

@@ -80,7 +80,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	 *   CPU 1 is on core_id 1 and physical_package_id 3
 	 *
 	 *   Core_id and physical_package_id are platform and architecture
-	 *   dependend and might have higher numbers than the CPU id.
+	 *   dependent and might have higher numbers than the CPU id.
 	 *   This actually depends on the configuration.
 	 *
 	 *  In this case process_cpu_topology() prints error message:

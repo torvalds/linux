@@ -317,7 +317,7 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 	 * This is the first timestamp we've seen since the beginning of traces
 	 * or a discontinuity.  Since timestamps packets are generated *after*
 	 * range packets have been generated, we need to estimate the time at
-	 * which instructions started by substracting the number of instructions
+	 * which instructions started by subtracting the number of instructions
 	 * executed to the timestamp.
 	 */
 	packet_queue->timestamp = elem->timestamp - packet_queue->instr_count;

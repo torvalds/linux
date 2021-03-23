@@ -1691,7 +1691,7 @@
         "MetricName": "custom_secs"
     },
     {
-        "BriefDescription": "Percentage Cycles atleast one instruction dispatched",
+        "BriefDescription": "Percentage Cycles at least one instruction dispatched",
         "MetricExpr": "PM_1PLUS_PPC_DISP / PM_CYC * 100",
         "MetricName": "cycles_atleast_one_inst_dispatched_percent"
     },

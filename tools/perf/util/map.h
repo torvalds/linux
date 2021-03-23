@@ -75,7 +75,7 @@ struct thread;
 
 /* map__for_each_symbol - iterate over the symbols in the given map
  *
- * @map: the 'struct map *' in which symbols itereated
+ * @map: the 'struct map *' in which symbols are iterated
  * @pos: the 'struct symbol *' to use as a loop cursor
  * @n: the 'struct rb_node *' to use as a temporary storage
  * Note: caller must ensure map->dso is not NULL (map is loaded).
@@ -86,7 +86,7 @@ struct thread;
 /* map__for_each_symbol_with_name - iterate over the symbols in the given map
  *                                  that have the given name
  *
- * @map: the 'struct map *' in which symbols itereated
+ * @map: the 'struct map *' in which symbols are iterated
  * @sym_name: the symbol name
  * @pos: the 'struct symbol *' to use as a loop cursor
  */

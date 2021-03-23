@@ -1705,7 +1705,7 @@ static int add_default_attributes(void)
 	bzero(&errinfo, sizeof(errinfo));
 	if (transaction_run) {
 		/* Handle -T as -M transaction. Once platform specific metrics
-		 * support has been added to the json files, all archictures
+		 * support has been added to the json files, all architectures
 		 * will use this approach. To determine transaction support
 		 * on an architecture test for such a metric name.
 		 */
@@ -2459,7 +2459,7 @@ int cmd_stat(int argc, const char **argv)
 		/*
 		 * We synthesize the kernel mmap record just so that older tools
 		 * don't emit warnings about not being able to resolve symbols
-		 * due to /proc/sys/kernel/kptr_restrict settings and instear provide
+		 * due to /proc/sys/kernel/kptr_restrict settings and instead provide
 		 * a saner message about no samples being in the perf.data file.
 		 *
 		 * This also serves to suppress a warning about f_header.data.size == 0

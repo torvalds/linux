@@ -239,7 +239,7 @@ static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
 	}
 
 	/*
-	 * XXX filtered samples can still have branch entires pointing into our
+	 * XXX filtered samples can still have branch entries pointing into our
 	 * symbol and are missed.
 	 */
 	process_branch_stack(sample->branch_stack, al, sample);
