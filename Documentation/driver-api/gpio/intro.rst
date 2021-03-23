@@ -27,7 +27,7 @@ What is a GPIO?
 ===============
 
 A "General Purpose Input/Output" (GPIO) is a flexible software-controlled
-digital signal. They are provided from many kinds of chip, and are familiar
+digital signal. They are provided from many kinds of chips, and are familiar
 to Linux developers working with embedded and custom hardware. Each GPIO
 represents a bit connected to a particular pin, or "ball" on Ball Grid Array
 (BGA) packages. Board schematics show which external hardware connects to
