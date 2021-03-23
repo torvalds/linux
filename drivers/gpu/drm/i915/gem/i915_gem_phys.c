@@ -236,7 +236,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	if (err)
 		return err;
 
-	err = mutex_lock_interruptible_nested(&obj->mm.lock, I915_MM_GET_PAGES);
+	err = mutex_lock_interruptible(&obj->mm.lock);
 	if (err)
 		goto err_unlock;
 

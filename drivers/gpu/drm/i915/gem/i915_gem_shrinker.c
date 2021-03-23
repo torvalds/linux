@@ -49,9 +49,9 @@ static bool unsafe_drop_pages(struct drm_i915_gem_object *obj,
 		flags = I915_GEM_OBJECT_UNBIND_TEST;
 
 	if (i915_gem_object_unbind(obj, flags) == 0)
-		__i915_gem_object_put_pages(obj);
+		return true;
 
-	return !i915_gem_object_has_pages(obj);
+	return false;
 }
 
 static void try_to_writeback(struct drm_i915_gem_object *obj,
@@ -200,10 +200,10 @@ i915_gem_shrink(struct drm_i915_private *i915,
 
 			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
-			if (unsafe_drop_pages(obj, shrink)) {
+			if (unsafe_drop_pages(obj, shrink) &&
+			    mutex_trylock(&obj->mm.lock)) {
 				/* May arrive from get_pages on another bo */
-				mutex_lock(&obj->mm.lock);
-				if (!i915_gem_object_has_pages(obj)) {
+				if (!__i915_gem_object_put_pages_locked(obj)) {
 					try_to_writeback(obj, shrink);
 					count += obj->base.size >> PAGE_SHIFT;
 				}

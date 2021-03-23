@@ -114,7 +114,7 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 {
 	int err;
 
-	err = mutex_lock_interruptible_nested(&obj->mm.lock, I915_MM_GET_PAGES);
+	err = mutex_lock_interruptible(&obj->mm.lock);
 	if (err)
 		return err;
 
@@ -196,20 +196,12 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 	return pages;
 }
 
-int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
+int __i915_gem_object_put_pages_locked(struct drm_i915_gem_object *obj)
 {
 	struct sg_table *pages;
-	int err;
 
 	if (i915_gem_object_has_pinned_pages(obj))
 		return -EBUSY;
-
-	/* May be called by shrinker from within get_pages() (on another bo) */
-	mutex_lock(&obj->mm.lock);
-	if (unlikely(atomic_read(&obj->mm.pages_pin_count))) {
-		err = -EBUSY;
-		goto unlock;
-	}
 
 	i915_gem_object_release_mmap_offset(obj);
 
@@ -226,14 +218,22 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	 * get_pages backends we should be better able to handle the
 	 * cancellation of the async task in a more uniform manner.
 	 */
-	if (!pages)
-		pages = ERR_PTR(-EINVAL);
-
-	if (!IS_ERR(pages))
+	if (!IS_ERR_OR_NULL(pages))
 		obj->ops->put_pages(obj, pages);
 
-	err = 0;
-unlock:
+	return 0;
+}
+
+int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
+{
+	int err;
+
+	if (i915_gem_object_has_pinned_pages(obj))
+		return -EBUSY;
+
+	/* May be called by shrinker from within get_pages() (on another bo) */
+	mutex_lock(&obj->mm.lock);
+	err = __i915_gem_object_put_pages_locked(obj);
 	mutex_unlock(&obj->mm.lock);
 
 	return err;
@@ -341,7 +341,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	    !i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM))
 		return ERR_PTR(-ENXIO);
 
-	err = mutex_lock_interruptible_nested(&obj->mm.lock, I915_MM_GET_PAGES);
+	err = mutex_lock_interruptible(&obj->mm.lock);
 	if (err)
 		return ERR_PTR(err);
 

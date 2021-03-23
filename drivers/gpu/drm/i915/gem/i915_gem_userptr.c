@@ -253,7 +253,7 @@ static int i915_gem_object_userptr_unbind(struct drm_i915_gem_object *obj, bool 
 	if (GEM_WARN_ON(i915_gem_object_has_pinned_pages(obj)))
 		return -EBUSY;
 
-	mutex_lock_nested(&obj->mm.lock, I915_MM_GET_PAGES);
+	mutex_lock(&obj->mm.lock);
 
 	pages = __i915_gem_object_unset_pages(obj);
 	if (!IS_ERR_OR_NULL(pages))
