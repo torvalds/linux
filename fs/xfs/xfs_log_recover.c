@@ -2736,7 +2736,7 @@ xlog_recover_process_one_iunlink(
  * of log space.
  *
  * This behaviour is bad for latency on single CPU and non-preemptible kernels,
- * and can prevent other filesytem work (such as CIL pushes) from running. This
+ * and can prevent other filesystem work (such as CIL pushes) from running. This
  * can lead to deadlocks if the recovery process runs out of log reservation
  * space. Hence we need to yield the CPU when there is other kernel work
  * scheduled on this CPU to ensure other scheduled work can run without undue
@@ -3404,7 +3404,7 @@ xlog_recover(
 
 		/*
 		 * Delay log recovery if the debug hook is set. This is debug
-		 * instrumention to coordinate simulation of I/O failures with
+		 * instrumentation to coordinate simulation of I/O failures with
 		 * log recovery.
 		 */
 		if (xfs_globals.log_recovery_delay) {
