@@ -2022,12 +2022,14 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	jpeg->m2m_dev = v4l2_m2m_init(&mxc_jpeg_m2m_ops);
 	if (IS_ERR(jpeg->m2m_dev)) {
 		dev_err(dev, "failed to register v4l2 device\n");
+		ret = PTR_ERR(jpeg->m2m_dev);
 		goto err_m2m;
 	}
 
 	jpeg->dec_vdev = video_device_alloc();
 	if (!jpeg->dec_vdev) {
 		dev_err(dev, "failed to register v4l2 device\n");
+		ret = -ENOMEM;
 		goto err_vdev_alloc;
 	}
 	if (mode == MXC_JPEG_ENCODE)
