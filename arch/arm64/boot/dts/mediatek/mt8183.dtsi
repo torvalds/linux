@@ -874,7 +874,7 @@
 			clocks = <&infracfg CLK_INFRA_UNIPRO_SCK>,
 				 <&infracfg CLK_INFRA_USB>;
 			clock-names = "sys_ck", "ref_ck";
-			mediatek,syscon-wakeup = <&pericfg 0x400 0>;
+			mediatek,syscon-wakeup = <&pericfg 0x420 101>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
