@@ -86,8 +86,8 @@ static inline bool nf_flowtable_hw_offload(struct nf_flowtable *flowtable)
 enum flow_offload_tuple_dir {
 	FLOW_OFFLOAD_DIR_ORIGINAL = IP_CT_DIR_ORIGINAL,
 	FLOW_OFFLOAD_DIR_REPLY = IP_CT_DIR_REPLY,
-	FLOW_OFFLOAD_DIR_MAX = IP_CT_DIR_MAX
 };
+#define FLOW_OFFLOAD_DIR_MAX	IP_CT_DIR_MAX
 
 struct flow_offload_tuple {
 	union {
@@ -229,12 +229,12 @@ void nf_flow_table_free(struct nf_flowtable *flow_table);
 
 void flow_offload_teardown(struct flow_offload *flow);
 
-int nf_flow_snat_port(const struct flow_offload *flow,
-		      struct sk_buff *skb, unsigned int thoff,
-		      u8 protocol, enum flow_offload_tuple_dir dir);
-int nf_flow_dnat_port(const struct flow_offload *flow,
-		      struct sk_buff *skb, unsigned int thoff,
-		      u8 protocol, enum flow_offload_tuple_dir dir);
+void nf_flow_snat_port(const struct flow_offload *flow,
+		       struct sk_buff *skb, unsigned int thoff,
+		       u8 protocol, enum flow_offload_tuple_dir dir);
+void nf_flow_dnat_port(const struct flow_offload *flow,
+		       struct sk_buff *skb, unsigned int thoff,
+		       u8 protocol, enum flow_offload_tuple_dir dir);
 
 struct flow_ports {
 	__be16 source, dest;

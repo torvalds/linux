@@ -389,28 +389,19 @@ static void nf_flow_offload_work_gc(struct work_struct *work)
 	queue_delayed_work(system_power_efficient_wq, &flow_table->gc_work, HZ);
 }
 
-
-static int nf_flow_nat_port_tcp(struct sk_buff *skb, unsigned int thoff,
-				__be16 port, __be16 new_port)
+static void nf_flow_nat_port_tcp(struct sk_buff *skb, unsigned int thoff,
+				 __be16 port, __be16 new_port)
 {
 	struct tcphdr *tcph;
 
-	if (skb_try_make_writable(skb, thoff + sizeof(*tcph)))
-		return -1;
-
 	tcph = (void *)(skb_network_header(skb) + thoff);
 	inet_proto_csum_replace2(&tcph->check, skb, port, new_port, false);
-
-	return 0;
 }
 
-static int nf_flow_nat_port_udp(struct sk_buff *skb, unsigned int thoff,
-				__be16 port, __be16 new_port)
+static void nf_flow_nat_port_udp(struct sk_buff *skb, unsigned int thoff,
+				 __be16 port, __be16 new_port)
 {
 	struct udphdr *udph;
-
-	if (skb_try_make_writable(skb, thoff + sizeof(*udph)))
-		return -1;
 
 	udph = (void *)(skb_network_header(skb) + thoff);
 	if (udph->check || skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -419,36 +410,27 @@ static int nf_flow_nat_port_udp(struct sk_buff *skb, unsigned int thoff,
 		if (!udph->check)
 			udph->check = CSUM_MANGLED_0;
 	}
-
-	return 0;
 }
 
-static int nf_flow_nat_port(struct sk_buff *skb, unsigned int thoff,
-			    u8 protocol, __be16 port, __be16 new_port)
+static void nf_flow_nat_port(struct sk_buff *skb, unsigned int thoff,
+			     u8 protocol, __be16 port, __be16 new_port)
 {
 	switch (protocol) {
 	case IPPROTO_TCP:
-		if (nf_flow_nat_port_tcp(skb, thoff, port, new_port) < 0)
-			return NF_DROP;
+		nf_flow_nat_port_tcp(skb, thoff, port, new_port);
 		break;
 	case IPPROTO_UDP:
-		if (nf_flow_nat_port_udp(skb, thoff, port, new_port) < 0)
-			return NF_DROP;
+		nf_flow_nat_port_udp(skb, thoff, port, new_port);
 		break;
 	}
-
-	return 0;
 }
 
-int nf_flow_snat_port(const struct flow_offload *flow,
-		      struct sk_buff *skb, unsigned int thoff,
-		      u8 protocol, enum flow_offload_tuple_dir dir)
+void nf_flow_snat_port(const struct flow_offload *flow,
+		       struct sk_buff *skb, unsigned int thoff,
+		       u8 protocol, enum flow_offload_tuple_dir dir)
 {
 	struct flow_ports *hdr;
 	__be16 port, new_port;
-
-	if (skb_try_make_writable(skb, thoff + sizeof(*hdr)))
-		return -1;
 
 	hdr = (void *)(skb_network_header(skb) + thoff);
 
@@ -463,23 +445,18 @@ int nf_flow_snat_port(const struct flow_offload *flow,
 		new_port = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_port;
 		hdr->dest = new_port;
 		break;
-	default:
-		return -1;
 	}
 
-	return nf_flow_nat_port(skb, thoff, protocol, port, new_port);
+	nf_flow_nat_port(skb, thoff, protocol, port, new_port);
 }
 EXPORT_SYMBOL_GPL(nf_flow_snat_port);
 
-int nf_flow_dnat_port(const struct flow_offload *flow,
-		      struct sk_buff *skb, unsigned int thoff,
-		      u8 protocol, enum flow_offload_tuple_dir dir)
+void nf_flow_dnat_port(const struct flow_offload *flow, struct sk_buff *skb,
+		       unsigned int thoff, u8 protocol,
+		       enum flow_offload_tuple_dir dir)
 {
 	struct flow_ports *hdr;
 	__be16 port, new_port;
-
-	if (skb_try_make_writable(skb, thoff + sizeof(*hdr)))
-		return -1;
 
 	hdr = (void *)(skb_network_header(skb) + thoff);
 
@@ -494,11 +471,9 @@ int nf_flow_dnat_port(const struct flow_offload *flow,
 		new_port = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_port;
 		hdr->source = new_port;
 		break;
-	default:
-		return -1;
 	}
 
-	return nf_flow_nat_port(skb, thoff, protocol, port, new_port);
+	nf_flow_nat_port(skb, thoff, protocol, port, new_port);
 }
 EXPORT_SYMBOL_GPL(nf_flow_dnat_port);
 
