@@ -1404,12 +1404,12 @@ int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 
 	lockdep_assert_held(&bdev->bd_mutex);
 
-	clear_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
-
 rescan:
 	ret = blk_drop_partitions(bdev);
 	if (ret)
 		return ret;
+
+	clear_bit(GD_NEED_PART_SCAN, &disk->state);
 
 	/*
 	 * Historically we only set the capacity to zero for devices that
