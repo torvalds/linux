@@ -963,6 +963,7 @@ static u32 pm8001_request_msix(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 i = 0, j = 0;
 	int flag = 0, rc = 0;
+	int nr_irqs = pm8001_ha->number_of_intr;
 
 	if (pm8001_ha->chip_id != chip_8001)
 		flag &= ~IRQF_SHARED;
@@ -971,7 +972,10 @@ static u32 pm8001_request_msix(struct pm8001_hba_info *pm8001_ha)
 		   "pci_enable_msix request number of intr %d\n",
 		   pm8001_ha->number_of_intr);
 
-	for (i = 0; i < pm8001_ha->number_of_intr; i++) {
+	if (nr_irqs > ARRAY_SIZE(pm8001_ha->intr_drvname))
+		nr_irqs = ARRAY_SIZE(pm8001_ha->intr_drvname);
+
+	for (i = 0; i < nr_irqs; i++) {
 		snprintf(pm8001_ha->intr_drvname[i],
 			sizeof(pm8001_ha->intr_drvname[0]),
 			"%s-%d", pm8001_ha->name, i);
