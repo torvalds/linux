@@ -25,9 +25,21 @@ static int mock_phys_object(void *arg)
 		goto out;
 	}
 
+	if (!i915_gem_object_has_struct_page(obj)) {
+		err = -EINVAL;
+		pr_err("shmem has no struct page\n");
+		goto out_obj;
+	}
+
 	err = i915_gem_object_attach_phys(obj, PAGE_SIZE);
 	if (err) {
 		pr_err("i915_gem_object_attach_phys failed, err=%d\n", err);
+		goto out_obj;
+	}
+
+	if (i915_gem_object_has_struct_page(obj)) {
+		err = -EINVAL;
+		pr_err("shmem has a struct page\n");
 		goto out_obj;
 	}
 

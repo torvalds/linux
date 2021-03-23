@@ -630,7 +630,7 @@ static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	int err;
 
 	drm_gem_private_object_init(&mem->i915->drm, &obj->base, stolen->size);
-	i915_gem_object_init(obj, &i915_gem_object_stolen_ops, &lock_class);
+	i915_gem_object_init(obj, &i915_gem_object_stolen_ops, &lock_class, 0);
 
 	obj->stolen = stolen;
 	obj->read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
@@ -641,7 +641,7 @@ static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	if (err)
 		return err;
 
-	i915_gem_object_init_memory_region(obj, mem, 0);
+	i915_gem_object_init_memory_region(obj, mem);
 
 	return 0;
 }

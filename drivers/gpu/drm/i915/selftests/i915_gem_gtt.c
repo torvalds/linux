@@ -121,7 +121,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 		goto err;
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
-	i915_gem_object_init(obj, &fake_ops, &lock_class);
+	i915_gem_object_init(obj, &fake_ops, &lock_class, 0);
 
 	i915_gem_object_set_volatile(obj);
 

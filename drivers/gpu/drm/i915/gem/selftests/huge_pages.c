@@ -140,8 +140,7 @@ static void put_huge_pages(struct drm_i915_gem_object *obj,
 
 static const struct drm_i915_gem_object_ops huge_page_ops = {
 	.name = "huge-gem",
-	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
-		 I915_GEM_OBJECT_IS_SHRINKABLE,
+	.flags = I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = get_huge_pages,
 	.put_pages = put_huge_pages,
 };
@@ -168,7 +167,8 @@ huge_pages_object(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
-	i915_gem_object_init(obj, &huge_page_ops, &lock_class);
+	i915_gem_object_init(obj, &huge_page_ops, &lock_class,
+			     I915_BO_ALLOC_STRUCT_PAGE);
 
 	i915_gem_object_set_volatile(obj);
 
@@ -319,9 +319,9 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 
 	if (single)
-		i915_gem_object_init(obj, &fake_ops_single, &lock_class);
+		i915_gem_object_init(obj, &fake_ops_single, &lock_class, 0);
 	else
-		i915_gem_object_init(obj, &fake_ops, &lock_class);
+		i915_gem_object_init(obj, &fake_ops, &lock_class, 0);
 
 	i915_gem_object_set_volatile(obj);
 

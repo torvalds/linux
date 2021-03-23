@@ -240,6 +240,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	pages = __i915_gem_object_unset_pages(obj);
 
 	obj->ops = &i915_gem_phys_ops;
+	obj->flags &= ~I915_BO_ALLOC_STRUCT_PAGE;
 
 	err = ____i915_gem_object_get_pages(obj);
 	if (err)
@@ -258,6 +259,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 
 err_xfer:
 	obj->ops = &i915_gem_shmem_ops;
+	obj->flags |= I915_BO_ALLOC_STRUCT_PAGE;
 	if (!IS_ERR_OR_NULL(pages)) {
 		unsigned int sg_page_sizes = i915_sg_page_sizes(pages->sgl);
 

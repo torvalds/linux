@@ -333,13 +333,12 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 			      enum i915_map_type type)
 {
 	enum i915_map_type has_type;
-	unsigned int flags;
 	bool pinned;
 	void *ptr;
 	int err;
 
-	flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE | I915_GEM_OBJECT_HAS_IOMEM;
-	if (!i915_gem_object_type_has(obj, flags))
+	if (!i915_gem_object_has_struct_page(obj) &&
+	    !i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM))
 		return ERR_PTR(-ENXIO);
 
 	err = mutex_lock_interruptible_nested(&obj->mm.lock, I915_MM_GET_PAGES);

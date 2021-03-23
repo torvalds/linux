@@ -251,7 +251,7 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 		goto out;
 
 	iomap = -1;
-	if (!i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_STRUCT_PAGE)) {
+	if (!i915_gem_object_has_struct_page(obj)) {
 		iomap = obj->mm.region->iomap.base;
 		iomap -= obj->mm.region->region.start;
 	}
@@ -653,9 +653,8 @@ __assign_mmap_offset(struct drm_file *file,
 	}
 
 	if (mmap_type != I915_MMAP_TYPE_GTT &&
-	    !i915_gem_object_type_has(obj,
-				      I915_GEM_OBJECT_HAS_STRUCT_PAGE |
-				      I915_GEM_OBJECT_HAS_IOMEM)) {
+	    !i915_gem_object_has_struct_page(obj) &&
+	    !i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM)) {
 		err = -ENODEV;
 		goto out;
 	}

@@ -60,7 +60,7 @@ void i915_gem_object_free(struct drm_i915_gem_object *obj)
 
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops,
-			  struct lock_class_key *key)
+			  struct lock_class_key *key, unsigned flags)
 {
 	__mutex_init(&obj->mm.lock, ops->name ?: "obj->mm.lock", key);
 
@@ -78,6 +78,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	init_rcu_head(&obj->rcu);
 
 	obj->ops = ops;
+	GEM_BUG_ON(flags & ~I915_BO_ALLOC_FLAGS);
+	obj->flags = flags;
 
 	obj->mm.madv = I915_MADV_WILLNEED;
 	INIT_RADIX_TREE(&obj->mm.get_page.radix, GFP_KERNEL | __GFP_NOWARN);
