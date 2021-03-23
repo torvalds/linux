@@ -2407,12 +2407,6 @@ static int btusb_setup_intel_new_get_fw_name(struct intel_version *ver,
 					     char *fw_name, size_t len,
 					     const char *suffix)
 {
-	/* The hardware platform number has a fixed value of 0x37 and
-	 * for now only accept this single value.
-	 */
-	if (ver->hw_platform != 0x37)
-		return -EINVAL;
-
 	switch (ver->hw_variant) {
 	case 0x0b:	/* SfP */
 	case 0x0c:	/* WsP */
@@ -2581,8 +2575,6 @@ static int btusb_intel_download_firmware(struct hci_dev *hdev,
 
 	if (!ver || !params)
 		return -EINVAL;
-
-	btintel_version_info(hdev, ver);
 
 	/* The firmware variant determines if the device is in bootloader
 	 * mode or is running operational firmware. The value 0x06 identifies
@@ -2775,6 +2767,10 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 		btintel_reset_to_bootloader(hdev);
 		return err;
 	}
+
+	err = btintel_version_info(hdev, &ver);
+	if (err)
+		return err;
 
 	err = btusb_intel_download_firmware(hdev, &ver, &params, &boot_param);
 	if (err)
