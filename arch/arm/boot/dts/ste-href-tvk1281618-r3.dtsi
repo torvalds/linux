@@ -118,6 +118,38 @@
 			};
 		};
 
+		spi@80111000 {
+			num-cs = <1>;
+			cs-gpios = <&gpio6 24 GPIO_ACTIVE_LOW>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi2_default_mode>;
+			status = "okay";
+
+			touchscreen@0 {
+				compatible = "cypress,cy8ctma340";
+				/*
+				 * Actually the max frequency is 6 MHz, but over 2 MHz the
+				 * data rate needs to be restricted to max 2Mbps which the
+				 * SPI framework cannot handle.
+				 */
+				spi-max-frequency = <2000000>;
+				reg = <0>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
+				vcpin-supply = <&ab8500_ldo_aux1_reg>;
+				vdd-supply = <&db8500_vsmps2_reg>;
+				reset-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
+				touchscreen-size-x = <480>;
+				touchscreen-size-y = <854>;
+				active-interval-ms = <0>;
+				touch-timeout-ms = <255>;
+				lowpower-interval-ms = <10>;
+				bootloader-key = /bits/ 8 <0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&cyttsp_tvk_mode>;
+			};
+		};
+
 		mcde@a0350000 {
 			status = "okay";
 
@@ -164,6 +196,20 @@
 					tvk_cfg {
 						pins = "GPIO32_V2";
 						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			cyttsp {
+				cyttsp_tvk_mode: cyttsp_tvk {
+					/* Touchscreen uses GPIO84 for IRQ */
+					tvk_cfg1 {
+						pins = "GPIO84_C2";
+						ste,config = <&gpio_in_pu>;
+					};
+					/* GPIO143 is reset */
+					tvk_cfg2 {
+						pins = "GPIO143_D12";
+						ste,config = <&gpio_out_hi>;
 					};
 				};
 			};
