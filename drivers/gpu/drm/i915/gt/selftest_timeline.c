@@ -38,6 +38,26 @@ static unsigned long hwsp_cacheline(struct intel_timeline *tl)
 	return (address + offset_in_page(tl->hwsp_offset)) / TIMELINE_SEQNO_BYTES;
 }
 
+static int selftest_tl_pin(struct intel_timeline *tl)
+{
+	struct i915_gem_ww_ctx ww;
+	int err;
+
+	i915_gem_ww_ctx_init(&ww, false);
+retry:
+	err = i915_gem_object_lock(tl->hwsp_ggtt->obj, &ww);
+	if (!err)
+		err = intel_timeline_pin(tl, &ww);
+
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+	return err;
+}
+
 /* Only half of seqno's are usable, see __intel_timeline_get_seqno() */
 #define CACHELINES_PER_PAGE (PAGE_SIZE / TIMELINE_SEQNO_BYTES / 2)
 
@@ -80,7 +100,7 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 		if (IS_ERR(tl))
 			return PTR_ERR(tl);
 
-		err = intel_timeline_pin(tl, NULL);
+		err = selftest_tl_pin(tl);
 		if (err) {
 			intel_timeline_put(tl);
 			return err;
@@ -466,7 +486,7 @@ checked_tl_write(struct intel_timeline *tl, struct intel_engine_cs *engine, u32 
 	struct i915_request *rq;
 	int err;
 
-	err = intel_timeline_pin(tl, NULL);
+	err = selftest_tl_pin(tl);
 	if (err) {
 		rq = ERR_PTR(err);
 		goto out;
@@ -666,7 +686,7 @@ static int live_hwsp_wrap(void *arg)
 	if (!tl->has_initial_breadcrumb)
 		goto out_free;
 
-	err = intel_timeline_pin(tl, NULL);
+	err = selftest_tl_pin(tl);
 	if (err)
 		goto out_free;
 
@@ -813,13 +833,13 @@ static int setup_watcher(struct hwsp_watcher *w, struct intel_gt *gt)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	w->map = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	w->map = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 	if (IS_ERR(w->map)) {
 		i915_gem_object_put(obj);
 		return PTR_ERR(w->map);
 	}
 
-	vma = i915_gem_object_ggtt_pin_ww(obj, NULL, NULL, 0, 0, 0);
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (IS_ERR(vma)) {
 		i915_gem_object_put(obj);
 		return PTR_ERR(vma);
