@@ -652,7 +652,7 @@ static int qcom_swrm_startup(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_set_sdw_stream(codec_dai, sruntime,
 						 substream->stream);
 		if (ret < 0 && ret != -ENOTSUPP) {
-			dev_err(dai->dev, "Failed to set sdw stream on %s",
+			dev_err(dai->dev, "Failed to set sdw stream on %s\n",
 				codec_dai->name);
 			sdw_release_stream(sruntime);
 			return ret;
