@@ -928,7 +928,11 @@ new_vma:
 			return ERR_PTR(ret);
 	}
 
-	ret = i915_vma_pin_ww(vma, ww, size, alignment, flags | PIN_GLOBAL);
+	if (ww)
+		ret = i915_vma_pin_ww(vma, ww, size, alignment, flags | PIN_GLOBAL);
+	else
+		ret = i915_vma_pin(vma, size, alignment, flags | PIN_GLOBAL);
+
 	if (ret)
 		return ERR_PTR(ret);
 

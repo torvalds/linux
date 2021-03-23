@@ -863,9 +863,7 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	int err;
 
 #ifdef CONFIG_PROVE_LOCKING
-	if (debug_locks && lockdep_is_held(&vma->vm->i915->drm.struct_mutex))
-		WARN_ON(!ww);
-	if (debug_locks && ww && vma->resv)
+	if (debug_locks && !WARN_ON(!ww) && vma->resv)
 		assert_vma_held(vma);
 #endif
 
