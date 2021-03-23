@@ -694,10 +694,9 @@ i915_gem_userptr_release(struct drm_i915_gem_object *obj)
 static int
 i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 {
-	if (obj->userptr.mmu_object)
-		return 0;
+	drm_dbg(obj->base.dev, "Exporting userptr no longer allowed\n");
 
-	return i915_gem_userptr_init__mmu_notifier(obj, 0);
+	return -EINVAL;
 }
 
 static int
