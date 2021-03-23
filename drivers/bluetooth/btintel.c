@@ -434,26 +434,26 @@ int btintel_version_info_tlv(struct hci_dev *hdev, struct intel_version_tlv *ver
 		return -EINVAL;
 	}
 
-	/* It is required that every single firmware fragment is acknowledged
-	 * with a command complete event. If the boot parameters indicate
-	 * that this bootloader does not send them, then abort the setup.
-	 */
-	if (version->limited_cce != 0x00) {
-		bt_dev_err(hdev, "Unsupported Intel firmware loading method (0x%x)",
-			   version->limited_cce);
-		return -EINVAL;
-	}
-
-	/* Secure boot engine type should be either 1 (ECDSA) or 0 (RSA) */
-	if (version->sbe_type > 0x01) {
-		bt_dev_err(hdev, "Unsupported Intel secure boot engine type (0x%x)",
-			   version->sbe_type);
-		return -EINVAL;
-	}
-
 	switch (version->img_type) {
 	case 0x01:
 		variant = "Bootloader";
+		/* It is required that every single firmware fragment is acknowledged
+		 * with a command complete event. If the boot parameters indicate
+		 * that this bootloader does not send them, then abort the setup.
+		 */
+		if (version->limited_cce != 0x00) {
+			bt_dev_err(hdev, "Unsupported Intel firmware loading method (0x%x)",
+				   version->limited_cce);
+			return -EINVAL;
+		}
+
+		/* Secure boot engine type should be either 1 (ECDSA) or 0 (RSA) */
+		if (version->sbe_type > 0x01) {
+			bt_dev_err(hdev, "Unsupported Intel secure boot engine type (0x%x)",
+				   version->sbe_type);
+			return -EINVAL;
+		}
+
 		bt_dev_info(hdev, "Device revision is %u", version->dev_rev_id);
 		bt_dev_info(hdev, "Secure boot is %s",
 			    version->secure_boot ? "enabled" : "disabled");
