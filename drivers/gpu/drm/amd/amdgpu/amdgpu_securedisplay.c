@@ -139,9 +139,10 @@ static ssize_t amdgpu_securedisplay_debugfs_write(struct file *f, const char __u
 		ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
 		if (!ret) {
 			if (securedisplay_cmd->status == TA_SECUREDISPLAY_STATUS__SUCCESS) {
+				int pos = 0;
 				memset(i2c_output,  0, sizeof(i2c_output));
 				for (i = 0; i < TA_SECUREDISPLAY_I2C_BUFFER_SIZE; i++)
-					sprintf(i2c_output, "%s 0x%X", i2c_output,
+					pos += sprintf(i2c_output + pos, " 0x%X",
 						securedisplay_cmd->securedisplay_out_message.send_roi_crc.i2c_buf[i]);
 				dev_info(adev->dev, "SECUREDISPLAY: I2C buffer out put is :%s\n", i2c_output);
 			} else {
