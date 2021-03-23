@@ -533,14 +533,28 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out;
 
+	if (i915_gem_object_is_userptr(obj)) {
+		/*
+		 * Try to grab userptr pages, iris uses set_domain to check
+		 * userptr validity
+		 */
+		err = i915_gem_object_userptr_validate(obj);
+		if (!err)
+			err = i915_gem_object_wait(obj,
+						   I915_WAIT_INTERRUPTIBLE |
+						   I915_WAIT_PRIORITY |
+						   (write_domain ? I915_WAIT_ALL : 0),
+						   MAX_SCHEDULE_TIMEOUT);
+		goto out;
+	}
+
 	/*
 	 * Proxy objects do not control access to the backing storage, ergo
 	 * they cannot be used as a means to manipulate the cache domain
 	 * tracking for that backing storage. The proxy object is always
 	 * considered to be outside of any cache domain.
 	 */
-	if (i915_gem_object_is_proxy(obj) &&
-	    !i915_gem_object_is_userptr(obj)) {
+	if (i915_gem_object_is_proxy(obj)) {
 		err = -ENXIO;
 		goto out;
 	}

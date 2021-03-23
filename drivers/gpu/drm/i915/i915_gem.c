@@ -1075,10 +1075,8 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 err_unlock:
 	i915_gem_drain_workqueue(dev_priv);
 
-	if (ret != -EIO) {
+	if (ret != -EIO)
 		intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
-		i915_gem_cleanup_userptr(dev_priv);
-	}
 
 	if (ret == -EIO) {
 		/*
@@ -1135,7 +1133,6 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 	intel_wa_list_free(&dev_priv->gt_wa_list);
 
 	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
-	i915_gem_cleanup_userptr(dev_priv);
 
 	i915_gem_drain_freed_objects(dev_priv);
 

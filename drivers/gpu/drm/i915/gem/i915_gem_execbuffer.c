@@ -53,14 +53,16 @@ enum {
 /* __EXEC_OBJECT_NO_RESERVE is BIT(31), defined in i915_vma.h */
 #define __EXEC_OBJECT_HAS_PIN		BIT(30)
 #define __EXEC_OBJECT_HAS_FENCE		BIT(29)
-#define __EXEC_OBJECT_NEEDS_MAP		BIT(28)
-#define __EXEC_OBJECT_NEEDS_BIAS	BIT(27)
-#define __EXEC_OBJECT_INTERNAL_FLAGS	(~0u << 27) /* all of the above + */
+#define __EXEC_OBJECT_USERPTR_INIT	BIT(28)
+#define __EXEC_OBJECT_NEEDS_MAP		BIT(27)
+#define __EXEC_OBJECT_NEEDS_BIAS	BIT(26)
+#define __EXEC_OBJECT_INTERNAL_FLAGS	(~0u << 26) /* all of the above + */
 #define __EXEC_OBJECT_RESERVED (__EXEC_OBJECT_HAS_PIN | __EXEC_OBJECT_HAS_FENCE)
 
 #define __EXEC_HAS_RELOC	BIT(31)
 #define __EXEC_ENGINE_PINNED	BIT(30)
-#define __EXEC_INTERNAL_FLAGS	(~0u << 30)
+#define __EXEC_USERPTR_USED	BIT(29)
+#define __EXEC_INTERNAL_FLAGS	(~0u << 29)
 #define UPDATE			PIN_OFFSET_FIXED
 
 #define BATCH_OFFSET_BIAS (256*1024)
@@ -871,6 +873,26 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 		}
 
 		eb_add_vma(eb, i, batch, vma);
+
+		if (i915_gem_object_is_userptr(vma->obj)) {
+			err = i915_gem_object_userptr_submit_init(vma->obj);
+			if (err) {
+				if (i + 1 < eb->buffer_count) {
+					/*
+					 * Execbuffer code expects last vma entry to be NULL,
+					 * since we already initialized this entry,
+					 * set the next value to NULL or we mess up
+					 * cleanup handling.
+					 */
+					eb->vma[i + 1].vma = NULL;
+				}
+
+				return err;
+			}
+
+			eb->vma[i].flags |= __EXEC_OBJECT_USERPTR_INIT;
+			eb->args->flags |= __EXEC_USERPTR_USED;
+		}
 	}
 
 	if (unlikely(eb->batch->flags & EXEC_OBJECT_WRITE)) {
@@ -972,7 +994,7 @@ eb_get_vma(const struct i915_execbuffer *eb, unsigned long handle)
 	}
 }
 
-static void eb_release_vmas(struct i915_execbuffer *eb, bool final)
+static void eb_release_vmas(struct i915_execbuffer *eb, bool final, bool release_userptr)
 {
 	const unsigned int count = eb->buffer_count;
 	unsigned int i;
@@ -985,6 +1007,11 @@ static void eb_release_vmas(struct i915_execbuffer *eb, bool final)
 			break;
 
 		eb_unreserve_vma(ev);
+
+		if (release_userptr && ev->flags & __EXEC_OBJECT_USERPTR_INIT) {
+			ev->flags &= ~__EXEC_OBJECT_USERPTR_INIT;
+			i915_gem_object_userptr_submit_fini(vma->obj);
+		}
 
 		if (final)
 			i915_vma_put(vma);
@@ -1923,6 +1950,31 @@ static int eb_prefault_relocations(const struct i915_execbuffer *eb)
 	return 0;
 }
 
+static int eb_reinit_userptr(struct i915_execbuffer *eb)
+{
+	const unsigned int count = eb->buffer_count;
+	unsigned int i;
+	int ret;
+
+	if (likely(!(eb->args->flags & __EXEC_USERPTR_USED)))
+		return 0;
+
+	for (i = 0; i < count; i++) {
+		struct eb_vma *ev = &eb->vma[i];
+
+		if (!i915_gem_object_is_userptr(ev->vma->obj))
+			continue;
+
+		ret = i915_gem_object_userptr_submit_init(ev->vma->obj);
+		if (ret)
+			return ret;
+
+		ev->flags |= __EXEC_OBJECT_USERPTR_INIT;
+	}
+
+	return 0;
+}
+
 static noinline int eb_relocate_parse_slow(struct i915_execbuffer *eb,
 					   struct i915_request *rq)
 {
@@ -1937,7 +1989,7 @@ repeat:
 	}
 
 	/* We may process another execbuffer during the unlock... */
-	eb_release_vmas(eb, false);
+	eb_release_vmas(eb, false, true);
 	i915_gem_ww_ctx_fini(&eb->ww);
 
 	if (rq) {
@@ -1978,10 +2030,8 @@ repeat:
 		err = 0;
 	}
 
-#ifdef CONFIG_MMU_NOTIFIER
 	if (!err)
-		flush_workqueue(eb->i915->mm.userptr_wq);
-#endif
+		err = eb_reinit_userptr(eb);
 
 err_relock:
 	i915_gem_ww_ctx_init(&eb->ww, true);
@@ -2043,7 +2093,7 @@ repeat_validate:
 
 err:
 	if (err == -EDEADLK) {
-		eb_release_vmas(eb, false);
+		eb_release_vmas(eb, false, false);
 		err = i915_gem_ww_ctx_backoff(&eb->ww);
 		if (!err)
 			goto repeat_validate;
@@ -2140,7 +2190,7 @@ retry:
 
 err:
 	if (err == -EDEADLK) {
-		eb_release_vmas(eb, false);
+		eb_release_vmas(eb, false, false);
 		err = i915_gem_ww_ctx_backoff(&eb->ww);
 		if (!err)
 			goto retry;
@@ -2214,6 +2264,30 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 			err = i915_vma_move_to_active(vma, eb->request,
 						      flags | __EXEC_OBJECT_NO_RESERVE);
 	}
+
+#ifdef CONFIG_MMU_NOTIFIER
+	if (!err && (eb->args->flags & __EXEC_USERPTR_USED)) {
+		spin_lock(&eb->i915->mm.notifier_lock);
+
+		/*
+		 * count is always at least 1, otherwise __EXEC_USERPTR_USED
+		 * could not have been set
+		 */
+		for (i = 0; i < count; i++) {
+			struct eb_vma *ev = &eb->vma[i];
+			struct drm_i915_gem_object *obj = ev->vma->obj;
+
+			if (!i915_gem_object_is_userptr(obj))
+				continue;
+
+			err = i915_gem_object_userptr_submit_done(obj);
+			if (err)
+				break;
+		}
+
+		spin_unlock(&eb->i915->mm.notifier_lock);
+	}
+#endif
 
 	if (unlikely(err))
 		goto err_skip;
@@ -3359,7 +3433,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	err = eb_lookup_vmas(&eb);
 	if (err) {
-		eb_release_vmas(&eb, true);
+		eb_release_vmas(&eb, true, true);
 		goto err_engine;
 	}
 
@@ -3431,6 +3505,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	trace_i915_request_queue(eb.request, eb.batch_flags);
 	err = eb_submit(&eb, batch);
+
 err_request:
 	i915_request_get(eb.request);
 	err = eb_request_add(&eb, err);
@@ -3451,7 +3526,7 @@ err_request:
 	i915_request_put(eb.request);
 
 err_vma:
-	eb_release_vmas(&eb, true);
+	eb_release_vmas(&eb, true, true);
 	if (eb.trampoline)
 		i915_vma_unpin(eb.trampoline);
 	WARN_ON(err == -EDEADLK);

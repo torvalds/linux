@@ -33,6 +33,7 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
 				       const void *data, resource_size_t size);
 
 extern const struct drm_i915_gem_object_ops i915_gem_shmem_ops;
+
 void __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				     struct sg_table *pages,
 				     bool needs_clflush);
@@ -250,12 +251,6 @@ static inline bool
 i915_gem_object_never_mmap(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_NO_MMAP);
-}
-
-static inline bool
-i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
-{
-	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_ASYNC_CANCEL);
 }
 
 static inline bool
@@ -548,16 +543,6 @@ void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
 void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 					      enum fb_op_origin origin);
 
-static inline bool
-i915_gem_object_is_userptr(struct drm_i915_gem_object *obj)
-{
-#ifdef CONFIG_MMU_NOTIFIER
-	return obj->userptr.mm;
-#else
-	return false;
-#endif
-}
-
 static inline void
 i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
 				  enum fb_op_origin origin)
@@ -577,5 +562,26 @@ i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size);
 
 bool i915_gem_object_is_shmem(const struct drm_i915_gem_object *obj);
+
+#ifdef CONFIG_MMU_NOTIFIER
+static inline bool
+i915_gem_object_is_userptr(struct drm_i915_gem_object *obj)
+{
+	return obj->userptr.notifier.mm;
+}
+
+int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj);
+int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj);
+void i915_gem_object_userptr_submit_fini(struct drm_i915_gem_object *obj);
+int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj);
+#else
+static inline bool i915_gem_object_is_userptr(struct drm_i915_gem_object *obj) { return false; }
+
+static inline int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
+static inline int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
+static inline void i915_gem_object_userptr_submit_fini(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); }
+static inline int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
+
+#endif
 
 #endif

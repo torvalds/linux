@@ -226,7 +226,7 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	 * get_pages backends we should be better able to handle the
 	 * cancellation of the async task in a more uniform manner.
 	 */
-	if (!pages && !i915_gem_object_needs_async_cancel(obj))
+	if (!pages)
 		pages = ERR_PTR(-EINVAL);
 
 	if (!IS_ERR(pages))
