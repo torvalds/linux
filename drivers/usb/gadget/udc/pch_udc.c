@@ -563,12 +563,13 @@ static void pch_udc_clear_disconnect(struct pch_udc_dev *dev)
 	pch_udc_bit_clr(dev, UDC_DEVCTL_ADDR, UDC_DEVCTL_RES);
 }
 
+static void pch_udc_init(struct pch_udc_dev *dev);
+
 /**
  * pch_udc_reconnect() - This API initializes usb device controller,
  *						and clear the disconnect status.
  * @dev:		Reference to pch_udc_regs structure
  */
-static void pch_udc_init(struct pch_udc_dev *dev);
 static void pch_udc_reconnect(struct pch_udc_dev *dev)
 {
 	pch_udc_init(dev);
