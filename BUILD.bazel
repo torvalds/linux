@@ -317,6 +317,23 @@ copy_to_dist_dir(
     flat = True,
 )
 
+kernel_build(
+    name = "fips140",
+    outs = [],
+    base_kernel = ":kernel_aarch64",
+    build_config = "build.config.gki.aarch64.fips140",
+    module_outs = ["crypto/fips140.ko"],
+)
+
+copy_to_dist_dir(
+    name = "fips140_dist",
+    data = [
+        ":fips140",
+    ],
+    dist_dir = "out/fips140/dist",
+    flat = True,
+)
+
 # allmodconfig build tests.
 # These are build tests only, so:
 # - outs are intentionally set to empty to not copy anything to DIST_DIR
