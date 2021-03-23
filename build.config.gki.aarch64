@@ -15,6 +15,7 @@ android/abi_gki_aarch64_qcom
 android/abi_gki_aarch64_virtual_device
 android/abi_gki_aarch64_hikey960
 android/abi_gki_aarch64_generic
+android/abi_gki_aarch64_exynos
 "
 
 FILES="${FILES}
