@@ -502,17 +502,6 @@ static void hns_ae_set_promisc_mode(struct hnae_handle *handle, u32 en)
 	hns_mac_set_promisc(mac_cb, (u8)!!en);
 }
 
-static int hns_ae_get_autoneg(struct hnae_handle *handle)
-{
-	u32     auto_neg;
-
-	assert(handle);
-
-	hns_mac_get_autoneg(hns_get_mac_cb(handle), &auto_neg);
-
-	return auto_neg;
-}
-
 static int hns_ae_set_pauseparam(struct hnae_handle *handle,
 				 u32 autoneg, u32 rx_en, u32 tx_en)
 {
@@ -966,7 +955,6 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_ring_bdnum_limit = hns_ae_get_ring_bdnum_limit,
 	.get_pauseparam = hns_ae_get_pauseparam,
 	.set_autoneg = hns_ae_set_autoneg,
-	.get_autoneg = hns_ae_get_autoneg,
 	.set_pauseparam = hns_ae_set_pauseparam,
 	.get_coalesce_usecs = hns_ae_get_coalesce_usecs,
 	.get_max_coalesced_frames = hns_ae_get_max_coalesced_frames,
