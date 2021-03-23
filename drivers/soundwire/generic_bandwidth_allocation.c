@@ -406,14 +406,14 @@ int sdw_compute_params(struct sdw_bus *bus)
 	/* Computes clock frequency, frame shape and frame frequency */
 	ret = sdw_compute_bus_params(bus);
 	if (ret < 0) {
-		dev_err(bus->dev, "Compute bus params failed: %d", ret);
+		dev_err(bus->dev, "Compute bus params failed: %d\n", ret);
 		return ret;
 	}
 
 	/* Compute transport and port params */
 	ret = sdw_compute_port_params(bus);
 	if (ret < 0) {
-		dev_err(bus->dev, "Compute transport params failed: %d", ret);
+		dev_err(bus->dev, "Compute transport params failed: %d\n", ret);
 		return ret;
 	}
 
