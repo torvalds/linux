@@ -28,6 +28,8 @@
   amba_bustype
   amba_driver_register
   amba_driver_unregister
+  android_debug_per_cpu_symbol
+  android_debug_symbol
   anon_inode_getfile
   __arch_clear_user
   __arch_copy_from_user
@@ -231,6 +233,7 @@
   consume_skb
   contig_page_data
   _copy_from_iter_full
+  copy_from_kernel_nofault
   __cpu_active_mask
   cpu_bit_bitmap
   cpufreq_cpu_get
@@ -1120,6 +1123,7 @@
   iounmap
   __iowrite32_copy
   ip_compute_csum
+  ipi_desc_get
   iput
   __ipv6_addr_type
   ipv6_ext_hdr
@@ -1228,6 +1232,9 @@
   kset_create_and_add
   ksize
   ksoftirqd
+  kstat
+  kstat_irqs_cpu
+  kstat_irqs_usr
   kstrdup
   kstrdup_const
   kstrndup
@@ -1289,6 +1296,8 @@
   __local_bh_enable_ip
   __lock_page
   lock_sock_nested
+  log_buf_addr_get
+  log_buf_len_get
   __log_post_read_mmio
   __log_read_mmio
   __log_write_mmio
@@ -1408,6 +1417,8 @@
   nonseekable_open
   noop_llseek
   nr_cpu_ids
+  nr_ipi_get
+  nr_irqs
   ns_capable
   nsecs_to_jiffies
   ns_to_timespec64
@@ -1595,6 +1606,7 @@
   percpu_down_write
   __percpu_init_rwsem
   __per_cpu_offset
+  per_cpu_ptr_to_phys
   percpu_up_write
   perf_aux_output_begin
   perf_aux_output_end
@@ -1816,12 +1828,14 @@
   __register_chrdev
   register_chrdev_region
   register_console
+  register_die_notifier
   register_ftrace_export
   register_inet6addr_notifier
   register_inetaddr_notifier
   register_kprobe
   register_kretprobe
   register_memory_notifier
+  register_module_notifier
   register_netdev
   register_netdevice
   register_netdevice_notifier
@@ -1999,6 +2013,7 @@
   sdhci_set_bus_width
   sdhci_set_power_noreg
   sdhci_setup_host
+  seq_buf_printf
   seq_hex_dump
   seq_lseek
   seq_open
@@ -2351,6 +2366,11 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_freq_table_limits
+  __tracepoint_android_vh_ftrace_dump_buffer
+  __tracepoint_android_vh_ftrace_format_check
+  __tracepoint_android_vh_ftrace_oops_enter
+  __tracepoint_android_vh_ftrace_oops_exit
+  __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
@@ -2456,11 +2476,13 @@
   __unregister_chrdev
   unregister_chrdev_region
   unregister_console
+  unregister_die_notifier
   unregister_ftrace_export
   unregister_inet6addr_notifier
   unregister_inetaddr_notifier
   unregister_kprobe
   unregister_kretprobe
+  unregister_module_notifier
   unregister_netdev
   unregister_netdevice_many
   unregister_netdevice_notifier
