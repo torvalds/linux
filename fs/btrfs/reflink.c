@@ -834,6 +834,16 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 					    len, remap_flags);
 }
 
+static bool file_sync_write(const struct file *file)
+{
+	if (file->f_flags & (__O_SYNC | O_DSYNC))
+		return true;
+	if (IS_SYNC(file_inode(file)))
+		return true;
+
+	return false;
+}
+
 loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 		struct file *dst_file, loff_t destoff, loff_t len,
 		unsigned int remap_flags)
@@ -869,6 +879,21 @@ out_unlock:
 	} else {
 		btrfs_double_mmap_unlock(src_inode, dst_inode);
 		unlock_two_nondirectories(src_inode, dst_inode);
+	}
+
+	/*
+	 * If either the source or the destination file was opened with O_SYNC,
+	 * O_DSYNC or has the S_SYNC attribute, fsync both the destination and
+	 * source files/ranges, so that after a successful return (0) followed
+	 * by a power failure results in the reflinked data to be readable from
+	 * both files/ranges.
+	 */
+	if (ret == 0 && len > 0 &&
+	    (file_sync_write(src_file) || file_sync_write(dst_file))) {
+		ret = btrfs_sync_file(src_file, off, off + len - 1, 0);
+		if (ret == 0)
+			ret = btrfs_sync_file(dst_file, destoff,
+					      destoff + len - 1, 0);
 	}
 
 	return ret < 0 ? ret : len;
