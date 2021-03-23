@@ -1943,8 +1943,8 @@ static int mxc_jpeg_attach_pm_domains(struct mxc_jpeg_dev *jpeg)
 						   DL_FLAG_STATELESS |
 						   DL_FLAG_PM_RUNTIME |
 						   DL_FLAG_RPM_ACTIVE);
-		if (IS_ERR(jpeg->pd_link[i])) {
-			ret = PTR_ERR(jpeg->pd_link[i]);
+		if (!jpeg->pd_link[i]) {
+			ret = -EINVAL;
 			goto fail;
 		}
 	}
