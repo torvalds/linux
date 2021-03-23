@@ -25,6 +25,7 @@
 		spi1 = &dspi2;
 		mmc0 = &esdhc1;
 		mmc1 = &esdhc;
+		rtc0 = &rtc;
 		rtc1 = &ftm_alarm0;
 	};
 
@@ -178,7 +179,7 @@
 &i2c0 {
 	status = "okay";
 
-	rtc@32 {
+	rtc: rtc@32 {
 		compatible = "microcrystal,rv8803";
 		reg = <0x32>;
 	};
