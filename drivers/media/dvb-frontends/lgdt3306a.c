@@ -1017,9 +1017,6 @@ static int lgdt3306a_set_parameters(struct dvb_frontend *fe)
 
 	/* spectral_inversion defaults already set for VSB and QAM */
 
-	if (lg_chkerr(ret))
-		goto fail;
-
 	ret = lgdt3306a_mpeg_mode(state, state->cfg->mpeg_mode);
 	if (lg_chkerr(ret))
 		goto fail;
