@@ -947,7 +947,7 @@ static void mxc_jpeg_device_run(void *priv)
 		goto end;
 	}
 	if (!mxc_jpeg_alloc_slot_data(jpeg, ctx->slot)) {
-		dev_err(dev, "Canot allocate slot data\n");
+		dev_err(dev, "Cannot allocate slot data\n");
 		goto end;
 	}
 
