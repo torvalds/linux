@@ -19,7 +19,6 @@ int vprintk_store(int facility, int level,
 
 __printf(1, 0) int vprintk_default(const char *fmt, va_list args);
 __printf(1, 0) int vprintk_deferred(const char *fmt, va_list args);
-__printf(1, 0) int vprintk_func(const char *fmt, va_list args);
 void __printk_safe_enter(void);
 void __printk_safe_exit(void);
 
@@ -53,8 +52,6 @@ bool printk_percpu_data_ready(void);
 void defer_console_output(void);
 
 #else
-
-__printf(1, 0) int vprintk_func(const char *fmt, va_list args) { return 0; }
 
 /*
  * In !PRINTK builds we still export console_sem

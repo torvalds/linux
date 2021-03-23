@@ -357,7 +357,7 @@ void __printk_safe_exit(void)
 	this_cpu_dec(printk_context);
 }
 
-__printf(1, 0) int vprintk_func(const char *fmt, va_list args)
+asmlinkage int vprintk(const char *fmt, va_list args)
 {
 #ifdef CONFIG_KGDB_KDB
 	/* Allow to pass printk() to kdb but avoid a recursion. */
@@ -411,3 +411,4 @@ void __init printk_safe_init(void)
 	/* Flush pending messages that did not have scheduled IRQ works. */
 	printk_safe_flush();
 }
+EXPORT_SYMBOL(vprintk);

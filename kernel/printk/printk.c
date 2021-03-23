@@ -2180,12 +2180,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 }
 EXPORT_SYMBOL(vprintk_emit);
 
-asmlinkage int vprintk(const char *fmt, va_list args)
-{
-	return vprintk_func(fmt, args);
-}
-EXPORT_SYMBOL(vprintk);
-
 int vprintk_default(const char *fmt, va_list args)
 {
 	return vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, fmt, args);
@@ -2219,7 +2213,7 @@ asmlinkage __visible int printk(const char *fmt, ...)
 	int r;
 
 	va_start(args, fmt);
-	r = vprintk_func(fmt, args);
+	r = vprintk(fmt, args);
 	va_end(args);
 
 	return r;
