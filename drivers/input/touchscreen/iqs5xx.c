@@ -835,9 +835,6 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 	int error, error_init = 0;
 	u8 *pmap;
 
-	if (iqs5xx->dev_id_info.bl_status == IQS5XX_BL_STATUS_NONE)
-		return -EPERM;
-
 	pmap = kzalloc(IQS5XX_PMAP_LEN, GFP_KERNEL);
 	if (!pmap)
 		return -ENOMEM;
@@ -963,7 +960,22 @@ static struct attribute *iqs5xx_attrs[] = {
 	NULL,
 };
 
+static umode_t iqs5xx_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct iqs5xx_private *iqs5xx = dev_get_drvdata(dev);
+
+	if (attr == &dev_attr_fw_file.attr &&
+	    (iqs5xx->dev_id_info.bl_status == IQS5XX_BL_STATUS_NONE ||
+	    !iqs5xx->reset_gpio))
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group iqs5xx_attr_group = {
+	.is_visible = iqs5xx_attr_is_visible,
 	.attrs = iqs5xx_attrs,
 };
 
@@ -1020,8 +1032,8 @@ static int iqs5xx_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, iqs5xx);
 	iqs5xx->client = client;
 
-	iqs5xx->reset_gpio = devm_gpiod_get(&client->dev,
-					    "reset", GPIOD_OUT_LOW);
+	iqs5xx->reset_gpio = devm_gpiod_get_optional(&client->dev,
+						     "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(iqs5xx->reset_gpio)) {
 		error = PTR_ERR(iqs5xx->reset_gpio);
 		dev_err(&client->dev, "Failed to request GPIO: %d\n", error);
@@ -1029,9 +1041,6 @@ static int iqs5xx_probe(struct i2c_client *client,
 	}
 
 	mutex_init(&iqs5xx->lock);
-
-	iqs5xx_reset(client);
-	usleep_range(10000, 10100);
 
 	error = iqs5xx_dev_init(client);
 	if (error)
