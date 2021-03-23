@@ -884,6 +884,11 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 		wakeref = intel_runtime_pm_get(&vma->vm->i915->runtime_pm);
 
 	if (flags & vma->vm->bind_async_flags) {
+		/* lock VM */
+		err = i915_vm_lock_objects(vma->vm, ww);
+		if (err)
+			goto err_rpm;
+
 		work = i915_vma_work();
 		if (!work) {
 			err = -ENOMEM;

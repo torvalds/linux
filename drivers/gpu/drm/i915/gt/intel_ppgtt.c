@@ -262,7 +262,7 @@ int i915_vm_pin_pt_stash(struct i915_address_space *vm,
 
 	for (n = 0; n < ARRAY_SIZE(stash->pt); n++) {
 		for (pt = stash->pt[n]; pt; pt = pt->stash) {
-			err = pin_pt_dma(vm, pt->base);
+			err = pin_pt_dma_locked(vm, pt->base);
 			if (err)
 				return err;
 		}
@@ -304,6 +304,7 @@ void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt)
 	ppgtt->vm.dma = i915->drm.dev;
 	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
 
+	dma_resv_init(&ppgtt->vm.resv);
 	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
 	ppgtt->vm.vma_ops.bind_vma    = ppgtt_bind_vma;

@@ -13,13 +13,33 @@
 
 struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 {
+	struct drm_i915_gem_object *obj;
+
 	if (I915_SELFTEST_ONLY(should_fail(&vm->fault_attr, 1)))
 		i915_gem_shrink_all(vm->i915);
 
-	return i915_gem_object_create_internal(vm->i915, sz);
+	obj = i915_gem_object_create_internal(vm->i915, sz);
+	/* ensure all dma objects have the same reservation class */
+	if (!IS_ERR(obj))
+		obj->base.resv = &vm->resv;
+	return obj;
 }
 
 int pin_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
+{
+	int err;
+
+	i915_gem_object_lock(obj, NULL);
+	err = i915_gem_object_pin_pages(obj);
+	i915_gem_object_unlock(obj);
+	if (err)
+		return err;
+
+	i915_gem_object_make_unshrinkable(obj);
+	return 0;
+}
+
+int pin_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 {
 	int err;
 
@@ -56,6 +76,20 @@ void __i915_vm_close(struct i915_address_space *vm)
 	mutex_unlock(&vm->mutex);
 }
 
+/* lock the vm into the current ww, if we lock one, we lock all */
+int i915_vm_lock_objects(struct i915_address_space *vm,
+			 struct i915_gem_ww_ctx *ww)
+{
+	if (vm->scratch[0]->base.resv == &vm->resv) {
+		return i915_gem_object_lock(vm->scratch[0], ww);
+	} else {
+		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+
+		/* We borrowed the scratch page from ggtt, take the top level object */
+		return i915_gem_object_lock(ppgtt->pd->pt.base, ww);
+	}
+}
+
 void i915_address_space_fini(struct i915_address_space *vm)
 {
 	drm_mm_takedown(&vm->mm);
@@ -69,6 +103,7 @@ static void __i915_vm_release(struct work_struct *work)
 
 	vm->cleanup(vm);
 	i915_address_space_fini(vm);
+	dma_resv_fini(&vm->resv);
 
 	kfree(vm);
 }
@@ -98,6 +133,7 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 	mutex_init(&vm->mutex);
 	lockdep_set_subclass(&vm->mutex, subclass);
 	i915_gem_shrinker_taints_mutex(vm->i915, &vm->mutex);
+	dma_resv_init(&vm->resv);
 
 	GEM_BUG_ON(!vm->total);
 	drm_mm_init(&vm->mm, 0, vm->total);

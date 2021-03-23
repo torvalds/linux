@@ -647,7 +647,9 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 	if (err)
 		goto err_ppgtt;
 
+	i915_gem_object_lock(ppgtt->vm.scratch[0], NULL);
 	err = i915_vm_pin_pt_stash(&ppgtt->vm, &stash);
+	i915_gem_object_unlock(ppgtt->vm.scratch[0]);
 	if (err)
 		goto err_stash;
 
@@ -734,6 +736,7 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 
 	mutex_unlock(&ggtt->vm.mutex);
 	i915_address_space_fini(&ggtt->vm);
+	dma_resv_fini(&ggtt->vm.resv);
 
 	arch_phys_wc_del(ggtt->mtrr);
 
@@ -1115,6 +1118,7 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 	ggtt->vm.gt = gt;
 	ggtt->vm.i915 = i915;
 	ggtt->vm.dma = i915->drm.dev;
+	dma_resv_init(&ggtt->vm.resv);
 
 	if (INTEL_GEN(i915) <= 5)
 		ret = i915_gmch_probe(ggtt);
@@ -1122,8 +1126,10 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 		ret = gen6_gmch_probe(ggtt);
 	else
 		ret = gen8_gmch_probe(ggtt);
-	if (ret)
+	if (ret) {
+		dma_resv_fini(&ggtt->vm.resv);
 		return ret;
+	}
 
 	if ((ggtt->vm.total - 1) >> 32) {
 		drm_err(&i915->drm,
