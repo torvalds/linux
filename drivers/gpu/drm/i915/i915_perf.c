@@ -1573,7 +1573,7 @@ static int alloc_oa_buffer(struct i915_perf_stream *stream)
 	stream->oa_buffer.vma = vma;
 
 	stream->oa_buffer.vaddr =
-		i915_gem_object_pin_map(bo, I915_MAP_WB);
+		i915_gem_object_pin_map_unlocked(bo, I915_MAP_WB);
 	if (IS_ERR(stream->oa_buffer.vaddr)) {
 		ret = PTR_ERR(stream->oa_buffer.vaddr);
 		goto err_unpin;
@@ -1627,6 +1627,7 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 	const u32 base = stream->engine->mmio_base;
 #define CS_GPR(x) GEN8_RING_CS_GPR(base, x)
 	u32 *batch, *ts0, *cs, *jump;
+	struct i915_gem_ww_ctx ww;
 	int ret, i;
 	enum {
 		START_TS,
@@ -1644,15 +1645,21 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 		return PTR_ERR(bo);
 	}
 
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	ret = i915_gem_object_lock(bo, &ww);
+	if (ret)
+		goto out_ww;
+
 	/*
 	 * We pin in GGTT because we jump into this buffer now because
 	 * multiple OA config BOs will have a jump to this address and it
 	 * needs to be fixed during the lifetime of the i915/perf stream.
 	 */
-	vma = i915_gem_object_ggtt_pin(bo, NULL, 0, 0, PIN_HIGH);
+	vma = i915_gem_object_ggtt_pin_ww(bo, &ww, NULL, 0, 0, PIN_HIGH);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		goto err_unref;
+		goto out_ww;
 	}
 
 	batch = cs = i915_gem_object_pin_map(bo, I915_MAP_WB);
@@ -1786,12 +1793,19 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 	__i915_gem_object_release_map(bo);
 
 	stream->noa_wait = vma;
-	return 0;
+	goto out_ww;
 
 err_unpin:
 	i915_vma_unpin_and_release(&vma, 0);
-err_unref:
-	i915_gem_object_put(bo);
+out_ww:
+	if (ret == -EDEADLK) {
+		ret = i915_gem_ww_ctx_backoff(&ww);
+		if (!ret)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+	if (ret)
+		i915_gem_object_put(bo);
 	return ret;
 }
 
@@ -1834,6 +1848,7 @@ alloc_oa_config_buffer(struct i915_perf_stream *stream,
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_oa_config_bo *oa_bo;
+	struct i915_gem_ww_ctx ww;
 	size_t config_length = 0;
 	u32 *cs;
 	int err;
@@ -1854,10 +1869,16 @@ alloc_oa_config_buffer(struct i915_perf_stream *stream,
 		goto err_free;
 	}
 
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	err = i915_gem_object_lock(obj, &ww);
+	if (err)
+		goto out_ww;
+
 	cs = i915_gem_object_pin_map(obj, I915_MAP_WB);
 	if (IS_ERR(cs)) {
 		err = PTR_ERR(cs);
-		goto err_oa_bo;
+		goto out_ww;
 	}
 
 	cs = write_cs_mi_lri(cs,
@@ -1885,19 +1906,28 @@ alloc_oa_config_buffer(struct i915_perf_stream *stream,
 				       NULL);
 	if (IS_ERR(oa_bo->vma)) {
 		err = PTR_ERR(oa_bo->vma);
-		goto err_oa_bo;
+		goto out_ww;
 	}
 
 	oa_bo->oa_config = i915_oa_config_get(oa_config);
 	llist_add(&oa_bo->node, &stream->oa_config_bos);
 
-	return oa_bo;
+out_ww:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
 
-err_oa_bo:
-	i915_gem_object_put(obj);
+	if (err)
+		i915_gem_object_put(obj);
 err_free:
-	kfree(oa_bo);
-	return ERR_PTR(err);
+	if (err) {
+		kfree(oa_bo);
+		return ERR_PTR(err);
+	}
+	return oa_bo;
 }
 
 static struct i915_vma *
