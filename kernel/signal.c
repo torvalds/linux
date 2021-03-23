@@ -433,7 +433,16 @@ __sigqueue_alloc(int sig, struct task_struct *t, gfp_t gfp_flags,
 	rcu_read_unlock();
 
 	if (override_rlimit || likely(sigpending <= task_rlimit(t, RLIMIT_SIGPENDING))) {
-		q = kmem_cache_alloc(sigqueue_cachep, gfp_flags);
+		/*
+		 * Preallocation does not hold sighand::siglock so it can't
+		 * use the cache. The lockless caching requires that only
+		 * one consumer and only one producer run at a time.
+		 */
+		q = READ_ONCE(t->sigqueue_cache);
+		if (!q || sigqueue_flags)
+			q = kmem_cache_alloc(sigqueue_cachep, gfp_flags);
+		else
+			WRITE_ONCE(t->sigqueue_cache, NULL);
 	} else {
 		print_dropped_signal(sig);
 	}
@@ -450,13 +459,44 @@ __sigqueue_alloc(int sig, struct task_struct *t, gfp_t gfp_flags,
 	return q;
 }
 
+void exit_task_sigqueue_cache(struct task_struct *tsk)
+{
+	/* Race free because @tsk is mopped up */
+	struct sigqueue *q = tsk->sigqueue_cache;
+
+	if (q) {
+		tsk->sigqueue_cache = NULL;
+		/*
+		 * Hand it back to the cache as the task might
+		 * be self reaping which would leak the object.
+		 */
+		 kmem_cache_free(sigqueue_cachep, q);
+	}
+}
+
+static void sigqueue_cache_or_free(struct sigqueue *q)
+{
+	/*
+	 * Cache one sigqueue per task. This pairs with the consumer side
+	 * in __sigqueue_alloc() and needs READ/WRITE_ONCE() to prevent the
+	 * compiler from store tearing and to tell KCSAN that the data race
+	 * is intentional when run without holding current->sighand->siglock,
+	 * which is fine as current obviously cannot run __sigqueue_free()
+	 * concurrently.
+	 */
+	if (!READ_ONCE(current->sigqueue_cache))
+		WRITE_ONCE(current->sigqueue_cache, q);
+	else
+		kmem_cache_free(sigqueue_cachep, q);
+}
+
 static void __sigqueue_free(struct sigqueue *q)
 {
 	if (q->flags & SIGQUEUE_PREALLOC)
 		return;
 	if (atomic_dec_and_test(&q->user->sigpending))
 		free_uid(q->user);
-	kmem_cache_free(sigqueue_cachep, q);
+	sigqueue_cache_or_free(q);
 }
 
 void flush_sigqueue(struct sigpending *queue)
