@@ -296,7 +296,7 @@ enum {
  * and "FALSE" the program entry after that, we are now done with the first
  * pass.
  *
- * Making the above "a || b && c" have a progam of:
+ * Making the above "a || b && c" have a program of:
  *  prog[0] = { "a", 1, 2 }
  *  prog[1] = { "b", 0, 2 }
  *  prog[2] = { "c", 0, 3 }
@@ -390,7 +390,7 @@ enum {
  * F: return FALSE
  *
  * As "r = a; if (!r) goto n5;" is obviously the same as
- * "if (!a) goto n5;" without doing anything we can interperate the
+ * "if (!a) goto n5;" without doing anything we can interpret the
  * program as:
  * n1: if (!a) goto n5;
  * n2: if (!b) goto n5;

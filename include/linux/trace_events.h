@@ -206,7 +206,7 @@ static inline unsigned int tracing_gen_ctx_dec(void)
 
 	trace_ctx = tracing_gen_ctx();
 	/*
-	 * Subtract one from the preeption counter if preemption is enabled,
+	 * Subtract one from the preemption counter if preemption is enabled,
 	 * see trace_event_buffer_reserve()for details.
 	 */
 	if (IS_ENABLED(CONFIG_PREEMPTION))

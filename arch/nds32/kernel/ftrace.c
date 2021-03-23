@@ -236,7 +236,7 @@ void __naked return_to_handler(void)
 		"bal ftrace_return_to_handler\n\t"
 		"move $lp, $r0               \n\t"
 
-		/* restore state nedded by the ABI  */
+		/* restore state needed by the ABI  */
 		"lmw.bim $r0,[$sp],$r1,#0x0  \n\t");
 }
 

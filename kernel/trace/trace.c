@@ -514,7 +514,7 @@ void trace_free_pid_list(struct trace_pid_list *pid_list)
  * @filtered_pids: The list of pids to check
  * @search_pid: The PID to find in @filtered_pids
  *
- * Returns true if @search_pid is fonud in @filtered_pids, and false otherwis.
+ * Returns true if @search_pid is found in @filtered_pids, and false otherwise.
  */
 bool
 trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
@@ -545,7 +545,7 @@ trace_ignore_this_task(struct trace_pid_list *filtered_pids,
 		       struct task_struct *task)
 {
 	/*
-	 * If filterd_no_pids is not empty, and the task's pid is listed
+	 * If filtered_no_pids is not empty, and the task's pid is listed
 	 * in filtered_no_pids, then return true.
 	 * Otherwise, if filtered_pids is empty, that means we can
 	 * trace all tasks. If it has content, then only trace pids
@@ -612,7 +612,7 @@ void *trace_pid_next(struct trace_pid_list *pid_list, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	/* pid already is +1 of the actual prevous bit */
+	/* pid already is +1 of the actual previous bit */
 	pid = find_next_bit(pid_list->pids, pid_list->pid_max, pid);
 
 	/* Return pid + 1 to allow zero to be represented */
@@ -834,7 +834,7 @@ DEFINE_MUTEX(trace_types_lock);
  * The content of events may become garbage if we allow other process consumes
  * these events concurrently:
  *   A) the page of the consumed events may become a normal page
- *      (not reader page) in ring buffer, and this page will be rewrited
+ *      (not reader page) in ring buffer, and this page will be rewritten
  *      by events producer.
  *   B) The page of the consumed events may become a page for splice_read,
  *      and this page will be returned to system.
@@ -1520,7 +1520,7 @@ unsigned long nsecs_to_usecs(unsigned long nsecs)
 #undef C
 #define C(a, b) b
 
-/* These must match the bit postions in trace_iterator_flags */
+/* These must match the bit positions in trace_iterator_flags */
 static const char *trace_options[] = {
 	TRACE_FLAGS
 	NULL
@@ -3368,7 +3368,7 @@ int trace_array_vprintk(struct trace_array *tr,
  * buffer (use trace_printk() for that), as writing into the top level
  * buffer should only have events that can be individually disabled.
  * trace_printk() is only used for debugging a kernel, and should not
- * be ever encorporated in normal use.
+ * be ever incorporated in normal use.
  *
  * trace_array_printk() can be used, as it will not add noise to the
  * top level tracing buffer.
@@ -7533,11 +7533,11 @@ static struct tracing_log_err *get_tracing_log_err(struct trace_array *tr)
  * @cmd: The tracing command that caused the error
  * @str: The string to position the caret at within @cmd
  *
- * Finds the position of the first occurence of @str within @cmd.  The
+ * Finds the position of the first occurrence of @str within @cmd.  The
  * return value can be passed to tracing_log_err() for caret placement
  * within @cmd.
  *
- * Returns the index within @cmd of the first occurence of @str or 0
+ * Returns the index within @cmd of the first occurrence of @str or 0
  * if @str was not found.
  */
 unsigned int err_pos(char *cmd, const char *str)
@@ -9320,7 +9320,7 @@ int tracing_init_dentry(void)
 	 * As there may still be users that expect the tracing
 	 * files to exist in debugfs/tracing, we must automount
 	 * the tracefs file system there, so older tools still
-	 * work with the newer kerenl.
+	 * work with the newer kernel.
 	 */
 	tr->dir = debugfs_create_automount("tracing", NULL,
 					   trace_automount, NULL);

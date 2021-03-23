@@ -1045,7 +1045,7 @@ struct ftrace_ops global_ops = {
 };
 
 /*
- * Used by the stack undwinder to know about dynamic ftrace trampolines.
+ * Used by the stack unwinder to know about dynamic ftrace trampolines.
  */
 struct ftrace_ops *ftrace_ops_trampoline(unsigned long addr)
 {
@@ -3000,7 +3000,7 @@ int ftrace_shutdown(struct ftrace_ops *ops, int command)
 		 * When the kernel is preemptive, tasks can be preempted
 		 * while on a ftrace trampoline. Just scheduling a task on
 		 * a CPU is not good enough to flush them. Calling
-		 * synchornize_rcu_tasks() will wait for those tasks to
+		 * synchronize_rcu_tasks() will wait for those tasks to
 		 * execute and either schedule voluntarily or enter user space.
 		 */
 		if (IS_ENABLED(CONFIG_PREEMPTION))
@@ -5373,7 +5373,7 @@ EXPORT_SYMBOL_GPL(modify_ftrace_direct);
  * @reset - non zero to reset all filters before applying this filter.
  *
  * Filters denote which functions should be enabled when tracing is enabled
- * If @ip is NULL, it failes to update filter.
+ * If @ip is NULL, it fails to update filter.
  */
 int ftrace_set_filter_ip(struct ftrace_ops *ops, unsigned long ip,
 			 int remove, int reset)
@@ -6325,7 +6325,7 @@ clear_mod_from_hash(struct ftrace_page *pg, struct ftrace_hash *hash)
 	}
 }
 
-/* Clear any records from hashs */
+/* Clear any records from hashes */
 static void clear_mod_from_hashes(struct ftrace_page *pg)
 {
 	struct trace_array *tr;

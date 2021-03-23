@@ -3154,7 +3154,7 @@ rb_wakeups(struct trace_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
  * is called before preempt_count() is updated, since the check will
  * be on the NORMAL bit, the TRANSITION bit will then be set. If an
  * NMI then comes in, it will set the NMI bit, but when the NMI code
- * does the trace_recursive_unlock() it will clear the TRANSTION bit
+ * does the trace_recursive_unlock() it will clear the TRANSITION bit
  * and leave the NMI bit set. But this is fine, because the interrupt
  * code that set the TRANSITION bit will then clear the NMI bit when it
  * calls trace_recursive_unlock(). If another NMI comes in, it will

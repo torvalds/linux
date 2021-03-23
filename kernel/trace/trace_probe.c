@@ -168,7 +168,7 @@ void __trace_probe_log_err(int offset, int err_type)
 	if (!trace_probe_log.argv)
 		return;
 
-	/* Recalcurate the length and allocate buffer */
+	/* Recalculate the length and allocate buffer */
 	for (i = 0; i < trace_probe_log.argc; i++) {
 		if (i == trace_probe_log.index)
 			pos = len;
@@ -182,7 +182,7 @@ void __trace_probe_log_err(int offset, int err_type)
 		/**
 		 * Set the error position is next to the last arg + space.
 		 * Note that len includes the terminal null and the cursor
-		 * appaers at pos + 1.
+		 * appears at pos + 1.
 		 */
 		pos = len;
 		offset = 0;
@@ -592,7 +592,7 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	}
 
 	/*
-	 * Since $comm and immediate string can not be dereferred,
+	 * Since $comm and immediate string can not be dereferenced,
 	 * we can find those by strcmp.
 	 */
 	if (strcmp(arg, "$comm") == 0 || strncmp(arg, "\\\"", 2) == 0) {

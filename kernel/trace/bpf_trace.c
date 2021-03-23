@@ -658,7 +658,7 @@ BPF_CALL_5(bpf_seq_printf, struct seq_file *, m, char *, fmt, u32, fmt_size,
 		/* fmt[i] != 0 && fmt[last] == 0, so we can access fmt[i + 1] */
 		i++;
 
-		/* skip optional "[0 +-][num]" width formating field */
+		/* skip optional "[0 +-][num]" width formatting field */
 		while (fmt[i] == '0' || fmt[i] == '+'  || fmt[i] == '-' ||
 		       fmt[i] == ' ')
 			i++;
@@ -748,7 +748,8 @@ BPF_CALL_5(bpf_seq_printf, struct seq_file *, m, char *, fmt, u32, fmt_size,
 		fmt_cnt++;
 	}
 
-	/* Maximumly we can have MAX_SEQ_PRINTF_VARARGS parameter, just give
+	/*
+	 * The maximum we can have is MAX_SEQ_PRINTF_VARARGS parameters, so just give
 	 * all of them to seq_printf().
 	 */
 	seq_printf(m, fmt, params[0], params[1], params[2], params[3],

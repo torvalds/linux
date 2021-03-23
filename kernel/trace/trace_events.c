@@ -2646,7 +2646,7 @@ void trace_event_eval_update(struct trace_eval_map **map, int len)
 		}
 
 		/*
-		 * Since calls are grouped by systems, the likelyhood that the
+		 * Since calls are grouped by systems, the likelihood that the
 		 * next call in the iteration belongs to the same system as the
 		 * previous call is high. As an optimization, we skip searching
 		 * for a map[] that matches the call's system if the last call
@@ -2706,7 +2706,7 @@ __trace_add_new_event(struct trace_event_call *call, struct trace_array *tr)
 }
 
 /*
- * Just create a decriptor for early init. A descriptor is required
+ * Just create a descriptor for early init. A descriptor is required
  * for enabling events at boot. We want to enable events before
  * the filesystem is initialized.
  */

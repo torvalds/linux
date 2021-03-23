@@ -49,7 +49,7 @@ TRACE_EVENT(io_uring_create,
 );
 
 /**
- * io_uring_register - called after a buffer/file/eventfd was succesfully
+ * io_uring_register - called after a buffer/file/eventfd was successfully
  * 					   registered for a ring
  *
  * @ctx:			pointer to a ring context structure
