@@ -38,12 +38,6 @@ static int mock_phys_object(void *arg)
 	}
 
 	if (i915_gem_object_has_struct_page(obj)) {
-		err = -EINVAL;
-		pr_err("shmem has a struct page\n");
-		goto out_obj;
-	}
-
-	if (obj->ops != &i915_gem_phys_ops) {
 		pr_err("i915_gem_object_attach_phys did not create a phys object\n");
 		err = -EINVAL;
 		goto out_obj;

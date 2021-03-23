@@ -303,6 +303,11 @@ shmem_put_pages(struct drm_i915_gem_object *obj, struct sg_table *pages)
 	struct pagevec pvec;
 	struct page *page;
 
+	if (unlikely(!i915_gem_object_has_struct_page(obj))) {
+		i915_gem_object_put_pages_phys(obj, pages);
+		return;
+	}
+
 	__i915_gem_object_release_shmem(obj, pages, true);
 
 	i915_gem_gtt_finish_pages(obj, pages);
@@ -342,6 +347,9 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 
 	/* Caller already validated user args */
 	GEM_BUG_ON(!access_ok(user_data, arg->size));
+
+	if (!i915_gem_object_has_struct_page(obj))
+		return i915_gem_object_pwrite_phys(obj, arg);
 
 	/*
 	 * Before we instantiate/pin the backing store for our use, we
@@ -421,9 +429,20 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+static int
+shmem_pread(struct drm_i915_gem_object *obj,
+	    const struct drm_i915_gem_pread *arg)
+{
+	if (!i915_gem_object_has_struct_page(obj))
+		return i915_gem_object_pread_phys(obj, arg);
+
+	return -ENODEV;
+}
+
 static void shmem_release(struct drm_i915_gem_object *obj)
 {
-	i915_gem_object_release_memory_region(obj);
+	if (obj->flags & I915_BO_ALLOC_STRUCT_PAGE)
+		i915_gem_object_release_memory_region(obj);
 
 	fput(obj->base.filp);
 }
@@ -438,6 +457,7 @@ const struct drm_i915_gem_object_ops i915_gem_shmem_ops = {
 	.writeback = shmem_writeback,
 
 	.pwrite = shmem_pwrite,
+	.pread = shmem_pread,
 
 	.release = shmem_release,
 };
