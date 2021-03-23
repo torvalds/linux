@@ -31,10 +31,12 @@ static void close_objects(struct intel_memory_region *mem,
 	struct drm_i915_gem_object *obj, *on;
 
 	list_for_each_entry_safe(obj, on, objects, st_link) {
+		i915_gem_object_lock(obj, NULL);
 		if (i915_gem_object_has_pinned_pages(obj))
 			i915_gem_object_unpin_pages(obj);
 		/* No polluting the memory region between tests */
 		__i915_gem_object_put_pages(obj);
+		i915_gem_object_unlock(obj);
 		list_del(&obj->st_link);
 		i915_gem_object_put(obj);
 	}
@@ -69,7 +71,7 @@ static int igt_mock_fill(void *arg)
 			break;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
 			i915_gem_object_put(obj);
 			break;
@@ -109,7 +111,7 @@ igt_object_create(struct intel_memory_region *mem,
 	if (IS_ERR(obj))
 		return obj;
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err)
 		goto put;
 
@@ -123,8 +125,10 @@ put:
 
 static void igt_object_release(struct drm_i915_gem_object *obj)
 {
+	i915_gem_object_lock(obj, NULL);
 	i915_gem_object_unpin_pages(obj);
 	__i915_gem_object_put_pages(obj);
+	i915_gem_object_unlock(obj);
 	list_del(&obj->st_link);
 	i915_gem_object_put(obj);
 }
@@ -433,7 +437,7 @@ static int igt_cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	if (err)
 		return err;
 
-	ptr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	ptr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
@@ -538,7 +542,7 @@ static int igt_lmem_create(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err)
 		goto out_put;
 
@@ -577,7 +581,7 @@ static int igt_lmem_write_gpu(void *arg)
 		goto out_file;
 	}
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err)
 		goto out_put;
 
@@ -649,7 +653,7 @@ static int igt_lmem_write_cpu(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	vaddr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		goto out_put;
@@ -753,7 +757,7 @@ create_region_for_mapping(struct intel_memory_region *mr, u64 size, u32 type,
 		return obj;
 	}
 
-	addr = i915_gem_object_pin_map(obj, type);
+	addr = i915_gem_object_pin_map_unlocked(obj, type);
 	if (IS_ERR(addr)) {
 		i915_gem_object_put(obj);
 		if (PTR_ERR(addr) == -ENXIO)
