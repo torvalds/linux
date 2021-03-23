@@ -18,6 +18,7 @@
 
    admin-guide/index
    process/index
+   kernel-hacking/index
    filesystems/index
    arm64/index
    sound/index
