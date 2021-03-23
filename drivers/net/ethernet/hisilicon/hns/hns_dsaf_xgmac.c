@@ -799,7 +799,6 @@ void *hns_xgmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->set_an_mode = NULL;
 	mac_drv->config_loopback = NULL;
 	mac_drv->config_pad_and_crc = hns_xgmac_config_pad_and_crc;
-	mac_drv->config_half_duplex = NULL;
 	mac_drv->mac_free = hns_xgmac_free;
 	mac_drv->adjust_link = NULL;
 	mac_drv->set_tx_auto_pause_frames = hns_xgmac_set_tx_auto_pause_frames;

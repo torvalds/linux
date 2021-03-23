@@ -171,14 +171,6 @@ static void hns_gmac_tx_loop_pkt_dis(void *mac_drv)
 	dsaf_write_dev(drv, GMAC_TX_LOOP_PKT_PRI_REG, tx_loop_pkt_pri);
 }
 
-static void hns_gmac_set_duplex_type(void *mac_drv, u8 newval)
-{
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	dsaf_set_dev_bit(drv, GMAC_DUPLEX_TYPE_REG,
-			 GMAC_DUPLEX_TYPE_B, !!newval);
-}
-
 static void hns_gmac_get_duplex_type(void *mac_drv,
 				     enum hns_gmac_duplex_mdoe *duplex_mode)
 {
@@ -730,7 +722,6 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->set_an_mode = hns_gmac_config_an_mode;
 	mac_drv->config_loopback = hns_gmac_config_loopback;
 	mac_drv->config_pad_and_crc = hns_gmac_config_pad_and_crc;
-	mac_drv->config_half_duplex = hns_gmac_set_duplex_type;
 	mac_drv->get_info = hns_gmac_get_info;
 	mac_drv->autoneg_stat = hns_gmac_autoneg_stat;
 	mac_drv->get_pause_enable = hns_gmac_get_pausefrm_cfg;
