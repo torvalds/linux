@@ -281,11 +281,32 @@ int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj)
 	if (ret)
 		return ret;
 
-	/* Make sure userptr is unbound for next attempt, so we don't use stale pages. */
-	ret = i915_gem_object_userptr_unbind(obj, false);
+	/* optimistically try to preserve current pages while unlocked */
+	if (i915_gem_object_has_pages(obj) &&
+	    !mmu_interval_check_retry(&obj->userptr.notifier,
+				      obj->userptr.notifier_seq)) {
+		spin_lock(&i915->mm.notifier_lock);
+		if (obj->userptr.pvec &&
+		    !mmu_interval_read_retry(&obj->userptr.notifier,
+					     obj->userptr.notifier_seq)) {
+			obj->userptr.page_ref++;
+
+			/* We can keep using the current binding, this is the fastpath */
+			ret = 1;
+		}
+		spin_unlock(&i915->mm.notifier_lock);
+	}
+
+	if (!ret) {
+		/* Make sure userptr is unbound for next attempt, so we don't use stale pages. */
+		ret = i915_gem_object_userptr_unbind(obj, false);
+	}
 	i915_gem_object_unlock(obj);
-	if (ret)
+	if (ret < 0)
 		return ret;
+
+	if (ret > 0)
+		return 0;
 
 	notifier_seq = mmu_interval_read_begin(&obj->userptr.notifier);
 
