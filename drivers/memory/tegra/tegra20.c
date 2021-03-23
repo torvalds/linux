@@ -5,6 +5,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -54,6 +55,8 @@
 
 /* we store collected statistics as a fixed point values */
 #define MC_FX_FRAC_SCALE			100
+
+static DEFINE_MUTEX(tegra20_mc_stat_lock);
 
 struct tegra20_mc_stat_gather {
 	unsigned int pri_filter;
@@ -615,7 +618,11 @@ static int tegra20_mc_stats_show(struct seq_file *s, void *unused)
 	if (!stats)
 		return -ENOMEM;
 
+	mutex_lock(&tegra20_mc_stat_lock);
+
 	tegra20_mc_collect_stats(mc, stats);
+
+	mutex_unlock(&tegra20_mc_stat_lock);
 
 	seq_puts(s, "Memory client   Events   Timeout   High priority   Bandwidth ARB   RW change   Successive   Page miss\n");
 	seq_puts(s, "-----------------------------------------------------------------------------------------------------\n");
