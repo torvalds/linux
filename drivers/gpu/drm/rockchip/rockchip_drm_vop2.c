@@ -2824,6 +2824,8 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 		uv_obj = fb->obj[1];
 		rk_uv_obj = to_rockchip_obj(uv_obj);
 
+		if (vpstate->ymirror_en && !vpstate->afbc_en)
+			offset += fb->pitches[1] * ((state->src_h >> 16) - 2)  / vsub;
 		dma_addr = rk_uv_obj->dma_addr + offset + fb->offsets[1];
 		vpstate->uv_mst = dma_addr;
 	}
