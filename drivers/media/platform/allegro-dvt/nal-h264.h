@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 /**
- * struct nal_h264_hdr_parameters - HDR parameters
+ * struct nal_h264_hrd_parameters - HRD parameters
  *
  * C struct representation of the sequence parameter set NAL unit as defined by
  * Rec. ITU-T H.264 (04/2017) E.1.2 HRD parameters syntax.
