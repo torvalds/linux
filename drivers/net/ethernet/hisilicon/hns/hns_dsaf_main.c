@@ -1613,7 +1613,7 @@ int hns_dsaf_set_mac_uc_entry(
 	struct dsaf_device *dsaf_dev,
 	struct dsaf_drv_mac_single_dest_entry *mac_entry)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct dsaf_tbl_tcam_ucast_cfg mac_data;
 	struct dsaf_drv_priv *priv =
@@ -1679,7 +1679,7 @@ int hns_dsaf_rm_mac_addr(
 	struct dsaf_device *dsaf_dev,
 	struct dsaf_drv_mac_single_dest_entry *mac_entry)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_tbl_tcam_ucast_cfg mac_data;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 
@@ -1751,7 +1751,7 @@ static void hns_dsaf_mc_mask_bit_clear(char *dst, const char *src)
 int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     struct dsaf_drv_mac_single_dest_entry *mac_entry)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct dsaf_drv_tbl_tcam_key mask_key;
 	struct dsaf_tbl_tcam_data *pmask_key = NULL;
@@ -1861,7 +1861,7 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 int hns_dsaf_del_mac_entry(struct dsaf_device *dsaf_dev, u16 vlan_id,
 			   u8 in_port_num, u8 *addr)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct dsaf_drv_priv *priv =
 	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
@@ -1910,7 +1910,7 @@ int hns_dsaf_del_mac_entry(struct dsaf_device *dsaf_dev, u16 vlan_id,
 int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     struct dsaf_drv_mac_single_dest_entry *mac_entry)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct dsaf_drv_priv *priv = hns_dsaf_dev_priv(dsaf_dev);
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
@@ -2264,7 +2264,7 @@ void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 node_num)
  */
 void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 {
-	u32 i = 0;
+	u32 i;
 	u32 j;
 	u32 *p = data;
 	u32 reg_tmp;
@@ -2768,7 +2768,7 @@ static void set_promisc_tcam_enable(struct dsaf_device *dsaf_dev, u32 port)
 	struct dsaf_drv_mac_single_dest_entry mask_entry;
 	struct dsaf_drv_tbl_tcam_key temp_key, mask_key;
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry;
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct hns_mac_cb *mac_cb;
 	u8 addr[ETH_ALEN] = {0};
@@ -2870,7 +2870,7 @@ static void set_promisc_tcam_disable(struct dsaf_device *dsaf_dev, u32 port)
 	struct dsaf_tbl_tcam_data tbl_tcam_data_uc = {0, 0};
 	struct dsaf_tbl_tcam_data tbl_tcam_mask = {0, 0};
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry;
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	u8 addr[ETH_ALEN] = {0};
 

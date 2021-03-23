@@ -630,7 +630,7 @@ static void hns_ae_update_stats(struct hnae_handle *handle,
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 	u64 tx_bytes = 0, rx_bytes = 0, tx_packets = 0, rx_packets = 0;
 	u64 rx_errors = 0, tx_errors = 0, tx_dropped = 0;
-	u64 rx_missed_errors = 0;
+	u64 rx_missed_errors;
 
 	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 	if (!dsaf_dev)

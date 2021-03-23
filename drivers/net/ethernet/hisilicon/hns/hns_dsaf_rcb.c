@@ -974,7 +974,7 @@ void hns_rcb_get_common_regs(struct rcb_common_cb *rcb_com, void *data)
 	bool is_dbg = HNS_DSAF_IS_DEBUG(rcb_com->dsaf_dev);
 	u32 reg_tmp;
 	u32 reg_num_tmp;
-	u32 i = 0;
+	u32 i;
 
 	/*rcb common registers */
 	regs[0] = dsaf_read_dev(rcb_com, RCB_COM_CFG_ENDIAN_REG);
@@ -1045,7 +1045,7 @@ void hns_rcb_get_ring_regs(struct hnae_queue *queue, void *data)
 	u32 *regs = data;
 	struct ring_pair_cb *ring_pair
 		= container_of(queue, struct ring_pair_cb, q);
-	u32 i = 0;
+	u32 i;
 
 	/*rcb ring registers */
 	regs[0] = dsaf_read_dev(queue, RCB_RING_RX_RING_BASEADDR_L_REG);

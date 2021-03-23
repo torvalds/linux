@@ -482,7 +482,7 @@ static void hns_xgmac_get_link_status(void *mac_drv, u32 *link_stat)
  */
 static void hns_xgmac_get_regs(void *mac_drv, void *data)
 {
-	u32 i = 0;
+	u32 i;
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
 	u32 *regs = data;
 	u64 qtmp;
