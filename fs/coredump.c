@@ -900,7 +900,7 @@ int dump_user_range(struct coredump_params *cprm, unsigned long start,
 
 			stop = !dump_emit(cprm, kaddr, PAGE_SIZE);
 			kunmap(page);
-			put_page(page);
+			put_user_page(page);
 		} else {
 			stop = !dump_skip(cprm, PAGE_SIZE);
 		}
