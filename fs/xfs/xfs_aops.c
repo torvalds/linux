@@ -158,7 +158,7 @@ xfs_end_ioend(
 	nofs_flag = memalloc_nofs_save();
 
 	/*
-	 * Just clean up the in-memory strutures if the fs has been shut down.
+	 * Just clean up the in-memory structures if the fs has been shut down.
 	 */
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		error = -EIO;
