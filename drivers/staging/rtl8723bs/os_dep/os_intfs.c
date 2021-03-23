@@ -1027,7 +1027,6 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 		rtw_hal_deinit(padapter);
 }
 
-
 static int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
 {
 	int status = -1;
