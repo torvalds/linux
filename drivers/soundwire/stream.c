@@ -1513,7 +1513,7 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream,
 		if (bus->compute_params) {
 			ret = bus->compute_params(bus);
 			if (ret < 0) {
-				dev_err(bus->dev, "Compute params failed: %d",
+				dev_err(bus->dev, "Compute params failed: %d\n",
 					ret);
 				return ret;
 			}
@@ -1791,7 +1791,7 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 		if (bus->compute_params) {
 			ret = bus->compute_params(bus);
 			if (ret < 0) {
-				dev_err(bus->dev, "Compute params failed: %d",
+				dev_err(bus->dev, "Compute params failed: %d\n",
 					ret);
 				return ret;
 			}
@@ -1855,7 +1855,7 @@ static int set_stream(struct snd_pcm_substream *substream,
 	for_each_rtd_dais(rtd, i, dai) {
 		ret = snd_soc_dai_set_sdw_stream(dai, sdw_stream, substream->stream);
 		if (ret < 0) {
-			dev_err(rtd->dev, "failed to set stream pointer on dai %s", dai->name);
+			dev_err(rtd->dev, "failed to set stream pointer on dai %s\n", dai->name);
 			break;
 		}
 	}
@@ -1888,7 +1888,7 @@ int sdw_startup_stream(void *sdw_substream)
 
 	sdw_stream = sdw_alloc_stream(name);
 	if (!sdw_stream) {
-		dev_err(rtd->dev, "alloc stream failed for substream DAI %s", substream->name);
+		dev_err(rtd->dev, "alloc stream failed for substream DAI %s\n", substream->name);
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -1927,7 +1927,7 @@ void sdw_shutdown_stream(void *sdw_substream)
 	sdw_stream = snd_soc_dai_get_sdw_stream(dai, substream->stream);
 
 	if (IS_ERR(sdw_stream)) {
-		dev_err(rtd->dev, "no stream found for DAI %s", dai->name);
+		dev_err(rtd->dev, "no stream found for DAI %s\n", dai->name);
 		return;
 	}
 
