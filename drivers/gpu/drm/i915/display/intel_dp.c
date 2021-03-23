@@ -2073,10 +2073,6 @@ static int intel_dp_hdmi_sink_max_frl(struct intel_dp *intel_dp)
 
 static int intel_dp_pcon_start_frl_training(struct intel_dp *intel_dp)
 {
-#define PCON_EXTENDED_TRAIN_MODE (1 > 0)
-#define PCON_CONCURRENT_MODE (1 > 0)
-#define PCON_SEQUENTIAL_MODE !PCON_CONCURRENT_MODE
-#define PCON_NORMAL_TRAIN_MODE !PCON_EXTENDED_TRAIN_MODE
 #define TIMEOUT_FRL_READY_MS 500
 #define TIMEOUT_HDMI_LINK_ACTIVE_MS 1000
 
@@ -2110,10 +2106,12 @@ static int intel_dp_pcon_start_frl_training(struct intel_dp *intel_dp)
 		return -ETIMEDOUT;
 
 	max_frl_bw_mask = intel_dp_pcon_set_frl_mask(max_frl_bw);
-	ret = drm_dp_pcon_frl_configure_1(&intel_dp->aux, max_frl_bw, PCON_SEQUENTIAL_MODE);
+	ret = drm_dp_pcon_frl_configure_1(&intel_dp->aux, max_frl_bw,
+					  DP_PCON_ENABLE_SEQUENTIAL_LINK);
 	if (ret < 0)
 		return ret;
-	ret = drm_dp_pcon_frl_configure_2(&intel_dp->aux, max_frl_bw_mask, PCON_NORMAL_TRAIN_MODE);
+	ret = drm_dp_pcon_frl_configure_2(&intel_dp->aux, max_frl_bw_mask,
+					  DP_PCON_FRL_LINK_TRAIN_NORMAL);
 	if (ret < 0)
 		return ret;
 	ret = drm_dp_pcon_frl_enable(&intel_dp->aux);
