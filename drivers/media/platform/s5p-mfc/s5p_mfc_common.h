@@ -102,7 +102,7 @@
 #define mfc_write(dev, data, offset)	writel((data), dev->regs_base + \
 								(offset))
 
-/**
+/*
  * enum s5p_mfc_fmt_type - type of the pixelformat
  */
 enum s5p_mfc_fmt_type {
@@ -111,7 +111,7 @@ enum s5p_mfc_fmt_type {
 	MFC_FMT_RAW,
 };
 
-/**
+/*
  * enum s5p_mfc_inst_type - The type of an MFC instance.
  */
 enum s5p_mfc_inst_type {
@@ -120,7 +120,7 @@ enum s5p_mfc_inst_type {
 	MFCINST_ENCODER,
 };
 
-/**
+/*
  * enum s5p_mfc_inst_state - The state of an MFC instance.
  */
 enum s5p_mfc_inst_state {
@@ -142,7 +142,7 @@ enum s5p_mfc_inst_state {
 	MFCINST_RES_CHANGE_END,
 };
 
-/**
+/*
  * enum s5p_mfc_queue_state - The state of buffer queue.
  */
 enum s5p_mfc_queue_state {
@@ -152,7 +152,7 @@ enum s5p_mfc_queue_state {
 	QUEUE_BUFS_MMAPED,
 };
 
-/**
+/*
  * enum s5p_mfc_decode_arg - type of frame decoding
  */
 enum s5p_mfc_decode_arg {
@@ -171,7 +171,7 @@ enum s5p_mfc_fw_ver {
 
 struct s5p_mfc_ctx;
 
-/**
+/*
  * struct s5p_mfc_buf - MFC buffer
  */
 struct s5p_mfc_buf {
@@ -187,7 +187,7 @@ struct s5p_mfc_buf {
 	int flags;
 };
 
-/**
+/*
  * struct s5p_mfc_pm - power management data structure
  */
 struct s5p_mfc_pm {
@@ -257,7 +257,7 @@ struct s5p_mfc_priv_buf {
  * @vfd_dec:		video device for decoding
  * @vfd_enc:		video device for encoding
  * @plat_dev:		platform device
- * @mem_dev[]:		child devices of the memory banks
+ * @mem_dev:		child devices of the memory banks
  * @regs_base:		base address of the MFC hw registers
  * @irq:		irq resource
  * @dec_ctrl_handler:	control framework handler for decoding
@@ -342,7 +342,7 @@ struct s5p_mfc_dev {
 	bool risc_on; /* indicates if RISC is on or off */
 };
 
-/**
+/*
  * struct s5p_mfc_h264_enc_params - encoding parameters for h264
  */
 struct s5p_mfc_h264_enc_params {
@@ -391,7 +391,7 @@ struct s5p_mfc_h264_enc_params {
 	u32 aso_slice_order[8];
 };
 
-/**
+/*
  * struct s5p_mfc_mpeg4_enc_params - encoding parameters for h263 and mpeg4
  */
 struct s5p_mfc_mpeg4_enc_params {
@@ -410,7 +410,7 @@ struct s5p_mfc_mpeg4_enc_params {
 	int level;
 };
 
-/**
+/*
  * struct s5p_mfc_vp8_enc_params - encoding parameters for vp8
  */
 struct s5p_mfc_vp8_enc_params {
@@ -479,7 +479,7 @@ struct s5p_mfc_hevc_enc_params {
 	u8 prepend_sps_pps_to_idr;
 };
 
-/**
+/*
  * struct s5p_mfc_enc_params - general encoding parameters
  */
 struct s5p_mfc_enc_params {
@@ -521,7 +521,7 @@ struct s5p_mfc_enc_params {
 
 };
 
-/**
+/*
  * struct s5p_mfc_codec_ops - codec ops, used by encoding
  */
 struct s5p_mfc_codec_ops {
@@ -725,7 +725,7 @@ struct s5p_mfc_fmt {
 	u32 versions;
 };
 
-/**
+/*
  * struct mfc_control -	structure used to store information about MFC controls
  *			it is used to initialize the control framework.
  */
