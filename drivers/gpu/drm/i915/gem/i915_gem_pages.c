@@ -70,7 +70,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 		struct list_head *list;
 		unsigned long flags;
 
-		lockdep_assert_held(&obj->mm.lock);
+		assert_object_held(obj);
 		spin_lock_irqsave(&i915->mm.obj_lock, flags);
 
 		i915->mm.shrink_count++;
@@ -117,9 +117,7 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 {
 	int err;
 
-	err = mutex_lock_interruptible(&obj->mm.lock);
-	if (err)
-		return err;
+	assert_object_held(obj);
 
 	assert_object_held_shared(obj);
 
@@ -128,15 +126,13 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 
 		err = ____i915_gem_object_get_pages(obj);
 		if (err)
-			goto unlock;
+			return err;
 
 		smp_mb__before_atomic();
 	}
 	atomic_inc(&obj->mm.pages_pin_count);
 
-unlock:
-	mutex_unlock(&obj->mm.lock);
-	return err;
+	return 0;
 }
 
 int i915_gem_object_pin_pages_unlocked(struct drm_i915_gem_object *obj)
@@ -223,7 +219,7 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 	return pages;
 }
 
-int __i915_gem_object_put_pages_locked(struct drm_i915_gem_object *obj)
+int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 {
 	struct sg_table *pages;
 
@@ -252,21 +248,6 @@ int __i915_gem_object_put_pages_locked(struct drm_i915_gem_object *obj)
 		obj->ops->put_pages(obj, pages);
 
 	return 0;
-}
-
-int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
-{
-	int err;
-
-	if (i915_gem_object_has_pinned_pages(obj))
-		return -EBUSY;
-
-	/* May be called by shrinker from within get_pages() (on another bo) */
-	mutex_lock(&obj->mm.lock);
-	err = __i915_gem_object_put_pages_locked(obj);
-	mutex_unlock(&obj->mm.lock);
-
-	return err;
 }
 
 /* The 'mapping' part of i915_gem_object_pin_map() below */
@@ -371,9 +352,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	    !i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM))
 		return ERR_PTR(-ENXIO);
 
-	err = mutex_lock_interruptible(&obj->mm.lock);
-	if (err)
-		return ERR_PTR(err);
+	assert_object_held(obj);
 
 	pinned = !(type & I915_MAP_OVERRIDE);
 	type &= ~I915_MAP_OVERRIDE;
@@ -383,10 +362,8 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 			GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
 
 			err = ____i915_gem_object_get_pages(obj);
-			if (err) {
-				ptr = ERR_PTR(err);
-				goto out_unlock;
-			}
+			if (err)
+				return ERR_PTR(err);
 
 			smp_mb__before_atomic();
 		}
@@ -421,13 +398,11 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 		obj->mm.mapping = page_pack_bits(ptr, type);
 	}
 
-out_unlock:
-	mutex_unlock(&obj->mm.lock);
 	return ptr;
 
 err_unpin:
 	atomic_dec(&obj->mm.pages_pin_count);
-	goto out_unlock;
+	return ptr;
 }
 
 void *i915_gem_object_pin_map_unlocked(struct drm_i915_gem_object *obj,

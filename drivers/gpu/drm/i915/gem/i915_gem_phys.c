@@ -234,40 +234,22 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	if (err)
 		return err;
 
-	err = mutex_lock_interruptible(&obj->mm.lock);
-	if (err)
-		return err;
+	if (obj->mm.madv != I915_MADV_WILLNEED)
+		return -EFAULT;
 
-	if (unlikely(!i915_gem_object_has_struct_page(obj)))
-		goto out;
+	if (i915_gem_object_has_tiling_quirk(obj))
+		return -EFAULT;
 
-	if (obj->mm.madv != I915_MADV_WILLNEED) {
-		err = -EFAULT;
-		goto out;
-	}
-
-	if (i915_gem_object_has_tiling_quirk(obj)) {
-		err = -EFAULT;
-		goto out;
-	}
-
-	if (obj->mm.mapping || i915_gem_object_has_pinned_pages(obj)) {
-		err = -EBUSY;
-		goto out;
-	}
+	if (obj->mm.mapping || i915_gem_object_has_pinned_pages(obj))
+		return -EBUSY;
 
 	if (unlikely(obj->mm.madv != I915_MADV_WILLNEED)) {
 		drm_dbg(obj->base.dev,
 			"Attempting to obtain a purgeable object\n");
-		err = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 
-	err = i915_gem_object_shmem_to_phys(obj);
-
-out:
-	mutex_unlock(&obj->mm.lock);
-	return err;
+	return i915_gem_object_shmem_to_phys(obj);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

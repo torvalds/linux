@@ -980,10 +980,6 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out;
 
-	err = mutex_lock_interruptible(&obj->mm.lock);
-	if (err)
-		goto out_ww;
-
 	if (i915_gem_object_has_pages(obj) &&
 	    i915_gem_object_is_tiled(obj) &&
 	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
@@ -1026,9 +1022,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		i915_gem_object_truncate(obj);
 
 	args->retained = obj->mm.madv != __I915_MADV_PURGED;
-	mutex_unlock(&obj->mm.lock);
 
-out_ww:
 	i915_gem_object_unlock(obj);
 out:
 	i915_gem_object_put(obj);

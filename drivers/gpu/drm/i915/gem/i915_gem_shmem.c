@@ -99,7 +99,7 @@ rebuild_st:
 				goto err_sg;
 			}
 
-			i915_gem_shrink(i915, 2 * page_count, NULL, *s++);
+			i915_gem_shrink(NULL, i915, 2 * page_count, NULL, *s++);
 
 			/*
 			 * We've tried hard to allocate the memory by reaping

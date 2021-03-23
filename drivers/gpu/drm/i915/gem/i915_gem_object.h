@@ -129,7 +129,7 @@ static inline void assert_object_held_shared(struct drm_i915_gem_object *obj)
 	 */
 	if (IS_ENABLED(CONFIG_LOCKDEP) &&
 	    kref_read(&obj->base.refcount) > 0)
-		lockdep_assert_held(&obj->mm.lock);
+		assert_object_held(obj);
 }
 
 static inline int __i915_gem_object_lock(struct drm_i915_gem_object *obj,
@@ -358,7 +358,7 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 static inline int __must_check
 i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	might_lock(&obj->mm.lock);
+	assert_object_held(obj);
 
 	if (atomic_inc_not_zero(&obj->mm.pages_pin_count))
 		return 0;
@@ -404,7 +404,6 @@ i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 }
 
 int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
-int __i915_gem_object_put_pages_locked(struct drm_i915_gem_object *obj);
 void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 void i915_gem_object_writeback(struct drm_i915_gem_object *obj);
 
