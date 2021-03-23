@@ -82,7 +82,7 @@ struct vmw_validation_res_node {
 	u32 reserved : 1;
 	u32 dirty : 1;
 	u32 dirty_set : 1;
-	unsigned long private[0];
+	unsigned long private[];
 };
 
 /**
