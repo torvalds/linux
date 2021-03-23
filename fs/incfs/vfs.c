@@ -201,6 +201,7 @@ enum parse_parameter {
 	Opt_rlog_pages,
 	Opt_rlog_wakeup_cnt,
 	Opt_report_uid,
+	Opt_sysfs_name,
 	Opt_err
 };
 
@@ -210,8 +211,15 @@ static const match_table_t option_tokens = {
 	{ Opt_rlog_pages, "rlog_pages=%u" },
 	{ Opt_rlog_wakeup_cnt, "rlog_wakeup_cnt=%u" },
 	{ Opt_report_uid, "report_uid" },
+	{ Opt_sysfs_name, "sysfs_name=%s" },
 	{ Opt_err, NULL }
 };
+
+static void free_options(struct mount_options *opts)
+{
+	kfree(opts->sysfs_name);
+	opts->sysfs_name = NULL;
+}
 
 static int parse_options(struct mount_options *opts, char *str)
 {
@@ -266,7 +274,11 @@ static int parse_options(struct mount_options *opts, char *str)
 		case Opt_report_uid:
 			opts->report_uid = true;
 			break;
+		case Opt_sysfs_name:
+			opts->sysfs_name = match_strdup(&args[0]);
+			break;
 		default:
+			free_options(opts);
 			return -EINVAL;
 		}
 	}
@@ -465,9 +477,9 @@ static int read_single_page_timeouts(struct data_file *df, struct file *f,
 				     struct mem_range tmp)
 {
 	struct mount_info *mi = df->df_mount_info;
-	u32 min_time_us = 0;
-	u32 min_pending_time_us = 0;
-	u32 max_pending_time_us = U32_MAX;
+	struct incfs_read_data_file_timeouts timeouts = {
+		.max_pending_time_us = U32_MAX,
+	};
 	int uid = current_uid().val;
 	int i;
 
@@ -478,24 +490,23 @@ static int read_single_page_timeouts(struct data_file *df, struct file *f,
 			&mi->mi_per_uid_read_timeouts[i];
 
 		if(t->uid == uid) {
-			min_time_us = t->min_time_us;
-			min_pending_time_us = t->min_pending_time_us;
-			max_pending_time_us = t->max_pending_time_us;
+			timeouts.min_time_us = t->min_time_us;
+			timeouts.min_pending_time_us = t->min_pending_time_us;
+			timeouts.max_pending_time_us = t->max_pending_time_us;
 			break;
 		}
 	}
 	spin_unlock(&mi->mi_per_uid_read_timeouts_lock);
-	if (max_pending_time_us == U32_MAX) {
+	if (timeouts.max_pending_time_us == U32_MAX) {
 		u64 read_timeout_us = (u64)mi->mi_options.read_timeout_ms *
 					1000;
 
-		max_pending_time_us = read_timeout_us <= U32_MAX ?
-					read_timeout_us : U32_MAX;
+		timeouts.max_pending_time_us = read_timeout_us <= U32_MAX ?
+					       read_timeout_us : U32_MAX;
 	}
 
-	return incfs_read_data_file_block(range, f, block_index,
-		min_time_us, min_pending_time_us, max_pending_time_us,
-		tmp);
+	return incfs_read_data_file_block(range, f, block_index, tmp,
+					  &timeouts);
 }
 
 static int read_single_page(struct file *f, struct page *page)
@@ -1835,6 +1846,7 @@ err:
 	path_put(&backing_dir_path);
 	incfs_free_mount_info(mi);
 	deactivate_locked_super(sb);
+	free_options(&options);
 	return ERR_PTR(error);
 }
 
@@ -1851,15 +1863,19 @@ static int incfs_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	if (options.report_uid != mi->mi_options.report_uid) {
 		pr_err("incfs: Can't change report_uid mount option on remount\n");
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto out;
 	}
 
 	err = incfs_realloc_mount_info(mi, &options);
 	if (err)
-		return err;
+		goto out;
 
 	pr_debug("incfs: remount\n");
-	return 0;
+
+out:
+	free_options(&options);
+	return err;
 }
 
 void incfs_kill_sb(struct super_block *sb)

@@ -85,6 +85,16 @@ struct {
 #define TESTNE(statement, res)					\
 	TESTCOND((statement) != (res))
 
+#define TESTSYSCALL(statement)						\
+	do {								\
+		int res = statement;					\
+									\
+		if (res)						\
+			ksft_print_msg("Failed: %s (%d)\n",		\
+				       strerror(errno), errno);		\
+		TESTEQUAL(res, 0);					\
+	} while (false)
+
 void print_bytes(const void *data, size_t size)
 {
 	const uint8_t *bytes = data;
@@ -3545,7 +3555,7 @@ out:
 
 	free(filename);
 	close(cmd_fd);
-	umount(backing_dir);
+	umount(mount_dir);
 	free(backing_dir);
 	return result;
 }
@@ -4320,7 +4330,177 @@ static int stat_test(const char *mount_dir)
 
 	result = TEST_SUCCESS;
 out:
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
 
+#define SYSFS_DIR "/sys/fs/incremental-fs/instances/test_node/"
+
+static int sysfs_test_value(const char *name, uint64_t value)
+{
+	int result = TEST_FAILURE;
+	char *filename = NULL;
+	FILE *file = NULL;
+	uint64_t res;
+
+	TEST(filename = concat_file_name(SYSFS_DIR, name), filename);
+	TEST(file = fopen(filename, "re"), file);
+	TESTEQUAL(fscanf(file, "%lu", &res), 1);
+	TESTEQUAL(res, value);
+
+	result = TEST_SUCCESS;
+out:
+	if (file)
+		fclose(file);
+	free(filename);
+	return result;
+}
+
+static int sysfs_test_value_range(const char *name, uint64_t low, uint64_t high)
+{
+	int result = TEST_FAILURE;
+	char *filename = NULL;
+	FILE *file = NULL;
+	uint64_t res;
+
+	TEST(filename = concat_file_name(SYSFS_DIR, name), filename);
+	TEST(file = fopen(filename, "re"), file);
+	TESTEQUAL(fscanf(file, "%lu", &res), 1);
+	TESTCOND(res >= low && res <= high);
+
+	result = TEST_SUCCESS;
+out:
+	if (file)
+		fclose(file);
+	free(filename);
+	return result;
+}
+
+static int sysfs_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int cmd_fd = -1;
+	struct test_file file = {
+		  .name = "file",
+		  .size = INCFS_DATA_FILE_BLOCK_SIZE,
+	};
+	char *filename = NULL;
+	int fd = -1;
+	int pid = -1;
+	char buffer[32];
+	int status;
+	struct incfs_per_uid_read_timeouts purt_set[] = {
+		{
+			.uid = 0,
+			.min_time_us = 1000000,
+			.min_pending_time_us = 1000000,
+			.max_pending_time_us = 2000000,
+		},
+	};
+	struct incfs_set_read_timeouts_args srt = {
+		ptr_to_u64(purt_set),
+		sizeof(purt_set)
+	};
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "sysfs_name=test_node",
+			       false),
+		  0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+	TESTEQUAL(build_mtree(&file), 0);
+	file.root_hash[0] ^= 0xff;
+	TESTEQUAL(crypto_emit_file(cmd_fd, NULL, file.name, &file.id, file.size,
+				   file.root_hash, file.sig.add_data),
+		  0);
+	TEST(filename = concat_file_name(mount_dir, file.name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(sysfs_test_value("reads_failed_timed_out", 0), 0);
+	TEST(read(fd, NULL, 1), -1);
+	TESTEQUAL(sysfs_test_value("reads_failed_timed_out", 2), 0);
+
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTEQUAL(sysfs_test_value("reads_failed_hash_verification", 0), 0);
+	TESTEQUAL(read(fd, NULL, 1), -1);
+	TESTEQUAL(sysfs_test_value("reads_failed_hash_verification", 1), 0);
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TESTSYSCALL(unlink(filename));
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
+			       "read_timeout_ms=10000,sysfs_name=test_node",
+			       true),
+		  0);
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size, NULL),
+		  0);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTSYSCALL(fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC));
+	TEST(pid = fork(), pid != -1);
+	if (pid == 0) {
+		TESTEQUAL(read(fd, buffer, sizeof(buffer)), sizeof(buffer));
+		exit(0);
+	}
+	sleep(1);
+	TESTEQUAL(sysfs_test_value("reads_delayed_pending", 0), 0);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTNE(wait(&status), -1);
+	TESTEQUAL(status, 0);
+	TESTEQUAL(sysfs_test_value("reads_delayed_pending", 1), 0);
+	/* Allow +/- 10% */
+	TESTEQUAL(sysfs_test_value_range("reads_delayed_pending_us", 900000, 1100000),
+		  0);
+
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TESTSYSCALL(unlink(filename));
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size, NULL),
+		  0);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(sysfs_test_value("reads_delayed_min", 0), 0);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTEQUAL(read(fd, buffer, sizeof(buffer)), sizeof(buffer));
+	TESTEQUAL(sysfs_test_value("reads_delayed_min", 1), 0);
+	/* This should be exact */
+	TESTEQUAL(sysfs_test_value("reads_delayed_min_us", 1000000), 0);
+
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TESTSYSCALL(unlink(filename));
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size, NULL),
+		  0);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTSYSCALL(fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC));
+	TEST(pid = fork(), pid != -1);
+	if (pid == 0) {
+		TESTEQUAL(read(fd, buffer, sizeof(buffer)), sizeof(buffer));
+		exit(0);
+	}
+	usleep(500000);
+	TESTEQUAL(sysfs_test_value("reads_delayed_pending", 1), 0);
+	TESTEQUAL(sysfs_test_value("reads_delayed_min", 1), 0);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTNE(wait(&status), -1);
+	TESTEQUAL(status, 0);
+	TESTEQUAL(sysfs_test_value("reads_delayed_pending", 2), 0);
+	TESTEQUAL(sysfs_test_value("reads_delayed_min", 2), 0);
+	/* Exact 1000000 plus 500000 +/- 10% */
+	TESTEQUAL(sysfs_test_value_range("reads_delayed_min_us", 1450000, 1550000), 0);
+	/* Allow +/- 10% */
+	TESTEQUAL(sysfs_test_value_range("reads_delayed_pending_us", 1350000, 1650000),
+		  0);
+
+	result = TEST_SUCCESS;
+out:
+	if (pid == 0)
+		exit(result);
+	free(file.mtree);
+	free(filename);
+	close(fd);
 	close(cmd_fd);
 	umount(mount_dir);
 	free(backing_dir);
@@ -4446,6 +4626,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(mmap_test),
 		MAKE_TEST(truncate_test),
 		MAKE_TEST(stat_test),
+		MAKE_TEST(sysfs_test),
 	};
 #undef MAKE_TEST
 
