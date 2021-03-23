@@ -111,10 +111,11 @@ enum s5p_jpeg_ctx_state {
  * @m2m_dev:		v4l2 mem2mem device data
  * @regs:		JPEG IP registers mapping
  * @irq:		JPEG IP irq
+ * @irq_ret:		JPEG IP irq result value
  * @clocks:		JPEG IP clock(s)
  * @dev:		JPEG IP struct device
  * @variant:		driver variant to be used
- * @irq_status		interrupt flags set during single encode/decode
+ * @irq_status:		interrupt flags set during single encode/decode
  *			operation
  */
 struct s5p_jpeg {
@@ -152,8 +153,10 @@ struct s5p_jpeg_variant {
  * @fourcc:	the fourcc code, 0 if not applicable
  * @depth:	number of bits per pixel
  * @colplanes:	number of color planes (1 for packed formats)
+ * @memplanes:	number of memory planes (1 for packed formats)
  * @h_align:	horizontal alignment order (align to 2^h_align)
  * @v_align:	vertical alignment order (align to 2^v_align)
+ * @subsampling:subsampling of a raw format or a JPEG
  * @flags:	flags describing format applicability
  */
 struct s5p_jpeg_fmt {
