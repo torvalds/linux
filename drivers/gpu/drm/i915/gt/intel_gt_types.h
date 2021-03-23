@@ -39,10 +39,6 @@ struct intel_gt {
 	struct intel_gt_timelines {
 		spinlock_t lock; /* protects active_list */
 		struct list_head active_list;
-
-		/* Pack multiple timelines' seqnos into the same page */
-		spinlock_t hwsp_lock;
-		struct list_head hwsp_free_list;
 	} timelines;
 
 	struct intel_gt_requests {

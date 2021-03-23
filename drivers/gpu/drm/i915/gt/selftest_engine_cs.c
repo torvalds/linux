@@ -42,6 +42,9 @@ static int perf_end(struct intel_gt *gt)
 
 static int write_timestamp(struct i915_request *rq, int slot)
 {
+	struct intel_timeline *tl =
+		rcu_dereference_protected(rq->timeline,
+					  !i915_request_signaled(rq));
 	u32 cmd;
 	u32 *cs;
 
@@ -54,7 +57,7 @@ static int write_timestamp(struct i915_request *rq, int slot)
 		cmd++;
 	*cs++ = cmd;
 	*cs++ = i915_mmio_reg_offset(RING_TIMESTAMP(rq->engine->mmio_base));
-	*cs++ = i915_request_timeline(rq)->hwsp_offset + slot * sizeof(u32);
+	*cs++ = tl->hwsp_offset + slot * sizeof(u32);
 	*cs++ = 0;
 
 	intel_ring_advance(rq, cs);

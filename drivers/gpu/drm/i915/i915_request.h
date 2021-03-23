@@ -237,16 +237,6 @@ struct i915_request {
 	 */
 	const u32 *hwsp_seqno;
 
-	/*
-	 * If we need to access the timeline's seqno for this request in
-	 * another request, we need to keep a read reference to this associated
-	 * cacheline, so that we do not free and recycle it before the foreign
-	 * observers have completed. Hence, we keep a pointer to the cacheline
-	 * inside the timeline's HWSP vma, but it is only valid while this
-	 * request has not completed and guarded by the timeline mutex.
-	 */
-	struct intel_timeline_cacheline __rcu *hwsp_cacheline;
-
 	/** Position in the ring of the start of the request */
 	u32 head;
 
@@ -614,6 +604,27 @@ i915_request_active_timeline(const struct i915_request *rq)
 	 */
 	return rcu_dereference_protected(rq->timeline,
 					 lockdep_is_held(&rq->engine->active.lock));
+}
+
+static inline u32
+i915_request_active_seqno(const struct i915_request *rq)
+{
+	u32 hwsp_phys_base =
+		page_mask_bits(i915_request_active_timeline(rq)->hwsp_offset);
+	u32 hwsp_relative_offset = offset_in_page(rq->hwsp_seqno);
+
+	/*
+	 * Because of wraparound, we cannot simply take tl->hwsp_offset,
+	 * but instead use the fact that the relative for vaddr is the
+	 * offset as for hwsp_offset. Take the top bits from tl->hwsp_offset
+	 * and combine them with the relative offset in rq->hwsp_seqno.
+	 *
+	 * As rw->hwsp_seqno is rewritten when signaled, this only works
+	 * when the request isn't signaled yet, but at that point you
+	 * no longer need the offset.
+	 */
+
+	return hwsp_phys_base + hwsp_relative_offset;
 }
 
 #endif /* I915_REQUEST_H */

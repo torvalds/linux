@@ -35,10 +35,11 @@ static unsigned long hwsp_cacheline(struct intel_timeline *tl)
 {
 	unsigned long address = (unsigned long)page_address(hwsp_page(tl));
 
-	return (address + tl->hwsp_offset) / CACHELINE_BYTES;
+	return (address + offset_in_page(tl->hwsp_offset)) / TIMELINE_SEQNO_BYTES;
 }
 
-#define CACHELINES_PER_PAGE (PAGE_SIZE / CACHELINE_BYTES)
+/* Only half of seqno's are usable, see __intel_timeline_get_seqno() */
+#define CACHELINES_PER_PAGE (PAGE_SIZE / TIMELINE_SEQNO_BYTES / 2)
 
 struct mock_hwsp_freelist {
 	struct intel_gt *gt;
@@ -666,7 +667,7 @@ static int live_hwsp_wrap(void *arg)
 	if (IS_ERR(tl))
 		return PTR_ERR(tl);
 
-	if (!tl->has_initial_breadcrumb || !tl->hwsp_cacheline)
+	if (!tl->has_initial_breadcrumb)
 		goto out_free;
 
 	err = intel_timeline_pin(tl, NULL);
@@ -833,12 +834,26 @@ static int setup_watcher(struct hwsp_watcher *w, struct intel_gt *gt)
 	return 0;
 }
 
+static void switch_tl_lock(struct i915_request *from, struct i915_request *to)
+{
+	/* some light mutex juggling required; think co-routines */
+
+	if (from) {
+		lockdep_unpin_lock(&from->context->timeline->mutex, from->cookie);
+		mutex_unlock(&from->context->timeline->mutex);
+	}
+
+	if (to) {
+		mutex_lock(&to->context->timeline->mutex);
+		to->cookie = lockdep_pin_lock(&to->context->timeline->mutex);
+	}
+}
+
 static int create_watcher(struct hwsp_watcher *w,
 			  struct intel_engine_cs *engine,
 			  int ringsz)
 {
 	struct intel_context *ce;
-	struct intel_timeline *tl;
 
 	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
@@ -851,11 +866,8 @@ static int create_watcher(struct hwsp_watcher *w,
 		return PTR_ERR(w->rq);
 
 	w->addr = i915_ggtt_offset(w->vma);
-	tl = w->rq->context->timeline;
 
-	/* some light mutex juggling required; think co-routines */
-	lockdep_unpin_lock(&tl->mutex, w->rq->cookie);
-	mutex_unlock(&tl->mutex);
+	switch_tl_lock(w->rq, NULL);
 
 	return 0;
 }
@@ -864,15 +876,13 @@ static int check_watcher(struct hwsp_watcher *w, const char *name,
 			 bool (*op)(u32 hwsp, u32 seqno))
 {
 	struct i915_request *rq = fetch_and_zero(&w->rq);
-	struct intel_timeline *tl = rq->context->timeline;
 	u32 offset, end;
 	int err;
 
 	GEM_BUG_ON(w->addr - i915_ggtt_offset(w->vma) > w->vma->size);
 
 	i915_request_get(rq);
-	mutex_lock(&tl->mutex);
-	rq->cookie = lockdep_pin_lock(&tl->mutex);
+	switch_tl_lock(NULL, rq);
 	i915_request_add(rq);
 
 	if (i915_request_wait(rq, 0, HZ) < 0) {
@@ -901,10 +911,7 @@ out:
 static void cleanup_watcher(struct hwsp_watcher *w)
 {
 	if (w->rq) {
-		struct intel_timeline *tl = w->rq->context->timeline;
-
-		mutex_lock(&tl->mutex);
-		w->rq->cookie = lockdep_pin_lock(&tl->mutex);
+		switch_tl_lock(NULL, w->rq);
 
 		i915_request_add(w->rq);
 	}
@@ -942,7 +949,7 @@ static struct i915_request *wrap_timeline(struct i915_request *rq)
 	}
 
 	i915_request_put(rq);
-	rq = intel_context_create_request(ce);
+	rq = i915_request_create(ce);
 	if (IS_ERR(rq))
 		return rq;
 
@@ -977,7 +984,7 @@ static int live_hwsp_read(void *arg)
 	if (IS_ERR(tl))
 		return PTR_ERR(tl);
 
-	if (!tl->hwsp_cacheline)
+	if (!tl->has_initial_breadcrumb)
 		goto out_free;
 
 	for (i = 0; i < ARRAY_SIZE(watcher); i++) {
@@ -999,7 +1006,7 @@ static int live_hwsp_read(void *arg)
 		do {
 			struct i915_sw_fence *submit;
 			struct i915_request *rq;
-			u32 hwsp;
+			u32 hwsp, dummy;
 
 			submit = heap_fence_create(GFP_KERNEL);
 			if (!submit) {
@@ -1017,14 +1024,26 @@ static int live_hwsp_read(void *arg)
 				goto out;
 			}
 
-			/* Skip to the end, saving 30 minutes of nops */
-			tl->seqno = -10u + 2 * (count & 3);
-			WRITE_ONCE(*(u32 *)tl->hwsp_seqno, tl->seqno);
 			ce->timeline = intel_timeline_get(tl);
 
-			rq = intel_context_create_request(ce);
+			/* Ensure timeline is mapped, done during first pin */
+			err = intel_context_pin(ce);
+			if (err) {
+				intel_context_put(ce);
+				goto out;
+			}
+
+			/*
+			 * Start at a new wrap, and set seqno right before another wrap,
+			 * saving 30 minutes of nops
+			 */
+			tl->seqno = -12u + 2 * (count & 3);
+			__intel_timeline_get_seqno(tl, &dummy);
+
+			rq = i915_request_create(ce);
 			if (IS_ERR(rq)) {
 				err = PTR_ERR(rq);
+				intel_context_unpin(ce);
 				intel_context_put(ce);
 				goto out;
 			}
@@ -1034,32 +1053,35 @@ static int live_hwsp_read(void *arg)
 							    GFP_KERNEL);
 			if (err < 0) {
 				i915_request_add(rq);
+				intel_context_unpin(ce);
 				intel_context_put(ce);
 				goto out;
 			}
 
-			mutex_lock(&watcher[0].rq->context->timeline->mutex);
+			switch_tl_lock(rq, watcher[0].rq);
 			err = intel_timeline_read_hwsp(rq, watcher[0].rq, &hwsp);
 			if (err == 0)
 				err = emit_read_hwsp(watcher[0].rq, /* before */
 						     rq->fence.seqno, hwsp,
 						     &watcher[0].addr);
-			mutex_unlock(&watcher[0].rq->context->timeline->mutex);
+			switch_tl_lock(watcher[0].rq, rq);
 			if (err) {
 				i915_request_add(rq);
+				intel_context_unpin(ce);
 				intel_context_put(ce);
 				goto out;
 			}
 
-			mutex_lock(&watcher[1].rq->context->timeline->mutex);
+			switch_tl_lock(rq, watcher[1].rq);
 			err = intel_timeline_read_hwsp(rq, watcher[1].rq, &hwsp);
 			if (err == 0)
 				err = emit_read_hwsp(watcher[1].rq, /* after */
 						     rq->fence.seqno, hwsp,
 						     &watcher[1].addr);
-			mutex_unlock(&watcher[1].rq->context->timeline->mutex);
+			switch_tl_lock(watcher[1].rq, rq);
 			if (err) {
 				i915_request_add(rq);
+				intel_context_unpin(ce);
 				intel_context_put(ce);
 				goto out;
 			}
@@ -1068,6 +1090,7 @@ static int live_hwsp_read(void *arg)
 			i915_request_add(rq);
 
 			rq = wrap_timeline(rq);
+			intel_context_unpin(ce);
 			intel_context_put(ce);
 			if (IS_ERR(rq)) {
 				err = PTR_ERR(rq);
@@ -1107,8 +1130,8 @@ static int live_hwsp_read(void *arg)
 			    3 * watcher[1].rq->ring->size)
 				break;
 
-		} while (!__igt_timeout(end_time, NULL));
-		WRITE_ONCE(*(u32 *)tl->hwsp_seqno, 0xdeadbeef);
+		} while (!__igt_timeout(end_time, NULL) &&
+			 count < (PAGE_SIZE / TIMELINE_SEQNO_BYTES - 1) / 2);
 
 		pr_info("%s: simulated %lu wraps\n", engine->name, count);
 		err = check_watcher(&watcher[1], "after", cmp_gte);
@@ -1153,9 +1176,7 @@ static int live_hwsp_rollover_kernel(void *arg)
 		}
 
 		GEM_BUG_ON(i915_active_fence_isset(&tl->last_request));
-		tl->seqno = 0;
-		timeline_rollback(tl);
-		timeline_rollback(tl);
+		tl->seqno = -2u;
 		WRITE_ONCE(*(u32 *)tl->hwsp_seqno, tl->seqno);
 
 		for (i = 0; i < ARRAY_SIZE(rq); i++) {
@@ -1235,11 +1256,10 @@ static int live_hwsp_rollover_user(void *arg)
 			goto out;
 
 		tl = ce->timeline;
-		if (!tl->has_initial_breadcrumb || !tl->hwsp_cacheline)
+		if (!tl->has_initial_breadcrumb)
 			goto out;
 
-		timeline_rollback(tl);
-		timeline_rollback(tl);
+		tl->seqno = -4u;
 		WRITE_ONCE(*(u32 *)tl->hwsp_seqno, tl->seqno);
 
 		for (i = 0; i < ARRAY_SIZE(rq); i++) {
