@@ -113,9 +113,9 @@ extern void arch_static_call_transform(void *site, void *tramp, void *func, bool
 
 #define static_call_update(name, func)					\
 ({									\
-	BUILD_BUG_ON(!__same_type(*(func), STATIC_CALL_TRAMP(name)));	\
+	typeof(&STATIC_CALL_TRAMP(name)) __F = (func);			\
 	__static_call_update(&STATIC_CALL_KEY(name),			\
-			     STATIC_CALL_TRAMP_ADDR(name), func);	\
+			     STATIC_CALL_TRAMP_ADDR(name), __F);	\
 })
 
 #ifdef CONFIG_HAVE_STATIC_CALL_INLINE
