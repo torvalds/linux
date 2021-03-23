@@ -37,7 +37,6 @@ exit:
 	return ret;
 }
 
-u8 rtw_do_join(struct adapter *padapter);
 u8 rtw_do_join(struct adapter *padapter)
 {
 	struct list_head	*plist, *phead;

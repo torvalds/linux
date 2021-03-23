@@ -12,8 +12,6 @@
 #include <hal_btcoex.h>
 #include <linux/jiffies.h>
 
-extern u8 rtw_do_join(struct adapter *padapter);
-
 int	rtw_init_mlme_priv(struct adapter *padapter)
 {
 	int	i;

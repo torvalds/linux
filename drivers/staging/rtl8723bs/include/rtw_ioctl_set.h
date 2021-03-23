@@ -22,6 +22,8 @@ u8 rtw_set_802_11_connect(struct adapter *padapter, u8 *bssid, struct ndis_802_1
 u8 rtw_validate_bssid(u8 *bssid);
 u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid);
 
+u8 rtw_do_join(struct adapter *padapter);
+
 u16 rtw_get_cur_max_rate(struct adapter *adapter);
 
 #endif
