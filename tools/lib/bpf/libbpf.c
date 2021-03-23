@@ -8270,6 +8270,16 @@ int bpf_object__btf_fd(const struct bpf_object *obj)
 	return obj->btf ? btf__fd(obj->btf) : -1;
 }
 
+int bpf_object__set_kversion(struct bpf_object *obj, __u32 kern_version)
+{
+	if (obj->loaded)
+		return -EINVAL;
+
+	obj->kern_version = kern_version;
+
+	return 0;
+}
+
 int bpf_object__set_priv(struct bpf_object *obj, void *priv,
 			 bpf_object_clear_priv_t clear_priv)
 {
