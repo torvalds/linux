@@ -366,6 +366,8 @@ i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 	return __i915_gem_object_get_pages(obj);
 }
 
+int i915_gem_object_pin_pages_unlocked(struct drm_i915_gem_object *obj);
+
 static inline bool
 i915_gem_object_has_pages(struct drm_i915_gem_object *obj)
 {
