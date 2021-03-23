@@ -2213,10 +2213,15 @@ retry:
 	if (err)
 		goto err_pm;
 
+	err = i915_vma_pin_ww(vma, &ww, 0, 0,
+			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
+	if (err)
+		goto err_unpin;
+
 	rq = i915_request_create(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
-		goto err_unpin;
+		goto err_vma;
 	}
 
 	err = i915_request_await_object(rq, vma->obj, true);
@@ -2257,6 +2262,8 @@ retry:
 
 err_rq:
 	i915_request_put(rq);
+err_vma:
+	i915_vma_unpin(vma);
 err_unpin:
 	intel_context_unpin(ce);
 err_pm:
@@ -2267,7 +2274,6 @@ err_pm:
 	}
 	i915_gem_ww_ctx_fini(&ww);
 	intel_engine_pm_put(ce->engine);
-	i915_vma_unpin(vma);
 	i915_vma_put(vma);
 	return err;
 }

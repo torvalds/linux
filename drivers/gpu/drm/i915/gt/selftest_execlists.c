@@ -4197,8 +4197,9 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 	int err = 0;
 	u32 *cs;
 
-	scratch = __vm_create_scratch_for_read(&siblings[0]->gt->ggtt->vm,
-					       PAGE_SIZE);
+	scratch =
+		__vm_create_scratch_for_read_pinned(&siblings[0]->gt->ggtt->vm,
+						    PAGE_SIZE);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 

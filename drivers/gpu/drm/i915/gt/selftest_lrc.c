@@ -27,7 +27,7 @@
 
 static struct i915_vma *create_scratch(struct intel_gt *gt)
 {
-	return __vm_create_scratch_for_read(&gt->ggtt->vm, PAGE_SIZE);
+	return __vm_create_scratch_for_read_pinned(&gt->ggtt->vm, PAGE_SIZE);
 }
 
 static bool is_active(struct i915_request *rq)

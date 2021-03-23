@@ -427,7 +427,6 @@ __vm_create_scratch_for_read(struct i915_address_space *vm, unsigned long size)
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
-	int err;
 
 	obj = i915_gem_object_create_internal(vm->i915, PAGE_ALIGN(size));
 	if (IS_ERR(obj))
@@ -440,6 +439,19 @@ __vm_create_scratch_for_read(struct i915_address_space *vm, unsigned long size)
 		i915_gem_object_put(obj);
 		return vma;
 	}
+
+	return vma;
+}
+
+struct i915_vma *
+__vm_create_scratch_for_read_pinned(struct i915_address_space *vm, unsigned long size)
+{
+	struct i915_vma *vma;
+	int err;
+
+	vma = __vm_create_scratch_for_read(vm, size);
+	if (IS_ERR(vma))
+		return vma;
 
 	err = i915_vma_pin(vma, 0, 0,
 			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
