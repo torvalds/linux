@@ -3113,14 +3113,18 @@ static int sienna_cichlid_system_features_control(struct smu_context *smu,
 static int sienna_cichlid_set_mp1_state(struct smu_context *smu,
 					enum pp_mp1_state mp1_state)
 {
+	int ret;
+
 	switch (mp1_state) {
 	case PP_MP1_STATE_UNLOAD:
-		return smu_cmn_set_mp1_state(smu, mp1_state);
+		ret = smu_cmn_set_mp1_state(smu, mp1_state);
+		break;
 	default:
-		return -EINVAL;
+		/* Ignore others */
+		ret = 0;
 	}
 
-	return 0;
+	return ret;
 }
 
 static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
