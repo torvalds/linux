@@ -420,13 +420,14 @@ static u64 eb_pin_flags(const struct drm_i915_gem_exec_object2 *entry,
 	return pin_flags;
 }
 
-static inline bool
+static inline int
 eb_pin_vma(struct i915_execbuffer *eb,
 	   const struct drm_i915_gem_exec_object2 *entry,
 	   struct eb_vma *ev)
 {
 	struct i915_vma *vma = ev->vma;
 	u64 pin_flags;
+	int err;
 
 	if (vma->node.size)
 		pin_flags = vma->node.start;
@@ -438,24 +439,29 @@ eb_pin_vma(struct i915_execbuffer *eb,
 		pin_flags |= PIN_GLOBAL;
 
 	/* Attempt to reuse the current location if available */
-	/* TODO: Add -EDEADLK handling here */
-	if (unlikely(i915_vma_pin_ww(vma, &eb->ww, 0, 0, pin_flags))) {
+	err = i915_vma_pin_ww(vma, &eb->ww, 0, 0, pin_flags);
+	if (err == -EDEADLK)
+		return err;
+
+	if (unlikely(err)) {
 		if (entry->flags & EXEC_OBJECT_PINNED)
-			return false;
+			return err;
 
 		/* Failing that pick any _free_ space if suitable */
-		if (unlikely(i915_vma_pin_ww(vma, &eb->ww,
+		err = i915_vma_pin_ww(vma, &eb->ww,
 					     entry->pad_to_size,
 					     entry->alignment,
 					     eb_pin_flags(entry, ev->flags) |
-					     PIN_USER | PIN_NOEVICT)))
-			return false;
+					     PIN_USER | PIN_NOEVICT);
+		if (unlikely(err))
+			return err;
 	}
 
 	if (unlikely(ev->flags & EXEC_OBJECT_NEEDS_FENCE)) {
-		if (unlikely(i915_vma_pin_fence(vma))) {
+		err = i915_vma_pin_fence(vma);
+		if (unlikely(err)) {
 			i915_vma_unpin(vma);
-			return false;
+			return err;
 		}
 
 		if (vma->fence)
@@ -463,7 +469,10 @@ eb_pin_vma(struct i915_execbuffer *eb,
 	}
 
 	ev->flags |= __EXEC_OBJECT_HAS_PIN;
-	return !eb_vma_misplaced(entry, vma, ev->flags);
+	if (eb_vma_misplaced(entry, vma, ev->flags))
+		return -EBADSLT;
+
+	return 0;
 }
 
 static inline void
@@ -906,7 +915,11 @@ static int eb_validate_vmas(struct i915_execbuffer *eb)
 		if (err)
 			return err;
 
-		if (eb_pin_vma(eb, entry, ev)) {
+		err = eb_pin_vma(eb, entry, ev);
+		if (err == -EDEADLK)
+			return err;
+
+		if (!err) {
 			if (entry->offset != vma->node.start) {
 				entry->offset = vma->node.start | UPDATE;
 				eb->args->flags |= __EXEC_HAS_RELOC;
