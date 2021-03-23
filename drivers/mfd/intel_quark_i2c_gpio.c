@@ -96,20 +96,20 @@ static struct mfd_cell_acpi_match intel_quark_acpi_match_gpio = {
 };
 
 static struct mfd_cell intel_quark_mfd_cells[] = {
-	{
-		.id = MFD_GPIO_BAR,
-		.name = "gpio-dwapb",
-		.acpi_match = &intel_quark_acpi_match_gpio,
-		.num_resources = ARRAY_SIZE(intel_quark_gpio_res),
-		.resources = intel_quark_gpio_res,
-		.ignore_resource_conflicts = true,
-	},
-	{
+	[MFD_I2C_BAR] = {
 		.id = MFD_I2C_BAR,
 		.name = "i2c_designware",
 		.acpi_match = &intel_quark_acpi_match_i2c,
 		.num_resources = ARRAY_SIZE(intel_quark_i2c_res),
 		.resources = intel_quark_i2c_res,
+		.ignore_resource_conflicts = true,
+	},
+	[MFD_GPIO_BAR] = {
+		.id = MFD_GPIO_BAR,
+		.name = "gpio-dwapb",
+		.acpi_match = &intel_quark_acpi_match_gpio,
+		.num_resources = ARRAY_SIZE(intel_quark_gpio_res),
+		.resources = intel_quark_gpio_res,
 		.ignore_resource_conflicts = true,
 	},
 };
@@ -244,11 +244,11 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	ret = intel_quark_i2c_setup(pdev, &intel_quark_mfd_cells[1]);
+	ret = intel_quark_i2c_setup(pdev, &intel_quark_mfd_cells[MFD_I2C_BAR]);
 	if (ret)
 		goto err_unregister_i2c_clk;
 
-	ret = intel_quark_gpio_setup(pdev, &intel_quark_mfd_cells[0]);
+	ret = intel_quark_gpio_setup(pdev, &intel_quark_mfd_cells[MFD_GPIO_BAR]);
 	if (ret)
 		goto err_unregister_i2c_clk;
 
