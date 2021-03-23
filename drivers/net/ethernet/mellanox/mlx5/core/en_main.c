@@ -3846,10 +3846,17 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	}
 
 	if (mlx5e_is_uplink_rep(priv)) {
+		struct mlx5e_vport_stats *vstats = &priv->stats.vport;
+
 		stats->rx_packets = PPORT_802_3_GET(pstats, a_frames_received_ok);
 		stats->rx_bytes   = PPORT_802_3_GET(pstats, a_octets_received_ok);
 		stats->tx_packets = PPORT_802_3_GET(pstats, a_frames_transmitted_ok);
 		stats->tx_bytes   = PPORT_802_3_GET(pstats, a_octets_transmitted_ok);
+
+		/* vport multicast also counts packets that are dropped due to steering
+		 * or rx out of buffer
+		 */
+		stats->multicast = VPORT_COUNTER_GET(vstats, received_eth_multicast.packets);
 	} else {
 		mlx5e_fold_sw_stats64(priv, stats);
 	}
@@ -4971,6 +4978,11 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 	params->num_channels = min_t(unsigned int, MLX5E_MAX_NUM_CHANNELS / 2,
 				     priv->max_nch);
 	params->num_tc       = 1;
+
+	/* Set an initial non-zero value, so that mlx5e_select_queue won't
+	 * divide by zero if called before first activating channels.
+	 */
+	priv->num_tc_x_num_ch = params->num_channels * params->num_tc;
 
 	/* SQ */
 	params->log_sq_size = is_kdump_kernel() ?
