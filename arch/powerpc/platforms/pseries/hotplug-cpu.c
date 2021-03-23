@@ -271,6 +271,19 @@ static int dlpar_offline_cpu(struct device_node *dn)
 			if (!cpu_online(cpu))
 				break;
 
+			/*
+			 * device_offline() will return -EBUSY (via cpu_down()) if there
+			 * is only one CPU left. Check it here to fail earlier and with a
+			 * more informative error message, while also retaining the
+			 * cpu_add_remove_lock to be sure that no CPUs are being
+			 * online/offlined during this check.
+			 */
+			if (num_online_cpus() == 1) {
+				pr_warn("Unable to remove last online CPU %pOFn\n", dn);
+				rc = -EBUSY;
+				goto out_unlock;
+			}
+
 			cpu_maps_update_done();
 			rc = device_offline(get_cpu_device(cpu));
 			if (rc)
@@ -283,6 +296,7 @@ static int dlpar_offline_cpu(struct device_node *dn)
 				thread);
 		}
 	}
+out_unlock:
 	cpu_maps_update_done();
 
 out:
