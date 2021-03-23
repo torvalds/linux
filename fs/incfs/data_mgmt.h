@@ -122,6 +122,7 @@ struct mount_options {
 	unsigned int read_log_pages;
 	unsigned int read_log_wakeup_count;
 	bool report_uid;
+	char *sysfs_name;
 };
 
 struct mount_info {
@@ -188,6 +189,9 @@ struct mount_info {
 	void *mi_zstd_workspace;
 	ZSTD_DStream *mi_zstd_stream;
 	struct delayed_work mi_zstd_cleanup_work;
+
+	/* sysfs node */
+	struct incfs_sysfs_node *mi_sysfs_node;
 };
 
 struct data_file_block {
@@ -372,10 +376,15 @@ void incfs_free_data_file(struct data_file *df);
 struct dir_file *incfs_open_dir_file(struct mount_info *mi, struct file *bf);
 void incfs_free_dir_file(struct dir_file *dir);
 
+struct incfs_read_data_file_timeouts {
+	u32 min_time_us;
+	u32 min_pending_time_us;
+	u32 max_pending_time_us;
+};
+
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
-			int index, u32 min_time_us,
-			u32 min_pending_time_us, u32 max_pending_time_us,
-			struct mem_range tmp);
+			int index, struct mem_range tmp,
+			struct incfs_read_data_file_timeouts *timeouts);
 
 ssize_t incfs_read_merkle_tree_blocks(struct mem_range dst,
 				      struct data_file *df, size_t offset);
