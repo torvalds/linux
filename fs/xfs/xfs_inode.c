@@ -1446,7 +1446,7 @@ xfs_release(
 	xfs_inode_t	*ip)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	int		error;
+	int		error = 0;
 
 	if (!S_ISREG(VFS_I(ip)->i_mode) || (VFS_I(ip)->i_mode == 0))
 		return 0;
@@ -1482,8 +1482,16 @@ xfs_release(
 	if (VFS_I(ip)->i_nlink == 0)
 		return 0;
 
-	if (xfs_can_free_eofblocks(ip, false)) {
+	/*
+	 * If we can't get the iolock just skip truncating the blocks past EOF
+	 * because we could deadlock with the mmap_lock otherwise. We'll get
+	 * another chance to drop them once the last reference to the inode is
+	 * dropped, so we'll never leak blocks permanently.
+	 */
+	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL))
+		return 0;
 
+	if (xfs_can_free_eofblocks(ip, false)) {
 		/*
 		 * Check if the inode is being opened, written and closed
 		 * frequently and we have delayed allocation blocks outstanding
@@ -1499,26 +1507,20 @@ xfs_release(
 		 * place.
 		 */
 		if (xfs_iflags_test(ip, XFS_IDIRTY_RELEASE))
-			return 0;
-		/*
-		 * If we can't get the iolock just skip truncating the blocks
-		 * past EOF because we could deadlock with the mmap_lock
-		 * otherwise. We'll get another chance to drop them once the
-		 * last reference to the inode is dropped, so we'll never leak
-		 * blocks permanently.
-		 */
-		if (xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
-			error = xfs_free_eofblocks(ip);
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-			if (error)
-				return error;
-		}
+			goto out_unlock;
+
+		error = xfs_free_eofblocks(ip);
+		if (error)
+			goto out_unlock;
 
 		/* delalloc blocks after truncation means it really is dirty */
 		if (ip->i_delayed_blks)
 			xfs_iflags_set(ip, XFS_IDIRTY_RELEASE);
 	}
-	return 0;
+
+out_unlock:
+	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	return error;
 }
 
 /*
