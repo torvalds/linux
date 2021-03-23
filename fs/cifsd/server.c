@@ -567,39 +567,52 @@ static int __init ksmbd_server_init(void)
 
 	ret = server_conf_init();
 	if (ret)
-		return ret;
+		goto err_unregister;
 
 	ret = ksmbd_init_buffer_pools();
 	if (ret)
-		return ret;
+		goto err_unregister;
 
 	ret = ksmbd_init_session_table();
 	if (ret)
-		goto error;
+		goto err_destroy_pools;
 
 	ret = ksmbd_ipc_init();
 	if (ret)
-		goto error;
+		goto err_free_session_table;
 
 	ret = ksmbd_init_global_file_table();
 	if (ret)
-		goto error;
+		goto err_ipc_release;
 
 	ret = ksmbd_inode_hash_init();
 	if (ret)
-		goto error;
+		goto err_destroy_file_table;
 
 	ret = ksmbd_crypto_create();
 	if (ret)
-		goto error;
+		goto err_release_inode_hash;
 
 	ret = ksmbd_workqueue_init();
 	if (ret)
-		goto error;
+		goto err_crypto_destroy;
 	return 0;
 
-error:
-	ksmbd_server_shutdown();
+err_crypto_destroy:
+	ksmbd_crypto_destroy();
+err_release_inode_hash:
+	ksmbd_release_inode_hash();
+err_destroy_file_table:
+	ksmbd_free_global_file_table();
+err_ipc_release:
+	ksmbd_ipc_release();
+err_free_session_table:
+	ksmbd_free_session_table();
+err_destroy_pools:
+	ksmbd_destroy_buffer_pools();
+err_unregister:
+	class_unregister(&ksmbd_control_class);
+
 	return ret;
 }
 

@@ -194,7 +194,7 @@ void ksmbd_set_fd_limit(unsigned long limit);
  */
 
 int __init ksmbd_inode_hash_init(void);
-void __exit ksmbd_release_inode_hash(void);
+void ksmbd_release_inode_hash(void);
 
 enum KSMBD_INODE_STATUS {
 	KSMBD_INODE_STATUS_OK,

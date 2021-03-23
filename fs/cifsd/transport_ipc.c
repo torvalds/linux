@@ -887,11 +887,19 @@ int ksmbd_ipc_init(void)
 	if (ret) {
 		ksmbd_err("Failed to register KSMBD netlink interface %d\n",
 				ret);
-		return ret;
+		goto cancel_work;
 	}
 
 	ida = ksmbd_ida_alloc();
-	if (!ida)
-		return -ENOMEM;
+	if (!ida) {
+		ret = -ENOMEM;
+		goto unregister;
+	}
 	return 0;
+
+unregister:
+	genl_unregister_family(&ksmbd_genl_family);
+cancel_work:
+	cancel_delayed_work_sync(&ipc_timer_work);
+	return ret;
 }

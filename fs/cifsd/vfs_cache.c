@@ -236,7 +236,7 @@ int __init ksmbd_inode_hash_init(void)
 	return 0;
 }
 
-void __exit ksmbd_release_inode_hash(void)
+void ksmbd_release_inode_hash(void)
 {
 	vfree(inode_hashtable);
 }
