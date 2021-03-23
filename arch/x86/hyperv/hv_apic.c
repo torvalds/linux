@@ -60,9 +60,11 @@ static u32 hv_apic_read(u32 reg)
 	switch (reg) {
 	case APIC_EOI:
 		rdmsr(HV_X64_MSR_EOI, reg_val, hi);
+		(void)hi;
 		return reg_val;
 	case APIC_TASKPRI:
 		rdmsr(HV_X64_MSR_TPR, reg_val, hi);
+		(void)hi;
 		return reg_val;
 
 	default:
