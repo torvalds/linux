@@ -267,19 +267,6 @@ static void hns_xgmac_set_pausefrm_mac_addr(void *mac_drv, char *mac_addr)
 }
 
 /**
- *hns_xgmac_set_rx_ignore_pause_frames - set rx pause param about xgmac
- *@mac_drv: mac driver
- *@enable:enable rx pause param
- */
-static void hns_xgmac_set_rx_ignore_pause_frames(void *mac_drv, u32 enable)
-{
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	dsaf_set_dev_bit(drv, XGMAC_MAC_PAUSE_CTRL_REG,
-			 XGMAC_PAUSE_CTL_RX_B, !!enable);
-}
-
-/**
  *hns_xgmac_set_tx_auto_pause_frames - set tx pause param about xgmac
  *@mac_drv: mac driver
  *@enable:enable tx pause param
@@ -813,8 +800,6 @@ void *hns_xgmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->config_loopback = NULL;
 	mac_drv->config_pad_and_crc = hns_xgmac_config_pad_and_crc;
 	mac_drv->config_half_duplex = NULL;
-	mac_drv->set_rx_ignore_pause_frames =
-		hns_xgmac_set_rx_ignore_pause_frames;
 	mac_drv->mac_free = hns_xgmac_free;
 	mac_drv->adjust_link = NULL;
 	mac_drv->set_tx_auto_pause_frames = hns_xgmac_set_tx_auto_pause_frames;

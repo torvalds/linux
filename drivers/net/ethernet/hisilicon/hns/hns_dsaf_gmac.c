@@ -130,14 +130,6 @@ static void hns_gmac_get_tx_auto_pause_frames(void *mac_drv, u16 *newval)
 				     GMAC_FC_TX_TIMER_M, GMAC_FC_TX_TIMER_S);
 }
 
-static void hns_gmac_set_rx_auto_pause_frames(void *mac_drv, u32 newval)
-{
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	dsaf_set_dev_bit(drv, GMAC_PAUSE_EN_REG,
-			 GMAC_PAUSE_EN_RX_FDFC_B, !!newval);
-}
-
 static void hns_gmac_config_max_frame_length(void *mac_drv, u16 newval)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
@@ -739,7 +731,6 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->config_loopback = hns_gmac_config_loopback;
 	mac_drv->config_pad_and_crc = hns_gmac_config_pad_and_crc;
 	mac_drv->config_half_duplex = hns_gmac_set_duplex_type;
-	mac_drv->set_rx_ignore_pause_frames = hns_gmac_set_rx_auto_pause_frames;
 	mac_drv->get_info = hns_gmac_get_info;
 	mac_drv->autoneg_stat = hns_gmac_autoneg_stat;
 	mac_drv->get_pause_enable = hns_gmac_get_pausefrm_cfg;
