@@ -193,8 +193,6 @@ MODULE_PARM_DESC(rtw_tx_pwr_lmt_enable, "0:Disable, 1:Enable, 2: Depend on efuse
 module_param(rtw_tx_pwr_by_rate, int, 0644);
 MODULE_PARM_DESC(rtw_tx_pwr_by_rate, "0:Disable, 1:Enable, 2: Depend on efuse");
 
-int _netdev_open(struct net_device *pnetdev);
-int netdev_open(struct net_device *pnetdev);
 static int netdev_close(struct net_device *pnetdev);
 
 static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
@@ -875,7 +873,7 @@ int rtw_drv_register_netdev(struct adapter *if1)
 	return _rtw_drv_register_netdev(padapter, name);
 }
 
-int _netdev_open(struct net_device *pnetdev)
+static int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);

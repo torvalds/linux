@@ -69,4 +69,6 @@ void rtw_ndev_destructor(struct net_device *ndev);
 int rtw_suspend_common(struct adapter *padapter);
 int rtw_resume_common(struct adapter *padapter);
 
+int netdev_open(struct net_device *pnetdev);
+
 #endif	/* _OSDEP_INTF_H_ */
