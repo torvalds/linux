@@ -620,7 +620,7 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	cmd = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
 		goto err;
@@ -782,7 +782,7 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	if (err)
 		goto err;
 
-	cmd = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	cmd = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
 		goto err;
@@ -817,7 +817,7 @@ static int recursive_batch_resolve(struct i915_vma *batch)
 {
 	u32 *cmd;
 
-	cmd = i915_gem_object_pin_map(batch->obj, I915_MAP_WC);
+	cmd = i915_gem_object_pin_map_unlocked(batch->obj, I915_MAP_WC);
 	if (IS_ERR(cmd))
 		return PTR_ERR(cmd);
 
@@ -1070,8 +1070,8 @@ out_request:
 		if (!request[idx])
 			break;
 
-		cmd = i915_gem_object_pin_map(request[idx]->batch->obj,
-					      I915_MAP_WC);
+		cmd = i915_gem_object_pin_map_unlocked(request[idx]->batch->obj,
+						       I915_MAP_WC);
 		if (!IS_ERR(cmd)) {
 			*cmd = MI_BATCH_BUFFER_END;
 
