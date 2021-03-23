@@ -28,6 +28,7 @@
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 
@@ -225,6 +226,15 @@ err_reset_bridge:
 	bridge->dev = NULL;
 	bridge->encoder = NULL;
 	list_del(&bridge->chain_node);
+
+#ifdef CONFIG_OF
+	DRM_ERROR("failed to attach bridge %pOF to encoder %s: %d\n",
+		  bridge->of_node, encoder->name, ret);
+#else
+	DRM_ERROR("failed to attach bridge to encoder %s: %d\n",
+		  encoder->name, ret);
+#endif
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_bridge_attach);

@@ -3474,7 +3474,6 @@ struct dw_hdmi *dw_hdmi_bind(struct platform_device *pdev,
 	ret = drm_bridge_attach(encoder, &hdmi->bridge, NULL, 0);
 	if (ret) {
 		dw_hdmi_remove(hdmi);
-		DRM_ERROR("Failed to initialize bridge with drm\n");
 		return ERR_PTR(ret);
 	}
 

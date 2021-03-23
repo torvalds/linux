@@ -1229,15 +1229,7 @@ EXPORT_SYMBOL_GPL(dw_mipi_dsi_remove);
  */
 int dw_mipi_dsi_bind(struct dw_mipi_dsi *dsi, struct drm_encoder *encoder)
 {
-	int ret;
-
-	ret = drm_bridge_attach(encoder, &dsi->bridge, NULL, 0);
-	if (ret) {
-		DRM_ERROR("Failed to initialize bridge with drm\n");
-		return ret;
-	}
-
-	return ret;
+	return drm_bridge_attach(encoder, &dsi->bridge, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_bind);
 

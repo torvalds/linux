@@ -1081,10 +1081,8 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		drm_encoder_helper_add(encoder, &ingenic_drm_encoder_helper_funcs);
 
 		ret = drm_bridge_attach(encoder, bridge, NULL, 0);
-		if (ret) {
-			dev_err(dev, "Unable to attach bridge\n");
+		if (ret)
 			return ret;
-		}
 	}
 
 	drm_for_each_encoder(encoder, drm) {
