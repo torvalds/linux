@@ -42,6 +42,7 @@ struct intel_uncore_pmu;
 struct intel_uncore_box;
 struct uncore_event_desc;
 struct freerunning_counters;
+struct intel_uncore_topology;
 
 struct intel_uncore_type {
 	const char *name;
@@ -87,7 +88,7 @@ struct intel_uncore_type {
 	 * to identify which platform component each PMON block of that type is
 	 * supposed to monitor.
 	 */
-	u64 *topology;
+	struct intel_uncore_topology *topology;
 	/*
 	 * Optional callbacks for managing mapping of Uncore units to PMONs
 	 */
@@ -176,6 +177,11 @@ struct freerunning_counters {
 	unsigned *box_offsets;
 };
 
+struct intel_uncore_topology {
+	u64 configuration;
+	int segment;
+};
+
 struct pci2phy_map {
 	struct list_head list;
 	int segment;
@@ -184,6 +190,7 @@ struct pci2phy_map {
 
 struct pci2phy_map *__find_pci2phy_map(int segment);
 int uncore_pcibus_to_dieid(struct pci_bus *bus);
+int uncore_die_to_segment(int die);
 
 ssize_t uncore_event_show(struct device *dev,
 			  struct device_attribute *attr, char *buf);

@@ -53,6 +53,18 @@ int uncore_pcibus_to_dieid(struct pci_bus *bus)
 	return die_id;
 }
 
+int uncore_die_to_segment(int die)
+{
+	struct pci_bus *bus = NULL;
+
+	/* Find first pci bus which attributes to specified die. */
+	while ((bus = pci_find_next_bus(bus)) &&
+	       (die != uncore_pcibus_to_dieid(bus)))
+		;
+
+	return bus ? pci_domain_nr(bus) : -EINVAL;
+}
+
 static void uncore_free_pcibus_map(void)
 {
 	struct pci2phy_map *map, *tmp;
