@@ -238,7 +238,6 @@ static void cyttsp_hard_reset(struct cyttsp *ts)
 
 static int cyttsp_soft_reset(struct cyttsp *ts)
 {
-	unsigned long timeout;
 	int retval;
 
 	/* wait for interrupt to set ready completion */
@@ -248,12 +247,16 @@ static int cyttsp_soft_reset(struct cyttsp *ts)
 	enable_irq(ts->irq);
 
 	retval = ttsp_send_command(ts, CY_SOFT_RESET_MODE);
-	if (retval)
+	if (retval) {
+		dev_err(ts->dev, "failed to send soft reset\n");
 		goto out;
+	}
 
-	timeout = wait_for_completion_timeout(&ts->bl_ready,
-			msecs_to_jiffies(CY_DELAY_DFLT * CY_DELAY_MAX));
-	retval = timeout ? 0 : -EIO;
+	if (!wait_for_completion_timeout(&ts->bl_ready,
+			msecs_to_jiffies(CY_DELAY_DFLT * CY_DELAY_MAX))) {
+		dev_err(ts->dev, "timeout waiting for soft reset\n");
+		retval = -EIO;
+	}
 
 out:
 	ts->state = CY_IDLE_STATE;
