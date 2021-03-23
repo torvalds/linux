@@ -299,22 +299,22 @@ struct scatterlist *
 __i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 			 struct i915_gem_object_page_iter *iter,
 			 unsigned int n,
-			 unsigned int *offset);
+			 unsigned int *offset, bool allow_alloc);
 
 static inline struct scatterlist *
 i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 		       unsigned int n,
-		       unsigned int *offset)
+		       unsigned int *offset, bool allow_alloc)
 {
-	return __i915_gem_object_get_sg(obj, &obj->mm.get_page, n, offset);
+	return __i915_gem_object_get_sg(obj, &obj->mm.get_page, n, offset, allow_alloc);
 }
 
 static inline struct scatterlist *
 i915_gem_object_get_sg_dma(struct drm_i915_gem_object *obj,
 			   unsigned int n,
-			   unsigned int *offset)
+			   unsigned int *offset, bool allow_alloc)
 {
-	return __i915_gem_object_get_sg(obj, &obj->mm.get_dma_page, n, offset);
+	return __i915_gem_object_get_sg(obj, &obj->mm.get_dma_page, n, offset, allow_alloc);
 }
 
 struct page *

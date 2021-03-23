@@ -28,6 +28,7 @@
 #include "i915_sw_fence_work.h"
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
+#include "i915_memcpy.h"
 
 struct eb_vma {
 	struct i915_vma *vma;
@@ -2281,23 +2282,44 @@ struct eb_parse_work {
 	struct i915_vma *trampoline;
 	unsigned long batch_offset;
 	unsigned long batch_length;
+	unsigned long *jump_whitelist;
+	const void *batch_map;
+	void *shadow_map;
 };
 
 static int __eb_parse(struct dma_fence_work *work)
 {
 	struct eb_parse_work *pw = container_of(work, typeof(*pw), base);
+	int ret;
+	bool cookie;
 
-	return intel_engine_cmd_parser(pw->engine,
-				       pw->batch,
-				       pw->batch_offset,
-				       pw->batch_length,
-				       pw->shadow,
-				       pw->trampoline);
+	cookie = dma_fence_begin_signalling();
+	ret = intel_engine_cmd_parser(pw->engine,
+				      pw->batch,
+				      pw->batch_offset,
+				      pw->batch_length,
+				      pw->shadow,
+				      pw->jump_whitelist,
+				      pw->shadow_map,
+				      pw->batch_map);
+	dma_fence_end_signalling(cookie);
+
+	return ret;
 }
 
 static void __eb_parse_release(struct dma_fence_work *work)
 {
 	struct eb_parse_work *pw = container_of(work, typeof(*pw), base);
+
+	if (!IS_ERR_OR_NULL(pw->jump_whitelist))
+		kfree(pw->jump_whitelist);
+
+	if (pw->batch_map)
+		i915_gem_object_unpin_map(pw->batch->obj);
+	else
+		i915_gem_object_unpin_pages(pw->batch->obj);
+
+	i915_gem_object_unpin_map(pw->shadow->obj);
 
 	if (pw->trampoline)
 		i915_active_release(&pw->trampoline->active);
@@ -2348,6 +2370,8 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 			     struct i915_vma *trampoline)
 {
 	struct eb_parse_work *pw;
+	struct drm_i915_gem_object *batch = eb->batch->vma->obj;
+	bool needs_clflush;
 	int err;
 
 	GEM_BUG_ON(overflows_type(eb->batch_start_offset, pw->batch_offset));
@@ -2369,6 +2393,34 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 		err = i915_active_acquire(&trampoline->active);
 		if (err)
 			goto err_shadow;
+	}
+
+	pw->shadow_map = i915_gem_object_pin_map(shadow->obj, I915_MAP_WB);
+	if (IS_ERR(pw->shadow_map)) {
+		err = PTR_ERR(pw->shadow_map);
+		goto err_trampoline;
+	}
+
+	needs_clflush =
+		!(batch->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ);
+
+	pw->batch_map = ERR_PTR(-ENODEV);
+	if (needs_clflush && i915_has_memcpy_from_wc())
+		pw->batch_map = i915_gem_object_pin_map(batch, I915_MAP_WC);
+
+	if (IS_ERR(pw->batch_map)) {
+		err = i915_gem_object_pin_pages(batch);
+		if (err)
+			goto err_unmap_shadow;
+		pw->batch_map = NULL;
+	}
+
+	pw->jump_whitelist =
+		intel_engine_cmd_parser_alloc_jump_whitelist(eb->batch_len,
+							     trampoline);
+	if (IS_ERR(pw->jump_whitelist)) {
+		err = PTR_ERR(pw->jump_whitelist);
+		goto err_unmap_batch;
 	}
 
 	dma_fence_work_init(&pw->base, &eb_parse_ops);
@@ -2410,6 +2462,16 @@ err_commit:
 	dma_fence_work_commit_imm(&pw->base);
 	return err;
 
+err_unmap_batch:
+	if (pw->batch_map)
+		i915_gem_object_unpin_map(batch);
+	else
+		i915_gem_object_unpin_pages(batch);
+err_unmap_shadow:
+	i915_gem_object_unpin_map(shadow->obj);
+err_trampoline:
+	if (trampoline)
+		i915_active_release(&trampoline->active);
 err_shadow:
 	i915_active_release(&shadow->active);
 err_batch:
