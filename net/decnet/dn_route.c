@@ -92,7 +92,7 @@ struct dn_rt_hash_bucket {
 extern struct neigh_table dn_neigh_table;
 
 
-static unsigned char dn_hiord_addr[6] = {0xAA,0x00,0x04,0x00,0x00,0x00};
+static unsigned char dn_hiord_addr[6] = {0xAA, 0x00, 0x04, 0x00, 0x00, 0x00};
 
 static const int dn_rt_min_delay = 2 * HZ;
 static const int dn_rt_max_delay = 10 * HZ;
@@ -362,7 +362,7 @@ static void dn_run_flush(struct timer_list *unused)
 		if (!rt)
 			goto nothing_to_declare;
 
-		for(; rt; rt = next) {
+		for (; rt; rt = next) {
 			next = rcu_dereference_raw(rt->dn_next);
 			RCU_INIT_POINTER(rt->dn_next, NULL);
 			dst_dev_put(&rt->dst);
@@ -902,7 +902,7 @@ static inline int dn_match_addr(__le16 addr1, __le16 addr2)
 {
 	__u16 tmp = le16_to_cpu(addr1) ^ le16_to_cpu(addr2);
 	int match = 16;
-	while(tmp) {
+	while (tmp) {
 		tmp >>= 1;
 		match--;
 	}
@@ -1388,7 +1388,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		fld.saddr = src_map;
 	}
 
-	switch(res.type) {
+	switch (res.type) {
 	case RTN_UNICAST:
 		/*
 		 * Forwarding check here, we only check for forwarding
@@ -1531,7 +1531,7 @@ static int dn_route_input(struct sk_buff *skb)
 		return 0;
 
 	rcu_read_lock();
-	for(rt = rcu_dereference(dn_rt_hash_table[hash].chain); rt != NULL;
+	for (rt = rcu_dereference(dn_rt_hash_table[hash].chain); rt != NULL;
 	    rt = rcu_dereference(rt->dn_next)) {
 		if ((rt->fld.saddr == cb->src) &&
 		    (rt->fld.daddr == cb->dst) &&
@@ -1744,13 +1744,13 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
-	for(h = 0; h <= dn_rt_hash_mask; h++) {
+	for (h = 0; h <= dn_rt_hash_mask; h++) {
 		if (h < s_h)
 			continue;
 		if (h > s_h)
 			s_idx = 0;
 		rcu_read_lock_bh();
-		for(rt = rcu_dereference_bh(dn_rt_hash_table[h].chain), idx = 0;
+		for (rt = rcu_dereference_bh(dn_rt_hash_table[h].chain), idx = 0;
 			rt;
 			rt = rcu_dereference_bh(rt->dn_next), idx++) {
 			if (idx < s_idx)
@@ -1784,7 +1784,7 @@ static struct dn_route *dn_rt_cache_get_first(struct seq_file *seq)
 	struct dn_route *rt = NULL;
 	struct dn_rt_cache_iter_state *s = seq->private;
 
-	for(s->bucket = dn_rt_hash_mask; s->bucket >= 0; --s->bucket) {
+	for (s->bucket = dn_rt_hash_mask; s->bucket >= 0; --s->bucket) {
 		rcu_read_lock_bh();
 		rt = rcu_dereference_bh(dn_rt_hash_table[s->bucket].chain);
 		if (rt)
@@ -1814,7 +1814,7 @@ static void *dn_rt_cache_seq_start(struct seq_file *seq, loff_t *pos)
 	struct dn_route *rt = dn_rt_cache_get_first(seq);
 
 	if (rt) {
-		while(*pos && (rt = dn_rt_cache_get_next(seq, rt)))
+		while (*pos && (rt = dn_rt_cache_get_next(seq, rt)))
 			--*pos;
 	}
 	return *pos ? NULL : rt;
@@ -1869,21 +1869,21 @@ void __init dn_route_init(void)
 
 	goal = totalram_pages() >> (26 - PAGE_SHIFT);
 
-	for(order = 0; (1UL << order) < goal; order++)
+	for (order = 0; (1UL << order) < goal; order++)
 		/* NOTHING */;
 
 	/*
 	 * Only want 1024 entries max, since the table is very, very unlikely
 	 * to be larger than that.
 	 */
-	while(order && ((((1UL << order) * PAGE_SIZE) /
+	while (order && ((((1UL << order) * PAGE_SIZE) /
 				sizeof(struct dn_rt_hash_bucket)) >= 2048))
 		order--;
 
 	do {
 		dn_rt_hash_mask = (1UL << order) * PAGE_SIZE /
 			sizeof(struct dn_rt_hash_bucket);
-		while(dn_rt_hash_mask & (dn_rt_hash_mask - 1))
+		while (dn_rt_hash_mask & (dn_rt_hash_mask - 1))
 			dn_rt_hash_mask--;
 		dn_rt_hash_table = (struct dn_rt_hash_bucket *)
 			__get_free_pages(GFP_ATOMIC, order);
@@ -1898,7 +1898,7 @@ void __init dn_route_init(void)
 		(long)(dn_rt_hash_mask*sizeof(struct dn_rt_hash_bucket))/1024);
 
 	dn_rt_hash_mask--;
-	for(i = 0; i <= dn_rt_hash_mask; i++) {
+	for (i = 0; i <= dn_rt_hash_mask; i++) {
 		spin_lock_init(&dn_rt_hash_table[i].lock);
 		dn_rt_hash_table[i].chain = NULL;
 	}
