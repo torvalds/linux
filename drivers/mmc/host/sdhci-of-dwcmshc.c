@@ -404,8 +404,10 @@ static int dwcmshc_probe(struct platform_device *pdev)
 
 	if (pltfm_data == &sdhci_dwcmshc_rk3568_pdata) {
 		rk_priv = devm_kzalloc(&pdev->dev, sizeof(struct rk3568_priv), GFP_KERNEL);
-		if (!rk_priv)
+		if (!rk_priv) {
+			err = -ENOMEM;
 			goto err_clk;
+		}
 
 		priv->priv = rk_priv;
 
