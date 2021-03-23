@@ -32,9 +32,20 @@
 #include "mock_engine.h"
 #include "selftests/mock_request.h"
 
-static void mock_timeline_pin(struct intel_timeline *tl)
+static int mock_timeline_pin(struct intel_timeline *tl)
 {
+	int err;
+
+	if (WARN_ON(!i915_gem_object_trylock(tl->hwsp_ggtt->obj)))
+		return -EBUSY;
+
+	err = intel_timeline_pin_map(tl);
+	i915_gem_object_unlock(tl->hwsp_ggtt->obj);
+	if (err)
+		return err;
+
 	atomic_inc(&tl->pin_count);
+	return 0;
 }
 
 static void mock_timeline_unpin(struct intel_timeline *tl)
@@ -152,6 +163,8 @@ static void mock_context_destroy(struct kref *ref)
 
 static int mock_context_alloc(struct intel_context *ce)
 {
+	int err;
+
 	ce->ring = mock_ring(ce->engine);
 	if (!ce->ring)
 		return -ENOMEM;
@@ -162,7 +175,12 @@ static int mock_context_alloc(struct intel_context *ce)
 		return PTR_ERR(ce->timeline);
 	}
 
-	mock_timeline_pin(ce->timeline);
+	err = mock_timeline_pin(ce->timeline);
+	if (err) {
+		intel_timeline_put(ce->timeline);
+		ce->timeline = NULL;
+		return err;
+	}
 
 	return 0;
 }

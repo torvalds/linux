@@ -60,6 +60,7 @@ static void __mock_hwsp_record(struct mock_hwsp_freelist *state,
 	tl = xchg(&state->history[idx], tl);
 	if (tl) {
 		radix_tree_delete(&state->cachelines, hwsp_cacheline(tl));
+		intel_timeline_unpin(tl);
 		intel_timeline_put(tl);
 	}
 }
@@ -79,6 +80,12 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 		if (IS_ERR(tl))
 			return PTR_ERR(tl);
 
+		err = intel_timeline_pin(tl, NULL);
+		if (err) {
+			intel_timeline_put(tl);
+			return err;
+		}
+
 		cacheline = hwsp_cacheline(tl);
 		err = radix_tree_insert(&state->cachelines, cacheline, tl);
 		if (err) {
@@ -86,6 +93,7 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 				pr_err("HWSP cacheline %lu already used; duplicate allocation!\n",
 				       cacheline);
 			}
+			intel_timeline_unpin(tl);
 			intel_timeline_put(tl);
 			return err;
 		}
@@ -453,7 +461,7 @@ static int emit_ggtt_store_dw(struct i915_request *rq, u32 addr, u32 value)
 }
 
 static struct i915_request *
-tl_write(struct intel_timeline *tl, struct intel_engine_cs *engine, u32 value)
+checked_tl_write(struct intel_timeline *tl, struct intel_engine_cs *engine, u32 value)
 {
 	struct i915_request *rq;
 	int err;
@@ -462,6 +470,13 @@ tl_write(struct intel_timeline *tl, struct intel_engine_cs *engine, u32 value)
 	if (err) {
 		rq = ERR_PTR(err);
 		goto out;
+	}
+
+	if (READ_ONCE(*tl->hwsp_seqno) != tl->seqno) {
+		pr_err("Timeline created with incorrect breadcrumb, found %x, expected %x\n",
+		       *tl->hwsp_seqno, tl->seqno);
+		intel_timeline_unpin(tl);
+		return ERR_PTR(-EINVAL);
 	}
 
 	rq = intel_engine_create_kernel_request(engine);
@@ -483,25 +498,6 @@ out:
 	if (IS_ERR(rq))
 		pr_err("Failed to write to timeline!\n");
 	return rq;
-}
-
-static struct intel_timeline *
-checked_intel_timeline_create(struct intel_gt *gt)
-{
-	struct intel_timeline *tl;
-
-	tl = intel_timeline_create(gt);
-	if (IS_ERR(tl))
-		return tl;
-
-	if (READ_ONCE(*tl->hwsp_seqno) != tl->seqno) {
-		pr_err("Timeline created with incorrect breadcrumb, found %x, expected %x\n",
-		       *tl->hwsp_seqno, tl->seqno);
-		intel_timeline_put(tl);
-		return ERR_PTR(-EINVAL);
-	}
-
-	return tl;
 }
 
 static int live_hwsp_engine(void *arg)
@@ -536,13 +532,13 @@ static int live_hwsp_engine(void *arg)
 			struct intel_timeline *tl;
 			struct i915_request *rq;
 
-			tl = checked_intel_timeline_create(gt);
+			tl = intel_timeline_create(gt);
 			if (IS_ERR(tl)) {
 				err = PTR_ERR(tl);
 				break;
 			}
 
-			rq = tl_write(tl, engine, count);
+			rq = checked_tl_write(tl, engine, count);
 			if (IS_ERR(rq)) {
 				intel_timeline_put(tl);
 				err = PTR_ERR(rq);
@@ -609,14 +605,14 @@ static int live_hwsp_alternate(void *arg)
 			if (!intel_engine_can_store_dword(engine))
 				continue;
 
-			tl = checked_intel_timeline_create(gt);
+			tl = intel_timeline_create(gt);
 			if (IS_ERR(tl)) {
 				err = PTR_ERR(tl);
 				goto out;
 			}
 
 			intel_engine_pm_get(engine);
-			rq = tl_write(tl, engine, count);
+			rq = checked_tl_write(tl, engine, count);
 			intel_engine_pm_put(engine);
 			if (IS_ERR(rq)) {
 				intel_timeline_put(tl);
@@ -1259,6 +1255,10 @@ static int live_hwsp_rollover_user(void *arg)
 		if (!tl->has_initial_breadcrumb)
 			goto out;
 
+		err = intel_context_pin(ce);
+		if (err)
+			goto out;
+
 		tl->seqno = -4u;
 		WRITE_ONCE(*(u32 *)tl->hwsp_seqno, tl->seqno);
 
@@ -1268,7 +1268,7 @@ static int live_hwsp_rollover_user(void *arg)
 			this = intel_context_create_request(ce);
 			if (IS_ERR(this)) {
 				err = PTR_ERR(this);
-				goto out;
+				goto out_unpin;
 			}
 
 			pr_debug("%s: create fence.seqnp:%d\n",
@@ -1287,17 +1287,18 @@ static int live_hwsp_rollover_user(void *arg)
 		if (i915_request_wait(rq[2], 0, HZ / 5) < 0) {
 			pr_err("Wait for timeline wrap timed out!\n");
 			err = -EIO;
-			goto out;
+			goto out_unpin;
 		}
 
 		for (i = 0; i < ARRAY_SIZE(rq); i++) {
 			if (!i915_request_completed(rq[i])) {
 				pr_err("Pre-wrap request not completed!\n");
 				err = -EINVAL;
-				goto out;
+				goto out_unpin;
 			}
 		}
-
+out_unpin:
+		intel_context_unpin(ce);
 out:
 		for (i = 0; i < ARRAY_SIZE(rq); i++)
 			i915_request_put(rq[i]);
@@ -1339,13 +1340,13 @@ static int live_hwsp_recycle(void *arg)
 			struct intel_timeline *tl;
 			struct i915_request *rq;
 
-			tl = checked_intel_timeline_create(gt);
+			tl = intel_timeline_create(gt);
 			if (IS_ERR(tl)) {
 				err = PTR_ERR(tl);
 				break;
 			}
 
-			rq = tl_write(tl, engine, count);
+			rq = checked_tl_write(tl, engine, count);
 			if (IS_ERR(rq)) {
 				intel_timeline_put(tl);
 				err = PTR_ERR(rq);
