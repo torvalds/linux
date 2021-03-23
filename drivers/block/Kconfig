@@ -121,23 +121,6 @@ source "drivers/block/mtip32xx/Kconfig"
 
 source "drivers/block/zram/Kconfig"
 
-config BLK_DEV_UMEM
-	tristate "Micro Memory MM5415 Battery Backed RAM support"
-	depends on PCI
-	help
-	  Saying Y here will include support for the MM5415 family of
-	  battery backed (Non-volatile) RAM cards.
-	  <http://www.umem.com/>
-
-	  The cards appear as block devices that can be partitioned into
-	  as many as 15 partitions.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called umem.
-
-	  The umem driver has not yet been allocated a MAJOR number, so
-	  one is chosen dynamically.
-
 config BLK_DEV_UBD
 	bool "Virtual block device"
 	depends on UML
