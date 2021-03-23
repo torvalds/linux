@@ -296,17 +296,11 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 	__start_cpu_write(obj);
 }
 
-static void
-shmem_put_pages(struct drm_i915_gem_object *obj, struct sg_table *pages)
+void i915_gem_object_put_pages_shmem(struct drm_i915_gem_object *obj, struct sg_table *pages)
 {
 	struct sgt_iter sgt_iter;
 	struct pagevec pvec;
 	struct page *page;
-
-	if (unlikely(!i915_gem_object_has_struct_page(obj))) {
-		i915_gem_object_put_pages_phys(obj, pages);
-		return;
-	}
 
 	__i915_gem_object_release_shmem(obj, pages, true);
 
@@ -334,6 +328,15 @@ shmem_put_pages(struct drm_i915_gem_object *obj, struct sg_table *pages)
 
 	sg_free_table(pages);
 	kfree(pages);
+}
+
+static void
+shmem_put_pages(struct drm_i915_gem_object *obj, struct sg_table *pages)
+{
+	if (likely(i915_gem_object_has_struct_page(obj)))
+		i915_gem_object_put_pages_shmem(obj, pages);
+	else
+		i915_gem_object_put_pages_phys(obj, pages);
 }
 
 static int

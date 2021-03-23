@@ -201,7 +201,7 @@ static int i915_gem_object_shmem_to_phys(struct drm_i915_gem_object *obj)
 	__i915_gem_object_pin_pages(obj);
 
 	if (!IS_ERR_OR_NULL(pages))
-		i915_gem_shmem_ops.put_pages(obj, pages);
+		i915_gem_object_put_pages_shmem(obj, pages);
 
 	i915_gem_object_release_memory_region(obj);
 	return 0;
@@ -232,7 +232,13 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	if (err)
 		return err;
 
-	mutex_lock_nested(&obj->mm.lock, I915_MM_GET_PAGES);
+	err = i915_gem_object_lock_interruptible(obj, NULL);
+	if (err)
+		return err;
+
+	err = mutex_lock_interruptible_nested(&obj->mm.lock, I915_MM_GET_PAGES);
+	if (err)
+		goto err_unlock;
 
 	if (unlikely(!i915_gem_object_has_struct_page(obj)))
 		goto out;
@@ -263,6 +269,8 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 
 out:
 	mutex_unlock(&obj->mm.lock);
+err_unlock:
+	i915_gem_object_unlock(obj);
 	return err;
 }
 

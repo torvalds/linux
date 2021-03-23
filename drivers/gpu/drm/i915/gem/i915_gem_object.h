@@ -43,9 +43,10 @@ int i915_gem_object_pread_phys(struct drm_i915_gem_object *obj,
 			       const struct drm_i915_gem_pread *args);
 
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align);
+void i915_gem_object_put_pages_shmem(struct drm_i915_gem_object *obj,
+				     struct sg_table *pages);
 void i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 				    struct sg_table *pages);
-
 
 void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 
