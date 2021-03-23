@@ -78,7 +78,7 @@ struct elan_transport_ops {
 	int (*calibrate_result)(struct i2c_client *client, u8 *val);
 
 	int (*get_baseline_data)(struct i2c_client *client,
-				 bool max_baseliune, u8 *value);
+				 bool max_baseline, u8 *value);
 
 	int (*get_version)(struct i2c_client *client, u8 pattern, bool iap,
 			   u8 *version);
