@@ -191,7 +191,7 @@
 };
 
 &ether {
-	pinctrl-0 = <&ether_pins &phy1_pins>;
+	pinctrl-0 = <&ether_pins>, <&phy1_pins>;
 	pinctrl-names = "default";
 
 	phy-handle = <&phy1>;
@@ -321,7 +321,7 @@
 
 &iic3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&iic3_pins &pmic_irq_pins>;
+	pinctrl-0 = <&iic3_pins>, <&pmic_irq_pins>;
 	status = "okay";
 
 	pmic@58 {

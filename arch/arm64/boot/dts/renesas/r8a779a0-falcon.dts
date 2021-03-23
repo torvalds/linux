@@ -7,6 +7,8 @@
 
 /dts-v1/;
 #include "r8a779a0-falcon-cpu.dtsi"
+#include "r8a779a0-falcon-csi-dsi.dtsi"
+#include "r8a779a0-falcon-ethernet.dtsi"
 
 / {
 	model = "Renesas Falcon CPU and Breakout boards based on r8a779a0";
@@ -19,6 +21,15 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+};
+
+&i2c0 {
+	eeprom@51 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "breakout-board";
+		reg = <0x51>;
+		pagesize = <8>;
 	};
 };
 
