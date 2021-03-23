@@ -219,6 +219,8 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 {
 	int err;
 
+	assert_object_held(obj);
+
 	if (align > obj->base.size)
 		return -EINVAL;
 
@@ -232,13 +234,9 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	if (err)
 		return err;
 
-	err = i915_gem_object_lock_interruptible(obj, NULL);
-	if (err)
-		return err;
-
 	err = mutex_lock_interruptible(&obj->mm.lock);
 	if (err)
-		goto err_unlock;
+		return err;
 
 	if (unlikely(!i915_gem_object_has_struct_page(obj)))
 		goto out;
@@ -269,8 +267,6 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 
 out:
 	mutex_unlock(&obj->mm.lock);
-err_unlock:
-	i915_gem_object_unlock(obj);
 	return err;
 }
 

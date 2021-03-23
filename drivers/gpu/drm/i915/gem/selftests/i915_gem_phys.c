@@ -31,7 +31,9 @@ static int mock_phys_object(void *arg)
 		goto out_obj;
 	}
 
+	i915_gem_object_lock(obj, NULL);
 	err = i915_gem_object_attach_phys(obj, PAGE_SIZE);
+	i915_gem_object_unlock(obj);
 	if (err) {
 		pr_err("i915_gem_object_attach_phys failed, err=%d\n", err);
 		goto out_obj;
