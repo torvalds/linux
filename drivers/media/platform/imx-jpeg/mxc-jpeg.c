@@ -1114,21 +1114,21 @@ static int mxc_jpeg_valid_comp_id(struct device *dev,
 }
 
 static u32 mxc_jpeg_get_image_format(struct device *dev,
-				     const struct v4l2_jpeg_header header)
+				     const struct v4l2_jpeg_header *header)
 {
 	int i;
 	u32 fourcc = 0;
 
 	for (i = 0; i < MXC_JPEG_NUM_FORMATS; i++)
-		if (mxc_formats[i].subsampling == header.frame.subsampling &&
-		    mxc_formats[i].nc == header.frame.num_components) {
+		if (mxc_formats[i].subsampling == header->frame.subsampling &&
+		    mxc_formats[i].nc == header->frame.num_components) {
 			fourcc = mxc_formats[i].fourcc;
 			break;
 		}
 	if (fourcc == 0) {
 		dev_err(dev, "Could not identify image format nc=%d, subsampling=%d\n",
-			header.frame.num_components,
-			header.frame.subsampling);
+			header->frame.num_components,
+			header->frame.subsampling);
 		return fourcc;
 	}
 	/*
@@ -1137,7 +1137,7 @@ static u32 mxc_jpeg_get_image_format(struct device *dev,
 	 * ITU-T T.872 chapter 6.5.3 APP14 marker segment for colour encoding
 	 */
 	if (fourcc == V4L2_PIX_FMT_YUV24 || fourcc == V4L2_PIX_FMT_RGB24) {
-		if (header.app14_tf == V4L2_JPEG_APP14_TF_CMYK_RGB)
+		if (header->app14_tf == V4L2_JPEG_APP14_TF_CMYK_RGB)
 			fourcc = V4L2_PIX_FMT_RGB24;
 		else
 			fourcc = V4L2_PIX_FMT_YUV24;
@@ -1258,7 +1258,7 @@ static int mxc_jpeg_parse(struct mxc_jpeg_ctx *ctx,
 	if (!mxc_jpeg_valid_comp_id(dev, psof, psos))
 		dev_warn(dev, "JPEG component ids should be 0-3 or 1-4");
 
-	fourcc = mxc_jpeg_get_image_format(dev, header);
+	fourcc = mxc_jpeg_get_image_format(dev, &header);
 	if (fourcc == 0)
 		return -EINVAL;
 
