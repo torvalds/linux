@@ -74,13 +74,13 @@ struct otx2_mbox {
 	struct otx2_mbox_dev *dev;
 };
 
-/* Header which preceeds all mbox messages */
+/* Header which precedes all mbox messages */
 struct mbox_hdr {
 	u64 msg_size;	/* Total msgs size embedded */
 	u16  num_msgs;   /* No of msgs embedded */
 };
 
-/* Header which preceeds every msg and is also part of it */
+/* Header which precedes every msg and is also part of it */
 struct mbox_msghdr {
 	u16 pcifunc;     /* Who's sending this msg */
 	u16 id;          /* Mbox message ID */
@@ -280,8 +280,8 @@ struct msg_req {
 	struct mbox_msghdr hdr;
 };
 
-/* Generic rsponse msg used a ack or response for those mbox
- * messages which doesn't have a specific rsp msg format.
+/* Generic response msg used an ack or response for those mbox
+ * messages which don't have a specific rsp msg format.
  */
 struct msg_rsp {
 	struct mbox_msghdr hdr;
@@ -302,7 +302,7 @@ struct ready_msg_rsp {
 
 /* Structure for requesting resource provisioning.
  * 'modify' flag to be used when either requesting more
- * or to detach partial of a cetain resource type.
+ * or to detach partial of a certain resource type.
  * Rest of the fields specify how many of what type to
  * be attached.
  * To request LFs from two blocks of same type this mailbox
@@ -492,7 +492,7 @@ struct cgx_set_link_mode_rsp {
 };
 
 #define RVU_LMAC_FEAT_FC		BIT_ULL(0) /* pause frames */
-#define RVU_LMAC_FEAT_PTP		BIT_ULL(1) /* precison time protocol */
+#define RVU_LMAC_FEAT_PTP		BIT_ULL(1) /* precision time protocol */
 #define RVU_MAC_VERSION			BIT_ULL(2)
 #define RVU_MAC_CGX			BIT_ULL(3)
 #define RVU_MAC_RPM			BIT_ULL(4)
