@@ -278,10 +278,6 @@ static void process_ac_flags(struct qdio_irq *irq_ptr, unsigned char qdioac)
 		irq_ptr->siga_flag.output = 1;
 	if (qdioac & AC1_SIGA_SYNC_NEEDED)
 		irq_ptr->siga_flag.sync = 1;
-	if (!(qdioac & AC1_AUTOMATIC_SYNC_ON_THININT))
-		irq_ptr->siga_flag.sync_after_ai = 1;
-	if (!(qdioac & AC1_AUTOMATIC_SYNC_ON_OUT_PCI))
-		irq_ptr->siga_flag.sync_out_after_pci = 1;
 }
 
 static void check_and_setup_qebsm(struct qdio_irq *irq_ptr,
@@ -495,8 +491,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 {
 	char s[80];
 
-	snprintf(s, 80, "qdio: %s %s on SC %x using "
-		 "AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s%s%s\n",
+	snprintf(s, 80, "qdio: %s %s on SC %x using AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s\n",
 		 dev_name(&irq_ptr->cdev->dev),
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
@@ -507,9 +502,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 		 css_general_characteristics.aif_tdd,
 		 (irq_ptr->siga_flag.input) ? "R" : " ",
 		 (irq_ptr->siga_flag.output) ? "W" : " ",
-		 (irq_ptr->siga_flag.sync) ? "S" : " ",
-		 (irq_ptr->siga_flag.sync_after_ai) ? "A" : " ",
-		 (irq_ptr->siga_flag.sync_out_after_pci) ? "P" : " ");
+		 (irq_ptr->siga_flag.sync) ? "S" : " ");
 	printk(KERN_INFO "%s", s);
 }
 

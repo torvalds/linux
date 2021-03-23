@@ -130,9 +130,7 @@ struct siga_flag {
 	u8 input:1;
 	u8 output:1;
 	u8 sync:1;
-	u8 sync_after_ai:1;
-	u8 sync_out_after_pci:1;
-	u8:3;
+	u8:5;
 } __attribute__ ((packed));
 
 struct qdio_dev_perf_stat {
@@ -317,10 +315,6 @@ static inline void qdio_deliver_irq(struct qdio_irq *irq)
 #define need_siga_in(q)			(q->irq_ptr->siga_flag.input)
 #define need_siga_out(q)		(q->irq_ptr->siga_flag.output)
 #define need_siga_sync(q)		(unlikely(q->irq_ptr->siga_flag.sync))
-#define need_siga_sync_after_ai(q)	\
-	(unlikely(q->irq_ptr->siga_flag.sync_after_ai))
-#define need_siga_sync_out_after_pci(q)	\
-	(unlikely(q->irq_ptr->siga_flag.sync_out_after_pci))
 
 #define for_each_input_queue(irq_ptr, q, i)		\
 	for (i = 0; i < irq_ptr->nr_input_qs &&		\
