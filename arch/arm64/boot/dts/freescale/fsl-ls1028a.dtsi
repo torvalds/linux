@@ -18,10 +18,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	aliases {
-		rtc1 = &ftm_alarm0;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

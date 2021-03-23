@@ -25,6 +25,7 @@
 		spi1 = &dspi2;
 		mmc0 = &esdhc1;
 		mmc1 = &esdhc;
+		rtc1 = &ftm_alarm0;
 	};
 
 	buttons0 {
