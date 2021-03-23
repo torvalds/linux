@@ -4989,6 +4989,8 @@ static void init_alloc_chunk_ctl_policy_zoned(
 		ctl->max_chunk_size = 2 * ctl->max_stripe_size;
 		ctl->devs_max = min_t(int, ctl->devs_max,
 				      BTRFS_MAX_DEVS_SYS_CHUNK);
+	} else {
+		BUG();
 	}
 
 	/* We don't want a chunk larger than 10% of writable space */
