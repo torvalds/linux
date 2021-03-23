@@ -2457,11 +2457,31 @@ static void execlists_submit_request(struct i915_request *request)
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
+static int
+__execlists_context_pre_pin(struct intel_context *ce,
+			    struct intel_engine_cs *engine,
+			    struct i915_gem_ww_ctx *ww, void **vaddr)
+{
+	int err;
+
+	err = lrc_pre_pin(ce, engine, ww, vaddr);
+	if (err)
+		return err;
+
+	if (!__test_and_set_bit(CONTEXT_INIT_BIT, &ce->flags)) {
+		lrc_init_state(ce, engine, *vaddr);
+
+		 __i915_gem_object_flush_map(ce->state->obj, 0, engine->context_size);
+	}
+
+	return 0;
+}
+
 static int execlists_context_pre_pin(struct intel_context *ce,
 				     struct i915_gem_ww_ctx *ww,
 				     void **vaddr)
 {
-	return lrc_pre_pin(ce, ce->engine, ww, vaddr);
+	return __execlists_context_pre_pin(ce, ce->engine, ww, vaddr);
 }
 
 static int execlists_context_pin(struct intel_context *ce, void *vaddr)
@@ -3365,8 +3385,8 @@ static int virtual_context_pre_pin(struct intel_context *ce,
 {
 	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
 
-	/* Note: we must use a real engine class for setting up reg state */
-	return lrc_pre_pin(ce, ve->siblings[0], ww, vaddr);
+	 /* Note: we must use a real engine class for setting up reg state */
+	return __execlists_context_pre_pin(ce, ve->siblings[0], ww, vaddr);
 }
 
 static int virtual_context_pin(struct intel_context *ce, void *vaddr)
