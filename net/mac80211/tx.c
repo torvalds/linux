@@ -3605,7 +3605,7 @@ begin:
 	    test_bit(IEEE80211_TXQ_STOP_NETIF_TX, &txqi->flags))
 		goto out;
 
-	if (vif->txqs_stopped[ieee80211_ac_from_tid(txq->tid)]) {
+	if (vif->txqs_stopped[txq->ac]) {
 		set_bit(IEEE80211_TXQ_STOP_NETIF_TX, &txqi->flags);
 		goto out;
 	}
