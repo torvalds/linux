@@ -619,6 +619,7 @@ static void cleanup_status_page(struct intel_engine_cs *engine)
 }
 
 static int pin_ggtt_status_page(struct intel_engine_cs *engine,
+				struct i915_gem_ww_ctx *ww,
 				struct i915_vma *vma)
 {
 	unsigned int flags;
@@ -639,12 +640,13 @@ static int pin_ggtt_status_page(struct intel_engine_cs *engine,
 	else
 		flags = PIN_HIGH;
 
-	return i915_ggtt_pin(vma, NULL, 0, flags);
+	return i915_ggtt_pin(vma, ww, 0, flags);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *obj;
+	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	void *vaddr;
 	int ret;
@@ -670,30 +672,39 @@ static int init_status_page(struct intel_engine_cs *engine)
 	vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		goto err;
+		goto err_put;
 	}
+
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	ret = i915_gem_object_lock(obj, &ww);
+	if (!ret && !HWS_NEEDS_PHYSICAL(engine->i915))
+		ret = pin_ggtt_status_page(engine, &ww, vma);
+	if (ret)
+		goto err;
 
 	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
-		goto err;
+		goto err_unpin;
 	}
 
 	engine->status_page.addr = memset(vaddr, 0, PAGE_SIZE);
 	engine->status_page.vma = vma;
 
-	if (!HWS_NEEDS_PHYSICAL(engine->i915)) {
-		ret = pin_ggtt_status_page(engine, vma);
-		if (ret)
-			goto err_unpin;
-	}
-
-	return 0;
-
 err_unpin:
-	i915_gem_object_unpin_map(obj);
+	if (ret)
+		i915_vma_unpin(vma);
 err:
-	i915_gem_object_put(obj);
+	if (ret == -EDEADLK) {
+		ret = i915_gem_ww_ctx_backoff(&ww);
+		if (!ret)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+err_put:
+	if (ret)
+		i915_gem_object_put(obj);
 	return ret;
 }
 
