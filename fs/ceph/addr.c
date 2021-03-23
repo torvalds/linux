@@ -128,8 +128,7 @@ static int ceph_set_page_dirty(struct page *page)
 	 * PagePrivate so that we get invalidatepage callback.
 	 */
 	BUG_ON(PagePrivate(page));
-	page->private = (unsigned long)snapc;
-	SetPagePrivate(page);
+	attach_page_private(page, snapc);
 
 	ret = __set_page_dirty_nobuffers(page);
 	WARN_ON(!PageLocked(page));
@@ -148,7 +147,7 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 {
 	struct inode *inode;
 	struct ceph_inode_info *ci;
-	struct ceph_snap_context *snapc = page_snap_context(page);
+	struct ceph_snap_context *snapc;
 
 	wait_on_page_fscache(page);
 
@@ -168,10 +167,9 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 	dout("%p invalidatepage %p idx %lu full dirty page\n",
 	     inode, page, page->index);
 
+	snapc = detach_page_private(page);
 	ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
 	ceph_put_snap_context(snapc);
-	page->private = 0;
-	ClearPagePrivate(page);
 }
 
 static int ceph_releasepage(struct page *page, gfp_t gfp)
@@ -589,8 +587,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 		dout("writepage cleaned page %p\n", page);
 		err = 0;  /* vfs expects us to return 0 */
 	}
-	page->private = 0;
-	ClearPagePrivate(page);
+	oldest = detach_page_private(page);
+	WARN_ON_ONCE(oldest != snapc);
 	end_page_writeback(page);
 	ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
 	ceph_put_snap_context(snapc);  /* page's reference */
@@ -682,11 +680,9 @@ static void writepages_finish(struct ceph_osd_request *req)
 				clear_bdi_congested(inode_to_bdi(inode),
 						    BLK_RW_ASYNC);
 
-			ceph_put_snap_context(page_snap_context(page));
-			page->private = 0;
-			ClearPagePrivate(page);
-			dout("unlocking %p\n", page);
+			ceph_put_snap_context(detach_page_private(page));
 			end_page_writeback(page);
+			dout("unlocking %p\n", page);
 
 			if (remove_page)
 				generic_error_remove_page(inode->i_mapping,
