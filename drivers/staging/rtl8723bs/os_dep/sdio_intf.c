@@ -483,7 +483,6 @@ static void rtw_dev_remove(struct sdio_func *func)
 }
 
 extern int pm_netdev_open(struct net_device *pnetdev, u8 bnormal);
-extern int pm_netdev_close(struct net_device *pnetdev, u8 bnormal);
 
 static int rtw_sdio_suspend(struct device *dev)
 {
