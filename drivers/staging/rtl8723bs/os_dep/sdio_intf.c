@@ -482,8 +482,6 @@ static void rtw_dev_remove(struct sdio_func *func)
 	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("-rtw_dev_remove\n"));
 }
 
-extern int pm_netdev_open(struct net_device *pnetdev, u8 bnormal);
-
 static int rtw_sdio_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
