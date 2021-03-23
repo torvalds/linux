@@ -246,6 +246,9 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 		     area->vm_flags & VM_WRITE))
 		return VM_FAULT_SIGBUS;
 
+	if (i915_gem_object_lock_interruptible(obj, NULL))
+		return VM_FAULT_NOPAGE;
+
 	err = i915_gem_object_pin_pages(obj);
 	if (err)
 		goto out;
@@ -269,6 +272,7 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 	i915_gem_object_unpin_pages(obj);
 
 out:
+	i915_gem_object_unlock(obj);
 	return i915_error_to_vmf_fault(err);
 }
 
