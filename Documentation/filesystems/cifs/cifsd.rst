@@ -10,34 +10,6 @@ for sharing files over network.
 CIFSD architecture
 ==================
 
-               |--- ...
-       --------|--- ksmbd/3 - Client 3
-       |-------|--- ksmbd/2 - Client 2
-       |       |         ____________________________________________________
-       |       |        |- Client 1                                          |
-<--- Socket ---|--- ksmbd/1   <<= Authentication : NTLM/NTLM2, Kerberos      |
-       |       |      | |     <<= SMB engine : SMB2, SMB2.1, SMB3, SMB3.0.2, |
-       |       |      | |                SMB3.1.1                            |
-       |       |      | |____________________________________________________|
-       |       |      |
-       |       |      |--- VFS --- Local Filesystem
-       |       |
-KERNEL |--- ksmbd/0(forker kthread)
----------------||---------------------------------------------------------------
-USER           ||
-               || communication using NETLINK
-               ||  ______________________________________________
-               || |                                              |
-        ksmbd.mountd <<= DCE/RPC(srvsvc, wkssvc, smar, lsarpc)   |
-               ^  |  <<= configure shares setting, user accounts |
-               |  |______________________________________________|
-               |
-               |------ smb.conf(config file)
-               |
-               |------ ksmbdpwd.db(user account/password file)
-                            ^
-  ksmbd.adduser ---------------|
-
 The subset of performance related operations belong in kernelspace and
 the other subset which belong to operations which are not really related with
 performance in userspace. So, DCE/RPC management that has historically resulted
