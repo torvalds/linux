@@ -1462,7 +1462,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	 */
 	ret = sdw_bus_clk_stop(&cdns->bus);
 	if (ret < 0 && slave_present && ret != -ENODATA) {
-		dev_err(cdns->dev, "bus clock stop failed %d", ret);
+		dev_err(cdns->dev, "bus clock stop failed %d\n", ret);
 		return ret;
 	}
 
