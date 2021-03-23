@@ -42,3 +42,4 @@ Operating Systems 2
    :maxdepth: 1
 
    assign0-kernel-api.rst
+   assign1-kprobe-based-tracer.rst
