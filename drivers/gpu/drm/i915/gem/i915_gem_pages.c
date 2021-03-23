@@ -19,7 +19,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 	bool shrinkable;
 	int i;
 
-	lockdep_assert_held(&obj->mm.lock);
+	assert_object_held_shared(obj);
 
 	if (i915_gem_object_is_volatile(obj))
 		obj->mm.madv = I915_MADV_DONTNEED;
@@ -70,6 +70,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 		struct list_head *list;
 		unsigned long flags;
 
+		lockdep_assert_held(&obj->mm.lock);
 		spin_lock_irqsave(&i915->mm.obj_lock, flags);
 
 		i915->mm.shrink_count++;
@@ -90,6 +91,8 @@ int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	int err;
+
+	assert_object_held_shared(obj);
 
 	if (unlikely(obj->mm.madv != I915_MADV_WILLNEED)) {
 		drm_dbg(&i915->drm,
@@ -118,6 +121,8 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	if (err)
 		return err;
 
+	assert_object_held_shared(obj);
+
 	if (unlikely(!i915_gem_object_has_pages(obj))) {
 		GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
 
@@ -145,7 +150,7 @@ void i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 /* Try to discard unwanted pages */
 void i915_gem_object_writeback(struct drm_i915_gem_object *obj)
 {
-	lockdep_assert_held(&obj->mm.lock);
+	assert_object_held_shared(obj);
 	GEM_BUG_ON(i915_gem_object_has_pages(obj));
 
 	if (obj->ops->writeback)
@@ -176,6 +181,8 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 {
 	struct sg_table *pages;
 
+	assert_object_held_shared(obj);
+
 	pages = fetch_and_zero(&obj->mm.pages);
 	if (IS_ERR_OR_NULL(pages))
 		return pages;
@@ -202,6 +209,9 @@ int __i915_gem_object_put_pages_locked(struct drm_i915_gem_object *obj)
 
 	if (i915_gem_object_has_pinned_pages(obj))
 		return -EBUSY;
+
+	/* May be called by shrinker from within get_pages() (on another bo) */
+	assert_object_held_shared(obj);
 
 	i915_gem_object_release_mmap_offset(obj);
 

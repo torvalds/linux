@@ -118,6 +118,20 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 
 #define assert_object_held(obj) dma_resv_assert_held((obj)->base.resv)
 
+/*
+ * If more than one potential simultaneous locker, assert held.
+ */
+static inline void assert_object_held_shared(struct drm_i915_gem_object *obj)
+{
+	/*
+	 * Note mm list lookup is protected by
+	 * kref_get_unless_zero().
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP) &&
+	    kref_read(&obj->base.refcount) > 0)
+		lockdep_assert_held(&obj->mm.lock);
+}
+
 static inline int __i915_gem_object_lock(struct drm_i915_gem_object *obj,
 					 struct i915_gem_ww_ctx *ww,
 					 bool intr)
