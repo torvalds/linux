@@ -230,7 +230,7 @@ err_vma:
 }
 
 static struct i915_vma *
-vma_lookup(struct drm_i915_gem_object *obj,
+i915_vma_lookup(struct drm_i915_gem_object *obj,
 	   struct i915_address_space *vm,
 	   const struct i915_ggtt_view *view)
 {
@@ -278,7 +278,7 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(!atomic_read(&vm->open));
 
 	spin_lock(&obj->vma.lock);
-	vma = vma_lookup(obj, vm, view);
+	vma = i915_vma_lookup(obj, vm, view);
 	spin_unlock(&obj->vma.lock);
 
 	/* vma_create() will resolve the race if another creates the vma */
