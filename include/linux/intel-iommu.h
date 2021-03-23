@@ -769,14 +769,11 @@ u32 intel_svm_get_pasid(struct iommu_sva *handle);
 int intel_svm_page_response(struct device *dev, struct iommu_fault_event *evt,
 			    struct iommu_page_response *msg);
 
-struct svm_dev_ops;
-
 struct intel_svm_dev {
 	struct list_head list;
 	struct rcu_head rcu;
 	struct device *dev;
 	struct intel_iommu *iommu;
-	struct svm_dev_ops *ops;
 	struct iommu_sva sva;
 	u32 pasid;
 	int users;

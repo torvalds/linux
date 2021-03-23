@@ -462,7 +462,6 @@ static void load_pasid(struct mm_struct *mm, u32 pasid)
 /* Caller must hold pasid_mutex, mm reference */
 static int
 intel_svm_bind_mm(struct device *dev, unsigned int flags,
-		  struct svm_dev_ops *ops,
 		  struct mm_struct *mm, struct intel_svm_dev **sd)
 {
 	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
@@ -512,10 +511,6 @@ intel_svm_bind_mm(struct device *dev, unsigned int flags,
 
 			/* Find the matching device in svm list */
 			for_each_svm_dev(sdev, svm, dev) {
-				if (sdev->ops != ops) {
-					ret = -EBUSY;
-					goto out;
-				}
 				sdev->users++;
 				goto success;
 			}
@@ -550,7 +545,6 @@ intel_svm_bind_mm(struct device *dev, unsigned int flags,
 
 	/* Finish the setup now we know we're keeping it */
 	sdev->users = 1;
-	sdev->ops = ops;
 	init_rcu_head(&sdev->rcu);
 
 	if (!svm) {
@@ -1006,13 +1000,6 @@ invalid:
 		mmap_read_unlock(svm->mm);
 		mmput(svm->mm);
 bad_req:
-		WARN_ON(!sdev);
-		if (sdev && sdev->ops && sdev->ops->fault_cb) {
-			int rwxp = (req->rd_req << 3) | (req->wr_req << 2) |
-				(req->exe_req << 1) | (req->pm_req);
-			sdev->ops->fault_cb(sdev->dev, req->pasid, req->addr,
-					    req->priv_data, rwxp, result);
-		}
 		/* We get here in the error case where the PASID lookup failed,
 		   and these can be NULL. Do not use them below this point! */
 		sdev = NULL;
@@ -1087,7 +1074,7 @@ intel_svm_bind(struct device *dev, struct mm_struct *mm, void *drvdata)
 	if (drvdata)
 		flags = *(unsigned int *)drvdata;
 	mutex_lock(&pasid_mutex);
-	ret = intel_svm_bind_mm(dev, flags, NULL, mm, &sdev);
+	ret = intel_svm_bind_mm(dev, flags, mm, &sdev);
 	if (ret)
 		sva = ERR_PTR(ret);
 	else if (sdev)

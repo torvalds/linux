@@ -8,13 +8,6 @@
 #ifndef __INTEL_SVM_H__
 #define __INTEL_SVM_H__
 
-struct device;
-
-struct svm_dev_ops {
-	void (*fault_cb)(struct device *dev, u32 pasid, u64 address,
-			 void *private, int rwxp, int response);
-};
-
 /* Values for rxwp in fault_cb callback */
 #define SVM_REQ_READ	(1<<3)
 #define SVM_REQ_WRITE	(1<<2)
