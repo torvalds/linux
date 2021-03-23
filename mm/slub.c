@@ -473,9 +473,9 @@ static inline void *restore_red_left(struct kmem_cache *s, void *p)
  * Debug settings:
  */
 #if defined(CONFIG_SLUB_DEBUG_ON)
-static slab_flags_t slub_debug = DEBUG_DEFAULT_FLAGS;
+slab_flags_t slub_debug = DEBUG_DEFAULT_FLAGS;
 #else
-static slab_flags_t slub_debug;
+slab_flags_t slub_debug;
 #endif
 
 static char *slub_debug_string;

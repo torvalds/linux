@@ -239,6 +239,7 @@ extern unsigned long get_each_object_track(struct kmem_cache *s,
 		struct page *page, enum track_item alloc,
 		int (*fn)(const struct kmem_cache *, const void *,
 		const struct track *, void *), void *private);
+extern slab_flags_t slub_debug;
 #else
 static inline void print_tracking(struct kmem_cache *s, void *object)
 {
