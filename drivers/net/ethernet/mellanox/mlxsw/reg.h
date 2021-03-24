@@ -8130,6 +8130,60 @@ mlxsw_reg_rtdp_ipip4_pack(char *payload, u16 irif,
 	mlxsw_reg_rtdp_ipip_expected_gre_key_set(payload, expected_gre_key);
 }
 
+/* RATRAD - Router Adjacency Table Activity Dump Register
+ * ------------------------------------------------------
+ * The RATRAD register is used to dump and optionally clear activity bits of
+ * router adjacency table entries.
+ */
+#define MLXSW_REG_RATRAD_ID 0x8022
+#define MLXSW_REG_RATRAD_LEN 0x210
+
+MLXSW_REG_DEFINE(ratrad, MLXSW_REG_RATRAD_ID, MLXSW_REG_RATRAD_LEN);
+
+enum {
+	/* Read activity */
+	MLXSW_REG_RATRAD_OP_READ_ACTIVITY,
+	/* Read and clear activity */
+	MLXSW_REG_RATRAD_OP_READ_CLEAR_ACTIVITY,
+};
+
+/* reg_ratrad_op
+ * Access: Operation
+ */
+MLXSW_ITEM32(reg, ratrad, op, 0x00, 30, 2);
+
+/* reg_ratrad_ecmp_size
+ * ecmp_size is the amount of sequential entries from adjacency_index. Valid
+ * ranges:
+ * Spectrum-1: 32-64, 512, 1024, 2048, 4096
+ * Spectrum-2/3: 32-128, 256, 512, 1024, 2048, 4096
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ratrad, ecmp_size, 0x00, 0, 13);
+
+/* reg_ratrad_adjacency_index
+ * Index into the adjacency table.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ratrad, adjacency_index, 0x04, 0, 24);
+
+/* reg_ratrad_activity_vector
+ * Activity bit per adjacency index.
+ * Bits higher than ecmp_size are reserved.
+ * Access: RO
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, ratrad, activity_vector, 0x10, 0x200, 1);
+
+static inline void mlxsw_reg_ratrad_pack(char *payload, u32 adjacency_index,
+					 u16 ecmp_size)
+{
+	MLXSW_REG_ZERO(ratrad, payload);
+	mlxsw_reg_ratrad_op_set(payload,
+				MLXSW_REG_RATRAD_OP_READ_CLEAR_ACTIVITY);
+	mlxsw_reg_ratrad_ecmp_size_set(payload, ecmp_size);
+	mlxsw_reg_ratrad_adjacency_index_set(payload, adjacency_index);
+}
+
 /* RIGR-V2 - Router Interface Group Register Version 2
  * ---------------------------------------------------
  * The RIGR_V2 register is used to add, remove and query egress interface list
@@ -12114,6 +12168,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rtar),
 	MLXSW_REG(ratr),
 	MLXSW_REG(rtdp),
+	MLXSW_REG(ratrad),
 	MLXSW_REG(rdpm),
 	MLXSW_REG(ricnt),
 	MLXSW_REG(rrcr),
