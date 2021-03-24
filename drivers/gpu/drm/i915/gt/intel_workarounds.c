@@ -607,9 +607,38 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN11_DIS_PICK_2ND_EU);
 }
 
+/*
+ * These settings aren't actually workarounds, but general tuning settings that
+ * need to be programmed on several platforms.
+ */
+static void gen12_ctx_gt_tuning_init(struct intel_engine_cs *engine,
+				     struct i915_wa_list *wal)
+{
+	/*
+	 * Although some platforms refer to it as Wa_1604555607, we need to
+	 * program it even on those that don't explicitly list that
+	 * workaround.
+	 *
+	 * Note that the programming of this register is further modified
+	 * according to the FF_MODE2 guidance given by Wa_1608008084:gen12.
+	 * Wa_1608008084 tells us the FF_MODE2 register will return the wrong
+	 * value when read. The default value for this register is zero for all
+	 * fields and there are no bit masks. So instead of doing a RMW we
+	 * should just write TDS timer value. For the same reason read
+	 * verification is ignored.
+	 */
+	wa_add(wal,
+	       FF_MODE2,
+	       FF_MODE2_TDS_TIMER_MASK,
+	       FF_MODE2_TDS_TIMER_128,
+	       0);
+}
+
 static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 				       struct i915_wa_list *wal)
 {
+	gen12_ctx_gt_tuning_init(engine, wal);
+
 	/*
 	 * Wa_1409142259:tgl
 	 * Wa_1409347922:tgl
@@ -636,19 +665,15 @@ static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	gen12_ctx_workarounds_init(engine, wal);
 
 	/*
-	 * Wa_1604555607:tgl,rkl
+	 * Wa_16011163337
 	 *
-	 * Note that the implementation of this workaround is further modified
-	 * according to the FF_MODE2 guidance given by Wa_1608008084:gen12.
-	 * FF_MODE2 register will return the wrong value when read. The default
-	 * value for this register is zero for all fields and there are no bit
-	 * masks. So instead of doing a RMW we should just write the GS Timer
-	 * and TDS timer values for Wa_1604555607 and Wa_16011163337.
+	 * Like in gen12_ctx_gt_tuning_init(), read verification is ignored due
+	 * to Wa_1608008084.
 	 */
 	wa_add(wal,
 	       FF_MODE2,
-	       FF_MODE2_GS_TIMER_MASK | FF_MODE2_TDS_TIMER_MASK,
-	       FF_MODE2_GS_TIMER_224  | FF_MODE2_TDS_TIMER_128,
+	       FF_MODE2_GS_TIMER_MASK,
+	       FF_MODE2_GS_TIMER_224,
 	       0);
 }
 
@@ -668,12 +693,13 @@ static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
 	/*
 	 * Wa_16011163337
 	 *
-	 * Like in tgl_ctx_workarounds_init(), read verification is ignored due
+	 * Like in gen12_ctx_gt_tuning_init(), read verification is ignored due
 	 * to Wa_1608008084.
 	 */
 	wa_add(wal,
 	       FF_MODE2,
-	       FF_MODE2_GS_TIMER_MASK, FF_MODE2_GS_TIMER_224, 0);
+	       FF_MODE2_GS_TIMER_MASK,
+	       FF_MODE2_GS_TIMER_224, 0);
 }
 
 static void
