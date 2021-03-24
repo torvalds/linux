@@ -61,6 +61,7 @@ int ipa_mem_setup(struct ipa *ipa)
 	struct gsi_trans *trans;
 	u32 offset;
 	u16 size;
+	u32 val;
 
 	/* Get a transaction to define the header memory region and to zero
 	 * the processing context and modem memory regions.
@@ -89,8 +90,9 @@ int ipa_mem_setup(struct ipa *ipa)
 	gsi_trans_commit_wait(trans);
 
 	/* Tell the hardware where the processing context area is located */
-	iowrite32(ipa->mem_offset + ipa->mem[IPA_MEM_MODEM_PROC_CTX].offset,
-		  ipa->reg_virt + IPA_REG_LOCAL_PKT_PROC_CNTXT_BASE_OFFSET);
+	offset = ipa->mem_offset + ipa->mem[IPA_MEM_MODEM_PROC_CTX].offset;
+	val = proc_cntxt_base_addr_encoded(ipa->version, offset);
+	iowrite32(val, ipa->reg_virt + IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET);
 
 	return 0;
 }

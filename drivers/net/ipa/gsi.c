@@ -827,14 +827,14 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 
 	/* Max prefetch is 1 segment (do not set MAX_PREFETCH_FMASK) */
 
-	/* We enable the doorbell engine for IPA v3.5.1 */
-	if (gsi->version == IPA_VERSION_3_5_1 && doorbell)
+	/* No need to use the doorbell engine starting at IPA v4.0 */
+	if (gsi->version < IPA_VERSION_4_0 && doorbell)
 		val |= USE_DB_ENG_FMASK;
 
 	/* v4.0 introduces an escape buffer for prefetch.  We use it
 	 * on all but the AP command channel.
 	 */
-	if (gsi->version != IPA_VERSION_3_5_1 && !channel->command) {
+	if (gsi->version >= IPA_VERSION_4_0 && !channel->command) {
 		/* If not otherwise set, prefetch buffers are used */
 		if (gsi->version < IPA_VERSION_4_5)
 			val |= USE_ESCAPE_BUF_ONLY_FMASK;
@@ -973,7 +973,7 @@ void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell)
 
 	gsi_channel_reset_command(channel);
 	/* Due to a hardware quirk we may need to reset RX channels twice. */
-	if (gsi->version == IPA_VERSION_3_5_1 && !channel->toward_ipa)
+	if (gsi->version < IPA_VERSION_4_0 && !channel->toward_ipa)
 		gsi_channel_reset_command(channel);
 
 	gsi_channel_program(channel, doorbell);
