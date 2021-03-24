@@ -52,7 +52,7 @@ static const struct regmap_range max_tcpci_tcpci_range[] = {
 	regmap_reg_range(0x00, 0x95)
 };
 
-const struct regmap_access_table max_tcpci_tcpci_write_table = {
+static const struct regmap_access_table max_tcpci_tcpci_write_table = {
 	.yes_ranges = max_tcpci_tcpci_range,
 	.n_yes_ranges = ARRAY_SIZE(max_tcpci_tcpci_range),
 };
