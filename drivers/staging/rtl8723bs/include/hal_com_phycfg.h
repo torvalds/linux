@@ -25,7 +25,7 @@ enum rate_section {
 	VHT_4SSMCS0_4SSMCS9,
 };
 
-enum rf_tx_num {
+enum {
 	RF_1TX = 0,
 	RF_2TX,
 	RF_3TX,
@@ -36,7 +36,7 @@ enum rf_tx_num {
 
 #define MAX_POWER_INDEX			0x3F
 
-enum _regulation_txpwr_lmt {
+enum {
 	TXPWR_LMT_FCC = 0,
 	TXPWR_LMT_MKK,
 	TXPWR_LMT_ETSI,
