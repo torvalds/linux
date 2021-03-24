@@ -601,7 +601,7 @@ struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 	if (!info ||
 	    before(seq, info->end_seq - info->len)) {
 		/* if retransmit_hint is irrelevant start
-		 * from the beggining of the list
+		 * from the beginning of the list
 		 */
 		info = list_first_entry_or_null(&context->records_list,
 						struct tls_record_info, list);
