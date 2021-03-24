@@ -43,14 +43,14 @@
 /*  This test verifies the WLAN NIC can update the NAV through sending the CTS with large duration. */
 #define	WiFiNavUpperUs				30000	/*  30 ms */
 
-enum wifi_frame_type {
+enum {
 	WIFI_MGT_TYPE  =	(0),
 	WIFI_CTRL_TYPE =	(BIT(2)),
 	WIFI_DATA_TYPE =	(BIT(3)),
 	WIFI_QOS_DATA_TYPE	= (BIT(7)|BIT(3)),	/*  QoS Data */
 };
 
-enum wifi_frame_subtype {
+enum {
 
     /*  below is for mgt frame */
     WIFI_ASSOCREQ       = (0 | WIFI_MGT_TYPE),
@@ -86,20 +86,6 @@ enum wifi_frame_subtype {
     WIFI_CF_POLL        = (BIT(6) | BIT(5) | WIFI_DATA_TYPE),
     WIFI_CF_ACKPOLL     = (BIT(6) | BIT(5) | BIT(4) | WIFI_DATA_TYPE),
     WIFI_QOS_DATA_NULL	= (BIT(6) | WIFI_QOS_DATA_TYPE),
-};
-
-enum wifi_reg_domain {
-	DOMAIN_FCC		= 1,
-	DOMAIN_IC		= 2,
-	DOMAIN_ETSI		= 3,
-	DOMAIN_SPAIN	= 4,
-	DOMAIN_FRANCE	= 5,
-	DOMAIN_MKK		= 6,
-	DOMAIN_ISRAEL	= 7,
-	DOMAIN_MKK1		= 8,
-	DOMAIN_MKK2		= 9,
-	DOMAIN_MKK3		= 10,
-	DOMAIN_MAX
 };
 
 #define _TO_DS_		BIT(8)
@@ -777,16 +763,6 @@ enum p2p_wpsinfo {
 };
 
 #define	P2P_PRIVATE_IOCTL_SET_LEN		64
-
-enum p2p_proto_wk_id {
-	P2P_FIND_PHASE_WK = 0,
-	P2P_RESTORE_STATE_WK = 1,
-	P2P_PRE_TX_PROVDISC_PROCESS_WK = 2,
-	P2P_PRE_TX_NEGOREQ_PROCESS_WK = 3,
-	P2P_PRE_TX_INVITEREQ_PROCESS_WK = 4,
-	P2P_AP_P2P_CH_SWITCH_PROCESS_WK = 5,
-	P2P_RO_CH_WK = 6,
-};
 
 /* 	=====================WFD Section ===================== */
 /* 	For Wi-Fi Display */
