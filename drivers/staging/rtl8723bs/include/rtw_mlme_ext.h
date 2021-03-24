@@ -115,7 +115,7 @@ extern unsigned char WMM_PARA_OUI[];
 /* 	If you just wnat to customize the acitions(scan period or join actions) about one of the channel plan, */
 /* 	customize them in rt_channel_info in the RT_CHANNEL_LIST. */
 /*  */
-enum rt_channel_domain {
+enum {
 	/*  old channel plan mapping ===== */
 	RT_CHANNEL_DOMAIN_FCC = 0x00,
 	RT_CHANNEL_DOMAIN_IC = 0x01,
@@ -183,7 +183,7 @@ enum rt_channel_domain {
 	RT_CHANNEL_DOMAIN_REALTEK_DEFINE = 0x7F,
 };
 
-enum rt_channel_domain_2g {
+enum {
 	RT_CHANNEL_DOMAIN_2G_WORLD = 0x00,		/* Worldwird 13 */
 	RT_CHANNEL_DOMAIN_2G_ETSI1 = 0x01,		/* Europe */
 	RT_CHANNEL_DOMAIN_2G_FCC1 = 0x02,		/* US */
@@ -195,7 +195,7 @@ enum rt_channel_domain_2g {
 	RT_CHANNEL_DOMAIN_2G_MAX,
 };
 
-enum rt_channel_domain_5g {
+enum {
 	RT_CHANNEL_DOMAIN_5G_NULL = 0x00,
 	RT_CHANNEL_DOMAIN_5G_ETSI1 = 0x01,		/* Europe */
 	RT_CHANNEL_DOMAIN_5G_ETSI2 = 0x02,		/* Australia, New Zealand */
@@ -258,19 +258,7 @@ struct rt_channel_plan_map {
 	unsigned char Index5G;
 };
 
-enum Associated_AP {
-	atherosAP	= 0,
-	broadcomAP	= 1,
-	ciscoAP		= 2,
-	marvellAP	= 3,
-	ralinkAP	= 4,
-	realtekAP	= 5,
-	airgocapAP	= 6,
-	unknownAP	= 7,
-	maxAP,
-};
-
-enum ht_iot_peer_e {
+enum {
 	HT_IOT_PEER_UNKNOWN			= 0,
 	HT_IOT_PEER_REALTEK			= 1,
 	HT_IOT_PEER_REALTEK_92SE		= 2,
@@ -293,7 +281,7 @@ enum ht_iot_peer_e {
 };
 
 
-enum scan_state {
+enum {
 	SCAN_DISABLE = 0,
 	SCAN_START = 1,
 	SCAN_TXNULL = 2,
@@ -787,7 +775,7 @@ struct C2HEvent_Header {
 void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf);
 void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf);
 
-enum rtw_c2h_event {
+enum {
 	GEN_EVT_CODE(_Read_MACREG) = 0, /*0*/
 	GEN_EVT_CODE(_Read_BBREG),
 	GEN_EVT_CODE(_Read_RFREG),
