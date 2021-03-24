@@ -119,7 +119,7 @@ extern void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv);
 extern void rtw_free_evt_priv(struct evt_priv *pevtpriv);
 extern void rtw_evt_notify_isr(struct evt_priv *pevtpriv);
 
-enum rtw_drvextra_cmd_id {
+enum {
 	NONE_WK_CID,
 	DYNAMIC_CHK_WK_CID,
 	DM_CTRL_WK_CID,
@@ -143,7 +143,7 @@ enum rtw_drvextra_cmd_id {
 	MAX_WK_CID
 };
 
-enum lps_ctrl_type {
+enum {
 	LPS_CTRL_SCAN = 0,
 	LPS_CTRL_JOINBSS = 1,
 	LPS_CTRL_CONNECT = 2,
@@ -153,7 +153,7 @@ enum lps_ctrl_type {
 	LPS_CTRL_TRAFFIC_BUSY = 6,
 };
 
-enum rfintfs {
+enum {
 	SWSI,
 	HWSI,
 	HWPI,
@@ -641,7 +641,7 @@ struct _cmd_callback {
 	void (*callback)(struct adapter  *padapter, struct cmd_obj *cmd);
 };
 
-enum rtw_h2c_cmd {
+enum {
 	GEN_CMD_CODE(_Read_MACREG),	/*0*/
 	GEN_CMD_CODE(_Write_MACREG),
 	GEN_CMD_CODE(_Read_BBREG),
