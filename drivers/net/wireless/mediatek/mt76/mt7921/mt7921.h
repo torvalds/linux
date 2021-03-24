@@ -46,6 +46,9 @@
 #define MT7921_SKU_MAX_DELTA_IDX	MT7921_SKU_RATE_NUM
 #define MT7921_SKU_TABLE_SIZE		(MT7921_SKU_RATE_NUM + 1)
 
+#define to_rssi(field, rxv)		((FIELD_GET(field, rxv) - 220) / 2)
+#define to_rcpi(rssi)			(2 * (rssi) + 220)
+
 struct mt7921_vif;
 struct mt7921_sta;
 
@@ -92,11 +95,15 @@ struct mt7921_sta {
 	struct mt7921_sta_key_conf bip;
 };
 
+DECLARE_EWMA(rssi, 10, 8);
+
 struct mt7921_vif {
 	struct mt76_vif mt76; /* must be first */
 
 	struct mt7921_sta sta;
 	struct mt7921_phy *phy;
+
+	struct ewma_rssi rssi;
 
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 };
