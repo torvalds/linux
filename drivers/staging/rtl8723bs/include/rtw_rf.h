@@ -49,7 +49,7 @@ struct	regulatory_class {
 	u8 modem;
 };
 
-enum capability {
+enum {
 	cESS			= 0x0001,
 	cIBSS			= 0x0002,
 	cPollable		= 0x0004,
@@ -68,28 +68,10 @@ enum capability {
 	cImmediateBA		= 0x8000,
 };
 
-enum	_reg_preamble_mode {
+enum {
 	PREAMBLE_LONG	= 1,
 	PREAMBLE_AUTO	= 2,
 	PREAMBLE_SHORT	= 3,
-};
-
-enum _rtl8712_rf_mimo_config_ {
-	RTL8712_RFCONFIG_1T = 0x10,
-	RTL8712_RFCONFIG_2T = 0x20,
-	RTL8712_RFCONFIG_1R = 0x01,
-	RTL8712_RFCONFIG_2R = 0x02,
-	RTL8712_RFCONFIG_1T1R = 0x11,
-	RTL8712_RFCONFIG_1T2R = 0x12,
-	RTL8712_RFCONFIG_TURBO = 0x92,
-	RTL8712_RFCONFIG_2T2R = 0x22
-};
-
-enum rf90_radio_path {
-	RF90_PATH_A = 0,		/* Radio Path A */
-	RF90_PATH_B = 1,		/* Radio Path B */
-	RF90_PATH_C = 2,		/* Radio Path C */
-	RF90_PATH_D = 3			/* Radio Path D */
 };
 
 /*  Bandwidth Offset */
@@ -116,7 +98,7 @@ enum extchnl_offset {
 	EXTCHNL_OFFSET_LOWER = 3,
 };
 
-enum vht_data_sc {
+enum {
 	VHT_DATA_SC_DONOT_CARE = 0,
 	VHT_DATA_SC_20_UPPER_OF_80MHZ = 1,
 	VHT_DATA_SC_20_LOWER_OF_80MHZ = 2,
@@ -130,14 +112,8 @@ enum vht_data_sc {
 	VHT_DATA_SC_40_LOWER_OF_80MHZ = 10,
 };
 
-enum protection_mode {
-	PROTECTION_MODE_AUTO = 0,
-	PROTECTION_MODE_FORCE_ENABLE = 1,
-	PROTECTION_MODE_FORCE_DISABLE = 2,
-};
-
 /* 2007/11/15 MH Define different RF type. */
-enum rt_rf_type_definition {
+enum {
 	RF_1T2R = 0,
 	RF_2T4R = 1,
 	RF_2T2R = 2,
