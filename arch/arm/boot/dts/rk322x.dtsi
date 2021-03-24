@@ -14,9 +14,6 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
-		mmc0 = &sdmmc;
-		mmc1 = &sdio;
-		mmc2 = &emmc;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
