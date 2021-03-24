@@ -128,11 +128,10 @@ bool mlxsw_sp_l3addr_is_zero(union mlxsw_sp_l3addr addr)
 static int
 mlxsw_sp_ipip_nexthop_update_gre4(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 				  struct mlxsw_sp_ipip_entry *ipip_entry,
-				  bool force)
+				  bool force, char *ratr_pl)
 {
 	u16 rif_index = mlxsw_sp_ipip_lb_rif_index(ipip_entry->ol_lb);
 	__be32 daddr4 = mlxsw_sp_ipip_netdev_daddr4(ipip_entry->ol_dev);
-	char ratr_pl[MLXSW_REG_RATR_LEN];
 	enum mlxsw_reg_ratr_op op;
 
 	op = force ? MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY :
