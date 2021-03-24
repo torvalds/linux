@@ -512,10 +512,17 @@ static inline int edid_write_block(struct v4l2_subdev *sd,
 
 static void adv76xx_set_hpd(struct adv76xx_state *state, unsigned int hpd)
 {
+	const struct adv76xx_chip_info *info = state->info;
 	unsigned int i;
 
-	for (i = 0; i < state->info->num_dv_ports; ++i)
-		gpiod_set_value_cansleep(state->hpd_gpio[i], hpd & BIT(i));
+	if (info->type == ADV7604) {
+		for (i = 0; i < state->info->num_dv_ports; ++i)
+			gpiod_set_value_cansleep(state->hpd_gpio[i], hpd & BIT(i));
+	} else {
+		for (i = 0; i < state->info->num_dv_ports; ++i)
+			io_write_clr_set(&state->sd, 0x20, 0x80 >> i,
+					 (!!(hpd & BIT(i))) << (7 - i));
+	}
 
 	v4l2_subdev_notify(&state->sd, ADV76XX_HOTPLUG, &hpd);
 }
@@ -2804,6 +2811,18 @@ static int adv76xx_core_init(struct v4l2_subdev *sd)
 	io_write(sd, 0x0c, 0x42);   /* Power up part and power down VDP */
 	io_write(sd, 0x0b, 0x44);   /* Power down ESDP block */
 	cp_write(sd, 0xcf, 0x01);   /* Power down macrovision */
+
+	/* HPD */
+	if (info->type != ADV7604) {
+		/* Set manual HPD values to 0 */
+		io_write_clr_set(sd, 0x20, 0xc0, 0);
+		/*
+		 * Set HPA_DELAY to 200 ms and set automatic HPD control
+		 * to: internal EDID is active AND a cable is detected
+		 * AND the manual HPD control is set to 1.
+		 */
+		hdmi_write_clr_set(sd, 0x6c, 0xf6, 0x26);
+	}
 
 	/* video format */
 	io_write_clr_set(sd, 0x02, 0x0f, pdata->alt_gamma << 3);
