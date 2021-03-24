@@ -8,6 +8,10 @@
 #include "rk3399-opp.dtsi"
 
 / {
+	aliases {
+		mmc0 = &sdhci;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
