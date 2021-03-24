@@ -128,6 +128,8 @@ static ssize_t amdgpu_get_power_dpm_state(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -160,6 +162,8 @@ static ssize_t amdgpu_set_power_dpm_state(struct device *dev,
 	int ret;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	if (strncmp("battery", buf, strlen("battery")) == 0)
@@ -267,6 +271,8 @@ static ssize_t amdgpu_get_power_dpm_force_performance_level(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -308,6 +314,8 @@ static ssize_t amdgpu_set_power_dpm_force_performance_level(struct device *dev,
 	int ret = 0;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	if (strncmp("low", buf, strlen("low")) == 0) {
@@ -407,6 +415,8 @@ static ssize_t amdgpu_get_pp_num_states(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -447,6 +457,8 @@ static ssize_t amdgpu_get_pp_cur_state(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -483,6 +495,8 @@ static ssize_t amdgpu_get_pp_force_state(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	if (adev->pp_force_state_enabled)
 		return amdgpu_get_pp_cur_state(dev, attr, buf);
@@ -502,6 +516,8 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 	int ret;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	if (strlen(buf) == 1)
@@ -563,6 +579,8 @@ static ssize_t amdgpu_get_pp_table(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -600,6 +618,8 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
 	int ret = 0;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
@@ -763,6 +783,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	if (count > 127)
 		return -EINVAL;
@@ -864,6 +886,8 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -915,6 +939,8 @@ static ssize_t amdgpu_set_pp_features(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = kstrtou64(buf, 0, &featuremask);
 	if (ret)
@@ -950,6 +976,8 @@ static ssize_t amdgpu_get_pp_features(struct device *dev,
 	int ret;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
@@ -1009,6 +1037,8 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
 	int ret;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
@@ -1074,6 +1104,8 @@ static ssize_t amdgpu_set_pp_dpm_clock(struct device *dev,
 	uint32_t mask = 0;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	ret = amdgpu_read_mask(buf, count, &mask);
@@ -1231,6 +1263,8 @@ static ssize_t amdgpu_get_pp_sclk_od(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -1260,6 +1294,8 @@ static ssize_t amdgpu_set_pp_sclk_od(struct device *dev,
 	long int value;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	ret = kstrtol(buf, 0, &value);
@@ -1304,6 +1340,8 @@ static ssize_t amdgpu_get_pp_mclk_od(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -1333,6 +1371,8 @@ static ssize_t amdgpu_set_pp_mclk_od(struct device *dev,
 	long int value;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	ret = kstrtol(buf, 0, &value);
@@ -1397,6 +1437,8 @@ static ssize_t amdgpu_get_pp_power_profile_mode(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -1434,6 +1476,8 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 	const char delimiter[3] = {' ', '\n', '\0'};
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	tmp[0] = *(buf);
@@ -1498,6 +1542,8 @@ static ssize_t amdgpu_get_gpu_busy_percent(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	r = pm_runtime_get_sync(ddev->dev);
 	if (r < 0) {
@@ -1535,6 +1581,8 @@ static ssize_t amdgpu_get_mem_busy_percent(struct device *dev,
 	int r, value, size = sizeof(value);
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	r = pm_runtime_get_sync(ddev->dev);
@@ -1579,6 +1627,8 @@ static ssize_t amdgpu_get_pcie_bw(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	if (adev->flags & AMD_IS_APU)
 		return -ENODATA;
@@ -1619,6 +1669,8 @@ static ssize_t amdgpu_get_unique_id(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	if (adev->unique_id)
@@ -1717,6 +1769,8 @@ static ssize_t amdgpu_get_gpu_metrics(struct device *dev,
 	int ret;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	ret = pm_runtime_get_sync(ddev->dev);
@@ -1946,6 +2000,8 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	if (channel >= PP_TEMP_MAX)
 		return -EINVAL;
@@ -2082,6 +2138,8 @@ static ssize_t amdgpu_hwmon_get_pwm1_enable(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (ret < 0) {
@@ -2113,6 +2171,8 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	int value;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	err = kstrtoint(buf, 10, &value);
@@ -2164,6 +2224,8 @@ static ssize_t amdgpu_hwmon_set_pwm1(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (err < 0) {
@@ -2212,6 +2274,8 @@ static ssize_t amdgpu_hwmon_get_pwm1(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (err < 0) {
@@ -2245,6 +2309,8 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (err < 0) {
@@ -2277,6 +2343,8 @@ static ssize_t amdgpu_hwmon_get_fan1_min(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -2307,6 +2375,8 @@ static ssize_t amdgpu_hwmon_get_fan1_max(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -2335,6 +2405,8 @@ static ssize_t amdgpu_hwmon_get_fan1_target(struct device *dev,
 	u32 rpm = 0;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
@@ -2367,6 +2439,8 @@ static ssize_t amdgpu_hwmon_set_fan1_target(struct device *dev,
 	u32 pwm_mode;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
@@ -2414,6 +2488,8 @@ static ssize_t amdgpu_hwmon_get_fan1_enable(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	ret = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (ret < 0) {
@@ -2446,6 +2522,8 @@ static ssize_t amdgpu_hwmon_set_fan1_enable(struct device *dev,
 	u32 pwm_mode;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	err = kstrtoint(buf, 10, &value);
@@ -2488,6 +2566,8 @@ static ssize_t amdgpu_hwmon_show_vddgfx(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -2524,6 +2604,8 @@ static ssize_t amdgpu_hwmon_show_vddnb(struct device *dev,
 	int r, size = sizeof(vddnb);
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	/* only APUs have vddnb */
@@ -2566,6 +2648,8 @@ static ssize_t amdgpu_hwmon_show_power_avg(struct device *dev,
 	unsigned uw;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
@@ -2611,6 +2695,8 @@ static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -2648,6 +2734,8 @@ static ssize_t amdgpu_hwmon_show_power_cap(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -2684,6 +2772,8 @@ static ssize_t amdgpu_hwmon_show_power_cap_default(struct device *dev,
 	int r;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
@@ -2731,6 +2821,8 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	if (amdgpu_sriov_vf(adev))
 		return -EINVAL;
@@ -2772,6 +2864,8 @@ static ssize_t amdgpu_hwmon_show_sclk(struct device *dev,
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -2808,6 +2902,8 @@ static ssize_t amdgpu_hwmon_show_mclk(struct device *dev,
 	int r, size = sizeof(mclk);
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
@@ -3381,6 +3477,8 @@ static int amdgpu_debugfs_pm_info_show(struct seq_file *m, void *unused)
 	int r;
 
 	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
 	r = pm_runtime_get_sync(dev->dev);
