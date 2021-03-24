@@ -44,14 +44,14 @@
 #define BTC_ANT_WIFI_AT_CPL_MAIN	0
 #define BTC_ANT_WIFI_AT_CPL_AUX		1
 
-enum btc_powersave_type {
+enum {
 	BTC_PS_WIFI_NATIVE	= 0,	/*  wifi original power save behavior */
 	BTC_PS_LPS_ON		= 1,
 	BTC_PS_LPS_OFF		= 2,
 	BTC_PS_MAX
 };
 
-enum btc_bt_reg_type {
+enum {
 	BTC_BT_REG_RF		= 0,
 	BTC_BT_REG_MODEM	= 1,
 	BTC_BT_REG_BLUEWIZE	= 2,
@@ -68,7 +68,7 @@ enum btc_chip_interface {
 	BTC_INTF_MAX
 };
 
-enum btc_chip_type {
+enum {
 	BTC_CHIP_UNDEF		= 0,
 	BTC_CHIP_CSR_BC4	= 1,
 	BTC_CHIP_CSR_BC8	= 2,
@@ -78,7 +78,7 @@ enum btc_chip_type {
 	BTC_CHIP_MAX
 };
 
-enum btc_msg_type {
+enum {
 	BTC_MSG_INTERFACE	= 0x0,
 	BTC_MSG_ALGORITHM	= 0x1,
 	BTC_MSG_MAX
@@ -166,17 +166,7 @@ struct btc_board_info {
 	/* bool				bBtExist; */
 };
 
-enum btc_dbg_opcode {
-	BTC_DBG_SET_COEX_NORMAL			    = 0x0,
-	BTC_DBG_SET_COEX_WIFI_ONLY		    = 0x1,
-	BTC_DBG_SET_COEX_BT_ONLY		    = 0x2,
-	BTC_DBG_SET_COEX_DEC_BT_PWR		    = 0x3,
-	BTC_DBG_SET_COEX_BT_AFH_MAP		    = 0x4,
-	BTC_DBG_SET_COEX_BT_IGNORE_WLAN_ACT	= 0x5,
-	BTC_DBG_MAX
-};
-
-enum btc_rssi_state {
+enum {
 	BTC_RSSI_STATE_HIGH			    = 0x0,
 	BTC_RSSI_STATE_MEDIUM			= 0x1,
 	BTC_RSSI_STATE_LOW			    = 0x2,
@@ -189,46 +179,29 @@ enum btc_rssi_state {
 #define BTC_RSSI_MEDIUM(_rssi_)	((_rssi_ == BTC_RSSI_STATE_MEDIUM || _rssi_ == BTC_RSSI_STATE_STAY_MEDIUM) ? true : false)
 #define BTC_RSSI_LOW(_rssi_)	((_rssi_ == BTC_RSSI_STATE_LOW || _rssi_ == BTC_RSSI_STATE_STAY_LOW) ? true : false)
 
-enum btc_wifi_role {
-	BTC_ROLE_STATION			= 0x0,
-	BTC_ROLE_AP					= 0x1,
-	BTC_ROLE_IBSS				= 0x2,
-	BTC_ROLE_HS_MODE			= 0x3,
-	BTC_ROLE_MAX
-};
-
-enum btc_wifi_bw_mode {
+enum {
 	BTC_WIFI_BW_LEGACY			= 0x0,
 	BTC_WIFI_BW_HT20			= 0x1,
 	BTC_WIFI_BW_HT40			= 0x2,
 	BTC_WIFI_BW_MAX
 };
 
-enum btc_wifi_traffic_dir {
+enum {
 	BTC_WIFI_TRAFFIC_TX			= 0x0,
 	BTC_WIFI_TRAFFIC_RX			= 0x1,
 	BTC_WIFI_TRAFFIC_MAX
 };
 
-enum btc_wifi_pnp {
+enum {
 	BTC_WIFI_PNP_WAKE_UP		= 0x0,
 	BTC_WIFI_PNP_SLEEP			= 0x1,
 	BTC_WIFI_PNP_MAX
 };
 
 /* for 8723b-d cut large current issue */
-enum bt_wifi_coex_state {
-	BTC_WIFI_STAT_INIT,
-	BTC_WIFI_STAT_IQK,
-	BTC_WIFI_STAT_NORMAL_OFF,
-	BTC_WIFI_STAT_MP_OFF,
-	BTC_WIFI_STAT_NORMAL,
-	BTC_WIFI_STAT_ANT_DIV,
-	BTC_WIFI_STAT_MAX
-};
 
 /*  defined for BFP_BTC_GET */
-enum btc_get_type {
+enum {
 	/*  type bool */
 	BTC_GET_BL_HS_OPERATION,
 	BTC_GET_BL_HS_CONNECTING,
@@ -270,7 +243,7 @@ enum btc_get_type {
 };
 
 /*  defined for BFP_BTC_SET */
-enum btc_set_type {
+enum {
 	/*  type bool */
 	BTC_SET_BL_BT_DISABLE,
 	BTC_SET_BL_BT_TRAFFIC_BUSY,
@@ -310,44 +283,44 @@ enum btc_set_type {
 	BTC_SET_MAX
 };
 
-enum btc_dbg_disp_type {
+enum {
 	BTC_DBG_DISP_COEX_STATISTICS		= 0x0,
 	BTC_DBG_DISP_BT_LINK_INFO			= 0x1,
 	BTC_DBG_DISP_FW_PWR_MODE_CMD		= 0x2,
 	BTC_DBG_DISP_MAX
 };
 
-enum btc_notify_type_ips {
+enum {
 	BTC_IPS_LEAVE						= 0x0,
 	BTC_IPS_ENTER						= 0x1,
 	BTC_IPS_MAX
 };
 
-enum btc_notify_type_lps {
+enum {
 	BTC_LPS_DISABLE						= 0x0,
 	BTC_LPS_ENABLE						= 0x1,
 	BTC_LPS_MAX
 };
 
-enum btc_notify_type_scan {
+enum {
 	BTC_SCAN_FINISH						= 0x0,
 	BTC_SCAN_START						= 0x1,
 	BTC_SCAN_MAX
 };
 
-enum btc_notify_type_associate {
+enum {
 	BTC_ASSOCIATE_FINISH				= 0x0,
 	BTC_ASSOCIATE_START					= 0x1,
 	BTC_ASSOCIATE_MAX
 };
 
-enum btc_notify_type_media_status {
+enum {
 	BTC_MEDIA_DISCONNECT				= 0x0,
 	BTC_MEDIA_CONNECT					= 0x1,
 	BTC_MEDIA_MAX
 };
 
-enum btc_notify_type_special_packet {
+enum {
 	BTC_PACKET_UNKNOWN					= 0x0,
 	BTC_PACKET_DHCP						= 0x1,
 	BTC_PACKET_ARP						= 0x2,
@@ -355,15 +328,8 @@ enum btc_notify_type_special_packet {
 	BTC_PACKET_MAX
 };
 
-enum btc_notify_type_stack_operation {
-	BTC_STACK_OP_NONE					= 0x0,
-	BTC_STACK_OP_INQ_PAGE_PAIR_START	= 0x1,
-	BTC_STACK_OP_INQ_PAGE_PAIR_FINISH	= 0x2,
-	BTC_STACK_OP_MAX
-};
-
 /* Bryant Add */
-enum btc_antenna_pos {
+enum {
 	BTC_ANTENNA_AT_MAIN_PORT = 0x1,
 	BTC_ANTENNA_AT_AUX_PORT  = 0x2,
 };
