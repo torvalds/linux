@@ -1365,8 +1365,6 @@
 			<&cru CLK_RKVENC_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
 		rockchip,normal-rates = <297000000>, <0>, <400000000>;
-		rockchip,advanced-rates = <297000000>, <0>, <500000000>;
-		rockchip,default-max-load = <2088960>;
 		resets = <&cru SRST_A_RKVENC>, <&cru SRST_H_RKVENC>,
 			<&cru SRST_RKVENC_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
