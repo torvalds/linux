@@ -119,8 +119,15 @@ const char *__bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 			return "nonzero size field";
 	}
 
-	if (k.k->p.snapshot)
+	if (type != BKEY_TYPE_btree &&
+	    !btree_type_has_snapshots(type) &&
+	    k.k->p.snapshot)
 		return "nonzero snapshot";
+
+	if (type != BKEY_TYPE_btree &&
+	    btree_type_has_snapshots(type) &&
+	    k.k->p.snapshot != U32_MAX)
+		return "invalid snapshot field";
 
 	if (type != BKEY_TYPE_btree &&
 	    !bkey_cmp(k.k->p, POS_MAX))
@@ -310,14 +317,15 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 	const struct bkey_ops *ops;
 	struct bkey uk;
 	struct bkey_s u;
+	unsigned nr_compat = 5;
 	int i;
 
 	/*
 	 * Do these operations in reverse order in the write path:
 	 */
 
-	for (i = 0; i < 4; i++)
-	switch (!write ? i : 3 - i) {
+	for (i = 0; i < nr_compat; i++)
+	switch (!write ? i : nr_compat - 1 - i) {
 	case 0:
 		if (big_endian != CPU_BIG_ENDIAN)
 			bch2_bkey_swab_key(f, k);
@@ -351,6 +359,28 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 		}
 		break;
 	case 3:
+		if (version < bcachefs_metadata_version_snapshot &&
+		    (level || btree_type_has_snapshots(btree_id))) {
+			struct bkey_i *u = packed_to_bkey(k);
+
+			if (u) {
+				u->k.p.snapshot = write
+					? 0 : U32_MAX;
+			} else {
+				u64 min_packed = f->field_offset[BKEY_FIELD_SNAPSHOT];
+				u64 max_packed = min_packed +
+					~(~0ULL << f->bits_per_field[BKEY_FIELD_SNAPSHOT]);
+
+				uk = __bch2_bkey_unpack_key(f, k);
+				uk.p.snapshot = write
+					? min_packed : min_t(u64, U32_MAX, max_packed);
+
+				BUG_ON(!bch2_bkey_pack_key(k, &uk, f));
+			}
+		}
+
+		break;
+	case 4:
 		if (!bkey_packed(k)) {
 			u = bkey_i_to_s(packed_to_bkey(k));
 		} else {

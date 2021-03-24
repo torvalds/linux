@@ -483,6 +483,7 @@ static int rand_insert(struct bch_fs *c, u64 nr)
 	for (i = 0; i < nr; i++) {
 		bkey_cookie_init(&k.k_i);
 		k.k.p.offset = test_rand();
+		k.k.p.snapshot = U32_MAX;
 
 		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k.k_i));

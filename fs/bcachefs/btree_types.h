@@ -216,6 +216,7 @@ enum btree_iter_type {
 #define BTREE_ITER_CACHED_NOFILL	(1 << 9)
 #define BTREE_ITER_CACHED_NOCREATE	(1 << 10)
 #define BTREE_ITER_NOT_EXTENTS		(1 << 11)
+#define BTREE_ITER_ALL_SNAPSHOTS	(1 << 12)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
@@ -245,6 +246,8 @@ struct btree_iter {
 	/* what we're searching for/what the iterator actually points to: */
 	struct bpos		real_pos;
 	struct bpos		pos_after_commit;
+	/* When we're filtering by snapshot, the snapshot ID we're looking for: */
+	unsigned		snapshot;
 
 	u16			flags;
 	u8			idx;
@@ -329,7 +332,7 @@ struct bkey_cached {
 struct btree_insert_entry {
 	unsigned		trigger_flags;
 	u8			bkey_type;
-	u8			btree_id;
+	enum btree_id		btree_id:8;
 	u8			level;
 	unsigned		trans_triggers_run:1;
 	unsigned		is_extent:1;
@@ -609,6 +612,17 @@ static inline bool btree_iter_is_extents(struct btree_iter *iter)
 #define BTREE_NODE_TYPE_HAS_TRIGGERS			\
 	(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS|		\
 	 BTREE_NODE_TYPE_HAS_MEM_TRIGGERS)
+
+#define BTREE_ID_HAS_SNAPSHOTS				\
+	((1U << BTREE_ID_extents)|			\
+	 (1U << BTREE_ID_inodes)|			\
+	 (1U << BTREE_ID_dirents)|			\
+	 (1U << BTREE_ID_xattrs))
+
+static inline bool btree_type_has_snapshots(enum btree_id id)
+{
+	return (1 << id) & BTREE_ID_HAS_SNAPSHOTS;
+}
 
 enum btree_trigger_flags {
 	__BTREE_TRIGGER_NORUN,		/* Don't run triggers at all */

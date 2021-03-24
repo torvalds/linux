@@ -64,7 +64,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 	struct bpos node_end	= b->data->max_key;
 	struct bpos expected_start = bkey_deleted(&prev->k->k)
 		? node_start
-		: bkey_successor(prev->k->k.p);
+		: bpos_successor(prev->k->k.p);
 	char buf1[200], buf2[200];
 	bool update_min = false;
 	bool update_max = false;
@@ -1187,7 +1187,9 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, btree_id, POS_MIN,
-				   BTREE_ITER_PREFETCH);
+				   BTREE_ITER_PREFETCH|
+				   BTREE_ITER_NOT_EXTENTS|
+				   BTREE_ITER_ALL_SNAPSHOTS);
 
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
@@ -1405,7 +1407,7 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 			n1->key.k.p = n1->data->max_key =
 				bkey_unpack_pos(n1, last);
 
-			n2->data->min_key = bkey_successor(n1->data->max_key);
+			n2->data->min_key = bpos_successor(n1->data->max_key);
 
 			memcpy_u64s(vstruct_last(s1),
 				    s2->start, u64s);

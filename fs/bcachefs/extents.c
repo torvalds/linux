@@ -179,7 +179,8 @@ const char *bch2_btree_ptr_v2_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	if (bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX)
 		return "value too big";
 
-	if (bp.v->min_key.snapshot)
+	if (c->sb.version < bcachefs_metadata_version_snapshot &&
+	    bp.v->min_key.snapshot)
 		return "invalid min_key.snapshot";
 
 	return bch2_bkey_ptrs_invalid(c, k);
@@ -211,8 +212,8 @@ void bch2_btree_ptr_v2_compat(enum btree_id btree_id, unsigned version,
 	    btree_node_type_is_extents(btree_id) &&
 	    bkey_cmp(bp.v->min_key, POS_MIN))
 		bp.v->min_key = write
-			? bkey_predecessor(bp.v->min_key)
-			: bkey_successor(bp.v->min_key);
+			? bpos_nosnap_predecessor(bp.v->min_key)
+			: bpos_nosnap_successor(bp.v->min_key);
 }
 
 /* KEY_TYPE_extent: */

@@ -142,19 +142,18 @@ struct bpos {
 #define KEY_SNAPSHOT_MAX		((__u32)~0U)
 #define KEY_SIZE_MAX			((__u32)~0U)
 
-static inline struct bpos POS(__u64 inode, __u64 offset)
+static inline struct bpos SPOS(__u64 inode, __u64 offset, __u32 snapshot)
 {
-	struct bpos ret;
-
-	ret.inode	= inode;
-	ret.offset	= offset;
-	ret.snapshot	= 0;
-
-	return ret;
+	return (struct bpos) {
+		.inode		= inode,
+		.offset		= offset,
+		.snapshot	= snapshot,
+	};
 }
 
-#define POS_MIN				POS(0, 0)
-#define POS_MAX				POS(KEY_INODE_MAX, KEY_OFFSET_MAX)
+#define POS_MIN				SPOS(0, 0, 0)
+#define POS_MAX				SPOS(KEY_INODE_MAX, KEY_OFFSET_MAX, KEY_SNAPSHOT_MAX)
+#define POS(_inode, _offset)		SPOS(_inode, _offset, 0)
 
 /* Empty placeholder struct, for container_of() */
 struct bch_val {
@@ -1208,7 +1207,8 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_new_versioning	= 10,
 	bcachefs_metadata_version_bkey_renumber		= 10,
 	bcachefs_metadata_version_inode_btree_change	= 11,
-	bcachefs_metadata_version_max			= 12,
+	bcachefs_metadata_version_snapshot		= 12,
+	bcachefs_metadata_version_max			= 13,
 };
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)
@@ -1749,7 +1749,7 @@ struct btree_node {
 	/* Closed interval: */
 	struct bpos		min_key;
 	struct bpos		max_key;
-	struct bch_extent_ptr	ptr;
+	struct bch_extent_ptr	_ptr; /* not used anymore */
 	struct bkey_format	format;
 
 	union {

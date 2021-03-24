@@ -258,24 +258,46 @@ static inline unsigned bkey_format_key_bits(const struct bkey_format *format)
 		format->bits_per_field[BKEY_FIELD_SNAPSHOT];
 }
 
-static inline struct bpos bkey_successor(struct bpos p)
+static inline struct bpos bpos_successor(struct bpos p)
 {
-	struct bpos ret = p;
+	if (!++p.snapshot &&
+	    !++p.offset &&
+	    !++p.inode)
+		BUG();
 
-	if (!++ret.offset)
-		BUG_ON(!++ret.inode);
-
-	return ret;
+	return p;
 }
 
-static inline struct bpos bkey_predecessor(struct bpos p)
+static inline struct bpos bpos_predecessor(struct bpos p)
 {
-	struct bpos ret = p;
+	if (!p.snapshot-- &&
+	    !p.offset-- &&
+	    !p.inode--)
+		BUG();
 
-	if (!ret.offset--)
-		BUG_ON(!ret.inode--);
+	return p;
+}
 
-	return ret;
+static inline struct bpos bpos_nosnap_successor(struct bpos p)
+{
+	p.snapshot = 0;
+
+	if (!++p.offset &&
+	    !++p.inode)
+		BUG();
+
+	return p;
+}
+
+static inline struct bpos bpos_nosnap_predecessor(struct bpos p)
+{
+	p.snapshot = 0;
+
+	if (!p.offset-- &&
+	    !p.inode--)
+		BUG();
+
+	return p;
 }
 
 static inline u64 bkey_start_offset(const struct bkey *k)

@@ -69,7 +69,7 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 			break;
 		}
 
-		next_node = bkey_successor(k.k->p);
+		next_node = bpos_successor(k.k->p);
 	}
 #endif
 }
@@ -289,7 +289,6 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 	b->data->flags = 0;
 	SET_BTREE_NODE_ID(b->data, as->btree_id);
 	SET_BTREE_NODE_LEVEL(b->data, level);
-	b->data->ptr = bch2_bkey_ptrs_c(bkey_i_to_s_c(&b->key)).start->ptr;
 
 	if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
 		struct bkey_i_btree_ptr_v2 *bp = bkey_i_to_btree_ptr_v2(&b->key);
@@ -1100,6 +1099,7 @@ static struct btree *__btree_split_node(struct btree_update *as,
 	struct btree *n2;
 	struct bset *set1, *set2;
 	struct bkey_packed *k, *set2_start, *set2_end, *out, *prev = NULL;
+	struct bpos n1_pos;
 
 	n2 = bch2_btree_node_alloc(as, n1->c.level);
 	bch2_btree_update_add_new_node(as, n2);
@@ -1146,8 +1146,12 @@ static struct btree *__btree_split_node(struct btree_update *as,
 	n1->nr.packed_keys	= nr_packed;
 	n1->nr.unpacked_keys	= nr_unpacked;
 
-	btree_set_max(n1, bkey_unpack_pos(n1, prev));
-	btree_set_min(n2, bkey_successor(n1->key.k.p));
+	n1_pos = bkey_unpack_pos(n1, prev);
+	if (as->c->sb.version < bcachefs_metadata_version_snapshot)
+		n1_pos.snapshot = U32_MAX;
+
+	btree_set_max(n1, n1_pos);
+	btree_set_min(n2, bpos_successor(n1->key.k.p));
 
 	bch2_bkey_format_init(&s);
 	bch2_bkey_format_add_pos(&s, n2->data->min_key);

@@ -1449,7 +1449,7 @@ void bch2_journal_write(struct closure *cl)
 	if (bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)))
 		validate_before_checksum = true;
 
-	if (le32_to_cpu(jset->version) <= bcachefs_metadata_version_inode_btree_change)
+	if (le32_to_cpu(jset->version) < bcachefs_metadata_version_current)
 		validate_before_checksum = true;
 
 	if (validate_before_checksum &&

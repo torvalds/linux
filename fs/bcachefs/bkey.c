@@ -617,15 +617,19 @@ const char *bch2_bkey_format_validate(struct bkey_format *f)
 		return "incorrect number of fields";
 
 	for (i = 0; i < f->nr_fields; i++) {
+		unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
+		u64 unpacked_mask = ~((~0ULL << 1) << (unpacked_bits - 1));
 		u64 field_offset = le64_to_cpu(f->field_offset[i]);
 
-		if (f->bits_per_field[i] > 64)
+		if (f->bits_per_field[i] > unpacked_bits)
 			return "field too large";
 
-		if (field_offset &&
-		    (f->bits_per_field[i] == 64 ||
-		    (field_offset + ((1ULL << f->bits_per_field[i]) - 1) <
-		     field_offset)))
+		if ((f->bits_per_field[i] == unpacked_bits) && field_offset)
+			return "offset + bits overflow";
+
+		if (((field_offset + ((1ULL << f->bits_per_field[i]) - 1)) &
+		     unpacked_mask) <
+		    field_offset)
 			return "offset + bits overflow";
 
 		bits += f->bits_per_field[i];
@@ -1126,11 +1130,12 @@ void bch2_bkey_pack_test(void)
 	struct bkey_packed p;
 
 	struct bkey_format test_format = {
-		.key_u64s	= 2,
+		.key_u64s	= 3,
 		.nr_fields	= BKEY_NR_FIELDS,
 		.bits_per_field = {
 			13,
 			64,
+			32,
 		},
 	};
 

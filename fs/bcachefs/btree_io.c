@@ -612,12 +612,6 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			     BTREE_ERR_MUST_RETRY, c, ca, b, i,
 			     "incorrect level");
 
-		if (BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN) {
-			u64 *p = (u64 *) &bn->ptr;
-
-			*p = swab64(*p);
-		}
-
 		if (!write)
 			compat_btree_node(b->c.level, b->c.btree_id, version,
 					  BSET_BIG_ENDIAN(i), write, bn);
@@ -1328,8 +1322,8 @@ static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 	if (bch2_bkey_invalid(c, bkey_i_to_s_c(&b->key), BKEY_TYPE_btree))
 		return -1;
 
-	ret = validate_bset(c, NULL, b, i, sectors, WRITE, false) ?:
-		validate_bset_keys(c, b, i, &whiteout_u64s, WRITE, false);
+	ret = validate_bset_keys(c, b, i, &whiteout_u64s, WRITE, false) ?:
+		validate_bset(c, NULL, b, i, sectors, WRITE, false);
 	if (ret) {
 		bch2_inconsistent_error(c);
 		dump_stack();
@@ -1482,7 +1476,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		validate_before_checksum = true;
 
 	/* validate_bset will be modifying: */
-	if (le16_to_cpu(i->version) <= bcachefs_metadata_version_inode_btree_change)
+	if (le16_to_cpu(i->version) < bcachefs_metadata_version_current)
 		validate_before_checksum = true;
 
 	/* if we're going to be encrypting, check metadata validity first: */

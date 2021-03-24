@@ -1438,7 +1438,7 @@ static void btree_node_iter_init_pack_failed(struct btree_node_iter *iter,
  *    to the search key is going to have 0 sectors after the search key.
  *
  *    But this does mean that we can't just search for
- *    bkey_successor(start_of_range) to get the first extent that overlaps with
+ *    bpos_successor(start_of_range) to get the first extent that overlaps with
  *    the range we want - if we're unlucky and there's an extent that ends
  *    exactly where we searched, then there could be a deleted key at the same
  *    position and we'd get that when we search instead of the preceding extent

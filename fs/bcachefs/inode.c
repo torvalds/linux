@@ -332,6 +332,7 @@ int bch2_inode_write(struct btree_trans *trans,
 		return PTR_ERR(inode_p);
 
 	bch2_inode_pack(trans->c, inode_p, inode);
+	inode_p->inode.k.p.snapshot = iter->snapshot;
 	bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
 	return 0;
 }

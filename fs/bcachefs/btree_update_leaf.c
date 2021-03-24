@@ -223,9 +223,17 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 
-	BUG_ON(bch2_debug_check_bkeys &&
-	       bch2_bkey_invalid(c, bkey_i_to_s_c(i->k), i->bkey_type));
-	BUG_ON(bpos_cmp(i->k->k.p, i->iter->real_pos));
+	if (bch2_debug_check_bkeys) {
+		const char *invalid = bch2_bkey_invalid(c,
+				bkey_i_to_s_c(i->k), i->bkey_type);
+		if (invalid) {
+			char buf[200];
+
+			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
+			panic("invalid bkey %s on insert: %s\n", buf, invalid);
+		}
+	}
+	BUG_ON(!i->is_extent && bpos_cmp(i->k->k.p, i->iter->real_pos));
 	BUG_ON(i->level		!= i->iter->level);
 	BUG_ON(i->btree_id	!= i->iter->btree_id);
 }

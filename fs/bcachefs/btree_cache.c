@@ -1018,7 +1018,7 @@ out:
 		if (sib != btree_prev_sib)
 			swap(n1, n2);
 
-		if (bpos_cmp(bkey_successor(n1->key.k.p),
+		if (bpos_cmp(bpos_successor(n1->key.k.p),
 			     n2->data->min_key)) {
 			char buf1[200], buf2[200];
 

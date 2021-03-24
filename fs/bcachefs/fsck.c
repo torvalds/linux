@@ -1318,6 +1318,7 @@ static int check_inode(struct btree_trans *trans,
 		struct bkey_inode_buf p;
 
 		bch2_inode_pack(c, &p, &u);
+		p.inode.k.p = iter->pos;
 
 		ret = __bch2_trans_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|

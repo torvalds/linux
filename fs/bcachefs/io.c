@@ -332,6 +332,9 @@ int bch2_extent_update(struct btree_trans *trans,
 
 		if (i_sectors_delta || new_i_size) {
 			bch2_inode_pack(trans->c, &inode_p, &inode_u);
+
+			inode_p.inode.k.p.snapshot = iter->snapshot;
+
 			bch2_trans_update(trans, inode_iter,
 					  &inode_p.inode.k_i, 0);
 		}
@@ -446,6 +449,8 @@ int bch2_write_index_default(struct bch_write_op *op)
 		bch2_trans_begin(&trans);
 
 		k = bch2_keylist_front(keys);
+
+		k->k.p.snapshot = iter->snapshot;
 
 		bch2_bkey_buf_realloc(&sk, c, k->k.u64s);
 		bkey_copy(sk.k, k);

@@ -998,6 +998,13 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
+	if (!(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done))) {
+		bch_err(c, "filesystem may have incompatible bkey formats; run fsck from the compat branch to fix");
+		ret = -EINVAL;
+		goto err;
+
+	}
+
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_alloc_v2))) {
 		bch_info(c, "alloc_v2 feature bit not set, fsck required");
 		c->opts.fsck = true;
@@ -1340,6 +1347,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 			S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO, 0, NULL);
 	root_inode.bi_inum = BCACHEFS_ROOT_INO;
 	bch2_inode_pack(c, &packed_inode, &root_inode);
+	packed_inode.inode.k.p.snapshot = U32_MAX;
 
 	err = "error creating root directory";
 	ret = bch2_btree_insert(c, BTREE_ID_inodes,
