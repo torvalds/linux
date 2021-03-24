@@ -15,6 +15,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
 #include <linux/phylink.h>
+#include <linux/rhashtable.h>
 #include "mtk_ppe.h"
 
 #define MTK_QDMA_PAGE_SIZE	2048
@@ -41,7 +42,8 @@
 				 NETIF_F_HW_VLAN_CTAG_RX | \
 				 NETIF_F_SG | NETIF_F_TSO | \
 				 NETIF_F_TSO6 | \
-				 NETIF_F_IPV6_CSUM)
+				 NETIF_F_IPV6_CSUM |\
+				 NETIF_F_HW_TC)
 #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
 #define NEXT_DESP_IDX(X, Y)	(((X) + 1) & ((Y) - 1))
 
@@ -914,6 +916,7 @@ struct mtk_eth {
 	int				ip_align;
 
 	struct mtk_ppe			ppe;
+	struct rhashtable		flow_table;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
@@ -957,5 +960,10 @@ void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
+
+int mtk_eth_offload_init(struct mtk_eth *eth);
+int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+		     void *type_data);
+
 
 #endif /* MTK_ETH_H */

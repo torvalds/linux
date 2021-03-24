@@ -2843,6 +2843,7 @@ static const struct net_device_ops mtk_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mtk_poll_controller,
 #endif
+	.ndo_setup_tc		= mtk_eth_setup_tc,
 };
 
 static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
@@ -3102,6 +3103,10 @@ static int mtk_probe(struct platform_device *pdev)
 	if (eth->soc->offload_version) {
 		err = mtk_ppe_init(&eth->ppe, eth->dev,
 				   eth->base + MTK_ETH_PPE_BASE, 2);
+		if (err)
+			goto err_free_dev;
+
+		err = mtk_eth_offload_init(eth);
 		if (err)
 			goto err_free_dev;
 	}
