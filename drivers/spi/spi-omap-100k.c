@@ -110,7 +110,7 @@ static void spi100k_write_data(struct spi_master *master, int len, int data)
 	}
 
 	spi100k_enable_clock(master);
-	writew(data , spi100k->base + SPI_TX_MSB);
+	writew(data, spi100k->base + SPI_TX_MSB);
 
 	writew(SPI_CTRL_SEN(0) |
 	       SPI_CTRL_WORD_SIZE(len) |
@@ -246,9 +246,9 @@ static int omap1_spi100k_setup_transfer(struct spi_device *spi,
 	cs->word_len = word_len;
 
 	/* SPI init before transfer */
-	writew(0x3e , spi100k->base + SPI_SETUP1);
-	writew(0x00 , spi100k->base + SPI_STATUS);
-	writew(0x3e , spi100k->base + SPI_CTRL);
+	writew(0x3e, spi100k->base + SPI_SETUP1);
+	writew(0x00, spi100k->base + SPI_STATUS);
+	writew(0x3e, spi100k->base + SPI_CTRL);
 
 	return 0;
 }
