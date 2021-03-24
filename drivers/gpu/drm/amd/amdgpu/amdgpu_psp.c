@@ -556,6 +556,24 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 	return ret;
 }
 
+static int psp_boot_config_set(struct amdgpu_device *adev)
+{
+	struct psp_context *psp = &adev->psp;
+	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+
+	if (adev->asic_type != CHIP_SIENNA_CICHLID)
+		return 0;
+
+	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+
+	cmd->cmd_id = GFX_CMD_ID_BOOT_CFG;
+	cmd->cmd.boot_cfg.sub_cmd = BOOTCFG_CMD_SET;
+	cmd->cmd.boot_cfg.boot_config = BOOT_CONFIG_GECC;
+	cmd->cmd.boot_cfg.boot_config_valid = BOOT_CONFIG_GECC;
+
+	return psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+}
+
 static int psp_rl_load(struct amdgpu_device *adev)
 {
 	struct psp_context *psp = &adev->psp;
@@ -1910,6 +1928,11 @@ static int psp_hw_start(struct psp_context *psp)
 	if (ret) {
 		DRM_ERROR("PSP clear vf fw!\n");
 		return ret;
+	}
+
+	ret = psp_boot_config_set(adev);
+	if (ret) {
+		DRM_WARN("PSP set boot config@\n");
 	}
 
 	ret = psp_tmr_init(psp);
