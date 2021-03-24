@@ -77,25 +77,9 @@ struct  false_ALARM_STATISTICS {
 	u32 Cnt_BW_LSC; /* Gary */
 };
 
-enum dm_dig_op_e { /* tag_Dynamic_Init_Gain_Operation_Type_Definition */
-	DIG_TYPE_THRESH_HIGH = 0,
-	DIG_TYPE_THRESH_LOW = 1,
-	DIG_TYPE_BACKOFF = 2,
-	DIG_TYPE_RX_GAIN_MIN = 3,
-	DIG_TYPE_RX_GAIN_MAX = 4,
-	DIG_TYPE_ENABLE = 5,
-	DIG_TYPE_DISABLE = 6,
-	DIG_OP_TYPE_MAX
-};
-
 enum ODM_Pause_DIG_TYPE {
 	ODM_PAUSE_DIG = BIT0,
 	ODM_RESUME_DIG = BIT1
-};
-
-enum ODM_Pause_CCKPD_TYPE {
-	ODM_PAUSE_CCKPD = BIT0,
-	ODM_RESUME_CCKPD = BIT1
 };
 
 #define		DM_DIG_THRESH_HIGH			40
