@@ -253,9 +253,11 @@ static int iproc_pwmc_remove(struct platform_device *pdev)
 {
 	struct iproc_pwmc *ip = platform_get_drvdata(pdev);
 
+	pwmchip_remove(&ip->chip);
+
 	clk_disable_unprepare(ip->clk);
 
-	return pwmchip_remove(&ip->chip);
+	return 0;
 }
 
 static const struct of_device_id bcm_iproc_pwmc_dt[] = {
