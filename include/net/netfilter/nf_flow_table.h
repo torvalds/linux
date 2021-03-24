@@ -95,6 +95,8 @@ enum flow_offload_xmit_type {
 	FLOW_OFFLOAD_XMIT_DIRECT,
 };
 
+#define NF_FLOW_TABLE_ENCAP_MAX		2
+
 struct flow_offload_tuple {
 	union {
 		struct in_addr		src_v4;
@@ -113,13 +115,17 @@ struct flow_offload_tuple {
 
 	u8				l3proto;
 	u8				l4proto;
+	struct {
+		u16			id;
+		__be16			proto;
+	} encap[NF_FLOW_TABLE_ENCAP_MAX];
 
 	/* All members above are keys for lookups, see flow_offload_hash(). */
 	struct { }			__hash;
 
-	u8				dir:6,
-					xmit_type:2;
-
+	u8				dir:4,
+					xmit_type:2,
+					encap_num:2;
 	u16				mtu;
 	union {
 		struct dst_entry	*dst_cache;
@@ -174,6 +180,11 @@ struct nf_flow_route {
 		struct dst_entry		*dst;
 		struct {
 			u32			ifindex;
+			struct {
+				u16		id;
+				__be16		proto;
+			} encap[NF_FLOW_TABLE_ENCAP_MAX];
+			u8			num_encaps;
 		} in;
 		struct {
 			u32			ifindex;
