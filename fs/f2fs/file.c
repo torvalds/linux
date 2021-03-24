@@ -1619,9 +1619,10 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 	struct f2fs_map_blocks map = { .m_next_pgofs = NULL,
 			.m_next_extent = NULL, .m_seg_type = NO_CHECK_TYPE,
 			.m_may_create = true };
-	pgoff_t pg_end;
+	pgoff_t pg_start, pg_end;
 	loff_t new_size = i_size_read(inode);
 	loff_t off_end;
+	block_t expanded = 0;
 	int err;
 
 	err = inode_newsize_ok(inode, (len + offset));
@@ -1634,11 +1635,12 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 
 	f2fs_balance_fs(sbi, true);
 
+	pg_start = ((unsigned long long)offset) >> PAGE_SHIFT;
 	pg_end = ((unsigned long long)offset + len) >> PAGE_SHIFT;
 	off_end = (offset + len) & (PAGE_SIZE - 1);
 
-	map.m_lblk = ((unsigned long long)offset) >> PAGE_SHIFT;
-	map.m_len = pg_end - map.m_lblk;
+	map.m_lblk = pg_start;
+	map.m_len = pg_end - pg_start;
 	if (off_end)
 		map.m_len++;
 
@@ -1648,7 +1650,6 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 	if (f2fs_is_pinned_file(inode)) {
 		block_t sec_blks = BLKS_PER_SEC(sbi);
 		block_t sec_len = roundup(map.m_len, sec_blks);
-		block_t done = 0;
 
 		map.m_len = sec_blks;
 next_alloc:
@@ -1656,10 +1657,8 @@ next_alloc:
 			GET_SEC_FROM_SEG(sbi, overprovision_segments(sbi)))) {
 			down_write(&sbi->gc_lock);
 			err = f2fs_gc(sbi, true, false, false, NULL_SEGNO);
-			if (err && err != -ENODATA && err != -EAGAIN) {
-				map.m_len = done;
+			if (err && err != -ENODATA && err != -EAGAIN)
 				goto out_err;
-			}
 		}
 
 		down_write(&sbi->pin_sem);
@@ -1673,24 +1672,25 @@ next_alloc:
 
 		up_write(&sbi->pin_sem);
 
-		done += map.m_len;
+		expanded += map.m_len;
 		sec_len -= map.m_len;
 		map.m_lblk += map.m_len;
 		if (!err && sec_len)
 			goto next_alloc;
 
-		map.m_len = done;
+		map.m_len = expanded;
 	} else {
 		err = f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_AIO);
+		expanded = map.m_len;
 	}
 out_err:
 	if (err) {
 		pgoff_t last_off;
 
-		if (!map.m_len)
+		if (!expanded)
 			return err;
 
-		last_off = map.m_lblk + map.m_len - 1;
+		last_off = pg_start + expanded - 1;
 
 		/* update new size to the failed position */
 		new_size = (last_off == pg_end) ? offset + len :
