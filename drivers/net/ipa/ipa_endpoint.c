@@ -266,7 +266,7 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 	 * if (endpoint->toward_ipa)
 	 * 	assert(ipa->version != IPA_VERSION_4.2);
 	 * else
-	 * 	assert(ipa->version == IPA_VERSION_3_5_1);
+	 *	assert(ipa->version < IPA_VERSION_4_0);
 	 */
 	mask = endpoint->toward_ipa ? ENDP_DELAY_FMASK : ENDP_SUSPEND_FMASK;
 
@@ -347,7 +347,7 @@ ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
 {
 	bool suspended;
 
-	if (endpoint->ipa->version != IPA_VERSION_3_5_1)
+	if (endpoint->ipa->version >= IPA_VERSION_4_0)
 		return enable;	/* For IPA v4.0+, no change made */
 
 	/* assert(!endpoint->toward_ipa); */
@@ -515,7 +515,7 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 			/* Where IPA will write the length */
 			offset = offsetof(struct rmnet_map_header, pkt_len);
 			/* Upper bits are stored in HDR_EXT with IPA v4.5 */
-			if (version == IPA_VERSION_4_5)
+			if (version >= IPA_VERSION_4_5)
 				offset &= field_mask(HDR_OFST_PKT_SIZE_FMASK);
 
 			val |= HDR_OFST_PKT_SIZE_VALID_FMASK;
@@ -562,7 +562,7 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	/* IPA v4.5 adds some most-significant bits to a few fields,
 	 * two of which are defined in the HDR (not HDR_EXT) register.
 	 */
-	if (ipa->version == IPA_VERSION_4_5) {
+	if (ipa->version >= IPA_VERSION_4_5) {
 		/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0, so MSB is 0 */
 		if (endpoint->data->qmap && !endpoint->toward_ipa) {
 			u32 offset;
@@ -776,7 +776,7 @@ static u32 hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 	if (!microseconds)
 		return 0;	/* Nothing to compute if timer period is 0 */
 
-	if (ipa->version == IPA_VERSION_4_5)
+	if (ipa->version >= IPA_VERSION_4_5)
 		return hol_block_timer_qtime_val(ipa, microseconds);
 
 	/* Use 64 bit arithmetic to avoid overflow... */
@@ -1468,8 +1468,7 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 	 * is active, we need to handle things specially to recover.
 	 * All other cases just need to reset the underlying GSI channel.
 	 */
-	special = ipa->version == IPA_VERSION_3_5_1 &&
-			!endpoint->toward_ipa &&
+	special = ipa->version < IPA_VERSION_4_0 && !endpoint->toward_ipa &&
 			endpoint->data->aggregation;
 	if (special && ipa_endpoint_aggr_active(endpoint))
 		ret = ipa_endpoint_reset_rx_aggr(endpoint);
@@ -1567,8 +1566,10 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 		(void)ipa_endpoint_program_suspend(endpoint, true);
 	}
 
-	/* IPA v3.5.1 doesn't use channel stop for suspend */
-	stop_channel = endpoint->ipa->version != IPA_VERSION_3_5_1;
+	/* Starting with IPA v4.0, endpoints are suspended by stopping the
+	 * underlying GSI channel rather than using endpoint suspend mode.
+	 */
+	stop_channel = endpoint->ipa->version >= IPA_VERSION_4_0;
 	ret = gsi_channel_suspend(gsi, endpoint->channel_id, stop_channel);
 	if (ret)
 		dev_err(dev, "error %d suspending channel %u\n", ret,
@@ -1588,8 +1589,10 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 	if (!endpoint->toward_ipa)
 		(void)ipa_endpoint_program_suspend(endpoint, false);
 
-	/* IPA v3.5.1 doesn't use channel start for resume */
-	start_channel = endpoint->ipa->version != IPA_VERSION_3_5_1;
+	/* Starting with IPA v4.0, the underlying GSI channel must be
+	 * restarted for resume.
+	 */
+	start_channel = endpoint->ipa->version >= IPA_VERSION_4_0;
 	ret = gsi_channel_resume(gsi, endpoint->channel_id, start_channel);
 	if (ret)
 		dev_err(dev, "error %d resuming channel %u\n", ret,
