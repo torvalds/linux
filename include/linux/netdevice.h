@@ -852,6 +852,7 @@ enum net_device_path_type {
 	DEV_PATH_ETHERNET = 0,
 	DEV_PATH_VLAN,
 	DEV_PATH_BRIDGE,
+	DEV_PATH_PPPOE,
 };
 
 struct net_device_path {
@@ -861,6 +862,7 @@ struct net_device_path {
 		struct {
 			u16		id;
 			__be16		proto;
+			u8		h_dest[ETH_ALEN];
 		} encap;
 		struct {
 			enum {
