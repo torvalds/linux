@@ -167,8 +167,8 @@ static int intel_quark_i2c_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 	res[INTEL_QUARK_IORES_MEM].end =
 		pci_resource_end(pdev, MFD_I2C_BAR);
 
-	res[INTEL_QUARK_IORES_IRQ].start = pdev->irq;
-	res[INTEL_QUARK_IORES_IRQ].end = pdev->irq;
+	res[INTEL_QUARK_IORES_IRQ].start = pci_irq_vector(pdev, 0);
+	res[INTEL_QUARK_IORES_IRQ].end = pci_irq_vector(pdev, 0);
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -215,7 +215,7 @@ static int intel_quark_gpio_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 	pdata->properties->idx		= 0;
 	pdata->properties->ngpio	= INTEL_QUARK_MFD_NGPIO;
 	pdata->properties->gpio_base	= INTEL_QUARK_MFD_GPIO_BASE;
-	pdata->properties->irq[0]	= pdev->irq;
+	pdata->properties->irq[0]	= pci_irq_vector(pdev, 0);
 	pdata->properties->irq_shared	= true;
 
 	cell->platform_data = pdata;
@@ -244,22 +244,31 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
+	pci_set_master(pdev);
+
+	/* This driver only requires 1 IRQ vector */
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		goto err_unregister_i2c_clk;
+
 	ret = intel_quark_i2c_setup(pdev, &intel_quark_mfd_cells[MFD_I2C_BAR]);
 	if (ret)
-		goto err_unregister_i2c_clk;
+		goto err_free_irq_vectors;
 
 	ret = intel_quark_gpio_setup(pdev, &intel_quark_mfd_cells[MFD_GPIO_BAR]);
 	if (ret)
-		goto err_unregister_i2c_clk;
+		goto err_free_irq_vectors;
 
 	ret = mfd_add_devices(&pdev->dev, 0, intel_quark_mfd_cells,
 			      ARRAY_SIZE(intel_quark_mfd_cells), NULL, 0,
 			      NULL);
 	if (ret)
-		goto err_unregister_i2c_clk;
+		goto err_free_irq_vectors;
 
 	return 0;
 
+err_free_irq_vectors:
+	pci_free_irq_vectors(pdev);
 err_unregister_i2c_clk:
 	intel_quark_unregister_i2c_clk(&pdev->dev);
 	return ret;
@@ -268,6 +277,7 @@ err_unregister_i2c_clk:
 static void intel_quark_mfd_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
+	pci_free_irq_vectors(pdev);
 	intel_quark_unregister_i2c_clk(&pdev->dev);
 }
 
