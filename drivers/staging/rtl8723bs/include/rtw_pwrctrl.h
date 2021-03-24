@@ -31,7 +31,7 @@
 #define BTCOEX_ALIVE	BIT(4)
 
 
-enum Power_Mgnt {
+enum {
 	PS_MODE_ACTIVE	= 0,
 	PS_MODE_MIN,
 	PS_MODE_MAX,
@@ -124,8 +124,7 @@ enum rt_rf_power_state {
 #define	RT_PCI_ASPM_OSC_ENABLE		BIT0 /*  PCI ASPM controlled by OS according to ACPI Spec 5.0 */
 #define	RT_PCI_ASPM_OSC_DISABLE		BIT1 /*  PCI ASPM controlled by driver or BIOS, i.e., force enable ASPM */
 
-
-enum _PS_BBRegBackup_ {
+enum {
 	PSBBREG_RF0 = 0,
 	PSBBREG_RF1,
 	PSBBREG_RF2,
