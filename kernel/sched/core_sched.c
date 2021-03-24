@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/prctl.h>
 #include "sched.h"
 
 /*
@@ -113,3 +114,116 @@ void sched_core_free(struct task_struct *p)
 {
 	sched_core_put_cookie(p->core_cookie);
 }
+
+static void __sched_core_set(struct task_struct *p, unsigned long cookie)
+{
+	cookie = sched_core_get_cookie(cookie);
+	cookie = sched_core_update_cookie(p, cookie);
+	sched_core_put_cookie(cookie);
+}
+
+/* Called from prctl interface: PR_SCHED_CORE */
+int sched_core_share_pid(unsigned int cmd, pid_t pid, enum pid_type type,
+			 unsigned long uaddr)
+{
+	unsigned long cookie = 0, id = 0;
+	struct task_struct *task, *p;
+	struct pid *grp;
+	int err = 0;
+
+	if (!static_branch_likely(&sched_smt_present))
+		return -ENODEV;
+
+	if (type > PIDTYPE_PGID || cmd >= PR_SCHED_CORE_MAX || pid < 0 ||
+	    (cmd != PR_SCHED_CORE_GET && uaddr))
+		return -EINVAL;
+
+	rcu_read_lock();
+	if (pid == 0) {
+		task = current;
+	} else {
+		task = find_task_by_vpid(pid);
+		if (!task) {
+			rcu_read_unlock();
+			return -ESRCH;
+		}
+	}
+	get_task_struct(task);
+	rcu_read_unlock();
+
+	/*
+	 * Check if this process has the right to modify the specified
+	 * process. Use the regular "ptrace_may_access()" checks.
+	 */
+	if (!ptrace_may_access(task, PTRACE_MODE_READ_REALCREDS)) {
+		err = -EPERM;
+		goto out;
+	}
+
+	switch (cmd) {
+	case PR_SCHED_CORE_GET:
+		if (type != PIDTYPE_PID || uaddr & 7) {
+			err = -EINVAL;
+			goto out;
+		}
+		cookie = sched_core_clone_cookie(task);
+		if (cookie) {
+			/* XXX improve ? */
+			ptr_to_hashval((void *)cookie, &id);
+		}
+		err = put_user(id, (u64 __user *)uaddr);
+		goto out;
+
+	case PR_SCHED_CORE_CREATE:
+		cookie = sched_core_alloc_cookie();
+		if (!cookie) {
+			err = -ENOMEM;
+			goto out;
+		}
+		break;
+
+	case PR_SCHED_CORE_SHARE_TO:
+		cookie = sched_core_clone_cookie(current);
+		break;
+
+	case PR_SCHED_CORE_SHARE_FROM:
+		if (type != PIDTYPE_PID) {
+			err = -EINVAL;
+			goto out;
+		}
+		cookie = sched_core_clone_cookie(task);
+		__sched_core_set(current, cookie);
+		goto out;
+
+	default:
+		err = -EINVAL;
+		goto out;
+	};
+
+	if (type == PIDTYPE_PID) {
+		__sched_core_set(task, cookie);
+		goto out;
+	}
+
+	read_lock(&tasklist_lock);
+	grp = task_pid_type(task, type);
+
+	do_each_pid_thread(grp, type, p) {
+		if (!ptrace_may_access(p, PTRACE_MODE_READ_REALCREDS)) {
+			err = -EPERM;
+			goto out_tasklist;
+		}
+	} while_each_pid_thread(grp, type, p);
+
+	do_each_pid_thread(grp, type, p) {
+		__sched_core_set(p, cookie);
+	} while_each_pid_thread(grp, type, p);
+out_tasklist:
+	read_unlock(&tasklist_lock);
+
+out:
+	sched_core_put_cookie(cookie);
+	put_task_struct(task);
+	return err;
+}
+
