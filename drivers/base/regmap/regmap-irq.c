@@ -333,6 +333,11 @@ static int regmap_irq_set_type(struct irq_data *data, unsigned int type)
 	default:
 		return -EINVAL;
 	}
+
+	if (d->chip->set_type_virt)
+		return d->chip->set_type_virt(d->virt_buf, type, data->hwirq,
+					      reg);
+
 	return 0;
 }
 
