@@ -131,6 +131,7 @@ struct flow_offload_tuple {
 		struct dst_entry	*dst_cache;
 		struct {
 			u32		ifidx;
+			u32		hw_ifidx;
 			u8		h_source[ETH_ALEN];
 			u8		h_dest[ETH_ALEN];
 		} out;
@@ -188,6 +189,7 @@ struct nf_flow_route {
 		} in;
 		struct {
 			u32			ifindex;
+			u32			hw_ifindex;
 			u8			h_source[ETH_ALEN];
 			u8			h_dest[ETH_ALEN];
 		} out;
