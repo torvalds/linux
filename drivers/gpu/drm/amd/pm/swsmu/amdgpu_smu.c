@@ -2095,36 +2095,34 @@ const struct amdgpu_ip_block_version smu_v13_0_ip_block =
 	.funcs = &smu_ip_funcs,
 };
 
-int smu_load_microcode(struct smu_context *smu)
+static int smu_load_microcode(void *handle)
 {
+	struct smu_context *smu = handle;
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+	if (!smu->pm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
+	/* This should be used for non PSP loading */
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)
+		return 0;
 
-	if (smu->ppt_funcs->load_microcode)
+	if (smu->ppt_funcs->load_microcode) {
 		ret = smu->ppt_funcs->load_microcode(smu);
+		if (ret) {
+			dev_err(adev->dev, "Load microcode failed\n");
+			return ret;
+		}
+	}
 
-	mutex_unlock(&smu->mutex);
-
-	return ret;
-}
-
-int smu_check_fw_status(struct smu_context *smu)
-{
-	int ret = 0;
-
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&smu->mutex);
-
-	if (smu->ppt_funcs->check_fw_status)
+	if (smu->ppt_funcs->check_fw_status) {
 		ret = smu->ppt_funcs->check_fw_status(smu);
-
-	mutex_unlock(&smu->mutex);
+		if (ret) {
+			dev_err(adev->dev, "SMC is not ready\n");
+			return ret;
+		}
+	}
 
 	return ret;
 }
@@ -2981,6 +2979,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.set_watermarks_for_clock_ranges     = smu_set_watermarks_for_clock_ranges,
 	.display_disable_memory_clock_switch = smu_display_disable_memory_clock_switch,
 	.get_max_sustainable_clocks_by_dc    = smu_get_max_sustainable_clocks_by_dc,
+	.load_firmware           = smu_load_microcode,
 };
 
 int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,

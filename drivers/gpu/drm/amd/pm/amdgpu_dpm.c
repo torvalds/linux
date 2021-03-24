@@ -1606,7 +1606,10 @@ int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_versio
 			pr_err("smu firmware loading failed\n");
 			return r;
 		}
-		*smu_version = adev->pm.fw_version;
+
+		if (smu_version)
+			*smu_version = adev->pm.fw_version;
 	}
+
 	return 0;
 }

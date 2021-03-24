@@ -7170,16 +7170,10 @@ static int gfx_v10_0_hw_init(void *handle)
 		 * loaded firstly, so in direct type, it has to load smc ucode
 		 * here before rlc.
 		 */
-		if (adev->smu.ppt_funcs != NULL && !(adev->flags & AMD_IS_APU)) {
-			r = smu_load_microcode(&adev->smu);
+		if (!(adev->flags & AMD_IS_APU)) {
+			r = amdgpu_pm_load_smu_firmware(adev, NULL);
 			if (r)
 				return r;
-
-			r = smu_check_fw_status(&adev->smu);
-			if (r) {
-				pr_err("SMC firmware status is not correct\n");
-				return r;
-			}
 		}
 		gfx_v10_0_disable_gpa_mode(adev);
 	}
