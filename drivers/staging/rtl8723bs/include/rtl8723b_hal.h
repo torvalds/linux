@@ -152,7 +152,7 @@ struct rt_firmware_hdr {
 /* Description: Determine the types of C2H events that are the same in driver
  * and FW; First constructed by tynli. 2009.10.09.
  */
-enum c2h_evt {
+enum {
 	C2H_DBG = 0,
 	C2H_TSF = 1,
 	C2H_AP_RPT_RSP = 2,
@@ -174,7 +174,7 @@ struct c2h_evt_hdr_t {
 	u8 CmdSeq;
 } __attribute__((__packed__));
 
-enum package_type_e { /* tag_Package_Definition */
+enum { /* tag_Package_Definition */
 	PACKAGE_DEFAULT,
 	PACKAGE_QFN68,
 	PACKAGE_TFBGA90,
