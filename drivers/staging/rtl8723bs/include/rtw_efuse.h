@@ -25,7 +25,7 @@
 #define	EFUSE_WIFI				0
 #define	EFUSE_BT				1
 
-enum _efuse_def_type {
+enum {
 	TYPE_EFUSE_MAX_SECTION				= 0,
 	TYPE_EFUSE_REAL_CONTENT_LEN			= 1,
 	TYPE_AVAILABLE_EFUSE_BYTES_BANK		= 2,
