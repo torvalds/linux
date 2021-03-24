@@ -815,11 +815,12 @@ static void __set_default_fence_expiry(struct i915_gem_context *ctx)
 	struct drm_i915_private *i915 = ctx->i915;
 	int ret;
 
-	if (!IS_ACTIVE(CONFIG_DRM_I915_REQUEST_TIMEOUT))
+	if (!IS_ACTIVE(CONFIG_DRM_I915_REQUEST_TIMEOUT) ||
+	    !i915->params.request_timeout_ms)
 		return;
 
 	/* Default expiry for user fences. */
-	ret = __set_watchdog(ctx, CONFIG_DRM_I915_REQUEST_TIMEOUT * 1000);
+	ret = __set_watchdog(ctx, i915->params.request_timeout_ms * 1000);
 	if (ret)
 		drm_notice(&i915->drm,
 			   "Failed to configure default fence expiry! (%d)",
