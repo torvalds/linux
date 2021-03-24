@@ -16,14 +16,14 @@
 
 #define		BTC_RSSI_COEX_THRESH_TOL_8723B_2ANT		2
 
-enum bt_info_src_8723b_2ant {
+enum {
 	BT_INFO_SRC_8723B_2ANT_WIFI_FW        = 0x0,
 	BT_INFO_SRC_8723B_2ANT_BT_RSP         = 0x1,
 	BT_INFO_SRC_8723B_2ANT_BT_ACTIVE_SEND = 0x2,
 	BT_INFO_SRC_8723B_2ANT_MAX
 };
 
-enum bt_8723b_2ant_bt_status {
+enum {
 	BT_8723B_2ANT_BT_STATUS_NON_CONNECTED_IDLE = 0x0,
 	BT_8723B_2ANT_BT_STATUS_CONNECTED_IDLE     = 0x1,
 	BT_8723B_2ANT_BT_STATUS_INQ_PAGE           = 0x2,
@@ -33,7 +33,7 @@ enum bt_8723b_2ant_bt_status {
 	BT_8723B_2ANT_BT_STATUS_MAX
 };
 
-enum bt_8723b_2ant_coex_algo {
+enum {
 	BT_8723B_2ANT_COEX_ALGO_UNDEFINED       = 0x0,
 	BT_8723B_2ANT_COEX_ALGO_SCO             = 0x1,
 	BT_8723B_2ANT_COEX_ALGO_HID             = 0x2,
