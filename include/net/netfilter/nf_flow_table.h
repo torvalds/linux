@@ -123,9 +123,10 @@ struct flow_offload_tuple {
 	/* All members above are keys for lookups, see flow_offload_hash(). */
 	struct { }			__hash;
 
-	u8				dir:4,
+	u8				dir:2,
 					xmit_type:2,
-					encap_num:2;
+					encap_num:2,
+					in_vlan_ingress:2;
 	u16				mtu;
 	union {
 		struct dst_entry	*dst_cache;
@@ -185,7 +186,8 @@ struct nf_flow_route {
 				u16		id;
 				__be16		proto;
 			} encap[NF_FLOW_TABLE_ENCAP_MAX];
-			u8			num_encaps;
+			u8			num_encaps:2,
+						ingress_vlans:2;
 		} in;
 		struct {
 			u32			ifindex;

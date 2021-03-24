@@ -870,6 +870,7 @@ struct net_device_path {
 				DEV_PATH_BR_VLAN_KEEP,
 				DEV_PATH_BR_VLAN_TAG,
 				DEV_PATH_BR_VLAN_UNTAG,
+				DEV_PATH_BR_VLAN_UNTAG_HW,
 			}		vlan_mode;
 			u16		vlan_id;
 			__be16		vlan_proto;

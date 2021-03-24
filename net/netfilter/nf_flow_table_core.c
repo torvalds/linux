@@ -95,6 +95,8 @@ static int flow_offload_fill_route(struct flow_offload *flow,
 	for (i = route->tuple[dir].in.num_encaps - 1; i >= 0; i--) {
 		flow_tuple->encap[j].id = route->tuple[dir].in.encap[i].id;
 		flow_tuple->encap[j].proto = route->tuple[dir].in.encap[i].proto;
+		if (route->tuple[dir].in.ingress_vlans & BIT(i))
+			flow_tuple->in_vlan_ingress |= BIT(j);
 		j++;
 	}
 	flow_tuple->encap_num = route->tuple[dir].in.num_encaps;

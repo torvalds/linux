@@ -422,6 +422,7 @@ static int br_fill_forward_path(struct net_device_path_ctx *ctx,
 		ctx->vlan[ctx->num_vlans].proto = path->bridge.vlan_proto;
 		ctx->num_vlans++;
 		break;
+	case DEV_PATH_BR_VLAN_UNTAG_HW:
 	case DEV_PATH_BR_VLAN_UNTAG:
 		ctx->num_vlans--;
 		break;

@@ -594,8 +594,12 @@ nf_flow_rule_route_common(struct net *net, const struct flow_offload *flow,
 	other_tuple = &flow->tuplehash[!dir].tuple;
 
 	for (i = 0; i < other_tuple->encap_num; i++) {
-		struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
+		struct flow_action_entry *entry;
 
+		if (other_tuple->in_vlan_ingress & BIT(i))
+			continue;
+
+		entry = flow_action_entry_next(flow_rule);
 		entry->id = FLOW_ACTION_VLAN_PUSH;
 		entry->vlan.vid = other_tuple->encap[i].id;
 		entry->vlan.proto = other_tuple->encap[i].proto;
