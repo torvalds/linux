@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <asm/pci_debug.h>
+#include <asm/pci_dma.h>
 #include <asm/sclp.h>
 
 #include "pci_bus.h"
@@ -76,18 +77,16 @@ void zpci_event_error(void *data)
 static void zpci_event_hard_deconfigured(struct zpci_dev *zdev, u32 fh)
 {
 	enum zpci_state state;
-	int rc;
 
 	zdev->fh = fh;
 	/* Give the driver a hint that the function is
 	 * already unusable.
 	 */
 	zpci_bus_remove_device(zdev, true);
-	if (zdev_enabled(zdev)) {
-		rc = zpci_disable_device(zdev);
-		if (rc)
-			return;
-	}
+	/* Even though the device is already gone we still
+	 * need to free zPCI resources as part of the disable.
+	 */
+	zpci_disable_device(zdev);
 	zdev->state = ZPCI_FN_STATE_STANDBY;
 	if (!clp_get_state(zdev->fid, &state) &&
 	    state == ZPCI_FN_STATE_RESERVED) {
