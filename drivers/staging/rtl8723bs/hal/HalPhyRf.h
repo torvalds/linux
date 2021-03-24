@@ -8,11 +8,6 @@
  #ifndef __HAL_PHY_RF_H__
  #define __HAL_PHY_RF_H__
 
-enum spur_cal_method {
-	PLL_RESET,
-	AFE_PHASE_SEL
-};
-
 enum pwrtrack_method {
 	BBSWING,
 	TXAGC,
