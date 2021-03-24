@@ -2604,7 +2604,8 @@ static int rtw_rereg_nd_name(struct net_device *dev,
 		return ret;
 
 	DBG_871X("%s new_ifname:%s\n", __func__, new_ifname);
-	if (0 != (ret = rtw_change_ifname(padapter, new_ifname)))
+	ret = rtw_change_ifname(padapter, new_ifname);
+	if (ret != 0)
 		goto exit;
 
 	strncpy(rereg_priv->old_ifname, new_ifname, IFNAMSIZ);
@@ -4236,7 +4237,8 @@ static int rtw_wx_set_priv(struct net_device *dev,
 		return -EFAULT;
 
 	len = dwrq->length;
-	if (!(ext = vmalloc(len)))
+	ext = vmalloc(len);
+	if (!ext)
 		return -ENOMEM;
 
 	if (copy_from_user(ext, dwrq->pointer, len)) {
@@ -4250,7 +4252,8 @@ static int rtw_wx_set_priv(struct net_device *dev,
 	/* 	  dev->name, ext)); */
 
 	#ifdef DEBUG_RTW_WX_SET_PRIV
-	if (!(ext_dbg = vmalloc(len))) {
+	ext_dbg = vmalloc(len);
+	if (!ext_dbg) {
 		vfree(ext, len);
 		return -ENOMEM;
 	}
