@@ -166,7 +166,7 @@ struct cxl_mem_command {
  * table will be validated against the user's input. For example, if size_in is
  * 0, and the user passed in 1, it is an error.
  */
-static struct cxl_mem_command mem_commands[] = {
+static struct cxl_mem_command mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(IDENTIFY, 0, 0x43, CXL_CMD_FLAG_FORCE_ENABLE),
 #ifdef CONFIG_CXL_MEM_RAW_COMMANDS
 	CXL_CMD(RAW, ~0, ~0, 0),
