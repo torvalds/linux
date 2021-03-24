@@ -92,6 +92,7 @@ enum flow_offload_tuple_dir {
 enum flow_offload_xmit_type {
 	FLOW_OFFLOAD_XMIT_NEIGH		= 0,
 	FLOW_OFFLOAD_XMIT_XFRM,
+	FLOW_OFFLOAD_XMIT_DIRECT,
 };
 
 struct flow_offload_tuple {
@@ -120,8 +121,14 @@ struct flow_offload_tuple {
 					xmit_type:2;
 
 	u16				mtu;
-
-	struct dst_entry		*dst_cache;
+	union {
+		struct dst_entry	*dst_cache;
+		struct {
+			u32		ifidx;
+			u8		h_source[ETH_ALEN];
+			u8		h_dest[ETH_ALEN];
+		} out;
+	};
 };
 
 struct flow_offload_tuple_rhash {
@@ -168,6 +175,11 @@ struct nf_flow_route {
 		struct {
 			u32			ifindex;
 		} in;
+		struct {
+			u32			ifindex;
+			u8			h_source[ETH_ALEN];
+			u8			h_dest[ETH_ALEN];
+		} out;
 		enum flow_offload_xmit_type	xmit_type;
 	} tuple[FLOW_OFFLOAD_DIR_MAX];
 };

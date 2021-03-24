@@ -81,9 +81,6 @@ static int flow_offload_fill_route(struct flow_offload *flow,
 	struct flow_offload_tuple *flow_tuple = &flow->tuplehash[dir].tuple;
 	struct dst_entry *dst = route->tuple[dir].dst;
 
-	if (!dst_hold_safe(route->tuple[dir].dst))
-		return -1;
-
 	switch (flow_tuple->l3proto) {
 	case NFPROTO_IPV4:
 		flow_tuple->mtu = ip_dst_mtu_maybe_forward(dst, true);
@@ -94,10 +91,34 @@ static int flow_offload_fill_route(struct flow_offload *flow,
 	}
 
 	flow_tuple->iifidx = route->tuple[dir].in.ifindex;
+
+	switch (route->tuple[dir].xmit_type) {
+	case FLOW_OFFLOAD_XMIT_DIRECT:
+		memcpy(flow_tuple->out.h_dest, route->tuple[dir].out.h_dest,
+		       ETH_ALEN);
+		memcpy(flow_tuple->out.h_source, route->tuple[dir].out.h_source,
+		       ETH_ALEN);
+		flow_tuple->out.ifidx = route->tuple[dir].out.ifindex;
+		break;
+	case FLOW_OFFLOAD_XMIT_XFRM:
+	case FLOW_OFFLOAD_XMIT_NEIGH:
+		if (!dst_hold_safe(route->tuple[dir].dst))
+			return -1;
+
+		flow_tuple->dst_cache = dst;
+		break;
+	}
 	flow_tuple->xmit_type = route->tuple[dir].xmit_type;
-	flow_tuple->dst_cache = dst;
 
 	return 0;
+}
+
+static void nft_flow_dst_release(struct flow_offload *flow,
+				 enum flow_offload_tuple_dir dir)
+{
+	if (flow->tuplehash[dir].tuple.xmit_type == FLOW_OFFLOAD_XMIT_NEIGH ||
+	    flow->tuplehash[dir].tuple.xmit_type == FLOW_OFFLOAD_XMIT_XFRM)
+		dst_release(flow->tuplehash[dir].tuple.dst_cache);
 }
 
 int flow_offload_route_init(struct flow_offload *flow,
@@ -118,7 +139,7 @@ int flow_offload_route_init(struct flow_offload *flow,
 	return 0;
 
 err_route_reply:
-	dst_release(route->tuple[FLOW_OFFLOAD_DIR_ORIGINAL].dst);
+	nft_flow_dst_release(flow, FLOW_OFFLOAD_DIR_ORIGINAL);
 
 	return err;
 }
@@ -169,8 +190,8 @@ static void flow_offload_fixup_ct(struct nf_conn *ct)
 
 static void flow_offload_route_release(struct flow_offload *flow)
 {
-	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_cache);
-	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_cache);
+	nft_flow_dst_release(flow, FLOW_OFFLOAD_DIR_ORIGINAL);
+	nft_flow_dst_release(flow, FLOW_OFFLOAD_DIR_REPLY);
 }
 
 void flow_offload_free(struct flow_offload *flow)
