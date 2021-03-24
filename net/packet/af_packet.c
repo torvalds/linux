@@ -2057,7 +2057,7 @@ static int packet_rcv_vnet(struct msghdr *msg, const struct sk_buff *skb,
  * and skb->cb are mangled. It works because (and until) packets
  * falling here are owned by current CPU. Output packets are cloned
  * by dev_queue_xmit_nit(), input packets are processed by net_bh
- * sequencially, so that if we return skb to original state on exit,
+ * sequentially, so that if we return skb to original state on exit,
  * we will not harm anyone.
  */
 
