@@ -647,7 +647,7 @@ static void esp_unmap_sense(struct esp *esp, struct esp_cmd_entry *ent)
 	ent->sense_ptr = NULL;
 }
 
-/* When a contingent allegiance conditon is created, we force feed a
+/* When a contingent allegiance condition is created, we force feed a
  * REQUEST_SENSE command to the device to fetch the sense data.  I
  * tried many other schemes, relying on the scsi error handling layer
  * to send out the REQUEST_SENSE automatically, but this was difficult
@@ -1341,7 +1341,7 @@ static int esp_data_bytes_sent(struct esp *esp, struct esp_cmd_entry *ent,
 	bytes_sent -= esp->send_cmd_residual;
 
 	/*
-	 * The am53c974 has a DMA 'pecularity'. The doc states:
+	 * The am53c974 has a DMA 'peculiarity'. The doc states:
 	 * In some odd byte conditions, one residual byte will
 	 * be left in the SCSI FIFO, and the FIFO Flags will
 	 * never count to '0 '. When this happens, the residual
