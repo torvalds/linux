@@ -8,13 +8,6 @@
 #ifndef __RTW_WIFI_REGD_H__
 #define __RTW_WIFI_REGD_H__
 
-enum country_code_type_t {
-	COUNTRY_CODE_USER = 0,
-
-	/*add new channel plan above this line */
-	COUNTRY_CODE_MAX
-};
-
 void rtw_regd_init(struct wiphy *wiphy,
 		   void (*reg_notifier)(struct wiphy *wiphy,
 					struct regulatory_request *request));
