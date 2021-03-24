@@ -217,8 +217,18 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 	return 0x00000000;
 }
 
-/* The value of the next register must be a multiple of 8 */
-#define IPA_REG_LOCAL_PKT_PROC_CNTXT_BASE_OFFSET	0x000001e8
+/* The value of the next register must be a multiple of 8 (bottom 3 bits 0) */
+#define IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET		0x000001e8
+
+/* Encoded value for LOCAL_PKT_PROC_CNTXT register BASE_ADDR field */
+static inline u32 proc_cntxt_base_addr_encoded(enum ipa_version version,
+					       u32 addr)
+{
+	if (version < IPA_VERSION_4_5)
+		return u32_encode_bits(addr, GENMASK(16, 0));
+
+	return u32_encode_bits(addr, GENMASK(17, 0));
+}
 
 /* ipa->available defines the valid bits in the AGGR_FORCE_CLOSE register */
 #define IPA_REG_AGGR_FORCE_CLOSE_OFFSET			0x000001ec
