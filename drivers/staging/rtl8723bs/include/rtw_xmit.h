@@ -83,13 +83,6 @@ do {\
 
 #define TXDESC_OFFSET TXDESC_SIZE
 
-enum txdesc_sc {
-	SC_DONT_CARE = 0x00,
-	SC_UPPER = 0x01,
-	SC_LOWER = 0x02,
-	SC_DUPLICATE = 0x03
-};
-
 #define TXDESC_40_BYTES
 
 struct tx_desc {
