@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 
 #include <uapi/misc/pvpanic.h>
 
@@ -23,25 +24,26 @@ MODULE_AUTHOR("Hu Tao <hutao@cn.fujitsu.com>");
 MODULE_DESCRIPTION("pvpanic-mmio device driver");
 MODULE_LICENSE("GPL");
 
-static void __iomem *base;
-static unsigned int capability = PVPANIC_PANICKED | PVPANIC_CRASH_LOADED;
-static unsigned int events;
-
 static ssize_t capability_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%x\n", capability);
+	struct pvpanic_instance *pi = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%x\n", pi->capability);
 }
 static DEVICE_ATTR_RO(capability);
 
 static ssize_t events_show(struct device *dev,  struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%x\n", events);
+	struct pvpanic_instance *pi = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%x\n", pi->events);
 }
 
 static ssize_t events_store(struct device *dev,  struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
+	struct pvpanic_instance *pi = dev_get_drvdata(dev);
 	unsigned int tmp;
 	int err;
 
@@ -49,15 +51,12 @@ static ssize_t events_store(struct device *dev,  struct device_attribute *attr,
 	if (err)
 		return err;
 
-	if ((tmp & capability) != tmp)
+	if ((tmp & pi->capability) != tmp)
 		return -EINVAL;
 
-	events = tmp;
-
-	pvpanic_set_events(events);
+	pi->events = tmp;
 
 	return count;
-
 }
 static DEVICE_ATTR_RW(events);
 
@@ -71,7 +70,9 @@ ATTRIBUTE_GROUPS(pvpanic_mmio_dev);
 static int pvpanic_mmio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct pvpanic_instance *pi;
 	struct resource *res;
+	void __iomem *base;
 
 	res = platform_get_mem_or_io(pdev, 0);
 	if (!res)
@@ -92,19 +93,28 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	pi = kmalloc(sizeof(*pi), GFP_ATOMIC);
+	if (!pi)
+		return -ENOMEM;
+
+	pi->base = base;
+	pi->capability = PVPANIC_PANICKED | PVPANIC_CRASH_LOADED;
+
 	/* initlize capability by RDPT */
-	capability &= ioread8(base);
-	events = capability;
+	pi->capability &= ioread8(base);
+	pi->events = pi->capability;
 
-	pvpanic_probe(base, capability);
+	dev_set_drvdata(dev, pi);
 
-	return 0;
+	return pvpanic_probe(pi);
 }
 
 static int pvpanic_mmio_remove(struct platform_device *pdev)
 {
+	struct pvpanic_instance *pi = dev_get_drvdata(&pdev->dev);
 
-	pvpanic_remove();
+	pvpanic_remove(pi);
+	kfree(pi);
 
 	return 0;
 }

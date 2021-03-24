@@ -8,8 +8,14 @@
 #ifndef PVPANIC_H_
 #define PVPANIC_H_
 
-void pvpanic_probe(void __iomem *base, unsigned int dev_cap);
-void pvpanic_remove(void);
-void pvpanic_set_events(unsigned int dev_events);
+struct pvpanic_instance {
+	void __iomem *base;
+	unsigned int capability;
+	unsigned int events;
+	struct list_head list;
+};
+
+int pvpanic_probe(struct pvpanic_instance *pi);
+void pvpanic_remove(struct pvpanic_instance *pi);
 
 #endif /* PVPANIC_H_ */
