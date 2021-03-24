@@ -4519,11 +4519,86 @@ mlxsw_sp_nexthop_obj_group_validate(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static int
+mlxsw_sp_nexthop_obj_res_group_size_validate(struct mlxsw_sp *mlxsw_sp,
+					     const struct nh_notifier_res_table_info *nh_res_table,
+					     struct netlink_ext_ack *extack)
+{
+	unsigned int alloc_size;
+	bool valid_size = false;
+	int err, i;
+
+	if (nh_res_table->num_nh_buckets < 32) {
+		NL_SET_ERR_MSG_MOD(extack, "Minimum number of buckets is 32");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < mlxsw_sp->router->adj_grp_size_ranges_count; i++) {
+		const struct mlxsw_sp_adj_grp_size_range *size_range;
+
+		size_range = &mlxsw_sp->router->adj_grp_size_ranges[i];
+
+		if (nh_res_table->num_nh_buckets >= size_range->start &&
+		    nh_res_table->num_nh_buckets <= size_range->end) {
+			valid_size = true;
+			break;
+		}
+	}
+
+	if (!valid_size) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid number of buckets");
+		return -EINVAL;
+	}
+
+	err = mlxsw_sp_kvdl_alloc_count_query(mlxsw_sp,
+					      MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
+					      nh_res_table->num_nh_buckets,
+					      &alloc_size);
+	if (err || nh_res_table->num_nh_buckets != alloc_size) {
+		NL_SET_ERR_MSG_MOD(extack, "Number of buckets does not fit allocation size of any KVDL partition");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+mlxsw_sp_nexthop_obj_res_group_validate(struct mlxsw_sp *mlxsw_sp,
+					const struct nh_notifier_res_table_info *nh_res_table,
+					struct netlink_ext_ack *extack)
+{
+	int err;
+	u16 i;
+
+	err = mlxsw_sp_nexthop_obj_res_group_size_validate(mlxsw_sp,
+							   nh_res_table,
+							   extack);
+	if (err)
+		return err;
+
+	for (i = 0; i < nh_res_table->num_nh_buckets; i++) {
+		const struct nh_notifier_single_info *nh;
+		int err;
+
+		nh = &nh_res_table->nhs[i];
+		err = mlxsw_sp_nexthop_obj_group_entry_validate(mlxsw_sp, nh,
+								extack);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_nexthop_obj_validate(struct mlxsw_sp *mlxsw_sp,
 					 unsigned long event,
 					 struct nh_notifier_info *info)
 {
-	if (event != NEXTHOP_EVENT_REPLACE)
+	struct nh_notifier_single_info *nh;
+
+	if (event != NEXTHOP_EVENT_REPLACE &&
+	    event != NEXTHOP_EVENT_RES_TABLE_PRE_REPLACE &&
+	    event != NEXTHOP_EVENT_BUCKET_REPLACE)
 		return 0;
 
 	switch (info->type) {
@@ -4534,6 +4609,14 @@ static int mlxsw_sp_nexthop_obj_validate(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_sp_nexthop_obj_group_validate(mlxsw_sp,
 							   info->nh_grp,
 							   info->extack);
+	case NH_NOTIFIER_INFO_TYPE_RES_TABLE:
+		return mlxsw_sp_nexthop_obj_res_group_validate(mlxsw_sp,
+							       info->nh_res_table,
+							       info->extack);
+	case NH_NOTIFIER_INFO_TYPE_RES_BUCKET:
+		nh = &info->nh_res_bucket->new_nh;
+		return mlxsw_sp_nexthop_obj_group_entry_validate(mlxsw_sp, nh,
+								 info->extack);
 	default:
 		NL_SET_ERR_MSG_MOD(info->extack, "Unsupported nexthop type");
 		return -EOPNOTSUPP;
@@ -4551,6 +4634,7 @@ static bool mlxsw_sp_nexthop_obj_is_gateway(struct mlxsw_sp *mlxsw_sp,
 		return info->nh->gw_family || info->nh->is_reject ||
 		       mlxsw_sp_netdev_ipip_type(mlxsw_sp, dev, NULL);
 	case NH_NOTIFIER_INFO_TYPE_GRP:
+	case NH_NOTIFIER_INFO_TYPE_RES_TABLE:
 		/* Already validated earlier. */
 		return true;
 	default:
