@@ -3660,38 +3660,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 	dc_link_aux_try_to_configure_timeout(link->ddc,
 			LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD);
 
-	status = core_link_read_dpcd(link, DP_SET_POWER,
-				&dpcd_power_state, sizeof(dpcd_power_state));
-
-	/* Delay 1 ms if AUX CH is in power down state. Based on spec
-	 * section 2.3.1.2, if AUX CH may be powered down due to
-	 * write to DPCD 600h = 2. Sink AUX CH is monitoring differential
-	 * signal and may need up to 1 ms before being able to reply.
-	 */
-	if (status != DC_OK || dpcd_power_state == DP_SET_POWER_D3)
-		udelay(1000);
-
-	dpcd_set_source_specific_data(link);
-	/* Sink may need to configure internals based on vendor, so allow some
-	 * time before proceeding with possibly vendor specific transactions
-	 */
-	msleep(post_oui_delay);
-
-	for (i = 0; i < read_dpcd_retry_cnt; i++) {
-		status = core_link_read_dpcd(
-				link,
-				DP_DPCD_REV,
-				dpcd_data,
-				sizeof(dpcd_data));
-		if (status == DC_OK)
-			break;
-	}
-
-	if (status != DC_OK) {
-		dm_error("%s: Read dpcd data failed.\n", __func__);
-		return false;
-	}
-
 	/* Query BIOS to determine if LTTPR functionality is forced on by system */
 	if (bios->funcs->get_lttpr_caps) {
 		enum bp_result bp_query_result;
@@ -3777,6 +3745,39 @@ static bool retrieve_link_cap(struct dc_link *link)
 	if (!is_lttpr_present)
 		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
 
+
+	status = core_link_read_dpcd(link, DP_SET_POWER,
+			&dpcd_power_state, sizeof(dpcd_power_state));
+
+	/* Delay 1 ms if AUX CH is in power down state. Based on spec
+	 * section 2.3.1.2, if AUX CH may be powered down due to
+	 * write to DPCD 600h = 2. Sink AUX CH is monitoring differential
+	 * signal and may need up to 1 ms before being able to reply.
+	 */
+	if (status != DC_OK || dpcd_power_state == DP_SET_POWER_D3)
+		udelay(1000);
+
+	dpcd_set_source_specific_data(link);
+	/* Sink may need to configure internals based on vendor, so allow some
+	 * time before proceeding with possibly vendor specific transactions
+	 */
+	msleep(post_oui_delay);
+
+	for (i = 0; i < read_dpcd_retry_cnt; i++) {
+		status = core_link_read_dpcd(
+				link,
+				DP_DPCD_REV,
+				dpcd_data,
+				sizeof(dpcd_data));
+		if (status == DC_OK)
+			break;
+	}
+
+
+	if (status != DC_OK) {
+		dm_error("%s: Read receiver caps dpcd data failed.\n", __func__);
+		return false;
+	}
 
 	{
 		union training_aux_rd_interval aux_rd_interval;
