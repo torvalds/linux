@@ -82,7 +82,7 @@
 #define	PWR_CUT_ALL_MSK			0xFF
 
 
-enum pwrseq_cmd_delay_unit {
+enum {
 	PWRSEQ_DELAY_US,
 	PWRSEQ_DELAY_MS,
 };
