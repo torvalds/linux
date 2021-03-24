@@ -11,6 +11,10 @@
 
 / {
 	compatible = "engicam,px30-core", "rockchip,px30";
+
+	aliases {
+		mmc0 = &emmc;
+	};
 };
 
 &cpu0 {
