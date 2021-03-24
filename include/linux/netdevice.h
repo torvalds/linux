@@ -850,11 +850,18 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
 
 enum net_device_path_type {
 	DEV_PATH_ETHERNET = 0,
+	DEV_PATH_VLAN,
 };
 
 struct net_device_path {
 	enum net_device_path_type	type;
 	const struct net_device		*dev;
+	union {
+		struct {
+			u16		id;
+			__be16		proto;
+		} encap;
+	};
 };
 
 #define NET_DEVICE_PATH_STACK_MAX	5
