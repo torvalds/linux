@@ -4337,6 +4337,8 @@ static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+#define MLXSW_SP_NH_GRP_ACTIVITY_UPDATE_INTERVAL 1000 /* ms */
+
 static int
 mlxsw_sp_nexthop_obj_single_validate(struct mlxsw_sp *mlxsw_sp,
 				     const struct nh_notifier_single_info *nh,
@@ -4806,6 +4808,134 @@ static void mlxsw_sp_nexthop_obj_del(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_nexthop_obj_group_destroy(mlxsw_sp, nh_grp);
 }
 
+static int mlxsw_sp_nexthop_obj_bucket_query(struct mlxsw_sp *mlxsw_sp,
+					     u32 adj_index, char *ratr_pl)
+{
+	MLXSW_REG_ZERO(ratr, ratr_pl);
+	mlxsw_reg_ratr_op_set(ratr_pl, MLXSW_REG_RATR_OP_QUERY_READ);
+	mlxsw_reg_ratr_adjacency_index_low_set(ratr_pl, adj_index);
+	mlxsw_reg_ratr_adjacency_index_high_set(ratr_pl, adj_index >> 16);
+
+	return mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
+}
+
+static int mlxsw_sp_nexthop_obj_bucket_compare(char *ratr_pl, char *ratr_pl_new)
+{
+	/* Clear the opcode and activity on both the old and new payload as
+	 * they are irrelevant for the comparison.
+	 */
+	mlxsw_reg_ratr_op_set(ratr_pl, MLXSW_REG_RATR_OP_QUERY_READ);
+	mlxsw_reg_ratr_a_set(ratr_pl, 0);
+	mlxsw_reg_ratr_op_set(ratr_pl_new, MLXSW_REG_RATR_OP_QUERY_READ);
+	mlxsw_reg_ratr_a_set(ratr_pl_new, 0);
+
+	/* If the contents of the adjacency entry are consistent with the
+	 * replacement request, then replacement was successful.
+	 */
+	if (!memcmp(ratr_pl, ratr_pl_new, MLXSW_REG_RATR_LEN))
+		return 0;
+
+	return -EINVAL;
+}
+
+static int
+mlxsw_sp_nexthop_obj_bucket_adj_update(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_nexthop *nh,
+				       struct nh_notifier_info *info)
+{
+	u16 bucket_index = info->nh_res_bucket->bucket_index;
+	struct netlink_ext_ack *extack = info->extack;
+	bool force = info->nh_res_bucket->force;
+	char ratr_pl_new[MLXSW_REG_RATR_LEN];
+	char ratr_pl[MLXSW_REG_RATR_LEN];
+	u32 adj_index;
+	int err;
+
+	/* No point in trying an atomic replacement if the idle timer interval
+	 * is smaller than the interval in which we query and clear activity.
+	 */
+	force = info->nh_res_bucket->idle_timer_ms <
+		MLXSW_SP_NH_GRP_ACTIVITY_UPDATE_INTERVAL;
+
+	adj_index = nh->nhgi->adj_index + bucket_index;
+	err = mlxsw_sp_nexthop_update(mlxsw_sp, adj_index, nh, force, ratr_pl);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to overwrite nexthop bucket");
+		return err;
+	}
+
+	if (!force) {
+		err = mlxsw_sp_nexthop_obj_bucket_query(mlxsw_sp, adj_index,
+							ratr_pl_new);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to query nexthop bucket state after replacement. State might be inconsistent");
+			return err;
+		}
+
+		err = mlxsw_sp_nexthop_obj_bucket_compare(ratr_pl, ratr_pl_new);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Nexthop bucket was not replaced because it was active during replacement");
+			return err;
+		}
+	}
+
+	nh->update = 0;
+	nh->offloaded = 1;
+
+	return 0;
+}
+
+static int mlxsw_sp_nexthop_obj_bucket_replace(struct mlxsw_sp *mlxsw_sp,
+					       struct nh_notifier_info *info)
+{
+	u16 bucket_index = info->nh_res_bucket->bucket_index;
+	struct netlink_ext_ack *extack = info->extack;
+	struct mlxsw_sp_nexthop_group_info *nhgi;
+	struct nh_notifier_single_info *nh_obj;
+	struct mlxsw_sp_nexthop_group *nh_grp;
+	struct mlxsw_sp_nexthop *nh;
+	int err;
+
+	nh_grp = mlxsw_sp_nexthop_obj_group_lookup(mlxsw_sp, info->id);
+	if (!nh_grp) {
+		NL_SET_ERR_MSG_MOD(extack, "Nexthop group was not found");
+		return -EINVAL;
+	}
+
+	nhgi = nh_grp->nhgi;
+
+	if (bucket_index >= nhgi->count) {
+		NL_SET_ERR_MSG_MOD(extack, "Nexthop bucket index out of range");
+		return -EINVAL;
+	}
+
+	nh = &nhgi->nexthops[bucket_index];
+	mlxsw_sp_nexthop_obj_fini(mlxsw_sp, nh);
+
+	nh_obj = &info->nh_res_bucket->new_nh;
+	err = mlxsw_sp_nexthop_obj_init(mlxsw_sp, nh_grp, nh, nh_obj, 1);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to initialize nexthop object for nexthop bucket replacement");
+		goto err_nexthop_obj_init;
+	}
+
+	err = mlxsw_sp_nexthop_obj_bucket_adj_update(mlxsw_sp, nh, info);
+	if (err)
+		goto err_nexthop_obj_bucket_adj_update;
+
+	return 0;
+
+err_nexthop_obj_bucket_adj_update:
+	mlxsw_sp_nexthop_obj_fini(mlxsw_sp, nh);
+err_nexthop_obj_init:
+	nh_obj = &info->nh_res_bucket->old_nh;
+	mlxsw_sp_nexthop_obj_init(mlxsw_sp, nh_grp, nh, nh_obj, 1);
+	/* The old adjacency entry was not overwritten */
+	nh->update = 0;
+	nh->offloaded = 1;
+	return err;
+}
+
 static int mlxsw_sp_nexthop_obj_event(struct notifier_block *nb,
 				      unsigned long event, void *ptr)
 {
@@ -4826,6 +4956,10 @@ static int mlxsw_sp_nexthop_obj_event(struct notifier_block *nb,
 		break;
 	case NEXTHOP_EVENT_DEL:
 		mlxsw_sp_nexthop_obj_del(router->mlxsw_sp, info);
+		break;
+	case NEXTHOP_EVENT_BUCKET_REPLACE:
+		err = mlxsw_sp_nexthop_obj_bucket_replace(router->mlxsw_sp,
+							  info);
 		break;
 	default:
 		break;
