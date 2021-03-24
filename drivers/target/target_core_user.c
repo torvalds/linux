@@ -60,8 +60,11 @@
 
 #define TCMU_TIME_OUT (30 * MSEC_PER_SEC)
 
-/* For cmd area, the size is fixed 8MB */
-#define CMDR_SIZE (8 * 1024 * 1024)
+/* For mailbox plus cmd ring, the size is fixed 8MB */
+#define MB_CMDR_SIZE (8 * 1024 * 1024)
+/* Offset of cmd ring is size of mailbox */
+#define CMDR_OFF sizeof(struct tcmu_mailbox)
+#define CMDR_SIZE (MB_CMDR_SIZE - CMDR_OFF)
 
 /*
  * For data area, the block size is PAGE_SIZE and
@@ -126,8 +129,10 @@ struct tcmu_dev {
 
 	struct inode *inode;
 
-	struct tcmu_mailbox *mb_addr;
 	uint64_t dev_size;
+
+	struct tcmu_mailbox *mb_addr;
+	void *cmdr;
 	u32 cmdr_size;
 	u32 cmdr_last_cleaned;
 	/* Offset of data area from start of mb */
@@ -135,7 +140,7 @@ struct tcmu_dev {
 	size_t data_off;
 	size_t data_size;
 	uint32_t max_blocks;
-	size_t ring_size;
+	size_t mmap_pages;
 
 	struct mutex cmdr_lock;
 	struct list_head qfull_queue;
@@ -165,8 +170,6 @@ struct tcmu_dev {
 };
 
 #define TCMU_DEV(_se_dev) container_of(_se_dev, struct tcmu_dev, se_dev)
-
-#define CMDR_OFF sizeof(struct tcmu_mailbox)
 
 struct tcmu_cmd {
 	struct se_cmd *se_cmd;
@@ -941,7 +944,7 @@ static uint32_t ring_insert_padding(struct tcmu_dev *udev, size_t cmd_size)
 	if (head_to_end(cmd_head, udev->cmdr_size) < cmd_size) {
 		size_t pad_size = head_to_end(cmd_head, udev->cmdr_size);
 
-		hdr = (void *) mb + CMDR_OFF + cmd_head;
+		hdr = udev->cmdr + cmd_head;
 		tcmu_hdr_set_op(&hdr->len_op, TCMU_OP_PAD);
 		tcmu_hdr_set_len(&hdr->len_op, pad_size);
 		hdr->cmd_id = 0; /* not used for PAD */
@@ -1065,7 +1068,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 
 	cmd_head = ring_insert_padding(udev, command_size);
 
-	entry = (void *) mb + CMDR_OFF + cmd_head;
+	entry = udev->cmdr + cmd_head;
 	memset(entry, 0, command_size);
 	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_CMD);
 
@@ -1157,7 +1160,7 @@ queue_tmr_ring(struct tcmu_dev *udev, struct tcmu_tmr *tmr)
 
 	cmd_head = ring_insert_padding(udev, cmd_size);
 
-	entry = (void *)mb + CMDR_OFF + cmd_head;
+	entry = udev->cmdr + cmd_head;
 	memset(entry, 0, cmd_size);
 	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_TMR);
 	tcmu_hdr_set_len(&entry->hdr.len_op, cmd_size);
@@ -1412,7 +1415,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 
 	while (udev->cmdr_last_cleaned != READ_ONCE(mb->cmd_tail)) {
 
-		struct tcmu_cmd_entry *entry = (void *) mb + CMDR_OFF + udev->cmdr_last_cleaned;
+		struct tcmu_cmd_entry *entry = udev->cmdr + udev->cmdr_last_cleaned;
 
 		/*
 		 * Flush max. up to end of cmd ring since current entry might
@@ -1851,7 +1854,7 @@ static int tcmu_mmap(struct uio_info *info, struct vm_area_struct *vma)
 	vma->vm_private_data = udev;
 
 	/* Ensure the mmap is exactly the right size */
-	if (vma_pages(vma) != (udev->ring_size >> PAGE_SHIFT))
+	if (vma_pages(vma) != udev->mmap_pages)
 		return -EINVAL;
 
 	tcmu_vma_open(vma);
@@ -2100,20 +2103,22 @@ static int tcmu_configure_device(struct se_device *dev)
 		goto err_bitmap_alloc;
 	}
 
-	udev->mb_addr = vzalloc(CMDR_SIZE);
-	if (!udev->mb_addr) {
+	mb = vzalloc(MB_CMDR_SIZE);
+	if (!mb) {
 		ret = -ENOMEM;
 		goto err_vzalloc;
 	}
 
 	/* mailbox fits in first part of CMDR space */
-	udev->cmdr_size = CMDR_SIZE - CMDR_OFF;
-	udev->data_off = CMDR_SIZE;
+	udev->mb_addr = mb;
+	udev->cmdr = (void *)mb + CMDR_OFF;
+	udev->cmdr_size = CMDR_SIZE;
+	udev->data_off = MB_CMDR_SIZE;
 	udev->data_size = udev->max_blocks * DATA_BLOCK_SIZE;
+	udev->mmap_pages = (udev->data_size + MB_CMDR_SIZE) >> PAGE_SHIFT;
 	udev->dbi_thresh = 0; /* Default in Idle state */
 
 	/* Initialise the mailbox of the ring buffer */
-	mb = udev->mb_addr;
 	mb->version = TCMU_MAILBOX_VERSION;
 	mb->flags = TCMU_MAILBOX_FLAG_CAP_OOOC |
 		    TCMU_MAILBOX_FLAG_CAP_READ_LEN |
@@ -2129,7 +2134,7 @@ static int tcmu_configure_device(struct se_device *dev)
 
 	info->mem[0].name = "tcm-user command & data buffer";
 	info->mem[0].addr = (phys_addr_t)(uintptr_t)udev->mb_addr;
-	info->mem[0].size = udev->ring_size = udev->data_size + CMDR_SIZE;
+	info->mem[0].size = udev->data_size + MB_CMDR_SIZE;
 	info->mem[0].memtype = UIO_MEM_NONE;
 
 	info->irqcontrol = tcmu_irqcontrol;
