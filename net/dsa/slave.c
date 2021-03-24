@@ -1278,14 +1278,32 @@ static int dsa_slave_setup_tc_block(struct net_device *dev,
 	}
 }
 
+static int dsa_slave_setup_ft_block(struct dsa_switch *ds, int port,
+				    void *type_data)
+{
+	struct dsa_port *cpu_dp = dsa_to_port(ds, port)->cpu_dp;
+	struct net_device *master = cpu_dp->master;
+
+	if (!master->netdev_ops->ndo_setup_tc)
+		return -EOPNOTSUPP;
+
+	return master->netdev_ops->ndo_setup_tc(master, TC_SETUP_FT, type_data);
+}
+
 static int dsa_slave_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			      void *type_data)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct dsa_switch *ds = dp->ds;
 
-	if (type == TC_SETUP_BLOCK)
+	switch (type) {
+	case TC_SETUP_BLOCK:
 		return dsa_slave_setup_tc_block(dev, type_data);
+	case TC_SETUP_FT:
+		return dsa_slave_setup_ft_block(ds, dp->index, type_data);
+	default:
+		break;
+	}
 
 	if (!ds->ops->port_setup_tc)
 		return -EOPNOTSUPP;
