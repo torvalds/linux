@@ -91,23 +91,25 @@ xfs_growfs_data_private(
 	xfs_agnumber_t		nagcount;
 	xfs_agnumber_t		nagimax = 0;
 	xfs_rfsblock_t		nb, nb_div, nb_mod;
-	xfs_rfsblock_t		delta;
+	int64_t			delta;
 	bool			lastag_extended;
 	xfs_agnumber_t		oagcount;
 	struct xfs_trans	*tp;
 	struct aghdr_init_data	id = {};
 
 	nb = in->newblocks;
-	if (nb < mp->m_sb.sb_dblocks)
-		return -EINVAL;
-	if ((error = xfs_sb_validate_fsb_count(&mp->m_sb, nb)))
-		return error;
-	error = xfs_buf_read_uncached(mp->m_ddev_targp,
-				XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
-				XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
+	error = xfs_sb_validate_fsb_count(&mp->m_sb, nb);
 	if (error)
 		return error;
-	xfs_buf_relse(bp);
+
+	if (nb > mp->m_sb.sb_dblocks) {
+		error = xfs_buf_read_uncached(mp->m_ddev_targp,
+				XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
+				XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
+		if (error)
+			return error;
+		xfs_buf_relse(bp);
+	}
 
 	nb_div = nb;
 	nb_mod = do_div(nb_div, mp->m_sb.sb_agblocks);
@@ -115,10 +117,16 @@ xfs_growfs_data_private(
 	if (nb_mod && nb_mod < XFS_MIN_AG_BLOCKS) {
 		nagcount--;
 		nb = (xfs_rfsblock_t)nagcount * mp->m_sb.sb_agblocks;
-		if (nb < mp->m_sb.sb_dblocks)
-			return -EINVAL;
 	}
 	delta = nb - mp->m_sb.sb_dblocks;
+	/*
+	 * Reject filesystems with a single AG because they are not
+	 * supported, and reject a shrink operation that would cause a
+	 * filesystem to become unsupported.
+	 */
+	if (delta < 0 && nagcount < 2)
+		return -EINVAL;
+
 	oagcount = mp->m_sb.sb_agcount;
 
 	/* allocate the new per-ag structures */
@@ -126,15 +134,31 @@ xfs_growfs_data_private(
 		error = xfs_initialize_perag(mp, nagcount, &nagimax);
 		if (error)
 			return error;
+	} else if (nagcount < oagcount) {
+		/* TODO: shrinking the entire AGs hasn't yet completed */
+		return -EINVAL;
 	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata,
-			XFS_GROWFS_SPACE_RES(mp), 0, XFS_TRANS_RESERVE, &tp);
+			(delta > 0 ? XFS_GROWFS_SPACE_RES(mp) : -delta), 0,
+			XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
 
-	error = xfs_resizefs_init_new_ags(tp, &id, oagcount, nagcount,
-					  delta, &lastag_extended);
+	if (delta > 0) {
+		error = xfs_resizefs_init_new_ags(tp, &id, oagcount, nagcount,
+						  delta, &lastag_extended);
+	} else {
+		static struct ratelimit_state shrink_warning = \
+			RATELIMIT_STATE_INIT("shrink_warning", 86400 * HZ, 1);
+		ratelimit_set_flags(&shrink_warning, RATELIMIT_MSG_ON_RELEASE);
+
+		if (__ratelimit(&shrink_warning))
+			xfs_alert(mp,
+	"EXPERIMENTAL online shrink feature in use. Use at your own risk!");
+
+		error = xfs_ag_shrink_space(mp, &tp, nagcount - 1, -delta);
+	}
 	if (error)
 		goto out_trans_cancel;
 
@@ -169,28 +193,29 @@ xfs_growfs_data_private(
 	xfs_set_low_space_thresholds(mp);
 	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
 
-	/*
-	 * If we expanded the last AG, free the per-AG reservation
-	 * so we can reinitialize it with the new size.
-	 */
-	if (lastag_extended) {
-		struct xfs_perag	*pag;
+	if (delta > 0) {
+		/*
+		 * If we expanded the last AG, free the per-AG reservation
+		 * so we can reinitialize it with the new size.
+		 */
+		if (lastag_extended) {
+			struct xfs_perag	*pag;
 
-		pag = xfs_perag_get(mp, id.agno);
-		error = xfs_ag_resv_free(pag);
-		xfs_perag_put(pag);
-		if (error)
-			return error;
+			pag = xfs_perag_get(mp, id.agno);
+			error = xfs_ag_resv_free(pag);
+			xfs_perag_put(pag);
+			if (error)
+				return error;
+		}
+		/*
+		 * Reserve AG metadata blocks. ENOSPC here does not mean there
+		 * was a growfs failure, just that there still isn't space for
+		 * new user data after the grow has been run.
+		 */
+		error = xfs_fs_reserve_ag_blocks(mp);
+		if (error == -ENOSPC)
+			error = 0;
 	}
-
-	/*
-	 * Reserve AG metadata blocks. ENOSPC here does not mean there was a
-	 * growfs failure, just that there still isn't space for new user data
-	 * after the grow has been run.
-	 */
-	error = xfs_fs_reserve_ag_blocks(mp);
-	if (error == -ENOSPC)
-		error = 0;
 	return error;
 
 out_trans_cancel:
