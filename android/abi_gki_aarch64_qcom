@@ -1047,6 +1047,8 @@
   iio_channel_get_all
   iio_read_channel_processed
   import_iovec
+  in4_pton
+  in6_pton
   inc_zone_page_state
   in_egroup_p
   init_dummy_netdev
@@ -1127,6 +1129,7 @@
   iput
   __ipv6_addr_type
   ipv6_ext_hdr
+  ipv6_find_hdr
   ipv6_skip_exthdr
   irq_chip_ack_parent
   irq_chip_disable_parent
@@ -1281,6 +1284,7 @@
   ktime_get_seconds
   ktime_get_with_offset
   kvfree
+  kvfree_call_rcu
   kvmalloc_node
   led_classdev_flash_register_ext
   led_classdev_flash_unregister
@@ -1962,6 +1966,7 @@
   rtnl_lock
   rtnl_register_module
   rtnl_trylock
+  rtnl_unicast
   rtnl_unlock
   rtnl_unregister
   runqueues
