@@ -1888,7 +1888,7 @@ lpfc_cmpl_els_rrq(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  * ndlp on the vport node list that matches the remote node ID from the
  * PLOGI response IOCB. If such ndlp does not exist, the PLOGI is simply
  * ignored and command IOCB released. The PLOGI response IOCB status is
- * checked for error conditons. If there is error status reported, PLOGI
+ * checked for error conditions. If there is error status reported, PLOGI
  * retry shall be attempted by invoking the lpfc_els_retry() routine.
  * Otherwise, the lpfc_plogi_confirm_nport() routine shall be invoked on
  * the ndlp and the NLP_EVT_CMPL_PLOGI state to the Discover State Machine
