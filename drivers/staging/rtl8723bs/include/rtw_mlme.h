@@ -71,7 +71,7 @@
 #define _FW_UNDER_SURVEY	WIFI_SITE_MONITOR
 
 
-enum dot11AuthAlgrthmNum {
+enum {
  dot11AuthAlgrthm_Open = 0,
  dot11AuthAlgrthm_Shared,
  dot11AuthAlgrthm_8021X,
@@ -87,7 +87,7 @@ enum rt_scan_type {
 	SCAN_MIX,
 };
 
-enum  _band {
+enum {
 	GHZ24_50 = 0,
 	GHZ_50,
 	GHZ_24,
@@ -95,18 +95,6 @@ enum  _band {
 };
 
 #define rtw_band_valid(band) ((band) >= GHZ24_50 && (band) < GHZ_MAX)
-
-enum DriverInterface {
-	DRIVER_WEXT =  1,
-	DRIVER_CFG80211 = 2
-};
-
-enum scan_result_type {
-	SCAN_RESULT_P2P_ONLY = 0,		/* 	Will return all the P2P devices. */
-	SCAN_RESULT_ALL = 1,			/* 	Will return all the scanned device, include AP. */
-	SCAN_RESULT_WFD_TYPE = 2		/* 	Will just return the correct WFD device. */
-									/* 	If this device is Miracast sink device, it will just return all the Miracast source devices. */
-};
 
 /*
 
