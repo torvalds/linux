@@ -5504,9 +5504,11 @@ static const struct file_operations sched_dynamic_fops = {
 	.release	= single_release,
 };
 
+extern struct dentry *debugfs_sched;
+
 static __init int sched_init_debug_dynamic(void)
 {
-	debugfs_create_file("sched_preempt", 0644, NULL, NULL, &sched_dynamic_fops);
+	debugfs_create_file("sched_preempt", 0644, debugfs_sched, NULL, &sched_dynamic_fops);
 	return 0;
 }
 late_initcall(sched_init_debug_dynamic);

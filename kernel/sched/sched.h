@@ -1568,6 +1568,8 @@ static inline void unregister_sched_domain_sysctl(void)
 }
 #endif
 
+extern int sched_update_scaling(void);
+
 extern void flush_smp_call_function_from_idle(void);
 
 #else /* !CONFIG_SMP: */

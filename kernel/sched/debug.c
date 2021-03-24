@@ -169,15 +169,81 @@ static const struct file_operations sched_feat_fops = {
 	.release	= single_release,
 };
 
+#ifdef CONFIG_SMP
+
+static ssize_t sched_scaling_write(struct file *filp, const char __user *ubuf,
+				   size_t cnt, loff_t *ppos)
+{
+	char buf[16];
+
+	if (cnt > 15)
+		cnt = 15;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	if (kstrtouint(buf, 10, &sysctl_sched_tunable_scaling))
+		return -EINVAL;
+
+	if (sched_update_scaling())
+		return -EINVAL;
+
+	*ppos += cnt;
+	return cnt;
+}
+
+static int sched_scaling_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", sysctl_sched_tunable_scaling);
+	return 0;
+}
+
+static int sched_scaling_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, sched_scaling_show, NULL);
+}
+
+static const struct file_operations sched_scaling_fops = {
+	.open		= sched_scaling_open,
+	.write		= sched_scaling_write,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+#endif /* SMP */
+
 __read_mostly bool sched_debug_enabled;
+
+struct dentry *debugfs_sched;
 
 static __init int sched_init_debug(void)
 {
-	debugfs_create_file("sched_features", 0644, NULL, NULL,
-			&sched_feat_fops);
+	struct dentry __maybe_unused *numa;
 
-	debugfs_create_bool("sched_debug", 0644, NULL,
-			&sched_debug_enabled);
+	debugfs_sched = debugfs_create_dir("sched", NULL);
+
+	debugfs_create_file("features", 0644, debugfs_sched, NULL, &sched_feat_fops);
+	debugfs_create_bool("debug_enabled", 0644, debugfs_sched, &sched_debug_enabled);
+
+	debugfs_create_u32("latency_ns", 0644, debugfs_sched, &sysctl_sched_latency);
+	debugfs_create_u32("min_granularity_ns", 0644, debugfs_sched, &sysctl_sched_min_granularity);
+	debugfs_create_u32("wakeup_granularity_ns", 0644, debugfs_sched, &sysctl_sched_wakeup_granularity);
+
+#ifdef CONFIG_SMP
+	debugfs_create_file("tunable_scaling", 0644, debugfs_sched, NULL, &sched_scaling_fops);
+	debugfs_create_u32("migration_cost_ns", 0644, debugfs_sched, &sysctl_sched_migration_cost);
+	debugfs_create_u32("nr_migrate", 0644, debugfs_sched, &sysctl_sched_nr_migrate);
+#endif
+
+#ifdef CONFIG_NUMA_BALANCING
+	numa = debugfs_create_dir("numa_balancing", debugfs_sched);
+
+	debugfs_create_u32("scan_delay_ms", 0644, numa, &sysctl_numa_balancing_scan_delay);
+	debugfs_create_u32("scan_period_min_ms", 0644, numa, &sysctl_numa_balancing_scan_period_min);
+	debugfs_create_u32("scan_period_max_ms", 0644, numa, &sysctl_numa_balancing_scan_period_max);
+	debugfs_create_u32("scan_size_mb", 0644, numa, &sysctl_numa_balancing_scan_size);
+#endif
 
 	return 0;
 }
