@@ -1433,7 +1433,7 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v1_1);
 }
 
-int aldebaran_mode2_reset(struct smu_context *smu)
+static int aldebaran_mode2_reset(struct smu_context *smu)
 {
 	u32 smu_version;
 	int ret = 0, index;

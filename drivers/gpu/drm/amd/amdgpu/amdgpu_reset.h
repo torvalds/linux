@@ -21,7 +21,7 @@
  *
  */
 
-#ifndef __AMDUGPU_RESET_H__
+#ifndef __AMDGPU_RESET_H__
 #define __AMDGPU_RESET_H__
 
 #include "amdgpu.h"

@@ -107,7 +107,7 @@ aldebaran_mode2_prepare_hwcontext(struct amdgpu_reset_control *reset_ctl,
 	return r;
 }
 
-void aldebaran_async_reset(struct work_struct *work)
+static void aldebaran_async_reset(struct work_struct *work)
 {
 	struct amdgpu_reset_handler *handler;
 	struct amdgpu_reset_control *reset_ctl =
