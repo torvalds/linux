@@ -1393,6 +1393,7 @@ struct regmap_irq_sub_irq_map {
  *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
  * @type_base:   Base address for irq type.  If zero unsupported.
+ * @virt_reg_base:   Base addresses for extra config regs.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
  * @mask_invert: Inverted mask register: cleared bits are masked out.
@@ -1417,6 +1418,8 @@ struct regmap_irq_sub_irq_map {
  *               assigned based on the index in the array of the interrupt.
  * @num_irqs:    Number of descriptors.
  * @num_type_reg:    Number of type registers.
+ * @num_virt_regs:   Number of non-standard irq configuration registers.
+ *		     If zero unsupported.
  * @type_reg_stride: Stride to use for chips where type registers are not
  *			contiguous.
  * @handle_pre_irq:  Driver specific callback to handle interrupt from device
@@ -1444,6 +1447,7 @@ struct regmap_irq_chip {
 	unsigned int ack_base;
 	unsigned int wake_base;
 	unsigned int type_base;
+	unsigned int *virt_reg_base;
 	unsigned int irq_reg_stride;
 	bool mask_writeonly:1;
 	bool init_ack_masked:1;
@@ -1464,6 +1468,7 @@ struct regmap_irq_chip {
 	int num_irqs;
 
 	int num_type_reg;
+	int num_virt_regs;
 	unsigned int type_reg_stride;
 
 	int (*handle_pre_irq)(void *irq_drv_data);

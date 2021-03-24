@@ -38,6 +38,7 @@ struct regmap_irq_chip_data {
 	unsigned int *wake_buf;
 	unsigned int *type_buf;
 	unsigned int *type_buf_def;
+	unsigned int **virt_buf;
 
 	unsigned int irq_reg_stride;
 	unsigned int type_reg_stride;
@@ -94,7 +95,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 {
 	struct regmap_irq_chip_data *d = irq_data_get_irq_chip_data(data);
 	struct regmap *map = d->map;
-	int i, ret;
+	int i, j, ret;
 	u32 reg;
 	u32 unmask_offset;
 	u32 val;
@@ -215,6 +216,20 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 			if (ret != 0)
 				dev_err(d->map->dev, "Failed to sync type in %x\n",
 					reg);
+		}
+	}
+
+	if (d->chip->num_virt_regs) {
+		for (i = 0; i < d->chip->num_virt_regs; i++) {
+			for (j = 0; j < d->chip->num_regs; j++) {
+				reg = sub_irq_reg(d, d->chip->virt_reg_base[i],
+						  j);
+				ret = regmap_write(map, reg, d->virt_buf[i][j]);
+				if (ret != 0)
+					dev_err(d->map->dev,
+						"Failed to write virt 0x%x: %d\n",
+						reg, ret);
+			}
 		}
 	}
 
@@ -691,6 +706,24 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			goto err_alloc;
 	}
 
+	if (chip->num_virt_regs) {
+		/*
+		 * Create virt_buf[chip->num_extra_config_regs][chip->num_regs]
+		 */
+		d->virt_buf = kcalloc(chip->num_virt_regs, sizeof(*d->virt_buf),
+				      GFP_KERNEL);
+		if (!d->virt_buf)
+			goto err_alloc;
+
+		for (i = 0; i < chip->num_virt_regs; i++) {
+			d->virt_buf[i] = kcalloc(chip->num_regs,
+						 sizeof(unsigned int),
+						 GFP_KERNEL);
+			if (!d->virt_buf[i])
+				goto err_alloc;
+		}
+	}
+
 	d->irq_chip = regmap_irq_chip;
 	d->irq_chip.name = chip->name;
 	d->irq = irq;
@@ -863,6 +896,9 @@ err_alloc:
 	kfree(d->mask_buf);
 	kfree(d->status_buf);
 	kfree(d->status_reg_buf);
+	for (i = 0; i < chip->num_virt_regs; i++)
+		kfree(d->virt_buf[i]);
+	kfree(d->virt_buf);
 	kfree(d);
 	return ret;
 }
