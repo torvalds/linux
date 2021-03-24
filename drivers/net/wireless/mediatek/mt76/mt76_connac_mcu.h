@@ -881,6 +881,17 @@ struct mt76_connac_suspend_tlv {
 	u8 pad[5];
 } __packed;
 
+struct mt76_sta_cmd_info {
+	struct ieee80211_sta *sta;
+	struct mt76_wcid *wcid;
+
+	struct ieee80211_vif *vif;
+
+	bool enable;
+	int cmd;
+	u8 rcpi;
+};
+
 #define to_wcid_lo(id)		FIELD_GET(GENMASK(7, 0), (u16)id)
 #define to_wcid_hi(id)		FIELD_GET(GENMASK(9, 8), (u16)id)
 
@@ -928,7 +939,8 @@ void mt76_connac_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb,
 					void *sta_wtbl, void *wtbl_tlv);
 void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 			     struct ieee80211_sta *sta,
-			     struct ieee80211_vif *vif);
+			     struct ieee80211_vif *vif,
+			     u8 rcpi);
 void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				 struct ieee80211_sta *sta, void *sta_wtbl,
 				 void *wtbl_tlv);
@@ -951,10 +963,7 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 				struct mt76_wcid *wcid,
 				bool enable);
 int mt76_connac_mcu_add_sta_cmd(struct mt76_phy *phy,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta,
-				struct mt76_wcid *wcid,
-				bool enable, int cmd);
+				struct mt76_sta_cmd_info *info);
 void mt76_connac_mcu_beacon_loss_iter(void *priv, u8 *mac,
 				      struct ieee80211_vif *vif);
 int mt76_connac_mcu_set_rts_thresh(struct mt76_dev *dev, u32 val, u8 band);

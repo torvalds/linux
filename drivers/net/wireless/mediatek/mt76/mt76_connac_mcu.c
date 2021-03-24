@@ -674,7 +674,8 @@ mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 
 void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 			     struct ieee80211_sta *sta,
-			     struct ieee80211_vif *vif)
+			     struct ieee80211_vif *vif,
+			     u8 rcpi)
 {
 	struct cfg80211_chan_def *chandef = &mphy->chandef;
 	enum nl80211_band band = chandef->chan->band;
@@ -723,6 +724,7 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 	phy = (struct sta_rec_phy *)tlv;
 	phy->phy_type = mt76_connac_get_phy_mode_v2(mphy, vif, band, sta);
 	phy->basic_rate = cpu_to_le16((u16)vif->bss_conf.basic_rates);
+	phy->rcpi = rcpi;
 
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_RA, sizeof(*ra_info));
 	ra_info = (struct sta_rec_ra_info *)tlv;
@@ -827,43 +829,42 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_wtbl_ht_tlv);
 
 int mt76_connac_mcu_add_sta_cmd(struct mt76_phy *phy,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta,
-				struct mt76_wcid *wcid,
-				bool enable, int cmd)
+				struct mt76_sta_cmd_info *info)
 {
-	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct mt76_vif *mvif = (struct mt76_vif *)info->vif->drv_priv;
 	struct mt76_dev *dev = phy->dev;
 	struct wtbl_req_hdr *wtbl_hdr;
 	struct tlv *sta_wtbl;
 	struct sk_buff *skb;
 
-	skb = mt76_connac_mcu_alloc_sta_req(dev, mvif, wcid);
+	skb = mt76_connac_mcu_alloc_sta_req(dev, mvif, info->wcid);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	mt76_connac_mcu_sta_basic_tlv(skb, vif, sta, enable);
-	if (enable && sta)
-		mt76_connac_mcu_sta_tlv(phy, skb, sta, vif);
+	mt76_connac_mcu_sta_basic_tlv(skb, info->vif, info->sta, info->enable);
+	if (info->enable && info->sta)
+		mt76_connac_mcu_sta_tlv(phy, skb, info->sta, info->vif,
+					info->rcpi);
 
 	sta_wtbl = mt76_connac_mcu_add_tlv(skb, STA_REC_WTBL,
 					   sizeof(struct tlv));
 
-	wtbl_hdr = mt76_connac_mcu_alloc_wtbl_req(dev, wcid,
+	wtbl_hdr = mt76_connac_mcu_alloc_wtbl_req(dev, info->wcid,
 						  WTBL_RESET_AND_SET,
 						  sta_wtbl, &skb);
 	if (IS_ERR(wtbl_hdr))
 		return PTR_ERR(wtbl_hdr);
 
-	if (enable) {
-		mt76_connac_mcu_wtbl_generic_tlv(dev, skb, vif, sta, sta_wtbl,
+	if (info->enable) {
+		mt76_connac_mcu_wtbl_generic_tlv(dev, skb, info->vif,
+						 info->sta, sta_wtbl,
 						 wtbl_hdr);
-		if (sta)
-			mt76_connac_mcu_wtbl_ht_tlv(dev, skb, sta, sta_wtbl,
-						    wtbl_hdr);
+		if (info->sta)
+			mt76_connac_mcu_wtbl_ht_tlv(dev, skb, info->sta,
+						    sta_wtbl, wtbl_hdr);
 	}
 
-	return mt76_mcu_skb_send_msg(dev, skb, cmd, true);
+	return mt76_mcu_skb_send_msg(dev, skb, info->cmd, true);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_add_sta_cmd);
 

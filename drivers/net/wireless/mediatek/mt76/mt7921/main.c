@@ -624,6 +624,13 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt76_sta_cmd_info info = {
+		.sta = sta,
+		.vif = vif,
+		.enable = true,
+		.cmd = MCU_UNI_CMD_STA_REC_UPDATE,
+		.wcid = &msta->wcid,
+	};
 	int ret, idx;
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7921_WTBL_STA - 1);
@@ -650,8 +657,7 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt7921_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
-	ret = mt76_connac_mcu_add_sta_cmd(&dev->mphy, vif, sta, &msta->wcid,
-					  true, MCU_UNI_CMD_STA_REC_UPDATE);
+	ret = mt76_connac_mcu_add_sta_cmd(&dev->mphy, &info);
 	if (ret)
 		return ret;
 
@@ -665,12 +671,17 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt76_sta_cmd_info info = {
+		.sta = sta,
+		.vif = vif,
+		.cmd = MCU_UNI_CMD_STA_REC_UPDATE,
+		.wcid = &msta->wcid,
+	};
 
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
 	mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 
-	mt76_connac_mcu_add_sta_cmd(&dev->mphy, vif, sta, &msta->wcid, false,
-				    MCU_UNI_CMD_STA_REC_UPDATE);
+	mt76_connac_mcu_add_sta_cmd(&dev->mphy, &info);
 
 	mt7921_mac_wtbl_update(dev, msta->wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
