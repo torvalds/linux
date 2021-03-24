@@ -2037,7 +2037,7 @@ static void igb_power_down_link(struct igb_adapter *adapter)
 }
 
 /**
- * Detect and switch function for Media Auto Sense
+ * igb_check_swap_media -  Detect and switch function for Media Auto Sense
  * @adapter: address of the board private structure
  **/
 static void igb_check_swap_media(struct igb_adapter *adapter)
@@ -4020,7 +4020,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 }
 
 /**
- *  igb_open - Called when a network interface is made active
+ *  __igb_open - Called when a network interface is made active
  *  @netdev: network interface device structure
  *  @resuming: indicates whether we are in a resume call
  *
@@ -4138,7 +4138,7 @@ int igb_open(struct net_device *netdev)
 }
 
 /**
- *  igb_close - Disables a network interface
+ *  __igb_close - Disables a network interface
  *  @netdev: network interface device structure
  *  @suspending: indicates we are in a suspend call
  *

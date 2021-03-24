@@ -2546,7 +2546,7 @@ validate_bw:
 }
 
 /**
- * iavf_validate_channel_config - validate queue mapping info
+ * iavf_validate_ch_config - validate queue mapping info
  * @adapter: board private structure
  * @mqprio_qopt: queue parameters
  *
