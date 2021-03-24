@@ -51,14 +51,6 @@ bool mt7921_mac_wtbl_update(struct mt7921_dev *dev, int idx, u32 mask)
 			 0, 5000);
 }
 
-static u32 mt7921_mac_wtbl_lmac_addr(struct mt7921_dev *dev, u16 wcid)
-{
-	mt76_wr(dev, MT_WTBLON_TOP_WDUCR,
-		FIELD_PREP(MT_WTBLON_TOP_WDUCR_GROUP, (wcid >> 7)));
-
-	return MT_WTBL_LMAC_OFFS(wcid, 0);
-}
-
 static void mt7921_mac_sta_poll(struct mt7921_dev *dev)
 {
 	static const u8 ac_to_tid[] = {
@@ -95,7 +87,7 @@ static void mt7921_mac_sta_poll(struct mt7921_dev *dev)
 		spin_unlock_bh(&dev->sta_poll_lock);
 
 		idx = msta->wcid.idx;
-		addr = mt7921_mac_wtbl_lmac_addr(dev, idx) + 20 * 4;
+		addr = MT_WTBL_LMAC_OFFS(idx, 0) + 20 * 4;
 
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 			u32 tx_last = msta->airtime_ac[i];
