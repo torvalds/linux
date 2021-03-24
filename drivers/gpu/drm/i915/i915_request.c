@@ -244,6 +244,50 @@ static void __i915_request_fill(struct i915_request *rq, u8 val)
 	memset(vaddr + head, val, rq->postfix - head);
 }
 
+/**
+ * i915_request_active_engine
+ * @rq: request to inspect
+ * @active: pointer in which to return the active engine
+ *
+ * Fills the currently active engine to the @active pointer if the request
+ * is active and still not completed.
+ *
+ * Returns true if request was active or false otherwise.
+ */
+bool
+i915_request_active_engine(struct i915_request *rq,
+			   struct intel_engine_cs **active)
+{
+	struct intel_engine_cs *engine, *locked;
+	bool ret = false;
+
+	/*
+	 * Serialise with __i915_request_submit() so that it sees
+	 * is-banned?, or we know the request is already inflight.
+	 *
+	 * Note that rq->engine is unstable, and so we double
+	 * check that we have acquired the lock on the final engine.
+	 */
+	locked = READ_ONCE(rq->engine);
+	spin_lock_irq(&locked->active.lock);
+	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
+		spin_unlock(&locked->active.lock);
+		locked = engine;
+		spin_lock(&locked->active.lock);
+	}
+
+	if (i915_request_is_active(rq)) {
+		if (!__i915_request_is_complete(rq))
+			*active = locked;
+		ret = true;
+	}
+
+	spin_unlock_irq(&locked->active.lock);
+
+	return ret;
+}
+
+
 static void remove_from_engine(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine, *locked;

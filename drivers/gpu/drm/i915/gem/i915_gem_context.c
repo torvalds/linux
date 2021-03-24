@@ -386,38 +386,6 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	return intel_engine_pulse(engine) == 0;
 }
 
-static bool
-__active_engine(struct i915_request *rq, struct intel_engine_cs **active)
-{
-	struct intel_engine_cs *engine, *locked;
-	bool ret = false;
-
-	/*
-	 * Serialise with __i915_request_submit() so that it sees
-	 * is-banned?, or we know the request is already inflight.
-	 *
-	 * Note that rq->engine is unstable, and so we double
-	 * check that we have acquired the lock on the final engine.
-	 */
-	locked = READ_ONCE(rq->engine);
-	spin_lock_irq(&locked->active.lock);
-	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
-		spin_unlock(&locked->active.lock);
-		locked = engine;
-		spin_lock(&locked->active.lock);
-	}
-
-	if (i915_request_is_active(rq)) {
-		if (!__i915_request_is_complete(rq))
-			*active = locked;
-		ret = true;
-	}
-
-	spin_unlock_irq(&locked->active.lock);
-
-	return ret;
-}
-
 static struct intel_engine_cs *active_engine(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = NULL;
@@ -445,7 +413,7 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 		/* Check with the backend if the request is inflight */
 		found = true;
 		if (likely(rcu_access_pointer(rq->timeline) == ce->timeline))
-			found = __active_engine(rq, &engine);
+			found = i915_request_active_engine(rq, &engine);
 
 		i915_request_put(rq);
 		if (found)

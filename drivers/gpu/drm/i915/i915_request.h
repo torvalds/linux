@@ -627,4 +627,8 @@ i915_request_active_seqno(const struct i915_request *rq)
 	return hwsp_phys_base + hwsp_relative_offset;
 }
 
+bool
+i915_request_active_engine(struct i915_request *rq,
+			   struct intel_engine_cs **active);
+
 #endif /* I915_REQUEST_H */
