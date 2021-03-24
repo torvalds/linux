@@ -450,10 +450,12 @@ static int atmel_pwm_remove(struct platform_device *pdev)
 {
 	struct atmel_pwm_chip *atmel_pwm = platform_get_drvdata(pdev);
 
+	pwmchip_remove(&atmel_pwm->chip);
+
 	clk_unprepare(atmel_pwm->clk);
 	mutex_destroy(&atmel_pwm->isr_lock);
 
-	return pwmchip_remove(&atmel_pwm->chip);
+	return 0;
 }
 
 static struct platform_driver atmel_pwm_driver = {
