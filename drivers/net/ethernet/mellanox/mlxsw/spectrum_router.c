@@ -2911,7 +2911,8 @@ struct mlxsw_sp_nexthop_group_info {
 	u16 count;
 	int sum_norm_weight;
 	u8 adj_index_valid:1,
-	   gateway:1; /* routes using the group use a gateway */
+	   gateway:1, /* routes using the group use a gateway */
+	   is_resilient:1;
 	struct mlxsw_sp_nexthop nexthops[0];
 #define nh_rif	nexthops[0].rif
 };
@@ -3905,6 +3906,9 @@ static void __mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp_nexthop *nh,
 	if (!removing) {
 		nh->action = MLXSW_SP_NEXTHOP_ACTION_FORWARD;
 		nh->should_offload = 1;
+	} else if (nh->nhgi->is_resilient) {
+		nh->action = MLXSW_SP_NEXTHOP_ACTION_TRAP;
+		nh->should_offload = 1;
 	} else {
 		nh->should_offload = 0;
 	}
@@ -4484,6 +4488,15 @@ mlxsw_sp_nexthop_obj_init(struct mlxsw_sp *mlxsw_sp,
 	if (nh_obj->is_reject)
 		mlxsw_sp_nexthop_obj_blackhole_init(mlxsw_sp, nh);
 
+	/* In a resilient nexthop group, all the nexthops must be written to
+	 * the adjacency table. Even if they do not have a valid neighbour or
+	 * RIF.
+	 */
+	if (nh_grp->nhgi->is_resilient && !nh->should_offload) {
+		nh->action = MLXSW_SP_NEXTHOP_ACTION_TRAP;
+		nh->should_offload = 1;
+	}
+
 	return 0;
 
 err_type_init:
@@ -4500,6 +4513,7 @@ static void mlxsw_sp_nexthop_obj_fini(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_nexthop_type_fini(mlxsw_sp, nh);
 	list_del(&nh->router_list_node);
 	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+	nh->should_offload = 0;
 }
 
 static int
@@ -4509,6 +4523,7 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nexthop_group_info *nhgi;
 	struct mlxsw_sp_nexthop *nh;
+	bool is_resilient = false;
 	unsigned int nhs;
 	int err, i;
 
@@ -4518,6 +4533,10 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 		break;
 	case NH_NOTIFIER_INFO_TYPE_GRP:
 		nhs = info->nh_grp->num_nh;
+		break;
+	case NH_NOTIFIER_INFO_TYPE_RES_TABLE:
+		nhs = info->nh_res_table->num_nh_buckets;
+		is_resilient = true;
 		break;
 	default:
 		return -EINVAL;
@@ -4529,6 +4548,7 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 	nh_grp->nhgi = nhgi;
 	nhgi->nh_grp = nh_grp;
 	nhgi->gateway = mlxsw_sp_nexthop_obj_is_gateway(mlxsw_sp, info);
+	nhgi->is_resilient = is_resilient;
 	nhgi->count = nhs;
 	for (i = 0; i < nhgi->count; i++) {
 		struct nh_notifier_single_info *nh_obj;
@@ -4543,6 +4563,10 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 		case NH_NOTIFIER_INFO_TYPE_GRP:
 			nh_obj = &info->nh_grp->nh_entries[i].nh;
 			weight = info->nh_grp->nh_entries[i].weight;
+			break;
+		case NH_NOTIFIER_INFO_TYPE_RES_TABLE:
+			nh_obj = &info->nh_res_table->nhs[i];
+			weight = 1;
 			break;
 		default:
 			err = -EINVAL;
