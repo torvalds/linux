@@ -565,12 +565,13 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_XATTR);
 		if (fattr->valid & NFS_ATTR_FATTR_BLOCKS_USED)
 			inode->i_blocks = fattr->du.nfs2.blocks;
-		if (fattr->valid & NFS_ATTR_FATTR_SPACE_USED) {
+		else if (fattr->valid & NFS_ATTR_FATTR_SPACE_USED) {
 			/*
 			 * report the blocks in 512byte units
 			 */
 			inode->i_blocks = nfs_calc_block_size(fattr->du.nfs3.used);
-		}
+		} else if (fattr->size != 0)
+			nfs_set_cache_invalid(inode, NFS_INO_INVALID_BLOCKS);
 
 		if (nfsi->cache_validity != 0)
 			nfsi->cache_validity |= NFS_INO_REVAL_FORCED;
@@ -711,7 +712,8 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr,
 	spin_lock(&inode->i_lock);
 	NFS_I(inode)->attr_gencount = fattr->gencount;
 	if ((attr->ia_valid & ATTR_SIZE) != 0) {
-		nfs_set_cache_invalid(inode, NFS_INO_INVALID_MTIME);
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_MTIME |
+						     NFS_INO_INVALID_BLOCKS);
 		nfs_inc_stats(inode, NFSIOS_SETATTRTRUNC);
 		nfs_vmtruncate(inode, attr->ia_size);
 	}
@@ -1933,6 +1935,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 				save_cache_validity |= NFS_INO_INVALID_CTIME
 					| NFS_INO_INVALID_MTIME
 					| NFS_INO_INVALID_SIZE
+					| NFS_INO_INVALID_BLOCKS
 					| NFS_INO_INVALID_OTHER;
 				if (S_ISDIR(inode->i_mode))
 					nfs_force_lookup_revalidate(inode);
@@ -1989,6 +1992,12 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 					inode->i_ino,
 					(long long)cur_isize,
 					(long long)new_isize);
+		}
+		if (new_isize == 0 &&
+		    !(fattr->valid & (NFS_ATTR_FATTR_SPACE_USED |
+				      NFS_ATTR_FATTR_BLOCKS_USED))) {
+			fattr->du.nfs3.used = 0;
+			fattr->valid |= NFS_ATTR_FATTR_SPACE_USED;
 		}
 	} else {
 		nfsi->cache_validity |= save_cache_validity &
