@@ -79,7 +79,6 @@ static int flow_offload_fill_route(struct flow_offload *flow,
 				   enum flow_offload_tuple_dir dir)
 {
 	struct flow_offload_tuple *flow_tuple = &flow->tuplehash[dir].tuple;
-	struct dst_entry *other_dst = route->tuple[!dir].dst;
 	struct dst_entry *dst = route->tuple[dir].dst;
 
 	if (!dst_hold_safe(route->tuple[dir].dst))
@@ -94,7 +93,7 @@ static int flow_offload_fill_route(struct flow_offload *flow,
 		break;
 	}
 
-	flow_tuple->iifidx = other_dst->dev->ifindex;
+	flow_tuple->iifidx = route->tuple[dir].in.ifindex;
 	flow_tuple->xmit_type = route->tuple[dir].xmit_type;
 	flow_tuple->dst_cache = dst;
 
