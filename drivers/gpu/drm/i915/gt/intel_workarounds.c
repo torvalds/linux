@@ -657,12 +657,6 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_field_set(wal, GEN8_CS_CHICKEN1,
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
-}
-
-static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
-				     struct i915_wa_list *wal)
-{
-	gen12_ctx_workarounds_init(engine, wal);
 
 	/*
 	 * Wa_16011163337
@@ -689,17 +683,6 @@ static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
 	/* Wa_22010493298 */
 	wa_masked_en(wal, HIZ_CHICKEN,
 		     DG1_HZ_READ_SUPPRESSION_OPTIMIZATION_DISABLE);
-
-	/*
-	 * Wa_16011163337
-	 *
-	 * Like in gen12_ctx_gt_tuning_init(), read verification is ignored due
-	 * to Wa_1608008084.
-	 */
-	wa_add(wal,
-	       FF_MODE2,
-	       FF_MODE2_GS_TIMER_MASK,
-	       FF_MODE2_GS_TIMER_224, 0);
 }
 
 static void
@@ -716,9 +699,6 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 
 	if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
-	else if (IS_ALDERLAKE_S(i915) || IS_ROCKETLAKE(i915) ||
-		 IS_TIGERLAKE(i915))
-		tgl_ctx_workarounds_init(engine, wal);
 	else if (IS_GEN(i915, 12))
 		gen12_ctx_workarounds_init(engine, wal);
 	else if (IS_GEN(i915, 11))
