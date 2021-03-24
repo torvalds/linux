@@ -53,7 +53,6 @@ static void ttm_global_release(void)
 		goto out;
 
 	ttm_pool_mgr_fini();
-	ttm_tt_mgr_fini();
 
 	__free_page(glob->dummy_read_page);
 	memset(glob, 0, sizeof(*glob));
@@ -64,7 +63,7 @@ out:
 static int ttm_global_init(void)
 {
 	struct ttm_global *glob = &ttm_glob;
-	unsigned long num_pages;
+	unsigned long num_pages, num_dma32;
 	struct sysinfo si;
 	int ret = 0;
 
@@ -78,8 +77,15 @@ static int ttm_global_init(void)
 	 * system memory.
 	 */
 	num_pages = ((u64)si.totalram * si.mem_unit) >> PAGE_SHIFT;
-	ttm_pool_mgr_init(num_pages * 50 / 100);
-	ttm_tt_mgr_init();
+	num_pages /= 2;
+
+	/* But for DMA32 we limit ourself to only use 2GiB maximum. */
+	num_dma32 = (u64)(si.totalram - si.totalhigh) * si.mem_unit
+		>> PAGE_SHIFT;
+	num_dma32 = min(num_dma32, 2UL << (30 - PAGE_SHIFT));
+
+	ttm_pool_mgr_init(num_pages);
+	ttm_tt_mgr_init(num_pages, num_dma32);
 
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32);
 
