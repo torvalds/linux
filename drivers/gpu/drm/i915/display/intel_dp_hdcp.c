@@ -294,37 +294,39 @@ struct hdcp2_dp_msg_data {
 	bool msg_detectable;
 	u32 timeout;
 	u32 timeout2; /* Added for non_paired situation */
+	/* Timeout to read entire msg */
+	u32 msg_read_timeout;
 };
 
 static const struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
-	{ HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0 },
+	{ HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0, 0},
 	{ HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
-	  false, HDCP_2_2_CERT_TIMEOUT_MS, 0 },
+	  false, HDCP_2_2_CERT_TIMEOUT_MS, 0, HDCP_2_2_DP_CERT_READ_TIMEOUT_MS},
 	{ HDCP_2_2_AKE_NO_STORED_KM, DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET,
-	  false, 0, 0 },
+	  false, 0, 0, 0 },
 	{ HDCP_2_2_AKE_STORED_KM, DP_HDCP_2_2_AKE_STORED_KM_OFFSET,
-	  false, 0, 0 },
+	  false, 0, 0, 0 },
 	{ HDCP_2_2_AKE_SEND_HPRIME, DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET,
 	  true, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
-	  HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS },
+	  HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS, HDCP_2_2_DP_HPRIME_READ_TIMEOUT_MS},
 	{ HDCP_2_2_AKE_SEND_PAIRING_INFO,
 	  DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET, true,
-	  HDCP_2_2_PAIRING_TIMEOUT_MS, 0 },
-	{ HDCP_2_2_LC_INIT, DP_HDCP_2_2_LC_INIT_OFFSET, false, 0, 0 },
+	  HDCP_2_2_PAIRING_TIMEOUT_MS, 0, HDCP_2_2_DP_PAIRING_READ_TIMEOUT_MS },
+	{ HDCP_2_2_LC_INIT, DP_HDCP_2_2_LC_INIT_OFFSET, false, 0, 0, 0 },
 	{ HDCP_2_2_LC_SEND_LPRIME, DP_HDCP_2_2_LC_SEND_LPRIME_OFFSET,
-	  false, HDCP_2_2_DP_LPRIME_TIMEOUT_MS, 0 },
+	  false, HDCP_2_2_DP_LPRIME_TIMEOUT_MS, 0, 0 },
 	{ HDCP_2_2_SKE_SEND_EKS, DP_HDCP_2_2_SKE_SEND_EKS_OFFSET, false,
-	  0, 0 },
+	  0, 0, 0 },
 	{ HDCP_2_2_REP_SEND_RECVID_LIST,
 	  DP_HDCP_2_2_REP_SEND_RECVID_LIST_OFFSET, true,
-	  HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0 },
+	  HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0, 0 },
 	{ HDCP_2_2_REP_SEND_ACK, DP_HDCP_2_2_REP_SEND_ACK_OFFSET, false,
-	  0, 0 },
+	  0, 0, 0 },
 	{ HDCP_2_2_REP_STREAM_MANAGE,
 	  DP_HDCP_2_2_REP_STREAM_MANAGE_OFFSET, false,
-	  0, 0 },
+	  0, 0, 0},
 	{ HDCP_2_2_REP_STREAM_READY, DP_HDCP_2_2_REP_STREAM_READY_OFFSET,
-	  false, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0 },
+	  false, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0, 0 },
 /* local define to shovel this through the write_2_2 interface */
 #define HDCP_2_2_ERRATA_DP_STREAM_TYPE	50
 	{ HDCP_2_2_ERRATA_DP_STREAM_TYPE,
@@ -530,6 +532,8 @@ int intel_dp_hdcp2_read_msg(struct intel_digital_port *dig_port,
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_recv, len;
 	const struct hdcp2_dp_msg_data *hdcp2_msg_data;
+	ktime_t msg_end;
+	bool msg_expired;
 
 	hdcp2_msg_data = get_hdcp2_dp_msg_data(msg_id);
 	if (!hdcp2_msg_data)
@@ -556,6 +560,11 @@ int intel_dp_hdcp2_read_msg(struct intel_digital_port *dig_port,
 		len = bytes_to_recv > DP_AUX_MAX_PAYLOAD_BYTES ?
 		      DP_AUX_MAX_PAYLOAD_BYTES : bytes_to_recv;
 
+		/* Entire msg read timeout since initiate of msg read */
+		if (bytes_to_recv == size - 1 && hdcp2_msg_data->msg_read_timeout > 0)
+			msg_end = ktime_add_ms(ktime_get_raw(),
+					       hdcp2_msg_data->msg_read_timeout);
+
 		ret = drm_dp_dpcd_read(&dig_port->dp.aux, offset,
 				       (void *)byte, len);
 		if (ret < 0) {
@@ -568,6 +577,16 @@ int intel_dp_hdcp2_read_msg(struct intel_digital_port *dig_port,
 		byte += ret;
 		offset += ret;
 	}
+
+	if (hdcp2_msg_data->msg_read_timeout > 0) {
+		msg_expired = ktime_after(ktime_get_raw(), msg_end);
+		if (msg_expired) {
+			drm_dbg_kms(&i915->drm, "msg_id %d, entire msg read timeout(mSec): %d\n",
+				    msg_id, hdcp2_msg_data->msg_read_timeout);
+			return -ETIMEDOUT;
+		}
+	}
+
 	byte = buf;
 	*byte = msg_id;
 
