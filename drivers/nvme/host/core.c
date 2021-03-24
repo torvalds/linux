@@ -1948,7 +1948,7 @@ static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 	struct request_queue *queue = disk->queue;
 	u32 size = queue_logical_block_size(queue);
 
-	if (!(ctrl->oncs & NVME_CTRL_ONCS_DSM)) {
+	if (ctrl->max_discard_sectors == 0) {
 		blk_queue_flag_clear(QUEUE_FLAG_DISCARD, queue);
 		return;
 	}
@@ -1966,37 +1966,11 @@ static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 	if (blk_queue_flag_test_and_set(QUEUE_FLAG_DISCARD, queue))
 		return;
 
-	blk_queue_max_discard_sectors(queue, UINT_MAX);
-	blk_queue_max_discard_segments(queue, NVME_DSM_MAX_RANGES);
+	blk_queue_max_discard_sectors(queue, ctrl->max_discard_sectors);
+	blk_queue_max_discard_segments(queue, ctrl->max_discard_segments);
 
 	if (ctrl->quirks & NVME_QUIRK_DEALLOCATE_ZEROES)
 		blk_queue_max_write_zeroes_sectors(queue, UINT_MAX);
-}
-
-static void nvme_config_write_zeroes(struct gendisk *disk, struct nvme_ns *ns)
-{
-	u64 max_blocks;
-
-	if (!(ns->ctrl->oncs & NVME_CTRL_ONCS_WRITE_ZEROES) ||
-	    (ns->ctrl->quirks & NVME_QUIRK_DISABLE_WRITE_ZEROES))
-		return;
-	/*
-	 * Even though NVMe spec explicitly states that MDTS is not
-	 * applicable to the write-zeroes:- "The restriction does not apply to
-	 * commands that do not transfer data between the host and the
-	 * controller (e.g., Write Uncorrectable ro Write Zeroes command).".
-	 * In order to be more cautious use controller's max_hw_sectors value
-	 * to configure the maximum sectors for the write-zeroes which is
-	 * configured based on the controller's MDTS field in the
-	 * nvme_init_ctrl_finish() if available.
-	 */
-	if (ns->ctrl->max_hw_sectors == UINT_MAX)
-		max_blocks = (u64)USHRT_MAX + 1;
-	else
-		max_blocks = ns->ctrl->max_hw_sectors + 1;
-
-	blk_queue_max_write_zeroes_sectors(disk->queue,
-					   nvme_lba_to_sect(ns, max_blocks));
 }
 
 static bool nvme_ns_ids_valid(struct nvme_ns_ids *ids)
@@ -2168,7 +2142,8 @@ static void nvme_update_disk_info(struct gendisk *disk,
 	set_capacity_and_notify(disk, capacity);
 
 	nvme_config_discard(disk, ns);
-	nvme_config_write_zeroes(disk, ns);
+	blk_queue_max_write_zeroes_sectors(disk->queue,
+					   ns->ctrl->max_zeroes_sectors);
 
 	set_disk_ro(disk, (id->nsattr & NVME_NS_ATTR_RO) ||
 		test_bit(NVME_NS_FORCE_RO, &ns->flags));
@@ -3072,14 +3047,72 @@ out:
 	return 0;
 }
 
+static inline u32 nvme_mps_to_sectors(struct nvme_ctrl *ctrl, u32 units)
+{
+	u32 page_shift = NVME_CAP_MPSMIN(ctrl->cap) + 12;
+
+	return 1 << (units + page_shift - 9);
+}
+
+static int nvme_init_non_mdts_limits(struct nvme_ctrl *ctrl)
+{
+	struct nvme_command c = { };
+	struct nvme_id_ctrl_nvm *id;
+	int ret;
+
+	if (ctrl->oncs & NVME_CTRL_ONCS_DSM) {
+		ctrl->max_discard_sectors = UINT_MAX;
+		ctrl->max_discard_segments = NVME_DSM_MAX_RANGES;
+	} else {
+		ctrl->max_discard_sectors = 0;
+		ctrl->max_discard_segments = 0;
+	}
+
+	/*
+	 * Even though NVMe spec explicitly states that MDTS is not applicable
+	 * to the write-zeroes, we are cautious and limit the size to the
+	 * controllers max_hw_sectors value, which is based on the MDTS field
+	 * and possibly other limiting factors.
+	 */
+	if ((ctrl->oncs & NVME_CTRL_ONCS_WRITE_ZEROES) &&
+	    !(ctrl->quirks & NVME_QUIRK_DISABLE_WRITE_ZEROES))
+		ctrl->max_zeroes_sectors = ctrl->max_hw_sectors;
+	else
+		ctrl->max_zeroes_sectors = 0;
+
+	if (nvme_ctrl_limited_cns(ctrl))
+		return 0;
+
+	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	if (!id)
+		return 0;
+
+	c.identify.opcode = nvme_admin_identify;
+	c.identify.cns = NVME_ID_CNS_CS_CTRL;
+	c.identify.csi = NVME_CSI_NVM;
+
+	ret = nvme_submit_sync_cmd(ctrl->admin_q, &c, id, sizeof(*id));
+	if (ret)
+		goto free_data;
+
+	if (id->dmrl)
+		ctrl->max_discard_segments = id->dmrl;
+	if (id->dmrsl)
+		ctrl->max_discard_sectors = le32_to_cpu(id->dmrsl);
+	if (id->wzsl)
+		ctrl->max_zeroes_sectors = nvme_mps_to_sectors(ctrl, id->wzsl);
+
+free_data:
+	kfree(id);
+	return ret;
+}
+
 static int nvme_init_identify(struct nvme_ctrl *ctrl)
 {
 	struct nvme_id_ctrl *id;
-	int ret, page_shift;
 	u32 max_hw_sectors;
 	bool prev_apst_enabled;
-
-	page_shift = NVME_CAP_MPSMIN(ctrl->cap) + 12;
+	int ret;
 
 	ret = nvme_identify_ctrl(ctrl, &id);
 	if (ret) {
@@ -3136,7 +3169,7 @@ static int nvme_init_identify(struct nvme_ctrl *ctrl)
 	atomic_set(&ctrl->abort_limit, id->acl + 1);
 	ctrl->vwc = id->vwc;
 	if (id->mdts)
-		max_hw_sectors = 1 << (id->mdts + page_shift - 9);
+		max_hw_sectors = nvme_mps_to_sectors(ctrl, id->mdts);
 	else
 		max_hw_sectors = UINT_MAX;
 	ctrl->max_hw_sectors =
@@ -3245,6 +3278,10 @@ int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
 
 	ret = nvme_init_identify(ctrl);
 	if (ret)
+		return ret;
+
+	ret = nvme_init_non_mdts_limits(ctrl);
+	if (ret < 0)
 		return ret;
 
 	ret = nvme_configure_apst(ctrl);
@@ -4808,6 +4845,7 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_id_ns) != NVME_IDENTIFY_DATA_SIZE);
 	BUILD_BUG_ON(sizeof(struct nvme_id_ns_zns) != NVME_IDENTIFY_DATA_SIZE);
 	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl_zns) != NVME_IDENTIFY_DATA_SIZE);
+	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl_nvm) != NVME_IDENTIFY_DATA_SIZE);
 	BUILD_BUG_ON(sizeof(struct nvme_lba_range_type) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_smart_log) != 512);
 	BUILD_BUG_ON(sizeof(struct nvme_dbbuf) != 64);
