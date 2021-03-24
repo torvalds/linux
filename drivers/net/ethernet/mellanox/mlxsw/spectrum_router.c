@@ -3763,9 +3763,29 @@ mlxsw_sp_nexthop6_group_offload_refresh(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void
+mlxsw_sp_nexthop_bucket_offload_refresh(struct mlxsw_sp *mlxsw_sp,
+					const struct mlxsw_sp_nexthop *nh,
+					u16 bucket_index)
+{
+	struct mlxsw_sp_nexthop_group *nh_grp = nh->nhgi->nh_grp;
+	bool offload = false, trap = false;
+
+	if (nh->offloaded) {
+		if (nh->action == MLXSW_SP_NEXTHOP_ACTION_TRAP)
+			trap = true;
+		else
+			offload = true;
+	}
+	nexthop_bucket_set_hw_flags(mlxsw_sp_net(mlxsw_sp), nh_grp->obj.id,
+				    bucket_index, offload, trap);
+}
+
+static void
 mlxsw_sp_nexthop_obj_group_offload_refresh(struct mlxsw_sp *mlxsw_sp,
 					   struct mlxsw_sp_nexthop_group *nh_grp)
 {
+	int i;
+
 	/* Do not update the flags if the nexthop group is being destroyed
 	 * since:
 	 * 1. The nexthop objects is being deleted, in which case the flags are
@@ -3779,6 +3799,18 @@ mlxsw_sp_nexthop_obj_group_offload_refresh(struct mlxsw_sp *mlxsw_sp,
 
 	nexthop_set_hw_flags(mlxsw_sp_net(mlxsw_sp), nh_grp->obj.id,
 			     nh_grp->nhgi->adj_index_valid, false);
+
+	/* Update flags of individual nexthop buckets in case of a resilient
+	 * nexthop group.
+	 */
+	if (!nh_grp->nhgi->is_resilient)
+		return;
+
+	for (i = 0; i < nh_grp->nhgi->count; i++) {
+		struct mlxsw_sp_nexthop *nh = &nh_grp->nhgi->nexthops[i];
+
+		mlxsw_sp_nexthop_bucket_offload_refresh(mlxsw_sp, nh, i);
+	}
 }
 
 static void
@@ -3832,6 +3864,10 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 			dev_warn(mlxsw_sp->bus_info->dev, "Failed to update neigh MAC in adjacency table.\n");
 			goto set_trap;
 		}
+		/* Flags of individual nexthop buckets might need to be
+		 * updated.
+		 */
+		mlxsw_sp_nexthop_group_offload_refresh(mlxsw_sp, nh_grp);
 		return 0;
 	}
 	mlxsw_sp_nexthop_group_normalize(nhgi);
@@ -4881,6 +4917,7 @@ mlxsw_sp_nexthop_obj_bucket_adj_update(struct mlxsw_sp *mlxsw_sp,
 
 	nh->update = 0;
 	nh->offloaded = 1;
+	mlxsw_sp_nexthop_bucket_offload_refresh(mlxsw_sp, nh, bucket_index);
 
 	return 0;
 }
