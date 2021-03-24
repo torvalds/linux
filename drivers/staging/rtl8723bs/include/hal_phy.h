@@ -49,7 +49,7 @@ enum band_type {
 	BANDMAX
 };
 
-enum rf_type {
+enum {
 	RF_TYPE_MIN = 0,	/*  0 */
 	RF_8225 = 1,		/*  1 11b/g RF for verification only */
 	RF_8256 = 2,		/*  2 11b/g/n */
@@ -73,48 +73,6 @@ enum rf_path {
 
 #define	RF_PATH_MAX_92C_88E		2
 #define	RF_PATH_MAX_90_8812		4	/* Max RF number 90 support */
-
-enum antenna_path {
-       ANTENNA_NONE	= 0,
-	ANTENNA_D	= 1,
-	ANTENNA_C	= 2,
-	ANTENNA_CD	= 3,
-	ANTENNA_B	= 4,
-	ANTENNA_BD	= 5,
-	ANTENNA_BC	= 6,
-	ANTENNA_BCD	= 7,
-	ANTENNA_A	= 8,
-	ANTENNA_AD	= 9,
-	ANTENNA_AC	= 10,
-	ANTENNA_ACD	= 11,
-	ANTENNA_AB	= 12,
-	ANTENNA_ABD	= 13,
-	ANTENNA_ABC	= 14,
-	ANTENNA_ABCD	= 15
-};
-
-enum rf_content {
-	radioa_txt = 0x1000,
-	radiob_txt = 0x1001,
-	radioc_txt = 0x1002,
-	radiod_txt = 0x1003
-};
-
-enum BaseBand_Config_Type {
-	BaseBand_Config_PHY_REG = 0,			/* Radio Path A */
-	BaseBand_Config_AGC_TAB = 1,			/* Radio Path B */
-	BaseBand_Config_AGC_TAB_2G = 2,
-	BaseBand_Config_AGC_TAB_5G = 3,
-	BaseBand_Config_PHY_REG_PG
-};
-
-enum hw_block {
-	HW_BLOCK_MAC = 0,
-	HW_BLOCK_PHY0 = 1,
-	HW_BLOCK_PHY1 = 2,
-	HW_BLOCK_RF = 3,
-	HW_BLOCK_MAXIMUM = 4, /*  Never use this */
-};
 
 enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
