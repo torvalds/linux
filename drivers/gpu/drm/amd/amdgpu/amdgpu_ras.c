@@ -431,15 +431,13 @@ static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 	};
 
 	if (!amdgpu_ras_get_error_query_ready(obj->adev))
-		return snprintf(buf, PAGE_SIZE,
-				"Query currently inaccessible\n");
+		return sysfs_emit(buf, "Query currently inaccessible\n");
 
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
 
-	return snprintf(buf, PAGE_SIZE, "%s: %lu\n%s: %lu\n",
-			"ue", info.ue_count,
-			"ce", info.ce_count);
+	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
+			  "ce", info.ce_count);
 }
 
 /* obj begin */

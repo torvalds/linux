@@ -216,7 +216,7 @@ static ssize_t amdgpu_xgmi_show_device_id(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", adev->gmc.xgmi.node_id);
+	return sysfs_emit(buf, "%llu\n", adev->gmc.xgmi.node_id);
 
 }
 
@@ -245,7 +245,7 @@ static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 
 	adev->df.funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", error_count);
+	return sysfs_emit(buf, "%u\n", error_count);
 }
 
 
