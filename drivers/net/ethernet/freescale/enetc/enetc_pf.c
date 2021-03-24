@@ -129,16 +129,20 @@ static void enetc_clear_mac_ht_flt(struct enetc_si *si, int si_idx, int type)
 }
 
 static void enetc_set_mac_ht_flt(struct enetc_si *si, int si_idx, int type,
-				 u32 *hash)
+				 unsigned long hash)
 {
 	bool err = si->errata & ENETC_ERR_UCMCSWP;
 
 	if (type == UC) {
-		enetc_port_wr(&si->hw, ENETC_PSIUMHFR0(si_idx, err), *hash);
-		enetc_port_wr(&si->hw, ENETC_PSIUMHFR1(si_idx), *(hash + 1));
+		enetc_port_wr(&si->hw, ENETC_PSIUMHFR0(si_idx, err),
+			      lower_32_bits(hash));
+		enetc_port_wr(&si->hw, ENETC_PSIUMHFR1(si_idx),
+			      upper_32_bits(hash));
 	} else { /* MC */
-		enetc_port_wr(&si->hw, ENETC_PSIMMHFR0(si_idx, err), *hash);
-		enetc_port_wr(&si->hw, ENETC_PSIMMHFR1(si_idx), *(hash + 1));
+		enetc_port_wr(&si->hw, ENETC_PSIMMHFR0(si_idx, err),
+			      lower_32_bits(hash));
+		enetc_port_wr(&si->hw, ENETC_PSIMMHFR1(si_idx),
+			      upper_32_bits(hash));
 	}
 }
 
@@ -182,7 +186,7 @@ static void enetc_sync_mac_filters(struct enetc_pf *pf)
 		if (i == UC)
 			enetc_clear_mac_flt_entry(si, pos);
 
-		enetc_set_mac_ht_flt(si, 0, i, (u32 *)f->mac_hash_table);
+		enetc_set_mac_ht_flt(si, 0, i, *f->mac_hash_table);
 	}
 }
 
