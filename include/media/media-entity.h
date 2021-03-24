@@ -155,7 +155,7 @@ struct media_link {
  *	uniquely identified by the pad number.
  * @PAD_SIGNAL_ANALOG:
  *	The pad contains an analog signal. It can be Radio Frequency,
- *	Intermediate Frequency, a baseband signal or sub-cariers.
+ *	Intermediate Frequency, a baseband signal or sub-carriers.
  *	Tuner inputs, IF-PLL demodulators, composite and s-video signals
  *	should use it.
  * @PAD_SIGNAL_DV:
