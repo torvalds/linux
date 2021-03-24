@@ -2258,12 +2258,17 @@ static int mtk_open(struct net_device *dev)
 
 	/* we run 2 netdevs on the same dma ring so we only bring it up once */
 	if (!refcount_read(&eth->dma_refcnt)) {
-		int err = mtk_start_dma(eth);
+		u32 gdm_config = MTK_GDMA_TO_PDMA;
+		int err;
 
+		err = mtk_start_dma(eth);
 		if (err)
 			return err;
 
-		mtk_gdm_config(eth, MTK_GDMA_TO_PDMA);
+		if (eth->soc->offload_version && mtk_ppe_start(&eth->ppe) == 0)
+			gdm_config = MTK_GDMA_TO_PPE;
+
+		mtk_gdm_config(eth, gdm_config);
 
 		napi_enable(&eth->tx_napi);
 		napi_enable(&eth->rx_napi);
@@ -2329,6 +2334,9 @@ static int mtk_stop(struct net_device *dev)
 	mtk_stop_dma(eth, MTK_PDMA_GLO_CFG);
 
 	mtk_dma_free(eth);
+
+	if (eth->soc->offload_version)
+		mtk_ppe_stop(&eth->ppe);
 
 	return 0;
 }
@@ -3091,6 +3099,13 @@ static int mtk_probe(struct platform_device *pdev)
 			goto err_free_dev;
 	}
 
+	if (eth->soc->offload_version) {
+		err = mtk_ppe_init(&eth->ppe, eth->dev,
+				   eth->base + MTK_ETH_PPE_BASE, 2);
+		if (err)
+			goto err_free_dev;
+	}
+
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
 		if (!eth->netdev[i])
 			continue;
@@ -3165,6 +3180,7 @@ static const struct mtk_soc_data mt7621_data = {
 	.hw_features = MTK_HW_FEATURES,
 	.required_clks = MT7621_CLKS_BITMAP,
 	.required_pctl = false,
+	.offload_version = 2,
 };
 
 static const struct mtk_soc_data mt7622_data = {
@@ -3173,6 +3189,7 @@ static const struct mtk_soc_data mt7622_data = {
 	.hw_features = MTK_HW_FEATURES,
 	.required_clks = MT7622_CLKS_BITMAP,
 	.required_pctl = false,
+	.offload_version = 2,
 };
 
 static const struct mtk_soc_data mt7623_data = {

@@ -15,6 +15,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
 #include <linux/phylink.h>
+#include "mtk_ppe.h"
 
 #define MTK_QDMA_PAGE_SIZE	2048
 #define MTK_MAX_RX_LENGTH	1536
@@ -87,6 +88,7 @@
 #define MTK_GDMA_TCS_EN		BIT(21)
 #define MTK_GDMA_UCS_EN		BIT(20)
 #define MTK_GDMA_TO_PDMA	0x0
+#define MTK_GDMA_TO_PPE		0x4444
 #define MTK_GDMA_DROP_ALL       0x7777
 
 /* Unicast Filter MAC Address Register - Low */
@@ -300,6 +302,12 @@
 
 /* QDMA descriptor rxd3 */
 #define RX_DMA_VID(_x)		((_x) & 0xfff)
+
+/* QDMA descriptor rxd4 */
+#define MTK_RXD4_FOE_ENTRY	GENMASK(13, 0)
+#define MTK_RXD4_PPE_CPU_REASON	GENMASK(18, 14)
+#define MTK_RXD4_SRC_PORT	GENMASK(21, 19)
+#define MTK_RXD4_ALG		GENMASK(31, 22)
 
 /* QDMA descriptor rxd4 */
 #define RX_DMA_L4_VALID		BIT(24)
@@ -804,6 +812,7 @@ struct mtk_soc_data {
 	u32		caps;
 	u32		required_clks;
 	bool		required_pctl;
+	u8		offload_version;
 	netdev_features_t hw_features;
 };
 
@@ -903,6 +912,8 @@ struct mtk_eth {
 	u32				tx_int_status_reg;
 	u32				rx_dma_l4_valid;
 	int				ip_align;
+
+	struct mtk_ppe			ppe;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
