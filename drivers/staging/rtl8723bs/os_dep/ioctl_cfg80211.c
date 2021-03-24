@@ -1437,7 +1437,8 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct adapter *padapter, char *b
 
 	if (len > 0)
 	{
-		if ((wps_ie = rtw_get_wps_ie(buf, len, NULL, &wps_ielen)))
+		wps_ie = rtw_get_wps_ie(buf, len, NULL, &wps_ielen);
+		if (wps_ie)
 		{
 			#ifdef DEBUG_CFG80211
 			DBG_8192C("probe_req_wps_ielen =%d\n", wps_ielen);
@@ -2462,7 +2463,8 @@ static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struc
 			DBG_871X("RTW_Tx:category(%u), action(%u)\n", category, action);
 
 		/* starting alloc mgmt frame to dump it */
-		if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL)
+		pmgntframe = alloc_mgtxmitframe(pxmitpriv);
+		if (!pmgntframe)
 			goto fail;
 
 		/* update attribute */
@@ -2934,7 +2936,8 @@ static int _cfg80211_rtw_mgmt_tx(struct adapter *padapter, u8 tx_ch, const u8 *b
 	}
 
 	/* starting alloc mgmt frame to dump it */
-	if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL) {
+	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
+	if (!pmgntframe) {
 		/* ret = -ENOMEM; */
 		ret = _FAIL;
 		goto exit;
@@ -3331,8 +3334,8 @@ void rtw_wdev_unregister(struct wireless_dev *wdev)
 
 	if (!wdev)
 		return;
-
-	if (!(ndev = wdev_to_ndev(wdev)))
+	ndev = wdev_to_ndev(wdev);
+	if (!ndev)
 		return;
 
 	adapter = rtw_netdev_priv(ndev);
