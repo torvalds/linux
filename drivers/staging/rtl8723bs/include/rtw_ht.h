@@ -37,7 +37,7 @@ struct ht_priv {
 
 };
 
-enum aggre_size_e {
+enum {
 	HT_AGG_SIZE_8K = 0,
 	HT_AGG_SIZE_16K = 1,
 	HT_AGG_SIZE_32K = 2,
@@ -48,7 +48,7 @@ enum aggre_size_e {
 	VHT_AGG_SIZE_1024K = 7,
 };
 
-enum rt_ht_inf0_capbility {
+enum {
 	RT_HT_CAP_USE_TURBO_AGGR = 0x01,
 	RT_HT_CAP_USE_LONG_PREAMBLE = 0x02,
 	RT_HT_CAP_USE_AMPDU = 0x04,
@@ -59,7 +59,7 @@ enum rt_ht_inf0_capbility {
 	RT_HT_CAP_USE_AP_CLIENT_MODE = 0x80,	/*  AP team request to reserve this bit, by Emily */
 };
 
-enum rt_ht_inf1_capbility {
+enum {
 	RT_HT_CAP_USE_VIDEO_CLIENT = 0x01,
 	RT_HT_CAP_USE_JAGUAR_BCUT = 0x02,
 	RT_HT_CAP_USE_JAGUAR_CCUT = 0x04,
