@@ -561,12 +561,6 @@ static int tcmu_get_empty_blocks(struct tcmu_dev *udev,
 	return iov_cnt;
 }
 
-static inline struct page *
-tcmu_get_block_page(struct tcmu_dev *udev, uint32_t dpi)
-{
-	return xa_load(&udev->data_pages, dpi);
-}
-
 static inline void tcmu_free_cmd(struct tcmu_cmd *tcmu_cmd)
 {
 	kfree(tcmu_cmd->dbi);
@@ -1786,7 +1780,7 @@ static struct page *tcmu_try_get_data_page(struct tcmu_dev *udev, uint32_t dpi)
 	struct page *page;
 
 	mutex_lock(&udev->cmdr_lock);
-	page = tcmu_get_block_page(udev, dpi);
+	page = xa_load(&udev->data_pages, dpi);
 	if (likely(page)) {
 		mutex_unlock(&udev->cmdr_lock);
 		return page;
