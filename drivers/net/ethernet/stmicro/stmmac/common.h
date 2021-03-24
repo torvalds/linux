@@ -315,6 +315,13 @@ enum dma_irq_status {
 #define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 2)
 #define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 3)
 
+/* FPE defines */
+#define FPE_EVENT_UNKNOWN		0
+#define FPE_EVENT_TRSP			BIT(0)
+#define FPE_EVENT_TVER			BIT(1)
+#define FPE_EVENT_RRSP			BIT(2)
+#define FPE_EVENT_RVER			BIT(3)
+
 #define CORE_IRQ_MTL_RX_OVERFLOW	BIT(8)
 
 /* Physical Coding Sublayer */

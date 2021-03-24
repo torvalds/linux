@@ -12,6 +12,12 @@
 #define TMOUTEN				BIT(0)
 
 #define MAC_FPE_CTRL_STS		0x00000234
+#define TRSP				BIT(19)
+#define TVER				BIT(18)
+#define RRSP				BIT(17)
+#define RVER				BIT(16)
+#define SRSP				BIT(2)
+#define SVER				BIT(1)
 #define EFPE				BIT(0)
 
 #define MAC_PPS_CONTROL			0x00000b70
@@ -128,6 +134,8 @@
 #define GMAC_RXQCTRL_VFFQ_SHIFT		17
 #define GMAC_RXQCTRL_VFFQE		BIT(16)
 
+#define GMAC_INT_FPE_EN			BIT(17)
+
 int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp);
 int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,
@@ -145,5 +153,8 @@ void dwmac5_est_irq_status(void __iomem *ioaddr, struct net_device *dev,
 			   struct stmmac_extra_stats *x, u32 txqcnt);
 void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
 			  bool enable);
+void dwmac5_fpe_send_mpacket(void __iomem *ioaddr,
+			     enum stmmac_mpacket_type type);
+int dwmac5_fpe_irq_status(void __iomem *ioaddr, struct net_device *dev);
 
 #endif /* __DWMAC5_H__ */

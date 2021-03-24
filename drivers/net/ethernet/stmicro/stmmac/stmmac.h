@@ -234,6 +234,12 @@ struct stmmac_priv {
 	struct workqueue_struct *wq;
 	struct work_struct service_task;
 
+	/* Workqueue for handling FPE hand-shaking */
+	unsigned long fpe_task_state;
+	struct workqueue_struct *fpe_wq;
+	struct work_struct fpe_task;
+	char wq_name[IFNAMSIZ + 4];
+
 	/* TC Handling */
 	unsigned int tc_entries_max;
 	unsigned int tc_off_max;
@@ -273,6 +279,7 @@ bool stmmac_eee_init(struct stmmac_priv *priv);
 int stmmac_reinit_queues(struct net_device *dev, u32 rx_cnt, u32 tx_cnt);
 int stmmac_reinit_ringparam(struct net_device *dev, u32 rx_size, u32 tx_size);
 int stmmac_bus_clks_config(struct stmmac_priv *priv, bool enabled);
+void stmmac_fpe_handshake(struct stmmac_priv *priv, bool enable);
 
 #if IS_ENABLED(CONFIG_STMMAC_SELFTESTS)
 void stmmac_selftest_run(struct net_device *dev,

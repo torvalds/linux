@@ -971,6 +971,21 @@ static void stmmac_mac_an_restart(struct phylink_config *config)
 	/* Not Supported */
 }
 
+static void stmmac_fpe_link_state_handle(struct stmmac_priv *priv, bool is_up)
+{
+	struct stmmac_fpe_cfg *fpe_cfg = priv->plat->fpe_cfg;
+	enum stmmac_fpe_state *lo_state = &fpe_cfg->lo_fpe_state;
+	enum stmmac_fpe_state *lp_state = &fpe_cfg->lp_fpe_state;
+	bool *hs_enable = &fpe_cfg->hs_enable;
+
+	if (is_up && *hs_enable) {
+		stmmac_fpe_send_mpacket(priv, priv->ioaddr, MPACKET_VERIFY);
+	} else {
+		*lo_state = FPE_EVENT_UNKNOWN;
+		*lp_state = FPE_EVENT_UNKNOWN;
+	}
+}
+
 static void stmmac_mac_link_down(struct phylink_config *config,
 				 unsigned int mode, phy_interface_t interface)
 {
@@ -981,6 +996,8 @@ static void stmmac_mac_link_down(struct phylink_config *config,
 	priv->tx_lpi_enabled = false;
 	stmmac_eee_init(priv);
 	stmmac_set_eee_pls(priv, priv->hw, false);
+
+	stmmac_fpe_link_state_handle(priv, false);
 }
 
 static void stmmac_mac_link_up(struct phylink_config *config,
@@ -1079,6 +1096,8 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 		priv->tx_lpi_enabled = priv->eee_enabled;
 		stmmac_set_eee_pls(priv, priv->hw, true);
 	}
+
+	stmmac_fpe_link_state_handle(priv, true);
 }
 
 static const struct phylink_mac_ops stmmac_phylink_mac_ops = {
@@ -2793,6 +2812,26 @@ static void stmmac_safety_feat_configuration(struct stmmac_priv *priv)
 	}
 }
 
+static int stmmac_fpe_start_wq(struct stmmac_priv *priv)
+{
+	char *name;
+
+	clear_bit(__FPE_TASK_SCHED, &priv->fpe_task_state);
+
+	name = priv->wq_name;
+	sprintf(name, "%s-fpe", priv->dev->name);
+
+	priv->fpe_wq = create_singlethread_workqueue(name);
+	if (!priv->fpe_wq) {
+		netdev_err(priv->dev, "%s: Failed to create workqueue\n", name);
+
+		return -ENOMEM;
+	}
+	netdev_info(priv->dev, "FPE workqueue start");
+
+	return 0;
+}
+
 /**
  * stmmac_hw_setup - setup mac in a usable state.
  *  @dev : pointer to the device structure.
@@ -2928,6 +2967,13 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 	/* Start the ball rolling... */
 	stmmac_start_all_dma(priv);
+
+	if (priv->dma_cap.fpesel) {
+		stmmac_fpe_start_wq(priv);
+
+		if (priv->plat->fpe_cfg->enable)
+			stmmac_fpe_handshake(priv, true);
+	}
 
 	return 0;
 }
@@ -3090,6 +3136,16 @@ init_phy_error:
 	return ret;
 }
 
+static void stmmac_fpe_stop_wq(struct stmmac_priv *priv)
+{
+	set_bit(__FPE_REMOVING, &priv->fpe_task_state);
+
+	if (priv->fpe_wq)
+		destroy_workqueue(priv->fpe_wq);
+
+	netdev_info(priv->dev, "FPE workqueue stop");
+}
+
 /**
  *  stmmac_release - close entry point of the driver
  *  @dev : device pointer.
@@ -3138,6 +3194,9 @@ static int stmmac_release(struct net_device *dev)
 	stmmac_release_ptp(priv);
 
 	pm_runtime_put(priv->device);
+
+	if (priv->dma_cap.fpesel)
+		stmmac_fpe_stop_wq(priv);
 
 	return 0;
 }
@@ -4280,6 +4339,48 @@ static int stmmac_set_features(struct net_device *netdev,
 	return 0;
 }
 
+static void stmmac_fpe_event_status(struct stmmac_priv *priv, int status)
+{
+	struct stmmac_fpe_cfg *fpe_cfg = priv->plat->fpe_cfg;
+	enum stmmac_fpe_state *lo_state = &fpe_cfg->lo_fpe_state;
+	enum stmmac_fpe_state *lp_state = &fpe_cfg->lp_fpe_state;
+	bool *hs_enable = &fpe_cfg->hs_enable;
+
+	if (status == FPE_EVENT_UNKNOWN || !*hs_enable)
+		return;
+
+	/* If LP has sent verify mPacket, LP is FPE capable */
+	if ((status & FPE_EVENT_RVER) == FPE_EVENT_RVER) {
+		if (*lp_state < FPE_STATE_CAPABLE)
+			*lp_state = FPE_STATE_CAPABLE;
+
+		/* If user has requested FPE enable, quickly response */
+		if (*hs_enable)
+			stmmac_fpe_send_mpacket(priv, priv->ioaddr,
+						MPACKET_RESPONSE);
+	}
+
+	/* If Local has sent verify mPacket, Local is FPE capable */
+	if ((status & FPE_EVENT_TVER) == FPE_EVENT_TVER) {
+		if (*lo_state < FPE_STATE_CAPABLE)
+			*lo_state = FPE_STATE_CAPABLE;
+	}
+
+	/* If LP has sent response mPacket, LP is entering FPE ON */
+	if ((status & FPE_EVENT_RRSP) == FPE_EVENT_RRSP)
+		*lp_state = FPE_STATE_ENTERING_ON;
+
+	/* If Local has sent response mPacket, Local is entering FPE ON */
+	if ((status & FPE_EVENT_TRSP) == FPE_EVENT_TRSP)
+		*lo_state = FPE_STATE_ENTERING_ON;
+
+	if (!test_bit(__FPE_REMOVING, &priv->fpe_task_state) &&
+	    !test_and_set_bit(__FPE_TASK_SCHED, &priv->fpe_task_state) &&
+	    priv->fpe_wq) {
+		queue_work(priv->fpe_wq, &priv->fpe_task);
+	}
+}
+
 /**
  *  stmmac_interrupt - main ISR
  *  @irq: interrupt number.
@@ -4317,6 +4418,13 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 	if (priv->dma_cap.estsel)
 		stmmac_est_irq_status(priv, priv->ioaddr, priv->dev,
 				      &priv->xstats, tx_cnt);
+
+	if (priv->dma_cap.fpesel) {
+		int status = stmmac_fpe_irq_status(priv, priv->ioaddr,
+						   priv->dev);
+
+		stmmac_fpe_event_status(priv, status);
+	}
 
 	/* To handle GMAC own interrupts */
 	if ((priv->plat->has_gmac) || xmac) {
@@ -5065,6 +5173,68 @@ int stmmac_reinit_ringparam(struct net_device *dev, u32 rx_size, u32 tx_size)
 	return ret;
 }
 
+#define SEND_VERIFY_MPAKCET_FMT "Send Verify mPacket lo_state=%d lp_state=%d\n"
+static void stmmac_fpe_lp_task(struct work_struct *work)
+{
+	struct stmmac_priv *priv = container_of(work, struct stmmac_priv,
+						fpe_task);
+	struct stmmac_fpe_cfg *fpe_cfg = priv->plat->fpe_cfg;
+	enum stmmac_fpe_state *lo_state = &fpe_cfg->lo_fpe_state;
+	enum stmmac_fpe_state *lp_state = &fpe_cfg->lp_fpe_state;
+	bool *hs_enable = &fpe_cfg->hs_enable;
+	bool *enable = &fpe_cfg->enable;
+	int retries = 20;
+
+	while (retries-- > 0) {
+		/* Bail out immediately if FPE handshake is OFF */
+		if (*lo_state == FPE_STATE_OFF || !*hs_enable)
+			break;
+
+		if (*lo_state == FPE_STATE_ENTERING_ON &&
+		    *lp_state == FPE_STATE_ENTERING_ON) {
+			stmmac_fpe_configure(priv, priv->ioaddr,
+					     priv->plat->tx_queues_to_use,
+					     priv->plat->rx_queues_to_use,
+					     *enable);
+
+			netdev_info(priv->dev, "configured FPE\n");
+
+			*lo_state = FPE_STATE_ON;
+			*lp_state = FPE_STATE_ON;
+			netdev_info(priv->dev, "!!! BOTH FPE stations ON\n");
+			break;
+		}
+
+		if ((*lo_state == FPE_STATE_CAPABLE ||
+		     *lo_state == FPE_STATE_ENTERING_ON) &&
+		     *lp_state != FPE_STATE_ON) {
+			netdev_info(priv->dev, SEND_VERIFY_MPAKCET_FMT,
+				    *lo_state, *lp_state);
+			stmmac_fpe_send_mpacket(priv, priv->ioaddr,
+						MPACKET_VERIFY);
+		}
+		/* Sleep then retry */
+		msleep(500);
+	}
+
+	clear_bit(__FPE_TASK_SCHED, &priv->fpe_task_state);
+}
+
+void stmmac_fpe_handshake(struct stmmac_priv *priv, bool enable)
+{
+	if (priv->plat->fpe_cfg->hs_enable != enable) {
+		if (enable) {
+			stmmac_fpe_send_mpacket(priv, priv->ioaddr,
+						MPACKET_VERIFY);
+		} else {
+			priv->plat->fpe_cfg->lo_fpe_state = FPE_STATE_OFF;
+			priv->plat->fpe_cfg->lp_fpe_state = FPE_STATE_OFF;
+		}
+
+		priv->plat->fpe_cfg->hs_enable = enable;
+	}
+}
+
 /**
  * stmmac_dvr_probe
  * @device: device pointer
@@ -5121,6 +5291,9 @@ int stmmac_dvr_probe(struct device *device,
 	}
 
 	INIT_WORK(&priv->service_task, stmmac_service_task);
+
+	/* Initialize Link Partner FPE workqueue */
+	INIT_WORK(&priv->fpe_task, stmmac_fpe_lp_task);
 
 	/* Override with kernel parameters if supplied XXX CRS XXX
 	 * this needs to have multiple instances
@@ -5435,7 +5608,17 @@ int stmmac_suspend(struct device *dev)
 		if (ret)
 			return ret;
 	}
+
 	mutex_unlock(&priv->lock);
+
+	if (priv->dma_cap.fpesel) {
+		/* Disable FPE */
+		stmmac_fpe_configure(priv, priv->ioaddr,
+				     priv->plat->tx_queues_to_use,
+				     priv->plat->rx_queues_to_use, false);
+
+		stmmac_fpe_handshake(priv, false);
+	}
 
 	priv->speed = SPEED_UNKNOWN;
 	return 0;
