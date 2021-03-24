@@ -679,6 +679,8 @@ struct device_link {
 	struct kref kref;
 	struct work_struct rm_work;
 	bool supplier_preactivated; /* Owned by consumer probe. */
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 static inline struct device *kobj_to_dev(struct kobject *kobj)
