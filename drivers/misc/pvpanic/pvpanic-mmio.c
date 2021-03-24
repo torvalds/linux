@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Pvpanic Device Support
+ *  Pvpanic MMIO Device Support
  *
  *  Copyright (C) 2013 Fujitsu.
  *  Copyright (C) 2018 ZTE.
+ *  Copyright (C) 2021 Oracle.
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -17,6 +16,12 @@
 #include <linux/types.h>
 
 #include <uapi/misc/pvpanic.h>
+
+#include "pvpanic.h"
+
+MODULE_AUTHOR("Hu Tao <hutao@cn.fujitsu.com>");
+MODULE_DESCRIPTION("pvpanic-mmio device driver");
+MODULE_LICENSE("GPL");
 
 static void __iomem *base;
 static unsigned int capability = PVPANIC_PANICKED | PVPANIC_CRASH_LOADED;
@@ -49,47 +54,19 @@ static ssize_t events_store(struct device *dev,  struct device_attribute *attr,
 
 	events = tmp;
 
+	pvpanic_set_events(events);
+
 	return count;
 
 }
 static DEVICE_ATTR_RW(events);
 
-static struct attribute *pvpanic_dev_attrs[] = {
+static struct attribute *pvpanic_mmio_dev_attrs[] = {
 	&dev_attr_capability.attr,
 	&dev_attr_events.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(pvpanic_dev);
-
-MODULE_AUTHOR("Hu Tao <hutao@cn.fujitsu.com>");
-MODULE_DESCRIPTION("pvpanic device driver");
-MODULE_LICENSE("GPL");
-
-static void
-pvpanic_send_event(unsigned int event)
-{
-	if (event & capability & events)
-		iowrite8(event, base);
-}
-
-static int
-pvpanic_panic_notify(struct notifier_block *nb, unsigned long code,
-		     void *unused)
-{
-	unsigned int event = PVPANIC_PANICKED;
-
-	if (kexec_crash_loaded())
-		event = PVPANIC_CRASH_LOADED;
-
-	pvpanic_send_event(event);
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block pvpanic_panic_nb = {
-	.notifier_call = pvpanic_panic_notify,
-	.priority = 1, /* let this called before broken drm_fb_helper */
-};
+ATTRIBUTE_GROUPS(pvpanic_mmio_dev);
 
 static int pvpanic_mmio_probe(struct platform_device *pdev)
 {
@@ -119,9 +96,7 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 	capability &= ioread8(base);
 	events = capability;
 
-	if (capability)
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &pvpanic_panic_nb);
+	pvpanic_probe(base, capability);
 
 	return 0;
 }
@@ -129,9 +104,7 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 static int pvpanic_mmio_remove(struct platform_device *pdev)
 {
 
-	if (capability)
-		atomic_notifier_chain_unregister(&panic_notifier_list,
-						 &pvpanic_panic_nb);
+	pvpanic_remove();
 
 	return 0;
 }
@@ -153,7 +126,7 @@ static struct platform_driver pvpanic_mmio_driver = {
 		.name = "pvpanic-mmio",
 		.of_match_table = pvpanic_mmio_match,
 		.acpi_match_table = pvpanic_device_ids,
-		.dev_groups = pvpanic_dev_groups,
+		.dev_groups = pvpanic_mmio_dev_groups,
 	},
 	.probe = pvpanic_mmio_probe,
 	.remove = pvpanic_mmio_remove,
