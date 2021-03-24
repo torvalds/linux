@@ -15,6 +15,8 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
 #include <linux/phylink.h>
+#include <linux/rhashtable.h>
+#include "mtk_ppe.h"
 
 #define MTK_QDMA_PAGE_SIZE	2048
 #define MTK_MAX_RX_LENGTH	1536
@@ -40,7 +42,8 @@
 				 NETIF_F_HW_VLAN_CTAG_RX | \
 				 NETIF_F_SG | NETIF_F_TSO | \
 				 NETIF_F_TSO6 | \
-				 NETIF_F_IPV6_CSUM)
+				 NETIF_F_IPV6_CSUM |\
+				 NETIF_F_HW_TC)
 #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
 #define NEXT_DESP_IDX(X, Y)	(((X) + 1) & ((Y) - 1))
 
@@ -82,10 +85,12 @@
 
 /* GDM Exgress Control Register */
 #define MTK_GDMA_FWD_CFG(x)	(0x500 + (x * 0x1000))
+#define MTK_GDMA_SPECIAL_TAG	BIT(24)
 #define MTK_GDMA_ICS_EN		BIT(22)
 #define MTK_GDMA_TCS_EN		BIT(21)
 #define MTK_GDMA_UCS_EN		BIT(20)
 #define MTK_GDMA_TO_PDMA	0x0
+#define MTK_GDMA_TO_PPE		0x4444
 #define MTK_GDMA_DROP_ALL       0x7777
 
 /* Unicast Filter MAC Address Register - Low */
@@ -301,10 +306,17 @@
 #define RX_DMA_VID(_x)		((_x) & 0xfff)
 
 /* QDMA descriptor rxd4 */
+#define MTK_RXD4_FOE_ENTRY	GENMASK(13, 0)
+#define MTK_RXD4_PPE_CPU_REASON	GENMASK(18, 14)
+#define MTK_RXD4_SRC_PORT	GENMASK(21, 19)
+#define MTK_RXD4_ALG		GENMASK(31, 22)
+
+/* QDMA descriptor rxd4 */
 #define RX_DMA_L4_VALID		BIT(24)
 #define RX_DMA_L4_VALID_PDMA	BIT(30)		/* when PDMA is used */
 #define RX_DMA_FPORT_SHIFT	19
 #define RX_DMA_FPORT_MASK	0x7
+#define RX_DMA_SPECIAL_TAG	BIT(22)
 
 /* PHY Indirect Access Control registers */
 #define MTK_PHY_IAC		0x10004
@@ -802,6 +814,7 @@ struct mtk_soc_data {
 	u32		caps;
 	u32		required_clks;
 	bool		required_pctl;
+	u8		offload_version;
 	netdev_features_t hw_features;
 };
 
@@ -901,6 +914,9 @@ struct mtk_eth {
 	u32				tx_int_status_reg;
 	u32				rx_dma_l4_valid;
 	int				ip_align;
+
+	struct mtk_ppe			ppe;
+	struct rhashtable		flow_table;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
@@ -944,5 +960,10 @@ void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
+
+int mtk_eth_offload_init(struct mtk_eth *eth);
+int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+		     void *type_data);
+
 
 #endif /* MTK_ETH_H */

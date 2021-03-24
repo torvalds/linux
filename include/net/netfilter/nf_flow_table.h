@@ -89,6 +89,14 @@ enum flow_offload_tuple_dir {
 };
 #define FLOW_OFFLOAD_DIR_MAX	IP_CT_DIR_MAX
 
+enum flow_offload_xmit_type {
+	FLOW_OFFLOAD_XMIT_NEIGH		= 0,
+	FLOW_OFFLOAD_XMIT_XFRM,
+	FLOW_OFFLOAD_XMIT_DIRECT,
+};
+
+#define NF_FLOW_TABLE_ENCAP_MAX		2
+
 struct flow_offload_tuple {
 	union {
 		struct in_addr		src_v4;
@@ -107,15 +115,28 @@ struct flow_offload_tuple {
 
 	u8				l3proto;
 	u8				l4proto;
+	struct {
+		u16			id;
+		__be16			proto;
+	} encap[NF_FLOW_TABLE_ENCAP_MAX];
 
 	/* All members above are keys for lookups, see flow_offload_hash(). */
 	struct { }			__hash;
 
-	u8				dir;
-
+	u8				dir:2,
+					xmit_type:2,
+					encap_num:2,
+					in_vlan_ingress:2;
 	u16				mtu;
-
-	struct dst_entry		*dst_cache;
+	union {
+		struct dst_entry	*dst_cache;
+		struct {
+			u32		ifidx;
+			u32		hw_ifidx;
+			u8		h_source[ETH_ALEN];
+			u8		h_dest[ETH_ALEN];
+		} out;
+	};
 };
 
 struct flow_offload_tuple_rhash {
@@ -158,7 +179,23 @@ static inline __s32 nf_flow_timeout_delta(unsigned int timeout)
 
 struct nf_flow_route {
 	struct {
-		struct dst_entry	*dst;
+		struct dst_entry		*dst;
+		struct {
+			u32			ifindex;
+			struct {
+				u16		id;
+				__be16		proto;
+			} encap[NF_FLOW_TABLE_ENCAP_MAX];
+			u8			num_encaps:2,
+						ingress_vlans:2;
+		} in;
+		struct {
+			u32			ifindex;
+			u32			hw_ifindex;
+			u8			h_source[ETH_ALEN];
+			u8			h_dest[ETH_ALEN];
+		} out;
+		enum flow_offload_xmit_type	xmit_type;
 	} tuple[FLOW_OFFLOAD_DIR_MAX];
 };
 

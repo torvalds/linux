@@ -1278,14 +1278,32 @@ static int dsa_slave_setup_tc_block(struct net_device *dev,
 	}
 }
 
+static int dsa_slave_setup_ft_block(struct dsa_switch *ds, int port,
+				    void *type_data)
+{
+	struct dsa_port *cpu_dp = dsa_to_port(ds, port)->cpu_dp;
+	struct net_device *master = cpu_dp->master;
+
+	if (!master->netdev_ops->ndo_setup_tc)
+		return -EOPNOTSUPP;
+
+	return master->netdev_ops->ndo_setup_tc(master, TC_SETUP_FT, type_data);
+}
+
 static int dsa_slave_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			      void *type_data)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct dsa_switch *ds = dp->ds;
 
-	if (type == TC_SETUP_BLOCK)
+	switch (type) {
+	case TC_SETUP_BLOCK:
 		return dsa_slave_setup_tc_block(dev, type_data);
+	case TC_SETUP_FT:
+		return dsa_slave_setup_ft_block(ds, dp->index, type_data);
+	default:
+		break;
+	}
 
 	if (!ds->ops->port_setup_tc)
 		return -EOPNOTSUPP;
@@ -1654,6 +1672,21 @@ static void dsa_slave_get_stats64(struct net_device *dev,
 		dev_get_tstats64(dev, s);
 }
 
+static int dsa_slave_fill_forward_path(struct net_device_path_ctx *ctx,
+				       struct net_device_path *path)
+{
+	struct dsa_port *dp = dsa_slave_to_port(ctx->dev);
+	struct dsa_port *cpu_dp = dp->cpu_dp;
+
+	path->dev = ctx->dev;
+	path->type = DEV_PATH_DSA;
+	path->dsa.proto = cpu_dp->tag_ops->proto;
+	path->dsa.port = dp->index;
+	ctx->dev = cpu_dp->master;
+
+	return 0;
+}
+
 static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_open	 	= dsa_slave_open,
 	.ndo_stop		= dsa_slave_close,
@@ -1679,6 +1712,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= dsa_slave_vlan_rx_kill_vid,
 	.ndo_get_devlink_port	= dsa_slave_get_devlink_port,
 	.ndo_change_mtu		= dsa_slave_change_mtu,
+	.ndo_fill_forward_path	= dsa_slave_fill_forward_path,
 };
 
 static struct device_type dsa_type = {

@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/pinctrl/devinfo.h>
 #include <linux/phylink.h>
+#include <net/dsa.h>
 
 #include "mtk_eth_soc.h"
 
@@ -1264,13 +1265,12 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			break;
 
 		/* find out which mac the packet come from. values start at 1 */
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628) ||
+		    (trxd.rxd4 & RX_DMA_SPECIAL_TAG))
 			mac = 0;
-		} else {
-			mac = (trxd.rxd4 >> RX_DMA_FPORT_SHIFT) &
-				RX_DMA_FPORT_MASK;
-			mac--;
-		}
+		else
+			mac = ((trxd.rxd4 >> RX_DMA_FPORT_SHIFT) &
+			       RX_DMA_FPORT_MASK) - 1;
 
 		if (unlikely(mac < 0 || mac >= MTK_MAC_COUNT ||
 			     !eth->netdev[mac]))
@@ -2233,6 +2233,9 @@ static void mtk_gdm_config(struct mtk_eth *eth, u32 config)
 
 		val |= config;
 
+		if (!i && eth->netdev[0] && netdev_uses_dsa(eth->netdev[0]))
+			val |= MTK_GDMA_SPECIAL_TAG;
+
 		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));
 	}
 	/* Reset and enable PSE */
@@ -2255,12 +2258,17 @@ static int mtk_open(struct net_device *dev)
 
 	/* we run 2 netdevs on the same dma ring so we only bring it up once */
 	if (!refcount_read(&eth->dma_refcnt)) {
-		int err = mtk_start_dma(eth);
+		u32 gdm_config = MTK_GDMA_TO_PDMA;
+		int err;
 
+		err = mtk_start_dma(eth);
 		if (err)
 			return err;
 
-		mtk_gdm_config(eth, MTK_GDMA_TO_PDMA);
+		if (eth->soc->offload_version && mtk_ppe_start(&eth->ppe) == 0)
+			gdm_config = MTK_GDMA_TO_PPE;
+
+		mtk_gdm_config(eth, gdm_config);
 
 		napi_enable(&eth->tx_napi);
 		napi_enable(&eth->rx_napi);
@@ -2326,6 +2334,9 @@ static int mtk_stop(struct net_device *dev)
 	mtk_stop_dma(eth, MTK_PDMA_GLO_CFG);
 
 	mtk_dma_free(eth);
+
+	if (eth->soc->offload_version)
+		mtk_ppe_stop(&eth->ppe);
 
 	return 0;
 }
@@ -2832,6 +2843,7 @@ static const struct net_device_ops mtk_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mtk_poll_controller,
 #endif
+	.ndo_setup_tc		= mtk_eth_setup_tc,
 };
 
 static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
@@ -3088,6 +3100,17 @@ static int mtk_probe(struct platform_device *pdev)
 			goto err_free_dev;
 	}
 
+	if (eth->soc->offload_version) {
+		err = mtk_ppe_init(&eth->ppe, eth->dev,
+				   eth->base + MTK_ETH_PPE_BASE, 2);
+		if (err)
+			goto err_free_dev;
+
+		err = mtk_eth_offload_init(eth);
+		if (err)
+			goto err_free_dev;
+	}
+
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
 		if (!eth->netdev[i])
 			continue;
@@ -3162,6 +3185,7 @@ static const struct mtk_soc_data mt7621_data = {
 	.hw_features = MTK_HW_FEATURES,
 	.required_clks = MT7621_CLKS_BITMAP,
 	.required_pctl = false,
+	.offload_version = 2,
 };
 
 static const struct mtk_soc_data mt7622_data = {
@@ -3170,6 +3194,7 @@ static const struct mtk_soc_data mt7622_data = {
 	.hw_features = MTK_HW_FEATURES,
 	.required_clks = MT7622_CLKS_BITMAP,
 	.required_pctl = false,
+	.offload_version = 2,
 };
 
 static const struct mtk_soc_data mt7623_data = {

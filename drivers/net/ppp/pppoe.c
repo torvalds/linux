@@ -972,8 +972,31 @@ static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	return __pppoe_xmit(sk, skb);
 }
 
+static int pppoe_fill_forward_path(struct net_device_path_ctx *ctx,
+				   struct net_device_path *path,
+				   const struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+	struct net_device *dev = po->pppoe_dev;
+
+	if (sock_flag(sk, SOCK_DEAD) ||
+	    !(sk->sk_state & PPPOX_CONNECTED) || !dev)
+		return -1;
+
+	path->type = DEV_PATH_PPPOE;
+	path->encap.proto = htons(ETH_P_PPP_SES);
+	path->encap.id = be16_to_cpu(po->num);
+	memcpy(path->encap.h_dest, po->pppoe_pa.remote, ETH_ALEN);
+	path->dev = ctx->dev;
+	ctx->dev = dev;
+
+	return 0;
+}
+
 static const struct ppp_channel_ops pppoe_chan_ops = {
 	.start_xmit = pppoe_xmit,
+	.fill_forward_path = pppoe_fill_forward_path,
 };
 
 static int pppoe_recvmsg(struct socket *sock, struct msghdr *m,
