@@ -91,7 +91,7 @@ enum ndis_802_11_authentication_mode {
 	Ndis802_11AuthModeMax   /*  Not a real mode, defined as upper bound */
 };
 
-enum ndis_802_11_wep_status {
+enum {
 	Ndis802_11WEPEnabled,
 	Ndis802_11Encryption1Enabled = Ndis802_11WEPEnabled,
 	Ndis802_11WEPDisabled,
@@ -126,11 +126,6 @@ struct ndis_801_11_ai_resfi {
 	u16 StatusCode;
 	u16 AssociationId;
 };
-
-enum ndis_802_11_reload_defaults {
-	Ndis802_11ReloadWEPKeys
-};
-
 
 /*  Key mapping keys require a BSSID */
 
@@ -210,13 +205,13 @@ struct	wlan_network {
 	struct wlan_bcn_info	BcnInfo;
 };
 
-enum vrtl_carrier_sense {
+enum {
 	DISABLE_VCS,
 	ENABLE_VCS,
 	AUTO_VCS
 };
 
-enum vcs_type {
+enum {
 	NONE_VCS,
 	RTS_CTS,
 	CTS_TO_SELF
@@ -228,7 +223,7 @@ enum vcs_type {
 #define PWR_UAPSD 3
 #define PWR_VOIP 4
 
-enum uapsd_max_sp {
+enum {
 	NO_LIMIT,
 	TWO_MSDU,
 	FOUR_MSDU,
