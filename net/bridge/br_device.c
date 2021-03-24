@@ -396,7 +396,10 @@ static int br_fill_forward_path(struct net_device_path_ctx *ctx,
 		return -1;
 
 	br = netdev_priv(ctx->dev);
-	f = br_fdb_find_rcu(br, ctx->daddr, 0);
+
+	br_vlan_fill_forward_path_pvid(br, ctx, path);
+
+	f = br_fdb_find_rcu(br, ctx->daddr, path->bridge.vlan_id);
 	if (!f || !f->dst)
 		return -1;
 
@@ -404,9 +407,27 @@ static int br_fill_forward_path(struct net_device_path_ctx *ctx,
 	if (!dst)
 		return -1;
 
+	if (br_vlan_fill_forward_path_mode(br, dst, path))
+		return -1;
+
 	path->type = DEV_PATH_BRIDGE;
 	path->dev = dst->br->dev;
 	ctx->dev = dst->dev;
+
+	switch (path->bridge.vlan_mode) {
+	case DEV_PATH_BR_VLAN_TAG:
+		if (ctx->num_vlans >= ARRAY_SIZE(ctx->vlan))
+			return -ENOSPC;
+		ctx->vlan[ctx->num_vlans].id = path->bridge.vlan_id;
+		ctx->vlan[ctx->num_vlans].proto = path->bridge.vlan_proto;
+		ctx->num_vlans++;
+		break;
+	case DEV_PATH_BR_VLAN_UNTAG:
+		ctx->num_vlans--;
+		break;
+	case DEV_PATH_BR_VLAN_KEEP:
+		break;
+	}
 
 	return 0;
 }

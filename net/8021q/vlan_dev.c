@@ -786,6 +786,12 @@ static int vlan_dev_fill_forward_path(struct net_device_path_ctx *ctx,
 	path->encap.proto = vlan->vlan_proto;
 	path->dev = ctx->dev;
 	ctx->dev = vlan->real_dev;
+	if (ctx->num_vlans >= ARRAY_SIZE(ctx->vlan))
+		return -ENOSPC;
+
+	ctx->vlan[ctx->num_vlans].id = vlan->vlan_id;
+	ctx->vlan[ctx->num_vlans].proto = vlan->vlan_proto;
+	ctx->num_vlans++;
 
 	return 0;
 }

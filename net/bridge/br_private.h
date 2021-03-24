@@ -1118,6 +1118,13 @@ void br_vlan_notify(const struct net_bridge *br,
 bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,
 			     const struct net_bridge_vlan *range_end);
 
+void br_vlan_fill_forward_path_pvid(struct net_bridge *br,
+				    struct net_device_path_ctx *ctx,
+				    struct net_device_path *path);
+int br_vlan_fill_forward_path_mode(struct net_bridge *br,
+				   struct net_bridge_port *dst,
+				   struct net_device_path *path);
+
 static inline struct net_bridge_vlan_group *br_vlan_group(
 					const struct net_bridge *br)
 {
@@ -1273,6 +1280,19 @@ static inline int br_vlan_filter_toggle(struct net_bridge *br,
 
 static inline int nbp_get_num_vlan_infos(struct net_bridge_port *p,
 					 u32 filter_mask)
+{
+	return 0;
+}
+
+static inline void br_vlan_fill_forward_path_pvid(struct net_bridge *br,
+						  struct net_device_path_ctx *ctx,
+						  struct net_device_path *path)
+{
+}
+
+static inline int br_vlan_fill_forward_path_mode(struct net_bridge *br,
+						 struct net_bridge_port *dst,
+						 struct net_device_path *path)
 {
 	return 0;
 }
