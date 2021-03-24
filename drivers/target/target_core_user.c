@@ -71,17 +71,17 @@
  * the total size is 256K * PAGE_SIZE.
  */
 #define DATA_BLOCK_SIZE PAGE_SIZE
-#define DATA_BLOCK_SHIFT PAGE_SHIFT
+#define DATA_PAGES_PER_BLK 1
 #define DATA_BLOCK_BITS_DEF (256 * 1024)
 
-#define TCMU_MBS_TO_BLOCKS(_mbs) (_mbs << (20 - DATA_BLOCK_SHIFT))
-#define TCMU_BLOCKS_TO_MBS(_blocks) (_blocks >> (20 - DATA_BLOCK_SHIFT))
+#define TCMU_MBS_TO_PAGES(_mbs) (_mbs << (20 - PAGE_SHIFT))
+#define TCMU_PAGES_TO_MBS(_pages) (_pages >> (20 - PAGE_SHIFT))
 
 /*
  * Default number of global data blocks(512K * PAGE_SIZE)
  * when the unmap thread will be started.
  */
-#define TCMU_GLOBAL_MAX_BLOCKS_DEF (512 * 1024)
+#define TCMU_GLOBAL_MAX_PAGES_DEF (512 * 1024)
 
 static u8 tcmu_kern_cmd_reply_supported;
 static u8 tcmu_netlink_blocked;
@@ -149,7 +149,7 @@ struct tcmu_dev {
 	uint32_t dbi_max;
 	uint32_t dbi_thresh;
 	unsigned long *data_bitmap;
-	struct xarray data_blocks;
+	struct xarray data_pages;
 
 	struct xarray commands;
 
@@ -219,9 +219,9 @@ static LIST_HEAD(timed_out_udevs);
 
 static struct kmem_cache *tcmu_cmd_cache;
 
-static atomic_t global_db_count = ATOMIC_INIT(0);
+static atomic_t global_page_count = ATOMIC_INIT(0);
 static struct delayed_work tcmu_unmap_work;
-static int tcmu_global_max_blocks = TCMU_GLOBAL_MAX_BLOCKS_DEF;
+static int tcmu_global_max_pages = TCMU_GLOBAL_MAX_PAGES_DEF;
 
 static int tcmu_set_global_max_data_area(const char *str,
 					 const struct kernel_param *kp)
@@ -237,8 +237,8 @@ static int tcmu_set_global_max_data_area(const char *str,
 		return -EINVAL;
 	}
 
-	tcmu_global_max_blocks = TCMU_MBS_TO_BLOCKS(max_area_mb);
-	if (atomic_read(&global_db_count) > tcmu_global_max_blocks)
+	tcmu_global_max_pages = TCMU_MBS_TO_PAGES(max_area_mb);
+	if (atomic_read(&global_page_count) > tcmu_global_max_pages)
 		schedule_delayed_work(&tcmu_unmap_work, 0);
 	else
 		cancel_delayed_work_sync(&tcmu_unmap_work);
@@ -249,7 +249,7 @@ static int tcmu_set_global_max_data_area(const char *str,
 static int tcmu_get_global_max_data_area(char *buffer,
 					 const struct kernel_param *kp)
 {
-	return sprintf(buffer, "%d\n", TCMU_BLOCKS_TO_MBS(tcmu_global_max_blocks));
+	return sprintf(buffer, "%d\n", TCMU_PAGES_TO_MBS(tcmu_global_max_pages));
 }
 
 static const struct kernel_param_ops tcmu_global_max_data_area_op = {
@@ -510,10 +510,10 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 	if (dbi == udev->dbi_thresh)
 		return -1;
 
-	page = xa_load(&udev->data_blocks, dbi);
+	page = xa_load(&udev->data_pages, dbi);
 	if (!page) {
-		if (atomic_add_return(1, &global_db_count) >
-				      tcmu_global_max_blocks)
+		if (atomic_add_return(1, &global_page_count) >
+				      tcmu_global_max_pages)
 			schedule_delayed_work(&tcmu_unmap_work, 0);
 
 		/* try to get new page from the mm */
@@ -521,7 +521,7 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 		if (!page)
 			goto err_alloc;
 
-		if (xa_store(&udev->data_blocks, dbi, page, GFP_NOIO))
+		if (xa_store(&udev->data_pages, dbi, page, GFP_NOIO))
 			goto err_insert;
 	}
 
@@ -538,7 +538,7 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 err_insert:
 	__free_page(page);
 err_alloc:
-	atomic_dec(&global_db_count);
+	atomic_dec(&global_page_count);
 	return -1;
 }
 
@@ -558,9 +558,9 @@ static int tcmu_get_empty_blocks(struct tcmu_dev *udev,
 }
 
 static inline struct page *
-tcmu_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
+tcmu_get_block_page(struct tcmu_dev *udev, uint32_t dpi)
 {
-	return xa_load(&udev->data_blocks, dbi);
+	return xa_load(&udev->data_pages, dpi);
 }
 
 static inline void tcmu_free_cmd(struct tcmu_cmd *tcmu_cmd)
@@ -1454,7 +1454,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 	if (free_space)
 		free_space = tcmu_run_tmr_queue(udev);
 
-	if (atomic_read(&global_db_count) > tcmu_global_max_blocks &&
+	if (atomic_read(&global_page_count) > tcmu_global_max_pages &&
 	    xa_empty(&udev->commands) && list_empty(&udev->qfull_queue)) {
 		/*
 		 * Allocated blocks exceeded global block limit, currently no
@@ -1583,7 +1583,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	timer_setup(&udev->qfull_timer, tcmu_qfull_timedout, 0);
 	timer_setup(&udev->cmd_timer, tcmu_cmd_timedout, 0);
 
-	xa_init(&udev->data_blocks);
+	xa_init(&udev->data_pages);
 
 	return &udev->se_dev;
 }
@@ -1617,7 +1617,7 @@ static void tcmu_blocks_release(struct xarray *blocks, unsigned long first,
 	xas_for_each(&xas, page, last) {
 		xas_store(&xas, NULL);
 		__free_page(page);
-		atomic_dec(&global_db_count);
+		atomic_dec(&global_page_count);
 	}
 	xas_unlock(&xas);
 }
@@ -1661,7 +1661,7 @@ static void tcmu_dev_kref_release(struct kref *kref)
 	xa_destroy(&udev->commands);
 	WARN_ON(!all_expired);
 
-	tcmu_blocks_release(&udev->data_blocks, 0, udev->dbi_max);
+	tcmu_blocks_release(&udev->data_pages, 0, udev->dbi_max);
 	bitmap_free(udev->data_bitmap);
 	mutex_unlock(&udev->cmdr_lock);
 
@@ -1759,12 +1759,12 @@ static int tcmu_find_mem_index(struct vm_area_struct *vma)
 	return -1;
 }
 
-static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
+static struct page *tcmu_try_get_data_page(struct tcmu_dev *udev, uint32_t dpi)
 {
 	struct page *page;
 
 	mutex_lock(&udev->cmdr_lock);
-	page = tcmu_get_block_page(udev, dbi);
+	page = tcmu_get_block_page(udev, dpi);
 	if (likely(page)) {
 		mutex_unlock(&udev->cmdr_lock);
 		return page;
@@ -1774,12 +1774,11 @@ static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 	 * Userspace messed up and passed in a address not in the
 	 * data iov passed to it.
 	 */
-	pr_err("Invalid addr to data block mapping  (dbi %u) on device %s\n",
-	       dbi, udev->name);
-	page = NULL;
+	pr_err("Invalid addr to data page mapping (dpi %u) on device %s\n",
+	       dpi, udev->name);
 	mutex_unlock(&udev->cmdr_lock);
 
-	return page;
+	return NULL;
 }
 
 static void tcmu_vma_open(struct vm_area_struct *vma)
@@ -1824,11 +1823,11 @@ static vm_fault_t tcmu_vma_fault(struct vm_fault *vmf)
 		addr = (void *)(unsigned long)info->mem[mi].addr + offset;
 		page = vmalloc_to_page(addr);
 	} else {
-		uint32_t dbi;
+		uint32_t dpi;
 
 		/* For the dynamically growing data area pages */
-		dbi = (offset - udev->data_off) / DATA_BLOCK_SIZE;
-		page = tcmu_try_get_block_page(udev, dbi);
+		dpi = (offset - udev->data_off) / PAGE_SIZE;
+		page = tcmu_try_get_data_page(udev, dpi);
 		if (!page)
 			return VM_FAULT_SIGBUS;
 	}
@@ -2344,7 +2343,7 @@ static int tcmu_set_dev_attrib(substring_t *arg, u32 *dev_attrib)
 
 static int tcmu_set_max_blocks_param(struct tcmu_dev *udev, substring_t *arg)
 {
-	int val, ret;
+	int val, ret, blks;
 
 	ret = match_int(arg, &val);
 	if (ret < 0) {
@@ -2353,7 +2352,8 @@ static int tcmu_set_max_blocks_param(struct tcmu_dev *udev, substring_t *arg)
 		return ret;
 	}
 
-	if (val <= 0) {
+	blks = TCMU_MBS_TO_PAGES(val) / DATA_PAGES_PER_BLK;
+	if (blks <= 0) {
 		pr_err("Invalid max_data_area %d.\n", val);
 		return -EINVAL;
 	}
@@ -2365,11 +2365,11 @@ static int tcmu_set_max_blocks_param(struct tcmu_dev *udev, substring_t *arg)
 		goto unlock;
 	}
 
-	udev->max_blocks = TCMU_MBS_TO_BLOCKS(val);
-	if (udev->max_blocks > tcmu_global_max_blocks) {
+	udev->max_blocks = blks;
+	if (udev->max_blocks * DATA_PAGES_PER_BLK > tcmu_global_max_pages) {
 		pr_err("%d is too large. Adjusting max_data_area_mb to global limit of %u\n",
-		       val, TCMU_BLOCKS_TO_MBS(tcmu_global_max_blocks));
-		udev->max_blocks = tcmu_global_max_blocks;
+		       val, TCMU_PAGES_TO_MBS(tcmu_global_max_pages));
+		udev->max_blocks = tcmu_global_max_pages / DATA_PAGES_PER_BLK;
 	}
 
 unlock:
@@ -2449,7 +2449,7 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 		     udev->dev_config[0] ? udev->dev_config : "NULL");
 	bl += sprintf(b + bl, "Size: %llu ", udev->dev_size);
 	bl += sprintf(b + bl, "MaxDataAreaMB: %u\n",
-		      TCMU_BLOCKS_TO_MBS(udev->max_blocks));
+		      TCMU_PAGES_TO_MBS(udev->max_blocks * DATA_PAGES_PER_BLK));
 
 	return bl;
 }
@@ -2544,7 +2544,7 @@ static ssize_t tcmu_max_data_area_mb_show(struct config_item *item, char *page)
 	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
 
 	return snprintf(page, PAGE_SIZE, "%u\n",
-			TCMU_BLOCKS_TO_MBS(udev->max_blocks));
+			TCMU_PAGES_TO_MBS(udev->max_blocks * DATA_PAGES_PER_BLK));
 }
 CONFIGFS_ATTR_RO(tcmu_, max_data_area_mb);
 
@@ -2904,7 +2904,7 @@ static void find_free_blocks(void)
 	loff_t off;
 	u32 start, end, block, total_freed = 0;
 
-	if (atomic_read(&global_db_count) <= tcmu_global_max_blocks)
+	if (atomic_read(&global_page_count) <= tcmu_global_max_pages)
 		return;
 
 	mutex_lock(&root_udev_mutex);
@@ -2949,7 +2949,7 @@ static void find_free_blocks(void)
 		unmap_mapping_range(udev->inode->i_mapping, off, 0, 1);
 
 		/* Release the block pages */
-		tcmu_blocks_release(&udev->data_blocks, start, end - 1);
+		tcmu_blocks_release(&udev->data_pages, start, end - 1);
 		mutex_unlock(&udev->cmdr_lock);
 
 		total_freed += end - start;
@@ -2958,7 +2958,7 @@ static void find_free_blocks(void)
 	}
 	mutex_unlock(&root_udev_mutex);
 
-	if (atomic_read(&global_db_count) > tcmu_global_max_blocks)
+	if (atomic_read(&global_page_count) > tcmu_global_max_pages)
 		schedule_delayed_work(&tcmu_unmap_work, msecs_to_jiffies(5000));
 }
 
