@@ -600,9 +600,18 @@ nf_flow_rule_route_common(struct net *net, const struct flow_offload *flow,
 			continue;
 
 		entry = flow_action_entry_next(flow_rule);
-		entry->id = FLOW_ACTION_VLAN_PUSH;
-		entry->vlan.vid = other_tuple->encap[i].id;
-		entry->vlan.proto = other_tuple->encap[i].proto;
+
+		switch (other_tuple->encap[i].proto) {
+		case htons(ETH_P_PPP_SES):
+			entry->id = FLOW_ACTION_PPPOE_PUSH;
+			entry->pppoe.sid = other_tuple->encap[i].id;
+			break;
+		case htons(ETH_P_8021Q):
+			entry->id = FLOW_ACTION_VLAN_PUSH;
+			entry->vlan.vid = other_tuple->encap[i].id;
+			entry->vlan.proto = other_tuple->encap[i].proto;
+			break;
+		}
 	}
 
 	return 0;
