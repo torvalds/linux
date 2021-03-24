@@ -17,6 +17,9 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	struct ceph_metric_write_latency *write;
 	struct ceph_metric_metadata_latency *meta;
 	struct ceph_metric_dlease *dlease;
+	struct ceph_opened_files *files;
+	struct ceph_pinned_icaps *icaps;
+	struct ceph_opened_inodes *inodes;
 	struct ceph_client_metric *m = &mdsc->metric;
 	u64 nr_caps = atomic64_read(&m->total_caps);
 	struct ceph_msg *msg;
@@ -26,7 +29,8 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	s32 len;
 
 	len = sizeof(*head) + sizeof(*cap) + sizeof(*read) + sizeof(*write)
-	      + sizeof(*meta) + sizeof(*dlease);
+	      + sizeof(*meta) + sizeof(*dlease) + sizeof(*files)
+	      + sizeof(*icaps) + sizeof(*inodes);
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_METRICS, len, GFP_NOFS, true);
 	if (!msg) {
@@ -93,6 +97,38 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	dlease->hit = cpu_to_le64(percpu_counter_sum(&m->d_lease_hit));
 	dlease->mis = cpu_to_le64(percpu_counter_sum(&m->d_lease_mis));
 	dlease->total = cpu_to_le64(atomic64_read(&m->total_dentries));
+	items++;
+
+	sum = percpu_counter_sum(&m->total_inodes);
+
+	/* encode the opened files metric */
+	files = (struct ceph_opened_files *)(dlease + 1);
+	files->type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_FILES);
+	files->ver = 1;
+	files->compat = 1;
+	files->data_len = cpu_to_le32(sizeof(*files) - 10);
+	files->opened_files = cpu_to_le64(atomic64_read(&m->opened_files));
+	files->total = cpu_to_le64(sum);
+	items++;
+
+	/* encode the pinned icaps metric */
+	icaps = (struct ceph_pinned_icaps *)(files + 1);
+	icaps->type = cpu_to_le32(CLIENT_METRIC_TYPE_PINNED_ICAPS);
+	icaps->ver = 1;
+	icaps->compat = 1;
+	icaps->data_len = cpu_to_le32(sizeof(*icaps) - 10);
+	icaps->pinned_icaps = cpu_to_le64(nr_caps);
+	icaps->total = cpu_to_le64(sum);
+	items++;
+
+	/* encode the opened inodes metric */
+	inodes = (struct ceph_opened_inodes *)(icaps + 1);
+	inodes->type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_INODES);
+	inodes->ver = 1;
+	inodes->compat = 1;
+	inodes->data_len = cpu_to_le32(sizeof(*inodes) - 10);
+	inodes->opened_inodes = cpu_to_le64(percpu_counter_sum(&m->opened_inodes));
+	inodes->total = cpu_to_le64(sum);
 	items++;
 
 	put_unaligned_le32(items, &head->num);

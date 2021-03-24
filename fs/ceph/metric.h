@@ -14,8 +14,11 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_WRITE_LATENCY,
 	CLIENT_METRIC_TYPE_METADATA_LATENCY,
 	CLIENT_METRIC_TYPE_DENTRY_LEASE,
+	CLIENT_METRIC_TYPE_OPENED_FILES,
+	CLIENT_METRIC_TYPE_PINNED_ICAPS,
+	CLIENT_METRIC_TYPE_OPENED_INODES,
 
-	CLIENT_METRIC_TYPE_MAX = CLIENT_METRIC_TYPE_DENTRY_LEASE,
+	CLIENT_METRIC_TYPE_MAX = CLIENT_METRIC_TYPE_OPENED_INODES,
 };
 
 /*
@@ -28,6 +31,9 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_WRITE_LATENCY,	\
 	CLIENT_METRIC_TYPE_METADATA_LATENCY,	\
 	CLIENT_METRIC_TYPE_DENTRY_LEASE,	\
+	CLIENT_METRIC_TYPE_OPENED_FILES,	\
+	CLIENT_METRIC_TYPE_PINNED_ICAPS,	\
+	CLIENT_METRIC_TYPE_OPENED_INODES,	\
 						\
 	CLIENT_METRIC_TYPE_MAX,			\
 }
@@ -91,6 +97,42 @@ struct ceph_metric_dlease {
 	__le32 data_len; /* length of sizeof(hit + mis + total) */
 	__le64 hit;
 	__le64 mis;
+	__le64 total;
+} __packed;
+
+/* metric opened files header */
+struct ceph_opened_files {
+	__le32 type;     /* ceph metric type */
+
+	__u8  ver;
+	__u8  compat;
+
+	__le32 data_len; /* length of sizeof(opened_files + total) */
+	__le64 opened_files;
+	__le64 total;
+} __packed;
+
+/* metric pinned i_caps header */
+struct ceph_pinned_icaps {
+	__le32 type;     /* ceph metric type */
+
+	__u8  ver;
+	__u8  compat;
+
+	__le32 data_len; /* length of sizeof(pinned_icaps + total) */
+	__le64 pinned_icaps;
+	__le64 total;
+} __packed;
+
+/* metric opened inodes header */
+struct ceph_opened_inodes {
+	__le32 type;     /* ceph metric type */
+
+	__u8  ver;
+	__u8  compat;
+
+	__le32 data_len; /* length of sizeof(opened_inodes + total) */
+	__le64 opened_inodes;
 	__le64 total;
 } __packed;
 
