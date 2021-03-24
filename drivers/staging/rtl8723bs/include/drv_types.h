@@ -24,15 +24,6 @@
 #include <wifi.h>
 #include <ieee80211.h>
 
-enum _nic_version {
-
-	RTL8711_NIC,
-	RTL8712_NIC,
-	RTL8713_NIC,
-	RTL8716_NIC
-
-};
-
 #include <rtw_rf.h>
 
 #include <rtw_ht.h>
@@ -347,19 +338,13 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 
 struct adapter *dvobj_get_port0_adapter(struct dvobj_priv *dvobj);
 
-enum _iface_type {
+enum {
 	IFACE_PORT0, /* mapping to port0 for C/D series chips */
 	IFACE_PORT1, /* mapping to port1 for C/D series chip */
 	MAX_IFACE_PORT,
 };
 
-enum adapter_type {
-	PRIMARY_ADAPTER,
-	SECONDARY_ADAPTER,
-	MAX_ADAPTER = 0xFF,
-};
-
-enum driver_state {
+enum {
 	DRIVER_NORMAL = 0,
 	DRIVER_DISAPPEAR = 1,
 	DRIVER_REPLACE_DONGLE = 2,
