@@ -79,11 +79,19 @@ void __bch2_btree_node_lock_write(struct btree *b, struct btree_iter *iter)
 	 * goes to 0, and it's safe because we have the node intent
 	 * locked:
 	 */
-	atomic64_sub(__SIX_VAL(read_lock, readers),
-		     &b->c.lock.state.counter);
+	if (!b->c.lock.readers)
+		atomic64_sub(__SIX_VAL(read_lock, readers),
+			     &b->c.lock.state.counter);
+	else
+		this_cpu_sub(*b->c.lock.readers, readers);
+
 	btree_node_lock_type(iter->trans->c, b, SIX_LOCK_write);
-	atomic64_add(__SIX_VAL(read_lock, readers),
-		     &b->c.lock.state.counter);
+
+	if (!b->c.lock.readers)
+		atomic64_add(__SIX_VAL(read_lock, readers),
+			     &b->c.lock.state.counter);
+	else
+		this_cpu_add(*b->c.lock.readers, readers);
 }
 
 bool __bch2_btree_node_relock(struct btree_iter *iter, unsigned level)

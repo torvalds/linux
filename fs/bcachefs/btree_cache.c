@@ -147,6 +147,11 @@ int bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b,
 	b->c.level	= level;
 	b->c.btree_id	= id;
 
+	if (level)
+		six_lock_pcpu_alloc(&b->c.lock);
+	else
+		six_lock_pcpu_free_rcu(&b->c.lock);
+
 	mutex_lock(&bc->lock);
 	ret = __bch2_btree_node_hash_insert(bc, b);
 	if (!ret)
@@ -393,6 +398,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 	while (!list_empty(&bc->freed)) {
 		b = list_first_entry(&bc->freed, struct btree, list);
 		list_del(&b->list);
+		six_lock_pcpu_free(&b->c.lock);
 		kfree(b);
 	}
 

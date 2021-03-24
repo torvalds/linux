@@ -988,6 +988,11 @@ static void bch2_btree_set_root_inmem(struct bch_fs *c, struct btree *b)
 	list_del_init(&b->list);
 	mutex_unlock(&c->btree_cache.lock);
 
+	if (b->c.level)
+		six_lock_pcpu_alloc(&b->c.lock);
+	else
+		six_lock_pcpu_free(&b->c.lock);
+
 	mutex_lock(&c->btree_root_lock);
 	BUG_ON(btree_node_root(c, b) &&
 	       (b->c.level < btree_node_root(c, b)->c.level ||
