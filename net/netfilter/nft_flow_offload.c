@@ -19,6 +19,22 @@ struct nft_flow_offload {
 	struct nft_flowtable	*flowtable;
 };
 
+static enum flow_offload_xmit_type nft_xmit_type(struct dst_entry *dst)
+{
+	if (dst_xfrm(dst))
+		return FLOW_OFFLOAD_XMIT_XFRM;
+
+	return FLOW_OFFLOAD_XMIT_NEIGH;
+}
+
+static void nft_default_forward_path(struct nf_flow_route *route,
+				     struct dst_entry *dst_cache,
+				     enum ip_conntrack_dir dir)
+{
+	route->tuple[dir].dst		= dst_cache;
+	route->tuple[dir].xmit_type	= nft_xmit_type(dst_cache);
+}
+
 static int nft_flow_route(const struct nft_pktinfo *pkt,
 			  const struct nf_conn *ct,
 			  struct nf_flow_route *route,
@@ -44,8 +60,8 @@ static int nft_flow_route(const struct nft_pktinfo *pkt,
 	if (!other_dst)
 		return -ENOENT;
 
-	route->tuple[dir].dst		= this_dst;
-	route->tuple[!dir].dst		= other_dst;
+	nft_default_forward_path(route, this_dst, dir);
+	nft_default_forward_path(route, other_dst, !dir);
 
 	return 0;
 }

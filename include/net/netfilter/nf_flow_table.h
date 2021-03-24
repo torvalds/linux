@@ -89,6 +89,11 @@ enum flow_offload_tuple_dir {
 };
 #define FLOW_OFFLOAD_DIR_MAX	IP_CT_DIR_MAX
 
+enum flow_offload_xmit_type {
+	FLOW_OFFLOAD_XMIT_NEIGH		= 0,
+	FLOW_OFFLOAD_XMIT_XFRM,
+};
+
 struct flow_offload_tuple {
 	union {
 		struct in_addr		src_v4;
@@ -111,7 +116,8 @@ struct flow_offload_tuple {
 	/* All members above are keys for lookups, see flow_offload_hash(). */
 	struct { }			__hash;
 
-	u8				dir;
+	u8				dir:6,
+					xmit_type:2;
 
 	u16				mtu;
 
@@ -158,7 +164,8 @@ static inline __s32 nf_flow_timeout_delta(unsigned int timeout)
 
 struct nf_flow_route {
 	struct {
-		struct dst_entry	*dst;
+		struct dst_entry		*dst;
+		enum flow_offload_xmit_type	xmit_type;
 	} tuple[FLOW_OFFLOAD_DIR_MAX];
 };
 
