@@ -333,8 +333,6 @@ static inline bool eeh_enabled(void)
 
 static inline void eeh_show_enabled(void) { }
 
-static inline void eeh_dev_phb_init_dynamic(struct pci_controller *phb) { }
-
 static inline int eeh_check_failure(const volatile void __iomem *token)
 {
 	return 0;
