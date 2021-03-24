@@ -1178,6 +1178,7 @@ out:
 
 static int mlxsw_sp_dpipe_table_adj_counters_update(void *priv, bool enable)
 {
+	char ratr_pl[MLXSW_REG_RATR_LEN];
 	struct mlxsw_sp *mlxsw_sp = priv;
 	struct mlxsw_sp_nexthop *nh;
 	u32 adj_hash_index = 0;
@@ -1196,7 +1197,8 @@ static int mlxsw_sp_dpipe_table_adj_counters_update(void *priv, bool enable)
 		else
 			mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
 		mlxsw_sp_nexthop_eth_update(mlxsw_sp,
-					    adj_index + adj_hash_index, nh);
+					    adj_index + adj_hash_index, nh,
+					    true, ratr_pl);
 	}
 	return 0;
 }

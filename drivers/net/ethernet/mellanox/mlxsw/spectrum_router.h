@@ -80,6 +80,8 @@ struct mlxsw_sp_router {
 	struct mlxsw_sp_router_xm *xm;
 	const struct mlxsw_sp_adj_grp_size_range *adj_grp_size_ranges;
 	size_t adj_grp_size_ranges_count;
+	struct delayed_work nh_grp_activity_dw;
+	struct list_head nh_res_grp_list;
 };
 
 struct mlxsw_sp_fib_entry_priv {
@@ -209,7 +211,8 @@ bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh);
 int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_nexthop *nh, u64 *p_counter);
 int mlxsw_sp_nexthop_eth_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
-				struct mlxsw_sp_nexthop *nh);
+				struct mlxsw_sp_nexthop *nh, bool force,
+				char *ratr_pl);
 void mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_nexthop *nh);
 void mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,

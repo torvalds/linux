@@ -353,6 +353,11 @@ wait_for_offload()
 	"$@" | grep -q offload
 }
 
+wait_for_trap()
+{
+	"$@" | grep -q trap
+}
+
 until_counter_is()
 {
 	local expr=$1; shift
