@@ -2331,7 +2331,8 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 
 enum {
 	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_hw_max_sectors,
-	Opt_nl_reply_supported, Opt_max_data_area_mb, Opt_err,
+	Opt_nl_reply_supported, Opt_max_data_area_mb, Opt_data_pages_per_blk,
+	Opt_err,
 };
 
 static match_table_t tokens = {
@@ -2341,6 +2342,7 @@ static match_table_t tokens = {
 	{Opt_hw_max_sectors, "hw_max_sectors=%d"},
 	{Opt_nl_reply_supported, "nl_reply_supported=%d"},
 	{Opt_max_data_area_mb, "max_data_area_mb=%d"},
+	{Opt_data_pages_per_blk, "data_pages_per_blk=%d"},
 	{Opt_err, NULL}
 };
 
@@ -2405,6 +2407,39 @@ unlock:
 	return ret;
 }
 
+static int tcmu_set_data_pages_per_blk(struct tcmu_dev *udev, substring_t *arg)
+{
+	int val, ret;
+
+	ret = match_int(arg, &val);
+	if (ret < 0) {
+		pr_err("match_int() failed for data_pages_per_blk=. Error %d.\n",
+		       ret);
+		return ret;
+	}
+
+	if (val > TCMU_MBS_TO_PAGES(udev->data_area_mb)) {
+		pr_err("Invalid data_pages_per_blk %d: greater than max_data_area_mb %d -> %zd pages).\n",
+		       val, udev->data_area_mb,
+		       TCMU_MBS_TO_PAGES(udev->data_area_mb));
+		return -EINVAL;
+	}
+
+	mutex_lock(&udev->cmdr_lock);
+	if (udev->data_bitmap) {
+		pr_err("Cannot set data_pages_per_blk after it has been enabled.\n");
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	udev->data_pages_per_blk = val;
+	udev->max_blocks = TCMU_MBS_TO_PAGES(udev->data_area_mb) / val;
+
+unlock:
+	mutex_unlock(&udev->cmdr_lock);
+	return ret;
+}
+
 static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 		const char *page, ssize_t count)
 {
@@ -2456,6 +2491,9 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 		case Opt_max_data_area_mb:
 			ret = tcmu_set_max_blocks_param(udev, &args[0]);
 			break;
+		case Opt_data_pages_per_blk:
+			ret = tcmu_set_data_pages_per_blk(udev, &args[0]);
+			break;
 		default:
 			break;
 		}
@@ -2476,7 +2514,8 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 	bl = sprintf(b + bl, "Config: %s ",
 		     udev->dev_config[0] ? udev->dev_config : "NULL");
 	bl += sprintf(b + bl, "Size: %llu ", udev->dev_size);
-	bl += sprintf(b + bl, "MaxDataAreaMB: %u\n", udev->data_area_mb);
+	bl += sprintf(b + bl, "MaxDataAreaMB: %u ", udev->data_area_mb);
+	bl += sprintf(b + bl, "DataPagesPerBlk: %u\n", udev->data_pages_per_blk);
 
 	return bl;
 }
@@ -2573,6 +2612,17 @@ static ssize_t tcmu_max_data_area_mb_show(struct config_item *item, char *page)
 	return snprintf(page, PAGE_SIZE, "%u\n", udev->data_area_mb);
 }
 CONFIGFS_ATTR_RO(tcmu_, max_data_area_mb);
+
+static ssize_t tcmu_data_pages_per_blk_show(struct config_item *item,
+					    char *page)
+{
+	struct se_dev_attrib *da = container_of(to_config_group(item),
+						struct se_dev_attrib, da_group);
+	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
+
+	return snprintf(page, PAGE_SIZE, "%u\n", udev->data_pages_per_blk);
+}
+CONFIGFS_ATTR_RO(tcmu_, data_pages_per_blk);
 
 static ssize_t tcmu_dev_config_show(struct config_item *item, char *page)
 {
@@ -2885,6 +2935,7 @@ static struct configfs_attribute *tcmu_attrib_attrs[] = {
 	&tcmu_attr_cmd_time_out,
 	&tcmu_attr_qfull_time_out,
 	&tcmu_attr_max_data_area_mb,
+	&tcmu_attr_data_pages_per_blk,
 	&tcmu_attr_dev_config,
 	&tcmu_attr_dev_size,
 	&tcmu_attr_emulate_write_cache,
