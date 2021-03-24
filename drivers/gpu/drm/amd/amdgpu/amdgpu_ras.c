@@ -501,6 +501,12 @@ static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
 
+
+	if (obj->adev->asic_type == CHIP_ALDEBARAN) {
+		if (amdgpu_ras_reset_error_status(obj->adev, info.head.block))
+			DRM_WARN("Failed to reset error counter and error status");
+	}
+
 	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
 			  "ce", info.ce_count);
 }
