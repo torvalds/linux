@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2021 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -464,6 +464,20 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 				       CS_OFFLOAD_EN_FMASK);
 	}
 	/* CS_GEN_QMB_MASTER_SEL is 0 */
+
+	iowrite32(val, endpoint->ipa->reg_virt + offset);
+}
+
+static void ipa_endpoint_init_nat(struct ipa_endpoint *endpoint)
+{
+	u32 offset;
+	u32 val;
+
+	if (!endpoint->toward_ipa)
+		return;
+
+	offset = IPA_REG_ENDP_INIT_NAT_N_OFFSET(endpoint->endpoint_id);
+	val = u32_encode_bits(IPA_NAT_BYPASS, NAT_EN_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -1488,6 +1502,7 @@ static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 	else
 		(void)ipa_endpoint_program_suspend(endpoint, false);
 	ipa_endpoint_init_cfg(endpoint);
+	ipa_endpoint_init_nat(endpoint);
 	ipa_endpoint_init_hdr(endpoint);
 	ipa_endpoint_init_hdr_ext(endpoint);
 	ipa_endpoint_init_hdr_metadata_mask(endpoint);

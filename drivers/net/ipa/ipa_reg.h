@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2020 Linaro Ltd.
+ * Copyright (C) 2018-2021 Linaro Ltd.
  */
 #ifndef _IPA_REG_H_
 #define _IPA_REG_H_
@@ -386,6 +386,18 @@ enum ipa_cs_offload_en {
 	IPA_CS_OFFLOAD_NONE		= 0x0,
 	IPA_CS_OFFLOAD_UL		= 0x1,
 	IPA_CS_OFFLOAD_DL		= 0x2,
+};
+
+/* Valid only for TX (IPA consumer) endpoints */
+#define IPA_REG_ENDP_INIT_NAT_N_OFFSET(ep) \
+					(0x0000080c + 0x0070 * (ep))
+#define NAT_EN_FMASK				GENMASK(1, 0)
+
+/** enum ipa_nat_en - ENDP_INIT_NAT register NAT_EN field value */
+enum ipa_nat_en {
+	IPA_NAT_BYPASS			= 0x0,
+	IPA_NAT_SRC			= 0x1,
+	IPA_NAT_DST			= 0x2,
 };
 
 #define IPA_REG_ENDP_INIT_HDR_N_OFFSET(ep) \
