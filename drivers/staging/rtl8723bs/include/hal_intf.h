@@ -8,14 +8,14 @@
 #define __HAL_INTF_H__
 
 
-enum rtl871x_hci_type {
+enum {
 	RTW_PCIE	= BIT0,
 	RTW_USB		= BIT1,
 	RTW_SDIO	= BIT2,
 	RTW_GSPI	= BIT3,
 };
 
-enum hw_variables {
+enum {
 	HW_VAR_MEDIA_STATUS,
 	HW_VAR_MEDIA_STATUS1,
 	HW_VAR_SET_OPMODE,
@@ -257,12 +257,6 @@ struct hal_ops {
 	s32 (*fill_h2c_cmd)(struct adapter *, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 };
 
-enum rt_eeprom_type {
-	EEPROM_93C46,
-	EEPROM_93C56,
-	EEPROM_BOOT_EFUSE,
-};
-
 #define RF_CHANGE_BY_INIT	0
 #define RF_CHANGE_BY_IPS	BIT28
 #define RF_CHANGE_BY_PS		BIT29
@@ -271,22 +265,6 @@ enum rt_eeprom_type {
 
 #define GET_EEPROM_EFUSE_PRIV(adapter) (&adapter->eeprompriv)
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
-
-enum wowlan_subcode {
-	WOWLAN_PATTERN_MATCH	= 1,
-	WOWLAN_MAGIC_PACKET		= 2,
-	WOWLAN_UNICAST			= 3,
-	WOWLAN_SET_PATTERN		= 4,
-	WOWLAN_DUMP_REG			= 5,
-	WOWLAN_ENABLE			= 6,
-	WOWLAN_DISABLE			= 7,
-	WOWLAN_STATUS			= 8,
-	WOWLAN_DEBUG_RELOAD_FW	= 9,
-	WOWLAN_DEBUG_1			= 10,
-	WOWLAN_DEBUG_2			= 11,
-	WOWLAN_AP_ENABLE		= 12,
-	WOWLAN_AP_DISABLE		= 13
-};
 
 #define Rx_Pairwisekey			0x01
 #define Rx_GTK					0x02
