@@ -757,9 +757,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 {
 	struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
-	struct i915_request * const *port, *rq;
+	struct i915_request * const *port, *rq, *prev = NULL;
 	struct intel_context *ce = NULL;
-	bool sentinel = false;
 	u32 ccid = -1;
 
 	trace_ports(execlists, msg, execlists->pending);
@@ -809,15 +808,20 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		 * Sentinels are supposed to be the last request so they flush
 		 * the current execution off the HW. Check that they are the only
 		 * request in the pending submission.
+		 *
+		 * NB: Due to the async nature of preempt-to-busy and request
+		 * cancellation we need to handle the case where request
+		 * becomes a sentinel in parallel to CSB processing.
 		 */
-		if (sentinel) {
+		if (prev && i915_request_has_sentinel(prev) &&
+		    !READ_ONCE(prev->fence.error)) {
 			GEM_TRACE_ERR("%s: context:%llx after sentinel in pending[%zd]\n",
 				      engine->name,
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
 		}
-		sentinel = i915_request_has_sentinel(rq);
+		prev = rq;
 
 		/*
 		 * We want virtual requests to only be in the first slot so
