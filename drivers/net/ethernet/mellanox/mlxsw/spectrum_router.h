@@ -80,6 +80,8 @@ struct mlxsw_sp_router {
 	struct mlxsw_sp_router_xm *xm;
 	const struct mlxsw_sp_adj_grp_size_range *adj_grp_size_ranges;
 	size_t adj_grp_size_ranges_count;
+	struct delayed_work nh_grp_activity_dw;
+	struct list_head nh_res_grp_list;
 };
 
 struct mlxsw_sp_fib_entry_priv {

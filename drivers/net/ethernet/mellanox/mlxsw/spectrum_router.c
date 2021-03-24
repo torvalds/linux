@@ -2913,6 +2913,7 @@ struct mlxsw_sp_nexthop_group_info {
 	u8 adj_index_valid:1,
 	   gateway:1, /* routes using the group use a gateway */
 	   is_resilient:1;
+	struct list_head list; /* member in nh_res_grp_list */
 	struct mlxsw_sp_nexthop nexthops[0];
 #define nh_rif	nexthops[0].rif
 };
@@ -4373,7 +4374,84 @@ static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+static void
+mlxsw_sp_nh_grp_activity_get(struct mlxsw_sp *mlxsw_sp,
+			     const struct mlxsw_sp_nexthop_group *nh_grp,
+			     unsigned long *activity)
+{
+	char *ratrad_pl;
+	int i, err;
+
+	ratrad_pl = kmalloc(MLXSW_REG_RATRAD_LEN, GFP_KERNEL);
+	if (!ratrad_pl)
+		return;
+
+	mlxsw_reg_ratrad_pack(ratrad_pl, nh_grp->nhgi->adj_index,
+			      nh_grp->nhgi->count);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ratrad), ratrad_pl);
+	if (err)
+		goto out;
+
+	for (i = 0; i < nh_grp->nhgi->count; i++) {
+		if (!mlxsw_reg_ratrad_activity_vector_get(ratrad_pl, i))
+			continue;
+		bitmap_set(activity, i, 1);
+	}
+
+out:
+	kfree(ratrad_pl);
+}
+
 #define MLXSW_SP_NH_GRP_ACTIVITY_UPDATE_INTERVAL 1000 /* ms */
+
+static void
+mlxsw_sp_nh_grp_activity_update(struct mlxsw_sp *mlxsw_sp,
+				const struct mlxsw_sp_nexthop_group *nh_grp)
+{
+	unsigned long *activity;
+
+	activity = bitmap_zalloc(nh_grp->nhgi->count, GFP_KERNEL);
+	if (!activity)
+		return;
+
+	mlxsw_sp_nh_grp_activity_get(mlxsw_sp, nh_grp, activity);
+	nexthop_res_grp_activity_update(mlxsw_sp_net(mlxsw_sp), nh_grp->obj.id,
+					nh_grp->nhgi->count, activity);
+
+	bitmap_free(activity);
+}
+
+static void
+mlxsw_sp_nh_grp_activity_work_schedule(struct mlxsw_sp *mlxsw_sp)
+{
+	unsigned int interval = MLXSW_SP_NH_GRP_ACTIVITY_UPDATE_INTERVAL;
+
+	mlxsw_core_schedule_dw(&mlxsw_sp->router->nh_grp_activity_dw,
+			       msecs_to_jiffies(interval));
+}
+
+static void mlxsw_sp_nh_grp_activity_work(struct work_struct *work)
+{
+	struct mlxsw_sp_nexthop_group_info *nhgi;
+	struct mlxsw_sp_router *router;
+	bool reschedule = false;
+
+	router = container_of(work, struct mlxsw_sp_router,
+			      nh_grp_activity_dw.work);
+
+	mutex_lock(&router->lock);
+
+	list_for_each_entry(nhgi, &router->nh_res_grp_list, list) {
+		mlxsw_sp_nh_grp_activity_update(router->mlxsw_sp, nhgi->nh_grp);
+		reschedule = true;
+	}
+
+	mutex_unlock(&router->lock);
+
+	if (!reschedule)
+		return;
+	mlxsw_sp_nh_grp_activity_work_schedule(router->mlxsw_sp);
+}
 
 static int
 mlxsw_sp_nexthop_obj_single_validate(struct mlxsw_sp *mlxsw_sp,
@@ -4632,6 +4710,15 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 		goto err_group_refresh;
 	}
 
+	/* Add resilient nexthop groups to a list so that the activity of their
+	 * nexthop buckets will be periodically queried and cleared.
+	 */
+	if (nhgi->is_resilient) {
+		if (list_empty(&mlxsw_sp->router->nh_res_grp_list))
+			mlxsw_sp_nh_grp_activity_work_schedule(mlxsw_sp);
+		list_add(&nhgi->list, &mlxsw_sp->router->nh_res_grp_list);
+	}
+
 	return 0;
 
 err_group_refresh:
@@ -4650,7 +4737,14 @@ mlxsw_sp_nexthop_obj_group_info_fini(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_nexthop_group *nh_grp)
 {
 	struct mlxsw_sp_nexthop_group_info *nhgi = nh_grp->nhgi;
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	int i;
+
+	if (nhgi->is_resilient) {
+		list_del(&nhgi->list);
+		if (list_empty(&mlxsw_sp->router->nh_res_grp_list))
+			cancel_delayed_work(&router->nh_grp_activity_dw);
+	}
 
 	for (i = nhgi->count - 1; i >= 0; i--) {
 		struct mlxsw_sp_nexthop *nh = &nhgi->nexthops[i];
@@ -9652,6 +9746,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_ll_op_ctx_init;
 
+	INIT_LIST_HEAD(&mlxsw_sp->router->nh_res_grp_list);
+	INIT_DELAYED_WORK(&mlxsw_sp->router->nh_grp_activity_dw,
+			  mlxsw_sp_nh_grp_activity_work);
+
 	INIT_LIST_HEAD(&mlxsw_sp->router->nexthop_neighs_list);
 	err = __mlxsw_sp_router_init(mlxsw_sp);
 	if (err)
@@ -9775,6 +9873,7 @@ err_ipips_init:
 err_rifs_init:
 	__mlxsw_sp_router_fini(mlxsw_sp);
 err_router_init:
+	cancel_delayed_work_sync(&mlxsw_sp->router->nh_grp_activity_dw);
 	mlxsw_sp_router_ll_op_ctx_fini(router);
 err_ll_op_ctx_init:
 	mlxsw_sp_router_xm_fini(mlxsw_sp);
@@ -9806,6 +9905,7 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_ipips_fini(mlxsw_sp);
 	mlxsw_sp_rifs_fini(mlxsw_sp);
 	__mlxsw_sp_router_fini(mlxsw_sp);
+	cancel_delayed_work_sync(&mlxsw_sp->router->nh_grp_activity_dw);
 	mlxsw_sp_router_ll_op_ctx_fini(mlxsw_sp->router);
 	mlxsw_sp_router_xm_fini(mlxsw_sp);
 	mutex_destroy(&mlxsw_sp->router->lock);
