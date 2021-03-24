@@ -265,96 +265,11 @@ struct mp_priv {
 /* Hardware Registers */
 #define BB_REG_BASE_ADDR		0x800
 
-/* MP variables */
-enum mp_mode {
-	MP_OFF,
-	MP_ON,
-	MP_ERR,
-	MP_CONTINUOUS_TX,
-	MP_SINGLE_CARRIER_TX,
-	MP_CARRIER_SUPPRISSION_TX,
-	MP_SINGLE_TONE_TX,
-	MP_PACKET_TX,
-	MP_PACKET_RX
-};
-
 #define MAX_RF_PATH_NUMS	RF_PATH_MAX
 
 extern u8 mpdatarate[NumRates];
 
-/* MP set force data rate base on the definition. */
-enum mpt_rate_index {
-	/* CCK rate. */
-	MPT_RATE_1M = 0,	/* 0 */
-	MPT_RATE_2M,
-	MPT_RATE_55M,
-	MPT_RATE_11M,	/* 3 */
-
-	/* OFDM rate. */
-	MPT_RATE_6M,	/* 4 */
-	MPT_RATE_9M,
-	MPT_RATE_12M,
-	MPT_RATE_18M,
-	MPT_RATE_24M,
-	MPT_RATE_36M,
-	MPT_RATE_48M,
-	MPT_RATE_54M,	/* 11 */
-
-	/* HT rate. */
-	MPT_RATE_MCS0,	/* 12 */
-	MPT_RATE_MCS1,
-	MPT_RATE_MCS2,
-	MPT_RATE_MCS3,
-	MPT_RATE_MCS4,
-	MPT_RATE_MCS5,
-	MPT_RATE_MCS6,
-	MPT_RATE_MCS7,	/* 19 */
-	MPT_RATE_MCS8,
-	MPT_RATE_MCS9,
-	MPT_RATE_MCS10,
-	MPT_RATE_MCS11,
-	MPT_RATE_MCS12,
-	MPT_RATE_MCS13,
-	MPT_RATE_MCS14,
-	MPT_RATE_MCS15,	/* 27 */
-	/* VHT rate. Total: 20*/
-	MPT_RATE_VHT1SS_MCS0 = 100,/*  To reserve MCS16~MCS31, the index starts from #100. */
-	MPT_RATE_VHT1SS_MCS1, /*  #101 */
-	MPT_RATE_VHT1SS_MCS2,
-	MPT_RATE_VHT1SS_MCS3,
-	MPT_RATE_VHT1SS_MCS4,
-	MPT_RATE_VHT1SS_MCS5,
-	MPT_RATE_VHT1SS_MCS6, /*  #106 */
-	MPT_RATE_VHT1SS_MCS7,
-	MPT_RATE_VHT1SS_MCS8,
-	MPT_RATE_VHT1SS_MCS9,
-	MPT_RATE_VHT2SS_MCS0,
-	MPT_RATE_VHT2SS_MCS1, /*  #111 */
-	MPT_RATE_VHT2SS_MCS2,
-	MPT_RATE_VHT2SS_MCS3,
-	MPT_RATE_VHT2SS_MCS4,
-	MPT_RATE_VHT2SS_MCS5,
-	MPT_RATE_VHT2SS_MCS6, /*  #116 */
-	MPT_RATE_VHT2SS_MCS7,
-	MPT_RATE_VHT2SS_MCS8,
-	MPT_RATE_VHT2SS_MCS9,
-	MPT_RATE_LAST
-};
-
 #define MAX_TX_PWR_INDEX_N_MODE 64	/*  0x3F */
-
-enum power_mode {
-	POWER_LOW = 0,
-	POWER_NORMAL
-};
-
-/*  The following enumeration is used to define the value of Reg0xD00[30:28] or JaguarReg0x914[18:16]. */
-enum ofdm_tx_mode {
-	OFDM_ALL_OFF		= 0,
-	OFDM_ContinuousTx	= 1,
-	OFDM_SingleCarrier	= 2,
-	OFDM_SingleTone		= 4,
-};
 
 #define RX_PKT_BROADCAST	1
 #define RX_PKT_DEST_ADDR	2
@@ -370,19 +285,6 @@ enum ofdm_tx_mode {
 #define Mac_HT_Fail			0x70000000
 #define Mac_HT_FasleAlarm		0x90000000
 #define Mac_DropPacket			0xA0000000
-
-enum encry_ctrl_state {
-	HW_CONTROL,		/* hw encryption& decryption */
-	SW_CONTROL,		/* sw encryption& decryption */
-	HW_ENCRY_SW_DECRY,	/* hw encryption & sw decryption */
-	SW_ENCRY_HW_DECRY	/* sw encryption & hw decryption */
-};
-
-enum mpt_txpwr_def {
-	MPT_CCK,
-	MPT_OFDM, /*  L and HT OFDM */
-	MPT_VHT_OFDM
-};
 
 #define		REG_RF_BB_GAIN_OFFSET	0x7f
 #define		RF_GAIN_OFFSET_MASK	0xfffff
