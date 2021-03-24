@@ -288,7 +288,6 @@
 
 &pwm15 {
 	compatible = "rockchip,remotectl-pwm";
-	interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm15m1_pins>;
 	remote_pwm_id = <3>;

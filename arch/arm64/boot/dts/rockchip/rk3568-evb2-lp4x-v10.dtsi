@@ -309,7 +309,6 @@
 	status = "okay";
 
 	compatible = "rockchip,remotectl-pwm";
-	interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 	remote_pwm_id = <3>;
 	handle_cpu_id = <1>;
 	remote_support_psci = <0>;
