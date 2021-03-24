@@ -279,6 +279,7 @@ int intel_engine_pulse(struct intel_engine_cs *engine)
 		mutex_unlock(&ce->timeline->mutex);
 	}
 
+	intel_engine_flush_submission(engine);
 	intel_engine_pm_put(engine);
 	return err;
 }
