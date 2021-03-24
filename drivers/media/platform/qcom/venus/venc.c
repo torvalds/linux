@@ -546,6 +546,7 @@ static int venc_set_properties(struct venus_inst *inst)
 	struct hfi_quantization quant;
 	struct hfi_quantization_range quant_range;
 	struct hfi_enable en;
+	struct hfi_ltr_mode ltr_mode;
 	u32 ptype, rate_control, bitrate;
 	u32 profile, level;
 	int ret;
@@ -719,6 +720,14 @@ static int venc_set_properties(struct venus_inst *inst)
 	}
 	quant_range.layer_id = 0;
 	ret = hfi_session_set_property(inst, ptype, &quant_range);
+	if (ret)
+		return ret;
+
+	ptype = HFI_PROPERTY_PARAM_VENC_LTRMODE;
+	ltr_mode.ltr_count = ctr->ltr_count;
+	ltr_mode.ltr_mode = HFI_LTR_MODE_MANUAL;
+	ltr_mode.trust_mode = 1;
+	ret = hfi_session_set_property(inst, ptype, &ltr_mode);
 	if (ret)
 		return ret;
 

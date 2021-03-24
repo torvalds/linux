@@ -241,6 +241,7 @@ struct venc_controls {
 	} level;
 
 	u32 base_priority_id;
+	u32 ltr_count;
 };
 
 struct venus_buffer {
