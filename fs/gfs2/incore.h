@@ -625,7 +625,6 @@ struct gfs2_inum_host {
 struct gfs2_sb_host {
 	u32 sb_magic;
 	u32 sb_type;
-	u32 sb_format;
 
 	u32 sb_fs_format;
 	u32 sb_multihost_format;

@@ -204,7 +204,6 @@ static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
 
 	sb->sb_magic = be32_to_cpu(str->sb_header.mh_magic);
 	sb->sb_type = be32_to_cpu(str->sb_header.mh_type);
-	sb->sb_format = be32_to_cpu(str->sb_header.mh_format);
 	sb->sb_fs_format = be32_to_cpu(str->sb_fs_format);
 	sb->sb_multihost_format = be32_to_cpu(str->sb_multihost_format);
 	sb->sb_bsize = be32_to_cpu(str->sb_bsize);
