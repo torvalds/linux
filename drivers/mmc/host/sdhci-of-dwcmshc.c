@@ -416,6 +416,8 @@ static int dwcmshc_probe(struct platform_device *pdev)
 			goto err_clk;
 	}
 
+	host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
+
 	err = sdhci_add_host(host);
 	if (err)
 		goto err_clk;
