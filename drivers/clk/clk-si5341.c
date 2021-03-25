@@ -80,6 +80,7 @@ struct clk_si5341 {
 	u8 num_outputs;
 	u8 num_synth;
 	u16 chip_id;
+	bool xaxb_ext_clk;
 };
 #define to_clk_si5341(_hw)	container_of(_hw, struct clk_si5341, hw)
 
@@ -529,9 +530,11 @@ static int si5341_clk_reparent(struct clk_si5341 *data, u8 index)
 		if (err < 0)
 			return err;
 
-		/* Power up XTAL oscillator and buffer */
+		/* Power up XTAL oscillator and buffer, select clock mode */
 		err = regmap_update_bits(data->regmap, SI5341_XAXB_CFG,
-				SI5341_XAXB_CFG_PDNB, SI5341_XAXB_CFG_PDNB);
+				SI5341_XAXB_CFG_PDNB | SI5341_XAXB_CFG_EXTCLK_EN,
+				SI5341_XAXB_CFG_PDNB | (data->xaxb_ext_clk ?
+					SI5341_XAXB_CFG_EXTCLK_EN : 0));
 		if (err < 0)
 			return err;
 	}
@@ -1539,6 +1542,8 @@ static int si5341_probe(struct i2c_client *client,
 
 		initialization_required = !err;
 	}
+	data->xaxb_ext_clk = of_property_read_bool(client->dev.of_node,
+						   "silabs,xaxb-ext-clk");
 
 	if (initialization_required) {
 		/* Populate the regmap cache in preparation for "cache only" */
