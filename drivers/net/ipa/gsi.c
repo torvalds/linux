@@ -701,7 +701,7 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, EV_ELEMENT_SIZE_FMASK);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_0_OFFSET(evt_ring_id));
 
-	val = u32_encode_bits(size, EV_R_LENGTH_FMASK);
+	val = ev_r_length_encoded(gsi->version, size);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_1_OFFSET(evt_ring_id));
 
 	/* The context 2 and 3 registers store the low-order and
@@ -808,7 +808,7 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, ELEMENT_SIZE_FMASK);
 	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
 
-	val = u32_encode_bits(size, R_LENGTH_FMASK);
+	val = r_length_encoded(gsi->version, size);
 	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_1_OFFSET(channel_id));
 
 	/* The context 2 and 3 registers store the low-order and
@@ -842,6 +842,9 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 			val |= u32_encode_bits(GSI_ESCAPE_BUF_ONLY,
 					       PREFETCH_MODE_FMASK);
 	}
+	/* All channels set DB_IN_BYTES */
+	if (gsi->version >= IPA_VERSION_4_9)
+		val |= DB_IN_BYTES;
 
 	iowrite32(val, gsi->virt + GSI_CH_C_QOS_OFFSET(channel_id));
 

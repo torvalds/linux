@@ -90,7 +90,14 @@ enum gsi_channel_type {
 		GSI_EE_N_CH_C_CNTXT_1_OFFSET((ch), GSI_EE_AP)
 #define GSI_EE_N_CH_C_CNTXT_1_OFFSET(ch, ee) \
 		(0x0001c004 + 0x4000 * (ee) + 0x80 * (ch))
-#define R_LENGTH_FMASK			GENMASK(15, 0)
+
+/* Encoded value for CH_C_CNTXT_1 register R_LENGTH field */
+static inline u32 r_length_encoded(enum ipa_version version, u32 length)
+{
+	if (version < IPA_VERSION_4_9)
+		return u32_encode_bits(length, GENMASK(15, 0));
+	return u32_encode_bits(length, GENMASK(19, 0));
+}
 
 #define GSI_CH_C_CNTXT_2_OFFSET(ch) \
 		GSI_EE_N_CH_C_CNTXT_2_OFFSET((ch), GSI_EE_AP)
@@ -161,7 +168,13 @@ enum gsi_prefetch_mode {
 		GSI_EE_N_EV_CH_E_CNTXT_1_OFFSET((ev), GSI_EE_AP)
 #define GSI_EE_N_EV_CH_E_CNTXT_1_OFFSET(ev, ee) \
 		(0x0001d004 + 0x4000 * (ee) + 0x80 * (ev))
-#define EV_R_LENGTH_FMASK		GENMASK(15, 0)
+/* Encoded value for EV_CH_C_CNTXT_1 register EV_R_LENGTH field */
+static inline u32 ev_r_length_encoded(enum ipa_version version, u32 length)
+{
+	if (version < IPA_VERSION_4_9)
+		return u32_encode_bits(length, GENMASK(15, 0));
+	return u32_encode_bits(length, GENMASK(19, 0));
+}
 
 #define GSI_EV_CH_E_CNTXT_2_OFFSET(ev) \
 		GSI_EE_N_EV_CH_E_CNTXT_2_OFFSET((ev), GSI_EE_AP)
