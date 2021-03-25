@@ -1293,6 +1293,85 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 DEFINE_MUTEX(ice_global_cfg_lock_sw);
 
 /**
+ * ice_should_retry_sq_send_cmd
+ * @opcode: AQ opcode
+ *
+ * Decide if we should retry the send command routine for the ATQ, depending
+ * on the opcode.
+ */
+static bool ice_should_retry_sq_send_cmd(u16 opcode)
+{
+	switch (opcode) {
+	case ice_aqc_opc_get_link_topo:
+	case ice_aqc_opc_lldp_stop:
+	case ice_aqc_opc_lldp_start:
+	case ice_aqc_opc_lldp_filter_ctrl:
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_sq_send_cmd_retry - send command to Control Queue (ATQ)
+ * @hw: pointer to the HW struct
+ * @cq: pointer to the specific Control queue
+ * @desc: prefilled descriptor describing the command
+ * @buf: buffer to use for indirect commands (or NULL for direct commands)
+ * @buf_size: size of buffer for indirect commands (or 0 for direct commands)
+ * @cd: pointer to command details structure
+ *
+ * Retry sending the FW Admin Queue command, multiple times, to the FW Admin
+ * Queue if the EBUSY AQ error is returned.
+ */
+static enum ice_status
+ice_sq_send_cmd_retry(struct ice_hw *hw, struct ice_ctl_q_info *cq,
+		      struct ice_aq_desc *desc, void *buf, u16 buf_size,
+		      struct ice_sq_cd *cd)
+{
+	struct ice_aq_desc desc_cpy;
+	enum ice_status status;
+	bool is_cmd_for_retry;
+	u8 *buf_cpy = NULL;
+	u8 idx = 0;
+	u16 opcode;
+
+	opcode = le16_to_cpu(desc->opcode);
+	is_cmd_for_retry = ice_should_retry_sq_send_cmd(opcode);
+	memset(&desc_cpy, 0, sizeof(desc_cpy));
+
+	if (is_cmd_for_retry) {
+		if (buf) {
+			buf_cpy = kzalloc(buf_size, GFP_KERNEL);
+			if (!buf_cpy)
+				return ICE_ERR_NO_MEMORY;
+		}
+
+		memcpy(&desc_cpy, desc, sizeof(desc_cpy));
+	}
+
+	do {
+		status = ice_sq_send_cmd(hw, cq, desc, buf, buf_size, cd);
+
+		if (!is_cmd_for_retry || !status ||
+		    hw->adminq.sq_last_status != ICE_AQ_RC_EBUSY)
+			break;
+
+		if (buf_cpy)
+			memcpy(buf, buf_cpy, buf_size);
+
+		memcpy(desc, &desc_cpy, sizeof(desc_cpy));
+
+		mdelay(ICE_SQ_SEND_DELAY_TIME_MS);
+
+	} while (++idx < ICE_SQ_SEND_MAX_EXECUTE);
+
+	kfree(buf_cpy);
+
+	return status;
+}
+
+/**
  * ice_aq_send_cmd - send FW Admin Queue command to FW Admin Queue
  * @hw: pointer to the HW struct
  * @desc: descriptor describing the command
@@ -1333,7 +1412,7 @@ ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf,
 		break;
 	}
 
-	status = ice_sq_send_cmd(hw, &hw->adminq, desc, buf, buf_size, cd);
+	status = ice_sq_send_cmd_retry(hw, &hw->adminq, desc, buf, buf_size, cd);
 	if (lock_acquired)
 		mutex_unlock(&ice_global_cfg_lock_sw);
 
