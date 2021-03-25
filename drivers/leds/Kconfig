@@ -18,7 +18,7 @@ config LEDS_CLASS
 	tristate "LED Class Support"
 	help
 	  This option enables the LED sysfs class in /sys/class/leds.  You'll
-	  need this to do anything useful with LEDs.  If unsure, say N.
+	  need this to do anything useful with LEDs.  If unsure, say Y.
 
 config LEDS_CLASS_FLASH
 	tristate "LED Flash Class Support"
