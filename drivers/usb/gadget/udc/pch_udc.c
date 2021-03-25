@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/dmi.h>
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
@@ -1356,43 +1355,6 @@ static irqreturn_t pch_vbus_gpio_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct gpiod_lookup_table minnowboard_udc_gpios = {
-	.dev_id		= "0000:02:02.4",
-	.table		= {
-		GPIO_LOOKUP("sch_gpio.33158", 12, NULL, GPIO_ACTIVE_HIGH),
-		{}
-	},
-};
-
-static const struct dmi_system_id pch_udc_gpio_dmi_table[] = {
-	{
-		.ident = "MinnowBoard",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "MinnowBoard"),
-		},
-		.driver_data = &minnowboard_udc_gpios,
-	},
-	{ }
-};
-
-static void pch_vbus_gpio_remove_table(void *table)
-{
-	gpiod_remove_lookup_table(table);
-}
-
-static int pch_vbus_gpio_add_table(struct pch_udc_dev *dev)
-{
-	struct device *d = &dev->pdev->dev;
-	const struct dmi_system_id *dmi;
-
-	dmi = dmi_first_match(pch_udc_gpio_dmi_table);
-	if (!dmi)
-		return 0;
-
-	gpiod_add_lookup_table(dmi->driver_data);
-	return devm_add_action_or_reset(d, pch_vbus_gpio_remove_table, dmi->driver_data);
-}
-
 /**
  * pch_vbus_gpio_init() - This API initializes GPIO port detecting VBUS.
  * @dev:		Reference to the driver structure
@@ -1410,10 +1372,6 @@ static int pch_vbus_gpio_init(struct pch_udc_dev *dev)
 
 	dev->vbus_gpio.port = NULL;
 	dev->vbus_gpio.intr = 0;
-
-	err = pch_vbus_gpio_add_table(dev);
-	if (err)
-		return err;
 
 	/* Retrieve the GPIO line from the USB gadget device */
 	gpiod = devm_gpiod_get_optional(d, NULL, GPIOD_IN);
@@ -2867,7 +2825,7 @@ static void pch_udc_pcd_reinit(struct pch_udc_dev *dev)
  *
  * Return codes:
  *	0:		Success
- *	-%ERRNO:	All kind of errors when retrieving VBUS GPIO
+ *	-ERRNO:		All kind of errors when retrieving VBUS GPIO
  */
 static int pch_udc_pcd_init(struct pch_udc_dev *dev)
 {
@@ -2978,6 +2936,30 @@ static int pch_udc_stop(struct usb_gadget *g)
 	return 0;
 }
 
+static void pch_vbus_gpio_remove_table(void *table)
+{
+	gpiod_remove_lookup_table(table);
+}
+
+static int pch_vbus_gpio_add_table(struct device *d, void *table)
+{
+	gpiod_add_lookup_table(table);
+	return devm_add_action_or_reset(d, pch_vbus_gpio_remove_table, table);
+}
+
+static struct gpiod_lookup_table pch_udc_minnow_vbus_gpio_table = {
+	.dev_id		= "0000:02:02.4",
+	.table		= {
+		GPIO_LOOKUP("sch_gpio.33158", 12, NULL, GPIO_ACTIVE_HIGH),
+		{}
+	},
+};
+
+static int pch_udc_minnow_platform_init(struct device *d)
+{
+	return pch_vbus_gpio_add_table(d, &pch_udc_minnow_vbus_gpio_table);
+}
+
 static void pch_udc_shutdown(struct pci_dev *pdev)
 {
 	struct pch_udc_dev *dev = pci_get_drvdata(pdev);
@@ -3043,9 +3025,11 @@ static int __maybe_unused pch_udc_resume(struct device *d)
 
 static SIMPLE_DEV_PM_OPS(pch_udc_pm, pch_udc_suspend, pch_udc_resume);
 
-static int pch_udc_probe(struct pci_dev *pdev,
-			  const struct pci_device_id *id)
+typedef int (*platform_init_fn)(struct device *);
+
+static int pch_udc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	platform_init_fn platform_init = (platform_init_fn)id->driver_data;
 	int			bar;
 	int			retval;
 	struct pch_udc_dev	*dev;
@@ -3062,6 +3046,13 @@ static int pch_udc_probe(struct pci_dev *pdev,
 
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
+
+	/* Platform specific hook */
+	if (platform_init) {
+		retval = platform_init(&pdev->dev);
+		if (retval)
+			return retval;
+	}
 
 	/* Determine BAR based on PCI ID */
 	if (id->device == PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC)
@@ -3119,10 +3110,16 @@ finished:
 
 static const struct pci_device_id pch_udc_pcidev_id[] = {
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL,
-			   PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC),
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC),
 		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC,
+			       PCI_VENDOR_ID_CIRCUITCO, PCI_SUBSYSTEM_ID_CIRCUITCO_MINNOWBOARD),
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
+		.class_mask = 0xffffffff,
+		.driver_data = (kernel_ulong_t)&pch_udc_minnow_platform_init,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC),
