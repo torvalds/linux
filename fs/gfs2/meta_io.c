@@ -131,15 +131,18 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 				break;
 			yield();
 		}
+		if (!page_has_buffers(page))
+			create_empty_buffers(page, sdp->sd_sb.sb_bsize, 0);
 	} else {
 		page = find_get_page_flags(mapping, index,
 						FGP_LOCK|FGP_ACCESSED);
 		if (!page)
 			return NULL;
+		if (!page_has_buffers(page)) {
+			bh = NULL;
+			goto out_unlock;
+		}
 	}
-
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, sdp->sd_sb.sb_bsize, 0);
 
 	/* Locate header for our buffer within our page */
 	for (bh = page_buffers(page); bufnum--; bh = bh->b_this_page)
@@ -149,6 +152,7 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 	if (!buffer_mapped(bh))
 		map_bh(bh, sdp->sd_vfs, blkno);
 
+out_unlock:
 	unlock_page(page);
 	put_page(page);
 
