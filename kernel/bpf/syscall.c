@@ -1696,6 +1696,7 @@ static void __bpf_prog_put_noref(struct bpf_prog *prog, bool deferred)
 	btf_put(prog->aux->btf);
 	kvfree(prog->aux->jited_linfo);
 	kvfree(prog->aux->linfo);
+	kfree(prog->aux->kfunc_tab);
 	if (prog->aux->attach_btf)
 		btf_put(prog->aux->attach_btf);
 

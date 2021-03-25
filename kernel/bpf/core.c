@@ -159,6 +159,9 @@ void bpf_prog_jit_attempt_done(struct bpf_prog *prog)
 		kvfree(prog->aux->jited_linfo);
 		prog->aux->jited_linfo = NULL;
 	}
+
+	kfree(prog->aux->kfunc_tab);
+	prog->aux->kfunc_tab = NULL;
 }
 
 /* The jit engine is responsible to provide an array
@@ -1840,8 +1843,14 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 	/* In case of BPF to BPF calls, verifier did all the prep
 	 * work with regards to JITing, etc.
 	 */
+	bool jit_needed = false;
+
 	if (fp->bpf_func)
 		goto finalize;
+
+	if (IS_ENABLED(CONFIG_BPF_JIT_ALWAYS_ON) ||
+	    bpf_prog_has_kfunc_call(fp))
+		jit_needed = true;
 
 	bpf_prog_select_func(fp);
 
@@ -1858,12 +1867,10 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 
 		fp = bpf_int_jit_compile(fp);
 		bpf_prog_jit_attempt_done(fp);
-#ifdef CONFIG_BPF_JIT_ALWAYS_ON
-		if (!fp->jited) {
+		if (!fp->jited && jit_needed) {
 			*err = -ENOTSUPP;
 			return fp;
 		}
-#endif
 	} else {
 		*err = bpf_prog_offload_compile(fp);
 		if (*err)
@@ -2339,6 +2346,11 @@ bool __weak bpf_helper_changes_pkt_data(void *func)
  * them using insn_is_zext.
  */
 bool __weak bpf_jit_needs_zext(void)
+{
+	return false;
+}
+
+bool __weak bpf_jit_supports_kfunc_call(void)
 {
 	return false;
 }
