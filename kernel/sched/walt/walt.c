@@ -419,7 +419,7 @@ static inline bool is_ed_task(struct task_struct *p, u64 wallclock)
 	return (wallclock - wts->last_wake_ts >= EARLY_DETECTION_DURATION);
 }
 
-static bool is_ed_task_present(struct rq *rq, u64 wallclock)
+static bool is_ed_task_present(struct rq *rq, u64 wallclock, struct task_struct *deq_task)
 {
 	struct task_struct *p;
 	int loop_max = 10;
@@ -433,6 +433,9 @@ static bool is_ed_task_present(struct rq *rq, u64 wallclock)
 	list_for_each_entry(p, &rq->cfs_tasks, se.group_node) {
 		if (!loop_max)
 			break;
+
+		if (p == deq_task)
+			continue;
 
 		if (is_ed_task(p, wallclock)) {
 			wrq->ed_task = p;
@@ -3758,7 +3761,7 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 	if (unlikely(walt_disabled))
 		return;
 	if (p == wrq->ed_task)
-		is_ed_task_present(rq, sched_ktime_clock());
+		is_ed_task_present(rq, sched_ktime_clock(), p);
 
 	sched_update_nr_prod(rq->cpu, false);
 
@@ -3866,7 +3869,7 @@ static void android_rvh_tick_entry(void *unused, struct rq *rq)
 		set_preferred_cluster(grp);
 	rcu_read_unlock();
 
-	if (is_ed_task_present(rq, wallclock))
+	if (is_ed_task_present(rq, wallclock, NULL))
 		waltgov_run_callback(rq, WALT_CPUFREQ_EARLY_DET);
 }
 
