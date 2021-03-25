@@ -259,14 +259,13 @@ int rtrs_srv_create_sess_files(struct rtrs_srv_sess *sess)
 	struct rtrs_srv *srv = sess->srv;
 	struct rtrs_sess *s = &sess->s;
 	char str[NAME_MAX];
-	int err, cnt;
+	int err;
+	struct rtrs_addr path = {
+		.src = &sess->s.dst_addr,
+		.dst = &sess->s.src_addr,
+	};
 
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr,
-			      str, sizeof(str));
-	cnt += scnprintf(str + cnt, sizeof(str) - cnt, "@");
-	sockaddr_to_str((struct sockaddr *)&sess->s.src_addr,
-			str + cnt, sizeof(str) - cnt);
-
+	rtrs_addr_to_str(&path, str, sizeof(str));
 	err = rtrs_srv_create_once_sysfs_root_folders(sess);
 	if (err)
 		return err;

@@ -464,6 +464,30 @@ int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len)
 EXPORT_SYMBOL(sockaddr_to_str);
 
 /**
+ * rtrs_addr_to_str() - convert rtrs_addr to a string "src@dst"
+ * @addr:	the rtrs_addr structure to be converted
+ * @buf:	string containing source and destination addr of a path
+ *		separated by '@' I.e. "ip:1.1.1.1@ip:1.1.1.2"
+ *		"ip:1.1.1.1@ip:1.1.1.2".
+ * @len:	string length
+ *
+ * The return value is the number of characters written into buf not
+ * including the trailing '\0'.
+ */
+int rtrs_addr_to_str(const struct rtrs_addr *addr, char *buf, size_t len)
+{
+	int cnt;
+
+	cnt = sockaddr_to_str((struct sockaddr *)addr->src,
+			      buf, len);
+	cnt += scnprintf(buf + cnt, len - cnt, "@");
+	sockaddr_to_str((struct sockaddr *)addr->dst,
+			buf + cnt, len - cnt);
+	return cnt;
+}
+EXPORT_SYMBOL(rtrs_addr_to_str);
+
+/**
  * rtrs_addr_to_sockaddr() - convert path string "src,dst" or "src@dst"
  * to sockaddreses
  * @str:	string containing source and destination addr of a path

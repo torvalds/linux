@@ -396,14 +396,13 @@ int rtrs_clt_create_sess_files(struct rtrs_clt_sess *sess)
 {
 	struct rtrs_clt *clt = sess->clt;
 	char str[NAME_MAX];
-	int err, cnt;
+	int err;
+	struct rtrs_addr path = {
+		.src = &sess->s.src_addr,
+		.dst = &sess->s.dst_addr,
+	};
 
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.src_addr,
-			      str, sizeof(str));
-	cnt += scnprintf(str + cnt, sizeof(str) - cnt, "@");
-	sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr,
-			str + cnt, sizeof(str) - cnt);
-
+	rtrs_addr_to_str(&path, str, sizeof(str));
 	err = kobject_init_and_add(&sess->kobj, &ktype_sess, clt->kobj_paths,
 				   "%s", str);
 	if (err) {

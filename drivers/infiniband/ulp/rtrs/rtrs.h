@@ -184,4 +184,5 @@ int rtrs_addr_to_sockaddr(const char *str, size_t len, u16 port,
 			  struct rtrs_addr *addr);
 
 int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len);
+int rtrs_addr_to_str(const struct rtrs_addr *addr, char *buf, size_t len);
 #endif
