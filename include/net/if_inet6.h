@@ -125,7 +125,6 @@ struct ifmcaddr6 {
 	unsigned int		mca_flags;
 	int			mca_users;
 	refcount_t		mca_refcnt;
-	spinlock_t		mca_lock;
 	unsigned long		mca_cstamp;
 	unsigned long		mca_tstamp;
 	struct rcu_head		rcu;
@@ -183,6 +182,14 @@ struct inet6_dev {
 	struct delayed_work	mc_gq_work;	/* general query work */
 	struct delayed_work	mc_ifc_work;	/* interface change work */
 	struct delayed_work	mc_dad_work;	/* dad complete mc work */
+	struct delayed_work	mc_query_work;	/* mld query work */
+	struct delayed_work	mc_report_work;	/* mld report work */
+
+	struct sk_buff_head	mc_query_queue;		/* mld query queue */
+	struct sk_buff_head	mc_report_queue;	/* mld report queue */
+
+	spinlock_t		mc_query_lock;	/* mld query queue lock */
+	spinlock_t		mc_report_lock;	/* mld query report lock */
 
 	struct ifacaddr6	*ac_list;
 	rwlock_t		lock;
