@@ -371,35 +371,35 @@ static unsigned int comedi_buf_munge(struct comedi_subdevice *s,
 
 	if (!s->munge || (async->cmd.flags & CMDF_RAWDATA)) {
 		async->munge_count += num_bytes;
-		count = num_bytes;
-	} else {
-		/* don't munge partial samples */
-		num_bytes -= num_bytes % num_sample_bytes;
-		while (count < num_bytes) {
-			int block_size = num_bytes - count;
-			unsigned int buf_end;
+		return num_bytes;
+	}
 
-			buf_end = async->prealloc_bufsz - async->munge_ptr;
-			if (block_size > buf_end)
-				block_size = buf_end;
+	/* don't munge partial samples */
+	num_bytes -= num_bytes % num_sample_bytes;
+	while (count < num_bytes) {
+		int block_size = num_bytes - count;
+		unsigned int buf_end;
 
-			s->munge(s->device, s,
-				 async->prealloc_buf + async->munge_ptr,
-				 block_size, async->munge_chan);
+		buf_end = async->prealloc_bufsz - async->munge_ptr;
+		if (block_size > buf_end)
+			block_size = buf_end;
 
-			/*
-			 * ensure data is munged in buffer before the
-			 * async buffer munge_count is incremented
-			 */
-			smp_wmb();
+		s->munge(s->device, s,
+			 async->prealloc_buf + async->munge_ptr,
+			 block_size, async->munge_chan);
 
-			async->munge_chan += block_size / num_sample_bytes;
-			async->munge_chan %= async->cmd.chanlist_len;
-			async->munge_count += block_size;
-			async->munge_ptr += block_size;
-			async->munge_ptr %= async->prealloc_bufsz;
-			count += block_size;
-		}
+		/*
+		 * ensure data is munged in buffer before the
+		 * async buffer munge_count is incremented
+		 */
+		smp_wmb();
+
+		async->munge_chan += block_size / num_sample_bytes;
+		async->munge_chan %= async->cmd.chanlist_len;
+		async->munge_count += block_size;
+		async->munge_ptr += block_size;
+		async->munge_ptr %= async->prealloc_bufsz;
+		count += block_size;
 	}
 
 	return count;
