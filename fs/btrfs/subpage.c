@@ -220,6 +220,55 @@ void btrfs_subpage_clear_error(const struct btrfs_fs_info *fs_info,
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
 
+void btrfs_subpage_set_dirty(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len)
+{
+	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
+	u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned long flags;
+
+	spin_lock_irqsave(&subpage->lock, flags);
+	subpage->dirty_bitmap |= tmp;
+	spin_unlock_irqrestore(&subpage->lock, flags);
+	set_page_dirty(page);
+}
+
+/*
+ * Extra clear_and_test function for subpage dirty bitmap.
+ *
+ * Return true if we're the last bits in the dirty_bitmap and clear the
+ * dirty_bitmap.
+ * Return false otherwise.
+ *
+ * NOTE: Callers should manually clear page dirty for true case, as we have
+ * extra handling for tree blocks.
+ */
+bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len)
+{
+	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
+	u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned long flags;
+	bool last = false;
+
+	spin_lock_irqsave(&subpage->lock, flags);
+	subpage->dirty_bitmap &= ~tmp;
+	if (subpage->dirty_bitmap == 0)
+		last = true;
+	spin_unlock_irqrestore(&subpage->lock, flags);
+	return last;
+}
+
+void btrfs_subpage_clear_dirty(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len)
+{
+	bool last;
+
+	last = btrfs_subpage_clear_and_test_dirty(fs_info, page, start, len);
+	if (last)
+		clear_page_dirty_for_io(page);
+}
+
 /*
  * Unlike set/clear which is dependent on each page status, for test all bits
  * are tested in the same way.
@@ -240,6 +289,7 @@ bool btrfs_subpage_test_##name(const struct btrfs_fs_info *fs_info,	\
 }
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(uptodate);
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(error);
+IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(dirty);
 
 /*
  * Note that, in selftests (extent-io-tests), we can have empty fs_info passed
@@ -276,3 +326,5 @@ bool btrfs_page_test_##name(const struct btrfs_fs_info *fs_info,	\
 IMPLEMENT_BTRFS_PAGE_OPS(uptodate, SetPageUptodate, ClearPageUptodate,
 			 PageUptodate);
 IMPLEMENT_BTRFS_PAGE_OPS(error, SetPageError, ClearPageError, PageError);
+IMPLEMENT_BTRFS_PAGE_OPS(dirty, set_page_dirty, clear_page_dirty_for_io,
+			 PageDirty);
