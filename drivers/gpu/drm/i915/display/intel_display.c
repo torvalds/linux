@@ -2470,11 +2470,11 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	return;
 
 valid_fb:
-	intel_state->hw.rotation = plane_config->rotation;
+	plane_state->rotation = plane_config->rotation;
 	intel_fill_fb_ggtt_view(&intel_state->view, fb,
-				intel_state->hw.rotation);
+				plane_state->rotation);
 	intel_state->color_plane[0].stride =
-		intel_fb_pitch(fb, 0, intel_state->hw.rotation);
+		intel_fb_pitch(fb, 0, plane_state->rotation);
 
 	__i915_vma_pin(vma);
 	intel_state->vma = i915_vma_get(vma);
@@ -2491,9 +2491,6 @@ valid_fb:
 	plane_state->crtc_y = 0;
 	plane_state->crtc_w = fb->width;
 	plane_state->crtc_h = fb->height;
-
-	intel_state->uapi.src = drm_plane_state_src(plane_state);
-	intel_state->uapi.dst = drm_plane_state_dest(plane_state);
 
 	if (plane_config->tiling)
 		dev_priv->preserve_bios_swizzle = true;
