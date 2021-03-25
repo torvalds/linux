@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2021, Linaro Limited
  */
 
 #ifndef OPTEE_PRIVATE_H
@@ -66,9 +66,34 @@ struct optee_supp {
 	struct completion reqs_c;
 };
 
+struct optee;
+
+/**
+ * struct optee_ops - OP-TEE driver internal operations
+ * @do_call_with_arg:	enters OP-TEE in secure world
+ * @to_msg_param:	converts from struct tee_param to OPTEE_MSG parameters
+ * @from_msg_param:	converts from OPTEE_MSG parameters to struct tee_param
+ *
+ * These OPs are only supposed to be used internally in the OP-TEE driver
+ * as a way of abstracting the different methogs of entering OP-TEE in
+ * secure world.
+ */
+struct optee_ops {
+	int (*do_call_with_arg)(struct tee_context *ctx,
+				struct tee_shm *shm_arg);
+	int (*to_msg_param)(struct optee *optee,
+			    struct optee_msg_param *msg_params,
+			    size_t num_params, const struct tee_param *params);
+	int (*from_msg_param)(struct optee *optee, struct tee_param *params,
+			      size_t num_params,
+			      const struct optee_msg_param *msg_params);
+};
+
 /**
  * struct optee - main service struct
  * @supp_teedev:	supplicant device
+ * @ops:		internal callbacks for different ways to reach secure
+ *			world
  * @teedev:		client device
  * @invoke_fn:		function to issue smc or hvc
  * @call_queue:		queue of threads waiting to call @invoke_fn
@@ -86,6 +111,7 @@ struct optee_supp {
 struct optee {
 	struct tee_device *supp_teedev;
 	struct tee_device *teedev;
+	const struct optee_ops *ops;
 	optee_invoke_fn *invoke_fn;
 	struct optee_call_queue call_queue;
 	struct optee_wait_queue wait_queue;
@@ -148,7 +174,7 @@ int optee_supp_recv(struct tee_context *ctx, u32 *func, u32 *num_params,
 int optee_supp_send(struct tee_context *ctx, u32 ret, u32 num_params,
 		    struct tee_param *param);
 
-u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg);
+int optee_do_call_with_arg(struct tee_context *ctx, struct tee_shm *arg);
 int optee_open_session(struct tee_context *ctx,
 		       struct tee_ioctl_open_session_arg *arg,
 		       struct tee_param *param);
@@ -171,11 +197,6 @@ int optee_shm_register_supp(struct tee_context *ctx, struct tee_shm *shm,
 			    struct page **pages, size_t num_pages,
 			    unsigned long start);
 int optee_shm_unregister_supp(struct tee_context *ctx, struct tee_shm *shm);
-
-int optee_from_msg_param(struct tee_param *params, size_t num_params,
-			 const struct optee_msg_param *msg_params);
-int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
-		       const struct tee_param *params);
 
 u64 *optee_allocate_pages_list(size_t num_entries);
 void optee_free_pages_list(void *array, size_t num_entries);

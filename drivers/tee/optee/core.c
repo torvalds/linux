@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2021, Linaro Limited
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -27,21 +27,87 @@
 
 #define OPTEE_SHM_NUM_PRIV_PAGES	CONFIG_OPTEE_SHM_NUM_PRIV_PAGES
 
+static void from_msg_param_value(struct tee_param *p, u32 attr,
+				 const struct optee_msg_param *mp)
+{
+	p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT +
+		  attr - OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	p->u.value.a = mp->u.value.a;
+	p->u.value.b = mp->u.value.b;
+	p->u.value.c = mp->u.value.c;
+}
+
+static int from_msg_param_tmp_mem(struct tee_param *p, u32 attr,
+				  const struct optee_msg_param *mp)
+{
+	struct tee_shm *shm;
+	phys_addr_t pa;
+	int rc;
+
+	p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT +
+		  attr - OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
+	p->u.memref.size = mp->u.tmem.size;
+	shm = (struct tee_shm *)(unsigned long)mp->u.tmem.shm_ref;
+	if (!shm) {
+		p->u.memref.shm_offs = 0;
+		p->u.memref.shm = NULL;
+		return 0;
+	}
+
+	rc = tee_shm_get_pa(shm, 0, &pa);
+	if (rc)
+		return rc;
+
+	p->u.memref.shm_offs = mp->u.tmem.buf_ptr - pa;
+	p->u.memref.shm = shm;
+
+	/* Check that the memref is covered by the shm object */
+	if (p->u.memref.size) {
+		size_t o = p->u.memref.shm_offs +
+			   p->u.memref.size - 1;
+
+		rc = tee_shm_get_pa(shm, o, NULL);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
+static void from_msg_param_reg_mem(struct tee_param *p, u32 attr,
+				   const struct optee_msg_param *mp)
+{
+	struct tee_shm *shm;
+
+	p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT +
+		  attr - OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
+	p->u.memref.size = mp->u.rmem.size;
+	shm = (struct tee_shm *)(unsigned long)mp->u.rmem.shm_ref;
+
+	if (shm) {
+		p->u.memref.shm_offs = mp->u.rmem.offs;
+		p->u.memref.shm = shm;
+	} else {
+		p->u.memref.shm_offs = 0;
+		p->u.memref.shm = NULL;
+	}
+}
+
 /**
  * optee_from_msg_param() - convert from OPTEE_MSG parameters to
  *			    struct tee_param
+ * @optee:	main service struct
  * @params:	subsystem internal parameter representation
  * @num_params:	number of elements in the parameter arrays
  * @msg_params:	OPTEE_MSG parameters
  * Returns 0 on success or <0 on failure
  */
-int optee_from_msg_param(struct tee_param *params, size_t num_params,
-			 const struct optee_msg_param *msg_params)
+static int optee_from_msg_param(struct optee *optee, struct tee_param *params,
+				size_t num_params,
+				const struct optee_msg_param *msg_params)
 {
 	int rc;
 	size_t n;
-	struct tee_shm *shm;
-	phys_addr_t pa;
 
 	for (n = 0; n < num_params; n++) {
 		struct tee_param *p = params + n;
@@ -56,48 +122,19 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
 		case OPTEE_MSG_ATTR_TYPE_VALUE_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_VALUE_INOUT:
-			p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT +
-				  attr - OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-			p->u.value.a = mp->u.value.a;
-			p->u.value.b = mp->u.value.b;
-			p->u.value.c = mp->u.value.c;
+			from_msg_param_value(p, attr, mp);
 			break;
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
-			p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT +
-				  attr - OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-			p->u.memref.size = mp->u.tmem.size;
-			shm = (struct tee_shm *)(unsigned long)
-				mp->u.tmem.shm_ref;
-			if (!shm) {
-				p->u.memref.shm_offs = 0;
-				p->u.memref.shm = NULL;
-				break;
-			}
-			rc = tee_shm_get_pa(shm, 0, &pa);
+			rc = from_msg_param_tmp_mem(p, attr, mp);
 			if (rc)
 				return rc;
-			p->u.memref.shm_offs = mp->u.tmem.buf_ptr - pa;
-			p->u.memref.shm = shm;
 			break;
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
-			p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT +
-				  attr - OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
-			p->u.memref.size = mp->u.rmem.size;
-			shm = (struct tee_shm *)(unsigned long)
-				mp->u.rmem.shm_ref;
-
-			if (!shm) {
-				p->u.memref.shm_offs = 0;
-				p->u.memref.shm = NULL;
-				break;
-			}
-			p->u.memref.shm_offs = mp->u.rmem.offs;
-			p->u.memref.shm = shm;
-
+			from_msg_param_reg_mem(p, attr, mp);
 			break;
 
 		default:
@@ -105,6 +142,16 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
 		}
 	}
 	return 0;
+}
+
+static void to_msg_param_value(struct optee_msg_param *mp,
+			       const struct tee_param *p)
+{
+	mp->attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT + p->attr -
+		   TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	mp->u.value.a = p->u.value.a;
+	mp->u.value.b = p->u.value.b;
+	mp->u.value.c = p->u.value.c;
 }
 
 static int to_msg_param_tmp_mem(struct optee_msg_param *mp,
@@ -149,13 +196,15 @@ static int to_msg_param_reg_mem(struct optee_msg_param *mp,
 
 /**
  * optee_to_msg_param() - convert from struct tee_params to OPTEE_MSG parameters
+ * @optee:	main service struct
  * @msg_params:	OPTEE_MSG parameters
  * @num_params:	number of elements in the parameter arrays
  * @params:	subsystem itnernal parameter representation
  * Returns 0 on success or <0 on failure
  */
-int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
-		       const struct tee_param *params)
+static int optee_to_msg_param(struct optee *optee,
+			      struct optee_msg_param *msg_params,
+			      size_t num_params, const struct tee_param *params)
 {
 	int rc;
 	size_t n;
@@ -172,11 +221,7 @@ int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
-			mp->attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT + p->attr -
-				   TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
-			mp->u.value.a = p->u.value.a;
-			mp->u.value.b = p->u.value.b;
-			mp->u.value.c = p->u.value.c;
+			to_msg_param_value(mp, p);
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
@@ -302,7 +347,7 @@ static void optee_release_supp(struct tee_context *ctx)
 	optee_supp_release(&optee->supp);
 }
 
-static const struct tee_driver_ops optee_ops = {
+static const struct tee_driver_ops optee_clnt_ops = {
 	.get_version = optee_get_version,
 	.open = optee_open,
 	.release = optee_release,
@@ -314,9 +359,9 @@ static const struct tee_driver_ops optee_ops = {
 	.shm_unregister = optee_shm_unregister,
 };
 
-static const struct tee_desc optee_desc = {
+static const struct tee_desc optee_clnt_desc = {
 	.name = DRIVER_NAME "-clnt",
-	.ops = &optee_ops,
+	.ops = &optee_clnt_ops,
 	.owner = THIS_MODULE,
 };
 
@@ -335,6 +380,12 @@ static const struct tee_desc optee_supp_desc = {
 	.ops = &optee_supp_ops,
 	.owner = THIS_MODULE,
 	.flags = TEE_DESC_PRIVILEGED,
+};
+
+static const struct optee_ops optee_ops = {
+	.do_call_with_arg = optee_do_call_with_arg,
+	.to_msg_param = optee_to_msg_param,
+	.from_msg_param = optee_from_msg_param,
 };
 
 static bool optee_msg_api_uid_is_optee_api(optee_invoke_fn *invoke_fn)
@@ -670,10 +721,11 @@ static int optee_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	optee->ops = &optee_ops;
 	optee->invoke_fn = invoke_fn;
 	optee->sec_caps = sec_caps;
 
-	teedev = tee_device_alloc(&optee_desc, NULL, pool, optee);
+	teedev = tee_device_alloc(&optee_clnt_desc, NULL, pool, optee);
 	if (IS_ERR(teedev)) {
 		rc = PTR_ERR(teedev);
 		goto err;
