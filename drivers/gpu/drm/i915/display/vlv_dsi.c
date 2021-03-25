@@ -714,6 +714,19 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 	}
 }
 
+static void intel_dsi_wait_panel_power_cycle(struct intel_dsi *intel_dsi)
+{
+	ktime_t panel_power_on_time;
+	s64 panel_power_off_duration;
+
+	panel_power_on_time = ktime_get_boottime();
+	panel_power_off_duration = ktime_ms_delta(panel_power_on_time,
+						  intel_dsi->panel_power_off_time);
+
+	if (panel_power_off_duration < (s64)intel_dsi->panel_pwr_cycle_delay)
+		msleep(intel_dsi->panel_pwr_cycle_delay - panel_power_off_duration);
+}
+
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			      const struct intel_crtc_state *pipe_config);
 static void intel_dsi_unprepare(struct intel_encoder *encoder);
@@ -774,6 +787,8 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 	bool glk_cold_boot = false;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
+
+	intel_dsi_wait_panel_power_cycle(intel_dsi);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
@@ -989,18 +1004,14 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 	intel_dsi_msleep(intel_dsi, intel_dsi->panel_off_delay);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
 
-	/*
-	 * FIXME As we do with eDP, just make a note of the time here
-	 * and perform the wait before the next panel power on.
-	 */
-	msleep(intel_dsi->panel_pwr_cycle_delay);
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
 }
 
 static void intel_dsi_shutdown(struct intel_encoder *encoder)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
-	msleep(intel_dsi->panel_pwr_cycle_delay);
+	intel_dsi_wait_panel_power_cycle(intel_dsi);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
@@ -1882,6 +1893,8 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 		intel_encoder->pipe_mask = BIT(PIPE_A);
 	else
 		intel_encoder->pipe_mask = BIT(PIPE_B);
+
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
 	if (dev_priv->vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
