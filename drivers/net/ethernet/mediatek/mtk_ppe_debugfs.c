@@ -77,9 +77,9 @@ static int
 mtk_ppe_debugfs_foe_show(struct seq_file *m, void *private, bool bind)
 {
 	struct mtk_ppe *ppe = m->private;
-	int i, count;
+	int i;
 
-	for (i = 0, count = 0; i < MTK_PPE_ENTRIES; i++) {
+	for (i = 0; i < MTK_PPE_ENTRIES; i++) {
 		struct mtk_foe_entry *entry = &ppe->foe_table[i];
 		struct mtk_foe_mac_info *l2;
 		struct mtk_flow_addr_info ai = {};
