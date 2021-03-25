@@ -268,9 +268,9 @@ static int smu_dpm_set_jpeg_enable(struct smu_context *smu,
  *    Under this case, the smu->mutex lock protection is already enforced on
  *    the parent API smu_force_performance_level of the call path.
  */
-int smu_dpm_set_power_gate(void *handle,
-			   uint32_t block_type,
-			   bool gate)
+static int smu_dpm_set_power_gate(void *handle,
+				  uint32_t block_type,
+				  bool gate)
 {
 	struct smu_context *smu = handle;
 	int ret = 0;

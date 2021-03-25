@@ -927,7 +927,6 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 {
 	int ret = 0;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	bool swsmu = is_support_sw_smu(adev);
 
 	switch (block_type) {
 	case AMD_IP_BLOCK_TYPE_UVD:
@@ -968,15 +967,7 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 	case AMD_IP_BLOCK_TYPE_GFX:
 	case AMD_IP_BLOCK_TYPE_VCN:
 	case AMD_IP_BLOCK_TYPE_SDMA:
-		if (pp_funcs && pp_funcs->set_powergating_by_smu) {
-			ret = (pp_funcs->set_powergating_by_smu(
-				(adev)->powerplay.pp_handle, block_type, gate));
-		}
-		break;
 	case AMD_IP_BLOCK_TYPE_JPEG:
-		if (swsmu)
-			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
-		break;
 	case AMD_IP_BLOCK_TYPE_GMC:
 	case AMD_IP_BLOCK_TYPE_ACP:
 		if (pp_funcs && pp_funcs->set_powergating_by_smu) {

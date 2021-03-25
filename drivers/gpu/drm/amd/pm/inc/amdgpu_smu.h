@@ -1270,9 +1270,6 @@ bool is_support_sw_smu(struct amdgpu_device *adev);
 bool is_support_cclk_dpm(struct amdgpu_device *adev);
 int smu_write_watermarks_table(struct smu_context *smu);
 
-/* smu to display interface */
-extern int smu_dpm_set_power_gate(void *handle, uint32_t block_type, bool gate);
-
 int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			   uint32_t *min, uint32_t *max);
 
