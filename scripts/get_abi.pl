@@ -380,7 +380,7 @@ sub output_rest {
 
 				$desc =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
 
-				my @matches = $desc =~ m,Documentation/ABI/([\w\/\-]+),;
+				my @matches = $desc =~ m,Documentation/ABI/([\w\/\-]+),g;
 				foreach my $f (@matches) {
 					my $xref = $f;
 					my $path = $f;
