@@ -4158,7 +4158,7 @@ smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
 			if (ses->Suid == ses_id) {
 				ses_enc_key = enc ? ses->smb3encryptionkey :
 					ses->smb3decryptionkey;
-				memcpy(key, ses_enc_key, SMB3_SIGN_KEY_SIZE);
+				memcpy(key, ses_enc_key, SMB3_ENC_DEC_KEY_SIZE);
 				spin_unlock(&cifs_tcp_ses_lock);
 				return 0;
 			}
@@ -4185,7 +4185,7 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 	int rc = 0;
 	struct scatterlist *sg;
 	u8 sign[SMB2_SIGNATURE_SIZE] = {};
-	u8 key[SMB3_SIGN_KEY_SIZE];
+	u8 key[SMB3_ENC_DEC_KEY_SIZE];
 	struct aead_request *req;
 	char *iv;
 	unsigned int iv_len;
@@ -4209,10 +4209,11 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 	tfm = enc ? server->secmech.ccmaesencrypt :
 						server->secmech.ccmaesdecrypt;
 
-	if (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
+	if ((server->cipher_type == SMB2_ENCRYPTION_AES256_CCM) ||
+		(server->cipher_type == SMB2_ENCRYPTION_AES256_GCM))
 		rc = crypto_aead_setkey(tfm, key, SMB3_GCM256_CRYPTKEY_SIZE);
 	else
-		rc = crypto_aead_setkey(tfm, key, SMB3_SIGN_KEY_SIZE);
+		rc = crypto_aead_setkey(tfm, key, SMB3_GCM128_CRYPTKEY_SIZE);
 
 	if (rc) {
 		cifs_server_dbg(VFS, "%s: Failed to set aead key %d\n", __func__, rc);
