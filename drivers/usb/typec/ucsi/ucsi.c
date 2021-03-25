@@ -63,7 +63,7 @@ static int ucsi_read_error(struct ucsi *ucsi)
 	u16 error;
 	int ret;
 
-	/* Acknowlege the command that failed */
+	/* Acknowledge the command that failed */
 	ret = ucsi_acknowledge_command(ucsi);
 	if (ret)
 		return ret;
