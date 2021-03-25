@@ -118,6 +118,10 @@ static int psp_early_init(void *handle)
 	case CHIP_ALDEBARAN:
 		psp_v13_0_set_psp_funcs(psp);
 		break;
+	case CHIP_YELLOW_CARP:
+		psp_v13_0_set_psp_funcs(psp);
+		psp->autoload_supported = true;
+		break;
 	default:
 		return -EINVAL;
 	}
