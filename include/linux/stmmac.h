@@ -237,5 +237,13 @@ struct plat_stmmacenet_data {
 	struct pci_dev *pdev;
 	bool has_crossts;
 	int int_snapshot_num;
+	bool multi_msi_en;
+	int msi_mac_vec;
+	int msi_wol_vec;
+	int msi_lpi_vec;
+	int msi_sfty_ce_vec;
+	int msi_sfty_ue_vec;
+	int msi_rx_base_vec;
+	int msi_tx_base_vec;
 };
 #endif
