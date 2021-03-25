@@ -587,7 +587,7 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 	struct path parent;
 	struct dentry *dir, *dentry;
 	char *last;
-	int err = -ENOENT;
+	int err;
 
 	last = extract_last_component(name);
 	if (!last)
