@@ -613,6 +613,11 @@ plane_view_height_tiles(const struct intel_framebuffer *fb, int color_plane,
 	return DIV_ROUND_UP(y + dims->height, dims->tile_height);
 }
 
+#define assign_chk_ovf(i915, var, val) ({ \
+	drm_WARN_ON(&(i915)->drm, overflows_type(val, var)); \
+	(var) = (val); \
+})
+
 static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_plane,
 				 const struct fb_plane_view_dims *dims,
 				 u32 obj_offset, u32 gtt_offset, int x, int y,
@@ -627,10 +632,10 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 	unsigned int pitch_tiles;
 	struct drm_rect r;
 
-	remap_info->offset = obj_offset;
-	remap_info->stride = plane_view_stride_tiles(fb, color_plane, dims);
-	remap_info->width = plane_view_width_tiles(fb, color_plane, dims, x);
-	remap_info->height = plane_view_height_tiles(fb, color_plane, dims, y);
+	assign_chk_ovf(i915, remap_info->offset, obj_offset);
+	assign_chk_ovf(i915, remap_info->stride, plane_view_stride_tiles(fb, color_plane, dims));
+	assign_chk_ovf(i915, remap_info->width, plane_view_width_tiles(fb, color_plane, dims, x));
+	assign_chk_ovf(i915, remap_info->height, plane_view_height_tiles(fb, color_plane, dims, y));
 
 	if (view->gtt.type == I915_GGTT_VIEW_ROTATED) {
 		check_array_bounds(i915, view->gtt.rotated.plane, color_plane);
@@ -675,6 +680,8 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 
 	return remap_info->width * remap_info->height;
 }
+
+#undef assign_chk_ovf
 
 /* Return number of tiles @color_plane needs. */
 static unsigned int
