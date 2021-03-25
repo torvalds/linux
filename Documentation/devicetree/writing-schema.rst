@@ -8,6 +8,8 @@ written in a JSON compatible subset of YAML. YAML is used instead of JSON as it
 is considered more human readable and has some advantages such as allowing
 comments (Prefixed with '#').
 
+Also see :ref:`example-schema`.
+
 Schema Contents
 ---------------
 
@@ -170,3 +172,12 @@ json-schema Resources
 `JSON-Schema Specifications <http://json-schema.org/>`_
 
 `Using JSON Schema Book <http://usingjsonschema.com/>`_
+
+.. _example-schema:
+
+Annotated Example Schema
+------------------------
+
+Also available as a separate file: :download:`example-schema.yaml`
+
+.. literalinclude:: example-schema.yaml
