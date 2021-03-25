@@ -573,14 +573,19 @@ static bool insn_is_subprog_call(const struct bpf_insn *insn)
 	       insn->off == 0;
 }
 
-static bool is_ldimm64(struct bpf_insn *insn)
+static bool is_ldimm64_insn(struct bpf_insn *insn)
 {
 	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
 }
 
+static bool is_call_insn(const struct bpf_insn *insn)
+{
+	return insn->code == (BPF_JMP | BPF_CALL);
+}
+
 static bool insn_is_pseudo_func(struct bpf_insn *insn)
 {
-	return is_ldimm64(insn) && insn->src_reg == BPF_PSEUDO_FUNC;
+	return is_ldimm64_insn(insn) && insn->src_reg == BPF_PSEUDO_FUNC;
 }
 
 static int
@@ -3408,31 +3413,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 
 	reloc_desc->processed = false;
 
-	/* sub-program call relocation */
-	if (insn->code == (BPF_JMP | BPF_CALL)) {
-		if (insn->src_reg != BPF_PSEUDO_CALL) {
-			pr_warn("prog '%s': incorrect bpf_call opcode\n", prog->name);
-			return -LIBBPF_ERRNO__RELOC;
-		}
-		/* text_shndx can be 0, if no default "main" program exists */
-		if (!shdr_idx || shdr_idx != obj->efile.text_shndx) {
-			sym_sec_name = elf_sec_name(obj, elf_sec_by_idx(obj, shdr_idx));
-			pr_warn("prog '%s': bad call relo against '%s' in section '%s'\n",
-				prog->name, sym_name, sym_sec_name);
-			return -LIBBPF_ERRNO__RELOC;
-		}
-		if (sym->st_value % BPF_INSN_SZ) {
-			pr_warn("prog '%s': bad call relo against '%s' at offset %zu\n",
-				prog->name, sym_name, (size_t)sym->st_value);
-			return -LIBBPF_ERRNO__RELOC;
-		}
-		reloc_desc->type = RELO_CALL;
-		reloc_desc->insn_idx = insn_idx;
-		reloc_desc->sym_off = sym->st_value;
-		return 0;
-	}
-
-	if (!is_ldimm64(insn)) {
+	if (!is_call_insn(insn) && !is_ldimm64_insn(insn)) {
 		pr_warn("prog '%s': invalid relo against '%s' for insns[%d].code 0x%x\n",
 			prog->name, sym_name, insn_idx, insn->code);
 		return -LIBBPF_ERRNO__RELOC;
@@ -3458,6 +3439,30 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		reloc_desc->type = RELO_EXTERN_VAR;
 		reloc_desc->insn_idx = insn_idx;
 		reloc_desc->sym_off = i; /* sym_off stores extern index */
+		return 0;
+	}
+
+	/* sub-program call relocation */
+	if (is_call_insn(insn)) {
+		if (insn->src_reg != BPF_PSEUDO_CALL) {
+			pr_warn("prog '%s': incorrect bpf_call opcode\n", prog->name);
+			return -LIBBPF_ERRNO__RELOC;
+		}
+		/* text_shndx can be 0, if no default "main" program exists */
+		if (!shdr_idx || shdr_idx != obj->efile.text_shndx) {
+			sym_sec_name = elf_sec_name(obj, elf_sec_by_idx(obj, shdr_idx));
+			pr_warn("prog '%s': bad call relo against '%s' in section '%s'\n",
+				prog->name, sym_name, sym_sec_name);
+			return -LIBBPF_ERRNO__RELOC;
+		}
+		if (sym->st_value % BPF_INSN_SZ) {
+			pr_warn("prog '%s': bad call relo against '%s' at offset %zu\n",
+				prog->name, sym_name, (size_t)sym->st_value);
+			return -LIBBPF_ERRNO__RELOC;
+		}
+		reloc_desc->type = RELO_CALL;
+		reloc_desc->insn_idx = insn_idx;
+		reloc_desc->sym_off = sym->st_value;
 		return 0;
 	}
 
@@ -5700,7 +5705,7 @@ poison:
 		/* poison second part of ldimm64 to avoid confusing error from
 		 * verifier about "unknown opcode 00"
 		 */
-		if (is_ldimm64(insn))
+		if (is_ldimm64_insn(insn))
 			bpf_core_poison_insn(prog, relo_idx, insn_idx + 1, insn + 1);
 		bpf_core_poison_insn(prog, relo_idx, insn_idx, insn);
 		return 0;
@@ -5776,7 +5781,7 @@ poison:
 	case BPF_LD: {
 		__u64 imm;
 
-		if (!is_ldimm64(insn) ||
+		if (!is_ldimm64_insn(insn) ||
 		    insn[0].src_reg != 0 || insn[0].off != 0 ||
 		    insn_idx + 1 >= prog->insns_cnt ||
 		    insn[1].code != 0 || insn[1].dst_reg != 0 ||
