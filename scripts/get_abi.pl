@@ -283,6 +283,7 @@ sub create_labels {
 
 # \b doesn't work well with paths. So, we need to define something else
 my $bondary = qr { (?<![\w\/\`\{])(?=[\w\/\`\{])|(?<=[\w\/\`\{])(?![\w\/\`\{]) }x;
+my $symbols = qr { ([\x01-\x08\x0e-\x1f\x21-\x2f\x3a-\x40\x7b-\xff]) }x;
 
 sub output_rest {
 	create_labels();
@@ -305,7 +306,6 @@ sub output_rest {
 		}
 
 		my $w = $what;
-		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
 
 		if ($type ne "File") {
 			my $cur_part = $what;
@@ -329,6 +329,7 @@ sub output_rest {
 			my $len = 0;
 
 			foreach my $name (@names) {
+				$name =~ s/$symbols/\\$1/g;
 				$name = "**$name**";
 				$len = length($name) if (length($name) > $len);
 			}
@@ -395,7 +396,7 @@ sub output_rest {
 					if (defined($data{$s}) && defined($data{$s}->{label})) {
 						my $xref = $s;
 
-						$xref =~ s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
+						$xref =~ s/$symbols/\\$1/g;
 						$xref = ":ref:`$xref <" . $data{$s}->{label} . ">`";
 
 						$desc =~ s,$bondary$s$bondary,$xref,g;
