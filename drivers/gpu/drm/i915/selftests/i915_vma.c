@@ -515,22 +515,24 @@ static int igt_vma_rotate_remap(void *arg)
 	for (t = types; *t; t++) {
 	for (a = planes; a->width; a++) {
 		for (b = planes + ARRAY_SIZE(planes); b-- != planes; ) {
-			struct i915_ggtt_view view = {};
+			struct i915_ggtt_view view = {
+				.type = *t,
+				.remapped.plane[0] = *a,
+				.remapped.plane[1] = *b,
+			};
+			struct intel_remapped_plane_info *plane_info = view.remapped.plane;
 			unsigned int n, max_offset;
 
-			max_offset = max(a->stride * a->height,
-					 b->stride * b->height);
+			max_offset = max(plane_info[0].stride * plane_info[0].height,
+					 plane_info[1].stride * plane_info[1].height);
 			GEM_BUG_ON(max_offset > max_pages);
 			max_offset = max_pages - max_offset;
 
-			view.type = *t;
-			view.rotated.plane[0] = *a;
-			view.rotated.plane[1] = *b;
-
-			for_each_prime_number_from(view.rotated.plane[0].offset, 0, max_offset) {
-				for_each_prime_number_from(view.rotated.plane[1].offset, 0, max_offset) {
+			for_each_prime_number_from(plane_info[0].offset, 0, max_offset) {
+				for_each_prime_number_from(plane_info[1].offset, 0, max_offset) {
 					struct scatterlist *sg;
 					struct i915_vma *vma;
+					unsigned int expected_pages;
 
 					vma = checked_vma_instance(obj, vm, &view);
 					if (IS_ERR(vma)) {
@@ -544,25 +546,27 @@ static int igt_vma_rotate_remap(void *arg)
 						goto out_object;
 					}
 
+					expected_pages = rotated_size(&plane_info[0], &plane_info[1]);
+
 					if (view.type == I915_GGTT_VIEW_ROTATED &&
-					    vma->size != rotated_size(a, b) * PAGE_SIZE) {
+					    vma->size != expected_pages * PAGE_SIZE) {
 						pr_err("VMA is wrong size, expected %lu, found %llu\n",
-						       PAGE_SIZE * rotated_size(a, b), vma->size);
+						       PAGE_SIZE * expected_pages, vma->size);
 						err = -EINVAL;
 						goto out_object;
 					}
 
 					if (view.type == I915_GGTT_VIEW_REMAPPED &&
-					    vma->size > rotated_size(a, b) * PAGE_SIZE) {
+					    vma->size > expected_pages * PAGE_SIZE) {
 						pr_err("VMA is wrong size, expected %lu, found %llu\n",
-						       PAGE_SIZE * rotated_size(a, b), vma->size);
+						       PAGE_SIZE * expected_pages, vma->size);
 						err = -EINVAL;
 						goto out_object;
 					}
 
-					if (vma->pages->nents > rotated_size(a, b)) {
+					if (vma->pages->nents > expected_pages) {
 						pr_err("sg table is wrong sizeo, expected %u, found %u nents\n",
-						       rotated_size(a, b), vma->pages->nents);
+						       expected_pages, vma->pages->nents);
 						err = -EINVAL;
 						goto out_object;
 					}
@@ -590,14 +594,14 @@ static int igt_vma_rotate_remap(void *arg)
 							pr_err("Inconsistent %s VMA pages for plane %d: [(%d, %d, %d, %d), (%d, %d, %d, %d)]\n",
 							       view.type == I915_GGTT_VIEW_ROTATED ?
 							       "rotated" : "remapped", n,
-							       view.rotated.plane[0].width,
-							       view.rotated.plane[0].height,
-							       view.rotated.plane[0].stride,
-							       view.rotated.plane[0].offset,
-							       view.rotated.plane[1].width,
-							       view.rotated.plane[1].height,
-							       view.rotated.plane[1].stride,
-							       view.rotated.plane[1].offset);
+							       plane_info[0].width,
+							       plane_info[0].height,
+							       plane_info[0].stride,
+							       plane_info[0].offset,
+							       plane_info[1].width,
+							       plane_info[1].height,
+							       plane_info[1].stride,
+							       plane_info[1].offset);
 							err = -EINVAL;
 							goto out_object;
 						}
@@ -887,6 +891,7 @@ static int igt_vma_remapped_gtt(void *arg)
 				.type = *t,
 				.rotated.plane[0] = *p,
 			};
+			struct intel_remapped_plane_info *plane_info = view.rotated.plane;
 			struct i915_vma *vma;
 			u32 __iomem *map;
 			unsigned int x, y;
@@ -912,15 +917,15 @@ static int igt_vma_remapped_gtt(void *arg)
 				goto out;
 			}
 
-			for (y = 0 ; y < p->height; y++) {
-				for (x = 0 ; x < p->width; x++) {
+			for (y = 0 ; y < plane_info[0].height; y++) {
+				for (x = 0 ; x < plane_info[0].width; x++) {
 					unsigned int offset;
 					u32 val = y << 16 | x;
 
 					if (*t == I915_GGTT_VIEW_ROTATED)
-						offset = (x * p->height + y) * PAGE_SIZE;
+						offset = (x * plane_info[0].height + y) * PAGE_SIZE;
 					else
-						offset = (y * p->width + x) * PAGE_SIZE;
+						offset = (y * plane_info[0].width + x) * PAGE_SIZE;
 
 					iowrite32(val, &map[offset / sizeof(*map)]);
 				}
@@ -943,8 +948,8 @@ static int igt_vma_remapped_gtt(void *arg)
 				goto out;
 			}
 
-			for (y = 0 ; y < p->height; y++) {
-				for (x = 0 ; x < p->width; x++) {
+			for (y = 0 ; y < plane_info[0].height; y++) {
+				for (x = 0 ; x < plane_info[0].width; x++) {
 					unsigned int offset, src_idx;
 					u32 exp = y << 16 | x;
 					u32 val;
