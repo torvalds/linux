@@ -661,18 +661,13 @@ int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 	return rc;
 }
 
-int get_used_pll_index(struct hl_device *hdev, enum pll_index input_pll_index,
+int get_used_pll_index(struct hl_device *hdev, u32 input_pll_index,
 						enum pll_index *pll_index)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u8 pll_byte, pll_bit_off;
 	bool dynamic_pll;
-
-	if (input_pll_index >= PLL_MAX) {
-		dev_err(hdev->dev, "PLL index %d is out of range\n",
-							input_pll_index);
-		return -EINVAL;
-	}
+	int fw_pll_idx;
 
 	dynamic_pll = prop->fw_security_status_valid &&
 		(prop->fw_app_security_map & CPU_BOOT_DEV_STS0_DYN_PLL_EN);
@@ -680,28 +675,39 @@ int get_used_pll_index(struct hl_device *hdev, enum pll_index input_pll_index,
 	if (!dynamic_pll) {
 		/*
 		 * in case we are working with legacy FW (each asic has unique
-		 * PLL numbering) extract the legacy numbering
+		 * PLL numbering) use the driver based index as they are
+		 * aligned with fw legacy numbering
 		 */
-		*pll_index = hdev->legacy_pll_map[input_pll_index];
+		*pll_index = input_pll_index;
 		return 0;
 	}
 
-	/* PLL map is a u8 array */
-	pll_byte = prop->cpucp_info.pll_map[input_pll_index >> 3];
-	pll_bit_off = input_pll_index & 0x7;
-
-	if (!(pll_byte & BIT(pll_bit_off))) {
-		dev_err(hdev->dev, "PLL index %d is not supported\n",
-							input_pll_index);
+	/* retrieve a FW compatible PLL index based on
+	 * ASIC specific user request
+	 */
+	fw_pll_idx = hdev->asic_funcs->map_pll_idx_to_fw_idx(input_pll_index);
+	if (fw_pll_idx < 0) {
+		dev_err(hdev->dev, "Invalid PLL index (%u) error %d\n",
+			input_pll_index, fw_pll_idx);
 		return -EINVAL;
 	}
 
-	*pll_index = input_pll_index;
+	/* PLL map is a u8 array */
+	pll_byte = prop->cpucp_info.pll_map[fw_pll_idx >> 3];
+	pll_bit_off = fw_pll_idx & 0x7;
+
+	if (!(pll_byte & BIT(pll_bit_off))) {
+		dev_err(hdev->dev, "PLL index %d is not supported\n",
+			fw_pll_idx);
+		return -EINVAL;
+	}
+
+	*pll_index = fw_pll_idx;
 
 	return 0;
 }
 
-int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, enum pll_index pll_index,
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 		u16 *pll_freq_arr)
 {
 	struct cpucp_packet pkt;

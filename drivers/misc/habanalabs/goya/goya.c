@@ -118,30 +118,6 @@
 #define IS_MME_IDLE(mme_arch_sts) \
 	(((mme_arch_sts) & MME_ARCH_IDLE_MASK) == MME_ARCH_IDLE_MASK)
 
-/*
- * this enum kept here for compatibility with old FW (in which each asic has
- * unique PLL numbering
- */
-enum goya_pll_index {
-	GOYA_CPU_PLL = 0,
-	GOYA_IC_PLL,
-	GOYA_MC_PLL,
-	GOYA_MME_PLL,
-	GOYA_PCI_PLL,
-	GOYA_EMMC_PLL,
-	GOYA_TPC_PLL,
-};
-
-static enum pll_index goya_pll_map[PLL_MAX] = {
-	[CPU_PLL] = GOYA_CPU_PLL,
-	[IC_PLL] = GOYA_IC_PLL,
-	[MC_PLL] = GOYA_MC_PLL,
-	[MME_PLL] = GOYA_MME_PLL,
-	[PCI_PLL] = GOYA_PCI_PLL,
-	[EMMC_PLL] = GOYA_EMMC_PLL,
-	[TPC_PLL] = GOYA_TPC_PLL,
-};
-
 static const char goya_irq_name[GOYA_MSIX_ENTRIES][GOYA_MAX_STRING_LEN] = {
 		"goya cq 0", "goya cq 1", "goya cq 2", "goya cq 3",
 		"goya cq 4", "goya cpu eq"
@@ -775,7 +751,8 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 			freq = 0;
 		}
 	} else {
-		rc = hl_fw_cpucp_pll_info_get(hdev, PCI_PLL, pll_freq_arr);
+		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GOYA_PCI_PLL,
+				pll_freq_arr);
 
 		if (rc)
 			return;
@@ -896,9 +873,6 @@ static int goya_sw_init(struct hl_device *hdev)
 	goya->ic_clk = GOYA_PLL_FREQ_LOW;
 
 	hdev->asic_specific = goya;
-
-	/* store legacy PLL map */
-	hdev->legacy_pll_map = goya_pll_map;
 
 	/* Create DMA pool for small allocations */
 	hdev->dma_pool = dma_pool_create(dev_name(hdev->dev),
@@ -5512,6 +5486,20 @@ static void goya_enable_events_from_fw(struct hl_device *hdev)
 			GOYA_ASYNC_EVENT_ID_INTS_REGISTER);
 }
 
+static int goya_map_pll_idx_to_fw_idx(u32 pll_idx)
+{
+	switch (pll_idx) {
+	case HL_GOYA_CPU_PLL: return CPU_PLL;
+	case HL_GOYA_PCI_PLL: return PCI_PLL;
+	case HL_GOYA_MME_PLL: return MME_PLL;
+	case HL_GOYA_TPC_PLL: return TPC_PLL;
+	case HL_GOYA_IC_PLL: return IC_PLL;
+	case HL_GOYA_MC_PLL: return MC_PLL;
+	case HL_GOYA_EMMC_PLL: return EMMC_PLL;
+	default: return -EINVAL;
+	}
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5595,7 +5583,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.ack_protection_bits_errors = goya_ack_protection_bits_errors,
 	.get_hw_block_id = goya_get_hw_block_id,
 	.hw_block_mmap = goya_block_mmap,
-	.enable_events_from_fw = goya_enable_events_from_fw
+	.enable_events_from_fw = goya_enable_events_from_fw,
+	.map_pll_idx_to_fw_idx = goya_map_pll_idx_to_fw_idx
 };
 
 /*
