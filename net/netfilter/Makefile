@@ -50,6 +50,7 @@ nf_nat-y	:= nf_nat_core.o nf_nat_proto.o nf_nat_helper.o
 
 # generic transport layer logging
 obj-$(CONFIG_NF_LOG_COMMON) += nf_log_common.o
+obj-$(CONFIG_NF_LOG_SYSLOG) += nf_log_syslog.o
 
 # packet logging for netdev family
 obj-$(CONFIG_NF_LOG_NETDEV) += nf_log_netdev.o
