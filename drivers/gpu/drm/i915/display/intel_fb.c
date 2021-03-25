@@ -400,10 +400,10 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	return 0;
 }
 
-static int intel_fb_check_ccs_xy(struct drm_framebuffer *fb, int ccs_plane, int x, int y)
+static int intel_fb_check_ccs_xy(const struct drm_framebuffer *fb, int ccs_plane, int x, int y)
 {
 	struct drm_i915_private *i915 = to_i915(fb->dev);
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	const struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	int main_plane;
 	int hsub, vsub;
 	int tile_width, tile_height;
@@ -520,6 +520,44 @@ static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 	return stride > max_stride;
 }
 
+static int convert_plane_offset_to_xy(const struct intel_framebuffer *fb, int color_plane,
+				      int plane_width, int *x, int *y)
+{
+	struct drm_i915_gem_object *obj = intel_fb_obj(&fb->base);
+	int ret;
+
+	ret = intel_fb_offset_to_xy(x, y, &fb->base, color_plane);
+	if (ret) {
+		drm_dbg_kms(fb->base.dev,
+			    "bad fb plane %d offset: 0x%x\n",
+			    color_plane, fb->base.offsets[color_plane]);
+		return ret;
+	}
+
+	ret = intel_fb_check_ccs_xy(&fb->base, color_plane, *x, *y);
+	if (ret)
+		return ret;
+
+	/*
+	 * The fence (if used) is aligned to the start of the object
+	 * so having the framebuffer wrap around across the edge of the
+	 * fenced region doesn't really work. We have no API to configure
+	 * the fence start offset within the object (nor could we probably
+	 * on gen2/3). So it's just easier if we just require that the
+	 * fb layout agrees with the fence layout. We already check that the
+	 * fb stride matches the fence stride elsewhere.
+	 */
+	if (color_plane == 0 && i915_gem_object_is_tiled(obj) &&
+	    (*x + plane_width) * fb->base.format->cpp[color_plane] > fb->base.pitches[color_plane]) {
+		drm_dbg_kms(fb->base.dev,
+			    "bad fb plane %d offset: 0x%x\n",
+			    color_plane, fb->base.offsets[color_plane]);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * Setup the rotated view for an FB plane and return the size the GTT mapping
  * requires for this view.
@@ -611,34 +649,9 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 		cpp = fb->format->cpp[i];
 		intel_fb_plane_dims(&width, &height, fb, i);
 
-		ret = intel_fb_offset_to_xy(&x, &y, fb, i);
-		if (ret) {
-			drm_dbg_kms(&i915->drm,
-				    "bad fb plane %d offset: 0x%x\n",
-				    i, fb->offsets[i]);
-			return ret;
-		}
-
-		ret = intel_fb_check_ccs_xy(fb, i, x, y);
+		ret = convert_plane_offset_to_xy(intel_fb, i, width, &x, &y);
 		if (ret)
 			return ret;
-
-		/*
-		 * The fence (if used) is aligned to the start of the object
-		 * so having the framebuffer wrap around across the edge of the
-		 * fenced region doesn't really work. We have no API to configure
-		 * the fence start offset within the object (nor could we probably
-		 * on gen2/3). So it's just easier if we just require that the
-		 * fb layout agrees with the fence layout. We already check that the
-		 * fb stride matches the fence stride elsewhere.
-		 */
-		if (i == 0 && i915_gem_object_is_tiled(obj) &&
-		    (x + width) * cpp > fb->pitches[i]) {
-			drm_dbg_kms(&i915->drm,
-				    "bad fb plane %d offset: 0x%x\n",
-				     i, fb->offsets[i]);
-			return -EINVAL;
-		}
 
 		/*
 		 * First pixel of the framebuffer from
