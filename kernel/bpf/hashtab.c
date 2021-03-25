@@ -31,7 +31,7 @@
 /*
  * The bucket lock has two protection scopes:
  *
- * 1) Serializing concurrent operations from BPF programs on differrent
+ * 1) Serializing concurrent operations from BPF programs on different
  *    CPUs
  *
  * 2) Serializing concurrent operations from BPF programs and sys_bpf()

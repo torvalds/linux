@@ -55,7 +55,6 @@ void test_array_map_batch_ops(void)
 	int map_fd, *keys, *values, *visited;
 	__u32 count, total, total_success;
 	const __u32 max_entries = 10;
-	bool nospace_err;
 	__u64 batch = 0;
 	int err, step;
 	DECLARE_LIBBPF_OPTS(bpf_map_batch_opts, opts,
@@ -90,7 +89,6 @@ void test_array_map_batch_ops(void)
 		 * elements each.
 		 */
 		count = step;
-		nospace_err = false;
 		while (true) {
 			err = bpf_map_lookup_batch(map_fd,
 						total ? &batch : NULL, &batch,
@@ -106,9 +104,6 @@ void test_array_map_batch_ops(void)
 				break;
 
 		}
-
-		if (nospace_err == true)
-			continue;
 
 		CHECK(total != max_entries, "lookup with steps",
 		      "total = %u, max_entries = %u\n", total, max_entries);

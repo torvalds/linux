@@ -2934,7 +2934,7 @@ static int igb_xdp_xmit(struct net_device *dev, int n,
 	int cpu = smp_processor_id();
 	struct igb_ring *tx_ring;
 	struct netdev_queue *nq;
-	int drops = 0;
+	int nxmit = 0;
 	int i;
 
 	if (unlikely(test_bit(__IGB_DOWN, &adapter->state)))
@@ -2961,10 +2961,9 @@ static int igb_xdp_xmit(struct net_device *dev, int n,
 		int err;
 
 		err = igb_xmit_xdp_ring(adapter, tx_ring, xdpf);
-		if (err != IGB_XDP_TX) {
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
-		}
+		if (err != IGB_XDP_TX)
+			break;
+		nxmit++;
 	}
 
 	__netif_tx_unlock(nq);
@@ -2972,7 +2971,7 @@ static int igb_xdp_xmit(struct net_device *dev, int n,
 	if (unlikely(flags & XDP_XMIT_FLUSH))
 		igb_xdp_ring_update_tail(tx_ring);
 
-	return n - drops;
+	return nxmit;
 }
 
 static const struct net_device_ops igb_netdev_ops = {

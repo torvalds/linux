@@ -20,7 +20,7 @@
 
 DEFINE_BPF_STORAGE_CACHE(task_cache);
 
-DEFINE_PER_CPU(int, bpf_task_storage_busy);
+static DEFINE_PER_CPU(int, bpf_task_storage_busy);
 
 static void bpf_task_storage_lock(void)
 {

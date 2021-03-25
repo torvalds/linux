@@ -9,6 +9,7 @@
 #include <uapi/linux/bpf.h>
 
 #define BTF_TYPE_EMIT(type) ((void)(type *)0)
+#define BTF_TYPE_EMIT_ENUM(enum_val) ((void)enum_val)
 
 struct btf;
 struct btf_member;

@@ -329,7 +329,7 @@ bool dev_map_can_have_prog(struct bpf_map *map)
 static void bq_xmit_all(struct xdp_dev_bulk_queue *bq, u32 flags)
 {
 	struct net_device *dev = bq->dev;
-	int sent = 0, drops = 0, err = 0;
+	int sent = 0, err = 0;
 	int i;
 
 	if (unlikely(!bq->count))
@@ -343,29 +343,23 @@ static void bq_xmit_all(struct xdp_dev_bulk_queue *bq, u32 flags)
 
 	sent = dev->netdev_ops->ndo_xdp_xmit(dev, bq->count, bq->q, flags);
 	if (sent < 0) {
+		/* If ndo_xdp_xmit fails with an errno, no frames have
+		 * been xmit'ed.
+		 */
 		err = sent;
 		sent = 0;
-		goto error;
 	}
-	drops = bq->count - sent;
-out:
-	bq->count = 0;
 
-	trace_xdp_devmap_xmit(bq->dev_rx, dev, sent, drops, err);
-	bq->dev_rx = NULL;
-	__list_del_clearprev(&bq->flush_node);
-	return;
-error:
-	/* If ndo_xdp_xmit fails with an errno, no frames have been
-	 * xmit'ed and it's our responsibility to them free all.
+	/* If not all frames have been transmitted, it is our
+	 * responsibility to free them
 	 */
-	for (i = 0; i < bq->count; i++) {
-		struct xdp_frame *xdpf = bq->q[i];
+	for (i = sent; unlikely(i < bq->count); i++)
+		xdp_return_frame_rx_napi(bq->q[i]);
 
-		xdp_return_frame_rx_napi(xdpf);
-		drops++;
-	}
-	goto out;
+	trace_xdp_devmap_xmit(bq->dev_rx, dev, sent, bq->count - sent, err);
+	bq->dev_rx = NULL;
+	bq->count = 0;
+	__list_del_clearprev(&bq->flush_node);
 }
 
 /* __dev_flush is called from xdp_do_flush() which _must_ be signaled

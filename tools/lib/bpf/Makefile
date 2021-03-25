@@ -228,7 +228,6 @@ install_headers: $(BPF_HELPER_DEFS)
 		$(call do_install,bpf.h,$(prefix)/include/bpf,644); \
 		$(call do_install,libbpf.h,$(prefix)/include/bpf,644); \
 		$(call do_install,btf.h,$(prefix)/include/bpf,644); \
-		$(call do_install,libbpf_util.h,$(prefix)/include/bpf,644); \
 		$(call do_install,libbpf_common.h,$(prefix)/include/bpf,644); \
 		$(call do_install,xsk.h,$(prefix)/include/bpf,644); \
 		$(call do_install,bpf_helpers.h,$(prefix)/include/bpf,644); \

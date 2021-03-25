@@ -55,10 +55,6 @@
 #include "libbpf_internal.h"
 #include "hashmap.h"
 
-#ifndef EM_BPF
-#define EM_BPF 247
-#endif
-
 #ifndef BPF_FS_MAGIC
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
@@ -1133,11 +1129,6 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 	obj->efile.obj_buf = NULL;
 	obj->efile.obj_buf_sz = 0;
 }
-
-/* if libelf is old and doesn't support mmap(), fall back to read() */
-#ifndef ELF_C_READ_MMAP
-#define ELF_C_READ_MMAP ELF_C_READ
-#endif
 
 static int bpf_object__elf_init(struct bpf_object *obj)
 {
@@ -2808,7 +2799,7 @@ static bool ignore_elf_section(GElf_Shdr *hdr, const char *name)
 		return true;
 
 	/* ignore .llvm_addrsig section as well */
-	if (hdr->sh_type == 0x6FFF4C03 /* SHT_LLVM_ADDRSIG */)
+	if (hdr->sh_type == SHT_LLVM_ADDRSIG)
 		return true;
 
 	/* no subprograms will lead to an empty .text section, ignore it */
@@ -4868,8 +4859,8 @@ static int load_module_btfs(struct bpf_object *obj)
 			goto err_out;
 		}
 
-		err = btf_ensure_mem((void **)&obj->btf_modules, &obj->btf_module_cap,
-				     sizeof(*obj->btf_modules), obj->btf_module_cnt + 1);
+		err = libbpf_ensure_mem((void **)&obj->btf_modules, &obj->btf_module_cap,
+				        sizeof(*obj->btf_modules), obj->btf_module_cnt + 1);
 		if (err)
 			goto err_out;
 

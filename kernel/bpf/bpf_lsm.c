@@ -67,7 +67,7 @@ BPF_CALL_2(bpf_bprm_opts_set, struct linux_binprm *, bprm, u64, flags)
 
 BTF_ID_LIST_SINGLE(bpf_bprm_opts_set_btf_ids, struct, linux_binprm)
 
-const static struct bpf_func_proto bpf_bprm_opts_set_proto = {
+static const struct bpf_func_proto bpf_bprm_opts_set_proto = {
 	.func		= bpf_bprm_opts_set,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -88,7 +88,7 @@ static bool bpf_ima_inode_hash_allowed(const struct bpf_prog *prog)
 
 BTF_ID_LIST_SINGLE(bpf_ima_inode_hash_btf_ids, struct, inode)
 
-const static struct bpf_func_proto bpf_ima_inode_hash_proto = {
+static const struct bpf_func_proto bpf_ima_inode_hash_proto = {
 	.func		= bpf_ima_inode_hash,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
