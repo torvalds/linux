@@ -824,7 +824,7 @@ void intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 	}
 }
 
-int intel_plane_check_stride(const struct intel_plane_state *plane_state)
+static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
