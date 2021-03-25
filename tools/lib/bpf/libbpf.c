@@ -185,7 +185,7 @@ enum reloc_type {
 	RELO_LD64,
 	RELO_CALL,
 	RELO_DATA,
-	RELO_EXTERN,
+	RELO_EXTERN_VAR,
 	RELO_SUBPROG_ADDR,
 };
 
@@ -3455,7 +3455,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		}
 		pr_debug("prog '%s': found extern #%d '%s' (sym %d) for insn #%u\n",
 			 prog->name, i, ext->name, ext->sym_idx, insn_idx);
-		reloc_desc->type = RELO_EXTERN;
+		reloc_desc->type = RELO_EXTERN_VAR;
 		reloc_desc->insn_idx = insn_idx;
 		reloc_desc->sym_off = i; /* sym_off stores extern index */
 		return 0;
@@ -6218,7 +6218,7 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			insn[0].imm = obj->maps[relo->map_idx].fd;
 			relo->processed = true;
 			break;
-		case RELO_EXTERN:
+		case RELO_EXTERN_VAR:
 			ext = &obj->externs[relo->sym_off];
 			if (ext->type == EXT_KCFG) {
 				insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
