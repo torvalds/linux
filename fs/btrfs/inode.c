@@ -8414,15 +8414,13 @@ again:
 		 */
 		if (TestClearPagePrivate2(page)) {
 			struct btrfs_ordered_inode_tree *tree;
-			u64 new_len;
 
 			tree = &inode->ordered_tree;
 
 			spin_lock_irq(&tree->lock);
 			set_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags);
-			new_len = start - ordered->file_offset;
-			if (new_len < ordered->truncated_len)
-				ordered->truncated_len = new_len;
+			ordered->truncated_len = min(ordered->truncated_len,
+						     start - ordered->file_offset);
 			spin_unlock_irq(&tree->lock);
 
 			if (btrfs_dec_test_ordered_pending(inode, &ordered,
