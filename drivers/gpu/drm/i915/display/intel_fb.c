@@ -484,12 +484,14 @@ static bool intel_plane_can_remap(const struct intel_plane_state *plane_state)
 	return true;
 }
 
-int intel_fb_pitch(const struct drm_framebuffer *fb, int color_plane, unsigned int rotation)
+int intel_fb_pitch(const struct drm_framebuffer *drm_fb, int color_plane, unsigned int rotation)
 {
+	struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
+
 	if (drm_rotation_90_or_270(rotation))
-		return to_intel_framebuffer(fb)->rotated_view.color_plane[color_plane].stride;
+		return fb->rotated_view.color_plane[color_plane].stride;
 	else
-		return fb->pitches[color_plane];
+		return fb->normal_view.color_plane[color_plane].stride;
 }
 
 static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
@@ -744,6 +746,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 		 */
 		intel_fb->normal_view.color_plane[i].x = x;
 		intel_fb->normal_view.color_plane[i].y = y;
+		intel_fb->normal_view.color_plane[i].stride = intel_fb->base.pitches[i];
 
 		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
 
