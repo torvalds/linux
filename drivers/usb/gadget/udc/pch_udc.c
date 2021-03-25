@@ -3026,8 +3026,7 @@ static void pch_udc_remove(struct pci_dev *pdev)
 	pch_udc_exit(dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int pch_udc_suspend(struct device *d)
+static int __maybe_unused pch_udc_suspend(struct device *d)
 {
 	struct pch_udc_dev *dev = dev_get_drvdata(d);
 
@@ -3037,16 +3036,12 @@ static int pch_udc_suspend(struct device *d)
 	return 0;
 }
 
-static int pch_udc_resume(struct device *d)
+static int __maybe_unused pch_udc_resume(struct device *d)
 {
 	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(pch_udc_pm, pch_udc_suspend, pch_udc_resume);
-#define PCH_UDC_PM_OPS		(&pch_udc_pm)
-#else
-#define PCH_UDC_PM_OPS		NULL
-#endif /* CONFIG_PM_SLEEP */
 
 static int pch_udc_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *id)
@@ -3156,7 +3151,7 @@ static struct pci_driver pch_udc_driver = {
 	.remove =	pch_udc_remove,
 	.shutdown =	pch_udc_shutdown,
 	.driver = {
-		.pm = PCH_UDC_PM_OPS,
+		.pm = &pch_udc_pm,
 	},
 };
 
