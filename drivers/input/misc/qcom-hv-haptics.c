@@ -28,6 +28,7 @@
 #define HAP_CFG_REVISION2_REG			0x01
 #define HAP_CFG_V1				0x1
 #define HAP_CFG_V2				0x2
+#define HAP_CFG_V3				0x3
 
 #define HAP_CFG_STATUS_DATA_MSB_REG		0x09
 /* STATUS_DATA_MSB definitions while MOD_STATUS_SEL is 0 */
@@ -4367,6 +4368,15 @@ static struct attribute *hap_class_attrs[] = {
 };
 ATTRIBUTE_GROUPS(hap_class);
 
+static bool is_swr_supported(struct haptics_chip *chip)
+{
+	/* Haptics config version 3 does not support soundwire */
+	if (chip->cfg_revision == HAP_CFG_V3)
+		return false;
+
+	return true;
+}
+
 static int haptics_probe(struct platform_device *pdev)
 {
 	struct haptics_chip *chip;
@@ -4407,11 +4417,13 @@ static int haptics_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	rc = haptics_init_swr_slave_regulator(chip);
-	if (rc < 0) {
-		dev_err(chip->dev, "Initialize swr slave regulator failed, rc = %d\n",
-				rc);
-		return rc;
+	if (is_swr_supported(chip)) {
+		rc = haptics_init_swr_slave_regulator(chip);
+		if (rc < 0) {
+			dev_err(chip->dev, "Initialize swr slave regulator failed, rc = %d\n",
+					rc);
+			return rc;
+		}
 	}
 
 	rc = devm_request_threaded_irq(chip->dev, chip->fifo_empty_irq,
