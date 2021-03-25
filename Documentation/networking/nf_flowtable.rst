@@ -112,6 +112,7 @@ You can identify offloaded flows through the [OFFLOAD] tag when listing your
 connection tracking table.
 
 ::
+
 	# conntrack -L
 	tcp      6 src=10.141.10.2 dst=192.168.10.2 sport=52728 dport=5201 src=192.168.10.2 dst=192.168.10.1 sport=5201 dport=52728 [OFFLOAD] mark=0 use=2
 
@@ -138,6 +139,7 @@ allows the flowtable to define a fastpath bypass between the bridge ports
 device (represented as eth0) in your switch/router.
 
 ::
+
                       fastpath bypass
                .-------------------------.
               /                           \
@@ -168,12 +170,12 @@ connection tracking entry by specifying the counter statement in your flowtable
 definition, e.g.
 
 ::
+
 	table inet x {
 		flowtable f {
 			hook ingress priority 0; devices = { eth0, eth1 };
 			counter
 		}
-		...
 	}
 
 Counter support is available since Linux kernel 5.7.
@@ -185,12 +187,12 @@ If your network device provides hardware offload support, you can turn it on by
 means of the 'offload' flag in your flowtable definition, e.g.
 
 ::
+
 	table inet x {
 		flowtable f {
 			hook ingress priority 0; devices = { eth0, eth1 };
 			flags offload;
 		}
-		...
 	}
 
 There is a workqueue that adds the flows to the hardware. Note that a few
