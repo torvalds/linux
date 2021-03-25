@@ -382,8 +382,27 @@ sub output_rest {
 				# Enrich text by creating cross-references
 
 				my $new_desc = "";
+				my $init_indent = -1;
+				my $literal_indent = -1;
+
 				open(my $fh, "+<", \$desc);
 				while (my $d = <$fh>) {
+					my $indent = $d =~ m/^(\s+)/;
+					my $spaces = length($indent);
+					$init_indent = $indent if ($init_indent < 0);
+					if ($literal_indent >= 0) {
+						if ($spaces > $literal_indent) {
+							$new_desc .= $d;
+							next;
+						} else {
+							$literal_indent = -1;
+						}
+					} else {
+						if ($d =~ /()::$/ && !($d =~ /^\s*\.\./)) {
+							$literal_indent = $spaces;
+						}
+					}
+
 					$d =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
 
 					my @matches = $d =~ m,Documentation/ABI/([\w\/\-]+),g;
