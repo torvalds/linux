@@ -1538,7 +1538,7 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 static int skl_check_plane_surface(struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int ret, i;
+	int ret;
 
 	ret = intel_plane_compute_gtt(plane_state);
 	if (ret)
@@ -1562,12 +1562,6 @@ static int skl_check_plane_surface(struct intel_plane_state *plane_state)
 		ret = skl_check_nv12_aux_surface(plane_state);
 		if (ret)
 			return ret;
-	}
-
-	for (i = fb->format->num_planes; i < ARRAY_SIZE(plane_state->view.color_plane); i++) {
-		plane_state->view.color_plane[i].offset = 0;
-		plane_state->view.color_plane[i].x = 0;
-		plane_state->view.color_plane[i].y = 0;
 	}
 
 	ret = skl_check_main_surface(plane_state);

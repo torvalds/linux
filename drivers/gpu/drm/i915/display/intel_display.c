@@ -1599,6 +1599,11 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
 
+	/*
+	 * TODO:
+	 *   Disable planes if get_initial_plane_config() failed.
+	 *   Make sure things work if the surface base is not page aligned.
+	 */
 	if (!plane_config->fb)
 		return;
 
@@ -1650,10 +1655,8 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 
 valid_fb:
 	plane_state->rotation = plane_config->rotation;
-	intel_fill_fb_ggtt_view(&intel_state->view.gtt, fb,
-				plane_state->rotation);
-	intel_state->view.color_plane[0].stride =
-		intel_fb_pitch(fb, 0, plane_state->rotation);
+	intel_fb_fill_view(to_intel_framebuffer(fb), plane_state->rotation,
+			   &intel_state->view);
 
 	__i915_vma_pin(vma);
 	intel_state->vma = i915_vma_get(vma);

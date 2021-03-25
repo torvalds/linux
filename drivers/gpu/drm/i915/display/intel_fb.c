@@ -484,10 +484,8 @@ static bool intel_plane_can_remap(const struct intel_plane_state *plane_state)
 	return true;
 }
 
-int intel_fb_pitch(const struct drm_framebuffer *drm_fb, int color_plane, unsigned int rotation)
+static int intel_fb_pitch(const struct intel_framebuffer *fb, int color_plane, unsigned int rotation)
 {
-	struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
-
 	if (drm_rotation_90_or_270(rotation))
 		return fb->rotated_view.color_plane[color_plane].stride;
 	else
@@ -497,7 +495,7 @@ int intel_fb_pitch(const struct drm_framebuffer *drm_fb, int color_plane, unsign
 static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	const struct intel_framebuffer *fb = to_intel_framebuffer(plane_state->hw.fb);
 	unsigned int rotation = plane_state->hw.rotation;
 	u32 stride, max_stride;
 
@@ -516,8 +514,8 @@ static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 	 * unclear in Bspec, for now no checking.
 	 */
 	stride = intel_fb_pitch(fb, 0, rotation);
-	max_stride = plane->max_stride(plane, fb->format->format,
-				       fb->modifier, rotation);
+	max_stride = plane->max_stride(plane, fb->base.format->format,
+				       fb->base.modifier, rotation);
 
 	return stride > max_stride;
 }
@@ -702,6 +700,12 @@ calc_plane_normal_size(const struct intel_framebuffer *fb, int color_plane,
 	return tiles;
 }
 
+static void intel_fb_view_init(struct intel_fb_view *view, enum i915_ggtt_view_type view_type)
+{
+	memset(view, 0, sizeof(*view));
+	view->gtt.type = view_type;
+}
+
 int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb)
 {
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
@@ -710,6 +714,9 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 	unsigned int max_size = 0;
 	int i, num_planes = fb->format->num_planes;
 	unsigned int tile_size = intel_tile_size(i915);
+
+	intel_fb_view_init(&intel_fb->normal_view, I915_GGTT_VIEW_NORMAL);
+	intel_fb_view_init(&intel_fb->rotated_view, I915_GGTT_VIEW_ROTATED);
 
 	for (i = 0; i < num_planes; i++) {
 		struct fb_plane_view_dims view_dims;
@@ -796,9 +803,9 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 	unsigned int src_w, src_h;
 	u32 gtt_offset = 0;
 
-	memset(&plane_state->view.gtt, 0, sizeof(plane_state->view.gtt));
-	plane_state->view.gtt.type = drm_rotation_90_or_270(rotation) ?
-		I915_GGTT_VIEW_ROTATED : I915_GGTT_VIEW_REMAPPED;
+	intel_fb_view_init(&plane_state->view,
+			   drm_rotation_90_or_270(rotation) ? I915_GGTT_VIEW_ROTATED :
+							      I915_GGTT_VIEW_REMAPPED);
 
 	src_x = plane_state->uapi.src.x1 >> 16;
 	src_y = plane_state->uapi.src.y1 >> 16;
@@ -889,17 +896,13 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 	}
 }
 
-void intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
-			     const struct drm_framebuffer *fb,
-			     unsigned int rotation)
+void intel_fb_fill_view(const struct intel_framebuffer *fb, unsigned int rotation,
+			struct intel_fb_view *view)
 {
-	memset(view, 0, sizeof(*view));
-
-	view->type = I915_GGTT_VIEW_NORMAL;
-	if (drm_rotation_90_or_270(rotation)) {
-		view->type = I915_GGTT_VIEW_ROTATED;
-		view->rotated = to_intel_framebuffer(fb)->rotated_view.gtt.rotated;
-	}
+	if (drm_rotation_90_or_270(rotation))
+		*view = fb->rotated_view;
+	else
+		*view = fb->normal_view;
 }
 
 static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
@@ -939,12 +942,9 @@ int intel_plane_compute_gtt(struct intel_plane_state *plane_state)
 	const struct intel_framebuffer *fb =
 		to_intel_framebuffer(plane_state->hw.fb);
 	unsigned int rotation = plane_state->hw.rotation;
-	int i, num_planes;
 
 	if (!fb)
 		return 0;
-
-	num_planes = fb->base.format->num_planes;
 
 	if (intel_plane_needs_remap(plane_state)) {
 		intel_plane_remap_gtt(plane_state);
@@ -958,20 +958,7 @@ int intel_plane_compute_gtt(struct intel_plane_state *plane_state)
 		return intel_plane_check_stride(plane_state);
 	}
 
-	intel_fill_fb_ggtt_view(&plane_state->view.gtt, &fb->base, rotation);
-
-	for (i = 0; i < num_planes; i++) {
-		plane_state->view.color_plane[i].stride = intel_fb_pitch(&fb->base, i, rotation);
-		plane_state->view.color_plane[i].offset = 0;
-
-		if (drm_rotation_90_or_270(rotation)) {
-			plane_state->view.color_plane[i].x = fb->rotated_view.color_plane[i].x;
-			plane_state->view.color_plane[i].y = fb->rotated_view.color_plane[i].y;
-		} else {
-			plane_state->view.color_plane[i].x = fb->normal_view.color_plane[i].x;
-			plane_state->view.color_plane[i].y = fb->normal_view.color_plane[i].y;
-		}
-	}
+	intel_fb_fill_view(fb, rotation, &plane_state->view);
 
 	/* Rotate src coordinates to match rotated GTT view */
 	if (drm_rotation_90_or_270(rotation))
