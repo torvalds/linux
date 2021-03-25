@@ -2920,7 +2920,7 @@ rockchip_dmcfreq_register_cooling_device(struct rockchip_dmcfreq *dmcfreq)
 		of_devfreq_cooling_register_power(dmcfreq->dev->of_node,
 						  dmcfreq->devfreq,
 						  &ddr_cooling_power_data);
-	if (IS_ERR_OR_NULL(dmcfreq->devfreq_cooling)) {
+	if (IS_ERR(dmcfreq->devfreq_cooling)) {
 		ret = PTR_ERR(dmcfreq->devfreq_cooling);
 		dev_err(dmcfreq->dev,
 			"Failed to register cooling device (%d)\n",
