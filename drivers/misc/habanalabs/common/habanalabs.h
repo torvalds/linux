@@ -420,6 +420,9 @@ struct hl_mmu_properties {
  * @cb_pool_cb_size: size of each CB in the CB pool.
  * @max_pending_cs: maximum of concurrent pending command submissions
  * @max_queues: maximum amount of queues in the system
+ * @fw_preboot_caps_map: bitmap representation of preboot cpu capabilities
+ *                              reported by FW, bit description can be found in
+ *                              CPU_BOOT_DEV_STS*
  * @fw_boot_cpu_security_map: bitmap representation of boot cpu security status
  *                            reported by FW, bit description can be found in
  *                            CPU_BOOT_DEV_STS*
@@ -446,6 +449,7 @@ struct hl_mmu_properties {
  * @hard_reset_done_by_fw: true if firmware is handling hard reset flow
  * @num_functional_hbms: number of functional HBMs in each DCORE.
  * @iatu_done_by_fw: true if iATU configuration is being done by FW.
+ * @dynamic_fw_load: is dynamic FW load is supported.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -491,6 +495,7 @@ struct asic_fixed_properties {
 	u32				cb_pool_cb_size;
 	u32				max_pending_cs;
 	u32				max_queues;
+	u32				fw_preboot_caps_map;
 	u32				fw_boot_cpu_security_map;
 	u32				fw_app_security_map;
 	u16				collective_first_sob;
@@ -510,6 +515,7 @@ struct asic_fixed_properties {
 	u8				hard_reset_done_by_fw;
 	u8				num_functional_hbms;
 	u8				iatu_done_by_fw;
+	u8				dynamic_fw_load;
 };
 
 /**
@@ -2404,7 +2410,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
 			bool skip_bmc, u32 cpu_timeout, u32 boot_fit_timeout);
 int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
-		u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
+		u32 cpu_boot_caps_reg, u32 boot_err0_reg,
 		u32 timeout);
 
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],

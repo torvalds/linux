@@ -809,20 +809,14 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	}
 }
 
-int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
-		u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
-		u32 timeout)
+static int hl_fw_read_preboot_caps(struct hl_device *hdev,
+					u32 cpu_boot_status_reg,
+					u32 cpu_boot_caps_reg,
+					u32 boot_err0_reg, u32 timeout)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 status, security_status;
+	u32 status;
 	int rc;
-
-	/* pldm was added for cases in which we use preboot on pldm and want
-	 * to load boot fit, but we can't wait for preboot because it runs
-	 * very slowly
-	 */
-	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU) || hdev->pldm)
-		return 0;
 
 	/* Need to check two possible scenarios:
 	 *
@@ -846,7 +840,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		timeout);
 
 	if (rc) {
-		dev_err(hdev->dev, "Failed to read preboot version\n");
+		dev_err(hdev->dev, "CPU boot ready status timeout\n");
 		detect_cpu_boot_status(hdev, status);
 
 		/* If we read all FF, then something is totally wrong, no point
@@ -854,15 +848,39 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		 */
 		if (status != -1)
 			fw_read_errors(hdev, boot_err0_reg,
-					cpu_security_boot_status_reg);
+					cpu_boot_status_reg);
 		return -EIO;
 	}
+
+	prop->fw_preboot_caps_map = RREG32(cpu_boot_caps_reg);
+
+	/*
+	 * For now- force dynamic_fw_load to false as LKD does not yet
+	 * implements all necessary parts of it.
+	 * TODO: once dynamic load is ready set to:
+	 * prop->dynamic_fw_load = !!(prop->fw_preboot_caps_map &
+	 *                                CPU_BOOT_DEV_STS0_FW_LD_COM_EN)
+	 */
+	prop->dynamic_fw_load = 0;
+
+	dev_dbg(hdev->dev, "Attempting %s FW load\n",
+			prop->dynamic_fw_load ? "dynamic" : "legacy");
+	return 0;
+}
+
+static int hl_fw_read_preboot_status_legacy(struct hl_device *hdev,
+		u32 cpu_boot_status_reg, u32 cpu_security_boot_status_reg,
+		u32 boot_err0_reg, u32 timeout)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 security_status;
+	int rc;
 
 	rc = hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
 	if (rc)
 		return rc;
 
-	security_status = RREG32(cpu_security_boot_status_reg);
+	security_status = prop->fw_preboot_caps_map;
 
 	/* We read security status multiple times during boot:
 	 * 1. preboot - a. Check whether the security status bits are valid
@@ -902,6 +920,38 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			prop->fw_security_disabled ? "disabled" : "enabled");
 
 	return 0;
+}
+
+int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
+		u32 cpu_boot_caps_reg, u32 boot_err0_reg,
+		u32 timeout)
+{
+	int rc;
+
+	/* pldm was added for cases in which we use preboot on pldm and want
+	 * to load boot fit, but we can't wait for preboot because it runs
+	 * very slowly
+	 */
+	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU) || hdev->pldm)
+		return 0;
+
+	/*
+	 * In order to determine boot method (static VS dymanic) we need to
+	 * read the boot caps register
+	 */
+	rc = hl_fw_read_preboot_caps(hdev, cpu_boot_status_reg,
+				cpu_boot_caps_reg, boot_err0_reg,
+				timeout);
+	if (rc)
+		return rc;
+
+	if (!hdev->asic_prop.dynamic_fw_load)
+		return hl_fw_read_preboot_status_legacy(hdev, cpu_boot_status_reg,
+				cpu_boot_caps_reg, boot_err0_reg,
+				timeout);
+
+	dev_err(hdev->dev, "Dynamic FW load is not supported\n");
+	return -EINVAL;
 }
 
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
