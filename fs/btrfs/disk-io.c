@@ -441,6 +441,74 @@ static int btree_read_extent_buffer_pages(struct extent_buffer *eb,
 	return ret;
 }
 
+static int csum_one_extent_buffer(struct extent_buffer *eb)
+{
+	struct btrfs_fs_info *fs_info = eb->fs_info;
+	u8 result[BTRFS_CSUM_SIZE];
+	int ret;
+
+	ASSERT(memcmp_extent_buffer(eb, fs_info->fs_devices->metadata_uuid,
+				    offsetof(struct btrfs_header, fsid),
+				    BTRFS_FSID_SIZE) == 0);
+	csum_tree_block(eb, result);
+
+	if (btrfs_header_level(eb))
+		ret = btrfs_check_node(eb);
+	else
+		ret = btrfs_check_leaf_full(eb);
+
+	if (ret < 0) {
+		btrfs_print_tree(eb, 0);
+		btrfs_err(fs_info,
+			"block=%llu write time tree block corruption detected",
+			eb->start);
+		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+		return ret;
+	}
+	write_extent_buffer(eb, result, 0, fs_info->csum_size);
+
+	return 0;
+}
+
+/* Checksum all dirty extent buffers in one bio_vec */
+static int csum_dirty_subpage_buffers(struct btrfs_fs_info *fs_info,
+				      struct bio_vec *bvec)
+{
+	struct page *page = bvec->bv_page;
+	u64 bvec_start = page_offset(page) + bvec->bv_offset;
+	u64 cur;
+	int ret = 0;
+
+	for (cur = bvec_start; cur < bvec_start + bvec->bv_len;
+	     cur += fs_info->nodesize) {
+		struct extent_buffer *eb;
+		bool uptodate;
+
+		eb = find_extent_buffer(fs_info, cur);
+		uptodate = btrfs_subpage_test_uptodate(fs_info, page, cur,
+						       fs_info->nodesize);
+
+		/* A dirty eb shouldn't disappear from buffer_radix */
+		if (WARN_ON(!eb))
+			return -EUCLEAN;
+
+		if (WARN_ON(cur != btrfs_header_bytenr(eb))) {
+			free_extent_buffer(eb);
+			return -EUCLEAN;
+		}
+		if (WARN_ON(!uptodate)) {
+			free_extent_buffer(eb);
+			return -EUCLEAN;
+		}
+
+		ret = csum_one_extent_buffer(eb);
+		free_extent_buffer(eb);
+		if (ret < 0)
+			return ret;
+	}
+	return ret;
+}
+
 /*
  * Checksum a dirty tree block before IO.  This has extra checks to make sure
  * we only fill in the checksum field in the first page of a multi-page block.
@@ -451,9 +519,10 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec
 	struct page *page = bvec->bv_page;
 	u64 start = page_offset(page);
 	u64 found_start;
-	u8 result[BTRFS_CSUM_SIZE];
 	struct extent_buffer *eb;
-	int ret;
+
+	if (fs_info->sectorsize < PAGE_SIZE)
+		return csum_dirty_subpage_buffers(fs_info, bvec);
 
 	eb = (struct extent_buffer *)page->private;
 	if (page != eb->pages[0])
@@ -475,28 +544,7 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec
 	if (WARN_ON(!PageUptodate(page)))
 		return -EUCLEAN;
 
-	ASSERT(memcmp_extent_buffer(eb, fs_info->fs_devices->metadata_uuid,
-				    offsetof(struct btrfs_header, fsid),
-				    BTRFS_FSID_SIZE) == 0);
-
-	csum_tree_block(eb, result);
-
-	if (btrfs_header_level(eb))
-		ret = btrfs_check_node(eb);
-	else
-		ret = btrfs_check_leaf_full(eb);
-
-	if (ret < 0) {
-		btrfs_print_tree(eb, 0);
-		btrfs_err(fs_info,
-		"block=%llu write time tree block corruption detected",
-			  eb->start);
-		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
-		return ret;
-	}
-	write_extent_buffer(eb, result, 0, fs_info->csum_size);
-
-	return 0;
+	return csum_one_extent_buffer(eb);
 }
 
 static int check_tree_block_fsid(struct extent_buffer *eb)
