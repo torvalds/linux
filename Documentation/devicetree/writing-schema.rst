@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Writing DeviceTree Bindings in json-schema
+Writing Devicetree Bindings in json-schema
 ==========================================
 
 Devicetree bindings are written using json-schema vocabulary. Schema files are

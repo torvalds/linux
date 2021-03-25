@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==========================================
-Submitting devicetree (DT) binding patches
+Submitting Devicetree (DT) binding patches
 ==========================================
 
 I. For patch submitters

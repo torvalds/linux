@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =============================
-Open Firmware and Device Tree
+Open Firmware and Devicetree
 =============================
 
 .. toctree::
