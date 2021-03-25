@@ -9,6 +9,7 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-dma-contig.h>
 #include <soc/mediatek/smi.h>
+#include <linux/pm_runtime.h>
 
 #include "mtk_vcodec_drv.h"
 #include "mtk_vcodec_enc.h"
@@ -787,7 +788,7 @@ static int vb2ops_venc_start_streaming(struct vb2_queue *q, unsigned int count)
 	  */
 	if ((ctx->state == MTK_STATE_ABORT) || (ctx->state == MTK_STATE_FREE)) {
 		ret = -EIO;
-		goto err_set_param;
+		goto err_start_stream;
 	}
 
 	/* Do the initialization when both start_streaming have been called */
@@ -797,6 +798,12 @@ static int vb2ops_venc_start_streaming(struct vb2_queue *q, unsigned int count)
 	} else {
 		if (!vb2_start_streaming_called(&ctx->m2m_ctx->out_q_ctx.q))
 			return 0;
+	}
+
+	ret = pm_runtime_resume_and_get(&ctx->dev->plat_dev->dev);
+	if (ret < 0) {
+		mtk_v4l2_err("pm_runtime_resume_and_get fail %d", ret);
+		goto err_start_stream;
 	}
 
 	mtk_venc_set_param(ctx, &param);
@@ -825,6 +832,11 @@ static int vb2ops_venc_start_streaming(struct vb2_queue *q, unsigned int count)
 	return 0;
 
 err_set_param:
+	ret = pm_runtime_put(&ctx->dev->plat_dev->dev);
+	if (ret < 0)
+		mtk_v4l2_err("pm_runtime_put fail %d", ret);
+
+err_start_stream:
 	for (i = 0; i < q->num_buffers; ++i) {
 		struct vb2_buffer *buf = vb2_get_buffer(q, i);
 
@@ -877,6 +889,10 @@ static void vb2ops_venc_stop_streaming(struct vb2_queue *q)
 	ret = venc_if_deinit(ctx);
 	if (ret)
 		mtk_v4l2_err("venc_if_deinit failed=%d", ret);
+
+	ret = pm_runtime_put(&ctx->dev->plat_dev->dev);
+	if (ret < 0)
+		mtk_v4l2_err("pm_runtime_put fail %d", ret);
 
 	ctx->state = MTK_STATE_FREE;
 }
