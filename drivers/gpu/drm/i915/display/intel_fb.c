@@ -27,6 +27,12 @@ bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane)
 	       plane == 2;
 }
 
+bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane)
+{
+	return fb->modifier == DRM_FORMAT_MOD_LINEAR ||
+	       is_gen12_ccs_plane(fb, color_plane);
+}
+
 int main_to_ccs_plane(const struct drm_framebuffer *fb, int main_plane)
 {
 	drm_WARN_ON(fb->dev, !is_ccs_modifier(fb->modifier) ||

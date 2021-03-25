@@ -1264,12 +1264,6 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 	return new_offset;
 }
 
-static bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane)
-{
-	return fb->modifier == DRM_FORMAT_MOD_LINEAR ||
-	       is_gen12_ccs_plane(fb, color_plane);
-}
-
 static u32 intel_adjust_aligned_offset(int *x, int *y,
 				       const struct drm_framebuffer *fb,
 				       int color_plane,

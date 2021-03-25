@@ -562,12 +562,6 @@ icl_program_input_csc(struct intel_plane *plane,
 			  PLANE_INPUT_CSC_POSTOFF(pipe, plane_id, 2), 0x0);
 }
 
-static bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane)
-{
-	return fb->modifier == DRM_FORMAT_MOD_LINEAR ||
-	       is_gen12_ccs_plane(fb, color_plane);
-}
-
 static unsigned int skl_plane_stride_mult(const struct drm_framebuffer *fb,
 					  int color_plane, unsigned int rotation)
 {
