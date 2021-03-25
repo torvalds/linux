@@ -1250,7 +1250,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		 __func__, fanotify_fd, flags, dfd, pathname, mask);
 
 	/* we only use the lower 32 bits as of right now. */
-	if (mask & ((__u64)0xffffffff << 32))
+	if (upper_32_bits(mask))
 		return -EINVAL;
 
 	if (flags & ~FANOTIFY_MARK_FLAGS)
