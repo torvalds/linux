@@ -147,6 +147,11 @@
  */
 #define SMB3_SIGN_KEY_SIZE (16)
 
+/*
+ * Size of the smb3 encryption/decryption keys
+ */
+#define SMB3_ENC_DEC_KEY_SIZE (32)
+
 #define CIFS_CLIENT_CHALLENGE_SIZE (8)
 #define CIFS_SERVER_CHALLENGE_SIZE (8)
 #define CIFS_HMAC_MD5_HASH_SIZE (16)
