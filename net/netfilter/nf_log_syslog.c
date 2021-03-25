@@ -787,6 +787,13 @@ static struct nf_logger nf_netdev_logger __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
+static struct nf_logger nf_bridge_logger __read_mostly = {
+	.name		= "nf_log_bridge",
+	.type		= NF_LOG_TYPE_LOG,
+	.logfn		= nf_log_netdev_packet,
+	.me		= THIS_MODULE,
+};
+
 static int __net_init nf_log_syslog_net_init(struct net *net)
 {
 	int ret = nf_log_set(net, NFPROTO_IPV4, &nf_ip_logger);
@@ -805,7 +812,13 @@ static int __net_init nf_log_syslog_net_init(struct net *net)
 	ret = nf_log_set(net, NFPROTO_NETDEV, &nf_netdev_logger);
 	if (ret)
 		goto err3;
+
+	ret = nf_log_set(net, NFPROTO_BRIDGE, &nf_bridge_logger);
+	if (ret)
+		goto err4;
 	return 0;
+err4:
+	nf_log_unset(net, &nf_netdev_logger);
 err3:
 	nf_log_unset(net, &nf_ip6_logger);
 err2:
@@ -852,7 +865,13 @@ static int __init nf_log_syslog_init(void)
 	if (ret < 0)
 		goto err4;
 
+	ret = nf_log_register(NFPROTO_BRIDGE, &nf_bridge_logger);
+	if (ret < 0)
+		goto err5;
+
 	return 0;
+err5:
+	nf_log_unregister(&nf_netdev_logger);
 err4:
 	nf_log_unregister(&nf_ip6_logger);
 err3:
@@ -872,6 +891,7 @@ static void __exit nf_log_syslog_exit(void)
 	nf_log_unregister(&nf_arp_logger);
 	nf_log_unregister(&nf_ip6_logger);
 	nf_log_unregister(&nf_netdev_logger);
+	nf_log_unregister(&nf_bridge_logger);
 }
 
 module_init(nf_log_syslog_init);
@@ -881,9 +901,11 @@ MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("Netfilter syslog packet logging");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("nf_log_arp");
+MODULE_ALIAS("nf_log_bridge");
 MODULE_ALIAS("nf_log_ipv4");
 MODULE_ALIAS("nf_log_ipv6");
 MODULE_ALIAS("nf_log_netdev");
+MODULE_ALIAS_NF_LOGGER(AF_BRIDGE, 0);
 MODULE_ALIAS_NF_LOGGER(AF_INET, 0);
 MODULE_ALIAS_NF_LOGGER(3, 0);
 MODULE_ALIAS_NF_LOGGER(5, 0); /* NFPROTO_NETDEV */
