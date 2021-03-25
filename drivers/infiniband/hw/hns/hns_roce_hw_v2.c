@@ -1537,6 +1537,25 @@ static int hns_roce_query_fw_ver(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static int hns_roce_query_func_info(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmq_desc desc;
+	int ret;
+
+	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09)
+		return 0;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_QUERY_FUNC_INFO,
+				      true);
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret)
+		return ret;
+
+	hr_dev->cong_algo_tmpl_id = le32_to_cpu(desc.func_info.own_mac_id);
+
+	return 0;
+}
+
 static int hns_roce_config_global_param(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cfg_global_param *req;
@@ -2275,6 +2294,13 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	ret = hns_roce_query_fw_ver(hr_dev);
 	if (ret) {
 		dev_err(hr_dev->dev, "Query firmware version fail, ret = %d.\n",
+			ret);
+		return ret;
+	}
+
+	ret = hns_roce_query_func_info(hr_dev);
+	if (ret) {
+		dev_err(hr_dev->dev, "Query function info fail, ret = %d.\n",
 			ret);
 		return ret;
 	}

@@ -235,6 +235,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_CFG_EXT_LLM			= 0x8403,
 	HNS_ROCE_OPC_CFG_TMOUT_LLM			= 0x8404,
 	HNS_ROCE_OPC_QUERY_PF_TIMER_RES			= 0x8406,
+	HNS_ROCE_OPC_QUERY_FUNC_INFO			= 0x8407,
 	HNS_ROCE_OPC_QUERY_PF_CAPS_NUM                  = 0x8408,
 	HNS_ROCE_OPC_CFG_ENTRY_SIZE			= 0x8409,
 	HNS_ROCE_OPC_CFG_SGID_TB			= 0x8500,
@@ -1866,7 +1867,15 @@ struct hns_roce_cmq_desc {
 	__le16 flag;
 	__le16 retval;
 	__le16 rsv;
-	__le32 data[6];
+	union {
+		__le32 data[6];
+		struct {
+			__le32 rsv1;
+			__le32 own_mac_id;
+			__le32 rsv2[4];
+		} func_info;
+	};
+
 };
 
 #define HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS	10000

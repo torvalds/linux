@@ -1001,6 +1001,7 @@ struct hns_roce_dev {
 	void			*priv;
 	struct workqueue_struct *irq_workq;
 	const struct hns_roce_dfx_hw *dfx;
+	u32 cong_algo_tmpl_id;
 };
 
 static inline struct hns_roce_dev *to_hr_dev(struct ib_device *ib_dev)
