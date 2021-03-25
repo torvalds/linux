@@ -79,6 +79,7 @@ struct mlx5_flow_attr {
 	u8 inner_match_level;
 	u8 outer_match_level;
 	u8 ip_version;
+	u8 tun_ip_version;
 	u32 flags;
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];

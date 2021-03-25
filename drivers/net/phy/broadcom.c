@@ -342,6 +342,10 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 	bcm54xx_adjust_rxrefclk(phydev);
 
 	switch (BRCM_PHY_MODEL(phydev)) {
+	case PHY_ID_BCM50610:
+	case PHY_ID_BCM50610M:
+		err = bcm54xx_config_clock_delay(phydev);
+		break;
 	case PHY_ID_BCM54210E:
 		err = bcm54210e_config_init(phydev);
 		break;
@@ -398,6 +402,11 @@ static int bcm54xx_resume(struct phy_device *phydev)
 	ret = genphy_resume(phydev);
 	if (ret < 0)
 		return ret;
+
+	/* Upon exiting power down, the PHY remains in an internal reset state
+	 * for 40us
+	 */
+	fsleep(40);
 
 	return bcm54xx_config_init(phydev);
 }

@@ -11,6 +11,7 @@ ksft_skip=4
 timeout=30
 mptcp_connect=""
 capture=0
+do_all_tests=1
 
 TEST_COUNT=0
 
@@ -120,12 +121,6 @@ reset_with_add_addr_timeout()
 		"$CBPF_MPTCP_SUBOPTION_ADD_ADDR" \
 		-j DROP
 }
-
-for arg in "$@"; do
-	if [ "$arg" = "-c" ]; then
-		capture=1
-	fi
-done
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
@@ -1221,7 +1216,8 @@ usage()
 	echo "  -4 v4mapped_tests"
 	echo "  -b backup_tests"
 	echo "  -p add_addr_ports_tests"
-	echo "  -c syncookies_tests"
+	echo "  -k syncookies_tests"
+	echo "  -c capture pcap files"
 	echo "  -h help"
 }
 
@@ -1235,12 +1231,24 @@ make_file "$cin" "client" 1
 make_file "$sin" "server" 1
 trap cleanup EXIT
 
-if [ -z $1 ]; then
+for arg in "$@"; do
+	# check for "capture" arg before launching tests
+	if [[ "${arg}" =~ ^"-"[0-9a-zA-Z]*"c"[0-9a-zA-Z]*$ ]]; then
+		capture=1
+	fi
+
+	# exception for the capture option, the rest means: a part of the tests
+	if [ "${arg}" != "-c" ]; then
+		do_all_tests=0
+	fi
+done
+
+if [ $do_all_tests -eq 1 ]; then
 	all_tests
 	exit $ret
 fi
 
-while getopts 'fsltra64bpch' opt; do
+while getopts 'fsltra64bpkch' opt; do
 	case $opt in
 		f)
 			subflows_tests
@@ -1272,8 +1280,10 @@ while getopts 'fsltra64bpch' opt; do
 		p)
 			add_addr_ports_tests
 			;;
-		c)
+		k)
 			syncookies_tests
+			;;
+		c)
 			;;
 		h | *)
 			usage

@@ -584,13 +584,6 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		goto out;
 	}
 
-	rcu_read_lock();
-	if (__sk_dst_get(sk) != tp->dst) {
-		dst_hold(tp->dst);
-		sk_setup_caps(sk, tp->dst);
-	}
-	rcu_read_unlock();
-
 	/* pack up chunks */
 	pkt_count = sctp_packet_pack(packet, head, gso, gfp);
 	if (!pkt_count) {

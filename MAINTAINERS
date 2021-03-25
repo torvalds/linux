@@ -8520,6 +8520,7 @@ IBM Power SRIOV Virtual NIC Device Driver
 M:	Dany Madden <drt@linux.ibm.com>
 M:	Lijun Pan <ljp@linux.ibm.com>
 M:	Sukadev Bhattiprolu <sukadev@linux.ibm.com>
+R:	Thomas Falcon <tlfalcon@linux.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/ibm/ibmvnic.*
@@ -12537,7 +12538,7 @@ NETWORKING [MPTCP]
 M:	Mat Martineau <mathew.j.martineau@linux.intel.com>
 M:	Matthieu Baerts <matthieu.baerts@tessares.net>
 L:	netdev@vger.kernel.org
-L:	mptcp@lists.01.org
+L:	mptcp@lists.linux.dev
 S:	Maintained
 W:	https://github.com/multipath-tcp/mptcp_net-next/wiki
 B:	https://github.com/multipath-tcp/mptcp_net-next/issues
@@ -14708,15 +14709,11 @@ F:	drivers/net/ethernet/qlogic/qlcnic/
 QLOGIC QLGE 10Gb ETHERNET DRIVER
 M:	Manish Chopra <manishc@marvell.com>
 M:	GR-Linux-NIC-Dev@marvell.com
-L:	netdev@vger.kernel.org
-S:	Supported
-F:	drivers/staging/qlge/
-
-QLOGIC QLGE 10Gb ETHERNET DRIVER
 M:	Coiby Xu <coiby.xu@gmail.com>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Supported
 F:	Documentation/networking/device_drivers/qlogic/qlge.rst
+F:	drivers/staging/qlge/
 
 QM1D1B0004 MEDIA DRIVER
 M:	Akihiro Tsukada <tskd08@gmail.com>
@@ -16886,8 +16883,10 @@ F:	tools/spi/
 
 SPIDERNET NETWORK DRIVER for CELL
 M:	Ishizaki Kou <kou.ishizaki@toshiba.co.jp>
+M:	Geoff Levand <geoff@infradead.org>
 L:	netdev@vger.kernel.org
-S:	Supported
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/toshiba/spider_net.rst
 F:	drivers/net/ethernet/toshiba/spider_net*
 

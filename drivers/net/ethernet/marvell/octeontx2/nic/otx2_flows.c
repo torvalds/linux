@@ -257,17 +257,19 @@ int otx2_get_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc,
 int otx2_get_all_flows(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc,
 		       u32 *rule_locs)
 {
+	u32 rule_cnt = nfc->rule_cnt;
 	u32 location = 0;
 	int idx = 0;
 	int err = 0;
 
 	nfc->data = pfvf->flow_cfg->ntuple_max_flows;
-	while ((!err || err == -ENOENT) && idx < nfc->rule_cnt) {
+	while ((!err || err == -ENOENT) && idx < rule_cnt) {
 		err = otx2_get_flow(pfvf, nfc, location);
 		if (!err)
 			rule_locs[idx++] = location;
 		location++;
 	}
+	nfc->rule_cnt = rule_cnt;
 
 	return err;
 }
