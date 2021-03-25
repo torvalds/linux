@@ -3568,7 +3568,7 @@ EXPORT_SYMBOL(kernel_accept);
  *	@addrlen: address length
  *	@flags: flags (O_NONBLOCK, ...)
  *
- *	For datagram sockets, @addr is the addres to which datagrams are sent
+ *	For datagram sockets, @addr is the address to which datagrams are sent
  *	by default, and the only address from which datagrams are received.
  *	For stream sockets, attempts to connect to @addr.
  *	Returns 0 or an error code.
