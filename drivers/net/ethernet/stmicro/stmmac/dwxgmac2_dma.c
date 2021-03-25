@@ -323,11 +323,17 @@ static void dwxgmac2_dma_stop_rx(void __iomem *ioaddr, u32 chan)
 }
 
 static int dwxgmac2_dma_interrupt(void __iomem *ioaddr,
-				  struct stmmac_extra_stats *x, u32 chan)
+				  struct stmmac_extra_stats *x, u32 chan,
+				  u32 dir)
 {
 	u32 intr_status = readl(ioaddr + XGMAC_DMA_CH_STATUS(chan));
 	u32 intr_en = readl(ioaddr + XGMAC_DMA_CH_INT_EN(chan));
 	int ret = 0;
+
+	if (dir == DMA_DIR_RX)
+		intr_status &= XGMAC_DMA_STATUS_MSK_RX;
+	else if (dir == DMA_DIR_TX)
+		intr_status &= XGMAC_DMA_STATUS_MSK_TX;
 
 	/* ABNORMAL interrupts */
 	if (unlikely(intr_status & XGMAC_AIS)) {

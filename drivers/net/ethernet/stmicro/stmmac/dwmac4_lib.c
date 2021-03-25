@@ -135,11 +135,16 @@ void dwmac410_disable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx)
 }
 
 int dwmac4_dma_interrupt(void __iomem *ioaddr,
-			 struct stmmac_extra_stats *x, u32 chan)
+			 struct stmmac_extra_stats *x, u32 chan, u32 dir)
 {
 	u32 intr_status = readl(ioaddr + DMA_CHAN_STATUS(chan));
 	u32 intr_en = readl(ioaddr + DMA_CHAN_INTR_ENA(chan));
 	int ret = 0;
+
+	if (dir == DMA_DIR_RX)
+		intr_status &= DMA_CHAN_STATUS_MSK_RX;
+	else if (dir == DMA_DIR_TX)
+		intr_status &= DMA_CHAN_STATUS_MSK_TX;
 
 	/* ABNORMAL interrupts */
 	if (unlikely(intr_status & DMA_CHAN_STATUS_AIS)) {

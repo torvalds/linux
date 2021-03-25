@@ -2337,10 +2337,10 @@ static bool stmmac_safety_feat_interrupt(struct stmmac_priv *priv)
 	return false;
 }
 
-static int stmmac_napi_check(struct stmmac_priv *priv, u32 chan)
+static int stmmac_napi_check(struct stmmac_priv *priv, u32 chan, u32 dir)
 {
 	int status = stmmac_dma_interrupt_status(priv, priv->ioaddr,
-						 &priv->xstats, chan);
+						 &priv->xstats, chan, dir);
 	struct stmmac_channel *ch = &priv->channel[chan];
 	unsigned long flags;
 
@@ -2386,7 +2386,8 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 		channels_to_check = ARRAY_SIZE(status);
 
 	for (chan = 0; chan < channels_to_check; chan++)
-		status[chan] = stmmac_napi_check(priv, chan);
+		status[chan] = stmmac_napi_check(priv, chan,
+						 DMA_DIR_RXTX);
 
 	for (chan = 0; chan < tx_channel_count; chan++) {
 		if (unlikely(status[chan] & tx_hard_error_bump_tc)) {
