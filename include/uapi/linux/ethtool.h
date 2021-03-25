@@ -1378,7 +1378,7 @@ struct ethtool_per_queue_op {
 /**
  * struct ethtool_fecparam - Ethernet forward error correction(fec) parameters
  * @cmd: Command number = %ETHTOOL_GFECPARAM or %ETHTOOL_SFECPARAM
- * @active_fec: FEC mode which is active on the port
+ * @active_fec: FEC mode which is active on the port, GET only.
  * @fec: Bitmask of supported/configured FEC modes
  * @reserved: Reserved for future extensions, ignore on GET, write 0 for SET.
  */
