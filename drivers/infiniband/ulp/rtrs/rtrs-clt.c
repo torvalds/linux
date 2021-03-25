@@ -1052,7 +1052,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 	struct rtrs_sess *s = con->c.sess;
 	struct rtrs_clt_sess *sess = to_clt_sess(s);
 	struct rtrs_msg_rdma_read *msg;
-	struct rtrs_ib_dev *dev;
+	struct rtrs_ib_dev *dev = sess->s.dev;
 
 	struct ib_reg_wr rwr;
 	struct ib_send_wr *wr = NULL;
@@ -1061,9 +1061,6 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 	u32 imm, buf_id;
 
 	const size_t tsize = sizeof(*msg) + req->data_len + req->usr_len;
-
-	s = &sess->s;
-	dev = sess->s.dev;
 
 	if (unlikely(tsize > sess->chunk_size)) {
 		rtrs_wrn(s,
