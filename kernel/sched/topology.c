@@ -2223,7 +2223,6 @@ int sched_init_domains(const struct cpumask *cpu_map)
 		doms_cur = &fallback_doms;
 	cpumask_and(doms_cur[0], cpu_map, housekeeping_cpumask(HK_FLAG_DOMAIN));
 	err = build_sched_domains(doms_cur[0], NULL);
-	register_sched_domain_sysctl();
 
 	return err;
 }
@@ -2297,9 +2296,6 @@ void partition_sched_domains_locked(int ndoms_new, cpumask_var_t doms_new[],
 	int new_topology;
 
 	lockdep_assert_held(&sched_domains_mutex);
-
-	/* Always unregister in case we don't destroy any domains: */
-	unregister_sched_domain_sysctl();
 
 	/* Let the architecture update CPU core mappings: */
 	new_topology = arch_update_cpu_topology();
@@ -2389,7 +2385,7 @@ match3:
 	dattr_cur = dattr_new;
 	ndoms_cur = ndoms_new;
 
-	register_sched_domain_sysctl();
+	update_sched_domain_debugfs();
 }
 
 /*
