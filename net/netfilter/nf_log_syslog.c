@@ -18,6 +18,7 @@
 #include <net/route.h>
 
 #include <linux/netfilter.h>
+#include <linux/netfilter_bridge.h>
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter/xt_LOG.h>
 #include <net/netfilter/nf_log.h>
@@ -39,6 +40,16 @@ struct arppayload {
 	unsigned char ip_dst[4];
 };
 
+static void nf_log_dump_vlan(struct nf_log_buf *m, const struct sk_buff *skb)
+{
+	u16 vid;
+
+	if (!skb_vlan_tag_present(skb))
+		return;
+
+	vid = skb_vlan_tag_get(skb);
+	nf_log_buf_add(m, "VPROTO=%04x VID=%u ", ntohs(skb->vlan_proto), vid);
+}
 static void noinline_for_stack
 dump_arp_packet(struct nf_log_buf *m,
 		const struct nf_loginfo *info,
@@ -89,6 +100,30 @@ dump_arp_packet(struct nf_log_buf *m,
 		       ap->mac_src, ap->ip_src, ap->mac_dst, ap->ip_dst);
 }
 
+static void
+nf_log_dump_packet_common(struct nf_log_buf *m, u8 pf,
+			  unsigned int hooknum, const struct sk_buff *skb,
+			  const struct net_device *in,
+			  const struct net_device *out,
+			  const struct nf_loginfo *loginfo, const char *prefix)
+{
+	const struct net_device *physoutdev __maybe_unused;
+	const struct net_device *physindev __maybe_unused;
+
+	nf_log_buf_add(m, KERN_SOH "%c%sIN=%s OUT=%s ",
+		       '0' + loginfo->u.log.level, prefix,
+			in ? in->name : "",
+			out ? out->name : "");
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	physindev = nf_bridge_get_physindev(skb);
+	if (physindev && in != physindev)
+		nf_log_buf_add(m, "PHYSIN=%s ", physindev->name);
+	physoutdev = nf_bridge_get_physoutdev(skb);
+	if (physoutdev && out != physoutdev)
+		nf_log_buf_add(m, "PHYSOUT=%s ", physoutdev->name);
+#endif
+}
+
 static void nf_log_arp_packet(struct net *net, u_int8_t pf,
 			      unsigned int hooknum, const struct sk_buff *skb,
 			      const struct net_device *in,
@@ -120,6 +155,138 @@ static struct nf_logger nf_arp_logger __read_mostly = {
 	.logfn		= nf_log_arp_packet,
 	.me		= THIS_MODULE,
 };
+
+static void nf_log_dump_sk_uid_gid(struct net *net, struct nf_log_buf *m,
+				   struct sock *sk)
+{
+	if (!sk || !sk_fullsock(sk) || !net_eq(net, sock_net(sk)))
+		return;
+
+	read_lock_bh(&sk->sk_callback_lock);
+	if (sk->sk_socket && sk->sk_socket->file) {
+		const struct cred *cred = sk->sk_socket->file->f_cred;
+
+		nf_log_buf_add(m, "UID=%u GID=%u ",
+			       from_kuid_munged(&init_user_ns, cred->fsuid),
+			       from_kgid_munged(&init_user_ns, cred->fsgid));
+	}
+	read_unlock_bh(&sk->sk_callback_lock);
+}
+
+static noinline_for_stack int
+nf_log_dump_tcp_header(struct nf_log_buf *m,
+		       const struct sk_buff *skb,
+		       u8 proto, int fragment,
+		       unsigned int offset,
+		       unsigned int logflags)
+{
+	struct tcphdr _tcph;
+	const struct tcphdr *th;
+
+	/* Max length: 10 "PROTO=TCP " */
+	nf_log_buf_add(m, "PROTO=TCP ");
+
+	if (fragment)
+		return 0;
+
+	/* Max length: 25 "INCOMPLETE [65535 bytes] " */
+	th = skb_header_pointer(skb, offset, sizeof(_tcph), &_tcph);
+	if (!th) {
+		nf_log_buf_add(m, "INCOMPLETE [%u bytes] ", skb->len - offset);
+		return 1;
+	}
+
+	/* Max length: 20 "SPT=65535 DPT=65535 " */
+	nf_log_buf_add(m, "SPT=%u DPT=%u ",
+		       ntohs(th->source), ntohs(th->dest));
+	/* Max length: 30 "SEQ=4294967295 ACK=4294967295 " */
+	if (logflags & NF_LOG_TCPSEQ) {
+		nf_log_buf_add(m, "SEQ=%u ACK=%u ",
+			       ntohl(th->seq), ntohl(th->ack_seq));
+	}
+
+	/* Max length: 13 "WINDOW=65535 " */
+	nf_log_buf_add(m, "WINDOW=%u ", ntohs(th->window));
+	/* Max length: 9 "RES=0x3C " */
+	nf_log_buf_add(m, "RES=0x%02x ", (u_int8_t)(ntohl(tcp_flag_word(th) &
+					    TCP_RESERVED_BITS) >> 22));
+	/* Max length: 32 "CWR ECE URG ACK PSH RST SYN FIN " */
+	if (th->cwr)
+		nf_log_buf_add(m, "CWR ");
+	if (th->ece)
+		nf_log_buf_add(m, "ECE ");
+	if (th->urg)
+		nf_log_buf_add(m, "URG ");
+	if (th->ack)
+		nf_log_buf_add(m, "ACK ");
+	if (th->psh)
+		nf_log_buf_add(m, "PSH ");
+	if (th->rst)
+		nf_log_buf_add(m, "RST ");
+	if (th->syn)
+		nf_log_buf_add(m, "SYN ");
+	if (th->fin)
+		nf_log_buf_add(m, "FIN ");
+	/* Max length: 11 "URGP=65535 " */
+	nf_log_buf_add(m, "URGP=%u ", ntohs(th->urg_ptr));
+
+	if ((logflags & NF_LOG_TCPOPT) && th->doff * 4 > sizeof(struct tcphdr)) {
+		unsigned int optsize = th->doff * 4 - sizeof(struct tcphdr);
+		u8 _opt[60 - sizeof(struct tcphdr)];
+		unsigned int i;
+		const u8 *op;
+
+		op = skb_header_pointer(skb, offset + sizeof(struct tcphdr),
+					optsize, _opt);
+		if (!op) {
+			nf_log_buf_add(m, "OPT (TRUNCATED)");
+			return 1;
+		}
+
+		/* Max length: 127 "OPT (" 15*4*2chars ") " */
+		nf_log_buf_add(m, "OPT (");
+		for (i = 0; i < optsize; i++)
+			nf_log_buf_add(m, "%02X", op[i]);
+
+		nf_log_buf_add(m, ") ");
+	}
+
+	return 0;
+}
+
+static noinline_for_stack int
+nf_log_dump_udp_header(struct nf_log_buf *m,
+		       const struct sk_buff *skb,
+		       u8 proto, int fragment,
+		       unsigned int offset)
+{
+	struct udphdr _udph;
+	const struct udphdr *uh;
+
+	if (proto == IPPROTO_UDP)
+		/* Max length: 10 "PROTO=UDP "     */
+		nf_log_buf_add(m, "PROTO=UDP ");
+	else	/* Max length: 14 "PROTO=UDPLITE " */
+		nf_log_buf_add(m, "PROTO=UDPLITE ");
+
+	if (fragment)
+		goto out;
+
+	/* Max length: 25 "INCOMPLETE [65535 bytes] " */
+	uh = skb_header_pointer(skb, offset, sizeof(_udph), &_udph);
+	if (!uh) {
+		nf_log_buf_add(m, "INCOMPLETE [%u bytes] ", skb->len - offset);
+
+		return 1;
+	}
+
+	/* Max length: 20 "SPT=65535 DPT=65535 " */
+	nf_log_buf_add(m, "SPT=%u DPT=%u LEN=%u ",
+		       ntohs(uh->source), ntohs(uh->dest), ntohs(uh->len));
+
+out:
+	return 0;
+}
 
 /* One level of recursion won't kill us */
 static noinline_for_stack void
@@ -776,8 +943,18 @@ static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
 				 const struct nf_loginfo *loginfo,
 				 const char *prefix)
 {
-	nf_log_l2packet(net, pf, skb->protocol, hooknum, skb, in, out,
-			loginfo, prefix);
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		nf_log_ip_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
+		break;
+	case htons(ETH_P_IPV6):
+		nf_log_ip6_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
+		break;
+	case htons(ETH_P_ARP):
+	case htons(ETH_P_RARP):
+		nf_log_arp_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
+		break;
+	}
 }
 
 static struct nf_logger nf_netdev_logger __read_mostly = {
