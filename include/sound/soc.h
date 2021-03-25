@@ -716,20 +716,38 @@ struct snd_soc_dai_link {
 	struct snd_soc_dobj dobj; /* For topology */
 #endif
 };
+
+static inline struct snd_soc_dai_link_component*
+asoc_link_to_cpu(struct snd_soc_dai_link *link, int n) {
+	return &(link)->cpus[n];
+}
+
+static inline struct snd_soc_dai_link_component*
+asoc_link_to_codec(struct snd_soc_dai_link *link, int n) {
+	return &(link)->codecs[n];
+}
+
+static inline struct snd_soc_dai_link_component*
+asoc_link_to_platform(struct snd_soc_dai_link *link, int n) {
+	return &(link)->platforms[n];
+}
+
 #define for_each_link_codecs(link, i, codec)				\
 	for ((i) = 0;							\
-	     ((i) < link->num_codecs) && ((codec) = &link->codecs[i]);	\
+	     ((i) < link->num_codecs) &&				\
+		     ((codec) = asoc_link_to_codec(link, i));		\
 	     (i)++)
 
 #define for_each_link_platforms(link, i, platform)			\
 	for ((i) = 0;							\
 	     ((i) < link->num_platforms) &&				\
-	     ((platform) = &link->platforms[i]);			\
+		     ((platform) = asoc_link_to_platform(link, i));	\
 	     (i)++)
 
 #define for_each_link_cpus(link, i, cpu)				\
 	for ((i) = 0;							\
-	     ((i) < link->num_cpus) && ((cpu) = &link->cpus[i]);	\
+	     ((i) < link->num_cpus) &&					\
+		     ((cpu) = asoc_link_to_cpu(link, i));		\
 	     (i)++)
 
 /*
@@ -1262,12 +1280,16 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 
 	/* set platform name for each dailink */
 	for_each_card_prelinks(card, i, dai_link) {
-		name = devm_kstrdup(card->dev, platform_name, GFP_KERNEL);
-		if (!name)
-			return -ENOMEM;
+		/* only single platform is supported for now */
+		if (dai_link->num_platforms != 1)
+			return -EINVAL;
 
 		if (!dai_link->platforms)
 			return -EINVAL;
+
+		name = devm_kstrdup(card->dev, platform_name, GFP_KERNEL);
+		if (!name)
+			return -ENOMEM;
 
 		/* only single platform is supported for now */
 		dai_link->platforms->name = name;
