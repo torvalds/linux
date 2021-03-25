@@ -2906,8 +2906,10 @@ static int smu_enable_mgpu_fan_boost(void *handle)
 	return ret;
 }
 
-int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state)
+static int smu_gfx_state_change_set(void *handle,
+				    uint32_t state)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	mutex_lock(&smu->mutex);
@@ -2980,6 +2982,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.display_disable_memory_clock_switch = smu_display_disable_memory_clock_switch,
 	.get_max_sustainable_clocks_by_dc    = smu_get_max_sustainable_clocks_by_dc,
 	.load_firmware           = smu_load_microcode,
+	.gfx_state_change_set    = smu_gfx_state_change_set,
 };
 
 int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,

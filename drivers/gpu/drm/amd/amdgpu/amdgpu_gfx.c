@@ -842,14 +842,10 @@ int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev)
 
 void amdgpu_gfx_state_change_set(struct amdgpu_device *adev, enum gfx_change_state state)
 {
-	if (is_support_sw_smu(adev)) {
-		smu_gfx_state_change_set(&adev->smu, state);
-	} else {
-		mutex_lock(&adev->pm.mutex);
-		if (adev->powerplay.pp_funcs &&
-		    adev->powerplay.pp_funcs->gfx_state_change_set)
-			((adev)->powerplay.pp_funcs->gfx_state_change_set(
-				(adev)->powerplay.pp_handle, state));
-		mutex_unlock(&adev->pm.mutex);
-	}
+	mutex_lock(&adev->pm.mutex);
+	if (adev->powerplay.pp_funcs &&
+	    adev->powerplay.pp_funcs->gfx_state_change_set)
+		((adev)->powerplay.pp_funcs->gfx_state_change_set(
+			(adev)->powerplay.pp_handle, state));
+	mutex_unlock(&adev->pm.mutex);
 }
