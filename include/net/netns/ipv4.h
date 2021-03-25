@@ -98,7 +98,7 @@ struct netns_ipv4 {
 	u8 sysctl_ip_default_ttl;
 	u8 sysctl_ip_no_pmtu_disc;
 	u8 sysctl_ip_fwd_use_pmtu;
-	int sysctl_ip_fwd_update_priority;
+	u8 sysctl_ip_fwd_update_priority;
 	u8 sysctl_ip_nonlocal_bind;
 	u8 sysctl_ip_autobind_reuse;
 	/* Shall we try to damage output packets if routing dev changes? */
