@@ -3572,6 +3572,7 @@ void f2fs_do_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	struct seg_entry *se;
 	int type;
 	unsigned short old_blkoff;
+	unsigned char old_alloc_type;
 
 	segno = GET_SEGNO(sbi, new_blkaddr);
 	se = get_seg_entry(sbi, segno);
@@ -3605,6 +3606,7 @@ void f2fs_do_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 	old_cursegno = curseg->segno;
 	old_blkoff = curseg->next_blkoff;
+	old_alloc_type = curseg->alloc_type;
 
 	/* change the current segment */
 	if (segno != curseg->segno) {
@@ -3639,6 +3641,7 @@ void f2fs_do_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 			change_curseg(sbi, type, true);
 		}
 		curseg->next_blkoff = old_blkoff;
+		curseg->alloc_type = old_alloc_type;
 	}
 
 	up_write(&sit_i->sentry_lock);
