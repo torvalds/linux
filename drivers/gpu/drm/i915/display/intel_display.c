@@ -933,7 +933,7 @@ unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info
 	int i;
 
 	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++)
-		size += rot_info->plane[i].width * rot_info->plane[i].height;
+		size += rot_info->plane[i].dst_stride * rot_info->plane[i].width;
 
 	return size;
 }
@@ -944,7 +944,7 @@ unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info
 	int i;
 
 	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++)
-		size += rem_info->plane[i].width * rem_info->plane[i].height;
+		size += rem_info->plane[i].dst_stride * rem_info->plane[i].height;
 
 	return size;
 }

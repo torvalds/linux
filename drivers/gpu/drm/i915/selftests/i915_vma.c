@@ -528,6 +528,15 @@ static int igt_vma_rotate_remap(void *arg)
 			GEM_BUG_ON(max_offset > max_pages);
 			max_offset = max_pages - max_offset;
 
+			if (!plane_info[0].dst_stride)
+				plane_info[0].dst_stride = view.type == I915_GGTT_VIEW_ROTATED ?
+									plane_info[0].height :
+									plane_info[0].width;
+			if (!plane_info[1].dst_stride)
+				plane_info[1].dst_stride = view.type == I915_GGTT_VIEW_ROTATED ?
+									plane_info[1].height :
+									plane_info[1].width;
+
 			for_each_prime_number_from(plane_info[0].offset, 0, max_offset) {
 				for_each_prime_number_from(plane_info[1].offset, 0, max_offset) {
 					struct scatterlist *sg;
@@ -901,6 +910,10 @@ static int igt_vma_remapped_gtt(void *arg)
 			i915_gem_object_unlock(obj);
 			if (err)
 				goto out;
+
+			if (!plane_info[0].dst_stride)
+				plane_info[0].dst_stride = *t == I915_GGTT_VIEW_ROTATED ?
+								 p->height : p->width;
 
 			vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
 			if (IS_ERR(vma)) {
