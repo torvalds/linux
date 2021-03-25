@@ -1532,6 +1532,7 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog,
 				const union bpf_attr *kattr,
 				union bpf_attr __user *uattr);
+bool bpf_prog_test_check_kfunc_call(u32 kfunc_id);
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
 		    struct bpf_insn_access_aux *info);
@@ -1729,6 +1730,11 @@ static inline int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog,
 					      union bpf_attr __user *uattr)
 {
 	return -ENOTSUPP;
+}
+
+static inline bool bpf_prog_test_check_kfunc_call(u32 kfunc_id)
+{
+	return false;
 }
 
 static inline void bpf_map_put(struct bpf_map *map)
