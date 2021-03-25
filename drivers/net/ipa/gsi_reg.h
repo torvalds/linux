@@ -114,6 +114,9 @@ enum gsi_channel_type {
 /* The next two fields are present for IPA v4.5 and above */
 #define PREFETCH_MODE_FMASK		GENMASK(13, 10)
 #define EMPTY_LVL_THRSHOLD_FMASK	GENMASK(23, 16)
+/* The next field is present for IPA v4.9 and above */
+#define DB_IN_BYTES			GENMASK(24, 24)
+
 /** enum gsi_prefetch_mode - PREFETCH_MODE field in CH_C_QOS */
 enum gsi_prefetch_mode {
 	GSI_USE_PREFETCH_BUFS			= 0x0,
@@ -146,13 +149,13 @@ enum gsi_prefetch_mode {
 		GSI_EE_N_EV_CH_E_CNTXT_0_OFFSET((ev), GSI_EE_AP)
 #define GSI_EE_N_EV_CH_E_CNTXT_0_OFFSET(ev, ee) \
 		(0x0001d000 + 0x4000 * (ee) + 0x80 * (ev))
+/* enum gsi_channel_type defines EV_CHTYPE field values in EV_CH_E_CNTXT_0 */
 #define EV_CHTYPE_FMASK			GENMASK(3, 0)
 #define EV_EE_FMASK			GENMASK(7, 4)
 #define EV_EVCHID_FMASK			GENMASK(15, 8)
 #define EV_INTYPE_FMASK			GENMASK(16, 16)
 #define EV_CHSTATE_FMASK		GENMASK(23, 20)
 #define EV_ELEMENT_SIZE_FMASK		GENMASK(31, 24)
-/* enum gsi_channel_type defines EV_CHTYPE field values in EV_CH_E_CNTXT_0 */
 
 #define GSI_EV_CH_E_CNTXT_1_OFFSET(ev) \
 		GSI_EE_N_EV_CH_E_CNTXT_1_OFFSET((ev), GSI_EE_AP)
@@ -248,6 +251,7 @@ enum gsi_ch_cmd_opcode {
 	GSI_CH_STOP				= 0x2,
 	GSI_CH_RESET				= 0x9,
 	GSI_CH_DE_ALLOC				= 0xa,
+	GSI_CH_DB_STOP				= 0xb,
 };
 
 #define GSI_EV_CH_CMD_OFFSET \
@@ -278,6 +282,7 @@ enum gsi_generic_cmd_opcode {
 	GSI_GENERIC_ALLOCATE_CHANNEL		= 0x2,
 };
 
+/* The next register is present for IPA v3.5.1 and above */
 #define GSI_GSI_HW_PARAM_2_OFFSET \
 			GSI_EE_N_GSI_HW_PARAM_2_OFFSET(GSI_EE_AP)
 #define GSI_EE_N_GSI_HW_PARAM_2_OFFSET(ee) \
@@ -300,7 +305,7 @@ enum gsi_generic_cmd_opcode {
 enum gsi_iram_size {
 	IRAM_SIZE_ONE_KB			= 0x0,
 	IRAM_SIZE_TWO_KB			= 0x1,
-/* The next two values are available for IPA v4.0 and above */
+	/* The next two values are available for IPA v4.0 and above */
 	IRAM_SIZE_TWO_N_HALF_KB			= 0x2,
 	IRAM_SIZE_THREE_KB			= 0x3,
 	/* The next two values are available for IPA v4.5 and above */
@@ -424,6 +429,8 @@ enum gsi_general_id {
 			GSI_EE_N_ERROR_LOG_OFFSET(GSI_EE_AP)
 #define GSI_EE_N_ERROR_LOG_OFFSET(ee) \
 			(0x0001f200 + 0x4000 * (ee))
+
+/* Fields below are present for IPA v3.5.1 and above */
 #define ERR_ARG3_FMASK			GENMASK(3, 0)
 #define ERR_ARG2_FMASK			GENMASK(7, 4)
 #define ERR_ARG1_FMASK			GENMASK(11, 8)
@@ -473,8 +480,5 @@ enum gsi_generic_ee_result {
 	GENERIC_EE_RETRY			= 0x6,
 	GENERIC_EE_NO_RESOURCES			= 0x7,
 };
-
-#define USB_MAX_PACKET_FMASK		GENMASK(15, 15)	/* 0: HS; 1: SS */
-#define MHI_BASE_CHANNEL_FMASK		GENMASK(31, 24)
 
 #endif	/* _GSI_REG_H_ */
