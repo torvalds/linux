@@ -23,6 +23,8 @@ services:
     privileged: true
     tty: true
     hostname: "so2"
+    environment:
+      - DISPLAY
     build:
       context: .
       dockerfile: ./kernel/Dockerfile
@@ -31,3 +33,4 @@ services:
               ARG_GID: ${ARG_GID}
     volumes:
       - ../../../:/linux
+      - /tmp/.X11-unix:/tmp/.X11-unix
