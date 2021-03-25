@@ -1381,10 +1381,6 @@ struct ethtool_per_queue_op {
  * @active_fec: FEC mode which is active on the port
  * @fec: Bitmask of supported/configured FEC modes
  * @rsvd: Reserved for future extensions. i.e FEC bypass feature.
- *
- * Drivers should reject a non-zero setting of @autoneg when
- * autoneogotiation is disabled (or not supported) for the link.
- *
  */
 struct ethtool_fecparam {
 	__u32   cmd;
