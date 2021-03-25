@@ -228,7 +228,7 @@ EXPORT_SYMBOL(__hw_addr_unsync);
  *  @sync: function to call if address should be added
  *  @unsync: function to call if address should be removed
  *
- *  This funciton is intended to be called from the ndo_set_rx_mode
+ *  This function is intended to be called from the ndo_set_rx_mode
  *  function of devices that require explicit address add/remove
  *  notifications.  The unsync function may be NULL in which case
  *  the addresses requiring removal will simply be removed without
