@@ -8,7 +8,6 @@
 
 #include <linux/types.h>
 
-struct drm_framebuffer;
 struct drm_i915_private;
 struct intel_crtc;
 struct intel_initial_plane_config;
@@ -26,7 +25,6 @@ void skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
 
-int skl_ccs_to_main_plane(const struct drm_framebuffer *fb, int ccs_plane);
 int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 				 int *x, int *y, u32 *offset);
 

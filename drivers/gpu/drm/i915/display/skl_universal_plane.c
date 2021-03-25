@@ -915,40 +915,6 @@ static u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 	return plane_color_ctl;
 }
 
-static int
-main_to_ccs_plane(const struct drm_framebuffer *fb, int main_plane)
-{
-	drm_WARN_ON(fb->dev, !is_ccs_modifier(fb->modifier) ||
-		    (main_plane && main_plane >= fb->format->num_planes / 2));
-
-	return fb->format->num_planes / 2 + main_plane;
-}
-
-int skl_ccs_to_main_plane(const struct drm_framebuffer *fb, int ccs_plane)
-{
-	drm_WARN_ON(fb->dev, !is_ccs_modifier(fb->modifier) ||
-		    ccs_plane < fb->format->num_planes / 2);
-
-	if (is_gen12_ccs_cc_plane(fb, ccs_plane))
-		return 0;
-
-	return ccs_plane - fb->format->num_planes / 2;
-}
-
-static int
-skl_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
-{
-	struct drm_i915_private *i915 = to_i915(fb->dev);
-
-	if (is_ccs_modifier(fb->modifier))
-		return main_to_ccs_plane(fb, main_plane);
-	else if (DISPLAY_VER(i915) < 11 &&
-		 intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
-		return 1;
-	else
-		return 0;
-}
-
 static void
 skl_program_plane(struct intel_plane *plane,
 		  const struct intel_crtc_state *crtc_state,
