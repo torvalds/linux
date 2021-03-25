@@ -176,7 +176,8 @@ static int rtrs_srv_create_once_sysfs_root_folders(struct rtrs_srv_sess *sess)
 	err = device_add(&srv->dev);
 	if (err) {
 		pr_err("device_add(): %d\n", err);
-		goto put;
+		put_device(&srv->dev);
+		goto unlock;
 	}
 	srv->kobj_paths = kobject_create_and_add("paths", &srv->dev.kobj);
 	if (!srv->kobj_paths) {
@@ -188,10 +189,6 @@ static int rtrs_srv_create_once_sysfs_root_folders(struct rtrs_srv_sess *sess)
 	}
 	dev_set_uevent_suppress(&srv->dev, false);
 	kobject_uevent(&srv->dev.kobj, KOBJ_ADD);
-	goto unlock;
-
-put:
-	put_device(&srv->dev);
 unlock:
 	mutex_unlock(&srv->paths_mutex);
 
