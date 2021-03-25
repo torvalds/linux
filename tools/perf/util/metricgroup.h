@@ -9,7 +9,6 @@
 
 struct evlist;
 struct evsel;
-struct evlist;
 struct option;
 struct rblist;
 struct pmu_events_map;
