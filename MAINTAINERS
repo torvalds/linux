@@ -3558,6 +3558,14 @@ S:	Supported
 F:	Documentation/devicetree/bindings/i2c/brcm,brcmstb-i2c.yaml
 F:	drivers/i2c/busses/i2c-brcmstb.c
 
+BROADCOM BRCMSTB UART DRIVER
+M:	Al Cooper <alcooperx@gmail.com>
+L:	linux-serial@vger.kernel.org
+L:	bcm-kernel-feedback-list@broadcom.com
+S:	Maintained
+F:	Documentation/devicetree/bindings/serial/brcm,bcm7271-uart.yaml
+F:	drivers/tty/serial/8250/8250_bcm7271.c
+
 BROADCOM BRCMSTB USB EHCI DRIVER
 M:	Al Cooper <alcooperx@gmail.com>
 L:	linux-usb@vger.kernel.org
