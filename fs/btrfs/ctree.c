@@ -1367,7 +1367,9 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 				   "failed to read tree block %llu from get_old_root",
 				   logical);
 		} else {
+			btrfs_tree_read_lock(old);
 			eb = btrfs_clone_extent_buffer(old);
+			btrfs_tree_read_unlock(old);
 			free_extent_buffer(old);
 		}
 	} else if (old_root) {

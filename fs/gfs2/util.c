@@ -91,18 +91,49 @@ out_unlock:
 	return error;
 }
 
+/**
+ * gfs2_freeze_lock - hold the freeze glock
+ * @sdp: the superblock
+ * @freeze_gh: pointer to the requested holder
+ * @caller_flags: any additional flags needed by the caller
+ */
+int gfs2_freeze_lock(struct gfs2_sbd *sdp, struct gfs2_holder *freeze_gh,
+		     int caller_flags)
+{
+	int flags = LM_FLAG_NOEXP | GL_EXACT | caller_flags;
+	int error;
+
+	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, flags,
+				   freeze_gh);
+	if (error && error != GLR_TRYFAILED)
+		fs_err(sdp, "can't lock the freeze lock: %d\n", error);
+	return error;
+}
+
+void gfs2_freeze_unlock(struct gfs2_holder *freeze_gh)
+{
+	if (gfs2_holder_initialized(freeze_gh))
+		gfs2_glock_dq_uninit(freeze_gh);
+}
+
 static void signal_our_withdraw(struct gfs2_sbd *sdp)
 {
 	struct gfs2_glock *live_gl = sdp->sd_live_gh.gh_gl;
-	struct inode *inode = sdp->sd_jdesc->jd_inode;
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_glock *i_gl = ip->i_gl;
-	u64 no_formal_ino = ip->i_no_formal_ino;
+	struct inode *inode;
+	struct gfs2_inode *ip;
+	struct gfs2_glock *i_gl;
+	u64 no_formal_ino;
+	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 	int ret = 0;
 	int tries;
 
-	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags))
+	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags) || !sdp->sd_jdesc)
 		return;
+
+	inode = sdp->sd_jdesc->jd_inode;
+	ip = GFS2_I(inode);
+	i_gl = ip->i_gl;
+	no_formal_ino = ip->i_no_formal_ino;
 
 	/* Prevent any glock dq until withdraw recovery is complete */
 	set_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
@@ -118,8 +149,21 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 * therefore we need to clear SDF_JOURNAL_LIVE manually.
 	 */
 	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
-	if (!sb_rdonly(sdp->sd_vfs))
-		ret = gfs2_make_fs_ro(sdp);
+	if (!sb_rdonly(sdp->sd_vfs)) {
+		struct gfs2_holder freeze_gh;
+
+		gfs2_holder_mark_uninitialized(&freeze_gh);
+		if (sdp->sd_freeze_gl &&
+		    !gfs2_glock_is_locked_by_me(sdp->sd_freeze_gl)) {
+			ret = gfs2_freeze_lock(sdp, &freeze_gh,
+				       log_write_allowed ? 0 : LM_FLAG_TRY);
+			if (ret == GLR_TRYFAILED)
+				ret = 0;
+		}
+		if (!ret)
+			ret = gfs2_make_fs_ro(sdp);
+		gfs2_freeze_unlock(&freeze_gh);
+	}
 
 	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
 		if (!ret)

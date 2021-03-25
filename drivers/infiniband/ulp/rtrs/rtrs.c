@@ -31,6 +31,7 @@ struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
 		return NULL;
 	for (i = 0; i < queue_size; i++) {
 		iu = &ius[i];
+		iu->direction = dir;
 		iu->buf = kzalloc(size, gfp_mask);
 		if (!iu->buf)
 			goto err;
@@ -41,17 +42,15 @@ struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
 
 		iu->cqe.done  = done;
 		iu->size      = size;
-		iu->direction = dir;
 	}
 	return ius;
 err:
-	rtrs_iu_free(ius, dir, dma_dev, i);
+	rtrs_iu_free(ius, dma_dev, i);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_alloc);
 
-void rtrs_iu_free(struct rtrs_iu *ius, enum dma_data_direction dir,
-		   struct ib_device *ibdev, u32 queue_size)
+void rtrs_iu_free(struct rtrs_iu *ius, struct ib_device *ibdev, u32 queue_size)
 {
 	struct rtrs_iu *iu;
 	int i;
@@ -61,7 +60,7 @@ void rtrs_iu_free(struct rtrs_iu *ius, enum dma_data_direction dir,
 
 	for (i = 0; i < queue_size; i++) {
 		iu = &ius[i];
-		ib_dma_unmap_single(ibdev, iu->dma_addr, iu->size, dir);
+		ib_dma_unmap_single(ibdev, iu->dma_addr, iu->size, iu->direction);
 		kfree(iu->buf);
 	}
 	kfree(ius);
@@ -105,6 +104,22 @@ int rtrs_post_recv_empty(struct rtrs_con *con, struct ib_cqe *cqe)
 }
 EXPORT_SYMBOL_GPL(rtrs_post_recv_empty);
 
+static int rtrs_post_send(struct ib_qp *qp, struct ib_send_wr *head,
+			     struct ib_send_wr *wr)
+{
+	if (head) {
+		struct ib_send_wr *tail = head;
+
+		while (tail->next)
+			tail = tail->next;
+		tail->next = wr;
+	} else {
+		head = wr;
+	}
+
+	return ib_post_send(qp, head, NULL);
+}
+
 int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		       struct ib_send_wr *head)
 {
@@ -127,17 +142,7 @@ int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		.send_flags = IB_SEND_SIGNALED,
 	};
 
-	if (head) {
-		struct ib_send_wr *tail = head;
-
-		while (tail->next)
-			tail = tail->next;
-		tail->next = &wr;
-	} else {
-		head = &wr;
-	}
-
-	return ib_post_send(con->qp, head, NULL);
+	return rtrs_post_send(con->qp, head, &wr);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_send);
 
@@ -169,17 +174,7 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 		if (WARN_ON(sge[i].length == 0))
 			return -EINVAL;
 
-	if (head) {
-		struct ib_send_wr *tail = head;
-
-		while (tail->next)
-			tail = tail->next;
-		tail->next = &wr.wr;
-	} else {
-		head = &wr.wr;
-	}
-
-	return ib_post_send(con->qp, head, NULL);
+	return rtrs_post_send(con->qp, head, &wr.wr);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_rdma_write_imm);
 
@@ -187,26 +182,16 @@ int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
 				    u32 imm_data, enum ib_send_flags flags,
 				    struct ib_send_wr *head)
 {
-	struct ib_send_wr wr;
+	struct ib_rdma_wr wr;
 
-	wr = (struct ib_send_wr) {
-		.wr_cqe	= cqe,
-		.send_flags	= flags,
-		.opcode	= IB_WR_RDMA_WRITE_WITH_IMM,
-		.ex.imm_data	= cpu_to_be32(imm_data),
+	wr = (struct ib_rdma_wr) {
+		.wr.wr_cqe	= cqe,
+		.wr.send_flags	= flags,
+		.wr.opcode	= IB_WR_RDMA_WRITE_WITH_IMM,
+		.wr.ex.imm_data	= cpu_to_be32(imm_data),
 	};
 
-	if (head) {
-		struct ib_send_wr *tail = head;
-
-		while (tail->next)
-			tail = tail->next;
-		tail->next = &wr;
-	} else {
-		head = &wr;
-	}
-
-	return ib_post_send(con->qp, head, NULL);
+	return rtrs_post_send(con->qp, head, &wr.wr);
 }
 EXPORT_SYMBOL_GPL(rtrs_post_rdma_write_imm_empty);
 
