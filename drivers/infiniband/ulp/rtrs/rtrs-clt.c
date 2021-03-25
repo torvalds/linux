@@ -2901,7 +2901,9 @@ int rtrs_clt_query(struct rtrs_clt *clt, struct rtrs_attrs *attr)
 		return -ECOMM;
 
 	attr->queue_depth      = clt->queue_depth;
-	attr->max_io_size      = clt->max_io_size;
+	/* Cap max_io_size to min of remote buffer size and the fr pages */
+	attr->max_io_size = min_t(int, clt->max_io_size,
+				  clt->max_segments * SZ_4K);
 
 	return 0;
 }
