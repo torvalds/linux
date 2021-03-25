@@ -179,6 +179,7 @@
  *  7.33
  *  - add FUSE_HANDLE_KILLPRIV_V2, FUSE_WRITE_KILL_SUIDGID, FATTR_KILL_SUIDGID
  *  - add FUSE_OPEN_KILL_SUIDGID
+ *  - extend fuse_setxattr_in, add FUSE_SETXATTR_EXT
  */
 
 #ifndef _LINUX_FUSE_H
@@ -330,6 +331,7 @@ struct fuse_file_lock {
  *			does not have CAP_FSETID. Additionally upon
  *			write/truncate sgid is killed only if file has group
  *			execute permission. (Same as Linux VFS behavior).
+ * FUSE_SETXATTR_EXT:	Server supports extended struct fuse_setxattr_in
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -360,6 +362,7 @@ struct fuse_file_lock {
 #define FUSE_MAP_ALIGNMENT	(1 << 26)
 #define FUSE_SUBMOUNTS		(1 << 27)
 #define FUSE_HANDLE_KILLPRIV_V2	(1 << 28)
+#define FUSE_SETXATTR_EXT	(1 << 29)
 
 /**
  * CUSE INIT request/reply flags
@@ -681,9 +684,13 @@ struct fuse_fsync_in {
 	uint32_t	padding;
 };
 
+#define FUSE_COMPAT_SETXATTR_IN_SIZE 8
+
 struct fuse_setxattr_in {
 	uint32_t	size;
 	uint32_t	flags;
+	uint32_t	setxattr_flags;
+	uint32_t	padding;
 };
 
 struct fuse_getxattr_in {

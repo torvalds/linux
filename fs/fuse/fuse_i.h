@@ -668,6 +668,9 @@ struct fuse_conn {
 	/** Is setxattr not implemented by fs? */
 	unsigned no_setxattr:1;
 
+	/** Does file server support extended setxattr */
+	unsigned setxattr_ext:1;
+
 	/** Is getxattr not implemented by fs? */
 	unsigned no_getxattr:1;
 
@@ -1171,7 +1174,7 @@ void fuse_unlock_inode(struct inode *inode, bool locked);
 bool fuse_lock_inode(struct inode *inode);
 
 int fuse_setxattr(struct inode *inode, const char *name, const void *value,
-		  size_t size, int flags);
+		  size_t size, int flags, unsigned int extra_flags);
 ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
 		      size_t size);
 ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size);

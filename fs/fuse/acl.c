@@ -94,7 +94,7 @@ int fuse_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 			return ret;
 		}
 
-		ret = fuse_setxattr(inode, name, value, size, 0);
+		ret = fuse_setxattr(inode, name, value, size, 0, 0);
 		kfree(value);
 	} else {
 		ret = fuse_removexattr(inode, name);
