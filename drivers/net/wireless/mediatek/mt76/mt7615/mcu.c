@@ -274,7 +274,7 @@ int mt7615_rf_wr(struct mt7615_dev *dev, u32 wf, u32 reg, u32 val)
 				 sizeof(req), false);
 }
 
-static void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
+void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
 {
 	if (!is_mt7622(&dev->mt76))
 		return;
