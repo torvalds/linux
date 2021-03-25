@@ -21,7 +21,6 @@ then
 		awk -v ncpus=$ncpus '{ print ncpus * ($7 + $NF) / 100 }'`
 else
 	# No mpstat command, so use all available CPUs.
-	echo The mpstat command is not available, so greedily using all CPUs.
 	idlecpus=$ncpus
 fi
 awk -v ncpus=$ncpus -v idlecpus=$idlecpus < /dev/null '
