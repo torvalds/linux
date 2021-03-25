@@ -1653,7 +1653,7 @@ static int __xipram do_write_oneword_once(struct map_info *map,
 					  unsigned long adr, map_word datum,
 					  int mode, struct cfi_private *cfi)
 {
-	unsigned long timeo = jiffies + HZ;
+	unsigned long timeo;
 	/*
 	 * We use a 1ms + 1 jiffies generic timeout for writes (most devices
 	 * have a max write time of a few hundreds usec). However, we should
