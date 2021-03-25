@@ -297,7 +297,7 @@ extern const struct address_space_operations erofs_raw_access_aops;
 extern const struct address_space_operations z_erofs_aops;
 
 /*
- * Logical to physical block mapping, used by erofs_map_blocks()
+ * Logical to physical block mapping
  *
  * Different with other file systems, it is used for 2 access modes:
  *
@@ -344,7 +344,7 @@ struct erofs_map_blocks {
 	struct page *mpage;
 };
 
-/* Flags used by erofs_map_blocks() */
+/* Flags used by erofs_map_blocks_flatmode() */
 #define EROFS_GET_BLOCKS_RAW    0x0001
 
 /* zmap.c */
@@ -365,8 +365,6 @@ static inline int z_erofs_map_blocks_iter(struct inode *inode,
 
 /* data.c */
 struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr);
-
-int erofs_map_blocks(struct inode *, struct erofs_map_blocks *, int);
 
 /* inode.c */
 static inline unsigned long erofs_inode_hash(erofs_nid_t nid)
