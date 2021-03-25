@@ -32,8 +32,6 @@
 # Step 4 is solely used to allow module versioning in external modules,
 # where the CRC of each module is retrieved from the Module.symvers file.
 
-# KBUILD_MODPOST_WARN can be set to avoid error out in case of undefined
-# symbols in the final module linking stage
 # KBUILD_MODPOST_NOFINAL can be set to skip the final link of modules.
 # This is solely useful to speed up test compiles
 
@@ -50,7 +48,6 @@ MODPOST = scripts/mod/modpost								\
 	$(if $(CONFIG_MODVERSIONS),-m)							\
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
 	$(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)					\
-	$(if $(KBUILD_MODPOST_WARN),-w) \
 	-o $@
 
 ifdef MODPOST_VMLINUX
@@ -135,6 +132,11 @@ cmd_cc_lto_link_modules =						\
 endif
 
 modules := $(sort $(shell cat $(MODORDER)))
+
+# KBUILD_MODPOST_WARN can be set to avoid error out in case of undefined symbols
+ifneq ($(KBUILD_MODPOST_WARN),)
+MODPOST += -w
+endif
 
 # Read out modules.order to pass in modpost.
 # Otherwise, allmodconfig would fail with "Argument list too long".
