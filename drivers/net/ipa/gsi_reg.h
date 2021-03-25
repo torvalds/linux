@@ -64,6 +64,21 @@
 			(0x0000c01c + 0x1000 * (ee))
 
 /* All other register offsets are relative to gsi->virt */
+
+/** enum gsi_channel_type - CHTYPE_PROTOCOL field values in CH_C_CNTXT_0 */
+enum gsi_channel_type {
+	GSI_CHANNEL_TYPE_MHI			= 0x0,
+	GSI_CHANNEL_TYPE_XHCI			= 0x1,
+	GSI_CHANNEL_TYPE_GPI			= 0x2,
+	GSI_CHANNEL_TYPE_XDCI			= 0x3,
+	GSI_CHANNEL_TYPE_WDI2			= 0x4,
+	GSI_CHANNEL_TYPE_GCI			= 0x5,
+	GSI_CHANNEL_TYPE_WDI3			= 0x6,
+	GSI_CHANNEL_TYPE_MHIP			= 0x7,
+	GSI_CHANNEL_TYPE_AQC			= 0x8,
+	GSI_CHANNEL_TYPE_11AD			= 0x9,
+};
+
 #define GSI_CH_C_CNTXT_0_OFFSET(ch) \
 		GSI_EE_N_CH_C_CNTXT_0_OFFSET((ch), GSI_EE_AP)
 #define GSI_EE_N_CH_C_CNTXT_0_OFFSET(ch, ee) \
@@ -78,13 +93,22 @@
 #define CHSTATE_FMASK			GENMASK(23, 20)
 #define ELEMENT_SIZE_FMASK		GENMASK(31, 24)
 
-/** enum gsi_channel_type - CHTYPE_PROTOCOL field values in CH_C_CNTXT_0 */
-enum gsi_channel_type {
-	GSI_CHANNEL_TYPE_MHI			= 0x0,
-	GSI_CHANNEL_TYPE_XHCI			= 0x1,
-	GSI_CHANNEL_TYPE_GPI			= 0x2,
-	GSI_CHANNEL_TYPE_XDCI			= 0x3,
-};
+/* Encoded value for CH_C_CNTXT_0 register channel protocol fields */
+static inline u32
+chtype_protocol_encoded(enum ipa_version version, enum gsi_channel_type type)
+{
+	u32 val;
+
+	val = u32_encode_bits(type, CHTYPE_PROTOCOL_FMASK);
+	if (version < IPA_VERSION_4_5)
+		return val;
+
+	/* Encode upper bit(s) as well */
+	type >>= hweight32(CHTYPE_PROTOCOL_FMASK);
+	val |= u32_encode_bits(type, CHTYPE_PROTOCOL_MSB_FMASK);
+
+	return val;
+}
 
 #define GSI_CH_C_CNTXT_1_OFFSET(ch) \
 		GSI_EE_N_CH_C_CNTXT_1_OFFSET((ch), GSI_EE_AP)

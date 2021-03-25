@@ -801,7 +801,7 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	channel->tre_ring.index = 0;
 
 	/* We program all channels as GPI type/protocol */
-	val = u32_encode_bits(GSI_CHANNEL_TYPE_GPI, CHTYPE_PROTOCOL_FMASK);
+	val = chtype_protocol_encoded(gsi->version, GSI_CHANNEL_TYPE_GPI);
 	if (channel->toward_ipa)
 		val |= CHTYPE_DIR_FMASK;
 	val |= u32_encode_bits(channel->evt_ring_id, ERINDEX_FMASK);
