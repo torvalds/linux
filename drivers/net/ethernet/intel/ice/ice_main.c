@@ -873,10 +873,10 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_phy_info *phy_info;
+	enum ice_status status;
 	struct ice_vsi *vsi;
 	u16 old_link_speed;
 	bool old_link;
-	int result;
 
 	phy_info = &pi->phy;
 	phy_info->link_info_old = phy_info->link_info;
@@ -887,10 +887,11 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	/* update the link info structures and re-enable link events,
 	 * don't bail on failure due to other book keeping needed
 	 */
-	result = ice_update_link_info(pi);
-	if (result)
-		dev_dbg(dev, "Failed to update link status and re-enable link events for port %d\n",
-			pi->lport);
+	status = ice_update_link_info(pi);
+	if (status)
+		dev_dbg(dev, "Failed to update link status on port %d, err %s aq_err %s\n",
+			pi->lport, ice_stat_str(status),
+			ice_aq_str(pi->hw->adminq.sq_last_status));
 
 	/* Check if the link state is up after updating link info, and treat
 	 * this event as an UP event since the link is actually UP now.
@@ -906,18 +907,12 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	if (!test_bit(ICE_FLAG_NO_MEDIA, pf->flags) &&
 	    !(pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE)) {
 		set_bit(ICE_FLAG_NO_MEDIA, pf->flags);
-
-		result = ice_aq_set_link_restart_an(pi, false, NULL);
-		if (result) {
-			dev_dbg(dev, "Failed to set link down, VSI %d error %d\n",
-				vsi->vsi_num, result);
-			return result;
-		}
+		ice_set_link(vsi, false);
 	}
 
 	/* if the old link up/down and speed is the same as the new */
 	if (link_up == old_link && link_speed == old_link_speed)
-		return result;
+		return 0;
 
 	if (ice_is_dcb_active(pf)) {
 		if (test_bit(ICE_FLAG_DCB_ENA, pf->flags))
@@ -931,7 +926,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 
 	ice_vc_notify_link_state(pf);
 
-	return result;
+	return 0;
 }
 
 /**
@@ -6678,6 +6673,7 @@ int ice_open(struct net_device *netdev)
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct ice_port_info *pi;
+	enum ice_status status;
 	int err;
 
 	if (test_bit(__ICE_NEEDS_RESTART, pf->state)) {
@@ -6688,11 +6684,11 @@ int ice_open(struct net_device *netdev)
 	netif_carrier_off(netdev);
 
 	pi = vsi->port_info;
-	err = ice_update_link_info(pi);
-	if (err) {
-		netdev_err(netdev, "Failed to get link info, error %d\n",
-			   err);
-		return err;
+	status = ice_update_link_info(pi);
+	if (status) {
+		netdev_err(netdev, "Failed to get link info, error %s\n",
+			   ice_stat_str(status));
+		return -EIO;
 	}
 
 	/* Set PHY if there is media, otherwise, turn off PHY */
@@ -6715,12 +6711,7 @@ int ice_open(struct net_device *netdev)
 		}
 	} else {
 		set_bit(ICE_FLAG_NO_MEDIA, pf->flags);
-		err = ice_aq_set_link_restart_an(pi, false, NULL);
-		if (err) {
-			netdev_err(netdev, "Failed to set PHY state, VSI %d error %d\n",
-				   vsi->vsi_num, err);
-			return err;
-		}
+		ice_set_link(vsi, false);
 	}
 
 	err = ice_vsi_open(vsi);
