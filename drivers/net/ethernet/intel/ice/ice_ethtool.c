@@ -2195,8 +2195,9 @@ ice_set_link_ksettings(struct net_device *netdev,
 		       const struct ethtool_link_ksettings *ks)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ethtool_link_ksettings safe_ks, copy_ks;
 	u8 autoneg, timeout = TEST_SET_BITS_TIMEOUT;
+	struct ethtool_link_ksettings copy_ks = *ks;
+	struct ethtool_link_ksettings safe_ks = {};
 	struct ice_aqc_get_phy_caps_data *phy_caps;
 	struct ice_aqc_set_phy_cfg_data config;
 	u16 adv_link_speed, curr_link_speed;
@@ -2233,13 +2234,8 @@ ice_set_link_ksettings(struct net_device *netdev,
 		goto done;
 	}
 
-	/* copy the ksettings to copy_ks to avoid modifying the original */
-	memcpy(&copy_ks, ks, sizeof(copy_ks));
-
 	/* save autoneg out of ksettings */
 	autoneg = copy_ks.base.autoneg;
-
-	memset(&safe_ks, 0, sizeof(safe_ks));
 
 	/* Get link modes supported by hardware.*/
 	ice_phy_type_to_ethtool(netdev, &safe_ks);
@@ -2289,7 +2285,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 	 * configuration is initialized during probe from PHY capabilities
 	 * software mode, and updated on set PHY configuration.
 	 */
-	memcpy(&config, &pi->phy.curr_user_phy_cfg, sizeof(config));
+	config = pi->phy.curr_user_phy_cfg;
 
 	config.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
 
