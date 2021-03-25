@@ -1063,7 +1063,11 @@ static void io_wq_destroy(struct io_wq *wq)
 
 	for_each_node(node) {
 		struct io_wqe *wqe = wq->wqes[node];
-		WARN_ON_ONCE(!wq_list_empty(&wqe->work_list));
+		struct io_cb_cancel_data match = {
+			.fn		= io_wq_work_match_all,
+			.cancel_all	= true,
+		};
+		io_wqe_cancel_pending_work(wqe, &match);
 		kfree(wqe);
 	}
 	io_wq_put_hash(wq->hash);
