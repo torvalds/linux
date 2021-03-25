@@ -434,20 +434,31 @@ static struct v4l2_subdev *get_remote_sensor(struct rkcif_stream *stream, u16 *i
 {
 	struct media_pad *local, *remote;
 	struct media_entity *sensor_me;
+	struct v4l2_subdev *sub = NULL;
 
 	local = &stream->vnode.vdev.entity.pads[0];
-	if (!local)
+	if (!local) {
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			 "%s: video pad[0] is null\n", __func__);
 		return NULL;
+	}
+
 	remote = media_entity_remote_pad(local);
-	if (!remote)
+	if (!remote) {
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			 "%s: remote pad is null\n", __func__);
 		return NULL;
+	}
 
 	if (index)
 		*index = remote->index;
 
 	sensor_me = remote->entity;
 
-	return media_entity_to_v4l2_subdev(sensor_me);
+	sub = media_entity_to_v4l2_subdev(sensor_me);
+
+	return sub;
+
 }
 
 static void get_remote_terminal_sensor(struct rkcif_stream *stream,
@@ -2325,8 +2336,12 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 	int ret = 0;
 
 	sensor_sd = get_remote_sensor(stream, NULL);
-	if (!sensor_sd)
+	if (!sensor_sd) {
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			 "%s: stream[%d] get remote sensor_sd failed!\n",
+			 __func__, stream->id);
 		return -ENODEV;
+	}
 
 	sensor = sd_to_sensor(stream->cifdev, sensor_sd);
 	if (!sensor) {
@@ -2982,6 +2997,7 @@ static int rkcif_fh_open(struct file *filp)
 		v4l2_err(vdev,
 			 "update sensor info failed %d\n",
 			 ret);
+
 		return ret;
 	}
 

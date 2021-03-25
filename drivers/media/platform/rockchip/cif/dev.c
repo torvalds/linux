@@ -457,7 +457,6 @@ static int rkcif_create_links(struct rkcif_device *dev)
 	unsigned int s, pad, id, stream_num = 0;
 	bool mipi_lvds_linked = false;
 
-
 	if (dev->chip_id < CHIP_RV1126_CIF) {
 		if (dev->inf_id == RKCIF_MIPI_LVDS)
 			stream_num = RKCIF_MAX_STREAM_MIPI;
@@ -602,12 +601,52 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 {
 	struct rkcif_device *dev;
 	struct rkcif_sensor_info *sensor;
+	struct v4l2_subdev *sd;
+	struct v4l2_device *v4l2_dev = NULL;
 	int ret, index;
 
 	dev = container_of(notifier, struct rkcif_device, notifier);
 
+	v4l2_dev = &dev->v4l2_dev;
+
 	for (index = 0; index < dev->num_sensors; index++) {
 		sensor = &dev->sensors[index];
+
+		list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
+			if (sd->ops) {
+				if (sd == sensor->sd) {
+					ret = v4l2_subdev_call(sd,
+							       video,
+							       g_mbus_config,
+							       &sensor->mbus);
+					if (ret)
+						v4l2_err(v4l2_dev,
+							 "get mbus config failed for linking\n");
+				}
+			}
+		}
+
+		if (sensor->mbus.type == V4L2_MBUS_CCP2 ||
+		    sensor->mbus.type == V4L2_MBUS_CSI2) {
+
+			switch (sensor->mbus.flags & V4L2_MBUS_CSI2_LANES) {
+			case V4L2_MBUS_CSI2_1_LANE:
+				sensor->lanes = 1;
+				break;
+			case V4L2_MBUS_CSI2_2_LANE:
+				sensor->lanes = 2;
+				break;
+			case V4L2_MBUS_CSI2_3_LANE:
+				sensor->lanes = 3;
+				break;
+			case V4L2_MBUS_CSI2_4_LANE:
+				sensor->lanes = 4;
+				break;
+			default:
+				sensor->lanes = 1;
+			}
+		}
+
 		if (sensor->mbus.type == V4L2_MBUS_CCP2) {
 			ret = rkcif_register_lvds_subdev(dev);
 			if (ret < 0) {
@@ -676,15 +715,19 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 	struct rkcif_async_subdev *s_asd = container_of(asd,
 					struct rkcif_async_subdev, asd);
 
-	if (cif_dev->num_sensors == ARRAY_SIZE(cif_dev->sensors))
+	if (cif_dev->num_sensors == ARRAY_SIZE(cif_dev->sensors)) {
+		v4l2_err(&cif_dev->v4l2_dev,
+			 "%s: the num of subdev is beyond %d\n",
+			 __func__, cif_dev->num_sensors);
 		return -EBUSY;
+	}
 
 	cif_dev->sensors[cif_dev->num_sensors].lanes = s_asd->lanes;
 	cif_dev->sensors[cif_dev->num_sensors].mbus = s_asd->mbus;
 	cif_dev->sensors[cif_dev->num_sensors].sd = subdev;
 	++cif_dev->num_sensors;
 
-	v4l2_dbg(1, rkcif_debug, subdev, "Async registered subdev\n");
+	v4l2_err(subdev, "Async registered subdev\n");
 
 	return 0;
 }
@@ -731,11 +774,17 @@ static int cif_subdev_notifier(struct rkcif_device *cif_dev)
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(
 		dev, ntf, sizeof(struct rkcif_async_subdev), rkcif_fwnode_parse);
 
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&cif_dev->v4l2_dev,
+			 "%s: parse fwnode failed\n", __func__);
 		return ret;
+	}
 
-	if (!ntf->num_subdevs)
+	if (!ntf->num_subdevs) {
+		v4l2_warn(&cif_dev->v4l2_dev,
+			 "%s: no subdev be found!\n", __func__);
 		return -ENODEV;	/* no endpoint */
+	}
 
 	ntf->ops = &subdev_notifier_ops;
 

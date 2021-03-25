@@ -75,7 +75,12 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 		rkcif_update_sensor_info(&cif_dev->stream[0]);
 
 	if (cif_dev->terminal_sensor.sd) {
-		v4l2_subdev_call(cif_dev->terminal_sensor.sd, pad, get_fmt, NULL, fmt);
+		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd, pad, get_fmt, NULL, fmt);
+		if (ret) {
+			v4l2_err(&priv->sd,
+				 "%s: get sensor format failed\n", __func__);
+			return ret;
+		}
 
 		input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
 		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
@@ -87,7 +92,7 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static int sditf_get_selection(struct v4l2_subdev *sd,

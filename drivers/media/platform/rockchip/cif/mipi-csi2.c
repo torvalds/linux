@@ -207,6 +207,40 @@ static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd)
 	return media_entity_to_v4l2_subdev(sensor_me);
 }
 
+static void csi2_update_sensor_info(struct csi2_dev *csi2)
+{
+	struct csi2_sensor *sensor = &csi2->sensors[0];
+	struct v4l2_mbus_config mbus;
+	int ret = 0;
+
+	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config, &mbus);
+	if (ret) {
+		v4l2_err(&csi2->sd, "update sensor info failed!\n");
+		return;
+	}
+
+	csi2->bus.flags = mbus.flags;
+	switch (csi2->bus.flags & V4L2_MBUS_CSI2_LANES) {
+	case V4L2_MBUS_CSI2_1_LANE:
+		csi2->bus.num_data_lanes = 1;
+		break;
+	case V4L2_MBUS_CSI2_2_LANE:
+		csi2->bus.num_data_lanes = 2;
+		break;
+	case V4L2_MBUS_CSI2_3_LANE:
+		csi2->bus.num_data_lanes = 3;
+		break;
+	case V4L2_MBUS_CSI2_4_LANE:
+		csi2->bus.num_data_lanes = 4;
+		break;
+	default:
+		v4l2_warn(&csi2->sd, "lane num is invalid\n");
+		csi2->bus.num_data_lanes = 0;
+		break;
+	}
+
+}
+
 static void csi2_disable(struct csi2_dev *csi2)
 {
 	void __iomem *base = csi2->base;
@@ -260,6 +294,8 @@ static int csi2_start(struct csi2_dev *csi2)
 			return ret;
 		}
 	}
+
+	csi2_update_sensor_info(csi2);
 
 	if (csi2->format_mbus.code == MEDIA_BUS_FMT_RGB888_1X24)
 		host_type = RK_DSI_RXHOST;
@@ -514,12 +550,16 @@ static int csi2_set_selection(struct v4l2_subdev *sd,
 static int csi2_g_mbus_config(struct v4l2_subdev *sd,
 			      struct v4l2_mbus_config *mbus)
 {
+	struct csi2_dev *csi2 = sd_to_dev(sd);
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
 	int ret;
 
 	ret = v4l2_subdev_call(sensor_sd, video, g_mbus_config, mbus);
-	if (ret)
-		return ret;
+	if (ret) {
+		mbus->type = V4L2_MBUS_CSI2;
+		mbus->flags = csi2->bus.flags;
+		mbus->flags |= BIT(csi2->bus.num_data_lanes - 1);
+	}
 
 	return 0;
 }
@@ -596,10 +636,8 @@ static int csi2_parse_endpoint(struct device *dev,
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csi2_dev *csi2 = sd_to_dev(sd);
 
-	if (vep->bus_type != V4L2_MBUS_CSI2) {
-		v4l2_err(&csi2->sd,
-			 "invalid bus type: %d, must be MIPI CSI2\n",
-			 vep->bus_type);
+	if (vep->base.port != 0) {
+		dev_err(dev, "The csi host node needs to parse port 0\n");
 		return -EINVAL;
 	}
 
@@ -621,9 +659,12 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 	struct media_link *link;
 	unsigned int pad, ret;
 
-	if (csi2->num_sensors == ARRAY_SIZE(csi2->sensors))
+	if (csi2->num_sensors == ARRAY_SIZE(csi2->sensors)) {
+		v4l2_err(&csi2->sd,
+			 "%s: the num of sd is beyond:%d\n",
+			 __func__, csi2->num_sensors);
 		return -EBUSY;
-
+	}
 	sensor = &csi2->sensors[csi2->num_sensors++];
 	sensor->sd = sd;
 
@@ -673,6 +714,7 @@ static void csi2_notifier_unbind(struct v4l2_async_notifier *notifier,
 	struct csi2_sensor *sensor = sd_to_sensor(csi2, sd);
 
 	sensor->sd = NULL;
+
 }
 
 static const struct
@@ -800,7 +842,10 @@ static int csi2_notifier(struct csi2_dev *csi2)
 		v4l2_async_notifier_cleanup(&csi2->notifier);
 		return ret;
 	}
-	return v4l2_async_register_subdev(&csi2->sd);
+
+	ret = v4l2_async_register_subdev(&csi2->sd);
+
+	return ret;
 }
 
 static const struct csi2_match_data rk1808_csi2_match_data = {
