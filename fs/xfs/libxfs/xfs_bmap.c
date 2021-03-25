@@ -3585,7 +3585,8 @@ xfs_bmap_exact_minlen_extent_alloc(
 	args.fsbno = ap->blkno;
 	args.oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
 	args.type = XFS_ALLOCTYPE_FIRST_AG;
-	args.total = args.minlen = args.maxlen = ap->minlen;
+	args.minlen = args.maxlen = ap->minlen;
+	args.total = ap->total;
 
 	args.alignment = 1;
 	args.minalignslop = 0;
