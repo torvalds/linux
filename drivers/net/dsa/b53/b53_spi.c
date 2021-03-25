@@ -335,6 +335,7 @@ static const struct of_device_id b53_spi_of_match[] = {
 	{ .compatible = "brcm,bcm53128" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, b53_spi_of_match);
 
 static struct spi_driver b53_spi_driver = {
 	.driver = {
