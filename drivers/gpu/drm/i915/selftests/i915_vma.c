@@ -890,7 +890,6 @@ static int igt_vma_remapped_gtt(void *arg)
 			struct i915_vma *vma;
 			u32 __iomem *map;
 			unsigned int x, y;
-			int err;
 
 			i915_gem_object_lock(obj, NULL);
 			err = i915_gem_object_set_to_gtt_domain(obj, true);
@@ -962,6 +961,7 @@ static int igt_vma_remapped_gtt(void *arg)
 						       *t == I915_GGTT_VIEW_ROTATED ? "Rotated" : "Remapped",
 						       val, exp);
 						i915_vma_unpin_iomap(vma);
+						err = -EINVAL;
 						goto out;
 					}
 				}
