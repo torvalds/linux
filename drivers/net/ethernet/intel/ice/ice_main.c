@@ -1732,7 +1732,7 @@ static void ice_init_link_dflt_override(struct ice_port_info *pi)
  * ice_init_phy_cfg_dflt_override - Initialize PHY cfg default override settings
  * @pi: port info structure
  *
- * If default override is enabled, initialized the user PHY cfg speed and FEC
+ * If default override is enabled, initialize the user PHY cfg speed and FEC
  * settings using the default override mask from the NVM.
  *
  * The PHY should only be configured with the default override settings the
@@ -1741,6 +1741,9 @@ static void ice_init_link_dflt_override(struct ice_port_info *pi)
  * and the PHY has not been configured with the default override settings. The
  * state is set here, and cleared in ice_configure_phy the first time the PHY is
  * configured.
+ *
+ * This function should be called only if the FW doesn't support default
+ * configuration mode, as reported by ice_fw_supports_report_dflt_cfg.
  */
 static void ice_init_phy_cfg_dflt_override(struct ice_port_info *pi)
 {
@@ -1802,8 +1805,12 @@ static int ice_init_phy_user_cfg(struct ice_port_info *pi)
 	if (!pcaps)
 		return -ENOMEM;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA, pcaps,
-				     NULL);
+	if (ice_fw_supports_report_dflt_cfg(pi->hw))
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_DFLT_CFG,
+					     pcaps, NULL);
+	else
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
+					     pcaps, NULL);
 	if (status) {
 		dev_err(ice_pf_to_dev(pf), "Get PHY capability failed.\n");
 		err = -EIO;
@@ -1818,17 +1825,19 @@ static int ice_init_phy_user_cfg(struct ice_port_info *pi)
 	      ICE_AQC_MOD_ENFORCE_STRICT_MODE)) {
 		set_bit(ICE_FLAG_LINK_LENIENT_MODE_ENA, pf->flags);
 
-		/* if link default override is enabled, initialize user PHY
-		 * configuration with link default override values
+		/* if the FW supports default PHY configuration mode, then the driver
+		 * does not have to apply link override settings. If not,
+		 * initialize user PHY configuration with link override values
 		 */
-		if (pf->link_dflt_override.options & ICE_LINK_OVERRIDE_EN) {
+		if (!ice_fw_supports_report_dflt_cfg(pi->hw) &&
+		    (pf->link_dflt_override.options & ICE_LINK_OVERRIDE_EN)) {
 			ice_init_phy_cfg_dflt_override(pi);
 			goto out;
 		}
 	}
 
-	/* if link default override is not enabled, initialize PHY using
-	 * topology with media
+	/* if link default override is not enabled, set user flow control and
+	 * FEC settings based on what get_phy_caps returned
 	 */
 	phy->curr_user_fec_req = ice_caps_to_fec_mode(pcaps->caps,
 						      pcaps->link_fec_options);
@@ -1899,10 +1908,14 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 
 	/* Use PHY topology as baseline for configuration */
 	memset(pcaps, 0, sizeof(*pcaps));
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA, pcaps,
-				     NULL);
+	if (ice_fw_supports_report_dflt_cfg(pi->hw))
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_DFLT_CFG,
+					     pcaps, NULL);
+	else
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
+					     pcaps, NULL);
 	if (status) {
-		dev_err(dev, "Failed to get PHY topology, VSI %d error %s\n",
+		dev_err(dev, "Failed to get PHY caps, VSI %d error %s\n",
 			vsi->vsi_num, ice_stat_str(status));
 		err = -EIO;
 		goto done;
