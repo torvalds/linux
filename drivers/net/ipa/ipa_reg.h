@@ -88,15 +88,41 @@ struct ipa;
 #define GSI_SNOC_CNOC_LOOP_PROT_DISABLE_FMASK	GENMASK(14, 14)
 #define GSI_MULTI_AXI_MASTERS_DIS_FMASK		GENMASK(15, 15)
 #define IPA_QMB_SELECT_GLOBAL_EN_FMASK		GENMASK(16, 16)
-#define IPA_ATOMIC_FETCHER_ARB_LOCK_DIS_FMASK	GENMASK(20, 17)
-/* The next field is present for IPA v4.5 and IPA v4.7 */
-#define IPA_FULL_FLUSH_WAIT_RSC_CLOSE_EN_FMASK	GENMASK(21, 21)
 /* The next five fields are present for IPA v4.9+ */
 #define QMB_RAM_RD_CACHE_DISABLE_FMASK		GENMASK(19, 19)
 #define GENQMB_AOOOWR_FMASK			GENMASK(20, 20)
 #define IF_OUT_OF_BUF_STOP_RESET_MASK_EN_FMASK	GENMASK(21, 21)
 #define GEN_QMB_1_DYNAMIC_ASIZE_FMASK		GENMASK(30, 30)
 #define GEN_QMB_0_DYNAMIC_ASIZE_FMASK		GENMASK(31, 31)
+
+/* Encoded value for COMP_CFG register ATOMIC_FETCHER_ARB_LOCK_DIS field */
+static inline u32 arbitration_lock_disable_encoded(enum ipa_version version,
+						   u32 mask)
+{
+	/* assert(version >= IPA_VERSION_4_0); */
+
+	if (version < IPA_VERSION_4_9)
+		return u32_encode_bits(mask, GENMASK(20, 17));
+
+	if (version == IPA_VERSION_4_9)
+		return u32_encode_bits(mask, GENMASK(24, 22));
+
+	return u32_encode_bits(mask, GENMASK(23, 22));
+}
+
+/* Encoded value for COMP_CFG register FULL_FLUSH_WAIT_RS_CLOSURE_EN field */
+static inline u32 full_flush_rsc_closure_en_encoded(enum ipa_version version,
+						    bool enable)
+{
+	u32 val = enable ? 1 : 0;
+
+	/* assert(version >= IPA_VERSION_4_5); */
+
+	if (version == IPA_VERSION_4_5 || version == IPA_VERSION_4_7)
+		return u32_encode_bits(val, GENMASK(21, 21));
+
+	return u32_encode_bits(val, GENMASK(17, 17));
+}
 
 #define IPA_REG_CLKON_CFG_OFFSET			0x00000044
 #define RX_FMASK				GENMASK(0, 0)
