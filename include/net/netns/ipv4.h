@@ -107,8 +107,8 @@ struct netns_ipv4 {
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	u8 sysctl_raw_l3mdev_accept;
 #endif
-	int sysctl_tcp_early_demux;
-	int sysctl_udp_early_demux;
+	u8 sysctl_tcp_early_demux;
+	u8 sysctl_udp_early_demux;
 
 	u8 sysctl_nexthop_compat_mode;
 
