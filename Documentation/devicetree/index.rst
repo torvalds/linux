@@ -11,6 +11,7 @@ Kernel Devicetree Usage
 
    usage-model
    of_unittest
+   kernel-api
 
 Devicetree Overlays
 ===================
