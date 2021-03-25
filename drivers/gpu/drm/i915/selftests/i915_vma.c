@@ -515,7 +515,7 @@ static int igt_vma_rotate_remap(void *arg)
 	for (t = types; *t; t++) {
 	for (a = planes; a->width; a++) {
 		for (b = planes + ARRAY_SIZE(planes); b-- != planes; ) {
-			struct i915_ggtt_view view;
+			struct i915_ggtt_view view = {};
 			unsigned int n, max_offset;
 
 			max_offset = max(a->stride * a->height,
