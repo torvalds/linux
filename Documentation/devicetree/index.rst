@@ -4,14 +4,26 @@
 Open Firmware and Devicetree
 =============================
 
+Kernel Devicetree Usage
+=======================
 .. toctree::
    :maxdepth: 1
 
    usage-model
-   writing-schema
+   of_unittest
+
+Devicetree Overlays
+===================
+.. toctree::
+   :maxdepth: 1
+
    changesets
    dynamic-resolution-notes
-   of_unittest
    overlay-notes
+
+Devicetree Bindings
+===================
+.. toctree::
+   :maxdepth: 1
 
    bindings/index
