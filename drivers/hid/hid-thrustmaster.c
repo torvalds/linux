@@ -297,12 +297,13 @@ static int thrustmaster_probe(struct hid_device *hdev, const struct hid_device_i
 		goto error2;
 	}
 
-	tm_wheel->model_request = kzalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
+	tm_wheel->model_request = kmemdup(&model_request,
+					  sizeof(struct usb_ctrlrequest),
+					  GFP_KERNEL);
 	if (!tm_wheel->model_request) {
 		ret = -ENOMEM;
 		goto error3;
 	}
-	memcpy(tm_wheel->model_request, &model_request, sizeof(struct usb_ctrlrequest));
 
 	tm_wheel->response = kzalloc(sizeof(struct tm_wheel_response), GFP_KERNEL);
 	if (!tm_wheel->response) {
