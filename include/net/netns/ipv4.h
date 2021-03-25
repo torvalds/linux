@@ -84,36 +84,36 @@ struct netns_ipv4 {
 	struct xt_table		*nat_table;
 #endif
 
-	int sysctl_icmp_echo_ignore_all;
-	int sysctl_icmp_echo_ignore_broadcasts;
-	int sysctl_icmp_ignore_bogus_error_responses;
+	u8 sysctl_icmp_echo_ignore_all;
+	u8 sysctl_icmp_echo_ignore_broadcasts;
+	u8 sysctl_icmp_ignore_bogus_error_responses;
+	u8 sysctl_icmp_errors_use_inbound_ifaddr;
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
-	int sysctl_icmp_errors_use_inbound_ifaddr;
 
 	struct local_ports ip_local_ports;
 
-	int sysctl_tcp_ecn;
-	int sysctl_tcp_ecn_fallback;
+	u8 sysctl_tcp_ecn;
+	u8 sysctl_tcp_ecn_fallback;
 
-	int sysctl_ip_default_ttl;
-	int sysctl_ip_no_pmtu_disc;
-	int sysctl_ip_fwd_use_pmtu;
+	u8 sysctl_ip_default_ttl;
+	u8 sysctl_ip_no_pmtu_disc;
+	u8 sysctl_ip_fwd_use_pmtu;
 	int sysctl_ip_fwd_update_priority;
-	int sysctl_ip_nonlocal_bind;
-	int sysctl_ip_autobind_reuse;
+	u8 sysctl_ip_nonlocal_bind;
+	u8 sysctl_ip_autobind_reuse;
 	/* Shall we try to damage output packets if routing dev changes? */
-	int sysctl_ip_dynaddr;
-	int sysctl_ip_early_demux;
+	u8 sysctl_ip_dynaddr;
+	u8 sysctl_ip_early_demux;
 #ifdef CONFIG_NET_L3_MASTER_DEV
-	int sysctl_raw_l3mdev_accept;
+	u8 sysctl_raw_l3mdev_accept;
 #endif
 	int sysctl_tcp_early_demux;
 	int sysctl_udp_early_demux;
 
-	int sysctl_nexthop_compat_mode;
+	u8 sysctl_nexthop_compat_mode;
 
-	int sysctl_fwmark_reflect;
+	u8 sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	int sysctl_tcp_l3mdev_accept;
