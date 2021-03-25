@@ -2097,7 +2097,11 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->num_srqs = 1 << roce_get_field(resp_d->wq_hop_num_max_srqs,
 					     V2_QUERY_PF_CAPS_D_NUM_SRQS_M,
 					     V2_QUERY_PF_CAPS_D_NUM_SRQS_S);
+	caps->cong_type = roce_get_field(resp_d->wq_hop_num_max_srqs,
+					 V2_QUERY_PF_CAPS_D_CONG_TYPE_M,
+					 V2_QUERY_PF_CAPS_D_CONG_TYPE_S);
 	caps->max_srq_wrs = 1 << le16_to_cpu(resp_d->srq_depth);
+
 	caps->ceqe_depth = 1 << roce_get_field(resp_d->num_ceqs_ceq_depth,
 					       V2_QUERY_PF_CAPS_D_CEQ_DEPTH_M,
 					       V2_QUERY_PF_CAPS_D_CEQ_DEPTH_S);
@@ -2534,6 +2538,22 @@ static void hns_roce_free_link_table(struct hns_roce_dev *hr_dev,
 			  link_tbl->table.map);
 }
 
+static void free_dip_list(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_dip *hr_dip;
+	struct hns_roce_dip *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&hr_dev->dip_list_lock, flags);
+
+	list_for_each_entry_safe(hr_dip, tmp, &hr_dev->dip_list, node) {
+		list_del(&hr_dip->node);
+		kfree(hr_dip);
+	}
+
+	spin_unlock_irqrestore(&hr_dev->dip_list_lock, flags);
+}
+
 static int get_hem_table(struct hns_roce_dev *hr_dev)
 {
 	unsigned int qpc_count;
@@ -2633,6 +2653,9 @@ static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 
 	hns_roce_free_link_table(hr_dev, &priv->tpq);
 	hns_roce_free_link_table(hr_dev, &priv->tsq);
+
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP09)
+		free_dip_list(hr_dev);
 }
 
 static int hns_roce_query_mbox_status(struct hns_roce_dev *hr_dev)
@@ -4501,6 +4524,143 @@ static inline u16 get_udp_sport(u32 fl, u32 lqpn, u32 rqpn)
 	return rdma_flow_label_to_udp_sport(fl);
 }
 
+static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
+			   u32 *dip_idx)
+{
+	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
+	struct hns_roce_dip *hr_dip;
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&hr_dev->dip_list_lock, flags);
+
+	list_for_each_entry(hr_dip, &hr_dev->dip_list, node) {
+		if (!memcmp(grh->dgid.raw, hr_dip->dgid, 16))
+			goto out;
+	}
+
+	/* If no dgid is found, a new dip and a mapping between dgid and
+	 * dip_idx will be created.
+	 */
+	hr_dip = kzalloc(sizeof(*hr_dip), GFP_KERNEL);
+	if (!hr_dip) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	memcpy(hr_dip->dgid, grh->dgid.raw, sizeof(grh->dgid.raw));
+	hr_dip->dip_idx = *dip_idx = ibqp->qp_num;
+	list_add_tail(&hr_dip->node, &hr_dev->dip_list);
+
+out:
+	spin_unlock_irqrestore(&hr_dev->dip_list_lock, flags);
+	return ret;
+}
+
+enum {
+	CONG_DCQCN,
+	CONG_WINDOW,
+};
+
+enum {
+	UNSUPPORT_CONG_LEVEL,
+	SUPPORT_CONG_LEVEL,
+};
+
+enum {
+	CONG_LDCP,
+	CONG_HC3,
+};
+
+enum {
+	DIP_INVALID,
+	DIP_VALID,
+};
+
+static int check_cong_type(struct ib_qp *ibqp,
+			   struct hns_roce_congestion_algorithm *cong_alg)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
+
+	/* different congestion types match different configurations */
+	switch (hr_dev->caps.cong_type) {
+	case CONG_TYPE_DCQCN:
+		cong_alg->alg_sel = CONG_DCQCN;
+		cong_alg->alg_sub_sel = UNSUPPORT_CONG_LEVEL;
+		cong_alg->dip_vld = DIP_INVALID;
+		break;
+	case CONG_TYPE_LDCP:
+		cong_alg->alg_sel = CONG_WINDOW;
+		cong_alg->alg_sub_sel = CONG_LDCP;
+		cong_alg->dip_vld = DIP_INVALID;
+		break;
+	case CONG_TYPE_HC3:
+		cong_alg->alg_sel = CONG_WINDOW;
+		cong_alg->alg_sub_sel = CONG_HC3;
+		cong_alg->dip_vld = DIP_INVALID;
+		break;
+	case CONG_TYPE_DIP:
+		cong_alg->alg_sel = CONG_DCQCN;
+		cong_alg->alg_sub_sel = UNSUPPORT_CONG_LEVEL;
+		cong_alg->dip_vld = DIP_VALID;
+		break;
+	default:
+		ibdev_err(&hr_dev->ib_dev,
+			  "error type(%u) for congestion selection.\n",
+			  hr_dev->caps.cong_type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int fill_cong_field(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
+			   struct hns_roce_v2_qp_context *context,
+			   struct hns_roce_v2_qp_context *qpc_mask)
+{
+	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
+	struct hns_roce_congestion_algorithm cong_field;
+	struct ib_device *ibdev = ibqp->device;
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibdev);
+	u32 dip_idx = 0;
+	int ret;
+
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08 ||
+	    grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE)
+		return 0;
+
+	ret = check_cong_type(ibqp, &cong_field);
+	if (ret)
+		return ret;
+
+	hr_reg_write(context, QPC_CONG_ALGO_TMPL_ID, hr_dev->cong_algo_tmpl_id +
+		     hr_dev->caps.cong_type * HNS_ROCE_CONG_SIZE);
+	hr_reg_write(qpc_mask, QPC_CONG_ALGO_TMPL_ID, 0);
+	hr_reg_write(&context->ext, QPCEX_CONG_ALG_SEL, cong_field.alg_sel);
+	hr_reg_write(&qpc_mask->ext, QPCEX_CONG_ALG_SEL, 0);
+	hr_reg_write(&context->ext, QPCEX_CONG_ALG_SUB_SEL,
+		     cong_field.alg_sub_sel);
+	hr_reg_write(&qpc_mask->ext, QPCEX_CONG_ALG_SUB_SEL, 0);
+	hr_reg_write(&context->ext, QPCEX_DIP_CTX_IDX_VLD, cong_field.dip_vld);
+	hr_reg_write(&qpc_mask->ext, QPCEX_DIP_CTX_IDX_VLD, 0);
+
+	/* if dip is disabled, there is no need to set dip idx */
+	if (cong_field.dip_vld == 0)
+		return 0;
+
+	ret = get_dip_ctx_idx(ibqp, attr, &dip_idx);
+	if (ret) {
+		ibdev_err(ibdev, "failed to fill cong field, ret = %d.\n", ret);
+		return ret;
+	}
+
+	hr_reg_write(&context->ext, QPCEX_DIP_CTX_IDX, dip_idx);
+	hr_reg_write(&qpc_mask->ext, QPCEX_DIP_CTX_IDX, 0);
+
+	return 0;
+}
+
 static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 				const struct ib_qp_attr *attr,
 				int attr_mask,
@@ -4583,6 +4743,10 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_24_HOP_LIMIT_S, grh->hop_limit);
 	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_HOP_LIMIT_M,
 		       V2_QPC_BYTE_24_HOP_LIMIT_S, 0);
+
+	ret = fill_cong_field(ibqp, attr, context, qpc_mask);
+	if (ret)
+		return ret;
 
 	roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
 		       V2_QPC_BYTE_24_TC_S, get_tclass(&attr->ah_attr.grh));

@@ -145,6 +145,8 @@
 
 #define HNS_ROCE_CMQ_SCC_CLR_DONE_CNT		5
 
+#define HNS_ROCE_CONG_SIZE 64
+
 #define check_whether_last_step(hop_num, step_idx) \
 	((step_idx == 0 && hop_num == HNS_ROCE_HOP_NUM_0) || \
 	(step_idx == 1 && hop_num == 1) || \
@@ -575,6 +577,10 @@ struct hns_roce_v2_qp_context {
 	struct hns_roce_v2_qp_context_ex ext;
 };
 
+#define QPC_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_v2_qp_context, h, l)
+
+#define QPC_CONG_ALGO_TMPL_ID QPC_FIELD_LOC(455, 448)
+
 #define	V2_QPC_BYTE_4_TST_S 0
 #define V2_QPC_BYTE_4_TST_M GENMASK(2, 0)
 
@@ -665,9 +671,6 @@ struct hns_roce_v2_qp_context {
 
 #define	V2_QPC_BYTE_56_LP_PKTN_INI_S 28
 #define V2_QPC_BYTE_56_LP_PKTN_INI_M GENMASK(31, 28)
-
-#define	V2_QPC_BYTE_60_TEMPID_S 0
-#define V2_QPC_BYTE_60_TEMPID_M GENMASK(7, 0)
 
 #define V2_QPC_BYTE_60_SCC_TOKEN_S 8
 #define V2_QPC_BYTE_60_SCC_TOKEN_M GENMASK(26, 8)
@@ -943,6 +946,10 @@ struct hns_roce_v2_qp_context {
 
 #define QPCEX_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_v2_qp_context_ex, h, l)
 
+#define QPCEX_CONG_ALG_SEL QPCEX_FIELD_LOC(0, 0)
+#define QPCEX_CONG_ALG_SUB_SEL QPCEX_FIELD_LOC(1, 1)
+#define QPCEX_DIP_CTX_IDX_VLD QPCEX_FIELD_LOC(2, 2)
+#define QPCEX_DIP_CTX_IDX QPCEX_FIELD_LOC(22, 3)
 #define QPCEX_STASH QPCEX_FIELD_LOC(82, 82)
 
 #define	V2_QP_RWE_S 1 /* rdma write enable */
@@ -1808,6 +1815,14 @@ struct hns_roce_query_pf_caps_d {
 #define V2_QUERY_PF_CAPS_D_SQWQE_HOP_NUM_S 24
 #define V2_QUERY_PF_CAPS_D_SQWQE_HOP_NUM_M GENMASK(25, 24)
 
+#define V2_QUERY_PF_CAPS_D_CONG_TYPE_S 26
+#define V2_QUERY_PF_CAPS_D_CONG_TYPE_M GENMASK(29, 26)
+
+struct hns_roce_congestion_algorithm {
+	u8 alg_sel;
+	u8 alg_sub_sel;
+	u8 dip_vld;
+};
 
 #define V2_QUERY_PF_CAPS_D_CEQ_DEPTH_S 0
 #define V2_QUERY_PF_CAPS_D_CEQ_DEPTH_M GENMASK(21, 0)
@@ -1941,6 +1956,12 @@ struct hns_roce_eq_context {
 	__le32	byte_40;
 	__le32	byte_44;
 	__le32	rsv[5];
+};
+
+struct hns_roce_dip {
+	u8 dgid[GID_LEN_V2];
+	u8 dip_idx;
+	struct list_head node;	/* all dips are on a list */
 };
 
 #define HNS_ROCE_AEQ_DEFAULT_BURST_NUM	0x0

@@ -735,6 +735,13 @@ struct hns_roce_eq_table {
 	void __iomem		**eqc_base; /* only for hw v1 */
 };
 
+enum cong_type {
+	CONG_TYPE_DCQCN,
+	CONG_TYPE_LDCP,
+	CONG_TYPE_HC3,
+	CONG_TYPE_DIP,
+};
+
 struct hns_roce_caps {
 	u64		fw_ver;
 	u8		num_ports;
@@ -865,6 +872,7 @@ struct hns_roce_caps {
 	u16		default_aeq_period;
 	u16		default_aeq_arm_st;
 	u16		default_ceq_arm_st;
+	enum cong_type	cong_type;
 };
 
 struct hns_roce_dfx_hw {
@@ -959,6 +967,8 @@ struct hns_roce_dev {
 	enum hns_roce_device_state state;
 	struct list_head	qp_list; /* list of all qps on this dev */
 	spinlock_t		qp_list_lock; /* protect qp_list */
+	struct list_head	dip_list; /* list of all dest ips on this dev */
+	spinlock_t		dip_list_lock; /* protect dip_list */
 
 	struct list_head        pgdir_list;
 	struct mutex            pgdir_mutex;
