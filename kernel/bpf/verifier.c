@@ -6062,19 +6062,6 @@ static int retrieve_ptr_limit(const struct bpf_reg_state *ptr_reg,
 		else
 			*ptr_limit = -off - 1;
 		return *ptr_limit >= max ? -ERANGE : 0;
-	case PTR_TO_MAP_KEY:
-		/* Currently, this code is not exercised as the only use
-		 * is bpf_for_each_map_elem() helper which requires
-		 * bpf_capble. The code has been tested manually for
-		 * future use.
-		 */
-		if (mask_to_left) {
-			*ptr_limit = ptr_reg->umax_value + ptr_reg->off;
-		} else {
-			off = ptr_reg->smin_value + ptr_reg->off;
-			*ptr_limit = ptr_reg->map_ptr->key_size - off;
-		}
-		return 0;
 	case PTR_TO_MAP_VALUE:
 		max = ptr_reg->map_ptr->value_size;
 		if (mask_to_left) {
@@ -6281,7 +6268,6 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		verbose(env, "R%d pointer arithmetic on %s prohibited\n",
 			dst, reg_type_str[ptr_reg->type]);
 		return -EACCES;
-	case PTR_TO_MAP_KEY:
 	case PTR_TO_MAP_VALUE:
 		if (!env->allow_ptr_leaks && !known && (smin_val < 0) != (smax_val < 0)) {
 			verbose(env, "R%d has unknown scalar with mixed signed bounds, pointer arithmetic with it prohibited for !root\n",
