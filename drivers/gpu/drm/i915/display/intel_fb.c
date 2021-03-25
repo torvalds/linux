@@ -632,6 +632,74 @@ static u32 setup_fb_rotation(int plane, const struct intel_remapped_plane_info *
 	return plane_info->width * plane_info->height;
 }
 
+struct fb_plane_view_dims {
+	unsigned int width, height;
+	unsigned int tile_width, tile_height;
+};
+
+static void init_plane_view_dims(const struct intel_framebuffer *fb, int color_plane,
+				 unsigned int width, unsigned int height,
+				 struct fb_plane_view_dims *dims)
+{
+	dims->width = width;
+	dims->height = height;
+
+	intel_tile_dims(&fb->base, color_plane, &dims->tile_width, &dims->tile_height);
+}
+
+static unsigned int
+plane_view_stride_tiles(const struct intel_framebuffer *fb, int color_plane,
+			const struct fb_plane_view_dims *dims)
+{
+	return DIV_ROUND_UP(fb->base.pitches[color_plane],
+			    dims->tile_width * fb->base.format->cpp[color_plane]);
+}
+
+static unsigned int
+plane_view_width_tiles(const struct intel_framebuffer *fb, int color_plane,
+		       const struct fb_plane_view_dims *dims,
+		       int x)
+{
+	return DIV_ROUND_UP(x + dims->width, dims->tile_width);
+}
+
+static unsigned int
+plane_view_height_tiles(const struct intel_framebuffer *fb, int color_plane,
+			const struct fb_plane_view_dims *dims,
+			int y)
+{
+	return DIV_ROUND_UP(y + dims->height, dims->tile_height);
+}
+
+/* Return number of tiles @color_plane needs. */
+static unsigned int
+calc_plane_normal_size(const struct intel_framebuffer *fb, int color_plane,
+		       const struct fb_plane_view_dims *dims,
+		       int x, int y)
+{
+	struct drm_i915_private *i915 = to_i915(fb->base.dev);
+	unsigned int tiles;
+
+	if (is_surface_linear(&fb->base, color_plane)) {
+		unsigned int size;
+
+		size = (y + dims->height) * fb->base.pitches[color_plane] +
+		       x * fb->base.format->cpp[color_plane];
+		tiles = DIV_ROUND_UP(size, intel_tile_size(i915));
+	} else {
+		tiles = plane_view_stride_tiles(fb, color_plane, dims) *
+			plane_view_height_tiles(fb, color_plane, dims, y);
+		/*
+		 * If the plane isn't horizontally tile aligned,
+		 * we need one more tile.
+		 */
+		if (x != 0)
+			tiles++;
+	}
+
+	return tiles;
+}
+
 int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb)
 {
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
@@ -642,6 +710,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 	unsigned int tile_size = intel_tile_size(i915);
 
 	for (i = 0; i < num_planes; i++) {
+		struct fb_plane_view_dims view_dims;
 		unsigned int width, height;
 		unsigned int cpp, size;
 		u32 offset;
@@ -667,6 +736,8 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 		if (ret)
 			return ret;
 
+		init_plane_view_dims(intel_fb, i, width, height, &view_dims);
+
 		/*
 		 * First pixel of the framebuffer from
 		 * the start of the normal gtt mapping.
@@ -678,38 +749,22 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 
 		if (!is_surface_linear(fb, i)) {
 			struct intel_remapped_plane_info plane_info;
-			unsigned int tile_width, tile_height;
-
-			intel_tile_dims(fb, i, &tile_width, &tile_height);
 
 			plane_info.offset = offset;
-			plane_info.stride = DIV_ROUND_UP(fb->pitches[i],
-							 tile_width * cpp);
-			plane_info.width = DIV_ROUND_UP(x + width, tile_width);
-			plane_info.height = DIV_ROUND_UP(y + height,
-							 tile_height);
-
-			/* how many tiles does this plane need */
-			size = plane_info.stride * plane_info.height;
-			/*
-			 * If the plane isn't horizontally tile aligned,
-			 * we need one more tile.
-			 */
-			if (x != 0)
-				size++;
+			plane_info.stride = plane_view_stride_tiles(intel_fb, i, &view_dims);
+			plane_info.width = plane_view_width_tiles(intel_fb, i, &view_dims, x);
+			plane_info.height = plane_view_height_tiles(intel_fb, i, &view_dims, y);
 
 			gtt_offset_rotated +=
 				setup_fb_rotation(i, &plane_info,
 						  gtt_offset_rotated,
 						  x, y, width, height,
 						  tile_size,
-						  tile_width, tile_height,
+						  view_dims.tile_width, view_dims.tile_height,
 						  fb);
-		} else {
-			size = DIV_ROUND_UP((y + height) * fb->pitches[i] +
-					    x * cpp, tile_size);
 		}
 
+		size = calc_plane_normal_size(intel_fb, i, &view_dims, x, y);
 		/* how many tiles in total needed in the bo */
 		max_size = max(max_size, offset + size);
 	}
