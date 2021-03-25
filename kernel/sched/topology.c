@@ -934,7 +934,7 @@ static void init_overlap_sched_group(struct sched_domain *sd,
 	int cpu;
 
 	build_balance_mask(sd, sg, mask);
-	cpu = cpumask_first_and(sched_group_span(sg), mask);
+	cpu = cpumask_first(mask);
 
 	sg->sgc = *per_cpu_ptr(sdd->sgc, cpu);
 	if (atomic_inc_return(&sg->sgc->ref) == 1)
