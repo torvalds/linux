@@ -288,6 +288,9 @@ static void pdr_indack_work(struct work_struct *work)
 		/* Ack the indication after clients release the PD resources */
 		pdr_send_indack_msg(pdr, pds, ind->transaction_id);
 
+		pr_info("PDR: Indication ack sent to %s, state: 0x%x, trans-id: %d\n",
+			pds->service_path, pds->state, ind->transaction_id);
+
 		mutex_lock(&pdr->list_lock);
 		list_del(&ind->node);
 		mutex_unlock(&pdr->list_lock);
