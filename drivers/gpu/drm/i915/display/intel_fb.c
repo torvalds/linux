@@ -9,6 +9,8 @@
 #include "intel_display_types.h"
 #include "intel_fb.h"
 
+#define check_array_bounds(i915, a, i) drm_WARN_ON(&(i915)->drm, (i) >= ARRAY_SIZE(a))
+
 bool is_ccs_plane(const struct drm_framebuffer *fb, int plane)
 {
 	if (!is_ccs_modifier(fb->modifier))
@@ -572,66 +574,6 @@ static u32 calc_plane_aligned_offset(const struct intel_framebuffer *fb, int col
 	return offset / tile_size;
 }
 
-/*
- * Setup the rotated view for an FB plane and return the size the GTT mapping
- * requires for this view.
- */
-static u32 setup_fb_rotation(int plane, const struct intel_remapped_plane_info *plane_info,
-			     u32 gtt_offset_rotated, int x, int y,
-			     unsigned int width, unsigned int height,
-			     unsigned int tile_size,
-			     unsigned int tile_width, unsigned int tile_height,
-			     struct drm_framebuffer *fb)
-{
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct intel_rotation_info *rot_info = &intel_fb->rotated_view.gtt.rotated;
-	unsigned int pitch_tiles;
-	struct drm_rect r;
-
-	/* Y or Yf modifiers required for 90/270 rotation */
-	if (fb->modifier != I915_FORMAT_MOD_Y_TILED &&
-	    fb->modifier != I915_FORMAT_MOD_Yf_TILED)
-		return 0;
-
-	if (drm_WARN_ON(fb->dev, plane >= ARRAY_SIZE(rot_info->plane)))
-		return 0;
-
-	rot_info->plane[plane] = *plane_info;
-
-	intel_fb->rotated_view.color_plane[plane].stride = plane_info->height * tile_height;
-
-	/* rotate the x/y offsets to match the GTT view */
-	drm_rect_init(&r, x, y, width, height);
-	drm_rect_rotate(&r,
-			plane_info->width * tile_width,
-			plane_info->height * tile_height,
-			DRM_MODE_ROTATE_270);
-	x = r.x1;
-	y = r.y1;
-
-	/* rotate the tile dimensions to match the GTT view */
-	pitch_tiles = intel_fb->rotated_view.color_plane[plane].stride / tile_height;
-	swap(tile_width, tile_height);
-
-	/*
-	 * We only keep the x/y offsets, so push all of the
-	 * gtt offset into the x/y offsets.
-	 */
-	intel_adjust_tile_offset(&x, &y,
-				 tile_width, tile_height,
-				 tile_size, pitch_tiles,
-				 gtt_offset_rotated * tile_size, 0);
-
-	/*
-	 * First pixel of the framebuffer from
-	 * the start of the rotated gtt mapping.
-	 */
-	intel_fb->rotated_view.color_plane[plane].x = x;
-	intel_fb->rotated_view.color_plane[plane].y = y;
-
-	return plane_info->width * plane_info->height;
-}
-
 struct fb_plane_view_dims {
 	unsigned int width, height;
 	unsigned int tile_width, tile_height;
@@ -669,6 +611,69 @@ plane_view_height_tiles(const struct intel_framebuffer *fb, int color_plane,
 			int y)
 {
 	return DIV_ROUND_UP(y + dims->height, dims->tile_height);
+}
+
+static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_plane,
+				 const struct fb_plane_view_dims *dims,
+				 u32 obj_offset, u32 gtt_offset, int x, int y,
+				 struct intel_fb_view *view)
+{
+	struct drm_i915_private *i915 = to_i915(fb->base.dev);
+	struct intel_remapped_plane_info *remap_info = &view->gtt.remapped.plane[color_plane];
+	struct i915_color_plane_view *color_plane_info = &view->color_plane[color_plane];
+	unsigned int tile_width = dims->tile_width;
+	unsigned int tile_height = dims->tile_height;
+	unsigned int tile_size = intel_tile_size(i915);
+	unsigned int pitch_tiles;
+	struct drm_rect r;
+
+	remap_info->offset = obj_offset;
+	remap_info->stride = plane_view_stride_tiles(fb, color_plane, dims);
+	remap_info->width = plane_view_width_tiles(fb, color_plane, dims, x);
+	remap_info->height = plane_view_height_tiles(fb, color_plane, dims, y);
+
+	if (view->gtt.type == I915_GGTT_VIEW_ROTATED) {
+		check_array_bounds(i915, view->gtt.rotated.plane, color_plane);
+
+		/* rotate the x/y offsets to match the GTT view */
+		drm_rect_init(&r, x, y, dims->width, dims->height);
+		drm_rect_rotate(&r,
+				remap_info->width * tile_width,
+				remap_info->height * tile_height,
+				DRM_MODE_ROTATE_270);
+
+		color_plane_info->x = r.x1;
+		color_plane_info->y = r.y1;
+
+		pitch_tiles = remap_info->height;
+		color_plane_info->stride = pitch_tiles * tile_height;
+
+		/* rotate the tile dimensions to match the GTT view */
+		swap(tile_width, tile_height);
+	} else {
+		drm_WARN_ON(&i915->drm, view->gtt.type != I915_GGTT_VIEW_REMAPPED);
+
+		check_array_bounds(i915, view->gtt.remapped.plane, color_plane);
+
+		color_plane_info->x = x;
+		color_plane_info->y = y;
+
+		pitch_tiles = remap_info->width;
+		color_plane_info->stride = pitch_tiles * tile_width *
+					  fb->base.format->cpp[color_plane];
+	}
+
+	/*
+	 * We only keep the x/y offsets, so push all of the gtt offset into
+	 * the x/y offsets.  x,y will hold the first pixel of the framebuffer
+	 * plane from the start of the remapped/rotated gtt mapping.
+	 */
+	intel_adjust_tile_offset(&color_plane_info->x, &color_plane_info->y,
+				 tile_width, tile_height,
+				 tile_size, pitch_tiles,
+				 gtt_offset * tile_size, 0);
+
+	return remap_info->width * remap_info->height;
 }
 
 /* Return number of tiles @color_plane needs. */
@@ -757,22 +762,12 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 
 		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
 
-		if (!is_surface_linear(fb, i)) {
-			struct intel_remapped_plane_info plane_info;
-
-			plane_info.offset = offset;
-			plane_info.stride = plane_view_stride_tiles(intel_fb, i, &view_dims);
-			plane_info.width = plane_view_width_tiles(intel_fb, i, &view_dims, x);
-			plane_info.height = plane_view_height_tiles(intel_fb, i, &view_dims, y);
-
-			gtt_offset_rotated +=
-				setup_fb_rotation(i, &plane_info,
-						  gtt_offset_rotated,
-						  x, y, width, height,
-						  tile_size,
-						  view_dims.tile_width, view_dims.tile_height,
-						  fb);
-		}
+		/* Y or Yf modifiers required for 90/270 rotation */
+		if (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
+		    fb->modifier == I915_FORMAT_MOD_Yf_TILED)
+			gtt_offset_rotated += calc_plane_remap_info(intel_fb, i, &view_dims,
+								    offset, gtt_offset_rotated, x, y,
+								    &intel_fb->rotated_view);
 
 		size = calc_plane_normal_size(intel_fb, i, &view_dims, x, y);
 		/* how many tiles in total needed in the bo */
@@ -795,10 +790,8 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 		to_i915(plane_state->uapi.plane->dev);
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct intel_rotation_info *info = &plane_state->view.gtt.rotated;
 	unsigned int rotation = plane_state->hw.rotation;
 	int i, num_planes = fb->format->num_planes;
-	unsigned int tile_size = intel_tile_size(i915);
 	unsigned int src_x, src_y;
 	unsigned int src_w, src_h;
 	u32 gtt_offset = 0;
@@ -827,19 +820,17 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 	for (i = 0; i < num_planes; i++) {
 		unsigned int hsub = i ? fb->format->hsub : 1;
 		unsigned int vsub = i ? fb->format->vsub : 1;
-		unsigned int cpp = fb->format->cpp[i];
-		unsigned int tile_width, tile_height;
+		struct fb_plane_view_dims view_dims;
 		unsigned int width, height;
-		unsigned int pitch_tiles;
 		unsigned int x, y;
 		u32 offset;
-
-		intel_tile_dims(fb, i, &tile_width, &tile_height);
 
 		x = src_x / hsub;
 		y = src_y / vsub;
 		width = src_w / hsub;
 		height = src_h / vsub;
+
+		init_plane_view_dims(intel_fb, i, width, height, &view_dims);
 
 		/*
 		 * First pixel of the src viewport from the
@@ -850,49 +841,9 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 
 		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
 
-		drm_WARN_ON(&i915->drm, i >= ARRAY_SIZE(info->plane));
-		info->plane[i].offset = offset;
-		info->plane[i].stride = DIV_ROUND_UP(fb->pitches[i],
-						     tile_width * cpp);
-		info->plane[i].width = DIV_ROUND_UP(x + width, tile_width);
-		info->plane[i].height = DIV_ROUND_UP(y + height, tile_height);
-
-		if (drm_rotation_90_or_270(rotation)) {
-			struct drm_rect r;
-
-			/* rotate the x/y offsets to match the GTT view */
-			drm_rect_init(&r, x, y, width, height);
-			drm_rect_rotate(&r,
-					info->plane[i].width * tile_width,
-					info->plane[i].height * tile_height,
-					DRM_MODE_ROTATE_270);
-			x = r.x1;
-			y = r.y1;
-
-			pitch_tiles = info->plane[i].height;
-			plane_state->view.color_plane[i].stride = pitch_tiles * tile_height;
-
-			/* rotate the tile dimensions to match the GTT view */
-			swap(tile_width, tile_height);
-		} else {
-			pitch_tiles = info->plane[i].width;
-			plane_state->view.color_plane[i].stride = pitch_tiles * tile_width * cpp;
-		}
-
-		/*
-		 * We only keep the x/y offsets, so push all of the
-		 * gtt offset into the x/y offsets.
-		 */
-		intel_adjust_tile_offset(&x, &y,
-					 tile_width, tile_height,
-					 tile_size, pitch_tiles,
-					 gtt_offset * tile_size, 0);
-
-		gtt_offset += info->plane[i].width * info->plane[i].height;
-
-		plane_state->view.color_plane[i].offset = 0;
-		plane_state->view.color_plane[i].x = x;
-		plane_state->view.color_plane[i].y = y;
+		gtt_offset += calc_plane_remap_info(intel_fb, i, &view_dims,
+						    offset, gtt_offset, x, y,
+						    &plane_state->view);
 	}
 }
 
