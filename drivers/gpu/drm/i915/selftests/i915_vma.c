@@ -959,7 +959,7 @@ static int igt_vma_remapped_gtt(void *arg)
 					if (val != exp) {
 						pr_err("%s VMA write test failed, expected 0x%x, found 0x%x\n",
 						       *t == I915_GGTT_VIEW_ROTATED ? "Rotated" : "Remapped",
-						       val, exp);
+						       exp, val);
 						i915_vma_unpin_iomap(vma);
 						err = -EINVAL;
 						goto out;
