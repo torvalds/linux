@@ -292,13 +292,12 @@ struct btree_key_cache {
 	struct rhashtable	table;
 	bool			table_init_done;
 	struct list_head	freed;
-	struct list_head	clean;
-	struct list_head	dirty;
 	struct shrinker		shrink;
+	unsigned		shrink_iter;
 
 	size_t			nr_freed;
-	size_t			nr_keys;
-	size_t			nr_dirty;
+	atomic_long_t		nr_keys;
+	atomic_long_t		nr_dirty;
 };
 
 struct bkey_cached_key {

@@ -610,8 +610,8 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 				j->prereserved.remaining,
 				atomic_read(&c->btree_cache.dirty),
 				c->btree_cache.used,
-				c->btree_key_cache.nr_dirty,
-				c->btree_key_cache.nr_keys);
+				atomic_long_read(&c->btree_key_cache.nr_dirty),
+				atomic_long_read(&c->btree_key_cache.nr_keys));
 
 		nr_flushed = journal_flush_pins(j, seq_to_flush, min_nr);
 
