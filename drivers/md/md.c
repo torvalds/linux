@@ -8153,7 +8153,11 @@ static void *md_seq_start(struct seq_file *seq, loff_t *pos)
 	loff_t l = *pos;
 	struct mddev *mddev;
 
-	if (l >= 0x10000)
+	if (l == 0x10000) {
+		++*pos;
+		return (void *)2;
+	}
+	if (l > 0x10000)
 		return NULL;
 	if (!l--)
 		/* header */
@@ -8574,6 +8578,26 @@ void md_write_end(struct mddev *mddev)
 }
 
 EXPORT_SYMBOL(md_write_end);
+
+/* This is used by raid0 and raid10 */
+void md_submit_discard_bio(struct mddev *mddev, struct md_rdev *rdev,
+			struct bio *bio, sector_t start, sector_t size)
+{
+	struct bio *discard_bio = NULL;
+
+	if (__blkdev_issue_discard(rdev->bdev, start, size, GFP_NOIO, 0,
+			&discard_bio) || !discard_bio)
+		return;
+
+	bio_chain(discard_bio, bio);
+	bio_clone_blkg_association(discard_bio, bio);
+	if (mddev->gendisk)
+		trace_block_bio_remap(discard_bio,
+				disk_devt(mddev->gendisk),
+				bio->bi_iter.bi_sector);
+	submit_bio_noacct(discard_bio);
+}
+EXPORT_SYMBOL_GPL(md_submit_discard_bio);
 
 /* md_allow_write(mddev)
  * Calling this ensures that the array is marked 'active' so that writes
