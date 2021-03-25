@@ -1094,8 +1094,6 @@ static bool io_match_task(struct io_kiocb *head,
 	io_for_each_link(req, head) {
 		if (req->flags & REQ_F_INFLIGHT)
 			return true;
-		if (req->task->files == files)
-			return true;
 	}
 	return false;
 }
