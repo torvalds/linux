@@ -110,8 +110,6 @@ int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
 struct rtrs_attrs {
 	u32		queue_depth;
 	u32		max_io_size;
-	u8		sessname[NAME_MAX];
-	struct kobject	*sess_kobj;
 };
 
 int rtrs_clt_query(struct rtrs_clt *sess, struct rtrs_attrs *attr);

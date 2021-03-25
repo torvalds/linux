@@ -2902,8 +2902,6 @@ int rtrs_clt_query(struct rtrs_clt *clt, struct rtrs_attrs *attr)
 
 	attr->queue_depth      = clt->queue_depth;
 	attr->max_io_size      = clt->max_io_size;
-	attr->sess_kobj	       = &clt->dev.kobj;
-	strlcpy(attr->sessname, clt->sessname, sizeof(attr->sessname));
 
 	return 0;
 }
