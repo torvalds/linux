@@ -54,6 +54,7 @@
 #include "display/intel_dpll_mgr.h"
 #include "display/intel_dsi.h"
 #include "display/intel_dvo.h"
+#include "display/intel_fb.h"
 #include "display/intel_gmbus.h"
 #include "display/intel_hdmi.h"
 #include "display/intel_lvds.h"

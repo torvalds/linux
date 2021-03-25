@@ -1995,30 +1995,11 @@ static inline bool is_ccs_modifier(u64 modifier)
 	       modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
 }
 
-static inline bool is_ccs_plane(const struct drm_framebuffer *fb, int plane)
-{
-	if (!is_ccs_modifier(fb->modifier))
-		return false;
-
-	return plane >= fb->format->num_planes / 2;
-}
-
 static inline bool is_gen12_ccs_modifier(u64 modifier)
 {
 	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
 	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
 	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
-}
-
-static inline bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane)
-{
-	return is_gen12_ccs_modifier(fb->modifier) && is_ccs_plane(fb, plane);
-}
-
-static inline bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane)
-{
-	return fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC &&
-	       plane == 2;
 }
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

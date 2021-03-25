@@ -11,6 +11,7 @@
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
 #include "intel_display_types.h"
+#include "intel_fb.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
