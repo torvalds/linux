@@ -381,34 +381,41 @@ sub output_rest {
 
 				# Enrich text by creating cross-references
 
-				$desc =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
+				my $new_desc = "";
+				open(my $fh, "+<", \$desc);
+				while (my $d = <$fh>) {
+					$d =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
 
-				my @matches = $desc =~ m,Documentation/ABI/([\w\/\-]+),g;
-				foreach my $f (@matches) {
-					my $xref = $f;
-					my $path = $f;
-					$path =~ s,.*/(.*/.*),$1,;;
-					$path =~ s,[/\-],_,g;;
-					$xref .= " <abi_file_" . $path . ">";
-					$desc =~ s,\bDocumentation/ABI/$f\b,:ref:`$xref`,g;
-				}
-
-				# Seek for cross reference symbols like /sys/...
-				@matches = $desc =~ m/$xref_match/g;
-
-				foreach my $s (@matches) {
-					next if (!($s =~ m,/,));
-					if (defined($data{$s}) && defined($data{$s}->{label})) {
-						my $xref = $s;
-
-						$xref =~ s/$symbols/\\$1/g;
-						$xref = ":ref:`$xref <" . $data{$s}->{label} . ">`";
-
-						$desc =~ s,$start$s$bondary,$1$xref$2,g;
+					my @matches = $d =~ m,Documentation/ABI/([\w\/\-]+),g;
+					foreach my $f (@matches) {
+						my $xref = $f;
+						my $path = $f;
+						$path =~ s,.*/(.*/.*),$1,;;
+						$path =~ s,[/\-],_,g;;
+						$xref .= " <abi_file_" . $path . ">";
+						$d =~ s,\bDocumentation/ABI/$f\b,:ref:`$xref`,g;
 					}
-				}
 
-				print "$desc\n\n";
+					# Seek for cross reference symbols like /sys/...
+					@matches = $d =~ m/$xref_match/g;
+
+					foreach my $s (@matches) {
+						next if (!($s =~ m,/,));
+						if (defined($data{$s}) && defined($data{$s}->{label})) {
+							my $xref = $s;
+
+							$xref =~ s/$symbols/\\$1/g;
+							$xref = ":ref:`$xref <" . $data{$s}->{label} . ">`";
+
+							$d =~ s,$start$s$bondary,$1$xref$2,g;
+						}
+					}
+					$new_desc .= $d;
+				}
+				close $fh;
+
+
+				print "$new_desc\n\n";
 			} else {
 				$desc =~ s/^\s+//;
 
