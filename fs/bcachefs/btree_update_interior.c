@@ -1119,7 +1119,7 @@ static struct btree *__btree_split_node(struct btree_update *as,
 	 */
 	k = set1->start;
 	while (1) {
-		struct bkey_packed *n = bkey_next_skip_noops(k, vstruct_last(set1));
+		struct bkey_packed *n = bkey_next(k);
 
 		if (n == vstruct_last(set1))
 			break;
@@ -1216,7 +1216,7 @@ static void btree_split_insert_keys(struct btree_update *as, struct btree *b,
 	i = btree_bset_first(b);
 	src = dst = i->start;
 	while (src != vstruct_last(i)) {
-		n = bkey_next_skip_noops(src, vstruct_last(i));
+		n = bkey_next(src);
 		if (!bkey_deleted(src)) {
 			memmove_u64s_down(dst, src, src->u64s);
 			dst = bkey_next(dst);

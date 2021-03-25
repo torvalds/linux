@@ -1373,7 +1373,7 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 		     k < vstruct_last(s2) &&
 		     vstruct_blocks_plus(n1->data, c->block_bits,
 					 u64s + k->u64s) <= blocks;
-		     k = bkey_next_skip_noops(k, vstruct_last(s2))) {
+		     k = bkey_next(k)) {
 			last = k;
 			u64s += k->u64s;
 		}

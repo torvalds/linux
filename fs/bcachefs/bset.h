@@ -305,7 +305,7 @@ static inline struct bkey_s __bkey_disassemble(struct btree *b,
 #define bset_tree_for_each_key(_b, _t, _k)				\
 	for (_k = btree_bkey_first(_b, _t);				\
 	     _k != btree_bkey_last(_b, _t);				\
-	     _k = bkey_next_skip_noops(_k, btree_bkey_last(_b, _t)))
+	     _k = bkey_next(_k))
 
 static inline bool bset_has_ro_aux_tree(struct bset_tree *t)
 {

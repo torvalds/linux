@@ -45,7 +45,7 @@ static inline void sort_iter_advance(struct sort_iter *iter, sort_cmp_fn cmp)
 
 	BUG_ON(!iter->used);
 
-	i->k = bkey_next_skip_noops(i->k, i->end);
+	i->k = bkey_next(i->k);
 
 	BUG_ON(i->k > i->end);
 

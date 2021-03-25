@@ -41,16 +41,6 @@ struct bkey_s {
 
 #define bkey_next(_k)		vstruct_next(_k)
 
-static inline struct bkey_packed *bkey_next_skip_noops(struct bkey_packed *k,
-						       struct bkey_packed *end)
-{
-	k = bkey_next(k);
-
-	while (k != end && !k->u64s)
-		k = (void *) ((u64 *) k + 1);
-	return k;
-}
-
 #define bkey_val_u64s(_k)	((_k)->u64s - BKEY_U64s)
 
 static inline size_t bkey_val_bytes(const struct bkey *k)

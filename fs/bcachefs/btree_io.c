@@ -32,9 +32,9 @@ static void verify_no_dups(struct btree *b,
 	if (start == end)
 		return;
 
-	for (p = start, k = bkey_next_skip_noops(start, end);
+	for (p = start, k = bkey_next(start);
 	     k != end;
-	     p = k, k = bkey_next_skip_noops(k, end)) {
+	     p = k, k = bkey_next(k)) {
 		struct bkey l = bkey_unpack_key(b, p);
 		struct bkey r = bkey_unpack_key(b, k);
 
@@ -47,9 +47,7 @@ static void set_needs_whiteout(struct bset *i, int v)
 {
 	struct bkey_packed *k;
 
-	for (k = i->start;
-	     k != vstruct_last(i);
-	     k = bkey_next_skip_noops(k, vstruct_last(i)))
+	for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
 		k->needs_whiteout = v;
 }
 
@@ -213,7 +211,7 @@ static bool bch2_drop_whiteouts(struct btree *b, enum compact_mode mode)
 		out = i->start;
 
 		for (k = start; k != end; k = n) {
-			n = bkey_next_skip_noops(k, end);
+			n = bkey_next(k);
 
 			if (!bkey_deleted(k)) {
 				bkey_copy(out, k);
@@ -754,7 +752,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		}
 
 		prev = k;
-		k = bkey_next_skip_noops(k, vstruct_last(i));
+		k = bkey_next(k);
 	}
 fsck_err:
 	return ret;
@@ -947,7 +945,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			bp.v->mem_ptr = 0;
 		}
 
-		k = bkey_next_skip_noops(k, vstruct_last(i));
+		k = bkey_next(k);
 	}
 
 	bch2_bset_build_aux_tree(b, b->set, false);
