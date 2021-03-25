@@ -558,6 +558,20 @@ static int convert_plane_offset_to_xy(const struct intel_framebuffer *fb, int co
 	return 0;
 }
 
+static u32 calc_plane_aligned_offset(const struct intel_framebuffer *fb, int color_plane, int *x, int *y)
+{
+	struct drm_i915_private *i915 = to_i915(fb->base.dev);
+	unsigned int tile_size = intel_tile_size(i915);
+	u32 offset;
+
+	offset = intel_compute_aligned_offset(i915, x, y, &fb->base, color_plane,
+					      fb->base.pitches[color_plane],
+					      DRM_MODE_ROTATE_0,
+					      tile_size);
+
+	return offset / tile_size;
+}
+
 /*
  * Setup the rotated view for an FB plane and return the size the GTT mapping
  * requires for this view.
@@ -660,11 +674,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 		intel_fb->normal[i].x = x;
 		intel_fb->normal[i].y = y;
 
-		offset = intel_compute_aligned_offset(i915, &x, &y, fb, i,
-						      fb->pitches[i],
-						      DRM_MODE_ROTATE_0,
-						      tile_size);
-		offset /= tile_size;
+		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
 
 		if (!is_surface_linear(fb, i)) {
 			struct intel_remapped_plane_info plane_info;
@@ -773,10 +783,7 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 		x += intel_fb->normal[i].x;
 		y += intel_fb->normal[i].y;
 
-		offset = intel_compute_aligned_offset(i915, &x, &y,
-						      fb, i, fb->pitches[i],
-						      DRM_MODE_ROTATE_0, tile_size);
-		offset /= tile_size;
+		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
 
 		drm_WARN_ON(&i915->drm, i >= ARRAY_SIZE(info->plane));
 		info->plane[i].offset = offset;
