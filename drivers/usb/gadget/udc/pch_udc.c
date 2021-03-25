@@ -383,11 +383,8 @@ MODULE_PARM_DESC(speed_fs, "true for Full speed operation");
  * @td_data_last:	last dma desc. of chain
  * @queue:		associated queue
  * @dma_going:		DMA in progress for request
- * @dma_mapped:		DMA memory mapped for request
  * @dma_done:		DMA completed for request
  * @chain_len:		chain length
- * @buf:		Buffer memory for align adjustment
- * @dma:		DMA memory for align adjustment
  */
 struct pch_udc_request {
 	struct usb_request		req;
@@ -396,11 +393,8 @@ struct pch_udc_request {
 	struct pch_udc_data_dma_desc	*td_data_last;
 	struct list_head		queue;
 	unsigned			dma_going:1,
-					dma_mapped:1,
 					dma_done:1;
 	unsigned			chain_len;
-	void				*buf;
-	dma_addr_t			dma;
 };
 
 static inline u32 pch_udc_readl(struct pch_udc_dev *dev, unsigned long reg)
@@ -1482,33 +1476,7 @@ static void complete_req(struct pch_udc_ep *ep, struct pch_udc_request *req,
 		status = req->req.status;
 
 	dev = ep->dev;
-	if (req->dma_mapped) {
-		if (req->dma == DMA_ADDR_INVALID) {
-			if (ep->in)
-				dma_unmap_single(&dev->pdev->dev, req->req.dma,
-						 req->req.length,
-						 DMA_TO_DEVICE);
-			else
-				dma_unmap_single(&dev->pdev->dev, req->req.dma,
-						 req->req.length,
-						 DMA_FROM_DEVICE);
-			req->req.dma = DMA_ADDR_INVALID;
-		} else {
-			if (ep->in)
-				dma_unmap_single(&dev->pdev->dev, req->dma,
-						 req->req.length,
-						 DMA_TO_DEVICE);
-			else {
-				dma_unmap_single(&dev->pdev->dev, req->dma,
-						 req->req.length,
-						 DMA_FROM_DEVICE);
-				memcpy(req->req.buf, req->buf, req->req.length);
-			}
-			kfree(req->buf);
-			req->dma = DMA_ADDR_INVALID;
-		}
-		req->dma_mapped = 0;
-	}
+	usb_gadget_unmap_request(&dev->gadget, &req->req, ep->in);
 	ep->halted = 1;
 	spin_unlock(&dev->lock);
 	if (!ep->in)
@@ -1586,12 +1554,9 @@ static int pch_udc_create_dma_chain(struct pch_udc_ep *ep,
 	if (req->chain_len > 1)
 		pch_udc_free_dma_chain(ep->dev, req);
 
-	if (req->dma == DMA_ADDR_INVALID)
-		td->dataptr = req->req.dma;
-	else
-		td->dataptr = req->dma;
-
+	td->dataptr = req->req.dma;
 	td->status = PCH_UDC_BS_HST_BSY;
+
 	for (; ; bytes -= buf_len, ++len) {
 		td->status = PCH_UDC_BS_HST_BSY | min(buf_len, bytes);
 		if (bytes <= buf_len)
@@ -1797,7 +1762,6 @@ static struct usb_request *pch_udc_alloc_request(struct usb_ep *usbep,
 	if (!req)
 		return NULL;
 	req->req.dma = DMA_ADDR_INVALID;
-	req->dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&req->queue);
 	if (!ep->dev->dma_addr)
 		return &req->req;
@@ -1880,39 +1844,9 @@ static int pch_udc_pcd_queue(struct usb_ep *usbep, struct usb_request *usbreq,
 		return -ESHUTDOWN;
 	spin_lock_irqsave(&dev->lock, iflags);
 	/* map the buffer for dma */
-	if (usbreq->length &&
-	    ((usbreq->dma == DMA_ADDR_INVALID) || !usbreq->dma)) {
-		if (!((unsigned long)(usbreq->buf) & 0x03)) {
-			if (ep->in)
-				usbreq->dma = dma_map_single(&dev->pdev->dev,
-							     usbreq->buf,
-							     usbreq->length,
-							     DMA_TO_DEVICE);
-			else
-				usbreq->dma = dma_map_single(&dev->pdev->dev,
-							     usbreq->buf,
-							     usbreq->length,
-							     DMA_FROM_DEVICE);
-		} else {
-			req->buf = kzalloc(usbreq->length, GFP_ATOMIC);
-			if (!req->buf) {
-				retval = -ENOMEM;
-				goto probe_end;
-			}
-			if (ep->in) {
-				memcpy(req->buf, usbreq->buf, usbreq->length);
-				req->dma = dma_map_single(&dev->pdev->dev,
-							  req->buf,
-							  usbreq->length,
-							  DMA_TO_DEVICE);
-			} else
-				req->dma = dma_map_single(&dev->pdev->dev,
-							  req->buf,
-							  usbreq->length,
-							  DMA_FROM_DEVICE);
-		}
-		req->dma_mapped = 1;
-	}
+	retval = usb_gadget_map_request(&dev->gadget, usbreq, ep->in);
+	if (retval)
+		goto probe_end;
 	if (usbreq->length > 0) {
 		retval = prepare_dma(ep, req, GFP_ATOMIC);
 		if (retval)
