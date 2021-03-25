@@ -2090,6 +2090,32 @@ release_con:
 	return r;
 }
 
+static int amdgpu_persistent_edc_harvesting_supported(struct amdgpu_device *adev)
+{
+	if (adev->gmc.xgmi.connected_to_cpu)
+		return 1;
+	return 0;
+}
+
+static int amdgpu_persistent_edc_harvesting(struct amdgpu_device *adev,
+					struct ras_common_if *ras_block)
+{
+	struct ras_query_if info = {
+		.head = *ras_block,
+	};
+
+	if (!amdgpu_persistent_edc_harvesting_supported(adev))
+		return 0;
+
+	if (amdgpu_ras_query_error_status(adev, &info) != 0)
+		DRM_WARN("RAS init harvest failure");
+
+	if (amdgpu_ras_reset_error_status(adev, ras_block->block) != 0)
+		DRM_WARN("RAS init harvest reset failure");
+
+	return 0;
+}
+
 /* helper function to handle common stuff in ip late init phase */
 int amdgpu_ras_late_init(struct amdgpu_device *adev,
 			 struct ras_common_if *ras_block,
@@ -2118,6 +2144,9 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 		} else
 			return r;
 	}
+
+	/* check for errors on warm reset edc persisant supported ASIC */
+	amdgpu_persistent_edc_harvesting(adev, ras_block);
 
 	/* in resume phase, no need to create ras fs node */
 	if (adev->in_suspend || amdgpu_in_reset(adev))
