@@ -81,6 +81,7 @@ struct clk_si5341 {
 	u8 num_synth;
 	u16 chip_id;
 	bool xaxb_ext_clk;
+	bool iovdd_33;
 };
 #define to_clk_si5341(_hw)	container_of(_hw, struct clk_si5341, hw)
 
@@ -103,6 +104,7 @@ struct clk_si5341_output_config {
 #define SI5341_IN_SEL		0x0021
 #define SI5341_DEVICE_READY	0x00FE
 #define SI5341_XAXB_CFG		0x090E
+#define SI5341_IO_VDD_SEL	0x0943
 #define SI5341_IN_EN		0x0949
 #define SI5341_INX_TO_PFD_EN	0x094A
 
@@ -351,7 +353,6 @@ static const struct si5341_reg_default si5341_reg_defaults[] = {
 	{ 0x0804, 0x00 }, /* Not in datasheet */
 	{ 0x090E, 0x02 }, /* XAXB_EXTCLK_EN=0 XAXB_PDNB=1 (use XTAL) */
 	{ 0x091C, 0x04 }, /* ZDM_EN=4 (Normal mode) */
-	{ 0x0943, 0x00 }, /* IO_VDD_SEL=0 (0=1v8, use 1=3v3) */
 	{ 0x0949, 0x00 }, /* IN_EN (disable input clocks) */
 	{ 0x094A, 0x00 }, /* INx_TO_PFD_EN (disabled) */
 	{ 0x0A02, 0x00 }, /* Not in datasheet */
@@ -1160,6 +1161,11 @@ static int si5341_finalize_defaults(struct clk_si5341 *data)
 	int res;
 	u32 revision;
 
+	res = regmap_write(data->regmap, SI5341_IO_VDD_SEL,
+			   data->iovdd_33 ? 1 : 0);
+	if (res < 0)
+		return res;
+
 	res = regmap_read(data->regmap, SI5341_DEVICE_REV, &revision);
 	if (res < 0)
 		return res;
@@ -1544,6 +1550,8 @@ static int si5341_probe(struct i2c_client *client,
 	}
 	data->xaxb_ext_clk = of_property_read_bool(client->dev.of_node,
 						   "silabs,xaxb-ext-clk");
+	data->iovdd_33 = of_property_read_bool(client->dev.of_node,
+					       "silabs,iovdd-33");
 
 	if (initialization_required) {
 		/* Populate the regmap cache in preparation for "cache only" */
