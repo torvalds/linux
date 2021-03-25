@@ -285,7 +285,7 @@ sub create_labels {
 # Boundaries are punct characters, spaces and end-of-line
 my $start = qr {(^|\s|\() }x;
 my $bondary = qr { ([,.:;\)\s]|\z) }x;
-my $xref_match = qr { $start(\/sys\/[^,.:;\)\s]+)$bondary }x;
+my $xref_match = qr { $start(\/(sys|config|proc|dev|kvd)\/[^,.:;\)\s]+)$bondary }x;
 my $symbols = qr { ([\x01-\x08\x0e-\x1f\x21-\x2f\x3a-\x40\x7b-\xff]) }x;
 
 sub output_rest {
