@@ -320,7 +320,7 @@ waiting for a network device refcount to drop to 0 during device
 unregistration. A lower value may be useful during bisection to detect
 a leaked reference faster. A larger value may be useful to prevent false
 warnings on slow/loaded systems.
-Default value is 10, minimum 0, maximum 3600.
+Default value is 10, minimum 1, maximum 3600.
 
 optmem_max
 ----------
