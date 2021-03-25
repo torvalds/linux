@@ -6480,8 +6480,6 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	ret = io_init_req(ctx, req, sqe);
 	if (unlikely(ret)) {
 fail_req:
-		io_put_req(req);
-		io_req_complete(req, ret);
 		if (link->head) {
 			/* fail even hard links since we don't submit */
 			link->head->flags |= REQ_F_FAIL_LINK;
@@ -6489,6 +6487,8 @@ fail_req:
 			io_req_complete(link->head, -ECANCELED);
 			link->head = NULL;
 		}
+		io_put_req(req);
+		io_req_complete(req, ret);
 		return ret;
 	}
 	ret = io_req_prep(req, sqe);
