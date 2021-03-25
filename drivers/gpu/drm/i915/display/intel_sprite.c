@@ -49,38 +49,6 @@
 #include "i9xx_plane.h"
 #include "intel_vrr.h"
 
-int intel_plane_check_stride(const struct intel_plane_state *plane_state)
-{
-	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	unsigned int rotation = plane_state->hw.rotation;
-	u32 stride, max_stride;
-
-	/*
-	 * We ignore stride for all invisible planes that
-	 * can be remapped. Otherwise we could end up
-	 * with a false positive when the remapping didn't
-	 * kick in due the plane being invisible.
-	 */
-	if (intel_plane_can_remap(plane_state) &&
-	    !plane_state->uapi.visible)
-		return 0;
-
-	/* FIXME other color planes? */
-	stride = plane_state->color_plane[0].stride;
-	max_stride = plane->max_stride(plane, fb->format->format,
-				       fb->modifier, rotation);
-
-	if (stride > max_stride) {
-		DRM_DEBUG_KMS("[FB:%d] stride (%d) exceeds [PLANE:%d:%s] max stride (%d)\n",
-			      fb->base.id, stride,
-			      plane->base.base.id, plane->base.name, max_stride);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
