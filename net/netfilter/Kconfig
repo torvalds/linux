@@ -74,10 +74,6 @@ config NF_CONNTRACK
 config NF_LOG_COMMON
 	tristate
 
-config NF_LOG_NETDEV
-	tristate "Netdev packet logging"
-	select NF_LOG_COMMON
-
 config NF_LOG_SYSLOG
 	tristate "Syslog packet logging"
 	default m if NETFILTER_ADVANCED=n
