@@ -717,20 +717,46 @@ enum ipa_seq_rep_type {
 #define ROUTER_HASH_MSK_METADATA_FMASK		GENMASK(22, 22)
 #define IPA_REG_ENDP_ROUTER_HASH_MSK_ALL	GENMASK(22, 16)
 
-#define IPA_REG_IRQ_STTS_OFFSET	\
-				IPA_REG_IRQ_STTS_EE_N_OFFSET(GSI_EE_AP)
-#define IPA_REG_IRQ_STTS_EE_N_OFFSET(ee) \
-					(0x00003008 + 0x1000 * (ee))
+static inline u32 ipa_reg_irq_stts_ee_n_offset(enum ipa_version version,
+					       u32 ee)
+{
+	if (version < IPA_VERSION_4_9)
+		return 0x00003008 + 0x1000 * ee;
 
-#define IPA_REG_IRQ_EN_OFFSET \
-				IPA_REG_IRQ_EN_EE_N_OFFSET(GSI_EE_AP)
-#define IPA_REG_IRQ_EN_EE_N_OFFSET(ee) \
-					(0x0000300c + 0x1000 * (ee))
+	return 0x00004008 + 0x1000 * ee;
+}
 
-#define IPA_REG_IRQ_CLR_OFFSET \
-				IPA_REG_IRQ_CLR_EE_N_OFFSET(GSI_EE_AP)
-#define IPA_REG_IRQ_CLR_EE_N_OFFSET(ee) \
-					(0x00003010 + 0x1000 * (ee))
+static inline u32 ipa_reg_irq_stts_offset(enum ipa_version version)
+{
+	return ipa_reg_irq_stts_ee_n_offset(version, GSI_EE_AP);
+}
+
+static inline u32 ipa_reg_irq_en_ee_n_offset(enum ipa_version version, u32 ee)
+{
+	if (version < IPA_VERSION_4_9)
+		return 0x0000300c + 0x1000 * ee;
+
+	return 0x0000400c + 0x1000 * ee;
+}
+
+static inline u32 ipa_reg_irq_en_offset(enum ipa_version version)
+{
+	return ipa_reg_irq_en_ee_n_offset(version, GSI_EE_AP);
+}
+
+static inline u32 ipa_reg_irq_clr_ee_n_offset(enum ipa_version version, u32 ee)
+{
+	if (version < IPA_VERSION_4_9)
+		return 0x00003010 + 0x1000 * ee;
+
+	return 0x00004010 + 0x1000 * ee;
+}
+
+static inline u32 ipa_reg_irq_clr_offset(enum ipa_version version)
+{
+	return ipa_reg_irq_clr_ee_n_offset(version, GSI_EE_AP);
+}
+
 /**
  * enum ipa_irq_id - Bit positions representing type of IPA IRQ
  * @IPA_IRQ_UC_0:	Microcontroller event interrupt
@@ -806,32 +832,75 @@ enum ipa_irq_id {
 	IPA_IRQ_COUNT,				/* Last; not an id */
 };
 
-#define IPA_REG_IRQ_UC_OFFSET \
-				IPA_REG_IRQ_UC_EE_N_OFFSET(GSI_EE_AP)
-#define IPA_REG_IRQ_UC_EE_N_OFFSET(ee) \
-					(0x0000301c + 0x1000 * (ee))
+static inline u32 ipa_reg_irq_uc_ee_n_offset(enum ipa_version version, u32 ee)
+{
+	if (version < IPA_VERSION_4_9)
+		return 0x0000301c + 0x1000 * ee;
+
+	return 0x0000401c + 0x1000 * ee;
+}
+
+static inline u32 ipa_reg_irq_uc_offset(enum ipa_version version)
+{
+	return ipa_reg_irq_uc_ee_n_offset(version, GSI_EE_AP);
+}
+
 #define UC_INTR_FMASK				GENMASK(0, 0)
 
 /* ipa->available defines the valid bits in the SUSPEND_INFO register */
-#define IPA_REG_IRQ_SUSPEND_INFO_OFFSET \
-				IPA_REG_IRQ_SUSPEND_INFO_EE_N_OFFSET(GSI_EE_AP)
-/* This register is at (0x00003098 + 0x1000 * (ee)) for IPA v3.0 */
-#define IPA_REG_IRQ_SUSPEND_INFO_EE_N_OFFSET(ee) \
-					(0x00003030 + 0x1000 * (ee))
+static inline u32
+ipa_reg_irq_suspend_info_ee_n_offset(enum ipa_version version, u32 ee)
+{
+	if (version == IPA_VERSION_3_0)
+		return 0x00003098 + 0x1000 * ee;
 
-/* ipa->available defines the valid bits in the IRQ_SUSPEND_EN register */
-/* This register is present for IPA v3.1+ */
-#define IPA_REG_IRQ_SUSPEND_EN_OFFSET \
-				IPA_REG_IRQ_SUSPEND_EN_EE_N_OFFSET(GSI_EE_AP)
-#define IPA_REG_IRQ_SUSPEND_EN_EE_N_OFFSET(ee) \
-					(0x00003034 + 0x1000 * (ee))
+	if (version < IPA_VERSION_4_9)
+		return 0x00003030 + 0x1000 * ee;
 
-/* ipa->available defines the valid bits in the IRQ_SUSPEND_CLR register */
-/* This register is present for IPA v3.1+ */
-#define IPA_REG_IRQ_SUSPEND_CLR_OFFSET \
-				IPA_REG_IRQ_SUSPEND_CLR_EE_N_OFFSET(GSI_EE_AP)
-#define IPA_REG_IRQ_SUSPEND_CLR_EE_N_OFFSET(ee) \
-					(0x00003038 + 0x1000 * (ee))
+	return 0x00004030 + 0x1000 * ee;
+}
+
+static inline u32
+ipa_reg_irq_suspend_info_offset(enum ipa_version version)
+{
+	return ipa_reg_irq_suspend_info_ee_n_offset(version, GSI_EE_AP);
+}
+
+/* ipa->available defines the valid bits in the SUSPEND_EN register */
+static inline u32
+ipa_reg_irq_suspend_en_ee_n_offset(enum ipa_version version, u32 ee)
+{
+	/* assert(version != IPA_VERSION_3_0); */
+
+	if (version < IPA_VERSION_4_9)
+		return 0x00003034 + 0x1000 * ee;
+
+	return 0x00004034 + 0x1000 * ee;
+}
+
+static inline u32
+ipa_reg_irq_suspend_en_offset(enum ipa_version version)
+{
+	return ipa_reg_irq_suspend_en_ee_n_offset(version, GSI_EE_AP);
+}
+
+/* ipa->available defines the valid bits in the SUSPEND_CLR register */
+static inline u32
+ipa_reg_irq_suspend_clr_ee_n_offset(enum ipa_version version, u32 ee)
+{
+	/* assert(version != IPA_VERSION_3_0); */
+
+	if (version < IPA_VERSION_4_9)
+		return 0x00003038 + 0x1000 * ee;
+
+	return 0x00004038 + 0x1000 * ee;
+}
+
+static inline u32
+ipa_reg_irq_suspend_clr_offset(enum ipa_version version)
+{
+	return ipa_reg_irq_suspend_clr_ee_n_offset(version, GSI_EE_AP);
+}
 
 int ipa_reg_init(struct ipa *ipa);
 void ipa_reg_exit(struct ipa *ipa);
