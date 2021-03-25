@@ -391,7 +391,7 @@ static enum resp_states check_length(struct rxe_qp *qp,
 static enum resp_states check_rkey(struct rxe_qp *qp,
 				   struct rxe_pkt_info *pkt)
 {
-	struct rxe_mem *mem = NULL;
+	struct rxe_mr *mr = NULL;
 	u64 va;
 	u32 rkey;
 	u32 resid;
@@ -430,18 +430,18 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	resid	= qp->resp.resid;
 	pktlen	= payload_size(pkt);
 
-	mem = lookup_mem(qp->pd, access, rkey, lookup_remote);
-	if (!mem) {
+	mr = lookup_mr(qp->pd, access, rkey, lookup_remote);
+	if (!mr) {
 		state = RESPST_ERR_RKEY_VIOLATION;
 		goto err;
 	}
 
-	if (unlikely(mem->state == RXE_MEM_STATE_FREE)) {
+	if (unlikely(mr->state == RXE_MR_STATE_FREE)) {
 		state = RESPST_ERR_RKEY_VIOLATION;
 		goto err;
 	}
 
-	if (mem_check_range(mem, va, resid)) {
+	if (mr_check_range(mr, va, resid)) {
 		state = RESPST_ERR_RKEY_VIOLATION;
 		goto err;
 	}
@@ -469,12 +469,12 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 
 	WARN_ON_ONCE(qp->resp.mr);
 
-	qp->resp.mr = mem;
+	qp->resp.mr = mr;
 	return RESPST_EXECUTE;
 
 err:
-	if (mem)
-		rxe_drop_ref(mem);
+	if (mr)
+		rxe_drop_ref(mr);
 	return state;
 }
 
@@ -484,7 +484,7 @@ static enum resp_states send_data_in(struct rxe_qp *qp, void *data_addr,
 	int err;
 
 	err = copy_data(qp->pd, IB_ACCESS_LOCAL_WRITE, &qp->resp.wqe->dma,
-			data_addr, data_len, to_mem_obj, NULL);
+			data_addr, data_len, to_mr_obj, NULL);
 	if (unlikely(err))
 		return (err == -ENOSPC) ? RESPST_ERR_LENGTH
 					: RESPST_ERR_MALFORMED_WQE;
@@ -499,8 +499,8 @@ static enum resp_states write_data_in(struct rxe_qp *qp,
 	int	err;
 	int data_len = payload_size(pkt);
 
-	err = rxe_mem_copy(qp->resp.mr, qp->resp.va, payload_addr(pkt),
-			   data_len, to_mem_obj, NULL);
+	err = rxe_mr_copy(qp->resp.mr, qp->resp.va, payload_addr(pkt), data_len,
+			  to_mr_obj, NULL);
 	if (err) {
 		rc = RESPST_ERR_RKEY_VIOLATION;
 		goto out;
@@ -522,9 +522,9 @@ static enum resp_states process_atomic(struct rxe_qp *qp,
 	u64 iova = atmeth_va(pkt);
 	u64 *vaddr;
 	enum resp_states ret;
-	struct rxe_mem *mr = qp->resp.mr;
+	struct rxe_mr *mr = qp->resp.mr;
 
-	if (mr->state != RXE_MEM_STATE_VALID) {
+	if (mr->state != RXE_MR_STATE_VALID) {
 		ret = RESPST_ERR_RKEY_VIOLATION;
 		goto out;
 	}
@@ -700,8 +700,8 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	if (!skb)
 		return RESPST_ERR_RNR;
 
-	err = rxe_mem_copy(res->read.mr, res->read.va, payload_addr(&ack_pkt),
-			   payload, from_mem_obj, &icrc);
+	err = rxe_mr_copy(res->read.mr, res->read.va, payload_addr(&ack_pkt),
+			  payload, from_mr_obj, &icrc);
 	if (err)
 		pr_err("Failed copying memory\n");
 
@@ -883,7 +883,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 			}
 
 			if (pkt->mask & RXE_IETH_MASK) {
-				struct rxe_mem *rmr;
+				struct rxe_mr *rmr;
 
 				wc->wc_flags |= IB_WC_WITH_INVALIDATE;
 				wc->ex.invalidate_rkey = ieth_rkey(pkt);
@@ -895,7 +895,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 					       wc->ex.invalidate_rkey);
 					return RESPST_ERROR;
 				}
-				rmr->state = RXE_MEM_STATE_FREE;
+				rmr->state = RXE_MR_STATE_FREE;
 				rxe_drop_ref(rmr);
 			}
 
