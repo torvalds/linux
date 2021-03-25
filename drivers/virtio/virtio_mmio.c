@@ -676,8 +676,6 @@ static int __init virtio_swiotlb_init(void)
 	virtio_swiotlb_dma_base = dma_base;
 	virtio_swiotlb_size = size;
 
-	swiotlb_force = SWIOTLB_FORCE;
-
 	return 0;
 }
 
@@ -754,7 +752,7 @@ static void virtio_unmap_page(struct device *dev, dma_addr_t dev_addr,
 
 size_t virtio_max_mapping_size(struct device *dev)
 {
-	return ((size_t)1 << IO_TLB_SHIFT) * IO_TLB_SEGSIZE;
+	return SZ_4K;
 }
 
 static const struct dma_map_ops virtio_dma_ops = {
