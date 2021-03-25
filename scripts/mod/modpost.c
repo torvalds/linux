@@ -23,8 +23,6 @@
 
 /* Are we using CONFIG_MODVERSIONS? */
 static int modversions = 0;
-/* Warn about undefined symbols? (do so if we have vmlinux) */
-static int have_vmlinux = 0;
 /* Is CONFIG_MODULE_SRCVERSION_ALL set? */
 static int all_versions = 0;
 /* If we are modposting external module set to 1 */
@@ -40,6 +38,13 @@ static int ignore_missing_files;
 static int allow_missing_ns_imports;
 
 static bool error_occurred;
+
+/*
+ * Cut off the warnings when there are too many. This typically occurs when
+ * vmlinux is missing. ('make modules' without building vmlinux.)
+ */
+#define MAX_UNRESOLVED_REPORTS	10
+static unsigned int nr_unresolved;
 
 enum export {
 	export_plain,
@@ -176,9 +181,6 @@ static struct module *new_module(const char *modname)
 	mod->gpl_compatible = -1;
 	mod->next = modules;
 	modules = mod;
-
-	if (mod->is_vmlinux)
-		have_vmlinux = 1;
 
 	return mod;
 }
@@ -2141,7 +2143,7 @@ static void check_exports(struct module *mod)
 		const char *basename;
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod) {
-			if (have_vmlinux && !s->weak)
+			if (!s->weak && nr_unresolved++ < MAX_UNRESOLVED_REPORTS)
 				modpost_log(warn_unresolved ? LOG_WARN : LOG_ERROR,
 					    "\"%s\" [%s.ko] undefined!\n",
 					    s->name, mod->name);
@@ -2545,13 +2547,6 @@ int main(int argc, char **argv)
 	if (files_source)
 		read_symbols_from_files(files_source);
 
-	/*
-	 * When there's no vmlinux, don't print warnings about
-	 * unresolved symbols (since there'll be too many ;)
-	 */
-	if (!have_vmlinux)
-		warn("Symbol info of vmlinux is missing. Unresolved symbol check will be entirely skipped.\n");
-
 	for (mod = modules; mod; mod = mod->next) {
 		char fname[PATH_MAX];
 
@@ -2594,6 +2589,10 @@ int main(int argc, char **argv)
 				      export_str(s->export));
 		}
 	}
+
+	if (nr_unresolved > MAX_UNRESOLVED_REPORTS)
+		warn("suppressed %u unresolved symbol warnings because there were too many)\n",
+		     nr_unresolved - MAX_UNRESOLVED_REPORTS);
 
 	free(buf.p);
 
