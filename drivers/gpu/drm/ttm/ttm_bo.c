@@ -625,7 +625,7 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 	unsigned i;
 	int ret;
 
-	spin_lock(&bo->bdev->lru_lock);
+	spin_lock(&bdev->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &man->lru[i], lru) {
 			bool busy;
@@ -662,7 +662,7 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 	if (!bo) {
 		if (busy_bo && !ttm_bo_get_unless_zero(busy_bo))
 			busy_bo = NULL;
-		spin_unlock(&bo->bdev->lru_lock);
+		spin_unlock(&bdev->lru_lock);
 		ret = ttm_mem_evict_wait_busy(busy_bo, ctx, ticket);
 		if (busy_bo)
 			ttm_bo_put(busy_bo);
@@ -676,7 +676,7 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 		return ret;
 	}
 
-	spin_unlock(&bo->bdev->lru_lock);
+	spin_unlock(&bdev->lru_lock);
 
 	ret = ttm_bo_evict(bo, ctx);
 	if (locked)
