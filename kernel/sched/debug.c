@@ -277,6 +277,20 @@ static const struct file_operations sched_dynamic_fops = {
 
 __read_mostly bool sched_debug_enabled;
 
+static const struct seq_operations sched_debug_sops;
+
+static int sched_debug_open(struct inode *inode, struct file *filp)
+{
+	return seq_open(filp, &sched_debug_sops);
+}
+
+static const struct file_operations sched_debug_fops = {
+	.open		= sched_debug_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 static struct dentry *debugfs_sched;
 
 static __init int sched_init_debug(void)
@@ -313,6 +327,8 @@ static __init int sched_init_debug(void)
 	debugfs_create_u32("scan_period_max_ms", 0644, numa, &sysctl_numa_balancing_scan_period_max);
 	debugfs_create_u32("scan_size_mb", 0644, numa, &sysctl_numa_balancing_scan_size);
 #endif
+
+	debugfs_create_file("debug", 0444, debugfs_sched, NULL, &sched_debug_fops);
 
 	return 0;
 }
@@ -846,15 +862,6 @@ static const struct seq_operations sched_debug_sops = {
 	.stop		= sched_debug_stop,
 	.show		= sched_debug_show,
 };
-
-static int __init init_sched_debug_procfs(void)
-{
-	if (!proc_create_seq("sched_debug", 0444, NULL, &sched_debug_sops))
-		return -ENOMEM;
-	return 0;
-}
-
-__initcall(init_sched_debug_procfs);
 
 #define __PS(S, F) SEQ_printf(m, "%-45s:%21Ld\n", S, (long long)(F))
 #define __P(F) __PS(#F, F)
