@@ -539,43 +539,43 @@
 &pinctrl {
 	ak8963 {
 		comp_int: comp-int {
-			rockchip,pins = <8 1 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <8 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	buttons {
 		pwrbtn: pwrbtn {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	dvp {
 		dvp_pwr: dvp-pwr {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <0 6 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	mma8452 {
 		gsensor_int: gsensor-int {
-			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <8 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	pmic {
 		pmic_int: pmic-int {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <7 11 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

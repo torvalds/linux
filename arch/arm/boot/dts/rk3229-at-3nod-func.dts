@@ -104,26 +104,26 @@
 
 	keys {
 		pwr_key: pwr-key {
-			rockchip,pins = <3 23 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <3 15 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	vcc-sd {
 		vcc_sd_h: vcc-sd-h {
-			rockchip,pins = <1 14 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_cd: sdmmc-cd {
 			rockchip,pins =
-				<1 17 RK_FUNC_1 &pcfg_pull_none_drv_12ma>;
+				<1 RK_PC1 1 &pcfg_pull_none_drv_12ma>;
 		};
 	};
 };

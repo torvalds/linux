@@ -699,34 +699,34 @@
 &pinctrl {
 	camera {
 		cif_rst: cif-rst {
-			rockchip,pins = <3 11 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 
 	pmic {
 		pmic_int_l: pmic-int-l {
-			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <1 14 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 
 	lcdc {
 		lcdc_pwr_en: lcdc-pwr-en {
-			rockchip,pins = <1 12 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <1 RK_PB4 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 
 	wifi {
 		wifi_en: wifi-en {
-			rockchip,pins = <3 27 RK_FUNC_GPIO &pcfg_output_high>;
+			rockchip,pins = <3 RK_PD3 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 		wifi_pwr: wifi-pwr {
-			rockchip,pins = <1 3 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <1 RK_PA3 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 };

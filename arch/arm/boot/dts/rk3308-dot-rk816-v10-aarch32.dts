@@ -413,7 +413,7 @@
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
-				<0 6 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

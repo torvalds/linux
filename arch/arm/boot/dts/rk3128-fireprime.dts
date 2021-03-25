@@ -371,7 +371,7 @@
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
-			rockchip,pins = <RK_GPIO3 22 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 

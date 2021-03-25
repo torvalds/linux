@@ -324,25 +324,25 @@
 &pinctrl {
 	keys {
 		pwr_key: pwr-key {
-			rockchip,pins = <3 23 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <1 14 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <2 26 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <3 20 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		otg_vbus_drv: otg-vbus-drv {

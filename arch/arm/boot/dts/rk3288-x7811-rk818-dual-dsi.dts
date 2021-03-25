@@ -400,22 +400,22 @@
 &pinctrl {
 	lcd {
 		lcd_en: lcd-en  {
-			rockchip,pins = <1 24 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	mpu6050 {
 		mpu6050_irq_gpio: mpu6050-irq-gpio {
-			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <8 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	pmic {
 		pmic_int: pmic-int {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 		vsel1_gpio: vsel1-gpio {
-			rockchip,pins = <RK_GPIO0 0 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };

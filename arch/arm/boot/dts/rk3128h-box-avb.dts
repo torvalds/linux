@@ -53,7 +53,7 @@
 &pinctrl {
 	sdmmc {
 		sdmmc_det: sdmmc-det {
-			rockchip,pins = <1 RK_PC1 RK_FUNC_1 &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC1 1 &pcfg_pull_none>;
 		};
 	};
 };

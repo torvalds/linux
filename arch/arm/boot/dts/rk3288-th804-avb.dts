@@ -130,30 +130,30 @@
 		isp_mipi: isp-mipi {
 			rockchip,pins =
 				/* cif_clkout */
-				<2 11 RK_FUNC_1 &pcfg_pull_none_4ma>;
+				<2 RK_PB3 1 &pcfg_pull_none_4ma>;
 		};
 
 		isp_dvp_d2d9: isp-d2d9 {
 			rockchip,pins =
 				/* cif_data2 ... cif_data9 */
-				<2 0 RK_FUNC_1 &pcfg_pull_down>,
-				<2 1 RK_FUNC_1 &pcfg_pull_down>,
-				<2 2 RK_FUNC_1 &pcfg_pull_down>,
-				<2 3 RK_FUNC_1 &pcfg_pull_down>,
-				<2 4 RK_FUNC_1 &pcfg_pull_down>,
-				<2 5 RK_FUNC_1 &pcfg_pull_down>,
+				<2 RK_PA0 1 &pcfg_pull_down>,
+				<2 RK_PA1 1 &pcfg_pull_down>,
+				<2 RK_PA2 1 &pcfg_pull_down>,
+				<2 RK_PA3 1 &pcfg_pull_down>,
+				<2 RK_PA4 1 &pcfg_pull_down>,
+				<2 RK_PA5 1 &pcfg_pull_down>,
 				/* cif_sync, cif_href */
-				<2 8 RK_FUNC_1 &pcfg_pull_down>,
-				<2 9 RK_FUNC_1 &pcfg_pull_down>,
+				<2 RK_PB0 1 &pcfg_pull_down>,
+				<2 RK_PB1 1 &pcfg_pull_down>,
 				/* cif_clkin */
-				<2 10 RK_FUNC_1 &pcfg_pull_down>;
+				<2 RK_PB2 1 &pcfg_pull_down>;
 		};
 
 		isp_dvp_d0d1: isp-d0d1 {
 			rockchip,pins =
 				/* cif_data0, cif_data1 */
-				<2 12 RK_FUNC_1 &pcfg_pull_down>,
-				<2 13 RK_FUNC_1 &pcfg_pull_down>;
+				<2 RK_PB4 1 &pcfg_pull_down>,
+				<2 RK_PB5 1 &pcfg_pull_down>;
 		};
 	};
 };

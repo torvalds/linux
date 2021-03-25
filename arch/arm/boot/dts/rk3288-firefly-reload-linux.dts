@@ -444,56 +444,56 @@
 	};
 	pmic {
 		pmic_int: pmic-int {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	lcd {
 		lcd_cs: lcd-cs {
-			rockchip,pins = <7 4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		lcd_en: lcd-en  {
-			rockchip,pins = <7 3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	act8846 {
 		pmic_vsel: pmic-vsel {
-			rockchip,pins = <7 14 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <7 RK_PB6 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		pwr_hold: pwr-hold {
-			rockchip,pins = <0 1 RK_FUNC_GPIO &pcfg_output_high>;
+			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
 
 	backlight {
 		bl_en: bl-en {
-			rockchip,pins = <7 2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	buttons {
 		pwrbtn: pwrbtn {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	hdmiin {
 		hdmiin_gpios: hdmiin_gpios {
 			rockchip,pins =
-				<7 5 RK_FUNC_GPIO &pcfg_output_high>,
-				<7 21 RK_FUNC_GPIO &pcfg_output_high>,
-				<8 8 RK_FUNC_GPIO &pcfg_pull_none>,
-				<8 9 RK_FUNC_GPIO &pcfg_pull_none>;
+				<7 RK_PA5 RK_FUNC_GPIO &pcfg_output_high>,
+				<7 RK_PC5 RK_FUNC_GPIO &pcfg_output_high>,
+				<8 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
+				<8 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	i2c1 {
 		i2c1_xfer: i2c1-xfer {
-			rockchip,pins = <8 4 RK_FUNC_1 &pcfg_pull_up>,
-				<8 5 RK_FUNC_1 &pcfg_pull_up>;
+			rockchip,pins = <8 RK_PA4 1 &pcfg_pull_up>,
+				<8 RK_PA5 1 &pcfg_pull_up>;
 		};
 	};
 };

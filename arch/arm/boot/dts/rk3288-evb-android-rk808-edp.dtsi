@@ -417,13 +417,13 @@
 &pinctrl {
 	mpu6050 {
 		mpu6050_irq_gpio: mpu6050-irq-gpio {
-			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <8 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	ak8963 {
 		ak8963_irq_gpio: ak8963-irq-gpio {
-			rockchip,pins = <8 1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <8 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

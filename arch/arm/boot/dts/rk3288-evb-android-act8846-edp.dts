@@ -442,44 +442,44 @@
 &pinctrl {
 	backlight {
 		bl_en: bl-en {
-			rockchip,pins = <7 2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	buttons {
 		pwrbtn: pwrbtn {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	cam_pins {
 		cam0_default_pins: cam0-default-pins {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>,
-					<2 15 RK_FUNC_GPIO &pcfg_pull_none>,
-					<2 11 RK_FUNC_1 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,
+					<2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,
+					<2 RK_PB3 1 &pcfg_pull_none>;
 		};
 		cam0_sleep_pins: cam0-sleep-pins {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>,
-					<2 15 RK_FUNC_GPIO &pcfg_pull_none>,
-					<2 11 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,
+					<2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,
+					<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	lcd {
 		lcd_en: lcd-en  {
-			rockchip,pins = <7 3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wifi {
 		wifi_pwr: wifi-pwr {
-			rockchip,pins = <7 9 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	mpu6050 {
 		mpu6050_irq_gpio: mpu6050-irq-gpio {
-			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <8 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

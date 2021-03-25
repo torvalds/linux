@@ -374,27 +374,27 @@
 &pinctrl {
 	keys {
 		pwr_key: pwr-key {
-			rockchip,pins = <1 18 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
 		bt_key: bt-key {
-			rockchip,pins = <3 31 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <3 RK_PD7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
 		mute_key: mute-key {
-			rockchip,pins = <3 20 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
 	pmic {
 		pmic_int_l: pmic-int-l {
-			rockchip,pins = <1 12 RK_FUNC_GPIO &pcfg_pull_up>; /* gpio1_b4 */
+			rockchip,pins = <1 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>; /* gpio1_b4 */
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <3 15 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

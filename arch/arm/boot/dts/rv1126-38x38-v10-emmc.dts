@@ -352,7 +352,7 @@
 &pinctrl {
 	es8311 {
 		spk_ctl: spk-ctl {
-			rockchip,pins = <2 RK_PA5 0 &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

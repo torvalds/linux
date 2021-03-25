@@ -264,12 +264,12 @@
 	rk1608_gpios {
 		preisp_irq_gpios: preisp-irq-gpios {
 			rockchip,pins =
-				<0 RK_PA4 0 &pcfg_pull_up>;
+				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		preisp_reset_gpios: preisp-reset-gpios {
 			rockchip,pins =
-				<0 RK_PA5 0 &pcfg_output_low>;
+				<0 RK_PA5 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		preisp_24m_mclk: preisp-24m-mclk {
