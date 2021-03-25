@@ -6017,8 +6017,8 @@ static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
 		 * use it. It only gets used for calculating the required
 		 * ddb allocation.
 		 */
-		if (!skl_wm_level_equals(skl_plane_wm_level(old_pipe_wm, level, plane->id),
-					 skl_plane_wm_level(new_pipe_wm, level, plane->id)))
+		if (!skl_wm_level_equals(skl_plane_wm_level(old_pipe_wm, plane->id, level),
+					 skl_plane_wm_level(new_pipe_wm, plane->id, level)))
 			return false;
 	}
 
