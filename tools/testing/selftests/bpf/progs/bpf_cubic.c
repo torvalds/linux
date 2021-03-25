@@ -525,11 +525,11 @@ void BPF_STRUCT_OPS(bpf_cubic_acked, struct sock *sk,
 		hystart_update(sk, delay);
 }
 
+extern __u32 tcp_reno_undo_cwnd(struct sock *sk) __ksym;
+
 __u32 BPF_STRUCT_OPS(bpf_cubic_undo_cwnd, struct sock *sk)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
-
-	return max(tp->snd_cwnd, tp->prior_cwnd);
+	return tcp_reno_undo_cwnd(sk);
 }
 
 SEC(".struct_ops")
