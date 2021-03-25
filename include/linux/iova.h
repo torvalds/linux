@@ -157,7 +157,6 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 			  iova_flush_cb flush_cb, iova_entry_dtor entry_dtor);
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
-void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad);
 #else
 static inline int iova_cache_get(void)
 {
@@ -234,10 +233,6 @@ static inline void put_iova_domain(struct iova_domain *iovad)
 {
 }
 
-static inline void free_cpu_cached_iovas(unsigned int cpu,
-					 struct iova_domain *iovad)
-{
-}
 #endif
 
 #endif

@@ -22,6 +22,7 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
 				     unsigned long limit_pfn);
 static void init_iova_rcaches(struct iova_domain *iovad);
+static void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad);
 static void free_iova_rcaches(struct iova_domain *iovad);
 static void fq_destroy_all_entries(struct iova_domain *iovad);
 static void fq_flush_timeout(struct timer_list *t);
@@ -1040,7 +1041,7 @@ static void free_iova_rcaches(struct iova_domain *iovad)
 /*
  * free all the IOVA ranges cached by a cpu (used when cpu is unplugged)
  */
-void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
+static void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
 {
 	struct iova_cpu_rcache *cpu_rcache;
 	struct iova_rcache *rcache;
