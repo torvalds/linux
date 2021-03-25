@@ -530,13 +530,13 @@ static int mms114_probe(struct i2c_client *client,
 	}
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
-					  NULL, mms114_interrupt, IRQF_ONESHOT,
+					  NULL, mms114_interrupt,
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
 					  dev_name(&client->dev), data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
 		return error;
 	}
-	disable_irq(client->irq);
 
 	error = input_register_device(data->input_dev);
 	if (error) {

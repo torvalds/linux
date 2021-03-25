@@ -655,15 +655,14 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	}
 
 	error = devm_request_threaded_irq(dev, ts->irq, NULL, cyttsp_irq,
-					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
+					  IRQF_NO_AUTOEN,
 					  "cyttsp", ts);
 	if (error) {
 		dev_err(ts->dev, "failed to request IRQ %d, err: %d\n",
 			ts->irq, error);
 		return ERR_PTR(error);
 	}
-
-	disable_irq(ts->irq);
 
 	cyttsp_hard_reset(ts);
 
