@@ -101,19 +101,19 @@
 		tc35874x_gpios: tc35874x_gpios {
 			rockchip,pins =
 				/* PWREN_3.3 */
-				<2 5 RK_FUNC_GPIO &pcfg_output_high>,
+				<2 RK_PA5 RK_FUNC_GPIO &pcfg_output_high>,
 				/* PWREN_1.2 */
-				<2 6 RK_FUNC_GPIO &pcfg_output_high>,
+				<2 RK_PA6 RK_FUNC_GPIO &pcfg_output_high>,
 				/* HDMIIN_RST */
-				<2 7 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
 				/* HDMIIN_STBY */
-				<2 8 RK_FUNC_GPIO &pcfg_output_high>,
+				<2 RK_PB0 RK_FUNC_GPIO &pcfg_output_high>,
 				/* MIPI_RST */
-				<2 9 RK_FUNC_GPIO &pcfg_output_high>,
+				<2 RK_PB1 RK_FUNC_GPIO &pcfg_output_high>,
 				/* CSI_CTL */
-				<2 10 RK_FUNC_GPIO &pcfg_output_low>,
+				<2 RK_PB2 RK_FUNC_GPIO &pcfg_output_low>,
 				/* HDMIIN_INT */
-				<2 12 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

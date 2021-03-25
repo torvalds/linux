@@ -1266,71 +1266,71 @@
 
 	ak8963 {
 		ak8963_irq_gpio: ak8963-irq-gpio {
-			rockchip,pins = <1 0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	charger {
 		charger_ok: charge-ok {
 			rockchip,pins =
-				<0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+				<0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	i2s0 {
 		i2s0_8ch_bus: i2s0-8ch-bus {
 			rockchip,pins =
-				<3 24 RK_FUNC_1 &pcfg_pull_none>,
-				<3 26 RK_FUNC_1 &pcfg_pull_none>,
-				<3 27 RK_FUNC_1 &pcfg_pull_none>,
-				<3 28 RK_FUNC_1 &pcfg_pull_none>,
-				<3 29 RK_FUNC_1 &pcfg_pull_none>,
-				<3 30 RK_FUNC_1 &pcfg_pull_none>,
-				<3 31 RK_FUNC_1 &pcfg_pull_none>;
+				<3 RK_PD0 1 &pcfg_pull_none>,
+				<3 RK_PD2 1 &pcfg_pull_none>,
+				<3 RK_PD3 1 &pcfg_pull_none>,
+				<3 RK_PD4 1 &pcfg_pull_none>,
+				<3 RK_PD5 1 &pcfg_pull_none>,
+				<3 RK_PD6 1 &pcfg_pull_none>,
+				<3 RK_PD7 1 &pcfg_pull_none>;
 			};
 
 		i2s_8ch_mclk: i2s-8ch-mclk {
-				rockchip,pins = <4 0 RK_FUNC_1 &pcfg_pull_none>;
+				rockchip,pins = <4 RK_PA0 1 &pcfg_pull_none>;
 		};
 	};
 
 	i2s1 {
 		i2s1_2ch_bus: i2s1-2ch-bus {
 			rockchip,pins =
-				<4 3 RK_FUNC_1 &pcfg_pull_none>,
-				<4 5 RK_FUNC_1 &pcfg_pull_none>,
-				<4 6 RK_FUNC_1 &pcfg_pull_none>,
-				<4 7 RK_FUNC_1 &pcfg_pull_none>;
+				<4 RK_PA3 1 &pcfg_pull_none>,
+				<4 RK_PA5 1 &pcfg_pull_none>,
+				<4 RK_PA6 1 &pcfg_pull_none>,
+				<4 RK_PA7 1 &pcfg_pull_none>;
 		};
 	};
 
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins =
-				<0 11 0 &pcfg_pull_up>;
+				<0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	hdmiin {
 		hdmiin_gpios: hdmiin_gpios {
 		rockchip,pins =
-				<0 13 RK_FUNC_GPIO &pcfg_pull_none>,
-				<3 25 RK_FUNC_GPIO &pcfg_pull_none>,
-				<0 2 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
+				<3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	fusb30x {
 		fusb0_int: fusb0-int {
-			rockchip,pins = <1 2 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 18 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>,
+					<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	mpu6500 {
 		mpu6500_irq_gpio: mpu6500-irq-gpio {
-			rockchip,pins = <1 22 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -1352,7 +1352,7 @@
 
 		soc_slppin_gpio: soc-slppin-gpio {
 			rockchip,pins =
-				<1 RK_PA5 0 &pcfg_output_low>;
+				<1 RK_PA5 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		soc_slppin_slp: soc-slppin-slp {
@@ -1364,29 +1364,29 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<0 10 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-bluetooth {
 		uart0_gpios: uart0-gpios {
 			rockchip,pins =
-				<2 19 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_reset_gpio: bt-reset-gpio {
 			rockchip,pins =
-				<0 9 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_wake_gpio: bt-wake-gpio {
 			rockchip,pins =
-				<0 4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_irq_gpio: bt-irq-gpio {
 			rockchip,pins =
-				<2 27 RK_FUNC_GPIO &pcfg_pull_down>;
+				<2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -1407,21 +1407,21 @@
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
-				<0 8 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	vcc_sd {
 		vcc_sd_h: vcc-sd-h {
 			rockchip,pins =
-				<0 1 RK_FUNC_GPIO &pcfg_pull_up>;
+				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	usbnet {
 		usbnet_pwr_drv: usbnet-pwr-drv {
 			rockchip,pins =
-				<4 18 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

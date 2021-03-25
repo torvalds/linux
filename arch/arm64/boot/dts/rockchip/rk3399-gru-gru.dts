@@ -154,7 +154,7 @@ ap_i2c_nfc: &i2c7 {
 &pinctrl {
 	discrete-regulators {
 		fp_en: fp-en {
-			rockchip,pins = <RK_GPIO1 1 RK_FUNC_GPIO
+			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 	};

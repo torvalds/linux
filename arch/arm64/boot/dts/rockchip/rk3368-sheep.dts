@@ -719,22 +719,22 @@
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
-			rockchip,pins = <RK_GPIO0 1 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 		vsel_gpio: vsel-gpio {
-			rockchip,pins = <0 0 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
 	dc_det {
 		dc_irq_gpio: dc-irq-gpio {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		otg_vbus_drv: otg-bus-drv {

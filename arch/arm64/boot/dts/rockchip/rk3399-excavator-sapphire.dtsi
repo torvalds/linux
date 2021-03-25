@@ -298,26 +298,26 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<0 10 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-bluetooth {
 		uart0_gpios: uart0-gpios {
 			rockchip,pins =
-				<2 19 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 		bt_reset_gpio: bt-reset-gpio {
 			rockchip,pins =
-				<0 9 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 		bt_wake_gpio: bt-wake-gpio {
 			rockchip,pins =
-				<2 26 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 		bt_irq_gpio: bt-irq-gpio {
 			rockchip,pins =
-				<0 4 RK_FUNC_GPIO &pcfg_pull_down>;
+				<0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };

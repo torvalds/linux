@@ -421,7 +421,7 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 		rockchip,pins =
-			<1 18 RK_FUNC_GPIO &pcfg_pull_none>;
+			<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -440,7 +440,7 @@
 	wireless-bluetooth {
 		uart0_gpios: uart0-gpios {
 		rockchip,pins =
-			<1 10 RK_FUNC_GPIO &pcfg_pull_none>;
+			<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

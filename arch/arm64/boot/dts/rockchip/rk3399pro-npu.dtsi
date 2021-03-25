@@ -802,7 +802,7 @@
 		tsadc {
 			tsadc_otp_gpio: tsadc-otp-gpio {
 				rockchip,pins =
-					<0 RK_PA6 0 &pcfg_pull_none>;
+					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 
 			tsadc_otp_out: tsadc-otp-out {

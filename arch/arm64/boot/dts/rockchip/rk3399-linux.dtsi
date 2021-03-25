@@ -240,67 +240,67 @@
 		cif_clkout: cif-clkout {
 			rockchip,pins =
 				/* cif_clkout */
-				<2 11 RK_FUNC_3 &pcfg_pull_none>;
+				<2 RK_PB3 3 &pcfg_pull_none>;
 		};
 
 		isp_dvp_d0d7: isp-dvp-d0d7 {
 			rockchip,pins =
-				<4 27 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,
 				/* cif_clkout */
-				<2 11 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PB3 3 &pcfg_pull_none>,
 				/* cif_data0 */
-				<2 0 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA0 3 &pcfg_pull_none>,
 				/* cif_data1 */
-				<2 1 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA1 3 &pcfg_pull_none>,
 				/* cif_data2 */
-				<2 2 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA2 3 &pcfg_pull_none>,
 				/* cif_data3 */
-				<2 3 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA3 3 &pcfg_pull_none>,
 				/* cif_data4 */
-				<2 4 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA4 3 &pcfg_pull_none>,
 				/* cif_data5 */
-				<2 5 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA5 3 &pcfg_pull_none>,
 				/* cif_data6 */
-				<2 6 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA6 3 &pcfg_pull_none>,
 				/* cif_data7 */
-				<2 7 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA7 3 &pcfg_pull_none>,
 				/* cif_sync */
-				<2 8 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PB0 3 &pcfg_pull_none>,
 				/* cif_href */
-				<2 9 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PB1 3 &pcfg_pull_none>,
 				/* cif_clkin */
-				<2 10 RK_FUNC_3 &pcfg_pull_none>;
+				<2 RK_PB2 3 &pcfg_pull_none>;
 		};
 
 		isp_shutter: isp-shutter {
 			rockchip,pins =
 				/* SHUTTEREN */
-				<1 1 RK_FUNC_1 &pcfg_pull_none>,
+				<1 RK_PA1 1 &pcfg_pull_none>,
 				/* SHUTTERTRIG */
-				<1 0 RK_FUNC_1 &pcfg_pull_none>;
+				<1 RK_PA0 1 &pcfg_pull_none>;
 		};
 
 		isp_flash_trigger: isp-flash-trigger {
 			/* ISP_FLASHTRIGOU */
-			rockchip,pins = <1 3 RK_FUNC_1 &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA3 1 &pcfg_pull_none>;
 		};
 
 		isp_flash_trigger_as_gpio: isp-flash-trigger-as-gpio {
 			/* ISP_FLASHTRIGOU */
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	cam_pins {
 		cam0_default_pins: cam0-default-pins {
 			rockchip,pins =
-				<4 27 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 11 RK_FUNC_3 &pcfg_pull_none>;
+				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 RK_PB3 3 &pcfg_pull_none>;
 		};
 		cam0_sleep_pins: cam0-sleep-pins {
 			rockchip,pins =
-				<4 27 RK_FUNC_3 &pcfg_pull_none>,
-				<2 11 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD3 3 &pcfg_pull_none>,
+				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

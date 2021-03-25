@@ -78,7 +78,7 @@
 &pinctrl {
 	pen-eject {
 		pen_eject_l: pen-eject-l {
-			rockchip,pins = <RK_GPIO0 13 RK_FUNC_GPIO
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO
 				&pcfg_pull_up>;
 		};
 	};

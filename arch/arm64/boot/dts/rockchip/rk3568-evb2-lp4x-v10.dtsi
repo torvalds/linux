@@ -268,13 +268,13 @@
 
 	mxc6655xa {
 		mxc6655xa_irq_gpio: mxc6655xa_irq_gpio {
-			rockchip,pins = <RK_GPIO3 RK_PD7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	sii902x {
 		sii902x_hdmi_int: sii902x-hdmi-int {
-			rockchip,pins = <3 RK_PA0 0 &pcfg_pull_up>;
+			rockchip,pins = <3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 

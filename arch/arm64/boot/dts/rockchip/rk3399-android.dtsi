@@ -300,39 +300,39 @@
 		cif_clkout: cif-clkout {
 			rockchip,pins =
 				/*cif_clkout*/
-				<2 11 RK_FUNC_3 &pcfg_pull_none>;
+				<2 RK_PB3 3 &pcfg_pull_none>;
 		};
 
 		isp_dvp_d0d7: isp-dvp-d0d7 {
 			rockchip,pins =
 				/*cif_data0*/
-				<2 0 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA0 3 &pcfg_pull_none>,
 				/*cif_data1*/
-				<2 1 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA1 3 &pcfg_pull_none>,
 				/*cif_data2*/
-				<2 2 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA2 3 &pcfg_pull_none>,
 				/*cif_data3*/
-				<2 3 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA3 3 &pcfg_pull_none>,
 				/*cif_data4*/
-				<2 4 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA4 3 &pcfg_pull_none>,
 				/*cif_data5*/
-				<2 5 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA5 3 &pcfg_pull_none>,
 				/*cif_data6*/
-				<2 6 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA6 3 &pcfg_pull_none>,
 				/*cif_data7*/
-				<2 7 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PA7 3 &pcfg_pull_none>,
 				/*cif_sync*/
-				<2 8 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PB0 3 &pcfg_pull_none>,
 				/*cif_href*/
-				<2 9 RK_FUNC_3 &pcfg_pull_none>,
+				<2 RK_PB1 3 &pcfg_pull_none>,
 				/*cif_clkin*/
-				<2 10 RK_FUNC_3 &pcfg_pull_none>;
+				<2 RK_PB2 3 &pcfg_pull_none>;
 		};
 	};
 
 	buttons {
 		pwrbtn: pwrbtn {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

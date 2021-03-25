@@ -721,20 +721,20 @@
 
 	buttons {
 		pwr_key: pwr-key {
-			rockchip,pins = <0 RK_PA6 0 &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	usb {
 		usb_drv: usb-drv {
 			rockchip,pins =
-				<0 RK_PC5 0 &pcfg_pull_none>;
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PA2 0 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

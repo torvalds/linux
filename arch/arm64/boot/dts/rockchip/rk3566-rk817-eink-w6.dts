@@ -713,7 +713,7 @@
 		cam_clkout0: cam-clkout0 {
 			rockchip,pins =
 				/* cam_clkout0 */
-				<4 RK_PA7 RK_FUNC_1 &pcfg_pull_none>;
+				<4 RK_PA7 1 &pcfg_pull_none>;
 		};
 
 		camera_rst: camera-rst {
@@ -762,12 +762,12 @@
 
 		soc_slppin_slp: soc_slppin_slp {
 			rockchip,pins =
-				<0 RK_PA2 RK_FUNC_1 &pcfg_pull_none>;
+				<0 RK_PA2 1 &pcfg_pull_none>;
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
 			rockchip,pins =
-				<0 RK_PA2 RK_FUNC_2 &pcfg_pull_none>;
+				<0 RK_PA2 2 &pcfg_pull_none>;
 		};
 	};
 

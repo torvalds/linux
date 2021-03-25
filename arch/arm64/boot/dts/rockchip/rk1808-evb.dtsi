@@ -667,12 +667,12 @@
 	pmic {
 		pmic_int: pmic_int {
 			rockchip,pins =
-				<0 RK_PA1 0 &pcfg_pull_up>;
+				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		soc_slppin_gpio: soc_slppin_gpio {
 			rockchip,pins =
-				<0 RK_PA4 0 &pcfg_output_low>;
+				<0 RK_PA4 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		soc_slppin_slp: soc_slppin_slp {
@@ -682,33 +682,33 @@
 
 		vsel_gpio: vsel-gpio {
 			rockchip,pins =
-				<0 RK_PA5 0 &pcfg_pull_down>;
+				<0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<4 RK_PC0 0 &pcfg_pull_none>;
+				<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb2 {
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <0 RK_PB7 0 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-bluetooth {
 		uart4_rts_gpio: uart4-rts-gpio {
-			rockchip,pins = <4 RK_PB7 0 &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-wlan {
 		wifi_wake_host: wifi-wake-host {
 			rockchip,pins =
-				<4 RK_PC1 0 &pcfg_pull_up>;
+				<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

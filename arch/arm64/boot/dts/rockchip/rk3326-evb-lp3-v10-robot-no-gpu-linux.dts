@@ -677,17 +677,17 @@
 	cif-pin-m0 {
 		cif_pin_m0: cif-pin-m0 {
 			rockchip,pins =
-				<2 RK_PA0 RK_FUNC_1 &pcfg_pull_none>,/* cif_data2 */
-				<2 RK_PA1 RK_FUNC_1 &pcfg_pull_none>,/* cif_data3 */
-				<2 RK_PA2 RK_FUNC_1 &pcfg_pull_none>,/* cif_data4 */
-				<2 RK_PA3 RK_FUNC_1 &pcfg_pull_none>,/* cif_data5 */
-				<2 RK_PA4 RK_FUNC_1 &pcfg_pull_none>,/* cif_data6 */
-				<2 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,/* cif_data7 */
-				<2 RK_PA6 RK_FUNC_1 &pcfg_pull_none>,/* cif_data8 */
-				<2 RK_PA7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data9 */
-				<2 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,/* cif_sync */
-				<2 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,/* cif_href */
-				<2 RK_PB2 RK_FUNC_1 &pcfg_pull_none>;/* cif_clkin */
+				<2 RK_PA0 1 &pcfg_pull_none>,/* cif_data2 */
+				<2 RK_PA1 1 &pcfg_pull_none>,/* cif_data3 */
+				<2 RK_PA2 1 &pcfg_pull_none>,/* cif_data4 */
+				<2 RK_PA3 1 &pcfg_pull_none>,/* cif_data5 */
+				<2 RK_PA4 1 &pcfg_pull_none>,/* cif_data6 */
+				<2 RK_PA5 1 &pcfg_pull_none>,/* cif_data7 */
+				<2 RK_PA6 1 &pcfg_pull_none>,/* cif_data8 */
+				<2 RK_PA7 1 &pcfg_pull_none>,/* cif_data9 */
+				<2 RK_PB0 1 &pcfg_pull_none>,/* cif_sync */
+				<2 RK_PB1 1 &pcfg_pull_none>,/* cif_href */
+				<2 RK_PB2 1 &pcfg_pull_none>;/* cif_clkin */
 		};
 	};
 
@@ -704,12 +704,12 @@
 
 		soc_slppin_slp: soc_slppin_slp {
 			rockchip,pins =
-				<0 RK_PA4 RK_FUNC_1 &pcfg_pull_none>;
+				<0 RK_PA4 1 &pcfg_pull_none>;
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
 			rockchip,pins =
-				<0 RK_PA4 RK_FUNC_2 &pcfg_pull_none>;
+				<0 RK_PA4 2 &pcfg_pull_none>;
 		};
 	};
 

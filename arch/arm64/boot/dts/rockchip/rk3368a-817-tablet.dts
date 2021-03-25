@@ -196,7 +196,7 @@
 
 &cif_clkout {
 	/* cif_clkout */
-	rockchip,pins = <1 11 RK_FUNC_1 &pcfg_pull_none_4ma>;
+	rockchip,pins = <1 RK_PB3 1 &pcfg_pull_none_4ma>;
 };
 
 &cpu_l0 {
@@ -1040,24 +1040,24 @@
 &isp_dvp_d2d9 {
 	rockchip,pins =
 			/* cif_data4 ... cif_data9 */
-			<1 2 RK_FUNC_1 &pcfg_pull_down>,
-			<1 3 RK_FUNC_1 &pcfg_pull_down>,
-			<1 4 RK_FUNC_1 &pcfg_pull_down>,
-			<1 5 RK_FUNC_1 &pcfg_pull_down>,
-			<1 6 RK_FUNC_1 &pcfg_pull_down>,
-			<1 7 RK_FUNC_1 &pcfg_pull_down>,
+			<1 RK_PA2 1 &pcfg_pull_down>,
+			<1 RK_PA3 1 &pcfg_pull_down>,
+			<1 RK_PA4 1 &pcfg_pull_down>,
+			<1 RK_PA5 1 &pcfg_pull_down>,
+			<1 RK_PA6 1 &pcfg_pull_down>,
+			<1 RK_PA7 1 &pcfg_pull_down>,
 			/* cif_sync, cif_href */
-			<1 8 RK_FUNC_1 &pcfg_pull_down>,
-			<1 9 RK_FUNC_1 &pcfg_pull_down>,
+			<1 RK_PB0 1 &pcfg_pull_down>,
+			<1 RK_PB1 1 &pcfg_pull_down>,
 			/* cif_clkin */
-			<1 10 RK_FUNC_1 &pcfg_pull_down>;
+			<1 RK_PB2 1 &pcfg_pull_down>;
 };
 
 &isp_dvp_d10d11 {
 	rockchip,pins =
 			/* cif_data10, cif_data11 */
-			<1 14 RK_FUNC_1 &pcfg_pull_down>,
-			<1 15 RK_FUNC_1 &pcfg_pull_down>;
+			<1 RK_PB6 1 &pcfg_pull_down>,
+			<1 RK_PB7 1 &pcfg_pull_down>;
 };
 
 &isp_mmu {
@@ -1120,7 +1120,7 @@
 
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <0 23 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -1137,34 +1137,34 @@
 
 		soc_slppin_slp: soc_slppin_slp {
 			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_1 &pcfg_pull_none>;
+				<0 RK_PA0 1 &pcfg_pull_none>;
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
 			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_2 &pcfg_pull_none>;
+				<0 RK_PA0 2 &pcfg_pull_none>;
 		};
 
 		vsel_gpio: vsel-gpio {
-			rockchip,pins = <0 0 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
 	mpu6500 {
 		mpu6500_irq_gpio: mpu6500-irq-gpio {
-			rockchip,pins = <3 14 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	cm3218 {
 		cm3218_irq_gpio: cm3218-irq-gpio {
-			rockchip,pins = <3 15 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	dc_det {
 		dc_irq_gpio: dc-irq-gpio {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -1197,19 +1197,19 @@
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <3 4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-bluetooth {
 		uart0_rts_gpio: uart0-rts-gpio {
-			rockchip,pins = <2 27 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

@@ -91,28 +91,28 @@
 /* Pinctrl overrides for -r0; in same order as parent */
 
 &ec_ap_int_l {
-	rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_up>;
+	rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
 };
 
 &pp1500_en {
-	rockchip,pins = <RK_GPIO1 11 RK_FUNC_GPIO &pcfg_pull_none>;
+	rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 };
 
 &pp1800_audio_en {
-	rockchip,pins = <RK_GPIO0 1 RK_FUNC_GPIO
+	rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO
 			 &pcfg_pull_none>;
 };
 
 &pp3000_en {
-	rockchip,pins = <RK_GPIO1 12 RK_FUNC_GPIO
+	rockchip,pins = <1 RK_PB4 RK_FUNC_GPIO
 			 &pcfg_pull_none>;
 };
 
 &wlan_module_pd_l {
-	rockchip,pins = <RK_GPIO0 8 RK_FUNC_GPIO
+	rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO
 			 &pcfg_pull_none>;
 };
 
 &sdmmc_cd_gpio {
-	rockchip,pins = <4 26 RK_FUNC_GPIO &pcfg_pull_none>;
+	rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 };

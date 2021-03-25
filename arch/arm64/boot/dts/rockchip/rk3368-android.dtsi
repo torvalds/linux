@@ -281,77 +281,77 @@
 &pinctrl {
 	isp {
 		cif_clkout: cif-clkout {
-			rockchip,pins = <1 11 RK_FUNC_1 &pcfg_pull_none>;//cif_clkout
+			rockchip,pins = <1 RK_PB3 1 &pcfg_pull_none>;//cif_clkout
 		};
 
 		isp_dvp_d2d9: isp-dvp-d2d9 {
 			rockchip,pins =
-					<1 0 RK_FUNC_1 &pcfg_pull_none>,//cif_data2
-					<1 1 RK_FUNC_1 &pcfg_pull_none>,//cif_data3
-					<1 2 RK_FUNC_1 &pcfg_pull_none>,//cif_data4
-					<1 3 RK_FUNC_1 &pcfg_pull_none>,//cif_data5
-					<1 4 RK_FUNC_1 &pcfg_pull_none>,//cif_data6
-					<1 5 RK_FUNC_1 &pcfg_pull_none>,//cif_data7
-					<1 6 RK_FUNC_1 &pcfg_pull_none>,//cif_data8
-					<1 7 RK_FUNC_1 &pcfg_pull_none>,//cif_data9
-					<1 8 RK_FUNC_1 &pcfg_pull_none>,//cif_sync
-					<1 9 RK_FUNC_1 &pcfg_pull_none>,//cif_href
-					<1 10 RK_FUNC_1 &pcfg_pull_none>,//cif_clkin
-					<1 11 RK_FUNC_1 &pcfg_pull_none>;//cif_clkout
+					<1 RK_PA0 1 &pcfg_pull_none>,//cif_data2
+					<1 RK_PA1 1 &pcfg_pull_none>,//cif_data3
+					<1 RK_PA2 1 &pcfg_pull_none>,//cif_data4
+					<1 RK_PA3 1 &pcfg_pull_none>,//cif_data5
+					<1 RK_PA4 1 &pcfg_pull_none>,//cif_data6
+					<1 RK_PA5 1 &pcfg_pull_none>,//cif_data7
+					<1 RK_PA6 1 &pcfg_pull_none>,//cif_data8
+					<1 RK_PA7 1 &pcfg_pull_none>,//cif_data9
+					<1 RK_PB0 1 &pcfg_pull_none>,//cif_sync
+					<1 RK_PB1 1 &pcfg_pull_none>,//cif_href
+					<1 RK_PB2 1 &pcfg_pull_none>,//cif_clkin
+					<1 RK_PB3 1 &pcfg_pull_none>;//cif_clkout
 		};
 
 		isp_dvp_d0d1: isp-dvp-d0d1 {
 			rockchip,pins =
-					<1 12 RK_FUNC_1 &pcfg_pull_none>,//cif_data0
-					<1 13 RK_FUNC_1 &pcfg_pull_none>;//cif_data1
+					<1 RK_PB4 1 &pcfg_pull_none>,//cif_data0
+					<1 RK_PB5 1 &pcfg_pull_none>;//cif_data1
 		};
 
 		isp_dvp_d10d11:isp_d10d11 {
 			rockchip,pins =
-					<1 14 RK_FUNC_1 &pcfg_pull_none>,//cif_data10
-					<1 15 RK_FUNC_1 &pcfg_pull_none>;//cif_data11
+					<1 RK_PB6 1 &pcfg_pull_none>,//cif_data10
+					<1 RK_PB7 1 &pcfg_pull_none>;//cif_data11
 		};
 
 		isp_dvp_d0d7: isp-dvp-d0d7 {
 			rockchip,pins =
-					<1 12 RK_FUNC_1 &pcfg_pull_none>,//cif_data0
-					<1 13 RK_FUNC_1 &pcfg_pull_none>,//cif_data1
-					<1 0 RK_FUNC_1 &pcfg_pull_none>,//cif_data2
-					<1 1 RK_FUNC_1 &pcfg_pull_none>,//cif_data3
-					<1 2 RK_FUNC_1 &pcfg_pull_none>,//cif_data4
-					<1 3 RK_FUNC_1 &pcfg_pull_none>,//cif_data5
-					<1 4 RK_FUNC_1 &pcfg_pull_none>,//cif_data6
-					<1 5 RK_FUNC_1 &pcfg_pull_none>;//cif_data7
+					<1 RK_PB4 1 &pcfg_pull_none>,//cif_data0
+					<1 RK_PB5 1 &pcfg_pull_none>,//cif_data1
+					<1 RK_PA0 1 &pcfg_pull_none>,//cif_data2
+					<1 RK_PA1 1 &pcfg_pull_none>,//cif_data3
+					<1 RK_PA2 1 &pcfg_pull_none>,//cif_data4
+					<1 RK_PA3 1 &pcfg_pull_none>,//cif_data5
+					<1 RK_PA4 1 &pcfg_pull_none>,//cif_data6
+					<1 RK_PA5 1 &pcfg_pull_none>;//cif_data7
 		};
 
 		isp_dvp_d4d11: isp-dvp-d4d11 {
 			rockchip,pins =
-					<1 2 RK_FUNC_1 &pcfg_pull_none>,//cif_data4
-					<1 3 RK_FUNC_1 &pcfg_pull_none>,//cif_data5
-					<1 4 RK_FUNC_1 &pcfg_pull_none>,//cif_data6
-					<1 5 RK_FUNC_1 &pcfg_pull_none>,//cif_data7
-					<1 6 RK_FUNC_1 &pcfg_pull_none>,//cif_data8
-					<1 7 RK_FUNC_1 &pcfg_pull_none>,//cif_data9
-					<1 14 RK_FUNC_1 &pcfg_pull_none>,//cif_data10
-					<1 17 RK_FUNC_1 &pcfg_pull_none>;//cif_data11
+					<1 RK_PA2 1 &pcfg_pull_none>,//cif_data4
+					<1 RK_PA3 1 &pcfg_pull_none>,//cif_data5
+					<1 RK_PA4 1 &pcfg_pull_none>,//cif_data6
+					<1 RK_PA5 1 &pcfg_pull_none>,//cif_data7
+					<1 RK_PA6 1 &pcfg_pull_none>,//cif_data8
+					<1 RK_PA7 1 &pcfg_pull_none>,//cif_data9
+					<1 RK_PB6 1 &pcfg_pull_none>,//cif_data10
+					<1 RK_PC1 1 &pcfg_pull_none>;//cif_data11
 		};
 
 		isp_shutter: isp-shutter {
 			rockchip,pins =
-					<3 19 RK_FUNC_2 &pcfg_pull_none>, //SHUTTEREN
-					<3 22 RK_FUNC_2 &pcfg_pull_none>;//SHUTTERTRIG
+					<3 RK_PC3 2 &pcfg_pull_none>, //SHUTTEREN
+					<3 RK_PC6 2 &pcfg_pull_none>;//SHUTTERTRIG
 		};
 
 		isp_flash_trigger: isp-flash-trigger {
-			rockchip,pins = <3 20 RK_FUNC_2 &pcfg_pull_none>; //ISP_FLASHTRIGOU
+			rockchip,pins = <3 RK_PC4 2 &pcfg_pull_none>; //ISP_FLASHTRIGOU
 		};
 
 		isp_prelight: isp-prelight {
-			rockchip,pins = <3 21 RK_FUNC_2 &pcfg_pull_none>;//ISP_PRELIGHTTRIG
+			rockchip,pins = <3 RK_PC5 2 &pcfg_pull_none>;//ISP_PRELIGHTTRIG
 		};
 
 		isp_flash_trigger_as_gpio: isp_flash_trigger_as_gpio {
-			rockchip,pins = <3 20 RK_FUNC_GPIO &pcfg_pull_none>;//ISP_FLASHTRIGOU
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;//ISP_FLASHTRIGOU
 		};
 	};
 };

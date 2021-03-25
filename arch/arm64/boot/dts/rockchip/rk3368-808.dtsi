@@ -908,57 +908,57 @@
 
 	i2s {
 		i2s_2ch_bus: i2s-2ch-bus {
-			rockchip,pins = <2 12 RK_FUNC_1 &pcfg_pull_none>,
-				<2 13 RK_FUNC_1 &pcfg_pull_none>,
-				<2 14 RK_FUNC_1 &pcfg_pull_none>,
-				<2 15 RK_FUNC_1 &pcfg_pull_none>,
-				<2 16 RK_FUNC_1 &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB4 1 &pcfg_pull_none>,
+				<2 RK_PB5 1 &pcfg_pull_none>,
+				<2 RK_PB6 1 &pcfg_pull_none>,
+				<2 RK_PB7 1 &pcfg_pull_none>,
+				<2 RK_PC0 1 &pcfg_pull_none>;
 		};
 	};
 
 	pmic {
 		pmic_sleep: pmic-sleep {
-			rockchip,pins = <0 0 RK_FUNC_2 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_none>;
 		};
 
 		pmic_int: pmic-int {
-			rockchip,pins = <0 1 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	mpu6500 {
 		mpu6500_irq_gpio: mpu6500-irq-gpio {
-			rockchip,pins = <2 17 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	ak8963 {
 		ak8963_irq_gpio: ak8963_irq_gpio {
-			rockchip,pins = <2 18 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	dc_det {
 		dc_irq_gpio: dc-irq-gpio {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <3 4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb {
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-bluetooth {
 		uart0_rts_gpio: uart0-rts-gpio {
-			rockchip,pins = <2 27 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

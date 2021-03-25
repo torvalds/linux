@@ -150,7 +150,7 @@
 &pinctrl {
 	lcd-panel {
 		lcd_panel_reset: lcd-panel-reset {
-			rockchip,pins = <1 23 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

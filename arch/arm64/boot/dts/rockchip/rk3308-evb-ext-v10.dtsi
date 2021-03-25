@@ -196,11 +196,11 @@
 		spi_init_cmd: spi-init-cmd {
 			rockchip,pins =
 				/* spi sdi */
-				<1 RK_PC7 0 &pcfg_pull_none>,
+				<1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>,
 				/* spi scl */
-				<1 RK_PD0 0 &pcfg_pull_none>,
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>,
 				/* spi cs */
-				<1 RK_PD1 0 &pcfg_pull_none>;
+				<1 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
