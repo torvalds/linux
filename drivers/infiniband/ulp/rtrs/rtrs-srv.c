@@ -1684,7 +1684,6 @@ static struct rtrs_srv_sess *__alloc_sess(struct rtrs_srv *srv,
 	struct rtrs_srv_sess *sess;
 	int err = -ENOMEM;
 	char str[NAME_MAX];
-	struct rtrs_sess *s;
 	struct rtrs_addr path;
 
 	if (srv->paths_num >= MAX_PATHS_NUM) {
@@ -1722,7 +1721,6 @@ static struct rtrs_srv_sess *__alloc_sess(struct rtrs_srv *srv,
 	sess->s.src_addr = cm_id->route.addr.src_addr;
 
 	/* temporary until receiving session-name from client */
-	s = &sess->s;
 	path.src = &sess->s.src_addr;
 	path.dst = &sess->s.dst_addr;
 	rtrs_addr_to_str(&path, str, sizeof(str));
