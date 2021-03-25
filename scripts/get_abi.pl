@@ -281,8 +281,11 @@ sub create_labels {
 # Outputs the book on ReST format
 #
 
-# \b doesn't work well with paths. So, we need to define something else
-my $bondary = qr { (?<![\w\/\`\{])(?=[\w\/\`\{])|(?<=[\w\/\`\{])(?![\w\/\`\{]) }x;
+# \b doesn't work well with paths. So, we need to define something else:
+# Boundaries are punct characters, spaces and end-of-line
+my $start = qr {(^|\s|\() }x;
+my $bondary = qr { ([,.:;\)\s]|\z) }x;
+my $xref_match = qr { $start(\/sys\/[^,.:;\)\s]+)$bondary }x;
 my $symbols = qr { ([\x01-\x08\x0e-\x1f\x21-\x2f\x3a-\x40\x7b-\xff]) }x;
 
 sub output_rest {
@@ -390,16 +393,18 @@ sub output_rest {
 					$desc =~ s,\bDocumentation/ABI/$f\b,:ref:`$xref`,g;
 				}
 
-				@matches = $desc =~ m,$bondary(/sys/[^\s\.\,\;\:\*\s\`\'\(\)]+)$bondary,;
+				# Seek for cross reference symbols like /sys/...
+				@matches = $desc =~ m/$xref_match/g;
 
 				foreach my $s (@matches) {
+					next if (!($s =~ m,/,));
 					if (defined($data{$s}) && defined($data{$s}->{label})) {
 						my $xref = $s;
 
 						$xref =~ s/$symbols/\\$1/g;
 						$xref = ":ref:`$xref <" . $data{$s}->{label} . ">`";
 
-						$desc =~ s,$bondary$s$bondary,$xref,g;
+						$desc =~ s,$start$s$bondary,$1$xref$2,g;
 					}
 				}
 
