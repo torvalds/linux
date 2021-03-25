@@ -332,6 +332,7 @@ struct pch_vbus_gpio_data {
  * @dma_addr:		DMA pool for received
  * @setup_data:		Received setup data
  * @base_addr:		for mapped device memory
+ * @bar:		PCI BAR used for mapped device memory
  * @cfg_data:		current cfg, intf, and alt in use
  * @vbus_gpio:		GPIO informaton for detecting VBUS
  */
@@ -354,6 +355,7 @@ struct pch_udc_dev {
 	dma_addr_t			dma_addr;
 	struct usb_ctrlrequest		setup_data;
 	void __iomem			*base_addr;
+	unsigned short			bar;
 	struct pch_udc_cfg_data		cfg_data;
 	struct pch_vbus_gpio_data	vbus_gpio;
 };
@@ -2960,6 +2962,14 @@ static int pch_udc_minnow_platform_init(struct device *d)
 	return pch_vbus_gpio_add_table(d, &pch_udc_minnow_vbus_gpio_table);
 }
 
+static int pch_udc_quark_platform_init(struct device *d)
+{
+	struct pch_udc_dev *dev = dev_get_drvdata(d);
+
+	dev->bar = PCH_UDC_PCI_BAR_QUARK_X1000;
+	return 0;
+}
+
 static void pch_udc_shutdown(struct pci_dev *pdev)
 {
 	struct pch_udc_dev *dev = pci_get_drvdata(pdev);
@@ -3030,7 +3040,6 @@ typedef int (*platform_init_fn)(struct device *);
 static int pch_udc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	platform_init_fn platform_init = (platform_init_fn)id->driver_data;
-	int			bar;
 	int			retval;
 	struct pch_udc_dev	*dev;
 
@@ -3044,6 +3053,7 @@ static int pch_udc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (retval)
 		return retval;
 
+	dev->bar = PCH_UDC_PCI_BAR;
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
@@ -3054,18 +3064,12 @@ static int pch_udc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			return retval;
 	}
 
-	/* Determine BAR based on PCI ID */
-	if (id->device == PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC)
-		bar = PCH_UDC_PCI_BAR_QUARK_X1000;
-	else
-		bar = PCH_UDC_PCI_BAR;
-
 	/* PCI resource allocation */
-	retval = pcim_iomap_regions(pdev, 1 << bar, pci_name(pdev));
+	retval = pcim_iomap_regions(pdev, BIT(dev->bar), pci_name(pdev));
 	if (retval)
 		return retval;
 
-	dev->base_addr = pcim_iomap_table(pdev)[bar];
+	dev->base_addr = pcim_iomap_table(pdev)[dev->bar];
 
 	/* initialize the hardware */
 	retval = pch_udc_pcd_init(dev);
@@ -3113,6 +3117,7 @@ static const struct pci_device_id pch_udc_pcidev_id[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC),
 		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
+		.driver_data = (kernel_ulong_t)&pch_udc_quark_platform_init,
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC,
