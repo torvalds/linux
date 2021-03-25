@@ -9783,7 +9783,7 @@ static bool active_planes_affects_min_cdclk(struct drm_i915_private *dev_priv)
 	/* See {hsw,vlv,ivb}_plane_ratio() */
 	return IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv) ||
 		IS_CHERRYVIEW(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
-		IS_IVYBRIDGE(dev_priv) || (DISPLAY_VER(dev_priv) >= 11);
+		IS_IVYBRIDGE(dev_priv);
 }
 
 static int intel_crtc_add_bigjoiner_planes(struct intel_atomic_state *state,
@@ -9870,13 +9870,7 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 		old_active_planes = old_crtc_state->active_planes & ~BIT(PLANE_CURSOR);
 		new_active_planes = new_crtc_state->active_planes & ~BIT(PLANE_CURSOR);
 
-		/*
-		 * Not only the number of planes, but if the plane configuration had
-		 * changed might already mean we need to recompute min CDCLK,
-		 * because different planes might consume different amount of Dbuf bandwidth
-		 * according to formula: Bw per plane = Pixel rate * bpp * pipe/plane scale factor
-		 */
-		if (old_active_planes == new_active_planes)
+		if (hweight8(old_active_planes) == hweight8(new_active_planes))
 			continue;
 
 		ret = intel_crtc_add_planes_to_state(state, crtc, new_active_planes);
