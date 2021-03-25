@@ -4,6 +4,64 @@
 #include "ctree.h"
 #include "subpage.h"
 
+/*
+ * Subpage (sectorsize < PAGE_SIZE) support overview:
+ *
+ * Limitations:
+ *
+ * - Only support 64K page size for now
+ *   This is to make metadata handling easier, as 64K page would ensure
+ *   all nodesize would fit inside one page, thus we don't need to handle
+ *   cases where a tree block crosses several pages.
+ *
+ * - Only metadata read-write for now
+ *   The data read-write part is in development.
+ *
+ * - Metadata can't cross 64K page boundary
+ *   btrfs-progs and kernel have done that for a while, thus only ancient
+ *   filesystems could have such problem.  For such case, do a graceful
+ *   rejection.
+ *
+ * Special behavior:
+ *
+ * - Metadata
+ *   Metadata read is fully supported.
+ *   Meaning when reading one tree block will only trigger the read for the
+ *   needed range, other unrelated range in the same page will not be touched.
+ *
+ *   Metadata write support is partial.
+ *   The writeback is still for the full page, but we will only submit
+ *   the dirty extent buffers in the page.
+ *
+ *   This means, if we have a metadata page like this:
+ *
+ *   Page offset
+ *   0         16K         32K         48K        64K
+ *   |/////////|           |///////////|
+ *        \- Tree block A        \- Tree block B
+ *
+ *   Even if we just want to writeback tree block A, we will also writeback
+ *   tree block B if it's also dirty.
+ *
+ *   This may cause extra metadata writeback which results more COW.
+ *
+ * Implementation:
+ *
+ * - Common
+ *   Both metadata and data will use a new structure, btrfs_subpage, to
+ *   record the status of each sector inside a page.  This provides the extra
+ *   granularity needed.
+ *
+ * - Metadata
+ *   Since we have multiple tree blocks inside one page, we can't rely on page
+ *   locking anymore, or we will have greatly reduced concurrency or even
+ *   deadlocks (hold one tree lock while trying to lock another tree lock in
+ *   the same page).
+ *
+ *   Thus for metadata locking, subpage support relies on io_tree locking only.
+ *   This means a slightly higher tree locking latency.
+ */
+
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct page *page, enum btrfs_subpage_type type)
 {
