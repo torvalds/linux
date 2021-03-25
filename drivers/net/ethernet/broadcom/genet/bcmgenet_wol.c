@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/clk.h>
-#include <linux/version.h>
 #include <linux/platform_device.h>
 #include <net/arp.h>
 
