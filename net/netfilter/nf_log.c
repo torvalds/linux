@@ -170,9 +170,6 @@ int nf_logger_find_get(int pf, enum nf_log_type type)
 		return 0;
 	}
 
-	if (rcu_access_pointer(loggers[pf][type]) == NULL)
-		request_module("nf-logger-%u-%u", pf, type);
-
 	rcu_read_lock();
 	logger = rcu_dereference(loggers[pf][type]);
 	if (logger == NULL)

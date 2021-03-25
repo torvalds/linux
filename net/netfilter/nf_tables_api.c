@@ -586,8 +586,8 @@ struct nft_module_request {
 };
 
 #ifdef CONFIG_MODULES
-static __printf(2, 3) int nft_request_module(struct net *net, const char *fmt,
-					     ...)
+__printf(2, 3) int nft_request_module(struct net *net, const char *fmt,
+				      ...)
 {
 	char module_name[MODULE_NAME_LEN];
 	struct nft_module_request *req;
@@ -620,6 +620,7 @@ static __printf(2, 3) int nft_request_module(struct net *net, const char *fmt,
 
 	return -EAGAIN;
 }
+EXPORT_SYMBOL_GPL(nft_request_module);
 #endif
 
 static void lockdep_nfnl_nft_mutex_not_held(void)
