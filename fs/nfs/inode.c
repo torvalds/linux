@@ -802,16 +802,6 @@ static void nfs_readdirplus_parent_cache_hit(struct dentry *dentry)
 	dput(parent);
 }
 
-static bool nfs_need_revalidate_inode(struct inode *inode)
-{
-	if (NFS_I(inode)->cache_validity &
-			(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_LABEL))
-		return true;
-	if (nfs_attribute_cache_expired(inode))
-		return true;
-	return false;
-}
-
 static u32 nfs_get_valid_attrmask(struct inode *inode)
 {
 	unsigned long cache_validity = READ_ONCE(NFS_I(inode)->cache_validity);
@@ -1004,7 +994,6 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 {
 	struct nfs_inode *nfsi;
 	struct inode *inode;
-	struct nfs_server *server;
 
 	if (!(ctx->mode & FMODE_WRITE))
 		return;
@@ -1020,10 +1009,10 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 		return;
 	if (!list_empty(&nfsi->open_files))
 		return;
-	server = NFS_SERVER(inode);
-	if (server->flags & NFS_MOUNT_NOCTO)
+	if (NFS_SERVER(inode)->flags & NFS_MOUNT_NOCTO)
 		return;
-	nfs_revalidate_inode(server, inode);
+	nfs_revalidate_inode(inode,
+			     NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_SIZE);
 }
 EXPORT_SYMBOL_GPL(nfs_close_context);
 
@@ -1278,16 +1267,16 @@ int nfs_attribute_cache_expired(struct inode *inode)
 
 /**
  * nfs_revalidate_inode - Revalidate the inode attributes
- * @server: pointer to nfs_server struct
  * @inode: pointer to inode struct
+ * @flags: cache flags to check
  *
  * Updates inode attribute information by retrieving the data from the server.
  */
-int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
+int nfs_revalidate_inode(struct inode *inode, unsigned long flags)
 {
-	if (!nfs_need_revalidate_inode(inode))
+	if (!nfs_check_cache_invalid(inode, flags))
 		return NFS_STALE(inode) ? -ESTALE : 0;
-	return __nfs_revalidate_inode(server, inode);
+	return __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 }
 EXPORT_SYMBOL_GPL(nfs_revalidate_inode);
 

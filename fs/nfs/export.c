@@ -169,11 +169,7 @@ out:
 
 static u64 nfs_fetch_iversion(struct inode *inode)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
-
-	if (nfs_check_cache_invalid(inode, NFS_INO_INVALID_CHANGE |
-						   NFS_INO_REVAL_PAGECACHE))
-		__nfs_revalidate_inode(server, inode);
+	nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
 	return inode_peek_iversion_raw(inode);
 }
 

@@ -5868,7 +5868,7 @@ static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
 
 	if (!nfs4_server_supports_acls(server))
 		return -EOPNOTSUPP;
-	ret = nfs_revalidate_inode(server, inode);
+	ret = nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
 	if (ret < 0)
 		return ret;
 	if (NFS_I(inode)->cache_validity & NFS_INO_INVALID_ACL)
@@ -7619,7 +7619,7 @@ static int nfs4_xattr_get_nfs4_user(const struct xattr_handler *handler,
 			return -EACCES;
 	}
 
-	ret = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	ret = nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
 	if (ret)
 		return ret;
 
@@ -7650,7 +7650,7 @@ nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
 			return 0;
 	}
 
-	ret = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	ret = nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
 	if (ret)
 		return ret;
 

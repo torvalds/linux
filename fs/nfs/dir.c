@@ -3006,7 +3006,7 @@ out_notsup:
 	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
-	res = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	res = nfs_revalidate_inode(inode, NFS_INO_INVALID_OTHER);
 	if (res == 0)
 		res = generic_permission(&init_user_ns, inode, mask);
 	goto out;
