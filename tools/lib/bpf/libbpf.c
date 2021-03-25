@@ -1921,9 +1921,9 @@ resolve_func_ptr(const struct btf *btf, __u32 id, __u32 *res_id)
 	return btf_is_func_proto(t) ? t : NULL;
 }
 
-static const char *btf_kind_str(const struct btf_type *t)
+static const char *__btf_kind_str(__u16 kind)
 {
-	switch (btf_kind(t)) {
+	switch (kind) {
 	case BTF_KIND_UNKN: return "void";
 	case BTF_KIND_INT: return "int";
 	case BTF_KIND_PTR: return "ptr";
@@ -1943,6 +1943,11 @@ static const char *btf_kind_str(const struct btf_type *t)
 	case BTF_KIND_FLOAT: return "float";
 	default: return "unknown";
 	}
+}
+
+static const char *btf_kind_str(const struct btf_type *t)
+{
+	return __btf_kind_str(btf_kind(t));
 }
 
 /*
@@ -7395,18 +7400,17 @@ out:
 	return err;
 }
 
-static int bpf_object__resolve_ksym_var_btf_id(struct bpf_object *obj,
-					       struct extern_desc *ext)
+static int find_ksym_btf_id(struct bpf_object *obj, const char *ksym_name,
+			    __u16 kind, struct btf **res_btf,
+			    int *res_btf_fd)
 {
-	const struct btf_type *targ_var, *targ_type;
-	__u32 targ_type_id, local_type_id;
-	const char *targ_var_name;
 	int i, id, btf_fd, err;
 	struct btf *btf;
 
 	btf = obj->btf_vmlinux;
 	btf_fd = 0;
-	id = btf__find_by_name_kind(btf, ext->name, BTF_KIND_VAR);
+	id = btf__find_by_name_kind(btf, ksym_name, kind);
+
 	if (id == -ENOENT) {
 		err = load_module_btfs(obj);
 		if (err)
@@ -7416,16 +7420,34 @@ static int bpf_object__resolve_ksym_var_btf_id(struct bpf_object *obj,
 			btf = obj->btf_modules[i].btf;
 			/* we assume module BTF FD is always >0 */
 			btf_fd = obj->btf_modules[i].fd;
-			id = btf__find_by_name_kind(btf, ext->name, BTF_KIND_VAR);
+			id = btf__find_by_name_kind(btf, ksym_name, kind);
 			if (id != -ENOENT)
 				break;
 		}
 	}
 	if (id <= 0) {
-		pr_warn("extern (var ksym) '%s': failed to find BTF ID in kernel BTF(s).\n",
-			ext->name);
+		pr_warn("extern (%s ksym) '%s': failed to find BTF ID in kernel BTF(s).\n",
+			__btf_kind_str(kind), ksym_name);
 		return -ESRCH;
 	}
+
+	*res_btf = btf;
+	*res_btf_fd = btf_fd;
+	return id;
+}
+
+static int bpf_object__resolve_ksym_var_btf_id(struct bpf_object *obj,
+					       struct extern_desc *ext)
+{
+	const struct btf_type *targ_var, *targ_type;
+	__u32 targ_type_id, local_type_id;
+	const char *targ_var_name;
+	int id, btf_fd = 0, err;
+	struct btf *btf = NULL;
+
+	id = find_ksym_btf_id(obj, ext->name, BTF_KIND_VAR, &btf, &btf_fd);
+	if (id < 0)
+		return id;
 
 	/* find local type_id */
 	local_type_id = ext->ksym.type_id;
