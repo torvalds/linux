@@ -436,7 +436,6 @@ again:
 	return ret;
 }
 
-void unrecoverable_exception(struct pt_regs *regs);
 void preempt_schedule_irq(void);
 
 notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsigned long msr)

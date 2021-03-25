@@ -5,9 +5,15 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#include <linux/crc32.h>
+
 #include "debug.h"
 #include "wfx.h"
 #include "sta.h"
+#include "main.h"
+#include "hif_tx.h"
 #include "hif_tx_mib.h"
 
 #define CREATE_TRACE_POINTS

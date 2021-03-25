@@ -2442,6 +2442,9 @@ static int handle_insn_ops(struct instruction *insn, struct insn_state *state)
 		if (update_cfi_state(insn, &state->cfi, op))
 			return 1;
 
+		if (!insn->alt_group)
+			continue;
+
 		if (op->dest.type == OP_DEST_PUSHF) {
 			if (!state->uaccess_stack) {
 				state->uaccess_stack = 1;
