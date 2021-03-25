@@ -5885,7 +5885,6 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 	unsigned int ratio;
 	LIST_HEAD(invalid_list);
 	bool flush = false;
-	gfn_t gfn_end;
 	ulong to_zap;
 
 	rcu_idx = srcu_read_lock(&kvm->srcu);
@@ -5907,8 +5906,7 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 				      lpage_disallowed_link);
 		WARN_ON_ONCE(!sp->lpage_disallowed);
 		if (is_tdp_mmu_page(sp)) {
-			gfn_end = sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level);
-			flush = kvm_tdp_mmu_zap_gfn_range(kvm, sp->gfn, gfn_end);
+			flush = kvm_tdp_mmu_zap_sp(kvm, sp);
 		} else {
 			kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
 			WARN_ON_ONCE(sp->lpage_disallowed);
